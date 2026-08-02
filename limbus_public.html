@@ -1672,7 +1672,7 @@ select optgroup{background:var(--surface-3);color:var(--text-2);font-weight:600}
 // データURLは設定画面から変更できる（変更後は再読み込み）
 let DB=null;
 const DB_URL_KEY='lbt_db_url';
-let DB_DEFAULT_URL='';  // 公開時にここへ既定のデータURLを記入する
+let DB_DEFAULT_URL='https://docs.google.com/spreadsheets/d/e/2PACX-1vQAmy19TnsSlntxGmpYtc4QCzmnDErBHRTcUBUNi62HGzcjppt28MsBDeiciGYd5S45k6piHNs8kWst/pub?gid=1012101752&single=true&output=csv';  // 公開時にここへ既定のデータURLを記入する
 
 // CSVテキストを行配列に分解する（引用符つきセル対応）
 function parseCSV(text){
