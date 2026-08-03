@@ -4,7 +4,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: https:; connect-src 'self' https:; base-uri 'none'; form-action 'none'">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>◈ LIMBUS TRPG | CCFOLIA BUILDER v4</title>
+    <title>◈ LIMBUS TRPG | CCFOLIA BUILDER v44</title>
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Cormorant+Garamond:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -548,6 +548,19 @@ a[href^="#section-"]{transition:background .12s,color .12s,border-color .12s;bor
 
         /* Validation badge */
         .valid-badge { margin-left: auto; font-size: 10px; padding: 2px 8px; border-radius: 10px; cursor: help; white-space: pre-line; }
+/* セクション完成度ドット（nav/mobile-tab共通。色のみ依存を避け done=実線/todo=点線で二重符号化） */
+.comp-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-top:1px;flex-shrink:0}
+.comp-dot.done{background:var(--ok-text,#7ec98a);box-shadow:0 0 4px rgba(126,201,138,.6)}
+.comp-dot.todo{background:transparent;border:1px dashed var(--warning,#e0a030);width:5px;height:5px}
+.nav-item{position:relative}
+.mobile-tab{position:relative}
+.mobile-tab .comp-dot{position:absolute;top:4px;right:calc(50% - 18px)}
+/* モバイル向けフローティング警告バッジ（タブバー直上。押すと最初の問題箇所へジャンプ） */
+#valid-fab{display:none;position:fixed;bottom:64px;right:12px;z-index:90;
+  align-items:center;justify-content:center;min-width:44px;height:44px;padding:0 12px;
+  border-radius:22px;background:rgba(224,160,48,.92);color:#1a1408;font-weight:700;font-size:13px;
+  border:1px solid rgba(255,220,150,.6);box-shadow:0 4px 14px rgba(0,0,0,.45);cursor:pointer}
+@media (min-width:769px){ #valid-fab{display:none !important} }
         .valid-badge.ok { color: var(--ok-text); background: rgba(var(--ok-rgb),.12); }
         .valid-badge.warn { color: var(--warning); background: rgba(224,160,48,.15); }
         /* モバイル全画面プレビュー */
@@ -1106,7 +1119,7 @@ select optgroup{background:var(--surface-3);color:var(--text-2);font-weight:600}
                 <span id="lbt-brand"><span>LIMBUS BUILD TERMINAL</span></span>
             </div>
             <div class="font-rajdhani font-medium text-limbus-text-dim text-sm mt-1 border-l border-limbus-border-dim pl-4 hidden sm:block">
-                CCFOLIA BUILDER <span class="text-limbus-gold">v26</span>
+                CCFOLIA BUILDER <span class="text-limbus-gold" id="lbt-version">v44</span>
             </div>
         </div>
         <div class="flex items-center gap-2">
@@ -1609,7 +1622,7 @@ select optgroup{background:var(--surface-3);color:var(--text-2);font-weight:600}
 
         <footer class="mt-20 py-12 border-t border-limbus-border-dim text-center">
             <div class="font-rajdhani text-limbus-gold text-lg font-bold mb-2">◈ LIMBUS TRPG BUILDER</div>
-            <p class="text-xs text-limbus-text-dim">CCFOLIA CHARACTER DATA GENERATOR v4.0.0</p>
+            <p class="text-xs text-limbus-text-dim">CCFOLIA CHARACTER DATA GENERATOR <span id="lbt-version-foot">v44</span></p>
             <p class="text-[10px] text-limbus-text-dim mt-4 opacity-50">Project Limbus TRPG</p>
         </footer>
     </main>
@@ -1688,12 +1701,16 @@ select optgroup{background:var(--surface-3);color:var(--text-2);font-weight:600}
         </div>
     </div>
 
+    <div id="valid-fab" onclick="jumpToFirstIssue()" role="button" aria-label="入力上の注意箇所へ移動"></div>
     <div class="toast" id="toast" style="position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--leg-surface-1);border:1px solid var(--acc);color:var(--tx);padding:10px 20px;border-radius:4px;font-size:12px;opacity:0;pointer-events:none;transition:opacity .3s;z-index:500">クリップボードにコピーしました ✓</div>
 
 
     <script>
 
 
+// アプリバージョンの単一ソース。ヘッダー・フッター・タイトルはこれに同期する。
+const APP_VERSION='v46';
+try{document.addEventListener('DOMContentLoaded',()=>{const v=APP_VERSION;['lbt-version','lbt-version-foot'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=v;});const t=document.querySelector('title');if(t&&!t.textContent.includes(v))t.textContent=`◈ LIMBUS TRPG | CCFOLIA BUILDER ${v}`;});}catch(_){}
 // データは外部のシートから読み込む（URLは変更しないこと）
 let DB=null;
 const DB_DEFAULT_URL='https://docs.google.com/spreadsheets/d/e/2PACX-1vQAmy19TnsSlntxGmpYtc4QCzmnDErBHRTcUBUNi62HGzcjppt28MsBDeiciGYd5S45k6piHNs8kWst/pub?gid=1012101752&single=true&output=csv';
@@ -2129,11 +2146,63 @@ function validateAll(){
   });
   return w;
 }
+// セクション別の完成度をスキャンし、ナビゲーションへドットで表示。
+//   目的: ユーザーが「どこが未完了か」を一目で把握し、次の操作へ迷わず進めるようにする
+//   （Nielsen認知負荷低減・Wizard進捗可視化の原則）。
+const _SEC_DEFS=[
+  {sec:'section-base', done:()=>!!gV('char-name')&&parseInt(gV('hp'))>0&&parseInt(gV('san'))>0},
+  {sec:'section-mental', done:()=>!!gV('spirit')},
+  {sec:'section-enh', done:()=>(typeof enhIds!=='undefined')&&enhIds.some(id=>gV(`enn-${id}`))},
+  {sec:'section-passive', done:()=>!!gV('pas-name')||((typeof sppIds!=='undefined')&&sppIds.some(id=>gV(`sn-${id}`)))},
+  {sec:'section-unique', done:()=>(typeof ubIds!=='undefined')&&ubIds.some(id=>gV(`ubn-${id}`))},
+  {sec:'section-skill', done:()=>(typeof skIds!=='undefined')&&skIds.length>0&&skIds.every(id=>gV(`sk-n-${id}`))},
+  {sec:'section-ego', done:()=>true}, // E.G.Oは任意のため常に完了扱い
+  {sec:'section-settings', done:()=>true},
+];
+function renderCompleteness(){
+  try{
+    _SEC_DEFS.forEach(d=>{
+      const ok=d.done();
+      const link=document.querySelector(`.nav-item[href="#${d.sec}"]`);
+      const tab=document.querySelector(`.mobile-tab[data-sec="${d.sec}"]`);
+      [link,tab].forEach(el=>{
+        if(!el)return;
+        let dot=el.querySelector('.comp-dot');
+        if(!dot){dot=document.createElement('span');dot.className='comp-dot';el.appendChild(dot);}
+        dot.classList.toggle('done',!!ok);
+        dot.classList.toggle('todo',!ok);
+        dot.title=ok?'入力済み':'未入力あり';
+      });
+    });
+  }catch(_){}
+}
 function renderValidation(){
-  const b=$i('valid-badge'); if(!b) return;
   const w=validateAll();
-  if(!w.length){ b.textContent='✓ 問題なし'; b.className='valid-badge ok'; b.title='入力は有効です'; }
-  else{ b.textContent=`⚠ ${w.length}件`; b.className='valid-badge warn'; b.title=w.join('\n'); }
+  const b=$i('valid-badge');
+  if(b){
+    if(!w.length){ b.textContent='✓ 問題なし'; b.className='valid-badge ok'; b.title='入力は有効です'; }
+    else{ b.textContent=`⚠ ${w.length}件`; b.className='valid-badge warn'; b.title=w.join('\n'); }
+  }
+  // 警告を最初の問題箇所へジャンプ可能に（モバイルはフローティングバッジで常時可視）
+  const fb=$i('valid-fab');
+  if(fb){
+    fb.style.display=w.length?'flex':'none';
+    fb.textContent=`⚠ ${w.length}`;
+    fb.title=w.join('\n');
+  }
+  renderCompleteness();
+}
+// 最初の警告箇所へスクロールする
+function jumpToFirstIssue(){
+  const w=validateAll(); if(!w.length) return;
+  let target=null;
+  if(!gV('char-name')||!(parseInt(gV('hp'))>0)) target='section-base';
+  else if(typeof skIds!=='undefined'&&skIds.some(id=>!gV(`sk-n-${id}`))) target='section-skill';
+  else if(typeof egoIds!=='undefined'&&egoIds.some(id=>!gV(`eg-n-${id}`))) target='section-ego';
+  else target='section-base';
+  const el=$i(target); if(el){el.scrollIntoView({behavior:'smooth'});}
+  if(typeof setNavActive==='function')setNavActive(target);
+  const pane=$i('preview-pane'); if(pane&&pane.classList.contains('mob-open'))pane.classList.remove('mob-open');
 }
 
 // ─── Stage1 初期化（Shortcut/検証バッジ/モバイル閉じる/初期履歴）───
@@ -4197,6 +4266,10 @@ function clearAll(){
   // 全ての入力・選択・フィルタ・トグル・生成UIを初期状態へ完全リセット
   document.querySelectorAll('input[type=text],input[type=number],textarea').forEach(e=>{e.value='';});
   document.querySelectorAll('#app input[type=checkbox], .card input[type=checkbox]').forEach(cb=>{
+    // 「効果テキストから代入式へ自動反映」トグルはリセット対象外。
+    //   全リセットで自動反映が意図せずOFFになり、威力修飾の追記が一切発生しなくなる
+    //   不具合（指令の加護が代入式へ反映されない根本原因）を防ぐため、デフォルトONのまま保持する。
+    if(cb.id==='fml-auto-mod'){cb.checked=true;return;}
     cb.checked=false;
     const l=cb.closest('label'); if(l) l.classList.remove('active');
   });
@@ -4887,7 +4960,11 @@ function detectPowerModifiers(text, label){
   const labelDep=targetDep.test(String(label));
   // 「固定ダメージ」「確定ダメージ」を与える効果は耐性計算が別系統のため代入式へ含めない
   //   （例：爆熱「火傷状態の敵に攻撃的中時、固定ダメージ2を与える」は威力加算ではない）
-  if(/固定ダメージ|確定ダメージ|固定HPダメージ/.test(text)) return [];
+  // 固定ダメージ「文」のみ除去して処理継続（剃刀等の「固定ダメージ+キーワード修飾」複合効果に対応）。
+  //   旧v42: テキスト全体に固定ダメージがあれば早期return[] → 同じ効果文内のキーワード修飾
+  //   （例「…固定ダメージ2を与える。出血キーワードを持つスキルのマッチ威力+1」）まで検出不能だった。
+  text=text.replace(/[^。]*(?:固定ダメージ|確定ダメージ|固定HPダメージ)[^。]*。?/g,'');
+  if(!text.trim()) return [];
   // 対象威力語 → 代入式ID（スキル威力/マッチ威力はMT、ダメージ量はDM）
   const fmlOf=(t)=>t==='ダメージ量'?'DM':'MT';
   // label（固有名）ベースの網羅的検出。手動登録した任意の変数名にも対応。
@@ -4940,6 +5017,27 @@ function detectPowerModifiers(text, label){
     const expr=`${sign}{${label}}`;
     if(!mods.some(x=>x.fmlId===fmlOf(target)&&x.expr===expr)){
       mods.push({fmlId:fmlOf(target),expr,desc:`${label}（${sign}→${target}）`});
+    }
+  }
+  // ゲーム共通変数（感情レベル・現在R数）は固有名ラベルと一致しないため別系統で検出。
+  //   例: SPP「激情」の「感情レベル/2だけスキル威力増加」→ MT += +({感情レベル}/2)
+  const gvarPat=/(感情レベル|現在R数|R数)\s*(?:[\/÷]\s*(\d+))?\s*だけ\s*(スキル威力|マッチ威力|ダメージ量)(増加|減少)?/g;
+  while((m=gvarPat.exec(text))!==null){
+    const v=m[1];const num=m[2]?parseInt(m[2]):1;const target=m[3];
+    const sign=m[4]==='減少'?'-':'+';
+    const expr=num>1?`${sign}({${v}}/${num})`:`${sign}{${v}}`;
+    if(!mods.some(x=>x.fmlId===fmlOf(target)&&x.expr===expr)){
+      mods.push({fmlId:fmlOf(target),expr,desc:`${v}${num>1?'/'+num:''}（${sign}→${target}）`,gvar:v});
+    }
+  }
+  // 「◯キーワードを持つスキルのマッチ威力+1」— キーワード条件付き固定値修飾。
+  //   適用可否は applyPowerModifiersToFormulas 側で現行ビルドの保持キーワードと照合して決める。
+  const kwSkillPat=/([一-龥ぁ-んァ-ヶ]{1,8})キーワードを持つスキルの(スキル威力|マッチ威力|ダメージ量)\s*([+＋\-−])\s*(\d+)/g;
+  while((m=kwSkillPat.exec(text))!==null){
+    const kw=m[1];const target=m[2];const sign=(m[3]==='-'||m[3]==='−')?'-':'+';const val=parseInt(m[4]);
+    const expr=`${sign}${val}`;
+    if(!mods.some(x=>x.fmlId===fmlOf(target)&&x.expr===expr&&x.kw===kw)){
+      mods.push({fmlId:fmlOf(target),expr,desc:`[条件:${kw}スキル] ${target}${sign}${val}`,kw,fixed:true});
     }
   }
   // 「{label}Nごとに/につき/毎に 威力+M」パターン（実在表現：自分の振動5ごとに マッチ威力+1 等）
@@ -5030,8 +5128,32 @@ function applyPowerModifiersToFormulas(){
   const allMods=[];
   sources.forEach(s=>{ detectPowerModifiers(s.text,s.label).forEach(x=>allMods.push(x)); });
   // 代入式へ反映（MT/DM のみ。DTは守備なので対象外）
+  // /B3 適用フィルタ: 検出済み修飾子の適用可否をここで決める。
+  //   B3 キーワード条件: 現行ビルドがそのキーワードを保持する場合のみ適用（剃刀/爆熱等の誤適用を防ぐ）
+  //   B2 共通変数: 感情レベル等はラベル不要で常に適用。式が解決できるよう変数をCSへ自動登録する。
+  const heldKWs=new Set();
+  try{
+    (typeof dbKWs!=='undefined'?dbKWs:[]).forEach(k=>heldKWs.add(k));
+    (typeof dbSelfKws!=='undefined'?dbSelfKws:[]).forEach(k=>heldKWs.add(k));
+    (typeof manualKWs!=='undefined'?[...manualKWs]:[]).forEach(k=>heldKWs.add(k));
+  }catch(_){}
+  const gvarsNeeded=new Set();
+  const filtered=allMods.filter(x=>{
+    if(x.kw) return heldKWs.has(x.kw);
+    if(x.gvar){ gvarsNeeded.add(x.gvar); return true; }
+    return true;
+  });
+  // B2: 共通変数（感情レベル等）をカスタムSTへ自動登録（代入式の {変数} を解決可能にする）
+  try{
+    gvarsNeeded.forEach(v=>{
+      if(typeof csIds!=='undefined'&&!csIds.some(id=>gV(`csl-${id}`)===v)
+        &&!(typeof DEFAULT_CS_DUP!=='undefined'&&DEFAULT_CS_DUP.has(v))){
+        if(typeof addCS==='function') addCS({label:v,value:0,max:v==='感情レベル'?5:99});
+      }
+    });
+  }catch(_){}
   const byFml={MT:[],DM:[]};
-  allMods.forEach(x=>{ if(byFml[x.fmlId]&&!byFml[x.fmlId].some(y=>y.expr===x.expr)) byFml[x.fmlId].push(x); });
+  filtered.forEach(x=>{ if(byFml[x.fmlId]&&!byFml[x.fmlId].some(y=>y.expr===x.expr)) byFml[x.fmlId].push(x); });
   const applied=[];
   // 前回の呼出で自動追加した修飾子を覚えておき、今回の検出分と合わせて必ず除去する。
   //   これで人格を修飾なしのものへ切替えたときも、前の人格の追加分が残らない。
@@ -5277,20 +5399,70 @@ function buildShareSheetHTML(d){
   const spPrice=(typeof DB!=='undefined'&&DB.spirits&&sd.spirit)?(DB.spirits.find(x=>x.name===sd.spirit)||{}).price:'';
   // 共有シートの効果文をタイミングマーカーで段落分け（編集側と同じ条件付けで参照性向上）。
   //   splitEffectLines が利用可能ならそれを使い、▶︎行を <br> 連結で返す（white-space 非依存）。
+  // 「・」区切りテキストの分割（箇条書きは理解度向上が実証済み: 箇条書きは段落より記憶・評価で優位）。
+  //   ただし「混乱・行動不能・E.G.O侵蝕状態」のような短い状態名列挙を1行1項目にすると
+  //   逆に冗長になるため、区切り片の長さで識別する:
+  //     ・各片が短い(≤12字)名詞列挙 → 「・」を残して連結（ハンギングインデントで項目境界を可視化）
+  //     ・長い節(>12字)を含む → 節単位で独立行化（先頭の裸テキストは独立行、以降は・行）
+  //   句点「。」を文境界として優先区切りし、「・」は同じ句内でのみ分割する。
+  //   これにより「…カルマ1を得る。混乱・行動不能・E.G.O侵蝕状態・…」の
+  //   状態名列挙が文境界をまたいでバラバラになる誤分割を防ぐ。
+  const __splitBullets=(txt)=>{
+    if(!txt.includes('・')) return null;
+    // ① まず句点で文単位に分割（句点は末尾に残す）
+    const sentences=txt.match(/[^。]+。?/g)||[txt];
+    const lines=[];
+    sentences.forEach(sen=>{
+      sen=sen.trim();
+      if(!sen) return;
+      if(!sen.includes('・')){ lines.push(sen); return; }
+      // ② 句内の「・」で分割 — 先頭要素も含め全要素を統一処理する。
+      //   ・文頭が「・」始まりなら先頭項目も「・」を保持して独立行化（マーカー欠落を防ぐ）
+      //   ・先頭が短い名詞（例「混乱」）なら後続の短い名詞と連結（単独行の分離を防ぐ）
+      const parts=sen.split('・').map(s=>s.trim()).filter(Boolean);
+      if(!parts.length){ lines.push(sen); return; }
+      // 全て短い名詞列挙なら句をそのまま連結（・を保持）
+      if(parts.every(p=>p.length<=12)){ lines.push(sen); return; }
+      const hasLead=/^・/.test(sen);
+      let buf='';
+      parts.forEach((p,i)=>{
+        const mark=(i===0&&!hasLead)?'':'・';
+        if(p.length<=12){ buf+=(buf?'・':mark)+p; }
+        else{ if(buf){lines.push(buf);buf='';} lines.push(mark+p); }
+      });
+      if(buf) lines.push(buf);
+    });
+    return lines.length>1?lines:null;
+  };
   const __fmtShareEff=(t)=>{
     const txt=String(t||'');
     if(!txt) return '';
+    // ①「・」区切りの分割を優先（パッシブ常時効果等）
+    const bullets=__splitBullets(txt);
+    if(bullets){
+      return bullets.map(l=>{
+        // ・行はハンギングインデント(.bl)で折返しを字下げし項目境界を明確化
+        const cls=l.startsWith('・')?' class="bl"':'';
+        return `<span${cls}>${esc(l)}</span>`;
+      }).join('<br>');
+    }
+    // ②タイミングマーカー分割（スキル効果等）
     if(typeof splitEffectLines==='function'){
       const lines=splitEffectLines(txt);
       if(lines.length) return lines.map(l=>esc(l)).join('<br>');
     }
     return esc(txt);
   };
-  const skillsHTML=(sd.skills||[]).map(s=>`<div class="skl">
+  // ハイブリッド2列化 — 効果文+ダイス効果の合計が閾値超の長文カードは全幅(span2)。
+  //   短文カードを2列で密度確保しつつ、長文カードの行が潰れる弊害を避ける（行長知見との両立）。
+  const skillsHTML=(sd.skills||[]).map(s=>{
+    const textLen=String(s.effect||'').length+(s.dice||[]).reduce((a,x)=>a+String(x.effect||'').length,0);
+    const wide=textLen>90?' span2':'';
+    return `<div class="skl${wide}">
     <div class="skl-h"><span class="rk">${esc(s.rank||'')}</span><b>${esc(s.name||'')}</b><span class="ty ty-s${esc(s.sin||'')}">${esc(s.type||'')}${s.sin?'：'+esc(s.sin):''}</span>${s.aoe?`<span class="aoe">広域:${esc(s.aoe)}</span>`:''}</div>
     ${s.effect?`<div class="skl-e">${__fmtShareEff(s.effect)}</div>`:''}
     ${(s.dice||[]).map(x=>`<div class="skl-d"><span>${esc(x.roll)}</span>${x.effect?`<i>${esc(x.effect)}</i>`:''}</div>`).join('')}
-  </div>`).join('');
+  </div>`;}).join('');
   const sppHTML=(sd.spps||[]).map(s=>{
     const sp=(typeof DB!=='undefined'&&DB.support_passives)?DB.support_passives.find(x=>x.name===s.name):null;
     const lp=sp&&sp.lp?sp.lp:'';
@@ -5380,7 +5552,33 @@ hr{border:none;border-top:1px solid var(--line);margin:10px 0}
 .skl-d{display:flex;gap:10px;margin-top:4px;font-family:var(--mono);font-size:12.5px;color:var(--tx)}
 .skl-d span{color:var(--gold-b)}
 .skl-d .dc-cat{color:var(--tx2);font-size:9.5px;border:1px solid var(--line);padding:0 6px;border-radius:99px;letter-spacing:1px;flex-shrink:0}
-.skl-d i{color:var(--tx3);font-style:normal;font-size:10.5px}
+.skl-d i{color:var(--tx2);font-style:normal;font-size:11.5px;line-height:1.6}
+/* 共有シートの把握性改善（厳選知見に基づく）。サマリ帯は撤去し、テキスト配置で勝負する */
+/* 箇条書き「・」行のハンギングインデント（折返しが箇条書き頭に揃い、項目境界が一目で分かる） */
+.bl{display:inline-block;padding-left:1.2em;text-indent:-1.2em}
+/* ゼブラ: SPP行の交互背景を極薄く（精度微増・速度に影響しない範囲。A List Apart実験に準拠） */
+.spp:nth-child(even){background:rgba(127,127,127,.04);margin:0 -8px;padding:6px 8px}
+/* セクション見出し: F型スキャンの左端アンカーを強化 */
+.sec{position:relative;padding-left:0}
+/* 戦術スキルを2列グリッド化（参照型シートの密度確保。技術論文2段組の慣行に準拠）。
+   ただし長文カードは行長知見を優先して全幅（span2）へ自動振り分けするハイブリッド */
+.skl-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.skl-grid .skl{margin-bottom:0}
+.skl.span2{grid-column:1/-1}
+@media (max-width:820px){.skl-grid{grid-template-columns:1fr}}
+/* 印刷最適化（共有シートは紙/PDF出力も想定。MDN print样式シート） */
+@media print{
+  body{background:#fff !important;color:#111 !important}
+  .tt,.brand,footer{display:none !important}
+  .wrap{max-width:100%;padding:0 8px}
+  .panel,.skl,.ego,.summary,.share-unique{border:1px solid #999 !important;background:#fff !important;box-shadow:none !important;clip-path:none !important}
+  h1,.sec,.sum-i b,.pass b,.skl-h b,.ego-h b,.spp b{color:#111 !important;text-shadow:none !important}
+  .skl-e,.eff,.memo,.skl-d,.c-dice,.c-line,.meta{color:#222 !important}
+  .skl-d i,.cond,.sum-i span,.st-h,.pr{color:#555 !important}
+  .skl,.ego,.panel{break-inside:avoid;page-break-inside:avoid}
+  .sec{break-after:avoid}
+  a{color:#111 !important;text-decoration:none}
+}
 .spp{padding:6px 0;border-bottom:1px dotted var(--line)}
 .spp:last-child{border-bottom:none}
 .spp b{color:var(--gold-b);font-family:var(--head);font-size:13px}
@@ -5513,6 +5711,17 @@ input[type="text"]:focus,input[type="number"]:focus,select:focus,textarea:focus{
   select,input[type=text],input[type=number],textarea{font-size:16px} /* iOS自動ズーム防止 */
   header .btn-secondary,header .btn-primary{min-height:40px}
   .card-body{padding:12px}
+  /* 共有シートのモバイル可読性（日本語タイポグラフィ知見: 余白確保と行間150%以上、
+     モバイル知見: 画面端の余白圧縮・見出し縮小・タップ領域確保） */
+  .wrap{padding:18px 12px 60px}
+  h1{font-size:24px;letter-spacing:2px}
+  .sec{font-size:14px;letter-spacing:2px;margin:20px 0 10px}
+  .panel{padding:12px 12px}
+  .cmd,.memo{font-size:12px;line-height:1.85;padding:12px}
+  .skl{padding:8px 10px}
+  .skl-h b{font-size:15px}
+  .skl-e,.eff{font-size:12.5px;line-height:1.85}
+  .meta{font-size:10.5px;gap:10px}
 }
 </style></head><body><div class="wrap">
 
@@ -5547,7 +5756,7 @@ ${sd.pasName?`<div class="sec">PASSIVE / 人格パッシブ</div><div class="pan
 </div>`:''}
 
 
-${skillsHTML?`<div class="sec">TACTICAL SKILLS / 戦術スキル</div>${skillsHTML}`:''}
+${skillsHTML?`<div class="sec">TACTICAL SKILLS / 戦術スキル</div><div class="skl-grid">${skillsHTML}</div>`:''}
 
 ${sppHTML?`<div class="sec">SUPPORT PASSIVES / サポートパッシブ</div><div class="panel">${sppHTML}</div>`:''}
 
