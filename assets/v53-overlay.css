@@ -1,0 +1,204 @@
+/* ============================================================
+   LBT v53 — Feedback response bundle #6 (2026-08-07)
+   ------------------------------------------------------------
+   [A] 同化EGO：侵蝕スキル位置に戦術スキル風グリッドを表示。
+       (assim-tactical-*)
+   [B] 効果テキストの改行：タイミングマーカー（使用時 / マッチ勝利時 / 攻撃後 ほか）
+       直前で必ず改行。generator.jsx 側の splitEffectLines を EGO detail にも適用。
+       CSS 側では pre-wrap を許可する。
+   ============================================================ */
+
+/* ---------- 同化型EGOの戦術スキル風グリッド ---------- */
+.assim-tactical-grid{
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  padding: 10px;
+  background: linear-gradient(180deg, rgba(200,168,75,0.06), rgba(200,168,75,0.02));
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r);
+  position: relative;
+}
+.assim-tactical-grid::before{
+  content: '◆ E.G.O ASSIMILATION';
+  position: absolute;
+  top: -8px;
+  left: 12px;
+  padding: 1px 8px;
+  background: var(--surface-1, #14110d);
+  color: var(--gold);
+  font-family: var(--f-display);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  font-weight: 700;
+}
+
+.assim-tactical-card{
+  --sin-color: var(--tx-dim);
+  position: relative;
+  padding: 8px 10px 8px 12px;
+  background: var(--surface-inset);
+  border: 1px solid var(--line-dim);
+  border-left: 3px solid var(--sin-color);
+  border-radius: var(--r-sm);
+}
+.assim-tactical-card[data-sin="憤怒"]{ --sin-color: var(--sin-憤怒); }
+.assim-tactical-card[data-sin="色欲"]{ --sin-color: var(--sin-色欲); }
+.assim-tactical-card[data-sin="怠惰"]{ --sin-color: var(--sin-怠惰); }
+.assim-tactical-card[data-sin="暴食"]{ --sin-color: var(--sin-暴食); }
+.assim-tactical-card[data-sin="憂鬱"]{ --sin-color: var(--sin-憂鬱); }
+.assim-tactical-card[data-sin="傲慢"]{ --sin-color: var(--sin-傲慢); }
+.assim-tactical-card[data-sin="嫉妬"]{ --sin-color: var(--sin-嫉妬); }
+
+.assim-tactical-head{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.assim-tactical-idx{
+  font-family: var(--f-display);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--gold);
+  background: var(--gold-tint);
+  border: 1px solid var(--gold-line);
+  padding: 1px 6px;
+  border-radius: 2px;
+  min-width: 28px;
+  text-align: center;
+}
+.assim-tactical-name{
+  font-family: var(--f-display);
+  font-size: var(--fs-13);
+  font-weight: 600;
+  color: var(--tx);
+  flex: 1;
+  min-width: 0;
+}
+.assim-tactical-attr{
+  font-family: var(--f-mono);
+  font-size: var(--fs-10);
+  color: var(--tx-dim);
+  padding: 1px 5px;
+  background: var(--surface-2);
+  border-radius: 2px;
+}
+.assim-tactical-aoe{
+  font-family: var(--f-mono);
+  font-size: var(--fs-10);
+  padding: 1px 5px;
+  color: var(--gold);
+  background: var(--gold-tint);
+  border: 1px solid var(--gold-line);
+  border-radius: 2px;
+}
+.assim-tactical-eff{
+  font-size: var(--fs-11);
+  color: var(--tx-2);
+  line-height: 1.6;
+  padding: 6px 8px;
+  background: rgba(0,0,0,0.18);
+  border-radius: 2px;
+  margin-top: 4px;
+  border-left: 2px solid var(--gold-line);
+}
+
+/* ---------- 改行の恒常許可（すでに個別 style で pre-wrap 指定済みだが念のため） ---------- */
+.detail-passive-effect,
+.ro-dice-eff,
+.deck-focus .deck-effect,
+.assim-tactical-eff{
+  white-space: pre-wrap;
+}
+
+
+/* ============================================================
+   v54 overlay — 削除ボタン視認性 / 耐性カラー長時間視認 / サマリ直接編集
+   ============================================================ */
+
+/* (3) 削除ボタンの視認性強化（全体共通クラス） */
+.lbt-del, .btn.lbt-del {
+  color: #fff !important;
+  background: color-mix(in oklab, var(--err) 38%, var(--surface-2)) !important;
+  border: 1px solid var(--err) !important;
+  border-radius: var(--r-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  box-shadow: 0 1px 4px color-mix(in oklab, var(--err) 30%, transparent);
+}
+.lbt-del:hover {
+  background: var(--err) !important;
+  box-shadow: 0 0 10px color-mix(in oklab, var(--err) 55%, transparent);
+}
+/* アイコンのみの削除ボタン（ゴースト）も最低限の識別性を確保 */
+.btn-ghost.btn-icon[title*="削除"], .btn-ghost.btn-icon[title*="外す"] {
+  color: var(--err);
+  border: 1px solid color-mix(in oklab, var(--err) 45%, var(--line));
+  background: color-mix(in oklab, var(--err) 8%, var(--surface-2));
+}
+
+/* (4) 耐性カラーの長時間視認リバランス
+   高彩度ベタ塗り（#d32f2f 等）は暗所でハレーションを起こし長時間注視に不向き。
+   → 彩度を落とした深めのトーンに統一し、コントラストは輝度差で確保する。
+   普通は彩度を落としたグレージュ（グレー+ベージュ）で無彩色の沈黙を防ぐ。 */
+:root{
+  --res-脆弱: #a5453c;   /* 落ち着いた朱 */
+  --res-弱点: #b06a35;   /* 落ち着いた琥珀 */
+  --res-普通: #6f7480;   /* ニュートラルグレージュ */
+  --res-抵抗: #4d7a52;   /* 深い苔緑 */
+  --res-耐性: #3f7396;   /* 落ち着いた青 */
+  --res-免疫: #6e5a94;   /* くすんだ紫 */
+}
+.res-dot[data-res]{transition: background .2s ease}
+
+/* (9) 装備サマリの直接編集入力 */
+.es-stat-input{
+  width: 100%;
+  min-width: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: 1px dashed var(--line);
+  color: var(--tx);
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: var(--fs-16);
+  padding: 1px 2px;
+  border-radius: 2px;
+}
+.es-stat-input:hover{ border-bottom-color: var(--gold-line); background: var(--surface-inset); }
+.es-stat-input:focus{
+  outline: none;
+  border: 1px solid var(--gold);
+  background: var(--surface-1);
+  box-shadow: 0 0 0 2px var(--gold-tint);
+}
+select.es-stat-input{ font-size: var(--fs-12); padding: 2px; }
+
+/* (8) キーワードタグ */
+.es-keywords{
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-top: var(--s-2); padding-top: var(--s-2);
+  border-top: 1px dashed var(--line-dim);
+}
+.es-kw-tag{
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; font-size: var(--fs-10);
+  font-family: var(--f-display); letter-spacing: 0.08em;
+  color: var(--gold); background: var(--gold-tint);
+  border: 1px solid var(--gold-line); border-radius: 999px;
+}
+.es-kw-rm{
+  background: none; border: none; color: var(--err);
+  cursor: pointer; font-size: 11px; padding: 0 1px; line-height: 1;
+}
+.es-kw-rm:hover{ text-shadow: 0 0 6px var(--err); }
+.es-kw-add{
+  padding: 2px 8px; font-size: var(--fs-10);
+  font-family: var(--f-display); letter-spacing: 0.08em;
+  color: var(--tx-dim); background: none;
+  border: 1px dashed var(--line); border-radius: 999px; cursor: pointer;
+}
+.es-kw-add:hover{ color: var(--gold); border-color: var(--gold-line); }
