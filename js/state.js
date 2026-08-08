@@ -85,7 +85,8 @@
     ui: {
       currentSection: "persona",
       previewTab: "memo",
-      previewOpen: true,
+      previewOpen: void 0,
+      // v54: undefined=画面幅で自動決定（狭い画面では初期OFF）
       codexMode: "n",
       // 'n'|'t'|'roster'|'fav'|'history'
       filterSins: [],

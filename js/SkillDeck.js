@@ -200,6 +200,9 @@
     const skills = state.skills || [];
     const [curIdx, setCurIdx] = React.useState(0);
     const [forceEditMap, setForceEditMap] = React.useState({});
+    const thumbsDnd = useDragReorder({
+      onReorder: (from, to) => dispatch({ type: "MOVE_LIST_INDEX", field: "skills", from, to })
+    });
     React.useEffect(() => {
       if (curIdx >= skills.length) setCurIdx(Math.max(0, skills.length - 1));
     }, [skills.length]);
@@ -280,12 +283,27 @@
       "div",
       {
         key: sk.id,
-        className: `deck-thumb${i === curIdx ? " is-active" : ""}`,
+        className: `deck-thumb${i === curIdx ? " is-active" : ""} ${thumbsDnd.rowProps(i).className || ""}`,
         "data-sin": sk.sin || "",
+        "data-drop": thumbsDnd.rowProps(i)["data-drop"],
+        onDragOver: thumbsDnd.rowProps(i).onDragOver,
+        onDragLeave: thumbsDnd.rowProps(i).onDragLeave,
+        onDrop: thumbsDnd.rowProps(i).onDrop,
         onClick: () => setCurIdx(i),
         title: `${sk.rank}: ${sk.name}`
       },
-      /* @__PURE__ */ React.createElement("div", { className: "deck-thumb-head" }, /* @__PURE__ */ React.createElement("div", { className: "deck-thumb-rank" }, sk.rank), /* @__PURE__ */ React.createElement("div", { className: "deck-thumb-reorder" }, /* @__PURE__ */ React.createElement(
+      /* @__PURE__ */ React.createElement("div", { className: "deck-thumb-head" }, /* @__PURE__ */ React.createElement(
+        "span",
+        {
+          className: "dnd-handle",
+          draggable: true,
+          onDragStart: thumbsDnd.handleProps(i).onDragStart,
+          onDragEnd: thumbsDnd.handleProps(i).onDragEnd,
+          onClick: (e) => e.stopPropagation(),
+          title: "\u30C9\u30E9\u30C3\u30B0\u3057\u3066\u4E26\u3073\u66FF\u3048"
+        },
+        "\u283F"
+      ), /* @__PURE__ */ React.createElement("div", { className: "deck-thumb-rank" }, sk.rank), /* @__PURE__ */ React.createElement("div", { className: "deck-thumb-reorder" }, /* @__PURE__ */ React.createElement(
         "button",
         {
           className: "deck-thumb-rbtn",

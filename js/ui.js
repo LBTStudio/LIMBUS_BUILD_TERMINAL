@@ -187,6 +187,24 @@
     });
     return { handleProps, rowProps, dragIdx, overIdx };
   }
+  const SIN_TOKEN_RE = /(憤怒|色欲|怠惰|暴食|憂鬱|傲慢|嫉妬)(x\d+)?/g;
+  const CondChips = ({ cond }) => {
+    const text = String(cond || "");
+    if (!text) return null;
+    const parts = [];
+    let last = 0, m, key = 0;
+    const re = new RegExp(SIN_TOKEN_RE.source, "g");
+    while ((m = re.exec(text)) !== null) {
+      if (m.index > last) parts.push({ t: text.slice(last, m.index), sin: null, key: key++ });
+      parts.push({ t: m[0], sin: m[1], key: key++ });
+      last = m.index + m[0].length;
+    }
+    if (last < text.length) parts.push({ t: text.slice(last), sin: null, key: key++ });
+    return /* @__PURE__ */ React.createElement("span", { className: "cond-chips" }, parts.map(
+      (pt) => pt.sin ? /* @__PURE__ */ React.createElement("span", { key: pt.key, className: "cond-chip is-sin", "data-sin": pt.sin }, pt.t) : pt.t.trim() ? /* @__PURE__ */ React.createElement("span", { key: pt.key, className: "cond-chip" }, pt.t.trim()) : null
+    ));
+  };
+  window.CondChips = CondChips;
   Object.assign(window, {
     Icon,
     Chip,
@@ -199,6 +217,7 @@
     ResRow,
     PersonaSinPills,
     toast,
-    useDragReorder
+    useDragReorder,
+    CondChips
   });
 })();

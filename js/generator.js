@@ -164,7 +164,7 @@
   }
   function buildPalette(state) {
     const p = state;
-    const san = parseInt(p.san) || 50;
+    const san = (parseInt(p.san) || 50) + computeEnhancementBonuses(p).san;
     const speed = sanitizeInline(p.speed) || "2d4";
     const spirit = sanitizeInline(p.spirit);
     const morale = p.moraleLine || String(Math.floor(san * 0.25));
@@ -518,7 +518,10 @@
     L.push("");
     L.push("\u3010\u30B9\u30C6\u30FC\u30BF\u30B9\u3011");
     if (p.personaSrc) L.push(`\u4EBA\u683C\uFF1A${p.personaSrc.name || ""}`);
-    L.push(`HP\uFF1A${p.hp || "?"}   SAN\uFF1A${p.san || "?"}   \u901F\u5EA6\uFF1A${p.speed || "?"}${p.bullets && p.bullets !== "\xD7" ? `   \u5F3E\u4E38\uFF1A${p.bullets}` : ""}`);
+    const _eb = computeEnhancementBonuses(p);
+    const _hpV = p.hp ? String((parseInt(p.hp) || 0) + _eb.hp) : "?";
+    const _sanV = p.san ? String((parseInt(p.san) || 0) + _eb.san) : "?";
+    L.push(`HP\uFF1A${_hpV}   SAN\uFF1A${_sanV}   \u901F\u5EA6\uFF1A${p.speed || "?"}${p.bullets && p.bullets !== "\xD7" ? `   \u5F3E\u4E38\uFF1A${p.bullets}` : ""}`);
     L.push(`\u65AC\u6483\uFF1A${p.resS}   \u8CAB\u901A\uFF1A${p.resP}   \u6253\u6483\uFF1A${p.resB}`);
     if (p.spirit) {
       L.push(`\u7CBE\u795E\uFF1A${p.spirit}`);
@@ -580,13 +583,32 @@
     while (filtered.length && filtered[filtered.length - 1] === "") filtered.pop();
     return filtered.join("\n");
   }
+  function computeEnhancementBonuses(state) {
+    const bonus = { hp: 0, san: 0 };
+    const list = state.enhancements || [];
+    for (const e of list) {
+      const t = String(e.effect || "");
+      let m;
+      const reHp = /HPを(\d+)上昇/g;
+      while ((m = reHp.exec(t)) !== null) bonus.hp += parseInt(m[1], 10);
+      const reSan = /SANを(\d+)上昇/g;
+      while ((m = reSan.exec(t)) !== null) bonus.san += parseInt(m[1], 10);
+      const reHpP = /HP\+(\d+)/g;
+      while ((m = reHpP.exec(t)) !== null) bonus.hp += parseInt(m[1], 10);
+      const reSanP = /SAN\+(\d+)/g;
+      while ((m = reSanP.exec(t)) !== null) bonus.san += parseInt(m[1], 10);
+    }
+    return bonus;
+  }
+  window.computeEnhancementBonuses = computeEnhancementBonuses;
   function buildCcfoliaJSON(state) {
     const p = state;
     const charName = p.charName || "\u30AD\u30E3\u30E9\u30AF\u30BF\u30FC";
     const plName = p.plName || "";
     const color = p.color || "#c8a84b";
-    const hp = parseInt(p.hp) || 100;
-    const san = parseInt(p.san) || 50;
+    const _enhBonus = computeEnhancementBonuses(p);
+    const hp = (parseInt(p.hp) || 100) + _enhBonus.hp;
+    const san = (parseInt(p.san) || 50) + _enhBonus.san;
     const morale = p.moraleLine || String(Math.floor(san * 0.25));
     const { atkModLabel, hasVigor, hasDefMod } = detectMTMods(state);
     const baseList = p.defaultStatuses || DEFAULT_STATUS_LIST;
@@ -826,12 +848,14 @@ body{margin:0;background:var(--bg);color:var(--tx);font-family:'Noto Sans JP',sa
 .res-row{display:flex;gap:10px;margin-bottom:26px;flex-wrap:wrap}
 .res{padding:12px 22px;font-family:var(--head);font-size:20px;font-weight:800;letter-spacing:0.08em;border:2px solid;border-radius:4px;display:inline-flex;align-items:center;gap:12px;min-width:150px;box-shadow:0 2px 6px rgba(0,0,0,0.28)}
 .res .attr{font-size:16px;font-weight:700;opacity:0.92;padding-right:12px;border-right:1px solid rgba(255,255,255,0.35);letter-spacing:0.04em}
-.res[data-r="\u8106\u5F31"]{background:#d32f2f;color:#fff;border-color:#8f1f1f}
-.res[data-r="\u5F31\u70B9"]{background:#f57c00;color:#fff;border-color:#a55600}
+/* v54: \u8010\u6027\u8272\u3092\u9577\u6642\u9593\u8996\u8A8D\u30C8\u30FC\u30F3\u3078\u3002\u9AD8\u5F69\u5EA6\u30D9\u30BF\u5857\u308A\u306F\u6697\u6240\u3067\u307E\u3076\u3057\u3044\u305F\u3081\u6E1B\u5149\u3057\u3001
+   \u7DE8\u96C6\u753B\u9762\u306E design-system \u8010\u6027\u8272 (--res-*) \u3068\u540C\u3058\u8272\u8ABF\u306B\u63C3\u3048\u3066\u8996\u899A\u65AD\u7D76\u3092\u89E3\u6D88 */
+.res[data-r="\u8106\u5F31"]{background:#8f4a44;color:#f4e2e0;border-color:#6b322e}
+.res[data-r="\u5F31\u70B9"]{background:#96683c;color:#f7e9d8;border-color:#6e4a24}
 .res[data-r="\u666E\u901A"]{background:var(--panel2);color:var(--tx2);border-color:var(--line)}
-.res[data-r="\u62B5\u6297"]{background:#388e3c;color:#fff;border-color:#245e28}
-.res[data-r="\u8010\u6027"]{background:#0288d1;color:#fff;border-color:#015886}
-.res[data-r="\u514D\u75AB"]{background:#7b1fa2;color:#fff;border-color:#4d0f66}
+.res[data-r="\u62B5\u6297"]{background:#4c7055;color:#e3f0e6;border-color:#33503a}
+.res[data-r="\u8010\u6027"]{background:#436a85;color:#e2ecf2;border-color:#2c4a5f}
+.res[data-r="\u514D\u75AB"]{background:#635684;color:#eae4f2;border-color:#443a5e}
 
 /* --- Sections v52: h2\u306B\u30B4\u30FC\u30EB\u30C9\u5E2F\u3092\u4F34\u3046\u5927\u898B\u51FA\u3057\uFF0F\u30D1\u30CD\u30EB\u306B\u5185\u90E8\u30BB\u30D1\u30EC\u30FC\u30BF --- */
 .sec{margin-bottom:32px;position:relative}
@@ -1037,22 +1061,18 @@ body{margin:0;background:var(--bg);color:var(--tx);font-family:'Noto Sans JP',sa
       return { url: cached.url, host: cached.host, cached: true };
     }
     const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-    const raceResults = await Promise.allSettled(LBT_SHARE_HOSTS.map((h) => lbtUploadTo(h, blob, 2e4).then((url) => ({ host: h, url }))));
-    let win = raceResults.find((r) => r.status === "fulfilled");
-    if (!win) {
-      for (const h of LBT_SHARE_HOSTS) {
-        try {
-          const url = await lbtUploadTo(h, blob, 3e4);
-          win = { status: "fulfilled", value: { host: h, url } };
-          break;
-        } catch (e) {
-        }
+    let lastErr = null;
+    for (const h of LBT_SHARE_HOSTS) {
+      try {
+        const url = await lbtUploadTo(h, blob, 25e3);
+        const entry = { url, host: h.label, at: Date.now() };
+        lbtShareLinkSave(hash, entry);
+        return { url, host: h.label, cached: false };
+      } catch (e) {
+        lastErr = e;
       }
     }
-    if (!win) throw new Error("\u5168\u3066\u306E\u30DB\u30B9\u30C8\u3067\u516C\u958B\u306B\u5931\u6557\u3057\u307E\u3057\u305F");
-    const entry = { url: win.value.url, host: win.value.host.label, at: Date.now() };
-    lbtShareLinkSave(hash, entry);
-    return { url: entry.url, host: entry.host, cached: false };
+    throw new Error("\u5168\u3066\u306E\u30DB\u30B9\u30C8\u3067\u516C\u958B\u306B\u5931\u6557\u3057\u307E\u3057\u305F\uFF08\u6700\u5F8C\u306E\u30A8\u30E9\u30FC: " + (lastErr && lastErr.message || "\u4E0D\u660E") + "\uFF09");
   }
   window.publishShareSheetOnline = publishShareSheetOnline;
   async function openShareSheet(state) {
@@ -1070,7 +1090,7 @@ body{margin:0;background:var(--bg);color:var(--tx);font-family:'Noto Sans JP',sa
           <button class="share-modal-close" data-close aria-label="\u9589\u3058\u308B">\u2715</button>
         </div>
         <div class="share-modal-desc">
-          v52: \u6574\u5F62\u30B7\u30FC\u30C8 (\u7DE8\u96C6\u753B\u9762\u3068\u540C\u3058\u30C0\u30FC\u30AF+\u30B4\u30FC\u30EB\u30C9) \u3092 3 \u7A2E\u985E\u306E\u624B\u6BB5\u3067\u767A\u884C\u3067\u304D\u307E\u3059\u3002<br>
+          v54: \u6574\u5F62\u30B7\u30FC\u30C8 (\u7DE8\u96C6\u753B\u9762\u3068\u540C\u3058\u30C0\u30FC\u30AF+\u30B4\u30FC\u30EB\u30C9) \u3092 4 \u7A2E\u985E\u306E\u624B\u6BB5\u3067\u767A\u884C\u3067\u304D\u307E\u3059\u3002<br>
           \u30DC\u30BF\u30F3\u306F<b>\u30AF\u30EA\u30C3\u30AF\u3057\u305F\u6642\u3060\u3051</b>\u5B9F\u884C\u3055\u308C\u307E\u3059 \u2014 \u610F\u56F3\u305B\u305A\u30BF\u30D6\u304C\u958B\u304F\u3053\u3068\u306F\u3042\u308A\u307E\u305B\u3093\u3002
         </div>
         <div class="share-opt-list">
@@ -1088,6 +1108,14 @@ body{margin:0;background:var(--bg);color:var(--tx);font-family:'Noto Sans JP',sa
               <span class="share-opt-title">\u95B2\u89A7\u7528 URL \u3092\u30AF\u30EA\u30C3\u30D7\u30DC\u30FC\u30C9\u3078</span>
               <span class="share-opt-desc"><code>data:</code> URL \u3092\u767A\u884C\u3057\u3066\u30B3\u30D4\u30FC\u3002\u65B0\u898F\u30BF\u30D6\u306E\u30A2\u30C9\u30EC\u30B9\u30D0\u30FC\u306B\u8CBC\u4ED8\u3067\u958B\u3051\u308B\u3002</span>
               <span class="share-opt-status" data-status="copyurl"></span>
+            </span>
+          </button>
+          <button class="share-opt is-recommended" data-act="publish">
+            <span class="share-opt-icon">\u2463</span>
+            <span class="share-opt-body">
+              <span class="share-opt-title">\u95B2\u89A7\u7528URL\u3092\u767A\u884C\uFF08\u5916\u90E8\u516C\u958B\uFF09</span>
+              <span class="share-opt-desc">\u30A2\u30AB\u30A6\u30F3\u30C8\u4E0D\u8981\u306EHTML\u30DB\u30B9\u30C8\u3078\u30A2\u30C3\u30D7\u30ED\u30FC\u30C9\u3002\u540C\u4E00\u5185\u5BB9\u306A\u3089\u767A\u884C\u6E08\u307F\u30EA\u30F3\u30AF\u3092\u518D\u5229\u7528\u3002\u5931\u6557\u6642\u306F\u6B21\u306E\u30DB\u30B9\u30C8\u3078\u9806\u306B\u5207\u66FF\u3002</span>
+              <span class="share-opt-status" data-status="publish"></span>
             </span>
           </button>
           <button class="share-opt" data-act="download">
