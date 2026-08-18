@@ -48,3 +48,27 @@ Workers CacheはWorkerコードの実行前にキャッシュを照会し、ヒ�
 現行の`workers.dev`共有URLは、個別OGPを表示するために必ずWorkerへ到達する。静的GitHub Pages URLを直接配るとWorker受信はゼロにできるが、Discordは動的な人格名・HP・SAN・共有画像を取得できない。Rentryは共有タイトル・説明・画像のメタデータを持てるが、公式メタデータ仕様にはGitHub Pagesへ無操作で遷移する設定がないため、中間ページをなくす要件を満たさない。
 
 Cloudflareの「fail open」で上限到達後に静的共有へ流すには、Cloudflare Zone内の独自ドメインまたはルートと、GitHub Pages等の既存オリジンが必要である。現行の`workers.dev`はこの構成ではなく、独自ドメインを新たに取得・管理することは請求ゼロ・無管理の前提を崩すため採用しない。したがって、現行条件を全て維持したまま日次100,000件の受信枠そのものを増やす実装は存在しない。
+
+### 代替OGP調査の外部根拠（2026-08-18）
+
+Rentry公式メタデータ仕様は`SHARE_TITLE`、`SHARE_DESCRIPTION`、`SHARE_IMAGE`によるカード用のテキスト・画像指定を提供するが、確認したOPTION群にはGitHub Pages等の外部URLへ無操作で遷移する設定はない。Cloudflare公式では`workers.dev`は独自ドメインを登録せずにWorkerを公開するサブドメインであり、Routeを使うにはCloudflare Zone、プロキシ済みDNSレコード、既存オリジンが必要である。これらは、Rentryを直接カード入口にすると中間ページが残ること、fail openによる静的共有継続には別途管理対象のドメイン・オリジンが必要になることの根拠である。
+
+参照: https://rentry.co/metadata-how ／ https://developers.cloudflare.com/workers/configuration/routing/workers-dev/ ／ https://developers.cloudflare.com/workers/configuration/routing/routes/
+
+## Worker代替OGPの三観点検討（2026-08-18）
+
+### 配信基盤の観点
+
+Rentryは`SHARE_TITLE`・`SHARE_DESCRIPTION`・`SHARE_IMAGE`により個別カード用メタデータを保存できるため、Cloudflareを経由しないカード入口としては候補になる。しかし、Rentry公式のメタデータ・OPTION仕様には、閲覧者をGitHub Pages共有シートへ無操作で転送する設定はない。これを主URLにするとカードは作れてもRentryの中間ページが残る。
+
+### データ生成の観点
+
+GitHub Pagesが個別カードを返すには、共有IDごとのHTMLを発行時にリポジトリへ生成・配備する必要がある。公開利用者が認証なしでGitHubへ書き込む仕組みは安全に作れず、GitHub Actionsの起動・反映待ちも即時共有には適さない。静的`share.html`のJavaScriptでタイトルを更新しても、Open Graphの取得側はHTMLの`head`内メタデータを読むため個別カードにはならない。
+
+### Discord互換性の観点
+
+Open Graphプロトコルでは、個別カードの`og:title`、`og:url`、`og:image`等をリクエスト時のHTML`head`内`meta`タグとして返す必要がある。そのため、短い一つのURLから人格ごとに違うカードを返しつつ中間ページをなくすには、現在のWorkerのような動的HTML応答か、共有ごとの事前生成済み静的HTMLのどちらかが不可欠である。
+
+結論として、現行の完全無料・無管理・利用者無操作・短URL・個別カード・中間ページなしを同時に満たすWorker代替基盤は確認できなかった。代替案は、Rentry中間ページを許容する、共有発行者にGitHub認証を求める、独自ドメインと管理対象を追加する、または動的カードを諦める、のいずれかの条件緩和を要する。
+
+参照: https://ogp.me/ ／ https://rentry.co/metadata-how
