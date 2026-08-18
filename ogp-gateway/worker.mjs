@@ -106,18 +106,19 @@ export async function loadSnapshot(sources, fetchImpl = fetch) {
 function selectedSync(snapshot) {
   const selected = Array.isArray(snapshot?.roster?.personas) ? snapshot.roster.personas[0] : null;
   const rank = ["0", "00", "000"].includes(String(selected?.syncRank || "")) ? selected.syncRank : "";
-  return selected?.syncMax === true ? "MAX" : rank ? `同期${rank}` : "";
+  return [rank ? `同期${rank}` : "", selected?.syncMax === true ? "MAX" : ""].filter(Boolean).join(" ｜ ");
 }
 
 export function previewFromSnapshot(snapshot) {
-  const personaName = String(snapshot?.personaSrc?.name || snapshot?.charName || "LBT キャラクターシート").trim().slice(0, 100);
+  const rawPersonaName = String(snapshot?.personaSrc?.name || snapshot?.charName || "LBT キャラクターシート").trim();
+  const personaName = Array.from(rawPersonaName).slice(0, 48).join("") + (Array.from(rawPersonaName).length > 48 ? "…" : "");
   const hp = String(snapshot?.hp ?? "?").trim().slice(0, 12) || "?";
   const san = String(snapshot?.san ?? "?").trim().slice(0, 12) || "?";
   const sync = selectedSync(snapshot);
   return {
     personaName,
-    title: `${personaName} — LIMBUS BUILD TERMINAL`,
-    description: ["LBT キャラクターシート", `HP ${hp}`, `SAN ${san}`, sync].filter(Boolean).join(" · "),
+    title: personaName,
+    description: [`HP ${hp}`, `SAN ${san}`, sync].filter(Boolean).join(" ｜ "),
     shareImageData: String(snapshot?.shareImageData || "")
   };
 }

@@ -26,8 +26,9 @@ test("画像付き共有から個別OGP HTMLとWebP画像を無状態で返す",
   const page = await handleRequest(new Request("https://lbt-ogp.example/s?s=t:LBT-Test"), { fetchImpl });
   const html = await page.text();
   assert.equal(page.headers.get("content-type"), "text/html; charset=utf-8");
-  assert.match(html, /東部親指カポIIII — LIMBUS BUILD TERMINAL/);
-  assert.match(html, /HP 120 · SAN 50 · MAX/);
+  assert.match(html, /<meta property="og:title" content="東部親指カポIIII">/);
+  assert.match(html, /HP 120 ｜ SAN 50 ｜ 同期000 ｜ MAX/);
+  assert.doesNotMatch(html, /LBT キャラクターシート · HP/);
   assert.match(html, /https:\/\/lbt-ogp\.example\/i\?s=t%3ALBT-Test/);
   const imageResponse = await handleRequest(new Request("https://lbt-ogp.example/i?s=t:LBT-Test"), { fetchImpl });
   assert.equal(imageResponse.headers.get("content-type"), "image/webp");
@@ -45,8 +46,19 @@ test("公式人格を参照する既存共有では固定DBから名前・HP・S
   };
   const page = await handleRequest(new Request("https://lbt-ogp.example/s?s=t:LBT-Legacy"), { fetchImpl });
   const html = await page.text();
-  assert.match(html, /補完人格 — LIMBUS BUILD TERMINAL/);
-  assert.match(html, /HP 135 · SAN 42 · 同期00/);
+  assert.match(html, /<meta property="og:title" content="補完人格">/);
+  assert.match(html, /HP 135 ｜ SAN 42 ｜ 同期00/);
+});
+
+test("長い人格名は表示枠へ収め、同期ランクとMAXを同時にOGPへ表示する", async () => {
+  const longName = "長い人格名をDiscordのカード表示で見切れずに読める範囲へ整形するための検証用フィクサー・補足情報まで含む完全名称";
+  const visibleName = `${Array.from(longName).slice(0, 48).join("")}…`;
+  const shareToken = token({ personaSrc: { name: longName }, hp: "145", san: "55", roster: { personas: [{ syncRank: "000", syncMax: true }] } });
+  const fetchImpl = async () => new Response(JSON.stringify({ ok: true, result: { content: [{ children: [`LBT_SHARE_TOKEN=${shareToken}`] }] } }));
+  const page = await handleRequest(new Request("https://lbt-ogp.example/s?s=t:LBT-Long"), { fetchImpl });
+  const html = await page.text();
+  assert.match(html, new RegExp(`<meta property="og:title" content="${visibleName}">`));
+  assert.match(html, /HP 145 ｜ SAN 55 ｜ 同期000 ｜ MAX/);
 });
 
 test("共有データの取得失敗時も静的共有ページへ安全にフォールバックする", async () => {

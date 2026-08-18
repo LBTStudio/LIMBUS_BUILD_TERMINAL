@@ -47,7 +47,14 @@ const BaseSection = ({ state, dispatch }) => {
       const qualities = [0.86, 0.82, 0.78, 0.74, 0.70, 0.66, 0.62, 0.58];
       for (const width of sizes) {
         const height = Math.round(width * 630 / 1200);
-        const scale = Math.min(width / source.naturalWidth, height / source.naturalHeight);
+        const sourceRatio = source.naturalWidth / source.naturalHeight;
+        const targetRatio = width / height;
+        // 縦長の立ち絵はcontainだと左右の余白が大きくなり主題が小さく見える。
+        // OGPでは上半身・顔が読めることを優先してcoverへ切り替え、上寄りへ自動フォーカスする。
+        const portraitFocus = sourceRatio < targetRatio * 0.82;
+        const scale = portraitFocus
+          ? Math.max(width / source.naturalWidth, height / source.naturalHeight)
+          : Math.min(width / source.naturalWidth, height / source.naturalHeight);
         const drawWidth = Math.round(source.naturalWidth * scale);
         const drawHeight = Math.round(source.naturalHeight * scale);
         const canvas = document.createElement("canvas");
@@ -58,7 +65,11 @@ const BaseSection = ({ state, dispatch }) => {
         context.fillRect(0, 0, width, height);
         context.imageSmoothingEnabled = true;
         context.imageSmoothingQuality = "high";
-        context.drawImage(source, Math.round((width - drawWidth) / 2), Math.round((height - drawHeight) / 2), drawWidth, drawHeight);
+        const drawX = Math.round((width - drawWidth) / 2);
+        const drawY = portraitFocus
+          ? Math.round(height * 0.36 - drawHeight * 0.18)
+          : Math.round((height - drawHeight) / 2);
+        context.drawImage(source, drawX, drawY, drawWidth, drawHeight);
         for (const quality of qualities) {
           let blob = await canvasBlob(canvas, "image/webp", quality);
           if (!blob || !/^image\/webp$/i.test(blob.type)) blob = await canvasBlob(canvas, "image/jpeg", quality);
@@ -106,7 +117,7 @@ const BaseSection = ({ state, dispatch }) => {
     ),
     /* @__PURE__ */ React.createElement("div", { className: "stack-3 base-info-image" },
       /* @__PURE__ */ React.createElement(Field, { label: "IMAGE URL / 立ち絵URL（複数行可、1行目=基本、以降=差分）" }, /* @__PURE__ */ React.createElement("textarea", { className: "textarea", rows: 4, placeholder: "https://...", value: state.imgUrls, onChange: (e) => setF("imgUrls", e.target.value), style: { whiteSpace: "pre", overflowX: "auto", overflowWrap: "normal", wordBreak: "keep-all", fontFamily: "var(--f-mono)" } })),
-      /* @__PURE__ */ React.createElement(Field, { label: "SHARE IMAGE / 共有シート画像", hint: "共有HTMLへ同梱する公開画像です。端末内で最大1200×630・32KB以下へ圧縮し、上限超過時は共有リンクを発行しません" },
+      /* @__PURE__ */ React.createElement(Field, { label: "SHARE IMAGE / 共有シート画像", hint: "共有HTMLへ同梱する公開画像です。縦長の立ち絵は左右余白を抑えて上半身を自動フォーカスし、最大1200×630・32KB以下へ圧縮します" },
         /* @__PURE__ */ React.createElement("div", { className: "stack-2" },
           /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" } },
             /* @__PURE__ */ React.createElement("label", { className: "btn btn-sm", style: { cursor: shareImageBusy ? "wait" : "pointer", opacity: shareImageBusy ? .7 : 1 } }, shareImageBusy ? "画像を最適化中…" : "画像を選択", /* @__PURE__ */ React.createElement("input", { type: "file", accept: "image/png,image/jpeg,image/webp", disabled: shareImageBusy, onChange: onShareImageSelected, style: { display: "none" } })),
