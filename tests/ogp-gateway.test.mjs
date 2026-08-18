@@ -31,6 +31,8 @@ test("画像付き共有から個別OGP HTMLとWebP画像を無状態で返す",
   assert.match(html, /<meta property="og:title" content="東部親指カポIIII">/);
   assert.match(html, /HP 120 ｜ SAN 50 ｜ 同期000 ｜ MAX/);
   assert.doesNotMatch(html, /LBT キャラクターシート · HP/);
+  assert.match(html, /<link rel="canonical" href="https:\/\/lbtstudio\.github\.io\/LIMBUS_BUILD_TERMINAL\/share\.html\?s=t%3ALBT-Test">/);
+  assert.match(html, /<meta property="og:url" content="https:\/\/lbtstudio\.github\.io\/LIMBUS_BUILD_TERMINAL\/share\.html\?s=t%3ALBT-Test">/);
   assert.match(html, /https:\/\/lbt-ogp\.example\/i\?s=t%3ALBT-Test/);
   const imageResponse = await handleRequest(new Request("https://lbt-ogp.example/i?s=t:LBT-Test"), { fetchImpl });
   assert.equal(imageResponse.headers.get("content-type"), "image/webp");
