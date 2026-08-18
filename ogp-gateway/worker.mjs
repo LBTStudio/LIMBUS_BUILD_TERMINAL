@@ -13,7 +13,9 @@ const EXTERNAL_TOKEN_MARKER = "LBT_SHARE_TOKEN=";
 const EXTERNAL_TOKEN_PART_MARKER = "LBT_SHARE_TOKEN_PART=";
 const MAX_TOKEN_CHARS = 160000;
 const MAX_DECOMPRESSED_BYTES = 256000;
-const CACHE_CONTROL = "public, max-age=86400, stale-while-revalidate=604800";
+// 共有IDは一度発行した内容を変更しない。不変のOGP・画像を長くキャッシュして、
+// Discordの再プレビューや多人数の同時閲覧でWorker実行と外部保存先の読込を重複させない。
+const CACHE_CONTROL = "public, max-age=604800, s-maxage=604800, stale-while-revalidate=2592000";
 
 function htmlEscape(value) {
   return String(value || "").replace(/[&<>"']/g, (char) => ({
@@ -200,7 +202,7 @@ function ogpHtml(requestUrl, snapshot) {
     ? `${url.origin}/i?${url.searchParams.toString()}`
     : STATIC_FALLBACK_IMAGE;
   const safeTarget = htmlEscape(target);
-  return new Response(`<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><link rel="canonical" href="${htmlEscape(url.href)}"><title>${htmlEscape(preview.title)}</title><meta property="og:type" content="website"><meta property="og:site_name" content="LIMBUS BUILD TERMINAL"><meta property="og:url" content="${htmlEscape(url.href)}"><meta property="og:title" content="${htmlEscape(preview.title)}"><meta property="og:description" content="${htmlEscape(preview.description)}"><meta property="og:image" content="${htmlEscape(image)}"><meta property="og:image:alt" content="${htmlEscape(preview.personaName)} の共有画像"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${htmlEscape(preview.title)}"><meta name="twitter:description" content="${htmlEscape(preview.description)}"><meta name="twitter:image" content="${htmlEscape(image)}"><meta http-equiv="refresh" content="0;url=${safeTarget}"><script>location.replace(${JSON.stringify(target)})</script></head><body><a href="${safeTarget}">LBT共有シートを開く</a></body></html>`, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } });
+  return new Response(`<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><link rel="canonical" href="${htmlEscape(url.href)}"><title>${htmlEscape(preview.title)}</title><meta property="og:type" content="website"><meta property="og:site_name" content="LIMBUS BUILD TERMINAL"><meta property="og:url" content="${htmlEscape(url.href)}"><meta property="og:title" content="${htmlEscape(preview.title)}"><meta property="og:description" content="${htmlEscape(preview.description)}"><meta property="og:image" content="${htmlEscape(image)}"><meta property="og:image:alt" content="${htmlEscape(preview.personaName)} の共有画像"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${htmlEscape(preview.title)}"><meta name="twitter:description" content="${htmlEscape(preview.description)}"><meta name="twitter:image" content="${htmlEscape(image)}"><meta http-equiv="refresh" content="0;url=${safeTarget}"><script>location.replace(${JSON.stringify(target)})</script></head><body><a href="${safeTarget}">LBT共有シートを開く</a></body></html>`, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": CACHE_CONTROL, "X-Content-Type-Options": "nosniff" } });
 }
 
 export async function handleRequest(request, { fetchImpl = fetch } = {}) {
