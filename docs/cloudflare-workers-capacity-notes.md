@@ -42,3 +42,9 @@ Workers CacheはWorkerコードの実行前にキャッシュを照会し、ヒ�
 2026-08-18の検証では、Workers Scripts APIによるモジュール再アップロードが既存の`cache_options`を初期化することを確認した。したがって、Workerソースを更新する配備では、アップロード直後にSettings APIで`cache_options: { enabled: true, cross_version_cache: false }`を再適用し、GET設定応答に`enabled: true`が含まれることを確認する。最後に、同一OGP URLを2回取得し、1回目の`CF-Cache-Status: MISS`、2回目の`HIT`を確認する。
 
 この手順により、初回のOGP HTML・画像生成だけがWorkerを実行し、同一共有への後続取得はWorkerコード・Rentry・Telegraphを実行せずキャッシュから返る。キャッシュヒットも日次受信枠には計上されるため、配備検証では「受信枠の削減」ではなく「CPU・外部取得・同時障害の削減」として評価する。
+
+## 日次受信上限を超える場合の候補検討
+
+現行の`workers.dev`共有URLは、個別OGPを表示するために必ずWorkerへ到達する。静的GitHub Pages URLを直接配るとWorker受信はゼロにできるが、Discordは動的な人格名・HP・SAN・共有画像を取得できない。Rentryは共有タイトル・説明・画像のメタデータを持てるが、公式メタデータ仕様にはGitHub Pagesへ無操作で遷移する設定がないため、中間ページをなくす要件を満たさない。
+
+Cloudflareの「fail open」で上限到達後に静的共有へ流すには、Cloudflare Zone内の独自ドメインまたはルートと、GitHub Pages等の既存オリジンが必要である。現行の`workers.dev`はこの構成ではなく、独自ドメインを新たに取得・管理することは請求ゼロ・無管理の前提を崩すため採用しない。したがって、現行条件を全て維持したまま日次100,000件の受信枠そのものを増やす実装は存在しない。
