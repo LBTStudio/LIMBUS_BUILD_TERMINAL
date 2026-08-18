@@ -1,0 +1,189 @@
+/* ============================================================
+   LBT v64r45 — "DANTE HOMAGE" variant
+   Limbus Company のキャラクター「ダンテ」のデザイン言語を参照した
+   独自オマージュ配色（公式素材・配色コードのコピーは行わない）。
+
+   参照から抽出したエッセンス:
+     - 基調: チャコールブラック（コート／時計盤の深い黒）
+     - 第一アクセント: 深紅クリムゾン（外輪／ネクタイの赤）
+     - 金属アクセント: 暖かいゴールド（時計針・歯車・チェーン）
+     - 文字: アイボリー（シャツの白み）
+     - 発光: 琥珀オレンジ（中央機構の輝き）
+     - モチーフ: 時計（円・針・歯車）をUIの随所に点で配置
+
+   v54「MIDNIGHT NEON」（青みの闇＋蛍光グリーン）からの変更点:
+     - neon(グリーン) を廃止し、accent(クリムゾン)＋gold(ゴールド) の
+       2色発光システムへ転換（ダンテの配色階層を踏襲）
+     - グレー系(--res-普通 等) をブランド準拠の色へ置換
+     - 時計モチーフ（clock）を装飾要素として追加
+   ============================================================ */
+
+/* Final palette tokens moved to design-system.css. This file now owns clockwork structure only. */
+
+/* ============================================================
+   背景: 「時計仕掛けの設計図」— ブループリント式透かし
+
+   設計理論（ダークUI背景設計の知見に基づく）:
+     1. 具象物は抽象化する
+        歯車・時計の「絵」はノイズになる。時計を同心円リング＋細い
+        ティック（刻み目）＋ヘアラインという設計図言語に翻訳する。
+     2. 単色・単一深度
+        多色混在はノイズの正体。ゴールド単色・均一な低不透明度で統一。
+     3. 大きく1つ、偏心配置
+        小図形の散布は散らかった印象を生む。巨大な円環系を画面外へ
+        はみ出させる一点構成とし、対角の片隅に小さな盤を添えるのみ。
+     4. 質感はグレインで担う
+        図形ではなく微細な粒子ノイズが「金属/紙」の触感を演出する。
+     5. 背景はテキストの後ろで呼吸する程度
+        コントラストは知覚閾値ギリギリ（opacity 0.03〜0.05）。
+   ============================================================ */
+
+:root{
+  /* ── 巨大な時計環（右下に偏心・画面外へはみ出す一点構成） ──
+     同心円のリング＋60分刻みのティック＋中心の留め金。
+     針はあえて「絵」として描かず、環の欠けた弧で時間の流れだけを示唆。 */
+  --dante-ring: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900' viewBox='0 0 900 900'%3E%3Cg fill='none' stroke='%23d4af5f'%3E%3Ccircle cx='450' cy='450' r='380' stroke-opacity='0.05' stroke-width='1.5'/%3E%3Ccircle cx='450' cy='450' r='330' stroke-opacity='0.04' stroke-width='1'/%3E%3Ccircle cx='450' cy='450' r='280' stroke-opacity='0.035' stroke-width='1'/%3E%3Cg stroke-opacity='0.05' stroke-width='1.5'%3E%3Cpath d='M450 70v22M450 808v22M70 450h22M808 450h22M260 143l15 16M625 742l15 15M143 640l16-15M742 260l15-15'/%3E%3C/g%3E%3Cpath d='M450 90 A 360 360 0 0 1 795 350' stroke-opacity='0.07' stroke-width='3'/%3E%3Ccircle cx='450' cy='450' r='8' stroke-opacity='0.06' stroke-width='2'/%3E%3C/g%3E%3C/svg%3E");
+
+  /* ── 小さな時計盤（左上の隅に添える副モチーフ） ──
+     主環とは逆の隅に、より小さく・より淡く配置して奥行きを作る。 */
+  --dante-dial: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'%3E%3Cg fill='none' stroke='%23d4af5f' stroke-opacity='0.05'%3E%3Ccircle cx='130' cy='130' r='104' stroke-width='1.5'/%3E%3Ccircle cx='130' cy='130' r='86' stroke-width='1'/%3E%3Cg stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M130 34v14M130 212v14M34 130h14M212 130h14'/%3E%3C/g%3E%3Ccircle cx='130' cy='130' r='4'/%3E%3C/g%3E%3C/svg%3E");
+
+  /* ── グレイン（微細な粒子ノイズ。質感の担い手） ──
+     図形ではなくランダムな点が金属/紙の触感を演出する。 */
+  --dante-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.83  0 0 0 0 0.69  0 0 0 0 0.37  0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+body{
+  background:
+    /* 透かし層: 巨大な時計環（右下偏心）＋小盤（左上隅）＋グレイン（全面） */
+    var(--dante-ring)  no-repeat right -320px bottom -320px / 900px 900px,
+    var(--dante-dial)  no-repeat -70px -70px / 260px 260px,
+    var(--dante-grain) repeat 0 0 / 200px 200px,
+    /* 輝き層: クリムゾン・ゴールド・琥珀の淡い光（単色深度を保つ） */
+    radial-gradient(1200px 600px at 85% -10%, var(--accent-tint), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, var(--gold-tint), transparent 55%),
+    radial-gradient(700px 400px at 50% 120%, var(--amber-tint), transparent 55%),
+    var(--bg);
+  background-attachment: fixed, fixed, fixed, fixed, fixed, fixed, fixed;
+}
+
+/* メイン領域は透かしを通す（不透明な var(--bg) 被覆を解除）しつつ、
+   可読性維持のためコンテンツ背面に薄い暗膜を敷く。
+   透かし本体は body に描画済みのため、.focus は「膜」だけを担う。 */
+.focus{
+  background: linear-gradient(rgba(14,11,9,0.62), rgba(14,11,9,0.62));
+}
+/* 側面パネルはグレインのみ通して質感を揃える */
+.rail, .preview{
+  background:
+    linear-gradient(rgba(14,11,9,0.55), rgba(14,11,9,0.55)),
+    var(--dante-grain) repeat 0 0 / 200px 200px,
+    var(--surface-0);
+}
+
+/* ============================================================
+   見出し・ラベル: ゴールドの発光（金属質感）
+   ============================================================ */
+.section-title-num, .t-label{
+  color: var(--gold-hi);
+  text-shadow: 0 0 8px var(--gold-glow);
+}
+.rule .rule-l{
+  color: var(--gold);
+}
+.rule::after{
+  background: linear-gradient(90deg, var(--gold-line), var(--accent-line), transparent);
+}
+
+/* ============================================================
+   カード: チャコール面にゴールドの細罫線（端子感）
+   ============================================================ */
+.card, .deck-card, .p-card, .spirit-item, .equipped-summary{
+  border-color: var(--line);
+  background: linear-gradient(180deg, var(--surface-1), var(--surface-0));
+}
+.card:hover, .p-card:hover, .spirit-item:hover{
+  border-color: var(--gold-line);
+  box-shadow: 0 0 0 1px var(--gold-tint);
+}
+
+/* ============================================================
+   interactive 要素: フォーカスは琥珀の発光（点使い）
+   ============================================================ */
+.btn:focus-visible, .select:focus-visible, .input:focus-visible, .textarea:focus-visible{
+  outline: 1px solid var(--amber);
+  box-shadow: 0 0 0 3px var(--amber-tint), 0 0 12px var(--amber-glow);
+}
+
+/* ============================================================
+   装備中・選択状態: 深紅クリムゾンで示す（主役の色）
+   ============================================================ */
+.is-equipped, .is-active{
+  box-shadow: inset 0 0 0 1px var(--accent-line), 0 0 10px var(--accent-glow);
+}
+
+/* ============================================================
+   時計モチーフ装飾
+   ============================================================ */
+/* セクション見出しの左に「時計盤」を象る円環アクセント */
+.section-title-num::before{
+  content:"";
+  display:inline-block;
+  width:0.9em; height:0.9em;
+  margin-right:0.45em;
+  border:2px solid var(--clock-ring);
+  border-radius:50%;
+  vertical-align:-0.1em;
+  background:
+    linear-gradient(var(--clock-hand), var(--clock-hand)) center/2px 45% no-repeat,
+    radial-gradient(circle, var(--clock-face) 55%, transparent 56%);
+  box-shadow: 0 0 6px var(--gold-glow);
+}
+
+/* スクロールバーも闇に馴染ませる */
+::-webkit-scrollbar{ width: 10px; height: 10px; }
+::-webkit-scrollbar-track{ background: var(--surface-inset); }
+::-webkit-scrollbar-thumb{ background: var(--surface-3); border: 2px solid var(--surface-inset); }
+::-webkit-scrollbar-thumb:hover{ background: var(--gold-lo); }
+
+/* ============================================================
+   モバイル改善（390px 想定）
+   ============================================================ */
+@media (max-width: 640px){
+  /* フィルタタブの押し潰れ解消: 折り返し＋最低高確保 */
+  .codex-tabs, .tab-row, .filter-tabs{
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .codex-tabs > *, .tab-row > *, .filter-tabs > *{
+    min-height: 40px;          /* タップターゲット確保 */
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
+
+  /* 大罪フィルタ丸ボタンのタップターゲット拡大 */
+  .sin-filter button, .sin-filter .sin-btn, [class*="sin-filter"] button{
+    min-width: 44px; min-height: 44px;
+    font-size: 1rem;
+  }
+
+  /* 検索入力・ラベルの可読性向上 */
+  .input, .select, .textarea{
+    font-size: 16px;           /* iOSの自動ズーム防止 */
+  }
+  .t-label, .field-label{
+    font-size: 0.95rem;
+  }
+
+  /* スキルカード下部の薄さ解消 */
+  .skill-quick-slot, .deck-card, .skill-card{
+    min-height: 48px;
+    padding: 10px 12px;
+  }
+
+  /* 数値（HP/SAN/速度）のフォント拡大 */
+  .es-stat-value, .stat-value, .p-stat{
+    font-size: 1.05rem;
+  }
+}

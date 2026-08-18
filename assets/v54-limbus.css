@@ -1,0 +1,116 @@
+/* ============================================================
+   LBT v54 — "MIDNIGHT NEON" variant
+   Limbus Company の UI 傾向（闇＋蛍光アクセント＋硬質な幾何学）を
+   エッセンスとして抽出し、公式素材・配色のコピーは行わない独自改変版。
+
+   分析から採用したエッセンス:
+     - 深い黒ではなく「わずかに青みを含む闇」を基調
+     - 蛍光色はアクセントにのみ点で使用（面で塗らない）
+       → グリーン系発光 + 既存ゴールドの2色発光システム
+     - 罫線は細く硬く、コーナーは鋭角（radius 縮小）
+     - 見出しに only-hint のスキャンライン/グローで質感付与
+     - 耐性色などデータ色は輝度を抑えて背景へ調和させる
+   ============================================================ */
+
+:root{
+  /* 基調: 青みの闇（純黒 #000 は避け瞳孔の開閉疲労を抑える） */
+  --bg:            #0b0e12;
+  --surface-0:     #10141a;
+  --surface-1:     #161b23;
+  --surface-2:     #1c222c;
+  --surface-3:     #232a36;
+  --surface-4:     #2b3341;
+  --surface-inset: #070a0e;
+
+  --line-dim:      #232b38;
+  --line:          #33404f;
+  --line-strong:   #45546a;
+  --line-hot:      #6f8552;
+
+  --tx:            #e8ecef;
+  --tx-2:          #c3ccd4;
+  --tx-dim:        #8d99a6;
+  --tx-mute:       #64707e;
+  --tx-inv:        #0b0e12;
+
+  /* ゴールドは維持しつつ彩度を少し落として蛍光グリーンと協調 */
+  --gold:          #c9a959;
+  --gold-hi:       #e0c175;
+  --gold-lo:       #7d6530;
+  --gold-line:     rgba(201,169,89,0.55);
+  --gold-glow:     rgba(201,169,89,0.20);
+  --gold-tint:     rgba(201,169,89,0.08);
+
+  /* 蛍光アクセント（第二の発光色。アクセント/強調の点使いのみ） */
+  --neon:          #59d6a4;
+  --neon-hi:       #7feeC4;
+  --neon-glow:     rgba(89,214,164,0.22);
+  --neon-tint:     rgba(89,214,164,0.08);
+  --neon-line:     rgba(89,214,164,0.45);
+
+  /* 耐性色: 輝度を抑え背景へ調和（まぶしさ解消） */
+  --res-脆弱: #8f4a44;
+  --res-弱点: #96683c;
+  --res-普通: #5c6470;
+  --res-抵抗: #4c7055;
+  --res-耐性: #436a85;
+  --res-免疫: #635684;
+
+  /* 大罪色は識別のため保持しつつごく僅かに減光 */
+  --sin-憤怒: #c64a3d;
+  --sin-色欲: #d67c3e;
+  --sin-怠惰: #c4c155;
+  --sin-暴食: #74b051;
+  --sin-憂鬱: #4b97d5;
+  --sin-傲慢: #5fc2bc;
+  --sin-嫉妬: #a76cc6;
+  --sin-特殊: #9a989b;
+
+  /* コーナー: 硬質な鋭角へ */
+  --r:    3px;
+  --r-sm: 2px;
+}
+
+body{
+  background:
+    radial-gradient(1200px 600px at 85% -10%, rgba(89,214,164,0.05), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(201,169,89,0.05), transparent 55%),
+    var(--bg);
+}
+
+/* 見出しの蛍光アクセント（点使い） */
+.section-title-num, .t-label{
+  text-shadow: 0 0 8px var(--neon-glow);
+}
+.rule .rule-l{
+  color: var(--neon);
+}
+.rule::after{
+  background: linear-gradient(90deg, var(--neon-line), transparent);
+}
+
+/* カード: 左上の発光ラインで硬質な端子感 */
+.card, .deck-card, .p-card, .spirit-item, .equipped-summary{
+  border-color: var(--line);
+  background: linear-gradient(180deg, var(--surface-1), var(--surface-0));
+}
+.card:hover, .p-card:hover, .spirit-item:hover{
+  border-color: var(--line-strong);
+}
+
+/* interactive 要素の発光は hover 時のみ（常時発光は疲労する） */
+.btn:focus-visible, .select:focus-visible, .input:focus-visible, .textarea:focus-visible{
+  outline: 1px solid var(--neon);
+  box-shadow: 0 0 0 3px var(--neon-tint), 0 0 12px var(--neon-glow);
+}
+
+/* 装備中マーク・選択状態はネオン側へ寄せる（識別の主役を大罪色と分ける） */
+.is-equipped, .is-active{
+  box-shadow: inset 0 0 0 1px var(--neon-line), 0 0 10px var(--neon-glow);
+}
+
+/* スクロールバーも闇に馴染ませる */
+::-webkit-scrollbar{ width: 10px; height: 10px; }
+::-webkit-scrollbar-track{ background: var(--surface-inset); }
+::-webkit-scrollbar-thumb{ background: var(--surface-3); border: 2px solid var(--surface-inset); }
+::-webkit-scrollbar-thumb:hover{ background: var(--line-strong); }

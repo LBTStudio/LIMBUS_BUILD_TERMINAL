@@ -1,0 +1,2341 @@
+/* ============================================================
+   LBT v64r45 — "DANTE HOMAGE" variant
+   Limbus Company のキャラクター「ダンテ」のデザイン言語を参照した
+   独自オマージュ配色（公式素材・配色コードのコピーは行わない）。
+
+   参照から抽出したエッセンス:
+     - 基調: チャコールブラック（コート／時計盤の深い黒）
+     - 第一アクセント: 深紅クリムゾン（外輪／ネクタイの赤）
+     - 金属アクセント: 暖かいゴールド（時計針・歯車・チェーン）
+     - 文字: アイボリー（シャツの白み）
+     - 発光: 琥珀オレンジ（中央機構の輝き）
+     - モチーフ: 時計（円・針・歯車）をUIの随所に点で配置
+
+   v54「MIDNIGHT NEON」（青みの闇＋蛍光グリーン）からの変更点:
+     - neon(グリーン) を廃止し、accent(クリムゾン)＋gold(ゴールド) の
+       2色発光システムへ転換（ダンテの配色階層を踏襲）
+     - グレー系(--res-普通 等) をブランド準拠の色へ置換
+     - 時計モチーフ（clock）を装飾要素として追加
+   ============================================================ */
+
+/* Final palette tokens moved to design-system.css. This file now owns clockwork structure only. */
+
+/* ============================================================
+   背景: 「時計仕掛けの設計図」— ブループリント式透かし
+
+   設計理論（ダークUI背景設計の知見に基づく）:
+     1. 具象物は抽象化する
+        歯車・時計の「絵」はノイズになる。時計を同心円リング＋細い
+        ティック（刻み目）＋ヘアラインという設計図言語に翻訳する。
+     2. 単色・単一深度
+        多色混在はノイズの正体。ゴールド単色・均一な低不透明度で統一。
+     3. 大きく1つ、偏心配置
+        小図形の散布は散らかった印象を生む。巨大な円環系を画面外へ
+        はみ出させる一点構成とし、対角の片隅に小さな盤を添えるのみ。
+     4. 質感はグレインで担う
+        図形ではなく微細な粒子ノイズが「金属/紙」の触感を演出する。
+     5. 背景はテキストの後ろで呼吸する程度
+        コントラストは知覚閾値ギリギリ（opacity 0.03〜0.05）。
+   ============================================================ */
+
+:root{
+  /* ── 巨大な時計環（右下に偏心・画面外へはみ出す一点構成） ──
+     同心円のリング＋60分刻みのティック＋中心の留め金。
+     針はあえて「絵」として描かず、環の欠けた弧で時間の流れだけを示唆。 */
+  --dante-ring: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900' viewBox='0 0 900 900'%3E%3Cg fill='none' stroke='%23d4af5f'%3E%3Ccircle cx='450' cy='450' r='380' stroke-opacity='0.05' stroke-width='1.5'/%3E%3Ccircle cx='450' cy='450' r='330' stroke-opacity='0.04' stroke-width='1'/%3E%3Ccircle cx='450' cy='450' r='280' stroke-opacity='0.035' stroke-width='1'/%3E%3Cg stroke-opacity='0.05' stroke-width='1.5'%3E%3Cpath d='M450 70v22M450 808v22M70 450h22M808 450h22M260 143l15 16M625 742l15 15M143 640l16-15M742 260l15-15'/%3E%3C/g%3E%3Cpath d='M450 90 A 360 360 0 0 1 795 350' stroke-opacity='0.07' stroke-width='3'/%3E%3Ccircle cx='450' cy='450' r='8' stroke-opacity='0.06' stroke-width='2'/%3E%3C/g%3E%3C/svg%3E");
+
+  /* ── 小さな時計盤（左上の隅に添える副モチーフ） ──
+     主環とは逆の隅に、より小さく・より淡く配置して奥行きを作る。 */
+  --dante-dial: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'%3E%3Cg fill='none' stroke='%23d4af5f' stroke-opacity='0.05'%3E%3Ccircle cx='130' cy='130' r='104' stroke-width='1.5'/%3E%3Ccircle cx='130' cy='130' r='86' stroke-width='1'/%3E%3Cg stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M130 34v14M130 212v14M34 130h14M212 130h14'/%3E%3C/g%3E%3Ccircle cx='130' cy='130' r='4'/%3E%3C/g%3E%3C/svg%3E");
+
+  /* ── グレイン（微細な粒子ノイズ。質感の担い手） ──
+     図形ではなくランダムな点が金属/紙の触感を演出する。 */
+  --dante-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.83  0 0 0 0 0.69  0 0 0 0 0.37  0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+body{
+  background:
+    /* 透かし層: 巨大な時計環（右下偏心）＋小盤（左上隅）＋グレイン（全面） */
+    var(--dante-ring)  no-repeat right -320px bottom -320px / 900px 900px,
+    var(--dante-dial)  no-repeat -70px -70px / 260px 260px,
+    var(--dante-grain) repeat 0 0 / 200px 200px,
+    /* 輝き層: クリムゾン・ゴールド・琥珀の淡い光（単色深度を保つ） */
+    radial-gradient(1200px 600px at 85% -10%, var(--accent-tint), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, var(--gold-tint), transparent 55%),
+    radial-gradient(700px 400px at 50% 120%, var(--amber-tint), transparent 55%),
+    var(--bg);
+  background-attachment: fixed, fixed, fixed, fixed, fixed, fixed, fixed;
+}
+
+/* メイン領域は透かしを通す（不透明な var(--bg) 被覆を解除）しつつ、
+   可読性維持のためコンテンツ背面に薄い暗膜を敷く。
+   透かし本体は body に描画済みのため、.focus は「膜」だけを担う。 */
+.focus{
+  background: linear-gradient(rgba(14,11,9,0.62), rgba(14,11,9,0.62));
+}
+/* 側面パネルはグレインのみ通して質感を揃える */
+.rail, .preview{
+  background:
+    linear-gradient(rgba(14,11,9,0.55), rgba(14,11,9,0.55)),
+    var(--dante-grain) repeat 0 0 / 200px 200px,
+    var(--surface-0);
+}
+
+/* ============================================================
+   見出し・ラベル: ゴールドの発光（金属質感）
+   ============================================================ */
+.section-title-num, .t-label{
+  color: var(--gold-hi);
+  text-shadow: 0 0 8px var(--gold-glow);
+}
+.rule .rule-l{
+  color: var(--gold);
+}
+.rule::after{
+  background: linear-gradient(90deg, var(--gold-line), var(--accent-line), transparent);
+}
+
+/* ============================================================
+   カード: チャコール面にゴールドの細罫線（端子感）
+   ============================================================ */
+.card, .deck-card, .p-card, .spirit-item, .equipped-summary{
+  border-color: var(--line);
+  background: linear-gradient(180deg, var(--surface-1), var(--surface-0));
+}
+.card:hover, .p-card:hover, .spirit-item:hover{
+  border-color: var(--gold-line);
+  box-shadow: 0 0 0 1px var(--gold-tint);
+}
+
+/* ============================================================
+   interactive 要素: フォーカスは琥珀の発光（点使い）
+   ============================================================ */
+.btn:focus-visible, .select:focus-visible, .input:focus-visible, .textarea:focus-visible{
+  outline: 1px solid var(--amber);
+  box-shadow: 0 0 0 3px var(--amber-tint), 0 0 12px var(--amber-glow);
+}
+
+/* ============================================================
+   装備中・選択状態: 深紅クリムゾンで示す（主役の色）
+   ============================================================ */
+.is-equipped, .is-active{
+  box-shadow: inset 0 0 0 1px var(--accent-line), 0 0 10px var(--accent-glow);
+}
+
+/* ============================================================
+   時計モチーフ装飾
+   ============================================================ */
+/* セクション見出しの左に「時計盤」を象る円環アクセント */
+.section-title-num::before{
+  content:"";
+  display:inline-block;
+  width:0.9em; height:0.9em;
+  margin-right:0.45em;
+  border:2px solid var(--clock-ring);
+  border-radius:50%;
+  vertical-align:-0.1em;
+  background:
+    linear-gradient(var(--clock-hand), var(--clock-hand)) center/2px 45% no-repeat,
+    radial-gradient(circle, var(--clock-face) 55%, transparent 56%);
+  box-shadow: 0 0 6px var(--gold-glow);
+}
+
+/* スクロールバーも闇に馴染ませる */
+::-webkit-scrollbar{ width: 10px; height: 10px; }
+::-webkit-scrollbar-track{ background: var(--surface-inset); }
+::-webkit-scrollbar-thumb{ background: var(--surface-3); border: 2px solid var(--surface-inset); }
+::-webkit-scrollbar-thumb:hover{ background: var(--gold-lo); }
+
+/* ============================================================
+   モバイル改善（390px 想定）
+   ============================================================ */
+@media (max-width: 640px){
+  /* フィルタタブの押し潰れ解消: 折り返し＋最低高確保 */
+  .codex-tabs, .tab-row, .filter-tabs{
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .codex-tabs > *, .tab-row > *, .filter-tabs > *{
+    min-height: 40px;          /* タップターゲット確保 */
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
+
+  /* 大罪フィルタ丸ボタンのタップターゲット拡大 */
+  .sin-filter button, .sin-filter .sin-btn, [class*="sin-filter"] button{
+    min-width: 44px; min-height: 44px;
+    font-size: 1rem;
+  }
+
+  /* 検索入力・ラベルの可読性向上 */
+  .input, .select, .textarea{
+    font-size: 16px;           /* iOSの自動ズーム防止 */
+  }
+  .t-label, .field-label{
+    font-size: 0.95rem;
+  }
+
+  /* スキルカード下部の薄さ解消 */
+  .skill-quick-slot, .deck-card, .skill-card{
+    min-height: 48px;
+    padding: 10px 12px;
+  }
+
+  /* 数値（HP/SAN/速度）のフォント拡大 */
+  .es-stat-value, .stat-value, .p-stat{
+    font-size: 1.05rem;
+  }
+}
+
+
+/* ============================================================
+   v60 consolidated guide + mobile-workspace refinements
+   ============================================================ */
+.guide { max-width: 980px; }
+.guide-intro { padding: var(--s-6); background: linear-gradient(135deg, color-mix(in oklab, var(--gold) 12%, var(--surface-1)), var(--surface-1)); border: 1px solid var(--gold-line); border-left: 4px solid var(--gold); }
+.guide-kicker { font: 700 var(--fs-10)/1 var(--f-mono); letter-spacing: .16em; color: var(--gold); margin-bottom: var(--s-2); }
+.guide-intro h2 { font-family: var(--f-serif); font-size: clamp(28px, 4vw, 42px); letter-spacing: .02em; color: var(--tx); margin: 0 0 var(--s-2); }
+.guide-intro > p { max-width: 68ch; color: var(--tx-2); margin: 0; line-height: 1.75; }
+.guide-quick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-3); margin-top: var(--s-5); }
+.guide-step { min-height: 132px; padding: var(--s-3); background: color-mix(in oklab, var(--surface-0) 86%, transparent); border: 1px solid var(--line); border-top: 2px solid var(--gold); }
+.guide-step > span { display:block; font: 700 var(--fs-20)/1 var(--f-mono); color: var(--gold); margin-bottom: 8px; }
+.guide-step b { color: var(--tx); font-family: var(--f-display); font-size: var(--fs-15); }
+.guide-step p { margin: 5px 0 0; color: var(--tx-2); font-size: var(--fs-11); line-height: 1.6; }
+.guide-common-note { display:flex; align-items:flex-start; gap:8px; padding: var(--s-3); border-left: 3px solid var(--amber); background: color-mix(in oklab, var(--amber) 8%, var(--surface-1)); color: var(--tx-2); font-size: var(--fs-12); line-height: 1.6; }
+.guide-common-note svg { flex:none; color: var(--amber-hi); margin-top: 2px; }
+.guide-group { border:1px solid var(--line); background: var(--surface-1); }
+.guide-group.is-open { border-color: var(--gold-line); }
+.guide-group-head { display:grid; grid-template-columns:auto 1fr auto; gap:var(--s-3); width:100%; min-height:52px; padding:var(--s-3) var(--s-4); text-align:left; align-items:center; color:var(--tx); }
+.guide-group-head:hover { background: var(--surface-2); }
+.guide-group-head b { display:block; font-family:var(--f-display); color:var(--gold-hi); font-size:var(--fs-14); }
+.guide-group-head small { display:block; margin-top:2px; color:var(--tx-dim); font-size:var(--fs-11); }
+.guide-group-caret,.guide-group-count { font-family:var(--f-mono); font-size:var(--fs-10); color:var(--gold); }
+.guide-group-count { color:var(--tx-mute); }
+.guide-items { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--s-2); padding:0 var(--s-3) var(--s-3); }
+.guide-item { display:flex; gap:var(--s-3); min-width:0; padding:var(--s-3); background:var(--surface-inset); border:1px solid var(--line-dim); }
+.guide-item-icon { width:36px; height:36px; flex:none; display:grid; place-items:center; color:var(--gold); background:var(--gold-tint); border:1px solid var(--gold-line); }
+.guide-item h3 { margin:0 0 4px; color:var(--tx); font:700 var(--fs-14)/1.3 var(--f-display); }
+.guide-item p { margin:0; color:var(--tx-2); font-size:var(--fs-11); line-height:1.7; }
+
+/* v64r45: 使い方は「開始 → 確認 → 保存」を先に読ませる。番号と本文を同じ読み列へ置き、補助情報の視覚比重を下げる。 */
+.guide { max-width:100%; }
+.guide-intro { padding:var(--s-5); }
+.guide-intro h2 { max-width:20ch; line-height:1.2; margin-bottom:var(--s-2); }
+.guide-intro > p { max-width:60ch; font-size:var(--fs-13); line-height:1.7; }
+.guide-quick { margin-top:var(--s-4); gap:var(--s-2); }
+.guide-step { min-height:0; display:grid; grid-template-columns:26px minmax(0,1fr); column-gap:10px; row-gap:2px; padding:var(--s-3); }
+.guide-step > span { grid-row:1 / span 2; align-self:start; margin:1px 0 0; font-size:var(--fs-16); }
+.guide-step b { align-self:end; font-size:var(--fs-14); line-height:1.35; }
+.guide-step p { grid-column:2; margin:0; font-size:var(--fs-11); line-height:1.55; }
+.guide-step:first-child { border-left:2px solid var(--gold); background:color-mix(in oklab, var(--gold) 7%, var(--surface-0)); }
+.guide-group-head { grid-template-columns:14px minmax(0,1fr); gap:10px; min-height:58px; }
+.guide-group-head small { margin-top:3px; line-height:1.5; }
+.guide-group-caret { align-self:start; padding-top:4px; }
+.guide-items { gap:var(--s-2); }
+.guide-item { padding:14px; }
+.guide-item h3 { margin-bottom:6px; line-height:1.4; }
+
+
+/* d値/d数 controls are semantic controls, not low-contrast supplementary text. */
+.sk-var-block { background: color-mix(in oklab, var(--gold) 5%, var(--surface-inset)); border:1px solid var(--gold-line); padding:var(--s-3); }
+.sk-var-title { color:var(--gold-hi) !important; font-size:var(--fs-12) !important; }
+.sk-var-hint { color:var(--tx-2) !important; }
+.sk-var-chk { min-height:44px; padding:8px 10px; color:var(--tx) !important; border-color:var(--line-strong) !important; background:var(--surface-2) !important; }
+.sk-var-chk:has(input:checked) { border-color:var(--gold) !important; background:var(--gold-tint) !important; color:var(--gold-hi) !important; }
+.sk-var-input { min-height:40px; color:var(--gold-hi) !important; background:var(--surface-inset) !important; border-color:var(--line-strong) !important; }
+
+/* One deliberate confirmation moment; reduced-motion is respected by the existing token reset. */
+.roster-item.is-equipped, .ego-slot.is-equipped { animation: lbt-confirm var(--t-slow) var(--e-out); }
+@keyframes lbt-confirm { from { opacity:.55; transform:translateY(4px); } to { opacity:1; transform:none; } }
+
+@media (max-width:640px) {
+  .focus { padding-bottom: 88px; }
+  .topbar { overflow:hidden; }
+  .topbar-actions { gap:2px; min-width:0; }
+  .topbar-actions .btn { min-width:36px; min-height:36px; padding:6px; }
+  .topbar-actions .btn:last-child { min-width:78px; padding-inline:9px; font-size:var(--fs-11); }
+  .preview { display:none; }
+  .app:not(.preview-collapsed) .preview { display:flex; position:fixed; z-index:var(--z-drawer); inset:auto 0 64px 0; width:auto; height:min(62vh,560px); min-height:0; overflow:hidden; transform:none; border-left:0; border-top:1px solid var(--gold-line); box-shadow:var(--shadow-3); }
+  .app:not(.preview-collapsed) .preview-body { min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
+  .app:not(.preview-collapsed) .focus { filter:brightness(.62); pointer-events:none; }
+  .preview-close { right:var(--s-3); left:auto; top:var(--s-2); transform:none; }
+  .focus:has(.guide) .section-title-row { display:grid; grid-template-columns:1fr; gap:3px; align-items:start; margin-bottom:var(--s-4); padding-bottom:var(--s-3); }
+  .focus:has(.guide) .section-title { font-size:var(--fs-16); line-height:1.2; }
+  .focus:has(.guide) .section-subtitle { margin-left:0; font-size:var(--fs-11); line-height:1.5; }
+  .guide-intro { padding:16px 16px 14px; }
+  .guide-intro h2 { max-width:12em; font-size:clamp(26px, 8vw, 32px); line-height:1.2; margin-bottom:8px; }
+  .guide-intro > p { font-size:var(--fs-13); line-height:1.7; }
+  .guide-quick,.guide-items { grid-template-columns:1fr; }
+  .guide-quick { margin-top:14px; gap:8px; }
+  .guide-step { grid-template-columns:24px minmax(0,1fr); column-gap:8px; padding:10px 12px; }
+  .guide-step > span { font-size:var(--fs-16); }
+  .guide-step b { font-size:var(--fs-14); }
+  .guide-step p { font-size:var(--fs-11); line-height:1.55; }
+  .guide-common-note { padding:10px 12px; font-size:var(--fs-11); line-height:1.55; }
+  .guide-group-head { grid-template-columns:12px minmax(0,1fr); gap:8px; min-height:62px; padding:12px; }
+  .guide-group-head small { line-height:1.5; }
+  .guide-group-caret { padding-top:4px; }
+  .guide-items { gap:8px; padding:0 12px 12px; }
+  .guide-item { gap:10px; padding:12px; }
+  .guide-item-icon { width:32px; height:32px; }
+  .guide-item h3 { font-size:var(--fs-13); line-height:1.45; margin-bottom:5px; }
+  .guide-item p { font-size:var(--fs-12); line-height:1.65; }
+}
+
+/* v60r8: 設定の目的別二カード化。視覚的な境界は機能グループを表す。 */
+.settings-two-card > .card { overflow: hidden; }
+.settings-two-card .card-body > section { padding: var(--s-3); background: var(--surface-inset); border: 1px solid var(--line-dim); border-radius: var(--r); }
+.settings-subhead { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); font-family: var(--f-display); font-weight: 700; font-size: var(--fs-12); letter-spacing: .1em; color: var(--gold); }
+.settings-section-note { padding: 8px 10px; color: var(--tx-2); background: color-mix(in oklab, var(--gold) 5%, var(--surface-inset)); border-left: 2px solid var(--gold-line); font-size: var(--fs-11); line-height: 1.6; }
+.settings-disclosure { padding: var(--s-3); background: var(--surface-inset); border: 1px dashed var(--line); border-radius: var(--r); }
+.settings-disclosure > summary { cursor: pointer; color: var(--tx-2); font-family: var(--f-display); font-size: var(--fs-12); font-weight: 700; letter-spacing: .1em; }
+.settings-disclosure[open] > summary { color: var(--gold); margin-bottom: var(--s-2); }
+.settings-disclosure.is-danger { border-color: color-mix(in oklab, var(--err) 45%, var(--line)); }
+.settings-disclosure.is-danger > summary { color: var(--err); }
+.settings-order-embedded > .card-header { padding: 0; background: transparent; border: 0; }
+@media (max-width: 640px) {
+  .settings-two-card .settings-compact-row { grid-template-columns: minmax(88px, 1fr) 58px 58px auto !important; gap: 5px !important; }
+  .settings-two-card .settings-compact-row .reorder-btns { display: none; }
+  .settings-two-card .settings-compact-row .input { min-width: 0; padding-inline: 6px; }
+}
+
+/* v60r10: 所持ライブラリは「行→詳細→装備」と即時装備の二経路を明示する。 */
+.roster-library-intro { padding: 9px 11px; border-left: 3px solid var(--gold); background: var(--gold-tint); color: var(--tx-2); font-size: var(--fs-11); line-height: 1.65; }
+.roster-item-selectable { cursor: pointer; min-height: 58px; transition: border-color var(--t-fast), background var(--t-fast), transform var(--t-fast); }
+.roster-item-selectable:hover, .roster-item-selectable:focus-visible { border-color: var(--gold-line); background: color-mix(in oklab, var(--gold) 7%, var(--surface-1)); outline: none; }
+.roster-item-selectable:focus-visible { box-shadow: 0 0 0 3px var(--amber-tint); }
+.roster-item-selectable.is-active { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold-line); }
+.roster-item-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+.roster-item-actions .btn { min-height: 40px; min-width: 84px; justify-content: center; }
+.roster-item-open-hint { margin-top: 3px; color: var(--gold); font: 700 9px/1.35 var(--f-display); letter-spacing: .1em; }
+.roster-detail { margin: calc(var(--s-2) * -1) 0 var(--s-2); padding: var(--s-3); border: 1px solid var(--gold-line); border-left: 3px solid var(--gold); border-radius: var(--r); background: linear-gradient(180deg, color-mix(in oklab, var(--gold) 8%, var(--surface-1)), var(--surface-1)); box-shadow: inset 0 1px 0 color-mix(in oklab, var(--gold) 14%, transparent); }
+.roster-detail-head { display: flex; gap: var(--s-2); align-items: flex-start; justify-content: space-between; padding-bottom: var(--s-2); border-bottom: 1px solid var(--line-dim); }
+.roster-detail-title { margin-top: 4px; color: var(--tx); font: 700 var(--fs-15)/1.3 var(--f-display); }
+.roster-detail-lines { display: grid; gap: 6px; padding: var(--s-3) 0; color: var(--tx-2); font-size: var(--fs-11); line-height: 1.55; }
+.roster-detail-actions { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
+.roster-detail-equip { min-height: 40px; min-width: 180px; padding-inline: 16px; font-weight: 800; justify-content: center; }
+.roster-detail-saved { color: var(--ok); font-size: var(--fs-11); }
+.roster-manage-bar, .roster-undo-bar { padding: 9px 10px; display: flex; align-items: center; gap: 8px; border-radius: var(--r-sm); font-size: var(--fs-11); }
+.roster-manage-bar { background: color-mix(in oklab, var(--warn) 8%, var(--surface-inset)); border: 1px solid color-mix(in oklab, var(--warn) 35%, var(--line)); color: var(--tx-2); }
+.roster-undo-bar { background: var(--gold-tint); border: 1px solid var(--gold-line); color: var(--tx-2); }
+.settings-order-section { padding: var(--s-3); border: 1px solid var(--gold-line); border-radius: var(--r); background: color-mix(in oklab, var(--gold) 4%, var(--surface-inset)); }
+.status-order-instruction { display: grid; gap: 3px; padding: 9px 10px; border-left: 3px solid var(--amber); color: var(--tx-2); background: color-mix(in oklab, var(--amber) 7%, var(--surface-inset)); font-size: var(--fs-11); line-height: 1.55; }
+.status-order-instruction strong { color: var(--amber-hi); }
+.status-order-scroll { max-height: 420px; overflow-y: auto; overscroll-behavior: contain; padding: 3px; scrollbar-gutter: stable; border: 1px solid var(--line-dim); background: var(--surface-0); }
+.status-order-scroll[data-dnd-wheel-scroll="true"] { cursor: ns-resize; }
+/* 操作密度を固定：一行の並べ替えはグリップ36px＋矢印32px×2の規則に統一する。 */
+.status-order-row .dnd-handle { width: 36px; height: 36px; }
+.status-order-row .reorder-btns { flex-direction: row; width: auto; gap: 4px; }
+.status-order-row .reorder-btn { width: 32px; height: 32px; }
+.roster-controls { display: flex; gap: var(--s-2); flex-wrap: wrap; align-items: center; }
+.roster-controls > .btn { min-height: 36px; min-width: 92px; justify-content: center; }
+@media (max-width: 640px) {
+  .roster-item-selectable { align-items: stretch !important; min-height: 72px; }
+  .roster-item-actions { align-self: center; }
+  .roster-item-actions .btn { min-width: 84px; min-height: 44px; padding-inline: 10px; font-size: var(--fs-11); }
+  .roster-detail { margin-top: -2px; padding: var(--s-3); }
+  .roster-detail-equip { flex: 1 1 100%; min-height: 48px; min-width: 0; }
+  .roster-manage-bar { align-items: flex-start; flex-wrap: wrap; }
+  .roster-manage-bar .btn { margin-left: auto; min-height: 44px; }
+  .status-order-scroll { max-height: min(52vh, 420px); }
+  .status-order-scroll .dnd-row { min-height: 56px; padding-block: 8px !important; }
+  .status-order-scroll .dnd-handle { width: 44px; height: 44px; }
+  .status-order-scroll .reorder-btns { display: flex !important; flex-direction: row; width: auto; gap: 4px; }
+  .status-order-scroll .reorder-btn { width: 40px; height: 40px; }
+  .roster-controls { align-items: stretch; }
+  .roster-controls .segmented { flex: 1 1 100%; }
+  .roster-controls > .btn { min-height: 44px; min-width: 0; flex: 1 1 108px; }
+}
+
+/* v60r13: 折り畳み見出しは操作コントロールであり、展開時に文字選択を発生させない。本文は選択可能なまま維持する。 */
+details > summary,
+details > summary *,
+.settings-disclosure > summary,
+.settings-disclosure > summary *,
+details.pw-subsec > summary,
+details.pw-subsec > summary * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+}
+
+details > summary {
+  cursor: pointer;
+}
+
+/* ============================================================
+   v60r14 — ACTION RAIL / ボタン体系の再設計
+   主操作は一つ、副操作は同一高のグリッド、局所操作は対象の直近へ。
+   ============================================================ */
+:root {
+  --control-h-primary: 48px;
+  --control-h: 44px;
+  --control-h-compact: 40px;
+  --control-gap: 8px;
+  --control-gap-separated: 16px;
+  --control-radius: 6px;
+}
+
+.btn--primary,
+.btn--secondary,
+.btn--quiet,
+.btn--danger {
+  min-height: var(--control-h);
+  border-radius: var(--control-radius);
+  padding-inline: 14px;
+  justify-content: center;
+  line-height: 1.2;
+  white-space: nowrap;
+  transition: transform 140ms var(--e-out), background 140ms var(--e-out), border-color 140ms var(--e-out), box-shadow 140ms var(--e-out);
+}
+.btn--primary {
+  min-height: var(--control-h-primary);
+  padding-inline: 18px;
+  font-weight: 800;
+}
+.btn--secondary {
+  background: linear-gradient(180deg, var(--surface-3), var(--surface-2));
+  border-color: var(--line);
+  color: var(--tx-2);
+}
+.btn--quiet {
+  background: transparent;
+  border-color: transparent;
+  color: var(--tx-dim);
+}
+.btn--danger {
+  background: color-mix(in oklab, var(--err) 8%, var(--surface-1));
+  border-color: color-mix(in oklab, var(--err) 46%, var(--line));
+  color: color-mix(in oklab, var(--err) 82%, white);
+}
+.btn--danger:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--err) 16%, var(--surface-1));
+  border-color: var(--err);
+}
+.btn--primary:active:not(:disabled),
+.btn--secondary:active:not(:disabled),
+.btn--quiet:active:not(:disabled),
+.btn--danger:active:not(:disabled) { transform: scale(.97); }
+.btn--primary:focus-visible,
+.btn--secondary:focus-visible,
+.btn--quiet:focus-visible,
+.btn--danger:focus-visible { outline: 2px solid var(--amber-hi); outline-offset: 2px; }
+
+/* 人格：主操作のレールと、等しい高さの副操作グリッド。 */
+.es-actions {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--control-gap) !important;
+  align-items: stretch;
+}
+.es-actions .btn {
+  min-height: var(--control-h);
+  width: 100%;
+  margin: 0 !important;
+}
+.es-actions .persona-save-primary {
+  grid-column: 1 / -1;
+  min-height: var(--control-h-primary) !important;
+  order: initial !important;
+}
+.es-actions .btn[title*="装備を解除"] {
+  grid-column: 1 / -1;
+  margin-top: calc(var(--control-gap-separated) - var(--control-gap)) !important;
+  border-color: color-mix(in oklab, var(--err) 46%, var(--line));
+  color: color-mix(in oklab, var(--err) 82%, white);
+  background: color-mix(in oklab, var(--err) 8%, var(--surface-1));
+}
+
+/* 所持：行は詳細、即時装備は一つの局所レール。 */
+.roster-controls { gap: var(--control-gap-separated) !important; }
+.roster-controls > .btn,
+.roster-controls .btn--quiet,
+.roster-manage-bar .btn,
+.roster-undo-bar .btn { min-height: var(--control-h); }
+.roster-item-actions { gap: var(--control-gap) !important; }
+.roster-item-actions .btn {
+  min-height: var(--control-h) !important;
+  min-width: 96px !important;
+  padding-inline: 12px;
+}
+.roster-detail-actions { display: grid !important; grid-template-columns: minmax(0, 1fr); gap: var(--control-gap); }
+.roster-detail-actions .roster-detail-equip {
+  width: 100%;
+  min-width: 0 !important;
+  min-height: var(--control-h-primary) !important;
+}
+.roster-detail-head .btn-icon {
+  width: var(--control-h-compact);
+  height: var(--control-h-compact);
+}
+
+/* 設定：並べ替えの局所操作は縦積みを廃止し、同一行の横並びに統一する。 */
+.status-order-row .dnd-handle { width: var(--control-h-compact) !important; height: var(--control-h-compact) !important; }
+.status-order-row .reorder-btns,
+.settings-compact-row .reorder-btns {
+  flex-direction: row !important;
+  width: auto !important;
+  gap: 4px !important;
+}
+.status-order-row .reorder-btn,
+.settings-compact-row .reorder-btn {
+  width: var(--control-h-compact) !important;
+  height: var(--control-h-compact) !important;
+}
+.settings-two-card .settings-compact-row {
+  grid-template-columns: auto minmax(110px, 1fr) 72px 72px var(--control-h-compact) !important;
+  gap: var(--control-gap) !important;
+}
+.settings-compact-row > .btn-icon {
+  width: var(--control-h-compact);
+  height: var(--control-h-compact);
+  border-color: color-mix(in oklab, var(--err) 42%, var(--line));
+  color: color-mix(in oklab, var(--err) 82%, white);
+  background: color-mix(in oklab, var(--err) 7%, var(--surface-1));
+}
+.status-order-instruction { margin-bottom: var(--control-gap); }
+
+/* E.G.O：装備の確定と外す操作を誤タップしない役割へ分ける。 */
+.ego-slot .btn-icon[title="外す"] {
+  width: var(--control-h-compact) !important;
+  height: var(--control-h-compact) !important;
+  top: 6px !important;
+  right: 6px !important;
+  color: color-mix(in oklab, var(--err) 84%, white);
+  border: 1px solid color-mix(in oklab, var(--err) 46%, var(--line));
+  background: color-mix(in oklab, var(--err) 9%, var(--surface-1));
+}
+.detail-actions > .btn-primary { min-height: var(--control-h-primary); width: 100%; }
+.detail-actions > .btn--quiet { min-height: var(--control-h); }
+
+@media (max-width: 640px) {
+  .btn--primary,
+  .btn--secondary,
+  .btn--quiet,
+  .btn--danger { min-height: var(--control-h); }
+  .btn--primary { min-height: var(--control-h-primary); }
+  .es-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .es-actions .btn { min-width: 0 !important; flex: none !important; font-size: var(--fs-11); padding-inline: 8px; }
+  .roster-controls { gap: var(--control-gap) !important; }
+  .roster-controls > .btn { flex: 1 1 100%; }
+  .roster-item-actions .btn { min-height: var(--control-h) !important; min-width: 88px !important; }
+  .settings-two-card .settings-compact-row {
+    grid-template-columns: minmax(0, 1fr) 58px 58px var(--control-h) !important;
+    gap: 5px !important;
+  }
+  .settings-two-card .settings-compact-row .reorder-btns {
+    display: flex !important;
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+    min-height: var(--control-h);
+  }
+  .settings-compact-row .reorder-btn,
+  .status-order-row .reorder-btn { width: var(--control-h) !important; height: var(--control-h) !important; }
+  .status-order-row .dnd-handle { width: var(--control-h) !important; height: var(--control-h) !important; }
+  .ego-slot .btn-icon[title="外す"] { width: var(--control-h) !important; height: var(--control-h) !important; }
+}
+
+/* r14 corrective pass: 統計ブロックに押し潰されない最低幅を与え、
+   狭いPC幅では操作群を次行の全幅レールへ自然に送る。 */
+.es-body { align-items: flex-start; }
+.es-actions {
+  flex: 1 1 300px !important;
+  min-width: min(300px, 100%);
+  width: 100%;
+  justify-content: stretch !important;
+}
+.es-actions > div[style*="flex"] { display: none !important; }
+.es-actions .persona-save-primary { order: -3 !important; }
+.es-actions .btn[title*="装備を解除"] { order: 4; }
+.es-actions .btn[title*="保存を破棄"] { order: 5; }
+@media (min-width: 920px) {
+  .es-actions { flex-basis: 320px !important; }
+}
+
+/* 副操作が奇数でも空の半列を残さない。人格変更は安全な遷移操作として全幅にする。 */
+.es-actions .btn[title*="別の人格を選ぶ"] { grid-column: 1 / -1; }
+
+
+/* ============================================================
+   R15 accessible navigation, action sheet, and progressive disclosure
+   ============================================================ */
+/* キーボードの現在地は、世界観の発光ではなく輪郭で確実に伝える。 */
+:where(button, input, select, textarea, summary, [role="button"], a[href]):focus-visible {
+  outline: 3px solid var(--amber-hi) !important;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px color-mix(in oklab, var(--amber-hi) 28%, transparent) !important;
+}
+
+.rail-item {
+  border: 0;
+  background: transparent;
+  font: inherit;
+}
+.rail-item:focus-visible { color: var(--tx); background: color-mix(in oklab, var(--gold) 12%, var(--surface-1)); }
+.utility-trigger {
+  min-height: var(--control-h-compact);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  padding: 0 10px;
+  border: 1px solid var(--gold-line);
+  border-radius: var(--control-radius);
+  background: color-mix(in oklab, var(--gold) 8%, var(--surface-1));
+  color: var(--gold-hi);
+  font-family: var(--f-display);
+  font-size: var(--fs-11);
+  font-weight: 700;
+  letter-spacing: .05em;
+  white-space: nowrap;
+}
+.utility-trigger:hover { background: color-mix(in oklab, var(--gold) 16%, var(--surface-1)); border-color: var(--gold); }
+
+.utility-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  display: grid;
+  place-items: end center;
+  padding: var(--s-4);
+  background: rgba(8, 6, 5, .72);
+  backdrop-filter: blur(4px);
+}
+.utility-sheet {
+  width: min(680px, 100%);
+  max-height: min(82svh, 720px);
+  overflow: auto;
+  padding: var(--s-4);
+  border: 1px solid var(--gold-line);
+  border-top: 3px solid var(--gold);
+  border-radius: calc(var(--r) + 2px);
+  background: linear-gradient(180deg, color-mix(in oklab, var(--gold) 8%, var(--surface-2)), var(--surface-1));
+  box-shadow: var(--shadow-3);
+}
+.utility-sheet-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-3); padding-bottom: var(--s-3); border-bottom: 1px solid var(--line-dim); }
+.utility-sheet-kicker { display: block; color: var(--gold); font: 700 var(--fs-10)/1 var(--f-mono); letter-spacing: .14em; }
+.utility-sheet h2 { margin: 5px 0 4px; color: var(--tx); font-family: var(--f-display); font-size: var(--fs-18); }
+.utility-sheet p { margin: 0; color: var(--tx-2); font-size: var(--fs-11); line-height: 1.55; }
+.utility-sheet-close { width: var(--control-h); height: var(--control-h); flex: none; display: grid; place-items: center; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface-2); color: var(--tx-2); }
+.utility-sheet-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--control-gap); margin-top: var(--s-3); }
+.utility-sheet-action { min-height: 76px; display: grid; grid-template-columns: 30px minmax(0, 1fr); align-items: start; gap: 10px; padding: 12px; text-align: left; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface-1); color: var(--tx); }
+.utility-sheet-action:hover { border-color: var(--gold-line); background: color-mix(in oklab, var(--gold) 7%, var(--surface-1)); }
+.utility-sheet-action.is-primary { border-color: var(--gold); background: linear-gradient(135deg, color-mix(in oklab, var(--gold) 22%, var(--surface-2)), var(--surface-1)); }
+.utility-sheet-icon { display: grid; place-items: center; width: 30px; height: 30px; color: var(--gold); border: 1px solid var(--gold-line); border-radius: 50%; }
+.utility-sheet-copy { min-width: 0; display: grid; gap: 4px; }
+.utility-sheet-copy b { color: var(--tx); font-size: var(--fs-12); }
+.utility-sheet-copy small { color: var(--tx-2); font-size: var(--fs-10); line-height: 1.45; }
+.utility-sheet-section { margin-top: var(--s-4); padding-top: var(--s-3); border-top: 1px solid var(--line-dim); }
+.utility-section-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--control-gap); margin-top: var(--s-2); }
+.utility-section-link { min-height: var(--control-h); display: inline-flex; justify-content: center; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface-1); color: var(--tx-2); font-family: var(--f-display); font-size: var(--fs-11); }
+.utility-section-link:hover, .utility-section-link.is-active { border-color: var(--gold-line); background: var(--gold-tint); color: var(--gold-hi); }
+
+/* 設定の通常利用は「確認」から開始し、破壊・再定義は必要時にだけ開く。 */
+.settings-summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--control-gap); }
+.settings-summary-item { min-height: 64px; padding: 10px 12px; border: 1px solid var(--line); border-left: 3px solid var(--gold-line); background: var(--surface-inset); }
+.settings-summary-item b { display: block; color: var(--tx); font-family: var(--f-display); font-size: var(--fs-12); }
+.settings-summary-item span { display: block; margin-top: 3px; color: var(--tx-2); font-size: var(--fs-10); line-height: 1.45; }
+.settings-disclosure { padding: var(--s-3); background: color-mix(in oklab, var(--surface-1) 88%, var(--gold) 3%); border: 1px solid var(--line); border-radius: var(--r); }
+.settings-disclosure > summary { min-height: var(--control-h); display: flex; align-items: center; padding: 0 var(--s-2); border-radius: var(--control-radius); }
+.settings-disclosure > summary:hover { background: var(--surface-2); }
+.settings-disclosure[open] > summary { margin-bottom: var(--s-3); }
+.settings-disclosure .settings-section-note { margin-bottom: var(--s-2); }
+.settings-default-status-list { max-height: 340px; overflow-y: auto; padding: 2px; }
+
+@media (max-width: 640px) {
+  .brand-name { display: none; }
+  .topbar-actions { display: flex !important; margin-left: 0; overflow: visible; }
+  .topbar-actions > .btn { display: none !important; }
+  .utility-trigger { min-width: 76px; width: auto; justify-content: center; gap: 5px; padding: 0 9px; }
+  .utility-trigger span { display: inline; font-size: var(--fs-11); }
+  .rail { justify-content: flex-start; overflow-x: auto; overflow-y: hidden; padding-inline: 4px; gap: 3px; scrollbar-width: thin; scroll-snap-type: x proximity; }
+  .rail-item { width: 64px; min-height: 56px; flex: 0 0 64px; padding: 6px 2px; scroll-snap-align: start; }
+  .rail-item.is-utility, .rail-item.is-overflow, .rail-more { display: flex !important; }
+  .rail-more .rail-label { font-size: 8px; }
+  .utility-sheet-backdrop { padding: var(--s-2); }
+  .utility-sheet { max-height: calc(100svh - 76px); padding: var(--s-3); border-radius: var(--r) var(--r) 0 0; }
+  .utility-sheet-grid { grid-template-columns: 1fr; }
+  .utility-sheet-action { min-height: var(--control-h-primary); grid-template-columns: 32px minmax(0, 1fr); }
+  .utility-section-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .settings-summary-grid { grid-template-columns: 1fr; }
+  .settings-default-status-list { max-height: 300px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+}
+
+
+/* =====================================================================
+   v60r19 / R17 — コンテキスト保持導線・BASE INFO再配置・ダイス変数編集
+   ===================================================================== */
+.persona-detail-return { display: flex; justify-content: flex-start; margin: 0 0 var(--s-3); }
+.persona-detail-return .btn { min-height: var(--control-h-compact); }
+.base-info-grid { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: var(--s-4); align-items: start; }
+.base-info-identity, .base-info-image { min-width: 0; }
+.base-info-note { grid-column: 1 / -1; margin: 0; padding: 9px 11px; border-left: 3px solid var(--gold); background: color-mix(in oklab, var(--gold) 6%, var(--surface-inset)); }
+.base-img-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.deck-dice-var-toggle { min-height: 32px; padding: 3px 8px; color: var(--tx-mute); background: transparent; border: 1px solid var(--line-dim); border-radius: var(--r-sm); font-family: var(--f-display); font-size: 9px; letter-spacing: .08em; cursor: pointer; }
+.deck-dice-var-toggle.is-on { color: var(--gold); background: var(--gold-tint); border-color: var(--gold-line); }
+.deck-dice-var-fields { display: grid; gap: 5px; margin-top: 5px; }
+.deck-dice-var-chk { display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 6px; align-items: center; min-height: 34px; color: var(--tx-mute); font-size: var(--fs-11); }
+.deck-dice-var-chk.is-on { color: var(--gold); }
+.deck-dice-var-input { min-width: 0; height: 32px; padding: 4px 7px; color: var(--tx); background: var(--surface-0); border: 1px solid var(--line-dim); border-radius: var(--r-sm); font-family: var(--f-mono); font-size: var(--fs-10); }
+.deck-dice-var-input:focus-visible { border-color: var(--gold); }
+.deck-dice-help { padding: 7px 9px; color: var(--tx-mute); background: var(--surface-inset); border-left: 3px solid var(--line-dim); border-radius: var(--r-sm); font-size: var(--fs-10); line-height: 1.55; }
+@media (max-width: 640px) {
+  .persona-detail-return .btn { min-height: var(--control-h); }
+  .base-info-grid { grid-template-columns: minmax(0, 1fr); }
+  .base-info-note { grid-column: 1; }
+  .deck-dice-var-toggle { min-height: 40px; }
+  .deck-dice-var-chk { min-height: 40px; }
+  .deck-dice-var-input { height: 40px; }
+}
+
+
+/* ============================================================
+   R18 — E.G.O分岐の資料適合・保存解除フロー
+   ============================================================ */
+.ego-skill-summary-branches {
+  display: block;
+  margin-top: 5px;
+  font-family: var(--f-mono);
+  font-size: 9px;
+  letter-spacing: .04em;
+  color: var(--tx-mute);
+}
+.ego-assim-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: color-mix(in oklab, var(--gold) 8%, var(--surface-2));
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-sm);
+}
+.ego-assim-card-index {
+  display: inline-grid;
+  place-items: center;
+  min-width: 28px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--gold);
+  color: var(--bg);
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: var(--fs-11);
+}
+.ego-assim-card-copy {
+  font-family: var(--f-display);
+  font-size: var(--fs-11);
+  font-weight: 700;
+  letter-spacing: .1em;
+  color: var(--gold-hi);
+}
+.ego-assim-card-origin {
+  margin-left: auto;
+  color: var(--tx-mute);
+  font-size: var(--fs-10);
+}
+.ego-influence-editor { border-left: 3px solid var(--purple, var(--gold)); }
+.ego-influence-note {
+  padding: 8px 10px;
+  border-left: 3px solid var(--purple, var(--gold));
+  background: color-mix(in oklab, var(--purple, var(--gold)) 9%, var(--surface-inset));
+  color: var(--tx-2);
+  font-size: var(--fs-11);
+  line-height: 1.55;
+}
+.ego-influence-preview {
+  padding: 10px 12px;
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-sm);
+  background: var(--surface-0);
+  color: var(--tx-2);
+  font-size: var(--fs-12);
+  line-height: 1.65;
+}
+
+@media (max-width: 640px) {
+  .ego-assim-card-head { align-items: flex-start; flex-wrap: wrap; }
+  .ego-assim-card-origin { margin-left: 36px; width: calc(100% - 36px); }
+  .ego-skill-summary-branches { white-space: normal; }
+}
+
+/* =====================================================================
+   v60r24 / R18 follow-up — v60初期のコンパクトなスキルカードを維持
+   基本操作は初期版の密度へ戻し、変数名・出力先だけを有効時に局所開示する。
+   ===================================================================== */
+.sk-var-block--compact {
+  padding: 8px 10px;
+  background: color-mix(in oklab, var(--gold) 4%, var(--surface-inset));
+}
+.sk-var-block--compact .sk-var-compact-header {
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.sk-var-block--compact .sk-var-compact-header .field-label {
+  font-size: var(--fs-10);
+}
+.sk-var-block--compact .sk-var-hint {
+  font-size: 9px;
+  line-height: 1.35;
+}
+.sk-var-compact-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sk-var-block--compact .sk-var-chk {
+  flex: 1 1 116px;
+  min-height: 32px;
+  padding: 4px 7px;
+  gap: 6px;
+  font-size: var(--fs-10);
+}
+.sk-var-block--compact .sk-var-chk input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+}
+.sk-var-compact-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 6px;
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid var(--line-dim);
+}
+.sk-var-compact-detail {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: var(--tx-mute);
+  font-family: var(--f-display);
+  font-size: 9px;
+  letter-spacing: .05em;
+}
+.sk-var-block--compact .sk-var-input,
+.sk-var-block--compact .select {
+  width: 100%;
+  min-width: 0;
+  min-height: 30px;
+  padding: 4px 7px;
+  font-size: var(--fs-10);
+}
+
+@media (max-width: 640px) {
+  .sk-var-block--compact {
+    padding: var(--s-3);
+  }
+  .sk-var-compact-toggles {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sk-var-block--compact .sk-var-chk {
+    min-height: 40px;
+    padding: 7px 10px;
+    font-size: var(--fs-12);
+  }
+  .sk-var-block--compact .sk-var-chk input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+  }
+  .sk-var-compact-details {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    margin-top: var(--s-2);
+    padding-top: var(--s-2);
+  }
+  .sk-var-compact-detail {
+    gap: 5px;
+    font-size: var(--fs-11);
+  }
+  .sk-var-block--compact .sk-var-input,
+  .sk-var-block--compact .select {
+    min-height: 40px;
+    padding: 7px 10px;
+    font-size: 16px;
+  }
+}
+
+/* 390pxでは preview-collapsed のPC用二列指定より、読み取り順序を優先する。 */
+@media (max-width: 640px) {
+  .app.preview-collapsed .deck-focus-body {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .deck-focus .deck-dice-row {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr) 40px;
+    column-gap: var(--s-2);
+    row-gap: 8px;
+    align-items: start;
+  }
+  .deck-focus .deck-dice-roll-col {
+    grid-column: 2;
+    grid-row: 1;
+    width: auto;
+    min-width: 0;
+  }
+  .deck-focus .deck-dice-roll {
+    min-height: 40px;
+  }
+  .deck-focus .deck-dice-eff {
+    grid-column: 2 / 4;
+    grid-row: 2;
+    min-height: 56px;
+  }
+  .deck-focus .deck-dice-del {
+    grid-column: 3;
+    grid-row: 1;
+    width: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    margin: 0;
+  }
+  .deck-focus .deck-dice-var-chk {
+    grid-template-columns: 18px minmax(0, 1fr);
+    min-height: 40px;
+  }
+  .deck-focus .deck-dice-var-input {
+    grid-column: 1 / -1;
+    min-height: 40px;
+    font-size: 16px;
+  }
+}
+
+/* =====================================================================
+   v60r27 / R18 hotfix — モバイル戦術スキル編集の実用性を回復
+   PCの二列カードは触れず、390pxだけを横書き・二段ヘッダー・一列編集へ再設計する。
+   ===================================================================== */
+@media (max-width: 640px) {
+  /* 旧flex一列では題名が数文字幅に押し潰されるため、移動と管理を明示的に二段へ分離。 */
+  .deck-wrap { gap: 12px; }
+  .deck-nav {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    gap: 8px;
+    padding: 10px;
+    align-items: stretch;
+  }
+  .deck-nav-btn {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    align-self: stretch;
+  }
+  .deck-nav-info {
+    grid-column: 2;
+    grid-row: 1;
+    display: block;
+    min-width: 0;
+    align-self: center;
+  }
+  .deck-nav-info .idx {
+    display: block;
+    margin-bottom: 2px;
+    font-size: 10px;
+    line-height: 1.1;
+  }
+  .deck-nav-info .cur {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    word-break: keep-all;
+    font-size: var(--fs-14);
+    line-height: 1.25;
+    letter-spacing: .02em;
+  }
+  .deck-nav-info > span:last-child { display: none; }
+  .deck-nav > .deck-nav-btn:first-child { grid-column: 1; grid-row: 1; }
+  .deck-nav > .deck-nav-btn:nth-of-type(2) { grid-column: 3; grid-row: 1; }
+  .deck-nav > .btn {
+    grid-row: 2;
+    min-width: 0;
+    min-height: 40px;
+    height: 40px;
+    padding: 6px 9px;
+    font-size: var(--fs-12);
+    white-space: nowrap;
+  }
+  .deck-nav > .btn:nth-last-child(2) { grid-column: 1 / 3; }
+  .deck-nav > .btn:last-child { grid-column: 3; }
+
+  /* 編集カードは画面幅を全面利用し、固定幅のランク入力が削除ボタンを押し潰さないようにする。 */
+  .deck-card.deck-focus {
+    min-width: 0;
+    padding: 14px 12px;
+    gap: 12px;
+    overflow: clip;
+  }
+  .deck-focus .deck-card-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+  }
+  .deck-focus .deck-card-head .grow { display: none; }
+  .deck-focus .deck-card-head .deck-rank {
+    width: 100%;
+    min-width: 0 !important;
+    max-width: none;
+    min-height: 40px;
+    box-sizing: border-box;
+    font-size: var(--fs-12) !important;
+  }
+  .deck-focus .deck-card-head .btn {
+    min-width: 72px;
+    min-height: 40px;
+    padding: 6px 10px;
+    white-space: nowrap;
+  }
+  .deck-name-input {
+    min-width: 0;
+    min-height: 40px;
+    font-size: 16px !important;
+  }
+  .deck-focus .deck-meta {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px;
+    align-items: end;
+  }
+  .deck-focus .deck-meta > div {
+    min-width: 0 !important;
+  }
+  .deck-focus .deck-meta > div:nth-child(n + 3) {
+    grid-column: 1 / -1;
+  }
+  .deck-focus .deck-meta .select,
+  .deck-focus .deck-meta .input {
+    min-height: 40px;
+    font-size: 16px;
+  }
+  .deck-focus .deck-effect {
+    min-height: 112px;
+    font-size: 16px !important;
+    line-height: 1.55;
+  }
+
+  /* 下部ストリップは横スクロールを許容し、各カードを十分な幅で横書き表示する。 */
+  .deck-thumbs {
+    gap: 8px;
+    padding: 8px;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+  }
+  .deck-thumb,
+  .deck-thumb-add {
+    min-width: 146px;
+    min-height: 56px;
+    scroll-snap-align: start;
+  }
+  .deck-thumb { padding: 7px 9px; }
+  .deck-thumb-rank,
+  .deck-thumb-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .deck-thumb-name { font-size: var(--fs-12); }
+  .deck-thumb-add { min-height: 56px; font-size: var(--fs-12); }
+}
+
+
+/* =====================================================================
+   v60r29 — 編集時の個別 d値／d数可変を可読・可操作な局所パネルへ
+   ===================================================================== */
+/* PCでは右側のダイス列だけで、式／効果と個別可変を二段に分ける。 */
+.deck-skill-dice .deck-dice-row {
+  display: grid;
+  grid-template-columns: 20px minmax(150px, .65fr) minmax(180px, 1.35fr) 32px;
+  column-gap: 8px;
+  row-gap: 8px;
+  align-items: start;
+}
+.deck-skill-dice .deck-dice-idx { grid-column: 1; grid-row: 1; width: 20px; padding-top: 10px; }
+.deck-skill-dice .deck-dice-roll-col { grid-column: 2; grid-row: 1; width: auto; min-width: 0; }
+.deck-skill-dice .deck-dice-roll-col .deck-dice-roll { min-height: 40px; font-size: 13px; }
+.deck-skill-dice .deck-dice-eff { grid-column: 3; grid-row: 1; min-height: 40px; }
+.deck-skill-dice .deck-dice-del { grid-column: 4; grid-row: 1; width: 32px; min-width: 32px; min-height: 40px; margin: 0; }
+.deck-skill-dice .deck-dice-var {
+  grid-column: 2 / -1;
+  grid-row: 2;
+  min-width: 0;
+  padding: 8px;
+  background: color-mix(in oklab, var(--surface-inset) 86%, var(--gold-tint));
+  border: 1px solid var(--line-dim);
+  border-left: 3px solid var(--line);
+  border-radius: var(--r-sm);
+}
+.deck-skill-dice .deck-dice-var:has(.deck-dice-var-toggle.is-on) {
+  border-color: var(--gold-line);
+  border-left-color: var(--gold);
+  background: color-mix(in oklab, var(--gold) 9%, var(--surface-inset));
+}
+.deck-dice-var-toggle {
+  width: 100%;
+  min-height: 40px;
+  padding: 6px 9px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--tx-2);
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font-family: var(--f-display);
+  font-size: var(--fs-11);
+  font-weight: 600;
+  letter-spacing: .04em;
+  cursor: pointer;
+}
+.deck-dice-var-toggle:hover { border-color: var(--gold-line); color: var(--gold); }
+.deck-dice-var-toggle.is-on {
+  color: var(--gold-hi);
+  background: color-mix(in oklab, var(--gold) 16%, var(--surface-1));
+  border-color: var(--gold);
+}
+.deck-dice-var-state {
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  color: var(--tx-mute);
+  background: var(--surface-inset);
+  border: 1px solid var(--line-dim);
+  border-radius: 999px;
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: .03em;
+}
+.deck-dice-var-toggle.is-on .deck-dice-var-state {
+  color: var(--gold-hi);
+  background: var(--gold-tint);
+  border-color: var(--gold-line);
+}
+.deck-dice-var-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+.deck-dice-var-chk {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 7px;
+  align-items: center;
+  min-height: 40px;
+  padding: 7px 8px;
+  color: var(--tx-2);
+  background: var(--surface-0);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-sm);
+  font-size: 12px;
+}
+.deck-dice-var-chk > input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--gold); }
+.deck-dice-var-chk.is-on { color: var(--gold-hi); background: var(--gold-tint); border-color: var(--gold-line); }
+.deck-dice-var-input {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 180px;
+  min-height: 40px;
+  box-sizing: border-box;
+  padding: 7px 9px;
+  color: var(--tx);
+  background: var(--surface-1);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-sm);
+  font-family: var(--f-mono);
+  font-size: 13px;
+}
+.deck-dice-var-input:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+
+@media (max-width: 640px) {
+  .deck-skill-dice .deck-dice-row {
+    grid-template-columns: 24px minmax(0, 1fr) 40px;
+    row-gap: 8px;
+  }
+  .deck-skill-dice .deck-dice-idx { grid-column: 1; grid-row: 1; width: 24px; }
+  .deck-skill-dice .deck-dice-roll-col { grid-column: 2; grid-row: 1; }
+  .deck-skill-dice .deck-dice-eff { grid-column: 2 / 4; grid-row: 2; min-height: 56px; }
+  .deck-skill-dice .deck-dice-del { grid-column: 3; grid-row: 1; width: 40px; min-width: 40px; min-height: 40px; }
+  .deck-skill-dice .deck-dice-var { grid-column: 2 / 4; grid-row: 3; padding: 9px; }
+  .deck-dice-var-fields { grid-template-columns: minmax(0, 1fr); }
+  .deck-dice-var-input { min-width: 0; min-height: 40px; font-size: 16px; }
+}
+
+/* 旧チェックボックスの幅指定をテキスト入力へ継承させない。 */
+.deck-dice-var-chk .deck-dice-var-input {
+  width: 100% !important;
+  min-width: 180px;
+}
+@media (max-width: 640px) {
+  .deck-dice-var-chk .deck-dice-var-input { min-width: 0; }
+}
+
+@media (max-width: 640px) {
+  .deck-skill-dice .deck-dice-var-chk .deck-dice-var-input {
+    min-width: 240px;
+    justify-self: stretch;
+    box-sizing: border-box;
+  }
+}
+
+
+/* =====================================================================
+   v60r30 — E.G.O [同化]サブスキル専用編集面
+   ===================================================================== */
+.ego-assim-manager[data-ego-variant="assimilation"] { display: grid; gap: var(--s-3); }
+.ego-assim-sub-editor {
+  padding: var(--s-3);
+  background: linear-gradient(145deg, color-mix(in oklab, var(--gold) 7%, var(--surface-inset)), var(--surface-inset));
+  border: 1px solid var(--gold-line);
+  border-left: 3px solid var(--gold);
+  border-radius: var(--r);
+}
+.ego-assim-explainer {
+  padding: 8px 10px;
+  color: var(--tx-2);
+  background: var(--surface-0);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-11);
+  line-height: 1.65;
+}
+.ego-assim-editor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  padding-bottom: var(--s-2);
+  border-bottom: 1px solid var(--gold-line);
+}
+.ego-assim-editor-head .t-label { color: var(--gold-hi); }
+.ego-assim-meta-grid { align-items: end; }
+.ego-assim-dice { padding-top: var(--s-2); border-top: 1px dashed var(--line); }
+.ego-assim-empty {
+  padding: var(--s-3);
+  color: var(--tx-dim);
+  background: var(--surface-inset);
+  border: 1px dashed var(--gold-line);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-11);
+  line-height: 1.65;
+}
+@media (max-width: 640px) {
+  .ego-assim-sub-editor { padding: 10px; }
+  .ego-assim-editor-head { align-items: flex-start; flex-direction: column; }
+  .ego-assim-editor-head .btn { width: 100%; min-height: 40px; }
+  .ego-assim-meta-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  .ego-assim-explainer { font-size: var(--fs-12); }
+}
+
+
+/* v64r01: 文面検出の自己管理ステータスは、確定前に根拠付き候補としてのみ表示する。 */
+.self-status-candidate-panel { padding: var(--s-3); border: 1px solid var(--gold-line); border-left: 3px solid var(--gold); background: var(--surface-inset); border-radius: var(--r); }
+.self-status-candidate-row { display: flex; gap: var(--s-2); align-items: center; justify-content: space-between; padding: 10px; border: 1px solid var(--line-dim); border-radius: var(--r-sm); background: var(--surface-0); }
+.self-status-candidate-main { min-width: 0; display: grid; gap: 3px; }
+.self-status-candidate-main strong { color: var(--gold-hi); font-size: var(--fs-12); }
+.self-status-candidate-main span { color: var(--tx-mute); font-size: var(--fs-10); }
+.self-status-candidate-main small { color: var(--tx-dim); font-size: var(--fs-11); line-height: 1.5; overflow-wrap: anywhere; }
+.self-status-candidate-actions { display: flex; flex: none; gap: var(--s-2); }
+@media (max-width: 640px) { .self-status-candidate-row { align-items: stretch; flex-direction: column; } .self-status-candidate-actions { display: grid; grid-template-columns: 1fr 1fr; } .self-status-candidate-actions .btn { width: 100%; } }
+
+
+/* v64r02: E.G.O解析は左右選択式を廃止。本体・同化を連結し、全スキルの要約を常時表示する。 */
+.ego-connected-workbench .ego-workbench-grid, .ego-connected-workbench .ego-skill-index, .ego-connected-workbench .ego-active-editor { display: block; }
+.ego-connected-stack { display: grid; gap: var(--s-4); }
+.ego-connected-slot { border: 1px solid var(--line); background: var(--surface-0); border-radius: var(--r); overflow: clip; }
+.ego-connected-slot--kakusei { border-left: 3px solid var(--gold); }
+.ego-connected-slot--shinshoku { border-left: 3px solid var(--err); }
+.ego-connected-slot-head, .ego-connected-assimilation-head, .ego-connected-influence-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s-2); padding: 12px 14px; background: var(--surface-inset); border-bottom: 1px solid var(--line-dim); }
+.ego-connected-slot-title, .ego-connected-assimilation-head h4 { margin: 0; font: 600 var(--fs-14) var(--f-body); color: var(--tx); }
+.ego-connected-slot-count { font: 600 var(--fs-10) var(--f-display); letter-spacing: .1em; color: var(--gold); white-space: nowrap; }
+.ego-connected-read { padding: 12px 14px; display: grid; gap: 8px; }
+.ego-connected-read-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ego-connected-read-label { font: 600 var(--fs-10) var(--f-display); letter-spacing: .12em; color: var(--tx-mute); }
+.ego-connected-read-name { font: 600 var(--fs-14) var(--f-body); color: var(--tx); }
+.ego-connected-rolls { display: grid; gap: 4px; }
+.ego-connected-roll { display: grid; grid-template-columns: 20px minmax(70px,auto) minmax(0,1fr); gap: 8px; align-items: start; padding: 7px 8px; border: 1px solid var(--line-dim); border-radius: var(--r-sm); background: var(--surface-2); font-size: var(--fs-11); line-height: 1.5; color: var(--tx-2); }
+.ego-connected-roll-index { color: var(--tx-mute); font-family: var(--f-mono); text-align: center; }
+.ego-connected-roll strong { color: var(--gold-hi); font-family: var(--f-mono); white-space: nowrap; }
+.ego-connected-effect { color: var(--tx-2); font-size: var(--fs-11); line-height: 1.6; white-space: pre-wrap; }
+.ego-connected-empty { color: var(--tx-mute); font-size: var(--fs-11); font-style: italic; }
+.ego-connected-edit { border-top: 1px solid var(--line-dim); background: var(--surface-inset); }
+.ego-connected-edit > summary { min-height: 42px; display: flex; align-items: center; padding: 0 14px; cursor: pointer; color: var(--gold); font: 600 var(--fs-11) var(--f-display); letter-spacing: .08em; }
+.ego-connected-edit-body { padding: 12px 14px 14px; border-top: 1px solid var(--line-dim); }
+.ego-connected-edit-body .ego-editor-detail { border: 0; background: transparent; box-shadow: none; }
+.ego-connected-edit-body .ego-editor-toolbar { display: none; }
+.ego-connected-assimilation { border-top: 1px solid var(--line); background: color-mix(in srgb, var(--surface-1) 88%, var(--gold-tint)); }
+.ego-connected-assimilation-head { border-bottom: 0; }
+.ego-connected-assim-card { border-top: 1px solid var(--line-dim); }
+.ego-connected-assim-read { border-left: 2px solid var(--gold-line); }
+.ego-assimilation-edit { padding: 2px 0; }
+.ego-assimilation-edit-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s-2); }
+.ego-connected-influence { border-top: 1px solid var(--line); background: var(--surface-inset); }
+.ego-connected-influence-head { color: var(--warn); font: 600 var(--fs-11) var(--f-display); letter-spacing: .08em; }
+.ego-connected-influence > .ego-connected-effect { padding: 10px 14px; }
+.ego-connected-add-influence { padding: 8px 14px; border-top: 1px solid var(--line-dim); }
+@media (max-width: 640px) { .ego-connected-slot-head, .ego-connected-assimilation-head { align-items: flex-start; flex-direction: column; } .ego-connected-assimilation-head .btn { width: 100%; } .ego-connected-roll { grid-template-columns: 18px minmax(62px,auto) minmax(0,1fr); gap: 6px; font-size: 12px; } .ego-assimilation-edit-head { align-items: stretch; flex-direction: column; } .ego-assimilation-edit-head .btn { width: 100%; } }
+
+
+/* v64r03: 設定は二列カードを廃止。初期はカテゴリを畳み、開いた後も一行台帳で全項目を追える。 */
+.settings-linear-card { max-width: none; }
+.settings-linear-stack { display: grid; gap: var(--s-3); }
+.settings-header-copy { margin-top: 3px; font-size: var(--fs-11); color: var(--tx-mute); }
+.settings-major { border: 1px solid var(--line); border-radius: var(--r); background: var(--surface-0); overflow: clip; }
+.settings-major > summary { min-height: 54px; display: grid; grid-template-columns: minmax(110px, .55fr) minmax(0, 1.4fr) auto; align-items: center; gap: var(--s-3); padding: 0 14px; cursor: pointer; list-style: none; }
+.settings-major > summary::-webkit-details-marker, .settings-disclosure > summary::-webkit-details-marker { display: none; }
+.settings-major > summary::before { content: '›'; color: var(--gold); font: 700 20px/1 var(--f-display); transform: rotate(0deg); transition: transform .16s ease; }
+.settings-major[open] > summary::before { transform: rotate(90deg); }
+.settings-major-name { grid-column: 1; color: var(--tx); font: 600 var(--fs-14) var(--f-body); }
+.settings-major-hint { grid-column: 2; min-width: 0; color: var(--tx-mute); font-size: var(--fs-11); }
+.settings-major-count { grid-column: 3; color: var(--gold); font: 600 var(--fs-10) var(--f-display); letter-spacing: .08em; white-space: nowrap; }
+.settings-major-body { padding: 14px; border-top: 1px solid var(--line-dim); background: var(--surface-inset); }
+.settings-major--danger > summary { background: color-mix(in srgb, var(--err) 6%, var(--surface-0)); }
+.settings-status-ledger { display: grid; gap: 4px; }
+.settings-status-ledger-row { display: grid; grid-template-columns: minmax(110px, 1fr) minmax(150px, 1fr) auto; gap: var(--s-2); align-items: center; min-height: 40px; padding: 6px 10px; border: 1px solid var(--line-dim); border-radius: var(--r-sm); background: var(--surface-0); }
+.settings-status-ledger-row strong { color: var(--tx); font-size: var(--fs-12); }
+.settings-status-ledger-value { color: var(--tx-2); font: var(--fs-11) var(--f-mono); }
+.settings-status-ledger-source { color: var(--gold); font: 600 9px var(--f-display); letter-spacing: .08em; white-space: nowrap; }
+.settings-disclosure { border: 1px solid var(--line-dim); border-radius: var(--r-sm); background: var(--surface-0); overflow: clip; }
+.settings-disclosure > summary { min-height: 44px; display: flex; align-items: center; padding: 0 12px; cursor: pointer; color: var(--tx-2); font: 600 var(--fs-11) var(--f-display); letter-spacing: .06em; }
+.settings-disclosure[open] > summary { border-bottom: 1px solid var(--line-dim); color: var(--gold); }
+.settings-disclosure-body { padding: 12px; }
+.settings-local-actions { display: flex; gap: var(--s-2); flex-wrap: wrap; margin-top: var(--s-2); }
+.settings-local-actions.is-danger { border-top: 1px solid color-mix(in srgb, var(--err) 35%, var(--line-dim)); padding-top: var(--s-2); }
+.settings-formula-list { max-width: 100%; }
+.settings-formula-row { display: grid; grid-template-columns: auto minmax(110px, .3fr) minmax(0, 1fr) auto; gap: var(--s-2); align-items: center; }
+.settings-check-row { min-height: 40px; display: flex; align-items: center; gap: var(--s-2); font-size: var(--fs-12); }
+@media (max-width: 640px) { .settings-major > summary { grid-template-columns: 20px minmax(0, 1fr) auto; gap: var(--s-2); padding: 0 10px; } .settings-major > summary::before { grid-column: 1; } .settings-major-name { grid-column: 2; } .settings-major-hint { display: none; } .settings-major-count { grid-column: 3; } .settings-major-body { padding: 10px; } .settings-status-ledger-row { grid-template-columns: minmax(0,1fr) auto; gap: 2px 8px; } .settings-status-ledger-value { grid-column: 1; } .settings-status-ledger-source { grid-column: 2; grid-row: 1 / span 2; } .settings-formula-row { grid-template-columns: auto minmax(0,1fr) auto; } .settings-formula-row .input:nth-of-type(2) { grid-column: 2 / span 1; } }
+
+
+/* v64r05: ステータスは一覧・既定編集・全体並べ替えを分離せず、一つの作業面に統合する。 */
+.settings-major--static { overflow: visible; }
+.settings-major-static-head {
+  min-height: 54px;
+  display: grid;
+  grid-template-columns: minmax(110px, .55fr) minmax(0, 1.4fr) auto;
+  align-items: center;
+  gap: var(--s-3);
+  padding: 0 14px;
+  background: var(--surface-0);
+}
+.settings-major--static > .settings-major-body { border-top: 1px solid var(--line-dim); }
+.settings-status-workspace-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: 2px 0 4px;
+}
+.settings-status-workspace-head .settings-section-note { margin: 4px 0 0; }
+.settings-status-workspace-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--s-2); }
+.settings-order-embedded { gap: var(--s-2); }
+.settings-order-embedded > .settings-status-workspace-head { padding: 0; background: transparent; border: 0; }
+.settings-order-embedded .status-order-scroll { max-height: 500px; }
+.status-order-row {
+  display: grid !important;
+  grid-template-columns: var(--control-h-compact) 28px minmax(130px, 1fr) auto minmax(144px, auto) auto var(--control-h-compact) !important;
+  align-items: center !important;
+  gap: var(--s-2) !important;
+  min-height: 48px !important;
+  padding: 6px 8px !important;
+  background: var(--surface-inset) !important;
+  border: 1px solid var(--line-dim) !important;
+  border-radius: var(--r-sm) !important;
+}
+.status-order-handle { cursor: grab; font-size: 11px; letter-spacing: -2px; touch-action: none; }
+.status-order-index { font-family: var(--f-mono); font-size: 10px; color: var(--tx-mute); text-align: right; }
+.status-order-name { min-width: 0; }
+.status-order-name > span { color: var(--tx); font-size: var(--fs-12); }
+.status-order-source { font: 600 9px var(--f-display); letter-spacing: .08em; white-space: nowrap; border: 1px solid currentColor; border-radius: 2px; padding: 2px 6px; opacity: .9; }
+.status-order-edit-values { display: grid; grid-template-columns: repeat(2, 68px); gap: 5px; }
+.status-order-number { display: grid; grid-template-columns: 14px minmax(0, 1fr); align-items: center; gap: 3px; color: var(--tx-mute); font: 10px var(--f-display); }
+.status-order-number .input { min-width: 0; padding-inline: 6px; text-align: right; }
+.status-order-linked-value,
+.status-order-read-values { color: var(--tx-2); font: var(--fs-11) var(--f-mono); white-space: nowrap; }
+.status-order-linked-value { display: inline-flex; min-height: var(--control-h-compact); align-items: center; padding: 0 8px; border: 1px dashed var(--gold-line); border-radius: var(--r-sm); color: var(--gold); }
+.status-order-row > .btn-icon { width: var(--control-h-compact); height: var(--control-h-compact); border-color: color-mix(in oklab, var(--err) 42%, var(--line)); color: color-mix(in oklab, var(--err) 82%, white); }
+.status-order-row-spacer { width: var(--control-h-compact); height: var(--control-h-compact); }
+.settings-label-workspace { gap: var(--s-2); }
+.settings-label-workspace > .settings-status-workspace-head { padding: 0; }
+.label-param-list,
+.settings-custom-status-list,
+.settings-hidden-custom-list { display: grid; gap: 6px; }
+.label-param-row,
+.settings-custom-status-row,
+.settings-hidden-custom-row {
+  display: grid;
+  align-items: end;
+  gap: var(--s-2);
+  min-height: 52px;
+  padding: 8px;
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-sm);
+  background: var(--surface-0);
+}
+.label-param-row { grid-template-columns: minmax(150px, 1fr) 92px 92px auto var(--control-h-compact); }
+.label-param-row--readonly { grid-template-columns: minmax(150px, 1fr) 92px auto; align-items: center; }
+.label-param-row--system { grid-template-columns: minmax(150px, 1fr) 92px auto var(--control-h-compact); }
+.label-param-field { display: grid; gap: 4px; min-width: 0; color: var(--tx-mute); font: 10px var(--f-display); letter-spacing: .04em; }
+.label-param-field .input,
+.label-param-field .select { min-width: 0; }
+.label-param-field--value .input { text-align: right; }
+.label-param-read { min-width: 0; display: grid; gap: 2px; }
+.label-param-read strong { overflow: hidden; color: var(--tx); font-size: var(--fs-12); text-overflow: ellipsis; white-space: nowrap; }
+.label-param-read small { color: var(--tx-mute); font-size: var(--fs-10); line-height: 1.35; }
+.label-param-source { align-self: center; color: #4fa3a5; font: 600 9px var(--f-display); letter-spacing: .08em; white-space: nowrap; border: 1px solid currentColor; border-radius: 2px; padding: 2px 6px; }
+.label-param-empty { color: var(--tx-mute); font: var(--fs-11) var(--f-mono); white-space: nowrap; }
+.label-param-row > .btn-icon,
+.settings-custom-status-row > .btn-icon,
+.settings-hidden-custom-row > .btn-icon { width: var(--control-h-compact); height: var(--control-h-compact); border-color: color-mix(in oklab, var(--err) 42%, var(--line)); color: color-mix(in oklab, var(--err) 82%, white); }
+.label-param-row-spacer { width: var(--control-h-compact); height: var(--control-h-compact); }
+.settings-custom-status-row { grid-template-columns: minmax(130px, 1fr) 68px 68px 126px var(--control-h-compact); }
+.settings-custom-target { display: grid; gap: 4px; color: var(--tx-mute); font: 10px var(--f-display); letter-spacing: .04em; }
+.settings-hidden-custom-row { grid-template-columns: minmax(130px, 1fr) minmax(140px, .8fr) 126px var(--control-h-compact); align-items: center; }
+.settings-hidden-custom-row > span { color: var(--tx-mute); font-size: var(--fs-11); }
+
+@media (max-width: 640px) {
+  .settings-major-static-head { grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; padding: 10px; }
+  .settings-major-static-head .settings-major-name { grid-column: 1; }
+  .settings-major-static-head .settings-major-hint { display: none; }
+  .settings-major-static-head .settings-major-count { grid-column: 2; }
+  .settings-status-workspace-head { flex-direction: column; align-items: stretch; gap: var(--s-2); }
+  .settings-status-workspace-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: stretch; }
+  .settings-status-workspace-actions .btn { min-width: 0; }
+  .settings-order-embedded .status-order-scroll { max-height: min(58vh, 520px); }
+  .status-order-row {
+    grid-template-columns: var(--control-h) 28px minmax(0, 1fr) auto !important;
+    gap: 6px !important;
+    min-height: 64px !important;
+    padding: 8px !important;
+  }
+  .status-order-row .status-order-handle { grid-column: 1; grid-row: 1 / span 2; width: var(--control-h) !important; height: var(--control-h) !important; }
+  .status-order-index { grid-column: 2; grid-row: 1; }
+  .status-order-name { grid-column: 3; grid-row: 1; }
+  .status-order-source { grid-column: 4; grid-row: 1; }
+  .status-order-edit-values,
+  .status-order-read-values { grid-column: 2 / -1; grid-row: 2; }
+  .status-order-edit-values { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .status-order-number { grid-template-columns: 16px minmax(0, 1fr); }
+  .status-order-row .reorder-btns { grid-column: 2 / span 2; grid-row: 3; justify-content: flex-start; min-height: var(--control-h); }
+  .status-order-row > .btn-icon,
+  .status-order-row-spacer { grid-column: 4; grid-row: 3; width: var(--control-h); height: var(--control-h); }
+  .label-param-row,
+  .label-param-row--system { grid-template-columns: minmax(0, 1fr) 92px auto; gap: 8px; }
+  .label-param-row--editable .label-param-field:first-child,
+  .label-param-row--readonly .label-param-read,
+  .label-param-row--system .label-param-read { grid-column: 1 / -1; }
+  .label-param-row--editable .label-param-field--target { grid-column: 1 / span 2; }
+  .label-param-row--editable .label-param-source { grid-column: 3; grid-row: 2; }
+  .label-param-row--editable > .btn-icon { grid-column: 3; grid-row: 3; width: var(--control-h); height: var(--control-h); }
+  .label-param-row--readonly { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; }
+  .label-param-row--readonly .label-param-empty { grid-column: 1; }
+  .label-param-row--readonly .label-param-source { grid-column: 2; grid-row: 1 / span 2; }
+  .label-param-row--system .label-param-field--value { grid-column: 1 / span 2; }
+  .label-param-row--system .label-param-source { grid-column: 3; grid-row: 2; }
+  .label-param-row--system .label-param-row-spacer { grid-column: 3; grid-row: 3; width: var(--control-h); height: var(--control-h); }
+  .settings-custom-status-row { grid-template-columns: minmax(0, 1fr) 76px 76px; gap: 8px; }
+  .settings-custom-status-row > .input { grid-column: 1 / -1; }
+  .settings-custom-status-row .settings-custom-target { grid-column: 1 / span 2; }
+  .settings-custom-status-row > .btn-icon { grid-column: 3; width: var(--control-h); height: var(--control-h); }
+  .settings-hidden-custom-row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+  .settings-hidden-custom-row > .input { grid-column: 1 / -1; }
+  .settings-hidden-custom-row > span { grid-column: 1; }
+  .settings-hidden-custom-row > .select { grid-column: 1; }
+  .settings-hidden-custom-row > .btn-icon { grid-column: 2; grid-row: 2 / span 2; width: var(--control-h); height: var(--control-h); }
+}
+
+
+/* v64r06: E.G.Oは「通常・同化・影響」の選択に応じた一つの編集面だけを表示する。 */
+.ego-variant-workbench .ego-editor { gap: var(--s-4); }
+.ego-variant-stack { display: grid; gap: var(--s-4); }
+.ego-variant-workbench .ego-slot-variant {
+  padding: var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface-0);
+}
+.ego-variant-workbench .ego-slot-variant:nth-child(1) { border-left: 3px solid var(--gold); }
+.ego-variant-workbench .ego-slot-variant:nth-child(2) { border-left: 3px solid var(--err); }
+.ego-variant-workbench .ego-slot-variant-head { margin-bottom: var(--s-2); }
+.ego-variant-workbench .ego-variant-status { margin: var(--s-2) 0 var(--s-3); }
+.ego-assim-all-skills { display: grid; gap: var(--s-2); }
+.ego-assim-all-skill {
+  cursor: pointer;
+  border: 1px solid var(--line-dim);
+  border-left: 3px solid var(--gold-line);
+  border-radius: var(--r-sm);
+  background: var(--surface-0);
+  transition: border-color .14s ease, background .14s ease;
+}
+.ego-assim-all-skill:hover,
+.ego-assim-all-skill:focus-visible { outline: none; border-color: var(--gold); background: color-mix(in oklab, var(--surface-0) 92%, var(--gold) 8%); }
+.ego-assim-all-skill.is-active { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold-line); }
+.ego-assim-all-skill-read { padding: 10px 12px; }
+.ego-assim-all-skill .ego-connected-roll { background: var(--surface-inset); }
+.ego-variant-workbench .ego-editor-detail { margin-top: var(--s-3); }
+.ego-variant-workbench .ego-influence-editor { border-left: 3px solid var(--warn); }
+
+@media (max-width: 640px) {
+  .ego-variant-workbench .ego-slot-variant { padding: 10px; }
+  .ego-variant-workbench .ego-variant-choice { grid-template-columns: 1fr; }
+  .ego-assim-all-skill-read { padding: 10px; }
+}
+
+/* v64r06補正: E.G.O形態選択は文言を一続きにせず、選択肢ごとに独立した操作面として示す。 */
+.ego-variant-choice {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-2);
+}
+.ego-variant-option {
+  min-width: 0;
+  min-height: 72px;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  padding: 9px 10px;
+  text-align: left;
+  color: var(--tx-2);
+  background: var(--surface-inset);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+.ego-variant-option:hover { border-color: var(--gold-line); background: color-mix(in oklab, var(--surface-inset) 92%, var(--gold) 8%); }
+.ego-variant-option:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.ego-variant-option.is-active { color: var(--tx); border-color: var(--gold); background: color-mix(in oklab, var(--surface-inset) 84%, var(--gold) 16%); box-shadow: inset 0 0 0 1px var(--gold-line); }
+.ego-variant-option > b { font: 600 var(--fs-12) var(--f-body); }
+.ego-variant-option > span { color: var(--tx-mute); font-size: var(--fs-10); line-height: 1.45; }
+.ego-variant-option.is-active > span { color: var(--tx-2); }
+@media (max-width: 640px) {
+  .ego-variant-choice { grid-template-columns: 1fr; }
+  .ego-variant-option { min-height: var(--control-h); grid-template-columns: 56px minmax(0, 1fr); align-items: center; gap: 8px; }
+  .ego-variant-option > span { font-size: var(--fs-11); }
+}
+
+
+.deck-thumb:has(.deck-thumb-rank) .deck-thumb-rank { overflow-wrap: anywhere; }
+
+/* v64r08: 耐性は戦術判断で同時比較する三つ組。基本情報の小型統計へ混在させない。 */
+.es-resistance {
+  --res-accent: var(--gold);
+  flex: 0 0 100%;
+  display: grid;
+  grid-template-columns: minmax(74px, auto) minmax(360px, 540px);
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  background: var(--surface-inset);
+  border: 1px solid var(--line-dim);
+  border-left: 3px solid var(--gold-line);
+  border-radius: var(--r);
+}
+.es-resistance-heading {
+  color: var(--gold);
+  font: 700 var(--fs-11) var(--f-display);
+  letter-spacing: .16em;
+}
+.es-resistance-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-2);
+  width: 100%;
+}
+.es-resistance-cell {
+  --res-accent: var(--res-普通);
+  display: grid;
+  grid-template-rows: auto minmax(40px, auto);
+  align-content: center;
+  justify-items: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 68px;
+  padding: 8px 10px;
+  background: color-mix(in oklab, var(--surface-1) 92%, var(--res-accent) 8%);
+  border: 1px solid color-mix(in oklab, var(--res-accent) 58%, var(--line));
+  border-radius: var(--r-sm);
+  text-align: center;
+}
+.es-resistance-cell[data-res="脆弱"] { --res-accent: var(--res-脆弱); }
+.es-resistance-cell[data-res="弱点"] { --res-accent: var(--res-弱点); }
+.es-resistance-cell[data-res="普通"] { --res-accent: var(--res-普通); }
+.es-resistance-cell[data-res="抵抗"] { --res-accent: var(--res-抵抗); }
+.es-resistance-cell[data-res="耐性"] { --res-accent: var(--res-耐性); }
+.es-resistance-cell[data-res="免疫"] { --res-accent: var(--res-免疫); }
+.es-resistance-label {
+  color: var(--tx-mute);
+  font: 600 var(--fs-10) var(--f-display);
+  letter-spacing: .12em;
+}
+.es-resistance-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  color: var(--res-accent);
+  font: 700 var(--fs-18) var(--f-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .06em;
+  line-height: 1;
+}
+.es-resistance-select {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 6px 8px;
+  color: var(--res-accent);
+  background: var(--surface-1);
+  border: 1px solid color-mix(in oklab, var(--res-accent) 62%, var(--line));
+  border-radius: var(--r-sm);
+  font: 700 var(--fs-14) var(--f-display);
+  text-align: center;
+  text-align-last: center;
+}
+.es-resistance-select:hover { background: color-mix(in oklab, var(--surface-1) 88%, var(--res-accent) 12%); }
+.es-resistance-select:focus { outline: none; box-shadow: 0 0 0 2px var(--gold-tint); border-color: var(--gold); }
+@media (max-width: 640px) {
+  .es-resistance { grid-template-columns: 1fr; gap: 7px; padding: 10px; }
+  .es-resistance-heading { padding-left: 2px; }
+  .es-resistance-grid { gap: 6px; }
+  .es-resistance-cell { min-height: 70px; padding: 8px 5px; }
+  .es-resistance-value { font-size: var(--fs-16); }
+  .es-resistance-select { min-height: 40px; padding-inline: 3px; font-size: var(--fs-12); }
+}
+
+
+/* v64r09: 人格サマリー全体を「名前 → 基本能力 → 耐性 → 補助情報 → 操作」の順に読む。 */
+.equipped-summary .es-head { margin-bottom: 10px; }
+.equipped-summary .es-name {
+  max-width: 100%;
+  font-size: clamp(22px, 2vw, 30px);
+  line-height: 1.18;
+  letter-spacing: .035em;
+}
+.equipped-summary .es-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+}
+.equipped-summary .es-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(64px, 1fr));
+  gap: 0;
+  width: min(100%, 620px);
+  padding: 8px 6px;
+  background: var(--surface-inset);
+}
+.equipped-summary .es-stats .es-stat {
+  min-width: 0;
+  min-height: 52px;
+  padding: 0 10px;
+  gap: 5px;
+  border-right: 1px solid var(--line-dim);
+}
+.equipped-summary .es-stats .es-stat:last-child { border-right: 0; }
+.equipped-summary .es-stats .es-stat-label { font-size: 9px; letter-spacing: .13em; }
+.equipped-summary .es-stats .es-stat-value { font-size: var(--fs-16); }
+.equipped-summary .es-resistance {
+  grid-template-columns: 62px minmax(360px, 500px);
+  width: min(100%, 620px);
+  min-height: 76px;
+  padding: 8px;
+  border-left-width: 2px;
+}
+.equipped-summary .es-resistance-heading { font-size: var(--fs-10); }
+.equipped-summary .es-resistance-cell {
+  min-height: 60px;
+  padding: 6px 9px;
+  gap: 3px;
+}
+.equipped-summary .es-resistance-value { min-height: 32px; font-size: var(--fs-16); }
+.equipped-summary .es-resistance-select { min-height: 40px; font-size: var(--fs-12); }
+.equipped-summary .es-keywords {
+  width: min(100%, 620px);
+  margin-top: 0;
+  padding: 7px 0 0;
+}
+.equipped-summary .es-actions {
+  width: min(100%, 620px);
+  flex: none;
+  justify-content: flex-start;
+  padding-top: 2px;
+}
+.equipped-summary .es-actions > .btn { min-height: 40px; }
+@media (max-width: 640px) {
+  .equipped-summary .es-head { margin-bottom: 8px; }
+  .equipped-summary .es-name { font-size: clamp(20px, 6.2vw, 25px); }
+  .equipped-summary .es-body { gap: 9px; }
+  .equipped-summary .es-stats {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    width: 100%;
+    padding: 7px 2px;
+  }
+  .equipped-summary .es-stats .es-stat {
+    min-height: 48px;
+    padding: 0 3px;
+    gap: 4px;
+  }
+  .equipped-summary .es-stats .es-stat-label { font-size: 8px; letter-spacing: .06em; }
+  .equipped-summary .es-stats .es-stat-value { font-size: var(--fs-14); }
+  .equipped-summary .es-stat-input { font-size: var(--fs-12); }
+  .equipped-summary .es-resistance { grid-template-columns: 1fr; width: 100%; min-height: 72px; gap: 7px; }
+  .equipped-summary .es-resistance-cell { min-height: 58px; }
+  .equipped-summary .es-resistance-value { font-size: var(--fs-15); }
+  .equipped-summary .es-resistance-select { min-height: 40px; font-size: 11px; }
+  .equipped-summary .es-keywords, .equipped-summary .es-actions { width: 100%; }
+  .equipped-summary .es-actions { gap: 7px; }
+  .equipped-summary .es-actions > .btn { flex: 1 1 150px; min-height: 40px; }
+}
+
+
+/* v64r10: 所持ライブラリは人格・E.G.O・保存ビルドの引き継ぎデータ。保存アクションを明示する。 */
+.utility-sheet-action.is-library-save {
+  border-color: var(--gold-line);
+  background: linear-gradient(135deg, color-mix(in oklab, var(--gold) 14%, var(--surface-2)), var(--surface-1));
+}
+.utility-sheet-action.is-library-save .utility-sheet-icon {
+  color: var(--gold-hi);
+  background: var(--gold-tint);
+  border-color: var(--gold);
+}
+.utility-sheet-action.is-library-save .utility-sheet-copy b { color: var(--gold-hi); }
+.utility-sheet-action.is-library-save:hover {
+  border-color: var(--gold);
+  background: linear-gradient(135deg, color-mix(in oklab, var(--gold) 23%, var(--surface-2)), var(--surface-1));
+}
+
+
+/* v64r45: メモ／チャットパレットのカテゴリ並べ替えは、ドラッグだけに依存しない。
+   グリップ、上下移動、挿入位置を同じ行にまとめ、PC・モバイルで目的の順番へ確実に到達できるようにする。 */
+.pv-sec > .pv-sec-head {
+  cursor: default;
+  gap: 8px !important;
+  padding: 5px 7px !important;
+}
+.pv-sec > .pv-sec-head > .pv-sec-head {
+  min-width: 0;
+  padding: 0 !important;
+}
+.pv-sec-reorder {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+  padding-right: 5px;
+  border-right: 1px solid var(--line-dim);
+}
+.pv-sec-drag,
+.pv-sec-move {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-sm);
+  background: var(--surface-inset);
+  color: var(--tx-dim);
+  font-family: var(--f-display);
+  font-size: 13px;
+  line-height: 1;
+  transition: color 120ms ease, border-color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+.pv-sec-drag {
+  cursor: grab;
+  letter-spacing: -2px;
+  touch-action: pan-y;
+}
+.pv-sec-drag:hover,
+.pv-sec-drag:active,
+.pv-sec-move:not(:disabled):hover {
+  color: var(--gold-hi);
+  border-color: var(--gold-line);
+  background: var(--gold-tint);
+}
+.pv-sec-drag:active { cursor: grabbing; transform: scale(0.96); }
+.pv-sec-move { cursor: pointer; font-weight: 700; }
+.pv-sec-move:disabled { opacity: 0.28; cursor: not-allowed; }
+.pv-sec.dnd-row.is-dragging {
+  opacity: 0.7;
+  background: color-mix(in oklab, var(--gold) 10%, var(--surface-1));
+  outline: 1px solid var(--gold-line);
+}
+.pv-sec.dnd-row.is-drop-target::before {
+  height: 3px;
+  border-radius: 99px;
+  background: var(--gold-hi);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--gold) 20%, transparent);
+}
+.pv-sec-toolbar .pv-sec-dnd-note {
+  color: var(--tx-dim);
+  letter-spacing: 0.04em;
+}
+@media (max-width: 640px) {
+  .pv-sec > .pv-sec-head { min-height: 52px; padding: 6px 8px !important; }
+  .pv-sec-reorder { gap: 4px; padding-right: 6px; }
+  .pv-sec-drag,
+  .pv-sec-move { width: 36px; height: 36px; font-size: 15px; }
+  .pv-sec-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+/* v64r45: 戦術スキルのオーダーとメタ情報の視覚階層。
+   オーダーは左上の番号を唯一の確認箇所とし、種別・大罪・範囲は同一帯で比較する。 */
+.deck-order-field {
+  display: grid;
+  gap: 4px;
+  min-width: 210px;
+}
+.deck-order-label {
+  color: var(--gold);
+  font-family: var(--f-display);
+  font-size: var(--fs-10);
+  font-weight: 700;
+  letter-spacing: .14em;
+  line-height: 1;
+}
+.deck-order-input {
+  width: 100%;
+  min-height: 34px;
+  box-sizing: border-box;
+  font-size: var(--fs-14) !important;
+}
+.skill-meta-band {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(112px, 1fr));
+  gap: var(--s-2);
+  align-items: end;
+  padding: 10px;
+  background: var(--surface-inset);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-sm);
+}
+.skill-meta-field {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+.skill-meta-band .field-label {
+  margin: 0;
+  color: var(--tx-mute);
+  font-size: var(--fs-10);
+  font-weight: 600;
+  letter-spacing: .1em;
+}
+.skill-meta-band .select,
+.skill-meta-band .input {
+  width: 100%;
+  min-height: 34px;
+  font-size: var(--fs-12);
+}
+@media (max-width: 640px) {
+  .deck-focus .deck-card-head .deck-order-field {
+    min-width: 0;
+  }
+  .deck-focus .deck-card-head .deck-order-label {
+    font-size: 11px;
+  }
+  .deck-focus .deck-card-head .deck-order-input {
+    min-height: 40px;
+    font-size: 16px !important;
+  }
+  .deck-focus .skill-meta-band {
+    gap: 8px;
+    padding: 10px;
+  }
+  .deck-focus .skill-meta-band .field-label {
+    font-size: 11px;
+    letter-spacing: .08em;
+  }
+}
+
+/* v64r45: 上部バーの所持ライブラリ保存は、通常の作業保存と区別して即座に判別できるようにする。 */
+.topbar-actions .topbar-library-save {
+  min-width: 42px;
+  gap: 6px;
+  padding-inline: 9px;
+  color: var(--gold-hi);
+  background: color-mix(in oklab, var(--gold) 12%, var(--surface-2));
+  border: 1px solid var(--gold-line);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--gold) 8%, transparent);
+}
+.topbar-actions .topbar-library-save > svg {
+  width: 17px;
+  height: 17px;
+  stroke-width: 2;
+  flex: 0 0 auto;
+}
+.topbar-actions .topbar-library-save::after {
+  content: "ライブラリ保存";
+  font-family: var(--f-display);
+  font-size: var(--fs-10);
+  font-weight: 700;
+  letter-spacing: .08em;
+  white-space: nowrap;
+}
+.topbar-actions .topbar-library-save:hover:not(:disabled),
+.topbar-actions .topbar-library-save:focus-visible {
+  color: var(--gold-hi);
+  background: color-mix(in oklab, var(--gold) 22%, var(--surface-2));
+  border-color: var(--gold);
+}
+/* v64r71: 上部バーは拡大表示で実効幅が縮む。ライブラリ保存の長い補助ラベルを
+   半端にクリップせず、余裕がない幅ではアイコン＋title／操作・保存シートに委ねる。 */
+@media (max-width: 1540px) {
+  .topbar-actions .topbar-library-save {
+    min-width: 40px;
+    padding-inline: 8px;
+    flex: 0 0 40px;
+    justify-content: center;
+  }
+  .topbar-actions .topbar-library-save::after { display: none; }
+}
+
+@media (min-width: 1541px) {
+  .topbar-actions .topbar-library-save {
+    flex: 0 0 auto;
+    min-width: max-content;
+    justify-content: flex-start;
+  }
+  .topbar-actions .topbar-library-save::after {
+    display: inline;
+    overflow: visible;
+  }
+}
+
+/* 操作・保存シートでは長いアクション名・説明を必ずカード内で改行する。 */
+.utility-sheet-copy b,
+.utility-sheet-copy small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* v64r45: 人格選択と一覧折り畳みは、文言の長さに左右されず同じ主操作レールに置く。 */
+.es-actions .persona-list-toggle {
+  grid-column: 1 / -1;
+  min-height: var(--control-h) !important;
+  width: 100%;
+  justify-content: center;
+  font-weight: 700;
+}
+@media (max-width: 640px) {
+  .es-actions .persona-list-toggle {
+    min-height: 44px !important;
+    flex-basis: 100%;
+  }
+}
+
+/* v64r45: 同化スキルは選択後の下部編集を廃止し、各スキルカードをその場で編集する。 */
+.ego-assim-direct-manager { gap: var(--s-3); }
+.ego-assim-direct-list { display: grid; gap: var(--s-3); }
+.ego-assim-direct-card {
+  display: grid;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  background: linear-gradient(145deg, color-mix(in oklab, var(--gold) 7%, var(--surface-inset)), var(--surface-inset));
+  border: 1px solid var(--gold-line);
+  border-left: 3px solid var(--gold);
+  border-radius: var(--r);
+}
+.ego-assim-direct-card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding-bottom: var(--s-2);
+  border-bottom: 1px solid var(--gold-line);
+}
+.ego-assim-direct-card-head .ego-assim-card-origin { margin-left: auto; }
+.ego-assim-direct-delete { min-height: 34px; }
+.ego-assim-direct-name-grid { align-items: end; }
+.ego-assim-direct-meta-grid {
+  align-items: end;
+  margin-top: calc(var(--s-2) * -1);
+}
+.ego-assim-direct-effect { margin-top: calc(var(--s-2) * -1); }
+.ego-assim-direct-dice {
+  padding-top: var(--s-3);
+  border-top: 1px dashed var(--line);
+}
+.ego-assim-direct-add { justify-self: start; min-height: var(--control-h); }
+@media (max-width: 640px) {
+  .ego-assim-direct-card { padding: 10px; gap: 10px; }
+  .ego-assim-direct-card-head { align-items: flex-start; flex-wrap: wrap; }
+  .ego-assim-direct-card-head .ego-assim-card-origin { margin-left: 36px; width: calc(100% - 36px); }
+  .ego-assim-direct-delete { margin-left: auto; min-height: 40px; }
+  .ego-assim-direct-name-grid,
+  .ego-assim-direct-meta-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  .ego-assim-direct-add { width: 100%; justify-content: center; min-height: 44px; }
+}
+
+@media (max-width: 640px) {
+  .ego-assim-direct-card-head .ego-assim-direct-delete {
+    order: 2;
+    flex: 0 0 auto;
+    margin-left: auto;
+    white-space: nowrap;
+  }
+  .ego-assim-direct-card-head .ego-assim-card-origin { order: 3; }
+}
+
+/* v64r45: 長尺の編集面でも現在位置を失わない、LBT共通のスクロールバー。 */
+:root {
+  scrollbar-color: var(--gold-lo) var(--surface-inset);
+  scrollbar-width: thin;
+}
+* {
+  scrollbar-color: var(--gold-lo) var(--surface-inset);
+  scrollbar-width: thin;
+}
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track {
+  background: var(--surface-inset);
+  border: 1px solid var(--line-dim);
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--gold-lo), color-mix(in oklab, var(--gold) 72%, var(--surface-3)));
+  border: 2px solid var(--surface-inset);
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--gold-hi) 32%, transparent);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold));
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--bg) 36%, transparent), 0 0 8px color-mix(in oklab, var(--gold) 28%, transparent);
+}
+*::-webkit-scrollbar-thumb:active { background: var(--gold-hi); }
+*::-webkit-scrollbar-corner { background: var(--surface-inset); }
+.focus, .rail, .preview-body { scrollbar-gutter: stable; }
+@media (max-width: 640px) {
+  *::-webkit-scrollbar { width: 7px; height: 7px; }
+  *::-webkit-scrollbar-thumb { border-width: 1px; }
+}
+
+/* v64r45: モバイルP0 — 戦術スキルの直接選択。横スクロールするサムネイル列の代わりに、カード直上でS番号を選ぶ。 */
+.deck-direct-nav { display: none; }
+@media (max-width: 640px) {
+  .deck-direct-nav {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(44px, 1fr));
+    gap: 8px;
+    padding: 8px;
+    background: var(--surface-inset);
+    border: 1px solid var(--line-dim);
+    border-radius: var(--r);
+  }
+  .deck-direct-chip {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 6px 8px;
+    border: 1px solid var(--line);
+    border-top: 3px solid var(--sin-c, var(--tx-mute));
+    border-radius: var(--r-sm);
+    background: var(--surface-1);
+    color: var(--tx-2);
+    cursor: pointer;
+    text-align: left;
+    line-height: 1.1;
+  }
+  .deck-direct-chip.is-active {
+    border-color: var(--gold);
+    background: var(--gold-tint);
+    box-shadow: 0 0 0 1px var(--gold-glow);
+    color: var(--gold-hi);
+  }
+  .deck-direct-rank {
+    display: block;
+    font-family: var(--f-display);
+    font-size: var(--fs-12);
+    font-weight: 700;
+    letter-spacing: .08em;
+  }
+  .deck-direct-name {
+    display: block;
+    margin-top: 2px;
+    overflow: hidden;
+    color: var(--tx-dim);
+    font-family: var(--f-mono);
+    font-size: 9px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .deck-direct-chip[data-sin="憤怒"] { --sin-c: var(--sin-憤怒); }
+  .deck-direct-chip[data-sin="色欲"] { --sin-c: var(--sin-色欲); }
+  .deck-direct-chip[data-sin="怠惰"] { --sin-c: var(--sin-怠惰); }
+  .deck-direct-chip[data-sin="暴食"] { --sin-c: var(--sin-暴食); }
+  .deck-direct-chip[data-sin="憂鬱"] { --sin-c: var(--sin-憂鬱); }
+  .deck-direct-chip[data-sin="傲慢"] { --sin-c: var(--sin-傲慢); }
+  .deck-direct-chip[data-sin="嫉妬"] { --sin-c: var(--sin-嫉妬); }
+  .deck-direct-chip[data-sin="特殊"] { --sin-c: var(--sin-特殊); }
+
+  /* S番号の直接選択を主操作にする。PC向けの左右移動と横サムネイル列はモバイルで隠す。 */
+  .deck-nav > .deck-nav-btn,
+  .deck-thumbs { display: none; }
+  .deck-nav { grid-template-columns: minmax(0, 1fr) 1fr; }
+  .deck-nav-info { grid-column: 1 / -1; }
+  .deck-nav > .btn:nth-last-child(2) { grid-column: 1; }
+  .deck-nav > .btn:last-child { grid-column: 2; }
+  .deck-add-dice { min-height: 44px; }
+}
+
+/* v64r45: モバイルP0 — E.G.Oは検索・最近／所持候補から始め、ランク・大罪の詳細絞り込みは必要時だけ開く。 */
+@media (max-width: 640px) {
+  .ego-catalog-filters .codex-filter-row:first-child {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .ego-catalog-filters .codex-search {
+    flex: 1 1 100%;
+    min-height: 44px;
+  }
+  .ego-catalog-filters .ego-filter-toggle,
+  .ego-catalog-filters .ego-browse-all {
+    flex: 1 1 0;
+    min-height: 44px;
+    justify-content: center;
+  }
+  .ego-catalog-filters:not(.is-filter-open) > .codex-filter-row:not(:first-child) {
+    display: none;
+  }
+  .ego-catalog-filters.is-filter-open > .codex-filter-row:not(:first-child) {
+    padding-top: 6px;
+    border-top: 1px solid var(--line-dim);
+  }
+  .ego-catalog-filters.is-filter-open .chip,
+  .ego-catalog-filters.is-filter-open .chips-group > button {
+    min-height: 44px;
+    padding: 8px 12px;
+  }
+  .ego-slots .ego-slot {
+    min-height: 72px;
+  }
+  .ego-discovery-empty {
+    display: grid;
+    gap: 5px;
+    padding: 14px;
+    color: var(--tx-dim);
+    background: var(--surface-inset);
+    border: 1px dashed var(--line);
+    border-left: 3px solid var(--gold-line);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-11);
+    line-height: 1.6;
+  }
+  .ego-discovery-empty strong { color: var(--gold-hi); font-family: var(--f-display); }
+}
+
+/* v64r94: 実機モバイルでは横スクロール式レールを使わない。
+   主要画面を2段グリッドで常時見せ、上部の操作入口も切らない。 */
+@media (max-width: 640px) {
+  .app {
+    --lbt-mobile-rail-h: calc(114px + env(safe-area-inset-bottom, 0px));
+    width: 100%;
+    max-width: 100%;
+    grid-template-rows: var(--topbar-h) minmax(0, 1fr) !important;
+    height: 100vh;
+    height: 100svh;
+    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100svh;
+    min-height: 100dvh;
+    overflow-x: clip;
+  }
+  .focus { padding-bottom: calc(var(--lbt-mobile-rail-h) + 12px); }
+  .topbar {
+    display: grid;
+    grid-template-columns: 22px 34px minmax(0, 1fr);
+    gap: 6px;
+    padding-inline: 8px;
+  }
+  .topbar .brand { width: 22px; min-width: 22px; overflow: visible; }
+  .topbar .brand-mark { font-size: 18px; }
+  .topbar .topbar-spacer { display: none; }
+  .topbar .topbar-search {
+    width: 34px;
+    min-width: 34px;
+    flex: none;
+    justify-content: center;
+    padding: 6px;
+  }
+  .topbar .topbar-search kbd { display: none; }
+  .topbar .topbar-actions {
+    width: 100%;
+    min-width: 0;
+    justify-content: flex-end;
+  }
+  .topbar .utility-trigger {
+    width: 100%;
+    min-width: 0;
+    max-width: 132px;
+    overflow: hidden;
+    justify-content: center;
+  }
+  .topbar .utility-trigger span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .rail {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-rows: repeat(2, 52px);
+    width: 100%;
+    height: var(--lbt-mobile-rail-h);
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 4px 4px calc(4px + env(safe-area-inset-bottom, 0px));
+    gap: 2px;
+    justify-content: stretch;
+    overflow: hidden;
+    scrollbar-width: none;
+    scroll-snap-type: none;
+    z-index: var(--z-rail, 25);
+  }
+  .rail::-webkit-scrollbar { display: none; }
+  .rail-item,
+  .rail-item.is-utility,
+  .rail-item.is-overflow,
+  .rail-more {
+    display: flex !important;
+    width: auto;
+    min-width: 0;
+    min-height: 0;
+    height: 50px;
+    padding: 4px 1px;
+    flex: none;
+  }
+  .rail-label {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 8px;
+    letter-spacing: 0;
+  }
+  .app:not(.preview-collapsed) .preview {
+    bottom: var(--lbt-mobile-rail-h);
+    max-height: calc(100vh - var(--topbar-h) - var(--lbt-mobile-rail-h));
+    max-height: calc(100svh - var(--topbar-h) - var(--lbt-mobile-rail-h));
+    max-height: calc(100dvh - var(--topbar-h) - var(--lbt-mobile-rail-h));
+  }
+}
+
+/* v64r95: 操作・保存は .topbar-actions の外側にある直接の子要素。
+   グリッドの暗黙行に落とさず、単一行の右端操作として固定する。 */
+@media (max-width: 640px) {
+  .topbar {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+  .topbar .topbar-actions { display: none !important; }
+  .topbar > .utility-trigger {
+    display: inline-flex;
+    width: auto;
+    min-width: 104px;
+    max-width: none;
+    height: 36px;
+    margin-left: auto;
+    padding-inline: 9px;
+    flex: 0 0 auto;
+  }
+  .topbar > .utility-trigger span {
+    overflow: visible;
+    text-overflow: clip;
+  }
+  .focus,
+  .rail {
+    min-height: 0 !important;
+  }
+}
+
+/* v64r100: 横向きのスマートフォンは高さが短く、左側縦レールの末尾が画面外へ出る。
+   641〜1024px幅かつ低い画面では、横幅を活かした下部2段レールへ切り替える。 */
+@media (min-width: 641px) and (max-width: 1024px) and (max-height: 520px) {
+  .app {
+    --lbt-landscape-rail-h: calc(90px + env(safe-area-inset-bottom, 0px));
+    grid-template-columns: 1fr !important;
+    grid-template-rows: var(--topbar-h) minmax(0, 1fr) !important;
+    grid-template-areas:
+      "topbar"
+      "focus" !important;
+  }
+  .focus { padding-bottom: calc(var(--lbt-landscape-rail-h) + 12px); }
+  /* 縦方向が限られる横向き端末では、全操作アイコン群を直接並べず、
+     既存の「操作・保存」入口へ集約する。 */
+  .topbar {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    gap: 6px;
+    padding-inline: 8px;
+  }
+  .topbar .brand {
+    min-width: 0;
+    max-width: min(180px, 32vw);
+    overflow: hidden;
+  }
+  .topbar .brand-name,
+  .topbar .brand-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .topbar .topbar-actions { display: none !important; }
+  .topbar > .utility-trigger {
+    display: inline-flex;
+    width: auto;
+    min-width: 104px;
+    max-width: none;
+    height: 36px;
+    margin-left: auto;
+    padding-inline: 9px;
+    flex: 0 0 auto;
+  }
+  .topbar > .utility-trigger span { overflow: visible; text-overflow: clip; }
+  .rail {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-rows: repeat(2, 40px);
+    width: 100%;
+    height: var(--lbt-landscape-rail-h);
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 4px 4px calc(4px + env(safe-area-inset-bottom, 0px));
+    gap: 2px;
+    justify-content: stretch;
+    overflow: hidden;
+    scrollbar-width: none;
+    scroll-snap-type: none;
+    z-index: var(--z-rail, 25);
+  }
+  .rail-item,
+  .rail-item.is-utility,
+  .rail-item.is-overflow,
+  .rail-more {
+    display: flex !important;
+    width: auto;
+    min-width: 0;
+    min-height: 0;
+    height: 40px;
+    padding: 2px 1px;
+    flex: none;
+  }
+  .rail-label { font-size: 8px; letter-spacing: 0; }
+  .app:not(.preview-collapsed) .preview {
+    bottom: var(--lbt-landscape-rail-h);
+    max-height: calc(100vh - var(--topbar-h) - var(--lbt-landscape-rail-h));
+    max-height: calc(100svh - var(--topbar-h) - var(--lbt-landscape-rail-h));
+    max-height: calc(100dvh - var(--topbar-h) - var(--lbt-landscape-rail-h));
+  }
+}

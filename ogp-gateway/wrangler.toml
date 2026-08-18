@@ -1,0 +1,7 @@
+name = "lbt-ogp"
+main = "worker.mjs"
+compatibility_date = "2026-08-18"
+workers_dev = true
+
+# Free固定: Paid usage model、KV、R2、D1、Queues、Images、Secrets、独自ドメインの
+# bindingは意図的に定義しない。workers.dev URLのみを使用する。
