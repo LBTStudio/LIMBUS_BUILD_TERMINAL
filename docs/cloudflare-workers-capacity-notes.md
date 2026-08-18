@@ -72,3 +72,19 @@ Open Graphプロトコルでは、個別カードの`og:title`、`og:url`、`og:
 結論として、現行の完全無料・無管理・利用者無操作・短URL・個別カード・中間ページなしを同時に満たすWorker代替基盤は確認できなかった。代替案は、Rentry中間ページを許容する、共有発行者にGitHub認証を求める、独自ドメインと管理対象を追加する、または動的カードを諦める、のいずれかの条件緩和を要する。
 
 参照: https://ogp.me/ ／ https://rentry.co/metadata-how
+
+## 深層検討の追加確認: 静的配信とPages Functions
+
+GitHub PagesはリポジトリからHTML・CSS・JavaScriptを公開する静的ホスティングであり、共有IDごとに違う`head`を返すサーバー処理は実行できない。個別OGPを静的化するには共有発行時に個別HTMLファイルを生成してリポジトリへ安全に書き込む必要があるが、匿名利用者へその書込権限を渡すことはできない。
+
+Cloudflare Pages Functionsは動的OGPの代替に見えるが、FunctionsはCloudflare Workers上で実行され、FunctionリクエストはWorkersプランのクォータに計上される。したがって、現行WorkerをPages Functionsへ移すだけでは日次上限を改善しない。Cloudflare Pagesの静的アセットは動的カードを返せない一方、共有ごとに静的ファイルを事前生成できればFunction受信を回避できる。ただしFreeでは1サイトあたり20,000ファイル、月500ビルドの制限もあり、無期限・匿名・即時の共有発行基盤にはならない。
+
+参照: https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages ／ https://developers.cloudflare.com/pages/functions/ ／ https://developers.cloudflare.com/pages/platform/limits/
+
+## 深層検討の追加確認: Discord API埋め込み
+
+DiscordのWebhook実行APIは、リンクOGPを使わず埋め込み本文・画像を直接投稿できる。しかし、投稿先チャンネルごとに管理権限でWebhookを作成し、生成されたWebhook URLの安全なトークンを保持する必要がある。トークンを公開ブラウザへ渡せば第三者が任意投稿できるため、匿名のLBT利用者へ自動配布することはできない。中央BotまたはアプリケーションWebhookも、サーバー導入・権限付与・認証情報の管理を必要とする。
+
+この方式はリンクカードのWorker受信を回避できるが、利用者無操作・無管理・任意サーバーでの共有という要件を満たさないため、通常の共有リンクを置換しない。将来、特定の一つのDiscordサーバーに管理者導入済みの公式Botを運用するという条件に変わった場合だけ、補助機能として再検討できる。
+
+参照: https://docs.discord.com/developers/resources/webhook
