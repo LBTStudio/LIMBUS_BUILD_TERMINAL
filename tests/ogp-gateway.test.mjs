@@ -57,6 +57,17 @@ test("予備復元口は主保存先が失敗してもURL内の予備保存先�
   assert.equal(await response.text(), shareToken);
 });
 
+test("予備復元口は主保存先のトークンが破損していても有効な予備保存先へ切り替える", async () => {
+  const shareToken = token({ charName: "破損主保存の予備" });
+  const fetchImpl = async (url) => {
+    if (String(url) === "https://rentry.co/lbt-corrupt-primary") return new Response("LBT_SHARE_TOKEN=j.e30...");
+    assert.equal(String(url), "https://api.telegra.ph/getPage/LBT-Valid-Backup?return_content=true");
+    return new Response(JSON.stringify({ ok: true, result: { content: [{ children: [`LBT_SHARE_TOKEN=${shareToken}`] }] } }));
+  };
+  const response = await handleRequest(new Request("https://lbt-ogp.example/d?s=r:lbt-corrupt-primary,t:LBT-Valid-Backup"), { fetchImpl });
+  assert.equal(await response.text(), shareToken);
+});
+
 test("公式人格を参照する既存共有では固定DBから名前・HP・SANを補完してOGPへ表示する", async () => {
   const shareToken = token({ personaRef: { mode: "n", no: 7 }, roster: { personas: [{ syncRank: "00", syncMax: false }] } });
   const fetchImpl = async (url) => {

@@ -467,11 +467,35 @@ test("主保存先の取得失敗時は共有URL内の予備保存先から自�
   assert.equal(calls.at(-1), "https://rentry.co/lbt-rentry-backup");
 });
 
+test("主保存先のトークンが破損していても有効な予備保存先から共有データを復元する", async () => {
+  const share = loadShareLink();
+  const validToken = await share.encodeState({ charName: "破損主保存の予備復元" });
+  const fetchMock = async (url) => {
+    if (String(url).startsWith("https://rentry.co/lbt-corrupt-primary")) return new Response("LBT_SHARE_TOKEN=j.e30...");
+    if (String(url).startsWith("https://api.telegra.ph/")) {
+      return new Response(JSON.stringify({ ok: true, result: { content: [{ children: [`LBT_SHARE_TOKEN=${validToken}`] }] } }));
+    }
+    throw new Error(`unexpected URL: ${url}`);
+  };
+  const token = await share.tokenFromExternalSource({ search: "?s=r:lbt-corrupt-primary,t:LBT-Valid-Backup" }, fetchMock);
+  assert.equal(token, validToken);
+});
+
 test("保存先の直読みが失敗した場合も、無状態OGPゲートウェイの予備復元で共有トークンを取得できる", async () => {
   const share = loadShareLink(null, { LBT_OGP_GATEWAY_ORIGIN: "https://lbt-ogp.lbtstudio-share.workers.dev" });
   const token = await share.encodeState({ charName: "Worker予備復元" });
   const recovered = await share.tokenFromOgpGateway({ search: "?s=t:LBT-Recovery,r:lbt-recovery" }, async (url) => {
-    assert.equal(String(url), "https://lbt-ogp.lbtstudio-share.workers.dev/d?s=t:LBT-Recovery,r:lbt-recovery");
+    assert.equal(String(url), "https://lbt-ogp.lbtstudio-share.workers.dev/d?s=t%3ALBT-Recovery%2Cr%3Albt-recovery");
+    return new Response(token, { status: 200 });
+  });
+  assert.equal(recovered, token);
+});
+
+test("旧形式のRentry共有URLもWorker予備復元用の短縮IDへ変換して取得できる", async () => {
+  const share = loadShareLink(null, { LBT_OGP_GATEWAY_ORIGIN: "https://lbt-ogp.lbtstudio-share.workers.dev" });
+  const token = await share.encodeState({ charName: "旧URL復元" });
+  const recovered = await share.tokenFromOgpGateway({ search: "?lbt_source=rentry&lbt_id=6yub7uok" }, async (url) => {
+    assert.equal(String(url), "https://lbt-ogp.lbtstudio-share.workers.dev/d?s=r%3A6yub7uok");
     return new Response(token, { status: 200 });
   });
   assert.equal(recovered, token);

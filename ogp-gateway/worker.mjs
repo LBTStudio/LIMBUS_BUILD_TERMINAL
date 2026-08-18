@@ -95,7 +95,9 @@ export async function loadToken(sources, fetchImpl = fetch) {
   const failures = [];
   for (const source of sources) {
     try {
-      return await tokenFromSource(source, fetchImpl);
+      const token = await tokenFromSource(source, fetchImpl);
+      await decodeToken(token);
+      return token;
     } catch (error) {
       failures.push(error?.message || "共有データの取得に失敗しました");
     }

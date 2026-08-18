@@ -701,6 +701,17 @@
     return match ? `${match[1]}.${match[2]}` : "";
   }
 
+  async function verifiedExternalToken(text, sourceLabel) {
+    const token = tokenFromExternalText(text);
+    if (!token) throw new Error(`${sourceLabel}の共有データにLBTトークンがありません`);
+    try {
+      await decodeToken(token);
+    } catch (_) {
+      throw new Error(`${sourceLabel}の共有トークンが破損しているため、予備保存先を確認します`);
+    }
+    return token;
+  }
+
   async function tokenFromExternalTarget(target, fetchImpl) {
     if (target.source === "rentry") {
       const id = encodeURIComponent(target.id);
@@ -715,9 +726,7 @@
           if (timer !== null) window.clearTimeout(timer);
         }
         if (!response.ok) throw new Error(`${context}（HTTP ${response.status || "?"}）`);
-        const token = tokenFromExternalText(await response.text());
-        if (!token) throw new Error("Rentryの共有データにLBTトークンがありません");
-        return token;
+        return verifiedExternalToken(await response.text(), "Rentry");
       };
       try {
         return await readToken(directUrl, "Rentryの共有データを取得できませんでした");
@@ -733,9 +742,7 @@
     }
     const response = await fetchImpl(`https://api.telegra.ph/getPage/${encodeURIComponent(target.id)}?return_content=true`);
     const page = await responseJson(response, "Telegraphの共有データ取得");
-    const token = tokenFromExternalText(JSON.stringify(page?.content || []));
-    if (!token) throw new Error("Telegraphの共有データにLBTトークンがありません");
-    return token;
+    return verifiedExternalToken(JSON.stringify(page?.content || []), "Telegraph");
   }
 
   async function tokenFromExternalSource(locationLike, fetchImpl = window.fetch?.bind(window)) {
@@ -757,9 +764,10 @@
 
   async function tokenFromOgpGateway(locationLike, fetchImpl = window.fetch?.bind(window)) {
     const origin = ogpGatewayOrigin();
-    const query = String(locationLike?.search || "");
-    if (!origin || !/^\?s=/.test(query) || typeof fetchImpl !== "function") return "";
-    const response = await fetchImpl(`${origin}/d${query}`, { headers: { Accept: "text/plain" } });
+    const sources = externalSourcesFromLocation(locationLike);
+    if (!origin || !sources.length || typeof fetchImpl !== "function") return "";
+    const compact = sources.map((source) => `${sourceCode(source.source)}:${source.id}`).join(",");
+    const response = await fetchImpl(`${origin}/d?s=${encodeURIComponent(compact)}`, { headers: { Accept: "text/plain" } });
     if (!response.ok) throw new Error(`共有データの予備復元に失敗しました（HTTP ${response.status || "?"}）`);
     const token = String(await response.text()).trim();
     if (!/^(z|j)\.[A-Za-z0-9_-]+$/.test(token)) throw new Error("共有データの予備復元形式が不正です");
