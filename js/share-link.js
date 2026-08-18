@@ -13,6 +13,8 @@
   const TELEGRAPH_SAFE_TOKEN_LENGTH = 60000;
   const TINYURL_CREATE_ENDPOINT = "https://tinyurl.com/api-create.php";
   const EXTERNAL_TOKEN_MARKER = "LBT_SHARE_TOKEN=";
+  const EXTERNAL_TOKEN_PART_MARKER = "LBT_SHARE_TOKEN_PART=";
+  const RENTRY_TOKEN_PART_LENGTH = 180;
   const RENTRY_READ_PROXY = "https://r.jina.ai/http://rentry.co/";
   const EXTERNAL_READ_TIMEOUT_MS = 6000;
   // 設定時だけ短縮共有を無状態OGPゲートウェイへ渡す。未設定または配備失敗時は、
@@ -554,13 +556,22 @@
   }
 
   async function publishRentryToken(token, baseUrl, fetchImpl, preview) {
+    const storedLines = [];
+    if (token.length <= RENTRY_TOKEN_PART_LENGTH) {
+      storedLines.push(`${EXTERNAL_TOKEN_MARKER}${token}`);
+    } else {
+      const total = Math.ceil(token.length / RENTRY_TOKEN_PART_LENGTH);
+      for (let index = 0; index < total; index += 1) {
+        storedLines.push(`${EXTERNAL_TOKEN_PART_MARKER}${index + 1}/${total}:${token.slice(index * RENTRY_TOKEN_PART_LENGTH, (index + 1) * RENTRY_TOKEN_PART_LENGTH)}`);
+      }
+    }
     const body = [
       "PAGE_TITLE = LBT Share",
       "SHARE_TITLE = LBT Share",
       "OPTION_DISABLE_SEARCH_ENGINE = true",
       "",
       "```text",
-      `${EXTERNAL_TOKEN_MARKER}${token}`,
+      ...storedLines,
       "```"
     ].join("\n");
     const response = await fetchImpl("https://rentry.co/api/new", {
@@ -697,8 +708,19 @@
   }
 
   function tokenFromExternalText(text) {
-    const match = new RegExp(`${EXTERNAL_TOKEN_MARKER}(z|j)\\.([A-Za-z0-9_-]+)`).exec(String(text || ""));
-    return match ? `${match[1]}.${match[2]}` : "";
+    const source = String(text || "");
+    const match = new RegExp(`${EXTERNAL_TOKEN_MARKER}(z|j)\\.([A-Za-z0-9_-]+)`).exec(source);
+    if (match) return `${match[1]}.${match[2]}`;
+    const parts = [...source.matchAll(new RegExp(`${EXTERNAL_TOKEN_PART_MARKER}(\\d{1,4})/(\\d{1,4}):([A-Za-z0-9_.-]+)`, "g"))]
+      .map((entry) => ({ index: Number(entry[1]), total: Number(entry[2]), value: entry[3] }))
+      .filter((entry) => entry.total > 0 && entry.total <= 2000 && entry.index > 0 && entry.index <= entry.total);
+    if (!parts.length) return "";
+    const total = parts[0].total;
+    if (parts.some((entry) => entry.total !== total) || parts.length !== total) return "";
+    parts.sort((a, b) => a.index - b.index);
+    if (parts.some((entry, index) => entry.index !== index + 1)) return "";
+    const token = parts.map((entry) => entry.value).join("");
+    return /^(z|j)\.[A-Za-z0-9_-]+$/.test(token) ? token : "";
   }
 
   async function verifiedExternalToken(text, sourceLabel) {

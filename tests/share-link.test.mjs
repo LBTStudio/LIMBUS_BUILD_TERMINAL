@@ -500,3 +500,29 @@ test("旧形式のRentry共有URLもWorker予備復元用の短縮IDへ変換し
   });
   assert.equal(recovered, token);
 });
+
+test("長いRentry共有トークンは切断されない短い連番チャンクへ保存され、再結合して復元できる", async () => {
+  const share = loadShareLink();
+  const longText = Array.from({ length: 800 }, (_, index) => `${index.toString(36)}-${String.fromCharCode(0x3041 + index % 70)}`).join("|");
+  const state = { charName: "Rentry分割保存", customStatuses: [{ label: "長文", initial: longText, place: "status" }], roster: { personas: [] } };
+  const expectedToken = await share.encodeState(state);
+  assert.ok(expectedToken.length > 180);
+  let storedText = "";
+  const fetchMock = async (url, options = {}) => {
+    if (String(url) === "https://rentry.co/api/new") {
+      storedText = new URLSearchParams(String(options.body)).get("text") || "";
+      return new Response(JSON.stringify({ url_short: "lbt-chunked-rentry" }), { status: 200 });
+    }
+    if (String(url) === "https://api.telegra.ph/createAccount") return new Response(JSON.stringify({ ok: true, result: { access_token: "temporary" } }), { status: 200 });
+    if (String(url) === "https://api.telegra.ph/createPage") return new Response(JSON.stringify({ ok: true, result: { path: "LBT-Chunked" } }), { status: 200 });
+    throw new Error(`unexpected URL: ${url}`);
+  };
+  await share.createPublishedUrl(state, "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html", fetchMock);
+  assert.match(storedText, /LBT_SHARE_TOKEN_PART=1\/\d+:/);
+  assert.doesNotMatch(storedText, new RegExp(`LBT_SHARE_TOKEN=${expectedToken}`));
+  const restoredToken = await share.tokenFromExternalSource({ search: "?s=r:lbt-chunked-rentry" }, async (url) => {
+    assert.equal(String(url), "https://rentry.co/lbt-chunked-rentry");
+    return new Response(storedText);
+  });
+  assert.equal(restoredToken, expectedToken);
+});

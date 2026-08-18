@@ -68,6 +68,19 @@ test("予備復元口は主保存先のトークンが破損していても有�
   assert.equal(await response.text(), shareToken);
 });
 
+test("WorkerはRentry本文に分割保存された長いトークンを再結合してOGPを生成する", async () => {
+  const shareToken = token({ charName: "分割Rentry復元" });
+  const midpoint = Math.floor(shareToken.length / 2);
+  const chunks = [shareToken.slice(0, midpoint), shareToken.slice(midpoint)];
+  const fetchImpl = async (url) => {
+    assert.equal(String(url), "https://rentry.co/lbt-chunked");
+    return new Response(chunks.map((chunk, index) => `LBT_SHARE_TOKEN_PART=${index + 1}/2:${chunk}`).join("\n"));
+  };
+  const page = await handleRequest(new Request("https://lbt-ogp.example/s?s=r:lbt-chunked"), { fetchImpl });
+  const html = await page.text();
+  assert.match(html, /<meta property="og:title" content="分割Rentry復元">/);
+});
+
 test("公式人格を参照する既存共有では固定DBから名前・HP・SANを補完してOGPへ表示する", async () => {
   const shareToken = token({ personaRef: { mode: "n", no: 7 }, roster: { personas: [{ syncRank: "00", syncMax: false }] } });
   const fetchImpl = async (url) => {

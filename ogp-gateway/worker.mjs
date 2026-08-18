@@ -10,6 +10,7 @@ const LBT_SHARE_PAGE = "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.
 const STATIC_FALLBACK_IMAGE = "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/assets/lbt-share-card.png";
 const OFFICIAL_DB_URL = "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/data/db.json";
 const EXTERNAL_TOKEN_MARKER = "LBT_SHARE_TOKEN=";
+const EXTERNAL_TOKEN_PART_MARKER = "LBT_SHARE_TOKEN_PART=";
 const MAX_TOKEN_CHARS = 160000;
 const MAX_DECOMPRESSED_BYTES = 256000;
 const CACHE_CONTROL = "public, max-age=86400, stale-while-revalidate=604800";
@@ -71,8 +72,19 @@ export function parseSources(url) {
 }
 
 function findToken(text) {
-  const match = new RegExp(`${EXTERNAL_TOKEN_MARKER}(z|j)\\.([A-Za-z0-9_-]{1,${MAX_TOKEN_CHARS}})`).exec(String(text || ""));
-  return match ? `${match[1]}.${match[2]}` : "";
+  const source = String(text || "");
+  const match = new RegExp(`${EXTERNAL_TOKEN_MARKER}(z|j)\\.([A-Za-z0-9_-]{1,${MAX_TOKEN_CHARS}})`).exec(source);
+  if (match) return `${match[1]}.${match[2]}`;
+  const parts = [...source.matchAll(new RegExp(`${EXTERNAL_TOKEN_PART_MARKER}(\\d{1,4})/(\\d{1,4}):([A-Za-z0-9_.-]+)`, "g"))]
+    .map((entry) => ({ index: Number(entry[1]), total: Number(entry[2]), value: entry[3] }))
+    .filter((entry) => entry.total > 0 && entry.total <= 2000 && entry.index > 0 && entry.index <= entry.total);
+  if (!parts.length) return "";
+  const total = parts[0].total;
+  if (parts.some((entry) => entry.total !== total) || parts.length !== total) return "";
+  parts.sort((a, b) => a.index - b.index);
+  if (parts.some((entry, index) => entry.index !== index + 1)) return "";
+  const token = parts.map((entry) => entry.value).join("");
+  return new RegExp(`^(z|j)\\.[A-Za-z0-9_-]{1,${MAX_TOKEN_CHARS}}$`).test(token) ? token : "";
 }
 
 async function tokenFromSource(source, fetchImpl) {
