@@ -18,6 +18,8 @@
   // 設定時だけ短縮共有を無状態OGPゲートウェイへ渡す。未設定または配備失敗時は、
   // 従来どおりGitHub Pagesのshare.htmlを直接使うため、共有機能を止めない。
   const OGP_GATEWAY_FALLBACK_ORIGIN = "";
+  const LAST_PUBLISHED_SHARE_KEY = "lbt:last-published-share:v1";
+  const pendingPublishedStates = new Map();
   const SHARE_KEYS = new Set([
     "charName", "plName", "shareImageData", "personaMode", "personaNo", "personaSrc",
     "hp", "san", "speed", "bullets", "resS", "resP", "resB",
@@ -28,6 +30,52 @@
 
   function cloneJSON(value) {
     return value == null ? value : JSON.parse(JSON.stringify(value));
+  }
+
+  function localStorageLike() {
+    try {
+      return window.localStorage && typeof window.localStorage.getItem === "function" ? window.localStorage : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function reuseLastPublishedUrl(token) {
+    const storage = localStorageLike();
+    if (!storage) return null;
+    try {
+      const cached = JSON.parse(storage.getItem(LAST_PUBLISHED_SHARE_KEY) || "null");
+      if (!cached || cached.token !== token || !/^https:\/\//.test(String(cached.url || ""))) return null;
+      return {
+        url: cached.url,
+        length: Number(cached.length) || String(cached.url).length,
+        strategy: cached.strategy || "self",
+        backups: Array.isArray(cached.backups) ? cached.backups : [],
+        preview: cached.preview || null,
+        warning: "共有内容に変更がないため、直近の共有リンクを再利用しています。",
+        reused: true
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function rememberPublishedUrl(token, result) {
+    const storage = localStorageLike();
+    if (!storage) return;
+    try {
+      storage.setItem(LAST_PUBLISHED_SHARE_KEY, JSON.stringify({
+        token,
+        url: result.url,
+        length: result.length,
+        strategy: result.strategy,
+        backups: result.backups || [],
+        preview: result.preview || null,
+        savedAt: Date.now()
+      }));
+    } catch (_) {
+      // プライベートモード等で保存できない場合でも、現在の共有発行を妨げない。
+    }
   }
 
   function shareImageBytes(value) {
@@ -383,6 +431,10 @@
 
   async function createUrl(state, baseUrl) {
     const token = await encodeState(state);
+    return createUrlFromToken(token, baseUrl);
+  }
+
+  function createUrlFromToken(token, baseUrl) {
     const target = String(baseUrl || window.LBT_SHARE_CANONICAL_URL || new URL("share.html", window.location.href).href).replace(/#.*/, "");
     const url = `${target}#lbt=${token}`;
     return {
@@ -565,21 +617,31 @@
   }
 
   async function createPublishedUrl(state, baseUrl, fetchImpl = window.fetch?.bind(window)) {
+    const pendingKey = JSON.stringify(snapshotState(state));
+    if (pendingPublishedStates.has(pendingKey)) return pendingPublishedStates.get(pendingKey);
+    const task = createPublishedUrlOnce(state, baseUrl, fetchImpl);
+    pendingPublishedStates.set(pendingKey, task);
+    try {
+      return await task;
+    } finally {
+      pendingPublishedStates.delete(pendingKey);
+    }
+  }
+
+  async function createPublishedUrlOnce(state, baseUrl, fetchImpl = window.fetch?.bind(window)) {
     const shareImageCheck = validateShareImageForPublish(state);
     if (!shareImageCheck.ok) throw new Error(shareImageCheck.message);
-    const direct = await createUrl(state, baseUrl);
-    const target = shareBaseUrl(baseUrl);
     const token = await encodeState(state);
-    // Telegraphの本文上限は64KB。共有画像がある場合は、画像入り完全版をRentryへ、
-    // 画像なしの復元予備をTelegraphへ保存し、短い共有URLの可用性を維持する。
+    const reused = reuseLastPublishedUrl(token);
+    if (reused) return reused;
+    const direct = createUrlFromToken(token, baseUrl);
+    const target = shareBaseUrl(baseUrl);
     const canKeepShareImageInTelegraph = !state?.shareImageData || token.length <= TELEGRAPH_SAFE_TOKEN_LENGTH;
     const telegraphToken = canKeepShareImageInTelegraph ? token : await encodeState({ ...state, shareImageData: "" });
     const preview = sharePreview(state);
     const published = await publishExternalTokens(token, target, fetchImpl, preview, telegraphToken);
+    let result;
     if (published.length) {
-      // 画像付き共有は完全データを持つRentryを主URLにする。画像なし共有ではTelegraphを優先する。
-      // 両方が成功した場合は予備IDも同じLBT URLへ
-      // 埋め込み、主保存先が一時的に取得できなくても閲覧者側で自動的に切り替える。
       const primary = state?.shareImageData
         ? published.find((entry) => entry.source === "rentry")
           || published.find((entry) => entry.source === "telegraph" && entry.includesShareImage)
@@ -588,23 +650,15 @@
       const backups = published.filter((entry) => entry !== primary);
       const staticUrl = shortViewerUrl(target, primary, backups);
       const url = ogpGatewayUrl(staticUrl) || staticUrl;
-      return {
-        ...direct,
-        url,
-        length: url.length,
-        strategy: primary.source,
-        backups,
-        preview,
+      result = {
+        ...direct, url, length: url.length, strategy: primary.source, backups, preview,
         warning: "短いLBT共有URLです。外部保存先は内部で自動復元し、利用者へ中間ページは表示しません。"
       };
+    } else {
+      result = { ...direct, strategy: "self", backups: [], preview, warning: "分散保存を発行できなかったため、自己完結URLを表示しています。" };
     }
-    return {
-      ...direct,
-      strategy: "self",
-      backups: [],
-      preview,
-      warning: "分散保存を発行できなかったため、自己完結URLを表示しています。"
-    };
+    rememberPublishedUrl(token, result);
+    return result;
   }
 
   function externalSourceFromLocation(locationLike) {
@@ -701,6 +755,17 @@
     throw new Error(`共有データを取得できませんでした。${failures.join(" / ")}`);
   }
 
+  async function tokenFromOgpGateway(locationLike, fetchImpl = window.fetch?.bind(window)) {
+    const origin = ogpGatewayOrigin();
+    const query = String(locationLike?.search || "");
+    if (!origin || !/^\?s=/.test(query) || typeof fetchImpl !== "function") return "";
+    const response = await fetchImpl(`${origin}/d${query}`, { headers: { Accept: "text/plain" } });
+    if (!response.ok) throw new Error(`共有データの予備復元に失敗しました（HTTP ${response.status || "?"}）`);
+    const token = String(await response.text()).trim();
+    if (!/^(z|j)\.[A-Za-z0-9_-]+$/.test(token)) throw new Error("共有データの予備復元形式が不正です");
+    return token;
+  }
+
   function tokenFromLocation(locationLike) {
     const hash = String(locationLike?.hash || "").replace(/^#/, "");
     return new URLSearchParams(hash).get("lbt") || "";
@@ -718,7 +783,7 @@
   window.LBT_shareLink = {
     snapshotState, encodeState, decodeToken, hydratePersonaReference, createUrl, createPublishedUrl,
     createTinyUrl, publishExternalTokens, externalViewerUrl, shortViewerUrl, ogpGatewayUrl, externalSourceFromLocation, shortSourcesFromLocation, externalSourcesFromLocation,
-    tokenFromLocation, tokenFromExternalSource, previewFromLocation, sharePreview, PRACTICAL_DISCORD_URL_LENGTH,
+    tokenFromLocation, tokenFromExternalSource, tokenFromOgpGateway, previewFromLocation, sharePreview, PRACTICAL_DISCORD_URL_LENGTH,
     SHARE_IMAGE_TARGET_BYTES, shareImageBytes, validateShareImageForPublish
   };
 })();

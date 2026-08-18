@@ -91,16 +91,20 @@ async function tokenFromSource(source, fetchImpl) {
   return token;
 }
 
-export async function loadSnapshot(sources, fetchImpl = fetch) {
+export async function loadToken(sources, fetchImpl = fetch) {
   const failures = [];
   for (const source of sources) {
     try {
-      return await decodeToken(await tokenFromSource(source, fetchImpl));
+      return await tokenFromSource(source, fetchImpl);
     } catch (error) {
       failures.push(error?.message || "共有データの取得に失敗しました");
     }
   }
   throw new Error(failures.join(" / ") || "共有データが見つかりません");
+}
+
+export async function loadSnapshot(sources, fetchImpl = fetch) {
+  return decodeToken(await loadToken(sources, fetchImpl));
 }
 
 function selectedSync(snapshot) {
@@ -188,10 +192,14 @@ function ogpHtml(requestUrl, snapshot) {
 export async function handleRequest(request, { fetchImpl = fetch } = {}) {
   const url = new URL(request.url);
   if (url.pathname === "/health") return new Response("LBT OGP gateway: free/stateless", { headers: { "Cache-Control": "no-store" } });
-  if (!["/s", "/i"].includes(url.pathname)) return fallbackHtml(url);
+  if (!["/s", "/i", "/d"].includes(url.pathname)) return fallbackHtml(url);
   const sources = parseSources(url);
   if (!sources.length) return new Response("共有IDが不正です", { status: 400, headers: { "Cache-Control": "no-store" } });
   try {
+    if (url.pathname === "/d") {
+      const token = await loadToken(sources, fetchImpl);
+      return new Response(token, { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*", "X-Content-Type-Options": "nosniff" } });
+    }
     const snapshot = await loadSnapshot(sources, fetchImpl);
     if (url.pathname === "/i") return imageResponse(snapshot.shareImageData, request.method) || new Response("共有画像は設定されていません", { status: 404, headers: { "Cache-Control": "no-store" } });
     return ogpHtml(request.url, await enrichOfficialPersona(snapshot, fetchImpl));

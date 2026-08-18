@@ -1548,7 +1548,7 @@ async function openShareSheet(state) {
         if (shareImageCheck && !shareImageCheck.ok) throw new Error(shareImageCheck.message);
         const r = await window.LBT_shareLink.createPublishedUrl(state, LBT_SHARE_VIEWER_URL);
         const routeLabel = r.strategy === "rentry" || r.strategy === "telegraph" ? "LBT\u5171\u6709\u30DA\u30FC\u30B8\u3067\u81EA\u52D5\u5FA9\u5143" : "\u81EA\u5DF1\u5B8C\u7D50URL";
-        const tag = `${routeLabel}\uFF08${r.length.toLocaleString()}\u6587\u5B57\uFF09`;
+        const tag = `${routeLabel}\uFF08${r.length.toLocaleString()}\u6587\u5B57\uFF09${r.reused ? "\u30FB\u76F4\u8FD1URL\u3092\u518D\u5229\u7528" : ""}`;
         // 非同期処理後でも自動コピーを試みる。ブラウザが拒否しても、下の入力欄と
         // ボタンで同じURLを手動コピーできるため、共有結果を失わない。
         let copied = false;
@@ -1575,8 +1575,8 @@ async function openShareSheet(state) {
           }
         }
         setStatus("publish", "is-ok", copied
-          ? `✓ 共有URLをコピーしました。Discordへそのまま貼り付けてください。 ${tag}`
-          : `共有URLを発行しました。下の「Discordへ貼るURLをコピー」を押してください。 ${tag}`);
+          ? `✓ ${r.reused ? "直近の共有URLを再利用してコピーしました" : "共有URLをコピーしました"}。Discordへそのまま貼り付けてください。 ${tag}`
+          : `${r.reused ? "直近の共有URLを再利用しました" : "共有URLを発行しました"}。下の「Discordへ貼るURLをコピー」を押してください。 ${tag}`);
         // 主URLはDiscordへ貼る対象として常に最初に見せ、手動コピーもここで完結させる。
         const statusEl = root.querySelector('[data-status="publish"]');
         if (statusEl) {

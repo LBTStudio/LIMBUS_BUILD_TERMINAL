@@ -10,6 +10,14 @@ function loadShareLink(db = null, config = {}) {
   return window.LBT_shareLink;
 }
 
+function memoryStorage() {
+  const values = new Map();
+  return {
+    getItem: (key) => values.has(key) ? values.get(key) : null,
+    setItem: (key, value) => values.set(key, String(value))
+  };
+}
+
 test("自己完結型共有リンクはUI・履歴・非選択人格を除外して共有ビルドを往復できる", async () => {
   const share = loadShareLink();
   const state = {
@@ -335,6 +343,47 @@ test("短い共有URLは外部保管を内部利用し、共有IDだけを最終
   ]);
 });
 
+test("同一の共有内容は直近URLを再利用し、外部保存を重複発行しない", async () => {
+  const storage = memoryStorage();
+  const share = loadShareLink(null, { localStorage: storage });
+  const state = { charName: "重複防止検証", roster: { personas: [] } };
+  let calls = 0;
+  const fetchMock = async (url) => {
+    calls += 1;
+    if (String(url) === "https://rentry.co/api/new") return new Response(JSON.stringify({ url_short: "lbt-reuse-rentry" }), { status: 200 });
+    if (String(url) === "https://api.telegra.ph/createAccount") return new Response(JSON.stringify({ ok: true, result: { access_token: "temporary" } }), { status: 200 });
+    if (String(url) === "https://api.telegra.ph/createPage") return new Response(JSON.stringify({ ok: true, result: { path: "LBT-Reuse" } }), { status: 200 });
+    throw new Error(`unexpected URL: ${url}`);
+  };
+  const first = await share.createPublishedUrl(state, "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html", fetchMock);
+  const second = await share.createPublishedUrl(state, "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html", fetchMock);
+  assert.equal(calls, 3);
+  assert.equal(second.reused, true);
+  assert.equal(second.url, first.url);
+  const changed = await share.createPublishedUrl({ ...state, charName: "変更済み" }, "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html", fetchMock);
+  assert.equal(calls, 6);
+  assert.equal(changed.reused, undefined);
+});
+
+test("同一共有を連続操作しても進行中の外部保存処理を共有し、二重発行しない", async () => {
+  const share = loadShareLink();
+  const state = { charName: "連続操作防止", roster: { personas: [] } };
+  let calls = 0;
+  const fetchMock = async (url) => {
+    calls += 1;
+    if (String(url) === "https://rentry.co/api/new") return new Response(JSON.stringify({ url_short: "lbt-pending-rentry" }), { status: 200 });
+    if (String(url) === "https://api.telegra.ph/createAccount") return new Response(JSON.stringify({ ok: true, result: { access_token: "temporary" } }), { status: 200 });
+    if (String(url) === "https://api.telegra.ph/createPage") return new Response(JSON.stringify({ ok: true, result: { path: "LBT-Pending" } }), { status: 200 });
+    throw new Error(`unexpected URL: ${url}`);
+  };
+  const [first, second] = await Promise.all([
+    share.createPublishedUrl(state, "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html", fetchMock),
+    share.createPublishedUrl(state, "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html", fetchMock)
+  ]);
+  assert.equal(calls, 3);
+  assert.equal(first.url, second.url);
+});
+
 test("OGPゲートウェイ設定時の短縮共有は中立な個別OGP入口を経由する", async () => {
   const share = loadShareLink(null, { LBT_OGP_GATEWAY_ORIGIN: "https://lbt-ogp.lbtstudio-share.workers.dev" });
   const fetchMock = async (url) => {
@@ -416,4 +465,14 @@ test("主保存先の取得失敗時は共有URL内の予備保存先から自�
   assert.equal(externalToken, token);
   assert.equal(calls.filter((url) => String(url).startsWith("https://api.telegra.ph/")).length, 2);
   assert.equal(calls.at(-1), "https://rentry.co/lbt-rentry-backup");
+});
+
+test("保存先の直読みが失敗した場合も、無状態OGPゲートウェイの予備復元で共有トークンを取得できる", async () => {
+  const share = loadShareLink(null, { LBT_OGP_GATEWAY_ORIGIN: "https://lbt-ogp.lbtstudio-share.workers.dev" });
+  const token = await share.encodeState({ charName: "Worker予備復元" });
+  const recovered = await share.tokenFromOgpGateway({ search: "?s=t:LBT-Recovery,r:lbt-recovery" }, async (url) => {
+    assert.equal(String(url), "https://lbt-ogp.lbtstudio-share.workers.dev/d?s=t:LBT-Recovery,r:lbt-recovery");
+    return new Response(token, { status: 200 });
+  });
+  assert.equal(recovered, token);
 });

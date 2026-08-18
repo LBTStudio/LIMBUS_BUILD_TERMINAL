@@ -47,10 +47,15 @@
       try {
         token = await window.LBT_shareLink.tokenFromExternalSource(window.location);
       } catch (firstError) {
-        // Rentry等の公開保存先は、初回のCORS互換取得が一時的に失敗することがある。
-        // 同じLBTページ内で短時間待って一度だけ再試行し、閲覧者に中間サイトを開かせない。
-        await new Promise((resolve) => window.setTimeout(resolve, 800));
-        token = await window.LBT_shareLink.tokenFromExternalSource(window.location);
+        // 保存先直読みが失敗した場合は、同じ共有IDを無状態Workerから復元する。
+        // Worker側はRentry/Telegraphの予備保存先も順に参照するため、閲覧者は中間サイトへ移動しない。
+        try {
+          token = await window.LBT_shareLink.tokenFromOgpGateway(window.location);
+        } catch (gatewayError) {
+          // 一時的なネットワーク失敗だけは短時間待って、従来経路も一度だけ再試行する。
+          await new Promise((resolve) => window.setTimeout(resolve, 800));
+          token = await window.LBT_shareLink.tokenFromExternalSource(window.location);
+        }
       }
     }
     if (!token) throw new Error("外部の共有データにLBTトークンがありません");
@@ -66,6 +71,7 @@
     document.write(window.LBT_gen.buildShareSheetHTML(hydrated));
     document.close();
   } catch (error) {
-    show("共有データを読み込めませんでした", error?.message || "共有URLが壊れているか、対応していない形式です。");
+    const reason = error?.message || "共有URLが壊れているか、対応していない形式です。";
+    show("共有データを読み込めませんでした", `${reason}\n\n時間をおいて再読み込みしても解決しない場合は、作成者に共有リンクを再発行してもらってください。`);
   }
 })();

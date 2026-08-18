@@ -35,6 +35,28 @@ test("画像付き共有から個別OGP HTMLとWebP画像を無状態で返す",
   assert.equal(Buffer.from(await imageResponse.arrayBuffer()).toString(), "ABCD");
 });
 
+test("共有保存先の直読みが失敗した閲覧者向けに、同じ共有IDからトークンを返す予備復元口を提供する", async () => {
+  const shareToken = token({ charName: "予備復元PC" });
+  const fetchImpl = async (url) => {
+    assert.equal(String(url), "https://api.telegra.ph/getPage/LBT-Recovery?return_content=true");
+    return new Response(JSON.stringify({ ok: true, result: { content: [{ children: [`LBT_SHARE_TOKEN=${shareToken}`] }] } }));
+  };
+  const response = await handleRequest(new Request("https://lbt-ogp.example/d?s=t:LBT-Recovery"), { fetchImpl });
+  assert.equal(response.headers.get("access-control-allow-origin"), "*");
+  assert.equal(await response.text(), shareToken);
+});
+
+test("予備復元口は主保存先が失敗してもURL内の予備保存先からトークンを返す", async () => {
+  const shareToken = token({ charName: "予備先からの復元" });
+  const fetchImpl = async (url) => {
+    if (String(url) === "https://api.telegra.ph/getPage/LBT-Recovery?return_content=true") return new Response("not found", { status: 404 });
+    assert.equal(String(url), "https://rentry.co/lbt-recovery");
+    return new Response(`LBT_SHARE_TOKEN=${shareToken}`);
+  };
+  const response = await handleRequest(new Request("https://lbt-ogp.example/d?s=t:LBT-Recovery,r:lbt-recovery"), { fetchImpl });
+  assert.equal(await response.text(), shareToken);
+});
+
 test("公式人格を参照する既存共有では固定DBから名前・HP・SANを補完してOGPへ表示する", async () => {
   const shareToken = token({ personaRef: { mode: "n", no: 7 }, roster: { personas: [{ syncRank: "00", syncMax: false }] } });
   const fetchImpl = async (url) => {
