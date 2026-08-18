@@ -1544,6 +1544,8 @@ async function openShareSheet(state) {
       setStatus("publish", "is-progress", "\u516C\u958B\u3092\u958B\u59CB\u3057\u307E\u3059\u2026");
       try {
         if (!window.LBT_shareLink?.createPublishedUrl) throw new Error("\u5171\u6709URL\u751F\u6210\u30E2\u30B8\u30E5\u30FC\u30EB\u3092\u8AAD\u307F\u8FBC\u3081\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u30DA\u30FC\u30B8\u3092\u518D\u8AAD\u307F\u8FBC\u307F\u3057\u3066\u304F\u3060\u3055\u3044");
+        const shareImageCheck = window.LBT_shareLink.validateShareImageForPublish?.(state);
+        if (shareImageCheck && !shareImageCheck.ok) throw new Error(shareImageCheck.message);
         const r = await window.LBT_shareLink.createPublishedUrl(state, LBT_SHARE_VIEWER_URL);
         const routeLabel = r.strategy === "rentry" || r.strategy === "telegraph" ? "LBT\u5171\u6709\u30DA\u30FC\u30B8\u3067\u81EA\u52D5\u5FA9\u5143" : "\u81EA\u5DF1\u5B8C\u7D50URL";
         const tag = `${routeLabel}\uFF08${r.length.toLocaleString()}\u6587\u5B57\uFF09`;
@@ -1632,7 +1634,12 @@ async function openShareSheet(state) {
           }
         }
       } catch (e) {
-        setStatus("publish", "is-err", "\u2717 " + (e.message || "\u516C\u958B\u5931\u6557") + " \u2014 \u2461\u30C0\u30A6\u30F3\u30ED\u30FC\u30C9\u304B\u3001\u6642\u9593\u3092\u7F6E\u3044\u3066\u518D\u8A66\u884C\u3057\u3066\u304F\u3060\u3055\u3044");
+        const message = e.message || "\u516C\u958B\u5931\u6557";
+        root.querySelector('[data-status="publish"]')?.parentElement?.querySelectorAll(".share-url-field,.share-url-backups").forEach((el) => el.remove());
+        const retry = /\u5171\u6709\u753B\u50CF.*(?:\u898F\u5B9A\u91CF|\u518D\u30A2\u30C3\u30D7\u30ED\u30FC\u30C9|\u5F62\u5F0F)/.test(message)
+          ? "\u2014 Base info\u3067\u5171\u6709\u753B\u50CF\u3092\u518D\u30A2\u30C3\u30D7\u30ED\u30FC\u30C9\u3057\u3066\u304B\u3089\u3001\u3082\u3046\u4E00\u5EA6\u5171\u6709\u30EA\u30F3\u30AF\u3092\u767A\u884C\u3057\u3066\u304F\u3060\u3055\u3044"
+          : "\u2014 \u2460\u30C0\u30A6\u30F3\u30ED\u30FC\u30C9\u304B\u3001\u6642\u9593\u3092\u7F6E\u3044\u3066\u518D\u8A66\u884C\u3057\u3066\u304F\u3060\u3055\u3044";
+        setStatus("publish", "is-err", "\u2717 " + message + " " + retry);
       }
     }
     // v52 (I): copyhtml アクションは廃止（用途と食い違うため）

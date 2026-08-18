@@ -541,6 +541,7 @@ function normalizeStateShape(raw) {
   const shareImageData = String(next.shareImageData || "");
   next.shareImageData = /^data:image\/(webp|jpeg);base64,[A-Za-z0-9+/]+=*$/.test(shareImageData) && shareImageData.length <= 48000
     ? shareImageData : "";
+  next.shareImageBlockedReason = typeof next.shareImageBlockedReason === "string" ? next.shareImageBlockedReason.slice(0, 300) : "";
   // 旧版の自由文候補は確認前でも誤登録の起点になり得るため、読み込み時に引き継がない。
   next.selfStatusCandidates = [];
   if (!Array.isArray(next.supports)) next.supports = [];
@@ -608,6 +609,8 @@ const INIT_STATE = {
   imgUrls: "",
   // Base infoで選択した共有用OGP画像。縮小済みdata URIのみ保存する。
   shareImageData: "",
+  // 圧縮後に上限へ収まらなかった直近の画像は、再アップロード成功まで共有発行を停止する。
+  shareImageBlockedReason: "",
   color: "#c8a84b",
   initiative: 0,
   // Equipped persona reference

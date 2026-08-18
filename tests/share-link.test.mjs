@@ -60,6 +60,47 @@ test("共有画像は対応形式・容量内だけを共有状態として復�
   assert.equal(invalidRestored.shareImageData, "");
 });
 
+test("共有画像の圧縮見込みが32KBを超える場合は、外部保存前に共有リンク発行を停止する", async () => {
+  const share = loadShareLink();
+  const oversized = "data:image/webp;base64," + "A".repeat(44_000);
+  const checked = share.validateShareImageForPublish({ shareImageData: oversized });
+  assert.equal(checked.ok, false);
+  assert.match(checked.message, /共有リンクは発行しません/);
+  let requested = false;
+  await assert.rejects(
+    share.createPublishedUrl({ charName: "容量超過", shareImageData: oversized }, "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html", async () => {
+      requested = true;
+      throw new Error("発行処理は開始してはいけません");
+    }),
+    /規定量を超えています/
+  );
+  assert.equal(requested, false);
+});
+
+test("共有画像の圧縮見込みが32KB以内なら共有リンク発行を許可する", () => {
+  const share = loadShareLink();
+  const checked = share.validateShareImageForPublish({ shareImageData: "data:image/jpeg;base64," + "A".repeat(128) });
+  assert.equal(checked.ok, true);
+  assert.ok(checked.bytes > 0);
+  assert.equal(checked.maxBytes, 32 * 1024);
+});
+
+test("上限超過の画像選択が記録されている間は、以前の画像が残っていても共有リンクを発行しない", async () => {
+  const share = loadShareLink();
+  let requested = false;
+  const state = {
+    charName: "再アップロード待ち",
+    shareImageData: "data:image/jpeg;base64," + "A".repeat(128),
+    shareImageBlockedReason: "画像の圧縮見込みが規定量（32KB）へ収まりませんでした。共有リンクは発行できません。別の画像を再アップロードしてください"
+  };
+  assert.equal(share.validateShareImageForPublish(state).ok, false);
+  await assert.rejects(
+    share.createPublishedUrl(state, "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html", async () => { requested = true; }),
+    /共有リンクは発行できません/
+  );
+  assert.equal(requested, false);
+});
+
 test("実データの長文人格ではURL長を明示し、Discord本文上限時はダウンロードへフォールバックできる", async () => {
   const db = JSON.parse(readFileSync(new URL("../data/db.json", import.meta.url), "utf8"));
   const share = loadShareLink(db);
@@ -228,8 +269,8 @@ test("静的共有ページはDiscord向けのOGPと圧縮共有データの復�
   assert.match(html, /property="og:url" content="https:\/\/lbtstudio\.github\.io\/LIMBUS_BUILD_TERMINAL\/share\.html"/);
   assert.match(html, /property="og:title" content="LIMBUS BUILD TERMINAL — キャラクターシート"/);
   assert.match(html, /property="og:image" content="https:\/\/lbtstudio\.github\.io\/LIMBUS_BUILD_TERMINAL\/assets\/lbt-share-card\.png"/);
-  assert.match(html, /js\/share-link\.js\?v=64r112/);
-  assert.match(html, /js\/share-viewer\.js\?v=64r112/);
+  assert.match(html, /js\/share-link\.js\?v=65/);
+  assert.match(html, /js\/share-viewer\.js\?v=65/);
   const viewer = readFileSync(new URL("../js/share-viewer.js", import.meta.url), "utf8");
   assert.match(viewer, /window\.addEventListener\("hashchange"/);
   assert.match(viewer, /window\.location\.reload\(\)/);

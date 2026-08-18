@@ -7,6 +7,7 @@
   const SHARE_SCHEMA = 1;
   const MAX_TOKEN_LENGTH = 160000;
   const PRACTICAL_DISCORD_URL_LENGTH = 1900;
+  const SHARE_IMAGE_TARGET_BYTES = 32 * 1024;
   // Telegraphのページ本文は64KB上限。フォームエンコードとプレフィックス分を見込み、
   // 画像入りトークンを安全にそのまま保存できる上限を60KBに置く。
   const TELEGRAPH_SAFE_TOKEN_LENGTH = 60000;
@@ -27,6 +28,40 @@
 
   function cloneJSON(value) {
     return value == null ? value : JSON.parse(JSON.stringify(value));
+  }
+
+  function shareImageBytes(value) {
+    const match = /^data:image\/(webp|jpeg);base64,([A-Za-z0-9+/]+=*)$/i.exec(String(value || ""));
+    if (!match) return 0;
+    const payload = match[2];
+    const padding = payload.endsWith("==") ? 2 : payload.endsWith("=") ? 1 : 0;
+    return Math.max(0, Math.floor(payload.length * 3 / 4) - padding);
+  }
+
+  function validateShareImageForPublish(state) {
+    const blockedMessage = String(state?.shareImageBlockedReason || "").trim();
+    if (blockedMessage) return {
+      ok: false,
+      bytes: 0,
+      maxBytes: SHARE_IMAGE_TARGET_BYTES,
+      message: blockedMessage
+    };
+    const data = String(state?.shareImageData || "");
+    if (!data) return { ok: true, bytes: 0, maxBytes: SHARE_IMAGE_TARGET_BYTES };
+    const bytes = shareImageBytes(data);
+    if (!bytes) return {
+      ok: false,
+      bytes: 0,
+      maxBytes: SHARE_IMAGE_TARGET_BYTES,
+      message: "共有画像の形式を確認できませんでした。Base infoでPNG・JPEG・WebP画像を再アップロードしてください"
+    };
+    if (bytes > SHARE_IMAGE_TARGET_BYTES) return {
+      ok: false,
+      bytes,
+      maxBytes: SHARE_IMAGE_TARGET_BYTES,
+      message: `共有画像の圧縮見込みが規定量を超えています（${Math.ceil(bytes / 1024)}KB / 32KB）。共有リンクは発行しません。Base infoで別の画像を再アップロードしてください`
+    };
+    return { ok: true, bytes, maxBytes: SHARE_IMAGE_TARGET_BYTES };
   }
 
   function personaPool(db, mode) {
@@ -530,6 +565,8 @@
   }
 
   async function createPublishedUrl(state, baseUrl, fetchImpl = window.fetch?.bind(window)) {
+    const shareImageCheck = validateShareImageForPublish(state);
+    if (!shareImageCheck.ok) throw new Error(shareImageCheck.message);
     const direct = await createUrl(state, baseUrl);
     const target = shareBaseUrl(baseUrl);
     const token = await encodeState(state);
@@ -681,6 +718,7 @@
   window.LBT_shareLink = {
     snapshotState, encodeState, decodeToken, hydratePersonaReference, createUrl, createPublishedUrl,
     createTinyUrl, publishExternalTokens, externalViewerUrl, shortViewerUrl, ogpGatewayUrl, externalSourceFromLocation, shortSourcesFromLocation, externalSourcesFromLocation,
-    tokenFromLocation, tokenFromExternalSource, previewFromLocation, sharePreview, PRACTICAL_DISCORD_URL_LENGTH
+    tokenFromLocation, tokenFromExternalSource, previewFromLocation, sharePreview, PRACTICAL_DISCORD_URL_LENGTH,
+    SHARE_IMAGE_TARGET_BYTES, shareImageBytes, validateShareImageForPublish
   };
 })();

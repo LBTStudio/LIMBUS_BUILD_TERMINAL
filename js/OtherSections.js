@@ -16,7 +16,15 @@ const BaseSection = ({ state, dispatch }) => {
   const [imgTab, setImgTab] = React.useState(0);
   const [shareImageBusy, setShareImageBusy] = React.useState(false);
   const [shareImageError, setShareImageError] = React.useState("");
-  const SHARE_IMAGE_TARGET_BYTES = 32 * 1024;
+  const SHARE_IMAGE_TARGET_BYTES = window.LBT_shareLink?.SHARE_IMAGE_TARGET_BYTES || 32 * 1024;
+  const shareImageBytes = window.LBT_shareLink?.shareImageBytes || ((value) => {
+    const match = /^data:image\/(webp|jpeg);base64,([A-Za-z0-9+/]+=*)$/i.exec(String(value || ""));
+    if (!match) return 0;
+    const padding = match[2].endsWith("==") ? 2 : match[2].endsWith("=") ? 1 : 0;
+    return Math.max(0, Math.floor(match[2].length * 3 / 4) - padding);
+  });
+  const currentShareImageBytes = shareImageBytes(state.shareImageData);
+  const currentShareImageOk = !state.shareImageData || currentShareImageBytes > 0 && currentShareImageBytes <= SHARE_IMAGE_TARGET_BYTES;
   const readFileAsDataURL = (file) => new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error("画像データを読み込めませんでした"));
@@ -59,7 +67,7 @@ const BaseSection = ({ state, dispatch }) => {
           }
         }
       }
-      throw new Error("画像を共有可能な容量へ収められませんでした。別の画像をお試しください");
+      throw new Error("画像の圧縮見込みが規定量（32KB）へ収まりませんでした。共有リンクは発行できません。別の画像を再アップロードしてください");
     } finally {
       URL.revokeObjectURL(sourceUrl);
     }
@@ -73,9 +81,12 @@ const BaseSection = ({ state, dispatch }) => {
     try {
       const result = await compressShareImage(file);
       setF("shareImageData", result.data);
-      toast(`共有画像を ${result.width}×${result.height} / ${Math.ceil(result.bytes / 1024)}KB に最適化しました`);
+      setF("shareImageBlockedReason", "");
+      toast(`共有画像を ${result.width}×${result.height} / ${Math.ceil(result.bytes / 1024)}KB に最適化しました。共有リンクを発行できます`);
     } catch (error) {
       const message = error?.message || "共有画像を設定できませんでした";
+      setF("shareImageData", "");
+      setF("shareImageBlockedReason", message);
       setShareImageError(message);
       toast(message);
     } finally {
@@ -95,13 +106,13 @@ const BaseSection = ({ state, dispatch }) => {
     ),
     /* @__PURE__ */ React.createElement("div", { className: "stack-3 base-info-image" },
       /* @__PURE__ */ React.createElement(Field, { label: "IMAGE URL / 立ち絵URL（複数行可、1行目=基本、以降=差分）" }, /* @__PURE__ */ React.createElement("textarea", { className: "textarea", rows: 4, placeholder: "https://...", value: state.imgUrls, onChange: (e) => setF("imgUrls", e.target.value), style: { whiteSpace: "pre", overflowX: "auto", overflowWrap: "normal", wordBreak: "keep-all", fontFamily: "var(--f-mono)" } })),
-      /* @__PURE__ */ React.createElement(Field, { label: "SHARE IMAGE / 共有シート画像", hint: "共有HTMLへ同梱する公開画像です。端末内で最大1200×630・約32KBまで高品質に圧縮します" },
+      /* @__PURE__ */ React.createElement(Field, { label: "SHARE IMAGE / 共有シート画像", hint: "共有HTMLへ同梱する公開画像です。端末内で最大1200×630・32KB以下へ圧縮し、上限超過時は共有リンクを発行しません" },
         /* @__PURE__ */ React.createElement("div", { className: "stack-2" },
           /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" } },
             /* @__PURE__ */ React.createElement("label", { className: "btn btn-sm", style: { cursor: shareImageBusy ? "wait" : "pointer", opacity: shareImageBusy ? .7 : 1 } }, shareImageBusy ? "画像を最適化中…" : "画像を選択", /* @__PURE__ */ React.createElement("input", { type: "file", accept: "image/png,image/jpeg,image/webp", disabled: shareImageBusy, onChange: onShareImageSelected, style: { display: "none" } })),
-            state.shareImageData && /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-sm btn-ghost", onClick: () => { setF("shareImageData", ""); setShareImageError(""); }, title: "共有画像を削除" }, "共有画像を削除")
+            state.shareImageData && /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-sm btn-ghost", onClick: () => { setF("shareImageData", ""); setF("shareImageBlockedReason", ""); setShareImageError(""); }, title: "共有画像を削除" }, "共有画像を削除")
           ),
-          state.shareImageData && /* @__PURE__ */ React.createElement("div", { className: "base-img-preview share-image-preview" }, /* @__PURE__ */ React.createElement("div", { className: "base-img-preview-label" }, "SHARE PREVIEW / 共有シート画像"), /* @__PURE__ */ React.createElement("img", { src: state.shareImageData, alt: "共有シート画像プレビュー", className: "base-img-preview-img" })),
+          state.shareImageData && /* @__PURE__ */ React.createElement("div", { className: "base-img-preview share-image-preview" }, /* @__PURE__ */ React.createElement("div", { className: "base-img-preview-label" }, "SHARE PREVIEW / 共有シート画像"), /* @__PURE__ */ React.createElement("img", { src: state.shareImageData, alt: "共有シート画像プレビュー", className: "base-img-preview-img" }), /* @__PURE__ */ React.createElement("div", { className: currentShareImageOk ? "base-auto-note" : "base-img-preview-err", style: { marginTop: 8, display: "block" } }, currentShareImageOk ? `圧縮見込み: ${Math.ceil(currentShareImageBytes / 1024)}KB / 32KB — 共有リンクを発行できます` : `圧縮見込み: ${Math.ceil(currentShareImageBytes / 1024)}KB / 32KB — 上限超過のため共有リンクは発行しません。再アップロードしてください`)),
           shareImageError && /* @__PURE__ */ React.createElement("div", { className: "base-img-preview-err", style: { display: "block" } }, shareImageError)
         )
       ),
