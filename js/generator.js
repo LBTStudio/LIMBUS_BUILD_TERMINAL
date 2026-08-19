@@ -394,7 +394,9 @@ function buildPalette(state) {
     L.push("### ■ 特殊強化");
     p.enhancements.forEach((e) => {
       const effBlk = buildLabeledBlock("効果：", e.effect);
-      L.push(effBlk ? `【${e.name}】\n${effBlk}` : `【${e.name}】`);
+      // 行頭の【名称】はプレビューの出力カテゴリとして分割されるため、
+      // 特殊強化は一つのカテゴリ内の箇条書きとしてまとめる。
+      L.push(effBlk ? `・【${e.name}】\n${effBlk}` : `・【${e.name}】`);
     });
     L.push("");
   }
