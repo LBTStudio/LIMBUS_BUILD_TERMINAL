@@ -1563,7 +1563,9 @@ function useAppState() {
   });
   const historyRef = React.useRef({ past: [], future: [] });
   const skipHistoryRef = React.useRef(false);
+  const [saveStatus, setSaveStatus] = React.useState({ phase: "saving", savedAt: null, error: "" });
   React.useEffect(() => {
+    setSaveStatus((previous) => ({ phase: "saving", savedAt: previous.savedAt, error: "" }));
     const t = setTimeout(() => {
       try {
         const { ui, ...rest } = state;
@@ -1577,7 +1579,11 @@ function useAppState() {
             previewCollapsed: ui.previewCollapsed || {}
           }
         }));
+        setSaveStatus({ phase: "saved", savedAt: Date.now(), error: "" });
       } catch (e) {
+        // private browsing, quota exceeded, blocked storage等では保存済みと見せず、
+        // UIに回復経路（ファイル保存）を示せる状態だけを渡す。
+        setSaveStatus({ phase: "error", savedAt: null, error: e?.name || "storage-error" });
       }
     }, 400);
     return () => clearTimeout(t);
@@ -1607,7 +1613,7 @@ function useAppState() {
   }, [state]);
   const canUndo = historyRef.current.past.length > 0;
   const canRedo = historyRef.current.future.length > 0;
-  return [state, wrappedDispatch, { undo, redo, canUndo, canRedo }];
+  return [state, wrappedDispatch, { undo, redo, canUndo, canRedo, saveStatus }];
 }
 window.useAppState = useAppState;
 window.appReducer = appReducer;

@@ -942,6 +942,23 @@ const EgoSection = ({ state, dispatch }) => {
     setBrowseAll(true);
     setOwnedOnly(v);
   };
+  const searchTarget = state.ui?.egoSearchTarget;
+  const searchTargetKey = searchTarget ? `${searchTarget.rank}:${searchTarget.no}` : "";
+  React.useEffect(() => {
+    if (!searchTargetKey) return;
+    const target = (DB.egos || []).find((ego) => `${ego.rank}:${ego.no}` === searchTargetKey);
+    if (!target) return;
+    setQuery("");
+    setSinFilter("");
+    setKeywordFilter("");
+    setOwnedOnly(false);
+    setBrowseAll(true);
+    setFiltersOpen(false);
+    setListExpanded(true);
+    setSelected(target);
+    setDetailSlot(null);
+    dispatch({ type: "SET_UI", ui: { egoRankFilter: "", egoSearchTarget: null } });
+  }, [searchTargetKey, dispatch]);
   const ownedKeys = React.useMemo(() => new Set((state.roster?.egos || []).map((e) => `${e.rank}:${e.no}`)), [state.roster?.egos]);
   const recordRecentEgo = (ego) => {
     if (!ego) return;

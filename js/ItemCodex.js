@@ -11,6 +11,15 @@ const ItemCodex = ({ state, dispatch }) => {
   React.useEffect(() => {
     if (!items.some((item) => item.id === selectedId)) setSelectedId(items[0]?.id || "");
   }, [items, selectedId]);
+  const searchTargetId = state.ui?.itemSearchTarget?.id || "";
+  React.useEffect(() => {
+    if (!searchTargetId || !items.some((item) => item.id === searchTargetId)) return;
+    setQuery("");
+    setCategory("all");
+    setOwnedOnly(false);
+    setSelectedId(searchTargetId);
+    dispatch({ type: "SET_UI", ui: { itemSearchTarget: null } });
+  }, [searchTargetId, items, dispatch]);
   const categories = React.useMemo(() => ["all", ...Array.from(new Set(items.map((item) => item.category).filter(Boolean)))], [items]);
   const byId = React.useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
   const entryById = React.useMemo(() => new Map(inventory.map((entry) => [entry.itemId, entry])), [inventory]);

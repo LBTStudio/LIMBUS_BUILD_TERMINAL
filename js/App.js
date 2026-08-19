@@ -148,6 +148,8 @@ const CommandPalette = ({ open, onClose, state, dispatch }) => {
       } }
     ];
     const personaHits = [];
+    const egoHits = [];
+    const itemHits = [];
     if (ql) {
       const all = [...DB.normal_personas.map((p) => ({ p, m: "n" })), ...DB.tokui_personas.map((p) => ({ p, m: "t" }))];
       all.forEach(({ p, m }) => {
@@ -159,9 +161,25 @@ const CommandPalette = ({ open, onClose, state, dispatch }) => {
           } });
         }
       });
+      (DB.egos || []).forEach((ego) => {
+        const haystack = `${ego.name || ""} ${ego.rank || ""} ${ego.resources || ""} ${(ego.keywords || []).join(" ")} ${ego.kakusei?.effect || ""} ${ego.shinshoku?.effect || ""}`.toLowerCase();
+        if (haystack.includes(ql)) {
+          egoHits.push({ type: "ego", label: `E.G.O：${ego.name}`, kbd: `${ego.rank} / 詳細`, run: () => {
+            dispatch({ type: "SET_UI", ui: { currentSection: "ego", egoSearchTarget: { rank: ego.rank, no: ego.no } } });
+          } });
+        }
+      });
+      [...(DB.items || []), ...(state.customItems || [])].forEach((item) => {
+        const haystack = `${item.name || ""} ${item.category || ""} ${(item.tags || []).join(" ")} ${item.effect || ""}`.toLowerCase();
+        if (haystack.includes(ql)) {
+          itemHits.push({ type: "item", label: `アイテム：${item.name}`, kbd: "詳細", run: () => {
+            dispatch({ type: "SET_UI", ui: { currentSection: "items", itemSearchTarget: { id: item.id } } });
+          } });
+        }
+      });
     }
     const cmdFiltered = ql ? cmds.filter((c) => c.label.toLowerCase().includes(ql)) : cmds;
-    return [...cmdFiltered, ...personaHits.slice(0, 8)];
+    return [...cmdFiltered, ...personaHits.slice(0, 6), ...egoHits.slice(0, 5), ...itemHits.slice(0, 5)];
   }, [q, state]);
   React.useEffect(() => setIdx(0), [q]);
   const onKey = (e) => {
@@ -180,10 +198,10 @@ const CommandPalette = ({ open, onClose, state, dispatch }) => {
       onClose();
     }
   };
-  return /* @__PURE__ */ React.createElement("div", { className: `cp-overlay${open ? " is-open" : ""}`, onClick: (e) => e.target === e.currentTarget && onClose() }, /* @__PURE__ */ React.createElement("div", { className: "cp-box" }, /* @__PURE__ */ React.createElement("input", { ref: inputRef, className: "cp-input", placeholder: "\u30AF\u30A4\u30C3\u30AF\u691C\u7D22\uFF1A\u4EBA\u683C\u30FB\u64CD\u4F5C\u30FB\u30BB\u30AF\u30B7\u30E7\u30F3\u2026", value: q, onChange: (e) => setQ(e.target.value), onKeyDown: onKey }), /* @__PURE__ */ React.createElement("div", { className: "cp-list" }, items.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "cp-empty" }, "\u8A72\u5F53\u306A\u3057") : items.map((it, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: `cp-item${i === idx ? " sel" : ""}`, onClick: () => {
+  return /* @__PURE__ */ React.createElement("div", { className: `cp-overlay${open ? " is-open" : ""}`, onClick: (e) => e.target === e.currentTarget && onClose() }, /* @__PURE__ */ React.createElement("div", { className: "cp-box" }, /* @__PURE__ */ React.createElement("input", { ref: inputRef, className: "cp-input", placeholder: "\u30AF\u30A4\u30C3\u30AF\u691C\u7D22\uFF1A\u4EBA\u683C\u30FBE.G.O\u30FB\u30A2\u30A4\u30C6\u30E0\u30FB\u64CD\u4F5C\u2026", value: q, onChange: (e) => setQ(e.target.value), onKeyDown: onKey }), /* @__PURE__ */ React.createElement("div", { className: "cp-list" }, items.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "cp-empty" }, "\u8A72\u5F53\u306A\u3057") : items.map((it, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: `cp-item${i === idx ? " sel" : ""}`, onClick: () => {
     it.run();
     onClose();
-  }, onMouseMove: () => setIdx(i) }, /* @__PURE__ */ React.createElement("span", { className: "kind" }, it.type === "nav" ? "\u25B8" : it.type === "persona" ? "\u25C8" : "\u2318"), /* @__PURE__ */ React.createElement("span", { className: "lbl" }, it.label), it.kbd && /* @__PURE__ */ React.createElement("span", { className: "kbd" }, it.kbd)))), /* @__PURE__ */ React.createElement("div", { className: "cp-hint" }, /* @__PURE__ */ React.createElement("span", null, "\u2191\u2193 \u79FB\u52D5"), /* @__PURE__ */ React.createElement("span", null, "Enter \u5B9F\u884C"), /* @__PURE__ */ React.createElement("span", null, "Esc \u9589\u3058\u308B"))));
+  }, onMouseMove: () => setIdx(i) }, /* @__PURE__ */ React.createElement("span", { className: "kind" }, it.type === "nav" ? "\u25B8" : it.type === "persona" ? "\u25C8" : it.type === "ego" ? "\u25C7" : it.type === "item" ? "\u25C6" : "\u2318"), /* @__PURE__ */ React.createElement("span", { className: "lbl" }, it.label), it.kbd && /* @__PURE__ */ React.createElement("span", { className: "kbd" }, it.kbd)))), /* @__PURE__ */ React.createElement("div", { className: "cp-hint" }, /* @__PURE__ */ React.createElement("span", null, "\u2191\u2193 \u79FB\u52D5"), /* @__PURE__ */ React.createElement("span", null, "Enter \u8A73\u7D30\u3092\u958B\u304F"), /* @__PURE__ */ React.createElement("span", null, "Esc \u9589\u3058\u308B"))));
 };
 function exportState(state) {
   const { ui, ...data } = state;
@@ -321,7 +339,7 @@ const RailNavigation = ({ sections, current, dispatch, onOpenUtilities, state })
 };
 
 const App = () => {
-  const [state, dispatch, { undo, redo, canUndo, canRedo }] = useAppState();
+  const [state, dispatch, { undo, redo, canUndo, canRedo, saveStatus }] = useAppState();
   const [cpOpen, setCpOpen] = React.useState(false);
   const [qiOpen, setQiOpen] = React.useState(false);
   const [utilityOpen, setUtilityOpen] = React.useState(false);
@@ -431,7 +449,7 @@ const App = () => {
   const utilityActions = [
     { key: "undo", icon: "undo", label: "元に戻す", note: "直前の編集を取り消します。", onClick: undo },
     { key: "redo", icon: "redo", label: "やり直す", note: "取り消した編集をもう一度適用します。", onClick: redo },
-    { key: "work", icon: "download", label: "現在の作業状態を保存", note: "今のキャラクター作業を再開・共有するために保存します。", onClick: () => exportState(state) },
+    { key: "work", icon: "download", label: "現在の作業状態を保存", note: saveStatus.phase === "error" ? "端末内自動保存が使えません。作業を失わないよう、ファイルとして保存してください。" : "端末内には自動保存されています。別端末への移動・長期保管にはファイルとして保存してください。", onClick: () => exportState(state) },
     { key: "library", icon: "archive", label: "所持ライブラリを保存", note: "所持人格・E.G.O・保存済みビルドを書き出して、別端末へ引き継ぎます。", tone: "is-library-save", onClick: () => exportRoster(state) },
     { key: "import", icon: "upload", label: "保存データを読み込む", note: "読み込む範囲を確認して、現在の作業へ適用します。", onClick: () => fileRef.current?.click() },
     { key: "preview", icon: "eye", label: previewOpen ? "プレビューを閉じる" : "プレビューを開く", note: "メモ、パレット、JSONの出力結果を確認します。", onClick: togglePreview },
@@ -478,3 +496,27 @@ const App = () => {
   )));
 };
 window.App = App;
+  const saveStateLabel = saveStatus.phase === "error" ? "端末内保存不可" : saveStatus.phase === "saved" ? "端末内に自動保存済み" : "端末内へ自動保存中";
+  React.useEffect(() => {
+    const host = document.querySelector(".topbar");
+    const anchor = host?.querySelector(".topbar-search");
+    if (!host || !anchor) return;
+    const indicator = document.getElementById("lbt-autosave-status") || document.createElement("div");
+    indicator.id = "lbt-autosave-status";
+    indicator.className = `topbar-save-state is-${saveStatus.phase}`;
+    indicator.setAttribute("role", "status");
+    indicator.setAttribute("aria-atomic", "true");
+    indicator.title = saveStatus.phase === "saved" && saveStatus.savedAt ? `端末内保存: ${new Date(saveStatus.savedAt).toLocaleTimeString()}` : saveStateLabel;
+    const label = document.createElement("span");
+    label.textContent = saveStateLabel;
+    indicator.replaceChildren(label);
+    if (saveStatus.phase === "error") {
+      const backup = document.createElement("button");
+      backup.type = "button";
+      backup.textContent = "ファイル保存";
+      backup.title = "現在の作業状態をファイルとして保存";
+      backup.onclick = () => exportState(state);
+      indicator.appendChild(backup);
+    }
+    anchor.insertAdjacentElement("afterend", indicator);
+  }, [saveStatus.phase, saveStatus.savedAt, saveStateLabel, state]);
