@@ -6,6 +6,39 @@ window.LBT_PDF_KEYWORD_ORDER = [
   "虚弱", "武装解除", "束縛", "脆弱", "火傷", "沈潜", "出血", "恐慌", "破裂", "振動", "ダメージ量減少", "毒", "麻痺",
   "バリア", "弾丸"
 ];
+// 人格キーワードは効果本文・固有バフ・ダイス効果で検索できる状態名を漏れなく持つ。
+// DBの旧データを読み込んでも、同じ根拠から補完することで一覧フィルタの不整合を防ぐ。
+function personaKeywordEvidence(persona) {
+  return [
+    persona?.passive_always,
+    persona?.passive_effect,
+    ...(persona?.unique_buffs || []).flatMap((buff) => [buff?.name, buff?.desc]),
+    ...(persona?.skills || []).flatMap((skill) => [
+      skill?.effect,
+      ...(skill?.dice || []).flatMap((die) => [die?.roll, die?.effect])
+    ])
+  ].filter(Boolean).join("\n");
+}
+function enrichPersonaKeywords(database) {
+  const keywords = window.LBT_PDF_KEYWORD_ORDER || [];
+  const groups = ["normal_personas", "tokui_personas", "abnormal_personas"];
+  const updated = [];
+  let total = 0;
+  groups.forEach((group) => {
+    (database?.[group] || []).forEach((persona) => {
+      total += 1;
+      const evidence = personaKeywordEvidence(persona);
+      const current = Array.isArray(persona.keywords) ? persona.keywords.filter(Boolean) : [];
+      const known = new Set(current);
+      const missing = keywords.filter((keyword) => evidence.includes(keyword) && !known.has(keyword));
+      if (!missing.length) return;
+      persona.keywords = [...current, ...missing];
+      updated.push({ group, no: persona.no, name: persona.name, missing });
+    });
+  });
+  return { total, updated };
+}
+window.LBT_enrichPersonaKeywords = enrichPersonaKeywords;
 const HISTORY_LIMIT = 60;
 const SAVE_SCHEMA_VERSION = 5;
 const SUPPORT_DEATH_RE = /(死亡|退場|戦闘不能|死亡した|死亡時|味方死亡|自分が死亡|撃破|倒れ)/;

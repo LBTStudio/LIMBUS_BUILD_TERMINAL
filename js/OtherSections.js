@@ -871,6 +871,21 @@ const getEgoKeywordHaystack = (ego) => {
     ...(ego?.sub_skills || []).flatMap((skill) => skillText(skill))
   ].filter(Boolean).join(" ").toLowerCase();
 };
+const getEgoEffectHaystack = (ego) => {
+  const skillEffects = (skill) => [
+    skill?.effect,
+    ...(skill?.dice || []).map((die) => die?.effect)
+  ];
+  return [
+    ego?.passive_effect,
+    ego?.unique_buff,
+    ...skillEffects(ego?.kakusei),
+    ...skillEffects(ego?.shinshoku),
+    ...(ego?.sub_skills || []).flatMap((skill) => skillEffects(skill))
+  ].filter(Boolean).join(" ").toLowerCase();
+};
+const egoMatchesKeyword = (ego, keyword) => (keyword === "回復" ? getEgoEffectHaystack(ego) : getEgoKeywordHaystack(ego)).includes(keyword);
+window.LBT_egoMatchesKeyword = egoMatchesKeyword;
 const EgoSection = ({ state, dispatch }) => {
   const h = React.createElement;
   const [selected, setSelected] = React.useState(null);
@@ -931,7 +946,7 @@ const EgoSection = ({ state, dispatch }) => {
     const previous = Array.isArray(state.ui?.egoRecent) ? state.ui.egoRecent : [];
     dispatch({ type: "SET_UI", ui: { egoRecent: [key, ...previous.filter((item) => item !== key)].slice(0, 6) } });
   };
-  const egoKeywordOptions = React.useMemo(() => EGO_KEYWORD_ORDER.map((keyword) => String(keyword || "").trim()).filter(Boolean).filter((keyword) => (DB.egos || []).some((ego) => getEgoKeywordHaystack(ego).includes(keyword))), []);
+  const egoKeywordOptions = React.useMemo(() => EGO_KEYWORD_ORDER.map((keyword) => String(keyword || "").trim()).filter(Boolean).filter((keyword) => (DB.egos || []).some((ego) => egoMatchesKeyword(ego, keyword))), []);
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
     return (DB.egos || []).filter((e) => {
@@ -939,7 +954,7 @@ const EgoSection = ({ state, dispatch }) => {
       if (rankFilter && e.rank !== rankFilter) return false;
       if (sinFilter && !(e.resources || "").includes(sinFilter)) return false;
       const hay = getEgoKeywordHaystack(e);
-      if (keywordFilter && !hay.includes(keywordFilter)) return false;
+      if (keywordFilter && !egoMatchesKeyword(e, keywordFilter)) return false;
       if (q && !hay.includes(q)) return false;
       return true;
     });
