@@ -94,7 +94,13 @@ const useHorizontalDragScroll = () => {
 };
 // d値/d数の可変設定は「変更する」場合のみ展開する選択制UI。
 // 固定値の別入力は持たず、ダイス式を唯一の基準として扱う。
-const DiceVarControls = ({ dPlus, dCnt, dPlusLabel, dCntLabel, rn, idx, onPatch }) => {
+const resolveDPlusOp = (label, dPlusOp) => {
+  if (dPlusOp === "minus") return "minus";
+  if (dPlusOp === "plus") return "plus";
+  const value = String(label || "").trim();
+  return /[{}+\-*/()]/.test(value) && !/^\{[^{}]+\}$/.test(value) ? "minus" : "plus";
+};
+const DiceVarControls = ({ dPlus, dCnt, dPlusLabel, dPlusOp, dCntLabel, rn, idx, onPatch }) => {
   const [open, setOpen] = React.useState(false);
   const active = dPlus || dCnt;
   const shown = open || active;
@@ -108,7 +114,7 @@ const DiceVarControls = ({ dPlus, dCnt, dPlusLabel, dCntLabel, rn, idx, onPatch 
       h("span", { className: "deck-dice-var-state" }, active ? `有効: ${activeKinds}` : "設定")
     ),
     shown && h("div", { className: "deck-dice-var-fields" },
-      h("label", { className: `deck-dice-var-chk${dPlus ? " is-on" : ""}` }, h("input", { type: "checkbox", checked: dPlus, onChange: (e) => onPatch({ dPlus: e.target.checked }) }), h("span", { className: "deck-dice-var-label" }, "d値を可変にする"), dPlus && h("input", { className: "deck-dice-var-input", value: dPlusLabel || "", placeholder: `変数名（省略: ${autoPlus}）`, onChange: (e) => onPatch({ dPlusLabel: e.target.value }), title: "変数名はd値へ加算します。{変数名}/10 のような中括弧付き式はd値から減算して出力します。" })),
+      h("label", { className: `deck-dice-var-chk${dPlus ? " is-on" : ""}` }, h("input", { type: "checkbox", checked: dPlus, onChange: (e) => onPatch({ dPlus: e.target.checked }) }), h("span", { className: "deck-dice-var-label" }, "d値を可変にする"), dPlus && h("input", { className: "deck-dice-var-input", value: dPlusLabel || "", placeholder: `変数名（省略: ${autoPlus}）`, onChange: (e) => onPatch({ dPlusLabel: e.target.value }), title: "変数名またはCCFOLIA式を入力します。加算・減算は右の選択で指定します。" }), dPlus && h("select", { className: "select deck-dice-var-op", value: resolveDPlusOp(dPlusLabel, dPlusOp), onChange: (e) => onPatch({ dPlusOp: e.target.value }), title: "元のd値へ加算するか減算するかを選択" }, h("option", { value: "plus" }, "d値へ加算"), h("option", { value: "minus" }, "d値から減算"))),
       h("label", { className: `deck-dice-var-chk${dCnt ? " is-on" : ""}` }, h("input", { type: "checkbox", checked: dCnt, onChange: (e) => onPatch({ dCnt: e.target.checked }) }), h("span", { className: "deck-dice-var-label" }, "d数を可変にする"), dCnt && h("input", { className: "deck-dice-var-input", value: dCntLabel || "", placeholder: `変数名（省略: ${autoCnt}）`, onChange: (e) => onPatch({ dCntLabel: e.target.value }), title: "変数名として入力します。{変数名}/10 のような中括弧付き式もそのまま出力します。" }))
     )
   );
@@ -122,7 +128,7 @@ const DiceRow = ({ dice, idx, skillRankNum, onPatch, onRemove }) => {
     /* @__PURE__ */ React.createElement("input", { className: "deck-dice-roll", placeholder: "2d7", value: dice.roll || "", onChange: (e) => onPatch({ roll: e.target.value }), title: "ダイス式（例：2d7、1-1d4、(2)d5）" }),
     /* @__PURE__ */ React.createElement(AutoTextarea, { className: "deck-dice-eff", placeholder: "ダイス効果（内容量に合わせて自動拡張）", value: dice.effect, onChange: (e) => onPatch({ effect: e.target.value }), minRows: 1 }),
     /* @__PURE__ */ React.createElement("button", { className: "deck-dice-del", onClick: onRemove, title: "削除" }, "×"),
-    /* @__PURE__ */ React.createElement(DiceVarControls, { dPlus, dCnt, dPlusLabel: dice.dPlusLabel, dCntLabel: dice.dCntLabel, rn, idx, onPatch })
+    /* @__PURE__ */ React.createElement(DiceVarControls, { dPlus, dCnt, dPlusLabel: dice.dPlusLabel, dPlusOp: dice.dPlusOp, dCntLabel: dice.dCntLabel, rn, idx, onPatch })
   );
 };
 const SkillVariancePanel = ({ skill, onPatch }) => {
@@ -153,7 +159,8 @@ const SkillVariancePanel = ({ skill, onPatch }) => {
     (dPlus || dCnt) && h("div", { className: "sk-var-compact-details" },
       dPlus && h("label", { className: "sk-var-compact-detail" },
         h("span", null, "d値の変数名（任意）"),
-        h("input", { type: "text", className: "sk-var-input", placeholder: "省略で自動: S◯d値", value: dPlusLabel, onChange: (e) => onPatch({ dPlusLabel: e.target.value }), title: "変数名だけなら自動で {} を付けてd値へ加算します。{変数名}/10 のような中括弧付き式はd値から減算します。" })
+        h("input", { type: "text", className: "sk-var-input", placeholder: "省略で自動: S◯d値", value: dPlusLabel, onChange: (e) => onPatch({ dPlusLabel: e.target.value }), title: "変数名またはCCFOLIA式を入力します。加算・減算は下の選択で指定します。" }),
+        h("select", { className: "select", value: resolveDPlusOp(dPlusLabel, skill.dPlusOp), onChange: (e) => onPatch({ dPlusOp: e.target.value }), title: "元のd値へ加算するか減算するかを選択" }, h("option", { value: "plus" }, "元のd値へ加算"), h("option", { value: "minus" }, "元のd値から減算"))
       ),
       dCnt && h("label", { className: "sk-var-compact-detail" },
         h("span", null, "d数の変数名（任意）"),

@@ -75,3 +75,16 @@ test("d値・d数の中括弧付き式は除数を固定せず、入力した数
   assert.match(palette, /\(4\+\{追加数\}\/20\)d\(8-\{威力補正\}\/3-\(\{麻痺\}\*4\+5\)\/9\)/);
   assert.equal(palette.includes("/10"), false);
 });
+
+test("d値のCCFOLIA式は加算・減算を明示選択できる", () => {
+  const generator = loadGenerator();
+  const state = createState();
+  state.skills = [{ rank: "スキル1", name: "加減算スキル", type: "打撃", effect: "", dPlus: true, dPlusLabel: "{補正値}/3", dPlusOp: "plus", dVarPlace: "status", dice: [{ roll: "2d6", effect: "" }] }];
+
+  const added = generator.buildPalette(state);
+  state.skills[0].dPlusOp = "minus";
+  const subtracted = generator.buildPalette(state);
+
+  assert.match(added, /2d\(6\+\{補正値\}\/3-\(\{麻痺\}\*4\+5\)\/9\)/);
+  assert.match(subtracted, /2d\(6-\{補正値\}\/3-\(\{麻痺\}\*4\+5\)\/9\)/);
+});

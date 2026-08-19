@@ -97,6 +97,12 @@ function isDiceVarExpression(value) {
   if (/^\{[^{}]+\}$/.test(raw)) return false;
   return /[{}+\-*/()]/.test(raw);
 }
+function resolveDiceDPlusOp(value, dPlusOp) {
+  if (dPlusOp === "minus") return "minus";
+  if (dPlusOp === "plus") return "plus";
+  // 選択肢のない旧データは、これまでの出力規則を保持する。
+  return isDiceVarExpression(value) ? "minus" : "plus";
+}
 // JSONへ初期値0の変数を追加できるのは、単純な変数名だけである。
 // 式は既存ステータスを参照するため、式全体をラベルとして追加してはならない。
 function diceVarStatusLabel(value) {
@@ -106,7 +112,7 @@ function diceVarStatusLabel(value) {
   const label = (wrapped ? wrapped[1] : raw).trim();
   return /^[^{}+\-*/()]+$/.test(label) ? label : "";
 }
-function buildMahiFormula(roll, dval, fix, dPlusVar, dCntVar) {
+function buildMahiFormula(roll, dval, fix, dPlusVar, dCntVar, dPlusOp) {
   roll = sanitizeInline(roll);
   dval = sanitizeInline(dval);
   fix = sanitizeInline(fix);
@@ -115,15 +121,15 @@ function buildMahiFormula(roll, dval, fix, dPlusVar, dCntVar) {
   const mahi = "({麻痺}*4+5)/9";
   const dPlusExpr = normalizeDiceVarExpr(dPlusVar);
   const dCntExpr = normalizeDiceVarExpr(dCntVar);
-  const dPlusIsExpression = isDiceVarExpression(dPlusVar);
+  const subtractDPlus = dPlusExpr && resolveDiceDPlusOp(dPlusVar, dPlusOp) === "minus";
   const wrapN = (nExpr) => dCntExpr ? `(${nExpr}+${dCntExpr})` : nExpr;
   const buildDside = (vExpr) => {
-    const withPlus = dPlusExpr ? (dPlusIsExpression ? `${vExpr}-${dPlusExpr}` : `${vExpr}+${dPlusExpr}`) : vExpr;
+    const withPlus = dPlusExpr ? (subtractDPlus ? `${vExpr}-${dPlusExpr}` : `${vExpr}+${dPlusExpr}`) : vExpr;
     return `(${withPlus}-${mahi})`;
   };
   const varDM = roll.match(/^(\d+)d\(([^)]+)\)(.*)$/);
   if (varDM) {
-    const dieExpr = dPlusExpr ? (dPlusIsExpression ? `${varDM[2]}-${dPlusExpr}` : `${varDM[2]}+${dPlusExpr}`) : varDM[2];
+    const dieExpr = dPlusExpr ? (subtractDPlus ? `${varDM[2]}-${dPlusExpr}` : `${varDM[2]}+${dPlusExpr}`) : varDM[2];
     return `${wrapN(varDM[1])}d(${dieExpr}-${mahi})${varDM[3]}${ex}`;
   }
   const specN = roll.match(/^\(([^)]+)\)d(\d+)(.*)$/);
@@ -446,9 +452,10 @@ function buildPalette(state) {
           }
         }
         displayDice.push(showDeff ? `${roll}\uFF1A${showDeff}` : roll);
-        const dPlusVar = d.dPlus ? d.dPlusLabel || `S${rn}-${did}d\u5024` : !hasPerDicePlus && skDPlusVar ? skDPlusVar : null;
-        const dCntVar = d.dCnt ? d.dCntLabel || `S${rn}-${did}d\u6570` : !hasPerDiceCnt && skDCntVar ? skDCntVar : null;
-        const mahi = buildMahiFormula(roll, dval, "", dPlusVar, dCntVar);
+	        const dPlusVar = d.dPlus ? d.dPlusLabel || `S${rn}-${did}d\u5024` : !hasPerDicePlus && skDPlusVar ? skDPlusVar : null;
+	        const dCntVar = d.dCnt ? d.dCntLabel || `S${rn}-${did}d\u6570` : !hasPerDiceCnt && skDCntVar ? skDCntVar : null;
+	        const dPlusOp = d.dPlus ? d.dPlusOp : !hasPerDicePlus && skDPlusVar ? sk.dPlusOp : null;
+	        const mahi = buildMahiFormula(roll, dval, "", dPlusVar, dCntVar, dPlusOp);
         if (isDefense) {
           const defLabel = useDiceIdx ? `${rn}-${did}` : `${rn}`;
           execRows.push(`${mahi}+{DT} ${defLabel}\uFF1A\u5224\u5B9A`);
