@@ -19,7 +19,7 @@
   const EXTERNAL_READ_TIMEOUT_MS = 6000;
   // 共有内容は発行後に不変なので、Workerの実装更新とカード内容の世代を分ける。
   // Worker Cacheをバージョン横断で共有しても、この値を上げた時だけOGPカードを確実に再生成できる。
-  const OGP_CARD_CACHE_VERSION = "1";
+  const OGP_CARD_CACHE_VERSION = "2";
   // 設定時だけ短縮共有を無状態OGPゲートウェイへ渡す。未設定または配備失敗時は、
   // 従来どおりGitHub Pagesのshare.htmlを直接使うため、共有機能を止めない。
   const OGP_GATEWAY_FALLBACK_ORIGIN = "";
@@ -292,6 +292,9 @@
     const shareImageData = String(state.shareImageData || "");
     state.shareImageData = /^data:image\/(webp|jpeg);base64,[A-Za-z0-9+/]+=*$/.test(shareImageData) && shareImageData.length <= 48000
       ? shareImageData : "";
+    const ogpImageData = String(state.ogpImageData || "");
+    state.ogpImageData = /^data:image\/webp;base64,[A-Za-z0-9+/]+=*$/.test(ogpImageData) && shareImageBytes(ogpImageData) <= SHARE_IMAGE_TARGET_BYTES
+      ? ogpImageData : "";
     state.skills = Array.isArray(state.skills) ? state.skills : [];
     state.supports = Array.isArray(state.supports) ? state.supports : [];
     state.uniqueBuffs = Array.isArray(state.uniqueBuffs) ? state.uniqueBuffs : [];
@@ -385,6 +388,11 @@
       snapshot.personaRef = { mode: source.personaMode, no: source.personaNo };
     }
     compactOfficialReferences(snapshot, window.DB);
+    // 手動画像が未設定の場合だけ、無料・無状態で読める既定OGPカードを共有データへ同梱する。
+    if (!snapshot.shareImageData) {
+      const generatedOgpImage = createDefaultOgpImageData(source);
+      if (generatedOgpImage) snapshot.ogpImageData = generatedOgpImage;
+    }
     return compactValue(snapshot) || { _lbtShare: SHARE_SCHEMA };
   }
 
@@ -459,7 +467,8 @@
     const value = state?.[field];
     const fallback = field === "hp" ? 100 : field === "san" ? 50 : "";
     const base = value === "" || value == null ? fallback : parseInt(value, 10);
-    const enhancementText = (state?.enhancements || []).map((entry) => String(entry?.effect || "")).join("\n");
+    const activeEnhancements = window.LBT_getActiveEnhancements?.(state) || state?.enhancements || [];
+    const enhancementText = activeEnhancements.map((entry) => String(entry?.effect || "")).join("\n");
     const target = field === "hp" ? /HP(?:を|\+)(\d+)(?:上昇)?/g : /SAN(?:を|\+)(\d+)(?:上昇)?/g;
     let bonus = 0;
     let match;
@@ -477,6 +486,144 @@
       syncRank: selected?.syncRank || "",
       syncMax: selected?.syncMax === true
     };
+  }
+
+  function clipOgpCardText(value, max) {
+    const chars = Array.from(String(value || "").trim());
+    return chars.length > max ? `${chars.slice(0, Math.max(1, max - 1)).join("")}…` : chars.join("");
+  }
+
+  function createDefaultOgpImageData(state) {
+    try {
+      if (!window.document?.createElement) return "";
+      const canvas = window.document.createElement("canvas");
+      canvas.width = 1200;
+      canvas.height = 630;
+      const ctx = canvas.getContext?.("2d");
+      if (!ctx) return "";
+      const preview = sharePreview(state);
+      const personaName = clipOgpCardText(preview.personaName || state?.charName || "キャラクターシート", 34);
+      const speed = clipOgpCardText(state?.speed || state?.personaSrc?.speed || "?", 12);
+      const sync = [preview.syncRank ? `同期${preview.syncRank}` : "", preview.syncMax ? "MAX" : ""].filter(Boolean).join(" · ");
+      const gradient = ctx.createLinearGradient(0, 0, 1200, 630);
+      gradient.addColorStop(0, "#0d0b09");
+      gradient.addColorStop(.54, "#251812");
+      gradient.addColorStop(1, "#100d0b");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 1200, 630);
+      ctx.strokeStyle = "rgba(212,175,95,.25)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(38, 38, 1124, 554);
+      // 右上は二重丸ではなく、ダンテを想起させる深紅の時計として描く。
+      // 文字領域を侵食しないよう、旧装飾と同じ右上領域（中心1070,135）に収める。
+      const clockX = 1070;
+      const clockY = 135;
+      const clockR = 122;
+      ctx.save();
+      ctx.fillStyle = "#280d0d";
+      ctx.beginPath();
+      ctx.arc(clockX, clockY, clockR + 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#6f2924";
+      ctx.lineWidth = 16;
+      ctx.beginPath();
+      ctx.arc(clockX, clockY, clockR + 4, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = "#160909";
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.arc(clockX, clockY, clockR + 4, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = "#151414";
+      ctx.beginPath();
+      ctx.arc(clockX, clockY, clockR - 9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#d1a44d";
+      ctx.lineWidth = 7;
+      ctx.beginPath();
+      ctx.arc(clockX, clockY, clockR - 13, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(246,210,120,.58)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(clockX, clockY, clockR - 20, 0, Math.PI * 2);
+      ctx.stroke();
+      for (let tick = 0; tick < 12; tick += 1) {
+        const angle = tick * Math.PI / 6 - Math.PI / 2;
+        const inner = clockR - (tick % 3 === 0 ? 39 : 33);
+        const outer = clockR - 22;
+        ctx.strokeStyle = "#d8b25f";
+        ctx.lineWidth = tick % 3 === 0 ? 5 : 3;
+        ctx.beginPath();
+        ctx.moveTo(clockX + Math.cos(angle) * inner, clockY + Math.sin(angle) * inner);
+        ctx.lineTo(clockX + Math.cos(angle) * outer, clockY + Math.sin(angle) * outer);
+        ctx.stroke();
+      }
+      const drawClockHand = (angle, length, width) => {
+        const endX = clockX + Math.cos(angle) * length;
+        const endY = clockY + Math.sin(angle) * length;
+        ctx.strokeStyle = "#1d100d";
+        ctx.lineWidth = width + 5;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(clockX, clockY);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+        ctx.strokeStyle = "#d0a34f";
+        ctx.lineWidth = width;
+        ctx.beginPath();
+        ctx.moveTo(clockX, clockY);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+      };
+      drawClockHand(-5 * Math.PI / 6, 80, 7);
+      drawClockHand(-Math.PI / 6, 96, 6);
+      ctx.fillStyle = "#17100d";
+      ctx.beginPath();
+      ctx.arc(clockX, clockY, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#d6aa54";
+      ctx.beginPath();
+      ctx.arc(clockX, clockY, 9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#f0c96d";
+      ctx.beginPath();
+      ctx.arc(clockX - 2, clockY - 2, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      ctx.fillStyle = "#d4af5f";
+      ctx.font = "600 25px sans-serif";
+      ctx.fillText("PERSONA / 人格", 82, 112);
+      ctx.fillStyle = "rgba(242,236,225,.76)";
+      ctx.font = "500 18px sans-serif";
+      ctx.fillText("CCFOLIA CHARACTER SHEET", 84, 147);
+      ctx.fillStyle = "#f2ece1";
+      ctx.font = personaName.length > 24 ? "700 52px sans-serif" : "700 68px sans-serif";
+      ctx.fillText(personaName, 82, 255);
+      if (sync) {
+        ctx.fillStyle = "#eecf8a";
+        ctx.font = "600 24px sans-serif";
+        ctx.fillText(sync, 86, 300);
+      }
+      [["HP", preview.hp], ["SAN", preview.san], ["SPD", speed]].forEach(([label, value], index) => {
+        const x = 82 + index * 294;
+        ctx.fillStyle = "rgba(13,11,9,.72)";
+        ctx.fillRect(x, 370, 258, 132);
+        ctx.strokeStyle = "rgba(212,175,95,.38)";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, 370, 258, 132);
+        ctx.fillStyle = "#d4af5f";
+        ctx.font = "600 20px sans-serif";
+        ctx.fillText(label, x + 24, 408);
+        ctx.fillStyle = "#f2ece1";
+        ctx.font = "700 52px sans-serif";
+        ctx.fillText(String(value || "?"), x + 22, 473);
+      });
+      const data = canvas.toDataURL("image/webp", .76);
+      return shareImageBytes(data) > 0 && shareImageBytes(data) <= SHARE_IMAGE_TARGET_BYTES ? data : "";
+    } catch (_) {
+      return "";
+    }
   }
 
   function appendPreviewParams(params, preview) {
@@ -818,7 +965,7 @@
   window.LBT_shareLink = {
     snapshotState, encodeState, decodeToken, hydratePersonaReference, createUrl, createPublishedUrl,
     createTinyUrl, publishExternalTokens, externalViewerUrl, shortViewerUrl, ogpGatewayUrl, externalSourceFromLocation, shortSourcesFromLocation, externalSourcesFromLocation,
-    tokenFromLocation, tokenFromExternalSource, tokenFromOgpGateway, previewFromLocation, sharePreview, PRACTICAL_DISCORD_URL_LENGTH,
+    tokenFromLocation, tokenFromExternalSource, tokenFromOgpGateway, previewFromLocation, sharePreview, createDefaultOgpImageData, PRACTICAL_DISCORD_URL_LENGTH,
     SHARE_IMAGE_TARGET_BYTES, shareImageBytes, validateShareImageForPublish
   };
 })();

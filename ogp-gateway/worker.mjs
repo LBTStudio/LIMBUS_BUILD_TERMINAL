@@ -136,12 +136,14 @@ export function previewFromSnapshot(snapshot) {
   const personaName = Array.from(rawPersonaName).slice(0, 48).join("") + (Array.from(rawPersonaName).length > 48 ? "…" : "");
   const hp = String(snapshot?.hp ?? "?").trim().slice(0, 12) || "?";
   const san = String(snapshot?.san ?? "?").trim().slice(0, 12) || "?";
+  const speed = String(snapshot?.speed ?? "?").trim().slice(0, 16) || "?";
   const sync = selectedSync(snapshot);
   return {
     personaName,
     title: personaName,
-    description: [`HP ${hp}`, `SAN ${san}`, sync].filter(Boolean).join(" ｜ "),
-    shareImageData: String(snapshot?.shareImageData || "")
+    description: [`HP ${hp}`, `SAN ${san}`, `SPD ${speed}`, sync].filter(Boolean).join(" ｜ "),
+    shareImageData: String(snapshot?.shareImageData || ""),
+    ogpImageData: String(snapshot?.ogpImageData || "")
   };
 }
 
@@ -151,7 +153,8 @@ async function enrichOfficialPersona(snapshot, fetchImpl) {
   const needsName = !String(snapshot?.personaSrc?.name || snapshot?.charName || "").trim();
   const needsHp = snapshot?.hp === undefined || snapshot?.hp === null || snapshot?.hp === "";
   const needsSan = snapshot?.san === undefined || snapshot?.san === null || snapshot?.san === "";
-  if ((!needsName && !needsHp && !needsSan) || !["n", "t"].includes(mode) || ref?.no === undefined || ref?.no === null) return snapshot;
+  const needsSpeed = snapshot?.speed === undefined || snapshot?.speed === null || snapshot?.speed === "";
+  if ((!needsName && !needsHp && !needsSan && !needsSpeed) || !["n", "t"].includes(mode) || ref?.no === undefined || ref?.no === null) return snapshot;
   try {
     const response = await fetchImpl(OFFICIAL_DB_URL, { headers: { Accept: "application/json" } });
     if (!response.ok) return snapshot;
@@ -163,7 +166,8 @@ async function enrichOfficialPersona(snapshot, fetchImpl) {
       ...snapshot,
       personaSrc: snapshot?.personaSrc?.name ? snapshot.personaSrc : { name: persona.name },
       hp: needsHp ? persona.hp : snapshot.hp,
-      san: needsSan ? persona.san : snapshot.san
+      san: needsSan ? persona.san : snapshot.san,
+      speed: needsSpeed ? persona.speed : snapshot.speed
     };
   } catch (_) {
     return snapshot;
@@ -200,7 +204,8 @@ function ogpHtml(requestUrl, snapshot) {
   const url = new URL(requestUrl);
   const preview = previewFromSnapshot(snapshot);
   const target = shareTarget(url);
-  const image = /^data:image\/(webp|jpeg);base64,/.test(preview.shareImageData)
+  const imageData = preview.shareImageData || preview.ogpImageData;
+  const image = /^data:image\/(webp|jpeg);base64,/.test(imageData)
     ? `${url.origin}/i?${url.searchParams.toString()}`
     : STATIC_FALLBACK_IMAGE;
   const safeTarget = htmlEscape(target);
@@ -219,7 +224,7 @@ export async function handleRequest(request, { fetchImpl = fetch } = {}) {
       return new Response(token, { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*", "X-Content-Type-Options": "nosniff" } });
     }
     const snapshot = await loadSnapshot(sources, fetchImpl);
-    if (url.pathname === "/i") return imageResponse(snapshot.shareImageData, request.method) || new Response("共有画像は設定されていません", { status: 404, headers: { "Cache-Control": "no-store" } });
+    if (url.pathname === "/i") return imageResponse(snapshot.shareImageData || snapshot.ogpImageData, request.method) || new Response("共有画像は設定されていません", { status: 404, headers: { "Cache-Control": "no-store" } });
     return ogpHtml(request.url, await enrichOfficialPersona(snapshot, fetchImpl));
   } catch (error) {
     return fallbackHtml(url, error?.message || "共有データの取得に失敗しました");
