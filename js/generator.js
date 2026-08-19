@@ -194,9 +194,31 @@ const DEFAULT_STATUS_LIST = [
   { label: "\u30AF\u30A4\u30C3\u30AF", initial: 0, max: 10 },
   { label: "\u675F\u7E1B", initial: 0, max: 10 }
 ];
+const UNSYNC_ONLY_ENHANCEMENT_CATEGORIES = new Set(["persona", "prisoner"]);
+function enhancementCategory(entry) {
+  if (entry?.category) return String(entry.category);
+  const rows = [...(window.DB?.normal_enhancements || []), ...(window.DB?.special_enhancements || [])];
+  return String(rows.find((row) => row?.name === entry?.name)?.category || "");
+}
+function isUnsyncedOnlyEnhancement(entry) {
+  return UNSYNC_ONLY_ENHANCEMENT_CATEGORIES.has(enhancementCategory(entry));
+}
+function isEnhancementActiveForState(state, entry) {
+  return !(state?.syncedManual && isUnsyncedOnlyEnhancement(entry));
+}
+function getActiveEnhancements(state) {
+  return (state?.enhancements || []).filter((entry) => isEnhancementActiveForState(state, entry));
+}
+function stateWithActiveEnhancements(state) {
+  return { ...state, enhancements: getActiveEnhancements(state) };
+}
+window.LBT_isUnsyncedOnlyEnhancement = isUnsyncedOnlyEnhancement;
+window.LBT_isEnhancementActiveForState = isEnhancementActiveForState;
+window.LBT_getActiveEnhancements = getActiveEnhancements;
+
 function detectMTMods(state) {
   const hasSPP = (kw) => state.supports.some((s) => (s.name || "").includes(kw));
-  const hasENH = (kw) => (state.enhancements || []).some((e) => (e.name || "").includes(kw));
+  const hasENH = (kw) => getActiveEnhancements(state).some((e) => (e.name || "").includes(kw));
   const atkModLabel = hasSPP("\u58CA\u3057\u7815\u304F\u6253\u6483") ? "\u6253\u6483\u88DC\u6B63" : hasSPP("\u5207\u308A\u4F0F\u305B\u308B\u65AC\u6483") ? "\u65AC\u6483\u88DC\u6B63" : hasSPP("\u523A\u3057\u8CAB\u304F\u8CAB\u901A") ? "\u8CAB\u901A\u88DC\u6B63" : null;
   const hasVigor = hasENH("\u71C3\u3048\u4E0A\u304C\u308B\u95D8\u5FD7");
   const hasDefMod = hasENH("\u9032\u3080\u3079\u304D\u5B88\u5099");
@@ -281,7 +303,7 @@ function hasActiveSkillDiscard(state) {
   return SUTE_ACTIVE.test(dump);
 }
 function buildPalette(state) {
-  const p = state;
+  const p = stateWithActiveEnhancements(state);
   const sanBase = p.san === "" || p.san == null ? 50 : parseInt(p.san, 10);
   const san = sanBase + computeEnhancementBonuses(p).san;
   const speed = sanitizeInline(p.speed) || "2d4";
@@ -703,7 +725,7 @@ function getOwnedItemEntries(state) {
   return (state?.inventory || []).map((entry) => ({ entry, item: byId.get(String(entry?.itemId)) })).filter(({ item }) => !!item);
 }
 function buildMemo(state) {
-  const p = state;
+  const p = stateWithActiveEnhancements(state);
   const L = [];
   L.push(`\u3010PC\u3011${p.charName || "\u30AD\u30E3\u30E9\u30AF\u30BF\u30FC"}${p.plName ? `\u3000\u3010PL\u3011${p.plName}` : ""}`);
   L.push("");
@@ -796,7 +818,7 @@ function buildMemo(state) {
 }
 function computeEnhancementBonuses(state) {
   const bonus = { hp: 0, san: 0 };
-  const list = state.enhancements || [];
+  const list = getActiveEnhancements(state);
   for (const e of list) {
     const t = String(e.effect || "");
     let m;
@@ -885,7 +907,7 @@ function filterOutputSections(text, excluded) {
 }
 window.LBT_splitOutputSections = splitOutputSections;
 function buildCcfoliaJSON(state) {
-  const p = state;
+  const p = stateWithActiveEnhancements(state);
   const charName = p.charName || "\u30AD\u30E3\u30E9\u30AF\u30BF\u30FC";
   const plName = p.plName || "";
   const color = p.color || "#c8a84b";
@@ -894,7 +916,7 @@ function buildCcfoliaJSON(state) {
   const hp = (p.hp === "" || p.hp == null ? 100 : parseInt(p.hp, 10)) + _enhBonus.hp;
   const san = (p.san === "" || p.san == null ? 50 : parseInt(p.san, 10)) + _enhBonus.san;
   const morale = p.moraleLine || String(Math.floor(san * 0.25));
-  const { atkModLabel, hasVigor, hasDefMod } = detectMTMods(state);
+  const { atkModLabel, hasVigor, hasDefMod } = detectMTMods(p);
   const normalizeLabel = (label) => window.LBT_normalizeStatusLabel ? window.LBT_normalizeStatusLabel(label) : String(label || "").trim();
   // 設定画面とJSON出力は必ず同じ根拠集合を使う。バリアだけの特例は持たない。
   const managedEntries = window.LBT_getStateSelfManagedStatusEntries ? window.LBT_getStateSelfManagedStatusEntries(p) : [];
@@ -1030,7 +1052,7 @@ function buildCcfoliaJSON(state) {
   return obj;
 }
 function buildShareSheetHTML(state) {
-  const p = state;
+  const p = stateWithActiveEnhancements(state);
   const personaSync = getCurrentPersonaSyncState(p);
   const personaName = formatPersonaDisplayName(p);
   const showSyncRank = p.shareOptions?.showSyncRank !== false;
@@ -1729,6 +1751,7 @@ window.LBT_gen = {
   downloadShareSheet,
   resolveFormulas,
   detectMTMods,
+  getActiveEnhancements,
   DEFAULT_STATUS_LIST,
   DEF_FMLS
 };

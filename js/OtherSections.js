@@ -231,7 +231,8 @@ const SupportSection = ({ state, dispatch }) => {
   const [sourceFilter, setSourceFilter] = React.useState("all");
   const [catalogMode, setCatalogMode] = React.useState("standard");
   const [selected, setSelected] = React.useState(null);
-  const hasDeathSlot = (state.enhancements || []).some((e) => e.name === "死亡後パッシブ追加");
+  const activeEnhancements = window.LBT_getActiveEnhancements?.(state) || (state.enhancements || []);
+  const hasDeathSlot = activeEnhancements.some((e) => e.name === "死亡後パッシブ追加");
   const applyFilters = (list) => {
     const q = query.trim().toLowerCase();
     return (list || []).filter((s) => {
@@ -262,7 +263,7 @@ const SupportSection = ({ state, dispatch }) => {
   const visibleTotal = catalogMode === "death" ? (DB.death_passives || []).length : catalogMode === "all" ? (DB.support_passives || []).length + (DB.death_passives || []).length : (DB.support_passives || []).length;
   const equipped = Array.isArray(state.supports) ? state.supports : [];
   const deathSupport = state.deathSupport || null;
-  const maxSupports = (state.enhancements || []).some((e) => e.name === "サポートスロット追加") ? 3 : 2;
+  const maxSupports = activeEnhancements.some((e) => e.name === "サポートスロット追加") ? 3 : 2;
   const isEquipped = (name) => equipped.some((s) => s.name === name) || deathSupport?.name === name;
   const selectedIsDeath = !!(selected && (DB.death_passives || []).some((s) => s.name === selected.name && (s.cond || "") === (selected.cond || "")));
   const patchSupport = (id, patch) => dispatch({ type: "PATCH_SUPPORT", id, patch });
@@ -1153,7 +1154,7 @@ const SpiritSection = ({ state, dispatch }) => {
     );
   }))), selected ? /* @__PURE__ */ React.createElement("div", { className: "codex-detail" }, /* @__PURE__ */ React.createElement("div", { className: "detail-head", style: { "--sin-primary": "var(--gold)" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-eyebrow" }, /* @__PURE__ */ React.createElement("span", { className: "detail-num" }, selected.price > 0 ? `LP ${selected.price}` : "\u521D\u671F\u9078\u629E\u53EF"), /* @__PURE__ */ React.createElement("span", { className: "detail-type" }, "SPIRIT / \u7CBE\u795E")), /* @__PURE__ */ React.createElement("div", { className: "detail-name" }, selected.name)), /* @__PURE__ */ React.createElement("div", { className: "detail-body" }, selected.always_effect && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u5E38\u6642\u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive" }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" }, selected.always_effect))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u58EB\u6C17\u4F4E\u4E0B\u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive", style: { borderLeftColor: "var(--warn)" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" }, selected.morale_effect || "\u306A\u3057"))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u6DF7\u4E71\u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive", style: { borderLeftColor: "var(--err)" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" }, selected.confuse_effect)))), /* @__PURE__ */ React.createElement("div", { className: "detail-actions" }, state.spirit === selected.name ? /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--gold)", textAlign: "center", fontFamily: "var(--f-display)", letterSpacing: "0.2em", textTransform: "uppercase" } }, "\u2605 \u73FE\u5728\u88C5\u5099\u4E2D") : /* @__PURE__ */ React.createElement(Button, { variant: "primary", onClick: () => applySpirit(selected), icon: "check" }, "\u3053\u306E\u7CBE\u795E\u3092\u88C5\u5099"))) : /* @__PURE__ */ React.createElement("div", { className: "codex-detail" }, /* @__PURE__ */ React.createElement("div", { className: "detail-empty" }, /* @__PURE__ */ React.createElement("div", { className: "detail-empty-icon" }, "\u{1F701}"), /* @__PURE__ */ React.createElement("div", { className: "t-label" }, "\u5DE6\u306E\u30AB\u30FC\u30C9\u3092\u9078\u629E"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-11)", color: "var(--tx-mute)", marginTop: 8 } }, "\u7CBE\u795E\u3092\u9078\u629E\u3059\u308B\u3068\u8A73\u7D30\u304C\u8868\u793A\u3055\u308C\u307E\u3059\u3002", /* @__PURE__ */ React.createElement("br", null), "\u30C0\u30D6\u30EB\u30AF\u30EA\u30C3\u30AF\u3067\u88C5\u5099\u3002")))));
 };
-const EnhancementSection = ({ state, dispatch }) => {
+const LegacyEnhancementSection = ({ state, dispatch }) => {
   const setEnh = (list) => dispatch({ type: "SET_FIELD", field: "enhancements", value: list });
   const addEnh = (e) => {
     if (state.enhancements.some((x) => x.name === e.name)) {
@@ -1180,6 +1181,75 @@ const EnhancementSection = ({ state, dispatch }) => {
     { v: "sync", l: "\u540C\u671F\u5316\u4EBA\u683C" }
   ];
   return /* @__PURE__ */ React.createElement("div", { className: "stack-4" }, /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { className: "card-header" }, /* @__PURE__ */ React.createElement("span", { className: "t-label" }, "\u5F37\u5316DB"), /* @__PURE__ */ React.createElement("div", { className: "grow" }), /* @__PURE__ */ React.createElement("div", { className: "segmented" }, cats.map((c) => /* @__PURE__ */ React.createElement("button", { key: c.v, className: category === c.v ? "is-active" : "", onClick: () => setCategory(c.v) }, c.l)))), /* @__PURE__ */ React.createElement("div", { style: { padding: "var(--s-2)", maxHeight: 320, overflowY: "auto" } }, /* @__PURE__ */ React.createElement("div", { className: "spp-list", style: { maxHeight: "none", padding: 0, background: "transparent", border: "none" } }, catList.map((e) => /* @__PURE__ */ React.createElement("div", { key: e.name, className: "spp-item", onClick: () => addEnh(e) }, /* @__PURE__ */ React.createElement("div", { className: "spp-item-name" }, e.name, " ", /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-10)", color: "var(--gold)", fontWeight: 400 } }, "\u6B20\u7247", e.shards)), /* @__PURE__ */ React.createElement("div", { className: "spp-item-eff" }, e.effect)))))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "t-label", style: { marginBottom: "var(--s-2)" } }, "\u53D6\u5F97\u6E08\u307F (", state.enhancements.length, ")"), state.enhancements.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "empty" }, "\u5F37\u5316\u306F\u3042\u308A\u307E\u305B\u3093") : /* @__PURE__ */ React.createElement("div", { className: "stack-2" }, state.enhancements.map((e) => /* @__PURE__ */ React.createElement("div", { key: e.id, className: "list-item" }, /* @__PURE__ */ React.createElement("div", { className: "list-item-head" }, /* @__PURE__ */ React.createElement("span", { className: "list-item-title" }, e.name), /* @__PURE__ */ React.createElement("span", { className: "badge" }, "\u6B20\u7247", e.shards), /* @__PURE__ */ React.createElement("button", { className: "btn-ghost btn-icon", onClick: () => removeEnh(e.id) }, /* @__PURE__ */ React.createElement(Icon, { name: "trash", size: 12 }))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-12)", color: "var(--tx-2)" } }, e.effect))))));
+};
+const EnhancementSection = ({ state, dispatch }) => {
+  const h = React.createElement;
+  const setEnh = (list) => dispatch({ type: "SET_FIELD", field: "enhancements", value: list });
+  const isUnsyncedOnly = window.LBT_isUnsyncedOnlyEnhancement || ((entry) => ["persona", "prisoner"].includes(entry?.category));
+  const isUnavailableDuringSync = (entry) => !!state.syncedManual && isUnsyncedOnly(entry);
+  const activeEnhancements = window.LBT_getActiveEnhancements?.(state) || (state.enhancements || []).filter((entry) => !isUnavailableDuringSync(entry));
+  const addEnh = (entry) => {
+    if (isUnavailableDuringSync(entry)) {
+      toast("未同期専用の強化は、同期化して編集した人格には追加できません");
+      return;
+    }
+    if ((state.enhancements || []).some((current) => current.name === entry.name)) {
+      toast("既に追加済み");
+      return;
+    }
+    setEnh([...(state.enhancements || []), { ...entry, id: `enh-${Date.now()}` }]);
+    toast(`『${entry.name}』を追加`);
+  };
+  const removeEnh = (id) => setEnh((state.enhancements || []).filter((entry) => entry.id !== id));
+  const [category, setCategory] = React.useState("special");
+  React.useEffect(() => {
+    if (state.syncedManual && ["persona", "prisoner"].includes(category)) setCategory("sync");
+  }, [state.syncedManual, category]);
+  const sourceRows = (category === "special" ? (DB.special_enhancements || []) : (DB.normal_enhancements || []).filter((entry) => entry.category === category)).filter((entry) => !isUnavailableDuringSync(entry));
+  const bodyRows = sourceRows.filter((entry) => String(entry?.name || "").startsWith("肉体強化"));
+  const mindRows = sourceRows.filter((entry) => String(entry?.name || "").startsWith("精神強化"));
+  const otherRows = sourceRows.filter((entry) => !bodyRows.includes(entry) && !mindRows.includes(entry));
+  const pairedSpecialRows = Array.from({ length: Math.max(bodyRows.length, mindRows.length) }, (_, index) => [bodyRows[index], mindRows[index]].filter(Boolean)).flat();
+  const catalogRows = bodyRows.length || mindRows.length ? [...pairedSpecialRows, ...otherRows] : sourceRows;
+  const categories = [
+    { value: "special", label: "特殊強化", common: true },
+    { value: "persona", label: "通常人格" },
+    { value: "prisoner", label: "LCB人格" },
+    { value: "sync", label: "同期化人格", common: true }
+  ];
+  return h("div", { className: "stack-4" },
+    h(Card, null,
+      h("div", { className: "card-header" },
+        h("span", { className: "t-label" }, "強化DB"),
+        h("div", { className: "grow" }),
+        h("div", { className: "segmented", "aria-label": "強化カテゴリ" }, categories.map((entry) => {
+          const disabled = !!state.syncedManual && !entry.common;
+          return h("button", { key: entry.value, className: category === entry.value ? "is-active" : "", disabled, title: disabled ? "未同期専用：同期化して編集した人格には使えません" : "", onClick: () => setCategory(entry.value) }, entry.label);
+        }))
+      ),
+      state.syncedManual && h("div", { className: "settings-section-note", style: { padding: "0 var(--s-3)" } }, "同期化中：通常人格・LCB人格の未同期専用強化は選択・出力されません。特殊強化と同期化人格用強化は通常どおり利用できます。"),
+      h("div", { style: { padding: "var(--s-2)", maxHeight: 320, overflowY: "auto" } },
+        h("div", { className: "spp-list", style: { maxHeight: "none", padding: 0, background: "transparent", border: "none" } }, catalogRows.map((entry) => h("div", { key: entry.name, className: "spp-item", onClick: () => addEnh(entry) },
+          h("div", { className: "spp-item-name" }, entry.name, " ", h("span", { style: { fontSize: "var(--fs-10)", color: "var(--gold)", fontWeight: 400 } }, "欠片", entry.shards)),
+          h("div", { className: "spp-item-eff" }, entry.effect)
+        )))
+      )
+    ),
+    h("div", null,
+      h("div", { className: "t-label", style: { marginBottom: "var(--s-2)" } }, `取得済み (${activeEnhancements.length}/${(state.enhancements || []).length})`),
+      !(state.enhancements || []).length ? h("div", { className: "empty" }, "強化はありません") : h("div", { className: "stack-2" }, (state.enhancements || []).map((entry) => {
+        const inactive = isUnavailableDuringSync(entry);
+        return h("div", { key: entry.id, className: "list-item", style: inactive ? { opacity: .55 } : void 0 },
+          h("div", { className: "list-item-head" },
+            h("span", { className: "list-item-title" }, entry.name),
+            h("span", { className: "badge" }, inactive ? "同期中は対象外" : `欠片${entry.shards || ""}`),
+            h("button", { className: "btn-ghost btn-icon", onClick: () => removeEnh(entry.id), title: "強化を削除" }, h(Icon, { name: "trash", size: 12 }))
+          ),
+          h("div", { style: { fontSize: "var(--fs-12)", color: "var(--tx-2)" } }, entry.effect)
+        );
+      }))
+    )
+  );
 };
 const SYNC_RANKS = [null, "0", "00", "000"];
 const isRosterPersonaSynced = (entry) => Boolean(entry?.syncMax || entry?.syncRank === "0" || entry?.syncRank === "00" || entry?.syncRank === "000");
