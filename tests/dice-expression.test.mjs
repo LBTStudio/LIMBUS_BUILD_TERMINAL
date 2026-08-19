@@ -29,7 +29,7 @@ test("d値・d数は中括弧付きCCFOLIA式を二重化せず、そのまま�
   const json = generator.buildCcfoliaJSON(state);
   const statusLabels = json.data.status.map((entry) => entry.label);
 
-  assert.match(palette, /\(2\+\{追加数\}\/10\)d\(6\+\{強化値\}\/10-\(\{麻痺\}\*4\+5\)\/9\)/);
+  assert.match(palette, /\(2\+\{追加数\}\/10\)d\(6-\{強化値\}\/10-\(\{麻痺\}\*4\+5\)\/9\)/);
   assert.equal(palette.includes("{{強化値}/10}"), false);
   assert.equal(palette.includes("{{追加数}/10}"), false);
   assert.equal(statusLabels.includes("{強化値}/10"), false);

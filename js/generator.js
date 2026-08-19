@@ -89,6 +89,14 @@ function normalizeDiceVarExpr(value) {
   if (/[{}]/.test(raw) || /[+\-*/()]/.test(raw)) return raw;
   return `{${raw}}`;
 }
+function isDiceVarExpression(value) {
+  const raw = sanitizeInline(value);
+  if (!raw) return false;
+  // {変数名}だけは従来の変数名入力として扱う。
+  // {変数名}/10のような中括弧付き式は、CCFOLIA向けにダイス面から引く。
+  if (/^\{[^{}]+\}$/.test(raw)) return false;
+  return /[{}+\-*/()]/.test(raw);
+}
 // JSONへ初期値0の変数を追加できるのは、単純な変数名だけである。
 // 式は既存ステータスを参照するため、式全体をラベルとして追加してはならない。
 function diceVarStatusLabel(value) {
@@ -107,14 +115,16 @@ function buildMahiFormula(roll, dval, fix, dPlusVar, dCntVar) {
   const mahi = "({麻痺}*4+5)/9";
   const dPlusExpr = normalizeDiceVarExpr(dPlusVar);
   const dCntExpr = normalizeDiceVarExpr(dCntVar);
+  const dPlusIsExpression = isDiceVarExpression(dPlusVar);
   const wrapN = (nExpr) => dCntExpr ? `(${nExpr}+${dCntExpr})` : nExpr;
   const buildDside = (vExpr) => {
-    const withPlus = dPlusExpr ? `${vExpr}+${dPlusExpr}` : vExpr;
+    const withPlus = dPlusExpr ? (dPlusIsExpression ? `${vExpr}-${dPlusExpr}` : `${vExpr}+${dPlusExpr}`) : vExpr;
     return `(${withPlus}-${mahi})`;
   };
   const varDM = roll.match(/^(\d+)d\(([^)]+)\)(.*)$/);
   if (varDM) {
-    return `${wrapN(varDM[1])}d(${dPlusExpr ? varDM[2] + "+" + dPlusExpr : varDM[2]}-${mahi})${varDM[3]}${ex}`;
+    const dieExpr = dPlusExpr ? (dPlusIsExpression ? `${varDM[2]}-${dPlusExpr}` : `${varDM[2]}+${dPlusExpr}`) : varDM[2];
+    return `${wrapN(varDM[1])}d(${dieExpr}-${mahi})${varDM[3]}${ex}`;
   }
   const specN = roll.match(/^\(([^)]+)\)d(\d+)(.*)$/);
   if (specN) {
