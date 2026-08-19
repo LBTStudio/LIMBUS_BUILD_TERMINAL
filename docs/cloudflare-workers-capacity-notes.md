@@ -39,9 +39,9 @@ Workers CacheはWorkerコードの実行前にキャッシュを照会し、ヒ�
 
 ## Cache設定を維持する配備手順
 
-Workers Scripts APIによる従来のモジュール再アップロードでは、既存の`cache_options`を初期化する。以後の配備はCloudflare Version Upload APIを使い、バージョンmetadataで`cache_options: { enabled: true, cross_version_cache: false }`を明示してから、作成したversion IDを100%のDeploymentとして割り当てる。最後に同一OGP URLを2回取得し、1回目の`CF-Cache-Status: MISS`、2回目の`HIT`を確認する。
+Workers Scripts APIによる従来のモジュール再アップロードでは、既存の`cache_options`を初期化する。以後の配備はCloudflare Version Upload APIを使い、バージョンmetadataで`cache_options: { enabled: true, cross_version_cache: true }`を明示してから、作成したversion IDを100%のDeploymentとして割り当てる。共有カードは不変であるため、これにより実装更新後も既存キャッシュを再利用できる。カードの形式を意図的に更新する場合だけ、共有URLの`cv`世代を増やして新しいカードキャッシュを作る。最後に同一OGP URLを2回取得し、1回目の`CF-Cache-Status: MISS`、2回目の`HIT`を確認する。
 
-2026-08-19にこの手順で、`cache_options.enabled: true`を持つ無状態・bindingsなしの本番バージョンを配備し、実URLで`MISS → HIT`を確認した。この手順により、初回のOGP HTML・画像生成だけがWorkerを実行し、同一共有への後続取得はWorkerコード・Rentry・Telegraphを実行せずキャッシュから返る。キャッシュヒットも日次受信枠には計上されるため、配備検証では「受信枠の削減」ではなく「CPU・外部取得・同時障害の削減」として評価する。
+2026-08-19にこの手順で、`cache_options.enabled: true`および`cross_version_cache: true`を持つ無状態・bindingsなしの本番バージョンを配備し、`cv=1`付き実URLで`MISS → HIT`を確認した。この手順により、初回のOGP HTML・画像生成だけがWorkerを実行し、同一共有への後続取得はWorkerコード・Rentry・Telegraphを実行せずキャッシュから返る。キャッシュヒットも日次受信枠には計上されるため、配備検証では「受信枠の削減」ではなく「CPU・外部取得・同時障害の削減」として評価する。
 
 ## 日次受信上限を超える場合の候補検討
 

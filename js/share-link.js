@@ -17,6 +17,9 @@
   const RENTRY_TOKEN_PART_LENGTH = 180;
   const RENTRY_READ_PROXY = "https://r.jina.ai/http://rentry.co/";
   const EXTERNAL_READ_TIMEOUT_MS = 6000;
+  // 共有内容は発行後に不変なので、Workerの実装更新とカード内容の世代を分ける。
+  // Worker Cacheをバージョン横断で共有しても、この値を上げた時だけOGPカードを確実に再生成できる。
+  const OGP_CARD_CACHE_VERSION = "1";
   // 設定時だけ短縮共有を無状態OGPゲートウェイへ渡す。未設定または配備失敗時は、
   // 従来どおりGitHub Pagesのshare.htmlを直接使うため、共有機能を止めない。
   const OGP_GATEWAY_FALLBACK_ORIGIN = "";
@@ -530,8 +533,10 @@
     const origin = ogpGatewayOrigin();
     if (!origin) return "";
     try {
-      const query = new URL(viewerUrl).search;
-      return /^\?s=/.test(query) ? `${origin}/s${query}` : "";
+      const params = new URLSearchParams(new URL(viewerUrl).search);
+      if (!params.get("s")) return "";
+      params.set("cv", OGP_CARD_CACHE_VERSION);
+      return `${origin}/s?${params.toString()}`;
     } catch (_) {
       return "";
     }

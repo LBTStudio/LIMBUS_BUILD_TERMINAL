@@ -384,7 +384,7 @@ test("同一共有を連続操作しても進行中の外部保存処理を共�
   assert.equal(first.url, second.url);
 });
 
-test("OGPゲートウェイ設定時の短縮共有は中立な個別OGP入口を経由する", async () => {
+test("OGPゲートウェイ設定時の短縮共有は個別OGP入口と明示的なカードキャッシュ世代を経由する", async () => {
   const share = loadShareLink(null, { LBT_OGP_GATEWAY_ORIGIN: "https://lbt-ogp.lbtstudio-share.workers.dev" });
   const fetchMock = async (url) => {
     if (String(url) === "https://rentry.co/api/new") return new Response(JSON.stringify({ url_short: "lbt-rentry-ogp" }), { status: 200 });
@@ -393,8 +393,8 @@ test("OGPゲートウェイ設定時の短縮共有は中立な個別OGP入口�
     throw new Error(`unexpected URL: ${url}`);
   };
   const result = await share.createPublishedUrl({ charName: "OGP検証", roster: { personas: [] } }, "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html", fetchMock);
-  assert.equal(result.url, "https://lbt-ogp.lbtstudio-share.workers.dev/s?s=t:LBT-OGP-Test,r:lbt-rentry-ogp");
-  assert.equal(share.ogpGatewayUrl("https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html?s=t:LBT-OGP-Test"), "https://lbt-ogp.lbtstudio-share.workers.dev/s?s=t:LBT-OGP-Test");
+  assert.equal(result.url, "https://lbt-ogp.lbtstudio-share.workers.dev/s?s=t%3ALBT-OGP-Test%2Cr%3Albt-rentry-ogp&cv=1");
+  assert.equal(share.ogpGatewayUrl("https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html?s=t:LBT-OGP-Test"), "https://lbt-ogp.lbtstudio-share.workers.dev/s?s=t%3ALBT-OGP-Test&cv=1");
 });
 
 test("Telegraphの安全容量内に収まる共有画像はRentry発行失敗時も画像を保持して短縮共有する", async () => {
