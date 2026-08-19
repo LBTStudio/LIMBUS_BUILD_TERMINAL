@@ -1657,7 +1657,25 @@ async function openShareSheet(state) {
         const statusEl = root.querySelector('[data-status="publish"]');
         if (statusEl) {
           const resultArea = statusEl.parentElement;
-          resultArea.querySelectorAll(".share-url-field,.share-url-backups").forEach((el) => el.remove());
+          resultArea.querySelectorAll(".share-url-field,.share-url-backups,.share-publish-card").forEach((el) => el.remove());
+          const preview = r.preview || {};
+          const summary = document.createElement("div");
+          summary.className = "share-publish-card";
+          const cardTitle = document.createElement("div");
+          cardTitle.className = "share-publish-card-title";
+          cardTitle.textContent = copied ? "共有内容を確認 — コピー済み" : "共有内容を確認 — 手動コピー待ち";
+          const persona = document.createElement("div");
+          persona.className = "share-publish-card-persona";
+          persona.textContent = preview.personaName || state.personaSrc?.name || state.charName || "名称未設定";
+          const stats = document.createElement("div");
+          stats.className = "share-publish-card-stats";
+          stats.textContent = `HP ${preview.hp || "?"} / SAN ${preview.san || "?"} / SPD ${state.speed || "?"}`;
+          const syncText = preview.syncMax ? `${preview.syncRank ? `同期${preview.syncRank} / ` : ""}MAX` : preview.syncRank ? `同期${preview.syncRank}` : "同期未設定";
+          const meta = document.createElement("div");
+          meta.className = "share-publish-card-meta";
+          meta.textContent = `${r.reused ? "直近URLを再利用" : "新しい共有URLを発行"} · ${syncText} · OGP: ${state.shareImageData ? "手動画像" : "自動生成カード"}`;
+          summary.append(cardTitle, persona, stats, meta);
+          resultArea.appendChild(summary);
           const addUrlField = (parent, entry, primary) => {
             const wrap = document.createElement("div");
             wrap.className = "share-url-field";
@@ -1711,7 +1729,7 @@ async function openShareSheet(state) {
         }
       } catch (e) {
         const message = e.message || "\u516C\u958B\u5931\u6557";
-        root.querySelector('[data-status="publish"]')?.parentElement?.querySelectorAll(".share-url-field,.share-url-backups").forEach((el) => el.remove());
+        root.querySelector('[data-status="publish"]')?.parentElement?.querySelectorAll(".share-url-field,.share-url-backups,.share-publish-card").forEach((el) => el.remove());
         const retry = /\u5171\u6709\u753B\u50CF.*(?:\u898F\u5B9A\u91CF|\u518D\u30A2\u30C3\u30D7\u30ED\u30FC\u30C9|\u5F62\u5F0F)/.test(message)
           ? "\u2014 Base info\u3067\u5171\u6709\u753B\u50CF\u3092\u518D\u30A2\u30C3\u30D7\u30ED\u30FC\u30C9\u3057\u3066\u304B\u3089\u3001\u3082\u3046\u4E00\u5EA6\u5171\u6709\u30EA\u30F3\u30AF\u3092\u767A\u884C\u3057\u3066\u304F\u3060\u3055\u3044"
           : "\u2014 \u2460\u30C0\u30A6\u30F3\u30ED\u30FC\u30C9\u304B\u3001\u6642\u9593\u3092\u7F6E\u3044\u3066\u518D\u8A66\u884C\u3057\u3066\u304F\u3060\u3055\u3044";

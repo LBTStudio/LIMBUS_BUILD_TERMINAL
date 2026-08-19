@@ -82,6 +82,9 @@ const LivePreview = ({ state, dispatch }) => {
   const memo = React.useMemo(() => LBT_gen.buildMemo(previewData), [previewData]);
   const palette = React.useMemo(() => LBT_gen.buildPalette(previewData), [previewData]);
   const json = React.useMemo(() => JSON.stringify(LBT_gen.buildCcfoliaJSON(previewData), null, 2), [previewData]);
+  const readiness = window.LBT_getSessionReadiness?.(state) || [];
+  const readinessKey = readiness.map((entry) => entry.id).join(",");
+  const readinessLabel = readiness.map((entry) => entry.label).join("・");
   const memoSections = React.useMemo(() => splitPreviewSections(memo), [memo]);
   const paletteSections = React.useMemo(() => splitPreviewSections(palette), [palette]);
   const collapsedMap = state.ui.previewCollapsed || {};
@@ -144,6 +147,33 @@ const LivePreview = ({ state, dispatch }) => {
     edgeToggle.setAttribute("aria-label", edgeToggle.title);
     edgeToggle.onclick = () => dispatch({ type: "SET_UI", ui: { previewOpen: !previewOpen } });
   }, [previewOpen, dispatch]);
+  React.useEffect(() => {
+    const existing = document.getElementById("lbt-preview-readiness");
+    if (!readiness.length) {
+      existing?.remove();
+      return;
+    }
+    const tabs = document.querySelector(".preview .preview-tabs");
+    if (!tabs) return;
+    const indicator = existing || document.createElement("div");
+    indicator.id = "lbt-preview-readiness";
+    indicator.className = "preview-readiness";
+    indicator.setAttribute("role", "status");
+    const count = document.createElement("span");
+    count.className = "preview-readiness-count";
+    count.textContent = `● 要確認 ${readiness.length}`;
+    const list = document.createElement("span");
+    list.className = "preview-readiness-list";
+    list.title = readinessLabel;
+    list.textContent = readinessLabel;
+    const jump = document.createElement("button");
+    jump.className = "preview-readiness-jump";
+    jump.type = "button";
+    jump.textContent = "確認";
+    jump.onclick = () => dispatch({ type: "SET_UI", ui: { currentSection: readiness[0]?.id || "persona" } });
+    indicator.replaceChildren(count, list, jump);
+    tabs.insertAdjacentElement("afterend", indicator);
+  }, [readinessKey, readinessLabel, dispatch]);
   // V17: applySectionOrder は DnD フックより後に定義されるため ref 経由で参照する
   const applySectionOrderRef = React.useRef(() => {});
   // V17: ユーザー定義の並び順（ui.previewSectionOrder[prefix]）を適用する。

@@ -3,15 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LIMBUS BUILD TERMINAL V65r15</title>
+<title>LIMBUS BUILD TERMINAL V65r16</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Cormorant+Garamond:wght@500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@500;700&family=Share+Tech+Mono&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/design-system.css?v=64r66">
-		<link rel="stylesheet" href="assets/workspace.css?v=65r15">
-<link rel="stylesheet" href="assets/persona-codex.css?v=64r51">
+			<link rel="stylesheet" href="assets/workspace.css?v=65r16">
+	<link rel="stylesheet" href="assets/persona-codex.css?v=65r16">
 		<link rel="stylesheet" href="assets/sections.css?v=65r2">
-<link rel="stylesheet" href="assets/v52-overlay.css?v=64r51">
+	<link rel="stylesheet" href="assets/v52-overlay.css?v=65r16">
 	<link rel="stylesheet" href="assets/v53-overlay.css?v=64r84">
 <link rel="stylesheet" href="assets/v55-dante.css?v=64r51">
 				<link rel="stylesheet" href="assets/v56-refinements.css?v=65r10">
@@ -40,7 +40,7 @@
       function lbtBoot(){
         if(!window.DB){ document.getElementById("root").innerHTML = "<div style=\"color:#c8a84b;padding:40px;text-align:center;font-family:sans-serif\">DBの読み込みに失敗しました。</div>"; return; }
         if(!window.App){ document.getElementById("root").innerHTML = "<div style=\"color:#c8a84b;padding:40px;text-align:center;font-family:sans-serif\">アプリの読み込みに失敗しました。ページを再読み込みしてください。</div>"; return; }
-		window.LBT_VERSION = "V65r15";
+		window.LBT_VERSION = "V65r16";
 		        window.LBT_OGP_GATEWAY_ORIGIN = "https://lbt-ogp.lbtstudio-share.workers.dev";
         const _AppTree = window.LBTErrorBoundary ? React.createElement(LBTErrorBoundary, null, React.createElement(App)) : React.createElement(App);
         ReactDOM.createRoot(document.getElementById("root")).render(_AppTree);
@@ -49,15 +49,15 @@
 <script src="js/ego-slot-forms.js?v=64r51"></script>
 <script src="js/state.js?v=65r9"></script>
 					<script src="js/share-link.js?v=65r13"></script>
-				<script src="js/generator.js?v=65r14"></script>
+					<script src="js/generator.js?v=65r16"></script>
 <script src="js/ui.js?v=64r60"></script>
 <script src="js/PersonaCodex.js?v=64r57"></script>
 	<script src="js/ItemCodex.js?v=64r88"></script>
 		<script src="js/SkillDeck.js?v=65r6"></script>
 					<script src="js/OtherSections.js?v=65r14"></script>
-		<script src="js/LivePreview.js?v=64r87"></script>
+			<script src="js/LivePreview.js?v=65r16"></script>
 <script src="js/DataQuality.js?v=64r51"></script>
-		<script src="js/App.js?v=64r88"></script>
+		<script src="js/App.js?v=65r16"></script>
 <script>
   loadDB().then(lbtBoot).catch(function(){
     document.getElementById("root").innerHTML = "<div style=\"color:#c8a84b;padding:40px;text-align:center;font-family:sans-serif\">DBの読み込みに失敗しました。file:// で直接開いている場合はローカルサーバー経由で開いてください（README参照）。</div>";

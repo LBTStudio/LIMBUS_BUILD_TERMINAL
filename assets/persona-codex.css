@@ -302,6 +302,24 @@
 }
 .codex-modes button.is-active .count { color: var(--gold); }
 
+/* 390px前後では分類ラベルを一文字幅まで圧縮せず、横スクロールで単語の可読性を守る。 */
+@media (max-width: 640px) {
+  .persona-workspace .codex-modes {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    scroll-snap-type: x proximity;
+  }
+  .persona-workspace .codex-modes button {
+    flex: 0 0 auto;
+    min-width: max-content;
+    min-height: 40px;
+    white-space: nowrap;
+    scroll-snap-align: start;
+  }
+  .persona-workspace .codex-modes .count { white-space: nowrap; }
+}
+
 /* Filter bar */
 .codex-filters {
   background: var(--surface-1);

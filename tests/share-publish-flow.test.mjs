@@ -25,6 +25,10 @@ test("共有URLは非同期完了後に自動コピーを試行し、ユーザ�
   assert.match(generator, /主URLが開けない場合だけ/);
   assert.match(generator, /選択済み：Ctrl\+Cでコピー/);
   assert.match(generator, /下の「Discordへ貼るURLをコピー」を押してください/);
+  assert.match(generator, /share-publish-card/);
+  assert.match(generator, /共有内容を確認/);
+  assert.match(generator, /直近URLを再利用/);
+  assert.match(generator, /OGP: \$\{state\.shareImageData \? "手動画像" : "自動生成カード"\}/);
 });
 
 test("共有発行とURLコピーのクリックでは共有モーダルを閉じず、背景クリックだけで閉じる", () => {

@@ -109,6 +109,14 @@ function isComplete(section, s) {
       return false;
   }
 }
+function getSessionReadiness(s) {
+  return [
+    { id: "persona", label: "人格" },
+    { id: "skill", label: "スキル" },
+    { id: "passive", label: "パッシブ" }
+  ].filter((entry) => !isComplete(entry.id, s));
+}
+window.LBT_getSessionReadiness = getSessionReadiness;
 const CommandPalette = ({ open, onClose, state, dispatch }) => {
   const [q, setQ] = React.useState("");
   const [idx, setIdx] = React.useState(0);
