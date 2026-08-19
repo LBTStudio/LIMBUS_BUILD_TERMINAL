@@ -865,7 +865,7 @@ const getEgoKeywordHaystack = (ego) => {
     ...(skill?.dice || []).flatMap((die) => [die.roll, die.effect])
   ];
   return [
-    ego?.name, ego?.resources, ego?.passive_name, ego?.passive_cond, ego?.passive_effect, ego?.unique_buff,
+    ego?.name, ego?.resources, ego?.passive_name, ego?.passive_cond, ego?.passive_effect, ego?.unique_buff, ...(ego?.keywords || []),
     ...skillText(ego?.kakusei),
     ...skillText(ego?.shinshoku),
     ...(ego?.sub_skills || []).flatMap((skill) => skillText(skill))
@@ -884,7 +884,9 @@ const getEgoEffectHaystack = (ego) => {
     ...(ego?.sub_skills || []).flatMap((skill) => skillEffects(skill))
   ].filter(Boolean).join(" ").toLowerCase();
 };
-const egoMatchesKeyword = (ego, keyword) => (keyword === "回復" ? getEgoEffectHaystack(ego) : getEgoKeywordHaystack(ego)).includes(keyword);
+const egoMatchesKeyword = (ego, keyword) => keyword === "回復"
+  ? getEgoEffectHaystack(ego).includes(keyword)
+  : (Array.isArray(ego?.keywords) && ego.keywords.includes(keyword)) || getEgoEffectHaystack(ego).includes(keyword);
 window.LBT_egoMatchesKeyword = egoMatchesKeyword;
 const EgoSection = ({ state, dispatch }) => {
   const h = React.createElement;

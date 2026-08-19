@@ -39,6 +39,38 @@ function enrichPersonaKeywords(database) {
   return { total, updated };
 }
 window.LBT_enrichPersonaKeywords = enrichPersonaKeywords;
+// E.G.Oは名称・大罪・資源から推測せず、パッシブ・固有バフ・覚醒・侵蝕・
+// 同化スキルと各ダイスの効果文だけを根拠にキーワードを補完する。
+function egoKeywordEvidence(ego) {
+  const skillEffects = (skill) => [
+    skill?.effect,
+    ...(skill?.dice || []).map((die) => die?.effect)
+  ];
+  return [
+    ego?.passive_effect,
+    ego?.unique_buff,
+    ...skillEffects(ego?.kakusei),
+    ...skillEffects(ego?.shinshoku),
+    ...(ego?.sub_skills || []).flatMap((skill) => skillEffects(skill))
+  ].filter(Boolean).join("\n");
+}
+function enrichEgoKeywords(database) {
+  const keywords = window.LBT_PDF_KEYWORD_ORDER || [];
+  const updated = [];
+  let total = 0;
+  (database?.egos || []).forEach((ego) => {
+    total += 1;
+    const evidence = egoKeywordEvidence(ego);
+    const current = Array.isArray(ego.keywords) ? ego.keywords.filter(Boolean) : [];
+    const known = new Set(current);
+    const missing = keywords.filter((keyword) => evidence.includes(keyword) && !known.has(keyword));
+    if (!missing.length) return;
+    ego.keywords = [...current, ...missing];
+    updated.push({ rank: ego.rank, no: ego.no, name: ego.name, missing });
+  });
+  return { total, updated };
+}
+window.LBT_enrichEgoKeywords = enrichEgoKeywords;
 const HISTORY_LIMIT = 60;
 const SAVE_SCHEMA_VERSION = 5;
 const SUPPORT_DEATH_RE = /(死亡|退場|戦闘不能|死亡した|死亡時|味方死亡|自分が死亡|撃破|倒れ)/;

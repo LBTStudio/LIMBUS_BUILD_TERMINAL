@@ -5,12 +5,12 @@ import vm from "node:vm";
 
 const database = JSON.parse(readFileSync(new URL("../data/db.json", import.meta.url), "utf8"));
 
-function loadKeywordEnricher() {
+function loadKeywordEnrichers() {
   const context = { window: {}, console, setTimeout, clearTimeout, Blob, URL };
   context.globalThis = context;
   vm.createContext(context);
   vm.runInContext(readFileSync(new URL("../js/state.js", import.meta.url), "utf8"), context);
-  return context.window.LBT_enrichPersonaKeywords;
+  return { personas: context.window.LBT_enrichPersonaKeywords, egos: context.window.LBT_enrichEgoKeywords };
 }
 
 function loadEgoKeywordMatcher() {
@@ -26,7 +26,7 @@ function loadEgoKeywordMatcher() {
 }
 
 test("全人格の効果文キーワードを補完し、東部親指ソルダートIIに弾丸を追加する", () => {
-  const enrich = loadKeywordEnricher();
+  const { personas: enrich } = loadKeywordEnrichers();
   const db = JSON.parse(JSON.stringify(database));
   const audit = enrich(db);
   const eastThumb = db.normal_personas.find((persona) => persona.name === "東部親指ソルダートII");
@@ -34,6 +34,18 @@ test("全人格の効果文キーワードを補完し、東部親指ソルダ�
   assert.equal(audit.total, (db.normal_personas || []).length + (db.tokui_personas || []).length);
   assert.equal(audit.updated.length > 0, true);
   assert.equal(eastThumb.keywords.includes("弾丸"), true);
+  assert.equal(enrich(db).updated.length, 0);
+});
+
+test("全E.G.Oの効果文キーワードを補完し、名称ではなく効果根拠だけを登録する", () => {
+  const { egos: enrich } = loadKeywordEnrichers();
+  const db = JSON.parse(JSON.stringify(database));
+  const audit = enrich(db);
+  const tongueCutter = db.egos.find((ego) => ego.name === "魑魅魍魎：舌切り雀");
+
+  assert.equal(audit.total, db.egos.length);
+  assert.equal(audit.updated.length > 0, true);
+  assert.equal(tongueCutter.keywords.includes("沈潜"), true);
   assert.equal(enrich(db).updated.length, 0);
 });
 
