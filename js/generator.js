@@ -77,8 +77,26 @@ function buildLabeledBlock(header, text) {
   if (!lines.length) return "";
   const first = lines[0];
   const rest = lines.slice(1);
-  if (rest.length) return header + first + "\\n" + rest.join("\\n");
+  if (rest.length) return header + first + "\n" + rest.join("\n");
   return header + first;
+}
+// d値/d数欄は「変数名」だけでなく CCFOLIA 式も受け付ける。
+// 単純な変数名は従来どおり {変数名} に補うが、{変数名}/10 のように
+// 中括弧を含む式はそのまま通し、{{変数名}} の二重化を防ぐ。
+function normalizeDiceVarExpr(value) {
+  const raw = sanitizeInline(value);
+  if (!raw) return "";
+  if (/[{}]/.test(raw) || /[+\-*/()]/.test(raw)) return raw;
+  return `{${raw}}`;
+}
+// JSONへ初期値0の変数を追加できるのは、単純な変数名だけである。
+// 式は既存ステータスを参照するため、式全体をラベルとして追加してはならない。
+function diceVarStatusLabel(value) {
+  const raw = sanitizeInline(value);
+  if (!raw) return "";
+  const wrapped = raw.match(/^\{([^{}]+)\}$/);
+  const label = (wrapped ? wrapped[1] : raw).trim();
+  return /^[^{}+\-*/()]+$/.test(label) ? label : "";
 }
 function buildMahiFormula(roll, dval, fix, dPlusVar, dCntVar) {
   roll = sanitizeInline(roll);
@@ -86,15 +104,17 @@ function buildMahiFormula(roll, dval, fix, dPlusVar, dCntVar) {
   fix = sanitizeInline(fix);
   if (!roll && !dval) return roll || "";
   const ex = fix || "";
-  const mahi = "({\u9EBB\u75FA}*4+5)/9";
-  const wrapN = (nExpr) => dCntVar ? `(${nExpr}+{${dCntVar}})` : nExpr;
+  const mahi = "({麻痺}*4+5)/9";
+  const dPlusExpr = normalizeDiceVarExpr(dPlusVar);
+  const dCntExpr = normalizeDiceVarExpr(dCntVar);
+  const wrapN = (nExpr) => dCntExpr ? `(${nExpr}+${dCntExpr})` : nExpr;
   const buildDside = (vExpr) => {
-    const withPlus = dPlusVar ? `${vExpr}+{${dPlusVar}}` : vExpr;
+    const withPlus = dPlusExpr ? `${vExpr}+${dPlusExpr}` : vExpr;
     return `(${withPlus}-${mahi})`;
   };
   const varDM = roll.match(/^(\d+)d\(([^)]+)\)(.*)$/);
   if (varDM) {
-    return `${wrapN(varDM[1])}d(${dPlusVar ? varDM[2] + "+{" + dPlusVar + "}" : varDM[2]}-${mahi})${varDM[3]}${ex}`;
+    return `${wrapN(varDM[1])}d(${dPlusExpr ? varDM[2] + "+" + dPlusExpr : varDM[2]}-${mahi})${varDM[3]}${ex}`;
   }
   const specN = roll.match(/^\(([^)]+)\)d(\d+)(.*)$/);
   if (specN) {
@@ -781,17 +801,21 @@ function collectSkillDiceVars(state) {
     const hasPerDiceCnt = (sk.dice || []).some((d) => d.dCnt);
     const skDPlusVar = !hasPerDicePlus && auto.dPlus ? sk.dPlusLabel || `S${rn}d\u5024` : null;
     const skDCntVar = !hasPerDiceCnt && auto.dCnt ? sk.dCntLabel || `S${rn}d\u6570` : null;
-    if (skDPlusVar && !seen.has(skDPlusVar)) { seen.add(skDPlusVar); out.push({ label: skDPlusVar, place: sk.dVarPlace || "status" }); }
-    if (skDCntVar && !seen.has(skDCntVar)) { seen.add(skDCntVar); out.push({ label: skDCntVar, place: sk.dVarPlace || "status" }); }
+    const skDPlusLabel = diceVarStatusLabel(skDPlusVar);
+    const skDCntLabel = diceVarStatusLabel(skDCntVar);
+    if (skDPlusLabel && !seen.has(skDPlusLabel)) { seen.add(skDPlusLabel); out.push({ label: skDPlusLabel, place: sk.dVarPlace || "status" }); }
+    if (skDCntLabel && !seen.has(skDCntLabel)) { seen.add(skDCntLabel); out.push({ label: skDCntLabel, place: sk.dVarPlace || "status" }); }
     (sk.dice || []).forEach((d, did0) => {
       const did = did0 + 1;
       if (d.dPlus) {
-        const l = d.dPlusLabel || `S${rn}-${did}d\u5024`;
-        if (!seen.has(l)) { seen.add(l); out.push({ label: l, place: sk.dVarPlace || "status" }); }
+        const l = d.dPlusLabel || `S${rn}-${did}d値`;
+        const label = diceVarStatusLabel(l);
+        if (label && !seen.has(label)) { seen.add(label); out.push({ label, place: sk.dVarPlace || "status" }); }
       }
       if (d.dCnt) {
-        const l = d.dCntLabel || `S${rn}-${did}d\u6570`;
-        if (!seen.has(l)) { seen.add(l); out.push({ label: l, place: sk.dVarPlace || "status" }); }
+        const l = d.dCntLabel || `S${rn}-${did}d数`;
+        const label = diceVarStatusLabel(l);
+        if (label && !seen.has(label)) { seen.add(label); out.push({ label, place: sk.dVarPlace || "status" }); }
       }
     });
   });

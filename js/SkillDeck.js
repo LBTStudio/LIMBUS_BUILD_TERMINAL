@@ -69,8 +69,8 @@ const DiceVarControls = ({ dPlus, dCnt, dPlusLabel, dCntLabel, rn, idx, onPatch 
       h("span", { className: "deck-dice-var-state" }, active ? `有効: ${activeKinds}` : "設定")
     ),
     shown && h("div", { className: "deck-dice-var-fields" },
-      h("label", { className: `deck-dice-var-chk${dPlus ? " is-on" : ""}` }, h("input", { type: "checkbox", checked: dPlus, onChange: (e) => onPatch({ dPlus: e.target.checked }) }), h("span", { className: "deck-dice-var-label" }, "d値を可変にする"), dPlus && h("input", { className: "deck-dice-var-input", value: dPlusLabel || "", placeholder: `変数名（省略: ${autoPlus}）`, onChange: (e) => onPatch({ dPlusLabel: e.target.value }), title: `省略時は ${autoPlus} を出力` })),
-      h("label", { className: `deck-dice-var-chk${dCnt ? " is-on" : ""}` }, h("input", { type: "checkbox", checked: dCnt, onChange: (e) => onPatch({ dCnt: e.target.checked }) }), h("span", { className: "deck-dice-var-label" }, "d数を可変にする"), dCnt && h("input", { className: "deck-dice-var-input", value: dCntLabel || "", placeholder: `変数名（省略: ${autoCnt}）`, onChange: (e) => onPatch({ dCntLabel: e.target.value }), title: `省略時は ${autoCnt} を出力` }))
+      h("label", { className: `deck-dice-var-chk${dPlus ? " is-on" : ""}` }, h("input", { type: "checkbox", checked: dPlus, onChange: (e) => onPatch({ dPlus: e.target.checked }) }), h("span", { className: "deck-dice-var-label" }, "d値を可変にする"), dPlus && h("input", { className: "deck-dice-var-input", value: dPlusLabel || "", placeholder: `変数名（省略: ${autoPlus}）`, onChange: (e) => onPatch({ dPlusLabel: e.target.value }), title: "変数名として入力します。{変数名}/10 のような中括弧付き式もそのまま出力します。" })),
+      h("label", { className: `deck-dice-var-chk${dCnt ? " is-on" : ""}` }, h("input", { type: "checkbox", checked: dCnt, onChange: (e) => onPatch({ dCnt: e.target.checked }) }), h("span", { className: "deck-dice-var-label" }, "d数を可変にする"), dCnt && h("input", { className: "deck-dice-var-input", value: dCntLabel || "", placeholder: `変数名（省略: ${autoCnt}）`, onChange: (e) => onPatch({ dCntLabel: e.target.value }), title: "変数名として入力します。{変数名}/10 のような中括弧付き式もそのまま出力します。" }))
     )
   );
 };
@@ -114,11 +114,11 @@ const SkillVariancePanel = ({ skill, onPatch }) => {
     (dPlus || dCnt) && h("div", { className: "sk-var-compact-details" },
       dPlus && h("label", { className: "sk-var-compact-detail" },
         h("span", null, "d値の変数名（任意）"),
-        h("input", { type: "text", className: "sk-var-input", placeholder: "省略で自動: S◯d値", value: dPlusLabel, onChange: (e) => onPatch({ dPlusLabel: e.target.value }) })
+        h("input", { type: "text", className: "sk-var-input", placeholder: "省略で自動: S◯d値", value: dPlusLabel, onChange: (e) => onPatch({ dPlusLabel: e.target.value }), title: "変数名だけなら自動で {} を付けます。{変数名}/10 のような中括弧付き式もそのまま出力します。" })
       ),
       dCnt && h("label", { className: "sk-var-compact-detail" },
         h("span", null, "d数の変数名（任意）"),
-        h("input", { type: "text", className: "sk-var-input", placeholder: "省略で自動: S◯d数", value: dCntLabel, onChange: (e) => onPatch({ dCntLabel: e.target.value }) })
+        h("input", { type: "text", className: "sk-var-input", placeholder: "省略で自動: S◯d数", value: dCntLabel, onChange: (e) => onPatch({ dCntLabel: e.target.value }), title: "変数名だけなら自動で {} を付けます。{変数名}/10 のような中括弧付き式もそのまま出力します。" })
       ),
       h("label", { className: "sk-var-compact-detail" },
         h("span", null, "生成変数の出力先"),
