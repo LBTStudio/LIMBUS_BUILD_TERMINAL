@@ -77,7 +77,9 @@ function buildLabeledBlock(header, text) {
   if (!lines.length) return "";
   const first = lines[0];
   const rest = lines.slice(1);
-  if (rest.length) return header + first + "\n" + rest.join("\n");
+  // チャットパレット内の効果段落は CCFOLIA の文字列改行 `\n` として
+  // 一つのコマンドに保持する。実改行にすると後続段落が別コマンドへ分断される。
+  if (rest.length) return header + first + "\\n" + rest.join("\\n");
   return header + first;
 }
 // d値/d数欄は「変数名」だけでなく CCFOLIA 式も受け付ける。

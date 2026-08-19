@@ -88,3 +88,17 @@ test("d値のCCFOLIA式は加算・減算を明示選択できる", () => {
   assert.match(added, /2d\(6\+\{補正値\}\/3-\(\{麻痺\}\*4\+5\)\/9\)/);
   assert.match(subtracted, /2d\(6-\{補正値\}\/3-\(\{麻痺\}\*4\+5\)\/9\)/);
 });
+
+test("戦術スキル効果の複数段落は実改行で分断せず、CCFOLIAの\\n挿入として一つのコマンドに保持する", () => {
+  const generator = loadGenerator();
+  const state = createState();
+  state.skills = [{
+    rank: "スキル1", name: "改行検証", type: "打撃",
+    effect: "使用時：パワーを1得る\nマッチ勝利時：保護を1得る",
+    dice: [{ roll: "1d6", effect: "" }]
+  }];
+
+  const palette = generator.buildPalette(state);
+  assert.match(palette, /効果：▶︎使用時：パワーを1得る\\n▶︎マッチ勝利時：保護を1得る/);
+  assert.doesNotMatch(palette, /効果：▶︎使用時：パワーを1得る\n▶︎マッチ勝利時：保護を1得る/);
+});
