@@ -305,6 +305,23 @@
   margin-left: auto;
 }
 
+/* 390px前後では右端のプレビュー展開タブを避け、補助説明を見出しの次行へ流す。 */
+@media (max-width: 640px) {
+  .section-title-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    column-gap: var(--s-3);
+    row-gap: 5px;
+    padding-right: 48px;
+  }
+  .section-subtitle {
+    flex: 1 0 100%;
+    margin-left: 0;
+    padding-right: 0;
+    line-height: 1.45;
+  }
+}
+
 /* ============================================================
    PREVIEW PANEL (right)
    ============================================================ */
