@@ -1183,6 +1183,12 @@ const EnhancementSection = ({ state, dispatch }) => {
 };
 const SYNC_RANKS = [null, "0", "00", "000"];
 const isRosterPersonaSynced = (entry) => Boolean(entry?.syncMax || entry?.syncRank === "0" || entry?.syncRank === "00" || entry?.syncRank === "000");
+const rosterPersonaMatchesSyncFilters = (entry, syncFilter = "all", syncRankFilter = "all") => {
+  const synced = isRosterPersonaSynced(entry);
+  const matchesState = syncFilter === "all" || syncFilter === "synced" && synced || syncFilter === "unsynced" && !synced;
+  const matchesRank = syncRankFilter === "all" || syncRankFilter === "max" && entry?.syncMax === true || entry?.syncRank === syncRankFilter;
+  return matchesState && matchesRank;
+};
 const ROSTER_EGO_RANK_ORDER = ["ZAYIN", "TETH", "HE", "WAW", "ALEPH"];
 const sortRosterLibraryItems = (items, sortBy, libraryTab) => {
   const collator = new Intl.Collator("ja", { numeric: true, sensitivity: "base" });
@@ -1205,7 +1211,7 @@ const sortRosterLibraryItems = (items, sortBy, libraryTab) => {
   });
   return rows;
 };
-window.LBT_rosterLibrary = { isRosterPersonaSynced, sortRosterLibraryItems };
+window.LBT_rosterLibrary = { isRosterPersonaSynced, rosterPersonaMatchesSyncFilters, sortRosterLibraryItems };
 const RosterSection = ({ state, dispatch }) => {
   const h = React.createElement;
   const [libraryTab, setLibraryTab] = React.useState("personas");
@@ -1213,6 +1219,7 @@ const RosterSection = ({ state, dispatch }) => {
   const [selectedIds, setSelectedIds] = React.useState([]);
   const [filter, setFilter] = React.useState("all");
   const [syncFilter, setSyncFilter] = React.useState("all");
+  const [syncRankFilter, setSyncRankFilter] = React.useState("all");
   const [sortBy, setSortBy] = React.useState("added");
   const [undo, setUndo] = React.useState(null);
   const [detailId, setDetailId] = React.useState(null);
@@ -1237,7 +1244,7 @@ const RosterSection = ({ state, dispatch }) => {
   }).filter((item) => item.src);
   const items = sortRosterLibraryItems(rawItems.filter((item) => (
     (filter === "all" || filter === "equipped" && item.equipped || filter === "saved" && item.saved)
-    && (libraryTab !== "personas" || syncFilter === "all" || syncFilter === "synced" && item.synced || syncFilter === "unsynced" && !item.synced)
+    && (libraryTab !== "personas" || rosterPersonaMatchesSyncFilters(item.entry, syncFilter, syncRankFilter))
   )), sortBy, libraryTab);
   const selected = new Set(selectedIds);
   const selectableItems = items.filter((item) => !item.equipped);
@@ -1276,7 +1283,7 @@ const RosterSection = ({ state, dispatch }) => {
     clearSelection();
     setManageMode(false);
     setDetailId(null);
-  }, [libraryTab, filter, syncFilter, sortBy]);
+  }, [libraryTab, filter, syncFilter, syncRankFilter, sortBy]);
   React.useEffect(() => {
     if (!undo) return undefined;
     const timer = window.setTimeout(() => setUndo(null), Math.max(0, undo.expires - Date.now()));
@@ -1347,7 +1354,8 @@ const RosterSection = ({ state, dispatch }) => {
         h("div", { className: "roster-library-intro" }, `所持${label}を押すと簡易詳細が開きます。詳細から内容を確認して装備するか、「即時装備」で直ちに装備できます。削除は「管理する」から対象を選ぶため、非装備を一括削除しません。`),
         h("div", { className: "roster-controls" },
           h("div", { className: "segmented" }, [["all", "すべて"], ["equipped", "装備中"], ["saved", "保存済み"]].map(([key, text]) => h("button", { key, className: filter === key ? "is-active" : "", onClick: () => setFilter(key) }, text))),
-          libraryTab === "personas" && h("div", { className: "segmented", "aria-label": "同期状態フィルタ" }, [["all", "同期すべて"], ["synced", "同期済み"], ["unsynced", "未同期"]].map(([key, text]) => h("button", { key, className: syncFilter === key ? "is-active" : "", onClick: () => setSyncFilter(key) }, text))),
+          libraryTab === "personas" && h("div", { className: "segmented", "aria-label": "同期状態フィルタ" }, [["all", "すべて"], ["synced", "同期済み"], ["unsynced", "未同期"]].map(([key, text]) => h("button", { key, className: syncFilter === key ? "is-active" : "", onClick: () => setSyncFilter(key) }, text))),
+          libraryTab === "personas" && h("div", { className: "segmented", "aria-label": "同期ランクフィルタ" }, [["all", "同期ランクすべて"], ["0", "同期0"], ["00", "同期00"], ["000", "同期000"], ["max", "同期MAX"]].map(([key, text]) => h("button", { key, className: syncRankFilter === key ? "is-active" : "", onClick: () => setSyncRankFilter(key) }, text))),
           h("label", { className: "roster-sort-control", title: "所持一覧の並び順" }, h("span", { className: "t-label" }, "並び順"), h("select", { className: "select", value: sortBy, onChange: (event) => setSortBy(event.target.value) }, h("option", { value: "added" }, "追加順"), h("option", { value: "name" }, "名前順"), h("option", { value: "number" }, libraryTab === "personas" ? "No.順" : "ランク・No.順"), libraryTab === "personas" && h("option", { value: "sync" }, "同期順"))),
           h("div", { style: { flex: 1 } }),
           manageMode ? h(React.Fragment, null, h(Button, { size: "sm", variant: "ghost", onClick: selectedIds.length === selectableItems.length && selectableItems.length ? clearSelection : selectAll }, selectedIds.length === selectableItems.length && selectableItems.length ? "選択を解除" : "全て選択"), h(Button, { size: "sm", variant: "ghost", onClick: exitManage }, "管理を終了")) : h(Button, { size: "sm", variant: "ghost", icon: "edit", onClick: () => setManageMode(true) }, "管理する")
