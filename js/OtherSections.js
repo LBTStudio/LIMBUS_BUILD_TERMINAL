@@ -1182,12 +1182,38 @@ const EnhancementSection = ({ state, dispatch }) => {
   return /* @__PURE__ */ React.createElement("div", { className: "stack-4" }, /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { className: "card-header" }, /* @__PURE__ */ React.createElement("span", { className: "t-label" }, "\u5F37\u5316DB"), /* @__PURE__ */ React.createElement("div", { className: "grow" }), /* @__PURE__ */ React.createElement("div", { className: "segmented" }, cats.map((c) => /* @__PURE__ */ React.createElement("button", { key: c.v, className: category === c.v ? "is-active" : "", onClick: () => setCategory(c.v) }, c.l)))), /* @__PURE__ */ React.createElement("div", { style: { padding: "var(--s-2)", maxHeight: 320, overflowY: "auto" } }, /* @__PURE__ */ React.createElement("div", { className: "spp-list", style: { maxHeight: "none", padding: 0, background: "transparent", border: "none" } }, catList.map((e) => /* @__PURE__ */ React.createElement("div", { key: e.name, className: "spp-item", onClick: () => addEnh(e) }, /* @__PURE__ */ React.createElement("div", { className: "spp-item-name" }, e.name, " ", /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-10)", color: "var(--gold)", fontWeight: 400 } }, "\u6B20\u7247", e.shards)), /* @__PURE__ */ React.createElement("div", { className: "spp-item-eff" }, e.effect)))))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "t-label", style: { marginBottom: "var(--s-2)" } }, "\u53D6\u5F97\u6E08\u307F (", state.enhancements.length, ")"), state.enhancements.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "empty" }, "\u5F37\u5316\u306F\u3042\u308A\u307E\u305B\u3093") : /* @__PURE__ */ React.createElement("div", { className: "stack-2" }, state.enhancements.map((e) => /* @__PURE__ */ React.createElement("div", { key: e.id, className: "list-item" }, /* @__PURE__ */ React.createElement("div", { className: "list-item-head" }, /* @__PURE__ */ React.createElement("span", { className: "list-item-title" }, e.name), /* @__PURE__ */ React.createElement("span", { className: "badge" }, "\u6B20\u7247", e.shards), /* @__PURE__ */ React.createElement("button", { className: "btn-ghost btn-icon", onClick: () => removeEnh(e.id) }, /* @__PURE__ */ React.createElement(Icon, { name: "trash", size: 12 }))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-12)", color: "var(--tx-2)" } }, e.effect))))));
 };
 const SYNC_RANKS = [null, "0", "00", "000"];
+const isRosterPersonaSynced = (entry) => Boolean(entry?.syncMax || entry?.syncRank === "0" || entry?.syncRank === "00" || entry?.syncRank === "000");
+const ROSTER_EGO_RANK_ORDER = ["ZAYIN", "TETH", "HE", "WAW", "ALEPH"];
+const sortRosterLibraryItems = (items, sortBy, libraryTab) => {
+  const collator = new Intl.Collator("ja", { numeric: true, sensitivity: "base" });
+  const byName = (a, b) => collator.compare(a.name, b.name) || a.addedIndex - b.addedIndex;
+  const rows = [...items];
+  if (sortBy === "name") return rows.sort(byName);
+  if (sortBy === "number") return rows.sort((a, b) => {
+    if (libraryTab === "egos") {
+      const rankDiff = ROSTER_EGO_RANK_ORDER.indexOf(a.entry.rank) - ROSTER_EGO_RANK_ORDER.indexOf(b.entry.rank);
+      if (rankDiff) return rankDiff;
+    } else if (a.entry.mode !== b.entry.mode) {
+      return String(a.entry.mode).localeCompare(String(b.entry.mode));
+    }
+    return Number(a.entry.no) - Number(b.entry.no) || byName(a, b);
+  });
+  if (sortBy === "sync" && libraryTab === "personas") return rows.sort((a, b) => {
+    if (a.synced !== b.synced) return a.synced ? -1 : 1;
+    const rankDiff = SYNC_RANKS.indexOf(b.entry.syncRank || null) - SYNC_RANKS.indexOf(a.entry.syncRank || null);
+    return rankDiff || byName(a, b);
+  });
+  return rows;
+};
+window.LBT_rosterLibrary = { isRosterPersonaSynced, sortRosterLibraryItems };
 const RosterSection = ({ state, dispatch }) => {
   const h = React.createElement;
   const [libraryTab, setLibraryTab] = React.useState("personas");
   const [manageMode, setManageMode] = React.useState(false);
   const [selectedIds, setSelectedIds] = React.useState([]);
   const [filter, setFilter] = React.useState("all");
+  const [syncFilter, setSyncFilter] = React.useState("all");
+  const [sortBy, setSortBy] = React.useState("added");
   const [undo, setUndo] = React.useState(null);
   const [detailId, setDetailId] = React.useState(null);
   const roster = state.roster || { personas: [], egos: [] };
@@ -1200,16 +1226,19 @@ const RosterSection = ({ state, dispatch }) => {
     return db.find((item) => item.no === entry.no) || entry.build?.personaSrc || null;
   };
   const findEgo = (entry) => (DB.egos || []).find((item) => item.rank === entry.rank && item.no === entry.no) || entry.build || null;
-  const rawItems = libraryTab === "personas" ? (roster.personas || []).map((entry) => {
+  const rawItems = libraryTab === "personas" ? (roster.personas || []).map((entry, addedIndex) => {
     const src = findPersona(entry);
     const baseName = entry.displayName || src?.name || "名称未設定";
     const name = entry.syncMax && !/\s*\[MAX\]\s*$/i.test(baseName) ? `${baseName} [MAX]` : baseName;
-    return { entry, src, id: entry.uid, type: "personas", name, equipped: `${entry.mode}:${entry.no}` === currentPersonaKey, saved: !!entry.build, meta: entry.mode === "n" ? "通常人格" : entry.mode === "t" ? "特異人格" : "創作人格" };
-  }).filter((item) => item.src) : (roster.egos || []).map((entry) => {
+    return { entry, src, id: entry.uid, type: "personas", name, equipped: `${entry.mode}:${entry.no}` === currentPersonaKey, saved: !!entry.build, synced: isRosterPersonaSynced(entry), addedIndex, meta: entry.mode === "n" ? "通常人格" : entry.mode === "t" ? "特異人格" : "創作人格" };
+  }).filter((item) => item.src) : (roster.egos || []).map((entry, addedIndex) => {
     const src = findEgo(entry);
-    return { entry, src, id: entry.uid, type: "egos", name: entry.build?.name || src?.name || "名称未設定", equipped: currentEgoKeys.has(`${entry.rank}:${entry.no}`), saved: !!entry.build, meta: `${entry.rank} · No.${String(entry.no || "").padStart(3, "0")}` };
+    return { entry, src, id: entry.uid, type: "egos", name: entry.build?.name || src?.name || "名称未設定", equipped: currentEgoKeys.has(`${entry.rank}:${entry.no}`), saved: !!entry.build, addedIndex, meta: `${entry.rank} · No.${String(entry.no || "").padStart(3, "0")}` };
   }).filter((item) => item.src);
-  const items = rawItems.filter((item) => filter === "all" || filter === "equipped" && item.equipped || filter === "saved" && item.saved || filter === "draft" && !item.saved);
+  const items = sortRosterLibraryItems(rawItems.filter((item) => (
+    (filter === "all" || filter === "equipped" && item.equipped || filter === "saved" && item.saved)
+    && (libraryTab !== "personas" || syncFilter === "all" || syncFilter === "synced" && item.synced || syncFilter === "unsynced" && !item.synced)
+  )), sortBy, libraryTab);
   const selected = new Set(selectedIds);
   const selectableItems = items.filter((item) => !item.equipped);
   const toggleSelection = (id) => setSelectedIds((ids) => ids.includes(id) ? ids.filter((value) => value !== id) : [...ids, id]);
@@ -1247,7 +1276,7 @@ const RosterSection = ({ state, dispatch }) => {
     clearSelection();
     setManageMode(false);
     setDetailId(null);
-  }, [libraryTab, filter]);
+  }, [libraryTab, filter, syncFilter, sortBy]);
   React.useEffect(() => {
     if (!undo) return undefined;
     const timer = window.setTimeout(() => setUndo(null), Math.max(0, undo.expires - Date.now()));
@@ -1317,7 +1346,9 @@ const RosterSection = ({ state, dispatch }) => {
       h("div", { className: "card-body stack-3" },
         h("div", { className: "roster-library-intro" }, `所持${label}を押すと簡易詳細が開きます。詳細から内容を確認して装備するか、「即時装備」で直ちに装備できます。削除は「管理する」から対象を選ぶため、非装備を一括削除しません。`),
         h("div", { className: "roster-controls" },
-          h("div", { className: "segmented" }, [["all", "すべて"], ["equipped", "装備中"], ["saved", "保存済み"], ["draft", "既定値"]].map(([key, text]) => h("button", { key, className: filter === key ? "is-active" : "", onClick: () => setFilter(key) }, text))),
+          h("div", { className: "segmented" }, [["all", "すべて"], ["equipped", "装備中"], ["saved", "保存済み"]].map(([key, text]) => h("button", { key, className: filter === key ? "is-active" : "", onClick: () => setFilter(key) }, text))),
+          libraryTab === "personas" && h("div", { className: "segmented", "aria-label": "同期状態フィルタ" }, [["all", "同期すべて"], ["synced", "同期済み"], ["unsynced", "未同期"]].map(([key, text]) => h("button", { key, className: syncFilter === key ? "is-active" : "", onClick: () => setSyncFilter(key) }, text))),
+          h("label", { className: "roster-sort-control", title: "所持一覧の並び順" }, h("span", { className: "t-label" }, "並び順"), h("select", { className: "select", value: sortBy, onChange: (event) => setSortBy(event.target.value) }, h("option", { value: "added" }, "追加順"), h("option", { value: "name" }, "名前順"), h("option", { value: "number" }, libraryTab === "personas" ? "No.順" : "ランク・No.順"), libraryTab === "personas" && h("option", { value: "sync" }, "同期順"))),
           h("div", { style: { flex: 1 } }),
           manageMode ? h(React.Fragment, null, h(Button, { size: "sm", variant: "ghost", onClick: selectedIds.length === selectableItems.length && selectableItems.length ? clearSelection : selectAll }, selectedIds.length === selectableItems.length && selectableItems.length ? "選択を解除" : "全て選択"), h(Button, { size: "sm", variant: "ghost", onClick: exitManage }, "管理を終了")) : h(Button, { size: "sm", variant: "ghost", icon: "edit", onClick: () => setManageMode(true) }, "管理する")
         ),

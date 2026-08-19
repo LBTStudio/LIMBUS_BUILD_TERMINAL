@@ -330,6 +330,8 @@ body{
 .status-order-row .reorder-btn { width: 32px; height: 32px; }
 .roster-controls { display: flex; gap: var(--s-2); flex-wrap: wrap; align-items: center; }
 .roster-controls > .btn { min-height: 36px; min-width: 92px; justify-content: center; }
+.roster-sort-control { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; color: var(--tx-dim); }
+.roster-sort-control .select { min-height: 36px; min-width: 130px; }
 @media (max-width: 640px) {
   .roster-item-selectable { align-items: stretch !important; min-height: 72px; }
   .roster-item-actions { align-self: center; }
@@ -346,6 +348,8 @@ body{
   .roster-controls { align-items: stretch; }
   .roster-controls .segmented { flex: 1 1 100%; }
   .roster-controls > .btn { min-height: 44px; min-width: 0; flex: 1 1 108px; }
+  .roster-sort-control { flex: 1 1 100%; min-height: 44px; }
+  .roster-sort-control .select { flex: 1; min-height: 44px; }
 }
 
 /* v60r13: 折り畳み見出しは操作コントロールであり、展開時に文字選択を発生させない。本文は選択可能なまま維持する。 */
