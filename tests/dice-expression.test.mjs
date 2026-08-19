@@ -64,3 +64,14 @@ test("変数名決定欄の従来どおりの単純な変数名は自動で中�
   assert.equal(statusLabels.includes("補正値"), true);
   assert.equal(statusLabels.includes("追加数"), true);
 });
+
+test("d値・d数の中括弧付き式は除数を固定せず、入力した数値のまま出力する", () => {
+  const generator = loadGenerator();
+  const state = createState();
+  state.skills = [{ rank: "スキル1", name: "任意除数スキル", type: "打撃", effect: "", dPlus: true, dCnt: true, dPlusLabel: "{威力補正}/3", dCntLabel: "{追加数}/20", dVarPlace: "status", dice: [{ roll: "4d8", effect: "" }] }];
+
+  const palette = generator.buildPalette(state);
+
+  assert.match(palette, /\(4\+\{追加数\}\/20\)d\(8-\{威力補正\}\/3-\(\{麻痺\}\*4\+5\)\/9\)/);
+  assert.equal(palette.includes("/10"), false);
+});
