@@ -76,6 +76,12 @@
   border-radius: var(--r);
   overflow-x: auto;
 }
+@media (pointer: fine) {
+  .deck-thumbs { cursor: grab; }
+  .deck-thumbs.is-drag-scroll { cursor: grabbing; user-select: none; }
+  .deck-thumbs.is-drag-scroll .deck-thumb,
+  .deck-thumbs.is-drag-scroll .deck-thumb-add { pointer-events: none; }
+}
 .deck-thumb {
   min-width: 100px;
   padding: 6px 8px;

@@ -53,6 +53,45 @@ const AutoTextarea = ({ value, onChange, minRows = 1, style = {}, className = ""
     }
   );
 };
+// カード本体の左右ドラッグは横スクロール、並べ替えは専用グリップだけに分離する。
+const useHorizontalDragScroll = () => {
+  const ref = React.useRef(null);
+  const dragRef = React.useRef({ pointerId: null, startX: 0, startLeft: 0, moved: false, suppressClick: false });
+  const [dragging, setDragging] = React.useState(false);
+  const finish = React.useCallback((event) => {
+    const drag = dragRef.current;
+    if (drag.pointerId !== event.pointerId) return;
+    if (drag.moved) drag.suppressClick = true;
+    ref.current?.releasePointerCapture?.(event.pointerId);
+    drag.pointerId = null;
+    setDragging(false);
+  }, []);
+  const onPointerDown = React.useCallback((event) => {
+    if (event.button !== 0) return;
+    if (event.target?.closest?.("button, input, textarea, select, a, .dnd-handle, [draggable='true']")) return;
+    const strip = ref.current;
+    if (!strip || strip.scrollWidth <= strip.clientWidth + 1) return;
+    dragRef.current = { pointerId: event.pointerId, startX: event.clientX, startLeft: strip.scrollLeft, moved: false, suppressClick: false };
+    strip.setPointerCapture?.(event.pointerId);
+  }, []);
+  const onPointerMove = React.useCallback((event) => {
+    const drag = dragRef.current;
+    if (drag.pointerId !== event.pointerId) return;
+    const deltaX = event.clientX - drag.startX;
+    if (Math.abs(deltaX) > 3) drag.moved = true;
+    if (!drag.moved) return;
+    if (ref.current) ref.current.scrollLeft = drag.startLeft - deltaX;
+    setDragging(true);
+    event.preventDefault();
+  }, []);
+  const onClickCapture = React.useCallback((event) => {
+    if (!dragRef.current.suppressClick) return;
+    dragRef.current.suppressClick = false;
+    event.preventDefault();
+    event.stopPropagation();
+  }, []);
+  return { dragging, containerProps: { ref, onPointerDown, onPointerMove, onPointerUp: finish, onPointerCancel: finish, onClickCapture } };
+};
 // d値/d数の可変設定は「変更する」場合のみ展開する選択制UI。
 // 固定値の別入力は持たず、ダイス式を唯一の基準として扱う。
 const DiceVarControls = ({ dPlus, dCnt, dPlusLabel, dCntLabel, rn, idx, onPatch }) => {
@@ -261,6 +300,7 @@ const SkillDeck = ({ state, dispatch }) => {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [skills.length]);
+  const thumbsScroll = useHorizontalDragScroll();
   if (skills.length === 0) {
     return /* @__PURE__ */ React.createElement("div", { className: "deck" }, /* @__PURE__ */ React.createElement("div", { className: "deck-empty-cell", onClick: editable ? addSkill : () => toast("スキル追加は編集モード時のみ可能です"), style: { gridColumn: "1 / -1", ...(editable ? {} : { opacity: 0.45, cursor: "not-allowed" }) }, title: editable ? "" : "編集モード時のみ追加可能" }, "\uFF0B \u6700\u521D\u306E\u30B9\u30AD\u30EB\u3092\u8FFD\u52A0"));
   }
@@ -300,7 +340,7 @@ const SkillDeck = ({ state, dispatch }) => {
       onPatchDice: (idx, p) => patchDice(cur.id, idx, p),
       onRemoveDice: (idx) => removeDice(cur.id, idx)
     }
-  ), /* @__PURE__ */ React.createElement("div", { className: "deck-thumbs" }, skills.map((sk, i) => /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement("div", { className: `deck-thumbs${thumbsScroll.dragging ? " is-drag-scroll" : ""}`, "aria-label": "スキル一覧。左右へドラッグして横スクロール", ...thumbsScroll.containerProps }, skills.map((sk, i) => /* @__PURE__ */ React.createElement(
     "div",
     {
       key: sk.id,
