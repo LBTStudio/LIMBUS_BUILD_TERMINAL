@@ -12,6 +12,14 @@ test("スキル下部一覧はドラッグ横スクロールを持ち、並べ�
   assert.match(skillDeck, /onClickCapture/);
 });
 
+test("スキル一覧は短いクリックを選択へ通し、一定距離以上の横ドラッグだけを抑止する", () => {
+  assert.match(skillDeck, /const DRAG_SCROLL_THRESHOLD = 8/);
+  assert.match(skillDeck, /Math\.abs\(deltaX\) > DRAG_SCROLL_THRESHOLD/);
+  assert.match(skillDeck, /const CLICK_SUPPRESS_MS = 250/);
+  assert.match(skillDeck, /Date\.now\(\) > dragRef\.current\.suppressClickUntil/);
+  assert.match(skillDeck, /onClick: \(\) => \{ curSkillIdRef\.current = null; setCurIdx\(i\); \}/);
+});
+
 test("ドラッグ横スクロール中のスキル一覧はPC向けの視覚フィードバックを表示する", () => {
   assert.match(sectionsCss, /\.deck-thumbs\.is-drag-scroll/);
   assert.match(sectionsCss, /cursor: grabbing/);

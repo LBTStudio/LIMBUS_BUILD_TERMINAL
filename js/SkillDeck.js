@@ -56,12 +56,14 @@ const AutoTextarea = ({ value, onChange, minRows = 1, style = {}, className = ""
 // カード本体の左右ドラッグは横スクロール、並べ替えは専用グリップだけに分離する。
 const useHorizontalDragScroll = () => {
   const ref = React.useRef(null);
-  const dragRef = React.useRef({ pointerId: null, startX: 0, startLeft: 0, moved: false, suppressClick: false });
+  const dragRef = React.useRef({ pointerId: null, startX: 0, startLeft: 0, moved: false, suppressClickUntil: 0 });
+  const DRAG_SCROLL_THRESHOLD = 8;
+  const CLICK_SUPPRESS_MS = 250;
   const [dragging, setDragging] = React.useState(false);
   const finish = React.useCallback((event) => {
     const drag = dragRef.current;
     if (drag.pointerId !== event.pointerId) return;
-    if (drag.moved) drag.suppressClick = true;
+    if (drag.moved) drag.suppressClickUntil = Date.now() + CLICK_SUPPRESS_MS;
     ref.current?.releasePointerCapture?.(event.pointerId);
     drag.pointerId = null;
     setDragging(false);
@@ -71,22 +73,22 @@ const useHorizontalDragScroll = () => {
     if (event.target?.closest?.("button, input, textarea, select, a, .dnd-handle, [draggable='true']")) return;
     const strip = ref.current;
     if (!strip || strip.scrollWidth <= strip.clientWidth + 1) return;
-    dragRef.current = { pointerId: event.pointerId, startX: event.clientX, startLeft: strip.scrollLeft, moved: false, suppressClick: false };
+    dragRef.current = { pointerId: event.pointerId, startX: event.clientX, startLeft: strip.scrollLeft, moved: false, suppressClickUntil: 0 };
     strip.setPointerCapture?.(event.pointerId);
   }, []);
   const onPointerMove = React.useCallback((event) => {
     const drag = dragRef.current;
     if (drag.pointerId !== event.pointerId) return;
     const deltaX = event.clientX - drag.startX;
-    if (Math.abs(deltaX) > 3) drag.moved = true;
+    if (Math.abs(deltaX) > DRAG_SCROLL_THRESHOLD) drag.moved = true;
     if (!drag.moved) return;
     if (ref.current) ref.current.scrollLeft = drag.startLeft - deltaX;
     setDragging(true);
     event.preventDefault();
   }, []);
   const onClickCapture = React.useCallback((event) => {
-    if (!dragRef.current.suppressClick) return;
-    dragRef.current.suppressClick = false;
+    if (Date.now() > dragRef.current.suppressClickUntil) return;
+    dragRef.current.suppressClickUntil = 0;
     event.preventDefault();
     event.stopPropagation();
   }, []);
