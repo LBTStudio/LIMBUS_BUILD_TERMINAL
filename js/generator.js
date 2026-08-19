@@ -194,7 +194,8 @@ const DEFAULT_STATUS_LIST = [
   { label: "\u30AF\u30A4\u30C3\u30AF", initial: 0, max: 10 },
   { label: "\u675F\u7E1B", initial: 0, max: 10 }
 ];
-const UNSYNC_ONLY_ENHANCEMENT_CATEGORIES = new Set(["persona", "prisoner"]);
+// 囚人人格は同期人格でもあり得るため、同期時の対象外は通常人格用だけに限定する。
+const UNSYNC_ONLY_ENHANCEMENT_CATEGORIES = new Set(["persona"]);
 function enhancementCategory(entry) {
   if (entry?.category) return String(entry.category);
   const rows = [...(window.DB?.normal_enhancements || []), ...(window.DB?.special_enhancements || [])];

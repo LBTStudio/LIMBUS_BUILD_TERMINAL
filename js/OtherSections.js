@@ -1185,7 +1185,7 @@ const LegacyEnhancementSection = ({ state, dispatch }) => {
 const EnhancementSection = ({ state, dispatch }) => {
   const h = React.createElement;
   const setEnh = (list) => dispatch({ type: "SET_FIELD", field: "enhancements", value: list });
-  const isUnsyncedOnly = window.LBT_isUnsyncedOnlyEnhancement || ((entry) => ["persona", "prisoner"].includes(entry?.category));
+  const isUnsyncedOnly = window.LBT_isUnsyncedOnlyEnhancement || ((entry) => entry?.category === "persona");
   const isUnavailableDuringSync = (entry) => !!state.syncedManual && isUnsyncedOnly(entry);
   const activeEnhancements = window.LBT_getActiveEnhancements?.(state) || (state.enhancements || []).filter((entry) => !isUnavailableDuringSync(entry));
   const addEnh = (entry) => {
@@ -1203,7 +1203,7 @@ const EnhancementSection = ({ state, dispatch }) => {
   const removeEnh = (id) => setEnh((state.enhancements || []).filter((entry) => entry.id !== id));
   const [category, setCategory] = React.useState("special");
   React.useEffect(() => {
-    if (state.syncedManual && ["persona", "prisoner"].includes(category)) setCategory("sync");
+    if (state.syncedManual && category === "persona") setCategory("sync");
   }, [state.syncedManual, category]);
   const sourceRows = (category === "special" ? (DB.special_enhancements || []) : (DB.normal_enhancements || []).filter((entry) => entry.category === category)).filter((entry) => !isUnavailableDuringSync(entry));
   const bodyRows = sourceRows.filter((entry) => String(entry?.name || "").startsWith("肉体強化"));
@@ -1214,7 +1214,7 @@ const EnhancementSection = ({ state, dispatch }) => {
   const categories = [
     { value: "special", label: "特殊強化", common: true },
     { value: "persona", label: "通常人格" },
-    { value: "prisoner", label: "LCB人格" },
+    { value: "prisoner", label: "LCB人格", common: true },
     { value: "sync", label: "同期化人格", common: true }
   ];
   return h("div", { className: "stack-4" },
@@ -1227,7 +1227,7 @@ const EnhancementSection = ({ state, dispatch }) => {
           return h("button", { key: entry.value, className: category === entry.value ? "is-active" : "", disabled, title: disabled ? "未同期専用：同期化して編集した人格には使えません" : "", onClick: () => setCategory(entry.value) }, entry.label);
         }))
       ),
-      state.syncedManual && h("div", { className: "settings-section-note", style: { padding: "0 var(--s-3)" } }, "同期化中：通常人格・LCB人格の未同期専用強化は選択・出力されません。特殊強化と同期化人格用強化は通常どおり利用できます。"),
+      state.syncedManual && h("div", { className: "settings-section-note", style: { padding: "0 var(--s-3)" } }, "同期化中：通常人格用の未同期専用強化は選択・出力されません。囚人人格用・特殊強化・同期化人格用強化は通常どおり利用できます。"),
       h("div", { style: { padding: "var(--s-2)", maxHeight: 320, overflowY: "auto" } },
         h("div", { className: "spp-list", style: { maxHeight: "none", padding: 0, background: "transparent", border: "none" } }, catalogRows.map((entry) => h("div", { key: entry.name, className: "spp-item", onClick: () => addEnh(entry) },
           h("div", { className: "spp-item-name" }, entry.name, " ", h("span", { style: { fontSize: "var(--fs-10)", color: "var(--gold)", fontWeight: 400 } }, "欠片", entry.shards)),
