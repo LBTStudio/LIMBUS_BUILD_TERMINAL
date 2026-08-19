@@ -128,6 +128,60 @@ Cloudflare Images、R2の公開書込、商用画像CDNは、認証済みの書�
 
 具体的には、発行済みCloudflare URLは残し、共有データはRentry/Telegraphの二重保存を維持し、共有内容はGitHub Pagesビューアで復元できる。第2入口を導入しても、既存URLの書換えや全利用者の移行を行わない。これにより、入口の一つが停止しても、障害の範囲を「その入口で新規に発行された共有」に閉じ込め、共有基盤全体の破綻を避ける。
 
+## 12. 複数入口化に利用できる外部サービス
+
+個別OGPを維持してCloudflare受信を本当に減らすには、共有発行時に**別提供元のURLを直接返す**必要がある。Cloudflare Workerを入口にして別サービスへ転送しても、Cloudflare側の1受信は残る。この前提で、候補を評価する。
+
+| 役割 | 外部サービス | 公式無料枠・上限 | 個別OGPの直接返却 | 無課金・運用上の注意 | 判断 |
+| --- | --- | --- | --- | --- | --- |
+| 主入口 | Cloudflare Workers Free | 日次100,000受信。[1] | 現行実装済み。 | Free固定。HITも受信枠を使う。 | 継続採択 |
+| 第2入口 | **Netlify Free + Edge Functions** | 月300 credits。Freeはhard limitでauto recharge不可。web requestは1万件あたり2 credits、Edge Functionはweb requestとして計量される。[4] [10] | 可能。現行の無状態OGP Workerと同型のHTML応答を返せる。 | credit使い切り時は全プロジェクトが月次更新までpauseする。個別URLはneutralな`netlify.app`名を使う。 | **最優先の条件付き採択** |
+| 第3入口 | **Val Town Free HTTP Val** | 1日100,000 runs、公開HTTP endpoint、Freeでcustom domainなし。[11] [12] | 可能。HTTP triggerはHTMLとContent-Typeを返せ、クエリを読んでルーティングできる。[13] | endpoint URLにアカウントhandleが入るため、LBT専用のneutral handleを使う。Freeのcustom domainなし・稼働保証なし。 | **小配分の第3候補** |
+| 保留 | Deno Deploy Free | 月100万request、20GB egress、15 CPU hours、HTTP Edge Cache。[6] | 可能。Web標準のWorker型実装を移植しやすい。 | Proのspend limitはあるが、Freeでの無課金防止を主系として明文化しにくい。月次枠も日次集中には弱い。 | 保留 |
+| 不採択 | Supabase Free Edge Functions | 月500,000 invocation、5GB egress。ただしFree projectは低活動7日でpauseする。[14] [15] | 技術的には可能。 | 復帰に所有者操作が必要となり、無管理の継続提供に反する。custom domainもFree外。 | 不採択 |
+| 不採択 | Vercel Hobby | 月100万Edge Request / Function Invocation。[16] | 技術的には可能。 | Hobbyは非商用・個人利用に制限される。上限後は原則30日待機となる。[16] [17] | 主共有基盤には不採択 |
+
+### 12.1 実際の入口構成
+
+導入段階では、既存のCloudflare URLを主入口のまま維持する。新規共有だけを共有IDの安定ハッシュで分け、利用者がどの提供元を選ぶか判断する場面を作らない。
+
+```text
+既存共有 ─────────→ Cloudflare Worker ─→ Rentry / Telegraph ─→ GitHub Pages viewer
+
+新規共有（初期） ── 90% → Cloudflare Worker
+                    10% → Netlify Edge Function
+
+新規共有（拡張時） ─ 50% → Cloudflare Worker
+                    40% → Netlify Edge Function
+                    10% → Val Town HTTP Val
+```
+
+この配分は最終目標ではなく、各提供元の実測を得るための上限である。Netlifyの月次creditを使い切る、Val Townのrun制限へ近づく、またはカード品質が一致しない場合は、その入口の**新規配分を0%へ戻す**。発行済みURLは書き換えず、Rentry/Telegraphの二重保存とGitHub Pagesビューアを通じて復元可能な状態を残す。
+
+### 12.2 サービス選定の現時点の結論
+
+**今すぐ第2入口として使う候補はNetlify Free**である。Freeのhard limitとauto recharge不可が、請求を発生させないという最優先条件に最も明確に合う。一方で、credit使い切り時はチーム内の全Netlifyプロジェクトがpauseするため、LBT以外の重要サイトを同じFree teamに置かない。
+
+**Val Townは第3入口として有望だが、小配分に限る。** HTTP endpointが公開URLでHTMLを返せ、1日100,000 runsというCloudflareとは独立した日次枠を持つ。反面、Freeはcustom domainを持てず、サービスURLにhandleが入る。LBT専用のneutralなアカウント名・Val名を使い、非公開の実装コードに不要な識別情報・秘密情報を置かないことが受入条件になる。
+
+**Deno Deployは保留**とする。技術互換性と月100万requestは魅力だが、無課金固定を最優先する現行方針では、Netlifyのhard limitとVal TownのFree run上限を先に使う方が保守的である。
+
+## 13. 複数入口を実装する前の受入条件
+
+1. 所有者がNetlifyとVal TownのFreeアカウントを、LBT専用かつneutralな表示名で用意する。
+2. それぞれに、現行の`/s`・`/i`相当のカードHTML・画像応答を無状態で実装する。Rentry/Telegraph/GitHub Pagesの既存仕様は変更しない。
+3. `og:title`、`og:description`、`og:image`、人格名、HP、SAN、同期、MAX、画像、長文共有、Rentry/Telegraph片系障害をCloudflare版と同じ期待値でテストする。
+4. Netlifyはproduction deployによるcredit消費、web request、帯域、Edge Function利用をまとめて監視し、Free 300 creditsの半分以下で始める。
+5. Val TownはHTTP run数を監視し、日次100,000 runの50%未満から開始する。公開URL・code・errorに所有者識別子を出さない。
+6. 入口を増やしても、利用者画面には提供元名、選択肢、ログイン、課金案内、手動切替を出さない。
+7. 既存共有URLの変更なし、PC・モバイルの共有発行UIをスクリーンショット確認、全共有回帰テスト成功を必須とする。
+
+## 14. この設計で得られるもの・得られないもの
+
+複数入口化は、Cloudflareの固定日次枠を**独立した無料枠へ分散**し、特定入口の障害を新規共有の一部に局所化する。個別OGPカードの品質と利用者の無操作を維持したまま、単一入口より大きな総到達量を扱える。
+
+一方で、外部サービスの永久継続、全入口の無限容量、提供元停止時の既存URLの完全な自動移転は保証できない。したがって、入口は最初から多く増やすのではなく、観測値に従ってCloudflare → Netlify → Val Townの順に導入し、各入口の無料上限とカード品質を実測で確認する。
+
 ## 参照
 
 [1]: https://developers.cloudflare.com/workers/platform/pricing/ "Cloudflare Workers Pricing"
@@ -139,3 +193,11 @@ Cloudflare Images、R2の公開書込、商用画像CDNは、認証済みの書�
 [7]: https://docs.deno.com/deploy/usage/ "Deno Deploy Usage Guidelines"
 [8]: https://telegra.ph/api "Telegraph API"
 [9]: https://vercel.com/docs/plans/hobby "Vercel Hobby Plan"
+[10]: https://docs.netlify.com/manage/accounts-and-billing/billing/billing-for-credit-based-plans/how-credits-work/ "Netlify Credit-Based Plan Credits"
+[11]: https://www.val.town/pricing "Val Town Pricing"
+[12]: https://www.val.town/limits "Val Town Limits"
+[13]: https://docs.val.town/vals/http/basic-examples/ "Val Town HTTP Basic Examples"
+[14]: https://supabase.com/pricing "Supabase Pricing"
+[15]: https://supabase.com/docs/guides/platform/free-project-pausing "Supabase Free Project Pausing"
+[16]: https://vercel.com/docs/plans/hobby "Vercel Hobby Plan"
+[17]: https://vercel.com/docs/limits/fair-use-guidelines "Vercel Fair Use Guidelines"
