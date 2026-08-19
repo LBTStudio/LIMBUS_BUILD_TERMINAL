@@ -270,6 +270,14 @@ function resolveFormulas(state) {
 function redactEgoSanFromPalette(text) {
   return String(text || "").replace(/SAN/gu, "精神力");
 }
+// 「捨てた枚数」は、能動的にスキルを捨てる人格だけが使う戦術選択用の変数。
+// 固有名詞や「捨てられたなら」といった受動効果は誤検出しない。
+const SUTE_ACTIVE = /(?:ランダムな)?スキルを[^。\n]{0,8}?捨てる|捨てたスキルの数|捨てた枚数/;
+function hasActiveSkillDiscard(state) {
+  const p = state || {};
+  const dump = [p.pas?.always, p.pas?.effect, ...(p.skills || []).map((sk) => (sk.effect || "") + " " + (sk.dice || []).map((d) => d.effect || "").join(" "))].join(" ");
+  return SUTE_ACTIVE.test(dump);
+}
 function buildPalette(state) {
   const p = state;
   const sanBase = p.san === "" || p.san == null ? 50 : parseInt(p.san, 10);
@@ -303,11 +311,7 @@ function buildPalette(state) {
   }
   L.push("### \u25A0 \u5224\u5B9A\u30FB\u901F\u5EA6");
   L.push(`${speed}+{QB} \u3010\u901F\u5EA6\u3011\u5224\u5B9A`);
-  /* 「捨てた枚数」は「ランダムなスキルをNつ捨てる」等の能動的な捨て機構を持つ人格のみ必要。
-     固有名詞（捨てられた殺人鬼）や受動表現（捨てられたなら）での誤検出を防ぐ。 */
-  const SUTE_ACTIVE = /(?:\u30E9\u30F3\u30C0\u30E0\u306A)?\u30B9\u30AD\u30EB\u3092[^\u3002\n]{0,8}?\u6368\u3066\u308B|\u6368\u3066\u305F\u30B9\u30AD\u30EB\u306E\u6570|\u6368\u3066\u305F\u679A\u6570/;
-  const _suteDump = [p.pas.always, p.pas.effect, ...(p.skills || []).map((sk) => (sk.effect || "") + " " + (sk.dice || []).map((d) => d.effect || "").join(" "))].join(" ");
-  const hasSute = SUTE_ACTIVE.test(_suteDump);
+  const hasSute = hasActiveSkillDiscard(p);
   if (hasSute) {
     L.push(`2b(4-{\u6368\u3066\u305F\u679A\u6570}) \u3010\u6226\u8853\u3011\u9078\u629E`);
     L.push(`3b(4-{\u6368\u3066\u305F\u679A\u6570}) \u3010\u611F\u60C5\u6226\u8853\u3011\u9078\u629E`);
@@ -836,6 +840,10 @@ function collectSkillDiceVars(state) {
       }
     });
   });
+  if (hasActiveSkillDiscard(state) && !seen.has("捨てた枚数")) {
+    seen.add("捨てた枚数");
+    out.push({ label: "捨てた枚数", place: "status", initial: 0, max: 4, source: "戦術選択" });
+  }
   return out;
 }
 window.LBT_collectSkillDiceVars = collectSkillDiceVars;
@@ -956,7 +964,7 @@ function buildCcfoliaJSON(state) {
     const label = normalizeLabel(v.label);
     if (!label || statusByLabel.has(label) || UB_ST.has(label)) return;
     UB_ST.add(label);
-    const item = { label, value: 0, max: 99 };
+    const item = { label, value: v.initial ?? 0, max: v.max ?? 99 };
     status.push(item);
     statusByLabel.set(label, item);
   });

@@ -1396,7 +1396,7 @@ const StatusOrderPanel = ({ state, dispatch, embedded = false, onPatchDefault = 
     // スキル側でd値・d数を可変にした場合、ST出力を選んだ変数は設定一覧にも加える。
     // JSON出力と同じ収集関数を使い、名称の省略時も S◯d値／S◯-◯d数 と一致させる。
     (window.LBT_collectSkillDiceVars?.(state) || []).forEach((variable) => {
-      if ((variable.place || "status") === "status") push(variable.label, "スキル変数", { initial: 0, max: 99 });
+      if ((variable.place || "status") === "status") push(variable.label, "スキル変数", { initial: variable.initial ?? 0, max: variable.max ?? 99 });
     });
     return out;
   }, [state.defaultStatuses, state.uniqueBuffs, state.customStatuses, state.egoSlots, state.skills, state.personaSrc, state.supports, state.enhancements]);
@@ -1599,7 +1599,7 @@ const SettingsSection = ({ state, dispatch }) => {
     (window.LBT_getStateSelfManagedStatusEntries?.(state) || []).forEach((entry) => add(entry.label, entry.kind === "declared" ? "DB指定" : "自己付与", entry.initial ?? 0, entry.max ?? 99));
     (state.uniqueBuffs || []).filter((buff) => (buff.place || "status") === "status" && buff.type !== "中立バフ").forEach((buff) => add(buff.name, "人格固有", buff.initial ?? 0, buff.max ?? 99));
     (state.customStatuses || []).filter((status) => (status.place || "status") === "status").forEach((status) => add(status.label, "カスタム", status.initial ?? 0, status.max ?? 99));
-    (window.LBT_collectSkillDiceVars?.(state) || []).filter((variable) => (variable.place || "status") === "status").forEach((variable) => add(variable.label, "スキル変数", 0, 99));
+    (window.LBT_collectSkillDiceVars?.(state) || []).filter((variable) => (variable.place || "status") === "status").forEach((variable) => add(variable.label, "スキル変数", variable.initial ?? 0, variable.max ?? 99));
     return list;
   }, [dst, state.hp, state.san, state.personaSrc, state.uniqueBuffs, state.customStatuses, state.egoSlots, state.skills, state.supports, state.enhancements]);
   const sectionSummary = (name, hint, count) => h("summary", null, h("span", { className: "settings-major-name" }, name), h("span", { className: "settings-major-hint" }, hint), count !== undefined ? h("span", { className: "settings-major-count" }, count) : null);
