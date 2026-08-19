@@ -59,3 +59,19 @@ GitHub Pagesはリポジトリ由来の静的HTML・CSS・JavaScriptを公開す
 ## 次に検証する方向
 
 個別カードの品質を維持しつつ日次受信枠そのものを超えるには、共有発行時に個別OGP HTML・画像を無認証で静的配信可能な場所へ事前配置する必要がある。画像だけを外部静的ホストへ置いても、個別`og:title`・`og:description`を返すHTML入口がWorkerなら受信枠は減らない。現時点では、個別HTMLと画像の両方を同じ無償・無管理の静的配信へ公開し、発行時だけ最小回数の動的処理を行える候補は未確認である。
+
+## 2026-08-19: 外部エッジ基盤の再評価メモ
+
+| 基盤 | 無料の公開容量 | 無請求性 | 個別OGPの代替入口としての評価 |
+| --- | --- | --- | --- |
+| Deno Deploy Free | 月100万HTTPリクエスト、20GB egress、HTTP Edge Cache、Deno KVを含む | Freeの範囲だけで使う場合は$0。ただし価格表はProで超過課金を定義し、支出上限はPro側の機能として説明されている。 | **有望な独立予備系**。専用のDeno入口を実装すればCloudflare日次枠とリクエスト集計を分離できる。ただし所有者のDenoアカウント作成・配備・月次上限時の停止処理が必要。 |
+| Vercel Hobby | 月100万Edge Requests / Function Invocations | Hobbyは無料で、上限超過時は原則30日待機。個人・非商用利用に限定。 | **条件不適合**。LBTを外部利用させる基盤はHobbyの個人・非商用条件と合わない可能性が高く、無管理の主系には採用しない。 |
+| Netlify Free | 月300 credits。Web request 1万件あたり2 credits、帯域1GBあたり20 credits、Edge Functionsを含む。 | Freeはhard limitでauto recharge不可。「Never be charged」と明記。上限時はプロジェクトが月次までpause。 | **有望な独立予備系**。カードHTMLの計算をNetlify Edge Functionへ複製すればCloudflare日次枠を使わない。300 creditsは最大150万web request相当だが、帯域とcomputeも同じcreditsを消費するため、実効容量は画像量・レスポンス量で下がる。 |
+
+出典:
+
+- https://deno.com/deploy/pricing
+- https://docs.deno.com/deploy/usage/
+- https://vercel.com/docs/plans/hobby
+- https://docs.netlify.com/manage/accounts-and-billing/billing/billing-for-credit-based-plans/credit-based-pricing-plans/
+- https://www.netlify.com/pricing/personal-vs-free/
