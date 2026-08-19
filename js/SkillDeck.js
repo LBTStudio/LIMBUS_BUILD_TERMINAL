@@ -139,7 +139,7 @@ const FocusedSkillCard = ({ skill, onPatch, onRemove, onAddDice, onPatchDice, on
     h("div", { className: "deck-card-head" },
       h("label", { className: "deck-order-field" },
         h("span", { className: "deck-order-label" }, "オーダー"),
-        h("input", { list: "skill-rank-list", className: "deck-rank deck-order-input", value: skill.rank || "", onChange: (e) => onPatch({ rank: e.target.value }), placeholder: "スキル0 / スキル4-2", title: "スキル番号。派生スキルはスキル4-2形式で表示します", style: { background: "var(--gold-tint)", color: "var(--gold)", border: "1px solid var(--gold-line)", cursor: "text", fontSize: "var(--fs-12)", padding: "4px 10px", fontFamily: "var(--f-display)", fontWeight: 600, borderRadius: "var(--r-sm)", minWidth: 180, letterSpacing: "0.06em" } })
+        h("input", { list: "skill-rank-list", className: "deck-rank deck-order-input", value: skill.rank || "", onChange: (e) => onPatch({ rank: e.target.value }), placeholder: "スキル0 / スキル4-2", title: "スキル番号。派生スキルはスキル4-2形式で表示します。同じ派生番号を複数のスキルに指定できます。", style: { background: "var(--gold-tint)", color: "var(--gold)", border: "1px solid var(--gold-line)", cursor: "text", fontSize: "var(--fs-12)", padding: "4px 10px", fontFamily: "var(--f-display)", fontWeight: 600, borderRadius: "var(--r-sm)", minWidth: 180, letterSpacing: "0.06em" } })
       ),
       h("datalist", { id: "skill-rank-list" }, SKILL_RANK_SUGGESTIONS.map((rank) => h("option", { key: rank, value: rank }))),
       h("div", { className: "grow" }),

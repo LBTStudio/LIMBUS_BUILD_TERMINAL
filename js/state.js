@@ -1103,8 +1103,26 @@ function appReducer(state, action) {
         inventory: (state.inventory || []).filter((entry) => entry.itemId !== action.id)
       };
     /* ---- Skills ---- */
-    case "PATCH_SKILL":
-      return normalizeStatusCollections({ ...state, skills: state.skills.map((s, index) => s.id === action.id ? normalizePersonaSkill({ ...s, ...action.patch }, index) : s) });
+    case "PATCH_SKILL": {
+      const patch = action.patch || {};
+      return normalizeStatusCollections({ ...state, skills: state.skills.map((s, index) => {
+        if (s.id !== action.id) return s;
+        const next = { ...s, ...patch };
+        // rankを直接編集した場合は、以前の派生番号を優先して元へ戻さない。
+        // 同じ親番号・派生番号を複数のスキルへ指定することも許可する。
+        if (Object.prototype.hasOwnProperty.call(patch, "rank")) {
+          const parsed = parseDerivedSkillRank(patch.rank);
+          if (parsed) {
+            next.derived_from = parsed.parent;
+            next.derived_index = parsed.index;
+          } else {
+            delete next.derived_from;
+            delete next.derived_index;
+          }
+        }
+        return normalizePersonaSkill(next, index);
+      }) });
+    }
     case "ADD_SKILL":
       return normalizeStatusCollections({ ...state, skills: [...state.skills, {
         id: `sk-${Date.now()}`,
