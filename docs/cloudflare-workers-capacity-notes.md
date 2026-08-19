@@ -11,7 +11,7 @@ Cloudflare Workers Freeは、アカウント単位で1日100,000受信リクエ�
 
 Workers Cacheは、`Cache-Control`を返すGET/HEADレスポンスをWorker実行前にエッジで返せる。階層化キャッシュとリクエスト集約により、同一URLへの集中アクセス時はWorker起動と外部保存先読込を抑制できる。共有IDは不変であり、成功した`/s` OGP HTMLと`/i`共有画像は長期キャッシュに適する。
 
-Workers CacheのヒットもWorkerへの受信リクエストとして日次枠には計上される。そのため100,000件の受信上限を無限化するものではないが、CPU実行・Rentry/Telegraph読込・同時アクセスによる負荷を自動で抑え、通常規模での可用性を高める。LBTは7日間のfresh cacheと30日間のstale-while-revalidateを設定する。Worker更新後のOGPメタデータが古いまま残らないよう、キャッシュはWorkerバージョン単位で分離する。
+Workers CacheのヒットもWorkerへの受信リクエストとして日次枠には計上される。そのため100,000件の受信上限を無限化するものではないが、CPU実行・Rentry/Telegraph読込・同時アクセスによる負荷を自動で抑え、通常規模での可用性を高める。LBTは7日間のfresh cache、続く30日間の`stale-while-revalidate`、外部保存先のエラー時に使う30日間の`stale-if-error`を設定する。Worker更新後のOGPメタデータが古いまま残らないよう、キャッシュはWorkerバージョン単位で分離する。
 
 - https://developers.cloudflare.com/workers/cache/
 - https://developers.cloudflare.com/workers/runtime-apis/cache/
@@ -39,9 +39,9 @@ Workers CacheはWorkerコードの実行前にキャッシュを照会し、ヒ�
 
 ## Cache設定を維持する配備手順
 
-2026-08-18の検証では、Workers Scripts APIによるモジュール再アップロードが既存の`cache_options`を初期化することを確認した。したがって、Workerソースを更新する配備では、アップロード直後にSettings APIで`cache_options: { enabled: true, cross_version_cache: false }`を再適用し、GET設定応答に`enabled: true`が含まれることを確認する。最後に、同一OGP URLを2回取得し、1回目の`CF-Cache-Status: MISS`、2回目の`HIT`を確認する。
+Workers Scripts APIによる従来のモジュール再アップロードでは、既存の`cache_options`を初期化する。以後の配備はCloudflare Version Upload APIを使い、バージョンmetadataで`cache_options: { enabled: true, cross_version_cache: false }`を明示してから、作成したversion IDを100%のDeploymentとして割り当てる。最後に同一OGP URLを2回取得し、1回目の`CF-Cache-Status: MISS`、2回目の`HIT`を確認する。
 
-この手順により、初回のOGP HTML・画像生成だけがWorkerを実行し、同一共有への後続取得はWorkerコード・Rentry・Telegraphを実行せずキャッシュから返る。キャッシュヒットも日次受信枠には計上されるため、配備検証では「受信枠の削減」ではなく「CPU・外部取得・同時障害の削減」として評価する。
+2026-08-19にこの手順で、`cache_options.enabled: true`を持つ無状態・bindingsなしの本番バージョンを配備し、実URLで`MISS → HIT`を確認した。この手順により、初回のOGP HTML・画像生成だけがWorkerを実行し、同一共有への後続取得はWorkerコード・Rentry・Telegraphを実行せずキャッシュから返る。キャッシュヒットも日次受信枠には計上されるため、配備検証では「受信枠の削減」ではなく「CPU・外部取得・同時障害の削減」として評価する。
 
 ## 日次受信上限を超える場合の候補検討
 

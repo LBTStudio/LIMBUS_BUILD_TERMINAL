@@ -28,6 +28,8 @@ test("画像付き共有から個別OGP HTMLとWebP画像を無状態で返す",
   assert.equal(page.headers.get("content-type"), "text/html; charset=utf-8");
   assert.match(page.headers.get("cache-control"), /max-age=604800/);
   assert.match(page.headers.get("cache-control"), /stale-while-revalidate=2592000/);
+  assert.match(page.headers.get("cache-control"), /stale-if-error=2592000/);
+  assert.doesNotMatch(page.headers.get("cache-control"), /s-maxage=/);
   assert.match(html, /<meta property="og:title" content="東部親指カポIIII">/);
   assert.match(html, /HP 120 ｜ SAN 50 ｜ 同期000 ｜ MAX/);
   assert.doesNotMatch(html, /LBT キャラクターシート · HP/);

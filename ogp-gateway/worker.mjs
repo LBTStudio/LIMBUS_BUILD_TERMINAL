@@ -15,7 +15,9 @@ const MAX_TOKEN_CHARS = 160000;
 const MAX_DECOMPRESSED_BYTES = 256000;
 // 共有IDは一度発行した内容を変更しない。不変のOGP・画像を長くキャッシュして、
 // Discordの再プレビューや多人数の同時閲覧でWorker実行と外部保存先の読込を重複させない。
-const CACHE_CONTROL = "public, max-age=604800, s-maxage=604800, stale-while-revalidate=2592000";
+// `s-maxage` はCloudflare Workers Cacheで stale-while-revalidate / stale-if-error を無効化する。
+// 共有IDは不変なので、7日間はfresh、その後30日間は外部保存先障害時にも直近の成功応答を継続利用する。
+const CACHE_CONTROL = "public, max-age=604800, stale-while-revalidate=2592000, stale-if-error=2592000";
 
 function htmlEscape(value) {
   return String(value || "").replace(/[&<>"']/g, (char) => ({
