@@ -22,6 +22,12 @@ function parseDerivedSkillRank(rank) {
   const match = String(rank || "").match(/^(スキル\d+)-(\d+)$/);
   return match ? { parent: match[1], index: Math.max(2, Number(match[2]) || 2) } : null;
 }
+function normalizeEditedSkillRank(rank) {
+  const value = String(rank ?? "").trim();
+  const shorthand = value.match(/^(\d+)(?:-(\d+))?$/);
+  if (!shorthand) return value;
+  return `スキル${shorthand[1]}${shorthand[2] ? `-${shorthand[2]}` : ""}`;
+}
 function normalizePersonaSkill(skill, index = 0) {
   const next = { ...(skill || {}) };
   const parsed = parseDerivedSkillRank(next.rank);
@@ -1111,7 +1117,8 @@ function appReducer(state, action) {
         // rankを直接編集した場合は、以前の派生番号を優先して元へ戻さない。
         // 同じ親番号・派生番号を複数のスキルへ指定することも許可する。
         if (Object.prototype.hasOwnProperty.call(patch, "rank")) {
-          const parsed = parseDerivedSkillRank(patch.rank);
+          next.rank = normalizeEditedSkillRank(patch.rank);
+          const parsed = parseDerivedSkillRank(next.rank);
           if (parsed) {
             next.derived_from = parsed.parent;
             next.derived_index = parsed.index;
