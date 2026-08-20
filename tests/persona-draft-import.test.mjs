@@ -71,6 +71,40 @@ HP：165 SAN：50 速度：1d2+2
 [空式施術]最大3 デバフ
 確認`;
 
+const colonOnlyRankDraft = `人格名：「番号コロン草案人格」
+HP：160 SAN：55 速度：1d5+2
+パッシブ名：確認用
+効果：確認
+0：
+先制の一撃
+斬撃：傲慢
+2d9：的中時、確認
+０－２ ：
+追撃
+貫通：嫉妬
+3d6：的中時、確認
+固有
+[確認] 最大1 バフ
+確認`;
+
+const completedSections = {
+  base: `人格名：「人差し指ミケの完成人格」
+RANK：000
+HP：160 SAN：55 速度：1d5+2
+斬撃：普通 貫通：抵抗 打撃：弱点`,
+  passives: `パッシブ名：完成用パッシブ
+発動条件：傲慢x3保有
+効果：確認`,
+  skills: `0：
+指令を遂行する
+斬撃：傲慢
+2d9：的中時、確認`,
+  uniques: `[指令] 最大1 中立バフ
+R開始時、対象を指定する。
+[指令の加護] 最大9 バフ
+数値に応じて効果が変化する。`
+};
+
 function loadParser() {
   const context = { window: {}, console };
   context.globalThis = context;
@@ -170,6 +204,37 @@ test("単独ランク行と裸スキル名の草案を解析し、人格名が�
   assert.equal(result.persona.skills[1].rank, "スキル0-2");
 });
 
+test("全角半角の番号コロンだけで始まる戦術一覧を、次行のスキル名と属性から解析する", () => {
+  const result = loadParser()(colonOnlyRankDraft);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.persona.skills.length, 2);
+  assert.equal(result.persona.skills[0].rank, "スキル0");
+  assert.equal(result.persona.skills[0].name, "先制の一撃");
+  assert.equal(result.persona.skills[1].rank, "スキル0-2");
+  assert.equal(result.persona.skills[1].name, "追撃");
+  assert.equal(result.persona.skills[1].type, "貫通");
+});
+
+test("完成データを区分別に統合し、固有見出しのない指令も明示した固有一覧から登録する", () => {
+  const parseSections = loadParser();
+  const context = { window: {}, console };
+  context.globalThis = context;
+  vm.createContext(context);
+  vm.runInContext(parserSource, context);
+  const result = context.window.LBT_parsePersonaDraftSections(completedSections);
+
+  assert.equal(typeof context.window.LBT_composePersonaDraftSections, "function");
+  assert.equal(result.ok, true);
+  assert.equal(result.persona.name, "人差し指ミケの完成人格");
+  assert.equal(result.persona.skills[0].name, "指令を遂行する");
+  assert.equal(result.persona.unique_buffs.length, 2);
+  assert.equal(result.persona.unique_buffs[0].name, "指令");
+  assert.equal(result.persona.unique_buffs[1].name, "指令の加護");
+  assert.equal(result.syncRank, "000");
+  assert.equal(typeof parseSections, "function");
+});
+
 test("ファイル名側の蜘蛛の巣を除外し、同期草案本文の東部親指元アンダーボスを人格名として採用する", () => {
   const parse = loadParser();
   const result = parse(`人格名：【蜘蛛の巣 親指の親方 ユサの人格】
@@ -266,6 +331,11 @@ test("人格図鑑は草案の解析・プレビュー・確認後の適用入�
   assert.match(source, /LBT_parsePersonaDraft/);
   assert.match(source, /IMPORT_PERSONA_DRAFT/);
   assert.match(source, /草案を貼り付け/);
+  assert.match(source, /解析できる最小見本/);
+  assert.match(source, /0：/);
+  assert.match(source, /完成データを分けて入力/);
+  assert.match(source, /固有一覧（明示登録）/);
+  assert.match(source, /LBT_parsePersonaDraftSections/);
   assert.match(source, /作成先 \/ 同期帰属先/);
   assert.match(source, /draftAffiliationOptions/);
 });

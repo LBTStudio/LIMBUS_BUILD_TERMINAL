@@ -109,7 +109,8 @@
       current.dice.push({ roll: toHalfWidth(match[1]).replace(/\s+/g, ""), effect: clean(match[2] || "") });
       return true;
     };
-    for (const rawLine of lines) {
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+      const rawLine = lines[lineIndex];
       const line = clean(rawLine);
       const normalized = forMatch(line);
       if (!line) continue;
@@ -133,15 +134,17 @@
         }
         continue;
       }
-      const standaloneRank = normalized.match(/^(\d+(?:-\d+)?)$/);
-      if (standaloneRank && !/^\d+d/i.test(standaloneRank[1])) {
+      const standaloneRank = normalized.match(/^(?:戦術\s*)?(\d+(?:-\d+)?)\s*(?::)?$/);
+      const following = lines.slice(lineIndex + 1).map((entry) => forMatch(entry)).filter(Boolean).slice(0, 2);
+      const nextLooksLikeSkillType = /^(斬撃|貫通|打撃|回避|防御|物理|マッチ可能防御|マッチ可能斬撃反撃)\s*:\s*(\S+)/.test(following[1] || "");
+      if (standaloneRank && nextLooksLikeSkillType && !/^\d+d/i.test(standaloneRank[1])) {
         start(standaloneRank[1], "");
         continue;
       }
       if (!current) continue;
       const name = normalized.match(/^スキル\s*名\s*:\s*(.+)$/);
       if (name) { current.name = clean(name[1]); continue; }
-      const nextLine = forMatch(lines[lines.indexOf(rawLine) + 1] || "");
+      const nextLine = forMatch(lines[lineIndex + 1] || "");
       const nextType = /^(斬撃|貫通|打撃|回避|防御|物理|マッチ可能防御|マッチ可能斬撃反撃)\s*:\s*(\S+)/.test(nextLine);
       if (!current.name && nextType && !/^\[/.test(normalized)) { current.name = line; continue; }
       const typed = normalized.match(/^(斬撃|貫通|打撃|回避|防御|物理|マッチ可能防御|マッチ可能斬撃反撃)\s*:\s*(\S+)/);
@@ -195,6 +198,14 @@
     }
     push();
     return buffs;
+  };
+  const composePersonaDraftSections = (sections) => {
+    const value = sections || {};
+    const base = clean(value.base);
+    const passives = clean(value.passives);
+    const skills = clean(value.skills);
+    const uniques = clean(value.uniques);
+    return [base, passives, skills, uniques ? `固有\n${uniques}` : ""].filter(Boolean).join("\n\n");
   };
   const parsePersonaDraft = (rawText) => {
     const original = String(rawText || "").replace(/\r/g, "").trim();
@@ -258,4 +269,6 @@
     };
   };
   window.LBT_parsePersonaDraft = parsePersonaDraft;
+  window.LBT_composePersonaDraftSections = composePersonaDraftSections;
+  window.LBT_parsePersonaDraftSections = (sections) => parsePersonaDraft(composePersonaDraftSections(sections));
 })();
