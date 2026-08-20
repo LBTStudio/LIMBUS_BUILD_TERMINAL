@@ -1439,8 +1439,28 @@ function appReducer(state, action) {
         ? ((affiliatedMode === "n" ? window.DB?.normal_personas : window.DB?.tokui_personas) || []).find((entry) => String(entry?.no) === String(affiliatedNo))
         : null;
       const isAffiliated = !!affiliatedSource;
+      const provided = action.provided || { name: true, hp: true, san: true, speed: true, bullets: true, resistances: true, passives: true, skills: true, uniques: true };
+      const sourceBase = isAffiliated ? affiliatedSource : src;
+      const effectiveSrc = {
+        ...sourceBase,
+        ...src,
+        name: provided.name ? src.name : (sourceBase.name || src.name),
+        hp: provided.hp ? src.hp : (sourceBase.hp ?? src.hp),
+        san: provided.san ? src.san : (sourceBase.san ?? src.san),
+        speed: provided.speed ? src.speed : (sourceBase.speed || src.speed),
+        bullets: provided.bullets ? src.bullets : (sourceBase.bullets || src.bullets),
+        res_slash: provided.resistances ? src.res_slash : (sourceBase.res_slash || src.res_slash),
+        res_pierce: provided.resistances ? src.res_pierce : (sourceBase.res_pierce || src.res_pierce),
+        res_blunt: provided.resistances ? src.res_blunt : (sourceBase.res_blunt || src.res_blunt),
+        passive_name: provided.passives ? src.passive_name : (sourceBase.passive_name || src.passive_name),
+        passive_cond: provided.passives ? src.passive_cond : (sourceBase.passive_cond || src.passive_cond),
+        passive_always: provided.passives ? src.passive_always : (sourceBase.passive_always || src.passive_always),
+        passive_effect: provided.passives ? src.passive_effect : (sourceBase.passive_effect || src.passive_effect),
+        skills: provided.skills ? src.skills : (sourceBase.skills || src.skills),
+        unique_buffs: provided.uniques ? src.unique_buffs : (sourceBase.unique_buffs || src.unique_buffs)
+      };
       const uid = `custom-${Date.now()}`;
-      const skills = migrateLegacyDerivedSkills((src.skills || []).map((sk, index) => ({
+      const skills = migrateLegacyDerivedSkills((effectiveSrc.skills || []).map((sk, index) => ({
         id: `sk-${Date.now()}-${index}`,
         rank: sk.rank || `スキル${index}`,
         derived_from: sk.derived_from || "",
@@ -1455,7 +1475,7 @@ function appReducer(state, action) {
         dice: (sk.dice || []).map((die) => ({ roll: die.roll || "", dval: die.dval ?? die.d ?? "", d: die.d ?? die.dval ?? "", dPlus: !!(die.dPlus ?? die.plus), dCnt: !!die.dCnt, plus: !!(die.plus ?? die.dPlus), effect: die.effect || "" })),
         quick: ""
       })));
-      const uniqueBuffs = (src.unique_buffs || []).map((buff, index) => ({
+      const uniqueBuffs = (effectiveSrc.unique_buffs || []).map((buff, index) => ({
         id: `ub-${Date.now()}-${index}`,
         name: normalizeStatusLabel(buff.name || ""),
         type: buff.type || "バフ",
@@ -1466,13 +1486,13 @@ function appReducer(state, action) {
       }));
       const syncRank = ["0", "00", "000"].includes(action.syncRank) ? action.syncRank : null;
       const importedSource = isAffiliated
-        ? { ...src, __custom: false, __draftImported: true, __affiliation: { mode: affiliatedMode, no: affiliatedSource.no } }
-        : src;
+        ? { ...effectiveSrc, __custom: false, __draftImported: true, __affiliation: { mode: affiliatedMode, no: affiliatedSource.no } }
+        : effectiveSrc;
       const importedBuild = {
         savedAt: Date.now(),
-        hp: String(src.hp ?? 100), san: String(src.san ?? 45), speed: src.speed || "1d5", initiative: 0, bullets: src.bullets || "×",
-        resS: src.res_slash || "普通", resP: src.res_pierce || "普通", resB: src.res_blunt || "普通",
-        pas: { name: src.passive_name || "", cond: src.passive_cond || "", always: src.passive_always || "", effect: src.passive_effect || "", quick: "" },
+        hp: String(effectiveSrc.hp ?? 100), san: String(effectiveSrc.san ?? 45), speed: effectiveSrc.speed || "1d5", initiative: 0, bullets: effectiveSrc.bullets || "×",
+        resS: effectiveSrc.res_slash || "普通", resP: effectiveSrc.res_pierce || "普通", resB: effectiveSrc.res_blunt || "普通",
+        pas: { name: effectiveSrc.passive_name || "", cond: effectiveSrc.passive_cond || "", always: effectiveSrc.passive_always || "", effect: effectiveSrc.passive_effect || "", quick: "" },
         pas2Enabled: !!action.secondaryPassive?.name,
         pas2: { name: action.secondaryPassive?.name || "", cond: action.secondaryPassive?.cond || "", effect: [action.secondaryPassive?.always, action.secondaryPassive?.effect].filter(Boolean).join("\n") },
         skills: cloneJSON(skills),
@@ -1524,14 +1544,14 @@ function appReducer(state, action) {
         personaNo: isAffiliated ? affiliatedSource.no : uid,
         personaSrc: importedSource,
         syncedManual: true,
-        hp: String(src.hp ?? 100),
-        san: String(src.san ?? 45),
-        speed: src.speed || "1d5",
-        bullets: src.bullets || "×",
-        resS: src.res_slash || "普通",
-        resP: src.res_pierce || "普通",
-        resB: src.res_blunt || "普通",
-        pas: { name: src.passive_name || "", cond: src.passive_cond || "", always: src.passive_always || "", effect: src.passive_effect || "", quick: "" },
+        hp: String(effectiveSrc.hp ?? 100),
+        san: String(effectiveSrc.san ?? 45),
+        speed: effectiveSrc.speed || "1d5",
+        bullets: effectiveSrc.bullets || "×",
+        resS: effectiveSrc.res_slash || "普通",
+        resP: effectiveSrc.res_pierce || "普通",
+        resB: effectiveSrc.res_blunt || "普通",
+        pas: { name: effectiveSrc.passive_name || "", cond: effectiveSrc.passive_cond || "", always: effectiveSrc.passive_always || "", effect: effectiveSrc.passive_effect || "", quick: "" },
         pas2Enabled: !!action.secondaryPassive?.name,
         pas2: { name: action.secondaryPassive?.name || "", cond: action.secondaryPassive?.cond || "", effect: [action.secondaryPassive?.always, action.secondaryPassive?.effect].filter(Boolean).join("\n") },
         skills,

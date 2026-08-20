@@ -88,11 +88,11 @@ HP：160 SAN：55 速度：1d5+2
 確認`;
 
 const completedSections = {
-  base: `人格名：「人差し指ミケの完成人格」
-RANK：000
+  name: `人差し指ミケの完成人格`,
+  status: `RANK：000
 HP：160 SAN：55 速度：1d5+2
-斬撃：普通 貫通：抵抗 打撃：弱点`,
-  passives: `パッシブ名：完成用パッシブ
+斬撃：普通 貫通：抵抗 打撃：弱点
+パッシブ名：完成用パッシブ
 発動条件：傲慢x3保有
 効果：確認`,
   skills: `0：
@@ -235,6 +235,27 @@ test("完成データを区分別に統合し、固有見出しのない指令�
   assert.equal(typeof parseSections, "function");
 });
 
+test("四欄の部分入力は人格名と戦術スキルが空でも、記入済みのステータス・パッシブ・固有だけを解析する", () => {
+  const context = { window: {}, console };
+  context.globalThis = context;
+  vm.createContext(context);
+  vm.runInContext(parserSource, context);
+  const result = context.window.LBT_parsePersonaDraftSections({
+    name: "",
+    status: "パッシブ名：部分入力パッシブ\n発動条件：確認\n効果：確認",
+    skills: "",
+    uniques: "[指令] 最大1 中立バフ\n確認"
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.provided.name, false);
+  assert.equal(result.provided.skills, false);
+  assert.equal(result.provided.passives, true);
+  assert.equal(result.provided.uniques, true);
+  assert.equal(result.persona.name, "テキスト反映人格");
+  assert.equal(result.persona.unique_buffs[0].name, "指令");
+});
+
 test("ファイル名側の蜘蛛の巣を除外し、同期草案本文の東部親指元アンダーボスを人格名として採用する", () => {
   const parse = loadParser();
   const result = parse(`人格名：【蜘蛛の巣 親指の親方 ユサの人格】
@@ -325,6 +346,23 @@ test("草案の同期帰属先を選ぶと、既存人格のmode/noを維持し�
   assert.equal(restored.skills[0].name, "切断");
 });
 
+test("人格名と戦術が空の部分入力を既存人格へ同期反映すると、未入力区分を維持して固有だけを更新する", () => {
+  const context = { window: {}, console };
+  context.globalThis = context;
+  vm.createContext(context);
+  vm.runInContext(parserSource, context);
+  const partial = context.window.LBT_parsePersonaDraftSections({ name: "", status: "", skills: "", uniques: "[指令] 最大1 中立バフ\n確認" });
+  const official = { no: 18, name: "手動帰属人格", hp: 111, san: 44, speed: "2d2", bullets: "8", res_slash: "抵抗", res_pierce: "普通", res_blunt: "弱点", passive_name: "既存パッシブ", skills: [{ rank: "スキル0", name: "既存戦術", dice: [] }], unique_buffs: [], keywords: [] };
+  const { reducer, initState } = loadStateReducer({ normal_personas: [official] });
+  const next = reducer({ ...initState, roster: { personas: [], egos: [] } }, { type: "IMPORT_PERSONA_DRAFT", persona: partial.persona, secondaryPassive: partial.secondaryPassive, provided: partial.provided, affiliation: { mode: "n", no: 18 } });
+
+  assert.equal(next.personaMode, "n");
+  assert.equal(next.personaSrc.name, "手動帰属人格");
+  assert.equal(next.hp, "111");
+  assert.equal(next.skills[0].name, "既存戦術");
+  assert.equal(next.uniqueBuffs[0].name, "指令");
+});
+
 test("人格図鑑は草案の解析・プレビュー・確認後の適用入口を提供する", () => {
   const source = readFileSync(new URL("../js/PersonaCodex.js", import.meta.url), "utf8");
   assert.match(source, /PersonaDraftImportDialog/);
@@ -334,6 +372,8 @@ test("人格図鑑は草案の解析・プレビュー・確認後の適用入�
   assert.match(source, /表記は多少異なっても読み込みます/);
   assert.match(source, /０－２：/);
   assert.match(source, /完成データを分けて入力/);
+  assert.match(source, /人格名（任意）/);
+  assert.match(source, /ステータス・パッシブ（任意）/);
   assert.match(source, /固有一覧（明示登録）/);
   assert.match(source, /LBT_parsePersonaDraftSections/);
   assert.match(source, /作成先 \/ 同期帰属先/);

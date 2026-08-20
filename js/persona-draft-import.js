@@ -201,13 +201,15 @@
   };
   const composePersonaDraftSections = (sections) => {
     const value = sections || {};
-    const base = clean(value.base);
-    const passives = clean(value.passives);
+    const name = clean(value.name);
+    const status = clean(value.status);
     const skills = clean(value.skills);
     const uniques = clean(value.uniques);
-    return [base, passives, skills, uniques ? `固有\n${uniques}` : ""].filter(Boolean).join("\n\n");
+    const labeledName = name && /^(?:人格\s*(?:名|名称)|名称)\s*[:：]/i.test(forMatch(name)) ? name : (name ? `人格名：${name}` : "");
+    return [labeledName, status, skills, uniques ? `固有\n${uniques}` : ""].filter(Boolean).join("\n\n");
   };
-  const parsePersonaDraft = (rawText) => {
+  const parsePersonaDraft = (rawText, options) => {
+    const allowPartial = !!options?.allowPartial;
     const original = String(rawText || "").replace(/\r/g, "").trim();
     const errors = [];
     const warnings = [];
@@ -232,12 +234,27 @@
     const skills = parseSkills(lines);
     const uniqueBuffs = parseBuffs(lines);
     const rank = ((text.match(/(?:RANK|ランク)\s*[:：]?\s*(0{1,3})/i) || [])[1]) || null;
-    if (!name) errors.push("人格名を確認できません。『人格名：』または『「人格名」』を含めてください。");
-    if (!hp || !san || !isDiceFormula(speed)) errors.push("HP・SAN・速度を確認できません。HP・SANは数値、速度は『1d5+2』形式で記載してください。");
-    if (!skills.length) errors.push("戦術スキルを確認できません。『【戦術スキルN】』または『1-1：スキル名』形式を含めてください。");
+    const provided = {
+      name: !!name,
+      hp: !!collectField(text, "HP"),
+      san: !!collectField(text, "SAN"),
+      speed: !!speed,
+      bullets: !!collectField(text, "弾丸"),
+      resistances: lines.slice(0, 24).some((line) => /(斬撃|貫通|打撃)\s*[:：]\s*(脆弱|弱点|普通|抵抗|耐性|免疫)/.test(forMatch(line))),
+      passives: passives.length > 0,
+      skills: skills.length > 0,
+      uniques: uniqueBuffs.length > 0
+    };
+    if (allowPartial) {
+      if (!Object.values(provided).some(Boolean)) errors.push("反映できる項目を確認できません。人格名、ステータス・パッシブ、戦術スキル、固有のいずれかを入力してください。");
+    } else {
+      if (!name) errors.push("人格名を確認できません。『人格名：』または『「人格名」』を含めてください。");
+      if (!hp || !san || !isDiceFormula(speed)) errors.push("HP・SAN・速度を確認できません。HP・SANは数値、速度は『1d5+2』形式で記載してください。");
+      if (!skills.length) errors.push("戦術スキルを確認できません。『【戦術スキルN】』または『1-1：スキル名』形式を含めてください。");
+    }
     if (!passives.length) warnings.push("パッシブを確認できません。適用後にパッシブ欄で追加できます。");
     const persona = {
-      name: name || "草案人格",
+      name: name || "テキスト反映人格",
       no: 999,
       hp: hp || 100,
       san: san || 45,
@@ -262,6 +279,7 @@
       warnings,
       persona,
       secondaryPassive: passives[1] || null,
+      provided,
       syncRank: ["0", "00", "000"].includes(rank) ? rank : null,
       suggestSyncMax: syncStart >= 0 && /同期\s*MAX/i.test(forMatch(allLines[syncStart] || "")),
       nameSource: syncStart >= 0 ? "sync-draft" : "document",
@@ -270,5 +288,5 @@
   };
   window.LBT_parsePersonaDraft = parsePersonaDraft;
   window.LBT_composePersonaDraftSections = composePersonaDraftSections;
-  window.LBT_parsePersonaDraftSections = (sections) => parsePersonaDraft(composePersonaDraftSections(sections));
+  window.LBT_parsePersonaDraftSections = (sections) => parsePersonaDraft(composePersonaDraftSections(sections), { allowPartial: true });
 })();

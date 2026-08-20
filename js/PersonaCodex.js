@@ -626,8 +626,8 @@ const PersonaDraftImportDialog = ({ draftText, draftSections, draftInputMode, dr
         h("button", { className: `btn ${draftInputMode === "sections" ? "btn--primary" : "btn--secondary"}`, type: "button", role: "tab", "aria-selected": draftInputMode === "sections", onClick: () => onInputModeChange("sections") }, "完成データを分けて入力"),
         h("button", { className: `btn ${draftInputMode === "raw" ? "btn--primary" : "btn--secondary"}`, type: "button", role: "tab", "aria-selected": draftInputMode === "raw", onClick: () => onInputModeChange("raw") }, "一括テキストを貼り付け")),
       draftInputMode === "sections" ? h("div", { className: "persona-draft-sections" },
-        section("base", "基本ステータス", "必須: 人格名・HP・SAN・速度。全角半角・空白・: / ：は多少異なっても可。", "人格 名：「完成人格」\nHP:160　SAN：55　速度:1d5＋2\n斬撃：普通 貫通：抵抗 打撃：弱点\nRANK：000（任意）"),
-        section("passives", "人格パッシブ", "パッシブ名・発動条件・常時効果・効果をそのまま入力。", "パッシブ名：固有パッシブ\n発動条件：傲慢x3保有\n効果：..."),
+        section("name", "人格名（任意）", "空欄でも反映可。既存人格へ同期帰属する場合は、下部で手動選択できます。", "黒雲会組員 または 人格名：「黒雲会組員」"),
+        section("status", "ステータス・パッシブ（任意）", "HP・SAN・速度・耐性・弾丸と、パッシブ名・発動条件・常時効果・効果をまとめて入力。", "HP:160　SAN：55　速度:1d5＋2\n斬撃：普通 貫通：抵抗 打撃：弱点\nパッシブ名：固有パッシブ\n発動条件：傲慢x3保有\n効果：..."),
         section("skills", "戦術スキル一覧", "0： / 0-2： / ０－２： / 【戦術スキル1】のいずれも可。", "０－２：\nスキル名\n斬撃:傲慢\n2d9：的中時、..."),
         section("uniques", "固有一覧（明示登録）", "正式な固有見出しがなくても、指令などをここへ入力すると固有一覧へ登録。", "[指令] 最大1 中立バフ\n説明\n[指令の加護] 最大9 バフ\n説明")) :
         h("textarea", { className: "persona-draft-import-text", value: draftText, onChange: (event) => onChange(event.target.value), placeholder: "表記は多少異なっても読み込みます\n人格 名：「完成人格」\nHP:160　SAN：55　速度:1d5＋2\nパッシブ名：...\n０－２：スキル名\n斬撃:傲慢\n2d9：的中時、...\n\n【戦術スキル１】・0：・0-2：も対応\n※必須項目の不足や文章型速度は修正が必要です", autoFocus: true }),
@@ -647,7 +647,8 @@ const PersonaDraftImportDialog = ({ draftText, draftSections, draftInputMode, dr
         draftResult.ok && h(React.Fragment, null,
           h("strong", { className: "persona-draft-result-title" }, draftResult.persona.name),
           h("div", { className: "persona-draft-result-meta" }, `HP ${draftResult.persona.hp} / SAN ${draftResult.persona.san} / 速度 ${draftResult.persona.speed} / 弾丸 ${draftResult.persona.bullets}`),
-          h("div", { className: "persona-draft-result-meta" }, `戦術スキル ${draftResult.summary.skillCount}件 / パッシブ ${draftResult.summary.passiveCount}件 / 固有 ${draftResult.summary.buffCount}件`)),
+          h("div", { className: "persona-draft-result-meta" }, `戦術スキル ${draftResult.summary.skillCount}件 / パッシブ ${draftResult.summary.passiveCount}件 / 固有 ${draftResult.summary.buffCount}件`),
+          h("div", { className: "persona-draft-result-meta" }, `反映対象: ${[draftResult.provided?.name && "人格名", (draftResult.provided?.hp || draftResult.provided?.san || draftResult.provided?.speed || draftResult.provided?.passives) && "ステータス・パッシブ", draftResult.provided?.skills && "戦術スキル", draftResult.provided?.uniques && "固有"].filter(Boolean).join(" / ") || "なし"}`)),
         (draftResult.errors || []).map((message, index) => h("p", { key: `error-${index}`, className: "persona-draft-message is-error" }, message)),
         (draftResult.warnings || []).map((message, index) => h("p", { key: `warning-${index}`, className: "persona-draft-message is-warning" }, message)))));
 };
@@ -658,7 +659,7 @@ const PersonaCodex = ({ state, dispatch }) => {
   const pendingDetailFocusRef = React.useRef(false);
   const [draftImportOpen, setDraftImportOpen] = React.useState(false);
   const [draftText, setDraftText] = React.useState("");
-  const [draftSections, setDraftSections] = React.useState({ base: "", passives: "", skills: "", uniques: "" });
+  const [draftSections, setDraftSections] = React.useState({ name: "", status: "", skills: "", uniques: "" });
   const [draftInputMode, setDraftInputMode] = React.useState("sections");
   const [draftResult, setDraftResult] = React.useState(null);
   const [draftSyncMax, setDraftSyncMax] = React.useState(false);
@@ -918,12 +919,12 @@ const PersonaCodex = ({ state, dispatch }) => {
   const applyDraft = () => {
     if (!draftResult?.ok) return;
     const affiliation = draftAffiliationOptions.find((entry) => entry.key === draftAffiliationKey) || null;
-    dispatch({ type: "IMPORT_PERSONA_DRAFT", persona: draftResult.persona, secondaryPassive: draftResult.secondaryPassive, syncRank: draftResult.syncRank, syncMax: draftSyncMax, affiliation: affiliation ? { mode: affiliation.mode, no: affiliation.no } : null });
+    dispatch({ type: "IMPORT_PERSONA_DRAFT", persona: draftResult.persona, secondaryPassive: draftResult.secondaryPassive, provided: draftResult.provided, syncRank: draftResult.syncRank, syncMax: draftSyncMax, affiliation: affiliation ? { mode: affiliation.mode, no: affiliation.no } : null });
     dispatch({ type: "SET_UI", ui: { codexExpanded: false } });
     setShowEquippedDetail(false);
     setDraftImportOpen(false);
     setDraftText("");
-    setDraftSections({ base: "", passives: "", skills: "", uniques: "" });
+    setDraftSections({ name: "", status: "", skills: "", uniques: "" });
     setDraftResult(null);
     setDraftAffiliationKey("");
     toast(affiliation ? `草案を『${affiliation.name}』の同期人格として反映` : `草案人格『${draftResult.persona.name}』を編集中として装備`);
