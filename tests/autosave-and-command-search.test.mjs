@@ -12,12 +12,24 @@ test("端末内自動保存は成功と失敗を区別し、保存不能時に�
   assert.match(state, /phase: "saved", savedAt: Date\.now\(\), error: ""/);
   assert.match(state, /phase: "error", savedAt: null, error:/);
   assert.match(state, /saveStatus/);
-  assert.match(app, /端末内に自動保存済み/);
-  assert.match(app, /端末内保存不可/);
-  assert.match(app, /ファイル保存/);
-  assert.match(app, /search\.dataset\.autosave = saveStateLabel/);
-  assert.match(app, /search\.setAttribute\("aria-label", `クイック検索。\$\{saveStateLabel\}`\)/);
-  assert.match(app, /data-autosave-state/);
+  assert.match(app, /const saveStateLabel = saveStatus\.phase/);
+  assert.match(app, /backup\.textContent = "\\u4F5C\\u696D\\u72B6\\u614B\\u3092\\u4FDD\\u5B58"/);
+  assert.match(app, /anchor\.dataset\.autosave = saveStateLabel/);
+  assert.match(app, /anchor\.dataset\.autosaveState = saveStatus\.phase/);
+  assert.match(app, /anchor\.setAttribute\("aria-label", `\\u30AF\\u30A4\\u30C3\\u30AF\\u691C\\u7D22\\u3002\$\{saveStateLabel\}`\)/);
+  assert.ok(app.indexOf("const saveStateLabel") < app.indexOf("window.App = App;"), "自動保存状態の副作用はAppコンポーネント内に置く");
+  assert.match(app, /return \(\) => indicator\.remove\(\);/);
+});
+
+test("保存導線の用語を統一し、部分復元前に適用範囲を要約する", () => {
+  assert.match(app, /label: "\\u73FE\\u5728\\u306E\\u4F5C\\u696D\\u72B6\\u614B\\u3092\\u4FDD\\u5B58"/);
+  assert.match(app, /keywords: \["\\u72B6\\u614B\\u3092\\u30A8\\u30AF\\u30B9\\u30DD\\u30FC\\u30C8"/);
+  assert.match(app, /\(c\.keywords \|\| \[\]\)\.some\(\(keyword\) => keyword\.toLowerCase\(\)\.includes\(ql\)\)/);
+  assert.match(app, /const selectedImportGroups = importData/);
+  assert.match(app, /const selectedImportLabel = selectedImportGroups\.length/);
+  assert.match(app, /className: "import-apply-summary"/);
+  assert.match(app, /\\u4ECA\\u56DE\\u306E\\u9069\\u7528\\u7BC4\\u56F2\\uFF1A", selectedImportLabel/);
+  assert.match(app, /disabled: selectedImportGroups\.length === 0/);
 });
 
 test("クイック検索のE.G.O・アイテム候補は詳細画面へ移動するだけで装備・導入しない", () => {
