@@ -12,11 +12,13 @@ test("スキル下部一覧はドラッグ横スクロールを持ち、並べ�
   assert.match(skillDeck, /onClickCapture/);
 });
 
-test("スキル一覧は短いクリックを選択へ通し、一定距離以上の横ドラッグだけを抑止する", () => {
+test("スキル一覧は短いクリックを選択へ通し、横ドラッグ自身のクリックだけを抑止する", () => {
   assert.match(skillDeck, /const DRAG_SCROLL_THRESHOLD = 8/);
   assert.match(skillDeck, /Math\.abs\(deltaX\) > DRAG_SCROLL_THRESHOLD/);
-  assert.match(skillDeck, /const CLICK_SUPPRESS_MS = 250/);
-  assert.match(skillDeck, /Date\.now\(\) > dragRef\.current\.suppressClickUntil/);
+  assert.match(skillDeck, /suppressNextClick: false/);
+  assert.match(skillDeck, /drag\.moved && event\.type === "pointerup"/);
+  assert.match(skillDeck, /if \(!dragRef\.current\.suppressNextClick\) return;/);
+  assert.doesNotMatch(skillDeck, /CLICK_SUPPRESS_MS|suppressClickUntil/);
   assert.match(skillDeck, /onClick: \(\) => \{ curSkillIdRef\.current = null; setCurIdx\(i\); \}/);
 });
 

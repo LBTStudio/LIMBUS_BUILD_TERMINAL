@@ -56,14 +56,15 @@ const AutoTextarea = ({ value, onChange, minRows = 1, style = {}, className = ""
 // カード本体の左右ドラッグは横スクロール、並べ替えは専用グリップだけに分離する。
 const useHorizontalDragScroll = () => {
   const ref = React.useRef(null);
-  const dragRef = React.useRef({ pointerId: null, startX: 0, startLeft: 0, moved: false, suppressClickUntil: 0 });
+  const dragRef = React.useRef({ pointerId: null, startX: 0, startLeft: 0, moved: false, suppressNextClick: false });
   const DRAG_SCROLL_THRESHOLD = 8;
-  const CLICK_SUPPRESS_MS = 250;
   const [dragging, setDragging] = React.useState(false);
   const finish = React.useCallback((event) => {
     const drag = dragRef.current;
     if (drag.pointerId !== event.pointerId) return;
-    if (drag.moved) drag.suppressClickUntil = Date.now() + CLICK_SUPPRESS_MS;
+    // 横ドラッグ自身が直後に発火する click だけを止める。時間で抑止しないため、
+    // スライド直後に別のカードを短くクリックしても選択操作を失わない。
+    if (drag.moved && event.type === "pointerup") drag.suppressNextClick = true;
     ref.current?.releasePointerCapture?.(event.pointerId);
     drag.pointerId = null;
     setDragging(false);
@@ -73,7 +74,7 @@ const useHorizontalDragScroll = () => {
     if (event.target?.closest?.("button, input, textarea, select, a, .dnd-handle, [draggable='true']")) return;
     const strip = ref.current;
     if (!strip || strip.scrollWidth <= strip.clientWidth + 1) return;
-    dragRef.current = { pointerId: event.pointerId, startX: event.clientX, startLeft: strip.scrollLeft, moved: false, suppressClickUntil: 0 };
+    dragRef.current = { pointerId: event.pointerId, startX: event.clientX, startLeft: strip.scrollLeft, moved: false, suppressNextClick: false };
     strip.setPointerCapture?.(event.pointerId);
   }, []);
   const onPointerMove = React.useCallback((event) => {
@@ -87,8 +88,8 @@ const useHorizontalDragScroll = () => {
     event.preventDefault();
   }, []);
   const onClickCapture = React.useCallback((event) => {
-    if (Date.now() > dragRef.current.suppressClickUntil) return;
-    dragRef.current.suppressClickUntil = 0;
+    if (!dragRef.current.suppressNextClick) return;
+    dragRef.current.suppressNextClick = false;
     event.preventDefault();
     event.stopPropagation();
   }, []);
