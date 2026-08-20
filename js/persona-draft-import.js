@@ -1,7 +1,7 @@
 /* LBT persona draft paste parser. Keeps parsing deterministic and entirely client-side. */
 (function () {
-  const toHalfWidth = (value) => String(value || "").replace(/[０-９Ａ-Ｚａ-ｚ]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xFEE0)).replace(/[：]/g, ":").replace(/[‐‑‒–—－−]/g, "-").replace(/[（]/g, "(").replace(/[）]/g, ")").replace(/　/g, " ");
-  const forMatch = (value) => toHalfWidth(value).replace(/\s*-\s*/g, "-").replace(/[\t ]+/g, " ").trim();
+  const toHalfWidth = (value) => String(value || "").replace(/[０-９Ａ-Ｚａ-ｚ]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xFEE0)).replace(/[：︰﹕]/g, ":").replace(/[＋﹢]/g, "+").replace(/[‐‑‒–—－−﹣]/g, "-").replace(/[（]/g, "(").replace(/[）]/g, ")").replace(/　/g, " ");
+  const forMatch = (value) => toHalfWidth(value).replace(/^`{3,}\s*|\s*`{3,}$/g, "").replace(/\s*-\s*/g, "-").replace(/[\t ]+/g, " ").trim();
   const clean = (value) => String(value || "").replace(/\r/g, "").trim();
   const linesOf = (value) => String(value || "").replace(/\r/g, "").split("\n").map((line) => line.trim());
   const appendLine = (target, key, value) => {
@@ -14,10 +14,13 @@
     .replace(/[\s」』\"】\]）)]+$/, "")
     .trim();
   const personaNameFromLine = (line) => {
+    const raw = clean(line).replace(/^`{3,}\s*|\s*`{3,}$/g, "").trim();
     const normalized = forMatch(line);
     const labeled = normalized.match(/^(?:人格\s*(?:名|名称)|名称)\s*:\s*(.+)$/i);
-    if (labeled) return { value: stripPersonaQuotes(labeled[1]), labeled: true };
-    if (/^[「『\"].+[」』\"]$/.test(normalized)) return stripPersonaQuotes(normalized);
+    const labeledRaw = raw.match(/^(?:人格\s*(?:名|名称)|名称)\s*[:：]\s*(.+)$/i);
+    if (labeled) return { value: stripPersonaQuotes(labeledRaw ? labeledRaw[1] : labeled[1]), labeled: true };
+    const quoted = raw.match(/^[「『\"]\s*([^」』\"]+?)\s*[」』\"]/);
+    if (quoted) return stripPersonaQuotes(quoted[1]);
     return "";
   };
   const findLastSyncDraftStart = (lines) => lines.reduce((found, line, index) => /同期\s*(?:MAX)?\s*草案/i.test(forMatch(line)) ? index : found, -1);
@@ -29,6 +32,7 @@
     const found = String(value || "").match(/\d+/);
     return found ? Number(found[0]) : fallback;
   };
+  const isDiceFormula = (value) => /^\s*(?:\d+|\{[^{}]+\})\s*[dD]\s*(?:\d+|\{[^{}]+\})(?:\s*[+\-]\s*(?:\d+|\{[^{}]+\}))?\s*$/.test(toHalfWidth(value));
   const collectField = (text, label) => {
     const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const match = text.match(new RegExp(`${escaped}\\s*[:：]\\s*([^\\n]*?)(?=\\s*(?:HP|SAN|速度|弾丸)\\s*[:：]|\\n|$)`, "i"));
@@ -52,7 +56,7 @@
       current = null;
       section = "";
     };
-    const stop = (line) => /^【\s*戦術\s*スキル/.test(line) || /^\d+(?:[-－ー]\d+)?\s*[:：]/.test(toHalfWidth(line)) || /^(固有|人格コンセプト)/.test(line);
+    const stop = (line) => /^【\s*戦術(?:\s*スキル)?\s*】/.test(line) || /^\d+(?:[-－ー]\d+)?\s*[:：]/.test(toHalfWidth(line)) || /^(固有|人格コンセプト)/.test(line);
     for (let index = 0; index < lines.length; index += 1) {
       const line = clean(lines[index]);
       const normalized = forMatch(line);
@@ -63,7 +67,7 @@
         current = { name: clean(named[1]), cond: "", always: "", effect: "" };
         continue;
       }
-      if (/^【\s*パッシブ\s*】/.test(normalized)) {
+      if (/^【\s*パッシブ(?:\s*\d+)?\s*】/.test(normalized)) {
         push();
         const next = lines.slice(index + 1).find((candidate) => clean(candidate));
         if (next && !/^(発動条件|常時(?:効果|発動)?|効果)\s*[:：]/.test(next)) current = { name: clean(next), cond: "", always: "", effect: "" };
@@ -109,9 +113,10 @@
       const line = clean(rawLine);
       const normalized = forMatch(line);
       if (!line) continue;
-      if (/^(固有|人格コンセプト|派生戦術|外付け補正)/.test(normalized)) { push(); break; }
+      if (/^(固有|人格コンセプト|派生戦術|外付け補正)/.test(normalized) || (/^\[[^\]]+\].*最大(?:値)?\s*[:：;；]?\s*\d+/.test(normalized) && current)) { push(); break; }
       const header = normalized.match(/^【\s*戦術\s*スキル\s*([^】]+)】/);
       if (header) { start(header[1], ""); continue; }
+      if (/^【\s*戦術\s*】/.test(normalized)) continue;
       const compact = normalized.match(/^(\d+(?:-\d+)?)\s*:\s*(.+)$/);
       if (compact && !/^\d+d/i.test(compact[1])) {
         const tail = clean(compact[2]);
@@ -128,9 +133,17 @@
         }
         continue;
       }
+      const standaloneRank = normalized.match(/^(\d+(?:-\d+)?)$/);
+      if (standaloneRank && !/^\d+d/i.test(standaloneRank[1])) {
+        start(standaloneRank[1], "");
+        continue;
+      }
       if (!current) continue;
       const name = normalized.match(/^スキル\s*名\s*:\s*(.+)$/);
       if (name) { current.name = clean(name[1]); continue; }
+      const nextLine = forMatch(lines[lines.indexOf(rawLine) + 1] || "");
+      const nextType = /^(斬撃|貫通|打撃|回避|防御|物理|マッチ可能防御|マッチ可能斬撃反撃)\s*:\s*(\S+)/.test(nextLine);
+      if (!current.name && nextType && !/^\[/.test(normalized)) { current.name = line; continue; }
       const typed = normalized.match(/^(斬撃|貫通|打撃|回避|防御|物理|マッチ可能防御|マッチ可能斬撃反撃)\s*:\s*(\S+)/);
       if (typed) {
         current.type = typed[1].replace("マッチ可能", "");
@@ -150,7 +163,9 @@
     return skills;
   };
   const parseBuffs = (lines) => {
-    const startAt = lines.findIndex((line) => /^(固有(?:-|$)|固有-同期MAX)/.test(forMatch(line)));
+    const titledStartAt = lines.findIndex((line) => /^(固有(?:-|$)|固有-同期MAX)/.test(forMatch(line)));
+    const implicitStartAt = lines.findIndex((line) => /^\[[^\]]+\].*最大(?:値)?\s*[:：;；]?\s*\d+/.test(forMatch(line)));
+    const startAt = titledStartAt >= 0 ? titledStartAt + 1 : implicitStartAt;
     if (startAt < 0) return [];
     const buffs = [];
     let current = null;
@@ -158,14 +173,19 @@
       if (current?.name) buffs.push(current);
       current = null;
     };
-    for (const rawLine of lines.slice(startAt + 1)) {
+    for (const rawLine of lines.slice(startAt)) {
       const line = clean(rawLine);
       const normalized = forMatch(line);
       if (!line || /^外付け補正/.test(line)) continue;
       const header = normalized.match(/^\[([^\]]+)\]\s*(.*)$/);
       if (header) {
-        push();
         const tail = clean(header[2]);
+        const isBuffHeader = /最大(?:値)?\s*[:：;；]?\s*\d+/.test(tail) || /(中立バフ|バフ|デバフ|その他)/.test(tail);
+        if (!isBuffHeader) {
+          if (current) appendLine(current, "desc", line);
+          continue;
+        }
+        push();
         const max = numeric((tail.match(/最大(?:値)?\s*[:：;；]?\s*(\d+)/) || [])[1], 20);
         const type = (tail.match(/(中立バフ|バフ|デバフ|その他)/) || [])[1] || "バフ";
         current = { name: clean(header[1]), type, initial: 0, max, desc: "", place: "status" };
@@ -200,9 +220,9 @@
     const passives = parsePassives(lines);
     const skills = parseSkills(lines);
     const uniqueBuffs = parseBuffs(lines);
-    const rank = ((text.match(/RANK\s*[:：]\s*(0{1,3})/i) || [])[1]) || null;
+    const rank = ((text.match(/(?:RANK|ランク)\s*[:：]?\s*(0{1,3})/i) || [])[1]) || null;
     if (!name) errors.push("人格名を確認できません。『人格名：』または『「人格名」』を含めてください。");
-    if (!hp || !san || !speed) warnings.push("HP・SAN・速度の一部を確認できません。適用後に基本情報で補完してください。");
+    if (!hp || !san || !isDiceFormula(speed)) errors.push("HP・SAN・速度を確認できません。HP・SANは数値、速度は『1d5+2』形式で記載してください。");
     if (!skills.length) errors.push("戦術スキルを確認できません。『【戦術スキルN】』または『1-1：スキル名』形式を含めてください。");
     if (!passives.length) warnings.push("パッシブを確認できません。適用後にパッシブ欄で追加できます。");
     const persona = {

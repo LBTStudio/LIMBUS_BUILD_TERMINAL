@@ -50,6 +50,27 @@ HP：184 SAN：62 速度：2d2+1 弾丸：22
 [オーバーヒート状態] 最大15 中立バフ
 効果：R終了時に1減少`;
 
+const fencedGoogleDraft = "```「人差し指伝令：【紙片】 マスカの人格」ランク:000\n【ステータス】\nHP:150 SAN:55 速度:2d3+1\n斬撃:抵抗 貫通:普通 打撃:弱点\n```\n【パッシブ1】\n歪んでしまった伝令/愉悦\n発動条件：傲慢x3 憂鬱x2 保有\n常時発動：R開始時、指令対象を付与\n効果：唯一スキルを1つ捨てる\n【パッシブ2】\n指令に背く者への応援と嘲笑を。\n発動条件：味方に人差し指所属が3人以上\n効果：味方のカルマ獲得量を1増加\n```【戦術】\n0-1：さぁ興じようか 回避：憂鬱\n2d10：回避成功時、ダルタニャンへ通知しない\n1：目を逸らすな 斬撃：傲慢\n2d10：的中時、沈潜3を付与\n4-2：君と云う名の即興劇 斬撃：傲慢\n24-3d7：破壊不能ダイス。的中時、沈潜1を付与\n```\n[指令] 最大1 中立バフ\n特定条件によって指令[紙片]が与えられる\n[指令の加護] 最大9 バフ\n数値/3だけダメージ量増加";
+
+const pdfTableExcerpt = `「旧G社兵士 アリスの人格」 RANK\nHP 150 SAN 45 速度 4d2 斬撃 弱点 貫通 抵抗 打撃 普通 弾丸 ×\n名称 つわものどもが夢の跡\nパッシブ 発動条件 憂鬱x2 保有\n効果 死亡時、両隣の味方にパワー3を付与\n0\n危機予測 回避：憂鬱\n2d10：回避成功時、沈潜2を付与`;
+
+const bareRankDraft = `人格名：「単独ランク草案人格」
+HP：165 SAN：50 速度：1d2+2
+パッシブ名：確認用
+効果：確認
+戦術
+0
+ファウヌス
+マッチ可能防御：怠惰
+6d2：防御成功時、確認
+0-2
+ラブポーション
+貫通：怠惰
+4d3+3：的中時、確認
+固有
+[空式施術]最大3 デバフ
+確認`;
+
 function loadParser() {
   const context = { window: {}, console };
   context.globalThis = context;
@@ -99,6 +120,54 @@ test("簡略形式の同期人格草案も戦術ランク・大罪・ダイス�
   assert.equal(result.persona.skills[1].aoe, "広域");
   assert.equal(result.persona.skills[1].aoeCount, "3");
   assert.equal(result.persona.unique_buffs[0].max, 15);
+});
+
+test("コードフェンス・行内引用名・番号付きパッシブ・見出しなし固有を含むGoogle草案を解析する", () => {
+  const result = loadParser()(fencedGoogleDraft);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.persona.name, "人差し指伝令：【紙片】 マスカの人格");
+  assert.equal(result.persona.hp, 150);
+  assert.equal(result.persona.san, 55);
+  assert.equal(result.persona.skills.length, 3);
+  assert.equal(result.persona.skills[0].rank, "スキル0-1");
+  assert.equal(result.persona.skills[2].rank, "スキル4-2");
+  assert.equal(result.persona.passive_name, "歪んでしまった伝令/愉悦");
+  assert.equal(result.secondaryPassive.name, "指令に背く者への応援と嘲笑を。");
+  assert.equal(result.persona.unique_buffs.length, 2);
+  assert.equal(result.persona.unique_buffs[0].name, "指令");
+  assert.equal(result.syncRank, "000");
+});
+
+test("PDF抽出で表構造が崩れた人格データは草案として誤作成せず、基本能力不足で停止する", () => {
+  const result = loadParser()(pdfTableExcerpt);
+
+  assert.equal(result.ok, false);
+  assert.equal(result.persona.name, "旧G社兵士 アリスの人格");
+  assert.equal(result.errors.some((message) => message.includes("HP・SAN・速度")), true);
+});
+
+test("速度が文章や未指定の草案は成功扱いにせず、基本能力の記法を明示して停止する", () => {
+  const result = loadParser()(`人格名：「ダルタニャン専用テスト人格」
+HP：100 SAN：45 速度：早い 3dy希望
+パッシブ名：確認用
+効果：確認
+1：確認スキル 斬撃：傲慢
+2d10：的中時、確認`);
+
+  assert.equal(result.ok, false);
+  assert.equal(result.errors.some((message) => message.includes("HP・SAN・速度")), true);
+});
+
+test("単独ランク行と裸スキル名の草案を解析し、人格名が欠ける実草案は安全停止できる", () => {
+  const result = loadParser()(bareRankDraft);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.persona.skills.length, 2);
+  assert.equal(result.persona.skills[0].rank, "スキル0");
+  assert.equal(result.persona.skills[0].name, "ファウヌス");
+  assert.equal(result.persona.skills[0].type, "防御");
+  assert.equal(result.persona.skills[1].rank, "スキル0-2");
 });
 
 test("ファイル名側の蜘蛛の巣を除外し、同期草案本文の東部親指元アンダーボスを人格名として採用する", () => {
