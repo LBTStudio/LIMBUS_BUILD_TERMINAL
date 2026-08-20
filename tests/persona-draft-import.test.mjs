@@ -101,11 +101,11 @@ test("簡略形式の同期人格草案も戦術ランク・大罪・ダイス�
   assert.equal(result.persona.unique_buffs[0].max, 15);
 });
 
-test("同期草案ブロック内の最後の人格名を冒頭の参照名より優先し、全角・空白の表記ゆれを認識する", () => {
+test("ファイル名側の蜘蛛の巣を除外し、同期草案本文の東部親指元アンダーボスを人格名として採用する", () => {
   const parse = loadParser();
-  const result = parse(`人格名：【ファイル名由来の別人格】
+  const result = parse(`人格名：【蜘蛛の巣 親指の親方 ユサの人格】
 同期 ＭＡＸ　草案 （作成中）
-人格 名 ： 「本文で明示された同期人格」
+人格 名 ： 「東部親指元アンダーボス ユサの人格」
 ＲＡＮＫ：０００
 ＨＰ：１６０　ＳＡＮ：５５　速度：１ｄ５＋２　弾丸：１０
 斬撃：普通　貫通：抵抗　打撃：弱点
@@ -122,7 +122,7 @@ test("同期草案ブロック内の最後の人格名を冒頭の参照名よ�
 
   assert.equal(result.ok, true);
   assert.equal(result.nameSource, "sync-draft");
-  assert.equal(result.persona.name, "本文で明示された同期人格");
+  assert.equal(result.persona.name, "東部親指元アンダーボス ユサの人格");
   assert.equal(result.persona.hp, 160);
   assert.equal(result.persona.skills[0].name, "本文スキル");
   assert.equal(result.persona.unique_buffs[0].name, "本文固有");
