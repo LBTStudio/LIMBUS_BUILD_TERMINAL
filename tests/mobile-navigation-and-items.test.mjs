@@ -36,6 +36,10 @@ test("アイテム画面はDBアイテムではなくアイテムとして案内
   assert.doesNotMatch(itemSource, /DBアイテム/);
 });
 
+test("所持品から削除は追加操作と区別できる既存の危険操作変種を使う", () => {
+  assert.match(itemSource, /variant: "secondary", icon: "plus"[\s\S]{0,320}variant: "danger", icon: "trash"[\s\S]{0,160}"所持品から削除"/);
+});
+
 test("実機のモバイル確認ページは端末全画面に追従し、確認フレーム由来のスクロールバーを出さない", () => {
   assert.match(mobilePreview, /\.device \{[\s\S]*?overflow: hidden;/);
   assert.match(mobilePreview, /@media \(max-width: 430px\) \{[\s\S]*?body \{ display: block; width: 100vw; min-height: 100dvh; height: 100dvh; padding: 0; overflow: hidden; \}/);
