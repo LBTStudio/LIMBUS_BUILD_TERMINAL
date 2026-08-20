@@ -305,7 +305,7 @@ const UtilitySheet = ({ open, onClose, actions, sections, currentSection, onNavi
       h("div", { className: "utility-sheet-grid" }, actions.map((action) => h("button", {
         type: "button", key: action.key, className: `utility-sheet-action${action.tone ? ` ${action.tone}` : ""}`,
         onClick: () => activate(action.onClick)
-      }, h("span", { className: "utility-sheet-icon" }, h(Icon, { name: action.icon, size: 18 })), h("span", { className: "utility-sheet-copy" }, h("b", null, action.label), h("small", null, action.note))))),
+      }, h("span", { className: "utility-sheet-icon" }, h(Icon, { name: action.icon, size: 18 })), h("span", { className: "utility-sheet-copy" }, action.scope && h("span", { className: "utility-sheet-scope" }, action.scope), h("b", null, action.label), h("small", null, action.note))))),
       h("div", { className: "utility-sheet-section" },
         h("span", { className: "utility-sheet-kicker" }, "OTHER SECTIONS"),
         h("p", null, "構築の補助、保存済みデータ、設定、ガイドへ移動します。"),
@@ -479,12 +479,12 @@ const App = () => {
   const utilityActions = [
     { key: "undo", icon: "undo", label: "元に戻す", note: "直前の編集を取り消します。", onClick: undo },
     { key: "redo", icon: "redo", label: "やり直す", note: "取り消した編集をもう一度適用します。", onClick: redo },
-    { key: "work", icon: "download", label: "現在の作業状態を保存", note: saveStatus.phase === "error" ? "端末内自動保存が使えません。作業を失わないよう、ファイルとして保存してください。" : "端末内には自動保存されています。別端末への移動・長期保管にはファイルとして保存してください。", onClick: () => exportState(state) },
-    { key: "library", icon: "archive", label: "所持ライブラリを保存", note: "所持人格・E.G.O・保存済みビルドを書き出して、別端末へ引き継ぎます。", tone: "is-library-save", onClick: () => exportRoster(state) },
+    { key: "work", icon: "download", scope: "このビルド", label: "現在の作業状態を保存", note: saveStatus.phase === "error" ? "端末内自動保存が使えません。作業を失わないよう、ファイルとして保存してください。" : "端末内には自動保存されています。別端末への移動・長期保管にはファイルとして保存してください。", onClick: () => exportState(state) },
+    { key: "library", icon: "archive", scope: "所持データ", label: "所持ライブラリを保存", note: "所持人格・E.G.O・保存済みビルドを書き出して、別端末へ引き継ぎます。", tone: "is-library-save", onClick: () => exportRoster(state) },
     { key: "import", icon: "upload", label: "保存データを読み込む", note: "読み込む範囲を確認して、現在の作業へ適用します。", onClick: () => fileRef.current?.click() },
     { key: "preview", icon: "eye", label: previewOpen ? "プレビューを閉じる" : "プレビューを開く", note: "メモ、パレット、JSONの出力結果を確認します。", onClick: togglePreview },
     { key: "share", icon: "share", label: "共有シートを開く", note: "整形されたHTMLの共有用プレビューを新規タブで開きます。", onClick: () => LBT_gen.openShareSheet(state) },
-    { key: "json", icon: "copy", label: "CCFOLIA JSONをコピー", note: "現在の出力対象をJSONとしてクリップボードへコピーします。", tone: "is-primary", onClick: copyJson }
+    { key: "json", icon: "copy", scope: "出力", label: "CCFOLIA JSONをコピー", note: "現在の出力対象をJSONとしてクリップボードへコピーします。", tone: "is-primary", onClick: copyJson }
   ];
   const utilitySections = SECTIONS.filter((s) => s.group === "utility" || s.id === "enh");
 

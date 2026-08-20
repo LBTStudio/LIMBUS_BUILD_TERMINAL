@@ -43,6 +43,8 @@ test("所持一覧は不要な規定値カテゴリを表示せず、同期状�
   const source = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
   assert.doesNotMatch(source, /\["draft", "既定値"\]/);
   assert.doesNotMatch(source, /\["all", "同期すべて"\]/);
+  assert.match(source, /\["all", "同期・MAXすべて"\]/);
+  assert.match(source, /aria-label": "同期・MAXフィルタ"/);
   assert.match(source, /\["synced", "同期済み"\]/);
   assert.match(source, /\["unsynced", "未同期"\]/);
   assert.match(source, /\["0", "同期0"\]/);

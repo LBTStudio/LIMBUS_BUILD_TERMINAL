@@ -629,6 +629,7 @@ details > summary {
 .utility-sheet-action.is-primary { border-color: var(--gold); background: linear-gradient(135deg, color-mix(in oklab, var(--gold) 22%, var(--surface-2)), var(--surface-1)); }
 .utility-sheet-icon { display: grid; place-items: center; width: 30px; height: 30px; color: var(--gold); border: 1px solid var(--gold-line); border-radius: 50%; }
 .utility-sheet-copy { min-width: 0; display: grid; gap: 4px; }
+.utility-sheet-scope { width: fit-content; padding: 1px 6px; border: 1px solid var(--gold-line); border-radius: 999px; background: var(--gold-tint); color: var(--gold-hi); font: 700 9px/1.35 var(--f-display); letter-spacing: .1em; }
 .utility-sheet-copy b { color: var(--tx); font-size: var(--fs-12); }
 .utility-sheet-copy small { color: var(--tx-2); font-size: var(--fs-10); line-height: 1.45; }
 .utility-sheet-section { margin-top: var(--s-4); padding-top: var(--s-3); border-top: 1px solid var(--line-dim); }
