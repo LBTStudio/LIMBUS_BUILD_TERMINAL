@@ -580,17 +580,20 @@ const SyncMaxControl = ({ state, dispatch }) => {
   if (!state.personaSrc || !entry) return null;
   const baseName = state.personaSrc.name || "名称未設定";
   const syncRank = ["0", "00", "000"].includes(entry.syncRank) ? entry.syncRank : null;
+  const isCustom = state.personaMode === "custom" || state.personaSrc.__custom;
+  const isSavedCustom = isCustom && state.personaSrc.__saved;
+  const editable = Boolean(state.syncedManual || isCustom && !isSavedCustom);
   return React.createElement("section", { className: `es-sync-max-control${entry.syncMax ? " is-on" : ""}`, "aria-label": "同期状態" },
     React.createElement("div", { className: "es-sync-max-status" },
       React.createElement("span", { className: "es-sync-max-kicker" }, "SYNC STATUS / 同期状態"),
       React.createElement("span", { className: "es-sync-max-rank" }, syncRank ? `同期${syncRank}` : "同期ランク未設定")
     ),
-    React.createElement("label", { className: "es-sync-max-toggle", title: "同期MAXを設定・解除" },
-      React.createElement("input", { type: "checkbox", checked: entry.syncMax === true, onChange: (event) => dispatch({ type: "PATCH_ROSTER", uid: entry.uid, patch: { syncMax: event.target.checked } }) }),
+    React.createElement("label", { className: `es-sync-max-toggle${editable ? "" : " is-readonly"}`, "aria-disabled": !editable, title: editable ? "同期MAXを設定・解除" : "同期MAXは「同期化して手動編集」後に変更できます" },
+      React.createElement("input", { type: "checkbox", checked: entry.syncMax === true, disabled: !editable, onChange: (event) => editable && dispatch({ type: "PATCH_ROSTER", uid: entry.uid, patch: { syncMax: event.target.checked } }) }),
       React.createElement("span", { className: "es-sync-max-label" }, "同期MAXとして設定"),
       entry.syncMax && React.createElement("span", { className: "es-sync-max-badge" }, "[MAX]")
     ),
-    React.createElement("span", { className: "es-sync-max-note" }, "同期ランクとは別・名称と共有に [MAX] を反映")
+    React.createElement("span", { className: "es-sync-max-note" }, editable ? "同期ランクとは別・名称と共有に [MAX] を反映" : "閲覧中・名称と共有に [MAX] を反映")
   );
 };
 const PersonaCodex = ({ state, dispatch }) => {

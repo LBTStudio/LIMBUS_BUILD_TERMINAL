@@ -157,7 +157,16 @@ test("同期MAX設定は人格装備の同期ランク直後に置かれ、人�
   assert.ok(rankEnd >= 0 && resistanceStart > rankEnd, "同期MAX設定は同期ランクと耐性の間に置く");
   assert.match(personaCodex, /className: `es-sync-max-control\$\{entry\.syncMax \? " is-on" : ""\}`/);
   assert.match(personaCodex, /同期ランクとは別・名称と共有に \[MAX\] を反映/);
-  assert.match(otherSections, /className: `sync-max-detail-toggle\$\{item\.entry\.syncMax \? " is-on" : ""\}`/);
+  assert.match(otherSections, /className: `sync-max-detail-toggle\$\{item\.entry\.syncMax \? " is-on" : ""\}\$\{canModifySyncMax \? "" : " is-readonly"\}`/);
   assert.match(refinements, /\.es-sync-max-toggle input,[\s\S]*?accent-color: var\(--gold\)/);
   assert.match(refinements, /\.sync-max-detail-toggle input \{ width: 18px; height: 18px;/);
+});
+
+test("同期MAXの変更は同期化手動編集または未保存カスタム人格に限定し、閲覧状態では無効化する", () => {
+  assert.match(personaCodex, /const editable = Boolean\(state\.syncedManual \|\| isCustom && !isSavedCustom\);/);
+  assert.match(personaCodex, /disabled: !editable, onChange: \(event\) => editable && dispatch\(\{ type: "PATCH_ROSTER"/);
+  assert.match(personaCodex, /className: `es-sync-max-toggle\$\{editable \? "" : " is-readonly"\}`/);
+  assert.match(otherSections, /const canModifySyncMax = item\.type === "personas" && item\.equipped && canEditPersonaState\(state\);/);
+  assert.match(otherSections, /disabled: !canModifySyncMax, onChange: \(event\) => canModifySyncMax && dispatch\(\{ type: "PATCH_ROSTER"/);
+  assert.match(refinements, /\.es-sync-max-toggle\.is-readonly,[\s\S]*?cursor: default/);
 });
