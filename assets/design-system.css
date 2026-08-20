@@ -173,7 +173,7 @@
   --amber:#e8963c; --amber-hi:#ffb35c; --amber-glow:rgba(232,150,60,.25); --amber-tint:rgba(232,150,60,.10);
   --clock-face:var(--surface-1); --clock-hand:var(--gold); --clock-ring:var(--accent);
   --neon:var(--accent); --neon-hi:var(--accent-hi); --neon-glow:var(--accent-glow); --neon-tint:var(--accent-tint); --neon-line:var(--accent-line);
-  --res-脆弱:#8f3a33; --res-弱点:#a56a35; --res-普通:#7a7060; --res-抵抗:#4e7a52; --res-耐性:#3f6d85; --res-免疫:#6b5a8a;
+  --res-脆弱:#8f3a33; --res-弱点:#a46935; --res-普通:#7a7060; --res-抵抗:#4e7a52; --res-耐性:#3f6d85; --res-免疫:#6b5a8a;
   --ok:var(--gold); --warn:var(--amber);
 }
 
@@ -368,10 +368,14 @@ a:hover { color: var(--gold-hi); }
   font-weight: 700;
   box-shadow: 0 0 0 1px color-mix(in oklab, var(--sin-color) 40%, transparent), 0 2px 6px color-mix(in oklab, var(--sin-color) 20%, transparent);
 }
-/* 明度の高い大罪 (怠惰:pale gold / 暴食:moss / 特殊:platinum) は
-   黒テキスト+影なしで可読性を確保 */
+/* 明度の高い大罪（怠惰・暴食・憤怒・色欲・憂鬱・嫉妬・特殊）は
+   黒テキスト+影なしで通常テキスト4.5:1以上を確保 */
 .chip[data-sin="怠惰"].is-active,
 .chip[data-sin="暴食"].is-active,
+.chip[data-sin="憤怒"].is-active,
+.chip[data-sin="色欲"].is-active,
+.chip[data-sin="憂鬱"].is-active,
+.chip[data-sin="嫉妬"].is-active,
 .chip[data-sin="特殊"].is-active {
   color: #0a0a0a;
   text-shadow: none;
@@ -382,6 +386,10 @@ a:hover { color: var(--gold-hi); }
 }
 .chip[data-sin="怠惰"].is-active::before,
 .chip[data-sin="暴食"].is-active::before,
+.chip[data-sin="憤怒"].is-active::before,
+.chip[data-sin="色欲"].is-active::before,
+.chip[data-sin="憂鬱"].is-active::before,
+.chip[data-sin="嫉妬"].is-active::before,
 .chip[data-sin="特殊"].is-active::before {
   background: #0a0a0a;
   box-shadow: none;
