@@ -168,7 +168,7 @@ const PersonaCard = ({ persona, mode, isEquipped, isActive, isFav, onSelect, onT
 };
 const PersonaDetail = ({ persona, mode, isEquipped, onEquip, onUnequip, onAddRoster, isInRoster, onReturnToList, embed, onOpenDraft }) => {
   if (!persona && onOpenDraft) {
-    return /* @__PURE__ */ React.createElement("div", { className: "codex-detail" }, /* @__PURE__ */ React.createElement("div", { className: "detail-empty" }, /* @__PURE__ */ React.createElement("div", { className: "detail-empty-icon" }, "◈"), /* @__PURE__ */ React.createElement("div", { className: "t-label" }, "人格を選択 または 草案を読み込む"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-11)", color: "var(--tx-mute)", marginTop: 8 } }, "Googleドキュメントの同期人格草案は、貼り付けて確認後にカスタム人格として作成できます。"), /* @__PURE__ */ React.createElement("button", { className: "persona-draft-import-trigger persona-draft-import-trigger--empty", type: "button", onClick: onOpenDraft }, "草案を貼り付け")));
+    return /* @__PURE__ */ React.createElement("div", { className: "codex-detail" }, /* @__PURE__ */ React.createElement("div", { className: "detail-empty" }, /* @__PURE__ */ React.createElement("div", { className: "detail-empty-icon" }, "◈"), /* @__PURE__ */ React.createElement("div", { className: "t-label" }, "人格を選択 または テキスト流し込み反映"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-11)", color: "var(--tx-mute)", marginTop: 8 } }, "完成した人格データを流し込み、確認してからカスタム人格または同期人格として反映できます。"), /* @__PURE__ */ React.createElement("button", { className: "persona-draft-import-trigger persona-draft-import-trigger--empty", type: "button", onClick: onOpenDraft }, "テキスト流し込み反映")));
   }
   if (!persona) {
     return /* @__PURE__ */ React.createElement("div", { className: "codex-detail" }, /* @__PURE__ */ React.createElement("div", { className: "detail-empty" }, /* @__PURE__ */ React.createElement("div", { className: "detail-empty-icon" }, "\u25C8"), /* @__PURE__ */ React.createElement("div", { className: "t-label" }, "\u5DE6\u306E\u30AB\u30FC\u30C9\u3092\u9078\u629E"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-11)", color: "var(--tx-mute)", marginTop: 8 } }, "\u4EBA\u683C\u3092\u9078\u629E\u3059\u308B\u3068\u8A73\u7D30\u304C\u8868\u793A\u3055\u308C\u307E\u3059\u3002", /* @__PURE__ */ React.createElement("br", null), "\u30C0\u30D6\u30EB\u30AF\u30EA\u30C3\u30AF\u3067\u88C5\u5099\u3002")));
@@ -599,9 +599,16 @@ const SyncMaxControl = ({ state, dispatch }) => {
     editable && React.createElement("span", { className: "es-sync-max-note" }, "同期ランクとは別・名称と共有に [MAX] を反映")
   );
 };
-const PersonaDraftImportDialog = ({ draftText, draftSections, draftInputMode, draftResult, draftSyncMax, draftAffiliationKey, affiliationOptions, onChange, onSectionsChange, onInputModeChange, onAnalyze, onSyncMaxChange, onAffiliationChange, onApply, onClose }) => {
+const normalizeDraftAffiliationName = (value) => String(value || "").normalize("NFKC").replace(/[「」『』【】\[\]()（）\s　・]/g, "").toLowerCase();
+const findDraftAffiliationCandidates = (name, options) => {
+  const normalized = normalizeDraftAffiliationName(name);
+  if (!normalized) return [];
+  return (options || []).filter((entry) => normalizeDraftAffiliationName(entry.name) === normalized);
+};
+const PersonaDraftImportDialog = ({ draftText, draftSections, draftInputMode, draftResult, draftSyncMax, draftAffiliationKey, autoAffiliationKey, affiliationOptions, onChange, onSectionsChange, onInputModeChange, onAnalyze, onSyncMaxChange, onAffiliationChange, onApply, onClose }) => {
   const h = React.createElement;
   const affiliation = (affiliationOptions || []).find((entry) => entry.key === draftAffiliationKey) || null;
+  const autoMatched = !!affiliation && affiliation.key === autoAffiliationKey;
   const section = (key, label, hint, placeholder) => h("label", { className: `persona-draft-section persona-draft-section--${key}` },
     h("span", { className: "persona-draft-section-label" }, label),
     h("span", { className: "persona-draft-section-hint" }, hint),
@@ -612,18 +619,18 @@ const PersonaDraftImportDialog = ({ draftText, draftSections, draftInputMode, dr
       h("header", { className: "persona-draft-dialog-head" },
         h("div", null,
           h("span", { className: "t-label" }, "SYNC PERSONA DRAFT / 同期人格草案"),
-          h("h2", { id: "persona-draft-title" }, "完成した人格データを取り込む"),
-          h("p", null, "完成済みの内容を区分ごとに確認してから作成します。既存人格は変更しません。")),
+          h("h2", { id: "persona-draft-title" }, "テキスト流し込み反映"),
+          h("p", null, "完成済みの内容を区分ごとに確認してから反映します。表記や必須項目の不足により読み取れない場合は、エラー内容に沿って修正してください。既存人格は変更しません。")),
         h("button", { className: "btn btn--quiet btn-icon", type: "button", onClick: onClose, "aria-label": "草案取込を閉じる", title: "閉じる" }, "×")),
       h("div", { className: "persona-draft-input-mode", role: "tablist", "aria-label": "人格データの入力形式" },
         h("button", { className: `btn ${draftInputMode === "sections" ? "btn--primary" : "btn--secondary"}`, type: "button", role: "tab", "aria-selected": draftInputMode === "sections", onClick: () => onInputModeChange("sections") }, "完成データを分けて入力"),
         h("button", { className: `btn ${draftInputMode === "raw" ? "btn--primary" : "btn--secondary"}`, type: "button", role: "tab", "aria-selected": draftInputMode === "raw", onClick: () => onInputModeChange("raw") }, "一括テキストを貼り付け")),
       draftInputMode === "sections" ? h("div", { className: "persona-draft-sections" },
-        section("base", "基本ステータス", "必須: 人格名・HP・SAN・速度。耐性・弾丸・RANKは任意。", "人格名：「完成人格」\nHP：160 SAN：55 速度：1d5+2\n斬撃：普通 貫通：抵抗 打撃：弱点"),
+        section("base", "基本ステータス", "必須: 人格名・HP・SAN・速度。全角半角・空白・: / ：は多少異なっても可。", "人格 名：「完成人格」\nHP:160　SAN：55　速度:1d5＋2\n斬撃：普通 貫通：抵抗 打撃：弱点\nRANK：000（任意）"),
         section("passives", "人格パッシブ", "パッシブ名・発動条件・常時効果・効果をそのまま入力。", "パッシブ名：固有パッシブ\n発動条件：傲慢x3保有\n効果：..."),
-        section("skills", "戦術スキル一覧", "0： / 0-2： / 【戦術スキル1】のいずれも可。", "0：\nスキル名\n斬撃：傲慢\n2d9：的中時、..."),
+        section("skills", "戦術スキル一覧", "0： / 0-2： / ０－２： / 【戦術スキル1】のいずれも可。", "０－２：\nスキル名\n斬撃:傲慢\n2d9：的中時、..."),
         section("uniques", "固有一覧（明示登録）", "正式な固有見出しがなくても、指令などをここへ入力すると固有一覧へ登録。", "[指令] 最大1 中立バフ\n説明\n[指令の加護] 最大9 バフ\n説明")) :
-        h("textarea", { className: "persona-draft-import-text", value: draftText, onChange: (event) => onChange(event.target.value), placeholder: "解析できる最小見本\n人格名：「草案人格」\nHP：160 SAN：55 速度：1d5+2 弾丸：10\nパッシブ名：...\n0：\nスキル名\n斬撃：傲慢\n2d9：的中時、...\n\n【戦術スキル１】や 0-2：スキル名 も対応", autoFocus: true }),
+        h("textarea", { className: "persona-draft-import-text", value: draftText, onChange: (event) => onChange(event.target.value), placeholder: "表記は多少異なっても読み込みます\n人格 名：「完成人格」\nHP:160　SAN：55　速度:1d5＋2\nパッシブ名：...\n０－２：スキル名\n斬撃:傲慢\n2d9：的中時、...\n\n【戦術スキル１】・0：・0-2：も対応\n※必須項目の不足や文章型速度は修正が必要です", autoFocus: true }),
       h("div", { className: "persona-draft-import-actions" },
         h("button", { className: "btn btn--secondary", type: "button", onClick: onAnalyze, disabled: !hasInput }, "解析する"),
         draftResult?.ok && h("label", { className: "persona-draft-max-option" },
@@ -635,7 +642,7 @@ const PersonaDraftImportDialog = ({ draftText, draftSections, draftInputMode, dr
         h("select", { id: "persona-draft-affiliation", className: "persona-draft-affiliation-select", value: draftAffiliationKey, onChange: (event) => onAffiliationChange(event.target.value) },
           h("option", { value: "" }, "新規カスタム人格として作成（既定）"),
           (affiliationOptions || []).map((entry) => h("option", { key: entry.key, value: entry.key }, entry.label))),
-        h("p", { className: "persona-draft-affiliation-help" }, affiliation ? `『${affiliation.name}』へ同期人格として帰属します。元のDBデータは変更しません。` : "既存人格を選ばない場合は、従来どおり新規カスタム人格として作成します。")),
+        h("p", { className: "persona-draft-affiliation-help" }, affiliation ? (autoMatched ? `解析した人格名と一致した『${affiliation.name}』を同期帰属先として初期選択しています。変更もできます。元のDBデータは変更しません。` : `『${affiliation.name}』へ同期人格として帰属します。元のDBデータは変更しません。`) : "一致する既存人格が一意に確認できない場合は、新規カスタム人格として作成します。同期帰属先は手動でも選べます。")),
       draftResult && h("div", { className: `persona-draft-result${draftResult.ok ? " is-ready" : " is-error"}` },
         draftResult.ok && h(React.Fragment, null,
           h("strong", { className: "persona-draft-result-title" }, draftResult.persona.name),
@@ -692,6 +699,8 @@ const PersonaCodex = ({ state, dispatch }) => {
     ...(DB.normal_personas || []).map((persona) => ({ key: `n:${persona.no}`, mode: "n", no: persona.no, name: persona.name, label: `通常 · No.${String(persona.no).padStart(3, "0")} · ${persona.name}` })),
     ...(DB.tokui_personas || []).map((persona) => ({ key: `t:${persona.no}`, mode: "t", no: persona.no, name: persona.name, label: `特異 · No.${String(persona.no).padStart(3, "0")} · ${persona.name}` }))
   ], []);
+  const draftAffiliationCandidates = React.useMemo(() => findDraftAffiliationCandidates(draftResult?.persona?.name, draftAffiliationOptions), [draftResult, draftAffiliationOptions]);
+  const draftAutoAffiliationKey = draftAffiliationCandidates.length === 1 ? draftAffiliationCandidates[0].key : "";
   const affiliations = React.useMemo(() => {
     const set = /* @__PURE__ */ new Set();
     pool.forEach(({ p }) => set.add(decoratePersona(p).__aff));
@@ -903,6 +912,8 @@ const PersonaCodex = ({ state, dispatch }) => {
     const result = (draftInputMode === "sections" ? window.LBT_parsePersonaDraftSections?.(draftSections) : window.LBT_parsePersonaDraft?.(draftText)) || { ok: false, errors: ["草案解析器を読み込めませんでした。ページを再読み込みしてください。"], warnings: [] };
     setDraftResult(result);
     setDraftSyncMax(!!result.suggestSyncMax);
+    const candidates = result.ok ? findDraftAffiliationCandidates(result.persona?.name, draftAffiliationOptions) : [];
+    setDraftAffiliationKey(candidates.length === 1 ? candidates[0].key : "");
   };
   const applyDraft = () => {
     if (!draftResult?.ok) return;
@@ -922,7 +933,7 @@ const PersonaCodex = ({ state, dispatch }) => {
   const equippedPersona = state.personaSrc;
   const equippedDetailPersona = buildEquippedDetailPersona(state);
   const equippedMeta = equippedPersona ? { p: equippedPersona, mode: state.personaMode || "n" } : null;
-  return /* @__PURE__ */ React.createElement(React.Fragment, null, draftImportOpen && /* @__PURE__ */ React.createElement(PersonaDraftImportDialog, { draftText, draftSections, draftInputMode, draftResult, draftSyncMax, draftAffiliationKey, affiliationOptions: draftAffiliationOptions, onChange: (value) => { setDraftText(value); setDraftResult(null); setDraftAffiliationKey(""); }, onSectionsChange: (key, value) => { setDraftSections((current) => ({ ...current, [key]: value })); setDraftResult(null); setDraftAffiliationKey(""); }, onInputModeChange: (modeValue) => { setDraftInputMode(modeValue); setDraftResult(null); setDraftAffiliationKey(""); }, onAnalyze: analyzeDraft, onSyncMaxChange: setDraftSyncMax, onAffiliationChange: setDraftAffiliationKey, onApply: applyDraft, onClose: () => { setDraftImportOpen(false); setDraftAffiliationKey(""); } }), /* @__PURE__ */ React.createElement("div", { className: "codex-shell" }, /* @__PURE__ */ React.createElement("div", { className: "persona-workspace" }, equippedPersona && /* @__PURE__ */ React.createElement("div", { className: "equipped-unified" }, /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement(React.Fragment, null, draftImportOpen && /* @__PURE__ */ React.createElement(PersonaDraftImportDialog, { draftText, draftSections, draftInputMode, draftResult, draftSyncMax, draftAffiliationKey, autoAffiliationKey: draftAutoAffiliationKey, affiliationOptions: draftAffiliationOptions, onChange: (value) => { setDraftText(value); setDraftResult(null); setDraftAffiliationKey(""); }, onSectionsChange: (key, value) => { setDraftSections((current) => ({ ...current, [key]: value })); setDraftResult(null); setDraftAffiliationKey(""); }, onInputModeChange: (modeValue) => { setDraftInputMode(modeValue); setDraftResult(null); setDraftAffiliationKey(""); }, onAnalyze: analyzeDraft, onSyncMaxChange: setDraftSyncMax, onAffiliationChange: setDraftAffiliationKey, onApply: applyDraft, onClose: () => { setDraftImportOpen(false); setDraftAffiliationKey(""); } }), /* @__PURE__ */ React.createElement("div", { className: "codex-shell" }, /* @__PURE__ */ React.createElement("div", { className: "persona-workspace" }, equippedPersona && /* @__PURE__ */ React.createElement("div", { className: "equipped-unified" }, /* @__PURE__ */ React.createElement(
     EquippedSummary,
     {
       state,
@@ -976,7 +987,7 @@ const PersonaCodex = ({ state, dispatch }) => {
     /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)" } }, codexExpanded ? `${sorted.length}\u4EF6\u8868\u793A\u4E2D` : "\u6298\u308A\u7573\u307F\u4E2D"),
     /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }),
     !codexExpanded && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-10)", color: "var(--gold)" } }, "\u30AF\u30EA\u30C3\u30AF\u3067\u5C55\u958B"),
-    /* @__PURE__ */ React.createElement("button", { className: "persona-draft-import-trigger", type: "button", onClick: (event) => { event.stopPropagation(); setDraftImportOpen(true); }, title: "同期人格草案のテキストを貼り付けて解析" }, "草案を貼り付け"),
+    /* @__PURE__ */ React.createElement("button", { className: "persona-draft-import-trigger", type: "button", onClick: (event) => { event.stopPropagation(); setDraftImportOpen(true); }, title: "完成した人格データをテキストで流し込み、確認して反映" }, "テキスト流し込み反映"),
     null
   ), (!equippedPersona || codexExpanded) && /* @__PURE__ */ React.createElement("div", { id: "persona-list-region", className: "codex pw-body" }, /* @__PURE__ */ React.createElement("div", { className: "codex-main" }, /* @__PURE__ */ React.createElement("div", { className: "codex-modes" }, modes.map((m) => /* @__PURE__ */ React.createElement("button", { key: m.value, className: mode === m.value ? "is-active" : "", onClick: () => dispatch({ type: "SET_UI", ui: { codexMode: m.value } }), type: "button" }, m.label, " ", /* @__PURE__ */ React.createElement("span", { className: "count" }, m.count))), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }), /* @__PURE__ */ React.createElement(
     "button",
