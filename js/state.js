@@ -1427,6 +1427,78 @@ function appReducer(state, action) {
         charName: state.charName || action.name || "カスタムPC"
       });
     }
+    /* V65r29: Google Docs 等の同期人格草案を、確認済みのカスタム人格として装備する。
+       解析器は UI 側でプレビュー済み。既存データを置換せず、元の所持人格は保持する。 */
+    case "IMPORT_PERSONA_DRAFT": {
+      const src = action.persona;
+      if (!src || !src.__custom) return state;
+      const uid = `custom-${Date.now()}`;
+      const skills = migrateLegacyDerivedSkills((src.skills || []).map((sk, index) => ({
+        id: `sk-${Date.now()}-${index}`,
+        rank: sk.rank || `スキル${index}`,
+        derived_from: sk.derived_from || "",
+        derived_index: sk.derived_index,
+        derived_condition: sk.derived_condition || "",
+        type: sk.type || "",
+        sin: sk.sin || "",
+        aoe: sk.aoe || "",
+        aoeCount: sk.aoeCount || "",
+        name: sk.name || "",
+        effect: sk.effect || "",
+        dice: (sk.dice || []).map((die) => ({ roll: die.roll || "", dval: die.dval ?? die.d ?? "", d: die.d ?? die.dval ?? "", dPlus: !!(die.dPlus ?? die.plus), dCnt: !!die.dCnt, plus: !!(die.plus ?? die.dPlus), effect: die.effect || "" })),
+        quick: ""
+      })));
+      const uniqueBuffs = (src.unique_buffs || []).map((buff, index) => ({
+        id: `ub-${Date.now()}-${index}`,
+        name: normalizeStatusLabel(buff.name || ""),
+        type: buff.type || "バフ",
+        initial: buff.initial !== void 0 ? buff.initial : 0,
+        max: buff.max || 20,
+        desc: buff.desc || "",
+        place: buff.place || "status"
+      }));
+      const personas = (state.roster?.personas || []).map((entry) => ({ ...entry, equipped: false }));
+      personas.push({
+        uid,
+        no: uid,
+        mode: "custom",
+        src,
+        syncRank: ["0", "00", "000"].includes(action.syncRank) ? action.syncRank : null,
+        syncMax: !!action.syncMax,
+        lcb: false,
+        equipped: true,
+        notes: ""
+      });
+      return normalizeStatusCollections({
+        ...state,
+        inventory: [],
+        personaMode: "custom",
+        personaNo: uid,
+        personaSrc: src,
+        syncedManual: true,
+        hp: String(src.hp ?? 100),
+        san: String(src.san ?? 45),
+        speed: src.speed || "1d5",
+        bullets: src.bullets || "×",
+        resS: src.res_slash || "普通",
+        resP: src.res_pierce || "普通",
+        resB: src.res_blunt || "普通",
+        pas: { name: src.passive_name || "", cond: src.passive_cond || "", always: src.passive_always || "", effect: src.passive_effect || "", quick: "" },
+        pas2Enabled: !!action.secondaryPassive?.name,
+        pas2: { name: action.secondaryPassive?.name || "", cond: action.secondaryPassive?.cond || "", effect: [action.secondaryPassive?.always, action.secondaryPassive?.effect].filter(Boolean).join("\n") },
+        skills,
+        uniqueBuffs,
+        defaultStatuses: mergeDefaultSelfStatusEntries(state.defaultStatuses, collectSelfManagedStatusEntries(src)),
+        selfStatusCandidates: detectSelfStatusCandidates(src, [
+          ...(state.defaultStatuses || getFactoryDefaultStatuses()).map((item) => item?.label),
+          ...(state.customStatuses || []).filter((item) => (item?.place || "status") === "status").map((item) => item?.label),
+          ...collectSelfManagedStatusEntries(src).map((entry) => entry.label)
+        ]),
+        charName: state.charName || src.name || "",
+        roster: { ...state.roster, personas },
+        historyRecent: [`custom:${uid}`, ...(state.historyRecent || []).filter((key) => key !== `custom:${uid}`)].slice(0, 20)
+      });
+    }
     /* v55: 創作人格の保存 — 編集内容の全スナップショットを所持人格一覧に登録する。
        装備モード中の全フィールド (名前/ステータス/耐性/パッシブ/スキル/固有バフ/
        キーワード) を固めて roster に保存。既に登録済みなら上書き更新する。 */

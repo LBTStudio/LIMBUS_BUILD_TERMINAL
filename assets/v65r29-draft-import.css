@@ -1,0 +1,84 @@
+/* V65r29: Google Docs 等の同期人格草案を、既存人格を壊さず確認して取り込む。 */
+.persona-draft-import-trigger {
+  flex: 0 0 auto;
+  min-height: 32px;
+  margin-left: 8px;
+  padding: 5px 10px;
+  border: 1px dashed var(--gold-line);
+  border-radius: var(--r-sm);
+  background: color-mix(in oklab, var(--gold) 6%, var(--surface-1));
+  color: var(--gold-hi);
+  cursor: pointer;
+  font-family: var(--f-display);
+  font-size: var(--fs-10);
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+.persona-draft-import-trigger:hover,
+.persona-draft-import-trigger:focus-visible {
+  border-style: solid;
+  border-color: var(--gold);
+  background: var(--gold-tint);
+}
+.persona-draft-backdrop {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in oklab, #000 64%, transparent);
+}
+.persona-draft-dialog {
+  width: min(820px, 100%);
+  max-height: min(760px, calc(100dvh - 48px));
+  overflow: auto;
+  box-sizing: border-box;
+  padding: clamp(14px, 2.5vw, 22px);
+  border: 1px solid var(--gold-line);
+  border-top: 3px solid var(--gold);
+  border-radius: var(--r);
+  background: linear-gradient(145deg, color-mix(in oklab, var(--gold) 7%, var(--surface-2)), var(--surface-1));
+  box-shadow: 0 24px 80px color-mix(in oklab, #000 72%, transparent);
+}
+.persona-draft-dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-3); }
+.persona-draft-dialog-head h2 { margin: 2px 0 4px; color: var(--tx); font-family: var(--f-display); font-size: var(--fs-18); letter-spacing: .06em; }
+.persona-draft-dialog-head p { max-width: 620px; margin: 0; color: var(--tx-dim); font-size: var(--fs-12); line-height: 1.6; }
+.persona-draft-import-text {
+  width: 100%;
+  min-height: 280px;
+  max-height: 48dvh;
+  margin-top: var(--s-3);
+  padding: 12px;
+  box-sizing: border-box;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-inset);
+  color: var(--tx);
+  font-family: var(--f-mono);
+  font-size: var(--fs-12);
+  line-height: 1.6;
+}
+.persona-draft-import-text:focus { border-color: var(--gold); outline: 2px solid var(--gold-glow); outline-offset: 1px; }
+.persona-draft-import-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); margin-top: var(--s-3); }
+.persona-draft-max-option { display: inline-flex; min-height: 36px; align-items: center; gap: 7px; color: var(--tx-2); font-family: var(--f-display); font-size: var(--fs-11); font-weight: 700; }
+.persona-draft-max-option input { width: 18px; height: 18px; margin: 0; accent-color: var(--gold); }
+.persona-draft-result { display: grid; gap: 6px; margin-top: var(--s-3); padding: 10px 12px; border: 1px solid var(--line-dim); border-left: 3px solid var(--gold-line); border-radius: var(--r-sm); background: var(--surface-inset); }
+.persona-draft-result.is-ready { border-color: var(--gold-line); border-left-color: var(--gold); }
+.persona-draft-result.is-error { border-color: color-mix(in oklab, var(--danger) 55%, var(--line)); border-left-color: var(--danger); }
+.persona-draft-result-title { color: var(--gold-hi); font-family: var(--f-display); font-size: var(--fs-15); letter-spacing: .05em; }
+.persona-draft-result-meta { color: var(--tx-2); font-family: var(--f-mono); font-size: var(--fs-11); line-height: 1.5; }
+.persona-draft-message { margin: 0; font-size: var(--fs-11); line-height: 1.5; }
+.persona-draft-message.is-error { color: var(--danger); }
+.persona-draft-message.is-warning { color: var(--warn); }
+@media (max-width: 640px) {
+  .persona-draft-import-trigger { min-height: 40px; margin-left: 6px; padding-inline: 9px; }
+  .persona-draft-backdrop { align-items: end; padding: 8px; }
+  .persona-draft-dialog { max-height: calc(100dvh - 16px); border-radius: var(--r) var(--r) 0 0; }
+  .persona-draft-dialog-head h2 { font-size: var(--fs-16); }
+  .persona-draft-dialog-head p { font-size: var(--fs-11); }
+  .persona-draft-import-text { min-height: 230px; max-height: 42dvh; font-size: 12px; }
+  .persona-draft-import-actions > .btn { min-height: 42px; flex: 1 1 auto; justify-content: center; }
+  .persona-draft-max-option { flex-basis: 100%; min-height: 40px; }
+}

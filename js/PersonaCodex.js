@@ -166,7 +166,10 @@ const PersonaCard = ({ persona, mode, isEquipped, isActive, isFav, onSelect, onT
     kws.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "p-kw-row" }, kws.map((k) => /* @__PURE__ */ React.createElement("span", { key: k, className: "p-kw" }, k)))
   );
 };
-const PersonaDetail = ({ persona, mode, isEquipped, onEquip, onUnequip, onAddRoster, isInRoster, onReturnToList, embed }) => {
+const PersonaDetail = ({ persona, mode, isEquipped, onEquip, onUnequip, onAddRoster, isInRoster, onReturnToList, embed, onOpenDraft }) => {
+  if (!persona && onOpenDraft) {
+    return /* @__PURE__ */ React.createElement("div", { className: "codex-detail" }, /* @__PURE__ */ React.createElement("div", { className: "detail-empty" }, /* @__PURE__ */ React.createElement("div", { className: "detail-empty-icon" }, "◈"), /* @__PURE__ */ React.createElement("div", { className: "t-label" }, "人格を選択 または 草案を読み込む"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-11)", color: "var(--tx-mute)", marginTop: 8 } }, "Googleドキュメントの同期人格草案は、貼り付けて確認後にカスタム人格として作成できます。"), /* @__PURE__ */ React.createElement("button", { className: "persona-draft-import-trigger persona-draft-import-trigger--empty", type: "button", onClick: onOpenDraft }, "草案を貼り付け")));
+  }
   if (!persona) {
     return /* @__PURE__ */ React.createElement("div", { className: "codex-detail" }, /* @__PURE__ */ React.createElement("div", { className: "detail-empty" }, /* @__PURE__ */ React.createElement("div", { className: "detail-empty-icon" }, "\u25C8"), /* @__PURE__ */ React.createElement("div", { className: "t-label" }, "\u5DE6\u306E\u30AB\u30FC\u30C9\u3092\u9078\u629E"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-11)", color: "var(--tx-mute)", marginTop: 8 } }, "\u4EBA\u683C\u3092\u9078\u629E\u3059\u308B\u3068\u8A73\u7D30\u304C\u8868\u793A\u3055\u308C\u307E\u3059\u3002", /* @__PURE__ */ React.createElement("br", null), "\u30C0\u30D6\u30EB\u30AF\u30EA\u30C3\u30AF\u3067\u88C5\u5099\u3002")));
   }
@@ -596,11 +599,40 @@ const SyncMaxControl = ({ state, dispatch }) => {
     editable && React.createElement("span", { className: "es-sync-max-note" }, "同期ランクとは別・名称と共有に [MAX] を反映")
   );
 };
+const PersonaDraftImportDialog = ({ draftText, draftResult, draftSyncMax, onChange, onAnalyze, onSyncMaxChange, onApply, onClose }) => {
+  const h = React.createElement;
+  return h("div", { className: "persona-draft-backdrop", role: "presentation", onClick: (event) => { event.stopPropagation(); onClose(); } },
+    h("section", { className: "persona-draft-dialog", role: "dialog", "aria-modal": "true", "aria-labelledby": "persona-draft-title", onClick: (event) => event.stopPropagation() },
+      h("header", { className: "persona-draft-dialog-head" },
+        h("div", null,
+          h("span", { className: "t-label" }, "SYNC PERSONA DRAFT / 同期人格草案"),
+          h("h2", { id: "persona-draft-title" }, "草案テキストを貼り付け"),
+          h("p", null, "Googleドキュメントの本文をそのまま貼り付け、読み取り結果を確認してから作成します。既存人格は変更しません。")),
+        h("button", { className: "btn btn--quiet btn-icon", type: "button", onClick: onClose, "aria-label": "草案取込を閉じる", title: "閉じる" }, "×")),
+      h("textarea", { className: "persona-draft-import-text", value: draftText, onChange: (event) => onChange(event.target.value), placeholder: "人格名：「草案人格」\nHP：160 SAN：55 速度：1d5+2 弾丸：10\nパッシブ名：...\n【戦術スキル１】\nスキル名：...\n斬撃：傲慢\n2d9：的中時、...", autoFocus: true }),
+      h("div", { className: "persona-draft-import-actions" },
+        h("button", { className: "btn btn--secondary", type: "button", onClick: onAnalyze, disabled: !draftText.trim() }, "解析する"),
+        draftResult?.ok && h("label", { className: "persona-draft-max-option" },
+          h("input", { type: "checkbox", checked: draftSyncMax, onChange: (event) => onSyncMaxChange(event.target.checked) }),
+          "同期MAXとして作成"),
+        draftResult?.ok && h("button", { className: "btn btn--primary", type: "button", onClick: onApply }, "この人格を作成")),
+      draftResult && h("div", { className: `persona-draft-result${draftResult.ok ? " is-ready" : " is-error"}` },
+        draftResult.ok && h(React.Fragment, null,
+          h("strong", { className: "persona-draft-result-title" }, draftResult.persona.name),
+          h("div", { className: "persona-draft-result-meta" }, `HP ${draftResult.persona.hp} / SAN ${draftResult.persona.san} / 速度 ${draftResult.persona.speed} / 弾丸 ${draftResult.persona.bullets}`),
+          h("div", { className: "persona-draft-result-meta" }, `戦術スキル ${draftResult.summary.skillCount}件 / パッシブ ${draftResult.summary.passiveCount}件 / 固有 ${draftResult.summary.buffCount}件`)),
+        (draftResult.errors || []).map((message, index) => h("p", { key: `error-${index}`, className: "persona-draft-message is-error" }, message)),
+        (draftResult.warnings || []).map((message, index) => h("p", { key: `warning-${index}`, className: "persona-draft-message is-warning" }, message)))));
+};
 const PersonaCodex = ({ state, dispatch }) => {
   const { ui, personaMode, personaNo, favorites, historyRecent, roster } = state;
   const mode = ui.codexMode || "n";
   const [selectedPersona, setSelectedPersona] = React.useState(null);
   const pendingDetailFocusRef = React.useRef(false);
+  const [draftImportOpen, setDraftImportOpen] = React.useState(false);
+  const [draftText, setDraftText] = React.useState("");
+  const [draftResult, setDraftResult] = React.useState(null);
+  const [draftSyncMax, setDraftSyncMax] = React.useState(false);
   // V14: 装備中の効果詳細はデフォルトで閉じる（装備時の自動展開も廃止）
   const [showEquippedDetail, setShowEquippedDetail] = React.useState(false);
   const codexExpanded = ui.codexExpanded !== void 0 ? ui.codexExpanded : !state.personaSrc;
@@ -840,11 +872,27 @@ const PersonaCodex = ({ state, dispatch }) => {
     }, 20);
     toast(`\u30AB\u30B9\u30BF\u30E0\u4EBA\u683C\u300E${name}\u300F\u3092\u88C5\u5099`);
   };
+  const analyzeDraft = () => {
+    const result = window.LBT_parsePersonaDraft?.(draftText) || { ok: false, errors: ["草案解析器を読み込めませんでした。ページを再読み込みしてください。"], warnings: [] };
+    setDraftResult(result);
+    setDraftSyncMax(!!result.suggestSyncMax);
+  };
+  const applyDraft = () => {
+    if (!draftResult?.ok) return;
+    dispatch({ type: "IMPORT_PERSONA_DRAFT", persona: draftResult.persona, secondaryPassive: draftResult.secondaryPassive, syncRank: draftResult.syncRank, syncMax: draftSyncMax });
+    dispatch({ type: "SET_UI", ui: { codexExpanded: false } });
+    setShowEquippedDetail(false);
+    setDraftImportOpen(false);
+    setDraftText("");
+    setDraftResult(null);
+    toast(`草案人格『${draftResult.persona.name}』を編集中として装備`);
+    setTimeout(() => document.querySelector("main.focus")?.scrollTo({ top: 0, behavior: "smooth" }), 20);
+  };
   const hasActiveFilters = ui.filterSins.length || ui.filterKws.length || ui.filterAffs.length || ui.searchQuery || ui.filterResS || ui.filterResP || ui.filterResB || ui.filterOwnedOnly;
   const equippedPersona = state.personaSrc;
   const equippedDetailPersona = buildEquippedDetailPersona(state);
   const equippedMeta = equippedPersona ? { p: equippedPersona, mode: state.personaMode || "n" } : null;
-  return /* @__PURE__ */ React.createElement("div", { className: "codex-shell" }, /* @__PURE__ */ React.createElement("div", { className: "persona-workspace" }, equippedPersona && /* @__PURE__ */ React.createElement("div", { className: "equipped-unified" }, /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement(React.Fragment, null, draftImportOpen && /* @__PURE__ */ React.createElement(PersonaDraftImportDialog, { draftText, draftResult, draftSyncMax, onChange: (value) => { setDraftText(value); setDraftResult(null); }, onAnalyze: analyzeDraft, onSyncMaxChange: setDraftSyncMax, onApply: applyDraft, onClose: () => setDraftImportOpen(false) }), /* @__PURE__ */ React.createElement("div", { className: "codex-shell" }, /* @__PURE__ */ React.createElement("div", { className: "persona-workspace" }, equippedPersona && /* @__PURE__ */ React.createElement("div", { className: "equipped-unified" }, /* @__PURE__ */ React.createElement(
     EquippedSummary,
     {
       state,
@@ -897,7 +945,9 @@ const PersonaCodex = ({ state, dispatch }) => {
     /* @__PURE__ */ React.createElement("span", { style: { fontFamily: "var(--f-display)", fontSize: "var(--fs-11)", letterSpacing: "0.14em", color: "var(--tx-2)" } }, "PERSONA LIST / \u4EBA\u683C\u4E00\u89A7"),
     /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)" } }, codexExpanded ? `${sorted.length}\u4EF6\u8868\u793A\u4E2D` : "\u6298\u308A\u7573\u307F\u4E2D"),
     /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }),
-    !codexExpanded && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-10)", color: "var(--gold)" } }, "\u30AF\u30EA\u30C3\u30AF\u3067\u5C55\u958B")
+    !codexExpanded && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-10)", color: "var(--gold)" } }, "\u30AF\u30EA\u30C3\u30AF\u3067\u5C55\u958B"),
+    /* @__PURE__ */ React.createElement("button", { className: "persona-draft-import-trigger", type: "button", onClick: (event) => { event.stopPropagation(); setDraftImportOpen(true); }, title: "同期人格草案のテキストを貼り付けて解析" }, "草案を貼り付け"),
+    null
   ), (!equippedPersona || codexExpanded) && /* @__PURE__ */ React.createElement("div", { id: "persona-list-region", className: "codex pw-body" }, /* @__PURE__ */ React.createElement("div", { className: "codex-main" }, /* @__PURE__ */ React.createElement("div", { className: "codex-modes" }, modes.map((m) => /* @__PURE__ */ React.createElement("button", { key: m.value, className: mode === m.value ? "is-active" : "", onClick: () => dispatch({ type: "SET_UI", ui: { codexMode: m.value } }), type: "button" }, m.label, " ", /* @__PURE__ */ React.createElement("span", { className: "count" }, m.count))), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }), /* @__PURE__ */ React.createElement(
     "button",
     {
@@ -986,9 +1036,10 @@ const PersonaCodex = ({ state, dispatch }) => {
       onUnequip: unequip,
       onAddRoster: () => addRoster(selectedPersona),
       isInRoster: currentIsInRoster,
-      onReturnToList: returnToSelectedCard
+      onReturnToList: returnToSelectedCard,
+      onOpenDraft: () => setDraftImportOpen(true)
     }
-  ))));
+  )))));
 };
 window.PersonaCodex = PersonaCodex;
 window.PersonaDetail = PersonaDetail;
