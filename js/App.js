@@ -285,22 +285,41 @@ function importStateFromFile(file, dispatch) {
 }
 
 const UtilitySheet = ({ open, onClose, actions, sections, currentSection, onNavigate }) => {
+  const utilitySheetRef = React.useRef(null);
   React.useEffect(() => {
     if (!open) return void 0;
+    const getFocusable = () => Array.from(utilitySheetRef.current?.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])') || []).filter((node) => node.getClientRects().length > 0);
+    const focusInitialControl = () => getFocusable()[0]?.focus();
     const onKeyDown = (event) => {
       if (event.key === "Escape") { event.preventDefault(); onClose(); }
+      if (event.key !== "Tab") return;
+      const focusable = getFocusable();
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
+    const focusFrame = requestAnimationFrame(focusInitialControl);
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    return () => {
+      cancelAnimationFrame(focusFrame);
+      window.removeEventListener("keydown", onKeyDown);
+    };
   }, [open, onClose]);
   if (!open) return null;
   const h = React.createElement;
   const activate = (fn) => { fn(); onClose(); };
   return h("div", { className: "utility-sheet-backdrop", onClick: (e) => e.target === e.currentTarget && onClose() },
-    h("section", { className: "utility-sheet", role: "dialog", "aria-modal": "true", "aria-label": "操作と保存" },
+    h("section", { ref: utilitySheetRef, className: "utility-sheet", role: "dialog", "aria-modal": "true", "aria-label": "操作と保存" },
       h("div", { className: "utility-sheet-head" },
         h("div", null, h("span", { className: "utility-sheet-kicker" }, "ACTIONS"), h("h2", null, "操作・保存"), h("p", null, "保存対象と表示操作を、用途の説明とともに選べます。")),
-        h("button", { type: "button", className: "utility-sheet-close", onClick: onClose, autoFocus: true, "aria-label": "操作メニューを閉じる" }, h(Icon, { name: "x", size: 18 }))
+        h("button", { type: "button", className: "utility-sheet-close", onClick: onClose, "aria-label": "操作メニューを閉じる" }, h(Icon, { name: "x", size: 18 }))
       ),
       h("div", { className: "utility-sheet-grid" }, actions.map((action) => h("button", {
         type: "button", key: action.key, className: `utility-sheet-action${action.tone ? ` ${action.tone}` : ""}`,
@@ -346,6 +365,19 @@ const App = () => {
   const [importData, setImportData] = React.useState(null);
   const [importSel, setImportSel] = React.useState({});
   const fileRef = React.useRef(null);
+  const utilityReturnFocusRef = React.useRef(null);
+  const openUtilities = (event) => {
+    const trigger = event?.currentTarget || document.activeElement;
+    utilityReturnFocusRef.current = trigger instanceof HTMLElement ? trigger : null;
+    setUtilityOpen(true);
+  };
+  const closeUtilities = React.useCallback(() => {
+    setUtilityOpen(false);
+    const trigger = utilityReturnFocusRef.current;
+    requestAnimationFrame(() => {
+      if (trigger && document.contains(trigger)) trigger.focus();
+    });
+  }, []);
   // T26: インポートファイル検証後に部分ロードダイアログを開く（既定=全カテゴリ選択）
   React.useEffect(() => {
     window.LBT_openImportDialog = (data) => {
@@ -498,7 +530,7 @@ const App = () => {
       toast("JSON\u3092\u30B3\u30D4\u30FC");
     } catch (e) {
     }
-  } }, "JSON\u51FA\u529B")), /* @__PURE__ */ React.createElement("button", { type: "button", className: "utility-trigger", onClick: () => setUtilityOpen(true), "aria-haspopup": "dialog", "aria-expanded": utilityOpen }, /* @__PURE__ */ React.createElement(Icon, { name: "grid", size: 15 }), /* @__PURE__ */ React.createElement("span", null, "操作・保存"))), /* @__PURE__ */ React.createElement(RailNavigation, { sections: SECTIONS, current, dispatch, state, onOpenUtilities: () => setUtilityOpen(true) }), /* @__PURE__ */ React.createElement("main", { className: "focus" }, /* @__PURE__ */ React.createElement("div", { className: "focus-inner" }, renderSection())), /* @__PURE__ */ React.createElement(LivePreview, { state, dispatch }), !previewOpen && /* @__PURE__ */ React.createElement("button", { className: "preview-reopen", onClick: togglePreview, title: "\u30D7\u30EC\u30D3\u30E5\u30FC\u3092\u958B\u304F" }, "PREVIEW \u25C8"), /* R15 utility sheet */ utilityOpen && /* @__PURE__ */ React.createElement(UtilitySheet, { open: utilityOpen, onClose: () => setUtilityOpen(false), actions: utilityActions, sections: utilitySections, currentSection: current, onNavigate: (id) => dispatch({ type: "SET_UI", ui: { currentSection: id } }) }), /* @__PURE__ */ React.createElement(CommandPalette, { open: cpOpen, onClose: () => setCpOpen(false), state, dispatch }), /* @__PURE__ */ React.createElement(QualityInspector, { open: qiOpen, onClose: () => setQiOpen(false) }), importData && /* @__PURE__ */ React.createElement("div", { className: "share-modal-backdrop", onClick: (e) => { if (e.target === e.currentTarget) setImportData(null); }, style: { position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 } }, /* @__PURE__ */ React.createElement("div", { className: "card", style: { maxWidth: 520, width: "100%", maxHeight: "85vh", overflow: "auto", background: "var(--surface-1, #1a1715)", border: "1px solid var(--line)", borderRadius: 6, padding: 16 } },
+  } }, "JSON\u51FA\u529B")), /* @__PURE__ */ React.createElement("button", { type: "button", className: "utility-trigger", onClick: openUtilities, "aria-haspopup": "dialog", "aria-expanded": utilityOpen }, /* @__PURE__ */ React.createElement(Icon, { name: "grid", size: 15 }), /* @__PURE__ */ React.createElement("span", null, "操作・保存"))), /* @__PURE__ */ React.createElement(RailNavigation, { sections: SECTIONS, current, dispatch, state, onOpenUtilities: openUtilities }), /* @__PURE__ */ React.createElement("main", { className: "focus" }, /* @__PURE__ */ React.createElement("div", { className: "focus-inner" }, renderSection())), /* @__PURE__ */ React.createElement(LivePreview, { state, dispatch }), !previewOpen && /* @__PURE__ */ React.createElement("button", { className: "preview-reopen", onClick: togglePreview, title: "\u30D7\u30EC\u30D3\u30E5\u30FC\u3092\u958B\u304F" }, "PREVIEW \u25C8"), /* R15 utility sheet */ utilityOpen && /* @__PURE__ */ React.createElement(UtilitySheet, { open: utilityOpen, onClose: closeUtilities, actions: utilityActions, sections: utilitySections, currentSection: current, onNavigate: (id) => dispatch({ type: "SET_UI", ui: { currentSection: id } }) }), /* @__PURE__ */ React.createElement(CommandPalette, { open: cpOpen, onClose: () => setCpOpen(false), state, dispatch }), /* @__PURE__ */ React.createElement(QualityInspector, { open: qiOpen, onClose: () => setQiOpen(false) }), importData && /* @__PURE__ */ React.createElement("div", { className: "share-modal-backdrop", onClick: (e) => { if (e.target === e.currentTarget) setImportData(null); }, style: { position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 } }, /* @__PURE__ */ React.createElement("div", { className: "card", style: { maxWidth: 520, width: "100%", maxHeight: "85vh", overflow: "auto", background: "var(--surface-1, #1a1715)", border: "1px solid var(--line)", borderRadius: 6, padding: 16 } },
     /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-display)", fontWeight: 700, fontSize: 15, color: "var(--gold)", marginBottom: 4 } }, "\u30BB\u30FC\u30D6\u30C7\u30FC\u30BF\u306E\u8AAD\u307F\u8FBC\u307F"),
     /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "var(--tx-2)", marginBottom: 12, lineHeight: 1.6 } }, "\u8AAD\u307F\u8FBC\u3080\u9805\u76EE\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044\u3002\u73FE\u5728\u306E\u72B6\u614B\u306F\u4E0A\u66F8\u304D\u3055\u308C\u307E\u3059\u304C\u3001Ctrl+Z\u3067\u5DEE\u3057\u623B\u305B\u307E\u3059\u3002"),
     /* @__PURE__ */ React.createElement("div", { className: "import-apply-summary", role: "status", "aria-live": "polite", style: { fontSize: 11, color: "var(--gold)", marginBottom: 10, padding: "7px 9px", background: "var(--surface-inset)", border: "1px solid var(--line-dim)", borderRadius: 4, lineHeight: 1.5 } }, "\u4ECA\u56DE\u306E\u9069\u7528\u7BC4\u56F2\uFF1A", selectedImportLabel),
