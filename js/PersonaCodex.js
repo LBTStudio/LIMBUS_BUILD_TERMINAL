@@ -605,10 +605,12 @@ const findDraftAffiliationCandidates = (name, options) => {
   if (!normalized) return [];
   return (options || []).filter((entry) => normalizeDraftAffiliationName(entry.name) === normalized);
 };
-const PersonaDraftImportDialog = ({ draftText, draftSections, draftInputMode, draftResult, draftSyncMax, draftAffiliationKey, autoAffiliationKey, affiliationOptions, onChange, onSectionsChange, onInputModeChange, onAnalyze, onSyncMaxChange, onAffiliationChange, onApply, onClose }) => {
+const PersonaDraftImportDialog = ({ draftText, draftSections, draftInputMode, draftResult, draftSyncMax, draftAffiliationKey, draftAffiliationQuery, autoAffiliationKey, affiliationOptions, onChange, onSectionsChange, onInputModeChange, onAnalyze, onSyncMaxChange, onAffiliationChange, onAffiliationQueryChange, onApply, onClose }) => {
   const h = React.createElement;
   const affiliation = (affiliationOptions || []).find((entry) => entry.key === draftAffiliationKey) || null;
   const autoMatched = !!affiliation && affiliation.key === autoAffiliationKey;
+  const affiliationQuery = String(draftAffiliationQuery || "").trim().toLowerCase();
+  const affiliationSearchResults = affiliationQuery ? (affiliationOptions || []).filter((entry) => `${entry.name} ${entry.no} ${entry.label}`.toLowerCase().includes(affiliationQuery)).slice(0, 12) : [];
   const section = (key, label, hint, placeholder) => h("label", { className: `persona-draft-section persona-draft-section--${key}` },
     h("span", { className: "persona-draft-section-label" }, label),
     h("span", { className: "persona-draft-section-hint" }, hint),
@@ -638,11 +640,12 @@ const PersonaDraftImportDialog = ({ draftText, draftSections, draftInputMode, dr
           "同期MAXとして作成"),
         draftResult?.ok && h("button", { className: "btn btn--primary", type: "button", onClick: onApply }, affiliation ? "同期人格として反映" : "この人格を作成")),
       draftResult?.ok && h("div", { className: "persona-draft-affiliation" },
-        h("label", { className: "persona-draft-affiliation-label", htmlFor: "persona-draft-affiliation" }, "作成先 / 同期帰属先"),
-        h("select", { id: "persona-draft-affiliation", className: "persona-draft-affiliation-select", value: draftAffiliationKey, onChange: (event) => onAffiliationChange(event.target.value) },
-          h("option", { value: "" }, "新規カスタム人格として作成（既定）"),
-          (affiliationOptions || []).map((entry) => h("option", { key: entry.key, value: entry.key }, entry.label))),
-        h("p", { className: "persona-draft-affiliation-help" }, affiliation ? (autoMatched ? `解析した人格名と一致した『${affiliation.name}』を同期帰属先として初期選択しています。変更もできます。元のDBデータは変更しません。` : `『${affiliation.name}』へ同期人格として帰属します。元のDBデータは変更しません。`) : "一致する既存人格が一意に確認できない場合は、新規カスタム人格として作成します。同期帰属先は手動でも選べます。")),
+        h("label", { className: "persona-draft-affiliation-label", htmlFor: "persona-draft-affiliation-search" }, "同期元を検索して選択"),
+        h("input", { id: "persona-draft-affiliation-search", className: "persona-draft-affiliation-search", type: "search", value: draftAffiliationQuery, onChange: (event) => onAffiliationQueryChange(event.target.value), placeholder: "人格名・No.で検索（クイック検索と同じ）", "aria-label": "同期元を検索" }),
+        affiliationQuery && h("div", { className: "persona-draft-affiliation-results", role: "listbox", "aria-label": "同期元の検索結果" },
+          affiliationSearchResults.length ? affiliationSearchResults.map((entry) => h("button", { key: entry.key, type: "button", role: "option", "aria-selected": entry.key === draftAffiliationKey, className: `persona-draft-affiliation-result${entry.key === draftAffiliationKey ? " is-selected" : ""}`, onClick: () => onAffiliationChange(entry.key) }, entry.label)) : h("p", { className: "persona-draft-affiliation-empty" }, "該当する通常・特異人格はありません。")),
+        h("div", { className: "persona-draft-affiliation-current" }, affiliation ? h(React.Fragment, null, h("strong", null, `選択中：${affiliation.label}`), h("button", { className: "btn btn--quiet", type: "button", onClick: () => onAffiliationChange("") }, "新規として反映")) : h("span", null, "同期元を選ばない場合は、新規カスタム人格として反映します。")),
+        h("p", { className: "persona-draft-affiliation-help" }, affiliation ? (autoMatched ? `解析した人格名と一致した『${affiliation.name}』を同期元として初期選択しています。検索して変更もできます。元のDBデータは変更しません。` : `『${affiliation.name}』を同期元として選択中です。元のDBデータは変更しません。`) : "入力欄の人格名が空でも、ここで検索して同期元を選択できます。")),
       draftResult && h("div", { className: `persona-draft-result${draftResult.ok ? " is-ready" : " is-error"}` },
         draftResult.ok && h(React.Fragment, null,
           h("strong", { className: "persona-draft-result-title" }, draftResult.persona.name),
@@ -664,6 +667,7 @@ const PersonaCodex = ({ state, dispatch }) => {
   const [draftResult, setDraftResult] = React.useState(null);
   const [draftSyncMax, setDraftSyncMax] = React.useState(false);
   const [draftAffiliationKey, setDraftAffiliationKey] = React.useState("");
+  const [draftAffiliationQuery, setDraftAffiliationQuery] = React.useState("");
   // V14: 装備中の効果詳細はデフォルトで閉じる（装備時の自動展開も廃止）
   const [showEquippedDetail, setShowEquippedDetail] = React.useState(false);
   const codexExpanded = ui.codexExpanded !== void 0 ? ui.codexExpanded : !state.personaSrc;
@@ -915,6 +919,7 @@ const PersonaCodex = ({ state, dispatch }) => {
     setDraftSyncMax(!!result.suggestSyncMax);
     const candidates = result.ok ? findDraftAffiliationCandidates(result.persona?.name, draftAffiliationOptions) : [];
     setDraftAffiliationKey(candidates.length === 1 ? candidates[0].key : "");
+    setDraftAffiliationQuery("");
   };
   const applyDraft = () => {
     if (!draftResult?.ok) return;
@@ -927,6 +932,7 @@ const PersonaCodex = ({ state, dispatch }) => {
     setDraftSections({ name: "", status: "", skills: "", uniques: "" });
     setDraftResult(null);
     setDraftAffiliationKey("");
+    setDraftAffiliationQuery("");
     toast(affiliation ? `草案を『${affiliation.name}』の同期人格として反映` : `草案人格『${draftResult.persona.name}』を編集中として装備`);
     setTimeout(() => document.querySelector("main.focus")?.scrollTo({ top: 0, behavior: "smooth" }), 20);
   };
@@ -934,7 +940,7 @@ const PersonaCodex = ({ state, dispatch }) => {
   const equippedPersona = state.personaSrc;
   const equippedDetailPersona = buildEquippedDetailPersona(state);
   const equippedMeta = equippedPersona ? { p: equippedPersona, mode: state.personaMode || "n" } : null;
-  return /* @__PURE__ */ React.createElement(React.Fragment, null, draftImportOpen && /* @__PURE__ */ React.createElement(PersonaDraftImportDialog, { draftText, draftSections, draftInputMode, draftResult, draftSyncMax, draftAffiliationKey, autoAffiliationKey: draftAutoAffiliationKey, affiliationOptions: draftAffiliationOptions, onChange: (value) => { setDraftText(value); setDraftResult(null); setDraftAffiliationKey(""); }, onSectionsChange: (key, value) => { setDraftSections((current) => ({ ...current, [key]: value })); setDraftResult(null); setDraftAffiliationKey(""); }, onInputModeChange: (modeValue) => { setDraftInputMode(modeValue); setDraftResult(null); setDraftAffiliationKey(""); }, onAnalyze: analyzeDraft, onSyncMaxChange: setDraftSyncMax, onAffiliationChange: setDraftAffiliationKey, onApply: applyDraft, onClose: () => { setDraftImportOpen(false); setDraftAffiliationKey(""); } }), /* @__PURE__ */ React.createElement("div", { className: "codex-shell" }, /* @__PURE__ */ React.createElement("div", { className: "persona-workspace" }, equippedPersona && /* @__PURE__ */ React.createElement("div", { className: "equipped-unified" }, /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement(React.Fragment, null, draftImportOpen && /* @__PURE__ */ React.createElement(PersonaDraftImportDialog, { draftText, draftSections, draftInputMode, draftResult, draftSyncMax, draftAffiliationKey, draftAffiliationQuery, autoAffiliationKey: draftAutoAffiliationKey, affiliationOptions: draftAffiliationOptions, onChange: (value) => { setDraftText(value); setDraftResult(null); setDraftAffiliationKey(""); setDraftAffiliationQuery(""); }, onSectionsChange: (key, value) => { setDraftSections((current) => ({ ...current, [key]: value })); setDraftResult(null); setDraftAffiliationKey(""); setDraftAffiliationQuery(""); }, onInputModeChange: (modeValue) => { setDraftInputMode(modeValue); setDraftResult(null); setDraftAffiliationKey(""); setDraftAffiliationQuery(""); }, onAnalyze: analyzeDraft, onSyncMaxChange: setDraftSyncMax, onAffiliationChange: setDraftAffiliationKey, onAffiliationQueryChange: setDraftAffiliationQuery, onApply: applyDraft, onClose: () => { setDraftImportOpen(false); setDraftAffiliationKey(""); setDraftAffiliationQuery(""); } }), /* @__PURE__ */ React.createElement("div", { className: "codex-shell" }, /* @__PURE__ */ React.createElement("div", { className: "persona-workspace" }, equippedPersona && /* @__PURE__ */ React.createElement("div", { className: "equipped-unified" }, /* @__PURE__ */ React.createElement(
     EquippedSummary,
     {
       state,

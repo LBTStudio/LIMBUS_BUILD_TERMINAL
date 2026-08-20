@@ -76,8 +76,13 @@
 .persona-draft-max-option input { width: 18px; height: 18px; margin: 0; accent-color: var(--gold); }
 .persona-draft-affiliation { display: grid; grid-template-columns: minmax(128px, max-content) minmax(0, 1fr); align-items: center; gap: 7px 12px; margin-top: var(--s-3); padding: 10px 12px; border: 1px solid var(--line-dim); border-radius: var(--r-sm); background: color-mix(in oklab, var(--surface-inset) 86%, var(--gold) 4%); }
 .persona-draft-affiliation-label { color: var(--gold-hi); font-family: var(--f-display); font-size: var(--fs-11); font-weight: 700; letter-spacing: .06em; }
-.persona-draft-affiliation-select { width: 100%; min-width: 0; min-height: 36px; box-sizing: border-box; padding: 6px 28px 6px 9px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface-1); color: var(--tx); font-family: var(--f-ui); font-size: var(--fs-11); }
-.persona-draft-affiliation-select:focus { border-color: var(--gold); outline: 2px solid var(--gold-glow); outline-offset: 1px; }
+.persona-draft-affiliation-search { width: 100%; min-width: 0; min-height: 36px; box-sizing: border-box; padding: 6px 9px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface-1); color: var(--tx); font-family: var(--f-ui); font-size: var(--fs-11); }
+.persona-draft-affiliation-search:focus { border-color: var(--gold); outline: 2px solid var(--gold-glow); outline-offset: 1px; }
+.persona-draft-affiliation-results { grid-column: 1 / -1; display: grid; gap: 4px; max-height: 154px; overflow-y: auto; padding: 5px; background: color-mix(in oklab, var(--surface-1) 78%, #000); border: 1px solid color-mix(in oklab, var(--gold) 22%, var(--line)); border-radius: var(--r-sm); }
+.persona-draft-affiliation-result { min-height: 32px; padding: 6px 8px; border: 1px solid transparent; border-radius: 3px; background: color-mix(in oklab, var(--surface-2) 90%, transparent); color: var(--tx); text-align: left; font: inherit; cursor: pointer; }
+.persona-draft-affiliation-result:hover, .persona-draft-affiliation-result.is-selected { border-color: var(--gold); background: var(--gold-tint); }
+.persona-draft-affiliation-current { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--tx-2); font-size: var(--fs-11); }
+.persona-draft-affiliation-empty { margin: 3px 4px; color: var(--tx-dim); font-size: var(--fs-11); }
 .persona-draft-affiliation-help { grid-column: 1 / -1; margin: 0; color: var(--tx-dim); font-size: var(--fs-11); line-height: 1.5; }
 .persona-draft-result { display: grid; gap: 6px; margin-top: var(--s-3); padding: 10px 12px; border: 1px solid var(--line-dim); border-left: 3px solid var(--gold-line); border-radius: var(--r-sm); background: var(--surface-inset); }
 .persona-draft-result.is-ready { border-color: var(--gold-line); border-left-color: var(--gold); }
@@ -102,5 +107,6 @@
   .persona-draft-import-actions > .btn { min-height: 42px; flex: 1 1 auto; justify-content: center; }
   .persona-draft-max-option { flex-basis: 100%; min-height: 40px; }
   .persona-draft-affiliation { grid-template-columns: 1fr; gap: 7px; }
-  .persona-draft-affiliation-select { min-height: 42px; font-size: 12px; }
+  .persona-draft-affiliation-search, .persona-draft-affiliation-result { min-height: 42px; font-size: 12px; }
+  .persona-draft-affiliation-current { align-items: flex-start; flex-direction: column; }
 }

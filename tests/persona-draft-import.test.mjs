@@ -376,7 +376,10 @@ test("人格図鑑は草案の解析・プレビュー・確認後の適用入�
   assert.match(source, /ステータス・パッシブ（任意）/);
   assert.match(source, /固有一覧（明示登録）/);
   assert.match(source, /LBT_parsePersonaDraftSections/);
-  assert.match(source, /作成先 \/ 同期帰属先/);
+  assert.match(source, /同期元を検索して選択/);
+  assert.match(source, /人格名・No.で検索（クイック検索と同じ）/);
+  assert.match(source, /persona-draft-affiliation-search/);
+  assert.match(source, /persona-draft-affiliation-results/);
   assert.match(source, /draftAffiliationOptions/);
   assert.match(source, /findDraftAffiliationCandidates/);
   assert.match(source, /解析した人格名と一致した/);
