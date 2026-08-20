@@ -1957,6 +1957,15 @@ details > summary {
   }
 }
 
+/* v65r25: 中間幅ではJSON出力を先頭へ置く。操作群が可縮になっても、
+   右端の「操作・保存」と競合する最後尾へ押し出さず、主要出力を常に独立到達可能にする。 */
+@media (min-width: 641px) {
+  .topbar-actions > .btn:last-of-type {
+    order: -1;
+    flex: 0 0 auto;
+  }
+}
+
 /* 操作・保存シートでは長いアクション名・説明を必ずカード内で改行する。 */
 .utility-sheet-copy b,
 .utility-sheet-copy small {
