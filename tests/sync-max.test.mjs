@@ -3,6 +3,10 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import test from "node:test";
 
+const personaCodex = readFileSync(new URL("../js/PersonaCodex.js", import.meta.url), "utf8");
+const otherSections = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
+const refinements = readFileSync(new URL("../assets/v56-refinements.css", import.meta.url), "utf8");
+
 function loadGenerator() {
   const context = {
     window: {},
@@ -145,4 +149,15 @@ test("旧保存データを再読込しても同期MAXはfalseで補完される
   assert.equal(next.roster.personas[0].syncMax, false);
   assert.equal(next.shareOptions.showSyncRank, true);
   assert.equal(next.shareOptions.showSyncRankInOutput, false);
+});
+
+test("同期MAX設定は人格装備の同期ランク直後に置かれ、人格編集と所持一覧で金色の共通チェック規約を使う", () => {
+  const rankEnd = personaCodex.indexOf('syncRank || "\\u2014"))), syncMaxControl');
+  const resistanceStart = personaCodex.indexOf('React.createElement("section", { className: "es-resistance"');
+  assert.ok(rankEnd >= 0 && resistanceStart > rankEnd, "同期MAX設定は同期ランクと耐性の間に置く");
+  assert.match(personaCodex, /className: `es-sync-max-control\$\{entry\.syncMax \? " is-on" : ""\}`/);
+  assert.match(personaCodex, /同期ランクとは別・名称と共有に \[MAX\] を反映/);
+  assert.match(otherSections, /className: `sync-max-detail-toggle\$\{item\.entry\.syncMax \? " is-on" : ""\}`/);
+  assert.match(refinements, /\.es-sync-max-toggle input,[\s\S]*?accent-color: var\(--gold\)/);
+  assert.match(refinements, /\.sync-max-detail-toggle input \{ width: 18px; height: 18px;/);
 });

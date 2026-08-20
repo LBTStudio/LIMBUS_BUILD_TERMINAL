@@ -287,7 +287,7 @@ function requestPersonaUnequip(state, dispatch, afterUnequip) {
   return true;
 }
 
-const EquippedSummary = ({ state, dispatch, onExpand, onShowDetail, detailShown }) => {
+const EquippedSummary = ({ state, dispatch, onExpand, onShowDetail, detailShown, syncMaxControl }) => {
   // T35/T36: 所持人格エントリに保存済みビルドがあるか（Modified 状態の有無）
   const hasSavedBuild = !!state.roster?.personas?.some((r) => r.mode === state.personaMode && r.no === state.personaNo && r.build);
   const p = state.personaSrc;
@@ -384,7 +384,7 @@ const EquippedSummary = ({ state, dispatch, onExpand, onShowDetail, detailShown 
     /* @__PURE__ */ React.createElement("option", { value: "0" }, "\u540C\u671F0"),
     /* @__PURE__ */ React.createElement("option", { value: "00" }, "\u540C\u671F00"),
     /* @__PURE__ */ React.createElement("option", { value: "000" }, "\u540C\u671F000")
-  ) : /* @__PURE__ */ React.createElement("span", { className: "es-stat-value" }, (state.roster.personas.find((r) => r.mode === state.personaMode && r.no === state.personaNo) || {}).syncRank || "\u2014"))), /* @__PURE__ */ React.createElement("section", { className: "es-resistance", role: "group", "aria-label": "耐性" }, /* @__PURE__ */ React.createElement("div", { className: "es-resistance-heading" }, "耐性"), /* @__PURE__ */ React.createElement("div", { className: "es-resistance-grid" }, ["resS", "resP", "resB"].map((field, i) => {
+  ) : /* @__PURE__ */ React.createElement("span", { className: "es-stat-value" }, (state.roster.personas.find((r) => r.mode === state.personaMode && r.no === state.personaNo) || {}).syncRank || "\u2014"))), syncMaxControl, /* @__PURE__ */ React.createElement("section", { className: "es-resistance", role: "group", "aria-label": "耐性" }, /* @__PURE__ */ React.createElement("div", { className: "es-resistance-heading" }, "耐性"), /* @__PURE__ */ React.createElement("div", { className: "es-resistance-grid" }, ["resS", "resP", "resB"].map((field, i) => {
       const label = ["斬撃", "貫通", "打撃"][i];
       const srcKey = ["res_slash", "res_pierce", "res_blunt"][i];
       const cur = state[field] ?? p[srcKey] ?? "普通";
@@ -579,13 +579,18 @@ const SyncMaxControl = ({ state, dispatch }) => {
   const entry = (state.roster?.personas || []).find((persona) => persona.mode === state.personaMode && String(persona.no) === String(state.personaNo));
   if (!state.personaSrc || !entry) return null;
   const baseName = state.personaSrc.name || "名称未設定";
-  const displayName = entry.syncMax && !/\s*\[MAX\]\s*$/i.test(baseName) ? `${baseName} [MAX]` : baseName;
-  return React.createElement("div", { className: "es-sync-max-control", style: { display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 8, margin: "0 12px 8px", padding: "5px 8px", border: "1px solid var(--gold-line)", borderRadius: 4, background: "rgba(212,175,95,.05)" } },
-    React.createElement("label", { style: { display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", color: "var(--tx-1)", fontSize: "var(--fs-11)", fontWeight: 700 } },
-      React.createElement("input", { type: "checkbox", checked: entry.syncMax === true, onChange: (event) => dispatch({ type: "PATCH_ROSTER", uid: entry.uid, patch: { syncMax: event.target.checked } }), title: "同期MAXを設定・解除" }),
-      "同期MAX"
+  const syncRank = ["0", "00", "000"].includes(entry.syncRank) ? entry.syncRank : null;
+  return React.createElement("section", { className: `es-sync-max-control${entry.syncMax ? " is-on" : ""}`, "aria-label": "同期状態" },
+    React.createElement("div", { className: "es-sync-max-status" },
+      React.createElement("span", { className: "es-sync-max-kicker" }, "SYNC STATUS / 同期状態"),
+      React.createElement("span", { className: "es-sync-max-rank" }, syncRank ? `同期${syncRank}` : "同期ランク未設定")
     ),
-    React.createElement("span", { style: { color: entry.syncMax ? "var(--gold)" : "var(--tx-mute)", fontSize: "var(--fs-10)" } }, entry.syncMax ? `名称：${displayName}` : "名称に [MAX] を反映")
+    React.createElement("label", { className: "es-sync-max-toggle", title: "同期MAXを設定・解除" },
+      React.createElement("input", { type: "checkbox", checked: entry.syncMax === true, onChange: (event) => dispatch({ type: "PATCH_ROSTER", uid: entry.uid, patch: { syncMax: event.target.checked } }) }),
+      React.createElement("span", { className: "es-sync-max-label" }, "同期MAXとして設定"),
+      entry.syncMax && React.createElement("span", { className: "es-sync-max-badge" }, "[MAX]")
+    ),
+    React.createElement("span", { className: "es-sync-max-note" }, "同期ランクとは別・名称と共有に [MAX] を反映")
   );
 };
 const PersonaCodex = ({ state, dispatch }) => {
@@ -843,9 +848,10 @@ const PersonaCodex = ({ state, dispatch }) => {
       dispatch,
       onExpand: { expanded: codexExpanded, toggle: toggleCodexList },
       onShowDetail: setShowEquippedDetail,
-      detailShown: showEquippedDetail
+      detailShown: showEquippedDetail,
+      syncMaxControl: equippedPersona && /* @__PURE__ */ React.createElement(SyncMaxControl, { state, dispatch })
     }
-  ), equippedPersona && /* @__PURE__ */ React.createElement(SyncMaxControl, { state, dispatch }), equippedPersona && showEquippedDetail && /* @__PURE__ */ React.createElement("div", { className: "equipped-detail-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "equipped-detail-inner" }, /* @__PURE__ */ React.createElement(
+  ), equippedPersona && showEquippedDetail && /* @__PURE__ */ React.createElement("div", { className: "equipped-detail-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "equipped-detail-inner" }, /* @__PURE__ */ React.createElement(
     PersonaDetail,
     {
       persona: equippedDetailPersona,
