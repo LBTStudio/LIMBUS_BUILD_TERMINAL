@@ -279,6 +279,8 @@
   gap: var(--s-4);
   margin-bottom: var(--s-6);
   padding-bottom: var(--s-3);
+  /* 右側プレビューの常設格納タブが補助見出しの右端を覆わないようにする。 */
+  padding-right: 48px;
   border-bottom: 1px solid var(--line-dim);
 }
 .section-title-num {

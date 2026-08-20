@@ -45,6 +45,11 @@ test("プレビューの右端タブは展開・格納のどちらでも同一�
   assert.match(workspaceCss, /\.preview-edge-toggle\.is-collapsed \{ right: 0; \}/);
 });
 
+test("人格図鑑の補助見出しは右側プレビュー格納タブの操作領域を避ける", () => {
+  assert.match(appSource, /subtitle: "装備する人格を選択"/);
+  assert.match(workspaceCss, /\.section-title-row \{[\s\S]*?padding-right: 48px;/);
+});
+
 test("モバイルで開いたプレビューは独立して縦スクロールできる", () => {
   const refinements = readFileSync(new URL("../assets/v56-refinements.css", import.meta.url), "utf8");
   assert.match(refinements, /\.app:not\(\.preview-collapsed\) \.preview \{ display:flex;[\s\S]*min-height:0;[\s\S]*transform:none;/);
