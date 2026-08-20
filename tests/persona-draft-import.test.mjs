@@ -105,12 +105,44 @@ R開始時、対象を指定する。
 数値に応じて効果が変化する。`
 };
 
+const garasumadoPublicDocument = {
+  fields: {
+    isPublic: { booleanValue: true },
+    name: { stringValue: "ロボトミーE.G.O::涙で研ぎ澄まされた剣 ユサの人格 000 同期MAX" },
+    status: { mapValue: { fields: {
+      hp: { stringValue: "152" }, san: { stringValue: "63" }, speed: { stringValue: "1d7" }, bullet: { integerValue: "0" },
+      slash: { stringValue: "普通" }, pierce: { stringValue: "抵抗" }, blunt: { stringValue: "弱点" }
+    } } },
+    passives: { arrayValue: { values: [{ mapValue: { fields: {
+      name: { stringValue: "空虚に堕した心に" }, condition: { stringValue: "傲慢 ×3 保有" }, alwaysEffect: { stringValue: "希望を1得る" }, effect: { stringValue: "守る剣を得る" }
+    } } }] } },
+    tactics: { arrayValue: { values: [
+      { mapValue: { fields: { code: { stringValue: "0-2" }, name: { stringValue: "あなたに勝利を" }, attr: { stringValue: "マッチ可能貫通反撃" }, sin: { stringValue: "憂鬱" }, effect: { stringValue: "2d10+1\n8d2+1" } } } },
+      { mapValue: { fields: { code: { stringValue: "4-2" }, name: { stringValue: "小さな希望を灯した我が主よ" }, attr: { stringValue: "貫通" }, sin: { stringValue: "傲慢" }, effect: { stringValue: "25-2d10：的中時、沈潜3付与" } } } }
+    ] } },
+    uniques: { arrayValue: { values: [{ mapValue: { fields: {
+      name: { stringValue: "守る剣" }, type: { stringValue: "バフ" }, maxCount: { integerValue: "1" }, effect: { stringValue: "戦闘開始時、保護2を得る" }
+    } } }] } },
+    ownerId: { stringValue: "移行しない所有者ID" },
+    memo: { stringValue: "移行しないメモ" },
+    chatPaletteManual: { stringValue: "移行しないパレット" }
+  }
+};
+
 function loadParser() {
   const context = { window: {}, console };
   context.globalThis = context;
   vm.createContext(context);
   vm.runInContext(parserSource, context);
   return context.window.LBT_parsePersonaDraft;
+}
+
+function loadParserApi() {
+  const context = { window: {}, console };
+  context.globalThis = context;
+  vm.createContext(context);
+  vm.runInContext(parserSource, context);
+  return context.window;
 }
 
 function loadStateReducer(db = {}) {
@@ -214,6 +246,44 @@ test("全角半角の番号コロンだけで始まる戦術一覧を、次行�
   assert.equal(result.persona.skills[1].rank, "スキル0-2");
   assert.equal(result.persona.skills[1].name, "追撃");
   assert.equal(result.persona.skills[1].type, "貫通");
+});
+
+test("硝子窓の公開人格データは草案の4区分へ変換し、同期ランク・MAX候補と派生反撃を保持する", () => {
+  const api = loadParserApi();
+  const result = api.LBT_parseGarasumadoPersonaDocument(garasumadoPublicDocument, "https://lbt-garasumado.vercel.app/persona/view/XY6v8SWFWwJ7Y1VWTlM1");
+
+  assert.equal(result.ok, true);
+  assert.equal(result.source.kind, "garasumado");
+  assert.equal(result.source.id, "XY6v8SWFWwJ7Y1VWTlM1");
+  assert.equal(result.persona.name, "ロボトミーE.G.O::涙で研ぎ澄まされた剣 ユサ");
+  assert.equal(result.persona.hp, 152);
+  assert.equal(result.persona.san, 63);
+  assert.equal(result.persona.speed, "1d7");
+  assert.equal(result.persona.bullets, "×");
+  assert.equal(result.persona.res_pierce, "抵抗");
+  assert.equal(result.persona.passive_name, "空虚に堕した心に");
+  assert.equal(result.persona.skills.length, 2);
+  assert.equal(result.persona.skills[0].rank, "スキル0-2");
+  assert.equal(result.persona.skills[0].type, "貫通反撃");
+  assert.equal(result.persona.skills[1].rank, "スキル4-2");
+  assert.equal(result.persona.unique_buffs[0].name, "守る剣");
+  assert.equal(result.persona.unique_buffs[0].max, 1);
+  assert.equal(result.syncRank, "000");
+  assert.equal(result.suggestSyncMax, true);
+});
+
+test("硝子窓URL移行は非公開データと非対応URLを解析済み人格へ変換せず、安全に停止する", () => {
+  const api = loadParserApi();
+  const privateDocument = structuredClone(garasumadoPublicDocument);
+  privateDocument.fields.isPublic.booleanValue = false;
+  const privateResult = api.LBT_parseGarasumadoPersonaDocument(privateDocument, "https://lbt-garasumado.vercel.app/persona/view/XY6v8SWFWwJ7Y1VWTlM1");
+  const invalidUrl = api.LBT_parseGarasumadoPersonaUrl("https://example.com/persona/view/XY6v8SWFWwJ7Y1VWTlM1");
+
+  assert.equal(privateResult.ok, false);
+  assert.equal(privateResult.persona, null);
+  assert.match(privateResult.errors[0], /公開されていない/);
+  assert.equal(invalidUrl.ok, false);
+  assert.match(invalidUrl.errors[0], /硝子窓の公開人格URL/);
 });
 
 test("完成データを区分別に統合し、固有見出しのない指令も明示した固有一覧から登録する", () => {
@@ -383,4 +453,8 @@ test("人格図鑑は草案の解析・プレビュー・確認後の適用入�
   assert.match(source, /draftAffiliationOptions/);
   assert.match(source, /findDraftAffiliationCandidates/);
   assert.match(source, /解析した人格名と一致した/);
+  assert.match(source, /硝子窓URLから移行/);
+  assert.match(source, /persona-draft-garasumado-url/);
+  assert.match(source, /LBT_fetchGarasumadoPersona/);
+  assert.match(source, /所有者・メモ・チャットパレット・強化一覧は移行しません/);
 });

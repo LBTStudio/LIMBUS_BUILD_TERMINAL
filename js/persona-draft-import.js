@@ -91,6 +91,7 @@
   };
   const parseSkills = (lines) => {
     const skills = [];
+    const skillTypePattern = "(?:斬撃|貫通|打撃|回避|防御|物理|マッチ可能防御|マッチ可能(?:斬撃|貫通|打撃)?反撃)";
     let current = null;
     const push = () => {
       if (current?.name || current?.dice?.length) {
@@ -121,7 +122,7 @@
       const compact = normalized.match(/^(\d+(?:-\d+)?)\s*:\s*(.+)$/);
       if (compact && !/^\d+d/i.test(compact[1])) {
         const tail = clean(compact[2]);
-        const typed = tail.match(/^(.+?)\s+(斬撃|貫通|打撃|回避|防御|物理|マッチ可能防御|マッチ可能斬撃反撃)\s*[:：]\s*(\S+)/);
+        const typed = tail.match(new RegExp(`^(.+?)\\s+(${skillTypePattern})\\s*[:：]\\s*(\\S+)`));
         start(compact[1], typed ? typed[1] : tail);
         if (typed) {
           current.type = typed[2].replace("マッチ可能", "");
@@ -136,7 +137,7 @@
       }
       const standaloneRank = normalized.match(/^(?:戦術\s*)?(\d+(?:-\d+)?)\s*(?::)?$/);
       const following = lines.slice(lineIndex + 1).map((entry) => forMatch(entry)).filter(Boolean).slice(0, 2);
-      const nextLooksLikeSkillType = /^(斬撃|貫通|打撃|回避|防御|物理|マッチ可能防御|マッチ可能斬撃反撃)\s*:\s*(\S+)/.test(following[1] || "");
+      const nextLooksLikeSkillType = new RegExp(`^${skillTypePattern}\\s*:\\s*(\\S+)`).test(following[1] || "");
       if (standaloneRank && nextLooksLikeSkillType && !/^\d+d/i.test(standaloneRank[1])) {
         start(standaloneRank[1], "");
         continue;
@@ -145,9 +146,9 @@
       const name = normalized.match(/^スキル\s*名\s*:\s*(.+)$/);
       if (name) { current.name = clean(name[1]); continue; }
       const nextLine = forMatch(lines[lineIndex + 1] || "");
-      const nextType = /^(斬撃|貫通|打撃|回避|防御|物理|マッチ可能防御|マッチ可能斬撃反撃)\s*:\s*(\S+)/.test(nextLine);
+      const nextType = new RegExp(`^${skillTypePattern}\\s*:\\s*(\\S+)`).test(nextLine);
       if (!current.name && nextType && !/^\[/.test(normalized)) { current.name = line; continue; }
-      const typed = normalized.match(/^(斬撃|貫通|打撃|回避|防御|物理|マッチ可能防御|マッチ可能斬撃反撃)\s*:\s*(\S+)/);
+      const typed = normalized.match(new RegExp(`^(${skillTypePattern})\\s*:\\s*(\\S+)`));
       if (typed) {
         current.type = typed[1].replace("マッチ可能", "");
         current.sin = typed[2];
@@ -207,6 +208,106 @@
     const uniques = clean(value.uniques);
     const labeledName = name && /^(?:人格\s*(?:名|名称)|名称)\s*[:：]/i.test(forMatch(name)) ? name : (name ? `人格名：${name}` : "");
     return [labeledName, status, skills, uniques ? `固有\n${uniques}` : ""].filter(Boolean).join("\n\n");
+  };
+  const garasumadoUrlPattern = /^https:\/\/lbt-garasumado\.vercel\.app\/persona\/view\/([A-Za-z0-9]{20})\/?$/i;
+  const garasumadoApiKey = "AIzaSyCzpUWr3EBQMLLEBXAixCMSl0abxSZCgY4";
+  const parseGarasumadoUrl = (value) => {
+    const url = clean(value);
+    const match = url.match(garasumadoUrlPattern);
+    if (!match) return { ok: false, errors: ["硝子窓の公開人格URLを貼り付けてください。対応形式は https://lbt-garasumado.vercel.app/persona/view/… です。"] };
+    return { ok: true, url, id: match[1] };
+  };
+  const firestoreValue = (value) => {
+    if (!value || typeof value !== "object") return undefined;
+    if (Object.prototype.hasOwnProperty.call(value, "stringValue")) return value.stringValue;
+    if (Object.prototype.hasOwnProperty.call(value, "integerValue")) return String(value.integerValue);
+    if (Object.prototype.hasOwnProperty.call(value, "doubleValue")) return String(value.doubleValue);
+    if (Object.prototype.hasOwnProperty.call(value, "booleanValue")) return !!value.booleanValue;
+    if (Object.prototype.hasOwnProperty.call(value, "nullValue")) return null;
+    if (value.mapValue) return firestoreFields(value.mapValue.fields || {});
+    if (value.arrayValue) return (value.arrayValue.values || []).map(firestoreValue);
+    return undefined;
+  };
+  const firestoreFields = (fields) => Object.fromEntries(Object.entries(fields || {}).map(([key, value]) => [key, firestoreValue(value)]));
+  const cleanGarasumadoName = (value) => clean(value)
+    .replace(/\s*(?:同期\s*MAX|MAX)\s*$/i, "")
+    .replace(/\s*(?:RANK|ランク)\s*[:：]?\s*0{1,3}\s*$/i, "")
+    .replace(/\s+0{1,3}\s*$/u, "")
+    .replace(/\s*の人格\s*$/u, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const normalizedGarasumadoBullet = (value) => {
+    const bullet = clean(value);
+    return !bullet || bullet === "0" ? "×" : bullet;
+  };
+  const isGarasumadoRecord = (value) => value && typeof value === "object" && !Array.isArray(value);
+  const garasumadoError = (message, source) => ({ ok: false, errors: [message], warnings: [], persona: null, source: source || null });
+  const composeGarasumadoDraft = (record, source) => {
+    if (!isGarasumadoRecord(record)) return garasumadoError("硝子窓の公開データ形式を確認できません。人格データは反映していません。", source);
+    if (record.isPublic !== true) return garasumadoError("この硝子窓の人格は公開されていないため、反映できません。", source);
+    const status = record.status;
+    const tactics = Array.isArray(record.tactics) ? record.tactics : [];
+    if (!isGarasumadoRecord(status) || !tactics.length) return garasumadoError("硝子窓の人格データにステータスまたは戦術スキルを確認できません。人格データは反映していません。", source);
+    const rawName = clean(record.name);
+    const displayName = cleanGarasumadoName(rawName);
+    const rankMatch = rawName.match(/(?:RANK|ランク)\s*[:：]?\s*(0{1,3})/i) || rawName.match(/の人格\s+(0{1,3})(?:\s|$)/u);
+    const syncMax = /同期\s*MAX/i.test(rawName);
+    if (!displayName || !clean(status.hp) || !clean(status.san) || !isDiceFormula(status.speed)) return garasumadoError("硝子窓の人格名・HP・SAN・速度を確認できません。人格データは反映していません。", source);
+    const sections = {
+      name: displayName,
+      status: [
+        rankMatch ? `RANK：${rankMatch[1]}` : "",
+        `HP：${clean(status.hp)} SAN：${clean(status.san)} 速度：${clean(status.speed)} 弾丸：${normalizedGarasumadoBullet(status.bullet)}`,
+        `斬撃：${clean(status.slash) || "普通"} 貫通：${clean(status.pierce) || "普通"} 打撃：${clean(status.blunt) || "普通"}`,
+        ...(Array.isArray(record.passives) ? record.passives : []).filter(isGarasumadoRecord).flatMap((passive) => [
+          clean(passive.name) ? `パッシブ名：${clean(passive.name)}` : "",
+          clean(passive.condition) ? `発動条件：${clean(passive.condition)}` : "",
+          clean(passive.alwaysEffect) ? `常時効果：${clean(passive.alwaysEffect)}` : "",
+          clean(passive.effect) ? `効果：${clean(passive.effect)}` : ""
+        ].filter(Boolean))
+      ].filter(Boolean).join("\n"),
+      skills: tactics.filter(isGarasumadoRecord).map((tactic) => {
+        const code = clean(tactic.code);
+        const name = clean(tactic.name);
+        const attr = clean(tactic.attr);
+        const sin = clean(tactic.sin);
+        return code && name && attr && sin ? [`${code}：${name} ${attr}：${sin}`, clean(tactic.effect)].filter(Boolean).join("\n") : "";
+      }).filter(Boolean).join("\n\n"),
+      uniques: (Array.isArray(record.uniques) ? record.uniques : []).filter(isGarasumadoRecord).map((unique) => {
+        const name = clean(unique.name);
+        const type = clean(unique.type) || "バフ";
+        const max = clean(unique.maxCount);
+        return name ? [`[${name}] ${type}${max ? ` 最大：${max}` : ""}`, clean(unique.effect)].filter(Boolean).join("\n") : "";
+      }).filter(Boolean).join("\n\n")
+    };
+    const result = parsePersonaDraft(composePersonaDraftSections(sections));
+    if (!result.ok) return { ...result, source: source || null };
+    return {
+      ...result,
+      syncRank: rankMatch?.[1] || result.syncRank,
+      suggestSyncMax: syncMax,
+      source: { kind: "garasumado", id: source?.id || "", url: source?.url || "", label: clean(record.name) }
+    };
+  };
+  const parseGarasumadoPersonaDocument = (document, sourceUrl) => {
+    const source = parseGarasumadoUrl(sourceUrl);
+    if (!source.ok) return garasumadoError(source.errors[0]);
+    const record = document?.fields ? firestoreFields(document.fields) : document;
+    return composeGarasumadoDraft(record, source);
+  };
+  const fetchGarasumadoPersona = async (sourceUrl, fetchImpl) => {
+    const source = parseGarasumadoUrl(sourceUrl);
+    if (!source.ok) return garasumadoError(source.errors[0]);
+    const request = fetchImpl || window.fetch?.bind(window);
+    if (typeof request !== "function") return garasumadoError("このブラウザでは硝子窓の公開人格データを取得できません。", source);
+    try {
+      const endpoint = `https://firestore.googleapis.com/v1/projects/lbt-garasumado/databases/(default)/documents/personas/${source.id}?key=${garasumadoApiKey}`;
+      const response = await request(endpoint, { method: "GET", headers: { Accept: "application/json" } });
+      if (!response?.ok) return garasumadoError(response?.status === 404 ? "この硝子窓URLの公開人格は見つかりません。" : "硝子窓の公開人格データを取得できませんでした。時間を置いて再度お試しください。", source);
+      return parseGarasumadoPersonaDocument(await response.json(), source.url);
+    } catch (error) {
+      return garasumadoError("硝子窓の公開人格データを取得できませんでした。ネットワーク接続を確認して再度お試しください。", source);
+    }
   };
   const parsePersonaDraft = (rawText, options) => {
     const allowPartial = !!options?.allowPartial;
@@ -289,4 +390,7 @@
   window.LBT_parsePersonaDraft = parsePersonaDraft;
   window.LBT_composePersonaDraftSections = composePersonaDraftSections;
   window.LBT_parsePersonaDraftSections = (sections) => parsePersonaDraft(composePersonaDraftSections(sections), { allowPartial: true });
+  window.LBT_parseGarasumadoPersonaUrl = parseGarasumadoUrl;
+  window.LBT_parseGarasumadoPersonaDocument = parseGarasumadoPersonaDocument;
+  window.LBT_fetchGarasumadoPersona = fetchGarasumadoPersona;
 })();

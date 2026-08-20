@@ -626,15 +626,21 @@ const PersonaDraftImportDialog = ({ draftText, draftSections, draftInputMode, dr
         h("button", { className: "btn btn--quiet btn-icon", type: "button", onClick: onClose, "aria-label": "草案取込を閉じる", title: "閉じる" }, "×")),
       h("div", { className: "persona-draft-input-mode", role: "tablist", "aria-label": "人格データの入力形式" },
         h("button", { className: `btn ${draftInputMode === "sections" ? "btn--primary" : "btn--secondary"}`, type: "button", role: "tab", "aria-selected": draftInputMode === "sections", onClick: () => onInputModeChange("sections") }, "完成データを分けて入力"),
-        h("button", { className: `btn ${draftInputMode === "raw" ? "btn--primary" : "btn--secondary"}`, type: "button", role: "tab", "aria-selected": draftInputMode === "raw", onClick: () => onInputModeChange("raw") }, "一括テキストを貼り付け")),
+        h("button", { className: `btn ${draftInputMode === "raw" ? "btn--primary" : "btn--secondary"}`, type: "button", role: "tab", "aria-selected": draftInputMode === "raw", onClick: () => onInputModeChange("raw") }, "一括テキストを貼り付け"),
+        h("button", { className: `btn ${draftInputMode === "garasumado" ? "btn--primary" : "btn--secondary"}`, type: "button", role: "tab", "aria-selected": draftInputMode === "garasumado", onClick: () => onInputModeChange("garasumado") }, "硝子窓URLから移行")),
       draftInputMode === "sections" ? h("div", { className: "persona-draft-sections" },
         section("name", "人格名（任意）", "空欄でも反映可。既存人格へ同期帰属する場合は、下部で手動選択できます。", "黒雲会組員 または 人格名：「黒雲会組員」"),
         section("status", "ステータス・パッシブ（任意）", "HP・SAN・速度・耐性・弾丸と、パッシブ名・発動条件・常時効果・効果をまとめて入力。", "HP:160　SAN：55　速度:1d5＋2\n斬撃：普通 貫通：抵抗 打撃：弱点\nパッシブ名：固有パッシブ\n発動条件：傲慢x3保有\n効果：..."),
         section("skills", "戦術スキル一覧", "0： / 0-2： / ０－２： / 【戦術スキル1】のいずれも可。", "０－２：\nスキル名\n斬撃:傲慢\n2d9：的中時、..."),
         section("uniques", "固有一覧（明示登録）", "正式な固有見出しがなくても、指令などをここへ入力すると固有一覧へ登録。", "[指令] 最大1 中立バフ\n説明\n[指令の加護] 最大9 バフ\n説明")) :
+        draftInputMode === "garasumado" ? h("div", { className: "persona-draft-garasumado" },
+          h("p", { className: "persona-draft-garasumado-lead" }, "硝子窓で共有されている公開人格のURLを貼り付けると、人格名・ステータス・パッシブ・戦術・固有を読み込みます。所有者、メモ、チャットパレット、強化一覧は移行しません。"),
+          h("label", { className: "persona-draft-garasumado-label", htmlFor: "persona-draft-garasumado-url" }, "硝子窓の公開人格URL"),
+          h("textarea", { id: "persona-draft-garasumado-url", className: "persona-draft-import-text persona-draft-garasumado-url", value: draftText, onChange: (event) => onChange(event.target.value), placeholder: "https://lbt-garasumado.vercel.app/persona/view/7bLdY187iD7AteytkyYe", autoFocus: true }),
+          h("p", { className: "persona-draft-garasumado-help" }, "解析後は内容を確認し、必要に応じて同期元を検索してから反映します。非公開URL・別サイトのURLは反映しません。")) :
         h("textarea", { className: "persona-draft-import-text", value: draftText, onChange: (event) => onChange(event.target.value), placeholder: "表記は多少異なっても読み込みます\n人格 名：「完成人格」\nHP:160　SAN：55　速度:1d5＋2\nパッシブ名：...\n０－２：スキル名\n斬撃:傲慢\n2d9：的中時、...\n\n【戦術スキル１】・0：・0-2：も対応\n※必須項目の不足や文章型速度は修正が必要です", autoFocus: true }),
       h("div", { className: "persona-draft-import-actions" },
-        h("button", { className: "btn btn--secondary", type: "button", onClick: onAnalyze, disabled: !hasInput }, "解析する"),
+        h("button", { className: "btn btn--secondary", type: "button", onClick: onAnalyze, disabled: !hasInput }, draftInputMode === "garasumado" ? "公開人格を解析" : "解析する"),
         draftResult?.ok && h("label", { className: "persona-draft-max-option" },
           h("input", { type: "checkbox", checked: draftSyncMax, onChange: (event) => onSyncMaxChange(event.target.checked) }),
           "同期MAXとして作成"),
@@ -649,6 +655,7 @@ const PersonaDraftImportDialog = ({ draftText, draftSections, draftInputMode, dr
       draftResult && h("div", { className: `persona-draft-result${draftResult.ok ? " is-ready" : " is-error"}` },
         draftResult.ok && h(React.Fragment, null,
           h("strong", { className: "persona-draft-result-title" }, draftResult.persona.name),
+          draftResult.source?.kind === "garasumado" && h("div", { className: "persona-draft-result-meta" }, "移行元：硝子窓の公開人格（所有者・メモ・チャットパレット・強化一覧は移行しません）"),
           h("div", { className: "persona-draft-result-meta" }, `HP ${draftResult.persona.hp} / SAN ${draftResult.persona.san} / 速度 ${draftResult.persona.speed} / 弾丸 ${draftResult.persona.bullets}`),
           h("div", { className: "persona-draft-result-meta" }, `戦術スキル ${draftResult.summary.skillCount}件 / パッシブ ${draftResult.summary.passiveCount}件 / 固有 ${draftResult.summary.buffCount}件`),
           h("div", { className: "persona-draft-result-meta" }, `反映対象: ${[draftResult.provided?.name && "人格名", (draftResult.provided?.hp || draftResult.provided?.san || draftResult.provided?.speed || draftResult.provided?.passives) && "ステータス・パッシブ", draftResult.provided?.skills && "戦術スキル", draftResult.provided?.uniques && "固有"].filter(Boolean).join(" / ") || "なし"}`)),
@@ -913,8 +920,8 @@ const PersonaCodex = ({ state, dispatch }) => {
     }, 20);
     toast(`\u30AB\u30B9\u30BF\u30E0\u4EBA\u683C\u300E${name}\u300F\u3092\u88C5\u5099`);
   };
-  const analyzeDraft = () => {
-    const result = (draftInputMode === "sections" ? window.LBT_parsePersonaDraftSections?.(draftSections) : window.LBT_parsePersonaDraft?.(draftText)) || { ok: false, errors: ["草案解析器を読み込めませんでした。ページを再読み込みしてください。"], warnings: [] };
+  const analyzeDraft = async () => {
+    const result = (draftInputMode === "garasumado" ? await window.LBT_fetchGarasumadoPersona?.(draftText) : (draftInputMode === "sections" ? window.LBT_parsePersonaDraftSections?.(draftSections) : window.LBT_parsePersonaDraft?.(draftText))) || { ok: false, errors: ["草案解析器を読み込めませんでした。ページを再読み込みしてください。"], warnings: [] };
     setDraftResult(result);
     setDraftSyncMax(!!result.suggestSyncMax);
     const candidates = result.ok ? findDraftAffiliationCandidates(result.persona?.name, draftAffiliationOptions) : [];
