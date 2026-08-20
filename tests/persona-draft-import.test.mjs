@@ -58,8 +58,8 @@ function loadParser() {
   return context.window.LBT_parsePersonaDraft;
 }
 
-function loadStateReducer() {
-  const context = { window: { DB: { normal_personas: [], tokui_personas: [], default_statuses: [] } }, console };
+function loadStateReducer(db = {}) {
+  const context = { window: { DB: { normal_personas: [], tokui_personas: [], default_statuses: [], ...db } }, console };
   context.globalThis = context;
   vm.createContext(context);
   vm.runInContext(stateSource, context);
@@ -101,6 +101,35 @@ test("簡略形式の同期人格草案も戦術ランク・大罪・ダイス�
   assert.equal(result.persona.unique_buffs[0].max, 15);
 });
 
+test("同期草案ブロック内の最後の人格名を冒頭の参照名より優先し、全角・空白の表記ゆれを認識する", () => {
+  const parse = loadParser();
+  const result = parse(`人格名：【ファイル名由来の別人格】
+同期 ＭＡＸ　草案 （作成中）
+人格 名 ： 「本文で明示された同期人格」
+ＲＡＮＫ：０００
+ＨＰ：１６０　ＳＡＮ：５５　速度：１ｄ５＋２　弾丸：１０
+斬撃：普通　貫通：抵抗　打撃：弱点
+パッシブ 名：本文パッシブ
+発動 条件：憤怒×３保有
+効果：本文の効果
+【 戦術 スキル １ 】
+スキル 名：本文スキル
+斬撃：傲慢
+２ｄ９：的中時、火傷２を付与
+固有 − 同期ＭＡＸ
+[本文固有] バフ 最大値：３０
+効果：本文の固有効果`);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.nameSource, "sync-draft");
+  assert.equal(result.persona.name, "本文で明示された同期人格");
+  assert.equal(result.persona.hp, 160);
+  assert.equal(result.persona.skills[0].name, "本文スキル");
+  assert.equal(result.persona.unique_buffs[0].name, "本文固有");
+  assert.equal(result.syncRank, "000");
+  assert.equal(result.suggestSyncMax, true);
+});
+
 test("解析済み草案は既存人格を消さず、手動編集可能なカスタム人格として装備する", () => {
   const parse = loadParser();
   const parsed = parse(labeledDraft);
@@ -127,10 +156,47 @@ test("草案取込の失敗は人格名または戦術スキルがない場合�
   assert.equal(result.errors.length >= 2, true);
 });
 
+test("草案の同期帰属先を選ぶと、既存人格のmode/noを維持した同期編集ビルドとして保存・再装備する", () => {
+  const parse = loadParser();
+  const parsed = parse(labeledDraft);
+  const official = { no: 17, name: "既存の通常人格", hp: 100, san: 45, speed: "1d5", bullets: "×", skills: [], unique_buffs: [], keywords: [] };
+  const { reducer, initState } = loadStateReducer({ normal_personas: [official] });
+  const existing = {
+    ...initState,
+    roster: { personas: [{ uid: "official-17", mode: "n", no: 17, equipped: false, notes: "既存メモ" }], egos: [] }
+  };
+  const next = reducer(existing, { type: "IMPORT_PERSONA_DRAFT", persona: parsed.persona, secondaryPassive: parsed.secondaryPassive, syncRank: parsed.syncRank, syncMax: true, affiliation: { mode: "n", no: 17 } });
+
+  assert.equal(next.personaMode, "n");
+  assert.equal(next.personaNo, 17);
+  assert.equal(next.syncedManual, true);
+  assert.equal(next.personaSrc.name, "草案テスト人格");
+  assert.equal(next.personaSrc.__custom, false);
+  assert.equal(next.personaSrc.__affiliation.mode, "n");
+  assert.equal(next.personaSrc.__affiliation.no, 17);
+  assert.equal(next.roster.personas.length, 1);
+  assert.equal(next.roster.personas[0].mode, "n");
+  assert.equal(next.roster.personas[0].no, 17);
+  assert.equal(next.roster.personas[0].displayName, "草案テスト人格");
+  assert.equal(next.roster.personas[0].syncRank, "000");
+  assert.equal(next.roster.personas[0].syncMax, true);
+  assert.equal(next.roster.personas[0].build.personaSrc.name, "草案テスト人格");
+  assert.equal(official.name, "既存の通常人格");
+
+  const restored = reducer(next, { type: "EQUIP_PERSONA", mode: "n", no: 17, src: official });
+  assert.equal(restored.personaMode, "n");
+  assert.equal(restored.personaNo, 17);
+  assert.equal(restored.personaSrc.name, "草案テスト人格");
+  assert.equal(restored.syncedManual, true);
+  assert.equal(restored.skills[0].name, "切断");
+});
+
 test("人格図鑑は草案の解析・プレビュー・確認後の適用入口を提供する", () => {
   const source = readFileSync(new URL("../js/PersonaCodex.js", import.meta.url), "utf8");
   assert.match(source, /PersonaDraftImportDialog/);
   assert.match(source, /LBT_parsePersonaDraft/);
   assert.match(source, /IMPORT_PERSONA_DRAFT/);
   assert.match(source, /草案を貼り付け/);
+  assert.match(source, /作成先 \/ 同期帰属先/);
+  assert.match(source, /draftAffiliationOptions/);
 });

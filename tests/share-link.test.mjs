@@ -139,6 +139,35 @@ test("実データの長文人格ではURL長を明示し、Discord本文上限�
   assert.equal(restored.skills.length, persona.skills.length);
 });
 
+test("既存人格へ帰属した同期草案は共有時も公式参照を維持し、草案名と編集内容を復元する", async () => {
+  const db = JSON.parse(readFileSync(new URL("../data/db.json", import.meta.url), "utf8"));
+  const share = loadShareLink(db);
+  const persona = db.normal_personas[0];
+  const importedName = "草案から反映した同期人格";
+  const importedSkill = { rank: "スキル1", name: "草案スキル", type: "斬撃", sin: "傲慢", dice: [{ roll: "2d9", effect: "草案効果" }] };
+  const state = {
+    personaMode: "n",
+    personaNo: persona.no,
+    personaSrc: { ...persona, name: importedName, __custom: false, __affiliation: { mode: "n", no: persona.no } },
+    hp: "160", san: "55", speed: "1d5+2", bullets: "10",
+    resS: "普通", resP: "抵抗", resB: "弱点",
+    pas: { name: "草案パッシブ", cond: "憤怒×3", always: "", effect: "草案効果" },
+    skills: [importedSkill],
+    uniqueBuffs: [],
+    roster: { personas: [{ uid: "affiliated", mode: "n", no: persona.no, syncRank: "000", syncMax: true, equipped: true }] }
+  };
+  const snapshot = share.snapshotState(state);
+
+  assert.deepEqual(JSON.parse(JSON.stringify(snapshot.personaRef)), { mode: "n", no: persona.no });
+  assert.equal(snapshot.personaSrc.name, importedName);
+  assert.equal(snapshot.skills[0].name, "草案スキル");
+  const restored = share.hydratePersonaReference(await share.decodeToken(await share.encodeState(state)), db);
+  assert.equal(restored.personaMode, "n");
+  assert.equal(restored.personaNo, persona.no);
+  assert.equal(restored.personaSrc.name, importedName);
+  assert.equal(restored.skills[0].name, "草案スキル");
+});
+
 test("公式データ参照はE.G.O・サポート・強化・精神・公式複製アイテムを欠損なく復元する", async () => {
   const db = JSON.parse(readFileSync(new URL("../data/db.json", import.meta.url), "utf8"));
   const items = JSON.parse(readFileSync(new URL("../data/items.json", import.meta.url), "utf8"));

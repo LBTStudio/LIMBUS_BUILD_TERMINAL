@@ -1,13 +1,26 @@
 /* LBT persona draft paste parser. Keeps parsing deterministic and entirely client-side. */
 (function () {
-  const toHalfWidth = (value) => String(value || "").replace(/[０-９]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xFEE0)).replace(/[：]/g, ":").replace(/[‐‑‒–—－−]/g, "-");
+  const toHalfWidth = (value) => String(value || "").replace(/[０-９Ａ-Ｚａ-ｚ]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xFEE0)).replace(/[：]/g, ":").replace(/[‐‑‒–—－−]/g, "-").replace(/[（]/g, "(").replace(/[）]/g, ")").replace(/　/g, " ");
+  const forMatch = (value) => toHalfWidth(value).replace(/\s*-\s*/g, "-").replace(/[\t ]+/g, " ").trim();
   const clean = (value) => String(value || "").replace(/\r/g, "").trim();
   const linesOf = (value) => String(value || "").replace(/\r/g, "").split("\n").map((line) => line.trim());
   const appendLine = (target, key, value) => {
     const next = clean(value);
     if (next) target[key] = target[key] ? `${target[key]}\n${next}` : next;
   };
-  const stripPersonaQuotes = (value) => clean(value).replace(/^人格名\s*[:：]\s*/i, "").replace(/^[「『\"]+|[」』\"]+$/g, "").trim();
+  const stripPersonaQuotes = (value) => clean(value)
+    .replace(/^(?:人格\s*(?:名|名称)|名称)\s*[:：]\s*/i, "")
+    .replace(/^[\s「『\"【\[（(]+/, "")
+    .replace(/[\s」』\"】\]）)]+$/, "")
+    .trim();
+  const personaNameFromLine = (line) => {
+    const normalized = forMatch(line);
+    const labeled = normalized.match(/^(?:人格\s*(?:名|名称)|名称)\s*:\s*(.+)$/i);
+    if (labeled) return { value: stripPersonaQuotes(labeled[1]), labeled: true };
+    if (/^[「『\"].+[」』\"]$/.test(normalized)) return stripPersonaQuotes(normalized);
+    return "";
+  };
+  const findLastSyncDraftStart = (lines) => lines.reduce((found, line, index) => /同期\s*(?:MAX)?\s*草案/i.test(forMatch(line)) ? index : found, -1);
   const normalizeRank = (raw, fallback) => {
     const rank = toHalfWidth(raw).replace(/\s+/g, "");
     return rank ? `スキル${rank}` : `スキル${fallback}`;
@@ -25,7 +38,7 @@
     const values = { slash: "普通", pierce: "普通", blunt: "普通" };
     const keys = { "斬撃": "slash", "貫通": "pierce", "打撃": "blunt" };
     for (const line of lines.slice(0, 24)) {
-      const matches = [...line.matchAll(/(斬撃|貫通|打撃)\s*[:：]\s*(脆弱|弱点|普通|抵抗|耐性|免疫)/g)];
+      const matches = [...forMatch(line).matchAll(/(斬撃|貫通|打撃)\s*:\s*(脆弱|弱点|普通|抵抗|耐性|免疫)/g)];
       for (const match of matches) values[keys[match[1]]] = match[2];
     }
     return values;
@@ -39,30 +52,31 @@
       current = null;
       section = "";
     };
-    const stop = (line) => /^【\s*戦術スキル/.test(line) || /^\d+(?:[-－ー]\d+)?\s*[:：]/.test(toHalfWidth(line)) || /^(固有|人格コンセプト)/.test(line);
+    const stop = (line) => /^【\s*戦術\s*スキル/.test(line) || /^\d+(?:[-－ー]\d+)?\s*[:：]/.test(toHalfWidth(line)) || /^(固有|人格コンセプト)/.test(line);
     for (let index = 0; index < lines.length; index += 1) {
       const line = clean(lines[index]);
+      const normalized = forMatch(line);
       if (!line) continue;
-      const named = line.match(/^パッシブ名\s*[:：]\s*(.+)$/);
+      const named = normalized.match(/^パッシブ\s*名\s*:\s*(.+)$/);
       if (named) {
         push();
         current = { name: clean(named[1]), cond: "", always: "", effect: "" };
         continue;
       }
-      if (/^【\s*パッシブ\s*】/.test(line)) {
+      if (/^【\s*パッシブ\s*】/.test(normalized)) {
         push();
         const next = lines.slice(index + 1).find((candidate) => clean(candidate));
         if (next && !/^(発動条件|常時(?:効果|発動)?|効果)\s*[:：]/.test(next)) current = { name: clean(next), cond: "", always: "", effect: "" };
         continue;
       }
       if (!current) continue;
-      if (stop(line)) {
+      if (stop(normalized)) {
         push();
         continue;
       }
-      const condition = line.match(/^発動条件\s*[:：]\s*(.+)$/);
-      const always = line.match(/^常時(?:効果|発動)?\s*[:：]\s*(.+)$/);
-      const effect = line.match(/^効果\s*[:：]\s*(.+)$/);
+      const condition = normalized.match(/^発動\s*条件\s*:\s*(.+)$/);
+      const always = normalized.match(/^常時(?:効果|発動)?\s*:\s*(.+)$/);
+      const effect = normalized.match(/^効果\s*:\s*(.+)$/);
       if (condition) { current.cond = clean(condition[1]); section = "cond"; continue; }
       if (always) { appendLine(current, "always", always[1]); section = "always"; continue; }
       if (effect) { appendLine(current, "effect", effect[1]); section = "effect"; continue; }
@@ -93,11 +107,12 @@
     };
     for (const rawLine of lines) {
       const line = clean(rawLine);
+      const normalized = forMatch(line);
       if (!line) continue;
-      if (/^(固有|人格コンセプト|派生戦術|外付け補正)/.test(line)) { push(); break; }
-      const header = line.match(/^【\s*戦術スキル\s*([^】]+)】/);
+      if (/^(固有|人格コンセプト|派生戦術|外付け補正)/.test(normalized)) { push(); break; }
+      const header = normalized.match(/^【\s*戦術\s*スキル\s*([^】]+)】/);
       if (header) { start(header[1], ""); continue; }
-      const compact = toHalfWidth(line).match(/^(\d+(?:-\d+)?)\s*[:：]\s*(.+)$/);
+      const compact = normalized.match(/^(\d+(?:-\d+)?)\s*:\s*(.+)$/);
       if (compact && !/^\d+d/i.test(compact[1])) {
         const tail = clean(compact[2]);
         const typed = tail.match(/^(.+?)\s+(斬撃|貫通|打撃|回避|防御|物理|マッチ可能防御|マッチ可能斬撃反撃)\s*[:：]\s*(\S+)/);
@@ -114,28 +129,28 @@
         continue;
       }
       if (!current) continue;
-      const name = line.match(/^スキル名\s*[:：]\s*(.+)$/);
+      const name = normalized.match(/^スキル\s*名\s*:\s*(.+)$/);
       if (name) { current.name = clean(name[1]); continue; }
-      const typed = line.match(/^(斬撃|貫通|打撃|回避|防御|物理|マッチ可能防御|マッチ可能斬撃反撃)\s*[:：]\s*(\S+)/);
+      const typed = normalized.match(/^(斬撃|貫通|打撃|回避|防御|物理|マッチ可能防御|マッチ可能斬撃反撃)\s*:\s*(\S+)/);
       if (typed) {
         current.type = typed[1].replace("マッチ可能", "");
         current.sin = typed[2];
         continue;
       }
-      const aoe = line.match(/^(広域(?:乱射)?)\s*[:：]?\s*(\d+)?/);
+      const aoe = normalized.match(/^(広域(?:乱射)?)\s*:?\s*(\d+)?/);
       if (aoe) {
         current.aoe = aoe[1];
         current.aoeCount = aoe[2] || "";
         continue;
       }
-      if (parseDice(line)) continue;
-      if (!/^コンセプト\s*[:：]/.test(line)) appendLine(current, "effect", line);
+      if (parseDice(normalized)) continue;
+      if (!/^コンセプト\s*[:：]/.test(normalized)) appendLine(current, "effect", line);
     }
     push();
     return skills;
   };
   const parseBuffs = (lines) => {
-    const startAt = lines.findIndex((line) => /^(固有(?:-|$)|固有-同期MAX)/.test(clean(line)));
+    const startAt = lines.findIndex((line) => /^(固有(?:-|$)|固有-同期MAX)/.test(forMatch(line)));
     if (startAt < 0) return [];
     const buffs = [];
     let current = null;
@@ -145,8 +160,9 @@
     };
     for (const rawLine of lines.slice(startAt + 1)) {
       const line = clean(rawLine);
+      const normalized = forMatch(line);
       if (!line || /^外付け補正/.test(line)) continue;
-      const header = line.match(/^\[([^\]]+)\]\s*(.*)$/);
+      const header = normalized.match(/^\[([^\]]+)\]\s*(.*)$/);
       if (header) {
         push();
         const tail = clean(header[2]);
@@ -166,12 +182,16 @@
     const warnings = [];
     if (original.length < 8) return { ok: false, errors: ["草案テキストを貼り付けてください。"], warnings, persona: null };
     const allLines = linesOf(original);
-    const syncStart = allLines.findIndex((line) => /同期(?:MAX)?草案/.test(line));
+    const syncStart = findLastSyncDraftStart(allLines);
     const lines = syncStart >= 0 ? allLines.slice(syncStart + 1) : allLines;
-    const text = lines.join("\n");
-    const labeledName = lines.find((line) => /^人格名\s*[:：]/.test(line));
-    const quotedName = lines.find((line) => /^[「『].+[」』]$/.test(line));
-    const name = stripPersonaQuotes(labeledName || quotedName || "");
+    const text = lines.map(forMatch).join("\n");
+    const labeledNames = lines.map(personaNameFromLine).filter((entry) => entry?.labeled && entry.value).map((entry) => entry.value);
+    const firstStructuredLine = lines.findIndex((line) => /^(?:HP|SAN|速度|弾丸|パッシブ|【\s*戦術|\d+\s*[-:：])/.test(forMatch(line)));
+    const fallbackNames = lines.slice(0, firstStructuredLine >= 0 ? firstStructuredLine : 12)
+      .map(personaNameFromLine).filter((entry) => typeof entry === "string" && entry);
+    // ラベル付き人格名がある場合は、同期草案ブロック内で最後に明示されたものを採用する。
+    // 無ラベルの引用名は簡略草案の先頭に限るため、本文中の台詞・引用は人格名として扱わない。
+    const name = labeledNames.at(-1) || fallbackNames[0] || "";
     const hp = numeric(collectField(text, "HP"), 0);
     const san = numeric(collectField(text, "SAN"), 0);
     const speed = collectField(text, "速度");
@@ -212,7 +232,8 @@
       persona,
       secondaryPassive: passives[1] || null,
       syncRank: ["0", "00", "000"].includes(rank) ? rank : null,
-      suggestSyncMax: syncStart >= 0 && /同期MAX/.test(allLines[syncStart] || ""),
+      suggestSyncMax: syncStart >= 0 && /同期\s*MAX/i.test(forMatch(allLines[syncStart] || "")),
+      nameSource: syncStart >= 0 ? "sync-draft" : "document",
       summary: { skillCount: skills.length, buffCount: uniqueBuffs.length, passiveCount: passives.length }
     };
   };

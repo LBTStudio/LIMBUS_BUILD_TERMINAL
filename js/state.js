@@ -1432,6 +1432,13 @@ function appReducer(state, action) {
     case "IMPORT_PERSONA_DRAFT": {
       const src = action.persona;
       if (!src || !src.__custom) return state;
+      const affiliation = action.affiliation || null;
+      const affiliatedMode = affiliation?.mode === "n" || affiliation?.mode === "t" ? affiliation.mode : null;
+      const affiliatedNo = affiliatedMode ? affiliation?.no : null;
+      const affiliatedSource = affiliatedMode
+        ? ((affiliatedMode === "n" ? window.DB?.normal_personas : window.DB?.tokui_personas) || []).find((entry) => String(entry?.no) === String(affiliatedNo))
+        : null;
+      const isAffiliated = !!affiliatedSource;
       const uid = `custom-${Date.now()}`;
       const skills = migrateLegacyDerivedSkills((src.skills || []).map((sk, index) => ({
         id: `sk-${Date.now()}-${index}`,
@@ -1457,24 +1464,65 @@ function appReducer(state, action) {
         desc: buff.desc || "",
         place: buff.place || "status"
       }));
-      const personas = (state.roster?.personas || []).map((entry) => ({ ...entry, equipped: false }));
-      personas.push({
-        uid,
-        no: uid,
-        mode: "custom",
-        src,
-        syncRank: ["0", "00", "000"].includes(action.syncRank) ? action.syncRank : null,
-        syncMax: !!action.syncMax,
-        lcb: false,
-        equipped: true,
-        notes: ""
-      });
+      const syncRank = ["0", "00", "000"].includes(action.syncRank) ? action.syncRank : null;
+      const importedSource = isAffiliated
+        ? { ...src, __custom: false, __draftImported: true, __affiliation: { mode: affiliatedMode, no: affiliatedSource.no } }
+        : src;
+      const importedBuild = {
+        savedAt: Date.now(),
+        hp: String(src.hp ?? 100), san: String(src.san ?? 45), speed: src.speed || "1d5", initiative: 0, bullets: src.bullets || "×",
+        resS: src.res_slash || "普通", resP: src.res_pierce || "普通", resB: src.res_blunt || "普通",
+        pas: { name: src.passive_name || "", cond: src.passive_cond || "", always: src.passive_always || "", effect: src.passive_effect || "", quick: "" },
+        pas2Enabled: !!action.secondaryPassive?.name,
+        pas2: { name: action.secondaryPassive?.name || "", cond: action.secondaryPassive?.cond || "", effect: [action.secondaryPassive?.always, action.secondaryPassive?.effect].filter(Boolean).join("\n") },
+        skills: cloneJSON(skills),
+        uniqueBuffs: cloneJSON(uniqueBuffs),
+        personaSrc: cloneJSON(importedSource),
+        syncedManual: true,
+        defaultStatuses: mergeDefaultSelfStatusEntries(state.defaultStatuses, collectSelfManagedStatusEntries(importedSource)),
+        selfStatusCandidates: detectSelfStatusCandidates(importedSource, [
+          ...(state.defaultStatuses || getFactoryDefaultStatuses()).map((item) => item?.label),
+          ...(state.customStatuses || []).filter((item) => (item?.place || "status") === "status").map((item) => item?.label),
+          ...collectSelfManagedStatusEntries(importedSource).map((entry) => entry.label)
+        ])
+      };
+      let personas = (state.roster?.personas || []).map((entry) => ({ ...entry, equipped: false }));
+      if (isAffiliated) {
+        const key = `${affiliatedMode}:${affiliatedSource.no}`;
+        const existingIndex = personas.findIndex((entry) => `${entry.mode}:${entry.no}` === key);
+        const affiliatedEntry = {
+          uid: existingIndex >= 0 ? personas[existingIndex].uid : `pr-${Date.now()}`,
+          no: affiliatedSource.no,
+          mode: affiliatedMode,
+          displayName: importedSource.name || affiliatedSource.name,
+          syncRank,
+          syncMax: !!action.syncMax,
+          lcb: existingIndex >= 0 ? !!personas[existingIndex].lcb : false,
+          equipped: true,
+          notes: existingIndex >= 0 ? personas[existingIndex].notes || "" : "",
+          build: importedBuild
+        };
+        if (existingIndex >= 0) personas[existingIndex] = { ...personas[existingIndex], ...affiliatedEntry };
+        else personas.push(affiliatedEntry);
+      } else {
+        personas.push({
+          uid,
+          no: uid,
+          mode: "custom",
+          src,
+          syncRank,
+          syncMax: !!action.syncMax,
+          lcb: false,
+          equipped: true,
+          notes: ""
+        });
+      }
       return normalizeStatusCollections({
         ...state,
         inventory: [],
-        personaMode: "custom",
-        personaNo: uid,
-        personaSrc: src,
+        personaMode: isAffiliated ? affiliatedMode : "custom",
+        personaNo: isAffiliated ? affiliatedSource.no : uid,
+        personaSrc: importedSource,
         syncedManual: true,
         hp: String(src.hp ?? 100),
         san: String(src.san ?? 45),
@@ -1488,15 +1536,15 @@ function appReducer(state, action) {
         pas2: { name: action.secondaryPassive?.name || "", cond: action.secondaryPassive?.cond || "", effect: [action.secondaryPassive?.always, action.secondaryPassive?.effect].filter(Boolean).join("\n") },
         skills,
         uniqueBuffs,
-        defaultStatuses: mergeDefaultSelfStatusEntries(state.defaultStatuses, collectSelfManagedStatusEntries(src)),
-        selfStatusCandidates: detectSelfStatusCandidates(src, [
+        defaultStatuses: importedBuild.defaultStatuses,
+        selfStatusCandidates: detectSelfStatusCandidates(importedSource, [
           ...(state.defaultStatuses || getFactoryDefaultStatuses()).map((item) => item?.label),
           ...(state.customStatuses || []).filter((item) => (item?.place || "status") === "status").map((item) => item?.label),
-          ...collectSelfManagedStatusEntries(src).map((entry) => entry.label)
+          ...collectSelfManagedStatusEntries(importedSource).map((entry) => entry.label)
         ]),
-        charName: state.charName || src.name || "",
+        charName: state.charName || importedSource.name || "",
         roster: { ...state.roster, personas },
-        historyRecent: [`custom:${uid}`, ...(state.historyRecent || []).filter((key) => key !== `custom:${uid}`)].slice(0, 20)
+        historyRecent: [`${isAffiliated ? affiliatedMode : "custom"}:${isAffiliated ? affiliatedSource.no : uid}`, ...(state.historyRecent || []).filter((key) => key !== `${isAffiliated ? affiliatedMode : "custom"}:${isAffiliated ? affiliatedSource.no : uid}`)].slice(0, 20)
       });
     }
     /* v55: 創作人格の保存 — 編集内容の全スナップショットを所持人格一覧に登録する。

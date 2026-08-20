@@ -371,7 +371,12 @@
     snapshot.customItems = (snapshot.customItems || []).filter((item) => ownedItemIds.has(String(item?.id || "")));
     const selected = selectedPersonaRecord(source);
     snapshot.roster = { personas: selected ? [selected] : [] };
-    const personaSource = findPersonaSource(window.DB, source.personaMode, source.personaNo, source.personaSrc?.name);
+    const affiliation = source.personaSrc?.__affiliation;
+    const affiliatedSource = affiliation && (affiliation.mode === "n" || affiliation.mode === "t")
+      ? findPersonaSource(window.DB, affiliation.mode, affiliation.no)
+      : null;
+    const personaSource = affiliatedSource || findPersonaSource(window.DB, source.personaMode, source.personaNo, source.personaSrc?.name);
+    const isAffiliatedDraft = !!affiliatedSource && affiliation.mode === source.personaMode && String(affiliation.no) === String(source.personaNo);
     if (!personaSource && (source.personaMode === "n" || source.personaMode === "t")) {
       snapshot.personaSrc = source.personaSrc?.name ? { name: String(source.personaSrc.name) } : undefined;
     }
@@ -384,7 +389,7 @@
       Object.entries(sourceSheetFields(personaSource)).forEach(([key, baseValue]) => {
         if (sameJSON(snapshot[key], baseValue)) delete snapshot[key];
       });
-      delete snapshot.personaSrc;
+      if (!isAffiliatedDraft) delete snapshot.personaSrc;
       snapshot.personaRef = { mode: source.personaMode, no: source.personaNo };
     }
     compactOfficialReferences(snapshot, window.DB);

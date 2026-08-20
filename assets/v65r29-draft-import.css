@@ -64,6 +64,11 @@
 .persona-draft-import-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); margin-top: var(--s-3); }
 .persona-draft-max-option { display: inline-flex; min-height: 36px; align-items: center; gap: 7px; color: var(--tx-2); font-family: var(--f-display); font-size: var(--fs-11); font-weight: 700; }
 .persona-draft-max-option input { width: 18px; height: 18px; margin: 0; accent-color: var(--gold); }
+.persona-draft-affiliation { display: grid; grid-template-columns: minmax(128px, max-content) minmax(0, 1fr); align-items: center; gap: 7px 12px; margin-top: var(--s-3); padding: 10px 12px; border: 1px solid var(--line-dim); border-radius: var(--r-sm); background: color-mix(in oklab, var(--surface-inset) 86%, var(--gold) 4%); }
+.persona-draft-affiliation-label { color: var(--gold-hi); font-family: var(--f-display); font-size: var(--fs-11); font-weight: 700; letter-spacing: .06em; }
+.persona-draft-affiliation-select { width: 100%; min-width: 0; min-height: 36px; box-sizing: border-box; padding: 6px 28px 6px 9px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface-1); color: var(--tx); font-family: var(--f-ui); font-size: var(--fs-11); }
+.persona-draft-affiliation-select:focus { border-color: var(--gold); outline: 2px solid var(--gold-glow); outline-offset: 1px; }
+.persona-draft-affiliation-help { grid-column: 1 / -1; margin: 0; color: var(--tx-dim); font-size: var(--fs-11); line-height: 1.5; }
 .persona-draft-result { display: grid; gap: 6px; margin-top: var(--s-3); padding: 10px 12px; border: 1px solid var(--line-dim); border-left: 3px solid var(--gold-line); border-radius: var(--r-sm); background: var(--surface-inset); }
 .persona-draft-result.is-ready { border-color: var(--gold-line); border-left-color: var(--gold); }
 .persona-draft-result.is-error { border-color: color-mix(in oklab, var(--danger) 55%, var(--line)); border-left-color: var(--danger); }
@@ -81,4 +86,6 @@
   .persona-draft-import-text { min-height: 230px; max-height: 42dvh; font-size: 12px; }
   .persona-draft-import-actions > .btn { min-height: 42px; flex: 1 1 auto; justify-content: center; }
   .persona-draft-max-option { flex-basis: 100%; min-height: 40px; }
+  .persona-draft-affiliation { grid-template-columns: 1fr; gap: 7px; }
+  .persona-draft-affiliation-select { min-height: 42px; font-size: 12px; }
 }
