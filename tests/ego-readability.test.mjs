@@ -21,3 +21,20 @@ test("E.G.Oの詳細未選択時だけPC一覧を全幅化し、選択時の二�
   assert.match(css, /\.ego-section\.is-catalog-only \.codex/);
   assert.match(css, /\.ego-section\.is-catalog-only \.codex-detail \{ display: none; \}/);
 });
+
+test("E.G.O選択時は右列の簡易詳細カードを表示し、全文詳細・直接編集は明示操作に分離する", () => {
+  const quickCss = readFileSync(new URL("../assets/v65r44-ego-quick-detail.css", import.meta.url), "utf8");
+  assert.match(source, /const EgoQuickDetail/);
+  assert.match(source, /選択中 E\.G\.O \/ 簡易詳細/);
+  assert.match(source, /詳細・直接編集/);
+  assert.match(source, /setDetailSlot\(null\);\s+setListExpanded\(true\);/);
+  assert.match(source, /setDetailSlot\(currentSlot\)/);
+  assert.match(source, /h\(EgoQuickDetail, \{ ego: selected, currentSlot, onEquip: equip/);
+  assert.match(source, /\) : egoGrid\)\), h\(EgoQuickDetail/);
+  assert.match(quickCss, /\.ego-section\.has-selection \.codex/);
+  assert.match(quickCss, /grid-template-columns: minmax\(0, 1fr\) 380px/);
+  assert.match(quickCss, /@media \(min-width: 1120px\) and \(max-width: 1280px\)/);
+  assert.match(quickCss, /minmax\(320px, \.9fr\)/);
+  assert.match(quickCss, /@media \(max-width: 1119px\)/);
+  assert.match(quickCss, /@media \(max-width: 640px\)/);
+});

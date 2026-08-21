@@ -887,6 +887,62 @@ const EgoDetail = ({ ego, equipTo, currentSlot, onEquip, onUnequip, isOwned, onT
   const isAssim = (ego.sub_skills || []).length > 0;
   return /* @__PURE__ */ React.createElement("div", { className: "codex-detail", style: { "--sin-primary": `var(--rank-${ego.rank})` } }, /* @__PURE__ */ React.createElement("div", { className: "detail-head" }, /* @__PURE__ */ React.createElement("div", { className: "detail-eyebrow" }, /* @__PURE__ */ React.createElement("span", { className: "detail-num" }, "No.", String(ego.no).padStart(3, "0")), /* @__PURE__ */ React.createElement("span", { className: "badge", "data-rank": ego.rank, style: { fontSize: 9 } }, ego.rank)), /* @__PURE__ */ React.createElement("div", { className: "detail-name" }, ego.name), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--s-2)" } }, /* @__PURE__ */ React.createElement("div", { style: { padding: "6px 8px", background: "var(--surface-inset)", border: "1px solid var(--line-dim)", borderRadius: "var(--r)" } }, /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-display)", fontSize: 9, letterSpacing: "0.14em", color: "var(--tx-mute)", textTransform: "uppercase" } }, "\u6D88\u8CBBSAN"), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-mono)", fontSize: "var(--fs-15)", color: "var(--tx)" } }, ego.san_cost)), /* @__PURE__ */ React.createElement("div", { style: { padding: "6px 8px", background: "var(--surface-inset)", border: "1px solid var(--line-dim)", borderRadius: "var(--r)" } }, /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-display)", fontSize: 9, letterSpacing: "0.14em", color: "var(--tx-mute)", textTransform: "uppercase" } }, "\u81EA\u6211\u306E\u6B20\u7247"), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-mono)", fontSize: "var(--fs-15)", color: "var(--tx)" } }, ego.shards))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "var(--s-2)", fontSize: "var(--fs-11)", color: "var(--tx-dim)", fontFamily: "var(--f-mono)" } }, "\u8CC7\u6E90: ", /* @__PURE__ */ React.createElement("span", { style: { color: "var(--tx-2)" } }, ego.resources))), /* @__PURE__ */ React.createElement("div", { className: "detail-body" }, ego.passive_name && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u30D1\u30C3\u30B7\u30D6"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive" }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-name" }, ego.passive_name), ego.passive_cond && /* @__PURE__ */ React.createElement("div", { className: "detail-passive-cond cond-chips-lg", style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)" } }, "\u767A\u52D5\u6761\u4EF6"), /* @__PURE__ */ React.createElement(CondChips, { cond: ego.passive_cond })), /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect", style: { whiteSpace: "pre-wrap" } }, fmt(ego.passive_effect)))), /* @__PURE__ */ React.createElement(Skill, { label: "\u899A\u9192\u30B9\u30AD\u30EB / KAKUSEI", skill: ego.kakusei, badge: "\u899A\u9192" }), isAssim ? /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title", style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", null, "\u4FB5\u8755\u30B9\u30AD\u30EB / SHINSHOKU"), /* @__PURE__ */ React.createElement("span", { className: "ego-doka-badge", style: { marginLeft: "auto" }, title: "\u3053\u306EEGO\u306F\u540C\u5316\u578B" }, "\u25C6 \u540C\u5316")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)", lineHeight: 1.5, marginTop: -2, marginBottom: 8, fontStyle: "italic", fontFamily: "var(--f-mono)" } }, "\u540C\u5316\u578BEGO\uFF1A\u4FB5\u8755\u30B9\u30AD\u30EB\u305D\u306E\u3082\u306E\u304C\u4E0B\u8A18\u306E\u540C\u5316\u30B9\u30AD\u30EB\u7FA4\u3068\u3057\u3066\u767A\u52D5\u3057\u307E\u3059\u3002"), /* @__PURE__ */ React.createElement("div", { className: "assim-tactical-grid" }, ego.sub_skills.map((s, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "assim-tactical-card", "data-sin": s.sin || "" }, /* @__PURE__ */ React.createElement("div", { className: "assim-tactical-head" }, /* @__PURE__ */ React.createElement("span", { className: "assim-tactical-idx" }, "S", s.no ?? i + 1), /* @__PURE__ */ React.createElement("span", { className: "assim-tactical-name" }, s.name || "(\u540D\u79F0\u672A\u8A2D\u5B9A)"), s.attr && /* @__PURE__ */ React.createElement("span", { className: "assim-tactical-attr" }, s.attr), s.sin && /* @__PURE__ */ React.createElement("span", { className: "sin-tag", "data-sin": s.sin, style: { fontFamily: "var(--f-display)", fontSize: "var(--fs-10)", padding: "2px 8px", borderRadius: "var(--r-sm)", letterSpacing: "0.06em", fontWeight: 600 } }, s.sin), s.aoe && /* @__PURE__ */ React.createElement("span", { className: "assim-tactical-aoe" }, s.aoe)), s.effect && /* @__PURE__ */ React.createElement("div", { className: "assim-tactical-eff", style: { whiteSpace: "pre-wrap" } }, fmt(s.effect)), (s.dice || []).length > 0 && /* @__PURE__ */ React.createElement("div", { className: "ro-dice-list", style: { marginTop: 6 } }, s.dice.map((d, j) => /* @__PURE__ */ React.createElement("div", { key: j, className: "ro-dice-row" }, /* @__PURE__ */ React.createElement("span", { className: "ro-dice-idx" }, j + 1), /* @__PURE__ */ React.createElement("span", { className: "ro-dice-roll" }, d.roll || "-"), /* @__PURE__ */ React.createElement("span", { className: "ro-dice-eff", style: { whiteSpace: "pre-wrap" } }, d.effect ? fmt(d.effect) : /* @__PURE__ */ React.createElement("span", { style: { color: "var(--tx-mute)", fontStyle: "italic" } }, "\u52B9\u679C\u306A\u3057"))))))))) : /* @__PURE__ */ React.createElement(Skill, { label: "\u4FB5\u8755\u30B9\u30AD\u30EB / SHINSHOKU", skill: ego.shinshoku, badge: "\u4FB5\u8755" }), ego.unique_buff && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u56FA\u6709\u30D0\u30D5"), /* @__PURE__ */ React.createElement("div", { style: { padding: "8px 10px", background: "var(--surface-inset)", borderRadius: "var(--r)", border: "1px solid var(--line-dim)", fontSize: "var(--fs-11)", color: "var(--tx-2)", lineHeight: 1.5 } }, ego.unique_buff))), /* @__PURE__ */ React.createElement("div", { className: "detail-actions" }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--tx-dim)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "var(--f-display)", marginBottom: 4 } }, equipTo === ego.rank ? `\u2192 ${ego.rank} \u30B9\u30ED\u30C3\u30C8\u3078\u88C5\u5099` : `\u2192 ${ego.rank} \u30B9\u30ED\u30C3\u30C8\u3078\u88C5\u5099`), currentSlot ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--gold)", textAlign: "center", fontFamily: "var(--f-display)", letterSpacing: "0.16em", textTransform: "uppercase" } }, "\u2605 \u73FE\u5728 ", currentSlot, " \u306B\u88C5\u5099\u4E2D"), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", onClick: onUnequip, icon: "x" }, "\u88C5\u5099\u89E3\u9664")) : /* @__PURE__ */ React.createElement(Button, { variant: "primary", onClick: onEquip, icon: "check" }, ego.rank, " \u30B9\u30ED\u30C3\u30C8\u3078\u88C5\u5099"), onToggleOwned ? /* @__PURE__ */ React.createElement(Button, { variant: isOwned ? "ghost" : "ghost", size: "sm", icon: isOwned ? "check" : "plus", onClick: onToggleOwned, title: isOwned ? "\u6240\u6301\u30EA\u30B9\u30C8\u304B\u3089\u5916\u3059" : "\u88C5\u5099\u305B\u305A\u306B\u6240\u6301\u30EA\u30B9\u30C8\u3078\u8FFD\u52A0\u3059\u308B" }, isOwned ? "\u6240\u6301\u6E08\u307F" : "\u6240\u6301\u306B\u8FFD\u52A0") : null));
 };
+const EgoQuickDetail = ({ ego, currentSlot, isOwned, onEquip, onUnequip, onToggleOwned, onOpenFullDetail, onClose }) => {
+  const h = React.createElement;
+  if (!ego) return null;
+  const formatPreview = (text, limit = 150) => {
+    const normalized = String(text || "").replace(/\s+/g, " ").trim();
+    return normalized.length > limit ? `${normalized.slice(0, limit)}…` : normalized;
+  };
+  const skillSummary = (label, skill, tone) => {
+    if (!skill || (!skill.effect && !(skill.dice || []).length)) return null;
+    const rolls = (skill.dice || []).map((die) => die.roll).filter(Boolean).slice(0, 2);
+    return h("div", { className: "ego-quick-skill", "data-tone": tone },
+      h("div", { className: "ego-quick-skill-head" },
+        h("span", null, label),
+        h("span", null, [skill.attr, skill.sin].filter(Boolean).join(" · ") || "—")
+      ),
+      rolls.length ? h("div", { className: "ego-quick-rolls" }, rolls.join(" / ")) : null,
+      skill.effect ? h("p", null, formatPreview(skill.effect, 92)) : null
+    );
+  };
+  return h("aside", { className: "ego-quick-detail", style: { "--sin-primary": `var(--rank-${ego.rank})` }, "aria-label": `選択中E.G.O ${ego.name}` },
+    h("div", { className: "ego-quick-head" },
+      h("div", null,
+        h("div", { className: "ego-quick-eyebrow" }, "選択中 E.G.O / 簡易詳細"),
+        h("div", { className: "ego-quick-title-row" },
+          h("span", { className: "badge", "data-rank": ego.rank }, ego.rank),
+          h("span", { className: "ego-quick-name" }, ego.name)
+        )
+      ),
+      h("button", { className: "btn-ghost btn-icon ego-quick-close", onClick: onClose, title: "選択を閉じる", "aria-label": "選択を閉じる" }, h(Icon, { name: "x", size: 13 }))
+    ),
+    h("div", { className: "ego-quick-meta" },
+      h("div", null, h("span", null, "消費SAN"), h("strong", null, ego.san_cost)),
+      h("div", null, h("span", null, "自我の欠片"), h("strong", null, ego.shards)),
+      (ego.sub_skills || []).length ? h("div", { className: "ego-quick-assim" }, "◆ 同化") : null
+    ),
+    h("div", { className: "ego-quick-resources" },
+      h("span", null, "必要資源"),
+      h(EgoResourceChips, { resources: ego.resources, className: "is-quick-detail" })
+    ),
+    ego.passive_name || ego.passive_effect ? h("div", { className: "ego-quick-passive" },
+      h("span", null, "パッシブ"),
+      ego.passive_name ? h("strong", null, ego.passive_name) : null,
+      ego.passive_effect ? h("p", null, formatPreview(ego.passive_effect)) : null
+    ) : null,
+    h("div", { className: "ego-quick-skills" },
+      skillSummary("覚醒", ego.kakusei, "awake"),
+      skillSummary("侵蝕", ego.shinshoku, "corrode")
+    ),
+    h("div", { className: "ego-quick-actions" },
+      currentSlot ? h("div", { className: "ego-quick-equipped" }, "★ 現在 ", currentSlot, " に装備中") : null,
+      currentSlot ? h(Button, { variant: "ghost", size: "sm", onClick: onUnequip, icon: "x" }, "装備解除") : h(Button, { variant: "primary", size: "sm", onClick: onEquip, icon: "check" }, ego.rank, " スロットへ装備"),
+      currentSlot ? h(Button, { variant: "ghost", size: "sm", onClick: onOpenFullDetail, icon: "edit", title: "効果全文の確認と直接編集を開く" }, "詳細・直接編集") : null,
+      onToggleOwned ? h(Button, { variant: "ghost", size: "sm", onClick: onToggleOwned, icon: isOwned ? "check" : "plus", title: isOwned ? "所持リストから外す" : "装備せずに所持リストへ追加する" }, isOwned ? "所持済み" : "所持に追加") : null
+    )
+  );
+};
 // E.G.O本文に現れる「回復」は、状態名としてではなくE.G.O検索専用の語として扱う。
 // 候補表示時には下のsome判定で実データに一致する語だけを残す。
 const EGO_KEYWORD_ORDER = [...new Set([...(window.LBT_PDF_KEYWORD_ORDER || []), "回復"])];
@@ -1041,19 +1097,27 @@ const EgoSection = ({ state, dispatch }) => {
   const slotCards = EGO_RANKS.map((rk) => {
     const e = state.egoSlots[rk];
     const isDetailActive = detailSlot === rk;
+    const isSlotSelected = !!e && selected?.no === e.no && selected?.name === e.name;
     return h(
       "div",
       {
         key: rk,
-        className: `ego-slot${isDetailActive ? " is-detail-active" : ""}`,
+        className: `ego-slot${isDetailActive ? " is-detail-active" : ""}${isSlotSelected ? " is-selected" : ""}`,
         "data-rank": rk,
         onClick: () => {
           if (e) {
-            setSelected(e);
-            // 装備中スロットは常に確認表示から開く。既に編集していたスロットを閉じる場合も
-            // 編集状態を解除し、次の詳細表示へ持ち越さない。
-            dispatch({ type: "SET_EGO_MANUAL", value: false });
-            setDetailSlot(isDetailActive ? null : rk);
+            if (isSlotSelected) {
+              setSelected(null);
+              setDetailSlot(null);
+              dispatch({ type: "SET_EGO_MANUAL", value: false });
+            } else {
+              // 選択直後は右列の簡易カードだけを開く。全文確認・直接編集は明示操作で開くため、
+              // 一覧直下へ巨大な詳細を自動挿入しない。
+              setSelected(e);
+              dispatch({ type: "SET_EGO_MANUAL", value: false });
+              setDetailSlot(null);
+              setListExpanded(true);
+            }
           } else {
             setRankFilter(rankFilter === rk && listExpanded ? "" : rk);
             setBrowseAll(true);
@@ -1062,7 +1126,7 @@ const EgoSection = ({ state, dispatch }) => {
             setDetailSlot(null);
           }
         },
-        title: e ? (isDetailActive ? "クリックで装備中E.G.Oの詳細を閉じる" : "クリックで装備中E.G.Oの詳細を開く") : `クリックで ${rk} ランクのカード一覧を展開`
+        title: e ? (isSlotSelected ? "クリックで選択中E.G.Oを閉じる" : "クリックで右側に簡易詳細を表示") : `クリックで ${rk} ランクのカード一覧を展開`
       },
       h("div", { className: "ego-slot-rank" }, rk),
       h("div", { className: `ego-slot-name${!e ? " ego-slot-empty" : ""}` }, e ? e.name : "（未装備）"),
@@ -1114,14 +1178,23 @@ const EgoSection = ({ state, dispatch }) => {
       h("button", { className: "btn btn-sm btn-ghost", onClick: () => { dispatch({ type: "SET_EGO_MANUAL", value: false }); setDetailSlot(null); }, title: "閉じる" }, h(Icon, { name: "x", size: 12 }), " 閉じる")), h("div", { className: "equipped-detail-inner" }, editable ? null : h(EgoDetail, { ego: state.egoSlots[detailSlot], equipTo: detailSlot, currentSlot: detailSlot, onEquip: () => {}, onUnequip: () => { clearSlot(detailSlot); setDetailSlot(null); }, dispatch }), editable ? h(EquippedEgoEditor, { rank: detailSlot, ego: state.egoSlots[detailSlot], dispatch }) : null)) : null,
       hasAnyEgo && !listExpanded ? h("div", { className: "codex-collapsed-hint" }, h("span", { style: { color: "var(--tx-mute)", fontSize: "var(--fs-11)", letterSpacing: "0.14em", fontFamily: "var(--f-display)" } }, "◇ E.G.O 一覧は折り畳み中"), h("span", { style: { marginLeft: 12, fontSize: "var(--fs-10)", color: "var(--tx-dim)" } }, "未装備スロットをクリックすると、そのランクだけ絞り込んで展開されます。"), h("button", { className: "btn btn-sm", style: { marginLeft: "auto" }, onClick: () => { setListExpanded(true); setRankFilter(""); } }, "一覧を展開")) : null
     ),
-    (!hasAnyEgo || listExpanded) ? h("div", { className: "codex" }, h("div", { className: "codex-main" }, h("div", { className: `codex-filters ego-catalog-filters${filtersOpen ? " is-filter-open" : ""}` }, h("div", { className: "codex-filter-row" }, h("div", { className: "codex-search" }, h(Icon, { name: "search", size: 14 }), h("input", { type: "text", placeholder: "E.G.O名・効果・キーワード・資源で検索...", value: query, onChange: (e) => updateQuery(e.target.value) })), h("div", { className: "codex-count" }, h("strong", null, visibleEgos.length), isExploringAll ? " / " : " 件の候補", isExploringAll ? (DB.egos || []).length : ""), h("button", { className: "btn btn-sm ego-filter-toggle", onClick: () => setFiltersOpen(!filtersOpen), "aria-expanded": filtersOpen, title: "ランク・大罪・キーワード・所持の絞り込みを開く" }, filtersOpen ? "絞り込みを閉じる" : "絞り込み"), !isExploringAll ? h("button", { className: "btn btn-sm ego-browse-all", onClick: () => setBrowseAll(true), title: "全E.G.Oを一覧から探す" }, "全件を見る") : null, rankFilter ? h("button", { className: "btn btn-sm", onClick: () => setRankFilter(""), style: { color: "var(--gold)", borderColor: "var(--gold-line)" } }, rankFilter, " 絞り込み中 ×") : null), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "ランク"), h("div", { className: "chips-group" }, ...EGO_RANKS.map((r) => h("button", { key: r, className: "chip", onClick: () => setRankFilter(rankFilter === r ? "" : r), style: { background: rankFilter === r ? `color-mix(in oklab, var(--rank-${r}) 25%, var(--surface-2))` : void 0, borderColor: rankFilter === r ? `var(--rank-${r})` : void 0, color: rankFilter === r ? "var(--tx)" : void 0 } }, h("span", { style: { width: 6, height: 6, borderRadius: 999, background: `var(--rank-${r})`, marginRight: 4, display: "inline-block" } }), r)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "大罪"), h("div", { className: "chips-group" }, ...SIN_LIST.map((s) => h(Chip, { key: s, sin: s, active: sinFilter === s, onClick: () => updateSinFilter(sinFilter === s ? "" : s) }, s)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "キーワード"), h("div", { className: "chips-group" }, ...egoKeywordOptions.map((keyword) => h(Chip, { key: keyword, size: "sm", active: keywordFilter === keyword, onClick: () => updateKeywordFilter(keywordFilter === keyword ? "" : keyword) }, keyword)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "所持"), h("div", { className: "chips-group" }, h(Chip, { size: "sm", active: ownedOnly, onClick: () => updateOwnedOnly(!ownedOnly) }, "所持しているもののみ", ownedOnly ? ` (${ownedKeys.size})` : ""))), !isExploringAll && visibleEgos.length === 0 ? h("div", { className: "ego-discovery-empty" }, h("strong", null, "最近使用・所持中のE.G.Oはありません"), h("span", null, "名称で検索するか、「全件を見る」から探してください。")) : egoGrid), h(EgoDetail, { ego: selected, equipTo: selected?.rank, currentSlot, onEquip: equip, onUnequip: unequip,
+    (!hasAnyEgo || listExpanded) ? h("div", { className: "codex" }, h("div", { className: "codex-main" }, h("div", { className: `codex-filters ego-catalog-filters${filtersOpen ? " is-filter-open" : ""}` }, h("div", { className: "codex-filter-row" }, h("div", { className: "codex-search" }, h(Icon, { name: "search", size: 14 }), h("input", { type: "text", placeholder: "E.G.O名・効果・キーワード・資源で検索...", value: query, onChange: (e) => updateQuery(e.target.value) })), h("div", { className: "codex-count" }, h("strong", null, visibleEgos.length), isExploringAll ? " / " : " 件の候補", isExploringAll ? (DB.egos || []).length : ""), h("button", { className: "btn btn-sm ego-filter-toggle", onClick: () => setFiltersOpen(!filtersOpen), "aria-expanded": filtersOpen, title: "ランク・大罪・キーワード・所持の絞り込みを開く" }, filtersOpen ? "絞り込みを閉じる" : "絞り込み"), !isExploringAll ? h("button", { className: "btn btn-sm ego-browse-all", onClick: () => setBrowseAll(true), title: "全E.G.Oを一覧から探す" }, "全件を見る") : null, rankFilter ? h("button", { className: "btn btn-sm", onClick: () => setRankFilter(""), style: { color: "var(--gold)", borderColor: "var(--gold-line)" } }, rankFilter, " 絞り込み中 ×") : null), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "ランク"), h("div", { className: "chips-group" }, ...EGO_RANKS.map((r) => h("button", { key: r, className: "chip", onClick: () => setRankFilter(rankFilter === r ? "" : r), style: { background: rankFilter === r ? `color-mix(in oklab, var(--rank-${r}) 25%, var(--surface-2))` : void 0, borderColor: rankFilter === r ? `var(--rank-${r})` : void 0, color: rankFilter === r ? "var(--tx)" : void 0 } }, h("span", { style: { width: 6, height: 6, borderRadius: 999, background: `var(--rank-${r})`, marginRight: 4, display: "inline-block" } }), r)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "大罪"), h("div", { className: "chips-group" }, ...SIN_LIST.map((s) => h(Chip, { key: s, sin: s, active: sinFilter === s, onClick: () => updateSinFilter(sinFilter === s ? "" : s) }, s)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "キーワード"), h("div", { className: "chips-group" }, ...egoKeywordOptions.map((keyword) => h(Chip, { key: keyword, size: "sm", active: keywordFilter === keyword, onClick: () => updateKeywordFilter(keywordFilter === keyword ? "" : keyword) }, keyword)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "所持"), h("div", { className: "chips-group" }, h(Chip, { size: "sm", active: ownedOnly, onClick: () => updateOwnedOnly(!ownedOnly) }, "所持しているもののみ", ownedOnly ? ` (${ownedKeys.size})` : ""))), !isExploringAll && visibleEgos.length === 0 ? h("div", { className: "ego-discovery-empty" }, h("strong", null, "最近使用・所持中のE.G.Oはありません"), h("span", null, "名称で検索するか、「全件を見る」から探してください。")) : egoGrid)), h(EgoQuickDetail, { ego: selected, currentSlot, onEquip: equip, onUnequip: unequip,
       isOwned: !!(selected && ownedKeys.has(`${selected.rank}:${selected.no}`)),
       onToggleOwned: () => {
         if (!selected) return;
         const entry = (state.roster?.egos || []).find((x) => x.rank === selected.rank && x.no === selected.no);
         if (entry) { dispatch({ type: "REMOVE_ROSTER_EGO", uid: entry.uid }); toast(`『${selected.name}』を所持リストから外しました`); }
         else { dispatch({ type: "ADD_ROSTER_EGO", rank: selected.rank, no: selected.no }); toast(`『${selected.name}』を所持リストに追加しました`); }
-      }, dispatch }))) : null
+      }, onOpenFullDetail: () => {
+        if (!currentSlot) return;
+        dispatch({ type: "SET_EGO_MANUAL", value: false });
+        setDetailSlot(currentSlot);
+        setListExpanded(false);
+      }, onClose: () => {
+        setSelected(null);
+        setDetailSlot(null);
+        dispatch({ type: "SET_EGO_MANUAL", value: false });
+      } })) : null
   );
 };
 const SpiritSection = ({ state, dispatch }) => {

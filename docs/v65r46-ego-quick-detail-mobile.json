@@ -1,0 +1,24 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "quickPresent": true,
+  "quickWidth": 366,
+  "quickTop": 9085,
+  "windowScrollY": 0,
+  "scrollParents": [
+    {
+      "className": "focus",
+      "scrollTop": 593,
+      "scrollHeight": 10301,
+      "clientHeight": 736,
+      "overflowY": "auto"
+    }
+  ],
+  "horizontalOverflow": false,
+  "actionHeights": [
+    44,
+    44
+  ]
+}
