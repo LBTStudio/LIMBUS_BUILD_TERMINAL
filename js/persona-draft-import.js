@@ -8,11 +8,20 @@
     const next = clean(value);
     if (next) target[key] = target[key] ? `${target[key]}\n${next}` : next;
   };
-  const stripPersonaQuotes = (value) => clean(value)
-    .replace(/^(?:人格\s*(?:名|名称)|名称)\s*[:：]\s*/i, "")
-    .replace(/^[\s「『\"【\[（(]+/, "")
-    .replace(/[\s」』\"】\]）)]+$/, "")
-    .trim();
+  const stripPersonaQuotes = (value) => {
+    const raw = clean(value).replace(/^(?:人格\s*(?:名|名称)|名称)\s*[:：]\s*/i, "").trim();
+    const wrapped = [
+      [/^「\s*([\s\S]*?)\s*」$/u, 1],
+      [/^『\s*([\s\S]*?)\s*』$/u, 1],
+      [/^"\s*([\s\S]*?)\s*"$/u, 1],
+      [/^【\s*([\s\S]*?)\s*】$/u, 1],
+      [/^\[\s*([\s\S]*?)\s*\]$/u, 1],
+      [/^（\s*([\s\S]*?)\s*）$/u, 1],
+      [/^\(\s*([\s\S]*?)\s*\)$/u, 1]
+    ];
+    const match = wrapped.map(([pattern]) => raw.match(pattern)).find(Boolean);
+    return clean(match ? match[1] : raw);
+  };
   const personaNameFromLine = (line) => {
     const raw = clean(line).replace(/^`{3,}\s*|\s*`{3,}$/g, "").trim();
     const normalized = forMatch(line);
@@ -91,7 +100,7 @@
   };
   const parseSkills = (lines) => {
     const skills = [];
-    const skillTypePattern = "(?:斬撃|貫通|打撃|回避|防御|物理|マッチ可能防御|マッチ可能(?:斬撃|貫通|打撃)?反撃)";
+    const skillTypePattern = "(?:斬撃|貫通|打撃|回避|防御|物理|(?:斬撃|貫通|打撃)?反撃|マッチ可能防御|マッチ可能(?:斬撃|貫通|打撃)?反撃)";
     let current = null;
     const push = () => {
       if (current?.name || current?.dice?.length) {
