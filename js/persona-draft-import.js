@@ -144,7 +144,7 @@
         }
         continue;
       }
-      const standaloneRank = normalized.match(/^(?:戦術\s*)?(\d+(?:-\d+)?)\s*(?::)?$/);
+      const standaloneRank = normalized.match(/^(?:(?:戦術(?:\s*スキル)?(?:\s*番号)?)\s*[:：]?\s*)?(\d+(?:-\d+)?)\s*(?::)?$/);
       const following = lines.slice(lineIndex + 1).map((entry) => forMatch(entry)).filter(Boolean).slice(0, 2);
       const nextLooksLikeSkillType = new RegExp(`^${skillTypePattern}\\s*:\\s*(\\S+)`).test(following[1] || "");
       if (standaloneRank && nextLooksLikeSkillType && !/^\d+d/i.test(standaloneRank[1])) {
