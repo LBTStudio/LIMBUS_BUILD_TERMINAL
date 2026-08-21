@@ -1316,7 +1316,29 @@ const sortRosterLibraryItems = (items, sortBy, libraryTab) => {
   });
   return rows;
 };
-window.LBT_rosterLibrary = { isRosterPersonaSynced, rosterPersonaMatchesSyncFilters, sortRosterLibraryItems };
+const resolveRosterPersonaSource = (entry, fallback) => {
+  const build = entry?.build;
+  if (!build) return fallback;
+  const savedSource = build.personaSrc && typeof build.personaSrc === "object" ? build.personaSrc : {};
+  const source = { ...(fallback || {}), ...savedSource };
+  return {
+    ...source,
+    hp: build.hp ?? source.hp,
+    san: build.san ?? source.san,
+    speed: build.speed ?? source.speed,
+    bullets: build.bullets ?? source.bullets,
+    res_slash: build.resS ?? source.res_slash,
+    res_pierce: build.resP ?? source.res_pierce,
+    res_blunt: build.resB ?? source.res_blunt,
+    passive_name: build.pas?.name ?? source.passive_name,
+    passive_cond: build.pas?.cond ?? source.passive_cond,
+    passive_always: build.pas?.always ?? source.passive_always,
+    passive_effect: build.pas?.effect ?? source.passive_effect,
+    skills: Array.isArray(build.skills) ? build.skills : source.skills,
+    unique_buffs: Array.isArray(build.uniqueBuffs) ? build.uniqueBuffs : source.unique_buffs
+  };
+};
+window.LBT_rosterLibrary = { isRosterPersonaSynced, rosterPersonaMatchesSyncFilters, sortRosterLibraryItems, resolveRosterPersonaSource };
 const RosterSection = ({ state, dispatch }) => {
   const h = React.createElement;
   const [libraryTab, setLibraryTab] = React.useState("personas");
@@ -1333,9 +1355,9 @@ const RosterSection = ({ state, dispatch }) => {
   const currentPersonaKey = `${state.personaMode}:${state.personaNo}`;
   const currentEgoKeys = new Set(Object.entries(state.egoSlots || {}).filter(([, value]) => value).map(([rank, value]) => `${rank}:${value.no}`));
   const findPersona = (entry) => {
-    if (entry.mode === "custom") return entry.src || entry.build?.personaSrc || null;
+    if (entry.mode === "custom") return resolveRosterPersonaSource(entry, entry.src || null);
     const db = entry.mode === "n" ? (DB.normal_personas || []) : (DB.tokui_personas || []);
-    return db.find((item) => item.no === entry.no) || entry.build?.personaSrc || null;
+    return resolveRosterPersonaSource(entry, db.find((item) => item.no === entry.no) || null);
   };
   const findEgo = (entry) => (DB.egos || []).find((item) => item.rank === entry.rank && item.no === entry.no) || entry.build || null;
   const rawItems = libraryTab === "personas" ? (roster.personas || []).map((entry, addedIndex) => {

@@ -52,3 +52,33 @@ test("所持一覧は不要な規定値カテゴリを表示せず、同期状�
   assert.match(source, /\["000", "同期000"\]/);
   assert.match(source, /\["max", "同期MAX"\]/);
 });
+
+test("所持画面の同期編集人格はDB同期元より保存済みbuildのスキル・固有・パッシブを優先する", () => {
+  const { resolveRosterPersonaSource } = loadRosterLibrary();
+  const dbSource = {
+    no: 17,
+    name: "同期元人格",
+    hp: 100,
+    passive_name: "同期元パッシブ",
+    skills: [{ name: "同期元スキル" }],
+    unique_buffs: [{ name: "同期元固有" }]
+  };
+  const entry = {
+    mode: "n",
+    no: 17,
+    build: {
+      personaSrc: { name: "同期編集人格" },
+      hp: "177",
+      pas: { name: "編集済みパッシブ", cond: "傲慢x3", always: "常時効果", effect: "編集済み効果" },
+      skills: [{ name: "編集済みスキル", rank: "スキル0-2", dice: [{ roll: "2d9", effect: "編集済みダイス効果" }] }],
+      uniqueBuffs: [{ name: "編集済み固有", desc: "編集済み固有説明" }]
+    }
+  };
+  const detail = resolveRosterPersonaSource(entry, dbSource);
+  assert.equal(detail.name, "同期編集人格");
+  assert.equal(detail.hp, "177");
+  assert.equal(detail.passive_name, "編集済みパッシブ");
+  assert.equal(detail.skills[0].name, "編集済みスキル");
+  assert.equal(detail.skills[0].dice[0].effect, "編集済みダイス効果");
+  assert.equal(detail.unique_buffs[0].name, "編集済み固有");
+});
