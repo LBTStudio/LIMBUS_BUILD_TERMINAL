@@ -578,6 +578,29 @@ function buildEquippedDetailPersona(state) {
     keywords: Array.isArray(src.keywords) ? src.keywords.slice() : []
   };
 }
+function buildRosterDetailPersona(entry, fallback) {
+  const build = entry?.build;
+  if (!build) return fallback;
+  const source = build.personaSrc && typeof build.personaSrc === "object" ? build.personaSrc : {};
+  const persona = { ...fallback, ...source, no: fallback.no };
+  return {
+    ...persona,
+    hp: build.hp ?? persona.hp,
+    san: build.san ?? persona.san,
+    speed: build.speed ?? persona.speed,
+    bullets: build.bullets ?? persona.bullets,
+    res_slash: build.resS ?? persona.res_slash,
+    res_pierce: build.resP ?? persona.res_pierce,
+    res_blunt: build.resB ?? persona.res_blunt,
+    passive_name: build.pas?.name ?? persona.passive_name,
+    passive_cond: build.pas?.cond ?? persona.passive_cond,
+    passive_always: build.pas?.always ?? persona.passive_always,
+    passive_effect: build.pas?.effect ?? persona.passive_effect,
+    skills: Array.isArray(build.skills) ? build.skills : persona.skills,
+    unique_buffs: Array.isArray(build.uniqueBuffs) ? build.uniqueBuffs : persona.unique_buffs,
+    keywords: Array.isArray(source.keywords) ? source.keywords.slice() : (persona.keywords || [])
+  };
+}
 const SyncMaxControl = ({ state, dispatch }) => {
   const entry = (state.roster?.personas || []).find((persona) => persona.mode === state.personaMode && String(persona.no) === String(state.personaNo));
   if (!state.personaSrc || !entry) return null;
@@ -703,7 +726,7 @@ const PersonaCodex = ({ state, dispatch }) => {
       }
       const src = r.mode === "n" ? DB.normal_personas : DB.tokui_personas;
       const found = src.find((x) => x.no === r.no);
-      return found ? { p: found, mode: r.mode, roster: r } : null;
+      return found ? { p: buildRosterDetailPersona(r, found), mode: r.mode, roster: r } : null;
     }).filter(Boolean);
     return [];
   }, [mode, favorites, historyRecent, roster]);
@@ -1098,6 +1121,7 @@ const PersonaCodex = ({ state, dispatch }) => {
 };
 window.PersonaCodex = PersonaCodex;
 window.PersonaDetail = PersonaDetail;
+window.LBT_buildRosterDetailPersona = buildRosterDetailPersona;
 window.getPrimarySin = getPrimarySin;
 window.inferAffiliation = inferAffiliation;
 window.decoratePersona = decoratePersona;
