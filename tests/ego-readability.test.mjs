@@ -38,3 +38,13 @@ test("E.G.O選択時は右列の簡易詳細カードを表示し、全文詳細
   assert.match(quickCss, /@media \(max-width: 1119px\)/);
   assert.match(quickCss, /@media \(max-width: 640px\)/);
 });
+
+test("同化型E.G.O一覧カードはランクと同化表示を独立マーク領域へ置き、狭幅では安全に折り返す", () => {
+  const marksCss = readFileSync(new URL("../assets/v65r47-ego-card-marks.css", import.meta.url), "utf8");
+  assert.match(source, /p-card-head ego-card-head/);
+  assert.match(source, /className: "ego-card-marks"/);
+  assert.match(marksCss, /\.ego-card-marks/);
+  assert.match(marksCss, /\.ego-card-marks \.badge/);
+  assert.match(marksCss, /@media \(max-width: 420px\)/);
+  assert.match(marksCss, /flex-wrap: wrap/);
+});

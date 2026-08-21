@@ -1,0 +1,30 @@
+/* V65r47 — E.G.O一覧カードのランク・同化マークを独立配置する */
+.p-card.ego-card .ego-card-head,
+.p-card .ego-card-head {
+  align-items: flex-start;
+  min-width: 0;
+}
+.ego-card-head > .p-num {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.ego-card-marks {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+.ego-card-marks .badge,
+.ego-card-marks .ego-doka-badge {
+  flex: 0 0 auto;
+  margin-left: 0;
+  white-space: nowrap;
+}
+@media (max-width: 420px) {
+  .ego-card-head { flex-wrap: wrap; row-gap: 4px; }
+  .ego-card-head > .p-num { flex-basis: 100%; }
+  .ego-card-marks { justify-content: flex-start; }
+}

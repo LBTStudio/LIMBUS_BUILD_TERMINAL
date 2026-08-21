@@ -1152,7 +1152,13 @@ const EgoSection = ({ state, dispatch }) => {
         onClick: () => setSelected(e),
         onDoubleClick: () => { setSelected(e); recordRecentEgo(e); dispatch({ type: "SET_EGO_SLOT", rank: e.rank, value: e }); toast(`${e.rank}: 『${e.name}』を装備`); }
       },
-      h("div", { className: "p-card-head" }, h("span", { className: "p-num" }, "No.", String(e.no).padStart(3, "0")), h("span", { className: "badge", "data-rank": e.rank, style: { fontSize: 9 } }, e.rank), (e.sub_skills || []).length > 0 ? h("span", { className: "ego-doka-badge", title: "同化スキル対応EGO" }, "◆ 同化") : null),
+      h("div", { className: "p-card-head ego-card-head" },
+        h("span", { className: "p-num" }, "No.", String(e.no).padStart(3, "0")),
+        h("div", { className: "ego-card-marks" },
+          h("span", { className: "badge", "data-rank": e.rank, style: { fontSize: 9 } }, e.rank),
+          (e.sub_skills || []).length > 0 ? h("span", { className: "ego-doka-badge", title: "同化スキル対応EGO" }, "◆ 同化") : null
+        )
+      ),
       h("div", { className: "p-name" }, e.name),
       h(EgoResourceChips, { resources: e.resources, className: "is-catalog" }),
       h("div", { className: "p-kw-row", style: { marginTop: "auto" } }, h("span", { className: "p-kw" }, "SAN ", e.san_cost), h("span", { className: "p-kw" }, "欠片 ", e.shards))
