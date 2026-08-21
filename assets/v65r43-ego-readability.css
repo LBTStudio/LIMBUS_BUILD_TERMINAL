@@ -1,0 +1,50 @@
+/* V65r43 — E.G.O資源の判読性と詳細未選択一覧の作業幅 */
+.ego-resource-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.ego-resource-chip {
+  --ego-resource-color: var(--sin-特殊);
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  gap: 4px;
+  padding: 2px 6px;
+  border: 1px solid color-mix(in oklab, var(--ego-resource-color) 66%, var(--line));
+  border-radius: var(--r-sm);
+  background: color-mix(in oklab, var(--ego-resource-color) 16%, var(--surface-inset));
+  color: var(--tx);
+  font-family: var(--f-mono);
+  font-size: var(--fs-11);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.ego-resource-chip-name { color: var(--tx); }
+.ego-resource-chip-count { color: var(--ego-resource-color); font-weight: 700; }
+.ego-resource-chip[data-sin="憤怒"] { --ego-resource-color: var(--sin-憤怒); }
+.ego-resource-chip[data-sin="色欲"] { --ego-resource-color: var(--sin-色欲); }
+.ego-resource-chip[data-sin="怠惰"] { --ego-resource-color: var(--sin-怠惰); }
+.ego-resource-chip[data-sin="暴食"] { --ego-resource-color: var(--sin-暴食); }
+.ego-resource-chip[data-sin="憂鬱"] { --ego-resource-color: var(--sin-憂鬱); }
+.ego-resource-chip[data-sin="傲慢"] { --ego-resource-color: var(--sin-傲慢); }
+.ego-resource-chip[data-sin="嫉妬"] { --ego-resource-color: var(--sin-嫉妬); }
+.ego-resource-chips.is-slot { margin-top: 2px; }
+.ego-resource-chips.is-catalog { margin-top: 6px; }
+.ego-detail-resources { display: grid; gap: 5px; margin-top: var(--s-2); }
+.ego-detail-resources-label { color: var(--tx-dim); font-family: var(--f-display); font-size: var(--fs-10); letter-spacing: .12em; }
+
+@media (min-width: 1281px) {
+  .ego-section.is-catalog-only .codex {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+  }
+  .ego-section.is-catalog-only .codex-detail { display: none; }
+}
+
+@media (max-width: 640px) {
+  .ego-resource-chip { min-height: 24px; font-size: var(--fs-11); }
+}

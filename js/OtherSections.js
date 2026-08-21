@@ -10,6 +10,18 @@ function canEditPersonaState(state) {
   const isSavedCustom = !!(isCustom && src.__saved);
   return !!(state.syncedManual || isCustom && !isSavedCustom);
 }
+const EGO_RESOURCE_NAMES = ["憤怒", "色欲", "怠惰", "暴食", "憂鬱", "傲慢", "嫉妬"];
+const EGO_RESOURCE_RE = new RegExp(`(${EGO_RESOURCE_NAMES.join("|")})\\s*[x×]\\s*(\\d+)`, "g");
+const parseEgoResources = (resources) => {
+  const raw = String(resources || "").trim();
+  const matches = [...raw.matchAll(EGO_RESOURCE_RE)].map((match) => ({ sin: match[1], count: match[2] }));
+  return matches.length ? matches : raw ? [{ sin: "特殊", count: raw }] : [];
+};
+const EgoResourceChips = ({ resources, className = "" }) => {
+  const entries = parseEgoResources(resources);
+  if (!entries.length) return null;
+  return React.createElement("div", { className: `ego-resource-chips ${className}`.trim(), "aria-label": `消費資源: ${resources}` }, ...entries.map((entry, index) => React.createElement("span", { key: `${entry.sin}-${entry.count}-${index}`, className: "ego-resource-chip", "data-sin": entry.sin }, React.createElement("span", { className: "ego-resource-chip-name" }, entry.sin), React.createElement("b", { className: "ego-resource-chip-count" }, entry.sin === "特殊" ? entry.count : `×${entry.count}`))));
+};
 const BaseSection = ({ state, dispatch }) => {
   const setF = (field, value) => dispatch({ type: "SET_FIELD", field, value });
   const imgList = (state.imgUrls || "").split("\n").map((s) => s.trim()).filter(Boolean);
@@ -1055,7 +1067,7 @@ const EgoSection = ({ state, dispatch }) => {
       h("div", { className: "ego-slot-rank" }, rk),
       h("div", { className: `ego-slot-name${!e ? " ego-slot-empty" : ""}` }, e ? e.name : "（未装備）"),
       e ? h(React.Fragment, null,
-        h("div", { style: { fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--tx-dim)" } }, e.resources),
+        h(EgoResourceChips, { resources: e.resources, className: "is-slot" }),
         h("div", { className: "ego-slot-meta" },
           h("span", { className: "ego-slot-flag" }, "SAN", e.san_cost),
           h("span", { className: "ego-slot-flag" }, "欠片", e.shards),
@@ -1078,13 +1090,13 @@ const EgoSection = ({ state, dispatch }) => {
       },
       h("div", { className: "p-card-head" }, h("span", { className: "p-num" }, "No.", String(e.no).padStart(3, "0")), h("span", { className: "badge", "data-rank": e.rank, style: { fontSize: 9 } }, e.rank), (e.sub_skills || []).length > 0 ? h("span", { className: "ego-doka-badge", title: "同化スキル対応EGO" }, "◆ 同化") : null),
       h("div", { className: "p-name" }, e.name),
-      h("div", { style: { fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--tx-dim)", lineHeight: 1.4 } }, e.resources),
+      h(EgoResourceChips, { resources: e.resources, className: "is-catalog" }),
       h("div", { className: "p-kw-row", style: { marginTop: "auto" } }, h("span", { className: "p-kw" }, "SAN ", e.san_cost), h("span", { className: "p-kw" }, "欠片 ", e.shards))
     );
   })));
   return h(
     "div",
-    { className: "stack-4" },
+    { className: `stack-4 ego-section${selected ? " has-selection" : " is-catalog-only"}` },
     h("div", null,
       h("div", { className: "t-label", style: { marginBottom: "var(--s-2)", display: "flex", alignItems: "center", gap: 8 } }, h("span", null, "装備中のE.G.O"), h("span", { style: { fontSize: 9, color: "var(--tx-mute)", fontWeight: 400, letterSpacing: "0.08em" } }, "装備済スロット：クリックで詳細を開く　未装備スロット：クリックで一覧展開"), h("div", { style: { flex: 1 } }), hasAnyEgo ? h(Button, { size: "sm", icon: listExpanded ? "chevronU" : "chevronD", onClick: () => { setListExpanded(!listExpanded); if (listExpanded) setRankFilter(""); }, title: listExpanded ? "一覧を折り畳む" : "別のE.G.Oを選ぶ" }, listExpanded ? "一覧を畳む" : "別のE.G.Oを選ぶ") : null),
       h("div", { className: "ego-slots" }, ...slotCards),
