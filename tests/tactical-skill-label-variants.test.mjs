@@ -22,7 +22,8 @@ HP：150 SAN：55 速度：1d5+2
   "戦術スキル：0",
   "戦術スキル 0",
   "戦術 0",
-  "0："
+  "0：",
+  "戦術スキル番号：０"
 ].forEach((heading) => {
   test(`テキスト流し込みは「${heading}」から戦術番号を認識する`, () => {
     const result = parseDraft(`${base}
@@ -43,4 +44,22 @@ ${heading}
     assert.equal(result.persona.skills[1].name, "返し斬り");
     assert.equal(result.persona.skills[1].type, "貫通反撃");
   });
+});
+
+test("テキスト流し込みは全角数字・全角コロン・全角ハイフンの派生番号を半角形式と同じように認識する", () => {
+  const result = parseDraft(`${base}
+戦術スキル番号：０
+連続斬り
+斬撃：憤怒
+2d9：命中時、確認
+戦術スキル：０－２
+返し斬り
+貫通反撃：嫉妬
+1d8：命中時、派生を確認`);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.persona.skills.length, 2);
+  assert.equal(result.persona.skills[0].rank, "スキル0");
+  assert.equal(result.persona.skills[1].rank, "スキル0-2");
+  assert.equal(result.persona.skills[1].type, "貫通反撃");
 });
