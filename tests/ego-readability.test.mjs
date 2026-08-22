@@ -24,6 +24,7 @@ test("E.G.O資源フィルターは複数の必要資源をすべて満たし、
   assert.match(source, /setExcludedResources\(\(values\) => values\.filter\(\(value\) => value !== sin\)\)/);
   assert.match(css, /\.ego-resource-filter-row\.is-exclude/);
   assert.match(css, /text-decoration: line-through/);
+  assert.match(css, /\.ego-catalog-filters:not\(\.is-filter-open\) > \.ego-resource-filter-controls/);
 });
 
 test("E.G.Oの詳細未選択時だけPC一覧を全幅化し、選択時の二列詳細を保つ", () => {

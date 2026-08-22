@@ -65,6 +65,11 @@
 }
 
 @media (max-width: 640px) {
+  .ego-catalog-filters:not(.is-filter-open) > .ego-resource-filter-controls { display: none; }
+  .ego-catalog-filters.is-filter-open > .ego-resource-filter-controls {
+    padding-top: 6px;
+    border-top: 1px solid var(--line-dim);
+  }
   .ego-resource-chip { min-height: 24px; font-size: var(--fs-11); }
   .ego-resource-filter-row { align-items: flex-start; }
   .ego-resource-filter-note { margin-top: 5px; }

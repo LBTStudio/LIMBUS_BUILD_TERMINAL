@@ -949,9 +949,16 @@ const EgoQuickDetail = ({ ego, currentSlot, isOwned, onEquip, onUnequip, onToggl
     )
   );
 };
-// E.G.O本文に現れる「回復」は、状態名としてではなくE.G.O検索専用の語として扱う。
+// 基本ルールPDFの掲載順：バフ（303〜304頁）→デバフ（306〜307頁）
+// →中立バフ（310頁）→弾丸（312頁）。state.jsの共通定義が未読込でも同じ順を維持する。
+const EGO_PDF_KEYWORD_ORDER = window.LBT_PDF_KEYWORD_ORDER || [
+  "パワー", "忍耐", "クイック", "保護", "充電", "呼吸", "ダメージ量増加",
+  "虚弱", "武装解除", "束縛", "脆弱", "火傷", "沈潜", "出血", "恐慌", "破裂", "振動", "ダメージ量減少", "毒", "麻痺",
+  "バリア", "弾丸"
+];
+// E.G.O本文に現れる「回復」は状態名ではなく検索専用の語として、PDF掲載項目の後ろに置く。
 // 候補表示時には下のsome判定で実データに一致する語だけを残す。
-const EGO_KEYWORD_ORDER = [...new Set([...(window.LBT_PDF_KEYWORD_ORDER || []), "回復"])];
+const EGO_KEYWORD_ORDER = [...new Set([...EGO_PDF_KEYWORD_ORDER, "回復"])];
 const getEgoKeywordHaystack = (ego) => {
   const skillText = (skill) => [
     skill?.name, skill?.attr, skill?.sin, skill?.aoe, skill?.effect,
