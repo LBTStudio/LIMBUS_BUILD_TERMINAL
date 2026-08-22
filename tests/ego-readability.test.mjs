@@ -15,6 +15,17 @@ test("E.G.O資源は名称と個数を持つ色覚非依存チップとして装
   assert.match(css, /color: var\(--tx\)/);
 });
 
+test("E.G.O資源フィルターは複数の必要資源をすべて満たし、除外資源を一つでも含む候補を落とす", () => {
+  assert.match(source, /const egoMatchesResourceFilters/);
+  assert.match(source, /requiredResources\.every\(\(sin\) => resources\.has\(sin\)\)/);
+  assert.match(source, /!excludedResources\.some\(\(sin\) => resources\.has\(sin\)\)/);
+  assert.match(source, /appendRow\("必要資源", "すべて含む"/);
+  assert.match(source, /appendRow\("除外資源", "一つでも含むと除外"/);
+  assert.match(source, /setExcludedResources\(\(values\) => values\.filter\(\(value\) => value !== sin\)\)/);
+  assert.match(css, /\.ego-resource-filter-row\.is-exclude/);
+  assert.match(css, /text-decoration: line-through/);
+});
+
 test("E.G.Oの詳細未選択時だけPC一覧を全幅化し、選択時の二列詳細を保つ", () => {
   assert.match(source, /ego-section\$\{selected \? " has-selection" : " is-catalog-only"\}/);
   assert.match(css, /@media \(min-width: 1281px\)/);

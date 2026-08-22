@@ -17,6 +17,12 @@ const parseEgoResources = (resources) => {
   const matches = [...raw.matchAll(EGO_RESOURCE_RE)].map((match) => ({ sin: match[1], count: match[2] }));
   return matches.length ? matches : raw ? [{ sin: "特殊", count: raw }] : [];
 };
+const getEgoResourceNames = (ego) => new Set(parseEgoResources(ego?.resources).map((entry) => entry.sin).filter((sin) => EGO_RESOURCE_NAMES.includes(sin)));
+const egoMatchesResourceFilters = (ego, requiredResources = [], excludedResources = []) => {
+  const resources = getEgoResourceNames(ego);
+  return requiredResources.every((sin) => resources.has(sin)) && !excludedResources.some((sin) => resources.has(sin));
+};
+window.LBT_egoMatchesResourceFilters = egoMatchesResourceFilters;
 const EgoResourceChips = ({ resources, className = "" }) => {
   const entries = parseEgoResources(resources);
   if (!entries.length) return null;
@@ -975,12 +981,61 @@ const egoMatchesKeyword = (ego, keyword) => keyword === "回復"
   ? getEgoEffectHaystack(ego).includes(keyword)
   : (Array.isArray(ego?.keywords) && ego.keywords.includes(keyword)) || getEgoEffectHaystack(ego).includes(keyword);
 window.LBT_egoMatchesKeyword = egoMatchesKeyword;
+const useEgoResourceFilterControls = (requiredResources, excludedResources, onToggleRequired, onToggleExcluded) => {
+  React.useEffect(() => {
+    const anchor = document.querySelector(".ego-catalog-filters");
+    if (!anchor) return void 0;
+    const legacyRow = [...anchor.querySelectorAll(":scope > .codex-filter-row")].find((row) => row.querySelector(".filter-label")?.textContent.trim() === "大罪");
+    const previousLegacyDisplay = legacyRow?.style.display;
+    if (legacyRow) legacyRow.style.display = "none";
+    const host = document.createElement("div");
+    host.className = "ego-resource-filter-controls";
+    const appendRow = (label, note, values, onToggle, isExclude) => {
+      const row = document.createElement("div");
+      row.className = `codex-filter-row ego-resource-filter-row${isExclude ? " is-exclude" : ""}`;
+      row.setAttribute("aria-label", `${label}フィルター`);
+      const title = document.createElement("span");
+      title.className = "filter-label";
+      title.textContent = label;
+      const hint = document.createElement("span");
+      hint.className = "ego-resource-filter-note";
+      hint.textContent = note;
+      const chips = document.createElement("div");
+      chips.className = "chips-group";
+      EGO_RESOURCE_NAMES.forEach((sin) => {
+        const active = values.includes(sin);
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `chip ego-resource-filter-chip${active ? " is-active" : ""}`;
+        button.dataset.sin = sin;
+        button.setAttribute("aria-pressed", String(active));
+        button.textContent = sin;
+        button.onclick = () => onToggle(sin);
+        chips.appendChild(button);
+      });
+      row.append(title, hint, chips);
+      host.appendChild(row);
+    };
+    appendRow("必要資源", "すべて含む", requiredResources, onToggleRequired, false);
+    appendRow("除外資源", "一つでも含むと除外", excludedResources, onToggleExcluded, true);
+    if (legacyRow) legacyRow.after(host);
+    else anchor.appendChild(host);
+    return () => {
+      host.remove();
+      if (legacyRow) legacyRow.style.display = previousLegacyDisplay || "";
+    };
+  }, [requiredResources, excludedResources, onToggleRequired, onToggleExcluded]);
+};
 const EgoSection = ({ state, dispatch }) => {
   const h = React.createElement;
   const [selected, setSelected] = React.useState(null);
   const [query, setQuery] = React.useState("");
   const rankFilter = state.ui.egoRankFilter || "";
+  // 旧「大罪」単一選択行は、既存の描画構造を保ったまま複数資源UIへ置き換えて非表示にしている。
+  // この状態は旧行の互換参照だけに残し、実際の抽出はrequiredResources/excludedResourcesで行う。
   const [sinFilter, setSinFilter] = React.useState("");
+  const [requiredResources, setRequiredResources] = React.useState([]);
+  const [excludedResources, setExcludedResources] = React.useState([]);
   const [keywordFilter, setKeywordFilter] = React.useState("");
   // V01/V25: EGO は解析モード（egoManual）で編集可能にする。人格の同期化とは独立。
   // 直接編集は、装備中詳細を開いた状態で「直接編集を開始」を選んだ場合だけ有効にする。
@@ -1013,10 +1068,21 @@ const EgoSection = ({ state, dispatch }) => {
     setBrowseAll(true);
     setQuery(v);
   };
-  const updateSinFilter = (v) => {
+  const updateResourceFilter = (sin, mode) => {
     clearEgoListSelection();
     setBrowseAll(true);
-    setSinFilter(v);
+    if (mode === "required") {
+      setRequiredResources((values) => values.includes(sin) ? values.filter((value) => value !== sin) : [...values, sin]);
+      setExcludedResources((values) => values.filter((value) => value !== sin));
+      return;
+    }
+    setExcludedResources((values) => values.includes(sin) ? values.filter((value) => value !== sin) : [...values, sin]);
+    setRequiredResources((values) => values.filter((value) => value !== sin));
+  };
+  const updateSinFilter = (sin) => {
+    clearEgoListSelection();
+    setBrowseAll(true);
+    setSinFilter(sin);
   };
   const updateKeywordFilter = (v) => {
     clearEgoListSelection();
@@ -1028,6 +1094,7 @@ const EgoSection = ({ state, dispatch }) => {
     setBrowseAll(true);
     setOwnedOnly(v);
   };
+  useEgoResourceFilterControls(requiredResources, excludedResources, (sin) => updateResourceFilter(sin, "required"), (sin) => updateResourceFilter(sin, "excluded"));
   const searchTarget = state.ui?.egoSearchTarget;
   const searchTargetKey = searchTarget ? `${searchTarget.rank}:${searchTarget.no}` : "";
   React.useEffect(() => {
@@ -1035,7 +1102,8 @@ const EgoSection = ({ state, dispatch }) => {
     const target = (DB.egos || []).find((ego) => `${ego.rank}:${ego.no}` === searchTargetKey);
     if (!target) return;
     setQuery("");
-    setSinFilter("");
+    setRequiredResources([]);
+    setExcludedResources([]);
     setKeywordFilter("");
     setOwnedOnly(false);
     setBrowseAll(true);
@@ -1058,13 +1126,13 @@ const EgoSection = ({ state, dispatch }) => {
     return (DB.egos || []).filter((e) => {
       if (ownedOnly && !ownedKeys.has(`${e.rank}:${e.no}`)) return false;
       if (rankFilter && e.rank !== rankFilter) return false;
-      if (sinFilter && !(e.resources || "").includes(sinFilter)) return false;
+      if (!egoMatchesResourceFilters(e, requiredResources, excludedResources)) return false;
       const hay = getEgoKeywordHaystack(e);
       if (keywordFilter && !egoMatchesKeyword(e, keywordFilter)) return false;
       if (q && !hay.includes(q)) return false;
       return true;
     });
-  }, [query, rankFilter, sinFilter, keywordFilter, ownedOnly, ownedKeys]);
+  }, [query, rankFilter, requiredResources, excludedResources, keywordFilter, ownedOnly, ownedKeys]);
   const quickEgos = React.useMemo(() => {
     const source = DB.egos || [];
     const byKey = new Map(source.map((ego) => [`${ego.rank}:${ego.no}`, ego]));
@@ -1079,7 +1147,7 @@ const EgoSection = ({ state, dispatch }) => {
       return true;
     }).slice(0, 12);
   }, [state.ui?.egoRecent, ownedKeys]);
-  const isExploringAll = browseAll || !!query.trim() || !!rankFilter || !!sinFilter || !!keywordFilter || ownedOnly;
+  const isExploringAll = browseAll || !!query.trim() || !!rankFilter || requiredResources.length > 0 || excludedResources.length > 0 || !!keywordFilter || ownedOnly;
   const visibleEgos = isExploringAll ? filtered : quickEgos;
   const equip = () => {
     if (!selected) return;

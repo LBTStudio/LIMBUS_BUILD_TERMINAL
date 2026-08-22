@@ -36,6 +36,25 @@
 .ego-resource-chips.is-catalog { margin-top: 6px; }
 .ego-detail-resources { display: grid; gap: 5px; margin-top: var(--s-2); }
 .ego-detail-resources-label { color: var(--tx-dim); font-family: var(--f-display); font-size: var(--fs-10); letter-spacing: .12em; }
+.ego-resource-filter-controls { display: grid; gap: 4px; }
+.ego-resource-filter-row { align-items: center; }
+.ego-resource-filter-note {
+  color: var(--tx-mute);
+  font-family: var(--f-mono);
+  font-size: 9px;
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+.ego-resource-filter-row .chips-group { min-width: 0; }
+.ego-resource-filter-row.is-exclude .ego-resource-filter-note { color: var(--err); }
+.ego-resource-filter-row.is-exclude .ego-resource-filter-chip.is-active {
+  background: color-mix(in oklab, var(--err) 22%, var(--surface-2));
+  border-color: var(--err);
+  color: var(--tx);
+  text-decoration: line-through;
+  text-decoration-color: var(--err);
+  text-decoration-thickness: 1px;
+}
 
 @media (min-width: 1281px) {
   .ego-section.is-catalog-only .codex {
@@ -47,4 +66,6 @@
 
 @media (max-width: 640px) {
   .ego-resource-chip { min-height: 24px; font-size: var(--fs-11); }
+  .ego-resource-filter-row { align-items: flex-start; }
+  .ego-resource-filter-note { margin-top: 5px; }
 }

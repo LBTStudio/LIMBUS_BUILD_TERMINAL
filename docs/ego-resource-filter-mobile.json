@@ -1,0 +1,22 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "controls": [
+    "必要資源すべて含む憤怒色欲怠惰暴食憂鬱傲慢嫉妬",
+    "除外資源一つでも含むと除外憤怒色欲怠惰暴食憂鬱傲慢嫉妬"
+  ],
+  "requiredResources": [
+    "憤怒",
+    "色欲"
+  ],
+  "excludedResources": [
+    "怠惰"
+  ],
+  "candidateCount": "9",
+  "shownCardCount": 9,
+  "allCardsIncludeRequired": true,
+  "noCardsContainExcluded": true,
+  "horizontalOverflow": false
+}
