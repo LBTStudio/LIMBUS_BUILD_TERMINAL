@@ -15,6 +15,14 @@ function loadGenerator() {
   return context.window.LBT_gen;
 }
 
+function loadStateNormalizer() {
+  const context = { window: {}, console, setTimeout, clearTimeout, Blob, URL };
+  context.globalThis = context;
+  vm.createContext(context);
+  vm.runInContext(stateSource, context);
+  return context.window.LBT_normalizeStateShape;
+}
+
 function createState() {
   return {
     charName: "剣契頭目", plName: "", color: "#c8a84b", hp: 159, san: 55, speed: "2d3+1", bullets: "×", resS: "抵抗", resP: "普通", resB: "弱点", initiative: 0,
@@ -28,13 +36,35 @@ test("剣契頭目は常時効果・通常効果・斬撃補正ラベルを別�
   const head = db.tokui_personas.find((entry) => entry?.name === "剣契頭目" && entry?.no === 16);
 
   assert.ok(head, "剣契頭目(no:16)が存在する");
-  assert.equal(head.passive_always, "戦闘開始時、剣契所属の全ての味方に本国剣術1を付与");
-  assert.equal(head.passive_effect, "スキル効果で呼吸を得る時、呼吸の保有数が最も少ない味方1名に呼吸2を付与、剣契所属なら代わりに4付与。戦闘に参加した剣契が6名以上なら代わりに全ての味方が呼吸4を得る");
+  assert.equal(head.passive_always, "", "戦闘開始時は常時効果ではなく通常効果として扱う");
+  assert.equal(head.passive_effect, "スキル効果で呼吸を得る時、呼吸の保有数が最も少ない味方1名に呼吸2を付与、剣契所属なら代わりに4付与。戦闘に参加した剣契が6名以上なら代わりに全ての味方が呼吸4を得る。戦闘開始時、剣契所属の全ての味方に本国剣術1を付与");
   assert.equal(Object.hasOwn(head, "effect"), false, "旧effectの重複本文を残さない");
   assert.equal(head.passive_always.includes("斬撃スキル威力+2"), false, "斬撃補正をパッシブ本文へ重複させない");
 
   const slashModifier = head.unique_buffs.find((buff) => buff?.name === "斬撃補正");
   assert.deepEqual(slashModifier, { name: "斬撃補正", type: "その他", initial: 2, max: 2, desc: "斬撃スキル威力+2", place: "params" });
+});
+
+test("保存済みの剣契頭目も旧パッシブ分離値から通常効果一体へ限定移行する", () => {
+  const normalizeState = loadStateNormalizer();
+  const state = createState();
+  state.personaNo = 16;
+  state.personaSrc = {
+    no: 16, name: "剣契頭目", skills: [],
+    passive_always: "戦闘開始時、剣契所属の全ての味方に本国剣術1を付与",
+    passive_effect: "スキル効果で呼吸を得る時、呼吸の保有数が最も少ない味方1名に呼吸2を付与、剣契所属なら代わりに4付与。戦闘に参加した剣契が6名以上なら代わりに全ての味方が呼吸4を得る"
+  };
+  state.pas = {
+    name: "本国剣術", cond: "傲慢x3 共鳴",
+    always: state.personaSrc.passive_always, effect: state.personaSrc.passive_effect, quick: ""
+  };
+
+  const normalized = normalizeState(state);
+  const expected = "スキル効果で呼吸を得る時、呼吸の保有数が最も少ない味方1名に呼吸2を付与、剣契所属なら代わりに4付与。戦闘に参加した剣契が6名以上なら代わりに全ての味方が呼吸4を得る。戦闘開始時、剣契所属の全ての味方に本国剣術1を付与";
+  assert.equal(normalized.personaSrc.passive_always, "");
+  assert.equal(normalized.personaSrc.passive_effect, expected);
+  assert.equal(normalized.pas.always, "");
+  assert.equal(normalized.pas.effect, expected);
 });
 
 test("斬撃補正は値付きparamsとして出力し、数値ステータスには混入しない", () => {
