@@ -1006,26 +1006,46 @@ function buildCcfoliaJSON(state) {
       return ra - rb;
     });
   }
-  const params = [{ label: "\u58EB\u6C17\u4F4E\u4E0B\u30E9\u30A4\u30F3", value: morale }];
-  if (atkModLabel) params.push({ label: atkModLabel, value: 1 });
-  if (hasVigor) params.push({ label: "\u95D8\u5FD7", value: 1 });
-  if (hasDefMod) params.push({ label: "\u5B88\u5099\u5A01\u529B", value: 1 });
+  // CCFOLIAのparams.valueは文字列として扱う。同名ラベルを重複出力すると参照先が曖昧に
+  // なるため、数値補正は一つのparamsへ合算してから出力する。
+  const params = [];
+  const paramsByLabel = new Map();
+  const addParam = (rawLabel, rawValue) => {
+    const label = normalizeLabel(rawLabel);
+    if (!label) return;
+    const value = rawValue === void 0 || rawValue === null || rawValue === "" ? "" : String(rawValue);
+    const existing = paramsByLabel.get(label);
+    if (!existing) {
+      const item = { label, value };
+      params.push(item);
+      paramsByLabel.set(label, item);
+      return;
+    }
+    const existingNumber = Number(existing.value);
+    const incomingNumber = Number(value);
+    const bothNumeric = existing.value.trim() !== "" && value.trim() !== "" && Number.isFinite(existingNumber) && Number.isFinite(incomingNumber);
+    if (bothNumeric) existing.value = String(existingNumber + incomingNumber);
+    else if (existing.value === "" && value !== "") existing.value = value;
+  };
+  addParam("\u58EB\u6C17\u4F4E\u4E0B\u30E9\u30A4\u30F3", morale);
+  if (atkModLabel) addParam(atkModLabel, 1);
+  if (hasVigor) addParam("\u95D8\u5FD7", 1);
+  if (hasDefMod) addParam("\u5B88\u5099\u5A01\u529B", 1);
   (p.uniqueBuffs || []).forEach((b) => {
     const label = normalizeLabel(b.name);
     if (!label || (b.place || "status") !== "params") return;
     // 人格固有の補正ラベルも、DBで定義した初期値をparamsへ引き継ぐ。
     // これにより「斬撃補正: 2」のような常時補正をstatusへ誤配置せず参照できる。
-    params.push({ label, value: b.initial ?? "" });
+    addParam(label, b.initial);
   });
   (p.customStatuses || []).forEach((c) => {
     const label = normalizeLabel(c.label);
     if (!label || (c.place || "status") !== "params") return;
-    params.push({ label, value: c.initial ?? "" });
+    addParam(label, c.initial);
   });
   collectSkillDiceVars(p).forEach((v) => {
     if (!v.label || v.place !== "params") return;
-    if (params.some((x) => x.label === v.label)) return;
-    params.push({ label: v.label, value: "" });
+    addParam(v.label, "");
   });
   // T18/T19: プレビューの項目別チェック（outputExclude）を JSON の memo/commands へ直接反映する。
   // 「表示＝出力」と混同しないよう、除外された項目は JSON からのみ除く。

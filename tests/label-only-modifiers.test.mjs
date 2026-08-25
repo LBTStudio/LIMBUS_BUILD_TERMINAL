@@ -31,7 +31,23 @@ test("サポート・強化由来の補正はJSONのラベルだけへ出力さ�
     assert.equal(statusLabels.includes(label), false, `${label} must not be a status`);
     assert.equal(paramLabels.includes(label), true, `${label} must be a param`);
   });
+  assert.deepEqual(
+    Object.fromEntries(json.data.params.filter((entry) => ["打撃補正", "闘志", "守備威力"].includes(entry.label)).map((entry) => [entry.label, entry.value])),
+    { "打撃補正": "1", "闘志": "1", "守備威力": "1" }
+  );
   const mt = generator.resolveFormulas(state).find((formula) => formula.name === "MT");
   assert.match(mt.expr, /\{打撃補正\}/);
   assert.match(mt.expr, /\{闘志\}/);
+});
+
+test("同名のラベル型補正はCCFOLIA JSONで一意なparamsへ合算し、文字列値として出力する", () => {
+  const generator = loadGenerator();
+  const state = createState();
+  state.supports = [{ id: "s1", name: "切り伏せる斬撃", cond: "", effect: "" }];
+  state.uniqueBuffs = [{ id: "u1", name: "斬撃補正", place: "params", initial: 2 }];
+
+  const json = generator.buildCcfoliaJSON(state);
+  const slashParams = json.data.params.filter((entry) => entry.label === "斬撃補正");
+  assert.equal(slashParams.length, 1);
+  assert.equal(slashParams[0].value, "3");
 });

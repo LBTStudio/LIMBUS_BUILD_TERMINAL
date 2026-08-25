@@ -46,7 +46,7 @@ test("斬撃補正は値付きparamsとして出力し、数値ステータス�
   assert.equal(json.data.status.some((entry) => entry.label === "斬撃補正"), false);
   const slashParam = json.data.params.find((entry) => entry.label === "斬撃補正");
   assert.ok(slashParam, "斬撃補正がparamsへ出力される");
-  assert.equal(slashParam.value, 2);
+  assert.equal(slashParam.value, "2");
 });
 
 test("次のRに得る斬撃威力系は初期ステータス検出の対象外にする", () => {
