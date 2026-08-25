@@ -25,3 +25,8 @@ test("ドラッグ横スクロール中のスキル一覧はPC向けの視覚フ
   assert.match(sectionsCss, /\.deck-thumbs\.is-drag-scroll/);
   assert.match(sectionsCss, /cursor: grabbing/);
 });
+
+test("矢印キー移動案内はプレビュー展開時にも背景から分離した高視認性スタイルを持つ", () => {
+  assert.match(sectionsCss, /\.deck-nav-info > span:last-child \{[\s\S]*?border: 1px solid var\(--gold-line\);[\s\S]*?background: color-mix\(in oklab, var\(--gold\) 10%, var\(--surface-3\)\);[\s\S]*?color: var\(--gold-hi\) !important;/);
+  assert.match(sectionsCss, /@media \(max-width: 640px\) \{[\s\S]*?\.deck-nav-info > span:last-child/);
+});

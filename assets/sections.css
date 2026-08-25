@@ -65,6 +65,34 @@
   font-weight: 700;
   letter-spacing: 0.04em;
 }
+/* スキル名の右にあるキーボード操作案内は、プレビュー展開時でも
+   背景に埋もれない補助情報として独立して読めるようにする。 */
+.deck-nav-info > span:last-child {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  padding: 3px 7px;
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-sm);
+  background: color-mix(in oklab, var(--gold) 10%, var(--surface-3));
+  color: var(--gold-hi) !important;
+  font-family: var(--f-display) !important;
+  font-size: var(--fs-11) !important;
+  font-weight: 700;
+  letter-spacing: 0.08em !important;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .deck-nav-info > span:last-child {
+    margin-left: 0;
+    min-height: 22px;
+    padding: 2px 6px;
+    font-size: var(--fs-10) !important;
+  }
+}
 
 /* Thumbnail row */
 .deck-thumbs {
