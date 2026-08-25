@@ -53,37 +53,35 @@ const AutoTextarea = ({ value, onChange, minRows = 1, style = {}, className = ""
     }
   );
 };
-// カード本体の左右ドラッグは横スクロール、並べ替えは専用グリップだけに分離する。
-const useHorizontalDragScroll = () => {
+// カード本体の短い押下は選択、左右ドラッグだけは横スクロールにする。
+// 選択は click ではなく pointerup で確定し、ドラッグ由来の click 抑止に依存しない。
+const useHorizontalDragScroll = (onCardPress) => {
   const ref = React.useRef(null);
-  const dragRef = React.useRef({ pointerId: null, startX: 0, startLeft: 0, moved: false, suppressNextClick: false });
+  const dragRef = React.useRef({ pointerId: null, startX: 0, startLeft: 0, moved: false, cardIndex: null, canScroll: false });
   const DRAG_SCROLL_THRESHOLD = 8;
   const [dragging, setDragging] = React.useState(false);
   const finish = React.useCallback((event) => {
     const drag = dragRef.current;
     if (drag.pointerId !== event.pointerId) return;
-    // 横ドラッグ自身が直後に発火する click だけを止める。時間で抑止しないため、
-    // スライド直後に別のカードを短くクリックしても選択操作を失わない。
-    if (drag.moved && event.type === "pointerup") drag.suppressNextClick = true;
+    if (!drag.moved && event.type === "pointerup" && Number.isInteger(drag.cardIndex)) onCardPress?.(drag.cardIndex);
     ref.current?.releasePointerCapture?.(event.pointerId);
-    drag.pointerId = null;
+    dragRef.current = { pointerId: null, startX: 0, startLeft: 0, moved: false, cardIndex: null, canScroll: false };
     setDragging(false);
-  }, []);
+  }, [onCardPress]);
   const onPointerDown = React.useCallback((event) => {
-    // 直前の横ドラッグが発火した click は抑止するが、次の新しい押下まで
-    // 抑止状態を持ち越してカード選択を失わせない。並べ替えボタンやグリップを
-    // 押した場合もここで解除するため、通常の操作を一度余分に押す必要がない。
-    dragRef.current.suppressNextClick = false;
     if (event.button !== 0) return;
     if (event.target?.closest?.("button, input, textarea, select, a, .dnd-handle, [draggable='true']")) return;
     const strip = ref.current;
-    if (!strip || strip.scrollWidth <= strip.clientWidth + 1) return;
-    dragRef.current = { pointerId: event.pointerId, startX: event.clientX, startLeft: strip.scrollLeft, moved: false, suppressNextClick: false };
+    const card = event.target?.closest?.(".deck-thumb[data-skill-index]");
+    const cardIndex = Number(card?.dataset.skillIndex);
+    if (!strip || !Number.isInteger(cardIndex)) return;
+    dragRef.current = { pointerId: event.pointerId, startX: event.clientX, startLeft: strip.scrollLeft, moved: false, cardIndex, canScroll: strip.scrollWidth > strip.clientWidth + 1 };
     strip.setPointerCapture?.(event.pointerId);
   }, []);
   const onPointerMove = React.useCallback((event) => {
     const drag = dragRef.current;
     if (drag.pointerId !== event.pointerId) return;
+    if (!drag.canScroll) return;
     const deltaX = event.clientX - drag.startX;
     if (Math.abs(deltaX) > DRAG_SCROLL_THRESHOLD) drag.moved = true;
     if (!drag.moved) return;
@@ -91,13 +89,7 @@ const useHorizontalDragScroll = () => {
     setDragging(true);
     event.preventDefault();
   }, []);
-  const onClickCapture = React.useCallback((event) => {
-    if (!dragRef.current.suppressNextClick) return;
-    dragRef.current.suppressNextClick = false;
-    event.preventDefault();
-    event.stopPropagation();
-  }, []);
-  return { dragging, containerProps: { ref, onPointerDown, onPointerMove, onPointerUp: finish, onPointerCancel: finish, onClickCapture } };
+  return { dragging, containerProps: { ref, onPointerDown, onPointerMove, onPointerUp: finish, onPointerCancel: finish } };
 };
 // d値/d数の可変設定は「変更する」場合のみ展開する選択制UI。
 // 固定値の別入力は持たず、ダイス式を唯一の基準として扱う。
@@ -300,6 +292,10 @@ const SkillDeck = ({ state, dispatch }) => {
   const addDice = (id) => dispatch({ type: "ADD_DICE", skillId: id });
   const patchDice = (id, idx, patch2) => dispatch({ type: "PATCH_DICE", skillId: id, diceIdx: idx, patch: patch2 });
   const removeDice = (id, idx) => dispatch({ type: "REMOVE_DICE", skillId: id, diceIdx: idx });
+  const selectSkill = React.useCallback((index) => {
+    curSkillIdRef.current = null;
+    setCurIdx(index);
+  }, []);
   React.useEffect(() => {
     const onKey = (e) => {
       if (document.activeElement && ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)) return;
@@ -314,12 +310,12 @@ const SkillDeck = ({ state, dispatch }) => {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [skills.length]);
-  const thumbsScroll = useHorizontalDragScroll();
+  const thumbsScroll = useHorizontalDragScroll(selectSkill);
   if (skills.length === 0) {
     return /* @__PURE__ */ React.createElement("div", { className: "deck" }, /* @__PURE__ */ React.createElement("div", { className: "deck-empty-cell", onClick: editable ? addSkill : () => toast("スキル追加は編集モード時のみ可能です"), style: { gridColumn: "1 / -1", ...(editable ? {} : { opacity: 0.45, cursor: "not-allowed" }) }, title: editable ? "" : "編集モード時のみ追加可能" }, "\uFF0B \u6700\u521D\u306E\u30B9\u30AD\u30EB\u3092\u8FFD\u52A0"));
   }
   const cur = skills[curIdx] || skills[0];
-  return /* @__PURE__ */ React.createElement("div", { className: "deck-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "deck-direct-nav", role: "tablist", "aria-label": "表示するスキルを選択" }, skills.map((sk, i) => /* @__PURE__ */ React.createElement("button", { key: sk.id, type: "button", role: "tab", "aria-selected": i === curIdx, className: `deck-direct-chip${i === curIdx ? " is-active" : ""}`, "data-sin": sk.sin || "", onClick: () => { curSkillIdRef.current = null; setCurIdx(i); }, title: `${sk.rank || `S${i}`}: ${sk.name || "(名称未設定)"}` }, /* @__PURE__ */ React.createElement("span", { className: "deck-direct-rank" }, sk.rank || `S${i}`), /* @__PURE__ */ React.createElement("span", { className: "deck-direct-name" }, sk.name || "(未設定)")))), /* @__PURE__ */ React.createElement("div", { className: "deck-nav" }, /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "deck-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "deck-direct-nav", role: "tablist", "aria-label": "表示するスキルを選択" }, skills.map((sk, i) => /* @__PURE__ */ React.createElement("button", { key: sk.id, type: "button", role: "tab", "aria-selected": i === curIdx, className: `deck-direct-chip${i === curIdx ? " is-active" : ""}`, "data-sin": sk.sin || "", onClick: () => selectSkill(i), title: `${sk.rank || `S${i}`}: ${sk.name || "(名称未設定)"}` }, /* @__PURE__ */ React.createElement("span", { className: "deck-direct-rank" }, sk.rank || `S${i}`), /* @__PURE__ */ React.createElement("span", { className: "deck-direct-name" }, sk.name || "(未設定)")))), /* @__PURE__ */ React.createElement("div", { className: "deck-nav" }, /* @__PURE__ */ React.createElement(
     "button",
     {
       className: "deck-nav-btn",
@@ -360,12 +356,21 @@ const SkillDeck = ({ state, dispatch }) => {
       key: sk.id,
       className: `deck-thumb${i === curIdx ? " is-active" : ""} ${thumbsDnd.rowProps(i).className || ""}`,
       "data-sin": sk.sin || "",
+      "data-skill-index": i,
       "data-drop": thumbsDnd.rowProps(i)["data-drop"],
+      role: "button",
+      tabIndex: 0,
+      "aria-pressed": i === curIdx,
       onDragOver: thumbsDnd.rowProps(i).onDragOver,
       onDragLeave: thumbsDnd.rowProps(i).onDragLeave,
       onDrop: thumbsDnd.rowProps(i).onDrop,
-      onClick: () => { curSkillIdRef.current = null; setCurIdx(i); },
-      title: `${sk.rank}: ${sk.name}`
+      onKeyDown: (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          selectSkill(i);
+        }
+      },
+      title: `${sk.rank}: ${sk.name}（クリックで選択、左右へドラッグで一覧をスクロール）`
     },
     /* @__PURE__ */ React.createElement("div", { className: "deck-thumb-head" }, /* @__PURE__ */ React.createElement(
       "span",

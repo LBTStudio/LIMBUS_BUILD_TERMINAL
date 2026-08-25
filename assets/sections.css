@@ -97,6 +97,7 @@
   flex-shrink: 0;
 }
 .deck-thumb:hover { border-color: var(--gold); background: var(--surface-2); }
+.deck-thumb:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .deck-thumb.is-active {
   border-color: var(--gold);
   background: color-mix(in oklab, var(--gold) 8%, var(--surface-1));
