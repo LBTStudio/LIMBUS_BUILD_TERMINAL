@@ -300,11 +300,17 @@ function textAwardsSelfManagedStatus(rawText, label) {
   let index = text.indexOf(label);
   while (index >= 0) {
     if (statusOccurrenceIsStandalone(text, label, index) && !statusOccurrenceHasForeignRecipient(text, index)) {
+      const before = text.slice(Math.max(0, index - 14), index);
+      // 「次のRに斬撃威力増加1を得る」は初期所持ではない。一時的な次ラウンド効果を
+      // 人格装備時の初期ステータスへ昇格させない。
+      if (/(?:次のR|次ラウンド)(?:に|、)?$/u.test(before)) {
+        index = text.indexOf(label, index + label.length);
+        continue;
+      }
       const tail = text.slice(index + label.length, index + label.length + 14);
       // 「保護1を得る」「挑発値を10得る」に加え、後続の自己変換へつながる「得て」を受ける。
       // 「得ている」は状態参照なので除外する。
       if (statusGainTailMatches(tail)) return true;
-      const before = text.slice(Math.max(0, index - 14), index);
       // 自分への付与だけを採る。対象・味方・両隣への付与はここに一致しない。
       if (/(?:自分自身|自分|自身|あなた)(?:に|へ)[^。\n]{0,8}$/u.test(before) && /^(?:[0-9０-９]*を?)(?:付与)(?:する)?/u.test(tail)) return true;
     }

@@ -1013,7 +1013,9 @@ function buildCcfoliaJSON(state) {
   (p.uniqueBuffs || []).forEach((b) => {
     const label = normalizeLabel(b.name);
     if (!label || (b.place || "status") !== "params") return;
-    params.push({ label, value: "" });
+    // 人格固有の補正ラベルも、DBで定義した初期値をparamsへ引き継ぐ。
+    // これにより「斬撃補正: 2」のような常時補正をstatusへ誤配置せず参照できる。
+    params.push({ label, value: b.initial ?? "" });
   });
   (p.customStatuses || []).forEach((c) => {
     const label = normalizeLabel(c.label);

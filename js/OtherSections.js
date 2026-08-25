@@ -1796,7 +1796,7 @@ const LabelParamsPanel = ({ state, onAddCustom, onPatchCustom, onRemoveCustom, o
     if (atkModLabel) list.push({ id: "support-atk-mod", type: "derived", label: atkModLabel, value: 1, source: "サポートから自動" });
     if (hasVigor) list.push({ id: "enh-vigor", type: "derived", label: "闘志", value: 1, source: "強化から自動" });
     if (hasDefMod) list.push({ id: "enh-defense", type: "derived", label: "守備威力", value: 1, source: "強化から自動" });
-    (state.uniqueBuffs || []).filter((buff) => (buff.place || "status") === "params").forEach((buff, index) => list.push({ id: `unique-${buff.id || index}`, type: "unique", label: buff.name || "名称未設定", value: "", source: "人格固有" }));
+    (state.uniqueBuffs || []).filter((buff) => (buff.place || "status") === "params").forEach((buff, index) => list.push({ id: `unique-${buff.id || index}`, type: "unique", label: buff.name || "名称未設定", value: buff.initial ?? "", source: "人格固有" }));
     (state.customStatuses || []).filter((item) => (item.place || "status") === "params").forEach((item) => list.push({ id: item.id, type: "custom", label: item.label || "", value: item.initial ?? 0, source: "カスタム", item }));
     (window.LBT_collectSkillDiceVars?.(state) || []).filter((item) => item.place === "params").forEach((item, index) => list.push({ id: `skill-${item.label || index}-${index}`, type: "skill", label: item.label || "名称未設定", value: "", source: "スキル変数" }));
     return list;
