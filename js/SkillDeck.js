@@ -70,6 +70,10 @@ const useHorizontalDragScroll = () => {
     setDragging(false);
   }, []);
   const onPointerDown = React.useCallback((event) => {
+    // 直前の横ドラッグが発火した click は抑止するが、次の新しい押下まで
+    // 抑止状態を持ち越してカード選択を失わせない。並べ替えボタンやグリップを
+    // 押した場合もここで解除するため、通常の操作を一度余分に押す必要がない。
+    dragRef.current.suppressNextClick = false;
     if (event.button !== 0) return;
     if (event.target?.closest?.("button, input, textarea, select, a, .dnd-handle, [draggable='true']")) return;
     const strip = ref.current;

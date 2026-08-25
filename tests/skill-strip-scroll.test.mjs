@@ -17,6 +17,7 @@ test("スキル一覧は短いクリックを選択へ通し、横ドラッグ�
   assert.match(skillDeck, /Math\.abs\(deltaX\) > DRAG_SCROLL_THRESHOLD/);
   assert.match(skillDeck, /suppressNextClick: false/);
   assert.match(skillDeck, /drag\.moved && event\.type === "pointerup"/);
+  assert.match(skillDeck, /const onPointerDown[\s\S]*?dragRef\.current\.suppressNextClick = false;[\s\S]*?event\.target\?\.closest/);
   assert.match(skillDeck, /if \(!dragRef\.current\.suppressNextClick\) return;/);
   assert.doesNotMatch(skillDeck, /CLICK_SUPPRESS_MS|suppressClickUntil/);
   assert.match(skillDeck, /onClick: \(\) => \{ curSkillIdRef\.current = null; setCurIdx\(i\); \}/);

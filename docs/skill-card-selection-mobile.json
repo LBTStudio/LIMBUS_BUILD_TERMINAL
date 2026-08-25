@@ -1,0 +1,11 @@
+{
+  "before": "スキル2剣軌",
+  "after": "スキル0反撃-初生",
+  "directCount": 5,
+  "stripDisplay": "none",
+  "overflowX": false,
+  "viewport": {
+    "width": 390,
+    "height": 844
+  }
+}
