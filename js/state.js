@@ -610,19 +610,19 @@ window.LBT_stateUsesBarrier = stateUsesBarrier;
 window.LBT_normalizeEgoSlotVariants = normalizeEgoSlotVariants;
 window.LBT_normalizeEgoSlots = normalizeEgoSlots;
 window.LBT_detectSelfStatusCandidates = detectSelfStatusCandidates;
-const SWORD_CONTRACT_HEAD_LEGACY_ALWAYS = "戦闘開始時、剣契所属の全ての味方に本国剣術1を付与";
-const SWORD_CONTRACT_HEAD_LEGACY_EFFECT = "スキル効果で呼吸を得る時、呼吸の保有数が最も少ない味方1名に呼吸2を付与、剣契所属なら代わりに4付与。戦闘に参加した剣契が6名以上なら代わりに全ての味方が呼吸4を得る";
-const SWORD_CONTRACT_HEAD_EFFECT = `${SWORD_CONTRACT_HEAD_LEGACY_EFFECT}。${SWORD_CONTRACT_HEAD_LEGACY_ALWAYS}`;
+const SWORD_CONTRACT_HEAD_ALWAYS = "斬撃スキル威力+2";
+const SWORD_CONTRACT_HEAD_BREATH_EFFECT = "スキル効果で呼吸を得る時、呼吸の保有数が最も少ない味方1名に呼吸2を付与、剣契所属なら代わりに4付与。戦闘に参加した剣契が6名以上なら代わりに全ての味方が呼吸4を得る";
+const SWORD_CONTRACT_HEAD_BATTLE_START_EFFECT = "戦闘開始時、剣契所属の全ての味方に本国剣術1を付与";
+const SWORD_CONTRACT_HEAD_EFFECT = `${SWORD_CONTRACT_HEAD_BREATH_EFFECT}。${SWORD_CONTRACT_HEAD_BATTLE_START_EFFECT}`;
 function normalizeSwordContractHeadPassive(record) {
   if (!record || Number(record.no) !== 16 || record.name !== "剣契頭目") return record;
-  if (record.passive_always !== SWORD_CONTRACT_HEAD_LEGACY_ALWAYS || record.passive_effect !== SWORD_CONTRACT_HEAD_LEGACY_EFFECT) return record;
-  return { ...record, passive_always: "", passive_effect: SWORD_CONTRACT_HEAD_EFFECT };
+  if (record.passive_always === SWORD_CONTRACT_HEAD_ALWAYS && record.passive_effect === SWORD_CONTRACT_HEAD_EFFECT) return record;
+  return { ...record, passive_always: SWORD_CONTRACT_HEAD_ALWAYS, passive_effect: SWORD_CONTRACT_HEAD_EFFECT };
 }
 function migrateSwordContractHeadPassiveState(next) {
-  const source = normalizeSwordContractHeadPassive(next.personaSrc);
-  if (source !== next.personaSrc) next.personaSrc = source;
-  if (Number(next.personaNo) !== 16 || !next.pas || next.pas.always !== SWORD_CONTRACT_HEAD_LEGACY_ALWAYS || next.pas.effect !== SWORD_CONTRACT_HEAD_LEGACY_EFFECT) return;
-  next.pas = { ...next.pas, always: "", effect: SWORD_CONTRACT_HEAD_EFFECT };
+  if (next?.syncedManual || Number(next?.personaNo) !== 16 || next?.personaSrc?.name !== "剣契頭目") return;
+  next.personaSrc = normalizeSwordContractHeadPassive(next.personaSrc);
+  if (next.pas) next.pas = { ...next.pas, always: SWORD_CONTRACT_HEAD_ALWAYS, effect: SWORD_CONTRACT_HEAD_EFFECT };
 }
 function normalizeStateShape(raw) {
   const next = { ...raw };
@@ -689,8 +689,8 @@ function normalizeStateShape(raw) {
   };
   next.skills = migrateLegacyDerivedSkills(next.skills || [], next.personaSrc?.skills || []);
   if (next.personaSrc?.skills) next.personaSrc = { ...next.personaSrc, skills: migrateLegacyDerivedSkills(next.personaSrc.skills) };
-  // V65r57: 過去の誤分離値だけを対象に、戦闘開始時効果を通常効果へ戻す。
-  // 手入力による別内容のパッシブは変更しない。
+  // V65r58: 通常人格の剣契頭目は、DB原文どおり斬撃補正を常時効果、
+  // 呼吸付与・戦闘開始時付与を通常効果へ統一する。同期手動編集は変更しない。
   migrateSwordContractHeadPassiveState(next);
   next.egoSlots = normalizeEgoSlots(next.egoSlots);
   return normalizeStatusCollections(next);
