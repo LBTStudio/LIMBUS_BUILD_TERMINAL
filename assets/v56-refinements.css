@@ -1857,7 +1857,7 @@ details > summary {
 }
 .skill-meta-band {
   display: grid;
-  grid-template-columns: repeat(3, minmax(112px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--s-2);
   align-items: end;
   padding: 10px;
@@ -1870,6 +1870,9 @@ details > summary {
   min-width: 0;
   gap: 4px;
 }
+.deck-focus {
+  container-type: inline-size;
+}
 .skill-meta-band .field-label {
   margin: 0;
   color: var(--tx-mute);
@@ -1880,8 +1883,19 @@ details > summary {
 .skill-meta-band .select,
 .skill-meta-band .input {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   min-height: 34px;
   font-size: var(--fs-12);
+}
+/* プレビュー展開時は編集領域の実幅が狭くなる。画面全体の幅ではなく、
+   スキルカード自身の幅を基準に、範囲を含むメタ情報を確実に収める。 */
+@container (max-width: 560px) {
+  .skill-meta-band { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container (max-width: 360px) {
+  .skill-meta-band { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
   .deck-focus .deck-card-head .deck-order-field {
