@@ -10,17 +10,30 @@ function splitPreviewSections(text) {
     const m = raw.match(HEAD_RE);
     if (m) {
       if (cur) sections.push(cur);
-      cur = { title: m[1] || m[2] || m[3] || "", body: [] };
+      cur = { title: m[1] || m[2] || m[3] || "", header: raw, body: [] };
       continue;
     }
     if (!cur) {
-      cur = { title: "", body: [] };
+      cur = { title: "", header: "", body: [] };
     }
     cur.body.push(raw);
   }
   if (cur) sections.push(cur);
   return sections.filter((s) => s.title || s.body.some((l) => l.trim()));
 }
+// プレビューに表示する原文の見出し表記を保ったまま、JSON出力から除外されたカテゴリだけを
+// コピー対象から取り除く。表示の折り畳み状態はコピー内容へ影響させない。
+function filterPreviewCopyOutput(text, excluded) {
+  return splitPreviewSections(text)
+    .filter((section) => !section.title || !(excluded || {})[section.title])
+    .map((section) => {
+      const body = section.body.join("\n").replace(/^\n+|\n+$/g, "");
+      return [section.title ? section.header || `■ ${section.title}` : "", body].filter(Boolean).join("\n");
+    })
+    .filter(Boolean)
+    .join("\n\n");
+}
+window.LBT_filterPreviewCopyOutput = filterPreviewCopyOutput;
 // 生成順を標準順としつつ、ユーザーが保存した見出し順だけを優先する。
 // 新規カテゴリは保存済みの手動順に含まれないため、標準順の末尾に追加される。
 function orderPreviewSections(sections, order) {
@@ -120,7 +133,11 @@ const LivePreview = ({ state, dispatch }) => {
     }
   };
   const copyCurrent = async () => {
-    const t = tab === "memo" ? memo : tab === "palette" ? palette : JSON.stringify(LBT_gen.buildCcfoliaJSON(state));
+    const t = tab === "memo"
+      ? filterPreviewCopyOutput(memo, outputExclude.memo)
+      : tab === "palette"
+        ? filterPreviewCopyOutput(palette, outputExclude.palette)
+        : JSON.stringify(LBT_gen.buildCcfoliaJSON(state));
     try {
       await navigator.clipboard.writeText(t);
       toast(`${tab.toUpperCase()}\u3092\u30B3\u30D4\u30FC`);
