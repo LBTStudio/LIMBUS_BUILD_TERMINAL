@@ -102,3 +102,39 @@ test("戦術スキル効果の複数段落は実改行で分断せず、CCFOLIA�
   assert.match(palette, /効果：▶︎使用時：パワーを1得る\\n▶︎マッチ勝利時：保護を1得る/);
   assert.doesNotMatch(palette, /効果：▶︎使用時：パワーを1得る\n▶︎マッチ勝利時：保護を1得る/);
 });
+
+
+test("固有バフ由来の自動代入式は四則演算だけで出力し、閾値比較・floorを生成しない", () => {
+  const generator = loadGenerator();
+  const state = createState();
+  state.uniqueBuffs = [{
+    name: "指令の加護",
+    desc: "数値/3だけダメージ量増加。数値が3以上ならマッチ威力+2"
+  }];
+
+  const formulas = generator.resolveFormulas(state);
+  const dm = formulas.find((formula) => formula.name === "DM");
+  const mt = formulas.find((formula) => formula.name === "MT");
+
+  assert.match(dm.expr, /\(\{指令の加護\}\/3\)/);
+  assert.doesNotMatch(dm.expr, /floor|>=|<=|>|</);
+  assert.doesNotMatch(mt.expr, /指令の加護|floor|>=|<=|>|</);
+});
+
+
+test("自動代入式のPALETTE・CCFOLIA JSON出力にも非対応演算子を残さない", () => {
+  const generator = loadGenerator();
+  const state = createState();
+  state.uniqueBuffs = [{
+    name: "人差し指の加護",
+    desc: "数値/10だけダメージ量増加。数値が2以上ならダメージ量増加+1"
+  }];
+
+  const palette = generator.buildPalette(state);
+  const json = generator.buildCcfoliaJSON(state);
+  const encoded = JSON.stringify(json);
+
+  assert.ok(palette.includes("//DM=") && palette.includes("{人差し指の加護}/10"));
+  assert.doesNotMatch(palette, /floor|>=|<=|>/);
+  assert.doesNotMatch(encoded, /floor|>=|<=|>/);
+});

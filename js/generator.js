@@ -242,10 +242,10 @@ function resolveFormulas(state) {
   /* 固有バフのスケーリング則を解析して MT/DM/DT へ自動注入する（汎用ロジック）。
      対象は uniqueBuffs（DB由来・手動追加の双方）の各バフについて、
      その desc（説明文）内のスケーリング記述を解析し、バフ名を変数として式へ注入する。
-       - 「(このバフの)数値/Nだけダメージ量増加」  → DM += floor({バフ名}/N)
-       - 「(このバフの)数値/Nだけマッチ威力」      → MT += floor({バフ名}/N)
-       - 「数値がN(以上)?ならマッチ威力+M」        → MT += ({バフ名}>=N)*M
-       - 「(このバフの)数値/Nだけ被ダメージ(量)増加」→ DT += floor({バフ名}/N)
+       - 「(このバフの)数値/Nだけダメージ量増加」  → DM += ({バフ名}/N)
+       - 「(このバフの)数値/Nだけマッチ威力」      → MT += ({バフ名}/N)
+       - 比較条件（「N以上なら」など）はCCFOLIA・BCDICE非対応のため、自動代入式へ変換しない
+       - 「(このバフの)数値/Nだけ被ダメージ(量)増加」→ DT += ({バフ名}/N)
      desc が空のバフは解析不能のためスキップ（パレットの変数としてのみ供給）。 */
   const _mtAdds = [];
   const _dmAdds = [];
@@ -261,19 +261,20 @@ function resolveFormulas(state) {
     let m;
     // 「(の)数値?/Nだけダメージ量増加」
     const reDM = /(?:\u6570\u5024|\u6570)?[/\u00F7](\d{1,2})\u3060\u3051\u30C0\u30E1\u30FC\u30B8\u91CF\u5897\u52A0/g;
-    while ((m = reDM.exec(d)) !== null) _pushAdd(_dmAdds, "dm:" + nm + "/" + m[1], `floor(${V}/${m[1]})`);
+    while ((m = reDM.exec(d)) !== null) _pushAdd(_dmAdds, "dm:" + nm + "/" + m[1], `(${V}/${m[1]})`);
     // 「(の)数値?/Nだけマッチ威力」
     const reMTdiv = /(?:\u6570\u5024|\u6570)?[/\u00F7](\d{1,2})\u3060\u3051\u30DE\u30C3\u30C1\u5A01\u529B/g;
-    while ((m = reMTdiv.exec(d)) !== null) _pushAdd(_mtAdds, "mtdiv:" + nm + "/" + m[1], `floor(${V}/${m[1]})`);
+    while ((m = reMTdiv.exec(d)) !== null) _pushAdd(_mtAdds, "mtdiv:" + nm + "/" + m[1], `(${V}/${m[1]})`);
     // 「(の)数値?/Nだけ被ダメージ(量)増加」→ DT
     const reDT = /(?:\u6570\u5024|\u6570)?[/\u00F7](\d{1,2})\u3060\u3051\u88AB\u30C0\u30E1\u30FC\u30B8/g;
-    while ((m = reDT.exec(d)) !== null) _pushAdd(_dtAdds, "dt:" + nm + "/" + m[1], `floor(${V}/${m[1]})`);
+    while ((m = reDT.exec(d)) !== null) _pushAdd(_dtAdds, "dt:" + nm + "/" + m[1], `(${V}/${m[1]})`);
     // 「数値がN(以上)?ならマッチ威力+M」
     const reMTth = /(?:\u6570\u5024|\u6570)\u304C(\d{1,2})(\u4EE5\u4E0A)?(?:\u306A\u3089|\u306A\u308B)[\u3001,]?\u30DE\u30C3\u30C1\u5A01\u529B\+?(\d{1,2})/g;
-    while ((m = reMTth.exec(d)) !== null) _pushAdd(_mtAdds, "mtth:" + nm + ">=" + m[1], `(${V}>=${m[1]})*${m[3]}`);
+    // 閾値比較はCCFOLIA・BCDICEの代入式で扱えないため、自動出力しない。
+    while (reMTth.exec(d) !== null) { /* 効果本文は保持し、式だけは生成しない */ }
     // 「数値がN(以上)?ならダメージ量増加+M」
     const reDMth = /(?:\u6570\u5024|\u6570)\u304C(\d{1,2})(\u4EE5\u4E0A)?(?:\u306A\u3089|\u306A\u308B)[\u3001,]?\u30C0\u30E1\u30FC\u30B8\u91CF\u5897\u52A0\+?(\d{1,2})/g;
-    while ((m = reDMth.exec(d)) !== null) _pushAdd(_dmAdds, "dmth:" + nm + ">=" + m[1], `(${V}>=${m[1]})*${m[3]}`);
+    while (reDMth.exec(d) !== null) { /* 効果本文は保持し、式だけは生成しない */ }
   };
   (state.uniqueBuffs || []).forEach((b) => _scanBuffDesc(b && b.name, b && b.desc));
   if (_mtAdds.length || _dmAdds.length || _dtAdds.length) {
