@@ -1,4 +1,4 @@
-# LIMBUS BUILD TERMINAL v64r45
+# LIMBUS BUILD TERMINAL v65r61
 
 Limbus TRPGで使うキャラクター情報の準備、人格・E.G.Oの参照、CCFOLIA出力を支援する静的Webツールです。TRPGのルールや裁定を決めるものではなく、セッションで参照する情報を整えるために使います。
 

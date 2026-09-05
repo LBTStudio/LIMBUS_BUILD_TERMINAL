@@ -734,7 +734,7 @@ const INIT_STATE = {
   // Passives
   pas: { name: "", cond: "", always: "", effect: "", quick: "" },
   pas2Enabled: false,
-  pas2: { name: "", cond: "", effect: "" },
+  pas2: { name: "", cond: "", always: "", effect: "" },
   // Unique buffs (custom keyword-like statuses on this persona)
   uniqueBuffs: [],
   // {id, name, type, initial, max, desc, place:'status'|'params'|'none'}
@@ -959,7 +959,7 @@ function appReducer(state, action) {
         enhancements: [],
         inventory: [],
         pas2Enabled: false,
-        pas2: { name: "", cond: "", effect: "" },
+        pas2: { name: "", cond: "", always: "", effect: "" },
         hp: String(src.hp || ""),
         san: String(src.san || ""),
         speed: src.speed || "",
@@ -1518,7 +1518,7 @@ function appReducer(state, action) {
         resS: effectiveSrc.res_slash || "普通", resP: effectiveSrc.res_pierce || "普通", resB: effectiveSrc.res_blunt || "普通",
         pas: { name: effectiveSrc.passive_name || "", cond: effectiveSrc.passive_cond || "", always: effectiveSrc.passive_always || "", effect: effectiveSrc.passive_effect || "", quick: "" },
         pas2Enabled: !!action.secondaryPassive?.name,
-        pas2: { name: action.secondaryPassive?.name || "", cond: action.secondaryPassive?.cond || "", effect: [action.secondaryPassive?.always, action.secondaryPassive?.effect].filter(Boolean).join("\n") },
+        pas2: { name: action.secondaryPassive?.name || "", cond: action.secondaryPassive?.cond || "", always: action.secondaryPassive?.always || "", effect: action.secondaryPassive?.effect || "" },
         skills: cloneJSON(skills),
         uniqueBuffs: cloneJSON(uniqueBuffs),
         personaSrc: cloneJSON(importedSource),
@@ -1577,7 +1577,7 @@ function appReducer(state, action) {
         resB: effectiveSrc.res_blunt || "普通",
         pas: { name: effectiveSrc.passive_name || "", cond: effectiveSrc.passive_cond || "", always: effectiveSrc.passive_always || "", effect: effectiveSrc.passive_effect || "", quick: "" },
         pas2Enabled: !!action.secondaryPassive?.name,
-        pas2: { name: action.secondaryPassive?.name || "", cond: action.secondaryPassive?.cond || "", effect: [action.secondaryPassive?.always, action.secondaryPassive?.effect].filter(Boolean).join("\n") },
+        pas2: { name: action.secondaryPassive?.name || "", cond: action.secondaryPassive?.cond || "", always: action.secondaryPassive?.always || "", effect: action.secondaryPassive?.effect || "" },
         skills,
         uniqueBuffs,
         defaultStatuses: importedBuild.defaultStatuses,

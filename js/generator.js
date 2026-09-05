@@ -82,17 +82,54 @@ function buildLabeledBlock(header, text) {
   if (rest.length) return header + first + "\\n" + rest.join("\\n");
   return header + first;
 }
+/* CCFOLIA・BCDICEの代入式は四則演算と括弧だけを解釈し、floor()のような関数呼び出しは処理できない。
+   一方でBCDICEの除算「/」は既定で小数点以下を切り捨てるため、floor(a/b) は (a/b) と等価である。
+   DB本文や利用者入力にfloor・切り捨て表記が混ざっていても出力できるよう、
+   関数表記をここで括弧付きの四則演算へ畳み込む。ceilなどの切り上げ関数は等価変換できないため触らない。 */
+const ARITHMETIC_FUNC_RE = /(?:floor|int|trunc|truncate|\u5207\u308A\u6368\u3066|\u5207\u6368)\s*\(/i;
+function normalizeArithmeticExpr(value) {
+  const raw = String(value == null ? "" : value);
+  if (!raw || !ARITHMETIC_FUNC_RE.test(raw)) return raw;
+  let out = raw;
+  for (let guard = 0; guard < 64; guard++) {
+    const head = out.search(ARITHMETIC_FUNC_RE);
+    if (head < 0) break;
+    const open = head + out.slice(head).indexOf("(");
+    let depth = 0;
+    let close = -1;
+    for (let i = open; i < out.length; i++) {
+      if (out[i] === "(") depth++;
+      else if (out[i] === ")") {
+        depth--;
+        if (depth === 0) { close = i; break; }
+      }
+    }
+    // 括弧が閉じていない書きかけの入力は、原文のまま保持して壊さない。
+    if (close < 0) break;
+    out = `${out.slice(0, head)}(${out.slice(open + 1, close)})${out.slice(close + 1)}`;
+  }
+  return out;
+}
+window.LBT_normalizeArithmeticExpr = normalizeArithmeticExpr;
 // d値/d数欄は「変数名」だけでなく CCFOLIA 式も受け付ける。
 // 単純な変数名は従来どおり {変数名} に補うが、{変数名}/10 のように
 // 中括弧を含む式はそのまま通し、{{変数名}} の二重化を防ぐ。
 function normalizeDiceVarExpr(value) {
-  const raw = sanitizeInline(value);
+  const raw = normalizeArithmeticExpr(sanitizeInline(value));
   if (!raw) return "";
   if (/[{}]/.test(raw) || /[+\-*/()]/.test(raw)) return raw;
   return `{${raw}}`;
 }
+/* 自動生成する変数名は、派生スキルや複数ダイスで「S4-2d値」のようにハイフンを含む。
+   素の文字列で渡すと減算式と誤解釈され、ダイス式へ生値が混入してJSONにも登録されない。
+   生成時点で中括弧を付け、変数名一つであることを明示する。 */
+function autoDiceVarName(name) {
+  const raw = sanitizeInline(name);
+  if (!raw) return "";
+  return /^\{.*\}$/.test(raw) ? raw : `{${raw}}`;
+}
 function isDiceVarExpression(value) {
-  const raw = sanitizeInline(value);
+  const raw = normalizeArithmeticExpr(sanitizeInline(value));
   if (!raw) return false;
   // {変数名}だけは従来の変数名入力として扱う。
   // {変数名}/10のような中括弧付き式は、CCFOLIA向けにダイス面から引く。
@@ -107,11 +144,15 @@ function resolveDiceDPlusOp(value, dPlusOp) {
 }
 // JSONへ初期値0の変数を追加できるのは、単純な変数名だけである。
 // 式は既存ステータスを参照するため、式全体をラベルとして追加してはならない。
+// ただし中括弧で囲まれた入力は、記号を含んでいても変数名一つを明示した指定である。
+// 自動生成名の「S4-2d値」「S1-2d数」はハイフンを含むため、
+// 中括弧付きで受け取った場合は式と誤判定せず、そのまま変数名として扱う。
 function diceVarStatusLabel(value) {
-  const raw = sanitizeInline(value);
+  const raw = normalizeArithmeticExpr(sanitizeInline(value));
   if (!raw) return "";
   const wrapped = raw.match(/^\{([^{}]+)\}$/);
-  const label = (wrapped ? wrapped[1] : raw).trim();
+  if (wrapped) return wrapped[1].trim();
+  const label = raw.trim();
   return /^[^{}+\-*/()]+$/.test(label) ? label : "";
 }
 function buildMahiFormula(roll, dval, fix, dPlusVar, dCntVar, dPlusOp) {
@@ -239,20 +280,33 @@ function resolveFormulas(state) {
     }
     out.push({ name: f.name, expr, builtin: true, overridden: typeof ov[f.name] === "string" });
   });
-  /* 固有バフのスケーリング則を解析して MT/DM/DT へ自動注入する（汎用ロジック）。
+  /* 固有バフのスケーリング則を解析して MT/DM へ自動注入する（汎用ロジック）。
      対象は uniqueBuffs（DB由来・手動追加の双方）の各バフについて、
      その desc（説明文）内のスケーリング記述を解析し、バフ名を変数として式へ注入する。
        - 「(このバフの)数値/Nだけダメージ量増加」  → DM += ({バフ名}/N)
        - 「(このバフの)数値/Nだけマッチ威力」      → MT += ({バフ名}/N)
-       - 比較条件（「N以上なら」など）はCCFOLIA・BCDICE非対応のため、自動代入式へ変換しない
-       - 「(このバフの)数値/Nだけ被ダメージ(量)増加」→ DT += ({バフ名}/N)
+       - 「数値がN(以上)ならマッチ威力+M」         → MT += ({バフ名}/N)*M
+       - 「数値がN(以上)ならダメージ量増加+M」     → DM += ({バフ名}/N)*M
+     BCDICEの除算は小数点以下を切り捨てるため、閾値条件も比較演算子を使わず
+     ({バフ名}/N) の商で表現できる。ただし商が2以上になると加算量が過大になるため、
+     バフ上限が2N未満（=商が0か1にしかならない）ときだけ式へ変換する。
+     被ダメージ量のスケーリング（カルマ等）は守備判定であるDTの領域ではないため、
+     代入式へは注入しない。効果本文はパッシブ・固有バフ欄でそのまま参照する。
      desc が空のバフは解析不能のためスキップ（パレットの変数としてのみ供給）。 */
   const _mtAdds = [];
   const _dmAdds = [];
-  const _dtAdds = [];
   const _seenAdd = /* @__PURE__ */ new Set();
   const _pushAdd = (arr, key, frag) => { if (_seenAdd.has(key)) return; _seenAdd.add(key); arr.push(frag); };
-  const _scanBuffDesc = (buffName, desc) => {
+  const _thresholdFragment = (V, threshold, amount, buffMax) => {
+    const n = parseInt(threshold, 10);
+    const m = parseInt(amount, 10);
+    const max = parseInt(buffMax, 10);
+    if (!Number.isFinite(n) || n <= 0 || !Number.isFinite(m) || m <= 0) return "";
+    // 上限不明・上限が2N以上のバフは、商が2以上になり得るため四則演算では等価表現できない。
+    if (!Number.isFinite(max) || max <= 0 || max >= n * 2) return "";
+    return m === 1 ? `(${V}/${n})` : `(${V}/${n})*${m}`;
+  };
+  const _scanBuffDesc = (buffName, desc, buffMax) => {
     if (!buffName || !desc) return;
     const nm = String(buffName).trim();
     const d = String(desc);
@@ -265,23 +319,24 @@ function resolveFormulas(state) {
     // 「(の)数値?/Nだけマッチ威力」
     const reMTdiv = /(?:\u6570\u5024|\u6570)?[/\u00F7](\d{1,2})\u3060\u3051\u30DE\u30C3\u30C1\u5A01\u529B/g;
     while ((m = reMTdiv.exec(d)) !== null) _pushAdd(_mtAdds, "mtdiv:" + nm + "/" + m[1], `(${V}/${m[1]})`);
-    // 「(の)数値?/Nだけ被ダメージ(量)増加」→ DT
-    const reDT = /(?:\u6570\u5024|\u6570)?[/\u00F7](\d{1,2})\u3060\u3051\u88AB\u30C0\u30E1\u30FC\u30B8/g;
-    while ((m = reDT.exec(d)) !== null) _pushAdd(_dtAdds, "dt:" + nm + "/" + m[1], `(${V}/${m[1]})`);
-    // 「数値がN(以上)?ならマッチ威力+M」
+    // 「数値がN(以上)?ならマッチ威力+M」→ 商で表現できるときだけMTへ注入
     const reMTth = /(?:\u6570\u5024|\u6570)\u304C(\d{1,2})(\u4EE5\u4E0A)?(?:\u306A\u3089|\u306A\u308B)[\u3001,]?\u30DE\u30C3\u30C1\u5A01\u529B\+?(\d{1,2})/g;
-    // 閾値比較はCCFOLIA・BCDICEの代入式で扱えないため、自動出力しない。
-    while (reMTth.exec(d) !== null) { /* 効果本文は保持し、式だけは生成しない */ }
-    // 「数値がN(以上)?ならダメージ量増加+M」
+    while ((m = reMTth.exec(d)) !== null) {
+      const frag = _thresholdFragment(V, m[1], m[3], buffMax);
+      if (frag) _pushAdd(_mtAdds, "mtth:" + nm + ">=" + m[1], frag);
+    }
+    // 「数値がN(以上)?ならダメージ量増加+M」→ 商で表現できるときだけDMへ注入
     const reDMth = /(?:\u6570\u5024|\u6570)\u304C(\d{1,2})(\u4EE5\u4E0A)?(?:\u306A\u3089|\u306A\u308B)[\u3001,]?\u30C0\u30E1\u30FC\u30B8\u91CF\u5897\u52A0\+?(\d{1,2})/g;
-    while (reDMth.exec(d) !== null) { /* 効果本文は保持し、式だけは生成しない */ }
+    while ((m = reDMth.exec(d)) !== null) {
+      const frag = _thresholdFragment(V, m[1], m[3], buffMax);
+      if (frag) _pushAdd(_dmAdds, "dmth:" + nm + ">=" + m[1], frag);
+    }
   };
-  (state.uniqueBuffs || []).forEach((b) => _scanBuffDesc(b && b.name, b && b.desc));
-  if (_mtAdds.length || _dmAdds.length || _dtAdds.length) {
+  (state.uniqueBuffs || []).forEach((b) => _scanBuffDesc(b && b.name, b && b.desc, b && b.max));
+  if (_mtAdds.length || _dmAdds.length) {
     out.forEach((o) => {
       if (o.name === "MT") _mtAdds.forEach((a) => { if (!o.expr.includes(a)) o.expr += "+" + a; });
       if (o.name === "DM") _dmAdds.forEach((a) => { if (!o.expr.includes(a)) o.expr += "+" + a; });
-      if (o.name === "DT") _dtAdds.forEach((a) => { if (!o.expr.includes(a)) o.expr += "+" + a; });
     });
   }
   custom.forEach((f) => {
@@ -289,7 +344,8 @@ function resolveFormulas(state) {
     if (i >= 0) out[i] = { name: f.name, expr: f.expr, builtin: false };
     else out.push({ name: f.name, expr: f.expr, builtin: false });
   });
-  return out;
+  // CCFOLIA・BCDICEはfloor等の関数を解釈しないため、最終出力を四則演算だけへ正規化する。
+  return out.map((formula) => ({ ...formula, expr: normalizeArithmeticExpr(formula.expr) }));
 }
 // CCFOLIAのSAN検索をE.G.O本文が占有しないよう、パレット内のE.G.Oブロックだけ表記を分離する。
 // 実データ、編集画面、メモ、CCFOLIAのSANステータスは変更しない。
@@ -315,6 +371,7 @@ function buildPalette(state) {
   const allEffectText = [
     p.pas.always,
     p.pas.effect,
+    p.pas2Enabled ? p.pas2.always || "" : "",
     p.pas2Enabled ? p.pas2.effect : "",
     p.spiritMorale,
     p.spiritConfuse,
@@ -387,6 +444,8 @@ function buildPalette(state) {
     }
     if (p.pas2Enabled && p.pas2.name) {
       const p2 = [`\u4EBA\u683C\u30D1\u30C3\u30B7\u30D6\u3010${p.pas2.name}\u3011`, `\u767A\u52D5\u6761\u4EF6\uFF1A${p.pas2.cond || ""}`];
+      const p2always = buildLabeledBlock("\u5E38\u6642\u52B9\u679C\uFF1A", p.pas2.always);
+      if (p2always) p2.push(p2always);
       const p2eff = buildLabeledBlock("\u52B9\u679C\uFF1A", p.pas2.effect);
       if (p2eff) p2.push(p2eff);
       L.push(p2.join("\\n"));
@@ -457,8 +516,8 @@ function buildPalette(state) {
       const hasPerDicePlus = (sk.dice || []).some((d) => d.dPlus);
       const hasPerDiceCnt = (sk.dice || []).some((d) => d.dCnt);
       const auto = detectSkillDiceVariance(sk);
-      const skDPlusVar = !hasPerDicePlus && auto.dPlus ? sk.dPlusLabel || `S${rn}d値` : null;
-      const skDCntVar = !hasPerDiceCnt && auto.dCnt ? sk.dCntLabel || `S${rn}d数` : null;
+      const skDPlusVar = !hasPerDicePlus && auto.dPlus ? sk.dPlusLabel || autoDiceVarName(`S${rn}d値`) : null;
+      const skDCntVar = !hasPerDiceCnt && auto.dCnt ? sk.dCntLabel || autoDiceVarName(`S${rn}d数`) : null;
       const headParts = [`戦術${rn}：${name}`, `${typ}${sin ? "：" + sin : ""}${aoe ? "　広域：" + aoe : ""}`];
       const effBlk = buildLabeledBlock("効果：", eff);
       if (effBlk) headParts.push(effBlk);
@@ -484,8 +543,8 @@ function buildPalette(state) {
           }
         }
         displayDice.push(showDeff ? `${roll}\uFF1A${showDeff}` : roll);
-	        const dPlusVar = d.dPlus ? d.dPlusLabel || `S${rn}-${did}d\u5024` : !hasPerDicePlus && skDPlusVar ? skDPlusVar : null;
-	        const dCntVar = d.dCnt ? d.dCntLabel || `S${rn}-${did}d\u6570` : !hasPerDiceCnt && skDCntVar ? skDCntVar : null;
+	        const dPlusVar = d.dPlus ? d.dPlusLabel || autoDiceVarName(`S${rn}-${did}d\u5024`) : !hasPerDicePlus && skDPlusVar ? skDPlusVar : null;
+	        const dCntVar = d.dCnt ? d.dCntLabel || autoDiceVarName(`S${rn}-${did}d\u6570`) : !hasPerDiceCnt && skDCntVar ? skDCntVar : null;
 	        const dPlusOp = d.dPlus ? d.dPlusOp : !hasPerDicePlus && skDPlusVar ? sk.dPlusOp : null;
 	        const mahi = buildMahiFormula(roll, dval, "", dPlusVar, dCntVar, dPlusOp);
         if (isDefense) {
@@ -654,7 +713,7 @@ function buildPalette(state) {
       if (KW_CANDIDATES.includes(k)) kwSet.add(lbl);
     });
   }
-  const effectDump = [p.pas.always, p.pas.effect, p.pas2.effect, ...(p.skills || []).map((s) => (s.effect || "") + (s.dice || []).map((d) => d.effect).join(" ")), p.spiritAlways, p.spiritMorale, p.spiritConfuse, ...(p.supports || []).map((s) => s.effect), ...(p.enhancements || []).map((e) => e.effect || "")].join(" ");
+  const effectDump = [p.pas.always, p.pas.effect, p.pas2.always, p.pas2.effect, ...(p.skills || []).map((s) => (s.effect || "") + (s.dice || []).map((d) => d.effect).join(" ")), p.spiritAlways, p.spiritMorale, p.spiritConfuse, ...(p.supports || []).map((s) => s.effect), ...(p.enhancements || []).map((e) => e.effect || "")].join(" ");
   KW_CANDIDATES.forEach((k) => {
     const lbl = KW_LABELS[k] || k;
     if (effectDump.includes(k) || effectDump.includes(lbl)) kwSet.add(lbl);
@@ -756,6 +815,7 @@ function buildMemo(state) {
     if (p.pas.effect) p.pas.effect.split("\n").filter(Boolean).forEach((l, i) => L.push(`\u3000\u3000${i === 0 ? "\u52B9\u679C\uFF1A" : ""}${l.trim()}`));
     if (p.pas2Enabled && p.pas2.name) {
       L.push(`\u3000${p.pas2.name}\uFF08${p.pas2.cond || ""}\uFF09`);
+      if (p.pas2.always) p.pas2.always.split("\n").filter(Boolean).forEach((l, i) => L.push(`\u3000\u3000${i === 0 ? "\u5E38\u6642\uFF1A" : ""}${l.trim()}`));
       if (p.pas2.effect) p.pas2.effect.split("\n").filter(Boolean).forEach((l, i) => L.push(`\u3000\u3000${i === 0 ? "\u52B9\u679C\uFF1A" : ""}${l.trim()}`));
     }
     L.push("");
@@ -848,8 +908,8 @@ function collectSkillDiceVars(state) {
     const auto = detectSkillDiceVariance(sk);
     const hasPerDicePlus = (sk.dice || []).some((d) => d.dPlus);
     const hasPerDiceCnt = (sk.dice || []).some((d) => d.dCnt);
-    const skDPlusVar = !hasPerDicePlus && auto.dPlus ? sk.dPlusLabel || `S${rn}d\u5024` : null;
-    const skDCntVar = !hasPerDiceCnt && auto.dCnt ? sk.dCntLabel || `S${rn}d\u6570` : null;
+    const skDPlusVar = !hasPerDicePlus && auto.dPlus ? sk.dPlusLabel || autoDiceVarName(`S${rn}d\u5024`) : null;
+    const skDCntVar = !hasPerDiceCnt && auto.dCnt ? sk.dCntLabel || autoDiceVarName(`S${rn}d\u6570`) : null;
     const skDPlusLabel = diceVarStatusLabel(skDPlusVar);
     const skDCntLabel = diceVarStatusLabel(skDCntVar);
     if (skDPlusLabel && !seen.has(skDPlusLabel)) { seen.add(skDPlusLabel); out.push({ label: skDPlusLabel, place: sk.dVarPlace || "status" }); }
@@ -857,12 +917,12 @@ function collectSkillDiceVars(state) {
     (sk.dice || []).forEach((d, did0) => {
       const did = did0 + 1;
       if (d.dPlus) {
-        const l = d.dPlusLabel || `S${rn}-${did}d値`;
+        const l = d.dPlusLabel || autoDiceVarName(`S${rn}-${did}d値`);
         const label = diceVarStatusLabel(l);
         if (label && !seen.has(label)) { seen.add(label); out.push({ label, place: sk.dVarPlace || "status" }); }
       }
       if (d.dCnt) {
-        const l = d.dCntLabel || `S${rn}-${did}d数`;
+        const l = d.dCntLabel || autoDiceVarName(`S${rn}-${did}d数`);
         const label = diceVarStatusLabel(l);
         if (label && !seen.has(label)) { seen.add(label); out.push({ label, place: sk.dVarPlace || "status" }); }
       }
@@ -1047,6 +1107,20 @@ function buildCcfoliaJSON(state) {
   collectSkillDiceVars(p).forEach((v) => {
     if (!v.label || v.place !== "params") return;
     addParam(v.label, "");
+  });
+  /* 代入式が参照する変数は、CCFOLIA側にstatusかparamsのどちらかが存在しないと解決できない。
+     組込式のDTは常に{守備威力}を参照するが、この補正は「進むべき守備」を取得したときだけ
+     paramsへ出力していたため、未取得のキャラクターではDTが未定義変数を参照していた。
+     未解決の参照ラベルは、値0のラベルとしてparamsへ補完し、式が必ず評価できる状態にする。 */
+  const outputFormulas = resolveFormulas(p);
+  const formulaNames = new Set(outputFormulas.map((formula) => normalizeLabel(formula.name)));
+  outputFormulas.forEach((formula) => {
+    (String(formula.expr || "").match(/\{[^{}]+\}/g) || []).forEach((token) => {
+      const label = normalizeLabel(token.slice(1, -1));
+      // 式名（MT/DM等）同士の参照と、既にST・ラベルで管理済みの項目は補完しない。
+      if (!label || statusByLabel.has(label) || paramsByLabel.has(label) || formulaNames.has(label)) return;
+      addParam(label, 0);
+    });
   });
   // T18/T19: プレビューの項目別チェック（outputExclude）を JSON の memo/commands へ直接反映する。
   // 「表示＝出力」と混同しないよう、除外された項目は JSON からのみ除く。
@@ -1252,7 +1326,7 @@ function buildShareSheetHTML(state) {
         ${p.pas.always ? `<div class="eff always">\u5E38\u6642\uFF1A${fmt(p.pas.always)}</div>` : ""}
         ${p.pas.effect ? `<div class="eff">${fmt(p.pas.effect)}</div>` : ""}
       </div>
-      ${p.pas2Enabled && p.pas2.name ? `<div class="panel"><div class="pas-h"><b>${esc(p.pas2.name)}</b>${p.pas2.cond ? `<span class="cond">${esc(p.pas2.cond)}</span>` : ""}</div>${p.pas2.effect ? `<div class="eff">${fmt(p.pas2.effect)}</div>` : ""}</div>` : ""}
+      ${p.pas2Enabled && p.pas2.name ? `<div class="panel"><div class="pas-h"><b>${esc(p.pas2.name)}</b>${p.pas2.cond ? `<span class="cond">${esc(p.pas2.cond)}</span>` : ""}</div>${p.pas2.always ? `<div class="eff always">\u5E38\u6642\uFF1A${fmt(p.pas2.always)}</div>` : ""}${p.pas2.effect ? `<div class="eff">${fmt(p.pas2.effect)}</div>` : ""}</div>` : ""}
     </section>` : "";
 	return `<!DOCTYPE html>
 	<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
