@@ -13,14 +13,49 @@ function formatAoe(aoe, aoeCount) {
   return n ? `${a} ${n}\u540D` : a;
 }
 window.formatAoe = formatAoe;
-const TIMING_MARKER = "(?:\u4F7F\u7528\u6642|\u6226\u95D8\u958B\u59CB\u6642|\u30DE\u30C3\u30C1\u958B\u59CB\u6642|\u30DE\u30C3\u30C1\u52DD\u5229\u6642|\u30DE\u30C3\u30C1\u6557\u5317\u6642|\u30DE\u30C3\u30C1\u7D42\u4E86\u6642|\u653B\u6483\u6642|\u653B\u6483\u5F8C|\u88AB\u30C0\u30E1\u30FC\u30B8\u6642|\u6575\u8A0E\u4F10\u6642|\u7684\u4E2D\u6642|\u30AF\u30EA\u30C6\u30A3\u30AB\u30EB\u7684\u4E2D\u6642|\u4E00\u65B9\u653B\u6483\u6642|R\u958B\u59CB\u6642|R\u7D42\u4E86\u6642|\\d+R|R\\d+\u958B\u59CB\u6642|R\\d+\u7D42\u4E86\u6642|\u821E\u53F0\u958B\u59CB\u6642|\u6B7B\u4EA1\u6642|\u518D\u88C5\u586B\u6642|\u5224\u5B9A\u6642|\u56DE\u907F\u6210\u529F\u6642|\u56DE\u907F\u5931\u6557\u6642|\u9632\u5FA1\u6210\u529F\u6642|\u9632\u5FA1\u5931\u6557\u6642|\u30DE\u30C3\u30C1\u6642|\u30B3\u30B9\u30C8|\u30B3\u30B9\u30C8\uFF1A|\u30B3\u30B9\u30C8:)";
+/* 発動タイミング見出しの語彙。
+   正規表現の選択肢は左から順に評価されるため、「攻撃時」を「一方攻撃時」より先に置くと
+   長い語の途中で一致し「一方 / 攻撃時」と誤って分断される（黒獣-卯 S2・夜明事務所代表 S2 等）。
+   語の並び順に依存しないよう、正規表現の組み立て時に必ず長い語から評価させる。 */
+const TIMING_MARKER_WORDS = [
+  "\u4F7F\u7528\u6642", "\u6226\u95D8\u958B\u59CB\u6642", "\u30DE\u30C3\u30C1\u958B\u59CB\u6642",
+  "\u30DE\u30C3\u30C1\u52DD\u5229\u6642", "\u30DE\u30C3\u30C1\u6557\u5317\u6642", "\u30DE\u30C3\u30C1\u7D42\u4E86\u6642",
+  "\u4E00\u65B9\u653B\u6483\u6642", "\u653B\u6483\u6642", "\u653B\u6483\u5F8C", "\u88AB\u30C0\u30E1\u30FC\u30B8\u6642",
+  "\u6575\u8A0E\u4F10\u6642", "\u30AF\u30EA\u30C6\u30A3\u30AB\u30EB\u7684\u4E2D\u6642", "\u7684\u4E2D\u6642",
+  "R\u958B\u59CB\u6642", "R\u7D42\u4E86\u6642", "\\d+R", "R\\d+\u958B\u59CB\u6642", "R\\d+\u7D42\u4E86\u6642",
+  "\u821E\u53F0\u958B\u59CB\u6642", "\u6B7B\u4EA1\u6642", "\u518D\u88C5\u586B\u6642", "\u5224\u5B9A\u6642",
+  "\u56DE\u907F\u6210\u529F\u6642", "\u56DE\u907F\u5931\u6557\u6642", "\u9632\u5FA1\u6210\u529F\u6642", "\u9632\u5FA1\u5931\u6557\u6642",
+  "\u30DE\u30C3\u30C1\u6642", "\u30B3\u30B9\u30C8\uFF1A", "\u30B3\u30B9\u30C8:", "\u30B3\u30B9\u30C8"
+];
+/* PDFから転記した本文には「一方 攻撃時」のように語中へ空白が入る例がある。
+   見出し語の文字間に任意の空白を許容し、データ側の表記揺れに依存せず同じ見出しとして扱う。
+   `\d+R` のような正規表現トークンを含む語は文字分解できないため、そのまま用いる。
+   また長い語を先に評価し、短い語が長い語の内部で先に一致するのを防ぐ。 */
+const TIMING_WORD_HAS_REGEXP_TOKEN = /[\\[\]{}()+*?|^$]/;
+const timingWordPattern = (word) => (
+  TIMING_WORD_HAS_REGEXP_TOKEN.test(word) ? word : [...word].join("\\s{0,3}")
+);
+const TIMING_MARKER = `(?:${[...TIMING_MARKER_WORDS].sort((a, b) => b.length - a.length).map(timingWordPattern).join("|")})`;
+/* 分割位置は文字列を走査して個別に判定するため、語順だけでは
+   「一方|攻撃時」「クリティカル|的中時」のような語中一致を防げない。
+   ある見出し語が別の見出し語の末尾に含まれる場合、その差分（一方・クリティカル）を
+   直前に持つ位置では分割を禁止する。PDF由来の「一方 攻撃時」のような
+   語中の空白も同一の見出しとして扱う。 */
+const TIMING_MARKER_GUARD_PREFIXES = [...new Set(
+  TIMING_MARKER_WORDS.flatMap((shortWord) => TIMING_MARKER_WORDS
+    .filter((longWord) => longWord !== shortWord && longWord.endsWith(shortWord))
+    .map((longWord) => longWord.slice(0, longWord.length - shortWord.length)))
+)];
+const TIMING_MARKER_GUARD = TIMING_MARKER_GUARD_PREFIXES.map((prefix) => `(?<!${prefix}\\s{0,3})`).join("");
+window.LBT_TIMING_MARKER_WORDS = TIMING_MARKER_WORDS;
+window.LBT_TIMING_MARKER_GUARD_PREFIXES = TIMING_MARKER_GUARD_PREFIXES;
 // 影響などのラウンド進行は、`1R：`だけでなく`1R効果`の簡略表記でも独立段落として扱う。
 const ROUND_STAGE_MARKER = "\\d+R(?:[\uFF1A:]|(?=[^\\d\\s]))";
 function splitEffectLines(text) {
   const normalized = normalizeMultiline(text);
   if (!normalized) return [];
   let lines = normalized.split("\n").map((l) => l.trim()).filter(Boolean);
-  const re = new RegExp("(?<!^)(?:(?=" + TIMING_MARKER + "(?:\uFF1A|:))|(?=" + ROUND_STAGE_MARKER + "))", "g");
+  const re = new RegExp("(?<!^)(?:(?=" + TIMING_MARKER_GUARD + TIMING_MARKER + "(?:\uFF1A|:))|(?=" + ROUND_STAGE_MARKER + "))", "g");
   const out = [];
   for (const line of lines) {
     const parts = line.split(re).map((s) => s.trim()).filter(Boolean);
@@ -32,7 +67,7 @@ function splitEffectLinesPlain(text) {
   const normalized = normalizeMultiline(text);
   if (!normalized) return [];
   let lines = normalized.split("\n").map((l) => l.trim()).filter(Boolean);
-  const re = new RegExp("(?<!^)(?:(?=" + TIMING_MARKER + "(?:\uFF1A|:))|(?=" + ROUND_STAGE_MARKER + "))", "g");
+  const re = new RegExp("(?<!^)(?:(?=" + TIMING_MARKER_GUARD + TIMING_MARKER + "(?:\uFF1A|:))|(?=" + ROUND_STAGE_MARKER + "))", "g");
   const out = [];
   // T21: 引用符「」『』の内側は意味的な段落区切りとみなさない。
   // 単なる "-「" や引用内のタイミング語で誤って改行しないよう、
@@ -43,12 +78,14 @@ function splitEffectLinesPlain(text) {
     let depth = 0;
     let i = 0;
     const markerRe = new RegExp("^" + TIMING_MARKER + "(?:\uFF1A|:)");
+    // 直前が「一方」「クリティカル」等なら、長い見出しの途中なので分割しない。
+    const guardRe = new RegExp("(?:" + TIMING_MARKER_GUARD_PREFIXES.join("|") + ")\\s{0,3}$");
     const roundMarkerRe = new RegExp("^" + ROUND_STAGE_MARKER);
     while (i < line.length) {
       const ch = line[i];
       if (ch === "\u300C" || ch === "\u300E") depth++;
       else if (ch === "\u300D" || ch === "\u300F") depth = Math.max(0, depth - 1);
-      if (depth === 0 && buf.length > 0 && (markerRe.test(line.slice(i)) || roundMarkerRe.test(line.slice(i)))) {
+      if (depth === 0 && buf.length > 0 && !guardRe.test(buf) && (markerRe.test(line.slice(i)) || roundMarkerRe.test(line.slice(i)))) {
         parts.push(buf);
         buf = "";
       }
@@ -81,6 +118,15 @@ function buildLabeledBlock(header, text) {
   // 一つのコマンドに保持する。実改行にすると後続段落が別コマンドへ分断される。
   if (rest.length) return header + first + "\\n" + rest.join("\\n");
   return header + first;
+}
+/* 固有バフの説明は、発動タイミングごとに分岐する戦術スキル効果とは違い、
+   バフ自体の常時的な性質を述べた一つの文章である。
+   全段落へ▶︎を付けると箇条書きに見えて読みにくいため、冒頭にだけ▶︎を置き、
+   改行を含む説明は以降の段落を素のまま連結する。 */
+function buildProseBlock(header, text) {
+  const lines = splitEffectLinesPlain(text);
+  if (!lines.length) return "";
+  return `${header}\u25B6\uFE0E${lines.join("\\n")}`;
 }
 /* CCFOLIA・BCDICEの代入式は四則演算と括弧だけを解釈し、floor()のような関数呼び出しは処理できない。
    一方でBCDICEの除算「/」は既定で小数点以下を切り捨てるため、floor(a/b) は (a/b) と等価である。
@@ -216,7 +262,7 @@ const DEF_FMLS = [
   { name: "MT", expr: "{\u30D1\u30EF\u30FC}-{\u865A\u5F31}+{\u5171\u9CF4}+{\u30B9\u30AD\u30EB\u5A01\u529B}+{\u30DE\u30C3\u30C1\u5A01\u529B\u5897\u52A0}-{\u30DE\u30C3\u30C1\u5A01\u529B\u4F4E\u4E0B}", builtin: true },
   { name: "DM", expr: "{\u30D1\u30EF\u30FC}-{\u865A\u5F31}+{\u5171\u9CF4}+{\u30B9\u30AD\u30EB\u5A01\u529B}+{\u30C0\u30E1\u30FC\u30B8\u91CF\u5897\u52A0}-{\u30C0\u30E1\u30FC\u30B8\u91CF\u6E1B\u5C11}", builtin: true },
   { name: "DT", expr: "{\u5171\u9CF4}+{\u5FCD\u8010}-{\u6B66\u88C5\u89E3\u9664}+{\u30B9\u30AD\u30EB\u5A01\u529B}+{\u5B88\u5099\u5A01\u529B}", builtin: true },
-  { name: "QB", expr: "{\u675F\u7E1B}+{\u30AF\u30A4\u30C3\u30AF}", builtin: true }
+  { name: "QB", expr: "{\u30AF\u30A4\u30C3\u30AF}-{\u675F\u7E1B}", builtin: true }
 ];
 const DEFAULT_STATUS_LIST = [
   { label: "HP", initial: 0, max: "hp" },
@@ -368,6 +414,11 @@ function buildPalette(state) {
   const spirit = sanitizeInline(p.spirit);
   const morale = p.moraleLine || String(Math.floor(san * 0.25));
   const L = [];
+  /* 呼吸チェック・挑発判定の有無は、人格が実際にその値を管理するかで決まる。
+     従来はパッシブ・精神・サポート・強化の本文だけを見ており、
+     戦術スキル本文・DBのキーワードタグ・self_status を参照していなかったため、
+     呼吸をスキルで得る人格（人差し指遂行者・黒獣-巳・ピークォド号航海士など）で
+     判定行が生成されなかった。判定の根拠を、値の管理を示す全経路へ揃える。 */
   const allEffectText = [
     p.pas.always,
     p.pas.effect,
@@ -378,9 +429,17 @@ function buildPalette(state) {
     p.spiritAlways,
     ...p.supports.map((s) => s.effect),
     p.deathSupport?.effect || "",
-    ...(p.enhancements || []).map((e) => e.effect)
+    ...(p.enhancements || []).map((e) => e.effect),
+    // 戦術スキルの効果・ダイス効果も、呼吸などの自己管理値を得る主要な経路である。
+    ...(p.skills || []).map((sk) => `${sk.effect || ""} ${(sk.dice || []).map((d) => d.effect || "").join(" ")}`),
+    ...(p.uniqueBuffs || []).map((b) => b.desc || "")
   ].join(" ");
-  const hasVar = (kw) => allEffectText.includes(kw) || (p.uniqueBuffs || []).some((b) => b.name === kw && (b.place || "status") === "status") || (p.customStatuses || []).some((c) => c.label === kw && (c.place || "status") === "status");
+  // DBのキーワードタグとself_statusは、人格がその値を管理することのDB上の明示宣言である。
+  const declaredStatusLabels = new Set([
+    ...(p.personaSrc?.keywords || []),
+    ...(p.personaSrc?.self_status || [])
+  ].map((label) => String(label || "").trim()).filter(Boolean));
+  const hasVar = (kw) => declaredStatusLabels.has(kw) || allEffectText.includes(kw) || (p.uniqueBuffs || []).some((b) => b.name === kw && (b.place || "status") === "status") || (p.customStatuses || []).some((c) => c.label === kw && (c.place || "status") === "status");
   const hasTaunt = hasVar("\u6311\u767A\u5024");
   const hasBreath = hasVar("\u547C\u5438");
   const personaSync = getCurrentPersonaSyncState(p);
@@ -492,7 +551,8 @@ function buildPalette(state) {
       if (!b.name) return;
       const parts = [`\u3010${b.name}\u3011\uFF08${b.type || "\u56FA\u6709\u30D0\u30D5"}\uFF09 \u521D\u671F${b.initial ?? 0}${b.max !== void 0 && b.max !== "" ? ` / \u6700\u5927${b.max}` : ""}`];
       if (b.desc) {
-        const effBlk = buildLabeledBlock("\u52B9\u679C\uFF1A", b.desc);
+        // 固有バフの説明は一つの文章として扱い、冒頭にだけ▶︎を付ける。
+        const effBlk = buildProseBlock("\u52B9\u679C\uFF1A", b.desc);
         if (effBlk) parts.push(effBlk);
       }
       L.push(parts.join("\\n"));
