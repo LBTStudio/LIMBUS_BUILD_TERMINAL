@@ -624,6 +624,25 @@ function migrateSwordContractHeadPassiveState(next) {
   next.personaSrc = normalizeSwordContractHeadPassive(next.personaSrc);
   if (next.pas) next.pas = { ...next.pas, always: SWORD_CONTRACT_HEAD_ALWAYS, effect: SWORD_CONTRACT_HEAD_EFFECT };
 }
+/* 束縛は「[1R] 速度が束縛の数だけ減少（最大10）」（基本ルールPDF 306頁 デバフ表）であり、
+   クイックは「[1R] 速度がクイックの数だけ増加（最大10）」（同 303頁 バフ表）である。
+   旧版の組込式QBは束縛を加算していたため、速度が逆に増える誤った式が保存されている。
+   利用者が独自に書き換えたQBは尊重し、旧既定式と完全一致する場合だけ現行の既定式へ戻す。 */
+const LEGACY_QB_EXPRS = new Set(["{\u675F\u7E1B}+{\u30AF\u30A4\u30C3\u30AF}", "{\u30AF\u30A4\u30C3\u30AF}+{\u675F\u7E1B}"]);
+const CURRENT_QB_EXPR = "{\u30AF\u30A4\u30C3\u30AF}-{\u675F\u7E1B}";
+function migrateLegacyQuickBindFormula(next) {
+  const override = next?.builtinFormulasOverride;
+  if (override && LEGACY_QB_EXPRS.has(override.QB)) {
+    next.builtinFormulasOverride = { ...override, QB: CURRENT_QB_EXPR };
+  }
+  if (Array.isArray(next?.formulas)) {
+    next.formulas = next.formulas.map((formula) => (
+      formula && formula.name === "QB" && LEGACY_QB_EXPRS.has(formula.expr)
+        ? { ...formula, expr: CURRENT_QB_EXPR }
+        : formula
+    ));
+  }
+}
 function normalizeStateShape(raw) {
   const next = { ...raw };
   next.schemaVersion = next.schemaVersion || SAVE_SCHEMA_VERSION;
@@ -692,6 +711,8 @@ function normalizeStateShape(raw) {
   // V65r58: 通常人格の剣契頭目は、DB原文どおり斬撃補正を常時効果、
   // 呼吸付与・戦闘開始時付与を通常効果へ統一する。同期手動編集は変更しない。
   migrateSwordContractHeadPassiveState(next);
+  // V65r62: 旧既定のQB（束縛を加算）を、速度減少という束縛の定義どおりの減算式へ戻す。
+  migrateLegacyQuickBindFormula(next);
   next.egoSlots = normalizeEgoSlots(next.egoSlots);
   return normalizeStatusCollections(next);
 }
