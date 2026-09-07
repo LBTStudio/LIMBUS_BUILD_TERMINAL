@@ -81,6 +81,26 @@ function isDeathSupportPassiveRecord(s) {
 function cloneJSON(obj) {
   return obj == null ? obj : JSON.parse(JSON.stringify(obj));
 }
+
+// 人格切替・明示保存で共有する完全ビルドスナップショット。
+// 切替前にE.G.O・精神・サポート・強化等を人格別rosterへ退避する。
+function createPersonaBuildSnapshot(state) {
+  if (!state?.personaSrc || state.personaMode == null || state.personaNo == null) return null;
+  return {
+    savedAt: Date.now(),
+    hp: state.hp, san: state.san, speed: state.speed, initiative: state.initiative, bullets: state.bullets,
+    resS: state.resS, resP: state.resP, resB: state.resB,
+    pas: cloneJSON(state.pas), pas2Enabled: !!state.pas2Enabled, pas2: cloneJSON(state.pas2),
+    skills: cloneJSON(state.skills || []), uniqueBuffs: cloneJSON(state.uniqueBuffs || []),
+    spirit: state.spirit, spiritMorale: state.spiritMorale, spiritConfuse: state.spiritConfuse, spiritAlways: state.spiritAlways,
+    supports: cloneJSON(state.supports || []), deathSupport: state.deathSupport ? cloneJSON(state.deathSupport) : null,
+    egoSlots: cloneJSON(state.egoSlots || {}), enhancements: cloneJSON(state.enhancements || []), inventory: cloneJSON(state.inventory || []),
+    personaSrc: cloneJSON(state.personaSrc), syncedManual: !!state.syncedManual,
+    formulas: cloneJSON(state.formulas || []), customStatuses: cloneJSON(state.customStatuses || []),
+    defaultStatuses: state.defaultStatuses ? cloneJSON(state.defaultStatuses) : null,
+    selfStatusCandidates: cloneJSON(state.selfStatusCandidates || [])
+  };
+}
 // 派生スキルは根の連番ではなく、親スキルと派生番号を持つ（例：スキル4 → スキル4-2）。
 // rank文字列だけの旧データも読み込み時に親子情報へ正規化する。
 function parseDerivedSkillRank(rank) {
@@ -921,7 +941,15 @@ function appReducer(state, action) {
         place: b.place || "status"
       }));
       const uniqKey = `${mode}:${no}`;
+      // 人格一覧・所持一覧など、どの入口からの切替でも現在人格を先に保存する。
+      // これがないと直接EQUIP_PERSONAされた場合に編集内容が初期化で失われる。
       let personas = state.roster.personas.slice();
+      const currentKey = state.personaMode != null && state.personaNo != null ? `${state.personaMode}:${state.personaNo}` : null;
+      const currentBuild = createPersonaBuildSnapshot(state);
+      if (currentKey && currentBuild) {
+        const currentIndex = personas.findIndex((p) => `${p.mode}:${p.no}` === currentKey);
+        if (currentIndex >= 0) personas[currentIndex] = { ...personas[currentIndex], build: currentBuild };
+      }
       personas = personas.map((p) => ({ ...p, equipped: false }));
       const existing = personas.findIndex((p) => `${p.mode}:${p.no}` === uniqKey);
       const savedBuild = existing >= 0 ? personas[existing].build : null;
@@ -1659,28 +1687,7 @@ function appReducer(state, action) {
     case "SAVE_PERSONA_BUILD": {
       if (!state.personaSrc || state.personaMode == null || state.personaNo == null) return state;
       const uniqKey = `${state.personaMode}:${state.personaNo}`;
-      const build = {
-        savedAt: Date.now(),
-        hp: state.hp, san: state.san, speed: state.speed, initiative: state.initiative, bullets: state.bullets,
-        resS: state.resS, resP: state.resP, resB: state.resB,
-        pas: cloneJSON(state.pas), pas2Enabled: !!state.pas2Enabled, pas2: cloneJSON(state.pas2),
-        skills: cloneJSON(state.skills || []),
-        uniqueBuffs: cloneJSON(state.uniqueBuffs || []),
-        spirit: state.spirit, spiritMorale: state.spiritMorale,
-        spiritConfuse: state.spiritConfuse, spiritAlways: state.spiritAlways,
-        supports: cloneJSON(state.supports || []),
-        deathSupport: state.deathSupport ? cloneJSON(state.deathSupport) : null,
-        egoSlots: cloneJSON(state.egoSlots || {}),
-        enhancements: cloneJSON(state.enhancements || []),
-        inventory: cloneJSON(state.inventory || []),
-        personaSrc: cloneJSON(state.personaSrc),
-        syncedManual: !!state.syncedManual,
-        // V06: 代入式・ステータス関係を人格ビルドに紐付けて人格ごとに管理する
-        formulas: cloneJSON(state.formulas || []),
-        customStatuses: cloneJSON(state.customStatuses || []),
-        defaultStatuses: state.defaultStatuses ? cloneJSON(state.defaultStatuses) : null,
-        selfStatusCandidates: cloneJSON(state.selfStatusCandidates || [])
-      };
+      const build = createPersonaBuildSnapshot(state);
       let personas = state.roster.personas.slice();
       const idx = personas.findIndex((p) => `${p.mode}:${p.no}` === uniqKey);
       if (idx >= 0) {

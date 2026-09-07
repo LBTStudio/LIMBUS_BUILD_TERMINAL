@@ -138,3 +138,29 @@ test("自動代入式のPALETTE・CCFOLIA JSON出力にも非対応演算子を�
   assert.doesNotMatch(palette, /floor|>=|<=|>/);
   assert.doesNotMatch(encoded, /floor|>=|<=|>/);
 });
+
+
+test("指令の加護は計算式の互換化後も固有バフ本体と出力へ残る", () => {
+  const generator = loadGenerator();
+  const state = createState();
+  state.uniqueBuffs = [{
+    name: "指令の加護",
+    type: "バフ",
+    initial: 0,
+    max: 9,
+    desc: "数値/3だけダメージ量増加、数値が9ならマッチ威力+1",
+    place: "status"
+  }];
+
+  const json = generator.buildCcfoliaJSON(state);
+  const palette = generator.buildPalette(state);
+  const status = json.data.status.find((entry) => entry.label === "指令の加護");
+
+  assert.equal(status?.label, "指令の加護");
+  assert.equal(status?.value, 0);
+  assert.equal(status?.max, 9);
+  assert.match(palette, /【指令の加護】/);
+  assert.match(palette, /数値\/3だけダメージ量増加/);
+  assert.match(palette, /指令の加護\+1/);
+  assert.match(palette, /指令の加護-1/);
+});
