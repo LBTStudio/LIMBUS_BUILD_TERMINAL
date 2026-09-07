@@ -29,6 +29,11 @@ test("人格Aから人格Bへ切り替えて戻ってもE.G.O・精神・強化�
   state = reducer(state, { type: "SET_FIELD", field: "supports", value: [{ id: "support-a", name: "サポートA", effect: "" }] });
   state = reducer(state, { type: "EQUIP_PERSONA", mode: "n", no: 2, src: b });
   assert.equal(state.personaNo, 2);
+  // Bは未編集なので、Aのbuildが混入せずDB初期状態のままであること。
+  assert.equal(JSON.stringify(state.egoSlots), JSON.stringify({ ZAYIN: null, TETH: null, HE: null, WAW: null, ALEPH: null }));
+  assert.equal(state.spirit, "");
+  assert.equal(JSON.stringify(state.enhancements), "[]");
+  assert.equal(JSON.stringify(state.supports), "[]");
   state = reducer(state, { type: "EQUIP_PERSONA", mode: "n", no: 1, src: a });
   assert.equal(state.personaNo, 1);
   assert.equal(state.egoSlots.ZAYIN.name, "E.G.O-A");
