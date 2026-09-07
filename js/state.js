@@ -644,6 +644,34 @@ function migrateSwordContractHeadPassiveState(next) {
   next.personaSrc = normalizeSwordContractHeadPassive(next.personaSrc);
   if (next.pas) next.pas = { ...next.pas, always: SWORD_CONTRACT_HEAD_ALWAYS, effect: SWORD_CONTRACT_HEAD_EFFECT };
 }
+/* 束縛は「[1R] 速度が束縛の数だけ減少（最大10）」（基本ルールPDF 306頁 デバフ表）であり、
+   クイックは「[1R] 速度がクイックの数だけ増加（最大10）」（同 303頁 バフ表）である。
+   旧版の組込式QBは束縛を加算していたため、速度が逆に増える誤った式が保存されている。
+   利用者が独自に書き換えたQBは尊重し、旧既定式と完全一致する場合だけ現行の既定式へ戻す。 */
+const LEGACY_QB_EXPRS = new Set(["{\u675F\u7E1B}+{\u30AF\u30A4\u30C3\u30AF}", "{\u30AF\u30A4\u30C3\u30AF}+{\u675F\u7E1B}"]);
+const CURRENT_QB_EXPR = "{\u30AF\u30A4\u30C3\u30AF}-{\u675F\u7E1B}";
+function migrateLegacyQuickBindFormula(next) {
+  const override = next?.builtinFormulasOverride;
+  if (override && LEGACY_QB_EXPRS.has(override.QB)) {
+    next.builtinFormulasOverride = { ...override, QB: CURRENT_QB_EXPR };
+  }
+  if (Array.isArray(next?.formulas)) {
+    next.formulas = next.formulas.map((formula) => (
+      formula && formula.name === "QB" && LEGACY_QB_EXPRS.has(formula.expr)
+        ? { ...formula, expr: CURRENT_QB_EXPR }
+        : formula
+    ));
+  }
+}
+/* 士気低下ラインはSAN最大値の25%（基本ルールPDF 39頁）で決まる派生値である。
+   旧版は初期状態で固定値 "12" を保持しており、これが利用者の入力値と区別できないため、
+   SAN 55 の人格でも 12 のまま出力され自動計算が働かなかった。
+   旧既定値と一致する保存データだけを自動計算（空文字）へ戻し、それ以外の数値は
+   利用者が意図して指定した上書き値として保持する。 */
+const LEGACY_DEFAULT_MORALE_LINE = "12";
+function migrateLegacyMoraleLine(next) {
+  if (String(next?.moraleLine ?? "") === LEGACY_DEFAULT_MORALE_LINE) next.moraleLine = "";
+}
 function normalizeStateShape(raw) {
   const next = { ...raw };
   next.schemaVersion = next.schemaVersion || SAVE_SCHEMA_VERSION;
@@ -712,6 +740,10 @@ function normalizeStateShape(raw) {
   // V65r58: 通常人格の剣契頭目は、DB原文どおり斬撃補正を常時効果、
   // 呼吸付与・戦闘開始時付与を通常効果へ統一する。同期手動編集は変更しない。
   migrateSwordContractHeadPassiveState(next);
+  // V65r62: 旧既定のQB（束縛を加算）を、速度減少という束縛の定義どおりの減算式へ戻す。
+  migrateLegacyQuickBindFormula(next);
+  // V65r63: 旧既定の固定値12を、SAN最大値の25%という定義どおりの自動計算へ戻す。
+  migrateLegacyMoraleLine(next);
   next.egoSlots = normalizeEgoSlots(next.egoSlots);
   return normalizeStatusCollections(next);
 }
@@ -754,7 +786,7 @@ const INIT_STATE = {
   // Passives
   pas: { name: "", cond: "", always: "", effect: "", quick: "" },
   pas2Enabled: false,
-  pas2: { name: "", cond: "", effect: "" },
+  pas2: { name: "", cond: "", always: "", effect: "" },
   // Unique buffs (custom keyword-like statuses on this persona)
   uniqueBuffs: [],
   // {id, name, type, initial, max, desc, place:'status'|'params'|'none'}
@@ -805,7 +837,11 @@ const INIT_STATE = {
   builtinFormulasOverride: {},
   // v50: 組込式の上書き。{ MT: 'expr', DM: 'expr' } または {MT: null} = 非表示
   autoFml: true,
-  moraleLine: "12",
+  /* 士気低下ラインは「SANが最大値の25%以下」（基本ルールPDF 39頁）という定義上の派生値であり、
+     人格ごとのSANから決まる。既定値を固定数値で持つと、SANが異なる人格でも常に同じ値が
+     入力済みとして扱われ、自動計算が働かなくなる。空文字＝自動計算（SAN最大値の25%）とし、
+     利用者が明示的に数値を入れた場合だけその値を使う。 */
+  moraleLine: "",
   // Extra commands (memo)
   extraCmd: "",
   // T18/T19: メモ/パレットの項目別出力除外（セクションタイトル→true で除外）
@@ -938,7 +974,9 @@ function appReducer(state, action) {
         initial: b.initial !== void 0 ? b.initial : 0,
         max: b.max || 20,
         desc: b.desc || "",
-        place: b.place || "status"
+        place: b.place || "status",
+        // noST は「対象に付与する値で、自分は保持しない」というDB側の明示宣言。装備後も保持する。
+        noST: b.noST === true
       }));
       const uniqKey = `${mode}:${no}`;
       // 人格一覧・所持一覧など、どの入口からの切替でも現在人格を先に保存する。
@@ -987,7 +1025,7 @@ function appReducer(state, action) {
         enhancements: [],
         inventory: [],
         pas2Enabled: false,
-        pas2: { name: "", cond: "", effect: "" },
+        pas2: { name: "", cond: "", always: "", effect: "" },
         hp: String(src.hp || ""),
         san: String(src.san || ""),
         speed: src.speed || "",
@@ -1144,7 +1182,7 @@ function appReducer(state, action) {
           next.resB = dbSrc.res_blunt || "\u666E\u901A";
           next.pas = { name: dbSrc.passive_name || "", cond: dbSrc.passive_cond || "", always: dbSrc.passive_always || "", effect: dbSrc.passive_effect || "", quick: "" };
           next.skills = cloneJSON(dbSrc.skills || []).map((sk, i) => ({ id: `sk-${Date.now()}-${i}`, ...sk, dice: (sk.dice || []).map((d) => ({ roll: d.roll || "", d: d.d ?? "", plus: !!d.plus, effect: d.effect || "" })) }));
-          next.uniqueBuffs = cloneJSON(dbSrc.unique_buffs || []).map((b, i) => ({ id: `ub-${Date.now()}-${i}`, name: b.name || "", type: b.type || "\u56FA\u6709\u30D0\u30D5", initial: b.initial ?? 0, max: b.max ?? 0, desc: b.desc || "", place: b.place || "status" }));
+          next.uniqueBuffs = cloneJSON(dbSrc.unique_buffs || []).map((b, i) => ({ id: `ub-${Date.now()}-${i}`, name: b.name || "", type: b.type || "\u56FA\u6709\u30D0\u30D5", initial: b.initial ?? 0, max: b.max ?? 0, desc: b.desc || "", place: b.place || "status", noST: b.noST === true }));
           next.personaSrc = cloneJSON(dbSrc);
           next.spirit = ""; next.spiritMorale = ""; next.spiritConfuse = ""; next.spiritAlways = "";
           next.supports = []; next.deathSupport = null;
@@ -1534,7 +1572,9 @@ function appReducer(state, action) {
         initial: buff.initial !== void 0 ? buff.initial : 0,
         max: buff.max || 20,
         desc: buff.desc || "",
-        place: buff.place || "status"
+        place: buff.place || "status",
+        // noST は「対象に付与する値で、自分は保持しない」というDB側の明示宣言。下書き取り込みでも保持する。
+        noST: buff.noST === true
       }));
       const syncRank = ["0", "00", "000"].includes(action.syncRank) ? action.syncRank : null;
       const importedSource = isAffiliated
@@ -1546,7 +1586,7 @@ function appReducer(state, action) {
         resS: effectiveSrc.res_slash || "普通", resP: effectiveSrc.res_pierce || "普通", resB: effectiveSrc.res_blunt || "普通",
         pas: { name: effectiveSrc.passive_name || "", cond: effectiveSrc.passive_cond || "", always: effectiveSrc.passive_always || "", effect: effectiveSrc.passive_effect || "", quick: "" },
         pas2Enabled: !!action.secondaryPassive?.name,
-        pas2: { name: action.secondaryPassive?.name || "", cond: action.secondaryPassive?.cond || "", effect: [action.secondaryPassive?.always, action.secondaryPassive?.effect].filter(Boolean).join("\n") },
+        pas2: { name: action.secondaryPassive?.name || "", cond: action.secondaryPassive?.cond || "", always: action.secondaryPassive?.always || "", effect: action.secondaryPassive?.effect || "" },
         skills: cloneJSON(skills),
         uniqueBuffs: cloneJSON(uniqueBuffs),
         personaSrc: cloneJSON(importedSource),
@@ -1605,7 +1645,7 @@ function appReducer(state, action) {
         resB: effectiveSrc.res_blunt || "普通",
         pas: { name: effectiveSrc.passive_name || "", cond: effectiveSrc.passive_cond || "", always: effectiveSrc.passive_always || "", effect: effectiveSrc.passive_effect || "", quick: "" },
         pas2Enabled: !!action.secondaryPassive?.name,
-        pas2: { name: action.secondaryPassive?.name || "", cond: action.secondaryPassive?.cond || "", effect: [action.secondaryPassive?.always, action.secondaryPassive?.effect].filter(Boolean).join("\n") },
+        pas2: { name: action.secondaryPassive?.name || "", cond: action.secondaryPassive?.cond || "", always: action.secondaryPassive?.always || "", effect: action.secondaryPassive?.effect || "" },
         skills,
         uniqueBuffs,
         defaultStatuses: importedBuild.defaultStatuses,
@@ -1654,7 +1694,9 @@ function appReducer(state, action) {
           initial: b.initial !== void 0 ? b.initial : 0,
           max: b.max || 20,
           desc: b.desc || "",
-          place: b.place || "status"
+          place: b.place || "status",
+          // 自作人格として保存する際も、対象付与専用の宣言は失わない。
+          noST: b.noST === true
         })),
         keywords: src.keywords || [],
         __custom: true,

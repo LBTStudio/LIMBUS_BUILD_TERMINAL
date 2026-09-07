@@ -13,14 +13,49 @@ function formatAoe(aoe, aoeCount) {
   return n ? `${a} ${n}\u540D` : a;
 }
 window.formatAoe = formatAoe;
-const TIMING_MARKER = "(?:\u4F7F\u7528\u6642|\u6226\u95D8\u958B\u59CB\u6642|\u30DE\u30C3\u30C1\u958B\u59CB\u6642|\u30DE\u30C3\u30C1\u52DD\u5229\u6642|\u30DE\u30C3\u30C1\u6557\u5317\u6642|\u30DE\u30C3\u30C1\u7D42\u4E86\u6642|\u653B\u6483\u6642|\u653B\u6483\u5F8C|\u88AB\u30C0\u30E1\u30FC\u30B8\u6642|\u6575\u8A0E\u4F10\u6642|\u7684\u4E2D\u6642|\u30AF\u30EA\u30C6\u30A3\u30AB\u30EB\u7684\u4E2D\u6642|\u4E00\u65B9\u653B\u6483\u6642|R\u958B\u59CB\u6642|R\u7D42\u4E86\u6642|\\d+R|R\\d+\u958B\u59CB\u6642|R\\d+\u7D42\u4E86\u6642|\u821E\u53F0\u958B\u59CB\u6642|\u6B7B\u4EA1\u6642|\u518D\u88C5\u586B\u6642|\u5224\u5B9A\u6642|\u56DE\u907F\u6210\u529F\u6642|\u56DE\u907F\u5931\u6557\u6642|\u9632\u5FA1\u6210\u529F\u6642|\u9632\u5FA1\u5931\u6557\u6642|\u30DE\u30C3\u30C1\u6642|\u30B3\u30B9\u30C8|\u30B3\u30B9\u30C8\uFF1A|\u30B3\u30B9\u30C8:)";
+/* 発動タイミング見出しの語彙。
+   正規表現の選択肢は左から順に評価されるため、「攻撃時」を「一方攻撃時」より先に置くと
+   長い語の途中で一致し「一方 / 攻撃時」と誤って分断される（黒獣-卯 S2・夜明事務所代表 S2 等）。
+   語の並び順に依存しないよう、正規表現の組み立て時に必ず長い語から評価させる。 */
+const TIMING_MARKER_WORDS = [
+  "\u4F7F\u7528\u6642", "\u6226\u95D8\u958B\u59CB\u6642", "\u30DE\u30C3\u30C1\u958B\u59CB\u6642",
+  "\u30DE\u30C3\u30C1\u52DD\u5229\u6642", "\u30DE\u30C3\u30C1\u6557\u5317\u6642", "\u30DE\u30C3\u30C1\u7D42\u4E86\u6642",
+  "\u4E00\u65B9\u653B\u6483\u6642", "\u653B\u6483\u6642", "\u653B\u6483\u5F8C", "\u88AB\u30C0\u30E1\u30FC\u30B8\u6642",
+  "\u6575\u8A0E\u4F10\u6642", "\u30AF\u30EA\u30C6\u30A3\u30AB\u30EB\u7684\u4E2D\u6642", "\u7684\u4E2D\u6642",
+  "R\u958B\u59CB\u6642", "R\u7D42\u4E86\u6642", "\\d+R", "R\\d+\u958B\u59CB\u6642", "R\\d+\u7D42\u4E86\u6642",
+  "\u821E\u53F0\u958B\u59CB\u6642", "\u6B7B\u4EA1\u6642", "\u518D\u88C5\u586B\u6642", "\u5224\u5B9A\u6642",
+  "\u56DE\u907F\u6210\u529F\u6642", "\u56DE\u907F\u5931\u6557\u6642", "\u9632\u5FA1\u6210\u529F\u6642", "\u9632\u5FA1\u5931\u6557\u6642",
+  "\u30DE\u30C3\u30C1\u6642", "\u30B3\u30B9\u30C8\uFF1A", "\u30B3\u30B9\u30C8:", "\u30B3\u30B9\u30C8"
+];
+/* PDFから転記した本文には「一方 攻撃時」のように語中へ空白が入る例がある。
+   見出し語の文字間に任意の空白を許容し、データ側の表記揺れに依存せず同じ見出しとして扱う。
+   `\d+R` のような正規表現トークンを含む語は文字分解できないため、そのまま用いる。
+   また長い語を先に評価し、短い語が長い語の内部で先に一致するのを防ぐ。 */
+const TIMING_WORD_HAS_REGEXP_TOKEN = /[\\[\]{}()+*?|^$]/;
+const timingWordPattern = (word) => (
+  TIMING_WORD_HAS_REGEXP_TOKEN.test(word) ? word : [...word].join("\\s{0,3}")
+);
+const TIMING_MARKER = `(?:${[...TIMING_MARKER_WORDS].sort((a, b) => b.length - a.length).map(timingWordPattern).join("|")})`;
+/* 分割位置は文字列を走査して個別に判定するため、語順だけでは
+   「一方|攻撃時」「クリティカル|的中時」のような語中一致を防げない。
+   ある見出し語が別の見出し語の末尾に含まれる場合、その差分（一方・クリティカル）を
+   直前に持つ位置では分割を禁止する。PDF由来の「一方 攻撃時」のような
+   語中の空白も同一の見出しとして扱う。 */
+const TIMING_MARKER_GUARD_PREFIXES = [...new Set(
+  TIMING_MARKER_WORDS.flatMap((shortWord) => TIMING_MARKER_WORDS
+    .filter((longWord) => longWord !== shortWord && longWord.endsWith(shortWord))
+    .map((longWord) => longWord.slice(0, longWord.length - shortWord.length)))
+)];
+const TIMING_MARKER_GUARD = TIMING_MARKER_GUARD_PREFIXES.map((prefix) => `(?<!${prefix}\\s{0,3})`).join("");
+window.LBT_TIMING_MARKER_WORDS = TIMING_MARKER_WORDS;
+window.LBT_TIMING_MARKER_GUARD_PREFIXES = TIMING_MARKER_GUARD_PREFIXES;
 // 影響などのラウンド進行は、`1R：`だけでなく`1R効果`の簡略表記でも独立段落として扱う。
 const ROUND_STAGE_MARKER = "\\d+R(?:[\uFF1A:]|(?=[^\\d\\s]))";
 function splitEffectLines(text) {
   const normalized = normalizeMultiline(text);
   if (!normalized) return [];
   let lines = normalized.split("\n").map((l) => l.trim()).filter(Boolean);
-  const re = new RegExp("(?<!^)(?:(?=" + TIMING_MARKER + "(?:\uFF1A|:))|(?=" + ROUND_STAGE_MARKER + "))", "g");
+  const re = new RegExp("(?<!^)(?:(?=" + TIMING_MARKER_GUARD + TIMING_MARKER + "(?:\uFF1A|:))|(?=" + ROUND_STAGE_MARKER + "))", "g");
   const out = [];
   for (const line of lines) {
     const parts = line.split(re).map((s) => s.trim()).filter(Boolean);
@@ -32,7 +67,7 @@ function splitEffectLinesPlain(text) {
   const normalized = normalizeMultiline(text);
   if (!normalized) return [];
   let lines = normalized.split("\n").map((l) => l.trim()).filter(Boolean);
-  const re = new RegExp("(?<!^)(?:(?=" + TIMING_MARKER + "(?:\uFF1A|:))|(?=" + ROUND_STAGE_MARKER + "))", "g");
+  const re = new RegExp("(?<!^)(?:(?=" + TIMING_MARKER_GUARD + TIMING_MARKER + "(?:\uFF1A|:))|(?=" + ROUND_STAGE_MARKER + "))", "g");
   const out = [];
   // T21: 引用符「」『』の内側は意味的な段落区切りとみなさない。
   // 単なる "-「" や引用内のタイミング語で誤って改行しないよう、
@@ -43,12 +78,14 @@ function splitEffectLinesPlain(text) {
     let depth = 0;
     let i = 0;
     const markerRe = new RegExp("^" + TIMING_MARKER + "(?:\uFF1A|:)");
+    // 直前が「一方」「クリティカル」等なら、長い見出しの途中なので分割しない。
+    const guardRe = new RegExp("(?:" + TIMING_MARKER_GUARD_PREFIXES.join("|") + ")\\s{0,3}$");
     const roundMarkerRe = new RegExp("^" + ROUND_STAGE_MARKER);
     while (i < line.length) {
       const ch = line[i];
       if (ch === "\u300C" || ch === "\u300E") depth++;
       else if (ch === "\u300D" || ch === "\u300F") depth = Math.max(0, depth - 1);
-      if (depth === 0 && buf.length > 0 && (markerRe.test(line.slice(i)) || roundMarkerRe.test(line.slice(i)))) {
+      if (depth === 0 && buf.length > 0 && !guardRe.test(buf) && (markerRe.test(line.slice(i)) || roundMarkerRe.test(line.slice(i)))) {
         parts.push(buf);
         buf = "";
       }
@@ -82,17 +119,63 @@ function buildLabeledBlock(header, text) {
   if (rest.length) return header + first + "\\n" + rest.join("\\n");
   return header + first;
 }
+/* 固有バフの説明は、発動タイミングごとに分岐する戦術スキル効果とは違い、
+   バフ自体の常時的な性質を述べた一つの文章である。
+   全段落へ▶︎を付けると箇条書きに見えて読みにくいため、冒頭にだけ▶︎を置き、
+   改行を含む説明は以降の段落を素のまま連結する。 */
+function buildProseBlock(header, text) {
+  const lines = splitEffectLinesPlain(text);
+  if (!lines.length) return "";
+  return `${header}\u25B6\uFE0E${lines.join("\\n")}`;
+}
+/* CCFOLIA・BCDICEの代入式は四則演算と括弧だけを解釈し、floor()のような関数呼び出しは処理できない。
+   一方でBCDICEの除算「/」は既定で小数点以下を切り捨てるため、floor(a/b) は (a/b) と等価である。
+   DB本文や利用者入力にfloor・切り捨て表記が混ざっていても出力できるよう、
+   関数表記をここで括弧付きの四則演算へ畳み込む。ceilなどの切り上げ関数は等価変換できないため触らない。 */
+const ARITHMETIC_FUNC_RE = /(?:floor|int|trunc|truncate|\u5207\u308A\u6368\u3066|\u5207\u6368)\s*\(/i;
+function normalizeArithmeticExpr(value) {
+  const raw = String(value == null ? "" : value);
+  if (!raw || !ARITHMETIC_FUNC_RE.test(raw)) return raw;
+  let out = raw;
+  for (let guard = 0; guard < 64; guard++) {
+    const head = out.search(ARITHMETIC_FUNC_RE);
+    if (head < 0) break;
+    const open = head + out.slice(head).indexOf("(");
+    let depth = 0;
+    let close = -1;
+    for (let i = open; i < out.length; i++) {
+      if (out[i] === "(") depth++;
+      else if (out[i] === ")") {
+        depth--;
+        if (depth === 0) { close = i; break; }
+      }
+    }
+    // 括弧が閉じていない書きかけの入力は、原文のまま保持して壊さない。
+    if (close < 0) break;
+    out = `${out.slice(0, head)}(${out.slice(open + 1, close)})${out.slice(close + 1)}`;
+  }
+  return out;
+}
+window.LBT_normalizeArithmeticExpr = normalizeArithmeticExpr;
 // d値/d数欄は「変数名」だけでなく CCFOLIA 式も受け付ける。
 // 単純な変数名は従来どおり {変数名} に補うが、{変数名}/10 のように
 // 中括弧を含む式はそのまま通し、{{変数名}} の二重化を防ぐ。
 function normalizeDiceVarExpr(value) {
-  const raw = sanitizeInline(value);
+  const raw = normalizeArithmeticExpr(sanitizeInline(value));
   if (!raw) return "";
   if (/[{}]/.test(raw) || /[+\-*/()]/.test(raw)) return raw;
   return `{${raw}}`;
 }
+/* 自動生成する変数名は、派生スキルや複数ダイスで「S4-2d値」のようにハイフンを含む。
+   素の文字列で渡すと減算式と誤解釈され、ダイス式へ生値が混入してJSONにも登録されない。
+   生成時点で中括弧を付け、変数名一つであることを明示する。 */
+function autoDiceVarName(name) {
+  const raw = sanitizeInline(name);
+  if (!raw) return "";
+  return /^\{.*\}$/.test(raw) ? raw : `{${raw}}`;
+}
 function isDiceVarExpression(value) {
-  const raw = sanitizeInline(value);
+  const raw = normalizeArithmeticExpr(sanitizeInline(value));
   if (!raw) return false;
   // {変数名}だけは従来の変数名入力として扱う。
   // {変数名}/10のような中括弧付き式は、CCFOLIA向けにダイス面から引く。
@@ -107,11 +190,15 @@ function resolveDiceDPlusOp(value, dPlusOp) {
 }
 // JSONへ初期値0の変数を追加できるのは、単純な変数名だけである。
 // 式は既存ステータスを参照するため、式全体をラベルとして追加してはならない。
+// ただし中括弧で囲まれた入力は、記号を含んでいても変数名一つを明示した指定である。
+// 自動生成名の「S4-2d値」「S1-2d数」はハイフンを含むため、
+// 中括弧付きで受け取った場合は式と誤判定せず、そのまま変数名として扱う。
 function diceVarStatusLabel(value) {
-  const raw = sanitizeInline(value);
+  const raw = normalizeArithmeticExpr(sanitizeInline(value));
   if (!raw) return "";
   const wrapped = raw.match(/^\{([^{}]+)\}$/);
-  const label = (wrapped ? wrapped[1] : raw).trim();
+  if (wrapped) return wrapped[1].trim();
+  const label = raw.trim();
   return /^[^{}+\-*/()]+$/.test(label) ? label : "";
 }
 function buildMahiFormula(roll, dval, fix, dPlusVar, dCntVar, dPlusOp) {
@@ -175,7 +262,7 @@ const DEF_FMLS = [
   { name: "MT", expr: "{\u30D1\u30EF\u30FC}-{\u865A\u5F31}+{\u5171\u9CF4}+{\u30B9\u30AD\u30EB\u5A01\u529B}+{\u30DE\u30C3\u30C1\u5A01\u529B\u5897\u52A0}-{\u30DE\u30C3\u30C1\u5A01\u529B\u4F4E\u4E0B}", builtin: true },
   { name: "DM", expr: "{\u30D1\u30EF\u30FC}-{\u865A\u5F31}+{\u5171\u9CF4}+{\u30B9\u30AD\u30EB\u5A01\u529B}+{\u30C0\u30E1\u30FC\u30B8\u91CF\u5897\u52A0}-{\u30C0\u30E1\u30FC\u30B8\u91CF\u6E1B\u5C11}", builtin: true },
   { name: "DT", expr: "{\u5171\u9CF4}+{\u5FCD\u8010}-{\u6B66\u88C5\u89E3\u9664}+{\u30B9\u30AD\u30EB\u5A01\u529B}+{\u5B88\u5099\u5A01\u529B}", builtin: true },
-  { name: "QB", expr: "{\u675F\u7E1B}+{\u30AF\u30A4\u30C3\u30AF}", builtin: true }
+  { name: "QB", expr: "{\u30AF\u30A4\u30C3\u30AF}-{\u675F\u7E1B}", builtin: true }
 ];
 const DEFAULT_STATUS_LIST = [
   { label: "HP", initial: 0, max: "hp" },
@@ -239,20 +326,33 @@ function resolveFormulas(state) {
     }
     out.push({ name: f.name, expr, builtin: true, overridden: typeof ov[f.name] === "string" });
   });
-  /* 固有バフのスケーリング則を解析して MT/DM/DT へ自動注入する（汎用ロジック）。
+  /* 固有バフのスケーリング則を解析して MT/DM へ自動注入する（汎用ロジック）。
      対象は uniqueBuffs（DB由来・手動追加の双方）の各バフについて、
      その desc（説明文）内のスケーリング記述を解析し、バフ名を変数として式へ注入する。
        - 「(このバフの)数値/Nだけダメージ量増加」  → DM += ({バフ名}/N)
        - 「(このバフの)数値/Nだけマッチ威力」      → MT += ({バフ名}/N)
-       - 比較条件（「N以上なら」など）はCCFOLIA・BCDICE非対応のため、自動代入式へ変換しない
-       - 「(このバフの)数値/Nだけ被ダメージ(量)増加」→ DT += ({バフ名}/N)
+       - 「数値がN(以上)ならマッチ威力+M」         → MT += ({バフ名}/N)*M
+       - 「数値がN(以上)ならダメージ量増加+M」     → DM += ({バフ名}/N)*M
+     BCDICEの除算は小数点以下を切り捨てるため、閾値条件も比較演算子を使わず
+     ({バフ名}/N) の商で表現できる。ただし商が2以上になると加算量が過大になるため、
+     バフ上限が2N未満（=商が0か1にしかならない）ときだけ式へ変換する。
+     被ダメージ量のスケーリング（カルマ等）は守備判定であるDTの領域ではないため、
+     代入式へは注入しない。効果本文はパッシブ・固有バフ欄でそのまま参照する。
      desc が空のバフは解析不能のためスキップ（パレットの変数としてのみ供給）。 */
   const _mtAdds = [];
   const _dmAdds = [];
-  const _dtAdds = [];
   const _seenAdd = /* @__PURE__ */ new Set();
   const _pushAdd = (arr, key, frag) => { if (_seenAdd.has(key)) return; _seenAdd.add(key); arr.push(frag); };
-  const _scanBuffDesc = (buffName, desc) => {
+  const _thresholdFragment = (V, threshold, amount, buffMax) => {
+    const n = parseInt(threshold, 10);
+    const m = parseInt(amount, 10);
+    const max = parseInt(buffMax, 10);
+    if (!Number.isFinite(n) || n <= 0 || !Number.isFinite(m) || m <= 0) return "";
+    // 上限不明・上限が2N以上のバフは、商が2以上になり得るため四則演算では等価表現できない。
+    if (!Number.isFinite(max) || max <= 0 || max >= n * 2) return "";
+    return m === 1 ? `(${V}/${n})` : `(${V}/${n})*${m}`;
+  };
+  const _scanBuffDesc = (buffName, desc, buffMax) => {
     if (!buffName || !desc) return;
     const nm = String(buffName).trim();
     const d = String(desc);
@@ -265,23 +365,24 @@ function resolveFormulas(state) {
     // 「(の)数値?/Nだけマッチ威力」
     const reMTdiv = /(?:\u6570\u5024|\u6570)?[/\u00F7](\d{1,2})\u3060\u3051\u30DE\u30C3\u30C1\u5A01\u529B/g;
     while ((m = reMTdiv.exec(d)) !== null) _pushAdd(_mtAdds, "mtdiv:" + nm + "/" + m[1], `(${V}/${m[1]})`);
-    // 「(の)数値?/Nだけ被ダメージ(量)増加」→ DT
-    const reDT = /(?:\u6570\u5024|\u6570)?[/\u00F7](\d{1,2})\u3060\u3051\u88AB\u30C0\u30E1\u30FC\u30B8/g;
-    while ((m = reDT.exec(d)) !== null) _pushAdd(_dtAdds, "dt:" + nm + "/" + m[1], `(${V}/${m[1]})`);
-    // 「数値がN(以上)?ならマッチ威力+M」
+    // 「数値がN(以上)?ならマッチ威力+M」→ 商で表現できるときだけMTへ注入
     const reMTth = /(?:\u6570\u5024|\u6570)\u304C(\d{1,2})(\u4EE5\u4E0A)?(?:\u306A\u3089|\u306A\u308B)[\u3001,]?\u30DE\u30C3\u30C1\u5A01\u529B\+?(\d{1,2})/g;
-    // 閾値比較はCCFOLIA・BCDICEの代入式で扱えないため、自動出力しない。
-    while (reMTth.exec(d) !== null) { /* 効果本文は保持し、式だけは生成しない */ }
-    // 「数値がN(以上)?ならダメージ量増加+M」
+    while ((m = reMTth.exec(d)) !== null) {
+      const frag = _thresholdFragment(V, m[1], m[3], buffMax);
+      if (frag) _pushAdd(_mtAdds, "mtth:" + nm + ">=" + m[1], frag);
+    }
+    // 「数値がN(以上)?ならダメージ量増加+M」→ 商で表現できるときだけDMへ注入
     const reDMth = /(?:\u6570\u5024|\u6570)\u304C(\d{1,2})(\u4EE5\u4E0A)?(?:\u306A\u3089|\u306A\u308B)[\u3001,]?\u30C0\u30E1\u30FC\u30B8\u91CF\u5897\u52A0\+?(\d{1,2})/g;
-    while (reDMth.exec(d) !== null) { /* 効果本文は保持し、式だけは生成しない */ }
+    while ((m = reDMth.exec(d)) !== null) {
+      const frag = _thresholdFragment(V, m[1], m[3], buffMax);
+      if (frag) _pushAdd(_dmAdds, "dmth:" + nm + ">=" + m[1], frag);
+    }
   };
-  (state.uniqueBuffs || []).forEach((b) => _scanBuffDesc(b && b.name, b && b.desc));
-  if (_mtAdds.length || _dmAdds.length || _dtAdds.length) {
+  (state.uniqueBuffs || []).forEach((b) => _scanBuffDesc(b && b.name, b && b.desc, b && b.max));
+  if (_mtAdds.length || _dmAdds.length) {
     out.forEach((o) => {
       if (o.name === "MT") _mtAdds.forEach((a) => { if (!o.expr.includes(a)) o.expr += "+" + a; });
       if (o.name === "DM") _dmAdds.forEach((a) => { if (!o.expr.includes(a)) o.expr += "+" + a; });
-      if (o.name === "DT") _dtAdds.forEach((a) => { if (!o.expr.includes(a)) o.expr += "+" + a; });
     });
   }
   custom.forEach((f) => {
@@ -289,12 +390,30 @@ function resolveFormulas(state) {
     if (i >= 0) out[i] = { name: f.name, expr: f.expr, builtin: false };
     else out.push({ name: f.name, expr: f.expr, builtin: false });
   });
-  return out;
+  // CCFOLIA・BCDICEはfloor等の関数を解釈しないため、最終出力を四則演算だけへ正規化する。
+  return out.map((formula) => ({ ...formula, expr: normalizeArithmeticExpr(formula.expr) }));
 }
 // CCFOLIAのSAN検索をE.G.O本文が占有しないよう、パレット内のE.G.Oブロックだけ表記を分離する。
 // 実データ、編集画面、メモ、CCFOLIAのSANステータスは変更しない。
 function redactEgoSanFromPalette(text) {
   return String(text || "").replace(/SAN/gu, "精神力");
+}
+/* 「指令対象」「仕返し対象」「獲物の印」などは、自分が保持する値ではなく敵へ付与する目印である。
+   自分のシートのステータスやラベルに置くと、卓上で自分の値として増減できてしまい誤操作を招く。
+   DBは noST:true でこれを明示しているため、その宣言に従って自分の数値管理からは除外し、
+   固有バフの説明（パレット・MEMO・共有HTML）には従来どおり残して参照できるようにする。 */
+function isForeignTargetBuff(buff) {
+  return !!buff && buff.noST === true;
+}
+/* 士気低下ラインは「SANが最大値の25%以下」（基本ルールPDF 39頁）で決まる派生値である。
+   基準となるSANは強化によるSAN上昇を含めた最大値なので、算出根拠を一箇所へ集約し、
+   パレット・MEMO・JSONのどこでも同じ値になるようにする。
+   moraleLine に数値が入力されている場合だけ、その明示指定を優先する。 */
+function computeMoraleLine(state, sanMax) {
+  const manual = String(state?.moraleLine ?? "").trim();
+  if (manual !== "") return manual;
+  const san = Number.isFinite(sanMax) ? sanMax : 0;
+  return String(Math.floor(san * 0.25));
 }
 // 「捨てた枚数」は、能動的にスキルを捨てる人格だけが使う戦術選択用の変数。
 // 固有名詞や「捨てられたなら」といった受動効果は誤検出しない。
@@ -310,20 +429,34 @@ function buildPalette(state) {
   const san = sanBase + computeEnhancementBonuses(p).san;
   const speed = sanitizeInline(p.speed) || "2d4";
   const spirit = sanitizeInline(p.spirit);
-  const morale = p.moraleLine || String(Math.floor(san * 0.25));
+  const morale = computeMoraleLine(p, san);
   const L = [];
+  /* 呼吸チェック・挑発判定の有無は、人格が実際にその値を管理するかで決まる。
+     従来はパッシブ・精神・サポート・強化の本文だけを見ており、
+     戦術スキル本文・DBのキーワードタグ・self_status を参照していなかったため、
+     呼吸をスキルで得る人格（人差し指遂行者・黒獣-巳・ピークォド号航海士など）で
+     判定行が生成されなかった。判定の根拠を、値の管理を示す全経路へ揃える。 */
   const allEffectText = [
     p.pas.always,
     p.pas.effect,
+    p.pas2Enabled ? p.pas2.always || "" : "",
     p.pas2Enabled ? p.pas2.effect : "",
     p.spiritMorale,
     p.spiritConfuse,
     p.spiritAlways,
     ...p.supports.map((s) => s.effect),
     p.deathSupport?.effect || "",
-    ...(p.enhancements || []).map((e) => e.effect)
+    ...(p.enhancements || []).map((e) => e.effect),
+    // 戦術スキルの効果・ダイス効果も、呼吸などの自己管理値を得る主要な経路である。
+    ...(p.skills || []).map((sk) => `${sk.effect || ""} ${(sk.dice || []).map((d) => d.effect || "").join(" ")}`),
+    ...(p.uniqueBuffs || []).map((b) => b.desc || "")
   ].join(" ");
-  const hasVar = (kw) => allEffectText.includes(kw) || (p.uniqueBuffs || []).some((b) => b.name === kw && (b.place || "status") === "status") || (p.customStatuses || []).some((c) => c.label === kw && (c.place || "status") === "status");
+  // DBのキーワードタグとself_statusは、人格がその値を管理することのDB上の明示宣言である。
+  const declaredStatusLabels = new Set([
+    ...(p.personaSrc?.keywords || []),
+    ...(p.personaSrc?.self_status || [])
+  ].map((label) => String(label || "").trim()).filter(Boolean));
+  const hasVar = (kw) => declaredStatusLabels.has(kw) || allEffectText.includes(kw) || (p.uniqueBuffs || []).some((b) => b.name === kw && (b.place || "status") === "status") || (p.customStatuses || []).some((c) => c.label === kw && (c.place || "status") === "status");
   const hasTaunt = hasVar("\u6311\u767A\u5024");
   const hasBreath = hasVar("\u547C\u5438");
   const personaSync = getCurrentPersonaSyncState(p);
@@ -347,6 +480,10 @@ function buildPalette(state) {
   }
   if (hasBreath) L.push(`1d100<={\u547C\u5438}*5 \u547C\u5438\u30C1\u30A7\u30C3\u30AF\uFF08\u51FA\u76EE\u2264\u547C\u5438\xD75\u3067\u6210\u529F\uFF09`);
   if (hasTaunt) L.push(`1d100<={\u6311\u767A\u5024}*5 \u6311\u767A\u5224\u5B9A`);
+  /* 士気低下は「SANが最大値の25%以下」（基本ルールPDF 39頁）で判定する常用の閾値である。
+     JSONのラベルには出力していたが、実際に卓で参照するパレットとMEMOには出ていなかった。
+     現在SANと閾値を突き合わせる行を、他の判定行と同じ場所へ出力する。 */
+  L.push(`\u58EB\u6C17\u4F4E\u4E0B\u30E9\u30A4\u30F3\uFF1A${morale}\uFF08SAN\u304C${morale}\u4EE5\u4E0B\u3067\u58EB\u6C17\u4F4E\u4E0B\uFF09`);
   L.push("");
   if (spirit) {
     L.push("\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC");
@@ -387,6 +524,8 @@ function buildPalette(state) {
     }
     if (p.pas2Enabled && p.pas2.name) {
       const p2 = [`\u4EBA\u683C\u30D1\u30C3\u30B7\u30D6\u3010${p.pas2.name}\u3011`, `\u767A\u52D5\u6761\u4EF6\uFF1A${p.pas2.cond || ""}`];
+      const p2always = buildLabeledBlock("\u5E38\u6642\u52B9\u679C\uFF1A", p.pas2.always);
+      if (p2always) p2.push(p2always);
       const p2eff = buildLabeledBlock("\u52B9\u679C\uFF1A", p.pas2.effect);
       if (p2eff) p2.push(p2eff);
       L.push(p2.join("\\n"));
@@ -431,14 +570,21 @@ function buildPalette(state) {
     L.push("### \u25A0 \u56FA\u6709\u30D0\u30D5\u30FB\u30B9\u30C6\u30FC\u30BF\u30B9");
     p.uniqueBuffs.forEach((b) => {
       if (!b.name) return;
-      const parts = [`\u3010${b.name}\u3011\uFF08${b.type || "\u56FA\u6709\u30D0\u30D5"}\uFF09 \u521D\u671F${b.initial ?? 0}${b.max !== void 0 && b.max !== "" ? ` / \u6700\u5927${b.max}` : ""}`];
+      /* 対象へ付与する目印は自分のシートに数値を持たないため、増減コマンドを出すと
+         存在しないSTを操作することになる。説明は残し、付与先が対象であることを明記する。 */
+      const foreignTarget = isForeignTargetBuff(b);
+      const head = `\u3010${b.name}\u3011\uFF08${b.type || "\u56FA\u6709\u30D0\u30D5"}\uFF09 ${foreignTarget ? `\u5BFE\u8C61\u306B\u4ED8\u4E0E${b.max !== void 0 && b.max !== "" ? ` / \u6700\u5927${b.max}` : ""}` : `\u521D\u671F${b.initial ?? 0}${b.max !== void 0 && b.max !== "" ? ` / \u6700\u5927${b.max}` : ""}`}`;
+      const parts = [head];
       if (b.desc) {
-        const effBlk = buildLabeledBlock("\u52B9\u679C\uFF1A", b.desc);
+        // 固有バフの説明は一つの文章として扱い、冒頭にだけ▶︎を付ける。
+        const effBlk = buildProseBlock("\u52B9\u679C\uFF1A", b.desc);
         if (effBlk) parts.push(effBlk);
       }
       L.push(parts.join("\\n"));
-      L.push(`:${b.name}+1`);
-      L.push(`:${b.name}-1`);
+      if (!foreignTarget) {
+        L.push(`:${b.name}+1`);
+        L.push(`:${b.name}-1`);
+      }
     });
     L.push("");
   }
@@ -457,8 +603,8 @@ function buildPalette(state) {
       const hasPerDicePlus = (sk.dice || []).some((d) => d.dPlus);
       const hasPerDiceCnt = (sk.dice || []).some((d) => d.dCnt);
       const auto = detectSkillDiceVariance(sk);
-      const skDPlusVar = !hasPerDicePlus && auto.dPlus ? sk.dPlusLabel || `S${rn}d値` : null;
-      const skDCntVar = !hasPerDiceCnt && auto.dCnt ? sk.dCntLabel || `S${rn}d数` : null;
+      const skDPlusVar = !hasPerDicePlus && auto.dPlus ? sk.dPlusLabel || autoDiceVarName(`S${rn}d値`) : null;
+      const skDCntVar = !hasPerDiceCnt && auto.dCnt ? sk.dCntLabel || autoDiceVarName(`S${rn}d数`) : null;
       const headParts = [`戦術${rn}：${name}`, `${typ}${sin ? "：" + sin : ""}${aoe ? "　広域：" + aoe : ""}`];
       const effBlk = buildLabeledBlock("効果：", eff);
       if (effBlk) headParts.push(effBlk);
@@ -484,8 +630,8 @@ function buildPalette(state) {
           }
         }
         displayDice.push(showDeff ? `${roll}\uFF1A${showDeff}` : roll);
-	        const dPlusVar = d.dPlus ? d.dPlusLabel || `S${rn}-${did}d\u5024` : !hasPerDicePlus && skDPlusVar ? skDPlusVar : null;
-	        const dCntVar = d.dCnt ? d.dCntLabel || `S${rn}-${did}d\u6570` : !hasPerDiceCnt && skDCntVar ? skDCntVar : null;
+	        const dPlusVar = d.dPlus ? d.dPlusLabel || autoDiceVarName(`S${rn}-${did}d\u5024`) : !hasPerDicePlus && skDPlusVar ? skDPlusVar : null;
+	        const dCntVar = d.dCnt ? d.dCntLabel || autoDiceVarName(`S${rn}-${did}d\u6570`) : !hasPerDiceCnt && skDCntVar ? skDCntVar : null;
 	        const dPlusOp = d.dPlus ? d.dPlusOp : !hasPerDicePlus && skDPlusVar ? sk.dPlusOp : null;
 	        const mahi = buildMahiFormula(roll, dval, "", dPlusVar, dCntVar, dPlusOp);
         if (isDefense) {
@@ -642,7 +788,8 @@ function buildPalette(state) {
   const kwSet = /* @__PURE__ */ new Set();
   (p.uniqueBuffs || []).forEach((b) => {
     const n = (b.name || "").trim();
-    if (n && (b.place || "status") === "status") kwSet.add(n);
+    // 対象へ付与する目印は自分のSTに存在しないため、増減コマンドの対象にしない。
+    if (n && (b.place || "status") === "status" && !isForeignTargetBuff(b)) kwSet.add(n);
   });
   (p.customStatuses || []).forEach((c) => {
     const n = (c.label || "").trim();
@@ -654,10 +801,15 @@ function buildPalette(state) {
       if (KW_CANDIDATES.includes(k)) kwSet.add(lbl);
     });
   }
-  const effectDump = [p.pas.always, p.pas.effect, p.pas2.effect, ...(p.skills || []).map((s) => (s.effect || "") + (s.dice || []).map((d) => d.effect).join(" ")), p.spiritAlways, p.spiritMorale, p.spiritConfuse, ...(p.supports || []).map((s) => s.effect), ...(p.enhancements || []).map((e) => e.effect || "")].join(" ");
+  const effectDump = [p.pas.always, p.pas.effect, p.pas2.always, p.pas2.effect, ...(p.skills || []).map((s) => (s.effect || "") + (s.dice || []).map((d) => d.effect).join(" ")), p.spiritAlways, p.spiritMorale, p.spiritConfuse, ...(p.supports || []).map((s) => s.effect), ...(p.enhancements || []).map((e) => e.effect || "")].join(" ");
   KW_CANDIDATES.forEach((k) => {
     const lbl = KW_LABELS[k] || k;
     if (effectDump.includes(k) || effectDump.includes(lbl)) kwSet.add(lbl);
+  });
+  /* キーワードタグや本文一致で拾い直した名称にも、対象付与専用の値が混ざり得る。
+     自分のSTに存在しない値の増減コマンドは常に無効なので、最後に一括で取り除く。 */
+  (p.uniqueBuffs || []).forEach((b) => {
+    if (isForeignTargetBuff(b)) kwSet.delete((b.name || "").trim());
   });
   const outputKeywordOrder = new Map(KW_CANDIDATES.map((keyword, index) => [KW_LABELS[keyword] || keyword, index]));
   const orderedKeywordLabels = [...kwSet].sort((a, b) => {
@@ -741,6 +893,9 @@ function buildMemo(state) {
   const _hpV = p.hp === "" || p.hp == null ? "?" : String((parseInt(p.hp, 10) || 0) + _eb.hp);
   const _sanV = p.san === "" || p.san == null ? "?" : String((parseInt(p.san, 10) || 0) + _eb.san);
   L.push(`HP\uFF1A${_hpV}   SAN\uFF1A${_sanV}   \u901F\u5EA6\uFF1A${p.speed || "?"}${p.bullets && p.bullets !== "\xD7" ? `   \u5F3E\u4E38\uFF1A${p.bullets}` : ""}`);
+  /* 士気低下ラインはSAN最大値の25%（基本ルールPDF 39頁）から決まる常用の閾値なので、
+     参照元のSANと同じ場所で確認できるようにMEMOへも出力する。 */
+  if (_sanV !== "?") L.push(`\u58EB\u6C17\u4F4E\u4E0B\u30E9\u30A4\u30F3\uFF1A${computeMoraleLine(p, parseInt(_sanV, 10))}`);
   L.push(`\u65AC\u6483\uFF1A${p.resS}   \u8CAB\u901A\uFF1A${p.resP}   \u6253\u6483\uFF1A${p.resB}`);
   if (p.spirit) {
     L.push(`\u7CBE\u795E\uFF1A${p.spirit}`);
@@ -756,6 +911,7 @@ function buildMemo(state) {
     if (p.pas.effect) p.pas.effect.split("\n").filter(Boolean).forEach((l, i) => L.push(`\u3000\u3000${i === 0 ? "\u52B9\u679C\uFF1A" : ""}${l.trim()}`));
     if (p.pas2Enabled && p.pas2.name) {
       L.push(`\u3000${p.pas2.name}\uFF08${p.pas2.cond || ""}\uFF09`);
+      if (p.pas2.always) p.pas2.always.split("\n").filter(Boolean).forEach((l, i) => L.push(`\u3000\u3000${i === 0 ? "\u5E38\u6642\uFF1A" : ""}${l.trim()}`));
       if (p.pas2.effect) p.pas2.effect.split("\n").filter(Boolean).forEach((l, i) => L.push(`\u3000\u3000${i === 0 ? "\u52B9\u679C\uFF1A" : ""}${l.trim()}`));
     }
     L.push("");
@@ -779,7 +935,11 @@ function buildMemo(state) {
   if ((p.uniqueBuffs || []).length) {
     L.push("\u25A0 \u56FA\u6709\u30D0\u30D5\u30FB\u30B9\u30C6\u30FC\u30BF\u30B9");
     p.uniqueBuffs.forEach((b) => {
-      L.push(`\u3000\u30FB${b.name}\uFF08${b.type || "\u56FA\u6709\u30D0\u30D5"}\u3001\u521D\u671F${b.initial ?? 0}${b.max !== void 0 && b.max !== "" ? `\u3001\u6700\u5927${b.max}` : ""}\uFF09${b.desc ? `\uFF1A${b.desc}` : ""}`);
+      // 対象へ付与する目印は自分の初期値を持たないため、付与先が対象であることを示す。
+      const meta = isForeignTargetBuff(b)
+        ? `${b.type || "\u56FA\u6709\u30D0\u30D5"}\u3001\u5BFE\u8C61\u306B\u4ED8\u4E0E${b.max !== void 0 && b.max !== "" ? `\u3001\u6700\u5927${b.max}` : ""}`
+        : `${b.type || "\u56FA\u6709\u30D0\u30D5"}\u3001\u521D\u671F${b.initial ?? 0}${b.max !== void 0 && b.max !== "" ? `\u3001\u6700\u5927${b.max}` : ""}`;
+      L.push(`\u3000\u30FB${b.name}\uFF08${meta}\uFF09${b.desc ? `\uFF1A${b.desc}` : ""}`);
     });
     L.push("");
   }
@@ -848,8 +1008,8 @@ function collectSkillDiceVars(state) {
     const auto = detectSkillDiceVariance(sk);
     const hasPerDicePlus = (sk.dice || []).some((d) => d.dPlus);
     const hasPerDiceCnt = (sk.dice || []).some((d) => d.dCnt);
-    const skDPlusVar = !hasPerDicePlus && auto.dPlus ? sk.dPlusLabel || `S${rn}d\u5024` : null;
-    const skDCntVar = !hasPerDiceCnt && auto.dCnt ? sk.dCntLabel || `S${rn}d\u6570` : null;
+    const skDPlusVar = !hasPerDicePlus && auto.dPlus ? sk.dPlusLabel || autoDiceVarName(`S${rn}d\u5024`) : null;
+    const skDCntVar = !hasPerDiceCnt && auto.dCnt ? sk.dCntLabel || autoDiceVarName(`S${rn}d\u6570`) : null;
     const skDPlusLabel = diceVarStatusLabel(skDPlusVar);
     const skDCntLabel = diceVarStatusLabel(skDCntVar);
     if (skDPlusLabel && !seen.has(skDPlusLabel)) { seen.add(skDPlusLabel); out.push({ label: skDPlusLabel, place: sk.dVarPlace || "status" }); }
@@ -857,12 +1017,12 @@ function collectSkillDiceVars(state) {
     (sk.dice || []).forEach((d, did0) => {
       const did = did0 + 1;
       if (d.dPlus) {
-        const l = d.dPlusLabel || `S${rn}-${did}d値`;
+        const l = d.dPlusLabel || autoDiceVarName(`S${rn}-${did}d値`);
         const label = diceVarStatusLabel(l);
         if (label && !seen.has(label)) { seen.add(label); out.push({ label, place: sk.dVarPlace || "status" }); }
       }
       if (d.dCnt) {
-        const l = d.dCntLabel || `S${rn}-${did}d数`;
+        const l = d.dCntLabel || autoDiceVarName(`S${rn}-${did}d数`);
         const label = diceVarStatusLabel(l);
         if (label && !seen.has(label)) { seen.add(label); out.push({ label, place: sk.dVarPlace || "status" }); }
       }
@@ -917,7 +1077,7 @@ function buildCcfoliaJSON(state) {
   const _enhBonus = computeEnhancementBonuses(p);
   const hp = (p.hp === "" || p.hp == null ? 100 : parseInt(p.hp, 10)) + _enhBonus.hp;
   const san = (p.san === "" || p.san == null ? 50 : parseInt(p.san, 10)) + _enhBonus.san;
-  const morale = p.moraleLine || String(Math.floor(san * 0.25));
+  const morale = computeMoraleLine(p, san);
   const { atkModLabel, hasVigor, hasDefMod } = detectMTMods(p);
   const normalizeLabel = (label) => window.LBT_normalizeStatusLabel ? window.LBT_normalizeStatusLabel(label) : String(label || "").trim();
   // 設定画面とJSON出力は必ず同じ根拠集合を使う。バリアだけの特例は持たない。
@@ -963,6 +1123,8 @@ function buildCcfoliaJSON(state) {
     const _ubMax = parseInt(b.max, 10);
     const _ubHasNumeric = (!isNaN(_ubMax) && _ubMax > 0) || /(?:\u6570\u5024|\u6570)(?:[/\u00F7]|\u304C\d|\u3092\d*\u6D88\u8CBB)/.test(b.desc || "");
     if (!label || (b.place || "status") !== "status") return;
+    // 対象へ付与する目印は自分の管理値ではないため、STへ登録しない。
+    if (isForeignTargetBuff(b)) return;
     if (b.type === "中立バフ" && !_ubHasNumeric) return;
     const canonical = statusByLabel.get(label);
     // 固有値は同名デフォルト項目へ統合し、JSON側で二重登録しない。
@@ -1035,6 +1197,8 @@ function buildCcfoliaJSON(state) {
   (p.uniqueBuffs || []).forEach((b) => {
     const label = normalizeLabel(b.name);
     if (!label || (b.place || "status") !== "params") return;
+    // 対象へ付与する目印は自分の参照値ではないため、ラベルにも出さない。
+    if (isForeignTargetBuff(b)) return;
     // 人格固有の補正ラベルも、DBで定義した初期値をparamsへ引き継ぐ。
     // これにより「斬撃補正: 2」のような常時補正をstatusへ誤配置せず参照できる。
     addParam(label, b.initial);
@@ -1047,6 +1211,20 @@ function buildCcfoliaJSON(state) {
   collectSkillDiceVars(p).forEach((v) => {
     if (!v.label || v.place !== "params") return;
     addParam(v.label, "");
+  });
+  /* 代入式が参照する変数は、CCFOLIA側にstatusかparamsのどちらかが存在しないと解決できない。
+     組込式のDTは常に{守備威力}を参照するが、この補正は「進むべき守備」を取得したときだけ
+     paramsへ出力していたため、未取得のキャラクターではDTが未定義変数を参照していた。
+     未解決の参照ラベルは、値0のラベルとしてparamsへ補完し、式が必ず評価できる状態にする。 */
+  const outputFormulas = resolveFormulas(p);
+  const formulaNames = new Set(outputFormulas.map((formula) => normalizeLabel(formula.name)));
+  outputFormulas.forEach((formula) => {
+    (String(formula.expr || "").match(/\{[^{}]+\}/g) || []).forEach((token) => {
+      const label = normalizeLabel(token.slice(1, -1));
+      // 式名（MT/DM等）同士の参照と、既にST・ラベルで管理済みの項目は補完しない。
+      if (!label || statusByLabel.has(label) || paramsByLabel.has(label) || formulaNames.has(label)) return;
+      addParam(label, 0);
+    });
   });
   // T18/T19: プレビューの項目別チェック（outputExclude）を JSON の memo/commands へ直接反映する。
   // 「表示＝出力」と混同しないよう、除外された項目は JSON からのみ除く。
@@ -1252,7 +1430,7 @@ function buildShareSheetHTML(state) {
         ${p.pas.always ? `<div class="eff always">\u5E38\u6642\uFF1A${fmt(p.pas.always)}</div>` : ""}
         ${p.pas.effect ? `<div class="eff">${fmt(p.pas.effect)}</div>` : ""}
       </div>
-      ${p.pas2Enabled && p.pas2.name ? `<div class="panel"><div class="pas-h"><b>${esc(p.pas2.name)}</b>${p.pas2.cond ? `<span class="cond">${esc(p.pas2.cond)}</span>` : ""}</div>${p.pas2.effect ? `<div class="eff">${fmt(p.pas2.effect)}</div>` : ""}</div>` : ""}
+      ${p.pas2Enabled && p.pas2.name ? `<div class="panel"><div class="pas-h"><b>${esc(p.pas2.name)}</b>${p.pas2.cond ? `<span class="cond">${esc(p.pas2.cond)}</span>` : ""}</div>${p.pas2.always ? `<div class="eff always">\u5E38\u6642\uFF1A${fmt(p.pas2.always)}</div>` : ""}${p.pas2.effect ? `<div class="eff">${fmt(p.pas2.effect)}</div>` : ""}</div>` : ""}
     </section>` : "";
 	return `<!DOCTYPE html>
 	<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -1493,6 +1671,7 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
     <div class="stat"><div class="lbl">SAN</div><div class="val">${esc(shareSan)}</div></div>
     <div class="stat"><div class="lbl">\u901F\u5EA6</div><div class="val">${esc(p.speed || "\u2014")}</div></div>
     <div class="stat"><div class="lbl">\u5F3E\u4E38</div><div class="val">${esc(p.bullets || "\xD7")}</div></div>
+    ${shareSan === "\u2014" ? "" : `<div class="stat"><div class="lbl">\\u58EB\\u6C17\\u4F4E\\u4E0B</div><div class="val">${esc(computeMoraleLine(p, parseInt(shareSan, 10)))}</div></div>`}
   </div>
   <div class="res-title">\u8010\u6027 / RESISTANCE</div>
   <div class="res-row">
@@ -1793,6 +1972,7 @@ window.LBT_gen = {
   downloadShareSheet,
   resolveFormulas,
   detectMTMods,
+  computeMoraleLine,
   getActiveEnhancements,
   DEFAULT_STATUS_LIST,
   DEF_FMLS

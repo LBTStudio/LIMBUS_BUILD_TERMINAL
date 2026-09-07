@@ -109,7 +109,8 @@ test("固有バフ由来の自動代入式は四則演算だけで出力し、�
   const state = createState();
   state.uniqueBuffs = [{
     name: "指令の加護",
-    desc: "数値/3だけダメージ量増加。数値が3以上ならマッチ威力+2"
+    max: 9,
+    desc: "数値/3だけダメージ量増加。数値が9ならマッチ威力+1"
   }];
 
   const formulas = generator.resolveFormulas(state);
@@ -118,7 +119,68 @@ test("固有バフ由来の自動代入式は四則演算だけで出力し、�
 
   assert.match(dm.expr, /\(\{指令の加護\}\/3\)/);
   assert.doesNotMatch(dm.expr, /floor|>=|<=|>|</);
-  assert.doesNotMatch(mt.expr, /指令の加護|floor|>=|<=|>|</);
+  // 閾値条件は比較演算子ではなく、切り捨て除算の商（0か1）で表現する。
+  assert.match(mt.expr, /\(\{指令の加護\}\/9\)/);
+  assert.doesNotMatch(mt.expr, /floor|>=|<=|>|</);
+});
+
+
+test("上限が閾値の2倍以上ある固有バフは、商が過大になるため閾値条件を式へ変換しない", () => {
+  const generator = loadGenerator();
+  const state = createState();
+  state.uniqueBuffs = [{ name: "呼吸加護", max: 20, desc: "数値が3以上ならマッチ威力+1" }];
+
+  const mt = generator.resolveFormulas(state).find((formula) => formula.name === "MT");
+  assert.doesNotMatch(mt.expr, /呼吸加護/);
+});
+
+
+test("被ダメージ量のスケーリングは守備判定のDTへ注入せず、カルマ等をDTから除く", () => {
+  const generator = loadGenerator();
+  const state = createState();
+  state.uniqueBuffs = [{ name: "カルマ", max: 20, desc: "数値/2だけ被ダメージ量増加（最大10）" }];
+
+  const formulas = generator.resolveFormulas(state);
+  const dt = formulas.find((formula) => formula.name === "DT");
+
+  assert.doesNotMatch(dt.expr, /カルマ/);
+  assert.equal(formulas.some((formula) => /カルマ/.test(formula.expr)), false);
+});
+
+
+test("代入式のfloor・切り捨て関数はCCFOLIA・BCDICE互換の括弧付き四則演算へ正規化する", () => {
+  const generator = loadGenerator();
+  const state = createState();
+  state.builtinFormulasOverride = { DT: "{共鳴}+floor({忍耐}/2)+floor(({守備威力}+1)/3)" };
+  state.formulas = [{ id: "f1", name: "SP", expr: "切り捨て({パワー}/4)" }];
+
+  const formulas = generator.resolveFormulas(state);
+  const dt = formulas.find((formula) => formula.name === "DT");
+  const sp = formulas.find((formula) => formula.name === "SP");
+
+  assert.equal(dt.expr, "{共鳴}+({忍耐}/2)+(({守備威力}+1)/3)");
+  assert.equal(sp.expr, "({パワー}/4)");
+  assert.doesNotMatch(generator.buildPalette(state), /floor|切り捨て/);
+});
+
+
+test("代入式が参照するラベルは、補正未取得でもparamsへ0で補完して未定義参照を残さない", () => {
+  const generator = loadGenerator();
+  const state = createState();
+
+  const json = generator.buildCcfoliaJSON(state);
+  const statusLabels = json.data.status.map((entry) => entry.label);
+  const paramLabels = json.data.params.map((entry) => entry.label);
+  const known = new Set([...statusLabels, ...paramLabels]);
+
+  assert.equal(paramLabels.includes("守備威力"), true);
+  assert.equal(json.data.params.find((entry) => entry.label === "守備威力").value, "0");
+  generator.resolveFormulas(state).forEach((formula) => {
+    (formula.expr.match(/\{[^{}]+\}/g) || []).forEach((token) => {
+      const label = token.slice(1, -1);
+      assert.equal(known.has(label), true, `${formula.name}の参照ラベル ${label} が未定義`);
+    });
+  });
 });
 
 
@@ -127,7 +189,8 @@ test("自動代入式のPALETTE・CCFOLIA JSON出力にも非対応演算子を�
   const state = createState();
   state.uniqueBuffs = [{
     name: "人差し指の加護",
-    desc: "数値/10だけダメージ量増加。数値が2以上ならダメージ量増加+1"
+    max: 10,
+    desc: "数値/10だけダメージ量増加。数値が10ならダメージ量増加+1"
   }];
 
   const palette = generator.buildPalette(state);
