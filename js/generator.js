@@ -398,6 +398,23 @@ function resolveFormulas(state) {
 function redactEgoSanFromPalette(text) {
   return String(text || "").replace(/SAN/gu, "精神力");
 }
+/* 「指令対象」「仕返し対象」「獲物の印」などは、自分が保持する値ではなく敵へ付与する目印である。
+   自分のシートのステータスやラベルに置くと、卓上で自分の値として増減できてしまい誤操作を招く。
+   DBは noST:true でこれを明示しているため、その宣言に従って自分の数値管理からは除外し、
+   固有バフの説明（パレット・MEMO・共有HTML）には従来どおり残して参照できるようにする。 */
+function isForeignTargetBuff(buff) {
+  return !!buff && buff.noST === true;
+}
+/* 士気低下ラインは「SANが最大値の25%以下」（基本ルールPDF 39頁）で決まる派生値である。
+   基準となるSANは強化によるSAN上昇を含めた最大値なので、算出根拠を一箇所へ集約し、
+   パレット・MEMO・JSONのどこでも同じ値になるようにする。
+   moraleLine に数値が入力されている場合だけ、その明示指定を優先する。 */
+function computeMoraleLine(state, sanMax) {
+  const manual = String(state?.moraleLine ?? "").trim();
+  if (manual !== "") return manual;
+  const san = Number.isFinite(sanMax) ? sanMax : 0;
+  return String(Math.floor(san * 0.25));
+}
 // 「捨てた枚数」は、能動的にスキルを捨てる人格だけが使う戦術選択用の変数。
 // 固有名詞や「捨てられたなら」といった受動効果は誤検出しない。
 const SUTE_ACTIVE = /(?:ランダムな)?スキルを[^。\n]{0,8}?捨てる|捨てたスキルの数|捨てた枚数/;
@@ -412,7 +429,7 @@ function buildPalette(state) {
   const san = sanBase + computeEnhancementBonuses(p).san;
   const speed = sanitizeInline(p.speed) || "2d4";
   const spirit = sanitizeInline(p.spirit);
-  const morale = p.moraleLine || String(Math.floor(san * 0.25));
+  const morale = computeMoraleLine(p, san);
   const L = [];
   /* 呼吸チェック・挑発判定の有無は、人格が実際にその値を管理するかで決まる。
      従来はパッシブ・精神・サポート・強化の本文だけを見ており、
@@ -463,6 +480,10 @@ function buildPalette(state) {
   }
   if (hasBreath) L.push(`1d100<={\u547C\u5438}*5 \u547C\u5438\u30C1\u30A7\u30C3\u30AF\uFF08\u51FA\u76EE\u2264\u547C\u5438\xD75\u3067\u6210\u529F\uFF09`);
   if (hasTaunt) L.push(`1d100<={\u6311\u767A\u5024}*5 \u6311\u767A\u5224\u5B9A`);
+  /* 士気低下は「SANが最大値の25%以下」（基本ルールPDF 39頁）で判定する常用の閾値である。
+     JSONのラベルには出力していたが、実際に卓で参照するパレットとMEMOには出ていなかった。
+     現在SANと閾値を突き合わせる行を、他の判定行と同じ場所へ出力する。 */
+  L.push(`\u58EB\u6C17\u4F4E\u4E0B\u30E9\u30A4\u30F3\uFF1A${morale}\uFF08SAN\u304C${morale}\u4EE5\u4E0B\u3067\u58EB\u6C17\u4F4E\u4E0B\uFF09`);
   L.push("");
   if (spirit) {
     L.push("\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC");
@@ -549,15 +570,21 @@ function buildPalette(state) {
     L.push("### \u25A0 \u56FA\u6709\u30D0\u30D5\u30FB\u30B9\u30C6\u30FC\u30BF\u30B9");
     p.uniqueBuffs.forEach((b) => {
       if (!b.name) return;
-      const parts = [`\u3010${b.name}\u3011\uFF08${b.type || "\u56FA\u6709\u30D0\u30D5"}\uFF09 \u521D\u671F${b.initial ?? 0}${b.max !== void 0 && b.max !== "" ? ` / \u6700\u5927${b.max}` : ""}`];
+      /* 対象へ付与する目印は自分のシートに数値を持たないため、増減コマンドを出すと
+         存在しないSTを操作することになる。説明は残し、付与先が対象であることを明記する。 */
+      const foreignTarget = isForeignTargetBuff(b);
+      const head = `\u3010${b.name}\u3011\uFF08${b.type || "\u56FA\u6709\u30D0\u30D5"}\uFF09 ${foreignTarget ? `\u5BFE\u8C61\u306B\u4ED8\u4E0E${b.max !== void 0 && b.max !== "" ? ` / \u6700\u5927${b.max}` : ""}` : `\u521D\u671F${b.initial ?? 0}${b.max !== void 0 && b.max !== "" ? ` / \u6700\u5927${b.max}` : ""}`}`;
+      const parts = [head];
       if (b.desc) {
         // 固有バフの説明は一つの文章として扱い、冒頭にだけ▶︎を付ける。
         const effBlk = buildProseBlock("\u52B9\u679C\uFF1A", b.desc);
         if (effBlk) parts.push(effBlk);
       }
       L.push(parts.join("\\n"));
-      L.push(`:${b.name}+1`);
-      L.push(`:${b.name}-1`);
+      if (!foreignTarget) {
+        L.push(`:${b.name}+1`);
+        L.push(`:${b.name}-1`);
+      }
     });
     L.push("");
   }
@@ -761,7 +788,8 @@ function buildPalette(state) {
   const kwSet = /* @__PURE__ */ new Set();
   (p.uniqueBuffs || []).forEach((b) => {
     const n = (b.name || "").trim();
-    if (n && (b.place || "status") === "status") kwSet.add(n);
+    // 対象へ付与する目印は自分のSTに存在しないため、増減コマンドの対象にしない。
+    if (n && (b.place || "status") === "status" && !isForeignTargetBuff(b)) kwSet.add(n);
   });
   (p.customStatuses || []).forEach((c) => {
     const n = (c.label || "").trim();
@@ -777,6 +805,11 @@ function buildPalette(state) {
   KW_CANDIDATES.forEach((k) => {
     const lbl = KW_LABELS[k] || k;
     if (effectDump.includes(k) || effectDump.includes(lbl)) kwSet.add(lbl);
+  });
+  /* キーワードタグや本文一致で拾い直した名称にも、対象付与専用の値が混ざり得る。
+     自分のSTに存在しない値の増減コマンドは常に無効なので、最後に一括で取り除く。 */
+  (p.uniqueBuffs || []).forEach((b) => {
+    if (isForeignTargetBuff(b)) kwSet.delete((b.name || "").trim());
   });
   const outputKeywordOrder = new Map(KW_CANDIDATES.map((keyword, index) => [KW_LABELS[keyword] || keyword, index]));
   const orderedKeywordLabels = [...kwSet].sort((a, b) => {
@@ -860,6 +893,9 @@ function buildMemo(state) {
   const _hpV = p.hp === "" || p.hp == null ? "?" : String((parseInt(p.hp, 10) || 0) + _eb.hp);
   const _sanV = p.san === "" || p.san == null ? "?" : String((parseInt(p.san, 10) || 0) + _eb.san);
   L.push(`HP\uFF1A${_hpV}   SAN\uFF1A${_sanV}   \u901F\u5EA6\uFF1A${p.speed || "?"}${p.bullets && p.bullets !== "\xD7" ? `   \u5F3E\u4E38\uFF1A${p.bullets}` : ""}`);
+  /* 士気低下ラインはSAN最大値の25%（基本ルールPDF 39頁）から決まる常用の閾値なので、
+     参照元のSANと同じ場所で確認できるようにMEMOへも出力する。 */
+  if (_sanV !== "?") L.push(`\u58EB\u6C17\u4F4E\u4E0B\u30E9\u30A4\u30F3\uFF1A${computeMoraleLine(p, parseInt(_sanV, 10))}`);
   L.push(`\u65AC\u6483\uFF1A${p.resS}   \u8CAB\u901A\uFF1A${p.resP}   \u6253\u6483\uFF1A${p.resB}`);
   if (p.spirit) {
     L.push(`\u7CBE\u795E\uFF1A${p.spirit}`);
@@ -899,7 +935,11 @@ function buildMemo(state) {
   if ((p.uniqueBuffs || []).length) {
     L.push("\u25A0 \u56FA\u6709\u30D0\u30D5\u30FB\u30B9\u30C6\u30FC\u30BF\u30B9");
     p.uniqueBuffs.forEach((b) => {
-      L.push(`\u3000\u30FB${b.name}\uFF08${b.type || "\u56FA\u6709\u30D0\u30D5"}\u3001\u521D\u671F${b.initial ?? 0}${b.max !== void 0 && b.max !== "" ? `\u3001\u6700\u5927${b.max}` : ""}\uFF09${b.desc ? `\uFF1A${b.desc}` : ""}`);
+      // 対象へ付与する目印は自分の初期値を持たないため、付与先が対象であることを示す。
+      const meta = isForeignTargetBuff(b)
+        ? `${b.type || "\u56FA\u6709\u30D0\u30D5"}\u3001\u5BFE\u8C61\u306B\u4ED8\u4E0E${b.max !== void 0 && b.max !== "" ? `\u3001\u6700\u5927${b.max}` : ""}`
+        : `${b.type || "\u56FA\u6709\u30D0\u30D5"}\u3001\u521D\u671F${b.initial ?? 0}${b.max !== void 0 && b.max !== "" ? `\u3001\u6700\u5927${b.max}` : ""}`;
+      L.push(`\u3000\u30FB${b.name}\uFF08${meta}\uFF09${b.desc ? `\uFF1A${b.desc}` : ""}`);
     });
     L.push("");
   }
@@ -1037,7 +1077,7 @@ function buildCcfoliaJSON(state) {
   const _enhBonus = computeEnhancementBonuses(p);
   const hp = (p.hp === "" || p.hp == null ? 100 : parseInt(p.hp, 10)) + _enhBonus.hp;
   const san = (p.san === "" || p.san == null ? 50 : parseInt(p.san, 10)) + _enhBonus.san;
-  const morale = p.moraleLine || String(Math.floor(san * 0.25));
+  const morale = computeMoraleLine(p, san);
   const { atkModLabel, hasVigor, hasDefMod } = detectMTMods(p);
   const normalizeLabel = (label) => window.LBT_normalizeStatusLabel ? window.LBT_normalizeStatusLabel(label) : String(label || "").trim();
   // 設定画面とJSON出力は必ず同じ根拠集合を使う。バリアだけの特例は持たない。
@@ -1083,6 +1123,8 @@ function buildCcfoliaJSON(state) {
     const _ubMax = parseInt(b.max, 10);
     const _ubHasNumeric = (!isNaN(_ubMax) && _ubMax > 0) || /(?:\u6570\u5024|\u6570)(?:[/\u00F7]|\u304C\d|\u3092\d*\u6D88\u8CBB)/.test(b.desc || "");
     if (!label || (b.place || "status") !== "status") return;
+    // 対象へ付与する目印は自分の管理値ではないため、STへ登録しない。
+    if (isForeignTargetBuff(b)) return;
     if (b.type === "中立バフ" && !_ubHasNumeric) return;
     const canonical = statusByLabel.get(label);
     // 固有値は同名デフォルト項目へ統合し、JSON側で二重登録しない。
@@ -1155,6 +1197,8 @@ function buildCcfoliaJSON(state) {
   (p.uniqueBuffs || []).forEach((b) => {
     const label = normalizeLabel(b.name);
     if (!label || (b.place || "status") !== "params") return;
+    // 対象へ付与する目印は自分の参照値ではないため、ラベルにも出さない。
+    if (isForeignTargetBuff(b)) return;
     // 人格固有の補正ラベルも、DBで定義した初期値をparamsへ引き継ぐ。
     // これにより「斬撃補正: 2」のような常時補正をstatusへ誤配置せず参照できる。
     addParam(label, b.initial);
@@ -1627,6 +1671,7 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
     <div class="stat"><div class="lbl">SAN</div><div class="val">${esc(shareSan)}</div></div>
     <div class="stat"><div class="lbl">\u901F\u5EA6</div><div class="val">${esc(p.speed || "\u2014")}</div></div>
     <div class="stat"><div class="lbl">\u5F3E\u4E38</div><div class="val">${esc(p.bullets || "\xD7")}</div></div>
+    ${shareSan === "\u2014" ? "" : `<div class="stat"><div class="lbl">\\u58EB\\u6C17\\u4F4E\\u4E0B</div><div class="val">${esc(computeMoraleLine(p, parseInt(shareSan, 10)))}</div></div>`}
   </div>
   <div class="res-title">\u8010\u6027 / RESISTANCE</div>
   <div class="res-row">
@@ -1927,6 +1972,7 @@ window.LBT_gen = {
   downloadShareSheet,
   resolveFormulas,
   detectMTMods,
+  computeMoraleLine,
   getActiveEnhancements,
   DEFAULT_STATUS_LIST,
   DEF_FMLS

@@ -1744,7 +1744,8 @@ const StatusOrderPanel = ({ state, dispatch, embedded = false, onPatchDefault = 
     (window.LBT_getStateSelfManagedStatusEntries?.(state) || []).forEach((entry) => push(entry.label, entry.kind === "declared" ? "DB指定" : "自己付与", { initial: entry.initial ?? 0, max: entry.max ?? 99 }));
     // 種別がバフ・デバフ・中立バフのいずれでも、人格DBに固有として定義された値は
     // 既定や自己付与ではなく、唯一の所有元である「固有」として表示・編集する。
-    (state.uniqueBuffs || []).forEach((b) => { if ((b.place || "status") === "status") push(b.name, "固有", { uniqueId: b.id, uniqueBuff: b, initial: b.initial ?? 0, max: b.max ?? 99 }); });
+    // ただし noST（対象へ付与する目印）は自分が保持する値ではないため、出力順の一覧にも並べない。
+    (state.uniqueBuffs || []).forEach((b) => { if ((b.place || "status") === "status" && b.noST !== true) push(b.name, "固有", { uniqueId: b.id, uniqueBuff: b, initial: b.initial ?? 0, max: b.max ?? 99 }); });
     (state.customStatuses || []).forEach((c) => { if ((c.place || "status") === "status") push(c.label, "カスタム", { initial: c.initial ?? 0, max: c.max ?? 99 }); });
     // スキル側でd値・d数を可変にした場合、ST出力を選んだ変数は設定一覧にも加える。
     // JSON出力と同じ収集関数を使い、名称の省略時も S◯d値／S◯-◯d数 と一致させる。
@@ -1794,16 +1795,26 @@ const StatusOrderPanel = ({ state, dispatch, embedded = false, onPatchDefault = 
 const LabelParamsPanel = ({ state, onAddCustom, onPatchCustom, onRemoveCustom, onPatchMorale }) => {
   const h = React.createElement;
   const entries = React.useMemo(() => {
-    const list = [{ id: "morale-line", type: "morale", label: "士気低下ライン", value: state.moraleLine, source: "設定" }];
+    /* 士気低下ラインはSAN最大値の25%（基本ルールPDF 39頁）から自動計算される派生値である。
+       未入力なら算出値を表示し、根拠が分かるようにする。数値を入れた場合だけ手動指定になる。 */
+    const moraleAuto = window.LBT_gen?.computeMoraleLine?.({ moraleLine: "" }, Number.parseInt(state.san, 10) || 0) ?? "";
+    const moraleManual = String(state.moraleLine ?? "").trim();
+    const list = [{
+      id: "morale-line", type: "morale", label: "士気低下ライン",
+      value: moraleManual === "" ? moraleAuto : moraleManual,
+      manual: moraleManual, auto: moraleAuto,
+      source: moraleManual === "" ? "SAN最大値の25%から自動" : "手動指定"
+    }];
     const { atkModLabel, hasVigor, hasDefMod } = window.LBT_gen?.detectMTMods?.(state) || {};
     if (atkModLabel) list.push({ id: "support-atk-mod", type: "derived", label: atkModLabel, value: 1, source: "サポートから自動" });
     if (hasVigor) list.push({ id: "enh-vigor", type: "derived", label: "闘志", value: 1, source: "強化から自動" });
     if (hasDefMod) list.push({ id: "enh-defense", type: "derived", label: "守備威力", value: 1, source: "強化から自動" });
-    (state.uniqueBuffs || []).filter((buff) => (buff.place || "status") === "params").forEach((buff, index) => list.push({ id: `unique-${buff.id || index}`, type: "unique", label: buff.name || "名称未設定", value: buff.initial ?? "", source: "人格固有" }));
+    // 対象へ付与する目印（noST）は自分の参照値ではないため、ラベル一覧にも出さない。
+    (state.uniqueBuffs || []).filter((buff) => (buff.place || "status") === "params" && buff.noST !== true).forEach((buff, index) => list.push({ id: `unique-${buff.id || index}`, type: "unique", label: buff.name || "名称未設定", value: buff.initial ?? "", source: "人格固有" }));
     (state.customStatuses || []).filter((item) => (item.place || "status") === "params").forEach((item) => list.push({ id: item.id, type: "custom", label: item.label || "", value: item.initial ?? 0, source: "カスタム", item }));
     (window.LBT_collectSkillDiceVars?.(state) || []).filter((item) => item.place === "params").forEach((item, index) => list.push({ id: `skill-${item.label || index}-${index}`, type: "skill", label: item.label || "名称未設定", value: "", source: "スキル変数" }));
     return list;
-  }, [state.moraleLine, state.enhancements, state.uniqueBuffs, state.customStatuses, state.egoSlots, state.skills, state.personaSrc, state.supports]);
+  }, [state.moraleLine, state.san, state.enhancements, state.uniqueBuffs, state.customStatuses, state.egoSlots, state.skills, state.personaSrc, state.supports]);
   const renderEntry = (entry) => {
     if (entry.type === "custom") {
       return h("div", { key: entry.id, className: "label-param-row label-param-row--editable" },
@@ -1815,9 +1826,11 @@ const LabelParamsPanel = ({ state, onAddCustom, onPatchCustom, onRemoveCustom, o
       );
     }
     if (entry.type === "morale") {
+      /* 未入力＝自動計算なので、入力欄は空のままにして算出値をプレースホルダで示す。
+         数値を消せば自動計算へ戻せる。 */
       return h("div", { key: entry.id, className: "label-param-row label-param-row--editable label-param-row--system" },
-        h("div", { className: "label-param-read" }, h("strong", null, entry.label), h("small", null, "常に出力")),
-        h("label", { className: "label-param-field label-param-field--value" }, h("span", null, "値"), h("input", { className: "input", type: "number", value: entry.value ?? 0, onChange: (event) => onPatchMorale(event.target.value) })),
+        h("div", { className: "label-param-read" }, h("strong", null, entry.label), h("small", null, `常に出力・自動 ${entry.auto}`)),
+        h("label", { className: "label-param-field label-param-field--value" }, h("span", null, "値"), h("input", { className: "input", type: "number", value: entry.manual, placeholder: String(entry.auto ?? ""), title: "空欄ならSAN最大値の25%から自動計算します", onChange: (event) => onPatchMorale(event.target.value) })),
         h("span", { className: "label-param-source" }, entry.source),
         h("span", { className: "label-param-row-spacer", "aria-hidden": "true" })
       );
@@ -1950,7 +1963,8 @@ const SettingsSection = ({ state, dispatch }) => {
       add(status.label, linked ? "人格連動" : "既定", initial, linked ? initial : status.max);
     });
     (window.LBT_getStateSelfManagedStatusEntries?.(state) || []).forEach((entry) => add(entry.label, entry.kind === "declared" ? "DB指定" : "自己付与", entry.initial ?? 0, entry.max ?? 99));
-    (state.uniqueBuffs || []).filter((buff) => (buff.place || "status") === "status" && buff.type !== "中立バフ").forEach((buff) => add(buff.name, "人格固有", buff.initial ?? 0, buff.max ?? 99));
+    // noST は「対象に付与する目印で自分は保持しない」というDB宣言。自分のステータス一覧には出さない。
+    (state.uniqueBuffs || []).filter((buff) => (buff.place || "status") === "status" && buff.type !== "中立バフ" && buff.noST !== true).forEach((buff) => add(buff.name, "人格固有", buff.initial ?? 0, buff.max ?? 99));
     (state.customStatuses || []).filter((status) => (status.place || "status") === "status").forEach((status) => add(status.label, "カスタム", status.initial ?? 0, status.max ?? 99));
     (window.LBT_collectSkillDiceVars?.(state) || []).filter((variable) => (variable.place || "status") === "status").forEach((variable) => add(variable.label, "スキル変数", variable.initial ?? 0, variable.max ?? 99));
     return list;
@@ -1980,7 +1994,7 @@ const SettingsSection = ({ state, dispatch }) => {
           )
         ),
         h("section", { className: "settings-major settings-major--static", "data-settings-category": "labels" },
-          h("div", { className: "settings-major-static-head" }, h("span", { className: "settings-major-name" }, "ラベル"), h("span", { className: "settings-major-hint" }, "params出力・式からの参照"), h("span", { className: "settings-major-count" }, `${1 + (state.customStatuses || []).filter((item) => (item.place || "status") === "params").length + (state.uniqueBuffs || []).filter((item) => (item.place || "status") === "params").length + (window.LBT_collectSkillDiceVars?.(state) || []).filter((item) => item.place === "params").length}件`)),
+          h("div", { className: "settings-major-static-head" }, h("span", { className: "settings-major-name" }, "ラベル"), h("span", { className: "settings-major-hint" }, "params出力・式からの参照"), h("span", { className: "settings-major-count" }, `${1 + (state.customStatuses || []).filter((item) => (item.place || "status") === "params").length + (state.uniqueBuffs || []).filter((item) => (item.place || "status") === "params" && item.noST !== true).length + (window.LBT_collectSkillDiceVars?.(state) || []).filter((item) => item.place === "params").length}件`)),
           h("div", { className: "settings-major-body stack-3" },
             h(LabelParamsPanel, { state, onAddCustom: addCs, onPatchCustom: patchCs, onRemoveCustom: rmCs, onPatchMorale: (value) => setF("moraleLine", value) }),
             h("details", { className: "settings-disclosure" }, h("summary", null, "出力しないカスタム項目"), h("div", { className: "settings-disclosure-body stack-2" },
@@ -2020,7 +2034,7 @@ const SettingsSection = ({ state, dispatch }) => {
             )),
             h("details", { className: "settings-disclosure" }, h("summary", null, "出力補助"), h("div", { className: "settings-disclosure-body stack-2" },
               h("label", { className: "settings-check-row" }, h("input", { type: "checkbox", checked: state.autoFml !== false, onChange: (event) => setF("autoFml", event.target.checked) }), "効果テキストから代入式へ自動反映"),
-              h(Field, { label: "士気低下ライン" }, h("input", { className: "input", type: "number", value: state.moraleLine, onChange: (event) => setF("moraleLine", event.target.value) })),
+              h(Field, { label: "士気低下ライン", hint: "空欄ならSAN最大値の25%（基本ルール39頁）から自動計算します" }, h("input", { className: "input", type: "number", value: state.moraleLine, placeholder: String(window.LBT_gen?.computeMoraleLine?.({ moraleLine: "" }, Number.parseInt(state.san, 10) || 0) ?? ""), onChange: (event) => setF("moraleLine", event.target.value) })),
               h(Field, { label: "追記コマンド" }, h(AutoTextarea, { className: "textarea", minRows: 2, value: state.extraCmd, placeholder: "自由記述（出力末尾に追加）", onChange: (event) => setF("extraCmd", event.target.value) }))
             ))
           )
