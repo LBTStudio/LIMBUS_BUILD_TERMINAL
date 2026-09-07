@@ -643,6 +643,15 @@ function migrateLegacyQuickBindFormula(next) {
     ));
   }
 }
+/* 士気低下ラインはSAN最大値の25%（基本ルールPDF 39頁）で決まる派生値である。
+   旧版は初期状態で固定値 "12" を保持しており、これが利用者の入力値と区別できないため、
+   SAN 55 の人格でも 12 のまま出力され自動計算が働かなかった。
+   旧既定値と一致する保存データだけを自動計算（空文字）へ戻し、それ以外の数値は
+   利用者が意図して指定した上書き値として保持する。 */
+const LEGACY_DEFAULT_MORALE_LINE = "12";
+function migrateLegacyMoraleLine(next) {
+  if (String(next?.moraleLine ?? "") === LEGACY_DEFAULT_MORALE_LINE) next.moraleLine = "";
+}
 function normalizeStateShape(raw) {
   const next = { ...raw };
   next.schemaVersion = next.schemaVersion || SAVE_SCHEMA_VERSION;
@@ -713,6 +722,8 @@ function normalizeStateShape(raw) {
   migrateSwordContractHeadPassiveState(next);
   // V65r62: 旧既定のQB（束縛を加算）を、速度減少という束縛の定義どおりの減算式へ戻す。
   migrateLegacyQuickBindFormula(next);
+  // V65r63: 旧既定の固定値12を、SAN最大値の25%という定義どおりの自動計算へ戻す。
+  migrateLegacyMoraleLine(next);
   next.egoSlots = normalizeEgoSlots(next.egoSlots);
   return normalizeStatusCollections(next);
 }
@@ -806,7 +817,11 @@ const INIT_STATE = {
   builtinFormulasOverride: {},
   // v50: 組込式の上書き。{ MT: 'expr', DM: 'expr' } または {MT: null} = 非表示
   autoFml: true,
-  moraleLine: "12",
+  /* 士気低下ラインは「SANが最大値の25%以下」（基本ルールPDF 39頁）という定義上の派生値であり、
+     人格ごとのSANから決まる。既定値を固定数値で持つと、SANが異なる人格でも常に同じ値が
+     入力済みとして扱われ、自動計算が働かなくなる。空文字＝自動計算（SAN最大値の25%）とし、
+     利用者が明示的に数値を入れた場合だけその値を使う。 */
+  moraleLine: "",
   // Extra commands (memo)
   extraCmd: "",
   // T18/T19: メモ/パレットの項目別出力除外（セクションタイトル→true で除外）
@@ -939,7 +954,9 @@ function appReducer(state, action) {
         initial: b.initial !== void 0 ? b.initial : 0,
         max: b.max || 20,
         desc: b.desc || "",
-        place: b.place || "status"
+        place: b.place || "status",
+        // noST は「対象に付与する値で、自分は保持しない」というDB側の明示宣言。装備後も保持する。
+        noST: b.noST === true
       }));
       const uniqKey = `${mode}:${no}`;
       let personas = state.roster.personas.slice();
@@ -1137,7 +1154,7 @@ function appReducer(state, action) {
           next.resB = dbSrc.res_blunt || "\u666E\u901A";
           next.pas = { name: dbSrc.passive_name || "", cond: dbSrc.passive_cond || "", always: dbSrc.passive_always || "", effect: dbSrc.passive_effect || "", quick: "" };
           next.skills = cloneJSON(dbSrc.skills || []).map((sk, i) => ({ id: `sk-${Date.now()}-${i}`, ...sk, dice: (sk.dice || []).map((d) => ({ roll: d.roll || "", d: d.d ?? "", plus: !!d.plus, effect: d.effect || "" })) }));
-          next.uniqueBuffs = cloneJSON(dbSrc.unique_buffs || []).map((b, i) => ({ id: `ub-${Date.now()}-${i}`, name: b.name || "", type: b.type || "\u56FA\u6709\u30D0\u30D5", initial: b.initial ?? 0, max: b.max ?? 0, desc: b.desc || "", place: b.place || "status" }));
+          next.uniqueBuffs = cloneJSON(dbSrc.unique_buffs || []).map((b, i) => ({ id: `ub-${Date.now()}-${i}`, name: b.name || "", type: b.type || "\u56FA\u6709\u30D0\u30D5", initial: b.initial ?? 0, max: b.max ?? 0, desc: b.desc || "", place: b.place || "status", noST: b.noST === true }));
           next.personaSrc = cloneJSON(dbSrc);
           next.spirit = ""; next.spiritMorale = ""; next.spiritConfuse = ""; next.spiritAlways = "";
           next.supports = []; next.deathSupport = null;
@@ -1527,7 +1544,9 @@ function appReducer(state, action) {
         initial: buff.initial !== void 0 ? buff.initial : 0,
         max: buff.max || 20,
         desc: buff.desc || "",
-        place: buff.place || "status"
+        place: buff.place || "status",
+        // noST は「対象に付与する値で、自分は保持しない」というDB側の明示宣言。下書き取り込みでも保持する。
+        noST: buff.noST === true
       }));
       const syncRank = ["0", "00", "000"].includes(action.syncRank) ? action.syncRank : null;
       const importedSource = isAffiliated
@@ -1647,7 +1666,9 @@ function appReducer(state, action) {
           initial: b.initial !== void 0 ? b.initial : 0,
           max: b.max || 20,
           desc: b.desc || "",
-          place: b.place || "status"
+          place: b.place || "status",
+          // 自作人格として保存する際も、対象付与専用の宣言は失わない。
+          noST: b.noST === true
         })),
         keywords: src.keywords || [],
         __custom: true,
