@@ -1,0 +1,13 @@
+import { readFileSync, writeFileSync } from "node:fs";
+const path = new URL("../data/db.json", import.meta.url);
+const db = JSON.parse(readFileSync(path, "utf8"));
+const target = (db.egos || []).find((ego) => ego.name === "迫りくる日：終末カレンダー");
+if (!target) throw new Error("終末カレンダーのE.G.Oレコードが見つかりません");
+const before = JSON.stringify(target);
+target.kakusei.effect = "対象のHPが25％未満ならダメージ量+40";
+target.kakusei.dice[0].effect = "敵討伐時、次のRにパワー1を得て全ての味方のHPを最大値の15％回復";
+target.shinshoku.effect = "[敵味方識別不可]対象のHPが25％未満ならダメージ量+50";
+target.shinshoku.dice[0].effect = "敵討伐失敗時、次のRに出血10とパワー3を得る";
+if (before === JSON.stringify(target)) throw new Error("終末カレンダーの修正差分がありません");
+writeFileSync(path, JSON.stringify(db));
+console.log(JSON.stringify({ name: target.name, before: JSON.parse(before), after: target }, null, 2));
