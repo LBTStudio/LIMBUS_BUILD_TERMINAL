@@ -3,7 +3,6 @@ const path = new URL("../data/db.json", import.meta.url);
 const db = JSON.parse(readFileSync(path, "utf8"));
 const target = (db.egos || []).find((ego) => ego.name === "迫りくる日：終末カレンダー");
 if (!target) throw new Error("終末カレンダーのE.G.Oレコードが見つかりません");
-// 正規基準は新リンバスTRPG.pdf（251ページ相当）とdata/db.jsonのみ。
 target.kakusei.effect = "対象のHPが25％未満ならダメージ量+8";
 target.kakusei.dice[0].effect = "敵討伐時、次のRにパワー2を得て全ての味方のHPを15回復";
 target.shinshoku.effect = "[敵味方識別不可]対象のHPが25％未満ならダメージ量+8";

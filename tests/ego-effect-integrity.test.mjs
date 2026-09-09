@@ -15,11 +15,11 @@ function collectEgoTexts(ego) {
   ];
 }
 
-test("終末カレンダーは最終段階の原典準拠効果を保持する", () => {
+test("終末カレンダーは新リンバスTRPG.pdf記載の効果を保持する", () => {
   assert.ok(endCalendar);
-  assert.equal(endCalendar.kakusei.effect, "対象のHPが25％未満ならダメージ量+40");
-  assert.equal(endCalendar.kakusei.dice[0].effect, "敵討伐時、次のRにパワー1を得て全ての味方のHPを最大値の15％回復");
-  assert.equal(endCalendar.shinshoku.effect, "[敵味方識別不可]対象のHPが25％未満ならダメージ量+50");
+  assert.equal(endCalendar.kakusei.effect, "対象のHPが25％未満ならダメージ量+8");
+  assert.equal(endCalendar.kakusei.dice[0].effect, "敵討伐時、次のRにパワー2を得て全ての味方のHPを15回復");
+  assert.equal(endCalendar.shinshoku.effect, "[敵味方識別不可]対象のHPが25％未満ならダメージ量+8");
   assert.equal(endCalendar.shinshoku.dice[0].effect, "敵討伐失敗時、次のRに出血10とパワー3を得る");
 });
 
