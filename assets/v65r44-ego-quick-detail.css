@@ -86,3 +86,9 @@
   .ego-quick-close { min-width: 40px; min-height: 40px; }
   .ego-quick-actions .btn { min-height: 44px; }
 }
+
+/* V65r66: PDFのダイス効果本文も簡易詳細で確認できるようにする */
+.ego-quick-dice-effects { display: grid; gap: 4px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line-dim); }
+.ego-quick-dice-effect { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px; color: var(--tx-2); font-size: var(--fs-10); line-height: 1.5; overflow-wrap: anywhere; }
+.ego-quick-dice-roll { color: var(--gold-hi); font-family: var(--f-mono); font-weight: 600; white-space: nowrap; }
+.ego-quick-skill[data-tone="corrode"] .ego-quick-dice-roll { color: var(--err); }
