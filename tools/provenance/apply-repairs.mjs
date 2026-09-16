@@ -1,0 +1,119 @@
+#!/usr/bin/env node
+/* repairs.json の表に従って data/db.json の本文を修正する。
+
+   修正は必ず原典PDFの紙面を根拠に行い、表へ理由と出典を記録する。
+   `before` が現在のDB本文と一致しない場合は、意図しない上書きを防ぐため中止する
+   （既に修正済み、または表が古い場合に気付けるようにする）。
+
+   使い方:
+     node tools/provenance/apply-repairs.mjs          # 適用内容を確認する
+     node tools/provenance/apply-repairs.mjs --write  # data/db.json を更新する */
+import { readFileSync, writeFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+const dbPath = path.join(root, "data", "db.json");
+const repairsPath = path.join(path.dirname(fileURLToPath(import.meta.url)), "repairs.json");
+const write = process.argv.includes("--write");
+
+const db = JSON.parse(readFileSync(dbPath, "utf8"));
+const { entries } = JSON.parse(readFileSync(repairsPath, "utf8"));
+
+function findPersona(name) {
+  return [...(db.normal_personas || []), ...(db.tokui_personas || [])].find((p) => p?.name === name);
+}
+
+function findSkill(persona, rank, name) {
+  return (persona.skills || []).find((s) => s?.rank === rank && (!name || s?.name === name));
+}
+
+/* 修正対象への参照を、読み書きできる形（所有オブジェクトとキー）で返す。 */
+function resolveTarget(entry) {
+  const persona = findPersona(entry.persona);
+  if (!persona) return { error: `人格が見つかりません: ${entry.persona}` };
+  const t = entry.target;
+
+  if (t.kind === "persona") {
+    return { owner: persona, key: t.field };
+  }
+  if (t.kind === "buff") {
+    const buff = (persona.unique_buffs || []).find((b) => b?.name === t.name);
+    if (!buff) return { error: `固有バフが見つかりません: ${entry.persona}/${t.name}` };
+    return { owner: buff, key: t.field };
+  }
+  const skill = findSkill(persona, t.rank, t.name);
+  if (!skill) return { error: `スキルが見つかりません: ${entry.persona}/${t.rank}「${t.name}」` };
+  if (t.kind === "skill") {
+    return { owner: skill, key: t.field };
+  }
+  if (t.kind === "dice") {
+    const dice = (skill.dice || [])[t.index - 1];
+    if (!dice) return { error: `ダイスが見つかりません: ${entry.persona}/${t.rank}/ダイス${t.index}` };
+    return { owner: dice, key: t.field };
+  }
+  return { error: `未知の対象種別: ${t.kind}` };
+}
+
+const applied = [];
+const skipped = [];
+const errors = [];
+
+for (const entry of entries) {
+  const { owner, key, error } = resolveTarget(entry);
+  if (error) {
+    errors.push({ entry, message: error });
+    continue;
+  }
+  const current = owner[key];
+  if (current === entry.after) {
+    skipped.push({ entry, message: "既に修正済み" });
+    continue;
+  }
+  if (current !== entry.before) {
+    errors.push({
+      entry,
+      message: `現在のDB本文が before と一致しません。\n    現在: ${JSON.stringify(current)}\n    期待: ${JSON.stringify(entry.before)}`
+    });
+    continue;
+  }
+  owner[key] = entry.after;
+  applied.push(entry);
+}
+
+const label = (e) => {
+  const t = e.target;
+  if (t.kind === "persona") return `${e.persona} :: ${t.field}`;
+  if (t.kind === "buff") return `${e.persona} :: 固有バフ「${t.name}」`;
+  if (t.kind === "dice") return `${e.persona} :: ${t.rank}「${t.name}」/ダイス${t.index}`;
+  return `${e.persona} :: ${t.rank}「${t.name}」/${t.field}`;
+};
+
+for (const e of applied) {
+  console.log(`\n${label(e)}  [${e.source}]`);
+  console.log(`  理由: ${e.reason}`);
+  console.log(`  - ${String(e.before).replace(/\n/g, " \u23CE ")}`);
+  console.log(`  + ${String(e.after).replace(/\n/g, " \u23CE ")}`);
+}
+if (skipped.length) {
+  console.log(`\n適用不要: ${skipped.length}件`);
+  skipped.forEach((s) => console.log(`  - ${label(s.entry)}（${s.message}）`));
+}
+if (errors.length) {
+  console.log(`\n■ エラー: ${errors.length}件`);
+  errors.forEach((e) => console.log(`  - ${label(e.entry)}\n    ${e.message}`));
+}
+
+console.log(`\n適用: ${applied.length}件 / 不要: ${skipped.length}件 / エラー: ${errors.length}件`);
+
+if (errors.length) {
+  console.log("エラーがあるため data/db.json は更新しません。");
+  process.exit(1);
+}
+if (write && applied.length) {
+  // 既存の保存形式に合わせ、改行・字下げなしの1行JSONとして書き出す。
+  writeFileSync(dbPath, JSON.stringify(db), "utf8");
+  console.log(`${path.relative(root, dbPath)} を更新しました。`);
+} else if (!write && applied.length) {
+  console.log("--write を付けると data/db.json を更新します。");
+}
