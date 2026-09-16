@@ -49,56 +49,51 @@ const TIMING_MARKER_GUARD_PREFIXES = [...new Set(
 const TIMING_MARKER_GUARD = TIMING_MARKER_GUARD_PREFIXES.map((prefix) => `(?<!${prefix}\\s{0,3})`).join("");
 window.LBT_TIMING_MARKER_WORDS = TIMING_MARKER_WORDS;
 window.LBT_TIMING_MARKER_GUARD_PREFIXES = TIMING_MARKER_GUARD_PREFIXES;
-// 影響などのラウンド進行は、`1R：`だけでなく`1R効果`の簡略表記でも独立段落として扱う。
+/* 影響などのラウンド進行は、`1R：`だけでなく`1R効果`の簡略表記でも独立段落として扱う。
+   ただし `\d+R` は段落見出し以外でも本文中に現れる。
+     - 状態表記   : `[1R] 虚弱の数だけ攻撃スキル威力減少`（1ラウンド持続の宣言）
+     - 回数制限   : `視線1を付与（1Rに2回）`（発動回数の上限）
+   これらは括弧の内側にあり、段落の境界ではない。括弧の内側では分割しない。 */
 const ROUND_STAGE_MARKER = "\\d+R(?:[\uFF1A:]|(?=[^\\d\\s]))";
-function splitEffectLines(text) {
+/* 段落境界の候補を探す走査は、引用符と括弧の深度が0の位置だけを対象とする。
+   T21: 引用符「」『』の内側のタイミング語は本文の一部であり、段落区切りではない。
+   ラウンド表記も同様に、[ ]（ ）【 】( ) の内側では段落区切りとみなさない。
+   これを守らないと `[1R]` が `[` と `1R] …` に、
+   `（1Rに2回）` が `（` と `1Rに2回）` に分断される。 */
+const PARAGRAPH_OPEN_CHARS = "\u300C\u300E[\uFF08\u3010(\uFF3B";
+const PARAGRAPH_CLOSE_CHARS = "\u300D\u300F]\uFF09\u3011)\uFF3D";
+function scanEffectParagraphs(text) {
   const normalized = normalizeMultiline(text);
   if (!normalized) return [];
-  let lines = normalized.split("\n").map((l) => l.trim()).filter(Boolean);
-  const re = new RegExp("(?<!^)(?:(?=" + TIMING_MARKER_GUARD + TIMING_MARKER + "(?:\uFF1A|:))|(?=" + ROUND_STAGE_MARKER + "))", "g");
+  const lines = normalized.split("\n").map((l) => l.trim()).filter(Boolean);
+  const markerRe = new RegExp("^" + TIMING_MARKER + "(?:\uFF1A|:)");
+  // 直前が「一方」「クリティカル」等なら、長い見出しの途中なので分割しない。
+  const guardRe = new RegExp("(?:" + TIMING_MARKER_GUARD_PREFIXES.join("|") + ")\\s{0,3}$");
+  const roundMarkerRe = new RegExp("^" + ROUND_STAGE_MARKER);
   const out = [];
   for (const line of lines) {
-    const parts = line.split(re).map((s) => s.trim()).filter(Boolean);
-    out.push(...parts);
-  }
-  return out.map((s) => s.startsWith("\u25B6\uFE0E") ? s : "\u25B6\uFE0E" + s);
-}
-function splitEffectLinesPlain(text) {
-  const normalized = normalizeMultiline(text);
-  if (!normalized) return [];
-  let lines = normalized.split("\n").map((l) => l.trim()).filter(Boolean);
-  const re = new RegExp("(?<!^)(?:(?=" + TIMING_MARKER_GUARD + TIMING_MARKER + "(?:\uFF1A|:))|(?=" + ROUND_STAGE_MARKER + "))", "g");
-  const out = [];
-  // T21: 引用符「」『』の内側は意味的な段落区切りとみなさない。
-  // 単なる "-「" や引用内のタイミング語で誤って改行しないよう、
-  // 行を走査して引用深度が0の位置でのみ分割を許可する。
-  const splitLineQuoted = (line) => {
-    const parts = [];
     let buf = "";
     let depth = 0;
-    let i = 0;
-    const markerRe = new RegExp("^" + TIMING_MARKER + "(?:\uFF1A|:)");
-    // 直前が「一方」「クリティカル」等なら、長い見出しの途中なので分割しない。
-    const guardRe = new RegExp("(?:" + TIMING_MARKER_GUARD_PREFIXES.join("|") + ")\\s{0,3}$");
-    const roundMarkerRe = new RegExp("^" + ROUND_STAGE_MARKER);
-    while (i < line.length) {
+    for (let i = 0; i < line.length; i++) {
       const ch = line[i];
-      if (ch === "\u300C" || ch === "\u300E") depth++;
-      else if (ch === "\u300D" || ch === "\u300F") depth = Math.max(0, depth - 1);
-      if (depth === 0 && buf.length > 0 && !guardRe.test(buf) && (markerRe.test(line.slice(i)) || roundMarkerRe.test(line.slice(i)))) {
-        parts.push(buf);
+      if (PARAGRAPH_OPEN_CHARS.includes(ch)) depth++;
+      else if (PARAGRAPH_CLOSE_CHARS.includes(ch)) depth = Math.max(0, depth - 1);
+      const rest = line.slice(i);
+      if (depth === 0 && buf.length > 0 && !guardRe.test(buf) && (markerRe.test(rest) || roundMarkerRe.test(rest))) {
+        out.push(buf);
         buf = "";
       }
       buf += ch;
-      i++;
     }
-    if (buf.trim()) parts.push(buf);
-    return parts.map((s) => s.trim()).filter(Boolean);
-  };
-  for (const line of lines) {
-    out.push(...splitLineQuoted(line));
+    if (buf.trim()) out.push(buf);
   }
-  return out;
+  return out.map((s) => s.trim()).filter(Boolean);
+}
+function splitEffectLines(text) {
+  return scanEffectParagraphs(text).map((s) => s.startsWith("\u25B6\uFE0E") ? s : "\u25B6\uFE0E" + s);
+}
+function splitEffectLinesPlain(text) {
+  return scanEffectParagraphs(text);
 }
 function formatEffectLines(text) {
   const lines = splitEffectLinesPlain(text);
