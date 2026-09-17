@@ -49,12 +49,23 @@ const TIMING_MARKER_GUARD_PREFIXES = [...new Set(
 const TIMING_MARKER_GUARD = TIMING_MARKER_GUARD_PREFIXES.map((prefix) => `(?<!${prefix}\\s{0,3})`).join("");
 window.LBT_TIMING_MARKER_WORDS = TIMING_MARKER_WORDS;
 window.LBT_TIMING_MARKER_GUARD_PREFIXES = TIMING_MARKER_GUARD_PREFIXES;
-/* 影響などのラウンド進行は、`1R：`だけでなく`1R効果`の簡略表記でも独立段落として扱う。
-   ただし `\d+R` は段落見出し以外でも本文中に現れる。
+/* 影響などのラウンド進行は `1R：全ての…` のように独立した段落として記載される。
+   ただし `\d+R` は段落見出し以外でも本文中に現れ、次のものは段落の境界ではない。
      - 状態表記   : `[1R] 虚弱の数だけ攻撃スキル威力減少`（1ラウンド持続の宣言）
      - 回数制限   : `視線1を付与（1Rに2回）`（発動回数の上限）
-   これらは括弧の内側にあり、段落の境界ではない。括弧の内側では分割しない。 */
-const ROUND_STAGE_MARKER = "\\d+R(?:[\uFF1A:]|(?=[^\\d\\s]))";
+     - 持続期間   : `自分に怠惰保護2を3Rの間付与する`（効果が続く長さ）
+     - 開始時期   : `このパッシブを得てから3Rの間、あらゆるデバフが除去される`
+
+   前二者は括弧の内側にあるため括弧の深さで除けるが、後二者は文中に素で現れる。
+   原典の段落をすべて数えると、`\d+R` が段落の先頭に立つのは
+   47件中44件が `\d+R：` の形で、括弧外の `\d+R` が見出しになるのは
+   `1Rとなって` `2Rまで自分` `3R以降、戦` の3件に限られる。
+   一方 `Rの間` `R以降` のような持続表記は段落の途中に現れる。
+
+   そこで区切り記号 `：` を伴う場合だけをラウンド見出しとして扱う。
+   これを満たさない `\d+R` で分割すると、原典が一文で書いた本文を切ることになる
+   （例: `怠惰保護2を` / `3Rの間付与する`）。 */
+const ROUND_STAGE_MARKER = "\\d+R\\s{0,2}[\uFF1A:]";
 /* 段落境界の候補を探す走査は、引用符と括弧の深度が0の位置だけを対象とする。
    T21: 引用符「」『』の内側のタイミング語は本文の一部であり、段落区切りではない。
    ラウンド表記も同様に、[ ]（ ）【 】( ) の内側では段落区切りとみなさない。
@@ -104,6 +115,39 @@ window.splitEffectLinesPlain = splitEffectLinesPlain;
 function toArrowLines(text) {
   return splitEffectLines(text);
 }
+/* ダイス効果の本文を、ロール表記と組んで1行の表示へまとめる。
+
+   ダイス効果もスキル効果と同じく、原典が発動タイミングで改段している本文がある。
+
+     30-6d5：的中時、対象の出血が5以上なら火傷7を付与。
+     敵討伐時、次のRに打撃威力増加1を得る        ← 原典は紙面206でここで改行している
+
+   以前はここで sanitizeInline() を使って改行を空白へ潰していたため、
+   CCFOLIA上で `…火傷7を付与。 敵討伐時、…` と一続きに表示されていた。
+   段落分割器を通し、2段落目以降を経路ごとの改行表現で連結する。
+
+   ロール表記は先頭の段落にだけ付ける。各段落へ付けると
+   同じダイスを何度も振るように読めてしまう。 */
+function formatDiceEffectDisplay(roll, effect, lineBreak) {
+  const paragraphs = splitEffectLinesPlain(effect);
+  if (!paragraphs.length) return roll;
+  const head = roll ? `${roll}\uFF1A${paragraphs[0]}` : paragraphs[0];
+  if (paragraphs.length === 1) return head;
+  return head + lineBreak + paragraphs.slice(1).join(lineBreak);
+}
+/* ダイス効果の先頭に付く `1：` `2-1：` のような番号は、紙面の行番号であって本文ではない。
+   本文として扱うと表示が重複するため、段落分割の前に取り除く。 */
+function stripDiceIndexPrefix(effect) {
+  const text = String(effect == null ? "" : effect);
+  const colon = text.indexOf("\uFF1A");
+  if (colon > 0) {
+    const head = text.slice(0, colon).trim();
+    if (/^\d[\d-]*$/.test(head)) return text.slice(colon + 1).trim();
+    return text;
+  }
+  if (/^\d[\d-]*$/.test(text.trim())) return "";
+  return text;
+}
 function buildLabeledBlock(header, text) {
   const lines = toArrowLines(text);
   if (!lines.length) return "";
@@ -113,6 +157,18 @@ function buildLabeledBlock(header, text) {
   // 一つのコマンドに保持する。実改行にすると後続段落が別コマンドへ分断される。
   if (rest.length) return header + first + "\\n" + rest.join("\\n");
   return header + first;
+}
+/* メモの効果欄を、段落ごとに1行ずつ積む。
+
+   メモは実改行で段落を表すため、段落分割器の結果をそのまま行として並べる。
+   以前はDBの改行でのみ行を分けていたので、原典が改段していても
+   DB側が1行で持っている本文はメモでも1行になり、パレットと食い違っていた。
+   段落の判定を分割器に集約し、どの経路でも同じ段落になるようにする。 */
+function pushMemoEffect(lines, label, text) {
+  const paragraphs = splitEffectLinesPlain(text);
+  paragraphs.forEach((paragraph, index) => {
+    lines.push(`\u3000\u3000${index === 0 ? label : ""}${paragraph}`);
+  });
 }
 /* 固有バフの説明は、発動タイミングごとに分岐する戦術スキル効果とは違い、
    バフ自体の常時的な性質を述べた一つの文章である。
@@ -611,20 +667,9 @@ function buildPalette(state) {
         const did = did0 + 1;
         const roll = sanitizeInline(d.roll);
         const dval = sanitizeInline(d.dval || "");
-        const deff = sanitizeInline(d.effect);
         if (!roll && !dval) return;
-        let showDeff = deff;
-        if (deff) {
-          const colIdx = deff.indexOf("\uFF1A");
-          if (colIdx > 0) {
-            const part0 = deff.slice(0, colIdx).trim();
-            const part1 = deff.slice(colIdx + 1).trim();
-            if (/^\d[\d-]*$/.test(part0)) showDeff = part1;
-          } else if (/^\d[\d-]*$/.test(deff.trim())) {
-            showDeff = "";
-          }
-        }
-        displayDice.push(showDeff ? `${roll}\uFF1A${showDeff}` : roll);
+        // 原典が改段しているダイス効果は、パレット内の改行 `\n` として保持する。
+        displayDice.push(formatDiceEffectDisplay(roll, stripDiceIndexPrefix(d.effect), "\\n"));
 	        const dPlusVar = d.dPlus ? d.dPlusLabel || autoDiceVarName(`S${rn}-${did}d\u5024`) : !hasPerDicePlus && skDPlusVar ? skDPlusVar : null;
 	        const dCntVar = d.dCnt ? d.dCntLabel || autoDiceVarName(`S${rn}-${did}d\u6570`) : !hasPerDiceCnt && skDCntVar ? skDCntVar : null;
 	        const dPlusOp = d.dPlus ? d.dPlusOp : !hasPerDicePlus && skDPlusVar ? sk.dPlusOp : null;
@@ -674,20 +719,8 @@ function buildPalette(state) {
             const did = did0 + 1;
             const roll = sanitizeInline(d.roll);
             const dval = sanitizeInline(d.dval || "");
-            const deff = sanitizeInline(d.effect);
             if (!roll && !dval) return;
-            let showDeff = deff;
-            if (deff) {
-              const colIdx = deff.indexOf("\uFF1A");
-              if (colIdx > 0) {
-                const part0 = deff.slice(0, colIdx).trim();
-                const part1 = deff.slice(colIdx + 1).trim();
-                if (/^\d[\d-]*$/.test(part0)) showDeff = part1;
-              } else if (/^\d[\d-]*$/.test(deff.trim())) {
-                showDeff = "";
-              }
-            }
-            displayDice.push(showDeff ? `${roll}\uFF1A${showDeff}` : roll);
+            displayDice.push(formatDiceEffectDisplay(roll, stripDiceIndexPrefix(d.effect), "\\n"));
             const mahi = buildMahiFormula(roll, dval, "", null, null);
             if (isDefense) {
               const defLabel = useDiceIdx ? `\u540C\u5316${rn}-${did}` : `\u540C\u5316${rn}`;
@@ -733,7 +766,7 @@ function buildPalette(state) {
         }
         const kEff = buildLabeledBlock("\u899A\u9192\u52B9\u679C\uFF1A", kSk.effect);
         if (kEff) kParts.push(kEff);
-        const kDisplayDice = (kSk.dice || []).map((d) => d.effect ? `${d.roll}\uFF1A${d.effect}` : d.roll).filter(Boolean);
+        const kDisplayDice = (kSk.dice || []).map((d) => formatDiceEffectDisplay(d.roll, stripDiceIndexPrefix(d.effect), "\\n")).filter(Boolean);
         if (kDisplayDice.length) kParts.push(kDisplayDice.join("\\n"));
         L.push(redactEgoSanFromPalette(kParts.join("\\n")));
         (kSk.dice || []).forEach((d, di) => {
@@ -751,7 +784,7 @@ function buildPalette(state) {
         }
         const sBlk = buildLabeledBlock("\u4FB5\u8755\u52B9\u679C\uFF1A", sSk.effect);
         if (sBlk) sParts.push(sBlk);
-        const sDisplayDice = (sSk.dice || []).map((d) => d.effect ? `${d.roll}\uFF1A${d.effect}` : d.roll).filter(Boolean);
+        const sDisplayDice = (sSk.dice || []).map((d) => formatDiceEffectDisplay(d.roll, stripDiceIndexPrefix(d.effect), "\\n")).filter(Boolean);
         if (sDisplayDice.length) sParts.push(sDisplayDice.join("\\n"));
         L.push(redactEgoSanFromPalette(sParts.join("\\n")));
         (sSk.dice || []).forEach((d, di) => {
@@ -902,12 +935,12 @@ function buildMemo(state) {
   if (p.pas.name) {
     L.push("\u25A0 \u4EBA\u683C\u30D1\u30C3\u30B7\u30D6");
     L.push(`\u3000${p.pas.name}\uFF08${p.pas.cond || "\u5E38\u6642"}\uFF09`);
-    if (p.pas.always) p.pas.always.split("\n").filter(Boolean).forEach((l, i) => L.push(`\u3000\u3000${i === 0 ? "\u5E38\u6642\uFF1A" : ""}${l.trim()}`));
-    if (p.pas.effect) p.pas.effect.split("\n").filter(Boolean).forEach((l, i) => L.push(`\u3000\u3000${i === 0 ? "\u52B9\u679C\uFF1A" : ""}${l.trim()}`));
+    pushMemoEffect(L, "\u5E38\u6642\uFF1A", p.pas.always);
+    pushMemoEffect(L, "\u52B9\u679C\uFF1A", p.pas.effect);
     if (p.pas2Enabled && p.pas2.name) {
       L.push(`\u3000${p.pas2.name}\uFF08${p.pas2.cond || ""}\uFF09`);
-      if (p.pas2.always) p.pas2.always.split("\n").filter(Boolean).forEach((l, i) => L.push(`\u3000\u3000${i === 0 ? "\u5E38\u6642\uFF1A" : ""}${l.trim()}`));
-      if (p.pas2.effect) p.pas2.effect.split("\n").filter(Boolean).forEach((l, i) => L.push(`\u3000\u3000${i === 0 ? "\u52B9\u679C\uFF1A" : ""}${l.trim()}`));
+      pushMemoEffect(L, "\u5E38\u6642\uFF1A", p.pas2.always);
+      pushMemoEffect(L, "\u52B9\u679C\uFF1A", p.pas2.effect);
     }
     L.push("");
   }
@@ -916,7 +949,7 @@ function buildMemo(state) {
     p.supports.forEach((s, i) => {
       L.push(`\u3000${i + 1}. ${s.name}\uFF08${s.cond || ""}\uFF09  LP${s.lp || ""}`);
       const isAlways = /\u5E38\u6642|\u5E38\u99D0/.test(s.cond || "");
-      if (s.effect) s.effect.split("\n").filter(Boolean).forEach((l, j) => L.push(`\u3000\u3000${j === 0 ? (isAlways ? "\u5E38\u6642\u52B9\u679C\uFF1A" : "\u52B9\u679C\uFF1A") : ""}${l.trim()}`));
+      pushMemoEffect(L, isAlways ? "\u5E38\u6642\u52B9\u679C\uFF1A" : "\u52B9\u679C\uFF1A", s.effect);
     });
     L.push("");
   }
@@ -924,7 +957,7 @@ function buildMemo(state) {
     L.push("\u25A0 \u6B7B\u4EA1\u5F8C\u5C02\u7528\u30B5\u30DD\u30FC\u30C8\u30D1\u30C3\u30B7\u30D6");
     const ds = p.deathSupport;
     L.push(`\u3000${ds.name || ""}\uFF08${ds.cond || ""}\uFF09  LP${ds.lp || ""}`);
-    if (ds.effect) ds.effect.split("\n").filter(Boolean).forEach((l, j) => L.push(`\u3000\u3000${j === 0 ? "\u52B9\u679C\uFF1A" : ""}${l.trim()}`));
+    pushMemoEffect(L, "\u52B9\u679C\uFF1A", ds.effect);
     L.push("");
   }
   if ((p.uniqueBuffs || []).length) {

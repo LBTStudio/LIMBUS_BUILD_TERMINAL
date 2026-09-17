@@ -28,11 +28,42 @@ function findSkill(persona, rank, name) {
   return (persona.skills || []).find((s) => s?.rank === rank && (!name || s?.name === name));
 }
 
+function findEgo(name) {
+  return (db.egos || []).find((e) => e?.name === name);
+}
+
 /* 修正対象への参照を、読み書きできる形（所有オブジェクトとキー）で返す。 */
 function resolveTarget(entry) {
+  const t = entry.target;
+
+  /* E.G.Oは人格に属さない独立したレコードなので、人格の解決より先に扱う。
+     覚醒（kakusei）・侵蝕（shinshoku）の効果とダイス、固有バフを対象にする。 */
+  if (t.kind === "ego" || t.kind === "egoDice" || t.kind === "egoSub") {
+    const ego = findEgo(entry.ego);
+    if (!ego) return { error: `E.G.Oが見つかりません: ${entry.ego}` };
+    if (t.kind === "egoSub") {
+      const sub = (ego.sub_skills || [])[t.index - 1];
+      if (!sub) return { error: `E.G.Oの同化スキルが見つかりません: ${entry.ego}/同化${t.index}` };
+      if (t.name && sub.name !== t.name) {
+        return { error: `同化スキル名が一致しません: ${entry.ego}/同化${t.index}「${sub.name}」` };
+      }
+      return { owner: sub, key: t.field };
+    }
+    if (t.kind === "ego" && !t.form) {
+      return { owner: ego, key: t.field };
+    }
+    const form = ego[t.form];
+    if (!form) return { error: `E.G.Oの形態が見つかりません: ${entry.ego}/${t.form}` };
+    if (t.kind === "ego") {
+      return { owner: form, key: t.field };
+    }
+    const dice = (form.dice || [])[t.index - 1];
+    if (!dice) return { error: `E.G.Oのダイスが見つかりません: ${entry.ego}/${t.form}/ダイス${t.index}` };
+    return { owner: dice, key: t.field };
+  }
+
   const persona = findPersona(entry.persona);
   if (!persona) return { error: `人格が見つかりません: ${entry.persona}` };
-  const t = entry.target;
 
   if (t.kind === "persona") {
     return { owner: persona, key: t.field };
@@ -83,6 +114,9 @@ for (const entry of entries) {
 
 const label = (e) => {
   const t = e.target;
+  if (t.kind === "ego") return `E.G.O ${e.ego} :: ${t.form ? `${t.form}/` : ""}${t.field}`;
+  if (t.kind === "egoDice") return `E.G.O ${e.ego} :: ${t.form}/ダイス${t.index}`;
+  if (t.kind === "egoSub") return `E.G.O ${e.ego} :: 同化${t.index}「${t.name}」/${t.field}`;
   if (t.kind === "persona") return `${e.persona} :: ${t.field}`;
   if (t.kind === "buff") return `${e.persona} :: 固有バフ「${t.name}」`;
   if (t.kind === "dice") return `${e.persona} :: ${t.rank}「${t.name}」/ダイス${t.index}`;

@@ -30,17 +30,27 @@ python3 -m http.server 8000
 
 `data/db.json` の本文はすべて原典PDF（基本ルールブックとサプリメント『アンロックド・シンク』）の紙面を根拠とします。ルールの解釈や調整は行いません。
 
-照合と修正のツールは `tools/provenance/` にまとめてあります。
+原典PDF2冊は `sources/` に格納してあり、照合用コーパスをリポジトリ内で作り直せます。照合と修正のツールは `tools/provenance/` にまとめてあります。
 
 ```bash
-# DB本文が原典に実在し、原典の途中で切れていないか
+# 段階1: DB本文の文字が原典に実在し、原典の途中で切れていないか
 node tools/provenance/audit-db-text.mjs
 
-# 出力生成がDB本文を壊していないか
+# 段階1: DB本文の段落構造が原典と一致しているか
+node tools/provenance/audit-db-paragraphs.mjs
+
+# 段階3: 段落分割器がDB本文を壊していないか
 node tools/provenance/audit-output-lossless.mjs
+
+# 段階3: 実際の出力（パレット・メモ・JSON・共有シート）が段落構造を保っているか
+node tools/provenance/audit-output-paragraphs.mjs
 ```
 
-いずれも指摘0件で通る状態を維持してください。手順や判定の根拠は [tools/provenance/README.md](tools/provenance/README.md)、この作業の目標と方針は [docs/data-provenance-goal.md](docs/data-provenance-goal.md) にあります。
+いずれも指摘0件で通る状態を維持してください。
+
+「本文の文字」と「段落構造」、「段落分割器」と「実際の出力」をそれぞれ別に検査するのは、前者だけでは後者の破損を原理的に検出できないためです。文字照合は比較前に改行を除去するので段落の破損を見逃し、分割器の検査は分割器を通らない経路の欠陥を見逃します。
+
+手順や判定の根拠は [tools/provenance/README.md](tools/provenance/README.md)、この作業の目標と方針は [docs/output-fidelity-goal.md](docs/output-fidelity-goal.md)、作業中に詰まった箇所と教訓は [docs/provenance-lessons.md](docs/provenance-lessons.md) にあります。
 
 ## テスト
 
