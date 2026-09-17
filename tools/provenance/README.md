@@ -4,17 +4,75 @@
 利用者から「スキルテキストが途中で寸断される」「発動タイミングで改行されない」
 という報告を受けた際に、どの段階の問題なのかを切り分けるために使います。
 
-目的と設計方針は [docs/data-provenance-goal.md](../../docs/data-provenance-goal.md) にあります。
+目的と設計方針は次の二つにあります。
+
+- [docs/output-fidelity-goal.md](../../docs/output-fidelity-goal.md) — 現行の目標と計画
+- [docs/data-provenance-goal.md](../../docs/data-provenance-goal.md) — 先行作業（文字照合）
+
+作業中に詰まった箇所と判断の根拠は
+[docs/provenance-lessons.md](../../docs/provenance-lessons.md) にまとめてあります。
+このツール群を触る前に一度目を通してください。
 
 ## 監査する三段階
 
 | 段階 | 内容 | ツール |
 |---|---|---|
-| 1. データベース | `data/db.json` の本文が原典PDFと一致しているか | `audit-db-text.mjs` |
-| 2. 信ぴょう性検査 | 1を機械的に再実行できるか | `extract_pdf_corpus.py` + `audit-db-text.mjs` |
-| 3. 抽出・反映 | 出力生成が本文を壊していないか | `audit-output-lossless.mjs` |
+| 1. データベース | 本文の文字が原典に実在するか | `audit-db-text.mjs` |
+| 1. データベース | 本文の段落構造が原典と一致するか | `audit-db-paragraphs.mjs` |
+| 2. 信ぴょう性検査 | 1・3を機械的に再実行できるか | `extract_pdf_corpus.py` + 上記の各監査 |
+| 3. 抽出・反映 | 段落分割器が本文を壊していないか | `audit-output-lossless.mjs` |
+| 3. 抽出・反映 | **実出力**が段落構造を保っているか | `audit-output-paragraphs.mjs` |
+
+段階1の二つは役割が違います。`audit-db-text.mjs` は比較前に改行を除去するため
+段落構造の破損を原理的に検出できず、`audit-db-paragraphs.mjs` がその死角を埋めます。
+
+段階3の二つも同様です。`audit-output-lossless.mjs` は分割器を単体で検査しますが、
+利用者が受け取るのは `buildPalette()` などの出力です。
+分割器を通らない経路の欠陷を見逃さないため、
+`audit-output-paragraphs.mjs` が実出力4経路を直接照合します。
 
 ## 使い方
+
+### 実出力の段落構造を検査する（PDF不要）
+
+```bash
+node tools/provenance/audit-output-paragraphs.mjs
+node tools/provenance/audit-output-paragraphs.mjs --json
+```
+
+全人格を実際に装備し、チャットパレット・メモ・CCFOLIA JSON・共有シートの
+4経路について、DB本文の段落境界がその経路の改行表現で現れるかを確かめます。
+
+新しい出力経路を追加したら、`output-paragraphs.mjs` の `OUTPUT_ROUTES` へ
+必ず登録してください。登録を忘れるとその経路は監査の外に置かれます。
+
+### DBの段落構造を原典と照合する（PDF不要）
+
+```bash
+node tools/provenance/audit-db-paragraphs.mjs
+node tools/provenance/audit-db-paragraphs.mjs --json
+```
+
+組版情報から段落境界を復元したコーパス
+（`data/provenance/*.paragraphs.txt`）と突き合わせ、二種類の破損を報告します。
+
+- **連結** — 原典が改段している位置で、DBが改行を落としている
+- **分断** — 原典が一文で書いている位置に、DBが改行を入れている
+
+組版から一意に定まらない位置（行末の余白が1文字に満たず、
+続きが発動タイミング見出しの場合）は、偽陽性を避けるため報告しません。
+
+### 段落の破損を修復する
+
+```bash
+node tools/provenance/plan-paragraph-repairs.mjs           # 修復案を確認
+node tools/provenance/plan-paragraph-repairs.mjs --write   # repairs.json へ追記
+node tools/provenance/apply-repairs.mjs                    # 適用内容を確認
+node tools/provenance/apply-repairs.mjs --write            # data/db.json を更新
+```
+
+修復は「原典が改段している位置へ改行を戻す」だけで、文字は変えません。
+案は手で書かず、監査の指摘から機械的に生成してください（転記の誤りを防ぐため）。
 
 ### 出力生成の検査（PDF不要）
 
@@ -54,7 +112,22 @@ node tools/provenance/show-source.mjs "N社握る者" --raw   # 行見出しを�
 
 指摘された本文を修正するとき、原典の紙面をそのまま確認できます。
 
-### コーパスの再生成（PDFが手元にある場合）
+### コーパスの再生成
+
+原典PDFは `sources/` に格納してあるので、引数なしで再生成できます。
+
+```bash
+python3 tools/provenance/extract_pdf_corpus.py
+```
+
+二種類のコーパスを書き出します。
+
+| ファイル | 用途 |
+|---|---|
+| `<key>.txt` | 素のテキスト。文字照合（`audit-db-text.mjs`）が使う |
+| `<key>.paragraphs.txt` | 折り返しを連結し、段落境界だけを改行にした版 |
+
+別の場所のPDFを使う場合は引数で渡せます。
 
 ```bash
 python3 tools/provenance/extract_pdf_corpus.py \
@@ -75,12 +148,18 @@ python3 tools/provenance/extract_pdf_corpus.py \
 
 | ファイル | 役割 |
 |---|---|
-| `extract_pdf_corpus.py` | PDFから照合用コーパスを `data/provenance/` へ書き出す |
-| `db-provenance.mjs` | 照合ロジック（正規化・紙面ブロック構築・判定）。監査とテストが共有する |
-| `audit-db-text.mjs` | DB本文が原典に実在するかを報告する |
+| `extract_pdf_corpus.py` | PDFから照合用コーパス（素・段落復元の二種）を書き出す |
+| `db-provenance.mjs` | 文字照合のロジック（正規化・紙面ブロック構築・判定） |
+| `db-paragraphs.mjs` | 段落照合のロジック。監査とテストが共有する |
+| `output-paragraphs.mjs` | 実出力の段落照合ロジック。出力経路の一覧もここにある |
+| `audit-db-text.mjs` | DB本文の文字が原典に実在するかを報告する |
+| `audit-db-paragraphs.mjs` | DB本文の段落構造が原典と一致するかを報告する |
+| `audit-output-lossless.mjs` | 段落分割器が本文を壊していないかを報告する |
+| `audit-output-paragraphs.mjs` | 実出力4経路が段落構造を保っているかを報告する |
+| `plan-paragraph-repairs.mjs` | 段落照合の指摘から `repairs.json` の追記案を作る |
+| `apply-repairs.mjs` | `repairs.json` に従って `data/db.json` を修正する |
 | `show-source.mjs` | ある人格の原典紙面をそのまま表示する |
 | `pipeline-harness.mjs` | `js/generator.js` と `js/state.js` をNode上で動かす足場 |
-| `audit-output-lossless.mjs` | 出力生成が本文を壊していないかを報告する |
 
 ## 判定の考え方
 
@@ -134,11 +213,34 @@ PDFが判読できない、または原典自体が省略している場合は
 
 ## 回帰テスト
 
-両方の監査はテストスイートからも実行されます。
+すべての監査はテストスイートからも実行されます。
 
-- `tests/output-lossless.test.mjs` — 段階3（G1）
-- `tests/db-provenance.test.mjs` — 段階1・2（G2・G3）
+| テスト | 対象 |
+|---|---|
+| `tests/db-provenance.test.mjs` | 段階1（文字が原典に実在するか） |
+| `tests/output-lossless.test.mjs` | 段階3（段落分割器が本文を壊さないか） |
+| `tests/output-paragraphs.test.mjs` | 段階3（実出力4経路が段落を保つか）・報告事例の固定 |
+| `tests/audit-non-vacuity.test.mjs` | 監査が空回りしていないこと |
 
 ```bash
 node --test "tests/*.test.mjs"
 ```
+
+### 非空虚性の試験について
+
+`tests/audit-non-vacuity.test.mjs` は、監査が「検出すべきものを検出できる」ことを
+破損の注入によって確かめます。
+
+この作業の発端は、監査が0件を報告し続けたまま利用者が破損を踏んだことでした。
+監査が検査していた内部関数と、利用者が受け取る出力の経路が別だったためです。
+**「0件」は監査が働いている証拠にはなりません。**
+
+そのため次の五つを常時確認しています。
+
+- 4つの出力経路それぞれについて、改行を空白へ潰すと段階3の監査が検出すること
+- 壊していない経路は指摘されないこと（常に何か検出するだけの試験にしない）
+- DBの改行を落とすと段階1の段落照合が検出すること
+- 原典に無い改行を入れると段階1の段落照合が検出すること
+- 監査が検査対象を実際に集めていること（対象0件でも「検出0件」と出てしまうため）
+
+監査や出力経路を変更したときは、このテストが通ることを必ず確認してください。
