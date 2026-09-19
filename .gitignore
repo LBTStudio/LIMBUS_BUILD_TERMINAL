@@ -1,3 +1,5 @@
 # Python の中間生成物。抽出器（tools/provenance/*.py）の実行で作られる。
 __pycache__/
 *.pyc
+# Regenerable raw evidence databases; PDFs and JSON audit evidence stay tracked.
+data/provenance/*-ledger.sqlite

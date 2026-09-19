@@ -753,8 +753,8 @@ function buildPalette(state) {
             }
           });
           if (displayDice.length) headParts.push(displayDice.join("\\n"));
-          L.push(headParts.join("\\n"));
-          execRows.forEach((r) => L.push(r));
+          L.push(redactEgoSanFromPalette(headParts.join("\\n")));
+          execRows.forEach((r) => L.push(redactEgoSanFromPalette(r)));
           L.push("");
         });
       });
@@ -784,6 +784,7 @@ function buildPalette(state) {
         if (e.passive_name) {
           const passBlk = buildLabeledBlock(`E.G.O\u30D1\u30C3\u30B7\u30D6\u3010${e.passive_name}\u3011\uFF1A`, e.passive_effect);
           if (passBlk) kParts.push(passBlk);
+          if (e.passive_cond) kParts.push(`発動条件：${e.passive_cond}`);
         }
         const kEff = buildLabeledBlock("\u899A\u9192\u52B9\u679C\uFF1A", kSk.effect);
         if (kEff) kParts.push(kEff);
@@ -815,6 +816,10 @@ function buildPalette(state) {
           L.push(`${mahi}+{MT} \u4FB5\u8755\uFF5C${nameBase}\uFF1A\u30DE\u30C3\u30C1${suf}`);
           L.push(`${mahi}+{DM} \u4FB5\u8755\uFF5C${nameBase}\uFF1A\u30C0\u30E1\u30FC\u30B8${suf}`);
         });
+      }
+      if (e.unique_buff) {
+        const buffBlock = buildProseBlock("固有バフ：", e.unique_buff);
+        L.push(redactEgoSanFromPalette(`E.G.O【${e.name}】\\n${buffBlock}`));
       }
       L.push("");
     });
@@ -1416,6 +1421,7 @@ function buildShareSheetHTML(state) {
           ${e.passive_name ? `<div class="ego-p"><b>${esc(e.passive_name)}</b>${e.passive_cond ? ` <span class="cond">${esc(e.passive_cond)}</span>` : ""}<div class="eff">${fmt(e.passive_effect || "")}</div></div>` : ""}
           ${egoSkillHTML("\u899A\u9192\u52B9\u679C", e.kakusei, "kakusei")}
           ${egoSkillHTML("\u4FB5\u8755\u52B9\u679C", e.shinshoku, "shinshoku")}
+          ${(e.sub_skills || []).map((skill, index) => egoSkillHTML(`同化S${skill.no ?? index + 1}：${esc(skill.name || "")}`, skill, "douka")).join("")}
           ${e.unique_buff ? `<div class="eff"><u>\u56FA\u6709\u30D0\u30D5</u><br>${nl(e.unique_buff)}</div>` : ""}
         </article>
       `).join("")}

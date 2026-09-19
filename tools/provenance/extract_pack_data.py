@@ -785,247 +785,17 @@ def collect_egos(pages, rules, sections):
     return egos
 
 
-# --- ショップ（サポートパッシブ・精神）---------------------------------
-#
-# どちらも同じ体裁の表で組まれている。
-#
-#   紙面219 サポートパッシブ          紙面225 精神の種類
-#     x0 ≈  42〜80  名称（中央揃え）     x0 ≈  37〜77  名称（中央揃え）
-#     x0 =  89.45   発動条件＆効果       x0 =  82.22   効果
-#     x0 ≈ 235      価格（○LP）         x0 ≈ 234      価格（○欠片）
-#
-# 名称の列は中央揃えのため x0 が一定しない。そこで縦罫線を境に使う。
-#
-#   紙面219 縦罫線 x = 86.2 / 227.9    紙面225 縦罫線 x = 79.1 / 227.9
-#
-# 1件の範囲は水平罫線で区切られる。行がどの罫線帯に属するかで
-# レコードをまとめる（人格の欄と同じ考え方）。
-SHOP_PRICE_RE = re.compile(r"^(\d+)\s*(LP|欠片?)$")
-# 紙面の隅にあるノンブル。本文ではないので表から取り除く。
-SHOP_PAGE_NUMBER_RE = re.compile(r"^\d{1,3}$")
-# 表の行見出し。本文ではないので取り除く。
-SHOP_HEADER_WORDS = {"価格", "名称", "効果", "発動条件＆効果", "発動条件"}
-# 精神の効果は3種の行見出しで始まる。DBは項目を分けて持つ。
-SPIRIT_FIELDS = (("常時発動", "always_effect"),
-                 ("士気低下効果", "morale_effect"),
-                 ("混乱効果", "confuse_effect"))
+# --- ショップ: 共通検出器へ委譲（旧条件語ベースの検出器は廃止）------------
+def collect_shop():
+    from detect_pdf_data import Document, shop_candidates, validate_candidates
 
-
-def shop_section_pages(pages, sections):
-    """ショップ節の紙面（0起点）を返す。"""
-    start = sections.get(SHOP_SECTION)
-    if start is None:
-        return []
-    end = next_section_page(sections, start, len(pages))
-    return list(range(start, min(end, len(pages))))
-
-
-def shop_table_rows(pages, rules, indexes):
-    """ショップ節の表を、罫線で区切られた1件ぶんの行の束へ切り分ける。
-
-    表は紙面をまたいで続く。罫線帯を紙面順に並べ、
-    「名称と価格が揃った帯」を1件の区切りとする。
-    """
-    bands = []
-    for index in indexes:
-        page_rule = sorted(rules[index])
-        grouped = {}
-        for row in pages[index]:
-            if row["text"] in SHOP_HEADER_WORDS:
-                continue
-            if SHOP_PAGE_NUMBER_RE.fullmatch(row["text"].strip()):
-                continue
-            band = sum(1 for rule in page_rule if rule <= row["y0"])
-            grouped.setdefault(band, []).append(row)
-        for band in sorted(grouped):
-            rows = sorted(grouped[band], key=lambda r: (round(r["y0"], 1), r["x0"]))
-            bands.append({"page": index, "rows": rows})
-    return bands
-
-
-def split_shop_columns(rows, verticals):
-    """1帯の行を、名称・本文・価格の3列へ分ける。
-
-    列の境界は縦罫線から取る。紙面ごとに位置が違う（86.2 と 79.1）ため、
-    定数で書かずにその紙面の罫線を使う。
-    """
-    bounds = sorted({round(x, 1) for x, _top, _bottom in verticals})
-    left = bounds[0] if bounds else 86.0
-    right = bounds[-1] if len(bounds) > 1 else 227.9
-    name, body, price = [], [], []
-    for row in rows:
-        if row["x0"] >= right:
-            price.append(row)
-        elif row["x0"] >= left:
-            body.append(row)
-        else:
-            name.append(row)
-    return name, body, price
-
-
-def parse_shop_entries(pages, rules, verticals, indexes, starts_record):
-    """ショップ節の表を、1件ぶんのレコードへ組み立てる。
-
-    表の1件は、罫線帯の1つには収まらない。
-
-      紙面219「窮地より」
-        帯A  名称「窮地より」          本文「なし」
-        帯B  価格「50LP」             本文「自分がいる速度値に…ならス」「キル威力+1」
-
-    名称・価格・条件・効果はそれぞれ別の高さに組まれており、
-    どれか一つを「1件の始まり」の目印にはできない。
-
-    そこで本文の先頭に必ず現れるもの（`starts_record`）を境界に使う。
-    サポートパッシブなら発動条件の行（`なし` `憤怒x3 共鳴`）、
-    精神なら効果の見出し行（`常時発動：` `士気低下効果：`）である。
-    どちらも表の定型であって、紙面ごとの当てずっぽうではない。
-
-    名称は中央揃えで折り返されるため（`存在意味に対` / `する期待`）、
-    列の行を上から連結する。価格も同様（`1000欠` / `片`）。
-    """
-    entries = []
-    current = None
-    for band in shop_table_rows(pages, rules, indexes):
-        name_rows, body_rows, price_rows = split_shop_columns(
-            band["rows"], verticals[band["page"]])
-        name = "".join(r["text"] for r in name_rows).strip()
-        price = "".join(r["text"] for r in price_rows).strip()
-        for paragraph in join_wrapped(body_rows):
-            if starts_record(paragraph):
-                current = {"name": "", "price": "", "body": [paragraph]}
-                entries.append(current)
-            elif current is not None:
-                current["body"].append(paragraph)
-        # 名称・価格は本文と同じ高さに無いので、帯の単位で直近の件へ渡す。
-        if current is not None:
-            if name and not current["name"]:
-                current["name"] = name
-            if price and not current["price"]:
-                current["price"] = price
-    return [e for e in entries if e["name"]]
-
-
-# サポートパッシブの発動条件の形。`なし` か、大罪資源の指定である。
-# 表の1件は必ずこの行から始まる。
-SUPPORT_COND_RE = re.compile(r"^(?:なし|(?:[^\sx]+x\d+\s*)+(?:共鳴|保有))$")
-
-
-def parse_support_passives(entries):
-    """サポートパッシブのレコードへ整える。
-
-    本文の1段落目が発動条件、残りが効果である。
-    """
-    cond_re = SUPPORT_COND_RE
-    out = []
-    for entry in entries:
-        price = SHOP_PRICE_RE.match(entry["price"].replace(" ", ""))
-        body = list(entry["body"])
-        cond = ""
-        if body and cond_re.match(body[0].strip()):
-            cond = body.pop(0).strip()
-        out.append({
-            "name": entry["name"],
-            "cond": cond,
-            "effect": "\n".join(body),
-            "lp": int(price.group(1)) if price else None,
-        })
-    return out
-
-
-def parse_spirits(entries):
-    """精神のレコードへ整える。
-
-    効果は `常時発動：` `士気低下効果：` `混乱効果：` の3種の見出しで
-    始まる段落に分かれる。DBは項目ごとに分けて持つ。
-    見出しの無い精神（常時発動が無いものなど）は空欄とする。
-    """
-    out = []
-    for entry in entries:
-        price = SHOP_PRICE_RE.match(entry["price"].replace(" ", ""))
-        values = {field: "" for _label, field in SPIRIT_FIELDS}
-        field = None
-        for paragraph in entry["body"]:
-            head = next((f for label, f in SPIRIT_FIELDS
-                         if paragraph.startswith(label + "：")
-                         or paragraph.startswith(label + ":")), None)
-            if head:
-                field = head
-                values[field] = paragraph.split("：", 1)[-1].split(":", 1)[-1].strip()
-            elif field:
-                # 見出しの続き。原典が改段した位置を保つ。
-                values[field] = (values[field] + "\n" + paragraph).strip("\n")
-        out.append({
-            "name": entry["name"],
-            "price": int(price.group(1)) if price else None,
-            **values,
-        })
-    return out
-
-
-def shop_record_pages(pages, rules, verticals, sections):
-    """ショップ節のうち、実際にレコードが載っている紙面（0起点）を返す。
-
-    節見出しの紙面には節の解説文しかなく、レコードを産まない。
-    網羅性の検査（verify-pack-extract.mjs の検査5）へ申告するのは
-    「走査した紙面」ではなく「データが載っていた紙面」である。
-
-    価格欄（`20LP` `50欠片`）があるかどうかで判る。表の定型なので、
-    紙面番号を決め打ちしなくて済む。
-    """
-    found = []
-    for index in shop_section_pages(pages, sections):
-        if any(SHOP_PRICE_RE.match(row["text"].replace(" ", "")) for row in pages[index]):
-            found.append(index)
-    return found
-
-
-def collect_shop(pages, rules, verticals, sections):
-    """ショップ節から、サポートパッシブと精神を取り出す。
-
-    節は「サポートパッシブ」の表で始まり、途中から「精神の種類」の表になる。
-    境目は小見出しの紙面で決める。表の体裁は同じなので、
-    どちらの表かは見出しの位置だけで分かる。
-    """
-    indexes = shop_section_pages(pages, sections)
-    if not indexes:
-        return [], []
-    spirit_start = None
-    for index in indexes:
-        if any(r["text"].strip() == "精神の種類" for r in pages[index]):
-            spirit_start = index
-            break
-    support_pages = [i for i in indexes
-                     if spirit_start is None or i < spirit_start]
-    spirit_pages = [i for i in indexes
-                    if spirit_start is not None and i >= spirit_start]
-    # 精神の効果は「常時発動：」「士気低下効果：」「混乱効果：」の順に組まれる。
-    # 常時発動を持たない精神があるため、1件の先頭に来る見出しは一定しない。
-    #
-    # そこで「1件のうち最初に現れる見出し」を境界とする。
-    # 混乱効果は必ず最後なので、混乱効果の次に来た見出しが次の件の始まりである。
-    seen_confuse = {"flag": True}
-
-    def spirit_starts(paragraph):
-        head = next((field for label, field in SPIRIT_FIELDS
-                     if paragraph.startswith(label + "：")
-                     or paragraph.startswith(label + ":")), None)
-        if head is None:
-            return False
-        if head == "confuse_effect":
-            seen_confuse["flag"] = True
-            return False
-        # 混乱効果を見たあとの見出しは、次の1件の始まり。
-        if seen_confuse["flag"]:
-            seen_confuse["flag"] = False
-            return True
-        return False
-
-    support = parse_support_passives(parse_shop_entries(
-        pages, rules, verticals, support_pages,
-        lambda p: bool(SUPPORT_COND_RE.match(p.strip()))))
-    spirits = parse_spirits(parse_shop_entries(
-        pages, rules, verticals, spirit_pages, spirit_starts))
-    return support, spirits
+    doc = Document.read("pack1")
+    candidates = shop_candidates(doc)
+    issues = validate_candidates(doc, candidates)
+    if issues:
+        raise ValueError(json.dumps(issues, ensure_ascii=False))
+    return ([c["data"] for c in candidates if c["kind"] == "support_passives"],
+            [c["data"] for c in candidates if c["kind"] == "spirits"])
 
 
 def main(argv):
@@ -1055,7 +825,7 @@ def main(argv):
     print(f"E.G.O: {len(egos)}件"
           + (f"（No.{egos[0]['no']}〜No.{egos[-1]['no']}）" if egos else ""))
 
-    support, spirits = collect_shop(pages, rules, verticals, sections)
+    support, spirits = collect_shop()
     print(f"サポートパッシブ: {len(support)}件")
     print(f"精神: {len(spirits)}件")
 
@@ -1067,11 +837,9 @@ def main(argv):
     # 節見出しの紙面には節の解説文（データの使い方・基本ルールブックへの参照）が
     # 組まれており、これはレコードにならない。走査範囲を申告してしまうと、
     # 検査5が解説文まで「データなのに抽出されていない」と報告する。
-    # ショップ節（サポートパッシブ・精神）は抽出できているが、
-    # 照合側（verify-pack-extract.mjs の reassembled）がまだこの形を組み立てられない。
-    # 申告すると「原典にあるのに抽出されていない」と報告され、
-    # 本当の取りこぼしがその中に埋もれる。
-    # 照合を用意するまでは申告しない。抽出結果は JSON に含めてある。
+    # この旧コーパス監査の data_pages は人格・E.G.Oのみ。
+    # ショップは共通検出器が全セル・短文・価格も含め別途検証する。
+    # verify-pack-extract.mjs は共通検出器の新規抽出と完全一致を要求する。
     data_pages = sorted({number for head in heads for number in head["pages"]}
                         | {ego["page"] for ego in egos})
     # 紙面番号は抽出の来歴であってレコードの属性ではない。DBへ混ぜない。

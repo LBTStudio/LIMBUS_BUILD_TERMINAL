@@ -153,18 +153,24 @@ export function auditOutputParagraphs(runtime, equipPersona, { mutate = null } =
     let state;
     try {
       state = equipPersona(runtime, mode, persona);
-    } catch {
+    } catch (error) {
+      findings.push({ code: "equip_error", path: `${mode}/${persona?.name}`, excerpt: error.message });
       continue;
     }
     for (const route of OUTPUT_ROUTES) {
       let output;
       try {
         output = route.build(runtime.gen, state);
-      } catch {
+      } catch (error) {
+        findings.push({ code: "output_error", route: route.key, path: `${mode}/${persona?.name}`, excerpt: error.message });
         continue;
       }
       // 非空虚性テストは、ここで出力をわざと壊して監査が気づくかを確かめる。
       if (mutate) output = mutate(route.key, output);
+      if (!output || !String(output).trim()) {
+        findings.push({ code: "empty_output", route: route.key, path: `${mode}/${persona?.name}`, excerpt: "empty export" });
+        continue;
+      }
       for (const item of items) {
         for (const boundary of paragraphBoundaries(item.text)) {
           checked++;
@@ -181,5 +187,6 @@ export function auditOutputParagraphs(runtime, equipPersona, { mutate = null } =
       }
     }
   }
+  if (!checked) findings.push({ code: "nothing_checked", path: "audit", excerpt: "no paragraph boundaries checked" });
   return { checked, findings };
 }
