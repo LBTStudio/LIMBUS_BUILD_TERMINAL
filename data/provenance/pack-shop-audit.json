@@ -1,0 +1,302 @@
+{
+ "schema_version": 1,
+ "scope": "pack-shop",
+ "goal_complete": false,
+ "scope_passed": true,
+ "pymupdf": "1.28.2",
+ "sources": [
+  {
+   "key": "pack1",
+   "filename": "新リンバスTRPG-特定抽出パック第一弾.pdf",
+   "sha256": "9225ce7460edac87a1286f74f7caaad1ce5f87a8b095dd61f124b02e8a06b0e2",
+   "pages": 244,
+   "rows": 7921
+  }
+ ],
+ "candidate_counts": {
+  "support_passives": 29,
+  "spirits": 5
+ },
+ "candidate_sha256": "473ac384605761dca206e5c5fbc2c88f452605da1fb9a051e09842670d1ff084",
+ "ledger_content_sha256": "de5bc678ca6436d8d04d14ec32272c9f2e74704cccc864f0837e02a11d4472ac",
+ "registration_changes": [
+  {
+   "kind": "support_passives",
+   "name": "発電モーターL-22",
+   "source": "pack1",
+   "pages": [
+    219
+   ]
+  },
+  {
+   "kind": "support_passives",
+   "name": "窮地より",
+   "source": "pack1",
+   "pages": [
+    219
+   ]
+  },
+  {
+   "kind": "support_passives",
+   "name": "のるかそるか",
+   "source": "pack1",
+   "pages": [
+    219
+   ]
+  },
+  {
+   "kind": "support_passives",
+   "name": "追跡",
+   "source": "pack1",
+   "pages": [
+    219
+   ]
+  },
+  {
+   "kind": "support_passives",
+   "name": "黄昏の剣",
+   "source": "pack1",
+   "pages": [
+    219
+   ]
+  },
+  {
+   "kind": "support_passives",
+   "name": "人生の終止符",
+   "source": "pack1",
+   "pages": [
+    219
+   ]
+  },
+  {
+   "kind": "support_passives",
+   "name": "マージン",
+   "source": "pack1",
+   "pages": [
+    219,
+    220
+   ]
+  },
+  {
+   "kind": "support_passives",
+   "name": "猛獣の本能",
+   "source": "pack1",
+   "pages": [
+    220
+   ]
+  },
+  {
+   "kind": "support_passives",
+   "name": "パレルモ剣術",
+   "source": "pack1",
+   "pages": [
+    220
+   ]
+  },
+  {
+   "kind": "support_passives",
+   "name": "端末機",
+   "source": "pack1",
+   "pages": [
+    220
+   ]
+  },
+  {
+   "kind": "support_passives",
+   "name": "ルール違反",
+   "source": "pack1",
+   "pages": [
+    220
+   ]
+  },
+  {
+   "kind": "support_passives",
+   "name": "身体中心美術",
+   "source": "pack1",
+   "pages": [
+    220
+   ]
+  },
+  {
+   "kind": "support_passives",
+   "name": "赤く縺れた蜘蛛の巣",
+   "source": "pack1",
+   "pages": [
+    220,
+    221
+   ]
+  },
+  {
+   "kind": "support_passives",
+   "name": "野生美",
+   "source": "pack1",
+   "pages": [
+    221
+   ]
+  },
+  {
+   "kind": "support_passives",
+   "name": "切磋琢磨",
+   "source": "pack1",
+   "pages": [
+    221
+   ]
+  },
+  {
+   "kind": "support_passives",
+   "name": "試験抽出：紅炎殺",
+   "source": "pack1",
+   "pages": [
+    221
+   ]
+  },
+  {
+   "kind": "support_passives",
+   "name": "試験抽出：提灯",
+   "source": "pack1",
+   "pages": [
+    221
+   ]
+  },
+  {
+   "kind": "support_passives",
+   "name": "試験抽出：AEDD",
+   "source": "pack1",
+   "pages": [
+    221,
+    222
+   ]
+  },
+  {
+   "kind": "support_passives",
+   "name": "社員証",
+   "source": "pack1",
+   "pages": [
+    222
+   ]
+  },
+  {
+   "kind": "support_passives",
+   "name": "苦痛なき慈悲",
+   "source": "pack1",
+   "pages": [
+    222
+   ]
+  },
+  {
+   "kind": "support_passives",
+   "name": "魔王の行進",
+   "source": "pack1",
+   "pages": [
+    222
+   ]
+  },
+  {
+   "kind": "support_passives",
+   "name": "盗んできた炎",
+   "source": "pack1",
+   "pages": [
+    222
+   ]
+  },
+  {
+   "kind": "support_passives",
+   "name": "出血性ショック",
+   "source": "pack1",
+   "pages": [
+    222,
+    223
+   ]
+  },
+  {
+   "kind": "support_passives",
+   "name": "無振八方鐘",
+   "source": "pack1",
+   "pages": [
+    223
+   ]
+  },
+  {
+   "kind": "support_passives",
+   "name": "破綻",
+   "source": "pack1",
+   "pages": [
+    223
+   ]
+  },
+  {
+   "kind": "support_passives",
+   "name": "襲う波",
+   "source": "pack1",
+   "pages": [
+    223
+   ]
+  },
+  {
+   "kind": "support_passives",
+   "name": "カスクスピリッツ",
+   "source": "pack1",
+   "pages": [
+    223,
+    224
+   ]
+  },
+  {
+   "kind": "support_passives",
+   "name": "第5種永久機関",
+   "source": "pack1",
+   "pages": [
+    224
+   ]
+  },
+  {
+   "kind": "support_passives",
+   "name": "富",
+   "source": "pack1",
+   "pages": [
+    224
+   ]
+  },
+  {
+   "kind": "spirits",
+   "name": "存在意味に対する期待",
+   "source": "pack1",
+   "pages": [
+    225
+   ]
+  },
+  {
+   "kind": "spirits",
+   "name": "破砕痕",
+   "source": "pack1",
+   "pages": [
+    225
+   ]
+  },
+  {
+   "kind": "spirits",
+   "name": "孤独",
+   "source": "pack1",
+   "pages": [
+    225
+   ]
+  },
+  {
+   "kind": "spirits",
+   "name": "青い砂",
+   "source": "pack1",
+   "pages": [
+    225
+   ]
+  },
+  {
+   "kind": "spirits",
+   "name": "眩惑",
+   "source": "pack1",
+   "pages": [
+    225
+   ]
+  }
+ ],
+ "issues": []
+}

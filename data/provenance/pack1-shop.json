@@ -1,0 +1,4655 @@
+{
+ "source": {
+  "key": "pack1",
+  "filename": "新リンバスTRPG-特定抽出パック第一弾.pdf",
+  "sha256": "9225ce7460edac87a1286f74f7caaad1ce5f87a8b095dd61f124b02e8a06b0e2",
+  "pages": 244,
+  "rows": 7921
+ },
+ "candidates": [
+  {
+   "id": "pack1/support_passives/pack1:219:7",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    219
+   ],
+   "data": {
+    "name": "発電モーターL-22",
+    "cond": "なし",
+    "effect": "戦闘開始時、充電10を得る（戦闘中1回）",
+    "lp": 20
+   },
+   "fields": {
+    "name": [
+     "pack1:219:5",
+     "pack1:219:6"
+    ],
+    "cond": [
+     "pack1:219:7"
+    ],
+    "effect": [
+     "pack1:219:9"
+    ],
+    "lp": [
+     "pack1:219:8"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:219:7",
+    "pack1:219:5",
+    "pack1:219:8",
+    "pack1:219:6",
+    "pack1:219:9"
+   ]
+  },
+  {
+   "id": "pack1/support_passives/pack1:219:11",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    219
+   ],
+   "data": {
+    "name": "窮地より",
+    "cond": "なし",
+    "effect": "自分がいる速度値に効果が付与されているならスキル威力+1",
+    "lp": 50
+   },
+   "fields": {
+    "name": [
+     "pack1:219:10"
+    ],
+    "cond": [
+     "pack1:219:11"
+    ],
+    "effect": [
+     "pack1:219:13",
+     "pack1:219:14"
+    ],
+    "lp": [
+     "pack1:219:12"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:219:11",
+    "pack1:219:10",
+    "pack1:219:12",
+    "pack1:219:13",
+    "pack1:219:14"
+   ]
+  },
+  {
+   "id": "pack1/support_passives/pack1:219:16",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    219
+   ],
+   "data": {
+    "name": "のるかそるか",
+    "cond": "傲慢x3 共鳴",
+    "effect": "戦闘開始時、クリティカル成功率が90％減少しクリティカルダメージ量+5",
+    "lp": 50
+   },
+   "fields": {
+    "name": [
+     "pack1:219:15"
+    ],
+    "cond": [
+     "pack1:219:16"
+    ],
+    "effect": [
+     "pack1:219:18",
+     "pack1:219:19"
+    ],
+    "lp": [
+     "pack1:219:17"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:219:16",
+    "pack1:219:15",
+    "pack1:219:17",
+    "pack1:219:18",
+    "pack1:219:19"
+   ]
+  },
+  {
+   "id": "pack1/support_passives/pack1:219:21",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    219
+   ],
+   "data": {
+    "name": "追跡",
+    "cond": "色欲x2 共鳴",
+    "effect": "鈎事務所所属人格のみ発動。自分より速度が高い敵がいるなら、戦闘開始時にクイック1～2を得て攻撃的中時に（対象の出血/5+2）だけSANを回復（1ダイス最大7）",
+    "lp": 100
+   },
+   "fields": {
+    "name": [
+     "pack1:219:20"
+    ],
+    "cond": [
+     "pack1:219:21"
+    ],
+    "effect": [
+     "pack1:219:23",
+     "pack1:219:24",
+     "pack1:219:25",
+     "pack1:219:26"
+    ],
+    "lp": [
+     "pack1:219:22"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:219:21",
+    "pack1:219:23",
+    "pack1:219:20",
+    "pack1:219:22",
+    "pack1:219:24",
+    "pack1:219:25",
+    "pack1:219:26"
+   ]
+  },
+  {
+   "id": "pack1/support_passives/pack1:219:28",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    219
+   ],
+   "data": {
+    "name": "黄昏の剣",
+    "cond": "憤怒x3 共鳴",
+    "effect": "夜明事務所所属人格のみ発動。基本攻撃スキルの火傷付与と振動付与量+1。戦闘開始時にSANを5～10回復。この効果でSANを回復する時、最大値を超過したSANはR終了まで蓄積される",
+    "lp": 100
+   },
+   "fields": {
+    "name": [
+     "pack1:219:27"
+    ],
+    "cond": [
+     "pack1:219:28"
+    ],
+    "effect": [
+     "pack1:219:30",
+     "pack1:219:31",
+     "pack1:219:32",
+     "pack1:219:33"
+    ],
+    "lp": [
+     "pack1:219:29"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:219:28",
+    "pack1:219:30",
+    "pack1:219:27",
+    "pack1:219:29",
+    "pack1:219:31",
+    "pack1:219:32",
+    "pack1:219:33"
+   ]
+  },
+  {
+   "id": "pack1/support_passives/pack1:219:35",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    219
+   ],
+   "data": {
+    "name": "人生の終止符",
+    "cond": "傲慢x3 共鳴",
+    "effect": "終止符事務所所属人格のみ発動。基本攻撃スキルの呼吸獲得量+1。弾丸があるなら、クリティカル成功による呼吸が4以下にならない",
+    "lp": 100
+   },
+   "fields": {
+    "name": [
+     "pack1:219:34"
+    ],
+    "cond": [
+     "pack1:219:35"
+    ],
+    "effect": [
+     "pack1:219:37",
+     "pack1:219:38",
+     "pack1:219:39"
+    ],
+    "lp": [
+     "pack1:219:36"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:219:35",
+    "pack1:219:37",
+    "pack1:219:34",
+    "pack1:219:36",
+    "pack1:219:38",
+    "pack1:219:39"
+   ]
+  },
+  {
+   "id": "pack1/support_passives/pack1:219:40",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    219,
+    220
+   ],
+   "data": {
+    "name": "マージン",
+    "cond": "怠惰x3 共鳴",
+    "effect": "スキルを複数捨てる時、全てのスキルが戦術選択ダイスロールから除外されない",
+    "lp": 100
+   },
+   "fields": {
+    "name": [
+     "pack1:219:40"
+    ],
+    "cond": [
+     "pack1:219:41"
+    ],
+    "effect": [
+     "pack1:220:1",
+     "pack1:220:2"
+    ],
+    "lp": [
+     "pack1:219:42"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:219:40",
+    "pack1:219:41",
+    "pack1:219:42",
+    "pack1:220:1",
+    "pack1:220:2"
+   ]
+  },
+  {
+   "id": "pack1/support_passives/pack1:220:4",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    220
+   ],
+   "data": {
+    "name": "猛獣の本能",
+    "cond": "なし",
+    "effect": "東部親指カポllllの人格かつ虎標弾または猛虎標弾へ弾倉変換する人格なら発動。保有弾丸数上限が+6。スキル使用時に底力5を得る。S4使用時に底力を全て消費する",
+    "lp": 100
+   },
+   "fields": {
+    "name": [
+     "pack1:220:3"
+    ],
+    "cond": [
+     "pack1:220:4"
+    ],
+    "effect": [
+     "pack1:220:6",
+     "pack1:220:7",
+     "pack1:220:8",
+     "pack1:220:9"
+    ],
+    "lp": [
+     "pack1:220:5"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:220:4",
+    "pack1:220:6",
+    "pack1:220:3",
+    "pack1:220:5",
+    "pack1:220:7",
+    "pack1:220:8",
+    "pack1:220:9"
+   ]
+  },
+  {
+   "id": "pack1/support_passives/pack1:220:11",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    220
+   ],
+   "data": {
+    "name": "パレルモ剣術",
+    "cond": "憤怒x3 共鳴",
+    "effect": "蜘蛛の巣 親指所属の人格のみ発動。前のRと同じ対象とマッチをしたなら、SANを1～10回復しマッチ威力+1。自分のスキル効果で振動爆発が発動したなら、次のRに憤怒ダメージ量増加1を得る（1Rに3回）",
+    "lp": 100
+   },
+   "fields": {
+    "name": [
+     "pack1:220:10"
+    ],
+    "cond": [
+     "pack1:220:11"
+    ],
+    "effect": [
+     "pack1:220:13",
+     "pack1:220:14",
+     "pack1:220:15",
+     "pack1:220:16",
+     "pack1:220:17"
+    ],
+    "lp": [
+     "pack1:220:12"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:220:11",
+    "pack1:220:13",
+    "pack1:220:14",
+    "pack1:220:10",
+    "pack1:220:12",
+    "pack1:220:15",
+    "pack1:220:16",
+    "pack1:220:17"
+   ]
+  },
+  {
+   "id": "pack1/support_passives/pack1:220:19",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    220
+   ],
+   "data": {
+    "name": "端末機",
+    "cond": "憂鬱x3 共鳴",
+    "effect": "蜘蛛の巣 人差し指所属の人格のみ発動。指令を遂行したなら、呼吸4を得る。指令を遂行できなかった場合に得るカルマを無効化する（戦闘中2回）",
+    "lp": 100
+   },
+   "fields": {
+    "name": [
+     "pack1:220:18"
+    ],
+    "cond": [
+     "pack1:220:19"
+    ],
+    "effect": [
+     "pack1:220:21",
+     "pack1:220:22",
+     "pack1:220:23"
+    ],
+    "lp": [
+     "pack1:220:20"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:220:19",
+    "pack1:220:21",
+    "pack1:220:18",
+    "pack1:220:20",
+    "pack1:220:22",
+    "pack1:220:23"
+   ]
+  },
+  {
+   "id": "pack1/support_passives/pack1:220:25",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    220
+   ],
+   "data": {
+    "name": "ルール違反",
+    "cond": "嫉妬x3 共鳴",
+    "effect": "蜘蛛の巣 中指所属の人格のみ発動。戦闘開始時、味方が装着した守備スキルの数/2だけダメージ量+1（最大6）。自分以外の装着した味方が中指所属なら2人分として扱う",
+    "lp": 100
+   },
+   "fields": {
+    "name": [
+     "pack1:220:24"
+    ],
+    "cond": [
+     "pack1:220:25"
+    ],
+    "effect": [
+     "pack1:220:27",
+     "pack1:220:28",
+     "pack1:220:29",
+     "pack1:220:30"
+    ],
+    "lp": [
+     "pack1:220:26"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:220:25",
+    "pack1:220:27",
+    "pack1:220:24",
+    "pack1:220:26",
+    "pack1:220:28",
+    "pack1:220:29",
+    "pack1:220:30"
+   ]
+  },
+  {
+   "id": "pack1/support_passives/pack1:220:32",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    220
+   ],
+   "data": {
+    "name": "身体中心美術",
+    "cond": "色欲x3 共鳴",
+    "effect": "蜘蛛の巣 薬指所属の人格のみ発動。基本攻撃スキルで攻撃的中時、デバフを付与して同時にバフを得たなら、攻撃後にSANを4～8回復。この効果でSAN回復時にSANが最大なら次のRにパワー1を得る（1Rに1回）",
+    "lp": 100
+   },
+   "fields": {
+    "name": [
+     "pack1:220:31"
+    ],
+    "cond": [
+     "pack1:220:32"
+    ],
+    "effect": [
+     "pack1:220:34",
+     "pack1:220:35",
+     "pack1:220:36",
+     "pack1:220:37",
+     "pack1:220:38"
+    ],
+    "lp": [
+     "pack1:220:33"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:220:32",
+    "pack1:220:34",
+    "pack1:220:35",
+    "pack1:220:31",
+    "pack1:220:33",
+    "pack1:220:36",
+    "pack1:220:37",
+    "pack1:220:38"
+   ]
+  },
+  {
+   "id": "pack1/support_passives/pack1:220:39",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    220,
+    221
+   ],
+   "data": {
+    "name": "赤く縺れた蜘蛛の巣",
+    "cond": "憤怒x5 保有",
+    "effect": "死亡している味方だけダメージ量増加1を得て（最大3）死亡している味方2名ごとにマッチ威力+1（最大2）。自分が蜘蛛の巣所属かつ、死亡している味方が蜘蛛の巣所属なら2人分として扱う",
+    "lp": 100
+   },
+   "fields": {
+    "name": [
+     "pack1:221:1",
+     "pack1:221:2"
+    ],
+    "cond": [
+     "pack1:220:39"
+    ],
+    "effect": [
+     "pack1:221:3",
+     "pack1:221:4",
+     "pack1:221:5",
+     "pack1:221:6"
+    ],
+    "lp": [
+     "pack1:220:40"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:220:39",
+    "pack1:220:40",
+    "pack1:221:3",
+    "pack1:221:1",
+    "pack1:221:4",
+    "pack1:221:2",
+    "pack1:221:5",
+    "pack1:221:6"
+   ]
+  },
+  {
+   "id": "pack1/support_passives/pack1:221:8",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    221
+   ],
+   "data": {
+    "name": "野生美",
+    "cond": "色欲x2 憂鬱x2 保有",
+    "effect": "薬指野獣派所属人格のみ発動。基本スキルのダメージ量+2。攻撃後、対象の沈潜が10以上、または引き裂かれた色彩が合計10以上なら、次のRにパワー1を得る（1Rに1回）",
+    "lp": 100
+   },
+   "fields": {
+    "name": [
+     "pack1:221:7"
+    ],
+    "cond": [
+     "pack1:221:8"
+    ],
+    "effect": [
+     "pack1:221:10",
+     "pack1:221:11",
+     "pack1:221:12",
+     "pack1:221:13"
+    ],
+    "lp": [
+     "pack1:221:9"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:221:8",
+    "pack1:221:10",
+    "pack1:221:7",
+    "pack1:221:9",
+    "pack1:221:11",
+    "pack1:221:12",
+    "pack1:221:13"
+   ]
+  },
+  {
+   "id": "pack1/support_passives/pack1:221:15",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    221
+   ],
+   "data": {
+    "name": "切磋琢磨",
+    "cond": "暴食x3 保有",
+    "effect": "ジア家・シュエ家・ワン家・シー家の家主候補の人格のみ発動。破裂を付与するスキルのマッチ威力+1。マッチ勝利時、HPを10回復しSANを5回復し次のRにクイック1保護1を得る",
+    "lp": 100
+   },
+   "fields": {
+    "name": [
+     "pack1:221:14"
+    ],
+    "cond": [
+     "pack1:221:15"
+    ],
+    "effect": [
+     "pack1:221:17",
+     "pack1:221:18",
+     "pack1:221:19",
+     "pack1:221:20"
+    ],
+    "lp": [
+     "pack1:221:16"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:221:15",
+    "pack1:221:17",
+    "pack1:221:14",
+    "pack1:221:16",
+    "pack1:221:18",
+    "pack1:221:19",
+    "pack1:221:20"
+   ]
+  },
+  {
+   "id": "pack1/support_passives/pack1:221:23",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    221
+   ],
+   "data": {
+    "name": "試験抽出：紅炎殺",
+    "cond": "憤怒x5 保有",
+    "effect": "LCEE.G.O::紅炎殺の人格のみ発動。火傷を付与するダイスのダメージ量+2。火傷を得るスキルのマッチ威力+1。戦闘開始時、自分が生き残ったR3ごとにマッチ威力増加1を得る（最大2）",
+    "lp": 100
+   },
+   "fields": {
+    "name": [
+     "pack1:221:21",
+     "pack1:221:22"
+    ],
+    "cond": [
+     "pack1:221:23"
+    ],
+    "effect": [
+     "pack1:221:25",
+     "pack1:221:26",
+     "pack1:221:27",
+     "pack1:221:28"
+    ],
+    "lp": [
+     "pack1:221:24"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:221:23",
+    "pack1:221:25",
+    "pack1:221:21",
+    "pack1:221:24",
+    "pack1:221:26",
+    "pack1:221:22",
+    "pack1:221:27",
+    "pack1:221:28"
+   ]
+  },
+  {
+   "id": "pack1/support_passives/pack1:221:30",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    221
+   ],
+   "data": {
+    "name": "試験抽出：提灯",
+    "cond": "暴食x5 保有",
+    "effect": "LCEE.G.O::提灯の人格のみ発動。破裂を付与するダイスのダメージ量+2。自分の失ったHPが20％以上ならマッチ威力+1。自分の持つ挑発値/3だけダメージ量増加（最大5）",
+    "lp": 100
+   },
+   "fields": {
+    "name": [
+     "pack1:221:29"
+    ],
+    "cond": [
+     "pack1:221:30"
+    ],
+    "effect": [
+     "pack1:221:32",
+     "pack1:221:33",
+     "pack1:221:34",
+     "pack1:221:35"
+    ],
+    "lp": [
+     "pack1:221:31"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:221:30",
+    "pack1:221:32",
+    "pack1:221:29",
+    "pack1:221:31",
+    "pack1:221:33",
+    "pack1:221:34",
+    "pack1:221:35"
+   ]
+  },
+  {
+   "id": "pack1/support_passives/pack1:221:38",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    221,
+    222
+   ],
+   "data": {
+    "name": "試験抽出：AEDD",
+    "cond": "嫉妬x5 保有",
+    "effect": "LCEE.G.O::AEDDの人格のみ発動。充電を獲得したなら、次のRにダメージ量増加1を得る（1Rに最大2回）。充電を消費したなら、次のRにマッチ威力増加1を得る（1Rに最大1回）。自分に高電圧外皮があるなら、戦闘開始時に電圧1を得る（戦闘中2回）",
+    "lp": 100
+   },
+   "fields": {
+    "name": [
+     "pack1:221:36",
+     "pack1:221:37"
+    ],
+    "cond": [
+     "pack1:221:38"
+    ],
+    "effect": [
+     "pack1:221:40",
+     "pack1:221:41",
+     "pack1:221:42",
+     "pack1:221:43",
+     "pack1:222:1",
+     "pack1:222:2"
+    ],
+    "lp": [
+     "pack1:221:39"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:221:38",
+    "pack1:221:40",
+    "pack1:221:36",
+    "pack1:221:39",
+    "pack1:221:41",
+    "pack1:221:37",
+    "pack1:221:42",
+    "pack1:221:43",
+    "pack1:222:1",
+    "pack1:222:2"
+   ]
+  },
+  {
+   "id": "pack1/support_passives/pack1:222:4",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    222
+   ],
+   "data": {
+    "name": "社員証",
+    "cond": "憤怒x1 暴食x1 嫉妬x1 保有",
+    "effect": "LCE所属人格のみ発動。自分が死亡時に、全種類の大罪資源を1ずつ獲得。この戦闘の間に同じ所属の味方が死亡したなら、次のRからパワー1忍耐1を得る（最大2）",
+    "lp": 300
+   },
+   "fields": {
+    "name": [
+     "pack1:222:3"
+    ],
+    "cond": [
+     "pack1:222:4"
+    ],
+    "effect": [
+     "pack1:222:6",
+     "pack1:222:7",
+     "pack1:222:8",
+     "pack1:222:9"
+    ],
+    "lp": [
+     "pack1:222:5"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:222:4",
+    "pack1:222:6",
+    "pack1:222:3",
+    "pack1:222:5",
+    "pack1:222:7",
+    "pack1:222:8",
+    "pack1:222:9"
+   ]
+  },
+  {
+   "id": "pack1/support_passives/pack1:222:11",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    222
+   ],
+   "data": {
+    "name": "苦痛なき慈悲",
+    "cond": "色欲x2 傲慢x2 保有",
+    "effect": "夜の錐所属人格のみ発動。HPが50％以下の敵に使用するスキル威力+1。対象のHPが25％以下なら、攻撃的中時に対象を[破壊]（強敵無効）",
+    "lp": 300
+   },
+   "fields": {
+    "name": [
+     "pack1:222:10"
+    ],
+    "cond": [
+     "pack1:222:11"
+    ],
+    "effect": [
+     "pack1:222:13",
+     "pack1:222:14",
+     "pack1:222:15"
+    ],
+    "lp": [
+     "pack1:222:12"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:222:11",
+    "pack1:222:13",
+    "pack1:222:10",
+    "pack1:222:12",
+    "pack1:222:14",
+    "pack1:222:15"
+   ]
+  },
+  {
+   "id": "pack1/support_passives/pack1:222:17",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    222
+   ],
+   "data": {
+    "name": "魔王の行進",
+    "cond": "ワザリングハイツ・エドガー家所属の味方5名以上",
+    "effect": "ワザリングハイツ・エドガー家所属の人格のみ発動。ワザリングハイツ・ワイルドハントの人格生存時、ワイルドハントの効果で死亡しない（ワザリングハイツ・ワイルドハントはこの効果は適応されない）",
+    "lp": 1000
+   },
+   "fields": {
+    "name": [
+     "pack1:222:16"
+    ],
+    "cond": [
+     "pack1:222:17"
+    ],
+    "effect": [
+     "pack1:222:19",
+     "pack1:222:20",
+     "pack1:222:21",
+     "pack1:222:22",
+     "pack1:222:23"
+    ],
+    "lp": [
+     "pack1:222:18"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:222:17",
+    "pack1:222:19",
+    "pack1:222:20",
+    "pack1:222:16",
+    "pack1:222:18",
+    "pack1:222:21",
+    "pack1:222:22",
+    "pack1:222:23"
+   ]
+  },
+  {
+   "id": "pack1/support_passives/pack1:222:25",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    222
+   ],
+   "data": {
+    "name": "盗んできた炎",
+    "cond": "なし",
+    "effect": "R開始時、火傷または特殊火傷を付与するスキルを持つ味方が5名以上かつ自分が火傷または特殊火傷を付与するスキルを持つなら発動。攻撃的中時、対象の火傷を1回発動し対象の火傷を3減少（1Rに1回）。R終了時、全ての敵に火傷があるなら、次のRに憤怒ダメージ量増加3を得る",
+    "lp": 1000
+   },
+   "fields": {
+    "name": [
+     "pack1:222:24"
+    ],
+    "cond": [
+     "pack1:222:25"
+    ],
+    "effect": [
+     "pack1:222:27",
+     "pack1:222:28",
+     "pack1:222:29",
+     "pack1:222:30",
+     "pack1:222:31",
+     "pack1:222:32"
+    ],
+    "lp": [
+     "pack1:222:26"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:222:25",
+    "pack1:222:27",
+    "pack1:222:28",
+    "pack1:222:24",
+    "pack1:222:26",
+    "pack1:222:29",
+    "pack1:222:30",
+    "pack1:222:31",
+    "pack1:222:32"
+   ]
+  },
+  {
+   "id": "pack1/support_passives/pack1:222:34",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    222,
+    223
+   ],
+   "data": {
+    "name": "出血性ショック",
+    "cond": "なし",
+    "effect": "R開始時、出血または特殊出血を付与するスキルを持つ味方が5名以上かつ自分が出血または特殊出血を付与するスキルを持つなら発動。マッチ勝利時、対象の出血を1回発動し対象の出血を4減少。R終了時、全ての敵に出血があるなら、次のRに色欲ダメージ量増加3を得る",
+    "lp": 1000
+   },
+   "fields": {
+    "name": [
+     "pack1:222:33"
+    ],
+    "cond": [
+     "pack1:222:34"
+    ],
+    "effect": [
+     "pack1:222:36",
+     "pack1:222:37",
+     "pack1:222:38",
+     "pack1:222:39",
+     "pack1:223:1",
+     "pack1:223:2"
+    ],
+    "lp": [
+     "pack1:222:35"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:222:34",
+    "pack1:222:36",
+    "pack1:222:33",
+    "pack1:222:35",
+    "pack1:222:37",
+    "pack1:222:38",
+    "pack1:222:39",
+    "pack1:223:1",
+    "pack1:223:2"
+   ]
+  },
+  {
+   "id": "pack1/support_passives/pack1:223:4",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    223
+   ],
+   "data": {
+    "name": "無振八方鐘",
+    "cond": "なし",
+    "effect": "R開始時、振動を付与するスキルを持つ味方が5名以上かつ自分が振動を付与するスキルを持つなら発動。R開始時、自分の振動5ごとにマッチ威力+1（最大3）。振幅絡連時、現在の振動-重畳が次のRまで延長する。振幅変換時に次のRに怠惰ダメージ量増加3を得る（1Rに1回）",
+    "lp": 1000
+   },
+   "fields": {
+    "name": [
+     "pack1:223:3"
+    ],
+    "cond": [
+     "pack1:223:4"
+    ],
+    "effect": [
+     "pack1:223:6",
+     "pack1:223:7",
+     "pack1:223:8",
+     "pack1:223:9",
+     "pack1:223:10",
+     "pack1:223:11"
+    ],
+    "lp": [
+     "pack1:223:5"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:223:4",
+    "pack1:223:6",
+    "pack1:223:7",
+    "pack1:223:3",
+    "pack1:223:5",
+    "pack1:223:8",
+    "pack1:223:9",
+    "pack1:223:10",
+    "pack1:223:11"
+   ]
+  },
+  {
+   "id": "pack1/support_passives/pack1:223:13",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    223
+   ],
+   "data": {
+    "name": "破綻",
+    "cond": "なし",
+    "effect": "R開始時、破裂を付与するスキルを持つ味方が5名以上かつ自分が破裂を付与するスキルを持つなら発動。破裂が15以下の敵に付与する破裂付与量+3。マッチ進行時、対象の破裂が10以上なら対象のマッチ威力-1。破裂爆発時、次のRに暴食ダメージ量増加3を得る（1Rに1回）",
+    "lp": 1000
+   },
+   "fields": {
+    "name": [
+     "pack1:223:12"
+    ],
+    "cond": [
+     "pack1:223:13"
+    ],
+    "effect": [
+     "pack1:223:15",
+     "pack1:223:16",
+     "pack1:223:17",
+     "pack1:223:18",
+     "pack1:223:19",
+     "pack1:223:20"
+    ],
+    "lp": [
+     "pack1:223:14"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:223:13",
+    "pack1:223:15",
+    "pack1:223:16",
+    "pack1:223:12",
+    "pack1:223:14",
+    "pack1:223:17",
+    "pack1:223:18",
+    "pack1:223:19",
+    "pack1:223:20"
+   ]
+  },
+  {
+   "id": "pack1/support_passives/pack1:223:22",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    223
+   ],
+   "data": {
+    "name": "襲う波",
+    "cond": "なし",
+    "effect": "R開始時、沈潜または特殊沈潜を付与するスキルを持つ味方が5名以上かつ自分が沈潜または特殊沈潜を付与するスキルを持つなら発動。沈潜キーワードを持つスキルで攻撃的中時、対象の沈潜を1回発動し対象の沈潜を3減少（1Rに1回）。SANが25％以下の敵に攻撃後、次のRに憂鬱ダメージ量増加3を得る（1Rに1回）",
+    "lp": 1000
+   },
+   "fields": {
+    "name": [
+     "pack1:223:21"
+    ],
+    "cond": [
+     "pack1:223:22"
+    ],
+    "effect": [
+     "pack1:223:24",
+     "pack1:223:25",
+     "pack1:223:26",
+     "pack1:223:27",
+     "pack1:223:28",
+     "pack1:223:29",
+     "pack1:223:30"
+    ],
+    "lp": [
+     "pack1:223:23"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:223:22",
+    "pack1:223:24",
+    "pack1:223:25",
+    "pack1:223:26",
+    "pack1:223:21",
+    "pack1:223:23",
+    "pack1:223:27",
+    "pack1:223:28",
+    "pack1:223:29",
+    "pack1:223:30"
+   ]
+  },
+  {
+   "id": "pack1/support_passives/pack1:223:33",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    223,
+    224
+   ],
+   "data": {
+    "name": "カスクスピリッツ",
+    "cond": "なし",
+    "effect": "R開始時、呼吸を得るスキルを持つ味方が5名以上かつ自分が呼吸を得るスキルを持つなら発動。スキルで呼吸を得る時、呼吸獲得量+2。呼吸が20以上ならクリティカル発生時の呼吸消費量-1（0にはならない）。呼吸が40以上ならR終了時、呼吸10を消費し次のRに傲慢ダメージ量増加3を得る",
+    "lp": 1000
+   },
+   "fields": {
+    "name": [
+     "pack1:223:31",
+     "pack1:223:32"
+    ],
+    "cond": [
+     "pack1:223:33"
+    ],
+    "effect": [
+     "pack1:223:35",
+     "pack1:223:36",
+     "pack1:223:37",
+     "pack1:223:38",
+     "pack1:224:1",
+     "pack1:224:2"
+    ],
+    "lp": [
+     "pack1:223:34"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:223:33",
+    "pack1:223:35",
+    "pack1:223:31",
+    "pack1:223:34",
+    "pack1:223:36",
+    "pack1:223:32",
+    "pack1:223:37",
+    "pack1:223:38",
+    "pack1:224:1",
+    "pack1:224:2"
+   ]
+  },
+  {
+   "id": "pack1/support_passives/pack1:224:4",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    224
+   ],
+   "data": {
+    "name": "第5種永久機関",
+    "cond": "なし",
+    "effect": "R開始時、充電または特殊充電を得るスキルを持つ味方が5名以上かつ自分が充電または特殊充電を得るスキルを持つなら発動。舞台開始時、充電力場7を得る。電圧を得るとき、追加で電圧を1得る。充電を消費するスキル使用時、自分の電圧が3以上なら次のRに嫉妬ダメージ量増加3を得る",
+    "lp": 1000
+   },
+   "fields": {
+    "name": [
+     "pack1:224:3"
+    ],
+    "cond": [
+     "pack1:224:4"
+    ],
+    "effect": [
+     "pack1:224:6",
+     "pack1:224:7",
+     "pack1:224:8",
+     "pack1:224:9",
+     "pack1:224:10",
+     "pack1:224:11"
+    ],
+    "lp": [
+     "pack1:224:5"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:224:4",
+    "pack1:224:6",
+    "pack1:224:7",
+    "pack1:224:3",
+    "pack1:224:5",
+    "pack1:224:8",
+    "pack1:224:9",
+    "pack1:224:10",
+    "pack1:224:11"
+   ]
+  },
+  {
+   "id": "pack1/support_passives/pack1:224:13",
+   "kind": "support_passives",
+   "source": "pack1",
+   "pages": [
+    224
+   ],
+   "data": {
+    "name": "富",
+    "cond": "なし",
+    "effect": "シナリオ報酬で獲得するLPが25％増加（最大20）",
+    "lp": 1000
+   },
+   "fields": {
+    "name": [
+     "pack1:224:12"
+    ],
+    "cond": [
+     "pack1:224:13"
+    ],
+    "effect": [
+     "pack1:224:15"
+    ],
+    "lp": [
+     "pack1:224:14"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "cond": "join-cell",
+    "effect": "join-cell",
+    "lp": "price-LP"
+   },
+   "row_ids": [
+    "pack1:224:13",
+    "pack1:224:12",
+    "pack1:224:14",
+    "pack1:224:15"
+   ]
+  },
+  {
+   "id": "pack1/spirits/pack1:225:9",
+   "kind": "spirits",
+   "source": "pack1",
+   "pages": [
+    225
+   ],
+   "data": {
+    "name": "存在意味に対する期待",
+    "price": 1000,
+    "always_effect": "追加ダメージで受けるダメージ量-50％",
+    "morale_effect": "R終了時、全ての味方に8の追加ダメージを与える",
+    "confuse_effect": "全ての耐性が脆弱になり、R終了時、全ての味方に12の追加ダメージを与える"
+   },
+   "fields": {
+    "name": [
+     "pack1:225:7",
+     "pack1:225:8"
+    ],
+    "price": [
+     "pack1:225:14",
+     "pack1:225:15"
+    ],
+    "always_effect": [
+     "pack1:225:9"
+    ],
+    "morale_effect": [
+     "pack1:225:10",
+     "pack1:225:11"
+    ],
+    "confuse_effect": [
+     "pack1:225:12",
+     "pack1:225:13"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "price": "price-欠片",
+    "always_effect": "strip-label:常時発動",
+    "morale_effect": "strip-label:士気低下効果",
+    "confuse_effect": "strip-label:混乱効果"
+   },
+   "row_ids": [
+    "pack1:225:9",
+    "pack1:225:10",
+    "pack1:225:7",
+    "pack1:225:14",
+    "pack1:225:11",
+    "pack1:225:8",
+    "pack1:225:15",
+    "pack1:225:12",
+    "pack1:225:13"
+   ]
+  },
+  {
+   "id": "pack1/spirits/pack1:225:17",
+   "kind": "spirits",
+   "source": "pack1",
+   "pages": [
+    225
+   ],
+   "data": {
+    "name": "破砕痕",
+    "price": 50,
+    "always_effect": "",
+    "morale_effect": "マッチ威力-1。脆弱3を得る",
+    "confuse_effect": "マッチ威力-1。全ての耐性が脆弱になる。沈潜と破裂で受けるダメージ量+50％"
+   },
+   "fields": {
+    "name": [
+     "pack1:225:16"
+    ],
+    "price": [
+     "pack1:225:20"
+    ],
+    "morale_effect": [
+     "pack1:225:17"
+    ],
+    "confuse_effect": [
+     "pack1:225:18",
+     "pack1:225:19"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "price": "price-欠片",
+    "morale_effect": "strip-label:士気低下効果",
+    "confuse_effect": "strip-label:混乱効果"
+   },
+   "row_ids": [
+    "pack1:225:17",
+    "pack1:225:16",
+    "pack1:225:18",
+    "pack1:225:20",
+    "pack1:225:19"
+   ]
+  },
+  {
+   "id": "pack1/spirits/pack1:225:22",
+   "kind": "spirits",
+   "source": "pack1",
+   "pages": [
+    225
+   ],
+   "data": {
+    "name": "孤独",
+    "price": 50,
+    "always_effect": "",
+    "morale_effect": "R開始時、沈潜3を得る",
+    "confuse_effect": "全ての耐性が脆弱になる。R開始時、沈潜5を得る"
+   },
+   "fields": {
+    "name": [
+     "pack1:225:21"
+    ],
+    "price": [
+     "pack1:225:25"
+    ],
+    "morale_effect": [
+     "pack1:225:22"
+    ],
+    "confuse_effect": [
+     "pack1:225:23",
+     "pack1:225:24"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "price": "price-欠片",
+    "morale_effect": "strip-label:士気低下効果",
+    "confuse_effect": "strip-label:混乱効果"
+   },
+   "row_ids": [
+    "pack1:225:22",
+    "pack1:225:21",
+    "pack1:225:23",
+    "pack1:225:25",
+    "pack1:225:24"
+   ]
+  },
+  {
+   "id": "pack1/spirits/pack1:225:27",
+   "kind": "spirits",
+   "source": "pack1",
+   "pages": [
+    225
+   ],
+   "data": {
+    "name": "青い砂",
+    "price": 50,
+    "always_effect": "",
+    "morale_effect": "速度d値-1。速度d値が2なら代わりに速度d数-1",
+    "confuse_effect": "全ての耐性が脆弱になる。速度d値-2。速度d値が2なら代わりに速度d数-2"
+   },
+   "fields": {
+    "name": [
+     "pack1:225:26"
+    ],
+    "price": [
+     "pack1:225:31"
+    ],
+    "morale_effect": [
+     "pack1:225:27",
+     "pack1:225:28"
+    ],
+    "confuse_effect": [
+     "pack1:225:29",
+     "pack1:225:30"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "price": "price-欠片",
+    "morale_effect": "strip-label:士気低下効果",
+    "confuse_effect": "strip-label:混乱効果"
+   },
+   "row_ids": [
+    "pack1:225:27",
+    "pack1:225:28",
+    "pack1:225:26",
+    "pack1:225:31",
+    "pack1:225:29",
+    "pack1:225:30"
+   ]
+  },
+  {
+   "id": "pack1/spirits/pack1:225:33",
+   "kind": "spirits",
+   "source": "pack1",
+   "pages": [
+    225
+   ],
+   "data": {
+    "name": "眩惑",
+    "price": 50,
+    "always_effect": "",
+    "morale_effect": "R終了時、次のRに束縛1ダメージ量減少2を得る",
+    "confuse_effect": "全ての耐性が一段階低下。R終了時、次のRに束縛1ダメージ量減少3を得る"
+   },
+   "fields": {
+    "name": [
+     "pack1:225:32"
+    ],
+    "price": [
+     "pack1:225:37"
+    ],
+    "morale_effect": [
+     "pack1:225:33",
+     "pack1:225:34"
+    ],
+    "confuse_effect": [
+     "pack1:225:35",
+     "pack1:225:36"
+    ]
+   },
+   "transforms": {
+    "name": "join-centered-name",
+    "price": "price-欠片",
+    "morale_effect": "strip-label:士気低下効果",
+    "confuse_effect": "strip-label:混乱効果"
+   },
+   "row_ids": [
+    "pack1:225:33",
+    "pack1:225:34",
+    "pack1:225:32",
+    "pack1:225:37",
+    "pack1:225:35",
+    "pack1:225:36"
+   ]
+  }
+ ],
+ "lines": [
+  {
+   "text": "発電モーターL-",
+   "x0": 42.02399826049805,
+   "x1": 82.98600006103516,
+   "y0": 97.2199935913086,
+   "y1": 104.89999389648438,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:5",
+   "page": 218,
+   "frameRight": 152.24099731445312
+  },
+  {
+   "text": "22",
+   "x0": 59.183998107910156,
+   "x1": 65.8740005493164,
+   "y0": 103.30638885498047,
+   "y1": 116.05518341064453,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875
+   ],
+   "id": "pack1:219:6",
+   "page": 218,
+   "frameRight": 258.1000061035156
+  },
+  {
+   "text": "なし",
+   "x0": 89.447998046875,
+   "x1": 101.447998046875,
+   "y0": 96.49999237060547,
+   "y1": 104.17999267578125,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:7",
+   "page": 218,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "20LP",
+   "x0": 236.97999572753906,
+   "x1": 250.74400329589844,
+   "y0": 102.49999237060547,
+   "y1": 110.17999267578125,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875
+   ],
+   "id": "pack1:219:8",
+   "page": 218,
+   "frameRight": 253.38101196289062
+  },
+  {
+   "text": "戦闘開始時、充電10を得る（戦闘中1回）",
+   "x0": 89.447998046875,
+   "x1": 201.5500030517578,
+   "y0": 108.61998748779297,
+   "y1": 116.29998779296875,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:9",
+   "page": 218,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "窮地より",
+   "x0": 50.54399871826172,
+   "x1": 74.54399871826172,
+   "y0": 127.21639251708984,
+   "y1": 139.96519470214844,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:10",
+   "page": 218,
+   "frameRight": 74.54399871826172
+  },
+  {
+   "text": "なし",
+   "x0": 89.447998046875,
+   "x1": 101.447998046875,
+   "y0": 120.40999603271484,
+   "y1": 128.08999633789062,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:11",
+   "page": 218,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "50LP",
+   "x0": 236.97999572753906,
+   "x1": 250.74400329589844,
+   "y0": 131.8099822998047,
+   "y1": 139.489990234375,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875
+   ],
+   "id": "pack1:219:12",
+   "page": 218,
+   "frameRight": 253.38101196289062
+  },
+  {
+   "text": "自分がいる速度値に効果が付与されているならス",
+   "x0": 89.447998046875,
+   "x1": 221.5,
+   "y0": 132.4099884033203,
+   "y1": 140.08999633789062,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:13",
+   "page": 218,
+   "frameRight": 227.9
+  },
+  {
+   "text": "キル威力+1",
+   "x0": 89.447998046875,
+   "x1": 120.13999938964844,
+   "y0": 143.20997619628906,
+   "y1": 150.88998413085938,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:14",
+   "page": 218,
+   "frameRight": 227.9
+  },
+  {
+   "text": "のるかそるか",
+   "x0": 44.54399871826172,
+   "x1": 80.54399871826172,
+   "y0": 161.77638244628906,
+   "y1": 174.5251922607422,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:15",
+   "page": 218,
+   "frameRight": 259.5400085449219
+  },
+  {
+   "text": "傲慢x3 共鳴",
+   "x0": 89.447998046875,
+   "x1": 122.80999755859375,
+   "y0": 154.96998596191406,
+   "y1": 162.64999389648438,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:16",
+   "page": 218,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "50LP",
+   "x0": 236.97999572753906,
+   "x1": 250.74400329589844,
+   "y0": 166.36997985839844,
+   "y1": 174.04998779296875,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875
+   ],
+   "id": "pack1:219:17",
+   "page": 218,
+   "frameRight": 253.38101196289062
+  },
+  {
+   "text": "戦闘開始時、クリティカル成功率が90％減少しク",
+   "x0": 89.447998046875,
+   "x1": 222.19000244140625,
+   "y0": 166.96998596191406,
+   "y1": 174.64999389648438,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:18",
+   "page": 218,
+   "frameRight": 227.9
+  },
+  {
+   "text": "リティカルダメージ量+5",
+   "x0": 89.447998046875,
+   "x1": 156.16000366210938,
+   "y0": 177.76998901367188,
+   "y1": 185.4499969482422,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:19",
+   "page": 218,
+   "frameRight": 227.9
+  },
+  {
+   "text": "追跡",
+   "x0": 56.54399871826172,
+   "x1": 68.54399871826172,
+   "y0": 207.03639221191406,
+   "y1": 219.7852020263672,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:20",
+   "page": 218,
+   "frameRight": 68.54399871826172
+  },
+  {
+   "text": "色欲x2 共鳴",
+   "x0": 89.447998046875,
+   "x1": 122.80999755859375,
+   "y0": 189.5299835205078,
+   "y1": 197.20999145507812,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:21",
+   "page": 218,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "100LP",
+   "x0": 235.3000030517578,
+   "x1": 252.4180145263672,
+   "y0": 211.62998962402344,
+   "y1": 219.30999755859375,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    3.3300018310546875
+   ],
+   "id": "pack1:219:22",
+   "page": 218,
+   "frameRight": 252.4180145263672
+  },
+  {
+   "text": "鈎事務所所属人格のみ発動。自分より速度が高い",
+   "x0": 89.447998046875,
+   "x1": 221.447998046875,
+   "y0": 201.54998779296875,
+   "y1": 209.22999572753906,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:23",
+   "page": 218,
+   "frameRight": 227.9
+  },
+  {
+   "text": "敵がいるなら、戦闘開始時にクイック1～2を得て",
+   "x0": 89.447998046875,
+   "x1": 222.22000122070312,
+   "y0": 212.22998046875,
+   "y1": 219.9099884033203,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:24",
+   "page": 218,
+   "frameRight": 227.9
+  },
+  {
+   "text": "攻撃的中時に（対象の出血/5+2）だけSANを回復",
+   "x0": 89.447998046875,
+   "x1": 221.3800048828125,
+   "y0": 223.0299835205078,
+   "y1": 230.70999145507812,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:25",
+   "page": 218,
+   "frameRight": 227.9
+  },
+  {
+   "text": "（1ダイス最大7）",
+   "x0": 89.447998046875,
+   "x1": 138.1699981689453,
+   "y0": 233.70997619628906,
+   "y1": 241.38998413085938,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:26",
+   "page": 218,
+   "frameRight": 227.9
+  },
+  {
+   "text": "黄昏の剣",
+   "x0": 50.54399871826172,
+   "x1": 74.54399871826172,
+   "y0": 262.9564208984375,
+   "y1": 275.7052001953125,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:27",
+   "page": 218,
+   "frameRight": 74.54399871826172
+  },
+  {
+   "text": "憤怒x3 共鳴",
+   "x0": 89.447998046875,
+   "x1": 122.80999755859375,
+   "y0": 245.46998596191406,
+   "y1": 253.14999389648438,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:28",
+   "page": 218,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "100LP",
+   "x0": 235.3000030517578,
+   "x1": 252.4180145263672,
+   "y0": 267.5500183105469,
+   "y1": 275.2300109863281,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    3.3300018310546875
+   ],
+   "id": "pack1:219:29",
+   "page": 218,
+   "frameRight": 252.4180145263672
+  },
+  {
+   "text": "夜明事務所所属人格のみ発動。基本攻撃スキルの",
+   "x0": 89.447998046875,
+   "x1": 221.447998046875,
+   "y0": 257.5899963378906,
+   "y1": 265.2699890136719,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:30",
+   "page": 218,
+   "frameRight": 227.9
+  },
+  {
+   "text": "火傷付与と振動付与量+1。戦闘開始時にSANを5～",
+   "x0": 89.447998046875,
+   "x1": 225.10000610351562,
+   "y0": 268.2699890136719,
+   "y1": 275.9499816894531,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:31",
+   "page": 218,
+   "frameRight": 227.9
+  },
+  {
+   "text": "10回復。この効果でSANを回復する時、最大値を",
+   "x0": 89.447998046875,
+   "x1": 221.7100067138672,
+   "y0": 278.9800109863281,
+   "y1": 286.6600036621094,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875
+   ],
+   "id": "pack1:219:32",
+   "page": 218,
+   "frameRight": 227.9
+  },
+  {
+   "text": "超過したSANはR終了まで蓄積される",
+   "x0": 89.447998046875,
+   "x1": 188.80999755859375,
+   "y0": 289.6600036621094,
+   "y1": 297.3399963378906,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:33",
+   "page": 218,
+   "frameRight": 227.9
+  },
+  {
+   "text": "人生の終止符",
+   "x0": 44.54399871826172,
+   "x1": 80.54399871826172,
+   "y0": 313.6224060058594,
+   "y1": 326.3711853027344,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:34",
+   "page": 218,
+   "frameRight": 86.2
+  },
+  {
+   "text": "傲慢x3 共鳴",
+   "x0": 89.447998046875,
+   "x1": 122.80999755859375,
+   "y0": 301.4200134277344,
+   "y1": 309.1000061035156,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:35",
+   "page": 218,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "100LP",
+   "x0": 235.3000030517578,
+   "x1": 252.4180145263672,
+   "y0": 318.21600341796875,
+   "y1": 325.89599609375,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    3.3300018310546875
+   ],
+   "id": "pack1:219:36",
+   "page": 218,
+   "frameRight": 252.4180145263672
+  },
+  {
+   "text": "終止符事務所所属人格のみ発動。基本攻撃スキル",
+   "x0": 89.447998046875,
+   "x1": 221.447998046875,
+   "y0": 313.5359802246094,
+   "y1": 321.2159729003906,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:37",
+   "page": 218,
+   "frameRight": 227.9
+  },
+  {
+   "text": "の呼吸獲得量+1。弾丸があるなら、クリティカル",
+   "x0": 89.447998046875,
+   "x1": 222.1699981689453,
+   "y0": 324.21600341796875,
+   "y1": 331.89599609375,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:38",
+   "page": 218,
+   "frameRight": 227.9
+  },
+  {
+   "text": "成功による呼吸が4以下にならない",
+   "x0": 89.447998046875,
+   "x1": 182.80999755859375,
+   "y0": 334.89599609375,
+   "y1": 342.57598876953125,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:39",
+   "page": 218,
+   "frameRight": 227.9
+  },
+  {
+   "text": "マージン",
+   "x0": 50.54399871826172,
+   "x1": 74.54399871826172,
+   "y0": 342.0624084472656,
+   "y1": 354.8111877441406,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:40",
+   "page": 218,
+   "frameRight": 74.54399871826172
+  },
+  {
+   "text": "怠惰x3 共鳴",
+   "x0": 89.447998046875,
+   "x1": 122.80999755859375,
+   "y0": 346.656005859375,
+   "y1": 354.33599853515625,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:219:41",
+   "page": 218,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "100LP",
+   "x0": 235.3000030517578,
+   "x1": 252.4180145263672,
+   "y0": 346.656005859375,
+   "y1": 354.33599853515625,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    3.3300018310546875
+   ],
+   "id": "pack1:219:42",
+   "page": 218,
+   "frameRight": 252.4180145263672
+  },
+  {
+   "text": "スキルを複数捨てる時、全てのスキルが戦術選択",
+   "x0": 89.447998046875,
+   "x1": 221.447998046875,
+   "y0": 45.139976501464844,
+   "y1": 52.819976806640625,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:1",
+   "page": 219,
+   "frameRight": 227.9
+  },
+  {
+   "text": "ダイスロールから除外されない",
+   "x0": 89.447998046875,
+   "x1": 173.447998046875,
+   "y0": 55.93999481201172,
+   "y1": 63.6199951171875,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:2",
+   "page": 219,
+   "frameRight": 227.9
+  },
+  {
+   "text": "猛獣の本能",
+   "x0": 47.54399871826172,
+   "x1": 77.54399871826172,
+   "y0": 85.18639373779297,
+   "y1": 97.93518829345703,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:3",
+   "page": 219,
+   "frameRight": 77.54399871826172
+  },
+  {
+   "text": "なし",
+   "x0": 89.447998046875,
+   "x1": 101.447998046875,
+   "y0": 67.70000457763672,
+   "y1": 75.3800048828125,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:4",
+   "page": 219,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "100LP",
+   "x0": 235.3000030517578,
+   "x1": 252.4180145263672,
+   "y0": 89.77999114990234,
+   "y1": 97.45999145507812,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    3.3300018310546875
+   ],
+   "id": "pack1:220:5",
+   "page": 219,
+   "frameRight": 252.4180145263672
+  },
+  {
+   "text": "東部親指カポllllの人格かつ虎標弾または猛虎標弾",
+   "x0": 89.447998046875,
+   "x1": 222.28399658203125,
+   "y0": 79.70000457763672,
+   "y1": 87.3800048828125,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:6",
+   "page": 219,
+   "frameRight": 227.9
+  },
+  {
+   "text": "へ弾倉変換する人格なら発動。保有弾丸数上限が",
+   "x0": 89.447998046875,
+   "x1": 221.447998046875,
+   "y0": 90.37999725341797,
+   "y1": 98.05999755859375,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:7",
+   "page": 219,
+   "frameRight": 227.9
+  },
+  {
+   "text": "+6。スキル使用時に底力5を得る。S4使用時に底",
+   "x0": 89.447998046875,
+   "x1": 220.38999938964844,
+   "y0": 101.17998504638672,
+   "y1": 108.8599853515625,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    6.0
+   ],
+   "id": "pack1:220:8",
+   "page": 219,
+   "frameRight": 227.9
+  },
+  {
+   "text": "力を全て消費する",
+   "x0": 89.447998046875,
+   "x1": 137.447998046875,
+   "y0": 111.85997772216797,
+   "y1": 119.53997802734375,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:9",
+   "page": 219,
+   "frameRight": 227.9
+  },
+  {
+   "text": "パレルモ剣術",
+   "x0": 44.54399871826172,
+   "x1": 80.54399871826172,
+   "y0": 146.53639221191406,
+   "y1": 159.2852020263672,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:10",
+   "page": 219,
+   "frameRight": 86.2
+  },
+  {
+   "text": "憤怒x3 共鳴",
+   "x0": 89.447998046875,
+   "x1": 122.80999755859375,
+   "y0": 123.64998626708984,
+   "y1": 131.32998657226562,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:11",
+   "page": 219,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "100LP",
+   "x0": 235.3000030517578,
+   "x1": 252.4180145263672,
+   "y0": 151.12998962402344,
+   "y1": 158.80999755859375,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    3.3300018310546875
+   ],
+   "id": "pack1:220:12",
+   "page": 219,
+   "frameRight": 252.4180145263672
+  },
+  {
+   "text": "蜘蛛の巣 親指所属の人格のみ発動。前のRと同じ",
+   "x0": 89.447998046875,
+   "x1": 222.33999633789062,
+   "y0": 135.7699737548828,
+   "y1": 143.44998168945312,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:13",
+   "page": 219,
+   "frameRight": 227.9
+  },
+  {
+   "text": "対象とマッチをしたなら、SANを1～10回復しマッ",
+   "x0": 89.447998046875,
+   "x1": 225.07000732421875,
+   "y0": 146.4499969482422,
+   "y1": 154.1300048828125,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:14",
+   "page": 219,
+   "frameRight": 227.9
+  },
+  {
+   "text": "チ威力+1。自分のスキル効果で振動爆発が発動し",
+   "x0": 89.447998046875,
+   "x1": 222.1699981689453,
+   "y0": 157.12998962402344,
+   "y1": 164.80999755859375,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:15",
+   "page": 219,
+   "frameRight": 227.9
+  },
+  {
+   "text": "たなら、次のRに憤怒ダメージ量増加1を得る（1R",
+   "x0": 89.447998046875,
+   "x1": 223.8699951171875,
+   "y0": 167.8099822998047,
+   "y1": 175.489990234375,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:16",
+   "page": 219,
+   "frameRight": 227.9
+  },
+  {
+   "text": "に3回）",
+   "x0": 89.447998046875,
+   "x1": 110.80799865722656,
+   "y0": 178.48997497558594,
+   "y1": 186.16998291015625,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:17",
+   "page": 219,
+   "frameRight": 227.9
+  },
+  {
+   "text": "端末機",
+   "x0": 53.54399871826172,
+   "x1": 71.54399871826172,
+   "y0": 202.47637939453125,
+   "y1": 215.22518920898438,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:18",
+   "page": 219,
+   "frameRight": 86.06400299072266
+  },
+  {
+   "text": "憂鬱x3 共鳴",
+   "x0": 89.447998046875,
+   "x1": 122.80999755859375,
+   "y0": 190.24998474121094,
+   "y1": 197.92999267578125,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:19",
+   "page": 219,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "100LP",
+   "x0": 235.3000030517578,
+   "x1": 252.4180145263672,
+   "y0": 207.06997680664062,
+   "y1": 214.74998474121094,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    3.3300018310546875
+   ],
+   "id": "pack1:220:20",
+   "page": 219,
+   "frameRight": 252.4180145263672
+  },
+  {
+   "text": "蜘蛛の巣 人差し指所属の人格のみ発動。指令を遂",
+   "x0": 89.447998046875,
+   "x1": 224.4499969482422,
+   "y0": 202.38998413085938,
+   "y1": 210.0699920654297,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:21",
+   "page": 219,
+   "frameRight": 227.9
+  },
+  {
+   "text": "行したなら、呼吸4を得る。指令を遂行できなかっ",
+   "x0": 89.447998046875,
+   "x1": 224.80999755859375,
+   "y0": 213.06997680664062,
+   "y1": 220.74998474121094,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:22",
+   "page": 219,
+   "frameRight": 227.9
+  },
+  {
+   "text": "た場合に得るカルマを無効化する（戦闘中2回）",
+   "x0": 89.447998046875,
+   "x1": 218.86000061035156,
+   "y0": 223.74998474121094,
+   "y1": 231.42999267578125,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:23",
+   "page": 219,
+   "frameRight": 227.9
+  },
+  {
+   "text": "ルール違反",
+   "x0": 47.54399871826172,
+   "x1": 77.54399871826172,
+   "y0": 253.1163787841797,
+   "y1": 265.86517333984375,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:24",
+   "page": 219,
+   "frameRight": 77.54399871826172
+  },
+  {
+   "text": "嫉妬x3 共鳴",
+   "x0": 89.447998046875,
+   "x1": 122.80999755859375,
+   "y0": 235.62998962402344,
+   "y1": 243.30999755859375,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:25",
+   "page": 219,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "100LP",
+   "x0": 235.3000030517578,
+   "x1": 252.4180145263672,
+   "y0": 257.7099914550781,
+   "y1": 265.3899841308594,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    3.3300018310546875
+   ],
+   "id": "pack1:220:26",
+   "page": 219,
+   "frameRight": 252.4180145263672
+  },
+  {
+   "text": "蜘蛛の巣 中指所属の人格のみ発動。戦闘開始時、",
+   "x0": 89.447998046875,
+   "x1": 224.4499969482422,
+   "y0": 247.62998962402344,
+   "y1": 255.30999755859375,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:27",
+   "page": 219,
+   "frameRight": 227.9
+  },
+  {
+   "text": "味方が装着した守備スキルの数/2だけダメージ量",
+   "x0": 89.447998046875,
+   "x1": 221.11000061035156,
+   "y0": 258.30999755859375,
+   "y1": 265.989990234375,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:28",
+   "page": 219,
+   "frameRight": 227.9
+  },
+  {
+   "text": "+1（最大6）。自分以外の装着した味方が中指所属",
+   "x0": 89.447998046875,
+   "x1": 222.41000366210938,
+   "y0": 268.989990234375,
+   "y1": 276.66998291015625,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875
+   ],
+   "id": "pack1:220:29",
+   "page": 219,
+   "frameRight": 227.9
+  },
+  {
+   "text": "なら2人分として扱う",
+   "x0": 89.447998046875,
+   "x1": 146.80999755859375,
+   "y0": 279.6999816894531,
+   "y1": 287.3799743652344,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:30",
+   "page": 219,
+   "frameRight": 227.9
+  },
+  {
+   "text": "身体中心美術",
+   "x0": 44.54399871826172,
+   "x1": 80.54399871826172,
+   "y0": 314.3424072265625,
+   "y1": 327.0911865234375,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:31",
+   "page": 219,
+   "frameRight": 86.2
+  },
+  {
+   "text": "色欲x3 共鳴",
+   "x0": 89.447998046875,
+   "x1": 122.80999755859375,
+   "y0": 291.5799865722656,
+   "y1": 299.2599792480469,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:32",
+   "page": 219,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "100LP",
+   "x0": 235.3000030517578,
+   "x1": 252.4180145263672,
+   "y0": 318.9360046386719,
+   "y1": 326.6159973144531,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    3.3300018310546875
+   ],
+   "id": "pack1:220:33",
+   "page": 219,
+   "frameRight": 252.4180145263672
+  },
+  {
+   "text": "蜘蛛の巣 薬指所属の人格のみ発動。基本攻撃スキ",
+   "x0": 89.447998046875,
+   "x1": 224.4499969482422,
+   "y0": 303.5799865722656,
+   "y1": 311.2599792480469,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:34",
+   "page": 219,
+   "frameRight": 227.9
+  },
+  {
+   "text": "ルで攻撃的中時、デバフを付与して同時にバフを",
+   "x0": 89.447998046875,
+   "x1": 221.447998046875,
+   "y0": 314.2560119628906,
+   "y1": 321.9360046386719,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:35",
+   "page": 219,
+   "frameRight": 227.9
+  },
+  {
+   "text": "得たなら、攻撃後にSANを4～8回復。この効果で",
+   "x0": 89.447998046875,
+   "x1": 221.7100067138672,
+   "y0": 325.0559997558594,
+   "y1": 332.7359924316406,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:36",
+   "page": 219,
+   "frameRight": 227.9
+  },
+  {
+   "text": "SAN回復時にSANが最大なら次のRにパワー1を得",
+   "x0": 89.447998046875,
+   "x1": 221.74000549316406,
+   "y0": 335.7359924316406,
+   "y1": 343.4159851074219,
+   "leadWidth": 3.5760040283203125,
+   "leadRun": [],
+   "id": "pack1:220:37",
+   "page": 219,
+   "frameRight": 227.9
+  },
+  {
+   "text": "る（1Rに1回）",
+   "x0": 89.447998046875,
+   "x1": 130.010009765625,
+   "y0": 346.4159851074219,
+   "y1": 354.0959777832031,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:38",
+   "page": 219,
+   "frameRight": 227.9
+  },
+  {
+   "text": "憤怒x5 保有",
+   "x0": 89.447998046875,
+   "x1": 122.80999755859375,
+   "y0": 358.1999816894531,
+   "y1": 365.8799743652344,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:220:39",
+   "page": 219,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "100LP",
+   "x0": 235.3000030517578,
+   "x1": 252.4180145263672,
+   "y0": 358.1999816894531,
+   "y1": 365.8799743652344,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    3.3300018310546875
+   ],
+   "id": "pack1:220:40",
+   "page": 219,
+   "frameRight": 252.4180145263672
+  },
+  {
+   "text": "赤く縺れた蜘蛛",
+   "x0": 41.54399871826172,
+   "x1": 83.54399871826172,
+   "y0": 55.93999481201172,
+   "y1": 63.6199951171875,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:1",
+   "page": 220,
+   "frameRight": 86.2
+  },
+  {
+   "text": "の巣",
+   "x0": 56.54399871826172,
+   "x1": 68.54399871826172,
+   "y0": 62.02638626098633,
+   "y1": 74.77518463134766,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:2",
+   "page": 220,
+   "frameRight": 68.54399871826172
+  },
+  {
+   "text": "死亡している味方だけダメージ量増加1を得て（最",
+   "x0": 89.447998046875,
+   "x1": 224.8300018310547,
+   "y0": 45.139976501464844,
+   "y1": 52.819976806640625,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:3",
+   "page": 220,
+   "frameRight": 227.9
+  },
+  {
+   "text": "大3）死亡している味方2名ごとにマッチ威力+1",
+   "x0": 89.447998046875,
+   "x1": 216.91000366210938,
+   "y0": 55.93999481201172,
+   "y1": 63.6199951171875,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:4",
+   "page": 220,
+   "frameRight": 227.9
+  },
+  {
+   "text": "（最大2）。自分が蜘蛛の巣所属かつ、死亡してい",
+   "x0": 89.447998046875,
+   "x1": 221.80999755859375,
+   "y0": 66.61998748779297,
+   "y1": 74.29998779296875,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:5",
+   "page": 220,
+   "frameRight": 227.9
+  },
+  {
+   "text": "る味方が蜘蛛の巣所属なら2人分として扱う",
+   "x0": 89.447998046875,
+   "x1": 206.8300018310547,
+   "y0": 77.29998016357422,
+   "y1": 84.97998046875,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:6",
+   "page": 220,
+   "frameRight": 227.9
+  },
+  {
+   "text": "野生美",
+   "x0": 53.54399871826172,
+   "x1": 71.54399871826172,
+   "y0": 106.54637908935547,
+   "y1": 119.29517364501953,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:7",
+   "page": 220,
+   "frameRight": 86.06400299072266
+  },
+  {
+   "text": "色欲x2 憂鬱x2 保有",
+   "x0": 89.447998046875,
+   "x1": 144.1699981689453,
+   "y0": 89.05998992919922,
+   "y1": 96.739990234375,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:8",
+   "page": 220,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "100LP",
+   "x0": 235.3000030517578,
+   "x1": 252.4180145263672,
+   "y0": 111.13997650146484,
+   "y1": 118.81997680664062,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    3.3300018310546875
+   ],
+   "id": "pack1:221:9",
+   "page": 220,
+   "frameRight": 252.4180145263672
+  },
+  {
+   "text": "薬指野獣派所属人格のみ発動。基本スキルのダメ",
+   "x0": 89.447998046875,
+   "x1": 221.447998046875,
+   "y0": 101.17998504638672,
+   "y1": 108.8599853515625,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:10",
+   "page": 220,
+   "frameRight": 227.9
+  },
+  {
+   "text": "ージ量+2。攻撃後、対象の沈潜が10以上、または",
+   "x0": 89.447998046875,
+   "x1": 222.79000854492188,
+   "y0": 111.85997772216797,
+   "y1": 119.53997802734375,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:11",
+   "page": 220,
+   "frameRight": 227.9
+  },
+  {
+   "text": "引き裂かれた色彩が合計10以上なら、次のRにパ",
+   "x0": 89.447998046875,
+   "x1": 219.94000244140625,
+   "y0": 122.56999969482422,
+   "y1": 130.25,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:12",
+   "page": 220,
+   "frameRight": 227.9
+  },
+  {
+   "text": "ワー1を得る（1Rに1回）",
+   "x0": 89.447998046875,
+   "x1": 157.38999938964844,
+   "y0": 133.24998474121094,
+   "y1": 140.92999267578125,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:13",
+   "page": 220,
+   "frameRight": 227.9
+  },
+  {
+   "text": "切磋琢磨",
+   "x0": 50.54399871826172,
+   "x1": 74.54399871826172,
+   "y0": 162.4963836669922,
+   "y1": 175.2451934814453,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:14",
+   "page": 220,
+   "frameRight": 74.54399871826172
+  },
+  {
+   "text": "暴食x3 保有",
+   "x0": 89.447998046875,
+   "x1": 122.80999755859375,
+   "y0": 145.00999450683594,
+   "y1": 152.69000244140625,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:15",
+   "page": 220,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "100LP",
+   "x0": 235.3000030517578,
+   "x1": 252.4180145263672,
+   "y0": 167.08998107910156,
+   "y1": 174.76998901367188,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    3.3300018310546875
+   ],
+   "id": "pack1:221:16",
+   "page": 220,
+   "frameRight": 252.4180145263672
+  },
+  {
+   "text": "ジア家・シュエ家・ワン家・シー家の家主候補の",
+   "x0": 89.447998046875,
+   "x1": 221.447998046875,
+   "y0": 157.12998962402344,
+   "y1": 164.80999755859375,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:17",
+   "page": 220,
+   "frameRight": 227.9
+  },
+  {
+   "text": "人格のみ発動。破裂を付与するスキルのマッチ威",
+   "x0": 89.447998046875,
+   "x1": 221.447998046875,
+   "y0": 167.8099822998047,
+   "y1": 175.489990234375,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:18",
+   "page": 220,
+   "frameRight": 227.9
+  },
+  {
+   "text": "力+1。マッチ勝利時、HPを10回復しSANを5回復",
+   "x0": 89.447998046875,
+   "x1": 221.86000061035156,
+   "y0": 178.48997497558594,
+   "y1": 186.16998291015625,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:19",
+   "page": 220,
+   "frameRight": 227.9
+  },
+  {
+   "text": "し次のRにクイック1保護1を得る",
+   "x0": 89.447998046875,
+   "x1": 178.02999877929688,
+   "y0": 189.16998291015625,
+   "y1": 196.84999084472656,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:20",
+   "page": 220,
+   "frameRight": 227.9
+  },
+  {
+   "text": "試験抽出：紅炎",
+   "x0": 41.54399871826172,
+   "x1": 83.54399871826172,
+   "y0": 217.74998474121094,
+   "y1": 225.42999267578125,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:21",
+   "page": 220,
+   "frameRight": 86.2
+  },
+  {
+   "text": "殺",
+   "x0": 59.54399871826172,
+   "x1": 65.54399871826172,
+   "y0": 223.8363800048828,
+   "y1": 236.58518981933594,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:22",
+   "page": 220,
+   "frameRight": 65.54399871826172
+  },
+  {
+   "text": "憤怒x5 保有",
+   "x0": 89.447998046875,
+   "x1": 122.80999755859375,
+   "y0": 201.06997680664062,
+   "y1": 208.74998474121094,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:23",
+   "page": 220,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "100LP",
+   "x0": 235.3000030517578,
+   "x1": 252.4180145263672,
+   "y0": 223.1499786376953,
+   "y1": 230.82998657226562,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    3.3300018310546875
+   ],
+   "id": "pack1:221:24",
+   "page": 220,
+   "frameRight": 252.4180145263672
+  },
+  {
+   "text": "LCEE.G.O::紅炎殺の人格のみ発動。火傷を付与す",
+   "x0": 89.447998046875,
+   "x1": 220.7239990234375,
+   "y0": 213.06997680664062,
+   "y1": 220.74998474121094,
+   "leadWidth": 3.2580032348632812,
+   "leadRun": [],
+   "id": "pack1:221:25",
+   "page": 220,
+   "frameRight": 227.9
+  },
+  {
+   "text": "るダイスのダメージ量+2。火傷を得るスキルのマ",
+   "x0": 89.447998046875,
+   "x1": 222.19000244140625,
+   "y0": 223.74998474121094,
+   "y1": 231.42999267578125,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:26",
+   "page": 220,
+   "frameRight": 227.9
+  },
+  {
+   "text": "ッチ威力+1。戦闘開始時、自分が生き残ったR3ご",
+   "x0": 89.447998046875,
+   "x1": 223.4199981689453,
+   "y0": 234.4299774169922,
+   "y1": 242.1099853515625,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:27",
+   "page": 220,
+   "frameRight": 227.9
+  },
+  {
+   "text": "とにマッチ威力増加1を得る（最大2）",
+   "x0": 89.447998046875,
+   "x1": 192.19000244140625,
+   "y0": 245.22998046875,
+   "y1": 252.9099884033203,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:28",
+   "page": 220,
+   "frameRight": 227.9
+  },
+  {
+   "text": "試験抽出：提灯",
+   "x0": 41.54399871826172,
+   "x1": 83.54399871826172,
+   "y0": 274.50640869140625,
+   "y1": 287.25518798828125,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:29",
+   "page": 220,
+   "frameRight": 86.2
+  },
+  {
+   "text": "暴食x5 保有",
+   "x0": 89.447998046875,
+   "x1": 122.80999755859375,
+   "y0": 256.989990234375,
+   "y1": 264.66998291015625,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:30",
+   "page": 220,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "100LP",
+   "x0": 235.3000030517578,
+   "x1": 252.4180145263672,
+   "y0": 279.1000061035156,
+   "y1": 286.7799987792969,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    3.3300018310546875
+   ],
+   "id": "pack1:221:31",
+   "page": 220,
+   "frameRight": 252.4180145263672
+  },
+  {
+   "text": "LCEE.G.O::提灯の人格のみ発動。破裂を付与する",
+   "x0": 89.447998046875,
+   "x1": 220.7239990234375,
+   "y0": 268.989990234375,
+   "y1": 276.66998291015625,
+   "leadWidth": 3.2580032348632812,
+   "leadRun": [],
+   "id": "pack1:221:32",
+   "page": 220,
+   "frameRight": 227.9
+  },
+  {
+   "text": "ダイスのダメージ量+2。自分の失ったHPが20％以",
+   "x0": 89.447998046875,
+   "x1": 224.97999572753906,
+   "y0": 279.6999816894531,
+   "y1": 287.3799743652344,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:33",
+   "page": 220,
+   "frameRight": 227.9
+  },
+  {
+   "text": "上ならマッチ威力+1。自分の持つ挑発値/3だけダ",
+   "x0": 89.447998046875,
+   "x1": 221.86000061035156,
+   "y0": 290.5,
+   "y1": 298.17999267578125,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:34",
+   "page": 220,
+   "frameRight": 227.9
+  },
+  {
+   "text": "メージ量増加（最大5）",
+   "x0": 89.447998046875,
+   "x1": 152.8300018310547,
+   "y0": 301.17999267578125,
+   "y1": 308.8599853515625,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:35",
+   "page": 220,
+   "frameRight": 227.9
+  },
+  {
+   "text": "試験抽出：",
+   "x0": 47.54399871826172,
+   "x1": 77.54399871826172,
+   "y0": 329.7359924316406,
+   "y1": 337.4159851074219,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:36",
+   "page": 220,
+   "frameRight": 77.54399871826172
+  },
+  {
+   "text": "AEDD",
+   "x0": 54.74399948120117,
+   "x1": 70.14599609375,
+   "y0": 335.8223876953125,
+   "y1": 348.5711669921875,
+   "leadWidth": 3.647998809814453,
+   "leadRun": [],
+   "id": "pack1:221:37",
+   "page": 220,
+   "frameRight": 70.58399963378906
+  },
+  {
+   "text": "嫉妬x5 保有",
+   "x0": 89.447998046875,
+   "x1": 122.80999755859375,
+   "y0": 312.9360046386719,
+   "y1": 320.6159973144531,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:38",
+   "page": 220,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "100LP",
+   "x0": 235.3000030517578,
+   "x1": 252.4180145263672,
+   "y0": 335.0159912109375,
+   "y1": 342.69598388671875,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    3.3300018310546875
+   ],
+   "id": "pack1:221:39",
+   "page": 220,
+   "frameRight": 252.4180145263672
+  },
+  {
+   "text": "LCEE.G.O::AEDDの人格のみ発動。充電を獲得した",
+   "x0": 89.447998046875,
+   "x1": 224.08399963378906,
+   "y0": 325.0559997558594,
+   "y1": 332.7359924316406,
+   "leadWidth": 3.2580032348632812,
+   "leadRun": [],
+   "id": "pack1:221:40",
+   "page": 220,
+   "frameRight": 227.9
+  },
+  {
+   "text": "なら、次のRにダメージ量増加1を得る（1Rに最大",
+   "x0": 89.447998046875,
+   "x1": 223.77999877929688,
+   "y0": 335.7359924316406,
+   "y1": 343.4159851074219,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:41",
+   "page": 220,
+   "frameRight": 227.9
+  },
+  {
+   "text": "2回）。充電を消費したなら、次のRにマッチ威力",
+   "x0": 89.447998046875,
+   "x1": 219.6699981689453,
+   "y0": 346.4159851074219,
+   "y1": 354.0959777832031,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [],
+   "id": "pack1:221:42",
+   "page": 220,
+   "frameRight": 227.9
+  },
+  {
+   "text": "増加1を得る（1Rに最大1回）。自分に高電圧外皮",
+   "x0": 89.447998046875,
+   "x1": 220.27000427246094,
+   "y0": 357.1199951171875,
+   "y1": 364.79998779296875,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:221:43",
+   "page": 220,
+   "frameRight": 227.9
+  },
+  {
+   "text": "があるなら、戦闘開始時に電圧1を得る（戦闘中2",
+   "x0": 89.447998046875,
+   "x1": 222.19000244140625,
+   "y0": 45.139976501464844,
+   "y1": 52.819976806640625,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:222:1",
+   "page": 221,
+   "frameRight": 227.9
+  },
+  {
+   "text": "回）",
+   "x0": 89.447998046875,
+   "x1": 101.447998046875,
+   "y0": 55.93999481201172,
+   "y1": 63.6199951171875,
+   "leadWidth": 6.0,
+   "leadRun": [
+    6.0
+   ],
+   "id": "pack1:222:2",
+   "page": 221,
+   "frameRight": 227.9
+  },
+  {
+   "text": "社員証",
+   "x0": 53.54399871826172,
+   "x1": 71.54399871826172,
+   "y0": 85.18639373779297,
+   "y1": 97.93518829345703,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:222:3",
+   "page": 221,
+   "frameRight": 86.06400299072266
+  },
+  {
+   "text": "憤怒x1 暴食x1 嫉妬x1 保有",
+   "x0": 89.447998046875,
+   "x1": 165.5500030517578,
+   "y0": 67.70000457763672,
+   "y1": 75.3800048828125,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:222:4",
+   "page": 221,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "300LP",
+   "x0": 235.3000030517578,
+   "x1": 252.4180145263672,
+   "y0": 89.77999114990234,
+   "y1": 97.45999145507812,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    3.3300018310546875
+   ],
+   "id": "pack1:222:5",
+   "page": 221,
+   "frameRight": 252.4180145263672
+  },
+  {
+   "text": "LCE所属人格のみ発動。自分が死亡時に、全種類",
+   "x0": 89.447998046875,
+   "x1": 219.88800048828125,
+   "y0": 79.70000457763672,
+   "y1": 87.3800048828125,
+   "leadWidth": 3.2580032348632812,
+   "leadRun": [],
+   "id": "pack1:222:6",
+   "page": 221,
+   "frameRight": 227.9
+  },
+  {
+   "text": "の大罪資源を1ずつ獲得。この戦闘の間に同じ所属",
+   "x0": 89.447998046875,
+   "x1": 224.80999755859375,
+   "y0": 90.37999725341797,
+   "y1": 98.05999755859375,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:222:7",
+   "page": 221,
+   "frameRight": 227.9
+  },
+  {
+   "text": "の味方が死亡したなら、次のRからパワー1忍耐1",
+   "x0": 89.447998046875,
+   "x1": 220.02999877929688,
+   "y0": 101.17998504638672,
+   "y1": 108.8599853515625,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:222:8",
+   "page": 221,
+   "frameRight": 227.9
+  },
+  {
+   "text": "を得る（最大2）",
+   "x0": 89.447998046875,
+   "x1": 134.80999755859375,
+   "y0": 111.85997772216797,
+   "y1": 119.53997802734375,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:222:9",
+   "page": 221,
+   "frameRight": 227.9
+  },
+  {
+   "text": "苦痛なき慈悲",
+   "x0": 44.54399871826172,
+   "x1": 80.54399871826172,
+   "y0": 135.7363739013672,
+   "y1": 148.4851837158203,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:222:10",
+   "page": 221,
+   "frameRight": 86.2
+  },
+  {
+   "text": "色欲x2 傲慢x2 保有",
+   "x0": 89.447998046875,
+   "x1": 144.1699981689453,
+   "y0": 123.64998626708984,
+   "y1": 131.32998657226562,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:222:11",
+   "page": 221,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "300LP",
+   "x0": 235.3000030517578,
+   "x1": 252.4180145263672,
+   "y0": 140.32997131347656,
+   "y1": 148.00997924804688,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    3.3300018310546875
+   ],
+   "id": "pack1:222:12",
+   "page": 221,
+   "frameRight": 252.4180145263672
+  },
+  {
+   "text": "夜の錐所属人格のみ発動。HPが50％以下の敵に使",
+   "x0": 89.447998046875,
+   "x1": 224.35000610351562,
+   "y0": 135.7699737548828,
+   "y1": 143.44998168945312,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:222:13",
+   "page": 221,
+   "frameRight": 227.9
+  },
+  {
+   "text": "用するスキル威力+1。対象のHPが25％以下なら、",
+   "x0": 89.447998046875,
+   "x1": 224.95001220703125,
+   "y0": 146.4499969482422,
+   "y1": 154.1300048828125,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:222:14",
+   "page": 221,
+   "frameRight": 227.9
+  },
+  {
+   "text": "攻撃的中時に対象を[破壊]（強敵無効）",
+   "x0": 89.447998046875,
+   "x1": 195.5500030517578,
+   "y0": 157.12998962402344,
+   "y1": 164.80999755859375,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:222:15",
+   "page": 221,
+   "frameRight": 227.9
+  },
+  {
+   "text": "魔王の行進",
+   "x0": 47.54399871826172,
+   "x1": 77.54399871826172,
+   "y0": 191.79638671875,
+   "y1": 204.54519653320312,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:222:16",
+   "page": 221,
+   "frameRight": 77.54399871826172
+  },
+  {
+   "text": "ワザリングハイツ・エドガー家所属の味方5名以上",
+   "x0": 89.447998046875,
+   "x1": 224.86000061035156,
+   "y0": 168.88998413085938,
+   "y1": 176.5699920654297,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:222:17",
+   "page": 221,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "1000LP",
+   "x0": 233.6199951171875,
+   "x1": 254.09201049804688,
+   "y0": 196.38998413085938,
+   "y1": 204.0699920654297,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    3.3300018310546875,
+    3.3300018310546875
+   ],
+   "id": "pack1:222:18",
+   "page": 221,
+   "frameRight": 254.09201049804688
+  },
+  {
+   "text": "ワザリングハイツ・エドガー家所属の人格のみ発",
+   "x0": 89.447998046875,
+   "x1": 221.447998046875,
+   "y0": 181.00997924804688,
+   "y1": 188.6899871826172,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:222:19",
+   "page": 221,
+   "frameRight": 227.9
+  },
+  {
+   "text": "動。ワザリングハイツ・ワイルドハントの人格生",
+   "x0": 89.447998046875,
+   "x1": 221.447998046875,
+   "y0": 191.6899871826172,
+   "y1": 199.3699951171875,
+   "leadWidth": 6.0,
+   "leadRun": [
+    6.0
+   ],
+   "id": "pack1:222:20",
+   "page": 221,
+   "frameRight": 227.9
+  },
+  {
+   "text": "存時、ワイルドハントの効果で死亡しない（ワザ",
+   "x0": 89.447998046875,
+   "x1": 221.447998046875,
+   "y0": 202.38998413085938,
+   "y1": 210.0699920654297,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:222:21",
+   "page": 221,
+   "frameRight": 227.9
+  },
+  {
+   "text": "リングハイツ・ワイルドハントはこの効果は適応",
+   "x0": 89.447998046875,
+   "x1": 221.447998046875,
+   "y0": 213.06997680664062,
+   "y1": 220.74998474121094,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:222:22",
+   "page": 221,
+   "frameRight": 227.9
+  },
+  {
+   "text": "されない）",
+   "x0": 89.447998046875,
+   "x1": 119.447998046875,
+   "y0": 223.74998474121094,
+   "y1": 231.42999267578125,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:222:23",
+   "page": 221,
+   "frameRight": 227.9
+  },
+  {
+   "text": "盗んできた炎",
+   "x0": 44.54399871826172,
+   "x1": 80.54399871826172,
+   "y0": 263.79638671875,
+   "y1": 276.545166015625,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:222:24",
+   "page": 221,
+   "frameRight": 86.2
+  },
+  {
+   "text": "なし",
+   "x0": 89.447998046875,
+   "x1": 101.447998046875,
+   "y0": 235.62998962402344,
+   "y1": 243.30999755859375,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:222:25",
+   "page": 221,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "1000LP",
+   "x0": 233.6199951171875,
+   "x1": 254.09201049804688,
+   "y0": 268.3899841308594,
+   "y1": 276.0699768066406,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    3.3300018310546875,
+    3.3300018310546875
+   ],
+   "id": "pack1:222:26",
+   "page": 221,
+   "frameRight": 254.09201049804688
+  },
+  {
+   "text": "R開始時、火傷または特殊火傷を付与するスキルを",
+   "x0": 89.447998046875,
+   "x1": 225.28799438476562,
+   "y0": 247.62998962402344,
+   "y1": 255.30999755859375,
+   "leadWidth": 3.80999755859375,
+   "leadRun": [],
+   "id": "pack1:222:27",
+   "page": 221,
+   "frameRight": 227.9
+  },
+  {
+   "text": "持つ味方が5名以上かつ自分が火傷または特殊火傷",
+   "x0": 89.447998046875,
+   "x1": 224.80999755859375,
+   "y0": 258.30999755859375,
+   "y1": 265.989990234375,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:222:28",
+   "page": 221,
+   "frameRight": 227.9
+  },
+  {
+   "text": "を付与するスキルを持つなら発動。攻撃的中時、",
+   "x0": 89.447998046875,
+   "x1": 221.447998046875,
+   "y0": 268.989990234375,
+   "y1": 276.66998291015625,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:222:29",
+   "page": 221,
+   "frameRight": 227.9
+  },
+  {
+   "text": "対象の火傷を1回発動し対象の火傷を3減少（1Rに",
+   "x0": 89.447998046875,
+   "x1": 223.4199981689453,
+   "y0": 279.6999816894531,
+   "y1": 287.3799743652344,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:222:30",
+   "page": 221,
+   "frameRight": 227.9
+  },
+  {
+   "text": "1回）。R終了時、全ての敵に火傷があるなら、次",
+   "x0": 89.447998046875,
+   "x1": 219.64999389648438,
+   "y0": 290.5,
+   "y1": 298.17999267578125,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [],
+   "id": "pack1:222:31",
+   "page": 221,
+   "frameRight": 227.9
+  },
+  {
+   "text": "のRに憤怒ダメージ量増加3を得る",
+   "x0": 89.447998046875,
+   "x1": 180.6699981689453,
+   "y0": 301.17999267578125,
+   "y1": 308.8599853515625,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:222:32",
+   "page": 221,
+   "frameRight": 227.9
+  },
+  {
+   "text": "出血性ショック",
+   "x0": 41.54399871826172,
+   "x1": 83.54399871826172,
+   "y0": 330.4223937988281,
+   "y1": 343.1711730957031,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:222:33",
+   "page": 221,
+   "frameRight": 86.2
+  },
+  {
+   "text": "なし",
+   "x0": 89.447998046875,
+   "x1": 101.447998046875,
+   "y0": 312.9360046386719,
+   "y1": 320.6159973144531,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:222:34",
+   "page": 221,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "1000LP",
+   "x0": 233.6199951171875,
+   "x1": 254.09201049804688,
+   "y0": 335.0159912109375,
+   "y1": 342.69598388671875,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    3.3300018310546875,
+    3.3300018310546875
+   ],
+   "id": "pack1:222:35",
+   "page": 221,
+   "frameRight": 254.09201049804688
+  },
+  {
+   "text": "R開始時、出血または特殊出血を付与するスキルを",
+   "x0": 89.447998046875,
+   "x1": 225.28799438476562,
+   "y0": 325.0559997558594,
+   "y1": 332.7359924316406,
+   "leadWidth": 3.80999755859375,
+   "leadRun": [],
+   "id": "pack1:222:36",
+   "page": 221,
+   "frameRight": 227.9
+  },
+  {
+   "text": "持つ味方が5名以上かつ自分が出血または特殊出血",
+   "x0": 89.447998046875,
+   "x1": 224.80999755859375,
+   "y0": 335.7359924316406,
+   "y1": 343.4159851074219,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:222:37",
+   "page": 221,
+   "frameRight": 227.9
+  },
+  {
+   "text": "を付与するスキルを持つなら発動。マッチ勝利",
+   "x0": 89.447998046875,
+   "x1": 215.447998046875,
+   "y0": 346.4159851074219,
+   "y1": 354.0959777832031,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:222:38",
+   "page": 221,
+   "frameRight": 227.9
+  },
+  {
+   "text": "時、対象の出血を1回発動し対象の出血を4減少。",
+   "x0": 89.447998046875,
+   "x1": 222.22000122070312,
+   "y0": 357.1199951171875,
+   "y1": 364.79998779296875,
+   "leadWidth": 6.0,
+   "leadRun": [
+    6.0
+   ],
+   "id": "pack1:222:39",
+   "page": 221,
+   "frameRight": 227.9
+  },
+  {
+   "text": "R終了時、全ての敵に出血があるなら、次のRに色",
+   "x0": 89.447998046875,
+   "x1": 223.17999267578125,
+   "y0": 45.139976501464844,
+   "y1": 52.819976806640625,
+   "leadWidth": 3.80999755859375,
+   "leadRun": [],
+   "id": "pack1:223:1",
+   "page": 222,
+   "frameRight": 227.9
+  },
+  {
+   "text": "欲ダメージ量増加3を得る",
+   "x0": 89.447998046875,
+   "x1": 158.80999755859375,
+   "y0": 55.93999481201172,
+   "y1": 63.6199951171875,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:223:2",
+   "page": 222,
+   "frameRight": 227.9
+  },
+  {
+   "text": "無振八方鐘",
+   "x0": 47.54399871826172,
+   "x1": 77.54399871826172,
+   "y0": 95.86638641357422,
+   "y1": 108.61518096923828,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:223:3",
+   "page": 222,
+   "frameRight": 77.54399871826172
+  },
+  {
+   "text": "なし",
+   "x0": 89.447998046875,
+   "x1": 101.447998046875,
+   "y0": 67.70000457763672,
+   "y1": 75.3800048828125,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:223:4",
+   "page": 222,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "1000LP",
+   "x0": 233.6199951171875,
+   "x1": 254.09201049804688,
+   "y0": 100.4599838256836,
+   "y1": 108.13998413085938,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    3.3300018310546875,
+    3.3300018310546875
+   ],
+   "id": "pack1:223:5",
+   "page": 222,
+   "frameRight": 254.09201049804688
+  },
+  {
+   "text": "R開始時、振動を付与するスキルを持つ味方が5名",
+   "x0": 89.447998046875,
+   "x1": 222.6999969482422,
+   "y0": 79.70000457763672,
+   "y1": 87.3800048828125,
+   "leadWidth": 3.80999755859375,
+   "leadRun": [],
+   "id": "pack1:223:6",
+   "page": 222,
+   "frameRight": 227.9
+  },
+  {
+   "text": "以上かつ自分が振動を付与するスキルを持つなら",
+   "x0": 89.447998046875,
+   "x1": 221.447998046875,
+   "y0": 90.37999725341797,
+   "y1": 98.05999755859375,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:223:7",
+   "page": 222,
+   "frameRight": 227.9
+  },
+  {
+   "text": "発動。R開始時、自分の振動5ごとにマッチ威力+1",
+   "x0": 89.447998046875,
+   "x1": 223.38999938964844,
+   "y0": 101.17998504638672,
+   "y1": 108.8599853515625,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:223:8",
+   "page": 222,
+   "frameRight": 227.9
+  },
+  {
+   "text": "（最大3）。振幅絡連時、現在の振動-重畳が次のR",
+   "x0": 89.447998046875,
+   "x1": 221.70999145507812,
+   "y0": 111.85997772216797,
+   "y1": 119.53997802734375,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:223:9",
+   "page": 222,
+   "frameRight": 227.9
+  },
+  {
+   "text": "まで延長する。振幅変換時に次のRに怠惰ダメージ",
+   "x0": 89.447998046875,
+   "x1": 225.30999755859375,
+   "y0": 122.56999969482422,
+   "y1": 130.25,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:223:10",
+   "page": 222,
+   "frameRight": 227.9
+  },
+  {
+   "text": "量増加3を得る（1Rに1回）",
+   "x0": 89.447998046875,
+   "x1": 163.38999938964844,
+   "y0": 133.24998474121094,
+   "y1": 140.92999267578125,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:223:11",
+   "page": 222,
+   "frameRight": 227.9
+  },
+  {
+   "text": "破綻",
+   "x0": 56.54399871826172,
+   "x1": 68.54399871826172,
+   "y0": 173.29638671875,
+   "y1": 186.04519653320312,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:223:12",
+   "page": 222,
+   "frameRight": 68.54399871826172
+  },
+  {
+   "text": "なし",
+   "x0": 89.447998046875,
+   "x1": 101.447998046875,
+   "y0": 145.00999450683594,
+   "y1": 152.69000244140625,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:223:13",
+   "page": 222,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "1000LP",
+   "x0": 233.6199951171875,
+   "x1": 254.09201049804688,
+   "y0": 177.88998413085938,
+   "y1": 185.5699920654297,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    3.3300018310546875,
+    3.3300018310546875
+   ],
+   "id": "pack1:223:14",
+   "page": 222,
+   "frameRight": 254.09201049804688
+  },
+  {
+   "text": "R開始時、破裂を付与するスキルを持つ味方が5名",
+   "x0": 89.447998046875,
+   "x1": 222.6999969482422,
+   "y0": 157.12998962402344,
+   "y1": 164.80999755859375,
+   "leadWidth": 3.80999755859375,
+   "leadRun": [],
+   "id": "pack1:223:15",
+   "page": 222,
+   "frameRight": 227.9
+  },
+  {
+   "text": "以上かつ自分が破裂を付与するスキルを持つなら",
+   "x0": 89.447998046875,
+   "x1": 221.447998046875,
+   "y0": 167.8099822998047,
+   "y1": 175.489990234375,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:223:16",
+   "page": 222,
+   "frameRight": 227.9
+  },
+  {
+   "text": "発動。破裂が15以下の敵に付与する破裂付与量",
+   "x0": 89.447998046875,
+   "x1": 216.1699981689453,
+   "y0": 178.48997497558594,
+   "y1": 186.16998291015625,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:223:17",
+   "page": 222,
+   "frameRight": 227.9
+  },
+  {
+   "text": "+3。マッチ進行時、対象の破裂が10以上なら対象",
+   "x0": 89.447998046875,
+   "x1": 222.79000854492188,
+   "y0": 189.16998291015625,
+   "y1": 196.84999084472656,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    6.0
+   ],
+   "id": "pack1:223:18",
+   "page": 222,
+   "frameRight": 227.9
+  },
+  {
+   "text": "のマッチ威力-1。破裂爆発時、次のRに暴食ダメー",
+   "x0": 89.447998046875,
+   "x1": 224.7100067138672,
+   "y0": 199.86997985839844,
+   "y1": 207.54998779296875,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:223:19",
+   "page": 222,
+   "frameRight": 227.9
+  },
+  {
+   "text": "ジ量増加3を得る（1Rに1回）",
+   "x0": 89.447998046875,
+   "x1": 169.38999938964844,
+   "y0": 210.66998291015625,
+   "y1": 218.34999084472656,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:223:20",
+   "page": 222,
+   "frameRight": 227.9
+  },
+  {
+   "text": "襲う波",
+   "x0": 53.54399871826172,
+   "x1": 71.54399871826172,
+   "y0": 255.9963836669922,
+   "y1": 268.74517822265625,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:223:21",
+   "page": 222,
+   "frameRight": 86.06400299072266
+  },
+  {
+   "text": "なし",
+   "x0": 89.447998046875,
+   "x1": 101.447998046875,
+   "y0": 222.4299774169922,
+   "y1": 230.1099853515625,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:223:22",
+   "page": 222,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "1000LP",
+   "x0": 233.6199951171875,
+   "x1": 254.09201049804688,
+   "y0": 260.5899963378906,
+   "y1": 268.2699890136719,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    3.3300018310546875,
+    3.3300018310546875
+   ],
+   "id": "pack1:223:23",
+   "page": 222,
+   "frameRight": 254.09201049804688
+  },
+  {
+   "text": "R開始時、沈潜または特殊沈潜を付与するスキルを",
+   "x0": 89.447998046875,
+   "x1": 225.28799438476562,
+   "y0": 234.4299774169922,
+   "y1": 242.1099853515625,
+   "leadWidth": 3.80999755859375,
+   "leadRun": [],
+   "id": "pack1:223:24",
+   "page": 222,
+   "frameRight": 227.9
+  },
+  {
+   "text": "持つ味方が5名以上かつ自分が沈潜または特殊沈潜",
+   "x0": 89.447998046875,
+   "x1": 224.80999755859375,
+   "y0": 245.22998046875,
+   "y1": 252.9099884033203,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:223:25",
+   "page": 222,
+   "frameRight": 227.9
+  },
+  {
+   "text": "を付与するスキルを持つなら発動。沈潜キーワー",
+   "x0": 89.447998046875,
+   "x1": 221.447998046875,
+   "y0": 255.9099884033203,
+   "y1": 263.5899963378906,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:223:26",
+   "page": 222,
+   "frameRight": 227.9
+  },
+  {
+   "text": "ドを持つスキルで攻撃的中時、対象の沈潜を1回発",
+   "x0": 89.447998046875,
+   "x1": 224.86000061035156,
+   "y0": 266.5899963378906,
+   "y1": 274.2699890136719,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:223:27",
+   "page": 222,
+   "frameRight": 227.9
+  },
+  {
+   "text": "動し対象の沈潜を3減少（1Rに1回）。SANが25％",
+   "x0": 89.447998046875,
+   "x1": 220.5399932861328,
+   "y0": 277.3000183105469,
+   "y1": 284.9800109863281,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:223:28",
+   "page": 222,
+   "frameRight": 227.9
+  },
+  {
+   "text": "以下の敵に攻撃後、次のRに憂鬱ダメージ量増加3",
+   "x0": 89.447998046875,
+   "x1": 222.6699981689453,
+   "y0": 287.9800109863281,
+   "y1": 295.6600036621094,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:223:29",
+   "page": 222,
+   "frameRight": 227.9
+  },
+  {
+   "text": "を得る（1Rに1回）",
+   "x0": 89.447998046875,
+   "x1": 142.00999450683594,
+   "y0": 298.6600036621094,
+   "y1": 306.3399963378906,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:223:30",
+   "page": 222,
+   "frameRight": 227.9
+  },
+  {
+   "text": "カスクスピリッ",
+   "x0": 41.54399871826172,
+   "x1": 83.54399871826172,
+   "y0": 327.21600341796875,
+   "y1": 334.89599609375,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:223:31",
+   "page": 222,
+   "frameRight": 86.2
+  },
+  {
+   "text": "ツ",
+   "x0": 59.54399871826172,
+   "x1": 65.54399871826172,
+   "y0": 333.3023986816406,
+   "y1": 346.0511779785156,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:223:32",
+   "page": 222,
+   "frameRight": 65.54399871826172
+  },
+  {
+   "text": "なし",
+   "x0": 89.447998046875,
+   "x1": 101.447998046875,
+   "y0": 310.5400085449219,
+   "y1": 318.2200012207031,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:223:33",
+   "page": 222,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "1000LP",
+   "x0": 233.6199951171875,
+   "x1": 254.09201049804688,
+   "y0": 332.6159973144531,
+   "y1": 340.2959899902344,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    3.3300018310546875,
+    3.3300018310546875
+   ],
+   "id": "pack1:223:34",
+   "page": 222,
+   "frameRight": 254.09201049804688
+  },
+  {
+   "text": "R開始時、呼吸を得るスキルを持つ味方が5名以上",
+   "x0": 89.447998046875,
+   "x1": 222.6999969482422,
+   "y0": 322.5359802246094,
+   "y1": 330.2159729003906,
+   "leadWidth": 3.80999755859375,
+   "leadRun": [],
+   "id": "pack1:223:35",
+   "page": 222,
+   "frameRight": 227.9
+  },
+  {
+   "text": "かつ自分が呼吸を得るスキルを持つなら発動。ス",
+   "x0": 89.447998046875,
+   "x1": 221.447998046875,
+   "y0": 333.21600341796875,
+   "y1": 340.89599609375,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:223:36",
+   "page": 222,
+   "frameRight": 227.9
+  },
+  {
+   "text": "キルで呼吸を得る時、呼吸獲得量+2。呼吸が20以",
+   "x0": 89.447998046875,
+   "x1": 222.94000244140625,
+   "y0": 343.89599609375,
+   "y1": 351.57598876953125,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:223:37",
+   "page": 222,
+   "frameRight": 227.9
+  },
+  {
+   "text": "上ならクリティカル発生時の呼吸消費量-1（0には",
+   "x0": 89.447998046875,
+   "x1": 224.25999450683594,
+   "y0": 354.6960144042969,
+   "y1": 362.3760070800781,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:223:38",
+   "page": 222,
+   "frameRight": 227.9
+  },
+  {
+   "text": "ならない）。呼吸が40以上ならR終了時、呼吸10を",
+   "x0": 89.447998046875,
+   "x1": 223.66000366210938,
+   "y0": 45.139976501464844,
+   "y1": 52.819976806640625,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:224:1",
+   "page": 223,
+   "frameRight": 227.9
+  },
+  {
+   "text": "消費し次のRに傲慢ダメージ量増加3を得る",
+   "x0": 89.447998046875,
+   "x1": 204.6699981689453,
+   "y0": 55.93999481201172,
+   "y1": 63.6199951171875,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:224:2",
+   "page": 223,
+   "frameRight": 227.9
+  },
+  {
+   "text": "第5種永久機関",
+   "x0": 42.86399841308594,
+   "x1": 82.2239990234375,
+   "y0": 95.86638641357422,
+   "y1": 108.61518096923828,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:224:3",
+   "page": 223,
+   "frameRight": 86.2
+  },
+  {
+   "text": "なし",
+   "x0": 89.447998046875,
+   "x1": 101.447998046875,
+   "y0": 67.70000457763672,
+   "y1": 75.3800048828125,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:224:4",
+   "page": 223,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "1000LP",
+   "x0": 233.6199951171875,
+   "x1": 254.09201049804688,
+   "y0": 100.4599838256836,
+   "y1": 108.13998413085938,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    3.3300018310546875,
+    3.3300018310546875
+   ],
+   "id": "pack1:224:5",
+   "page": 223,
+   "frameRight": 254.09201049804688
+  },
+  {
+   "text": "R開始時、充電または特殊充電を得るスキルを持つ",
+   "x0": 89.447998046875,
+   "x1": 225.28799438476562,
+   "y0": 79.70000457763672,
+   "y1": 87.3800048828125,
+   "leadWidth": 3.80999755859375,
+   "leadRun": [],
+   "id": "pack1:224:6",
+   "page": 223,
+   "frameRight": 227.9
+  },
+  {
+   "text": "味方が5名以上かつ自分が充電または特殊充電を得",
+   "x0": 89.447998046875,
+   "x1": 224.80999755859375,
+   "y0": 90.37999725341797,
+   "y1": 98.05999755859375,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:224:7",
+   "page": 223,
+   "frameRight": 227.9
+  },
+  {
+   "text": "るスキルを持つなら発動。舞台開始時、充電力場7",
+   "x0": 89.447998046875,
+   "x1": 224.8300018310547,
+   "y0": 101.17998504638672,
+   "y1": 108.8599853515625,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:224:8",
+   "page": 223,
+   "frameRight": 227.9
+  },
+  {
+   "text": "を得る。電圧を得るとき、追加で電圧を1得る。充",
+   "x0": 89.447998046875,
+   "x1": 224.8300018310547,
+   "y0": 111.85997772216797,
+   "y1": 119.53997802734375,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:224:9",
+   "page": 223,
+   "frameRight": 227.9
+  },
+  {
+   "text": "電を消費するスキル使用時、自分の電圧が3以上な",
+   "x0": 89.447998046875,
+   "x1": 224.86000061035156,
+   "y0": 122.56999969482422,
+   "y1": 130.25,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:224:10",
+   "page": 223,
+   "frameRight": 227.9
+  },
+  {
+   "text": "ら次のRに嫉妬ダメージ量増加3を得る",
+   "x0": 89.447998046875,
+   "x1": 192.6699981689453,
+   "y0": 133.24998474121094,
+   "y1": 140.92999267578125,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:224:11",
+   "page": 223,
+   "frameRight": 227.9
+  },
+  {
+   "text": "富",
+   "x0": 59.54399871826172,
+   "x1": 65.54399871826172,
+   "y0": 146.53639221191406,
+   "y1": 159.2852020263672,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:224:12",
+   "page": 223,
+   "frameRight": 65.54399871826172
+  },
+  {
+   "text": "なし",
+   "x0": 89.447998046875,
+   "x1": 101.447998046875,
+   "y0": 145.00999450683594,
+   "y1": 152.69000244140625,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:224:13",
+   "page": 223,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "1000LP",
+   "x0": 233.6199951171875,
+   "x1": 254.09201049804688,
+   "y0": 151.12998962402344,
+   "y1": 158.80999755859375,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    3.3300018310546875,
+    3.3300018310546875
+   ],
+   "id": "pack1:224:14",
+   "page": 223,
+   "frameRight": 254.09201049804688
+  },
+  {
+   "text": "シナリオ報酬で獲得するLPが25％増加（最大20）",
+   "x0": 89.447998046875,
+   "x1": 223.89999389648438,
+   "y0": 157.12998962402344,
+   "y1": 164.80999755859375,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:224:15",
+   "page": 223,
+   "frameRight": 256.41998291015625
+  },
+  {
+   "text": "存在意味に対",
+   "x0": 40.944000244140625,
+   "x1": 76.94400024414062,
+   "y0": 153.2899932861328,
+   "y1": 160.97000122070312,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:225:7",
+   "page": 224,
+   "frameRight": 79.1
+  },
+  {
+   "text": "する期待",
+   "x0": 46.944000244140625,
+   "x1": 70.94400024414062,
+   "y0": 158.77638244628906,
+   "y1": 171.5251922607422,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:225:8",
+   "page": 224,
+   "frameRight": 79.1
+  },
+  {
+   "text": "常時発動：追加ダメージで受けるダメージ量-50％",
+   "x0": 82.2239990234375,
+   "x1": 217.05999755859375,
+   "y0": 138.2899932861328,
+   "y1": 145.97000122070312,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:225:9",
+   "page": 224,
+   "frameRight": 227.9
+  },
+  {
+   "text": "士気低下効果：R終了時、全ての味方に8の追加ダメ",
+   "x0": 82.2239990234375,
+   "x1": 221.47000122070312,
+   "y0": 148.36997985839844,
+   "y1": 156.04998779296875,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:225:10",
+   "page": 224,
+   "frameRight": 227.9
+  },
+  {
+   "text": "ージを与える",
+   "x0": 82.2239990234375,
+   "x1": 118.2239990234375,
+   "y0": 158.32998657226562,
+   "y1": 166.00999450683594,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:225:11",
+   "page": 224,
+   "frameRight": 227.9
+  },
+  {
+   "text": "混乱効果：全ての耐性が脆弱になり、R終了時、全て",
+   "x0": 82.2239990234375,
+   "x1": 224.11000061035156,
+   "y0": 168.28997802734375,
+   "y1": 175.96998596191406,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:225:12",
+   "page": 224,
+   "frameRight": 227.9
+  },
+  {
+   "text": "の味方に12の追加ダメージを与える",
+   "x0": 82.2239990234375,
+   "x1": 178.97000122070312,
+   "y0": 178.36997985839844,
+   "y1": 186.04998779296875,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:225:13",
+   "page": 224,
+   "frameRight": 227.9
+  },
+  {
+   "text": "1000欠",
+   "x0": 234.10000610351562,
+   "x1": 253.5399932861328,
+   "y0": 153.2899932861328,
+   "y1": 160.97000122070312,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875,
+    3.3300018310546875,
+    3.3300018310546875
+   ],
+   "id": "pack1:225:14",
+   "page": 224,
+   "frameRight": 254.09201049804688
+  },
+  {
+   "text": "片",
+   "x0": 240.82000732421875,
+   "x1": 246.82000732421875,
+   "y0": 163.36997985839844,
+   "y1": 171.04998779296875,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:225:15",
+   "page": 224,
+   "frameRight": 246.82000732421875
+  },
+  {
+   "text": "破砕痕",
+   "x0": 49.944000244140625,
+   "x1": 67.94400024414062,
+   "y0": 195.15638732910156,
+   "y1": 207.9051971435547,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:225:16",
+   "page": 224,
+   "frameRight": 75.21647644042969
+  },
+  {
+   "text": "士気低下効果：マッチ威力-1。脆弱3を得る",
+   "x0": 82.2239990234375,
+   "x1": 199.02999877929688,
+   "y0": 189.6499786376953,
+   "y1": 197.32998657226562,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:225:17",
+   "page": 224,
+   "frameRight": 227.9
+  },
+  {
+   "text": "混乱効果：マッチ威力-1。全ての耐性が脆弱にな",
+   "x0": 82.2239990234375,
+   "x1": 213.6699981689453,
+   "y0": 199.74998474121094,
+   "y1": 207.42999267578125,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:225:18",
+   "page": 224,
+   "frameRight": 227.9
+  },
+  {
+   "text": "る。沈潜と破裂で受けるダメージ量+50％",
+   "x0": 82.2239990234375,
+   "x1": 194.35000610351562,
+   "y0": 209.70997619628906,
+   "y1": 217.38998413085938,
+   "leadWidth": 6.0,
+   "leadRun": [
+    6.0
+   ],
+   "id": "pack1:225:19",
+   "page": 224,
+   "frameRight": 227.9
+  },
+  {
+   "text": "50欠片",
+   "x0": 234.4600067138672,
+   "x1": 253.17999267578125,
+   "y0": 199.74998474121094,
+   "y1": 207.42999267578125,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875
+   ],
+   "id": "pack1:225:20",
+   "page": 224,
+   "frameRight": 254.09201049804688
+  },
+  {
+   "text": "孤独",
+   "x0": 52.944000244140625,
+   "x1": 64.94400024414062,
+   "y0": 226.47637939453125,
+   "y1": 239.22518920898438,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:225:21",
+   "page": 224,
+   "frameRight": 71.73648071289062
+  },
+  {
+   "text": "士気低下効果：R開始時、沈潜3を得る",
+   "x0": 82.2239990234375,
+   "x1": 185.47000122070312,
+   "y0": 221.1099853515625,
+   "y1": 228.7899932861328,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:225:22",
+   "page": 224,
+   "frameRight": 227.9
+  },
+  {
+   "text": "混乱効果：全ての耐性が脆弱になる。R開始時、沈潜",
+   "x0": 82.2239990234375,
+   "x1": 224.11000061035156,
+   "y0": 231.06997680664062,
+   "y1": 238.74998474121094,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:225:23",
+   "page": 224,
+   "frameRight": 227.9
+  },
+  {
+   "text": "5を得る",
+   "x0": 82.2239990234375,
+   "x1": 103.58399963378906,
+   "y0": 241.0299835205078,
+   "y1": 248.70999145507812,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [],
+   "id": "pack1:225:24",
+   "page": 224,
+   "frameRight": 227.9
+  },
+  {
+   "text": "50欠片",
+   "x0": 234.4600067138672,
+   "x1": 253.17999267578125,
+   "y0": 231.06997680664062,
+   "y1": 238.74998474121094,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875
+   ],
+   "id": "pack1:225:25",
+   "page": 224,
+   "frameRight": 254.09201049804688
+  },
+  {
+   "text": "青い砂",
+   "x0": 49.944000244140625,
+   "x1": 67.94400024414062,
+   "y0": 262.8363952636719,
+   "y1": 275.5851745605469,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:225:26",
+   "page": 224,
+   "frameRight": 75.21647644042969
+  },
+  {
+   "text": "士気低下効果：速度d値-1。速度d値が2なら代わりに",
+   "x0": 82.2239990234375,
+   "x1": 224.47000122070312,
+   "y0": 252.4299774169922,
+   "y1": 260.1099853515625,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:225:27",
+   "page": 224,
+   "frameRight": 227.9
+  },
+  {
+   "text": "速度d数-1",
+   "x0": 82.2239990234375,
+   "x1": 109.34000396728516,
+   "y0": 262.3899841308594,
+   "y1": 270.0699768066406,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:225:28",
+   "page": 224,
+   "frameRight": 227.9
+  },
+  {
+   "text": "混乱効果：全ての耐性が脆弱になる。速度d値-2。速",
+   "x0": 82.2239990234375,
+   "x1": 223.4199981689453,
+   "y0": 272.3500061035156,
+   "y1": 280.0299987792969,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:225:29",
+   "page": 224,
+   "frameRight": 227.9
+  },
+  {
+   "text": "度d値が2なら代わりに速度d数-2",
+   "x0": 82.2239990234375,
+   "x1": 170.44000244140625,
+   "y0": 282.4599914550781,
+   "y1": 290.1399841308594,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:225:30",
+   "page": 224,
+   "frameRight": 227.9
+  },
+  {
+   "text": "50欠片",
+   "x0": 234.4600067138672,
+   "x1": 253.17999267578125,
+   "y0": 267.42999267578125,
+   "y1": 275.1099853515625,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875
+   ],
+   "id": "pack1:225:31",
+   "page": 224,
+   "frameRight": 254.09201049804688
+  },
+  {
+   "text": "眩惑",
+   "x0": 52.944000244140625,
+   "x1": 64.94400024414062,
+   "y0": 304.1463928222656,
+   "y1": 316.8951721191406,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:225:32",
+   "page": 224,
+   "frameRight": 71.73648071289062
+  },
+  {
+   "text": "士気低下効果：R終了時、次のRに束縛1ダメージ量減",
+   "x0": 82.2239990234375,
+   "x1": 225.19000244140625,
+   "y0": 293.739990234375,
+   "y1": 301.41998291015625,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:225:33",
+   "page": 224,
+   "frameRight": 227.9
+  },
+  {
+   "text": "少2を得る",
+   "x0": 82.2239990234375,
+   "x1": 109.60800170898438,
+   "y0": 303.82000732421875,
+   "y1": 311.5,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:225:34",
+   "page": 224,
+   "frameRight": 227.9
+  },
+  {
+   "text": "混乱効果：全ての耐性が一段階低下。R終了時、次の",
+   "x0": 82.2239990234375,
+   "x1": 224.11000061035156,
+   "y0": 313.7760009765625,
+   "y1": 321.45599365234375,
+   "leadWidth": 6.0,
+   "leadRun": [],
+   "id": "pack1:225:35",
+   "page": 224,
+   "frameRight": 227.9
+  },
+  {
+   "text": "Rに束縛1ダメージ量減少3を得る",
+   "x0": 82.2239990234375,
+   "x1": 170.8300018310547,
+   "y0": 323.7359924316406,
+   "y1": 331.4159851074219,
+   "leadWidth": 3.80999755859375,
+   "leadRun": [],
+   "id": "pack1:225:36",
+   "page": 224,
+   "frameRight": 227.9
+  },
+  {
+   "text": "50欠片",
+   "x0": 234.4600067138672,
+   "x1": 253.17999267578125,
+   "y0": 308.739990234375,
+   "y1": 316.41998291015625,
+   "leadWidth": 3.3300018310546875,
+   "leadRun": [
+    3.3300018310546875
+   ],
+   "id": "pack1:225:37",
+   "page": 224,
+   "frameRight": 254.09201049804688
+  }
+ ]
+}
