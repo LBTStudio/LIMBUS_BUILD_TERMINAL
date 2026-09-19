@@ -267,9 +267,31 @@ def validate_candidates(doc, candidates):
         actual_rows = [rid for c in actual for rid in c["row_ids"]]
         if sorted(expected_rows) != sorted(actual_rows):
             issues.append({"code": "row_coverage", "kind": kind})
-    names = set()
+    expected_by_id = {}
+    for kind, entries in expected.items():
+        for entry in entries:
+            expected_by_id[f"{doc.key}/{kind}/{entry['rows'][0]['id']}"] = entry
+    names, identifiers = set(), set()
     for candidate in candidates:
         path = candidate["id"]
+        entry = expected_by_id.get(path)
+        if path in identifiers or entry is None or candidate["source"] != doc.key:
+            issues.append({"code": "record_identity", "path": path})
+        identifiers.add(path)
+        if entry and sorted(candidate["row_ids"]) != sorted(evidence(entry["rows"])):
+            issues.append({"code": "record_ownership", "path": path})
+        required = ({"name", "cond", "effect", "lp"} if candidate["kind"] == "support_passives"
+                    else {"name", "price", *SPIRIT_FIELDS.values()})
+        if set(candidate["data"]) != required:
+            issues.append({"code": "record_schema", "path": path})
+        if entry:
+            owner_fields = {"name": evidence(entry["name_rows"]),
+                            "lp" if candidate["kind"] == "support_passives" else "price": evidence(entry["price_rows"])}
+            if candidate["kind"] == "support_passives" and len(entry["cells"]) == 2:
+                owner_fields.update(cond=evidence(entry["cells"][0]), effect=evidence(entry["cells"][1]))
+            for field, refs in owner_fields.items():
+                if candidate["fields"].get(field) != refs:
+                    issues.append({"code": "field_ownership", "path": path, "field": field})
         name_key = (candidate["kind"], candidate["data"]["name"])
         if name_key in names:
             issues.append({"code": "duplicate_name", "path": path})
