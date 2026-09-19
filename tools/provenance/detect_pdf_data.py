@@ -131,7 +131,7 @@ def shop_ranges(doc):
             "spirits": list(range(spirits, indexes[-1] + 1))}
 
 
-def table_entries(doc, indexes):
+def table_entries(doc, indexes, body_cell_count=2):
     """Record boundary = name-column border, NOT condition vocabulary.
 
     Centered names can straddle a border with the glyph bounding-box top.
@@ -161,12 +161,16 @@ def table_entries(doc, indexes):
             names = [r for r in group if r["x0"] < left]
             prices = [r for r in group if r["x0"] >= right]
             body = [r for r in group if left <= r["x0"] < right]
-            if names or prices:
-                if not names or not prices:
-                    raise ValueError(f"incomplete_table_record: {doc.key}:{p + 1}:{band}")
+            continuing = not names and not prices
+            if prices:
                 entry = {"name_rows": names, "price_rows": prices, "cells": [], "rows": []}
                 entries.append(entry)
-            elif entries:
+            elif names and entries and not entries[-1]["name_rows"] and band == min(groups):
+                # Condition + price can be on the preceding page while the
+                # vertically centered name is on this page with the effect.
+                entry = entries[-1]
+                entry["name_rows"] = names
+            elif continuing and entries and band == min(groups):
                 entry = entries[-1]
             else:
                 raise ValueError(f"orphan_table_continuation: {doc.key}:{p + 1}:{band}")
@@ -177,10 +181,12 @@ def table_entries(doc, indexes):
                 cells.setdefault(cell, []).append(row)
             for _, cell_rows in sorted(cells.items()):
                 # A page-start continuation belongs to the previous body cell.
-                if not names and entry["cells"]:
+                if continuing and len(entry["cells"]) >= body_cell_count:
                     entry["cells"][-1].extend(cell_rows)
                 else:
                     entry["cells"].append(cell_rows)
+    if any(not e["name_rows"] or not e["price_rows"] for e in entries):
+        raise ValueError(f"incomplete_table_record: {doc.key}")
     return entries
 
 
@@ -197,7 +203,7 @@ def joined(rows):
 def shop_candidates(doc):
     candidates = []
     for kind, indexes in shop_ranges(doc).items():
-        for entry in table_entries(doc, indexes):
+        for entry in table_entries(doc, indexes, 2 if kind == "support_passives" else 1):
             price_text = compact(joined(entry["price_rows"]))
             unit = "LP" if kind == "support_passives" else "欠片"
             match = re.fullmatch(r"(\d+)" + unit, price_text)
@@ -250,7 +256,8 @@ def validate_candidates(doc, candidates):
     Deleting a candidate, its citations, or a one-character value must fail.
     """
     rows = {r["id"]: r for page in doc.pages for r in page}
-    expected = {kind: table_entries(doc, indexes) for kind, indexes in shop_ranges(doc).items()}
+    expected = {kind: table_entries(doc, indexes, 2 if kind == "support_passives" else 1)
+                for kind, indexes in shop_ranges(doc).items()}
     issues = []
     for kind, entries in expected.items():
         actual = [c for c in candidates if c["kind"] == kind]
