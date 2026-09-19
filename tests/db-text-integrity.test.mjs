@@ -66,15 +66,37 @@ test("スキル効果本文へ同一スキルのダイス効果の断片が流�
 test("本文が助詞・活用途中で終わる途中切断が残っていない", () => {
   // 「〜を」「〜が」「ク」（クリティカルの切断）などで終わる本文は転記途中で切れている。
   const truncated = /(?:[はがをにでとやのへも]|ク|クリ)$/;
+
+  /* ただし原典がそう組んでいるなら、DBは正しく写している。
+
+       紙面25（パック）「仕立屋 謝肉祭」固有バフ「縫製」
+         生地を仕立てる為の工程。素敵な生地を生み出すために   余白49.52pt
+
+       行末に全角8文字ぶんの余白があり、組版の都合で切れたのではない。
+       原典の文がそこで終わっている（用語集の紙面197では
+       「…生み出すために（最大3）」と続くが、人格の紙面では続かない）。
+
+     助詞で終わるかどうかは切断の「兆候」であって証拠ではない。
+     原典の段落と突き合わせて、初めて切断かどうかが決まる。 */
+  const sourceParagraphs = new Set();
+  for (const key of ["core", "supplement", "pack1"]) {
+    const url = new URL(`../data/provenance/${key}.paragraphs.txt`, import.meta.url);
+    for (const line of readFileSync(url, "utf8").split("\n")) {
+      const flat = canon(line);
+      if (flat) sourceParagraphs.add(flat);
+    }
+  }
+  const printedAsIs = (line) => sourceParagraphs.has(canon(line));
+
   const problems = [];
   allPersonas.forEach(([mode, persona]) => {
     collectTexts(persona).forEach(([label, text]) => {
       const body = String(text || "").trim();
       if (!body) return;
       const lastLine = body.split("\n").pop().trim();
-      if (truncated.test(lastLine)) {
-        problems.push(`${mode}/${persona.name}/${label}: ...${lastLine.slice(-36)}`);
-      }
+      if (!truncated.test(lastLine)) return;
+      if (printedAsIs(lastLine)) return;
+      problems.push(`${mode}/${persona.name}/${label}: ...${lastLine.slice(-36)}`);
     });
   });
   assert.deepEqual(problems, []);

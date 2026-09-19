@@ -42,10 +42,22 @@ test("段落の境界で括弧が切り離されない", () => {
       for (const [open, close] of pairs) {
         const opened = part.split(open).length - 1;
         const closed = part.split(close).length - 1;
-        if (opened !== closed) {
-          problems.push(`${path}/段落${index + 1}: ${open}${close} ${JSON.stringify(part)}`);
-          return;
-        }
+        if (opened === closed) continue;
+        /* 分割が括弧を切り離したのかを問う検査である。
+           分割する前から対応していない括弧は、原典の表記がそうなっている。
+
+             原典 紙面107（パック）「LCAウアジェト 先鋒三隊隊長」
+               舞台開始時、自分の弾丸を[LCA亀裂弾」へと[弾倉変換]。
+                                              開き [ に対し閉じ 」
+
+           DBは原典どおりに写しており、出力も入力と一字一句同じである。
+           これを分断として数えると直しようのない失敗が残り続け、
+           本当の分断が埋もれる。 */
+        const sourceOpened = text.split(open).length - 1;
+        const sourceClosed = text.split(close).length - 1;
+        if (sourceOpened !== sourceClosed) continue;
+        problems.push(`${path}/段落${index + 1}: ${open}${close} ${JSON.stringify(part)}`);
+        return;
       }
       // 括弧が開いたまま段落が終わる形は、直後で分断された痕跡である。
       if (index < parts.length - 1 && /[[\uFF08\u3010(\u300C\u300E]\s*$/.test(part)) {

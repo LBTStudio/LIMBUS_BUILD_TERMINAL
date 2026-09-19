@@ -21,7 +21,24 @@ const repairsPath = path.join(here, "repairs.json");
 const write = process.argv.includes("--write");
 
 const runtime = loadRuntime();
-const { merged } = auditDbParagraphs(collectDbTexts(runtime.db), runtime.timingMarkerWords);
+const { merged, split } = auditDbParagraphs(collectDbTexts(runtime.db), runtime.timingMarkerWords);
+
+/* 復元案は「連結」と「分断」の両方から作る。どちらも文字は変えず改行だけを直す。
+
+     連結  原典が改段している位置で改行が落ちている  -> 改行を戻す
+     分断  原典が一文で書いている位置で改行がある    -> 余分な改行を取り除く
+
+   分断は、組版の折り返しをそのままDBへ取り込んだ痕跡である。
+
+     DB  : …それぞれのデバフの数だけHPダ ⏎ メージを与える（最大50）
+     原典: …それぞれのデバフの数だけHPダメージを与える（最大50）
+
+   語の途中（「HPダ」「メージ」）で切れていることが、これが原典の改段ではなく
+   紙面の折り返しであることを示している。 */
+const findings = [
+  ...merged.map((finding) => ({ ...finding, kind: "merged" })),
+  ...split.map((finding) => ({ ...finding, kind: "split" }))
+];
 
 /* 監査が報告する項目パスから、repairs.json の target 形式へ変換する。
 
@@ -32,6 +49,12 @@ const { merged } = auditDbParagraphs(collectDbTexts(runtime.db), runtime.timingM
 function parsePath(itemPath) {
   const parts = itemPath.split("/");
   const kind = parts[0];
+
+  /* 支援パッシブは人格・E.G.Oに属さない独立した一覧。
+       support_passives/傷だらけの色欲/effect -> { kind:"support", name, field } */
+  if (kind === "support_passives") {
+    return { support: parts[1], target: { kind: "support", field: parts[2] } };
+  }
 
   /* E.G.Oは人格に属さない独立したレコード。
      名称に「：」を含むが、項目パスの区切りは「/」なので誤らない。
@@ -88,17 +111,24 @@ function parsePath(itemPath) {
 
 const entries = [];
 const unsupported = [];
-for (const finding of merged) {
+const REASON = {
+  merged: "\u539F\u5178\u304C\u6539\u6BB5\u3057\u3066\u3044\u308B\u4F4D\u7F6E\u3067\u6539\u884C\u304C\u843D\u3061\u3066\u3044\u305F\u3002\u7D44\u7248\u60C5\u5831\u304B\u3089\u5FA9\u5143\u3057\u305F\u6BB5\u843D\u3078\u623B\u3059\uFF08\u6587\u5B57\u306F\u5909\u3048\u306A\u3044\uFF09\u3002",
+  split: "\u7D19\u9762\u306E\u6298\u308A\u8FD4\u3057\u304C\u6539\u884C\u3068\u3057\u3066\u53D6\u308A\u8FBC\u307E\u308C\u3066\u3044\u305F\u3002\u539F\u5178\u304C\u4E00\u6587\u3067\u66F8\u3044\u3066\u3044\u308B\u306E\u3067\u9023\u7D50\u3059\u308B\uFF08\u6587\u5B57\u306F\u5909\u3048\u306A\u3044\uFF09\u3002"
+};
+
+for (const finding of findings) {
   const parsed = parsePath(finding.path);
   if (!parsed) {
     unsupported.push(finding.path);
     continue;
   }
   entries.push({
-    ...(parsed.ego ? { ego: parsed.ego } : { persona: parsed.persona }),
+    ...(parsed.ego ? { ego: parsed.ego }
+      : parsed.support ? { support: parsed.support }
+        : { persona: parsed.persona }),
     target: parsed.target,
     source: `${finding.source} p.${finding.page}`,
-    reason: "\u539F\u5178\u304C\u6539\u6BB5\u3057\u3066\u3044\u308B\u4F4D\u7F6E\u3067\u6539\u884C\u304C\u843D\u3061\u3066\u3044\u305F\u3002\u7D44\u7248\u60C5\u5831\u304B\u3089\u5FA9\u5143\u3057\u305F\u6BB5\u843D\u3078\u623B\u3059\uFF08\u6587\u5B57\u306F\u5909\u3048\u306A\u3044\uFF09\u3002",
+    reason: REASON[finding.kind],
     before: finding.fieldBefore,
     after: finding.fieldAfter
   });
@@ -110,7 +140,7 @@ if (unsupported.length) {
   unsupported.forEach((item) => console.log(`  ${item}`));
 }
 for (const entry of entries.slice(0, 5)) {
-  console.log(`\n  ${entry.persona} / ${JSON.stringify(entry.target)}  (${entry.source})`);
+  console.log(`\n  ${entry.persona || entry.ego || entry.support} / ${JSON.stringify(entry.target)}  (${entry.source})`);
   console.log(`    before: ${entry.before}`);
   console.log(`    after : ${entry.after.replace(/\n/g, " \u23CE ")}`);
 }

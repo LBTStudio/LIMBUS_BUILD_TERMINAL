@@ -13,7 +13,7 @@ import path from "node:path";
 import { canon } from "./db-provenance.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
-const CORPUS_FILES = ["core", "supplement"];
+const CORPUS_FILES = ["core", "supplement", "pack1"];
 
 /* 原典の段落を、紙面順に並べて読み込む。 */
 export function loadParagraphs(dir = path.join(root, "data", "provenance")) {
@@ -25,7 +25,11 @@ export function loadParagraphs(dir = path.join(root, "data", "provenance")) {
     for (const line of text.split("\n")) {
       const trimmed = line.trim();
       if (!trimmed) continue;
-      const header = /^===== PAGE (\d+) =====$/.exec(trimmed);
+      /* 見出しの `SECTION` は、その紙面に節見出しがあることを抽出器が
+         記録した印である（extract_pdf_corpus.has_section_title）。
+         これを読み落とすと紙面の区切りを見失い、以降の本文がすべて
+         直前の紙面の続きとして扱われる。 */
+      const header = /^===== PAGE (\d+)(?: SECTION)? =====$/.exec(trimmed);
       if (header) {
         page = Number(header[1]);
         continue;
@@ -99,15 +103,54 @@ function markerMatcher(words = []) {
    しかし続く行は見出しで始まっており、原典が改段したと読むのが自然である。
    この位置は組版から一意に定まらないので、判定しない（偽陽性を出さない）。
    docs/output-fidelity-goal.md「P5 の判断基準」の方針に従う。 */
-function findSplitParagraph(segments, from, index, startsWithMarker) {
+function findSplitParagraph(segments, from, index, startsWithMarker, paragraphs) {
   let accumulated = canon(segments[from]);
   for (let to = from + 1; to < segments.length; to++) {
     accumulated += canon(segments[to]);
     if (startsWithMarker(segments[to])) return null;
     const positions = index.get(accumulated);
-    if (positions && positions.length) return { to, positions };
+    if (positions && positions.length) {
+      if (printedAsSeparateParagraphs(segments, from, to, index, paragraphs)) return null;
+      return { to, positions };
+    }
   }
   return null;
+}
+
+/* 同じ本文が、原典の別の箇所では独立した段落として組まれていないか。
+
+   パックは人格の紙面とバフ一覧の二箇所に同じ本文を載せており、
+   組版の都合で改段の有無が食い違う。
+
+     紙面96「W社4級整理要員-CCA」固有バフ「負荷」
+       充電を消費した攻撃スキルのダメージ量が数値1ごとに1増加      ← 独立した段落
+       このバフを保有している対象がW社所属なら、代わりに数値1ごとに2増加（最大8）
+     紙面199 バフ一覧
+       充電を消費した攻撃スキルのダメージ量が数値1ごとに1増加このバフを…（最大8）  ← 一文
+
+   紙面199の行は右端まで4.2pt を残して終わっており、次の行の先頭が
+   その余白へ入るため、組版からは改段と判定できない位置である。
+   一方、紙面96は同じ本文を二段落に分けて組んでいる。
+
+   原典が両方の形で印刷しているのだから、DBがそのうちの一方に
+   一致していることを誤りとは言えない。原典自身が根拠となる例を
+   持っている位置は報告しない。docs/output-fidelity-goal.md「P5 の判断基準」
+   に従い、原典から一意に定まらない位置では判定を下さない。 */
+function printedAsSeparateParagraphs(segments, from, to, index, paragraphs) {
+  const positions = index.get(canon(segments[from]));
+  if (!positions) return false;
+  for (const start of positions) {
+    let matched = true;
+    for (let offset = 1; offset <= to - from; offset++) {
+      const paragraph = paragraphs[start + offset];
+      if (!paragraph || paragraph.canon !== canon(segments[from + offset])) {
+        matched = false;
+        break;
+      }
+    }
+    if (matched) return true;
+  }
+  return false;
 }
 
 export function auditDbParagraphs(texts, timingMarkerWords, paragraphs = loadParagraphs()) {
@@ -131,15 +174,21 @@ export function auditDbParagraphs(texts, timingMarkerWords, paragraphs = loadPar
 
       // 分断: DBが改行した位置を、原典は一文として書いている。
       if (at + 1 < segments.length) {
-        const found = findSplitParagraph(segments, at, index, startsWithMarker);
+        const found = findSplitParagraph(segments, at, index, startsWithMarker, paragraphs);
         if (found) {
           const paragraph = paragraphs[found.positions[0]];
+          /* 連結（merged）と同じく、修正は項目の値ごと差し替える。
+             分断された複数行を原典の1段落へ戻し、他の行はそのまま残す。 */
+          const repaired = segments.slice();
+          repaired.splice(at, found.to - at + 1, paragraph.raw);
           split.push({
             path: itemPath,
             source: paragraph.source,
             page: paragraph.page,
             text: segments.slice(at, found.to + 1).join(" \u23CE "),
-            paragraph: paragraph.raw
+            paragraph: paragraph.raw,
+            fieldBefore: segments.join("\n"),
+            fieldAfter: repaired.join("\n")
           });
           at = found.to;
           continue;
