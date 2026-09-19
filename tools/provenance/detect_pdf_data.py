@@ -300,3 +300,197 @@ def validate_candidates(doc, candidates):
             if value != "" and field not in candidate["fields"]:
                 issues.append({"code": "uncited_field", "path": path, "field": field})
     return issues
+
+
+def plan_registration(db, candidates):
+    """Pure, idempotent import plan: never overwrite a name collision."""
+    import copy
+    result = copy.deepcopy(db)
+    changes, issues = [], []
+    for candidate in candidates:
+        kind, incoming = candidate["kind"], candidate["data"]
+        if kind not in ("support_passives", "spirits"):
+            issues.append({"code": "unsupported_registration", "path": candidate["id"]})
+            continue
+        matches = [r for r in result.get(kind, []) if r.get("name") == incoming["name"]]
+        if len(matches) > 1 or (matches and matches[0] != incoming):
+            issues.append({"code": "db_conflict", "path": candidate["id"], "name": incoming["name"]})
+        elif not matches:
+            result.setdefault(kind, []).append(copy.deepcopy(incoming))
+            changes.append({"kind": kind, "name": incoming["name"], "source": candidate["source"], "pages": candidate["pages"]})
+    return result, changes, issues
+
+
+def safe_path(path):
+    resolved = Path(path).resolve()
+    if not resolved.is_relative_to(ROOT) or resolved == ROOT:
+        raise ValueError("output_path_outside_workspace")
+    if not resolved.parent.is_dir():
+        raise ValueError(f"output_parent_missing: {resolved.parent}")
+    return resolved
+
+
+def atomic_json(path, value, indent=1):
+    import os
+    import tempfile
+    path = safe_path(path)
+    text = json.dumps(value, ensure_ascii=False, indent=indent) + "\n"
+    if path.exists() and path.read_text(encoding="utf-8") == text:
+        return
+    fd, temporary = tempfile.mkstemp(prefix=path.name + ".", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            stream.write(text)
+        os.replace(temporary, path)
+    finally:
+        if Path(temporary).exists():
+            Path(temporary).unlink()
+
+
+def source_inventory(documents, candidates):
+    """Account for every page. Unowned text remains unresolved, not discarded.
+
+    This deliberately over-reports narrative pages until their exclusion is
+    reviewed. A raw archive is not proof that all rules have been structured.
+    """
+    owned = {rid for c in candidates for rid in c["row_ids"]}
+    pages = []
+    for doc in documents:
+        section = "unclassified"
+        titles = {p: title for title, p in doc.sections.items()}
+        for p, rows in enumerate(doc.pages):
+            section = titles.get(p, section)
+            pending = [r["id"] for r in rows if r["id"] not in owned]
+            pages.append({"source": doc.key, "page": p + 1, "section": section,
+                          "rows": len(rows), "mapped_rows": len(rows) - len(pending),
+                          "unresolved_rows": len(pending),
+                          "status": "empty_page_review" if not rows else "unresolved" if pending else "mapped"})
+    return pages
+
+
+def ledger_content_digest(documents, candidates):
+    h = hashlib.sha256()
+    for doc in documents:
+        h.update(json_text([doc.key, doc.sha256, doc.sections]).encode())
+        for p, rows in enumerate(doc.pages):
+            h.update(json_text([p, rows, doc.segments[p], doc.verticals[p]]).encode())
+    h.update(json_text(candidates).encode())
+    return h.hexdigest()
+
+
+def write_ledger(path, documents, candidates, inventory):
+    """Atomically replace an evidence database, not the application's database."""
+    import os
+    import tempfile
+    path = safe_path(path)
+    fd, temp = tempfile.mkstemp(prefix=path.name + ".", dir=path.parent)
+    os.close(fd)
+    try:
+        with sqlite3.connect(temp) as conn:
+            conn.execute("PRAGMA foreign_keys=ON")
+            conn.executescript("""
+                CREATE TABLE metadata(key TEXT PRIMARY KEY, value TEXT NOT NULL);
+                CREATE TABLE sources(id TEXT PRIMARY KEY, filename TEXT NOT NULL, sha256 TEXT NOT NULL, pages INTEGER NOT NULL);
+                CREATE TABLE pages(source TEXT REFERENCES sources(id), page INTEGER, status TEXT NOT NULL, section TEXT NOT NULL,
+                    geometry TEXT NOT NULL, PRIMARY KEY(source,page));
+                CREATE TABLE lines(id TEXT PRIMARY KEY, source TEXT, page INTEGER, text TEXT NOT NULL, geometry TEXT NOT NULL,
+                    FOREIGN KEY(source,page) REFERENCES pages(source,page));
+                CREATE TABLE candidates(id TEXT PRIMARY KEY, kind TEXT NOT NULL, source TEXT REFERENCES sources(id), data TEXT NOT NULL);
+                CREATE TABLE evidence(candidate TEXT REFERENCES candidates(id), field TEXT, position INTEGER,
+                    line TEXT REFERENCES lines(id), transform TEXT NOT NULL, PRIMARY KEY(candidate,field,position));
+            """)
+            conn.executemany("INSERT INTO metadata VALUES (?,?)", [
+                ("schema_version", str(SCHEMA_VERSION)), ("pymupdf", pymupdf.__version__),
+                ("content_sha256", ledger_content_digest(documents, candidates)),
+                ("notice", "Raw capture is not full typed-data approval")])
+            page_lookup = {(p["source"], p["page"]): p for p in inventory}
+            for doc in documents:
+                conn.execute("INSERT INTO sources VALUES (?,?,?,?)", (doc.key, doc.filename, doc.sha256, len(doc.pages)))
+                for p, rows in enumerate(doc.pages):
+                    summary = page_lookup[(doc.key, p + 1)]
+                    geometry = {"horizontal": doc.segments[p], "vertical": doc.verticals[p]}
+                    conn.execute("INSERT INTO pages VALUES (?,?,?,?,?)",
+                                 (doc.key, p + 1, summary["status"], summary["section"], json_text(geometry)))
+                    conn.executemany("INSERT INTO lines VALUES (?,?,?,?,?)", [
+                        (r["id"], doc.key, p + 1, r["text"], json_text(r)) for r in rows])
+            for candidate in candidates:
+                conn.execute("INSERT INTO candidates VALUES (?,?,?,?)",
+                             (candidate["id"], candidate["kind"], candidate["source"], json_text(candidate["data"])))
+                for field, ids in candidate["fields"].items():
+                    conn.executemany("INSERT INTO evidence VALUES (?,?,?,?,?)", [
+                        (candidate["id"], field, n, rid, candidate["transforms"][field]) for n, rid in enumerate(ids)])
+            if conn.execute("PRAGMA integrity_check").fetchone()[0] != "ok" or conn.execute("PRAGMA foreign_key_check").fetchall():
+                raise ValueError("ledger_integrity_failure")
+            if conn.execute("SELECT count(*) FROM lines").fetchone()[0] != sum(len(r) for d in documents for r in d.pages):
+                raise ValueError("ledger_row_count_failure")
+        os.replace(temp, path)
+    finally:
+        if Path(temp).exists():
+            Path(temp).unlink()
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--scope", choices=("all", "pack-shop"), default="all")
+    parser.add_argument("--write-ledger", action="store_true", help="write raw evidence SQLite; this does not approve unresolved data")
+    parser.add_argument("--write-report", action="store_true")
+    parser.add_argument("--write-db", action="store_true", help="register only if every in-scope validation succeeds")
+    parser.add_argument("--check-db", action="store_true", help="require all in-scope records to be present and identical")
+    parser.add_argument("--json", action="store_true")
+    args = parser.parse_args(argv)
+    documents = [Document.read(key) for key in (SOURCES if args.scope == "all" else ["pack1"])]
+    pack = next(d for d in documents if d.key == "pack1")
+    candidates = shop_candidates(pack)
+    issues = validate_candidates(pack, candidates)
+    inventory = source_inventory(documents, candidates)
+    if args.scope == "all":
+        # Until all page dispositions/adapters are reviewed, a full-source
+        # invocation must fail even when the supported table scope is healthy.
+        for page in inventory:
+            if page["status"] != "mapped":
+                issues.append({"code": "unresolved_page", **page})
+    db_path = ROOT / "data" / "db.json"
+    db = json.loads(db_path.read_text(encoding="utf-8"))
+    result, changes, conflicts = plan_registration(db, candidates)
+    issues.extend(conflicts)
+    if args.check_db and changes:
+        issues.extend({"code": "db_missing", **change} for change in changes)
+    report = {
+        "schema_version": SCHEMA_VERSION, "scope": args.scope,
+        "goal_complete": args.scope == "all" and not issues,
+        "scope_passed": not issues, "pymupdf": pymupdf.__version__,
+        "sources": [{"key": d.key, "filename": d.filename, "sha256": d.sha256,
+                     "pages": len(d.pages), "rows": sum(map(len, d.pages))} for d in documents],
+        "candidate_counts": {k: sum(c["kind"] == k for c in candidates) for k in shop_ranges(pack)},
+        "candidate_sha256": digest(json_text(candidates).encode()),
+        "ledger_content_sha256": ledger_content_digest(documents, candidates),
+        "registration_changes": changes, "issues": issues,
+    }
+    if args.write_ledger:
+        write_ledger(ROOT / "data" / "provenance" / f"{args.scope}-ledger.sqlite", documents, candidates, inventory)
+    if args.write_db and not issues:
+        atomic_json(db_path, result)
+    if args.write_report:
+        atomic_json(ROOT / "data" / "provenance" / f"{args.scope}-audit.json", report)
+        if args.scope == "pack-shop":
+            cited = {rid for c in candidates for rid in c["row_ids"]}
+            atomic_json(ROOT / "data" / "provenance" / "pack1-shop.json", {
+                "source": report["sources"][0], "candidates": candidates,
+                "lines": [r for page in pack.pages for r in page if r["id"] in cited]})
+    if args.json:
+        print(json.dumps(report, ensure_ascii=False, indent=1))
+    else:
+        print(f"scope={args.scope}; scope_passed={not issues}; goal_complete={report['goal_complete']}")
+        print(f"sources={len(documents)} pages={sum(len(d.pages) for d in documents)} rows={sum(len(r) for d in documents for r in d.pages)}")
+        print(f"candidates={report['candidate_counts']} pending_registration={len(changes)} issues={len(issues)}")
+        for issue in issues[:8]:
+            print(json_text(issue))
+    return 1 if issues else 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except (ValueError, OSError, KeyError, sqlite3.Error) as error:
+        print(json.dumps({"scope_passed": False, "error": str(error)}, ensure_ascii=False), file=sys.stderr)
+        raise SystemExit(1)
