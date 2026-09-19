@@ -48,7 +48,10 @@ console.log(`\n■ 原典の途中で切れている本文（要修正）: ${tru
 truncated.forEach((f) => {
   console.log(`\n  ${label(f)}`);
   console.log(`    DB  : ${f.text.replace(/\n/g, " ⏎ ")}`);
-  console.log(`    原典: \u2026${f.continuation}`);
+  /* 欠けているのが文頭か文末かが分かるように、原典の前後を並べて示す。 */
+  const head = f.head ? `\u2026${f.head}` : "";
+  const tail = f.continuation ? `${f.continuation}\u2026` : "";
+  console.log(`    原典: ${head}\u3010${f.text.replace(/\n/g, " \u23CE ")}\u3011${tail}`);
 });
 
 if (excepted.length) {

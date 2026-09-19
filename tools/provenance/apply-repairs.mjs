@@ -36,6 +36,13 @@ function findEgo(name) {
 function resolveTarget(entry) {
   const t = entry.target;
 
+  /* 支援パッシブも人格に属さない独立した一覧。 */
+  if (t.kind === "support") {
+    const support = (db.support_passives || []).find((row) => row?.name === entry.support);
+    if (!support) return { error: `支援パッシブが見つかりません: ${entry.support}` };
+    return { owner: support, key: t.field };
+  }
+
   /* E.G.Oは人格に属さない独立したレコードなので、人格の解決より先に扱う。
      覚醒（kakusei）・侵蝕（shinshoku）の効果とダイス、固有バフを対象にする。 */
   if (t.kind === "ego" || t.kind === "egoDice" || t.kind === "egoSub") {
@@ -90,7 +97,30 @@ const applied = [];
 const skipped = [];
 const errors = [];
 
-for (const entry of entries) {
+/* 同じ項目を続けて直す表は、後の修正が前の修正の結果を入力とする。
+   表は履歴であって、各行を独立に現在のDBへ当てられるとは限らない。
+
+     #38  before 『…（最低1、最大3）』              after 『…（最低1、最大3）⏎ クリティカル…』
+     #150 before 『…（最低1、最大3）⏎ クリティカル…』 after 『…（最低1、最大3）。クリティカル…』
+
+   DBは既に #150 の after まで進んでいるため、#38 を現在値へ当てると
+   before と一致せずエラーになる。しかし #38 が取り消されたわけではなく、
+   後続の行がその結果を引き継いで上書きしただけである。
+
+   同じ項目を対象とする行のうち、後の行の before が
+   この行の after と一致するなら、この行は後続に引き継がれたものとみなす。 */
+const targetKey = (entry) => JSON.stringify([entry.persona || entry.ego, entry.target]);
+const laterByTarget = new Map();
+entries.forEach((entry, at) => {
+  const key = targetKey(entry);
+  if (!laterByTarget.has(key)) laterByTarget.set(key, []);
+  laterByTarget.get(key).push({ entry, at });
+});
+const supersededBy = (entry, at) =>
+  (laterByTarget.get(targetKey(entry)) || [])
+    .find((other) => other.at > at && other.entry.before === entry.after);
+
+for (const [at, entry] of entries.entries()) {
   const { owner, key, error } = resolveTarget(entry);
   if (error) {
     errors.push({ entry, message: error });
@@ -99,6 +129,10 @@ for (const entry of entries) {
   const current = owner[key];
   if (current === entry.after) {
     skipped.push({ entry, message: "既に修正済み" });
+    continue;
+  }
+  if (current !== entry.before && supersededBy(entry, at)) {
+    skipped.push({ entry, message: "後続の修正が引き継いでいる" });
     continue;
   }
   if (current !== entry.before) {
@@ -117,6 +151,7 @@ const label = (e) => {
   if (t.kind === "ego") return `E.G.O ${e.ego} :: ${t.form ? `${t.form}/` : ""}${t.field}`;
   if (t.kind === "egoDice") return `E.G.O ${e.ego} :: ${t.form}/ダイス${t.index}`;
   if (t.kind === "egoSub") return `E.G.O ${e.ego} :: 同化${t.index}「${t.name}」/${t.field}`;
+  if (t.kind === "support") return `\u652F\u63F4\u30D1\u30C3\u30B7\u30D6 ${e.support} :: ${t.field}`;
   if (t.kind === "persona") return `${e.persona} :: ${t.field}`;
   if (t.kind === "buff") return `${e.persona} :: 固有バフ「${t.name}」`;
   if (t.kind === "dice") return `${e.persona} :: ${t.rank}「${t.name}」/ダイス${t.index}`;

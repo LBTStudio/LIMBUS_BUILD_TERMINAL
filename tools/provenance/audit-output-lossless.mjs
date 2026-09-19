@@ -47,11 +47,28 @@ for (const { path, text } of texts) {
   }
 
   parts.forEach((part, index) => {
-    // 2. 非分断 — 括弧の対応が段落内で閉じているか
+    /* 2. 非分断 — 括弧の対応が段落内で閉じているか
+
+       この検査が問うのは「分割が括弧を切り離したか」である。
+       分割する前から対応していない括弧は、原典の表記がそうなっている
+       （原典の誤記を含む）のであって、分割の責任ではない。
+
+         原典 紙面107（パック）
+           舞台開始時、自分の弾丸を[LCA亀裂弾」へと[弾倉変換]。
+                                          ~~~~~~~~ 開き[ に対し閉じ」
+
+       DBは原典どおりに写しており、出力も入力と同一である。
+       これを分断として報告すると、直しようのない指摘が残り続け、
+       本当の分断が埋もれる。入力時点の対応数と比べる。 */
     for (const [open, close] of OPEN_CLOSE) {
       const opened = part.split(open).length - 1;
       const closed = part.split(close).length - 1;
-      if (opened !== closed) {
+      if (opened === closed) continue;
+      // 入力全体で既に対応していないなら、分割が切り離したのではない。
+      const sourceOpened = text.split(open).length - 1;
+      const sourceClosed = text.split(close).length - 1;
+      if (sourceOpened !== sourceClosed) continue;
+      {
         findings.push({ path, code: "bracket-severed", text, parts, detail: `${open}${close} 段落${index + 1}` });
         break;
       }
