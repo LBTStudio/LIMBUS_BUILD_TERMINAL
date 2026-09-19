@@ -1,0 +1,24 @@
+{
+ "schema_version": 1,
+ "scope": "pack-shop",
+ "goal_complete": false,
+ "scope_passed": true,
+ "pymupdf": "1.28.2",
+ "sources": [
+  {
+   "key": "pack1",
+   "filename": "新リンバスTRPG-特定抽出パック第一弾.pdf",
+   "sha256": "9225ce7460edac87a1286f74f7caaad1ce5f87a8b095dd61f124b02e8a06b0e2",
+   "pages": 244,
+   "rows": 7921
+  }
+ ],
+ "candidate_counts": {
+  "support_passives": 29,
+  "spirits": 5
+ },
+ "candidate_sha256": "473ac384605761dca206e5c5fbc2c88f452605da1fb9a051e09842670d1ff084",
+ "ledger_content_sha256": "de5bc678ca6436d8d04d14ec32272c9f2e74704cccc864f0837e02a11d4472ac",
+ "registration_changes": [],
+ "issues": []
+}

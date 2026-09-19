@@ -26,11 +26,30 @@ python3 -m http.server 8000
 
 既存データとの互換性を維持するため、ブラウザー内の保存キーは `lbt_v46_state` のままです。保存データ形式は `schemaVersion: 2` です。旧保存データを開いた場合も、現在装備中の人格に必要な自己管理状態を再確認します。DB固有値は既定ステータスへ重複追加せず、固有側の初期値・上限を維持します。
 
+## 共通PDF検出器と機能監査（開発中）
+
+全データ対応の厳密なGoalは [docs/data-provenance-goal.md](docs/data-provenance-goal.md) の U1〜U8です。
+**全Goalは未完了です。** 4冊・1,429頁・43,977行の原文台帳を作成し、今回の構造化登録は
+パックのサポートパッシブ29件・精神5件を検証済みです。他巻・別冊を含む全カテゴリの
+構造化・項目別来歴の統合は引き続き必要で、全体監査は未対応を成功扱いせず終了コード1を返します。
+
+```bash
+# 依存: tools/provenance/requirements.txt の PyMuPDF
+python3 tools/provenance/detect_pdf_data.py --scope all --write-ledger --write-report
+python3 tools/provenance/detect_pdf_data.py --scope pack-shop --check-db
+node tools/provenance/audit-output-content.mjs
+```
+
+登録済み9区分836レコードの実出力を監査し、E.G.Oの発動条件・固有バフ・同化スキルの出力漏れを修正しました。
+JSONはcommandsとmemoを別々に検査します。メモの概要表示など、意図的に本文を出さない項目は
+除外件数を報告します。手順・対応範囲・未解決事項は [出典照合ツール](tools/provenance/README.md) を参照してください。
+
 ## 本文の出典照合
 
-`data/db.json` の本文はすべて原典PDF（基本ルールブックとサプリメント『アンロックド・シンク』）の紙面を根拠とします。ルールの解釈や調整は行いません。
+`data/db.json` の本文は原典PDFの紙面を根拠とし、ルールの解釈や調整は行いません。
 
-原典PDF2冊は `sources/` に格納してあり、照合用コーパスをリポジトリ内で作り直せます。照合と修正のツールは `tools/provenance/` にまとめてあります。
+原典PDF4冊は `sources/` に格納しています。下記の従来コーパス監査は基本・サプリ・パックの3冊を対象とし、
+別冊を含めた全データ構造化の保証ではありません。照合と修正のツールは `tools/provenance/` にまとめてあります。
 
 ```bash
 # 段階1: DB本文の文字が原典に実在し、原典の途中で切れていないか

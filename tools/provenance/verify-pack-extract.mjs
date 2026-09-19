@@ -29,6 +29,8 @@
      node tools/provenance/verify-pack-extract.mjs
      node tools/provenance/verify-pack-extract.mjs --json */
 import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { isDeepStrictEqual } from "node:util";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { canon } from "./db-provenance.mjs";
@@ -91,6 +93,24 @@ function collectTexts(payload) {
   return rows;
 }
 
+// Shops are validated against a fresh, source-hash-checked PDF extraction.
+// Do not feed them to the old >=20-character global substring coverage check.
+const shopProblems = [];
+let shopChecked = 0;
+try {
+  const report = JSON.parse(execFileSync('python3', [
+    path.join(root, 'tools/provenance/detect_pdf_data.py'),
+    '--scope', 'pack-shop', '--include-candidates', '--json'
+  ], { cwd: root, encoding: 'utf8', timeout: 120000, maxBuffer: 4 * 1024 * 1024 }));
+  if (!report.scope_passed || !report.candidates?.length) throw new Error('empty or failed shop audit');
+  for (const kind of ['support_passives', 'spirits']) {
+    const expected = report.candidates.filter(c => c.kind === kind).map(c => c.data);
+    shopChecked += expected.length;
+    if (!isDeepStrictEqual(extracted[kind], expected)) shopProblems.push({ kind, code: 'shop_source_mismatch' });
+  }
+} catch (error) {
+  shopProblems.push({ code: 'shop_detector_failed', message: error.message });
+}
 const texts = collectTexts(extracted);
 
 /* 1. 本文が原典に実在するか。 */
@@ -278,11 +298,11 @@ if (dataPages.size) {
 }
 
 const total = missing.length + merged.length + split.length + numbering.length
-  + incomplete.length + uncovered.length;
+  + incomplete.length + uncovered.length + shopProblems.length;
 
 if (asJson) {
   console.log(JSON.stringify(
-    { texts: texts.length, missing, merged, split, numbering, incomplete, uncovered }, null, 2));
+    { texts: texts.length, missing, merged, split, numbering, incomplete, uncovered, shopChecked, shopProblems }, null, 2));
   process.exit(total ? 1 : 0);
 }
 
@@ -330,6 +350,8 @@ uncovered.slice(0, 20).forEach((item) => {
 });
 if (uncovered.length > 20) console.log(`  \u2026 \u4ED6 ${uncovered.length - 20}\u4EF6`);
 
+console.log(`\n共通検出器によるショップ照合: ${shopChecked}件 / 問題 ${shopProblems.length}件`);
+shopProblems.forEach(problem => console.log(JSON.stringify(problem)));
 console.log(`\n\u8981\u4FEE\u6B63: ${total}\u4EF6`);
 if (!total) console.log("\u62BD\u51FA\u7D50\u679C\u306F\u539F\u5178\u3068\u4E00\u81F4\u3057\u3066\u3044\u307E\u3059\u3002");
 process.exit(total ? 1 : 0);

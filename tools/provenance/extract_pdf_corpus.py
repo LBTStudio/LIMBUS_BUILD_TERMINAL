@@ -184,6 +184,7 @@ def page_lines(page):
                 "x0": x0,
                 "x1": x1,
                 "y0": y0,
+                "y1": line["bbox"][3],
                 # この行の先頭文字の字幅。前の行の余白と比べる。
                 "leadWidth": lead["bbox"][2] - lead["bbox"][0],
                 "leadRun": lead_run,
