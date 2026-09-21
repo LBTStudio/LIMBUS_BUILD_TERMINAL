@@ -385,6 +385,18 @@ def collect_persona_pages(pages, sections):
     return heads
 
 
+def split_inline_skill_dice(text):
+    """A printed 使用時 clause may share a line with a labeled die (core p123).
+
+    Require the timing label, a whitespace separator and a complete labeled
+    dice suffix. Mentions of dice inside prose/quotes are not structural.
+    """
+    match = re.fullmatch(r'(使用時[：:].+?)\s+(\d+[dD]\d+(?:[+\-]\d+)?[：:].*)', text)
+    if match and not re.search(r'[「『\[（(]', match[1]) and DICE_RE.fullmatch(match[2]):
+        return [match[1], match[2]]
+    return [text]
+
+
 def parse_persona(name, page_rows, rules_by_page, verticals_by_page=None, number_rules_by_page=None):
     """1人格の紙面から、DBのレコード形へ組み立てる。"""
     persona = {
@@ -564,7 +576,7 @@ def parse_persona(name, page_rows, rules_by_page, verticals_by_page=None, number
             current = {"head": match, "rows": rows, "body": []}
             skills.append(current)
         elif current is not None:
-            current["body"].append(paragraph)
+            current["body"].extend(split_inline_skill_dice(paragraph))
 
     # The number cell may span a base skill and several derivatives. Internal
     # body rules do not divide that number cell; use its own column boundaries.
