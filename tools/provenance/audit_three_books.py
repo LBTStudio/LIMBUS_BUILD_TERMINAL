@@ -340,7 +340,19 @@ def leaves(value, path=""):
         yield path, value
 
 
-def compare(candidates, db):
+def boundary_punctuation_only(expected, actual):
+    """Classify, never approve, periods added at source paragraph boundaries.
+
+    Other punctuation, digits, wording, missing text and changed order cannot
+    pass this predicate. Raw differences stay in the report pending review.
+    """
+    if not isinstance(expected, str) or not isinstance(actual, str):
+        return False
+    parts = [norm(part) for part in expected.split("\n") if norm(part)]
+    return len(parts) > 1 and bool(re.fullmatch("(?:。)?".join(re.escape(p) for p in parts), norm(actual)))
+
+
+def compare(candidates, db, layout_differences=None):
     findings, checked, seen = [], Counter(), set()
     for c in candidates:
         kind, src = c["kind"], c["data"]
@@ -352,11 +364,10 @@ def compare(candidates, db):
         index, record = matches[0]
         seen.add((kind, index))
         actual = dict(leaves(record))
-        for field, expected in leaves(src):
+
+        def check(field, expected, source_field=None):
             checked[kind] += 1
             value = actual.get(field)
-            # Optional empty collections and the UI's area prefix are schema
-            # representations, not lexical changes to effect text.
             if field == "sub_skills.length" and "sub_skills" not in record:
                 value = 0
             source_value = expected
@@ -366,7 +377,42 @@ def compare(candidates, db):
             if norm(value) != norm(source_value):
                 findings.append({**identity, "code": "field_difference", "path": f"{kind}[{index}].{field}",
                                  "expected": expected, "actual": actual.get(field),
-                                 "row_ids": c.get("fields", {}).get(field, [])})
+                                 "classification": "source_boundary_punctuation" if boundary_punctuation_only(expected, value) else "content_or_mapping_review",
+                                 "row_ids": c.get("fields", {}).get(source_field or field, [])})
+
+        for field, expected in leaves(src):
+            if not field.startswith(("unique_buffs[", "unique_buffs.")):
+                check(field, expected)
+        if "unique_buffs" not in src:
+            continue
+        source_buffs, db_buffs = src['unique_buffs'], record.get('unique_buffs', [])
+        owned = set()
+        for source_index, buff in enumerate(source_buffs):
+            matches = [(j, b) for j, b in enumerate(db_buffs) if norm(b.get('name')) == norm(buff.get('name'))]
+            checked[kind] += 1
+            if len(matches) != 1:
+                findings.append({**identity, 'code': 'missing_or_ambiguous_unique', 'unique_name': buff.get('name'),
+                                 'matches': len(matches), 'expected': buff, 'source_index': source_index})
+                continue
+            db_index, _ = matches[0]
+            if db_index in owned:
+                findings.append({**identity, 'code': 'duplicate_source_unique', 'unique_name': buff.get('name')})
+                continue
+            owned.add(db_index)
+            for field, expected in leaves(buff):
+                check(f'unique_buffs[{db_index}].{field}', expected, f'unique_buffs[{source_index}].{field}')
+        for j, buff in enumerate(db_buffs):
+            if j not in owned:
+                findings.append({**identity, 'code': 'db_unique_unmapped_in_persona', 'unique_name': buff.get('name'),
+                                 'path': f'{kind}[{index}].unique_buffs[{j}]', 'actual': buff,
+                                 'classification': 'glossary_or_persona_adapter_review'})
+        source_order = [norm(b.get('name')) for b in source_buffs]
+        actual_order = [norm(b.get('name')) for j, b in enumerate(db_buffs) if j in owned]
+        if layout_differences is not None and Counter(source_order) == Counter(actual_order) and source_order != actual_order:
+            layout_differences.append({**identity, 'code': 'unique_display_order',
+                                       'expected': [b['name'] for b in source_buffs],
+                                       'actual': [b['name'] for j, b in enumerate(db_buffs) if j in owned],
+                                       'reason': 'Named definitions compared individually; text order within each definition remains strict'})
     return findings, dict(checked), seen
 
 
@@ -391,7 +437,8 @@ def audit(documents, db):
                              for c in core_egos if c["unverified_fields"])
             except ValueError as error:
                 scope.append({"source": doc.key, "kind": "egos", "code": "field_mapping_unresolved", "detail": str(error)})
-    findings, fields, seen = compare(candidates, db)
+    layout_differences = []
+    findings, fields, seen = compare(candidates, db, layout_differences)
     # Existing product scope excludes these resources (tests/items.test.mjs).
     # Exclusion is explicit; it is not an audited application record.
     excluded = [f for f in findings if f["kind"] == "items" and f["code"] == "missing_or_ambiguous_record"
@@ -410,6 +457,8 @@ def audit(documents, db):
             "counts": {k: {"db": len(db.get(k, [])), "source_candidates": sum(c['kind'] == k for c in candidates),
                             "fields_checked": fields.get(k, 0)} for k in kinds},
             "assessment": "Differences are review candidates, not confirmed errors; core persona adapter still needs validation; EGO cells include row references and explicit unmapped fields",
+            "layout_differences": layout_differences,
+            "difference_classification": dict(Counter(f.get("classification", f["code"]) for f in findings)),
             "excluded": excluded, "differences": findings, "unresolved": issues + scope, "candidates": candidates}
 
 
