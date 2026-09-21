@@ -3,3 +3,7 @@ __pycache__/
 *.pyc
 # Regenerable raw evidence databases; PDFs and JSON audit evidence stay tracked.
 data/provenance/*-ledger.sqlite
+# Local browser verification dependencies and disposable logs.
+.browser-deps/
+.cache/
+tests/*-run.log

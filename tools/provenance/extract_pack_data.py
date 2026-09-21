@@ -111,7 +111,7 @@ BUFF_HEAD_RE = re.compile(r"^[\[【](.+?)[\]】]\s*(?:最大\s*(\d+)\s*)?"
 SKILL_HEAD_RE = re.compile(r"^(.+?)\s+(斬撃|貫通|打撃|防御|回避|マッチ可能防御|"
                            r"斬撃反撃|貫通反撃|打撃反撃|マッチ可能斬撃反撃|"
                            r"マッチ可能貫通反撃|マッチ可能打撃反撃)"
-                           r"(?:広域(\d+))?[：:](\S+)$")
+                           r"(?:広域(\d+))?[：:](\S+?)(?:\s+広域[：:]対象(\d+)体)?$")
 DICE_RE = re.compile(r"^(\d+[dD]\d+(?:[+\-]\d+)?|\d+[+\-]\d+[dD]\d+|"
                      r"\d+[dD]\d+|\d+[+\-]\d*[dD]\d+)(?:[：:](.*))?$")
 
@@ -385,7 +385,7 @@ def collect_persona_pages(pages, sections):
     return heads
 
 
-def parse_persona(name, page_rows, rules_by_page):
+def parse_persona(name, page_rows, rules_by_page, verticals_by_page=None, number_rules_by_page=None):
     """1人格の紙面から、DBのレコード形へ組み立てる。"""
     persona = {
         "name": name, "no": None, "hp": None, "san": None, "speed": "",
@@ -415,6 +415,17 @@ def parse_persona(name, page_rows, rules_by_page):
                 # 紙面下端のノンブレを拾うと、頁番号を人格番号としてしまう。
                 if in_col(row["x0"], PERSONA_NO_X) and row["y0"] <= PERSONA_NO_Y_MAX:
                     persona["no"] = int(text)
+
+    # HP/SAN may be separate text spans in the same printed status row.
+    if persona["hp"] is None and page_rows:
+        first = page_rows[0]
+        anchors = [r for r in first if re.match(r"^HP(?:\s|$)", r["text"])]
+        for anchor in anchors:
+            same_line = sorted([r for r in first if abs(r["y0"] - anchor["y0"]) < 1], key=lambda r: r["x0"])
+            stat = STAT_RE.search(" ".join(r["text"] for r in same_line))
+            if stat:
+                persona["hp"], persona["san"] = int(stat[1]), int(stat[2])
+                break
 
     # --- パッシブ欄。行見出しの列と本文の列が隣り合って並ぶ。
     #
@@ -497,7 +508,12 @@ def parse_persona(name, page_rows, rules_by_page):
             if in_col(row["x0"], COL_SKILL_NO) and re.fullmatch(r"\d", row["text"]):
                 numbers.append(row)
                 continue
-            if in_col(row["x0"], COL_BODY):
+            # A skill-cell border owns indented continuation rows too. A
+            # fixed x0 range alone drops clauses indented to x89 or x105.
+            inside_skill = verticals_by_page and any(
+                64 <= x <= 68 and y0 - 1 <= row["y0"] <= y1
+                for x, y0, y1 in verticals_by_page.get(row["page"], []))
+            if in_col(row["x0"], COL_BODY) or (inside_skill and row["x0"] >= COL_BODY[0]):
                 if buff_start is not None and row["y0"] >= buff_start - 2:
                     buffs.append(row)
                 else:
@@ -521,7 +537,25 @@ def parse_persona(name, page_rows, rules_by_page):
     #
     #   行で切ると技名が「解体すること」になり、前半が本文として捨てられていた
     #   （「り」「る」のような1文字の技名として現れていた）。
-    paragraphs_all = join_wrapped(bodies, keep_rows=True, rules_by_page=rules_by_page)
+    blocks = []
+    for row in bodies:
+        # Dice formulas are atomic. Skill names can wrap into a line that
+        # itself looks like a complete header; their boundary is the cell rule.
+        if not blocks or DICE_RE.fullmatch(row["text"]):
+            blocks.append([])
+        blocks[-1].append(row)
+    paragraphs_all = [pair for block in blocks for pair in join_wrapped(block, keep_rows=True, rules_by_page=rules_by_page)]
+    # A long name can occupy a separate line above its bare attribute header.
+    for at in range(len(paragraphs_all) - 1, 0, -1):
+        text, rows = paragraphs_all[at]
+        prev, prev_rows = paragraphs_all[at - 1]
+        if re.fullmatch(r"(?:斬撃|貫通|打撃|防御|回避)[：:]\S+", text) and not SKILL_HEAD_RE.match(prev):
+            same_cell = (rows[0]["page"] == prev_rows[-1]["page"] and
+                         cell_bounds(rules_by_page.get(rows[0]["page"], []), rows[0]["y0"]) ==
+                         cell_bounds(rules_by_page.get(prev_rows[-1]["page"], []), prev_rows[-1]["y0"]))
+            if same_cell:
+                paragraphs_all[at - 1] = (prev + " " + text, prev_rows + rows)
+                paragraphs_all.pop(at)
     skills = []
     current = None
     for paragraph, rows in paragraphs_all:
@@ -532,11 +566,15 @@ def parse_persona(name, page_rows, rules_by_page):
         elif current is not None:
             current["body"].append(paragraph)
 
-    assign_skill_ranks(skills, numbers, rules_by_page)
+    # The number cell may span a base skill and several derivatives. Internal
+    # body rules do not divide that number cell; use its own column boundaries.
+    assign_skill_ranks(skills, numbers, number_rules_by_page or rules_by_page)
 
     for skill in skills:
         match = skill["head"]
-        skill_name, attr, aoe, sin = match.group(1), match.group(2), match.group(3), match.group(4)
+        skill_name, attr, aoe, sin = match.group(1), match.group(2), match.group(3) or match.group(5), match.group(4)
+        if re.match(r"^\d+[：:]", skill_name):
+            skill_name = re.sub(r"^\d+[：:]\s*", "", skill_name)
         effects, dice = [], []
         for paragraph in skill["body"]:
             dice_match = DICE_RE.match(paragraph)

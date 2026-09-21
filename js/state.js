@@ -19,6 +19,12 @@ function personaKeywordEvidence(persona) {
     ])
   ].filter(Boolean).join("\n");
 }
+function inferPersonaKeywords(persona, secondaryPassive) {
+  const evidence = [personaKeywordEvidence(persona), secondaryPassive?.always, secondaryPassive?.effect].filter(Boolean).join("\n");
+  const existing = Array.isArray(persona?.keywords) ? persona.keywords.filter(Boolean) : [];
+  return [...new Set([...existing, ...(window.LBT_PDF_KEYWORD_ORDER || []).filter((keyword) => evidence.includes(keyword))])];
+}
+window.LBT_inferPersonaKeywords = inferPersonaKeywords;
 function enrichPersonaKeywords(database) {
   const keywords = window.LBT_PDF_KEYWORD_ORDER || [];
   const groups = ["normal_personas", "tokui_personas", "abnormal_personas"];
@@ -231,6 +237,19 @@ function normalizeEgoSlotVariants(slot) {
 function normalizeEgoSlots(egoSlots) {
   const slots = egoSlots || {};
   return Object.fromEntries(Object.entries(slots).map(([rank, slot]) => [rank, normalizeEgoSlotVariants(slot)]));
+}
+// Custom E.G.O has no DB fallback: persist every edit before it can be unequipped.
+function syncCustomEgoState(next) {
+  const slots = normalizeEgoSlots(next.egoSlots);
+  const egos = [...(next.roster?.egos || [])];
+  for (const [rank, slot] of Object.entries(slots)) {
+    if (!slot?.__custom) continue;
+    const index = egos.findIndex((entry) => entry.rank === rank && entry.no === slot.no);
+    const entry = { ...(index >= 0 ? egos[index] : { uid: `er-${slot.no}`, no: slot.no, rank, notes: "", analyzeMax: false }), analyzed: true, build: cloneJSON(slot) };
+    if (index >= 0) egos[index] = entry;
+    else egos.push(entry);
+  }
+  return normalizeStatusCollections({ ...next, egoSlots: slots, roster: { ...next.roster, egos } });
 }
 function normalizeStatusLabel(label) {
   const value = String(label ?? "").trim();
@@ -1051,7 +1070,7 @@ function appReducer(state, action) {
           ...(state.customStatuses || []).filter((item) => (item?.place || "status") === "status").map((item) => item?.label),
           ...collectSelfManagedStatusEntries(src).map((entry) => entry.label)
         ]),
-        charName: state.charName || src.name || "",
+        charName: state.charName,
         roster: { ...state.roster, personas },
         historyRecent: hist
       };
@@ -1146,6 +1165,8 @@ function appReducer(state, action) {
       return { ...state, roster: { ...state.roster, egos } };
     }
     case "REMOVE_ROSTER_EGO": {
+      const entry = (state.roster.egos || []).find((e) => e.uid === action.uid);
+      if (entry?.build?.__custom && (!action.deleteCustomConfirmed || state.egoSlots?.[entry.rank]?.no === entry.no)) return state;
       const egos = (state.roster.egos || []).filter((e) => e.uid !== action.uid);
       return { ...state, roster: { ...state.roster, egos } };
     }
@@ -1155,7 +1176,8 @@ function appReducer(state, action) {
     }
     case "REMOVE_ROSTER_EGO_BATCH": {
       const ids = new Set(action.uids || []);
-      return { ...state, roster: { ...state.roster, egos: (state.roster.egos || []).filter((entry) => !ids.has(entry.uid)) } };
+      return { ...state, roster: { ...state.roster, egos: (state.roster.egos || []).filter((entry) =>
+        !ids.has(entry.uid) || (entry.build?.__custom && (!action.deleteCustomConfirmed || state.egoSlots?.[entry.rank]?.no === entry.no))) } };
     }
     case "RESTORE_ROSTER_BATCH": {
       const kind = action.kind === "egos" ? "egos" : "personas";
@@ -1326,6 +1348,20 @@ function appReducer(state, action) {
     case "PATCH_DICE":
       return normalizeStatusCollections({ ...state, skills: state.skills.map((s) => s.id === action.skillId ? { ...s, dice: s.dice.map((d, i) => i === action.diceIdx ? { ...d, ...action.patch } : d) } : s) });
     /* ---- EGO ---- */
+    case "CREATE_CUSTOM_EGO": {
+      const rank = action.rank;
+      const name = String(action.name || "").trim();
+      if (!["ZAYIN", "TETH", "HE", "WAW", "ALEPH"].includes(rank) || !name) return state;
+      if (state.egoSlots[rank] && action.replaceConfirmed !== true) return state;
+      const no = `custom-${window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
+      const form = () => ({ attr: "", sin: "", aoe: "", effect: "", dice: [] });
+      const slot = { __custom: true, __manual: true, no, rank, name, resources: "", san_cost: 0, shards: 0,
+        passive_name: "", passive_cond: "", passive_effect: "", unique_buff: "", kakusei: form(), shinshoku: form(), sub_skills: [] };
+      // Preserve the outgoing slot's current edits before replacing it.
+      const saved = state.egoSlots[rank] ? appReducer(state, { type: "SAVE_EGO_BUILD", rank }) : state;
+      return syncCustomEgoState({ ...saved, egoSlots: { ...saved.egoSlots, [rank]: slot }, egoManual: true,
+        ui: { ...saved.ui, egoDetailSlot: rank, egoListExpanded: false } });
+    }
     case "SET_EGO_SLOT": {
       let nextValue = action.value ? cloneJSON(action.value) : null;
       // V01/V25: 所持EGOに保存済みの解析ビルドがあれば DB 既定の代わりにそちらを装備する。
@@ -1342,7 +1378,7 @@ function appReducer(state, action) {
       // 装備・付け替え・解除はどれも直接編集を終了する。解除後に別スロットの詳細へ
       // 編集状態だけが残り、クリック一回で解析面が表示されることを防ぐ。
       const nextUi = { ...state.ui, ...(nextValue ? { egoListExpanded: false } : {}), egoDetailSlot: null };
-      return normalizeStatusCollections({ ...state, egoSlots: nextEgoSlots, roster: { ...state.roster, egos: rosterEgos }, ui: nextUi, egoManual: false });
+      return syncCustomEgoState({ ...state, egoSlots: nextEgoSlots, roster: { ...state.roster, egos: rosterEgos }, ui: nextUi, egoManual: false });
     }
     /* V01/V25: EGO解析モード（手動編集）のトグル。人格の SET_SYNCED_MANUAL に相当 */
     case "SET_EGO_MANUAL":
@@ -1362,13 +1398,13 @@ function appReducer(state, action) {
     }
     /* V01/V25: 所持EGOの保存解析を破棄して DB 既定に戻す */
     case "CLEAR_EGO_BUILD": {
-      const egos = (state.roster.egos || []).map((e) => e.uid === action.uid ? { ...e, build: null } : e);
+      const egos = (state.roster.egos || []).map((e) => e.uid === action.uid && !e.build?.__custom ? { ...e, build: null } : e);
       return { ...state, roster: { ...state.roster, egos } };
     }
     case "PATCH_EGO_SLOT": {
       const cur = state.egoSlots[action.rank];
       if (!cur) return state;
-      return normalizeStatusCollections({ ...state, egoSlots: normalizeEgoSlots({ ...state.egoSlots, [action.rank]: { ...cur, ...action.patch } }) });
+      return syncCustomEgoState({ ...state, egoSlots: normalizeEgoSlots({ ...state.egoSlots, [action.rank]: { ...cur, ...action.patch } }) });
     }
     case "PATCH_EGO_SKILL": {
       const cur = state.egoSlots[action.rank];
@@ -1380,7 +1416,7 @@ function appReducer(state, action) {
       } else {
         next[action.skillKey] = { ...(next[action.skillKey] || {}), ...action.patch };
       }
-      return normalizeStatusCollections({ ...state, egoSlots: normalizeEgoSlots({ ...state.egoSlots, [action.rank]: next }) });
+      return syncCustomEgoState({ ...state, egoSlots: normalizeEgoSlots({ ...state.egoSlots, [action.rank]: next }) });
     }
     case "PATCH_EGO_DICE": {
       const cur = state.egoSlots[action.rank];
@@ -1389,7 +1425,7 @@ function appReducer(state, action) {
       const list = action.skillKey === "sub_skills" ? next.sub_skills?.[action.index]?.dice : next[action.skillKey]?.dice;
       if (!list?.[action.diceIdx]) return state;
       list[action.diceIdx] = { ...list[action.diceIdx], ...action.patch };
-      return normalizeStatusCollections({ ...state, egoSlots: normalizeEgoSlots({ ...state.egoSlots, [action.rank]: next }) });
+      return syncCustomEgoState({ ...state, egoSlots: normalizeEgoSlots({ ...state.egoSlots, [action.rank]: next }) });
     }
     case "ADD_EGO_DICE": {
       const cur = state.egoSlots[action.rank];
@@ -1398,7 +1434,7 @@ function appReducer(state, action) {
       const list = action.skillKey === "sub_skills" ? next.sub_skills?.[action.index]?.dice : next[action.skillKey]?.dice;
       if (!Array.isArray(list)) return state;
       list.push({ roll: "", dval: "", d: "", dPlus: false, dCnt: false, plus: false, effect: "" });
-      return normalizeStatusCollections({ ...state, egoSlots: normalizeEgoSlots({ ...state.egoSlots, [action.rank]: next }) });
+      return syncCustomEgoState({ ...state, egoSlots: normalizeEgoSlots({ ...state.egoSlots, [action.rank]: next }) });
     }
     case "REMOVE_EGO_DICE": {
       const cur = state.egoSlots[action.rank];
@@ -1408,7 +1444,7 @@ function appReducer(state, action) {
       if (!Array.isArray(list)) return state;
       if (action.diceIdx < 0 || action.diceIdx >= list.length) return state;
       list.splice(action.diceIdx, 1);
-      return normalizeStatusCollections({ ...state, egoSlots: normalizeEgoSlots({ ...state.egoSlots, [action.rank]: next }) });
+      return syncCustomEgoState({ ...state, egoSlots: normalizeEgoSlots({ ...state.egoSlots, [action.rank]: next }) });
     }
     /* ---- Support ---- */
     case "ADD_SUPPORT":
@@ -1514,7 +1550,7 @@ function appReducer(state, action) {
         pas: { name: "", cond: "", always: "", effect: "", quick: "" },
         skills: [],
         uniqueBuffs: [],
-        charName: state.charName || action.name || "カスタムPC"
+        charName: state.charName
       });
     }
     /* V65r29: Google Docs 等の同期人格草案を、確認済みのカスタム人格として装備する。
@@ -1549,6 +1585,7 @@ function appReducer(state, action) {
         skills: provided.skills ? src.skills : (sourceBase.skills || src.skills),
         unique_buffs: provided.uniques ? src.unique_buffs : (sourceBase.unique_buffs || src.unique_buffs)
       };
+      effectiveSrc.keywords = inferPersonaKeywords(effectiveSrc, action.secondaryPassive);
       const uid = `custom-${Date.now()}`;
       const skills = migrateLegacyDerivedSkills((effectiveSrc.skills || []).map((sk, index) => ({
         id: `sk-${Date.now()}-${index}`,
@@ -1570,7 +1607,7 @@ function appReducer(state, action) {
         name: normalizeStatusLabel(buff.name || ""),
         type: buff.type || "バフ",
         initial: buff.initial !== void 0 ? buff.initial : 0,
-        max: buff.max || 20,
+        max: buff.max !== undefined ? buff.max : 20,
         desc: buff.desc || "",
         place: buff.place || "status",
         // noST は「対象に付与する値で、自分は保持しない」というDB側の明示宣言。下書き取り込みでも保持する。
@@ -1621,7 +1658,8 @@ function appReducer(state, action) {
           uid,
           no: uid,
           mode: "custom",
-          src,
+          src: cloneJSON(importedSource),
+          build: importedBuild,
           syncRank,
           syncMax: !!action.syncMax,
           lcb: false,
@@ -1654,7 +1692,7 @@ function appReducer(state, action) {
           ...(state.customStatuses || []).filter((item) => (item?.place || "status") === "status").map((item) => item?.label),
           ...collectSelfManagedStatusEntries(importedSource).map((entry) => entry.label)
         ]),
-        charName: state.charName || importedSource.name || "",
+        charName: state.charName,
         roster: { ...state.roster, personas },
         historyRecent: [`${isAffiliated ? affiliatedMode : "custom"}:${isAffiliated ? affiliatedSource.no : uid}`, ...(state.historyRecent || []).filter((key) => key !== `${isAffiliated ? affiliatedMode : "custom"}:${isAffiliated ? affiliatedSource.no : uid}`)].slice(0, 20)
       });

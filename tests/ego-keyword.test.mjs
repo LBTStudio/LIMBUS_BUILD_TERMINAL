@@ -9,7 +9,7 @@ test("E.G.Oキーワード候補は回復を含み、実データに一致する
   const egoText = JSON.stringify(database.egos || []);
 
   assert.match(egoSectionSource, /EGO_KEYWORD_ORDER[\s\S]*"回復"/);
-  assert.match(egoSectionSource, /\.filter\(\(keyword\) => \(DB\.egos \|\| \[\]\)\.some/);
+  assert.match(egoSectionSource, /\.filter\(\(keyword\) => catalogEgos\.some/);
   assert.ok(egoText.includes("回復"));
 });
 

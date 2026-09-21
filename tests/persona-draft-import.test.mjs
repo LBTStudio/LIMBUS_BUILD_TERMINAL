@@ -181,7 +181,7 @@ test("簡略形式の同期人格草案も戦術ランク・大罪・ダイス�
   assert.equal(result.ok, true);
   assert.equal(result.persona.name, "簡略草案人格");
   assert.equal(result.persona.skills[0].rank, "スキル0-1");
-  assert.equal(result.persona.skills[0].type, "斬撃反撃");
+  assert.equal(result.persona.skills[0].type, "マッチ可能斬撃反撃");
   assert.equal(result.persona.skills[0].sin, "嫉妬");
   assert.equal(result.persona.skills[1].aoe, "広域");
   assert.equal(result.persona.skills[1].aoeCount, "3");
@@ -232,7 +232,7 @@ test("単独ランク行と裸スキル名の草案を解析し、人格名が�
   assert.equal(result.persona.skills.length, 2);
   assert.equal(result.persona.skills[0].rank, "スキル0");
   assert.equal(result.persona.skills[0].name, "ファウヌス");
-  assert.equal(result.persona.skills[0].type, "防御");
+  assert.equal(result.persona.skills[0].type, "マッチ可能防御");
   assert.equal(result.persona.skills[1].rank, "スキル0-2");
 });
 
@@ -255,7 +255,7 @@ test("硝子窓の公開人格データは草案の4区分へ変換し、同期�
   assert.equal(result.ok, true);
   assert.equal(result.source.kind, "garasumado");
   assert.equal(result.source.id, "XY6v8SWFWwJ7Y1VWTlM1");
-  assert.equal(result.persona.name, "ロボトミーE.G.O::涙で研ぎ澄まされた剣 ユサ");
+  assert.equal(result.persona.name, garasumadoPublicDocument.fields.name.stringValue);
   assert.equal(result.persona.hp, 152);
   assert.equal(result.persona.san, 63);
   assert.equal(result.persona.speed, "1d7");
@@ -264,7 +264,7 @@ test("硝子窓の公開人格データは草案の4区分へ変換し、同期�
   assert.equal(result.persona.passive_name, "空虚に堕した心に");
   assert.equal(result.persona.skills.length, 2);
   assert.equal(result.persona.skills[0].rank, "スキル0-2");
-  assert.equal(result.persona.skills[0].type, "貫通反撃");
+  assert.equal(result.persona.skills[0].type, "マッチ可能貫通反撃");
   assert.equal(result.persona.skills[1].rank, "スキル4-2");
   assert.equal(result.persona.unique_buffs[0].name, "守る剣");
   assert.equal(result.persona.unique_buffs[0].max, 1);

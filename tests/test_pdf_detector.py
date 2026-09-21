@@ -121,5 +121,141 @@ class DetectorTests(unittest.TestCase):
             safe_path(ROOT.parent / "not-allowed.json")
 
 
+class ThreeBookAuditTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from audit_three_books import BOOKS, audit
+        cls.documents = [Document.read(key) for key in BOOKS]
+        cls.db = json.loads((ROOT / "data/db.json").read_text())
+        cls.db["items"] = json.loads((ROOT / "data/items.json").read_text())
+        cls.report = audit(cls.documents, cls.db)
+
+    def test_three_book_snapshot_and_scope_are_reproducible(self):
+        saved = json.loads((ROOT / "data/provenance/three-book-audit.json").read_text())
+        self.assertEqual(self.report, saved)
+        self.assertEqual(sum(len(d.pages) for d in self.documents), 799)
+        self.assertFalse(self.report["complete"])
+        self.assertEqual(self.report["counts"]["egos"]["source_candidates"], 115)
+        self.assertEqual(self.report["counts"]["support_passives"]["source_candidates"], 346)
+        self.assertEqual(self.report["counts"]["spirits"]["source_candidates"], 48)
+        self.assertEqual(len(self.report["excluded"]), 2)
+
+    def test_source_shop_fields_match_all_registered_items_and_spirits(self):
+        from audit_three_books import compare
+        candidates = [c for c in self.report["candidates"] if c["kind"] in ("support_passives", "spirits", "items")]
+        findings, _, _ = compare(candidates, self.db)
+        self.assertEqual({f["name"] for f in findings}, {"自我の欠片", "硝子の破片"})
+        self.assertTrue(all(f["code"] == "missing_or_ambiguous_record" for f in findings))
+
+    def test_full_field_checks_detect_deletion_truncation_and_price_change(self):
+        from audit_three_books import compare
+        candidates = [c for c in self.report["candidates"] if c["kind"] == "support_passives"]
+        for field, value in [("effect", ""), ("cond", ""), ("lp", 99999)]:
+            db = copy.deepcopy(self.db)
+            db["support_passives"][0][field] = value
+            findings, _, _ = compare(candidates, db)
+            self.assertTrue(any(f.get("path") == f"support_passives[0].{field}" for f in findings))
+        db = copy.deepcopy(self.db)
+        missing = db["support_passives"].pop()["name"]
+        findings, _, _ = compare(candidates, db)
+        self.assertTrue(any(f["name"] == missing and f["code"] == "missing_or_ambiguous_record" for f in findings))
+
+    def test_core_ego_forms_and_all_source_content_rows_are_mapped(self):
+        from audit_three_books import compare
+        from detect_pdf_data import section_range
+        candidates = [c for c in self.report['candidates'] if c['kind'] == 'egos']
+        self.assertEqual(compare(candidates, self.db)[0], [])
+        core = [c for c in candidates if c['source'] == 'core']
+        self.assertEqual(len(core), 100)
+        self.assertTrue(all(not c['unverified_fields'] for c in core))
+        cited = {rid for c in core for ids in c['fields'].values() for rid in ids}
+        labels = {'ス', 'キ', 'ル', '覚', '醒', '侵', '蝕', '固', '有',
+                  'E.G.O', 'パッシブ', '名称', '発動条件', '効果'}
+        doc = self.documents[0]
+        content = [r for p in section_range(doc, 'E.G.Oデータ')[1:] for r in doc.pages[p]
+                   if r['y0'] < 390 and r['text'] not in labels]
+        self.assertGreater(len(content), 1500)
+        self.assertEqual([r['id'] for r in content if r['id'] not in cited], [])
+        egos = {c['data']['no']: c['data'] for c in core}
+        self.assertEqual(egos[5]['kakusei']['dice'][0]['roll'], '2d10')
+        self.assertNotIn('[影響]', egos[5]['kakusei']['effect'])
+        self.assertIn('1R：自分のHPを20%減少し5LP獲得', egos[5]['shinshoku']['effect'])
+        self.assertEqual(egos[20]['kakusei']['effect'], '[同化]')
+        self.assertEqual([len(s['dice']) for s in egos[20]['sub_skills']], [1, 3, 3, 1])
+        self.assertEqual(len(egos[20]['shinshoku']['dice']), 1)
+        self.assertEqual([len(s['dice']) for s in egos[62]['sub_skills']], [1, 4, 3, 1])
+        self.assertIn('破裂状態のキャラクターを優先して指定', egos[62]['sub_skills'][3]['effect'])
+        self.assertEqual(len(egos[77]['kakusei']['dice']), 4)
+        self.assertEqual(len(egos[47]['shinshoku']['dice']), 1)
+        self.assertEqual(len(egos[76]['shinshoku']['dice']), 1)
+        self.assertIn('死亡した時', egos[8]['unique_buff'])
+
+    def test_core_ego_mutations_cannot_pass_full_field_comparison(self):
+        from audit_three_books import compare
+        candidates = [c for c in self.report['candidates'] if c['kind'] == 'egos']
+        for kind in ('cost', 'die', 'impact', 'assimilation', 'unique'):
+            db = copy.deepcopy(self.db)
+            egos = {e['no']: e for e in db['egos']}
+            if kind == 'cost':
+                egos[1]['san_cost'] += 1
+            elif kind == 'die':
+                egos[77]['kakusei']['dice'].pop()
+            elif kind == 'impact':
+                egos[5]['shinshoku']['effect'] = egos[5]['shinshoku']['effect'].replace('1R：自分のHPを20%減少し5LP獲得', '')
+            elif kind == 'assimilation':
+                egos[20]['sub_skills'].pop()
+            else:
+                egos[8]['unique_buff'] = egos[8]['unique_buff'].split('\n')[0]
+            self.assertTrue(compare(candidates, db)[0], kind)
+
+    def test_persona_layout_variants_and_restored_dice(self):
+        from audit_three_books import name_key
+        candidates = {name_key(c['data']['name']): c['data'] for c in self.report['candidates']
+                      if c['kind'] in ('normal_personas', 'tokui_personas')}
+        for name, hp, san in [('南部ウーフィ協会4課フィクサー', 130, 50),
+                              ('W社3級整理要員', 120, 50), ('ロボトミーE.G.O:紅籍', 120, 55),
+                              ('群れたハイエナ', 90, 50)]:
+            src = candidates[name_key(name)]
+            self.assertEqual((src['hp'], src['san']), (hp, san))
+        self.assertEqual(candidates[name_key('黒獣-巳')]['skills'][4]['aoe'], '対象3体')
+        receiver = candidates[name_key('命脈相談窓口 受話器')]
+        self.assertEqual([d['roll'] for d in receiver['skills'][1]['dice']], ['2d8', '2d8'])
+        self.assertEqual(receiver['skills'][1]['dice'][0]['effect'], '')
+        for kind, name, i in [('normal_personas', '命脈相談窓口 受話器', 1),
+                              ('normal_personas', '南部リウ協会4課フィクサー', 3),
+                              ('tokui_personas', 'エドガー家チーフバトラー', 4),
+                              ('tokui_personas', '東部親指カポIIII', 7)]:
+            entry = next(p for p in self.db[kind] if name_key(p['name']) == name_key(name))
+            self.assertEqual(entry['skills'][i]['dice'], candidates[name_key(name)]['skills'][i]['dice'])
+        # Long wrapped headers must not migrate into the previous die effect.
+        self.assertTrue(candidates[name_key('蜘蛛の巣 薬指の親方')]['skills'][6]['name'].startswith('ティビアのメロディー'))
+
+    def test_complete_buff_definitions_and_item_status_name(self):
+        from audit_three_books import norm, name_key, compare
+        targets = {"集中攻撃-○○", "内部破裂", "咲き出す棘"}
+        checked = set()
+        for c in self.report["candidates"]:
+            if c["kind"] not in ("normal_personas", "tokui_personas"):
+                continue
+            record = next(r for r in self.db[c["kind"]] if name_key(r["name"]) == name_key(c["data"]["name"]))
+            for source_buff in c["data"]["unique_buffs"]:
+                if source_buff["name"] not in targets:
+                    continue
+                buff = next(b for b in record["unique_buffs"] if b["name"] == source_buff["name"])
+                self.assertEqual(norm(buff["desc"]), norm(source_buff["desc"]))
+                broken = copy.deepcopy(self.db)
+                owner = next(r for r in broken[c["kind"]] if r["name"] == record["name"])
+                next(b for b in owner["unique_buffs"] if b["name"] == buff["name"])["desc"] = buff["desc"].split("\n")[0]
+                findings, _, _ = compare([c], broken)
+                self.assertTrue(any(f.get("path", "").endswith(".desc") for f in findings))
+                checked.add(buff["name"])
+        self.assertEqual(checked, targets)
+        princess = next(r for r in self.db["tokui_personas"] if r["name"] == "ラ・マンチャランド姫")
+        self.assertEqual(princess["unique_buffs"][0]["max"], 30)
+        item = next(r for r in self.db["items"] if r["id"] == "enh-zweihander")
+        self.assertIn("あなたの盾2", item["palette"])
+        self.assertIn("あなたの盾", item["tags"])
+
+
 if __name__ == "__main__":
     unittest.main()
