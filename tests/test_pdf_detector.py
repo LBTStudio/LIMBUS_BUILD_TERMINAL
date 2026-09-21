@@ -121,6 +121,78 @@ class DetectorTests(unittest.TestCase):
             safe_path(ROOT.parent / "not-allowed.json")
 
 
+class NamedComparisonTests(unittest.TestCase):
+    """Synthetic adversarial fixtures: never substitutes for source snapshots."""
+
+    def setUp(self):
+        self.source = {'kind': 'normal_personas', 'source': 'synthetic', 'pages': [1],
+                       'data': {'name': 'Owner', 'unique_buffs': [
+                           {'name': 'A', 'max': 3, 'desc': '第一段階3\n第二段階5'},
+                           {'name': 'B・C', 'max': 10, 'desc': '効果全文'}]},
+                       'fields': {'unique_buffs[0].desc': ['synthetic:1:1'],
+                                  'unique_buffs[0].max': ['synthetic:1:0']}}
+        self.db = {'normal_personas': [copy.deepcopy(self.source['data'])]}
+
+    def compare(self):
+        from audit_three_books import compare
+        layout = []
+        findings, _, _ = compare([self.source], self.db, layout)
+        return findings, layout
+
+    def test_reordering_definitions_preserves_contents_and_source_citations(self):
+        self.db['normal_personas'][0]['unique_buffs'].reverse()
+        findings, layout = self.compare()
+        self.assertEqual(findings, [])
+        self.assertEqual([f['code'] for f in layout], ['unique_display_order'])
+        buff = self.db['normal_personas'][0]['unique_buffs'][1]
+        buff['desc'] = '第一段階3'
+        buff['max'] = 4
+        findings, _ = self.compare()
+        self.assertEqual({f['path'] for f in findings},
+                         {'normal_personas[0].unique_buffs[1].desc', 'normal_personas[0].unique_buffs[1].max'})
+        self.assertEqual(next(f['row_ids'] for f in findings if f['path'].endswith('.desc')), ['synthetic:1:1'])
+        self.assertEqual(self.source['data']['unique_buffs'][0]['max'], 3)
+
+    def test_missing_extra_and_renamed_definitions_remain_findings(self):
+        buffs = self.db['normal_personas'][0]['unique_buffs']
+        buffs.pop()
+        self.assertIn('missing_or_ambiguous_unique', [f['code'] for f in self.compare()[0]])
+        buffs.append({'name': 'Glossary', 'desc': 'Not automatically trusted'})
+        self.assertIn('db_unique_unmapped_in_persona', [f['code'] for f in self.compare()[0]])
+        buffs[-1] = {'name': 'BC', 'max': 10, 'desc': '効果全文'}
+        self.assertEqual(len(self.compare()[0]), 2)  # Middle dot is not discarded.
+        self.source['data']['unique_buffs'] = []
+        self.assertEqual(len(self.compare()[0]), 2)  # Empty source cannot approve DB extras.
+
+    def test_duplicate_names_in_either_side_are_rejected(self):
+        self.db['normal_personas'][0]['unique_buffs'].append(copy.deepcopy(self.source['data']['unique_buffs'][0]))
+        self.assertIn('missing_or_ambiguous_unique', [f['code'] for f in self.compare()[0]])
+        self.db['normal_personas'][0]['unique_buffs'].pop()
+        self.source['data']['unique_buffs'].append(copy.deepcopy(self.source['data']['unique_buffs'][0]))
+        self.assertIn('duplicate_source_unique', [f['code'] for f in self.compare()[0]])
+
+    def test_punctuation_classification_does_not_approve_any_difference(self):
+        self.db['normal_personas'][0]['unique_buffs'][0]['desc'] = '第一段階3。第二段階5'
+        findings, _ = self.compare()
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0]['classification'], 'source_boundary_punctuation')
+        self.assertEqual(findings[0]['expected'], '第一段階3\n第二段階5')
+        from audit_three_books import boundary_punctuation_only
+        for changed in ('第一段階4。第二段階5', '第二段階5。第一段階3', '第一段階3',
+                        '第一段階3、第二段階5', '第一段階。3第二段階5', '第一段階3。第二段階5。'):
+            with self.subTest(changed=changed):
+                self.assertFalse(boundary_punctuation_only('第一段階3\n第二段階5', changed))
+        self.assertFalse(boundary_punctuation_only(3, '3'))
+
+    def test_inline_dice_requires_structural_separator_not_prose(self):
+        from extract_pack_data import split_inline_skill_dice
+        text = '使用時：対象の火傷と破裂の合計が15以上ならスキル威力+2 3d5：的中時、[破裂爆発]。破裂を2消費'
+        self.assertEqual(split_inline_skill_dice(text), text.split(' 3d5：')[0:1] + ['3d5：' + text.split(' 3d5：')[1]])
+        for text in ('使用時：3d5を振る', '使用時：「 3d5：的中時、効果」を追加',
+                     '使用時：効果3d5：的中時、効果', '3d5：的中時、効果'):
+            self.assertEqual(split_inline_skill_dice(text), [text])
+
+
 class ThreeBookAuditTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -229,6 +301,36 @@ class ThreeBookAuditTests(unittest.TestCase):
             self.assertEqual(entry['skills'][i]['dice'], candidates[name_key(name)]['skills'][i]['dice'])
         # Long wrapped headers must not migrate into the previous die effect.
         self.assertTrue(candidates[name_key('蜘蛛の巣 薬指の親方')]['skills'][6]['name'].startswith('ティビアのメロディー'))
+
+    def test_owner_specific_maximum_uses_both_header_and_dedicated_effect(self):
+        from audit_three_books import cite_persona_uniques, compare
+        candidate = next(c for c in self.report['candidates'] if c['data']['name'] == 'ラ・マンチャランド 姫')
+        self.assertEqual(candidate['data']['unique_buffs'][0]['max'], 30)
+        override, = candidate['source_overrides']
+        self.assertEqual((override['base_value'], override['effective_value']), (10, 30))
+        self.assertEqual(override['row_ids'], ['core:226:15', 'core:226:19', 'core:226:20', 'core:226:21'])
+        # A different owner does not inherit the dedicated maximum. No DB input.
+        other = copy.deepcopy(candidate['data'])
+        other['name'] = '別人格'
+        other['unique_buffs'][0]['max'] = 10
+        _, overrides = cite_persona_uniques(self.documents[0], [224, 225], other)
+        self.assertEqual(overrides, [])
+        self.assertEqual(other['unique_buffs'][0]['max'], 10)
+        broken = copy.deepcopy(self.db)
+        owner = next(p for p in broken['tokui_personas'] if p['name'] == 'ラ・マンチャランド姫')
+        owner['unique_buffs'][0]['max'] = 10
+        findings = compare([candidate], broken)[0]
+        self.assertTrue(any(f.get('path', '').endswith('.max') and f['row_ids'] == override['row_ids'] for f in findings))
+
+    def test_rooster_inline_die_and_distinct_followup_are_source_owned(self):
+        candidate = next(c['data'] for c in self.report['candidates'] if c['data']['name'] == '黒獣-酉')
+        self.assertEqual([d['roll'] for d in candidate['skills'][2]['dice']], ['3d5', '3d5', '2d9'])
+        self.assertNotIn('3d5', candidate['skills'][2]['effect'])
+        first, second = candidate['skills'][3]['dice']
+        self.assertIn('再使用的中時、火傷2と破裂1を付与', first['effect'])
+        self.assertNotIn('再使用的中時', second['effect'])
+        owner = next(p for p in self.db['normal_personas'] if p['name'] == '黒獣-酉')
+        self.assertEqual(owner['skills'][3]['dice'], candidate['skills'][3]['dice'])
 
     def test_complete_buff_definitions_and_item_status_name(self):
         from audit_three_books import norm, name_key, compare
