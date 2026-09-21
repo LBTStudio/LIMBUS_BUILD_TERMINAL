@@ -146,6 +146,84 @@ def table_candidates(doc):
     return result
 
 
+def glossary_candidates(doc):
+    """Independently read the core glossary table, not DB-selected snippets.
+
+    Trailing maxima remain prose: a cap on an effect is not automatically the
+    status inventory maximum. Printed categories are evidence, not DB types.
+    """
+    if doc.key != 'core':
+        return []
+    result, category = [], None
+    labels = {'バフ', 'デバフ', '中立バフ', '弾丸', '蓄積要素', '名称', '効果'}
+    for p in section_range(doc, 'バフ・デバフ一覧'):
+        if not doc.verticals[p]:
+            continue  # Introductory prose, not a table.
+        xs = sorted({x for x, _, _ in doc.verticals[p]})
+        if len(xs) != 1:
+            raise ValueError(f'glossary_columns:{doc.key}:{p+1}')
+        divider = xs[0]
+        bounds = boundaries_at(doc.segments[p], divider - 2)
+        if not bounds:
+            raise ValueError(f'glossary_borders:{doc.key}:{p+1}')
+        groups = {}
+        for row in sorted(doc.pages[p], key=lambda r: (center(r), r['x0'])):
+            if row['text'] in labels:
+                if row['text'] not in {'名称', '効果'}:
+                    category = row['text']
+                continue
+            if row['y0'] < 390 and center(row) > bounds[0]:
+                group = groups.setdefault(sum(y <= center(row) for y in bounds), {'rows': [], 'category': category})
+                group['rows'].append(row)
+        for group in groups.values():
+            rows = group['rows']
+            names = [r for r in rows if r['x0'] < divider]
+            body = [r for r in rows if r['x0'] >= divider]
+            # Three cells print name and [1R] effect as one text span across
+            # the divider. Both fields cite that original, unsplit source row.
+            combined = re.fullmatch(r'(.+?)\s+(\[1R\].+)', rows[0]['text']) if len(rows) == 1 else None
+            if not body and combined and rows[0]['x0'] < divider < rows[0]['x1']:
+                name, desc = combined.groups()
+                names = body = rows
+            elif names and body:
+                name, desc = joined(names), joined(body)
+            else:
+                raise ValueError('glossary_cell_ownership:' + ','.join(evidence(rows)))
+            result.append({'source': doc.key, 'pages': [p+1], 'printed_category': group['category'],
+                           'data': {'name': name, 'desc': desc},
+                           'fields': {'name': evidence(names), 'desc': evidence(body)}})
+    return result
+
+
+def review_glossary_supplements(findings, documents, definitions):
+    """Enrich unresolved extras; a glossary text match never approves metadata.
+
+    Local definitions can intentionally differ from the glossary. A mismatch
+    here is a review item, never an automatic replacement instruction.
+    """
+    documents = {d.key: d for d in documents}
+    for finding in findings:
+        if finding['code'] != 'db_unique_unmapped_in_persona':
+            continue
+        matches = [c for c in definitions if norm(c['data']['name']) == norm(finding['unique_name'])]
+        if len(matches) != 1:
+            continue
+        definition, = matches
+        name = norm(definition['data']['name'])
+        # Do not mistake 武装解除 for a reference to 武装, for example.
+        reference = re.compile(re.escape(name) + r'(?:\d|を|が|の|に|[\]】]|$)')
+        doc = documents[finding['source']]
+        refs = [r['id'] for p in finding['pages'] for r in doc.pages[p-1] if reference.search(norm(r['text']))]
+        equal = norm(finding['actual'].get('desc')) == norm(definition['data']['desc'])
+        finding['glossary_review'] = {
+            'source': definition['source'], 'pages': definition['pages'], 'expected_desc': definition['data']['desc'],
+            'row_ids': definition['fields']['desc'], 'persona_reference_rows': refs,
+            'text_matches': equal, 'unverified_fields': ['type', 'max'],
+            'note': 'No metadata approval; compare local definitions before choosing between source variants'}
+        finding['classification'] = ('glossary_text_verified_metadata_review' if equal and refs else
+                                     'glossary_owner_reference_review' if not refs else 'glossary_content_or_local_variant_review')
+
+
 def cite_persona_uniques(doc, indexes, data):
     """Cite local typed definitions and explicit owner-only maximum overrides.
 
@@ -460,9 +538,13 @@ def compare(candidates, db, layout_differences=None):
 
 
 def audit(documents, db):
-    candidates, issues, scope = [], [], []
+    candidates, issues, scope, glossary = [], [], [], []
     for doc in documents:
         candidates.extend(persona_candidates(doc))
+        try:
+            glossary.extend(glossary_candidates(doc))
+        except ValueError as error:
+            issues.append({'source': doc.key, 'code': 'glossary_adapter_unresolved', 'detail': str(error)})
         try:
             candidates.extend(table_candidates(doc))
         except ValueError as error:
@@ -482,6 +564,7 @@ def audit(documents, db):
                 scope.append({"source": doc.key, "kind": "egos", "code": "field_mapping_unresolved", "detail": str(error)})
     layout_differences = []
     findings, fields, seen = compare(candidates, db, layout_differences)
+    review_glossary_supplements(findings, documents, glossary)
     # Existing product scope excludes these resources (tests/items.test.mjs).
     # Exclusion is explicit; it is not an audited application record.
     excluded = [f for f in findings if f["kind"] == "items" and f["code"] == "missing_or_ambiguous_record"
@@ -500,6 +583,7 @@ def audit(documents, db):
             "counts": {k: {"db": len(db.get(k, [])), "source_candidates": sum(c['kind'] == k for c in candidates),
                             "fields_checked": fields.get(k, 0)} for k in kinds},
             "assessment": "Differences are review candidates, not confirmed errors; core persona adapter still needs validation; EGO cells include row references and explicit unmapped fields",
+            "glossary_definitions": glossary,
             "layout_differences": layout_differences,
             "difference_classification": dict(Counter(f.get("classification", f["code"]) for f in findings)),
             "excluded": excluded, "differences": findings, "unresolved": issues + scope, "candidates": candidates}
@@ -515,7 +599,7 @@ def main():
     report = audit(documents, db)
     if args.write_report:
         atomic_json(ROOT / "data/provenance/three-book-audit.json", report)
-    print(json.dumps({k: v for k, v in report.items() if k not in ("candidates", "differences", "unresolved")}, ensure_ascii=False, indent=2))
+    print(json.dumps({k: v for k, v in report.items() if k not in ("candidates", "differences", "unresolved", "glossary_definitions")}, ensure_ascii=False, indent=2))
     print(f"differences={len(report['differences'])}; unresolved={len(report['unresolved'])}")
     return 0 if report["complete"] else 1
 
