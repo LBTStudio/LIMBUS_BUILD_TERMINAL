@@ -224,6 +224,83 @@ def review_glossary_supplements(findings, documents, definitions):
                                      'glossary_owner_reference_review' if not refs else 'glossary_content_or_local_variant_review')
 
 
+def local_untyped_definitions(doc, indexes):
+    """Cite the core's leading untyped unique block without inventing metadata.
+
+    This deliberately stops at the first typed definition. Bracket-only lines
+    inside a typed definition (e.g. the two meanings of 生きた蝶) are its prose,
+    not new top-level statuses. Other layouts remain outside this adapter.
+    """
+    if doc.key != 'core':
+        return []
+    from extract_pack_data import BUFF_HEAD_RE, reading_order
+    rows = sorted([r for p in indexes for r in doc.pages[p] if 56 <= r['x0'] < 62], key=reading_order)
+    leading = []
+    for row in rows:
+        if BUFF_HEAD_RE.fullmatch(row['text']):
+            break
+        leading.append(row)
+    heads = [(i, re.fullmatch(r'\[(.+)\]', row['text'])) for i, row in enumerate(leading)
+             if re.fullmatch(r'\[(.+)\]', row['text'])]
+    result = []
+    for at, (i, head) in enumerate(heads):
+        end = heads[at + 1][0] if at + 1 < len(heads) else len(leading)
+        body = leading[i + 1:end]
+        if not body:
+            raise ValueError('empty_untyped_definition:' + leading[i]['id'])
+        result.append({'data': {'name': head[1], 'desc': joined(body)},
+                       'pages': sorted({r['page'] + 1 for r in [leading[i]] + body}),
+                       'fields': {'name': [leading[i]['id']], 'desc': evidence(body)},
+                       'unverified_fields': ['type', 'max']})
+    return result
+
+
+def review_local_definitions(findings, candidates, db):
+    """Prefer cited owner-local text over a glossary variant, never approve caps.
+
+    Also checks source-to-DB presence. Text found in another field is reported
+    as relocation evidence, not silently counted as the requested definition.
+    """
+    for candidate in candidates:
+        definitions = candidate.get('local_untyped_definitions', [])
+        if not definitions:
+            continue
+        kind, name = candidate['kind'], candidate['data']['name']
+        owners = [(i, p) for i, p in enumerate(db.get(kind, [])) if name_key(p['name']) == name_key(name)]
+        if len(owners) != 1:
+            continue  # Existing record-level ambiguity remains a finding.
+        owner_index, owner = owners[0]
+        for definition in definitions:
+            buff_name, desc = definition['data']['name'], definition['data']['desc']
+            matches = [(i, b) for i, b in enumerate(owner.get('unique_buffs', [])) if norm(b['name']) == norm(buff_name)]
+            review = {'source': candidate['source'], 'pages': definition['pages'],
+                      'expected_desc': desc, 'name_row_ids': definition['fields']['name'],
+                      'row_ids': definition['fields']['desc'], 'unverified_fields': ['type', 'max'],
+                      'note': 'Owner-local definition; glossary differences do not authorize replacement or metadata inference'}
+            if len(matches) != 1:
+                relocated = [path for path, value in leaves(owner)
+                             if isinstance(value, str) and norm(value) == norm(f'[{buff_name}]' + desc)]
+                findings.append({'kind': kind, 'name': name, 'source': candidate['source'], 'pages': candidate['pages'],
+                                 'code': 'local_definition_missing_or_ambiguous', 'unique_name': buff_name,
+                                 'classification': 'local_definition_mapping_review',
+                                 'path': f'{kind}[{owner_index}].unique_buffs', 'matches': len(matches),
+                                 'present_in_other_fields': relocated, 'local_review': review})
+                continue
+            buff_index, buff = matches[0]
+            path = f'{kind}[{owner_index}].unique_buffs[{buff_index}]'
+            existing = [f for f in findings if f.get('path') == path and f['code'] == 'db_unique_unmapped_in_persona']
+            if len(existing) != 1:
+                # No prior finding is not proof of approval for this untyped layout.
+                findings.append({'kind': kind, 'name': name, 'source': candidate['source'], 'pages': candidate['pages'],
+                                 'code': 'local_definition_review', 'unique_name': buff_name,
+                                 'path': path, 'actual': buff})
+                existing = [findings[-1]]
+            review['text_matches'] = norm(buff.get('desc')) == norm(desc)
+            existing[0]['local_review'] = review
+            existing[0]['classification'] = ('local_text_verified_metadata_review' if review['text_matches']
+                                             else 'local_content_review')
+
+
 def cite_persona_uniques(doc, indexes, data):
     """Cite local typed definitions and explicit owner-only maximum overrides.
 
