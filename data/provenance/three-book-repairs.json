@@ -6217,5 +6217,85 @@
    "core:124:1",
    "core:124:2"
   ]
+ },
+ {
+  "kind": "normal_personas",
+  "name": "ロボトミーE.G.O:紅籍",
+  "source": "core",
+  "pages": [
+   144,
+   310
+  ],
+  "field": "unique_buffs[0].desc",
+  "before": "破裂爆発時に対象に次のRにて麻痺3を付与",
+  "after": "攻撃的中時、数値2ごとに破裂1を付与。被ダメージ時、数値だけ破裂を得る。R開始時、数値が9以上なら虚弱2を得る。12以上なら固定ダメ―ジ12を受けて、消滅（最大12）",
+  "reason": "Restore glossary definition referenced by owner; owner page has no local replacement definition. Preserve passive and leave type/max unapproved.",
+  "row_ids": [
+   "core:310:10",
+   "core:310:11",
+   "core:310:12",
+   "core:310:13"
+  ],
+  "owner_reference_rows": [
+   "core:144:15",
+   "core:144:20",
+   "core:144:24"
+  ],
+  "unverified_fields": [
+   "type",
+   "max"
+  ]
+ },
+ {
+  "kind": "normal_personas",
+  "name": "白蓮3流清掃員",
+  "source": "core",
+  "pages": [
+   166,
+   304
+  ],
+  "field": "unique_buffs[0].desc",
+  "before": "",
+  "after": "[1R] SANを回復する効果を受けた時、数値だけ回復量が増加する（最大10）",
+  "reason": "Restore glossary definition referenced by owner; owner page has no local replacement definition. Preserve passive and leave type/max unapproved.",
+  "row_ids": [
+   "core:304:28",
+   "core:304:29",
+   "core:304:30",
+   "core:304:31"
+  ],
+  "owner_reference_rows": [
+   "core:166:19"
+  ],
+  "unverified_fields": [
+   "type",
+   "max"
+  ]
+ },
+ {
+  "kind": "normal_personas",
+  "name": "白蓮2流清掃員",
+  "source": "core",
+  "pages": [
+   167,
+   304
+  ],
+  "field": "unique_buffs[0].desc",
+  "before": "",
+  "after": "[1R] SANを回復する効果を受けた時、数値だけ回復量が増加する（最大10）",
+  "reason": "Restore glossary definition referenced by owner; owner page has no local replacement definition. Preserve passive and leave type/max unapproved.",
+  "row_ids": [
+   "core:304:28",
+   "core:304:29",
+   "core:304:30",
+   "core:304:31"
+  ],
+  "owner_reference_rows": [
+   "core:167:19"
+  ],
+  "unverified_fields": [
+   "type",
+   "max"
+  ]
  }
 ]

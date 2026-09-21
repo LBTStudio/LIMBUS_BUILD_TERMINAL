@@ -2154,8 +2154,8 @@
  "difference_classification": {
   "source_boundary_punctuation": 189,
   "glossary_or_persona_adapter_review": 6,
-  "glossary_content_or_local_variant_review": 9,
-  "glossary_text_verified_metadata_review": 15,
+  "glossary_content_or_local_variant_review": 6,
+  "glossary_text_verified_metadata_review": 18,
   "content_or_mapping_review": 11
  },
  "excluded": [
@@ -4036,10 +4036,10 @@
     "name": "呪いの札",
     "type": "デバフ",
     "max": 12,
-    "desc": "破裂爆発時に対象に次のRにて麻痺3を付与",
+    "desc": "攻撃的中時、数値2ごとに破裂1を付与。被ダメージ時、数値だけ破裂を得る。R開始時、数値が9以上なら虚弱2を得る。12以上なら固定ダメ―ジ12を受けて、消滅（最大12）",
     "place": "status"
    },
-   "classification": "glossary_content_or_local_variant_review",
+   "classification": "glossary_text_verified_metadata_review",
    "glossary_review": {
     "source": "core",
     "pages": [
@@ -4059,7 +4059,7 @@
      "core:144:35",
      "core:144:39"
     ],
-    "text_matches": false,
+    "text_matches": true,
     "unverified_fields": [
      "type",
      "max"
@@ -4554,10 +4554,10 @@
     "name": "SAN回復量増加",
     "type": "固有バフ",
     "max": 20,
-    "desc": "",
+    "desc": "[1R] SANを回復する効果を受けた時、数値だけ回復量が増加する（最大10）",
     "place": "status"
    },
-   "classification": "glossary_content_or_local_variant_review",
+   "classification": "glossary_text_verified_metadata_review",
    "glossary_review": {
     "source": "core",
     "pages": [
@@ -4571,7 +4571,7 @@
     "persona_reference_rows": [
      "core:166:19"
     ],
-    "text_matches": false,
+    "text_matches": true,
     "unverified_fields": [
      "type",
      "max"
@@ -4593,10 +4593,10 @@
     "name": "SAN回復量増加",
     "type": "固有バフ",
     "max": 20,
-    "desc": "",
+    "desc": "[1R] SANを回復する効果を受けた時、数値だけ回復量が増加する（最大10）",
     "place": "status"
    },
-   "classification": "glossary_content_or_local_variant_review",
+   "classification": "glossary_text_verified_metadata_review",
    "glossary_review": {
     "source": "core",
     "pages": [
@@ -4610,7 +4610,7 @@
     "persona_reference_rows": [
      "core:167:19"
     ],
-    "text_matches": false,
+    "text_matches": true,
     "unverified_fields": [
      "type",
      "max"

@@ -366,6 +366,30 @@ class ThreeBookAuditTests(unittest.TestCase):
         self.assertEqual(changed['glossary_review']['persona_reference_rows'], [])
         self.assertEqual(changed['classification'], 'glossary_owner_reference_review')
 
+    def test_repaired_glossary_text_keeps_passive_and_unapproved_metadata(self):
+        from audit_three_books import norm, review_glossary_supplements
+        definitions = {d['data']['name']: d for d in self.report['glossary_definitions']}
+        for name, buff_name, maximum in [('ロボトミーE.G.O:紅籍', '呪いの札', 12),
+                                         ('白蓮3流清掃員', 'SAN回復量増加', 20),
+                                         ('白蓮2流清掃員', 'SAN回復量増加', 20)]:
+            with self.subTest(name=name):
+                owner = next(p for p in self.db['normal_personas'] if p['name'] == name)
+                buff = next(b for b in owner['unique_buffs'] if b['name'] == buff_name)
+                self.assertEqual(norm(buff['desc']), norm(definitions[buff_name]['data']['desc']))
+                self.assertEqual(buff['max'], maximum)  # Text repair never infers status maxima.
+                finding = next(f for f in self.report['differences']
+                               if f['name'] == name and f.get('unique_name') == buff_name)
+                self.assertEqual(finding['classification'], 'glossary_text_verified_metadata_review')
+                self.assertEqual(finding['glossary_review']['unverified_fields'], ['type', 'max'])
+                for bad in ('', buff['desc'][:-1], owner['passive_effect']):
+                    changed = copy.deepcopy(finding)
+                    changed['actual']['desc'] = bad
+                    review_glossary_supplements([changed], self.documents, self.report['glossary_definitions'])
+                    self.assertFalse(changed['glossary_review']['text_matches'])
+        owner = next(p for p in self.db['normal_personas'] if p['name'] == 'ロボトミーE.G.O:紅籍')
+        self.assertEqual(owner['passive_effect'], '破裂爆発時に対象に次のRにて麻痺3を付与')
+        self.assertEqual(owner['unique_buffs'][0]['type'], 'デバフ')
+
     def test_rooster_inline_die_and_distinct_followup_are_source_owned(self):
         candidate = next(c['data'] for c in self.report['candidates'] if c['data']['name'] == '黒獣-酉')
         self.assertEqual([d['roll'] for d in candidate['skills'][2]['dice']], ['3d5', '3d5', '2d9'])
