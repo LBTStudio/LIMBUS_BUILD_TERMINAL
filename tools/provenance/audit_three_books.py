@@ -146,6 +146,47 @@ def table_candidates(doc):
     return result
 
 
+def cite_persona_uniques(doc, indexes, data):
+    """Cite local typed definitions and explicit owner-only maximum overrides.
+
+    A base header and a dedicated effect are separate source facts. Never use
+    an arbitrary number in prose (effect caps, stages, or another owner) as max.
+    Definitions that cannot be reconstructed exactly remain uncited.
+    """
+    from extract_pack_data import BUFF_HEAD_RE, reading_order
+    rows = sorted([r for p in indexes for r in doc.pages[p] if 56 <= r['x0'] < 62], key=reading_order)
+    starts = [(i, BUFF_HEAD_RE.fullmatch(r['text'])) for i, r in enumerate(rows)
+              if BUFF_HEAD_RE.fullmatch(r['text'])]
+    fields, overrides = {}, []
+    for buff_index, buff in enumerate(data['unique_buffs']):
+        matches = [(at, i, head) for at, (i, head) in enumerate(starts) if norm(head[1]) == norm(buff['name'])]
+        if len(matches) != 1:
+            continue
+        at, i, head = matches[0]
+        end = starts[at + 1][0] if at + 1 < len(starts) else len(rows)
+        body = rows[i + 1:end]
+        paragraphs = join_wrapped(body, keep_rows=True, rules_by_page={p: doc.rules[p] for p in indexes})
+        if norm('\n'.join(text for text, _ in paragraphs)) != norm(buff['desc']):
+            continue
+        prefix = f'unique_buffs[{buff_index}]'
+        for field in ('name', 'type', 'max'):
+            fields[f'{prefix}.{field}'] = [rows[i]['id']]
+        fields[f'{prefix}.desc'] = evidence(body)
+        dedicated = []
+        for n, (text, refs) in enumerate(paragraphs[:-1]):
+            owner = re.fullmatch(r'\[(.+)の人格専用効果\]', text)
+            value = re.match(r'^最大値が(\d+)になり、', paragraphs[n + 1][0])
+            if owner and norm(owner[1]) == norm(data['name']) and value:
+                dedicated.append((int(value[1]), evidence(refs + paragraphs[n + 1][1])))
+        if len(dedicated) == 1:
+            value, refs = dedicated[0]
+            overrides.append({'path': f'{prefix}.max', 'base_value': buff['max'], 'effective_value': value,
+                              'owner': data['name'], 'row_ids': [rows[i]['id']] + refs})
+            buff['max'] = value
+            fields[f'{prefix}.max'] = [rows[i]['id']] + refs
+    return fields, overrides
+
+
 def persona_candidates(doc):
     result = []
     for head in collect_persona_pages(doc.pages, doc.sections):
@@ -157,7 +198,9 @@ def persona_candidates(doc):
         data = parse_persona(head["name"], [doc.pages[i] for i in indexes], {i: doc.rules[i] for i in indexes},
                              {i: doc.verticals[i] for i in indexes} if doc.key == 'core' else None)
         kind = "normal_personas" if p in section_range(doc, "人格データ") else "tokui_personas"
-        result.append({"kind": kind, "source": doc.key, "pages": [i+1 for i in indexes], "data": data})
+        fields, overrides = cite_persona_uniques(doc, indexes, data)
+        result.append({"kind": kind, "source": doc.key, "pages": [i+1 for i in indexes], "data": data,
+                       "fields": fields, "source_overrides": overrides})
     return result
 
 
