@@ -322,6 +322,50 @@ class ThreeBookAuditTests(unittest.TestCase):
         findings = compare([candidate], broken)[0]
         self.assertTrue(any(f.get('path', '').endswith('.max') and f['row_ids'] == override['row_ids'] for f in findings))
 
+    def test_glossary_inventory_and_full_table_row_coverage(self):
+        from audit_three_books import norm
+        definitions = self.report['glossary_definitions']
+        self.assertEqual(len(definitions), 99)
+        self.assertEqual(len({d['data']['name'] for d in definitions}), 99)
+        by_name = {d['data']['name']: d for d in definitions}
+        self.assertEqual(by_name['武装']['data']['desc'], 'R開始時、武装の数2ごとに忍耐1を得る（最大10）')
+        self.assertNotIn('max', by_name['武装']['data'])  # Do not infer what the cap applies to.
+        self.assertEqual(by_name['武装']['printed_category'], 'バフ')
+        self.assertEqual(by_name['バリア']['printed_category'], '中立バフ')
+        self.assertEqual(by_name['血餐']['printed_category'], '蓄積要素')
+        self.assertEqual(by_name['大罪威力増加']['fields']['name'], ['core:304:40'])
+        self.assertEqual(by_name['大罪威力増加']['fields']['desc'], ['core:304:40'])
+        labels = {'バフ', 'デバフ', '中立バフ', '弾丸', '蓄積要素', '名称', '効果'}
+        content = {r['id'] for page in self.documents[0].pages[303:312] for r in page
+                   if r['y0'] < 390 and r['text'] not in labels}
+        cited = {rid for d in definitions for ids in d['fields'].values() for rid in ids}
+        self.assertEqual(cited, content)
+        # Each definition reconstructs all its cited original content, including
+        # spans shared between the name and effect fields.
+        rows = {r['id']: r['text'] for page in self.documents[0].pages for r in page}
+        for d in definitions:
+            ids = list(dict.fromkeys(d['fields']['name'] + d['fields']['desc']))
+            self.assertEqual(norm(d['data']['name'] + d['data']['desc']), norm(''.join(rows[r] for r in ids)))
+
+    def test_glossary_matches_do_not_hide_metadata_or_content_changes(self):
+        from audit_three_books import review_glossary_supplements
+        finding = next(f for f in self.report['differences'] if f.get('unique_name') == '武装')
+        self.assertTrue(finding['glossary_review']['text_matches'])
+        self.assertEqual(finding['code'], 'db_unique_unmapped_in_persona')
+        self.assertEqual(finding['glossary_review']['unverified_fields'], ['type', 'max'])
+        changed = copy.deepcopy(finding)
+        changed['actual']['desc'] = '忍耐1を得る'
+        review_glossary_supplements([changed], self.documents, self.report['glossary_definitions'])
+        self.assertFalse(changed['glossary_review']['text_matches'])
+        self.assertEqual(changed['classification'], 'glossary_content_or_local_variant_review')
+        from types import SimpleNamespace
+        fake_doc = SimpleNamespace(key='synthetic', pages=[[{'id': 'synthetic:1:1', 'text': '武装解除1を付与'}]])
+        changed = copy.deepcopy(finding)
+        changed.update(source='synthetic', pages=[1])
+        review_glossary_supplements([changed], [fake_doc], self.report['glossary_definitions'])
+        self.assertEqual(changed['glossary_review']['persona_reference_rows'], [])
+        self.assertEqual(changed['classification'], 'glossary_owner_reference_review')
+
     def test_rooster_inline_die_and_distinct_followup_are_source_owned(self):
         candidate = next(c['data'] for c in self.report['candidates'] if c['data']['name'] == '黒獣-酉')
         self.assertEqual([d['roll'] for d in candidate['skills'][2]['dice']], ['3d5', '3d5', '2d9'])
