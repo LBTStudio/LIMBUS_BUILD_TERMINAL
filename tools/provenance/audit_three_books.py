@@ -354,8 +354,14 @@ def persona_candidates(doc):
                              {i: doc.verticals[i] for i in indexes} if doc.key == 'core' else None)
         kind = "normal_personas" if p in section_range(doc, "人格データ") else "tokui_personas"
         fields, overrides = cite_persona_uniques(doc, indexes, data)
+        local, local_issues = [], []
+        try:
+            local = local_untyped_definitions(doc, indexes)
+        except ValueError as error:
+            local_issues.append(str(error))
         result.append({"kind": kind, "source": doc.key, "pages": [i+1 for i in indexes], "data": data,
-                       "fields": fields, "source_overrides": overrides})
+                       "fields": fields, "source_overrides": overrides,
+                       "local_untyped_definitions": local, "local_definition_issues": local_issues})
     return result
 
 
@@ -642,6 +648,10 @@ def audit(documents, db):
     layout_differences = []
     findings, fields, seen = compare(candidates, db, layout_differences)
     review_glossary_supplements(findings, documents, glossary)
+    review_local_definitions(findings, candidates, db)
+    issues.extend({'source': c['source'], 'name': c['data']['name'], 'pages': c['pages'],
+                   'code': 'local_definition_adapter_unresolved', 'detail': issue}
+                  for c in candidates for issue in c.get('local_definition_issues', []))
     # Existing product scope excludes these resources (tests/items.test.mjs).
     # Exclusion is explicit; it is not an audited application record.
     excluded = [f for f in findings if f["kind"] == "items" and f["code"] == "missing_or_ambiguous_record"

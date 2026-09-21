@@ -2153,10 +2153,12 @@
  ],
  "difference_classification": {
   "source_boundary_punctuation": 189,
-  "glossary_or_persona_adapter_review": 6,
-  "glossary_content_or_local_variant_review": 6,
-  "glossary_text_verified_metadata_review": 18,
-  "content_or_mapping_review": 11
+  "glossary_or_persona_adapter_review": 3,
+  "local_text_verified_metadata_review": 9,
+  "content_or_mapping_review": 11,
+  "glossary_text_verified_metadata_review": 17,
+  "glossary_content_or_local_variant_review": 1,
+  "local_definition_mapping_review": 2
  },
  "excluded": [
   {
@@ -2365,7 +2367,27 @@
     "desc": "銃撃ダイスでマッチする時、対象のマッチ威力-1消費することで特定戦術の能力が向上",
     "place": "status"
    },
-   "classification": "glossary_or_persona_adapter_review"
+   "classification": "local_text_verified_metadata_review",
+   "local_review": {
+    "source": "core",
+    "pages": [
+     62
+    ],
+    "expected_desc": "銃撃ダイスでマッチする時、対象のマッチ威力-1消費することで特定戦術の能力が向上",
+    "name_row_ids": [
+     "core:62:10"
+    ],
+    "row_ids": [
+     "core:62:11",
+     "core:62:12"
+    ],
+    "unverified_fields": [
+     "type",
+     "max"
+    ],
+    "note": "Owner-local definition; glossary differences do not authorize replacement or metadata inference",
+    "text_matches": true
+   }
   },
   {
    "kind": "normal_personas",
@@ -2386,7 +2408,7 @@
     "desc": "銃撃ダイスで攻撃的中時、次のRに武装解除1を付与銃撃ダイスでマッチ勝利時、次のRに麻痺1を付与消費することで特定戦術の能力が向上",
     "place": "status"
    },
-   "classification": "glossary_content_or_local_variant_review",
+   "classification": "local_text_verified_metadata_review",
    "glossary_review": {
     "source": "core",
     "pages": [
@@ -2407,6 +2429,27 @@
      "max"
     ],
     "note": "No metadata approval; compare local definitions before choosing between source variants"
+   },
+   "local_review": {
+    "source": "core",
+    "pages": [
+     62
+    ],
+    "expected_desc": "銃撃ダイスで攻撃的中時、次のRに武装解除1を付与銃撃ダイスでマッチ勝利時、次のRに麻痺1を付与消費することで特定戦術の能力が向上",
+    "name_row_ids": [
+     "core:62:13"
+    ],
+    "row_ids": [
+     "core:62:14",
+     "core:62:15",
+     "core:62:16"
+    ],
+    "unverified_fields": [
+     "type",
+     "max"
+    ],
+    "note": "Owner-local definition; glossary differences do not authorize replacement or metadata inference",
+    "text_matches": true
    }
   },
   {
@@ -2428,7 +2471,7 @@
     "desc": "銃撃ダイスで攻撃的中時、火傷2を付与消費することで特定戦術の能力が向上",
     "place": "status"
    },
-   "classification": "glossary_text_verified_metadata_review",
+   "classification": "local_text_verified_metadata_review",
    "glossary_review": {
     "source": "core",
     "pages": [
@@ -2448,6 +2491,26 @@
      "max"
     ],
     "note": "No metadata approval; compare local definitions before choosing between source variants"
+   },
+   "local_review": {
+    "source": "core",
+    "pages": [
+     62
+    ],
+    "expected_desc": "銃撃ダイスで攻撃的中時、火傷2を付与消費することで特定戦術の能力が向上",
+    "name_row_ids": [
+     "core:62:17"
+    ],
+    "row_ids": [
+     "core:62:18",
+     "core:62:19"
+    ],
+    "unverified_fields": [
+     "type",
+     "max"
+    ],
+    "note": "Owner-local definition; glossary differences do not authorize replacement or metadata inference",
+    "text_matches": true
    }
   },
   {
@@ -2469,7 +2532,7 @@
     "desc": "弾丸を消費するダイスのダメージ量+2。自分の速度が6以上なら追加でダメージ量+3消費することで特定戦術の能力が向上",
     "place": "status"
    },
-   "classification": "glossary_content_or_local_variant_review",
+   "classification": "local_text_verified_metadata_review",
    "glossary_review": {
     "source": "core",
     "pages": [
@@ -2489,6 +2552,27 @@
      "max"
     ],
     "note": "No metadata approval; compare local definitions before choosing between source variants"
+   },
+   "local_review": {
+    "source": "core",
+    "pages": [
+     63
+    ],
+    "expected_desc": "弾丸を消費するダイスのダメージ量+2。自分の速度が6以上なら追加でダメージ量+3消費することで特定戦術の能力が向上",
+    "name_row_ids": [
+     "core:63:47"
+    ],
+    "row_ids": [
+     "core:63:48",
+     "core:63:49",
+     "core:63:50"
+    ],
+    "unverified_fields": [
+     "type",
+     "max"
+    ],
+    "note": "Owner-local definition; glossary differences do not authorize replacement or metadata inference",
+    "text_matches": true
    }
   },
   {
@@ -4213,7 +4297,26 @@
     "desc": "消費時、SANを1回復",
     "place": "status"
    },
-   "classification": "glossary_or_persona_adapter_review"
+   "classification": "local_text_verified_metadata_review",
+   "local_review": {
+    "source": "core",
+    "pages": [
+     150
+    ],
+    "expected_desc": "消費時、 SANを1回復",
+    "name_row_ids": [
+     "core:150:11"
+    ],
+    "row_ids": [
+     "core:150:12"
+    ],
+    "unverified_fields": [
+     "type",
+     "max"
+    ],
+    "note": "Owner-local definition; glossary differences do not authorize replacement or metadata inference",
+    "text_matches": true
+   }
   },
   {
    "kind": "normal_personas",
@@ -4233,7 +4336,26 @@
     "desc": "消費時、対象のSANを1減少",
     "place": "status"
    },
-   "classification": "glossary_or_persona_adapter_review"
+   "classification": "local_text_verified_metadata_review",
+   "local_review": {
+    "source": "core",
+    "pages": [
+     150
+    ],
+    "expected_desc": "消費時、対象のSANを1減少",
+    "name_row_ids": [
+     "core:150:13"
+    ],
+    "row_ids": [
+     "core:150:14"
+    ],
+    "unverified_fields": [
+     "type",
+     "max"
+    ],
+    "note": "Owner-local definition; glossary differences do not authorize replacement or metadata inference",
+    "text_matches": true
+   }
   },
   {
    "kind": "normal_personas",
@@ -4254,7 +4376,7 @@
     "desc": "自分の最大弾丸数を2つに分割し生きた蝶・死んだ蝶にする銃撃時、1d2を振り、1なら生きた蝶を、2なら死んだ蝶を消費するどちらか片方だけが残っている場合はそれを消費する消費することで特定戦術の能力が向上",
     "place": "none"
    },
-   "classification": "glossary_content_or_local_variant_review",
+   "classification": "local_text_verified_metadata_review",
    "glossary_review": {
     "source": "core",
     "pages": [
@@ -4282,6 +4404,28 @@
      "max"
     ],
     "note": "No metadata approval; compare local definitions before choosing between source variants"
+   },
+   "local_review": {
+    "source": "core",
+    "pages": [
+     150
+    ],
+    "expected_desc": "自分の最大弾丸数を2つに分割し生きた蝶・死んだ蝶にする銃撃時、1d2を振り、1なら生きた蝶を、2なら死んだ蝶を消費するどちらか片方だけが残っている場合はそれを消費する消費することで特定戦術の能力が向上",
+    "name_row_ids": [
+     "core:150:6"
+    ],
+    "row_ids": [
+     "core:150:7",
+     "core:150:8",
+     "core:150:9",
+     "core:150:10"
+    ],
+    "unverified_fields": [
+     "type",
+     "max"
+    ],
+    "note": "Owner-local definition; glossary differences do not authorize replacement or metadata inference",
+    "text_matches": true
    }
   },
   {
@@ -5998,7 +6142,7 @@
     "desc": "-弾丸を消費するダイスのダメージ量+2。火傷付与量と振動付与量+1消費することで特定戦術の能力が向上",
     "place": "status"
    },
-   "classification": "glossary_content_or_local_variant_review",
+   "classification": "local_text_verified_metadata_review",
    "glossary_review": {
     "source": "core",
     "pages": [
@@ -6018,6 +6162,26 @@
      "max"
     ],
     "note": "No metadata approval; compare local definitions before choosing between source variants"
+   },
+   "local_review": {
+    "source": "core",
+    "pages": [
+     231
+    ],
+    "expected_desc": "-弾丸を消費するダイスのダメージ量+2。火傷付与量と振動付与量+1消費することで特定戦術の能力が向上",
+    "name_row_ids": [
+     "core:231:11"
+    ],
+    "row_ids": [
+     "core:231:12",
+     "core:231:13"
+    ],
+    "unverified_fields": [
+     "type",
+     "max"
+    ],
+    "note": "Owner-local definition; glossary differences do not authorize replacement or metadata inference",
+    "text_matches": true
    }
   },
   {
@@ -6040,7 +6204,7 @@
     "desc": "-弾丸を消費するダイスのダメージ量+3。火傷付与量と振動付与量+2。自分の速度が対象より早ければ振動爆発ダメージ量+5-消費することで特定戦術の能力が向上",
     "place": "status"
    },
-   "classification": "glossary_content_or_local_variant_review",
+   "classification": "local_text_verified_metadata_review",
    "glossary_review": {
     "source": "core",
     "pages": [
@@ -6061,6 +6225,27 @@
      "max"
     ],
     "note": "No metadata approval; compare local definitions before choosing between source variants"
+   },
+   "local_review": {
+    "source": "core",
+    "pages": [
+     231
+    ],
+    "expected_desc": "-弾丸を消費するダイスのダメージ量+3。火傷付与量と振動付与量+2。自分の速度が対象より早ければ振動爆発ダメージ量+5-消費することで特定戦術の能力が向上",
+    "name_row_ids": [
+     "core:231:14"
+    ],
+    "row_ids": [
+     "core:231:15",
+     "core:231:16",
+     "core:231:17"
+    ],
+    "unverified_fields": [
+     "type",
+     "max"
+    ],
+    "note": "Owner-local definition; glossary differences do not authorize replacement or metadata inference",
+    "text_matches": true
    }
   },
   {
@@ -6322,6 +6507,73 @@
    "actual": "対象の火傷4ごとにスキル威力+1（最大8）。\n使用時：次のRにランダムな味方2名に保護2を付与",
    "classification": "source_boundary_punctuation",
    "row_ids": []
+  },
+  {
+   "kind": "normal_personas",
+   "name": "20区ユロージヴィ団員",
+   "source": "core",
+   "pages": [
+    76
+   ],
+   "code": "local_definition_missing_or_ambiguous",
+   "unique_name": "結束",
+   "classification": "local_definition_mapping_review",
+   "path": "normal_personas[16].unique_buffs",
+   "matches": 0,
+   "present_in_other_fields": [],
+   "local_review": {
+    "source": "core",
+    "pages": [
+     76
+    ],
+    "expected_desc": "結束スキルを使用する時、他の味方が付与する結束効果を得る",
+    "name_row_ids": [
+     "core:76:50"
+    ],
+    "row_ids": [
+     "core:76:51"
+    ],
+    "unverified_fields": [
+     "type",
+     "max"
+    ],
+    "note": "Owner-local definition; glossary differences do not authorize replacement or metadata inference"
+   }
+  },
+  {
+   "kind": "normal_personas",
+   "name": "触腕事務所フィクサー",
+   "source": "core",
+   "pages": [
+    202
+   ],
+   "code": "local_definition_missing_or_ambiguous",
+   "unique_name": "拘束判定",
+   "classification": "local_definition_mapping_review",
+   "path": "normal_personas[109].unique_buffs",
+   "matches": 0,
+   "present_in_other_fields": [
+    "skills[4].effect"
+   ],
+   "local_review": {
+    "source": "core",
+    "pages": [
+     202
+    ],
+    "expected_desc": "これを行うとき、被拘束判定者は50以下が出るまで1d100を振り、（ダイスを振った回数。最大5）d5のダメージを与える",
+    "name_row_ids": [
+     "core:202:37"
+    ],
+    "row_ids": [
+     "core:202:38",
+     "core:202:39"
+    ],
+    "unverified_fields": [
+     "type",
+     "max"
+    ],
+    "note": "Owner-local definition; glossary differences do not authorize replacement or metadata inference"
+   }
   }
  ],
  "unresolved": [],
@@ -6427,7 +6679,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -6538,7 +6792,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -6657,7 +6913,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -6772,7 +7030,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -6896,7 +7156,77 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [
+    {
+     "data": {
+      "name": "弾丸-徹甲弾",
+      "desc": "銃撃ダイスでマッチする時、対象のマッチ威力-1消費することで特定戦術の能力が向上"
+     },
+     "pages": [
+      62
+     ],
+     "fields": {
+      "name": [
+       "core:62:10"
+      ],
+      "desc": [
+       "core:62:11",
+       "core:62:12"
+      ]
+     },
+     "unverified_fields": [
+      "type",
+      "max"
+     ]
+    },
+    {
+     "data": {
+      "name": "弾丸-氷結弾",
+      "desc": "銃撃ダイスで攻撃的中時、次のRに武装解除1を付与銃撃ダイスでマッチ勝利時、次のRに麻痺1を付与消費することで特定戦術の能力が向上"
+     },
+     "pages": [
+      62
+     ],
+     "fields": {
+      "name": [
+       "core:62:13"
+      ],
+      "desc": [
+       "core:62:14",
+       "core:62:15",
+       "core:62:16"
+      ]
+     },
+     "unverified_fields": [
+      "type",
+      "max"
+     ]
+    },
+    {
+     "data": {
+      "name": "弾丸-火炎弾",
+      "desc": "銃撃ダイスで攻撃的中時、火傷2を付与消費することで特定戦術の能力が向上"
+     },
+     "pages": [
+      62
+     ],
+     "fields": {
+      "name": [
+       "core:62:17"
+      ],
+      "desc": [
+       "core:62:18",
+       "core:62:19"
+      ]
+     },
+     "unverified_fields": [
+      "type",
+      "max"
+     ]
+    }
+   ],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -7016,7 +7346,33 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [
+    {
+     "data": {
+      "name": "弾丸-灼熱推進弾",
+      "desc": "弾丸を消費するダイスのダメージ量+2。自分の速度が6以上なら追加でダメージ量+3消費することで特定戦術の能力が向上"
+     },
+     "pages": [
+      63
+     ],
+     "fields": {
+      "name": [
+       "core:63:47"
+      ],
+      "desc": [
+       "core:63:48",
+       "core:63:49",
+       "core:63:50"
+      ]
+     },
+     "unverified_fields": [
+      "type",
+      "max"
+     ]
+    }
+   ],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -7208,7 +7564,9 @@
      "core:66:34"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -7348,7 +7706,9 @@
      "core:67:48"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -7475,7 +7835,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -7594,7 +7956,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -7709,7 +8073,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -7844,7 +8210,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -7951,7 +8319,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -8066,7 +8436,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -8181,7 +8553,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -8308,7 +8682,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -8435,7 +8811,31 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [
+    {
+     "data": {
+      "name": "結束",
+      "desc": "結束スキルを使用する時、他の味方が付与する結束効果を得る"
+     },
+     "pages": [
+      76
+     ],
+     "fields": {
+      "name": [
+       "core:76:50"
+      ],
+      "desc": [
+       "core:76:51"
+      ]
+     },
+     "unverified_fields": [
+      "type",
+      "max"
+     ]
+    }
+   ],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -8550,7 +8950,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -8657,7 +9059,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -8772,7 +9176,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -8903,7 +9309,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -9053,7 +9461,9 @@
      "core:82:14"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -9168,7 +9578,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -9283,7 +9695,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -9419,7 +9833,9 @@
      "core:85:48"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -9566,7 +9982,9 @@
      "core:88:12"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -9717,7 +10135,9 @@
      "core:90:12"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -9840,7 +10260,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -9951,7 +10373,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -10082,7 +10506,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -10197,7 +10623,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -10312,7 +10740,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -10435,7 +10865,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -10588,7 +11020,9 @@
      "core:98:22"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -10750,7 +11184,9 @@
      "core:100:14"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -10869,7 +11305,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -10984,7 +11422,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -11103,7 +11543,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -11214,7 +11656,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -11333,7 +11777,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -11444,7 +11890,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -11606,7 +12054,9 @@
      "core:108:12"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -11726,7 +12176,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -11887,7 +12339,9 @@
      "core:112:15"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -12014,7 +12468,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -12137,7 +12593,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -12237,7 +12695,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -12405,7 +12865,9 @@
      "core:118:17"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -12570,7 +13032,9 @@
      "core:120:18"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -12749,7 +13213,9 @@
      "core:122:20"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -12909,7 +13375,9 @@
      "core:124:22"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -13028,7 +13496,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -13147,7 +13617,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -13254,7 +13726,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -13373,7 +13847,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -13496,7 +13972,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -13623,7 +14101,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -13738,7 +14218,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -13857,7 +14339,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -13980,7 +14464,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -14095,7 +14581,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -14238,7 +14726,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -14361,7 +14851,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -14480,7 +14972,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -14599,7 +15093,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -14723,7 +15219,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -14846,7 +15344,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -14973,7 +15473,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -15104,7 +15606,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -15219,7 +15723,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -15368,7 +15874,9 @@
      "core:145:53"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -15499,7 +16007,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -15622,7 +16132,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -15769,7 +16281,9 @@
      "core:148:49"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -15924,7 +16438,76 @@
      "core:150:22"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [
+    {
+     "data": {
+      "name": "生きた蝶・死んだ蝶",
+      "desc": "自分の最大弾丸数を2つに分割し生きた蝶・死んだ蝶にする銃撃時、1d2を振り、1なら生きた蝶を、2なら死んだ蝶を消費するどちらか片方だけが残っている場合はそれを消費する消費することで特定戦術の能力が向上"
+     },
+     "pages": [
+      150
+     ],
+     "fields": {
+      "name": [
+       "core:150:6"
+      ],
+      "desc": [
+       "core:150:7",
+       "core:150:8",
+       "core:150:9",
+       "core:150:10"
+      ]
+     },
+     "unverified_fields": [
+      "type",
+      "max"
+     ]
+    },
+    {
+     "data": {
+      "name": "生きた蝶",
+      "desc": "消費時、 SANを1回復"
+     },
+     "pages": [
+      150
+     ],
+     "fields": {
+      "name": [
+       "core:150:11"
+      ],
+      "desc": [
+       "core:150:12"
+      ]
+     },
+     "unverified_fields": [
+      "type",
+      "max"
+     ]
+    },
+    {
+     "data": {
+      "name": "死んだ蝶",
+      "desc": "消費時、対象のSANを1減少"
+     },
+     "pages": [
+      150
+     ],
+     "fields": {
+      "name": [
+       "core:150:13"
+      ],
+      "desc": [
+       "core:150:14"
+      ]
+     },
+     "unverified_fields": [
+      "type",
+      "max"
+     ]
+    }
+   ],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -16129,7 +16712,9 @@
      "core:152:21"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -16316,7 +16901,9 @@
      "core:154:18"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -16453,7 +17040,9 @@
      "core:156:9"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -16599,7 +17188,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -16711,7 +17302,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -16848,7 +17441,9 @@
      "core:162:7"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -17004,7 +17599,9 @@
      "core:163:47"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -17139,7 +17736,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -17258,7 +17857,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -17373,7 +17974,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -17488,7 +18091,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -17599,7 +18204,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -17749,7 +18356,9 @@
      "core:170:13"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -17876,7 +18485,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -18003,7 +18614,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -18126,7 +18739,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -18253,7 +18868,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -18385,7 +19002,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -18551,7 +19170,9 @@
      "core:178:13"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -18695,7 +19316,9 @@
      "core:180:10"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -18851,7 +19474,9 @@
      "core:182:10"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -18977,7 +19602,9 @@
      "core:184:5"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -19128,7 +19755,9 @@
      "core:186:8"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -19274,7 +19903,9 @@
      "core:188:16"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -19401,7 +20032,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -19516,7 +20149,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -19655,7 +20290,9 @@
      "core:192:8"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -19762,7 +20399,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -19861,7 +20500,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -20022,7 +20663,9 @@
      "core:196:12"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -20167,7 +20810,9 @@
      "core:198:10"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -20282,7 +20927,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -20405,7 +21052,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -20528,7 +21177,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -20631,7 +21282,32 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [
+    {
+     "data": {
+      "name": "拘束判定",
+      "desc": "これを行うとき、被拘束判定者は50以下が出るまで1d100を振り、（ダイスを振った回数。最大5）d5のダメージを与える"
+     },
+     "pages": [
+      202
+     ],
+     "fields": {
+      "name": [
+       "core:202:37"
+      ],
+      "desc": [
+       "core:202:38",
+       "core:202:39"
+      ]
+     },
+     "unverified_fields": [
+      "type",
+      "max"
+     ]
+    }
+   ],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -20777,7 +21453,9 @@
      "core:204:48"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -20909,7 +21587,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -21056,7 +21736,9 @@
      "core:208:22"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -21196,7 +21878,9 @@
      "core:210:12"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -21389,7 +22073,9 @@
      "core:212:23"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -21509,7 +22195,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -21650,7 +22338,9 @@
      "core:216:18"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -21804,7 +22494,9 @@
      "core:218:12"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -22022,7 +22714,9 @@
      "core:220:37"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -22205,7 +22899,9 @@
      "core:222:34"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -22359,7 +23055,9 @@
      "core:224:27"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -22537,7 +23235,9 @@
       "core:226:21"
      ]
     }
-   ]
+   ],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -22661,7 +23361,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -22903,7 +23605,55 @@
      "core:231:24"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [
+    {
+     "data": {
+      "name": "弾丸-虎標弾",
+      "desc": "-弾丸を消費するダイスのダメージ量+2。火傷付与量と振動付与量+1消費することで特定戦術の能力が向上"
+     },
+     "pages": [
+      231
+     ],
+     "fields": {
+      "name": [
+       "core:231:11"
+      ],
+      "desc": [
+       "core:231:12",
+       "core:231:13"
+      ]
+     },
+     "unverified_fields": [
+      "type",
+      "max"
+     ]
+    },
+    {
+     "data": {
+      "name": "弾丸-猛虎標弾",
+      "desc": "-弾丸を消費するダイスのダメージ量+3。火傷付与量と振動付与量+2。自分の速度が対象より早ければ振動爆発ダメージ量+5-消費することで特定戦術の能力が向上"
+     },
+     "pages": [
+      231
+     ],
+     "fields": {
+      "name": [
+       "core:231:14"
+      ],
+      "desc": [
+       "core:231:15",
+       "core:231:16",
+       "core:231:17"
+      ]
+     },
+     "unverified_fields": [
+      "type",
+      "max"
+     ]
+    }
+   ],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -23018,7 +23768,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -23182,7 +23934,9 @@
      "core:234:17"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -23332,7 +24086,9 @@
      "core:236:5"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -23456,7 +24212,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -23584,7 +24342,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -23695,7 +24455,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "items",
@@ -48517,7 +49279,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -48640,7 +49404,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -48751,7 +49517,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -48862,7 +49630,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -49028,7 +49798,9 @@
      "pack1:25:8"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -49147,7 +49919,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -49254,7 +50028,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -49399,7 +50175,9 @@
      "pack1:29:12"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -49595,7 +50373,9 @@
      "pack1:31:26"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -49715,7 +50495,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -49887,7 +50669,9 @@
      "pack1:35:21"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -50059,7 +50843,9 @@
      "pack1:37:23"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -50321,7 +51107,9 @@
      "pack1:40:13"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -50461,7 +51249,9 @@
      "pack1:42:7"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -50604,7 +51394,9 @@
      "pack1:44:23"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -50735,7 +51527,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -50877,7 +51671,9 @@
      "pack1:47:14"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -50984,7 +51780,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -51183,7 +51981,9 @@
      "pack1:51:14"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -51365,7 +52165,9 @@
      "pack1:53:29"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -51509,7 +52311,9 @@
      "pack1:55:15"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -51660,7 +52464,9 @@
      "pack1:57:11"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -51843,7 +52649,9 @@
      "pack1:59:27"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -52032,7 +52840,9 @@
      "pack1:61:24"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -52201,7 +53011,9 @@
      "pack1:64:8"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -52429,7 +53241,9 @@
      "pack1:67:16"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -52626,7 +53440,9 @@
      "pack1:70:10"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -52781,7 +53597,9 @@
      "pack1:72:26"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -52937,7 +53755,9 @@
      "pack1:74:17"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -53087,7 +53907,9 @@
      "pack1:76:13"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -53225,7 +54047,9 @@
      "pack1:78:9"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -53336,7 +54160,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -53514,7 +54340,9 @@
      "pack1:81:27"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -53633,7 +54461,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "normal_personas",
@@ -53800,7 +54630,9 @@
      "pack1:84:11"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -53919,7 +54751,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -54055,7 +54889,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -54232,7 +55068,9 @@
      "pack1:90:28"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -54386,7 +55224,9 @@
      "pack1:92:10"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -54527,7 +55367,9 @@
      "pack1:94:15"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -54699,7 +55541,9 @@
      "pack1:96:24"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -54901,7 +55745,9 @@
      "pack1:99:13"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -55152,7 +55998,9 @@
      "pack1:102:17"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -55325,7 +56173,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -55525,7 +56375,9 @@
      "pack1:108:12"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -55735,7 +56587,9 @@
      "pack1:111:26"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -55938,7 +56792,9 @@
      "pack1:114:13"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -56209,7 +57065,9 @@
      "pack1:117:25"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -56416,7 +57274,9 @@
      "pack1:120:22"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -56678,7 +57538,9 @@
      "pack1:123:24"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -56889,7 +57751,9 @@
      "pack1:126:11"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -57055,7 +57919,9 @@
      "pack1:128:13"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -57187,7 +58053,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -57377,7 +58245,9 @@
      "pack1:132:35"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -57692,7 +58562,9 @@
      "pack1:136:12"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -57891,7 +58763,9 @@
      "pack1:138:34"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -58322,7 +59196,9 @@
      "pack1:143:31"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -58518,7 +59394,9 @@
      "pack1:145:35"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -58802,7 +59680,9 @@
      "pack1:148:27"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -58950,7 +59830,9 @@
      "pack1:150:26"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -59248,7 +60130,9 @@
      "pack1:153:33"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -59639,7 +60523,9 @@
      "pack1:159:15"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -60045,7 +60931,9 @@
      "pack1:164:24"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -60352,7 +61240,9 @@
      "pack1:168:12"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -60471,7 +61361,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -60587,7 +61479,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -60731,7 +61625,9 @@
     "self_status": []
    },
    "fields": {},
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -60966,7 +61862,9 @@
      "pack1:176:29"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "kind": "tokui_personas",
@@ -61171,7 +62069,9 @@
      "pack1:179:10"
     ]
    },
-   "source_overrides": []
+   "source_overrides": [],
+   "local_untyped_definitions": [],
+   "local_definition_issues": []
   },
   {
    "id": "pack1/support_passives/pack1:219:7",
