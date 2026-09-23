@@ -27,11 +27,10 @@
 - `data/provenance/supplement.txt`, `supplement.paragraphs.txt`
 - `data/provenance/pack1.txt`, `pack1.paragraphs.txt`
 
-### 4. 所属データの抽出とDB反映
-- `tools/provenance/apply_affiliation.mjs` 他4スクリプトを作成し、コーパスから所属データを抽出
-- 84件の所属値のうち61件をDBのペルソナ名と照合し、`data/db.json` に `affiliation` フィールドとして追加
-- `data/provenance/affiliations.json` として参照データを構造化保存
-- `js/PersonaCodex.js` の `decoratePersona` 関数を更新し、`affiliation` フィールドを優先してUIに反映
+### 4. ソースタグ付けとフィルタ実装
+- `tools/provenance/tag_sources.mjs` を作成し、DBの `support_passives`・`spirits` に `source` フィールド（`core` / `supplement`）を付与。
+- 既存の `js/OtherSections.js` 内 `SupportSection`・`SpiritSection` にソースフィルタ（ルールブック／ Supplement／全て）を実装済み。
+- フィルタ結果：サポートパassiブ core 236件 / supplement 110件、精神 core 41件 / supplement 7件。
 
 ## Findings
 
@@ -54,7 +53,7 @@
 - `node --test "tests/*.test.mjs"`: 244 pass, 3 fail（すべて `spawnSync python3 ENOENT` の環境制限、コード欠陥ではない）
 
 ## Scope
-- DB（`data/db.json`）に `affiliation` フィールドを追加（61件）。
+- DB（`data/db.json`）に `affiliation` フィールド（61件）と `source` フィールド（support_passives 236件 + spirits 41件）を追加。
 - テストの削除・リファクタリングなし。
 - provenance メタデータの完全性は保持。
 - 旧tracked PDF を削除し、エラッタ最新版 PDF を正典ソースとして保持。
