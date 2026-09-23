@@ -128,10 +128,18 @@ def shop_ranges(doc):
     support, spirits = headings["サポートパッシブ"], headings["精神の種類"]
     if support >= spirits:
         raise ValueError("shop_heading_order")
-    # This adapter's current contract is the two tables in pack1. Other shop
-    # sections also contain enhancements and items; they stay unresolved.
+    # The spirits table ends where the page stops having two column borders.
+    # Pages after that (身体強化, E.G.O 精神, 特殊 E.G.O in the errata
+    # edition) are non-table sections and stay unresolved by design.
+    last_table = spirits
+    for p in range(spirits, indexes[-1] + 1):
+        xs = sorted({x for x, _, _ in doc.verticals[p]})
+        if len(xs) >= 2:
+            last_table = p
+        else:
+            break
     return {"support_passives": list(range(support, spirits)),
-            "spirits": list(range(spirits, indexes[-1] + 1))}
+            "spirits": list(range(spirits, last_table + 1))}
 
 
 def table_entries(doc, indexes, body_cell_count=2):
