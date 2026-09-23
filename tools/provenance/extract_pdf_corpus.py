@@ -68,9 +68,9 @@ import sys
 from pathlib import Path
 
 TARGETS = [
-    ("core", "新リンバスTRPG.pdf"),
-    ("supplement", "新リンバスTRPG サプリメント 『アンロックド・シンク』.pdf"),
-    ("pack1", "新リンバスTRPG-特定抽出パック第一弾.pdf"),
+    ("core", "エラッタ最新版/新リンバスTRPG.pdf"),
+    ("supplement", "エラッタ最新版/新リンバスTRPG サプリメント 『アンロックド・シンク』.pdf"),
+    ("pack1", "エラッタ最新版/新リンバスTRPG-特定抽出パック第一弾.pdf"),
 ]
 
 # 行末に残る余白に「次の行の先頭文字」が入らないなら、その改行は折り返しである。

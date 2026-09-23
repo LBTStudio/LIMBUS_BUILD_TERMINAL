@@ -114,7 +114,10 @@ function inferAffiliation(name) {
   return "\u305D\u306E\u4ED6";
 }
 function decoratePersona(p) {
-  if (!p.__aff) p.__aff = inferAffiliation(p.name);
+  if (!p.__aff) {
+    // Prefer the errata-derived affiliation field over name-based inference.
+    p.__aff = (p.affiliation && p.affiliation.trim()) || inferAffiliation(p.name);
+  }
   return p;
 }
 function getPrimarySin(p) {

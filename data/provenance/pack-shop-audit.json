@@ -2,23 +2,64 @@
  "schema_version": 1,
  "scope": "pack-shop",
  "goal_complete": false,
- "scope_passed": true,
+ "scope_passed": false,
  "pymupdf": "1.28.2",
  "sources": [
   {
    "key": "pack1",
-   "filename": "新リンバスTRPG-特定抽出パック第一弾.pdf",
-   "sha256": "9225ce7460edac87a1286f74f7caaad1ce5f87a8b095dd61f124b02e8a06b0e2",
-   "pages": 244,
-   "rows": 7921
+   "filename": "エラッタ最新版/新リンバスTRPG-特定抽出パック第一弾.pdf",
+   "sha256": "ab9143c0806e43459e1c586380f7d26d669dabb74439537e86ce2aa1ed91557a",
+   "pages": 248,
+   "rows": 8125
   }
  ],
  "candidate_counts": {
   "support_passives": 29,
   "spirits": 5
  },
- "candidate_sha256": "473ac384605761dca206e5c5fbc2c88f452605da1fb9a051e09842670d1ff084",
- "ledger_content_sha256": "de5bc678ca6436d8d04d14ec32272c9f2e74704cccc864f0837e02a11d4472ac",
+ "candidate_sha256": "05c80594bf2866f447e6cfd06fadfa4a06de7b678d31fe8fc69dbe44578a5af3",
+ "ledger_content_sha256": "e1c5af8cfe6a65ad9ea006839e20c67df1948e21803268bc748aa140dbcd6a69",
  "registration_changes": [],
- "issues": []
+ "issues": [
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:220:4",
+   "name": "猛獣の本能"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:221:8",
+   "name": "野生美"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:221:23",
+   "name": "試験抽出：紅炎殺"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:221:30",
+   "name": "試験抽出：提灯"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:221:38",
+   "name": "試験抽出：AEDD"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:223:4",
+   "name": "無振八方鐘"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:224:4",
+   "name": "第5種永久機関"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/spirits/pack1:225:9",
+   "name": "存在意味に対する期待"
+  }
+ ]
 }
