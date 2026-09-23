@@ -657,7 +657,7 @@ const PersonaDraftImportDialog = ({ draftText, draftSections, draftInputMode, dr
         section("skills", "戦術スキル一覧", "0： / 0-2： / ０－２： / 【戦術スキル1】のいずれも可。", "０－２：\nスキル名\n斬撃:傲慢\n2d9：的中時、..."),
         section("uniques", "固有一覧（明示登録）", "正式な固有見出しがなくても、指令などをここへ入力すると固有一覧へ登録。", "[指令] 最大1 中立バフ\n説明\n[指令の加護] 最大9 バフ\n説明")) :
         draftInputMode === "garasumado" ? h("div", { className: "persona-draft-garasumado" },
-          h("p", { className: "persona-draft-garasumado-lead" }, "硝子窓で共有されている公開人格のURLを貼り付けると、人格名・ステータス・パッシブ・戦術・固有を読み込みます。所有者、メモ、チャットパレット、強化一覧は移行しません。"),
+          h("p", { className: "persona-draft-garasumado-lead" }, "公開人格（/persona/view/）と公開キャラクターシート（/view/）の人格部分に対応します。名称は省略せず、本文からキーワードを補完します。PC名・PL名などの基本情報は変更しません。所有者、メモ、チャットパレット、強化一覧は移行しません。"),
           h("label", { className: "persona-draft-garasumado-label", htmlFor: "persona-draft-garasumado-url" }, "硝子窓の公開人格URL"),
           h("textarea", { id: "persona-draft-garasumado-url", className: "persona-draft-import-text persona-draft-garasumado-url", value: draftText, onChange: (event) => onChange(event.target.value), placeholder: "https://lbt-garasumado.vercel.app/persona/view/7bLdY187iD7AteytkyYe", autoFocus: true }),
           h("p", { className: "persona-draft-garasumado-help" }, "解析後は内容を確認し、必要に応じて同期元を検索してから反映します。非公開URL・別サイトのURLは反映しません。")) :
@@ -681,6 +681,7 @@ const PersonaDraftImportDialog = ({ draftText, draftSections, draftInputMode, dr
           draftResult.source?.kind === "garasumado" && h("div", { className: "persona-draft-result-meta" }, "移行元：硝子窓の公開人格（所有者・メモ・チャットパレット・強化一覧は移行しません）"),
           h("div", { className: "persona-draft-result-meta" }, `HP ${draftResult.persona.hp} / SAN ${draftResult.persona.san} / 速度 ${draftResult.persona.speed} / 弾丸 ${draftResult.persona.bullets}`),
           h("div", { className: "persona-draft-result-meta" }, `戦術スキル ${draftResult.summary.skillCount}件 / パッシブ ${draftResult.summary.passiveCount}件 / 固有 ${draftResult.summary.buffCount}件`),
+          h("div", { className: "persona-draft-result-meta" }, `本文から検出したキーワード：${(draftResult.persona.keywords || []).join(" / ") || "なし"}`),
           h("div", { className: "persona-draft-result-meta" }, `反映対象: ${[draftResult.provided?.name && "人格名", (draftResult.provided?.hp || draftResult.provided?.san || draftResult.provided?.speed || draftResult.provided?.passives) && "ステータス・パッシブ", draftResult.provided?.skills && "戦術スキル", draftResult.provided?.uniques && "固有"].filter(Boolean).join(" / ") || "なし"}`)),
         (draftResult.errors || []).map((message, index) => h("p", { key: `error-${index}`, className: "persona-draft-message is-error" }, message)),
         (draftResult.warnings || []).map((message, index) => h("p", { key: `warning-${index}`, className: "persona-draft-message is-warning" }, message)))));

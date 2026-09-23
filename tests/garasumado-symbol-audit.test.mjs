@@ -64,12 +64,12 @@ test("硝子窓URL移行は草案由来の記号・変数ダイス式・改行�
   );
 
   assert.equal(result.ok, true);
-  assert.equal(result.persona.name, "記号「A/B」-【検証】");
+  assert.equal(result.persona.name, symbolHeavyGarasumadoDocument.fields.name.stringValue);
   assert.equal(result.persona.speed, "{速度}d{D値}+2");
   assert.equal(result.persona.passive_name, "「常時」/A-B【P】");
-  assert.equal(result.persona.passive_cond, "『対象/味方』-条件:{罪悪}");
+  assert.equal(result.persona.passive_cond, "『対象/味方』-条件：{罪悪}");
   assert.match(result.persona.passive_always, /\{変数名\}\/10/);
-  assert.match(result.persona.passive_effect, /『\/』・\[角括弧\]・-を含む/);
+  assert.match(result.persona.passive_effect, /『\/』・\[角括弧\]・- を含む/);
   assert.equal(result.persona.skills.length, 1);
   assert.equal(result.persona.skills[0].rank, "スキル0-2");
   assert.equal(result.persona.skills[0].name, "二連斬-【爆】/「再演」");
@@ -77,7 +77,7 @@ test("硝子窓URL移行は草案由来の記号・変数ダイス式・改行�
   assert.equal(result.persona.skills[0].sin, "嫉妬");
   assert.equal(result.persona.skills[0].dice[0].roll, "1d{変数名}/10");
   assert.match(result.persona.skills[0].dice[0].effect, /『A\/B』/);
-  assert.match(result.persona.skills[0].effect, /【注記】- と「引用」を保持する/);
+  assert.match(result.persona.skills[0].dice[0].effect, /【注記】- と「引用」を保持する/);
   assert.equal(result.persona.unique_buffs.length, 1);
   assert.equal(result.persona.unique_buffs[0].name, "指令/「A-B」【固有】");
   assert.match(result.persona.unique_buffs[0].desc, /\{変数名\}：『\/』と\[ \]、-を含む。\n次行も保持する。/);

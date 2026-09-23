@@ -862,6 +862,14 @@ const EquippedEgoEditor = ({ rank, ego, dispatch }) => {
         ),
         h("div", { className: "ego-overview-state" }, h("span", { className: "ego-live-dot" }), "変更は即時反映")
       ),
+      h("section", { className: "stack-3", "aria-label": "E.G.O基本情報" },
+        h(Field, { label: "E.G.O名" }, h("input", { className: "input", "aria-label": "E.G.O名", value: slot.name || "", onChange: (event) => setSlot({ name: event.target.value }) })),
+        h(Field, { label: "消費資源", hint: "例：憤怒x3 色欲x2" }, h("input", { className: "input", "aria-label": "消費資源", value: slot.resources || "", onChange: (event) => setSlot({ resources: event.target.value }) })),
+        h("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 12 } },
+          h(Field, { label: "SAN消費" }, h("input", { className: "input", "aria-label": "SAN消費", type: "number", min: 0, value: slot.san_cost ?? 0, onChange: (event) => setSlot({ san_cost: Math.max(0, Number(event.target.value)) }) })),
+          h(Field, { label: "必要欠片" }, h("input", { className: "input", "aria-label": "必要欠片", type: "number", min: 0, value: slot.shards ?? 0, onChange: (event) => setSlot({ shards: Math.max(0, Number(event.target.value)) }) }))),
+        h(Field, { label: "固有効果" }, h(AutoTextarea, { className: "textarea", "aria-label": "固有効果", minRows: 2, value: slot.unique_buff || "", onChange: (event) => setSlot({ unique_buff: event.target.value }) }))
+      ),
       h("section", { className: "ego-connected-passive" },
         h("div", { className: "ego-panel-heading" }, h("div", null, h("div", { className: "ego-panel-kicker" }, "PASSIVE"), h("div", { className: "ego-panel-title" }, "E.G.Oパッシブ"))),
         h("div", { className: "ego-passive-grid" },
@@ -1045,6 +1053,21 @@ const useEgoResourceFilterControls = (requiredResources, excludedResources, onTo
 };
 const EgoSection = ({ state, dispatch }) => {
   const h = React.createElement;
+  const [creating, setCreating] = React.useState(false);
+  const [newName, setNewName] = React.useState("");
+  const [newRank, setNewRank] = React.useState("ZAYIN");
+  const catalogEgos = React.useMemo(() => [...(DB.egos || []), ...(state.roster?.egos || []).filter((entry) => entry.build?.__custom).map((entry) => entry.build)], [state.roster?.egos]);
+  const createEgo = (event) => {
+    event.preventDefault();
+    if (!newName.trim()) return;
+    const current = state.egoSlots[newRank];
+    if (current && !window.confirm(`『${current.name}』をライブラリに保存して、${newRank}枠へ新規E.G.Oを装備しますか？`)) return;
+    dispatch({ type: "CREATE_CUSTOM_EGO", rank: newRank, name: newName, replaceConfirmed: !!current });
+    setSelected(null);
+    setCreating(false);
+    setNewName("");
+    toast("オリジナルE.G.Oを作成しました。編集内容は所持ライブラリにも保存されます。");
+  };
   const [selected, setSelected] = React.useState(null);
   const [query, setQuery] = React.useState("");
   const rankFilter = state.ui.egoRankFilter || "";
@@ -1116,7 +1139,7 @@ const EgoSection = ({ state, dispatch }) => {
   const searchTargetKey = searchTarget ? `${searchTarget.rank}:${searchTarget.no}` : "";
   React.useEffect(() => {
     if (!searchTargetKey) return;
-    const target = (DB.egos || []).find((ego) => `${ego.rank}:${ego.no}` === searchTargetKey);
+    const target = catalogEgos.find((ego) => `${ego.rank}:${ego.no}` === searchTargetKey);
     if (!target) return;
     setQuery("");
     setRequiredResources([]);
@@ -1137,10 +1160,10 @@ const EgoSection = ({ state, dispatch }) => {
     const previous = Array.isArray(state.ui?.egoRecent) ? state.ui.egoRecent : [];
     dispatch({ type: "SET_UI", ui: { egoRecent: [key, ...previous.filter((item) => item !== key)].slice(0, 6) } });
   };
-  const egoKeywordOptions = React.useMemo(() => EGO_KEYWORD_ORDER.map((keyword) => String(keyword || "").trim()).filter(Boolean).filter((keyword) => (DB.egos || []).some((ego) => egoMatchesKeyword(ego, keyword))), []);
+  const egoKeywordOptions = React.useMemo(() => EGO_KEYWORD_ORDER.map((keyword) => String(keyword || "").trim()).filter(Boolean).filter((keyword) => catalogEgos.some((ego) => egoMatchesKeyword(ego, keyword))), [catalogEgos]);
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
-    return (DB.egos || []).filter((e) => {
+    return catalogEgos.filter((e) => {
       if (ownedOnly && !ownedKeys.has(`${e.rank}:${e.no}`)) return false;
       if (rankFilter && e.rank !== rankFilter) return false;
       if (!egoMatchesResourceFilters(e, requiredResources, excludedResources)) return false;
@@ -1149,9 +1172,9 @@ const EgoSection = ({ state, dispatch }) => {
       if (q && !hay.includes(q)) return false;
       return true;
     });
-  }, [query, rankFilter, requiredResources, excludedResources, keywordFilter, ownedOnly, ownedKeys]);
+  }, [query, rankFilter, requiredResources, excludedResources, keywordFilter, ownedOnly, ownedKeys, catalogEgos]);
   const quickEgos = React.useMemo(() => {
-    const source = DB.egos || [];
+    const source = catalogEgos;
     const byKey = new Map(source.map((ego) => [`${ego.rank}:${ego.no}`, ego]));
     const recentKeys = Array.isArray(state.ui?.egoRecent) ? state.ui.egoRecent : [];
     const recent = recentKeys.map((key) => byKey.get(key)).filter(Boolean);
@@ -1163,7 +1186,7 @@ const EgoSection = ({ state, dispatch }) => {
       seen.add(key);
       return true;
     }).slice(0, 12);
-  }, [state.ui?.egoRecent, ownedKeys]);
+  }, [state.ui?.egoRecent, ownedKeys, catalogEgos]);
   const isExploringAll = browseAll || !!query.trim() || !!rankFilter || requiredResources.length > 0 || excludedResources.length > 0 || !!keywordFilter || ownedOnly;
   const visibleEgos = isExploringAll ? filtered : quickEgos;
   const equip = () => {
@@ -1252,6 +1275,13 @@ const EgoSection = ({ state, dispatch }) => {
   return h(
     "div",
     { className: `stack-4 ego-section${selected ? " has-selection" : " is-catalog-only"}` },
+    h("div", null, h(Button, { icon: "plus", variant: "primary", onClick: () => setCreating(!creating), "aria-expanded": creating }, "E.G.Oを新規作成")),
+    creating && h("form", { className: "card card-body stack-3", onSubmit: createEgo, "aria-label": "E.G.O新規作成" },
+      h("p", null, "DBを変更せず、空のオリジナルE.G.Oを作成します。作成後に覚醒・侵蝕・費用・固有を編集できます。"),
+      h(Field, { label: "新規E.G.O名" }, h("input", { className: "input", "aria-label": "新規E.G.O名", required: true, autoFocus: true, value: newName, onChange: (event) => setNewName(event.target.value) })),
+      h(Field, { label: "作成ランク" }, h("select", { className: "select", "aria-label": "作成ランク", value: newRank, onChange: (event) => setNewRank(event.target.value) }, ...EGO_RANKS.map((rank) => h("option", { key: rank, value: rank }, rank)))),
+      state.egoSlots[newRank] && h("p", { role: "status" }, "このランクは装備済みです。作成時に確認し、現在の編集内容はライブラリへ保存します。"),
+      h("div", { style: { display: "flex", gap: 8 } }, h("button", { className: "btn btn-primary", type: "submit", disabled: !newName.trim() }, "作成して編集"), h("button", { className: "btn btn-ghost", type: "button", onClick: () => setCreating(false) }, "キャンセル"))),
     h("div", null,
       h("div", { className: "t-label", style: { marginBottom: "var(--s-2)", display: "flex", alignItems: "center", gap: 8 } }, h("span", null, "装備中のE.G.O"), h("span", { style: { fontSize: 9, color: "var(--tx-mute)", fontWeight: 400, letterSpacing: "0.08em" } }, "装備済スロット：クリックで詳細を開く　未装備スロット：クリックで一覧展開"), h("div", { style: { flex: 1 } }), hasAnyEgo ? h(Button, { size: "sm", icon: listExpanded ? "chevronU" : "chevronD", onClick: () => { setListExpanded(!listExpanded); if (listExpanded) setRankFilter(""); }, title: listExpanded ? "一覧を折り畳む" : "別のE.G.Oを選ぶ" }, listExpanded ? "一覧を畳む" : "別のE.G.Oを選ぶ") : null),
       h("div", { className: "ego-slots" }, ...slotCards),
@@ -1269,12 +1299,18 @@ const EgoSection = ({ state, dispatch }) => {
       h("button", { className: "btn btn-sm btn-ghost", onClick: () => { dispatch({ type: "SET_EGO_MANUAL", value: false }); setDetailSlot(null); }, title: "閉じる" }, h(Icon, { name: "x", size: 12 }), " 閉じる")), h("div", { className: "equipped-detail-inner" }, editable ? null : h(EgoDetail, { ego: state.egoSlots[detailSlot], equipTo: detailSlot, currentSlot: detailSlot, onEquip: () => {}, onUnequip: () => { clearSlot(detailSlot); setDetailSlot(null); }, dispatch }), editable ? h(EquippedEgoEditor, { rank: detailSlot, ego: state.egoSlots[detailSlot], dispatch }) : null)) : null,
       hasAnyEgo && !listExpanded ? h("div", { className: "codex-collapsed-hint" }, h("span", { style: { color: "var(--tx-mute)", fontSize: "var(--fs-11)", letterSpacing: "0.14em", fontFamily: "var(--f-display)" } }, "◇ E.G.O 一覧は折り畳み中"), h("span", { style: { marginLeft: 12, fontSize: "var(--fs-10)", color: "var(--tx-dim)" } }, "未装備スロットをクリックすると、そのランクだけ絞り込んで展開されます。"), h("button", { className: "btn btn-sm", style: { marginLeft: "auto" }, onClick: () => { setListExpanded(true); setRankFilter(""); } }, "一覧を展開")) : null
     ),
-    (!hasAnyEgo || listExpanded) ? h("div", { className: "codex" }, h("div", { className: "codex-main" }, h("div", { className: `codex-filters ego-catalog-filters${filtersOpen ? " is-filter-open" : ""}` }, h("div", { className: "codex-filter-row" }, h("div", { className: "codex-search" }, h(Icon, { name: "search", size: 14 }), h("input", { type: "text", placeholder: "E.G.O名・効果・キーワード・資源で検索...", value: query, onChange: (e) => updateQuery(e.target.value) })), h("div", { className: "codex-count" }, h("strong", null, visibleEgos.length), isExploringAll ? " / " : " 件の候補", isExploringAll ? (DB.egos || []).length : ""), h("button", { className: "btn btn-sm ego-filter-toggle", onClick: () => setFiltersOpen(!filtersOpen), "aria-expanded": filtersOpen, title: "ランク・大罪・キーワード・所持の絞り込みを開く" }, filtersOpen ? "絞り込みを閉じる" : "絞り込み"), !isExploringAll ? h("button", { className: "btn btn-sm ego-browse-all", onClick: () => setBrowseAll(true), title: "全E.G.Oを一覧から探す" }, "全件を見る") : null, rankFilter ? h("button", { className: "btn btn-sm", onClick: () => setRankFilter(""), style: { color: "var(--gold)", borderColor: "var(--gold-line)" } }, rankFilter, " 絞り込み中 ×") : null), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "ランク"), h("div", { className: "chips-group" }, ...EGO_RANKS.map((r) => h("button", { key: r, className: "chip", onClick: () => setRankFilter(rankFilter === r ? "" : r), style: { background: rankFilter === r ? `color-mix(in oklab, var(--rank-${r}) 25%, var(--surface-2))` : void 0, borderColor: rankFilter === r ? `var(--rank-${r})` : void 0, color: rankFilter === r ? "var(--tx)" : void 0 } }, h("span", { style: { width: 6, height: 6, borderRadius: 999, background: `var(--rank-${r})`, marginRight: 4, display: "inline-block" } }), r)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "大罪"), h("div", { className: "chips-group" }, ...SIN_LIST.map((s) => h(Chip, { key: s, sin: s, active: sinFilter === s, onClick: () => updateSinFilter(sinFilter === s ? "" : s) }, s)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "キーワード"), h("div", { className: "chips-group" }, ...egoKeywordOptions.map((keyword) => h(Chip, { key: keyword, size: "sm", active: keywordFilter === keyword, onClick: () => updateKeywordFilter(keywordFilter === keyword ? "" : keyword) }, keyword)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "所持"), h("div", { className: "chips-group" }, h(Chip, { size: "sm", active: ownedOnly, onClick: () => updateOwnedOnly(!ownedOnly) }, "所持しているもののみ", ownedOnly ? ` (${ownedKeys.size})` : ""))), !isExploringAll && visibleEgos.length === 0 ? h("div", { className: "ego-discovery-empty" }, h("strong", null, "最近使用・所持中のE.G.Oはありません"), h("span", null, "名称で検索するか、「全件を見る」から探してください。")) : egoGrid)), h(EgoQuickDetail, { ego: selected, currentSlot, onEquip: equip, onUnequip: unequip,
+    (!hasAnyEgo || listExpanded) ? h("div", { className: "codex" }, h("div", { className: "codex-main" }, h("div", { className: `codex-filters ego-catalog-filters${filtersOpen ? " is-filter-open" : ""}` }, h("div", { className: "codex-filter-row" }, h("div", { className: "codex-search" }, h(Icon, { name: "search", size: 14 }), h("input", { type: "text", placeholder: "E.G.O名・効果・キーワード・資源で検索...", value: query, onChange: (e) => updateQuery(e.target.value) })), h("div", { className: "codex-count" }, h("strong", null, visibleEgos.length), isExploringAll ? " / " : " 件の候補", isExploringAll ? catalogEgos.length : ""), h("button", { className: "btn btn-sm ego-filter-toggle", onClick: () => setFiltersOpen(!filtersOpen), "aria-expanded": filtersOpen, title: "ランク・大罪・キーワード・所持の絞り込みを開く" }, filtersOpen ? "絞り込みを閉じる" : "絞り込み"), !isExploringAll ? h("button", { className: "btn btn-sm ego-browse-all", onClick: () => setBrowseAll(true), title: "全E.G.Oを一覧から探す" }, "全件を見る") : null, rankFilter ? h("button", { className: "btn btn-sm", onClick: () => setRankFilter(""), style: { color: "var(--gold)", borderColor: "var(--gold-line)" } }, rankFilter, " 絞り込み中 ×") : null), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "ランク"), h("div", { className: "chips-group" }, ...EGO_RANKS.map((r) => h("button", { key: r, className: "chip", onClick: () => setRankFilter(rankFilter === r ? "" : r), style: { background: rankFilter === r ? `color-mix(in oklab, var(--rank-${r}) 25%, var(--surface-2))` : void 0, borderColor: rankFilter === r ? `var(--rank-${r})` : void 0, color: rankFilter === r ? "var(--tx)" : void 0 } }, h("span", { style: { width: 6, height: 6, borderRadius: 999, background: `var(--rank-${r})`, marginRight: 4, display: "inline-block" } }), r)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "大罪"), h("div", { className: "chips-group" }, ...SIN_LIST.map((s) => h(Chip, { key: s, sin: s, active: sinFilter === s, onClick: () => updateSinFilter(sinFilter === s ? "" : s) }, s)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "キーワード"), h("div", { className: "chips-group" }, ...egoKeywordOptions.map((keyword) => h(Chip, { key: keyword, size: "sm", active: keywordFilter === keyword, onClick: () => updateKeywordFilter(keywordFilter === keyword ? "" : keyword) }, keyword)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "所持"), h("div", { className: "chips-group" }, h(Chip, { size: "sm", active: ownedOnly, onClick: () => updateOwnedOnly(!ownedOnly) }, "所持しているもののみ", ownedOnly ? ` (${ownedKeys.size})` : ""))), !isExploringAll && visibleEgos.length === 0 ? h("div", { className: "ego-discovery-empty" }, h("strong", null, "最近使用・所持中のE.G.Oはありません"), h("span", null, "名称で検索するか、「全件を見る」から探してください。")) : egoGrid)), h(EgoQuickDetail, { ego: selected, currentSlot, onEquip: equip, onUnequip: unequip,
       isOwned: !!(selected && ownedKeys.has(`${selected.rank}:${selected.no}`)),
       onToggleOwned: () => {
         if (!selected) return;
         const entry = (state.roster?.egos || []).find((x) => x.rank === selected.rank && x.no === selected.no);
-        if (entry) { dispatch({ type: "REMOVE_ROSTER_EGO", uid: entry.uid }); toast(`『${selected.name}』を所持リストから外しました`); }
+        if (entry) {
+          if (entry.build?.__custom && currentSlot) { toast("装備中の自作E.G.Oは削除できません。先に装備を外してください。"); return; }
+          if (entry.build?.__custom && !confirm(`『${selected.name}』の自作E.G.O定義を削除しますか？元のDBには存在しないため、保存ファイルがなければ復元できません。`)) return;
+          dispatch({ type: "REMOVE_ROSTER_EGO", uid: entry.uid, deleteCustomConfirmed: true });
+          if (entry.build?.__custom) setSelected(null);
+          toast(`『${selected.name}』を所持リストから外しました`);
+        }
         else { dispatch({ type: "ADD_ROSTER_EGO", rank: selected.rank, no: selected.no }); toast(`『${selected.name}』を所持リストに追加しました`); }
       }, onOpenFullDetail: () => {
         if (!currentSlot) return;
@@ -1570,7 +1606,7 @@ const RosterSection = ({ state, dispatch }) => {
     const names = target.slice(0, 3).map((item) => item.name).join("、");
     const suffix = target.length > 3 ? `、ほか${target.length - 3}件` : "";
     if (!confirm(`${libraryTab === "personas" ? "人格" : "E.G.O"} ${target.length}件を所持ライブラリから削除しますか？\n${names}${suffix}\n装備中の項目は削除されません。`)) return;
-    dispatch({ type: libraryTab === "personas" ? "REMOVE_ROSTER_BATCH" : "REMOVE_ROSTER_EGO_BATCH", uids: target.map((item) => item.id) });
+    dispatch({ type: libraryTab === "personas" ? "REMOVE_ROSTER_BATCH" : "REMOVE_ROSTER_EGO_BATCH", uids: target.map((item) => item.id), deleteCustomConfirmed: true });
     setUndo({ kind: libraryTab, items: target.map((item) => item.entry), expires: Date.now() + 10000 });
     clearSelection();
     setDetailId(null);

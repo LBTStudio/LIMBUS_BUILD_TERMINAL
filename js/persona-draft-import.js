@@ -2,14 +2,49 @@
 (function () {
   const toHalfWidth = (value) => String(value || "").replace(/[０-９Ａ-Ｚａ-ｚ]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xFEE0)).replace(/[：︰﹕]/g, ":").replace(/[＋﹢]/g, "+").replace(/[‐‑‒–—－−﹣]/g, "-").replace(/[（]/g, "(").replace(/[）]/g, ")").replace(/　/g, " ");
   const forMatch = (value) => toHalfWidth(value).replace(/^`{3,}\s*|\s*`{3,}$/g, "").replace(/\s*-\s*/g, "-").replace(/[\t ]+/g, " ").trim();
-  const clean = (value) => String(value || "").replace(/\r/g, "").trim();
+  const clean = (value) => String(value ?? "").replace(/\r/g, "").trim();
   const linesOf = (value) => String(value || "").replace(/\r/g, "").split("\n").map((line) => line.trim());
   const appendLine = (target, key, value) => {
     const next = clean(value);
     if (next) target[key] = target[key] ? `${target[key]}\n${next}` : next;
   };
+  // Syntax is detected separately from prose; preserve effect punctuation.
+  const detectDice = (raw) => {
+    const line = clean(raw);
+    const match = toHalfWidth(line).match(/^((?:\d+\s*-\s*)?(?:\d+|\{[^{}]+\})\s*[dD]\s*(?:\d+|\{[^{}]+\})(?:\s*[+*/-]\s*(?:\d+|\{[^{}]+\}))*)(?=$|\s|:|\[)/);
+    if (!match) return null;
+    return { roll: match[1].replace(/\s+/g, ""), effect: line.slice(match[1].length).replace(/^\s*[:：]?\s*/, "") };
+  };
+  const detectBuffHeader = (raw) => {
+    const line = clean(raw);
+    if (line[0] !== "[") return null;
+    let depth = 0, end = -1;
+    for (let i = 0; i < line.length; i += 1) {
+      if (line[i] === "[") depth += 1;
+      if (line[i] === "]" && --depth === 0) { end = i; break; }
+    }
+    if (end < 0) return null;
+    const tail = line.slice(end + 1).trim();
+    // Metadata must start the tail. [1R] and [人格専用効果] remain prose.
+    const metadata = tail.match(/^(?:(?:最大(?:値|数)?\s*[:：;；]?\s*[０-９0-9]+|中立デバフ|中立バフ|デバフ|バフ|その他|特別処理)\s*)+/);
+    if (!metadata) return null;
+    const normalized = forMatch(metadata[0]);
+    const max = normalized.match(/最大(?:値|数)?\s*[:;]?\s*(\d+)/);
+    return { name: line.slice(1, end), type: (normalized.match(/中立デバフ|中立バフ|デバフ|バフ|その他|特別処理/) || ["バフ"])[0],
+      max: max ? Number(max[1]) : 20, desc: tail.slice(metadata[0].length).replace(/^効果\s*[:：]\s*/, "") };
+  };
+  const sectionTitle = (line) => clean(line).match(/^[◯○●]\s*(.+)$/)?.[1] || "";
+  const buffHeaderAt = (lines, index) => {
+    const direct = detectBuffHeader(lines[index]);
+    if (direct) return { header: direct, end: index };
+    if (!/^\[.*\]$/.test(clean(lines[index]))) return null;
+    let next = index + 1;
+    while (next < lines.length && !clean(lines[next])) next += 1;
+    const combined = detectBuffHeader(`${clean(lines[index])} ${clean(lines[next])}`);
+    return combined ? { header: combined, end: next } : null;
+  };
   const stripPersonaQuotes = (value) => {
-    const raw = clean(value).replace(/^(?:人格\s*(?:名|名称)|名称)\s*[:：]\s*/i, "").trim();
+    const raw = clean(value).replace(/^(?:人格\s*(?:名|名称)?|名称)\s*[:：]\s*/i, "").trim();
     const wrapped = [
       [/^「\s*([\s\S]*?)\s*」$/u, 1],
       [/^『\s*([\s\S]*?)\s*』$/u, 1],
@@ -25,8 +60,8 @@
   const personaNameFromLine = (line) => {
     const raw = clean(line).replace(/^`{3,}\s*|\s*`{3,}$/g, "").trim();
     const normalized = forMatch(line);
-    const labeled = normalized.match(/^(?:人格\s*(?:名|名称)|名称)\s*:\s*(.+)$/i);
-    const labeledRaw = raw.match(/^(?:人格\s*(?:名|名称)|名称)\s*[:：]\s*(.+)$/i);
+    const labeled = normalized.match(/^(?:人格\s*(?:名|名称)?|名称)\s*:\s*(.+)$/i);
+    const labeledRaw = raw.match(/^(?:人格\s*(?:名|名称)?|名称)\s*[:：]\s*(.+)$/i);
     if (labeled) return { value: stripPersonaQuotes(labeledRaw ? labeledRaw[1] : labeled[1]), labeled: true };
     const quoted = raw.match(/^[「『\"]\s*([^」』\"]+?)\s*[」』\"]/);
     if (quoted) return stripPersonaQuotes(quoted[1]);
@@ -65,21 +100,21 @@
       current = null;
       section = "";
     };
-    const stop = (line) => /^【\s*戦術(?:\s*スキル)?\s*】/.test(line) || /^\d+(?:[-－ー]\d+)?\s*[:：]/.test(toHalfWidth(line)) || /^(固有|人格コンセプト)/.test(line);
+    const stop = (line) => /^【\s*戦術(?:\s*スキル\s*[^】]*)?\s*】/.test(line) || /^(?:戦術\s*)?\d+(?:[-－ー]\d+)?\s*[:：]/.test(toHalfWidth(line)) || /^(固有|人格コンセプト)/.test(line) || /戦術|固有/.test(sectionTitle(line));
     for (let index = 0; index < lines.length; index += 1) {
       const line = clean(lines[index]);
       const normalized = forMatch(line);
       if (!line) continue;
-      const named = normalized.match(/^パッシブ\s*名\s*:\s*(.+)$/);
+      const named = line.match(/^パッシブ\s*名\s*[:：]\s*(.+)$/)
+        || (current && line.match(/^名称\s*[:：]\s*(.+)$/));
       if (named) {
         push();
         current = { name: clean(named[1]), cond: "", always: "", effect: "" };
         continue;
       }
-      if (/^【\s*パッシブ(?:\s*\d+)?\s*】/.test(normalized)) {
+      if (/^【\s*パッシブ(?:\s*\d+)?\s*】/.test(normalized) || /^(?:人格)?パッシブ(?:\s*\d+)?$/.test(sectionTitle(line))) {
         push();
-        const next = lines.slice(index + 1).find((candidate) => clean(candidate));
-        if (next && !/^(発動条件|常時(?:効果|発動)?|効果)\s*[:：]/.test(next)) current = { name: clean(next), cond: "", always: "", effect: "" };
+        current = { name: "", cond: "", always: "", effect: "" };
         continue;
       }
       if (!current) continue;
@@ -87,12 +122,13 @@
         push();
         continue;
       }
-      const condition = normalized.match(/^発動\s*条件\s*:\s*(.+)$/);
-      const always = normalized.match(/^常時(?:効果|発動)?\s*:\s*(.+)$/);
-      const effect = normalized.match(/^効果\s*:\s*(.+)$/);
+      const condition = line.match(/^(?:発動\s*)?条件\s*[:：]\s*(.*)$/);
+      const always = line.match(/^常時(?:効果|発動)?\s*[:：]\s*(.*)$/);
+      const effect = line.match(/^効果\s*[:：]\s*(.*)$/);
       if (condition) { current.cond = clean(condition[1]); section = "cond"; continue; }
       if (always) { appendLine(current, "always", always[1]); section = "always"; continue; }
       if (effect) { appendLine(current, "effect", effect[1]); section = "effect"; continue; }
+      if (!current.name && !section) { current.name = line; continue; }
       if (section) appendLine(current, section, line);
     }
     push();
@@ -114,9 +150,9 @@
       current = { rank: normalizeRank(rank, skills.length), type: "", sin: "", aoe: "", aoeCount: "", name: clean(name), effect: "", dice: [] };
     };
     const parseDice = (line) => {
-      const match = line.match(/^((?:\d+\s*[-－]\s*)?\d+\s*[dD]\s*[^：:\s]+)\s*(?:[:：]\s*(.*))?$/);
-      if (!match || !current) return false;
-      current.dice.push({ roll: toHalfWidth(match[1]).replace(/\s+/g, ""), effect: clean(match[2] || "") });
+      const die = detectDice(line);
+      if (!die || !current) return false;
+      current.dice.push(die);
       return true;
     };
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
@@ -124,17 +160,17 @@
       const line = clean(rawLine);
       const normalized = forMatch(line);
       if (!line) continue;
-      if (/^(固有|人格コンセプト|派生戦術|外付け補正)/.test(normalized) || (/^\[[^\]]+\].*最大(?:値)?\s*[:：;；]?\s*\d+/.test(normalized) && current)) { push(); break; }
+      if (/^(固有|人格コンセプト|派生戦術|外付け補正)/.test(normalized) || /固有/.test(sectionTitle(line)) || (buffHeaderAt(lines, lineIndex) && current)) { push(); break; }
       const header = normalized.match(/^【\s*戦術\s*スキル\s*([^】]+)】/);
       if (header) { start(header[1], ""); continue; }
       if (/^【\s*戦術\s*】/.test(normalized)) continue;
-      const compact = normalized.match(/^(\d+(?:-\d+)?)\s*:\s*(.+)$/);
+      const compact = line.match(/^(?:戦術\s*)?([０-９0-9]+(?:[-－ー][０-９0-9]+)?)\s*[:：]\s*(.+)$/);
       if (compact && !/^\d+d/i.test(compact[1])) {
         const tail = clean(compact[2]);
         const typed = tail.match(new RegExp(`^(.+?)\\s+(${skillTypePattern})\\s*[:：]\\s*(\\S+)`));
         start(compact[1], typed ? typed[1] : tail);
         if (typed) {
-          current.type = typed[2].replace("マッチ可能", "");
+          current.type = typed[2];
           current.sin = typed[3];
           const aoe = tail.slice(typed[0].length).match(/(広域(?:乱射)?)\s*[:：]?\s*(\d+)?/);
           if (aoe) {
@@ -159,7 +195,7 @@
       if (!current.name && nextType && !/^\[/.test(normalized)) { current.name = line; continue; }
       const typed = normalized.match(new RegExp(`^(${skillTypePattern})\\s*:\\s*(\\S+)`));
       if (typed) {
-        current.type = typed[1].replace("マッチ可能", "");
+        current.type = typed[1];
         current.sin = typed[2];
         continue;
       }
@@ -169,16 +205,18 @@
         current.aoeCount = aoe[2] || "";
         continue;
       }
-      if (parseDice(normalized)) continue;
-      if (!/^コンセプト\s*[:：]/.test(normalized)) appendLine(current, "effect", line);
+      if (parseDice(line)) continue;
+      if (/^効果\s*[:：]/.test(line)) { appendLine(current, "effect", line.replace(/^効果\s*[:：]\s*/, "")); continue; }
+      // A continuation belongs to its current cell, like the PDF detector.
+      if (!/^コンセプト\s*[:：]/.test(normalized)) appendLine(current.dice.at(-1) || current, "effect", line);
     }
     push();
     return skills;
   };
   const parseBuffs = (lines) => {
-    const titledStartAt = lines.findIndex((line) => /^(固有(?:-|$)|固有-同期MAX)/.test(forMatch(line)));
-    const implicitStartAt = lines.findIndex((line) => /^\[[^\]]+\].*最大(?:値)?\s*[:：;；]?\s*\d+/.test(forMatch(line)));
-    const startAt = titledStartAt >= 0 ? titledStartAt + 1 : implicitStartAt;
+    const titledStartAt = lines.findIndex((line) => /^(固有(?:-|$)|固有-同期MAX)/.test(forMatch(line)) || /固有/.test(sectionTitle(line)));
+    const implicitStartAt = lines.findIndex((line, index) => buffHeaderAt(lines, index));
+    const startAt = titledStartAt >= 0 ? titledStartAt : implicitStartAt;
     if (startAt < 0) return [];
     const buffs = [];
     let current = null;
@@ -186,22 +224,23 @@
       if (current?.name) buffs.push(current);
       current = null;
     };
-    for (const rawLine of lines.slice(startAt)) {
-      const line = clean(rawLine);
+    let condition = "";
+    for (let index = startAt; index < lines.length; index += 1) {
+      const line = clean(lines[index]);
       const normalized = forMatch(line);
       if (!line || /^外付け補正/.test(line)) continue;
-      const header = normalized.match(/^\[([^\]]+)\]\s*(.*)$/);
-      if (header) {
-        const tail = clean(header[2]);
-        const isBuffHeader = /最大(?:値)?\s*[:：;；]?\s*\d+/.test(tail) || /(中立バフ|バフ|デバフ|その他)/.test(tail);
-        if (!isBuffHeader) {
-          if (current) appendLine(current, "desc", line);
-          continue;
-        }
+      const title = sectionTitle(line);
+      if (/固有/.test(title) || /^(固有(?:-|$)|固有-同期MAX)/.test(normalized)) {
         push();
-        const max = numeric((tail.match(/最大(?:値)?\s*[:：;；]?\s*(\d+)/) || [])[1], 20);
-        const type = (tail.match(/(中立バフ|バフ|デバフ|その他)/) || [])[1] || "バフ";
-        current = { name: clean(header[1]), type, initial: 0, max, desc: "", place: "status" };
+        condition = title && title !== "固有" ? line : "";
+        continue;
+      }
+      const detected = buffHeaderAt(lines, index);
+      if (detected) {
+        push();
+        current = { ...detected.header, initial: 0, place: "status" };
+        if (condition) current.desc = [condition, current.desc].filter(Boolean).join("\n");
+        index = detected.end;
         continue;
       }
       if (current) appendLine(current, "desc", line.replace(/^効果\s*[:：]\s*/, ""));
@@ -215,16 +254,17 @@
     const status = clean(value.status);
     const skills = clean(value.skills);
     const uniques = clean(value.uniques);
-    const labeledName = name && /^(?:人格\s*(?:名|名称)|名称)\s*[:：]/i.test(forMatch(name)) ? name : (name ? `人格名：${name}` : "");
+    const labeledName = name && /^(?:人格\s*(?:名|名称)?|名称)\s*[:：]/i.test(forMatch(name)) ? name : (name ? `人格名：${name}` : "");
     return [labeledName, status, skills, uniques ? `固有\n${uniques}` : ""].filter(Boolean).join("\n\n");
   };
-  const garasumadoUrlPattern = /^https:\/\/lbt-garasumado\.vercel\.app\/persona\/view\/([A-Za-z0-9]{20})\/?$/i;
+  const garasumadoUrlPattern = /^https:\/\/lbt-garasumado\.vercel\.app\/(persona\/)?view\/([A-Za-z0-9]{20})\/?$/i;
   const garasumadoApiKey = "AIzaSyCzpUWr3EBQMLLEBXAixCMSl0abxSZCgY4";
   const parseGarasumadoUrl = (value) => {
-    const url = clean(value);
+    // Unwrap only this documented redirect; never fetch arbitrary targets.
+    const url = clean(value).replace(/^https:\/\/rd\.nan7\.net\/(?=https:\/\/lbt-garasumado\.vercel\.app\/)/i, "");
     const match = url.match(garasumadoUrlPattern);
-    if (!match) return { ok: false, errors: ["硝子窓の公開人格URLを貼り付けてください。対応形式は https://lbt-garasumado.vercel.app/persona/view/… です。"] };
-    return { ok: true, url, id: match[1] };
+    if (!match) return { ok: false, errors: ["硝子窓の公開人格URLを貼り付けてください。対応形式は https://lbt-garasumado.vercel.app/persona/view/… または /view/… です。"] };
+    return { ok: true, url, id: match[2], collection: match[1] ? "personas" : "characters" };
   };
   const firestoreValue = (value) => {
     if (!value || typeof value !== "object") return undefined;
@@ -238,13 +278,8 @@
     return undefined;
   };
   const firestoreFields = (fields) => Object.fromEntries(Object.entries(fields || {}).map(([key, value]) => [key, firestoreValue(value)]));
-  const cleanGarasumadoName = (value) => clean(value)
-    .replace(/\s*(?:同期\s*MAX|MAX)\s*$/i, "")
-    .replace(/\s*(?:RANK|ランク)\s*[:：]?\s*0{1,3}\s*$/i, "")
-    .replace(/\s+0{1,3}\s*$/u, "")
-    .replace(/\s*の人格\s*$/u, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  // Rank hints are read independently; never abbreviate public names.
+  const cleanGarasumadoName = clean;
   const normalizedGarasumadoBullet = (value) => {
     const bullet = clean(value);
     return !bullet || bullet === "0" ? "×" : bullet;
@@ -257,45 +292,58 @@
     const status = record.status;
     const tactics = Array.isArray(record.tactics) ? record.tactics : [];
     if (!isGarasumadoRecord(status) || !tactics.length) return garasumadoError("硝子窓の人格データにステータスまたは戦術スキルを確認できません。人格データは反映していません。", source);
-    const rawName = clean(record.name);
+    const rawName = clean(source?.collection === "characters" ? status.persona : record.name);
     const displayName = cleanGarasumadoName(rawName);
-    const rankMatch = rawName.match(/(?:RANK|ランク)\s*[:：]?\s*(0{1,3})/i) || rawName.match(/の人格\s+(0{1,3})(?:\s|$)/u);
+    const rankMatch = forMatch(rawName).match(/(?:RANK|LANK|ランク|同期)\s*[:：]?\s*(0{1,3})/i) || rawName.match(/の人格\s+(0{1,3})(?:\s|$)/u);
     const syncMax = /同期\s*MAX/i.test(rawName);
-    if (!displayName || !clean(status.hp) || !clean(status.san) || !isDiceFormula(status.speed)) return garasumadoError("硝子窓の人格名・HP・SAN・速度を確認できません。人格データは反映していません。", source);
-    const sections = {
-      name: displayName,
-      status: [
-        rankMatch ? `RANK：${rankMatch[1]}` : "",
-        `HP：${clean(status.hp)} SAN：${clean(status.san)} 速度：${clean(status.speed)} 弾丸：${normalizedGarasumadoBullet(status.bullet)}`,
-        `斬撃：${clean(status.slash) || "普通"} 貫通：${clean(status.pierce) || "普通"} 打撃：${clean(status.blunt) || "普通"}`,
-        ...(Array.isArray(record.passives) ? record.passives : []).filter(isGarasumadoRecord).flatMap((passive) => [
-          clean(passive.name) ? `パッシブ名：${clean(passive.name)}` : "",
-          clean(passive.condition) ? `発動条件：${clean(passive.condition)}` : "",
-          clean(passive.alwaysEffect) ? `常時効果：${clean(passive.alwaysEffect)}` : "",
-          clean(passive.effect) ? `効果：${clean(passive.effect)}` : ""
-        ].filter(Boolean))
-      ].filter(Boolean).join("\n"),
-      skills: tactics.filter(isGarasumadoRecord).map((tactic) => {
-        const code = clean(tactic.code);
-        const name = clean(tactic.name);
-        const attr = clean(tactic.attr);
-        const sin = clean(tactic.sin);
-        return code && name && attr && sin ? [`${code}：${name} ${attr}：${sin}`, clean(tactic.effect)].filter(Boolean).join("\n") : "";
-      }).filter(Boolean).join("\n\n"),
-      uniques: (Array.isArray(record.uniques) ? record.uniques : []).filter(isGarasumadoRecord).map((unique) => {
-        const name = clean(unique.name);
-        const type = clean(unique.type) || "バフ";
-        const max = clean(unique.maxCount);
-        return name ? [`[${name}] ${type}${max ? ` 最大：${max}` : ""}`, clean(unique.effect)].filter(Boolean).join("\n") : "";
-      }).filter(Boolean).join("\n\n")
-    };
-    const result = parsePersonaDraft(composePersonaDraftSections(sections));
-    if (!result.ok) return { ...result, source: source || null };
+    if (!displayName || !/^\d+$/.test(clean(status.hp)) || !/^\d+$/.test(clean(status.san)) || !isDiceFormula(status.speed)) return garasumadoError("硝子窓の人格名・HP・SAN・速度を確認できません。人格データは反映していません。", source);
+    const passives = record.passives ?? (isGarasumadoRecord(record.passive) ? [record.passive] : []);
+    const uniques = record.uniques ?? [];
+    if (!Array.isArray(passives) || !Array.isArray(uniques) || passives.length > 2
+      || tactics.some((t) => !isGarasumadoRecord(t) || !/^\d+(?:-\d+)?$/.test(forMatch(t.code)) || !clean(t.name) || !clean(t.attr) || !clean(t.sin))
+      || passives.some((p) => !isGarasumadoRecord(p) || !clean(p.name))
+      || uniques.some((u) => !isGarasumadoRecord(u) || !clean(u.name) || (clean(u.maxCount) && forMatch(u.maxCount) !== "-" && !/^\d+$/.test(toHalfWidth(clean(u.maxCount)))))) {
+      return garasumadoError("不完全な戦術・固有・パッシブ、または未対応の3件目以降のパッシブがあります。欠落を防ぐため反映を中止しました。", source);
+    }
+    const skills = [], warnings = [];
+    for (const tactic of tactics) {
+      // The structured record already supplies cell boundaries. Do not flatten
+      // names or passives and rediscover them with a prose regex.
+      const skill = { rank: normalizeRank(tactic.code, 0), name: clean(tactic.name), type: clean(tactic.attr), sin: clean(tactic.sin), aoe: "", aoeCount: "", effect: "", dice: [] };
+      for (const line of linesOf(tactic.effect)) {
+        if (!line) continue;
+        const die = detectDice(line);
+        if (die) skill.dice.push(die);
+        else {
+          if (/^(?:\d+\s*-\s*)?\d+\s*d/i.test(forMatch(line))) return garasumadoError(`戦術${tactic.code}のダイス式を判別できません：${line}`, source);
+          const area = forMatch(line).match(/^広域(乱射)?\s*:?\s*(?:対象)?(\d+)(?:体|枠)?$/);
+          if (area && !skill.dice.length) { skill.aoe = area[1] ? "広域乱射" : "広域"; skill.aoeCount = area[2]; }
+          else appendLine(skill.dice.at(-1) || skill, "effect", line);
+        }
+      }
+      if (!skill.dice.length) warnings.push(`戦術${tactic.code}「${skill.name}」はダイス未検出です。効果のみのスキルか確認してください。`);
+      skills.push(skill);
+    }
+    if (new Set(skills.map((s) => s.rank)).size !== skills.length) return garasumadoError("戦術番号が重複しています。反映前に移行元を確認してください。", source);
+    const passive = (p) => ({ name: clean(p?.name), cond: clean(p?.condition), always: clean(p?.alwaysEffect), effect: clean(p?.effect) });
+    const first = passive(passives[0]);
+    const result = { ok: true, errors: [], warnings,
+      persona: { name: displayName, no: 999, hp: Number(status.hp), san: Number(status.san), speed: forMatch(status.speed), bullets: normalizedGarasumadoBullet(status.bullet),
+        res_slash: clean(status.slash) || "普通", res_pierce: clean(status.pierce) || "普通", res_blunt: clean(status.blunt) || "普通",
+        passive_name: first.name, passive_cond: first.cond, passive_always: first.always, passive_effect: first.effect,
+        skills, unique_buffs: uniques.map((u) => ({ name: clean(u.name), type: clean(u.type) || "バフ", initial: 0,
+          max: /^\d+$/.test(toHalfWidth(clean(u.maxCount))) ? Number(toHalfWidth(clean(u.maxCount))) : null, desc: clean(u.effect), place: "status" })),
+        keywords: [], __custom: true, __draftImported: true },
+      secondaryPassive: passives[1] ? passive(passives[1]) : null,
+      provided: { name: true, hp: true, san: true, speed: true, bullets: true, resistances: true, passives: passives.length > 0, skills: true, uniques: uniques.length > 0 },
+      summary: { skillCount: skills.length, buffCount: uniques.length, passiveCount: passives.length } };
+    result.persona.keywords = window.LBT_inferPersonaKeywords?.(result.persona, result.secondaryPassive) || [];
+    if (source?.collection === "characters") result.warnings.push("キャラクターシートの人格名・能力・パッシブ・戦術・固有のみを取り込みます。PC名、PL名、精神、E.G.O、所持品は取り込みません。");
     return {
       ...result,
       syncRank: rankMatch?.[1] || result.syncRank,
       suggestSyncMax: syncMax,
-      source: { kind: "garasumado", id: source?.id || "", url: source?.url || "", label: clean(record.name) }
+      source: { kind: "garasumado", id: source?.id || "", url: source?.url || "", label: rawName }
     };
   };
   const parseGarasumadoPersonaDocument = (document, sourceUrl) => {
@@ -310,7 +358,7 @@
     const request = fetchImpl || window.fetch?.bind(window);
     if (typeof request !== "function") return garasumadoError("このブラウザでは硝子窓の公開人格データを取得できません。", source);
     try {
-      const endpoint = `https://firestore.googleapis.com/v1/projects/lbt-garasumado/databases/(default)/documents/personas/${source.id}?key=${garasumadoApiKey}`;
+      const endpoint = `https://firestore.googleapis.com/v1/projects/lbt-garasumado/databases/(default)/documents/${source.collection}/${source.id}?key=${garasumadoApiKey}`;
       const response = await request(endpoint, { method: "GET", headers: { Accept: "application/json" } });
       if (!response?.ok) return garasumadoError(response?.status === 404 ? "この硝子窓URLの公開人格は見つかりません。" : "硝子窓の公開人格データを取得できませんでした。時間を置いて再度お試しください。", source);
       return parseGarasumadoPersonaDocument(await response.json(), source.url);
@@ -328,8 +376,8 @@
     const syncStart = findLastSyncDraftStart(allLines);
     const lines = syncStart >= 0 ? allLines.slice(syncStart + 1) : allLines;
     const text = lines.map(forMatch).join("\n");
-    const labeledNames = lines.map(personaNameFromLine).filter((entry) => entry?.labeled && entry.value).map((entry) => entry.value);
-    const firstStructuredLine = lines.findIndex((line) => /^(?:HP|SAN|速度|弾丸|パッシブ|【\s*戦術|\d+\s*[-:：])/.test(forMatch(line)));
+    const firstStructuredLine = lines.findIndex((line) => /^(?:HP|SAN|速度|弾丸|パッシブ|【\s*(?:パッシブ|戦術)|戦術\s*\d|\d+\s*[-:：])/.test(forMatch(line)) || /^(?:ステータス|人格パッシブ|パッシブ|戦術|固有)/.test(sectionTitle(line)));
+    const labeledNames = lines.slice(0, firstStructuredLine >= 0 ? firstStructuredLine : lines.length).map(personaNameFromLine).filter((entry) => entry?.labeled && entry.value).map((entry) => entry.value);
     const fallbackNames = lines.slice(0, firstStructuredLine >= 0 ? firstStructuredLine : 12)
       .map(personaNameFromLine).filter((entry) => typeof entry === "string" && entry);
     // ラベル付き人格名がある場合は、同期草案ブロック内で最後に明示されたものを採用する。
@@ -343,7 +391,7 @@
     const passives = parsePassives(lines);
     const skills = parseSkills(lines);
     const uniqueBuffs = parseBuffs(lines);
-    const rank = ((text.match(/(?:RANK|ランク)\s*[:：]?\s*(0{1,3})/i) || [])[1]) || null;
+    const rank = ((text.match(/(?:RANK|LANK|ランク)\s*[:：]?\s*(0{1,3})/i) || [])[1]) || null;
     const provided = {
       name: !!name,
       hp: !!collectField(text, "HP"),
@@ -361,6 +409,14 @@
       if (!name) errors.push("人格名を確認できません。『人格名：』または『「人格名」』を含めてください。");
       if (!hp || !san || !isDiceFormula(speed)) errors.push("HP・SAN・速度を確認できません。HP・SANは数値、速度は『1d5+2』形式で記載してください。");
       if (!skills.length) errors.push("戦術スキルを確認できません。『【戦術スキルN】』または『1-1：スキル名』形式を含めてください。");
+    }
+    if (passives.length > 2) errors.push("パッシブは2件まで対応しています。3件目以降があるため反映できません。");
+    if (new Set(skills.map((s) => s.rank)).size !== skills.length) errors.push("戦術番号が重複しています。");
+    for (const skill of skills) {
+      if (!skill.dice.length) warnings.push(`「${skill.name}」はダイス未検出です。効果のみのスキルか確認してください。`);
+      for (const text of [skill.effect, ...skill.dice.map((d) => d.effect)]) {
+        if (linesOf(text).some((line) => /^(?:\d+\s*-\s*)?\d+\s*d/i.test(forMatch(line)))) errors.push(`「${skill.name}」に未検出のダイス式があります。表記を確認してください。`);
+      }
     }
     if (!passives.length) warnings.push("パッシブを確認できません。適用後にパッシブ欄で追加できます。");
     const persona = {
@@ -383,6 +439,7 @@
       __custom: true,
       __draftImported: true
     };
+    persona.keywords = window.LBT_inferPersonaKeywords?.(persona, passives[1]) || [];
     return {
       ok: errors.length === 0,
       errors,

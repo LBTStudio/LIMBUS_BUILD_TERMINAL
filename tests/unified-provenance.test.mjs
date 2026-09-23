@@ -6,8 +6,9 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const detector = 'tools/provenance/detect_pdf_data.py';
+const python = process.env.PYTHON || 'python3';
 function run(args) {
-  const result = spawnSync('python3', args, { cwd: root, encoding: 'utf8', timeout: 120000, maxBuffer: 8 * 1024 * 1024 });
+  const result = spawnSync(python, args, { cwd: root, encoding: 'utf8', timeout: 120000, maxBuffer: 8 * 1024 * 1024 });
   assert.ifError(result.error);
   return result;
 }

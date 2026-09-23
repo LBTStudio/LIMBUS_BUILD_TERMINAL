@@ -1,0 +1,6301 @@
+[
+ {
+  "kind": "normal_personas",
+  "name": "集中攻撃-○○",
+  "source": "core",
+  "pages": [
+   87,
+   88
+  ],
+  "field": "desc",
+  "before": "集中攻撃-○○を付与したキャラクターが、付与されたキャラクターへスキル使用時、数値によって下記の効果を得る1：マッチ威力+12：スキル威力+13：スキル威力+1、ダメージ量+1",
+  "after": "集中攻撃-○○を付与したキャラクターが、付与されたキャラクターへスキル使用時、数値によって下記の効果を得る\n1：マッチ威力+1\n2：スキル威力+1\n3：スキル威力+1、ダメージ量+1\n集中攻撃-○○が付与されたキャラクターに攻撃を的中させることができなければR終了時に消滅",
+  "reason": "Restore complete definition including follow-on stages and expiry clauses",
+  "row_ids": []
+ },
+ {
+  "kind": "normal_personas",
+  "name": "内部破裂",
+  "source": "core",
+  "pages": [
+   185,
+   186
+  ],
+  "field": "desc",
+  "before": "R終了時、出血5ごとに1回",
+  "after": "R終了時、出血5ごとに1回[破裂爆発]。破裂（10/内部破裂の数）消費（小数点切り捨て）\nR終了時、数値を半減",
+  "reason": "Restore complete definition including follow-on stages and expiry clauses",
+  "row_ids": []
+ },
+ {
+  "kind": "tokui_personas",
+  "name": "咲き出す棘",
+  "source": "core",
+  "pages": [
+   225,
+   226
+  ],
+  "field": "desc",
+  "before": "-咲き出す棘Ⅰ-数値5ごとに保護1を得る。被ダメージ時、攻撃者へ出血1を付与してから数値1減少",
+  "after": "-咲き出す棘Ⅰ-\n数値5ごとに保護1を得る。被ダメージ時、攻撃者へ出血1を付与してから数値1減少\n[ラ・マンチャランド 姫の人格専用効果]\n最大値が30になり、数値が10以上なら咲き出す棘Ⅱ、数値が20以上なら咲き出す棘Ⅲになる\n-咲き出す棘Ⅱ-\n数値5ごとに保護1を得る（最大3）。被ダメージ時、攻撃者へ出血1を付与してから数値1減少\nスキルの出血付与量と破裂付与量+1。咲き出す棘Ⅱが消費され10以下になると前の段階に戻る\n特殊スキルに使用される\n-咲き出す棘Ⅲ-\n数値5ごとに保護1を得る（最大5）。被ダメージ時、攻撃者へ出血1を付与してから数値1減少\n破裂爆発で与えるダメージ量+5。スキルの出血付与量と破裂付与量+1。\n咲き出す棘Ⅲが消費され20以下になると前の段階に戻る\n特殊スキルに使用される",
+  "reason": "Restore complete definition including follow-on stages and expiry clauses",
+  "row_ids": []
+ },
+ {
+  "kind": "tokui_personas",
+  "name": "咲き出す棘",
+  "source": "core",
+  "pages": [
+   225,
+   226
+  ],
+  "field": "max",
+  "before": 10,
+  "after": 30,
+  "reason": "Core p226 explicitly sets the princess-only maximum to 30",
+  "row_ids": []
+ },
+ {
+  "kind": "items",
+  "name": "小さなHPアンプル",
+  "source": "core",
+  "pages": [
+   317
+  ],
+  "field": "effect",
+  "before": "使用したRから、R終了時HPを4回復する（使用後消滅／持続4R）",
+  "after": "使用したRから、R終了時HPを4回復するようになる（使用後消滅）（持続4R）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:317:23",
+   "core:317:24"
+  ]
+ },
+ {
+  "kind": "items",
+  "name": "HPアンプル",
+  "source": "core",
+  "pages": [
+   317
+  ],
+  "field": "effect",
+  "before": "使用したRから、R終了時HPを8回復する（使用後消滅／持続3R）",
+  "after": "使用したRから、R終了時HPを8回復するようになる（使用後消滅）（持続3R）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:317:30",
+   "core:317:31"
+  ]
+ },
+ {
+  "kind": "items",
+  "name": "たぷたぷの燃料タンク",
+  "source": "core",
+  "pages": [
+   317
+  ],
+  "field": "effect",
+  "before": "このRの間、HPが0になる攻撃を受けた際に60％の確率でそのダメージを0にし、HPを30回復（使用後消滅）",
+  "after": "このRの間、HPが0になる攻撃を受けた際に60％の確率でそのダメージを0にしHP30回復(使用後消滅)",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:317:38",
+   "core:317:39",
+   "core:317:40"
+  ]
+ },
+ {
+  "kind": "items",
+  "name": "鎮静剤",
+  "source": "core",
+  "pages": [
+   317
+  ],
+  "field": "effect",
+  "before": "使用時、SANを25回復（使用後消滅／自分以外に使用不可）",
+  "after": "使用時、SANを25回復（使用後消滅）（自分以外に使用不可）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:317:43",
+   "core:317:44"
+  ]
+ },
+ {
+  "kind": "items",
+  "name": "ルージュアイ事務所の香水",
+  "source": "core",
+  "pages": [
+   317
+  ],
+  "field": "effect",
+  "before": "使用したRから、R終了時にSANを10回復する（使用後消滅／持続3R）",
+  "after": "使用したRから、R終了時にSANを10回復する（使用後消滅）（持続3R）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:317:48",
+   "core:317:49"
+  ]
+ },
+ {
+  "kind": "items",
+  "name": "ヒートグローブ",
+  "source": "core",
+  "pages": [
+   318
+  ],
+  "field": "effect",
+  "before": "使用したRの間、スキルで火傷を付与する際に火傷付与量+1（使用後消滅／重複不可）",
+  "after": "使用したRの間、スキルで火傷を付与する際に火傷付与量+1（使用後消滅）（重複不可）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:318:6",
+   "core:318:7"
+  ]
+ },
+ {
+  "kind": "items",
+  "name": "砥石",
+  "source": "core",
+  "pages": [
+   318
+  ],
+  "field": "effect",
+  "before": "使用したRの間、スキルで出血を付与する際に出血付与量+1（使用後消滅／重複不可）",
+  "after": "使用したRの間、スキルで出血を付与する際に出血付与量+1（使用後消滅）（重複不可）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:318:10",
+   "core:318:11"
+  ]
+ },
+ {
+  "kind": "items",
+  "name": "ボルトット工房の外付けガントレット",
+  "source": "core",
+  "pages": [
+   318
+  ],
+  "field": "effect",
+  "before": "使用したRの間、スキルで振動を付与する際に振動付与量+1（使用後消滅／重複不可）",
+  "after": "使用したRの間、スキルで振動を付与する際に振動付与量+1（使用後消滅）（重複不可）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:318:15",
+   "core:318:16"
+  ]
+ },
+ {
+  "kind": "items",
+  "name": "生命体切断システム装置",
+  "source": "core",
+  "pages": [
+   318
+  ],
+  "field": "effect",
+  "before": "使用したRの間、スキルで破裂を付与する際に破裂付与量+1（戦闘後消滅／重複不可）",
+  "after": "使用したRの間、スキルで破裂を付与する際に破裂付与量+1（戦闘後消滅）（重複不可）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:318:20",
+   "core:318:21"
+  ]
+ },
+ {
+  "kind": "items",
+  "name": "轟くマラカス",
+  "source": "core",
+  "pages": [
+   318
+  ],
+  "field": "effect",
+  "before": "使用したRの間、スキルで沈潜を付与する際に沈潜付与量+1（使用後消滅／重複不可）",
+  "after": "使用したRの間、スキルで沈潜を付与する際に沈潜付与量+1（使用後消滅）（重複不可）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:318:24",
+   "core:318:25"
+  ]
+ },
+ {
+  "kind": "items",
+  "name": "メイジ工房のお手製ハンマー",
+  "source": "core",
+  "pages": [
+   318
+  ],
+  "field": "effect",
+  "before": "使用したRの間、スキルで恐慌を付与する際に恐慌付与量+1（使用後消滅／重複不可）",
+  "after": "使用したRの間、スキルで恐慌を付与する際に恐慌付与量+1（使用後消滅）（重複不可）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:318:29",
+   "core:318:30"
+  ]
+ },
+ {
+  "kind": "items",
+  "name": "エネルギー増幅装置",
+  "source": "core",
+  "pages": [
+   318
+  ],
+  "field": "effect",
+  "before": "使用したRの間、スキルで充電を得る際に充電獲得量+1（戦闘後消滅／重複不可）",
+  "after": "使用したRの間、スキルで充電を得る際に充電獲得量+1（戦闘後消滅）（重複不可）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:318:33",
+   "core:318:34"
+  ]
+ },
+ {
+  "kind": "items",
+  "name": "酸素ボンベ",
+  "source": "core",
+  "pages": [
+   318
+  ],
+  "field": "effect",
+  "before": "使用したRの間、スキルで呼吸を得る際に呼吸獲得量+1（使用後消滅／重複不可）",
+  "after": "使用したRの間、スキルで呼吸を得る際に呼吸獲得量+1（使用後消滅）（重複不可）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:318:37",
+   "core:318:38"
+  ]
+ },
+ {
+  "kind": "items",
+  "name": "ヴィリーブ工房の煙草",
+  "source": "core",
+  "pages": [
+   318
+  ],
+  "field": "effect",
+  "before": "使用したRの間、スキルで煙を得る際に煙獲得量+1（戦闘後消滅／重複不可）",
+  "after": "使用したRの間、スキルで煙を得る際に煙獲得量+1（戦闘後消滅）（重複不可）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:318:42",
+   "core:318:43"
+  ]
+ },
+ {
+  "kind": "items",
+  "name": "黒い雲の刺青",
+  "source": "core",
+  "pages": [
+   318
+  ],
+  "field": "effect",
+  "before": "このRの間、破壊不能ダイスのダイス威力+1（使用後消滅／重複不可）",
+  "after": "このRの間、破壊不能ダイスのダイス威力+1（使用後消滅）（重複不可）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:318:50",
+   "core:318:51"
+  ]
+ },
+ {
+  "kind": "items",
+  "name": "カモメ運送会社の外付け強化義手",
+  "source": "core",
+  "pages": [
+   318
+  ],
+  "field": "effect",
+  "before": "舞台開始時に使用可能。R開始時、パワー1を得る（戦闘後消滅／重複不可／持続3R）",
+  "after": "舞台開始時に使用可能。R開始時、パワー1を得る（戦闘後消滅）（重複不可）（持続3R）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:318:55",
+   "core:318:56"
+  ]
+ },
+ {
+  "kind": "items",
+  "name": "エスカ事務所の強化刺青",
+  "source": "core",
+  "pages": [
+   318
+  ],
+  "field": "effect",
+  "before": "舞台開始時に使用可能。R開始時、忍耐2を得る（戦闘後消滅／重複不可／持続3R）",
+  "after": "舞台開始時に使用可能。R開始時、忍耐2を得る（戦闘後消滅）（重複不可）（持続3R）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:318:60",
+   "core:318:61"
+  ]
+ },
+ {
+  "kind": "items",
+  "name": "バラのスパナ工房の外付け強化義足",
+  "source": "core",
+  "pages": [
+   319
+  ],
+  "field": "effect",
+  "before": "舞台開始時に使用可能。R開始時、クイック2を得る（戦闘後消滅／重複不可／持続3R）",
+  "after": "舞台開始時に使用可能。R開始時、クイック2を得る（戦闘後消滅）（重複不可）（持続3R）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:319:3",
+   "core:319:4"
+  ]
+ },
+ {
+  "kind": "items",
+  "name": "湯の花運送の防護湯煙",
+  "source": "core",
+  "pages": [
+   319
+  ],
+  "field": "effect",
+  "before": "舞台開始時に使用可能。R開始時、保護1を得る（戦闘後消滅／重複不可／持続3R）",
+  "after": "舞台開始時に使用可能。R開始時、保護1を得る（戦闘後消滅）（重複不可）（持続3R）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:319:8",
+   "core:319:9"
+  ]
+ },
+ {
+  "kind": "items",
+  "name": "ガーデンの感覚遮断薬",
+  "source": "core",
+  "pages": [
+   319
+  ],
+  "field": "effect",
+  "before": "使用したRの間、受けるHPダメージが+2。受けるSANダメージが-5（使用後消滅／重複不可）",
+  "after": "[最大所持数3] 使用したRの間、受けるHPダメージが+2。受けるSANダメージが-5（使用後消滅）（重複不可）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:319:13",
+   "core:319:14",
+   "core:319:15"
+  ]
+ },
+ {
+  "kind": "items",
+  "name": "月光石",
+  "source": "core",
+  "pages": [
+   319
+  ],
+  "field": "effect",
+  "before": "使用したRの間、沈潜と恐慌で受けるSANダメージが半減（使用後消滅／重複不可）",
+  "after": "使用したRの間、沈潜と恐慌で受けるSANダメージが半減（使用後消滅）（重複不可）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:319:18",
+   "core:319:19"
+  ]
+ },
+ {
+  "kind": "items",
+  "name": "白蓮清掃派遣会社の制服",
+  "source": "core",
+  "pages": [
+   319
+  ],
+  "field": "effect",
+  "before": "シナリオ開始時に使用。このシナリオ中、攻撃で受けるSANダメージが5減少。白蓮系統の人格のみ使用可能（使用後消滅）",
+  "after": "[最大所持数1] シナリオ開始時に使用。このシナリオ中、攻撃で受けるSANダメージが5減少。白蓮系統の人格のみ使用可能（使用後消滅）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:319:40",
+   "core:319:41",
+   "core:319:42"
+  ]
+ },
+ {
+  "kind": "items",
+  "name": "N社の経典",
+  "source": "core",
+  "pages": [
+   319
+  ],
+  "field": "effect",
+  "before": "シナリオ開始時に使用。このシナリオ中、スキル威力が1増加し、HPとSANの最大値が10増加。N社狂信者人格のみ使用可能（使用後消滅）",
+  "after": "[最大所持数1] シナリオ開始時に使用可能。このシナリオ中、スキル威力が1増加し、HPとSANの最大値が10増加。N社狂信者人格のみ使用可能（使用後消滅）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:319:45",
+   "core:319:46",
+   "core:319:47",
+   "core:319:48"
+  ]
+ },
+ {
+  "kind": "items",
+  "name": "LCCB職員の棍棒と盾",
+  "source": "core",
+  "pages": [
+   319
+  ],
+  "field": "effect",
+  "before": "シナリオ開始時に使用。このシナリオ中、スキル威力が1増加し、破裂と振動の付与量+1。LCCB系統の人格のみ使用可能（使用後消滅）",
+  "after": "[最大所持数1] シナリオ開始時に使用可能。このシナリオ中、スキル威力が1増加し、破裂と振動の付与量+1。LCCB系統の人格のみ使用可能（使用後消滅）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:319:52",
+   "core:319:53",
+   "core:319:54",
+   "core:319:55"
+  ]
+ },
+ {
+  "kind": "items",
+  "name": "セブン協会の情報資料",
+  "source": "core",
+  "pages": [
+   320
+  ],
+  "field": "effect",
+  "before": "シナリオ開始時に使用。このシナリオ中、破裂爆発ダメージ量+5。セブン協会系統の人格のみ使用可能（使用後消滅）",
+  "after": "[最大所持数1] シナリオ開始時に使用可能。このシナリオ中、破裂爆発ダメージ量+5。セブン協会系統の人格のみ使用可能（使用後消滅）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:320:3",
+   "core:320:4",
+   "core:320:5"
+  ]
+ },
+ {
+  "kind": "items",
+  "name": "旧G社の薄汚れた軍服",
+  "source": "core",
+  "pages": [
+   320
+  ],
+  "field": "effect",
+  "before": "シナリオ開始時に使用。このシナリオ中、全てのダイスに「的中時、HPを2回復」を追加。旧G社系統の人格のみ使用可能（使用後消滅）",
+  "after": "[最大所持数1] シナリオ開始時に使用可能。このシナリオ中、全てのダイスに「的中時、HPを2回復」を追加。旧G社系統の人格のみ使用可能（使用後消滅）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:320:9",
+   "core:320:10",
+   "core:320:11",
+   "core:320:12"
+  ]
+ },
+ {
+  "kind": "items",
+  "name": "黒丸",
+  "source": "core",
+  "pages": [
+   320
+  ],
+  "field": "effect",
+  "before": "シナリオ開始時に使用。このシナリオ中、呪殺で与えるダメージ量が5増加。黒獣系統の人格のみ使用可能（使用後消滅）",
+  "after": "[最大所持数1] シナリオ開始時に使用可能。このシナリオ中、呪殺で与えるダメージ量が5増加。黒獣系統の人格のみ使用可能（使用後消滅）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:320:15",
+   "core:320:16",
+   "core:320:17"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "黒雲剣法",
+  "source": "core",
+  "pages": [
+   334
+  ],
+  "field": "cond",
+  "before": "憤怒x3 色欲x3 保有（黒雲会所属人格のみ）",
+  "after": "憤怒x3 色欲x3 保有",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:334:6"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "黒雲剣法",
+  "source": "core",
+  "pages": [
+   334
+  ],
+  "field": "effect",
+  "before": "マッチ敗北時、保護1を得てSAN1~6回復。破壊不能ダイスのダイス威力+2",
+  "after": "黒雲会所属人格のみ発動。マッチ敗北時、保護1を得てSAN1~6回復。破壊不能ダイスのダイス威力+2",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:334:8",
+   "core:334:9",
+   "core:334:10"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "肉斬骨断",
+  "source": "core",
+  "pages": [
+   334
+  ],
+  "field": "cond",
+  "before": "傲慢x3 嫉妬x3 保有（剣契所属人格のみ）",
+  "after": "傲慢x3 嫉妬x3 保有",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:334:12"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "肉斬骨断",
+  "source": "core",
+  "pages": [
+   334
+  ],
+  "field": "effect",
+  "before": "クリティカル成功時の呼吸減少量が半減する。R終了時、呼吸が30以上なら呼吸を10消費して次のRに斬撃威力増加2を得る",
+  "after": "剣契所属人格のみ発動。クリティカル成功時の呼吸減少量が半減する。R終了時、呼吸が30以上なら呼吸を10消費して次のRに斬撃威力増加2を得る",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:334:14",
+   "core:334:15",
+   "core:334:16",
+   "core:334:17"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "冷静",
+  "source": "core",
+  "pages": [
+   334
+  ],
+  "field": "cond",
+  "before": "傲慢x4 共鳴（剣契所属人格のみ）",
+  "after": "傲慢x4 共鳴",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:334:19"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "冷静",
+  "source": "core",
+  "pages": [
+   334
+  ],
+  "field": "effect",
+  "before": "クリティカル発動率+100%",
+  "after": "剣契所属人格のみ発動。クリティカル発動率+100%",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:334:21",
+   "core:334:22"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "情報分析",
+  "source": "core",
+  "pages": [
+   334
+  ],
+  "field": "cond",
+  "before": "暴食x3 傲慢x3 保有（セブン協会所属人格のみ）",
+  "after": "暴食x3 傲慢x3 保有",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:334:41"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "情報分析",
+  "source": "core",
+  "pages": [
+   334
+  ],
+  "field": "effect",
+  "before": "デバフ付与量+1。弱点属性を攻撃する際に与えるダメージ量+3",
+  "after": "セブン協会所属人格のみ発動。デバフ付与量+1。弱点属性を攻撃する際に与えるダメージ量+3",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:334:43",
+   "core:334:44"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "活火激発",
+  "source": "core",
+  "pages": [
+   334
+  ],
+  "field": "cond",
+  "before": "憤怒x3 色欲x3 保有（ジャーマ工房所属人格のみ）",
+  "after": "憤怒x3 色欲x3 保有",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:334:46"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "活火激発",
+  "source": "core",
+  "pages": [
+   334
+  ],
+  "field": "effect",
+  "before": "激熱獲得量+1。火傷状態の敵とマッチする際にマッチ威力+2",
+  "after": "ジャーマ工房所属人格のみ発動。激熱獲得量+1。火傷状態の敵とマッチする際にマッチ威力+2",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:334:48",
+   "core:334:49"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "アレ",
+  "source": "core",
+  "pages": [
+   335
+  ],
+  "field": "cond",
+  "before": "傲慢x3 暴食x3 保有（南部センク協会所属のみ）",
+  "after": "傲慢x3 暴食x3 保有",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:335:22"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "アレ",
+  "source": "core",
+  "pages": [
+   335
+  ],
+  "field": "effect",
+  "before": "R開始時にクイック1を得て、速度が8以上ならマッチ威力+1",
+  "after": "南部センク協会所属のみ発動。R開始時にクイック1を得て、速度が8以上ならマッチ威力+1",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:335:24",
+   "core:335:25"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "激風",
+  "source": "core",
+  "pages": [
+   335
+  ],
+  "field": "cond",
+  "before": "憤怒x2 共鳴（南部シ協会所属人格のみ）",
+  "after": "憤怒x2 共鳴",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:335:27"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "激風",
+  "source": "core",
+  "pages": [
+   335
+  ],
+  "field": "effect",
+  "before": "固定ダメージ効果で与えるダメージが2増加",
+  "after": "南部シ協会所属人格のみ発動。固定ダメージ効果で与えるダメージが2増加",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:335:29",
+   "core:335:30"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "守護者",
+  "source": "core",
+  "pages": [
+   335
+  ],
+  "field": "cond",
+  "before": "憂鬱x3 共鳴（南部ツヴァイ協会所属人格のみ）",
+  "after": "憂鬱x3 共鳴",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:335:32"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "守護者",
+  "source": "core",
+  "pages": [
+   335
+  ],
+  "field": "effect",
+  "before": "マッチ敗北時にあなたの盾x4だけバリアを得る",
+  "after": "南部ツヴァイ協会所属人格のみ発動。マッチ敗北時にあなたの盾x4だけバリアを得る",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:335:34",
+   "core:335:35"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "臨戦無退",
+  "source": "core",
+  "pages": [
+   335
+  ],
+  "field": "cond",
+  "before": "なし（リウ協会所属人格のみ）",
+  "after": "なし",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:335:37"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "臨戦無退",
+  "source": "core",
+  "pages": [
+   335
+  ],
+  "field": "effect",
+  "before": "感情レベルが上がる時、パワー1と忍耐1を得る",
+  "after": "リウ協会所属人格のみ発動。感情レベルが上がる時、パワー1と忍耐1を得る",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:335:39",
+   "core:335:40"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "安如泰山",
+  "source": "core",
+  "pages": [
+   335
+  ],
+  "field": "cond",
+  "before": "なし（リウ協会所属人格のみ）",
+  "after": "なし",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:335:42"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "安如泰山",
+  "source": "core",
+  "pages": [
+   335
+  ],
+  "field": "effect",
+  "before": "感情レベルが上がる時、HPを15回復",
+  "after": "リウ協会所属人格のみ発動。感情レベルが上がる時、HPを15回復",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:335:44",
+   "core:335:45"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "安不忘危",
+  "source": "core",
+  "pages": [
+   335
+  ],
+  "field": "cond",
+  "before": "なし（リウ協会所属人格のみ）",
+  "after": "なし",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:335:47"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "安不忘危",
+  "source": "core",
+  "pages": [
+   335
+  ],
+  "field": "effect",
+  "before": "感情レベルが上がる時、SANを15回復",
+  "after": "リウ協会所属人格のみ発動。感情レベルが上がる時、SANを15回復",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:335:49",
+   "core:335:50"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "迅速配達員",
+  "source": "core",
+  "pages": [
+   336
+  ],
+  "field": "cond",
+  "before": "暴食x3 保有（北部ヂェーヴィチ協会所属人格のみ）",
+  "after": "暴食x3 保有",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:336:2"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "迅速配達員",
+  "source": "core",
+  "pages": [
+   336
+  ],
+  "field": "effect",
+  "before": "自分のデリバリーキャリア5ごとに破裂付与量+1（最大3）",
+  "after": "北部ヂェーヴィチ協会所属人格のみ発動。自分のデリバリーキャリア5ごとに破裂付与量+1（最大3）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:336:4",
+   "core:336:5",
+   "core:336:6"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "知識探求",
+  "source": "core",
+  "pages": [
+   336
+  ],
+  "field": "cond",
+  "before": "怠惰x3 保有（南部ディエーチ協会所属人格のみ）",
+  "after": "怠惰x3 保有",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:336:8"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "知識探求",
+  "source": "core",
+  "pages": [
+   336
+  ],
+  "field": "effect",
+  "before": "スキルを捨てた時、その捨てたスキルのランクだけ怠惰ダメージ量増加を得て、知識鍛錬を2得る（1Rに1回）",
+  "after": "南部ディエーチ協会所属人格のみ発動。スキルを捨てた時、その捨てたスキルのランクだけ怠惰ダメージ量増加を得て、知識鍛錬を2得る（1Rに1回）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:336:10",
+   "core:336:11",
+   "core:336:12",
+   "core:336:13"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "契約執行妨害",
+  "source": "core",
+  "pages": [
+   336
+  ],
+  "field": "cond",
+  "before": "嫉妬x5 保有（南部ウーフィ協会所属人格のみ）",
+  "after": "嫉妬x5 保有",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:336:15"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "契約執行妨害",
+  "source": "core",
+  "pages": [
+   336
+  ],
+  "field": "effect",
+  "before": "振動爆発時の振動消費量-2。振幅変換されている敵とマッチする時マッチ威力+1",
+  "after": "南部ウーフィ協会所属人格のみ発動。振動爆発時の振動消費量-2。振幅変換されている敵とマッチする時マッチ威力+1",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:336:17",
+   "core:336:18",
+   "core:336:19"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "因子コードG-0",
+  "source": "core",
+  "pages": [
+   336
+  ],
+  "field": "cond",
+  "before": "暴食x5 保有（旧G社所属人格のみ）",
+  "after": "暴食x5 保有",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:336:21"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "因子コードG-0",
+  "source": "core",
+  "pages": [
+   336
+  ],
+  "field": "effect",
+  "before": "攻撃後、与えたダメージ/2だけHPを回復（最大15）",
+  "after": "旧G社所属人格のみ発動。攻撃後、与えたダメージ/2だけHPを回復（最大15）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:336:23",
+   "core:336:24"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "緊急アンプル投薬",
+  "source": "core",
+  "pages": [
+   336
+  ],
+  "field": "cond",
+  "before": "暴食x5 保有（K社所属人格のみ）",
+  "after": "暴食x5 保有",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:336:27"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "緊急アンプル投薬",
+  "source": "core",
+  "pages": [
+   336
+  ],
+  "field": "effect",
+  "before": "HPが25％未満なら、HPを100回復（戦闘中1回）",
+  "after": "K社所属人格のみ発動。HPが25％未満なら、HPを100回復（戦闘中1回）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:336:29",
+   "core:336:30"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "RRRスーツ",
+  "source": "core",
+  "pages": [
+   336
+  ],
+  "field": "cond",
+  "before": "憤怒x5 保有（R社第四群所属人格のみ）",
+  "after": "憤怒x5 保有",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:336:32"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "RRRスーツ",
+  "source": "core",
+  "pages": [
+   336
+  ],
+  "field": "effect",
+  "before": "トナカイ/サイ/ウサギチームの人格で、充電が11以上の時、SANダメージ量2増加/保護2/クイック1を得る。",
+  "after": "R社第四群所属人格のみ発動。トナカイ/サイ/ウサギチームの人格で、充電が11以上の時、SANダメージ量2増加/保護2/クイック1を得る。",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:336:34",
+   "core:336:35",
+   "core:336:36"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "時間徴収",
+  "source": "core",
+  "pages": [
+   336
+  ],
+  "field": "cond",
+  "before": "怠惰x3 共鳴（T社所属人格のみ）",
+  "after": "怠惰x3 共鳴",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:336:38"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "時間徴収",
+  "source": "core",
+  "pages": [
+   336
+  ],
+  "field": "effect",
+  "before": "自分のパッシブに「ゴールデンタイム」があれば、時間貸与状態の時に付与する振動と獲得する振動+1。",
+  "after": "T社所属人格のみ発動。自分のパッシブに「ゴールデンタイム」があれば、時間貸与状態の時に付与する振動と獲得する振動+1。",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:336:40",
+   "core:336:41",
+   "core:336:42"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "Warp次元式サーボモーター",
+  "source": "core",
+  "pages": [
+   337
+  ],
+  "field": "cond",
+  "before": "憂鬱x3 嫉妬x3 保有（W社所属人格のみ）",
+  "after": "憂鬱x3 嫉妬x3 保有",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:337:3"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "Warp次元式サーボモーター",
+  "source": "core",
+  "pages": [
+   337
+  ],
+  "field": "effect",
+  "before": "充電獲得量が1増加し、充電を消費するスキルの最後のダイスに「的中時、次元の亀裂2を付与」を追加",
+  "after": "W社所属人格のみ発動。充電獲得量が1増加し、充電を消費するスキルの最後のダイスに「的中時、次元の亀裂2を付与」を追加",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:337:5",
+   "core:337:6",
+   "core:337:7",
+   "core:337:8"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "神風特攻",
+  "source": "core",
+  "pages": [
+   337
+  ],
+  "field": "cond",
+  "before": "憤怒x3 共鳴（メリアニア工房所属人格のみ）",
+  "after": "憤怒x3 共鳴",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:337:10"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "神風特攻",
+  "source": "core",
+  "pages": [
+   337
+  ],
+  "field": "effect",
+  "before": "刺突爆雷を消費してダメージを与えるとき、脆弱2を付与",
+  "after": "メリアニア工房所属人格のみ発動。刺突爆雷を消費してダメージを与えるとき、脆弱2を付与",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:337:12",
+   "core:337:13",
+   "core:337:14"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "斑強化刺青",
+  "source": "core",
+  "pages": [
+   337
+  ],
+  "field": "cond",
+  "before": "嫉妬x3 共鳴（群れたハイエナ所属人格のみ）",
+  "after": "嫉妬x3 共鳴",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:337:16"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "斑強化刺青",
+  "source": "core",
+  "pages": [
+   337
+  ],
+  "field": "effect",
+  "before": "R開始時、混乱保護を自分と同じ所属の味方の数/2だけ得る（最大5）スキル使用時、対象が内臓崩壊状態なら、自分と同じ所属の味方の数-2だけ、最後のダイスの威力増加（最大5）",
+  "after": "群れたハイエナ所属人格のみ発動。R開始時、混乱保護を自分と同じ所属の味方の数/2だけ得る（最大5）スキル使用時、対象が内臓崩壊状態なら、自分と同じ所属の味方の数-2だけ、最後のダイスの威力増加（最大5）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:337:18",
+   "core:337:19",
+   "core:337:20",
+   "core:337:21",
+   "core:337:22",
+   "core:337:23"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "爆発的発電",
+  "source": "core",
+  "pages": [
+   337
+  ],
+  "field": "cond",
+  "before": "怠惰x3 共鳴（ニトロ研究所所属人格のみ）",
+  "after": "怠惰x3 共鳴",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:337:25"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "爆発的発電",
+  "source": "core",
+  "pages": [
+   337
+  ],
+  "field": "effect",
+  "before": "充電を消費する時、追加で3消費し、次のRに充電8を得る",
+  "after": "ニトロ研究所所属人格のみ発動。充電を消費する時、追加で3消費し、次のRに充電8を得る",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:337:27",
+   "core:337:28",
+   "core:337:29"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "白く染まれ",
+  "source": "core",
+  "pages": [
+   337
+  ],
+  "field": "cond",
+  "before": "憤怒x2 憂鬱x2 暴食x2 保有（白蓮清掃員所属人格のみ）",
+  "after": "憤怒x2 憂鬱x2 暴食x2 保有",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:337:31"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "白く染まれ",
+  "source": "core",
+  "pages": [
+   337
+  ],
+  "field": "effect",
+  "before": "破裂爆発時、与えた破裂ダメージ/3だけSANを回復",
+  "after": "白蓮清掃員所属人格のみ発動。破裂爆発時、与えた破裂ダメージ/3だけSANを回復",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:337:33",
+   "core:337:34"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "銛穿ち",
+  "source": "core",
+  "pages": [
+   337
+  ],
+  "field": "cond",
+  "before": "傲慢x3 共鳴（ピークォド号所属人格のみ）",
+  "after": "傲慢x3 共鳴",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:337:36"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "銛穿ち",
+  "source": "core",
+  "pages": [
+   337
+  ],
+  "field": "effect",
+  "before": "ピークォド号船長が居る時、SANを10回復。対象が湖の存在ならダメージ量+3。自分の呼吸を呼吸-銛捌きへ[深吸変換]",
+  "after": "ピークォド号所属人格のみ発動。ピークォド号船長が居る時、SANを10回復。対象が湖の存在ならダメージ量+3。自分の呼吸を呼吸-銛捌きへ[深吸変換]",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:337:38",
+   "core:337:39",
+   "core:337:40",
+   "core:337:41"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "一発一発が名勝負",
+  "source": "core",
+  "pages": [
+   338
+  ],
+  "field": "cond",
+  "before": "憤怒x3 保有（マッチロック工房所属人格のみ）",
+  "after": "憤怒x3 保有",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:338:3"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "一発一発が名勝負",
+  "source": "core",
+  "pages": [
+   338
+  ],
+  "field": "effect",
+  "before": "自分の弾丸を弾丸-火縄に[弾倉変換]サポートパッシブ「一撃」の効果を「E.G.O以外の単ダイススキルのd値が1増加し、ダメージ量+3」に変更",
+  "after": "マッチロック工房所属人格のみ発動。自分の弾丸を弾丸-火縄に[弾倉変換]サポートパッシブ「一撃」の効果を「E.G.O以外の単ダイススキルのd値が1増加し、ダメージ量+3」に変更",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:338:5",
+   "core:338:6",
+   "core:338:7",
+   "core:338:8",
+   "core:338:9"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "E.G.O同化",
+  "source": "core",
+  "pages": [
+   338
+  ],
+  "field": "cond",
+  "before": "憤怒x3 嫉妬x3 傲慢x3 保有（ロボトミーコーポレーション所属人格のみ）",
+  "after": "憤怒x3 嫉妬x3 傲慢x3 保有",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:338:11"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "E.G.O同化",
+  "source": "core",
+  "pages": [
+   338
+  ],
+  "field": "effect",
+  "before": "自分に付与するデバフ量+1。スキル4のダメージ量+3、スキル4で減少するSANが半減する",
+  "after": "ロボトミーコーポレーション所属人格のみ発動。自分に付与するデバフ量+1。スキル4のダメージ量+3、スキル4で減少するSANが半減する",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:338:13",
+   "core:338:14",
+   "core:338:15"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "即決審判",
+  "source": "core",
+  "pages": [
+   338
+  ],
+  "field": "cond",
+  "before": "嫉妬x5 暴食x5 保有（南部親指所属人格のみ）",
+  "after": "嫉妬x5 暴食x5 保有",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:338:17"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "即決審判",
+  "source": "core",
+  "pages": [
+   338
+  ],
+  "field": "effect",
+  "before": "スキル1を捨てた時、銃撃ダイスで与えるダメージ量+2。「徹甲弾」「氷結弾」「火炎弾」の効果を強化。「徹甲弾-銃撃ダイスでマッチする時、対象のマッチ威力-2-」「氷結弾-銃撃ダイスで攻撃的中時、次のRに武装解除2を付与。マッチ勝利時に次のRに麻痺1を付与-」「火炎弾-銃撃ダイスで攻撃的中時、火傷2を付与。マッチ勝利時に火傷3を付与-」",
+  "after": "南部親指所属人格のみ発動。スキル1を捨てた時、銃撃ダイスで与えるダメージ量+2。「徹甲弾」「氷結弾」「火炎弾」の効果を強化。「徹甲弾-銃撃ダイスでマッチする時、対象のマッチ威力-2-」「氷結弾-銃撃ダイスで攻撃的中時、次のRに武装解除2を付与。マッチ勝利時に次のRに麻痺1を付与-」「火炎弾-銃撃ダイスで攻撃的中時、火傷2を付与。マッチ勝利時に火傷3を付与-」",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:338:19",
+   "core:338:20",
+   "core:338:21",
+   "core:338:22",
+   "core:338:23",
+   "core:338:24",
+   "core:338:25",
+   "core:338:26",
+   "core:338:27",
+   "core:338:28"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "指令通達",
+  "source": "core",
+  "pages": [
+   338
+  ],
+  "field": "cond",
+  "before": "怠惰x2 嫉妬x2 憂鬱x2 保有（人差し指所属人格のみ）",
+  "after": "怠惰x2 嫉妬x2 憂鬱x2 保有",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:338:30"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "指令通達",
+  "source": "core",
+  "pages": [
+   338
+  ],
+  "field": "effect",
+  "before": "戦術選択ダイスロールの結果、指令の印スキルが含まれないなら、戦術選択ダイスロールをやり直す（1Rに1回）",
+  "after": "人差し指所属人格のみ発動。戦術選択ダイスロールの結果、指令の印スキルが含まれないなら、戦術選択ダイスロールをやり直す（1Rに1回）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:338:32",
+   "core:338:33",
+   "core:338:34"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "お返し",
+  "source": "core",
+  "pages": [
+   338
+  ],
+  "field": "cond",
+  "before": "嫉妬x5 憤怒x5 保有（中指所属人格のみ）",
+  "after": "嫉妬x5 憤怒x5 保有",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:338:36"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "お返し",
+  "source": "core",
+  "pages": [
+   338
+  ],
+  "field": "effect",
+  "before": "マッチ敗北時、ダイス数が2以下のスキルなら、ダイス効果を無効にして破壊不能ダイスになる",
+  "after": "中指所属人格のみ発動。マッチ敗北時、ダイス数が2以下のスキルなら、ダイス効果を無効にして破壊不能ダイスになる",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:338:38",
+   "core:338:39",
+   "core:338:40"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "適血の彩色",
+  "source": "core",
+  "pages": [
+   339
+  ],
+  "field": "cond",
+  "before": "色欲x5 怠惰x5 保有（薬指点描派人格のみ）",
+  "after": "色欲x5 怠惰x5 保有",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:339:2"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "適血の彩色",
+  "source": "core",
+  "pages": [
+   339
+  ],
+  "field": "effect",
+  "before": "対象が持つデバフの種類2ごとにダメージ量+1（最大5）。出血が10以上の敵にマッチ勝利時、内臓崩壊1を付与",
+  "after": "薬指点描派人格のみ発動。対象が持つデバフの種類2ごとにダメージ量+1（最大5）。出血が10以上の敵にマッチ勝利時、内臓崩壊1を付与",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:339:4",
+   "core:339:5",
+   "core:339:6"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "コインの両面",
+  "source": "core",
+  "pages": [
+   339
+  ],
+  "field": "cond",
+  "before": "色欲x3 共鳴（双鉤海賊団所属人格のみ）",
+  "after": "色欲x3 共鳴",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:339:8"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "コインの両面",
+  "source": "core",
+  "pages": [
+   339
+  ],
+  "field": "effect",
+  "before": "クリティカル的中時、次のRにパワー1を得る（最大1）双鉤海賊団船長・副船長人格なら追加で、クリティカル成功時に全味方のSANを10回復",
+  "after": "双鉤海賊団所属人格のみ発動。クリティカル的中時、次のRにパワー1を得る（最大1）双鉤海賊団船長・副船長人格なら追加で、クリティカル成功時に全味方のSANを10回復",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:339:10",
+   "core:339:11",
+   "core:339:12",
+   "core:339:13"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "遊興",
+  "source": "core",
+  "pages": [
+   339
+  ],
+  "field": "cond",
+  "before": "憂鬱x3 共鳴（マリアッチ所属人格のみ）",
+  "after": "憂鬱x3 共鳴",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:339:15"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "遊興",
+  "source": "core",
+  "pages": [
+   339
+  ],
+  "field": "effect",
+  "before": "回避成功時、呼吸2を得る。クリティカル的中時、対象の沈潜を沈潜-激情へと[沈思変換]し、自分の呼吸を呼吸-パーティーへと[深吸変換]",
+  "after": "マリアッチ所属人格のみ発動。回避成功時、呼吸2を得る。クリティカル的中時、対象の沈潜を沈潜-激情へと[沈思変換]し、自分の呼吸を呼吸-パーティーへと[深吸変換]",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:339:17",
+   "core:339:18",
+   "core:339:19",
+   "core:339:20",
+   "core:339:21"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "秘蔵の武器",
+  "source": "core",
+  "pages": [
+   339
+  ],
+  "field": "cond",
+  "before": "憂鬱x3 保有（20区ユロージヴィ所属人格のみ）",
+  "after": "憂鬱x3 保有",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:339:23"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "秘蔵の武器",
+  "source": "core",
+  "pages": [
+   339
+  ],
+  "field": "effect",
+  "before": "自分の振動を振動-分配へと[振幅変換]。振動絡縺時、このRに脆弱2を付与",
+  "after": "20区ユロージヴィ所属人格のみ発動。自分の振動を振動-分配へと[振幅変換]。振動絡縺時、このRに脆弱2を付与",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:339:25",
+   "core:339:26",
+   "core:339:27"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "怨念蓄積",
+  "source": "core",
+  "pages": [
+   339
+  ],
+  "field": "cond",
+  "before": "嫉妬x5 保有（メメメメメ工房所属人格のみ）",
+  "after": "嫉妬x5 保有",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:339:29"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "怨念蓄積",
+  "source": "core",
+  "pages": [
+   339
+  ],
+  "field": "effect",
+  "before": "被ダメージ時に破裂2を得る。自分が破裂爆発でダメージを受ける時、攻撃者に破裂ダメージ量だけ沈潜と破裂を付与",
+  "after": "メメメメメ工房所属人格のみ発動。被ダメージ時に破裂2を得る。自分が破裂爆発でダメージを受ける時、攻撃者に破裂ダメージ量だけ沈潜と破裂を付与",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:339:31",
+   "core:339:32",
+   "core:339:33",
+   "core:339:34"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "アイアン・メイデン",
+  "source": "core",
+  "pages": [
+   339
+  ],
+  "field": "cond",
+  "before": "憤怒x5 保有（針金工房所属人格のみ）",
+  "after": "憤怒x5 保有",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:339:37"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "アイアン・メイデン",
+  "source": "core",
+  "pages": [
+   339
+  ],
+  "field": "effect",
+  "before": "R開始時、出血保護5を得る。マッチ進行時、互いの出血ダメージが3増加する。",
+  "after": "針金工房所属人格のみ発動。R開始時、出血保護5を得る。マッチ進行時、互いの出血ダメージが3増加する。",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:339:39",
+   "core:339:40",
+   "core:339:41"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "ド根性",
+  "source": "core",
+  "pages": [
+   340
+  ],
+  "field": "cond",
+  "before": "憤怒x5 保有（鉄腕兄弟所属人格のみ）",
+  "after": "憤怒x5 保有",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:340:2"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "ド根性",
+  "source": "core",
+  "pages": [
+   340
+  ],
+  "field": "effect",
+  "before": "大罪保護を得る時、追加で2得る。反撃時に与えるダメージが大罪保護の数-1だけ増加（最大3）",
+  "after": "鉄腕兄弟所属人格のみ発動。大罪保護を得る時、追加で2得る。反撃時に与えるダメージが大罪保護の数-1だけ増加（最大3）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:340:4",
+   "core:340:5",
+   "core:340:6"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "紅色に輝く",
+  "source": "core",
+  "pages": [
+   340
+  ],
+  "field": "cond",
+  "before": "傲慢x5 保有（第四銀所属人格のみ）",
+  "after": "傲慢x5 保有",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:340:8"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "紅色に輝く",
+  "source": "core",
+  "pages": [
+   340
+  ],
+  "field": "effect",
+  "before": "破裂爆発ダメージ量+3。破裂爆発時、次のRにてダメージ量減少1を付与（最大3）",
+  "after": "第四銀所属人格のみ発動。破裂爆発ダメージ量+3。破裂爆発時、次のRにてダメージ量減少1を付与（最大3）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:340:10",
+   "core:340:11",
+   "core:340:12"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "空式螺子",
+  "source": "core",
+  "pages": [
+   340
+  ],
+  "field": "cond",
+  "before": "怠惰x3 共鳴（ボルトット工房所属人格のみ）",
+  "after": "怠惰x3 共鳴",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:340:14"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "空式螺子",
+  "source": "core",
+  "pages": [
+   340
+  ],
+  "field": "effect",
+  "before": "自分の速度が1~3ならば自分の速度を7に変更。速度が1~3の敵とマッチする時、対象のマッチ威力-1。",
+  "after": "ボルトット工房所属人格のみ発動。自分の速度が1~3ならば自分の速度を7に変更。速度が1~3の敵とマッチする時、対象のマッチ威力-1。",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:340:16",
+   "core:340:17",
+   "core:340:18"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "弾丸黒疾",
+  "source": "core",
+  "pages": [
+   340
+  ],
+  "field": "cond",
+  "before": "傲慢x3 共鳴（ロジック・アトリエ所属人格のみ）",
+  "after": "傲慢x3 共鳴",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:340:20"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "弾丸黒疾",
+  "source": "core",
+  "pages": [
+   340
+  ],
+  "field": "effect",
+  "before": "弾丸を消費するスキルを捨てる時、捨てたスキルの数によって以下の効果を得る。1以上「次のRに付与する破裂の数が1増加」2以上「次のRにて貫通威力増加1を得る」3以上「このRで与える破裂ダメージ量+3」",
+  "after": "ロジック・アトリエ所属人格のみ発動。弾丸を消費するスキルを捨てる時、捨てたスキルの数によって以下の効果を得る。1以上「次のRに付与する破裂の数が1増加」2以上「次のRにて貫通威力増加1を得る」3以上「このRで与える破裂ダメージ量+3」",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:340:22",
+   "core:340:23",
+   "core:340:24",
+   "core:340:25",
+   "core:340:26",
+   "core:340:27"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "銘柄:Velieve",
+  "source": "core",
+  "pages": [
+   340
+  ],
+  "field": "cond",
+  "before": "色欲x4 保有（ヴィリーブ工房所属人格のみ）",
+  "after": "色欲x4 保有",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:340:29"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "銘柄:Velieve",
+  "source": "core",
+  "pages": [
+   340
+  ],
+  "field": "effect",
+  "before": "攻撃前、対象の火傷と煙の合計4ごとに煙1を得る（最大3）",
+  "after": "ヴィリーブ工房所属人格のみ発動。攻撃前、対象の火傷と煙の合計4ごとに煙1を得る（最大3）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:340:31",
+   "core:340:32"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "スパナ稼働",
+  "source": "core",
+  "pages": [
+   340
+  ],
+  "field": "cond",
+  "before": "怠惰x3 憂鬱x3 保有（バラのスパナ工房所属人格のみ）",
+  "after": "怠惰x3 憂鬱x3 保有",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:340:34"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "スパナ稼働",
+  "source": "core",
+  "pages": [
+   340
+  ],
+  "field": "effect",
+  "before": "最大値的中時、共振2を得る。マッチ勝利時、共振1を得る",
+  "after": "バラのスパナ工房所属人格のみ発動。最大値的中時、共振2を得る。マッチ勝利時、共振1を得る",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:340:36",
+   "core:340:37"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "高危険作戦",
+  "source": "core",
+  "pages": [
+   340
+  ],
+  "field": "cond",
+  "before": "色欲x2 嫉妬x2 憂鬱x2 保有（リンバス・カンパニー所属人格のみ）",
+  "after": "色欲x2 嫉妬x2 憂鬱x2 保有",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:340:39"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "高危険作戦",
+  "source": "core",
+  "pages": [
+   340
+  ],
+  "field": "effect",
+  "before": "戦術2と戦術4のマッチ威力+1。R開始時、死亡したリンバス・カンパニー所属人格の数だけダメージ量増加（最大4）",
+  "after": "リンバス・カンパニー所属人格のみ発動。戦術2と戦術4のマッチ威力+1。R開始時、死亡したリンバス・カンパニー所属人格の数だけダメージ量増加（最大4）",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:340:41",
+   "core:340:42",
+   "core:340:43",
+   "core:340:44"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "鎮魂",
+  "source": "core",
+  "pages": [
+   342
+  ],
+  "field": "cond",
+  "before": "なし（火傷を付与するスキルを持つ味方が5名以上）",
+  "after": "なし",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:342:42"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "血の霧",
+  "source": "core",
+  "pages": [
+   343
+  ],
+  "field": "cond",
+  "before": "なし（出血を付与するスキルを持つ味方が5名以上）",
+  "after": "なし",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:343:2"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "連成振動",
+  "source": "core",
+  "pages": [
+   343
+  ],
+  "field": "cond",
+  "before": "なし（振動を付与するスキルを持つ味方が5名以上）",
+  "after": "なし",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:343:11"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "恍惚鏡",
+  "source": "core",
+  "pages": [
+   343
+  ],
+  "field": "cond",
+  "before": "なし（破裂を付与するスキルを持つ味方が5名以上）",
+  "after": "なし",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:343:21"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "黒い楽譜",
+  "source": "core",
+  "pages": [
+   343
+  ],
+  "field": "cond",
+  "before": "なし（沈潜または恐慌を付与するスキルを持つ味方が5名以上）",
+  "after": "なし",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:343:30"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "福袋",
+  "source": "core",
+  "pages": [
+   344
+  ],
+  "field": "cond",
+  "before": "なし（呼吸を獲得するスキルを持つ味方が5名以上）",
+  "after": "なし",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:344:2"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "第1種永久機関",
+  "source": "core",
+  "pages": [
+   344
+  ],
+  "field": "cond",
+  "before": "なし（充電を獲得するスキルを持つ味方が5名以上）",
+  "after": "なし",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:344:10"
+  ]
+ },
+ {
+  "kind": "spirits",
+  "name": "分別できる理性",
+  "source": "core",
+  "pages": [
+   350
+  ],
+  "field": "confuse_effect",
+  "before": "全ての耐性が1段階低下。戦術選択ダイスロールが1b4になり、敵が自分以外の味方をターゲティング可能なら、自分がメインターゲットに指定されなくなる",
+  "after": "全ての耐性が1段階低下。戦術選択ダイスロールが1b4になり、敵が自分以外の味方をターゲティング可能なら、自分がメインターゲットに指定されなくなる。",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "core:350:20",
+   "core:350:21",
+   "core:350:22",
+   "core:350:23"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "演者の行進",
+  "source": "supplement",
+  "pages": [
+   45
+  ],
+  "field": "cond",
+  "before": "なし",
+  "after": "戦闘に参加している味方全員が同じ大罪共鳴",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "supplement:45:2"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "演者の行進",
+  "source": "supplement",
+  "pages": [
+   45
+  ],
+  "field": "effect",
+  "before": "笛吹きの音楽隊所属人格のみ発動。戦闘に参加している味方全員が同じ大罪共鳴。共鳴による威力補正を最大5まで受けられる。音符獲得量+1。クリティカル成功による呼吸消費量が0になる",
+  "after": "笛吹きの音楽隊所属人格のみ発動。共鳴による威力補正を最大5まで受けられる。音符獲得量+1。クリティカル成功による呼吸消費量が0になる",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "supplement:45:4",
+   "supplement:45:5",
+   "supplement:45:6"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "逢魔が時",
+  "source": "supplement",
+  "pages": [
+   45
+  ],
+  "field": "effect",
+  "before": "常時：舞台開始時、呪い2を得る。鬼門事務所所属のみ発動。マッチ勝利時、呪い2を得る。自分の呪いが6以上ならスキル威力+1。対象がねじれなら追加でダメージ量+2",
+  "after": "常時：舞台開始時、呪い2を得る\n鬼門事務所所属のみ発動。マッチ勝利時、呪い2を得る。自分の呪いが6以上ならスキル威力+1。対象がねじれなら追加でダメージ量+2",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "supplement:45:19",
+   "supplement:45:20",
+   "supplement:45:22",
+   "supplement:45:23",
+   "supplement:45:24"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "落ちた一雫",
+  "source": "supplement",
+  "pages": [
+   45
+  ],
+  "field": "effect",
+  "before": "常時：舞台開始時、血餐50を得る（重複発動不可）。自分の累計消費血餐20ごとにダメージ量+1（最大5）。通常スキルの最後のダイス的中時、対象の出血1回発動し出血3減少",
+  "after": "常時：舞台開始時、血餐50を得る（重複発動不可）\n自分の累計消費血餐20ごとにダメージ量+1（最大5）。通常スキルの最後のダイス的中時、対象の出血1回発動し出血3減少",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "supplement:45:42",
+   "supplement:45:43",
+   "supplement:45:44",
+   "supplement:45:46",
+   "supplement:45:47",
+   "supplement:45:48"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "確率変動者",
+  "source": "supplement",
+  "pages": [
+   50
+  ],
+  "field": "effect",
+  "before": "スキルで1番初めのダイス使用時、該当ダイスが未半数なら1度だけダイスを振りなおす。減算ダイスなら代わりに該当ダイスが過半数なら1度だけダイスを振りなおす",
+  "after": "スキルで1番初めのダイス使用時、該当ダイスが未半数なら1度だけダイスを振りなおす。減算ダイスなら代わりに該当ダイスが過半数なら1度だけダイスを振りなおす。",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "supplement:50:11",
+   "supplement:50:12",
+   "supplement:50:13",
+   "supplement:50:14"
+  ]
+ },
+ {
+  "kind": "support_passives",
+  "name": "絡まる因縁",
+  "source": "supplement",
+  "pages": [
+   50
+  ],
+  "field": "effect",
+  "before": "戦闘開始時、スキル威力+5（戦闘ごとに1回のみ発動）",
+  "after": "戦闘開始時、スキル威力+5（戦闘ごとに1回のみ発動）。",
+  "reason": "Restore source cell text and field ownership; no rule changes",
+  "row_ids": [
+   "supplement:50:18",
+   "supplement:50:19"
+  ]
+ },
+ {
+  "kind": "items",
+  "name": "ツヴァイヘンダー",
+  "source": "core",
+  "pages": [
+   319
+  ],
+  "field": "tags",
+  "before": [
+   "盾"
+  ],
+  "after": [
+   "あなたの盾"
+  ],
+  "reason": "Use the complete printed status name",
+  "row_ids": []
+ },
+ {
+  "kind": "items",
+  "name": "ツヴァイヘンダー",
+  "source": "core",
+  "pages": [
+   319
+  ],
+  "field": "palette",
+  "before": "ツヴァイヘンダー：次のRに盾2を得る",
+  "after": "ツヴァイヘンダー：次のRにあなたの盾2を得る",
+  "reason": "Do not abbreviate status names in output",
+  "row_ids": []
+ },
+ {
+  "kind": "egos",
+  "name": "魑魅魍魎：舌切り雀",
+  "source": "core",
+  "pages": [
+   243
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "斬撃",
+   "sin": "嫉妬",
+   "aoe": "",
+   "effect": "マッチ勝利時：対象が沈潜状態なら[沈潜殺到]",
+   "dice": [
+    {
+     "roll": "19-1d9",
+     "effect": "的中時、対象が混乱状態なら固定HPダメージ10を与える"
+    },
+    {
+     "roll": "19-1d9",
+     "effect": "的中時、対象が混乱状態なら固定HPダメージ10を与える"
+    }
+   ]
+  },
+  "after": {
+   "attr": "斬撃",
+   "sin": "嫉妬",
+   "aoe": "",
+   "effect": "[敵味方識別不可]\nマッチ勝利時：対象が沈潜状態なら[沈潜殺到]",
+   "dice": [
+    {
+     "roll": "19-1d9",
+     "effect": "的中時、対象が混乱状態なら固定HPダメージ10を与える"
+    },
+    {
+     "roll": "19-1d9",
+     "effect": "的中時、対象が混乱状態なら固定HPダメージ10を与える"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:243:52",
+   "core:243:53",
+   "core:243:54",
+   "core:243:55",
+   "core:243:56"
+  ],
+  "field_refs": {
+   "shinshoku.attr": [
+    "core:243:52"
+   ],
+   "shinshoku.sin": [
+    "core:243:52"
+   ],
+   "shinshoku.aoe": [
+    "core:243:52"
+   ],
+   "shinshoku.effect": [
+    "core:243:53",
+    "core:243:54"
+   ],
+   "shinshoku.dice[0].roll": [
+    "core:243:55"
+   ],
+   "shinshoku.dice[0].effect": [
+    "core:243:55"
+   ],
+   "shinshoku.dice[1].roll": [
+    "core:243:56"
+   ],
+   "shinshoku.dice[1].effect": [
+    "core:243:56"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "黄金の卵：ガチョウ",
+  "source": "core",
+  "pages": [
+   243
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "斬撃",
+   "sin": "怠惰",
+   "aoe": "",
+   "effect": "マッチ勝利時：対象の振動を最大20消費し、次のRにて消費した振動2ごとに怠惰脆弱1を付与",
+   "dice": [
+    {
+     "roll": "20-2d9",
+     "effect": "的中時、互いに[振動爆発]。振動を3消費"
+    }
+   ]
+  },
+  "after": {
+   "attr": "斬撃",
+   "sin": "怠惰",
+   "aoe": "",
+   "effect": "[敵味方識別不可]\nマッチ勝利時：対象の振動を最大20消費し、次のRにて消費した振動2ごとに怠惰脆弱1を付与",
+   "dice": [
+    {
+     "roll": "20-2d9",
+     "effect": "的中時、互いに[振動爆発]。振動を3消費"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:243:25",
+   "core:243:26",
+   "core:243:27",
+   "core:243:28",
+   "core:243:29"
+  ],
+  "field_refs": {
+   "shinshoku.attr": [
+    "core:243:25"
+   ],
+   "shinshoku.sin": [
+    "core:243:25"
+   ],
+   "shinshoku.aoe": [
+    "core:243:25"
+   ],
+   "shinshoku.effect": [
+    "core:243:26",
+    "core:243:27",
+    "core:243:28"
+   ],
+   "shinshoku.dice[0].roll": [
+    "core:243:29"
+   ],
+   "shinshoku.dice[0].effect": [
+    "core:243:29"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "Changer MK3：なんでも変えて差し上げます",
+  "source": "core",
+  "pages": [
+   245
+  ],
+  "field": "kakusei",
+  "before": {
+   "attr": "貫通",
+   "sin": "暴食",
+   "aoe": "",
+   "effect": "戦闘開始時：自分のHPが50％以上ならHPを25％まで減少しLPを10獲得。HPが25％以下の状態なら死亡する 使用時：対象の出血2ごとにダメージ量+1（最大10） [影響] 5R",
+   "dice": [
+    {
+     "roll": "2d10",
+     "effect": "的中時、対象の出血が10以上なら出血-崩壊へと[血蓮変換]"
+    }
+   ]
+  },
+  "after": {
+   "attr": "貫通",
+   "sin": "暴食",
+   "aoe": "",
+   "effect": "戦闘開始時：自分のHPが50％以上ならHPを25％まで減少しLPを10獲得。HPが25％以下の状態なら死亡する\n使用時：対象の出血2ごとにダメージ量+1（最大10）",
+   "dice": [
+    {
+     "roll": "2d10",
+     "effect": "的中時、対象の出血が10以上なら出血-崩壊へと[血蓮変換]"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:245:40",
+   "core:245:41",
+   "core:245:42",
+   "core:245:43",
+   "core:245:44"
+  ],
+  "field_refs": {
+   "kakusei.attr": [
+    "core:245:40"
+   ],
+   "kakusei.sin": [
+    "core:245:40"
+   ],
+   "kakusei.aoe": [
+    "core:245:40"
+   ],
+   "kakusei.effect": [
+    "core:245:41",
+    "core:245:42",
+    "core:245:43"
+   ],
+   "kakusei.dice[0].roll": [
+    "core:245:44"
+   ],
+   "kakusei.dice[0].effect": [
+    "core:245:44"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "Changer MK3：なんでも変えて差し上げます",
+  "source": "core",
+  "pages": [
+   245
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "貫通",
+   "sin": "暴食",
+   "aoe": "",
+   "effect": "2R：自分のHPを25%減少し10LP獲得 3R：自分のHPを30%減少し15LP獲得 4R：自分のHPを60%減少し20LP獲得 5R：自分のHPを100%減少し25LP獲得",
+   "dice": []
+  },
+  "after": {
+   "attr": "",
+   "sin": "",
+   "aoe": "",
+   "effect": "[影響] 5R\n1R：自分のHPを20%減少し5LP獲得\n2R：自分のHPを25%減少し10LP獲得\n3R：自分のHPを30%減少し15LP獲得\n4R：自分のHPを60%減少し20LP獲得\n5R：自分のHPを100%減少し25LP獲得",
+   "dice": []
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:245:47",
+   "core:245:48",
+   "core:245:49",
+   "core:245:50",
+   "core:245:51",
+   "core:245:52"
+  ],
+  "field_refs": {
+   "shinshoku.effect": [
+    "core:245:47",
+    "core:245:48",
+    "core:245:49",
+    "core:245:50",
+    "core:245:51",
+    "core:245:52"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "蝍蛆殺：百足の使徒",
+  "source": "core",
+  "pages": [
+   246
+  ],
+  "field": "unique_buff",
+  "before": "",
+  "after": "[百足の毒] 最大20 デバフ\nR終了時、数値4ごとに次のターンに脆弱1を得る\nR終了時、数値だけ暴食ダメージを受けて、数値が半減\n死亡した時、ランダムなキャラクターにこのデバフを全て押し付ける",
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:246:57",
+   "core:246:58",
+   "core:246:59",
+   "core:246:60"
+  ],
+  "field_refs": {
+   "unique_buff": [
+    "core:246:57",
+    "core:246:58",
+    "core:246:59",
+    "core:246:60"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "響き：マンドレイクの棺",
+  "source": "core",
+  "pages": [
+   247
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "打撃",
+   "sin": "傲慢",
+   "aoe": "対象3体",
+   "effect": "戦闘開始時：全てのキャラクターのSANが半減（最大30）。恐慌があるキャラクターに精神崩壊1を付与",
+   "dice": [
+    {
+     "roll": "25-2d10",
+     "effect": "的中時、このRに傲慢脆弱5を付与"
+    }
+   ]
+  },
+  "after": {
+   "attr": "打撃",
+   "sin": "傲慢",
+   "aoe": "広域対象3体",
+   "effect": "[敵味方識別不可]\n戦闘開始時：全てのキャラクターのSANが半減（最大30）。恐慌があるキャラクターに精神崩壊1を付与",
+   "dice": [
+    {
+     "roll": "25-2d10",
+     "effect": "的中時、このRに傲慢脆弱5を付与"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:247:49",
+   "core:247:50",
+   "core:247:51",
+   "core:247:52",
+   "core:247:53"
+  ],
+  "field_refs": {
+   "shinshoku.attr": [
+    "core:247:49"
+   ],
+   "shinshoku.sin": [
+    "core:247:49"
+   ],
+   "shinshoku.aoe": [
+    "core:247:49"
+   ],
+   "shinshoku.effect": [
+    "core:247:50",
+    "core:247:51",
+    "core:247:52"
+   ],
+   "shinshoku.dice[0].roll": [
+    "core:247:53"
+   ],
+   "shinshoku.dice[0].effect": [
+    "core:247:53"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "幸福：あなたは幸せでなければならない",
+  "source": "core",
+  "pages": [
+   248
+  ],
+  "field": "kakusei",
+  "before": {
+   "attr": "覚醒テキスト",
+   "sin": "特殊",
+   "aoe": "",
+   "effect": "[影響] 3R\n1R：味方に1d100を対象の好きな回数だけ振らせる。偶数ならパワー1、奇数なら虚弱1を対象に付与する\n2R：味方に1d100を対象の好きな回数だけ振らせる。偶数なら保護1、奇数なら脆弱1を対象に付与する\n3R：味方に1d100を対象の好きな回数だけ振らせる。偶数ならパワー2と保護2、奇数なら虚弱2と脆弱2を対象に付与する。戦闘終了時、このE.G.Oの効果で合計5回以上1d100を振った味方を死亡させる",
+   "dice": []
+  },
+  "after": {
+   "attr": "",
+   "sin": "",
+   "aoe": "",
+   "effect": "[影響] 3R\n1R：味方に1d100を対象の好きな回数だけ振らせる。偶数ならパワー1、奇数なら虚弱1を対象に付与する\n2R：味方に1d100を対象の好きな回数だけ振らせる。偶数なら保護1、奇数なら脆弱1を対象に付与する\n3R：味方に1d100を対象の好きな回数だけ振らせる。偶数ならパワー2と保護2、奇数なら虚弱2と脆弱2を対象に付与する。戦闘終了時、このE.G.Oの効果で合計5回以上1d100を振った味方を死亡させる",
+   "dice": []
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:248:40",
+   "core:248:41",
+   "core:248:42",
+   "core:248:43",
+   "core:248:44",
+   "core:248:45",
+   "core:248:46",
+   "core:248:47"
+  ],
+  "field_refs": {
+   "kakusei.effect": [
+    "core:248:40",
+    "core:248:41",
+    "core:248:42",
+    "core:248:43",
+    "core:248:44",
+    "core:248:45",
+    "core:248:46",
+    "core:248:47"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "幸福：あなたは幸せでなければならない",
+  "source": "core",
+  "pages": [
+   248
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "侵蝕テキスト",
+   "sin": "特殊",
+   "aoe": "",
+   "effect": "[影響] 3R\n1R：敵に1d100を対象の好きな回数だけ振らせる。偶数ならパワー1、奇数なら虚弱1を対象に付与する\n2R：敵に1d100を対象の好きな回数だけ振らせる。偶数なら保護1、奇数なら脆弱1を対象に付与する\n3R：敵に1d100を対象の好きな回数だけ振らせる。偶数ならパワー2と保護2、奇数なら虚弱2と脆弱2を対象に付与する。このE.G.Oの効果で合計5回以上1d100を振った敵を3R後に死亡させる（強敵無効）",
+   "dice": []
+  },
+  "after": {
+   "attr": "",
+   "sin": "",
+   "aoe": "",
+   "effect": "[影響] 3R\n1R：敵に1d100を対象の好きな回数だけ振らせる。偶数ならパワー1、奇数なら虚弱1を対象に付与する\n2R：敵に1d100を対象の好きな回数だけ振らせる。偶数なら保護1、奇数なら脆弱1を対象に付与する\n3R：敵に1d100を対象の好きな回数だけ振らせる。偶数ならパワー2と保護2、奇数なら虚弱2と脆弱2を対象に付与する。このE.G.Oの効果で合計5回以上1d100を振った敵を3R後に死亡させる（強敵無効）",
+   "dice": []
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:248:50",
+   "core:248:51",
+   "core:248:52",
+   "core:248:53",
+   "core:248:54",
+   "core:248:55",
+   "core:248:56",
+   "core:248:57"
+  ],
+  "field_refs": {
+   "shinshoku.effect": [
+    "core:248:50",
+    "core:248:51",
+    "core:248:52",
+    "core:248:53",
+    "core:248:54",
+    "core:248:55",
+    "core:248:56",
+    "core:248:57"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "鬼退治：血迷った鬼殺し",
+  "source": "core",
+  "pages": [
+   249
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "斬撃",
+   "sin": "憤怒",
+   "aoe": "",
+   "effect": "戦闘開始時：後方の味方3名にきびだんご3を付与\n使用時：全ての味方から、呼吸を半分吸収する",
+   "dice": [
+    {
+     "roll": "27-2d11",
+     "effect": "クリティカルダメージ量+5"
+    }
+   ]
+  },
+  "after": {
+   "attr": "斬撃",
+   "sin": "憤怒",
+   "aoe": "",
+   "effect": "[敵味方識別不可]\n戦闘開始時：後方の味方3名にきびだんご3を付与\n使用時：全ての味方から、呼吸を半分吸収する",
+   "dice": [
+    {
+     "roll": "27-2d11",
+     "effect": "クリティカルダメージ量+5"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:249:26",
+   "core:249:27",
+   "core:249:28",
+   "core:249:29",
+   "core:249:30"
+  ],
+  "field_refs": {
+   "shinshoku.attr": [
+    "core:249:26"
+   ],
+   "shinshoku.sin": [
+    "core:249:26"
+   ],
+   "shinshoku.aoe": [
+    "core:249:26"
+   ],
+   "shinshoku.effect": [
+    "core:249:27",
+    "core:249:28",
+    "core:249:29"
+   ],
+   "shinshoku.dice[0].roll": [
+    "core:249:30"
+   ],
+   "shinshoku.dice[0].effect": [
+    "core:249:30"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "鬼退治：血迷った鬼殺し",
+  "source": "core",
+  "pages": [
+   249
+  ],
+  "field": "unique_buff",
+  "before": "[きびだんご]最大3 バフ",
+  "after": "[きびだんご]最大3 バフ\n呼吸獲得量+1、クリティカル成功時に呼吸3を得る。R終了時に1減少",
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:249:33",
+   "core:249:34"
+  ],
+  "field_refs": {
+   "unique_buff": [
+    "core:249:33",
+    "core:249:34"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "殺害救済：首吊り風船",
+  "source": "core",
+  "pages": [
+   249
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "貫通",
+   "sin": "憤怒",
+   "aoe": "",
+   "effect": "マッチ勝利時：互いに50のHPダメージを与える",
+   "dice": [
+    {
+     "roll": "30-4d5",
+     "effect": "的中時、次のRに出血5を付与"
+    }
+   ]
+  },
+  "after": {
+   "attr": "貫通",
+   "sin": "憤怒",
+   "aoe": "",
+   "effect": "[敵味方識別不可]\nマッチ勝利時：互いに50のHPダメージを与える",
+   "dice": [
+    {
+     "roll": "30-4d5",
+     "effect": "的中時、次のRに出血5を付与"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:249:57",
+   "core:249:58",
+   "core:249:59",
+   "core:249:60"
+  ],
+  "field_refs": {
+   "shinshoku.attr": [
+    "core:249:57"
+   ],
+   "shinshoku.sin": [
+    "core:249:57"
+   ],
+   "shinshoku.aoe": [
+    "core:249:57"
+   ],
+   "shinshoku.effect": [
+    "core:249:58",
+    "core:249:59"
+   ],
+   "shinshoku.dice[0].roll": [
+    "core:249:60"
+   ],
+   "shinshoku.dice[0].effect": [
+    "core:249:60"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "後悔：捨てられた殺人鬼",
+  "source": "core",
+  "pages": [
+   250
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "打撃",
+   "sin": "憂鬱",
+   "aoe": "",
+   "effect": "使用時：自分にデバフがあるならデバフを全て除去。デバフがないならスキル威力-8",
+   "dice": [
+    {
+     "roll": "9d2",
+     "effect": ""
+    },
+    {
+     "roll": "9d2",
+     "effect": ""
+    },
+    {
+     "roll": "10d2",
+     "effect": "マッチ勝利的中時、対象の現在のSANを50％減少"
+    }
+   ]
+  },
+  "after": {
+   "attr": "",
+   "sin": "",
+   "aoe": "",
+   "effect": "[同化]",
+   "dice": []
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:250:24"
+  ],
+  "field_refs": {
+   "shinshoku.effect": [
+    "core:250:24"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "赤眼：母なる蜘蛛",
+  "source": "core",
+  "pages": [
+   253
+  ],
+  "field": "kakusei",
+  "before": {
+   "attr": "斬撃",
+   "sin": "憤怒",
+   "aoe": "",
+   "effect": "戦闘開始時：束縛状態の敵に束縛3を付与",
+   "dice": [
+    {
+     "roll": "2d10",
+     "effect": "的中時、対象の束縛の数だけ次のRにてクイックを得る"
+    },
+    {
+     "roll": "5d3+1",
+     "effect": ""
+    },
+    {
+     "roll": "5d3+1",
+     "effect": "的中時、次のRに束縛1を付与"
+    },
+    {
+     "roll": "3d4+1",
+     "effect": "的中時、次のRに束縛1を付与"
+    }
+   ]
+  },
+  "after": {
+   "attr": "",
+   "sin": "",
+   "aoe": "",
+   "effect": "[同化]",
+   "dice": []
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:253:18"
+  ],
+  "field_refs": {
+   "kakusei.effect": [
+    "core:253:18"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "赤眼：母なる蜘蛛",
+  "source": "core",
+  "pages": [
+   253
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "斬撃",
+   "sin": "色欲",
+   "aoe": "",
+   "effect": "[敵味方識別不可]\n使用時：今回のRと次のRにて自分を除くすべてのキャラクターが束縛3を得る",
+   "dice": [
+    {
+     "roll": "2d7+2",
+     "effect": "過半数的中時、次のRに武装解除2を付与"
+    },
+    {
+     "roll": "3d7",
+     "effect": ""
+    },
+    {
+     "roll": "9d2",
+     "effect": "的中時、対象の束縛と自分のクイックの数の合計x5だけHPを回復"
+    },
+    {
+     "roll": "30-1d23",
+     "effect": "的中時、対象の束縛と自分のクイックの数の合計x5だけHPを回復"
+    }
+   ]
+  },
+  "after": {
+   "attr": "斬撃",
+   "sin": "色欲",
+   "aoe": "",
+   "effect": "[敵味方識別不可]\n使用時：今回のRと次のRにて自分を除くすべてのキャラクターが束縛3を得る",
+   "dice": [
+    {
+     "roll": "30-1d23",
+     "effect": "的中時、対象の束縛と自分のクイックの数の合計x5だけHPを回復"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:253:34",
+   "core:253:35",
+   "core:253:36",
+   "core:253:37"
+  ],
+  "field_refs": {
+   "shinshoku.attr": [
+    "core:253:34"
+   ],
+   "shinshoku.sin": [
+    "core:253:34"
+   ],
+   "shinshoku.aoe": [
+    "core:253:34"
+   ],
+   "shinshoku.effect": [
+    "core:253:35",
+    "core:253:36"
+   ],
+   "shinshoku.dice[0].roll": [
+    "core:253:37"
+   ],
+   "shinshoku.dice[0].effect": [
+    "core:253:37"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "赤眼：母なる蜘蛛",
+  "source": "core",
+  "pages": [
+   253
+  ],
+  "field": "sub_skills",
+  "before": null,
+  "after": [
+   {
+    "no": 1,
+    "name": "捕らえる",
+    "attr": "斬撃",
+    "sin": "憤怒",
+    "aoe": "",
+    "effect": "",
+    "dice": [
+     {
+      "roll": "2d10",
+      "effect": "的中時、対象の束縛の数だけ次のRにてクイックを得る"
+     }
+    ]
+   },
+   {
+    "no": 2,
+    "name": "糸を絡めて",
+    "attr": "貫通",
+    "sin": "色欲",
+    "aoe": "",
+    "effect": "",
+    "dice": [
+     {
+      "roll": "5d3+1",
+      "effect": ""
+     },
+     {
+      "roll": "5d3+1",
+      "effect": "的中時、次のRに束縛1を付与"
+     },
+     {
+      "roll": "3d4+1",
+      "effect": "的中時、次のRに束縛1を付与"
+     }
+    ]
+   },
+   {
+    "no": 3,
+    "name": "餌狩り",
+    "attr": "斬撃",
+    "sin": "憤怒",
+    "aoe": "",
+    "effect": "戦闘開始時：束縛状態の敵に束縛3を付与",
+    "dice": [
+     {
+      "roll": "2d7+2",
+      "effect": "過半数的中時、次のRに武装解除2を付与"
+     },
+     {
+      "roll": "2d7+2",
+      "effect": "過半数的中時、次のRに武装解除2を付与"
+     },
+     {
+      "roll": "3d7",
+      "effect": ""
+     }
+    ]
+   },
+   {
+    "no": 4,
+    "name": "蜘蛛の巣",
+    "attr": "斬撃",
+    "sin": "嫉妬",
+    "aoe": "",
+    "effect": "",
+    "dice": [
+     {
+      "roll": "9d2",
+      "effect": "的中時、対象の束縛と自分のクイックの数の合計x5だけHPを回復"
+     }
+    ]
+   }
+  ],
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:253:19",
+   "core:253:20",
+   "core:253:21",
+   "core:253:22",
+   "core:253:23",
+   "core:253:24",
+   "core:253:25",
+   "core:253:26",
+   "core:253:27",
+   "core:253:28",
+   "core:253:29",
+   "core:253:30",
+   "core:253:31"
+  ],
+  "field_refs": {
+   "sub_skills[0].no": [
+    "core:253:19"
+   ],
+   "sub_skills[0].name": [
+    "core:253:19"
+   ],
+   "sub_skills[0].attr": [
+    "core:253:19"
+   ],
+   "sub_skills[0].sin": [
+    "core:253:19"
+   ],
+   "sub_skills[0].aoe": [
+    "core:253:19"
+   ],
+   "sub_skills[0].dice[0].roll": [
+    "core:253:20"
+   ],
+   "sub_skills[0].dice[0].effect": [
+    "core:253:20"
+   ],
+   "sub_skills[1].no": [
+    "core:253:21"
+   ],
+   "sub_skills[1].name": [
+    "core:253:21"
+   ],
+   "sub_skills[1].attr": [
+    "core:253:21"
+   ],
+   "sub_skills[1].sin": [
+    "core:253:21"
+   ],
+   "sub_skills[1].aoe": [
+    "core:253:21"
+   ],
+   "sub_skills[1].dice[0].roll": [
+    "core:253:22"
+   ],
+   "sub_skills[1].dice[0].effect": [
+    "core:253:22"
+   ],
+   "sub_skills[1].dice[1].roll": [
+    "core:253:23"
+   ],
+   "sub_skills[1].dice[1].effect": [
+    "core:253:23"
+   ],
+   "sub_skills[1].dice[2].roll": [
+    "core:253:24"
+   ],
+   "sub_skills[1].dice[2].effect": [
+    "core:253:24"
+   ],
+   "sub_skills[2].no": [
+    "core:253:25"
+   ],
+   "sub_skills[2].name": [
+    "core:253:25"
+   ],
+   "sub_skills[2].attr": [
+    "core:253:25"
+   ],
+   "sub_skills[2].sin": [
+    "core:253:25"
+   ],
+   "sub_skills[2].aoe": [
+    "core:253:25"
+   ],
+   "sub_skills[2].effect": [
+    "core:253:26"
+   ],
+   "sub_skills[2].dice[0].roll": [
+    "core:253:27"
+   ],
+   "sub_skills[2].dice[0].effect": [
+    "core:253:27"
+   ],
+   "sub_skills[2].dice[1].roll": [
+    "core:253:28"
+   ],
+   "sub_skills[2].dice[1].effect": [
+    "core:253:28"
+   ],
+   "sub_skills[2].dice[2].roll": [
+    "core:253:29"
+   ],
+   "sub_skills[2].dice[2].effect": [
+    "core:253:29"
+   ],
+   "sub_skills[3].no": [
+    "core:253:30"
+   ],
+   "sub_skills[3].name": [
+    "core:253:30"
+   ],
+   "sub_skills[3].attr": [
+    "core:253:30"
+   ],
+   "sub_skills[3].sin": [
+    "core:253:30"
+   ],
+   "sub_skills[3].aoe": [
+    "core:253:30"
+   ],
+   "sub_skills[3].dice[0].roll": [
+    "core:253:31"
+   ],
+   "sub_skills[3].dice[0].effect": [
+    "core:253:31"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "ねばつき：足長妖精",
+  "source": "core",
+  "pages": [
+   254
+  ],
+  "field": "kakusei",
+  "before": {
+   "attr": "",
+   "sin": "",
+   "aoe": "",
+   "effect": "1R：全ての敵に束縛1と呼吸3を付与2R：全ての敵に内臓崩壊1を付与",
+   "dice": []
+  },
+  "after": {
+   "attr": "",
+   "sin": "",
+   "aoe": "",
+   "effect": "[影響] 2R\n1R：全ての敵に束縛1と呼吸3を付与\n2R：全ての敵に内臓崩壊1を付与",
+   "dice": []
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:254:18",
+   "core:254:19",
+   "core:254:20"
+  ],
+  "field_refs": {
+   "kakusei.effect": [
+    "core:254:18",
+    "core:254:19",
+    "core:254:20"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "にやつき：笑うチェシャ猫",
+  "source": "core",
+  "pages": [
+   255
+  ],
+  "field": "kakusei",
+  "before": {
+   "attr": "覚醒テキスト",
+   "sin": "特殊",
+   "aoe": "",
+   "effect": "[影響] 3R\n1R：全ての味方がパワー、忍耐、クイック、保護のうち1つをランダムに1得る\n2R：全ての味方がパワー、忍耐、クイック、保護のうち1つをランダムに2得る\n3R：全ての味方がパワー、忍耐、クイック、保護のうち1つをランダムに3得る",
+   "dice": []
+  },
+  "after": {
+   "attr": "",
+   "sin": "",
+   "aoe": "",
+   "effect": "[影響] 3R\n1R：全ての味方がパワー、忍耐、クイック、保護の内1つをランダムに1得る\n2R：全ての味方がパワー、忍耐、クイック、保護の内1つをランダムに2得る\n3R：全ての味方がパワー、忍耐、クイック、保護の内1つをランダムに3得る",
+   "dice": []
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:255:19",
+   "core:255:20",
+   "core:255:21",
+   "core:255:22"
+  ],
+  "field_refs": {
+   "kakusei.effect": [
+    "core:255:19",
+    "core:255:20",
+    "core:255:21",
+    "core:255:22"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "にやつき：笑うチェシャ猫",
+  "source": "core",
+  "pages": [
+   255
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "斬撃",
+   "sin": "怠惰",
+   "aoe": "",
+   "effect": "マッチ開始時：このRの間、対象のバフ・デバフによる威力の増減を反転する",
+   "dice": [
+    {
+     "roll": "29-3d8",
+     "effect": "的中時、対象の現在のデバフの数を1.5倍に増加"
+    }
+   ]
+  },
+  "after": {
+   "attr": "斬撃",
+   "sin": "怠惰",
+   "aoe": "",
+   "effect": "[敵味方識別不可]\nマッチ開始時：このRの間、対象のバフ・デバフによる威力の増減を反転する",
+   "dice": [
+    {
+     "roll": "29-3d8",
+     "effect": "的中時、対象の現在のデバフの数を1.5倍に増加"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:255:25",
+   "core:255:26",
+   "core:255:27",
+   "core:255:28"
+  ],
+  "field_refs": {
+   "shinshoku.attr": [
+    "core:255:25"
+   ],
+   "shinshoku.sin": [
+    "core:255:25"
+   ],
+   "shinshoku.aoe": [
+    "core:255:25"
+   ],
+   "shinshoku.effect": [
+    "core:255:26",
+    "core:255:27"
+   ],
+   "shinshoku.dice[0].roll": [
+    "core:255:28"
+   ],
+   "shinshoku.dice[0].effect": [
+    "core:255:28"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "たぷつき：妖精紳士",
+  "source": "core",
+  "pages": [
+   257
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "貫通",
+   "sin": "暴食",
+   "aoe": "",
+   "effect": "対象の振動が10以上ならマッチ威力+5",
+   "dice": [
+    {
+     "roll": "32-5d6",
+     "effect": "的中時、[振動爆発]を4回発動し、振動を10消費"
+    }
+   ]
+  },
+  "after": {
+   "attr": "貫通",
+   "sin": "暴食",
+   "aoe": "",
+   "effect": "[敵味方識別不可]\n対象の振動が10以上ならマッチ威力+5",
+   "dice": [
+    {
+     "roll": "32-5d6",
+     "effect": "的中時、[振動爆発]を4回発動し、振動を10消費"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:257:23",
+   "core:257:24",
+   "core:257:25",
+   "core:257:26"
+  ],
+  "field_refs": {
+   "shinshoku.attr": [
+    "core:257:23"
+   ],
+   "shinshoku.sin": [
+    "core:257:23"
+   ],
+   "shinshoku.aoe": [
+    "core:257:23"
+   ],
+   "shinshoku.effect": [
+    "core:257:24",
+    "core:257:25"
+   ],
+   "shinshoku.dice[0].roll": [
+    "core:257:26"
+   ],
+   "shinshoku.dice[0].effect": [
+    "core:257:26"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "氷の脚：バーバヤーガ",
+  "source": "core",
+  "pages": [
+   257
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "打撃",
+   "sin": "憂鬱",
+   "aoe": "",
+   "effect": "メインターゲットのHPが50％以上ならダメージ量+3",
+   "dice": [
+    {
+     "roll": "1d8+20",
+     "effect": "的中時、[振動爆発]。沈潜10を付与"
+    }
+   ]
+  },
+  "after": {
+   "attr": "打撃",
+   "sin": "憂鬱",
+   "aoe": "",
+   "effect": "[敵味方識別不可]\nメインターゲットのHPが50％以上ならダメージ量+3",
+   "dice": [
+    {
+     "roll": "1d8+20",
+     "effect": "的中時、[振動爆発]。沈潜10を付与"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:257:50",
+   "core:257:51",
+   "core:257:52",
+   "core:257:53"
+  ],
+  "field_refs": {
+   "shinshoku.attr": [
+    "core:257:50"
+   ],
+   "shinshoku.sin": [
+    "core:257:50"
+   ],
+   "shinshoku.aoe": [
+    "core:257:50"
+   ],
+   "shinshoku.effect": [
+    "core:257:51",
+    "core:257:52"
+   ],
+   "shinshoku.dice[0].roll": [
+    "core:257:53"
+   ],
+   "shinshoku.dice[0].effect": [
+    "core:257:53"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "投げ縄：薔薇の狩人",
+  "source": "core",
+  "pages": [
+   258
+  ],
+  "field": "unique_buff",
+  "before": "",
+  "after": "[投げ縄] 最大3 デバフ\nR終了時、自分の速度だけ破裂を得て（最大4）、次のRに束縛1を得る\nR終了時1減少",
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:258:39",
+   "core:258:40",
+   "core:258:41"
+  ],
+  "field_refs": {
+   "unique_buff": [
+    "core:258:39",
+    "core:258:40",
+    "core:258:41"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "過ぎし日：在りし日の肖像",
+  "source": "core",
+  "pages": [
+   259
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "貫通",
+   "sin": "憂鬱",
+   "aoe": "対象3体",
+   "effect": "対象に呪いがあるならダメージ量+3",
+   "dice": [
+    {
+     "roll": "27-1d9",
+     "effect": "的中時、次のRにて沈潜3と傲慢脆弱2、呪い1を付与"
+    }
+   ]
+  },
+  "after": {
+   "attr": "貫通",
+   "sin": "憂鬱",
+   "aoe": "広域対象3体",
+   "effect": "[敵味方識別不可]\n対象に呪いがあるならダメージ量+3",
+   "dice": [
+    {
+     "roll": "27-1d9",
+     "effect": "的中時、次のRにて沈潜3と傲慢脆弱2、呪い1を付与"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:259:23",
+   "core:259:24",
+   "core:259:25",
+   "core:259:26"
+  ],
+  "field_refs": {
+   "shinshoku.attr": [
+    "core:259:23"
+   ],
+   "shinshoku.sin": [
+    "core:259:23"
+   ],
+   "shinshoku.aoe": [
+    "core:259:23"
+   ],
+   "shinshoku.effect": [
+    "core:259:24",
+    "core:259:25"
+   ],
+   "shinshoku.dice[0].roll": [
+    "core:259:26"
+   ],
+   "shinshoku.dice[0].effect": [
+    "core:259:26"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "凶弾：凶弾の射手",
+  "source": "core",
+  "pages": [
+   261
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "貫通",
+   "sin": "傲慢",
+   "aoe": "対象3体",
+   "effect": "攻撃前：傲慢共鳴数1ごとにクリティカルダメージ量+1（最大7）。呼吸5ごとにダメージ量+2",
+   "dice": [
+    {
+     "roll": "28-1d12",
+     "effect": "的中時、次のRに出血3と沈潜3を付与。クリティカル的中時、呼吸3を得る"
+    }
+   ]
+  },
+  "after": {
+   "attr": "貫通",
+   "sin": "傲慢",
+   "aoe": "広域対象3体",
+   "effect": "[敵味方識別不可]\n攻撃前：傲慢共鳴数1ごとにクリティカルダメージ量+1（最大7）。呼吸5ごとにダメージ量+2",
+   "dice": [
+    {
+     "roll": "28-1d12",
+     "effect": "的中時、次のRに出血3と沈潜3を付与。クリティカル的中時、呼吸3を得る"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:261:25",
+   "core:261:26",
+   "core:261:27",
+   "core:261:28",
+   "core:261:29",
+   "core:261:30"
+  ],
+  "field_refs": {
+   "shinshoku.attr": [
+    "core:261:25"
+   ],
+   "shinshoku.sin": [
+    "core:261:25"
+   ],
+   "shinshoku.aoe": [
+    "core:261:25"
+   ],
+   "shinshoku.effect": [
+    "core:261:26",
+    "core:261:27",
+    "core:261:28"
+   ],
+   "shinshoku.dice[0].roll": [
+    "core:261:29",
+    "core:261:30"
+   ],
+   "shinshoku.dice[0].effect": [
+    "core:261:29",
+    "core:261:30"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "蓬萊：年老いた釣り人",
+  "source": "core",
+  "pages": [
+   261
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "貫通",
+   "sin": "傲慢",
+   "aoe": "",
+   "effect": "戦闘開始時：自分以外の全てのキャラクターに[鬱苦殺到]",
+   "dice": [
+    {
+     "roll": "23-1d18",
+     "effect": "的中時、次のRに恐慌3を付与"
+    },
+    {
+     "roll": "23-1d18",
+     "effect": "的中時、精神崩壊1を付与"
+    }
+   ]
+  },
+  "after": {
+   "attr": "貫通",
+   "sin": "傲慢",
+   "aoe": "",
+   "effect": "[敵味方識別不可]\n戦闘開始時：自分以外の全てのキャラクターに[鬱苦殺到]",
+   "dice": [
+    {
+     "roll": "23-1d18",
+     "effect": "的中時、次のRに恐慌3を付与"
+    },
+    {
+     "roll": "23-1d18",
+     "effect": "的中時、精神崩壊1を付与"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:261:55",
+   "core:261:56",
+   "core:261:57",
+   "core:261:58",
+   "core:261:59"
+  ],
+  "field_refs": {
+   "shinshoku.attr": [
+    "core:261:55"
+   ],
+   "shinshoku.sin": [
+    "core:261:55"
+   ],
+   "shinshoku.aoe": [
+    "core:261:55"
+   ],
+   "shinshoku.effect": [
+    "core:261:56",
+    "core:261:57"
+   ],
+   "shinshoku.dice[0].roll": [
+    "core:261:58"
+   ],
+   "shinshoku.dice[0].effect": [
+    "core:261:58"
+   ],
+   "shinshoku.dice[1].roll": [
+    "core:261:59"
+   ],
+   "shinshoku.dice[1].effect": [
+    "core:261:59"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "ノイズ：1.76 MHz",
+  "source": "core",
+  "pages": [
+   263
+  ],
+  "field": "kakusei",
+  "before": {
+   "attr": "覚醒テキスト",
+   "sin": "特殊",
+   "aoe": "",
+   "effect": "[影響]2R：全ての味方にパワー2と敵識別不可を付与",
+   "dice": []
+  },
+  "after": {
+   "attr": "",
+   "sin": "",
+   "aoe": "",
+   "effect": "[影響] 2R\n1R：全ての味方にパワー2と敵識別不可を付与\n2R：全ての味方にパワー2と敵識別不可を付与",
+   "dice": []
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:263:44",
+   "core:263:45",
+   "core:263:46"
+  ],
+  "field_refs": {
+   "kakusei.effect": [
+    "core:263:44",
+    "core:263:45",
+    "core:263:46"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "ノイズ：1.76 MHz",
+  "source": "core",
+  "pages": [
+   263
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "侵蝕テキスト",
+   "sin": "特殊",
+   "aoe": "",
+   "effect": "[影響]3R：全てのキャラクターにパワー2と敵味方識別不可を付与",
+   "dice": []
+  },
+  "after": {
+   "attr": "",
+   "sin": "",
+   "aoe": "",
+   "effect": "[影響] 3R\n1R：全てのキャラクターにパワー2と敵味方識別不可を付与\n2R：全てのキャラクターにパワー2と敵味方識別不可を付与\n3R：全てのキャラクターにパワー2と敵味方識別不可を付与",
+   "dice": []
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:263:49",
+   "core:263:50",
+   "core:263:51",
+   "core:263:52"
+  ],
+  "field_refs": {
+   "shinshoku.effect": [
+    "core:263:49",
+    "core:263:50",
+    "core:263:51",
+    "core:263:52"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "ハーモニー：歌う機械",
+  "source": "core",
+  "pages": [
+   265
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "打撃",
+   "sin": "憤怒",
+   "aoe": "",
+   "effect": "1に固定",
+   "dice": [
+    {
+     "roll": "29-1d20",
+     "effect": "的中時、ランダムな味方3名に次のRにパワー1を付与"
+    },
+    {
+     "roll": "29-1d20",
+     "effect": "的中時、ランダムな味方3名に次のRにパワー1を付与"
+    },
+    {
+     "roll": "29-1d20",
+     "effect": "的中時、ランダムな味方3名に次のRにパワー1を付与"
+    }
+   ]
+  },
+  "after": {
+   "attr": "打撃",
+   "sin": "憤怒",
+   "aoe": "",
+   "effect": "[敵味方識別不可]\n戦闘開始時：全てのキャラクターの攻撃スキルの威力+1~3、守備スキルの威力が1に固定",
+   "dice": [
+    {
+     "roll": "29-1d20",
+     "effect": "的中時、ランダムな味方3名に次のRにパワー1を付与"
+    },
+    {
+     "roll": "29-1d20",
+     "effect": "的中時、ランダムな味方3名に次のRにパワー1を付与"
+    },
+    {
+     "roll": "29-1d20",
+     "effect": "的中時、ランダムな味方3名に次のRにパワー1を付与"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:265:51",
+   "core:265:52",
+   "core:265:53",
+   "core:265:54",
+   "core:265:55",
+   "core:265:56",
+   "core:265:57"
+  ],
+  "field_refs": {
+   "shinshoku.attr": [
+    "core:265:51"
+   ],
+   "shinshoku.sin": [
+    "core:265:51"
+   ],
+   "shinshoku.aoe": [
+    "core:265:51"
+   ],
+   "shinshoku.effect": [
+    "core:265:52",
+    "core:265:53",
+    "core:265:54"
+   ],
+   "shinshoku.dice[0].roll": [
+    "core:265:55"
+   ],
+   "shinshoku.dice[0].effect": [
+    "core:265:55"
+   ],
+   "shinshoku.dice[1].roll": [
+    "core:265:56"
+   ],
+   "shinshoku.dice[1].effect": [
+    "core:265:56"
+   ],
+   "shinshoku.dice[2].roll": [
+    "core:265:57"
+   ],
+   "shinshoku.dice[2].effect": [
+    "core:265:57"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "偏った慣性：ゼンマイ装置時間起き上がりこぼし",
+  "source": "core",
+  "pages": [
+   267
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "打撃",
+   "sin": "怠惰",
+   "aoe": "対象3体",
+   "effect": "攻撃前：最大共鳴数+4だけ自分の振動が増加（最大8） 該当共鳴が怠惰共鳴なら自分の振動を振動-ネジ巻きへ[振幅変換]",
+   "dice": [
+    {
+     "roll": "29-4d5",
+     "effect": "的中時、振動8を付与"
+    },
+    {
+     "roll": "29-4d5",
+     "effect": "的中時、[振動爆発]。振動を1消費。次のRに怠惰脆弱3を付与"
+    }
+   ]
+  },
+  "after": {
+   "attr": "打撃",
+   "sin": "怠惰",
+   "aoe": "広域対象3体",
+   "effect": "[敵味方識別不可]\n攻撃前：最大共鳴数+4だけ自分の振動が増加（最大8）\n該当共鳴が怠惰共鳴なら自分の振動を振動-ネジ巻きへ[振幅変換]",
+   "dice": [
+    {
+     "roll": "29-4d5",
+     "effect": "的中時、振動8を付与"
+    },
+    {
+     "roll": "29-4d5",
+     "effect": "的中時、[振動爆発]。振動を1消費。次のRに怠惰脆弱3を付与"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:267:25",
+   "core:267:26",
+   "core:267:27",
+   "core:267:28",
+   "core:267:29",
+   "core:267:30"
+  ],
+  "field_refs": {
+   "shinshoku.attr": [
+    "core:267:25"
+   ],
+   "shinshoku.sin": [
+    "core:267:25"
+   ],
+   "shinshoku.aoe": [
+    "core:267:25"
+   ],
+   "shinshoku.effect": [
+    "core:267:26",
+    "core:267:27",
+    "core:267:28"
+   ],
+   "shinshoku.dice[0].roll": [
+    "core:267:29"
+   ],
+   "shinshoku.dice[0].effect": [
+    "core:267:29"
+   ],
+   "shinshoku.dice[1].roll": [
+    "core:267:30"
+   ],
+   "shinshoku.dice[1].effect": [
+    "core:267:30"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "瓦礫：石像のマリア",
+  "source": "core",
+  "pages": [
+   267
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "打撃",
+   "sin": "怠惰",
+   "aoe": "",
+   "effect": "使用時：偶数Rなら全ての味方に次のRに束縛2、パワー3を付与奇数Rなら全ての味方に次のRに保護5、虚弱3を付与",
+   "dice": [
+    {
+     "roll": "38-2d9",
+     "effect": "的中時、[振動爆発] 振動を3消費し対象の振動を振動-崩壊へ[振幅変換]"
+    }
+   ]
+  },
+  "after": {
+   "attr": "打撃",
+   "sin": "怠惰",
+   "aoe": "",
+   "effect": "[敵味方識別不可]\n使用時：偶数Rなら全ての味方に次のRに束縛2、パワー3を付与\n奇数Rなら全ての味方に次のRに保護5、虚弱3を付与",
+   "dice": [
+    {
+     "roll": "38-2d9",
+     "effect": "的中時、[振動爆発] 振動を3消費し対象の振動を振動-崩壊へ[振幅変換]"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:267:54",
+   "core:267:55",
+   "core:267:56",
+   "core:267:57",
+   "core:267:58"
+  ],
+  "field_refs": {
+   "shinshoku.attr": [
+    "core:267:54"
+   ],
+   "shinshoku.sin": [
+    "core:267:54"
+   ],
+   "shinshoku.aoe": [
+    "core:267:54"
+   ],
+   "shinshoku.effect": [
+    "core:267:55",
+    "core:267:56",
+    "core:267:57"
+   ],
+   "shinshoku.dice[0].roll": [
+    "core:267:58"
+   ],
+   "shinshoku.dice[0].effect": [
+    "core:267:58"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "狐雨：さすらいの狐",
+  "source": "core",
+  "pages": [
+   268
+  ],
+  "field": "kakusei",
+  "before": {
+   "attr": "",
+   "sin": "",
+   "aoe": "",
+   "effect": "1R：全ての味方が保護2と打撃威力増加2を得る2R：全ての味方が保護2と打撃威力増加2を得て、全ての敵に武装解除5を付与3R：全ての味方が保護2と打撃威力増加2を得て、全ての敵に虚弱5を付与",
+   "dice": []
+  },
+  "after": {
+   "attr": "",
+   "sin": "",
+   "aoe": "",
+   "effect": "[影響] 3R\n1R：全ての味方が保護2と打撃威力増加2を得る\n2R：全ての味方が保護2と打撃威力増加2を得て、全ての敵に武装解除5を付与\n3R：全ての味方が保護2と打撃威力増加2を得て、全ての敵に虚弱5を付与",
+   "dice": []
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:268:51",
+   "core:268:52",
+   "core:268:53",
+   "core:268:54"
+  ],
+  "field_refs": {
+   "kakusei.effect": [
+    "core:268:51",
+    "core:268:52",
+    "core:268:53",
+    "core:268:54"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "執行：天の執行官の補佐",
+  "source": "core",
+  "pages": [
+   269
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "打撃",
+   "sin": "怠惰",
+   "aoe": "",
+   "effect": "攻撃後：最もHPが低い味方2名にダメージ量増加3と脆弱5を付与",
+   "dice": [
+    {
+     "roll": "33-1d28",
+     "effect": "的中時、[振動爆発]。対象へ固定SANダメージ20を与える"
+    }
+   ]
+  },
+  "after": {
+   "attr": "打撃",
+   "sin": "怠惰",
+   "aoe": "",
+   "effect": "[敵味方識別不可]\n攻撃後：最もHPが低い味方2名にダメージ量増加3と脆弱5を付与",
+   "dice": [
+    {
+     "roll": "33-1d28",
+     "effect": "的中時、[振動爆発]。対象へ固定SANダメージ20を与える"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:269:51",
+   "core:269:52",
+   "core:269:53",
+   "core:269:54"
+  ],
+  "field_refs": {
+   "shinshoku.attr": [
+    "core:269:51"
+   ],
+   "shinshoku.sin": [
+    "core:269:51"
+   ],
+   "shinshoku.aoe": [
+    "core:269:51"
+   ],
+   "shinshoku.effect": [
+    "core:269:52",
+    "core:269:53"
+   ],
+   "shinshoku.dice[0].roll": [
+    "core:269:54"
+   ],
+   "shinshoku.dice[0].effect": [
+    "core:269:54"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "ヘデイク：煙造人間",
+  "source": "core",
+  "pages": [
+   270
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "",
+   "sin": "",
+   "aoe": "",
+   "effect": "2R：全てのキャラクターに煙5を付与3R：全てのキャラクターに煙5を付与4R：全てのキャラクターが煙の数x2だけダメージを受け、煙を全て消費",
+   "dice": []
+  },
+  "after": {
+   "attr": "",
+   "sin": "",
+   "aoe": "",
+   "effect": "[影響] 4R\n1R：全てのキャラクターに煙3を付与\n2R：全てのキャラクターに煙5を付与\n3R：全てのキャラクターに煙5を付与\n4R：全てのキャラクターが煙の数x2だけダメージを受け、煙を全て消費",
+   "dice": []
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:270:24",
+   "core:270:25",
+   "core:270:26",
+   "core:270:27",
+   "core:270:28"
+  ],
+  "field_refs": {
+   "shinshoku.effect": [
+    "core:270:24",
+    "core:270:25",
+    "core:270:26",
+    "core:270:27",
+    "core:270:28"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "提灯：妖精提灯",
+  "source": "core",
+  "pages": [
+   271
+  ],
+  "field": "kakusei",
+  "before": {
+   "attr": "貫通",
+   "sin": "暴食",
+   "aoe": "",
+   "effect": "[影響] 3R 1R：ランダムな味方3名に呼吸4を付与し、呼吸-好餌へと[深吸変換]",
+   "dice": [
+    {
+     "roll": "3d8",
+     "effect": "的中時、与えたダメージ量だけHPを回復"
+    }
+   ]
+  },
+  "after": {
+   "attr": "貫通",
+   "sin": "暴食",
+   "aoe": "",
+   "effect": "",
+   "dice": [
+    {
+     "roll": "3d8",
+     "effect": "的中時、与えたダメージ量だけHPを回復"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:271:43",
+   "core:271:44"
+  ],
+  "field_refs": {
+   "kakusei.attr": [
+    "core:271:43"
+   ],
+   "kakusei.sin": [
+    "core:271:43"
+   ],
+   "kakusei.aoe": [
+    "core:271:43"
+   ],
+   "kakusei.dice[0].roll": [
+    "core:271:44"
+   ],
+   "kakusei.dice[0].effect": [
+    "core:271:44"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "提灯：妖精提灯",
+  "source": "core",
+  "pages": [
+   271
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "貫通",
+   "sin": "暴食",
+   "aoe": "",
+   "effect": "3R：ランダムな味方5名に呼吸8を付与し、呼吸-好餌へと[深吸変換]",
+   "dice": []
+  },
+  "after": {
+   "attr": "",
+   "sin": "",
+   "aoe": "",
+   "effect": "[影響] 3R\n1R：ランダムな味方3名に呼吸4を付与し、呼吸-好餌へと[深吸変換]\n2R：ランダムな味方4名に呼吸6を付与し、呼吸-好餌へと[深吸変換]\n3R：ランダムな味方5名に呼吸8を付与し、呼吸-好餌へと[深吸変換]",
+   "dice": []
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:271:47",
+   "core:271:48",
+   "core:271:49",
+   "core:271:50"
+  ],
+  "field_refs": {
+   "shinshoku.effect": [
+    "core:271:47",
+    "core:271:48",
+    "core:271:49",
+    "core:271:50"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "厳粛な哀悼：死んだ蝶たちの葬儀",
+  "source": "core",
+  "pages": [
+   273
+  ],
+  "field": "kakusei",
+  "before": {
+   "attr": "打撃",
+   "sin": "憂鬱",
+   "aoe": "対象3体",
+   "effect": "[広域乱射] 攻撃後：的中したダイスの数x2だけSANを回復が1~6減少する。自分のSANが10％以上ならこのダイスを再使用（最大5回）",
+   "dice": [
+    {
+     "roll": "8d2",
+     "effect": "過半数的中時、生きた蝶1を付与。未半数的中時、死んだ蝶1を付与"
+    },
+    {
+     "roll": "8d2",
+     "effect": "過半数的中時、生きた蝶1を付与。未半数的中時、死んだ蝶1を付与"
+    },
+    {
+     "roll": "6d2+3",
+     "effect": "過半数的中時は生きた蝶1を、未半数的中時は死んだ蝶1を付与し、SANが1~6減少する。自分のSANが10％以上ならこのダイスを再使用（最大5回）"
+    }
+   ]
+  },
+  "after": {
+   "attr": "打撃",
+   "sin": "憂鬱",
+   "aoe": "広域対象3体",
+   "effect": "[広域乱射]\n攻撃後：的中したダイスの数x2だけSANを回復",
+   "dice": [
+    {
+     "roll": "8d2",
+     "effect": "過半数的中時、生きた蝶1を付与。未半数的中時、死んだ蝶1を付与"
+    },
+    {
+     "roll": "8d2",
+     "effect": "過半数的中時、生きた蝶1を付与。未半数的中時、死んだ蝶1を付与"
+    },
+    {
+     "roll": "6d2+3",
+     "effect": "過半数的中時は生きた蝶1を、未半数的中時は死んだ蝶1を付与し、 SANが1~6減少する。自分のSANが10％以上ならこのダイスを再使用（最大5回）"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:273:18",
+   "core:273:19",
+   "core:273:20",
+   "core:273:21",
+   "core:273:22",
+   "core:273:23",
+   "core:273:24"
+  ],
+  "field_refs": {
+   "kakusei.attr": [
+    "core:273:18"
+   ],
+   "kakusei.sin": [
+    "core:273:18"
+   ],
+   "kakusei.aoe": [
+    "core:273:18"
+   ],
+   "kakusei.effect": [
+    "core:273:19",
+    "core:273:20"
+   ],
+   "kakusei.dice[0].roll": [
+    "core:273:21"
+   ],
+   "kakusei.dice[0].effect": [
+    "core:273:21"
+   ],
+   "kakusei.dice[1].roll": [
+    "core:273:22"
+   ],
+   "kakusei.dice[1].effect": [
+    "core:273:22"
+   ],
+   "kakusei.dice[2].roll": [
+    "core:273:23",
+    "core:273:24"
+   ],
+   "kakusei.dice[2].effect": [
+    "core:273:23",
+    "core:273:24"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "厳粛な哀悼：死んだ蝶たちの葬儀",
+  "source": "core",
+  "pages": [
+   273
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "打撃",
+   "sin": "憂鬱",
+   "aoe": "",
+   "effect": "[影響] 3R 1R：沈潜状態のキャラクターのマッチ威力-3 2R：沈潜状態のキャラクターのスキル威力-3 3R：沈潜状態のキャラクターの行動回数1減少",
+   "dice": []
+  },
+  "after": {
+   "attr": "",
+   "sin": "",
+   "aoe": "",
+   "effect": "[影響] 3R\n1R：沈潜状態のキャラクターのマッチ威力-3\n2R：沈潜状態のキャラクターのスキル威力-3\n3R：沈潜状態のキャラクターの行動回数1減少",
+   "dice": []
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:273:27",
+   "core:273:28",
+   "core:273:29",
+   "core:273:30"
+  ],
+  "field_refs": {
+   "shinshoku.effect": [
+    "core:273:27",
+    "core:273:28",
+    "core:273:29",
+    "core:273:30"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "AEDD：衝撃ムカデ",
+  "source": "core",
+  "pages": [
+   275
+  ],
+  "field": "kakusei",
+  "before": {
+   "attr": "打撃",
+   "sin": "憂鬱",
+   "aoe": "",
+   "effect": "使用時：充電4を得る マッチ勝利時：自分に充電があれば対象に与えるダメージ量+3",
+   "dice": [
+    {
+     "roll": "3d8",
+     "effect": ""
+    },
+    {
+     "roll": "3d5",
+     "effect": "的中時、破裂1を付与"
+    },
+    {
+     "roll": "3d5",
+     "effect": "的中時、破裂1を付与"
+    },
+    {
+     "roll": "3d5",
+     "effect": "的中時、破裂1を付与"
+    },
+    {
+     "roll": "3d5",
+     "effect": "的中時、破裂1を付与"
+    },
+    {
+     "roll": "4d3",
+     "effect": "的中時、対象に破裂があるなら充電2を得る"
+    }
+   ]
+  },
+  "after": {
+   "attr": "",
+   "sin": "",
+   "aoe": "",
+   "effect": "[同化]",
+   "dice": []
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:275:19"
+  ],
+  "field_refs": {
+   "kakusei.effect": [
+    "core:275:19"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "AEDD：衝撃ムカデ",
+  "source": "core",
+  "pages": [
+   275
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "斬撃",
+   "sin": "傲慢",
+   "aoe": "対象3体",
+   "effect": "使用時：充電7を得る\n攻撃前：充電を10消費して対象全員に破裂3を付与",
+   "dice": [
+    {
+     "roll": "36-2d9",
+     "effect": "的中時、[破裂爆発]"
+    }
+   ]
+  },
+  "after": {
+   "attr": "斬撃",
+   "sin": "傲慢",
+   "aoe": "広域対象3体",
+   "effect": "[敵味方識別不可]\n使用時：充電7を得る\n攻撃前：充電を10消費して対象全員に破裂3を付与",
+   "dice": [
+    {
+     "roll": "36-2d9",
+     "effect": "的中時、[破裂爆発]"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:275:40",
+   "core:275:41",
+   "core:275:42",
+   "core:275:43",
+   "core:275:44"
+  ],
+  "field_refs": {
+   "shinshoku.attr": [
+    "core:275:40"
+   ],
+   "shinshoku.sin": [
+    "core:275:40"
+   ],
+   "shinshoku.aoe": [
+    "core:275:40"
+   ],
+   "shinshoku.effect": [
+    "core:275:41",
+    "core:275:42",
+    "core:275:43"
+   ],
+   "shinshoku.dice[0].roll": [
+    "core:275:44"
+   ],
+   "shinshoku.dice[0].effect": [
+    "core:275:44"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "AEDD：衝撃ムカデ",
+  "source": "core",
+  "pages": [
+   275
+  ],
+  "field": "sub_skills",
+  "before": null,
+  "after": [
+   {
+    "no": 1,
+    "name": "巻き締める",
+    "attr": "打撃",
+    "sin": "憂鬱",
+    "aoe": "",
+    "effect": "使用時：充電4を得る",
+    "dice": [
+     {
+      "roll": "3d8",
+      "effect": ""
+     }
+    ]
+   },
+   {
+    "no": 2,
+    "name": "電気注入",
+    "attr": "貫通",
+    "sin": "憂鬱",
+    "aoe": "",
+    "effect": "マッチ勝利時：自分に充電があれば対象に与えるダメージ量+3",
+    "dice": [
+     {
+      "roll": "3d5",
+      "effect": "的中時、破裂1を付与"
+     },
+     {
+      "roll": "3d5",
+      "effect": "的中時、破裂1を付与"
+     },
+     {
+      "roll": "3d5",
+      "effect": "的中時、破裂1を付与"
+     },
+     {
+      "roll": "3d5",
+      "effect": "的中時、破裂1を付与"
+     }
+    ]
+   },
+   {
+    "no": 3,
+    "name": "電流爆発",
+    "attr": "打撃",
+    "sin": "嫉妬",
+    "aoe": "",
+    "effect": "",
+    "dice": [
+     {
+      "roll": "4d3",
+      "effect": "的中時、対象に破裂があるなら充電2を得る"
+     },
+     {
+      "roll": "4d3",
+      "effect": "的中時、対象に破裂があるなら充電2を得る"
+     },
+     {
+      "roll": "4d3",
+      "effect": "的中時、対象に破裂があるなら充電を10消費し固定ダメ―ジ20を与える"
+     }
+    ]
+   },
+   {
+    "no": 4,
+    "name": "超高圧電気放出",
+    "attr": "斬撃",
+    "sin": "憂鬱",
+    "aoe": "",
+    "effect": "使用時：充電が15以上あるなら、広域指定人数+2\n破裂状態のキャラクターを優先して指定\n攻撃前：充電を10消費して対象全員に破裂3を付与",
+    "dice": [
+     {
+      "roll": "10d2",
+      "effect": "的中時、[破裂爆発]"
+     }
+    ]
+   }
+  ],
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:275:20",
+   "core:275:21",
+   "core:275:22",
+   "core:275:23",
+   "core:275:24",
+   "core:275:25",
+   "core:275:26",
+   "core:275:27",
+   "core:275:28",
+   "core:275:29",
+   "core:275:30",
+   "core:275:31",
+   "core:275:32",
+   "core:275:33",
+   "core:275:34",
+   "core:275:35",
+   "core:275:36",
+   "core:275:37"
+  ],
+  "field_refs": {
+   "sub_skills[0].no": [
+    "core:275:20"
+   ],
+   "sub_skills[0].name": [
+    "core:275:20"
+   ],
+   "sub_skills[0].attr": [
+    "core:275:20"
+   ],
+   "sub_skills[0].sin": [
+    "core:275:20"
+   ],
+   "sub_skills[0].aoe": [
+    "core:275:20"
+   ],
+   "sub_skills[0].effect": [
+    "core:275:21"
+   ],
+   "sub_skills[0].dice[0].roll": [
+    "core:275:22"
+   ],
+   "sub_skills[0].dice[0].effect": [
+    "core:275:22"
+   ],
+   "sub_skills[1].no": [
+    "core:275:23"
+   ],
+   "sub_skills[1].name": [
+    "core:275:23"
+   ],
+   "sub_skills[1].attr": [
+    "core:275:23"
+   ],
+   "sub_skills[1].sin": [
+    "core:275:23"
+   ],
+   "sub_skills[1].aoe": [
+    "core:275:23"
+   ],
+   "sub_skills[1].effect": [
+    "core:275:24"
+   ],
+   "sub_skills[1].dice[0].roll": [
+    "core:275:25"
+   ],
+   "sub_skills[1].dice[0].effect": [
+    "core:275:25"
+   ],
+   "sub_skills[1].dice[1].roll": [
+    "core:275:26"
+   ],
+   "sub_skills[1].dice[1].effect": [
+    "core:275:26"
+   ],
+   "sub_skills[1].dice[2].roll": [
+    "core:275:27"
+   ],
+   "sub_skills[1].dice[2].effect": [
+    "core:275:27"
+   ],
+   "sub_skills[1].dice[3].roll": [
+    "core:275:28"
+   ],
+   "sub_skills[1].dice[3].effect": [
+    "core:275:28"
+   ],
+   "sub_skills[2].no": [
+    "core:275:29"
+   ],
+   "sub_skills[2].name": [
+    "core:275:29"
+   ],
+   "sub_skills[2].attr": [
+    "core:275:29"
+   ],
+   "sub_skills[2].sin": [
+    "core:275:29"
+   ],
+   "sub_skills[2].aoe": [
+    "core:275:29"
+   ],
+   "sub_skills[2].dice[0].roll": [
+    "core:275:30"
+   ],
+   "sub_skills[2].dice[0].effect": [
+    "core:275:30"
+   ],
+   "sub_skills[2].dice[1].roll": [
+    "core:275:31"
+   ],
+   "sub_skills[2].dice[1].effect": [
+    "core:275:31"
+   ],
+   "sub_skills[2].dice[2].roll": [
+    "core:275:32"
+   ],
+   "sub_skills[2].dice[2].effect": [
+    "core:275:32"
+   ],
+   "sub_skills[3].no": [
+    "core:275:33"
+   ],
+   "sub_skills[3].name": [
+    "core:275:33"
+   ],
+   "sub_skills[3].attr": [
+    "core:275:33"
+   ],
+   "sub_skills[3].sin": [
+    "core:275:33"
+   ],
+   "sub_skills[3].aoe": [
+    "core:275:33"
+   ],
+   "sub_skills[3].effect": [
+    "core:275:34",
+    "core:275:35",
+    "core:275:36"
+   ],
+   "sub_skills[3].dice[0].roll": [
+    "core:275:37"
+   ],
+   "sub_skills[3].dice[0].effect": [
+    "core:275:37"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "次元裂き：道を失った乗客",
+  "source": "core",
+  "pages": [
+   277
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "斬撃",
+   "sin": "憂鬱",
+   "aoe": "",
+   "effect": "使用時：充電を最大20消費し、消費した数だけ破裂を付与",
+   "dice": [
+    {
+     "roll": "36-1d20",
+     "effect": "的中時、[破裂爆発]"
+    }
+   ]
+  },
+  "after": {
+   "attr": "斬撃",
+   "sin": "憂鬱",
+   "aoe": "",
+   "effect": "[敵味方識別不可]\n使用時：充電を最大20消費し、消費した数だけ破裂を付与",
+   "dice": [
+    {
+     "roll": "36-1d20",
+     "effect": "的中時、[破裂爆発]"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:277:52",
+   "core:277:53",
+   "core:277:54",
+   "core:277:55"
+  ],
+  "field_refs": {
+   "shinshoku.attr": [
+    "core:277:52"
+   ],
+   "shinshoku.sin": [
+    "core:277:52"
+   ],
+   "shinshoku.aoe": [
+    "core:277:52"
+   ],
+   "shinshoku.effect": [
+    "core:277:53",
+    "core:277:54"
+   ],
+   "shinshoku.dice[0].roll": [
+    "core:277:55"
+   ],
+   "shinshoku.dice[0].effect": [
+    "core:277:55"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "魔法の弾丸：魔弾の射手",
+  "source": "core",
+  "pages": [
+   278
+  ],
+  "field": "unique_buff",
+  "before": "",
+  "after": "[弾丸-魔弾]\n-銃撃ダイスがあるスキルでマッチ勝利時、火傷3付与-\n消費することで特定戦術の能力が向上",
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:278:36",
+   "core:278:37",
+   "core:278:38"
+  ],
+  "field_refs": {
+   "unique_buff": [
+    "core:278:36",
+    "core:278:37",
+    "core:278:38"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "旋律：奏で続けるヴァイオリニスト",
+  "source": "core",
+  "pages": [
+   279
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "打撃",
+   "sin": "嫉妬",
+   "aoe": "対象4体",
+   "effect": "攻撃後：沈潜状態ではない全てのキャラクターに沈潜10を付与 [没伏] 最大10 中立バフ R開始時、没伏の数だけ沈潜を得る。攻撃的中時、没伏の数だけ対象に沈潜を付与",
+   "dice": [
+    {
+     "roll": "30-1d25",
+     "effect": "的中時、[沈潜殺到]"
+    }
+   ]
+  },
+  "after": {
+   "attr": "打撃",
+   "sin": "嫉妬",
+   "aoe": "広域対象4体",
+   "effect": "[敵味方識別不可]\n攻撃後：沈潜状態ではない全てのキャラクターに沈潜10を付与",
+   "dice": [
+    {
+     "roll": "30-1d25",
+     "effect": "的中時、[沈潜殺到]"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:279:24",
+   "core:279:25",
+   "core:279:26",
+   "core:279:27"
+  ],
+  "field_refs": {
+   "shinshoku.attr": [
+    "core:279:24"
+   ],
+   "shinshoku.sin": [
+    "core:279:24"
+   ],
+   "shinshoku.aoe": [
+    "core:279:24"
+   ],
+   "shinshoku.effect": [
+    "core:279:25",
+    "core:279:26"
+   ],
+   "shinshoku.dice[0].roll": [
+    "core:279:27"
+   ],
+   "shinshoku.dice[0].effect": [
+    "core:279:27"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "旋律：奏で続けるヴァイオリニスト",
+  "source": "core",
+  "pages": [
+   279
+  ],
+  "field": "unique_buff",
+  "before": "",
+  "after": "[没伏] 最大10 中立バフ\nR開始時、没伏の数だけ沈潜を得る。攻撃的中時、没伏の数だけ対象に沈潜を付与",
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:279:30",
+   "core:279:31"
+  ],
+  "field_refs": {
+   "unique_buff": [
+    "core:279:30",
+    "core:279:31"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "朽ちた庭園：美を追求した庭師",
+  "source": "core",
+  "pages": [
+   280
+  ],
+  "field": "kakusei",
+  "before": {
+   "attr": "貫通",
+   "sin": "憤怒",
+   "aoe": "",
+   "effect": "",
+   "dice": [
+    {
+     "roll": "2d10",
+     "effect": ""
+    },
+    {
+     "roll": "2d9",
+     "effect": "的中時、自分のHPを3回復する"
+    }
+   ]
+  },
+  "after": {
+   "attr": "",
+   "sin": "",
+   "aoe": "",
+   "effect": "[同化]",
+   "dice": []
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:280:18"
+  ],
+  "field_refs": {
+   "kakusei.effect": [
+    "core:280:18"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "紅い傷跡：赤い頭巾の傭兵",
+  "source": "core",
+  "pages": [
+   281
+  ],
+  "field": "kakusei",
+  "before": {
+   "attr": "斬撃",
+   "sin": "傲慢",
+   "aoe": "",
+   "effect": "使用時：HPとSANを6回復",
+   "dice": [
+    {
+     "roll": "3d8",
+     "effect": ""
+    },
+    {
+     "roll": "2d7",
+     "effect": ""
+    },
+    {
+     "roll": "2d7",
+     "effect": "的中時、次のRに武装解除5を付与"
+    }
+   ]
+  },
+  "after": {
+   "attr": "",
+   "sin": "",
+   "aoe": "",
+   "effect": "[同化]",
+   "dice": []
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:281:18"
+  ],
+  "field_refs": {
+   "kakusei.effect": [
+    "core:281:18"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "指定裁判：灼熱公爵",
+  "source": "core",
+  "pages": [
+   282
+  ],
+  "field": "unique_buff",
+  "before": "",
+  "after": "[熱せられた鳥籠] 最大5 デバフ\n火傷があるなら、熱せられた鳥籠の数だけ憤怒脆弱を得る\nR終了時、熱せられた鳥籠の数だけ次のRに束縛を得て数値が半減",
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:282:36",
+   "core:282:37",
+   "core:282:38"
+  ],
+  "field_refs": {
+   "unique_buff": [
+    "core:282:36",
+    "core:282:37",
+    "core:282:38"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "高らかな警笛：地獄への急行列車",
+  "source": "core",
+  "pages": [
+   283
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "打撃",
+   "sin": "憤怒",
+   "aoe": "対象7体",
+   "effect": "与える使用時：HPが最大値の50％以上の全てのキャラクターにダメージを15与えるなら、このダイスの出目の数だけ固定ダメージを与える",
+   "dice": [
+    {
+     "roll": "8d8",
+     "effect": "このダイスはダメージを与えない。的中時、対象のHPが最大値の50％以下なら、このダイスの出目の数だけ固定ダメージを与える"
+    }
+   ]
+  },
+  "after": {
+   "attr": "打撃",
+   "sin": "憤怒",
+   "aoe": "広域対象7体",
+   "effect": "[敵味方識別不可]\n攻撃前：SANが最も低い味方3名にダメージ量増加3を付与し、SANダメージを10与える\n使用時：HPが最大値の50％以上の全てのキャラクターにダメージを15与える",
+   "dice": [
+    {
+     "roll": "8d8",
+     "effect": "このダイスはダメージを与えない。的中時、対象のHPが最大値の50％以下なら、このダイスの出目の数だけ固定ダメージを与える"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:283:27",
+   "core:283:28",
+   "core:283:29",
+   "core:283:30",
+   "core:283:31",
+   "core:283:32",
+   "core:283:33"
+  ],
+  "field_refs": {
+   "shinshoku.attr": [
+    "core:283:27"
+   ],
+   "shinshoku.sin": [
+    "core:283:27"
+   ],
+   "shinshoku.aoe": [
+    "core:283:27"
+   ],
+   "shinshoku.effect": [
+    "core:283:28",
+    "core:283:29",
+    "core:283:30",
+    "core:283:31"
+   ],
+   "shinshoku.dice[0].roll": [
+    "core:283:32",
+    "core:283:33"
+   ],
+   "shinshoku.dice[0].effect": [
+    "core:283:32",
+    "core:283:33"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "渇望-ミルカラ：四百輪の薔薇",
+  "source": "core",
+  "pages": [
+   285
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "貫通",
+   "sin": "色欲",
+   "aoe": "",
+   "effect": "血餐100消費しマッチ威力+1\nマッチ敗北時：スキル威力-25",
+   "dice": [
+    {
+     "roll": "30-2d10",
+     "effect": "破壊不能ダイス。血餐30につき次のRに出血2を付与（最大30）"
+    },
+    {
+     "roll": "30-2d10",
+     "effect": "破壊不能ダイス。マッチ勝利的中時、ダメージ量の半分だけHPを回復。渇望する薔薇3を付与"
+    }
+   ]
+  },
+  "after": {
+   "attr": "貫通",
+   "sin": "色欲",
+   "aoe": "",
+   "effect": "[敵味方識別不可]\nこのスキルを使用する間はHPが1未満にならない\n対象の出血10ごとにd数-1（最大2）\n血餐100消費しマッチ威力+1\nマッチ敗北時：スキル威力-25",
+   "dice": [
+    {
+     "roll": "30-2d10",
+     "effect": "破壊不能ダイス。血餐30につき次のRに出血2を付与（最大30）"
+    },
+    {
+     "roll": "30-2d10",
+     "effect": "破壊不能ダイス。マッチ勝利的中時、ダメージ量の半分だけHPを回復。渇望する薔薇3を付与"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:285:30",
+   "core:285:31",
+   "core:285:32",
+   "core:285:33",
+   "core:285:34",
+   "core:285:35",
+   "core:285:36",
+   "core:285:37",
+   "core:285:38"
+  ],
+  "field_refs": {
+   "shinshoku.attr": [
+    "core:285:30"
+   ],
+   "shinshoku.sin": [
+    "core:285:30"
+   ],
+   "shinshoku.aoe": [
+    "core:285:30"
+   ],
+   "shinshoku.effect": [
+    "core:285:31",
+    "core:285:32",
+    "core:285:33",
+    "core:285:34",
+    "core:285:35"
+   ],
+   "shinshoku.dice[0].roll": [
+    "core:285:36"
+   ],
+   "shinshoku.dice[0].effect": [
+    "core:285:36"
+   ],
+   "shinshoku.dice[1].roll": [
+    "core:285:37",
+    "core:285:38"
+   ],
+   "shinshoku.dice[1].effect": [
+    "core:285:37",
+    "core:285:38"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "軽蔑、畏敬：軽蔑の螺旋",
+  "source": "core",
+  "pages": [
+   286
+  ],
+  "field": "unique_buff",
+  "before": "[視線の軽蔑]最大7 バフ",
+  "after": "[軽蔑の視線] 最大7 バフ\n軽蔑の視線1ごとに与ダメージ量+7\nR終了時に消滅。R終了時に軽蔑の視線が7なら消滅する代わりに次のRに視線の軽蔑に変換\n[視線の軽蔑]最大7 バフ\n保護7、ダメージ量減少7、挑発値10を得る\n視線の軽蔑がある間、軽蔑の視線を得られない\nR終了時に消滅",
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:286:34",
+   "core:286:35",
+   "core:286:36",
+   "core:286:37",
+   "core:286:38",
+   "core:286:39",
+   "core:286:40"
+  ],
+  "field_refs": {
+   "unique_buff": [
+    "core:286:34",
+    "core:286:35",
+    "core:286:36",
+    "core:286:37",
+    "core:286:38",
+    "core:286:39",
+    "core:286:40"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "永続：時間アヒル",
+  "source": "core",
+  "pages": [
+   287
+  ],
+  "field": "kakusei",
+  "before": {
+   "attr": "貫通",
+   "sin": "怠惰",
+   "aoe": "",
+   "effect": "攻撃前：最大共鳴数が3以上の時、最大共鳴数x3だけ振動を付与醒 2d10+1：的中時、[振動爆発]。振動を1消費",
+   "dice": [
+    {
+     "roll": "2d9+1",
+     "effect": "的中時、振動-永続に[振幅絡縺]"
+    },
+    {
+     "roll": "2d11+1",
+     "effect": "的中時、[振動爆発]。振動を1消費"
+    },
+    {
+     "roll": "2d12+1",
+     "effect": "的中時、[振動爆発]。振動を1消費"
+    }
+   ]
+  },
+  "after": {
+   "attr": "貫通",
+   "sin": "怠惰",
+   "aoe": "",
+   "effect": "攻撃前：最大共鳴数が3以上の時、最大共鳴数x3だけ振動を付与",
+   "dice": [
+    {
+     "roll": "2d9+1",
+     "effect": "的中時、振動-永続に[振幅絡縺]"
+    },
+    {
+     "roll": "2d10+1",
+     "effect": "的中時、[振動爆発]。振動を1消費"
+    },
+    {
+     "roll": "2d11+1",
+     "effect": "的中時、[振動爆発]。振動を1消費"
+    },
+    {
+     "roll": "2d12+1",
+     "effect": "的中時、[振動爆発]。振動を1消費"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:287:18",
+   "core:287:19",
+   "core:287:20",
+   "core:287:21",
+   "core:287:22",
+   "core:287:23"
+  ],
+  "field_refs": {
+   "kakusei.attr": [
+    "core:287:18"
+   ],
+   "kakusei.sin": [
+    "core:287:18"
+   ],
+   "kakusei.aoe": [
+    "core:287:18"
+   ],
+   "kakusei.effect": [
+    "core:287:19"
+   ],
+   "kakusei.dice[0].roll": [
+    "core:287:20"
+   ],
+   "kakusei.dice[0].effect": [
+    "core:287:20"
+   ],
+   "kakusei.dice[1].roll": [
+    "core:287:21"
+   ],
+   "kakusei.dice[1].effect": [
+    "core:287:21"
+   ],
+   "kakusei.dice[2].roll": [
+    "core:287:22"
+   ],
+   "kakusei.dice[2].effect": [
+    "core:287:22"
+   ],
+   "kakusei.dice[3].roll": [
+    "core:287:23"
+   ],
+   "kakusei.dice[3].effect": [
+    "core:287:23"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "粉砕される過去：蒸気運搬機械",
+  "source": "core",
+  "pages": [
+   288
+  ],
+  "field": "unique_buff",
+  "before": "[蓄積された過去]最大12 バフ",
+  "after": "[蓄積された過去]最大12 バフ\nR開始時、数値3ごとにマッチ威力+1。R終了時、数値が1増加",
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:288:46",
+   "core:288:47"
+  ],
+  "field_refs": {
+   "unique_buff": [
+    "core:288:46",
+    "core:288:47"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "汚血泣涙：応龍",
+  "source": "core",
+  "pages": [
+   289
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "貫通",
+   "sin": "暴食",
+   "aoe": "対象7体",
+   "effect": "使用前：暴食共鳴数だけ埋花針を得る（最大5）\nマッチ敗北時：スキル威力-10",
+   "dice": [
+    {
+     "roll": "15-1d8",
+     "effect": "破壊不能ダイス。[破裂爆発]。破裂を1消費"
+    },
+    {
+     "roll": "15-1d8",
+     "effect": "破壊不能ダイス。[破裂爆発]。破裂を1消費"
+    },
+    {
+     "roll": "15-1d8",
+     "effect": "破壊不能ダイス。[破裂爆発]。破裂を1消費"
+    },
+    {
+     "roll": "15-1d8",
+     "effect": "破壊不能ダイス。[破裂爆発]。破裂を1消費"
+    }
+   ]
+  },
+  "after": {
+   "attr": "貫通",
+   "sin": "暴食",
+   "aoe": "広域対象7体",
+   "effect": "[敵味方識別不可]\n使用前：暴食共鳴数だけ埋花針を得る（最大5）\nマッチ敗北時：スキル威力-10",
+   "dice": [
+    {
+     "roll": "15-1d8",
+     "effect": "破壊不能ダイス。[破裂爆発]。破裂を1消費"
+    },
+    {
+     "roll": "15-1d8",
+     "effect": "破壊不能ダイス。[破裂爆発]。破裂を1消費"
+    },
+    {
+     "roll": "15-1d8",
+     "effect": "破壊不能ダイス。[破裂爆発]。破裂を1消費"
+    },
+    {
+     "roll": "15-1d8",
+     "effect": "破壊不能ダイス。[破裂爆発]。破裂を1消費"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:289:29",
+   "core:289:30",
+   "core:289:31",
+   "core:289:32",
+   "core:289:33",
+   "core:289:34",
+   "core:289:35",
+   "core:289:36"
+  ],
+  "field_refs": {
+   "shinshoku.attr": [
+    "core:289:29"
+   ],
+   "shinshoku.sin": [
+    "core:289:29"
+   ],
+   "shinshoku.aoe": [
+    "core:289:29"
+   ],
+   "shinshoku.effect": [
+    "core:289:30",
+    "core:289:31",
+    "core:289:32"
+   ],
+   "shinshoku.dice[0].roll": [
+    "core:289:33"
+   ],
+   "shinshoku.dice[0].effect": [
+    "core:289:33"
+   ],
+   "shinshoku.dice[1].roll": [
+    "core:289:34"
+   ],
+   "shinshoku.dice[1].effect": [
+    "core:289:34"
+   ],
+   "shinshoku.dice[2].roll": [
+    "core:289:35"
+   ],
+   "shinshoku.dice[2].effect": [
+    "core:289:35"
+   ],
+   "shinshoku.dice[3].roll": [
+    "core:289:36"
+   ],
+   "shinshoku.dice[3].effect": [
+    "core:289:36"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "拘束：縛られた王",
+  "source": "core",
+  "pages": [
+   291
+  ],
+  "field": "kakusei",
+  "before": {
+   "attr": "打撃",
+   "sin": "憂鬱",
+   "aoe": "対象8体",
+   "effect": "戦闘開始時：敵が受ける振動爆発ダメージ量+5 炸裂へと[振幅変換]",
+   "dice": [
+    {
+     "roll": "1d10+20",
+     "effect": "的中時、振動6を付与し[振動爆発]。振動を1消費。対象の振動を振動-炸裂へと[振幅変換]"
+    }
+   ]
+  },
+  "after": {
+   "attr": "打撃",
+   "sin": "憂鬱",
+   "aoe": "広域対象8体",
+   "effect": "戦闘開始時：敵が受ける振動爆発ダメージ量+5",
+   "dice": [
+    {
+     "roll": "1d10+20",
+     "effect": "的中時、振動6を付与し[振動爆発]。振動を1消費。対象の振動を振動-炸裂へと[振幅変換]"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:291:18",
+   "core:291:19",
+   "core:291:20",
+   "core:291:21"
+  ],
+  "field_refs": {
+   "kakusei.attr": [
+    "core:291:18"
+   ],
+   "kakusei.sin": [
+    "core:291:18"
+   ],
+   "kakusei.aoe": [
+    "core:291:18"
+   ],
+   "kakusei.effect": [
+    "core:291:19"
+   ],
+   "kakusei.dice[0].roll": [
+    "core:291:20",
+    "core:291:21"
+   ],
+   "kakusei.dice[0].effect": [
+    "core:291:20",
+    "core:291:21"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "拘束：縛られた王",
+  "source": "core",
+  "pages": [
+   291
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "打撃",
+   "sin": "憂鬱",
+   "aoe": "対象8体",
+   "effect": "戦闘開始時：敵が受ける振動爆発ダメージ量+5 動を振動-炸裂へと[振幅変換]",
+   "dice": [
+    {
+     "roll": "1d10+20",
+     "effect": "的中時、振動6を付与し[振動爆発]を3回発動。振動5を消費。対象の振動を振動-炸裂へと[振幅変換]"
+    }
+   ]
+  },
+  "after": {
+   "attr": "打撃",
+   "sin": "憂鬱",
+   "aoe": "広域対象8体",
+   "effect": "[敵味方識別不可]\n戦闘開始時：敵が受ける振動爆発ダメージ量+5",
+   "dice": [
+    {
+     "roll": "1d10+20",
+     "effect": "的中時、振動6を付与し[振動爆発]を3回発動。振動5を消費。対象の振動を振動-炸裂へと[振幅変換]"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:291:24",
+   "core:291:25",
+   "core:291:26",
+   "core:291:27",
+   "core:291:28"
+  ],
+  "field_refs": {
+   "shinshoku.attr": [
+    "core:291:24"
+   ],
+   "shinshoku.sin": [
+    "core:291:24"
+   ],
+   "shinshoku.aoe": [
+    "core:291:24"
+   ],
+   "shinshoku.effect": [
+    "core:291:25",
+    "core:291:26"
+   ],
+   "shinshoku.dice[0].roll": [
+    "core:291:27",
+    "core:291:28"
+   ],
+   "shinshoku.dice[0].effect": [
+    "core:291:27",
+    "core:291:28"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "クラウン：私を見て笑うピエロ",
+  "source": "core",
+  "pages": [
+   292
+  ],
+  "field": "unique_buff",
+  "before": "",
+  "after": "[疼痛] 最大1 デバフ\n被ダメージ時、沈潜÷3だけ固定HPダメージを受ける。",
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:292:31",
+   "core:292:32"
+  ],
+  "field_refs": {
+   "unique_buff": [
+    "core:292:31",
+    "core:292:32"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "粛清：復讐のウサギ",
+  "source": "core",
+  "pages": [
+   293
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "斬撃",
+   "sin": "傲慢",
+   "aoe": "",
+   "effect": "対象の出血が15以上なら出血-裂傷へ[血蓮変換]",
+   "dice": [
+    {
+     "roll": "49-7d4",
+     "effect": "的中時、次のRに出血10を付与。対象の出血が15以上なら出血-裂傷へ[血蓮変換]"
+    }
+   ]
+  },
+  "after": {
+   "attr": "斬撃",
+   "sin": "傲慢",
+   "aoe": "",
+   "effect": "[敵味方識別不可]",
+   "dice": [
+    {
+     "roll": "49-7d4",
+     "effect": "的中時、次のRに出血10を付与\n対象の出血が15以上なら出血-裂傷へ[血蓮変換]"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:293:57",
+   "core:293:58",
+   "core:293:59",
+   "core:293:60"
+  ],
+  "field_refs": {
+   "shinshoku.attr": [
+    "core:293:57"
+   ],
+   "shinshoku.sin": [
+    "core:293:57"
+   ],
+   "shinshoku.aoe": [
+    "core:293:57"
+   ],
+   "shinshoku.effect": [
+    "core:293:58"
+   ],
+   "shinshoku.dice[0].roll": [
+    "core:293:59"
+   ],
+   "shinshoku.dice[0].effect": [
+    "core:293:59",
+    "core:293:60"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "電信柱：路地の番犬",
+  "source": "core",
+  "pages": [
+   295
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "貫通",
+   "sin": "嫉妬",
+   "aoe": "",
+   "effect": "使用時：充電を10消費し、ランダムなキャラクター5名にこのスキルのダイスの出目だけ固定ダメ―ジを与える",
+   "dice": [
+    {
+     "roll": "33d1",
+     "effect": "的中時、嫉妬共鳴数だけ充電を得る"
+    }
+   ]
+  },
+  "after": {
+   "attr": "貫通",
+   "sin": "嫉妬",
+   "aoe": "",
+   "effect": "[敵味方識別不可]\n使用時：充電を10消費し、ランダムなキャラクター5名にこのスキルのダイスの出目だけ固定ダメ―ジを与える",
+   "dice": [
+    {
+     "roll": "33d1",
+     "effect": "的中時、嫉妬共鳴数だけ充電を得る"
+    }
+   ]
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:295:24",
+   "core:295:25",
+   "core:295:26",
+   "core:295:27",
+   "core:295:28"
+  ],
+  "field_refs": {
+   "shinshoku.attr": [
+    "core:295:24"
+   ],
+   "shinshoku.sin": [
+    "core:295:24"
+   ],
+   "shinshoku.aoe": [
+    "core:295:24"
+   ],
+   "shinshoku.effect": [
+    "core:295:25",
+    "core:295:26",
+    "core:295:27"
+   ],
+   "shinshoku.dice[0].roll": [
+    "core:295:28"
+   ],
+   "shinshoku.dice[0].effect": [
+    "core:295:28"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "他化自在天：第六天魔王",
+  "source": "core",
+  "pages": [
+   295
+  ],
+  "field": "passive_effect",
+  "before": "攻撃的中時、対象の火傷3ごとに固定ダメージ1を与える（最大5）",
+  "after": "攻撃的中時、対象の火傷3ごとに固定ダメ―ジ1を与える（最大5）",
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:295:39",
+   "core:295:40"
+  ],
+  "field_refs": {
+   "passive_effect": [
+    "core:295:39",
+    "core:295:40"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "他化自在天：第六天魔王",
+  "source": "core",
+  "pages": [
+   295
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "",
+   "sin": "",
+   "aoe": "",
+   "effect": "1R：全てのキャラクターに烙印1を付与2R：全てのキャラクターに火傷10を付与3R：全てのキャラクターに火傷20を付与",
+   "dice": []
+  },
+  "after": {
+   "attr": "",
+   "sin": "",
+   "aoe": "",
+   "effect": "[影響] 3R\n1R：全てのキャラクターに烙印1を付与\n2R：全てのキャラクターに火傷10を付与\n3R：全てのキャラクターに火傷20を付与",
+   "dice": []
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:295:52",
+   "core:295:53",
+   "core:295:54",
+   "core:295:55"
+  ],
+  "field_refs": {
+   "shinshoku.effect": [
+    "core:295:52",
+    "core:295:53",
+    "core:295:54",
+    "core:295:55"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "笑い：笑う死体の山",
+  "source": "core",
+  "pages": [
+   297
+  ],
+  "field": "kakusei",
+  "before": {
+   "attr": "貫通",
+   "sin": "憤怒",
+   "aoe": "",
+   "effect": "",
+   "dice": [
+    {
+     "roll": "5d3",
+     "effect": "的中時、HPを8回復"
+    },
+    {
+     "roll": "5d3+4",
+     "effect": "的中時、HPを8回復"
+    }
+   ]
+  },
+  "after": {
+   "attr": "",
+   "sin": "",
+   "aoe": "",
+   "effect": "[同化]",
+   "dice": []
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:297:18"
+  ],
+  "field_refs": {
+   "kakusei.effect": [
+    "core:297:18"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "静寂：沈黙の対価",
+  "source": "core",
+  "pages": [
+   299
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "",
+   "sin": "",
+   "aoe": "",
+   "effect": "1R：速度が最も低いキャラクター1名が行動不能2R：速度が最も低いキャラクター2名が行動不能3R：速度が最も高い味方1名以外が行動不能",
+   "dice": []
+  },
+  "after": {
+   "attr": "",
+   "sin": "",
+   "aoe": "",
+   "effect": "[影響] 3R\n1R：速度が最も低いキャラクター1名が行動不能\n2R：速度が最も低いキャラクター2名が行動不能\n3R：速度が最も高い味方1名以外が行動不能",
+   "dice": []
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:299:53",
+   "core:299:54",
+   "core:299:55",
+   "core:299:56"
+  ],
+  "field_refs": {
+   "shinshoku.effect": [
+    "core:299:53",
+    "core:299:54",
+    "core:299:55",
+    "core:299:56"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "結び目：縛る女王",
+  "source": "core",
+  "pages": [
+   300
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "打撃",
+   "sin": "暴食",
+   "aoe": "",
+   "effect": "",
+   "dice": [
+    {
+     "roll": "35-1d25",
+     "effect": "的中時、[沈潜殺到]。対象の恐慌を恐慌-落胆へ[鬱怏変換]"
+    }
+   ]
+  },
+  "after": {
+   "attr": "",
+   "sin": "",
+   "aoe": "",
+   "effect": "[同化]",
+   "dice": []
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:300:25"
+  ],
+  "field_refs": {
+   "shinshoku.effect": [
+    "core:300:25"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "一握りの豆：ジャックのいない豆の木",
+  "source": "core",
+  "pages": [
+   301
+  ],
+  "field": "kakusei",
+  "before": {
+   "attr": "覚醒テキスト",
+   "sin": "特殊",
+   "aoe": "",
+   "effect": "[影響] 3R\n1R：自分以外の全てのキャラクターに破裂10を付与\n2R：自分以外の全てのキャラクターに破裂10を付与\n3R：自分以外の全てのキャラクターに[破裂爆発]を2回発動",
+   "dice": []
+  },
+  "after": {
+   "attr": "",
+   "sin": "",
+   "aoe": "",
+   "effect": "[影響] 3R\n1R：自分以外の全てのキャラクターに破裂10を付与\n2R：自分以外の全てのキャラクターに破裂10を付与\n3R：自分以外の全てのキャラクターに[破裂爆発]を2回発動",
+   "dice": []
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:301:18",
+   "core:301:19",
+   "core:301:20",
+   "core:301:21"
+  ],
+  "field_refs": {
+   "kakusei.effect": [
+    "core:301:18",
+    "core:301:19",
+    "core:301:20",
+    "core:301:21"
+   ]
+  }
+ },
+ {
+  "kind": "egos",
+  "name": "一握りの豆：ジャックのいない豆の木",
+  "source": "core",
+  "pages": [
+   301
+  ],
+  "field": "shinshoku",
+  "before": {
+   "attr": "侵蝕テキスト",
+   "sin": "特殊",
+   "aoe": "",
+   "effect": "[影響] 2R\n1R：全てのキャラクターに破裂10を付与\n2R：全てのキャラクターに[破裂爆発]を5回発動",
+   "dice": []
+  },
+  "after": {
+   "attr": "",
+   "sin": "",
+   "aoe": "",
+   "effect": "[影響] 2R\n1R：全てのキャラクターに破裂10付与\n2R：全てのキャラクターに[破裂爆発]を5回発動",
+   "dice": []
+  },
+  "reason": "Restore full source cell and ownership; preserve impact/assimilation markers, dice and unique definitions. No gameplay reinterpretation.",
+  "row_ids": [
+   "core:301:24",
+   "core:301:25",
+   "core:301:26"
+  ],
+  "field_refs": {
+   "shinshoku.effect": [
+    "core:301:24",
+    "core:301:25",
+    "core:301:26"
+   ]
+  }
+ },
+ {
+  "kind": "normal_personas",
+  "name": "薬指点描派スチューデント",
+  "source": "core",
+  "pages": [
+   68
+  ],
+  "field": "skills[3].effect",
+  "before": "的中時、次のRに出血1を付与",
+  "after": "",
+  "reason": "Reviewed source cell: restore omitted die/continuation or repair mistaken skill ownership; do not alter unresolved derivative numbering.",
+  "row_ids": [
+   "core:68:33",
+   "core:68:34",
+   "core:68:35",
+   "core:68:36"
+  ]
+ },
+ {
+  "kind": "normal_personas",
+  "name": "薬指点描派スチューデント",
+  "source": "core",
+  "pages": [
+   68
+  ],
+  "field": "skills[3].dice",
+  "before": [
+   {
+    "roll": "2d9",
+    "effect": "的中時、出血1を付与。対象に出血があるなら脆弱2を付与"
+   },
+   {
+    "roll": "2d9",
+    "effect": "マッチ勝利的中時、このダイスを再使用（最大1回）"
+   }
+  ],
+  "after": [
+   {
+    "roll": "2d9",
+    "effect": "的中時、出血1を付与。対象に出血があるなら脆弱2を付与"
+   },
+   {
+    "roll": "2d9",
+    "effect": "マッチ勝利的中時、このダイスを再使用（最大1回）\n的中時、次のRに出血1を付与"
+   }
+  ],
+  "reason": "Reviewed source cell: restore omitted die/continuation or repair mistaken skill ownership; do not alter unresolved derivative numbering.",
+  "row_ids": [
+   "core:68:33",
+   "core:68:34",
+   "core:68:35",
+   "core:68:36"
+  ]
+ },
+ {
+  "kind": "normal_personas",
+  "name": "カジノ警備員",
+  "source": "core",
+  "pages": [
+   69
+  ],
+  "field": "skills[1].effect",
+  "before": "[振動爆発]が発動したなら次のRに束縛2を付与",
+  "after": "",
+  "reason": "Reviewed source cell: restore omitted die/continuation or repair mistaken skill ownership; do not alter unresolved derivative numbering.",
+  "row_ids": [
+   "core:69:21",
+   "core:69:22",
+   "core:69:23"
+  ]
+ },
+ {
+  "kind": "normal_personas",
+  "name": "カジノ警備員",
+  "source": "core",
+  "pages": [
+   69
+  ],
+  "field": "skills[1].dice",
+  "before": [
+   {
+    "roll": "2d8",
+    "effect": "的中時、対象の振動が10以上なら[振動爆発]。振動を3消費"
+   }
+  ],
+  "after": [
+   {
+    "roll": "2d8",
+    "effect": "的中時、対象の振動が10以上なら[振動爆発]。振動を3消費\n[振動爆発]が発動したなら次のRに束縛2を付与"
+   }
+  ],
+  "reason": "Reviewed source cell: restore omitted die/continuation or repair mistaken skill ownership; do not alter unresolved derivative numbering.",
+  "row_ids": [
+   "core:69:21",
+   "core:69:22",
+   "core:69:23"
+  ]
+ },
+ {
+  "kind": "normal_personas",
+  "name": "南部リウ協会4課フィクサー",
+  "source": "core",
+  "pages": [
+   93
+  ],
+  "field": "skills[3].effect",
+  "before": "を付与",
+  "after": "",
+  "reason": "Reviewed source cell: restore omitted die/continuation or repair mistaken skill ownership; do not alter unresolved derivative numbering.",
+  "row_ids": [
+   "core:93:36",
+   "core:93:37",
+   "core:93:38",
+   "core:93:39"
+  ]
+ },
+ {
+  "kind": "normal_personas",
+  "name": "南部リウ協会4課フィクサー",
+  "source": "core",
+  "pages": [
+   93
+  ],
+  "field": "skills[3].dice",
+  "before": [
+   {
+    "roll": "4d4",
+    "effect": "的中時、次のダイスに「的中時、次のRにクイックを2得る」"
+   },
+   {
+    "roll": "2d8",
+    "effect": "的中時、対象に火傷1を付与"
+   }
+  ],
+  "after": [
+   {
+    "roll": "4d4",
+    "effect": "的中時、次のダイスに「的中時、次のRにクイックを2得る」を付与"
+   },
+   {
+    "roll": "2d8",
+    "effect": "的中時、対象に火傷1を付与"
+   }
+  ],
+  "reason": "Reviewed source cell: restore omitted die/continuation or repair mistaken skill ownership; do not alter unresolved derivative numbering.",
+  "row_ids": [
+   "core:93:36",
+   "core:93:37",
+   "core:93:38",
+   "core:93:39"
+  ]
+ },
+ {
+  "kind": "normal_personas",
+  "name": "ジャーマ工房フィクサー",
+  "source": "core",
+  "pages": [
+   177,
+   178
+  ],
+  "field": "skills[4].effect",
+  "before": "使用時：自分の激熱x2だけ火傷を得て次のRに憤怒ダメージ量増加を1+激熱の数だけ得る（最大5）",
+  "after": "使用後：この戦術スキルを「シャインスピア」に変更する",
+  "reason": "Reviewed source cell: restore omitted die/continuation or repair mistaken skill ownership; do not alter unresolved derivative numbering.",
+  "row_ids": [
+   "core:177:40",
+   "core:177:41"
+  ]
+ },
+ {
+  "kind": "normal_personas",
+  "name": "メメメメメ工房フィクサー",
+  "source": "core",
+  "pages": [
+   189
+  ],
+  "field": "skills[2].rank",
+  "before": "スキル3",
+  "after": "スキル2",
+  "reason": "Reviewed source cell: restore omitted die/continuation or repair mistaken skill ownership; do not alter unresolved derivative numbering.",
+  "row_ids": [
+   "core:189:26",
+   "core:189:27"
+  ]
+ },
+ {
+  "kind": "normal_personas",
+  "name": "メメメメメ工房フィクサー",
+  "source": "core",
+  "pages": [
+   189
+  ],
+  "field": "skills[3].rank",
+  "before": null,
+  "after": "スキル3",
+  "reason": "Reviewed source cell: restore omitted die/continuation or repair mistaken skill ownership; do not alter unresolved derivative numbering.",
+  "row_ids": [
+   "core:189:33",
+   "core:189:34",
+   "core:189:35"
+  ]
+ },
+ {
+  "kind": "tokui_personas",
+  "name": "エドガー家チーフバトラー",
+  "source": "core",
+  "pages": [
+   215,
+   216
+  ],
+  "field": "skills[4].dice",
+  "before": [
+   {
+    "roll": "8d2",
+    "effect": "的中時、呼吸5を得て、次のRに束縛1を付与。クリティカル的中時、バトラーの目印1を付与"
+   },
+   {
+    "roll": "4d5",
+    "effect": "対象が混乱状態ならクリティカルダメージ量+4。"
+   }
+  ],
+  "after": [
+   {
+    "roll": "8d2",
+    "effect": "的中時、呼吸5を得て、次のRに束縛1を付与。クリティカル的中時、バトラーの目印1を付与"
+   },
+   {
+    "roll": "4d5",
+    "effect": "対象が混乱状態ならクリティカルダメージ量+4。\n的中時、バトラーの目印2を付与。\n敵討伐時、バトラーの目印を持つランダムな対象へ、このスキルを再使用（最大1回。バトラーの目印がない場合発動しない）"
+   }
+  ],
+  "reason": "Reviewed source cell: restore omitted die/continuation or repair mistaken skill ownership; do not alter unresolved derivative numbering.",
+  "row_ids": [
+   "core:216:9",
+   "core:216:10",
+   "core:216:11",
+   "core:216:12",
+   "core:216:13",
+   "core:216:14"
+  ]
+ },
+ {
+  "kind": "tokui_personas",
+  "name": "東部親指カポIIII",
+  "source": "core",
+  "pages": [
+   229,
+   230,
+   231
+  ],
+  "field": "skills[7].dice",
+  "before": [
+   {
+    "roll": "4d4",
+    "effect": "破壊不能ダイス。弾丸を1消費。"
+   },
+   {
+    "roll": "4d4",
+    "effect": "破壊不能ダイス。弾丸を1消費。"
+   },
+   {
+    "roll": "4d5",
+    "effect": "破壊不能ダイス。弾丸を1消費。"
+   },
+   {
+    "roll": "4d5",
+    "effect": "破壊不能ダイス。弾丸を1消費。"
+   },
+   {
+    "roll": "4d5",
+    "effect": "破壊不能ダイス。弾丸を1消費。"
+   },
+   {
+    "roll": "4d6",
+    "effect": "破壊不能ダイス。弾丸を1消費。"
+   }
+  ],
+  "after": [
+   {
+    "roll": "4d4",
+    "effect": "破壊不能ダイス。弾丸を1消費。\nこのダイスで弾丸を消費したなら、的中時、火傷4を付与"
+   },
+   {
+    "roll": "4d4",
+    "effect": "破壊不能ダイス。弾丸を1消費。\nこのダイスで弾丸を消費したなら、的中時、火傷4を付与"
+   },
+   {
+    "roll": "4d5",
+    "effect": "破壊不能ダイス。弾丸を1消費。\nこのダイスで弾丸を消費したなら、的中時、振動4を付与"
+   },
+   {
+    "roll": "4d5",
+    "effect": "破壊不能ダイス。弾丸を1消費。\nこのダイスで弾丸を消費したなら、的中時、振動6を付与"
+   },
+   {
+    "roll": "4d5",
+    "effect": "破壊不能ダイス。弾丸を1消費。\n破壊されずに的中時、振動-灼熱へ[振幅変換]"
+   },
+   {
+    "roll": "4d6",
+    "effect": "破壊不能ダイス。弾丸を1消費。\n破壊されずに的中時、[振動爆発]を4回発動し、対象の振動と火傷を除去"
+   }
+  ],
+  "reason": "Reviewed source cell: restore omitted die/continuation or repair mistaken skill ownership; do not alter unresolved derivative numbering.",
+  "row_ids": [
+   "core:230:30",
+   "core:230:31",
+   "core:230:32",
+   "core:230:33",
+   "core:230:34",
+   "core:231:1",
+   "core:231:2",
+   "core:231:3",
+   "core:231:4",
+   "core:231:5",
+   "core:231:6",
+   "core:231:7",
+   "core:231:8"
+  ]
+ },
+ {
+  "kind": "tokui_personas",
+  "name": "剣契頭目",
+  "source": "core",
+  "pages": [
+   233,
+   234
+  ],
+  "field": "skills[4].effect",
+  "before": "使用時：自分の失ったHP10ごとにダメージ量+1（最大10）",
+  "after": "マッチ勝利時：呼吸5を得る\nマッチ敗北時：対象の攻撃終了後、骨断を使用する",
+  "reason": "Reviewed source cell: restore omitted die/continuation or repair mistaken skill ownership; do not alter unresolved derivative numbering.",
+  "row_ids": [
+   "core:234:2",
+   "core:234:3",
+   "core:234:4"
+  ]
+ },
+ {
+  "kind": "normal_personas",
+  "name": "命脈相談窓口 受話器",
+  "source": "pack1",
+  "pages": [
+   83,
+   84
+  ],
+  "field": "skills[1].effect",
+  "before": "使用時：ランダムな属性脆弱2を付与\nマッチ敗北時：自身と電話線を保有する味方に次のRに脆弱1を付与2d8",
+  "after": "使用時：ランダムな属性脆弱2を付与\nマッチ敗北時：自身と電話線を保有する味方に次のRに脆弱1を付与",
+  "reason": "Reviewed source cell: restore omitted die/continuation or repair mistaken skill ownership; do not alter unresolved derivative numbering.",
+  "row_ids": [
+   "pack1:83:24",
+   "pack1:83:25",
+   "pack1:83:26",
+   "pack1:83:27",
+   "pack1:83:28"
+  ]
+ },
+ {
+  "kind": "normal_personas",
+  "name": "命脈相談窓口 受話器",
+  "source": "pack1",
+  "pages": [
+   83,
+   84
+  ],
+  "field": "skills[1].dice",
+  "before": [
+   {
+    "roll": "2d8",
+    "effect": "的中時、次のRに脆弱1を付与"
+   }
+  ],
+  "after": [
+   {
+    "roll": "2d8",
+    "effect": ""
+   },
+   {
+    "roll": "2d8",
+    "effect": "的中時、次のRに脆弱1を付与"
+   }
+  ],
+  "reason": "Reviewed source cell: restore omitted die/continuation or repair mistaken skill ownership; do not alter unresolved derivative numbering.",
+  "row_ids": [
+   "pack1:83:24",
+   "pack1:83:25",
+   "pack1:83:26",
+   "pack1:83:27",
+   "pack1:83:28"
+  ]
+ },
+ {
+  "kind": "normal_personas",
+  "name": "黒獣-酉",
+  "source": "core",
+  "pages": [
+   123,
+   124
+  ],
+  "field": "skills[3].dice",
+  "before": [
+   {
+    "roll": "2d12",
+    "effect": "過半数的中時、自分に血炎があるか、自分のHPが50％未満ならこのダイスを1度だけ再使用。再使用的中時、火傷2と破裂1を付与"
+   },
+   {
+    "roll": "2d12",
+    "effect": "過半数的中時、自分に血炎があるか、自分のHPが50％未満ならこのダイスを1度だけ再使用。再使用的中時、火傷2と破裂1を付与"
+   }
+  ],
+  "after": [
+   {
+    "roll": "2d12",
+    "effect": "過半数的中時、自分に血炎があるか、自分のHPが50％未満ならこのダイスを1度だけ再使用。再使用的中時、火傷2と破裂1を付与。"
+   },
+   {
+    "roll": "2d12",
+    "effect": "過半数的中時、自分に血炎があるか、自分のHPが50％未満ならこのダイスを1度だけ再使用。"
+   }
+  ],
+  "reason": "Source p123 gives the first die an on-reuse hit effect; the second die on p124 has only the conditional reuse clause. Remove the copied first-die clause from the second and retain printed punctuation.",
+  "row_ids": [
+   "core:123:43",
+   "core:123:44",
+   "core:123:45",
+   "core:124:1",
+   "core:124:2"
+  ]
+ },
+ {
+  "kind": "normal_personas",
+  "name": "ロボトミーE.G.O:紅籍",
+  "source": "core",
+  "pages": [
+   144,
+   310
+  ],
+  "field": "unique_buffs[0].desc",
+  "before": "破裂爆発時に対象に次のRにて麻痺3を付与",
+  "after": "攻撃的中時、数値2ごとに破裂1を付与。被ダメージ時、数値だけ破裂を得る。R開始時、数値が9以上なら虚弱2を得る。12以上なら固定ダメ―ジ12を受けて、消滅（最大12）",
+  "reason": "Restore glossary definition referenced by owner; owner page has no local replacement definition. Preserve passive and leave type/max unapproved.",
+  "row_ids": [
+   "core:310:10",
+   "core:310:11",
+   "core:310:12",
+   "core:310:13"
+  ],
+  "owner_reference_rows": [
+   "core:144:15",
+   "core:144:20",
+   "core:144:24"
+  ],
+  "unverified_fields": [
+   "type",
+   "max"
+  ]
+ },
+ {
+  "kind": "normal_personas",
+  "name": "白蓮3流清掃員",
+  "source": "core",
+  "pages": [
+   166,
+   304
+  ],
+  "field": "unique_buffs[0].desc",
+  "before": "",
+  "after": "[1R] SANを回復する効果を受けた時、数値だけ回復量が増加する（最大10）",
+  "reason": "Restore glossary definition referenced by owner; owner page has no local replacement definition. Preserve passive and leave type/max unapproved.",
+  "row_ids": [
+   "core:304:28",
+   "core:304:29",
+   "core:304:30",
+   "core:304:31"
+  ],
+  "owner_reference_rows": [
+   "core:166:19"
+  ],
+  "unverified_fields": [
+   "type",
+   "max"
+  ]
+ },
+ {
+  "kind": "normal_personas",
+  "name": "白蓮2流清掃員",
+  "source": "core",
+  "pages": [
+   167,
+   304
+  ],
+  "field": "unique_buffs[0].desc",
+  "before": "",
+  "after": "[1R] SANを回復する効果を受けた時、数値だけ回復量が増加する（最大10）",
+  "reason": "Restore glossary definition referenced by owner; owner page has no local replacement definition. Preserve passive and leave type/max unapproved.",
+  "row_ids": [
+   "core:304:28",
+   "core:304:29",
+   "core:304:30",
+   "core:304:31"
+  ],
+  "owner_reference_rows": [
+   "core:167:19"
+  ],
+  "unverified_fields": [
+   "type",
+   "max"
+  ]
+ }
+]

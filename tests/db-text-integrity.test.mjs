@@ -11,6 +11,7 @@ import { readFileSync } from "node:fs";
      - 見出し語の途中に空白が入る（「一方 攻撃時」「再 使用」） */
 
 const db = JSON.parse(readFileSync(new URL("../data/db.json", import.meta.url), "utf8"));
+const sourceCandidates = JSON.parse(readFileSync(new URL("../data/provenance/three-book-audit.json", import.meta.url), "utf8")).candidates;
 const allPersonas = [
   ...(db.normal_personas || []).map((persona) => ["通常", persona]),
   ...(db.tokui_personas || []).map((persona) => ["特異点", persona])
@@ -51,6 +52,14 @@ test("スキル効果本文へ同一スキルのダイス効果の断片が流�
       const effect = canon(skill.effect);
       if (!effect) return;
       const diceTexts = (skill.dice || []).map((dice) => canon(dice.effect)).filter(Boolean);
+      // A shared suffix is only a heuristic. The source can apply the same
+      // status on match loss and on hit (pack p83). Require BOTH complete
+      // effect and dice equality with independently extracted PDF cells.
+      const sourcePersona = sourceCandidates.find((c) => ["normal_personas", "tokui_personas"].includes(c.kind) && canon(c.data.name) === canon(persona.name));
+      const sourceSkill = sourcePersona?.data.skills.find((s) => s.name === skill.name && s.rank === skill.rank);
+      const sourceVerified = sourceSkill && canon(sourceSkill.effect) === effect
+        && JSON.stringify(sourceSkill.dice.map((d) => [d.roll, canon(d.effect)])) === JSON.stringify((skill.dice || []).map((d) => [d.roll, canon(d.effect)]));
+      if (sourceVerified) return;
       for (let length = 8; length < Math.min(effect.length, 60); length++) {
         const tail = effect.slice(-length);
         if (diceTexts.some((diceText) => diceText.endsWith(tail))) {

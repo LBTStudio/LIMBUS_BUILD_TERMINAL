@@ -102,6 +102,9 @@ function scanEffectParagraphs(text) {
   // 直前が「一方」「クリティカル」等なら、長い見出しの途中なので分割しない。
   const guardRe = new RegExp("(?:" + TIMING_MARKER_GUARD_PREFIXES.join("|") + ")\\s{0,3}$");
   const roundMarkerRe = new RegExp("^" + ROUND_STAGE_MARKER);
+  // DB prose can intentionally join PDF paragraphs. Recover an explicit
+  // timing heading after a full stop at rendering time, not by rewriting DB.
+  const commaMarkerRe = new RegExp("^" + TIMING_MARKER + "、");
   const out = [];
   for (const line of lines) {
     let buf = "";
@@ -111,7 +114,7 @@ function scanEffectParagraphs(text) {
       if (PARAGRAPH_OPEN_CHARS.includes(ch)) depth++;
       else if (PARAGRAPH_CLOSE_CHARS.includes(ch)) depth = Math.max(0, depth - 1);
       const rest = line.slice(i);
-      if (depth === 0 && buf.length > 0 && !guardRe.test(buf) && (markerRe.test(rest) || roundMarkerRe.test(rest))) {
+      if (depth === 0 && buf.length > 0 && !guardRe.test(buf) && (markerRe.test(rest) || roundMarkerRe.test(rest) || (/。\s*$/.test(buf) && commaMarkerRe.test(rest)))) {
         out.push(buf);
         buf = "";
       }

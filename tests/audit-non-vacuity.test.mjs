@@ -65,7 +65,11 @@ test("段階1の段落照合は、DBが原典の改段を落とすと検出す�
   const paragraphs = loadParagraphs();
   const texts = collectDbTexts(runtime.db);
   const healthy = auditDbParagraphs(texts, runtime.timingMarkerWords, paragraphs);
-  assert.equal(healthy.merged.length, 0, "前提: 現在のDBに連結の指摘は無い");
+  // Joined source paragraphs are not corruption. Require lossless consumers.
+  for (const finding of healthy.merged) {
+    const flat = (text) => text.replace(/\s+/g, "");
+    assert.equal(flat(runtime.splitEffectLinesPlain(finding.text).join("")), flat(finding.text));
+  }
 
   /* 原典が改段している本文から改行を落として注入する。
      特定の人格を名指しすると、その人格の本文が変わったとき試験が
