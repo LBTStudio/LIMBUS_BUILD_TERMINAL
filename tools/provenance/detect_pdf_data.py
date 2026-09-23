@@ -19,11 +19,14 @@ from extract_pdf_corpus import ColumnEdges, page_lines, page_rules, page_vertica
 from extract_pack_data import find_sections, next_section_page
 
 ROOT = Path(__file__).resolve().parents[2]
+# 2026-09-23: Errata latest editions adopted as canonical sources.
+# Old tracked PDFs retained at sources/*.pdf for reference; corpus regenerated
+# from sources/エラッタ最新版/*.pdf by extract_pdf_corpus.py.
 SOURCES = {
-    "core": ("新リンバスTRPG.pdf", 378, "23c1a091fc8e64deb23da7f0d29535586c32892b1daca8d4afed74250bbc3172"),
-    "supplement": ("新リンバスTRPG サプリメント 『アンロックド・シンク』.pdf", 177, "960f86e371d08491c220d6ad67db911387282db550451976a5202332615a8958"),
+    "core": ("エラッタ最新版/新リンバスTRPG.pdf", 378, "1794f5cae834d667ae7e08d24caecf37cea37212e78b14af29ba50db73953e65"),
+    "supplement": ("エラッタ最新版/新リンバスTRPG サプリメント 『アンロックド・シンク』.pdf", 177, "9117d8c312dce35f7618d96b5e4b5d54d05b2cc84812baae328982ebeb22a0e4"),
     "annex": ("[別冊] 新リンバスTRPG サプリメント 『アンロックド・シンク』 別冊.pdf", 630, "f7a5a4b7d6671124697ec7a51745f6a98837909e326093ac7d8010bd83d94c06"),
-    "pack1": ("新リンバスTRPG-特定抽出パック第一弾.pdf", 244, "9225ce7460edac87a1286f74f7caaad1ce5f87a8b095dd61f124b02e8a06b0e2"),
+    "pack1": ("エラッタ最新版/新リンバスTRPG-特定抽出パック第一弾.pdf", 248, "ab9143c0806e43459e1c586380f7d26d669dabb74439537e86ce2aa1ed91557a"),
 }
 SCHEMA_VERSION = 1
 SPIRIT_FIELDS = {"常時発動": "always_effect", "士気低下効果": "morale_effect", "混乱効果": "confuse_effect"}
