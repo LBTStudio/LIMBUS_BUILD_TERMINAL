@@ -477,13 +477,38 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--s-2);
+  flex-wrap: wrap;
 }
 .p-num {
   font-family: var(--f-mono);
   font-size: var(--fs-10);
-  color: var(--tx-mute);
-  letter-spacing: 0.04em;
+  color: var(--gold);
+  letter-spacing: 0.06em;
+  font-weight: 600;
   flex-shrink: 0;
+  background: var(--gold-tint);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-sm);
+  padding: 1px 5px;
+}
+.p-card[data-mode="n"] .p-num {
+  color: var(--sin-憤怒, var(--gold));
+  background: color-mix(in oklab, var(--sin-憤怒, var(--gold)) 15%, var(--surface-2));
+  border-color: color-mix(in oklab, var(--sin-憤怒, var(--gold)) 30%, var(--line-dim));
+}
+.p-affil {
+  font-family: var(--f-display);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--tx-2);
+  flex-shrink: 0;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.p-card[data-mode="tokui"] .p-affil {
+  color: var(--gold);
 }
 .p-fav {
   padding: 0;

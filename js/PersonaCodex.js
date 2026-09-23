@@ -146,7 +146,8 @@ const PersonaCard = ({ persona, mode, isEquipped, isActive, isFav, onSelect, onT
       role: "button",
       tabIndex: 0
     },
-    /* @__PURE__ */ React.createElement("div", { className: "p-card-head" }, /* @__PURE__ */ React.createElement("span", { className: "p-num" }, "No.", String(p.no).padStart(3, "0")), typeof personaHasIssue === "function" && personaHasIssue(p) && /* @__PURE__ */ React.createElement("span", { title: "\u3053\u306E\u30AB\u30FC\u30C9\u306B\u306F\u7834\u640D\u7591\u3044\u306E\u7B87\u6240\u304C\u3042\u308A\u307E\u3059", style: { fontSize: 10, color: "var(--warn)", padding: "0 4px", lineHeight: 1 } }, "\u26A0"), /* @__PURE__ */ React.createElement("div", { className: "grow" }), /* @__PURE__ */ React.createElement(
+    /* @__PURE__ */ React.createElement("div", { className: "p-card-head" }, /* @__PURE__ */ React.createElement("span", { className: "p-num" }, "No.", String(p.no).padStart(3, "0")),
+    /* @__PURE__ */ React.createElement("span", { className: "p-affil" }, decoratePersona(p).__aff), typeof personaHasIssue === "function" && personaHasIssue(p) && /* @__PURE__ */ React.createElement("span", { title: "\u3053\u306E\u30AB\u30FC\u30C9\u306B\u306F\u7834\u640D\u7591\u3044\u306E\u7B87\u6240\u304C\u3042\u308A\u307E\u3059", style: { fontSize: 10, color: "var(--warn)", padding: "0 4px", lineHeight: 1 } }, "\u26A0"), /* @__PURE__ */ React.createElement("div", { className: "grow" }), /* @__PURE__ */ React.createElement(
       "button",
       {
         className: `p-fav${isFav ? " is-fav" : ""}`,

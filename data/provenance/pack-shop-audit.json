@@ -2,12 +2,12 @@
  "schema_version": 1,
  "scope": "pack-shop",
  "goal_complete": false,
- "scope_passed": true,
+ "scope_passed": false,
  "pymupdf": "1.28.2",
  "sources": [
   {
    "key": "pack1",
-   "filename": "新リンバスTRPG-特定抽出パック第一弾.pdf",
+   "filename": "エラッタ最新版/新リンバスTRPG-特定抽出パック第一弾.pdf",
    "sha256": "9225ce7460edac87a1286f74f7caaad1ce5f87a8b095dd61f124b02e8a06b0e2",
    "pages": 244,
    "rows": 7921
@@ -20,5 +20,176 @@
  "candidate_sha256": "473ac384605761dca206e5c5fbc2c88f452605da1fb9a051e09842670d1ff084",
  "ledger_content_sha256": "de5bc678ca6436d8d04d14ec32272c9f2e74704cccc864f0837e02a11d4472ac",
  "registration_changes": [],
- "issues": []
+ "issues": [
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:219:7",
+   "name": "発電モーターL-22"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:219:11",
+   "name": "窮地より"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:219:16",
+   "name": "のるかそるか"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:219:21",
+   "name": "追跡"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:219:28",
+   "name": "黄昏の剣"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:219:35",
+   "name": "人生の終止符"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:219:40",
+   "name": "マージン"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:220:4",
+   "name": "猛獣の本能"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:220:11",
+   "name": "パレルモ剣術"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:220:19",
+   "name": "端末機"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:220:25",
+   "name": "ルール違反"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:220:32",
+   "name": "身体中心美術"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:220:39",
+   "name": "赤く縺れた蜘蛛の巣"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:221:8",
+   "name": "野生美"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:221:15",
+   "name": "切磋琢磨"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:221:23",
+   "name": "試験抽出：紅炎殺"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:221:30",
+   "name": "試験抽出：提灯"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:221:38",
+   "name": "試験抽出：AEDD"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:222:4",
+   "name": "社員証"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:222:11",
+   "name": "苦痛なき慈悲"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:222:17",
+   "name": "魔王の行進"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:222:25",
+   "name": "盗んできた炎"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:222:34",
+   "name": "出血性ショック"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:223:4",
+   "name": "無振八方鐘"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:223:13",
+   "name": "破綻"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:223:22",
+   "name": "襲う波"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:223:33",
+   "name": "カスクスピリッツ"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:224:4",
+   "name": "第5種永久機関"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/support_passives/pack1:224:13",
+   "name": "富"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/spirits/pack1:225:9",
+   "name": "存在意味に対する期待"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/spirits/pack1:225:17",
+   "name": "破砕痕"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/spirits/pack1:225:22",
+   "name": "孤独"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/spirits/pack1:225:27",
+   "name": "青い砂"
+  },
+  {
+   "code": "db_conflict",
+   "path": "pack1/spirits/pack1:225:33",
+   "name": "眩惑"
+  }
+ ]
 }

@@ -1,0 +1,530 @@
+{
+ "generated": "2026-09-23T18:22:00.188Z",
+ "source": "data/provenance/core.txt",
+ "totalAffiliations": 84,
+ "matched": 61,
+ "unmatched": 23,
+ "affiliations": [
+  {
+   "affil": "黒雲会",
+   "page": 57,
+   "persona": "黒雲会組員",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "剣契",
+   "page": 59,
+   "persona": "剣契殺手A",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "親指",
+   "page": 61,
+   "persona": "南部親指ソルダートII",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "人差し指",
+   "page": 65,
+   "persona": "人差し指遂行者：【紙片】",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "中指",
+   "page": 67,
+   "persona": "中指末弟・末妹",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "カジノ警備員",
+   "page": 69,
+   "persona": "カジノ警備員",
+   "kind": "normal",
+   "matchType": "exact"
+  },
+  {
+   "affil": "ぽんぽん派",
+   "page": 70,
+   "persona": "ぽんぽん派構成員",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "マリアッチ",
+   "page": 71,
+   "persona": "マリアッチ構成員",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "鉄工会",
+   "page": 72,
+   "persona": "鉄工会組織員",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "双鉤海賊団",
+   "page": 73,
+   "persona": "双鉤海賊団組員",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "ピークォド号",
+   "page": 74,
+   "persona": "ピークォド号航海士",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "デッドラビッツ",
+   "page": 75,
+   "persona": "デッドラビッツ構成員",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "ユロージヴィ",
+   "page": 76,
+   "persona": "20区ユロージヴィ団員",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "笑う顔",
+   "page": 77,
+   "persona": "笑う顔たち",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "ツヴァイ協会",
+   "page": 78,
+   "persona": "南部ツヴァイ協会6課フィクサー",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "シ協会",
+   "page": 83,
+   "persona": "南部シ協会6課フィクサー",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "センク協会",
+   "page": 85,
+   "persona": "南部センク協会5課フィクサー",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "リウ協会",
+   "page": 91,
+   "persona": "南部リウ協会6課フィクサー",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "セブン協会",
+   "page": 94,
+   "persona": "南部セブン協会6課フィクサー",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "ヂェーヴィチ協会",
+   "page": 97,
+   "persona": "北部ヂェーヴィチ協会4課フィクサー",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "ディエーチ協会",
+   "page": 99,
+   "persona": "南部ディエーチ協会4課フィクサー",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "ウーフィ協会",
+   "page": 101,
+   "persona": "南部ウーフィ協会4課フィクサー",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "バラのスパナ工房",
+   "page": 102,
+   "persona": "バラのスパナ工房A",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "ロジック・アトリエ",
+   "page": 104,
+   "persona": "ロジック・アトリエ所属フィクサー",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "ワザリングハイツ",
+   "page": 105,
+   "persona": "ワザリングハイツバトラー",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "エドガー家",
+   "page": 106,
+   "persona": "エドガー家バトラー",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "牙狩事務所",
+   "page": 109,
+   "persona": "牙狩事務所フィクサー",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "炎拳事務所",
+   "page": 111,
+   "persona": "炎拳事務所フィクサー",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "鈎事務所",
+   "page": 113,
+   "persona": "鈎事務所フィクサー",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "旧G社",
+   "page": 114,
+   "persona": "旧G社兵士",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "黒獣 黒獣-卯 H社",
+   "page": 117,
+   "persona": "黒獣-卯",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "黒獣 黒獣-巳 H社",
+   "page": 119,
+   "persona": "黒獣-巳",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "黒獣 黒獣-午 H社",
+   "page": 121,
+   "persona": "黒獣-午",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "黒獣 黒獣-酉 H社",
+   "page": 123,
+   "persona": "黒獣-酉",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "K社",
+   "page": 128,
+   "persona": "K社3級職員",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "T社",
+   "page": 138,
+   "persona": "T社3級徴収職職員",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "W社",
+   "page": 141,
+   "persona": "W社2級整理要員",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "群れたハイエナ",
+   "page": 164,
+   "persona": "群れたハイエナ",
+   "kind": "normal",
+   "matchType": "exact"
+  },
+  {
+   "affil": "ニトロ研究所",
+   "page": 165,
+   "persona": "ニトロ研究所研究員",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "湯の花運送",
+   "page": 169,
+   "persona": "湯の花運送会社員",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "ストレングス",
+   "page": 171,
+   "persona": "ストレングス処刑者",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "棒派",
+   "page": 172,
+   "persona": "棒派構成員",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "ガラスの靴団",
+   "page": 173,
+   "persona": "ガラスの靴団団員",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "ヴィリーブ工房",
+   "page": 174,
+   "persona": "ヴィリーブ工房フィクサーA",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "ジャーマ工房",
+   "page": 177,
+   "persona": "ジャーマ工房フィクサー",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "メリアニア工房",
+   "page": 187,
+   "persona": "メリアニア工房フィクサー",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "メメメメメ工房",
+   "page": 189,
+   "persona": "メメメメメ工房フィクサー",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "ダンダダダダ工房",
+   "page": 190,
+   "persona": "ダンダダダダ工房所属フィクサー",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "針金工房",
+   "page": 191,
+   "persona": "針金工房フィクサー",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "ボルトット工房",
+   "page": 193,
+   "persona": "ボルトット工房フィクサー",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "マッチロック工房",
+   "page": 194,
+   "persona": "マッチロック工房フィクサー",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "美味しいですねカルボナーラ工房",
+   "page": 195,
+   "persona": "美味しいですねカルボナーラ工房フィクサー",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "笛吹きの音楽隊",
+   "page": 197,
+   "persona": "笛吹きの音楽隊",
+   "kind": "normal",
+   "matchType": "exact"
+  },
+  {
+   "affil": "ディアマン・ノワール",
+   "page": 199,
+   "persona": "ディアマン・ノワール構成員",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "ク事務所",
+   "page": 200,
+   "persona": "マルチクラック事務所フィクサー",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "鬼門事務所",
+   "page": 201,
+   "persona": "鬼門事務所フィクサー",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "触腕事務所",
+   "page": 202,
+   "persona": "触腕事務所フィクサー",
+   "kind": "normal",
+   "matchType": "contains"
+  },
+  {
+   "affil": "○○のミートパイ",
+   "page": 235,
+   "persona": "○○のミートパイ厨房長",
+   "kind": "tokui",
+   "matchType": "contains"
+  },
+  {
+   "affil": "奥歯事務所",
+   "page": 237,
+   "persona": "奥歯事務所代表",
+   "kind": "tokui",
+   "matchType": "contains"
+  },
+  {
+   "affil": "終止符事務所",
+   "page": 239,
+   "persona": "終止符事務所代表",
+   "kind": "tokui",
+   "matchType": "contains"
+  },
+  {
+   "affil": "夜明事務所",
+   "page": 241,
+   "persona": "夜明事務所代表",
+   "kind": "tokui",
+   "matchType": "contains"
+  }
+ ],
+ "unmatchedList": [
+  {
+   "value": "薬指 点描派",
+   "page": 68
+  },
+  {
+   "value": "マルチクラック事務所 機械融和生命体",
+   "page": 107
+  },
+  {
+   "value": "シー家 H社",
+   "page": 125
+  },
+  {
+   "value": "シュエ家 H社",
+   "page": 126
+  },
+  {
+   "value": "ワン家 H社",
+   "page": 127
+  },
+  {
+   "value": "リンバスカンパニー LCC",
+   "page": 129
+  },
+  {
+   "value": "N社 N社の狂信者",
+   "page": 132
+  },
+  {
+   "value": "R社 第四群 ウサギチーム",
+   "page": 135
+  },
+  {
+   "value": "R社 第四群 トナカイチーム",
+   "page": 136
+  },
+  {
+   "value": "R社 第四群 サイチーム",
+   "page": 137
+  },
+  {
+   "value": "技術開放連合 E.G.O装備",
+   "page": 143
+  },
+  {
+   "value": "ロボトミーコーポレーション E.G.O装備",
+   "page": 146
+  },
+  {
+   "value": "リンバスカンパニー LCE E.G.O装備",
+   "page": 155
+  },
+  {
+   "value": "N社 E.G.O装備",
+   "page": 159
+  },
+  {
+   "value": "白蓮清掃会社",
+   "page": 166
+  },
+  {
+   "value": "鉄腕兄弟 機械融和生命体",
+   "page": 168
+  },
+  {
+   "value": "第四銀工房 銃鎚派",
+   "page": 179
+  },
+  {
+   "value": "第四銀工房 太刀派",
+   "page": 181
+  },
+  {
+   "value": "第四銀工房 弓派",
+   "page": 183
+  },
+  {
+   "value": "第四銀工房 輪刃派",
+   "page": 185
+  },
+  {
+   "value": "技術開放連合",
+   "page": 207
+  },
+  {
+   "value": "ラ・マンチャランド 血鬼",
+   "page": 221
+  },
+  {
+   "value": "ジア家 H社",
+   "page": 227
+  }
+ ]
+}
