@@ -14,9 +14,13 @@
 旧tracked PDF は `sources/*.pdf` に参照用で保持しています。
 
 ### 2. プロvenance ツーリング
-- `tools/provenance/detect_pdf_data.py`: `SOURCES` 辞書の SHA256 ハッシュとページ数を更新。
+- `tools/provenance/detect_pdf_data.py`: `SOURCES` 辞書の SHA256 ハッシュとページ数を更新。旧tracked PDF を削除し、エラッタ最新版のみを正典として参照。
 - `tools/provenance/extract_pdf_corpus.py`: `TARGETS` を新的エラッタ PDF へ更新。
 - `shop_ranges()` アダプタ修正：「サポートパassiブ」見出し文字列のバイトレベル破損を是正し、精神の種類以降の非テーブルセクション（身体強化・E.G.O精神・特殊E.G.O）を自動検出で除外する `last_table` ロジックを追加。
+
+### 3. ソース PDF 整理
+- `sources/` 配下の旧tracked PDF（新リンバスTRPG.pdf、新リンバスTRPG サプリメント.pdf、新リンバスTRPG-特定抽出パック第一弾.pdf、[別冊] 別冊.pdf）を削除。
+- エラッタ最新版 PDF（`sources/エラッタ最新版/`）のみを正典ソースとして保持。
 
 ### 3. コーパスデータ（再生成）
 - `data/provenance/core.txt`, `core.paragraphs.txt`
@@ -53,5 +57,5 @@
 - DB（`data/db.json`）に `affiliation` フィールドを追加（61件）。
 - テストの削除・リファクタリングなし。
 - provenance メタデータの完全性は保持。
-- PDF の削除なし。
-- 参照用データ（`albedo-codex-recovery/`, `sources/エラッタ最新版/`）は含まない。
+- 旧tracked PDF を削除し、エラッタ最新版 PDF を正典ソースとして保持。
+- 参照用データ（`albedo-codex-recovery/`）は含まない。
