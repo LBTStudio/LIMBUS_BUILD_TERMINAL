@@ -2,8 +2,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const designSystem = readFileSync(new URL("../assets/design-system.css", import.meta.url), "utf8");
-const sections = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
+// Source checks below assert formatted multi-line rules. Normalize checkout
+// newlines so their result does not depend on Git's platform line-ending mode.
+const normalizeNewlines = (text) => text.replace(/\r\n/g, "\n");
+const designSystem = normalizeNewlines(readFileSync(new URL("../assets/design-system.css", import.meta.url), "utf8"));
+const sections = normalizeNewlines(readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8"));
 
 test("大罪選択チップは明色の背景でも暗字で通常テキストのコントラスト契約を守る", () => {
   ["憤怒", "色欲", "怠惰", "暴食", "憂鬱", "嫉妬", "特殊"].forEach((sin) => {

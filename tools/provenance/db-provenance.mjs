@@ -54,7 +54,10 @@ function splitPages(text) {
   const pages = new Map();
   /* 見出しの `SECTION` は、その紙面に節見出し（16pt以上の大見出し）が
      あることを抽出器が記録した印である（extract_pdf_corpus.has_section_title）。 */
-  const chunks = text.split(/\n===== PAGE (\d+)( SECTION)? =====\n/);
+  // The committed corpora are UTF-8 text, but a Windows checkout can retain
+  // CRLF.  Page markers are structural input to the audit, so accepting both
+  // newline forms prevents every persona from being reported as unmapped.
+  const chunks = text.split(/\r?\n===== PAGE (\d+)( SECTION)? =====\r?\n/);
   for (let i = 1; i < chunks.length; i += 3) {
     const page = Number(chunks[i]);
     pages.set(page, {
