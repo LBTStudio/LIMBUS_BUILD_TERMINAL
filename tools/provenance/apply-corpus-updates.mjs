@@ -94,6 +94,17 @@ const paragraphIndex = paragraphCorpus.map(({ key, text }) => ({
         }
         return raw.length;
       }
+// 次の人格見出し（「〇〇の人格」）の位置を返す。
+      // 本文中の「skill名」「buff名」の「」でブロックを分断しないよう、
+      // 見出しパターン「...の人格」に合致する位置のみをブロック境界とする。
+      function findNextPersonaHeading(text, fromIdx) {
+        const re = /「[^」\n]*の人格」/g;
+        let m;
+        while ((m = re.exec(text)) !== null) {
+          if (m.index >= fromIdx) return m.index;
+        }
+        return -1;
+      }
 function findPersonaBlock(personaName) {
   const heading = `「${personaName}の人格」`;
   for (const part of paragraphIndex) {
@@ -110,264 +121,78 @@ function findPersonaBlock(personaName) {
   return null;
 }
 
-// DBの本文が、コーパスの段落のいずれかに含まれるかを確認し、
-// その段落全体を返す。
-// DBの本文が原典で途切れている場合は、先頭が共通する段落から連続する段落を
-// 連結して完全な本文を復元する。
+// DBの本文が、コーパスのブロック内のどこかに位置するかを特定し、
+// その間の raw 本文を返す。
+//
+// 方針: DB本文とコーパス本文の間には mid-text の内容差異（エラッタ版更新による
+// 「を」→「1」など）が存在するため、文字単位の再構築はしない。
+// DB本文の先頭（頭）と末尾（尾）の一致位置だけを頼りに場所を特定し、
+// 見つかったら其の間のコーパス raw 全体を返す。
+// これにより、中間の内容差異も原典の内容で上書きされ、
+// 寸断・検出漏れのない更新が実現する。
 function findMatchingParagraph(blockText, dbText) {
   const canonDb = canon(dbText);
   const canonBlock = canon(blockText);
-  
-  // DBテキストがブロック全体に含まれる場合は、truncated対応としてDBテキストを
-    // 原典の文が完結するまで拡張する
-    if (canonBlock.includes(canonDb)) {
-      const paragraphs = blockText.split("\n").filter(l => l.trim());
-      // canonBlock 内の canonDb の終了位置を段落単位にマッピングする
-      let canonPos = 0;
-      const paraRanges = [];
-      for (let i = 0; i < paragraphs.length; i++) {
-        const cp = canon(paragraphs[i]);
-        paraRanges.push({ idx: i, start: canonPos, end: canonPos + cp.length, raw: paragraphs[i], canon: cp });
-        canonPos += cp.length;
-      }
-      
-      const dbStartCanonPos = canonBlock.indexOf(canonDb);
-      const dbEndCanonPos = dbStartCanonPos + canonDb.length;
-      
-      // Find start and end paragraphs
-      let startParaIdx = -1;
-      let endParaIdx = -1;
-      for (const r of paraRanges) {
-        if (dbStartCanonPos >= r.start && dbStartCanonPos < r.end) startParaIdx = r.idx;
-        if (dbEndCanonPos > r.start && dbEndCanonPos <= r.end) endParaIdx = r.idx;
-      }
-      
-      if (startParaIdx >= 0 && endParaIdx >= 0) {
-        // Reconstruct the full paragraph concatenation from startParaIdx to endParaIdx
-        const fullConcat = paraRanges.slice(startParaIdx, endParaIdx + 1).map(r => r.raw).join("\n");
-        const fullConcatCanon = paraRanges.slice(startParaIdx, endParaIdx + 1).map(r => r.canon).join("");
-        
-        // If the DB text's canon matches the concatenation of paragraph canons,
-        // use the full raw concatenation as the replacement (truncated対応)
-        if (fullConcatCanon === canonDb) {
-          // DB text matches the concatenation of paragraphs from startParaIdx to endParaIdx
-          // Extend to include subsequent paragraphs until a record boundary is reached
-          // (truncated対応: DB text is missing the continuation)
-          let extended = fullConcat;
-          let nextIdx = endParaIdx + 1;
-          const NEXT_RECORD_RE = /^(?:\d+[dD]\d+(?:[+\-\u30FC]\d+)?|\d+b\d|\[|【|「|固有|戦術|パassiブ|名称|発動条件|効果|常時発動|HP|SAN|速度|斬撃|貫通|打撃|回避|防御|弾丸)/;
-          while (nextIdx < paragraphs.length) {
-            const nextPara = paragraphs[nextIdx];
-            const nextCanon = canon(nextPara);
-            // Stop if this paragraph starts a new record (not a continuation of the current text)
-            if (NEXT_RECORD_RE.test(nextCanon) && nextCanon.length < 30) break;
-            // Stop if the paragraph is very short (likely a label like "固有", "効果")
-            if (nextCanon.length <= 6 && /^(固有|有|戦|術|効果|名称|パassiブ|常時|常時発動|発動条件)$/.test(nextCanon)) break;
-            extended += "\n" + nextPara;
-            nextIdx++;
-          }
-          // Verify the extended text is still valid (its canon should start with canonDb)
-          if (canon(extended).startsWith(canonDb)) {
-            return { found: true, paragraph: extended };
-          }
-          return { found: true, paragraph: fullConcat };
-        }
-        
-        // If the DB text ends in the middle of the last paragraph (truncated case),
-        // extend to include the full last paragraph
-        if (endParaIdx < paragraphs.length) {
-          const endPara = paragraphs[endParaIdx];
-          // Check if DB text is a prefix of the concatenation including the full endPara
-          const parts = [];
-          for (let i = startParaIdx; i < endParaIdx; i++) {
-            parts.push(paragraphs[i]);
-          }
-          parts.push(endPara);
-          const extendedConcat = parts.join("\n");
-          if (canon(extendedConcat).startsWith(canonDb) && extendedConcat.length > dbText.length) {
-            return { found: true, paragraph: extendedConcat };
-          }
-        }
-      }
-      
-      // DBテキストが段落のプレフィックスである場合（DBテキストが1つの段落の一部）
-      for (const p of paragraphs) {
-        const cp = canon(p);
-        if (cp.startsWith(canonDb) && cp.length > canonDb.length) {
-          return { found: true, paragraph: p };
-        }
-      }
-      
-      // truncated対応: DBテキストの直後に原典の文が=residual>ある場合、
-      // DBテキストの終了位置から次の段落を追加 until 文が完結する
-      // Find where DB text ends in the block canon
-      const dbEndInBlock = canonBlock.indexOf(canonDb) + canonDb.length;
-      if (dbEndInBlock < canonBlock.length) {
-        // Find paragraphs that start after DB text ends
-        const remainingParas = [];
-        for (const r of paraRanges) {
-          if (r.start >= dbEndInBlock) {
-            remainingParas.push(r.raw);
-          }
-        }
-        if (remainingParas.length > 0) {
-          // Add the first remaining paragraph to the DB text
-          const extended = dbText + "\n" + remainingParas[0];
-          return { found: true, paragraph: extended };
-        }
-      }
-      
-      return { found: true, paragraph: dbText };
-    }
-  
-  // 段落単位でブロックを分割し、DBテキストの先頭と最长共通接頭辞を持つ段落を見つける
+
   const paragraphs = blockText.split("\n").filter(l => l.trim());
-  let bestIdx = -1;
-  let bestPrefixLen = 0;
-  
+
+  // DB本文の先頭一致位置（canon 上）を求める。
+  // 長い needle から短い needle まで段階的に試行し、
+  // 微小な差異（を・はなどの助詞差）に対応する。
+  let blockStartCanonIdx = -1;
+  for (let searchLen = Math.min(canonDb.length, 30); searchLen >= 10; searchLen -= 2) {
+    const needle = canonDb.substring(0, searchLen);
+    const idx = canonBlock.indexOf(needle);
+    if (idx >= 0) { blockStartCanonIdx = idx; break; }
+  }
+  if (blockStartCanonIdx < 0) return { found: false };
+
+  // DB本文の末尾一致位置（canon 上）を求める。
+  // DB本文の後ろから探索し、末尾一致位置を特定する。
+  let blockEndCanonIdx = -1;
+  for (let searchLen = Math.min(canonDb.length, 30); searchLen >= 10; searchLen -= 2) {
+    const needle = canonDb.substring(canonDb.length - searchLen);
+    const idx = canonBlock.lastIndexOf(needle);
+    if (idx >= 0 && idx + searchLen <= canonBlock.length) {
+      blockEndCanonIdx = idx + searchLen;
+      break;
+    }
+  }
+  if (blockEndCanonIdx < 0 || blockEndCanonIdx <= blockStartCanonIdx) return { found: false };
+
+  // blockStartCanonIdx と blockEndCanonIdx を段落単位にマッピng し、
+  // 開始段落の raw オフセットと終了段落の raw オフセットを求める。
+  let canonPos = 0;
+  let startParaIdx = -1;
+  let startRawOffset = 0;
+  let endParaIdx = -1;
+  let endRawOffset = 0;
   for (let i = 0; i < paragraphs.length; i++) {
-    const canonPara = canon(paragraphs[i]);
-    let prefixLen = 0;
-    while (prefixLen < canonDb.length && prefixLen < canonPara.length && canonDb[prefixLen] === canonPara[prefixLen]) {
-      prefixLen++;
+    const paraCanon = canon(paragraphs[i]);
+    const paraStart = canonPos;
+    const paraEnd = canonPos + paraCanon.length;
+    if (startParaIdx < 0 && blockStartCanonIdx >= paraStart && blockStartCanonIdx < paraEnd) {
+      startParaIdx = i;
+      startRawOffset = canonToRawOffset(paragraphs[i], blockStartCanonIdx - paraStart);
     }
-    if (prefixLen > bestPrefixLen) {
-      bestPrefixLen = prefixLen;
-      bestIdx = i;
-    }
-  }
-  
-// 段落の先頭と一致しない場合は、DBテキストの先頭が段落の途中にある可能性を探索する
-      // （ダイス効果は `2d7：的中時、…` のようにダイス表記の直後から始まる）
-      if (bestIdx < 0 || bestPrefixLen < 10) {
-        // DBテキストの先頭部分がブロック内のどこかに部分一致するか探索
-        // 長いneedleから短いneedleまで段階的に試行し、微小な差異（を・はなどの助詞差）に対応する
-        let blockCanonIdx = -1;
-        let matchedNeedleLen = 0;
-        for (let searchLen = Math.min(canonDb.length, 30); searchLen >= 10; searchLen -= 2) {
-          const needle = canonDb.substring(0, searchLen);
-          const idx = canonBlock.indexOf(needle);
-          if (idx >= 0) {
-            blockCanonIdx = idx;
-            matchedNeedleLen = searchLen;
-            break;
-          }
-        }
-        if (blockCanonIdx >= 0) {
-          // 見つかった位置から、DBテキストをカバーする連続する段落を特定する
-          // まず、blockCanonIdx を段落単位にマッピングする
-          // canon 上の位置と raw 上の位置は canon() で削除される文字（空白・句読点・コロン等）
-          // の分だけずれるため、並行して進めて対応位置を求める。
-          let canonPos = 0;
-          let startParaIdx = -1;
-          let startRawOffset = 0;
-          for (let i = 0; i < paragraphs.length; i++) {
-            const paraCanon = canon(paragraphs[i]);
-            const paraStart = canonPos;
-            const paraEnd = canonPos + paraCanon.length;
-            if (blockCanonIdx >= paraStart && blockCanonIdx < paraEnd) {
-              startParaIdx = i;
-              startRawOffset = canonToRawOffset(paragraphs[i], blockCanonIdx - paraStart);
-              break;
-            }
-            canonPos = paraEnd;
-          }
-          
-          if (startParaIdx >= 0) {
-            // startRawOffset が0でない場合、その段落の該当部分から始まるテキストを構築
-            const matched = [];
-            let remainingDb = canonDb;
-            let paraIdx = startParaIdx;
-            let rawOffset = startRawOffset;
-            
-            while (paraIdx < paragraphs.length && remainingDb.length > 0) {
-              const paraRaw = paragraphs[paraIdx];
-              const paraCanon = canon(paraRaw);
-              // この段落から rawOffset 以降の正規化テキストを取得
-              const availableCanon = paraCanon.substring(canonToRawOffset(paraRaw, 0) >= 0 ? 0 : 0);
-              // rawOffset 以降の raw 部分を取得し、その canon を計算
-              const rawPart = paraRaw.substring(rawOffset);
-              const availableCanonFromOffset = canon(rawPart);
-              
-              if (remainingDb.startsWith(availableCanonFromOffset)) {
-                // 残りDBがこの段落の後ろ全体を含む
-                matched.push(rawPart);
-                remainingDb = remainingDb.substring(availableCanonFromOffset.length);
-                paraIdx++;
-                rawOffset = 0;
-              } else if (availableCanonFromOffset.startsWith(remainingDb.substring(0, Math.min(remainingDb.length, 20)))) {
-                // DBの残りがこの段落の一部で完了
-                matched.push(rawPart);
-                remainingDb = "";
-                break;
-              } else if (remainingDb.length > 0 && availableCanonFromOffset.length > 0) {
-                // 共通プレフィックスを探索
-                let commonLen = 0;
-                while (commonLen < remainingDb.length && commonLen < availableCanonFromOffset.length && remainingDb[commonLen] === availableCanonFromOffset[commonLen]) {
-                  commonLen++;
-                }
-                if (commonLen >= 10) {
-                  // DBの残りの先頭がこの段落の一部と一致するため、この段落をマッチングして次の段落へ
-                  // 共通部分の raw 長さを求めて rawOffset を進める
-                  const rawCommonLen = rawPrefixLength(rawPart, commonLen);
-                  matched.push(paraRaw.substring(rawOffset, rawOffset + rawCommonLen));
-                  remainingDb = remainingDb.substring(commonLen);
-                  paraIdx++;
-                  rawOffset = 0;
-                  continue;
-                }
-                break;
-              } else {
-                break;
-              }
-            }
-            
-            if (matched.length > 0) {
-              const newText = matched.join("\n");
-              return { found: true, paragraph: newText };
-            }
-          }
-        }
-        return { found: false };
-      }
-  
-  // 見つかった段落から連続する段落を連結し、DBテキストを完全にカバーするまで伸ばす
-  const matched = [];
-  let remainingDb = canonDb;
-  let paraIdx = bestIdx;
-  
-  while (paraIdx < paragraphs.length && remainingDb.length > 0) {
-    const canonPara = canon(paragraphs[paraIdx]);
-    if (remainingDb.startsWith(canonPara)) {
-      // 残りDBがこの段落全体を含む
-      matched.push(paragraphs[paraIdx]);
-      remainingDb = remainingDb.substring(canonPara.length);
-      paraIdx++;
-    } else if (canonPara.startsWith(remainingDb.substring(0, Math.min(remainingDb.length, 20)))) {
-      // DBの残りがこの段落の先頭と一致する（部分一致で完了）
-      matched.push(paragraphs[paraIdx]);
-      remainingDb = "";
-      break;
-    } else {
-      // 共通プレフィックスを探索（DBの残りの先頭が段落の一部である場合）
-      let commonLen = 0;
-      while (commonLen < remainingDb.length && commonLen < canonPara.length && remainingDb[commonLen] === canonPara[commonLen]) {
-        commonLen++;
-      }
-      if (commonLen >= 10) {
-        // DBの残りの先頭がこの段落の一部と一致するため、この段落をマッチングして次の段落へ
-        matched.push(paragraphs[paraIdx]);
-        remainingDb = remainingDb.substring(commonLen);
-        paraIdx++;
-        continue;
-      }
+    if (endParaIdx < 0 && blockEndCanonIdx > paraStart && blockEndCanonIdx <= paraEnd) {
+      endParaIdx = i;
+      endRawOffset = canonToRawOffset(paragraphs[i], blockEndCanonIdx - paraStart);
       break;
     }
+    canonPos = paraEnd;
   }
-  
-  if (matched.length === 0) return { found: false };
-  
-  const newText = matched.join("\n");
+  if (startParaIdx < 0 || endParaIdx < 0) return { found: false };
+
+  // 開始段落の startRawOffset 以降、終了段落の endRawOffset までを raw で連結する。
+  const parts = [];
+  for (let i = startParaIdx; i <= endParaIdx; i++) {
+    const paraRaw = paragraphs[i];
+    const from = i === startParaIdx ? startRawOffset : 0;
+    const to = i === endParaIdx ? endRawOffset : paraRaw.length;
+    parts.push(paraRaw.substring(from, to));
+  }
+  const newText = parts.join("\n");
   return { found: true, paragraph: newText };
 }
 
