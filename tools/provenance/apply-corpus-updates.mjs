@@ -64,7 +64,7 @@ const paragraphIndex = paragraphCorpus.map(({ key, text }) => ({
       // 対応する raw 上のオフセットへ変換する。
       // canon(raw[0..r]) の長さが canonOffset に達する最小の r を返す。
       // ただし canonOffset が削除文字の境界（「8d2」の後ろなど）に該当する場合は、
-      // その先の削除文字をスキップして実本文の先頭を指す。
+      // その先の連続する削除文字をスキップして実本文の先頭を指す。
       function canonToRawOffset(raw, canonOffset) {
         if (canonOffset <= 0) return 0;
         let r = 0;
@@ -72,10 +72,12 @@ const paragraphIndex = paragraphCorpus.map(({ key, text }) => ({
           r++;
           if (canon(raw.substring(0, r)).length >= canonOffset) {
             // 削除対象文字（canon で取れるが raw には残る）をスキップする
-            while (r < raw.length && canon(raw.substring(0, r)).length === canonOffset) {
-              // 次の文字が削除対象なら、canon 長さが変わらず raw を進める
-              const nextCanon = canon(raw.substring(0, r + 1));
-              if (nextCanon.length > canonOffset) break;
+            // 連続する削除文字の間では canon 長さが変わらないので、
+            // 次の実本文文字に達するまで r を進める
+            while (r < raw.length) {
+              const curCanonLen = canon(raw.substring(0, r)).length;
+              if (curCanonLen > canonOffset) break;
+              // curCanonLen === canonOffset の間は削除文字とみなす
               r++;
             }
             return r;
