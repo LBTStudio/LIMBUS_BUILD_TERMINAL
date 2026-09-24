@@ -342,11 +342,6 @@ const result = findMatchingParagraph(block.text, m.text);
     if (result.found) {
       // コーパスから取得したテキストをクリーンアップする
       let cleanText = result.paragraph.replace(/\r/g, "");
-      // ダイス表記の直後に付いた不要な "：" を取り除く
-      // （例: "8d2：的中時" → "的中時" はDB側がダイスと効果を分けて持つため）
-      // ただし、文頭の "：" は取り除かない（文の冒頭に現れる可能性があるため）
-      // 実際には、DBの効果テキストはダイス表記の直後から始まるため、
-      // コーパスのテキストからダイス表記部分を取り除く
       updates.push({ ...m, status: "found", newText: cleanText, oldText: m.text, source: block.source });
     } else {
     updates.push({ ...m, status: "extract-failed" });
