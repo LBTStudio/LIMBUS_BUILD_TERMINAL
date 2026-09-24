@@ -160,9 +160,21 @@ function findMatchingParagraph(blockText, dbText) {
       break;
     }
   }
-  if (blockEndCanonIdx < 0 || blockEndCanonIdx <= blockStartCanonIdx) return { found: false };
 
-  // blockStartCanonIdx と blockEndCanonIdx を段落単位にマッピng し、
+  // 末尾一致が見つからない場合は、内容差異（エラッタ版更新）が末尾にある可能性がある。
+  // その場合は headIdx から DB本文の長さに相当する原典の位置までを返す（truncated 対応）。
+  // DB本文の末尾が原典の文の途中である場合、コーパスの実本文で上書きする。
+  let endCanonIdx;
+  if (blockEndCanonIdx >= 0 && blockEndCanonIdx > blockStartCanonIdx) {
+    endCanonIdx = blockEndCanonIdx;
+  } else {
+    // DB本文の長さに相当する原典の位置までを返す。
+    // 内容差異（「体力」→「HP」など）は原典の内容で上書きされる。
+    endCanonIdx = blockStartCanonIdx + canonDb.length;
+    if (endCanonIdx > canonBlock.length) endCanonIdx = canonBlock.length;
+  }
+
+  // blockStartCanonIdx と endCanonIdx を段落単位にマッピングし、
   // 開始段落の raw オフセットと終了段落の raw オフセットを求める。
   let canonPos = 0;
   let startParaIdx = -1;
@@ -177,14 +189,19 @@ function findMatchingParagraph(blockText, dbText) {
       startParaIdx = i;
       startRawOffset = canonToRawOffset(paragraphs[i], blockStartCanonIdx - paraStart);
     }
-    if (endParaIdx < 0 && blockEndCanonIdx > paraStart && blockEndCanonIdx <= paraEnd) {
+    if (endParaIdx < 0 && endCanonIdx > paraStart && endCanonIdx <= paraEnd) {
       endParaIdx = i;
-      endRawOffset = canonToRawOffset(paragraphs[i], blockEndCanonIdx - paraStart);
+      endRawOffset = canonToRawOffset(paragraphs[i], endCanonIdx - paraStart);
       break;
     }
     canonPos = paraEnd;
   }
-  if (startParaIdx < 0 || endParaIdx < 0) return { found: false };
+  if (startParaIdx < 0) return { found: false };
+  if (endParaIdx < 0) {
+    // endCanonIdx が最後の段落の後ろにある場合は、最後の段落全体を対象とする
+    endParaIdx = paragraphs.length - 1;
+    endRawOffset = paragraphs[endParaIdx].length;
+  }
 
   // 開始段落の startRawOffset 以降、終了段落の endRawOffset までを raw で連結する。
   const parts = [];
