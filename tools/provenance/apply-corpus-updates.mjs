@@ -59,15 +59,28 @@ const paragraphIndex = paragraphCorpus.map(({ key, text }) => ({
   canon: canon(text)
 }));
 
-// 人格ブロックを検索する（段落コーパス版）
+// 次の人格見出し（「〇〇の人格」）の位置を返す。
+      // 本文中の「skill名」「buff名」の「」でブロックを分断しないよう、
+      // 見出しパターン「...の人格」に合致する位置のみをブロック境界とする。
+      function findNextPersonaHeading(text, fromIdx) {
+        const re = /「[^」\n]*の人格」/g;
+        let m;
+        let best = -1;
+        while ((m = re.exec(text)) !== null) {
+          if (m.index >= fromIdx) { best = m.index; break; }
+        }
+        return best;
+      }
 function findPersonaBlock(personaName) {
   const heading = `「${personaName}の人格」`;
   for (const part of paragraphIndex) {
     const idx = part.text.indexOf(heading);
     if (idx >= 0) {
-      // 次の人格見出しまたはEOFまでをブロックとする
-      const nextHeading = part.text.indexOf("「", idx + heading.length);
-      const end = nextHeading > 0 ? nextHeading : part.text.length;
+      // 次の人格見出し（「〇〇の人格」）またはEOFまでをブロックとする。
+      // 本文中の「skill名」や「buff名」で分断しないよう、
+      // 見出しパターン「...の人格」に合致する位置のみをブロック境界とする。
+      const blockEnd = findNextPersonaHeading(part.text, idx + heading.length);
+      const end = blockEnd > 0 ? blockEnd : part.text.length;
       return { text: part.text.substring(idx, end), source: part.key };
     }
   }
