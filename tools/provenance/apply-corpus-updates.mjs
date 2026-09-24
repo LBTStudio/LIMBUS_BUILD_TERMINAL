@@ -107,20 +107,36 @@ const paragraphIndex = paragraphCorpus.map(({ key, text }) => ({
         }
         return -1;
       }
+
+      // DBのペルソナ名とコーパスの見出しは、空白・コロン・点・長音の表記差がある。
+      // 例: 「ロボトミーE.G.O:魔弾」↔「ロボトミーE.G.O::魔弾」
+      //     「ラ・マンチャランド理髪師」↔「ラ・マンチャランド 理髪師」
+      // canon() で正規化した键で照合する（「.」「:」「：」「・」「空白」が除去される）。
+      let headingIndex = null;
+      function buildHeadingIndex() {
+        if (headingIndex) return headingIndex;
+        headingIndex = new Map();
+        for (const part of paragraphIndex) {
+          const re = /「([^」\n]*)の人格」/g;
+          let m;
+          while ((m = re.exec(part.text)) !== null) {
+            const key = canon(m[1]);
+            if (!headingIndex.has(key)) {
+              headingIndex.set(key, { text: part.text, headingIdx: m.index, name: m[1], source: part.key });
+            }
+          }
+        }
+        return headingIndex;
+      }
 function findPersonaBlock(personaName) {
-  const heading = `「${personaName}の人格」`;
-  for (const part of paragraphIndex) {
-    const idx = part.text.indexOf(heading);
-    if (idx >= 0) {
-      // 次の人格見出し（「〇〇の人格」）またはEOFまでをブロックとする。
-      // 本文中の「skill名」や「buff名」で分断しないよう、
-      // 見出しパターン「...の人格」に合致する位置のみをブロック境界とする。
-      const blockEnd = findNextPersonaHeading(part.text, idx + heading.length);
-      const end = blockEnd > 0 ? blockEnd : part.text.length;
-      return { text: part.text.substring(idx, end), source: part.key };
-    }
-  }
-  return null;
+  const entry = buildHeadingIndex().get(canon(personaName));
+  if (!entry) return null;
+  // 次の人格見出し（「〇〇の人格」）またはEOFまでをブロックとする。
+  // 本文中の「skill名」や「buff名」で分断しないよう、
+  // 見出しパターン「...の人格」に合致する位置のみをブロック境界とする。
+  const blockEnd = findNextPersonaHeading(entry.text, entry.headingIdx + entry.name.length + 5);
+  const end = blockEnd > 0 ? blockEnd : entry.text.length;
+  return { text: entry.text.substring(entry.headingIdx, end), source: entry.source };
 }
 
 // DBの本文が、コーパスのブロック内のどこかに位置するかを特定し、
