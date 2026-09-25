@@ -39,69 +39,12 @@ function findPersonaBlock(personaName) {
   const end = blockEnd > 0 ? blockEnd : entry.text.length;
   return { text: entry.text.substring(entry.headingIdx, end), source: entry.source };
 }
-function canonToRawOffset(raw, canonOffset) {
-  if (canonOffset <= 0) return 0;
-  let r = 0;
-  while (r < raw.length) { r++; if (canon(raw.substring(0, r)).length >= canonOffset) { while (r < raw.length) { const c = canon(raw.substring(0, r)).length; if (c > canonOffset) break; r++; } return r; } }
-  return raw.length;
-}
-const HEAD_PARTICLES = ["の","を","は","が","に","で","と","や","も","へ","か","だ","ら"];
-const TAIL_PARTICLES = ["る","た","ます","です","だ","である"];
-function headVariants(head) {
-  const out = [head];
-  const lim = Math.min(head.length - 1, 10);
-  for (let k = 0; k < lim; k++) {
-    if (HEAD_PARTICLES.includes(head[k]) || HEAD_PARTICLES.includes(head[k + 1])) {
-      const arr = head.split(""); [arr[k], arr[k + 1]] = [arr[k + 1], arr[k]]; out.push(arr.join(""));
-    }
+function subsequenceIdx(needle, hay) {
+  let j = 0; let firstIdx = -1;
+  for (let i = 0; i < hay.length && j < needle.length; i++) {
+    if (hay[i] === needle[j]) { if (firstIdx < 0) firstIdx = i; j++; }
   }
-  for (const p of HEAD_PARTICLES) { if (head.startsWith(p) && head.length > p.length) out.push(head.substring(p.length)); }
-  for (const p of TAIL_PARTICLES) { if (head.endsWith(p) && head.length > p.length) out.push(head.substring(0, head.length - p.length)); }
-  return out;
-}
-function findMatchingParagraph(blockText, dbText) {
-  const canonDb = canon(dbText);
-  const canonBlock = canon(blockText);
-  const paragraphs = blockText.split("\n").filter(l => l.trim());
-  let blockStartCanonIdx = -1;
-  const minHeadLen = Math.min(6, canonDb.length);
-  for (let searchLen = Math.min(canonDb.length, 40); searchLen >= minHeadLen; searchLen--) {
-    const head = canonDb.substring(0, searchLen);
-    for (const v of headVariants(head)) {
-      const idx = canonBlock.indexOf(v);
-      if (idx >= 0) { blockStartCanonIdx = idx; break; }
-    }
-    if (blockStartCanonIdx >= 0) break;
-  }
-  if (blockStartCanonIdx < 0) return { found: false };
-  let blockEndCanonIdx = -1;
-  for (let searchLen = Math.min(canonDb.length, 30); searchLen >= 10; searchLen -= 2) {
-    const needle = canonDb.substring(canonDb.length - searchLen);
-    const idx = canonBlock.lastIndexOf(needle);
-    if (idx >= 0 && idx + searchLen <= canonBlock.length) { blockEndCanonIdx = idx + searchLen; break; }
-  }
-  let endCanonIdx;
-  if (blockEndCanonIdx >= 0 && blockEndCanonIdx > blockStartCanonIdx) endCanonIdx = blockEndCanonIdx;
-  else { endCanonIdx = blockStartCanonIdx + canonDb.length; if (endCanonIdx > canonBlock.length) endCanonIdx = canonBlock.length; }
-  let canonPos = 0, startParaIdx = -1, startRawOffset = 0, endParaIdx = -1, endRawOffset = 0;
-  for (let i = 0; i < paragraphs.length; i++) {
-    const paraCanon = canon(paragraphs[i]);
-    const paraStart = canonPos;
-    const paraEnd = canonPos + paraCanon.length;
-    if (startParaIdx < 0 && blockStartCanonIdx >= paraStart && blockStartCanonIdx < paraEnd) { startParaIdx = i; startRawOffset = canonToRawOffset(paragraphs[i], blockStartCanonIdx - paraStart); }
-    if (endParaIdx < 0 && endCanonIdx > paraStart && endCanonIdx <= paraEnd) { endParaIdx = i; endRawOffset = canonToRawOffset(paragraphs[i], endCanonIdx - paraStart); break; }
-    canonPos = paraEnd;
-  }
-  if (startParaIdx < 0) return { found: false };
-  if (endParaIdx < 0) { endParaIdx = paragraphs.length - 1; endRawOffset = paragraphs[endParaIdx].length; }
-  const parts = [];
-  for (let i = startParaIdx; i <= endParaIdx; i++) {
-    const paraRaw = paragraphs[i];
-    const from = i === startParaIdx ? startRawOffset : 0;
-    const to = i === endParaIdx ? endRawOffset : paraRaw.length;
-    parts.push(paraRaw.substring(from, to));
-  }
-  return { found: true, paragraph: parts.join("\n") };
+  return j === needle.length ? firstIdx : -1;
 }
 const corpus = loadCorpus();
 const db = loadDb();
@@ -109,22 +52,23 @@ const { auditPersonas } = await import("./db-provenance.mjs");
 const findings = auditPersonas(db, corpus);
 const missing = findings.filter(f => f.code === "missing");
 const truncated = findings.filter(f => f.code === "truncated");
-const fails = [];
-for (const m of [...missing, ...truncated]) {
+const targets = [...missing, ...truncated];
+console.log("total targets:", targets.length);
+const byLen = {};
+for (const m of targets) {
   const block = findPersonaBlock(m.persona);
-  if (!block) { fails.push({ ...m, status: "block-not-found" }); continue; }
-  const r = findMatchingParagraph(block.text, m.text);
-  if (!r.found) fails.push({ ...m, status: "extract-failed", block });
+  if (!block) { (byLen["noblock"] = byLen["noblock"]||new Set()).add(m.persona); continue; }
+  const cd = canon(m.text);
+  const cb = canon(block.text);
+  let found = null;
+  for (let len = Math.min(cd.length, 40); len >= 4; len--) {
+    const idx = subsequenceIdx(cd.slice(0, len), cb);
+    if (idx >= 0) { found = len; break; }
+  }
+  const key = found ? String(found) : "NONE";
+  (byLen[key] = byLen[key]||new Set()).add(m.persona + " :: " + m.label);
 }
-console.log("FAILS:", fails.length);
-for (const f of fails) {
-  const cd = canon(f.text);
-  const cb = canon(f.block.text);
-  console.log("\n=== " + f.persona + " :: " + f.label);
-  console.log("  DB(" + cd.length + "): " + JSON.stringify(cd.slice(0,80)));
-  // best fuzzy
-  let best = {len:0, idx:-1};
-  for (let i=0;i<cb.length;i++){ let l=0; while(l<cd.length && i+l<cb.length && cb[i+l]===cd[l]) l++; if(l>best.len) best={len:l,idx:i}; }
-  console.log("  best exact: len=" + best.len + " idx=" + best.idx);
-  console.log("  corpus @best: " + JSON.stringify(cb.slice(Math.max(0,best.idx-3), best.idx+80)));
+for (const k of Object.keys(byLen).sort((a,b)=>Number(a)-Number(b))) {
+  console.log("headLen " + k + " (" + byLen[k].size + "):");
+  for (const v of [...byLen[k]].slice(0,8)) console.log("   " + v);
 }
