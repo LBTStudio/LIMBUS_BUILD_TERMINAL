@@ -198,6 +198,31 @@ function findMatchingParagraph(blockText, dbText) {
     }
     if (blockStartCanonIdx >= 0) break;
   }
+  // 精度優先: exact/variant の一致が取れても、その位置が DB本文全体の
+  // 部分文字列としての一致とならない場合は、別候補を試す。
+  // ただし、エラッタによる内容差異（語順・助詞の入れ替え）が先頭に
+  // 存在するため、exact 一致が取れない場合がある。その場合は、
+  // DB本文を部分列（subsequence）としてブロック内に探索し、
+  // 最初に一致した位置を head とする。
+  // 部分列一致は特定性が低いため、一致した span の内容を検証する。
+  if (blockStartCanonIdx < 0) {
+    // DB本文を部分列としてブロック内に探索する。
+    // 最初の一致位置（最長の先頭一致）を求める。
+    let j = 0;
+    for (let i = 0; i < canonBlock.length && j < canonDb.length; i++) {
+      if (canonBlock[i] === canonDb[j]) j++;
+    }
+    if (j === canonDb.length) {
+      // 部分列として一致した。その先頭位置を求める（後ろから逆進）。
+      let endJ = canonDb.length;
+      let ii = canonBlock.length;
+      while (endJ > 0 && ii > 0) {
+        ii--;
+        if (canonBlock[ii] === canonDb[endJ - 1]) endJ--;
+      }
+      blockStartCanonIdx = ii;
+    }
+  }
   if (blockStartCanonIdx < 0) return { found: false };
 
   // DB本文の末尾一致位置（canon 上）を求める。
