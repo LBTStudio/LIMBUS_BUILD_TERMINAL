@@ -155,13 +155,48 @@ function findMatchingParagraph(blockText, dbText) {
   const paragraphs = blockText.split("\n").filter(l => l.trim());
 
   // DB本文の先頭一致位置（canon 上）を求める。
-  // 長い needle から短い needle まで段階的に試行し、
-  // 微小な差異（を・はなどの助詞差）に対応する。
+  //
+  // DB本文と原典の先頭数文字には、エラッタ由来の助詞の位置ずれが存在する。
+  // 代表例:
+  //   DB「矢-死を4得る」     ↔ 原典「矢-死4を得る」   （を4 ↔ 4を 入れ替え）
+  //   DB「的中時振動を2付与」 ↔ 原典「的中時振動2を付与」
+  //   DB「クイックを1得る」   ↔ 原典「クイック1を得る」
+  // ため、exact 一致のほか、隣接する助詞と文字の入れ替え、
+  // および先頭/末尾の助詞 stripping を試行する。
+  // 最長の一致を優先し（長い head の方が特定性が高い）、
+  // 見つからなければ短い head へと段階的に落とす。
+  const HEAD_PARTICLES = ["の","を","は","が","に","で","と","や","も","へ","か","だ","ら"];
+  const TAIL_PARTICLES = ["る","た","ます","です","だ","である"];
+  function headVariants(head) {
+    const out = [head];
+    // 隣接する助詞と文字の入れ替え（「を4」→「4を」「4を」→「を4」）
+    const lim = Math.min(head.length - 1, 10);
+    for (let k = 0; k < lim; k++) {
+      if (HEAD_PARTICLES.includes(head[k]) || HEAD_PARTICLES.includes(head[k + 1])) {
+        const arr = head.split("");
+        [arr[k], arr[k + 1]] = [arr[k + 1], arr[k]];
+        out.push(arr.join(""));
+      }
+    }
+    // 先頭の助詞 stripping
+    for (const p of HEAD_PARTICLES) {
+      if (head.startsWith(p) && head.length > p.length) out.push(head.substring(p.length));
+    }
+    // 末尾の助詞 stripping
+    for (const p of TAIL_PARTICLES) {
+      if (head.endsWith(p) && head.length > p.length) out.push(head.substring(0, head.length - p.length));
+    }
+    return out;
+  }
   let blockStartCanonIdx = -1;
-  for (let searchLen = Math.min(canonDb.length, 30); searchLen >= 10; searchLen -= 2) {
-    const needle = canonDb.substring(0, searchLen);
-    const idx = canonBlock.indexOf(needle);
-    if (idx >= 0) { blockStartCanonIdx = idx; break; }
+  const minHeadLen = Math.min(6, canonDb.length);
+  for (let searchLen = Math.min(canonDb.length, 40); searchLen >= minHeadLen; searchLen--) {
+    const head = canonDb.substring(0, searchLen);
+    for (const v of headVariants(head)) {
+      const idx = canonBlock.indexOf(v);
+      if (idx >= 0) { blockStartCanonIdx = idx; break; }
+    }
+    if (blockStartCanonIdx >= 0) break;
   }
   if (blockStartCanonIdx < 0) return { found: false };
 

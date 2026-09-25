@@ -1,78 +1,101 @@
-# apply-corpus-updates head-matcher plan
+# apply-corpus-updates: fix remaining 42 head-not-found failures
 
 ## Context
 
-`tools/provenance/apply-corpus-updates.mjs` maps 192 DB text fragments (190
-missing + 2 truncated, detected by `auditPersonas`) onto the paragraph corpus
-(`data/provenance/*.paragraphs.txt`) and rewrites DB fields with the canonical
-text. 150/192 already resolve; **42 remain `head-not-found`**.
+`tools/provenance/apply-corpus-updates.mjs` rewrites DB text fields from the
+paragraph corpus (`data/provenance/*.paragraphs.txt`). It currently resolves
+150/192 targets; **42 remain `head-not-found`**. All 42 are `head-not-found`
+(0 `block-not-found`).
 
-The 42 fall into two distinct root causes. Both are *block-boundary* problems,
-not head-matching problems.
+State: working tree is byte-identical to HEAD `f2019ab` on
+`kilo/morning-finch-bob`. `origin/errata-v65r67-source-update` is an open PR
+awaiting merge to `main` and touches only `data/db.json` (no corpus files) —
+verified irrelevant to this task.
 
-## Root cause A — block cut short by a fake `の人格` heading (28 of 42)
+## Verified root cause (one, not two or three)
 
-`findPersonaBlock` ends a persona block at the next match of
-`/「[^」\n]*の人格」/`. Persona **buff definitions** are written on the source
-page as `[ラ・マンチャランド 理髪師の人格専用効果]`, `[ラ・マンチャランド 神父の人格専用効果]`,
-`[ラ・マンチャランド 姫の人格専用効果]`. These contain the substring `の人格` and
-therefore match the heading regex, truncating the block *before* the buff
-definition text that the DB holds. Confirmed on 理髪師/神父/姫/王子
-(`blockEnd` lands exactly on the `専用効果` line).
+`findMatchingParagraph` anchors on a 30→10 char exact `canon()` prefix of the
+DB text. Where the DB head and the corpus differ in the first ~8 characters,
+every needle length fails at once. Verified patterns (DB → corpus):
 
-Fix: exclude the 専用効果 pattern from the block-boundary regex, e.g.
-`/「(?![^」\n]*専用効果)[^」\n]*の人格」/g`.
+| DB | corpus |
+|----|--------|
+| `矢-死を4得る` | `矢-死4を得る` (`を4`↔`4を`) |
+| `的中時、振動を2付与` | `的中時、振動2を付与` |
+| `的中時出血1を付与` | `的中時出血1を付与` (identical) — short text, falls below min len |
+| `クイックを1得る` | `クイック1を得る` |
+| `回避成功時呼吸1獲得` | `回避成功時呼吸1を得る` |
+| `的中時破裂2付与` | `的中時破裂2を付与` |
+| `過半数的中時充電を5得る` | `過半数的中時充電5を得る` |
+| `使用時高揚を1得る` | `使用時高揚1を得る` |
+| `戦闘開始時メインターゲットの出血の数が10以上なら` | identical |
+| `R開始時HP最大値-10` | `R開始時HP最大値と現在HPが10減少` (genuine content change) |
 
-## Root cause B — persona block ends at the next persona heading, dropping
-## trailing buff/skill text that belongs to the current persona (14 of 42)
+These are real errata-driven wording differences, not extraction bugs. The
+corpus is authoritative, so the fix is to *locate the DB text inside the block
+with a fuzzy head*, then return the corpus span between the fuzzy head and the
+tail anchor — letting the corpus wording overwrite the DB wording.
 
-The 3 ラ・マンチャランド buffs are multi-tier (`Ⅰ/Ⅱ/Ⅲ`) and their definitions
-span the boundary to the next persona's heading. The DB `desc` is a concatenation
-of all three tiers; the corpus block stops at tier Ⅰ. Same mechanism affects
-other multi-paragraph persona fields.
+**Cause A (fake `の人格` heading) was investigated and REJECTED**: the buff
+definitions are written `[ラ・マンチャランド 理髪師の人格専用効果]` (opening
+bracket `[`, not `「`), so the boundary regex `/「[^」\n]*の人格」/g` never
+matches them. Confirmed: 理髪師 block is 1175 chars ending at the next real
+persona heading. No regex change needed.
 
-Fix: after locating the block end, scan backward from the boundary for
-continuation lines that are part of the current persona's buff/skill definition
-(not a new `「...の人格」` heading) and extend `end` to include them.
+**Cause B (multi-tier buff spanning heading boundary) was REJECTED**: the
+Ⅰ/Ⅱ/Ⅲ buff tiers all sit inside the correctly-sized block. No block-extension
+needed.
 
-## Root cause C — DB/corpus wording drift (covers the rest)
+## Design
 
-Even when the block is correct, `findMatchingParagraph`'s 30-char exact prefix
-needle fails on small linguistic differences:
+Replace the single-needle head loop in `findMatchingParagraph` with a
+**progressive fuzzy head anchor**:
 
-- `矢-死を4得る` (DB) vs `矢-死4を得る` (corpus) — particle `を` relocated
-- `的中時` (DB) vs `中時` (corpus) — `的` dropped
-- `を1得る` (DB) vs `1を` (corpus) — number/particle swap
-- `回避成功時` vs `避成功時`
-- `クイックを1得る` vs `クイック1を得る`
+1. `core = canonDb` (the full DB canon text).
+2. For `headLen` from `min(core.length, 40)` down to `8`:
+   - `head = core.slice(0, headLen)`.
+   - `idx = canonBlock.indexOf(head)`. If `idx >= 0`, accept as the head anchor.
+   - Else, try `head` with one leading particle stripped from
+     `{の,を,は,が,に,で,と,や,も,へ,か,だ}` and/or one trailing particle from
+     `{る,た,ます,です,だ,である}`. If a stripped variant is found, accept it
+     and record `headLag` (chars skipped at the DB head) so the raw offset
+     mapping accounts for them.
+3. Minimum accepted head length stays at 8; if nothing matches, return
+   `{ found: false }` (same failure signal as today).
+4. Keep the existing tail-anchor (`lastIndexOf` on the DB tail) and the
+   existing paragraph→raw offset mapping unchanged.
 
-Fix: replace the single 30-char needle with a **progressive fuzzy head match**:
-strip a small set of leading/trailing particles (`の`, `を`, `は`, `が`, `に`,
-`で`, `と`, `や`, `も`, `や`, `ら`, `へ`, `か`, `の`, `や`, `だ`, `である`,
-`ます`, `た`, `る`) from both the DB head and the corpus candidate, then take
-the longest match; fall back to the existing 10-char minimum. Keep the existing
-tail-anchor logic unchanged.
+Safety limits:
+- Only strip ≤2 chars total (one leading + one trailing particle).
+- Never fall back to unanchored substring search — that would risk mapping a
+  DB fragment onto an unrelated persona's text.
+- The returned span is always `canonBlock[headIdx .. tailIdx]`, so the corpus
+  wording (authoritative) overwrites the DB wording. No invented content.
 
 ## Files to change
 
-- `tools/provenance/apply-corpus-updates.mjs` — `findNextPersonaHeading`,
-  `findPersonaBlock`, `findMatchingParagraph`.
+- `tools/provenance/apply-corpus-updates.mjs` — `findMatchingParagraph`
+  head-anchor loop only. No other function changes.
 
-## Files to add (no DB change)
+## Files to add (diagnostics only, no DB change)
 
-- `tools/provenance/_blockdiag.mjs` — diagnostic (already present, keep).
+- `tools/provenance/_headpat.mjs` — head-drift pattern diagnostic (already
+  present).
 
 ## Validation
 
 1. `node tools/provenance/apply-corpus-updates.mjs` (dry-run) → expect
    `抽出失敗: 0件`, `更新対象: 192件`.
 2. `node tools/provenance/apply-corpus-updates.mjs --write` → DB updated.
-3. Re-run `auditPersonas` → expect 0 missing + 0 truncated.
+3. Re-run audit (dry-run re-runs `auditPersonas`) → expect 0 missing + 0
+   truncated.
 4. `node tests/db-provenance.test.mjs` must still pass.
-5. `git diff --stat data/db.json` reviewed by hand; only intended text fields
-   change.
+5. `git diff --stat data/db.json` reviewed by hand; every changed value must be
+   a wording variant of the corpus text (no invented content).
 
 ## Out of scope
 
 - No DB writes until all 42 resolve and tests pass.
 - No branch creation; work on `kilo/morning-finch-bob`, PR to `main`.
+- No changes to `db-provenance.mjs` (the audit logic); this task is confined to
+  the update tool.
