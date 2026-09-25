@@ -189,64 +189,96 @@ function findMatchingParagraph(blockText, dbText) {
     return out;
   }
   let blockStartCanonIdx = -1;
+  let blockEndCanonIdx = -1;
   const minHeadLen = Math.min(6, canonDb.length);
+  // DB本文の先頭（頭）と末尾（尾）の一致位置を、互いに整合するペアとして求める。
+  //
+  // 方針: DB本文と原典の先頭数文字には、エラッタ由来の助詞の位置ずれが存在する。
+  // 代表例:
+  //   DB「矢-死を4得る」     ↔ 原典「矢-死4を得る」   （を4 ↔ 4を 入れ替え）
+  //   DB「的中時振動を2付与」 ↔ 原典「的中時振動2を付与」
+  //   DB「クイックを1得る」   ↔ 原典「クイック1を得る」
+  // ため、exact 一致のほか、隣接する助詞と文字の入れ替え、
+  // および先頭/末尾の助詞 stripping を試行する。
+  //
+  // 長い head から短い head まで段階的に試行し、
+  // 各 head 候補に対して尾の一致位置を求め、
+  // 「尾 > head」「span の長さが DB本文の長さに近い」
+  // という整合条件を満たす最初のペアを採用する。
+  // 短い head はどこにも現れるため、first-match で採用すると
+  // 別の_skill_ の同じ先頭語に誤一致し、抽出範囲がずれる。
+  function headVariants(head) {
+    const out = [head];
+    const lim = Math.min(head.length - 1, 10);
+    for (let k = 0; k < lim; k++) {
+      if (HEAD_PARTICLES.includes(head[k]) || HEAD_PARTICLES.includes(head[k + 1])) {
+        const arr = head.split("");
+        [arr[k], arr[k + 1]] = [arr[k + 1], arr[k]];
+        out.push(arr.join(""));
+      }
+    }
+    for (const p of HEAD_PARTICLES) {
+      if (head.startsWith(p) && head.length > p.length) out.push(head.substring(p.length));
+    }
+    for (const p of TAIL_PARTICLES) {
+      if (head.endsWith(p) && head.length > p.length) out.push(head.substring(0, head.length - p.length));
+    }
+    return out;
+  }
+  function tailVariants(tail) {
+    const out = [tail];
+    const lim = Math.min(tail.length - 1, 10);
+    for (let k = 0; k < lim; k++) {
+      if (HEAD_PARTICLES.includes(tail[k]) || HEAD_PARTICLES.includes(tail[k + 1])) {
+        const arr = tail.split("");
+        [arr[k], arr[k + 1]] = [arr[k + 1], arr[k]];
+        out.push(arr.join(""));
+      }
+    }
+    for (const p of TAIL_PARTICLES) {
+      if (tail.endsWith(p) && tail.length > p.length) out.push(tail.substring(0, tail.length - p.length));
+    }
+    return out;
+  }
   for (let searchLen = Math.min(canonDb.length, 40); searchLen >= minHeadLen; searchLen--) {
     const head = canonDb.substring(0, searchLen);
-    for (const v of headVariants(head)) {
-      const idx = canonBlock.indexOf(v);
-      if (idx >= 0) { blockStartCanonIdx = idx; break; }
+    const tail = canonDb.substring(canonDb.length - searchLen);
+    for (const hv of headVariants(head)) {
+      const headIdx = canonBlock.indexOf(hv);
+      if (headIdx < 0) continue;
+      for (const tv of tailVariants(tail)) {
+        const tailIdx = canonBlock.lastIndexOf(tv);
+        if (tailIdx < 0 || tailIdx + tv.length <= headIdx) continue;
+        const spanLen = (tailIdx + tv.length) - headIdx;
+        // 整合条件: span の長さが DB本文の長さに近い（±50% 以内）
+        if (spanLen <= canonDb.length * 1.5 && spanLen >= canonDb.length * 0.5) {
+          blockStartCanonIdx = headIdx;
+          blockEndCanonIdx = tailIdx + tv.length;
+          break;
+        }
+      }
+      if (blockStartCanonIdx >= 0) break;
     }
     if (blockStartCanonIdx >= 0) break;
   }
-  // 精度優先: exact/variant の一致が取れても、その位置が DB本文全体の
-  // 部分文字列としての一致とならない場合は、別候補を試す。
-  // ただし、エラッタによる内容差異（語順・助詞の入れ替え）が先頭に
-  // 存在するため、exact 一致が取れない場合がある。その場合は、
-  // DB本文を部分列（subsequence）としてブロック内に探索し、
-  // 最初に一致した位置を head とする。
-  // 部分列一致は特定性が低いため、一致した span の内容を検証する。
-  if (blockStartCanonIdx < 0) {
-    // DB本文を部分列としてブロック内に探索する。
-    // 最初の一致位置（最長の先頭一致）を求める。
-    let j = 0;
-    for (let i = 0; i < canonBlock.length && j < canonDb.length; i++) {
-      if (canonBlock[i] === canonDb[j]) j++;
-    }
-    if (j === canonDb.length) {
-      // 部分列として一致した。その先頭位置を求める（後ろから逆進）。
-      let endJ = canonDb.length;
-      let ii = canonBlock.length;
-      while (endJ > 0 && ii > 0) {
-        ii--;
-        if (canonBlock[ii] === canonDb[endJ - 1]) endJ--;
-      }
-      blockStartCanonIdx = ii;
-    }
-  }
   if (blockStartCanonIdx < 0) return { found: false };
-
-  // DB本文の末尾一致位置（canon 上）を求める。
-  // DB本文の後ろから探索し、末尾一致位置を特定する。
-  let blockEndCanonIdx = -1;
-  for (let searchLen = Math.min(canonDb.length, 30); searchLen >= 10; searchLen -= 2) {
-    const needle = canonDb.substring(canonDb.length - searchLen);
-    const idx = canonBlock.lastIndexOf(needle);
-    if (idx >= 0 && idx + searchLen <= canonBlock.length) {
-      blockEndCanonIdx = idx + searchLen;
-      break;
-    }
-  }
 
   // 末尾一致が見つからない場合は、内容差異（エラッタ版更新）が末尾にある可能性がある。
   // その場合は headIdx から DB本文の長さに相当する原典の位置までを返す（truncated 対応）。
   // DB本文の末尾が原典の文の途中である場合、コーパスの実本文で上書きする。
   let endCanonIdx;
-  if (blockEndCanonIdx >= 0 && blockEndCanonIdx > blockStartCanonIdx) {
+  if (blockEndCanonIdx > 0 && blockEndCanonIdx > blockStartCanonIdx) {
     endCanonIdx = blockEndCanonIdx;
   } else {
     // DB本文の長さに相当する原典の位置までを返す。
     // 内容差異（「体力」→「HP」など）は原典の内容で上書きされる。
     endCanonIdx = blockStartCanonIdx + canonDb.length;
+    // ページ区切り（"===== PAGE"）以降は別人格の本文であるため、
+    // そこには伸ばさない。
+    const pageMarkerIdx = canonBlock.indexOf("=====PAGE", blockStartCanonIdx);
+    if (pageMarkerIdx >= 0 && endCanonIdx > pageMarkerIdx) {
+      endCanonIdx = pageMarkerIdx;
+    }
     if (endCanonIdx > canonBlock.length) endCanonIdx = canonBlock.length;
   }
 
