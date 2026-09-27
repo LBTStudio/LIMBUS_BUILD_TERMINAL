@@ -49,22 +49,71 @@ function findMatchingParagraph(blockText, dbText) {
   const canonDb = canon(dbText);
   const canonBlock = canon(blockText);
   const paragraphs = blockText.split("\n").filter(l => l.trim());
+  const HEAD_PARTICLES = ["の","を","は","が","に","で","と","や","も","へ","か","だ","ら"];
+  const TAIL_PARTICLES = ["る","た","ます","です","だ","である"];
+  function headVariants(head) {
+    const out = [head];
+    const lim = head.length - 1;
+    for (let k = 0; k < lim; k++) {
+      if (HEAD_PARTICLES.includes(head[k]) || HEAD_PARTICLES.includes(head[k + 1])) {
+        const arr = head.split("");
+        [arr[k], arr[k + 1]] = [arr[k + 1], arr[k]];
+        out.push(arr.join(""));
+      }
+    }
+    for (const p of HEAD_PARTICLES) { if (head.startsWith(p) && head.length > p.length) out.push(head.substring(p.length)); }
+    for (const p of TAIL_PARTICLES) { if (head.endsWith(p) && head.length > p.length) out.push(head.substring(0, head.length - p.length)); }
+    return out;
+  }
+  function tailVariants(tail) {
+    const out = [tail];
+    const lim = tail.length - 1;
+    for (let k = 0; k < lim; k++) {
+      if (HEAD_PARTICLES.includes(tail[k]) || HEAD_PARTICLES.includes(tail[k + 1])) {
+        const arr = tail.split("");
+        [arr[k], arr[k + 1]] = [arr[k + 1], arr[k]];
+        out.push(arr.join(""));
+      }
+    }
+    for (const p of TAIL_PARTICLES) { if (tail.endsWith(p) && tail.length > p.length) out.push(tail.substring(0, tail.length - p.length)); }
+    return out;
+  }
   let blockStartCanonIdx = -1;
-  for (let searchLen = Math.min(canonDb.length, 30); searchLen >= 10; searchLen -= 2) {
-    const needle = canonDb.substring(0, searchLen);
-    const idx = canonBlock.indexOf(needle);
-    if (idx >= 0) { blockStartCanonIdx = idx; break; }
+  let blockEndCanonIdx = -1;
+  const minHeadLen = Math.min(6, canonDb.length);
+  for (let searchLen = Math.min(canonDb.length, 40); searchLen >= minHeadLen; searchLen--) {
+    const head = canonDb.substring(0, searchLen);
+    const tail = canonDb.substring(canonDb.length - searchLen);
+    for (const hv of headVariants(head)) {
+      const headIdx = canonBlock.indexOf(hv);
+      if (headIdx < 0) continue;
+      for (const tv of tailVariants(tail)) {
+        const tailIdx = canonBlock.indexOf(tv, headIdx);
+        if (tailIdx < 0 || tailIdx + tv.length <= headIdx) continue;
+        const spanLen = (tailIdx + tv.length) - headIdx;
+        if (spanLen <= canonDb.length * 1.5 && spanLen >= canonDb.length * 0.5) {
+          blockStartCanonIdx = headIdx;
+          blockEndCanonIdx = tailIdx + tv.length;
+          break;
+        }
+      }
+      if (blockStartCanonIdx >= 0) break;
+    }
+    if (blockStartCanonIdx >= 0) break;
+  }
+  if (blockStartCanonIdx < 0) {
+    let j = 0;
+    for (let i = 0; i < canonBlock.length && j < canonDb.length; i++) { if (canonBlock[i] === canonDb[j]) j++; }
+    if (j === canonDb.length) {
+      let endJ = canonDb.length; let ii = canonBlock.length;
+      while (endJ > 0 && ii > 0) { ii--; if (canonBlock[ii] === canonDb[endJ - 1]) endJ--; }
+      blockStartCanonIdx = ii; blockEndCanonIdx = -1;
+    }
   }
   if (blockStartCanonIdx < 0) return { found: false };
-  let blockEndCanonIdx = -1;
-  for (let searchLen = Math.min(canonDb.length, 30); searchLen >= 10; searchLen -= 2) {
-    const needle = canonDb.substring(canonDb.length - searchLen);
-    const idx = canonBlock.lastIndexOf(needle);
-    if (idx >= 0 && idx + searchLen <= canonBlock.length) { blockEndCanonIdx = idx + searchLen; break; }
-  }
   let endCanonIdx;
-  if (blockEndCanonIdx >= 0 && blockEndCanonIdx > blockStartCanonIdx) endCanonIdx = blockEndCanonIdx;
-  else { endCanonIdx = blockStartCanonIdx + canonDb.length; if (endCanonIdx > canonBlock.length) endCanonIdx = canonBlock.length; }
+  if (blockEndCanonIdx > 0 && blockEndCanonIdx > blockStartCanonIdx) endCanonIdx = blockEndCanonIdx;
+  else { endCanonIdx = blockStartCanonIdx + canonDb.length; const pageMarkerIdx = canonBlock.indexOf("=====PAGE", blockStartCanonIdx); if (pageMarkerIdx >= 0 && endCanonIdx > pageMarkerIdx) endCanonIdx = pageMarkerIdx; if (endCanonIdx > canonBlock.length) endCanonIdx = canonBlock.length; }
   let canonPos = 0, startParaIdx = -1, startRawOffset = 0, endParaIdx = -1, endRawOffset = 0;
   for (let i = 0; i < paragraphs.length; i++) {
     const paraCanon = canon(paragraphs[i]);
@@ -98,7 +147,22 @@ for (const m of [...missing, ...truncated]) {
   if (!result.found) failed.push({ ...m, status: "extract-failed", block });
 }
 console.log("TOTAL FAILS:", failed.length);
+let n = 0;
 for (const f of failed) {
-  console.log(`\n=== ${f.mode}/${f.persona} :: ${f.label} ===`);
-  console.log(`  DB : ${JSON.stringify(f.text).slice(0,140)}`);
+  n++;
+  const cd = canon(f.text);
+  const cb = canon(f.block.text);
+  let bestLen = 0, bestIdx = -1;
+  for (let i = 0; i < cb.length; i++) {
+    let l = 0;
+    while (l < cd.length && i + l < cb.length && cb[i + l] === cd[l]) l++;
+    if (l > bestLen) { bestLen = l; bestIdx = i; }
+  }
+  console.log(`\n[${n}] ${f.mode}/${f.persona} :: ${f.label}`);
+  console.log(`  DB(${cd.length}): ${JSON.stringify(cd)}`);
+  if (bestIdx >= 0 && bestLen > 0) {
+    console.log(`  BLK bestSub=${bestLen}@${bestIdx}: ${JSON.stringify(cb.substring(Math.max(0,bestIdx-15), bestIdx + bestLen + 40))}`);
+  } else {
+    console.log(`  BLK: NO MATCH AT ALL`);
+  }
 }
