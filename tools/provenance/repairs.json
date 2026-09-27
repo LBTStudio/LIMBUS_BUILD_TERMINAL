@@ -2294,7 +2294,7 @@
       "persona": "北部ヂェーヴィチ協会4課フィクサー",
       "target": {
         "kind": "skill",
-        "rank": "Skill0",
+        "rank": "kills0",
         "name": "戦略的休憩福祉モード",
         "field": "effect"
       },
