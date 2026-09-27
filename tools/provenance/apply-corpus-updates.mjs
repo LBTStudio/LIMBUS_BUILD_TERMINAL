@@ -167,27 +167,6 @@ function findMatchingParagraph(blockText, dbText) {
   // 見つからなければ短い head へと段階的に落とす。
   const HEAD_PARTICLES = ["の","を","は","が","に","で","と","や","も","へ","か","だ","ら"];
   const TAIL_PARTICLES = ["る","た","ます","です","だ","である"];
-  function headVariants(head) {
-    const out = [head];
-    // 隣接する助詞と文字の入れ替え（「を4」→「4を」「4を」→「を4」）
-    const lim = head.length - 1;
-    for (let k = 0; k < lim; k++) {
-      if (HEAD_PARTICLES.includes(head[k]) || HEAD_PARTICLES.includes(head[k + 1])) {
-        const arr = head.split("");
-        [arr[k], arr[k + 1]] = [arr[k + 1], arr[k]];
-        out.push(arr.join(""));
-      }
-    }
-    // 先頭の助詞 stripping
-    for (const p of HEAD_PARTICLES) {
-      if (head.startsWith(p) && head.length > p.length) out.push(head.substring(p.length));
-    }
-    // 末尾の助詞 stripping
-    for (const p of TAIL_PARTICLES) {
-      if (head.endsWith(p) && head.length > p.length) out.push(head.substring(0, head.length - p.length));
-    }
-    return out;
-  }
   let blockStartCanonIdx = -1;
   let blockEndCanonIdx = -1;
   const minHeadLen = Math.min(6, canonDb.length);
@@ -247,7 +226,7 @@ function findMatchingParagraph(blockText, dbText) {
       const headIdx = canonBlock.indexOf(hv);
       if (headIdx < 0) continue;
       for (const tv of tailVariants(tail)) {
-        const tailIdx = canonBlock.lastIndexOf(tv);
+        const tailIdx = canonBlock.indexOf(tv, headIdx);
         if (tailIdx < 0 || tailIdx + tv.length <= headIdx) continue;
         const spanLen = (tailIdx + tv.length) - headIdx;
         // 整合条件: span の長さが DB本文の長さに近い（±50% 以内）
