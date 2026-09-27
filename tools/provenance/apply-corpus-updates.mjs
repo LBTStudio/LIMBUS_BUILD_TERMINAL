@@ -209,7 +209,7 @@ function findMatchingParagraph(blockText, dbText) {
   // 別の_skill_ の同じ先頭語に誤一致し、抽出範囲がずれる。
   function headVariants(head) {
     const out = [head];
-    const lim = Math.min(head.length - 1, 10);
+    const lim = head.length - 1;
     for (let k = 0; k < lim; k++) {
       if (HEAD_PARTICLES.includes(head[k]) || HEAD_PARTICLES.includes(head[k + 1])) {
         const arr = head.split("");
@@ -227,7 +227,7 @@ function findMatchingParagraph(blockText, dbText) {
   }
   function tailVariants(tail) {
     const out = [tail];
-    const lim = Math.min(tail.length - 1, 10);
+    const lim = tail.length - 1;
     for (let k = 0; k < lim; k++) {
       if (HEAD_PARTICLES.includes(tail[k]) || HEAD_PARTICLES.includes(tail[k + 1])) {
         const arr = tail.split("");
@@ -260,6 +260,29 @@ function findMatchingParagraph(blockText, dbText) {
       if (blockStartCanonIdx >= 0) break;
     }
     if (blockStartCanonIdx >= 0) break;
+  }
+
+  // フォールバック: head+tail ペア一致が取れなかった場合は、
+  // DB本文を部分列（subsequence）としてブロック内に探索し、
+  // 最初に一致した位置を head とする。
+  // DB本文と原典の間には、エラッタ版更新による語順・助詞の入れ替えが
+  // 多発するため、head+tail の一致だけでは追従できない場合がある。
+  if (blockStartCanonIdx < 0) {
+    let j = 0;
+    for (let i = 0; i < canonBlock.length && j < canonDb.length; i++) {
+      if (canonBlock[i] === canonDb[j]) j++;
+    }
+    if (j === canonDb.length) {
+      // 部分列として一致した。先頭位置を求める（後ろから逆進）。
+      let endJ = canonDb.length;
+      let ii = canonBlock.length;
+      while (endJ > 0 && ii > 0) {
+        ii--;
+        if (canonBlock[ii] === canonDb[endJ - 1]) endJ--;
+      }
+      blockStartCanonIdx = ii;
+      blockEndCanonIdx = -1;
+    }
   }
   if (blockStartCanonIdx < 0) return { found: false };
 
