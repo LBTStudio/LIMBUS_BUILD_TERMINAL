@@ -46,8 +46,10 @@ function canonToRawOffset(raw, canonOffset) {
   return raw.length;
 }
 function findMatchingParagraph(blockText, dbText) {
-  const canonDb = canon(dbText);
-  const canonBlock = canon(blockText);
+  const bracketRe = /\[(.+?)\]\s*(\d+)/g;
+  const normalizeBracket = (s) => String(s).replace(bracketRe, "$1$2");
+  const canonDb = canon(normalizeBracket(dbText));
+  const canonBlock = canon(normalizeBracket(blockText));
   const paragraphs = blockText.split("\n").filter(l => l.trim());
   const HEAD_PARTICLES = ["の","を","は","が","に","で","と","や","も","へ","か","だ","ら"];
   const TAIL_PARTICLES = ["る","た","ます","です","だ","である"];
