@@ -149,8 +149,13 @@ function findPersonaBlock(personaName) {
 // これにより、中間の内容差異も原典の内容で上書きされ、
 // 寸断・検出漏れのない更新が実現する。
 function findMatchingParagraph(blockText, dbText) {
-  const canonDb = canon(dbText);
-  const canonBlock = canon(blockText);
+  // DBと原典の間では、括弧書きと数字の順序が逆になることがある。
+  // 例: DB「[電話線]を1付与」 ↔ 原典「電話線1を付与」
+  // これは意味の差ではないため、照合前に括弧を除去して統一する。
+  const bracketRe = /\[(.+?)\]\s*(\d+)/g;
+  const normalizeBracket = (s) => String(s).replace(bracketRe, "$1$2");
+  const canonDb = canon(normalizeBracket(dbText));
+  const canonBlock = canon(normalizeBracket(blockText));
 
   const paragraphs = blockText.split("\n").filter(l => l.trim());
 

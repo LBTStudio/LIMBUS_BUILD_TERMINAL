@@ -33,7 +33,7 @@ const NOISE_RE = /[\s\u3000。、，,．.・：:；;／/]/g;
 
 export function canon(value) {
   let text = String(value == null ? "" : value);
-  text = text.replace(/[０-９％＋－～ˣContained\u00D7]/g, (ch) => WIDE_TO_NARROW[ch] || ch);
+  text = text.replace(/[０-９％＋－～Contained\u00D7]/g, (ch) => WIDE_TO_NARROW[ch] || ch);
   text = text.replace(DASH_RE, "\u30FC");
   return text.replace(NOISE_RE, "");
 }
