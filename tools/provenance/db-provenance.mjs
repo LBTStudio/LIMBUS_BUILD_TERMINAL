@@ -30,18 +30,11 @@ const WIDE_TO_NARROW = { "０": "0", "１": "1", "２": "2", "３": "3", "４": 
    いずれも長音として同一視する。 */
 const DASH_RE = /[\u2014\u2015\u2212\uFF0D\u30FC\u2043\u002D\u2010\u2011\u2012\u2013]/g;
 const NOISE_RE = /[\s\u3000。、，,．.・：:；;／/]/g;
-/* DBと原典の間では、括弧書きと数字の順序が逆になることがある。
-   例: DB「[電話線]を1付与」 ↔ 原典「電話線1を付与」
-       DB「[受話器]を1得る」   ↔ 原典「受話器1を得る」
-   これは意味の差ではないため、正規化時に括弧を除去し、
-   数字を語の直後に移動した形で統一する。 */
-const BRACKET_NUM_RE = /\[(.+?)\]\s*(\d+)/g;
 
 export function canon(value) {
   let text = String(value == null ? "" : value);
   text = text.replace(/[０-９％＋－～ˣContained\u00D7]/g, (ch) => WIDE_TO_NARROW[ch] || ch);
   text = text.replace(DASH_RE, "\u30FC");
-  text = text.replace(BRACKET_NUM_RE, "$1$2");
   return text.replace(NOISE_RE, "");
 }
 
