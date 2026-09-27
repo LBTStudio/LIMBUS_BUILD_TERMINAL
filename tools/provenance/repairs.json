@@ -126,7 +126,7 @@
       "persona": "メメメメメ工房フィクサー",
       "target": {
         "kind": "skill",
-        "rank": "スキル3",
+        "rank": "kill2",
         "name": "弾け出す祟り",
         "field": "effect"
       },
@@ -2294,7 +2294,7 @@
       "persona": "北部ヂェーヴィチ協会4課フィクサー",
       "target": {
         "kind": "skill",
-        "rank": "kills0",
+        "rank": "kill0",
         "name": "戦略的休憩福祉モード",
         "field": "effect"
       },
