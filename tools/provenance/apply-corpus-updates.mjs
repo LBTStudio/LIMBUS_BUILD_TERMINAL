@@ -170,7 +170,7 @@ function findMatchingParagraph(blockText, dbText) {
   function headVariants(head) {
     const out = [head];
     // 隣接する助詞と文字の入れ替え（「を4」→「4を」「4を」→「を4」）
-    const lim = Math.min(head.length - 1, 10);
+    const lim = head.length - 1;
     for (let k = 0; k < lim; k++) {
       if (HEAD_PARTICLES.includes(head[k]) || HEAD_PARTICLES.includes(head[k + 1])) {
         const arr = head.split("");
