@@ -100,7 +100,7 @@
       current = null;
       section = "";
     };
-    const stop = (line) => /^【\s*戦術(?:\s*スキル\s*[^】]*)?\s*】/.test(line) || /^(?:戦術\s*)?\d+(?:[-－ー]\d+)?\s*[:：]/.test(toHalfWidth(line)) || /^(固有|人格コンセプト)/.test(line) || /戦術|固有/.test(sectionTitle(line));
+    const stop = (line) => /^【\s*戦術(?:\s*スキル\s*[^】]*)?\s*】/.test(line) || /^(?:戦術\s*)?\d+(?:[-－ー]\d+)?\s*[:：]/.test(toHalfWidth(line)) || /^(固有|人格コンセプト|派生戦術|外付け補正)/.test(line) || line === "戦術" || /戦術|固有/.test(sectionTitle(line));
     for (let index = 0; index < lines.length; index += 1) {
       const line = clean(lines[index]);
       const normalized = forMatch(line);

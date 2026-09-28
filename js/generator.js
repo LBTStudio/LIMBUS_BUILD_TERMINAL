@@ -861,7 +861,10 @@ function buildPalette(state) {
       if (KW_CANDIDATES.includes(k)) kwSet.add(lbl);
     });
   }
-  const effectDump = [p.pas.always, p.pas.effect, p.pas2.always, p.pas2.effect, ...(p.skills || []).map((s) => (s.effect || "") + (s.dice || []).map((d) => d.effect).join(" ")), p.spiritAlways, p.spiritMorale, p.spiritConfuse, ...(p.supports || []).map((s) => s.effect), ...(p.enhancements || []).map((e) => e.effect || "")].join(" ");
+  // パッシブ2が無効のとき、その本文はキーワード自動コマンドの走査対象から外す。
+  // 無効化したパッシブの状態語が :火傷+1 等のコマンドとして残ると、
+  // 管理していないステータスを操作する行がパレットに混入する。
+  const effectDump = [p.pas.always, p.pas.effect, ...(p.pas2Enabled ? [p.pas2.always, p.pas2.effect] : []), ...(p.skills || []).map((s) => (s.effect || "") + (s.dice || []).map((d) => d.effect).join(" ")), p.spiritAlways, p.spiritMorale, p.spiritConfuse, ...(p.supports || []).map((s) => s.effect), ...(p.enhancements || []).map((e) => e.effect || "")].join(" ");
   KW_CANDIDATES.forEach((k) => {
     const lbl = KW_LABELS[k] || k;
     if (effectDump.includes(k) || effectDump.includes(lbl)) kwSet.add(lbl);
@@ -988,7 +991,9 @@ function buildMemo(state) {
   if (p.deathSupport && (p.deathSupport.name || p.deathSupport.effect)) {
     L.push("\u25A0 \u6B7B\u4EA1\u5F8C\u5C02\u7528\u30B5\u30DD\u30FC\u30C8\u30D1\u30C3\u30B7\u30D6");
     const ds = p.deathSupport;
-    L.push(`\u3000${ds.name || ""}\uFF08${ds.cond || ""}\uFF09  LP${ds.lp || ""}`);
+    // 原典の死亡後パッシブはLP（精神コスト）を持たない。値のない「LP」だけが
+    // 浮くのを防ぎ、LPを持つ自作レコードのときだけ表示する。
+    L.push(`\u3000${ds.name || ""}\uFF08${ds.cond || ""}\uFF09${ds.lp ? `  LP${ds.lp}` : ""}`);
     pushMemoEffect(L, "\u52B9\u679C\uFF1A", ds.effect);
     L.push("");
   }
@@ -1840,7 +1845,10 @@ async function openShareSheet(state) {
       const url = URL.createObjectURL(blob);
       let win = null;
       try {
-        win = window.open(url, "_blank", "noopener");
+        // "noopener" を付けると仕様上 window.open は常に null を返し、成否を
+        // 判定できずタブが開いても「ブロックされました」と誤表示される。
+        // 成否は戻り値で判定するため、ここでは付けない。
+        win = window.open(url, "_blank");
       } catch (e) {
       }
       await new Promise((r) => setTimeout(r, 120));

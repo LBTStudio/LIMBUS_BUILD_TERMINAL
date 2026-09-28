@@ -83,3 +83,20 @@ test("同化型E.G.Oのスロット形態は原典の全8種を過不足なく�
   assert.equal((kakusei?.branches?.assimilation?.skills || []).length, ego.sub_skills.length);
   assert.equal(st.egoSlots?.TETH?.slotVariants?.shinshoku?.active, "skill");
 });
+
+test("LPを持たない死亡後パッシブはメモ出力で浮いた「LP」を残さない", () => {
+  const rt = loadRuntime();
+  // 原典の死亡後パッシブ（DBの death_passives）はLP（精神コスト）を持たない。
+  const ds = rt.db.death_passives.find((s) => s.name === "覚悟");
+  assert.equal(ds.lp, undefined);
+
+  const memo = rt.gen.buildMemo({ ...rt.initialState, deathSupport: { ...ds, id: "test" } });
+  const line = memo.split("\n").find((l) => l.includes("覚悟"));
+  assert.ok(line, "死亡後パッシブの行がメモに存在する");
+  assert.equal(/LP/.test(line), false, `浮いたLP: ${line}`);
+
+  // LPを持つ自作レコードは従来どおり LP 表示を維持する。
+  const memo2 = rt.gen.buildMemo({ ...rt.initialState, deathSupport: { id: "test2", name: "自作死亡後", cond: "-", effect: "-", lp: "99" } });
+  const line2 = memo2.split("\n").find((l) => l.includes("自作死亡後"));
+  assert.ok(/LP99/.test(line2), `LP99 が表示される: ${line2}`);
+});

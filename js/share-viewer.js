@@ -67,8 +67,12 @@
     const sharedDB = { ...(db || {}), items: Array.isArray(items) ? items : [] };
     const hydrated = window.LBT_shareLink.hydratePersonaReference(state, sharedDB);
     window.DB = sharedDB;
+    // document.open() の後は #share-root が文書から外れるため、本体生成が
+    // 失敗したときにエラー表示を書き込む先が消え、白紙ページになっていた。
+    // 先に本文を生成してから文書を置き換える。
+    const shareHTML = window.LBT_gen.buildShareSheetHTML(hydrated);
     document.open();
-    document.write(window.LBT_gen.buildShareSheetHTML(hydrated));
+    document.write(shareHTML);
     document.close();
   } catch (error) {
     const reason = error?.message || "共有URLが壊れているか、対応していない形式です。";

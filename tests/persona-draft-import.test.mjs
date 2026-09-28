@@ -234,6 +234,9 @@ test("単独ランク行と裸スキル名の草案を解析し、人格名が�
   assert.equal(result.persona.skills[0].name, "ファウヌス");
   assert.equal(result.persona.skills[0].type, "マッチ可能防御");
   assert.equal(result.persona.skills[1].rank, "スキル0-2");
+  // 見出し語の「戦術」行がパッシブ効果欄へ吸収されないこと。
+  // 吸収されると passive_effect に「確認\n戦術\n0\nファウヌス…」が混入する。
+  assert.equal(result.persona.passive_effect, "確認");
 });
 
 test("全角半角の番号コロンだけで始まる戦術一覧を、次行のスキル名と属性から解析する", () => {
