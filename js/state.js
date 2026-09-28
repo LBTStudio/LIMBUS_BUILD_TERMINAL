@@ -79,10 +79,16 @@ function enrichEgoKeywords(database) {
 window.LBT_enrichEgoKeywords = enrichEgoKeywords;
 const HISTORY_LIMIT = 60;
 const SAVE_SCHEMA_VERSION = 5;
-const SUPPORT_DEATH_RE = /(死亡|退場|戦闘不能|死亡した|死亡時|味方死亡|自分が死亡|撃破|倒れ)/;
+// 旧版の保存で通常スロットに混入した死亡後パッシブの移行判定。
+// 語彙の正規表現で推測分類すると「墓守」「高危険作戦」「勤勉」等、
+// 本文に死亡系の語を含むだけの通常サポートまで誤検出して無断で移動し、
+// リロードやundoのたびにビルドが書き換わる。UIの死亡後スロット候補が
+// DB.death_passives 名簿のみを参照するのと同じ基準へ揃え、
+// 名簿の名称と完全一致するレコードだけを移行対象にする。
 function isDeathSupportPassiveRecord(s) {
-  const txt = `${s?.name || ""} ${s?.cond || ""} ${s?.effect || ""}`;
-  return SUPPORT_DEATH_RE.test(txt);
+  const roster = Array.isArray(window.DB?.death_passives) ? window.DB.death_passives : [];
+  const name = String(s?.name || "").trim();
+  return !!name && roster.some((entry) => String(entry?.name || "").trim() === name);
 }
 function cloneJSON(obj) {
   return obj == null ? obj : JSON.parse(JSON.stringify(obj));

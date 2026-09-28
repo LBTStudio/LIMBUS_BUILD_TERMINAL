@@ -163,14 +163,17 @@ function formatDiceEffectDisplay(roll, effect, lineBreak) {
    本文として扱うと表示が重複するため、段落分割の前に取り除く。 */
 function stripDiceIndexPrefix(effect) {
   const text = String(effect == null ? "" : effect);
-  const colon = text.indexOf("\uFF1A");
+  // 冒頭の「：」はロール表記との連結子（roll：本文）由来であって本文ではない。
+  // 残していると表示の組立で「roll：：本文」と二重に付くため取り除く。
+  const body = text.startsWith("\uFF1A") ? text.slice(1).trim() : text;
+  const colon = body.indexOf("\uFF1A");
   if (colon > 0) {
-    const head = text.slice(0, colon).trim();
-    if (/^\d[\d-]*$/.test(head)) return text.slice(colon + 1).trim();
-    return text;
+    const head = body.slice(0, colon).trim();
+    if (/^\d[\d-]*$/.test(head)) return body.slice(colon + 1).trim();
+    return body;
   }
-  if (/^\d[\d-]*$/.test(text.trim())) return "";
-  return text;
+  if (/^\d[\d-]*$/.test(body.trim())) return "";
+  return body;
 }
 function buildLabeledBlock(header, text) {
   const lines = toArrowLines(text);
@@ -1039,7 +1042,9 @@ function computeEnhancementBonuses(state) {
   const bonus = { hp: 0, san: 0 };
   const list = getActiveEnhancements(state);
   for (const e of list) {
-    const t = String(e.effect || "");
+    // 原典の強化本文には「人格のSANを５上昇させる。」のように全角数字が使われる。
+    // ASCII `\d` は全角に一致しないため、数値抽出の前に半角へ正規化する。
+    const t = String(e.effect || "").replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
     let m;
     const reHp = /HPを(\d+)上昇/g;
     while ((m = reHp.exec(t)) !== null) bonus.hp += parseInt(m[1], 10);
@@ -1729,7 +1734,7 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
     <div class="stat"><div class="lbl">SAN</div><div class="val">${esc(shareSan)}</div></div>
     <div class="stat"><div class="lbl">\u901F\u5EA6</div><div class="val">${esc(p.speed || "\u2014")}</div></div>
     <div class="stat"><div class="lbl">\u5F3E\u4E38</div><div class="val">${esc(p.bullets || "\xD7")}</div></div>
-    ${shareSan === "\u2014" ? "" : `<div class="stat"><div class="lbl">\\u58EB\\u6C17\\u4F4E\\u4E0B</div><div class="val">${esc(computeMoraleLine(p, parseInt(shareSan, 10)))}</div></div>`}
+    ${shareSan === "\u2014" ? "" : `<div class="stat"><div class="lbl">\u58EB\u6C17\u4F4E\u4E0B</div><div class="val">${esc(computeMoraleLine(p, parseInt(shareSan, 10)))}</div></div>`}
   </div>
   <div class="res-title">\u8010\u6027 / RESISTANCE</div>
   <div class="res-row">
