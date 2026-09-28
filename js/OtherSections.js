@@ -908,24 +908,29 @@ const EgoQuickDetail = ({ ego, currentSlot, isOwned, onEquip, onUnequip, onToggl
   const h = React.createElement;
   if (!ego) return null;
   const formatPreview = (text, limit = 150) => {
-    const normalized = String(text || "").replace(/\s+/g, " ").trim();
+    // 改行は原典の段落区切りそのもの。1行へ押し込むと「1R 1R：…」のように
+    // 表記が重複して読めるため、改行を保持したまま先頭から切り詰める。
+    const normalized = String(text || "").trim();
     return normalized.length > limit ? `${normalized.slice(0, limit)}…` : normalized;
   };
   const skillSummary = (label, skill, tone) => {
     if (!skill || (!skill.effect && !(skill.dice || []).length)) return null;
-    const rolls = (skill.dice || []).map((die) => die.roll).filter(Boolean).slice(0, 2);
+    // ロール一覧は効果本文を持たないダイスだけのフォールバック。
+    // 先頭2件へ切り詰めると実際のダイス数と不一致になり（12d1/12d1 なのに
+    // 本文は3ダイス分など）、効果本文行と突き合わせたときに破綻して見える。
+    const bareRolls = (skill.dice || []).filter((die) => die.roll && !die.effect).map((die) => die.roll);
     return h("div", { className: "ego-quick-skill", "data-tone": tone },
       h("div", { className: "ego-quick-skill-head" },
         h("span", null, label),
         h("span", null, [skill.attr, skill.sin].filter(Boolean).join("：") || "—")
       ),
-      rolls.length ? h("div", { className: "ego-quick-rolls" }, rolls.join(" / ")) : null,
-      skill.effect ? h("p", null, formatPreview(skill.effect, 92)) : null,
+      bareRolls.length ? h("div", { className: "ego-quick-rolls" }, bareRolls.join(" / ")) : null,
+      skill.effect ? h("p", { style: { whiteSpace: "pre-wrap" } }, formatPreview(skill.effect, 92)) : null,
       (skill.dice || []).some((die) => die.effect) ? h("div", { className: "ego-quick-dice-effects" },
         (skill.dice || []).filter((die) => die.effect).map((die, index) => h("div", { key: `effect-${index}`, className: "ego-quick-dice-effect" },
           h("span", { className: "ego-quick-dice-roll" }, die.roll || "効果"),
           h("span", { className: "ego-quick-dice-colon" }, die.effect ? "：" : ""),
-          h("span", null, formatPreview(die.effect, 120))
+          h("span", { style: { whiteSpace: "pre-wrap" } }, formatPreview(die.effect, 120))
         ))
       ) : null
     );
@@ -953,7 +958,7 @@ const EgoQuickDetail = ({ ego, currentSlot, isOwned, onEquip, onUnequip, onToggl
     ego.passive_name || ego.passive_effect ? h("div", { className: "ego-quick-passive" },
       h("span", null, "パッシブ"),
       ego.passive_name ? h("strong", null, ego.passive_name) : null,
-      ego.passive_effect ? h("p", null, formatPreview(ego.passive_effect)) : null
+      ego.passive_effect ? h("p", { style: { whiteSpace: "pre-wrap" } }, formatPreview(ego.passive_effect)) : null
     ) : null,
     h("div", { className: "ego-quick-skills" },
       skillSummary("覚醒", ego.kakusei, "awake"),

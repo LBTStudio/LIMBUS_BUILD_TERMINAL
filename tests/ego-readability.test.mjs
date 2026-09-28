@@ -60,3 +60,19 @@ test("同化型E.G.O一覧カードはランクと同化表示を独立マーク
   assert.match(marksCss, /@media \(max-width: 420px\)/);
   assert.match(marksCss, /flex-wrap: wrap/);
 });
+
+test("簡易詳細の効果プレビューは改行を保持し、ロール列挙は本文を持つダイスと重複しない", () => {
+  const start = source.indexOf("const EgoQuickDetail");
+  const end = source.indexOf("// 基本ルールPDFの掲載順", start);
+  assert.ok(start >= 0 && end > start, "EgoQuickDetail の抽出");
+  const quick = source.slice(start, end);
+
+  // 改行を1行へ押し込むと原典の段落表記（例: 「[影響] 1R」と「1R：…」の2行）が
+  // 「1R 1R：…」のように重複して読めるため、改行を保持して切り詰める。
+  assert.equal(quick.includes("replace(/\\s+/g"), false, "formatPreview が改行を潰さない");
+  // 効果本文を持つダイスは roll：本文 行に全数表示し、ロール一覧は本文を持たない
+  // ダイスだけのフォールバックにする。先頭2件への切り詰めは実ダイス数との不一致を生む。
+  assert.match(quick, /const bareRolls/);
+  assert.equal(quick.includes(".slice(0, 2)"), false, "ロール列挙が先頭2件へ切り詰められない");
+  assert.match(quick, /whiteSpace: "pre-wrap"/);
+});
