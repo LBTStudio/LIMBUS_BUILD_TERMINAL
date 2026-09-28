@@ -437,10 +437,18 @@ const App = () => {
       if (isCtrl && e.key === "k") {
         e.preventDefault();
         setCpOpen((o) => !o);
-      } else if (isCtrl && !e.shiftKey && e.key === "z") {
+        return;
+      }
+      // テキスト入力中の undo/redo はOS標準の入力履歴操作に譲る。
+      // アプリ全体のundoで入力中の文字列を巻き戻すと、ユーザーの意図しない
+      // ビルド状態変更が発生するため、入力要素へのフォーカス中はスキップする。
+      const el = document.activeElement;
+      const isTyping = !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
+      if (isTyping) return;
+      if (isCtrl && !e.shiftKey && e.key === "z") {
         e.preventDefault();
         undo();
-      } else if (isCtrl && (e.shiftKey && e.key === "Z" || e.key === "y")) {
+      } else if (isCtrl && ((e.shiftKey && (e.key === "Z" || e.key === "Y")) || e.key === "y" || e.key === "Y")) {
         e.preventDefault();
         redo();
       }

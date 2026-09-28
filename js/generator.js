@@ -378,6 +378,20 @@ function getActiveEnhancements(state) {
 function stateWithActiveEnhancements(state) {
   return { ...state, enhancements: getActiveEnhancements(state) };
 }
+/* UIのスロット表示と同じ条件で、出力に含めるサポート・死亡後パッシブを切り詰める。
+   拡張解除でUIから消えた3つ目のサポートや死亡後スロットが、
+   パレット・メモ・JSON・共有シートにだけ残留するのを防ぐ。 */
+function stateWithVisibleSupports(state) {
+  const p = stateWithActiveEnhancements(state);
+  const enh = p.enhancements || [];
+  const maxSupports = enh.some((e) => (e.name || "").includes("サポートスロット追加")) ? 3 : 2;
+  const hasDeathSlot = enh.some((e) => (e.name || "").includes("死亡後パッシブ追加"));
+  return {
+    ...p,
+    supports: (Array.isArray(p.supports) ? p.supports : []).slice(0, maxSupports),
+    deathSupport: hasDeathSlot ? p.deathSupport : null
+  };
+}
 window.LBT_isUnsyncedOnlyEnhancement = isUnsyncedOnlyEnhancement;
 window.LBT_isEnhancementActiveForState = isEnhancementActiveForState;
 window.LBT_getActiveEnhancements = getActiveEnhancements;
@@ -502,7 +516,7 @@ function hasActiveSkillDiscard(state) {
   return SUTE_ACTIVE.test(dump);
 }
 function buildPalette(state) {
-  const p = stateWithActiveEnhancements(state);
+  const p = stateWithVisibleSupports(state);
   const sanBase = p.san === "" || p.san == null ? 50 : parseInt(p.san, 10);
   const san = sanBase + computeEnhancementBonuses(p).san;
   const speed = sanitizeInline(p.speed) || "2d4";
@@ -942,7 +956,7 @@ function getOwnedItemEntries(state) {
   return (state?.inventory || []).map((entry) => ({ entry, item: byId.get(String(entry?.itemId)) })).filter(({ item }) => !!item);
 }
 function buildMemo(state) {
-  const p = stateWithActiveEnhancements(state);
+  const p = stateWithVisibleSupports(state);
   const L = [];
   L.push(`\u3010PC\u3011${p.charName || "\u30AD\u30E3\u30E9\u30AF\u30BF\u30FC"}${p.plName ? `\u3000\u3010PL\u3011${p.plName}` : ""}`);
   L.push("");
@@ -1136,7 +1150,7 @@ function filterOutputSections(text, excluded) {
 }
 window.LBT_splitOutputSections = splitOutputSections;
 function buildCcfoliaJSON(state) {
-  const p = stateWithActiveEnhancements(state);
+  const p = stateWithVisibleSupports(state);
   const charName = p.charName || "\u30AD\u30E3\u30E9\u30AF\u30BF\u30FC";
   const plName = p.plName || "";
   const color = p.color || "#c8a84b";
@@ -1321,7 +1335,7 @@ function buildCcfoliaJSON(state) {
   return obj;
 }
 function buildShareSheetHTML(state) {
-  const p = stateWithActiveEnhancements(state);
+  const p = stateWithVisibleSupports(state);
   const personaSync = getCurrentPersonaSyncState(p);
   const personaName = formatPersonaDisplayName(p);
   const showSyncRank = p.shareOptions?.showSyncRank !== false;

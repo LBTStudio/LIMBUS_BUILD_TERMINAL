@@ -90,13 +90,57 @@ test("LPを持たない死亡後パッシブはメモ出力で浮いた「LP」�
   const ds = rt.db.death_passives.find((s) => s.name === "覚悟");
   assert.equal(ds.lp, undefined);
 
-  const memo = rt.gen.buildMemo({ ...rt.initialState, deathSupport: { ...ds, id: "test" } });
+  // B9の修正で、死亡後パッシブ追加の強化がないと死亡後は出力されない。
+  // ここではLP表示の検証が目的のため、強化を付与した状態で出力する。
+  const enh = [{ name: "死亡後パッシブ追加", effect: "" }];
+  const memo = rt.gen.buildMemo({ ...rt.initialState, enhancements: enh, deathSupport: { ...ds, id: "test" } });
   const line = memo.split("\n").find((l) => l.includes("覚悟"));
   assert.ok(line, "死亡後パッシブの行がメモに存在する");
   assert.equal(/LP/.test(line), false, `浮いたLP: ${line}`);
 
   // LPを持つ自作レコードは従来どおり LP 表示を維持する。
-  const memo2 = rt.gen.buildMemo({ ...rt.initialState, deathSupport: { id: "test2", name: "自作死亡後", cond: "-", effect: "-", lp: "99" } });
+  const memo2 = rt.gen.buildMemo({ ...rt.initialState, enhancements: enh, deathSupport: { id: "test2", name: "自作死亡後", cond: "-", effect: "-", lp: "99" } });
   const line2 = memo2.split("\n").find((l) => l.includes("自作死亡後"));
   assert.ok(/LP99/.test(line2), `LP99 が表示される: ${line2}`);
+});
+
+test("拡張解除でUIから消えたサポート・死亡後は出力にも含めない", () => {
+  const rt = loadRuntime();
+  const s1 = rt.db.support_passives[0];
+  const s2 = rt.db.support_passives[1];
+  const s3 = rt.db.support_passives[2];
+  const ds = rt.db.death_passives[0];
+
+  // スロット追加なし → 3つ目はパレットに出ない
+  const st2 = { ...rt.initialState, supports: [{ ...s1, id: "a" }, { ...s2, id: "b" }, { ...s3, id: "c" }], deathSupport: { ...ds, id: "d" } };
+  const pal2 = rt.gen.buildPalette(st2);
+  assert.ok(pal2.includes(s1.name), "1つ目のサポートは出力される");
+  assert.ok(pal2.includes(s2.name), "2つ目のサポートは出力される");
+  assert.equal(pal2.includes(s3.name), false, "3つ目のサポートはスロット追加なしでは出力しない");
+  assert.equal(pal2.includes(ds.name), false, "死亡後パッシブは追加強化なしでは出力しない");
+  const memo2 = rt.gen.buildMemo(st2);
+  assert.equal(memo2.includes(s3.name), false, "メモでも3つ目を出さない");
+
+  // スロット追加あり → 3つ目と死亡後が出る
+  const st3 = { ...st2, enhancements: [{ name: "サポートスロット追加", effect: "" }, { name: "死亡後パッシブ追加", effect: "" }] };
+  const pal3 = rt.gen.buildPalette(st3);
+  assert.ok(pal3.includes(s3.name), "3つ目のサポートはスロット追加ありで出力される");
+  assert.ok(pal3.includes(ds.name), "死亡後パッシブは追加強化ありで出力される");
+});
+
+test("undo履歴は同一state参照の連続pushを重複として積まない", () => {
+  // ReactのuseCallback閉包内では、1ハンドラで2dispatchしても再レンダリングまで
+  // 同じstate参照が残る。末尾と同一参照のpushをスキップするガードの存在を検証する。
+  const source = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
+  assert.match(source, /past\[past\.length - 1\] !== state/, "同一参照重複pushのガード");
+});
+
+test("Ctrl+Z/Yはテキスト入力欄ではOS標準の入力undoに譲る", () => {
+  // 入力要素へフォーカス中のアプリ全体undoは、入力中の文字列を巻き戻して
+  // 意図しないビルド変更を起こす。activeElementチェックの存在を検証する。
+  const source = readFileSync(new URL("../js/App.js", import.meta.url), "utf8");
+  assert.match(source, /document\.activeElement/, "入力要素のフォーカス判定");
+  assert.match(source, /isTyping/, "入力中のスキップ変数");
+  assert.match(source, /e\.key === "y" \|\| e\.key === "Y"/, "Ctrl+Yの大文字対応");
+  assert.match(source, /e\.key === "Z" \|\| e\.key === "Y"/, "Ctrl+Shift+Z/Yの大文字対応");
 });

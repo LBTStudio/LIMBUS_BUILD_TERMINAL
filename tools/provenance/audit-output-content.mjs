@@ -70,8 +70,13 @@ function equip(runtime, kind, record) {
   if (kind === 'egos') {
     state = runtime.reducer(state, { type: 'SET_EGO_SLOT', rank: record.rank, value: record });
     if (record.sub_skills?.length) state = runtime.reducer(state, { type: 'ADD_SUPPORT', spp: { name: 'E.G.O同化', effect: '' } });
-  } else if (kind === 'support_passives') state = runtime.reducer(state, { type: 'ADD_SUPPORT', spp: record });
-  else if (kind === 'death_passives') state = runtime.reducer(state, { type: 'SET_DEATH_SUPPORT', spp: record });
+  }   else if (kind === 'support_passives') state = runtime.reducer(state, { type: 'ADD_SUPPORT', spp: record });
+  else if (kind === 'death_passives') {
+    state = runtime.reducer(state, { type: 'SET_DEATH_SUPPORT', spp: record });
+    // UIと出力は「死亡後パッシブ追加」強化の有無でスロット表示を制御する。
+    // 全レコードの出力を検証するため、拡張強化を併せて装備しておく。
+    state = { ...state, enhancements: [...(state.enhancements || []), { name: '死亡後パッシブ追加', effect: '' }] };
+  }
   else if (kind === 'spirits') state = runtime.reducer(state, { type: 'APPLY_SPIRIT', spirit: record });
   else if (kind === 'items') state = runtime.reducer(state, { type: 'ADD_ITEM', itemId: record.id });
   else state = { ...state, enhancements: [record] };

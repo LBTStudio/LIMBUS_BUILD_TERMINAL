@@ -1847,8 +1847,14 @@ function useAppState() {
   }, [state]);
   const wrappedDispatch = React.useCallback((action) => {
     if (action.type !== "SET_UI" && !skipHistoryRef.current) {
-      historyRef.current.past.push(state);
-      if (historyRef.current.past.length > HISTORY_LIMIT) historyRef.current.past.shift();
+      // 1つのハンドラで連続dispatchした場合、再レンダリングが走るまで
+      // 同じstate参照が閉包に残る。同一参照を重ねて積むと、1回目のundoで
+      // 何も変わらない操作が履歴に混入し、2回押す必要が出る。
+      const past = historyRef.current.past;
+      if (past.length === 0 || past[past.length - 1] !== state) {
+        past.push(state);
+        if (past.length > HISTORY_LIMIT) past.shift();
+      }
       historyRef.current.future = [];
     }
     skipHistoryRef.current = false;
