@@ -1160,7 +1160,7 @@ function buildCcfoliaJSON(state) {
   const san = (p.san === "" || p.san == null ? 50 : parseInt(p.san, 10)) + _enhBonus.san;
   const morale = computeMoraleLine(p, san);
   const { atkModLabel, hasVigor, hasDefMod } = detectMTMods(p);
-  const normalizeLabel = (label) => window.LBT_normalizeStatusLabel ? window.LBT_normalizeStatusLabel(label) : String(label || "").trim();
+  const normalizeLabel = (label) => window.LBT_normalizeStatusLabel ? window.LBT_normalizeStatusLabel(label) : String(label || "").trim().replace(/クイック0$/g, "").replace(/バリア0$/g, "").trim();
   // 設定画面とJSON出力は必ず同じ根拠集合を使う。バリアだけの特例は持たない。
   const managedEntries = window.LBT_getStateSelfManagedStatusEntries ? window.LBT_getStateSelfManagedStatusEntries(p) : [];
   const managedByLabel = new Map(managedEntries.map((entry) => [normalizeLabel(entry.label), entry]));

@@ -29,9 +29,7 @@
     function loadDB(){
       return new Promise(function(resolve, reject){
 	        if(window.fetch){
-		          // cache:"reload" で HTTP キャッシュをバイパスし常に最新の DB を取得する。
-		          // localStorage のセーブデータ（lbt_v46_state）には一切影響しない。
-		          Promise.all([fetch("data/db.json?v=65r68", { cache: "reload" }), fetch("data/items.json?v=64r60", { cache: "reload" })]).then(function(rs){ return Promise.all(rs.map(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json(); })); })
+		          Promise.all([fetch("data/db.json?v=65r68"), fetch("data/items.json?v=64r60")]).then(function(rs){ return Promise.all(rs.map(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json(); })); })
 	          .then(function(rows){ window.DB = rows[0]; window.DB.items = Array.isArray(rows[1]) ? rows[1] : []; window.LBT_PERSONA_KEYWORD_AUDIT = window.LBT_enrichPersonaKeywords ? window.LBT_enrichPersonaKeywords(window.DB) : null; window.LBT_EGO_KEYWORD_AUDIT = window.LBT_enrichEgoKeywords ? window.LBT_enrichEgoKeywords(window.DB) : null; resolve(); }).catch(reject);
           return;
         }

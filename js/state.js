@@ -327,17 +327,30 @@ function statusOccurrenceHasForeignRecipient(text, index) {
   // 条件節の後に主語が省略された取得は、自分が受け取る効果として扱う。
   return !/(?:なら|場合|時|ごと|以上|未満|状態|死亡|混乱|侵蝕)/u.test(foreign[1] || "");
 }
+/* 連結取得パターンの正規表現は90項目程度の選言を含むため、毎回構築すると
+   状態検出1回あたり最大1750回のRegExpコンパイルが発生し、テキスト量の
+   多い人格でキー入力1回あたり86msの劣化要因になる。モジュールスコープで
+   一度だけ構築する。 */
+const STATUS_GAIN_RE = /(?:得る|得て(?!い)|獲得(?:する|して)?)(?![てたな])/u;
+const STATUS_CHAINED_RE_CACHE = {};
+function statusGainChainRegExp() {
+  const key = (window.LBT_PDF_KEYWORD_ORDER || []).length + ":" + LBT_TRACKABLE_STATUSES.length;
+  if (!STATUS_CHAINED_RE_CACHE[key]) {
+    const gain = "(?:得る|得て(?!い)|獲得(?:する|して)?)(?![てたな])";
+    const chainVocabulary = [...new Set([...LBT_TRACKABLE_STATUSES, ...(window.LBT_PDF_KEYWORD_ORDER || [])])];
+    const names = chainVocabulary.map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+    const chained = `^(?:[0-9０-９]*を?)(?:(?:と|、|及び|・)(?:(?:次のR|R開始時|戦闘開始時)(?:に|、)?)?(?:${names})(?:[0-9０-９]*を?)){1,4}${gain}`;
+    STATUS_CHAINED_RE_CACHE[key] = new RegExp(chained, "u");
+  }
+  return STATUS_CHAINED_RE_CACHE[key];
+}
 function statusGainTailMatches(tail) {
-  const gain = "(?:得る|得て(?!い)|獲得(?:する|して)?)(?![てたな])";
-  if (new RegExp(`^(?:[0-9０-９]*を?[0-9０-９]*を?)${gain}`, "u").test(tail)) return true;
+  if (new RegExp(`^(?:[0-9０-９]*を?[0-9０-９]*を?)${"(?:得る|得て(?!い)|獲得(?:する|して)?)(?![てたな])"}`, "u").test(tail)) return true;
   // 「呼吸2とクイック1を得る」「呼吸3と次のRにクイック1を得る」のように、
   // 複数の状態で取得動詞を共有する本文を扱う。対象側は呼出元で除外する。
   // クイック等、既定一覧に常設される語も連結の区切りとしては認識する。
   // ただし呼出側の追加対象はLBT_TRACKABLE_STATUSESだけなので、常設値を重複追加しない。
-  const chainVocabulary = [...new Set([...LBT_TRACKABLE_STATUSES, ...(window.LBT_PDF_KEYWORD_ORDER || [])])];
-  const names = chainVocabulary.map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
-  const chained = `^(?:[0-9０-９]*を?)(?:(?:と|、|及び|・)(?:(?:次のR|R開始時|戦闘開始時)(?:に|、)?)?(?:${names})(?:[0-9０-９]*を?)){1,4}${gain}`;
-  return new RegExp(chained, "u").test(tail);
+  return statusGainChainRegExp().test(tail);
 }
 function textAwardsSelfManagedStatus(rawText, label) {
   const text = stripStatusDetectionLiterals(rawText);

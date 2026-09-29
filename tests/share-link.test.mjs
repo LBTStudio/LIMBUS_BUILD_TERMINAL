@@ -312,7 +312,7 @@ test("静的共有ページはDiscord向けのOGPと圧縮共有データの復�
   assert.match(viewer, /window\.addEventListener\("hashchange"/);
   assert.match(viewer, /window\.location\.reload\(\)/);
   assert.match(viewer, /window\.setTimeout\(resolve, 800\)/);
-  assert.match(viewer, /fetch\("data\/db\.json\?v=65r68", \{ cache: "reload" \}/);
+  assert.match(viewer, /fetch\("data\/db\.json\?v=65r68"\)/);
   const share = loadShareLink();
   assert.match(readFileSync(new URL("../js/share-link.js", import.meta.url), "utf8"), /EXTERNAL_READ_TIMEOUT_MS = 6000/);
   assert.ok(share.PRACTICAL_DISCORD_URL_LENGTH > 0);
