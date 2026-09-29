@@ -962,13 +962,23 @@ function appReducer(state, action) {
         "hp","san","speed","bullets","resS","resP","resB","spirit","spiritMorale","spiritConfuse","spiritAlways",
         "pas","pas2Enabled","pas2","uniqueBuffs","skills","egoSlots","supports","deathSupport","roster",
         "enhancements","customStatuses","defaultStatuses","formulas","builtinFormulasOverride","autoFml",
-        "moraleLine","extraCmd","outputExclude","shareOptions","inventory","customItems"];
+        "moraleLine","extraCmd","outputExclude","shareOptions","inventory","customItems",
+        "favorites","historyRecent"];
+      // 別端末移行（exportState/importStateFromFile）は favorites と historyRecent を
+      // 出力に含む。許可リストから漏れると、移行先で★と履歴だけが黙って失われる。
+      const isSafePartialValue = (v) => {
+        if (v === null || v === void 0) return true;
+        if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") return true;
+        if (typeof v === "object") return Object.values(v).every(isSafePartialValue);
+        return false; // function / symbol / bigint 等は state に混入させない
+      };
       const patch = {};
       const src = action.state || {};
       const fields = Array.isArray(action.fields) ? action.fields : [];
       for (const f of fields) {
         if (!ALLOWED.includes(f)) continue;
         if (!(f in src)) continue;
+        if (!isSafePartialValue(src[f])) continue;
         patch[f] = cloneJSON(src[f]);
       }
       return normalizeStateShape({ ...state, ...patch });

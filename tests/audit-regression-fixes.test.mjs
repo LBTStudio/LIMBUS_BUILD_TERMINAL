@@ -175,3 +175,22 @@ test("★/履歴タブのキー解決と装備モード特定はカスタム人�
   assert.match(source, /p\.__custom \? "custom" : mode/, "装備時の __custom フォールバック");
   assert.match(source, /x\.p\?\.no === p\?\.no && x\.p\?\.name === p\?\.name/, "参照不一致時の名前・No照合");
 });
+
+test("別端末移行で★と履歴が復元され、不正な型はstateに混入しない", () => {
+  const rt = loadRuntime();
+  const imported = { ...rt.initialState,
+    favorites: ["n:1", "t:1", "custom:999"],
+    historyRecent: ["n:2", "t:2"],
+    charName: "移行テスト",
+    // 関数値やbigint等は JSON シリアライズ不能でstateを壊すため拒否する
+    dangerous: () => {}
+  };
+  const next = rt.reducer(rt.initialState, { type: "APPLY_PARTIAL", state: imported, fields: ["favorites", "historyRecent", "charName", "dangerous"] });
+  // VM コンテキスト内で生成された配列はホスト側 Array プロトタイプを持たない
+  // ため、要素を展開してから比較する。
+  assert.deepEqual([...next.favorites], ["n:1", "t:1", "custom:999"], "favoritesが復元される");
+  assert.deepEqual([...next.historyRecent], ["n:2", "t:2"], "historyRecentが復元される");
+  assert.equal(next.charName, "移行テスト", "charNameが復元される");
+  assert.equal(next.dangerous, undefined, "関数値はstateに混入しない");
+  assert.ok(!("dangerous" in next), "許可リスト外のキーは無視される");
+});
