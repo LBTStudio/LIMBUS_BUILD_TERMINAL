@@ -2092,7 +2092,7 @@ const SettingsSection = ({ state, dispatch }) => {
           sectionSummary("危険な操作", "作業状態・保存データの削除"),
           h("div", { className: "settings-major-body settings-local-actions is-danger" },
             h(Button, { size: "md", variant: "danger", icon: "trash", onClick: () => { if (confirm("全ての入力をクリアしますか？（所持・お気に入り・履歴は保持）")) { dispatch({ type: "RESET" }); toast("入力をクリアしました"); } } }, "作業状態をクリア"),
-            h(Button, { size: "md", variant: "danger", icon: "trash", onClick: () => { if (confirm("保存済みデータも完全に削除しますか？")) { localStorage.removeItem("lbt_v46_state"); location.reload(); } } }, "保存データを完全削除")
+            h(Button, { size: "md", variant: "danger", icon: "trash", onClick: () => { if (confirm("保存済みデータも完全に削除しますか？")) { localStorage.removeItem(window.LBT_STORAGE_KEYS?.STATE || "lbt_v46_state"); location.reload(); } } }, "保存データを完全削除")
           )
         )
       )

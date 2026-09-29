@@ -219,4 +219,8 @@
 
   /* 下位互換: 既存コードが window.LBT_PDF_KEYWORD_ORDER を直接参照するため。 */
   window.LBT_PDF_KEYWORD_ORDER = PDF_KEYWORD_ORDER;
+
+  /* localStorage キーの単一定義。state.js と OtherSections.js が参照する。
+     ハードコードが分散すると、キー名変更時に一部の操作だけが機能しなくなる。 */
+  window.LBT_STORAGE_KEYS = Object.freeze({ STATE: "lbt_v46_state" });
 })();
