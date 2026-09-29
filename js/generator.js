@@ -1149,7 +1149,7 @@ function filterOutputSections(text, excluded) {
     .join("\n");
 }
 window.LBT_splitOutputSections = splitOutputSections;
-function buildCcfoliaJSON(state) {
+function buildCcfoliaJSON(state, opts) {
   const p = stateWithVisibleSupports(state);
   const charName = p.charName || "\u30AD\u30E3\u30E9\u30AF\u30BF\u30FC";
   const plName = p.plName || "";
@@ -1310,8 +1310,8 @@ function buildCcfoliaJSON(state) {
   // T18/T19: プレビューの項目別チェック（outputExclude）を JSON の memo/commands へ直接反映する。
   // 「表示＝出力」と混同しないよう、除外された項目は JSON からのみ除く。
   const excl = p.outputExclude || {};
-  const commands = filterOutputSections(buildPalette(state), excl.palette);
-  const memo = filterOutputSections(buildMemo(state), excl.memo);
+  const commands = filterOutputSections(opts?.palette ?? buildPalette(state), excl.palette);
+  const memo = filterOutputSections(opts?.memo ?? buildMemo(state), excl.memo);
   const imgs = (p.imgUrls || "").split(/\r\n|\r|\n/).map((s) => s.trim()).filter(Boolean);
   const imgFields = imgs.length ? {
     iconUrl: imgs[0],

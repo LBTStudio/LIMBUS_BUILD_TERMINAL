@@ -94,7 +94,7 @@ const LivePreview = ({ state, dispatch }) => {
   const previewData = previewDataRef.current;
   const memo = React.useMemo(() => LBT_gen.buildMemo(previewData), [previewData]);
   const palette = React.useMemo(() => LBT_gen.buildPalette(previewData), [previewData]);
-  const json = React.useMemo(() => JSON.stringify(LBT_gen.buildCcfoliaJSON(previewData), null, 2), [previewData]);
+  const json = React.useMemo(() => JSON.stringify(LBT_gen.buildCcfoliaJSON(previewData, { palette, memo }), null, 2), [previewData, palette, memo]);
   const readiness = window.LBT_getSessionReadiness?.(state) || [];
   const readinessKey = readiness.map((entry) => entry.id).join(",");
   const readinessLabel = readiness.map((entry) => entry.label).join("・");

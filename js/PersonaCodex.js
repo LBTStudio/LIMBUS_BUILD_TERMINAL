@@ -134,7 +134,9 @@ function getPrimarySin(p) {
   }
   return best;
 }
-const PersonaCard = ({ persona, mode, isEquipped, isActive, isFav, onSelect, onToggleFav, onEquip }) => {
+/* React.memo で199人格カードの無差別再レンダリングを防ぐ。
+   props が変わらないカードは前回の結果を再利用する。 */
+const PersonaCard = React.memo(({ persona, mode, isEquipped, isActive, isFav, onSelect, onToggleFav, onEquip }) => {
   const p = decoratePersona(persona);
   const kws = orderPersonaKeywordDisplay(p.keywords).slice(0, 3);
   const primarySin = getPrimarySin(p);
@@ -169,7 +171,7 @@ const PersonaCard = ({ persona, mode, isEquipped, isActive, isFav, onSelect, onT
     /* @__PURE__ */ React.createElement(PersonaSinPills, { skills: p.skills }),
     kws.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "p-kw-row" }, kws.map((k) => /* @__PURE__ */ React.createElement("span", { key: k, className: "p-kw" }, k)))
   );
-};
+});
 const PersonaDetail = ({ persona, mode, isEquipped, onEquip, onUnequip, onAddRoster, isInRoster, onReturnToList, embed, onOpenDraft }) => {
   if (!persona && onOpenDraft) {
     return /* @__PURE__ */ React.createElement("div", { className: "codex-detail" }, /* @__PURE__ */ React.createElement("div", { className: "detail-empty" }, /* @__PURE__ */ React.createElement("div", { className: "detail-empty-icon" }, "◈"), /* @__PURE__ */ React.createElement("div", { className: "t-label" }, "人格を選択 または テキスト流し込み反映"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-11)", color: "var(--tx-mute)", marginTop: 8 } }, "完成した人格データを流し込み、確認してからカスタム人格または同期人格として反映できます。"), /* @__PURE__ */ React.createElement("button", { className: "persona-draft-import-trigger persona-draft-import-trigger--empty", type: "button", onClick: onOpenDraft }, "テキスト流し込み反映")));
@@ -722,7 +724,7 @@ const PersonaCodex = ({ state, dispatch }) => {
       const src = m === "n" ? DB.normal_personas : DB.tokui_personas;
       const found = src.find((x) => x.no === parseInt(no));
       return found ? { p: found, mode: m } : null;
-    };
+};
     if (mode === "n") return DB.normal_personas.map((p) => ({ p, mode: "n" }));
     if (mode === "t") return DB.tokui_personas.map((p) => ({ p, mode: "t" }));
     if (mode === "fav") return favorites.map(resolveKey).filter(Boolean);

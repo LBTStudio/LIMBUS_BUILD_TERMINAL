@@ -5,7 +5,8 @@ import vm from "node:vm";
 
 function loadRosterDetailBuilder() {
   const source = readFileSync(new URL("../js/PersonaCodex.js", import.meta.url), "utf8");
-  const context = { window: {}, console };
+  const reactStub = { memo: (fn) => fn, createElement: () => ({}), useState: () => [null, () => {}], useMemo: (fn) => fn(), useEffect: () => {}, useCallback: (fn) => fn, useRef: () => ({ current: null }) };
+  const context = { window: {}, console, React: reactStub };
   context.globalThis = context;
   vm.createContext(context);
   vm.runInContext(source, context);
