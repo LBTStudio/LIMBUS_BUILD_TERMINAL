@@ -194,3 +194,39 @@ test("別端末移行で★と履歴が復元され、不正な型はstateに混
   assert.equal(next.dangerous, undefined, "関数値はstateに混入しない");
   assert.ok(!("dangerous" in next), "許可リスト外のキーは無視される");
 });
+
+test("ロード時に装備中の固有バフがDB最新データで更新される", () => {
+  const rt = loadRuntime();
+  // DB最新の定事務所フィクサー
+  const teiji = rt.db.normal_personas.find((p) => p.name === "定事務所フィクサー");
+  assert.ok(teiji, "定事務所フィクサーがDBに存在");
+  const kumifuda = teiji.unique_buffs.find((b) => b.name === "組札");
+  assert.ok(kumifuda.desc.includes("光札1を得る"), "DB最新の組札に続きがある");
+  assert.equal(kumifuda.desc.includes("====="), false, "DB最新の組札にPAGE混入はない");
+
+  // 古いビルドスナップショット（PAGE混入・続き欠落）を装備状態として用意
+  const legacy = { ...rt.initialState,
+    personaMode: "n",
+    personaNo: teiji.no,
+    personaSrc: JSON.parse(JSON.stringify(teiji)),
+    uniqueBuffs: JSON.parse(JSON.stringify(teiji.unique_buffs))
+  };
+  // 組札を旧データ（PAGE混入あり・続きなし）に汚染する
+  const legacyKumifuda = legacy.uniqueBuffs.find((b) => b.name === "組札");
+  legacyKumifuda.desc = "戦術選択ダイスロールにて、最左端のスキルのランクに対応する組札に変\n換される\n===== PAGE 51 =====\n51\n組札が指定した大罪属性のスキルを使用するなら、最後のダイスに";
+
+  // HYDRATE → refreshEquippedPersonaFromDB がDB最新で復元する
+  const next = rt.reducer(rt.initialState, { type: "HYDRATE", state: legacy });
+  const refreshed = next.uniqueBuffs.find((b) => b.name === "組札");
+  assert.equal(refreshed.desc.includes("====="), false, "PAGE混入がDB最新で解消される");
+  assert.ok(refreshed.desc.includes("光札1を得る"), "続きがDB最新で補完される");
+  assert.equal(next.personaSrc.unique_buffs.find((b) => b.name === "組札").desc, kumifuda.desc, "personaSrcもDB最新に置き換わる");
+
+  // ユーザーが手動追加したバフ（DBに存在しない名前）は保護される
+  const manual = { id: "ub-manual", name: "手動追加バフ", type: "バフ", initial: 0, max: 5, desc: "ユーザー作成", place: "status" };
+  const legacy2 = { ...legacy, uniqueBuffs: [...legacy.uniqueBuffs, manual] };
+  const next2 = rt.reducer(rt.initialState, { type: "HYDRATE", state: legacy2 });
+  const kept = next2.uniqueBuffs.find((b) => b.name === "手動追加バフ");
+  assert.ok(kept, "手動追加バフが保護される");
+  assert.equal(kept.desc, "ユーザー作成", "手動追加バフの内容が保持される");
+});

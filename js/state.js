@@ -697,8 +697,36 @@ const LEGACY_DEFAULT_MORALE_LINE = "12";
 function migrateLegacyMoraleLine(next) {
   if (String(next?.moraleLine ?? "") === LEGACY_DEFAULT_MORALE_LINE) next.moraleLine = "";
 }
+/* ロード時に装備中の人格参照と固有バフを DB の最新データへ更新する。
+   ビルドスナップショットには装備時点の personaSrc / uniqueBuffs のコピーが
+   保存されており、DB（エラッタ等）を更新しても保存済みビルドから古い
+   テキストが復元され続ける。DB に同名・同 No の人格が存在する場合のみ
+   参照データを置き換え、ユーザーが手動で追加・改名したバフは保護する。 */
+function refreshEquippedPersonaFromDB(next) {
+  if (!next?.personaSrc || next.personaMode == null || next.personaNo == null) return next;
+  const pool = next.personaMode === "n" ? window.DB?.normal_personas
+    : next.personaMode === "t" ? window.DB?.tokui_personas : null;
+  if (!Array.isArray(pool)) return next;
+  const latest = pool.find((p) => p.no === next.personaNo && p.name === next.personaSrc.name);
+  if (!latest) return next;
+  // DB 参照データ（図鑑の説明文・パッシブ原文等）は常に最新に置き換える。
+  next.personaSrc = latest;
+  // 固有バフ: DB の同名バフの定義（desc/type/max/initial）を最新へ更新する。
+  // DB に存在しない名前はユーザーが手動追加したものなので触らない。
+  if (Array.isArray(latest.unique_buffs) && Array.isArray(next.uniqueBuffs)) {
+    next.uniqueBuffs = next.uniqueBuffs.map((ub) => {
+      const dbBuff = latest.unique_buffs.find((db) => db.name === ub.name);
+      if (!dbBuff) return ub;
+      return { ...ub, desc: dbBuff.desc, type: dbBuff.type || ub.type, initial: dbBuff.initial, max: dbBuff.max || 20, place: dbBuff.place || ub.place };
+    });
+  }
+  // パッシブ原文も DB 最新に置き換える（ユーザー編集欄 pas/pas2 とは別物）。
+  if (latest.passive_always !== void 0) next.personaSrc.passive_always = latest.passive_always;
+  if (latest.passive_effect !== void 0) next.personaSrc.passive_effect = latest.passive_effect;
+  return next;
+}
 function normalizeStateShape(raw) {
-  const next = { ...raw };
+  const next = refreshEquippedPersonaFromDB({ ...raw });
   next.schemaVersion = next.schemaVersion || SAVE_SCHEMA_VERSION;
   // 共有用画像は端末内でWebP/JPEGへ圧縮済みのdata URIだけを保持する。
   // 外部URLや任意MIMEを受け付けないことで、共有HTMLへそのまま安全に埋め込める。
