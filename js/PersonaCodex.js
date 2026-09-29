@@ -711,20 +711,22 @@ const PersonaCodex = ({ state, dispatch }) => {
     if (!selectedPersona && state.personaSrc) setSelectedPersona(state.personaSrc);
   }, []);
   const pool = React.useMemo(() => {
+    // ★/履歴のキー（mode:no）をDBまたはロスターの実データへ解決する。
+    // custom: のキーはロスターのカスタム人格エントリから復元する。
+    const resolveKey = (k) => {
+      const [m, no] = k.split(":");
+      if (m === "custom") {
+        const entry = roster.personas.find((r) => r.mode === "custom");
+        return entry?.src ? { p: entry.src, mode: "custom", roster: entry } : null;
+      }
+      const src = m === "n" ? DB.normal_personas : DB.tokui_personas;
+      const found = src.find((x) => x.no === parseInt(no));
+      return found ? { p: found, mode: m } : null;
+    };
     if (mode === "n") return DB.normal_personas.map((p) => ({ p, mode: "n" }));
     if (mode === "t") return DB.tokui_personas.map((p) => ({ p, mode: "t" }));
-    if (mode === "fav") return favorites.map((k) => {
-      const [m, no] = k.split(":");
-      const src = m === "n" ? DB.normal_personas : DB.tokui_personas;
-      const found = src.find((x) => x.no === parseInt(no));
-      return found ? { p: found, mode: m } : null;
-    }).filter(Boolean);
-    if (mode === "history") return historyRecent.map((k) => {
-      const [m, no] = k.split(":");
-      const src = m === "n" ? DB.normal_personas : DB.tokui_personas;
-      const found = src.find((x) => x.no === parseInt(no));
-      return found ? { p: found, mode: m } : null;
-    }).filter(Boolean);
+    if (mode === "fav") return favorites.map(resolveKey).filter(Boolean);
+    if (mode === "history") return historyRecent.map(resolveKey).filter(Boolean);
     if (mode === "roster") return roster.personas.map((r) => {
       if (r.mode === "custom") {
         return r.src ? { p: r.src, mode: "custom", roster: r } : null;
@@ -735,6 +737,21 @@ const PersonaCodex = ({ state, dispatch }) => {
     }).filter(Boolean);
     return [];
   }, [mode, favorites, historyRecent, roster]);
+  // ★/履歴のバッジ件数は、実際に表示できる件数と一致させる。
+  // 解決できないキー（例: 削除済みロスターの custom）を含めて数えると
+  // 「★3 なのに一覧が2件」のような不一致が起きる。
+  const favCount = React.useMemo(() => favorites.filter((k) => {
+    const [m, no] = k.split(":");
+    if (m === "custom") return roster.personas.some((r) => r.mode === "custom");
+    const src = m === "n" ? DB.normal_personas : DB.tokui_personas;
+    return src.some((x) => x.no === parseInt(no));
+  }).length, [favorites, roster.personas]);
+  const historyCount = React.useMemo(() => historyRecent.filter((k) => {
+    const [m, no] = k.split(":");
+    if (m === "custom") return roster.personas.some((r) => r.mode === "custom");
+    const src = m === "n" ? DB.normal_personas : DB.tokui_personas;
+    return src.some((x) => x.no === parseInt(no));
+  }).length, [historyRecent, roster.personas]);
   const draftAffiliationOptions = React.useMemo(() => [
     ...(DB.normal_personas || []).map((persona) => ({ key: `n:${persona.no}`, mode: "n", no: persona.no, name: persona.name, label: `通常 · No.${String(persona.no).padStart(3, "0")} · ${persona.name}` })),
     ...(DB.tokui_personas || []).map((persona) => ({ key: `t:${persona.no}`, mode: "t", no: persona.no, name: persona.name, label: `特異 · No.${String(persona.no).padStart(3, "0")} · ${persona.name}` }))
@@ -902,7 +919,12 @@ const PersonaCodex = ({ state, dispatch }) => {
     }, 20);
   };
   const equipPersona = (p) => {
-    const m = pool.find((x) => x.p === p)?.mode || mode;
+    // 参照比較は、roster詳細パネルや再装備時の clone で同一人格を別参照として
+    // 見逃す。名前とNoで照合し、それでも解決しないカスタム人格は __custom
+    // フラグで確定する。フォールバックで現在タブのモードを使うと、
+    // DBに存在しない No.999 の通常人格といった幽霊エントリが生まれる。
+    const meta = pool.find((x) => x.p === p) || pool.find((x) => x.p?.no === p?.no && x.p?.name === p?.name);
+    const m = meta?.mode || (p.__custom ? "custom" : mode);
     dispatch({ type: "EQUIP_PERSONA", mode: m, no: p.no, src: p });
     dispatch({ type: "SET_UI", ui: { codexExpanded: false } });
     setShowEquippedDetail(false);
@@ -933,8 +955,8 @@ const PersonaCodex = ({ state, dispatch }) => {
     { value: "n", label: "\u901A\u5E38", count: DB.normal_personas.length },
     { value: "t", label: "\u7279\u7570", count: DB.tokui_personas.length },
     { value: "roster", label: "\u6240\u6301", count: roster.personas.length },
-    { value: "fav", label: "\u2605", count: favorites.length },
-    { value: "history", label: "\u5C65\u6B74", count: historyRecent.length }
+    { value: "fav", label: "\u2605", count: favCount },
+    { value: "history", label: "\u5C65\u6B74", count: historyCount }
   ];
   const equipCustom = () => {
     const name = prompt("\u30AB\u30B9\u30BF\u30E0\u4EBA\u683C\u306E\u540D\u524D\u3092\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044\uFF08\u5F8C\u304B\u3089\u5168\u9805\u76EE\u3092\u7DE8\u96C6\u53EF\u80FD\uFF09", "\u5275\u4F5C\u4EBA\u683C");

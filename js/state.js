@@ -1368,6 +1368,20 @@ function appReducer(state, action) {
       return syncCustomEgoState({ ...saved, egoSlots: { ...saved.egoSlots, [rank]: slot }, egoManual: true,
         ui: { ...saved.ui, egoDetailSlot: rank, egoListExpanded: false } });
     }
+    /* ---- E.G.O ---- */
+    /* 「既定データを再読込」: 保存済み解析ビルドをクリアし、DBの該当E.G.O
+       レコードでスロットを再装備する。解析モード（egoManual）は維持し、
+       編集パネルの内容だけを原典の既定へ戻す。 */
+    case "RESET_EGO_SLOT_TO_DB": {
+      const rank = action.rank;
+      const slot = state.egoSlots[rank];
+      if (!slot) return state;
+      const dbEgo = (window.DB?.egos || []).find((e) => String(e.no ?? "") === String(slot.no ?? "") && e.rank === rank);
+      if (!dbEgo) return state;
+      const egos = (state.roster.egos || []).map((e) => e.rank === rank && e.no === slot.no && e.build ? { ...e, build: null } : e);
+      const nextEgoSlots = normalizeEgoSlots({ ...state.egoSlots, [rank]: cloneJSON(dbEgo) });
+      return syncCustomEgoState({ ...state, egoSlots: nextEgoSlots, roster: { ...state.roster, egos } });
+    }
     case "SET_EGO_SLOT": {
       let nextValue = action.value ? cloneJSON(action.value) : null;
       // V01/V25: 所持EGOに保存済みの解析ビルドがあれば DB 既定の代わりにそちらを装備する。

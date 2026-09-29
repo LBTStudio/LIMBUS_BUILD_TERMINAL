@@ -885,7 +885,7 @@ const EquippedEgoEditor = ({ rank, ego, dispatch }) => {
       ),
       h("div", { className: "ego-editor-footer" },
         h("span", null, "覚醒・侵蝕それぞれで、通常・同化・影響の扱いを選べます。選択した形態に必要な入力欄だけを表示します。"),
-        h(Button, { variant: "ghost", size: "sm", icon: "edit", onClick: () => dispatch({ type: "SET_EGO_SLOT", rank, value: cloneEgoForManualEdit(slot) }) }, "既定データを再読込")
+        h(Button, { variant: "ghost", size: "sm", icon: "edit", onClick: () => dispatch({ type: "RESET_EGO_SLOT_TO_DB", rank }) }, "既定データを再読込")
       )
     )
   );

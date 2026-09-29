@@ -144,3 +144,34 @@ test("Ctrl+Z/Yはテキスト入力欄ではOS標準の入力undoに譲る", () 
   assert.match(source, /e\.key === "y" \|\| e\.key === "Y"/, "Ctrl+Yの大文字対応");
   assert.match(source, /e\.key === "Z" \|\| e\.key === "Y"/, "Ctrl+Shift+Z/Yの大文字対応");
 });
+
+test("既定データ再読込は保存済み解析ビルドを捨ててDBのE.G.O定義へ戻す", () => {
+  const rt = loadRuntime();
+  vm.runInContext(readFileSync(new URL("../js/ego-slot-forms.js", import.meta.url), "utf8"), rt.context, { filename: "js/ego-slot-forms.js" });
+  const ego = rt.db.egos.find((e) => e.rank === "HE" && e.no === 69);
+  let state = rt.reducer(rt.initialState, { type: "SET_EGO_SLOT", rank: "HE", value: JSON.parse(JSON.stringify(ego)) });
+
+  // 解析内容を書き換えて保存する。
+  state = rt.reducer(state, { type: "PATCH_EGO_SLOT", rank: "HE", patch: { name: "編集後の名前" } });
+  state = rt.reducer(state, { type: "SAVE_EGO_BUILD", rank: "HE" });
+  const saved = state.roster.egos.find((e) => e.rank === "HE" && e.no === ego.no);
+  assert.equal(saved.build.name, "編集後の名前", "保存済みビルドの存在");
+
+  // 既定データを再読込 → 保存済みビルドがクリアされ、DBの名前に戻る。
+  state = rt.reducer(state, { type: "RESET_EGO_SLOT_TO_DB", rank: "HE" });
+  assert.equal(state.egoSlots.HE.name, ego.name, "スロット名がDB既定へ戻る");
+  const cleared = state.roster.egos.find((e) => e.rank === "HE" && e.no === ego.no);
+  assert.equal(cleared.build, null, "保存済みビルドがクリアされる");
+  assert.equal(state.egoManual, false, "解析モードフラグは終了しない");
+});
+
+test("★/履歴タブのキー解決と装備モード特定はカスタム人格も扱う", () => {
+  // B3: custom: キーの解決ロジック、B4: equipPersona の __custom フォールバック。
+  const source = readFileSync(new URL("../js/PersonaCodex.js", import.meta.url), "utf8");
+  assert.match(source, /m === "custom"/, "custom キーの解決分岐");
+  assert.match(source, /roster\.personas\.find\(\(r\) => r\.mode === "custom"\)/, "ロスターからのcustom復元");
+  assert.match(source, /favCount/, "★タブのバッジ件数が解決結果と一致");
+  assert.match(source, /historyCount/, "履歴タブのバッジ件数が解決結果と一致");
+  assert.match(source, /p\.__custom \? "custom" : mode/, "装備時の __custom フォールバック");
+  assert.match(source, /x\.p\?\.no === p\?\.no && x\.p\?\.name === p\?\.name/, "参照不一致時の名前・No照合");
+});
