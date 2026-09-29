@@ -41,7 +41,7 @@ export function loadRuntime() {
   const db = JSON.parse(readFileSync(new URL("data/db.json", root), "utf8"));
   context.DB = db;
   context.window.DB = db;
-  for (const file of ["js/generator.js", "js/state.js"]) {
+  for (const file of ["js/core.js", "js/generator.js", "js/state.js"]) {
     vm.runInContext(readFileSync(new URL(file, root), "utf8"), context, { filename: file });
   }
   return {
