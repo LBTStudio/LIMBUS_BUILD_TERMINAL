@@ -9,6 +9,7 @@ function loadKeywordEnrichers() {
   const context = { window: {}, console, setTimeout, clearTimeout, Blob, URL };
   context.globalThis = context;
   vm.createContext(context);
+  vm.runInContext(readFileSync(new URL("../js/core.js", import.meta.url), "utf8"), context);
   vm.runInContext(readFileSync(new URL("../js/state.js", import.meta.url), "utf8"), context);
   return { personas: context.window.LBT_enrichPersonaKeywords, egos: context.window.LBT_enrichEgoKeywords };
 }

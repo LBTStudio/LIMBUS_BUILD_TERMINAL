@@ -7,6 +7,7 @@ function loadState() {
   const context = { window: {}, console, setTimeout, clearTimeout, localStorage: { getItem() { return null; }, setItem() {} }, React: { createElement() {} } };
   context.globalThis = context;
   vm.createContext(context);
+  vm.runInContext(readFileSync(new URL("../js/core.js", import.meta.url), "utf8"), context);
   vm.runInContext(readFileSync(new URL("../js/state.js", import.meta.url), "utf8"), context);
   return { reducer: context.window.appReducer, init: context.window.INIT_STATE };
 }

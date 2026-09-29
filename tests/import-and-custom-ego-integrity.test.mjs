@@ -8,6 +8,7 @@ const publicUrl = 'https://lbt-garasumado.vercel.app/persona/view/gEp4XyLWFnFoSQ
 function parser() {
   const context = { window: {}, console };
   vm.createContext(context);
+  vm.runInContext(readFileSync(new URL('../js/core.js', import.meta.url), 'utf8'), context);
   vm.runInContext(readFileSync(new URL('../js/state.js', import.meta.url), 'utf8'), context);
   vm.runInContext(readFileSync(new URL('../js/persona-draft-import.js', import.meta.url), 'utf8'), context);
   return context.window;
