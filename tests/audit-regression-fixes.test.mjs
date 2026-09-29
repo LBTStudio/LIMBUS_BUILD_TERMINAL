@@ -230,3 +230,56 @@ test("ロード時に装備中の固有バフがDB最新データで更新され
   assert.ok(kept, "手動追加バフが保護される");
   assert.equal(kept.desc, "ユーザー作成", "手動追加バフの内容が保持される");
 });
+
+test("ロード時にサポート・死亡後・強化・精神・EGOスロットがDB最新で更新される", () => {
+  const rt = loadRuntime();
+  vm.runInContext(readFileSync(new URL("../js/ego-slot-forms.js", import.meta.url), "utf8"), rt.context, { filename: "js/ego-slot-forms.js" });
+
+  const spDB = rt.db.support_passives[0];
+  const dpDB = rt.db.death_passives[0];
+  const enhDB = rt.db.normal_enhancements[0];
+  const spiritDB = rt.db.spirits[0];
+  const egoDB = rt.db.egos.find((e) => e.rank === "HE" && e.no === 69);
+
+  // 古いコピーを含むstateを用意
+  const legacy = { ...rt.initialState,
+    supports: [{ id: "s1", name: spDB.name, cond: "古い条件", effect: "古い効果", lp: "古いLP", type: "バフ" },
+               { id: "s2", name: "手動追加サポート", cond: "手動", effect: "手動", lp: "1", type: "バフ" }],
+    deathSupport: { id: "d1", name: dpDB.name, cond: "古い条件", effect: "古い効果", lp: "" },
+    enhancements: [{ name: enhDB.name, effect: "古い効果" }, { name: "手動強化", effect: "手動" }],
+    spirit: spiritDB.name, spiritMorale: "古い士気低下", spiritConfuse: "古い混乱", spiritAlways: "古い常時",
+    egoSlots: { ...rt.initialState.egoSlots, HE: JSON.parse(JSON.stringify(egoDB)) }
+  };
+  // EGOの名前を汚染（古いコピーのシミュレーション）
+  legacy.egoSlots.HE.name = "古いEGO名";
+
+  const next = rt.reducer(rt.initialState, { type: "HYDRATE", state: legacy });
+
+  // 1. サポート: DB由来は最新、手動は保護
+  assert.equal(next.supports[0].effect, spDB.effect, "公式サポートのeffectがDB最新に");
+  assert.equal(next.supports[0].cond, spDB.cond, "公式サポートのcondがDB最新に");
+  assert.equal(next.supports[1].effect, "手動", "手動追加サポートは保護される");
+
+  // 2. 死亡後: DB由来は最新
+  assert.equal(next.deathSupport.effect, dpDB.effect, "死亡後のeffectがDB最新に");
+  assert.equal(next.deathSupport.cond, dpDB.cond, "死亡後のcondがDB最新に");
+
+  // 3. 強化: DB由来は最新、手動は保護
+  assert.equal(next.enhancements[0].effect, enhDB.effect, "公式強化のeffectがDB最新に");
+  assert.equal(next.enhancements[1].effect, "手動", "手動強化は保護される");
+
+  // 4. 精神: DB由来は最新
+  assert.equal(next.spiritMorale, spiritDB.morale_effect, "精神の士気低下効果がDB最新に");
+  assert.equal(next.spiritConfuse, spiritDB.confuse_effect, "精神の混乱効果がDB最新に");
+
+  // 5. EGOスロット（保存ビルドなし）: DB最新に
+  assert.equal(next.egoSlots.HE.name, egoDB.name, "EGOスロット名がDB最新に");
+
+  // 6. EGOスロット（保存ビルドあり）: ユーザー編集を保持
+  // 保存済みビルドのシナリオでは、スロット自体に解析編集後の内容が入っている。
+  const legacy2 = { ...legacy,
+    egoSlots: { ...legacy.egoSlots, HE: { ...legacy.egoSlots.HE, name: "解析編集後" } },
+    roster: { ...legacy.roster, egos: [{ uid: "er-1", no: egoDB.no, rank: "HE", analyzed: true, build: { ...egoDB, name: "解析編集後" } }] } };
+  const next2 = rt.reducer(rt.initialState, { type: "HYDRATE", state: legacy2 });
+  assert.equal(next2.egoSlots.HE.name, "解析編集後", "保存済み解析ビルドのEGOは保持される");
+});

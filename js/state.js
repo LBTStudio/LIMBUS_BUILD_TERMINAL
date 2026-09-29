@@ -725,8 +725,71 @@ function refreshEquippedPersonaFromDB(next) {
   if (latest.passive_effect !== void 0) next.personaSrc.passive_effect = latest.passive_effect;
   return next;
 }
+/* personaSrc と同様に、DB 由来のデータコピー（サポート・死亡後・強化・精神・
+   E.G.O スロット）も保存済みビルドから古いまま復元され続ける。
+   名前で DB と照合し、公式由来のレコードだけを最新へ更新する。
+   ユーザーが手動で追加・改名したもの（DB に存在しない名前）は保護する。 */
+function refreshDBReferencedData(next) {
+  if (!window.DB) return next;
+
+  // E.G.O スロット: 保存済み解析ビルドがあるものはユーザー編集なので保持し、
+  // それ以外を DB 最新に置き換える（normalizeEgoSlots が後段で変種を再構築する）。
+  if (next.egoSlots && typeof next.egoSlots === "object") {
+    const dbEgos = window.DB.egos || [];
+    const rosterEgos = next.roster?.egos || [];
+    for (const rank of Object.keys(next.egoSlots)) {
+      const slot = next.egoSlots[rank];
+      if (!slot || slot.no == null) continue;
+      const dbEgo = dbEgos.find((e) => String(e.no) === String(slot.no) && e.rank === rank);
+      if (!dbEgo) continue;
+      const hasSavedBuild = rosterEgos.some((e) => e.rank === rank && String(e.no) === String(slot.no) && e.build);
+      if (hasSavedBuild) continue;
+      next.egoSlots[rank] = dbEgo;
+    }
+  }
+
+  // サポートパッシブ: 公式由来（DB に同名があるもの）だけ cond/effect/lp を最新に。
+  if (Array.isArray(next.supports)) {
+    const spDB = window.DB.support_passives || [];
+    next.supports = next.supports.map((s) => {
+      const db = spDB.find((d) => d.name === s.name);
+      if (!db) return s;
+      return { ...s, cond: db.cond, effect: db.effect, lp: db.lp, type: db.type || s.type };
+    });
+  }
+
+  // 死亡後パッシブ: 同様に公式由来のみ。
+  if (next.deathSupport?.name) {
+    const dpDB = window.DB.death_passives || [];
+    const db = dpDB.find((d) => d.name === next.deathSupport.name);
+    if (db) next.deathSupport = { ...next.deathSupport, cond: db.cond, effect: db.effect, lp: db.lp };
+  }
+
+  // 強化: 公式由来の effect を最新に。
+  if (Array.isArray(next.enhancements)) {
+    const enhDB = [...(window.DB.normal_enhancements || []), ...(window.DB.special_enhancements || [])];
+    next.enhancements = next.enhancements.map((e) => {
+      const db = enhDB.find((d) => d.name === e.name);
+      if (!db) return e;
+      return { ...e, effect: db.effect || e.effect };
+    });
+  }
+
+  // 精神: 名前で DB と照合し、効果文字列を最新に。
+  if (next.spirit) {
+    const spDB = window.DB.spirits || [];
+    const db = spDB.find((s) => s.name === next.spirit);
+    if (db) {
+      next.spiritMorale = db.morale_effect || "";
+      next.spiritConfuse = db.confuse_effect || "";
+      next.spiritAlways = db.always_effect || "";
+    }
+  }
+
+  return next;
+}
 function normalizeStateShape(raw) {
-  const next = refreshEquippedPersonaFromDB({ ...raw });
+  const next = refreshDBReferencedData(refreshEquippedPersonaFromDB({ ...raw }));
   next.schemaVersion = next.schemaVersion || SAVE_SCHEMA_VERSION;
   // 共有用画像は端末内でWebP/JPEGへ圧縮済みのdata URIだけを保持する。
   // 外部URLや任意MIMEを受け付けないことで、共有HTMLへそのまま安全に埋め込める。
