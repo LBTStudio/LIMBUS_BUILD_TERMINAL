@@ -46,7 +46,7 @@
       function lbtBoot(){
         if(!window.DB){ document.getElementById("root").innerHTML = "<div style=\"color:#c8a84b;padding:40px;text-align:center;font-family:sans-serif\">DBの読み込みに失敗しました。</div>"; return; }
         if(!window.App){ document.getElementById("root").innerHTML = "<div style=\"color:#c8a84b;padding:40px;text-align:center;font-family:sans-serif\">アプリの読み込みに失敗しました。ページを再読み込みしてください。</div>"; return; }
-	    window.LBT_VERSION = "V65r67";
+	    window.LBT_VERSION = "V65r68";
 		        window.LBT_OGP_GATEWAY_ORIGIN = "https://lbt-ogp.lbtstudio-share.workers.dev";
         const _AppTree = window.LBTErrorBoundary ? React.createElement(LBTErrorBoundary, null, React.createElement(App)) : React.createElement(App);
         ReactDOM.createRoot(document.getElementById("root")).render(_AppTree);
