@@ -321,10 +321,10 @@
           else appendLine(skill.dice.at(-1) || skill, "effect", line);
         }
       }
-      if (!skill.dice.length) warnings.push(`戦術${tactic.code}「${skill.name}」はダイス未検出です。効果のみのスキルか確認してください。`);
-      skills.push(skill);
-    }
-    if (new Set(skills.map((s) => s.rank)).size !== skills.length) return garasumadoError("戦術番号が重複しています。反映前に移行元を確認してください。", source);
+    if (!skill.dice.length) warnings.push(`戦術${tactic.code}「${skill.name}」はダイス未検出です。効果のみのスキルか確認してください。`);
+    skills.push(skill);
+  }
+  if (new Set(skills.map((s) => s.rank)).size !== skills.length) return garasumadoError("戦術番号が重複しています。反映前に移行元を確認してください。", source);
     const passive = (p) => ({ name: clean(p?.name), cond: clean(p?.condition), always: clean(p?.alwaysEffect), effect: clean(p?.effect) });
     const first = passive(passives[0]);
     const result = { ok: true, errors: [], warnings,

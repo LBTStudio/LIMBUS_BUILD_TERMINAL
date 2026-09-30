@@ -1718,9 +1718,23 @@ function appReducer(state, action) {
       };
       effectiveSrc.keywords = inferPersonaKeywords(effectiveSrc, action.secondaryPassive);
       const uid = `custom-${Date.now()}`;
-      const skills = migrateLegacyDerivedSkills((effectiveSrc.skills || []).map((sk, index) => ({
+      /* 硝子窓経由のデータには派生番号が1始まり（1-1, 1-2）の慣例と
+         LBT準拠の2始まり（1-2, 1-3）の慣例が混在する。
+         「-1」rankを含むbaseは1始まり慣例と判定し、normalizePersonaSkill の
+         Math.max(2, ...) で 1-1 と 1-2 の両方が スキル1-2 に潰れる前に
+         派生番号を+1してLBT慣例へ変換する。 */
+      const oneBasedBases = new Set();
+      for (const sk of (effectiveSrc.skills || [])) {
+        const dash1 = String(sk?.rank || "").match(/^スキル(\d+)-1$/);
+        if (dash1) oneBasedBases.add(dash1[1]);
+      }
+      const skills = migrateLegacyDerivedSkills((effectiveSrc.skills || []).map((sk, index) => {
+        const rawRank = String(sk?.rank || "");
+        const dm = rawRank.match(/^(スキル(\d+))-(\d+)$/);
+        const adjustedRank = dm && oneBasedBases.has(dm[2]) ? `${dm[1]}-${Number(dm[3]) + 1}` : rawRank;
+        return {
         id: `sk-${Date.now()}-${index}`,
-        rank: sk.rank || `スキル${index}`,
+        rank: adjustedRank || `スキル${index}`,
         derived_from: sk.derived_from || "",
         derived_index: sk.derived_index,
         derived_condition: sk.derived_condition || "",
@@ -1732,7 +1746,8 @@ function appReducer(state, action) {
         effect: sk.effect || "",
         dice: (sk.dice || []).map((die) => ({ roll: die.roll || "", dval: die.dval ?? die.d ?? "", d: die.d ?? die.dval ?? "", dPlus: !!(die.dPlus ?? die.plus), dCnt: !!die.dCnt, plus: !!(die.plus ?? die.dPlus), effect: die.effect || "" })),
         quick: ""
-      })));
+      };
+      }));
       const uniqueBuffs = (effectiveSrc.unique_buffs || []).map((buff, index) => ({
         id: `ub-${Date.now()}-${index}`,
         name: normalizeStatusLabel(buff.name || ""),
