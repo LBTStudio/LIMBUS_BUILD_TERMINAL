@@ -7,3 +7,5 @@ data/provenance/*-ledger.sqlite
 .browser-deps/
 .cache/
 tests/*-run.log
+.opencode/
+AGENTS.md
