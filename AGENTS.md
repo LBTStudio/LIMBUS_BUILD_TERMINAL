@@ -1,9 +1,16 @@
-# AGENTS.md — LIMBUS BUILD TERMINAL エージェント行動規範
+# AGENTS.md — エージェント行動規範
+
+> **移植性**: このファイルの「常時適用ルール」「ワークフロー」「コンテキスト効率規則」は
+> どのプロジェクトにもそのまま適用できる。プロジェクト固有情報は末尾の
+> 「プロジェクト固有」セクションに隔離してある。新規プロジェクトでは
+> そのセクションだけ差し替えればよい。
+
+---
 
 ## 常時適用ルール（義務・スキル呼び出し不要の絶対規則）
 
 ### 1. 証拠なき完了宣言の禁止
-コードを変更したら必ずテストを実行し、出力を確認してから「完了」と言う。
+コードを変更したら必ず検証コマンドを実行し、出力を確認してから「完了」と言う。
 「should work」「たぶん動く」は虚偽。コマンドを実行し、出力を読み、それから主張する。
 
 ### 2. データ > 100件 は手動で読まない
@@ -15,7 +22,7 @@
 3回以上修正が失敗したら、アーキテクチャを疑う。
 
 ### 4. コミット前に必ず全テスト実行
-`node --test tests/*.test.mjs` を実行し、fail: 0 を確認してからコミットする。
+プロジェクトのテストコマンドを実行し、fail: 0 を確認してからコミットする。
 
 ---
 
@@ -68,8 +75,8 @@
 | ファイル全体を読む前に `grep` で該当行を特定 | 2000行読む → 50行読む |
 | 同じファイルを再読しない（変更がない限り） | コンテキスト節約 |
 | サブエージェントには共通の文脈を `AGENTS.md` 参照で渡す | prompt重複の排除 |
-| テスト出力は pass/fail 数だけ確認する | 260行の詳細出力を読まない |
-| 一時スクリプト（tmp_*.js）は使用後削除 | リポジトリ清潔性 |
+| テスト出力は pass/fail 数だけ確認する | 詳細出力を読まない |
+| 一時スクリプト（tmp_*）は使用後削除 | リポジトリ清潔性 |
 
 ---
 
@@ -84,18 +91,6 @@ subject: 英語で簡潔に、50文字以内
 body: 何を・なぜ・影響範囲（日本語可）
       テスト件数を含める（"260 tests pass"）
 ```
-
----
-
-## プロジェクト固有知識
-
-- **静的Webアプリ**: build stepなし、GitHub Pages配信、React手動読込
-- **テスト**: `node --test tests/*.test.mjs`（unified-provenance除く）
-- **DB**: `data/db.json` 474KB（ミニファイ済み）、`data/items.json`
-- **キャッシュ**: `?v=65r69` パラメータで全JS/DB管理
-- **共有**: share-link.js → Telegraph/Rentry → share.html viewer
-- **PDF原典**: `sources/エラッタ最新版/` + `data/provenance/*.txt`
-- **監査ツール**: `tools/provenance/audit-*.mjs`
 
 ---
 
@@ -114,3 +109,18 @@ body: 何を・なぜ・影響範囲（日本語可）
 | better-ui | UI変更時 | 推奨 |
 | better-accessibility | UI変更時 | 推奨 |
 | interface-review | 差分レビュー時 | 任意 |
+
+---
+
+## プロジェクト固有（LIMBUS BUILD TERMINAL）
+
+> 以下はこのリポジトリ固有の知識。他のプロジェクトに移植する場合は
+> このセクションを差し替える。
+
+- **静的Webアプリ**: build stepなし、GitHub Pages配信、React手動読込
+- **テスト**: `node --test tests/*.test.mjs`（unified-provenance除く）
+- **DB**: `data/db.json` 474KB（ミニファイ済み）、`data/items.json`
+- **キャッシュ**: `?v=65r69` パラメータで全JS/DB管理
+- **共有**: share-link.js → Telegraph/Rentry → share.html viewer
+- **PDF原典**: `sources/エラッタ最新版/` + `data/provenance/*.txt`
+- **監査ツール**: `tools/provenance/audit-*.mjs`
