@@ -231,6 +231,50 @@ test("ロード時に装備中の固有バフがDB最新データで更新され
   assert.equal(kept.desc, "ユーザー作成", "手動追加バフの内容が保持される");
 });
 
+test("同期カスタム人格の共有リンクは全データを保持する", async () => {
+  // share-link.js は pipeline-harness に含まれないため、独立VMで読み込む。
+  const shareSource = readFileSync(new URL("../js/share-link.js", import.meta.url), "utf8");
+  const shareWindow = { DB: JSON.parse(readFileSync(new URL("../data/db.json", import.meta.url), "utf8")) };
+  vm.runInNewContext(shareSource, { window: shareWindow, TextEncoder, TextDecoder, CompressionStream: undefined, DecompressionStream: undefined, Blob, Response, URL, URLSearchParams, setTimeout, btoa: (s) => Buffer.from(s, "binary").toString("base64"), atob: (s) => Buffer.from(s, "base64").toString("binary") });
+  const share = shareWindow.LBT_shareLink;
+
+  const db = shareWindow.DB;
+  const official = db.normal_personas.find((p) => p.no === 5);
+  const state = {
+    charName: "同期テスト", personaMode: "custom", personaNo: 999,
+    personaSrc: {
+      name: "同期テスト人格", no: 999, hp: "105", san: "50", speed: "2d6+2",
+      passive_name: official.passive_name, passive_cond: official.passive_cond,
+      passive_always: official.passive_always, passive_effect: official.passive_effect,
+      skills: (official.skills || []).map(s => ({ ...s })),
+      unique_buffs: (official.unique_buffs || []).map(b => ({ ...b })),
+      __affiliation: { mode: "n", no: official.no }
+    },
+    uniqueBuffs: (official.unique_buffs || []).map((b, i) => ({
+      id: `ub-${i}`, name: b.name, type: b.type, initial: 0, max: b.max, desc: b.desc, place: "status"
+    })),
+    skills: (official.skills || []).map((s, i) => ({
+      id: `sk-${i}`, rank: s.rank, name: s.name, type: s.type, sin: s.sin,
+      effect: s.effect, dice: (s.dice || []).map(d => ({ roll: d.roll, effect: d.effect }))
+    })),
+    pas: { name: official.passive_name, cond: official.passive_cond, always: official.passive_always, effect: official.passive_effect },
+    egoSlots: { ZAYIN: null, TETH: null, HE: null, WAW: null, ALEPH: null },
+    supports: [], deathSupport: null, enhancements: [], customStatuses: [], inventory: [], customItems: []
+  };
+
+  const token = await share.encodeState(state);
+  const decoded = await share.decodeToken(token);
+
+  // カスタム人格は personaRef ではなく全データの埋め込みで共有される。
+  assert.equal(decoded.personaRef, undefined, "カスタム人格にpersonaRefを付けない");
+  assert.equal(decoded.personaSrc?.name, "同期テスト人格", "personaSrcの完全データが保持される");
+  assert.ok(Array.isArray(decoded.uniqueBuffs) && decoded.uniqueBuffs.length > 0, "固有バフが保持される");
+  assert.ok(Array.isArray(decoded.skills) && decoded.skills.length > 0, "スキルが保持される");
+
+  const hydrated = share.hydratePersonaReference(JSON.parse(JSON.stringify(decoded)), db);
+  assert.equal(hydrated.personaSrc?.name, "同期テスト人格", "hydrate後も人格データが残る");
+});
+
 test("ロード時にサポート・死亡後・強化・精神・EGOスロットがDB最新で更新される", () => {
   const rt = loadRuntime();
   vm.runInContext(readFileSync(new URL("../js/ego-slot-forms.js", import.meta.url), "utf8"), rt.context, { filename: "js/ego-slot-forms.js" });

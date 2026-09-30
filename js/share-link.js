@@ -425,8 +425,16 @@
     const affiliatedSource = affiliation && (affiliation.mode === "n" || affiliation.mode === "t")
       ? findPersonaSource(window.DB, affiliation.mode, affiliation.no)
       : null;
-    const personaSource = affiliatedSource || findPersonaSource(window.DB, source.personaMode, source.personaNo, source.personaSrc?.name);
-    const isAffiliatedDraft = !!affiliatedSource && affiliation.mode === source.personaMode && String(affiliation.no) === String(source.personaNo);
+    // 公式参照化は personaMode が "n" または "t" のときだけ適用する。
+    // カスタム人格（mode "custom"）は __affiliation が公式DB人格を指していても
+    // スナップショットからデータを削除すると受信側で一切復元できなくなる。
+    // （findPersonaSource は custom mode の pool を持たないため null を返し、
+    //  uniqueBuffs・skills・personaSrc が全て欠落した空の共有リンクになる）
+    const isOfficialMode = source.personaMode === "n" || source.personaMode === "t";
+    const personaSource = isOfficialMode
+      ? (affiliatedSource || findPersonaSource(window.DB, source.personaMode, source.personaNo, source.personaSrc?.name))
+      : null;
+    const isAffiliatedDraft = isOfficialMode && !!affiliatedSource && affiliation.mode === source.personaMode && String(affiliation.no) === String(source.personaNo);
     if (!personaSource && (source.personaMode === "n" || source.personaMode === "t")) {
       snapshot.personaSrc = source.personaSrc?.name ? { name: String(source.personaSrc.name) } : undefined;
     }
