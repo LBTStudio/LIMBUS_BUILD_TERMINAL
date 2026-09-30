@@ -1514,7 +1514,7 @@ function buildShareSheetHTML(state) {
         ${p.pas.always ? `<div class="eff always">\u5E38\u6642\uFF1A${fmt(p.pas.always)}</div>` : ""}
         ${p.pas.effect ? `<div class="eff">${fmt(p.pas.effect)}</div>` : ""}
       </div>
-      ${p.pas2Enabled && p.pas2.name ? `<div class="panel"><div class="pas-h"><b>${esc(p.pas2.name)}</b>${p.pas2.cond ? `<span class="cond">${esc(p.pas2.cond)}</span>` : ""}</div>${p.pas2.always ? `<div class="eff always">\u5E38\u6642\uFF1A${fmt(p.pas2.always)}</div>` : ""}${p.pas2.effect ? `<div class="eff">${fmt(p.pas2.effect)}</div>` : ""}</div>` : ""}
+      ${p.pas2Enabled && p.pas2?.name ? `<div class="panel"><div class="pas-h"><b>${esc(p.pas2.name)}</b>${p.pas2.cond ? `<span class="cond">${esc(p.pas2.cond)}</span>` : ""}</div>${p.pas2.always ? `<div class="eff always">\u5E38\u6642\uFF1A${fmt(p.pas2.always)}</div>` : ""}${p.pas2.effect ? `<div class="eff">${fmt(p.pas2.effect)}</div>` : ""}</div>` : ""}
     </section>` : "";
 	return `<!DOCTYPE html>
 	<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
