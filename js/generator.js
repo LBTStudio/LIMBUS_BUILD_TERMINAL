@@ -384,8 +384,10 @@ function stateWithActiveEnhancements(state) {
 function stateWithVisibleSupports(state) {
   const p = stateWithActiveEnhancements(state);
   const enh = p.enhancements || [];
-  const maxSupports = enh.some((e) => (e.name || "").includes("サポートスロット追加")) ? 3 : 2;
-  const hasDeathSlot = enh.some((e) => (e.name || "").includes("死亡後パッシブ追加"));
+  // 共有データ等で enhancements に null エントリが含まれる場合に
+  // e.name へのアクセスが TypeError になるのを防ぐ。
+  const maxSupports = enh.some((e) => (e?.name || "").includes("サポートスロット追加")) ? 3 : 2;
+  const hasDeathSlot = enh.some((e) => (e?.name || "").includes("死亡後パッシブ追加"));
   return {
     ...p,
     supports: (Array.isArray(p.supports) ? p.supports : []).slice(0, maxSupports),
