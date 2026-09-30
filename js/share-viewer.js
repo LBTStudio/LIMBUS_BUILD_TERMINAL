@@ -66,6 +66,12 @@
     ]);
     const sharedDB = { ...(db || {}), items: Array.isArray(items) ? items : [] };
     const hydrated = window.LBT_shareLink.hydratePersonaReference(state, sharedDB);
+    // 旧バージョンで発行された共有リンクは、カスタム人格の参照化バグにより
+    // 人格データが全て欠落している場合がある。白紙クラッシュではなく、
+    // 受信者に状況が伝わるメッセージを表示してレンダリングを続行する。
+    if (hydrated?.personaSrc?.name === "（旧バージョンの共有データ）") {
+      show("共有データが不完全です", "この共有リンクは旧バージョンで作成されたため、人格データが欠落しています。\n作成者に共有リンクの再発行をお願いしてください。\n\n以下、復元できた情報のみ表示します。");
+    }
     window.DB = sharedDB;
     // document.open() の後は #share-root が文書から外れるため、本体生成が
     // 失敗したときにエラー表示を書き込む先が消え、白紙ページになっていた。

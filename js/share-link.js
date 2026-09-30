@@ -349,10 +349,26 @@
       return source ? { ...cloneJSON(source), id: customId, custom: true, maxOwned: source.maxOwned ?? null } : { id: customId, name: officialId, custom: true };
     });
     delete state._r;
-    const ref = state?.personaRef;
-    if (!ref) return normalizeShareState(state);
-    const source = findPersonaSource(db, ref.mode, ref.no, ref.name);
-    if (!source) return normalizeShareState(state);
+  const ref = state?.personaRef;
+  if (!ref) return normalizeShareState(state);
+  const source = findPersonaSource(db, ref.mode, ref.no, ref.name);
+  if (!source) {
+    /* 旧バージョンで発行された共有リンクには、カスタム人格のデータが
+       snapshotState の参照化バグで欠落している（personaRef のみで
+       personaSrc・uniqueBuffs・skills が全てundefined）ものがある。
+       白紙クラッシュではなく、受信者に状況が伝わる最小限の人格データで
+       レンダリングを継続できるようにする。 */
+    if (!state.personaSrc) {
+      state.personaSrc = {
+        name: "（旧バージョンの共有データ）",
+        no: ref.no,
+        hp: "", san: "", speed: "",
+        skills: [], unique_buffs: [],
+        passive_name: "", passive_cond: "", passive_always: "", passive_effect: ""
+      };
+    }
+    return normalizeShareState(state);
+  }
     Object.entries(sourceSheetFields(source)).forEach(([key, baseValue]) => {
       if (state[key] === undefined) state[key] = cloneJSON(baseValue);
     });
