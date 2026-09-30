@@ -973,40 +973,50 @@ const EgoQuickDetail = ({ ego, currentSlot, isOwned, onEquip, onUnequip, onToggl
     )
   );
 };
-// 基本ルールPDFの掲載順：バフ（303〜304頁）→デバフ（306〜307頁）
-// →中立バフ（310頁）→弾丸（312頁）。state.jsの共通定義が未読込でも同じ順を維持する。
-const EGO_PDF_KEYWORD_ORDER = window.LBT_PDF_KEYWORD_ORDER || [
-  "パワー", "忍耐", "クイック", "保護", "充電", "呼吸", "ダメージ量増加",
-  "虚弱", "武装解除", "束縛", "脆弱", "火傷", "沈潜", "出血", "恐慌", "破裂", "振動", "ダメージ量減少", "毒", "麻痺",
-  "バリア", "弾丸"
-];
+// 基本ルールPDFの掲載順は js/core.js が window.LBT_PDF_KEYWORD_ORDER として定義する。
+// フォールバック配列を持たず、core.js の定義を直接使う。
+const EGO_PDF_KEYWORD_ORDER = window.LBT_PDF_KEYWORD_ORDER || [];
 // E.G.O本文に現れる「回復」は状態名ではなく検索専用の語として、PDF掲載項目の後ろに置く。
 // 候補表示時には下のsome判定で実データに一致する語だけを残す。
 const EGO_KEYWORD_ORDER = [...new Set([...EGO_PDF_KEYWORD_ORDER, "回復"])];
+// EGOキーワード検索のヘイスタック構築は1回1〜2KBの文字列連結を行う。
+// 検索のキーストローク毎に全EGO分（最大115件）が再構築されないよう、
+// WeakMapでEGOレコードごとにキャッシュする。DB更新時は新レコードで自動的に
+// 新しいキャッシュが作られる。
+const egoHaystackCache = new WeakMap();
 const getEgoKeywordHaystack = (ego) => {
+  const cached = egoHaystackCache.get(ego);
+  if (cached?.keyword !== undefined) return cached.keyword;
   const skillText = (skill) => [
-    skill?.name, skill?.attr, skill?.sin, skill?.aoe, skill?.effect,
-    ...(skill?.dice || []).flatMap((die) => [die.roll, die.effect])
+  skill?.name, skill?.attr, skill?.sin, skill?.aoe, skill?.effect,
+  ...(skill?.dice || []).flatMap((die) => [die.roll, die.effect])
   ];
-  return [
-    ego?.name, ego?.resources, ego?.passive_name, ego?.passive_cond, ego?.passive_effect, ego?.unique_buff, ...(ego?.keywords || []),
-    ...skillText(ego?.kakusei),
-    ...skillText(ego?.shinshoku),
-    ...(ego?.sub_skills || []).flatMap((skill) => skillText(skill))
+  const keyword = [
+  ego?.name, ego?.resources, ego?.passive_name, ego?.passive_cond, ego?.passive_effect, ego?.unique_buff, ...(ego?.keywords || []),
+  ...skillText(ego?.kakusei),
+  ...skillText(ego?.shinshoku),
+  ...(ego?.sub_skills || []).flatMap((skill) => skillText(skill))
   ].filter(Boolean).join(" ").toLowerCase();
+  egoHaystackCache.set(ego, { ...(cached || {}), keyword });
+  return keyword;
 };
+const egoEffectCache = new WeakMap();
 const getEgoEffectHaystack = (ego) => {
+  const cached = egoEffectCache.get(ego);
+  if (cached?.effect !== undefined) return cached.effect;
   const skillEffects = (skill) => [
-    skill?.effect,
-    ...(skill?.dice || []).map((die) => die?.effect)
+  skill?.effect,
+  ...(skill?.dice || []).map((die) => die?.effect)
   ];
-  return [
-    ego?.passive_effect,
-    ego?.unique_buff,
+  const effect = [
+  ego?.passive_effect,
+  ego?.unique_buff,
     ...skillEffects(ego?.kakusei),
     ...skillEffects(ego?.shinshoku),
     ...(ego?.sub_skills || []).flatMap((skill) => skillEffects(skill))
   ].filter(Boolean).join(" ").toLowerCase();
+  egoEffectCache.set(ego, { effect });
+  return effect;
 };
 const egoMatchesKeyword = (ego, keyword) => keyword === "回復"
   ? getEgoEffectHaystack(ego).includes(keyword)

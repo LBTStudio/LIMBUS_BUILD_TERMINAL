@@ -196,6 +196,13 @@
     }
   }
 
+  /* ---- 安全実行ヘルパー ----
+     エラーを投得る操作を silent-fail させるための統一インターフェース。
+     空の catch ブロックを散らさず、意図が明確な形で失敗を扱う。 */
+  function safe(fn, fallback) {
+    try { return fn(); } catch (_) { return typeof fallback === "function" ? fallback() : fallback; }
+  }
+
   /* ---- 公開 ---- */
   window.LBT_core = Object.freeze({
     cloneJSON,
@@ -214,7 +221,8 @@
     normalizeDice,
     shapeSkillFromDB,
     shapeUniqueBuffFromDB,
-    copyText
+    copyText,
+    safe
   });
 
   /* 下位互換: 既存コードが window.LBT_PDF_KEYWORD_ORDER を直接参照するため。 */

@@ -712,6 +712,7 @@ function migrateLegacyMoraleLine(next) {
    参照データを置き換え、ユーザーが手動で追加・改名したバフは保護する。 */
 function refreshEquippedPersonaFromDB(next) {
   if (!next?.personaSrc || next.personaMode == null || next.personaNo == null) return next;
+  const core = window.LBT_core;
   const pool = next.personaMode === "n" ? window.DB?.normal_personas
     : next.personaMode === "t" ? window.DB?.tokui_personas : null;
   if (!Array.isArray(pool)) return next;
@@ -719,9 +720,10 @@ function refreshEquippedPersonaFromDB(next) {
   if (!latest) return next;
   // DB 参照データ（図鑑の説明文・パッシブ原文等）は常に最新に置き換える。
   next.personaSrc = latest;
-  // 固有バフ: DB の同名バフの定義（desc/type/max/initial）を最新へ更新する。
-  // DB に存在しない名前はユーザーが手動追加したものなので触らない。
-  if (Array.isArray(latest.unique_buffs) && Array.isArray(next.uniqueBuffs)) {
+  // 固有バフ: core.js の refreshUniqueBuffsFromDB でDB同名バフを最新へ更新する。
+  if (core?.refreshUniqueBuffsFromDB) {
+    next.uniqueBuffs = core.refreshUniqueBuffsFromDB(next.uniqueBuffs, latest.unique_buffs);
+  } else if (Array.isArray(latest.unique_buffs) && Array.isArray(next.uniqueBuffs)) {
     next.uniqueBuffs = next.uniqueBuffs.map((ub) => {
       const dbBuff = latest.unique_buffs.find((db) => db.name === ub.name);
       if (!dbBuff) return ub;

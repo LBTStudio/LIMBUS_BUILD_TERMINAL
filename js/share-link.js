@@ -36,9 +36,8 @@
     "inventory", "customItems", "shareOptions"
   ]);
 
-  function cloneJSON(value) {
-    return value == null ? value : JSON.parse(JSON.stringify(value));
-  }
+  // core.js が提供する cloneJSON を使う。core.js が未読込の環境用フォールバック。
+  const cloneJSON = window.LBT_core?.cloneJSON || function(value) { return value == null ? value : JSON.parse(JSON.stringify(value)); };
 
   function localStorageLike() {
     try {

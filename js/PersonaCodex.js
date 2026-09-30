@@ -10,14 +10,8 @@ const PERSONA_FIXED_KEYWORD_OPTIONS = [
   "\u865A\u5F31", "\u6B66\u88C5\u89E3\u9664", "\u675F\u7E1B", "\u8106\u5F31", "\u30C0\u30E1\u30FC\u30B8\u91CF\u6E1B\u5C11",
   "\u5F3E\u4E38", "\u30D0\u30EA\u30A2"
 ];
-const PDF_KEYWORD_ORDER = window.LBT_PDF_KEYWORD_ORDER || [
-  // 基本ルールPDF 303頁「バフ」の掲載順。
-  "\u30D1\u30EF\u30FC", "\u5FCD\u8010", "\u30AF\u30A4\u30C3\u30AF", "\u4FDD\u8B77", "\u5145\u96FB", "\u547C\u5438", "\u30C0\u30E1\u30FC\u30B8\u91CF\u5897\u52A0",
-  // 基本ルールPDF 306〜307頁「デバフ」の掲載順。
-  "\u865A\u5F31", "\u6B66\u88C5\u89E3\u9664", "\u675F\u7E1B", "\u8106\u5F31", "\u706B\u50B7", "\u6C88\u6F5C", "\u51FA\u8840", "\u6050\u614C", "\u7834\u88C2", "\u632F\u52D5", "\u30C0\u30E1\u30FC\u30B8\u91CF\u6E1B\u5C11", "\u6BD2", "\u9EBB\u75FA",
-  // 基本ルールPDF 310頁の中立バフ。PDF外の弾丸は標準一覧の後ろへ置く。
-  "\u30D0\u30EA\u30A2", "\u5F3E\u4E38"
-];
+// 基本ルールPDFの掲載順は js/core.js が window.LBT_PDF_KEYWORD_ORDER として定義する。
+const PDF_KEYWORD_ORDER = window.LBT_PDF_KEYWORD_ORDER || [];
 const sortPersonaKeywordsByPdf = (values) => {
   const unique = [...new Set((values || []).filter(Boolean))];
   const orderIndex = new Map(PDF_KEYWORD_ORDER.map((value, index) => [value, index]));
