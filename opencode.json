@@ -1,8 +1,6 @@
-﻿{
+{
   "$schema": "https://opencode.ai/config.json",
-
   "model": "gemini/gemini-3.8-flash",
-
   "provider": {
     "gemini": {
       "name": "Google Gemini API",
@@ -24,7 +22,6 @@
         }
       }
     },
-
     "codecraft": {
       "name": "CodeCraft API",
       "npm": "@ai-sdk/openai-compatible",
@@ -39,23 +36,29 @@
       }
     }
   },
-
   "compaction": {
     "auto": true,
     "prune": true,
     "reserved": 10000
   },
-
   "mcp": {
     "ast-grep": {
       "type": "local",
-      "command": ["npx", "-y", "@ast-grep/mcp"],
+      "command": [
+        "npx",
+        "-y",
+        "@chousyn/ast-grep-mcp"
+      ],
       "enabled": true,
       "environment": {}
     },
     "context7": {
       "type": "local",
-      "command": ["npx", "-y", "@upstash/context7-mcp"],
+      "command": [
+        "npx",
+        "-y",
+        "@upstash/context7-mcp"
+      ],
       "enabled": true,
       "environment": {}
     }
