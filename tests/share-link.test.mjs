@@ -350,7 +350,7 @@ test("長い共有URLはLBT直接復元URLを主URLにし、外部短縮サー�
   assert.equal(calls.length, 3);
 });
 
-test("短い共有URLは外部保管を内部利用し、共有IDだけを最終LBT URLへ渡す", async () => {
+test("短い共有URLは外部保管を内部利用し、共有IDと発行時summaryを最終LBT URLへ渡す", async () => {
   const share = loadShareLink();
   const state = {
     charName: "検証PC", personaSrc: { name: "東部親指ソルダートII" }, hp: "125", san: "50",
@@ -364,8 +364,25 @@ test("短い共有URLは外部保管を内部利用し、共有IDだけを最終
   };
   const result = await share.createPublishedUrl(state, "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html", fetchMock);
   assert.equal(result.strategy, "telegraph");
-  assert.equal(result.url, "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html?s=t:LBT-Share-Preview,r:lbt-rentry-02");
-  assert.ok(result.length < 120, `短縮URL length=${result.length}`);
+  /* 発行時に preview を固定して query へ載せる。Worker /s はこれで HTML を
+     組み立て、Rentry/Telegraph へ read しなくて済む。
+     共有IDの並び（primary, backup）は従来どおり。 */
+  assert.equal(
+    result.url,
+    "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html?s=t:LBT-Share-Preview,r:lbt-rentry-02"
+      + "&lbt_n=%E6%9D%B1%E9%83%A8%E8%A6%AA%E6%8C%87%E3%82%BD%E3%83%AB%E3%83%80%E3%83%BC%E3%83%88II"
+      + "&lbt_hp=125&lbt_san=50&lbt_sync=00&lbt_max=1"
+  );
+  // summary をURLに載せるぶん長くなる（232文字）。実測した1900字上限には
+  // 十分収まるので、共有互換性は守られている。元の「120字以内」は満たせない。
+  assert.ok(result.length < 300, `短縮URL length=${result.length}`);
+  // preview が query から復元できることを確認する
+  const restored = share.previewFromLocation?.({ search: new URL(result.url).search });
+  assert.equal(restored?.personaName, "東部親指ソルダートII");
+  assert.equal(restored?.hp, "125");
+  assert.equal(restored?.san, "50");
+  assert.equal(restored?.syncRank, "00");
+  assert.equal(restored?.syncMax, true);
   assert.deepEqual(JSON.parse(JSON.stringify(share.shortSourcesFromLocation({ search: new URL(result.url).search }))), [
     { source: "telegraph", id: "LBT-Share-Preview" },
     { source: "rentry", id: "lbt-rentry-02" }

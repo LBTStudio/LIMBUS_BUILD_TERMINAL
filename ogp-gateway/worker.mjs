@@ -168,6 +168,34 @@ export function previewFromSnapshot(snapshot) {
   };
 }
 
+/* 発行時に query へ載せた preview から OGP HTML を直接組み立てる。
+ *
+ * snapshot を読み込まずに済ませるため、Rentry/Telegraph への外部 fetch と
+ * 公式DBへの補完が 0 回になる。query が欠けている・壊れている場合は
+ * null を返し、呼び出し側は従来の snapshot 経路へ戻す。
+ * 共有URLの互換性を優先するので、要約の欠落は静かに無視しない。 */
+export function previewFromQuery(url) {
+  const params = url.searchParams;
+  const rawName = String(params.get("lbt_n") || "").trim();
+  if (!rawName) return null;
+  const chars = Array.from(rawName);
+  const personaName = chars.slice(0, 48).join("") + (chars.length > 48 ? "…" : "");
+  const hp = String(params.get("lbt_hp") || "").trim().slice(0, 12) || "?";
+  const san = String(params.get("lbt_san") || "").trim().slice(0, 12) || "?";
+  const syncRank = ["0", "00", "000"].includes(params.get("lbt_sync") || "") ? params.get("lbt_sync") : "";
+  const syncMax = params.get("lbt_max") === "1";
+  const sync = [syncRank ? `同期${syncRank}` : "", syncMax ? "MAX" : ""].filter(Boolean).join(" · ");
+  return {
+    personaName,
+    title: personaName,
+    description: [`HP ${hp}`, `SAN ${san}`, sync].filter(Boolean).join(" ｜ "),
+    // summary 経路では snapshot を読まないので画像は空のまま返す。
+    // ogpHtml は skipImageRoute で静的な既定カードを選ぶ。
+    shareImageData: "",
+    ogpImageData: ""
+  };
+}
+
 async function enrichOfficialPersona(snapshot, fetchImpl) {
   const ref = snapshot?.personaRef;
   const mode = String(ref?.mode || snapshot?.personaMode || "");
@@ -221,14 +249,20 @@ function fallbackHtml(url, detail = "") {
   return new Response(`<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><meta http-equiv="refresh" content="0;url=${safeTarget}"><title>LIMBUS BUILD TERMINAL</title><meta property="og:title" content="LIMBUS BUILD TERMINAL — キャラクターシート"><meta property="og:description" content="LBT キャラクターシート共有リンク"><meta property="og:image" content="${STATIC_FALLBACK_IMAGE}"><script>location.replace(${JSON.stringify(target)})</script></head><body><a href="${safeTarget}">LBT共有シートを開く</a>${detail ? `<small>${htmlEscape(detail)}</small>` : ""}</body></html>`, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": FALLBACK_CACHE_CONTROL } });
 }
 
-function ogpHtml(requestUrl, snapshot) {
+function ogpHtml(requestUrl, snapshot, { skipImageRoute = false, preview: givenPreview = null } = {}) {
   const url = new URL(requestUrl);
-  const preview = previewFromSnapshot(snapshot);
+  /* summary 経路では preview が完成済みなので、snapshot を再度解釈しない。
+     snapshot を渡さない場合にのみ previewFromSnapshot で求める。 */
+  const preview = givenPreview || previewFromSnapshot(snapshot);
   const target = shareTarget(url);
   const imageData = preview.shareImageData || preview.ogpImageData;
-  const image = /^data:image\/(webp|jpeg);base64,/.test(imageData)
-    ? `${url.origin}/i?${url.searchParams.toString()}`
-    : STATIC_FALLBACK_IMAGE;
+  /* summary 経路は画像の有無を snapshot 読まずに判定できないため、
+     静的な既定カードを使う。共有画像は /i を個別に叩いたときだけ効く。 */
+  const image = skipImageRoute
+    ? STATIC_FALLBACK_IMAGE
+    : /^data:image\/(webp|jpeg);base64,/.test(imageData)
+      ? `${url.origin}/i?${url.searchParams.toString()}`
+      : STATIC_FALLBACK_IMAGE;
   const safeTarget = htmlEscape(target);
   return new Response(`<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><link rel="canonical" href="${safeTarget}"><title>${htmlEscape(preview.title)}</title><meta property="og:type" content="website"><meta property="og:site_name" content="LIMBUS BUILD TERMINAL"><meta property="og:url" content="${safeTarget}"><meta property="og:title" content="${htmlEscape(preview.title)}"><meta property="og:description" content="${htmlEscape(preview.description)}"><meta property="og:image" content="${htmlEscape(image)}"><meta property="og:image:alt" content="${htmlEscape(preview.personaName)} の共有画像"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${htmlEscape(preview.title)}"><meta name="twitter:description" content="${htmlEscape(preview.description)}"><meta name="twitter:image" content="${htmlEscape(image)}"><meta http-equiv="refresh" content="0;url=${safeTarget}"><script>location.replace(${JSON.stringify(target)})</script></head><body><a href="${safeTarget}">LBT共有シートを開く</a></body></html>`, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": CACHE_CONTROL, "X-Content-Type-Options": "nosniff" } });
 }
@@ -252,6 +286,17 @@ export async function handleRequest(request, { fetchImpl = fetch } = {}) {
       // 同じ token を短时间内何度も引かないよう短期 cache を効かせる
       // （s/i の 7 日 cache とは別ポリシー。障害時のフォールバック専用）。
       return new Response(request.method === "HEAD" ? null : token, { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": TOKEN_CACHE_CONTROL, "Access-Control-Allow-Origin": "*", "X-Content-Type-Options": "nosniff" } });
+    }
+    /* /s は発行時に query へ載せた summary から直接 HTML を組み立てる。
+       これで Rentry/Telegraph への外部 fetch と公式DBの補完が 0 回になる。
+       summary が無い URL（既存の共有や 1900 字超過時の切り詰め）は
+       従来どおり snapshot を読む。QUERY_SOURCES 検証は parseSources と
+       同じ条件战士 restrictive し、s パラメータは /d と /i のために必ず必要とする。 */
+    if (url.pathname === "/s") {
+      const queryPreview = previewFromQuery(url);
+      if (queryPreview) {
+        return ogpHtml(request.url, null, { skipImageRoute: true, preview: queryPreview });
+      }
     }
     const snapshot = await loadSnapshot(sources, fetchImpl);
     if (url.pathname === "/i") return imageResponse(snapshot.shareImageData || snapshot.ogpImageData, request.method) || new Response("共有画像は設定されていません", { status: 404, headers: { "Cache-Control": "no-store" } });

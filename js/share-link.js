@@ -736,13 +736,29 @@
 
   // 外部保存先のIDだけをURLへ残す。保存先名・事前サマリー・長いクエリ名は
   // 共有データの読み込み後に補えるため、閲覧URLの短縮対象にする。
-  function shortViewerUrl(baseUrl, primary, fallbacks = []) {
+  function shortViewerUrl(baseUrl, primary, fallbacks = [], preview = null) {
     const targets = [primary, ...(fallbacks || [])].filter((entry) => entry?.source && entry?.id);
     const segments = targets.map((entry) => {
       const code = sourceCode(entry.source);
       return code ? `${code}:${encodeURIComponent(entry.id)}` : "";
     }).filter(Boolean);
-    return `${shareBaseUrl(baseUrl)}?s=${segments.join(",")}`;
+    /* 発行時に確定した preview を載せる。Worker の /s はこの値だけで
+       OGP HTML を組み立てられ、Rentry/Telegraph へ一切 read しなくて済む。
+       URL 長の上限を超えた場合は summary を落として従来方式（snapshot 読み）に
+       戻す。共有リンクCutting Breaking Compatibility のほうが OGP 最適化より優先。 */
+    const base = `${shareBaseUrl(baseUrl)}?s=${segments.join(",")}`;
+    if (!preview?.personaName) return base;
+    const params = new URLSearchParams();
+    appendPreviewParams(params, preview);
+    if (!params.toString()) return base;
+    const withSummary = `${base}&${params.toString()}`;
+    if (withSummary.length > PRACTICAL_DISCORD_URL_LENGTH) {
+      const url = new URL(withSummary);
+      for (const key of ["lbt_n", "lbt_hp", "lbt_san", "lbt_sync", "lbt_max"]) url.searchParams.delete(key);
+      const trimmed = url.toString();
+      return trimmed.length <= PRACTICAL_DISCORD_URL_LENGTH ? trimmed : base;
+    }
+    return withSummary;
   }
 
   function ogpGatewayOrigin() {
@@ -890,7 +906,7 @@
           || published[0]
         : published.find((entry) => entry.source === "telegraph") || published[0];
       const backups = published.filter((entry) => entry !== primary);
-      const staticUrl = shortViewerUrl(target, primary, backups);
+      const staticUrl = shortViewerUrl(target, primary, backups, preview);
       const url = ogpGatewayUrl(staticUrl) || staticUrl;
       result = {
         ...direct, url, length: url.length, strategy: primary.source, backups, preview,
