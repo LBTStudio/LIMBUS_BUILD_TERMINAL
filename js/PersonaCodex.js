@@ -140,11 +140,17 @@ const PersonaCard = React.memo(({ persona, mode, isEquipped, isActive, isFav, on
       className: `p-card${isActive ? " is-active" : ""}${isEquipped ? " is-equipped" : ""}`,
       "data-mode": mode,
       "data-persona-key": `${mode}:${p.no}`,
-      style: { "--sin-primary": primarySin ? `var(--sin-${primarySin})` : "var(--gold)" },
-      onClick: () => onSelect(p),
-      role: "button",
-      tabIndex: 0
+      style: { "--sin-primary": primarySin ? `var(--sin-${primarySin})` : "var(--gold)" }
     },
+    /* カード全体を覆う透明ボタンで主操作を表す。role="button" をカード自身に
+       付与すると内側の .p-fav（実 button）と入れ子になり不正なHTMLになるため、
+       主操作を兄弟要素の button へ分離する。 */
+    /* @__PURE__ */ React.createElement("button", {
+      type: "button",
+      className: "p-card-hit",
+      "aria-label": `${p.name}（No.${String(p.no).padStart(3, "0")}）を選択して詳細を表示`,
+      onClick: () => onSelect(p)
+    }),
     /* @__PURE__ */ React.createElement("div", { className: "p-card-head" }, /* @__PURE__ */ React.createElement("span", { className: "p-num" }, "No.", String(p.no).padStart(3, "0")),
     /* @__PURE__ */ React.createElement("span", { className: "p-affil" }, decoratePersona(p).__aff), typeof personaHasIssue === "function" && personaHasIssue(p) && /* @__PURE__ */ React.createElement("span", { title: "\u3053\u306E\u30AB\u30FC\u30C9\u306B\u306F\u7834\u640D\u7591\u3044\u306E\u7B87\u6240\u304C\u3042\u308A\u307E\u3059", style: { fontSize: 10, color: "var(--warn)", padding: "0 4px", lineHeight: 1 } }, "\u26A0"), /* @__PURE__ */ React.createElement("div", { className: "grow" }), /* @__PURE__ */ React.createElement(
       "button",
@@ -155,6 +161,8 @@ const PersonaCard = React.memo(({ persona, mode, isEquipped, isActive, isFav, on
           onToggleFav(mode, p.no);
         },
         title: isFav ? "\u304A\u6C17\u306B\u5165\u308A\u89E3\u9664" : "\u304A\u6C17\u306B\u5165\u308A\u8FFD\u52A0",
+        "aria-label": isFav ? p.name + " のお気に入りを解除" : p.name + " をお気に入りに追加",
+        "aria-pressed": isFav,
         type: "button"
       },
       /* @__PURE__ */ React.createElement(Icon, { name: "star", size: 14 })

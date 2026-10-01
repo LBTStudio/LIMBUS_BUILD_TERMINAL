@@ -510,9 +510,38 @@
 .p-card[data-mode="tokui"] .p-affil {
   color: var(--gold);
 }
-.p-fav {
+/* カード全体を覆う主操作ボタン。カード自身的 role="button" をやめた代わりに
+   兄弟要素として置き、.p-fav（実 button）との入れ子を回避する。 */
+.p-card-hit {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   padding: 0;
-  width: 20px; height: 20px;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: inherit;
+  font: inherit;
+  color: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.p-card-hit:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
+  border-radius: var(--r);
+}
+
+.p-fav {
+  position: relative;
+  z-index: 2;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* WCAG 2.5.8 の 24x24px ベースラインを満たす */
+  width: 24px; height: 24px;
   color: var(--tx-mute);
   transition: color var(--t-fast);
   flex-shrink: 0;
