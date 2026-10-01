@@ -147,7 +147,30 @@ const Grid = ({ cols = 2, gap = "var(--s-2)", children, style = {} }) => /* @__P
   { style: { display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, gap, ...style } },
   children
 );
-const Field = ({ label, children, hint }) => /* @__PURE__ */ React.createElement("div", null, label && /* @__PURE__ */ React.createElement("label", { className: "field-label" }, label), children, hint && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)", marginTop: 4 } }, hint));
+/* Field の label は controls の「兄弟要素」であり、htmlFor も lacked 十三条なかった。
+   結果として 45 箇所の Field が持つ入力/select は accessible name が空だった
+   （axe の select-name CRITICAL 違反）。label で包むと .field-label のレイアウトが
+   崩れるため、DOM 構造は保ったまま id を採番して htmlFor で結び付ける。
+   複数コントロールを直接持つ場合は Field 全体がグループとして名を持つ。 */
+let fieldSeq = 0;
+const Field = ({ label, children, hint }) => {
+  const kids = React.Children.toArray(children);
+  const only = kids.length === 1 ? kids[0] : null;
+  const isPlainControl = only && React.isValidElement(only) && typeof only.type === "string";
+  let labelFor = null;
+  let body = kids;
+  let groupProps = null;
+  if (label && isPlainControl) {
+    labelFor = only.props.id || `lbt-field-${++fieldSeq}`;
+    body = [React.cloneElement(only, { id: labelFor })];
+  } else if (label) {
+    groupProps = { role: "group", "aria-label": label };
+  }
+  return /* @__PURE__ */ React.createElement("div", groupProps,
+    label && /* @__PURE__ */ React.createElement("label", { className: "field-label", htmlFor: labelFor || undefined }, label),
+    body,
+    hint && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)", marginTop: 4 } }, hint));
+};
 const SinBar = ({ skills }) => {
   const counts = {};
   (skills || []).forEach((sk) => {
