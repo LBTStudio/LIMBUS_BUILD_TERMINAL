@@ -137,3 +137,53 @@ test("共有データの取得失敗時も静的共有ページへ安全にフ�
   assert.match(html, /lbtstudio\.github\.io\/LIMBUS_BUILD_TERMINAL\/share\.html\?s=r%3Amissing-entry/);
   assert.match(html, /LIMBUS BUILD TERMINAL — キャラクターシート/);
 });
+
+test("共有IDの候補は2件までに制限する", () => {
+  // 発行側は primary + backup の最大2本しか作らない。
+  // 上限がないと s=r:a,t:b,r:c,... で外部保存先を順に試行できる。
+  // rentry の id は 3 文字以上、telegraph は 1 文字以上を要求する。
+  assert.deepEqual(parseSources(new URL("https://x/s?s=t:Alpha,r:bravo01")), [
+    { source: "telegraph", id: "Alpha" },
+    { source: "rentry", id: "bravo01" },
+  ]);
+  // 3本指定は不正として拒否する（黙って切り詰めない）
+  assert.deepEqual(parseSources(new URL("https://x/s?s=t:Alpha,r:bravo01,t:Charlie")), []);
+  // 同じ source の重複は 1 件に畳まれる
+  assert.deepEqual(parseSources(new URL("https://x/s?s=r:alpha01,r:alpha01")), [{ source: "rentry", id: "alpha01" }]);
+  assert.deepEqual(parseSources(new URL("https://x/s?s=r:a1,r:b2,r:c3,r:d4,r:e5")), []);
+});
+
+test("書き込み系メソッドはWorker処理に入る前に拒否する", async () => {
+  for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+    const response = await handleRequest(new Request("https://lbt-ogp.example/s?s=r:valid_id", { method }));
+    assert.equal(response.status, 405, `${method} は 405 になること`);
+    assert.equal(response.headers.get("allow"), "GET, HEAD");
+    assert.equal(response.headers.get("cache-control"), "no-store");
+  }
+});
+
+test("token fallback (/d) は短期キャッシュし、HEADでは本文を返さない", async () => {
+  const shareToken = token({ charName: "検証PC" });
+  const fetchImpl = async () => new Response(JSON.stringify({ ok: true, result: { content: [{ children: [`LBT_SHARE_TOKEN=${shareToken}`] }] } }));
+
+  const get = await handleRequest(new Request("https://lbt-ogp.example/d?s=t:LBT-Test"), { fetchImpl });
+  assert.equal(get.status, 200);
+  assert.equal(await get.text(), shareToken);
+  // 毎回 no-store にすると障害時に同じ token を何度も取り直すことになる
+  assert.match(get.headers.get("cache-control"), /max-age=86400/);
+
+  const head = await handleRequest(new Request("https://lbt-ogp.example/d?s=t:LBT-Test", { method: "HEAD" }), { fetchImpl });
+  assert.equal(head.status, 200);
+  assert.equal(await head.text(), "");
+});
+
+test("外部保存先の障害時は失敗結果を短時間キャッシュする", async () => {
+  const failing = { fetchImpl: async () => new Response("down", { status: 503 }) };
+  const response = await handleRequest(new Request("https://lbt-ogp.example/s?s=r:any_id_1"), failing);
+  assert.equal(response.status, 200);
+  // 同一障害を crawler ごとに作り直さないよう negative cache を効かせる
+  assert.match(response.headers.get("cache-control"), /max-age=30/);
+  assert.match(response.headers.get("cache-control"), /stale-if-error=300/);
+  // 正常系の7日 cache とは別ポリシーであること
+  assert.doesNotMatch(response.headers.get("cache-control"), /max-age=604800/);
+});

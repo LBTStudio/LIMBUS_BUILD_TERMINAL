@@ -19,6 +19,17 @@ const MAX_DECOMPRESSED_BYTES = 256000;
 // 共有IDは不変なので、7日間はfresh、その後30日間は外部保存先障害時にも直近の成功応答を継続利用する。
 const CACHE_CONTROL = "public, max-age=604800, stale-while-revalidate=2592000, stale-if-error=2592000";
 
+// `/d` は Rentry/Telegraph の直接読み込みが失敗した時だけ呼ばれる fallback。
+// token は発行後に不変なので同じ内容を何度も外部保存先から取り直す必要はない。
+// ただし token 自体の秘匿性は，共有 URL と同じ扱いに留めるため
+// s/i の 7 日 cache ではなく 1 日に留める。
+const TOKEN_CACHE_CONTROL = "public, max-age=86400, stale-while-revalidate=3600, stale-if-error=86400";
+
+// 外部保存先の障害時に返すフォールバックページ。同じ失敗を crawler ごとに
+// 作り直さないよう、短い negative cache を効かせる。
+// 正常系の 7 日 cache とは別ポリシーで、失敗時のみ効く。
+const FALLBACK_CACHE_CONTROL = "public, max-age=30, stale-if-error=300";
+
 function htmlEscape(value) {
   return String(value || "").replace(/[&<>"']/g, (char) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
@@ -63,7 +74,13 @@ export async function decodeToken(token) {
 export function parseSources(url) {
   const raw = String(url.searchParams.get("s") || "");
   if (!raw || raw.length > 700) return [];
-  return raw.split(",").map((segment) => {
+  // 発行側は primary 1 本と backup 1 本の最大 2 本しか作らない
+  //（publishExternalTokens は Rentry と Telegraph の 2 保存先）。
+  // 上限を設けないと ?s=r:a,t:b,r:c,... で外部保存先を順に試しomixでき、
+  // Workers Free の subrequest 上限（1 request あたり 50件）を浪費する。
+  // 正常系の共有 URL には影響せず、攻撃面だけを狭める。
+  const MAX_SOURCES = 2;
+  const parsed = raw.split(",").slice(0, MAX_SOURCES).map((segment) => {
     const match = /^([tr]):(.+)$/.exec(segment);
     if (!match) return null;
     const source = match[1] === "t" ? "telegraph" : "rentry";
@@ -73,6 +90,10 @@ export function parseSources(url) {
       : /^[A-Za-z0-9_-]{1,256}$/.test(id);
     return valid ? { source, id } : null;
   }).filter(Boolean).filter((entry, index, entries) => entries.findIndex((other) => other.source === entry.source && other.id === entry.id) === index);
+  // 上限を超えた場合は不正として扱う（黙って切り詰めない）。
+  // 3 本以上を含む要求は正規利用では発生しない。
+  if (raw.split(",").length > MAX_SOURCES) return [];
+  return parsed;
 }
 
 function findToken(text) {
@@ -197,7 +218,7 @@ function shareTarget(url) {
 function fallbackHtml(url, detail = "") {
   const target = shareTarget(url);
   const safeTarget = htmlEscape(target);
-  return new Response(`<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><meta http-equiv="refresh" content="0;url=${safeTarget}"><title>LIMBUS BUILD TERMINAL</title><meta property="og:title" content="LIMBUS BUILD TERMINAL — キャラクターシート"><meta property="og:description" content="LBT キャラクターシート共有リンク"><meta property="og:image" content="${STATIC_FALLBACK_IMAGE}"><script>location.replace(${JSON.stringify(target)})</script></head><body><a href="${safeTarget}">LBT共有シートを開く</a>${detail ? `<small>${htmlEscape(detail)}</small>` : ""}</body></html>`, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
+  return new Response(`<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><meta http-equiv="refresh" content="0;url=${safeTarget}"><title>LIMBUS BUILD TERMINAL</title><meta property="og:title" content="LIMBUS BUILD TERMINAL — キャラクターシート"><meta property="og:description" content="LBT キャラクターシート共有リンク"><meta property="og:image" content="${STATIC_FALLBACK_IMAGE}"><script>location.replace(${JSON.stringify(target)})</script></head><body><a href="${safeTarget}">LBT共有シートを開く</a>${detail ? `<small>${htmlEscape(detail)}</small>` : ""}</body></html>`, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": FALLBACK_CACHE_CONTROL } });
 }
 
 function ogpHtml(requestUrl, snapshot) {
@@ -214,6 +235,11 @@ function ogpHtml(requestUrl, snapshot) {
 
 export async function handleRequest(request, { fetchImpl = fetch } = {}) {
   const url = new URL(request.url);
+  // Workers Cache が対象とするのは GET/HEAD のみ。書き込み系で叩かれても
+  // cache を経由せず Worker 実行と subrequest を使うため、入口で拒む。
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    return new Response("Method Not Allowed", { status: 405, headers: { "Cache-Control": "no-store", Allow: "GET, HEAD" } });
+  }
   if (url.pathname === "/health") return new Response("LBT OGP gateway: free/stateless", { headers: { "Cache-Control": "no-store" } });
   if (!["/s", "/i", "/d"].includes(url.pathname)) return fallbackHtml(url);
   const sources = parseSources(url);
@@ -221,7 +247,11 @@ export async function handleRequest(request, { fetchImpl = fetch } = {}) {
   try {
     if (url.pathname === "/d") {
       const token = await loadToken(sources, fetchImpl);
-      return new Response(token, { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*", "X-Content-Type-Options": "nosniff" } });
+      // 共有 token は発行後に不変。Rentry/Telegraph の障害時は
+      // /d は毎回 Worker を実行して外部保存先を再取得していた。
+      // 同じ token を短时间内何度も引かないよう短期 cache を効かせる
+      // （s/i の 7 日 cache とは別ポリシー。障害時のフォールバック専用）。
+      return new Response(request.method === "HEAD" ? null : token, { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": TOKEN_CACHE_CONTROL, "Access-Control-Allow-Origin": "*", "X-Content-Type-Options": "nosniff" } });
     }
     const snapshot = await loadSnapshot(sources, fetchImpl);
     if (url.pathname === "/i") return imageResponse(snapshot.shareImageData || snapshot.ogpImageData, request.method) || new Response("共有画像は設定されていません", { status: 404, headers: { "Cache-Control": "no-store" } });
