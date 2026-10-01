@@ -201,7 +201,14 @@
 /* Prefer reduced motion ---------- */
 @media (prefers-reduced-motion: reduce){
   :root{ --t-fast:0ms; --t:0ms; --t-slow:0ms; }
-  *{ transition-duration: 0ms !important; animation-duration: 0ms !important; }
+  /* animation-iteration-count も指定する。duration を 0ms にしただけでは
+     infinite のアニメーションは回数を指定回数のまま続けるため、
+     「止めたつもりだが動き続けている」状態が残る。 */
+  *, *::before, *::after {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
 
 /* ============================================================

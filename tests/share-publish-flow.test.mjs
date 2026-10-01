@@ -41,3 +41,24 @@ test("モバイル幅では共有URLの入力欄とコピー操作を縦積み�
   assert.match(mobileOverlay, /\.share-url-field \.input\{\s*width:100%;\s*min-height:40px;/);
   assert.match(mobileOverlay, /\.share-url-field \.btn\{\s*width:100%;\s*min-height:40px;/);
 });
+
+test("生成される共有シートは reduced-motion のガードを自前で持つ", () => {
+  // 共有シートは独立ドキュメントで assets/*.css を参照しないため、
+  // アプリ側の @media (prefers-reduced-motion) は効かない。
+  assert.match(generator, /@media\s*\(prefers-reduced-motion:\s*reduce\)\{\s*\n?\s*\*,\s*\*::before,\s*\*::after\{[^}]*transition-duration/);
+  assert.match(generator, /@media\s*\(prefers-reduced-motion:\s*reduce\)\{[\s\S]{0,400}animation-iteration-count:1\s*!important/);
+});
+
+test("アプリ内共有モーダルの無限スピナーは reduced-motion で静止する", () => {
+  // 送信中インジケータの回転は状態表現なので、回転そのものは残し
+  // アニメーションだけを止める。
+  assert.match(generator, /\.share-opt-status\.is-progress::before\{[^}]*animation:lbtShareSpin 0\.8s linear infinite/);
+  assert.match(generator, /@media\s*\(prefers-reduced-motion:\s*reduce\)\{\.share-opt-status\.is-progress::before\{animation:none/);
+});
+
+test("アプリ本体の reduced-motion ガードは animation-iteration-count も止める", () => {
+  const designSystem = readFileSync(new URL("../assets/design-system.css", import.meta.url), "utf8");
+  const guard = designSystem.match(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[\s\S]*?\n\}/);
+  assert.ok(guard, "design-system.css に reduced-motion のガードが存在する");
+  assert.match(guard[0], /animation-iteration-count:\s*1\s*!important/);
+});

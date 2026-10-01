@@ -1591,6 +1591,12 @@ details.fold[open]>summary{background:rgba(200,168,75,.08);border-color:var(--go
 details.fold>summary:hover{background:rgba(200,168,75,.12)}
 details.fold>summary:hover h2{color:var(--gold-hi)}
 @keyframes lbt-copy-pop{0%{transform:translateY(-8px);opacity:0}100%{transform:translateY(0);opacity:1}}
+/* prefers-reduced-motion: reduce — 生成される共有シートは独立ドキュメントで
+   assets/*.css を継承しないため、ここで自前のガードを持つ必要がある。
+   折り畳み矢印の回転そのものは開閉状態的表达なので残し、補間だけを止める。 */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{transition-duration:.01ms !important;animation-duration:.01ms !important;animation-iteration-count:1 !important}
+}
 
 /* --- Header: PC/PL/\u4EBA\u683C\u540D \u306E\u8996\u8A8D\u6027\u3092\u6700\u5927\u5316 --- */
 .hd{border-bottom:2px solid var(--gold);padding-bottom:18px;margin-bottom:24px}
@@ -1785,7 +1791,10 @@ async function openShareSheet(state) {
   const root = document.createElement("div");
   root.id = "lbt-share-modal-root";
   root.innerHTML = `
-    <style>/* 共有モーダル: 進行中ステータスのローラー表示 */.share-opt-status.is-progress::before{content:'';display:inline-block;width:10px;height:10px;margin-right:6px;border:2px solid var(--gold-line,rgba(212,175,95,0.4));border-top-color:var(--gold,#c8a84b);border-radius:50%;animation:lbtShareSpin 0.8s linear infinite;vertical-align:-1px}@keyframes lbtShareSpin{to{transform:rotate(360deg)}}</style>
+    <style>/* 共有モーダル: 進行中ステータスのローラー表示 */.share-opt-status.is-progress::before{content:'';display:inline-block;width:10px;height:10px;margin-right:6px;border:2px solid var(--gold-line,rgba(212,175,95,0.4));border-top-color:var(--gold,#c8a84b);border-radius:50%;animation:lbtShareSpin 0.8s linear infinite;vertical-align:-1px}@keyframes lbtShareSpin{to{transform:rotate(360deg)}}
+/* 回転は「送信中」であることだけを示す。動き続けても情報量が増えないため、
+   reduced motion では固定した環に差し替える。色は gold を保ったまま。 */
+@media (prefers-reduced-motion: reduce){.share-opt-status.is-progress::before{animation:none;border-top-color:var(--gold,#c8a84b);opacity:.9}}</style>
     <div class="share-modal-backdrop" data-close>
       <div class="share-modal" role="dialog" aria-labelledby="lbt-share-title">
         <div class="share-modal-head">
