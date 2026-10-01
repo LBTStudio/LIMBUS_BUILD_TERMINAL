@@ -360,26 +360,74 @@ playwright-cli open https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/
 
 ---
 
-## 5. 推奨する着手順
+## 5. 推奨する着手順（2026-10-01 機械検証で再編）
 
-**Step 0（新增）— 検証基盤を作る。**
-```powershell
-npm install -g @playwright/cli@latest
-```
-これが無いと、以降 모든 Phase の「見た目が壊れていないか」が主観でしか判定できない。**UI改善の作業にブラウザ検証が無いのは、計測しないzamでSIP 하는のと等しい**。よって UIコードに1行触るよりも先にここをやる。
+### 5.0 検証手段の確立 — **完了**
 
-**Step 1 — Phase 0-1（`--purple` の誤色バグ）**
-`v56-refinements.css:747,750,751` の1行。`--purple` が未定義のため**紫ADAS出るべき箇所がgoldで描画中**。規模最小・ユーザー可視の明白なバグなので、まずこれを直す。信頼の積み上げとして最適。
+`@playwright/mcp` をグローバルMCPへ追加。Chromium 導入済み。
+`docs/` ではなく `~/.config/opencode` 側に harness を置く判断は、ツールが本リポジトリの
+成果物ではなく**リポジトリ非依存の検証基盤**であるため。
 
-**Step 2 — Phase 1-A（`ui.js:150` の `Field` label 修正）**
-**ROI最大の1行変更。** 45件のアクセシビリティ障害（Form labels HIGH 16件含む）が消える。
+### 5.1 実装順序の原則（機械検証で判明したimportant教訓）
 
-**Step 3 — 極小スキルの個別導入**
-監査所見と1:1で対応する6つ（Match border radius / 44px targets / tabular-nums / aspect ratio / heading balance / scale feedback）をグローバルスキルに追加。Phase 3 の作業指示が具体的になる。
+| 原則 | 根拠 |
+|---|---|
+| **axe の node 数で優先度を決める** | 静的監査の「HIGH/MEDIUM/LOW」主観分類より信頼性が高い。`nested-interactive` 145件は静的監査が**完全に漏らしていた**が、axeで即座に最上位と判明した |
+| **「1行修正でN件解消」を信用しない** | `Field` の label 修正は45箇所のbbe与应用できる以为、axe の `select-name` 4件は**別コンポーネント**（`.codex-sort`）だった。DOM probe（`generatedIds: 0`）で**自分の誤りを検出**した |
+| **DOM再構成後は必ず操作回帰を検証する** | stretched-link 化は「星を押しても選択されない」ことをブラウザで実測するまで未完成 |
 
-**Step 4 — Phase 0 残り → Phase 1 残り → Phase 2 …**
+### 5.2 実行順（上位ほど認証された内容）
 
-各ステップは独立コミット可能。`docs/ui-improvement-plan.md` をチェック리스트として使い、進捗を（同ファイルの実施記録セクションに）追記していく。
+| 順序 | 作業 | 状態 |
+|---|---|---|
+| 1 | `nested-interactive` 145件を再設計（stretched-link化） | ✅ `cb44e3b` |
+| 2 | `target-size` 8件（`.p-fav` 20→24px） | ✅ `cb44e3b` |
+| 3 | `Field` の label 関連付け（`ui.js:150`） | ✅ `43c2268` |
+| 4 | `select-name` CRITICAL 4件（`.codex-sort` ×4 + `cp-input`） | ✅ `43c2268` |
+| 5 | **Phase 1-3**: `UtilitySheet` の trap/Escape/復元を4ダイアログへ | ⬜ 次 |
+| 6 | **Phase 1-2**: `SectionTitle` を `h2` 化 + `h1` 追加（`page-has-heading-one` 解消） | ⬜ |
+| 7 | **Phase 1-4**: `toast()` に `role="status"` | ⬜ |
+| 8 | **Phase 1-6**: Skip to content リンク | ⬜ |
+| 9 | `SkillDeck.js:211-221` の独自 `<label>` 群 | ⬜ |
+| 10 | `OtherSections.js:579,610` のダイス`<label>` | ⬜ |
+| 11 | **Phase 0-1**: `--purple` の誤色バグ（1行） | ⬜ |
+| 12 | `color-contrast` 2件（`.count`, `.preview-hint`） | ⬜ |
+| 13 | `aria-prohibited-attr`（`.brand-author`） | ⬜ |
+| 14 | `label-title-only` 1件（`input[type=checkbox]`） | ⬜ |
+| 15 | Phase 0 残り（`v55-dante.css` 削除、`v54-limbus.css` 隔離、`:root` 1本化） | ⬜ |
+| 16 | Phase 2（`@layer` 導入） | ⬜ |
+| 17 | Phase 3 / Phase 4 | ⬜ |
+
+### 5.3 残っている axe 違反（2026-10-01 時点・6 rules / 7 nodes）
+
+| 重大度 | 規則 | nodes | 対象 | 対応する順序 |
+|---|---|---|---|---|
+| SERIOUS | `aria-prohibited-attr` | 1 | `.brand-author` | 13 |
+| SERIOUS | `color-contrast` | 2 | `.count`, `.preview-hint` | 12 |
+| SERIOUS | `label-title-only` | 1 | `input[type=checkbox]` | 14 |
+| MODERATE | `page-has-heading-one` | 1 | `html` | 6 |
+| MODERATE | `region` | 1 | `.cp-overlay` | 5 |
+| SERIOUS | `scrollable-region-focusable` | 1 | `.cp-list` | 5 |
+
+> `region` と `scrollable-region-focusable` の両方が `.cp-overlay` / `.cp-list`（コマンドパレット）を
+> 指している。順序5のダイアログtrap実装で同時に解消される見込み。
+
+### 5.4 残存する未名付けコントロール（Field ではない独自マークアップ）
+
+ブラウザ实测で6セクションを走査した結果、`Field` を使うのはパッシブセクションのみで、
+以下は独自 `<label>` マークアップ：
+
+| 画面 | controls | named | 未名付け |
+|---|---|---|---|
+| パッシブ | 8 | 6 | 2 |
+| スキル | 3 | 1 | 2 |
+| サポート | 6 | 1 | 5 |
+| E.G.O | 4 | 1 | 3 |
+| 精神 | 4 | 1 | 3 |
+| 強化 | 3 | 1 | 2 |
+
+大半が `SkillDeck.js:211-221` と `OtherSections.js:579,610` の独自 `<label>` 群。
+`Field` 化か `htmlFor` 付与が要る（順序9・10）。
 
 ---
 

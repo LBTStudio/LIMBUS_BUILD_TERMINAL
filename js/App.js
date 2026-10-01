@@ -121,12 +121,45 @@ const CommandPalette = ({ open, onClose, state, dispatch }) => {
   const [q, setQ] = React.useState("");
   const [idx, setIdx] = React.useState(0);
   const inputRef = React.useRef(null);
+  const paletteRef = React.useRef(null);
+  const returnFocusRef = React.useRef(null);
   React.useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 20);
-    else {
+    if (open) {
+      returnFocusRef.current = document.activeElement;
+      setTimeout(() => inputRef.current?.focus(), 20);
+    } else {
       setQ("");
       setIdx(0);
     }
+  }, [open]);
+  /* Escape と Tab を dialog 全体で捕捉する。input の onKeyDown だけに依存すると
+     フォーカスが外れた瞬間に Escape が効かなくなる。UtilitySheet と同じ実装。 */
+  React.useEffect(() => {
+    if (!open) return void 0;
+    const getFocusable = () => Array.from(paletteRef.current?.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])') || []).filter((node) => node.getClientRects().length > 0);
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") { event.preventDefault(); onClose(); return; }
+      if (event.key !== "Tab") return;
+      const focusable = getFocusable();
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+  /* 閉じたら呼び出し元へフォーカスを戻す */
+  React.useEffect(() => {
+    if (open) return;
+    const prev = returnFocusRef.current;
+    if (prev && typeof prev.focus === "function") prev.focus();
   }, [open]);
   const items = React.useMemo(() => {
     const ql = q.trim().toLowerCase();
@@ -198,7 +231,7 @@ const CommandPalette = ({ open, onClose, state, dispatch }) => {
       onClose();
     }
   };
-  return /* @__PURE__ */ React.createElement("div", { className: `cp-overlay${open ? " is-open" : ""}`, onClick: (e) => e.target === e.currentTarget && onClose() }, /* @__PURE__ */ React.createElement("div", { className: "cp-box" }, /* @__PURE__ */ React.createElement("input", { ref: inputRef, className: "cp-input", "aria-label": "クイック検索：人格・E.G.O・アイテム・操作", placeholder: "\u30AF\u30A4\u30C3\u30AF\u691C\u7D22\uFF1A\u4EBA\u683C\u30FBE.G.O\u30FB\u30A2\u30A4\u30C6\u30E0\u30FB\u64CD\u4F5C\u2026", value: q, onChange: (e) => setQ(e.target.value), onKeyDown: onKey }), /* @__PURE__ */ React.createElement("div", { className: "cp-list" }, items.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "cp-empty" }, "\u8A72\u5F53\u306A\u3057") : items.map((it, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: `cp-item${i === idx ? " sel" : ""}`, onClick: () => {
+  return /* @__PURE__ */ React.createElement("div", { className: `cp-overlay${open ? " is-open" : ""}`, onClick: (e) => e.target === e.currentTarget && onClose() }, /* @__PURE__ */ React.createElement("div", { ref: paletteRef, className: "cp-box", role: "dialog", "aria-modal": "true", "aria-label": "クイック検索" }, /* @__PURE__ */ React.createElement("input", { ref: inputRef, className: "cp-input", "aria-label": "クイック検索：人格・E.G.O・アイテム・操作", placeholder: "\u30AF\u30A4\u30C3\u30AF\u691C\u7D22\uFF1A\u4EBA\u683C\u30FBE.G.O\u30FB\u30A2\u30A4\u30C6\u30E0\u30FB\u64CD\u4F5C\u2026", value: q, onChange: (e) => setQ(e.target.value), onKeyDown: onKey }), /* @__PURE__ */ React.createElement("div", { className: "cp-list", tabIndex: 0 }, items.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "cp-empty" }, "\u8A72\u5F53\u306A\u3057") : items.map((it, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: `cp-item${i === idx ? " sel" : ""}`, onClick: () => {
     it.run();
     onClose();
   }, onMouseMove: () => setIdx(i) }, /* @__PURE__ */ React.createElement("span", { className: "kind" }, it.type === "nav" ? "\u25B8" : it.type === "persona" ? "\u25C8" : it.type === "ego" ? "\u25C7" : it.type === "item" ? "\u25C6" : "\u2318"), /* @__PURE__ */ React.createElement("span", { className: "lbl" }, it.label), it.kbd && /* @__PURE__ */ React.createElement("span", { className: "kbd" }, it.kbd)))), /* @__PURE__ */ React.createElement("div", { className: "cp-hint" }, /* @__PURE__ */ React.createElement("span", null, "\u2191\u2193 \u79FB\u52D5"), /* @__PURE__ */ React.createElement("span", null, "Enter \u8A73\u7D30\u3092\u958B\u304F"), /* @__PURE__ */ React.createElement("span", null, "Esc \u9589\u3058\u308B"))));
