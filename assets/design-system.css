@@ -46,7 +46,10 @@
   --tx:           #f2ecd8;   /* 最主要 - lantern warm white */
   --tx-2:         #d9ceb0;
   --tx-dim:       #a79b7c;
-  --tx-mute:      #7a7160;
+  /* #7a7160 と #7c7264 は 10px 本文で AA(4.5:1) に届かず、surface-2 上で 3.51 まで
+     落ちる。4面すべてのコントラストを計算し最小 5.40 が取れる値に置き換えた。
+     --tx-dim より暗いまま muted な階層を保つ。 */
+  --tx-mute:      #9d9280;
   --tx-inv:       #14110d;
 
   /* ---- Accent (Limbus Gold - interactive only) ---- */
@@ -166,7 +169,7 @@
   --bg:#0e0b09; --surface-0:#141110; --surface-1:#1a1715; --surface-2:#211d1a;
   --surface-3:#292420; --surface-4:#322c26; --surface-inset:#080605;
   --line-dim:#2a2521; --line:#3d342c; --line-strong:#57493c; --line-hot:#7a5c33;
-  --tx:#f2ece1; --tx-2:#d9d0c0; --tx-dim:#a89e8c; --tx-mute:#7c7264; --tx-inv:#0e0b09;
+  --tx:#f2ece1; --tx-2:#d9d0c0; --tx-dim:#a89e8c; --tx-mute:#9d9280; --tx-inv:#0e0b09;
   --gold:#d4af5f; --gold-hi:#eecf8a; --gold-lo:#8a6c33;
   --gold-line:rgba(212,175,95,.55); --gold-glow:rgba(212,175,95,.22); --gold-tint:rgba(212,175,95,.09);
   --accent:#c8352b; --accent-hi:#e85c4a; --accent-lo:#7e1d17; --accent-line:rgba(200,53,43,.55); --accent-glow:rgba(200,53,43,.22); --accent-tint:rgba(200,53,43,.10);

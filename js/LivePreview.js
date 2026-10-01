@@ -65,6 +65,7 @@ const PreviewSection = ({ section, idx, collapsed, onToggle, included, onToggleI
       onChange: (e) => { e.stopPropagation(); onToggleInclude && onToggleInclude(); },
       onClick: (e) => e.stopPropagation(),
       title: "OFF\u306B\u3059\u308B\u3068JSON\u51FA\u529B\u304B\u3089\u9664\u5916\u3057\u307E\u3059\uFF08\u8868\u793A\u306F\u6B8B\u308A\u307E\u3059\uFF09",
+      "aria-label": `${section.title || "このカテゴリ"}をJSON出力に含める`,
       style: { accentColor: "var(--gold)", flex: "none" }
     }),
     /* @__PURE__ */ React.createElement(

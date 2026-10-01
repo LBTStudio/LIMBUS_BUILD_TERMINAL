@@ -1,6 +1,8 @@
 const Icon = ({ name, size = 16, className = "" }) => {
   const paths = ICON_PATHS[name];
   if (!paths) return null;
+  /* アイコンは装飾が既定。名前が無い SVG が AT に露出すると読み上げが
+     ノイズになるため隠す。情報を承担的場合は親の aria-label で命名する。 */
   return /* @__PURE__ */ React.createElement(
     "svg",
     {
@@ -12,6 +14,8 @@ const Icon = ({ name, size = 16, className = "" }) => {
       strokeWidth: "1.6",
       strokeLinecap: "round",
       strokeLinejoin: "round",
+      "aria-hidden": "true",
+      focusable: "false",
       className
     },
     paths
@@ -110,7 +114,8 @@ const Button = ({ variant = "default", size = "md", icon, iconRight, children, c
   );
 };
 const Card = ({ children, className = "", frame = false }) => /* @__PURE__ */ React.createElement("div", { className: `${frame ? "frame" : "card"} ${className}`.trim() }, children);
-const SectionTitle = ({ num, title, subtitle, children }) => /* @__PURE__ */ React.createElement("div", { className: "section-title-row" }, num && /* @__PURE__ */ React.createElement("span", { className: "section-title-num" }, num), /* @__PURE__ */ React.createElement("span", { className: "section-title" }, title), subtitle && /* @__PURE__ */ React.createElement("span", { className: "section-subtitle" }, subtitle), children);
+/* 見出しは span ではなく h2 を使う。見出し階層が皆無で h1 も 0 だったため。 */
+const SectionTitle = ({ num, title, subtitle, children }) => /* @__PURE__ */ React.createElement("div", { className: "section-title-row" }, num && /* @__PURE__ */ React.createElement("span", { className: "section-title-num" }, num), /* @__PURE__ */ React.createElement("h2", { className: "section-title" }, title), subtitle && /* @__PURE__ */ React.createElement("span", { className: "section-subtitle" }, subtitle), children);
 const Segmented = ({ value, onChange, options }) => /* @__PURE__ */ React.createElement("div", { className: "segmented", role: "tablist" }, options.map((opt) => /* @__PURE__ */ React.createElement(
   "button",
   {

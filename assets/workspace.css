@@ -121,6 +121,9 @@
   letter-spacing: 0.08em;
   color: var(--tx);
   min-width: 0;
+  /* span から h1 へ変更したため、UA 既定の margin を打ち消す */
+  margin: 0;
+  padding: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -298,6 +301,9 @@
   letter-spacing: 0.04em;
   color: var(--tx);
   line-height: 1;
+  /* span から h2 へ変更したため、UA 既定の margin を打ち消す */
+  margin: 0;
+  padding: 0;
 }
 .section-subtitle {
   font-family: var(--f-body);

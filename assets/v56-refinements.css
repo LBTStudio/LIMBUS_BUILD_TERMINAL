@@ -650,7 +650,17 @@ details > summary {
 .settings-default-status-list { max-height: 340px; overflow-y: auto; padding: 2px; }
 
 @media (max-width: 640px) {
-  .brand-name { display: none; }
+  /* h1 化しているため display:none では AT からも消えてしまう。視覚的にのみ隠し、
+   見出し構造は狭幅でも維持する。 */
+  .brand-name {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
   .topbar-actions { display: flex !important; margin-left: 0; overflow: visible; }
   .topbar-actions > .btn { display: none !important; }
   .utility-trigger { min-width: 76px; width: auto; justify-content: center; gap: 5px; padding: 0 9px; }
