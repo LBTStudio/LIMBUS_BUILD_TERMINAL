@@ -5,3 +5,17 @@ workers_dev = true
 
 # Free固定: Paid usage model、KV、R2、D1、Queues、Images、Secrets、独自ドメインの
 # bindingは意図的に定義しない。workers.dev URLのみを使用する。
+
+# Workers Cache の設定。
+#
+# 共有IDは発行後に不変なので、/s（OGP HTML）と/i（画像）を Cache で说话了。
+# cache HIT時はWorkerコードを実行せず、Rentry/Telegraphへの外部読み込みも行わない。
+# Cache HITも受信リクエストとして日次枠には計上されるが、CPUとsubrequestは消費しない。
+#
+# この設定はコード（Cache-Controlヘッダ）と対になる。
+# cross_version_cache を有効にすることで、実装変更でデプロイしても
+# 既存キャッシュが cold start にならず引き継がれる。
+# カードの形式を意図的に変更するときだけ、共有URLの cv 世代を増やす。
+[cache]
+enabled = true
+cross_version_cache = true
