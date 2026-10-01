@@ -497,7 +497,7 @@
   justify-content: center;
   color: var(--gold);
   border: 1px solid var(--gold-line);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--gold-tint);
   font-family: var(--f-display);
   font-size: 14px;
@@ -529,7 +529,7 @@
   letter-spacing: 0.14em;
   background: var(--gold);
   color: var(--tx-inv);
-  border-radius: 2px;
+  border-radius: var(--r-sm);
 }
 .share-opt-status{
   font-family: var(--f-mono);
@@ -752,7 +752,7 @@
   color: var(--gold);
   background: var(--gold-tint);
   border: 1px solid var(--gold-line);
-  border-radius: 2px;
+  border-radius: var(--r-sm);
   text-align: center;
   padding: 2px 0;
   line-height: 1.2;
@@ -783,7 +783,7 @@
   color: var(--gold);
   background: var(--gold-tint);
   border: 1px solid var(--gold-line);
-  border-radius: 2px;
+  border-radius: var(--r-sm);
   margin-left: 4px;
 }
 .ego-doka-block{
@@ -830,7 +830,7 @@
   color: var(--gold);
   background: var(--surface-inset);
   border: 1px solid var(--gold-line);
-  border-radius: 2px;
+  border-radius: var(--r-sm);
   letter-spacing: 0.08em;
   white-space: nowrap;
 }

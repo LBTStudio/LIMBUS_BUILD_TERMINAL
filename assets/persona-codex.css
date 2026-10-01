@@ -72,7 +72,7 @@
   padding: 2px 8px;
   background: var(--gold-tint);
   border: 1px solid var(--gold-line);
-  border-radius: 2px;
+  border-radius: var(--r-sm);
   color: var(--gold-hi);
   font-weight: 500;
   letter-spacing: 0.14em;
@@ -86,7 +86,7 @@
   padding: 3px 10px;
   background: linear-gradient(180deg, var(--gold-hi), var(--gold));
   color: var(--tx-inv);
-  border-radius: 2px;
+  border-radius: var(--r-sm);
   font-weight: 700;
   letter-spacing: 0.16em;
   font-size: 10px;
@@ -125,7 +125,7 @@
   padding: 2px 8px 2px 12px;
   background: var(--gold-tint);
   border: 1px solid var(--gold-line);
-  border-radius: 2px;
+  border-radius: var(--r-sm);
   color: var(--gold-hi);
   font-family: var(--f-display);
   font-weight: 500;
@@ -144,7 +144,7 @@
   padding: 2px 6px;
   background: var(--surface-inset);
   border: 1px dashed var(--line);
-  border-radius: 2px;
+  border-radius: var(--r-sm);
   color: var(--tx-2);
   font-family: var(--f-mono);
   font-size: 11px;
@@ -225,7 +225,7 @@
 }
 .equipped-detail-inner .codex-detail {
   border: none;
-  border-radius: 0;
+  border-radius: var(--r-none);
   max-height: 520px;
   min-height: 300px;
 }
@@ -607,7 +607,7 @@
   align-items: center;
   gap: 3px;
   padding: 1px 5px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   font-family: var(--f-display);
   font-size: 9px;
   letter-spacing: 0.06em;
@@ -636,7 +636,7 @@
 }
 .p-kw {
   padding: 1px 5px;
-  border-radius: 2px;
+  border-radius: var(--r-sm);
   font-family: var(--f-display);
   font-size: 9px;
   letter-spacing: 0.06em;
@@ -873,7 +873,7 @@ details.pw-subsec > summary::after {
   content: 'クリックで展開';
   margin-left: auto; font-size: 9px; letter-spacing: .12em;
   color: var(--tx-mute); border: 1px dashed var(--line-dim);
-  padding: 2px 8px; border-radius: 99px; font-family: var(--f-mono);
+  padding: 2px 8px; border-radius: var(--r-pill); font-family: var(--f-mono);
 }
 details.pw-subsec[open] > summary::after {
   content: 'クリックで折りたたむ';

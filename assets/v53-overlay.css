@@ -73,7 +73,7 @@
   background: var(--gold-tint);
   border: 1px solid var(--gold-line);
   padding: 1px 6px;
-  border-radius: 2px;
+  border-radius: var(--r-sm);
   min-width: 28px;
   text-align: center;
 }
@@ -91,7 +91,7 @@
   color: var(--tx-dim);
   padding: 1px 5px;
   background: var(--surface-2);
-  border-radius: 2px;
+  border-radius: var(--r-sm);
 }
 .assim-tactical-aoe{
   font-family: var(--f-mono);
@@ -100,7 +100,7 @@
   color: var(--gold);
   background: var(--gold-tint);
   border: 1px solid var(--gold-line);
-  border-radius: 2px;
+  border-radius: var(--r-sm);
 }
 .assim-tactical-eff{
   font-size: var(--fs-11);
@@ -108,7 +108,7 @@
   line-height: 1.6;
   padding: 6px 8px;
   background: rgba(0,0,0,0.18);
-  border-radius: 2px;
+  border-radius: var(--r-sm);
   margin-top: 4px;
   border-left: 2px solid var(--gold-line);
 }
@@ -168,7 +168,7 @@
   font-weight: 700;
   font-size: var(--fs-16);
   padding: 1px 2px;
-  border-radius: 2px;
+  border-radius: var(--r-sm);
 }
 .es-stat-input:hover{ border-bottom-color: var(--gold-line); background: var(--surface-inset); }
 .es-stat-input:focus{
@@ -190,7 +190,7 @@ select.es-stat-input{ font-size: var(--fs-12); padding: 2px; }
   padding: 2px 8px; font-size: var(--fs-10);
   font-family: var(--f-display); letter-spacing: 0.08em;
   color: var(--gold); background: var(--gold-tint);
-  border: 1px solid var(--gold-line); border-radius: 999px;
+  border: 1px solid var(--gold-line); border-radius: var(--r-pill);
 }
 .es-kw-rm{
   background: none; border: none; color: var(--err);
@@ -201,7 +201,7 @@ select.es-stat-input{ font-size: var(--fs-12); padding: 2px; }
   padding: 2px 8px; font-size: var(--fs-10);
   font-family: var(--f-display); letter-spacing: 0.08em;
   color: var(--tx-dim); background: none;
-  border: 1px dashed var(--line); border-radius: 999px; cursor: pointer;
+  border: 1px dashed var(--line); border-radius: var(--r-pill); cursor: pointer;
 }
 .es-kw-add:hover{ color: var(--gold); border-color: var(--gold-line); }
 
@@ -366,7 +366,7 @@ select.es-stat-input{ font-size: var(--fs-12); padding: 2px; }
 }
 .persona-workspace .equipped-summary{
   border: none;
-  border-radius: 0;
+  border-radius: var(--r-none);
   border-bottom: 1px solid var(--line);
 }
 .persona-workspace .pw-body{
@@ -477,7 +477,7 @@ select.es-stat-input{ font-size: var(--fs-12); padding: 2px; }
 }
 .equipped-unified .equipped-summary{
   border: none;
-  border-radius: 0;
+  border-radius: var(--r-none);
 }
 .equipped-unified .equipped-detail-wrap{
   border-top: 1px dashed var(--line-dim);
@@ -485,7 +485,7 @@ select.es-stat-input{ font-size: var(--fs-12); padding: 2px; }
 }
 .equipped-unified .equipped-detail-inner .codex-detail.is-embedded{
   border: none;
-  border-radius: 0;
+  border-radius: var(--r-none);
   background: transparent;
   position: static;
 }
@@ -711,7 +711,7 @@ select.es-stat-input{ font-size: var(--fs-12); padding: 2px; }
 .ego-workbench-grid { display: grid; grid-template-columns: minmax(220px, .62fr) minmax(0, 1.38fr); gap: var(--s-4); align-items: start; }
 .ego-skill-index { position: sticky; top: var(--s-3); min-width: 0; padding: var(--s-3); }
 .ego-index-heading { margin-bottom: var(--s-2); padding: 0 var(--s-1) var(--s-2); border-bottom: 1px solid var(--line-dim); }
-.ego-count-badge { min-width: 28px; padding: 3px 7px; border: 1px solid var(--gold-line); border-radius: 999px; color: var(--gold); font-family: var(--f-mono); font-size: var(--fs-10); text-align: center; }
+.ego-count-badge { min-width: 28px; padding: 3px 7px; border: 1px solid var(--gold-line); border-radius: var(--r-pill); color: var(--gold); font-family: var(--f-mono); font-size: var(--fs-10); text-align: center; }
 .ego-skill-summary-list { display: grid; gap: 7px; }
 .ego-skill-summary {
   display: grid;

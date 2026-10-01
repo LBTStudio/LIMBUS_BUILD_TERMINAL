@@ -272,7 +272,7 @@
 .deck-sin-mark::before {
   content: '';
   width: 8px; height: 8px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--sin-color);
 }
 .deck-name-input {
@@ -372,7 +372,7 @@
   font-family: var(--f-mono);
   padding: 1px 4px;
   background: var(--surface-2);
-  border-radius: 2px;
+  border-radius: var(--r-sm);
   color: var(--gold);
   border: 1px solid var(--line-dim);
 }
@@ -450,7 +450,7 @@
   width: 16px;
   height: 16px;
   padding: 0;
-  border-radius: 2px;
+  border-radius: var(--r-sm);
   background: var(--surface-3);
   border: 1px solid var(--line-dim);
   color: var(--tx-dim);
@@ -655,7 +655,7 @@
   font-family: var(--f-display);
   font-size: 9px;
   letter-spacing: 0.1em;
-  border-radius: 2px;
+  border-radius: var(--r-sm);
   background: var(--surface-3);
   color: var(--tx-dim);
   border: 1px solid var(--line-dim);
@@ -1002,7 +1002,7 @@
   padding: 1px 6px;
   background: var(--gold-tint);
   border: 1px solid var(--gold-line);
-  border-radius: 2px;
+  border-radius: var(--r-sm);
   letter-spacing: 0.06em;
 }
 .spirit-item-line {
@@ -1024,7 +1024,7 @@
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.14em;
-  border-radius: 2px;
+  border-radius: var(--r-sm);
   text-transform: uppercase;
   flex-shrink: 0;
 }
@@ -1087,7 +1087,7 @@
   font-family: var(--f-display);
   font-size: 9px;
   letter-spacing: 0.14em;
-  border-radius: 2px;
+  border-radius: var(--r-sm);
   background: var(--surface-3);
   color: var(--tx-dim);
   border: 1px solid var(--line-dim);

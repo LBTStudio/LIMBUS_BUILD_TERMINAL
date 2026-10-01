@@ -301,7 +301,7 @@
   position: absolute;
   top: 6px; right: 8px;
   width: 6px; height: 6px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--ok);
 }
 .rail-item .dot.is-warn { background: var(--warn); }
@@ -471,7 +471,7 @@
   color: var(--warn);
   background: transparent;
   border: 1px solid color-mix(in srgb, var(--warn) 55%, var(--line));
-  border-radius: 2px;
+  border-radius: var(--r-sm);
   font: inherit;
   cursor: pointer;
 }
@@ -502,7 +502,7 @@
   font: inherit;
   background: transparent;
   border: 1px solid currentColor;
-  border-radius: 2px;
+  border-radius: var(--r-sm);
   cursor: pointer;
 }
 @media (max-width: 860px) {
@@ -543,7 +543,7 @@
   color: var(--tx-dim);
   background: var(--surface-2);
   border: 1px solid var(--line-dim);
-  border-radius: 2px;
+  border-radius: var(--r-sm);
   cursor: pointer;
   transition: border-color var(--t-fast), color var(--t-fast);;
 }

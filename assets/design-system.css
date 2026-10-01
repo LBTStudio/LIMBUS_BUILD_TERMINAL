@@ -82,10 +82,13 @@
   --info:         #4a9fe0;
 
   /* ---- Radii ---- */
-  --r-none: 0;
-  --r-sm:  2px;
-  --r:     4px;
-  --r-lg:  8px;
+--r-none: 0;
+  --r-sm: 2px;
+  --r: 4px;
+  --r-lg: 8px;
+  /* カプセル（pill）。角丸が要素の高さの半分を超えるので 999px にしておく。
+     高さが変わっても一直線に潰れずに丸く収まるため、実寸の値を書く必要がない。 */
+  --r-pill: 999px;
 
   /* ---- Spacing (8pt grid) ---- */
   --s-1:  4px;
@@ -337,7 +340,7 @@ a:hover { color: var(--gold-hi); }
   align-items: center;
   gap: var(--s-1);
   padding: 6px 12px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   /* 未選択チップは背景と明確に分離する濃色サーフェス + 強めのボーダー */
   background: var(--surface-3);
   border: 1.5px solid var(--line-hot);
@@ -378,7 +381,7 @@ a:hover { color: var(--gold-hi); }
 .chip[data-sin]::before {
   content: '';
   width: 6px; height: 6px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--sin-color, var(--tx-mute));
 }
 .chip[data-sin="憤怒"] { --sin-color: var(--sin-憤怒); }
@@ -540,7 +543,7 @@ a:hover { color: var(--gold-hi); }
   transform: translateY(-50%);
   width: 10px;
   height: 10px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--sin-color, transparent);
   box-shadow: 0 0 0 1px rgba(0,0,0,0.4);
   pointer-events: none;
@@ -704,7 +707,7 @@ a:hover { color: var(--gold-hi); }
 .sin-bar {
   display: flex;
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   overflow: hidden;
   background: var(--surface-inset);
 }
@@ -730,7 +733,7 @@ a:hover { color: var(--gold-hi); }
   min-width: 28px;
   height: 22px;
   padding: 0 7px;
-  border-radius: 4px;
+  border-radius: var(--r);
   border: 1px solid transparent;
   font-family: var(--f-display);
   font-weight: 700;
