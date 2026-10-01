@@ -199,7 +199,7 @@
   color: var(--tx-mute);
   background: transparent;
   border: none;
-  border-radius: 3px;
+  border-radius: var(--r-sm);
   opacity: 0.55;
   transition: background var(--t-fast), color var(--t-fast), opacity var(--t-fast);;
 }

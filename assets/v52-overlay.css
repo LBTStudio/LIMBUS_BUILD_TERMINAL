@@ -132,7 +132,7 @@
   background: linear-gradient(180deg,
     color-mix(in oklab, var(--sin-color, var(--gold)) 60%, transparent) 0%,
     color-mix(in oklab, var(--sin-color, var(--gold)) 20%, transparent) 100%);
-  border-radius: 1px;
+  border-radius: var(--r-sm);
 }
 .deck-dice-row{
   position: relative;

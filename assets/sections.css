@@ -823,7 +823,7 @@
   border: 1px solid var(--line);
   color: var(--tx-dim);
   cursor: pointer;
-  border-radius: 3px;
+  border-radius: var(--r-sm);
   transition: cursor var(--t-fast), opacity var(--t-fast);;
   padding: 0;
 }
@@ -870,7 +870,7 @@
   justify-content: center;
   color: var(--tx-mute);
   cursor: grab;
-  border-radius: 3px;
+  border-radius: var(--r-sm);
   background: var(--surface-2);
   border: 1px solid var(--line-dim);
   flex-shrink: 0;
@@ -1053,7 +1053,7 @@
   left: 0; top: 0; bottom: 0;
   width: 3px;
   background: var(--sin-color, var(--tx-mute));
-  border-radius: 3px 0 0 3px;
+  border-radius: var(--r-sm) 0 0 var(--r-sm);
 }
 .roster-item[data-sin="憤怒"] { --sin-color: var(--sin-憤怒); }
 .roster-item[data-sin="色欲"] { --sin-color: var(--sin-色欲); }
@@ -1271,7 +1271,7 @@
   padding-right: 4px;
 }
 .status-order-scroll::-webkit-scrollbar { width: 6px; }
-.status-order-scroll::-webkit-scrollbar-thumb { background: var(--line-dim); border-radius: 3px; }
+.status-order-scroll::-webkit-scrollbar-thumb { background: var(--line-dim); border-radius: var(--r-sm); }
 .status-order-scroll::-webkit-scrollbar-track { background: var(--surface-inset); }
 
 /* 実効ステータス一覧: グリッドで圧縮 */

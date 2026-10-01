@@ -864,7 +864,7 @@ details.pw-subsec > summary .pw-subsec-caret {
   display: inline-flex; align-items: center; justify-content: center;
   width: 18px; height: 18px; flex: none;
   font-size: 10px; color: var(--gold);
-  border: 1px solid var(--gold-line); border-radius: 3px;
+  border: 1px solid var(--gold-line); border-radius: var(--r-sm);
   background: var(--gold-tint);
   transition: transform .18s ease;
 }

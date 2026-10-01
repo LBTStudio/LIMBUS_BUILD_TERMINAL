@@ -216,7 +216,7 @@ select.es-stat-input{ font-size: var(--fs-12); padding: 2px; }
   display:inline-block; padding:1px 6px;
   font-family:var(--f-mono); font-size:var(--fs-10);
   color:var(--tx-2); background:var(--surface-inset);
-  border:1px solid var(--line-dim); border-radius:3px;
+  border:1px solid var(--line-dim); border-radius: var(--r-sm);
   line-height:1.5;
 }
 .cond-chip.is-sin{
@@ -266,7 +266,7 @@ select.es-stat-input{ font-size: var(--fs-12); padding: 2px; }
 .deck-thumb .dnd-handle{
   cursor: grab; touch-action: none;
   color: var(--tx-mute); display: inline-flex; align-items: center;
-  padding: 2px; border-radius: 3px;
+  padding: 2px; border-radius: var(--r-sm);
 }
 .deck-thumb .dnd-handle:hover{ color: var(--gold); background: var(--gold-tint); }
 .deck-thumb .dnd-handle:active{ cursor: grabbing; }
@@ -738,7 +738,7 @@ select.es-stat-input{ font-size: var(--fs-12); padding: 2px; }
 .ego-skill-summary-main { min-width: 0; display: grid; gap: 4px; }
 .ego-skill-summary-title { overflow: hidden; color: var(--tx); font-family: var(--f-display); font-size: var(--fs-12); font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .ego-skill-summary-meta { display: flex; flex-wrap: wrap; gap: 4px; }
-.ego-meta-chip { display: inline-flex; align-items: center; min-height: 18px; padding: 1px 5px; border: 1px solid var(--line); border-radius: 3px; color: var(--tx-dim); font-family: var(--f-mono); font-size: 9px; line-height: 1.2; }
+.ego-meta-chip { display: inline-flex; align-items: center; min-height: 18px; padding: 1px 5px; border: 1px solid var(--line); border-radius: var(--r-sm); color: var(--tx-dim); font-family: var(--f-mono); font-size: 9px; line-height: 1.2; }
 .ego-meta-chip.is-sin { color: var(--gold); border-color: var(--gold-line); }
 .ego-meta-chip.is-dice { color: var(--tx-2); }
 .ego-skill-summary-effect { display: -webkit-box; overflow: hidden; color: var(--tx-mute); font-size: var(--fs-10); line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
