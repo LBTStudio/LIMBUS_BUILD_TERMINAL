@@ -6,6 +6,7 @@ data/provenance/*-ledger.sqlite
 # Local browser verification dependencies and disposable logs.
 .browser-deps/
 .cache/
+tools/ui/shots/
 tests/*-run.log
 .opencode/
 AGENTS.md
