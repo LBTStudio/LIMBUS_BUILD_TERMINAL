@@ -16,7 +16,7 @@ const url = process.argv[3] || BASE_URL;
 
 const { chromium } = loadPlaywright();
 const browser = await chromium.launch({ headless: true });
-const { context, page, errors } = await openApp(browser);
+const { context, page, errors } = await openApp(browser, { bypassCache: true });
 
 console.log(`target: ${url}`);
 console.log(`tag   : ${tag}`);

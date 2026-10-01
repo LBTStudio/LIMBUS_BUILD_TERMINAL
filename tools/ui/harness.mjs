@@ -61,12 +61,26 @@ export function ensureShotDir() {
  * ページを開いて app の準備完了まで待つ。
  * CSS には skip-link や rail-item があるので、.rail-item を合図に使う。
  */
-export async function openApp(browser, { width = 1440, height = 900, reducedMotion } = {}) {
+export async function openApp(browser, { width = 1440, height = 900, reducedMotion, bypassCache = false } = {}) {
   const context = await browser.newContext({
     viewport: { width, height },
     ...(reducedMotion ? { reducedMotion } : {}),
   });
   const page = await context.newPage();
+
+  /* index.html の ?v= は変更ファイルにだけ bump されるので、
+     同じ値のままでは実ファイルが新しくてもブラウザは古い応答を返す。
+     検証時は ?v= を書き換えて必ず最新を読み込ませる。 */
+  if (bypassCache) {
+    await page.route("**/*", async (route) => {
+      const url = route.request().url();
+      if (/\.(css|js|mjs)\?v=/.test(url)) {
+        return route.continue({ url: url.replace(/v=[0-9a-zA-Z]+/, `v=${Date.now()}${Math.floor(performance.now())}`) });
+      }
+      return route.continue();
+    });
+  }
+
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text().slice(0, 160)); });
   page.on("pageerror", (e) => errors.push("pageerror: " + e.message.slice(0, 160)));
