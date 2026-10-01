@@ -133,6 +133,18 @@
   --shadow-3: 0 12px 32px rgba(0,0,0,0.45), 0 2px 6px rgba(0,0,0,0.5);
   --shadow-glow: 0 0 0 1px var(--gold-line), 0 0 24px var(--gold-glow);
 
+/* 内側への押し込み。2〜3 箇所で同一値になっていたものを subject に抽出した。
+     外側の elevation とは別軸なので「内側」の接頭辞で領域を分ける。
+     濃さの違う別値（3px / rgba .3 など）は意図的に統合していない。 */
+  --shadow-inset-1: inset 0 1px 2px rgba(0,0,0,0.35);
+  --shadow-inset-2: inset 0 1px 3px rgba(0,0,0,0.3);
+
+  /* gold の輪郭。focus リングと発光で使い回される少数の定型。 */
+  --ring-gold-1: 0 0 0 1px var(--gold-glow);
+  --ring-gold-2: 0 0 0 2px var(--gold-tint);
+  --ring-gold-3: 0 0 0 3px var(--gold-tint);
+  --glow-gold-sm: 0 0 8px var(--gold-glow);
+
   /* ---- Motion ---- */
   --e-out: cubic-bezier(0.16, 1, 0.3, 1);
   --e-io:  cubic-bezier(0.4, 0, 0.2, 1);
@@ -489,11 +501,11 @@ a:hover { color: var(--gold-hi); }
   font-size: var(--fs-13);
   transition: border-color var(--t-fast) var(--e-io);
   outline: none;
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+  box-shadow: var(--shadow-inset-2);
 }
 .input:focus, .select:focus, .textarea:focus {
   border-color: var(--gold-line);
-  box-shadow: 0 0 0 3px var(--gold-tint);
+  box-shadow: var(--ring-gold-3);
 }
 .input::placeholder, .textarea::placeholder { color: var(--tx-mute); }
 .textarea { resize: vertical; min-height: 60px; line-height: var(--lh); }

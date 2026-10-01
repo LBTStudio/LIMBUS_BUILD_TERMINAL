@@ -175,7 +175,7 @@
   outline: none;
   border: 1px solid var(--gold);
   background: var(--surface-1);
-  box-shadow: 0 0 0 2px var(--gold-tint);
+  box-shadow: var(--ring-gold-2);
 }
 select.es-stat-input{ font-size: var(--fs-12); padding: 2px; }
 

@@ -136,7 +136,7 @@
 .deck-thumb.is-active {
   border-color: var(--gold);
   background: color-mix(in oklab, var(--gold) 8%, var(--surface-1));
-  box-shadow: 0 0 0 1px var(--gold-glow);
+  box-shadow: var(--ring-gold-1);
 }
 .deck-thumb-rank {
   font-family: var(--f-display);
@@ -289,7 +289,7 @@
   transition: all var(--t-fast);
 }
 .deck-name-input:hover { background: var(--surface-inset); border-color: var(--line-dim); }
-.deck-name-input:focus { background: var(--surface-inset); border-color: var(--gold-line); box-shadow: 0 0 0 3px var(--gold-tint); }
+.deck-name-input:focus { background: var(--surface-inset); border-color: var(--gold-line); box-shadow: var(--ring-gold-3); }
 
 .deck-meta {
   display: flex;
@@ -857,7 +857,7 @@
   left: 0; right: 0;
   height: 2px;
   background: var(--gold);
-  box-shadow: 0 0 8px var(--gold-glow);
+  box-shadow: var(--glow-gold-sm);
   pointer-events: none;
 }
 .dnd-row.is-drop-target[data-drop="above"]::before { top: -2px; }
@@ -976,7 +976,7 @@
 .spirit-item.is-active {
   border-color: var(--gold);
   background: linear-gradient(180deg, color-mix(in oklab, var(--gold) 15%, var(--surface-1)), color-mix(in oklab, var(--gold) 6%, var(--surface-1)));
-  box-shadow: 0 0 0 1px var(--gold-glow);
+  box-shadow: var(--ring-gold-1);
 }
 .spirit-item.is-equipped {
   border-left: 4px solid var(--gold);

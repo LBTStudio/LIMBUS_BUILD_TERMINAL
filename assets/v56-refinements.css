@@ -1636,7 +1636,7 @@ details > summary {
   text-align-last: center;
 }
 .es-resistance-select:hover { background: color-mix(in oklab, var(--surface-1) 88%, var(--res-accent) 12%); }
-.es-resistance-select:focus { outline: none; box-shadow: 0 0 0 2px var(--gold-tint); border-color: var(--gold); }
+.es-resistance-select:focus { outline: none; box-shadow: var(--ring-gold-2); border-color: var(--gold); }
 @media (max-width: 640px) {
   .es-resistance { grid-template-columns: 1fr; gap: 7px; padding: 10px; }
   .es-resistance-heading { padding-left: 2px; }
@@ -2189,7 +2189,7 @@ details > summary {
   .deck-direct-chip.is-active {
     border-color: var(--gold);
     background: var(--gold-tint);
-    box-shadow: 0 0 0 1px var(--gold-glow);
+    box-shadow: var(--ring-gold-1);
     color: var(--gold-hi);
   }
   .deck-direct-rank {

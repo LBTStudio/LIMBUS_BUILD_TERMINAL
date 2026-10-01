@@ -270,7 +270,7 @@
   background: #12100c;
   border: 1px solid var(--line-strong);
   border-radius: var(--r);
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+  box-shadow: var(--shadow-inset-2);
 }
 .codex-modes button {
   flex: 1;
@@ -379,7 +379,7 @@
 }
 .codex-search input:focus {
   border-color: var(--gold-line);
-  box-shadow: 0 0 0 3px var(--gold-tint);
+  box-shadow: var(--ring-gold-3);
 }
 .codex-search svg {
   position: absolute;
