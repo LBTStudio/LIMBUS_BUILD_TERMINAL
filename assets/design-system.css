@@ -164,6 +164,12 @@
   --z-rail:    90;
 }
 
+/* E.G.O 3形態の識別色。影響だけ gold と同色で判別できなかったため固有色を与えた。
+   surface-2 上で 5.14:1（非テキスト装飾の 3:1 要件を満たす）。 */
+:root{
+  --ego-influence: #b872d9;
+}
+
 /* ---- LBT clockwork palette: consolidated final tokens (v55 root moved here) ---- */
 :root{
   --bg:#0e0b09; --surface-0:#141110; --surface-1:#1a1715; --surface-2:#211d1a;

@@ -754,11 +754,16 @@ details > summary {
   color: var(--tx-mute);
   font-size: var(--fs-10);
 }
-.ego-influence-editor { border-left: 3px solid var(--purple, var(--gold)); }
+/* 影響は通常/同化と識別できる固有色を持たせる。--purple はプロジェクト内の
+   どこにも定義されておらず、未定義トークン30種の中で唯一視覚効果を欠くもの
+   だった。fallback の gold は通常スキルと同色で、形態の区別がつかない。
+   既存の --sin-嫉妬 の紫（#b872d9）を影響の識別色として採用する。
+   surface-2 上のコントラスト 5.14 で非テキスト装飾の 3:1 を満たす。 */
+.ego-influence-editor { border-left: 3px solid var(--ego-influence); }
 .ego-influence-note {
   padding: 8px 10px;
-  border-left: 3px solid var(--purple, var(--gold));
-  background: color-mix(in oklab, var(--purple, var(--gold)) 9%, var(--surface-inset));
+  border-left: 3px solid var(--ego-influence);
+  background: color-mix(in oklab, var(--ego-influence) 9%, var(--surface-inset));
   color: var(--tx-2);
   font-size: var(--fs-11);
   line-height: 1.55;
@@ -1494,7 +1499,10 @@ details > summary {
 .ego-assim-all-skill-read { padding: 10px 12px; }
 .ego-assim-all-skill .ego-connected-roll { background: var(--surface-inset); }
 .ego-variant-workbench .ego-editor-detail { margin-top: var(--s-3); }
-.ego-variant-workbench .ego-influence-editor { border-left: 3px solid var(--warn); }
+/* workbench 内の影響エディタも --ego-influence に統一する。
+   ここは var(--warn) を指定しており、後段の :root が --warn を var(--amber) へ
+   束縛しているため gold 系の橙で描画され、影響の識別色が出なかった。 */
+.ego-variant-workbench .ego-influence-editor { border-left: 3px solid var(--ego-influence); }
 
 @media (max-width: 640px) {
   .ego-variant-workbench .ego-slot-variant { padding: 10px; }
