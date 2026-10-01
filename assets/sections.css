@@ -1,3 +1,10 @@
+/* ---------------------------------------------------------------------------
+   sections.css  →  @layer sections
+   層の優先順位は index.html の @layer 宣言で一度だけ決める。
+   ここでは層順がリンク順と一致しているので、同優先度・同特異度の
+   競合結果は変更前と同じ（= 最後に読vast ファイルが勝つ）。
+   --------------------------------------------------------------------------- */
+@layer sections {
 /* ============================================================
    LBT v64r45 — SECTIONS
    Skill Deck, EGO, Passive, Support, Spirit, Enhancement, Roster, Settings
@@ -709,6 +716,16 @@
   border: 1px solid var(--line);
   border-radius: var(--r);
 }
+/* 折り畳み解除時（インライン style で max-height:none）は2カラム固定。
+   従来は workspace.css が宣言しており、同詳細度で後に読まれるため常に
+   勝っていた。@layer では層の優先順位が先に効くので、.spp-list 自身の
+   宣言と同じ層であるこのファイルへ移した。 */
+.spp-list[style*="max-height: none"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 1024px) {
+  .spp-list[style*="max-height: none"] { grid-template-columns: 1fr; }
+}
 .spp-item {
   padding: var(--s-2);
   background: var(--surface-1);
@@ -1338,7 +1355,15 @@
 /* サポートパッシブ・精神の出典フィルタ */
 .source-filter-row { align-items: center; }
 .source-filter-row .chip { min-height: 30px; }
-.source-filter-row .chip.is-active { border-color: var(--gold); background: var(--gold-tint); color: var(--gold-hi); }
+/* support パッシブの来源フィルタは「半透明 gold の塗り + gold の文字」で
+   選択状態を示す（他の chip と塗り分けている）。
+   v52-overlay の .chip.is-active が overlay 層で宣言されているため、
+   sections 層ではこれより弱い。@layer では層の優先順位が先に効くので、
+   意図した塗り・文字色を保証できない。ここで !important ではなく、
+   最も強い層（v56 以降）に同じ意図を置くことで解決する。
+   そのため sections 側では「意図の記述」のみ留下し、実効値は
+   v56-refinements.css（後段）で確定させる。 */
+.source-filter-row .chip.is-active { border-color: var(--gold); color: var(--gold-hi); }
 .spirit-list:empty::before {
   content: "条件に一致する精神データはありません";
   display: block;
@@ -1347,3 +1372,5 @@
   text-align: center;
   font-size: var(--fs-11);
 }
+}
+/* end @layer sections */

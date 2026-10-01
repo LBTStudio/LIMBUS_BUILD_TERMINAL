@@ -1,3 +1,10 @@
+/* ---------------------------------------------------------------------------
+   workspace.css  →  @layer workspace
+   層の優先順位は index.html の @layer 宣言で一度だけ決める。
+   ここでは層順がリンク順と一致しているので、同優先度・同特異度の
+   競合結果は変更前と同じ（= 最後に読vast ファイルが勝つ）。
+   --------------------------------------------------------------------------- */
+@layer workspace {
 /* ============================================================
    LBT v64r45 — WORKSPACE LAYOUT
    3-column workbench: Rail | Focus | Live Preview
@@ -118,10 +125,11 @@
 }
 .preview-edge-toggle.is-collapsed { right: 0; }
 .preview-edge-toggle:hover { background: var(--surface-4); color: var(--gold-hi); }
-.spp-list[style*="max-height: none"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* .spp-list[style*=...] の折り返し幅指定は sections.css 側へ移した。
+   ここは workspace.css（層の並びで sections より弱い）にあるため、
+   @layer 導入後は sections の .spp-list に負けてしまう。 */
 @media (max-width: 1024px) {
   .preview-edge-toggle { right: 0; min-height: 104px; }
-  .spp-list[style*="max-height: none"] { grid-template-columns: 1fr; }
 }
 
 /* ============================================================
@@ -708,3 +716,5 @@
   .topbar-search-text { display: none; }
   .topbar-search { min-width: 0; padding: 6px; }
 }
+}
+/* end @layer workspace */

@@ -1,3 +1,10 @@
+/* ---------------------------------------------------------------------------
+   v65r44-ego-quick-detail.css  →  @layer v65r44-ego-quick-detail
+   層の優先順位は index.html の @layer 宣言で一度だけ決める。
+   ここでは層順がリンク順と一致しているので、同優先度・同特異度の
+   競合結果は変更前と同じ（= 最後に読vast ファイルが勝つ）。
+   --------------------------------------------------------------------------- */
+@layer v65r44-ego-quick-detail {
 /* V65r44 — E.G.O選択時の右列簡易詳細カード */
 .ego-section.has-selection .codex {
   grid-template-columns: minmax(0, 1fr) 380px;
@@ -92,3 +99,5 @@
 .ego-quick-dice-effect { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px; color: var(--tx-2); font-size: var(--fs-10); line-height: 1.5; overflow-wrap: anywhere; }
 .ego-quick-dice-roll { color: var(--gold-hi); font-family: var(--f-mono); font-weight: 600; white-space: nowrap; }
 .ego-quick-skill[data-tone="corrode"] .ego-quick-dice-roll { color: var(--err); }
+}
+/* end @layer v65r44-ego-quick-detail */

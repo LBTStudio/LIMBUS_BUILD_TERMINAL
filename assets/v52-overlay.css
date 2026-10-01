@@ -1,3 +1,10 @@
+/* ---------------------------------------------------------------------------
+   v52-overlay.css  →  @layer v52-overlay
+   層の優先順位は index.html の @layer 宣言で一度だけ決める。
+   ここでは層順がリンク順と一致しているので、同優先度・同特異度の
+   競合結果は変更前と同じ（= 最後に読vast ファイルが勝つ）。
+   --------------------------------------------------------------------------- */
+@layer v52-overlay {
 /* ============================================================
    LBT v64r45 — OVERLAY (color / density / dice-effect binding)
    ============================================================
@@ -294,12 +301,27 @@
 /* ============================================================
    [Chip] 未選択 chip の "実在感" を強化: 影を追加し立体に
    ============================================================ */
+/* design-system の .chip[data-sin] は特異度で .chip を打ち消す意図で
+   書かれているが、@layer では層の優先順位が先に効いてしまう。
+   このファイルは overlay 層なので、ここで同じ意図を宣言し直す。 */
+.chip[data-sin]{
+  border-color: var(--line-hot);
+  color: var(--tx);
+}
 .chip{
   background: linear-gradient(180deg, var(--surface-3), var(--surface-2));
   border: 1.5px solid var(--line);
   box-shadow:
     inset 0 1px 0 rgba(255,235,180,0.05),
     0 1px 2px rgba(0,0,0,0.35);
+}
+.chip.is-active{
+  border-color: var(--gold);
+  /* design-system の .chip.is-active は gold 30%/20% のグラデーション。
+     v52 の .chip（LESS 前提の単色 surface）が層を越えて勝つと、
+     選択中チップの塗りだけが消えていた。overlay 層で同じ intention を再宣言する。 */
+  background: linear-gradient(180deg, color-mix(in oklab, var(--gold) 30%, var(--surface-3)), color-mix(in oklab, var(--gold) 20%, var(--surface-3)));
+  color: #fff5d4;
 }
 .chip:hover{
   background: linear-gradient(180deg, var(--surface-4), var(--surface-3));
@@ -874,3 +896,5 @@
   border-radius: var(--r-sm);
   white-space: pre-wrap;
 }
+}
+/* end @layer v52-overlay */

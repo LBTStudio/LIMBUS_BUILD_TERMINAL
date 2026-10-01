@@ -1,3 +1,10 @@
+/* ---------------------------------------------------------------------------
+   v65r29-draft-import.css  →  @layer v65r29-draft-import
+   層の優先順位は index.html の @layer 宣言で一度だけ決める。
+   ここでは層順がリンク順と一致しているので、同優先度・同特異度の
+   競合結果は変更前と同じ（= 最後に読vast ファイルが勝つ）。
+   --------------------------------------------------------------------------- */
+@layer v65r29-draft-import {
 /* V65r29: Google Docs 等の同期人格草案を、既存人格を壊さず確認して取り込む。 */
 .persona-draft-import-trigger {
   flex: 0 0 auto;
@@ -116,3 +123,5 @@
   .persona-draft-affiliation-search, .persona-draft-affiliation-result { min-height: 42px; font-size: 12px; }
   .persona-draft-affiliation-current { align-items: flex-start; flex-direction: column; }
 }
+}
+/* end @layer v65r29-draft-import */

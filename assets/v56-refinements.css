@@ -1,3 +1,10 @@
+/* ---------------------------------------------------------------------------
+   v56-refinements.css  →  @layer v56-refinements
+   層の優先順位は index.html の @layer 宣言で一度だけ決める。
+   ここでは層順がリンク順と一致しているので、同優先度・同特異度の
+   競合結果は変更前と同じ（= 最後に読vast ファイルが勝つ）。
+   --------------------------------------------------------------------------- */
+@layer v56-refinements {
 /* ============================================================
    LBT v64r45 — "DANTE HOMAGE" variant
    Limbus Company のキャラクター「ダンテ」のデザイン言語を参照した
@@ -572,12 +579,20 @@ details > summary {
   box-shadow: 0 0 0 5px color-mix(in oklab, var(--amber-hi) 28%, transparent);
 }
 
+/* .rail-item のリセット（native button の既定を落とす）。
+   ただし background: transparent は :hover / :is-active / :focus-visible の
+   塗りも一緒に消してしまうため、リセット側では色指定を置かず、
+   配色は workspace.css / v52-overlay.css の各宣言に委ねる。 */
 .rail-item {
   border: 0;
-  background: transparent;
+  background: none;
   font: inherit;
 }
-.rail-item:focus-visible { color: var(--tx); background: color-mix(in oklab, var(--gold) 12%, var(--surface-1)); }
+.rail-item:hover,
+.rail-item.is-active,
+.rail-item:focus-visible { background-image: none; }
+.rail-item:focus-visible { color: var(--tx); background-color: color-mix(in oklab, var(--gold) 12%, var(--surface-1)); }
+.rail-item.is-active { background-color: var(--gold-tint); }
 .utility-trigger {
   min-height: var(--control-h-compact);
   display: inline-flex;
@@ -2465,3 +2480,27 @@ details > summary {
     max-height: calc(100dvh - var(--topbar-h) - var(--lbt-landscape-rail-h));
   }
 }
+}
+/* ============================================================
+   層をまたいでloseった意図の再宣言（@layer 導入時）
+
+   CSS では層の優先順位がセレクタ特異度より先に評価される。
+   そのため「特異度で勝っていたはず」の宣言が、層をまたいだ途端に
+   負けることがある。該当は以下。
+
+   - .chip / .chip.is-active : v52-overlay(overlay層) が
+     design-system(design-system層) のプリミティブを再宣言している。
+     .chip[data-sin] の	border-color: var(--line-hot) も同様に
+     特異度 0-2-0 で .chip (0-1-0) を打ち消す意図だった。
+     → v52-overlay 側で同じ意図を明示的に再宣言済み。
+   - .source-filter-row .chip.is-active : 「半透明 gold の塗り +
+     gold の文字」で選択を示す。支持/精神の出典フィルタだけが
+     他と塗り分け(unique)の意図。
+     → ここ（features より前だが v52-overlay より強い位置）で確定。
+   ============================================================ */
+.source-filter-row .chip.is-active {
+  border-color: var(--gold);
+  background: var(--gold-tint);
+  color: var(--gold-hi);
+}
+/* end @layer v56-refinements */

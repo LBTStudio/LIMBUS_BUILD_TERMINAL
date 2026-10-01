@@ -1,3 +1,10 @@
+/* ---------------------------------------------------------------------------
+   persona-codex.css  →  @layer persona-codex
+   層の優先順位は index.html の @layer 宣言で一度だけ決める。
+   ここでは層順がリンク順と一致しているので、同優先度・同特異度の
+   競合結果は変更前と同じ（= 最後に読vast ファイルが勝つ）。
+   --------------------------------------------------------------------------- */
+@layer persona-codex {
 /* ============================================================
    LBT v64r45 — PERSONA CODEX
    The heart of the redesign: solving the "130-out-of-1" problem.
@@ -896,3 +903,5 @@ details.pw-subsec:not([open]) > summary:hover { border-radius: 6px; }
   .es-actions .btn { min-height: 44px; flex: 1 1 126px; }
   .es-actions .persona-save-primary { flex: 1 1 100%; order: -2; min-height: 48px; }
 }
+}
+/* end @layer persona-codex */

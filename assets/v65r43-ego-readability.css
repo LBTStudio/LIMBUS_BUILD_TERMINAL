@@ -1,3 +1,10 @@
+/* ---------------------------------------------------------------------------
+   v65r43-ego-readability.css  →  @layer v65r43-ego-readability
+   層の優先順位は index.html の @layer 宣言で一度だけ決める。
+   ここでは層順がリンク順と一致しているので、同優先度・同特異度の
+   競合結果は変更前と同じ（= 最後に読vast ファイルが勝つ）。
+   --------------------------------------------------------------------------- */
+@layer v65r43-ego-readability {
 /* V65r43 — E.G.O資源の判読性と詳細未選択一覧の作業幅 */
 .ego-resource-chips {
   display: flex;
@@ -74,3 +81,5 @@
   .ego-resource-filter-row { align-items: flex-start; }
   .ego-resource-filter-note { margin-top: 5px; }
 }
+}
+/* end @layer v65r43-ego-readability */

@@ -1,3 +1,10 @@
+/* ---------------------------------------------------------------------------
+   design-system.css  →  @layer design-system
+   層の優先順位は index.html の @layer 宣言で一度だけ決める。
+   ここでは層順がリンク順と一致しているので、同優先度・同特異度の
+   競合結果は変更前と同じ（= 最後に読vast ファイルが勝つ）。
+   --------------------------------------------------------------------------- */
+@layer design-system {
 /* ============================================================
    LBT v64r45 — DESIGN SYSTEM
    Limbus Company × ccfolia hybrid interface tokens.
@@ -338,6 +345,10 @@ a:hover { color: var(--gold-hi); }
 .chip.is-active:hover {
   background: linear-gradient(180deg, color-mix(in oklab, var(--gold) 35%, var(--surface-3)), color-mix(in oklab, var(--gold) 25%, var(--surface-3)));
 }
+/* .chip[data-sin] は特異度 0-2-0 で v52-overlay の .chip (0-1-0) を
+   打ち消すために存在している。@layer を入れると層の優先順位が特異度より
+   先に来るため、この意図が層構造では成立しなくなる。層を越えて勝たせたい
+   意図が明白なので、override 層に同じ宣言を明示的に置いて維持する。 */
 .chip[data-sin] {
   border-color: var(--line-hot);
   color: var(--tx);
@@ -779,3 +790,5 @@ kbd {
   color: var(--tx-dim);
   line-height: 1.4;
 }
+}
+/* end @layer design-system */

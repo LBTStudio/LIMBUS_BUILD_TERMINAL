@@ -1,3 +1,10 @@
+/* ---------------------------------------------------------------------------
+   v65r47-ego-card-marks.css  →  @layer v65r47-ego-card-marks
+   層の優先順位は index.html の @layer 宣言で一度だけ決める。
+   ここでは層順がリンク順と一致しているので、同優先度・同特異度の
+   競合結果は変更前と同じ（= 最後に読vast ファイルが勝つ）。
+   --------------------------------------------------------------------------- */
+@layer v65r47-ego-card-marks {
 /* V65r47 — E.G.O一覧カードのランク・同化マークを独立配置する */
 .p-card.ego-card .ego-card-head,
 .p-card .ego-card-head {
@@ -28,3 +35,5 @@
   .ego-card-head > .p-num { flex-basis: 100%; }
   .ego-card-marks { justify-content: flex-start; }
 }
+}
+/* end @layer v65r47-ego-card-marks */
