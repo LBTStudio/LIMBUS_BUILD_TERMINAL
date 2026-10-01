@@ -110,6 +110,9 @@
   --f-body:    'Noto Sans JP','Rajdhani',system-ui,sans-serif;
   --f-mono:    'Share Tech Mono','IBM Plex Mono','SF Mono',monospace;
 
+  /* JS のインライン style が 9px を 22 箇所で直接指定していたため、
+     他の段差と同じ扱いでトークン化してある。値そのものは変えていない。 */
+  --fs-9: 9px;
   --fs-10: 10px;
   --fs-11: 11px;
   --fs-12: 12px;

@@ -101,7 +101,7 @@ const Chip = ({ children, active, sin, onClick, size, count }) => /* @__PURE__ *
     type: "button"
   },
   children,
-  count !== void 0 && count !== null && /* @__PURE__ */ React.createElement("span", { style: { opacity: 0.6, fontFamily: "var(--f-mono)", fontSize: 9, marginLeft: 4 } }, count)
+  count !== void 0 && count !== null && /* @__PURE__ */ React.createElement("span", { style: { opacity: 0.6, fontFamily: "var(--f-mono)", fontSize: "var(--fs-9)", marginLeft: 4 } }, count)
 );
 const Button = ({ variant = "default", size = "md", icon, iconRight, children, className = "", ...rest }) => {
   const roleClass = {
@@ -146,8 +146,8 @@ class LBTErrorBoundary extends React.Component {
   render() {
     if (this.state.error) {
       return React.createElement("div", { style: { padding: 40, textAlign: "center", color: "#d4b158", fontFamily: "sans-serif" } },
-        React.createElement("div", { style: { fontSize: 18, fontWeight: 700, marginBottom: 12 } }, "表示中にエラーが発生しました"),
-        React.createElement("div", { style: { fontSize: 12, color: "#a79b7c", marginBottom: 16, whiteSpace: "pre-wrap" } }, String(this.state.error && this.state.error.message || this.state.error)),
+        React.createElement("div", { style: { fontSize: "var(--fs-18)", fontWeight: 700, marginBottom: 12 } }, "表示中にエラーが発生しました"),
+        React.createElement("div", { style: { fontSize: "var(--fs-12)", color: "#a79b7c", marginBottom: 16, whiteSpace: "pre-wrap" } }, String(this.state.error && this.state.error.message || this.state.error)),
         React.createElement("button", { className: "btn", onClick: () => location.reload() }, "ページを再読み込み")
       );
     }

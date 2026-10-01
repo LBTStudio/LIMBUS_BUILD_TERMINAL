@@ -83,7 +83,7 @@ const PreviewSection = ({ section, idx, collapsed, onToggle, included, onToggleI
       },
       /* @__PURE__ */ React.createElement("span", { className: "pv-sec-caret" }, collapsed ? "\u25B6" : "\u25BC"),
       /* @__PURE__ */ React.createElement("span", { className: "pv-sec-title" }, section.title),
-      included === false && /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontSize: 9, color: "var(--warn)", fontFamily: "var(--f-display)", letterSpacing: "0.12em" } }, "JSON\u304B\u3089\u9664\u5916")
+      included === false && /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontSize: "var(--fs-9)", color: "var(--warn)", fontFamily: "var(--f-display)", letterSpacing: "0.12em" } }, "JSON\u304B\u3089\u9664\u5916")
     )
   ) : null, !collapsed && !isEmpty && /* @__PURE__ */ React.createElement("div", { className: "pv-sec-body" }, bodyText));
 };
@@ -217,7 +217,7 @@ const LivePreview = ({ state, dispatch }) => {
     const fixed = sections.filter((section) => !section.title);
     const movable = sections.filter((section) => !!section.title);
     const disp = orderedSections(movable, prefix);
-    return /* @__PURE__ */ React.createElement("div", { className: "pv-sec-list" }, ...fixed.map((section, i) => /* @__PURE__ */ React.createElement(PreviewSection, { key: `${prefix}:fixed:${i}`, section, idx: i, collapsed: false, included: true, onToggle: () => {}, onToggleInclude: () => {} })), /* @__PURE__ */ React.createElement("div", { className: "pv-sec-toolbar" }, /* @__PURE__ */ React.createElement("button", { className: "pv-sec-tbtn", onClick: () => setAllCollapsed(disp, prefix, false), title: "\u5168\u5C55\u958B" }, "\u5168\u5C55\u958B"), /* @__PURE__ */ React.createElement("button", { className: "pv-sec-tbtn", onClick: () => setAllCollapsed(disp, prefix, true), title: "\u5168\u6298\u308A\u7573\u307F" }, "\u5168\u6298\u7573"), /* @__PURE__ */ React.createElement("span", { className: "pv-sec-dnd-note", style: { fontSize: 9, marginLeft: "auto", fontFamily: "var(--f-mono)" } }, "\u22EE\u22EE\u306F\u9577\u62BC\u3057\u30C9\u30E9\u30C3\u30B0 / \u2191\u2193\u3067\u79FB\u52D5")), disp.map((s, i) => /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "pv-sec-list" }, ...fixed.map((section, i) => /* @__PURE__ */ React.createElement(PreviewSection, { key: `${prefix}:fixed:${i}`, section, idx: i, collapsed: false, included: true, onToggle: () => {}, onToggleInclude: () => {} })), /* @__PURE__ */ React.createElement("div", { className: "pv-sec-toolbar" }, /* @__PURE__ */ React.createElement("button", { className: "pv-sec-tbtn", onClick: () => setAllCollapsed(disp, prefix, false), title: "\u5168\u5C55\u958B" }, "\u5168\u5C55\u958B"), /* @__PURE__ */ React.createElement("button", { className: "pv-sec-tbtn", onClick: () => setAllCollapsed(disp, prefix, true), title: "\u5168\u6298\u308A\u7573\u307F" }, "\u5168\u6298\u7573"), /* @__PURE__ */ React.createElement("span", { className: "pv-sec-dnd-note", style: { fontSize: "var(--fs-9)", marginLeft: "auto", fontFamily: "var(--f-mono)" } }, "\u22EE\u22EE\u306F\u9577\u62BC\u3057\u30C9\u30E9\u30C3\u30B0 / \u2191\u2193\u3067\u79FB\u52D5")), disp.map((s, i) => /* @__PURE__ */ React.createElement(
       PreviewSection,
       {
         key: `${prefix}:${s.title || i}`,
