@@ -1100,7 +1100,11 @@ const EgoSection = ({ state, dispatch }) => {
   const detailSlot = state.ui.egoDetailSlot;
   const setDetailSlot = (v) => dispatch({ type: "SET_UI", ui: { egoDetailSlot: v } });
   const hasAnyEgo = Object.values(state.egoSlots || {}).some(Boolean);
-  const listExpanded = state.ui.egoListExpanded !== void 0 ? state.ui.egoListExpanded : !hasAnyEgo;
+  // 一覧は既定で展開。以前は「EGO を持っていれば畳む」= !hasAnyEgo にして
+  // いたが、装備済みだと E.G.O 一覧が最初から隠れた状態になり、
+  // リロードのたびに何かが閉じた状態から始まっていた。
+  // 全件を見る・絞り込みフィルタを開いたときだけ縮む想定は変わらない。
+  const listExpanded = state.ui.egoListExpanded !== void 0 ? state.ui.egoListExpanded : true;
   const setListExpanded = (v) => dispatch({ type: "SET_UI", ui: { egoListExpanded: v } });
   // V24: 「所持のみ」フィルタ（roster.egos に登録済みのものだけを表示）
   const [ownedOnly, setOwnedOnly] = React.useState(false);

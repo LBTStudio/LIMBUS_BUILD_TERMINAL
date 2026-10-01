@@ -11,9 +11,23 @@
   align-items: flex-start;
   min-width: 0;
 }
+/* 装着済みのとき、絶対配置の EQUIPPED と同じ场所にマーク群が来て重なっていた。
+   実測: マーク群 687,1152→779,1171 / EQUIPPED 731,1147→784,1164 = 48x12px の重なり。
+   EQUIPPED は .p-card::after（top:8px right:8px、53x17）なので、
+   ヘッドの右に 53px + 8px の余白 = 61px を空ける。 */
+.p-card.is-equipped > .p-card-head,
+.p-card.is-equipped > .ego-card-head {
+  padding-right: 61px;
+}
+/* .p-num は flex-shrink:0 で、、制作した E.G.O の No.custom-<UUID> が
+   カード右からはみ出して EQUIPPED と重なっていた（実測 右 +191px）。
+   1行に詰め、ellipsis で切る。 */
 .ego-card-head > .p-num {
   flex: 1 1 auto;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .ego-card-marks {
   display: flex;
