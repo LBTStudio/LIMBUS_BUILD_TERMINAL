@@ -85,14 +85,23 @@ const ItemCodex = ({ state, dispatch }) => {
       h("button", { type: "button", className: `item-filter item-owned-filter${ownedOnly ? " is-active" : ""}`, onClick: () => setOwnedOnly((current) => !current) }, h(Icon, { name: "item", size: 13 }), "導入済み"))
     ),
     h("div", { className: "item-codex-workspace" },
-      h("div", { className: "item-list", role: "list", "aria-label": "アイテム一覧" }, visible.length ? visible.map((item) => {
+      h("div", { className: "item-list", role: "group", "aria-label": "アイテム一覧" }, visible.length ? visible.map((item) => {
         const entry = entryById.get(item.id);
         const itemMaxOwned = window.LBT_getItemMaxOwned?.(state, item.id) || 99;
         const itemHasCap = itemMaxOwned < 99;
-        return h("button", { key: item.id, type: "button", role: "listitem", className: `item-row${selected?.id === item.id ? " is-selected" : ""}`, onClick: () => selectItem(item.id) },
-          h("span", { className: "item-row-mark" }, h(Icon, { name: "item", size: 14 })),
-          h("span", { className: "item-row-copy" }, h("b", null, item.name || "名称未設定", item.custom && h("em", { className: "item-custom-badge" }, "ORIGINAL")), h("small", null, `${item.category}　${(item.tags || []).join(" / ")}`)),
-          entry && h("span", { className: "item-quantity-badge" }, itemHasCap ? `×${entry.quantity} / ${itemMaxOwned}` : `×${entry.quantity}`)
+        /* role="listitem" は button には許されない（aria-allowed-role の違反）。
+           ARIA のリストパターンどおり、li 役の要素の外側に button を置く。
+           これにより「35 個のボタン」として読め、選択状態も aria-selected で伝わる。 */
+        /* role="listitem" は button に許されない（aria-allowed-role）。さらに
+   aria-selected も listitem では許されない（同 aria-allowed-attr）。
+   button の選択状態は aria-pressed で表現するのが ARIA の定石なので、
+   listitem はラッパー（段落相当）に戻し、button 側に aria-pressed を置く。 */
+        return h("div", { key: item.id, className: "item-listitem" },
+          h("button", { type: "button", "aria-pressed": selected?.id === item.id, className: `item-row${selected?.id === item.id ? " is-selected" : ""}`, onClick: () => selectItem(item.id) },
+            h("span", { className: "item-row-mark" }, h(Icon, { name: "item", size: 14 })),
+            h("span", { className: "item-row-copy" }, h("b", null, item.name || "名称未設定", item.custom && h("em", { className: "item-custom-badge" }, "ORIGINAL")), h("small", null, `${item.category}　${(item.tags || []).join(" / ")}`)),
+            entry && h("span", { className: "item-quantity-badge" }, itemHasCap ? `×${entry.quantity} / ${itemMaxOwned}` : `×${entry.quantity}`)
+          )
         );
       }) : h("div", { className: "item-empty" }, "該当するアイテムはありません。")),
       selected && h("section", { className: "item-detail", "aria-label": `${selected.name}の詳細` },

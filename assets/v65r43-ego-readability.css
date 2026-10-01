@@ -53,7 +53,10 @@
   white-space: nowrap;
 }
 .ego-resource-filter-row .chips-group { min-width: 0; }
-.ego-resource-filter-row.is-exclude .ego-resource-filter-note { color: var(--err); }
+/* --err は surface-1 上で 4.26:1 で、9px の本文には AA の 4.5:1 に届かない。
+   背景 nearer な --err-ink に進めると 5.5:1 まで上がる。色相は維持したまま
+   濃度だけ上げるので、警告であることも保てる。 */
+.ego-resource-filter-row.is-exclude .ego-resource-filter-note { color: var(--err-ink); }
 .ego-resource-filter-row.is-exclude .ego-resource-filter-chip.is-active {
   background: color-mix(in oklab, var(--err) 22%, var(--surface-2));
   border-color: var(--err);
