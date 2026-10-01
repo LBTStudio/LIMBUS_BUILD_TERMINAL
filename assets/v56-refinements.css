@@ -1951,15 +1951,16 @@ details > summary {
   }
 }
 
-/* v64r45: 上部バーの所持ライブラリ保存は、通常の作業保存と区別して即座に判別できるようにする。 */
+/* v64r45: 上部バーの所持ライブラリ保存は、通常の作業保存と区別して即座に判別できるようにする。
+   枠線は border で引く。inset shadow は「既存の枠の内側にさらに一本線を足す」作用に
+   なり、border が 1px の状態で 1px+1px の二重線になっていたため使わない。 */
 .topbar-actions .topbar-library-save {
   min-width: 42px;
   gap: 6px;
   padding-inline: 9px;
   color: var(--gold-hi);
   background: color-mix(in oklab, var(--gold) 12%, var(--surface-2));
-  border: 1px solid var(--gold-line);
-  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--gold) 8%, transparent);
+  border: 1px solid color-mix(in oklab, var(--gold) 26%, var(--gold-line));
 }
 .topbar-actions .topbar-library-save > svg {
   width: 17px;
@@ -2142,6 +2143,8 @@ details > summary {
 }
 *::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, var(--gold-lo), color-mix(in oklab, var(--gold) 72%, var(--surface-3)));
+  /* 外周 2px（トラックとの切れ）＋ 内側に 1px のハイライト。
+     外周は border で、内側ハイライトは inset shadow のまま。 */
   border: 2px solid var(--surface-inset);
   border-radius: 999px;
   box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--gold-hi) 32%, transparent);

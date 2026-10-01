@@ -643,13 +643,18 @@ a:hover { color: var(--gold-hi); }
   color: var(--tx-dim);
   border-radius: var(--r-sm);
   cursor: pointer;
-  transition: all var(--t-fast) var(--e-io);
+  /* native button の既定 border を落とす。:is-active だけ 1px 引き直す。 */
+  border: 1px solid transparent;
+  transition: color var(--t-fast) var(--e-io), background var(--t-fast) var(--e-io), border-color var(--t-fast) var(--e-io);
 }
 .segmented > button:hover { color: var(--tx); }
 .segmented > button.is-active {
   background: var(--surface-3);
   color: var(--gold);
-  box-shadow: inset 0 0 0 1px var(--line-hot);
+  /* 枠線は border で引く。button は既定 border を持つため transparent で
+     リセットしてから線を入れる。inset shadow で代用すると、
+     .segmented 自身の 1px と二重線になる。 */
+  border: 1px solid var(--line-hot);
 }
 
 /* ============================================================
