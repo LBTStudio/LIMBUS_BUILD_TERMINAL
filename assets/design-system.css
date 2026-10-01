@@ -12,6 +12,7 @@
 :root{
   /* ============================================================
      v51 COLOR SYSTEM — "OBSIDIAN & LANTERN"
+     設計方針。実効値は全て本ブロック末尾の clockwork palette が持つ。
      ============================================================
      長時間視聴に耐える設計原則：
        1. 純黒回避: すべての surface は #14 以下に落とさない
@@ -21,44 +22,18 @@
           (「浮き上がるグレー」の廃止)
        3. 色相は 温色寄り (h≈32°) で微妙に変化させる
           → 上部ほど鉄暖 (h=28°), 下部ほど灯火寒暖 (h=40°)
-       4. 罫線は 3段 のみ:
+       4. 罫線は 4段:
           --line-dim: セクション内の微区切り (視線誘導)
           --line:     カード外周
+          --line-strong: 強調境界
           --line-hot: 対話可能要素の外周
        5. gold は interactive のみに使う (装飾で消費しない)
        6. data 色 (大罪 / rank / resistance) は "触れない" 帯域
      ============================================================ */
-  --bg:            #14110d;   /* ページ最背 - 灯りが遠い岩肌 */
-  --surface-0:    #1a1610;    /* セクション背景 (壁面) */
-  --surface-1:    #23201a;    /* カード surface (紙) - line と明確に差別 */
-  --surface-2:    #2b2820;    /* カード内 sub surface */
-  --surface-3:    #34302a;    /* interactive base (chips, buttons) */
-  --surface-4:    #3f3b34;    /* interactive hover */
-  --surface-inset:#0d0b08;    /* 入力欄 - 実際に凹んで見える最も濃い */
-
-  /* ---- Lines: 3段 に整理。境界は必ず 12% 以上の明度差を持たせる ---- */
-  --line-dim:     #3a352c;   /* セクション内区切り 弱 */
-  --line:         #5a5040;   /* カード外周 通常 */
-  --line-strong:  #756750;   /* 強調境界 */
-  --line-hot:     #a48544;   /* interactive外周 (gold-40) */
-
-  /* ---- Text: 4段 (title/body/meta/mute) ---- */
-  --tx:           #f2ecd8;   /* 最主要 - lantern warm white */
-  --tx-2:         #d9ceb0;
-  --tx-dim:       #a79b7c;
-  /* #7a7160 と #7c7264 は 10px 本文で AA(4.5:1) に届かず、surface-2 上で 3.51 まで
-     落ちる。4面すべてのコントラストを計算し最小 5.40 が取れる値に置き換えた。
-     --tx-dim より暗いまま muted な階層を保つ。 */
-  --tx-mute:      #9d9280;
-  --tx-inv:       #14110d;
-
-  /* ---- Accent (Limbus Gold - interactive only) ---- */
-  --gold:         #d4b158;   /* v51: 彩度と明度を微増 (視認性UP) */
-  --gold-hi:      #efc86e;
-  --gold-lo:      #8a6d2f;
-  --gold-line:    rgba(212,177,88,0.60);
-  --gold-glow:    rgba(212,177,88,0.24);
-  --gold-tint:    rgba(212,177,88,0.10);
+  /* ---- Accent (Limbus Gold - interactive only) ----
+     gold / gold-hi / gold-lo / gold-line / gold-glow / gold-tint の実効値は
+     本ブロック末尾の LBT clockwork palette が唯一の定義。
+     ここにも書いていたが全て上書きされて読み込まれなかったため削除した。 */
 
   /* ---- Sin (七大罪) colors — data viz only (interactive not allowed) ----
      v51: 彩度を +8% ~ +12%, 明度を暗色背景で識別しやすい範囲に調整。
@@ -80,18 +55,22 @@
   --rank-WAW:    #d97e3a;
   --rank-ALEPH:  #b83a3a;
 
-  /* ---- Resistance colors (WCAG AA以上, Material/Google Material カラーガイドライン準拠) ---- */
-  /* 危険→安全のスペクトルを色相・明度・記号で三重コード化。文字は必ず黒/白の高コントラストで載せる */
-  --res-脆弱:  #d32f2f;   /* 深赤 (危険度最大) */
-  --res-弱点:  #f57c00;   /* 濃橙 */
-  --res-普通:  #78909c;   /* ブルーグレー (中立) */
-  --res-抵抗:  #388e3c;   /* 深緑 */
-  --res-耐性:  #0288d1;   /* 深シアン */
-  --res-免疫:  #7b1fa2;   /* 深紫 (免疫) */
+  /* ---- Resistance colors ---- */
+  /* 危険→安全のスペクトルを色相・明度・記号で三重コード化。
+     6値ともこの定義が唯一の真実。かつてはここ と v53-overlay.css:147 の二重定義で、
+     後読みの v53 が実効値Iterationsを奪っていたが、全6値が最も暗い面（--surface-2）で
+     AA 4.5:1 に届いていなかった（2.80〜3.95）。実使用の4面全部を計算し、色相と彩度を
+     保ったまま明度だけを上げた値に置き換えた。.dot は文字を持つため 4.5:1 が必要。 */
+  --res-脆弱:  #dd5c50;   /* 深赤 (危険度最大) — 最悪 4.57 */
+  --res-弱点:  #be7239;   /* 濃橙 — 最悪 4.52 */
+  --res-普通:  #818794;   /* ブルーグレー (中立) — 最悪 4.62 */
+  --res-抵抗:  #5c9262;   /* 深緑 — 最悪 4.60 */
+  --res-耐性:  #4d8cb7;   /* 深シアン — 最悪 4.59 */
+  --res-免疫:  #9379c6;   /* 深紫 (免疫) — 最悪 4.61 */
 
-  /* ---- Status colors ---- */
-  --ok:           #7fb85c;
-  --warn:         #e0a03a;
+  /* ---- Status colors ----
+     --ok と --warn は末尾の clockwork palette が var(--gold) / var(--amber) へ
+     束縛していたため、この値は読み込まれなかった。実効値在那里に一元化済み。 */
   --err:          #d94a44;
   --info:         #4a9fe0;
 
@@ -151,6 +130,9 @@
   --e-out: cubic-bezier(0.16, 1, 0.3, 1);
   --e-io:  cubic-bezier(0.4, 0, 0.2, 1);
   --e-in:  cubic-bezier(0.4, 0, 1, 1);
+  /* v56-refinements.css が --ease-out を参照していたが未定義で常に fallback の
+     var(--e-out) が使われていた。別名として定義して意図を明確にする。 */
+  --ease-out: var(--e-out);
   --t-fast: 120ms;
   --t:      180ms;
   --t-slow: 240ms;
@@ -162,16 +144,21 @@
   --z-drawer: 200;
   --z-topbar: 100;
   --z-rail:    90;
-}
 
-/* E.G.O 3形態の識別色。影響だけ gold と同色で判別できなかったため固有色を与えた。
-   surface-2 上で 5.14:1（非テキスト装飾の 3:1 要件を満たす）。 */
-:root{
-  --ego-influence: #b872d9;
-}
+  /* ============================================================
+     LBT clockwork palette — 最終パレット。
+     ここが唯一の真実。上の v51 COLOR SYSTEM ブロックは色・罫線・テキスト・
+     gold・ok/warn の実効値を上書きしていたため、その23宣言は削除済み。
+     残しているのは spacing / radii / motion / shadow / z-index など
+     このブロックが持たないトークンのみ。
 
-/* ---- LBT clockwork palette: consolidated final tokens (v55 root moved here) ---- */
-:root{
+     削除した上書き対象（23）:
+       --bg --surface-0〜4 --surface-inset
+       --line-dim --line --line-strong --line-hot
+       --tx --tx-2 --tx-dim --tx-mute --tx-inv
+       --gold --gold-hi --gold-lo --gold-line --gold-glow --gold-tint
+       --ok --warn
+     ============================================================ */
   --bg:#0e0b09; --surface-0:#141110; --surface-1:#1a1715; --surface-2:#211d1a;
   --surface-3:#292420; --surface-4:#322c26; --surface-inset:#080605;
   --line-dim:#2a2521; --line:#3d342c; --line-strong:#57493c; --line-hot:#7a5c33;
@@ -182,6 +169,9 @@
   --amber:#e8963c; --amber-hi:#ffb35c; --amber-glow:rgba(232,150,60,.25); --amber-tint:rgba(232,150,60,.10);
   --clock-face:var(--surface-1); --clock-hand:var(--gold); --clock-ring:var(--accent);
   --neon:var(--accent); --neon-hi:var(--accent-hi); --neon-glow:var(--accent-glow); --neon-tint:var(--accent-tint); --neon-line:var(--accent-line);
+  /* E.G.O 3形態の識別色。影響だけ gold と同色で判別できなかったため固有色を与えた。
+     surface-2 上で 5.14:1（非テキスト装飾の 3:1 要件を満たす）。 */
+  --ego-influence: #b872d9;
   --res-脆弱:#8f3a33; --res-弱点:#a46935; --res-普通:#7a7060; --res-抵抗:#4e7a52; --res-耐性:#3f6d85; --res-免疫:#6b5a8a;
   --ok:var(--gold); --warn:var(--amber);
 }

@@ -1717,7 +1717,7 @@ details > summary {
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  color: var(--tx-1);
+  color: var(--tx);
   font: 700 var(--fs-12) var(--f-display);
   letter-spacing: .04em;
 }

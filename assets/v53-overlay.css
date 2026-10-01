@@ -144,14 +144,9 @@
    高彩度ベタ塗り（#d32f2f 等）は暗所でハレーションを起こし長時間注視に不向き。
    → 彩度を落とした深めのトーンに統一し、コントラストは輝度差で確保する。
    普通は彩度を落としたグレージュ（グレー+ベージュ）で無彩色の沈黙を防ぐ。 */
-:root{
-  --res-脆弱: #a5453c;   /* 落ち着いた朱 */
-  --res-弱点: #b06a35;   /* 落ち着いた琥珀 */
-  --res-普通: #6f7480;   /* ニュートラルグレージュ */
-  --res-抵抗: #4d7a52;   /* 深い苔緑 */
-  --res-耐性: #3f7396;   /* 落ち着いた青 */
-  --res-免疫: #6e5a94;   /* くすんだ紫 */
-}
+/* 抵抗値の配色は design-system.css の --res-* が唯一の定義。ここにあった
+   同名トークンは後読みで実効値を奪っていたが、全6値が最も暗い面で AA 4.5:1 に
+   届いていなかったため削除済み（補正値は design-system 側）。 */
 .res-dot[data-res]{transition: background .2s ease}
 
 /* (9) 装備サマリの直接編集入力 */
@@ -493,8 +488,8 @@ select.es-stat-input{ font-size: var(--fs-12); padding: 2px; }
 
 /* v55: 装備サマリの読み取り専用表示（非編集モード） */
 .es-stat-value{
-  font-family:var(--font-num, inherit);
-  font-size:var(--fs-lg, 1.05rem);
+  font-family:var(--f-mono);
+  font-size:var(--fs-14);
   font-weight:600;
   color:var(--tx);
   padding:4px 2px;
@@ -506,9 +501,9 @@ select.es-stat-input{ font-size: var(--fs-12); padding: 2px; }
   background:var(--surface-2, #2a261e);
   color:var(--tx);
   border:1px dashed var(--line);
-  border-radius:var(--r-sm, 6px);
+  border-radius:var(--r-sm);
   padding:3px 8px;
-  font-size:var(--fs-sm, .85rem);
+  font-size:var(--fs-11);
   max-width:180px;
 }
 .es-kw-select:focus{ border-color:var(--gold); outline:none; }
@@ -554,7 +549,7 @@ select.es-stat-input{ font-size: var(--fs-12); padding: 2px; }
   border-radius: var(--r-sm);
   display: block; margin: 0 auto;
 }
-.base-img-preview-err{ display: none; font-size: var(--fs-11); color: var(--sin-1, #d32f2f); padding: 6px; }
+.base-img-preview-err{ display: none; font-size: var(--fs-11); color: var(--err); padding: 6px; }
 .base-img-preview.is-error .base-img-preview-err{ display: block; }
 
 
@@ -647,7 +642,7 @@ select.es-stat-input{ font-size: var(--fs-12); padding: 2px; }
 .ego-skill-index,
 .ego-active-editor,
 .ego-editor-footer {
-  background: var(--surface-1, var(--surface));
+  background: var(--surface-1);
   border: 1px solid var(--line-dim);
   border-radius: var(--r-sm);
 }
