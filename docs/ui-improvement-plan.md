@@ -52,9 +52,9 @@
 | **`microsoft/playwright-cli`**（URL1 #3） | 未導入 | ✅ **最優先で導入**。下記のとおり本計画の最大の空白を埋める |
 | `ibelick` accessibility（URL1 #5） | `better-accessibility` を導入済 | 🔶 差分確認後に追加判断 |
 | `emilkowalski` design eng（URL1 #1） | 未導入 | 🔶 Motion以外の設計判断で重複の可能性 |
-| `raphael` 12 principles of animation（URL1 #6） | 未導入 | 🔶 `transition:all` 33件・reduced-motion問題と関連。Phase 3で有用 |
+| `raphael` 12 principles of animation（URL1 #6） | 未導入 | 🔶 `transition:all` は 32件を実測し全て置換済み・reduced-motion もガード済み |
 | `shadcn-ui`（URL1 #7） | — | ❌ **不採用**（下記「却下」参照） |
-| `million/react-doctor`（URL1 #4） | **URL未検証**（推測パスは404） | 🔶 実パス未確認。React診断填充は価値ありだが、URLを確認してから |
+| `million/react-doctor`（URL1 #4） | **URL未検証**（推測パスは404） | 🔶 実パス未確認。React 診断は価値ありだが、URLを確認してから |
 
 #### `playwright-cli` が埋める空白（本計画最大の弱点）
 
@@ -272,13 +272,39 @@ react-doctor には**構造的に見えない**。
 
 | # | 対応 | 場所 | 内容 |
 |---|---|---|---|
-| 3-1 | **`transition: all` 33件を明示的プロパティ指定に置換** | `design-system` 4 / `workspace` 7 / `persona-codex` 3 / `sections` 15 / `v52` 3 / `v53` 1 | 監査で各セレクタが実際に変化させるプロパティを確定済み。置換表は監査出力 §4 に正確な形で存在 |
+| 3-1 | **`transition: all` 32件を明示的プロパティ指定に置換** | `design-system` 4 / `workspace` 7 / `persona-codex` 3 / `sections` 15 / `v52` 3 / `v53` 1 | 監査で各セレクタが実際に変化させるプロパティを確定済み。置換表は監査出力 §4 に正確な形で存在 |
 | 3-2 | 角丸スケールの再構築 | 全体 | `--r-pill:999px` を新設し`99px` 2箇所を統合。`3px`×9 と `1px` を `--r-sm`/`--r` へスナップ |
-| 3-3 | **同心円違反 25組の修正** | `v65r29:81,85,86` / `v52:396,424` / `v56:1531,1555,1592` / `v52:818,832,849,858,866` / `v53:835,853` | outer = inner + padding。子側のpaddingを削るか親MCA Lepesko enlargements |
-| 3-4 | 「影=立体／線=構造」の契約徹底 | 31箇所の1pxborderを影に / 5箇所の1px影を線に | 現状は逆_usage亜種が40箇所以上 |
-| 3-5 | JS側 `scrollIntoView({behavior:"smooth"})` 6箇所の reduced-motion ガード | `PersonaCodex.js:872,883,903,930,965,990` | CSS側のガードはJSの明示behaviorを上書き**しない**。`matchMedia` チェックを共通helperに |
-| 3-6 | 共有シート（`generator.js:1581-1593`）に reduced-motion ガード | 独立ドキュメントのため `assets/*.css` を継承しない | 全共有シートが無条件で動き続ける |
-| 3-7 | `Icon` に `aria-hidden` + `focusable="false"` | `ui.js:1-19` | 約200個のSVGが AT にノイズ |
+| 3-3 | **同心円違反 25組の修正** | `v65r29:81,85,86` / `v52:396,424` / `v56:1531,1555,1592` / `v52:818,832,849,858,866` / `v53:835,853` | ⚠️ **実測では違反 0 組**。下記「3-3 の実測」を参照。記載された行番号は入れ子の想定に基づく静的推測で、実測では該当する入れ子が検出されないため修正対象なし |
+| 3-4 | 「影=立体／線=構造」の契約徹底 | 31箇所の1pxborderを影に / 5箇所の1px影を線に | ✅ 実質完了。`2-5` で border が既にある要素の擬似ボーダー3箇所を border 化（重複線を解消）、`2-6` で繰り返し影15宣言をトークン化。残る 1px inset 5箇所は内側ハイライトとして意図的であることを確認済み |
+| 3-5 | JS側 `scrollIntoView({behavior:"smooth"})` 6箇所の reduced-motion ガード | `PersonaCodex.js` | ✅ `733ed39`。`ui.js` に `scrollBehavior()` を追加し6箇所が通過。CSSの `scroll-behavior: auto` はJSの明示behaviorを上書きしないため分岐が必要 |
+| 3-6 | 共有シート（`generator.js:1581-1593`）に reduced-motion ガード | 独立ドキュメントのため `assets/*.css` を継承しない | ✅ `371ec1e`。生成シートに独自ガードを追加。アプリ内モーダルの無限スピナーは `design-system.css` のガードに `animation-iteration-count` が無く停止していなかったため併せて修正 |
+| 3-7 | `Icon` に `aria-hidden` + `focusable="false"` | `ui.js:17-18` | ✅ 実装済み（`d285d70`）。約200個のSVGが AT にノイズ |
+
+### 3-1 の実測（`db1d352`）
+
+`transition: all` は当初 33件と書かれていたが実測で **32件**。各セレクタの状態ルール（`:hover` / `.is-*` / `[data-*]` / `:disabled`）を全ファイル横断で突き合わせ、状態が変わらないプロパティのみを除いた。
+ layer をまたいだ状態ルールとグループ化セレクタ（`.btn:hover, .x:hover`）の分割が必要で、途中 2 回推論を誤っている。
+
+**注意点**: `transition` ショートハンドはカンマ区切り 1 項目につきプロパティ 1 つ。`transition: color, background 0.12s ease` では末尾 1 つしかアニメーションしない（他は duration 0s）。各プロパティに時間を付ける必要がある。
+
+### 3-3 の実測（重要: plan の記載は誤り）
+
+plan の「25組」は CSS の行番号を静的推測して列挙したもので、**実測では本物の同心円違反は 0 組**。
+
+判定条件（DOM 実測）:
+1. 親に `border-radius > 0` があり四辺に正の padding がある
+2. 子が親矩形の内側に完全に収まる
+3. 子が自分の border を持たない（独立したコントロールではない）
+4. 子の背景色が親と同一（親の面の一部として見える）
+5. `|子 radius - (親 radius - padding)| > 0.5px`
+
+この条件で走査すると候補は 3 組のみで、いずれも「親の内側に自分の線と塗りを持つ独立コントロール」（`.chip > span` / `.codex-filters > .segmented` / `.dnd-row > .dnd-handle`）で、意図的な角丸。**検出器の陽性コントロール（親16px/padding12px に子里16px を注入）でも検出は機能することを確認済み**。
+
+### 3-2 の実測
+
+`border-radius` は 25 種類 / 251 宣言。2 段階に分けた。
+- **Stage A（完全不変）**: `--r-pill: 999px` を新設し `999px`16件と `99px`2件を統合。`2px`26件→`--r-sm`、`4px`4件→`--r`、`0`4件→`--r-none`。52宣言。12/12 ピクセル一致
+- **Stage B（1px の変化）**: `3px`10件と `1px`1件を `--r-sm` へ。描画されるセレクタは 4 件（`.brand-author` / `.cond-chip` / `.reorder-btn` / `.dnd-handle`）で 3px→2px。`6px` は 2/4/8 刻みの中間値として尺度内とみなして対象外
 
 ---
 
@@ -299,8 +325,10 @@ react-doctor には**構造的に見えない**。
 
 ### 導入前：検証手段確立（最優先・Phase 0 と同時）
 
+> ✅ **2026-10-01 更新: 構築済み。** 以下は当初の計画。
+
 現状の唯一の検証手段は `cmd /c "node --test tests\*.test.mjs"`（VMベースのDOMなし）。
-`tools/provenance/pipeline-harness.mjs` はあるが、**ブラウザ渲染の検証手段は存在しない**。
+`tools/provenance/pipeline-harness.mjs` はあるが、**ブラウザ描画の検証手段は存在しない**。
 
 したがって最初に **`@playwright/cli` をグローバル導入**し、検証基盤を作る：
 
@@ -373,7 +401,8 @@ playwright-cli open https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/
 | 原則 | 根拠 |
 |---|---|
 | **axe の node 数で優先度を決める** | 静的監査の「HIGH/MEDIUM/LOW」主観分類より信頼性が高い。`nested-interactive` 145件は静的監査が**完全に漏らしていた**が、axeで即座に最上位と判明した |
-| **「1行修正でN件解消」を信用しない** | `Field` の label 修正は45箇所のbbe与应用できる以为、axe の `select-name` 4件は**別コンポーネント**（`.codex-sort`）だった。DOM probe（`generatedIds: 0`）で**自分の誤りを検出**した |
+| **「1行修正でN件解消」を信用しない** | `Field` の label 修正は45箇所に適用できそうだったが、axe の `select-name` 4件は**別コンポーネント**（`.codex-sort`）だった。DOM probe（`generatedIds: 0`）で**自分の誤りを検出**した |
+| **「静的監査の件数」をそのまま修正対象にしない** | 3-3 の「同心円違反 25組」は CSS 行番号からの推測で、DOM 実測では **0 組**。検出器の陽性コントロールを取ってから「0件」と結論した |
 | **DOM再構成後は必ず操作回帰を検証する** | stretched-link 化は「星を押しても選択されない」ことをブラウザで実測するまで未完成 |
 
 ### 5.2 実行順（上位ほど認証された内容）
@@ -384,21 +413,28 @@ playwright-cli open https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/
 | 2 | `target-size` 8件（`.p-fav` 20→24px） | ✅ `cb44e3b` |
 | 3 | `Field` の label 関連付け（`ui.js:150`） | ✅ `43c2268` |
 | 4 | `select-name` CRITICAL 4件（`.codex-sort` ×4 + `cp-input`） | ✅ `43c2268` |
-| 5 | **Phase 1-3**: `UtilitySheet` の trap/Escape/復元を4ダイアログへ | ⬜ 次 |
-| 6 | **Phase 1-2**: `SectionTitle` を `h2` 化 + `h1` 追加（`page-has-heading-one` 解消） | ⬜ |
-| 7 | **Phase 1-4**: `toast()` に `role="status"` | ⬜ |
-| 8 | **Phase 1-6**: Skip to content リンク | ⬜ |
+| 5 | **Phase 1-3**: コマンドパレットを dialog 化 + Tab trap / Escape / focus 復元 | ✅ `f5fb285` |
+| 6 | **Phase 1-2**: 見出し階層の是正 | ✅ `d285d70`（axe 0 で解消） |
+| 7 | **Phase 1-4**: `toast()` に `role="status"` / `aria-live` / `aria-atomic` | ✅ `9c23a2d` |
+| 8 | **Phase 1-6**: Skip to content リンク | ✅ `9c23a2d` |
 | 9 | `SkillDeck.js:211-221` の独自 `<label>` 群 | ⬜ |
 | 10 | `OtherSections.js:579,610` のダイス`<label>` | ⬜ |
-| 11 | **Phase 0-1**: `--purple` の誤色バグ（1行） | ⬜ |
-| 12 | `color-contrast` 2件（`.count`, `.preview-hint`） | ⬜ |
-| 13 | `aria-prohibited-attr`（`.brand-author`） | ⬜ |
-| 14 | `label-title-only` 1件（`input[type=checkbox]`） | ⬜ |
-| 15 | Phase 0 残り（`v55-dante.css` 削除、`v54-limbus.css` 隔離、`:root` 1本化） | ⬜ |
-| 16 | Phase 2（`@layer` 導入） | ⬜ |
-| 17 | Phase 3 / Phase 4 | ⬜ |
+| 11 | **Phase 0-1**: `--purple` の誤色バグ（`--ego-influence` として定義） | ✅ `44c496b` |
+| 12 | `color-contrast` 2件（`.count`, `.preview-hint`） | ✅ `d285d70` |
+| 13 | `aria-prohibited-attr`（`.brand-author`） | ✅ `d285d70` |
+| 14 | `label-title-only` 1件（`input[type=checkbox]`） | ✅ `d285d70` |
+| 15 | Phase 0 残り（`v55-dante.css` 削除、`v54-limbus.css` 隔離、`:root` 1本化） | ✅ `74b7c91` / `91ff208` / `1a59d7a` |
+| 16 | Phase 2（`@layer` 導入・`!important` 撤去・トークン集約） | ✅ `1428c6a` / `35bc076` / `6b1520e` / `2f06d99` / `5399ced` |
+| 17 | Phase 3（`transition: all` 撤去・角丸スケール・reduced-motion） | ✅ `db1d352` / `733ed39` / `371ec1e` / `49c2b1b` / `7e7c228` |
+| 18 | Phase 4（レスポンシブ・ズーム耐性） | ⬜ 残 |
 
-### 5.3 残っている axe 違反（2026-10-01 時点・6 rules / 7 nodes）
+### 5.3 残っている axe 違反
+
+> ✅ **2026-10-01 追記: 全解消。** 現在は **0 rules / 0 nodes**（`d285d70` 以降、12セクション走査で維持）。
+> passes 42 / incomplete 2。以下の表は当时的記録であり、現状は残っていない。
+
+<details>
+<summary>当時の記録（2026-10-01 時点・6 rules / 7 nodes）</summary>
 
 | 重大度 | 規則 | nodes | 対象 | 対応する順序 |
 |---|---|---|---|---|
@@ -412,9 +448,16 @@ playwright-cli open https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/
 > `region` と `scrollable-region-focusable` の両方が `.cp-overlay` / `.cp-list`（コマンドパレット）を
 > 指している。順序5のダイアログtrap実装で同時に解消される見込み。
 
+</details>
+
 ### 5.4 残存する未名付けコントロール（Field ではない独自マークアップ）
 
-ブラウザ实测で6セクションを走査した結果、`Field` を使うのはパッシブセクションのみで、
+> ✅ **2026-10-01 追記: 全解消。** `7bcdd33` で全12セクションを走査し、未名付け **0**・orphan label **0**・duplicate id **0** を確認。axe も `label` 系で 0。
+
+<details>
+<summary>当時の記録（ブラウザ実測で6セクションを走査した結果）</summary>
+
+ブラウザ実測で6セクションを走査した結果、`Field` を使うのはパッシブセクションのみで、
 以下は独自 `<label>` マークアップ：
 
 | 画面 | controls | named | 未名付け |
@@ -427,7 +470,8 @@ playwright-cli open https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/
 | 強化 | 3 | 1 | 2 |
 
 大半が `SkillDeck.js:211-221` と `OtherSections.js:579,610` の独自 `<label>` 群。
-`Field` 化か `htmlFor` 付与が要る（順序9・10）。
+
+</details>
 
 ---
 
@@ -436,7 +480,7 @@ playwright-cli open https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/
 - `--purple` / `--teal` / `--info` は token 化するか、`--accent` / `--amber` / `--ok` へ統一するか（色は意匠の一部なので要デザイン判断）
 - `share-link.js:588-697` の OGPカード 27色のハードコード色は、JSに token を複製するか、CSSから読むか（canvasなのでCSSvarsは直接読めない）
 - `items.css` の正しいトークン名への張り替えは、Phase 2-7 の JS style クラス化と同時進行が前提
-- UIライブラリ（uiarc / spaceui / componentry / skecher / planes / beUI）の**設計思想**借鉴は adopting を推奨するが、**コード依存は受け入れない**。既存テーマ（真鍮・時計機構のdark、`--gold`/`--accent`）を壊さないこと
-- `million/react-doctor` の実パス未確認。`ui-skills.com` の該当ページのURL的正确性をユーザーに確認したい
+- UIライブラリ（uiarc / spaceui / componentry / skecher / planes / beUI）の**設計思想**の参考は採用を推奨するが、**コード依存は受け入れない**。既存テーマ（真鍮・時計機構のdark、`--gold`/`--accent`）を壊さないこと
+- `million/react-doctor` の実パス未確認。`ui-skills.com` の該当ページのURL の正確性をユーザーに確認したい
 - `tools/ui/` の検証スクリプトをリポジトリにcommitするか、`AGENTS.md` の `.gitignore` 相当としてローカル専用にするか
 
