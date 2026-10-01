@@ -72,12 +72,21 @@ const ICON_PATHS = {
 };
 let _toastEl = null;
 let _toastT = null;
-function toast(msg) {
+/* 保存完了・コピー完了などの非緊急通知はpoliteのlive regionで知らせる。
+   role=status は暗黙の aria-live=polite を持つ。 assertive は緊急エラー専用なので
+   使わない。連続通知で読み上げが重複しないよう、領域は初回描画時に空で用意し、
+   以降はテキストのみ差し替える。 */
+function toast(msg, tone = "polite") {
   if (!_toastEl) {
     _toastEl = document.createElement("div");
     _toastEl.className = "toast";
+    _toastEl.setAttribute("role", "status");
+    _toastEl.setAttribute("aria-live", tone);
+    _toastEl.setAttribute("aria-atomic", "true");
     document.body.appendChild(_toastEl);
   }
+  /* 同一メッセージが連続するとDOM更新が起きないため、内容を一度空にしてから入れる */
+  _toastEl.textContent = "";
   _toastEl.textContent = msg;
   _toastEl.classList.add("is-show");
   clearTimeout(_toastT);

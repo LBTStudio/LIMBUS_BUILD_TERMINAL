@@ -1321,7 +1321,7 @@ const EgoSection = ({ state, dispatch }) => {
         if (!selected) return;
         const entry = (state.roster?.egos || []).find((x) => x.rank === selected.rank && x.no === selected.no);
         if (entry) {
-          if (entry.build?.__custom && currentSlot) { toast("装備中の自作E.G.Oは削除できません。先に装備を外してください。"); return; }
+          if (entry.build?.__custom && currentSlot) { toast("装備中の自作E.G.Oは削除できません。先に装備を外してください。", "assertive"); return; }
           if (entry.build?.__custom && !confirm(`『${selected.name}』の自作E.G.O定義を削除しますか？元のDBには存在しないため、保存ファイルがなければ復元できません。`)) return;
           dispatch({ type: "REMOVE_ROSTER_EGO", uid: entry.uid, deleteCustomConfirmed: true });
           if (entry.build?.__custom) setSelected(null);
@@ -1453,7 +1453,7 @@ const EnhancementSection = ({ state, dispatch }) => {
   const activeEnhancements = window.LBT_getActiveEnhancements?.(state) || (state.enhancements || []).filter((entry) => !isUnavailableDuringSync(entry));
   const addEnh = (entry) => {
     if (isUnavailableDuringSync(entry)) {
-      toast("未同期専用の強化は、同期化して編集した人格には追加できません");
+      toast("未同期専用の強化は、同期化して編集した人格には追加できません", "assertive");
       return;
     }
     if ((state.enhancements || []).some((current) => current.name === entry.name)) {

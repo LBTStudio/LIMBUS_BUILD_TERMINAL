@@ -3,6 +3,39 @@
    3-column workbench: Rail | Focus | Live Preview
    ============================================================ */
 
+/* Skip link: WCAG 2.4.1 bypass block。grid の子要素のままだと topbar 行に置かれ
+   レイアウトを崩すため grid-area を外し、絶対配置で画面外へ逃がす。
+   フォーカス時のみ表示する。 */
+.skip-link {
+  grid-area: unset;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10000;
+  margin: 0;
+  padding: 8px 14px;
+  font-family: var(--f-display);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  letter-spacing: .06em;
+  color: var(--tx-inv);
+  background: var(--gold-hi);
+  border: 1px solid var(--gold);
+  border-radius: 0 0 var(--r) 0;
+  text-decoration: none;
+  transform: translateY(-120%);
+  transition: transform var(--t-fast) var(--e-io);
+}
+/* :focus-visible だけでは Enter/Space による仮想カーソル利用時に表示されないため
+   :focus も対象にする。視覚的に隠すのは transform だけで、
+   見えないまま Tab 順には載る。 */
+.skip-link:focus-visible,
+.skip-link:focus {
+  transform: translateY(0);
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
 .app {
   display: grid;
   grid-template-columns: var(--rail-w) 1fr var(--preview-w);
