@@ -477,10 +477,17 @@ playwright-cli open https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/
 
 ## 付録: 未解決・要判断
 
-- `--purple` / `--teal` / `--info` は token 化するか、`--accent` / `--amber` / `--ok` へ統一するか（色は意匠の一部なので要デザイン判断）
-- `share-link.js:588-697` の OGPカード 27色のハードコード色は、JSに token を複製するか、CSSから読むか（canvasなのでCSSvarsは直接読めない）
-- `items.css` の正しいトークン名への張り替えは、Phase 2-7 の JS style クラス化と同時進行が前提
-- UIライブラリ（uiarc / spaceui / componentry / skecher / planes / beUI）の**設計思想**の参考は採用を推奨するが、**コード依存は受け入れない**。既存テーマ（真鍮・時計機構のdark、`--gold`/`--accent`）を壊さないこと
+### 2026-10-02 解決済み
+
+- ✅ `--info` は削除（`ca3140e` 相当のコミットで参照ゼロ・`--rank-TETH` と同値だったことを確認）
+- ✅ `share-link.js` の OGPカード色は `OGP_CARD_COLORS` に集約（17キー全て使用・関数内リテラル0）
+- ✅ `tools/ui/` の検証スクリプトはリポジトリに commit 済み
+- ✅ `--fs-*` は rem 化済み（既定16px ではピクセル同一、ブラウザの文字サイズ設定に追従）
+
+### 未解決・要判断
+
 - `million/react-doctor` の実パス未確認。`ui-skills.com` の該当ページのURL の正確性をユーザーに確認したい
-- `tools/ui/` の検証スクリプトをリポジトリにcommitするか、`AGENTS.md` の `.gitignore` 相当としてローカル専用にするか
+- UIライブラリ（uiarc / spaceui / componentry / skecher / planes / beUI）の**設計思想**の参考は採用を推奨するが、**コード依存は受け入れない**。既存テーマ（真鍮・時計機構の意匠）に寄せる
+- OGP Worker の本番デプロイは 2026-10-02 時点で未実施（改善1-4・7・5 は実装・push 済みだが、Cloudflare への反映には認証情報が必要）
+- `--teal` は未定義のまま参照ゼロ。`--purple` は `--ego-influence` として再定義済み
 
