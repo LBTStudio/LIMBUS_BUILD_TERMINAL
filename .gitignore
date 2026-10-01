@@ -8,5 +8,6 @@ data/provenance/*-ledger.sqlite
 .cache/
 tools/ui/shots/
 tests/*-run.log
+tmp/
 .opencode/
 AGENTS.md

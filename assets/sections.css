@@ -254,21 +254,6 @@
   border: 1px solid var(--gold-line);
   border-radius: var(--r-sm);
 }
-.deck-type {
-  font-family: var(--f-display);
-  font-size: var(--fs-10);
-  letter-spacing: 0.14em;
-  color: var(--tx-dim);
-  text-transform: uppercase;
-}
-.deck-sin-mark {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-family: var(--f-display);
-  font-size: var(--fs-11);
-  color: var(--sin-color);
-}
 .deck-sin-mark::before {
   content: '';
   width: 8px; height: 8px;
@@ -376,29 +361,7 @@
   color: var(--gold);
   border: 1px solid var(--line-dim);
 }
-.sk-var-rows {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
 @media (max-width: 800px){
-  .sk-var-rows { grid-template-columns: 1fr; }
-}
-.sk-var-chk {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  background: var(--surface-inset);
-  border: 1.5px solid var(--line-dim);
-  border-radius: var(--r-sm);
-  cursor: pointer;
-  font-family: var(--f-display);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: .04em;
-  color: var(--tx);
-  transition: background var(--t-fast), border-color var(--t-fast), border-width var(--t-fast), box-shadow var(--t-fast), color var(--t-fast);
 }
 .sk-var-chk:hover { border-color: var(--gold-line); background: var(--surface-2); }
 .sk-var-chk.is-on {
@@ -501,15 +464,6 @@
   border-radius: var(--r-sm);
 }
 .deck-dice-del:hover { color: var(--err); background: color-mix(in oklab, var(--err) 10%, transparent); }
-
-.deck-effect-label {
-  font-family: var(--f-display);
-  font-size: 9px;
-  letter-spacing: 0.16em;
-  color: var(--tx-mute);
-  text-transform: uppercase;
-  margin-top: var(--s-1);
-}
 .deck-effect {
   width: 100%;
   padding: 6px 8px;
@@ -661,21 +615,7 @@
   border: 1px solid var(--line-dim);
 }
 .ego-slot-flag.is-on { background: var(--gold-tint); color: var(--gold); border-color: var(--gold-line); }
-
-.ego-manage-btn {
-  padding: var(--s-2) var(--s-3);
-  width: 100%;
-}
-
-/* ============================================================
-   PASSIVE / SUPPORT / SPIRIT / ENHANCEMENT sections
-   ============================================================ */
-.two-col {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--s-4);
-}
-@media (max-width: 900px){ .two-col { grid-template-columns: 1fr; } }
+@media (max-width: 900px){ }
 
 .list-item {
   padding: var(--s-3);
@@ -747,12 +687,6 @@
   font-size: var(--fs-12);
   color: var(--tx);
   margin-bottom: 2px;
-}
-.spp-item-cond {
-  font-family: var(--f-mono);
-  font-size: var(--fs-10);
-  color: var(--tx-dim);
-  margin-bottom: 4px;
 }
 .spp-item-eff {
   font-size: var(--fs-11);
@@ -1077,24 +1011,6 @@
   gap: var(--s-2);
   align-items: center;
 }
-.roster-flags {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-.roster-flag {
-  padding: 2px 6px;
-  font-family: var(--f-display);
-  font-size: 9px;
-  letter-spacing: 0.14em;
-  border-radius: var(--r-sm);
-  background: var(--surface-3);
-  color: var(--tx-dim);
-  border: 1px solid var(--line-dim);
-  cursor: pointer;
-  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast);
-  text-transform: uppercase;
-}
 .roster-flag:hover { border-color: var(--line-hot); color: var(--tx); }
 .roster-flag.is-on {
   background: var(--gold-tint);
@@ -1244,7 +1160,6 @@
   border-radius: var(--r-sm);
   margin-bottom: var(--s-3);
 }
-.ego-assim-focus { border-left: 3px solid var(--gold); }
 
 
 /* ============================================================
@@ -1256,13 +1171,6 @@
 
 /* PC: 2カラムレイアウト（1200px以上で発動） */
 @media (min-width: 1200px) {
-  .settings-two-card {
-    display: grid;
-    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-    gap: var(--s-4);
-    align-items: start;
-  }
-  .settings-two-card > * { min-width: 0; }
 }
 
 /* ステータス並べ替えパネル: 高さ制限＋内部スクロール */
@@ -1273,33 +1181,6 @@
 .status-order-scroll::-webkit-scrollbar { width: 6px; }
 .status-order-scroll::-webkit-scrollbar-thumb { background: var(--line-dim); border-radius: var(--r-sm); }
 .status-order-scroll::-webkit-scrollbar-track { background: var(--surface-inset); }
-
-/* 実効ステータス一覧: グリッドで圧縮 */
-.settings-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
-  gap: 6px;
-}
-.settings-summary-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 6px 10px;
-  background: var(--surface-inset);
-  border: 1px solid var(--line-dim);
-  border-radius: var(--r-sm);
-  font-size: var(--fs-11);
-  line-height: 1.4;
-}
-.settings-summary-item b {
-  font-family: var(--f-display);
-  font-size: var(--fs-12);
-  color: var(--tx);
-}
-.settings-summary-item span {
-  color: var(--tx-mute);
-  font-size: var(--fs-10);
-}
 
 /* 設定セクションの見出しとノートの圧縮 */
 .settings-subhead {
@@ -1324,32 +1205,12 @@
   margin-bottom: var(--s-2);
 }
 
-/* 既定ステータス編集リスト: 高さ制限 */
-.settings-default-status-list {
-  max-height: 280px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-  padding-right: 4px;
-}
-
 /* モバイル: 1カラム＋適切な高さ制限 */
 @media (max-width: 1199px) {
-  .settings-two-card {
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-4);
-  }
-
-  .settings-summary-grid { grid-template-columns: repeat(auto-fill, minmax(min(160px, 100%), 1fr)); }
 }
 
 /* モバイル小画面: さらに圧縮 */
 @media (max-width: 480px) {
-
-  .settings-default-status-list { max-height: 220px; }
-  .settings-summary-grid { grid-template-columns: 1fr 1fr; }
-  .settings-summary-item { padding: 5px 8px; font-size: var(--fs-10); }
 }
 
 /* サポートパッシブ・精神の出典フィルタ */

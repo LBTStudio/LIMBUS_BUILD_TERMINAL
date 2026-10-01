@@ -252,42 +252,6 @@ a:hover { color: var(--gold-hi); }
 *::-webkit-scrollbar-thumb:hover { background: var(--surface-4); }
 *::-webkit-scrollbar-corner { background: transparent; }
 
-/* ============================================================
-   TYPE PRIMITIVES
-   ============================================================ */
-.t-display {
-  font-family: var(--f-display);
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-.t-serif {
-  font-family: var(--f-serif);
-  font-weight: 500;
-  font-style: italic;
-}
-.t-mono {
-  font-family: var(--f-mono);
-  letter-spacing: 0.02em;
-}
-
-/* Section eyebrow — Limbus style small caps */
-.t-eyebrow {
-  font-family: var(--f-display);
-  font-weight: 600;
-  font-size: var(--fs-11);
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
-  color: var(--tx-dim);
-}
-
-/* Number display for HP/SAN/speed */
-.t-num {
-  font-family: var(--f-display);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
-}
-
 /* Small label */
 .t-label {
   font-family: var(--f-display);
@@ -314,20 +278,6 @@ a:hover { color: var(--gold-hi); }
     inset 0 1px 0 rgba(255,235,180,0.04),
     0 1px 0 rgba(0,0,0,0.5),
     0 2px 6px rgba(0,0,0,0.25);
-}
-.card-2 {
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  box-shadow:
-    inset 0 1px 0 rgba(255,235,180,0.05),
-    0 1px 0 rgba(0,0,0,0.4);
-}
-.card-inset {
-  background: var(--surface-inset);
-  border: 1px solid var(--line-dim);
-  border-radius: var(--r);
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
 }
 .card-header {
   padding: var(--s-3) var(--s-4);
@@ -624,7 +574,6 @@ a:hover { color: var(--gold-hi); }
   height: 1px;
   background: linear-gradient(90deg, transparent, var(--line-strong), transparent);
 }
-.rule-l { font-family: var(--f-display); font-size: var(--fs-11); letter-spacing: 0.24em; text-transform: uppercase; }
 
 /* ============================================================
    PRIMITIVES — Tabs
@@ -783,16 +732,12 @@ a:hover { color: var(--gold-hi); }
    UTIL
    ============================================================ */
 .hidden{ display:none; }
-.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
 .stack-1 > * + * { margin-top: var(--s-1); }
 .stack-2 > * + * { margin-top: var(--s-2); }
 .stack-3 > * + * { margin-top: var(--s-3); }
 .stack-4 > * + * { margin-top: var(--s-4); }
-.stack-5 > * + * { margin-top: var(--s-5); }
 .stack-6 > * + * { margin-top: var(--s-6); }
 .row { display: flex; gap: var(--s-3); align-items: center; }
-.row-2 { display: flex; gap: var(--s-2); align-items: center; }
-.row-4 { display: flex; gap: var(--s-4); align-items: center; }
 .grow { flex: 1 1 auto; min-width: 0; }
 .truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 

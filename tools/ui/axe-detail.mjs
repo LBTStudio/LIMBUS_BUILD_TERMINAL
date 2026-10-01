@@ -4,14 +4,14 @@
 
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { loadPlaywright, walkSections, REPO_ROOT } from "./harness.mjs";
+import { loadPlaywright, walkSections, REPO_ROOT, BASE_URL } from "./harness.mjs";
 
 const axeJs = readFileSync(path.join(REPO_ROOT, ".browser-deps", "node_modules", "axe-core", "axe.min.js"), "utf8");
 const { chromium } = loadPlaywright();
 const browser = await chromium.launch({ headless: true });
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 const page = await ctx.newPage();
-await page.goto("https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/", { waitUntil: "load", timeout: 90000 });
+await page.goto(process.env.PROBE_URL || BASE_URL, { waitUntil: "load", timeout: 90000 });
 await page.waitForSelector(".rail-item", { timeout: 90000 });
 await page.waitForTimeout(1500);
 await page.addScriptTag({ content: axeJs });

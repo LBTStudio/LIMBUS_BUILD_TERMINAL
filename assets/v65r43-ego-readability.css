@@ -41,8 +41,6 @@
 .ego-resource-chip[data-sin="嫉妬"] { --ego-resource-color: var(--sin-嫉妬); }
 .ego-resource-chips.is-slot { margin-top: 2px; }
 .ego-resource-chips.is-catalog { margin-top: 6px; }
-.ego-detail-resources { display: grid; gap: 5px; margin-top: var(--s-2); }
-.ego-detail-resources-label { color: var(--tx-dim); font-family: var(--f-display); font-size: var(--fs-10); letter-spacing: .12em; }
 .ego-resource-filter-controls { display: grid; gap: 4px; }
 .ego-resource-filter-row { align-items: center; }
 .ego-resource-filter-note {

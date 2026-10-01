@@ -19,7 +19,7 @@
  * 达不到。削除の判断はここ:Person の出力だけを根拠にしないこと。
  */
 
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { loadPlaywright, walkSections, REPO_ROOT } from "./harness.mjs";
 
@@ -102,3 +102,5 @@ for (const [f, list] of [...byFile].sort((a, b) => b[1].length - a[1].length)) {
   if (list.length > 12) console.log(`     ... 他 ${list.length - 12} 件`);
 }
 console.log(`\n合計 ${dead.length} セレクタ（上限値として扱って）`);
+writeFileSync(path.join(REPO_ROOT, "tmp", "dead-list.json"), JSON.stringify(dead, null, 1));
+console.log(`→ dead-list.json（削除候補の機械可読リスト）`);

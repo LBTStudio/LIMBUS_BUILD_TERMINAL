@@ -193,20 +193,6 @@
   box-shadow: 0 0 0 2px var(--gold-tint), inset 0 1px 2px rgba(0,0,0,0.4);
 }
 
-/* [H-6] スキル本体の "効果テキスト" と "ダイス群" の間に区切りラベル
-   → 既存 .deck-effect-label をより目立たせる */
-.deck-effect-label{
-  font-family: var(--f-display);
-  font-size: 10px;
-  letter-spacing: 0.24em;
-  color: var(--sin-color, var(--gold));
-  padding: 6px 0 4px;
-  margin-top: 8px;
-  border-top: 1px dashed color-mix(in oklab, var(--sin-color, var(--gold)) 30%, transparent);
-  text-transform: uppercase;
-  font-weight: 700;
-}
-
 /* [H-7] .deck-effect (スキル効果本文) にも同じ大罪色ヒント */
 .deck-effect{
   background: var(--surface-inset);
@@ -362,32 +348,6 @@
 .section-title-num{
   color: var(--gold);
   filter: drop-shadow(0 0 4px var(--gold-glow));
-}
-
-/* ============================================================
-   [Custom Status / Unique Buff] 帰属選択セグメントを明確化
-   ============================================================ */
-.cs-place-seg{
-  display: inline-flex;
-  padding: 2px;
-  background: var(--surface-inset);
-  border: 1px solid var(--line-dim);
-  border-radius: var(--r-sm);
-  box-shadow: var(--shadow-inset-1);
-  gap: 2px;
-}
-.cs-place-seg > button{
-  padding: 4px 12px;
-  font-family: var(--f-display);
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  color: var(--tx-dim);
-  border-radius: var(--r-sm);
-  cursor: pointer;
-  transition: background var(--t-fast), box-shadow var(--t-fast), color var(--t-fast);
-  text-transform: uppercase;
-  background: transparent;
-  border: none;
 }
 .cs-place-seg > button.is-active{
   background: linear-gradient(180deg, var(--surface-3), var(--surface-2));
@@ -601,36 +561,6 @@
   min-height: 34px;
 }
 .deck-focus .deck-dice-eff{ min-height: 44px; }
-
-/* ------------------------------------------------------------
-   [N1] プレビュー本体側の折り畳みボタンを Focus 領域内にも設置
-   ------------------------------------------------------------
-   従来は .preview-close (プレビュー右パネル貼り付け) しかなく、
-   プレビュー展開中でも Focus からアクセスしたい "隠す" ボタンが欲しい。
-   → .focus 内の右上に "◀ プレビュー" フローティングを追加
-   ------------------------------------------------------------ */
-.focus-preview-toggle{
-  position: absolute;
-  top: calc(var(--topbar-h) + 8px);
-  right: calc(var(--preview-w) + 12px);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: linear-gradient(180deg, var(--surface-3), var(--surface-2));
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  color: var(--gold);
-  font-family: var(--f-display);
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  font-weight: 700;
-  cursor: pointer;
-  z-index: 40;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,235,180,0.05);
-  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast);
-}
 .focus-preview-toggle:hover{
   border-color: var(--gold-line);
   background: linear-gradient(180deg, var(--surface-4), var(--surface-3));
@@ -692,13 +622,6 @@
   background: var(--gold-tint);
   border-color: var(--gold-line);
   font-weight: 600;
-}
-
-/* [F] PersonaCodex 末尾 UniqueBuffs footer ---------------------- */
-.codex-unique-footer{
-  margin-top: var(--s-5);
-  padding-top: var(--s-4);
-  border-top: 1px dashed var(--line-dim);
 }
 .codex-unique-footer .unique-block{
   margin-bottom: 0;
@@ -785,116 +708,6 @@
   border: 1px solid var(--gold-line);
   border-radius: var(--r-sm);
   margin-left: 4px;
-}
-.ego-doka-block{
-  margin-top: var(--s-4);
-  padding: var(--s-3);
-  background: linear-gradient(180deg, var(--gold-tint), var(--surface-1));
-  border: 1px solid var(--gold-line);
-  border-left: 4px solid var(--gold);
-  border-radius: var(--r);
-}
-.ego-doka-header{
-  display: flex;
-  align-items: flex-start;
-  gap: var(--s-3);
-  margin-bottom: var(--s-3);
-  padding-bottom: var(--s-2);
-  border-bottom: 1px dashed var(--gold-line);
-}
-.ego-doka-icon{
-  font-size: 22px;
-  color: var(--gold);
-  line-height: 1;
-  margin-top: 2px;
-}
-.ego-doka-text{ flex: 1; }
-.ego-doka-title{
-  font-family: var(--f-display);
-  font-weight: 700;
-  font-size: var(--fs-14);
-  letter-spacing: 0.14em;
-  color: var(--gold);
-  margin-bottom: 4px;
-}
-.ego-doka-sub{
-  font-size: var(--fs-11);
-  color: var(--tx-2);
-  line-height: 1.6;
-}
-.ego-doka-count{
-  align-self: flex-start;
-  padding: 3px 10px;
-  font-family: var(--f-mono);
-  font-size: 10px;
-  color: var(--gold);
-  background: var(--surface-inset);
-  border: 1px solid var(--gold-line);
-  border-radius: var(--r-sm);
-  letter-spacing: 0.08em;
-  white-space: nowrap;
-}
-.ego-doka-list{
-  gap: var(--s-2);
-}
-.ego-doka-skill{
-  padding: var(--s-2) var(--s-3);
-  background: var(--surface-1);
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--gold-hi);
-  border-radius: var(--r-sm);
-}
-.ego-doka-skill-head{
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-  flex-wrap: wrap;
-}
-.ego-doka-skill-idx{
-  font-family: var(--f-display);
-  font-weight: 700;
-  font-size: 11px;
-  letter-spacing: 0.14em;
-  color: var(--gold);
-  background: var(--gold-tint);
-  border: 1px solid var(--gold-line);
-  padding: 2px 8px;
-  border-radius: var(--r-sm);
-}
-.ego-doka-skill-name{
-  font-family: var(--f-display);
-  font-weight: 700;
-  font-size: var(--fs-14);
-  color: var(--tx);
-}
-.ego-doka-skill-attr{
-  font-family: var(--f-mono);
-  font-size: 10px;
-  color: var(--tx-dim);
-  padding: 2px 8px;
-  background: var(--surface-inset);
-  border: 1px solid var(--line-dim);
-  border-radius: var(--r-sm);
-}
-.ego-doka-skill-aoe{
-  font-family: var(--f-mono);
-  font-size: 10px;
-  color: var(--gold);
-  padding: 2px 8px;
-  border: 1px solid var(--gold-line);
-  border-radius: var(--r-sm);
-}
-.ego-doka-skill-eff{
-  font-size: var(--fs-12);
-  color: var(--tx-2);
-  line-height: 1.65;
-  padding: 6px 10px;
-  background: var(--surface-inset);
-  border: 1px solid var(--line-dim);
-  border-left: 2px solid var(--gold);
-  border-radius: var(--r-sm);
-  white-space: pre-wrap;
 }
 }
 /* end @layer v52-overlay */
