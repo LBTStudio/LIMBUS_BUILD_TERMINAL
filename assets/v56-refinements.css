@@ -836,7 +836,7 @@ details > summary {
 }
 .sk-var-compact-details {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(132px, 100%), 1fr));
   gap: 6px;
   margin-top: 7px;
   padding-top: 7px;
@@ -2166,7 +2166,7 @@ details > summary {
 @media (max-width: 640px) {
   .deck-direct-nav {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(44px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(44px, 100%), 1fr));
     gap: 8px;
     padding: 8px;
     background: var(--surface-inset);

@@ -384,7 +384,7 @@
   color: var(--tx-dim);
   border-radius: var(--r-sm);
   cursor: pointer;
-  transition: background var(--t-fast), box-shadow var(--t-fast), color var(--t-fast);;
+  transition: background var(--t-fast), box-shadow var(--t-fast), color var(--t-fast);
   text-transform: uppercase;
   background: transparent;
   border: none;
@@ -472,7 +472,7 @@
   border: 1px solid var(--line);
   border-radius: var(--r);
   cursor: pointer;
-  transition: cursor var(--t-fast), opacity var(--t-fast);;
+  transition: cursor var(--t-fast), opacity var(--t-fast);
   text-align: left;
   color: var(--tx);
   font-family: var(--f-body);
@@ -629,7 +629,7 @@
   cursor: pointer;
   z-index: 40;
   box-shadow: 0 2px 6px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,235,180,0.05);
-  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast);;
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast);
 }
 .focus-preview-toggle:hover{
   border-color: var(--gold-line);

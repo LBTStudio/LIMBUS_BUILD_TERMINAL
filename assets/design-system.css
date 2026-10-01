@@ -350,7 +350,7 @@ a:hover { color: var(--gold-hi); }
   letter-spacing: 0.06em;
   color: var(--tx);
   cursor: pointer;
-  transition: --sin-color var(--t-fast) var(--e-io), background var(--t-fast) var(--e-io), border-color var(--t-fast) var(--e-io), box-shadow var(--t-fast) var(--e-io), color var(--t-fast) var(--e-io), font-size var(--t-fast) var(--e-io), font-weight var(--t-fast) var(--e-io), padding var(--t-fast) var(--e-io), text-shadow var(--t-fast) var(--e-io);;
+  transition: --sin-color var(--t-fast) var(--e-io), background var(--t-fast) var(--e-io), border-color var(--t-fast) var(--e-io), box-shadow var(--t-fast) var(--e-io), color var(--t-fast) var(--e-io), font-size var(--t-fast) var(--e-io), font-weight var(--t-fast) var(--e-io), padding var(--t-fast) var(--e-io), text-shadow var(--t-fast) var(--e-io);
   user-select: none;
   white-space: nowrap;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 2px rgba(0,0,0,0.3);
@@ -453,7 +453,7 @@ a:hover { color: var(--gold-hi); }
   background: var(--surface-2);
   color: var(--tx);
   cursor: pointer;
-  transition: box-shadow var(--t-fast) var(--e-io), cursor var(--t-fast) var(--e-io), opacity var(--t-fast) var(--e-io), outline var(--t-fast) var(--e-io);;
+  transition: box-shadow var(--t-fast) var(--e-io), cursor var(--t-fast) var(--e-io), opacity var(--t-fast) var(--e-io), outline var(--t-fast) var(--e-io);
   white-space: nowrap;
 }
 .btn:hover:not(:disabled) {
@@ -639,7 +639,7 @@ a:hover { color: var(--gold-hi); }
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
   cursor: pointer;
-  transition: border-bottom-color var(--t-fast) var(--e-io), color var(--t-fast) var(--e-io);;
+  transition: border-bottom-color var(--t-fast) var(--e-io), color var(--t-fast) var(--e-io);
 }
 .tab:hover { color: var(--tx); }
 .tab.is-active {

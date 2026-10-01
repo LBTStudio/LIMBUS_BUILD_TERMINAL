@@ -152,7 +152,11 @@
   align-items: baseline;
   gap: var(--s-3);
   min-width: 0;
-  flex: 0 1 auto;
+  /* shrink を強くして、幅が足りないときはブランド名・副題がまず省略されるようにする。
+     既定の flex-shrink: 1 だと基準幅に比例した量しか縮まず、
+     操作ボタン（.topbar-actions のアイコン）側まで縮んで、
+     overflow で切られて操作不能になる主要原因になっていた。 */
+  flex: 0 100 auto;
   overflow: hidden;
 }
 .brand-mark {
@@ -183,6 +187,12 @@
   color: var(--tx-dim);
   padding-left: var(--s-3);
   border-left: 1px solid var(--line);
+  /* .brand-name と同じく省略記号で詰める。折り返すと topbar の高さが
+   3 段になり、界面が歪む。 */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .brand-ver {
   color: var(--gold);
@@ -201,7 +211,7 @@
   border: none;
   border-radius: var(--r-sm);
   opacity: 0.55;
-  transition: background var(--t-fast), color var(--t-fast), opacity var(--t-fast);;
+  transition: background var(--t-fast), color var(--t-fast), opacity var(--t-fast);
 }
 .brand-author:hover {
   color: var(--gold);
@@ -220,9 +230,15 @@
   border: 1px solid var(--line);
   border-radius: var(--r);
   cursor: pointer;
-  transition: border-color var(--t-fast) var(--e-io), color var(--t-fast) var(--e-io);;
-  min-width: 240px;
+  transition: border-color var(--t-fast) var(--e-io), color var(--t-fast) var(--e-io);
   color: var(--tx-dim);
+  /* かつては min-width: 240px で床を張っていたため、狭い幅で
+     ツールバー（.topbar-actions）が幅を奪えず、中のアイコンボタンが
+     overflow: hidden で切り落とされて操作不能になっていた。
+     検索欄は広いが優先度は低いため、まずこの余白から縮ませて
+     操作ボタンの幅を確保する。 */
+  min-width: 0;
+  flex: 0 1 240px;
 }
 .topbar-search:hover {
   border-color: var(--line-hot);
@@ -237,7 +253,11 @@
   gap: var(--s-2);
   min-width: 0;
   flex: 0 1 auto;
-  overflow: hidden;
+  /* hidden は「中身が見えない」だけで到達性までは保証しない。
+     幅が足りないときは横スクロールで必ず届くようにする。 */
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
 }
 
 /* ============================================================
@@ -267,7 +287,7 @@
   border-radius: var(--r);
   color: var(--tx-dim);
   cursor: pointer;
-  transition: background var(--t-fast) var(--e-io), background-color var(--t-fast) var(--e-io), background-image var(--t-fast) var(--e-io), box-shadow var(--t-fast) var(--e-io), color var(--t-fast) var(--e-io), display var(--t-fast) var(--e-io), flex var(--t-fast) var(--e-io), height var(--t-fast) var(--e-io), min-height var(--t-fast) var(--e-io), min-width var(--t-fast) var(--e-io), padding var(--t-fast) var(--e-io), width var(--t-fast) var(--e-io);;
+  transition: background var(--t-fast) var(--e-io), background-color var(--t-fast) var(--e-io), background-image var(--t-fast) var(--e-io), box-shadow var(--t-fast) var(--e-io), color var(--t-fast) var(--e-io), display var(--t-fast) var(--e-io), flex var(--t-fast) var(--e-io), height var(--t-fast) var(--e-io), min-height var(--t-fast) var(--e-io), min-width var(--t-fast) var(--e-io), padding var(--t-fast) var(--e-io), width var(--t-fast) var(--e-io);
   position: relative;
 }
 .rail-item:hover {
@@ -443,7 +463,7 @@
   border: none;
   border-bottom: 2px solid transparent;
   cursor: pointer;
-  transition: background var(--t-fast) var(--e-io), border-bottom-color var(--t-fast) var(--e-io), color var(--t-fast) var(--e-io);;
+  transition: background var(--t-fast) var(--e-io), border-bottom-color var(--t-fast) var(--e-io), color var(--t-fast) var(--e-io);
 }
 .preview-tab:hover { color: var(--tx); }
 .preview-tab.is-active {
@@ -545,7 +565,7 @@
   border: 1px solid var(--line-dim);
   border-radius: var(--r-sm);
   cursor: pointer;
-  transition: border-color var(--t-fast), color var(--t-fast);;
+  transition: border-color var(--t-fast), color var(--t-fast);
 }
 .pv-sec-tbtn:hover {
   color: var(--gold);
@@ -574,7 +594,7 @@
   letter-spacing: 0.16em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: background var(--t-fast), color var(--t-fast);;
+  transition: background var(--t-fast), color var(--t-fast);
   text-align: left;
 }
 .pv-sec-head:hover {
@@ -642,7 +662,7 @@
   z-index: var(--z-toast);
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--t) var(--e-out), transform var(--t) var(--e-out);;
+  transition: opacity var(--t) var(--e-out), transform var(--t) var(--e-out);
   box-shadow: var(--shadow-3);
 }
 .toast.is-show {
