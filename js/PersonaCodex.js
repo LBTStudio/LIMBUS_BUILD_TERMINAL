@@ -876,8 +876,9 @@ const PersonaCodex = ({ state, dispatch }) => {
   const getFocusScroller = () => document.querySelector("main.focus");
   const scrollIntoFocus = (target, block = "start") => {
     if (!target) return;
+    const behavior = scrollBehavior();
     // まずブラウザーに実際のスクロール祖先を解決させる。レイアウトが画面幅で変わるPC・モバイル双方に自然に追従する。
-    target.scrollIntoView({ behavior: "smooth", block, inline: "nearest" });
+    target.scrollIntoView({ behavior, block, inline: "nearest" });
     // 固定レール等で主スクロール領域に残る環境だけを補正する。
     window.setTimeout(() => {
       const scroller = getFocusScroller();
@@ -888,7 +889,7 @@ const PersonaCodex = ({ state, dispatch }) => {
       if (visible) return;
       const targetTop = scroller.scrollTop + targetRect.top - scrollerRect.top;
       const offset = block === "center" ? Math.max(0, (scroller.clientHeight - targetRect.height) / 2) : 12;
-      scroller.scrollTo({ top: Math.max(0, targetTop - offset), behavior: "smooth" });
+      scroller.scrollTo({ top: Math.max(0, targetTop - offset), behavior });
     }, 140);
   };
   React.useEffect(() => {
@@ -908,7 +909,7 @@ const PersonaCodex = ({ state, dispatch }) => {
       if (willExpand) {
         scrollIntoFocus(document.getElementById("persona-list-region"), "start");
       } else {
-        getFocusScroller()?.scrollTo({ top: 0, behavior: "smooth" });
+        getFocusScroller()?.scrollTo({ top: 0, behavior: scrollBehavior() });
       }
     }, 40);
   };
@@ -935,7 +936,7 @@ const PersonaCodex = ({ state, dispatch }) => {
     setTimeout(() => {
       const focusEl = document.querySelector("main.focus");
       if (focusEl) {
-        focusEl.scrollTo({ top: 0, behavior: "smooth" });
+        focusEl.scrollTo({ top: 0, behavior: scrollBehavior() });
       }
     }, 20);
     toast(`\u300E${p.name}\u300F\u3092\u88C5\u5099`);
@@ -970,7 +971,7 @@ const PersonaCodex = ({ state, dispatch }) => {
     setShowEquippedDetail(false);
     setTimeout(() => {
       const focusEl = document.querySelector("main.focus");
-      if (focusEl) focusEl.scrollTo({ top: 0, behavior: "smooth" });
+      if (focusEl) focusEl.scrollTo({ top: 0, behavior: scrollBehavior() });
     }, 20);
     toast(`\u30AB\u30B9\u30BF\u30E0\u4EBA\u683C\u300E${name}\u300F\u3092\u88C5\u5099`);
   };
@@ -995,7 +996,7 @@ const PersonaCodex = ({ state, dispatch }) => {
     setDraftAffiliationKey("");
     setDraftAffiliationQuery("");
     toast(affiliation ? `草案を『${affiliation.name}』の同期人格として反映` : `草案人格『${draftResult.persona.name}』を編集中として装備`);
-    setTimeout(() => document.querySelector("main.focus")?.scrollTo({ top: 0, behavior: "smooth" }), 20);
+    setTimeout(() => document.querySelector("main.focus")?.scrollTo({ top: 0, behavior: scrollBehavior() }), 20);
   };
   const hasActiveFilters = ui.filterSins.length || ui.filterKws.length || ui.filterAffs.length || ui.searchQuery || ui.filterResS || ui.filterResP || ui.filterResB || ui.filterOwnedOnly;
   const equippedPersona = state.personaSrc;

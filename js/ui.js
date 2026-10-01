@@ -72,6 +72,22 @@ const ICON_PATHS = {
 };
 let _toastEl = null;
 let _toastT = null;
+
+/* prefers-reduced-motion: reduce のときだけ瞬時ジャンプへ切り替える。
+   CSS 側で scroll-behavior: auto にしても、スクロール系 API に
+   behavior: "smooth" を明示するとそちらが優先されてしまい、
+   CSS のガードでは止まらない。そのため JS 側でも分岐する。
+   OS の設定変更にも追随する必要があるため、リスナーは登録せず
+   呼び出しのたびに matchMedia を問い合わせる。 */
+function scrollBehavior() {
+  try {
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+  } catch (_) {
+    /* matchMedia を持たない環境では従来の滑らかな挙動に寄せる */
+    return "smooth";
+  }
+}
+
 /* 保存完了・コピー完了などの非緊急通知はpoliteのlive regionで知らせる。
    role=status は暗黙の aria-live=polite を持つ。 assertive は緊急エラー専用なので
    使わない。連続通知で読み上げが重複しないよう、領域は初回描画時に空で用意し、
@@ -415,6 +431,7 @@ Object.assign(window, {
   ResRow,
   PersonaSinPills,
   toast,
+  scrollBehavior,
   useDragReorder,
   CondChips
 });
