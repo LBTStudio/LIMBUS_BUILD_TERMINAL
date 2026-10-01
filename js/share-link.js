@@ -572,6 +572,32 @@
     return chars.length > max ? `${chars.slice(0, Math.max(1, max - 1)).join("")}…` : chars.join("");
   }
 
+  /* 既定 OGP カードの色。
+   canvas は CSS 変数を読めないため、CSS の token と同じ値をここで固定している。
+   assets/design-system.css の --surface-0 / --gold 系と対応している。
+   色を変えるときは CSS 側も併せて確認すること。 */
+  const OGP_CARD_COLORS = {
+    surfaceTop: "#0d0b09",
+    surfaceMid: "#251812",
+    surfaceBottom: "#100d0b",
+    frame: "rgba(212,175,95,.25)",
+    clockFill: "#280d0d",
+    clockRing: "#6f2924",
+    clockRingInner: "#160909",
+    clockFace: "#151414",
+    clockHand: "#d1a44d",
+    title: "#eecf8a",
+    subtitle: "#f0c96d",
+    accent: "#d6aa54",
+    gold: "#d4af5f",
+    body: "#f2ece1",
+    outline: "#d8b25f",
+    label: "#1d100d",
+    muted: "#17100d",
+    /* 時計の針。影側の太い線と本体で 2 諧調に分ける。 */
+    clockHandBody: "#d0a34f"
+  };
+
   function createDefaultOgpImageData(state) {
     try {
       if (!window.document?.createElement) return "";
@@ -584,13 +610,14 @@
       const personaName = clipOgpCardText(preview.personaName || state?.charName || "キャラクターシート", 34);
       const speed = clipOgpCardText(state?.speed || state?.personaSrc?.speed || "?", 12);
       const sync = [preview.syncRank ? `同期${preview.syncRank}` : "", preview.syncMax ? "MAX" : ""].filter(Boolean).join(" · ");
+      const C = OGP_CARD_COLORS;
       const gradient = ctx.createLinearGradient(0, 0, 1200, 630);
-      gradient.addColorStop(0, "#0d0b09");
-      gradient.addColorStop(.54, "#251812");
-      gradient.addColorStop(1, "#100d0b");
+      gradient.addColorStop(0, C.surfaceTop);
+      gradient.addColorStop(.54, C.surfaceMid);
+      gradient.addColorStop(1, C.surfaceBottom);
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, 1200, 630);
-      ctx.strokeStyle = "rgba(212,175,95,.25)";
+      ctx.strokeStyle = C.frame;
       ctx.lineWidth = 2;
       ctx.strokeRect(38, 38, 1124, 554);
       // 右上は二重丸ではなく、ダンテを想起させる深紅の時計として描く。
@@ -599,25 +626,25 @@
       const clockY = 135;
       const clockR = 122;
       ctx.save();
-      ctx.fillStyle = "#280d0d";
+      ctx.fillStyle = C.clockFill;
       ctx.beginPath();
       ctx.arc(clockX, clockY, clockR + 12, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = "#6f2924";
+      ctx.strokeStyle = C.clockRing;
       ctx.lineWidth = 16;
       ctx.beginPath();
       ctx.arc(clockX, clockY, clockR + 4, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.strokeStyle = "#160909";
+      ctx.strokeStyle = C.clockRingInner;
       ctx.lineWidth = 5;
       ctx.beginPath();
       ctx.arc(clockX, clockY, clockR + 4, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.fillStyle = "#151414";
+      ctx.fillStyle = C.clockFace;
       ctx.beginPath();
       ctx.arc(clockX, clockY, clockR - 9, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = "#d1a44d";
+      ctx.strokeStyle = C.clockHand;
       ctx.lineWidth = 7;
       ctx.beginPath();
       ctx.arc(clockX, clockY, clockR - 13, 0, Math.PI * 2);
@@ -631,7 +658,7 @@
         const angle = tick * Math.PI / 6 - Math.PI / 2;
         const inner = clockR - (tick % 3 === 0 ? 39 : 33);
         const outer = clockR - 22;
-        ctx.strokeStyle = "#d8b25f";
+        ctx.strokeStyle = C.outline;
         ctx.lineWidth = tick % 3 === 0 ? 5 : 3;
         ctx.beginPath();
         ctx.moveTo(clockX + Math.cos(angle) * inner, clockY + Math.sin(angle) * inner);
@@ -641,14 +668,14 @@
       const drawClockHand = (angle, length, width) => {
         const endX = clockX + Math.cos(angle) * length;
         const endY = clockY + Math.sin(angle) * length;
-        ctx.strokeStyle = "#1d100d";
+        ctx.strokeStyle = C.label;
         ctx.lineWidth = width + 5;
         ctx.lineCap = "round";
         ctx.beginPath();
         ctx.moveTo(clockX, clockY);
         ctx.lineTo(endX, endY);
         ctx.stroke();
-        ctx.strokeStyle = "#d0a34f";
+        ctx.strokeStyle = C.clockHandBody;
         ctx.lineWidth = width;
         ctx.beginPath();
         ctx.moveTo(clockX, clockY);
@@ -657,30 +684,30 @@
       };
       drawClockHand(-5 * Math.PI / 6, 80, 7);
       drawClockHand(-Math.PI / 6, 96, 6);
-      ctx.fillStyle = "#17100d";
+      ctx.fillStyle = C.muted;
       ctx.beginPath();
       ctx.arc(clockX, clockY, 14, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = "#d6aa54";
+      ctx.fillStyle = C.accent;
       ctx.beginPath();
       ctx.arc(clockX, clockY, 9, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = "#f0c96d";
+      ctx.fillStyle = C.subtitle;
       ctx.beginPath();
       ctx.arc(clockX - 2, clockY - 2, 3, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
-      ctx.fillStyle = "#d4af5f";
+      ctx.fillStyle = C.gold;
       ctx.font = "600 25px sans-serif";
       ctx.fillText("PERSONA / 人格", 82, 112);
       ctx.fillStyle = "rgba(242,236,225,.76)";
       ctx.font = "500 18px sans-serif";
       ctx.fillText("CCFOLIA CHARACTER SHEET", 84, 147);
-      ctx.fillStyle = "#f2ece1";
+      ctx.fillStyle = C.body;
       ctx.font = personaName.length > 24 ? "700 52px sans-serif" : "700 68px sans-serif";
       ctx.fillText(personaName, 82, 255);
       if (sync) {
-        ctx.fillStyle = "#eecf8a";
+        ctx.fillStyle = C.title;
         ctx.font = "600 24px sans-serif";
         ctx.fillText(sync, 86, 300);
       }
@@ -691,10 +718,10 @@
         ctx.strokeStyle = "rgba(212,175,95,.38)";
         ctx.lineWidth = 2;
         ctx.strokeRect(x, 370, 258, 132);
-        ctx.fillStyle = "#d4af5f";
+        ctx.fillStyle = C.gold;
         ctx.font = "600 20px sans-serif";
         ctx.fillText(label, x + 24, 408);
-        ctx.fillStyle = "#f2ece1";
+        ctx.fillStyle = C.body;
         ctx.font = "700 52px sans-serif";
         ctx.fillText(String(value || "?"), x + 22, 473);
       });
