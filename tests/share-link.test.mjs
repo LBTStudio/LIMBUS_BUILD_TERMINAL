@@ -306,7 +306,16 @@ test("静的共有ページはDiscord向けのOGPと圧縮共有データの復�
   assert.match(html, /property="og:url" content="https:\/\/lbtstudio\.github\.io\/LIMBUS_BUILD_TERMINAL\/share\.html"/);
   assert.match(html, /property="og:title" content="LIMBUS BUILD TERMINAL — キャラクターシート"/);
   assert.match(html, /property="og:image" content="https:\/\/lbtstudio\.github\.io\/LIMBUS_BUILD_TERMINAL\/assets\/lbt-share-card\.png"/);
-  assert.match(html, /js\/share-link\.js\?v=65/);
+  // share.html は index.html と同じリビジョンで配信する。
+  // ここが古いと、発行側（share-link.js）の更新が viewer 側に届かない。
+  const indexHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const shareLinkVersion = /js\/share-link\.js\?v=(\w+)/.exec(html)?.[1];
+  const indexLinkVersion = /js\/share-link\.js\?v=(\w+)/.exec(indexHtml)?.[1];
+  assert.ok(shareLinkVersion, "share.html が share-link.js を version 付きで読んでいる");
+  assert.equal(shareLinkVersion, indexLinkVersion, "share.html と index.html の share-link.js の version が一致する");
+  const generatorVersion = /js\/generator\.js\?v=(\w+)/.exec(html)?.[1];
+  const indexGeneratorVersion = /js\/generator\.js\?v=(\w+)/.exec(indexHtml)?.[1];
+  assert.equal(generatorVersion, indexGeneratorVersion, "share.html と index.html の generator.js の version が一致する");
   assert.match(html, /js\/share-viewer\.js\?v=65/);
   const viewer = readFileSync(new URL("../js/share-viewer.js", import.meta.url), "utf8");
   assert.match(viewer, /window\.addEventListener\("hashchange"/);

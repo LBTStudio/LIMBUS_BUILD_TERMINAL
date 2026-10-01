@@ -557,7 +557,19 @@
 
   function sharePreview(state) {
     const selected = selectedPersonaRecord(state);
-    const personaName = String(state?.personaSrc?.name || "").trim();
+    /* 公式人格は snapshot 側で personaSrc を削除して personaRef だけを残すため、
+       共有判断に使う state には名前が無い。personaRef の mode/no から
+       公式DBを引き直さないと summary に名前が入らない。
+       Worker 側の enrichOfficialPersona と同じ解決順にしている。 */
+    const ref = state?.personaRef || {};
+    const refName = String(ref.name || ref.override?.name || "").trim();
+    const refMode = String(ref.mode || state?.personaMode || "");
+    const official = !refName && (refMode === "n" || refMode === "t") && ref.no != null
+      ? findPersonaSource(window.DB, refMode, ref.no, "")
+      : null;
+    const personaName = String(
+      state?.personaSrc?.name || refName || official?.name || ""
+    ).trim();
     return {
       personaName,
       hp: displayStatus(state, "hp"),
