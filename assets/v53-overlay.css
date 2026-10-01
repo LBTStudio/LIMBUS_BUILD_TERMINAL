@@ -121,16 +121,16 @@
 
 /* (3) 削除ボタンの視認性強化（全体共通クラス） */
 .lbt-del, .btn.lbt-del {
-  color: #fff !important;
-  background: color-mix(in oklab, var(--err) 38%, var(--surface-2)) !important;
-  border: 1px solid var(--err) !important;
+  color: #fff;
+  background: color-mix(in oklab, var(--err) 38%, var(--surface-2));
+  border: 1px solid var(--err);
   border-radius: var(--r-sm);
   font-weight: 600;
   letter-spacing: 0.04em;
   box-shadow: 0 1px 4px color-mix(in oklab, var(--err) 30%, transparent);
 }
 .lbt-del:hover {
-  background: var(--err) !important;
+  background: var(--err);
   box-shadow: 0 0 10px color-mix(in oklab, var(--err) 55%, transparent);
 }
 /* アイコンのみの削除ボタン（ゴースト）も最低限の識別性を確保 */
@@ -239,7 +239,7 @@ select.es-stat-input{ font-size: var(--fs-12); padding: 2px; }
 
 /* スキルサムネイル: 大罪色を左縁と淡背景に反映（参照性向上） */
 .deck-thumb{
-  border-left: 3px solid var(--sin-c, var(--line)) !important;
+  border-left: 3px solid var(--sin-c, var(--line));
   background:
     linear-gradient(90deg, color-mix(in oklab, var(--sin-c, transparent) 10%, transparent), transparent 55%),
     var(--surface-1);
@@ -276,49 +276,49 @@ select.es-stat-input{ font-size: var(--fs-12); padding: 2px; }
 @media (max-width: 640px){
   /* codex: 完全単一列化。詳細パネルは下に通常配置（sticky解除） */
   .codex{
-    grid-template-columns: 1fr !important;
-    min-height: 0 !important;
+    grid-template-columns: 1fr;
+    min-height: 0;
     gap: var(--s-3);
   }
   .codex-detail{
-    position: static !important;
-    max-height: none !important;
+    position: static;
+    max-height: none;
   }
   .codex-grid{
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   }
   /* 装備サマリ: stats を2列グリッドに */
   .es-stats{
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    gap: var(--s-2) !important;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-2);
   }
   .es-actions{ flex-wrap: wrap; }
   .es-head{ flex-wrap: wrap; }
   /* サポートスロットは縦積み */
-  .spp-slots{ grid-template-columns: 1fr !important; }
+  .spp-slots{ grid-template-columns: 1fr; }
   /* スキルカードのメタ行は折り返し許容 */
   .deck-meta{ flex-wrap: wrap; }
   .deck-meta > div{ min-width: 120px; }
   /* パッシブ/設定等の2列フォームは単一列へ */
   .card-body [style*="grid-template-columns:1fr 1fr"],
   .card-body [style*="grid-template-columns: 1fr 1fr"]{
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr;
   }
   /* 固有バフ編集グリッドを縦積みに */
   .unique-item > div[style*="grid-template-columns"]{
-    grid-template-columns: 1fr 1fr !important;
+    grid-template-columns: 1fr 1fr;
   }
   /* サムネストリップは横スクロールのまま（DnDと両立） */
   .deck-thumbs{ overflow-x: auto; }
   /* モーダルは全画面化 */
-  .share-modal{ max-width: 96vw !important; }
+  .share-modal{ max-width: 96vw; }
   /* 共有URL: 長いURLを見切らせず、コピー操作を主URLの直下へ縦積みする */
-  .share-url-field{ display:block !important; padding:10px !important; }
+  .share-url-field{ display:block; padding:10px; }
   .share-url-field > div{
     flex-direction:column;
     align-items:stretch;
-    gap:8px !important;
+    gap:8px;
   }
   .share-url-field .input{
     width:100%;
@@ -331,7 +331,7 @@ select.es-stat-input{ font-size: var(--fs-12); padding: 2px; }
     justify-content:center;
   }
   .share-url-field > div > div:first-child{
-    align-self:auto !important;
+    align-self:auto;
   }
   /* codex フィルタの検索行を縦積み */
   .codex-filter-row{ flex-wrap: wrap; }
@@ -340,8 +340,8 @@ select.es-stat-input{ font-size: var(--fs-12); padding: 2px; }
 
 /* 1024px 帯でも codex-detail の占有を緩和（タブレット縦） */
 @media (min-width: 641px) and (max-width: 1024px){
-  .codex{ grid-template-columns: 1fr !important; }
-  .codex-detail{ position: static !important; }
+  .codex{ grid-template-columns: 1fr; }
+  .codex-detail{ position: static; }
 }
 
 /* ============================================================
@@ -391,23 +391,23 @@ select.es-stat-input{ font-size: var(--fs-12); padding: 2px; }
    ============================================================ */
 @media (max-width: 1024px){
   .app.preview-collapsed{
-    grid-template-columns: 60px 1fr !important;
-    grid-template-rows: var(--topbar-h) 1fr !important;
+    grid-template-columns: 60px 1fr;
+    grid-template-rows: var(--topbar-h) 1fr;
     grid-template-areas:
       "topbar topbar"
-      "rail   focus" !important;
+      "rail   focus";
   }
   /* プレビューは固定ドロワーなので grid 領域から外れてよい */
   .app.preview-collapsed .preview{ transform: translateX(100%); }
 }
 @media (max-width: 640px){
   .app.preview-collapsed{
-    grid-template-columns: 1fr !important;
-    grid-template-rows: var(--topbar-h) 1fr 60px !important;
+    grid-template-columns: 1fr;
+    grid-template-rows: var(--topbar-h) 1fr 60px;
     grid-template-areas:
       "topbar"
       "focus"
-      "rail" !important;
+      "rail";
   }
   .app.preview-collapsed .focus{ min-width: 0; width: 100%; }
 }
@@ -448,9 +448,9 @@ select.es-stat-input{ font-size: var(--fs-12); padding: 2px; }
   .focus{ min-width: 0; width: 100%; overflow-x: hidden; }
   .focus-inner{ max-width: 100%; }
   /* 装備サマリの stats は2列 */
-  .equipped-summary .es-stats{ grid-template-columns: 1fr 1fr !important; }
+  .equipped-summary .es-stats{ grid-template-columns: 1fr 1fr; }
   /* 詳細パネル内の統計も2列 */
-  .detail-stats{ grid-template-columns: 1fr 1fr !important; }
+  .detail-stats{ grid-template-columns: 1fr 1fr; }
   /* 長い識別子（No.等）の折返し */
   .es-eyebrow, .detail-eyebrow{ flex-wrap: wrap; }
 }
@@ -623,9 +623,9 @@ select.es-stat-input{ font-size: var(--fs-12); padding: 2px; }
   .ego-kind-select { flex: 1 1 100%; min-height: 38px; }
   .ego-aoe-field { flex-direction: column; }
   .ego-aoe-field > .input { flex-basis: auto; width: 100%; }
-  .ego-editor [style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+  .ego-editor [style*="grid-template-columns"] { grid-template-columns: 1fr; }
   .ego-skill-editor .deck-dice { overflow: visible; }
-  .ego-skill-editor .deck-dice-row { grid-template-columns: 28px minmax(0, 1fr) minmax(0, 1.2fr) 28px !important; }
+  .ego-skill-editor .deck-dice-row { grid-template-columns: 28px minmax(0, 1fr) minmax(0, 1.2fr) 28px; }
   .manual-edit-row { min-height: 40px; }
   .manual-edit-row .btn { min-height: 34px; }
   .spp-slot .input,

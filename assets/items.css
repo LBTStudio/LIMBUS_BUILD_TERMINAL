@@ -118,7 +118,9 @@
 
 @media (max-width: 560px) {
   .item-custom-editor { grid-template-columns: 1fr; }
-  .item-custom-editor label { grid-column: 1 / -1 !important; }
+  /* 狭幅では全ラベルが1列に並ぶ。!important は不要: items.css は
+     読み込み順で最後に当たり、同じ詳細度の他宣言より後に来る。 */
+  .item-custom-editor label { grid-column: 1 / -1; }
   .item-custom-editor input,
   .item-custom-editor select { min-height: 40px; font-size: 16px; }
 }

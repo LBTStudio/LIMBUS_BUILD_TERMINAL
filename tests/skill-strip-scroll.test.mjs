@@ -27,6 +27,9 @@ test("ドラッグ横スクロール中のスキル一覧はPC向けの視覚フ
 });
 
 test("矢印キー移動案内はプレビュー展開時にも背景から分離した高視認性スタイルを持つ", () => {
-  assert.match(sectionsCss, /\.deck-nav-info > span:last-child \{[\s\S]*?border: 1px solid var\(--gold-line\);[\s\S]*?background: color-mix\(in oklab, var\(--gold\) 10%, var\(--surface-3\)\);[\s\S]*?color: var\(--gold-hi\) !important;/);
+  /* color の !important は 2026-10-01 に撤去。sections.css は読み込み順で
+     persona-codex.css より後に当たっており、同詳細度の宣言より後に来るため
+     !important なしでも他を上書きできる。 */
+  assert.match(sectionsCss, /\.deck-nav-info > span:last-child \{[\s\S]*?border: 1px solid var\(--gold-line\);[\s\S]*?background: color-mix\(in oklab, var\(--gold\) 10%, var\(--surface-3\)\);[\s\S]*?color: var\(--gold-hi\);/);
   assert.match(sectionsCss, /@media \(max-width: 640px\) \{[\s\S]*?\.deck-nav-info > span:last-child/);
 });

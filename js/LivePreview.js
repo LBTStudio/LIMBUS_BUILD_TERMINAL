@@ -57,7 +57,11 @@ const PreviewSection = ({ section, idx, collapsed, onToggle, included, onToggleI
   const rowProps = dragRowProps || {};
   return /* @__PURE__ */ React.createElement("div", { className: `pv-sec${collapsed ? " is-collapsed" : ""}${isEmpty ? " is-empty" : ""}${included === false ? " is-excluded" : ""} ${rowProps.className || ""}`.trim(), "data-drop": rowProps["data-drop"], onDragOver: rowProps.onDragOver, onDragLeave: rowProps.onDragLeave, onDrop: rowProps.onDrop }, section.title ? /* @__PURE__ */ React.createElement(
     "div",
-    { className: "pv-sec-head", style: { display: "flex", alignItems: "center", gap: 6 } },
+    /* gap はインラインスタイルで 6px を指定していたため、CSS の
+   .pv-sec > .pv-sec-head { gap: 8px } を !important で上書きする必要があった。
+   !important を不要にするため、間隔の責務をスタイルシートへ統一する。
+   display / align-items は CSS 側（workspace.css の .pv-sec-head）に既にある。 */
+{ className: "pv-sec-head" },
     dragHandleProps ? /* @__PURE__ */ React.createElement("div", { className: "pv-sec-reorder", "aria-label": "カテゴリの並べ替え" }, /* @__PURE__ */ React.createElement("span", { ...dragHandleProps, className: "pv-sec-drag", style: { ...(dragHandleProps.style || {}) }, title: "長押ししてドラッグで並べ替え" }, "\u22EE\u22EE"), /* @__PURE__ */ React.createElement("button", { type: "button", className: "pv-sec-move", disabled: !canMoveUp, onClick: (e) => { e.stopPropagation(); onMoveUp && onMoveUp(); }, title: "このカテゴリを上へ移動", "aria-label": "このカテゴリを上へ移動" }, "\u2191"), /* @__PURE__ */ React.createElement("button", { type: "button", className: "pv-sec-move", disabled: !canMoveDown, onClick: (e) => { e.stopPropagation(); onMoveDown && onMoveDown(); }, title: "このカテゴリを下へ移動", "aria-label": "このカテゴリを下へ移動" }, "\u2193")) : null,
     /* @__PURE__ */ React.createElement("input", {
       type: "checkbox",

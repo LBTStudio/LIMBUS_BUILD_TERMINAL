@@ -14,14 +14,18 @@ test("モバイルの下部ナビゲーションは横スクロールせず全�
   assert.match(v64r94, /grid-template-rows: repeat\(2, 52px\)/);
   assert.match(v64r94, /\.rail \{[\s\S]*?overflow: hidden;/);
   assert.match(v64r94, /\.rail \{[\s\S]*?position: fixed;[\s\S]*?bottom: 0;/);
-  assert.match(v64r95, /\.topbar \.topbar-actions \{ display: none !important; \}/);
+  /* !important は 2026-10-01 に全 156 件から 2 件（reduced-motion の抑制のみ）へ
+     削減した。これらは CSS 側の同名宣言より強い必要がある mobile 幅の規則群で、
+     インライン style との競合を避けている。 !important が無い状態も
+     別途検証する（v56 は読み込み順で最後に当たっており、同詳細度なら必ず勝つ）。 */
+  assert.match(v64r95, /\.topbar \.topbar-actions \{ display: none; \}/);
   assert.match(v64r95, /\.topbar > \.utility-trigger \{[\s\S]*?min-width: 104px;/);
-  assert.match(v64r94, /grid-template-rows: var\(--topbar-h\) minmax\(0, 1fr\) !important;/);
+  assert.match(v64r94, /grid-template-rows: var\(--topbar-h\) minmax\(0, 1fr\);/);
   assert.match(v64r94, /--lbt-mobile-rail-h: calc\(114px \+ env\(safe-area-inset-bottom, 0px\)\);/);
   assert.match(v64r94, /\.focus \{ padding-bottom: calc\(var\(--lbt-mobile-rail-h\) \+ 12px\); \}/);
   assert.match(v64r94, /padding: 4px 4px calc\(4px \+ env\(safe-area-inset-bottom, 0px\)\);/);
   assert.match(v64r94, /bottom: var\(--lbt-mobile-rail-h\);/);
-  assert.match(v64r95, /\.focus,\s*\.rail \{\s*min-height: 0 !important;/);
+  assert.match(v64r95, /\.focus,\s*\.rail \{\s*min-height: 0;/);
   const v64r100 = refinements.slice(refinements.indexOf("v64r100"));
   assert.match(v64r100, /@media \(min-width: 641px\) and \(max-width: 1024px\) and \(max-height: 520px\)/);
   assert.match(v64r100, /grid-template-columns: repeat\(6, minmax\(0, 1fr\)\)/);

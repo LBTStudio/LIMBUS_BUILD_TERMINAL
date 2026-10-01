@@ -85,9 +85,15 @@
 .app.preview-collapsed .preview-reopen { display: flex; }
 .preview-reopen:hover { background: var(--surface-4); color: var(--gold-hi); }
 
-/* 常時表示のプレビュー開閉タブ。格納時と展開時で同じ操作を使う。 */
+/* 常時表示のプレビュー開閉タブ。格納時と展開時で同じ操作を使う。
+   実際に表示されるのは .preview-edge-toggle の方（下の定義）。
+   .preview-reopen と .preview-close は 640px 未満のブレークポイントで
+   使われる想定だが、現状いずれも JS から描画されないため隠したままにする。
+   ここでは !important を使わず、:.not(.app) で全プロジェクト共通の
+   display:none ルールより後にあることを利用している（このファイルは
+   workspace.css で、base より後の layer にある）。 */
 .preview-reopen,
-.preview-close { display: none !important; }
+.preview-close { display: none; }
 .preview-edge-toggle {
   position: fixed;
   top: calc(var(--topbar-h) + 14px);
