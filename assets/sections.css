@@ -39,7 +39,7 @@
   border-radius: var(--r);
   color: var(--tx);
   cursor: pointer;
-  transition: all var(--t-fast);
+  transition: cursor var(--t-fast), opacity var(--t-fast);;
   font-size: 20px;
   line-height: 1;
   flex-shrink: 0;
@@ -125,7 +125,7 @@
   border-top: 3px solid var(--sin-color, var(--tx-mute));
   border-radius: 0 0 var(--r-sm) var(--r-sm);
   cursor: pointer;
-  transition: all var(--t-fast);
+  transition: --sin-c var(--t-fast), --sin-color var(--t-fast), background var(--t-fast), border-color var(--t-fast), box-shadow var(--t-fast), opacity var(--t-fast), outline var(--t-fast), outline-offset var(--t-fast);;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -172,7 +172,7 @@
   color: var(--tx-mute);
   font-family: var(--f-display);
   font-size: var(--fs-11);
-  transition: all var(--t-fast);
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast);;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -203,7 +203,7 @@
   gap: var(--s-2);
   min-height: 380px;
   scroll-snap-align: start;
-  transition: all var(--t-fast) var(--e-io);
+  transition: --sin-color var(--t-fast) var(--e-io), border-color var(--t-fast) var(--e-io), border-top-color var(--t-fast) var(--e-io);;
   position: relative;
 }
 
@@ -286,7 +286,7 @@
   font-weight: 600;
   font-size: var(--fs-14);
   outline: none;
-  transition: all var(--t-fast);
+  transition: background var(--t-fast), border-color var(--t-fast), box-shadow var(--t-fast);;
 }
 .deck-name-input:hover { background: var(--surface-inset); border-color: var(--line-dim); }
 .deck-name-input:focus { background: var(--surface-inset); border-color: var(--gold-line); box-shadow: var(--ring-gold-3); }
@@ -398,7 +398,7 @@
   font-weight: 600;
   letter-spacing: .04em;
   color: var(--tx);
-  transition: all var(--t-fast);
+  transition: background var(--t-fast), border-color var(--t-fast), border-width var(--t-fast), box-shadow var(--t-fast), color var(--t-fast);;
 }
 .sk-var-chk:hover { border-color: var(--gold-line); background: var(--surface-2); }
 .sk-var-chk.is-on {
@@ -461,7 +461,7 @@
   align-items: center;
   justify-content: center;
   font-family: var(--f-display);
-  transition: all var(--t-fast);
+  transition: cursor var(--t-fast), opacity var(--t-fast);;
 }
 .deck-thumb-rbtn:hover:not(:disabled) {
   background: var(--gold-tint);
@@ -537,7 +537,7 @@
   border: 1px dashed var(--line);
   border-radius: var(--r-sm);
   cursor: pointer;
-  transition: all var(--t-fast);
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast);;
 }
 .deck-add-dice:hover {
   color: var(--gold);
@@ -559,7 +559,7 @@
   letter-spacing: 0.14em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: all var(--t-fast);
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast);;
 }
 .deck-empty-cell:hover {
   border-color: var(--gold-line);
@@ -588,7 +588,7 @@
   flex-direction: column;
   gap: 6px;
   cursor: pointer;
-  transition: all var(--t-fast);
+  transition: --rank-color var(--t-fast), background var(--t-fast), border-color var(--t-fast), box-shadow var(--t-fast);;
   position: relative;
 }
 .ego-slot:hover { border-color: var(--gold-line); background: var(--surface-2); }
@@ -732,7 +732,7 @@
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   cursor: pointer;
-  transition: all var(--t-fast);
+  transition: background var(--t-fast), border-color var(--t-fast), box-shadow var(--t-fast);;
 }
 .spp-item:hover { border-color: var(--gold); background: var(--surface-2); }
 .spp-item.is-active {
@@ -824,7 +824,7 @@
   color: var(--tx-dim);
   cursor: pointer;
   border-radius: 3px;
-  transition: all var(--t-fast);
+  transition: cursor var(--t-fast), opacity var(--t-fast);;
   padding: 0;
 }
 .reorder-btn:hover:not(:disabled) {
@@ -874,7 +874,7 @@
   background: var(--surface-2);
   border: 1px solid var(--line-dim);
   flex-shrink: 0;
-  transition: all 120ms ease;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease, cursor 120ms ease;;
 }
 .dnd-handle:hover {
   color: var(--gold);
@@ -964,7 +964,7 @@
   border: 1.5px solid var(--line);
   border-radius: var(--r);
   cursor: pointer;
-  transition: all var(--t-fast);
+  transition: background var(--t-fast), border-color var(--t-fast), border-left var(--t-fast), box-shadow var(--t-fast);;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -1092,7 +1092,7 @@
   color: var(--tx-dim);
   border: 1px solid var(--line-dim);
   cursor: pointer;
-  transition: all var(--t-fast);
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast);;
   text-transform: uppercase;
 }
 .roster-flag:hover { border-color: var(--line-hot); color: var(--tx); }
