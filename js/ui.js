@@ -158,7 +158,7 @@ const Grid = ({ cols = 2, gap = "var(--s-2)", children, style = {} }) => /* @__P
    崩れるため、DOM 構造は保ったまま id を採番して htmlFor で結び付ける。
    複数コントロールを直接持つ場合は Field 全体がグループとして名を持つ。 */
 let fieldSeq = 0;
-const Field = ({ label, children, hint }) => {
+const Field = ({ label, children, hint, labelFor: explicitFor }) => {
   const kids = React.Children.toArray(children);
   const only = kids.length === 1 ? kids[0] : null;
   const isPlainControl = only && React.isValidElement(only) && typeof only.type === "string";
@@ -168,6 +168,10 @@ const Field = ({ label, children, hint }) => {
   if (label && isPlainControl) {
     labelFor = only.props.id || `lbt-field-${++fieldSeq}`;
     body = [React.cloneElement(only, { id: labelFor })];
+  } else if (label && explicitFor) {
+    /* コンポーネント（AutoTextarea 等）を包む場合は Field 側で採番できない。
+       呼び出し側が labelFor を渡して id を明示する。 */
+    labelFor = explicitFor;
   } else if (label) {
     groupProps = { role: "group", "aria-label": label };
   }
