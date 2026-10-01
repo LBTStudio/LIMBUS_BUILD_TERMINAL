@@ -488,6 +488,7 @@ playwright-cli open https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/
 
 - `million/react-doctor` の実パス未確認。`ui-skills.com` の該当ページのURL の正確性をユーザーに確認したい
 - UIライブラリ（uiarc / spaceui / componentry / skecher / planes / beUI）の**設計思想**の参考は採用を推奨するが、**コード依存は受け入れない**。既存テーマ（真鍮・時計機構の意匠）に寄せる
-- OGP Worker の本番デプロイは 2026-10-02 時点で未実施（改善1-4・7・5 は実装・push 済みだが、Cloudflare への反映には認証情報が必要）
+- OGP Worker の本番デプロイは 2026-10-02 実施済み（Version ID `80f09420-4aa7-4d30-8df8-5227c0cd6463`）。実測で `POST/PUT/DELETE → 405`、`s=3件 → 400`、`/s` は `MISS → HIT`、`cross_version_cache` はデプロイをまたいでも既存 cache（age=10952秒）が生き残ることを確認
 - `--teal` は未定義のまま参照ゼロ。`--purple` は `--ego-influence` として再定義済み
+- `share.html` と `index.html` の `?v=` は一致していなければならない。片方だけ bump すると発行側と閲覧側で別の revision が走る（実際に发生过）
 
