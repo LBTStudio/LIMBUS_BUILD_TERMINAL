@@ -24,7 +24,14 @@
   position: sticky;
   top: 0;
   align-self: start;
-  overflow: hidden;
+  /* 簡易詳細がビューポートより長いと、画面全体をスクロールしないと
+     末尾（装備ボタンなど）が見えない。実測でパネルが 733px、
+     ビューポート 900px のときに下 230px が到達不能になっていた。
+     ここで自前のスクロールを持つようにする。 */
+  max-height: calc(100vh - var(--topbar-h) - var(--s-5));
+  max-height: calc(100dvh - var(--topbar-h) - var(--s-5));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: linear-gradient(155deg, color-mix(in oklab, var(--sin-primary) 12%, var(--surface-1)), var(--surface-1) 38%);
   border: 1px solid color-mix(in oklab, var(--sin-primary) 48%, var(--line));
   border-radius: var(--r);
@@ -96,8 +103,13 @@
 
 /* V65r66: PDFのダイス効果本文も簡易詳細で確認できるようにする */
 .ego-quick-dice-effects { display: grid; gap: 4px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line-dim); }
-.ego-quick-dice-effect { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px; color: var(--tx-2); font-size: var(--fs-10); line-height: 1.5; overflow-wrap: anywhere; }
+/* 子は roll / colon / effect の 3 つ。以前は 2 列の grid なので
+   roll が左、colon が右端，效果が次の行に落ちて、コロンだけが
+   行の中央に浮いて「：：が混入している」ように見えていた。
+   3 列にして "2d9：" をひとまとまりにして読ませる。 */
+.ego-quick-dice-effect { display: grid; grid-template-columns: max-content max-content minmax(0, 1fr); column-gap: 0; color: var(--tx-2); font-size: var(--fs-10); line-height: 1.5; overflow-wrap: anywhere; }
 .ego-quick-dice-roll { color: var(--gold-hi); font-family: var(--f-mono); font-weight: 600; white-space: nowrap; }
+.ego-quick-dice-colon { padding-right: 3px; }
 .ego-quick-skill[data-tone="corrode"] .ego-quick-dice-roll { color: var(--err); }
 }
 /* end @layer v65r44-ego-quick-detail */

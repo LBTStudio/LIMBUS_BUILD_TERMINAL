@@ -895,7 +895,6 @@
      2 列以上が入る幅まで狭める。 */
   grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr));
   gap: var(--s-2);
-  align-items: start;
 }
 .spirit-item {
   padding: var(--s-3);
@@ -908,6 +907,9 @@
   flex-direction: column;
   gap: 6px;
   min-width: 0;
+  /* align-items: start を外してカードを行高さに揃える。
+     start のままだと效果文の行数で高さが変わり、短いカードの下に
+     空白が出て「精神と精神の間に隙間」ができていた。 */
 }
 .spirit-item:hover {
   border-color: var(--gold);
