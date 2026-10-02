@@ -1242,4 +1242,34 @@
   font-size: var(--fs-11);
 }
 }
+
+/* 検索/フィルタ操作部のスクロール追従 */
+@media (min-width: 1024px) {
+  .codex-filters,
+  .ego-catalog-filters,
+  .owned-library-bar {
+    position: sticky;
+    top: var(--topbar-h);
+    z-index: 6;
+    /* 背景が透けると下の内容が透けて見えるので不透明にする */
+    background: var(--surface-0);
+  }
+  .codex-filters,
+  .ego-catalog-filters {
+    padding-bottom: var(--s-2);
+    margin-bottom: var(--s-1);
+  }
+  /* 追従中の操作部には枠を付けて、上に重なる位置だと分かるようにする */
+  .owned-library-bar {
+    padding: var(--s-2) 0;
+  }
+}
+/* 1024px 未満は追従させない。操作部が画面の 25〜84% を占める実測があるため。 */
+@media (max-width: 1023px) {
+  .codex-filters,
+  .ego-catalog-filters,
+  .owned-library-bar {
+    position: static;
+  }
+}
 /* end @layer sections */

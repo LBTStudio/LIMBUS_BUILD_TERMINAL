@@ -1722,7 +1722,7 @@ const RosterSection = ({ state, dispatch }) => {
   const label = libraryTab === "personas" ? "人格" : "E.G.O";
   return h("div", { className: "stack-3" },
     h(Card, null,
-      h("div", { className: "card-header", style: { alignItems: "center", flexWrap: "wrap", gap: "var(--s-2)" } }, h("span", { className: "t-label" }, "OWNED LIBRARY / 所持ライブラリ"),       h("div", { className: "segmented", role: "tablist", "aria-label": "所持ライブラリ種別", style: { marginLeft: "auto" } },
+      h("div", { className: "card-header owned-library-bar", style: { alignItems: "center", flexWrap: "wrap", gap: "var(--s-2)" } }, h("span", { className: "t-label" }, "OWNED LIBRARY / 所持ライブラリ"),       h("div", { className: "segmented", role: "tablist", "aria-label": "所持ライブラリ種別", style: { marginLeft: "auto" } },
         h("button", { type: "button", role: "tab", "aria-selected": libraryTab === "personas", className: libraryTab === "personas" ? "is-active" : "", onClick: () => { setSortBy((prev) => reconcileRosterSortWithTab(prev, "personas")); setLibraryTab("personas"); } }, "人格"),
         h("button", { type: "button", role: "tab", "aria-selected": libraryTab === "egos", className: libraryTab === "egos" ? "is-active" : "", onClick: () => { setSortBy((prev) => reconcileRosterSortWithTab(prev, "egos")); setLibraryTab("egos"); } }, "E.G.O")
       )),
