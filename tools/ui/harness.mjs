@@ -57,6 +57,11 @@ export function ensureShotDir() {
   return SHOT_DIR;
 }
 
+/* shots/ は git 無視で、import するスクリプトは
+   `path: "tools/ui/shots/x.png"` と直接書くため、親が無いと
+   page.screenshot が ENOENT で落ちる。mkdir は冪等なので import 時に一度。 */
+ensureShotDir();
+
 /**
  * ページを開いて app の準備完了まで待つ。
  * CSS には skip-link や rail-item があるので、.rail-item を合図に使う。

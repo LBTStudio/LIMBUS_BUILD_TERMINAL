@@ -72,8 +72,22 @@ for (const r of results) {
   }
 }
 
-// Write updated DB (ensure_ascii=false to preserve Japanese)
-writeFileSync(`${ROOT}/data/db.json`, JSON.stringify(db, null, 1), "utf8");
+/* data/db.json は 788KB のミニファイ済み（改行 0 バイト）。
+   インデント付き JSON.stringify で書くと全体が再整形され、
+   diff が全行のノイズになる。コミット済みの形式を保つ。 */
+const write = process.argv.includes("--write");
+
+console.log(`Added affiliation to ${addedCount} personas`);
+console.log(`Matched: ${results.length}, Unmatched: ${unmatched.length}`);
+
+if (!write) {
+  console.log(`\n[--write 無し] data/db.json と data/provenance/affiliations.json は変更していません。`);
+  console.log(`書き込みを適用するには: node tools/provenance/apply_affiliation.mjs --write`);
+  process.exit(0);
+}
+
+// ensure_ascii=false で日本語を保つ。
+writeFileSync(`${ROOT}/data/db.json`, JSON.stringify(db), "utf8");
 
 // Write affiliation reference
 const refData = {
@@ -87,5 +101,4 @@ const refData = {
 };
 writeFileSync(`${ROOT}/data/provenance/affiliations.json`, JSON.stringify(refData, null, 1), "utf8");
 
-console.log(`Added affiliation to ${addedCount} personas`);
-console.log(`Matched: ${results.length}, Unmatched: ${unmatched.length}`);
+console.log(`書き込みました: data/db.json, data/provenance/affiliations.json`);

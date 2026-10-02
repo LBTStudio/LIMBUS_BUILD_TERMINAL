@@ -39,7 +39,12 @@ console.log("=== 初期（人格タブ） ===");
 console.log("  " + JSON.stringify(await readState()));
 
 const sortSel = page.locator("select").filter({ has: page.locator('option[value="sync"]') }).first();
-if (!(await sortSel.count())) { console.log("同期順 option が見つからない"); await b.close(); process.exit(0); }
+if (!(await sortSel.count())) {
+  /* 前提が成立しない = 検証できていない。exit 0 は偽の合格になるので当作しない。 */
+  console.error("同期順 option が見つからない。検証できていない。");
+  await b.close();
+  process.exit(1);
+}
 await sortSel.selectOption("sync");
 await page.waitForTimeout(700);
 console.log("\n=== 人格タブで「同期順」を選択 ===");
@@ -57,3 +62,6 @@ console.log(`\n判定: ${ok ? "OK（既定へ戻り、空白也表示なし）" 
 
 await page.screenshot({ path: "tools/ui/shots/roster-tab-sort.png" });
 await b.close();
+
+/* NG を出しただけで exit 0 にすると、CI も人間も合格と誤読する。 */
+process.exit(ok ? 0 : 1);

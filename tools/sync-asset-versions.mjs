@@ -18,7 +18,7 @@
      - index.html と share.html は同じファイルから同じハッシュを引くので
        食い違いようがない
      - 編集していないファイルは URL が変わらないのでキャッシュが生き残る
-   という3点が同時に解決する。版番号が))),
+   という3点が同時に解決する。版番号の採番は人手に委ねなくてよくなった。
    読み込みが遅くならない理由は別に後述。
 
    使い方
@@ -63,16 +63,29 @@ const SOURCES = [
 /* data/db.json は index.html 内で fetch と XHR の二重定義になっている
    （L57 と L62）。両方を同じハッシュに揃えて二重定義のずれも同時に潰す。 */
 
+/* バイナリは生バイトでハッシュする。woff2 に改行正規化を掛けると
+   中身の偶然の 0D0A を潰してしまい、内容に忠実に反映できなくなる。 */
+const BINARY_EXT = /\.(?:woff2)$/i;
+
 const hashCache = new Map();
 function hashOf(absPath) {
   if (hashCache.has(absPath)) return hashCache.get(absPath);
   if (!existsSync(absPath)) return null;
-  const h = createHash("sha256").update(readFileSync(absPath)).digest("hex").slice(0, HASH_LEN);
+  const raw = readFileSync(absPath);
+  /* テキストは改行を LF に正規化してからハッシュする。
+     core.autocrlf は各マシンの設定でリポジトリには書けない。Windows で
+     チェックアウトすると CRLF、Linux/macOS の既定では LF になり、
+     同じ内容のファイルが別ハッシュになると ?v= が 26 箇所も偽の不一致になる。
+     ハッシュは「内容の同一性」判定なので、チェックアウト方式に依存させない。 */
+  const buf = BINARY_EXT.test(absPath)
+    ? raw
+    : Buffer.from(raw.toString("utf8").replace(/\r\n/g, "\n"), "utf8");
+  const h = createHash("sha256").update(buf).digest("hex").slice(0, HASH_LEN);
   hashCache.set(absPath, h);
   return h;
 }
 
-/** `path?v=old` の一致を全部返す。拡張子しつつ、URL 全体も返す。 */
+/** `path?v=old` の一致を全部返す。ファイル名部と版文字列を分解して渡す。 */
 /* woff2 も対象。tools/subset-corplogo.mjs が同じ内容を再生成しても
    ファイル名が変わらないため、中身のハッシュでキャッシュを破棄する。 */
 const VERSION_RE = /((?:[A-Za-z0-9._/-]+\.(?:css|js|json|woff2))(?:\?v=)([0-9a-zA-Z._-]+))/g;
@@ -93,10 +106,8 @@ function rewriteSource(source) {
     if (!m) return whole;
     const [, assetRel, oldVersion] = m;
     const assetAbs = resolve(baseDir, assetRel);
-    if (!existsSync(assetAbs)) {
-      console.error(`  ! 参照先が存在しない: ${relSource} → ${assetRel}`);
-      return whole;
-    }
+    /* 存在しない参照の報告は scanRefs() が一元化して行う。ここでは黙って触らない。 */
+    if (!existsSync(assetAbs)) return whole;
     const newVersion = ALL || hashOf(assetAbs);
     if (!newVersion) return whole;
     if (oldVersion !== newVersion) {
@@ -114,11 +125,59 @@ function rewriteSource(source) {
 }
 
 /* ---------------------------------------------------------------------------
+   逆方向スキャン。VERSION_RE は「?v= がある参照」しか見ないので、
+   次の2類は構造的に検出できない。両方とも exit 1 にする。
+     a) 版パラメータの無いアセット参照（キャッシュ Buster失效）
+     b) 参照先が実在しないアセット（404 でページが壊れる）
+   --------------------------------------------------------------------------- */
+
+/* クォートで囲まれたアセットパス。引用符で限定することで、
+   CSS の色コードや JS の文字列定数の誤検出を避ける。 */
+const PLAIN_REF_RE = /(["'`])([A-Za-z0-9_./-]+\.(?:css|js|json|woff2))(\?v=[0-9a-zA-Z._-]+)?\1/g;
+
+/* ブラウザが直接読むタグの src/href は引用符が無くても拾う必要がある。 */
+const BARE_REF_RE = /\b(?:src|href)\s*=\s*["']([A-Za-z0-9_./-]+\.(?:css|js|json|woff2))\??(v=[0-9a-zA-Z._-]+)?["']/g;
+
+function scanRefs() {
+  const versionless = [];
+  const missing = [];
+
+  for (const source of SOURCES) {
+    const abs = resolve(ROOT, source.file);
+    const text = readFileSync(abs, "utf8");
+    const baseDir = resolve(ROOT, source.base);
+    const selfDir = dirname(abs);
+
+    const consider = (assetRel, withVersion) => {
+      if (/^(?:https?:)?\/\//.test(assetRel)) return;
+      /* ソース自身のディレクトリ基準でも解決.try する。
+         CSS 内の url() はその CSS の位置が基準になる。 */
+      const candidates = [resolve(baseDir, assetRel), resolve(selfDir, assetRel)];
+      const target = candidates.find((p) => existsSync(p));
+      if (!target) {
+        missing.push({ source: source.file, asset: assetRel });
+        return;
+      }
+      if (!withVersion) {
+        versionless.push({ source: source.file, asset: relative(ROOT, target).replace(/\\/g, "/") });
+      }
+    };
+
+    for (const m of text.matchAll(PLAIN_REF_RE)) consider(m[2], Boolean(m[3]));
+    for (const m of text.matchAll(BARE_REF_RE)) consider(m[1], Boolean(m[2]));
+  }
+
+  /* 同じファイルの重複報告を潰す（1 箇所に 2 回出るケースがある） */
+  const dedupe = (rows) => [...new Map(rows.map((r) => [`${r.source}|${r.asset}`, r])).values()];
+  return { versionless: dedupe(versionless), missing: dedupe(missing) };
+}
+
+/* ---------------------------------------------------------------------------
    実行。js/share-viewer.js はデータ URL を内包しているため、
    書き換えると自分自身のハッシュが変わる。だから2巡する:
      1巡目: データ URL を確定し、share-viewer.js を書く
      2巡目: その後の share-viewer.js のハッシュで share.html を書く
---------------------------------------------------------------------------- */
+ --------------------------------------------------------------------------- */
 function run() {
   const allChanges = [];
   let wroteAny = false;
@@ -157,6 +216,8 @@ if (pass2) {
 const drifted = CHECK ? report : [];
 
 if (CHECK) {
+  const refAudit = scanRefs();
+
   if (drifted.length) {
     console.error("?v= が内容ハッシュと同期していません。node tools/sync-asset-versions.mjs を実行してください。\n");
     for (const c of drifted) {
@@ -164,7 +225,26 @@ if (CHECK) {
     }
     process.exit(1);
   }
+
+  if (refAudit.versionless.length) {
+    console.error(
+      `版パラメータの無いアセット参照が ${refAudit.versionless.length} 件あります。` +
+        `キャッシュが効かず、編集が配信されない可能性があります。\n`
+    );
+    for (const r of refAudit.versionless) console.error(`  ${r.source}: ${r.asset}`);
+    console.error("");
+    process.exit(1);
+  }
+
+  if (refAudit.missing.length) {
+    console.error(`参照先が存在しないアセットが ${refAudit.missing.length} 件あります。\n`);
+    for (const r of refAudit.missing) console.error(`  ${r.source}: ${r.asset}`);
+    console.error("");
+    process.exit(1);
+  }
+
   console.log("?v= は全ファイルの内容ハッシュと同期しています。");
+  console.log(`参照 ${hashCache.size} 件: 版パラメータ有り、全ファイル存在。`);
   process.exit(0);
 }
 

@@ -67,6 +67,48 @@ node tools/ui/axe-scan.mjs
 | `audit-reduced-motion.mjs` | reduced-motion 設定での実際の計算値を測る |
 | `dead-css.mjs` | 12 セクションを巡回して未使用セレクタを洗い出す（操作フローは含まない） |
 
+## 終了コードの規約
+
+**2026-10-03 追記。** 従来の `verify-*` の大半は判定を console.log するだけで
+exit 0 に終わっていた。CI でも人間でも「合格」と誤読できた。種類を分ける。
+
+### A. ゲートする（判定が失敗したら exit 1）
+
+合否が1値で決まるもの。exit code で合否を渡す。
+
+| スクリプト | ゲート条件 |
+|---|---|
+| `verify-roster-tab-sort.mjs` | 所持タブの並び順が既定に戻り、空白表示でないこと |
+| `verify-short-works.mjs` | 短縮 URL の往復で全フィールド一致すること |
+| `compare-shots.mjs` | 差分率がしきい値を超えたら exit 1 |
+| `probe-styles.mjs` | 期待矩形との差がしきい値を超えたら exit 1 |
+| `harness.mjs` | 共通処理。直接実行しない |
+
+### B. 報告のみ（exit 0 が仕様）
+
+数値や一覧を出すだけで合否が存在しないもの。`measure-*` と `perf-*` がこれ。
+**これらを exit 1 にするのは誤り。** 目視と記録が用途。
+
+| スクリプト | 出力するもの |
+|---|---|
+| `measure-*.mjs` / `perf-*.mjs` | 描画と応答の時間値 |
+| `audit-*.mjs` | 検出した違反の一覧と件数 |
+| `dead-css.mjs` | 未使用セレクタ候補の一覧 |
+| 上記以外の `probe-*.mjs` | 個別の状態ダンプ |
+
+### 判定は出すが exit 0 のままのもの
+
+`verify-disclaimer.mjs`、`verify-ego-expanded.mjs`、`verify-corplogo.mjs`、
+`verify-source-filter.mjs`、`verify-ogp-colors.mjs`。
+
+ブラウザ実行なしでは動作を確認できないため、exit を足すのは
+「検証していない修正」になる。使うときは**判定行を必ず読む**こと。
+
+### shots/ は自動生成される
+
+`tools/ui/shots/` は `.gitignore` 済みで、チェックアウト直後は無い。
+`harness.mjs` を import した時点で `ensureShotDir()` が作成する。
+
 ### 主な使い方
 
 ```powershell
