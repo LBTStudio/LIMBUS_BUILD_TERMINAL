@@ -1618,7 +1618,9 @@ const RosterSection = ({ state, dispatch }) => {
     return { entry, src, id: entry.uid, type: "egos", name: entry.build?.name || src?.name || "名称未設定", equipped: currentEgoKeys.has(`${entry.rank}:${entry.no}`), saved: !!entry.build, addedIndex, meta: `${entry.rank} · No.${String(entry.no || "").padStart(3, "0")}` };
   }).filter((item) => item.src);
   const items = sortRosterLibraryItems(rawItems.filter((item) => (
-    (filter === "all" || filter === "equipped" && item.equipped || filter === "saved" && item.saved)
+    (filter === "all"
+      || filter === "custom" && item.type === "personas" && item.entry.mode === "custom"
+      || filter === "saved" && item.saved)
     && (libraryTab !== "personas" || rosterPersonaMatchesSyncFilters(item.entry, syncFilter, syncRankFilter))
   )), sortBy, libraryTab);
   const selected = new Set(selectedIds);
@@ -1729,12 +1731,12 @@ const RosterSection = ({ state, dispatch }) => {
       h("div", { className: "card-body stack-3" },
         h("div", { className: "roster-library-intro" }, `所持${label}を押すと簡易詳細が開きます。詳細から内容を確認して装備するか、「即時装備」で直ちに装備できます。削除は「管理する」から対象を選ぶため、非装備を一括削除しません。`),
         h("div", { className: "roster-controls" },
-          h("div", { className: "segmented", role: "tablist", "aria-label": "所持状態フィルタ" }, [["all", "すべて"], ["equipped", "装備中"], ["saved", "保存済み"]].map(([key, text]) => h("button", { key, type: "button", role: "tab", "aria-selected": filter === key, className: filter === key ? "is-active" : "", onClick: () => setFilter(key) }, text))),
+          h("div", { className: "segmented", role: "tablist", "aria-label": "所持状態フィルタ" }, [["all", "すべて"], ["custom", "カスタム人格"], ["saved", "保存済み"]].map(([key, text]) => h("button", { key, type: "button", role: "tab", "aria-selected": filter === key, className: filter === key ? "is-active" : "", onClick: () => setFilter(key) }, text))),
           libraryTab === "personas" && h("div", { className: "segmented", role: "tablist", "aria-label": "同期状態フィルタ" }, [["all", "すべて"], ["synced", "同期済み"], ["unsynced", "未同期"]].map(([key, text]) => h("button", { key, type: "button", role: "tab", "aria-selected": syncFilter === key, className: syncFilter === key ? "is-active" : "", onClick: () => setSyncFilter(key) }, text))),
           libraryTab === "personas" && h("div", { className: "segmented", role: "tablist", "aria-label": "同期・MAXフィルタ" }, [["all", "同期・MAXすべて"], ["0", "同期0"], ["00", "同期00"], ["000", "同期000"], ["max", "同期MAX"]].map(([key, text]) => h("button", { key, type: "button", role: "tab", "aria-selected": syncRankFilter === key, className: syncRankFilter === key ? "is-active" : "", onClick: () => setSyncRankFilter(key) }, text))),
           h("label", { className: "roster-sort-control", title: "所持一覧の並び順" }, h("span", { className: "t-label" }, "並び順"), h("select", { className: "select", value: sortBy, onChange: (event) => setSortBy(event.target.value) }, h("option", { value: "added" }, "追加順"), h("option", { value: "name" }, "名前順"), h("option", { value: "number" }, libraryTab === "personas" ? "No.順" : "ランク・No.順"), libraryTab === "personas" && h("option", { value: "sync" }, "同期順"))),
           h("div", { style: { flex: 1 } }),
-          manageMode ? h(React.Fragment, null, h(Button, { size: "sm", variant: "ghost", onClick: selectedIds.length === selectableItems.length && selectableItems.length ? clearSelection : selectAll }, selectedIds.length === selectableItems.length && selectableItems.length ? "選択を解除" : "全て選択"), h(Button, { size: "sm", variant: "ghost", onClick: exitManage }, "管理を終了")) : h(Button, { size: "sm", variant: "ghost", icon: "edit", onClick: () => setManageMode(true) }, "管理する")
+          manageMode ? h(React.Fragment, null, h(Button, { size: "sm", variant: "ghost", onClick: selectedIds.length === selectableItems.length && selectableItems.length ? clearSelection : selectAll }, selectedIds.length === selectableItems.length && selectableItems.length ? "選択を解除" : "全て選択"), h(Button, { size: "sm", variant: "ghost", onClick: exitManage }, "管理を終了")) : h(Button, { size: "sm", variant: "secondary", icon: "edit", onClick: () => setManageMode(true) }, "管理する")
         ),
         manageMode && h("div", { className: "roster-manage-bar" }, h("span", { style: { color: "var(--warn)" } }, "選択削除"), h("span", null, `${selectedIds.length}件を選択中。装備中の項目は保護されます。`), h("div", { style: { flex: 1 } }), h(Button, { size: "md", variant: "danger", icon: "trash", disabled: !selectedIds.length, onClick: removeSelected }, `${selectedIds.length}件を削除`)),
         items.length === 0 ? h("div", { className: "empty", style: { padding: "var(--s-5)" } }, filter === "all" ? `所持${label}はまだありません。${libraryTab === "personas" ? "人格を装備" : "E.G.Oを所持に追加または装備"}するとここへ保存されます。` : "この条件に一致する所持項目はありません。") : h("div", { className: "stack-2" }, items.map(renderItem)),
