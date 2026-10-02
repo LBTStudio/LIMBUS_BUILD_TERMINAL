@@ -1698,7 +1698,7 @@ function appReducer(state, action) {
       const isAffiliated = !!affiliatedSource;
       const provided = action.provided || { name: true, hp: true, san: true, speed: true, bullets: true, resistances: true, passives: true, skills: true, uniques: true };
       const sourceBase = isAffiliated ? affiliatedSource : src;
-      const effectiveSrc = {
+      let effectiveSrc = {
         ...sourceBase,
         ...src,
         name: provided.name ? src.name : (sourceBase.name || src.name),
@@ -1728,10 +1728,32 @@ function appReducer(state, action) {
         const dash1 = String(sk?.rank || "").match(/^スキル(\d+)-1$/);
         if (dash1) oneBasedBases.add(dash1[1]);
       }
+      const shiftDerivedRank = (rawRank) => {
+        const dm = String(rawRank || "").match(/^(スキル(\d+))-(\d+)$/);
+        return dm && oneBasedBases.has(dm[2]) ? `${dm[1]}-${Number(dm[3]) + 1}` : rawRank;
+      };
+      /* personaSrc にも同じ補正を掛ける必要がある。補正を state.skills と
+         importedBuild.skills にしか掛けていないと、personaSrc.skills には 0-1 が
+         残る。そちらは後から migrateLegacyDerivedSkills が parseDerivedSkillRank の
+         Math.max(2, ...) で index=2 に丸めるため、同じ base の 0-2 と衝突して
+         「0-2 が二つできる」状態になっていた。
+         ただし state.skills の計算より後に置かないと補正が二重にabreく
+         （deck が 0-3,0-4 にずれる）。rank を書き換えるので派生情報は落とし、
+         新しい rank から再計算させる。 */
+      const shiftSourceSkills = () => {
+        if (!(effectiveSrc.skills || []).length) return;
+        const shifted = effectiveSrc.skills.map((sk) => {
+          const next = shiftDerivedRank(sk?.rank);
+          if (next === sk?.rank) return sk;
+          return { ...sk, rank: next, derived_from: "", derived_index: undefined };
+        });
+        if (shifted.some((sk, i) => sk !== effectiveSrc.skills[i])) {
+          effectiveSrc = { ...effectiveSrc, skills: shifted };
+        }
+      };
       const skills = migrateLegacyDerivedSkills((effectiveSrc.skills || []).map((sk, index) => {
         const rawRank = String(sk?.rank || "");
-        const dm = rawRank.match(/^(スキル(\d+))-(\d+)$/);
-        const adjustedRank = dm && oneBasedBases.has(dm[2]) ? `${dm[1]}-${Number(dm[3]) + 1}` : rawRank;
+        const adjustedRank = shiftDerivedRank(rawRank);
         return {
         id: `sk-${Date.now()}-${index}`,
         rank: adjustedRank || `スキル${index}`,
@@ -1748,6 +1770,8 @@ function appReducer(state, action) {
         quick: ""
       };
       }));
+      // deck の補正が終わってから出典側を直す（先にやると二重にずれる）
+      shiftSourceSkills();
       const uniqueBuffs = (effectiveSrc.unique_buffs || []).map((buff, index) => ({
         id: `ub-${Date.now()}-${index}`,
         name: normalizeStatusLabel(buff.name || ""),
