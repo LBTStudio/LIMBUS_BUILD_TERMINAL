@@ -110,6 +110,38 @@ export async function walkSections(page, { onSection } = {}) {
 }
 
 /** 12 セクションのスクリーンショットを撮る。ファイル名は <tag>-<番号>-<名称>.png。 */
+/* スクリーンショット前に document.fonts.ready を待つ。
+ * font-display: swap のため、固定 sleep だけではフォント未ロード時の
+ * 代替書体で撮れることがある。Google Fonts の応答が変わると読み込み順も
+ * 変わり、レールラベル等が無差別に差分として出てしまう。
+ * 待機を，不仅は.ms ではなく実際に「揃った」条件で撮る。 */
+async function fontsSettled(page, timeout = 30000) {
+  await page.waitForFunction(
+    async () => {
+      if (!document.fonts || document.fonts.status === "loaded") return true;
+      await document.fonts.ready;
+      return document.fonts.status === "loaded";
+    },
+    null,
+    { timeout }
+  ).catch(() => {});
+  // status が loaded でも未使用の webfont は
+// 取得されない。描画中の要素の書体だけ実際に解決していることを確認する。
+  await page.evaluate(async () => {
+    const used = new Set();
+    for (const el of document.querySelectorAll("body *")) {
+      const own = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent.trim()).join("");
+      if (!own) continue;
+      const cs = getComputedStyle(el);
+      for (const f of cs.fontFamily.split(",").map((s) => s.replace(/["']/g, "").trim())) {
+        if (!/^(serif|sans-serif|monospace|system-ui|ui-|cursive|fantasy|-apple-system|BlinkMacSystemFont)/.test(f)) used.add(f);
+      }
+    }
+    await Promise.all([...used].map((f) => document.fonts.load(`16px "${f}"`, "あア漢字A1").catch(() => {})));
+    await document.fonts.ready;
+  });
+}
+
 export async function captureSections(page, tag) {
   const dir = ensureShotDir();
   const written = [];
@@ -120,6 +152,7 @@ export async function captureSections(page, tag) {
       await page.keyboard.press("Escape");
       await page.waitForTimeout(350);
     }
+    await fontsSettled(page);
     const file = path.join(dir, `${tag}-${String(i).padStart(2, "0")}.png`);
     const { writeFileSync } = await import("node:fs");
     writeFileSync(file, await page.screenshot());

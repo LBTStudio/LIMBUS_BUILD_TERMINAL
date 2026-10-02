@@ -1536,8 +1536,13 @@ function buildShareSheetHTML(state) {
 	<meta name="twitter:title" content="${esc(shareTitle)}">
 	<meta name="twitter:description" content="${esc(shareDescription)}">
 	<meta name="twitter:image" content="${shareImage}">
-	<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700;900&family=Cormorant+Garamond:wght@500;600;700&display=swap" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Cormorant+Garamond:wght@500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@500;700&family=Share+Tech+Mono&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
+/* 共有シートもアプリと同じ書体を使う。コーポレート・ロゴ ver3（LOGOTYPE.JP / OFL 1.1）の
+   woff2 は Pages に置いてあるので絶対 URL で参照する。fontsSettled を挟まずに
+   読むと swap 中の代替書体で撮れるため、書体の確定を待ってから撮ること。 */
+@font-face{font-family:'CorporateLogo';src:url('https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/assets/fonts/corporate-logo-bold-subset.woff2') format('woff2');font-weight:700;font-style:normal;font-display:swap}
+@font-face{font-family:'CorporateLogo';src:url('https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/assets/fonts/corporate-logo-medium-subset.woff2') format('woff2');font-weight:500;font-style:normal;font-display:swap}
 /* v55: \u5171\u6709\u30B7\u30FC\u30C8\u3092\u300CDANTE HOMAGE\u300D\u914D\u8272\u3078\u66F4\u65B0\u3002
    \u7DE8\u96C6\u753B\u9762 (v55-dante.css) \u3068\u540C\u4E00\u306E\u8A2D\u8A08\u8A00\u8A9E\u3067\u7D71\u4E00\u3059\u308B:
      \u57FA\u8ABF=\u6696\u307F\u306E\u30C1\u30E3\u30B3\u30FC\u30EB\u9ED2 / \u30A2\u30AF\u30BB\u30F3\u30C8=\u6DF1\u7D05\u30AF\u30EA\u30E0\u30BE\u30F3+\u30B4\u30FC\u30EB\u30C9 /
@@ -1557,7 +1562,7 @@ function buildShareSheetHTML(state) {
   --tx:#f2ece1;             /* \u30A2\u30A4\u30DC\u30EA\u30FC\uFF08\u30B7\u30E3\u30C4\u306E\u767D\u307F\uFF09 */
   --tx2:#d9d0c0;
   --tx3:#a89e8c;
-  --mono:'Share Tech Mono',monospace; --head:'Rajdhani','Noto Sans JP',sans-serif;
+  --mono:'Share Tech Mono','IBM Plex Mono',monospace; --head:'CorporateLogo','Noto Sans JP',sans-serif;
   /* \u5927\u7F6A\u8272 v55\uFF1A\u516C\u5F0F\u30B7\u30F3\u30A2\u30A4\u30B3\u30F3\u53C2\u7167\u6E96\u62E0\uFF08\u6697\u80CC\u666F\u7528\u306B\u8F1D\u5EA6\u306E\u307F\u5FAE\u5897\uFF09\u3002 */
   --sin-\u61A4\u6012:#c13b31; --sin-\u8272\u6B32:#c96424; --sin-\u6020\u60F0:#e29a20; --sin-\u66B4\u98DF:#7a9b40;
   --sin-\u6182\u9B31:#35808d; --sin-\u50B2\u6162:#2d5a99; --sin-\u5AC9\u59AC:#90509b; --sin-\u7279\u6B8A:#9a989b;
@@ -1568,7 +1573,7 @@ function buildShareSheetHTML(state) {
   --dante-chain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cg fill='none' stroke='%23a89e8c' stroke-opacity='0.28' stroke-width='3'%3E%3Cpath d='M-10 30 Q 5 18 20 30 T 50 30 T 80 30'/%3E%3Cpath d='M-10 46 Q 5 34 20 46 T 50 46 T 80 46' stroke-opacity='0.18'/%3E%3C/g%3E%3C/svg%3E");
 }
 *{box-sizing:border-box}
-body{margin:0;color:var(--tx);font-family:'Noto Sans JP',sans-serif;font-size:14px;line-height:1.7;padding:24px;
+body{margin:0;color:var(--tx);font-family:'CorporateLogo','Noto Sans JP',sans-serif;font-size:14px;line-height:1.7;padding:24px;
   /* T20: 装飾背景は情報可読性の妨げになるとの現場報告を受け、単色化。
      視認の主役をパネルと文字に戻し、スクショ・印刷・モバイルでのムラを排除する */
   background:var(--bg);
