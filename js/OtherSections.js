@@ -1535,6 +1535,14 @@ const rosterPersonaMatchesSyncFilters = (entry, syncFilter = "all", syncRankFilt
   return matchesState && matchesRank;
 };
 const ROSTER_EGO_RANK_ORDER = ["ZAYIN", "TETH", "HE", "WAW", "ALEPH"];
+/* 並び順のうち人格タブにしかないもの。所持ライブラリは人格/E.G.O で
+   sortBy を共有するため、these を引きglyph带到 E.G.O タブだと
+   「何もしないのにソート済みに見える」うえ、<select> に該当 option が
+   無くなって空欄になる。同時フィルタ（D架）と同じ扱いにする。 */
+const ROSTER_PERSONA_ONLY_SORTS = new Set(["sync"]);
+const reconcileRosterSortWithTab = (sortBy, libraryTab) =>
+  (libraryTab !== "personas" && ROSTER_PERSONA_ONLY_SORTS.has(sortBy) ? "added" : sortBy);
+if (typeof window !== "undefined") window.LBT_reconcileRosterSortWithTab = reconcileRosterSortWithTab;
 const sortRosterLibraryItems = (items, sortBy, libraryTab) => {
   const collator = new Intl.Collator("ja", { numeric: true, sensitivity: "base" });
   const byName = (a, b) => collator.compare(a.name, b.name) || a.addedIndex - b.addedIndex;
@@ -1714,9 +1722,9 @@ const RosterSection = ({ state, dispatch }) => {
   const label = libraryTab === "personas" ? "人格" : "E.G.O";
   return h("div", { className: "stack-3" },
     h(Card, null,
-      h("div", { className: "card-header", style: { alignItems: "center", flexWrap: "wrap", gap: "var(--s-2)" } }, h("span", { className: "t-label" }, "OWNED LIBRARY / 所持ライブラリ"), h("div", { className: "segmented", role: "tablist", "aria-label": "所持ライブラリ種別", style: { marginLeft: "auto" } },
-        h("button", { type: "button", role: "tab", "aria-selected": libraryTab === "personas", className: libraryTab === "personas" ? "is-active" : "", onClick: () => setLibraryTab("personas") }, "人格"),
-        h("button", { type: "button", role: "tab", "aria-selected": libraryTab === "egos", className: libraryTab === "egos" ? "is-active" : "", onClick: () => setLibraryTab("egos") }, "E.G.O")
+      h("div", { className: "card-header", style: { alignItems: "center", flexWrap: "wrap", gap: "var(--s-2)" } }, h("span", { className: "t-label" }, "OWNED LIBRARY / 所持ライブラリ"),       h("div", { className: "segmented", role: "tablist", "aria-label": "所持ライブラリ種別", style: { marginLeft: "auto" } },
+        h("button", { type: "button", role: "tab", "aria-selected": libraryTab === "personas", className: libraryTab === "personas" ? "is-active" : "", onClick: () => { setSortBy((prev) => reconcileRosterSortWithTab(prev, "personas")); setLibraryTab("personas"); } }, "人格"),
+        h("button", { type: "button", role: "tab", "aria-selected": libraryTab === "egos", className: libraryTab === "egos" ? "is-active" : "", onClick: () => { setSortBy((prev) => reconcileRosterSortWithTab(prev, "egos")); setLibraryTab("egos"); } }, "E.G.O")
       )),
       h("div", { className: "card-body stack-3" },
         h("div", { className: "roster-library-intro" }, `所持${label}を押すと簡易詳細が開きます。詳細から内容を確認して装備するか、「即時装備」で直ちに装備できます。削除は「管理する」から対象を選ぶため、非装備を一括削除しません。`),
