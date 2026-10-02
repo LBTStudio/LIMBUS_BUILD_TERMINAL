@@ -16,6 +16,31 @@
      - Every surface has a subtle 1px border, never rely on shadow alone
    ============================================================ */
 
+/* コーポレート・ロゴ ver3（LOGOTYPE.JP / SIL OFL 1.1。商用利用可）
+   配布元: https://logotype.jp/corporate-logo-font-dl.html
+   assets/fonts/ の woff2 は tools/subset-corplogo.mjs が生成した
+   仮名・記号・ASCII のみのサブセット。元 OTF は 1 ウェイト約 2.7 MB。
+
+   このフォントは仮名がロゴ風、漢字と英字は源ノ角ゴシック由来で
+   Noto Sans JP と同じ字形。よって漢字と英字は Google Fonts 側に任せ、
+   ここではかなだけ担当させる。1 行 中的漢字とかなは CSS の
+   per-character fallback で自動的に分かれる。
+   :root の外に置いているのは @font-face をセレクタに内包できないため。 */
+@font-face {
+  font-family: 'CorporateLogo';
+  src: url('fonts/corporate-logo-medium-subset.woff2?v=dbbdb67e') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'CorporateLogo';
+  src: url('fonts/corporate-logo-bold-subset.woff2?v=b56fa468') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root{
   /* ============================================================
      v51 COLOR SYSTEM — "OBSIDIAN & LANTERN"
@@ -114,9 +139,17 @@
   --topbar-h:  48px;
 
   /* ---- Typography ---- */
-  --f-display: 'Rajdhani','Noto Sans JP',system-ui,sans-serif;
+  /* コーポレート・ロゴ（LOGOTYPE.JP / SIL OFL 1.1）を基本書体にする。
+     漢字とラテンは Noto Sans JP と同一の由来。そのためこのフォントに与えるのは
+     仮名と記号だけで、漢字と英字は Google Fonts の Noto Sans JP が担う。
+     CSS の per-character fallback により、1 行の中に混在しても自動で分かれる。
+
+     配布元の OTF は 1 ウェイト約 2.7 MB、2 ウェイトで 5.4 MB になる。
+     assets/fonts/ には pyftsubset で仮名・記号・ASCII だけに絞った woff2 を
+     置いている（合計 81 KB）。生成は tools/subset-corplogo.mjs。 */
+  --f-display: 'CorporateLogo','Noto Sans JP','Rajdhani',system-ui,sans-serif;
   --f-serif:   'Cormorant Garamond','Noto Serif JP',serif;
-  --f-body:    'Noto Sans JP','Rajdhani',system-ui,sans-serif;
+  --f-body:    'CorporateLogo','Noto Sans JP','Rajdhani',system-ui,sans-serif;
   --f-mono:    'Share Tech Mono','IBM Plex Mono','SF Mono',monospace;
 
   /* JS のインライン style が 9px を 22 箇所で直接指定していたため、

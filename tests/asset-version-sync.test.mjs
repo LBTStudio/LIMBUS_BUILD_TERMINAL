@@ -20,9 +20,15 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const TOOL = resolve(ROOT, "tools/sync-asset-versions.mjs");
 const HASH_LEN = 8;
 
-/** ?v= の相手が解決できる参照元。js/ は share.html から読まれるので document 相対。 */
-const SOURCES = ["index.html", "share.html", "js/share-viewer.js"];
-const VERSION_RE = /([A-Za-z0-9._/-]+\.(?:css|js|json))\?v=([0-9a-zA-Z._-]+)/g;
+/** ?v= の相手が解決できる参照元。js/ は share.html から読まれるので document 相対。
+ *  assets/design-system.css は CSS 内の url() が CSS 自身の位置（assets/）相対。 */
+const SOURCES = [
+  { file: "index.html", base: "." },
+  { file: "share.html", base: "." },
+  { file: "assets/design-system.css", base: "assets" },
+  { file: "js/share-viewer.js", base: "." },
+];
+const VERSION_RE = /([A-Za-z0-9._/-]+\.(?:css|js|json|woff2))\?v=([0-9a-zA-Z._-]+)/g;
 
 const hashOf = (abs) => createHash("sha256").update(readFileSync(abs)).digest("hex").slice(0, HASH_LEN);
 
@@ -41,12 +47,12 @@ test("?v= は全参照がファイル内容ハッシュと同期している", (
 test("参照されるアセットは実在し、旧来の手動版（65r69 など）は残っていない", () => {
   const seen = new Set();
   let refs = 0;
-  for (const rel of SOURCES) {
+  for (const { file: rel, base } of SOURCES) {
     const html = readFileSync(resolve(ROOT, rel), "utf8");
     for (const m of html.matchAll(VERSION_RE)) {
       const [, asset, version] = m;
       refs++;
-      assert.ok(existsSync(resolve(ROOT, asset)), `${rel} が参照する ${asset} が実在すること`);
+      assert.ok(existsSync(resolve(ROOT, base, asset)), `${rel} が参照する ${asset} が実在すること`);
       assert.equal(version.length, HASH_LEN, `${rel} の ${asset} の版は ${HASH_LEN} 桁のハッシュ`);
       assert.match(version, /^[0-9a-f]+$/, `${rel} の ${asset} の版は hex（小文字）: ${version}`);
       // 手動で bump し続けた裾の版が混入していないこと

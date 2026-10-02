@@ -47,14 +47,16 @@ if (ALL && /[^0-9a-zA-Z_-]/.test(ALL)) {
   process.exit(1);
 }
 
-/** 参照元ファイル。HTML 2 枚と、データURLをハードコードしている共有ビューア。
+/** 参照元ファイル。HTML 2 枚と、?v= を持つ CSS、そしてデータURLをハードコードしている共有ビューア。
  *  base は ?v= の相手アセットを解決する基準ディレクトリ。
  *  js/share-viewer.js は share.html（リポジトリ直下）から読み込まれるので、
  *  中の fetch("data/db.json") は実行時に document 相対＝ルート起点になる。
- *  そのため JS の base も ROOT にする。 */
+ *  そのため JS の base も ROOT にする。
+ *  assets/design-system.css は CSS 内の url() が CSS 自身の位置（assets/）相対。 */
 const SOURCES = [
   { file: "index.html", base: "." },
   { file: "share.html", base: "." },
+  { file: "assets/design-system.css", base: "assets" },
   { file: "js/share-viewer.js", base: "." },
 ];
 
@@ -71,7 +73,9 @@ function hashOf(absPath) {
 }
 
 /** `path?v=old` の一致を全部返す。拡張子しつつ、URL 全体も返す。 */
-const VERSION_RE = /((?:[A-Za-z0-9._/-]+\.(?:css|js|json))(?:\?v=)([0-9a-zA-Z._-]+))/g;
+/* woff2 も対象。tools/subset-corplogo.mjs が同じ内容を再生成しても
+   ファイル名が変わらないため、中身のハッシュでキャッシュを破棄する。 */
+const VERSION_RE = /((?:[A-Za-z0-9._/-]+\.(?:css|js|json|woff2))(?:\?v=)([0-9a-zA-Z._-]+))/g;
 
 /**
  * 1 つのソースファイル内の全 ?v= を更新する。
