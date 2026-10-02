@@ -70,6 +70,22 @@ test("提供PDFの精神の種類54〜55頁に掲載された7件をサプリメ
   assert.deepEqual(supplements.map((entry) => entry.name), names);
 });
 
+test("サポートパッシブの並びは PDF の掲載順になっている", (t) => {
+  if (!existsSync(auditPath)) {
+    t.skip("three-book-audit.json がない（tools/provenance/audit_three_books.py を実行してください）");
+    return;
+  }
+  const audit = JSON.parse(readFileSync(auditPath, "utf8"));
+  const nfkc = (s) => String(s == null ? "" : s).normalize("NFKC").replace(/[\s　]+/g, "");
+  // 台帳の並びは PDF のページ順そのもの
+  const ledger = audit.candidates.filter((c) => c.kind === "support_passives").map((c) => nfkc(c.data && c.data.name));
+  const inDb = db.support_passives.map((s) => nfkc(s.name));
+  assert.equal(inDb.length, ledger.length, "件数が台帳と一致すること");
+  assert.equal(new Set(inDb).size, inDb.length, "重複がないこと");
+  const mismatches = ledger.filter((n, i) => n !== inDb[i]).length;
+  assert.equal(mismatches, 0, `掲載順に一致すること（不一致 ${mismatches} 件）`);
+});
+
 test("出典フィルタは 4 つの選択肢を持つ", () => {
   assert.match(sectionSource, /const catalogSource = \(entry\) => entry\?\.source \|\| "core";/);
   assert.match(sectionSource, /sourceFilter !== "all" && catalogSource\(s\) !== sourceFilter/);

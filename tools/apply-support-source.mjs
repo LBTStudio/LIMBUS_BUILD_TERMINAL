@@ -86,6 +86,25 @@ for (const r of rows) {
   const item = db.support_passives.find((s) => nfkc(s.name) === nfkc(r.name));
   if (item && item.source !== r.after) { item.source = r.after; n++; }
 }
+
+/* 並び順も掲載順に揃える。台帳の並びは PDF のページ順そのものなので、
+   それをそのまま使う。文献ごとに連続して並ぶため、新しい出典フィルタ
+   （ルールブック / アンロックド・シンク / 特定抽出パック）と整合する。
+   DB の並びは台帳と 185 / 346 の位置が違っていた。 */
+const ledgerOrder = candidates.map((c) => nfkc(c.data && c.data.name));
+const seq = new Map();
+ledgerOrder.forEach((key, i) => { if (!seq.has(key)) seq.set(key, i); });
+const before = db.support_passives.map((s) => nfkc(s.name));
+const sorted = [...db.support_passives].sort((a, b) => {
+  const ia = seq.has(nfkc(a.name)) ? seq.get(nfkc(a.name)) : Number.MAX_SAFE_INTEGER;
+  const ib = seq.has(nfkc(b.name)) ? seq.get(nfkc(b.name)) : Number.MAX_SAFE_INTEGER;
+  return ia - ib;
+});
+const moved = before.join("|") !== sorted.map((s) => nfkc(s.name)).join("|");
+db.support_passives = sorted;
+
 writeFileSync(DB, JSON.stringify(db), "utf8");
 console.log(`\ndata/db.json を更新: ${n} 件の source を上書き`);
 console.log("  キー: core=ルルブ / supplement=アンロックド・シンク / pack1=特定抽出パック第一弾");
+console.log(`  並び順: ${moved ? "台帳（PDF 掲載順）に並べ替え済み" : "既に一致（変更なし）"}`);
+console.log(`    先頭: ${sorted.slice(0, 6).map((s) => s.name).join(" / ")}`);
