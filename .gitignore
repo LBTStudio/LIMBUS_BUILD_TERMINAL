@@ -11,3 +11,9 @@ tests/*-run.log
 tmp/
 .opencode/
 AGENTS.md
+# Agent harness output dumps (spill of long tool-call stdout). Not repo content.
+.oaah/
+# Wrangler build cache for the OGP edge worker.
+ogp-gateway/.wrangler/
+# Root-level scratch scripts and raw PDF extraction dumps.
+tmp_*.*

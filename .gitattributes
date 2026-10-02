@@ -1,0 +1,2 @@
+data/db.json text eol=crlf
+tools/provenance/audit-all-detect-v3.py text eol=lf
