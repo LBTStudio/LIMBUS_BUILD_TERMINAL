@@ -2,7 +2,7 @@
  * （axe's node 詳細取出用）
  */
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { loadPlaywright, walkSections, REPO_ROOT, BASE_URL } from "./harness.mjs";
 
@@ -38,6 +38,9 @@ await walkSections(page, {
 
 await ctx.close();
 await browser.close();
-writeFileSync("axe-detail.json", JSON.stringify(all, null, 1));
-console.log(`axe-detail.json: ${all.length} rules across sections`);
+// 出力はルートではなく tmp/ へ。tmp/ は .gitignore 済みで、ルートに
+// 使い捨ての JSON を残さない（AGENTS.md の一時生成物の扱いに合わせる）。
+mkdirSync("tmp", { recursive: true });
+writeFileSync("tmp/axe-detail.json", JSON.stringify(all, null, 1));
+console.log(`tmp/axe-detail.json: ${all.length} rules across sections`);
 all.forEach((v) => console.log(`  ${v.section.padEnd(12)} ${v.id} ${v.nodes.length} nodes`));
