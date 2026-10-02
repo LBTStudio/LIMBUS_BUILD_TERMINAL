@@ -99,6 +99,49 @@ class DetectorTests(unittest.TestCase):
         self.assertTrue(issues)
         self.assertEqual(result["support_passives"][0]["lp"], 0)
 
+    def test_provenance_only_fields_are_not_conflicts_but_real_differences_are(self):
+        """2026-10-03 の回帰。
+
+        plan_registration が辞書の完全一致で比較していたため、DB レコードが
+        持つ source のような出所メタデータだけで db_conflict になっていた。
+        実測では pack1 の 34 候補すべてが「値差異ゼロ・source だけ余分」で、
+        --check-db が構造的に通り得なくなっていた。
+        """
+        db = {"support_passives": [], "spirits": []}
+        result, _, _ = plan_registration(db, self.candidates)
+        for record in result["support_passives"] + result["spirits"]:
+            record["source"] = "pack1"
+
+        # 出所メタデータだけの差では衝突にしない。追加も上書きもしない。
+        unchanged, changes, issues = plan_registration(result, self.candidates)
+        self.assertEqual(issues, [])
+        self.assertEqual(changes, [])
+        self.assertEqual(unchanged, result)
+
+        # PDF 由来フィールドの値が違うときは衝突。
+        tampered = copy.deepcopy(result)
+        tampered["support_passives"][0]["effect"] += "（改変）"
+        _, _, issues = plan_registration(tampered, self.candidates)
+        self.assertEqual([i["code"] for i in issues], ["db_conflict"])
+        self.assertEqual(issues[0]["reason"], "field_mismatch")
+        self.assertEqual(issues[0]["fields"], ["effect"])
+
+        # フィールド欠落も衝突（get() が None を返すため）。
+        dropped = copy.deepcopy(result)
+        del dropped["support_passives"][0]["cond"]
+        _, _, issues = plan_registration(dropped, self.candidates)
+        self.assertEqual([i["reason"] for i in issues], ["field_mismatch"])
+        self.assertEqual(issues[0]["fields"], ["cond"])
+
+        # 同名が 2 件あるときは別扱いの競合。
+        duplicated = copy.deepcopy(result)
+        duplicated["support_passives"].append(copy.deepcopy(duplicated["support_passives"][0]))
+        _, _, issues = plan_registration(duplicated, self.candidates)
+        self.assertEqual([i["reason"] for i in issues], ["duplicate_name"])
+
+        # 純関数であること（渡した DB に結果を書き戻さない）。
+        self.assertEqual(db, {"support_passives": [], "spirits": []})
+
     def test_raw_ledger_is_complete_but_not_full_approval(self):
         inventory = source_inventory([self.doc], self.candidates)
         self.assertEqual(len(inventory), 244)
@@ -106,7 +149,11 @@ class DetectorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(dir=ROOT) as tmp:
             path = Path(tmp) / "ledger.sqlite"
             write_ledger(path, [self.doc], self.candidates, inventory)
-            with sqlite3.connect(path) as conn:
+            # `with sqlite3.connect(...)` はトランザクションをコミットするだけで
+            # 接続を閉じない。閉じないので TemporaryDirectory の後始末で
+            # Windows が WinError 32 を出す（POSIX は open 中の unlink が許される）。
+            conn = sqlite3.connect(path)
+            try:
                 self.assertEqual(conn.execute("SELECT count(*) FROM pages").fetchone()[0], 244)
                 self.assertEqual(conn.execute("SELECT count(*) FROM lines").fetchone()[0], sum(map(len, self.doc.pages)))
                 self.assertEqual(conn.execute("PRAGMA foreign_key_check").fetchall(), [])
@@ -115,6 +162,8 @@ class DetectorTests(unittest.TestCase):
                 for rid, text, geometry in conn.execute("SELECT id,text,geometry FROM lines"):
                     self.assertEqual(json.loads(geometry)["id"], rid)
                     self.assertEqual(json.loads(geometry)["text"], text)
+            finally:
+                conn.close()
 
     def test_workspace_boundary(self):
         with self.assertRaisesRegex(ValueError, "outside_workspace"):

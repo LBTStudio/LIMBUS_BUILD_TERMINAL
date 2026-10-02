@@ -336,8 +336,17 @@ def plan_registration(db, candidates):
             issues.append({"code": "unsupported_registration", "path": candidate["id"]})
             continue
         matches = [r for r in result.get(kind, []) if r.get("name") == incoming["name"]]
-        if len(matches) > 1 or (matches and matches[0] != incoming):
-            issues.append({"code": "db_conflict", "path": candidate["id"], "name": incoming["name"]})
+        # PDF 由来フィールドだけを照合する。source のような出所メタデータは
+        # 抽出器が知り得ない値なので、辞書の完全一致で比べると必ずずれる。
+        # 実際に測ると pack1 の 34 候補すべてが「値差異ゼロ・source だけ余分」で
+        # db_conflict になり、--check-db が構造的に通り得なくなっていた。
+        differing = sorted(f for f, v in incoming.items() if matches and matches[0].get(f) != v)
+        if len(matches) > 1:
+            issues.append({"code": "db_conflict", "path": candidate["id"], "name": incoming["name"],
+                           "reason": "duplicate_name", "matches": len(matches)})
+        elif differing:
+            issues.append({"code": "db_conflict", "path": candidate["id"], "name": incoming["name"],
+                           "reason": "field_mismatch", "fields": differing})
         elif not matches:
             result.setdefault(kind, []).append(copy.deepcopy(incoming))
             changes.append({"kind": kind, "name": incoming["name"], "source": candidate["source"], "pages": candidate["pages"]})
@@ -409,43 +418,47 @@ def write_ledger(path, documents, candidates, inventory):
     fd, temp = tempfile.mkstemp(prefix=path.name + ".", dir=path.parent)
     os.close(fd)
     try:
-        with sqlite3.connect(temp) as conn:
-            conn.execute("PRAGMA foreign_keys=ON")
-            conn.executescript("""
-                CREATE TABLE metadata(key TEXT PRIMARY KEY, value TEXT NOT NULL);
-                CREATE TABLE sources(id TEXT PRIMARY KEY, filename TEXT NOT NULL, sha256 TEXT NOT NULL, pages INTEGER NOT NULL);
-                CREATE TABLE pages(source TEXT REFERENCES sources(id), page INTEGER, status TEXT NOT NULL, section TEXT NOT NULL,
-                    geometry TEXT NOT NULL, PRIMARY KEY(source,page));
-                CREATE TABLE lines(id TEXT PRIMARY KEY, source TEXT, page INTEGER, text TEXT NOT NULL, geometry TEXT NOT NULL,
-                    FOREIGN KEY(source,page) REFERENCES pages(source,page));
-                CREATE TABLE candidates(id TEXT PRIMARY KEY, kind TEXT NOT NULL, source TEXT REFERENCES sources(id), data TEXT NOT NULL);
-                CREATE TABLE evidence(candidate TEXT REFERENCES candidates(id), field TEXT, position INTEGER,
-                    line TEXT REFERENCES lines(id), transform TEXT NOT NULL, PRIMARY KEY(candidate,field,position));
-            """)
-            conn.executemany("INSERT INTO metadata VALUES (?,?)", [
-                ("schema_version", str(SCHEMA_VERSION)), ("pymupdf", pymupdf.__version__),
-                ("content_sha256", ledger_content_digest(documents, candidates)),
-                ("notice", "Raw capture is not full typed-data approval")])
-            page_lookup = {(p["source"], p["page"]): p for p in inventory}
-            for doc in documents:
-                conn.execute("INSERT INTO sources VALUES (?,?,?,?)", (doc.key, doc.filename, doc.sha256, len(doc.pages)))
-                for p, rows in enumerate(doc.pages):
-                    summary = page_lookup[(doc.key, p + 1)]
-                    geometry = {"horizontal": doc.segments[p], "vertical": doc.verticals[p]}
-                    conn.execute("INSERT INTO pages VALUES (?,?,?,?,?)",
-                                 (doc.key, p + 1, summary["status"], summary["section"], json_text(geometry)))
-                    conn.executemany("INSERT INTO lines VALUES (?,?,?,?,?)", [
-                        (r["id"], doc.key, p + 1, r["text"], json_text(r)) for r in rows])
-            for candidate in candidates:
-                conn.execute("INSERT INTO candidates VALUES (?,?,?,?)",
-                             (candidate["id"], candidate["kind"], candidate["source"], json_text(candidate["data"])))
-                for field, ids in candidate["fields"].items():
-                    conn.executemany("INSERT INTO evidence VALUES (?,?,?,?,?)", [
-                        (candidate["id"], field, n, rid, candidate["transforms"][field]) for n, rid in enumerate(ids)])
-            if conn.execute("PRAGMA integrity_check").fetchone()[0] != "ok" or conn.execute("PRAGMA foreign_key_check").fetchall():
-                raise ValueError("ledger_integrity_failure")
-            if conn.execute("SELECT count(*) FROM lines").fetchone()[0] != sum(len(r) for d in documents for r in d.pages):
-                raise ValueError("ledger_row_count_failure")
+        conn = sqlite3.connect(temp)
+        try:
+            with conn:
+                conn.execute("PRAGMA foreign_keys=ON")
+                conn.executescript("""
+                    CREATE TABLE metadata(key TEXT PRIMARY KEY, value TEXT NOT NULL);
+                    CREATE TABLE sources(id TEXT PRIMARY KEY, filename TEXT NOT NULL, sha256 TEXT NOT NULL, pages INTEGER NOT NULL);
+                    CREATE TABLE pages(source TEXT REFERENCES sources(id), page INTEGER, status TEXT NOT NULL, section TEXT NOT NULL,
+                        geometry TEXT NOT NULL, PRIMARY KEY(source,page));
+                    CREATE TABLE lines(id TEXT PRIMARY KEY, source TEXT, page INTEGER, text TEXT NOT NULL, geometry TEXT NOT NULL,
+                        FOREIGN KEY(source,page) REFERENCES pages(source,page));
+                    CREATE TABLE candidates(id TEXT PRIMARY KEY, kind TEXT NOT NULL, source TEXT REFERENCES sources(id), data TEXT NOT NULL);
+                    CREATE TABLE evidence(candidate TEXT REFERENCES candidates(id), field TEXT, position INTEGER,
+                        line TEXT REFERENCES lines(id), transform TEXT NOT NULL, PRIMARY KEY(candidate,field,position));
+                """)
+                conn.executemany("INSERT INTO metadata VALUES (?,?)", [
+                    ("schema_version", str(SCHEMA_VERSION)), ("pymupdf", pymupdf.__version__),
+                    ("content_sha256", ledger_content_digest(documents, candidates)),
+                    ("notice", "Raw capture is not full typed-data approval")])
+                page_lookup = {(p["source"], p["page"]): p for p in inventory}
+                for doc in documents:
+                    conn.execute("INSERT INTO sources VALUES (?,?,?,?)", (doc.key, doc.filename, doc.sha256, len(doc.pages)))
+                    for p, rows in enumerate(doc.pages):
+                        summary = page_lookup[(doc.key, p + 1)]
+                        geometry = {"horizontal": doc.segments[p], "vertical": doc.verticals[p]}
+                        conn.execute("INSERT INTO pages VALUES (?,?,?,?,?)",
+                                     (doc.key, p + 1, summary["status"], summary["section"], json_text(geometry)))
+                        conn.executemany("INSERT INTO lines VALUES (?,?,?,?,?)", [
+                            (r["id"], doc.key, p + 1, r["text"], json_text(r)) for r in rows])
+                for candidate in candidates:
+                    conn.execute("INSERT INTO candidates VALUES (?,?,?,?)",
+                                 (candidate["id"], candidate["kind"], candidate["source"], json_text(candidate["data"])))
+                    for field, ids in candidate["fields"].items():
+                        conn.executemany("INSERT INTO evidence VALUES (?,?,?,?,?)", [
+                            (candidate["id"], field, n, rid, candidate["transforms"][field]) for n, rid in enumerate(ids)])
+                if conn.execute("PRAGMA integrity_check").fetchone()[0] != "ok" or conn.execute("PRAGMA foreign_key_check").fetchall():
+                    raise ValueError("ledger_integrity_failure")
+                if conn.execute("SELECT count(*) FROM lines").fetchone()[0] != sum(len(r) for d in documents for r in d.pages):
+                    raise ValueError("ledger_row_count_failure")
+        finally:
+            conn.close()
         os.replace(temp, path)
     finally:
         if Path(temp).exists():

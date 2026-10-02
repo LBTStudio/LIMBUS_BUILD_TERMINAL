@@ -17,3 +17,6 @@ AGENTS.md
 ogp-gateway/.wrangler/
 # Root-level scratch scripts and raw PDF extraction dumps.
 tmp_*.*
+# tempfile.TemporaryDirectory(dir=ROOT) の残骸。8文字のランダム名なので
+# tmp_*.* （拡張子必須）に一致せず、未追跡に漏れていた。
+tmp????????/

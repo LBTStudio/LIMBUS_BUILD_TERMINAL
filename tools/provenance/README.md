@@ -35,6 +35,20 @@ PDFの折り返しとDB連結の差だけではDB修正を要求しません。
 依存関係は `requirements.txt`（PyMuPDF 1.28.2）に固定しています。
 検証環境は Python 3.13.14 / Node 22.23.2。Pythonの依存はローカルの仮想環境などへ導入してください。
 
+**Windows では実行名が `python3` ではないことがあります。** Python Launcher だけが
+入境している環境では `py` を使ってください。さらに Windows の Python は既定で
+stdout が cp932 なので、`PYTHONUTF8=1` を付けないと日本語が化けて台帳の
+バイト数もずれます（実測 180364 → 174629 バイト）。
+
+```powershell
+$env:PYTHONUTF8 = "1"
+py -m pip install -r tools/provenance/requirements.txt
+py tools/provenance/detect_pdf_data.py --scope pack-shop --check-db
+```
+
+`node --test` 側は `python3` / `py` / `python` を実際に起動して検証したうえで
+自動で選ぶので、Windows でも追加設定なしで動きます。
+
 ```bash
 python3 -m pip install -r tools/provenance/requirements.txt
 
