@@ -228,12 +228,20 @@ const UniqueBuffsBlock = ({ state, dispatch }) => {
     "\u56FA\u6709\u30D0\u30D5\u3092\u518D\u8AAD\u8FBC"
   ))) : /* @__PURE__ */ React.createElement("div", { className: "stack-2" }, state.uniqueBuffs.map((b, i) => /* @__PURE__ */ React.createElement("div", { key: b.id, className: "unique-item" }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "auto 2fr 1fr 70px 70px 130px auto", gap: "var(--s-2)", alignItems: "end" } }, /* @__PURE__ */ React.createElement("div", { className: "reorder-btns", style: { alignSelf: "center" } }, /* @__PURE__ */ React.createElement("button", { className: "reorder-btn", onClick: () => editable && dispatch({ type: "REORDER_LIST", field: "uniqueBuffs", key: b.id, dir: -1 }), disabled: !editable || i === 0, title: "\u4E0A\u3078" }, /* @__PURE__ */ React.createElement(Icon, { name: "arrowU", size: 10 })), /* @__PURE__ */ React.createElement("button", { className: "reorder-btn", onClick: () => editable && dispatch({ type: "REORDER_LIST", field: "uniqueBuffs", key: b.id, dir: 1 }), disabled: !editable || i === state.uniqueBuffs.length - 1, title: "\u4E0B\u3078" }, /* @__PURE__ */ React.createElement(Icon, { name: "arrowD", size: 10 }))), /* @__PURE__ */ React.createElement(Field, { label: "\u540D\u524D" }, /* @__PURE__ */ React.createElement("input", { className: "input", value: b.name, disabled: !editable, onChange: (e) => dispatch({ type: "PATCH_UB", id: b.id, patch: { name: e.target.value } }) })), /* @__PURE__ */ React.createElement(Field, { label: "\u7A2E\u5225" }, /* @__PURE__ */ React.createElement("select", { className: "select", value: b.type, disabled: !editable, onChange: (e) => dispatch({ type: "PATCH_UB", id: b.id, patch: { type: e.target.value } }) }, [.../* @__PURE__ */ new Set([b.type, ...UNIQUE_BUFF_TYPES])].filter(Boolean).map((t) => /* @__PURE__ */ React.createElement("option", { key: t, value: t }, t)))), /* @__PURE__ */ React.createElement(Field, { label: "\u521D\u671F\u5024" }, /* @__PURE__ */ React.createElement("input", { type: "number", className: "input", value: b.initial ?? 0, disabled: !editable, onChange: (e) => dispatch({ type: "PATCH_UB", id: b.id, patch: { initial: parseInt(e.target.value) || 0 } }) })), /* @__PURE__ */ React.createElement(Field, { label: "\u6700\u5927\u5024" }, /* @__PURE__ */ React.createElement("input", { type: "number", className: "input", value: b.max, onChange: (e) => dispatch({ type: "PATCH_UB", id: b.id, patch: { max: parseInt(e.target.value) || 0 } }) })), /* @__PURE__ */ React.createElement(Field, { label: "\u5E30\u5C5E" }, /* @__PURE__ */ React.createElement("select", { className: "select", value: b.place || "status", disabled: !editable, onChange: (e) => dispatch({ type: "PATCH_UB", id: b.id, patch: { place: e.target.value } }), title: "ST\u5074=JSON\u306Estatus\u3078 / \u30E9\u30D9\u30EB\u5074=JSON\u306Eparams(label)\u3078 / \u51FA\u529B\u3057\u306A\u3044=JSON\u306B\u542B\u3081\u306A\u3044\uFF08memo\u30FB\u30D1\u30EC\u30C3\u30C8\u306F\u9664\u304F\uFF09" }, UNIQUE_BUFF_PLACES.map((o) => /* @__PURE__ */ React.createElement("option", { key: o.value, value: o.value }, o.label)))), /* @__PURE__ */ React.createElement("button", { className: "btn btn-sm lbt-del", disabled: !editable, onClick: () => editable && dispatch({ type: "REMOVE_UB", id: b.id }), title: "\u3053\u306E\u56FA\u6709\u30D0\u30D5\u3092\u524A\u9664" }, /* @__PURE__ */ React.createElement(Icon, { name: "trash", size: 12 }), " \u524A\u9664")), /* @__PURE__ */ React.createElement(Field, { label: "\u52B9\u679C\u30E1\u30E2\uFF08\u4EFB\u610F\uFF09" }, /* @__PURE__ */ React.createElement("textarea", { className: "textarea", rows: 2, value: b.desc || "", disabled: !editable, onChange: (e) => dispatch({ type: "PATCH_UB", id: b.id, patch: { desc: e.target.value } }) }))))));
 };
-const catalogSource = (entry) => entry?.source === "supplement" ? "supplement" : "rulebook";
+/* 掲載出所。値は tools/provenance/audit_three_books.py が PDF の表から
+   判定したものをそのまま使う（support_passives は db=346 / 候補=346 で 1:1）。
+     core        ルルブ（新リンバスTRPG）
+     supplement  アンロックド・シンク
+     pack1       特定抽出パック第一弾
+   以前は core と supplement の 2 値しか無く、pack1 の 29 件が core と
+   書かれていたので ルールブック に落ちていた。 */
+const SOURCE_OPTIONS = [["all", "全て"], ["core", "ルールブック"], ["supplement", "アンロックド・シンク"], ["pack1", "特定抽出パック"]];
+const catalogSource = (entry) => entry?.source || "core";
 const SourceFilterRow = ({ h, kind, value, onChange }) => h(
   "div",
   { className: "codex-filter-row source-filter-row", "aria-label": `${kind}の出典フィルタ` },
   h("span", { className: "filter-label" }, "出典"),
-  ...[["all", "全て"], ["rulebook", "ルールブック"], ["supplement", "サプリメント"]].map(([key, text]) => h("button", { key, type: "button", className: `chip${value === key ? " is-active" : ""}`, "aria-pressed": value === key, onClick: () => onChange(key) }, text))
+  ...SOURCE_OPTIONS.map(([key, text]) => h("button", { key, type: "button", className: `chip${value === key ? " is-active" : ""}`, "aria-pressed": value === key, onClick: () => onChange(key) }, text))
 );
 const useSourceFilterControl = (kind, value, onChange) => {
   React.useEffect(() => {
@@ -243,7 +251,7 @@ const useSourceFilterControl = (kind, value, onChange) => {
     host.className = "codex-filter-row source-filter-row";
     host.setAttribute("aria-label", `${kind}の出典フィルタ`);
     host.innerHTML = `<span class="filter-label">出典</span>`;
-    [["all", "全て"], ["rulebook", "ルールブック"], ["supplement", "サプリメント"]].forEach(([key, text]) => {
+    SOURCE_OPTIONS.forEach(([key, text]) => {
       const button = document.createElement("button");
       button.type = "button";
       button.className = `chip${value === key ? " is-active" : ""}`;

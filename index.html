@@ -54,12 +54,12 @@
     function loadDB(){
       return new Promise(function(resolve, reject){
 	        if(window.fetch){
-		          Promise.all([fetch("data/db.json?v=b2118d48"), fetch("data/items.json?v=b47b58ae")]).then(function(rs){ return Promise.all(rs.map(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json(); })); })
+		          Promise.all([fetch("data/db.json?v=804ef5e6"), fetch("data/items.json?v=b47b58ae")]).then(function(rs){ return Promise.all(rs.map(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json(); })); })
 	          .then(function(rows){ window.DB = rows[0]; window.DB.items = Array.isArray(rows[1]) ? rows[1] : []; window.LBT_PERSONA_KEYWORD_AUDIT = window.LBT_enrichPersonaKeywords ? window.LBT_enrichPersonaKeywords(window.DB) : null; window.LBT_EGO_KEYWORD_AUDIT = window.LBT_enrichEgoKeywords ? window.LBT_enrichEgoKeywords(window.DB) : null; resolve(); }).catch(reject);
           return;
         }
         var xhr = new XMLHttpRequest();
-		        xhr.open("GET", "data/db.json?v=b2118d48", true);
+		        xhr.open("GET", "data/db.json?v=804ef5e6", true);
 	        xhr.onload = function(){ if(xhr.status===200 || xhr.status===0){ try{ window.DB = JSON.parse(xhr.responseText); window.DB.items = []; window.LBT_PERSONA_KEYWORD_AUDIT = window.LBT_enrichPersonaKeywords ? window.LBT_enrichPersonaKeywords(window.DB) : null; window.LBT_EGO_KEYWORD_AUDIT = window.LBT_enrichEgoKeywords ? window.LBT_enrichEgoKeywords(window.DB) : null; resolve(); }catch(e){ reject(e); } } else reject(new Error("http "+xhr.status)); };
         xhr.onerror = function(){ reject(new Error("xhr error")); };
         xhr.send();
@@ -85,7 +85,7 @@
 				<script src="js/PersonaCodex.js?v=baa05de8"></script>
 		<script src="js/ItemCodex.js?v=8834b0b3"></script>
 <script src="js/SkillDeck.js?v=882728d4"></script>
-								<script src="js/OtherSections.js?v=96678d98"></script>
+								<script src="js/OtherSections.js?v=7564a82b"></script>
 				<script src="js/LivePreview.js?v=caf94f58"></script>
 <script src="js/DataQuality.js?v=0eec2362"></script>
 <script src="js/App.js?v=a4ce671b"></script>
