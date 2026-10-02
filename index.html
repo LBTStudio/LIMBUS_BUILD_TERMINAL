@@ -32,34 +32,34 @@
         v65r47-ego-card-marks,
         items;
 </style>
-<link rel="stylesheet" href="assets/design-system.css?v=66r31">
-		<link rel="stylesheet" href="assets/workspace.css?v=66r31">
-	<link rel="stylesheet" href="assets/persona-codex.css?v=66r31">
-		<link rel="stylesheet" href="assets/sections.css?v=66r32">
-	<link rel="stylesheet" href="assets/v52-overlay.css?v=66r31">
-	<link rel="stylesheet" href="assets/v53-overlay.css?v=66r31">
+<link rel="stylesheet" href="assets/design-system.css?v=91b5e953">
+		<link rel="stylesheet" href="assets/workspace.css?v=db32adfb">
+	<link rel="stylesheet" href="assets/persona-codex.css?v=b37ab188">
+		<link rel="stylesheet" href="assets/sections.css?v=7b4db52b">
+	<link rel="stylesheet" href="assets/v52-overlay.css?v=f079d7f8">
+	<link rel="stylesheet" href="assets/v53-overlay.css?v=45a115f1">
 
-											<link rel="stylesheet" href="assets/v56-refinements.css?v=66r31">
-										<link rel="stylesheet" href="assets/v65r29-draft-import.css?v=66r23">
-			<link rel="stylesheet" href="assets/v65r43-ego-readability.css?v=66r23">
-		<link rel="stylesheet" href="assets/v65r44-ego-quick-detail.css?v=66r23">
-		<link rel="stylesheet" href="assets/v65r47-ego-card-marks.css?v=66r32">
-									<link rel="stylesheet" href="assets/items.css?v=66r31">
+											<link rel="stylesheet" href="assets/v56-refinements.css?v=24e1437f">
+										<link rel="stylesheet" href="assets/v65r29-draft-import.css?v=c3c03d4e">
+			<link rel="stylesheet" href="assets/v65r43-ego-readability.css?v=6a7401d4">
+		<link rel="stylesheet" href="assets/v65r44-ego-quick-detail.css?v=8bf556e2">
+		<link rel="stylesheet" href="assets/v65r47-ego-card-marks.css?v=431ec18e">
+									<link rel="stylesheet" href="assets/items.css?v=08a84ed6">
 </head>
 <body style="background-color:#14110d">
   <div id="root"></div>
-  <script src="vendor/react.min.js?v=64r45"></script>
-  <script src="vendor/react-dom.min.js?v=64r45"></script>
+  <script src="vendor/react.min.js?v=d72610e7"></script>
+  <script src="vendor/react-dom.min.js?v=13b1c070"></script>
   <script>
     function loadDB(){
       return new Promise(function(resolve, reject){
 	        if(window.fetch){
-		          Promise.all([fetch("data/db.json?v=65r68"), fetch("data/items.json?v=64r60")]).then(function(rs){ return Promise.all(rs.map(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json(); })); })
+		          Promise.all([fetch("data/db.json?v=b2118d48"), fetch("data/items.json?v=b47b58ae")]).then(function(rs){ return Promise.all(rs.map(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json(); })); })
 	          .then(function(rows){ window.DB = rows[0]; window.DB.items = Array.isArray(rows[1]) ? rows[1] : []; window.LBT_PERSONA_KEYWORD_AUDIT = window.LBT_enrichPersonaKeywords ? window.LBT_enrichPersonaKeywords(window.DB) : null; window.LBT_EGO_KEYWORD_AUDIT = window.LBT_enrichEgoKeywords ? window.LBT_enrichEgoKeywords(window.DB) : null; resolve(); }).catch(reject);
           return;
         }
         var xhr = new XMLHttpRequest();
-		        xhr.open("GET", "data/db.json?v=65r68", true);
+		        xhr.open("GET", "data/db.json?v=b2118d48", true);
 	        xhr.onload = function(){ if(xhr.status===200 || xhr.status===0){ try{ window.DB = JSON.parse(xhr.responseText); window.DB.items = []; window.LBT_PERSONA_KEYWORD_AUDIT = window.LBT_enrichPersonaKeywords ? window.LBT_enrichPersonaKeywords(window.DB) : null; window.LBT_EGO_KEYWORD_AUDIT = window.LBT_enrichEgoKeywords ? window.LBT_enrichEgoKeywords(window.DB) : null; resolve(); }catch(e){ reject(e); } } else reject(new Error("http "+xhr.status)); };
         xhr.onerror = function(){ reject(new Error("xhr error")); };
         xhr.send();
@@ -75,20 +75,20 @@
         ReactDOM.createRoot(document.getElementById("root")).render(_AppTree);
       }
   </script>
-<script src="js/core.js?v=65r69"></script>
-			<script src="js/ego-slot-forms.js?v=65r69"></script>
-				<script src="js/state.js?v=65r69"></script>
-				<script src="js/persona-draft-import.js?v=65r69"></script>
-					<script src="js/share-link.js?v=66r31"></script>
-					<script src="js/generator.js?v=66r31"></script>
-<script src="js/ui.js?v=66r31"></script>
-				<script src="js/PersonaCodex.js?v=66r31"></script>
-		<script src="js/ItemCodex.js?v=65r19"></script>
-<script src="js/SkillDeck.js?v=66r31"></script>
-								<script src="js/OtherSections.js?v=66r32"></script>
-				<script src="js/LivePreview.js?v=66r31"></script>
-<script src="js/DataQuality.js?v=66r31"></script>
-<script src="js/App.js?v=66r31"></script>
+<script src="js/core.js?v=fcbfdb20"></script>
+			<script src="js/ego-slot-forms.js?v=4ca27c0e"></script>
+				<script src="js/state.js?v=dd6fa7b5"></script>
+				<script src="js/persona-draft-import.js?v=f4aa1260"></script>
+					<script src="js/share-link.js?v=ddb500b4"></script>
+					<script src="js/generator.js?v=5c81ae9e"></script>
+<script src="js/ui.js?v=70475e7f"></script>
+				<script src="js/PersonaCodex.js?v=baa05de8"></script>
+		<script src="js/ItemCodex.js?v=8834b0b3"></script>
+<script src="js/SkillDeck.js?v=882728d4"></script>
+								<script src="js/OtherSections.js?v=96678d98"></script>
+				<script src="js/LivePreview.js?v=caf94f58"></script>
+<script src="js/DataQuality.js?v=0eec2362"></script>
+<script src="js/App.js?v=a4ce671b"></script>
 <script>
   loadDB().then(lbtBoot).catch(function(){
     document.getElementById("root").innerHTML = "<div style=\"color:#c8a84b;padding:40px;text-align:center;font-family:sans-serif\">DBの読み込みに失敗しました。file:// で直接開いている場合はローカルサーバー経由で開いてください（README参照）。</div>";

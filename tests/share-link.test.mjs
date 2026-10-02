@@ -316,12 +316,16 @@ test("静的共有ページはDiscord向けのOGPと圧縮共有データの復�
   const generatorVersion = /js\/generator\.js\?v=(\w+)/.exec(html)?.[1];
   const indexGeneratorVersion = /js\/generator\.js\?v=(\w+)/.exec(indexHtml)?.[1];
   assert.equal(generatorVersion, indexGeneratorVersion, "share.html と index.html の generator.js の version が一致する");
-  assert.match(html, /js\/share-viewer\.js\?v=65/);
+  // 版の値そのものは tools/sync-asset-versions.mjs がファイル内容から決めるので、
+  // ここで数値や版番号を固定すると、そのファイルと無関係に落ちる。ここでは
+  // 「version 付きで読んでいる」ことだけ Contratし、同期そのものは
+  // tests/asset-version-sync.test.mjs が全アセットを対象に検証する。
+  assert.match(html, /js\/share-viewer\.js\?v=[0-9a-z]+/);
   const viewer = readFileSync(new URL("../js/share-viewer.js", import.meta.url), "utf8");
   assert.match(viewer, /window\.addEventListener\("hashchange"/);
   assert.match(viewer, /window\.location\.reload\(\)/);
   assert.match(viewer, /window\.setTimeout\(resolve, 800\)/);
-  assert.match(viewer, /fetch\("data\/db\.json\?v=65r68"\)/);
+  assert.match(viewer, /fetch\("data\/db\.json\?v=[0-9a-z]+"\)/);
   const share = loadShareLink();
   assert.match(readFileSync(new URL("../js/share-link.js", import.meta.url), "utf8"), /EXTERNAL_READ_TIMEOUT_MS = 6000/);
   assert.ok(share.PRACTICAL_DISCORD_URL_LENGTH > 0);

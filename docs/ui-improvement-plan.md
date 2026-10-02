@@ -483,6 +483,37 @@ playwright-cli open https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/
 - ✅ `share-link.js` の OGPカード色は `OGP_CARD_COLORS` に集約（17キー全て使用・関数内リテラル0）
 - ✅ `tools/ui/` の検証スクリプトはリポジトリに commit 済み
 - ✅ `--fs-*` は rem 化済み（既定16px ではピクセル同一、ブラウザの文字サイズ設定に追従）
+- ✅ **`?v=` をファイル内容ハッシュへ自動同期**（`tools/sync-asset-versions.mjs` + `tests/asset-version-sync.test.mjs`）
+
+#### `?v=` の一括同期 — 2026-10-02
+
+手動 bump が繰り返し漏れていたので、**版をファイル内容の sha256（先頭8桁）に置き換え**た。
+
+- **参照 37 箇所 / アセット 31 件**：`index.html` 28、`share.html` 4、`js/share-viewer.js` 2（`data/db.json`）+ `index.html` 内の二重定義 3
+- 従前は**9 つの版が併存**（`64r45`/`64r60`/`65r19`/`65r23`/`65r68`/`65r69`/`66r23`/`66r31`/`66r32`）。変更したファイルだけ bump するため、漏れたファイルだけ古い JS が残り直す運用になっていた
+- ハッシュなら「ファイルを編集する＝URL が変わる」ので **bump し忘れるファイルが存在しない**
+- `index.html` と `share.html` は同じファイルから同じハッシュを引くので、**版的食い違いは構造的に不可能**になった
+- `index.html` の `data/db.json` は fetch と XHR に二重定義され 서로版がずれうる状態だったが、統一された
+- `tools/sync-asset-versions.mjs --check` を `tests/asset-version-sync.test.mjs` から呼ぶので、**同期し忘れるとテストが落ちる**
+
+**読み込み遅延について（実測）**：版は HTML に静的に書かれたままなので、**ブラウザ実行時に解決する処理はゼロ**。実行時解決だと `<link>`/`<script>` を JS で注入することになり、CSS はレンダリング-blocking を失って FOUC が出るうえ、`index.html` の 28 タグは `defer`/`async` がなく逐次直列化され、リクエスト数が増える。ハッシュは**コミット前に Node で書く**ので、遅延は発生しない。
+
+コールドキャッシュ固定（`Network.setCacheDisabled(true)`）、3 回の中央値で A/B：
+
+| 項目 | 旧（手動版） | 新（内容ハッシュ） |
+|---|---|---|
+| load 完了 | 245ms | 235ms |
+| UI ready | 1495ms | 1511ms |
+| FCP | 252ms | 248ms |
+| リクエスト数 | 107 | 107 |
+| **最大並列数** | **30** | **30** |
+| 転送量 | 3,928,160 B | 3,928,253 B |
+
+並列度 30 で同一、転送量は +93 B（URL が長くなった分）。**遅延はない**。
+
+なお計測の初回は「改造前=コールド」「改造後=ウォード」で 4033ms→251ms と出たが、これはキャッシュ效果であって方式の差ではない（リクエスト数と転送量は完全に同一だった）。
+
+強制全破棄したいときは `node tools/sync-asset-versions.mjs --all <token>`。
 
 ### 未解決・要判断
 
@@ -490,5 +521,5 @@ playwright-cli open https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/
 - UIライブラリ（uiarc / spaceui / componentry / skecher / planes / beUI）の**設計思想**の参考は採用を推奨するが、**コード依存は受け入れない**。既存テーマ（真鍮・時計機構の意匠）に寄せる
 - OGP Worker の本番デプロイは 2026-10-02 実施済み（Version ID `80f09420-4aa7-4d30-8df8-5227c0cd6463`）。実測で `POST/PUT/DELETE → 405`、`s=3件 → 400`、`/s` は `MISS → HIT`、`cross_version_cache` はデプロイをまたいでも既存 cache（age=10952秒）が生き残ることを確認
 - `--teal` は未定義のまま参照ゼロ。`--purple` は `--ego-influence` として再定義済み
-- `share.html` と `index.html` の `?v=` は一致していなければならない。片方だけ bump すると発行側と閲覧側で別の revision が走る（実際に发生过）
+- `share.html` と `index.html` の `?v=` は一致していなければならない。片方だけ bump すると発行側と閲覧側で別の revision が走る（実際に発生した）。**→ 2026-10-02、版の内容ハッシュ化で構造的に解消。`tests/asset-version-sync.test.mjs` が両者の一致を検証する**
 
