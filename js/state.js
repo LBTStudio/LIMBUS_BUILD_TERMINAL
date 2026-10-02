@@ -112,7 +112,7 @@ function createPersonaBuildSnapshot(state) {
 // rank文字列だけの旧データも読み込み時に親子情報へ正規化する。
 function parseDerivedSkillRank(rank) {
   const match = String(rank || "").match(/^(スキル\d+)-(\d+)$/);
-  return match ? { parent: match[1], index: Math.max(2, Number(match[2]) || 2) } : null;
+  return match ? { parent: match[1], index: Math.max(1, Number(match[2]) || 1) } : null;
 }
 function normalizeEditedSkillRank(rank) {
   const value = String(rank ?? "").trim();
@@ -125,7 +125,7 @@ function normalizePersonaSkill(skill, index = 0) {
   const parsed = parseDerivedSkillRank(next.rank);
   const parent = next.derived_from || parsed?.parent || "";
   const derivedIndex = Number(next.derived_index ?? parsed?.index);
-  if (parent && Number.isFinite(derivedIndex) && derivedIndex >= 2) {
+  if (parent && Number.isFinite(derivedIndex) && derivedIndex >= 1) {
     next.derived_from = parent;
     next.derived_index = derivedIndex;
     next.derived_condition = next.derived_condition || "";
@@ -1698,7 +1698,7 @@ function appReducer(state, action) {
       const isAffiliated = !!affiliatedSource;
       const provided = action.provided || { name: true, hp: true, san: true, speed: true, bullets: true, resistances: true, passives: true, skills: true, uniques: true };
       const sourceBase = isAffiliated ? affiliatedSource : src;
-      let effectiveSrc = {
+      const effectiveSrc = {
         ...sourceBase,
         ...src,
         name: provided.name ? src.name : (sourceBase.name || src.name),
@@ -1718,45 +1718,19 @@ function appReducer(state, action) {
       };
       effectiveSrc.keywords = inferPersonaKeywords(effectiveSrc, action.secondaryPassive);
       const uid = `custom-${Date.now()}`;
-      /* 硝子窓経由のデータには派生番号が1始まり（1-1, 1-2）の慣例と
-         LBT準拠の2始まり（1-2, 1-3）の慣例が混在する。
-         「-1」rankを含むbaseは1始まり慣例と判定し、normalizePersonaSkill の
-         Math.max(2, ...) で 1-1 と 1-2 の両方が スキル1-2 に潰れる前に
-         派生番号を+1してLBT慣例へ変換する。 */
-      const oneBasedBases = new Set();
-      for (const sk of (effectiveSrc.skills || [])) {
-        const dash1 = String(sk?.rank || "").match(/^スキル(\d+)-1$/);
-        if (dash1) oneBasedBases.add(dash1[1]);
-      }
-      const shiftDerivedRank = (rawRank) => {
-        const dm = String(rawRank || "").match(/^(スキル(\d+))-(\d+)$/);
-        return dm && oneBasedBases.has(dm[2]) ? `${dm[1]}-${Number(dm[3]) + 1}` : rawRank;
-      };
-      /* personaSrc にも同じ補正を掛ける必要がある。補正を state.skills と
-         importedBuild.skills にしか掛けていないと、personaSrc.skills には 0-1 が
-         残る。そちらは後から migrateLegacyDerivedSkills が parseDerivedSkillRank の
-         Math.max(2, ...) で index=2 に丸めるため、同じ base の 0-2 と衝突して
-         「0-2 が二つできる」状態になっていた。
-         ただし state.skills の計算より後に置かないと補正が二重にabreく
-         （deck が 0-3,0-4 にずれる）。rank を書き換えるので派生情報は落とし、
-         新しい rank から再計算させる。 */
-      const shiftSourceSkills = () => {
-        if (!(effectiveSrc.skills || []).length) return;
-        const shifted = effectiveSrc.skills.map((sk) => {
-          const next = shiftDerivedRank(sk?.rank);
-          if (next === sk?.rank) return sk;
-          return { ...sk, rank: next, derived_from: "", derived_index: undefined };
-        });
-        if (shifted.some((sk, i) => sk !== effectiveSrc.skills[i])) {
-          effectiveSrc = { ...effectiveSrc, skills: shifted };
-        }
-      };
+      /* 硝子窓の派生番号は 1 始まり（0-1, 0-2）で届く。かつ LBT 準拠の
+         2 始まり（0-2, 0-3）が混在しうる。どちらが正解かは受信データだけでは
+         判別できないので、rank 文字列はそのまま保持する。
+         かつて「-1 を含む base は全部 +1 する」補正をここに置いていたが、
+         それが全戦術番号を 1 ずらす原因だった。正式データには -1 が 1 件も
+         無い（base は スキル0〜4、派生は スキル4-2）ので、この補正は不要であり、
+残した.And その二重化の原因だった。派生番号の 1 は正式に許容し、
+         parseDerivedSkillRank 側の Math.max(1, ...) で潰さないようにする。 */
       const skills = migrateLegacyDerivedSkills((effectiveSrc.skills || []).map((sk, index) => {
         const rawRank = String(sk?.rank || "");
-        const adjustedRank = shiftDerivedRank(rawRank);
         return {
-        id: `sk-${Date.now()}-${index}`,
-        rank: adjustedRank || `スキル${index}`,
+          id: `sk-${Date.now()}-${index}`,
+          rank: rawRank || `スキル${index}`,
         derived_from: sk.derived_from || "",
         derived_index: sk.derived_index,
         derived_condition: sk.derived_condition || "",
@@ -1770,8 +1744,6 @@ function appReducer(state, action) {
         quick: ""
       };
       }));
-      // deck の補正が終わってから出典側を直す（先にやると二重にずれる）
-      shiftSourceSkills();
       const uniqueBuffs = (effectiveSrc.unique_buffs || []).map((buff, index) => ({
         id: `ub-${Date.now()}-${index}`,
         name: normalizeStatusLabel(buff.name || ""),

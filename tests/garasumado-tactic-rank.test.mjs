@@ -5,16 +5,19 @@ import { readFileSync } from "node:fs";
 
 /* 硝子窓（lbt-garasumado）取り込みで戦術番号がずれる件の回帰テスト。
  *
- * 硝子窓は派生 있을 때 0-1, 0-2 と 1 始まりの連番で送る。
- * このプロジェクトでは派生番号は 2 始まり（LBT 準拠）で、
- * parseDerivedSkillRank は Math.max(2, ...) で 1 を 2 に丸める。
+ * 硝子窓は派生があるとき 0-1, 0-2 と 1 始まりの連番で送る。
+ * 公式データには -1 が 1 件も存在しない（base は スキル0〜4、派生は スキル4-2）。
+ * draft テキスト取り込みも同じで、0-1 は スキル0-1 のまま保持される
+ * （tests/persona-draft-import.test.mjs がそれを固定している）。
  *
- * したがって取り込み時に「-1 がある base は全部 +1」する補正が要る。
- * かつその補正は state.skills だけでなく personaSrc.skills にも掛ける必要がある。
+ * したがって取り込みは rank をそのまま通すだけでよく、平行移動は不要。
  *
- * unea曾 Aperture bug: 補正が personaSrc に無かったため、personaSrc に 0-1 が
- * 残ったまま後段の migrateLegacyDerivedSkills で index=2 に丸められ、
- * 同じ base の 0-2 と衝突して「0-2 が二つ」になっていた。 */
+ * 二重化的だった経緯
+ *   - 「-1 を含む base は全部 +1」する補正が state.js の IMPORT_PERSONA_DRAFT に
+ *     あり、それが全戦術番号を 1 ずらしていた。
+ *   - その補正を外しても、parseDerivedSkillRank の Math.max(2, ...) が 0-1 を
+ *     index=2 に丸め、既存の 0-2 と衝突して「0-2 が二つ」になっていた。
+ * 正しいのは補正を外し、派生番号の 1 を潰さないこと。 */
 
 const ctx = { window: {}, console, URL, TextEncoder, TextDecoder };
 vm.createContext(ctx);
@@ -36,55 +39,48 @@ const importSkills = (ranks) => {
     skills: ranks.map((r, i) => mkSkill(r, `S${i}`)),
     unique_buffs: [],
   };
-  const next = appReducer(JSON.parse(JSON.stringify(INIT_STATE)), {
+  return appReducer(JSON.parse(JSON.stringify(INIT_STATE)), {
     type: "IMPORT_PERSONA_DRAFT", persona,
     provided: { name: true, hp: true, san: true, speed: true, bullets: true, resistances: true, passives: true, skills: true, uniques: true },
   });
-  return next;
 };
 
-const srcRanks = (state) => (state.personaSrc?.skills || []).map((s) => s.rank);
+const srcRanks = (s) => (s.personaSrc?.skills || []).map((x) => x.rank);
+const deckRanks = (s) => (s.skills || []).map((x) => x.rank);
 
-test("硝子窓の 1 始まり派生を 2 始まりへ移し、重複を作らない", () => {
+test("硝子窓の 1 始まり派生はそのまま登録され、重複しない", () => {
   const state = importSkills(["スキル0-1", "スキル0-2"]);
-  assert.deepEqual(srcRanks(state), ["スキル0-2", "スキル0-3"]);
-  const seen = srcRanks(state);
-  assert.equal(seen.length, new Set(seen).size, "0-2 が重複しないこと");
+  assert.deepEqual(srcRanks(state), ["スキル0-1", "スキル0-2"], "出典側の戦術番号が変わらないこと");
+  const src = srcRanks(state);
+  assert.equal(src.length, new Set(src).size, `0-2 が重複しないこと: ${JSON.stringify(src)}`);
 });
 
-test("取り込み済みの派生番号がすべて 2 以上になる（-1 が残らない）", () => {
-  for (const ranks of [["スキル0-1", "スキル0-2"], ["スキル0-1", "スキル0-3"], ["スキル1-1", "スキル1-2"]]) {
+test("取り込み後に 1 始まりの派生が潰されない", () => {
+  const state = importSkills(["スキル0-1", "スキル0-2"]);
+  const di = (state.skills || []).map((s) => s.derived_index);
+  assert.deepEqual(di, [1, 2], "派生番号が 1 と 2 のまま保たれる");
+});
+
+test("公式データと同じ 2 始まりもそのまま通す", () => {
+  const state = importSkills(["スキル4-2", "スキル3-2"]);
+  assert.deepEqual(srcRanks(state), ["スキル4-2", "スキル3-2"]);
+  assert.deepEqual((state.skills || []).map((s) => s.derived_index), [2, 2]);
+});
+
+test("出典と deck で戦術番号が一致し、各々に重複がない", () => {
+  for (const ranks of [["スキル0-1", "スキル0-2"], ["スキル0-2", "スキル0-3"], ["スキル1-1", "スキル1-2", "スキル1-3"]]) {
     const state = importSkills(ranks);
-    for (const r of srcRanks(state)) {
-      const m = r.match(/^スキル\d+-(\d+)$/);
-      if (m) assert.ok(Number(m[1]) >= 2, `${ranks.join(",")} → ${r} の派生番号が 2 以上`);
-    }
+    const src = srcRanks(state);
+    const deck = deckRanks(state);
+    assert.equal(src.length, new Set(src).size, `personaSrc に重複: ${JSON.stringify(src)}`);
+    assert.equal(deck.length, new Set(deck).size, `deck に重複: ${JSON.stringify(deck)}`);
+    assert.deepEqual(src, deck, `出典と deck が食い違う: ${JSON.stringify(src)} vs ${JSON.stringify(deck)}`);
   }
 });
 
-test("既に 2 始まりの人格は何も動かさない", () => {
-  const state = importSkills(["スキル0-2", "スキル0-3"]);
-  assert.deepEqual(srcRanks(state), ["スキル0-2", "スキル0-3"]);
-});
-
-test("-1 を持つ base だけが補正され、他 base は据え置く", () => {
-  const state = importSkills(["スキル0-1", "スキル1-2", "スキル1-3"]);
-  assert.deepEqual(srcRanks(state), ["スキル0-2", "スキル1-2", "スキル1-3"]);
-});
-
-test("飛び番号も順序を保って平行移動される", () => {
-  const state = importSkills(["スキル0-1", "スキル0-3"]);
-  assert.deepEqual(srcRanks(state), ["スキル0-2", "スキル0-4"]);
-});
-
-test("取り込み後は deck と出典で戦術番号が一致し、各々に重複がない", () => {
+test("同じ base に 0-1 と 0-2 が来たとき 0-2 は一つだけ", () => {
   const state = importSkills(["スキル0-1", "スキル0-2"]);
-  const src = srcRanks(state);
-  const deck = (state.skills || []).map((s) => s.rank);
-  // personaSrc と state.skills は同じ戦術の2つのビューなので、
-  // 両者を連結して重複を測ってはいけない。各々に一意であることと、
-  // 両者が食い違っていないことを見る。
-  assert.equal(src.length, new Set(src).size, `personaSrc に重複がある: ${JSON.stringify(src)}`);
-  assert.equal(deck.length, new Set(deck).size, `deck に重複がある: ${JSON.stringify(deck)}`);
-  assert.deepEqual(src, deck, "personaSrc と deck の戦術番号が一致すること");
+  const all = deckRanks(state);
+  assert.equal(all.filter((r) => r === "スキル0-2").length, 1, `0-2 が一つであること: ${JSON.stringify(all)}`);
+  assert.equal(new Set(all).size, all.length, `重複なし: ${JSON.stringify(all)}`);
 });
