@@ -183,44 +183,48 @@ def join_wrapped(rows, keep_rows=False, rules_by_page=None):
 
 
 def assign_skill_ranks(skills, numbers, rules_by_page):
-    """スキルに戦術番号を割り当て、派生スキルを区別する。
+    """スキルに戦術番号を割り当てる。原典・硝子窓と同じ1始まりの形態番号で、
+    実DB（docs/derivative-skill-audit.md 参照）と同一の規則を採用する。
 
-    紙面のスキル欄には、左の桁に戦術番号（0〜4）が組まれている。
-    しかし番号を持たないスキルがあり、それが派生スキルである。
+    紙面のスキル欄の左の桁にはスロット番号（0〜4、まれに5）のバッジが組まれる。
+    1つのバッジに複数のスキルブロックが割り当てられることがあり、それらは
+    印刷順（上から）に `N-1`, `N-2`, … と割り振る。1ブロックだけのスロットは
+    plain な `スキルN` のままである。
 
-      紙面175「夜明事務所フィクサーA」
-        y=267 射出 斬撃：憤怒                  ← 番号 4（y=312）
-        y=287 使用前：炎蝶の棺が30なら、射出-正午として発動
-      紙面176
-        y= 44 射出-正午 斬撃広域3：憤怒         ← 番号なし＝派生
-
-    派生スキルは、基本スキルの効果で条件を満たしたときに置き換わって
-    発動するもので、戦術選択の対象ではない。番号の有無がその区別である。
-
-    通し番号で `スキル0`〜`スキル9` と振ると、派生スキルが基本スキルと
-    同じ扱いになり、出力でも戦術として並んでしまう。
-    既存DBの表記にそろえ、直前の基本スキルの番号に枝番を付ける
-    （`スキル4` の派生は `スキル4-2`、さらに続けば `スキル4-3`）。
+      紙面174〜175「夜明事務所フィクサーA」
+        y=164 烙印       ← 番号なし
+        y=255 正午の解体  ← 番号 0（バッジはこの欄の下端）
+        → スロット0＝{烙印, 正午の解体} であり、印刷順どおり
+          烙印=スキル0-1（基礎）、正午の解体=スキル0-2（派生）となる。
 
     番号と見出しの対応づけは、y の前後関係ではなく罫線で行う。
-    番号は自分のスキル欄の下端に組まれるため、y だけを見ると
+    番号は自分の欄の下端に組まれるため、y だけを見ると
     「番号より上にある最も近い見出し」が別のスキルになってしまう。
+    罫線で「バッジの持ち主」を決めても、rank はスロット全体を印刷順で
+    振るため、基礎・派生の役割は自動的に正しく決まる。
 
       紙面174「夜明事務所フィクサーA」罫線 [93.3, 106.2, 128.7, 159.2, 253.6, 374.2]
         y=164.69 烙印 マッチ可能斬撃反撃：憤怒       欄4
         y=255.19 正午の解体 マッチ可能斬撃反撃広域3  欄5
-        y=264.91 番号 0                             欄5 ← 正午の解体のもの
+        y=264.91 番号 0                             欄5 ← 正午の解体の欄
 
-      y の前後だけで見ると、番号0の直前にある「正午の解体」ではなく
-      その一つ上の「烙印」に割り当ててしまい、基本と派生が入れ替わる。
-
-    罫線で区切られた欄が一つのスキルに対応する。同じ欄にある番号と見出しが
-    対になる。派生スキルは基本スキルとは別の欄に組まれるため、
-    番号を持つ欄と持たない欄で自然に分かれる。
+    番号なしブロックのスロット帰属は、紙面順で最も近い番号付きブロックで決める。
+    両側が等距離のときは本文の相互参照で解決する。紙面101「夜の錐カピターノ」の
+    エクセキューションは番号3（スティレット・ドッピオ）と番号4（夜の錐）の
+    中間にあり、本文「代わりに夜の錐として発動」により番号4に帰属する。
     """
     def band_of(row, rules_by_page):
         rules = rules_by_page.get(row["page"], [])
         return (row["page"], sum(1 for rule in rules if rule <= row["y0"]))
+
+    def skill_text(skill):
+        parts = [row["text"] for row in skill["rows"]]
+        parts.extend(skill.get("body") or [])
+        return " ".join(parts)
+
+    def skill_name(skill):
+        match = skill["head"]
+        return match.group(1) if match else ""
 
     ordered = sorted(skills, key=lambda s: min(reading_order(row) for row in s["rows"]))
     for skill in ordered:
@@ -239,35 +243,97 @@ def assign_skill_ranks(skills, numbers, rules_by_page):
         if above:
             above[-1]["number"] = int(row["text"])
 
-    # 番号のないスキルは、最も近い番号付きスキルの派生である。
-    #
-    # 派生スキルは基本スキルの前に組まれることも後に組まれることもある。
-    # 「直前の番号付きスキル」を親とすると、番号の前に来た派生が
-    # 一つ前の番号の派生になってしまう。紙面順で最も近い番号を親とする。
+    # 番号のないブロックは、最も近い番号付きブロックと同じスロットに属する。
     numbered = [s for s in ordered if s["number"] is not None]
     for skill in ordered:
         if skill["number"] is not None:
-            skill["rank"] = f"スキル{skill['number']}"
             continue
         if not numbered:
-            skill["rank"] = "スキル0-2"
+            skill["parent"] = 0
             continue
-        # 紙面順で最も近い番号付きスキルを親とする。
-        nearest = min(numbered, key=lambda s: (abs(ordered.index(s) - ordered.index(skill)),
-                                               ordered.index(s)))
-        skill["parent"] = nearest["number"]
+        distances = [(abs(ordered.index(s) - ordered.index(skill)), ordered.index(s)) for s in numbered]
+        best_distance = min(d for d, _ in distances)
+        tied = [numbered[i] for i, (d, _) in enumerate(distances) if d == best_distance]
+        if len(tied) > 1:
+            # 両側が等距離のときは、まずバッジの幾何配置で解決する。
+            # 原典ではスロットのバッジ数字は、そのスロットの全ブロックのうち
+            # バッジと同じページにある行の中心に置かれる（対の中心）。候補側へ
+            # 結合した場合のバッジとのずれの合計が小さい採択を採る。
+            # 紙面174「夜明事務所フィクサーA」のバッジ0は罫線上は正午の解体の欄に
+            # あるが、y=264.9 は {烙印+正午の解体} の対中心でもある。同様に紙面100
+            # 「夜の錐カピターノ」のバッジ1(y=248.0) は {隙を突く+メルチェ} の対中心
+            # 247.9 であり、隙を突くはバッジ0のフェイントではなくスロット1に属する。
+            badge_of = {}
+            for row in numbers:
+                badge_of.setdefault(int(row["text"]), row)
+            members = {}
+            for s in ordered:
+                if s["number"] is not None:
+                    members[s["number"]] = [s]
+            for s in ordered:
+                if s is skill:
+                    break
+                if s["number"] is None and s.get("parent") is not None:
+                    members.setdefault(s["parent"], []).append(s)
 
-    # 枝番は親ごとに、紙面順で1から数える。
-    derived_count = {}
+            def badge_fit(number, group):
+                badge = badge_of.get(number)
+                if badge is None:
+                    return None
+                def block_rows(s):
+                    return s["rows"] + s.get("body_rows", [])
+                ys = [r["y0"] for s in group for r in block_rows(s) if r["page"] == badge["page"]]
+                if not ys:
+                    return None
+                return abs(badge["y0"] - (min(ys) + max(ys)) / 2)
+
+            if len(tied) == 2:
+                left, right = tied
+                left_group = members.get(left["number"], [left])
+                right_group = members.get(right["number"], [right])
+                join_left = badge_fit(left["number"], left_group + [skill])
+                right_alone = badge_fit(right["number"], right_group)
+                left_alone = badge_fit(left["number"], left_group)
+                join_right = badge_fit(right["number"], right_group + [skill])
+                if None not in (join_left, right_alone, left_alone, join_right):
+                    if join_right + left_alone < join_left + right_alone:
+                        tied = [right]
+                    elif join_left + right_alone < join_right + left_alone:
+                        tied = [left]
+        if len(tied) > 1:
+            # 幾何で決まらないときは本文の相互参照、それでも不明なら紙面順で早い方。
+            own_text = skill_text(skill)
+            own_name = skill_name(skill)
+            chosen = None
+            for candidate in tied:
+                candidate_name = skill_name(candidate)
+                if len(candidate_name) >= 2 and candidate_name in own_text:
+                    chosen = candidate
+                    break
+            if chosen is None:
+                for candidate in tied:
+                    if len(own_name) >= 2 and own_name in skill_text(candidate):
+                        chosen = candidate
+                        break
+            if chosen is not None:
+                tied = [chosen]
+        skill["parent"] = tied[0]["number"]
+
+    # rank はスロットごとに印刷順で振る。1ブロックだけのスロットはplainとする。
+    groups = {}
     for skill in ordered:
         if skill["number"] is not None:
+            groups.setdefault(skill["number"], []).append(skill)
+        else:
+            groups.setdefault(skill.get("parent", 0), []).append(skill)
+    for number, members in groups.items():
+        members.sort(key=lambda s: s["y"])
+        if len(members) == 1:
+            members[0]["rank"] = f"スキル{number}"
             continue
-        base = skill.get("parent", 0)
-        derived_count[base] = derived_count.get(base, 1) + 1
-        skill["rank"] = f"スキル{base}-{derived_count[base]}"
+        for form_index, member in enumerate(members, start=1):
+            member["rank"] = f"スキル{number}-{form_index}"
     return skills
-
-
 def cell_bounds(rules, y):
     """y を挟む罫線の対を返す。罫線が無ければ全体を一つの欄とみなす。"""
     top = float("-inf")
@@ -573,10 +639,11 @@ def parse_persona(name, page_rows, rules_by_page, verticals_by_page=None, number
     for paragraph, rows in paragraphs_all:
         match = SKILL_HEAD_RE.match(paragraph)
         if match:
-            current = {"head": match, "rows": rows, "body": []}
+            current = {"head": match, "rows": rows, "body": [], "body_rows": []}
             skills.append(current)
         elif current is not None:
             current["body"].extend(split_inline_skill_dice(paragraph))
+            current["body_rows"].extend(rows)
 
     # The number cell may span a base skill and several derivatives. Internal
     # body rules do not divide that number cell; use its own column boundaries.

@@ -6,6 +6,12 @@ import vm from "node:vm";
 const parserSource = readFileSync(new URL("../js/persona-draft-import.js", import.meta.url), "utf8");
 const stateSource = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
 
+/* 注意：このファイルの全フィクスチャは同期データである。
+ * 実在の硝子窓ドキュメントや草案テキストの写しではなく、
+ * 実DBと同じ規則で手書きしたテスト用の値である。
+ * したがって、ここに書かれたスキル番号(code)や構造を
+ * 公式・原典の番号体系の根拠として引用してはならない。 */
+
 const labeledDraft = `同期MAX草案（作成中）
 人格名：「草案テスト人格」
 RANK：000
@@ -105,7 +111,11 @@ R開始時、対象を指定する。
 数値に応じて効果が変化する。`
 };
 
-const garasumadoPublicDocument = {
+/* 同期テストデータ：硝子窓の実公開ドキュメントの写しではない。
+ * 個人情報を含まないよう実在の人格名・スキル名だけを借りた合成データで、
+ * tactics の code（0-2/4-2 など）も公式の番号体系を写したものではない。
+ * 番号体系の一次根拠は原典PDFと docs/derivative-skill-audit.md を参照すること。 */
+const garasumadoSyncedDocument = {
   fields: {
     isPublic: { booleanValue: true },
     name: { stringValue: "ロボトミーE.G.O::涙で研ぎ澄まされた剣 ユサの人格 000 同期MAX" },
@@ -253,12 +263,12 @@ test("全角半角の番号コロンだけで始まる戦術一覧を、次行�
 
 test("硝子窓の公開人格データは草案の4区分へ変換し、同期ランク・MAX候補と派生反撃を保持する", () => {
   const api = loadParserApi();
-  const result = api.LBT_parseGarasumadoPersonaDocument(garasumadoPublicDocument, "https://lbt-garasumado.vercel.app/persona/view/XY6v8SWFWwJ7Y1VWTlM1");
+  const result = api.LBT_parseGarasumadoPersonaDocument(garasumadoSyncedDocument, "https://lbt-garasumado.vercel.app/persona/view/XY6v8SWFWwJ7Y1VWTlM1");
 
   assert.equal(result.ok, true);
   assert.equal(result.source.kind, "garasumado");
   assert.equal(result.source.id, "XY6v8SWFWwJ7Y1VWTlM1");
-  assert.equal(result.persona.name, garasumadoPublicDocument.fields.name.stringValue);
+  assert.equal(result.persona.name, garasumadoSyncedDocument.fields.name.stringValue);
   assert.equal(result.persona.hp, 152);
   assert.equal(result.persona.san, 63);
   assert.equal(result.persona.speed, "1d7");
@@ -277,7 +287,7 @@ test("硝子窓の公開人格データは草案の4区分へ変換し、同期�
 
 test("硝子窓URL移行は非公開データと非対応URLを解析済み人格へ変換せず、安全に停止する", () => {
   const api = loadParserApi();
-  const privateDocument = structuredClone(garasumadoPublicDocument);
+  const privateDocument = structuredClone(garasumadoSyncedDocument);
   privateDocument.fields.isPublic.booleanValue = false;
   const privateResult = api.LBT_parseGarasumadoPersonaDocument(privateDocument, "https://lbt-garasumado.vercel.app/persona/view/XY6v8SWFWwJ7Y1VWTlM1");
   const invalidUrl = api.LBT_parseGarasumadoPersonaUrl("https://example.com/persona/view/XY6v8SWFWwJ7Y1VWTlM1");

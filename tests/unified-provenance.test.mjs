@@ -71,9 +71,9 @@ test('all PDFs reproduce the ledger digest, while unsupported scope remains a fa
   assert.equal(result.status, 1, 'unimplemented categories must not be a successful full-source audit');
   const report = JSON.parse(result.stdout);
   const saved = JSON.parse(readFileSync(new URL('../data/provenance/all-audit.json', import.meta.url), 'utf8'));
-  assert.equal(report.sources.length, 4);
-  assert.equal(report.sources.reduce((n, s) => n + s.pages, 0), 1429);
-  assert.equal(report.sources.reduce((n, s) => n + s.rows, 0), 43977);
+  assert.equal(report.sources.length, 3);
+  assert.equal(report.sources.reduce((n, s) => n + s.pages, 0), 799);
+  assert.equal(report.sources.reduce((n, s) => n + s.rows, 0), 24328);
   assert.deepEqual(report, saved, 'source snapshot and page dispositions must reproduce exactly');
   assert.equal(report.goal_complete, false);
   assert.ok(report.issues.length > 0);

@@ -26,7 +26,7 @@ class DetectorTests(unittest.TestCase):
         self.assertTrue(validate_candidates(self.doc, candidates))
 
     def test_source_hashes_and_total_pages_are_pinned(self):
-        self.assertEqual(sum(s[1] for s in SOURCES.values()), 1429)
+        self.assertEqual(sum(s[1] for s in SOURCES.values()), 799)
         self.assertEqual(len(self.doc.pages), 244)
         self.assertEqual(len(self.doc.sha256), 64)
         with tempfile.TemporaryDirectory(dir=ROOT) as tmp:
@@ -265,8 +265,21 @@ class ThreeBookAuditTests(unittest.TestCase):
         from audit_three_books import compare
         candidates = [c for c in self.report["candidates"] if c["kind"] in ("support_passives", "spirits", "items")]
         findings, _, _ = compare(candidates, self.db)
-        self.assertEqual({f["name"] for f in findings}, {"自我の欠片", "硝子の破片"})
-        self.assertTrue(all(f["code"] == "missing_or_ambiguous_record" for f in findings))
+        missing = {f["name"] for f in findings if f["code"] == "missing_or_ambiguous_record"}
+        self.assertEqual(missing, {"自我の欠片", "硝子の破片"})
+        # 直近エラッタ「混乱終了時→混乱復帰時」をDBの精神は先行反映済み。原典PDFの
+        # 精神の種類表はまだ旧表記のため、該当9件は原典との差分として監査に記録される
+        # （PDFが新エラッタ版へ置き換わればこの差分は消える）。
+        field_differences = [f for f in findings if f["code"] == "field_difference"]
+        self.assertEqual(len(field_differences), 9)
+        for f in field_differences:
+            self.assertTrue(str(f.get("path", "")).endswith("confuse_effect"), f["name"])
+            self.assertIn("混乱終了時", str(f["expected"]))
+            self.assertIn("混乱復帰時", str(f["actual"]))
+        self.assertEqual(
+            {f["code"] for f in findings},
+            {"missing_or_ambiguous_record", "field_difference"},
+        )
 
     def test_full_field_checks_detect_deletion_truncation_and_price_change(self):
         from audit_three_books import compare

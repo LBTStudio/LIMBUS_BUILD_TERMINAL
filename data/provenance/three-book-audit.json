@@ -2155,7 +2155,7 @@
   "source_boundary_punctuation": 184,
   "glossary_or_persona_adapter_review": 3,
   "local_text_verified_metadata_review": 9,
-  "content_or_mapping_review": 66,
+  "content_or_mapping_review": 17,
   "glossary_text_verified_metadata_review": 17,
   "glossary_content_or_local_variant_review": 1,
   "local_definition_mapping_review": 2
@@ -2574,21 +2574,6 @@
     "note": "Owner-local definition; glossary differences do not authorize replacement or metadata inference",
     "text_matches": true
    }
-  },
-  {
-   "kind": "normal_personas",
-   "name": "人差し指遂行者：【紙片】",
-   "source": "core",
-   "pages": [
-    65,
-    66
-   ],
-   "code": "field_difference",
-   "path": "normal_personas[6].passive_always",
-   "expected": "R開始時、ランダムな敵1名に指令対象1を付与。指令の印スキルが存在しないなら、戦術スキル0~4からランダムに1つを指令の印スキルに指定する。\n以下の行動1回につき、指令の加護1を得て（1Rに最大3）、SANを3回復（最大9）する。\n・指令の印スキルの使用時\n・指令の印スキルで1以上ダメージを与える\n・指令対象に1以上ダメージを与える\nこれらを1つも達成できなかった場合、R終了時にカルマ1を得る。混乱・行動不能・E.G.O侵蝕状態・指令の加護が9ならカルマを得ない。",
-   "actual": "R開始時、ランダムな敵1名に指令対象1を付与。指令の印スキルが存在しないなら、戦術スキル0~4からランダムに1つを指令の印スキルに指定する。\n以下の行動1回につき、指令の加護1を得て（1Rに最大3）、SANを3回復（最大9）する。\n・指令の印スキルの使用時\n・指令の印スキルで1以上ダメージを与える\n・指令対象に1以上ダメージを与える\nこれらを1つも達成できなかった場合、R終了時にカルマ1を得る。混乱・行動不能・E.G.O侵蝕状態・指令の加護が9ならカルマを得ない。\nパッシブ",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
   },
   {
    "kind": "normal_personas",
@@ -3170,20 +3155,6 @@
   },
   {
    "kind": "normal_personas",
-   "name": "南部リウ協会5課フィクサー",
-   "source": "core",
-   "pages": [
-    92
-   ],
-   "code": "field_difference",
-   "path": "normal_personas[28].skills[2].dice[0].effect",
-   "expected": "的中時、対象の火傷が5以上なら次のRにパワーを1得る",
-   "actual": "：的中時、対象の火傷が5以上なら次のRにパワーを1得る",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "normal_personas",
    "name": "南部セブン協会4課フィクサー",
    "source": "core",
    "pages": [
@@ -3428,76 +3399,6 @@
     ],
     "note": "No metadata approval; compare local definitions before choosing between source variants"
    }
-  },
-  {
-   "kind": "normal_personas",
-   "name": "バラのスパナ工房B",
-   "source": "core",
-   "pages": [
-    103
-   ],
-   "code": "field_difference",
-   "path": "normal_personas[37].skills[4].dice[0].effect",
-   "expected": "的中時、対象の振動3ごとに固定ダメ―ジ1（最大5）",
-   "actual": "：的中時、対象の振動3ごとに固定ダメ―ジ1（最大5）",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "normal_personas",
-   "name": "バラのスパナ工房B",
-   "source": "core",
-   "pages": [
-    103
-   ],
-   "code": "field_difference",
-   "path": "normal_personas[37].skills[4].dice[1].effect",
-   "expected": "的中時、対象の振動3ごとに固定ダメ―ジ1（最大5）",
-   "actual": "：的中時、対象の振動3ごとに固定ダメ―ジ1（最大5）",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "normal_personas",
-   "name": "バラのスパナ工房B",
-   "source": "core",
-   "pages": [
-    103
-   ],
-   "code": "field_difference",
-   "path": "normal_personas[37].skills[4].dice[2].effect",
-   "expected": "的中時、対象の振動3ごとに固定ダメ―ジ1（最大5）",
-   "actual": "：的中時、対象の振動3ごとに固定ダメ―ジ1（最大5）",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "normal_personas",
-   "name": "ロジック・アトリエ所属フィクサー",
-   "source": "core",
-   "pages": [
-    104
-   ],
-   "code": "field_difference",
-   "path": "normal_personas[38].skills[1].effect",
-   "expected": "このスキルが捨てられたなら破裂付与数+1\n使用時：ランダムなスキルを2つ捨てる",
-   "actual": "このスキルが捨てられたなら破裂付与数+1",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "normal_personas",
-   "name": "ロジック・アトリエ所属フィクサー",
-   "source": "core",
-   "pages": [
-    104
-   ],
-   "code": "field_difference",
-   "path": "normal_personas[38].skills[2].effect",
-   "expected": "このスキルが捨てられたなら破裂付与数+1\n使用時：ランダムなスキルを2つ捨てる",
-   "actual": "このスキルが捨てられたなら破裂付与数+1",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
   },
   {
    "kind": "normal_personas",
@@ -6095,42 +5996,10 @@
     231
    ],
    "code": "field_difference",
-   "path": "tokui_personas[13].skills[6].rank",
-   "expected": "スキル3-2",
-   "actual": "スキル4",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "tokui_personas",
-   "name": "東部親指カポIIII",
-   "source": "core",
-   "pages": [
-    229,
-    230,
-    231
-   ],
-   "code": "field_difference",
    "path": "tokui_personas[13].skills[6].effect",
    "expected": "自分の弾丸が猛虎標弾なら超絶猛虎殺撃乱斬に変更\n攻撃後：[再装填]（戦闘中1回のみ発動）",
    "actual": "自分の弾丸が猛虎標弾なら超絶猛虎殺撃乱斬に変更。\n攻撃後：[再装填]（戦闘中1回のみ発動）",
    "classification": "source_boundary_punctuation",
-   "row_ids": []
-  },
-  {
-   "kind": "tokui_personas",
-   "name": "東部親指カポIIII",
-   "source": "core",
-   "pages": [
-    229,
-    230,
-    231
-   ],
-   "code": "field_difference",
-   "path": "tokui_personas[13].skills[7].rank",
-   "expected": "スキル4",
-   "actual": "スキル4-2",
-   "classification": "content_or_mapping_review",
    "row_ids": []
   },
   {
@@ -6343,21 +6212,6 @@
     234
    ],
    "code": "field_difference",
-   "path": "tokui_personas[15].skills[4].rank",
-   "expected": "スキル3-2",
-   "actual": "スキル4",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "tokui_personas",
-   "name": "剣契頭目",
-   "source": "core",
-   "pages": [
-    233,
-    234
-   ],
-   "code": "field_difference",
    "path": "tokui_personas[15].unique_buffs[1].desc",
    "expected": "斬撃威力1増加。クリティカルダメージ量+2\nR終了時消滅",
    "actual": "斬撃威力1増加。クリティカルダメージ量+2。R終了時消滅",
@@ -6536,778 +6390,162 @@
    "row_ids": []
   },
   {
-   "kind": "normal_personas",
-   "name": "薬指点描派 スチューデントB",
-   "source": "pack1",
+   "kind": "spirits",
+   "name": "圧倒",
+   "source": "core",
    "pages": [
-    32,
-    33
+    345
    ],
    "code": "field_difference",
-   "path": "normal_personas[119].skills[3].dice[1].effect",
-   "expected": "的中時、20％の確率でこのダイスを再使用。対象の保有するデバフ1種ごとに再使用確率+20％（最大2回）。次のRに出血1付与。再使用的中時、このダイスで付与する出血付与量+1",
-   "actual": "：的中時、20％の確率でこのダイスを再使用。対象の保有するデバフ1種ごとに再使用確率+20％（最大2回）。次のRに出血1付与。再使用的中時、このダイスで付与する出血付与量+1",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "normal_personas",
-   "name": "南部ディエーチ協会4課フィクサーB",
-   "source": "pack1",
-   "pages": [
-    46,
-    47
-   ],
-   "code": "field_difference",
-   "path": "normal_personas[126].skills[1].dice[0].effect",
-   "expected": "的中時、（探求した知識-2）だけこのダイスを再使用。過半数的中時、沈潜1付与",
-   "actual": "：的中時、（探求した知識-2）だけこのダイスを再使用。過半数的中時、沈潜1付与",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "normal_personas",
-   "name": "定事務所フィクサー",
-   "source": "pack1",
-   "pages": [
-    49,
-    50,
-    51
-   ],
-   "code": "field_difference",
-   "path": "normal_personas[128].unique_buffs[1].desc",
-   "expected": "戦術選択ダイスロールにて、最左端のスキルのランクに対応する組札に変換される\n組札が指定した大罪属性のスキルを使用するなら、最後のダイスに「的中時、[振動爆発]。振動3消費」を追加し、光札1を得る\n[組札-松に鶴]\nS1に対応、憤怒属性を指定\n憤怒スキルを使用するならスキル威力+2\n[組札-芒に月]\nS2に対応、怠惰属性を指定\n怠惰スキルを使用するならスキル威力+2\n[組札-桐に鳳凰]\nS3に対応、傲慢属性を指定\n傲慢スキルを使用するならスキル威力+2\n[組札-潤みに桜]\nS4に対応、憂鬱属性を指定\n憂鬱スキルを使用するならスキル威力+2",
-   "actual": "戦術選択ダイスロールにて、最左端のスキルのランクに対応する組札に変換される\n組札が指定した大罪属性のスキルを使用するなら、最後のダイスに「的中時、[振動爆発]。振動3消費」を追加し、光札1を得る",
+   "path": "spirits[1].confuse_effect",
+   "expected": "行動不能。混乱終了時、次のRに虚弱3と脆弱5を得る",
+   "actual": "行動不能。混乱復帰時、次のRに虚弱3と脆弱5を得る",
    "classification": "content_or_mapping_review",
    "row_ids": [
-    "pack1:50:35",
-    "pack1:50:36",
-    "pack1:51:1",
-    "pack1:51:2",
-    "pack1:51:3",
-    "pack1:51:4",
-    "pack1:51:5",
-    "pack1:51:6",
-    "pack1:51:7",
-    "pack1:51:8",
-    "pack1:51:9",
-    "pack1:51:10",
-    "pack1:51:11",
-    "pack1:51:12",
-    "pack1:51:13",
-    "pack1:51:14"
+    "core:345:13",
+    "core:345:14"
    ]
   },
   {
-   "kind": "normal_personas",
-   "name": "ロボトミーE.G.O::寂しさ",
-   "source": "pack1",
+   "kind": "spirits",
+   "name": "立ち向かう",
+   "source": "core",
    "pages": [
-    58,
-    59
+    346
    ],
    "code": "field_difference",
-   "path": "normal_personas[132].skills[3].dice[1].effect",
-   "expected": "銃撃。弾丸を1消費。的中時、[振動爆発]。振動4消費",
-   "actual": "：銃撃。弾丸を1消費。的中時、[振動爆発]。振動4消費",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "normal_personas",
-   "name": "ロボトミーE.G.O::寂しさ",
-   "source": "pack1",
-   "pages": [
-    58,
-    59
-   ],
-   "code": "field_difference",
-   "path": "normal_personas[132].skills[4].dice[1].effect",
-   "expected": "銃撃。弾丸を1消費。的中時、[振動爆発]。振動2消費",
-   "actual": "：銃撃。弾丸を1消費。的中時、[振動爆発]。振動4消費",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "normal_personas",
-   "name": "ロボトミーE.G.O::残香",
-   "source": "pack1",
-   "pages": [
-    60,
-    61
-   ],
-   "code": "field_difference",
-   "path": "normal_personas[133].skills[4].dice[2].effect",
-   "expected": "的中時、残香2振動2を付与。[振動爆発]。振動3消費。対象の沈潜を1回発動し沈潜5減少",
-   "actual": "：的中時、残香2振動2を付与。[振動爆発]。振動3消費。対象の沈潜を1回発動し沈潜5減少",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "normal_personas",
-   "name": "ロボトミーE.G.O::残香",
-   "source": "pack1",
-   "pages": [
-    60,
-    61
-   ],
-   "code": "field_difference",
-   "path": "normal_personas[133].skills[5].dice[0].effect",
-   "expected": "的中時、残香5沈潜3振動3を付与。[振動爆発]。振動2消費。対象の沈潜を1回発動し沈潜5減少",
-   "actual": "：的中時、残香5沈潜3振動3を付与。[振動爆発]。振動2消費。対象の沈潜を1回発動し沈潜5減少",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "normal_personas",
-   "name": "LCE E.G.O::AEDD",
-   "source": "pack1",
-   "pages": [
-    65,
-    66,
-    67
-   ],
-   "code": "field_difference",
-   "path": "normal_personas[135].skills[4].effect",
-   "expected": "戦闘開始時：自分の電圧だけ高電圧外皮を得る（最大3）。自分の電圧が3以上ならこのスキルの最後のダイスが破壊不能ダイスになる\n使用前：自分の電圧が3以上なら「出力最大-超高圧電流放電」として発動\n使用時：自分の充電が10以上なら、充電を10消費してスキルd値+2",
-   "actual": "戦闘開始時：自分の電圧だけ高電圧外皮を得る（最大3）\n使用時：自分の充電を最大10まで消費し、消費した充電1ごとに充電を保有している充電が最も低い味方1名に充電1を付与",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "normal_personas",
-   "name": "LCE E.G.O::次元裂き",
-   "source": "pack1",
-   "pages": [
-    68,
-    69,
-    70
-   ],
-   "code": "field_difference",
-   "path": "normal_personas[136].skills[2].dice[1].effect",
-   "expected": "的中時、[破裂爆発]。破裂2消費。次元の亀裂1を付与",
-   "actual": "：的中時、[破裂爆発]。破裂2消費。次元の亀裂1を付与",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "normal_personas",
-   "name": "LCE E.G.O::次元裂き",
-   "source": "pack1",
-   "pages": [
-    68,
-    69,
-    70
-   ],
-   "code": "field_difference",
-   "path": "normal_personas[136].skills[5].dice[0].effect",
-   "expected": "的中時、四色次元1を得て破裂1を付与。過半数的中時、全対象に[破裂爆発]。破裂2消費",
-   "actual": "：的中時、四色次元1を得て破裂1を付与。過半数的中時、全対象に[破裂爆発]。破裂2消費",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "normal_personas",
-   "name": "LCE E.G.O::次元裂き",
-   "source": "pack1",
-   "pages": [
-    68,
-    69,
-    70
-   ],
-   "code": "field_difference",
-   "path": "normal_personas[136].skills[5].dice[1].effect",
-   "expected": "的中時、四色次元1を得て破裂1を付与。過半数的中時、全対象に[破裂爆発]。破裂2消費",
-   "actual": "：的中時、四色次元1を得て破裂1を付与。過半数的中時、全対象に[破裂爆発]。破裂2消費",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "normal_personas",
-   "name": "LCE E.G.O::次元裂き",
-   "source": "pack1",
-   "pages": [
-    68,
-    69,
-    70
-   ],
-   "code": "field_difference",
-   "path": "normal_personas[136].skills[5].dice[2].effect",
-   "expected": "的中時、四色次元1を得て破裂1を付与。過半数的中時、全対象に[破裂爆発]。破裂2消費",
-   "actual": "：的中時、四色次元1を得て破裂1を付与。過半数的中時、全対象に[破裂爆発]。破裂2消費",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "normal_personas",
-   "name": "LCE E.G.O::次元裂き",
-   "source": "pack1",
-   "pages": [
-    68,
-    69,
-    70
-   ],
-   "code": "field_difference",
-   "path": "normal_personas[136].skills[5].dice[3].effect",
-   "expected": "的中時、充電1を得て破裂2次元の亀裂2を付与。全対象に\n[破裂爆発]。破裂3消費。自分の電圧が5以上ならこのダイスを1度だけ再使用",
-   "actual": "：的中時、充電1を得て破裂2次元の亀裂2を付与。全対象に[破裂爆発]。破裂3消費。自分の電圧が5以上ならこのダイスを1度だけ再使用",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "normal_personas",
-   "name": "S社チュノックンA",
-   "source": "pack1",
-   "pages": [
-    71,
-    72
-   ],
-   "code": "field_difference",
-   "path": "normal_personas[137].skills[4].dice[2].effect",
-   "expected": "的中時、このRと次のRに束縛2を付与。（対象の束縛x20％）の確率で捕縛[○○]3。対象が混乱状態なら確率が100％になる",
-   "actual": "：的中時、このRと次のRに束縛2を付与。（対象の束縛x20％）の確率で捕縛[○○]3。対象が混乱状態なら確率が100％になる",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "normal_personas",
-   "name": "W社3級整理要員B",
-   "source": "pack1",
-   "pages": [
-    75,
-    76
-   ],
-   "code": "field_difference",
-   "path": "normal_personas[139].skills[2].dice[0].effect",
-   "expected": "的中時、破裂2を付与。対象の破裂が10以上なら、充電5を消費してこのダイスを1度だけ再使用。再使用的中時、[破裂爆発]。破裂5消費",
-   "actual": "：的中時、破裂2を付与。対象の破裂が10以上なら、充電5を消費してこのダイスを1度だけ再使用。再使用的中時、[破裂爆発]。破裂5消費",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "normal_personas",
-   "name": "W社2級整理要員B",
-   "source": "pack1",
-   "pages": [
-    79
-   ],
-   "code": "field_difference",
-   "path": "normal_personas[141].skills[2].dice[1].effect",
-   "expected": "的中時、充電3を消費し、[破裂爆発]。破裂4消費",
-   "actual": "：的中時、充電3を消費し、[破裂爆発]。破裂4消費",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "normal_personas",
-   "name": "命脈相談窓口 受話器",
-   "source": "pack1",
-   "pages": [
-    83,
-    84
-   ],
-   "code": "field_difference",
-   "path": "normal_personas[144].skills[1].effect",
-   "expected": "使用時：ランダムな属性脆弱2を付与\nマッチ敗北時：自身と電話線を保有する味方に次のRに脆弱1を付与",
-   "actual": "使用時：ランダムな属性脆弱2を付与",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "tokui_personas",
-   "name": "デッドラビッツ ボス",
-   "source": "pack1",
-   "pages": [
-    89,
-    90
-   ],
-   "code": "field_difference",
-   "path": "tokui_personas[22].skills[4].dice[2].effect",
-   "expected": "的中時、次のRに麻痺3を付与し[破裂爆発]。破裂5消費",
-   "actual": "：的中時、次のRに麻痺3を付与し[破裂爆発]。破裂5消費",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "tokui_personas",
-   "name": "W社4級整理要員-CCA",
-   "source": "pack1",
-   "pages": [
-    95,
-    96
-   ],
-   "code": "field_difference",
-   "path": "tokui_personas[25].skills[1].dice[0].effect",
-   "expected": "的中時、充電4を得て対象に破裂2付与",
-   "actual": "：的中時、充電4を得て対象に破裂2付与",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "tokui_personas",
-   "name": "W社4級整理要員-CCA",
-   "source": "pack1",
-   "pages": [
-    95,
-    96
-   ],
-   "code": "field_difference",
-   "path": "tokui_personas[25].skills[3].dice[1].effect",
-   "expected": "的中時、[破裂爆発]を2回発動し破裂6消費",
-   "actual": "：的中時、[破裂爆発]を2回発動し破裂6消費",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "tokui_personas",
-   "name": "W社4級整理要員-CCA",
-   "source": "pack1",
-   "pages": [
-    95,
-    96
-   ],
-   "code": "field_difference",
-   "path": "tokui_personas[25].skills[4].dice[3].effect",
-   "expected": "充電を最大15まで消費し消費した充電5ごとにスキルd値+2。的中時、[破裂爆発] 破裂2消費",
-   "actual": "：充電を最大15まで消費し消費した充電5ごとにスキルd値+2。的中時、[破裂爆発] 破裂2消費",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "tokui_personas",
-   "name": "夜の錐カピターノ",
-   "source": "pack1",
-   "pages": [
-    100,
-    101,
-    102
-   ],
-   "code": "field_difference",
-   "path": "tokui_personas[27].skills[5].dice[3].effect",
-   "expected": "的中時、対象の振動を振動-大量出血へ[振幅変換]。[振動爆発] 振動3消費。対象が混乱状態か、対象に致命的な傷があるならメルチェを使用",
-   "actual": "：的中時、対象の振動を振動-大量出血へ[振幅変換]。[振動爆発] 振動3消費。対象が混乱状態か、対象に致命的な傷があるならメルチェを使用",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "tokui_personas",
-   "name": "夜の錐カピターノ",
-   "source": "pack1",
-   "pages": [
-    100,
-    101,
-    102
-   ],
-   "code": "field_difference",
-   "path": "tokui_personas[27].skills[6].dice[3].effect",
-   "expected": "破壊不能ダイス。的中時、対象の振動を振動-大量出血へ\n[振幅変換]。対象に束縛があるなら[振動爆発] 振動1消費。次のRに対象の深い傷を、致命的な傷3に変換",
-   "actual": "：破壊不能ダイス。的中時、対象の振動を振動-大量出血へ[振幅変換]。対象に束縛があるなら[振動爆発] 振動1消費。次のRに対象の深い傷を、致命的な傷3に変換",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "tokui_personas",
-   "name": "鴻園 家主",
-   "source": "pack1",
-   "pages": [
-    103,
-    104,
-    105
-   ],
-   "code": "field_difference",
-   "path": "tokui_personas[28].skills[4].dice[0].effect",
-   "expected": "過半数的中時、[破裂爆発]。破裂2消費",
-   "actual": "：過半数的中時、[破裂爆発]。破裂2消費",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "tokui_personas",
-   "name": "鴻園 家主",
-   "source": "pack1",
-   "pages": [
-    103,
-    104,
-    105
-   ],
-   "code": "field_difference",
-   "path": "tokui_personas[28].skills[4].dice[2].effect",
-   "expected": "破壊不能ダイス。破壊されずに的中時、[破裂爆発]。破裂2消費。次のRに脚力【卯】1を得る",
-   "actual": "破壊不能ダイス。破壊されずに的中時、毒3を付与",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "tokui_personas",
-   "name": "鴻園 家主",
-   "source": "pack1",
-   "pages": [
-    103,
-    104,
-    105
-   ],
-   "code": "field_difference",
-   "path": "tokui_personas[28].skills[6].dice[2].effect",
-   "expected": "破壊不能ダイス。破壊されずに的中時、[破裂爆発]。破裂5消費。対象のデバフの種類が2種以上ならデバフの種類2ごとに追加で[破裂爆発]（最大4）",
-   "actual": "破壊不能ダイス。破壊されずに的中時、毒3を付与",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "tokui_personas",
-   "name": "LCAウアジェト 先鋒三隊隊長",
-   "source": "pack1",
-   "pages": [
-    106,
-    107,
-    108
-   ],
-   "code": "field_difference",
-   "path": "tokui_personas[29].skills[4].dice[2].effect",
-   "expected": "銃撃。弾丸を最大2消費。的中時、ダメージ量+（消費した弾丸x2）。恐慌1を付与し[振動爆発]。振動3消費。SANがある対象なら[振動爆発]。振動1消費",
-   "actual": "銃撃。弾丸を最大2消費。的中時、ダメージ量+（消費した弾丸x2）。恐慌2振動2を付与",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "tokui_personas",
-   "name": "LCAウアジェト 先鋒三隊隊長",
-   "source": "pack1",
-   "pages": [
-    106,
-    107,
-    108
-   ],
-   "code": "field_difference",
-   "path": "tokui_personas[29].unique_buffs[1].desc",
-   "expected": "数値2ごとに憂鬱・怠惰スキルによる被ダメージ量+1\n数値が最大値に到達すると、憂鬱脆弱1を得る（1Rに1回）\nR終了時、自分の恐慌だけ憂鬱ダメージを受けてシュトの亀裂を削除\nこのデバフを持ったまま死亡すると、SANが最も高い味方1名へ数値の半分だけ付与\n[弾丸-LCA亀裂弾]\n銃撃ダイスで攻撃的中時、恐慌1を付与\n消費することで特定戦術の能力が向上",
-   "actual": "数値2ごとに憂鬱・怠惰スキルによる被ダメージ量+1\n数値が最大値に到達すると、憂鬱脆弱1を得る（1Rに1回）\nR終了時、自分の恐慌だけ憂鬱ダメージを受けてシュトの亀裂を削除\nこのデバフを持ったまま死亡すると、SANが最も高い味方1名へ数値の半分だけ付与",
+   "path": "spirits[8].confuse_effect",
+   "expected": "行動不能。混乱終了時、次のRに虚弱5を得る",
+   "actual": "行動不能。混乱復帰時、次のRに虚弱5を得る",
    "classification": "content_or_mapping_review",
    "row_ids": [
-    "pack1:108:1",
-    "pack1:108:2",
-    "pack1:108:3",
-    "pack1:108:4",
-    "pack1:108:5",
-    "pack1:108:6",
-    "pack1:108:7",
-    "pack1:108:8"
+    "core:346:12",
+    "core:346:13"
    ]
   },
   {
-   "kind": "tokui_personas",
-   "name": "黒獣-卯 筆頭",
-   "source": "pack1",
+   "kind": "spirits",
+   "name": "報復",
+   "source": "core",
    "pages": [
-    115,
-    116,
-    117
+    346
    ],
    "code": "field_difference",
-   "path": "tokui_personas[32].skills[6].effect",
-   "expected": "自分の速度が対象より高いなら、（対象との速度差x対象の破裂数）5ごとにダメージ量+1（最大5）\n自分の速度が対象より2以上高ければスキルd値+1\n対象の破裂10ごとにスキル威力+1（最大2）\n使用前：自分の速度が20以上なら、呼吸20を得る\n使用時：脚力【卯】3を得る\n使用後：呼吸を20消費\n攻撃後：天究星刀を10消費",
-   "actual": "自分の速度が対象より高いなら、（対象との速度差x対象の破裂数）5ごとにダメージ量+1（最大5）\n自分の速度が対象より2以上高ければスキルd値+1\n戦闘開始時：援護防御1を得る\n使用前：天究星刀が10以上なら、",
+   "path": "spirits[10].confuse_effect",
+   "expected": "行動不能。混乱終了時、味方がこの戦闘で死亡しているなら次のRにパワー2とクイック2を得る。味方が死亡してなければ虚弱2を得る",
+   "actual": "行動不能。混乱復帰時、味方がこの戦闘で死亡しているなら次のRにパワー2とクイック2を得る。味方が死亡してなければ虚弱2を得る",
    "classification": "content_or_mapping_review",
-   "row_ids": []
+   "row_ids": [
+    "core:346:23",
+    "core:346:24",
+    "core:346:25"
+   ]
   },
   {
-   "kind": "tokui_personas",
-   "name": "黒獣-酉 筆頭",
-   "source": "pack1",
+   "kind": "spirits",
+   "name": "飢え",
+   "source": "core",
    "pages": [
-    118,
-    119,
-    120
+    348
    ],
    "code": "field_difference",
-   "path": "tokui_personas[33].skills[1].dice[2].effect",
-   "expected": "的中時、火傷1を付与。過半数的中時、[破裂爆発]。破裂2消費",
-   "actual": "：的中時、火傷1を付与。過半数的中時、[破裂爆発]。破裂2消費",
+   "path": "spirits[25].confuse_effect",
+   "expected": "行動不能。全ての耐性が脆弱になる。混乱終了時、次のRにパワー1を得る",
+   "actual": "行動不能。全ての耐性が脆弱になる。混乱復帰時、次のRにパワー1を得る",
    "classification": "content_or_mapping_review",
-   "row_ids": []
+   "row_ids": [
+    "core:348:32",
+    "core:348:33"
+   ]
   },
   {
-   "kind": "tokui_personas",
-   "name": "黒獣-酉 筆頭",
-   "source": "pack1",
+   "kind": "spirits",
+   "name": "虚無のくびき",
+   "source": "core",
    "pages": [
-    118,
-    119,
-    120
+    348
    ],
    "code": "field_difference",
-   "path": "tokui_personas[33].skills[3].dice[1].effect",
-   "expected": "過半数的中時、このダイスを1度だけ再使用。再使用的中時、[破裂爆発]。破裂3消費",
-   "actual": "過半数的中時、このダイスを1度だけ再使用。再使用的中時、\n火傷2破裂1を付与",
+   "path": "spirits[27].confuse_effect",
+   "expected": "行動不能。全ての耐性が脆弱になる。混乱終了時、次のRにクイック1を得る",
+   "actual": "行動不能。全ての耐性が脆弱になる。混乱復帰時、次のRにクイック1を得る",
    "classification": "content_or_mapping_review",
-   "row_ids": []
+   "row_ids": [
+    "core:348:43",
+    "core:348:44"
+   ]
   },
   {
-   "kind": "tokui_personas",
-   "name": "黒獣-酉 筆頭",
-   "source": "pack1",
+   "kind": "spirits",
+   "name": "勇気",
+   "source": "core",
    "pages": [
-    118,
-    119,
-    120
+    349
    ],
    "code": "field_difference",
-   "path": "tokui_personas[33].skills[5].dice[2].effect",
-   "expected": "破壊不能ダイス。的中時、[破裂爆発]。破裂2消費",
-   "actual": "：破壊不能ダイス。的中時、[破裂爆発]。破裂2消費",
+   "path": "spirits[30].confuse_effect",
+   "expected": "全ての耐性が脆弱になる。混乱終了時、次のRにパワー1を得て1Rの間[敵識別不可状態]になる",
+   "actual": "全ての耐性が脆弱になる。混乱復帰時、次のRにパワー1を得て1Rの間[敵識別不可状態]になる",
    "classification": "content_or_mapping_review",
-   "row_ids": []
+   "row_ids": [
+    "core:349:20",
+    "core:349:21",
+    "core:349:22"
+   ]
   },
   {
-   "kind": "tokui_personas",
-   "name": "黒獣-午 筆頭",
-   "source": "pack1",
+   "kind": "spirits",
+   "name": "慎重",
+   "source": "core",
    "pages": [
-    121,
-    122,
-    123
+    349
    ],
    "code": "field_difference",
-   "path": "tokui_personas[34].skills[2].effect",
-   "expected": "自分の速度が対象より高いならスキル威力+1\n対象の破裂と振動の合計6ごとにスキル威力+1（最大2）\n使用時：次のRにクイック2を得る\nマッチ勝利時：[振動爆発]。振動2消費",
-   "actual": "自分の速度が対象より高いならスキル威力+1\n対象の破裂と振動の合計6ごとにスキル威力+1（最大2）\nマッチ勝利時：このRと次のRに束縛1を付与",
+   "path": "spirits[31].confuse_effect",
+   "expected": "全ての耐性が脆弱になる。混乱終了時、次のRに行動不能になり、SANの最大値を1.5倍増加させる（最大１回）",
+   "actual": "全ての耐性が脆弱になる。混乱復帰時、次のRに行動不能になり、SANの最大値を1.5倍増加させる（最大1回）",
    "classification": "content_or_mapping_review",
-   "row_ids": []
+   "row_ids": [
+    "core:349:27",
+    "core:349:28",
+    "core:349:29"
+   ]
   },
   {
-   "kind": "tokui_personas",
-   "name": "黒獣-午 筆頭",
-   "source": "pack1",
+   "kind": "spirits",
+   "name": "自制",
+   "source": "core",
    "pages": [
-    121,
-    122,
-    123
+    349
    ],
    "code": "field_difference",
-   "path": "tokui_personas[34].skills[3].dice[1].effect",
-   "expected": "破壊不能ダイス。破壊されずに的中時、[振動爆発]。振動3消費",
-   "actual": "：破壊不能ダイス。破壊されずに的中時、[振動爆発]。振動3消費",
+   "path": "spirits[32].confuse_effect",
+   "expected": "全ての耐性が脆弱になる。混乱終了時、次のRにSANダメージ量増加2を得て、全てのキャラクターに8のSANダメージを与える",
+   "actual": "全ての耐性が脆弱になる。混乱復帰時、次のRにSANダメージ量増加2を得て、全てのキャラクターに8のSANダメージを与える",
    "classification": "content_or_mapping_review",
-   "row_ids": []
+   "row_ids": [
+    "core:349:33",
+    "core:349:34",
+    "core:349:35"
+   ]
   },
   {
-   "kind": "tokui_personas",
-   "name": "バラのスパナ工房 代表",
-   "source": "pack1",
+   "kind": "spirits",
+   "name": "正義",
+   "source": "core",
    "pages": [
-    127,
-    128
+    349
    ],
    "code": "field_difference",
-   "path": "tokui_personas[36].skills[2].dice[1].effect",
-   "expected": "的中時、振動2を付与。過半数的中時、自分の充電が3以上ならこのダイスを再使用（最大2）。再使用的中時、振動2を付与。2回目の再使用的中時、[振動爆発]。振動8消費",
-   "actual": "：的中時、振動2を付与。過半数的中時、自分の充電が3以上ならこのダイスを再使用（最大2）。再使用的中時、振動2を付与。2回目の再使用的中時、[振動爆発]。振動8消費",
+   "path": "spirits[33].confuse_effect",
+   "expected": "全ての耐性が脆弱になる。混乱終了時、次のRにクイック3を得て、耐性の内、普通が1Rの間抵抗になる",
+   "actual": "全ての耐性が脆弱になる。混乱復帰時、次のRにクイック3を得て、耐性の内、普通が1Rの間抵抗になる",
    "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "tokui_personas",
-   "name": "バラのスパナ工房 代表",
-   "source": "pack1",
-   "pages": [
-    127,
-    128
-   ],
-   "code": "field_difference",
-   "path": "tokui_personas[36].skills[3].dice[1].effect",
-   "expected": "的中時、振動1を付与。対象の振動が10以下なら充電3消費して対象の振動を2倍にする",
-   "actual": "：的中時、振動1を付与。対象の振動が10以下なら充電3消費して対象の振動を2倍にする",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "tokui_personas",
-   "name": "20区ユロージヴィ 隊長",
-   "source": "pack1",
-   "pages": [
-    129,
-    130
-   ],
-   "code": "field_difference",
-   "path": "tokui_personas[37].skills[3].dice[2].effect",
-   "expected": "的中時、振動6以上なら、[振動爆発]。振動4消費",
-   "actual": "：的中時、振動6以上なら、[振動爆発]。振動4消費",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "tokui_personas",
-   "name": "20区ユロージヴィ 隊長",
-   "source": "pack1",
-   "pages": [
-    129,
-    130
-   ],
-   "code": "field_difference",
-   "path": "tokui_personas[37].skills[4].dice[0].effect",
-   "expected": "的中時、スキル使用時にて振動を消費したなら、対象の振動-反響へ[振幅絡連]",
-   "actual": "：的中時、スキル使用時にて振動を消費したなら、対象の振動-反響へ[振幅絡連]",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "tokui_personas",
-   "name": "20区ユロージヴィ 隊長",
-   "source": "pack1",
-   "pages": [
-    129,
-    130
-   ],
-   "code": "field_difference",
-   "path": "tokui_personas[37].skills[4].dice[2].effect",
-   "expected": "的中時、スキル使用時に振動を10以上消費したなら[振動爆発]。振動1消費",
-   "actual": "：的中時、スキル使用時に振動を10以上消費したなら[振動爆発]。振動1消費",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "tokui_personas",
-   "name": "20区ユロージヴィ 隊長",
-   "source": "pack1",
-   "pages": [
-    129,
-    130
-   ],
-   "code": "field_difference",
-   "path": "tokui_personas[37].skills[4].dice[3].effect",
-   "expected": "的中時、スキル使用時に振動を10以上消費したなら[振動爆発]。振動1消費。消費した振動が15未満なら上記の効果発動後に自分に[振動爆発]",
-   "actual": "：的中時、スキル使用時に振動を10以上消費したなら[振動爆発]。振動1消費",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "tokui_personas",
-   "name": "蜘蛛の巣 親指の子方",
-   "source": "pack1",
-   "pages": [
-    137,
-    138
-   ],
-   "code": "field_difference",
-   "path": "tokui_personas[40].skills[2].dice[2].effect",
-   "expected": "的中時、完成されゆく教本があるか、対象に決闘高潮があるなら、[振動爆発]。振動4消費",
-   "actual": "：的中時、完成されゆく教本があるか、対象に決闘高潮があるなら、[振動爆発]。振動4消費",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "tokui_personas",
-   "name": "蜘蛛の巣 親指の子方",
-   "source": "pack1",
-   "pages": [
-    137,
-    138
-   ],
-   "code": "field_difference",
-   "path": "tokui_personas[40].skills[4].dice[3].effect",
-   "expected": "的中時、対象の振動を振動-灼熱へ[振幅変換]し[振動爆発]。振動3消費。完成されゆく教本-1だけ追加で[振動爆発]",
-   "actual": "的中時、対象の振動を振動-灼熱へ[振幅変換]",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "tokui_personas",
-   "name": "蜘蛛の巣 親指の親方",
-   "source": "pack1",
-   "pages": [
-    151,
-    152,
-    153
-   ],
-   "code": "field_difference",
-   "path": "tokui_personas[45].skills[7].dice[4].effect",
-   "expected": "破壊不能ダイス。弾丸を最大5消費。このダイスで消費する弾丸だけダメージ量増加。的中時、[振動爆発]。振動2消費。このダイスで消費した弾丸だけ追加で[振動爆発]（最大2）",
-   "actual": "：破壊不能ダイス。弾丸を最大5消費。このダイスで消費する弾丸だけダメージ量増加。的中時、[振動爆発]。振動2消費。このダイスで消費した弾丸だけ追加で[振動爆発]（最大2）",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "tokui_personas",
-   "name": "蜘蛛の巣 人差し指の親方",
-   "source": "pack1",
-   "pages": [
-    154,
-    155,
-    156,
-    157,
-    158,
-    159
-   ],
-   "code": "field_difference",
-   "path": "tokui_personas[46].passive_effect",
-   "expected": "指令の加護/3だけダメージ量増加。基本攻撃スキルの破壊不能ダイスが的中時、代行[ヘルメス]1を得る。代行[ヘルメス]が9の間、戦術選択ダイスロールのd数1減少しS4が使用可能になり、S4が指令の印スキルになる\n基本攻撃スキルのダイスごとに武器がランダムに決まり、特殊効果が適応される。スキルに明記されている攻撃属性と同じ攻撃属性の武器はダメージ量+2。それ以外の場合ダメージ量-2。指令の印スキル使用時、代行[ヘルメス]1を得る",
-   "actual": "指令の加護/3だけダメージ量増加。基本攻撃スキルの破壊不能ダイスが的中時、代行[ヘルメス]1を得る。代行[ヘルメス]が9の間、戦術選択ダイスロールのd数1減少しS4が使用可能になり、S4が指令の印スキルになる",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "tokui_personas",
-   "name": "蜘蛛の巣 薬指の親方",
-   "source": "pack1",
-   "pages": [
-    165,
-    166,
-    167,
-    168
-   ],
-   "code": "field_difference",
-   "path": "tokui_personas[48].skills[7].effect",
-   "expected": "対象の出血6ごとにスキル威力+1（最大2）\n使用時：自分の生体材料が10以上なら生体材料を最大20まで消費して以下の効果を適応。スキル威力+2、消費した生体材料2ごとにダメージ量+1（最大8）、全ダイスが破壊不能ダイスになる、作品名：ティビアが3/5以上なら広域指定人数+1/+2\n攻撃後：全ての薬指所属の味方のSANを15回復しこのスキルを「ティビアのメロディー -解体されたものが解体されていないものを解体すること」へ変換",
-   "actual": "対象の出血6ごとにスキル威力+1（最大2）",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "tokui_personas",
-   "name": "奥歯事務所フィクサーA",
-   "source": "pack1",
-   "pages": [
-    170,
-    171
-   ],
-   "code": "field_difference",
-   "path": "tokui_personas[50].skills[2].dice[0].effect",
-   "expected": "的中時、振動3を付与。自分の振動が5以上なら対象に[振動爆発]。振動2消費",
-   "actual": "：的中時、振動3を付与。自分の振動が5以上なら対象に[振動爆発]。振動2消費",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "tokui_personas",
-   "name": "夜明事務所フィクサーA",
-   "source": "pack1",
-   "pages": [
-    174,
-    175,
-    176
-   ],
-   "code": "field_difference",
-   "path": "tokui_personas[52].skills[1].dice[2].effect",
-   "expected": "破壊不能ダイス。的中時、[振動爆発]。振動2消費。このダイスを2回まで再使用",
-   "actual": "：破壊不能ダイス。的中時、[振動爆発]。振動2消費。このダイスを2回まで再使用",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
-  },
-  {
-   "kind": "tokui_personas",
-   "name": "夜明事務所フィクサーA",
-   "source": "pack1",
-   "pages": [
-    174,
-    175,
-    176
-   ],
-   "code": "field_difference",
-   "path": "tokui_personas[52].skills[6].dice[2].effect",
-   "expected": "破壊不能ダイス。的中時、[振動爆発]。振動2消費。このダイスを2回まで再使用。戦闘感覚があれば対象の火傷を1回発動。対象の火傷4減少",
-   "actual": "：破壊不能ダイス。的中時、[振動爆発]。振動2消費。このダイスを2回まで再使用",
-   "classification": "content_or_mapping_review",
-   "row_ids": []
+   "row_ids": [
+    "core:349:39",
+    "core:349:40",
+    "core:349:41"
+   ]
   },
   {
    "kind": "normal_personas",
@@ -17942,7 +17180,7 @@
       ]
      },
      {
-      "rank": "スキル4",
+      "rank": "スキル4-1",
       "type": "打撃",
       "sin": "憤怒",
       "aoe": "",
@@ -19894,7 +19132,7 @@
       ]
      },
      {
-      "rank": "スキル3",
+      "rank": "スキル3-1",
       "type": "貫通",
       "sin": "怠惰",
       "aoe": "",
@@ -23422,7 +22660,7 @@
       ]
      },
      {
-      "rank": "スキル4",
+      "rank": "スキル4-1",
       "type": "打撃",
       "sin": "憂鬱",
       "aoe": "",
@@ -24225,7 +23463,7 @@
       ]
      },
      {
-      "rank": "スキル1",
+      "rank": "スキル1-1",
       "type": "斬撃",
       "sin": "傲慢",
       "aoe": "",
@@ -24261,7 +23499,7 @@
       ]
      },
      {
-      "rank": "スキル2",
+      "rank": "スキル2-1",
       "type": "斬撃",
       "sin": "嫉妬",
       "aoe": "",
@@ -24327,7 +23565,7 @@
       ]
      },
      {
-      "rank": "スキル3-2",
+      "rank": "スキル4-1",
       "type": "斬撃",
       "sin": "憤怒",
       "aoe": "",
@@ -24341,7 +23579,7 @@
       ]
      },
      {
-      "rank": "スキル4",
+      "rank": "スキル4-2",
       "type": "斬撃",
       "sin": "憤怒",
       "aoe": "",
@@ -24678,7 +23916,7 @@
       ]
      },
      {
-      "rank": "スキル3-2",
+      "rank": "スキル4-1",
       "type": "斬撃",
       "sin": "憤怒",
       "aoe": "",
@@ -24692,7 +23930,7 @@
       ]
      },
      {
-      "rank": "スキル4",
+      "rank": "スキル4-2",
       "type": "斬撃",
       "sin": "傲慢",
       "aoe": "",
@@ -51710,7 +50948,7 @@
     "keywords": [],
     "skills": [
      {
-      "rank": "スキル0",
+      "rank": "スキル0-1",
       "type": "防御",
       "sin": "色欲",
       "aoe": "",
@@ -53323,7 +52561,7 @@
       ]
      },
      {
-      "rank": "スキル0-2",
+      "rank": "スキル1-1",
       "type": "貫通",
       "sin": "怠惰",
       "aoe": "",
@@ -53341,7 +52579,7 @@
       ]
      },
      {
-      "rank": "スキル1",
+      "rank": "スキル1-2",
       "type": "貫通",
       "sin": "怠惰",
       "aoe": "対象3体",
@@ -53570,7 +52808,7 @@
       ]
      },
      {
-      "rank": "スキル4",
+      "rank": "スキル4-1",
       "type": "貫通",
       "sin": "憂鬱",
       "aoe": "",
@@ -53944,7 +53182,7 @@
       ]
      },
      {
-      "rank": "スキル4",
+      "rank": "スキル4-1",
       "type": "斬撃",
       "sin": "嫉妬",
       "aoe": "",
@@ -54159,7 +53397,7 @@
       ]
      },
      {
-      "rank": "スキル3-2",
+      "rank": "スキル4-1",
       "type": "斬撃",
       "sin": "嫉妬",
       "aoe": "",
@@ -54181,7 +53419,7 @@
       ]
      },
      {
-      "rank": "スキル4",
+      "rank": "スキル4-2",
       "type": "斬撃",
       "sin": "嫉妬",
       "aoe": "対象4体",
@@ -55019,7 +54257,7 @@
       ]
      },
      {
-      "rank": "スキル0-2",
+      "rank": "スキル1-1",
       "type": "斬撃",
       "sin": "色欲",
       "aoe": "",
@@ -55041,7 +54279,7 @@
       ]
      },
      {
-      "rank": "スキル1",
+      "rank": "スキル1-2",
       "type": "貫通",
       "sin": "傲慢",
       "aoe": "",
@@ -56619,7 +55857,7 @@
       ]
      },
      {
-      "rank": "スキル0-2",
+      "rank": "スキル1-1",
       "type": "貫通",
       "sin": "怠惰",
       "aoe": "",
@@ -56637,7 +55875,7 @@
       ]
      },
      {
-      "rank": "スキル1",
+      "rank": "スキル1-2",
       "type": "貫通",
       "sin": "怠惰",
       "aoe": "",
@@ -56687,7 +55925,7 @@
       ]
      },
      {
-      "rank": "スキル3-2",
+      "rank": "スキル4-1",
       "type": "貫通",
       "sin": "傲慢",
       "aoe": "",
@@ -56713,7 +55951,7 @@
       ]
      },
      {
-      "rank": "スキル4",
+      "rank": "スキル4-2",
       "type": "貫通",
       "sin": "傲慢",
       "aoe": "",
@@ -56865,7 +56103,7 @@
       ]
      },
      {
-      "rank": "スキル2",
+      "rank": "スキル2-1",
       "type": "打撃",
       "sin": "嫉妬",
       "aoe": "対象2体",
@@ -56913,7 +56151,7 @@
       ]
      },
      {
-      "rank": "スキル3",
+      "rank": "スキル3-1",
       "type": "斬撃",
       "sin": "傲慢",
       "aoe": "",
@@ -57221,7 +56459,7 @@
     "keywords": [],
     "skills": [
      {
-      "rank": "スキル0",
+      "rank": "スキル0-1",
       "type": "マッチ可能防御",
       "sin": "傲慢",
       "aoe": "",
@@ -57307,7 +56545,7 @@
       ]
      },
      {
-      "rank": "スキル4",
+      "rank": "スキル4-1",
       "type": "斬撃",
       "sin": "傲慢",
       "aoe": "",
@@ -57659,7 +56897,7 @@
     "keywords": [],
     "skills": [
      {
-      "rank": "スキル0",
+      "rank": "スキル0-1",
       "type": "マッチ可能斬撃反撃",
       "sin": "暴食",
       "aoe": "",
@@ -57745,7 +56983,7 @@
       ]
      },
      {
-      "rank": "スキル3-2",
+      "rank": "スキル4-1",
       "type": "斬撃",
       "sin": "暴食",
       "aoe": "",
@@ -57767,7 +57005,7 @@
       ]
      },
      {
-      "rank": "スキル4",
+      "rank": "スキル4-2",
       "type": "斬撃",
       "sin": "暴食",
       "aoe": "",
@@ -57991,7 +57229,7 @@
       ]
      },
      {
-      "rank": "スキル4",
+      "rank": "スキル4-1",
       "type": "斬撃",
       "sin": "憤怒",
       "aoe": "対象3体",
@@ -58221,7 +57459,7 @@
       ]
      },
      {
-      "rank": "スキル4",
+      "rank": "スキル4-1",
       "type": "斬撃",
       "sin": "暴食",
       "aoe": "",
@@ -58467,7 +57705,7 @@
       ]
      },
      {
-      "rank": "スキル3-2",
+      "rank": "スキル4-1",
       "type": "斬撃",
       "sin": "嫉妬",
       "aoe": "",
@@ -58485,7 +57723,7 @@
       ]
      },
      {
-      "rank": "スキル4",
+      "rank": "スキル4-2",
       "type": "斬撃",
       "sin": "嫉妬",
       "aoe": "",
@@ -59127,7 +58365,7 @@
     "keywords": [],
     "skills": [
      {
-      "rank": "スキル0",
+      "rank": "スキル0-1",
       "type": "マッチ可能打撃反撃",
       "sin": "色欲",
       "aoe": "",
@@ -59205,7 +58443,7 @@
       ]
      },
      {
-      "rank": "スキル4",
+      "rank": "スキル4-1",
       "type": "打撃",
       "sin": "色欲",
       "aoe": "",
@@ -59653,7 +58891,7 @@
     "keywords": [],
     "skills": [
      {
-      "rank": "スキル0",
+      "rank": "スキル0-1",
       "type": "打撃反撃",
       "sin": "憂鬱",
       "aoe": "",
@@ -59697,7 +58935,7 @@
       ]
      },
      {
-      "rank": "スキル1-2",
+      "rank": "スキル1-1",
       "type": "打撃",
       "sin": "怠惰",
       "aoe": "",
@@ -59715,7 +58953,7 @@
       ]
      },
      {
-      "rank": "スキル1",
+      "rank": "スキル1-2",
       "type": "斬撃",
       "sin": "怠惰",
       "aoe": "",
@@ -59733,7 +58971,7 @@
       ]
      },
      {
-      "rank": "スキル2",
+      "rank": "スキル2-1",
       "type": "打撃",
       "sin": "色欲",
       "aoe": "",
@@ -59777,7 +59015,7 @@
       ]
      },
      {
-      "rank": "スキル3-2",
+      "rank": "スキル3-1",
       "type": "打撃",
       "sin": "傲慢",
       "aoe": "",
@@ -59795,7 +59033,7 @@
       ]
      },
      {
-      "rank": "スキル3",
+      "rank": "スキル3-2",
       "type": "斬撃",
       "sin": "傲慢",
       "aoe": "",
@@ -59813,7 +59051,7 @@
       ]
      },
      {
-      "rank": "スキル3-3",
+      "rank": "スキル4-1",
       "type": "打撃",
       "sin": "憂鬱",
       "aoe": "",
@@ -59839,7 +59077,7 @@
       ]
      },
      {
-      "rank": "スキル4",
+      "rank": "スキル4-2",
       "type": "斬撃",
       "sin": "憂鬱",
       "aoe": "",
@@ -60247,7 +59485,7 @@
     "keywords": [],
     "skills": [
      {
-      "rank": "スキル0-2",
+      "rank": "スキル0-1",
       "type": "マッチ可能防御",
       "sin": "色欲",
       "aoe": "",
@@ -60261,7 +59499,7 @@
       ]
      },
      {
-      "rank": "スキル0",
+      "rank": "スキル0-2",
       "type": "回避",
       "sin": "色欲",
       "aoe": "",
@@ -60333,7 +59571,7 @@
       ]
      },
      {
-      "rank": "スキル3",
+      "rank": "スキル3-1",
       "type": "斬撃",
       "sin": "嫉妬",
       "aoe": "",
@@ -60377,7 +59615,7 @@
       ]
      },
      {
-      "rank": "スキル4",
+      "rank": "スキル4-1",
       "type": "斬撃",
       "sin": "色欲",
       "aoe": "",
@@ -60518,7 +59756,7 @@
     "keywords": [],
     "skills": [
      {
-      "rank": "スキル0",
+      "rank": "スキル0-1",
       "type": "マッチ可能防御",
       "sin": "傲慢",
       "aoe": "",
@@ -60697,7 +59935,7 @@
     "keywords": [],
     "skills": [
      {
-      "rank": "スキル0",
+      "rank": "スキル0-1",
       "type": "マッチ可能斬撃反撃",
       "sin": "傲慢",
       "aoe": "",
@@ -60729,7 +59967,7 @@
       ]
      },
      {
-      "rank": "スキル1",
+      "rank": "スキル1-1",
       "type": "斬撃",
       "sin": "傲慢",
       "aoe": "",
@@ -60805,7 +60043,7 @@
       ]
      },
      {
-      "rank": "スキル4",
+      "rank": "スキル4-1",
       "type": "斬撃",
       "sin": "憤怒",
       "aoe": "",
@@ -61467,7 +60705,7 @@
       ]
      },
      {
-      "rank": "スキル3",
+      "rank": "スキル3-1",
       "type": "打撃",
       "sin": "嫉妬",
       "aoe": "",
@@ -61519,7 +60757,7 @@
       ]
      },
      {
-      "rank": "スキル4",
+      "rank": "スキル4-1",
       "type": "打撃",
       "sin": "嫉妬",
       "aoe": "",
@@ -61575,7 +60813,7 @@
       ]
      },
      {
-      "rank": "スキル5-2",
+      "rank": "スキル5-1",
       "type": "打撃",
       "sin": "嫉妬",
       "aoe": "",
@@ -61601,7 +60839,7 @@
       ]
      },
      {
-      "rank": "スキル5",
+      "rank": "スキル5-2",
       "type": "打撃",
       "sin": "嫉妬",
       "aoe": "",
@@ -61799,7 +61037,7 @@
     "keywords": [],
     "skills": [
      {
-      "rank": "スキル0-2",
+      "rank": "スキル0-1",
       "type": "回避",
       "sin": "色欲",
       "aoe": "",
@@ -61813,7 +61051,7 @@
       ]
      },
      {
-      "rank": "スキル0",
+      "rank": "スキル0-2",
       "type": "マッチ可能斬撃反撃",
       "sin": "憤怒",
       "aoe": "",
@@ -61863,7 +61101,7 @@
       ]
      },
      {
-      "rank": "スキル3",
+      "rank": "スキル3-1",
       "type": "斬撃",
       "sin": "嫉妬",
       "aoe": "",
@@ -61903,7 +61141,7 @@
       ]
      },
      {
-      "rank": "スキル4",
+      "rank": "スキル4-1",
       "type": "斬撃",
       "sin": "色欲",
       "aoe": "",
@@ -62478,7 +61716,7 @@
     "keywords": [],
     "skills": [
      {
-      "rank": "スキル0-2",
+      "rank": "スキル0-1",
       "type": "マッチ可能斬撃反撃",
       "sin": "憤怒",
       "aoe": "",
@@ -62496,7 +61734,7 @@
       ]
      },
      {
-      "rank": "スキル0",
+      "rank": "スキル0-2",
       "type": "マッチ可能斬撃反撃",
       "sin": "憤怒",
       "aoe": "対象3体",
@@ -62572,7 +61810,7 @@
       ]
      },
      {
-      "rank": "スキル4",
+      "rank": "スキル4-1",
       "type": "斬撃",
       "sin": "憤怒",
       "aoe": "",
@@ -62787,7 +62025,7 @@
       ]
      },
      {
-      "rank": "スキル4",
+      "rank": "スキル4-1",
       "type": "貫通",
       "sin": "憤怒",
       "aoe": "",

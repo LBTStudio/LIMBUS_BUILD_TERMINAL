@@ -6,7 +6,8 @@ import { readFileSync } from "node:fs";
 /* 硝子窓（lbt-garasumado）取り込みで戦術番号がずれる件の回帰テスト。
  *
  * 硝子窓は派生があるとき 0-1, 0-2 と 1 始まりの連番で送る。
- * 公式データには -1 が 1 件も存在しない（base は スキル0〜4、派生は スキル4-2）。
+ * これは原典PDFと同じ規則で、実DBも複数形態スロットを 1 始まりで採番する
+ * （単一形態はplain、複数形態の基礎は スキルN-1。tests/derivative-skills.test.mjs 参照）。
  * draft テキスト取り込みも同じで、0-1 は スキル0-1 のまま保持される
  * （tests/persona-draft-import.test.mjs がそれを固定している）。
  *
@@ -61,7 +62,7 @@ test("取り込み後に 1 始まりの派生が潰されない", () => {
   assert.deepEqual(di, [1, 2], "派生番号が 1 と 2 のまま保たれる");
 });
 
-test("公式データと同じ 2 始まりもそのまま通す", () => {
+test("既存DBにもある 2 始まりの入力もそのまま通す", () => {
   const state = importSkills(["スキル4-2", "スキル3-2"]);
   assert.deepEqual(srcRanks(state), ["スキル4-2", "スキル3-2"]);
   assert.deepEqual((state.skills || []).map((s) => s.derived_index), [2, 2]);

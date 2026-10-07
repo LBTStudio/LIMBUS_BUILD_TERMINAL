@@ -2389,7 +2389,7 @@ details > summary {
 }
 }
 /* ============================================================
-   層をまたいでloseった意図の再宣言（@layer 導入時）
+   層をまたいで負けた意図の再宣言（@layer 導入時）
 
    CSS では層の優先順位がセレクタ特異度より先に評価される。
    そのため「特異度で勝っていたはず」の宣言が、層をまたいだ途端に
@@ -2404,10 +2404,22 @@ details > summary {
      gold の文字」で選択を示す。支持/精神の出典フィルタだけが
      他と塗り分け(unique)の意図。
      → ここ（features より前だが v52-overlay より強い位置）で確定。
+   - .deck-card.deck-focus : v52-overlay [H-1]「左端に大罪色の太い
+     縦帯を戻す」(border-left 0-2-0) は、この層の
+     .card, .deck-card, .p-card, .spirit-item, .equipped-summary
+     (0-1-0) のニュートラル再描画を特異度で耐える意図だった。
+     層の導入で負け、スキルカードの大罪色帯と着色背景が消えた。
+     → 同じ層のこの位置で意図を再宣言して復元する。
    ============================================================ */
 .source-filter-row .chip.is-active {
   border-color: var(--gold);
   background: var(--gold-tint);
   color: var(--gold-hi);
+}
+.deck-card.deck-focus {
+  border-left: 4px solid var(--sin-color, var(--gold));
+  background: linear-gradient(180deg,
+    color-mix(in oklab, var(--sin-color, var(--gold)) 4%, var(--surface-2)),
+    var(--surface-1));
 }
 /* end @layer v56-refinements */
