@@ -60,6 +60,17 @@ const HEADING_OPEN = new Set([..."[【「『（(●■"]);
 
 const normName = (value) => String(value == null ? "" : value).replace(/[\s\u3000]/g, "");
 
+/* Colon-keeping variant of core(): identical to core() except the
+   fullwidth ： is preserved as a core character. Used only to detect
+   colon drift: when core(db) === core(src) but the colon layout differs,
+   the DB carries colons the source does not have (or lacks ones it does). */
+function coreKeepColon(value) {
+  let text = String(value == null ? "" : value);
+  text = text.replace(/[０１２３４５６７８９％＋－～ｘＸ×]/g, (ch) => WIDE_TO_NARROW[ch] || ch);
+  text = text.replace(DASH_RE, "ー");
+  return text.replace(/[\s\u3000。、，,.・:;]/g, "");
+}
+
 function core(value) {
   let text = String(value == null ? "" : value);
   text = text.replace(/[０１２３４５６７８９％＋－～ｘＸ\u00D7]/g, (ch) => WIDE_TO_NARROW[ch] || ch);
@@ -113,6 +124,14 @@ function verifyLineBreaks(kind, recordName, label, dbValue, srcValue) {
   if (core(dbValue) !== core(srcValue)) {
     /* content differs: the three-book content audit owns this field */
     delegated.push(`${kind}/${recordName}/${label}: 原典と内容差（three-book監査の管轄）`);
+    return;
+  }
+  /* Colon drift: core() drops ： as punctuation, so a colon intruded by
+     transcription (or one lost from the source) is invisible in the core
+     comparison. Compare colon-keeping cores to make it visible. */
+  if (coreKeepColon(dbValue) !== coreKeepColon(srcValue)) {
+    violations.push(`${kind}/${recordName}/${label}: コロン位置が原典と異なる（混入または欠落）`);
+    stats.linebreakChecks--;
     return;
   }
   const breaks = sourceBreaks(srcValue);
@@ -394,28 +413,34 @@ for (const ego of db.egos || []) {
 }
 
 /* ---- output ------------------------------------------------------------ */
-const report = {
-  scope: "db.json全コレクション+items.json",
-  checked: { strings: stats.strings, requiredFieldRecords: stats.fields, linebreakVerifiedFields: stats.linebreakChecks },
-  violations,
-  delegatedCount: delegated.length,
-  delegated,
-  unverifiableCount: unverifiable.length,
-  unverifiable
-};
+const asMain = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
 
-if (asJson) {
-  console.log(JSON.stringify(report, null, 2));
-} else {
-  console.log(`DB衛生監査 — 対象: ${report.scope}`);
-  console.log(`  走査文字列: ${stats.strings}  必須項目検査レコード: ${stats.fields}  改行照合フィールド: ${stats.linebreakChecks}`);
-  console.log(`\n■ 確認済みの不備: ${violations.length}件`);
-  for (const violation of violations) console.log(`  - ${violation}`);
-  console.log(`\n■ 内容照合への委譲（原典候補と内容差・three-book監査の管轄）: ${delegated.length}件`);
-  if (delegated.length <= 20) delegated.forEach((entry) => console.log(`  - ${entry}`));
-  console.log(`\n■ 改行照合不能（原典候補なし・構成不一致）: ${unverifiable.length}件`);
-  if (unverifiable.length <= 20) unverifiable.forEach((entry) => console.log(`  - ${entry}`));
-  console.log(`\n判定: ${violations.length === 0 ? "確認済みのDB側の不備なし (PASS)" : "不備あり (FAIL)"}`);
+if (asMain) {
+  const report = {
+    scope: "db.json全コレクション+items.json",
+    checked: { strings: stats.strings, requiredFieldRecords: stats.fields, linebreakVerifiedFields: stats.linebreakChecks },
+    violations,
+    delegatedCount: delegated.length,
+    delegated,
+    unverifiableCount: unverifiable.length,
+    unverifiable
+  };
+
+  if (asJson) {
+    console.log(JSON.stringify(report, null, 2));
+  } else {
+    console.log(`DB衛生監査 — 対象: ${report.scope}`);
+    console.log(`  走査文字列: ${stats.strings}  必須項目検査レコード: ${stats.fields}  改行照合フィールド: ${stats.linebreakChecks}`);
+    console.log(`\n■ 確認済みの不備: ${violations.length}件`);
+    for (const violation of violations) console.log(`  - ${violation}`);
+    console.log(`\n■ 内容照合への委譲（原典候補と内容差・three-book監査の管轄）: ${delegated.length}件`);
+    if (delegated.length <= 20) delegated.forEach((entry) => console.log(`  - ${entry}`));
+    console.log(`\n■ 改行照合不能（原典候補なし・構成不一致）: ${unverifiable.length}件`);
+    if (unverifiable.length <= 20) unverifiable.forEach((entry) => console.log(`  - ${entry}`));
+    console.log(`\n判定: ${violations.length === 0 ? "確認済みのDB側の不備なし (PASS)" : "不備あり (FAIL)"}`);
+  }
+
+  process.exit(violations.length ? 1 : 0);
 }
 
-process.exit(violations.length ? 1 : 0);
+export { core, coreKeepColon, verifyLineBreaks, violations, delegated, unverifiable, stats };
