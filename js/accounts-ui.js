@@ -40,6 +40,65 @@ function accountMonogram(name) {
   const text = String(name || "").trim();
   return text ? Array.from(text)[0] : "?";
 }
+/* アイコン設定の導線を共通化する（ゲート・切替オーバーレイで共有）。
+   1. ファイルを選ぶ（この時点では圧縮しない）
+   2. 円形マスクのエディタで構図を決める
+   3. 決定後にだけ切り抜き・圧縮して保存する
+   accountId に PENDING_ACCOUNT_ID を渡すと保留扱い（未作成アカウント用）。 */
+function useAccountIconEditor(onStored) {
+  const [editing, setEditing] = React.useState(null);
+  const startPick = (accountId) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/png,image/jpeg,image/webp";
+    input.style.display = "none";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      input.remove();
+      if (!file) return;
+      const sourceUrl = window.LBT_iconCrop?.loadIconSource?.(file, (message) => toast(message, "assertive"));
+      if (sourceUrl) setEditing({ accountId, sourceUrl });
+    };
+    document.body.appendChild(input);
+    input.click();
+  };
+  const clearIcon = (accountId) => {
+    if (window.LBT_accounts?.removeIcon?.(accountId)) {
+      announceAccountsChanged();
+      toast("アイコンを外しました");
+    }
+  };
+  const applyCrop = async (result) => {
+    try {
+      const saved = await saveCroppedIcon(editing.accountId, editing.sourceUrl, result);
+      if (saved.rejected) { toast("アイコンを保存できませんでした（制限を超えた可能性があります）", "assertive"); return; }
+      if (saved.pending) {
+        onStored?.({ pending: true, data: saved.data, accountId: editing.accountId });
+      } else {
+        toast(saved.bytes > 0 ? `アイコンを設定しました（${Math.ceil(saved.bytes / 1024)}KB）` : "アイコンを設定しました");
+        onStored?.({ accountId: editing.accountId });
+      }
+      try { URL.revokeObjectURL(editing.sourceUrl); } catch (_) {}
+      setEditing(null);
+    } catch (error) {
+      toast(error?.message || "アイコンを設定できませんでした", "assertive");
+    }
+  };
+  const cancelCrop = () => {
+    if (editing?.sourceUrl) {
+      try { URL.revokeObjectURL(editing.sourceUrl); } catch (_) {}
+    }
+    setEditing(null);
+  };
+  const editor = editing ? h(IconCropEditor, {
+    open: true,
+    sourceUrl: editing.sourceUrl,
+    onCancel: cancelCrop,
+    onApply: applyCrop
+  }) : null;
+  return { startPick, clearIcon, editor };
+}
+
 /* アイコン画像が設定されていれば画像、無ければ頭文字モノグラム。
    どちらも装飾なので読み上げはせず、隣のカード名が情報を担う。 */
 function AccountMark({ icon, name, className }) {
@@ -58,24 +117,18 @@ function readAccountInfo() {
 function announceAccountsChanged() {
   window.dispatchEvent(new CustomEvent(ACCOUNTS_CHANGED_EVENT));
 }
-/* アイコン画像の圧縮と保存（ゲート・切替オーバーレイで共有）。
-   accountId に PENDING_ACCOUNT_ID を渡すと保存せずdataURIだけ返す
-   （未作成アカウントは索引に存在しないため、作成後に適用する）。 */
-async function applyIconFile(file, accountId) {
-  const compressed = await window.LBT_core?.compressImageToDataUrl?.(file, {
-    label: "アイコン",
-    aspect: 1,
-    sizes: [256, 192, 160, 128, 96, 64],
-    targetBytes: 24 * 1024,
-    portraitFocus: false
-  });
-  if (!compressed?.data) throw new Error("画像を圧縮できませんでした");
-  if (accountId === PENDING_ACCOUNT_ID) return { pending: true, data: compressed.data, bytes: compressed.bytes || 0 };
-  if (!window.LBT_accounts?.setIcon?.(accountId, compressed.data)) {
+/* アイコン画像の保存。エディタで決めた構図を、指定サイズへ切り抜いて
+   圧縮した dataURI を保存する。PENDING_ACCOUNT_ID は未作成アカウント用の
+   保留（索引に存在しないため、作成後に適用する）。 */
+async function saveCroppedIcon(accountId, sourceUrl, transform) {
+  const result = await window.LBT_iconCrop?.cropToIconDataUrl?.(sourceUrl, transform);
+  if (!result?.data) throw new Error("画像を圧縮できませんでした");
+  if (accountId === PENDING_ACCOUNT_ID) return { pending: true, data: result.data, bytes: result.bytes || 0 };
+  if (!window.LBT_accounts?.setIcon?.(accountId, result.data)) {
     return { rejected: true };
   }
   announceAccountsChanged();
-  return { bytes: compressed.bytes || 0 };
+  return { bytes: result.bytes || 0 };
 }
 function prefersReducedMotion() {
   return !!window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
@@ -137,7 +190,7 @@ const AccountSummary = () => {
   );
 };
 
-const AccountCard = ({ entry, index, active, editing, draft, setDraft, icon, iconBusy, onSelect, onEdit, onRemove, onSave, onCancel, onPickIcon, onClearIcon, canRemove }) => {
+const AccountCard = ({ entry, index, active, editing, draft, setDraft, icon, onSelect, onEdit, onRemove, onSave, onCancel, onPickIcon, onClearIcon, canRemove }) => {
   const onDraftKeyDown = (save) => (event) => {
     if (event.key === "Enter") { event.preventDefault(); save(); }
     if (event.key === "Escape") { event.preventDefault(); onCancel(); }
@@ -161,7 +214,6 @@ const AccountCard = ({ entry, index, active, editing, draft, setDraft, icon, ico
         h("div", { className: "acct-icon-row-actions" },
           h("button", { type: "button", className: "acct-upload-btn", onClick: onPickIcon }, "画像を選択"),
           icon ? h("button", { type: "button", className: "acct-upload-btn is-clear", onClick: onClearIcon, title: "アイコンを外して頭文字に戻す" }, "解除") : null,
-          iconBusy === entry.id ? h("span", { className: "acct-icon-busy", role: "status" }, "圧縮中…") : null
         ),
         h("p", { className: "acct-icon-row-note" }, "PNG・JPEG・WebPを自動で圧縮して端末内に保存します（最大24KB・正方形に中央切り抜き）。")
       ),
@@ -190,12 +242,12 @@ const AccountCard = ({ entry, index, active, editing, draft, setDraft, icon, ico
 
 const AccountSwitcher = ({ open, onClose }) => {
   const panelRef = React.useRef(null);
-  const iconInputRef = React.useRef(null);
+
   const [info, setInfo] = React.useState(readAccountInfo);
   const [editingId, setEditingId] = React.useState(null);
   const [creating, setCreating] = React.useState(false);
   const [draft, setDraft] = React.useState({ name: "", purpose: "" });
-  const [iconBusy, setIconBusy] = React.useState("");
+
   const [pendingIcon, setPendingIcon] = React.useState("");
   const [closing, setClosing] = React.useState(false);
   const closeTimer = React.useRef(null);
@@ -233,41 +285,22 @@ const AccountSwitcher = ({ open, onClose }) => {
     return () => { cancelAnimationFrame(frame); window.removeEventListener("keydown", onKeyDown); };
   }, [open, requestClose]);
 
+  /* アイコンは「選ぶ → 円形エディタで構図を決める → 決定後に圧縮して保存」。
+     Hook は早期 return より前に置く。後ろに置くと開閉で Hook 数が変わり、
+     React が "Rendered more hooks than during the previous render" (#310) で
+     落ちて topbar ごと消える。cancelForm は通常の関数なので参照は遅延してよい。 */
+  const iconEditor = useAccountIconEditor((stored) => {
+    if (stored.pending) setPendingIcon(stored.data);
+    else cancelFormRef.current?.();
+  });
+  const cancelFormRef = React.useRef(null);
+
   if (!open) return null;
 
   const total = info.accounts.length;
   const startEdit = (entry) => { setCreating(false); setEditingId(entry.id); setDraft({ name: entry.name, purpose: entry.purpose || "" }); };
-  const cancelForm = () => { setEditingId(null); setCreating(false); setDraft({ name: "", purpose: "" }); setIconBusy(""); setPendingIcon(""); };
-  /* アイコン画像。共有シートと同じ圧縮（core.js の共通実装）を
-     正方形・24KB の設定で使い、保存は state.js 側で検証する。 */
-  const pickIcon = (id) => {
-    if (!id) return;
-    iconInputRef.current.dataset.accountId = id;
-    iconInputRef.current.click();
-  };  const onIconFileChange = async (event) => {
-    const input = event.target;
-    const id = input.dataset.accountId || "";
-    const file = input.files?.[0];
-    input.value = "";
-    if (!file || !id) return;
-    setIconBusy(id);
-    try {
-      const result = await applyIconFile(file, id);
-      if (result.rejected) { toast("アイコンを保存できませんでした（制限を超えた可能性があります）", "assertive"); return; }
-      if (result.pending) return;
-      toast(result.bytes > 0 ? `アイコンを設定しました（${Math.ceil(result.bytes / 1024)}KB）` : "アイコンを設定しました");
-    } catch (error) {
-      toast(error?.message || "アイコンを設定できませんでした", "assertive");
-    } finally {
-      setIconBusy("");
-    }
-  };
-  const clearIcon = (id) => {
-    if (window.LBT_accounts?.removeIcon?.(id)) {
-      announceAccountsChanged();
-      toast("アイコンを外しました");
-    }
-  };
+  const cancelForm = () => { setEditingId(null); setCreating(false); setDraft({ name: "", purpose: "" }); setPendingIcon(""); };
+  cancelFormRef.current = cancelForm;
   const requiredName = () => {
     if (!draft.name.trim()) { toast("アカウント名を入力してください", "assertive"); return false; }
     return true;
@@ -311,14 +344,6 @@ const AccountSwitcher = ({ open, onClose }) => {
         h("button", { type: "button", className: "acct-close", onClick: requestClose, title: "閉じる (Esc)", "aria-label": "アカウント切替を閉じる" }, h(Icon, { name: "x", size: 16 }))
       ),
       total === 0 ? h("div", { className: "acct-empty" }, "端末内への保存が有効なブラウザで開いてください。") : null,
-      h("input", {
-        ref: iconInputRef,
-        type: "file",
-        accept: "image/png,image/jpeg,image/webp",
-        "aria-label": "アカウントのアイコン画像を選択",
-        style: { display: "none" },
-        onChange: onIconFileChange
-      }),
       total > 0 ? h("div", { className: "acct-grid" },
         info.accounts.map((entry, index) => h(AccountCard, {
           key: entry.id,
@@ -329,14 +354,13 @@ const AccountSwitcher = ({ open, onClose }) => {
           draft,
           setDraft,
           icon: info.icons?.[entry.id] || "",
-          iconBusy,
           onSelect: () => doSelect(entry.id),
           onEdit: () => startEdit(entry),
           onRemove: () => doRemove(entry),
           onSave: saveEdit,
           onCancel: cancelForm,
-          onPickIcon: () => pickIcon(entry.id),
-          onClearIcon: () => clearIcon(entry.id),
+          onPickIcon: () => iconEditor.startPick(entry.id),
+          onClearIcon: () => iconEditor.clearIcon(entry.id),
           canRemove: total > 1
         })),
         creating ? h("div", { className: "acct-card acct-card--form", style: { "--i": total } },
@@ -355,10 +379,10 @@ const AccountSwitcher = ({ open, onClose }) => {
             h("span", { className: "acct-icon-row-label" }, "アイコン"),
             h(AccountMark, { icon: pendingIcon, name: draft.name }),
             h("div", { className: "acct-icon-row-actions" },
-              h("button", { type: "button", className: "acct-upload-btn", onClick: () => pickIcon(PENDING_ACCOUNT_ID) }, "画像を選択"),
-              iconBusy ? h("span", { className: "acct-icon-busy", role: "status" }, "圧縮中…") : null
+              h("button", { type: "button", className: "acct-upload-btn", onClick: () => iconEditor.startPick(PENDING_ACCOUNT_ID) }, "画像を選択"),
+              pendingIcon ? h("button", { type: "button", className: "acct-upload-btn is-clear", onClick: () => setPendingIcon("") }, "解除") : null
             ),
-            h("p", { className: "acct-icon-row-note" }, "PNG・JPEG・WebPを自動で圧縮して端末内に保存します（最大24KB・正方形に中央切り抜き）。")
+            h("p", { className: "acct-icon-row-note" }, "画像を選んで枠に収める部分を決めます。決定後、256px・最大24KBへ圧縮して端末内に保存します。")
           ),
           h("div", { className: "acct-form-actions" },
             h(Button, { size: "sm", variant: "primary", icon: "plus", onClick: saveCreate }, "作成して切替"),
@@ -378,7 +402,8 @@ const AccountSwitcher = ({ open, onClose }) => {
       h("footer", { className: "acct-panel-foot" },
         h("span", null, total > 0 ? `${total}件のアカウント・この端末内に保存` : "保存領域なし"),
         h("span", { className: "acct-foot-note" }, "切替・作成で他のアカウントは書き換わりません。初回移行時の旧データはバックアップとして残ります。")
-      )
+      ),
+      iconEditor.editor
     )
   );
 };
@@ -397,12 +422,12 @@ Object.assign(window, { AccountSwitcher, AccountChip, AccountSummary, ACCOUNTS_C
      1件のみの場合は選ぶ余地が無いので自動で抜ける（gate 不要）。
 --------------------------------------------------------------------------- */
 const AccountGate = () => {
-  const iconInputRef = React.useRef(null);
+
   const [info, setInfo] = React.useState(readAccountInfo);
   const [creating, setCreating] = React.useState(false);
   const [draft, setDraft] = React.useState({ name: "", purpose: "" });
   const [pendingIcon, setPendingIcon] = React.useState("");
-  const [pendingBusy, setPendingBusy] = React.useState(false);
+
 
   React.useEffect(() => {
     const onChange = () => setInfo(readAccountInfo());
@@ -417,24 +442,10 @@ const AccountGate = () => {
     if (!window.LBT_accounts?.switch?.(id)) { toast("アカウントを読み出せませんでした", "assertive"); return; }
     window.dispatchEvent(new CustomEvent(ACCOUNTS_ENTERED_EVENT, { detail: { id } }));
   };
-  const onGateIconFile = async (event) => {
-    const input = event.target;
-    const file = input.files?.[0];
-    input.value = "";
-    if (!file) return;
-    setPendingBusy(true);
-    try {
-      const result = await applyIconFile(file, PENDING_ACCOUNT_ID);
-      if (result.pending) {
-        setPendingIcon(result.data);
-        toast(`アイコンを準備しました（${Math.ceil(result.bytes / 1024)}KB）`);
-      }
-    } catch (error) {
-      toast(error?.message || "アイコンを設定できませんでした", "assertive");
-    } finally {
-      setPendingBusy(false);
-    }
-  };
+  /* アイコンは「選ぶ → 円形エディタで構図を決める → 決定後に圧縮して保存」。 */
+  const iconEditor = useAccountIconEditor((stored) => {
+    if (stored.pending) setPendingIcon(stored.data);
+  });
   const create = () => {
     if (!draft.name.trim()) { toast("アカウント名を入力してください", "assertive"); return; }
     const created = window.LBT_accounts?.create?.(draft.name.trim(), draft.purpose.trim());
@@ -448,14 +459,6 @@ const AccountGate = () => {
   /* ゲート表示中は本体が出ないので、この画面自身が main ランドマクトになる。
      内側の panel は role=dialog を保ち、ランドマクトとモーダルを両立する。 */
   return h("main", { className: "acct-gate" },
-    h("input", {
-      ref: iconInputRef,
-      type: "file",
-      accept: "image/png,image/jpeg,image/webp",
-      "aria-label": "アイコン画像を選択",
-      style: { display: "none" },
-      onChange: onGateIconFile
-    }),
     h("div", { className: "acct-gate-panel", role: "dialog", "aria-modal": "true", "aria-labelledby": "acct-gate-title" },
       h("header", { className: "acct-panel-head" },
         h("div", null,
@@ -491,14 +494,10 @@ const AccountGate = () => {
             h("span", { className: "acct-icon-row-label" }, "アイコン"),
             h(AccountMark, { icon: pendingIcon, name: draft.name }),
             h("div", { className: "acct-icon-row-actions" },
-              h("button", {
-                type: "button",
-                className: "acct-upload-btn",
-                onClick: () => iconInputRef.current?.click()
-              }, "画像を選択"),
-              pendingBusy ? h("span", { className: "acct-icon-busy", role: "status" }, "圧縮中…") : null
+              h("button", { type: "button", className: "acct-upload-btn", onClick: () => iconEditor.startPick(PENDING_ACCOUNT_ID) }, "画像を選択"),
+              pendingIcon ? h("button", { type: "button", className: "acct-upload-btn is-clear", onClick: () => setPendingIcon("") }, "解除") : null
             ),
-            h("p", { className: "acct-icon-row-note" }, "PNG・JPEG・WebPを自動で圧縮して端末内に保存します（最大24KB・正方形に中央切り抜き）。")
+            h("p", { className: "acct-icon-row-note" }, "画像を選んで枠に収める部分を決めます。決定後、256px・最大24KBへ圧縮して端末内に保存します。")
           ),
           h("div", { className: "acct-form-actions" },
             h(Button, { size: "sm", variant: "primary", icon: "check", onClick: create }, "作成して開く"),
@@ -518,7 +517,8 @@ const AccountGate = () => {
       h("footer", { className: "acct-panel-foot" },
         h("span", null, accounts.length > 0 ? `${accounts.length}件のアカウント・この端末内に保存` : "保存領域なし"),
         h("span", { className: "acct-foot-note" }, "データはこの端末のブラウザ内にのみ保存されます。初回のみ、それまでの保存データが1つ目のアカウントへ自動で取り込まれます。")
-      )
+      ),
+      iconEditor.editor
     )
   );
 };

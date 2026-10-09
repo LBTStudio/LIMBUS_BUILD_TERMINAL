@@ -108,23 +108,27 @@ test("アイコン画像はアップロードでき、未設定時は頭文字�
   assert.match(ui, /icon: info\.icons\?\.\[info\.activeId\]/, "chip・要約もアクティブのアイコンを使う");
 });
 
-test("アイコンのアップロードは共有シートと同じ圧縮を呼び、解除もできる", () => {
-  assert.match(ui, /window\.LBT_core\?\.compressImageToDataUrl\?\.\(file, \{/, "圧縮は core.js の共通実装");
-  assert.match(ui, /aspect: 1,/, "アイコンは正方形");
-  assert.match(ui, /sizes: \[256, 192, 160, 128, 96, 64\]/, "アイコン用の縮小段階");
-  assert.match(ui, /targetBytes: 24 \* 1024/, "アイコンの容量上限");
-  assert.match(ui, /portraitFocus: false/, "顔の自動フォーカスは共有画像専用");
-  assert.match(ui, /window\.LBT_accounts\?\.setIcon\?\.\(accountId, compressed\.data\)/, "保存は state.js の検証を通す");
-  assert.match(ui, /window\.LBT_accounts\?\.removeIcon\?\.\(id\)/, "解除は removeIcon");
-  assert.match(ui, /accept: "image\/png,image\/jpeg,image\/webp"/, "受け付ける形式を input に明示");
-  assert.match(ui, /role: "status"[\s\S]{0,40}圧縮中/, "圧縮中は status で通知する");
+test("アイコンのアップロードは圧縮せず円形エディタへ渡し、解除もできる", () => {
+  assert.match(ui, /function useAccountIconEditor\(onStored\) \{/, "ゲート・オーバーレイ共通の導線");
+  assert.match(ui, /const sourceUrl = window\.LBT_iconCrop\?\.loadIconSource\?\.\(file, \(message\) => toast\(message, "assertive"\)\);/, "選ぶだけでは圧縮しない");
+  assert.match(ui, /h\(IconCropEditor, \{/, "エディタを開く");
+  assert.match(ui, /onApply: applyCrop/, "決定後に適用する");
+  assert.match(ui, /onCancel: cancelCrop/, "キャンセルは破棄する");
+  assert.match(ui, /URL\.revokeObjectURL\(editing\.sourceUrl\)/, "キャンセル時に objectURL を解放する");
+  assert.match(ui, /window\.LBT_iconCrop\?\.cropToIconDataUrl\?\.\(sourceUrl, transform\)/, "圧縮は決定後の切り抜き時だけ");
+  assert.match(ui, /if \(accountId === PENDING_ACCOUNT_ID\) return \{ pending: true, data: result\.data, bytes: result\.bytes \|\| 0 \};/, "未作成は保存せず dataURI を返す");
+  assert.match(ui, /window\.LBT_accounts\?\.removeIcon\?\.\(accountId\)/, "解除は removeIcon");
+  assert.match(ui, /input\.accept = "image\/png,image\/jpeg,image\/webp";/, "受け付ける形式を input に明示");
+  assert.match(ui, /input\.type = "file";/, "選択は都度の input で行う（状態を持たせない）");
+  assert.match(ui, /onPickIcon: \(\) => iconEditor\.startPick\(entry\.id\)/, "既存アカウントは編集フォームから選ぶ");
+  assert.match(ui, /iconEditor\.editor/, "エディタはオーバーレイの最上位に重ねる");
 });
 
 test("未作成アカウントのアイコンは保留して作成後に適用する", () => {
   assert.match(ui, /const PENDING_ACCOUNT_ID = "__pending";/);
-  assert.match(ui, /accountId === PENDING_ACCOUNT_ID[\s\S]*?return \{ pending: true, data: compressed\.data, bytes: compressed\.bytes \|\| 0 \};/, "未作成は保存せず dataURI を返す");
   assert.match(ui, /if \(pendingIcon\) window\.LBT_accounts\?\.setIcon\?\.\(created\.id, pendingIcon\);/, "作成成功後にアイコンを適用");
   assert.match(ui, /icon: pendingIcon, name: draft\.name/, "保留中もプレビューする");
+  assert.match(ui, /onClick: \(\) => iconEditor\.startPick\(PENDING_ACCOUNT_ID\)/, "保留もエディタ経由");
 });
 
 test("アクセス時のアカウント選択ゲートは毎回出て、選んだらそのアカウントで開く", () => {
@@ -166,8 +170,19 @@ test("アイコンUIとゲートのCSSがトークンのみで定義されてい
   assert.match(css, /z-index: 10060;/, "ゲートは切替オーバーレイ(10050)より上");
 });
 
+test("切り抜きエディタは丸い枠・グリッド・実サイズプレビューを持つ", () => {
+  assert.match(css, /\.acct-crop-stage \{/, "切り抜き枠");
+  assert.match(css, /\.acct-crop-stage\{[^}]*border-radius: 50%|\.acct-crop-stage \{[^}]*border-radius: 50%/, "枠は円（BAND ・LinkedIn 系の方式）");
+  assert.match(css, /box-shadow: 0 0 0 9999px rgba\(6, 4, 3, \.72\)/, "枠の外は暗く落として残る部分を判別させる");
+  assert.match(css, /linear-gradient\(to right, transparent 33\.2%/, "三分割グリッドで位置を合わせる");
+  assert.match(css, /\.acct-crop-thumb--sm \{ width: 20px; height: 20px; \}/, "chip と同じ実サイズのプレビュー");
+  assert.match(css, /\.acct-crop-thumb--md \{ width: 44px; height: 44px; \}/, "カードと同じ実サイズのプレビュー");
+  assert.match(css, /\.acct-crop-foot \{/, "決定・取消しのフッター");
+});
+
 test("index.html がアセットとレイヤーを宣言している", () => {
   assert.match(indexHtml, /assets\/v66-accounts\.css\?v=[0-9a-f]+/, "CSS は版付きで読み込む");
   assert.match(indexHtml, /js\/accounts-ui\.js\?v=[0-9a-f]+/, "JS は版付きで読み込む");
+  assert.match(indexHtml, /js\/icon-cropper\.js\?v=[0-9a-f]+/, "切り抜きエディタも版付きで読み込む");
   assert.match(indexHtml, /@layer[\s\S]*?\bv66-accounts\s*;/, "レイヤー順を index.html で宣言する");
 });

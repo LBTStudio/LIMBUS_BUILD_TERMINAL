@@ -556,6 +556,168 @@ main.acct-gate {
   outline: 2px solid var(--gold);
   outline-offset: 2px;
 }
+/* ---- アイコン切り抜きエディタ（BAND 系の円形マスク方式） ----
+   枠は円。外側は暗く落として「残る部分」を一目で判別させる。
+   グリッドは三分割で、顔の位置を合わせる目安に使う。 */
+.acct-crop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10070;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-4);
+  overflow-y: auto;
+  background: rgba(6, 4, 3, .78);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  animation: acct-fade var(--t) var(--e-out);
+}
+.acct-crop-panel {
+  width: min(560px, 100%);
+  max-height: min(92vh, 760px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  background: var(--surface-0);
+  box-shadow: 0 28px 70px rgba(0, 0, 0, .6), 0 0 0 1px var(--gold-tint);
+  overflow: hidden;
+  animation: acct-pop var(--t) var(--e-out);
+}
+.acct-crop-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-4);
+  align-items: flex-start;
+  padding: var(--s-4);
+  overflow-y: auto;
+}
+/* 丸い枠。box-shadow で枠の外を一気に暗くして穴を空ける。 */
+.acct-crop-stage {
+  position: relative;
+  flex: none;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--surface-inset);
+}
+.acct-crop-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 9999px rgba(6, 4, 3, .72);
+  pointer-events: none;
+}
+/* 実物と同じ金の縁。保存後の見た目との差を無くす。 */
+.acct-crop-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: 50%;
+  border: 1px solid var(--gold-line);
+  pointer-events: none;
+}
+.acct-crop-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.acct-crop-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: var(--fs-11);
+  color: var(--tx-mute);
+}
+.acct-crop-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 50%;
+  background:
+    linear-gradient(to right, transparent 33.2%, var(--gold-tint) 33.2%, var(--gold-tint) 33.5%, transparent 33.5%, transparent 66.4%, var(--gold-tint) 66.4%, var(--gold-tint) 66.7%, transparent 66.7%),
+    linear-gradient(to bottom, transparent 33.2%, var(--gold-tint) 33.2%, var(--gold-tint) 33.5%, transparent 33.5%, transparent 66.4%, var(--gold-tint) 66.4%, var(--gold-tint) 66.7%, transparent 66.7%);
+  pointer-events: none;
+}
+.acct-crop-side {
+  flex: 1 1 200px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.acct-crop-zoom {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--fs-10);
+  color: var(--tx-mute);
+}
+.acct-crop-zoom input[type="range"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  accent-color: var(--gold);
+}
+.acct-crop-zoom b {
+  flex: none;
+  min-width: 3.2em;
+  text-align: right;
+  font: 700 var(--fs-11) var(--f-mono);
+  color: var(--gold-hi);
+}
+.acct-crop-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r);
+  background: var(--surface-inset);
+}
+.acct-crop-preview-label {
+  font-size: var(--fs-10);
+  color: var(--tx-mute);
+}
+.acct-crop-preview-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+/* 実サイズの生サムネイル。丸く切り取って、保存後そのままの見た目を示す。 */
+.acct-crop-thumb {
+  position: relative;
+  flex: none;
+  display: block;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1px solid var(--gold-line);
+}
+.acct-crop-thumb--sm { width: 20px; height: 20px; }
+.acct-crop-thumb--md { width: 44px; height: 44px; }
+.acct-crop-thumb img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: none;
+}
+.acct-crop-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  border-top: 1px solid var(--line-dim);
+  background: var(--surface-inset);
+}
+@media (max-width: 640px) {
+  .acct-crop-body { justify-content: center; }
+}
 @media (max-width: 640px) {
   .acct-chip-name,
   .acct-chip-count,
