@@ -16,6 +16,8 @@
 const h = React.createElement;
 const ACCOUNTS_CHANGED_EVENT = "lbt:accounts-changed";
 const ACCOUNTS_OPEN_EVENT = "lbt:open-accounts";
+/* ゲートでアカウントを選んだ通知。App が受けて state を差し替える。 */
+const ACCOUNTS_ENTERED_EVENT = "lbt:accounts-entered";
 /* 未作成アカウントのアイコン保留に使う仮ID。実アカウントIDと衝突しない。 */
 const PENDING_ACCOUNT_ID = "__pending";
 
@@ -394,7 +396,7 @@ Object.assign(window, { AccountSwitcher, AccountChip, AccountSummary, ACCOUNTS_C
      - アカウントが2件以上ある場合の毎回確認
      1件のみの場合は選ぶ余地が無いので自動で抜ける（gate 不要）。
 --------------------------------------------------------------------------- */
-const AccountGate = ({ onEnter }) => {
+const AccountGate = () => {
   const iconInputRef = React.useRef(null);
   const [info, setInfo] = React.useState(readAccountInfo);
   const [creating, setCreating] = React.useState(false);
@@ -408,9 +410,12 @@ const AccountGate = ({ onEnter }) => {
     return () => window.removeEventListener(ACCOUNTS_CHANGED_EVENT, onChange);
   }, []);
 
+  /* 選んだアカウントで開く。ページ再読込はしない（常時ゲートと競合して
+     「選んでもう一度ゲート」のループになる）。App へ通知し、state を
+     そのアカウントの保存領域で差し替えてもらう。 */
   const choose = (id) => {
     if (!window.LBT_accounts?.switch?.(id)) { toast("アカウントを読み出せませんでした", "assertive"); return; }
-    onEnter();
+    window.dispatchEvent(new CustomEvent(ACCOUNTS_ENTERED_EVENT, { detail: { id } }));
   };
   const onGateIconFile = async (event) => {
     const input = event.target;
@@ -435,8 +440,8 @@ const AccountGate = ({ onEnter }) => {
     const created = window.LBT_accounts?.create?.(draft.name.trim(), draft.purpose.trim());
     if (!created) { toast("アカウントを作成できませんでした（保存領域が使用できません）", "assertive"); return; }
     if (pendingIcon) window.LBT_accounts?.setIcon?.(created.id, pendingIcon);
-    window.LBT_accounts?.switch?.(created.id);
-    onEnter();
+    if (!window.LBT_accounts?.switch?.(created.id)) { toast("アカウントを作成しました。一覧から選び直してください", "assertive"); return; }
+    window.dispatchEvent(new CustomEvent(ACCOUNTS_ENTERED_EVENT, { detail: { id: created.id } }));
   };
 
   const accounts = info.accounts;

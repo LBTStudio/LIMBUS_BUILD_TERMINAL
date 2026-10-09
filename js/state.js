@@ -1177,6 +1177,7 @@ function resetActiveAccount() {
 }
 window.LBT_accounts = {
   list: listAccounts,
+  storageAvailable: () => lbtStorage() !== null,
   getActiveId: getActiveAccountId,
   loadActive: loadActiveAccountState,
   saveActive: saveActiveAccountState,
@@ -1364,6 +1365,15 @@ function appReducer(state, action) {
         historyRecent: state.historyRecent,
         ui: state.ui
       };
+    /* アカウント選択ゲートで別アカウントを選んだとき、ページを再読込せずに
+       そのアカウントの保存領域を読み直す。再読込にすると常時ゲートと競合して
+       「選んでもう一度ゲート」のループになるため、state 差し替えで対応する。 */
+    case "RELOAD_ACCOUNT":
+      return normalizeStateShape({
+        ...INIT_STATE,
+        ...(window.LBT_accounts?.loadActive?.() || {}),
+        ui: state.ui
+      });
     case "HYDRATE":
       return normalizeStateShape({
         ...INIT_STATE,

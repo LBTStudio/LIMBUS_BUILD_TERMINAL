@@ -550,12 +550,23 @@ const App = () => {
     window.addEventListener("lbt:open-accounts", onOpenAccounts);
     return () => window.removeEventListener("lbt:open-accounts", onOpenAccounts);
   }, []);
-  /* アクセス時のアカウント選択ゲート。0件（初回）と2件以上は選ばせる。
-     1件だけなら選ぶ余地が無いので素通りさせる。 */
-  const [accountGateOpen, setAccountGateOpen] = React.useState(() => {
-    const list = window.LBT_accounts?.list?.() || { accounts: [] };
-    return list.accounts.length !== 1;
-  });
+  /* アクセス時のアカウント選択ゲート。ページを開いたら必ずこの画面を出す。
+     どのアカウントの保存領域で作業するかを利用者が選んでから本体へ入る。
+     保存領域そのものが使えない端末（LBT_accounts が機能しない）ときだけ
+     素通しにする。ここで止めると作業の入り口が完全に塞がるため。 */
+  const [accountGateOpen, setAccountGateOpen] = React.useState(() => window.LBT_accounts?.storageAvailable?.() !== false);
+  /* ゲートでアカウントを選んだ通知。ページ再読込はせず、そのアカウントの
+     保存領域で state を作り直す。保存の束縛先も選んだアカウントに更新する。 */
+  React.useEffect(() => {
+    const onAccountsEntered = (event) => {
+      const id = event.detail?.id || window.LBT_accounts?.getActiveId?.() || null;
+      window.__LBT_BOOT_ACCOUNT_ID = id;
+      dispatch({ type: "RELOAD_ACCOUNT" });
+      setAccountGateOpen(false);
+    };
+    window.addEventListener("lbt:accounts-entered", onAccountsEntered);
+    return () => window.removeEventListener("lbt:accounts-entered", onAccountsEntered);
+  }, []);
   React.useEffect(() => {
     const onFocusIn = (e) => {
       const el = e.target;
@@ -630,7 +641,7 @@ const App = () => {
      「どのキャラクターのデータか」が決まるまで編集画面へ入れないことで、
      前回の作業状態が別アカウントの画面へ漏れる経路を無くす。 */
   if (accountGateOpen) {
-    return /* @__PURE__ */ React.createElement(AccountGate, { onEnter: () => setAccountGateOpen(false) });
+    return /* @__PURE__ */ React.createElement(AccountGate, null);
   }
   return /* @__PURE__ */ React.createElement("div", { className: `app${!previewOpen ? " preview-collapsed" : ""}` }, /* 最初のフォーカス可能要素。WCAG 2.4.1 の bypass block。
    通常時は画面外へ逃がし、フォーカス時のみ表示する。 */ /* @__PURE__ */ React.createElement("a", { href: "#main-content", className: "skip-link" }, "本文へスキップ"), /* @__PURE__ */ React.createElement("header", { className: "topbar" }, /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("span", { className: "brand-mark" }, "\u25C8"), /* @__PURE__ */ React.createElement("h1", { className: "brand-name" }, "LIMBUS BUILD TERMINAL"), /* @__PURE__ */ React.createElement("span", { className: "brand-sub" }, "CCFOLIA CHARACTER BUILDER ", /* @__PURE__ */ React.createElement("span", { className: "brand-ver" }, window.LBT_VERSION || "v64r45"))), /* @__PURE__ */ React.createElement("button", { type: "button", className: "brand-author", onClick: () => setDisclaimerOpen(true), title: "\u4F5C\u8005\uFF1A\u3057\u3083\u3051\uFF08\u514D\u8CAC\u4E8B\u9805\u3092\u958B\u304F\uFF09", "aria-haspopup": "dialog" }, /* @__PURE__ */ React.createElement("span", { className: "brand-author-fish" }, /* @__PURE__ */ React.createElement(Icon, { name: "salmon", size: 20 })), /* @__PURE__ */ React.createElement("span", { className: "brand-author-name" }, "しゃけ")), /* @__PURE__ */ React.createElement("div", { className: "topbar-spacer" }), /* @__PURE__ */ React.createElement("button", { className: "topbar-search", onClick: () => setCpOpen(true) }, /* @__PURE__ */ React.createElement(Icon, { name: "search", size: 14 }), /* @__PURE__ */ React.createElement("span", { className: "topbar-search-text" }, "\u30AF\u30A4\u30C3\u30AF\u691C\u7D22"), /* @__PURE__ */ React.createElement("kbd", null, "\u2318K")), /* @__PURE__ */ React.createElement("div", { className: "topbar-actions" }, /* @__PURE__ */ React.createElement(AccountChip, null), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", icon: "undo", onClick: undo, disabled: !canUndo, title: "\u5143\u306B\u623B\u3059 (Ctrl+Z)" }), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", icon: "redo", onClick: redo, disabled: !canRedo, title: "\u3084\u308A\u76F4\u3057 (Ctrl+Shift+Z)" }), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", icon: "download", onClick: () => exportState(state), title: "\u73FE\u5728\u306E\u4F5C\u696D\u72B6\u614B\u3092\u4FDD\u5B58\uFF08\u8AAD\u307F\u8FBC\u307F\u6642\u306B\u7BC4\u56F2\u3092\u9078\u3079\u307E\u3059\uFF09" }), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", icon: "archive", className: "topbar-library-save", "aria-label": "所持ライブラリを保存", onClick: () => exportRoster(state), title: "\u6240\u6301\u30E9\u30A4\u30D6\u30E9\u30EA\u3092\u4FDD\u5B58\uFF08\u7DE8\u96C6\u6E08\u307F\u4EBA\u683C\u30FBE.G.O\u3092\u5225\u7AEF\u672B\u3078\u5F15\u304D\u7D99\u304E\uFF09" }), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", icon: "upload", onClick: () => fileRef.current.click(), title: "\u4FDD\u5B58\u30C7\u30FC\u30BF\u3092\u8AAD\u307F\u8FBC\u3080\uFF08\u4E0A\u66F8\u304D\u7BC4\u56F2\u3092\u9078\u629E\uFF09" }), /* @__PURE__ */ React.createElement("input", { type: "file", ref: fileRef, accept: "application/json", style: { display: "none" }, onChange: (e) => {

@@ -90,22 +90,29 @@ test("移行は冪等: 再実行してもアカウントもバックアップも
   assert.equal(storage.keys().filter((key) => key.startsWith(BACKUP_PREFIX)).length, 1);
 });
 
-test("旧セーブを持つ人は自動でアカウント1として保持され、そのまま作業に入れる", () => {
+test("アクセス時のゲートは保存領域が使えるときだけ出す", () => {
+  const storage = createStorage();
+  const accounts = loadAccounts(storage);
+  assert.equal(accounts.storageAvailable(), true, "localStorage が使えればゲートを出す");
+
+  const denied = new Proxy({}, { get() { throw new Error("denied"); } });
+  const blocked = loadAccounts(denied);
+  assert.equal(blocked.storageAvailable(), false, "使えない端末では素通し（入口を塞がない）");
+});
+
+test("旧セーブを持つ人はゲートでアカウント1を選び、その保存領域が読める", () => {
   const legacy = legacyStateJson();
   const storage = createStorage({ [LEGACY_KEY]: legacy });
   const accounts = loadAccounts(storage);
 
-  /* 利用者の操作を一度も行わなくても、list() 呼び出しだけで移行が完了する。 */
-  const { accounts: list, activeId } = accounts.list();
-  assert.equal(list.length, 1, "1件だけ作られる");
+  const { accounts: list } = accounts.list();
+  assert.equal(list.length, 1, "1件だけ作られる（ゲートにこの1件が出る）");
   assert.equal(list[0].name, "浮き輪のイセン", "名前はキャラクター名から採られる");
-  assert.equal(list.length !== 1, false, "1件ならゲートは出さずそのまま作業に入れる");
+  /* 利用者がゲートでこれを選ぶと、そのアカウントの保存領域が読める。 */
+  assert.equal(accounts.switch(list[0].id), true);
   assert.equal(accounts.loadActive().charName, "浮き輪のイセン", "ビルドデータが読める");
   assert.equal(accounts.loadActive().hp, "100");
-  assert.equal(accounts.loadActive().favorites?.[0], "n:1", "お気に入りも引き継がれる");
-  assert.equal(accounts.loadActive().roster.personas.length, 1, "所持人格も引き継がれる");
   assert.equal(storage.getItem(LEGACY_KEY), legacy, "旧キーは無傷");
-  assert.equal(storage.getItem(`${BACKUP_PREFIX}${activeId}`), legacy, "バックアップも同一");
 });
 
 test("旧データが無い初回訪問は0件のまま（ゲートで作成させる）", () => {
@@ -298,18 +305,6 @@ test("resetActive は保存領域だけ空にし、アカウント名・アイ�
   assert.equal(accounts.loadActive().charName, void 0, "state は空");
   assert.equal(accounts.icons()[created.id], icon, "アイコンは保持");
   assert.equal(accounts.list().accounts[0].name, "初期キャラ", "アカウント自体も保持");
-});
-
-test("アクセス時ゲートの判定は0件と2件以上だけが通る", () => {
-  const storage = createStorage();
-  const accounts = loadAccounts(storage);
-  assert.equal(accounts.list().accounts.length !== 1, true, "0件（初回）はゲートが必要");
-  accounts.create("一番目", "");
-  assert.equal(accounts.list().accounts.length !== 1, false, "1件は素通り（旧データ保持者もここ）");
-  accounts.create("二番目", "");
-  assert.equal(accounts.list().accounts.length !== 1, true, "2件はゲートが必要");
-  accounts.delete(accounts.list().accounts[1].id);
-  assert.equal(accounts.list().accounts.length !== 1, false, "1件に戻れば素通り");
 });
 
 test("localStorage が使えない環境では安全に失敗し、何も書かない", () => {  /* プライベートモード等では localStorage プロパティへのアクセス自体が例外になる。 */

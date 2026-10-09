@@ -127,20 +127,29 @@ test("未作成アカウントのアイコンは保留して作成後に適用�
   assert.match(ui, /icon: pendingIcon, name: draft\.name/, "保留中もプレビューする");
 });
 
-test("アクセス時のアカウント選択ゲートは本体を隠して選択させる", () => {
-  assert.match(ui, /const AccountGate = \(\{ onEnter \}\) => \{/);
+test("アクセス時のアカウント選択ゲートは毎回出て、選んだらそのアカウントで開く", () => {
+  assert.match(ui, /const AccountGate = \(\) => \{/);
   assert.match(ui, /h\("main", \{ className: "acct-gate" \}/, "ゲート表示中は本体が出ないので main ランドマークになる");
   assert.match(ui, /h\("h1", \{ className: "acct-kicker", id: "acct-gate-title" \}/, "見出しはh1（本体が無いため）");
   assert.match(ui, /role: "dialog", "aria-modal": "true", "aria-labelledby": "acct-gate-title"/);
-  assert.match(ui, /const choose = \(id\) => \{[\s\S]*?window\.LBT_accounts\?\.switch\?\.\(id\)[\s\S]*?onEnter\(\);/, "選んだアカウントを active にしてから本体へ");
-  assert.match(ui, /アカウント名を入力してください/, "作成時の必須チェック");
-  assert.match(app, /const \[accountGateOpen, setAccountGateOpen\] = React\.useState\(\(\) => \{/, "App がゲートの開閉を持つ");
-  assert.match(app, /return list\.accounts\.length !== 1;/, "0件と2件以上だけゲートを通す");
-  assert.match(app, /if \(accountGateOpen\) \{[\s\S]*?React\.createElement\(AccountGate, \{ onEnter: \(\) => setAccountGateOpen\(false\) \}\)/, "ゲート中は本体を描画しない");
-  assert.match(app, /Object\.keys\(localStorage\)|LBT_accounts\?\.list\?\.\(\)/, "ゲート判定は保存領域を直接見る");
+  /* 選んだアカウントで開く。ここで location.reload() すると常時ゲートと
+     競合して「選んでもう一度ゲート」のループになるので使わない。 */
+  const gateSource = ui.slice(ui.indexOf("const AccountGate"));
+  assert.match(ui, /const ACCOUNTS_ENTERED_EVENT = "lbt:accounts-entered";/);
+  assert.match(gateSource, /const choose = \(id\) => \{[\s\S]*?window\.LBT_accounts\?\.switch\?\.\(id\)[\s\S]*?window\.dispatchEvent\(new CustomEvent\(ACCOUNTS_ENTERED_EVENT, \{ detail: \{ id \} \}\)\)/, "選択は切替+通知");
+  assert.match(gateSource, /CustomEvent\(ACCOUNTS_ENTERED_EVENT, \{ detail: \{ id: created\.id \} \}\)/, "作成も切替+通知");
+  assert.doesNotMatch(gateSource, /location\.reload\(\)/, "ゲート内で再読込に逃げない（常時ゲートとループする）");
+  /* App は通知を受けて state を作り直し、保存の束縛先も差し替える。 */
+  assert.match(app, /window\.addEventListener\("lbt:accounts-entered", onAccountsEntered\)/);
+  assert.match(app, /window\.__LBT_BOOT_ACCOUNT_ID = id;/, "保存先を選んだアカウントに更新");
+  assert.match(app, /dispatch\(\{ type: "RELOAD_ACCOUNT" \}\)/, "そのアカウントの保存領域で state を作り直す");
+  assert.match(app, /const \[accountGateOpen, setAccountGateOpen\] = React\.useState\(\(\) => window\.LBT_accounts\?\.storageAvailable\?\.\(\) !== false\)/, "毎回ゲートを出す（保存領域が使えない時だけ素通し）");
+  assert.match(app, /React\.createElement\(AccountGate, null\)/, "ゲート中は本体を描画しない");
+  assert.match(stateSource, /case "RELOAD_ACCOUNT":[\s\S]*?window\.LBT_accounts\?\.loadActive\?\.\(\)/, "reducer が選んだアカウントの保存領域を読み直す");
+  assert.match(stateSource, /storageAvailable: \(\) => lbtStorage\(\) !== null/, "保存領域の有無を判定できるAPI");
 });
 
-test("旧セーブ保持者は1件で素通りし、初回は0件のままゲートで作成させる", () => {
+test("旧セーブ保持者もゲートでアカウント1を選んでから入る（データは保持）", () => {
   assert.match(stateSource, /if \(legacyRaw == null\) return \{ accounts: \[\], activeId: null \};/, "旧データが無い初回は自動採番しない");
   assert.match(stateSource, /const account = normalizeAccountEntry\(\{[\s\S]*?name: legacyState\?\.charName \|\| legacyState\?\.personaSrc\?\.name \|\| "アカウント1"/, "旧データがあれば名前を採ってアカウント1にする");
 });
