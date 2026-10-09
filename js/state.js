@@ -874,6 +874,321 @@ function normalizeStateShape(raw) {
   return normalizeStatusCollections(next);
 }
 window.LBT_normalizeStateShape = normalizeStateShape;
+/* ---------------------------------------------------------------------------
+   ローカルアカウント（= キャラクター単位の保存領域）。
+
+   現行は lbt_v46_state 1キーに全状態を詰めている。ここを「アカウントごとに
+   独立したキー」へ分割することで、キャラクター別・用途別の切替をローカルの
+   まま実現する。移行は破壊的であってはならない:
+     1. 旧 lbt_v46_state をタイムスタンプ付きバックアップへ複製する
+     2. 旧キーは決して削除しない（ロールバック経路を残す）
+     3. 新形式を書けなければ旧データを正として何も変えない
+     4. 再実行しても二重移行しない（冪等）
+--------------------------------------------------------------------------- */
+const ACCOUNTS_INDEX_KEY = "lbt_accounts_index";
+const ACCOUNT_PREFIX = "lbt_account_";
+const ACCOUNT_ACTIVE_KEY = "lbt_account_active";
+const ACCOUNT_ICONS_KEY = "lbt_accounts_icons";
+const LEGACY_BACKUP_PREFIX = `${STORAGE_KEY}.backup.`;
+const ACCOUNT_NAME_MAX = 40;
+/* アイコンは索引とは別キーに置く。索引は毎回の一覧描画で読むため、
+   画像を埋め込むと読む量がアカウント数倍に膨らむ。 */
+const ACCOUNT_ICON_MAX_BYTES = 24 * 1024;
+const ACCOUNT_ICON_MAX_URI = 40 * 1024;
+/* 共有シートと同じ契約: 端末内で圧縮済みのdataURIだけを受け付ける。
+   外部URLや任意MIMEは保存しない（共有HTMLと同様の安全側）。 */
+function isValidAccountIcon(value) {
+  if (typeof value !== "string") return false;
+  if (value.length > ACCOUNT_ICON_MAX_URI) return false;
+  if (!/^data:image\/(webp|jpeg);base64,[A-Za-z0-9+/]+=*$/.test(value)) return false;
+  const base64 = value.slice(value.indexOf(",") + 1);
+  const padding = base64.endsWith("==") ? 2 : base64.endsWith("=") ? 1 : 0;
+  return Math.floor(base64.length * 3 / 4) - padding <= ACCOUNT_ICON_MAX_BYTES;
+}
+function lbtStorage() {
+  try {
+    return window.localStorage && typeof window.localStorage.getItem === "function" ? window.localStorage : null;
+  } catch (_) {
+    return null;
+  }
+}
+function readStorageRaw(key) {
+  const storage = lbtStorage();
+  if (!storage) return null;
+  try {
+    return storage.getItem(key);
+  } catch (_) {
+    return null;
+  }
+}
+function writeStorageRaw(key, value) {
+  const storage = lbtStorage();
+  if (!storage) return false;
+  try {
+    storage.setItem(key, value);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+function removeStorageRaw(key) {
+  const storage = lbtStorage();
+  if (!storage) return false;
+  try {
+    storage.removeItem(key);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+/* 読めない保存値は上書きせず、別キーへ退避してから初めて既定で再出発できる。 */
+function preserveUnreadable(key, raw) {
+  if (raw == null) return;
+  writeStorageRaw(`${key}.corrupt.${Date.now()}`, raw);
+}
+function normalizeAccountName(value, fallback) {
+  const name = String(value || "").trim().slice(0, ACCOUNT_NAME_MAX);
+  return name || fallback;
+}
+function normalizeAccountEntry(entry, index) {
+  return {
+    id: String(entry?.id || ""),
+    name: normalizeAccountName(entry?.name, `アカウント${index + 1}`),
+    purpose: String(entry?.purpose || "").trim().slice(0, ACCOUNT_NAME_MAX),
+    createdAt: Number(entry?.createdAt) || Date.now(),
+    updatedAt: Number(entry?.updatedAt) || Number(entry?.createdAt) || Date.now()
+  };
+}
+function readAccountsIndex() {
+  const raw = readStorageRaw(ACCOUNTS_INDEX_KEY);
+  if (raw == null) return { version: 1, accounts: [] };
+  let parsed = null;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (_) {
+    preserveUnreadable(ACCOUNTS_INDEX_KEY, raw);
+    return { version: 1, accounts: [] };
+  }
+  const list = Array.isArray(parsed?.accounts) ? parsed.accounts : Array.isArray(parsed) ? parsed : [];
+  return {
+    version: 1,
+    accounts: list.filter((entry) => entry && typeof entry.id === "string" && entry.id).map(normalizeAccountEntry)
+  };
+}
+function writeAccountsIndex(accounts) {
+  return writeStorageRaw(ACCOUNTS_INDEX_KEY, JSON.stringify({ version: 1, accounts }));
+}
+function newAccountId() {
+  return `acc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+}
+/* 初回のみ旧キーからアカウントを作る。既に索引があれば何もしない（冪等）。 */
+function migrateLegacyAccounts() {
+  const storage = lbtStorage();
+  if (!storage) return { accounts: [], activeId: null };
+  const index = readAccountsIndex();
+  if (index.accounts.length) {
+    let activeId = readStorageRaw(ACCOUNT_ACTIVE_KEY);
+    if (!activeId || !index.accounts.some((entry) => entry.id === activeId)) {
+      activeId = index.accounts[0].id;
+      writeStorageRaw(ACCOUNT_ACTIVE_KEY, activeId);
+    }
+    return { accounts: index.accounts, activeId };
+  }
+  const legacyRaw = readStorageRaw(STORAGE_KEY);
+  /* 旧データがまったく無い = 初回訪問。ここで空アカウントを自動採番すると
+     利用者は名前を付けられず「アカウント1」で作業することになる。
+     0件のままにして、アクセス時のアカウント選択ゲートで
+     名前・用途・アイコンを決めてもらう。 */
+  if (legacyRaw == null) return { accounts: [], activeId: null };
+  let legacyState = null;
+  try {
+    legacyState = legacyRaw == null ? null : JSON.parse(legacyRaw);
+  } catch (_) {
+    legacyState = null;
+  }
+  const now = Date.now();
+  const id = newAccountId();
+  const account = normalizeAccountEntry({
+    id,
+    name: legacyState?.charName || legacyState?.personaSrc?.name || "アカウント1",
+    purpose: "",
+    createdAt: now,
+    updatedAt: now
+  }, 0);
+  // 1. まずバックアップ。失敗したら新形式を一切書かない（旧データを正とする）。
+  if (legacyRaw != null && !writeStorageRaw(`${LEGACY_BACKUP_PREFIX}${id}`, legacyRaw)) {
+    return { accounts: [], activeId: null };
+  }
+  // 2. アカウント本体。壊れた旧JSONでも退避済みなので既定から始める。
+  const stateToStore = legacyState != null ? JSON.stringify(legacyState) : JSON.stringify({ schemaVersion: SAVE_SCHEMA_VERSION });
+  if (!writeStorageRaw(ACCOUNT_PREFIX + id, stateToStore)) {
+    return { accounts: [], activeId: null };
+  }
+  // 3. 索引。書けなければ孤立キーを片付けて次回に再挑戦させる。
+  if (!writeAccountsIndex([account])) {
+    removeStorageRaw(ACCOUNT_PREFIX + id);
+    return { accounts: [], activeId: null };
+  }
+  writeStorageRaw(ACCOUNT_ACTIVE_KEY, id);
+  return { accounts: [account], activeId: id };
+}
+function listAccounts() {
+  const { accounts, activeId } = migrateLegacyAccounts();
+  return { accounts: accounts.map((entry) => ({ ...entry })), activeId };
+}
+function getActiveAccountId() {
+  return migrateLegacyAccounts().activeId;
+}
+function loadActiveAccountState() {
+  const { activeId } = migrateLegacyAccounts();
+  if (!activeId) return null;
+  const key = ACCOUNT_PREFIX + activeId;
+  const raw = readStorageRaw(key);
+  if (raw == null) return null;
+  try {
+    return JSON.parse(raw);
+  } catch (_) {
+    preserveUnreadable(key, raw);
+    return null;
+  }
+}
+/* accountId を明示すると、そのアカウントへ束縛して書き込む。
+   切替（activeの書換+再読込）直後に旧画面のデバウンス保存が発火しても、
+   「起動時に読んだアカウント」= 正しい宛先へ書くため、切替先の新規
+   アカウントへ旧キャラの状態が混入する競合が構造的に起きない。
+   また索引に存在しないIDへは書きません（削除済みアカウントの蘇生防止）。 */
+function saveActiveAccountState(state, accountId) {
+  let targetId = accountId || null;
+  const index = readAccountsIndex();
+  if (targetId) {
+    if (!index.accounts.some((entry) => entry.id === targetId)) return false;
+  } else {
+    targetId = migrateLegacyAccounts().activeId;
+    if (!targetId) return false;
+  }
+  let serialized = "";
+  try {
+    serialized = JSON.stringify(state);
+  } catch (_) {
+    return false;
+  }
+  const key = ACCOUNT_PREFIX + targetId;
+  const existing = readStorageRaw(key);
+  if (existing != null) {
+    try {
+      JSON.parse(existing);
+    } catch (_) {
+      preserveUnreadable(key, existing);
+    }
+  }
+  if (!writeStorageRaw(key, serialized)) return false;
+  const accounts = index.accounts.map((entry) => entry.id === targetId ? { ...entry, updatedAt: Date.now() } : entry);
+  if (accounts.some((entry) => entry.id === targetId)) writeAccountsIndex(accounts);
+  return true;
+}
+function createAccount(name, purpose) {
+  const index = readAccountsIndex();
+  const now = Date.now();
+  const account = normalizeAccountEntry({
+    id: newAccountId(),
+    name,
+    purpose,
+    createdAt: now,
+    updatedAt: now
+  }, index.accounts.length);
+  if (!writeStorageRaw(ACCOUNT_PREFIX + account.id, JSON.stringify({ schemaVersion: SAVE_SCHEMA_VERSION }))) return null;
+  if (!writeAccountsIndex([...index.accounts, account])) {
+    removeStorageRaw(ACCOUNT_PREFIX + account.id);
+    return null;
+  }
+  return account;
+}
+function updateAccount(id, patch) {
+  const index = readAccountsIndex();
+  if (!index.accounts.some((entry) => entry.id === id)) return false;
+  const accounts = index.accounts.map((entry) => entry.id === id ? {
+    ...entry,
+    name: patch?.name !== void 0 ? normalizeAccountName(patch.name, entry.name) : entry.name,
+    purpose: patch?.purpose !== void 0 ? String(patch.purpose || "").trim().slice(0, ACCOUNT_NAME_MAX) : entry.purpose,
+    updatedAt: Date.now()
+  } : entry);
+  return writeAccountsIndex(accounts);
+}
+function switchAccount(id) {
+  const index = readAccountsIndex();
+  if (!index.accounts.some((entry) => entry.id === id)) return false;
+  return writeStorageRaw(ACCOUNT_ACTIVE_KEY, id);
+}
+function deleteAccount(id) {
+  const index = readAccountsIndex();
+  if (index.accounts.length <= 1) return false;
+  const next = index.accounts.filter((entry) => entry.id !== id);
+  if (next.length === index.accounts.length) return false;
+  if (!writeAccountsIndex(next)) return false;
+  removeStorageRaw(ACCOUNT_PREFIX + id);
+  removeAccountIcon(id);
+  if (readStorageRaw(ACCOUNT_ACTIVE_KEY) === id) writeStorageRaw(ACCOUNT_ACTIVE_KEY, next[0].id);
+  return true;
+}
+/* ---- アカウントアイコン（ユーザーアップロード画像） ---- */
+function readAccountIcons() {
+  const raw = readStorageRaw(ACCOUNT_ICONS_KEY);
+  if (raw == null) return {};
+  let parsed = null;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (_) {
+    preserveUnreadable(ACCOUNT_ICONS_KEY, raw);
+    return {};
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+  const icons = {};
+  for (const [id, value] of Object.entries(parsed)) {
+    if (isValidAccountIcon(value)) icons[id] = value;
+  }
+  return icons;
+}
+function writeAccountIcons(icons) {
+  return writeStorageRaw(ACCOUNT_ICONS_KEY, JSON.stringify(icons));
+}
+function setAccountIcon(id, value) {
+  if (!id || !isValidAccountIcon(value)) return false;
+  const index = readAccountsIndex();
+  if (!index.accounts.some((entry) => entry.id === id)) return false;
+  const icons = readAccountIcons();
+  icons[id] = value;
+  return writeAccountIcons(icons);
+}
+function removeAccountIcon(id) {
+  if (!id) return false;
+  const icons = readAccountIcons();
+  if (!(id in icons)) return true;
+  delete icons[id];
+  return writeAccountIcons(icons);
+}
+/* 「保存データを完全削除」用。旧キーには触れず、現アカウントだけ空へ戻す。 */
+function resetActiveAccount() {
+  const { activeId } = migrateLegacyAccounts();
+  if (!activeId) return false;
+  const key = ACCOUNT_PREFIX + activeId;
+  const existing = readStorageRaw(key);
+  if (existing != null) preserveUnreadable(key, existing);
+  return writeStorageRaw(key, JSON.stringify({ schemaVersion: SAVE_SCHEMA_VERSION }));
+}
+window.LBT_accounts = {
+  list: listAccounts,
+  getActiveId: getActiveAccountId,
+  loadActive: loadActiveAccountState,
+  saveActive: saveActiveAccountState,
+  icons: readAccountIcons,
+  setIcon: setAccountIcon,
+  removeIcon: removeAccountIcon,
+  create: createAccount,
+  update: updateAccount,
+  switch: switchAccount,
+  delete: deleteAccount,
+  resetActive: resetActiveAccount
+};
 const INIT_STATE = {
   schemaVersion: SAVE_SCHEMA_VERSION,
   // Base identity
@@ -1945,9 +2260,13 @@ function appReducer(state, action) {
 function useAppState() {
   const [state, dispatch] = React.useReducer(appReducer, INIT_STATE, (init) => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const saved = JSON.parse(raw);
+      /* 起動時点のアクティブアカウントへ保存を束縛する。切替は active キーの
+         書換+再読込で行うため、この束縛が無いと旧画面の遅延保存が新アカウント
+         へ書き込む競合が生じ得る。 */
+      const bootAccountId = window.LBT_accounts?.getActiveId?.() || null;
+      window.__LBT_BOOT_ACCOUNT_ID = bootAccountId;
+      const saved = window.LBT_accounts?.loadActive?.();
+      if (saved) {
         return normalizeStateShape({ ...init, ...saved, ui: { ...init.ui, ...saved.ui || {} } });
       }
     } catch (e) {
@@ -1962,7 +2281,7 @@ function useAppState() {
     const t = setTimeout(() => {
       try {
         const { ui, ...rest } = state;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        const saved = window.LBT_accounts?.saveActive?.({
           ...rest,
           ui: {
             previewTab: ui.previewTab,
@@ -1971,7 +2290,8 @@ function useAppState() {
             codexExpanded: ui.codexExpanded,
             previewCollapsed: ui.previewCollapsed || {}
           }
-        }));
+        }, window.__LBT_BOOT_ACCOUNT_ID || undefined);
+        if (!saved) throw new Error("storage-error");
         setSaveStatus({ phase: "saved", savedAt: Date.now(), error: "" });
       } catch (e) {
         // private browsing, quota exceeded, blocked storage等では保存済みと見せず、

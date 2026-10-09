@@ -43,64 +43,14 @@ const BaseSection = ({ state, dispatch }) => {
   });
   const currentShareImageBytes = shareImageBytes(state.shareImageData);
   const currentShareImageOk = !state.shareImageData || currentShareImageBytes > 0 && currentShareImageBytes <= SHARE_IMAGE_TARGET_BYTES;
-  const readFileAsDataURL = (file) => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("画像データを読み込めませんでした"));
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.readAsDataURL(file);
+  /* 共有画像・アカウントアイコンは core.js の同じ圧縮実装を共有する。
+     二重実装だと片方だけが改善され、「アイコンは軽いが共有画像は重い」
+     というズレが生じる。ここでは OGP 用の設定（1200x630・32KB）で呼ぶ。 */
+  const compressShareImage = (file) => window.LBT_core.compressImageToDataUrl(file, {
+    label: "共有画像",
+    targetBytes: SHARE_IMAGE_TARGET_BYTES,
+    aspect: 630 / 1200
   });
-  const canvasBlob = (canvas, mime, quality) => new Promise((resolve) => canvas.toBlob(resolve, mime, quality));
-  const compressShareImage = async (file) => {
-    if (!file || !/^image\/(png|jpeg|webp)$/i.test(file.type)) throw new Error("PNG・JPEG・WebP画像を選択してください");
-    if (file.size > 15 * 1024 * 1024) throw new Error("画像は15MB以下にしてください");
-    const sourceUrl = URL.createObjectURL(file);
-    try {
-      const source = await new Promise((resolve, reject) => {
-        const image = new Image();
-        image.onload = () => resolve(image);
-        image.onerror = () => reject(new Error("画像を展開できませんでした"));
-        image.src = sourceUrl;
-      });
-      const sizes = [1200, 1080, 960, 840, 720, 640, 560];
-      const qualities = [0.86, 0.82, 0.78, 0.74, 0.70, 0.66, 0.62, 0.58];
-      for (const width of sizes) {
-        const height = Math.round(width * 630 / 1200);
-        const sourceRatio = source.naturalWidth / source.naturalHeight;
-        const targetRatio = width / height;
-        // 縦長の立ち絵はcontainだと左右の余白が大きくなり主題が小さく見える。
-        // OGPでは上半身・顔が読めることを優先してcoverへ切り替え、上寄りへ自動フォーカスする。
-        const portraitFocus = sourceRatio < targetRatio * 0.82;
-        const scale = portraitFocus
-          ? Math.max(width / source.naturalWidth, height / source.naturalHeight)
-          : Math.min(width / source.naturalWidth, height / source.naturalHeight);
-        const drawWidth = Math.round(source.naturalWidth * scale);
-        const drawHeight = Math.round(source.naturalHeight * scale);
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        const context = canvas.getContext("2d", { alpha: false });
-        context.fillStyle = "#0e0b09";
-        context.fillRect(0, 0, width, height);
-        context.imageSmoothingEnabled = true;
-        context.imageSmoothingQuality = "high";
-        const drawX = Math.round((width - drawWidth) / 2);
-        const drawY = portraitFocus
-          ? Math.round(height * 0.36 - drawHeight * 0.18)
-          : Math.round((height - drawHeight) / 2);
-        context.drawImage(source, drawX, drawY, drawWidth, drawHeight);
-        for (const quality of qualities) {
-          let blob = await canvasBlob(canvas, "image/webp", quality);
-          if (!blob || !/^image\/webp$/i.test(blob.type)) blob = await canvasBlob(canvas, "image/jpeg", quality);
-          if (blob && blob.size <= SHARE_IMAGE_TARGET_BYTES) {
-            return { data: await readFileAsDataURL(blob), bytes: blob.size, width, height, mime: blob.type };
-          }
-        }
-      }
-      throw new Error("画像の圧縮見込みが規定量（32KB）へ収まりませんでした。共有リンクは発行できません。別の画像を再アップロードしてください");
-    } finally {
-      URL.revokeObjectURL(sourceUrl);
-    }
-  };
   const onShareImageSelected = async (event) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -2052,6 +2002,10 @@ const SettingsSection = ({ state, dispatch }) => {
     (window.LBT_collectSkillDiceVars?.(state) || []).filter((variable) => (variable.place || "status") === "status").forEach((variable) => add(variable.label, "スキル変数", variable.initial ?? 0, variable.max ?? 99));
     return list;
   }, [dst, state.hp, state.san, state.personaSrc, state.uniqueBuffs, state.customStatuses, state.egoSlots, state.skills, state.supports, state.enhancements]);
+  /* アカウントの切替・作成・編集・削除は js/accounts-ui.js の
+     AccountSwitcher（SINNER SELECT オーバーレイ）に集約する。
+     設定からはイベントを1つ投げるだけ。 */
+  const openAccountSwitcher = () => window.dispatchEvent(new CustomEvent("lbt:open-accounts"));
   const sectionSummary = (name, hint, count) => h("summary", null, h("span", { className: "settings-major-name" }, name), h("span", { className: "settings-major-hint" }, hint), count !== undefined ? h("span", { className: "settings-major-count" }, count) : null);
   return h("div", { className: "stack-4 settings-linear" },
     h(Card, { className: "settings-linear-card" },
@@ -2124,11 +2078,19 @@ h("input", { className: "input", "aria-label": `${formula.name || "無題"}の�
             ))
           )
         ),
+        h("details", { className: "settings-major", "data-settings-category": "accounts", open: true },
+          sectionSummary("アカウント / キャラクター", "キャラクター・用途ごとの保存領域を切替"),
+          h("div", { className: "settings-major-body stack-3" },
+            h(AccountSummary, null),
+            h("p", { className: "settings-section-note" }, "保存領域はアカウントごとに独立しています。切替・作成・削除はオーバーレイで行い、他のアカウントは書き換わりません。初回のみ、それまでの保存データが1つ目のアカウントへ自動で取り込まれ、元データは端末内にバックアップとして残ります。"),
+            h("div", { className: "settings-local-actions" }, h(Button, { size: "sm", variant: "secondary", icon: "grid", onClick: openAccountSwitcher }, "アカウントを切替・管理"))
+          )
+        ),
         h("details", { className: "settings-major settings-major--danger", "data-settings-category": "danger" },
           sectionSummary("危険な操作", "作業状態・保存データの削除"),
           h("div", { className: "settings-major-body settings-local-actions is-danger" },
             h(Button, { size: "md", variant: "danger", icon: "trash", onClick: () => { if (confirm("全ての入力をクリアしますか？（所持・お気に入り・履歴は保持）")) { dispatch({ type: "RESET" }); toast("入力をクリアしました"); } } }, "作業状態をクリア"),
-            h(Button, { size: "md", variant: "danger", icon: "trash", onClick: () => { if (confirm("保存済みデータも完全に削除しますか？")) { localStorage.removeItem(window.LBT_STORAGE_KEYS?.STATE || "lbt_v46_state"); location.reload(); } } }, "保存データを完全削除")
+            h(Button, { size: "md", variant: "danger", icon: "trash", onClick: () => { if (confirm("このアカウントの保存済みデータを完全に削除しますか？（他アカウントと旧バックアップには影響しません）")) { if (window.LBT_accounts?.resetActive?.()) location.reload(); else toast("保存データを削除できませんでした"); } } }, "このアカウントを完全削除")
           )
         )
       )

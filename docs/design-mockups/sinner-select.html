@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>デザイン案: SINNER SELECT / アカウント切替UI（確認用モック）</title>
+<style>
+/* ===========================================================================
+   確認用モック。design-system.css の clockwork palette から必要トークンのみ抜粋。
+   本番実装時は assets/v66-accounts.css として @layer v66-accounts に置く。
+   =========================================================================== */
+:root{
+  --bg:#0e0b09; --surface-0:#141110; --surface-1:#1a1715; --surface-2:#211d1a;
+  --surface-3:#292420; --surface-4:#322c26; --surface-inset:#080605;
+  --line-dim:#2a2521; --line:#3d342c; --line-strong:#57493c; --line-hot:#7a5c33;
+  --tx:#f2ece1; --tx-2:#d9d0c0; --tx-dim:#a89e8c; --tx-mute:#9d9280; --tx-inv:#0e0b09;
+  --gold:#d4af5f; --gold-hi:#eecf8a; --gold-lo:#8a6c33;
+  --gold-line:rgba(212,175,95,.55); --gold-glow:rgba(212,175,95,.22); --gold-tint:rgba(212,175,95,.09);
+  --accent:#c8352b; --accent-hi:#e85c4a; --accent-lo:#7e1d17; --accent-line:rgba(200,53,43,.55);
+  --r-none:0; --r-sm:2px; --r:4px; --r-lg:8px; --r-pill:999px;
+  --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:20px; --s-6:24px; --s-7:32px; --s-8:40px;
+  --f-display:'CorporateLogo','Noto Sans JP','Rajdhani',system-ui,sans-serif;
+  --f-body:'CorporateLogo','Noto Sans JP','Rajdhani',system-ui,sans-serif;
+  --f-mono:'Share Tech Mono','IBM Plex Mono','SF Mono',monospace;
+  --fs-9:.5625rem; --fs-10:.625rem; --fs-11:.6875rem; --fs-12:.75rem; --fs-13:.8125rem; --fs-15:.9375rem;
+  --lh:1.4; --lh-loose:1.6;
+  --t-fast:120ms; --t:180ms; --t-slow:240ms;
+  --e-out:cubic-bezier(.16,1,.3,1);
+}
+*,*::before,*::after{box-sizing:border-box}
+body{background:var(--bg);color:var(--tx);font-family:var(--f-body);font-size:var(--fs-13);line-height:var(--lh);margin:0;padding:var(--s-6)}
+button{background:none;border:none;padding:0;cursor:pointer;font:inherit;color:inherit}
+kbd{display:inline-block;padding:1px 6px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface-2);font-family:var(--f-mono);font-size:10px;color:var(--tx-dim)}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:var(--r-sm)}
+.input{width:100%;padding:6px 8px;background:var(--surface-inset);border:1px solid var(--line);border-radius:var(--r-sm);color:var(--tx)}
+.input:focus-visible{border-color:var(--gold-line);outline:none}
+
+/* ---- モック本体の枠（本番には出ない） ---- */
+.mock-note{max-width:52em;margin:0 auto var(--s-6);padding:var(--s-4);border:1px solid var(--gold-line);border-radius:var(--r);background:var(--gold-tint)}
+.mock-note h1{margin:0 0 var(--s-2);font:700 var(--fs-15) var(--f-display);letter-spacing:.14em;color:var(--gold)}
+.mock-note p{margin:0;font-size:var(--fs-11);color:var(--tx-2);line-height:var(--lh-loose)}
+.mock-section{max-width:52em;margin:0 auto var(--s-7)}
+.mock-section > h2{margin:0 0 var(--s-2);font:700 var(--fs-12) var(--f-display);letter-spacing:.16em;color:var(--tx-dim)}
+.mock-section > h2 span{color:var(--gold);margin-right:6px}
+.mock-caption{margin:var(--s-2) 0 0;font-size:var(--fs-10);color:var(--tx-mute);line-height:var(--lh-loose)}
+.mock-stage{position:relative;border:1px solid var(--line-dim);border-radius:var(--r);overflow:hidden}
+.mock-stage-bar{display:flex;align-items:center;gap:var(--s-2);padding:6px var(--s-3);border-bottom:1px solid var(--line-dim);background:var(--surface-0);font-size:var(--fs-10);color:var(--tx-mute);font-family:var(--f-mono)}
+.mock-stage-body{padding:var(--s-4);background:var(--surface-inset)}
+.mock-narrow{max-width:375px;margin:0 auto}
+
+/* ---- ① topbar ---- */
+.mock-topbar{display:flex;align-items:center;gap:var(--s-3);height:48px;padding:0 var(--s-3);background:var(--surface-0);border-bottom:1px solid var(--line)}
+.mock-topbar .brand{display:flex;align-items:center;gap:6px;font:700 var(--fs-11) var(--f-display);letter-spacing:.06em;color:var(--tx)}
+.mock-topbar .brand b{color:var(--gold)}
+.mock-topbar .grow{flex:1}
+.mock-btn{width:26px;height:26px;display:grid;place-items:center;border:1px solid var(--line);border-radius:var(--r-sm);color:var(--tx-dim);font-size:12px}
+.mock-btn.primary{color:var(--gold);border-color:var(--gold-line)}
+
+/* ---- ③ オーバーレイ（モック内は static で流す） ---- */
+.acct-overlay{position:static;display:flex;align-items:center;justify-content:center;padding:var(--s-3);background:rgba(6,4,3,.74);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.acct-panel{width:100%;max-width:640px;display:flex;flex-direction:column;border:1px solid var(--line-strong);border-radius:var(--r-lg);background:var(--surface-0);box-shadow:0 24px 60px rgba(0,0,0,.55),0 0 0 1px var(--gold-tint);overflow:hidden}
+.acct-panel-head{display:flex;align-items:flex-start;gap:var(--s-3);padding:var(--s-4) var(--s-4) var(--s-3);border-bottom:1px solid var(--line-dim)}
+.acct-kicker{font:700 var(--fs-15) var(--f-display);letter-spacing:.2em;color:var(--gold)}
+.acct-lead{margin:6px 0 0;max-width:46em;font-size:var(--fs-11);line-height:var(--lh-loose);color:var(--tx-mute)}
+.acct-close{flex:none;margin-left:auto;width:30px;height:30px;display:grid;place-items:center;color:var(--tx-dim);border:1px solid var(--line);border-radius:var(--r-sm)}
+.acct-close:hover{color:var(--gold-hi);border-color:var(--gold-line)}
+
+/* ---- chip ---- */
+.acct-chip{display:inline-flex;align-items:center;gap:7px;max-width:196px;height:26px;padding:0 8px 0 3px;border:1px solid var(--line);border-radius:var(--r-pill);background:var(--surface-1);color:var(--tx-2)}
+.acct-chip:hover{border-color:var(--gold-line);background:var(--surface-2);color:var(--tx)}
+.acct-chip-mark{flex:none;width:20px;height:20px;display:grid;place-items:center;font:700 11px/1 var(--f-display);color:var(--gold-hi);background:var(--gold-tint);border:1px solid var(--gold-line);border-radius:50%}
+.acct-chip-name{min-width:0;font:600 var(--fs-11) var(--f-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acct-chip-count{flex:none;font:700 var(--fs-9) var(--f-mono);color:var(--tx-mute)}
+.acct-chip-arrow{flex:none;font-size:9px;color:var(--tx-mute)}
+
+/* ---- 設定セクションの要約 ---- */
+.acct-summary{display:flex;align-items:center;gap:var(--s-3);flex-wrap:wrap;padding:var(--s-3);border:1px solid var(--line);border-radius:var(--r);background:var(--surface-1)}
+.acct-summary-main{display:flex;align-items:center;gap:var(--s-3);flex:1 1 220px;min-width:0}
+.acct-summary-mark{flex:none;width:36px;height:36px;display:grid;place-items:center;font:700 16px/1 var(--f-display);color:var(--gold-hi);background:var(--gold-tint);border:1px solid var(--gold-line);border-radius:50%}
+.acct-summary-text{display:flex;flex-direction:column;gap:2px;min-width:0}
+.acct-summary-text strong{font:600 var(--fs-13) var(--f-body);color:var(--tx)}
+.acct-summary-text span{font-size:var(--fs-10);color:var(--tx-mute);line-height:1.5}
+.mock-btn2{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border:1px solid var(--gold-line);border-radius:var(--r-sm);color:var(--gold-hi);background:var(--gold-tint);font:600 var(--fs-11) var(--f-body)}
+.mock-btn2:hover{background:var(--gold-glow)}
+.mock-btn2.ghost{border-color:var(--line);color:var(--tx-2);background:transparent}
+
+/* ---- カード群 ---- */
+.acct-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:var(--s-3);padding:var(--s-4);overflow-y:auto}
+.acct-card{position:relative;display:flex;flex-direction:column;gap:var(--s-2);min-height:138px;padding:var(--s-4) var(--s-3) var(--s-3);text-align:center;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface-1)}
+.acct-card:hover{border-color:var(--gold-line);background:var(--surface-2);transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.4)}
+.acct-card.is-active{border-color:var(--gold);background:color-mix(in srgb,var(--gold) 7%,var(--surface-1))}
+.acct-card-hit{position:absolute;inset:0;border-radius:inherit;cursor:pointer}
+.acct-card-body{display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none}
+.acct-mark{flex:none;width:44px;height:44px;display:grid;place-items:center;font:700 20px/1 var(--f-display);color:var(--gold-hi);background:var(--gold-tint);border:1px solid var(--gold-line);border-radius:50%}
+.acct-name{max-width:100%;font:600 var(--fs-13) var(--f-body);line-height:1.3;color:var(--tx);overflow-wrap:anywhere}
+.acct-purpose{max-width:100%;padding:2px 8px;font:700 var(--fs-10) var(--f-display);letter-spacing:.06em;color:var(--gold-hi);background:var(--gold-tint);border:1px solid var(--gold-line);border-radius:var(--r-pill)}
+.acct-meta{font:400 var(--fs-10) var(--f-mono);color:var(--tx-mute)}
+.acct-badge{position:absolute;top:var(--s-2);right:var(--s-2);display:inline-flex;align-items:center;gap:3px;padding:2px 5px;font:700 var(--fs-9) var(--f-display);letter-spacing:.08em;color:var(--tx-inv);background:var(--gold);border-radius:var(--r-sm)}
+.acct-card-actions{position:absolute;bottom:var(--s-2);right:var(--s-2);display:flex;gap:4px;opacity:1}
+.acct-icon-btn{width:28px;height:28px;display:grid;place-items:center;color:var(--tx-dim);background:color-mix(in srgb,var(--surface-0) 82%,transparent);border:1px solid var(--line);border-radius:var(--r-sm);font-size:12px}
+.acct-icon-btn:hover{color:var(--gold-hi);border-color:var(--gold-line)}
+.acct-icon-btn.is-danger:hover{color:var(--accent-hi);border-color:var(--accent-line)}
+.acct-card--add{align-items:center;justify-content:center;gap:6px;font:600 var(--fs-11) var(--f-body);color:var(--tx-mute);background:transparent;border-style:dashed;border-color:var(--line-strong)}
+.acct-card--add:hover{color:var(--gold-hi);border-color:var(--gold-line);background:var(--gold-tint)}
+.acct-add-plus{font:700 20px/1 var(--f-display);color:var(--gold)}
+.acct-card--form{gap:var(--s-2);text-align:left;border-color:var(--line-strong);background:var(--surface-2)}
+.acct-card--form:hover{transform:none;box-shadow:none}
+.acct-form-kicker{font:700 var(--fs-10) var(--f-display);letter-spacing:.12em;color:var(--gold)}
+.acct-field{display:flex;flex-direction:column;gap:4px;font-size:var(--fs-10);color:var(--tx-mute)}
+.acct-form-actions{display:flex;flex-wrap:wrap;gap:var(--s-2);margin-top:auto}
+.acct-panel-foot{display:flex;flex-wrap:wrap;gap:var(--s-2);justify-content:space-between;padding:var(--s-3) var(--s-4);border-top:1px solid var(--line-dim);background:var(--surface-inset);font-size:var(--fs-10);color:var(--tx-mute)}
+.acct-foot-note{max-width:34em;color:var(--tx-dim);line-height:1.6}
+.acct-empty{padding:var(--s-8) var(--s-4);text-align:center;font-size:var(--fs-12);color:var(--tx-mute)}
+
+/* ---- ⑥ 対応表 ---- */
+.mock-table{width:100%;border-collapse:collapse;font-size:var(--fs-11)}
+.mock-table th,.mock-table td{padding:6px 8px;border:1px solid var(--line-dim);text-align:left;vertical-align:top}
+.mock-table th{background:var(--surface-1);color:var(--gold);font:700 var(--fs-10) var(--f-display);letter-spacing:.08em}
+.mock-table td:first-child{color:var(--tx-2);white-space:nowrap}
+</style>
+</head>
+<body>
+
+<main>
+<div class="mock-note">
+  <h1>◈ SINNER SELECT — アカウント切替UI デザイン案</h1>
+  <p>
+    これは<strong>本番実装前の確認用モック</strong>です（まだ production には組込んでいません）。
+    「アカウント＝キャラクター」という単位に合わせ、一覧はゲームのキャラクター選択画面のメタファーで設計しています。
+    色・余白・radius・速度はすべて design-system.css のトークンを使用（ハードコード色ゼロ）。
+  </p>
+</div>
+
+<!-- ① topbar chip ------------------------------------------------------------>
+<section class="mock-section">
+  <h2><span>①</span>topbar のアカウント chip（常時表示・切替への入口）</h2>
+  <div class="mock-stage">
+    <div class="mock-stage-body" style="padding:0">
+      <div class="mock-topbar">
+        <span class="brand">◈ <b>LIMBUS</b> BUILD TERMINAL</span>
+        <span class="grow"></span>
+        <span class="mock-btn" title="クイック検索">⌕</span>
+        <button class="acct-chip" type="button">
+          <span class="acct-chip-mark">浮</span>
+          <span class="acct-chip-name">浮き輪のイセン</span>
+          <span class="acct-chip-count">4</span>
+          <span class="acct-chip-arrow">▾</span>
+        </button>
+        <span class="mock-btn" title="元に戻す">↺</span>
+        <span class="mock-btn" title="やり直す">↻</span>
+        <span class="mock-btn primary" title="JSON出力">JSON</span>
+      </div>
+    </div>
+  </div>
+  <p class="mock-caption">
+    クリックで ③ のオーバーレイを開きます（<kbd>aria-haspopup="dialog"</kbd>）。
+    頭文字のモノグラム＋名前＋件数で「今どのキャラで作業中か」を常時表示。640px以下では名前・件数を落としてモノグラムだけにします。
+  </p>
+</section>
+
+<!-- ② 設定セクションの入口 ---------------------------------------------------->
+<section class="mock-section">
+  <h2><span>②</span>設定セクションの入口（現在アカウントの要約）</h2>
+  <div class="mock-stage">
+    <div class="mock-stage-body">
+      <div class="acct-summary">
+        <div class="acct-summary-main">
+          <span class="acct-summary-mark">浮</span>
+          <div class="acct-summary-text">
+            <strong>浮き輪のイセン</strong>
+            <span>用途: 本番・最終更新 3分前・4件の保存領域</span>
+          </div>
+        </div>
+        <button class="mock-btn2" type="button">▣ アカウントを切替・管理</button>
+      </div>
+    </div>
+  </div>
+  <p class="mock-caption">
+    設定の「アカウント / キャラクター」は要約と導線だけにします。管理操作を設定に並べると一覧が散らかるため、
+    一覧・作成・編集・削除は ③ の1画面に集約します。
+  </p>
+</section>
+
+<!-- ③ SINNER SELECT ---------------------------------------------------------->
+<section class="mock-section">
+  <h2><span>③</span>SINNER SELECT オーバーレイ（本題）</h2>
+  <div class="mock-stage">
+    <div class="mock-stage-bar">acct-overlay / role="dialog" aria-modal="true" aria-labelledby="acct-panel-title"</div>
+    <div class="acct-overlay">
+      <section class="acct-panel" role="dialog" aria-modal="true" aria-labelledby="acct-panel-title">
+        <header class="acct-panel-head">
+          <div>
+            <div class="acct-kicker" id="acct-panel-title">◈ SINNER SELECT</div>
+            <p class="acct-lead">キャラクターごとに保存領域が分かれています。選ぶと作業状態・所持データ・お気に入りが入れ替わります。</p>
+          </div>
+          <button class="acct-close" type="button" aria-label="アカウント切替を閉じる">✕</button>
+        </header>
+        <div class="acct-grid">
+          <div class="acct-card is-active">
+            <button class="acct-card-hit" type="button" disabled aria-hidden="true" tabindex="-1"></button>
+            <div class="acct-card-body">
+              <span class="acct-mark">浮</span>
+              <span class="acct-name">浮き輪のイセン</span>
+              <span class="acct-purpose">本番</span>
+              <span class="acct-meta">最終更新 3分前</span>
+            </div>
+            <span class="acct-badge">✓ 使用中</span>
+            <div class="acct-card-actions">
+              <button class="acct-icon-btn" type="button" title="名前と用途を編集" aria-label="浮き輪のイセン の名前と用途を編集">✎</button>
+            </div>
+          </div>
+          <div class="acct-card">
+            <button class="acct-card-hit" type="button" aria-label="アカウント「検証用キャラ」へ切替（用途 検証・最終更新 2時間前）" title="検証用キャラ を開く"></button>
+            <div class="acct-card-body">
+              <span class="acct-mark">検</span>
+              <span class="acct-name">検証用キャラ</span>
+              <span class="acct-purpose">検証</span>
+              <span class="acct-meta">最終更新 2時間前</span>
+            </div>
+            <div class="acct-card-actions">
+              <button class="acct-icon-btn" type="button" title="名前と用途を編集" aria-label="検証用キャラ の名前と用途を編集">✎</button>
+              <button class="acct-icon-btn is-danger" type="button" title="このアカウントを削除" aria-label="検証用キャラ を削除">🗑</button>
+            </div>
+          </div>
+          <div class="acct-card">
+            <button class="acct-card-hit" type="button" aria-label="アカウント「配布用：剣契頭目」へ切替（用途 配布・最終更新 3日前）" title="配布用：剣契頭目 を開く"></button>
+            <div class="acct-card-body">
+              <span class="acct-mark">配</span>
+              <span class="acct-name">配布用：剣契頭目</span>
+              <span class="acct-purpose">配布</span>
+              <span class="acct-meta">最終更新 3日前</span>
+            </div>
+            <div class="acct-card-actions">
+              <button class="acct-icon-btn" type="button" title="名前と用途を編集" aria-label="配布用：剣契頭目 の名前と用途を編集">✎</button>
+              <button class="acct-icon-btn is-danger" type="button" title="このアカウントを削除" aria-label="配布用：剣契頭目 を削除">🗑</button>
+            </div>
+          </div>
+          <div class="acct-card">
+            <button class="acct-card-hit" type="button" aria-label="アカウント「旧データから移行」へ切替（最終更新 5月4日）" title="旧データから移行 を開く"></button>
+            <div class="acct-card-body">
+              <span class="acct-mark">旧</span>
+              <span class="acct-name">旧データから移行</span>
+              <span class="acct-meta">最終更新 5月4日</span>
+            </div>
+            <div class="acct-card-actions">
+              <button class="acct-icon-btn" type="button" title="名前と用途を編集" aria-label="旧データから移行 の名前と用途を編集">✎</button>
+              <button class="acct-icon-btn is-danger" type="button" title="このアカウントを削除" aria-label="旧データから移行 を削除">🗑</button>
+            </div>
+          </div>
+          <button class="acct-card acct-card--add" type="button">
+            <span class="acct-add-plus">+</span>
+            <span>新しいアカウント</span>
+          </button>
+        </div>
+        <footer class="acct-panel-foot">
+          <span>4件のアカウント・この端末内に保存</span>
+          <span class="acct-foot-note">切替・作成で他のアカウントは書き換わりません。初回移行時の旧データはバックアップとして残ります。</span>
+        </footer>
+      </section>
+    </div>
+  </div>
+  <p class="mock-caption">
+    カード全面が選択ボタン（1カード1ボタン）。<strong>使用中</strong>は金枠＋金地バッジの二重コード。
+    モノグラムは名前の頭文字（中央の丸は外側radius8＋padding16と同心）。
+    用途タグはピル、最終更新は等幅で相対表示（7日以降は月日）。
+  </p>
+</section>
+
+<!-- ④ フォーム状態 ----------------------------------------------------------->
+<section class="mock-section">
+  <h2><span>④</span>編集・新規はカード内インライン（prompt は使わない）</h2>
+  <div class="mock-stage">
+    <div class="mock-stage-body">
+      <div class="acct-grid" style="padding:0">
+        <div class="acct-card acct-card--form">
+          <span class="acct-form-kicker">編集中</span>
+          <label class="acct-field"><span>アカウント名</span><input class="input" value="検証用キャラ"></label>
+          <label class="acct-field"><span>用途タグ</span><input class="input" value="検証" placeholder="本番 / 検証 / 配布"></label>
+          <div class="acct-form-actions">
+            <button class="mock-btn2" type="button">✓ 保存</button>
+            <button class="mock-btn2 ghost" type="button">キャンセル</button>
+          </div>
+        </div>
+        <div class="acct-card acct-card--form">
+          <span class="acct-form-kicker">新規アカウント</span>
+          <label class="acct-field"><span>アカウント名</span><input class="input" placeholder="キャラクター名など"></label>
+          <label class="acct-field"><span>用途タグ</span><input class="input" placeholder="本番 / 検証 / 配布"></label>
+          <div class="acct-form-actions">
+            <button class="mock-btn2" type="button">+ 作成して切替</button>
+            <button class="mock-btn2 ghost" type="button">キャンセル</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="mock-caption">
+    カードがそのまま入力フォームになり、文脈が消えません。<kbd>Enter</kbd> で保存、<kbd>Esc</kbd> で取消。
+    「作成して切替」は作成後すぐそのキャラクターで作業を始めます（旧アカウントは起動時束縛の保存で無傷）。
+  </p>
+</section>
+
+<!-- ⑤ 密画面 ----------------------------------------------------------------->
+<section class="mock-section">
+  <h2><span>⑤</span>密画面（640px以下）</h2>
+  <div class="mock-stage">
+    <div class="mock-stage-body mock-narrow" style="padding:var(--s-2)">
+      <div class="acct-overlay" style="padding:0">
+        <section class="acct-panel">
+          <header class="acct-panel-head">
+            <div>
+              <div class="acct-kicker">◈ SINNER SELECT</div>
+              <p class="acct-lead">キャラクターごとに保存領域が分かれています。</p>
+            </div>
+            <button class="acct-close" type="button" aria-label="アカウント切替を閉じる">✕</button>
+          </header>
+          <div class="acct-grid" style="grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:var(--s-2);padding:var(--s-3)">
+            <div class="acct-card is-active" style="min-height:124px;padding:var(--s-3) var(--s-2) var(--s-2)">
+              <div class="acct-card-body">
+                <span class="acct-mark">浮</span><span class="acct-name">浮き輪のイセン</span>
+                <span class="acct-meta">3分前</span>
+              </div>
+              <span class="acct-badge">✓ 使用中</span>
+            </div>
+            <div class="acct-card" style="min-height:124px;padding:var(--s-3) var(--s-2) var(--s-2)">
+              <button class="acct-card-hit" type="button" aria-label="検証用キャラ へ切替"></button>
+              <div class="acct-card-body">
+                <span class="acct-mark">検</span><span class="acct-name">検証用キャラ</span>
+                <span class="acct-meta">2時間前</span>
+              </div>
+            </div>
+            <button class="acct-card acct-card--add" type="button" style="min-height:124px;padding:var(--s-3) var(--s-2) var(--s-2)">
+              <span class="acct-add-plus">+</span><span>新しい</span>
+            </button>
+          </div>
+          <footer class="acct-panel-foot" style="padding:var(--s-3)"><span>4件・この端末内</span></footer>
+        </section>
+      </div>
+    </div>
+  </div>
+  <p class="mock-caption">
+    chip はモノグラムのみ（名前・件数を隠す）。カードは128px最小幅で2列、操作アイコンは <code>@media (hover:none)</code> で常時表示。
+  </p>
+</section>
+
+<!-- ⑥ 対応表 ----------------------------------------------------------------->
+<section class="mock-section">
+  <h2><span>⑥</span>状態と操作の対応</h2>
+  <table class="mock-table">
+    <tr><th>状態</th><th>見た目 / 操作</th></tr>
+    <tr><td>通常</td><td>surface-1 地に line 枠。hover/focus で金枠＋2px 浮上＋影。</td></tr>
+    <tr><td>使用中</td><td>金枠＋金7%の地塗り＋金地バッジ「✓ 使用中」。選択ボタンは出さない（押しても同じ）。</td></tr>
+    <tr><td>hover / focus</td><td>カード操作（編集・削除）が右下にフェードイン。<code>:focus-within</code> なのでキーボードでも出る。</td></tr>
+    <tr><td>タッチ</td><td>hover が無いため操作を常時表示。</td></tr>
+    <tr><td>削除</td><td>confirm 必須。最後の1件には削除ボタンを出さない。旧データのバックアップには影響しない。</td></tr>
+    <tr><td>キーボード</td><td><kbd>Tab</kbd> 循環（フォーカストラップ）、<kbd>Esc</kbd> で閉じる、開いた直後は最初の要素へフォーカス。</td></tr>
+    <tr><td>退場</td><td>140ms のフェードのみ（translate で大きく動かさない）。prefers-reduced-motion は即時。</td></tr>
+  </table>
+  <p class="mock-caption">
+    入場演出は「低頻度の操作」として 180ms フェード＋scale(.96)→1、カードは100ms間隔で順入り（上限500ms）。
+    保存・切替などの日常操作にはアニメーションを重ねません。
+  </p>
+</section>
+
+</main>
+</body>
+</html>

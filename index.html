@@ -30,7 +30,8 @@
         v65r43-ego-readability,
         v65r44-ego-quick-detail,
         v65r47-ego-card-marks,
-        items;
+        items,
+         v66-accounts;
 </style>
 <link rel="stylesheet" href="assets/design-system.css?v=2b36b605">
 		<link rel="stylesheet" href="assets/workspace.css?v=601e753c">
@@ -45,6 +46,7 @@
 		<link rel="stylesheet" href="assets/v65r44-ego-quick-detail.css?v=4b576ee5">
 		<link rel="stylesheet" href="assets/v65r47-ego-card-marks.css?v=aaf12533">
 									<link rel="stylesheet" href="assets/items.css?v=7cf01d95">
+									<link rel="stylesheet" href="assets/v66-accounts.css?v=42d45e81">
 </head>
 <body style="background-color:#14110d">
   <div id="root"></div>
@@ -75,9 +77,9 @@
         ReactDOM.createRoot(document.getElementById("root")).render(_AppTree);
       }
   </script>
-<script src="js/core.js?v=fcbfdb20"></script>
+<script src="js/core.js?v=d79b98be"></script>
 			<script src="js/ego-slot-forms.js?v=85aa4887"></script>
-				<script src="js/state.js?v=fa4a75e5"></script>
+				<script src="js/state.js?v=63442049"></script>
 				<script src="js/persona-draft-import.js?v=77d69192"></script>
 					<script src="js/share-link.js?v=deb1ab16"></script>
 					<script src="js/generator.js?v=9ba606d9"></script>
@@ -85,10 +87,11 @@
 				<script src="js/PersonaCodex.js?v=109eaace"></script>
 		<script src="js/ItemCodex.js?v=f81cdb3e"></script>
 <script src="js/SkillDeck.js?v=a60cfad8"></script>
-								<script src="js/OtherSections.js?v=fdae5d69"></script>
+								<script src="js/OtherSections.js?v=98dea44e"></script>
 				<script src="js/LivePreview.js?v=9bb3b86d"></script>
 <script src="js/DataQuality.js?v=a8365c72"></script>
-<script src="js/App.js?v=e7fd832c"></script>
+<script src="js/accounts-ui.js?v=2b929ef9"></script>
+<script src="js/App.js?v=4e9015f0"></script>
 <script>
   loadDB().then(lbtBoot).catch(function(){
     document.getElementById("root").innerHTML = "<div style=\"color:#c8a84b;padding:40px;text-align:center;font-family:sans-serif\">DBの読み込みに失敗しました。file:// で直接開いている場合はローカルサーバー経由で開いてください（README参照）。</div>";

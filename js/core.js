@@ -203,6 +203,81 @@
     try { return fn(); } catch (_) { return typeof fallback === "function" ? fallback() : fallback; }
   }
 
+  /* ---- 画像圧縮（共有OGP画像・アカウントアイコンで共有） ----
+     同じ ladder を二箇所に書くと、片方だけが改善されて
+     「アイコンは軽いが共有画像は重い」というズレが生じる。
+     サイズ制限・品質・縦長フォーカスは呼び出し側の options で決める。 */
+  const COMPRESS_SIZES = [1200, 1080, 960, 840, 720, 640, 560];
+  const COMPRESS_QUALITIES = [0.86, 0.82, 0.78, 0.74, 0.7, 0.66, 0.62, 0.58];
+  const COMPRESS_MAX_INPUT_BYTES = 15 * 1024 * 1024;
+  function readBlobAsDataURL(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("画像データを読み込めませんでした"));
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.readAsDataURL(blob);
+    });
+  }
+  async function compressImageToDataUrl(file, options) {
+    const opts = options || {};
+    const label = opts.label || "画像";
+    const targetBytes = opts.targetBytes || 32 * 1024;
+    const aspect = opts.aspect || 630 / 1200;
+    const sizes = opts.sizes || COMPRESS_SIZES;
+    const qualities = opts.qualities || COMPRESS_QUALITIES;
+    const background = opts.background || "#0e0b09";
+    if (!file || !/^image\/(png|jpeg|webp)$/i.test(file.type)) throw new Error("PNG・JPEG・WebP画像を選択してください");
+    if (file.size > COMPRESS_MAX_INPUT_BYTES) throw new Error(`${label}は15MB以下にしてください`);
+    const sourceUrl = URL.createObjectURL(file);
+    try {
+      const source = await new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = () => reject(new Error("画像を展開できませんでした"));
+        image.src = sourceUrl;
+      });
+      for (const width of sizes) {
+        const height = Math.round(width / aspect);
+        const sourceRatio = source.naturalWidth / source.naturalHeight;
+        const targetRatio = width / height;
+        /* 縦長の立ち絵はcontainだと左右の余白が大きくなり主題が小さく見える。
+           OGPでは上半身・顔が読めることを優先してcoverへ切り替え、上寄りへ自動フォーカスする。 */
+        const portraitFocus = opts.portraitFocus !== false && sourceRatio < targetRatio * 0.82;
+        const scale = portraitFocus
+          ? Math.max(width / source.naturalWidth, height / source.naturalHeight)
+          : Math.min(width / source.naturalWidth, height / source.naturalHeight);
+        const drawWidth = Math.round(source.naturalWidth * scale);
+        const drawHeight = Math.round(source.naturalHeight * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d", { alpha: false });
+        context.fillStyle = background;
+        context.fillRect(0, 0, width, height);
+        context.imageSmoothingEnabled = true;
+        context.imageSmoothingQuality = "high";
+        const drawX = Math.round((width - drawWidth) / 2);
+        const drawY = portraitFocus
+          ? Math.round(height * 0.36 - drawHeight * 0.18)
+          : Math.round((height - drawHeight) / 2);
+        context.drawImage(source, drawX, drawY, drawWidth, drawHeight);
+        for (const quality of qualities) {
+          const webp = await new Promise((resolve) => canvas.toBlob(resolve, "image/webp", quality));
+          if (webp && /^image\/webp$/i.test(webp.type) && webp.size <= targetBytes) {
+            return { data: await readBlobAsDataURL(webp), bytes: webp.size, width, height, mime: webp.type };
+          }
+          const jpeg = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+          if (jpeg && jpeg.size <= targetBytes) {
+            return { data: await readBlobAsDataURL(jpeg), bytes: jpeg.size, width, height, mime: jpeg.type };
+          }
+        }
+      }
+      throw new Error(`${label}を規定の容量（${Math.floor(targetBytes / 1024)}KB）へ収まりませんでした。別の画像を選んでください`);
+    } finally {
+      URL.revokeObjectURL(sourceUrl);
+    }
+  }
+
   /* ---- 公開 ---- */
   window.LBT_core = Object.freeze({
     cloneJSON,
@@ -222,6 +297,7 @@
     shapeSkillFromDB,
     shapeUniqueBuffFromDB,
     copyText,
+    compressImageToDataUrl,
     safe
   });
 
