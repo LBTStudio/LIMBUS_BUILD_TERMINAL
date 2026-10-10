@@ -123,3 +123,55 @@ test("読み込み時に圧縮しない（検証とobjectURLだけ）", () => {
   assert.doesNotMatch(body, /toBlob|canvas/, "選択時点では Canvas を使ってはいけない");
   assert.doesNotMatch(body, /readAsDataURL/, "選択時点ではファイル全体を読み込まない");
 });
+
+/* ---------------------------------------------------------------------------
+   実サイズ・プレビューの体裁
+
+   「この大きさで保存されます」というラベルを上に置き、丸をその下に置く形では
+   丸の右側が空白になり、注記はフォーム側のグリッド用 class を流用したことで
+   幅が詰まって3行に折り返していた。表示自体は本番と同じサイズを実物大で見せる
+   意味があるので、1行に束ねて用途を明記する形に改めた。
+--------------------------------------------------------------------------- */
+const css = readFileSync(new URL("../assets/v66-accounts.css", import.meta.url), "utf8");
+
+test("実サイズ・プレビューは1行で組む（ラベルを上に置くと丸の右が空白になる）", () => {
+  const block = css.slice(css.indexOf(".acct-crop-preview {"), css.indexOf(".acct-crop-thumb {"));
+  assert.match(block, /flex-direction:\s*row/, "丸と説明を横一列に並べる");
+  assert.doesNotMatch(block, /flex-direction:\s*column/, "縦積みに戻さない");
+  /* 上に浮かせたラベル専用の class は持たない。 */
+  assert.equal(css.includes(".acct-crop-preview-label"), false, "縦積み用のラベル style が残っている");
+  assert.equal(css.includes(".acct-crop-preview-row"), false, "縦積み用の行 style が残っている");
+});
+
+test("プレビューの説明は本番の表示サイズを宣言する", () => {
+  const src = readFileSync(new URL("../js/icon-cropper.js", import.meta.url), "utf8");
+  assert.match(src, /acct-crop-preview-cap/, "説明を同じ行へ置く要素がある");
+  assert.match(src, /表示サイズ（20px \/ 44px）/, "どのサイズかを書く（何のためかが分からない）");
+});
+
+test("プレビューの2サイズは本番の表示サイズと一致する", () => {
+  /* 「保存後の表示サイズ」を謳うので、本番が実際に使う寸法と
+     食い違ってはいけない。片方を変えたらここで落ちる。 */
+  const sizeOf = (selector) => {
+    const at = css.indexOf(selector + " {");
+    assert.ok(at >= 0, `${selector} が CSS に無い`);
+    const width = css.slice(at, at + 200).match(/width:\s*(\d+)px/);
+    assert.ok(width, `${selector} の width が読めない`);
+    return Number(width[1]);
+  };
+  assert.equal(sizeOf(".acct-chip-mark"), 20, "一覧のチップは20px");
+  assert.equal(sizeOf(".acct-mark"), 44, "名前の横の mark は44px");
+  assert.equal(sizeOf(".acct-crop-thumb--sm"), 20, "小さい見本は一覧と同じ20px");
+  assert.equal(sizeOf(".acct-crop-thumb--md"), 44, "大きい見本は mark と同じ44px");
+});
+
+test("切替パネルの注記はフォーム側のグリッド用 class を流用しない", () => {
+  /* .acct-icon-row-note は grid-column: 1 / -1 を持つフォームの行専用。
+     フレックスコンテキストでは無意味で、幅も詰まって3行に折れていた。 */
+  const src = readFileSync(new URL("../js/icon-cropper.js", import.meta.url), "utf8");
+  assert.equal(src.includes("acct-icon-row-note"), false, "グリッド用 class を流用しない");
+  assert.match(src, /acct-crop-note/, "パネル専用の注記 class を使う");
+  assert.match(css, /\.acct-crop-note\s*\{[^}]*\}/, "専用 class の style がある");
+  /* 1行で収まる長さに詰める（本番の表示サイズは上で宣言済み）。 */
+  assert.match(src, /決定後、256px・最大24KBへ圧縮して保存します。/, "重複する説明を短くする");
+});

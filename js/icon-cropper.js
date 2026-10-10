@@ -269,13 +269,11 @@ const IconCropEditor = ({ open, sourceUrl, onCancel, onApply }) => {
             React.createElement("b", null, `${Math.round(zoom * 100)}%`)
           ),
           React.createElement("div", { className: "acct-crop-preview" },
-            React.createElement("span", { className: "acct-crop-preview-label" }, "この大きさで保存されます"),
-            React.createElement("span", { className: "acct-crop-preview-row" },
-              React.createElement("span", { className: "acct-crop-thumb acct-crop-thumb--sm" }, React.createElement("img", { src: sourceUrl, alt: "", draggable: false, style: previewStyle(imageSize, stageScale, pan) })),
-              React.createElement("span", { className: "acct-crop-thumb acct-crop-thumb--md" }, React.createElement("img", { src: sourceUrl, alt: "", draggable: false, style: previewStyle(imageSize, stageScale, pan) }))
-            )
+            React.createElement("span", { className: "acct-crop-thumb acct-crop-thumb--sm" }, React.createElement("img", { src: sourceUrl, alt: "", draggable: false, style: previewStyle(imageSize, stageScale, pan) })),
+            React.createElement("span", { className: "acct-crop-thumb acct-crop-thumb--md" }, React.createElement("img", { src: sourceUrl, alt: "", draggable: false, style: previewStyle(imageSize, stageScale, pan) })),
+            React.createElement("span", { className: "acct-crop-preview-cap" }, "保存後の表示サイズ（20px / 44px）")
           ),
-          React.createElement("p", { className: "acct-icon-row-note" }, "決定後、256px・最大24KBへ圧縮してこの端末に保存します。")
+          React.createElement("p", { className: "acct-crop-note" }, "決定後、256px・最大24KBへ圧縮して保存します。")
         )
       ),
       React.createElement("footer", { className: "acct-crop-foot" },

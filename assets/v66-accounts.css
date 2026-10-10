@@ -671,23 +671,25 @@ main.acct-gate {
   font: 700 var(--fs-11) var(--f-mono);
   color: var(--gold-hi);
 }
+/* 実サイズの見え方。切替パネルの一覧は20px・名前の横は44pxで表示されるため、
+   232px のステージでは確かめられない。その2サイズを実物大で並べて示す。
+   ラベルを上に置くと丸の右側が空白になるため、1行に束ねて説明を右へ置く。 */
 .acct-crop-preview {
   display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
+  flex-direction: row;
+  align-items: center;
+  gap: var(--s-3);
   padding: var(--s-3);
   border: 1px solid var(--line-dim);
   border-radius: var(--r);
   background: var(--surface-inset);
 }
-.acct-crop-preview-label {
+.acct-crop-preview-cap {
+  margin-left: auto;
   font-size: var(--fs-10);
+  line-height: 1.6;
   color: var(--tx-mute);
-}
-.acct-crop-preview-row {
-  display: flex;
-  align-items: center;
-  gap: var(--s-3);
+  text-align: right;
 }
 /* 実サイズの生サムネイル。丸く切り取って、保存後そのままの見た目を示す。 */
 .acct-crop-thumb {
@@ -706,6 +708,14 @@ main.acct-gate {
   top: 0;
   left: 0;
   max-width: none;
+}
+/* 切替パネル内の注記。フォーム側の .acct-icon-row-note はグリッド用
+   （grid-column: 1 / -1）なので、ここでは流用せず専用の class を使う。 */
+.acct-crop-note {
+  margin: 0;
+  font-size: var(--fs-9);
+  line-height: var(--lh-loose);
+  color: var(--tx-mute);
 }
 .acct-crop-foot {
   display: flex;
