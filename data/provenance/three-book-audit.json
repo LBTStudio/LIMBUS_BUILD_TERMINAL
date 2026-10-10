@@ -2314,7 +2314,7 @@
    "code": "field_difference",
    "path": "normal_personas[4].skills[2].effect",
    "expected": "このスキルが捨てられたならマッチ中に対象の受ける出血ダメージ量+2\n使用時：ランダムなスキルを1つ捨てる。捨てたスキルが戦術1ならばマッチ威力+1",
-   "actual": "このスキルが捨てられたなら マッチ中に 対象の受ける出血ダメージ量+2。\n使用時：ランダムなスキルを1つ捨てる。捨てたスキルが戦術1ならば マッチ威力+1",
+   "actual": "このスキルが捨てられたならマッチ中に対象の受ける出血ダメージ量+2。\n使用時：ランダムなスキルを1つ捨てる。捨てたスキルが戦術1ならばマッチ威力+1",
    "classification": "source_boundary_punctuation",
    "row_ids": []
   },
@@ -2674,7 +2674,7 @@
    "code": "field_difference",
    "path": "normal_personas[14].skills[3].effect",
    "expected": "使用時：獲物の印が対象にあるならマッチ威力+2\nクリティカル成功時：SANを10回復",
-   "actual": "使用時：獲物の印が 対象にあるなら マッチ威力+2。\nクリティカル成功時：SANを10回復",
+   "actual": "使用時：獲物の印が対象にあるならマッチ威力+2。\nクリティカル成功時：SANを10回復",
    "classification": "source_boundary_punctuation",
    "row_ids": []
   },
@@ -2856,7 +2856,7 @@
    "code": "field_difference",
    "path": "normal_personas[20].skills[3].effect",
    "expected": "自分のあなたの盾が6以上ならマッチ威力+1\n使用時：次のRに挑発値5を得る",
-   "actual": "自分のあなたの盾が6以上なら マッチ威力+1。\n使用時：次のRに挑発値5を得る",
+   "actual": "自分のあなたの盾が6以上ならマッチ威力+1。\n使用時：次のRに挑発値5を得る",
    "classification": "source_boundary_punctuation",
    "row_ids": []
   },
@@ -3037,7 +3037,7 @@
    "code": "field_difference",
    "path": "normal_personas[24].skills[1].effect",
    "expected": "自分の速度が7以上ならマッチ威力+1\n使用時：呼吸2を得る",
-   "actual": "自分の速度が7以上なら マッチ威力+1。\n使用時：呼吸2を得る",
+   "actual": "自分の速度が7以上ならマッチ威力+1。\n使用時：呼吸2を得る",
    "classification": "source_boundary_punctuation",
    "row_ids": []
   },
@@ -3082,7 +3082,7 @@
    "code": "field_difference",
    "path": "normal_personas[26].skills[1].effect",
    "expected": "自分の速度が対象より2以上高ければスキル威力+1\n使用時：呼吸3を得る",
-   "actual": "自分の速度が 対象より2以上高ければスキル威力+1。\n使用時：呼吸3を得る",
+   "actual": "自分の速度が対象より2以上高ければスキル威力+1。\n使用時：呼吸3を得る",
    "classification": "source_boundary_punctuation",
    "row_ids": []
   },
@@ -3097,7 +3097,7 @@
    "code": "field_difference",
    "path": "normal_personas[26].skills[2].effect",
    "expected": "自分の速度が対象より3以上高ければスキル威力+1\n使用時：呼吸2を得る",
-   "actual": "自分の速度が 対象より3以上高ければスキル威力+1。\n使用時：呼吸2を得る",
+   "actual": "自分の速度が対象より3以上高ければスキル威力+1。\n使用時：呼吸2を得る",
    "classification": "source_boundary_punctuation",
    "row_ids": []
   },
@@ -3484,7 +3484,7 @@
    "code": "field_difference",
    "path": "normal_personas[43].skills[4].effect",
    "expected": "対象の火傷が8以上ならスキル威力+2\n使用時：12区産燃料を最大25消費し消費した12区産燃料5ごとにダメージ量1増加。過熱燃料状態なら消費した燃料2ごとにダメージ量1増加（最大10）\n攻撃後：対象が死亡するかこのスキルで12区産燃料を消費したなら次のRに打撃ダメージ量増加2を得る",
-   "actual": "対象の火傷が8以上ならスキル威力+2。\n使用時：12区産燃料を最大25消費し消費した12区産燃料5ごとにダメージ量1増加。過熱燃料状態なら消費した燃料2ごとにダメージ量 1増加（最大10）。\n攻撃後：対象が死亡するか このスキルで12区産燃料を消費したなら 次のRに打撃ダメージ量増加2を得る",
+   "actual": "対象の火傷が8以上ならスキル威力+2。\n使用時：12区産燃料を最大25消費し消費した12区産燃料5ごとにダメージ量1増加。過熱燃料状態なら消費した燃料2ごとにダメージ量 1増加（最大10）。\n攻撃後：対象が死亡するかこのスキルで12区産燃料を消費したなら次のRに打撃ダメージ量増加2を得る",
    "classification": "source_boundary_punctuation",
    "row_ids": []
   },
@@ -3499,7 +3499,7 @@
    "code": "field_difference",
    "path": "normal_personas[47].skills[0].effect",
    "expected": "自分の速度が対象より高いならスキル威力+1\n使用時：脚力【卯】3を得る",
-   "actual": "自分の速度が 対象より高いならスキル威力+1。\n使用時：脚力【卯】3を得る",
+   "actual": "自分の速度が対象より高いならスキル威力+1。\n使用時：脚力【卯】3を得る",
    "classification": "source_boundary_punctuation",
    "row_ids": []
   },
@@ -3634,7 +3634,7 @@
    "code": "field_difference",
    "path": "normal_personas[49].skills[2].effect",
    "expected": "対象の束縛の数だけダメージ量+1\n自分の速度が対象より2以上高ければスキル威力+1\n使用時：対象の破裂と振動が合計15以上ならスキル威力+1",
-   "actual": "対象の束縛の数だけダメージ量+1 自分の速度が 対象より2以上高ければスキル威力+1。\n使用時：対象の破裂と振動が合計15以上ならスキル威力+1",
+   "actual": "対象の束縛の数だけダメージ量+1 自分の速度が対象より2以上高ければスキル威力+1。\n使用時：対象の破裂と振動が合計15以上ならスキル威力+1",
    "classification": "source_boundary_punctuation",
    "row_ids": []
   },
@@ -3873,7 +3873,7 @@
    "code": "field_difference",
    "path": "normal_personas[63].skills[3].effect",
    "expected": "自分の充電が10以上ならこのスキルの出血付与数+1\n使用時：充電3を得る",
-   "actual": "自分の充電が10以上なら このスキルの出血付与数+1。\n使用時：充電3を得る",
+   "actual": "自分の充電が10以上ならこのスキルの出血付与数+1。\n使用時：充電3を得る",
    "classification": "source_boundary_punctuation",
    "row_ids": []
   },
@@ -4202,7 +4202,7 @@
    "code": "field_difference",
    "path": "normal_personas[73].skills[4].effect",
    "expected": "攻撃前：魔弾1を得る\n使用時：魔弾の数x5だけSANを減少、自分が士気低下状態に陥った場合このスキルは敵味方識別不可になる。現在の魔弾の数-1だけ広域指定人数増加（最大7）\n攻撃後：魔弾の数が7なら0にする",
-   "actual": "攻撃前：魔弾1を得る。\n使用時：魔弾の数x5だけSANを減少、自分が士気低下状態に陥った場合 このスキルは敵味方識別不可になる。現在の魔弾の数-1だけ広域指定人数増加（最大7）。\n攻撃後：魔弾の数が7なら0にする",
+   "actual": "攻撃前：魔弾1を得る。\n使用時：魔弾の数x5だけSANを減少、自分が士気低下状態に陥った場合このスキルは敵味方識別不可になる。現在の魔弾の数-1だけ広域指定人数増加（最大7）。\n攻撃後：魔弾の数が7なら0にする",
    "classification": "source_boundary_punctuation",
    "row_ids": []
   },
@@ -4217,7 +4217,7 @@
    "code": "field_difference",
    "path": "normal_personas[74].skills[3].effect",
    "expected": "自分の弾丸が10以上ならマッチ威力+1\nマッチ勝利時：沈潜3を付与\n攻撃後：憂鬱共鳴4以上なら[再装填]",
-   "actual": "自分の弾丸が10以上なら マッチ威力+1。\nマッチ勝利時：沈潜3を付与。\n攻撃後：憂鬱共鳴4以上なら[再装填]",
+   "actual": "自分の弾丸が10以上ならマッチ威力+1。\nマッチ勝利時：沈潜3を付与。\n攻撃後：憂鬱共鳴4以上なら[再装填]",
    "classification": "source_boundary_punctuation",
    "row_ids": []
   },
@@ -4531,7 +4531,7 @@
    "code": "field_difference",
    "path": "normal_personas[78].skills[3].effect",
    "expected": "戦闘開始時：両隣の味方に自分の火傷の数+1だけ火傷を付与\n使用時：自分の火傷が8以上ならこのスキルのダメージ量と威力+1",
-   "actual": "戦闘開始時：両隣の味方に自分の火傷の数+1だけ火傷を付与。\n使用時：自分の火傷が8以上なら このスキルのダメージ量と威力+1",
+   "actual": "戦闘開始時：両隣の味方に自分の火傷の数+1だけ火傷を付与。\n使用時：自分の火傷が8以上ならこのスキルのダメージ量と威力+1",
    "classification": "source_boundary_punctuation",
    "row_ids": []
   },
@@ -4546,7 +4546,7 @@
    "code": "field_difference",
    "path": "normal_personas[78].skills[4].effect",
    "expected": "戦闘開始時：両隣の味方に自分の火傷の数+2だけ火傷を付与\n使用前：自分の火傷が15以上ならこのスキルを「紅炎殺 最大感応【劣化侵蝕】」として発動\n使用時：自分の火傷が8以上ならこのスキルのダメージ量と威力+2",
-   "actual": "戦闘開始時：両隣の味方に自分の火傷の数+2だけ火傷を付与。\n使用前：自分の火傷が15以上なら このスキルを「紅炎殺最大感応 【劣化侵蝕】」として発動。\n使用時：自分の火傷が8以上なら このスキルのダメージ量と威力+2",
+   "actual": "戦闘開始時：両隣の味方に自分の火傷の数+2だけ火傷を付与。\n使用前：自分の火傷が15以上ならこのスキルを「紅炎殺最大感応 【劣化侵蝕】」として発動。\n使用時：自分の火傷が8以上ならこのスキルのダメージ量と威力+2",
    "classification": "source_boundary_punctuation",
    "row_ids": []
   },
@@ -4561,7 +4561,7 @@
    "code": "field_difference",
    "path": "normal_personas[78].skills[5].effect",
    "expected": "攻撃後：死亡する\n使用前：自分の失ったHP10ごとに広域指定人数+1（最大3）\n使用時：このスキルを使用している間にHPが1になった場合、このRの間HPが1以下にならない。自分の火傷10ごとに、スキルのダメージと威力+1（最大6）",
-   "actual": "攻撃後：死亡する。\n使用前：自分の失ったHP10ごとに広域指定人数+1（最大3）。\n使用時：このスキルを 使用している間にHPが1になった場合、この Rの間HPが1以下にならない。自分の火傷10ごとに、スキルのダメージと威力+1（最大6）",
+   "actual": "攻撃後：死亡する。\n使用前：自分の失ったHP10ごとに広域指定人数+1（最大3）。\n使用時：このスキルを使用している間にHPが1になった場合、この Rの間HPが1以下にならない。自分の火傷10ごとに、スキルのダメージと威力+1（最大6）",
    "classification": "source_boundary_punctuation",
    "row_ids": []
   },
@@ -5087,7 +5087,7 @@
    "code": "field_difference",
    "path": "normal_personas[101].skills[1].effect",
    "expected": "自分の縛り付く鉄線4ごとにマッチ威力+1（最大2）\nマッチ勝利時：縛り付く鉄線2を付与",
-   "actual": "自分の縛り付く鉄線4ごとに マッチ威力+1（最大2）。\nマッチ勝利時：縛り付く鉄線2を付与",
+   "actual": "自分の縛り付く鉄線4ごとにマッチ威力+1（最大2）。\nマッチ勝利時：縛り付く鉄線2を付与",
    "classification": "source_boundary_punctuation",
    "row_ids": []
   },
@@ -5481,7 +5481,7 @@
    "code": "field_difference",
    "path": "tokui_personas[4].skills[2].effect",
    "expected": "戦闘開始時：（最大共鳴数x20）％の確率で後方の味方1名に援護攻撃1を付与。最大共鳴数が4以上なら、援護攻撃を付与した味方に傲慢威力増加1と傲慢ダメージ量増加2を付与\n使用時：呼吸8を得る",
-   "actual": "戦闘開始時：（最大共鳴数x20）％の確率で後方の味方1名に援護 攻撃1を付与。最大共鳴数が4以上なら、援護 攻撃を付与した味方に傲慢威力増加1と傲慢ダメージ量増加2を付与。\n使用時：呼吸8を得る",
+   "actual": "戦闘開始時：（最大共鳴数x20）％の確率で後方の味方1名に援護攻撃1を付与。最大共鳴数が4以上なら、援護攻撃を付与した味方に傲慢威力増加1と傲慢ダメージ量増加2を付与。\n使用時：呼吸8を得る",
    "classification": "source_boundary_punctuation",
    "row_ids": []
   },
@@ -5511,7 +5511,7 @@
    "code": "field_difference",
    "path": "tokui_personas[5].skills[3].effect",
    "expected": "使用時：対象の沈潜が6以上ならスキル威力+2。対象の沈潜3ごとにマッチ威力+1（最大2）\nマッチ勝利時：沈潜2を付与",
-   "actual": "使用時：対象の沈潜が6以上ならスキル威力+2。 対象の沈潜3ごとに マッチ威力+1（最大2）。\nマッチ勝利時：沈潜2を付与",
+   "actual": "使用時：対象の沈潜が6以上ならスキル威力+2。 対象の沈潜3ごとにマッチ威力+1（最大2）。\nマッチ勝利時：沈潜2を付与",
    "classification": "source_boundary_punctuation",
    "row_ids": []
   },
@@ -5541,7 +5541,7 @@
    "code": "field_difference",
    "path": "tokui_personas[6].skills[1].effect",
    "expected": "対象の速度が自分より低ければ、対象との速度差2ごとにマッチ威力+1（最大3）\n使用時：呼吸2を得る",
-   "actual": "対象の速度が自分より低ければ、 対象との速度差2ごとに マッチ威力+1（最大3）。\n使用時：呼吸2を得る",
+   "actual": "対象の速度が自分より低ければ、 対象との速度差2ごとにマッチ威力+1（最大3）。\n使用時：呼吸2を得る",
    "classification": "source_boundary_punctuation",
    "row_ids": []
   },
@@ -5631,7 +5631,7 @@
    "code": "field_difference",
    "path": "tokui_personas[8].skills[3].effect",
    "expected": "対象の沈潜が5以上ならマッチ威力+1\n使用時：自分の棺5ごとにマッチ威力+1（最大2）\nマッチ勝利時：沈潜3を付与",
-   "actual": "対象の沈潜が5以上なら マッチ威力+1。\n使用時：自分の棺5ごとに マッチ威力+1（最大2）。\nマッチ勝利時：沈潜3を付与",
+   "actual": "対象の沈潜が5以上ならマッチ威力+1。\n使用時：自分の棺5ごとにマッチ威力+1（最大2）。\nマッチ勝利時：沈潜3を付与",
    "classification": "source_boundary_punctuation",
    "row_ids": []
   },
@@ -5741,7 +5741,7 @@
    "code": "field_difference",
    "path": "tokui_personas[9].skills[4].effect",
    "expected": "与えたダメージの20％だけHPを回復（最大20）\n攻撃前：血染めの鋏の刃が10以上なら、広域指定人数+1。血染の鋏の刃が20以上なら、代わりに広域指定人数+2\n使用時：対象の出血が6以上ならスキル威力とマッチ威力+1\n攻撃後：増加した広域指定人数1ごとに血染めの鋏の刃を10消費\n敵討伐時：血餐30を得る",
-   "actual": "与えたダメージの20％だけHPを回復（最大20）。\n攻撃前：血染めの鋏の刃が10以上なら、広域指定人数+1。血染の鋏の刃が20以上なら、代わりに広域指定人数+2。\n使用時：対象の出血が6以上ならスキル威力と マッチ威力+1。\n攻撃後：増加した広域指定人数1ごとに血染めの鋏の刃を10消費。\n敵討伐時：血餐30を得る",
+   "actual": "与えたダメージの20％だけHPを回復（最大20）。\n攻撃前：血染めの鋏の刃が10以上なら、広域指定人数+1。血染の鋏の刃が20以上なら、代わりに広域指定人数+2。\n使用時：対象の出血が6以上ならスキル威力とマッチ威力+1。\n攻撃後：増加した広域指定人数1ごとに血染めの鋏の刃を10消費。\n敵討伐時：血餐30を得る",
    "classification": "source_boundary_punctuation",
    "row_ids": []
   },
@@ -5889,7 +5889,7 @@
    "code": "field_difference",
    "path": "tokui_personas[12].skills[1].effect",
    "expected": "対象のデバフの種類が5種類以上ならマッチ威力+1\n使用時：対象の破裂3ごとにスキル威力+1（最大2）\nマッチ勝利時：呼吸4を得る",
-   "actual": "対象のデバフの種類が5種類以上なら マッチ威力+1。\n使用時：対象の破裂3ごとにスキル威力+1（最大2）。\nマッチ勝利時：呼吸4を得る",
+   "actual": "対象のデバフの種類が5種類以上ならマッチ威力+1。\n使用時：対象の破裂3ごとにスキル威力+1（最大2）。\nマッチ勝利時：呼吸4を得る",
    "classification": "source_boundary_punctuation",
    "row_ids": []
   },
@@ -5904,7 +5904,7 @@
    "code": "field_difference",
    "path": "tokui_personas[12].skills[2].effect",
    "expected": "対象のデバフの種類が5種類以上ならマッチ威力+1\n使用時：対象の破裂3ごとに呼吸1を得る（最大10）\n敵討伐時：次のRにダメージ量増加2を得る",
-   "actual": "対象のデバフの種類が5種類以上なら マッチ威力+1。\n使用時：対象の破裂3ごとに呼吸1を得る（最大10）。\n敵討伐時：次のRにダメージ量増加2を得る",
+   "actual": "対象のデバフの種類が5種類以上ならマッチ威力+1。\n使用時：対象の破裂3ごとに呼吸1を得る（最大10）。\n敵討伐時：次のRにダメージ量増加2を得る",
    "classification": "source_boundary_punctuation",
    "row_ids": []
   },
@@ -6313,7 +6313,7 @@
    "code": "field_difference",
    "path": "tokui_personas[18].skills[1].effect",
    "expected": "使用時：呼吸5を得る\n攻撃後：保有弾丸数が0ならこのスキルを捨てる",
-   "actual": "使用時：呼吸5を得る。\n攻撃後：保有弾丸数が0なら このスキルを捨てる",
+   "actual": "使用時：呼吸5を得る。\n攻撃後：保有弾丸数が0ならこのスキルを捨てる",
    "classification": "source_boundary_punctuation",
    "row_ids": []
   },

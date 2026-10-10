@@ -96,6 +96,16 @@ function resolveTarget(entry) {
 const applied = [];
 const skipped = [];
 const errors = [];
+const superseded = [];
+
+/* 履歴として保持するが現行DBへは当てない行（superseded: true）。
+   現行DBの方が原典照合として新しい状態にあるとき、古い before を無理に
+   当てようとすると不一致エラーになり表全体が適用できなくなるため、
+   行単位で「履歴」として明示する。 */
+for (const entry of entries) {
+  if (entry.superseded === true) superseded.push(entry);
+}
+const active = entries.filter((e) => e.superseded !== true);
 
 /* 同じ項目を続けて直す表は、後の修正が前の修正の結果を入力とする。
    表は履歴であって、各行を独立に現在のDBへ当てられるとは限らない。
@@ -111,7 +121,7 @@ const errors = [];
    この行の after と一致するなら、この行は後続に引き継がれたものとみなす。 */
 const targetKey = (entry) => JSON.stringify([entry.persona || entry.ego, entry.target]);
 const laterByTarget = new Map();
-entries.forEach((entry, at) => {
+active.forEach((entry, at) => {
   const key = targetKey(entry);
   if (!laterByTarget.has(key)) laterByTarget.set(key, []);
   laterByTarget.get(key).push({ entry, at });
@@ -120,7 +130,7 @@ const supersededBy = (entry, at) =>
   (laterByTarget.get(targetKey(entry)) || [])
     .find((other) => other.at > at && other.entry.before === entry.after);
 
-for (const [at, entry] of entries.entries()) {
+for (const [at, entry] of active.entries()) {
   const { owner, key, error } = resolveTarget(entry);
   if (error) {
     errors.push({ entry, message: error });
@@ -173,7 +183,12 @@ if (errors.length) {
   errors.forEach((e) => console.log(`  - ${label(e.entry)}\n    ${e.message}`));
 }
 
-console.log(`\n適用: ${applied.length}件 / 不要: ${skipped.length}件 / エラー: ${errors.length}件`);
+console.log(`\n適用: ${applied.length}件 / 不要: ${skipped.length}件 / 履歴: ${superseded.length}件 / エラー: ${errors.length}件`);
+
+if (superseded.length) {
+  console.log("\n履歴として保存（現行DBへは適用しない）:");
+  superseded.forEach((e) => console.log(`  - ${label(e)} — ${e.reason || ""}`));
+}
 
 if (errors.length) {
   console.log("エラーがあるため data/db.json は更新しません。");
