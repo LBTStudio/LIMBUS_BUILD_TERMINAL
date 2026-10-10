@@ -550,7 +550,10 @@
   top: -12px;
   z-index: 2;
   display: flex;
-  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 6px;
+  row-gap: 6px;
   padding: 4px 2px 6px;
   background: linear-gradient(180deg, var(--surface-0) 65%, transparent);
   margin: -4px -2px 4px;
@@ -565,30 +568,74 @@
   border: 1px solid var(--line-dim);
   border-radius: var(--r-sm);
   cursor: pointer;
+  white-space: nowrap;
   transition: border-color var(--t-fast), color var(--t-fast);
 }
 .pv-sec-tbtn:hover {
   color: var(--gold);
   border-color: var(--gold-line);
 }
-/* 効果段落の▶︎。出力を見たまま切り替えるため、表示の隣に置く。 */
+/* 効果段落の▶︎。操作はPALETTEの出力を見たまま行うため、
+   展開系ボタンと同じ制御の列に並べ、区切り線で操作群とヒントを分ける。 */
 .pv-sec-bullet-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  margin-left: auto;
-  padding: 2px 8px;
+  gap: 7px;
+  flex: none;
+  min-height: 24px;
+  margin-left: 8px;
+  padding: 3px 9px 3px 10px;
+  border-left: 1px solid var(--line-dim);
   font-family: var(--f-display);
   font-size: 10px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   color: var(--tx-dim);
-  border: 1px solid var(--line-dim);
-  border-radius: var(--r-sm);
+  white-space: nowrap;
   cursor: pointer;
   user-select: none;
+  transition: color var(--t-fast);
 }
-.pv-sec-bullet-toggle:hover { color: var(--gold); border-color: var(--gold-line); }
-.pv-sec-bullet-toggle input { accent-color: var(--gold); margin: 0; }
+.pv-sec-bullet-toggle:hover { color: var(--gold); }
+/* 状態は箱の有無ではなく色で読めるようにする（ONで金に染まる）。 */
+.pv-sec-bullet-toggle:has(input:checked) { color: var(--gold); }
+.pv-sec-bullet-toggle:has(input:focus-visible) { outline: 2px solid var(--gold-line); outline-offset: 2px; }
+/* native checkbox -> トラックノブのスイッチ。枠・面・金トークンは既存の
+   .pv-sec-tbtn と同じ語彙にそろえ、部品として浮かないようにする。
+   OFFの枠は --line-strong だと隣接面比 2.17 で WCAG 1.4.11（3:1）に
+   届かないため、暗い金（--gold-lo, 3.82）にして見える境目を作る。 */
+.pv-sec-bullet-toggle input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  position: relative;
+  width: 24px;
+  height: 13px;
+  flex: none;
+  border: 1px solid var(--gold-lo);
+  border-radius: var(--r-pill);
+  background: var(--surface-inset);
+  cursor: pointer;
+  transition: background-color var(--t-fast), border-color var(--t-fast);
+}
+.pv-sec-bullet-toggle input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--tx-mute);
+  transition: transform var(--t-fast), background-color var(--t-fast);
+}
+.pv-sec-bullet-toggle input[type="checkbox"]:checked {
+  background: var(--gold-tint);
+  border-color: var(--gold-line);
+}
+.pv-sec-bullet-toggle input[type="checkbox"]:checked::after {
+  transform: translateX(11px);
+  background: var(--gold);
+}
 .pv-sec {
   border: 1px solid var(--line-dim);
   border-radius: var(--r-sm);

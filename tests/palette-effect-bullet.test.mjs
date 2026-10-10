@@ -85,7 +85,21 @@ test("PALETTEプレビューのツールバーに切替を露出する（出力�
   assert.ok(preview.includes('prefix === "palette"'), "PALETTEタブ以外にも出る条件になっていない");
 });
 
+test("切替は設定シートに置かず、PALETTEのプレビューに集約する", () => {
+  /* 同じ操作が2箇所にあると「どちらが本体か」が曖昧になる。
+     導線はPALETTEの出力を見たまま切り替える一箇所に定める。 */
+  const sections = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
+  assert.equal(sections.includes("effectBullet"), false, "設定シートに重複した操作が残っている");
+  /* 設定側には、どこで切り替えるかの案内だけを残す。 */
+  assert.ok(sections.includes("全展開・全折畳の隣"), "設定側に切替場所の案内が無い");
+});
+
 test("切替のスタイルが定義されている（トグルが素のまま出ない）", () => {
   const css = readFileSync(new URL("../assets/workspace.css", import.meta.url), "utf8");
   assert.ok(/\.pv-sec-bullet-toggle\b/.test(css), "pv-sec-bullet-toggle のスタイルが無い");
+  /* native checkbox の見え方を消して、トラックノブのスイッチに作り変える。 */
+  assert.ok(/appearance:\s*none/.test(css), "checkbox の外観を消していない");
+  assert.ok(/:has\(input:checked\)/.test(css), "ONの状態に色を持たせていない");
+  /* ツールバーは折り返しても語が割れないようにする。 */
+  assert.ok(/\.pv-sec-tbtn\s*\{[^}]*white-space:\s*nowrap/.test(css), "ボタンの文字が折り返して割れる");
 });

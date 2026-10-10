@@ -2041,14 +2041,13 @@ const SettingsSection = ({ state, dispatch }) => {
             ))
           )
         ),
-        h("details", { className: "settings-major", "data-settings-category": "share" },
-          sectionSummary("出力の表示設定", "共有HTML・MEMO・PALETTEの表示"),
+h("details", { className: "settings-major", "data-settings-category": "share" },
+          sectionSummary("同期情報の表示", "共有HTML・各種出力の人格情報表示"),
           h("div", { className: "settings-major-body stack-2" },
             h("label", { className: "settings-check-row" }, h("input", { type: "checkbox", checked: state.shareOptions?.showSyncRank !== false, onChange: (event) => setF("shareOptions", { ...(state.shareOptions || {}), showSyncRank: event.target.checked }) }), "同期ランクを共有HTMLへ表示"),
             h("label", { className: "settings-check-row" }, h("input", { type: "checkbox", checked: state.shareOptions?.showSyncRankInOutput === true, onChange: (event) => setF("shareOptions", { ...(state.shareOptions || {}), showSyncRankInOutput: event.target.checked }) }), "同期ランクをMEMO・PALETTEへ表示"),
-            h("label", { className: "settings-check-row" }, h("input", { type: "checkbox", checked: state.paletteOptions?.effectBullet !== false, onChange: (event) => setF("paletteOptions", { ...(state.paletteOptions || {}), effectBullet: event.target.checked }) }), "PALETTEの効果段落に▶︎を付ける"),
             h("p", { className: "settings-section-note" }, "同期MAXは同期ランクとは別状態です。設定されている場合は、共有HTML・MEMOの人格名に[MAX]を常に付記します。"),
-            h("p", { className: "settings-section-note" }, "▶︎はPALETTEの効果段落だけの装飾です。切っても本文や段落は変わらず、段落先頭の記号が無印になります。共有リンクには含まれない端末ごとの設定です。")
+            h("p", { className: "settings-section-note" }, "効果段落の▶︎は設定ではなく、PALETTEのプレビューツールバー（全展開・全折畳の隣）で切り替えます。本文と段落は変わりません。")
           )
         ),
         h("details", { className: "settings-major", "data-settings-category": "formulas" },

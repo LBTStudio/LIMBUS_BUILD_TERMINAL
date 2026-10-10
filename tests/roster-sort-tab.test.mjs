@@ -52,7 +52,10 @@ test("同期順は E.G.O タブで既定へ戻る", () => {
 test("実際のコードとテストの期待が食い違わないこと", () => {
   // ソース上の式を eval して、手書きの期待と一致するか見る。
   // 取り出した本体は式だけなので return を被せる。
-  const body = /const reconcileRosterSortWithTab = \(sortBy, libraryTab\) =>\s*([\s\S]*?);\n/.exec(source);
+  // 行末はチェックアウト設定（core.autocrlf）で CRLF にもなるため、
+  // 読み出した瞬間に LF へ正規化してから抽出する。
+  const normalized = source.replace(/\r\n/g, "\n");
+  const body = /const reconcileRosterSortWithTab = \(sortBy, libraryTab\) =>\s*([\s\S]*?);\n/.exec(normalized);
   assert.ok(body, "関数の実体が見つかること");
   const expr = body[1].trim().replace(/;$/, "");
   assert.ok(expr.startsWith("(") && expr.endsWith(")"), `取り出した本体が式であること: ${expr}`);
