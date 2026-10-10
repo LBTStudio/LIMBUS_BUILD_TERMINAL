@@ -74,3 +74,18 @@ test("表示設定は端末ごとのもので、共有リンクの許可キー�
   assert.ok(allowed, "SHARE_KEYS が見つからない");
   assert.equal(/paletteOptions/.test(allowed[1]), false, "共有リンクへ持ち込まない");
 });
+
+test("PALETTEプレビューのツールバーに切替を露出する（出力のそばに置く）", () => {
+  /* 設定の中にしか無いと「どこを操作すればよいか」が分からない。
+     ▶︎はPALETTEのプレビューを見ながら切り替えたい。よって同じ切替をプレビューツールバーに出す。 */
+  const preview = readFileSync(new URL("../js/LivePreview.js", import.meta.url), "utf8");
+  assert.ok(preview.includes("pv-sec-bullet-toggle"), "プレビューツールバーに切替の要素が無い");
+  assert.ok(preview.includes("effectBullet"), "プレビュー側の切替が state を参照していない");
+  /* MEMO/JSONタブには出さず、PALETTEタブだけの操作にする。 */
+  assert.ok(preview.includes('prefix === "palette"'), "PALETTEタブ以外にも出る条件になっていない");
+});
+
+test("切替のスタイルが定義されている（トグルが素のまま出ない）", () => {
+  const css = readFileSync(new URL("../assets/workspace.css", import.meta.url), "utf8");
+  assert.ok(/\.pv-sec-bullet-toggle\b/.test(css), "pv-sec-bullet-toggle のスタイルが無い");
+});

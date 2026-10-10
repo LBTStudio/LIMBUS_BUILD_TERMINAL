@@ -571,6 +571,24 @@
   color: var(--gold);
   border-color: var(--gold-line);
 }
+/* 効果段落の▶︎。出力を見たまま切り替えるため、表示の隣に置く。 */
+.pv-sec-bullet-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  padding: 2px 8px;
+  font-family: var(--f-display);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--tx-dim);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  user-select: none;
+}
+.pv-sec-bullet-toggle:hover { color: var(--gold); border-color: var(--gold-line); }
+.pv-sec-bullet-toggle input { accent-color: var(--gold); margin: 0; }
 .pv-sec {
   border: 1px solid var(--line-dim);
   border-radius: var(--r-sm);
