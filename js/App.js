@@ -279,7 +279,7 @@ const IMPORT_GROUPS = [
   { key: "ego", label: "E.G.O\u88C5\u5099", fields: ["egoSlots"] },
   { key: "mental", label: "\u7CBE\u795E", fields: ["spirit","spiritMorale","spiritConfuse","spiritAlways"] },
   { key: "roster", label: "\u6240\u6301\u4EBA\u683C\u30FBE.G.O\u4E00\u89A7", fields: ["roster"] },
-  { key: "status", label: "\u30B9\u30C6\u30FC\u30BF\u30B9\u30FB\u56FA\u6709\u30D0\u30D5\u30FB\u51FA\u529B\u8A2D\u5B9A", fields: ["uniqueBuffs","customStatuses","defaultStatuses","outputExclude","shareOptions"] },
+  { key: "status", label: "\u30B9\u30C6\u30FC\u30BF\u30B9\u30FB\u56FA\u6709\u30D0\u30D5\u30FB\u51FA\u529B\u8A2D\u5B9A", fields: ["uniqueBuffs","customStatuses","defaultStatuses","outputExclude","shareOptions","paletteOptions"] },
   { key: "enh", label: "\u7279\u6B8A\u5F37\u5316", fields: ["enhancements"] },
   { key: "items", label: "\u5C0E\u5165\u6E08\u307F\u30A2\u30A4\u30C6\u30E0", fields: ["inventory","customItems"] },
   { key: "formulas", label: "\u4EE3\u5165\u5F0F\u30FB\u305D\u306E\u4ED6\u8A2D\u5B9A", fields: ["formulas","builtinFormulasOverride","autoFml","moraleLine","extraCmd"] }

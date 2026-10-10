@@ -124,8 +124,15 @@ function scanEffectParagraphs(text) {
   }
   return out.map((s) => s.trim()).filter(Boolean);
 }
-function splitEffectLines(text) {
-  return scanEffectParagraphs(text).map((s) => s.startsWith("\u25B6\uFE0E") ? s : "\u25B6\uFE0E" + s);
+/* 効果段落の頭に付ける▶︎（U+25B6 U+FE0E）。出力書式の設定で外せる。 */
+const EFFECT_ARROW = "\u25B6\uFE0E";
+/* 段落へ▶︎を付けるかは呼び出し側が決める。既定は付ける（従来の表示）。 */
+function prefixEffectArrow(paragraphs, bullet) {
+  if (!bullet) return paragraphs;
+  return paragraphs.map((s) => s.startsWith(EFFECT_ARROW) ? s : EFFECT_ARROW + s);
+}
+function splitEffectLines(text, bullet = true) {
+  return prefixEffectArrow(scanEffectParagraphs(text), bullet);
 }
 function splitEffectLinesPlain(text) {
   return scanEffectParagraphs(text);
@@ -136,8 +143,8 @@ function formatEffectLines(text) {
 }
 window.formatEffectLines = formatEffectLines;
 window.splitEffectLinesPlain = splitEffectLinesPlain;
-function toArrowLines(text) {
-  return splitEffectLines(text);
+function toArrowLines(text, bullet = true) {
+  return splitEffectLines(text, bullet);
 }
 /* ダイス効果の本文を、ロール表記と組んで1行の表示へまとめる。
 
@@ -175,8 +182,8 @@ function stripDiceIndexPrefix(effect) {
   if (/^\d[\d-]*$/.test(body.trim())) return "";
   return body;
 }
-function buildLabeledBlock(header, text) {
-  const lines = toArrowLines(text);
+function buildLabeledBlock(header, text, bullet = true) {
+  const lines = toArrowLines(text, bullet);
   if (!lines.length) return "";
   const first = lines[0];
   const rest = lines.slice(1);
@@ -201,10 +208,10 @@ function pushMemoEffect(lines, label, text) {
    バフ自体の常時的な性質を述べた一つの文章である。
    全段落へ▶︎を付けると箇条書きに見えて読みにくいため、冒頭にだけ▶︎を置き、
    改行を含む説明は以降の段落を素のまま連結する。 */
-function buildProseBlock(header, text) {
+function buildProseBlock(header, text, bullet = true) {
   const lines = splitEffectLinesPlain(text);
   if (!lines.length) return "";
-  return `${header}\u25B6\uFE0E${lines.join("\\n")}`;
+  return `${header}${bullet ? EFFECT_ARROW : ""}${lines.join("\\n")}`;
 }
 /* CCFOLIA・BCDICEの代入式は四則演算と括弧だけを解釈し、floor()のような関数呼び出しは処理できない。
    一方でBCDICEの除算「/」は既定で小数点以下を切り捨てるため、floor(a/b) は (a/b) と等価である。
@@ -555,6 +562,9 @@ function buildPalette(state) {
   const hasBreath = hasVar("\u547C\u5438");
   const personaSync = getCurrentPersonaSyncState(p);
   const showSyncRankInOutput = p.shareOptions?.showSyncRankInOutput === true;
+  /* 効果段落の▶︎は表示書式の設定。共有リンクへ持ち込まない端末設定として
+     state に持ち、パレット生成の入口で一度だけ読む。 */
+  const effectBullet = p.paletteOptions?.effectBullet !== false;
   if (showSyncRankInOutput && p.personaSrc && personaSync.syncRank) {
     L.push("───────────────");
     L.push("### ■ 人格情報");
@@ -583,11 +593,11 @@ function buildPalette(state) {
     L.push("\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC");
     L.push(`### \u25A0 \u7CBE\u795E\uFF1A${spirit}`);
     const parts = [`\u7CBE\u795E\u3010${spirit}\u3011`];
-    const alwaysBlk = buildLabeledBlock("\u5E38\u6642\u767A\u52D5\uFF1A", p.spiritAlways);
+    const alwaysBlk = buildLabeledBlock("\u5E38\u6642\u767A\u52D5\uFF1A", p.spiritAlways, effectBullet);
     if (alwaysBlk) parts.push(alwaysBlk);
-    const moraleBlk = buildLabeledBlock("\u58EB\u6C17\u4F4E\u4E0B\u52B9\u679C\uFF1A", p.spiritMorale);
+    const moraleBlk = buildLabeledBlock("\u58EB\u6C17\u4F4E\u4E0B\u52B9\u679C\uFF1A", p.spiritMorale, effectBullet);
     if (moraleBlk) parts.push(moraleBlk);
-    const confuseBlk = buildLabeledBlock("\u6DF7\u4E71\u52B9\u679C\uFF1A", p.spiritConfuse);
+    const confuseBlk = buildLabeledBlock("\u6DF7\u4E71\u52B9\u679C\uFF1A", p.spiritConfuse, effectBullet);
     if (confuseBlk) parts.push(confuseBlk);
     L.push(parts.join("\\n"));
     const spiritQuickText = `${p.spiritAlways || ""} ${p.spiritMorale || ""} ${p.spiritConfuse || ""}`;
@@ -608,9 +618,9 @@ function buildPalette(state) {
     L.push("\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC");
     L.push("### \u25A0 \u30D1\u30C3\u30B7\u30D6");
     const parts = [`\u4EBA\u683C\u30D1\u30C3\u30B7\u30D6\u3010${p.pas.name}\u3011`, `\u767A\u52D5\u6761\u4EF6\uFF1A${p.pas.cond || ""}`];
-    const alwaysBlk = buildLabeledBlock("\u5E38\u6642\u52B9\u679C\uFF1A", p.pas.always);
+    const alwaysBlk = buildLabeledBlock("\u5E38\u6642\u52B9\u679C\uFF1A", p.pas.always, effectBullet);
     if (alwaysBlk) parts.push(alwaysBlk);
-    const effBlk = buildLabeledBlock("\u52B9\u679C\uFF1A", p.pas.effect);
+    const effBlk = buildLabeledBlock("\u52B9\u679C\uFF1A", p.pas.effect, effectBullet);
     if (effBlk) parts.push(effBlk);
     L.push(parts.join("\\n"));
     if (p.pas.quick) {
@@ -618,9 +628,9 @@ function buildPalette(state) {
     }
     if (p.pas2Enabled && p.pas2.name) {
       const p2 = [`\u4EBA\u683C\u30D1\u30C3\u30B7\u30D6\u3010${p.pas2.name}\u3011`, `\u767A\u52D5\u6761\u4EF6\uFF1A${p.pas2.cond || ""}`];
-      const p2always = buildLabeledBlock("\u5E38\u6642\u52B9\u679C\uFF1A", p.pas2.always);
+      const p2always = buildLabeledBlock("\u5E38\u6642\u52B9\u679C\uFF1A", p.pas2.always, effectBullet);
       if (p2always) p2.push(p2always);
-      const p2eff = buildLabeledBlock("\u52B9\u679C\uFF1A", p.pas2.effect);
+      const p2eff = buildLabeledBlock("\u52B9\u679C\uFF1A", p.pas2.effect, effectBullet);
       if (p2eff) p2.push(p2eff);
       L.push(p2.join("\\n"));
     }
@@ -632,7 +642,7 @@ function buildPalette(state) {
     p.supports.forEach((s) => {
       const parts = [`\u30B5\u30DD\u30FC\u30C8\u30D1\u30C3\u30B7\u30D6\u540D ${s.name}`, `\u767A\u52D5\u6761\u4EF6\uFF1A${s.cond || ""}`];
       const isAlways = /\u5E38\u6642|\u5E38\u99D0/.test(s.cond || "");
-      const effBlk = buildLabeledBlock(isAlways ? "\u5E38\u6642\u52B9\u679C\uFF1A" : "\u52B9\u679C\uFF1A", s.effect);
+      const effBlk = buildLabeledBlock(isAlways ? "\u5E38\u6642\u52B9\u679C\uFF1A" : "\u52B9\u679C\uFF1A", s.effect, effectBullet);
       if (effBlk) parts.push(effBlk);
       L.push(parts.join("\\n"));
     });
@@ -643,7 +653,7 @@ function buildPalette(state) {
     L.push("### \u25A0 \u6B7B\u4EA1\u5F8C\u5C02\u7528\u30B5\u30DD\u30FC\u30C8\u30D1\u30C3\u30B7\u30D6");
     const ds = p.deathSupport;
     const parts = [`\u30B5\u30DD\u30FC\u30C8\u30D1\u30C3\u30B7\u30D6\u540D ${ds.name || ""}`, `\u767A\u52D5\u6761\u4EF6\uFF1A${ds.cond || ""}`];
-    const effBlk = buildLabeledBlock("\u52B9\u679C\uFF1A", ds.effect);
+    const effBlk = buildLabeledBlock("\u52B9\u679C\uFF1A", ds.effect, effectBullet);
     if (effBlk) parts.push(effBlk);
     L.push(parts.join("\\n"));
     L.push("");
@@ -652,7 +662,7 @@ function buildPalette(state) {
     L.push("───────────────");
     L.push("### ■ 特殊強化");
     p.enhancements.forEach((e) => {
-      const effBlk = buildLabeledBlock("効果：", e.effect);
+      const effBlk = buildLabeledBlock("効果：", e.effect, effectBullet);
       // 行頭の【名称】はプレビューの出力カテゴリとして分割されるため、
       // 特殊強化は一つのカテゴリ内の箇条書きとしてまとめる。
       L.push(effBlk ? `・【${e.name}】\n${effBlk}` : `・【${e.name}】`);
@@ -671,7 +681,7 @@ function buildPalette(state) {
       const parts = [head];
       if (b.desc) {
         // 固有バフの説明は一つの文章として扱い、冒頭にだけ▶︎を付ける。
-        const effBlk = buildProseBlock("\u52B9\u679C\uFF1A", b.desc);
+        const effBlk = buildProseBlock("\u52B9\u679C\uFF1A", b.desc, effectBullet);
         if (effBlk) parts.push(effBlk);
       }
       L.push(parts.join("\\n"));
@@ -700,7 +710,7 @@ function buildPalette(state) {
       const skDPlusVar = !hasPerDicePlus && auto.dPlus ? sk.dPlusLabel || autoDiceVarName(`S${rn}d値`) : null;
       const skDCntVar = !hasPerDiceCnt && auto.dCnt ? sk.dCntLabel || autoDiceVarName(`S${rn}d数`) : null;
       const headParts = [`戦術${rn}：${name}`, `${typ}${sin ? "：" + sin : ""}${aoe ? "　広域：" + aoe : ""}`];
-      const effBlk = buildLabeledBlock("効果：", eff);
+      const effBlk = buildLabeledBlock("効果：", eff, effectBullet);
       if (effBlk) headParts.push(effBlk);
       const displayDice = [];
       const execRows = [];
@@ -752,7 +762,7 @@ function buildPalette(state) {
             `\u3010\u540C\u5316\uFF5C${rank}\u3011${rnk}\uFF1A${name}`,
             `${typ}${sin ? "\uFF1A" + sin : ""}${aoe ? "\u3000\u5E83\u57DF\uFF1A" + aoe : ""}`
           ];
-          const effBlk = buildLabeledBlock("\u52B9\u679C\uFF1A", eff);
+          const effBlk = buildLabeledBlock("\u52B9\u679C\uFF1A", eff, effectBullet);
           if (effBlk) headParts.push(effBlk);
           const displayDice = [];
           const execRows = [];
@@ -804,11 +814,11 @@ function buildPalette(state) {
         }
         // PDF記述順: パッシブは覚醒効果より先に記載される
         if (e.passive_name) {
-          const passBlk = buildLabeledBlock(`E.G.O\u30D1\u30C3\u30B7\u30D6\u3010${e.passive_name}\u3011\uFF1A`, e.passive_effect);
+          const passBlk = buildLabeledBlock(`E.G.O\u30D1\u30C3\u30B7\u30D6\u3010${e.passive_name}\u3011\uFF1A`, e.passive_effect, effectBullet);
           if (passBlk) kParts.push(passBlk);
           if (e.passive_cond) kParts.push(`発動条件：${e.passive_cond}`);
         }
-        const kEff = buildLabeledBlock("\u899A\u9192\u52B9\u679C\uFF1A", kSk.effect);
+        const kEff = buildLabeledBlock("\u899A\u9192\u52B9\u679C\uFF1A", kSk.effect, effectBullet);
         if (kEff) kParts.push(kEff);
         const kDisplayDice = (kSk.dice || []).map((d) => formatDiceEffectDisplay(d.roll, stripDiceIndexPrefix(d.effect), "\\n")).filter(Boolean);
         if (kDisplayDice.length) kParts.push(kDisplayDice.join("\\n"));
@@ -826,7 +836,7 @@ function buildPalette(state) {
         if (sSk.attr || sSk.sin || sSk.aoe) {
           sParts.push(`${sSk.attr || ""}${sSk.sin ? "\uFF1A" + sSk.sin : ""}${sSk.aoe ? "\u3000\u5E83\u57DF\uFF1A" + sSk.aoe : ""}`);
         }
-        const sBlk = buildLabeledBlock("\u4FB5\u8755\u52B9\u679C\uFF1A", sSk.effect);
+        const sBlk = buildLabeledBlock("\u4FB5\u8755\u52B9\u679C\uFF1A", sSk.effect, effectBullet);
         if (sBlk) sParts.push(sBlk);
         const sDisplayDice = (sSk.dice || []).map((d) => formatDiceEffectDisplay(d.roll, stripDiceIndexPrefix(d.effect), "\\n")).filter(Boolean);
         if (sDisplayDice.length) sParts.push(sDisplayDice.join("\\n"));
@@ -840,7 +850,7 @@ function buildPalette(state) {
         });
       }
       if (e.unique_buff) {
-        const buffBlock = buildProseBlock("固有バフ：", e.unique_buff);
+        const buffBlock = buildProseBlock("固有バフ：", e.unique_buff, effectBullet);
         L.push(redactEgoSanFromPalette(`E.G.O【${e.name}】\\n${buffBlock}`));
       }
       L.push("");
@@ -924,7 +934,7 @@ function buildPalette(state) {
     L.push("### ■ 所持品");
     paletteItems.forEach(({ entry, item }) => {
       L.push(`【所持品】${item.name} ×${entry.quantity}`);
-      const itemEffect = buildLabeledBlock("効果：", item.palette || item.effect);
+      const itemEffect = buildLabeledBlock("効果：", item.palette || item.effect, effectBullet);
       if (itemEffect) L.push(itemEffect);
       L.push("");
     });

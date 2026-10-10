@@ -861,6 +861,12 @@ function normalizeStateShape(raw) {
     showSyncRank: next.shareOptions?.showSyncRank !== false,
     showSyncRankInOutput: next.shareOptions?.showSyncRankInOutput === true
   };
+  /* パレットの効果段落に付ける▶︎は端末ごとの表示設定。
+     shareOptions は共有リンクで同期ランクの明示的な意思表示として絞り込まれるため、
+     出力書式はここ（共有しない設定）へ置く。 */
+  next.paletteOptions = {
+    effectBullet: next.paletteOptions?.effectBullet !== false
+  };
   next.skills = migrateLegacyDerivedSkills(next.skills || [], next.personaSrc?.skills || []);
   if (next.personaSrc?.skills) next.personaSrc = { ...next.personaSrc, skills: migrateLegacyDerivedSkills(next.personaSrc.skills) };
   // V65r58: 通常人格の剣契頭目は、DB原文どおり斬撃補正を常時効果、
@@ -1290,6 +1296,8 @@ const INIT_STATE = {
   outputExclude: { memo: {}, palette: {} },
   // 同期情報の表示設定。同期MAXは名称の[MAX]表記として常に反映する。
   shareOptions: { showSyncRank: true, showSyncRankInOutput: false },
+  // パレットの出力書式。共有リンクへは持ち込まない端末設定。
+  paletteOptions: { effectBullet: true },
   // Favorites & history (persistent across sessions)
   favorites: [],
   // ['n:1', 't:5'] etc
@@ -1388,7 +1396,7 @@ function appReducer(state, action) {
         "hp","san","speed","bullets","resS","resP","resB","spirit","spiritMorale","spiritConfuse","spiritAlways",
         "pas","pas2Enabled","pas2","uniqueBuffs","skills","egoSlots","supports","deathSupport","roster",
         "enhancements","customStatuses","defaultStatuses","formulas","builtinFormulasOverride","autoFml",
-        "moraleLine","extraCmd","outputExclude","shareOptions","inventory","customItems",
+        "moraleLine","extraCmd","outputExclude","shareOptions","paletteOptions","inventory","customItems",
         "favorites","historyRecent"];
       // 別端末移行（exportState/importStateFromFile）は favorites と historyRecent を
       // 出力に含む。許可リストから漏れると、移行先で★と履歴だけが黙って失われる。
