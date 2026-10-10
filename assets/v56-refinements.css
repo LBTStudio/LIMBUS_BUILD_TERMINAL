@@ -1752,17 +1752,9 @@ details > summary {
   background: var(--gold-hi);
   box-shadow: 0 0 0 2px color-mix(in oklab, var(--gold) 20%, transparent);
 }
-.pv-sec-toolbar .pv-sec-dnd-note {
-  /* font-size / margin-left / font-family は JS のインライン指定だった。
-     この class の保持者は span 1 種のみで値が可変ではないため、
-     メディアクエリとクラスで上書きできるよう CSS 側へ移した。
-     audit-inline-safe.mjs の「移せる」判定で観測した 12 箇所が対象。 */
-  font-size: var(--fs-9);
-  margin-left: auto;
-  font-family: var(--f-mono);
-  color: var(--tx-dim);
-  letter-spacing: 0.04em;
-}
+/* 並べ替えの案内はツールバーには置かない。操作が1行に束ねられ、
+   第2行を単独で作って右寄せの空白が生じていた。
+   補足は下部の .preview-hint に統合し、ツールバーは操作のみにした。 */
 @media (max-width: 640px) {
   .pv-sec > .pv-sec-head { min-height: 52px; padding: 6px 8px; }
   .pv-sec-reorder { gap: 4px; padding-right: 6px; }

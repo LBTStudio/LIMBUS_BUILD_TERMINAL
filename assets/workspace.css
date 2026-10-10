@@ -599,6 +599,16 @@
 /* 状態は箱の有無ではなく色で読めるようにする（ONで金に染まる）。 */
 .pv-sec-bullet-toggle:has(input:checked) { color: var(--gold); }
 .pv-sec-bullet-toggle:has(input:focus-visible) { outline: 2px solid var(--gold-line); outline-offset: 2px; }
+/* ON / OFF の状態語。スイッチの位置と色だけでは状態を読み取りにくいため、
+   文字で現在値を併記する。等幅・字間あけで「読み値」として見せる。 */
+.pv-sec-bullet-state {
+  min-width: 24px;
+  font-family: var(--f-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-align: right;
+  color: inherit;
+}
 /* native checkbox -> トラックノブのスイッチ。枠・面・金トークンは既存の
    .pv-sec-tbtn と同じ語彙にそろえ、部品として浮かないようにする。
    OFFの枠は --line-strong だと隣接面比 2.17 で WCAG 1.4.11（3:1）に

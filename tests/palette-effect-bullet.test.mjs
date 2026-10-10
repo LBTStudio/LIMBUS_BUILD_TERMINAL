@@ -94,6 +94,36 @@ test("切替は設定シートに置かず、PALETTEのプレビューに集約�
   assert.ok(sections.includes("全展開・全折畳の隣"), "設定側に切替場所の案内が無い");
 });
 
+/* ビルド済みJSXは \uXXXX エスケープで書かれているため、
+   比較するときだけデコードして日本語のまま照合する。 */
+const readSource = (url) => {
+  const raw = readFileSync(url, "utf8");
+  return raw.replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+};
+
+test("現在値を ON / OFF の文字で併記する（スイッチだけでは状態が読めない）", () => {
+  const preview = readSource(new URL("../js/LivePreview.js", import.meta.url));
+  assert.ok(preview.includes("pv-sec-bullet-state"), "状態語の要素が無い");
+  /* 状態語は state から導く。ハードコードした文字列では嘘になりうる。 */
+  assert.ok(/pv-sec-bullet-state" \}, state\.paletteOptions\?\.effectBullet === false \? "OFF" : "ON"/.test(preview),
+    "状態語が state を参照していない");
+  /* ラベルは可視名であり、読み上げ名はそこから導く。 */
+  assert.ok(preview.includes("効果段落の▶︎を表示する"), "読み上げ名が可視ラベルを含んでいない");
+  /* 何が起きるかの説明をツールチップに持たせる。 */
+  assert.ok(/title: "[^"]*ONで付ける[^"]*OFFで付けない/.test(preview), "ON/OFF の効果説明が無い");
+});
+
+test("ドラッグ案内はツールバーに置かず、下部のヒント行へ統合する", () => {
+  /* 案内がツールバーにあると、flex-wrap で第2行が単独発生し、
+     margin-left:auto の右寄せで手前に大きな空白ができていた。 */
+  const preview = readSource(new URL("../js/LivePreview.js", import.meta.url));
+  assert.equal(preview.includes("pv-sec-dnd-note"), false, "ツールバーに案内が残っている");
+  assert.ok(preview.includes("並べ替えは ⋮⋮ / ↑↓"), "下部ヒントに案内が無い");
+  /* 死んだCSSを残さない。 */
+  const css = readFileSync(new URL("../assets/v56-refinements.css", import.meta.url), "utf8");
+  assert.equal(css.includes(".pv-sec-toolbar .pv-sec-dnd-note"), false, "使わないCSSが残っている");
+});
+
 test("切替のスタイルが定義されている（トグルが素のまま出ない）", () => {
   const css = readFileSync(new URL("../assets/workspace.css", import.meta.url), "utf8");
   assert.ok(/\.pv-sec-bullet-toggle\b/.test(css), "pv-sec-bullet-toggle のスタイルが無い");
