@@ -3415,6 +3415,22 @@ const BuildParamsPanel = ({ state, dispatch }) => {
     if (confirm("デフォルトステータスを出荷時（16項目）に戻しますか？")) setDst(FACTORY_DEFAULT_STATUS);
   };
 
+  /* Custom-row renderers live HERE, not in SettingsSection: they are referenced
+     by this function's JSX below, so they must be in scope before the return. */
+  const customStatusRow = (c) => h("div", { key: c.id, className: "settings-custom-status-row" },
+    h("input", { className: "input", value: c.label, placeholder: "ステータス名", onChange: (event) => patchCs(c.id, { label: event.target.value }) }),
+    h("label", { className: "status-order-number" }, h("span", null, "初"), h("input", { className: "input", type: "number", value: c.initial ?? 0, onChange: (event) => patchCs(c.id, { initial: parseInt(event.target.value) || 0 }) })),
+    h("label", { className: "status-order-number" }, h("span", null, "上"), h("input", { className: "input", type: "number", value: c.max ?? 99, onChange: (event) => patchCs(c.id, { max: parseInt(event.target.value) || 0 }) })),
+    h("label", { className: "settings-custom-target" }, h("span", null, "出力先"), h("select", { className: "select", value: c.place || "status", onChange: (event) => patchCs(c.id, { place: event.target.value }) }, h("option", { value: "status" }, "ST側"), h("option", { value: "params" }, "ラベル側へ移動"), h("option", { value: "none" }, "出力しない"))),
+    h("button", { className: "btn-ghost btn-icon", title: "このステータスを削除", onClick: () => rmCs(c.id) }, h(Icon, { name: "trash", size: 12 }))
+  );
+  const hiddenCustomRow = (c) => h("div", { key: c.id, className: "settings-hidden-custom-row" },
+    h("input", { className: "input", value: c.label, placeholder: "項目名", onChange: (event) => patchCs(c.id, { label: event.target.value }) }),
+    h("span", null, "JSONへは出力しません"),
+    h("select", { className: "select", value: c.place || "none", onChange: (event) => patchCs(c.id, { place: event.target.value }) }, h("option", { value: "none" }, "出力しない"), h("option", { value: "status" }, "ST側へ移動"), h("option", { value: "params" }, "ラベル側へ移動")),
+    h("button", { className: "btn-ghost btn-icon", title: "この項目を削除", onClick: () => rmCs(c.id) }, h(Icon, { name: "trash", size: 12 }))
+  );
+
   return h(React.Fragment, null,
     h("div", { className: "build-params-head" },
     h("span", { className: "t-label" }, "組み立て / BUILD PARAMETERS"),
@@ -3491,19 +3507,6 @@ const SettingsSection = ({ state, dispatch }) => {
   const dst = state.defaultStatuses || FACTORY_DEFAULT_STATUS;
   const setDst = (list) => setF("defaultStatuses", list);
   const h = React.createElement;
-  const customStatusRow = (c) => h("div", { key: c.id, className: "settings-custom-status-row" },
-    h("input", { className: "input", value: c.label, placeholder: "ステータス名", onChange: (event) => patchCs(c.id, { label: event.target.value }) }),
-    h("label", { className: "status-order-number" }, h("span", null, "初"), h("input", { className: "input", type: "number", value: c.initial ?? 0, onChange: (event) => patchCs(c.id, { initial: parseInt(event.target.value) || 0 }) })),
-    h("label", { className: "status-order-number" }, h("span", null, "上"), h("input", { className: "input", type: "number", value: c.max ?? 99, onChange: (event) => patchCs(c.id, { max: parseInt(event.target.value) || 0 }) })),
-    h("label", { className: "settings-custom-target" }, h("span", null, "出力先"), h("select", { className: "select", value: c.place || "status", onChange: (event) => patchCs(c.id, { place: event.target.value }) }, h("option", { value: "status" }, "ST側"), h("option", { value: "params" }, "ラベル側へ移動"), h("option", { value: "none" }, "出力しない"))),
-    h("button", { className: "btn-ghost btn-icon", title: "このステータスを削除", onClick: () => rmCs(c.id) }, h(Icon, { name: "trash", size: 12 }))
-  );
-  const hiddenCustomRow = (c) => h("div", { key: c.id, className: "settings-hidden-custom-row" },
-    h("input", { className: "input", value: c.label, placeholder: "項目名", onChange: (event) => patchCs(c.id, { label: event.target.value }) }),
-    h("span", null, "JSONへは出力しません"),
-    h("select", { className: "select", value: c.place || "none", onChange: (event) => patchCs(c.id, { place: event.target.value }) }, h("option", { value: "none" }, "出力しない"), h("option", { value: "status" }, "ST側へ移動"), h("option", { value: "params" }, "ラベル側へ移動")),
-    h("button", { className: "btn-ghost btn-icon", title: "この項目を削除", onClick: () => rmCs(c.id) }, h(Icon, { name: "trash", size: 12 }))
-  );
   const builtinRow = (formula) => {
     const overridden = typeof bov[formula.name] === "string";
     const hidden = bov[formula.name] === null;

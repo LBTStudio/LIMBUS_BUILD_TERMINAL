@@ -405,9 +405,13 @@ window.LBT_isUnsyncedOnlyEnhancement = isUnsyncedOnlyEnhancement;
 window.LBT_isEnhancementActiveForState = isEnhancementActiveForState;
 window.LBT_getActiveEnhancements = getActiveEnhancements;
 
+/* supports を読む関数は stateWithVisibleSupports を必ず通す。raw state を
+   直読みすると拡張で消えたスロットが判定に残り、共有データに supports が
+   無いとき .some が TypeError になる。 */
 function detectMTMods(state) {
-  const hasSPP = (kw) => state.supports.some((s) => (s.name || "").includes(kw));
-  const hasENH = (kw) => getActiveEnhancements(state).some((e) => (e.name || "").includes(kw));
+  const visible = stateWithVisibleSupports(state);
+  const hasSPP = (kw) => visible.supports.some((s) => (s.name || "").includes(kw));
+  const hasENH = (kw) => getActiveEnhancements(visible).some((e) => (e?.name || "").includes(kw));
   const atkModLabel = hasSPP("\u58CA\u3057\u7815\u304F\u6253\u6483") ? "\u6253\u6483\u88DC\u6B63" : hasSPP("\u5207\u308A\u4F0F\u305B\u308B\u65AC\u6483") ? "\u65AC\u6483\u88DC\u6B63" : hasSPP("\u523A\u3057\u8CAB\u304F\u8CAB\u901A") ? "\u8CAB\u901A\u88DC\u6B63" : null;
   const hasVigor = hasENH("\u71C3\u3048\u4E0A\u304C\u308B\u95D8\u5FD7");
   const hasDefMod = hasENH("\u9032\u3080\u3079\u304D\u5B88\u5099");
