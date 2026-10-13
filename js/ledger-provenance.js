@@ -1,0 +1,217 @@
+/* 所持項目が「なぜ手に入ったか」を表す。
+
+   名前だけでは由来が決められない。同一の E.G.O でも、
+     - シナリオ報酬の配布            → 支出ではない
+     - チケットでの抽出（ExecutionRule スの無料ガチャ） → 支出ではない
+     - ランダムガチャ                 → 支出（欠片）
+     - 指定購入                      → 支出
+   と、帳簿上の意味がまったく異なる。だから推定は推定として通し、
+   利用者が項目ごとに「計算に含めるか」を選べるようにする。 */
+
+(function () {
+  const PROVENANCE = [
+    { id: "grant", label: "配布・シナリオ報酬", priced: false },
+    { id: "gachaTicket", label: "抽出（チケット）", priced: false },
+    { id: "gachaPaid", label: "抽出（ランダムガチャ）", priced: true },
+    { id: "purchase", label: "指定購入", priced: true }
+  ];
+  const byId = new Map(PROVENANCE.map((p) => [p.id, p]));
+
+  /* 根拠となる語。見つけたものを「推定の理由」として返す。 */
+  const CUES = [
+    { id: "gachaTicket", re: /(?:抽出|ガチャ|チケ|チケット)/, weight: 2 },
+    { id: "gachaPaid", re: /(?:ガチャ|抽取)/, weight: 1 },
+    { id: "purchase", re: /(?:購入|指名|指定| 正文| abstract)/, weight: 2 },
+    { id: "grant", re: /(?:配布|報酬|与服务|スキル|獲得)/, weight: 1 }
+  ];
+
+  /* 1行から由来を推定する。断定はしない。 */
+  function inferProvenance(line, context) {
+    const text = String(line || "");
+    const scores = new Map();
+    for (const cue of CUES) {
+      if (cue.re.test(text)) scores.set(cue.id, (scores.get(cue.id) || 0) + cue.weight);
+    }
+    if (context && context.provenance) {
+      scores.set(context.provenance, (scores.get(context.provenance) || 0) + 1);
+    }
+    let best = null;
+    let runnerUp = 0;
+    for (const [id, score] of scores) {
+      if (!best || score > best.score) { runnerUp = best ? best.score : 0; best = { id, score }; }
+      else if (score > runnerUp) runnerUp = score;
+    }
+    if (!best) return { id: "unknown", confidence: "none", priced: false, label: "", reason: "由来を示す語が無い" };
+    const confidence = best.score - runnerUp >= 2 ? "strong" : best.score - runnerUp === 1 ? "weak" : "ambiguous";
+    const label = byId.get(best.id);
+    return {
+      id: best.id,
+      confidence,
+      label: label ? label.label : "",
+      priced: label ? label.priced : false,
+      reason: "「" + text.trim().slice(0, 40) + "」から推定"
+    };
+  }
+
+  /* DB が価格を持つ種別だけ自動計算の対象になる。 */
+  const PRICEABLE = new Set(["support", "deathSupport", "spirit", "enhancement", "ego", "persona"]);
+
+  function priceOf(name, kind, db) {
+    const data = db || {};
+    if (kind === "ego") {
+      const hit = (data.egos || []).find((e) => e.name === name);
+      const shards = Number.parseInt(hit && hit.shards, 10) || 0;
+      return shards ? { lp: 0, shards } : null;
+    }
+    if (kind === "spirit") {
+      const hit = (data.spirits || []).find((s) => s.name === name);
+      const shards = Number.parseInt(hit && hit.price, 10) || 0;
+      return shards ? { lp: 0, shards } : null;
+    }
+    if (kind === "support") {
+      const hit = (data.support_passives || []).find((s) => s.name === name);
+      const lp = Number.parseInt(hit && hit.lp, 10) || 0;
+      return lp ? { lp, shards: 0 } : null;
+    }
+    if (kind === "deathSupport") {
+      const hit = (data.death_passives || []).find((s) => s.name === name);
+      const shards = Number.parseInt(hit && hit.shards, 10) || 0;
+      return shards ? { lp: 0, shards } : null;
+    }
+    if (kind === "enhancement") {
+      const all = [...(data.normal_enhancements || []), ...(data.special_enhancements || [])];
+      const hit = all.find((e) => e.name === name);
+      const shards = Number.parseInt(hit && hit.shards, 10) || 0;
+      return shards ? { lp: 0, shards } : null;
+    }
+    /* 人格には価格が定義されていない。算出できないのは欠落ではなく仕様。 */
+    return null;
+  }
+
+  /* manifest の各項目に「由来」と「計算に含めるか」を足す。
+     既定は自動: 価格が引けて、かつ支出に相当する由来なら含める。 */
+  function annotateManifest(manifest, options) {
+    const opts = options || {};
+    const db = opts.db;
+    const context = opts.context || {};
+    const groups = (manifest.groups || []).map((group) => ({
+      ...group,
+      items: group.items.map((item) => {
+        const kind = item.kinds.find((k) => PRICEABLE.has(k.kind));
+        const kindId = kind ? kind.kind : (item.kinds[0] ? item.kinds[0].kind : "");
+        const priceFromDb = kind ? priceOf(item.dbName || item.name, kindId, db) : null;
+        const provenance = inferProvenance(item.sourceLine || item.name, context);
+        /* DB に価格がある種別はそれを、無ければ公式ルール（抽出/購入）を使う。 */
+        const fromDb = priceFromDb;
+        const fromRules = acquireCost(kindId, provenance.id, context);
+        const price = fromDb || (fromRules && (fromRules.lp || fromRules.shards) ? fromRules : null);
+        const auto = Boolean(price && provenance.priced && provenance.id !== "unknown");
+        return {
+          ...item,
+          priceKind: kindId,
+          price,
+          provenance,
+          /* クリックで切り替えられる。初期値は自動判定。 */
+          include: opts.force ? Boolean(opts.force) : auto,
+          includeIsAuto: auto,
+          /* 価格が無く由来も不明なら、利用者に判断を仰が必须的。
+           人格のように価格が定義されていない種別は、由来が何であれ
+           金額が算出できないので必ず判断が要る。 */
+          needsDecision: !item.resolved ? "unknown-name" : (!price ? "no-price" : null)
+        };
+      })
+    }));
+    return { ...manifest, groups };
+  }
+
+  /* 公式ルールブック/core 3章「人格を入手する」・E.G.Oデータ からの価格。
+   ランダム抽取（有 价格）と指定購入（有价格）は別の价钱で、抽出_backward安いが
+   ランダム、購入は高価だが確定。 core:594 「人格を入手する方法は2種類あります。
+   『抽出』と『購入』です」 / core:9501 E.G.O抽出。 */
+  const CORE_RULES = {
+    personaGacha: { lp: 100, shards: 0, source: "core:603-607 人格抽出", freeWhenFirst: true },
+    personaPurchase: { lp: 200, shards: 0, source: "core:617-621 人格購入", freeWhenFirst: true },
+    personaPurchaseFirst: { lp: 20, shards: 0, source: "core:620 人格購入（未所持時）" },
+    personaGachaFirst: { lp: 0, shards: 0, source: "core:606-607 人格抽出（未所持時）" },
+    egoGacha: { lp: 0, shards: 100, source: "core:9501-9503 E.G.O抽出" }
+  };
+
+  /* 保持状况が価格を変える。人格は「既に1つでも持っていれば」 wikipedia FEEが跳ね上がる。 */
+  function acquireCost(kind, provenance, context) {
+    const ctx = context || {};
+    const ownsOne = ctx.ownsPersona === undefined ? true : Boolean(ctx.ownsPersona);
+    if (kind === "persona") {
+      if (provenance === "gachaPaid" || provenance === "gachaTicket") {
+        return ownsOne ? { ...CORE_RULES.personaGacha } : { ...CORE_RULES.personaGachaFirst };
+      }
+      if (provenance === "purchase") {
+        return ownsOne ? { ...CORE_RULES.personaPurchase } : { ...CORE_RULES.personaPurchaseFirst };
+      }
+      return { lp: 0, shards: 0, source: "配布" };
+    }
+    if (kind === "ego") {
+      if (provenance === "gachaPaid" || provenance === "gachaTicket") return { ...CORE_RULES.egoGacha };
+      return null;
+    }
+    return null;
+  }
+
+  /* 価格定额は種別ごとにSOURCE。 ここ其它はとなり. */
+  const SOURCE = { persona: "core:594-621", ego: "core:9499-9512" };
+
+  /* --- 同期・解析のコスト -------------------------------------------------
+     supplement:945-947「同期化・解析を行った時と同じ個数だけ、自我の欠片を支払う」。
+     つまり金額は取得時点に遡り、記録するリザルトは操作時点のものになる。 */
+  const OPERATION_COST = {
+    sync: { kind: "sync", label: "同期", source: "supplement:945-947 同期化・解析を行った時と同じ個数" },
+    analyze: { kind: "analyze", label: "解析", source: "supplement:945-947 同期化・解析を行った時と同じ個数" },
+    syncMax: { kind: "syncMax", label: "同期MAX", source: "supplement:945-947 同期化・解析を行った時と同じ個数" },
+    analyzeMax: { kind: "analyzeMax", label: "解析MAX", source: "supplement:945-947 同期化・解析を行った時と同じ個数" }
+  };
+
+  const OPERATION_CUES = /(同期(?:化|MAX)?|解析(?:化|MAX)?|浄化|特異化)/;
+
+  function isOperation(line) {
+    return OPERATION_CUES.test(String(line || ""));
+  }
+
+  /* 操作の金額は、対象が入手したときの価格と同じ。 */
+  function operationCost(operationId, target, db) {
+    const op = OPERATION_COST[operationId];
+    if (!op) return null;
+    if (!target) return null;
+    const base = priceOf(target.name, target.kind, db);
+    if (!base) return null;
+    return { lp: base.lp, shards: base.shards, source: op.source, operation: op.kind, label: op.label };
+  }
+
+  /* 操作は、所持にはないため、金額は独立で物を計算できない。 */
+  function annotateOperations(lines, db) {
+    const out = [];
+    for (const raw of lines || []) {
+      const line = String(raw || "");
+      if (!isOperation(line)) continue;
+      out.push({
+        line,
+        operation: (line.match(/解析(?:化|MAX)?/) || [])[0] ? "analyze" : "sync",
+        hasTarget: false,
+        text: line
+      });
+    }
+    return out;
+  }
+
+  const api = {
+    PROVENANCE, inferProvenance, priceOf, acquireCost, annotateManifest,
+    PRICEABLE, CORE_RULES, OPERATION_COST, operationCost, annotateOperations, isOperation
+  };
+  if (typeof window !== "undefined") {
+    window.LBT_provenance = api;
+    window.LBT_inferProvenance = inferProvenance;
+    window.LBT_acquireCost = acquireCost;
+    window.LBT_annotateManifest = annotateManifest;
+    window.LBT_operationCost = operationCost;
+    window.LBT_annotateOperations = annotateOperations;
+  }
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+})();

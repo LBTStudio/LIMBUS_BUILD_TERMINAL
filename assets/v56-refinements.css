@@ -672,7 +672,6 @@ details > summary {
 .persona-detail-return .btn { min-height: var(--control-h-compact); }
 .base-info-grid { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: var(--s-4); align-items: start; }
 .base-info-identity, .base-info-image { min-width: 0; }
-.base-info-note { grid-column: 1 / -1; margin: 0; padding: 9px 11px; border-left: 3px solid var(--gold); background: color-mix(in oklab, var(--gold) 6%, var(--surface-inset)); }
 .base-img-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
 .deck-dice-var-toggle { min-height: 32px; padding: 3px 8px; color: var(--tx-mute); background: transparent; border: 1px solid var(--line-dim); border-radius: var(--r-sm); font-family: var(--f-display); font-size: 9px; letter-spacing: .08em; cursor: pointer; }
 .deck-dice-var-toggle.is-on { color: var(--gold); background: var(--gold-tint); border-color: var(--gold-line); }
@@ -685,7 +684,6 @@ details > summary {
 @media (max-width: 640px) {
   .persona-detail-return .btn { min-height: var(--control-h); }
   .base-info-grid { grid-template-columns: minmax(0, 1fr); }
-  .base-info-note { grid-column: 1; }
   .deck-dice-var-toggle { min-height: 40px; }
   .deck-dice-var-chk { min-height: 40px; }
   .deck-dice-var-input { height: 40px; }

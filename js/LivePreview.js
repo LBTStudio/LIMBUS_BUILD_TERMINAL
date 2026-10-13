@@ -137,11 +137,15 @@ const LivePreview = ({ state, dispatch }) => {
       toast("\u30B3\u30D4\u30FC\u5931\u6557");
     }
   };
+  /* コピーは表示の折り畳み・出力除外の影響を受けない。
+     卓中のコピペは「いま見えているもの」ではなく「いま必要な全文」を
+     そのまま持ち出す操作であり、項目の出し入れを挟むと事故る。
+     表示の制御は折り畳みに任せ、コピーは常に全文を返す。 */
   const copyCurrent = async () => {
     const t = tab === "memo"
-      ? filterPreviewCopyOutput(memo, outputExclude.memo)
+      ? memo
       : tab === "palette"
-        ? filterPreviewCopyOutput(palette, outputExclude.palette)
+        ? palette
         : JSON.stringify(LBT_gen.buildCcfoliaJSON(state));
     try {
       await navigator.clipboard.writeText(t);

@@ -5,6 +5,7 @@ import test from "node:test";
 const refinements = readFileSync(new URL("../assets/v56-refinements.css", import.meta.url), "utf8");
 const appSource = readFileSync(new URL("../js/App.js", import.meta.url), "utf8");
 const itemSource = readFileSync(new URL("../js/ItemCodex.js", import.meta.url), "utf8");
+const sectionsSource = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
 const mobilePreview = readFileSync(new URL("../mobile-preview.html", import.meta.url), "utf8");
 
 test("モバイルの下部ナビゲーションは横スクロールせず全機能を2段で常時表示し、操作・保存を右端に収める", () => {
@@ -33,11 +34,11 @@ test("モバイルの下部ナビゲーションは横スクロールせず全�
   assert.match(v64r100, /height: var\(--lbt-landscape-rail-h\);/);
 });
 
-test("アイテム画面はDBアイテムではなくアイテムとして案内する", () => {
-  assert.match(appSource, /subtitle: "アイテムを選択・一覧へ導入"/);
-  assert.match(itemSource, /"ITEMS"/);
-  assert.match(itemSource, /"アイテムを選択"/);
-  assert.doesNotMatch(itemSource, /DBアイテム/);
+test("アイテムは独立セクションを持たない（ショップで開く・ビルドのタブで持ち込む）", () => {
+  /* 購入はショップ、卓への持ち込みはビルドのアイテムタブが担う。 */
+  assert.match(appSource, /id: "shop", label: "ショップ"[^\n]*購入/);
+  assert.doesNotMatch(appSource, /id: "items", label: "アイテム"/);
+  assert.match(sectionsSource, /currentSection: "items-build"/);
 });
 
 test("所持品から削除は追加操作と区別できる既存の危険操作変種を使う", () => {

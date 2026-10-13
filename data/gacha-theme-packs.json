@@ -1,0 +1,1062 @@
+{
+  "source": "sources/エラッタ最新版/新リンバスTRPG-特定抽出パック第一弾.pdf",
+  "ruleRef": "特定抽出パック第一弾 P.7-18",
+  "duplicateShards": 50,
+  "packs": [
+    {
+      "name": "属せない＆愛することのできない",
+      "lp": 125,
+      "die": 6,
+      "entries": [
+        {
+          "no": 1,
+          "name": "旧G社兵士",
+          "book": "core",
+          "page": 114
+        },
+        {
+          "no": 2,
+          "name": "旧G社部長",
+          "book": "core",
+          "page": 115
+        },
+        {
+          "no": 3,
+          "name": "カジノ警備員",
+          "book": "core",
+          "page": 69
+        },
+        {
+          "no": 4,
+          "name": "ぽんぽん派 構成員",
+          "book": "core",
+          "page": 70
+        },
+        {
+          "no": 5,
+          "name": "マリアッチ構成員",
+          "book": "core",
+          "page": 71
+        },
+        {
+          "no": 6,
+          "name": "鉄工会組織員",
+          "book": "core",
+          "page": 72
+        }
+      ]
+    },
+    {
+      "name": "向き合わない",
+      "lp": 150,
+      "die": 5,
+      "entries": [
+        {
+          "no": 1,
+          "name": "N社小鎚",
+          "book": "core",
+          "page": 134
+        },
+        {
+          "no": 2,
+          "name": "N社中鎚",
+          "book": "core",
+          "page": 133
+        },
+        {
+          "no": 3,
+          "name": "N社大鎚",
+          "book": "core",
+          "page": 132
+        },
+        {
+          "no": 4,
+          "name": "N社握る者",
+          "book": "core",
+          "page": 204
+        },
+        {
+          "no": 5,
+          "name": "N社握らんとする者",
+          "book": "core",
+          "page": 205
+        }
+      ]
+    },
+    {
+      "name": "変わらない",
+      "lp": 175,
+      "die": 8,
+      "entries": [
+        {
+          "no": 1,
+          "name": "K社3級職員",
+          "book": "core",
+          "page": 128
+        },
+        {
+          "no": 2,
+          "name": "ロボトミーE.G.O::たぷつき",
+          "book": "core",
+          "page": 145
+        },
+        {
+          "no": 3,
+          "name": "ロボトミーE.G.O::紅籍",
+          "book": "core",
+          "page": 144
+        },
+        {
+          "no": 4,
+          "name": "ロボトミーE.G.O::狐雨",
+          "book": "core",
+          "page": 143
+        },
+        {
+          "no": 5,
+          "name": "バラのスパナ工房A",
+          "book": "core",
+          "page": 102
+        },
+        {
+          "no": 6,
+          "name": "バラのスパナ工房B",
+          "book": "core",
+          "page": 103
+        },
+        {
+          "no": 7,
+          "name": "バラのスパナ工房 代表",
+          "book": "pack1",
+          "page": 127
+        },
+        {
+          "no": 8,
+          "name": "開花E.G.O::壇香梅",
+          "book": "core",
+          "page": 207
+        }
+      ]
+    },
+    {
+      "name": "悪に規定される",
+      "lp": 175,
+      "die": 10,
+      "entries": [
+        {
+          "no": 1,
+          "name": "双鉤海賊団 組員",
+          "book": "core",
+          "page": 73
+        },
+        {
+          "no": 2,
+          "name": "双鉤海賊団 組員B",
+          "book": "pack1",
+          "page": 22
+        },
+        {
+          "no": 3,
+          "name": "双鉤海賊団 組員C",
+          "book": "pack1",
+          "page": 23
+        },
+        {
+          "no": 4,
+          "name": "ピークォド号航海士",
+          "book": "core",
+          "page": 74
+        },
+        {
+          "no": 5,
+          "name": "中指末弟・末妹",
+          "book": "core",
+          "page": 67
+        },
+        {
+          "no": 6,
+          "name": "中指末弟・末妹B",
+          "book": "pack1",
+          "page": 28
+        },
+        {
+          "no": 7,
+          "name": "双鉤海賊団副船長",
+          "book": "core",
+          "page": 209
+        },
+        {
+          "no": 8,
+          "name": "ピークォド号船長",
+          "book": "core",
+          "page": 211
+        },
+        {
+          "no": 9,
+          "name": "ピークォド号銛使い",
+          "book": "pack1",
+          "page": 87
+        },
+        {
+          "no": 10,
+          "name": "ピークォド号一等航海士",
+          "book": "pack1",
+          "page": 86
+        }
+      ]
+    },
+    {
+      "name": "心の擦れ違う",
+      "lp": 200,
+      "die": 9,
+      "entries": [
+        {
+          "no": 1,
+          "name": "デッドラビッツ 構成員",
+          "book": "core",
+          "page": 75
+        },
+        {
+          "no": 2,
+          "name": "ワザリングハイツバトラー",
+          "book": "core",
+          "page": 105
+        },
+        {
+          "no": 3,
+          "name": "エドガー家バトラー",
+          "book": "core",
+          "page": 106
+        },
+        {
+          "no": 4,
+          "name": "落ちぶれたワザリング・ハイツ後継者",
+          "book": "pack1",
+          "page": 91
+        },
+        {
+          "no": 5,
+          "name": "ワザリング・ハイツ チーフバトラー",
+          "book": "core",
+          "page": 217
+        },
+        {
+          "no": 6,
+          "name": "エドガー家チーフバトラー",
+          "book": "core",
+          "page": 215
+        },
+        {
+          "no": 7,
+          "name": "エドガー家継承者",
+          "book": "core",
+          "page": 213
+        },
+        {
+          "no": 8,
+          "name": "デッドラビッツ ボス",
+          "book": "pack1",
+          "page": 89
+        },
+        {
+          "no": 9,
+          "name": "ワザリングハイツ・ワイルドハント",
+          "book": "core",
+          "page": 219
+        }
+      ]
+    },
+    {
+      "name": "夢の終わる",
+      "lp": 200,
+      "die": 8,
+      "entries": [
+        {
+          "no": 1,
+          "name": "牙狩事務所フィクサー",
+          "book": "core",
+          "page": 109
+        },
+        {
+          "no": 2,
+          "name": "西部ツヴァイ協会3課フィクサー",
+          "book": "core",
+          "page": 81
+        },
+        {
+          "no": 3,
+          "name": "西部センク協会3課フィクサー",
+          "book": "core",
+          "page": 87
+        },
+        {
+          "no": 4,
+          "name": "炎拳事務所フィクサー",
+          "book": "core",
+          "page": 111
+        },
+        {
+          "no": 5,
+          "name": "ラ・マンチャランド 理髪師",
+          "book": "core",
+          "page": 221
+        },
+        {
+          "no": 6,
+          "name": "ラ・マンチャランド 神父",
+          "book": "core",
+          "page": 223
+        },
+        {
+          "no": 7,
+          "name": "ラ・マンチャランド 王子",
+          "book": "pack1",
+          "page": 97
+        },
+        {
+          "no": 8,
+          "name": "ラ・マンチャランド 姫",
+          "book": "core",
+          "page": 225
+        }
+      ]
+    },
+    {
+      "name": "眺めることしかできない",
+      "lp": 200,
+      "die": 15,
+      "entries": [
+        {
+          "no": 1,
+          "name": "シー家私兵",
+          "book": "core",
+          "page": 125
+        },
+        {
+          "no": 2,
+          "name": "シュエ家私兵",
+          "book": "core",
+          "page": 126
+        },
+        {
+          "no": 3,
+          "name": "ワン家呪殺僧",
+          "book": "core",
+          "page": 127
+        },
+        {
+          "no": 4,
+          "name": "黒獣-卯",
+          "book": "core",
+          "page": 117
+        },
+        {
+          "no": 5,
+          "name": "黒獣-巳",
+          "book": "core",
+          "page": 119
+        },
+        {
+          "no": 6,
+          "name": "黒獣-酉",
+          "book": "core",
+          "page": 123
+        },
+        {
+          "no": 7,
+          "name": "黒獣-午",
+          "book": "core",
+          "page": 121
+        },
+        {
+          "no": 8,
+          "name": "黒獣-未",
+          "book": "pack1",
+          "page": 52
+        },
+        {
+          "no": 9,
+          "name": "東部親指ソルダートII",
+          "book": "core",
+          "page": 63
+        },
+        {
+          "no": 10,
+          "name": "東部親指カポIIII",
+          "book": "core",
+          "page": 229
+        },
+        {
+          "no": 11,
+          "name": "ジア家家主候補",
+          "book": "core",
+          "page": 227
+        },
+        {
+          "no": 12,
+          "name": "黒獣-卯 筆頭",
+          "book": "pack1",
+          "page": 115
+        },
+        {
+          "no": 13,
+          "name": "黒獣-午 筆頭",
+          "book": "pack1",
+          "page": 121
+        },
+        {
+          "no": 14,
+          "name": "黒獣-酉 筆頭",
+          "book": "pack1",
+          "page": 118
+        },
+        {
+          "no": 15,
+          "name": "鴻園 家主",
+          "book": "pack1",
+          "page": 103
+        }
+      ]
+    },
+    {
+      "name": "断ち切れない",
+      "lp": 300,
+      "die": 11,
+      "entries": [
+        {
+          "no": 1,
+          "name": "LCAウアジェト 先鋒三隊隊長",
+          "book": "pack1",
+          "page": 106
+        },
+        {
+          "no": 2,
+          "name": "LCE主席研究員 ロボトミーE.G.O::ランプ",
+          "book": "pack1",
+          "page": 112
+        },
+        {
+          "no": 3,
+          "name": "蜘蛛の巣 親指の子方",
+          "book": "pack1",
+          "page": 137
+        },
+        {
+          "no": 4,
+          "name": "蜘蛛の巣 人差し指の子方：端末機",
+          "book": "pack1",
+          "page": 139
+        },
+        {
+          "no": 5,
+          "name": "蜘蛛の巣 中指の子方",
+          "book": "pack1",
+          "page": 144
+        },
+        {
+          "no": 6,
+          "name": "蜘蛛の巣 薬指の子方",
+          "book": "pack1",
+          "page": 146
+        },
+        {
+          "no": 7,
+          "name": "蜘蛛の巣 小指の子方",
+          "book": "pack1",
+          "page": 149
+        },
+        {
+          "no": 8,
+          "name": "蜘蛛の巣 親指の親方",
+          "book": "pack1",
+          "page": 151
+        },
+        {
+          "no": 9,
+          "name": "蜘蛛の巣 人差し指の親方",
+          "book": "pack1",
+          "page": 154
+        },
+        {
+          "no": 10,
+          "name": "蜘蛛の巣 中指の親方",
+          "book": "pack1",
+          "page": 160
+        },
+        {
+          "no": 11,
+          "name": "蜘蛛の巣 薬指の親方",
+          "book": "pack1",
+          "page": 165
+        }
+      ]
+    },
+    {
+      "name": "指切りげんまん",
+      "lp": 200,
+      "die": 11,
+      "entries": [
+        {
+          "no": 1,
+          "name": "南部親指ソルダートII",
+          "book": "core",
+          "page": 61
+        },
+        {
+          "no": 2,
+          "name": "東部親指ソルダートII",
+          "book": "core",
+          "page": 63
+        },
+        {
+          "no": 3,
+          "name": "人差し指遂行者：【紙片】",
+          "book": "core",
+          "page": 65
+        },
+        {
+          "no": 4,
+          "name": "中指末弟・末妹",
+          "book": "core",
+          "page": 67
+        },
+        {
+          "no": 5,
+          "name": "中指末弟・末妹B",
+          "book": "pack1",
+          "page": 28
+        },
+        {
+          "no": 6,
+          "name": "中指長弟・長妹",
+          "book": "pack1",
+          "page": 30
+        },
+        {
+          "no": 7,
+          "name": "薬指点描派 スチューデント",
+          "book": "core",
+          "page": 68
+        },
+        {
+          "no": 8,
+          "name": "薬指点描派 スチューデントB",
+          "book": "pack1",
+          "page": 32
+        },
+        {
+          "no": 9,
+          "name": "薬指野獣派 スチューデントA",
+          "book": "pack1",
+          "page": 34
+        },
+        {
+          "no": 10,
+          "name": "薬指野獣派 スチューデントB",
+          "book": "pack1",
+          "page": 36
+        },
+        {
+          "no": 11,
+          "name": "蜘蛛の巣 小指の子方",
+          "book": "pack1",
+          "page": 149
+        }
+      ]
+    },
+    {
+      "name": "ロボトミーコーポレーション",
+      "lp": 200,
+      "die": 14,
+      "entries": [
+        {
+          "no": 1,
+          "name": "ロボトミーE.G.O::狐雨",
+          "book": "core",
+          "page": 143
+        },
+        {
+          "no": 2,
+          "name": "ロボトミーE.G.O::紅籍",
+          "book": "core",
+          "page": 144
+        },
+        {
+          "no": 3,
+          "name": "ロボトミーE.G.O::たぷつき",
+          "book": "core",
+          "page": 145
+        },
+        {
+          "no": 4,
+          "name": "ロボトミーE.G.O::提灯",
+          "book": "core",
+          "page": 146
+        },
+        {
+          "no": 5,
+          "name": "ロボトミーE.G.O::後悔",
+          "book": "core",
+          "page": 147
+        },
+        {
+          "no": 6,
+          "name": "ロボトミーE.G.O::魔弾",
+          "book": "core",
+          "page": 148
+        },
+        {
+          "no": 7,
+          "name": "ロボトミーE.G.O::厳粛な哀悼",
+          "book": "core",
+          "page": 149
+        },
+        {
+          "no": 8,
+          "name": "ロボトミーE.G.O::涙で研ぎ澄まされた剣",
+          "book": "core",
+          "page": 151
+        },
+        {
+          "no": 9,
+          "name": "ロボトミーE.G.O::愛と憎悪の名の下に",
+          "book": "core",
+          "page": 153
+        },
+        {
+          "no": 10,
+          "name": "ロボトミーE.G.O::懺悔",
+          "book": "pack1",
+          "page": 54
+        },
+        {
+          "no": 11,
+          "name": "ロボトミーE.G.O::赤眼",
+          "book": "pack1",
+          "page": 56
+        },
+        {
+          "no": 12,
+          "name": "ロボトミーE.G.O::寂しさ",
+          "book": "pack1",
+          "page": 58
+        },
+        {
+          "no": 13,
+          "name": "ロボトミーE.G.O::ホーネット【変調】",
+          "book": "pack1",
+          "page": 62
+        },
+        {
+          "no": 14,
+          "name": "ロボトミーE.G.O::残香",
+          "book": "pack1",
+          "page": 60
+        }
+      ]
+    },
+    {
+      "name": "本に成った者たちⅠ",
+      "lp": 200,
+      "die": 11,
+      "entries": [
+        {
+          "no": 1,
+          "name": "黒雲会若衆",
+          "book": "core",
+          "page": 58
+        },
+        {
+          "no": 2,
+          "name": "剣契殺手A",
+          "book": "core",
+          "page": 59
+        },
+        {
+          "no": 3,
+          "name": "仕立屋 謝肉祭",
+          "book": "pack1",
+          "page": 24
+        },
+        {
+          "no": 4,
+          "name": "南部親指ソルダートII",
+          "book": "core",
+          "page": 61
+        },
+        {
+          "no": 5,
+          "name": "人差し指遂行者：【紙片】",
+          "book": "core",
+          "page": 65
+        },
+        {
+          "no": 6,
+          "name": "歯車の教団信者",
+          "book": "pack1",
+          "page": 27
+        },
+        {
+          "no": 7,
+          "name": "鉄の兄弟",
+          "book": "pack1",
+          "page": 26
+        },
+        {
+          "no": 8,
+          "name": "定事務所フィクサー",
+          "book": "pack1",
+          "page": 49
+        },
+        {
+          "no": 9,
+          "name": "奥歯事務所代表",
+          "book": "core",
+          "page": 237
+        },
+        {
+          "no": 10,
+          "name": "終止符事務所代表",
+          "book": "core",
+          "page": 239
+        },
+        {
+          "no": 11,
+          "name": "夜の錐カピターノ",
+          "book": "pack1",
+          "page": 100
+        }
+      ]
+    },
+    {
+      "name": "ヘルズチキン＆う・み・ダ＆20番区の奇跡",
+      "lp": 175,
+      "die": 9,
+      "entries": [
+        {
+          "no": 1,
+          "name": "K社3級職員",
+          "book": "core",
+          "page": 128
+        },
+        {
+          "no": 2,
+          "name": "奥歯ボートセンターフィクサー",
+          "book": "pack1",
+          "page": 169
+        },
+        {
+          "no": 3,
+          "name": "奥歯事務所代表",
+          "book": "core",
+          "page": 237
+        },
+        {
+          "no": 4,
+          "name": "奥歯事務所フィクサーA",
+          "book": "pack1",
+          "page": 170
+        },
+        {
+          "no": 5,
+          "name": "奥歯事務所フィクサーB",
+          "book": "pack1",
+          "page": 172
+        },
+        {
+          "no": 6,
+          "name": "E.G.O 一生シチュー：バジリスープク",
+          "book": "core",
+          "page": 252
+        },
+        {
+          "no": 7,
+          "name": "E.G.O ソーダ：蓋の空いたウェルチアース",
+          "book": "core",
+          "page": 247
+        },
+        {
+          "no": 8,
+          "name": "E.G.O ホリデイ：サンドルフ",
+          "book": "core",
+          "page": 272
+        },
+        {
+          "no": 9,
+          "name": "E.G.O クリスマスの悪夢：心地よいベッド",
+          "book": "core",
+          "page": 268
+        }
+      ]
+    },
+    {
+      "name": "肉斬骨断",
+      "lp": 150,
+      "die": 9,
+      "entries": [
+        {
+          "no": 1,
+          "name": "剣契殺手A",
+          "book": "core",
+          "page": 59
+        },
+        {
+          "no": 2,
+          "name": "剣契殺手B",
+          "book": "core",
+          "page": 60
+        },
+        {
+          "no": 3,
+          "name": "剣契殺手C",
+          "book": "pack1",
+          "page": 93
+        },
+        {
+          "no": 4,
+          "name": "黒雲会組員",
+          "book": "core",
+          "page": 57
+        },
+        {
+          "no": 5,
+          "name": "黒雲会若衆",
+          "book": "core",
+          "page": 58
+        },
+        {
+          "no": 6,
+          "name": "黒雲会若衆B",
+          "book": "pack1",
+          "page": 20
+        },
+        {
+          "no": 7,
+          "name": "黒雲会若衆C",
+          "book": "pack1",
+          "page": 21
+        },
+        {
+          "no": 8,
+          "name": "剣契頭目",
+          "book": "core",
+          "page": 233
+        },
+        {
+          "no": 9,
+          "name": "黒雲会副組長",
+          "book": "core",
+          "page": 232
+        }
+      ]
+    },
+    {
+      "name": "時間殺人時間",
+      "lp": 150,
+      "die": 6,
+      "entries": [
+        {
+          "no": 1,
+          "name": "T社2級徴収職職員",
+          "book": "core",
+          "page": 139
+        },
+        {
+          "no": 2,
+          "name": "T社3級徴収職職員",
+          "book": "core",
+          "page": 138
+        },
+        {
+          "no": 3,
+          "name": "20区ユロージヴィ団員",
+          "book": "core",
+          "page": 76
+        },
+        {
+          "no": 4,
+          "name": "20区ユロージヴィ 隊長",
+          "book": "pack1",
+          "page": 129
+        },
+        {
+          "no": 5,
+          "name": "E.G.O 永続：時間アヒル",
+          "book": "core",
+          "page": 287
+        },
+        {
+          "no": 6,
+          "name": "E.G.O 粉砕される過去：蒸気運搬機械",
+          "book": "core",
+          "page": 288
+        }
+      ]
+    },
+    {
+      "name": "ワープ特急殺人事件",
+      "lp": 150,
+      "die": 8,
+      "entries": [
+        {
+          "no": 1,
+          "name": "W社2級整理要員",
+          "book": "core",
+          "page": 141
+        },
+        {
+          "no": 2,
+          "name": "W社2級整理要員B",
+          "book": "pack1",
+          "page": 79
+        },
+        {
+          "no": 3,
+          "name": "W社3級整理要員",
+          "book": "core",
+          "page": 142
+        },
+        {
+          "no": 4,
+          "name": "W社3級整理要員B",
+          "book": "pack1",
+          "page": 75
+        },
+        {
+          "no": 5,
+          "name": "W社3級整理要員C",
+          "book": "pack1",
+          "page": 77
+        },
+        {
+          "no": 6,
+          "name": "マルチクラック事務所フィクサー",
+          "book": "core",
+          "page": 107
+        },
+        {
+          "no": 7,
+          "name": "W社4級整理要員-CCA",
+          "book": "pack1",
+          "page": 95
+        },
+        {
+          "no": 8,
+          "name": "ラ・マンチャランド 王子",
+          "book": "pack1",
+          "page": 97
+        }
+      ]
+    },
+    {
+      "name": "LCB定期検診",
+      "lp": 150,
+      "die": 9,
+      "entries": [
+        {
+          "no": 1,
+          "name": "LCCB係長A",
+          "book": "core",
+          "page": 129
+        },
+        {
+          "no": 2,
+          "name": "LCCB係長B",
+          "book": "core",
+          "page": 130
+        },
+        {
+          "no": 3,
+          "name": "LCCB係長C",
+          "book": "core",
+          "page": 131
+        },
+        {
+          "no": 4,
+          "name": "LCE E.G.O::提灯",
+          "book": "core",
+          "page": 155
+        },
+        {
+          "no": 5,
+          "name": "LCE E.G.O::紅炎殺",
+          "book": "core",
+          "page": 157
+        },
+        {
+          "no": 6,
+          "name": "LCE E.G.O::AEDD",
+          "book": "pack1",
+          "page": 65
+        },
+        {
+          "no": 7,
+          "name": "LCE E.G.O::次元裂き",
+          "book": "pack1",
+          "page": 68
+        },
+        {
+          "no": 8,
+          "name": "LCAウアジェト 先鋒三隊隊長",
+          "book": "pack1",
+          "page": 106
+        },
+        {
+          "no": 9,
+          "name": "LCE主席研究員 ロボトミーE.G.O::ランプ",
+          "book": "pack1",
+          "page": 112
+        }
+      ]
+    },
+    {
+      "name": "深夜清掃",
+      "lp": 175,
+      "die": 7,
+      "entries": [
+        {
+          "no": 1,
+          "name": "中指末弟・末妹",
+          "book": "core",
+          "page": 67
+        },
+        {
+          "no": 2,
+          "name": "中指末弟・末妹B",
+          "book": "pack1",
+          "page": 28
+        },
+        {
+          "no": 3,
+          "name": "中指長弟・長妹",
+          "book": "pack1",
+          "page": 30
+        },
+        {
+          "no": 4,
+          "name": "黒獣-卯",
+          "book": "core",
+          "page": 117
+        },
+        {
+          "no": 5,
+          "name": "黒獣-卯 筆頭",
+          "book": "pack1",
+          "page": 115
+        },
+        {
+          "no": 6,
+          "name": "ジア家家主候補",
+          "book": "core",
+          "page": 227
+        },
+        {
+          "no": 7,
+          "name": "中指末兄・末姉",
+          "book": "pack1",
+          "page": 131
+        }
+      ]
+    }
+  ]
+}

@@ -10,7 +10,7 @@ const HELP_ITEMS = [
   { group: "output", icon: "eye", title: "プレビューとJSON出力を確認する", body: "プレビューでは、メモ、チャットパレット、CCFOLIA用JSONを確認できます。PCでは右側に表示され、モバイルでは開閉できます。JSONを出力する前に、プレビュー内のJSONを確認します。" },
   { group: "operation", icon: "undo", title: "変更を戻す・やり直す", body: "入力や並べ替えを間違えた場合は、画面上部の矢印で戻す・やり直すことができます。PCではCtrl+Zで戻す、Ctrl+Shift+ZまたはCtrl+Yでやり直します。" },
   { group: "operation", icon: "search", title: "クイック検索で画面や候補を探す", body: "クイック検索はPCではCtrl+K、モバイルでは検索ボタンから開きます。人格・E.G.O一覧は、名前、効果、キーワード、大罪、耐性、所持、同期状態で絞り込めます。" },
-  { group: "save", icon: "archive", title: "所持ライブラリを保存する", body: "所持タブでは、所持人格、所持E.G.O、編集済みビルドを確認します。上部バーの「ライブラリ保存」は、所持ライブラリと保存済みビルドを別端末へ引き継ぐために保存します。" },
+  { group: "save", icon: "archive", title: "所持ライブラリを保存する", body: "記録タブでは、所持人格、所持E.G.O、編集済みビルド、リザルトと収支を確認します。上部バーの「ライブラリ保存」は、所持ライブラリと保存済みビルドを別端末へ引き継ぐために保存します。" },
   { group: "save", icon: "download", title: "作業状態を保存・復元する", body: "「現在の作業状態を保存」は、いま編集中のキャラクターを続きから開くための保存です。人格、E.G.O、ステータスなど、保存する範囲を選びます。復元するときは、上書きする範囲を確認します。" }
 ];
 
@@ -67,15 +67,17 @@ const HelpSection = () => {
 };
 
 const SECTIONS = [
-  { id: "persona", label: "人格", icon: "persona", title: "PERSONA CODEX", subtitle: "装備する人格を選択", num: "01", group: "build" },
-  { id: "skill", label: "スキル", icon: "skill", title: "TACTICAL SKILLS", subtitle: "戦術スキル 0〜4 の編集", num: "02", group: "build" },
-  { id: "passive", label: "パッシブ", icon: "passive", title: "PASSIVE / 人格パッシブ", subtitle: "人格パッシブと固有効果", num: "03", group: "build" },
-  { id: "support", label: "サポート", icon: "support", title: "SUPPORT PASSIVES", subtitle: "装備枠と死亡後専用サポート", num: null, group: "optional" },
-  { id: "ego", label: "E.G.O", icon: "ego", title: "E.G.O EQUIPMENT", subtitle: "ZAYIN / TETH / HE / WAW / ALEPH", num: null, group: "optional" },
-  { id: "spirit", label: "精神", icon: "spirit", title: "SPIRIT", subtitle: "混乱時の挙動", num: null, group: "optional" },
-  { id: "enh", label: "強化", icon: "enh", title: "ENHANCEMENTS", subtitle: "身体強化・特殊強化", num: null, group: "optional" },
-  { id: "roster", label: "所持", icon: "roster", title: "OWNED LIBRARY", subtitle: "所持人格・E.G.O・保存ビルド", num: null, group: "utility" },
-  { id: "items", label: "アイテム", icon: "item", title: "ITEM CODEX", subtitle: "アイテムを選択・一覧へ導入", num: null, group: "utility" },
+  /* 駒整形 → ビルド → ショップ の順。整えてから選び、選んでから携える。 */
+  /* 駒整形（BASEINFO）。装備した人格の同期・固有バフ・戦闘設定をここで整える。 */
+  { id: "baseinfo", label: "駒整形", icon: "persona", title: "BASE INFO", subtitle: "装備人格の同期・固有バフ・戦闘設定", num: "01", group: "build" },
+  /* ビルドを主とする。人格・スキル・パッシブ・強化・サポート・E.G.O・精神・アイテム は
+     BuildWorkspace の8タブ。旧 currentSection 値（skill/passive/enh/support/ego/spirit/
+     items-build） も renderSection が受け、移行不要。
+     所持ゲートは各タブのフィルタで解除できる（既定は所持のみ）。 */
+  { id: "persona", label: "ビルド", icon: "grid", title: "BUILD WORKSPACE", subtitle: "人格・スキル・パッシブ・強化・サポート・E.G.O・精神・アイテム", num: "02", group: "build" },
+  /* ショップは所持の唯一の取得口。既定は未所持のみを出す。 */
+  { id: "shop", label: "ショップ", icon: "item", title: "SHOP", subtitle: "サポート・E.G.O・精神・アイテムを購入", num: "03", group: "utility" },
+  { id: "roster", label: "記録", icon: "roster", title: "CHARACTER RECORD", subtitle: "所持品・リザルト・収支・取り込み", num: null, group: "utility" },
   { id: "settings", label: "設定", icon: "settings", title: "BUILD PARAMETERS", subtitle: "ステータス設計・計算・出力", num: null, group: "utility" },
   { id: "help", label: "使い方", icon: "book", title: "操作ガイド", subtitle: "準備・確認・出力・保存", num: null, group: "utility" }
 ];
@@ -99,9 +101,6 @@ function isComplete(section, s) {
     // optional
     case "roster":
       return true;
-    case "items":
-      return true;
-    // auto
     case "settings":
       return true;
     // optional
@@ -120,18 +119,32 @@ window.LBT_getSessionReadiness = getSessionReadiness;
 const CommandPalette = ({ open, onClose, state, dispatch }) => {
   const [q, setQ] = React.useState("");
   const [idx, setIdx] = React.useState(0);
+  /* 検索で選んだ項目。詳細を出して、取得するかどうかは利用者が決める。 */
+  const [picked, setPicked] = React.useState(null);
   const inputRef = React.useRef(null);
   const paletteRef = React.useRef(null);
   const returnFocusRef = React.useRef(null);
   React.useEffect(() => {
-    if (open) {
-      returnFocusRef.current = document.activeElement;
-      setTimeout(() => inputRef.current?.focus(), 20);
-    } else {
-      setQ("");
-      setIdx(0);
-    }
-  }, [open]);
+if (open) {
+returnFocusRef.current = document.activeElement;
+/* 開くたびに前回の詳細は捨てる。閉じる側で捨てると、
+   項目の選択（run）と閉じる処理が連続radaるため詳細が消えてしまう。 */
+setPicked(null);
+setTimeout(() => inputRef.current?.focus(), 20);
+} else {
+    setQ("");
+    setIdx(0);
+  }
+}, [open]);
+/* 詳細からの取得。人格は該当の章节へ移して詳細を開かせる。
+   検索で選んだだけでは装備も取得もしない。 */
+const acquirePicked = () => {
+  if (!picked || picked.kind !== "persona") return;
+  const { p, m } = picked;
+  setPicked(null);
+  onClose();
+  dispatch({ type: "SET_UI", ui: { currentSection: "persona", personaSearchTarget: { mode: m, no: p.no } } });
+};
   /* Escape と Tab を dialog 全体で捕捉する。input の onKeyDown だけに依存すると
      フォーカスが外れた瞬間に Escape が効かなくなる。UtilitySheet と同じ実装。 */
   React.useEffect(() => {
@@ -165,6 +178,8 @@ const CommandPalette = ({ open, onClose, state, dispatch }) => {
     const ql = q.trim().toLowerCase();
     const cmds = [
       ...SECTIONS.map((s) => ({ type: "nav", label: `${s.label} \u30BB\u30AF\u30B7\u30E7\u30F3\u3078\u79FB\u52D5`, kbd: s.num, run: () => dispatch({ type: "SET_UI", ui: { currentSection: s.id } }) })),
+      /* ビルドは1画面タブ統合。タブへの直接ジャンプをパレットにも出す。 */
+      ...(window.LBT_BUILD_TABS || []).map((t) => ({ type: "nav", label: `ビルド：${t.label}`, kbd: t.num, run: () => dispatch({ type: "SET_UI", ui: { currentSection: t.id } }) })),
       { type: "act", label: "JSON\u3092\u30B3\u30D4\u30FC", kbd: "JSON", run: async () => {
         try {
           await navigator.clipboard.writeText(JSON.stringify(LBT_gen.buildCcfoliaJSON(state)));
@@ -185,15 +200,14 @@ const CommandPalette = ({ open, onClose, state, dispatch }) => {
     const itemHits = [];
     if (ql) {
       const all = [...DB.normal_personas.map((p) => ({ p, m: "n" })), ...DB.tokui_personas.map((p) => ({ p, m: "t" }))];
-      all.forEach(({ p, m }) => {
-        if ((p.name + " " + p.no).toLowerCase().includes(ql)) {
-          personaHits.push({ type: "persona", label: `\u4EBA\u683C\uFF1A${p.name}`, kbd: m === "n" ? "\u901A\u5E38" : "\u7279\u7570", run: () => {
-            dispatch({ type: "EQUIP_PERSONA", mode: m, no: p.no, src: p });
-            dispatch({ type: "SET_UI", ui: { currentSection: "persona" } });
-            toast(`\u300E${p.name}\u300F\u3092\u88C5\u5099`);
-          } });
-        }
-      });
+all.forEach(({ p, m }) => {
+    if ((p.name + " " + p.no).toLowerCase().includes(ql)) {
+      personaHits.push({ type: "persona", label: `人格：${p.name}`, kbd: m === "n" ? "通常" : "特異", run: () => {
+    /* 選択しただけで装備しない。取得するかどうかは詳細で決める。 */
+    setPicked({ kind: "persona", p, m });
+  } });
+}
+});
       (DB.egos || []).forEach((ego) => {
         const haystack = `${ego.name || ""} ${ego.rank || ""} ${ego.resources || ""} ${(ego.keywords || []).join(" ")} ${ego.kakusei?.effect || ""} ${ego.shinshoku?.effect || ""}`.toLowerCase();
         if (haystack.includes(ql)) {
@@ -231,10 +245,33 @@ const CommandPalette = ({ open, onClose, state, dispatch }) => {
       onClose();
     }
   };
-  return /* @__PURE__ */ React.createElement("div", { className: `cp-overlay${open ? " is-open" : ""}`, onClick: (e) => e.target === e.currentTarget && onClose() }, /* @__PURE__ */ React.createElement("div", { ref: paletteRef, className: "cp-box", role: "dialog", "aria-modal": "true", "aria-label": "クイック検索" }, /* @__PURE__ */ React.createElement("input", { ref: inputRef, className: "cp-input", "aria-label": "クイック検索：人格・E.G.O・アイテム・操作", placeholder: "\u30AF\u30A4\u30C3\u30AF\u691C\u7D22\uFF1A\u4EBA\u683C\u30FBE.G.O\u30FB\u30A2\u30A4\u30C6\u30E0\u30FB\u64CD\u4F5C\u2026", value: q, onChange: (e) => setQ(e.target.value), onKeyDown: onKey }), /* @__PURE__ */ React.createElement("div", { className: "cp-list", tabIndex: 0 }, items.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "cp-empty" }, "\u8A72\u5F53\u306A\u3057") : items.map((it, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: `cp-item${i === idx ? " sel" : ""}`, onClick: () => {
+  const overlay = /* @__PURE__ */ React.createElement("div", { className: `cp-overlay${open ? " is-open" : ""}`, onClick: (e) => e.target === e.currentTarget && onClose() }, /* @__PURE__ */ React.createElement("div", { ref: paletteRef, className: "cp-box", role: "dialog", "aria-modal": "true", "aria-label": "クイック検索" }, /* @__PURE__ */ React.createElement("input", { ref: inputRef, className: "cp-input", "aria-label": "クイック検索：人格・E.G.O・アイテム・操作", placeholder: "\u30AF\u30A4\u30C3\u30AF\u691C\u7D22\uFF1A\u4EBA\u683C\u30FBE.G.O\u30FB\u30A2\u30A4\u30C6\u30E0\u30FB\u64CD\u4F5C\u2026", value: q, onChange: (e) => setQ(e.target.value), onKeyDown: onKey }), /* @__PURE__ */ React.createElement("div", { className: "cp-list", tabIndex: 0 }, items.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "cp-empty" }, "\u8A72\u5F53\u306A\u3057") : items.map((it, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: `cp-item${i === idx ? " sel" : ""}`, onClick: () => {
     it.run();
     onClose();
   }, onMouseMove: () => setIdx(i) }, /* @__PURE__ */ React.createElement("span", { className: "kind" }, it.type === "nav" ? "\u25B8" : it.type === "persona" ? "\u25C8" : it.type === "ego" ? "\u25C7" : it.type === "item" ? "\u25C6" : "\u2318"), /* @__PURE__ */ React.createElement("span", { className: "lbl" }, it.label), it.kbd && /* @__PURE__ */ React.createElement("span", { className: "kbd" }, it.kbd)))), /* @__PURE__ */ React.createElement("div", { className: "cp-hint" }, /* @__PURE__ */ React.createElement("span", null, "\u2191\u2193 \u79FB\u52D5"), /* @__PURE__ */ React.createElement("span", null, "Enter \u8A73\u7D30\u3092\u958B\u304F"), /* @__PURE__ */ React.createElement("span", null, "Esc \u9589\u3058\u308B"))));
+  /* 検索で選んだ項目の詳細。選択だけでは装備も取得もしない。 */
+  const pickedDetail = picked && picked.kind === "persona" ? /* @__PURE__ */ React.createElement("div", { className: "cp-detail", role: "dialog", "aria-label": picked.p.name + " の詳細" },
+    /* @__PURE__ */ React.createElement("div", { className: "cp-detail-head" },
+      /* @__PURE__ */ React.createElement("span", { className: "badge" }, picked.m === "t" ? "特異" : "通常"),
+      /* @__PURE__ */ React.createElement("strong", null, picked.p.name)
+    ),
+    /* @__PURE__ */ React.createElement("dl", { className: "cp-detail-stats" },
+      /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("dt", null, "HP"), /* @__PURE__ */ React.createElement("dd", null, String(picked.p.hp ?? "—"))),
+      /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("dt", null, "SAN"), /* @__PURE__ */ React.createElement("dd", null, String(picked.p.san ?? "—"))),
+      /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("dt", null, "速度"), /* @__PURE__ */ React.createElement("dd", null, String(picked.p.speed ?? "—"))),
+      /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("dt", null, "パッシブ"), /* @__PURE__ */ React.createElement("dd", null, String(picked.p.passive_name ?? "—")))
+    ),
+    picked.p.passive_effect ? /* @__PURE__ */ React.createElement("p", { className: "cp-detail-text" }, String(picked.p.passive_effect)) : null,
+    (picked.p.skills || []).slice(0, 4).map((skill, n) => /* @__PURE__ */ React.createElement("p", { key: n, className: "cp-detail-skill" },
+      [skill.type, skill.sin].filter(Boolean).join("：") + " " + (skill.name || "")
+    )),
+    /* @__PURE__ */ React.createElement("div", { className: "cp-detail-acts" },
+      /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-primary btn-sm", onClick: acquirePicked }, "この人格を取得する"),
+      /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-ghost btn-sm", onClick: () => setPicked(null) }, "戻る")
+    ),
+    /* @__PURE__ */ React.createElement("p", { className: "cp-detail-hint" }, "選択しただけでは装備しません。取得はここで確定します。")
+  ) : null;
+  return /* @__PURE__ */ React.createElement("div", { className: "cp-layer" }, overlay, pickedDetail);
 };
 function exportState(state) {
   const { ui, ...data } = state;
@@ -279,6 +316,7 @@ const IMPORT_GROUPS = [
   { key: "ego", label: "E.G.O\u88C5\u5099", fields: ["egoSlots"] },
   { key: "mental", label: "\u7CBE\u795E", fields: ["spirit","spiritMorale","spiritConfuse","spiritAlways"] },
   { key: "roster", label: "\u6240\u6301\u4EBA\u683C\u30FBE.G.O\u4E00\u89A7", fields: ["roster"] },
+  { key: "ledger", label: "\u901A\u5E33\uFF08\u30EA\u30B6\u30EB\u30C8\u3068\u6536\u652F\u660E\u7D30\uFF09", fields: ["results", "entries"] },
   { key: "status", label: "\u30B9\u30C6\u30FC\u30BF\u30B9\u30FB\u56FA\u6709\u30D0\u30D5\u30FB\u51FA\u529B\u8A2D\u5B9A", fields: ["uniqueBuffs","customStatuses","defaultStatuses","outputExclude","shareOptions","paletteOptions"] },
   { key: "enh", label: "\u7279\u6B8A\u5F37\u5316", fields: ["enhancements"] },
   { key: "items", label: "\u5C0E\u5165\u6E08\u307F\u30A2\u30A4\u30C6\u30E0", fields: ["inventory","customItems"] },
@@ -424,16 +462,21 @@ const DisclaimerSheet = ({ open, onClose }) => {
 const RailNavigation = ({ sections, current, dispatch, onOpenUtilities, state }) => {
   const h = React.createElement;
   const buildRailItem = (s) => {
-    const done = isComplete(s.id, state);
-    const isReq = ["persona", "skill", "passive"].includes(s.id);
+    /* ビルド項目（persona）は 8タブ分の旧 currentSection 値でも
+       アクティブ表示し、必須3項目の合成完了でドットを出す。 */
+    const isBuild = s.id === "persona";
+    const active = isBuild ? ["persona", "skill", "passive", "enh", "support", "ego", "spirit", "items-build"].includes(current) : current === s.id;
+    const done = isBuild
+      ? isComplete("persona", state) && isComplete("skill", state) && isComplete("passive", state)
+      : isComplete(s.id, state);
     return h("button", {
       key: s.id,
       type: "button",
-      className: `rail-item${s.group === "utility" ? " is-utility" : ""}${s.id === "enh" ? " is-overflow" : ""}${current === s.id ? " is-active" : ""}`,
+      className: `rail-item${s.group === "utility" ? " is-utility" : ""}${active ? " is-active" : ""}`,
       onClick: () => dispatch({ type: "SET_UI", ui: { currentSection: s.id } }),
-      "aria-current": current === s.id ? "page" : void 0,
+      "aria-current": active ? "page" : void 0,
       title: s.label
-    }, h("span", { className: "rail-icon" }, h(Icon, { name: s.icon, size: 18 })), h("span", { className: "rail-label" }, s.label), isReq && !done && h("span", { className: "dot is-warn" }), done && h("span", { className: "dot" }));
+    }, h("span", { className: "rail-icon" }, h(Icon, { name: s.icon, size: 18 })), h("span", { className: "rail-label" }, s.label), isBuild && !done && h("span", { className: "dot is-warn" }), done && h("span", { className: "dot" }));
   };
   return h("nav", { className: "rail", "aria-label": "画面移動" }, sections.map(buildRailItem),
     h("button", { type: "button", className: "rail-item rail-more", onClick: onOpenUtilities, "aria-haspopup": "dialog", title: "その他の操作と画面" }, h("span", { className: "rail-icon" }, h(Icon, { name: "grid", size: 18 })), h("span", { className: "rail-label" }, "その他"))
@@ -475,6 +518,10 @@ const App = () => {
     };
     return () => { delete window.LBT_openImportDialog; };
   }, []);
+  
+
+  /* 硝子窓からの取り込みは、このアカウントの state へ直接流す。
+     UNDO は state の履歴機構に乗るので、取り込み後も差し戻せる。 */
   const applyImport = (all) => {
     if (!importData) return;
     const fields = all
@@ -545,6 +592,21 @@ const App = () => {
   /* アカウント切替オーバーレイ。設定・topbar の chip からは
      lbt:open-accounts イベントだけで開く（状態の所在を App に一元化）。 */
   const [accountSwitcherOpen, setAccountSwitcherOpen] = React.useState(false);
+  /* 取り込みは accounts-ui からイベントで届く。状態の所在は App に一元する。 */
+  React.useEffect(() => {
+    const onImport = (event) => {
+      const actions = (event.detail && event.detail.actions) || [];
+      if (!actions.length) return;
+      dispatch({ type: "APPLY_IMPORT_BATCH", actions });
+      const skipped = (event.detail && event.detail.skipped) || [];
+      const bad = skipped.filter((s) => /番号|価格/.test(s.reason || ""));
+      toast(bad.length
+        ? actions.length + "件を取り込みました（" + bad.length + "件は判別できず飛ばしました）"
+        : actions.length + "件を取り込みました（Ctrl+Z で戻せます）");
+    };
+    window.addEventListener("lbt:apply-import", onImport);
+    return () => window.removeEventListener("lbt:apply-import", onImport);
+  }, [dispatch]);
   React.useEffect(() => {
     const onOpenAccounts = () => setAccountSwitcherOpen(true);
     window.addEventListener("lbt:open-accounts", onOpenAccounts);
@@ -585,26 +647,24 @@ const App = () => {
   const sec = SECTIONS.find((s) => s.id === current) || SECTIONS[0];
   const renderSection = () => {
     switch (current) {
+      /* 6タブ統合。currentSection が skill/passive/enh/support/ego の旧値でも
+         BuildWorkspace が BUILD_TABS からアクティブタブを引く。 */
       case "persona":
-        // W07: 人格ページは装備中パネル＋人格一覧のみ。Base Info・固有バフは
-        // PersonaCodex 側の装備中パネル内へ折りたたみ統合され、一覧より下には何も描かれない。
-        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SectionTitle, { num: sec.num, title: sec.title, subtitle: sec.subtitle }), /* @__PURE__ */ React.createElement(PersonaCodex, { state, dispatch }));
       case "skill":
-        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SectionTitle, { num: sec.num, title: sec.title, subtitle: sec.subtitle }), /* @__PURE__ */ React.createElement(SkillDeck, { state, dispatch }));
       case "passive":
-        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SectionTitle, { num: sec.num, title: sec.title, subtitle: sec.subtitle }), /* @__PURE__ */ React.createElement(PassiveSection, { state, dispatch }));
-      case "support":
-        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SectionTitle, { num: sec.num, title: sec.title, subtitle: sec.subtitle }), /* @__PURE__ */ React.createElement(SupportSection, { state, dispatch }));
-      case "ego":
-        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SectionTitle, { num: sec.num, title: sec.title, subtitle: sec.subtitle }), /* @__PURE__ */ React.createElement(EgoSection, { state, dispatch }));
-      case "spirit":
-        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SectionTitle, { num: sec.num, title: sec.title, subtitle: sec.subtitle }), /* @__PURE__ */ React.createElement(SpiritSection, { state, dispatch }));
       case "enh":
-        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SectionTitle, { num: sec.num, title: sec.title, subtitle: sec.subtitle }), /* @__PURE__ */ React.createElement(EnhancementSection, { state, dispatch }));
+      case "support":
+      case "ego":
+      case "spirit":
+      case "items-build":
+        return /* @__PURE__ */ React.createElement(BuildWorkspace, { state, dispatch });
+      case "baseinfo":
+        return /* @__PURE__ */ React.createElement(BaseInfoWorkspace, { state, dispatch });
       case "roster":
         return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SectionTitle, { num: sec.num, title: sec.title, subtitle: sec.subtitle }), /* @__PURE__ */ React.createElement(RosterSection, { state, dispatch }));
-      case "items":
-        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SectionTitle, { num: sec.num, title: sec.title, subtitle: sec.subtitle }), /* @__PURE__ */ React.createElement(ItemCodex, { state, dispatch }));
+      case "shop":
+        return /* @__PURE__ */ React.createElement(ShopSection, { state, dispatch });
+;
       case "help":
         return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SectionTitle, { num: sec.num, title: sec.title, subtitle: sec.subtitle }), /* @__PURE__ */ React.createElement(HelpSection, null));
       case "settings":
@@ -635,7 +695,7 @@ const App = () => {
     { key: "share", icon: "share", label: "共有シートを開く", note: "整形されたHTMLの共有用プレビューを新規タブで開きます。", onClick: () => LBT_gen.openShareSheet(state) },
     { key: "json", icon: "copy", scope: "出力", label: "CCFOLIA JSONをコピー", note: "現在の出力対象をJSONとしてクリップボードへコピーします。", tone: "is-primary", onClick: copyJson }
   ];
-  const utilitySections = SECTIONS.filter((s) => s.group === "utility" || s.id === "enh");
+  const utilitySections = SECTIONS.filter((s) => s.group === "utility");
 
   /* アカウント未選択なら本体を出さず、選択ゲートだけを描画する。
      「どのキャラクターのデータか」が決まるまで編集画面へ入れないことで、
@@ -644,7 +704,9 @@ const App = () => {
     return /* @__PURE__ */ React.createElement(AccountGate, null);
   }
   return /* @__PURE__ */ React.createElement("div", { className: `app${!previewOpen ? " preview-collapsed" : ""}` }, /* 最初のフォーカス可能要素。WCAG 2.4.1 の bypass block。
-   通常時は画面外へ逃がし、フォーカス時のみ表示する。 */ /* @__PURE__ */ React.createElement("a", { href: "#main-content", className: "skip-link" }, "本文へスキップ"), /* @__PURE__ */ React.createElement("header", { className: "topbar" }, /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("span", { className: "brand-mark" }, "\u25C8"), /* @__PURE__ */ React.createElement("h1", { className: "brand-name" }, "LIMBUS BUILD TERMINAL"), /* @__PURE__ */ React.createElement("span", { className: "brand-sub" }, "CCFOLIA CHARACTER BUILDER ", /* @__PURE__ */ React.createElement("span", { className: "brand-ver" }, window.LBT_VERSION || "v64r45"))), /* @__PURE__ */ React.createElement("button", { type: "button", className: "brand-author", onClick: () => setDisclaimerOpen(true), title: "\u4F5C\u8005\uFF1A\u3057\u3083\u3051\uFF08\u514D\u8CAC\u4E8B\u9805\u3092\u958B\u304F\uFF09", "aria-haspopup": "dialog" }, /* @__PURE__ */ React.createElement("span", { className: "brand-author-fish" }, /* @__PURE__ */ React.createElement(Icon, { name: "salmon", size: 20 })), /* @__PURE__ */ React.createElement("span", { className: "brand-author-name" }, "しゃけ")), /* @__PURE__ */ React.createElement("div", { className: "topbar-spacer" }), /* @__PURE__ */ React.createElement("button", { className: "topbar-search", onClick: () => setCpOpen(true) }, /* @__PURE__ */ React.createElement(Icon, { name: "search", size: 14 }), /* @__PURE__ */ React.createElement("span", { className: "topbar-search-text" }, "\u30AF\u30A4\u30C3\u30AF\u691C\u7D22"), /* @__PURE__ */ React.createElement("kbd", null, "\u2318K")), /* @__PURE__ */ React.createElement("div", { className: "topbar-actions" }, /* @__PURE__ */ React.createElement(AccountChip, null), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", icon: "undo", onClick: undo, disabled: !canUndo, title: "\u5143\u306B\u623B\u3059 (Ctrl+Z)" }), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", icon: "redo", onClick: redo, disabled: !canRedo, title: "\u3084\u308A\u76F4\u3057 (Ctrl+Shift+Z)" }), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", icon: "download", onClick: () => exportState(state), title: "\u73FE\u5728\u306E\u4F5C\u696D\u72B6\u614B\u3092\u4FDD\u5B58\uFF08\u8AAD\u307F\u8FBC\u307F\u6642\u306B\u7BC4\u56F2\u3092\u9078\u3079\u307E\u3059\uFF09" }), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", icon: "archive", className: "topbar-library-save", "aria-label": "所持ライブラリを保存", onClick: () => exportRoster(state), title: "\u6240\u6301\u30E9\u30A4\u30D6\u30E9\u30EA\u3092\u4FDD\u5B58\uFF08\u7DE8\u96C6\u6E08\u307F\u4EBA\u683C\u30FBE.G.O\u3092\u5225\u7AEF\u672B\u3078\u5F15\u304D\u7D99\u304E\uFF09" }), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", icon: "upload", onClick: () => fileRef.current.click(), title: "\u4FDD\u5B58\u30C7\u30FC\u30BF\u3092\u8AAD\u307F\u8FBC\u3080\uFF08\u4E0A\u66F8\u304D\u7BC4\u56F2\u3092\u9078\u629E\uFF09" }), /* @__PURE__ */ React.createElement("input", { type: "file", ref: fileRef, accept: "application/json", style: { display: "none" }, onChange: (e) => {
+   通常時は画面外へ逃がし、フォーカス時のみ表示する。 */ /* @__PURE__ */ React.createElement("a", { href: "#main-content", className: "skip-link" }, "本文へスキップ"), /* @__PURE__ */ React.createElement("header", { className: "topbar" }, /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("span", { className: "brand-mark" }, "\u25C8"), /* @__PURE__ */ React.createElement("h1", { className: "brand-name" }, "LIMBUS BUILD TERMINAL"), /* @__PURE__ */ React.createElement("span", { className: "brand-sub" }, "CCFOLIA CHARACTER BUILDER ", /* @__PURE__ */ React.createElement("span", { className: "brand-ver" }, window.LBT_VERSION || "v64r45"))), /* @__PURE__ */ React.createElement("button", { type: "button", className: "brand-author", onClick: () => setDisclaimerOpen(true), title: "\u4F5C\u8005\uFF1A\u3057\u3083\u3051\uFF08\u514D\u8CAC\u4E8B\u9805\u3092\u958B\u304F\uFF09", "aria-haspopup": "dialog" }, /* @__PURE__ */ React.createElement("span", { className: "brand-author-fish" }, /* @__PURE__ */ React.createElement(Icon, { name: "salmon", size: 20 })), /* @__PURE__ */ React.createElement("span", { className: "brand-author-name" }, "しゃけ")), /* @__PURE__ */ React.createElement("div", { className: "topbar-spacer" }), /* @__PURE__ */ React.createElement("button", { className: "topbar-search", onClick: () => setCpOpen(true) }, /* @__PURE__ */ React.createElement(Icon, { name: "search", size: 14 }), /* @__PURE__ */ React.createElement("span", { className: "topbar-search-text" }, "\u30AF\u30A4\u30C3\u30AF\u691C\u7D22"), /* @__PURE__ */ React.createElement("kbd", null, "\u2318K")), /* 残高は常に見える必要がある。.topbar-actions の中に入れると ≤640px と
+   横向きで display:none になるため、.topbar の直接子として置く。 */
+/* @__PURE__ */ React.createElement(BalanceChip, { state, onClick: () => dispatch({ type: "SET_UI", ui: { currentSection: "roster", libraryTab: "ledger" } }) }), /* @__PURE__ */ React.createElement("div", { className: "topbar-actions" }, /* @__PURE__ */ React.createElement(AccountChip, null), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", icon: "undo", onClick: undo, disabled: !canUndo, title: "\u5143\u306B\u623B\u3059 (Ctrl+Z)" }), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", icon: "redo", onClick: redo, disabled: !canRedo, title: "\u3084\u308A\u76F4\u3057 (Ctrl+Shift+Z)" }), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", icon: "download", onClick: () => exportState(state), title: "\u73FE\u5728\u306E\u4F5C\u696D\u72B6\u614B\u3092\u4FDD\u5B58\uFF08\u8AAD\u307F\u8FBC\u307F\u6642\u306B\u7BC4\u56F2\u3092\u9078\u3079\u307E\u3059\uFF09" }), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", icon: "archive", className: "topbar-library-save", "aria-label": "所持ライブラリを保存", onClick: () => exportRoster(state), title: "\u6240\u6301\u30E9\u30A4\u30D6\u30E9\u30EA\u3092\u4FDD\u5B58\uFF08\u7DE8\u96C6\u6E08\u307F\u4EBA\u683C\u30FBE.G.O\u3092\u5225\u7AEF\u672B\u3078\u5F15\u304D\u7D99\u304E\uFF09" }), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", icon: "upload", onClick: () => fileRef.current.click(), title: "\u4FDD\u5B58\u30C7\u30FC\u30BF\u3092\u8AAD\u307F\u8FBC\u3080\uFF08\u4E0A\u66F8\u304D\u7BC4\u56F2\u3092\u9078\u629E\uFF09" }), /* @__PURE__ */ React.createElement("input", { type: "file", ref: fileRef, accept: "application/json", style: { display: "none" }, onChange: (e) => {
     const f = e.target.files?.[0];
     if (f) importStateFromFile(f, dispatch);
     e.target.value = "";

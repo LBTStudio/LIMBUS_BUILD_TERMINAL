@@ -458,5 +458,6 @@
   window.LBT_parsePersonaDraftSections = (sections) => parsePersonaDraft(composePersonaDraftSections(sections), { allowPartial: true });
   window.LBT_parseGarasumadoPersonaUrl = parseGarasumadoUrl;
   window.LBT_parseGarasumadoPersonaDocument = parseGarasumadoPersonaDocument;
-  window.LBT_fetchGarasumadoPersona = fetchGarasumadoPersona;
+  window.LBT_firestoreFields = firestoreFields;
+window.LBT_fetchGarasumadoPersona = fetchGarasumadoPersona;
 })();

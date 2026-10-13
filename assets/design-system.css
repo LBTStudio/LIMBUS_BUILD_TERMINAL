@@ -229,7 +229,11 @@
      ============================================================ */
   --bg:#0e0b09; --surface-0:#141110; --surface-1:#1a1715; --surface-2:#211d1a;
   --surface-3:#292420; --surface-4:#322c26; --surface-inset:#080605;
-  --line-dim:#2a2521; --line:#3d342c; --line-strong:#57493c; --line-hot:#7a5c33;
+  /* 境界色は「実際に描かれる面」に対して決める。
+     旧値は surface-2（カード面）上で 1.10、surface-3 上で 1.01 しかなく、
+     枠が背景と同色で消えていた（実測: 駒整形49 / ショップ21 / 記録54 箇所）。
+     入力欄は操作可能性の合図なので 3:1 を満たす。階層 dim < line < strong は保つ。 */
+  --line-dim:#3e3933; --line:#504a42; --line-strong:#756c60; --line-hot:#7a5c33;
   --tx:#f2ece1; --tx-2:#d9d0c0; --tx-dim:#a89e8c; --tx-mute:#9d9280; --tx-inv:#0e0b09;
   --gold:#d4af5f; --gold-hi:#eecf8a; --gold-lo:#8a6c33;
   --gold-line:rgba(212,175,95,.55); --gold-glow:rgba(212,175,95,.22); --gold-tint:rgba(212,175,95,.09);

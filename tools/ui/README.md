@@ -139,3 +139,34 @@ node tools/ui/audit-reachability.mjs
 - `body { overflow-x: hidden }` が残っているため、ページ横スクロールが
   出ないことだけでは「溢れていない」証明にならない。必ず
   `audit-reachability.mjs` で祖先による切り落としまで見る。
+## 実動確認の土台（シードデータ）
+
+テスト用アカウントに所持データが1件も無いと、**装備中の人格描写を実測できない**。
+「識別 → HP/SAN/耐性 → 固有バフ → キーワード」の層と、駒整形（名前・PL・立ち絵・INITIATIVE・COLOR）が
+実際にどう並ぶかを見るには、描画に必要なデータを書き込んだ検証アカウントへ投入する。
+
+```powershell
+# サーバを起動してから実行する（既定は localhost:8099）
+node tools/ui/serve.mjs
+BASE_URL=http://127.0.0.1:8099/ node tools/ui/seed-browser.mjs
+```
+
+このスクリプトが行うこと：
+
+- アカウントが無ければ検証用に自動作成する（名前/用途 = 検証）
+- 固有バフを持つ人格を1体選び、装備状態（personaSrc / hp / san / 耐性 / uniqueBuffs）を注入する
+- 駒整形用に、立ち絵（外部通信なしの SVG データURL・差分2枚）と名前「ユサ」、INITIATIVE を入れる
+- サポート / E.G.O / 精神 も数件入れるので、一覧・ゲート・カード内購入まで実測できる
+
+アプリ本体の挙動は変更しない。`window.LBT_accounts.saveActive()` に保存される検証データのみ。
+投入したブラウザでそのまま ビルド → 人格 / 駒整形 を開くと実測できる。
+
+### 実測できるもの
+
+| 場所 | 確認できる層 |
+|---|---|
+| ビルド → 人格 | `es-idstripe`（識別）/ `es-vitals`（HP・SAN・速度・弾丸＋耐性）/ `unique-block`（固有バフ）/ `es-keywords` / `es-actions` |
+| 駒整形 | `pc-portrait`（立ち絵）/ 名前 / PL / INITIATIVE / COLOR / CCFOLIA 注意書き |
+| ビルド → E.G.O | カード内の「装備」ボタン（`p-card-quick-equip`） |
+| ビルド → 精神 | カード内の「購入」「装備」ボタン（`spirit-item-actions`） |
+| ショップ | 検索窓の sticky / 共通カード / カテゴリタブ |

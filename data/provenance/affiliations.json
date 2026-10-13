@@ -2,8 +2,8 @@
  "generated": "2026-09-23T18:22:00.188Z",
  "source": "data/provenance/core.txt",
  "totalAffiliations": 84,
- "matched": 61,
- "unmatched": 23,
+ "matched": 62,
+ "unmatched": 22,
  "affiliations": [
   {
    "affil": "黒雲会",
@@ -384,11 +384,19 @@
    "matchType": "contains"
   },
   {
-   "affil": "ク事務所",
-   "page": 200,
+   "affil": "マルチクラック事務所",
+   "value": "マルチクラック事務所 機械融和生命体",
+   "page": 107,
    "persona": "マルチクラック事務所フィクサー",
    "kind": "normal",
-   "matchType": "contains"
+   "matchType": "prefix"
+  },
+  {
+   "affil": "ク事務所",
+   "page": 200,
+   "persona": "ク事務所フィクサー",
+   "kind": "normal",
+   "matchType": "prefix"
   },
   {
    "affil": "鬼門事務所",
@@ -437,10 +445,6 @@
   {
    "value": "薬指 点描派",
    "page": 68
-  },
-  {
-   "value": "マルチクラック事務所 機械融和生命体",
-   "page": 107
   },
   {
    "value": "シー家 H社",

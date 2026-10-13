@@ -153,9 +153,21 @@ test("旧保存データを再読込しても同期MAXはfalseで補完される
 });
 
 test("同期MAX設定は人格装備の同期ランク直後に置かれ、人格編集と所持一覧で金色の共通チェック規約を使う", () => {
-  const rankEnd = personaCodex.indexOf('syncRank || "\\u2014"))), syncMaxControl');
-  const resistanceStart = personaCodex.indexOf('React.createElement("section", { className: "es-resistance"');
-  assert.ok(rankEnd >= 0 && resistanceStart > rankEnd, "同期MAX設定は同期ランクと耐性の間に置く");
+  /* 責務划分：駒整形 = 名前・PL・立ち絵・駒の色（BaseSection のみ）。
+     HP/SAN/速度・耐性・キーワードは同期状態と同じ es-body に残す。 */
+  const bodyStart = personaCodex.indexOf('className: "es-body"');
+  const bodyEnd = personaCodex.indexOf('className: "es-hint"');
+  const body = personaCodex.slice(bodyStart, bodyEnd);
+  assert.ok(bodyStart >= 0 && bodyEnd > bodyStart, "es-body がある");
+  for (const cls of ["es-stats", "es-resistance", "es-keywords"]) {
+    assert.ok(body.includes(`className: "${cls}"`), `${cls} は人格タブの es-body にある`);
+  }
+  /* 同期ランクは es-stats の select として.MAX 場所の juste apres。 */
+  assert.ok(body.indexOf('es-stat-label") }, "ランク"') < body.indexOf("syncMaxControl"), "同期MAXは同期ランクの直後");
+  /* 駒整形は BaseSection だけ（名前・PL・立ち絵・駒の色）。 */
+  const panel = personaCodex.slice(personaCodex.indexOf("const BaseInfoPanel = ("));
+  assert.match(panel, /React\.createElement\(BaseSection, \{ state, dispatch \}\)/);
+  assert.doesNotMatch(panel.slice(0, panel.indexOf("const PersonaCodex")), /ResRow|es-resistance|es-keywords|es-stat/);
   assert.match(personaCodex, /className: `es-sync-max-control\$\{entry\.syncMax \? " is-on" : ""\}\$\{editable \? "" : " is-readonly"\}`/);
   assert.match(personaCodex, /同期ランクとは別・名称と共有に \[MAX\] を反映/);
   assert.match(otherSections, /item\.type === "personas" && canModifySyncMax && h\("label", \{ className: `sync-max-detail-toggle/);

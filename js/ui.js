@@ -153,6 +153,60 @@ const Segmented = ({ value, onChange, options }) => /* @__PURE__ */ React.create
   },
   opt.label
 )));
+/* 詳細のポップオーバー。
+   一覧の直下に詳細を差し込むと、詳細を読んだつもりがページの下端まで
+   スクロールさせられ、閉じる導線が目線から外れる。詳細 Selected で開く
+   ダイアログにすれば、スクロールは发生せず閉じる操作は画面上部に残る。
+   UtilitySheet と同じ dialog 作法（Escape・背景クリック・Tab 循環・
+   閉じたら起動元へフォーカス）を揃える。 */
+const DetailDialog = ({ open, onClose, label, children, actions }) => {
+  const ref = React.useRef(null);
+  const returnFocusRef = React.useRef(null);
+  React.useEffect(() => {
+    if (!open) return void 0;
+    const prev = document.activeElement;
+    returnFocusRef.current = prev instanceof HTMLElement ? prev : null;
+    const getFocusable = () => Array.from(ref.current?.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])') || []).filter((node) => node.getClientRects().length > 0);
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") { event.preventDefault(); onClose(); return; }
+      if (event.key !== "Tab") return;
+      const focusable = getFocusable();
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    const frame = requestAnimationFrame(() => getFocusable()[0]?.focus());
+    /* 開いている間だけ主スクロール領域を止める。止めないとポップオーバーの
+       背面がずれて見え、「固定されている」印象が壊れる。 */
+    document.body.classList.add("has-detail-dialog");
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("keydown", onKeyDown);
+      document.body.classList.remove("has-detail-dialog");
+    };
+  }, [open, onClose]);
+  React.useEffect(() => {
+    if (open) return;
+    const prev = returnFocusRef.current;
+    if (prev && document.contains(prev)) prev.focus();
+  }, [open]);
+  if (!open) return null;
+  return React.createElement("div", { className: "detail-dialog-backdrop", onClick: (event) => event.target === event.currentTarget && onClose() },
+    React.createElement("section", { ref, className: "detail-dialog", role: "dialog", "aria-modal": "true", "aria-label": label },
+      React.createElement("div", { className: "detail-dialog-head" },
+        React.createElement("span", { className: "t-label" }, label),
+        React.createElement("button", { type: "button", className: "detail-dialog-close", onClick: onClose, "aria-label": `${label}を閉じる`, title: "閉じる (Esc)" }, React.createElement(Icon, { name: "x", size: 16 }))
+      ),
+      React.createElement("div", { className: "detail-dialog-body" }, children),
+      /* 操作は本文と別に下端へ固定する。詳細が長いとスクロールしきるまで
+         装備/購入が見えなくなり、「読んでから操作する」ができなくなる。 */
+      actions ? React.createElement("div", { className: "detail-dialog-actions" }, actions) : null
+    )
+  );
+};
 /* W01: エラーバウンダリ — 一部セクションの描画エラーでアプリ全体が真っ黒に
    ならないよう、クラッシュを捕捉してエラー表示＋リロード導線を提供する。 */
 class LBTErrorBoundary extends React.Component {
@@ -426,6 +480,7 @@ Object.assign(window, {
   LBTErrorBoundary,
   SectionTitle,
   Segmented,
+  DetailDialog,
   Field,
   SinBar,
   ResRow,

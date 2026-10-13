@@ -101,7 +101,11 @@ function createPersonaBuildSnapshot(state) {
     skills: cloneJSON(state.skills || []), uniqueBuffs: cloneJSON(state.uniqueBuffs || []),
     spirit: state.spirit, spiritMorale: state.spiritMorale, spiritConfuse: state.spiritConfuse, spiritAlways: state.spiritAlways,
     supports: cloneJSON(state.supports || []), deathSupport: state.deathSupport ? cloneJSON(state.deathSupport) : null,
-    egoSlots: cloneJSON(state.egoSlots || {}), enhancements: cloneJSON(state.enhancements || []), inventory: cloneJSON(state.inventory || []),
+    /* アイテムだけは人格を跨いで共有する。支持/精神/強化のように人格ごとに
+   退避すると、所持したアイテムが他の人格へ持ち越せず消えてしまう。
+   「持っていくか・MEMO/PALETTE へ出すか」だけビルド側の選択で決める。 */
+    egoSlots: cloneJSON(state.egoSlots || {}), enhancements: cloneJSON(state.enhancements || []),
+    equipmentRefs: captureEquipmentRefs(state),
     personaSrc: cloneJSON(state.personaSrc), syncedManual: !!state.syncedManual,
     formulas: cloneJSON(state.formulas || []), customStatuses: cloneJSON(state.customStatuses || []),
     defaultStatuses: state.defaultStatuses ? cloneJSON(state.defaultStatuses) : null,
@@ -798,6 +802,135 @@ function refreshDBReferencedData(next) {
 
   return next;
 }
+/* 装備スロットは所持（roster.supports / roster.spirits）の投影として導く。
+   所持を単一の情報源にし、装備は equipped フラグの結果だけを書き戻すことで、
+   「所持していないものを装備できる」「装備中のものが所持一覧に無い」という
+   食い違いを起こせない。効果文はDBから取り直して古い文言を引きずらない。 */
+/* 明細の種別。表示と集計の単位。 */
+const LEDGER_ENTRY_KINDS = [
+  { id: "expense", label: "手動支出", hint: "DBに載っていない支出（自作アイテムなど）" },
+  { id: "consumption", label: "消耗", hint: "戦闘で消えた・使ったアイテム" },
+  { id: "item", label: "アイテム購入" },
+  { id: "support", label: "サポートパッシブ" },
+  { id: "deathSupport", label: "死亡後パッシブ" },
+  { id: "spirit", label: "精神" },
+  { id: "enhancement", label: "強化" },
+  { id: "persona", label: "人格入手" },
+  { id: "ego", label: "E.G.O入手" },
+  { id: "other", label: "その他" }
+];
+window.LBT_LEDGER_ENTRY_KINDS = LEDGER_ENTRY_KINDS;
+/* 所持エントリの uid を採番する。Date.now() だけだと同じミリ秒に作出的で
+   衝突し、uid をキーにした装備・歸属の更新が別の要素へ誤爆する。
+   連番を添えて必ず一意にする。 */
+/* 通約を LP と欠片の2種に揃える。文字列や未定義が入っても計算が場わないよう、
+   必ず数値へ落とす（不清な値や0として扱う）。 */
+function normalizeCurrency(value) {
+  const raw = value && typeof value === "object" ? value : {};
+  const toNumber = (input) => {
+    const parsed = Number.parseInt(input, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  };
+  return { lp: toNumber(raw.lp), shards: toNumber(raw.shards) };
+}
+
+let ownedUidCounter = 0;
+function makeOwnedUid(prefix) {
+  ownedUidCounter = (ownedUidCounter + 1) % 100000;
+  return `${prefix}-${Date.now()}-${ownedUidCounter}`;
+}
+
+/* 未所持のサポパを所持へ写す（重複は写さない）。 */
+function addRosterSupport(state, spp) {
+  const name = String(spp?.name || "");
+  if (!name) return null;
+  const roster = state.roster || {};
+  if ((roster.supports || []).some((s) => s.name === name)) return null;
+  const isDeath = isDeathSupportPassiveRecord({ name });
+  const entry = {
+    uid: makeOwnedUid("spt"),
+    name,
+    cond: String(spp?.cond || ""),
+    effect: String(spp?.effect || ""),
+    lp: String(spp?.lp || ""),
+    slot: isDeath ? "death" : "normal",
+    equipped: false,
+    resultId: null,
+    addedAt: Date.now(),
+    notes: ""
+  };
+  return { ...state, roster: { ...roster, supports: [...(roster.supports || []), entry] } };
+}
+/* 指定の所持を装備する。枠の上限は slot で決まる。 */
+function equipRosterSupport(state, uid) {
+  const roster = state.roster || {};
+  const target = (roster.supports || []).find((s) => s.uid === uid);
+  if (!target) return state;
+  const limit = target.slot === "death" ? 1 : 2;
+  const marked = (roster.supports || []).map((s) => (s.uid === uid ? { ...s, equipped: true } : s));
+  const sameSlot = marked.filter((s) => s.slot === target.slot && s.equipped);
+  const overflowUids = new Set(sameSlot.slice(0, Math.max(0, sameSlot.length - limit)).map((s) => s.uid));
+  const supports = overflowUids.size
+    ? marked.map((s) => (overflowUids.has(s.uid) ? { ...s, equipped: false } : s))
+    : marked;
+  return { ...state, roster: { ...roster, supports }, ...projectEquipmentFromRoster({ ...roster, supports }) };
+}
+function projectEquipmentFromRoster(roster) {
+  const supports = (roster?.supports || []).filter((s) => s.equipped && s.slot !== "death");
+  const deathSupport = (roster?.supports || []).find((s) => s.equipped && s.slot === "death") || null;
+  const spiritEntry = (roster?.spirits || []).find((s) => s.equipped) || null;
+  const spiritName = spiritEntry?.name || "";
+  const dbSpirit = (window.DB?.spirits || []).find((s) => s.name === spiritName) || null;
+  return {
+    supports: supports.map((s) => ({
+      id: s.uid,
+      name: s.name,
+      cond: dbSupportCond(s, "cond"),
+      effect: dbSupportCond(s, "effect"),
+      lp: s.lp
+    })),
+    deathSupport: deathSupport
+      ? {
+          id: deathSupport.uid,
+          name: deathSupport.name,
+          cond: dbSupportCond(deathSupport, "cond"),
+          effect: dbSupportCond(deathSupport, "effect"),
+          lp: deathSupport.lp
+        }
+      : null,
+    spirit: spiritName,
+    spiritMorale: dbSpirit?.morale_effect || "",
+    spiritConfuse: dbSpirit?.confuse_effect || "",
+    spiritAlways: dbSpirit?.always_effect || ""
+  };
+}
+/* サポート/精神の equipped は roster 全体で1本のままだった。序列を確認しても
+   最後に終わった人格の装備しか残らないので、ビルドには「どの uid を付けているか」を
+   退避し、切替時に人格側の選択を roster へ押し戻す。これで人格ごとに独立する。 */
+function captureEquipmentRefs(state) {
+  const roster = state.roster || {};
+  return {
+    supportUids: (roster.supports || []).filter((s) => s.equipped).map((s) => s.uid),
+    spiritUid: (roster.spirits || []).find((s) => s.equipped)?.uid || null
+  };
+}
+function applyEquipmentRefs(roster, refs) {
+  if (!refs) return roster;
+  const supportUids = new Set(refs.supportUids || []);
+  const supports = (roster.supports || []).map((s) => ({ ...s, equipped: supportUids.has(s.uid) }));
+  const spiritUid = refs.spiritUid || null;
+  const spirits = (roster.spirits || []).map((s) => ({ ...s, equipped: s.uid === spiritUid }));
+  return { ...roster, supports, spirits };
+}
+/* 効果文はDB定義を正とする（保存側の古い文言を引きずらない）。DBに無い
+   カスタム登録のときだけ保存値を使う。 */
+function dbSupportCond(entry, field) {
+  const pool = entry.slot === "death" ? (window.DB?.death_passives || []) : (window.DB?.support_passives || []);
+  const db = pool.find((s) => s.name === entry.name);
+  if (db && db[field] !== void 0 && db[field] !== null) return String(db[field]);
+  return String(entry[field] || "");
+}
+
 function normalizeStateShape(raw) {
   const next = refreshDBReferencedData(refreshEquippedPersonaFromDB({ ...raw }));
   next.schemaVersion = next.schemaVersion || SAVE_SCHEMA_VERSION;
@@ -821,9 +954,11 @@ function normalizeStateShape(raw) {
   }
   if (!next.ui) next.ui = {};
   if (!next.ui.previewCollapsed) next.ui.previewCollapsed = {};
-  if (!next.roster || typeof next.roster !== "object") next.roster = { personas: [], egos: [] };
+  if (!next.roster || typeof next.roster !== "object") next.roster = { personas: [], egos: [], supports: [], spirits: [] };
   if (!Array.isArray(next.roster.personas)) next.roster.personas = [];
   if (!Array.isArray(next.roster.egos)) next.roster.egos = [];
+  if (!Array.isArray(next.roster.supports)) next.roster.supports = [];
+  if (!Array.isArray(next.roster.spirits)) next.roster.spirits = [];
   next.roster = {
     ...next.roster,
     // 同期MAXは同期ランク（0/00/000）と別に保存する。旧保存データはfalseへ補完する。
@@ -831,16 +966,140 @@ function normalizeStateShape(raw) {
       ...entry,
       syncRank: ["0", "00", "000"].includes(String(entry?.syncRank || "")) ? String(entry.syncRank) : null,
       syncMax: entry?.syncMax === true
-    }))
+    })),
+    /* 所持へ統合した2種は、人格・E.G.O と同じく uid と歸属先（resultId）を持つ。
+       resultId は「どのリザルトで手に入れたか」。null は未分類で、
+       以前のデータはここに入る（歸属の断定は利用者が行う）。 */
+    supports: next.roster.supports
+      .filter((entry) => entry && entry.name)
+      .map((entry, index) => ({
+        uid: entry.uid || `spt-${Date.now()}-${index}`,
+        name: String(entry.name),
+        cond: String(entry.cond || ""),
+        effect: String(entry.effect || ""),
+        lp: String(entry.lp || ""),
+        slot: entry.slot === "death" ? "death" : "normal",
+        equipped: entry.equipped === true,
+        resultId: entry.resultId || null,
+        addedAt: Number(entry.addedAt) || Date.now(),
+        notes: String(entry.notes || "")
+      })),
+    spirits: next.roster.spirits
+      .filter((entry) => entry && entry.name)
+      .map((entry, index) => ({
+        uid: entry.uid || `spr-${Date.now()}-${index}`,
+        name: String(entry.name),
+        equipped: entry.equipped === true,
+        resultId: entry.resultId || null,
+        addedAt: Number(entry.addedAt) || Date.now(),
+        notes: String(entry.notes || "")
+      }))
   };
+  /* 所持モデルへ移行する前のデータ（装備スロットしか持たない版）は、
+     裝備中の1件を「所持済み・裝備中・未分類」として susan 所持へ写す。
+     ここで落とすと spell 取り中のサポパ・精神が消えるため、無条件に保全する。 */
+  const deathPassiveNames = Array.isArray(window.DB?.death_passives) ? window.DB.death_passives.map((d) => d?.name) : [];
+  const seenSupport = new Set(next.roster.supports.map((s) => s.name));
+  for (const entry of Array.isArray(next.supports) ? next.supports : []) {
+    if (!entry?.name || seenSupport.has(entry.name)) continue;
+    seenSupport.add(entry.name);
+    const isDeath = deathPassiveNames.includes(entry.name);
+    next.roster.supports.push({
+      uid: entry.id || `spt-${Date.now()}-${next.roster.supports.length}`,
+      name: String(entry.name),
+      cond: String(entry.cond || ""),
+      effect: String(entry.effect || ""),
+      lp: String(entry.lp || ""),
+      slot: isDeath ? "death" : "normal",
+      equipped: true,
+      resultId: null,
+      addedAt: Date.now(),
+      notes: ""
+    });
+  }
+  if (next.deathSupport?.name && !seenSupport.has(next.deathSupport.name)) {
+    seenSupport.add(next.deathSupport.name);
+    const isDeath = deathPassiveNames.includes(next.deathSupport.name);
+    next.roster.supports.push({
+      uid: next.deathSupport.id || `spt-${Date.now()}-${next.roster.supports.length}`,
+      name: String(next.deathSupport.name),
+      cond: String(next.deathSupport.cond || ""),
+      effect: String(next.deathSupport.effect || ""),
+      lp: String(next.deathSupport.lp || ""),
+      slot: isDeath ? "death" : "normal",
+      equipped: true,
+      resultId: null,
+      addedAt: Date.now(),
+      notes: ""
+    });
+  }
+  const seenSpirit = new Set(next.roster.spirits.map((s) => s.name));
+  if (typeof next.spirit === "string" && next.spirit && !seenSpirit.has(next.spirit)) {
+    next.roster.spirits.push({
+      uid: makeOwnedUid("spr"),
+      name: next.spirit,
+      equipped: true,
+      resultId: null,
+      addedAt: Date.now(),
+      notes: ""
+    });
+  }
+  /* 装備スロットは所持の投影。所持を書き換えたら必ずここで整合させる。 */
+  /* 旧保存データの通帳を正規化する。残高は保存しないので個別の値だけ整える。
+     歸属先の無い明細と、存在しないリザルトを指す明細は未分類へ戻す。
+     リザルトを消しても明細は消さない。支出額が失われると残高が狂う。 */
+  if (!Array.isArray(next.results)) next.results = [];
+  if (!Array.isArray(next.entries)) next.entries = [];
+  /* 抽出リストは追記のみ。移行が記録を書き換えるとハッシュ鎖が切れるため、
+     不正な要素を落とす以外は触らない（検証はバッチ側の verifyBatch が行う）。 */
+  if (!Array.isArray(next.draws)) next.draws = [];
+  next.draws = next.draws.filter((batch) => batch && typeof batch === "object" && Array.isArray(batch.records));
+  next.results = next.results.map((result) => ({
+    ...result,
+    id: result.id || makeOwnedUid("res"),
+    name: String(result.name || "").slice(0, 80),
+    date: String(result.date || "").slice(0, 10),
+    income: normalizeCurrency(result.income),
+    note: String(result.note || "")
+  }));
+  const knownResultIds = new Set(next.results.map((r) => r.id));
+  next.entries = next.entries.map((entry) => ({
+    ...entry,
+    id: entry.id || makeOwnedUid("ent"),
+    kind: String(entry.kind || "other"),
+    name: String(entry.name || "").slice(0, 120),
+    cost: normalizeCurrency(entry.cost),
+    resultId: knownResultIds.has(entry.resultId) ? entry.resultId : null,
+    ref: entry.ref && typeof entry.ref === "object" ? { kind: String(entry.ref.kind || ""), uid: String(entry.ref.uid || "") } : null
+  }));
+  /* サポート/精神の装備は人格ごとに違う。装備中の人格に保存ビルドがあるなら
+     それが正で、roster の投影（最後に開いた人格の装備）を当ててはいけない。
+     投影するのは保存ビルドが無い場合だけで、そのときはロードする側の既定になる。 */
+  const equippedEntry = (next.roster.personas || []).find((p) => p.equipped);
+  if (equippedEntry?.build) {
+    const refs = equippedEntry.build.equipmentRefs;
+    if (refs) next.roster = applyEquipmentRefs(next.roster, refs);
+    next.supports = Array.isArray(equippedEntry.build.supports) ? cloneJSON(equippedEntry.build.supports) : [];
+    next.deathSupport = equippedEntry.build.deathSupport ? cloneJSON(equippedEntry.build.deathSupport) : null;
+    next.spirit = equippedEntry.build.spirit ?? "";
+    next.spiritMorale = equippedEntry.build.spiritMorale ?? "";
+    next.spiritConfuse = equippedEntry.build.spiritConfuse ?? "";
+    next.spiritAlways = equippedEntry.build.spiritAlways ?? "";
+  } else {
+    Object.assign(next, projectEquipmentFromRoster(next.roster));
+  }
   // 導入済みアイテムはビルド固有の所持状態。旧保存データには空配列を補完する。
   if (!Array.isArray(next.inventory)) next.inventory = [];
+  if (!Array.isArray(next.initialItems)) next.initialItems = [];
+  next.initialItems = [...new Set(next.initialItems.map((id) => String(id || "").trim()).filter(Boolean))];
   next.inventory = next.inventory.filter((entry) => entry && entry.itemId).map((entry) => ({
     uid: entry.uid || `it-${Date.now()}-${entry.itemId}`,
     itemId: String(entry.itemId),
     quantity: Math.min(99, Math.max(1, Number.parseInt(entry.quantity, 10) || 1)),
     memo: entry.memo !== false,
-    palette: entry.palette !== false
+    palette: entry.palette !== false,
+    /* origin は「初期枠から来たのか、買ったのか」。旧保存データは買った側。 */
+    origin: entry.origin === "initial" ? "initial" : "acquired"
   }));
   // オリジナルアイテムは公式DBとは別にビルドへ保存する。空名称・重複IDは除外する。
   const seenCustomItemIds = new Set();
@@ -877,9 +1136,192 @@ function normalizeStateShape(raw) {
   // V65r63: 旧既定の固定値12を、SAN最大値の25%という定義どおりの自動計算へ戻す。
   migrateLegacyMoraleLine(next);
   next.egoSlots = normalizeEgoSlots(next.egoSlots);
+  /* 無料の精神は初めから持つ。ここ是不够していた場合の補完であり、
+     購入ではないので明細は立てない。 */
+  const roster = next.roster || (next.roster = {});
+  const spiritList = Array.isArray(roster.spirits) ? roster.spirits : (roster.spirits = []);
+  const ownedSpirit = new Set(spiritList.map((s) => s && s.name));
+  for (const seed of initialFreeSpirits()) {
+    if (!ownedSpirit.has(seed.name)) spiritList.push(seed);
+  }
+  /* 保存済みデータに、ごみ箱時代の trashedAt が残っていることがある。
+     復元用の面はない（削除は Undo/Redo が生む）ので、その場で通常明細へ戻す。
+     黙って残額から抜くと「消えた支出」に見えるため、見える形で落とす。 */
+  if ((next.entries || []).some((e) => e && e.trashedAt != null)) {
+    next.entries = next.entries.map((e) => {
+      if (!e || e.trashedAt == null) return e;
+      const { trashedAt, ...rest } = e;
+      return rest;
+    });
+  }
   return normalizeStatusCollections(next);
 }
+/* 残高は保存しない。収入合計から支出合計を引くだけなので、
+   歸属を直すとこの値が動く。明細の歸属を直せば連載ごとに収支を説明できる。 */
+/* ---- 価格の導出 ------------------------------------------------------
+   通帳へ自動記録するのは「DB が価格を持つもの」だけ。
+   アイテムは価格文字列（"15LP"・"50欠片"・"10LP 30SHARD" など）、強化と精神と
+   死亡後サポパは欠片、通常サポパは LP の数値。表記の解釈は parsePriceText に
+   一任する。価格は独立した保存値を持たせない。
+   値が変わっても明細が古びないよう、表示時に DB から引く。 */
+/* 明細の表示名。公式DBにあれば公式名、なければ保存在使う。 */
+function ownedName(itemId) {
+  const official = (window.DB?.items || []).find((i) => i.id === itemId);
+  if (official?.name) return String(official.name);
+  const custom = (window.LBT_customItems || []).find((i) => i.id === itemId);
+  return String(custom?.name || itemId || "");
+}
+/* 価格表記を LP と欠片に分けて読む。単位語（LP・SHARD・欠片・欠）が
+   指す通貨へ数字を割り当て、単位語の無い素の数字は defaultUnit
+   （"lp"|"shards"、既定はLP）へ倒す。読み取れない表記は0に落とす。
+   最後は必ず normalizeCurrency を通すので、ここより下に負や NaN が
+   漏れない。この1関数が価格文字列の唯一の解釈経路である
+   （shop 表示や取り込み側も window.LBT_parsePriceText を使う）。 */
+function parsePriceText(raw, defaultUnit) {
+  if (typeof raw === "number") return normalizeCurrency(defaultUnit === "shards" ? { shards: raw } : { lp: raw });
+  if (typeof raw !== "string") return normalizeCurrency(raw);
+  const text = raw.trim();
+  if (!text) return { lp: 0, shards: 0 };
+  /* 数字と単位語は「隣り合う対」で読み、左から順に消費する。
+     先読みで結合を決めないので "LP10 SHARD30" の 10 が SHARD 側へ
+     溢れない。各通貨は最初に見つかった対を採る。 */
+  let lp = 0;
+  let shards = 0;
+  for (const m of text.matchAll(/(\d+)\s*(?:LP|SHARD|欠片|欠)|(?:LP|SHARD|欠片|欠)\s*(\d+)/gi)) {
+    const amount = m[1] !== undefined ? m[1] : m[2];
+    const unit = m[0].replace(/\d+/g, "").replace(/\s+/g, "");
+    if (/SHARD|欠/i.test(unit)) { if (!shards) shards = amount; }
+    else if (!lp) lp = amount;
+  }
+  if (lp || shards) return normalizeCurrency({ lp, shards });
+  const bare = text.match(/^(\d+)$/);
+  return normalizeCurrency(bare ? (defaultUnit === "shards" ? { shards: bare[1] } : { lp: bare[1] }) : {});
+}
+window.LBT_parsePriceText = parsePriceText;
+function priceItemById(itemId) {
+  const item = (window.DB?.items || window.DB?.itemList || []).find((i) => i.id === itemId);
+  return parsePriceText(item?.price);
+}
+function priceEnhancement(group, name) {
+  const all = [...(window.DB?.normal_enhancements || []), ...(window.DB?.special_enhancements || [])];
+  const hit = all.find((e) => e.name === name && (!group || e.group === group));
+  return parsePriceText(hit?.shards, "shards");
+}
+function priceSpirit(name) {
+  const hit = (window.DB?.spirits || []).find((s) => s.name === name);
+  return parsePriceText(hit?.price, "shards");
+}
+function priceSupport(name, slot) {
+  if (slot === "death") {
+    const hit = (window.DB?.death_passives || []).find((s) => s.name === name);
+    return parsePriceText(hit?.shards, "shards");
+  }
+  const hit = (window.DB?.support_passives || []).find((s) => s.name === name);
+  return parsePriceText(hit?.lp, "lp");
+}
+function priceEgo(rank, no) {
+  const hit = (window.DB?.egos || []).find((e) => e.rank === rank && String(e.no) === String(no));
+  return parsePriceText(hit?.shards, "shards");
+}
+
+/* 明細の追記と除去。歸属は「直近のリザルト」で決める。
+   利用者が購入のたびにリザルトを選ばせるのは検算のたびに手续が増えるため、
+   最後に記録したリザルトへ倒し込む。リザルトが1件も無ければ分類できないので
+   未分類（resultId:null = 通帳の「未分類」欄＝待機項目）に置く。
+   明示的に resultId を渡せば常にそちらが勝つ（取り込み-batch は位置で渡す）。 */
+function latestResultId(state) {
+  const results = state?.results || [];
+  return results.length ? results[results.length - 1].id : null;
+}
+function appendLedgerEntry(state, detail) {
+  if (!detail || !detail.name) return state;
+  const resultId = detail.resultId === undefined ? latestResultId(state) : detail.resultId;
+  return {
+    ...state,
+    entries: [...(state.entries || []), {
+      id: makeOwnedUid("ent"),
+      kind: String(detail.kind || "other"),
+      name: String(detail.name).slice(0, 120),
+      cost: normalizeCurrency(detail.cost),
+      resultId: resultId || null,
+      ref: detail.ref || null,
+      at: Date.now(),
+      note: ""
+    }]
+  };
+}
+/* Entities から明細を戻す。所持を消したら支出も消す（残高を狂わせない）。 */
+function dropLedgerEntriesForRef(state, ref) {
+  if (!ref) return state;
+  const keep = (entry) => !(entry?.ref
+    && entry.ref.kind === ref.kind
+    && entry.ref.uid === ref.uid);
+  return { ...state, entries: (state.entries || []).filter(keep) };
+}
+
+function computeLedgerBalance(results, entries) {
+  let incomeLp = 0;
+  let incomeShards = 0;
+  for (const result of results || []) {
+    incomeLp += normalizeCurrency(result?.income).lp;
+    incomeShards += normalizeCurrency(result?.income).shards;
+  }
+  let spentLp = 0;
+  let spentShards = 0;
+  let unclassified = 0;
+  for (const entry of entries || []) {
+    const cost = normalizeCurrency(entry?.cost);
+    spentLp += cost.lp;
+    spentShards += cost.shards;
+    if (!entry?.resultId) unclassified += 1;
+  }
+  return {
+    lp: incomeLp - spentLp,
+    shards: incomeShards - spentShards,
+    incomeLp,
+    incomeShards,
+    spentLp,
+    spentShards,
+    unclassified
+  };
+}
+window.LBT_computeLedgerBalance = computeLedgerBalance;
+window.LBT_latestResultId = latestResultId;
 window.LBT_normalizeStateShape = normalizeStateShape;
+
+/* 購入できるかを残高で判定する。
+   商店は「所持にできてから使う」のが前提なので、残高が足りなければ
+   購入そのものを止めない。残高がマイナスなのは「まだ収入を記録していない」
+   状態であり、そこで全部を弾くと新規ユーザーは何も買えなくなる。
+   したがって「収入記録が1件もないときだけ無制限、記録済みの後は残高で止める」。 */
+function purchaseAffordability(state, cost) {
+  const want = normalizeCurrency(cost);
+  const balance = computeLedgerBalance(state?.results || [], state?.entries || []);
+  const tracked = ((state?.results || []).length > 0);
+  const ok = !tracked || (balance.lp >= want.lp && balance.shards >= want.shards);
+  const short = [];
+  if (tracked && balance.lp < want.lp) short.push(`LP ${balance.lp} / 必要 ${want.lp}`);
+  if (tracked && balance.shards < want.shards) short.push(`欠片 ${balance.shards} / 必要 ${want.shards}`);
+  return { ok, tracked, lp: balance.lp, shards: balance.shards, need: want, reason: ok ? "" : `残高が不足しています（${short.join("・")}）` };
+}
+window.LBT_purchaseAffordability = purchaseAffordability;
+
+/* 購入 action がNovaokuする金額。null は「購入ではない操作」 뜻。 */
+function purchaseCostOf(state, action) {
+  if (action.type === "ADD_ROSTER") return action.purchase ? normalizeCurrency(action.cost) : null;
+  if (action.type === "ADD_ROSTER_EGO") return action.purchase ? priceEgo(action.rank, action.no) : null;
+  if (action.type === "ADD_ITEM") return priceItemById(action.itemId);
+  if (action.type === "ADD_ROSTER_SUPPORT") {
+    const spp = action.spp || {};
+    return normalizeCurrency({ lp: spp.lp });
+  }
+  if (action.type === "ADD_ROSTER_SPIRIT") {
+    const spirit = action.spirit || {};
+    return normalizeCurrency({ shards: spirit.price });
+  }
+  return null;
+}
+window.LBT_purchaseCostOf = purchaseCostOf;
 /* ---------------------------------------------------------------------------
    ローカルアカウント（= キャラクター単位の保存領域）。
 
@@ -1092,6 +1534,24 @@ function saveActiveAccountState(state, accountId) {
   if (accounts.some((entry) => entry.id === targetId)) writeAccountsIndex(accounts);
   return true;
 }
+/* 無料（price 0）の精神は最初から持っているものとして数える。
+   「初期選択可」は選ぶかどうかの表示ではなく、初めからあるもの。
+   有料のものだけ roster に入る。明細は立てない（購入ではない）。 */
+function initialFreeSpirits() {
+  const list = (window.DB && window.DB.spirits) || [];
+  const free = list.filter((s) => s && s.name && !(Number(s.price) > 0));
+  if (!free.length) return [];
+  return free.map((s, i) => ({
+    uid: `spr-init-${i}-${String(s.name).replace(/[^\w-]+/g, "")}`,
+    name: s.name,
+    equipped: false,
+    resultId: null,
+    addedAt: 0,
+    origin: "initial",
+    notes: ""
+  }));
+}
+
 function createAccount(name, purpose) {
   const index = readAccountsIndex();
   const now = Date.now();
@@ -1102,7 +1562,9 @@ function createAccount(name, purpose) {
     createdAt: now,
     updatedAt: now
   }, index.accounts.length);
-  if (!writeStorageRaw(ACCOUNT_PREFIX + account.id, JSON.stringify({ schemaVersion: SAVE_SCHEMA_VERSION }))) return null;
+  /* 新規アカウントは高級な精神が既に。そこに明细は立てない。 */
+  const seed = { schemaVersion: SAVE_SCHEMA_VERSION, roster: { spirits: initialFreeSpirits() } };
+  if (!writeStorageRaw(ACCOUNT_PREFIX + account.id, JSON.stringify(seed))) return null;
   if (!writeAccountsIndex([...index.accounts, account])) {
     removeStorageRaw(ACCOUNT_PREFIX + account.id);
     return null;
@@ -1262,11 +1724,35 @@ const INIT_STATE = {
   roster: {
     personas: [],
     // {uid, no, mode, syncRank:'0'|'00'|'000'|null, syncMax:bool, lcb:bool, equipped:bool, notes}
-    egos: []
+    egos: [],
     // {uid, no, rank, analyzed:bool, analyzeMax:bool, notes}
+    /* サポートパッシブと精神も所持モデルへ統合する。人格・E.G.O は所持一覧が
+       あるが、この2つは装備スロットしか無く、所持と歸属（リザルト）を持てなかった。
+       equipped は装備中、resultId は歸属先のリザルト（null=未分類）。 */
+    supports: [],
+    // {uid, name, cond, effect, lp, slot:'normal'|'death', equipped:bool, resultId:string|null, addedAt:number, notes}
+    spirits: []
+    // {uid, name, equipped:bool, resultId:string|null, addedAt:number, notes}
   },
-  // DB由来のアイテムをビルドへ導入した一覧。{uid,itemId,quantity,memo,palette}
+  /* 通帳。リザルト（1回の周回）と、その収支明細。
+     所持・強化・アイテムはすべて entries（明細）として書き出し、
+     どのリザルトで入手したかは resultId が持つ。resultId が null の明細は
+     「未分類」。income は利用者が獲得額だけ入力する（自動取得はしない）。
+     残高は保存せず全リザルトの収入から全明細の支出を引いて導出する。 */
+  results: [],
+  // [{id, name, date, income:{lp,shards}, note, createdAt, updatedAt}]
+  entries: [],
+  // [{id, kind, name, cost:{lp,shards}, resultId, at, note}]
+  /* 抽出リスト。ガチャ結果をバッチ単位で保存する（結果と錨を紐付ける）。
+     改ざん検出の鎖はバッチ側（gacha.js）が持ち、ここは追記のみ行う。
+     旧保存データには無いので hydrate で空配列を補完する。 */
+  draws: [],
+  // [{batchId, kind, count, commit, serverSeed, clientSeed, rolls, records, batchHash, beacon, rulesetHash, signature?}]
+  // DB由来のアイテムをビルドへ導入した一覧。{uid,itemId,quantity,memo,palette,origin}
   inventory: [],
+  /* 初期枠として定義したアイテムID。ここに載ったものは購入ではなく
+     「最初から所持している」ものとして取り込み、明細を起こさない。 */
+  initialItems: [],
   // ユーザー作成アイテム。公式data/items.jsonとは別に保存し、公式DBは変更しない。
   customItems: [],
   // Enhancements
@@ -1339,6 +1825,14 @@ const INIT_STATE = {
   }
 };
 function appReducer(state, action) {
+  /* 購入系は残高が足りなければ行わない。UI で無効化するだけでは、
+     他の入口（自動登録・取り込み）から通過する経路が残るため 这里で止める。 */
+  if (action.type === "ADD_ROSTER" || action.type === "ADD_ROSTER_EGO"
+    || action.type === "ADD_ITEM" || action.type === "ADD_ROSTER_SUPPORT"
+    || action.type === "ADD_ROSTER_SPIRIT") {
+    const cost = purchaseCostOf(state, action);
+    if (cost && !purchaseAffordability(state, cost).ok) return state;
+  }
   switch (action.type) {
     case "SET_FIELD": {
       const next = { ...state, [action.field]: action.value };
@@ -1364,6 +1858,9 @@ function appReducer(state, action) {
       return normalizeStatusCollections({ ...state, pas: { ...state.pas, ...action.patch } });
     case "PATCH_PAS2":
       return normalizeStatusCollections({ ...state, pas2: { ...state.pas2, ...action.patch } });
+    /* 精神の手動入力（旧UIの退路）。所持へは写さず、装備投影のみを書き換える。
+       所持一覧に無い精神が装備できる状態になりうるため、新規UIは
+       APPLY_SPIRIT / REMOVE_ROSTER_SPIRIT を使う。 */
     case "PATCH_SPIRIT":
       return { ...state, ...action.patch };
     case "RESET":
@@ -1396,7 +1893,7 @@ function appReducer(state, action) {
         "hp","san","speed","bullets","resS","resP","resB","spirit","spiritMorale","spiritConfuse","spiritAlways",
         "pas","pas2Enabled","pas2","uniqueBuffs","skills","egoSlots","supports","deathSupport","roster",
         "enhancements","customStatuses","defaultStatuses","formulas","builtinFormulasOverride","autoFml",
-        "moraleLine","extraCmd","outputExclude","shareOptions","paletteOptions","inventory","customItems",
+        "moraleLine","extraCmd","outputExclude","shareOptions","paletteOptions","results","entries","inventory","customItems",
         "favorites","historyRecent"];
       // 別端末移行（exportState/importStateFromFile）は favorites と historyRecent を
       // 出力に含む。許可リストから漏れると、移行先で★と履歴だけが黙って失われる。
@@ -1492,7 +1989,7 @@ function appReducer(state, action) {
         deathSupport: null,
         egoSlots: { ZAYIN: null, TETH: null, HE: null, WAW: null, ALEPH: null },
         enhancements: [],
-        inventory: [],
+        inventory: state.inventory,
         pas2Enabled: false,
         pas2: { name: "", cond: "", always: "", effect: "" },
         hp: String(src.hp || ""),
@@ -1528,8 +2025,12 @@ function appReducer(state, action) {
       // （精神・サポートパッシブ・E.G.O・スキル・固有バフ・強化を人格ごとに割り振り保持）
       if (savedBuild) {
         const b = savedBuild;
+        /* 人格ごとに「どのサポート/精神を付けているか」を roster へ押し戻す。
+           戻さないと別人格の装備がそのまま残って人格を跨いで混ざる。 */
+        const rosterForPersona = b.equipmentRefs ? applyEquipmentRefs(base.roster, b.equipmentRefs) : base.roster;
         return normalizeStatusCollections({
           ...base,
+          roster: rosterForPersona,
           hp: b.hp ?? base.hp,
           san: b.san ?? base.san,
           speed: b.speed ?? base.speed,
@@ -1551,7 +2052,7 @@ function appReducer(state, action) {
           deathSupport: b.deathSupport ? cloneJSON(b.deathSupport) : null,
           egoSlots: b.egoSlots ? cloneJSON(b.egoSlots) : base.egoSlots,
           enhancements: Array.isArray(b.enhancements) ? cloneJSON(b.enhancements) : [],
-          inventory: Array.isArray(b.inventory) ? cloneJSON(b.inventory) : [],
+          /* アイテムは人格を跨いで共有する。ビルド側で選択する。 */
           personaSrc: b.personaSrc ? { ...cloneJSON(b.personaSrc), skills: migrateLegacyDerivedSkills(b.personaSrc.skills || [], src.skills || []) } : base.personaSrc,
           syncedManual: !!b.syncedManual,
           // V06: 人格ごとの代入式・ステータス関係を復元
@@ -1598,27 +2099,54 @@ function appReducer(state, action) {
       return { ...state, favorites: has ? state.favorites.filter((x) => x !== k) : [...state.favorites, k] };
     }
     /* ---- Roster ---- */
+    /* 所持への追加。人格は DB 価格が無いため、purchase に core ルールの金額
+       （抽出/購入）を渡されたときだけ明細を立てる。所持だけの操作は
+       明細を立てない（UTO など明細の要らない経路もあるため）。 */
     case "ADD_ROSTER": {
       const { mode, no } = action;
       const uniqKey = `${mode}:${no}`;
       if (state.roster.personas.some((p) => `${p.mode}:${p.no}` === uniqKey)) return state;
-      return { ...state, roster: { ...state.roster, personas: [
-        ...state.roster.personas,
-        { uid: `pr-${Date.now()}`, no, mode, syncRank: null, syncMax: false, lcb: false, equipped: false, notes: "" }
-      ] } };
+      const uid = `pr-${Date.now()}`;
+      const entry = { uid, no, mode, syncRank: null, syncMax: false, lcb: false, equipped: false, notes: "" };
+      const next = { ...state, roster: { ...state.roster, personas: [...state.roster.personas, entry] } };
+      if (!action.purchase) return next;
+      const persona = (mode === "t" ? window.DB?.tokui_personas : window.DB?.normal_personas || []).find((p) => String(p.no) === String(no));
+      /* resultId の明示指定は常に勝つ（appendLedgerEntry の契約）。未指定なら
+         appendLedgerEntry が Support/EGO/Item/Spirit と同じ「直近のリザルト」へ
+         倒すので、人格だけ帰属が違うことはない。 */
+      return appendLedgerEntry(next, {
+        kind: "persona",
+        name: persona?.name || `人格 ${mode.toUpperCase()} No.${no}`,
+        cost: normalizeCurrency(action.cost),
+        resultId: action.resultId,
+        ref: { kind: "rosterPersona", uid }
+      });
     }
-    /* V23: 所持EGO一覧への追加・削除（人格の ADD_ROSTER / REMOVE_ROSTER に相当） */
+    /* V23: 所持EGO一覧への追加・削除（人格の ADD_ROSTER / REMOVE_ROSTER に相当）
+       purchase=true はショップ経由の購入。装备（SET_EGO_SLOT）からの
+       自動登録では明細を立てない（購入と二重請求になるため）。 */
     case "ADD_ROSTER_EGO": {
       const { rank, no } = action;
-      if ((state.roster.egos || []).some((e) => e.rank === rank && e.no === no)) return state;
-      const egos = [...(state.roster.egos || []), { uid: `er-${Date.now()}`, no, rank, analyzed: false, analyzeMax: false, notes: "", build: null }];
-      return { ...state, roster: { ...state.roster, egos } };
+      if ((state.roster.egos || []).some((e) => e.rank === rank && String(e.no) === String(no))) return state;
+      const uid = `er-${Date.now()}`;
+      const egos = [...(state.roster.egos || []), { uid, no, rank, analyzed: false, analyzeMax: false, notes: "", build: null }];
+      const next = { ...state, roster: { ...state.roster, egos } };
+      if (!action.purchase) return next;
+      const ego = (window.DB?.egos || []).find((e) => e.rank === rank && String(e.no) === String(no));
+return appendLedgerEntry(next, {
+      kind: "ego",
+      name: ego?.name || `E.G.O ${rank} No.${no}`,
+      cost: priceEgo(rank, no),
+      resultId: action.resultId,
+      ref: { kind: "rosterEgo", uid }
+    });
     }
     case "REMOVE_ROSTER_EGO": {
       const entry = (state.roster.egos || []).find((e) => e.uid === action.uid);
       if (entry?.build?.__custom && (!action.deleteCustomConfirmed || state.egoSlots?.[entry.rank]?.no === entry.no)) return state;
       const egos = (state.roster.egos || []).filter((e) => e.uid !== action.uid);
-      return { ...state, roster: { ...state.roster, egos } };
+      /* ショップで購入したものは所持から外すと同額の支出を戻す。 */
+      return dropLedgerEntriesForRef({ ...state, roster: { ...state.roster, egos } }, { kind: "rosterEgo", uid: action.uid });
     }
     case "REMOVE_ROSTER_BATCH": {
       const ids = new Set(action.uids || []);
@@ -1679,16 +2207,78 @@ function appReducer(state, action) {
       const existing = current.find((entry) => entry.itemId === itemId);
       const inventory = existing
         ? current.map((entry) => entry.itemId === itemId ? { ...entry, quantity: clampItemQuantity(state, itemId, (Number(entry.quantity) || 1) + 1) } : entry)
-        : [...current, { uid: `it-${Date.now()}-${itemId}`, itemId, quantity: 1, memo: true, palette: true }];
-      return { ...state, inventory };
+        : [...current, { uid: `it-${Date.now()}-${itemId}`, itemId, quantity: 1, memo: true, palette: true, origin: "acquired" }];
+      const next = { ...state, inventory };
+      /* 導入した時だけ明細を足す。個数の増加では個別に買っていないため、
+         増やした分は足さない（所持数の増減と支出がずれるのを防ぐ）。 */
+      if (existing) return next;
+      const owned = next.inventory.find((entry) => entry.itemId === itemId);
+      return appendLedgerEntry(next, {
+        kind: "item",
+        name: ownedName(itemId),
+        cost: priceItemById(itemId),
+        resultId: action.resultId,
+        ref: { kind: "inventory", uid: owned?.uid || itemId }
+      });
     }
     case "PATCH_ITEM": {
       const inventory = (state.inventory || []).map((entry) => entry.uid === action.uid ? { ...entry, ...action.patch, quantity: clampItemQuantity(state, entry.itemId, action.patch?.quantity ?? entry.quantity) } : entry);
       return { ...state, inventory };
     }
-    case "REMOVE_ITEM":
-      return { ...state, inventory: (state.inventory || []).filter((entry) => entry.uid !== action.uid) };
-    case "ADD_CUSTOM_ITEM": {
+    case "REMOVE_ITEM": {
+      const target = (state.inventory || []).find((entry) => entry.uid === action.uid);
+      /* 所持を消したら支出も消す。残しておけば残高（収入−支出）が狂う。 */
+      return dropLedgerEntriesForRef({ ...state, inventory: (state.inventory || []).filter((entry) => entry.uid !== action.uid) },
+        target ? { kind: "inventory", uid: target.uid } : null);
+    }
+    /* 初期枠の定義。どのアイテムを「最初から持っている」ものとするかの集合で、
+       所持そのものではない（取り込みは APPLY_INITIAL_ITEMS が行う）。 */
+    case "SET_INITIAL_ITEMS": {
+      const ids = Array.isArray(action.ids) ? action.ids : [];
+      const cleaned = [...new Set(ids.map((id) => String(id || "").trim()).filter(Boolean))];
+      return { ...state, initialItems: cleaned };
+    }
+    /* 初期枠を所持として取り込む。既に所持しているものは触らず、
+       支払っていないので明細も起こさない（残高を狂わせない）。 */
+    case "APPLY_INITIAL_ITEMS": {
+      const current = Array.isArray(state.inventory) ? state.inventory : [];
+      const owned = new Set(current.map((entry) => entry.itemId));
+      const wanted = (Array.isArray(state.initialItems) ? state.initialItems : []).filter((id) => !owned.has(id));
+      if (wanted.length === 0) return state;
+      const seeded = wanted.map((itemId) => ({
+        uid: makeOwnedUid("it"),
+        itemId,
+        quantity: 1,
+        memo: true,
+        palette: true,
+        origin: "initial"
+      }));
+      return { ...state, inventory: [...current, ...seeded] };
+    }
+    /* 精神の初期枠。アイテムと同じ考えだが、精神は「買うもの」ではなく
+   「装備するもの」なので所持へ送るだけで、明細は立てない（購入と数えない）。 */
+case "SET_INITIAL_SPIRITS": {
+  const names = Array.isArray(action.names) ? action.names : [];
+  const cleaned = [...new Set(names.map((name) => String(name || "").trim()).filter(Boolean))];
+  return { ...state, initialSpirits: cleaned };
+}
+case "APPLY_INITIAL_SPIRITS": {
+  const current = Array.isArray(state.roster?.spirits) ? state.roster.spirits : [];
+  const owned = new Set(current.map((entry) => entry.name));
+  const wanted = (Array.isArray(state.initialSpirits) ? state.initialSpirits : []).filter((name) => !owned.has(name));
+  if (wanted.length === 0) return state;
+  const roster = [...current, ...wanted.map((name) => ({
+    uid: makeOwnedUid("spr"),
+    name,
+    equipped: false,
+    resultId: null,
+    addedAt: Date.now(),
+    origin: "initial",
+    notes: ""
+  }))];
+  return { ...state, roster: { ...state.roster, spirits: roster } };
+}
+case "ADD_CUSTOM_ITEM": {
       const raw = action.item || {};
       const name = String(raw.name || "").trim().slice(0, 80);
       if (!name) return state;
@@ -1835,9 +2425,12 @@ function appReducer(state, action) {
       }
       let rosterEgos = [...(state.roster?.egos || [])];
       // 装備は所持の確定行為として扱う。解析を終える前でもライブラリから再選択できるようにする。
-      if (nextValue && !rosterEgos.some((entry) => entry.rank === action.rank && entry.no === nextValue.no)) {
-        rosterEgos.push({ uid: `er-${Date.now()}`, no: nextValue.no, rank: action.rank, analyzed: false, analyzeMax: false, notes: "", build: null });
-      }
+if (nextValue && !action.preview && !rosterEgos.some((entry) => entry.rank === action.rank && entry.no === nextValue.no)) {
+      rosterEgos.push({ uid: `er-${Date.now()}`, no: nextValue.no, rank: action.rank, analyzed: false, analyzeMax: false, notes: "", build: null });
+    }
+    /* 試着は所持に触れない枠。名录にも明細にも出ないので、「買ったつもり」が
+       静かに所持へ混ざらないようにする。 */
+    if (nextValue && action.preview) nextValue = { ...nextValue, __preview: true };
       const nextEgoSlots = normalizeEgoSlots({ ...state.egoSlots, [action.rank]: nextValue });
       // 装備・付け替え・解除はどれも直接編集を終了する。解除後に別スロットの詳細へ
       // 編集状態だけが残り、クリック一回で解析面が表示されることを防ぐ。
@@ -1910,21 +2503,361 @@ function appReducer(state, action) {
       list.splice(action.diceIdx, 1);
       return syncCustomEgoState({ ...state, egoSlots: normalizeEgoSlots({ ...state.egoSlots, [action.rank]: next }) });
     }
+    /* ---- 抽出リスト（ガチャ結果の保存所）----
+       結果と錨はバッチ単位で束ねて保存する。再計算や整形はしない
+       （移行が記録を書き換えるとハッシュ鎖が切れる）。 */
+    case "ADD_DRAW_BATCH": {
+      const batch = action.batch;
+      if (!batch || typeof batch !== "object" || !Array.isArray(batch.records)) return state;
+      return { ...state, draws: [...(state.draws || []), batch] };
+    }
     /* ---- Support ---- */
-    case "ADD_SUPPORT":
-      if ((action.spp?.name || "") && (state.supports.some((s) => s.name === action.spp.name) || state.deathSupport?.name === action.spp.name)) return state;
-      return { ...state, supports: [...state.supports, { id: `spp-${Date.now()}`, name: "", cond: "", effect: "", lp: "", ...action.spp }] };
-    case "PATCH_SUPPORT":
-      return { ...state, supports: state.supports.map((s) => s.id === action.id ? { ...s, ...action.patch } : s) };
-    case "REMOVE_SUPPORT":
-      return { ...state, supports: state.supports.filter((s) => s.id !== action.id) };
-    case "SET_DEATH_SUPPORT":
-      if (!action.spp) return { ...state, deathSupport: null };
-      if ((action.spp?.name || "") && state.supports.some((s) => s.name === action.spp.name)) return state;
-      return { ...state, deathSupport: { id: `sppd-${Date.now()}`, name: "", cond: "", effect: "", lp: "", ...action.spp } };
+    /* 装備の入口は所持（roster.supports）を経由する。未所持のものは
+       同時に所持へ写してから装備する。テレポートせずに装備できていた
+       経路を塞ぎ、所持一覧と裝備の食い違いを起こさない。 */
+    case "ADD_SUPPORT": {
+      const added = addRosterSupport(state, action.spp);
+      if (!added) return state;
+      return equipRosterSupport(added, added.roster.supports[added.roster.supports.length - 1].uid);
+    }
+    case "REMOVE_SUPPORT": {
+      const roster = state.roster || {};
+      const target = (roster.supports || []).find((s) => s.uid === action.id);
+      if (!target) return { ...state, supports: state.supports.filter((s) => s.id !== action.id) };
+      const supports = (roster.supports || []).filter((s) => s.uid !== action.id);
+      const next = { ...state, roster: { ...roster, supports } };
+      return { ...next, ...projectEquipmentFromRoster(next.roster) };
+    }
+    case "SET_DEATH_SUPPORT": {
+      if (!action.spp) {
+        const roster = state.roster || {};
+        const supports = (roster.supports || []).map((s) => (s.slot === "death" ? { ...s, equipped: false } : s));
+        const next = { ...state, roster: { ...roster, supports } };
+        return { ...next, ...projectEquipmentFromRoster(next.roster) };
+      }
+      const added = addRosterSupport(state, action.spp);
+      if (!added) return state;
+      const entry = [...added.roster.supports].reverse().find((s) => s.name === action.spp?.name);
+      if (!entry) return state;
+      return equipRosterSupport(added, entry.uid);
+    }
     case "PATCH_DEATH_SUPPORT":
       if (!state.deathSupport) return state;
       return { ...state, deathSupport: { ...state.deathSupport, ...action.patch } };
+    /* ---- 所持モデル（サポパ・精神）----
+       裝備は所持の投影なので、どの操作でも最後に projectEquipmentFromRoster を通す。
+       slot は「通常スロット」と「死亡後スロット」の別。同一名称は重複所持しない。 */
+    case "ADD_ROSTER_SUPPORT": {
+      const spp = action.spp || {};
+      const name = String(spp.name || "");
+      if (!name) return state;
+      const roster = state.roster || {};
+      const exists = (roster.supports || []).some((s) => s.name === name);
+      if (exists) return state;
+      const isDeath = isDeathSupportPassiveRecord({ name });
+      const entry = {
+        uid: makeOwnedUid("spt"),
+        name,
+        cond: String(spp.cond || ""),
+        effect: String(spp.effect || ""),
+        lp: String(spp.lp || ""),
+        slot: isDeath ? "death" : "normal",
+        equipped: false,
+        resultId: null,
+        addedAt: Date.now(),
+        notes: ""
+      };
+      const nextRoster = { ...roster, supports: [...(roster.supports || []), entry] };
+      const withEquipment = { ...state, roster: nextRoster, ...projectEquipmentFromRoster(nextRoster) };
+      /* 所持へ入れた時点で支出として明細を足す（価格はDBから引く）。 */
+      return appendLedgerEntry(withEquipment, {
+        kind: entry.slot === "death" ? "deathSupport" : "support",
+        name: entry.name,
+        cost: priceSupport(entry.name, entry.slot),
+        resultId: action.resultId,
+        ref: { kind: "rosterSupport", uid: entry.uid }
+      });
+    }
+    /* 硝子窓の所持まるごと取り込み。既存と重複する No は入れ替えない。 */
+    case "ADD_ROSTER_PERSONAS_BULK": {
+      const incoming = Array.isArray(action.personas) ? action.personas : [];
+      if (!incoming.length) return state;
+      const roster = state.roster || {};
+      const personas = [...(roster.personas || [])];
+      const seen = new Set(personas.map((p) => `${p.mode}:${p.no}`));
+      let next = state;
+      for (const item of incoming) {
+        const no = String(item?.no || "");
+        const mode = item?.mode === "t" ? "t" : "n";
+        const key = `${mode}:${no}`;
+        if (!no || seen.has(key)) continue;
+        seen.add(key);
+        personas.push({
+          uid: makeOwnedUid("pr"),
+          no,
+          mode,
+          syncRank: ["0", "00", "000"].includes(String(item?.syncRank || "")) ? String(item.syncRank) : null,
+          syncMax: item?.syncMax === true,
+          lcb: item?.lcb === true,
+          equipped: false,
+          resultId: null,
+          addedAt: Date.now(),
+          notes: ""
+        });
+      }
+      if (personas.length === (roster.personas || []).length) return state;
+      /* 取り込んだ人格は人格入手なので、通帳には明細を立てない。
+         DB に人格の価格が無いため、推測の費用を足すと残高を狂わせる。 */
+      return { ...state, roster: { ...roster, personas } };
+    }
+    case "REMOVE_ROSTER_SUPPORT": {
+      const roster = state.roster || {};
+      if (!(roster.supports || []).some((s) => s.uid === action.uid)) return state;
+      const supports = (roster.supports || []).filter((s) => s.uid !== action.uid);
+      const nextRoster = { ...roster, supports };
+      const next = { ...state, roster: nextRoster, ...projectEquipmentFromRoster(nextRoster) };
+      /* 所持から外したサポパは支出も戻す（残高を狂わせない）。 */
+      return dropLedgerEntriesForRef(next, { kind: "rosterSupport", uid: action.uid });
+    }
+    /* 装備は「外す」と「付ける」の2方向。通常スロットは最大2、死亡後は1。
+       上限を超える指定は既存の装備を外してから付ける（置き換え）。 */
+    case "SET_ROSTER_SUPPORT_EQUIPPED": {
+      const roster = state.roster || {};
+      const target = (roster.supports || []).find((s) => s.uid === action.uid);
+      if (!target) return state;
+      const equip = action.equipped !== false;
+      const limit = target.slot === "death" ? 1 : 2;
+      let supports = (roster.supports || []).map((s) => (
+        s.uid === action.uid ? { ...s, equipped: equip } : s
+      ));
+      if (equip) {
+        const sameSlot = supports.filter((s) => s.slot === target.slot && s.equipped);
+        if (sameSlot.length > limit) {
+          /* 先に付けたものから順に外し、最後の1件（操作対象）を残す。 */
+          const overflow = sameSlot.slice(0, sameSlot.length - limit);
+          const overflowUids = new Set(overflow.map((s) => s.uid));
+          supports = supports.map((s) => (overflowUids.has(s.uid) ? { ...s, equipped: false } : s));
+        }
+      }
+      const nextRoster = { ...roster, supports };
+      return { ...state, roster: nextRoster, ...projectEquipmentFromRoster(nextRoster) };
+    }
+    /* 枠の変更。移動先が埋まっている場合は、先に入っていたものを外す。
+       上限は移動先の slot で決まる（通常2 / 死亡後1）。 */
+    case "SET_ROSTER_SUPPORT_SLOT": {
+      const roster = state.roster || {};
+      const target = (roster.supports || []).find((s) => s.uid === action.uid);
+      if (!target) return state;
+      const slot = action.slot === "death" ? "death" : "normal";
+      if (target.slot === slot) return state;
+      const limit = slot === "death" ? 1 : 2;
+      const others = (roster.supports || []).filter((s) => s.uid !== action.uid && s.slot === slot && s.equipped);
+      const occupantUids = new Set(others.slice(0, Math.max(0, others.length + 1 - limit)).map((s) => s.uid));
+      const supports = (roster.supports || []).map((s) => {
+        if (s.uid === action.uid) return { ...s, slot, equipped: true };
+        if (occupantUids.has(s.uid)) return { ...s, equipped: false };
+        return s;
+      });
+      const nextRoster = { ...roster, supports };
+      return { ...state, roster: nextRoster, ...projectEquipmentFromRoster(nextRoster) };
+    }
+    case "SET_ROSTER_SUPPORT_RESULT": {
+      const roster = state.roster || {};
+      const supports = (roster.supports || []).map((s) => (
+        s.uid === action.uid ? { ...s, resultId: action.resultId || null } : s
+      ));
+      if (!(roster.supports || []).some((s) => s.uid === action.uid)) return state;
+      return { ...state, roster: { ...roster, supports } };
+    }
+    case "ADD_ROSTER_SPIRIT": {
+      const name = String(action.spirit?.name || "");
+      if (!name) return state;
+      const roster = state.roster || {};
+      if ((roster.spirits || []).some((s) => s.name === name)) return state;
+      const entry = {
+        uid: makeOwnedUid("spr"),
+        name,
+        equipped: false,
+        resultId: null,
+        addedAt: Date.now(),
+        notes: ""
+      };
+      const nextRoster = { ...roster, spirits: [...(roster.spirits || []), entry] };
+      const withEquipment = { ...state, roster: nextRoster, ...projectEquipmentFromRoster(nextRoster) };
+      /* 精神は欠片で買う。価格はDBから引く。 */
+      return appendLedgerEntry(withEquipment, {
+        kind: "spirit",
+        name: entry.name,
+        cost: priceSpirit(entry.name),
+        resultId: action.resultId,
+        ref: { kind: "rosterSpirit", uid: entry.uid }
+      });
+    }
+    /* 強化の購入。欠片はDB定义の shards をthermometerする。 */
+    case "ADD_ENHANCEMENT": {
+      const group = String(action.group || "");
+      const name = String(action.name || "");
+      if (!name) return state;
+      const current = state.enhancements || [];
+      if (current.some((e) => e.name === name && e.group === group)) return state;
+      const entry = {
+        id: makeOwnedUid("enh"),
+        group,
+        name,
+        effect: String(action.effect || ""),
+        shards: priceEnhancement(group, name).shards,
+        category: String(action.category || "")
+      };
+      const next = { ...state, enhancements: [...current, entry] };
+      return appendLedgerEntry(next, {
+        kind: "enhancement",
+        name,
+        cost: { shards: entry.shards },
+        resultId: action.resultId,
+        ref: { kind: "enhancement", uid: entry.id }
+      });
+    }
+    case "REMOVE_ENHANCEMENT": {
+      const target = (state.enhancements || []).find((e) => e.id === action.id);
+      if (!target) return state;
+      const next = { ...state, enhancements: (state.enhancements || []).filter((e) => e.id !== action.id) };
+      /* 強化を外したら支出も戻す（残高を狂わせない）。 */
+      return dropLedgerEntriesForRef(next, { kind: "enhancement", uid: action.id });
+    }
+    /* 所持から外したサポパ・精神は支出も戻す。 */
+    case "REMOVE_ROSTER_SPIRIT": {
+      const roster = state.roster || {};
+      if (!(roster.spirits || []).some((s) => s.uid === action.uid)) return state;
+      const spirits = (roster.spirits || []).filter((s) => s.uid !== action.uid);
+      const nextRoster = { ...roster, spirits };
+      const next = { ...state, roster: nextRoster, ...projectEquipmentFromRoster(nextRoster) };
+      /* 所持から外した精神は支出も戻す。 */
+      return dropLedgerEntriesForRef(next, { kind: "rosterSpirit", uid: action.uid });
+    }
+    /* ---- 通帳（リザルトと収支明細）---- 残高は保存しない。収入合計から支出合計を引くだけなので、歸属を直せばリザルトごとに収支が説明できる。 */
+    case "ADD_RESULT": {
+      const now = Date.now();
+      return {
+        ...state,
+        results: [...(state.results || []), {
+          id: makeOwnedUid("res"),
+          name: String(action.name || "").slice(0, 80) || "無題",
+          date: String(action.date || new Date().toISOString().slice(0, 10)).slice(0, 10),
+          income: normalizeCurrency(action.income),
+          note: String(action.note || "").slice(0, 2000),
+          createdAt: now,
+          updatedAt: now
+        }]
+      };
+    }
+    case "PATCH_RESULT":
+      return {
+        ...state,
+        results: (state.results || []).map((r) => (r.id === action.id
+          ? {
+              ...r,
+              ...(action.patch?.name !== void 0 ? { name: String(action.patch.name).slice(0, 80) } : {}),
+              ...(action.patch?.date !== void 0 ? { date: String(action.patch.date).slice(0, 10) } : {}),
+              ...(action.patch?.note !== void 0 ? { note: String(action.patch.note).slice(0, 2000) } : {}),
+              ...(action.patch?.income !== void 0 ? { income: normalizeCurrency(action.patch.income) } : {}),
+              updatedAt: Date.now()
+            }
+          : r))
+      };
+    /* リザルトを消しても明細は消さない。歸属先を失うだけで、
+       支出額はいずれリザルトで使った feasibly 分でも shouldn’t 消えるため。 */
+    /* リザルトを消したら、そのリザルトに紐づく明細も消す。
+       かつ未分類へ戻すと、削除した支出が別の予算に紛れ込んで
+       「消したのにまだ残っている」ように見える。削除なら削除。 */
+    case "REMOVE_RESULT":
+      return {
+        ...state,
+        results: (state.results || []).filter((r) => r.id !== action.id),
+        entries: (state.entries || []).filter((e) => e.resultId !== action.id)
+      };
+    
+/* 取り込みは 1 手で終わらせる。複数の action を順に適用し、
+     「ADD_RESULT の直後に続く ADD_ENTRY はそのリザルトに歸属する」という
+     紐付けをこの中で解決する。利用者からは UNDO 1 回で全部戻る。 */
+    case "APPLY_IMPORT_BATCH": {
+      let next = state;
+      let lastResultId = null;
+      for (const sub of action.actions || []) {
+        if (!sub || typeof sub !== "object") continue;
+        if (sub.type === "ADD_RESULT") {
+          lastResultId = null;
+          next = appReducer(next, sub);
+          const added = next.results[next.results.length - 1];
+          lastResultId = added ? added.id : null;
+          continue;
+        }
+        if (sub.type === "ADD_ENTRY" && lastResultId && !sub.resultId) {
+          next = appReducer(next, { ...sub, resultId: lastResultId });
+          continue;
+        }
+        const applied = appReducer(next, sub);
+        /* 未知の action は state を返さない。その場合は取り込み前の値に戻す。 */
+        next = applied && applied.roster ? applied : next;
+      }
+      return next;
+    }
+
+case "ADD_ENTRY":
+      return {
+        ...state,
+        entries: [...(state.entries || []), {
+          id: makeOwnedUid("ent"),
+          kind: String(action.kind || "other"),
+          name: String(action.name || "").slice(0, 120),
+          cost: normalizeCurrency(action.cost),
+          resultId: action.resultId || null,
+          ref: action.ref && typeof action.ref === "object" ? { kind: String(action.ref.kind || ""), uid: String(action.ref.uid || "") } : null,
+          at: Number(action.at) || Date.now(),
+          note: String(action.note || "").slice(0, 2000)
+        }]
+      };
+    case "PATCH_ENTRY":
+      return {
+        ...state,
+        entries: (state.entries || []).map((e) => (e.id === action.id
+          ? {
+              ...e,
+              ...(action.patch?.name !== void 0 ? { name: String(action.patch.name).slice(0, 120) } : {}),
+              ...(action.patch?.cost !== void 0 ? { cost: normalizeCurrency(action.patch.cost) } : {}),
+              ...(action.patch?.resultId !== void 0 ? { resultId: action.patch.resultId || null } : {}),
+              ...(action.patch?.note !== void 0 ? { note: String(action.patch.note).slice(0, 2000) } : {})
+            }
+          : e))
+      };
+    /* 歸属の差し替え。ドラッグ&ドロップはこの1つだけを呼ぶ。 */
+    case "SET_ENTRY_RESULT": {
+      const entries = (state.entries || []).map((e) => (e.id === action.id ? { ...e, resultId: action.resultId || null } : e));
+      if (!(state.entries || []).some((e) => e.id === action.id)) return state;
+      return { ...state, entries };
+    }
+  case "PURGE_ENTRY":
+    if (!(state.entries || []).some((e) => e.id === action.id)) return state;
+    return { ...state, entries: (state.entries || []).filter((e) => e.id !== action.id) };
+  case "REMOVE_ENTRY":
+      if (!(state.entries || []).some((e) => e.id === action.id)) return state;
+      return { ...state, entries: (state.entries || []).filter((e) => e.id !== action.id) };
+    case "SET_ROSTER_SPIRIT_RESULT": {
+      const roster = state.roster || {};
+      if (!(roster.spirits || []).some((s) => s.uid === action.uid)) return state;
+      const spirits = (roster.spirits || []).map((s) => (
+        s.uid === action.uid ? { ...s, resultId: action.resultId || null } : s
+      ));
+      return { ...state, roster: { ...roster, spirits } };
+    }
+    /* 精神の装備は常に1件。他を全部外してから対象だけを装備する。 */
+    case "SET_ROSTER_SPIRIT_EQUIPPED": {
+      const roster = state.roster || {};
+      if (!(roster.spirits || []).some((s) => s.uid === action.uid)) return state;
+      const equip = action.equipped !== false;
+      const spirits = (roster.spirits || []).map((s) => ({ ...s, equipped: equip && s.uid === action.uid }));
+      const nextRoster = { ...roster, spirits };
+      return { ...state, roster: nextRoster, ...projectEquipmentFromRoster(nextRoster) };
+    }
     /* ---- Unique buffs ---- */
     case "ADD_UB":
       // 手動新規の既定種別は "バフ"（DB実測の最大多数かつ中立でない通常種別）。
@@ -2261,15 +3194,18 @@ function appReducer(state, action) {
       return { ...state, roster: { ...state.roster, personas } };
     }
     /* ---- Spirit shortcut ---- */
+    /* 精神も所持（roster.spirits）を経由する。未所持なら写してから装備。 */
     case "APPLY_SPIRIT": {
-      const sp = action.spirit;
-      return {
-        ...state,
-        spirit: sp.name || "",
-        spiritMorale: sp.morale_effect || "",
-        spiritConfuse: sp.confuse_effect || "",
-        spiritAlways: sp.always_effect || ""
-      };
+      const name = action.spirit?.name || "";
+      if (!name) return state;
+      const roster = state.roster || {};
+      let spirits = roster.spirits || [];
+      if (!spirits.some((s) => s.name === name)) {
+        spirits = [...spirits, { uid: makeOwnedUid("spr"), name, equipped: false, resultId: null, addedAt: Date.now(), notes: "" }];
+      }
+      spirits = spirits.map((s) => ({ ...s, equipped: s.name === name }));
+      const nextRoster = { ...roster, spirits };
+      return { ...state, roster: nextRoster, ...projectEquipmentFromRoster(nextRoster) };
     }
     default:
       return state;

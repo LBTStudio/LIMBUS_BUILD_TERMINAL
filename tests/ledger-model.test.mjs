@@ -1,0 +1,189 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import vm from "node:vm";
+
+/* ---------------------------------------------------------------------------
+   通帳（リザルトと収支明細）の回帰テスト。
+
+   守るべき性質:
+     - 残高は保存せず、収入合計 − 支出合計として必ず導出できる
+     - 歸属（resultId）を差し替えても明細は消えない
+     - リザルトを消しても明細は残る（支出額が失われると残高が狂う）
+     - 存在しないリザルトを指す明細は未分類へ戻る
+     - 通貨は LP と欠片の2種に揃い、壊れた入力でも計算が壊れない
+--------------------------------------------------------------------------- */
+
+const source = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
+
+function loadContext() {
+  const context = {
+    window: {
+      DB: {
+        support_passives: [],
+        death_passives: [],
+        spirits: [],
+        normal_enhancements: [],
+        special_enhancements: []
+      }
+    },
+    console,
+    setTimeout,
+    clearTimeout,
+    URL,
+    TextEncoder,
+    TextDecoder,
+    React: { useReducer: () => {}, useRef: () => ({ current: null }), useState: () => [null, () => {}], useEffect: () => {} }
+  };
+  context.globalThis = context;
+  vm.createContext(context);
+  vm.runInContext(source, context);
+  return context;
+}
+
+const context = loadContext();
+const reducer = context.window.appReducer;
+const balance = context.window.LBT_computeLedgerBalance;
+const normalize = context.window.LBT_normalizeStateShape;
+
+function baseState() {
+  return {
+    supports: [],
+    deathSupport: null,
+    spirit: "",
+    roster: { personas: [], egos: [], supports: [], spirits: [] },
+    results: [],
+    entries: [],
+    ui: {},
+    historyRecent: [],
+    favorites: []
+  };
+}
+
+test("リザルトを加えると収入が保存され、残高反映される", () => {
+  let s = reducer(baseState(), { type: "ADD_RESULT", name: "第12回", date: "2026-10-11", income: { lp: 1200, shards: 400 } });
+  assert.equal(s.results.length, 1);
+  assert.equal(s.results[0].income.lp, 1200);
+  assert.equal(balance(s.results, s.entries).lp, 1200, "収入そのままが残高");
+  assert.equal(balance(s.results, s.entries).shards, 400);
+});
+
+test("支出明細は収入から差し引く（LP と 欠片を別口座で扱う）", () => {
+  let s = reducer(baseState(), { type: "ADD_RESULT", name: "第12回", income: { lp: 1200, shards: 400 } });
+  s = reducer(s, { type: "ADD_ENTRY", kind: "support", name: "ルサンチマン", cost: { lp: 7 } });
+  s = reducer(s, { type: "ADD_ENTRY", kind: "enhancement", name: "肉体強化0-1", cost: { shards: 5 } });
+  const b = balance(s.results, s.entries);
+  assert.equal(b.lp, 1193, "LP は 7 減る");
+  assert.equal(b.shards, 395, "欠片は 5 減る");
+  assert.equal(b.spentLp, 7);
+  assert.equal(b.spentShards, 5);
+});
+
+test("歸属の差し替えだけで、連載ごとの収支が変わる（明細は消えない）", () => {
+  let s = reducer(baseState(), { type: "ADD_RESULT", name: "A", income: { lp: 1000, shards: 0 } });
+  const aId = s.results[0].id;
+  s = reducer(s, { type: "ADD_RESULT", name: "B", income: { lp: 1000, shards: 0 } });
+  const bId = s.results[1].id;
+
+  s = reducer(s, { type: "ADD_ENTRY", kind: "item", name: "包帯", cost: { lp: 15 }, resultId: aId });
+  const entryId = s.entries[0].id;
+  assert.equal(balance(s.results, s.entries).lp, 1985);
+
+  /* ドラッグ&ドロップはこの1つだけを呼ぶ。 */
+  s = reducer(s, { type: "SET_ENTRY_RESULT", id: entryId, resultId: bId });
+  assert.equal(s.entries.length, 1, "明細は消えない");
+  assert.equal(s.entries[0].resultId, bId);
+  assert.equal(balance(s.results, s.entries).lp, 1985, "残高は変わらない（支出は起きたまま）");
+});
+
+test("未分類の明細は件数が分かる（歸属し忘れに気付ける）", () => {
+  let s = reducer(baseState(), { type: "ADD_RESULT", name: "A", income: { lp: 100 } });
+  const aId = s.results[0].id;
+  s = reducer(s, { type: "ADD_ENTRY", kind: "item", name: "包帯", cost: { lp: 15 } });
+  s = reducer(s, { type: "ADD_ENTRY", kind: "item", name: "注射器", cost: { lp: 20 }, resultId: aId });
+  const b = balance(s.results, s.entries);
+  assert.equal(b.unclassified, 1, "未分類は1件");
+  assert.equal(b.lp, 65, "未分類でも支出は引く");
+});
+
+test("リザルトを消したら、その明細も消える（未分類へ戻さない）", () => {
+  /* 明細だけ未分類へ戻すと、削除した支出が別の予算に紛れ込んで
+     「消したのにまだ残っている」ように見える。削除なら明細ごと消す。 */
+  let s = reducer(baseState(), { type: "ADD_RESULT", name: "A", income: { lp: 1000 } });
+  const aId = s.results[0].id;
+  s = reducer(s, { type: "ADD_ENTRY", kind: "item", name: "包帯", cost: { lp: 15 }, resultId: aId });
+  /* 別のリザルトの明細は残る。 */
+  s = reducer(s, { type: "ADD_RESULT", name: "B", income: { lp: 500 } });
+  const bId = s.results[1].id;
+  s = reducer(s, { type: "ADD_ENTRY", kind: "item", name: "固定的", cost: { lp: 5 }, resultId: bId });
+
+  s = reducer(s, { type: "REMOVE_RESULT", id: aId });
+  assert.equal(s.results.length, 1, "A だけが消える");
+  assert.equal(s.entries.length, 1, "A の明細も消える");
+  assert.equal(s.entries[0].name, "固定的", "B の明細は残る");
+  assert.equal(balance(s.results, s.entries).lp, 495, "B の収支だけが残る");
+});
+
+test("存在しないリザルトを指す明細は未分類へ戻る", () => {
+  const s = normalize({
+    ...baseState(),
+    results: [],
+    entries: [{ id: "ent-x", kind: "item", name: "包帯", cost: { lp: "15" }, resultId: "消えたID" }]
+  });
+  assert.equal(s.entries[0].resultId, null, "未分類へ戻る");
+  assert.equal(s.entries[0].cost.lp, 15, "文字列の費用も数値へ寄せる");
+});
+
+test("通貨は LP と欠片の2種に揃う（壊れた入力でも計算が壊れない）", () => {
+  let s = reducer(baseState(), { type: "ADD_RESULT", name: "A", income: { lp: "abc", shards: -5, other: 9 } });
+  assert.equal(s.results[0].income.lp, 0, "数値でないものは 0");
+  assert.equal(s.results[0].income.shards, 0, "負の値は 0");
+  s = reducer(s, { type: "ADD_ENTRY", kind: "other", name: "X", cost: { lp: "15LP" } });
+  assert.equal(s.entries[0].cost.lp, 15, "\"15LP\" も先頭の数値を取る");
+  assert.equal(balance(s.results, s.entries).lp, -15, "壊れた入力でも計算は動く");
+});
+
+test("明細を消すと支出が減る", () => {
+  let s = reducer(baseState(), { type: "ADD_RESULT", name: "A", income: { lp: 1000 } });
+  s = reducer(s, { type: "ADD_ENTRY", kind: "item", name: "包帯", cost: { lp: 15 } });
+  const id = s.entries[0].id;
+  assert.equal(balance(s.results, s.entries).lp, 985);
+  s = reducer(s, { type: "REMOVE_ENTRY", id });
+  assert.equal(s.entries.length, 0);
+  assert.equal(balance(s.results, s.entries).lp, 1000, "消した分だけ戻る");
+});
+
+test("リザルトと明細は別の ID を持つ（互いに衝突しない）", () => {
+  let s = reducer(baseState(), { type: "ADD_RESULT", name: "A", income: {} });
+  s = reducer(s, { type: "ADD_ENTRY", kind: "item", name: "包帯", cost: {} });
+  s = reducer(s, { type: "ADD_ENTRY", kind: "item", name: "注射器", cost: {} });
+  const ids = [s.results[0].id, ...s.entries.map((e) => e.id)];
+  assert.equal(new Set(ids).size, ids.length, "同一ミリ秒でも一意");
+});
+
+test("手動の支出（DBに価格が無いもの）を記録できる", () => {
+  /* DBに載っていない支出。自作アイテムや将来のコンテンツに対応する。 */
+  let s = reducer(baseState(), { type: "ADD_RESULT", name: "A", income: { lp: 500 } });
+  s = reducer(s, { type: "ADD_ENTRY", kind: "expense", name: "自作のトークン", cost: { lp: 40, shards: 3 } });
+  assert.equal(s.entries[0].kind, "expense");
+  assert.equal(s.entries[0].resultId, null, "歸属は未分類（後から振る）");
+  assert.equal(balance(s.results, s.entries).lp, 460);
+  assert.equal(balance(s.results, s.entries).shards, -3);
+});
+
+test("消耗は支出とは別の種別として記録できる", () => {
+  /* 戦闘で消えたアイテム。額が0でも記録は立つ（何を失ったかの記憶）。 */
+  let s = reducer(baseState(), { type: "ADD_RESULT", name: "A", income: { lp: 100 } });
+  s = reducer(s, { type: "ADD_ENTRY", kind: "consumption", name: "使った包帯", cost: { lp: 0 } });
+  assert.equal(s.entries[0].kind, "consumption");
+  assert.equal(balance(s.results, s.entries).lp, 100, "額が0なら残高は動かない");
+  assert.equal(balance(s.results, s.entries).unclassified, 1);
+});
+
+test("種別の一覧がUIから参照できる", () => {
+  const kinds = context.window.LBT_LEDGER_ENTRY_KINDS;
+  assert.ok(Array.isArray(kinds), "種別の定義がある");
+  for (const need of ["expense", "consumption", "item", "support", "spirit", "enhancement"]) {
+    assert.ok(kinds.some((k) => k.id === need), `${need} が定義されている`);
+  }
+});

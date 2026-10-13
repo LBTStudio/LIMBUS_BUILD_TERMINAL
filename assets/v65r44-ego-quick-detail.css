@@ -9,7 +9,9 @@
 .ego-section.has-selection .codex {
   grid-template-columns: minmax(0, 1fr) 380px;
 }
-.ego-section.is-catalog-only .ego-quick-detail { display: none; }
+/* 一覧の右列に貼っていた簡易詳細は、Persona と同じ DetailDialog（ポップオーバー）で
+   出すため、ここでは隠さない。 */
+.ego-section.is-catalog-only .ego-quick-detail:not(.detail-dialog-body *) { display: none; }
 
 .ego-slot.is-selected {
   border-color: color-mix(in oklab, var(--rank-ZAYIN) 55%, var(--line));

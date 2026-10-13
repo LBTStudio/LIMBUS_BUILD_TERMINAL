@@ -41,8 +41,8 @@ test("E.G.O選択時は右列の簡易詳細カードを表示し、全文詳細
   assert.match(source, /詳細・直接編集/);
   assert.match(source, /setDetailSlot\(null\);\s+setListExpanded\(true\);/);
   assert.match(source, /setDetailSlot\(currentSlot\)/);
-  assert.match(source, /h\(EgoQuickDetail, \{ ego: selected, currentSlot, onEquip: equip/);
-  assert.match(source, /\) : egoGrid\)\), h\(EgoQuickDetail/);
+  assert.match(source, /h\(EgoQuickDetail, \{ ego: selected, currentSlot, state, acquireHow, onAcquireHowChange: setAcquireHow/);
+  assert.match(source, /h\(DetailDialog, \{ open: !!selected, onClose: \(\) => setSelected\(null\), label: "E\.G\.O 詳細" \}, h\(EgoQuickDetail/);
   assert.match(quickCss, /\.ego-section\.has-selection \.codex/);
   assert.match(quickCss, /grid-template-columns: minmax\(0, 1fr\) 380px/);
   assert.match(quickCss, /@media \(min-width: 1120px\) and \(max-width: 1280px\)/);

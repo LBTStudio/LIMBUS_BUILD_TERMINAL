@@ -161,6 +161,33 @@ const AccountChip = () => {
   );
 };
 
+/* LP と欠片の残高。どの画面でも見えるように topbar に常設する。
+   .topbar-actions の中に入れると ≤640px と横向きで display:none に
+   なるため、.topbar の直接子として置く。 */
+const BalanceChip = ({ state, onClick }) => {
+  const results = Array.isArray(state.results) ? state.results : [];
+  const entries = Array.isArray(state.entries) ? state.entries : [];
+  const balance = window.LBT_computeLedgerBalance
+    ? window.LBT_computeLedgerBalance(results, entries)
+    : { lp: 0, shards: 0 };
+  const num = (value) => Number(value || 0).toLocaleString("ja-JP");
+  return h("button", {
+    type: "button",
+    className: "topbar-balance",
+    onClick,
+    title: `残高 — LP ${num(balance.lp)} / 欠片 ${num(balance.shards)}。リザルトを開く`,
+    "aria-label": `残高 LP ${num(balance.lp)}、欠片 ${num(balance.shards)}。リザルトを開く`
+  },
+    h("span", { className: "topbar-balance-item" },
+      h("span", { className: "topbar-balance-num" }, num(balance.lp)),
+      h("span", { className: "topbar-balance-unit" }, "LP")),
+    h("span", { className: "topbar-balance-sep", "aria-hidden": "true" }, "/"),
+    h("span", { className: "topbar-balance-item" },
+      h("span", { className: "topbar-balance-num" }, num(balance.shards)),
+      h("span", { className: "topbar-balance-unit" }, "欠片"))
+  );
+};
+
 /* 設定セクション用の現在アカウント要約 + 切替への導線。 */
 const AccountSummary = () => {
   const [info, setInfo] = React.useState(readAccountInfo);
@@ -190,11 +217,27 @@ const AccountSummary = () => {
   );
 };
 
-const AccountCard = ({ entry, index, active, editing, draft, setDraft, icon, onSelect, onEdit, onRemove, onSave, onCancel, onPickIcon, onClearIcon, canRemove }) => {
+/* 取り込みは 1 手で適用する。ADD_RESULT と ADD_ENTRY の紐付けは
+   reducer（APPLY_IMPORT_BATCH）が解決するので、UNDO 1 回で全部戻る。
+   状態の所在は App なので、ここはイベントを投げるだけ。 */
+function applyGarasumadoImport(result) {
+  const actions = (result && (result.actions || result.rosterActions)) || [];
+  if (!actions.length) { toast("取り込むものが選ばれていません"); return; }
+  window.dispatchEvent(new CustomEvent("lbt:apply-import", {
+    detail: { actions, skipped: (result && result.skipped) || [] }
+  }));
+}
+
+const AccountCard = ({ entry, index, active, editing, draft, setDraft, icon, onSelect, onEdit, onRemove, onSave, onCancel, onPickIcon, onClearIcon, canRemove, onImport }) => {
   const onDraftKeyDown = (save) => (event) => {
     if (event.key === "Enter") { event.preventDefault(); save(); }
     if (event.key === "Escape") { event.preventDefault(); onCancel(); }
   };
+  /* 硝子窓からの取り込み。URL を貼って内容を読み込み、何を入れるかを選ぶ面。
+     編集中だけ出す。保存パネルを開く前に「取り込むもの」を決める流れ。 */
+  const [importOpen, setImportOpen] = React.useState(false);
+  React.useEffect(() => { if (!editing) setImportOpen(false); }, [editing]);
+
   if (editing) {
     return h("div", { className: "acct-card acct-card--form", style: { "--i": index } },
       h("span", { className: "acct-form-kicker" }, "編集中"),
@@ -217,6 +260,25 @@ const AccountCard = ({ entry, index, active, editing, draft, setDraft, icon, onS
         ),
         h("p", { className: "acct-icon-row-note" }, "PNG・JPEG・WebPを自動で圧縮して端末内に保存します（最大24KB・正方形に中央切り抜き）。")
       ),
+      h("div", { className: "acct-gara-row" },
+        h("span", { className: "acct-icon-row-label" }, "硝子窓"),
+        h("div", { className: "acct-icon-row-actions" },
+          h("button", {
+            type: "button", className: "acct-upload-btn",
+            "aria-expanded": importOpen,
+            onClick: () => setImportOpen((v) => !v)
+          }, importOpen ? "取り込みを閉じる" : "共有URLから取り込む")
+        )
+      ),
+      importOpen ? h("div", { className: "acct-gara-body" },
+        h(window.GarasumadoImportPanel, {
+          onClose: () => setImportOpen(false),
+          onApply: (result) => {
+            onImport?.(result);
+            setImportOpen(false);
+          }
+        })
+      ) : null,
       h("div", { className: "acct-form-actions" },
         h(Button, { size: "sm", variant: "primary", icon: "check", onClick: onSave }, "保存"),
         h(Button, { size: "sm", variant: "ghost", onClick: onCancel }, "キャンセル")
@@ -361,7 +423,8 @@ const AccountSwitcher = ({ open, onClose }) => {
           onCancel: cancelForm,
           onPickIcon: () => iconEditor.startPick(entry.id),
           onClearIcon: () => iconEditor.clearIcon(entry.id),
-          canRemove: total > 1
+          canRemove: total > 1,
+          onImport: (result) => applyGarasumadoImport(result)
         })),
         creating ? h("div", { className: "acct-card acct-card--form", style: { "--i": total } },
           h("span", { className: "acct-form-kicker" }, "新規アカウント"),
@@ -407,7 +470,7 @@ const AccountSwitcher = ({ open, onClose }) => {
     )
   );
 };
-Object.assign(window, { AccountSwitcher, AccountChip, AccountSummary, ACCOUNTS_CHANGED_EVENT, ACCOUNTS_OPEN_EVENT });
+Object.assign(window, { AccountSwitcher, AccountChip, AccountSummary, BalanceChip, ACCOUNTS_CHANGED_EVENT, ACCOUNTS_OPEN_EVENT });
 
 /* ---------------------------------------------------------------------------
    AccountGate — アクセス時のアカウント選択ゲート。

@@ -546,7 +546,7 @@
   gap: 6px;
 }
 .pv-sec-toolbar {
-  position: sticky;
+  position: static; /* 追従をやめた（内容より 위에居座るため） */
   top: -12px;
   z-index: 2;
   display: flex;
@@ -574,6 +574,1446 @@
 .pv-sec-tbtn:hover {
   color: var(--gold);
   border-color: var(--gold-line);
+}
+/* ---- 通帳（LEDGER）------------------------------------------------------
+   所持タブの第5タブ。残高・リザルト・未分類の歸属を管理する。
+
+   意匠は既存の面・線・金トークンに揃える（--surface-2 / --line-dim / --gold）。
+   残高は数字が主役なので等幅で大きく、リザルトカードはドロップ先として
+   ホバー時に金の輪郭が入るようにする。 */
+.ledger-balance {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-4) var(--s-5);
+}
+.ledger-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--s-2);
+}
+.ledger-chip-num {
+  font-family: var(--f-mono);
+  font-size: var(--fs-20);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+.ledger-chip-num.is-lp { color: var(--gold); }
+.ledger-chip-num.is-shard { color: var(--cyan, #7fd0c0); }
+.ledger-chip-label {
+  font-family: var(--f-display);
+  font-size: var(--fs-10);
+  letter-spacing: 0.16em;
+  color: var(--tx-mute);
+}
+.ledger-balance-sub,
+.ledger-note {
+  font-size: var(--fs-10);
+  color: var(--tx-mute);
+}
+.ledger-note { margin-left: auto; }
+
+.ledger-add-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  align-items: center;
+}
+.ledger-input {
+  height: 26px;
+  padding: 0 var(--s-2);
+  font: 500 var(--fs-11) var(--f-body);
+  color: var(--tx);
+  background: var(--surface-inset);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-sm);
+}
+.ledger-input:focus {
+  outline: none;
+  border-color: var(--gold-lo);
+}
+.ledger-input--date { width: 9.5rem; }
+.ledger-input--num { width: 6.5rem; }
+.ledger-input--wide { flex: 1 1 14rem; }
+.ledger-input--kind { width: 8.5rem; }
+.ledger-input::placeholder { color: var(--tx-mute); }
+
+/* 明細の1行。ドラッグ可能なことを把手で示す。 */
+.ledger-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  background: var(--surface-2);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-sm);
+  cursor: grab;
+  user-select: none;
+}
+.ledger-row:active { cursor: grabbing; }
+.ledger-row-name { flex: 1 1 auto; min-width: 0; }
+.ledger-row-kind {
+  font-family: var(--f-display);
+  font-size: var(--fs-9);
+  letter-spacing: 0.1em;
+  color: var(--tx-mute);
+}
+.ledger-row-cost {
+  font-family: var(--f-mono);
+  font-size: var(--fs-11);
+  color: var(--gold-hi);
+}
+.ledger-row-move {
+  height: 22px;
+  font-size: var(--fs-10);
+  color: var(--tx-dim);
+  background: var(--surface-inset);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-sm);
+}
+.ledger-row-release,
+.ledger-row-move { cursor: pointer; }
+.ledger-row-release {
+  padding: 2px 8px;
+  font-family: var(--f-display);
+  font-size: var(--fs-9);
+  letter-spacing: 0.08em;
+  color: var(--tx-dim);
+  background: none;
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-sm);
+}
+.ledger-row-release:hover { color: var(--gold); border-color: var(--gold-lo); }
+
+/* リザルトカードの並び。 */
+.ledger-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+  gap: var(--s-3);
+  align-items: start;
+}
+/* リザルトカード。ドロップ先は外側の .ledger-card-wrap が受け持つ
+   （Card は children / className / frame しか受け取らないため）。 */
+.ledger-card-wrap { transition: box-shadow var(--t-fast); }
+.ledger-card-wrap.is-over { box-shadow: 0 0 0 1px var(--gold), 0 0 28px rgba(212, 175, 95, 0.2); }
+.ledger-card-wrap.is-over .card { border-color: var(--gold); }
+.ledger-card-title {
+  font: 600 var(--fs-13) var(--f-display);
+  color: var(--tx);
+  letter-spacing: 0.04em;
+}
+.ledger-card-date {
+  font-family: var(--f-mono);
+  font-size: var(--fs-10);
+  color: var(--tx-mute);
+}
+.ledger-card-income {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-3) var(--s-4);
+}
+.ledger-chip-num { font-size: var(--fs-15); }
+.ledger-card-spent {
+  margin-left: auto;
+  font-family: var(--f-mono);
+  font-size: var(--fs-10);
+  color: var(--tx-mute);
+}
+/* カード内の収入。単位は数字の横に小さく添えるだけ（「収入」とは書かない）。 */
+.ledger-pair { display: inline-flex; align-items: baseline; gap: 5px; }
+.ledger-pair-label {
+  font-family: var(--f-display);
+  font-size: var(--fs-9);
+  letter-spacing: 0.14em;
+  color: var(--tx-mute);
+}
+.ledger-stat {
+  font-family: var(--f-mono);
+  font-weight: 700;
+  color: var(--tx-2);
+}
+.ledger-empty-note {
+  margin: 0;
+  font-size: var(--fs-10);
+  line-height: 1.7;
+  color: var(--tx-mute);
+}
+.ledger-queue .card-header { align-items: center; }
+/* 所持アイテム総覧。由来（初期枠/購入）は記録が読み解けるため必ず見せる。 */
+.inv-toolbar { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
+.inv-count {
+  font-family: var(--f-mono);
+  font-size: var(--fs-10);
+  color: var(--tx-mute);
+}
+.inv-pick {
+  display: grid;
+  gap: var(--s-3);
+  padding: var(--s-2) 0;
+  border-top: 1px solid var(--line-dim);
+}
+.inv-pick-group { display: grid; gap: 6px; }
+.inv-pick-list { display: flex; flex-wrap: wrap; gap: 6px 12px; }
+.inv-pick-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-11);
+  color: var(--tx-2);
+  cursor: pointer;
+}
+.inv-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto auto;
+  align-items: baseline;
+  gap: var(--s-2) var(--s-3);
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line-dim);
+}
+.inv-row:last-child { border-bottom: 0; }
+.inv-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-11);
+  color: var(--tx);
+}
+.inv-meta, .inv-price {
+  font-family: var(--f-mono);
+  font-size: var(--fs-10);
+  color: var(--tx-mute);
+}
+.inv-qty {
+  font-family: var(--f-mono);
+  font-size: var(--fs-11);
+  font-weight: 700;
+  color: var(--tx-2);
+}
+/* 初期枠は金、購入は既定色。色だけに頼らず文字で区別する。 */
+.inv-origin.is-initial { color: var(--gold); border-color: var(--gold-line); }
+@media (max-width: 640px) {
+  .inv-row { grid-template-columns: minmax(0, 1fr) auto auto; }
+  .inv-meta { display: none; }
+}
+
+/* ============================================================
+   DETAIL DIALOG — 一覧の下に埋め込まず詳細をポップオーバーで開く
+   ============================================================ */
+.detail-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-4);
+  /* 62% の減光だけでは下のコードクスが現役のまま見えて「どこが今ocusedか」が
+     二重になる。減光を深く＋ぼかし、さらに下側を彩度落として一段下げる。 */
+  background:
+    radial-gradient(circle at 50% 40%, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.86) 78%);
+  backdrop-filter: blur(7px) saturate(0.55);
+  -webkit-backdrop-filter: blur(7px) saturate(0.55);
+  animation: detail-dialog-in 180ms var(--ease, ease-out);
+}
+@keyframes detail-dialog-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.detail-dialog {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  width: min(680px, 100%);
+  /* 詳細は今いちばん長い（戦術スキル・固有バフを一人分だと数百行）。
+     上下が切れると「読んでから購入/装備する」が成立しないので、画面端まで伸ばす。 */
+  max-height: 92vh;
+  max-height: 92dvh;
+  background: var(--surface-1);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-lg);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.72), 0 0 0 1px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  animation: detail-dialog-pop 200ms var(--ease, ease-out);
+}
+@keyframes detail-dialog-pop {
+  from { transform: translateY(10px) scale(0.985); }
+  to { transform: none; }
+}
+/* ヘッダは常時見える。ここが閉じ操作の唯一の場所なので、
+   本文がいくら長くてもスクロールしても見失わない。 */
+.detail-dialog-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--line-dim);
+  background: var(--surface-2);
+}
+.detail-dialog-close {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  color: var(--tx-dim);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface-1);
+  cursor: pointer;
+}
+.detail-dialog-close:hover { color: var(--tx); border-color: var(--gold-line); }
+.detail-dialog-body {
+  padding: var(--s-4);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.detail-dialog-body .codex-detail { background: transparent; border: none; padding: 0; min-height: 100%; display: flex; flex-direction: column; }
+.detail-dialog-body .codex-detail > .detail-actions { margin-top: auto; }
+/* 操作帯は詳細の末尾に置いたまま、画面下端へ貼り付ける。
+   詳細が数百行（戦術スキル・固有バフ）あるので、スクロールしきる前に
+   「装備する」「購入」が常に見える必要があり、本文が尽きる手前で
+   ウィンドウ下端に合わせて動く（sticky footer）。 */
+.detail-dialog-body .detail-actions {
+  position: static; /* 追従をやめた（内容より 위에居座るため） */
+  bottom: calc(-1 * var(--s-4));
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-3);
+  margin-top: var(--s-4);
+  padding: var(--s-3) 0 var(--s-1);
+  background: linear-gradient(to top, var(--surface-1) 78%, transparent);
+  border-top: 1px solid var(--line-dim);
+}
+.detail-dialog-body .detail-actions > * { flex: 0 0 auto; }
+.detail-dialog-body .detail-actions > .acquire-bar { flex: 1 1 auto; margin-top: 0; padding-top: 0; border-top: 0; }
+/* E.G.O の簡易詳細も同じ作法。操作帯は ego-quick-actions が担うので、
+   詳細.monopolyの末尾に sticky で貼り付ける。 */
+.detail-dialog-body .ego-quick-detail {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.detail-dialog-body .ego-quick-detail > .ego-quick-actions { margin-top: auto; }
+.detail-dialog-body .ego-quick-actions {
+  position: static; /* 追従をやめた（内容より 위에居座るため） */
+  bottom: calc(-1 * var(--s-4));
+  z-index: 3;
+  flex-wrap: wrap;
+  padding: var(--s-3) 0 var(--s-1);
+  background: linear-gradient(to top, var(--surface-1) 78%, transparent);
+  border-top: 1px solid var(--line-dim);
+}
+.detail-dialog-body .ego-quick-actions .acquire-bar {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+  flex: 1 1 100%;
+}
+/* 背景がポップオーバー開中にスクロールすると内容がずれて見え、「固定されている」
+   印象が壊れる。開いている間だけ主スクロール領域を止める。 */
+body.has-detail-dialog main.focus,
+body.has-detail-dialog main.preview { overflow: hidden; }
+@media (prefers-reduced-motion: reduce) {
+  .detail-dialog-backdrop,
+  .detail-dialog { animation: none; }
+}
+@media (max-width: 640px) {
+  /* スマホは画面下から出し、全高を使って閉じ操作に指が届くようにする。
+     背面ではなくシートとして見せるため、上端に一把手的目印を置く。 */
+  .detail-dialog-backdrop { align-items: flex-end; padding: 0; }
+  .detail-dialog {
+    width: 100%;
+    max-height: 92svh;
+    max-height: 92dvh;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    border-bottom: none;
+  }
+  .detail-dialog::before {
+    content: "";
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--line-dim);
+  }
+  .detail-dialog-head { padding-top: var(--s-4); }
+}
+
+/* ============================================================
+   ACQUIRE BAR — 所持化＝購入の共通部品
+   ============================================================ */
+.acquire-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line-dim);
+}
+/* 取得方法の欄は常に同じ幅を取る。抽出/購入を切り替えると購入ボタンが
+   横へずれ、押し損なうので、方法欄には固定幅を持たせる。 */
+.acquire-how { flex: 0 0 auto; min-width: 152px; display: inline-flex; }
+.acquire-how .segmented { width: 100%; }
+.acquire-how-placeholder { display: block; width: 100%; }
+.acquire-cost {
+  font-family: var(--f-mono);
+  font-size: var(--fs-12);
+  font-weight: 700;
+  color: var(--gold);
+}
+.acquire-result { font-size: var(--fs-10); color: var(--tx-mute); }
+.acquire-result.is-pending { color: var(--warn); }
+
+/* ============================================================
+   SHOP CARD — 種別をまたぐ共通カード
+   ============================================================ */
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+  gap: var(--s-3);
+}
+/* 検索窓はスクロールしても追従させる。ただし宙に浮くと位置が曖昧になり、
+   件数テキストが切れる。上端固定でセンタリングし、フィルタまで一緒に追従させる。 */
+.shop-filters {
+  position: static; /* 追従をやめた（内容より 위에居座るため） */
+  top: 0;
+  z-index: 5;
+  display: grid;
+  gap: var(--s-2);
+  margin: calc(-1 * var(--s-3)) calc(-1 * var(--s-3)) var(--s-3);
+  padding: var(--s-3);
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--line-dim);
+}
+.shop-filters .codex-count { white-space: nowrap; flex: none; }
+.shop-filters .codex-search { flex: 1 1 auto; min-width: 0; }
+.shop-card {
+  display: flex;
+  flex-direction: column;
+  padding: var(--s-3);
+  background: var(--surface-2);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r);
+}
+.shop-card-head { display: flex; align-items: baseline; gap: var(--s-2); }
+.shop-card-name {
+  font-size: var(--fs-12);
+  color: var(--tx);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shop-card-note {
+  margin-top: var(--s-1);
+  font-size: var(--fs-10);
+  color: var(--tx-mute);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+@media (max-width: 640px) {
+  .shop-grid { grid-template-columns: 1fr; }
+}
+
+/* ============================================================
+   BUILD WORKSPACE — 人格/スキル/パッシブ/強化の1画面タブ統合
+   ============================================================ */
+/* 装備人格サマリーをカード集合に。識別→战斗値/耐性/キーワード の3枚。 */
+.esc {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-4) var(--s-4) var(--s-4) 20px;
+  background: var(--surface-1);
+  border-radius: var(--r-lg);
+  box-shadow: inset 0 0 0 1px var(--gold-line), 0 8px 24px oklch(0 0 0 / 0.35);
+}
+.esc::before {
+  content: "";
+  position: absolute;
+  inset: 12px auto 12px 8px;
+  width: 3px;
+  border-radius: var(--r-pill);
+  background: var(--sin-primary, var(--gold));
+  box-shadow: 0 0 8px var(--gold-glow);
+}
+.esc-head { display: flex; align-items: flex-start; flex-wrap: wrap; gap: var(--s-2) var(--s-4); }
+.esc-eyebrow { display: flex; align-items: center; gap: var(--s-2); flex-basis: 100%; flex-wrap: wrap; }
+.esc-ident { display: flex; flex-direction: column; gap: var(--s-1); min-width: 0; }
+.esc-title-row { display: flex; align-items: baseline; gap: var(--s-3); flex-wrap: wrap; }
+.esc-affil {
+  padding: 2px 6px;
+  font-family: var(--f-mono);
+  font-size: var(--fs-10);
+  letter-spacing: 0.08em;
+  color: var(--gold-lo);
+  border-radius: var(--r-sm);
+  outline: 1px solid oklch(1 0 0 / 0.1);
+  outline-offset: -1px;
+}
+.esc-subrow { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
+.esc-sync { display: inline-flex; align-items: baseline; gap: 4px; font-family: var(--f-mono); font-size: var(--fs-11); font-variant-numeric: tabular-nums; color: var(--tx-2); }
+.esc-sync b { color: var(--gold); font-weight: 600; }
+/* カード群。repeat の最小トラックは min() でガードする。 */
+.esc-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: var(--s-3); }
+.esc-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  box-shadow: inset 0 0 0 1px var(--line-dim), 0 1px 3px oklch(0 0 0 / 0.25);
+}
+.esc-card-label {
+  padding-bottom: 6px;
+  font-family: var(--f-display);
+  font-size: var(--fs-9);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--tx-mute);
+  box-shadow: 0 1px 0 var(--gold-line);
+}
+.esc-card--stats .es-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(84px, 100%), 1fr)); gap: var(--s-2); }
+.esc-card--stats .es-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  background: var(--surface-inset);
+  border-radius: var(--r-sm);
+  box-shadow: inset 0 0 0 1px var(--line-dim);
+}
+.esc-card--stats .es-stat-value,
+.esc-card--stats .es-stat-input { font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-size: var(--fs-16); color: var(--tx); }
+.esc-card--stats .es-stat-input {
+  width: 100%;
+  padding: 1px 4px;
+  color: var(--gold-hi);
+  background: var(--surface-0);
+  border: none;
+  border-radius: var(--r-sm);
+  box-shadow: inset 0 0 0 1px var(--gold-line);
+}
+.esc-card--stats .es-stat-input:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--gold), 0 0 6px var(--gold-glow); }
+.esc-card--res .es-resistance-heading { display: none; }
+.esc-card--res .es-resistance-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-2); }
+.esc-card--res .es-resistance-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 8px;
+  background: var(--surface-inset);
+  border-radius: var(--r-sm);
+  box-shadow: inset 0 0 0 1px var(--line-dim);
+}
+.esc-card--res .es-resistance-value,
+.esc-card--res .es-resistance-select { width: 100%; font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-size: var(--fs-13); color: var(--tx); }
+.esc-card--kw .es-keywords { display: flex; flex-wrap: wrap; gap: 6px; }
+.esc-card--kw .es-kw-addrow { display: flex; gap: 6px; width: 100%; margin-top: 2px; }
+/* 視線理論: 基本ステータス → 固有バフ → 識別 → 同期 → 戦術調整。
+     情報の非自明性と判断コストが視線を決める。 */
+.pc-persona { display: flex; flex-direction: column; gap: var(--s-4); }
+
+/* 第1視線: 基本ステータス。4値を等幅の大きな数字で並べる。 */
+.pc-core { display: flex; flex-direction: column; gap: var(--s-2); }
+.pc-core .es-stats { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(min(96px, 100%), 1fr)) !important; gap: var(--s-2); }
+.pc-core .es-stat {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px;
+  padding: var(--s-2) var(--s-3);
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  box-shadow: inset 0 0 0 1px var(--line-dim);
+  min-height: 0 !important;
+}
+.pc-core .es-stat-label {
+  font-family: var(--f-display);
+  font-size: var(--fs-9);
+  letter-spacing: 0.14em;
+  color: var(--tx-mute);
+  text-transform: uppercase;
+}
+.pc-core .es-stat-value,
+.pc-core .es-stat-input {
+  font-family: var(--f-mono);
+  font-size: var(--fs-24);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--tx);
+}
+.pc-core .es-stat-input {
+  width: 100%;
+  padding: 1px 4px;
+  color: var(--gold-hi);
+  background: var(--surface-0);
+  border: none;
+  border-radius: var(--r-sm);
+  box-shadow: inset 0 0 0 1px var(--gold-line);
+}
+.pc-core .es-stat-input:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--gold), 0 0 6px var(--gold-glow); }
+
+/* 第2視線: 固有バフ。見出しと等幅のカード群。 */
+.pc-primary { display: flex; flex-direction: column; gap: var(--s-2); }
+.pc-primary-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface-2);
+  border-radius: var(--r-lg);
+  box-shadow: inset 0 0 0 1px var(--gold-line), 0 1px 3px oklch(0 0 0 / 0.25);
+}
+.pc-primary-mark { color: var(--gold); font-size: var(--fs-11); }
+.pc-primary-label {
+  font-family: var(--f-display);
+  font-size: var(--fs-13);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+.pc-primary-sub { font-size: var(--fs-11); color: var(--tx-mute); }
+.pc-primary .unique-block { background: transparent; box-shadow: none; padding: 0; }
+.pc-primary .unique-block > .unique-header { display: none; }
+.pc-primary .ubc-grid { grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); }
+.pc-primary .unique-empty { padding: var(--s-2) 0; }
+
+/* 第3視線: 識別 */
+.pc-persona .esc-head { display: flex; align-items: flex-start; flex-wrap: wrap; gap: var(--s-2) var(--s-4); }
+
+/* 第4視線: 同期状態 */
+.pc-sync { display: flex; flex-direction: column; gap: var(--s-2); }
+
+/* 第5視線: 戦術調整。耐性とキーワードを2列で並べる。 */
+.pc-tactical { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: var(--s-3); }
+.pc-tactical .esc-card-label { box-shadow: 0 1px 0 var(--line-dim); }
+.pc-persona .es-resistance { display: block !important; width: 100% !important; }
+.pc-persona .es-resistance-heading { display: none; }
+.pc-persona .es-resistance-grid { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: var(--s-2); }
+.pc-persona .es-resistance-cell {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  min-width: 0;
+  min-height: 0 !important;
+  padding: 6px 10px !important;
+  background: var(--surface-inset);
+  border-radius: var(--r-sm);
+  box-shadow: inset 0 0 0 1px var(--line-dim);
+}
+.pc-persona .es-resistance-label { flex: none; white-space: nowrap; }
+.pc-persona .es-resistance-value { flex: none; text-align: right; }
+.pc-persona .es-resistance-select { flex: 1; min-width: 0; width: auto !important; }
+.pc-persona .es-keywords { display: flex; flex-wrap: wrap; gap: 6px; }
+.pc-persona .es-kw-addrow { display: flex; gap: 6px; width: 100%; margin-top: 2px; }
+
+/* 操作群は右寄せの1行。旧 v56 の全幅 그리ッドを打ち消す。 */
+.pc-persona .es-actions {
+  display: flex !important;
+  flex: none !important;
+  width: auto !important;
+  min-width: 0 !important;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--s-2);
+  margin: 0 !important;
+}
+.pc-persona .es-actions > .btn { width: auto !important; flex: 0 0 auto !important; }
+.pc-persona .es-actions > div[style*="flex"] { display: block; flex: 1 1 0; }
+
+@media (max-width: 720px) {
+  .pc-persona .es-resistance-grid { grid-template-columns: 1fr !important; }
+}
+/* 固有バフをカード化。バフ/デバフは色だけでなくピルの形で静态キューを出す。 */
+.ubc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: var(--s-3); }
+.ubc-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  box-shadow: inset 0 0 0 1px var(--line-dim), 0 1px 3px oklch(0 0 0 / 0.25);
+  transition-property: box-shadow;
+  transition-duration: 120ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+.ubc-card:hover { box-shadow: inset 0 0 0 1px var(--gold-line), 0 2px 8px oklch(0 0 0 / 0.3); }
+.ubc-card-top { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
+.ubc-name {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--f-display);
+  font-size: var(--fs-14);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--tx);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 追加操作を右端に固定し、行に終端（第二条）を作る。 */
+.ubc-place { margin-inline-start: auto; font-family: var(--f-mono); font-size: var(--fs-9); letter-spacing: 0.08em; color: var(--tx-mute); }
+.ubc-count {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 4px 8px;
+  font-family: var(--f-mono);
+  font-size: var(--fs-12);
+  font-variant-numeric: tabular-nums;
+  color: var(--tx-2);
+  background: var(--surface-inset);
+  border-radius: var(--r-sm);
+  box-shadow: inset 0 0 0 1px var(--line-dim);
+}
+.ubc-count b { font-size: var(--fs-16); font-weight: 600; color: var(--gold); }
+.ubc-desc {
+  display: -webkit-box;
+  overflow: hidden;
+  font-family: var(--f-body);
+  font-size: var(--fs-12);
+  line-height: 1.55;
+  color: var(--tx-2);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.ubc-tools { display: flex; gap: 6px; margin-top: auto; }
+@media (max-width: 720px) {
+  .esc-card--res .es-resistance-grid { grid-template-columns: 1fr; }
+}
+/* カード内の操作ボタン（人格=p-card-quick-acquire、E.G.O=quick-equip、精神=item-actions）。 */
+.p-card-quick-equip,
+.p-card-quick-acquire,
+.spirit-item-actions > .btn {
+  margin-top: auto;
+  transition-property: scale, box-shadow;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+.p-card-quick-equip:active,
+.p-card-quick-acquire:active,
+.spirit-item-actions > .btn:active { scale: 0.96; }
+/* 装備済みの静的マーク（動きではなく文字で伝える）。 */
+.p-card-equipped-mark,
+.spirit-item-equipped {
+  align-self: flex-end;
+  margin-top: auto;
+  font-family: var(--f-display);
+  font-size: var(--fs-9);
+  letter-spacing: 0.16em;
+  color: var(--gold);
+}
+/* 共通カード基盤（全カテゴリ共通）。
+   1 識別（名称+バッジ） → 2 条件（メタ） → 3 数値（等幅） → 4 操作（右寄せ）
+   既存の .p-card / .shop-card は温存し、下Queryable Classes のみ足す。 */
+.ucard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  min-width: 0;
+  padding: var(--s-3);
+  background: var(--surface-1);
+  border-radius: var(--r-md);
+  box-shadow: inset 0 0 0 1px var(--line-dim);
+  transition-property: box-shadow;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+.ucard:hover { box-shadow: inset 0 0 0 1px var(--line-strong), 0 2px 10px -6px oklch(0 0 0 / 0.7); }
+.ucard.is-active { box-shadow: inset 0 0 0 1px var(--gold-line), 0 0 0 1px var(--gold-line); }
+/* 1 識別層 */
+.ucard-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.ucard-name {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--f-display);
+  font-size: var(--fs-14);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--tx);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ucard-badge {
+  flex: none;
+  padding: 2px 7px;
+  font-family: var(--f-mono);
+  font-size: var(--fs-9);
+  letter-spacing: 0.1em;
+  color: var(--gold-lo);
+  background: var(--gold-tint);
+  border-radius: var(--r-pill);
+  white-space: nowrap;
+}
+.ucard-groove { flex: 1 1 0; }
+/* 2 条件層（2行clamp） */
+.ucard-note {
+  display: -webkit-box;
+  overflow: hidden;
+  font-family: var(--f-body);
+  font-size: var(--fs-11);
+  line-height: 1.5;
+  color: var(--tx-mute);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+/* 3 数値層（等幅タイル） */
+.ucard-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(72px, 100%), 1fr)); gap: 6px; }
+.ucard-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 7px;
+  background: var(--surface-inset);
+  border-radius: var(--r-sm);
+  box-shadow: inset 0 0 0 1px var(--line-dim);
+}
+.ucard-stat-label {
+  font-family: var(--f-display);
+  font-size: var(--fs-9);
+  letter-spacing: 0.12em;
+  color: var(--tx-mute);
+  text-transform: uppercase;
+}
+.ucard-stat-value {
+  font-family: var(--f-mono);
+  font-size: var(--fs-14);
+  font-variant-numeric: tabular-nums;
+  color: var(--tx);
+}
+/* キーワード行 */
+.ucard-kws { display: flex; flex-wrap: wrap; gap: 5px; }
+.ucard-kw {
+  padding: 1px 7px;
+  font-size: var(--fs-10);
+  color: var(--tx-2);
+  background: var(--surface-2);
+  border-radius: var(--r-pill);
+  box-shadow: inset 0 0 0 1px var(--line-dim);
+}
+/* 4 操作層（カード内で完結・右寄せ） */
+.ucard-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--s-2);
+  margin-top: auto;
+  padding-top: var(--s-2);
+}
+.ucard-actions > .btn { flex: 0 0 auto; }
+/* コスト表示は等幅で右に揃え、桁の揺れを防ぐ。 */
+.ucard-cost {
+  margin-inline-end: auto;
+  font-family: var(--f-mono);
+  font-size: var(--fs-12);
+  font-variant-numeric: tabular-nums;
+  color: var(--gold);
+}
+.ucard-cost:empty { display: none; }
+/* 押下フィードバック（高頻度操作なので150ms） */
+.ucard-actions > .btn:active { scale: 0.96; }
+@media (max-width: 720px) {
+  .ucard-actions { flex-wrap: wrap; }
+}
+/* ショップ: 検索・フィルタをトップバー直下で sticky に固定し、上部の空白を消す。 */
+.shop-workspace { display: flex; flex-direction: column; gap: var(--s-3); }
+.shop-tabs { flex: none; }
+.shop-workspace .shop-filters {
+  position: sticky;
+  top: var(--topbar-h, 56px);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  margin: 0;
+  background: color-mix(in oklab, var(--surface-0) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-md);
+  box-shadow: 0 1px 0 var(--line-dim) inset, 0 4px 14px -10px oklch(0 0 0 / 0.7);
+}
+.shop-toolbar-main {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.shop-toolbar-main .codex-search { flex: 1 1 min(320px, 100%); min-width: 0; }
+.shop-toolbar-main .codex-search input { width: 100%; }
+.shop-toolbar-main .codex-count { flex: none; white-space: nowrap; }
+.shop-toolbar-main > .btn { flex: none; margin-inline-start: auto; }
+/* フィルタ行は検索窓の下に置き、スクロール中も追従する。 */
+.shop-workspace .shop-filters .codex-filter-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+/* 旧 card-header の帯は廃止（件数と所持トグルは toolbar に統合済み）。 */
+.shop-workspace .owned-library-bar { display: none; }
+/* カード一覧は上端から詰めて、ツールバー直下に Gigi ける。 */
+.shop-workspace .shop-grid { margin-top: 0; }
+/* 人格描写（Kimi K3 設計）:
+   識別（誰か） → 戦闘値と耐性（数字） → 固有バフ（個性） → キーワード → 操作。
+   名前・PL・立ち絵・INITIATIVE・COLOR・共有画像は駒整形が所有するため、ここには出さない。 */
+.equipped-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+.equipped-summary .es-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+/* 識別帯: 名の下に種別/所属/No/閲覧中。同期ランクは右端に固定。 */
+.es-idstripe {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface-inset);
+  border-radius: var(--r-md);
+  box-shadow: inset 0 0 0 1px var(--line-dim), inset 2px 0 0 var(--gold-line);
+}
+.es-id-main { display: flex; flex-direction: column; gap: var(--s-2); min-width: 0; }
+.es-id-name {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--f-display);
+  font-size: var(--fs-20);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--tx);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.es-id-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  font-family: var(--f-mono);
+  font-size: var(--fs-10);
+  letter-spacing: 0.08em;
+  color: var(--tx-dim);
+  text-transform: uppercase;
+}
+.es-id-sin { color: var(--gold); }
+.es-id-affil { color: var(--tx-2); text-transform: none; letter-spacing: 0.04em; }
+.es-id-editbadge {
+  padding: 0 6px;
+  font-family: var(--f-mono);
+  font-size: var(--fs-9);
+  letter-spacing: 0.1em;
+  color: var(--gold-lo);
+  background: var(--gold-tint);
+  border-radius: var(--r-pill);
+  line-height: 16px;
+}
+.es-id-sync {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex: none;
+  font-family: var(--f-mono);
+}
+
+/* 戦闘値の帯: HP/SAN/速度/弾丸 と 耐性 を1つの面にまとめる。 */
+.es-vitals {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  background: var(--surface-1);
+  border-radius: var(--r-lg);
+  box-shadow: inset 0 0 0 1px var(--line-dim), 0 2px 6px oklch(0 0 0 / 0.3);
+}
+.es-vitals .es-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  padding: var(--s-2) var(--s-3);
+  background: var(--surface-inset);
+  border-radius: var(--r-sm);
+  box-shadow: inset 0 0 0 1px var(--line-dim);
+}
+.es-vitals .es-stat-label {
+  font-family: var(--f-display);
+  font-size: var(--fs-9);
+  letter-spacing: 0.14em;
+  color: var(--tx-mute);
+  text-transform: uppercase;
+}
+.es-vitals .es-stat-value,
+.es-vitals .es-stat-input {
+  font-family: var(--f-mono);
+  font-size: var(--fs-20);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--tx);
+}
+.es-vitals .es-stat-input {
+  width: 100%;
+  padding: 0 2px;
+  color: var(--gold-hi);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--gold-line);
+  border-radius: 0;
+}
+.es-vitals .es-stat-input:focus-visible { outline: none; border-bottom-color: var(--gold); }
+.es-vitals .es-resistance { display: block; flex: 1 1 200px; width: auto; }
+.es-vitals .es-resistance-heading {
+  display: block;
+  margin-bottom: var(--s-2);
+  font-family: var(--f-display);
+  font-size: var(--fs-9);
+  letter-spacing: 0.14em;
+  color: var(--tx-mute);
+  text-transform: uppercase;
+}
+/* 耐性の状態は色と枠で静的に示す（動きだけに依存しない）。 */
+.es-vitals .es-resistance-cell[data-grade="弱点"] {
+  color: var(--gold-hi);
+  box-shadow: inset 0 0 0 1px var(--gold-line);
+}
+.es-vitals .es-resistance-cell[data-grade="脆弱"] {
+  color: var(--warn);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+.es-vitals .es-resistance-cell[data-grade="耐性"],
+.es-vitals .es-resistance-cell[data-grade="抵抗"],
+.es-vitals .es-resistance-cell[data-grade="免疫"] {
+  color: var(--tx);
+  box-shadow: inset 0 0 0 1px var(--gold-line);
+}
+
+/* 固有バフ: この人格を他と分ける要素なので、独立した層として置く。 */
+.equipped-summary .unique-block {
+  background: var(--surface-1);
+  border-radius: var(--r-lg);
+  box-shadow: inset 0 0 0 1px var(--line-dim);
+}
+.equipped-summary .unique-header { padding: var(--s-3) var(--s-4); }
+.equipped-summary .unique-empty { padding: var(--s-3) var(--s-4); }
+
+/* キーワード: 最も低頻度なので操作の直前。 */
+.equipped-summary .es-keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface-1);
+  border-radius: var(--r-lg);
+  box-shadow: inset 0 0 0 1px var(--line-dim);
+}
+.equipped-summary .es-kw-addrow { display: flex; gap: 6px; width: 100%; margin-top: var(--s-2); }
+
+/* 操作とヒントは内容の後ろ。 */
+.equipped-summary .es-actions {
+  display: flex;
+  flex: none;
+  width: auto;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--s-2);
+  margin: 0;
+}
+.equipped-summary .es-actions > .btn { width: auto; flex: 0 0 auto; }
+.equipped-summary .es-actions > div[style*="flex"] { display: block; flex: 1 1 0; }
+.equipped-summary .es-hint { margin: 0; }
+@media (max-width: 720px) {
+  .es-vitals .es-resistance-grid { grid-template-columns: 1fr; }
+}
+/* 立ち絵の空状態: 手順（CCFOLIA でアップロード → URL を貼る）を明示し、
+   迷わせないために操作ボタンを置いて状況依存で動かす。 */
+.pc-portrait-empty {
+  display: grid;
+  place-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  padding: var(--s-4);
+  text-align: center;
+  background: var(--surface-inset);
+  border-radius: var(--r-sm);
+  box-shadow: 0 0 0 1px var(--line-dim) inset;
+}
+.pc-portrait-empty-mark { font-size: var(--fs-30); color: var(--gold-lo); line-height: 1; }
+.pc-portrait-empty-text { font-family: var(--f-display); font-size: var(--fs-13); color: var(--tx-2); }
+.pc-portrait-empty-hint {
+  max-width: 22ch;
+  font-family: var(--f-body);
+  font-size: var(--fs-11);
+  line-height: 1.6;
+  color: var(--tx-mute);
+}
+.pc-portrait-empty-action { margin-top: var(--s-2); }
+/* TRPGシート構成の駒整形。立ち絵が主役で、右に識別と駒設定を並べる。 */
+.pc-sheet {
+  display: grid;
+  grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
+  gap: var(--s-5);
+  align-items: stretch;
+}
+/* 立ち絵枠。深度は影で作り、構造の輪郭は内側の 1px 罫線が担う。 */
+.pc-portrait { margin: 0; min-width: 0; }
+.pc-portrait-frame {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 6px;
+  background: linear-gradient(180deg, var(--surface-2), var(--surface-1));
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: 0 1px 0 0 var(--surface-3) inset, 0 12px 28px -18px oklch(0 0 0 / 0.8);
+}
+.pc-portrait-img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: contain;
+  background: var(--surface-inset);
+  border-radius: var(--r-sm);
+  outline: 1px solid oklch(1 0 0 / 0.1);
+  outline-offset: -1px;
+}
+.pc-portrait-empty {
+  display: grid;
+  place-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  padding: var(--s-4);
+  text-align: center;
+  background: var(--surface-inset);
+  border-radius: var(--r-sm);
+  box-shadow: 0 0 0 1px var(--line-dim) inset;
+}
+.pc-portrait-empty-mark { font-size: var(--fs-30); color: var(--gold-lo); line-height: 1; }
+.pc-portrait-empty-text { font-family: var(--f-display); font-size: var(--fs-12); color: var(--tx-mute); }
+.pc-portrait-empty-hint { font-size: var(--fs-11); color: var(--tx-dim); }
+.pc-portrait-badge {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  padding: 2px 8px;
+  font-family: var(--f-mono);
+  font-size: var(--fs-10);
+  color: var(--tx-2);
+  background: oklch(0 0 0 / 0.62);
+  border-radius: var(--r-pill);
+}
+.pc-portrait-caption {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+}
+.pc-portrait-caption-label {
+  font-family: var(--f-display);
+  font-size: var(--fs-9);
+  letter-spacing: 0.18em;
+  color: var(--tx-mute);
+  text-transform: uppercase;
+}
+.pc-portrait-caption-note { font-family: var(--f-mono); font-size: var(--fs-10); color: var(--tx-dim); }
+/* 識別ブロック。名前は見出し、PL は従属。
+   立ち絵の縦長に合わせ、下端を能力値タイルの底で揃える。 */
+.pc-identity { min-width: 0; display: grid; grid-template-rows: auto auto 1fr; gap: var(--s-4); }
+.pc-identity > .pc-stats { align-self: end; }
+.pc-id-head { display: grid; gap: 4px; }
+.pc-id-eyebrow {
+  font-family: var(--f-display);
+  font-size: var(--fs-9);
+  letter-spacing: 0.18em;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+.pc-name-input {
+  width: 100%;
+  padding: 4px 0;
+  font-family: var(--f-display);
+  font-size: var(--fs-24);
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--tx);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+}
+.pc-name-input::placeholder { color: var(--tx-mute); opacity: 1; }
+.pc-name-input:hover { border-bottom-color: var(--line-strong); }
+.pc-name-input:focus { outline: none; border-bottom-color: var(--gold); }
+.pc-id-sub { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; gap: var(--s-3); }
+.pc-pl-input {
+  min-width: 0;
+  padding: 4px 0;
+  font-size: var(--fs-13);
+  color: var(--tx-2);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line-dim);
+  border-radius: 0;
+}
+.pc-pl-input::placeholder { color: var(--tx-mute); opacity: 1; }
+.pc-pl-input:focus { outline: none; border-bottom-color: var(--gold); }
+/* 能力値タイル。INITIATIVE と COLOR を同じ格子に並べる。 */
+.pc-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(176px, 100%), 1fr)); gap: var(--s-3); align-self: end; padding-bottom: 3px; }
+.pc-stat {
+  display: grid;
+  gap: 4px;
+  padding: var(--s-3);
+  background: var(--surface-2);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r);
+}
+.pc-stat-label {
+  font-family: var(--f-display);
+  font-size: var(--fs-9);
+  letter-spacing: 0.18em;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+.pc-stat-jp { font-size: var(--fs-11); color: var(--tx-mute); }
+.pc-stat-input {
+  width: 100%;
+  padding: 4px 0;
+  font-family: var(--f-mono);
+  font-size: var(--fs-24);
+  color: var(--tx);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+}
+.pc-stat-input:focus { outline: none; border-bottom-color: var(--gold); }
+.pc-color { display: grid; grid-template-columns: auto auto minmax(0, 1fr); align-items: center; gap: var(--s-2); }
+.pc-color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-sm);
+  box-shadow: 0 0 0 1px var(--line-strong) inset, 0 0 0 1px oklch(1 0 0 / 0.1);
+}
+.pc-color-picker {
+  width: 28px;
+  height: 28px;
+  padding: 2px;
+  background: var(--surface-inset);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+.pc-color-hex { font-size: var(--fs-14); }
+/* 立ち絵の差し替え。頻度が低いので既定は閉じ、植物は 100ms で控えめに。 */
+.pc-edit {
+  grid-column: 1 / -1;
+  background: var(--surface-1);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r);
+}
+.pc-edit-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 10px 12px;
+  font-family: var(--f-display);
+  font-size: var(--fs-12);
+  color: var(--tx-dim);
+  list-style: none;
+  cursor: pointer;
+}
+.pc-edit-summary::-webkit-details-marker { display: none; }
+.pc-edit-summary:hover { color: var(--gold); }
+.pc-edit-caret { font-size: var(--fs-10); transition-property: transform; transition-duration: 100ms; transition-timing-function: cubic-bezier(0.2, 0, 0, 1); }
+.pc-edit[open] .pc-edit-caret { transform: rotate(90deg); }
+.pc-edit-body { padding: 0 12px 12px; }
+/* 立ち絵サムネイル。選択は色と枠の両方で示す（動きだけに頼らない）。 */
+.pc-edit-tabs { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.pc-thumb {
+  position: relative;
+  width: 44px;
+  height: 56px;
+  padding: 0;
+  overflow: hidden;
+  background: var(--surface-inset);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition-property: border-color, box-shadow, scale;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+.pc-thumb > img { width: 100%; height: 100%; object-fit: cover; outline: 1px solid oklch(1 0 0 / 0.1); outline-offset: -1px; }
+.pc-thumb:hover { border-color: var(--line-strong); }
+.pc-thumb:active { scale: 0.96; }
+.pc-thumb.is-on { border-color: var(--gold); box-shadow: var(--ring-gold-1); }
+.pc-thumb-idx {
+  position: absolute;
+  right: 2px;
+  bottom: 1px;
+  padding: 0 3px;
+  font-family: var(--f-mono);
+  font-size: var(--fs-9);
+  color: var(--tx-2);
+  background: oklch(0 0 0 / 0.66);
+  border-radius: var(--r-sm);
+}
+@media (max-width: 720px) {
+  .pc-sheet { grid-template-columns: minmax(0, 1fr); }
+  .pc-portrait { max-width: 15rem; }
+  .pc-edit { grid-column: 1; }
+}
+/* 駒整形。名前・PL・立ち絵・駒の色だけを置く器（見た目は BaseSection 側）。 */
+.baseinfo-workspace { display: flex; flex-direction: column; gap: var(--s-3); }
+.base-info-panel { display: block; }
+/* 所持ゲートの解除トグル。所持のみが既定で、解除すると全件から選べる。 */
+.owned-gate-row {
+  padding-bottom: var(--s-2);
+  border-bottom: 1px dashed var(--line-dim);
+}
+/* 未所持のカードは、その場で買えるようにする（詳細を開かずに済む）。 */
+.p-card-quick-acquire {
+  display: block;
+  width: 100%;
+  margin-top: var(--s-2);
+  min-height: var(--control-h-compact);
+  font-family: var(--f-mono);
+  font-size: var(--fs-10);
+  letter-spacing: 0.04em;
+  color: var(--gold);
+  background: var(--gold-tint);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+.p-card-quick-acquire:hover { background: var(--gold); color: var(--surface-1); }
+.build-workspace { display: flex; flex-direction: column; gap: var(--s-3); }
+/* タブ帯は contents 幅まで広げず、左に揃える。 */
+.build-tabs { display: flex; }
+.build-tabpanel { min-width: 0; }
+
+/* 所持アイテム欄。ビルド画面の末尾に常に置き、記録と同じ操作（左レールの
+   記録タブ → アイテム）で所持を足せるよう入口を二重に用意する。 */
+.build-items-panel { overflow: hidden; }
+.build-items-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: var(--control-h);
+  padding: var(--s-2) var(--s-3);
+  color: var(--tx-dim);
+  cursor: pointer;
+  text-align: left;
+}
+.build-items-head:hover { color: var(--tx); background: var(--surface-2); }
+.build-items-count {
+  margin-left: auto;
+  font-family: var(--f-mono);
+  font-size: var(--fs-10);
+  color: var(--tx-mute);
+}
+.build-items-head[aria-expanded="true"] .build-items-count { color: var(--gold); }
+.build-items-add { display: grid; gap: var(--s-2); }
+/* ビルドのアイテム行。所持行と操作行を縦に積む。 */
+.build-item-row { display: grid; gap: var(--s-2); padding-bottom: var(--s-3); border-bottom: 1px solid var(--line-dim); }
+.build-item-row:last-child { padding-bottom: 0; border-bottom: 0; }
+.build-item-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-4);
+  padding-left: var(--s-1);
+}
+.build-item-qty { display: inline-flex; align-items: center; gap: var(--s-2); }
+.build-item-qty input {
+  width: 64px;
+  min-height: var(--control-h-compact);
+  padding: 2px var(--s-2);
+  font-family: var(--f-mono);
+  font-size: var(--fs-12);
+  color: var(--tx);
+  text-align: center;
+  background: var(--surface-2);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-sm);
+}
+.build-item-qty button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-h-compact);
+  height: var(--control-h-compact);
+  color: var(--tx-dim);
+  background: var(--surface-2);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+.build-item-qty button:hover:not(:disabled) { color: var(--gold); border-color: var(--gold-line); }
+.build-item-qty button:disabled { opacity: .4; cursor: not-allowed; }
+@media (max-width: 640px) {
+  .build-item-controls { gap: var(--s-2); }
+  .build-item-qty { width: 100%; }
+  .build-item-qty input { flex: 1; width: auto; }
+}
+.inv-pick-button {
+  padding: 4px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-pill);
+  min-height: var(--control-h-compact);
+}
+.inv-pick-button:hover:not(:disabled) { border-color: var(--gold-line); color: var(--gold); }
+.inv-pick-button:disabled { opacity: .45; cursor: not-allowed; }
+.inv-pick-qty {
+  font-family: var(--f-mono);
+  font-size: var(--fs-10);
+  color: var(--tx-mute);
+}
+@media (max-width: 640px) {
+  /* 狭幅でタブ帯の文字を押し潰さず横スクロールで到達可能にする。 */
+  .build-tabs .segmented { overflow-x: auto; }
+  .build-tabs .segmented > button { padding: 6px 10px; flex: 0 0 auto; white-space: nowrap; }
 }
 /* 効果段落の▶︎。操作はPALETTEの出力を見たまま行うため、
    展開系ボタンと同じ制御の列に並べ、区切り線で操作群とヒントを分ける。 */

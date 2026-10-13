@@ -130,7 +130,7 @@ function getPrimarySin(p) {
 }
 /* React.memo で199人格カードの無差別再レンダリングを防ぐ。
    props が変わらないカードは前回の結果を再利用する。 */
-const PersonaCard = React.memo(({ persona, mode, isEquipped, isActive, isFav, onSelect, onToggleFav, onEquip }) => {
+const PersonaCard = React.memo(({ persona, mode, isEquipped, isActive, isFav, isOwned, onQuickAcquire, quickAcquireLabel, onSelect, onToggleFav, onEquip }) => {
   const p = decoratePersona(persona);
   const kws = orderPersonaKeywordDisplay(p.keywords).slice(0, 3);
   const primarySin = getPrimarySin(p);
@@ -171,10 +171,26 @@ const PersonaCard = React.memo(({ persona, mode, isEquipped, isActive, isFav, on
     /* @__PURE__ */ React.createElement("div", { className: "p-stats" }, /* @__PURE__ */ React.createElement("div", { className: "p-stat" }, /* @__PURE__ */ React.createElement("span", { className: "p-stat-label" }, "HP"), /* @__PURE__ */ React.createElement("span", { className: "p-stat-value" }, p.hp)), /* @__PURE__ */ React.createElement("div", { className: "p-stat" }, /* @__PURE__ */ React.createElement("span", { className: "p-stat-label" }, "SAN"), /* @__PURE__ */ React.createElement("span", { className: "p-stat-value" }, p.san)), /* @__PURE__ */ React.createElement("div", { className: "p-stat" }, /* @__PURE__ */ React.createElement("span", { className: "p-stat-label" }, "SPD"), /* @__PURE__ */ React.createElement("span", { className: "p-stat-value" }, p.speed))),
     /* @__PURE__ */ React.createElement(ResRow, { s: p.res_slash, p: p.res_pierce, b: p.res_blunt }),
     /* @__PURE__ */ React.createElement(PersonaSinPills, { skills: p.skills }),
-    kws.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "p-kw-row" }, kws.map((k) => /* @__PURE__ */ React.createElement("span", { key: k, className: "p-kw" }, k)))
+    kws.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "p-kw-row" }, kws.map((k) => /* @__PURE__ */ React.createElement("span", { key: k, className: "p-kw" }, k))),
+    /* 獲得は詳細ポップオーバーを開かずにカード上で完結させる。 */
+    !isOwned && onQuickAcquire && /* @__PURE__ */ React.createElement(Button, {
+      size: "sm",
+      variant: "ghost",
+      className: "p-card-quick-acquire",
+      onClick: (event) => {
+        event.stopPropagation();
+        onQuickAcquire(p);
+      },
+      title: "詳細を開かずにこの人格を獲得する"
+    }, quickAcquireLabel)
   );
 });
-const PersonaDetail = ({ persona, mode, isEquipped, onEquip, onUnequip, onAddRoster, isInRoster, onReturnToList, embed, onOpenDraft }) => {
+/* AcquireBar は OtherSections.js が window に公開する。
+   同名の const は自身の束縛を追うため TDZ になる。
+   読み込み時点の window 実体を別名で保持してから包む。 */
+const AcquireBarView = (props) => React.createElement(window.AcquireBar, props);
+
+const PersonaDetail = ({ persona, mode, isEquipped, onEquip, onUnequip, onAddRoster, isInRoster, acquireHow, onAcquireHowChange, onAcquire, onReturnToList, embed, onOpenDraft }) => {
   if (!persona && onOpenDraft) {
     return /* @__PURE__ */ React.createElement("div", { className: "codex-detail" }, /* @__PURE__ */ React.createElement("div", { className: "detail-empty" }, /* @__PURE__ */ React.createElement("div", { className: "detail-empty-icon" }, "◈"), /* @__PURE__ */ React.createElement("div", { className: "t-label" }, "人格を選択 または テキスト流し込み反映"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-11)", color: "var(--tx-mute)", marginTop: 8 } }, "完成した人格データを流し込み、確認してからカスタム人格または同期人格として反映できます。"), /* @__PURE__ */ React.createElement("button", { className: "persona-draft-import-trigger persona-draft-import-trigger--empty", type: "button", onClick: onOpenDraft }, "テキスト流し込み反映")));
   }
@@ -184,7 +200,7 @@ const PersonaDetail = ({ persona, mode, isEquipped, onEquip, onUnequip, onAddRos
   const p = persona;
   const primarySin = getPrimarySin(p);
   const kws = orderPersonaKeywordDisplay(p.keywords);
-  return /* @__PURE__ */ React.createElement("div", { id: !embed ? "persona-selected-detail" : void 0, className: `codex-detail${embed ? " is-embedded" : ""}`, style: { "--sin-primary": primarySin ? `var(--sin-${primarySin})` : "var(--gold)" } }, !embed && onReturnToList && /* @__PURE__ */ React.createElement("div", { className: "persona-detail-return" }, /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", icon: "arrowU", onClick: onReturnToList, title: "選択した人格カードの位置へ戻る" }, "一覧へ戻る")), !embed && /* @__PURE__ */ React.createElement("div", { className: "detail-head" }, /* @__PURE__ */ React.createElement("div", { className: "detail-eyebrow" }, /* @__PURE__ */ React.createElement("span", { className: "detail-num" }, "No.", String(p.no).padStart(3, "0")), /* @__PURE__ */ React.createElement("span", { className: "detail-type" }, mode === "n" ? "\u901A\u5E38\u4EBA\u683C / NORMAL" : "\u7279\u7570\u4EBA\u683C / SPECIAL")), /* @__PURE__ */ React.createElement("div", { className: "detail-name" }, p.name), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "var(--s-3)" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 } }, "\u6240\u5C5E"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-12)", color: "var(--tx-2)" } }, decoratePersona(p).__aff)), /* @__PURE__ */ React.createElement("div", { className: "detail-stats" }, /* @__PURE__ */ React.createElement("div", { className: "detail-stat" }, /* @__PURE__ */ React.createElement("span", { className: "detail-stat-label" }, "HP"), /* @__PURE__ */ React.createElement("span", { className: "detail-stat-value" }, p.hp)), /* @__PURE__ */ React.createElement("div", { className: "detail-stat" }, /* @__PURE__ */ React.createElement("span", { className: "detail-stat-label" }, "SAN"), /* @__PURE__ */ React.createElement("span", { className: "detail-stat-value" }, p.san)), /* @__PURE__ */ React.createElement("div", { className: "detail-stat" }, /* @__PURE__ */ React.createElement("span", { className: "detail-stat-label" }, "\u901F\u5EA6"), /* @__PURE__ */ React.createElement("span", { className: "detail-stat-value" }, p.speed)), /* @__PURE__ */ React.createElement("div", { className: "detail-stat" }, /* @__PURE__ */ React.createElement("span", { className: "detail-stat-label" }, "\u5F3E\u4E38"), /* @__PURE__ */ React.createElement("span", { className: "detail-stat-value" }, p.bullets || "\xD7")))), /* @__PURE__ */ React.createElement("div", { className: "detail-body" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u8010\u6027 / RESISTANCE"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "var(--s-3)", flexWrap: "wrap", padding: "8px 0 12px", alignItems: "center" } }, /* @__PURE__ */ React.createElement(ResRow, { s: p.res_slash, p: p.res_pierce, b: p.res_blunt, showLabels: true }))), !embed && kws.length > 0 && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u30AD\u30FC\u30EF\u30FC\u30C9 / KEYWORDS"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } }, kws.map((k) => /* @__PURE__ */ React.createElement("span", { key: k, className: "chip is-sm" }, k)))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u30D1\u30C3\u30B7\u30D6 / PASSIVE"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive" }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-name" }, p.passive_name || "\uFF08\u306A\u3057\uFF09"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive-cond cond-chips-lg", style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)" } }, "\u767A\u52D5\u6761\u4EF6"), /* @__PURE__ */ React.createElement(CondChips, { cond: p.passive_cond || "\u306A\u3057" })), p.passive_always && /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect", style: { marginBottom: 6, color: "var(--tx-dim)" } }, /* @__PURE__ */ React.createElement("b", { style: { color: "var(--gold)", fontFamily: "var(--f-display)", fontSize: "var(--fs-10)", letterSpacing: "0.14em" } }, "\u5E38\u6642\uFF1A"), p.passive_always), /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" }, p.passive_effect))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u6226\u8853\u30B9\u30AD\u30EB / SKILLS"), /* @__PURE__ */ React.createElement("div", { className: "detail-skills" }, (p.skills || []).map((sk, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "detail-skill", "data-sin": sk.sin, style: { flexDirection: "column", alignItems: "stretch" } },
+  return /* @__PURE__ */ React.createElement("div", { id: !embed ? "persona-selected-detail" : void 0, className: `codex-detail${embed ? " is-embedded" : ""}`, style: { "--sin-primary": primarySin ? `var(--sin-${primarySin})` : "var(--gold)" } }, !embed && /* @__PURE__ */ React.createElement("div", { className: "detail-head" }, /* @__PURE__ */ React.createElement("div", { className: "detail-eyebrow" }, /* @__PURE__ */ React.createElement("span", { className: "detail-num" }, "No.", String(p.no).padStart(3, "0")), /* @__PURE__ */ React.createElement("span", { className: "detail-type" }, mode === "n" ? "\u901A\u5E38\u4EBA\u683C / NORMAL" : "\u7279\u7570\u4EBA\u683C / SPECIAL")), /* @__PURE__ */ React.createElement("div", { className: "detail-name" }, p.name), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "var(--s-3)" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 } }, "\u6240\u5C5E"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-12)", color: "var(--tx-2)" } }, decoratePersona(p).__aff)), /* @__PURE__ */ React.createElement("div", { className: "detail-stats" }, /* @__PURE__ */ React.createElement("div", { className: "detail-stat" }, /* @__PURE__ */ React.createElement("span", { className: "detail-stat-label" }, "HP"), /* @__PURE__ */ React.createElement("span", { className: "detail-stat-value" }, p.hp)), /* @__PURE__ */ React.createElement("div", { className: "detail-stat" }, /* @__PURE__ */ React.createElement("span", { className: "detail-stat-label" }, "SAN"), /* @__PURE__ */ React.createElement("span", { className: "detail-stat-value" }, p.san)), /* @__PURE__ */ React.createElement("div", { className: "detail-stat" }, /* @__PURE__ */ React.createElement("span", { className: "detail-stat-label" }, "\u901F\u5EA6"), /* @__PURE__ */ React.createElement("span", { className: "detail-stat-value" }, p.speed)), /* @__PURE__ */ React.createElement("div", { className: "detail-stat" }, /* @__PURE__ */ React.createElement("span", { className: "detail-stat-label" }, "\u5F3E\u4E38"), /* @__PURE__ */ React.createElement("span", { className: "detail-stat-value" }, p.bullets || "\xD7")))), /* @__PURE__ */ React.createElement("div", { className: "detail-body" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u8010\u6027 / RESISTANCE"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "var(--s-3)", flexWrap: "wrap", padding: "8px 0 12px", alignItems: "center" } }, /* @__PURE__ */ React.createElement(ResRow, { s: p.res_slash, p: p.res_pierce, b: p.res_blunt, showLabels: true }))), !embed && kws.length > 0 && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u30AD\u30FC\u30EF\u30FC\u30C9 / KEYWORDS"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } }, kws.map((k) => /* @__PURE__ */ React.createElement("span", { key: k, className: "chip is-sm" }, k)))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u30D1\u30C3\u30B7\u30D6 / PASSIVE"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive" }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-name" }, p.passive_name || "\uFF08\u306A\u3057\uFF09"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive-cond cond-chips-lg", style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)" } }, "\u767A\u52D5\u6761\u4EF6"), /* @__PURE__ */ React.createElement(CondChips, { cond: p.passive_cond || "\u306A\u3057" })), p.passive_always && /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect", style: { marginBottom: 6, color: "var(--tx-dim)" } }, /* @__PURE__ */ React.createElement("b", { style: { color: "var(--gold)", fontFamily: "var(--f-display)", fontSize: "var(--fs-10)", letterSpacing: "0.14em" } }, "\u5E38\u6642\uFF1A"), p.passive_always), /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" }, p.passive_effect))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u6226\u8853\u30B9\u30AD\u30EB / SKILLS"), /* @__PURE__ */ React.createElement("div", { className: "detail-skills" }, (p.skills || []).map((sk, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "detail-skill", "data-sin": sk.sin, style: { flexDirection: "column", alignItems: "stretch" } },
         /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: 8 } },
           /* @__PURE__ */ React.createElement("span", { className: "detail-skill-rank" }, "S", (sk.rank || "").replace(/[^0-9-]/g, "") || i),
           /* @__PURE__ */ React.createElement("span", { className: "detail-skill-name" }, sk.name),
@@ -193,7 +209,7 @@ const PersonaDetail = ({ persona, mode, isEquipped, onEquip, onUnequip, onAddRos
         sk.effect ? /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-11)", color: "var(--tx-2)", lineHeight: 1.55, marginTop: 4, whiteSpace: "pre-wrap", paddingLeft: 2 } }, sk.effect) : null,
         // V15: ダイスを反映
         (sk.dice || []).length > 0 ? /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 2, marginTop: 4 } }, (sk.dice || []).map((d, di) => /* @__PURE__ */ React.createElement("div", { key: di, style: { display: "flex", gap: 8, fontSize: "var(--fs-10)", fontFamily: "var(--f-mono)", color: "var(--gold-hi)" } }, /* @__PURE__ */ React.createElement("span", { style: { minWidth: 52, fontWeight: 600 } }, d.roll || ""), d.effect ? /* @__PURE__ */ React.createElement("span", { style: { color: "var(--tx-dim)", fontFamily: "var(--f-body)", whiteSpace: "pre-wrap" } }, d.effect) : null))) : null
-      )))), (p.unique_buffs || []).length > 0 ? /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title", style: { color: "var(--gold-hi)", display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-14)" } }, "\u25C6"), /* @__PURE__ */ React.createElement("span", null, "\u56FA\u6709\u30D0\u30D5 / UNIQUE"), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontFamily: "var(--f-mono)", fontSize: "var(--fs-9)", color: "var(--tx-mute)", letterSpacing: "0.06em" } }, p.unique_buffs.length, "\u4EF6")), /* @__PURE__ */ React.createElement("div", { className: "stack-2", style: { padding: "8px", background: "var(--gold-tint)", border: "1px solid var(--gold-line)", borderRadius: "var(--r)" } }, p.unique_buffs.map((b, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { padding: "6px 10px", background: "var(--surface-inset)", borderRadius: "var(--r)", border: "1px solid var(--line-dim)" } }, /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-display)", fontWeight: 600, fontSize: "var(--fs-12)", color: "var(--tx)" } }, b.name, " ", /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-10)", color: "var(--tx-dim)", fontWeight: 400 } }, "(", b.type, " / \u6700\u5927", b.max || "\u221E", ")")), b.desc && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-11)", color: "var(--tx-2)", marginTop: 4, lineHeight: 1.5, whiteSpace: "pre-wrap" } }, b.desc)))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)", marginTop: 6, lineHeight: 1.4, fontStyle: "italic" } }, "\u88C5\u5099\u3059\u308B\u3068 ", /* @__PURE__ */ React.createElement("b", { style: { color: "var(--gold)" } }, "\u30D1\u30C3\u30B7\u30D6"), " \u30DA\u30FC\u30B8\u306E\u300C\u56FA\u6709\u30D0\u30D5\u30FB\u30B9\u30C6\u30FC\u30BF\u30B9\u300D\u306B\u81EA\u52D5\u8FFD\u52A0\u3055\u308C\u307E\u3059")) : /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title", style: { color: "var(--tx-mute)" } }, "\u56FA\u6709\u30D0\u30D5 / UNIQUE"), /* @__PURE__ */ React.createElement("div", { style: { padding: "8px 10px", fontSize: "var(--fs-11)", color: "var(--tx-mute)", fontStyle: "italic", background: "var(--surface-inset)", border: "1px dashed var(--line-dim)", borderRadius: "var(--r)" } }, "\u3053\u306E\u4EBA\u683C\u306B\u56FA\u6709\u30D0\u30D5\u306FDB\u767B\u9332\u3055\u308C\u3066\u3044\u307E\u305B\u3093\u3002", /* @__PURE__ */ React.createElement("br", null), "\u5FC5\u8981\u306A\u5834\u5408\u306F\u88C5\u5099\u5F8C\u3001", /* @__PURE__ */ React.createElement("b", { style: { color: "var(--tx-dim)" } }, "\u30D1\u30C3\u30B7\u30D6"), " \u30DA\u30FC\u30B8\u304B\u3089\u624B\u52D5\u8FFD\u52A0\u3067\u304D\u307E\u3059\u3002"))), !embed && /* @__PURE__ */ React.createElement("div", { className: "detail-actions" }, isEquipped ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--gold)", textAlign: "center", fontFamily: "var(--f-display)", letterSpacing: "0.2em", textTransform: "uppercase" } }, "\u2605 \u73FE\u5728\u88C5\u5099\u4E2D"), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", onClick: onUnequip, icon: "x" }, "\u88C5\u5099\u89E3\u9664")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Button, { variant: "primary", onClick: onEquip, icon: "check" }, "\u88C5\u5099\u3059\u308B"), !isInRoster && /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", onClick: onAddRoster, icon: "plus" }, "\u6240\u6301\u30EA\u30B9\u30C8\u306E\u307F\u3078\u8FFD\u52A0"))));
+      )))), (p.unique_buffs || []).length > 0 ? /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title", style: { color: "var(--gold-hi)", display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-14)" } }, "\u25C6"), /* @__PURE__ */ React.createElement("span", null, "\u56FA\u6709\u30D0\u30D5 / UNIQUE"), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontFamily: "var(--f-mono)", fontSize: "var(--fs-9)", color: "var(--tx-mute)", letterSpacing: "0.06em" } }, p.unique_buffs.length, "\u4EF6")), /* @__PURE__ */ React.createElement("div", { className: "stack-2", style: { padding: "8px", background: "var(--gold-tint)", border: "1px solid var(--gold-line)", borderRadius: "var(--r)" } }, p.unique_buffs.map((b, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { padding: "6px 10px", background: "var(--surface-inset)", borderRadius: "var(--r)", border: "1px solid var(--line-dim)" } }, /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-display)", fontWeight: 600, fontSize: "var(--fs-12)", color: "var(--tx)" } }, b.name, " ", /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-10)", color: "var(--tx-dim)", fontWeight: 400 } }, "(", b.type, " / \u6700\u5927", b.max || "\u221E", ")")), b.desc && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-11)", color: "var(--tx-2)", marginTop: 4, lineHeight: 1.5, whiteSpace: "pre-wrap" } }, b.desc)))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)", marginTop: 6, lineHeight: 1.4, fontStyle: "italic" } }, "\u88C5\u5099\u4E2D\u30DA\u30F3\u30EB\u306E\u300C\u56FA\u6709\u30D0\u30D5\u30FB\u30B9\u30C6\u30FC\u30BF\u30B9\u2026\u300D\u306F\u88C5\u5099\u4E2D\u30DA\u30F3\u30EB\u306E\u300C\u56FA\u6709\u30D0\u30D5\u30FB\u30B9\u30C6\u30FC\u30BF\u30B9\u2026\u300D\u306F\u88C5\u5099\u3059\u308B\u3068 ", /* @__PURE__ */ React.createElement("b", { style: { color: "var(--gold)" } }, "\u30D1\u30C3\u30B7\u30D6"), " \u30DA\u30FC\u30B8\u306E\u300C\u56FA\u6709\u30D0\u30D5\u30FB\u30B9\u30C6\u30FC\u30BF\u30B9\u300D\u306B\u81EA\u52D5\u8FFD\u52A0\u3055\u308C\u307E\u3059")) : /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title", style: { color: "var(--tx-mute)" } }, "\u56FA\u6709\u30D0\u30D5 / UNIQUE"), /* @__PURE__ */ React.createElement("div", { style: { padding: "8px 10px", fontSize: "var(--fs-11)", color: "var(--tx-mute)", fontStyle: "italic", background: "var(--surface-inset)", border: "1px dashed var(--line-dim)", borderRadius: "var(--r)" } }, "\u3053\u306E\u4EBA\u683C\u306B\u56FA\u6709\u30D0\u30D5\u306FDB\u767B\u9332\u3055\u308C\u3066\u3044\u307E\u305B\u3093\u3002", /* @__PURE__ */ React.createElement("br", null), "\u5FC5\u8981\u306A\u5834\u5408\u306F\u88C5\u5099\u5F8C\u3001", /* @__PURE__ */ React.createElement("b", { style: { color: "var(--tx-dim)" } }, "\u30D1\u30C3\u30B7\u30D6"), " \u30DA\u30FC\u30B8\u304B\u3089\u624B\u52D5\u8FFD\u52A0\u3067\u304D\u307E\u3059\u3002"))), !embed && /* @__PURE__ */ React.createElement("div", { className: "detail-actions" }, isEquipped ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--gold)", textAlign: "center", fontFamily: "var(--f-display)", letterSpacing: "0.2em", textTransform: "uppercase" } }, "\u2605 \u73FE\u5728\u88C5\u5099\u4E2D"), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", onClick: onUnequip, icon: "x" }, "\u88C5\u5099\u89E3\u9664")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Button, { variant: "primary", onClick: onEquip, icon: "check" }, "\u88C5\u5099\u3059\u308B"), !isInRoster && acquireHow && onAcquireHowChange && /* @__PURE__ */ React.createElement(AcquireBarView, { state, kind: "persona", name: p.name, how: acquireHow, setHow: onAcquireHowChange, onAcquire }))));
 };
 
 function stablePersonaDiffValue(value) {
@@ -298,8 +314,7 @@ function requestPersonaUnequip(state, dispatch, afterUnequip) {
   return true;
 }
 
-const EquippedSummary = ({ state, dispatch, onExpand, onShowDetail, detailShown, syncMaxControl }) => {
-  // T35/T36: 所持人格エントリに保存済みビルドがあるか（Modified 状態の有無）
+const EquippedSummary = ({ state, dispatch, onExpand, onShowDetail, detailShown, syncMaxControl, innateSlot }) => {
   const hasSavedBuild = !!state.roster?.personas?.some((r) => r.mode === state.personaMode && r.no === state.personaNo && r.build);
   const p = state.personaSrc;
   if (!p) return null;
@@ -309,239 +324,181 @@ const EquippedSummary = ({ state, dispatch, onExpand, onShowDetail, detailShown,
   const isSavedCustom = isCustom && p.__saved;
   const editable = isSynced || isCustom && !isSavedCustom;
   const patchMeta = (patch) => dispatch({ type: "PATCH_PERSONA_META", patch });
-  const rosterEntry = (state.roster?.personas || []).find((persona) => persona.mode === state.personaMode && String(persona.no) === String(state.personaNo));
+  const rosterEntry = (state.roster?.personas || []).find((persona) => persona.mode === state.personaMode && String(persona.no) === String(persona.no));
   const displayPersonaName = rosterEntry?.syncMax && !/\s*\[MAX\]\s*$/i.test(p.name || "") ? `${p.name || ""} [MAX]` : p.name;
-  return /* @__PURE__ */ React.createElement("div", { className: "equipped-summary", style: { "--sin-primary": primarySin ? `var(--sin-${primarySin})` : "var(--gold)" } }, /* @__PURE__ */ React.createElement("div", { className: "es-head" }, /* @__PURE__ */ React.createElement("div", { className: "es-eyebrow" }, /* @__PURE__ */ React.createElement("span", { className: "es-label" }, "\u73FE\u5728\u88C5\u5099\u4E2D"), editable ? /* @__PURE__ */ React.createElement(
-    "select",
-    {
-      className: "es-mode-select",
-      value: state.personaMode || "custom",
-      onChange: (e) => patchMeta({ personaMode: e.target.value }),
-      title: "\u88C5\u5099\u5206\u985E\u3092\u5909\u66F4"
-    },
-    /* @__PURE__ */ React.createElement("option", { value: "n" }, "NORMAL / \u901A\u5E38"),
-    /* @__PURE__ */ React.createElement("option", { value: "t" }, "SPECIAL / \u7279\u7570"),
-    /* @__PURE__ */ React.createElement("option", { value: "custom" }, "CUSTOM / \u5275\u4F5C")
-  ) : isCustom ? /* @__PURE__ */ React.createElement("span", { className: "es-mode" }, "CUSTOM / \u5275\u4F5C") : /* @__PURE__ */ React.createElement("span", { className: "es-mode" }, state.personaMode === "n" ? "NORMAL / \u901A\u5E38" : "SPECIAL / \u7279\u7570"), editable ? /* @__PURE__ */ React.createElement(
-    "input",
-    {
-      className: "es-num-input",
-      type: "text",
-      value: typeof p.no === "number" ? String(p.no).padStart(3, "0") : String(p.no || "").replace(/^No\.?/, ""),
-      onChange: (e) => {
-        const v = e.target.value.trim();
-        const n = parseInt(v.replace(/\D/g, ""), 10);
-        patchMeta({ src: { no: isNaN(n) ? v : n } });
+  const affiliation = decoratePersona(p).__aff;
+  const RES_VALUES = ["普通", "脆弱", "弱点", "抵抗", "耐性", "免疫"];
+
+  /* 設計方針（Kimi K3）:
+     1 識別（誰か） → 2 戦闘値と耐性（数字） → 3 固有バフ（個性） → 4 キーワード → 操作。
+     名前・PL・立ち絵・INITIATIVE・COLOR・共有画像は駒整形が所有するため、ここでは
+     読み取り専用の識別表示だけを残し、編集 affordance は置かない。 */
+  return /* @__PURE__ */ React.createElement("div", { className: "equipped-summary esc pc-persona", "data-editable": editable ? "1" : "0" },
+
+    /* @__PURE__ */ React.createElement("div", { className: "es-body" },
+
+      /* 識別: 名前の読み取り専用表示。編集は駒整形で行う。 */
+      /* @__PURE__ */ React.createElement("div", { className: "es-idstripe" },
+        /* @__PURE__ */ React.createElement("div", { className: "es-id-main" },
+          /* @__PURE__ */ React.createElement("div", { className: "es-id-name", title: displayPersonaName }, displayPersonaName),
+          /* @__PURE__ */ React.createElement("div", { className: "es-id-meta" },
+            /* @__PURE__ */ React.createElement("span", { className: "es-label" }, isCustom ? "CUSTOM / 創作" : state.personaMode === "n" ? "NORMAL / 通常" : "SPECIAL / 特異"),
+            primarySin && /* @__PURE__ */ React.createElement("span", { className: "es-id-sin" }, primarySin),
+            affiliation && /* @__PURE__ */ React.createElement("span", { className: "es-id-affil" }, affiliation),
+            !isCustom && /* @__PURE__ */ React.createElement("span", { className: "es-num" }, "No.", String(p.no).padStart(3, "0")),
+            !editable && /* @__PURE__ */ React.createElement("span", { className: "es-id-editbadge" }, "閲覧中")
+          )
+        ),
+        /* 同期ランクは rank/MAX の両方を担うため、名前の横に固定する。 */
+        /* @__PURE__ */ React.createElement("div", { className: "es-id-sync" },
+          /* @__PURE__ */ React.createElement("span", { className: "es-stat-label" }, "同期ランク"),
+          syncMaxControl)
+      ),
+
+      /* 戦闘値と耐性: 判断に直結する数字を1つの帯にまとめる。 */
+      /* @__PURE__ */ React.createElement("div", { className: "es-vitals" },
+        React.createElement("div", { className: "es-stats" },
+          [["HP", "hp", state.hp ?? p.hp], ["SAN", "san", state.san ?? p.san], ["速度", "speed", state.speed ?? p.speed], ["弾丸", "bullets", state.bullets || p.bullets || "×"]].map(([label, field, value]) =>
+            /* @__PURE__ */ React.createElement("div", { key: field, className: "es-stat" },
+              /* @__PURE__ */ React.createElement("span", { className: "es-stat-label" }, label),
+              editable ? /* @__PURE__ */ React.createElement("input", { className: "es-stat-input", value: value, onChange: (e) => dispatch({ type: "SET_FIELD", field, value: e.target.value }), title: label + "（編集モード）" }) : /* @__PURE__ */ React.createElement("span", { className: "es-stat-value" }, value)
+            )
+          )
+        ),
+        /* 耐性とキーワードは同じ帯に置き、2枚の板を1枚にまとめる。 */
+        /* @__PURE__ */ React.createElement("div", { className: "es-vitals-right" },
+          React.createElement("section", { className: "es-resistance", role: "group", "aria-label": "耐性" },
+          /* @__PURE__ */ React.createElement("div", { className: "es-resistance-heading" }, "耐性"),
+          /* @__PURE__ */ React.createElement("div", { className: "es-resistance-grid" }, ["resS", "resP", "resB"].map((field, i) => {
+            const label = ["斬撃", "貫通", "打撃"][i];
+            const srcKey = ["res_slash", "res_pierce", "res_blunt"][i];
+            const cur = state[field] ?? p[srcKey] ?? "普通";
+            return /* @__PURE__ */ React.createElement("div", { key: field, className: "es-resistance-cell", "data-grade": cur },
+              /* @__PURE__ */ React.createElement("span", { className: "es-resistance-label" }, label),
+              editable ? /* @__PURE__ */ React.createElement("select", { className: "es-resistance-select", value: cur, onChange: (e) => dispatch({ type: "SET_FIELD", field, value: e.target.value }), title: label + "耐性（編集モード）", "aria-label": label + "耐性" }, RES_VALUES.map((r) => /* @__PURE__ */ React.createElement("option", { key: r, value: r }, r))) : /* @__PURE__ */ React.createElement("span", { className: "es-resistance-value" }, cur)
+            );
+          }))
+        ),
+          )
+      ),
+
+      /* 固有バフ: この人格を他の人格と分ける要素。 */
+      innateSlot,
+
+      /* キーワード: 最も低頻度のメタ。/actions の直上に留める。 */
+      /* @__PURE__ */ React.createElement("div", { className: "es-keywords" },
+        orderPersonaKeywordDisplay(state.personaSrc?.keywords).map((k) => /* @__PURE__ */ React.createElement("span", { key: k, className: "es-kw-tag" }, k, editable && /* @__PURE__ */ React.createElement("button", { className: "es-kw-rm", title: "このキーワードを削除", onClick: () => { const sourceKeywords = state.personaSrc.keywords || []; const targetIndex = sourceKeywords.indexOf(k); patchMeta({ src: { keywords: sourceKeywords.filter((_, j) => j !== targetIndex) } }); } }, "×"))),
+        editable && /* @__PURE__ */ React.createElement("span", { className: "es-kw-addrow" },
+          /* @__PURE__ */ React.createElement("select", { className: "es-kw-select", value: "", title: "既存キーワードから選択して追加", onChange: (e) => { const v = e.target.value; if (!v) return; const cur = state.personaSrc.keywords || []; if (cur.includes(v)) { toast("既に存在します"); return; } patchMeta({ src: { keywords: [...cur, v] } }); } }, /* @__PURE__ */ React.createElement("option", { value: "" }, "＋ 選択して追加…"),
+            orderPersonaKeywordOptions([...(window.DB?.normal_personas || []), ...(window.DB?.tokui_personas || [])].flatMap((pp) => pp.keywords || []).concat(PERSONA_FIXED_KEYWORD_OPTIONS)).filter((k) => !(state.personaSrc.keywords || []).includes(k)).map((k) => /* @__PURE__ */ React.createElement("option", { key: k, value: k }, k))
+          ),
+          /* @__PURE__ */ React.createElement("button", { className: "es-kw-add", title: "任意のキーワードを手入力で追加", onClick: () => { const v = prompt("追加するキーワードを入力（既存一覧にない任意の語）:"); if (!v || !v.trim()) return; const cur = state.personaSrc.keywords || []; if (cur.includes(v.trim())) { toast("既に存在します"); return; } patchMeta({ src: { keywords: [...cur, v.trim()] } }); } }, "手入力")
+        )
+      )
+    ),
+
+    /* @__PURE__ */ React.createElement("div", { className: "es-actions" }, /* @__PURE__ */ React.createElement(
+      Button,
+      {
+        size: "sm",
+        variant: detailShown ? "primary" : "ghost",
+        icon: detailShown ? "x" : "eye",
+        onClick: () => onShowDetail(!detailShown),
+        title: detailShown ? "簡易まとめを閉じる" : "装備中の効果を簡易まとめで表示する（Codexを開かなくても見られる）"
       },
-      title: "No. \u3092\u5909\u66F4",
-      placeholder: "No."
-    }
-  ) : !isCustom && /* @__PURE__ */ React.createElement("span", { className: "es-num" }, "No.", String(p.no).padStart(3, "0")), isSynced && /* @__PURE__ */ React.createElement("span", { className: "es-badge-sync" }, "\u25C8 \u540C\u671F\u5316\uFF1A\u624B\u52D5\u7DE8\u96C6\u30E2\u30FC\u30C9")), editable ? /* @__PURE__ */ React.createElement(
-    "input",
-    {
-      className: "es-name-input",
-      value: p.name || "",
-      onChange: (e) => patchMeta({ src: { name: e.target.value } }),
-      placeholder: "\u4EBA\u683C\u540D\uFF08\u540C\u671F\u5316\u30FB\u30AB\u30B9\u30BF\u30E0\u3067\u306E\u307F\u7DE8\u96C6\u53EF\uFF09",
-      title: "\u4EBA\u683C\u540D\u3092\u7DE8\u96C6"
-    }
-  ) : /* @__PURE__ */ React.createElement("div", { className: "es-name" }, displayPersonaName)), /* @__PURE__ */ React.createElement("div", { className: "es-body" }, /* @__PURE__ */ React.createElement("div", { className: "es-stats" }, /* @__PURE__ */ React.createElement("div", { className: "es-stat" }, /* @__PURE__ */ React.createElement("span", { className: "es-stat-label" }, "HP"), editable ? /* @__PURE__ */ React.createElement(
-    "input",
-    {
-      className: "es-stat-input",
-      type: "number",
-      value: state.hp ?? p.hp,
-      onChange: (e) => dispatch({ type: "SET_FIELD", field: "hp", value: e.target.value }),
-      title: "HP\uFF08\u7DE8\u96C6\u30E2\u30FC\u30C9\uFF09"
-    }
-  ) : /* @__PURE__ */ React.createElement("span", { className: "es-stat-value" }, state.hp ?? p.hp)), /* @__PURE__ */ React.createElement("div", { className: "es-stat" }, /* @__PURE__ */ React.createElement("span", { className: "es-stat-label" }, "SAN"), editable ? /* @__PURE__ */ React.createElement(
-    "input",
-    {
-      className: "es-stat-input",
-      type: "number",
-      value: state.san ?? p.san,
-      onChange: (e) => dispatch({ type: "SET_FIELD", field: "san", value: e.target.value }),
-      title: "SAN\uFF08\u7DE8\u96C6\u30E2\u30FC\u30C9\uFF09"
-    }
-  ) : /* @__PURE__ */ React.createElement("span", { className: "es-stat-value" }, state.san ?? p.san)), /* @__PURE__ */ React.createElement("div", { className: "es-stat" }, /* @__PURE__ */ React.createElement("span", { className: "es-stat-label" }, "\u901F\u5EA6"), editable ? /* @__PURE__ */ React.createElement(
-    "input",
-    {
-      className: "es-stat-input",
-      value: state.speed ?? p.speed,
-      onChange: (e) => dispatch({ type: "SET_FIELD", field: "speed", value: e.target.value }),
-      title: "\u901F\u5EA6\uFF08\u7DE8\u96C6\u30E2\u30FC\u30C9\uFF09"
-    }
-  ) : /* @__PURE__ */ React.createElement("span", { className: "es-stat-value" }, state.speed ?? p.speed)), /* @__PURE__ */ React.createElement("div", { className: "es-stat" }, /* @__PURE__ */ React.createElement("span", { className: "es-stat-label" }, "\u5F3E\u4E38"), editable ? /* @__PURE__ */ React.createElement(
-    "input",
-    {
-      className: "es-stat-input",
-      value: state.bullets || p.bullets || "\xD7",
-      onChange: (e) => dispatch({ type: "SET_FIELD", field: "bullets", value: e.target.value }),
-      title: "\u5F3E\u4E38\uFF08\u7DE8\u96C6\u30E2\u30FC\u30C9\uFF09"
-    }
-  ) : /* @__PURE__ */ React.createElement("span", { className: "es-stat-value" }, state.bullets || p.bullets || "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "es-stat" }, /* @__PURE__ */ React.createElement("span", { className: "es-stat-label" }, "\u30E9\u30F3\u30AF"), editable ? /* @__PURE__ */ React.createElement(
-    "select",
-    {
-      className: "es-stat-input",
-      value: (state.roster.personas.find((r) => r.mode === state.personaMode && r.no === state.personaNo) || {}).syncRank || "",
-      onChange: (e) => {
-        const uid = (state.roster.personas.find((r) => r.mode === state.personaMode && r.no === state.personaNo) || {}).uid;
-        if (uid) dispatch({ type: "PATCH_ROSTER", uid, patch: { syncRank: e.target.value || null } });
-        else toast("\u88C5\u5099\u4E2D\u4EBA\u683C\u304C\u6240\u6301\u30EA\u30B9\u30C8\u306B\u3042\u308A\u307E\u305B\u3093");
-      },
-      title: "\u540C\u671F\u5316\u30E9\u30F3\u30AF\uFF08\u306A\u3057/0/00/000\uFF09"
-    },
-    /* @__PURE__ */ React.createElement("option", { value: "" }, "\u306A\u3057"),
-    /* @__PURE__ */ React.createElement("option", { value: "0" }, "\u540C\u671F0"),
-    /* @__PURE__ */ React.createElement("option", { value: "00" }, "\u540C\u671F00"),
-    /* @__PURE__ */ React.createElement("option", { value: "000" }, "\u540C\u671F000")
-  ) : /* @__PURE__ */ React.createElement("span", { className: "es-stat-value" }, (state.roster.personas.find((r) => r.mode === state.personaMode && r.no === state.personaNo) || {}).syncRank || "\u2014"))), syncMaxControl, /* @__PURE__ */ React.createElement("section", { className: "es-resistance", role: "group", "aria-label": "耐性" }, /* @__PURE__ */ React.createElement("div", { className: "es-resistance-heading" }, "耐性"), /* @__PURE__ */ React.createElement("div", { className: "es-resistance-grid" }, ["resS", "resP", "resB"].map((field, i) => {
-      const label = ["斬撃", "貫通", "打撃"][i];
-      const srcKey = ["res_slash", "res_pierce", "res_blunt"][i];
-      const cur = state[field] ?? p[srcKey] ?? "普通";
-      return /* @__PURE__ */ React.createElement("div", { key: field, className: "es-resistance-cell", "data-res": cur }, /* @__PURE__ */ React.createElement("span", { className: "es-resistance-label" }, label), editable ? /* @__PURE__ */ React.createElement(
-        "select",
-        {
-          className: "es-resistance-select",
-          value: cur,
-          onChange: (e) => dispatch({ type: "SET_FIELD", field, value: e.target.value }),
-          title: label + "耐性（編集モード）",
-          "aria-label": label + "耐性"
+      detailShown ? "簡易まとめを閉じる" : "簡易まとめを表示"
+    ), isCustom && /* @__PURE__ */ React.createElement(
+      Button,
+      {
+        size: "md",
+        variant: "primary",
+        className: "persona-save-primary",
+        icon: "download",
+        onClick: () => {
+          dispatch({ type: "SAVE_CUSTOM_PERSONA" });
+          toast(isSavedCustom ? "所持人格の内容を更新しました（装備モードへ移行）" : "所持人格一覧に保存しました（装備モードへ移行）");
         },
-        ["普通", "脆弱", "弱点", "抵抗", "耐性", "免疫"].map((r) => /* @__PURE__ */ React.createElement("option", { key: r, value: r }, r))
-      ) : /* @__PURE__ */ React.createElement("span", { className: "es-resistance-value" }, cur));
-    }))), /* @__PURE__ */ React.createElement("div", { className: "es-keywords" }, /* @__PURE__ */ React.createElement("span", { className: "es-stat-label", style: { alignSelf: "center" } }, "\u30AD\u30FC\u30EF\u30FC\u30C9"), orderPersonaKeywordDisplay(state.personaSrc?.keywords).map((k) => /* @__PURE__ */ React.createElement("span", { key: k, className: "es-kw-tag" }, k, editable && /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      className: "es-kw-rm",
-      title: "\u3053\u306E\u30AD\u30FC\u30EF\u30FC\u30C9\u3092\u524A\u9664",
-      onClick: () => {
-        const sourceKeywords = state.personaSrc.keywords || [];
-        const targetIndex = sourceKeywords.indexOf(k);
-        const next = sourceKeywords.filter((_, j) => j !== targetIndex);
-        patchMeta({ src: { keywords: next } });
-      }
-    },
-    "\xD7"
-  ))), editable && /* @__PURE__ */ React.createElement("span", { className: "es-kw-addrow" }, /* @__PURE__ */ React.createElement(
-    "select",
-    {
-      className: "es-kw-select",
-      value: "",
-      title: "\u65E2\u5B58\u30AD\u30FC\u30EF\u30FC\u30C9\u304B\u3089\u9078\u629E\u3057\u3066\u8FFD\u52A0",
-      onChange: (e) => {
-        const v = e.target.value;
-        if (!v) return;
-        const cur = state.personaSrc.keywords || [];
-        if (cur.includes(v)) {
-          toast("\u65E2\u306B\u5B58\u5728\u3057\u307E\u3059");
-          return;
-        }
-        patchMeta({ src: { keywords: [...cur, v] } });
-      }
-    },
-    /* @__PURE__ */ React.createElement("option", { value: "" }, "\uFF0B \u9078\u629E\u3057\u3066\u8FFD\u52A0\u2026"),
-    // T33: ソート実験の残骸「爆発」「混乱」を候補から除去（DB 原文は非破壊）。
-    // T34: ルール上の基本状態は、DB に未収録でも選択可能にする。
-    // 変換・派生・属性限定の状態は候補を増やしすぎないよう含めない。
-    orderPersonaKeywordOptions([...(window.DB?.normal_personas || []), ...(window.DB?.tokui_personas || [])].flatMap((pp) => pp.keywords || []).concat(PERSONA_FIXED_KEYWORD_OPTIONS))
-      .filter((k) => !(state.personaSrc.keywords || []).includes(k))
-      .map((k) => /* @__PURE__ */ React.createElement("option", { key: k, value: k }, k))
-  ), /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      className: "es-kw-add",
-      title: "\u4EFB\u610F\u306E\u30AD\u30FC\u30EF\u30FC\u30C9\u3092\u624B\u5165\u529B\u3067\u8FFD\u52A0",
-      onClick: () => {
-        const v = prompt("\u8FFD\u52A0\u3059\u308B\u30AD\u30FC\u30EF\u30FC\u30C9\u3092\u5165\u529B\uFF08\u65E2\u5B58\u4E00\u89A7\u306B\u306A\u3044\u4EFB\u610F\u306E\u8A9E\uFF09:");
-        if (!v || !v.trim()) return;
-        const cur = state.personaSrc.keywords || [];
-        if (cur.includes(v.trim())) {
-          toast("\u65E2\u306B\u5B58\u5728\u3057\u307E\u3059");
-          return;
-        }
-        patchMeta({ src: { keywords: [...cur, v.trim()] } });
-      }
-    },
-    "\u624B\u5165\u529B"
-  ))), /* @__PURE__ */ React.createElement("div", { className: "es-actions" }, /* @__PURE__ */ React.createElement(
-    Button,
-    {
-      size: "sm",
-      variant: detailShown ? "primary" : "ghost",
-      icon: detailShown ? "x" : "eye",
-      onClick: () => onShowDetail(!detailShown),
-      title: detailShown ? "\u7C21\u6613\u307E\u3068\u3081\u3092\u9589\u3058\u308B" : "\u88C5\u5099\u4E2D\u306E\u52B9\u679C\u3092\u7C21\u6613\u307E\u3068\u3081\u8868\u793A\u3059\u308B\uFF08Codex\u3092\u958B\u304B\u306A\u304F\u3066\u3082\u898B\u3089\u308C\u308B\uFF09"
-    },
-    detailShown ? "\u7C21\u6613\u307E\u3068\u3081\u3092\u9589\u3058\u308B" : "\u7C21\u6613\u307E\u3068\u3081\u3092\u8868\u793A"
-  ), isCustom && /* @__PURE__ */ React.createElement(
-    Button,
-    {
-      size: "md",
-      variant: "primary",
-      className: "persona-save-primary",
-      icon: "download",
-      onClick: () => {
-        dispatch({ type: "SAVE_CUSTOM_PERSONA" });
-        toast(isSavedCustom ? "\u6240\u6301\u4EBA\u683C\u306E\u5185\u5BB9\u3092\u66F4\u65B0\u3057\u307E\u3057\u305F\uFF08\u88C5\u5099\u30E2\u30FC\u30C9\u3078\u79FB\u884C\uFF09" : "\u6240\u6301\u4EBA\u683C\u4E00\u89A7\u306B\u4FDD\u5B58\u3057\u307E\u3057\u305F\uFF08\u88C5\u5099\u30E2\u30FC\u30C9\u3078\u79FB\u884C\uFF09");
+        title: "現在の編集内容を所持人格一覧に登録"
       },
-      title: "\u73FE\u5728\u306E\u7DE8\u96C6\u5185\u5BB9\u3092\u6240\u6301\u4EBA\u683C\u4E00\u89A7\u306B\u767B\u9332\u3002\u4FDD\u5B58\u5F8C\u306F\u88C5\u5099\u30E2\u30FC\u30C9\uFF08\u8AAD\u53D6\u5C02\u7528\uFF09\u306B\u306A\u308A\u3001\u518D\u5EA6\u7DE8\u96C6\u3059\u308B\u306B\u306F\u300C\u25C8 \u540C\u671F\u5316\u3057\u3066\u624B\u52D5\u7DE8\u96C6\u300D\u3092\u4F7F\u7528"
-    },
-    isSavedCustom ? "\u6240\u6301\u4EBA\u683C\u306E\u4FDD\u5B58\u5185\u5BB9\u3092\u66F4\u65B0" : "\u3053\u306E\u4EBA\u683C\u3092\u6240\u6301\u306B\u4FDD\u5B58"
-  ), /* @__PURE__ */ React.createElement(
-    Button,
-    {
-      size: "sm",
-      variant: isSynced ? "primary" : "ghost",
-      icon: isSynced ? "check" : "edit",
-      onClick: () => {
-        if (isSynced) {
-          // R18: 保存は解除時に必要な場合だけ選択する。編集終了は現在の作業状態を保持するだけ。
-          dispatch({ type: "SET_SYNCED_MANUAL", value: false });
-          toast("編集モードを終了しました。変更は装備解除時に保存を選べます");
-        } else {
-          dispatch({ type: "SET_SYNCED_MANUAL", value: true });
-          toast(isSavedCustom ? "\u7DE8\u96C6\u30E2\u30FC\u30C9\uFF1A\u4FDD\u5B58\u6E08\u307F\u4EBA\u683C\u3092\u624B\u52D5\u7DE8\u96C6\u4E2D" : "\u540C\u671F\u5316\uFF1A\u5168\u9805\u76EE\u3092\u624B\u52D5\u7DE8\u96C6\u53EF\u80FD\u306B");
-        }
+      isSavedCustom ? "所持人格の保存内容を更新" : "この人格を所持に保存"
+    ), /* @__PURE__ */ React.createElement(
+      Button,
+      {
+        size: "sm",
+        variant: isSynced ? "primary" : "ghost",
+        icon: isSynced ? "check" : "edit",
+        onClick: () => {
+          if (isSynced) {
+            dispatch({ type: "SET_SYNCED_MANUAL", value: false });
+            toast("編集モードを終了しました。変更は装備解除時に保存を選べます");
+          } else {
+            dispatch({ type: "SET_SYNCED_MANUAL", value: true });
+            toast(isSavedCustom ? "編集モード：保存済み人格を手動編集中" : "同期化：全項目を手動編集可能に");
+          }
+        },
+        title: isSynced ? "編集モードを解除" : "同期化：ステータス・パッシブ・スキル・固有バフを手動で書き換え可能にする"
       },
-      title: isSynced ? "\u7DE8\u96C6\u30E2\u30FC\u30C9\u3092\u89E3\u9664" : "\u540C\u671F\u5316\uFF1A\u30B9\u30C6\u30FC\u30BF\u30B9\u30FB\u30D1\u30C3\u30B7\u30D6\u30FB\u30B9\u30AD\u30EB\u30FB\u56FA\u6709\u30D0\u30D5\u3092\u624B\u52D5\u3067\u66F8\u304D\u63DB\u3048\u53EF\u80FD\u306B\u3059\u308B"
-    },
-    isSynced ? "\u2713 \u7DE8\u96C6\u3092\u7D42\u4E86\uFF08\u5185\u5BB9\u306F\u4FDD\u6301\uFF09" : "\u25C8 \u540C\u671F\u5316\u3057\u3066\u624B\u52D5\u7DE8\u96C6"
-  ), /* @__PURE__ */ React.createElement(
-    Button,
-    {
-      size: "sm",
-      variant: "ghost",
-      icon: "x",
-      onClick: () => requestPersonaUnequip(state, dispatch),
-      title: "\u88C5\u5099\u3092\u89E3\u9664"
-    },
-    "\u88C5\u5099\u89E3\u9664"
-  ), hasSavedBuild && /* @__PURE__ */ React.createElement(
-    Button,
-    {
-      size: "sm",
-      variant: "ghost",
-      icon: "x",
-      onClick: () => {
-        if (!confirm("\u4FDD\u5B58\u3057\u305F\u30D3\u30EB\u30C9\u3092\u7834\u68C4\u3057\u307E\u3059\u304B\uFF1F\uFF08\u6B21\u56DE\u88C5\u5099\u6642\u306FDB\u65E2\u5B9A\u5024\u306B\u623B\u308A\u307E\u3059\u3002\u73FE\u5728\u306E\u7DE8\u96C6\u306F\u5909\u308F\u308A\u307E\u305B\u3093\uFF09")) return;
-        dispatch({ type: "CLEAR_PERSONA_BUILD", key: `${state.personaMode}:${state.personaNo}` });
-        toast("\u4FDD\u5B58\u30D3\u30EB\u30C9\u3092\u7834\u68C4\u3057\u307E\u3057\u305F");
+      isSynced ? "✓ 編集を終了（内容は保持）" : "◈ 同期化して手動編集"
+    ), /* @__PURE__ */ React.createElement(
+      Button,
+      {
+        size: "sm",
+        variant: "ghost",
+        icon: "x",
+        onClick: () => requestPersonaUnequip(state, dispatch),
+        title: "装備を解除"
       },
-      title: "\u4FDD\u5B58\u30D3\u30EB\u30C9\u3092\u7834\u68C4\u3057\u3066DB\u65E2\u5B9A\u306B\u623B\u3059"
-    },
-    "\u4FDD\u5B58\u3092\u7834\u68C4"
-  ), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }), /* @__PURE__ */ React.createElement(
-    Button,
-    {
-      size: "sm",
-      icon: onExpand.expanded ? "chevronU" : "chevronD",
-      className: "persona-list-toggle",
-      onClick: onExpand.toggle,
-      title: onExpand.expanded ? "\u4E00\u89A7\u3092\u6298\u308A\u7573\u3080" : "\u5225\u306E\u4EBA\u683C\u3092\u9078\u3076 (Codex \u3092\u5C55\u958B)"
-    },
-    onExpand.expanded ? "\u4E00\u89A7\u3092\u7573\u3080" : "\u5225\u306E\u4EBA\u683C\u3092\u9078\u3076"
-  ))), /* @__PURE__ */ React.createElement("div", { className: "es-hint" }, isSynced ? "\u540C\u671F\u5316\u30E2\u30FC\u30C9\uFF1A\u53F3\u5074\u30D1\u30CD\u30EB\u306E\u8A73\u7D30\u306F\u88C5\u5099\u6642\u70B9\u306E\u60C5\u5831\u3002\u7DE8\u96C6\u306F\u4E0B\u306E\u300CBase Info\u300D/ \u30B9\u30AD\u30EB\u30FB\u30D1\u30C3\u30B7\u30D6\u5404\u30BB\u30AF\u30B7\u30E7\u30F3\u3067\u884C\u3048\u307E\u3059\u3002" : "\u88C5\u5099\u30C7\u30FC\u30BF\u306E\u624B\u52D5\u66F8\u304D\u63DB\u3048\u3092\u884C\u3044\u305F\u3044\u5834\u5408\u306F\u300C\u25C8 \u540C\u671F\u5316\u3057\u3066\u624B\u52D5\u7DE8\u96C6\u300D\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044\u3002"));
+      "装備解除"
+    ), hasSavedBuild && /* @__PURE__ */ React.createElement(
+      Button,
+      {
+        size: "sm",
+        variant: "ghost",
+        icon: "x",
+        onClick: () => {
+          if (!confirm("保存したビルドを破棄しますか？（次回装備時はDB既定値に戻ります。現在の編集は変わりません）")) return;
+          dispatch({ type: "CLEAR_PERSONA_BUILD", key: `${state.personaMode}:${state.personaNo}` });
+          toast("保存ビルドを破棄しました");
+        },
+        title: "保存ビルドを破棄してDB既定に戻す"
+      },
+      "保存を破棄"
+    ), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }), /* @__PURE__ */ React.createElement(
+      Button,
+      {
+        size: "sm",
+        icon: onExpand.expanded ? "chevronU" : "chevronD",
+        className: "persona-list-toggle",
+        onClick: onExpand.toggle,
+        title: onExpand.expanded ? "一覧を折り畳む" : "別の人格を選ぶ (Codex を展開)"
+      },
+      onExpand.expanded ? "一覧を畳む" : "別の人格を選ぶ"
+    )), /* @__PURE__ */ React.createElement("div", { className: "es-hint" }, isSynced ? "同期化モード：装備時点のデータを組んしています。" : "装備データを手動書き換えする場合は「◈ 同期化して手動編集」を押してください。"));
+};
+/* 駒整形（BASE INFO）。名前・PL・立ち絵・INITIATIVE・COLOR・共有シート画像を置く。
+   HP/SAN/速度・耐性・キーワード・固有バフはビルドの人格タブが担当する。 */
+const BaseInfoPanel = ({ state, dispatch }) => {
+  const BaseSection = window.BaseSection;
+  if (!state.personaSrc || !BaseSection) return null;
+  return /* @__PURE__ */ React.createElement("div", { className: "base-info-panel" },
+    /* @__PURE__ */ React.createElement(BaseSection, { state, dispatch })
+  );
+};
+
+const BaseInfoWorkspace = ({ state, dispatch }) => {
+  const h = React.createElement;
+  const equipped = !!state.personaSrc;
+  return h("div", { className: "baseinfo-workspace" },
+    h("div", { className: "equipped-unified" }, h(BaseInfoPanel, { state, dispatch })),
+    !equipped && h("div", { className: "empty", style: { padding: "var(--s-5)" } },
+      "まだ人格が装備されていません。",
+      h("br", null),
+      "ビルドの人格タブから人格を選んで装備すると、ここに名前と駒が表示されます。"
+    ),
+    /* 組み立て設定（ステータス一覧・ラベル一覧）はここが唯一の場所。
+       人格と無関係なので、人格が装備されていなくても開ける。 */
+    typeof window.LBT_BuildParamsPanel === "function" ? window.LBT_BuildParamsPanel({ state, dispatch }) : null
+  );
 };
 function buildEquippedDetailPersona(state) {
   const src = state.personaSrc;
@@ -694,9 +651,32 @@ const PersonaDraftImportDialog = ({ draftText, draftSections, draftInputMode, dr
         (draftResult.errors || []).map((message, index) => h("p", { key: `error-${index}`, className: "persona-draft-message is-error" }, message)),
         (draftResult.warnings || []).map((message, index) => h("p", { key: `warning-${index}`, className: "persona-draft-message is-warning" }, message)))));
 };
-const PersonaCodex = ({ state, dispatch }) => {
+const PersonaCodex = ({ state, dispatch, ownedOnly = false }) => {
+  /* ビルド側の人格タブは既定で「所持して装備するもの」だけを出す。
+     これはロックではなく、未所持を探したいときのために解除できる。 */
+  const [showAll, setShowAll] = React.useState(false);
+  const gated = ownedOnly && !showAll;
+
+  /* DB のどちらの枠（通常人格/特異人格）に属するかを解決する。 */
+  const personaModeFor = (persona) => (window.DB?.normal_personas || []).some((x) => x.no === persona.no) ? "n" : "t";
+  /* カード内購入。詳細ポップオーバーを開かずに獲得を完結させる。 */
+
+  /* 所持ゲートの解除。解除すると全DBから選べるので、未所持を探索できる。 */
+  const ownedGateOpen = showAll;
+
+  const [acquireHow, setAcquireHow] = React.useState("purchase");
+  const resolveAcquireCost = (kind, how, context) => (window.LBT_resolveAcquireCost ? window.LBT_resolveAcquireCost(kind, how, context) : { lp: 0, shards: 0, label: "無料" });
+  const acquirePersona = (persona) => {
+    const cost = resolveAcquireCost("persona", acquireHow, { name: persona.name, ownsPersona: (roster.personas || []).length > 0 });
+    const personaMode = personaModeFor(persona);
+    const p = persona;
+    dispatch({ type: "ADD_ROSTER", mode: personaMode, no: p.no, purchase: true, cost: { lp: cost.lp || 0, shards: cost.shards || 0 } });
+    toast(`${persona.name} を獲得しました（${cost.label}）`);
+  };
+
+
   const { ui, personaMode, personaNo, favorites, historyRecent, roster } = state;
-  const mode = ui.codexMode || "n";
+  const mode = gated ? "roster" : ui.codexMode || "n";
   const [selectedPersona, setSelectedPersona] = React.useState(null);
   const pendingDetailFocusRef = React.useRef(false);
   const [draftImportOpen, setDraftImportOpen] = React.useState(false);
@@ -712,7 +692,7 @@ const PersonaCodex = ({ state, dispatch }) => {
   const codexExpanded = ui.codexExpanded !== void 0 ? ui.codexExpanded : !state.personaSrc;
   const setCodexExpanded = (v) => dispatch({ type: "SET_UI", ui: { codexExpanded: v } });
   React.useEffect(() => {
-    if (!selectedPersona && state.personaSrc) setSelectedPersona(state.personaSrc);
+    if (!selectedPersona && state.personaSrc) setSelectedPersona(null);
   }, []);
   const pool = React.useMemo(() => {
     // ★/履歴のキー（mode:no）をDBまたはロスターの実データへ解決する。
@@ -898,7 +878,7 @@ const PersonaCodex = ({ state, dispatch }) => {
       const detail = document.getElementById("persona-selected-detail");
       if (!detail) return;
       pendingDetailFocusRef.current = false;
-      scrollIntoFocus(detail, "start");
+      scrollIntoFocus(detail, "nearest");
     }, 24);
     return () => window.clearTimeout(timer);
   }, [selectedPersona, codexExpanded]);
@@ -943,7 +923,8 @@ const PersonaCodex = ({ state, dispatch }) => {
   };
   const addRoster = (p) => {
     const m = pool.find((x) => x.p === p)?.mode || mode;
-    dispatch({ type: "ADD_ROSTER", mode: m, no: p.no });
+
+    const cost = resolveAcquireCost("persona", acquireHow, { name: p.name, ownsPersona: (roster.personas || []).length > 0 });    dispatch({ type: "ADD_ROSTER", mode: m, no: p.no, purchase: true, cost: { lp: cost.lp || 0, shards: cost.shards || 0 } });
     toast("\u6240\u6301\u30EA\u30B9\u30C8\u3078\u8FFD\u52A0");
   };
   const unequip = () => {
@@ -1010,9 +991,15 @@ const PersonaCodex = ({ state, dispatch }) => {
       onExpand: { expanded: codexExpanded, toggle: toggleCodexList },
       onShowDetail: setShowEquippedDetail,
       detailShown: showEquippedDetail,
-      syncMaxControl: equippedPersona && /* @__PURE__ */ React.createElement(SyncMaxControl, { state, dispatch })
+      syncMaxControl: equippedPersona && /* @__PURE__ */ React.createElement(SyncMaxControl, { state, dispatch }),
+      /* 固有バフは人格カード内に統合済み。独立した折りたみしでは出さない。 */
+      innateSlot: equippedPersona && /* @__PURE__ */ React.createElement(UniqueBuffsBlock, { state, dispatch })
     }
   ), equippedPersona && showEquippedDetail && /* @__PURE__ */ React.createElement("div", { className: "equipped-detail-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "equipped-detail-inner" }, /* @__PURE__ */ React.createElement(
+    DetailDialog,
+    {
+      open: !!selectedPersona, onClose: () => setSelectedPersona(null), label: "\u4EBA\u683C\u8A73\u7D30",
+      children: /* @__PURE__ */ React.createElement(
     PersonaDetail,
     {
       persona: equippedDetailPersona,
@@ -1026,23 +1013,8 @@ const PersonaCodex = ({ state, dispatch }) => {
       isInRoster: true,
       embed: true
     }
-  )))), equippedPersona && /* @__PURE__ */ React.createElement(
-    React.Fragment,
-    null,
-    /* W07: 基本情報（名前/PL/立ち絵/色）を装備中パネル内に折りたたみ統合 */
-    /* @__PURE__ */ React.createElement("details", { className: "fold pw-subsec", style: { marginTop: "var(--s-3)", background: "var(--surface-1)", border: "1px solid var(--line-dim)", borderRadius: 6 } },
-      /* @__PURE__ */ React.createElement("summary", { style: { cursor: "pointer", padding: "10px 14px", fontFamily: "var(--f-display)", fontWeight: 700, fontSize: "var(--fs-13)", color: "var(--gold)", listStyle: "none", display: "flex", alignItems: "center", gap: 10 } },
-        /* @__PURE__ */ React.createElement("span", { className: "pw-subsec-caret", style: { fontSize: "var(--fs-10)" } }, "▶"),
-        "BASE INFO / 基本情報",
-        /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)", fontWeight: 400 } }, "名前・PL・立ち絵・駒の色")),
-      /* @__PURE__ */ React.createElement("div", { style: { padding: "4px 14px 14px" } }, /* @__PURE__ */ React.createElement(BaseSection, { state, dispatch }))),
-    /* W07: 固有バフ・ステータスを装備中パネル内に折りたたみ統合 */
-    /* @__PURE__ */ React.createElement("details", { className: "fold pw-subsec", style: { marginTop: "var(--s-2)", background: "var(--surface-1)", border: "1px solid var(--line-dim)", borderRadius: 6 } },
-      /* @__PURE__ */ React.createElement("summary", { style: { cursor: "pointer", padding: "10px 14px", fontFamily: "var(--f-display)", fontWeight: 700, fontSize: "var(--fs-13)", color: "var(--gold)", listStyle: "none", display: "flex", alignItems: "center", gap: 10 } },
-        /* @__PURE__ */ React.createElement("span", { className: "pw-subsec-caret", style: { fontSize: "var(--fs-10)" } }, "▶"),
-        "UNIQUE BUFFS / 固有バフ・ステータス",
-        /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)", fontWeight: 400 } }, "この人格固有の蓄積バフ・固有ステータス")),
-      /* @__PURE__ */ React.createElement("div", { style: { padding: "4px 14px 14px" } }, /* @__PURE__ */ React.createElement(UniqueBuffsBlock, { state, dispatch })))),
+  )
+    })))), 
   equippedPersona && /* @__PURE__ */ React.createElement(
     "div",
     {
@@ -1058,7 +1030,7 @@ const PersonaCodex = ({ state, dispatch }) => {
     !codexExpanded && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-10)", color: "var(--gold)" } }, "\u30AF\u30EA\u30C3\u30AF\u3067\u5C55\u958B"),
     /* @__PURE__ */ React.createElement("button", { className: "persona-draft-import-trigger", type: "button", onClick: (event) => { event.stopPropagation(); setDraftImportOpen(true); }, title: "完成した人格データをテキストで流し込み、確認して反映" }, "テキスト流し込み反映"),
     null
-  ), (!equippedPersona || codexExpanded) && /* @__PURE__ */ React.createElement("div", { id: "persona-list-region", className: "codex pw-body" }, /* @__PURE__ */ React.createElement("div", { className: "codex-main" }, /* @__PURE__ */ React.createElement("div", { className: "codex-modes" }, modes.map((m) => /* @__PURE__ */ React.createElement("button", { key: m.value, className: mode === m.value ? "is-active" : "", onClick: () => dispatch({ type: "SET_UI", ui: { codexMode: m.value } }), type: "button" }, m.label, " ", /* @__PURE__ */ React.createElement("span", { className: "count" }, m.count))), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }), /* @__PURE__ */ React.createElement(
+  ), (!equippedPersona || codexExpanded) && /* @__PURE__ */ React.createElement("div", { id: "persona-list-region", className: "codex pw-body" }, /* @__PURE__ */ React.createElement("div", { className: "codex-main" }, !gated && /* @__PURE__ */ React.createElement("div", { className: "codex-modes" }, modes.map((m) => /* @__PURE__ */ React.createElement("button", { key: m.value, className: mode === m.value ? "is-active" : "", onClick: () => dispatch({ type: "SET_UI", ui: { codexMode: m.value } }), type: "button" }, m.label, " ", /* @__PURE__ */ React.createElement("span", { className: "count" }, m.count))), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }), /* @__PURE__ */ React.createElement(
     "button",
     {
       onClick: equipCustom,
@@ -1114,7 +1086,29 @@ const PersonaCodex = ({ state, dispatch }) => {
     const key = `filterRes${k}`;
     const label = ["\u65AC\u6483", "\u8CAB\u901A", "\u6253\u6483"][i];
     return /* @__PURE__ */ React.createElement("div", { key: k, style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-10)", color: "var(--tx-dim)", fontFamily: "var(--f-display)", letterSpacing: "0.14em", textTransform: "uppercase", minWidth: 32 } }, label), /* @__PURE__ */ React.createElement("select", { className: "codex-sort", "aria-label": `${label}抵抗で絞り込み`, value: ui[key] || "", onChange: (e) => dispatch({ type: "SET_UI", ui: { [key]: e.target.value } }), style: { minWidth: 80 } }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u6307\u5B9A\u306A\u3057"), RES_LEVELS.map((r) => /* @__PURE__ */ React.createElement("option", { key: r, value: r }, r))));
-  }))), allKws.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "codex-filter-row" }, /* @__PURE__ */ React.createElement("span", { className: "filter-label" }, "\u30AD\u30FC\u30EF\u30FC\u30C9"), /* @__PURE__ */ React.createElement("div", { className: "chips-group" }, allKws.slice(0, PDF_KEYWORD_ORDER.length).map((k) => /* @__PURE__ */ React.createElement(Chip, { key: k, size: "sm", active: ui.filterKws.includes(k), onClick: () => toggleKw(k) }, k)))), /* @__PURE__ */ React.createElement("div", { className: "codex-filter-row" }, /* @__PURE__ */ React.createElement("span", { className: "filter-label" }, "\u6240\u6301"), /* @__PURE__ */ React.createElement("div", { className: "chips-group" }, /* @__PURE__ */ React.createElement(Chip, { size: "sm", active: !!ui.filterOwnedOnly, onClick: () => dispatch({ type: "SET_UI", ui: { filterOwnedOnly: !ui.filterOwnedOnly } }) }, "\u6240\u6301\u3057\u3066\u3044\u308B\u3082\u306E\u306E\u307F", ui.filterOwnedOnly ? ` (${ownedPersonaKeys.size})` : ""))), mode === "roster" && /* @__PURE__ */ React.createElement("div", { className: "codex-filter-row" }, /* @__PURE__ */ React.createElement("span", { className: "filter-label" }, "\u4FDD\u5B58\u72B6\u614B"), /* @__PURE__ */ React.createElement("div", { className: "chips-group" }, [["all", "\u3059\u3079\u3066"], ["saved", "\u7DE8\u96C6\u4FDD\u5B58\u6E08\u307F"], ["default", "\u65E2\u5B9A\u5024\u306E\u307E\u307E"]].map(([key, label]) => /* @__PURE__ */ React.createElement("button", { key, className: `chip is-sm${(ui.rosterBuildFilter || "all") === key ? " is-active" : ""}`, onClick: () => dispatch({ type: "SET_UI", ui: { rosterBuildFilter: key } }) }, label)))), hasActiveFilters ? /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", onClick: resetFilters, icon: "x" }, "\u30D5\u30A3\u30EB\u30BF\u3092\u30EA\u30BB\u30C3\u30C8")) : null), /* @__PURE__ */ React.createElement("div", { className: "codex-grid" }, sorted.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "empty", style: { gridColumn: "1/-1" } }, mode === "fav" && favorites.length === 0 ? "\u2605\u3092\u30AF\u30EA\u30C3\u30AF\u3057\u3066\u304A\u6C17\u306B\u5165\u308A\u3092\u8FFD\u52A0\u3057\u3066\u304F\u3060\u3055\u3044" : mode === "history" && historyRecent.length === 0 ? "\u307E\u3060\u4EBA\u683C\u3092\u9078\u3093\u3067\u3044\u307E\u305B\u3093" : mode === "roster" && roster.personas.length === 0 ? "\u88C5\u5099\u3057\u305F\u4EBA\u683C\u306F\u6240\u6301\u30EA\u30B9\u30C8\u306B\u81EA\u52D5\u8FFD\u52A0\u3055\u308C\u307E\u3059" : "\u8A72\u5F53\u3059\u308B\u4EBA\u683C\u304C\u3042\u308A\u307E\u305B\u3093 \u2014 \u30D5\u30A3\u30EB\u30BF\u3092\u30EA\u30BB\u30C3\u30C8\u3057\u3066\u304F\u3060\u3055\u3044") : sorted.map(({ p, mode: m }) => /* @__PURE__ */ React.createElement(
+  }))), allKws.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "codex-filter-row" }, /* @__PURE__ */ React.createElement("span", { className: "filter-label" }, "\u30AD\u30FC\u30EF\u30FC\u30C9"), /* @__PURE__ */ React.createElement("div", { className: "chips-group" }, allKws.slice(0, PDF_KEYWORD_ORDER.length).map((k) => /* @__PURE__ */ React.createElement(Chip, { key: k, size: "sm", active: ui.filterKws.includes(k), onClick: () => toggleKw(k) }, k)))), /* @__PURE__ */ showAll && /* @__PURE__ */ React.createElement("div", { className: "codex-filter-row" }, /* @__PURE__ */ React.createElement("span", { className: "filter-label" }, "\u6240\u6301"), /* @__PURE__ */ React.createElement("div", { className: "chips-group" }, /* @__PURE__ */ React.createElement(Chip, { active: !!ui.filterOwnedOnly, onClick: () => dispatch({ type: "SET_UI", ui: { filterOwnedOnly: !ui.filterOwnedOnly } }) }, "\u6240\u6301\u3057\u3066\u3044\u308B\u3082\u306E\u306E\u307F", ui.filterOwnedOnly ? ` (${ownedPersonaKeys.size})` : ""))), mode === "roster" && /* @__PURE__ */ React.createElement("div", { className: "codex-filter-row" }, /* @__PURE__ */ React.createElement("span", { className: "filter-label" }, "\u4FDD\u5B58\u72B6\u614B"), /* @__PURE__ */ React.createElement("div", { className: "chips-group" }, [["all", "\u3059\u3079\u3066"], ["saved", "\u7DE8\u96C6\u4FDD\u5B58\u6E08\u307F"], ["default", "\u65E2\u5B9A\u5024\u306E\u307E\u307E"]].map(([key, label]) => /* @__PURE__ */ React.createElement("button", { key, className: `chip is-sm${(ui.rosterBuildFilter || "all") === key ? " is-active" : ""}`, onClick: () => dispatch({ type: "SET_UI", ui: { rosterBuildFilter: key } }) }, label)))),     ownedOnly && /* @__PURE__ */ React.createElement("div", { className: "codex-filter-row owned-gate-row" },
+      /* @__PURE__ */ React.createElement("span", { className: "filter-label" }, "\u8868\u793a\u7bc4\u56f2"),
+      /* @__PURE__ */ React.createElement("div", { className: "chips-group" },
+        /* @__PURE__ */ React.createElement("button", {
+          type: "button",
+          className: `chip${showAll ? "" : " is-active"}`,
+          "aria-pressed": !showAll,
+          title: "\u6240\u6301\u306e\u4eba\u683c\u3060\u3051\u51fa\u3059",
+          onClick: () => {
+            setShowAll(false);
+            dispatch({ type: "SET_UI", ui: { searchQuery: "" } });
+          }
+        }, "\u6240\u6301\u306e\u307f"),
+        /* @__PURE__ */ React.createElement("button", {
+          type: "button",
+          className: `chip${showAll ? " is-active" : ""}`,
+          "aria-pressed": showAll,
+          title: "\u672a\u6240\u6301\u306e\u4eba\u683c\u3082\u4e00\u89a7\u3078\u51fa\u3057\u3066\u9078\u3076",
+          onClick: () => {
+            setShowAll(true);
+            dispatch({ type: "SET_UI", ui: { searchQuery: "" } });
+          }
+        }, "\u5168\u4ef6\uff08\u672a\u6240\u6301\u3082\u542b\u3080\uff09"))), hasActiveFilters ? /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", onClick: resetFilters, icon: "x" }, "\u30D5\u30A3\u30EB\u30BF\u3092\u30EA\u30BB\u30C3\u30C8")) : null), /* @__PURE__ */ React.createElement("div", { className: "codex-grid" }, sorted.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "empty", style: { gridColumn: "1/-1" } }, mode === "fav" && favorites.length === 0 ? "\u2605\u3092\u30AF\u30EA\u30C3\u30AF\u3057\u3066\u304A\u6C17\u306B\u5165\u308A\u3092\u8FFD\u52A0\u3057\u3066\u304F\u3060\u3055\u3044" : mode === "history" && historyRecent.length === 0 ? "\u307E\u3060\u4EBA\u683C\u3092\u9078\u3093\u3067\u3044\u307E\u305B\u3093" : mode === "roster" && roster.personas.length === 0 ? "\u88C5\u5099\u3057\u305F\u4EBA\u683C\u306F\u6240\u6301\u30EA\u30B9\u30C8\u306B\u81EA\u52D5\u8FFD\u52A0\u3055\u308C\u307E\u3059" : "\u8A72\u5F53\u3059\u308B\u4EBA\u683C\u304C\u3042\u308A\u307E\u305B\u3093 \u2014 \u30D5\u30A3\u30EB\u30BF\u3092\u30EA\u30BB\u30C3\u30C8\u3057\u3066\u304F\u3060\u3055\u3044") : sorted.map(({ p, mode: m }) => /* @__PURE__ */ React.createElement(
     PersonaCard,
     {
       key: `${m}:${p.no}`,
@@ -1134,9 +1128,17 @@ const PersonaCodex = ({ state, dispatch }) => {
         setSelectedPersona(persona);
       },
       onEquip: equipPersona,
-      onToggleFav: toggleFav
+      onToggleFav: toggleFav,
+      /* カード上での獲得は詳細ポップオーバーを経由しない。 */
+      isOwned: gated || ownedPersonaKeys.has(`${m}:${p.no}`),
+      onQuickAcquire: gated ? null : (persona) => acquirePersona(persona),
+      quickAcquireLabel: `${resolveAcquireCost("persona", acquireHow, { name: p.name, ownsPersona: (roster.personas || []).length > 0 }).label} 獲得`
     }
   )))), /* @__PURE__ */ React.createElement(
+    DetailDialog,
+    {
+      open: !!selectedPersona, onClose: () => setSelectedPersona(null), label: "\u4EBA\u683C\u8A73\u7D30",
+      children: /* @__PURE__ */ React.createElement(
     PersonaDetail,
     {
       persona: selectedPersona,
@@ -1149,7 +1151,8 @@ const PersonaCodex = ({ state, dispatch }) => {
       onReturnToList: returnToSelectedCard,
       onOpenDraft: () => setDraftImportOpen(true)
     }
-  )))));
+  )
+    })))));
 };
 window.PersonaCodex = PersonaCodex;
 window.PersonaDetail = PersonaDetail;

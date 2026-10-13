@@ -793,10 +793,13 @@
   color: var(--tx-dim);
   margin-bottom: var(--s-2);
 }
+/* パッシブ効果の全文は長い（蜘蛛の巣 人差し指の親方 は数百字）。12px + 淡い色では
+   読みづらいので、本文と同じコントラストへ上げ、行高も取る。1行の長さは44emに収める。 */
 .detail-passive-effect {
-  font-size: var(--fs-12);
-  color: var(--tx-2);
-  line-height: var(--lh-loose);
+  font-size: var(--fs-13);
+  color: var(--tx);
+  line-height: 1.85;
+  max-width: 44em;
 }
 
 /* Skill mini-preview */

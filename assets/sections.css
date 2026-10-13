@@ -1243,11 +1243,13 @@
 }
 }
 
-/* 検索/フィルタ操作部のスクロール追従 */
+/* 検索/フィルタ操作部のスクロール追従。
+   追従するのは「絞り込みの操作帯」だけ。カード見出し（.owned-library-bar）は
+   画面内に1枚ごとに1枚あるため、すべて吸頂すると重なって下の内容を隠す
+   （記録タブでは8枚が同時に吸頂していた）。見出しは追従させない。 */
 @media (min-width: 1024px) {
   .codex-filters,
-  .ego-catalog-filters,
-  .owned-library-bar {
+  .ego-catalog-filters {
     position: sticky;
     top: var(--topbar-h);
     z-index: 6;

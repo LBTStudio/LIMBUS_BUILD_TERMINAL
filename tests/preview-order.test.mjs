@@ -5,6 +5,7 @@ import vm from "node:vm";
 
 const livePreviewSource = readFileSync(new URL("../js/LivePreview.js", import.meta.url), "utf8");
 const appSource = readFileSync(new URL("../js/App.js", import.meta.url), "utf8");
+const sectionsSource = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
 const workspaceCss = readFileSync(new URL("../assets/workspace.css", import.meta.url), "utf8");
 
 function loadOrderPreviewSections() {
@@ -46,7 +47,9 @@ test("プレビューの右端タブは展開・格納のどちらでも同一�
 });
 
 test("人格図鑑の補助見出しは右側プレビュー格納タブの操作領域を避ける", () => {
-  assert.match(appSource, /subtitle: "装備する人格を選択"/);
+  /* 人格コードクスは人格検索へ分離し、build 側は所持タブになった。
+     補助文の定義は OtherSections.js の BUILD_TABS にある。 */
+  assert.match(sectionsSource, /subtitle: "所持の人格を装備"/);
   assert.match(workspaceCss, /\.section-title-row \{[\s\S]*?padding-right: 48px;/);
 });
 

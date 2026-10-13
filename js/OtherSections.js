@@ -34,6 +34,7 @@ const BaseSection = ({ state, dispatch }) => {
   const [imgTab, setImgTab] = React.useState(0);
   const [shareImageBusy, setShareImageBusy] = React.useState(false);
   const [shareImageError, setShareImageError] = React.useState("");
+  const [imgBroken, setImgBroken] = React.useState(false);
   const SHARE_IMAGE_TARGET_BYTES = window.LBT_shareLink?.SHARE_IMAGE_TARGET_BYTES || 32 * 1024;
   const shareImageBytes = window.LBT_shareLink?.shareImageBytes || ((value) => {
     const match = /^data:image\/(webp|jpeg);base64,([A-Za-z0-9+/]+=*)$/i.exec(String(value || ""));
@@ -75,34 +76,119 @@ const BaseSection = ({ state, dispatch }) => {
   React.useEffect(() => {
     if (imgTab >= imgList.length) setImgTab(0);
   }, [imgList.length, imgTab]);
+  /* 差し替えたら読み込み状態は戻す（前の画像の失敗状態を引き継がない）。 */
+  React.useEffect(() => { setImgBroken(false); }, [imgList[imgTab]]);
   const activeImg = imgList[imgTab] || "";
-  return /* @__PURE__ */ React.createElement("div", { className: "base-info-grid" },
-    /* @__PURE__ */ React.createElement("div", { className: "stack-3 base-info-identity" },
-      /* @__PURE__ */ React.createElement(Field, { label: "CHARACTER NAME / キャラクター名" }, /* @__PURE__ */ React.createElement("input", { className: "input", placeholder: "例：黒雲会組員 - 昇", value: state.charName, onChange: (e) => setF("charName", e.target.value) })),
-      /* @__PURE__ */ React.createElement(Field, { label: "PLAYER NAME" }, /* @__PURE__ */ React.createElement("input", { className: "input", placeholder: "PL名", value: state.plName, onChange: (e) => setF("plName", e.target.value) })),
-      /* @__PURE__ */ React.createElement(Field, { label: "INITIATIVE / 駒の行動順", hint: "数値が大きいほどCCFOLIA上で先に行動します" }, /* @__PURE__ */ React.createElement("input", { className: "input", type: "number", step: "1", inputMode: "numeric", placeholder: "0", value: state.initiative ?? 0, onChange: (e) => setF("initiative", e.target.value), title: "CCFOLIAの駒のイニシアチブ" })),
-      /* @__PURE__ */ React.createElement(Field, { label: "COLOR / 駒の色" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center" } }, /* @__PURE__ */ React.createElement("input", { type: "color", value: state.color, onChange: (e) => setF("color", e.target.value), style: { width: 44, height: 36, padding: 2, background: "var(--surface-inset)", border: "1px solid var(--line)", borderRadius: "var(--r)", cursor: "pointer" } }), /* @__PURE__ */ React.createElement("input", { className: "input", value: state.color, onChange: (e) => setF("color", e.target.value), style: { flex: 1, fontFamily: "var(--f-mono)" } }))),
-    ),
-    /* @__PURE__ */ React.createElement("div", { className: "stack-3 base-info-image" },
-      /* @__PURE__ */ React.createElement(Field, { label: "IMAGE URL / 立ち絵URL（複数行可、1行目=基本、以降=差分）" }, /* @__PURE__ */ React.createElement("textarea", { className: "textarea", rows: 4, placeholder: "https://...", value: state.imgUrls, onChange: (e) => setF("imgUrls", e.target.value), style: { whiteSpace: "pre", overflowX: "auto", overflowWrap: "normal", wordBreak: "keep-all", fontFamily: "var(--f-mono)" } })),
-      /* @__PURE__ */ React.createElement(Field, { label: "SHARE IMAGE / 共有シート画像", hint: "共有HTMLへ同梱する公開画像です。縦長の立ち絵は左右余白を抑えて上半身を自動フォーカスし、最大1200×630・32KB以下へ圧縮します" },
-        /* @__PURE__ */ React.createElement("div", { className: "stack-2" },
-          /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" } },
-            /* @__PURE__ */ React.createElement("label", { className: "btn btn-sm", style: { cursor: shareImageBusy ? "wait" : "pointer", opacity: shareImageBusy ? .7 : 1 } }, shareImageBusy ? "画像を最適化中…" : "画像を選択", /* @__PURE__ */ React.createElement("input", { type: "file", accept: "image/png,image/jpeg,image/webp", disabled: shareImageBusy, onChange: onShareImageSelected, style: { display: "none" } })),
-            state.shareImageData && /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-sm btn-ghost", onClick: () => { setF("shareImageData", ""); setF("shareImageBlockedReason", ""); setShareImageError(""); }, title: "共有画像を削除" }, "共有画像を削除")
-          ),
-          state.shareImageData && /* @__PURE__ */ React.createElement("div", { className: "base-img-preview share-image-preview" }, /* @__PURE__ */ React.createElement("div", { className: "base-img-preview-label" }, "SHARE PREVIEW / 共有シート画像"), /* @__PURE__ */ React.createElement("img", { src: state.shareImageData, alt: "共有シート画像プレビュー", className: "base-img-preview-img" }), /* @__PURE__ */ React.createElement("div", { className: currentShareImageOk ? "base-auto-note" : "base-img-preview-err", style: { marginTop: 8, display: "block" } }, currentShareImageOk ? `圧縮見込み: ${Math.ceil(currentShareImageBytes / 1024)}KB / 32KB — 共有リンクを発行できます` : `圧縮見込み: ${Math.ceil(currentShareImageBytes / 1024)}KB / 32KB — 上限超過のため共有リンクは発行しません。再アップロードしてください`)),
-          shareImageError && /* @__PURE__ */ React.createElement("div", { className: "base-img-preview-err", style: { display: "block" } }, shareImageError)
-        )
+  const [editOpen, setEditOpen] = React.useState(false);
+  return /* @__PURE__ */ React.createElement("div", { className: "pc-sheet" },
+    /* 立ち絵が主役。左の主役枠と右の識別・駒設定でシートを構成する。 */
+    /* @__PURE__ */ React.createElement("figure", { className: "pc-portrait" },
+      /* @__PURE__ */ React.createElement("div", { className: "pc-portrait-frame" },
+        activeImg && !imgBroken && /* @__PURE__ */ React.createElement("img", {
+          className: "pc-portrait-img",
+          src: activeImg,
+          alt: `立ち絵${imgList.length > 1 ? `（${imgTab + 1}枚目 / 全${imgList.length}枚）` : ""}`,
+          onError: () => setImgBroken(true)
+        }),
+(!activeImg || imgBroken) && /* @__PURE__ */ React.createElement("div", { className: "pc-portrait-empty" },
+      /* @__PURE__ */ React.createElement("span", { className: "pc-portrait-empty-mark" }, "◈"),
+      /* @__PURE__ */ React.createElement("span", { className: "pc-portrait-empty-text" }, imgBroken ? "画像を読み込めませんでした" : "立ち絵なし"),
+      /* @__PURE__ */ React.createElement("span", { className: "pc-portrait-empty-hint" }, imgBroken
+        ? "URLが正しいか確認してください（https:// で始まる文字列）"
+        : "下の「立ち絵URL / 共有画像を編集」から設定できます")
       ),
-      activeImg && /* @__PURE__ */ React.createElement("div", { className: "base-img-preview" },
-        imgList.length > 1 && /* @__PURE__ */ React.createElement("div", { className: "base-img-tabs" }, imgList.map((_, i) => /* @__PURE__ */ React.createElement("button", { key: i, type: "button", className: `btn btn-sm${imgTab === i ? "" : " btn-ghost"}`, onClick: () => setImgTab(i), title: `${i + 1}枚目の立ち絵を表示` }, `画像${i + 1}`))),
-        /* @__PURE__ */ React.createElement("div", { className: "base-img-preview-label" }, `PREVIEW / 立ち絵プレビュー（${imgTab + 1}枚目）`),
-        /* @__PURE__ */ React.createElement("img", { src: activeImg, alt: "立ち絵プレビュー", className: "base-img-preview-img", onError: (e) => { e.currentTarget.style.display = "none"; e.currentTarget.parentElement.classList.add("is-error"); }, onLoad: (e) => { e.currentTarget.style.display = ""; e.currentTarget.parentElement.classList.remove("is-error"); } }),
-        /* @__PURE__ */ React.createElement("div", { className: "base-img-preview-err" }, "画像を読み込めませんでした（URLを確認してください）")
+        imgList.length > 1 && /* @__PURE__ */ React.createElement("span", { className: "pc-portrait-badge" }, `${imgTab + 1} / ${imgList.length}`)
+      ),
+      /* @__PURE__ */ React.createElement("figcaption", { className: "pc-portrait-caption" },
+        /* @__PURE__ */ React.createElement("span", { className: "pc-portrait-caption-label" }, "PORTRAIT / 立ち絵"),
+        imgList.length > 1 && /* @__PURE__ */ React.createElement("span", { className: "pc-portrait-caption-note" }, `${imgList.length} 枚`)
       )
     ),
-    /* @__PURE__ */ React.createElement("div", { className: "base-auto-note base-info-note" }, "HP/SAN/速度/弾丸/耐性は装備中人格パネルで一元管理します（同期化で手動編集）。共有シート画像は共有データへ同梱され、共有リンクを知る人へ公開されます。")
+    /* @__PURE__ */ React.createElement("div", { className: "pc-identity" },
+      /* @__PURE__ */ React.createElement("div", { className: "pc-id-head" },
+        /* @__PURE__ */ React.createElement("span", { className: "pc-id-eyebrow" }, "CHARACTER NAME"),
+        /* @__PURE__ */ React.createElement("input", {
+          className: "pc-name-input",
+          value: state.charName,
+          placeholder: "例：ユサ",
+          onChange: (e) => setF("charName", e.target.value),
+          "aria-label": "キャラクター名"
+        })
+      ),
+      /* @__PURE__ */ React.createElement("div", { className: "pc-id-sub" },
+        /* @__PURE__ */ React.createElement("span", { className: "pc-id-eyebrow" }, "PLAYER"),
+        /* @__PURE__ */ React.createElement("input", {
+          className: "pc-pl-input",
+          value: state.plName,
+          placeholder: "PL名",
+          onChange: (e) => setF("plName", e.target.value),
+          "aria-label": "プレイヤー名"
+        })
+      ),
+      /* 駒の設定はシートの能力値タイルと同じ見出しで並べる。 */
+      /* @__PURE__ */ React.createElement("div", { className: "pc-stats" },
+        /* @__PURE__ */ React.createElement("div", { className: "pc-stat" },
+          /* @__PURE__ */ React.createElement("span", { className: "pc-stat-label" }, "INITIATIVE"),
+          /* @__PURE__ */ React.createElement("span", { className: "pc-stat-jp" }, "駒の行動順"),
+          /* @__PURE__ */ React.createElement("input", {
+            className: "pc-stat-input",
+            type: "number",
+            step: "1",
+            inputMode: "numeric",
+            value: state.initiative ?? 0,
+            onChange: (e) => setF("initiative", e.target.value),
+            title: "CCFOLIAの駒のイニシアチブ（数値が大きいほど先に行動）",
+            "aria-label": "駒の行動順"
+          })
+        ),
+        /* @__PURE__ */ React.createElement("div", { className: "pc-stat" },
+          /* @__PURE__ */ React.createElement("span", { className: "pc-stat-label" }, "COLOR"),
+          /* @__PURE__ */ React.createElement("span", { className: "pc-stat-jp" }, "駒の色"),
+          /* @__PURE__ */ React.createElement("div", { className: "pc-color" },
+            /* @__PURE__ */ React.createElement("span", { className: "pc-color-swatch", style: { background: state.color } }),
+            /* @__PURE__ */ React.createElement("input", {
+              className: "pc-color-picker",
+              type: "color",
+              value: state.color,
+              onChange: (e) => setF("color", e.target.value),
+              title: "駒の色を選ぶ",
+              "aria-label": "駒の色"
+            }),
+            /* @__PURE__ */ React.createElement("input", {
+              className: "pc-stat-input pc-color-hex",
+              value: state.color,
+              onChange: (e) => setF("color", e.target.value),
+              title: "駒の色を16進数で直接指定",
+              "aria-label": "駒の色（16進数）"
+            })
+          )
+        )
+      )
+    ),
+    /* 立ち絵の差し替えは頻度が低いので、既定は閉じてカードだけを見せる。 */
+    /* @__PURE__ */ React.createElement("details", { className: "pc-edit", open: editOpen || undefined, onToggle: (event) => setEditOpen(event.currentTarget.open) },
+      /* @__PURE__ */ React.createElement("summary", { className: "pc-edit-summary" },
+        /* @__PURE__ */ React.createElement("span", { className: "pc-edit-caret" }, "▶"),
+        "立ち絵URL / 共有画像を編集"
+      ),
+      /* @__PURE__ */ React.createElement("div", { className: "pc-edit-body stack-3" },
+        /* @__PURE__ */ React.createElement(Field, {
+          label: "IMAGE URL / 立ち絵URL（複数行可、1行目=基本、以降=差分）",
+          hint: "CCFOLIA でキャラクターシートを作り、立ち絵をアップロードしたら、その画像の URL をここに貼り付けてください（https:// で始まる文字列）。複数ある場合は1行に1枚、次の行が差分として扱われます。"
+        }, /* @__PURE__ */ React.createElement("textarea", { className: "textarea", rows: 4, placeholder: "https://...", value: state.imgUrls, onChange: (e) => setF("imgUrls", e.target.value), style: { whiteSpace: "pre", overflowX: "auto", overflowWrap: "normal", wordBreak: "keep-all", fontFamily: "var(--f-mono)" } })),
+        imgList.length > 1 && /* @__PURE__ */ React.createElement("div", { className: "pc-edit-tabs" }, imgList.map((url, i) => /* @__PURE__ */ React.createElement("button", { key: i, type: "button", className: `pc-thumb${imgTab === i ? " is-on" : ""}`, onClick: () => setImgTab(i), title: `${i + 1}枚目の立ち絵を表示`, "aria-pressed": imgTab === i }, /* @__PURE__ */ React.createElement("img", { src: url, alt: `立ち絵${i + 1}`, loading: "lazy" }), /* @__PURE__ */ React.createElement("span", { className: "pc-thumb-idx" }, String(i + 1))))),
+        /* @__PURE__ */ React.createElement(Field, { label: "SHARE IMAGE / 共有シート画像", hint: "共有HTMLへ同梱する公開画像です。縦長の立ち絵は左右余白を抑えて上半身を自動フォーカスし、最大1200×630・32KB以下へ圧縮します" },
+          /* @__PURE__ */ React.createElement("div", { className: "stack-2" },
+            /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" } },
+              /* @__PURE__ */ React.createElement("label", { className: "btn btn-sm", style: { cursor: shareImageBusy ? "wait" : "pointer", opacity: shareImageBusy ? .7 : 1 } }, shareImageBusy ? "画像を最適化中…" : "画像を選択", /* @__PURE__ */ React.createElement("input", { type: "file", accept: "image/png,image/jpeg,image/webp", disabled: shareImageBusy, onChange: onShareImageSelected, style: { display: "none" } })),
+              state.shareImageData && /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-sm btn-ghost", onClick: () => { setF("shareImageData", ""); setF("shareImageBlockedReason", ""); setShareImageError(""); }, title: "共有画像を削除" }, "共有画像を削除")
+            ),
+            state.shareImageData && /* @__PURE__ */ React.createElement("div", { className: "base-img-preview share-image-preview" }, /* @__PURE__ */ React.createElement("div", { className: "base-img-preview-label" }, "SHARE PREVIEW / 共有シート画像"), /* @__PURE__ */ React.createElement("img", { src: state.shareImageData, alt: "共有シート画像プレビュー", className: "base-img-preview-img" }), /* @__PURE__ */ React.createElement("div", { className: currentShareImageOk ? "base-auto-note" : "base-img-preview-err", style: { marginTop: 8, display: "block" } }, currentShareImageOk ? `圧縮見込み: ${Math.ceil(currentShareImageBytes / 1024)}KB / 32KB — 共有リンクを発行できます` : `圧縮見込み: ${Math.ceil(currentShareImageBytes / 1024)}KB / 32KB — 上限超過のため共有リンクは発行しません。再アップロードしてください`)),
+            shareImageError && /* @__PURE__ */ React.createElement("div", { className: "base-img-preview-err", style: { display: "block" } }, shareImageError)
+          )
+        )
+      )
+    )
   );
 };
 const PassiveCard = ({ title, pas, sin }) => /* @__PURE__ */ React.createElement("div", { className: "deck-card deck-focus", "data-sin": sin || "", style: { padding: "var(--s-4)" } }, /* @__PURE__ */ React.createElement("div", { className: "deck-card-head", style: { marginBottom: "var(--s-3)" } }, /* @__PURE__ */ React.createElement(
@@ -150,41 +236,44 @@ const PassiveSection = ({ state, dispatch }) => {
   );
   return /* @__PURE__ */ React.createElement("div", { className: "stack-6" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: "var(--s-3)", marginBottom: "var(--s-3)", paddingBottom: "var(--s-2)", borderBottom: "1px solid var(--line-dim)" } }, /* @__PURE__ */ React.createElement("span", { className: "section-title-num", style: { fontSize: "var(--fs-18)" } }, "A"), /* @__PURE__ */ React.createElement("span", { style: { fontFamily: "var(--f-display)", fontWeight: 700, fontSize: "var(--fs-16)", letterSpacing: "0.06em", color: "var(--tx)" } }, "PERSONA PASSIVE / \u4EBA\u683C\u30D1\u30C3\u30B7\u30D6"), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }), editable && isAutoFromDB && /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", icon: "edit", onClick: () => setForceEdit(true) }, "手動編集"), !!state.pas?.name && /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", icon: "eye", onClick: () => setForceEdit(false) }, "\u30AB\u30FC\u30C9\u8868\u793A\u306B\u623B\u3059")), isAutoFromDB ? /* @__PURE__ */ React.createElement(PassiveCard, { title: "PERSONA PASSIVE / \u4EBA\u683C\u30D1\u30C3\u30B7\u30D6", pas: state.pas, sin: primarySin }) : /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { className: "card-body stack-3" }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--s-3)" } }, /* @__PURE__ */ React.createElement(Field, { label: "\u30D1\u30C3\u30B7\u30D6\u540D" }, /* @__PURE__ */ React.createElement("input", { className: "input", placeholder: "\u4F8B\uFF1A\u6289\u308A\u51FA\u3057", value: state.pas.name, disabled: !editable, onChange: (e) => patchPas({ name: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "\u767A\u52D5\u6761\u4EF6" }, /* @__PURE__ */ React.createElement("input", { className: "input", placeholder: "\u4F8B\uFF1A\u8272\u6B32x2 \u5171\u9CF4", value: state.pas.cond, disabled: !editable, onChange: (e) => patchPas({ cond: e.target.value }) }))), /* @__PURE__ */ React.createElement(Field, { label: "\u5E38\u6642\u52B9\u679C\uFF08\u4EFB\u610F\uFF09" }, /* @__PURE__ */ React.createElement("textarea", { className: "textarea", rows: 2, placeholder: "\u5E38\u6642\u767A\u52D5\u3059\u308B\u52B9\u679C", value: state.pas.always, disabled: !editable, onChange: (e) => patchPas({ always: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "\u52B9\u679C" }, /* @__PURE__ */ React.createElement("textarea", { className: "textarea", rows: 3, placeholder: "\u4F8B\uFF1A\u30DE\u30C3\u30C1\u52DD\u5229\u6642\u3001\u5BFE\u8C61\u304C\u51FA\u8840\u72B6\u614B\u306A\u3089\u2026", value: state.pas.effect, disabled: !editable, onChange: (e) => patchPas({ effect: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "\u30AF\u30A4\u30C3\u30AF\u30D1\u30EC\u30C3\u30C8\uFF08:\u30B3\u30DE\u30F3\u30C9\uFF09", hint: "\u4F8B\uFF1A:\u51FA\u8840+1 :\u51FA\u8840-1\uFF08\u4EBA\u683CDB\u304B\u3089\u81EA\u52D5\u62BD\u51FA\u53EF\uFF09" }, /* @__PURE__ */ React.createElement("input", { className: "input", placeholder: ":\u51FA\u8840+1 :\u51FA\u8840-1", value: state.pas.quick, disabled: !editable, onChange: (e) => patchPas({ quick: e.target.value }) })))), state.pas2Enabled ? /* @__PURE__ */ React.createElement(Card, { className: "mt-3", style: { marginTop: "var(--s-3)" } }, /* @__PURE__ */ React.createElement("div", { className: "card-header", style: { justifyContent: "space-between" } }, /* @__PURE__ */ React.createElement("span", { className: "t-label" }, "PASSIVE 2\uFF08\u4EFB\u610F\uFF09"), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", onClick: togglePas2, disabled: !editable, icon: "x" }, "\u30D1\u30C3\u30B7\u30D62\u3092\u524A\u9664")), /* @__PURE__ */ React.createElement("div", { className: "card-body stack-3" }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--s-3)" } }, /* @__PURE__ */ React.createElement(Field, { label: "\u30D1\u30C3\u30B7\u30D6\u540D2" }, /* @__PURE__ */ React.createElement("input", { className: "input", value: state.pas2.name, disabled: !editable, onChange: (e) => patchPas2({ name: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "\u767A\u52D5\u6761\u4EF62" }, /* @__PURE__ */ React.createElement("input", { className: "input", value: state.pas2.cond, disabled: !editable, onChange: (e) => patchPas2({ cond: e.target.value }) }))), /* @__PURE__ */ React.createElement(Field, { label: "\u5E38\u6642\u52B9\u679C2\uFF08\u4EFB\u610F\uFF09" }, /* @__PURE__ */ React.createElement("textarea", { className: "textarea", rows: 2, placeholder: "\u5E38\u6642\u767A\u52D5\u3059\u308B\u52B9\u679C", value: state.pas2.always || "", disabled: !editable, onChange: (e) => patchPas2({ always: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "\u52B9\u679C2" }, /* @__PURE__ */ React.createElement("textarea", { className: "textarea", rows: 2, value: state.pas2.effect, disabled: !editable, onChange: (e) => patchPas2({ effect: e.target.value }) })))) : /* @__PURE__ */ React.createElement("div", { style: { marginTop: "var(--s-3)" } }, /* @__PURE__ */ React.createElement(Button, { variant: "ghost", icon: "plus", onClick: togglePas2, disabled: !editable, title: editable ? "パッシブ2を追加" : "編集モード時のみ追加可能" }, "\u30D1\u30C3\u30B7\u30D62\u3092\u8FFD\u52A0"))));
 };
-const UNIQUE_BUFF_PLACES = [
-  { value: "status", label: "ST\u5074\uFF08\u6570\u5024\u7BA1\u7406\uFF09" },
-  { value: "params", label: "\u30E9\u30D9\u30EB\u5074\uFF08params\uFF09" },
-  { value: "none", label: "\u51FA\u529B\u3057\u306A\u3044" }
-];
 const UNIQUE_BUFF_TYPES = ["\u30D0\u30D5", "\u30C7\u30D0\u30D5", "\u4E2D\u7ACB\u30D0\u30D5", "\u4E2D\u7ACB\u30C7\u30D0\u30D5", "\u305D\u306E\u4ED6"];
 const UniqueBuffsBlock = ({ state, dispatch }) => {
   const editable = canEditPersonaState(state);
-  return /* @__PURE__ */ React.createElement("div", { className: "unique-block" }, /* @__PURE__ */ React.createElement("div", { className: "unique-header" }, /* @__PURE__ */ React.createElement("div", { className: "unique-header-icon" }, "\u25C6"), /* @__PURE__ */ React.createElement("div", { className: "unique-header-text" }, /* @__PURE__ */ React.createElement("div", { className: "unique-header-title" }, "UNIQUE STATUS / \u56FA\u6709\u30D0\u30D5\u30FB\u30B9\u30C6\u30FC\u30BF\u30B9"), /* @__PURE__ */ React.createElement("div", { className: "unique-header-sub" }, "\u4EBA\u683CDB\u304B\u3089 ", /* @__PURE__ */ React.createElement("b", { style: { color: "var(--gold)" } }, "\u81EA\u52D5\u62BD\u51FA\u3055\u308C\u305F\u56FA\u6709\u30D0\u30D5"), "\u306F\u88C5\u5099\u6642\u306B\u3053\u3053\u3078\u73FE\u308C\u307E\u3059\u3002 \u624B\u52D5\u3067\u3082\u8FFD\u52A0/\u7DE8\u96C6/\u524A\u9664\u53EF\u80FD\u3002")), /* @__PURE__ */ React.createElement(Button, { variant: "primary", size: "sm", icon: "plus", disabled: !editable, title: editable ? "手動追加" : "編集モード時のみ追加可能", onClick: () => editable && dispatch({ type: "ADD_UB" }) }, "\u624B\u52D5\u8FFD\u52A0")), state.uniqueBuffs.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "unique-empty" }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-24)", color: "var(--tx-mute)", marginBottom: 6 } }, "\u2014"), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-display)", fontSize: "var(--fs-12)", color: "var(--tx-dim)", letterSpacing: "0.06em", marginBottom: 4 } }, state.personaSrc ? `\u300E${state.personaSrc.name}\u300F\u306B\u306FDB\u767B\u9332\u306E\u56FA\u6709\u30D0\u30D5\u304C\u3042\u308A\u307E\u305B\u3093` : "\u4EBA\u683C\u672A\u88C5\u5099 \u2014 \u4E0A\u306E\u4E00\u89A7\u304B\u3089\u88C5\u5099\u3057\u3066\u304F\u3060\u3055\u3044"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-11)", color: "var(--tx-mute)", lineHeight: 1.6 } }, "\u56FA\u6709\u30D0\u30D5\u304C\u767B\u9332\u3055\u308C\u3066\u3044\u308B\u4EBA\u683C\u3092\u88C5\u5099\u3059\u308B\u3068", /* @__PURE__ */ React.createElement("b", { style: { color: "var(--gold)" } }, "\u81EA\u52D5\u3067\u8FFD\u52A0"), "\u3055\u308C\u307E\u3059\u3002", /* @__PURE__ */ React.createElement("br", null), "\u81EA\u4F5C\u30AB\u30A6\u30F3\u30BF\u3084\u540C\u671F\u5316\u5F8C\u306E\u6D3E\u751F\u30B9\u30C6\u30FC\u30BF\u30B9\u3092\u8A18\u9332\u3057\u305F\u3044\u5834\u5408\u306F\u300C\u624B\u52D5\u8FFD\u52A0\u300D\u304B\u3089\u3002"), state.personaSrc && (state.personaSrc.unique_buffs || []).length > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 12, padding: "8px 12px", background: "color-mix(in oklab, var(--warn) 10%, var(--surface-inset))", border: "1px solid color-mix(in oklab, var(--warn) 30%, var(--line))", borderRadius: "var(--r)", fontSize: "var(--fs-11)", color: "var(--warn)", lineHeight: 1.5 } }, "\u26A0 \u88C5\u5099\u4E2D\u306E\u4EBA\u683C\u306B\u306F ", /* @__PURE__ */ React.createElement("b", null, state.personaSrc.unique_buffs.length, "\u4EF6"), " \u306E\u56FA\u6709\u30D0\u30D5\u304CDB\u5B9A\u7FA9\u3055\u308C\u3066\u3044\u307E\u3059\u304C\u3001\u73FE\u5728\u306E\u30EA\u30B9\u30C8\u306B\u306F\u53CD\u6620\u3055\u308C\u3066\u3044\u307E\u305B\u3093\u3002", /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      onClick: () => {
-        const ubs = state.personaSrc.unique_buffs.map((b, i) => ({
-          id: `ub-${Date.now()}-${i}`,
-          name: b.name || "",
-          type: b.type || "\u56FA\u6709\u30D0\u30D5",
-          max: b.max || 20,
-          desc: b.desc || "",
-          place: b.place || "status"
-        }));
-        dispatch({ type: "SET_FIELD", field: "uniqueBuffs", value: ubs });
-        toast("\u56FA\u6709\u30D0\u30D5\u3092\u518D\u8AAD\u8FBC");
-      },
-      style: { marginTop: 6, padding: "4px 10px", background: "var(--warn)", color: "#1a1400", border: "none", borderRadius: "var(--r-sm)", cursor: "pointer", fontFamily: "var(--f-display)", fontSize: "var(--fs-10)", letterSpacing: "0.14em", fontWeight: 700 }
-    },
-    "\u56FA\u6709\u30D0\u30D5\u3092\u518D\u8AAD\u8FBC"
-  ))) : /* @__PURE__ */ React.createElement("div", { className: "stack-2" }, state.uniqueBuffs.map((b, i) => /* @__PURE__ */ React.createElement("div", { key: b.id, className: "unique-item" }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "auto 2fr 1fr 70px 70px 130px auto", gap: "var(--s-2)", alignItems: "end" } }, /* @__PURE__ */ React.createElement("div", { className: "reorder-btns", style: { alignSelf: "center" } }, /* @__PURE__ */ React.createElement("button", { className: "reorder-btn", onClick: () => editable && dispatch({ type: "REORDER_LIST", field: "uniqueBuffs", key: b.id, dir: -1 }), disabled: !editable || i === 0, title: "\u4E0A\u3078" }, /* @__PURE__ */ React.createElement(Icon, { name: "arrowU", size: 10 })), /* @__PURE__ */ React.createElement("button", { className: "reorder-btn", onClick: () => editable && dispatch({ type: "REORDER_LIST", field: "uniqueBuffs", key: b.id, dir: 1 }), disabled: !editable || i === state.uniqueBuffs.length - 1, title: "\u4E0B\u3078" }, /* @__PURE__ */ React.createElement(Icon, { name: "arrowD", size: 10 }))), /* @__PURE__ */ React.createElement(Field, { label: "\u540D\u524D" }, /* @__PURE__ */ React.createElement("input", { className: "input", value: b.name, disabled: !editable, onChange: (e) => dispatch({ type: "PATCH_UB", id: b.id, patch: { name: e.target.value } }) })), /* @__PURE__ */ React.createElement(Field, { label: "\u7A2E\u5225" }, /* @__PURE__ */ React.createElement("select", { className: "select", value: b.type, disabled: !editable, onChange: (e) => dispatch({ type: "PATCH_UB", id: b.id, patch: { type: e.target.value } }) }, [.../* @__PURE__ */ new Set([b.type, ...UNIQUE_BUFF_TYPES])].filter(Boolean).map((t) => /* @__PURE__ */ React.createElement("option", { key: t, value: t }, t)))), /* @__PURE__ */ React.createElement(Field, { label: "\u521D\u671F\u5024" }, /* @__PURE__ */ React.createElement("input", { type: "number", className: "input", value: b.initial ?? 0, disabled: !editable, onChange: (e) => dispatch({ type: "PATCH_UB", id: b.id, patch: { initial: parseInt(e.target.value) || 0 } }) })), /* @__PURE__ */ React.createElement(Field, { label: "\u6700\u5927\u5024" }, /* @__PURE__ */ React.createElement("input", { type: "number", className: "input", value: b.max, onChange: (e) => dispatch({ type: "PATCH_UB", id: b.id, patch: { max: parseInt(e.target.value) || 0 } }) })), /* @__PURE__ */ React.createElement(Field, { label: "\u5E30\u5C5E" }, /* @__PURE__ */ React.createElement("select", { className: "select", value: b.place || "status", disabled: !editable, onChange: (e) => dispatch({ type: "PATCH_UB", id: b.id, patch: { place: e.target.value } }), title: "ST\u5074=JSON\u306Estatus\u3078 / \u30E9\u30D9\u30EB\u5074=JSON\u306Eparams(label)\u3078 / \u51FA\u529B\u3057\u306A\u3044=JSON\u306B\u542B\u3081\u306A\u3044\uFF08memo\u30FB\u30D1\u30EC\u30C3\u30C8\u306F\u9664\u304F\uFF09" }, UNIQUE_BUFF_PLACES.map((o) => /* @__PURE__ */ React.createElement("option", { key: o.value, value: o.value }, o.label)))), /* @__PURE__ */ React.createElement("button", { className: "btn btn-sm lbt-del", disabled: !editable, onClick: () => editable && dispatch({ type: "REMOVE_UB", id: b.id }), title: "\u3053\u306E\u56FA\u6709\u30D0\u30D5\u3092\u524A\u9664" }, /* @__PURE__ */ React.createElement(Icon, { name: "trash", size: 12 }), " \u524A\u9664")), /* @__PURE__ */ React.createElement(Field, { label: "\u52B9\u679C\u30E1\u30E2\uFF08\u4EFB\u610F\uFF09" }, /* @__PURE__ */ React.createElement("textarea", { className: "textarea", rows: 2, value: b.desc || "", disabled: !editable, onChange: (e) => dispatch({ type: "PATCH_UB", id: b.id, patch: { desc: e.target.value } }) }))))));
+  const h = React.createElement;
+  return h("div", { className: "unique-block" },
+    h("div", { className: "unique-header" },
+      h("div", { className: "unique-header-icon" }, "\u25C6"),
+      h("div", { className: "unique-header-text" },
+        h("div", { className: "unique-header-title" }, "UNIQUE STATUS / \u56fa\u6709\u30d0\u30d5\u30fb\u30b9\u30c6\u30fc\u30bf\u30b9"),
+        h("div", { className: "unique-header-sub" }, "人格DB\u304b\u3089 ", h("b", { style: { color: "var(--gold)" } }, "\u81ea\u52d5\u62bd\u51fa\u3055\u308c\u305f\u56fa\u6709\u30d0\u30d5"), "\u306f\u88c5\u5099\u6642\u306b\u3053\u3053\u3078\u73fe\u308c\u307e\u3059\u3002\u624b\u52d5\u3067\u3082\u8ffd\u52a0/\u7de8\u96c6/\u524a\u9664\u53ef\u80fd\u3002")
+      ),
+      h(Button, { variant: "primary", size: "sm", icon: "plus", disabled: !editable, title: editable ? "\u624b\u52d5\u8ffd\u52a0" : "\u7de8\u96c6\u30e2\u30fc\u30c9\u6642\u306e\u307f\u8ffd\u52a0\u53ef\u80fd", onClick: () => editable && dispatch({ type: "ADD_UB" }) }, "\u624b\u52d5\u8ffd\u52a0")
+    ),
+    state.uniqueBuffs.length === 0
+      ? h("div", { className: "unique-empty" },
+          h("div", { style: { fontSize: "var(--fs-24)", color: "var(--tx-mute)", marginBottom: 6 } }, "\u2014"),
+          h("div", { style: { fontFamily: "var(--f-display)", fontSize: "var(--fs-12)", color: "var(--tx-dim)", letterSpacing: "0.06em", marginBottom: 4 } }, state.personaSrc ? `\u300E${state.personaSrc.name}\u300F\u306b\u306fDB\u767b\u9332\u306e\u56fa\u6709\u30d0\u30d5\u304c\u3042\u308a\u307e\u305b\u3093` : "人格未装備 \u2014 \u4e0a\u306e\u4e00\u89a7\u304b\u3089\u88c5\u5099\u3057\u3066\u304f\u3060\u3055\u3044"),
+          h("div", { style: { fontSize: "var(--fs-11)", color: "var(--tx-mute)", lineHeight: 1.6 } }, "\u56fa\u6709\u30d0\u30d5\u306f\u88c5\u5099\u6642\u306b\u3053\u3053\u3078\u73fe\u308c\u307e\u3059\u3002\u624b\u52d5\u3067\u3082\u8ffd\u52a0/\u7de8\u96c6/\u524a\u9664\u53ef\u80fd\u3002")
+        )
+      : h("div", { className: "ubc-grid" }, state.uniqueBuffs.map((b, i) =>
+          h("article", { key: b.id, className: "ubc-card", "data-type": b.type || "" },
+            h("div", { className: "ubc-card-top" },
+              h("div", { className: "ubc-name", title: b.name || "" }, b.name || "\u672a\u547d\u540d"),
+              b.type && h("span", { className: "ubc-type", "data-type": b.type, "data-kind": b.type }, b.type),
+              b.place && b.place !== "none" && h("span", { className: "ubc-place" }, b.place === "params" ? "\u30d1\u30e9\u30e1\u30fc\u30bf\u5074" : "\u30b9\u30c6\u30fc\u30bf\u30b9\u5074")
+            ),
+            h("div", { className: "ubc-count" }, "\u521d\u671f ", h("b", null, String(b.initial ?? 0)), " / \u6700\u5927 ", String(b.max || 0)),
+            b.desc && h("div", { className: "ubc-desc", title: b.desc }, b.desc),
+            editable && h("div", { className: "ubc-tools" },
+              h("button", { className: "reorder-btn", onClick: () => dispatch({ type: "REORDER_LIST", field: "uniqueBuffs", key: b.id, dir: -1 }), disabled: i === 0, title: "\u4e0a\u3078" }, h(Icon, { name: "arrowU", size: 10 })),
+              h("button", { className: "reorder-btn", onClick: () => dispatch({ type: "REORDER_LIST", field: "uniqueBuffs", key: b.id, dir: 1 }), disabled: i === state.uniqueBuffs.length - 1, title: "\u4e0b\u3078" }, h(Icon, { name: "arrowD", size: 10 })),
+              h("button", { className: "btn btn-sm lbt-del", onClick: () => dispatch({ type: "REMOVE_UB", id: b.id }), title: "\u3053\u306e\u56fa\u6709\u30d0\u30d5\u3092\u524a\u9664" }, h(Icon, { name: "trash", size: 12 }), " \u524a\u9664")
+            )
+          )
+        ))
+  );
 };
-/* 掲載出所。値は tools/provenance/audit_three_books.py が PDF の表から
-   判定したものをそのまま使う（support_passives は db=346 / 候補=346 で 1:1）。
-     core        ルルブ（新リンバスTRPG）
-     supplement  アンロックド・シンク
-     pack1       特定抽出パック第一弾
-   以前は core と supplement の 2 値しか無く、pack1 の 29 件が core と
-   書かれていたので ルールブック に落ちていた。 */
+
 const SOURCE_OPTIONS = [["all", "全て"], ["core", "ルールブック"], ["supplement", "アンロックド・シンク"], ["pack1", "特定抽出パック"]];
 const catalogSource = (entry) => entry?.source || "core";
 const SourceFilterRow = ({ h, kind, value, onChange }) => h(
@@ -214,7 +303,7 @@ const useSourceFilterControl = (kind, value, onChange) => {
     return () => host.remove();
   }, [kind, value, onChange]);
 };
-const SupportSection = ({ state, dispatch }) => {
+const SupportSection = ({ state, dispatch, ownedOnly = false }) => {
   const h = React.createElement;
   const editable = canEditPersonaState(state);
   // 人格の同期化はサポートパッシブを自動編集対象にしない。
@@ -249,15 +338,25 @@ const SupportSection = ({ state, dispatch }) => {
       return true;
     });
   };
-  const filtered = React.useMemo(() => applyFilters(DB.support_passives), [query, sinFilter, lpFilter, sourceFilter]);
+  /* build 側のサポートタブは既定で所持済みだけを出す。ロックではなく
+     フィルタで解除でき、解除時は全件から選べる（未所持はここで購入できる）。 */
+  const [gateOpen, setGateOpen] = React.useState(false);
+  const gated = ownedOnly && !gateOpen;
+  const ownedSupports = React.useMemo(
+    () => (state.roster?.supports || []).map((entry) => ({ ...entry, slot: entry.slot || "normal" })),
+    [state.roster?.supports]
+  );
+  const catalogSource = gated ? ownedSupports : DB.support_passives;
+  const deathCatalogSource = gated ? ownedSupports.filter((entry) => entry.slot === "death") : DB.death_passives;
+  const filtered = React.useMemo(() => applyFilters(catalogSource), [query, sinFilter, lpFilter, sourceFilter, catalogSource]);
   // 死亡後専用スロットの候補は専用DB (death_passives) を単独ソースとする。
   // 通常DBを正規表現で推測分類すると誤検出・取りこぼしが起きるため混在させない。
-  const deathFiltered = React.useMemo(() => applyFilters(DB.death_passives), [query, sinFilter, lpFilter, sourceFilter]);
+  const deathFiltered = React.useMemo(() => applyFilters(deathCatalogSource), [query, sinFilter, lpFilter, sourceFilter, deathCatalogSource]);
   const standardFiltered = filtered;
   const visibleStandard = catalogMode !== "death" ? standardFiltered : [];
   const visibleDeath = catalogMode !== "standard" ? deathFiltered : [];
   const visibleCount = catalogMode === "death" ? deathFiltered.length : catalogMode === "all" ? standardFiltered.length + deathFiltered.length : standardFiltered.length;
-  const visibleTotal = catalogMode === "death" ? (DB.death_passives || []).length : catalogMode === "all" ? (DB.support_passives || []).length + (DB.death_passives || []).length : (DB.support_passives || []).length;
+  const visibleTotal = catalogMode === "death" ? (deathCatalogSource || []).length : catalogMode === "all" ? (catalogSource || []).length + (deathCatalogSource || []).length : (catalogSource || []).length;
   const equipped = Array.isArray(state.supports) ? state.supports : [];
   const deathSupport = state.deathSupport || null;
   const maxSupports = activeEnhancements.some((e) => e.name === "サポートスロット追加") ? 3 : 2;
@@ -443,13 +542,18 @@ const SupportSection = ({ state, dispatch }) => {
         h(
           "div",
           { className: "codex-filters" },
+          ownedOnly && h("div", { className: "codex-filter-row owned-gate-row" },
+            h("span", { className: "filter-label" }, "表示範囲"),
+            h("div", { className: "chips-group" },
+              h("button", { type: "button", className: `chip${!gateOpen ? " is-active" : ""}`, "aria-pressed": !gateOpen, onClick: () => setGateOpen(false) }, "所持のみ"),
+              h("button", { type: "button", className: `chip${gateOpen ? " is-active" : ""}`, "aria-pressed": gateOpen, onClick: () => setGateOpen(true), title: "未所持のサポートも一覧へ出し、その場で購入できます" }, "未所持も表示（全体から選ぶ）"))),
           h("div", { className: "codex-filter-row" }, h("div", { className: "codex-search" }, h(Icon, { name: "search", size: 14 }), h("input", { type: "text", "aria-label": "サポートパッシブ名・条件・効果で検索", placeholder: "サポートパッシブ名・条件・効果で検索...", value: query, onChange: (e) => setQuery(e.target.value) })), h("div", { className: "codex-count" }, h("strong", null, visibleCount), " / ", visibleTotal)),
           h("div", { className: "segmented support-catalog-mode", role: "tablist", "aria-label": "サポート候補の種類" },
             h("button", { className: catalogMode === "standard" ? "is-active" : "", onClick: () => setCatalogMode("standard"), role: "tab", "aria-selected": catalogMode === "standard" }, "通常"),
             h("button", { className: catalogMode === "death" ? "is-active" : "", onClick: () => setCatalogMode("death"), role: "tab", "aria-selected": catalogMode === "death" }, "死亡後専用"),
             h("button", { className: catalogMode === "all" ? "is-active" : "", onClick: () => setCatalogMode("all"), role: "tab", "aria-selected": catalogMode === "all" }, "すべて")
           ),
-          h("div", { className: "codex-filter-row", style: { gap: 8 } }, h("select", { className: "select", "aria-label": "大罪で絞り込む", value: sinFilter, onChange: (e) => setSinFilter(e.target.value), style: { flex: 1, minWidth: 0 } }, h("option", { value: "" }, "全大罪"), ...SIN_LIST.map((s) => h("option", { key: s, value: s }, s))), h("select", { className: "select", "aria-label": "LP帯で絞り込む", value: lpFilter, onChange: (e) => setLpFilter(e.target.value), style: { flex: 1, minWidth: 0 } }, h("option", { value: "" }, "全LP帯"), h("option", { value: "lt20" }, "LP 20未満"), h("option", { value: "20-49" }, "LP 20-49"), h("option", { value: "50-99" }, "LP 50-99"), h("option", { value: "gte100" }, "LP 100以上"))),
+          h("div", { className: "codex-filter-row", style: { gap: 8 } }, h("select", { className: "select", "aria-label": "大罪で絞り込む", value: sinFilter, onChange: (e) => setSinFilter(e.target.value), style: { flex: "0 1 220px" } }, h("option", { value: "" }, "全大罪"), ...SIN_LIST.map((s) => h("option", { key: s, value: s }, s))), h("select", { className: "select", "aria-label": "LP帯で絞り込む", value: lpFilter, onChange: (e) => setLpFilter(e.target.value), style: { flex: "0 1 220px" } }, h("option", { value: "" }, "全LP帯"), h("option", { value: "lt20" }, "LP 20未満"), h("option", { value: "20-49" }, "LP 20-49"), h("option", { value: "50-99" }, "LP 50-99"), h("option", { value: "gte100" }, "LP 100以上"))),
           h(SourceFilterRow, { h, kind: "サポートパッシブ", value: sourceFilter, onChange: setSourceFilter }),
           visibleStandard.length || catalogMode === "standard" || catalogMode === "all" ? h(React.Fragment, null, h("div", { className: "t-label", style: { marginBottom: 6 } }, catalogMode === "all" ? "通常スロット用" : "通常スロット用"), renderList(visibleStandard, "standard")) : null,
           (visibleDeath.length || catalogMode === "death" || catalogMode === "all") ? h(React.Fragment, null, h("div", { className: "t-label", style: { marginTop: visibleStandard.length ? "var(--s-3)" : 0, marginBottom: 6, color: "var(--warn)" } }, "死亡後専用スロット候補", !hasDeathSlot ? "（未開放：閲覧のみ）" : ""), renderList(visibleDeath, "death")) : null
@@ -863,7 +967,7 @@ const EgoDetail = ({ ego, equipTo, currentSlot, onEquip, onUnequip, isOwned, onT
   const isAssim = (ego.sub_skills || []).length > 0;
   return /* @__PURE__ */ React.createElement("div", { className: "codex-detail", style: { "--sin-primary": `var(--rank-${ego.rank})` } }, /* @__PURE__ */ React.createElement("div", { className: "detail-head" }, /* @__PURE__ */ React.createElement("div", { className: "detail-eyebrow" }, /* @__PURE__ */ React.createElement("span", { className: "detail-num" }, "No.", String(ego.no).padStart(3, "0")), /* @__PURE__ */ React.createElement("span", { className: "badge", "data-rank": ego.rank, style: { fontSize: "var(--fs-9)" } }, ego.rank)), /* @__PURE__ */ React.createElement("div", { className: "detail-name" }, ego.name), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--s-2)" } }, /* @__PURE__ */ React.createElement("div", { style: { padding: "6px 8px", background: "var(--surface-inset)", border: "1px solid var(--line-dim)", borderRadius: "var(--r)" } }, /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-display)", fontSize: "var(--fs-9)", letterSpacing: "0.14em", color: "var(--tx-mute)", textTransform: "uppercase" } }, "\u6D88\u8CBBSAN"), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-mono)", fontSize: "var(--fs-15)", color: "var(--tx)" } }, ego.san_cost)), /* @__PURE__ */ React.createElement("div", { style: { padding: "6px 8px", background: "var(--surface-inset)", border: "1px solid var(--line-dim)", borderRadius: "var(--r)" } }, /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-display)", fontSize: "var(--fs-9)", letterSpacing: "0.14em", color: "var(--tx-mute)", textTransform: "uppercase" } }, "\u81EA\u6211\u306E\u6B20\u7247"), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-mono)", fontSize: "var(--fs-15)", color: "var(--tx)" } }, ego.shards))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "var(--s-2)", fontSize: "var(--fs-11)", color: "var(--tx-dim)", fontFamily: "var(--f-mono)" } }, "\u8CC7\u6E90: ", /* @__PURE__ */ React.createElement("span", { style: { color: "var(--tx-2)" } }, ego.resources))), /* @__PURE__ */ React.createElement("div", { className: "detail-body" }, ego.passive_name && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u30D1\u30C3\u30B7\u30D6"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive" }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-name" }, ego.passive_name), ego.passive_cond && /* @__PURE__ */ React.createElement("div", { className: "detail-passive-cond cond-chips-lg", style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)" } }, "\u767A\u52D5\u6761\u4EF6"), /* @__PURE__ */ React.createElement(CondChips, { cond: ego.passive_cond })), /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect", style: { whiteSpace: "pre-wrap" } }, fmt(ego.passive_effect)))), /* @__PURE__ */ React.createElement(Skill, { label: "\u899A\u9192\u30B9\u30AD\u30EB / KAKUSEI", skill: ego.kakusei, badge: "\u899A\u9192" }), isAssim ? /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title", style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", null, "\u4FB5\u8755\u30B9\u30AD\u30EB / SHINSHOKU"), /* @__PURE__ */ React.createElement("span", { className: "ego-doka-badge", style: { marginLeft: "auto" }, title: "\u3053\u306EEGO\u306F\u540C\u5316\u578B" }, "\u25C6 \u540C\u5316")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)", lineHeight: 1.5, marginTop: -2, marginBottom: 8, fontStyle: "italic", fontFamily: "var(--f-mono)" } }, "\u540C\u5316\u578BEGO\uFF1A\u4FB5\u8755\u30B9\u30AD\u30EB\u305D\u306E\u3082\u306E\u304C\u4E0B\u8A18\u306E\u540C\u5316\u30B9\u30AD\u30EB\u7FA4\u3068\u3057\u3066\u767A\u52D5\u3057\u307E\u3059\u3002"), /* @__PURE__ */ React.createElement("div", { className: "assim-tactical-grid" }, ego.sub_skills.map((s, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "assim-tactical-card", "data-sin": s.sin || "" }, /* @__PURE__ */ React.createElement("div", { className: "assim-tactical-head" }, /* @__PURE__ */ React.createElement("span", { className: "assim-tactical-idx" }, "S", s.no ?? i + 1), /* @__PURE__ */ React.createElement("span", { className: "assim-tactical-name" }, s.name || "(\u540D\u79F0\u672A\u8A2D\u5B9A)"), s.attr && /* @__PURE__ */ React.createElement("span", { className: "assim-tactical-attr" }, s.attr), s.sin && /* @__PURE__ */ React.createElement("span", { className: "sin-tag", "data-sin": s.sin, style: { fontFamily: "var(--f-display)", fontSize: "var(--fs-10)", padding: "2px 8px", borderRadius: "var(--r-sm)", letterSpacing: "0.06em", fontWeight: 600 } }, s.sin), s.aoe && /* @__PURE__ */ React.createElement("span", { className: "assim-tactical-aoe" }, s.aoe)), s.effect && /* @__PURE__ */ React.createElement("div", { className: "assim-tactical-eff", style: { whiteSpace: "pre-wrap" } }, fmt(s.effect)), (s.dice || []).length > 0 && /* @__PURE__ */ React.createElement("div", { className: "ro-dice-list", style: { marginTop: 6 } }, s.dice.map((d, j) => /* @__PURE__ */ React.createElement("div", { key: j, className: "ro-dice-row" }, /* @__PURE__ */ React.createElement("span", { className: "ro-dice-idx" }, j + 1), /* @__PURE__ */ React.createElement("span", { className: "ro-dice-roll" }, d.roll || "-"), /* @__PURE__ */ React.createElement("span", { className: "ro-dice-eff", style: { whiteSpace: "pre-wrap" } }, d.effect ? fmt(d.effect) : /* @__PURE__ */ React.createElement("span", { style: { color: "var(--tx-mute)", fontStyle: "italic" } }, "\u52B9\u679C\u306A\u3057"))))))))) : /* @__PURE__ */ React.createElement(Skill, { label: "\u4FB5\u8755\u30B9\u30AD\u30EB / SHINSHOKU", skill: ego.shinshoku, badge: "\u4FB5\u8755" }), ego.unique_buff && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u56FA\u6709\u30D0\u30D5"), /* @__PURE__ */ React.createElement("div", { style: { padding: "8px 10px", background: "var(--surface-inset)", borderRadius: "var(--r)", border: "1px solid var(--line-dim)", fontSize: "var(--fs-11)", color: "var(--tx-2)", lineHeight: 1.5 } }, ego.unique_buff))), /* @__PURE__ */ React.createElement("div", { className: "detail-actions" }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--tx-dim)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "var(--f-display)", marginBottom: 4 } }, equipTo === ego.rank ? `\u2192 ${ego.rank} \u30B9\u30ED\u30C3\u30C8\u3078\u88C5\u5099` : `\u2192 ${ego.rank} \u30B9\u30ED\u30C3\u30C8\u3078\u88C5\u5099`), currentSlot ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--gold)", textAlign: "center", fontFamily: "var(--f-display)", letterSpacing: "0.16em", textTransform: "uppercase" } }, "\u2605 \u73FE\u5728 ", currentSlot, " \u306B\u88C5\u5099\u4E2D"), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", onClick: onUnequip, icon: "x" }, "\u88C5\u5099\u89E3\u9664")) : /* @__PURE__ */ React.createElement(Button, { variant: "primary", onClick: onEquip, icon: "check" }, ego.rank, " \u30B9\u30ED\u30C3\u30C8\u3078\u88C5\u5099"), onToggleOwned ? /* @__PURE__ */ React.createElement(Button, { variant: isOwned ? "ghost" : "ghost", size: "sm", icon: isOwned ? "check" : "plus", onClick: onToggleOwned, title: isOwned ? "\u6240\u6301\u30EA\u30B9\u30C8\u304B\u3089\u5916\u3059" : "\u88C5\u5099\u305B\u305A\u306B\u6240\u6301\u30EA\u30B9\u30C8\u3078\u8FFD\u52A0\u3059\u308B" }, isOwned ? "\u6240\u6301\u6E08\u307F" : "\u6240\u6301\u306B\u8FFD\u52A0") : null));
 };
-const EgoQuickDetail = ({ ego, currentSlot, isOwned, onEquip, onUnequip, onToggleOwned, onOpenFullDetail, onClose }) => {
+const EgoQuickDetail = ({ ego, currentSlot, isOwned, onEquip, onUnequip, onToggleOwned, onPreviewEquip, onOpenFullDetail, onClose, state, acquireHow, onAcquireHowChange, onAcquire }) => {
   const h = React.createElement;
   if (!ego) return null;
   const formatPreview = (text, limit = 150) => {
@@ -927,7 +1031,9 @@ const EgoQuickDetail = ({ ego, currentSlot, isOwned, onEquip, onUnequip, onToggl
       currentSlot ? h("div", { className: "ego-quick-equipped" }, "★ 現在 ", currentSlot, " に装備中") : null,
       currentSlot ? h(Button, { variant: "ghost", size: "sm", onClick: onUnequip, icon: "x" }, "装備解除") : h(Button, { variant: "primary", size: "sm", onClick: onEquip, icon: "check" }, ego.rank, " スロットへ装備"),
       currentSlot ? h(Button, { variant: "ghost", size: "sm", onClick: onOpenFullDetail, icon: "edit", title: "効果全文の確認と直接編集を開く" }, "詳細・直接編集") : null,
-      onToggleOwned ? h(Button, { variant: "ghost", size: "sm", onClick: onToggleOwned, icon: isOwned ? "check" : "plus", title: isOwned ? "所持リストから外す" : "装備せずに所持リストへ追加する" }, isOwned ? "所持済み" : "所持に追加") : null
+      onAcquire && acquireHow && onAcquireHowChange && !isOwned ? h(AcquireBar, { state, kind: "ego", name: ego.name, how: acquireHow, setHow: onAcquireHowChange, onAcquire }) : null,
+      onPreviewEquip ? h(Button, { variant: "ghost", size: "sm", onClick: onPreviewEquip, icon: "eye", title: "購入も所持登録もしない試着装備です。効果だけ確かめられます" }, "試着装備") : null,
+      onToggleOwned ? h(Button, { variant: "ghost", size: "sm", onClick: onToggleOwned, icon: isOwned ? "check" : "x", title: isOwned ? "所持リストから外す" : "購入せずに所持リストへ追加する" }, isOwned ? "所持済み" : "購入せず所持に追加") : null
     )
   );
 };
@@ -1025,7 +1131,7 @@ const useEgoResourceFilterControls = (requiredResources, excludedResources, onTo
     };
   }, [requiredResources, excludedResources, onToggleRequired, onToggleExcluded]);
 };
-const EgoSection = ({ state, dispatch }) => {
+const EgoSection = ({ state, dispatch, ownedOnly: ownedOnlyProp = false }) => {
   const h = React.createElement;
   const [creating, setCreating] = React.useState(false);
   const [newName, setNewName] = React.useState("");
@@ -1064,10 +1170,15 @@ const EgoSection = ({ state, dispatch }) => {
   // 全件を見る・絞り込みフィルタを開いたときだけ縮む想定は変わらない。
   const listExpanded = state.ui.egoListExpanded !== void 0 ? state.ui.egoListExpanded : true;
   const setListExpanded = (v) => dispatch({ type: "SET_UI", ui: { egoListExpanded: v } });
-  // V24: 「所持のみ」フィルタ（roster.egos に登録済みのものだけを表示）
-  const [ownedOnly, setOwnedOnly] = React.useState(false);
+/* build 側の E.G.O 一覧は「未所持（購入できる）を含む全部」を既定にする。
+   所持だけを出すゲートを別に持つと、ゲートと所持フィルタが同じことを
+   二重に制御して片方を消してももう片方が残るという競合が起きていた。
+   ここは一意：ownedOnly = 所持のみを出すか、だけ。 */
+const [ownedOnly, setOwnedOnly] = React.useState(false);
   // P0: 初期表示は検索・最近使用・所持を優先し、全件一覧と詳細フィルタは利用者が明示して開く。
   const [browseAll, setBrowseAll] = React.useState(false);
+  /* 取得方法。E.G.O は抽出と指定購入で core ルールの欠片数が変わる。 */
+  const [acquireHow, setAcquireHow] = React.useState("purchase");
   const [filtersOpen, setFiltersOpen] = React.useState(false);
   // フィルタは「新しい一覧を見る」操作。旧詳細や解析面を残すと一覧と対象がずれるため、
   // カテゴリ・検索・大罪・所持条件の変更前に選択を必ず解除する。
@@ -1124,7 +1235,7 @@ const EgoSection = ({ state, dispatch }) => {
     setExcludedResources([]);
     setKeywordFilter("");
     setOwnedOnly(false);
-    setBrowseAll(true);
+    setBrowseAll(ownedOnlyProp);
     setFiltersOpen(false);
     setListExpanded(true);
     setSelected(target);
@@ -1165,13 +1276,20 @@ const EgoSection = ({ state, dispatch }) => {
       return true;
     }).slice(0, 12);
   }, [state.ui?.egoRecent, ownedKeys, catalogEgos]);
-  const isExploringAll = browseAll || !!query.trim() || !!rankFilter || requiredResources.length > 0 || excludedResources.length > 0 || !!keywordFilter || ownedOnly;
+  const isExploringAll = ownedOnly || browseAll || !!query.trim() || !!rankFilter || requiredResources.length > 0 || excludedResources.length > 0 || !!keywordFilter || ownedOnly;
   const visibleEgos = isExploringAll ? filtered : quickEgos;
   const equip = () => {
     if (!selected) return;
     recordRecentEgo(selected);
     dispatch({ type: "SET_EGO_SLOT", rank: selected.rank, value: selected });
     toast(`${selected.rank}: 『${selected.name}』を装備`);
+  };
+  /* 試着装備。購入も所持登録もせず、スロットだけ差し替える。
+     「この E.G.O を買う価値があるか」を効果だけ見て判断したい時に使う。 */
+  const previewEquip = () => {
+    if (!selected) return;
+    dispatch({ type: "SET_EGO_SLOT", rank: selected.rank, value: selected, preview: true });
+    toast(`${selected.rank}: 『${selected.name}』を試着しました（所持には入りません）`, "assertive");
   };
   const unequip = () => {
     if (!selected) return;
@@ -1247,7 +1365,20 @@ const EgoSection = ({ state, dispatch }) => {
       ),
       h("div", { className: "p-name" }, e.name),
       h(EgoResourceChips, { resources: e.resources, className: "is-catalog" }),
-      h("div", { className: "p-kw-row", style: { marginTop: "auto" } }, h("span", { className: "p-kw" }, "SAN ", e.san_cost), h("span", { className: "p-kw" }, "欠片 ", e.shards))
+      h("div", { className: "p-kw-row", style: { marginTop: "auto" } }, h("span", { className: "p-kw" }, "SAN ", e.san_cost), h("span", { className: "p-kw" }, "欠片 ", e.shards)),
+      /* 装備はカード本体のボタン/タップで行う（ダブルクリックに依存しない）。 */
+      !isEquipped && h("button", {
+        type: "button",
+        className: "btn btn-sm p-card-quick-equip",
+        onClick: (event) => {
+          event.stopPropagation();
+          recordRecentEgo(e);
+          dispatch({ type: "SET_EGO_SLOT", rank: e.rank, value: e });
+          toast(`${e.rank}: 『${e.name}』を装備`);
+        },
+        title: "詳細を開かずにこのE.G.Oを装備する"
+      }, "装備"),
+      isEquipped && h("span", { className: "p-card-equipped-mark" }, "装備中")
     );
   })));
   return h(
@@ -1263,6 +1394,23 @@ const EgoSection = ({ state, dispatch }) => {
     h("div", null,
       h("div", { className: "t-label", style: { marginBottom: "var(--s-2)", display: "flex", alignItems: "center", gap: 8 } }, h("span", null, "装備中のE.G.O"), h("span", { style: { fontSize: "var(--fs-9)", color: "var(--tx-mute)", fontWeight: 400, letterSpacing: "0.08em" } }, "装備済スロット：クリックで詳細を開く　未装備スロット：クリックで一覧展開"), h("div", { style: { flex: 1 } }), hasAnyEgo ? h(Button, { size: "sm", icon: listExpanded ? "chevronU" : "chevronD", onClick: () => { setListExpanded(!listExpanded); if (listExpanded) setRankFilter(""); }, title: listExpanded ? "一覧を折り畳む" : "別のE.G.Oを選ぶ" }, listExpanded ? "一覧を畳む" : "別のE.G.Oを選ぶ") : null),
       h("div", { className: "ego-slots" }, ...slotCards),
+    /* 所持フィルタはここ一つだけ。以前は「表示範囲」ゲートが別にあり、
+       ゲートを解除しても別フラグが残るため片方だけ効くことがあった。 */
+    h("div", { className: "codex-filter-row owned-gate-row" },
+    h("span", { className: "filter-label" }, "所持"),
+    h("button", {
+    type: "button",
+    className: `chip${!ownedOnly ? " is-active" : ""}`,
+    "aria-pressed": !ownedOnly,
+    onClick: () => updateOwnedOnly(false)
+    }, "全部"),
+    h("button", {
+    type: "button",
+    className: `chip${ownedOnly ? " is-active" : ""}`,
+    "aria-pressed": ownedOnly,
+    onClick: () => updateOwnedOnly(true)
+    }, "所持のみ")
+    ),
       detailSlot && state.egoSlots[detailSlot] ? h("div", { className: "equipped-detail-wrap" }, h("div", { style: { display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", background: "var(--surface-2)", borderBottom: "1px solid var(--line-dim)" } }, h("span", { className: "badge", "data-rank": detailSlot }, detailSlot), h("span", { style: { fontFamily: "var(--f-display)", fontWeight: 600, color: "var(--tx)" } }, state.egoManual ? "装備中E.G.O / 直接編集" : "装備中E.G.O / 詳細"), h("div", { style: { flex: 1 } }),
       h("button", { className: "btn btn-sm " + (state.egoManual ? "btn-primary" : "btn-ghost"), onClick: () => {
         if (state.egoManual) {
@@ -1277,8 +1425,9 @@ const EgoSection = ({ state, dispatch }) => {
       h("button", { className: "btn btn-sm btn-ghost", onClick: () => { dispatch({ type: "SET_EGO_MANUAL", value: false }); setDetailSlot(null); }, title: "閉じる" }, h(Icon, { name: "x", size: 12 }), " 閉じる")), h("div", { className: "equipped-detail-inner" }, editable ? null : h(EgoDetail, { ego: state.egoSlots[detailSlot], equipTo: detailSlot, currentSlot: detailSlot, onEquip: () => {}, onUnequip: () => { clearSlot(detailSlot); setDetailSlot(null); }, dispatch }), editable ? h(EquippedEgoEditor, { rank: detailSlot, ego: state.egoSlots[detailSlot], dispatch }) : null)) : null,
       hasAnyEgo && !listExpanded ? h("div", { className: "codex-collapsed-hint" }, h("span", { style: { color: "var(--tx-mute)", fontSize: "var(--fs-11)", letterSpacing: "0.14em", fontFamily: "var(--f-display)" } }, "◇ E.G.O 一覧は折り畳み中"), h("span", { style: { marginLeft: 12, fontSize: "var(--fs-10)", color: "var(--tx-dim)" } }, "未装備スロットをクリックすると、そのランクだけ絞り込んで展開されます。"), h("button", { className: "btn btn-sm", style: { marginLeft: "auto" }, onClick: () => { setListExpanded(true); setRankFilter(""); } }, "一覧を展開")) : null
     ),
-    (!hasAnyEgo || listExpanded) ? h("div", { className: "codex" }, h("div", { className: "codex-main" }, h("div", { className: `codex-filters ego-catalog-filters${filtersOpen ? " is-filter-open" : ""}` }, h("div", { className: "codex-filter-row" }, h("div", { className: "codex-search" }, h(Icon, { name: "search", size: 14 }), h("input", { type: "text", "aria-label": "E.G.O名・効果・キーワード・資源で検索", placeholder: "E.G.O名・効果・キーワード・資源で検索...", value: query, onChange: (e) => updateQuery(e.target.value) })), h("div", { className: "codex-count" }, h("strong", null, visibleEgos.length), isExploringAll ? " / " : " 件の候補", isExploringAll ? catalogEgos.length : ""), h("button", { className: "btn btn-sm ego-filter-toggle", onClick: () => setFiltersOpen(!filtersOpen), "aria-expanded": filtersOpen, title: "ランク・大罪・キーワード・所持の絞り込みを開く" }, filtersOpen ? "絞り込みを閉じる" : "絞り込み"), !isExploringAll ? h("button", { className: "btn btn-sm ego-browse-all", onClick: () => setBrowseAll(true), title: "全E.G.Oを一覧から探す" }, "全件を見る") : null, rankFilter ? h("button", { className: "btn btn-sm", onClick: () => setRankFilter(""), style: { color: "var(--gold)", borderColor: "var(--gold-line)" } }, rankFilter, " 絞り込み中 ×") : null), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "ランク"), h("div", { className: "chips-group" }, ...EGO_RANKS.map((r) => h("button", { key: r, className: "chip", onClick: () => setRankFilter(rankFilter === r ? "" : r), style: { background: rankFilter === r ? `color-mix(in oklab, var(--rank-${r}) 25%, var(--surface-2))` : void 0, borderColor: rankFilter === r ? `var(--rank-${r})` : void 0, color: rankFilter === r ? "var(--tx)" : void 0 } }, h("span", { style: { width: 6, height: 6, borderRadius: 999, background: `var(--rank-${r})`, marginRight: 4, display: "inline-block" } }), r)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "大罪"), h("div", { className: "chips-group" }, ...SIN_LIST.map((s) => h(Chip, { key: s, sin: s, active: sinFilter === s, onClick: () => updateSinFilter(sinFilter === s ? "" : s) }, s)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "キーワード"), h("div", { className: "chips-group" }, ...egoKeywordOptions.map((keyword) => h(Chip, { key: keyword, size: "sm", active: keywordFilter === keyword, onClick: () => updateKeywordFilter(keywordFilter === keyword ? "" : keyword) }, keyword)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "所持"), h("div", { className: "chips-group" }, h(Chip, { size: "sm", active: ownedOnly, onClick: () => updateOwnedOnly(!ownedOnly) }, "所持しているもののみ", ownedOnly ? ` (${ownedKeys.size})` : ""))), !isExploringAll && visibleEgos.length === 0 ? h("div", { className: "ego-discovery-empty" }, h("strong", null, "最近使用・所持中のE.G.Oはありません"), h("span", null, "名称で検索するか、「全件を見る」から探してください。")) : egoGrid)), h(EgoQuickDetail, { ego: selected, currentSlot, onEquip: equip, onUnequip: unequip,
+    (!hasAnyEgo || listExpanded) ? h("div", { className: "codex" }, h("div", { className: "codex-main" }, h("div", { className: `codex-filters ego-catalog-filters${filtersOpen ? " is-filter-open" : ""}` }, h("div", { className: "codex-filter-row" }, h("div", { className: "codex-search" }, h(Icon, { name: "search", size: 14 }), h("input", { type: "text", "aria-label": "E.G.O名・効果・キーワード・資源で検索", placeholder: "E.G.O名・効果・キーワード・資源で検索...", value: query, onChange: (e) => updateQuery(e.target.value) })), h("div", { className: "codex-count" }, h("strong", null, visibleEgos.length), isExploringAll ? " / " : " 件の候補", isExploringAll ? catalogEgos.length : ""), h("button", { className: "btn btn-sm ego-filter-toggle", onClick: () => setFiltersOpen(!filtersOpen), "aria-expanded": filtersOpen, title: "ランク・大罪・キーワード・所持の絞り込みを開く" }, filtersOpen ? "絞り込みを閉じる" : "絞り込み"), !isExploringAll ? h("button", { className: "btn btn-sm ego-browse-all", onClick: () => setBrowseAll(true), title: "全E.G.Oを一覧から探す" }, "全件を見る") : null, rankFilter ? h("button", { className: "btn btn-sm", onClick: () => setRankFilter(""), style: { color: "var(--gold)", borderColor: "var(--gold-line)" } }, rankFilter, " 絞り込み中 ×") : null), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "ランク"), h("div", { className: "chips-group" }, ...EGO_RANKS.map((r) => h("button", { key: r, className: "chip", onClick: () => setRankFilter(rankFilter === r ? "" : r), style: { background: rankFilter === r ? `color-mix(in oklab, var(--rank-${r}) 25%, var(--surface-2))` : void 0, borderColor: rankFilter === r ? `var(--rank-${r})` : void 0, color: rankFilter === r ? "var(--tx)" : void 0 } }, h("span", { style: { width: 6, height: 6, borderRadius: 999, background: `var(--rank-${r})`, marginRight: 4, display: "inline-block" } }), r)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "大罪"), h("div", { className: "chips-group" }, ...SIN_LIST.map((s) => h(Chip, { key: s, sin: s, active: sinFilter === s, onClick: () => updateSinFilter(sinFilter === s ? "" : s) }, s)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "キーワード"), h("div", { className: "chips-group" }, ...egoKeywordOptions.map((keyword) => h(Chip, { key: keyword, size: "sm", active: keywordFilter === keyword, onClick: () => updateKeywordFilter(keywordFilter === keyword ? "" : keyword) }, keyword)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "所持"), h("div", { className: "chips-group" }, h(Chip, { size: "sm", active: ownedOnly, onClick: () => updateOwnedOnly(!ownedOnly) }, "所持しているもののみ", ownedOnly ? ` (${ownedKeys.size})` : ""))), !isExploringAll && visibleEgos.length === 0 ? h("div", { className: "ego-discovery-empty" }, h("strong", null, "最近使用・所持中のE.G.Oはありません"), h("span", null, "名称で検索するか、「全件を見る」から探してください。")) : egoGrid)), h(DetailDialog, { open: !!selected, onClose: () => setSelected(null), label: "E.G.O 詳細" }, h(EgoQuickDetail, { ego: selected, currentSlot, state, acquireHow, onAcquireHowChange: setAcquireHow, onAcquire: () => { dispatch({ type: "ADD_ROSTER_EGO", rank: selected.rank, no: selected.no, purchase: true }); toast(`「${selected.name}」を所持に購入しました`, "assertive"); }, onEquip: equip, onUnequip: unequip,
       isOwned: !!(selected && ownedKeys.has(`${selected.rank}:${selected.no}`)),
+    onPreviewEquip: previewEquip,
       onToggleOwned: () => {
         if (!selected) return;
         const entry = (state.roster?.egos || []).find((x) => x.rank === selected.rank && x.no === selected.no);
@@ -1299,20 +1448,32 @@ const EgoSection = ({ state, dispatch }) => {
         setSelected(null);
         setDetailSlot(null);
         dispatch({ type: "SET_EGO_MANUAL", value: false });
-      } })) : null
+      } }))) : null
   );
 };
-const SpiritSection = ({ state, dispatch }) => {
+const SpiritSection = ({ state, dispatch, ownedOnly = false }) => {
   const [selected, setSelected] = React.useState(null);
   const [query, setQuery] = React.useState("");
   const [sourceFilter, setSourceFilter] = React.useState("all");
+  /* build 側の精神タブは既定で所持済みだけを出す。ロックではなく
+     フィルタで解除でき、解除時は全件から選べる（未所持はここで購入できる）。 */
+  const [gateOpen, setGateOpen] = React.useState(false);
+  const gated = ownedOnly && !gateOpen;
+  const spiritSource = React.useMemo(() => {
+    if (!gated) return DB.spirits;
+    const owned = (state.roster?.spirits || []).map((e) => e.name);
+    return DB.spirits.filter((sp) => owned.includes(sp.name));
+  }, [gated, state.roster?.spirits]);
+  /* ゲート解除時は全件から選べるので、所持済みかどうかを明示して導線を分ける。 */
+  const ownedSpiritNames = new Set((state.roster?.spirits || []).map((e) => e.name));
+
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
-    return DB.spirits.filter((s) => {
+    return spiritSource.filter((s) => {
       if (sourceFilter !== "all" && catalogSource(s) !== sourceFilter) return false;
       return !q || `${s.name} ${s.morale_effect || ""} ${s.confuse_effect || ""} ${s.always_effect || ""}`.toLowerCase().includes(q);
     });
-  }, [query, sourceFilter]);
+  }, [spiritSource, query, sourceFilter]);
   useSourceFilterControl("精神", sourceFilter, setSourceFilter);
   const applySpirit = (sp) => {
     dispatch({ type: "APPLY_SPIRIT", spirit: sp });
@@ -1361,10 +1522,11 @@ const SpiritSection = ({ state, dispatch }) => {
       setForceEditSpirit(false);
       toast("\u7CBE\u795E\u3092\u89E3\u9664");
     } }, "\u89E3\u9664")), /* @__PURE__ */ React.createElement("div", { className: "card-body stack-3" }, /* @__PURE__ */ React.createElement(Field, { label: "\u7CBE\u795E\u540D" }, /* @__PURE__ */ React.createElement("input", { className: "input", value: state.spirit, onChange: (e) => setF("spirit", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "\u58EB\u6C17\u4F4E\u4E0B\u52B9\u679C" }, /* @__PURE__ */ React.createElement("textarea", { className: "textarea", rows: 2, value: state.spiritMorale, onChange: (e) => setF("spiritMorale", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "\u6DF7\u4E71\u52B9\u679C" }, /* @__PURE__ */ React.createElement("textarea", { className: "textarea", rows: 2, value: state.spiritConfuse, onChange: (e) => setF("spiritConfuse", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "\u5E38\u6642\u767A\u52D5\uFF08\u4EFB\u610F\uFF09" }, /* @__PURE__ */ React.createElement("input", { className: "input", value: state.spiritAlways, onChange: (e) => setF("spiritAlways", e.target.value) }))))
-  )), !isCurrentSpirit && /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", icon: "plus", onClick: addManualSpirit }, "\u624B\u52D5\u3067\u7CBE\u795E\u3092\u8FFD\u52A0")), /* @__PURE__ */ React.createElement("div", { className: "codex" }, /* @__PURE__ */ React.createElement("div", { className: "codex-main" }, /* @__PURE__ */ React.createElement("div", { className: "codex-filters" }, /* @__PURE__ */ React.createElement("div", { className: "codex-filter-row" }, /* @__PURE__ */ React.createElement("div", { className: "codex-search" }, /* @__PURE__ */ React.createElement(Icon, { name: "search", size: 14 }), /* @__PURE__ */ React.createElement("input", { type: "text", "aria-label": "精神名・効果で検索", placeholder: "\u7CBE\u795E\u540D\u30FB\u52B9\u679C\u3067\u691C\u7D22...", value: query, onChange: (e) => setQuery(e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "codex-count" }, /* @__PURE__ */ React.createElement("strong", null, filtered.length), " / ", DB.spirits.length))), /* @__PURE__ */ React.createElement("div", { className: "spirit-list" }, filtered.map((sp) => {
+  )), !isCurrentSpirit && /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", icon: "plus", onClick: addManualSpirit }, "\u624B\u52D5\u3067\u7CBE\u795E\u3092\u8FFD\u52A0")), /* @__PURE__ */ React.createElement("div", { className: "codex" }, /* @__PURE__ */ React.createElement("div", { className: "codex-main" }, /* @__PURE__ */ React.createElement("div", { className: "codex-filters" }, ownedOnly && /* @__PURE__ */ React.createElement("div", { className: "codex-filter-row owned-gate-row" }, /* @__PURE__ */ React.createElement("span", { className: "filter-label" }, "表示範囲"), /* @__PURE__ */ React.createElement("div", { className: "chips-group" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: `chip${!gateOpen ? " is-active" : ""}`, "aria-pressed": !gateOpen, onClick: () => setGateOpen(false) }, "所持のみ"), /* @__PURE__ */ React.createElement("button", { type: "button", className: `chip${gateOpen ? " is-active" : ""}`, "aria-pressed": gateOpen, onClick: () => setGateOpen(true), title: "未所持の精神も一覧へ出し、その場で購入できます" }, "未所持も表示（全体から選ぶ）"))), /* @__PURE__ */ React.createElement("div", { className: "codex-filter-row" }, /* @__PURE__ */ React.createElement("div", { className: "codex-search" }, /* @__PURE__ */ React.createElement(Icon, { name: "search", size: 14 }), /* @__PURE__ */ React.createElement("input", { type: "text", "aria-label": "精神名・効果で検索", placeholder: "\u7CBE\u795E\u540D\u30FB\u52B9\u679C\u3067\u691C\u7D22...", value: query, onChange: (e) => setQuery(e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "codex-count" }, /* @__PURE__ */ React.createElement("strong", null, filtered.length), " / ", DB.spirits.length))), /* @__PURE__ */ React.createElement("div", { className: "spirit-list" }, filtered.map((sp) => {
     const isSelected = selected?.name === sp.name;
     const isEquipped = state.spirit === sp.name;
-    return /* @__PURE__ */ React.createElement(
+    const isOwned = ownedSpiritNames.has(sp.name);
+    const spiritBody = /* @__PURE__ */ React.createElement(
       "div",
       {
         key: sp.name,
@@ -1375,21 +1537,79 @@ const SpiritSection = ({ state, dispatch }) => {
       /* @__PURE__ */ React.createElement("div", { className: "spirit-item-head" }, /* @__PURE__ */ React.createElement("div", { className: "spirit-item-name" }, sp.name), /* @__PURE__ */ React.createElement("span", { className: "spirit-item-price" }, sp.price > 0 ? `\u6B20\u7247 ${sp.price}` : "\u521D\u671F\u9078\u629E\u53EF"), isEquipped && /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontSize: "var(--fs-9)", color: "var(--gold)", fontFamily: "var(--f-display)", letterSpacing: "0.16em" } }, "\u2605 \u88C5\u5099\u4E2D")),
       sp.always_effect && /* @__PURE__ */ React.createElement("div", { className: "spirit-item-line" }, /* @__PURE__ */ React.createElement("span", { className: "spirit-item-tag", "data-tag": "always" }, "\u5E38\u6642"), /* @__PURE__ */ React.createElement("span", null, sp.always_effect)),
       sp.morale_effect && sp.morale_effect !== "\u306A\u3057" && /* @__PURE__ */ React.createElement("div", { className: "spirit-item-line" }, /* @__PURE__ */ React.createElement("span", { className: "spirit-item-tag", "data-tag": "morale" }, "\u58EB\u6C17"), /* @__PURE__ */ React.createElement("span", null, sp.morale_effect)),
-      /* @__PURE__ */ React.createElement("div", { className: "spirit-item-line" }, /* @__PURE__ */ React.createElement("span", { className: "spirit-item-tag", "data-tag": "confuse" }, "\u6DF7\u4E71"), /* @__PURE__ */ React.createElement("span", null, sp.confuse_effect))
+      /* @__PURE__ */ React.createElement("div", { className: "spirit-item-line" }, /* @__PURE__ */ React.createElement("span", { className: "spirit-item-tag", "data-tag": "confuse" }, "\u6DF7\u4E71"), /* @__PURE__ */ React.createElement("span", null, sp.confuse_effect)),
+      /* 購入・装備はカード本体のボタン/タップで行う（ダブルクリックに依存しない）。 */
+      /* @__PURE__ */ React.createElement("div", { className: "spirit-item-actions" },
+        !isOwned && h(Button, {
+          size: "sm",
+          variant: "primary",
+          onClick: (event) => {
+            event.stopPropagation();
+            dispatch({ type: "ADD_ROSTER_SPIRIT", spirit: sp });
+            toast(`『${sp.name}』を所持に購入しました`, "assertive");
+          },
+          title: "詳細を開かずにこの精神を購入して所持にする"
+        }, "購入"),
+        isOwned && !isEquipped && h(Button, {
+          size: "sm",
+          onClick: (event) => {
+            event.stopPropagation();
+            applySpirit(sp);
+          },
+          title: "詳細を開かずにこの精神を装備する"
+        }, "装備"),
+        isEquipped && h("span", { className: "spirit-item-equipped" }, "装備中")
+      )
     );
   }))), selected ? /* @__PURE__ */ React.createElement("div", { className: "codex-detail" }, /* @__PURE__ */ React.createElement("div", { className: "detail-head", style: { "--sin-primary": "var(--gold)" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-eyebrow" }, /* @__PURE__ */ React.createElement("span", { className: "detail-num" }, selected.price > 0 ? `\u6B20\u7247 ${selected.price}` : "\u521D\u671F\u9078\u629E\u53EF"), /* @__PURE__ */ React.createElement("span", { className: "detail-type" }, "SPIRIT / \u7CBE\u795E")), /* @__PURE__ */ React.createElement("div", { className: "detail-name" }, selected.name)), /* @__PURE__ */ React.createElement("div", { className: "detail-body" }, selected.always_effect && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u5E38\u6642\u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive" }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" }, selected.always_effect))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u58EB\u6C17\u4F4E\u4E0B\u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive", style: { borderLeftColor: "var(--warn)" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" }, selected.morale_effect || "\u306A\u3057"))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u6DF7\u4E71\u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive", style: { borderLeftColor: "var(--err)" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" }, selected.confuse_effect)))), /* @__PURE__ */ React.createElement("div", { className: "detail-actions" }, state.spirit === selected.name ? /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--gold)", textAlign: "center", fontFamily: "var(--f-display)", letterSpacing: "0.2em", textTransform: "uppercase" } }, "\u2605 \u73FE\u5728\u88C5\u5099\u4E2D") : /* @__PURE__ */ React.createElement(Button, { variant: "primary", onClick: () => applySpirit(selected), icon: "check" }, "\u3053\u306E\u7CBE\u795E\u3092\u88C5\u5099"))) : /* @__PURE__ */ React.createElement("div", { className: "codex-detail" }, /* @__PURE__ */ React.createElement("div", { className: "detail-empty" }, /* @__PURE__ */ React.createElement("div", { className: "detail-empty-icon" }, "\u{1F701}"), /* @__PURE__ */ React.createElement("div", { className: "t-label" }, "\u5DE6\u306E\u30AB\u30FC\u30C9\u3092\u9078\u629E"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-11)", color: "var(--tx-mute)", marginTop: 8 } }, "\u7CBE\u795E\u3092\u9078\u629E\u3059\u308B\u3068\u8A73\u7D30\u304C\u8868\u793A\u3055\u308C\u307E\u3059\u3002", /* @__PURE__ */ React.createElement("br", null), "\u30C0\u30D6\u30EB\u30AF\u30EA\u30C3\u30AF\u3067\u88C5\u5099\u3002")))));
+  /* 精神の初期枠。アイテムと同じ操作だが、精神は装備するものであって
+     買うものではないため、取り込んでも支出は発生しない。 */
+  const [spiritInitialPickOpen, setSpiritInitialPickOpen] = React.useState(false);
+  const initialSpiritNames = Array.isArray(state.initialSpirits) ? state.initialSpirits : [];
+  /* 無料の精神は初めから所持している（保存経路でフラグが落ちても
+     判定が壊れないよう、所持の有無ではなく DB の価格で数える）。 */
+  const spiritInitialSeeded = (state.roster?.spirits || []).filter((entry) => {
+    const def = DB.spirits.find((s) => s.name === entry.name);
+    return def && !(Number(def.price) > 0);
+  }).length;
+  const toggleInitialSpirit = (name) => dispatch({
+    type: "SET_INITIAL_SPIRITS",
+    names: initialSpiritNames.includes(name)
+      ? initialSpiritNames.filter((value) => value !== name)
+      : [...initialSpiritNames, name]
+  });
+  const spiritInitialFrame = h("div", { className: "stack-2" },
+    h("div", { className: "owned-library-bar" },
+    h("span", { className: "t-label" }, "INITIAL FRAME / 初期枠"),
+    h("span", { className: "ledger-note" },
+    `初期枠 ${initialSpiritNames.length}件 / 取り込み済み ${spiritInitialSeeded}件。精神は装備するもので購入ではありません`)
+    ),
+    h("div", { className: "codex-add-row" },
+    h(Button, { size: "sm", variant: "ghost", onClick: () => setSpiritInitialPickOpen((open) => !open) }, spiritInitialPickOpen ? "選ぶのを閉じる" : "選ぶ"),
+    h(Button, { size: "sm", variant: "primary", icon: "check", disabled: !initialSpiritNames.length, onClick: () => dispatch({ type: "APPLY_INITIAL_SPIRITS" }) }, "初期枠から取り込む")
+    ),
+    spiritInitialPickOpen && h("div", { className: "stack-1" }, DB.spirits.map((sp) => h("label", { key: sp.name, className: "initial-pick-row" },
+      h("input", { type: "checkbox", checked: initialSpiritNames.includes(sp.name), onChange: () => toggleInitialSpirit(sp.name) }),
+      h("span", null, sp.name),
+      Number(sp.price) > 0
+      ? h("span", { className: "ledger-note" }, `${sp.price} 欠片`)
+      : h("span", { className: "badge inv-origin is-initial" }, "初期選択可")
+    )))
+  );
+  return /* @__PURE__ */ React.createElement("div", { className: "stack-4" }, spiritBody, spiritInitialFrame);
 };
 const LegacyEnhancementSection = ({ state, dispatch }) => {
-  const setEnh = (list) => dispatch({ type: "SET_FIELD", field: "enhancements", value: list });
+  /* 強化の追加は roster へ入れず、所持ファイル承受の SET_FIELD のままでは購入が記録されない。 */
+
   const addEnh = (e) => {
     if (state.enhancements.some((x) => x.name === e.name)) {
       toast("\u65E2\u306B\u8FFD\u52A0\u6E08\u307F");
       return;
     }
-    setEnh([...state.enhancements, { ...e, id: `enh-${Date.now()}` }]);
+    dispatch({ type: "ADD_ENHANCEMENT", group: e.group, name: e.name, effect: e.effect, category: e.category });
     toast(`\u300E${e.name}\u300F\u3092\u8FFD\u52A0`);
   };
-  const removeEnh = (id) => setEnh(state.enhancements.filter((e) => e.id !== id));
+  const removeEnh = (id) => dispatch({ type: "REMOVE_ENHANCEMENT", id });
   const [category, setCategory] = React.useState("special");
   const sourceRows = category === "special" ? (DB.special_enhancements || []) : DB.normal_enhancements.filter((e) => e.category === category);
   const bodyRows = sourceRows.filter((entry) => String(entry?.name || "").startsWith("肉体強化"));
@@ -1476,6 +1696,507 @@ const EnhancementSection = ({ state, dispatch }) => {
     )
   );
 };
+
+/* 人格・スキル・パッシブ・強化・サポート・E.G.O・精神 を1画面にまとめるタブ定義。
+   id は旧セクションIDのままにして、保存済み currentSection（skill 等）を
+   移行なしで受ける。App.js の palette/レールのメタと同期させる。
+   人格/サポート/E.G.O/精神 の4タブは roster（＝所持済み）だけを出す。 */
+const BUILD_TABS = [
+  { id: "persona", label: "人格", num: "01", title: "OWNED PERSONAS / 所持人格", subtitle: "所持の人格を装備", icon: "persona", owned: true },
+  { id: "skill", label: "スキル", num: "02", title: "TACTICAL SKILLS", subtitle: "戦術スキル 0〜4 の編集", icon: "skill", owned: false },
+  { id: "passive", label: "パッシブ", num: "03", title: "PASSIVE / 人格パッシブ", subtitle: "人格パッシブと固有効果", icon: "passive", owned: false },
+  { id: "enh", label: "強化", num: "04", title: "ENHANCEMENTS", subtitle: "身体強化・特殊強化", icon: "enh", owned: false },
+  { id: "support", label: "サポート", num: "05", title: "SUPPORT PASSIVES", subtitle: "所持サポートを装備枠へ", icon: "support", owned: true },
+  { id: "ego", label: "E.G.O", num: "06", title: "E.G.O EQUIPMENT", subtitle: "所持E.G.Oをランク枠へ", icon: "ego", owned: true },
+  { id: "spirit", label: "精神", num: "07", title: "SPIRIT", subtitle: "所持精神から1体選んで適用", icon: "spirit", owned: true },
+  /* アイテムだけは人格を跨いで共有する。人格を替えても所持は消えず、
+   「持っていく個数」と「MEMO/PALETTE へ出すか」だけをここで決める。
+   タブ ID は rail の「アイテム」詳細画面（items）と衝突しないよう別にする。 */
+  { id: "items-build", label: "アイテム", num: "08", title: "OWNED ITEMS / 所持アイテム", subtitle: "持っていく個数と出力先を選ぶ", icon: "item", owned: false }
+];
+if (typeof window !== "undefined") window.LBT_BUILD_TABS = BUILD_TABS;
+
+/* 取得（所持化）の共通部品。
+
+   urso 導出の軸は「取得.kind」。DB に価格のある種別（サポート/死亡後/アイテム/
+   精神/強化）は DB 価格、价格的の無い人格・E.G.O は抽出/購入の core ルールで
+   金額を出す。どちらでも明細は appendLedgerEntry が直近リザルトへ倒す（無ければ未分類）。 */
+const ACQUIRE_KINDS = [
+  { id: "persona", label: "人格", supports: true },
+  { id: "ego", label: "E.G.O", supports: true },
+  { id: "support", label: "サポート", supports: false },
+  { id: "deathSupport", label: "死亡後", supports: false },
+  { id: "spirit", label: "精神", supports: false },
+  { id: "item", label: "アイテム", supports: false }
+];
+
+/* 価格ラベルは「数値 + 単位」をスペース区切りにした1書式（LP 7 / 欠片 50 / 無料）。
+   コスト枠はこの書式の最長値で幅を固定するので、ここを通さない表記が
+   混ざるとカードごとに列が乱れる。 */
+function formatAcquireCost(lp, shards) {
+  const parts = [];
+  if (Number(lp) > 0) parts.push(`LP ${Number(lp)}`);
+  if (Number(shards) > 0) parts.push(`欠片 ${Number(shards)}`);
+  return parts.join(" ") || "無料";
+}
+
+function resolveAcquireCost(kind, how, context) {
+  const db = window.LBT_provenance?.priceOf;
+  /* E.G.O購入は各E.G.O番号横の欠片数を消費する（core:9509-9512）。
+     core ルールの抽出，建筑式ここしかないため、指定購入は DB 価格を使う。
+     間違えると「無料」になり原典に反する。 */
+  if (kind === "persona" || (kind === "ego" && how !== "purchase")) {
+    const rule = window.LBT_acquireCost?.(kind, how === "purchase" ? "purchase" : "gachaPaid", context);
+    if (!rule || !(rule.lp || rule.shards)) return { lp: 0, shards: 0, label: "無料" };
+    return { ...rule, label: formatAcquireCost(rule.lp, rule.shards) };
+  }
+  /* アイテムは priceOf の対象外（価格が「15LP」の自由記録のため）。
+     state.js priceItemById と同じ ID 参照・同じ数字の抜き出し方で引く。
+     表示が無料のまま請求だけ走ると、押しても何も起きない詐欺手感になる。 */
+  if (kind === "item") {
+    const hit = (window.DB?.items || []).find((i) => (context.id ? i.id === context.id : i.name === context.name));
+    const matched = String(hit?.price || "").match(/\d+/);
+    const lp = matched ? Number.parseInt(matched[0], 10) || 0 : 0;
+    return { lp, shards: 0, label: formatAcquireCost(lp, 0) };
+  }
+  const price = db ? db(context.name, kind, window.DB) : null;
+  if (!price) return { lp: 0, shards: 0, label: "無料" };
+  return { ...price, label: formatAcquireCost(price.lp, price.shards) };
+}
+
+const AcquireBar = ({ state, kind, name, how, setHow, onAcquire, disabled, disabledReason }) => {
+  const h = React.createElement;
+  const spec = ACQUIRE_KINDS.find((k) => k.id === kind) || ACQUIRE_KINDS[0];
+  /* state は呼び出し側（PersonaDetail の埋め込み表示など）によって無いことがある。
+     ここで1段で吸収して、描画の主画面を白紙にしない。 */
+  const ownsOne = (state?.roster?.personas || []).length > 0;
+  const cost = resolveAcquireCost(kind, how, { name, ownsPersona: ownsOne });
+  return h("div", { className: "acquire-bar" },
+    /* 抽出/購入の切替は幅を固定する。切り替えのたびに購入ボタンが横にずれると
+       押し損なうので、方法欄には常に同じ横幅を持たせる。 */
+    h("div", { className: "acquire-how" },
+      spec.supports
+        ? h("div", { className: "segmented", role: "radiogroup", "aria-label": `${spec.label}の取得方法` }, [["purchase", "指定購入"], ["gacha", "抽出"]].map(([value, label]) => h("button", { key: value, type: "button", role: "radio", "aria-checked": how === value, className: how === value ? "is-active" : "", onClick: () => setHow(value) }, label)))
+        : h("span", { className: "acquire-how-placeholder", "aria-hidden": "true" })),
+    h("span", { className: "acquire-cost" }, cost.label || "無料"),
+    h(Button, { size: "sm", variant: "primary", icon: "plus", disabled, onClick: onAcquire, title: disabledReason || undefined }, "購入")
+  );
+};
+
+/* ビルドのアイテムタブ。アイテムだけは人格を跨いで共有し、
+   「持っていく個数」と「MEMO/PALETTE へ出すか」だけここで決める。
+   数量・出力切替は ItemCodex と同じ PATCH_ITEM / REMOVE_ITEM を通す。 */
+const BuildItemsPanel = ({ state, dispatch }) => {
+  const h = React.createElement;
+  const inventory = Array.isArray(state.inventory) ? state.inventory : [];
+  const catalog = React.useMemo(() => [...(window.DB?.items || []), ...(Array.isArray(state.customItems) ? state.customItems : [])], [state.customItems]);
+  const metaOf = (itemId) => catalog.find((item) => item.id === itemId) || {};
+  const nameOf = (itemId) => metaOf(itemId).name || String(itemId || "");
+  const totalQty = inventory.reduce((sum, entry) => sum + (Number(entry.quantity) || 0), 0);
+  const memoCount = inventory.filter((entry) => entry.memo !== false).length;
+  const paletteCount = inventory.filter((entry) => entry.palette !== false).length;
+  const maxOwnedOf = (itemId) => window.LBT_getItemMaxOwned?.(state, itemId) || 99;
+  const rows = [...inventory].sort((a, b) => nameOf(a.itemId).localeCompare(nameOf(b.itemId), "ja"));
+  const [pickerOpen, setPickerOpen] = React.useState(false);
+
+  const patch = (uid, patchBody) => dispatch({ type: "PATCH_ITEM", uid, patch: patchBody });
+  const addItem = (item) => {
+    const owned = inventory.find((entry) => entry.itemId === item.id);
+    const maxOwned = maxOwnedOf(item.id);
+    if (owned && (Number(owned.quantity) || 0) >= maxOwned) {
+      toast(`「${item.name}」は所持上限（×${maxOwned}）です`);
+      return;
+    }
+    dispatch({ type: "ADD_ITEM", itemId: item.id });
+    toast(owned ? `「${item.name}」の数量を追加` : `「${item.name}」を所持アイテムに追加`);
+  };
+
+  return h("div", { className: "build-items" },
+    h(Card, null,
+      h("div", { className: "card-header owned-library-bar" },
+        h("span", { className: "t-label" }, "卓へ持ち込むアイテム"),
+        h("span", { className: "ledger-note" }, `${inventory.length}種 / ${totalQty}個　MEMO ${memoCount} / PALETTE ${paletteCount}`),
+        h(Button, { size: "sm", variant: pickerOpen ? "secondary" : "ghost", icon: "plus", onClick: () => setPickerOpen((v) => !v) }, pickerOpen ? "選択を閉じる" : "卓へ持ち込み"),
+        h(Button, { size: "sm", variant: "ghost", onClick: () => dispatch({ type: "SET_UI", ui: { currentSection: "items-build" } }) }, "所持アイテム欄を開く")
+      ),
+      pickerOpen && h("div", { className: "card-body stack-2" },
+        h("div", { className: "inv-pick" }, [...new Set(catalog.map((item) => String(item?.category || "その他")))].map((category) => h("div", { key: category, className: "inv-pick-group" },
+          h("span", { className: "t-label" }, category),
+          h("div", { className: "inv-pick-list" }, catalog.filter((item) => String(item?.category || "その他") === category).map((item) => {
+            const owned = inventory.find((entry) => entry.itemId === item.id);
+            const maxOwned = maxOwnedOf(item.id);
+            const atCap = owned && (Number(owned.quantity) || 0) >= maxOwned;
+            return h("button", { key: item.id, type: "button", className: "inv-pick-item inv-pick-button", disabled: atCap, onClick: () => addItem(item) },
+              h("span", null, item.name),
+              owned ? h("small", { className: "inv-pick-qty" }, `×${owned.quantity}${maxOwned < 99 ? ` / ${maxOwned}` : ""}`) : null
+            );
+          }))
+        )))
+      ),
+      h("div", { className: "card-body stack-2" },
+        rows.length === 0
+          ? h("div", { className: "empty" }, "まだアイテムを持っていません。ショップで購入するか「卓へ持ち込み」で選びます。")
+          : h("div", { className: "stack-2" }, rows.map((entry) => {
+            const maxOwned = maxOwnedOf(entry.itemId);
+            const hasCap = maxOwned < 99;
+            return h("div", { key: entry.uid, className: "build-item-row" },
+              h("div", { className: "inv-row" },
+                h("span", { className: "inv-name" }, nameOf(entry.itemId)),
+                h("span", { className: "inv-meta" }, String(metaOf(entry.itemId).category || "その他")),
+                h("span", { className: "inv-price" }, String(metaOf(entry.itemId).price || "")),
+                h("span", { className: "inv-qty" }, `×${entry.quantity}`),
+                entry.origin === "initial"
+                  ? h("span", { className: "badge inv-origin is-initial" }, "初期枠")
+                  : h("span", { className: "badge inv-origin" }, "購入")
+              ),
+              h("div", { className: "build-item-controls" },
+                h("div", { className: "build-item-qty" },
+                  h("span", { className: "t-label" }, hasCap ? `卓へ持っていく個数 / 上限×${maxOwned}` : "卓へ持っていく個数"),
+                  h("button", { type: "button", onClick: () => patch(entry.uid, { quantity: Math.max(1, (Number(entry.quantity) || 1) - 1) }), "aria-label": `${nameOf(entry.itemId)}の所持数を減らす` }, h(Icon, { name: "minus", size: 13 })),
+                  h("input", { type: "number", min: 1, max: maxOwned, step: 1, inputMode: "numeric", value: entry.quantity, onChange: (event) => patch(entry.uid, { quantity: event.target.value }), "aria-label": `${nameOf(entry.itemId)}の所持数を入力` }),
+                  h("button", { type: "button", disabled: (Number(entry.quantity) || 1) >= maxOwned, onClick: () => patch(entry.uid, { quantity: Math.min(maxOwned, (Number(entry.quantity) || 1) + 1) }), "aria-label": `${nameOf(entry.itemId)}の所持数を増やす` }, h(Icon, { name: "plus", size: 13 }))
+                ),
+                h("label", { className: "item-output-toggle" }, h("input", { type: "checkbox", checked: entry.memo !== false, onChange: (event) => patch(entry.uid, { memo: event.target.checked }) }), h("span", null, "MEMOに表示")),
+                h("label", { className: "item-output-toggle" }, h("input", { type: "checkbox", checked: entry.palette !== false, onChange: (event) => patch(entry.uid, { palette: event.target.checked }) }), h("span", null, "PALETTEへ反映")),
+                h(Button, { size: "sm", variant: "danger", icon: "trash", onClick: () => { dispatch({ type: "REMOVE_ITEM", uid: entry.uid }); toast(`「${nameOf(entry.itemId)}」を所持から外しました`); } }, "卓から外す")
+              )
+            );
+          }))
+      )
+    )
+  );
+};
+
+/* ショップ。所持の唯一の取得口。
+   既定は「未所持のみ」。カード1枚で所持化＝購入でき、金額は自動計算して
+   直近リザルトへ記録する（リザルト未登録なら未分類＝待機項目）。 */
+const ShopSection = ({ state, dispatch }) => {
+  const h = React.createElement;
+  const tab = state.ui?.shopTab || "support";
+  const setTab = (id) => dispatch({ type: "SET_UI", ui: { shopTab: id } });
+  const [unownedOnly, setUnownedOnly] = React.useState(true);
+  const [how, setHow] = React.useState("purchase");
+  /* 検索窓はビルド側と同じ構成（検索 → 件数 → 種別フィルタ）を共有する。 */
+  const [query, setQuery] = React.useState("");
+  const [rankFilter, setRankFilter] = React.useState("");
+  /* E.G.O の資源絞り込み。ビルド側と同じ語彙・同じ判定を使う。 */
+  const [requiredResources, setRequiredResources] = React.useState([]);
+  const [excludedResources, setExcludedResources] = React.useState([]);
+  const [keywordFilter, setKeywordFilter] = React.useState("");
+  const [categoryFilter, setCategoryFilter] = React.useState("all");
+  const [sinFilter, setSinFilter] = React.useState("");
+  const [sourceFilter, setSourceFilter] = React.useState("all");
+
+  const inventory = Array.isArray(state.inventory) ? state.inventory : [];
+  const ownedSupportNames = React.useMemo(() => new Set((state.roster?.supports || []).map((s) => s.name)), [state.roster?.supports]);
+  const ownedEgoKeys = React.useMemo(() => new Set((state.roster?.egos || []).map((e) => `${e.rank}:${e.no}`)), [state.roster?.egos]);
+  const ownedItemIds = React.useMemo(() => new Set(inventory.map((entry) => entry.itemId)), [inventory]);
+  const ownedSpiritNames = React.useMemo(() => new Set((state.roster?.spirits || []).map((s) => s.name)), [state.roster?.spirits]);
+  const catalogItems = React.useMemo(() => [...(window.DB?.items || []), ...(Array.isArray(state.customItems) ? state.customItems : [])], [state.customItems]);
+  const itemCategories = React.useMemo(() => [...new Set(catalogItems.map((item) => String(item?.category || "その他")))], [catalogItems]);
+
+  const maxOwnedOf = (itemId) => window.LBT_getItemMaxOwned?.(state, itemId) || 99;
+  const atCap = (item) => {
+    const owned = inventory.find((entry) => entry.itemId === item.id);
+    return owned && (Number(owned.quantity) || 0) >= maxOwnedOf(item.id);
+  };
+  const q = query.trim().toLowerCase();
+  const hit = (text) => !q || String(text || "").toLowerCase().includes(q);
+
+/* ショップのカード本文を、ビルド側と同じ行構造で組む。
+   ビルドは「条件」「効果」のラベルで役割を示し、条件は色付きチップで区別する。
+   ここでは同じ構造をそのまま使う（別の表現にすると、同じ情報でも読み方が割れる）。 */
+const shopCardLines = (kind, entry) => {
+  if (!entry) return [];
+  const line = (tag, body, tone) => h("div", { className: "spirit-item-line" },
+    h("span", { className: "spirit-item-tag", "data-tag": tone || "morale" }, tag),
+    h("span", null, body));
+  if (kind === "support" || kind === "deathSupport") {
+    return [
+      entry.cond ? line("条件", h(CondChips, { cond: entry.cond }), "always") : null,
+      entry.effect ? line("効果", entry.effect, kind === "deathSupport" ? "confuse" : "morale") : null
+    ].filter(Boolean);
+  }
+  if (kind === "spirit") {
+    return [
+      entry.always_effect ? line("効果", entry.always_effect, "always") : null,
+      entry.morale_effect && entry.morale_effect !== "なし" ? line("士気", entry.morale_effect, "morale") : null,
+      entry.confuse_effect && entry.confuse_effect !== "なし" ? line("混乱", entry.confuse_effect, "confuse") : null
+    ].filter(Boolean);
+  }
+  if (kind === "ego") {
+    return [
+      entry.passive_name ? line("パッシブ", entry.passive_name, "always") : null,
+      entry.passive_effect ? line("効果", entry.passive_effect, "morale") : null
+    ].filter(Boolean);
+  }
+  return entry.effect ? [line("効果", entry.effect, "always")] : [];
+};
+
+/* 全カテゴリ共通のカード構造。識別 → 条件 → 操作 の3層で走査速度を揃える。
+   所有は識別行に載せる（種別バッジと同じ階層＝跨界しない属性）。 */
+const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned, headExtra, body, costText, topRow) => {
+  /* アイテムは同名の公式・自作が共存できるので、価格は名前ではなく
+     key（= item.id）で引く。state.js priceItemById と同じ参照。 */
+  const price = resolveAcquireCost(kind, "purchase", { name, id: key });
+  /* 残高が足りなければ購入しない。ただし黙って無効化するのではなく、
+     押した瞬間に理由を伝える（購入可否は判断 Debe the user がする）。 */
+  const afford = window.LBT_purchaseAffordability
+    ? window.LBT_purchaseAffordability(state, price)
+    : { ok: true, reason: "" };
+  const blocked = !disabled && !owned && !afford.ok;
+  const blockReason = afford.reason || "";
+  return h("div", {
+    key,
+    className: "shop-card spirit-item",
+    "data-owned": owned ? "1" : null,
+    "data-blocked": blocked ? "1" : null
+  },
+    /* 識別情報は名前とは別の行に置く（ビルドの .p-card-head と同じ）。
+       同一行に並べると名前の幅が蝕まれる。 */
+    topRow ? h("div", { className: "p-card-head shop-card-top" }, topRow) : null,
+    h("div", { className: "spirit-item-head shop-card-head" },
+      h("div", { className: "spirit-item-name shop-card-name" }, name),
+      h("span", { className: "spirit-item-price shop-card-cost" }, costText || price.label),
+      ...(headExtra || []),
+      owned ? h("span", { className: "shop-card-flag is-owned" }, "所持") : null,
+      badge ? h("span", { className: "shop-card-flag" }, badge) : null),
+    ...(body || lines || []),
+    h("div", { className: "spirit-item-actions shop-card-actions" },
+      owned
+        ? h("span", { className: "spirit-item-equipped" }, "所持済み")
+        : h(Button, {
+          size: "sm",
+          variant: "primary",
+          icon: "plus",
+          onClick: blocked ? () => toast(blockReason, "assertive") : onAcquire,
+          title: blocked ? blockReason : (reason || "このカードから購入して所持にする")
+        }, "購入")));
+};
+
+
+  const supports = [
+    ...(DB.support_passives || []).map((s) => ({ ...s, slot: "normal", kind: "support" })),
+    ...(DB.death_passives || []).map((s) => ({ ...s, slot: "death", kind: "deathSupport" }))
+  ].filter((entry) => (!unownedOnly || !ownedSupportNames.has(entry.name))
+    && (sinFilter ? (entry.cond || "").includes(sinFilter) : true)
+    && (sourceFilter === "all" || catalogSource(entry) === sourceFilter)
+    && hit(`${entry.name} ${entry.cond || ""} ${entry.effect || ""}`));
+
+  const egos = (DB.egos || []).filter((ego) => (!unownedOnly || !ownedEgoKeys.has(`${ego.rank}:${ego.no}`))
+    && (!rankFilter || ego.rank === rankFilter)
+    && window.LBT_egoMatchesResourceFilters(ego, requiredResources, excludedResources)
+    && (!keywordFilter || window.LBT_egoMatchesKeyword(ego, keywordFilter))
+    && hit(`${ego.name} ${ego.rank} ${ego.passive_name || ""} ${ego.passive_effect || ""}`));
+  /* キーワードの語彙はビルド側と同じ順序・同じ並びで出す。 */
+  const egoKeywordOptions = EGO_KEYWORD_ORDER
+    .map((keyword) => String(keyword || "").trim())
+    .filter(Boolean)
+    .filter((keyword) => (DB.egos || []).some((ego) => window.LBT_egoMatchesKeyword(ego, keyword)));
+
+  const spirits = (DB.spirits || []).filter((sp) => (!unownedOnly || !ownedSpiritNames.has(sp.name))
+    && (sourceFilter === "all" || catalogSource(sp) === sourceFilter)
+    && hit(`${sp.name} ${sp.morale_effect || ""} ${sp.confuse_effect || ""}`));
+
+  const items = catalogItems.filter((item) => (!unownedOnly || !ownedItemIds.has(item.id))
+    && (categoryFilter === "all" || String(item?.category || "その他") === categoryFilter)
+    && hit(`${item.name} ${item.category || ""} ${(item.tags || []).join(" ")} ${item.effect || ""}`));
+
+  const lists = {
+    support: supports.map((entry) => card(`${entry.slot}:${entry.name}`, entry.name, entry.slot === "death" ? "死亡後専用" : null, entry.kind,
+      () => { dispatch({ type: "ADD_ROSTER_SUPPORT", spp: entry }); toast(`「${entry.name}」を所持に購入しました`, "assertive"); },
+      false, null, shopCardLines(entry.kind, entry), ownedSupportNames.has(entry.name))),
+    ego: egos.map((ego) => card(`${ego.rank}:${ego.no}`, ego.name, null, "ego",
+      () => { dispatch({ type: "ADD_ROSTER_EGO", rank: ego.rank, no: ego.no, purchase: true }); toast(`「${ego.name}」を所持に購入しました`, "assertive"); },
+      false, null, null, ownedEgoKeys.has(`${ego.rank}:${ego.no}`),
+      null,
+      [
+        h(EgoResourceChips, { resources: ego.resources, className: "is-catalog" }),
+        h("div", { className: "p-kw-row shop-card-kw-row" },
+          h("span", { className: "p-kw" }, "SAN ", ego.san_cost),
+          h("span", { className: "p-kw" }, "欠片 ", ego.shards))
+      ], null,
+      [
+        h("span", { className: "shop-card-num" }, "No.", String(ego.no).padStart(3, "0")),
+        h("span", { className: "badge", "data-rank": ego.rank }, ego.rank),
+        (ego.sub_skills || []).length > 0 ? h("span", { className: "ego-doka-badge", title: "同化スキル対応EGO" }, "◆ 同化") : null
+      ].filter(Boolean))),
+    spirit: spirits.map((sp) => card(sp.name, sp.name, (Number(sp.price) || 0) > 0 ? null : "初期選択可", "spirit",
+      () => { dispatch({ type: "ADD_ROSTER_SPIRIT", spirit: sp }); toast(`「${sp.name}」を所持に購入しました`, "assertive"); },
+      false, null, shopCardLines("spirit", sp), ownedSpiritNames.has(sp.name),
+      null, null,
+      /* 精神の費用はビルドと同じ規則で表す。価格 0 は費用ではなく
+         ルール情報なので、価格枠ではなく head のフラグ（所持バッジの隣）へ出す。 */
+      formatAcquireCost(0, sp.price))),
+    item: items.map((item) => card(item.id, item.name, item.category || "その他", "item",
+      () => { dispatch({ type: "ADD_ITEM", itemId: item.id }); toast(`「${item.name}」を購入しました`, "assertive"); },
+      atCap(item), "所持上限に達しています", shopCardLines("item", item), ownedItemIds.has(item.id)))
+  };
+  const totals = {
+    support: (DB.support_passives || []).length + (DB.death_passives || []).length,
+    ego: (DB.egos || []).length,
+    spirit: (DB.spirits || []).length,
+    item: catalogItems.length
+  };
+  const list = lists[tab] || [];
+  const total = totals[tab] || 0;
+  const emptyMessage = { support: "条件に合う未所持のサポートはありません。", ego: "条件に合う未所持のE.G.Oはありません。", spirit: "条件に合う未所持の精神はありません。", item: "条件に合う未所持のアイテムはありません。" }[tab];
+
+  /* 検索窓はビルド側と同じ並び：検索 → 件数 → 種別フィルタ。 */
+  const filterRows = tab === "ego" ? h("div", { className: "codex-filter-row" },
+      h("span", { className: "filter-label" }, "ランク"),
+      h("div", { className: "chips-group" }, EGO_RANKS.map((rank) => h("button", {
+        key: rank, type: "button", className: `chip${rankFilter === rank ? " is-active" : ""}`, "aria-pressed": rankFilter === rank,
+        style: rankFilter === rank ? { background: `color-mix(in oklab, var(--rank-${rank}) 25%, var(--surface-2))`, borderColor: `var(--rank-${rank})`, color: "var(--tx)" } : void 0,
+        onClick: () => setRankFilter(rankFilter === rank ? "" : rank)
+      }, rank))),
+      /* 資源で絞り込む。ビルド側と同じ判定（window.LBT_egoMatchesResourceFilters）を使う。 */
+      h("div", { className: "codex-filter-row" },
+        h("span", { className: "filter-label" }, "必要資源"),
+        h("div", { className: "chips-group" },
+          h("button", {
+            type: "button", className: `chip${requiredResources.length === 0 ? " is-active" : ""}`, "aria-pressed": requiredResources.length === 0,
+            onClick: () => setRequiredResources([])
+          }, "すべて"),
+          SIN_LIST.map((sin) => h("button", {
+            key: `need-${sin}`, type: "button",
+            className: `chip ego-filter-chip${requiredResources.includes(sin) ? " is-active" : ""}`,
+            "aria-pressed": requiredResources.includes(sin),
+            "data-sin": sin,
+            style: { borderColor: `var(--sin-${sin})` },
+            onClick: () => {
+              setRequiredResources((prev) => prev.includes(sin) ? prev.filter((v) => v !== sin) : [...prev, sin]);
+              setExcludedResources((prev) => prev.filter((v) => v !== sin));
+            }
+          }, sin)))),
+      h("div", { className: "codex-filter-row" },
+        h("span", { className: "filter-label" }, "除外資源"),
+        h("small", { className: "filter-note" }, "一つでも含むと除外"),
+        h("div", { className: "chips-group" },
+          h("button", {
+            type: "button", className: `chip${excludedResources.length === 0 ? " is-active" : ""}`, "aria-pressed": excludedResources.length === 0,
+            onClick: () => setExcludedResources([])
+          }, "すべて"),
+          SIN_LIST.map((sin) => h("button", {
+            key: `no-${sin}`, type: "button",
+            className: `chip ego-filter-chip${excludedResources.includes(sin) ? " is-active" : ""}`,
+            "aria-pressed": excludedResources.includes(sin),
+            "data-sin": sin,
+            style: { borderColor: `var(--sin-${sin})` },
+            onClick: () => {
+              setExcludedResources((prev) => prev.includes(sin) ? prev.filter((v) => v !== sin) : [...prev, sin]);
+              setRequiredResources((prev) => prev.filter((v) => v !== sin));
+            }
+          }, sin)))),
+      /* キーワード。ビルド側と同じ語彙と判定を使う。 */
+      h("div", { className: "codex-filter-row" },
+        h("span", { className: "filter-label" }, "キーワード"),
+        h("div", { className: "chips-group" }, egoKeywordOptions.map((keyword) => h("button", {
+          key: keyword, type: "button", className: `chip${keywordFilter === keyword ? " is-active" : ""}`, "aria-pressed": keywordFilter === keyword,
+          onClick: () => setKeywordFilter(keywordFilter === keyword ? "" : keyword)
+        }, keyword))))
+      )
+    : tab === "item" ? h("div", { className: "codex-filter-row" },
+        h("span", { className: "filter-label" }, "カテゴリ"),
+        h("div", { className: "chips-group" }, ["all", ...itemCategories].map((category) => h("button", {
+          key: category, type: "button", className: `chip${categoryFilter === category ? " is-active" : ""}`, "aria-pressed": categoryFilter === category,
+          onClick: () => setCategoryFilter(category)
+        }, category === "all" ? "全て" : category))))
+    : tab === "support" ? h("div", { className: "codex-filter-row" },
+        h("span", { className: "filter-label" }, "発動条件"),
+        h("div", { className: "chips-group" }, ["", ...SIN_LIST].map((sin) => h("button", {
+          key: sin || "all", type: "button", className: `chip${sinFilter === sin ? " is-active" : ""}`, "aria-pressed": sinFilter === sin,
+          onClick: () => setSinFilter(sin)
+        }, sin || "すべて"))))
+    : null;
+  useSourceFilterControl(tab === "support" ? "サポート" : "精神", sourceFilter, setSourceFilter);
+
+  const searchLabel = { support: "サポート名・条件・効果で検索", ego: "E.G.O名・効果・ランクで検索", spirit: "精神名・効果で検索", item: "アイテム名・効果・タグ・カテゴリで検索" }[tab];
+
+  /* 一覧のスクロールコンテナ（main.focus）を先頭に戻す。
+     カテゴリを切り替えたときに前カテゴリの中段が見えたままだと、
+     別のリストの可能性と誤読される。 */
+  const scrollWorkspaceToTop = () => {
+    const scroller = document.querySelector("main.focus") || document.querySelector("main");
+    if (scroller && typeof scroller.scrollTop === "number") scroller.scrollTo({ top: 0, behavior: "auto" });
+  };
+
+  return h("div", { className: "shop-workspace" },
+    h(SectionTitle, { title: "SHOP / ショップ", subtitle: "サポート・E.G.O・精神・アイテムを購入" }),
+    /* カテゴリタブだけを独立要素にして追従させる。filter パネルの内側に置くと
+       sticky は親の範囲を出られないため、親を抜けた瞬間にタブも消える。
+       追従する面（ラッパー）は全幅にして、下を流れる内容を隠す。
+       タブを切り替えたら先頭へ戻す（スクロール位置は前カテゴリのもので
+       另一位的天空に持ち越すと、「同じ列表の続き」に見えるため）。 */
+    h("div", { className: "shop-tabs-sticky" },
+      h("div", { className: "segmented shop-tabs", role: "tablist", "aria-label": "ショップの種別" },
+        [["support", "サポート"], ["ego", "E.G.O"], ["spirit", "精神"], ["item", "アイテム"]].map(([value, label]) => h("button", {
+          key: value, type: "button", role: "tab", "aria-selected": tab === value, className: tab === value ? "is-active" : "",
+          onClick: () => { setTab(value); scrollWorkspaceToTop(); }
+        }, label))
+      )
+    ),
+    h("div", { className: `shop-filters codex-filters${tab === "ego" ? " ego-catalog-filters" : ""}` },
+      h("div", { className: "shop-toolbar-main" },
+        h("div", { className: "codex-search" }, h(Icon, { name: "search", size: 14 }),
+          h("input", { type: "text", "aria-label": searchLabel, placeholder: `${searchLabel}...`, value: query, onChange: (event) => setQuery(event.target.value) })),
+        h("div", { className: "codex-count" }, h("strong", null, list.length), " / ", total),
+h(Button, {
+          size: "sm",
+          variant: "ghost",
+          "aria-pressed": unownedOnly,
+          onClick: () => setUnownedOnly((v) => !v),
+          title: unownedOnly ? "所持済みの商品も含めて表示する" : "未所持の商品だけ表示する"
+        }, unownedOnly ? "所持も表示" : "未所持のみ")
+      ),
+      filterRows
+    ),
+    list.length === 0 ? h("div", { className: "empty" }, emptyMessage) : h("div", { className: "shop-grid", "data-tab": tab }, list)
+  );
+};
+const BuildWorkspace = ({ state, dispatch }) => {
+  const h = React.createElement;
+  const current = state.ui?.currentSection || "persona";
+  const active = BUILD_TABS.find((tab) => tab.id === current) || BUILD_TABS[0];
+  const setTab = (id) => dispatch({ type: "SET_UI", ui: { currentSection: id } });
+  /* 各タブの中身は既存コンポーネントをそのまま使う。owned は roster（＝所持済み）
+     で絞るかどうか。所持を持たないもの（スキル/パッシブ/強化）は絞り込まない。 */
+  const owned = !!active.owned;
+  const Component = active.id === "persona"
+    ? window.PersonaCodex
+    : active.id === "skill"
+      ? window.SkillDeck
+      : active.id === "passive"
+        ? PassiveSection
+        : active.id === "support"
+          ? SupportSection
+          : active.id === "ego"
+            ? EgoSection
+            : active.id === "spirit"
+              ? SpiritSection
+              : active.id === "items-build"
+                ? BuildItemsPanel
+                : EnhancementSection;
+  /* 所持ゲートを、roster を唯一の基準とするタブ（人格/サポート/E.G.O/精神）へ渡す。 */
+  const panelProps = ["persona", "support", "ego", "spirit"].includes(active.id) ? { ownedOnly: owned } : {};
+  return h("div", { className: "build-workspace" },
+    h(SectionTitle, { num: active.num, title: active.title, subtitle: active.subtitle }),
+    h("div", { className: "build-tabs" },
+      h("div", { className: "segmented", role: "tablist", "aria-label": "ビルドセクション" },
+        BUILD_TABS.map((tab) => h("button", {
+          key: tab.id,
+          type: "button",
+          role: "tab",
+          "aria-selected": active.id === tab.id,
+          className: active.id === tab.id ? "is-active" : "",
+          onClick: () => setTab(tab.id)
+        }, tab.label))
+      )
+    ),
+    h("div", { className: "build-tabpanel" }, Component ? h(Component, { state, dispatch, ...panelProps }) : null)
+  );
+};
+
 const SYNC_RANKS = [null, "0", "00", "000"];
 const isRosterPersonaSynced = (entry) => Boolean(entry?.syncMax || entry?.syncRank === "0" || entry?.syncRank === "00" || entry?.syncRank === "000");
 const rosterPersonaMatchesSyncFilters = (entry, syncFilter = "all", syncRankFilter = "all") => {
@@ -1493,6 +2214,9 @@ const ROSTER_PERSONA_ONLY_SORTS = new Set(["sync"]);
 const reconcileRosterSortWithTab = (sortBy, libraryTab) =>
   (libraryTab !== "personas" && ROSTER_PERSONA_ONLY_SORTS.has(sortBy) ? "added" : sortBy);
 if (typeof window !== "undefined") window.LBT_reconcileRosterSortWithTab = reconcileRosterSortWithTab;
+  /* 駒整形（BaseInfoWorkspace）は PersonaCodex.js にある。
+     組み立て設定の定義はここなので、外から使えるように公開する。 */
+  if (typeof window !== "undefined") window.LBT_BuildParamsPanel = (props) => h(BuildParamsPanel, props);
 const sortRosterLibraryItems = (items, sortBy, libraryTab) => {
   const collator = new Intl.Collator("ja", { numeric: true, sensitivity: "base" });
   const byName = (a, b) => collator.compare(a.name, b.name) || a.addedIndex - b.addedIndex;
@@ -1539,7 +2263,10 @@ const resolveRosterPersonaSource = (entry, fallback) => {
 window.LBT_rosterLibrary = { isRosterPersonaSynced, rosterPersonaMatchesSyncFilters, sortRosterLibraryItems, resolveRosterPersonaSource };
 const RosterSection = ({ state, dispatch }) => {
   const h = React.createElement;
-  const [libraryTab, setLibraryTab] = React.useState("personas");
+  /* タブは topbar の残高チップからも開くため state.ui に置く。local state だと外から遷移できない。 */
+  /* 記録はリザルト確認が最頻の用途なので初期タブも並びもリザルトを先頭にする。 */
+  const libraryTab = state.ui?.libraryTab || "ledger";
+  const setLibraryTab = (value) => dispatch({ type: "SET_UI", ui: { libraryTab: value } });
   const [manageMode, setManageMode] = React.useState(false);
   const [selectedIds, setSelectedIds] = React.useState([]);
   const [filter, setFilter] = React.useState("all");
@@ -1671,14 +2398,21 @@ const RosterSection = ({ state, dispatch }) => {
     ),
     detailId === item.id && !manageMode && renderDetail(item)
   );
-  const label = libraryTab === "personas" ? "人格" : "E.G.O";
+  const label = libraryTab === "personas" ? "人格" : libraryTab === "egos" ? "E.G.O" : libraryTab === "supports" ? "サポパ" : libraryTab === "spirits" ? "精神" : "リザルト";
+  /* ヘッダ（タブ帯）は全タブで描画する。ここで早戻りするとタブごと消えて
+     他タブへ移る手段が無くなるため、出し分けるのは中身だけにする。 */
+  const onLibrary = !["ledger", "inventory"].includes(libraryTab);
   return h("div", { className: "stack-3" },
-    h(Card, null,
-      h("div", { className: "card-header owned-library-bar", style: { alignItems: "center", flexWrap: "wrap", gap: "var(--s-2)" } }, h("span", { className: "t-label" }, "OWNED LIBRARY / 所持ライブラリ"),       h("div", { className: "segmented", role: "tablist", "aria-label": "所持ライブラリ種別", style: { marginLeft: "auto" } },
+    h(Card, { className: "record-tabbar" + (onLibrary ? "" : " is-bodyless") },
+      h("div", { className: "card-header owned-library-bar", style: { alignItems: "center", flexWrap: "wrap", gap: "var(--s-2)" } }, h("span", { className: "t-label" }, "CHARACTER RECORD / 記録"),       h("div", { className: "segmented", role: "tablist", "aria-label": "記録セクションの種別", style: { marginLeft: "auto" } },
+        h("button", { type: "button", role: "tab", "aria-selected": libraryTab === "ledger", className: libraryTab === "ledger" ? "is-active" : "", onClick: () => setLibraryTab("ledger") }, "リザルト"),
         h("button", { type: "button", role: "tab", "aria-selected": libraryTab === "personas", className: libraryTab === "personas" ? "is-active" : "", onClick: () => { setSortBy((prev) => reconcileRosterSortWithTab(prev, "personas")); setLibraryTab("personas"); } }, "人格"),
-        h("button", { type: "button", role: "tab", "aria-selected": libraryTab === "egos", className: libraryTab === "egos" ? "is-active" : "", onClick: () => { setSortBy((prev) => reconcileRosterSortWithTab(prev, "egos")); setLibraryTab("egos"); } }, "E.G.O")
+        h("button", { type: "button", role: "tab", "aria-selected": libraryTab === "egos", className: libraryTab === "egos" ? "is-active" : "", onClick: () => { setSortBy((prev) => reconcileRosterSortWithTab(prev, "egos")); setLibraryTab("egos"); } }, "E.G.O"),
+        h("button", { type: "button", role: "tab", "aria-selected": libraryTab === "supports", className: libraryTab === "supports" ? "is-active" : "", onClick: () => setLibraryTab("supports") }, "サポパ"),
+        h("button", { type: "button", role: "tab", "aria-selected": libraryTab === "spirits", className: libraryTab === "spirits" ? "is-active" : "", onClick: () => setLibraryTab("spirits") }, "精神"),
+        h("button", { type: "button", role: "tab", "aria-selected": libraryTab === "inventory", className: libraryTab === "inventory" ? "is-active" : "", onClick: () => setLibraryTab("inventory") }, "アイテム")
       )),
-      h("div", { className: "card-body stack-3" },
+      onLibrary && h("div", { className: "card-body stack-3" },
         h("div", { className: "roster-library-intro" }, `所持${label}を押すと簡易詳細が開きます。詳細から内容を確認して装備するか、「即時装備」で直ちに装備できます。削除は「管理する」から対象を選ぶため、非装備を一括削除しません。`),
         h("div", { className: "roster-controls" },
           h("div", { className: "segmented", role: "tablist", "aria-label": "所持状態フィルタ" }, [["all", "すべて"], ["custom", "カスタム人格"], ["saved", "保存済み"]].map(([key, text]) => h("button", { key, type: "button", role: "tab", "aria-selected": filter === key, className: filter === key ? "is-active" : "", onClick: () => setFilter(key) }, text))),
@@ -1692,9 +2426,734 @@ const RosterSection = ({ state, dispatch }) => {
         items.length === 0 ? h("div", { className: "empty", style: { padding: "var(--s-5)" } }, filter === "all" ? `所持${label}はまだありません。${libraryTab === "personas" ? "人格を装備" : "E.G.Oを所持に追加または装備"}するとここへ保存されます。` : "この条件に一致する所持項目はありません。") : h("div", { className: "stack-2" }, items.map(renderItem)),
         undo && h("div", { className: "roster-undo-bar" }, h("span", null, `${undo.items.length}件を削除しました。`), h(Button, { size: "sm", variant: "ghost", icon: "undo", onClick: restore }, "元に戻す"))
       )
+    ),
+    !onLibrary && libraryTab === "ledger" && h(LedgerPanel, { state, dispatch }),
+    !onLibrary && libraryTab === "inventory" && h(InventoryPanel, { state, dispatch })
+  );
+};
+/* 所持アイテムの総覧。
+
+   所持には「初期枠から受け取った」ものと「買った」ものがある。買った分は
+   ADD_ITEM のときに支出明細が立つので、由来を見せないと記録が読み解けない。
+   初期枠の定義は所持ではなく受け取り方の集合で、取り込みは明細を起こさない。 */
+const InventoryPanel = ({ state, dispatch }) => {
+  const [pickOpen, setPickOpen] = React.useState(false);
+  const inventory = Array.isArray(state.inventory) ? state.inventory : [];
+  const initialItems = Array.isArray(state.initialItems) ? state.initialItems : [];
+  const catalog = [...(window.DB?.items || []), ...(Array.isArray(state.customItems) ? state.customItems : [])];
+  const metaOf = (itemId) => catalog.find((item) => item.id === itemId) || {};
+  const nameOf = (itemId) => metaOf(itemId).name || String(itemId || "");
+
+  const toggleInitial = (itemId) => {
+    const next = initialItems.includes(itemId)
+      ? initialItems.filter((id) => id !== itemId)
+      : [...initialItems, itemId];
+    dispatch({ type: "SET_INITIAL_ITEMS", ids: next });
+  };
+
+  const categories = [...new Set(catalog.map((item) => String(item?.category || "その他")))];
+  const rows = [...inventory].sort((a, b) => nameOf(a.itemId).localeCompare(nameOf(b.itemId), "ja"));
+  const seeded = inventory.filter((entry) => entry.origin === "initial").length;
+  const originBadge = (entry) => entry.origin === "initial"
+    ? h("span", { className: "badge inv-origin is-initial" }, "初期枠")
+    : h("span", { className: "badge inv-origin" }, "購入");
+
+  return h("div", { className: "stack-3" },
+    h(Card, null,
+      h("div", { className: "card-header owned-library-bar" },
+        h("span", { className: "t-label" }, "INITIAL FRAME / 初期枠"),
+        h("span", { className: "ledger-note" }, "最初から持っているもの。取り込んでも支出は立ちません")
+      ),
+      h("div", { className: "card-body stack-2" },
+        h("div", { className: "inv-toolbar" },
+          h("span", { className: "inv-count" }, `初期枠 ${initialItems.length}件 / 取り込み済み ${seeded}件`),
+          h("div", { style: { flex: 1 } }),
+          h(Button, { size: "sm", variant: "ghost", onClick: () => setPickOpen((open) => !open) }, pickOpen ? "選ぶのを閉じる" : "初期枠を選ぶ"),
+          h(Button, { size: "sm", variant: "primary", icon: "check", disabled: !initialItems.length, onClick: () => dispatch({ type: "APPLY_INITIAL_ITEMS" }) }, "初期枠を取り込む")
+        ),
+        pickOpen && h("div", { className: "inv-pick" }, categories.map((category) => h("div", { key: category, className: "inv-pick-group" },
+          h("span", { className: "t-label" }, category),
+          h("div", { className: "inv-pick-list" }, catalog.filter((item) => String(item?.category || "その他") === category).map((item) => h("label", { key: item.id, className: "inv-pick-item" },
+            h("input", { type: "checkbox", checked: initialItems.includes(item.id), onChange: () => toggleInitial(item.id) }),
+            h("span", null, item.name)
+          )))
+        )))
+      )
+    ),
+    h(Card, null,
+      h("div", { className: "card-header owned-library-bar" },
+        h("span", { className: "t-label" }, "ITEM INVENTORY / 所持アイテム"),
+        h("span", { className: "ledger-note" }, `${inventory.length}件`)
+      ),
+      rows.length === 0
+        ? h("div", { className: "card-body" }, h("div", { className: "empty" }, "所持アイテムはまだありません。「アイテム」で追加するか、初期枠を取り込むとここへ出ます。"))
+        : h("div", { className: "card-body stack-2" }, rows.map((entry) => h("div", { key: entry.uid, className: "inv-row" },
+            h("span", { className: "inv-name" }, nameOf(entry.itemId)),
+            h("span", { className: "inv-meta" }, String(metaOf(entry.itemId).category || "その他")),
+            h("span", { className: "inv-price" }, String(metaOf(entry.itemId).price || "")),
+            h("span", { className: "inv-qty" }, `×${entry.quantity}`),
+            originBadge(entry)
+          )))
     )
   );
 };
+
+const LedgerPanel = ({ state, dispatch }) => {
+  /* 通帳。所持したものがどのリザルトで手に入ったかと、LP・欠片の残高を
+     「今いくら残っているか」から確認するためのパネル。
+
+     設計の主意:
+       - 残高は自動。手入力ではなく収入（リザルト）と支出（明細）から導く
+       - 歸属は後から変えられる。購入した瞬間にリザルトを選ばせない
+       - ドラッグ&ドロップが主、キーボードからの代替（選択して移動）も用意する
+  */
+  const [dragId, setDragId] = React.useState(null);
+  const [overId, setOverId] = React.useState(null);
+  const [newResult, setNewResult] = React.useState({ name: "", date: "", lp: "", shards: "" });
+  /* 手動の支出・消耗。DBに価格が無いもの、戦闘で消えたものを記録する。 */
+  const [newEntry, setNewEntry] = React.useState({ name: "", kind: "expense", lp: "", shards: "" });
+  /* 所持人格リストの一括取込用の状態。 */
+  const [heldPaste, setHeldPaste] = React.useState("");
+  const [heldScan, setHeldScan] = React.useState({ found: [], unknown: [], unknownCount: 0 });
+  /* 取り込みは整備作業なので、既定では閉じておく。 */
+  const [heldOpen, setHeldOpen] = React.useState(false);
+  /* 判定できなかった文字列 -> 利用者が選んだ正しい名前。検出時に先に差し込む。 */
+  const [heldResolved, setHeldResolved] = React.useState({});
+  const [heldPicking, setHeldPicking] = React.useState(null);
+  /* 候補に出すときの種別名。利用者がどれを選んでいるか分かるようにする。 */
+  const HELD_KIND_LABEL = { persona: "人格", ego: "E.G.O", spirit: "精神", support: "サポート" };
+const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
+  /* リザルト単位の操作メニューと、硝子窓へ変換した結果。 */
+  const [exportFor, setExportFor] = React.useState(null);
+  /* 硝子窓からの取り込み（入力方向）。出力方向は撤去した。 */
+  const [importPanel, setImportPanel] = React.useState(false);
+  const [importNote, setImportNote] = React.useState(null);
+  /* 取り込み（硝子窓）はリザルト個別ではなくアカウント全体の操作として
+   アカウント選択画面で行う。ここでは扱わない。 */
+  const [editing, setEditing] = React.useState(null);
+
+  const results = Array.isArray(state.results) ? state.results : [];
+  const entries = Array.isArray(state.entries) ? state.entries : [];
+  const balance = window.LBT_computeLedgerBalance
+    ? window.LBT_computeLedgerBalance(results, entries)
+    : { lp: 0, shards: 0, unclassified: 0 };
+
+/* 残額は全明細から求める。削除は Undo/Redo が効くので、
+/* 取り消し用の操作槽は置かない。 */
+  const unclassified = entries.filter((e) => !e.resultId);
+
+  /* リザルトごとの明細と支出合計。導出なので保存しない。 */
+  const byResult = (id) => entries.filter((e) => e.resultId === id);
+  const sumOf = (list) => list.reduce(
+    (acc, e) => ({ lp: acc.lp + (Number(e?.cost?.lp) || 0), shards: acc.shards + (Number(e?.cost?.shards) || 0) }),
+    { lp: 0, shards: 0 }
+  );
+
+  /* 種別 ID を表示名へ。未知の ID はそのまま出す（壊れた表示にしない）。 */
+  const kindLabel = (id) => {
+    const hit = (window.LBT_LEDGER_ENTRY_KINDS || []).find((k) => k.id === id);
+    return hit ? hit.label : id || "その他";
+  };
+  /* 歸属の移動。ドラッグ中のIDは state と dataTransfer の両方に持たせる。
+     state だけだと、ドラッグ中に再レンダーが入ったときに古い値を参照して
+     drop が無音で失敗する。dataTransfer はドラッグ操作そのものが持つ値なので、
+     その操作の中では常に正しい。 */
+  const LEDGER_DRAG_MIME = "application/x-lbt-ledger-entry";
+  const moveEntry = (id, resultId) => {
+    if (!id) return;
+    dispatch({ type: "SET_ENTRY_RESULT", id, resultId: resultId || null });
+    setDragId(null);
+    setOverId(null);
+  };
+  /* 行のドラッグ属性。未分類とリザルトで同じものを使う。 */
+const dragProps = (entry) => ({
+  draggable: true,
+  onDragStart: (e) => {
+    setDragId(entry.id);
+    try { e.dataTransfer?.setData(LEDGER_DRAG_MIME, entry.id); } catch (_) { /* 旧Browserは無視 */ }
+    try { e.dataTransfer && (e.dataTransfer.effectAllowed = "move"); } catch (_) {}
+  },
+  onDragEnd: () => { setDragId(null); setOverId(null); }
+});
+const readDragId = (event) => {
+    try {
+      return event?.dataTransfer?.getData(LEDGER_DRAG_MIME) || dragId;
+    } catch (_) {
+      return dragId;
+    }
+  };
+
+  const addResult = () => {
+    const name = String(newResult.name || "").trim();
+    if (!name) return;
+    dispatch({
+      type: "ADD_RESULT",
+      name,
+      date: newResult.date || "",
+      income: { lp: Number(newResult.lp) || 0, shards: Number(newResult.shards) || 0 }
+    });
+    setNewResult({ name: "", date: "", lp: "", shards: "" });
+  };
+
+/* 硝子窓の読み込み結果をアカウント全体へ入れる。
+   人格・E.G.O・サポート・パッシブ・精神・アイテムが manifest 経由で並ぶ。
+   1件のリザルトへ押し込まない（持ち主のない所持と歸属のない支出が残るため）。
+   APPLY_IMPORT_BATCH が ADD_RESULT と ADD_ENTRY の紐付けを解決し、Undo 1 回で戻る。 */
+const applyGarasumadoImport = (applied) => {
+  const actions = applied?.actions || applied?.rosterActions || [];
+  if (!actions.length) { toast("取り込むものが選ばれていません"); return; }
+  window.dispatchEvent(new CustomEvent("lbt:apply-import", {
+    detail: { actions, skipped: applied.skipped || [] }
+  }));
+  const byType = {};
+  for (const a of actions) byType[a.type] = (byType[a.type] || 0) + 1;
+  setImportNote({
+    summary: Object.entries(byType).map(([k, n]) => `${IMPORT_TYPE_LABEL[k] || k} ${n}件`).join("・"),
+    skipped: (applied.skipped || []).slice(0, 12),
+    skippedCount: (applied.skipped || []).length
+  });
+  toast("取り込みました");
+};
+const IMPORT_TYPE_LABEL = {
+  ADD_ROSTER: "人格", ADD_ROSTER_EGO: "E.G.O", ADD_ROSTER_SUPPORT: "パッシブ",
+  ADD_ROSTER_SPIRIT: "精神", ADD_ITEM_INVENTORY: "アイテム",
+  ADD_RESULT: "リザルト", ADD_ENTRY: "明細"
+};
+
+/* 手動支出・消耗の記録。歸属は未分類で入れる（後からドラッグで振る）。 */
+const addEntry = () => {
+  const name = String(newEntry.name || "").trim();
+  if (!name) return;
+  dispatch({
+    type: "ADD_ENTRY",
+    kind: newEntry.kind,
+    name,
+    cost: { lp: Number(newEntry.lp) || 0, shards: Number(newEntry.shards) || 0 },
+    resultId: null
+  });
+  setNewEntry({ name: "", kind: newEntry.kind, lp: "", shards: "" });
+};
+
+/* 所持人格リストの一括取込。ゲーム内外のリストを貼り付けても、
+   DB の名前と照合して「所持している人格」だけを拾う。
+   1行1件でも、空白・カンマ区切りでも読め、表記ゆれ（全角/半角・空白）は
+   吸収する。検出できたものは取り込み前に一覧で提示し、
+   何を足すかをユーザーに見せた上で実行する（黙って所持を増やさない）。 */
+const PERSONA_NAME_KEY = (name) => String(name || "").replace(/[\s\u3000]+/g, "").toLowerCase();
+const PERSONA_BOUNDARY = /[\u3001,\uFF0C\/\uFF0F|]/;
+
+const scanHeldPersonas = (text, resolved) => {
+  const tokui = window.DB?.tokui_personas || [];
+  const index = new Map();
+  /* 所持に入れられるものは全部ここで引く。精神も E.G.O もパッシブも
+     貼り付けた 사람이 Candida  occurr 同じ扱いにする（種別だけが違う）。 */
+  const sources = [
+    [window.DB?.normal_personas || [], "persona"],
+    [tokui, "persona"],
+    [window.DB?.egos || [], "ego"],
+    [window.DB?.spirits || [], "spirit"],
+    [window.DB?.support_passives || [], "support"],
+    [window.DB?.death_passives || [], "support"]
+  ];
+  for (const [list, kind] of sources) {
+    for (const p of list) {
+      if (!p || !p.name) continue;
+      const key = PERSONA_NAME_KEY(p.name);
+      if (!key || index.has(key)) continue;
+      index.set(key, kind === "persona"
+        ? { no: p.no, name: p.name, mode: list === tokui ? "t" : "n", kind }
+        : { no: p.no, name: p.name, rank: p.rank, kind, slot: kind === "support" && /死/.test(p.name) ? "death" : "normal" });
+    }
+  }
+  const owned = {
+    persona: new Set((state.roster?.personas || []).map((p) => `${p.mode}:${p.no}`)),
+    ego: new Set((state.roster?.egos || []).map((e) => `${e.rank}:${e.no}`)),
+    spirit: new Set((state.roster?.spirits || []).map((s) => s.name)),
+    support: new Set((state.roster?.supports || []).map((s) => s.name))
+  };
+  const keyOf = (rec) => (rec.kind === "persona" ? `${rec.mode}:${rec.no}`
+    : rec.kind === "ego" ? `${rec.rank}:${rec.no}`
+    : rec.name);
+  const found = [];
+  const seen = new Set();
+  const unknown = [];
+  const hit = (label) => {
+    const rec = index.get(PERSONA_NAME_KEY(label));
+    if (!rec) return false;
+    const uniq = keyOf(rec);
+    if (!seen.has(uniq)) { seen.add(uniq); found.push({ ...rec, owned: owned[rec.kind]?.has(uniq) }); }
+    return true;
+  };
+  /* 行全体 -> 境界の左右 の順で試して、最初に一致した位置でだけ分割する。
+     そうしないと「N社E.G.O:軽蔑、畏敬」が2つに割れて両方とも取りこぼす。 */
+  const consume = (chunk, depth) => {
+    const rest = String(chunk || "").trim();
+    if (!rest || depth > 64) return;
+    /* 利用者が候補から選んだものは、貼り付けた文字列より先に確定させる。 */
+    if ((resolved || {})[rest] && hit(resolved[rest])) return;
+    if (hit(rest)) return;
+    const bounds = [];
+    for (let i = 0; i < rest.length; i++) if (PERSONA_BOUNDARY.test(rest[i])) bounds.push(i);
+    for (const at of bounds) {
+      const head = rest.slice(0, at);
+      if (head && index.has(PERSONA_NAME_KEY(head))) {
+        hit(head);
+        consume(rest.slice(at + 1), depth + 1);
+        return;
+      }
+    }
+    /* 空白は名前に含まれる（双鉤海賊団 組員B）ので主経路にしない。
+       他の切り方が全て外れた後の救済としてだけ試す。 */
+    {
+      const spaces = [];
+      for (let i = 0; i < rest.length; i++) if (/[\s\u3000]/.test(rest[i])) spaces.push(i);
+      for (const at of spaces) {
+        const head = rest.slice(0, at);
+        if (head && index.has(PERSONA_NAME_KEY(head))) {
+          hit(head);
+          consume(rest.slice(at + 1), depth + 1);
+          return;
+        }
+      }
+    }
+    /* どの切り方でも1件にならない。先頭の区切りで切って残りを回す。 */
+    const first = bounds[0];
+    unknown.push(first === undefined ? rest : rest.slice(0, first));
+    if (first !== undefined) consume(rest.slice(first + 1), depth + 1);
+  };
+
+  for (const line of String(text || "").split(/[\n\r]+/)) consume(line, 0);
+  return { found, unknown: unknown.slice(0, 20), unknownCount: unknown.length };
+};
+
+const importHeldPersonas = () => {
+    const targets = heldScan.found.filter((p) => !p.owned);
+    if (!targets.length) return;
+    /* 種別ごとに所持追加の入口へ渡す。明細を立てるかどうかは
+       reducer 側に任せる（精神は装備扱いで明細は出ない）。 */
+    for (const p of targets) {
+      if (p.kind === "ego") dispatch({ type: "ADD_ROSTER_EGO", no: p.no, rank: p.rank });
+      else if (p.kind === "spirit") dispatch({ type: "ADD_ROSTER_SPIRIT", spirit: { name: p.name } });
+      else if (p.kind === "support") dispatch({ type: "ADD_ROSTER_SUPPORT", spp: { name: p.name } });
+      else dispatch({ type: "ADD_ROSTER", mode: p.mode, no: p.no });
+    }
+    /* 種別ごとに数えてから1文で伝える。名前を出す（DB番号は
+       利用者が照合できない）。種別が混ざるので内訳は省略せず種別を出す。 */
+    const byKind = targets.reduce((acc, p) => {
+      acc[p.kind] = (acc[p.kind] || 0) + 1;
+      return acc;
+    }, {});
+    const mix = Object.entries(byKind).map(([kind, n]) => `${HELD_KIND_LABEL[kind] || kind} ${n}件`).join("・");
+    const head = targets.slice(0, 2).map((p) => `${HELD_KIND_LABEL[p.kind] || p.kind}「${p.name}」`).join("、");
+    toast(`${head}${targets.length > 2 ? ` ほか${targets.length - 2}件` : ""} を所持に追加しました（${mix}）`);
+    setHeldScan({ found: [], unknown: [], unknownCount: 0 });
+    setHeldResolved({});
+  };
+
+  const dropTargetProps = (id) => ({
+    onDragOver: (e) => {
+      e.preventDefault();
+      setOverId(id);
+    },
+    onDragLeave: () => { if (overId === id) setOverId(null); },
+    onDrop: (e) => {
+      e.preventDefault();
+      const entryId = readDragId(e);
+      if (id === "__queue") { moveEntry(entryId, null); return; }
+      moveEntry(entryId, id);
+    }
+  });
+
+  /* 残高の数字。色は通貨の種別（LP=金 / 欠片=青）で分ける。
+     3桁区切りは topbar の残高チップと同じ ja-JP 書式に揃える。 */
+  const bigNum = (value, tone) => {
+    const n = Number(value);
+    const text = Number.isFinite(n) ? n.toLocaleString("ja-JP") : String(value);
+    return h("b", { className: `ledger-chip-num is-${tone}` }, text);
+  };
+  /* 集計行の小さな数字。ラベルは集計行にしか出さない。3桁区切りは bigNum と同じ。 */
+  const stat = (value) => {
+    const n = Number(value);
+    return h("b", { className: "ledger-stat" }, Number.isFinite(n) ? n.toLocaleString("ja-JP") : String(value));
+  };
+
+  /* --- 描画 ------------------------------------------------------------- */
+  return h("div", { className: "stack-3" },
+    /* 残高。自動なので手入力できないことを明記する。 */
+    h(Card, null,
+      h("div", { className: "card-header owned-library-bar" },
+        h("span", { className: "t-label" }, "RESULT / リザルト"),
+        h("span", { className: "ledger-note" }, "リザルトの収入 − 明細の支出で自動計算します")
+      ),
+      h("div", { className: "card-body" },
+        h("div", { className: "ledger-balance" },
+          h("span", { className: "ledger-chip" }, bigNum(balance.lp, "lp"), h("span", { className: "ledger-chip-label" }, "LP")),
+          h("span", { className: "ledger-chip" }, bigNum(balance.shards, "shard"), h("span", { className: "ledger-chip-label" }, "欠片")),
+          /* stat() は要素を返すので文字列補間に埋めると "[object Object]" になる。 */
+          h("span", { className: "ledger-balance-sub" },
+            "収入 ", stat(balance.incomeLp), " LP / ", stat(balance.incomeShards), " 欠片",
+            " ・ 支出 ", stat(balance.spentLp), " LP / ", stat(balance.spentShards), " 欠片"
+          )
+        )
+      )
+    ),
+
+    /* リザルトの追加。 */
+    h(Card, null,
+      h("div", { className: "card-header" }, h("span", { className: "t-label" }, "リザルトを記録")),
+      h("div", { className: "card-body" },
+        h("div", { className: "ledger-add-row" },
+          h("input", {
+            className: "ledger-input",
+            placeholder: "例：第12回 ゲーパ",
+            value: newResult.name,
+            "aria-label": "リザルトの名称",
+            onChange: (e) => setNewResult((p) => ({ ...p, name: e.target.value }))
+          }),
+          h("input", {
+            type: "date",
+            className: "ledger-input ledger-input--date",
+            value: newResult.date,
+            "aria-label": "プレイした日付",
+            onChange: (e) => setNewResult((p) => ({ ...p, date: e.target.value }))
+          }),
+          h("input", {
+            className: "ledger-input ledger-input--num",
+            placeholder: "獲得LP",
+            inputMode: "numeric",
+            value: newResult.lp,
+            "aria-label": "獲得LP",
+            onChange: (e) => setNewResult((p) => ({ ...p, lp: e.target.value }))
+          }),
+          h("input", {
+            className: "ledger-input ledger-input--num",
+            placeholder: "獲得欠片",
+            inputMode: "numeric",
+            value: newResult.shards,
+            "aria-label": "獲得欠片",
+            onChange: (e) => setNewResult((p) => ({ ...p, shards: e.target.value }))
+          }),
+          h(Button, { size: "sm", variant: "primary", icon: "check", onClick: addResult, disabled: !String(newResult.name || "").trim() }, "記録")
+        )
+      )
+    ),
+
+    importPanel && h("div", { className: "ledger-gara-wrap" },
+    h("div", { className: "card-header owned-library-bar" },
+    h("span", { className: "t-label" }, "硝子窓から取り込む"),
+    h("span", { className: "ledger-note" }, "人格・E.G.O・パッシブ・精神・アイテム。アカウント全体へ反映します"),
+    h(Button, { size: "sm", variant: "ghost", icon: "x", onClick: () => setImportPanel(false) }, "閉じる")
+    ),
+    typeof window.GarasumadoImportPanel === "function"
+    ? h(window.GarasumadoImportPanel, {
+      onClose: () => setImportPanel(false),
+      onApply: (applied) => { setImportPanel(false); applyGarasumadoImport(applied); }
+    })
+    : h("p", { className: "ledger-note" }, "取り込み画面が読み込まれていません。ページを再読み込みしてください。")
+    ),
+
+    importNote && h(Card, { className: "ledger-export-card" },
+    h("div", { className: "card-header owned-library-bar" },
+    h("span", { className: "t-label" }, "取り込み結果"),
+    h("span", { className: "ledger-note" }, importNote.summary)
+    ),
+    h("div", { className: "card-body stack-2" },
+    importNote.skippedCount > 0 && h("div", { className: "ledger-held-result", role: "status" },
+    h("p", { className: "ledger-note" }, `入れなかったものが ${importNote.skippedCount} 件あります：`),
+    h("ul", { className: "ledger-warn-list" }, importNote.skipped.map((s, i) => h("li", { key: i }, `${s.name || s.key}：${s.reason || s.kind || "不明"}`)))
+    ),
+    h(Button, { size: "sm", variant: "ghost", onClick: () => setImportNote(null) }, "閉じる")
+    )
+    ),
+
+    /* 手動の支出・消耗。DBに価格が無いものと、戦闘で消えたものをここで記録する。 */
+    h(Card, null,
+      h("div", { className: "card-header owned-library-bar" },
+        h("span", { className: "t-label" }, "支出・消耗を記録"),
+        h("span", { className: "ledger-note" }, "所持や強化から自動で入る分はここで打ちません")
+      ),
+      h("div", { className: "card-body stack-2" },
+        h("div", { className: "ledger-add-row" },
+          h("input", {
+            className: "ledger-input ledger-input--wide",
+            placeholder: "例：自作のトークン、使った包帯",
+            value: newEntry.name,
+            "aria-label": "明細の名称",
+            onChange: (e) => setNewEntry((p) => ({ ...p, name: e.target.value }))
+          }),
+          h("select", {
+            className: "ledger-input ledger-input--kind",
+            value: newEntry.kind,
+            "aria-label": "明細の種別",
+            onChange: (e) => setNewEntry((p) => ({ ...p, kind: e.target.value }))
+          }, (window.LBT_LEDGER_ENTRY_KINDS || [
+            { id: "expense", label: "手動支出" },
+            { id: "consumption", label: "消耗" }
+          ]).map((k) => h("option", { key: k.id, value: k.id }, k.label))),
+          h("input", {
+            className: "ledger-input ledger-input--num",
+            placeholder: "LP",
+            inputMode: "numeric",
+            value: newEntry.lp,
+            "aria-label": "消費LP",
+            onChange: (e) => setNewEntry((p) => ({ ...p, lp: e.target.value }))
+          }),
+          h("input", {
+            className: "ledger-input ledger-input--num",
+            placeholder: "欠片",
+            inputMode: "numeric",
+            value: newEntry.shards,
+            "aria-label": "消費欠片",
+            onChange: (e) => setNewEntry((p) => ({ ...p, shards: e.target.value }))
+          }),
+          h(Button, { size: "sm", variant: "primary", icon: "check", onClick: addEntry, disabled: !String(newEntry.name || "").trim() }, "記録")
+        )
+      )
+    ),
+
+    /* 所持人格リストの一括取込。貼り付けたテキストから DB 上の人格名を拾い、
+       何を足すかを確認してから所持へ加える。 */
+    h(Card, { className: "ledger-collapsible" + (heldOpen ? " is-open" : "") },
+      h("div", { className: "card-header owned-library-bar" },
+        h("span", { className: "t-label" }, "所持人格リストを取り込む"),
+        h(Button, {
+          size: "sm",
+          variant: "ghost",
+          icon: heldOpen ? "chevron-up" : "chevron-down",
+          "aria-expanded": heldOpen,
+          onClick: () => setHeldOpen((v) => !v)
+        }, heldOpen ? "閉じる" : "開く")
+      ),
+      heldOpen && h("div", { className: "card-body stack-2" },
+        h("textarea", {
+          className: "ledger-input ledger-held-paste",
+          rows: 4,
+          placeholder: "例：黒雲会組員\n剣契殺手A",
+          "aria-label": "所持人格リスト",
+          value: heldPaste,
+          onChange: (e) => setHeldPaste(e.target.value)
+        }),
+        heldScan.found.length > 0 && h("p", { className: "ledger-note" },
+        `検出 ${heldScan.found.length} 件。内容を確認して「保存する」を押してください。`),
+        h("div", { className: "ledger-add-row" },
+          h(Button, {
+            size: "sm",
+            variant: "ghost",
+            icon: "search",
+            onClick: () => setHeldScan(scanHeldPersonas(heldPaste, heldResolved)),
+            disabled: !heldPaste.trim()
+          }, "検出する"),
+          heldScan.found.length > 0 && h(Button, {
+            size: "sm",
+            variant: "primary",
+            icon: "check",
+            onClick: importHeldPersonas,
+            disabled: !heldScan.found.some((p) => !p.owned)
+          }, `${heldScan.found.filter((p) => !p.owned).length}件を保存する`),
+          heldScan.found.length > 0 && h(Button, {
+            size: "sm",
+            variant: "ghost",
+            onClick: () => setHeldScan({ found: [], unknown: [], unknownCount: 0 })
+          }, "クリア")
+        ),
+        heldScan.found.length > 0 && h("div", { className: "ledger-held-result", role: "status" },
+          h("p", { className: "ledger-note" },
+            `検出 ${heldScan.found.length} 件（所持済み ${heldScan.found.filter((p) => p.owned).length} 件・未所持 ${heldScan.found.filter((p) => !p.owned).length} 件）`),
+          h("div", { className: "chips-group" }, heldScan.found.map((p) => h("span", {
+            key: `${p.kind}:${p.kind === "ego" ? p.rank + ":" + p.no : p.kind === "persona" ? p.mode + ":" + p.no : p.name}`,
+            className: `chip chip-held${p.owned ? " is-owned" : ""}`,
+            title: `${HELD_KIND_LABEL[p.kind]}${p.kind === "ego" ? ` ${p.rank} No.${p.no}` : p.kind === "persona" ? ` ${p.mode.toUpperCase()} No.${p.no}` : ""}`
+          }, h("span", { className: "chip-candidate-kind" }, HELD_KIND_LABEL[p.kind]), p.name)))
+        ),
+heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: "group", "aria-label": "判定できなかった名前" },
+        h("p", { className: "ledger-note" },
+        `${heldScan.unknownCount} 件が見つかりませんでした。近い候補から選べば取り込めます。`),
+        h("div", { className: "ledger-held-unknown-list" }, heldScan.unknown.map((label) => {
+        const options = window.LBT_fuzzyNameCandidatesAcross?.(window.DB, label, 6) || [];
+        const open = heldPicking === label;
+        return h("div", { key: label, className: `ledger-unknown-row${open ? " is-open" : ""}` },
+        h("button", {
+        type: "button",
+        className: "ledger-unknown-label",
+        "aria-expanded": open,
+        onClick: () => setHeldPicking(open ? null : label)
+        },
+        h("span", { className: "ledger-unknown-text" }, label),
+        h("span", { className: "ledger-unknown-count" }, `候補 ${options.length}`)),
+        open && options.length > 0 && h("div", { className: "ledger-unknown-candidates" },
+        h("div", { className: "chips-group" }, options.map((opt) => h("button", {
+        key: opt.name,
+        type: "button",
+        className: "chip chip-candidate",
+        title: `一致度 ${Math.round(opt.score)}`,
+        onClick: () => {
+        setHeldResolved((r) => ({ ...r, [label]: opt.name }));
+        setHeldPicking(null);
+        }
+        },
+        opt.kind ? h("span", { className: "chip-candidate-kind" }, FUZZY_KIND_LABEL[opt.kind]) : null,
+        opt.name
+        ))),
+        h("div", { className: "ledger-add-row" },
+        h(Button, {
+        size: "xs",
+        variant: "ghost",
+        onClick: () => {
+        setHeldResolved((r) => {
+        const next = { ...r };
+        delete next[label];
+        return next;
+        });
+        setHeldPicking(null);
+        }
+        }, "未確定に戻す"),
+        h(Button, {
+        size: "xs",
+        variant: "ghost",
+        onClick: () => {
+        setHeldPaste(heldPaste.split(/[\n\r]+/).filter((l) => l.trim() !== label).join("\n"));
+        setHeldPicking(null);
+        }
+        }, "この行を消す")
+        )
+        ),
+        open && options.length === 0 && h("p", { className: "ledger-note" },
+        "近い候補がありません。貼り付けた文字列を確認してください。")
+);
+        }))
+        ),
+      )
+    ),
+
+    /* 未分類。ここが歸属待ちの队列。空でも受け皿として残す。 */
+    h("div", {
+      className: `ledger-card-wrap${overId === "__queue" ? " is-over" : ""}`,
+      ...dropTargetProps("__queue")
+    },
+    h(Card, { className: "ledger-queue" },
+      h("div", { className: "card-header owned-library-bar" },
+        h("span", { className: "t-label" }, "未分類"),
+        h("span", { className: "ledger-note" }, "リザルトへ持って行くか、移動ボタンで歸属できます")
+      ),
+      h("div", { className: "card-body stack-2" },
+        unclassified.length === 0
+          ? h("p", { className: "ledger-empty-note" }, "未分類は空です。リザルトから明細をここへドラッグすると戻せます。")
+          : null,
+        unclassified.map((entry) => h("div", {
+          key: entry.id,
+          className: "ledger-row",
+          ...dragProps(entry)
+        },
+          h("span", { className: "ledger-row-name" }, entry.name),
+          h("span", { className: "ledger-row-kind" }, kindLabel(entry.kind)),
+          h("span", { className: "ledger-row-cost" }, entry.cost?.lp ? `${entry.cost.lp}LP` : entry.cost?.shards ? `${entry.cost.shards}SHARD` : "—"),
+          h("select", {
+            className: "ledger-row-move",
+            "aria-label": `${entry.name} の歸属先`,
+            value: "",
+            onChange: (e) => { if (e.target.value) moveEntry(entry.id, e.target.value); }
+          }, h("option", { value: "" }, "移動先"), results.map((r) => h("option", { key: r.id, value: r.id }, r.name))),
+          h("button", {
+            type: "button",
+            className: "ledger-row-trash",
+            title: "削除する（Ctrl+Z で取り消せます）",
+            "aria-label": `${entry.name} を削除する`,
+            onClick: () => dispatch({ type: "PURGE_ENTRY", id: entry.id })
+          }, "削除")
+        ))
+      )
+    )
+    ),
+
+
+    /* リザルトカード。ドロップ先。 */
+    h("div", { className: "ledger-cards" },
+      results.length === 0 && h(Card, null,
+        h("div", { className: "empty", style: { padding: "var(--s-4)" } },
+          "まだリザルトがありません。上で獲得LPと欠片を記録すると、所持したものの歸属先になります。")
+      ),
+      results.map((result) => {
+        const rows = byResult(result.id);
+        const spent = sumOf(rows);
+        /* ドロップ先は Card の外側の div に置く。Card は children / className / frame
+           しか受け取らないため、drag イベントを直接渡しても無視される。 */
+        return h("div", {
+          key: result.id,
+          className: `ledger-card-wrap${overId === result.id ? " is-over" : ""}`,
+          ...dropTargetProps(result.id)
+        },
+h(Card, { className: "ledger-card" },
+    h("div", { className: "card-header owned-library-bar" },
+    h("span", { className: "ledger-card-title" }, result.name),
+    h("span", { className: "ledger-card-date" }, result.date || "—"),
+    h("div", { className: "ledger-card-actions" },
+    h("button", {
+    type: "button",
+    className: "ledger-card-menu-btn",
+    title: "このリザルトの操作",
+    "aria-label": `${result.name} の操作を開く`,
+    "aria-expanded": exportFor === result.id,
+    onClick: () => setExportFor(exportFor === result.id ? null : result.id)
+    }, "⋯"),
+    exportFor === result.id && h("div", { className: "ledger-card-menu", role: "menu" },
+    h("button", {
+    type: "button",
+    className: "ledger-card-menu-item",
+    role: "menuitem",
+    onClick: () => { setExportFor(null); setImportPanel(true); }
+    }, "硝子窓から取り込む"),
+    h("button", {
+    type: "button",
+    className: "ledger-card-menu-item",
+    role: "menuitem",
+    onClick: () => setExportFor(null)
+    }, "閉じる")
+    )
+    )
+    ),
+            h("div", { className: "card-body stack-2" },
+              h("div", { className: "ledger-card-income" },
+              h("span", { className: "ledger-pair" }, bigNum(result.income?.lp || 0, "lp"), h("span", { className: "ledger-pair-label" }, "LP")),
+              h("span", { className: "ledger-pair" }, bigNum(result.income?.shards || 0, "shard"), h("span", { className: "ledger-pair-label" }, "欠片")),
+              h("span", { className: "ledger-card-spent" },
+                `支出 LP ${spent.lp.toLocaleString("ja-JP")} / 欠片 ${spent.shards.toLocaleString("ja-JP")}`)
+            ),
+            rows.length === 0
+              ? h("p", { className: "ledger-empty-note" }, "未分類の明細をここへドラッグするか、移動ボタンで歸属します。")
+              : h("div", { className: "stack-2" }, rows.map((entry) => h("div", { key: entry.id, className: "ledger-row is-owned", ...dragProps(entry) },
+                  h("span", { className: "ledger-row-name" }, entry.name),
+                  h("span", { className: "ledger-row-kind" }, kindLabel(entry.kind)),
+                  h("span", { className: "ledger-row-cost" }, entry.cost?.lp ? `${entry.cost.lp}LP` : entry.cost?.shards ? `${entry.cost.shards}SHARD` : "—"),
+                  h("select", {
+                    className: "ledger-row-move",
+                    "aria-label": `${entry.name} の歸属先`,
+                    value: "",
+                    onChange: (e) => { if (e.target.value) moveEntry(entry.id, e.target.value); }
+                  }, h("option", { value: "" }, "移動先"), results.filter((r) => r.id !== entry.resultId).map((r) => h("option", { key: r.id, value: r.id }, r.name))),
+                  h("button", {
+                    type: "button",
+                    className: "ledger-row-release",
+                    title: "歸属を外して未分類へ戻す",
+                    "aria-label": `${entry.name} の歸属を外す`,
+                    onClick: () => moveEntry(entry.id, null)
+                  }, "解除"),
+                  h("button", {
+                    type: "button",
+                    className: "ledger-row-trash",
+                    title: "削除する（Ctrl+Z で取り消せます）",
+                    "aria-label": `${entry.name} を削除する`,
+                    onClick: () => dispatch({ type: "PURGE_ENTRY", id: entry.id })
+                  }, "削除")
+                ))
+              )
+            )
+          )
+        );
+      })
+    )
+  );
+};
+
 const DEFAULT_FMLs = [
   { name: "MT", expr: "{\u30D1\u30EF\u30FC}-{\u865A\u5F31}+{\u5171\u9CF4}+{\u30B9\u30AD\u30EB\u5A01\u529B}+{\u30DE\u30C3\u30C1\u5A01\u529B\u5897\u52A0}-{\u30DE\u30C3\u30C1\u5A01\u529B\u4F4E\u4E0B}", builtin: true },
   { name: "DM", expr: "{\u30D1\u30EF\u30FC}-{\u865A\u5F31}+{\u5171\u9CF4}+{\u30B9\u30AD\u30EB\u5A01\u529B}+{\u30C0\u30E1\u30FC\u30B8\u91CF\u5897\u52A0}-{\u30C0\u30E1\u30FC\u30B8\u91CF\u6E1B\u5C11}", builtin: true },
@@ -1839,9 +3298,23 @@ const LabelParamsPanel = ({ state, onAddCustom, onPatchCustom, onRemoveCustom, o
       source: moraleManual === "" ? "SAN最大値の25%から自動" : "手動指定"
     }];
     const { atkModLabel, hasVigor, hasDefMod } = window.LBT_gen?.detectMTMods?.(state) || {};
-    if (atkModLabel) list.push({ id: "support-atk-mod", type: "derived", label: atkModLabel, value: 1, source: "サポートから自動" });
-    if (hasVigor) list.push({ id: "enh-vigor", type: "derived", label: "闘志", value: 1, source: "強化から自動" });
-    if (hasDefMod) list.push({ id: "enh-defense", type: "derived", label: "守備威力", value: 1, source: "強化から自動" });
+    /* 自動付与されるラベルは「同じ名前の実ラベルより優先度が低い」。
+       同じものが二重に並ぶと CCFOLIA 側で参照先が曖昧になり、
+       利用者もどちらを直せばよいか分からなくなる。 */
+    const declaredLabels = new Set([
+      ...(state.uniqueBuffs || []).filter((buff) => (buff.place || "status") === "params" && buff.noST !== true).map((buff) => String(buff.name || "").trim()),
+      ...(state.customStatuses || []).filter((item) => (item.place || "status") === "params").map((item) => String(item.label || "").trim()),
+      ...(window.LBT_collectSkillDiceVars?.(state) || []).filter((item) => item.place === "params").map((item) => String(item.label || "").trim()),
+      ...(state.skillFormulas || []).map((entry) => String(entry.name || "").trim()),
+      ...(state.labels || []).map((entry) => String(entry.name ?? entry.label ?? "").trim())
+    ].filter(Boolean));
+    const derived = (id, label, source) => {
+      if (declaredLabels.has(label)) return;
+      list.push({ id, type: "derived", label, value: 1, source });
+    };
+    if (atkModLabel) derived("support-atk-mod", atkModLabel, "サポートから自動");
+    if (hasVigor) derived("enh-vigor", "闘志", "強化から自動");
+    if (hasDefMod) derived("enh-defense", "守備威力", "強化から自動");
     // 対象へ付与する目印（noST）は自分の参照値ではないため、ラベル一覧にも出さない。
     (state.uniqueBuffs || []).filter((buff) => (buff.place || "status") === "params" && buff.noST !== true).forEach((buff, index) => list.push({ id: `unique-${buff.id || index}`, type: "unique", label: buff.name || "名称未設定", value: buff.initial ?? "", source: "人格固有" }));
     (state.customStatuses || []).filter((item) => (item.place || "status") === "params").forEach((item) => list.push({ id: item.id, type: "custom", label: item.label || "", value: item.initial ?? 0, source: "カスタム", item }));
@@ -1881,6 +3354,92 @@ const LabelParamsPanel = ({ state, onAddCustom, onPatchCustom, onRemoveCustom, o
       h("div", { className: "settings-status-workspace-actions" }, h(Button, { size: "sm", icon: "plus", onClick: () => onAddCustom("params") }, "ラベルを追加"))
     ),
     h("div", { className: "label-param-list" }, entries.map(renderEntry))
+  );
+};
+/* 駒整形の組み立て設定。ステータス一覧とラベル一覧はここが唯一の場所。
+   設定側に同じ面を残すと、どちらで直したかを选民が追えなくなる。 */
+const BuildParamsPanel = ({ state, dispatch }) => {
+  const h = React.createElement;
+  const setF = (field, value) => dispatch({ type: "SET_FIELD", field, value });
+  const addCs = (place = "status") => setF("customStatuses", [...(state.customStatuses || []), { id: `cs-${Date.now()}`, label: "", initial: 0, max: 99, place }]);
+  const patchCs = (id, patch) => setF("customStatuses", (state.customStatuses || []).map((c) => c.id === id ? { ...c, ...patch } : c));
+  const rmCs = (id) => setF("customStatuses", (state.customStatuses || []).filter((c) => c.id !== id));
+  const patchUb = (id, patch) => dispatch({ type: "PATCH_UB", id, patch });
+  const dst = state.defaultStatuses || FACTORY_DEFAULT_STATUS;
+  const effectiveStatuses = React.useMemo(() => {
+    const list = [];
+    const indexByLabel = new Map();
+    const add = (raw, source, initial, max) => {
+      const label = String(raw || "").trim();
+      if (!label) return;
+      if (indexByLabel.has(label)) {
+        const current = list[indexByLabel.get(label)];
+        current.source = current.source === source ? source : `${current.source}・${source}`;
+        return;
+      }
+      indexByLabel.set(label, list.length);
+      list.push({ label, source, initial, max });
+    };
+    dst.forEach((status) => {
+      const linked = status.label === "HP" || status.label === "SAN";
+      const initial = linked ? (status.label === "HP" ? state.hp || state.personaSrc?.hp || "?" : state.san || state.personaSrc?.san || "?") : status.initial;
+      add(status.label, linked ? "人格連動" : "既定", initial, linked ? initial : status.max);
+    });
+    (window.LBT_getStateSelfManagedStatusEntries?.(state) || []).forEach((entry) => add(entry.label, entry.kind === "declared" ? "DB指定" : "自己付与", entry.initial ?? 0, entry.max ?? 99));
+    // noST は「対象に付与する目印で自分は保持しない」というDB宣言。自分のステータス一覧には出さない。
+    (state.uniqueBuffs || []).filter((buff) => (buff.place || "status") === "status" && buff.type !== "中立バフ" && buff.noST !== true).forEach((buff) => add(buff.name, "人格固有", buff.initial ?? 0, buff.max ?? 99));
+    (state.customStatuses || []).filter((status) => (status.place || "status") === "status").forEach((status) => add(status.label, "カスタム", status.initial ?? 0, status.max ?? 99));
+    (window.LBT_collectSkillDiceVars?.(state) || []).filter((variable) => (variable.place || "status") === "status").forEach((variable) => add(variable.label, "スキル変数", variable.initial ?? 0, variable.max ?? 99));
+    return list;
+  }, [dst, state.hp, state.san, state.personaSrc, state.uniqueBuffs, state.customStatuses, state.egoSlots, state.skills, state.supports, state.enhancements]);
+  const setDst = (list) => setF("defaultStatuses", list);
+  /* 名前の変更にともに出力順（ui.statusOrder）も一緒に直す。
+     直すのを忘れると、並び替えだけが反映されない行が残る。 */
+  const patchDst = (i, patch) => {
+    const current = dst[i];
+    const nextLabel = typeof patch.label === "string" ? patch.label.trim() : current?.label;
+    setDst(dst.map((s, j) => i === j ? { ...s, ...patch } : s));
+    if (current?.label && nextLabel && nextLabel !== current.label && Array.isArray(state.ui.statusOrder)) {
+      dispatch({ type: "SET_UI", ui: { statusOrder: state.ui.statusOrder.map((label) => label === current.label ? nextLabel : label) } });
+    }
+  };
+  const rmDst = (i) => {
+    const removed = dst[i]?.label;
+    setDst(dst.filter((_, j) => j !== i));
+    if (removed && Array.isArray(state.ui.statusOrder)) {
+      dispatch({ type: "SET_UI", ui: { statusOrder: state.ui.statusOrder.filter((label) => label !== removed) } });
+    }
+  };
+  const addDst = () => setDst([...dst, { label: "", initial: 0, max: 99 }]);
+  const resetDst = () => {
+    if (confirm("デフォルトステータスを出荷時（16項目）に戻しますか？")) setDst(FACTORY_DEFAULT_STATUS);
+  };
+
+  return h(React.Fragment, null,
+    h("div", { className: "build-params-head" },
+    h("span", { className: "t-label" }, "組み立て / BUILD PARAMETERS"),
+    h("span", { className: "ledger-note" }, "出力順と既定値を決める場所")
+    ),
+          h("section", { className: "settings-major settings-major--static", "data-settings-category": "statuses" },
+            h("div", { className: "settings-major-body stack-3" },
+              h(StatusOrderPanel, { state, dispatch, embedded: true, onPatchDefault: patchDst, onPatchUnique: patchUb, onRemoveDefault: rmDst, onAddDefault: addDst, onResetDefaults: resetDst }),
+              h("details", { className: "settings-disclosure" }, h("summary", null, "カスタムST項目を編集"), h("div", { className: "settings-disclosure-body stack-2" },
+                h("p", { className: "settings-section-note" }, "ST側は増減する数値です。ここで追加した項目は、上のステータス一覧とCCFOLIA JSONのstatusに反映されます。"),
+                h("div", { className: "settings-local-actions" }, h(Button, { size: "sm", variant: "ghost", icon: "plus", onClick: () => addCs("status") }, "ST項目を追加")),
+                (state.customStatuses || []).filter((item) => (item.place || "status") === "status").length ? h("div", { className: "settings-custom-status-list" }, (state.customStatuses || []).filter((item) => (item.place || "status") === "status").map(customStatusRow)) : h("div", { className: "empty", style: { padding: "var(--s-3)" } }, "カスタムST項目はありません")
+              ))
+            )
+          ),
+          h("section", { className: "settings-major settings-major--static", "data-settings-category": "labels" },
+            h("div", { className: "settings-major-body stack-3" },
+              h(LabelParamsPanel, { state, onAddCustom: addCs, onPatchCustom: patchCs, onRemoveCustom: rmCs, onPatchMorale: (value) => setF("moraleLine", value) }),
+              h("details", { className: "settings-disclosure" }, h("summary", null, "出力しないカスタム項目"), h("div", { className: "settings-disclosure-body stack-2" },
+                h("p", { className: "settings-section-note" }, "ここにある項目はメモ用で、CCFOLIA JSONのstatusにもparamsにも出力されません。"),
+                h("div", { className: "settings-local-actions" }, h(Button, { size: "sm", variant: "ghost", icon: "plus", onClick: () => addCs("none") }, "項目を追加")),
+                (state.customStatuses || []).filter((item) => (item.place || "status") === "none").length ? h("div", { className: "settings-hidden-custom-list" }, (state.customStatuses || []).filter((item) => (item.place || "status") === "none").map(hiddenCustomRow)) : h("div", { className: "empty", style: { padding: "var(--s-3)" } }, "出力しない項目はありません")
+              ))
+            )
+          ),
   );
 };
 
@@ -1927,31 +3486,10 @@ const SettingsSection = ({ state, dispatch }) => {
       toast("\u4EE3\u5165\u5F0F\u3092\u30EA\u30BB\u30C3\u30C8");
     }
   };
-  const addCs = (place = "status") => setF("customStatuses", [...state.customStatuses, { id: `cs-${Date.now()}`, label: "", initial: 0, max: 99, place }]);
   const patchCs = (id, patch) => setF("customStatuses", state.customStatuses.map((c) => c.id === id ? { ...c, ...patch } : c));
-  const patchUb = (id, patch) => dispatch({ type: "PATCH_UB", id, patch });
   const rmCs = (id) => setF("customStatuses", state.customStatuses.filter((c) => c.id !== id));
   const dst = state.defaultStatuses || FACTORY_DEFAULT_STATUS;
   const setDst = (list) => setF("defaultStatuses", list);
-  const patchDst = (i, patch) => {
-    const current = dst[i];
-    const nextLabel = typeof patch.label === "string" ? patch.label.trim() : current?.label;
-    setDst(dst.map((s, j) => i === j ? { ...s, ...patch } : s));
-    if (current?.label && nextLabel && nextLabel !== current.label && Array.isArray(state.ui.statusOrder)) {
-      dispatch({ type: "SET_UI", ui: { statusOrder: state.ui.statusOrder.map((label) => label === current.label ? nextLabel : label) } });
-    }
-  };
-  const rmDst = (i) => {
-    const removed = dst[i]?.label;
-    setDst(dst.filter((_, j) => j !== i));
-    if (removed && Array.isArray(state.ui.statusOrder)) {
-      dispatch({ type: "SET_UI", ui: { statusOrder: state.ui.statusOrder.filter((label) => label !== removed) } });
-    }
-  };
-  const addDst = () => setDst([...dst, { label: "", initial: 0, max: 99 }]);
-  const resetDst = () => {
-    if (confirm("\u30C7\u30D5\u30A9\u30EB\u30C8\u30B9\u30C6\u30FC\u30BF\u30B9\u3092\u51FA\u8377\u6642\uFF0816\u9805\u76EE\uFF09\u306B\u623B\u3057\u307E\u3059\u304B\uFF1F")) setDst(FACTORY_DEFAULT_STATUS);
-  };
   const h = React.createElement;
   const customStatusRow = (c) => h("div", { key: c.id, className: "settings-custom-status-row" },
     h("input", { className: "input", value: c.label, placeholder: "ステータス名", onChange: (event) => patchCs(c.id, { label: event.target.value }) }),
@@ -1976,32 +3514,6 @@ const SettingsSection = ({ state, dispatch }) => {
       hidden ? h(Button, { size: "sm", variant: "ghost", icon: "undo", onClick: () => restoreBuiltin(formula.name) }, "復元") : h(Button, { size: "sm", variant: "ghost", icon: "trash", onClick: () => removeBuiltin(formula.name) }, "非表示")
     );
   };
-  const effectiveStatuses = React.useMemo(() => {
-    const list = [];
-    const indexByLabel = new Map();
-    const add = (raw, source, initial, max) => {
-      const label = String(raw || "").trim();
-      if (!label) return;
-      if (indexByLabel.has(label)) {
-        const current = list[indexByLabel.get(label)];
-        current.source = current.source === source ? source : `${current.source}・${source}`;
-        return;
-      }
-      indexByLabel.set(label, list.length);
-      list.push({ label, source, initial, max });
-    };
-    dst.forEach((status) => {
-      const linked = status.label === "HP" || status.label === "SAN";
-      const initial = linked ? (status.label === "HP" ? state.hp || state.personaSrc?.hp || "?" : state.san || state.personaSrc?.san || "?") : status.initial;
-      add(status.label, linked ? "人格連動" : "既定", initial, linked ? initial : status.max);
-    });
-    (window.LBT_getStateSelfManagedStatusEntries?.(state) || []).forEach((entry) => add(entry.label, entry.kind === "declared" ? "DB指定" : "自己付与", entry.initial ?? 0, entry.max ?? 99));
-    // noST は「対象に付与する目印で自分は保持しない」というDB宣言。自分のステータス一覧には出さない。
-    (state.uniqueBuffs || []).filter((buff) => (buff.place || "status") === "status" && buff.type !== "中立バフ" && buff.noST !== true).forEach((buff) => add(buff.name, "人格固有", buff.initial ?? 0, buff.max ?? 99));
-    (state.customStatuses || []).filter((status) => (status.place || "status") === "status").forEach((status) => add(status.label, "カスタム", status.initial ?? 0, status.max ?? 99));
-    (window.LBT_collectSkillDiceVars?.(state) || []).filter((variable) => (variable.place || "status") === "status").forEach((variable) => add(variable.label, "スキル変数", variable.initial ?? 0, variable.max ?? 99));
-    return list;
-  }, [dst, state.hp, state.san, state.personaSrc, state.uniqueBuffs, state.customStatuses, state.egoSlots, state.skills, state.supports, state.enhancements]);
   /* アカウントの切替・作成・編集・削除は js/accounts-ui.js の
      AccountSwitcher（SINNER SELECT オーバーレイ）に集約する。
      設定からはイベントを1つ投げるだけ。 */
@@ -2019,28 +3531,6 @@ const SettingsSection = ({ state, dispatch }) => {
             h("div", { className: "self-status-candidate-actions" }, h(Button, { size: "sm", variant: "secondary", icon: "check", onClick: () => dispatch({ type: "CONFIRM_SELF_STATUS_CANDIDATE", id: candidate.id }) }, "ステータスへ追加"), h(Button, { size: "sm", variant: "ghost", icon: "x", onClick: () => dispatch({ type: "DISMISS_SELF_STATUS_CANDIDATE", id: candidate.id }) }, "今回は追加しない"))
           ))
         ) : null,
-        h("section", { className: "settings-major settings-major--static", "data-settings-category": "statuses" },
-          h("div", { className: "settings-major-static-head" }, h("span", { className: "settings-major-name" }, "ステータス"), h("span", { className: "settings-major-hint" }, "一覧・既定編集・出力順をこのまま操作"), h("span", { className: "settings-major-count" }, `${effectiveStatuses.length}件`)),
-          h("div", { className: "settings-major-body stack-3" },
-            h(StatusOrderPanel, { state, dispatch, embedded: true, onPatchDefault: patchDst, onPatchUnique: patchUb, onRemoveDefault: rmDst, onAddDefault: addDst, onResetDefaults: resetDst }),
-            h("details", { className: "settings-disclosure" }, h("summary", null, "カスタムST項目を編集"), h("div", { className: "settings-disclosure-body stack-2" },
-              h("p", { className: "settings-section-note" }, "ST側は増減する数値です。ここで追加した項目は、上のステータス一覧とCCFOLIA JSONのstatusに反映されます。"),
-              h("div", { className: "settings-local-actions" }, h(Button, { size: "sm", variant: "ghost", icon: "plus", onClick: () => addCs("status") }, "ST項目を追加")),
-              (state.customStatuses || []).filter((item) => (item.place || "status") === "status").length ? h("div", { className: "settings-custom-status-list" }, (state.customStatuses || []).filter((item) => (item.place || "status") === "status").map(customStatusRow)) : h("div", { className: "empty", style: { padding: "var(--s-3)" } }, "カスタムST項目はありません")
-            ))
-          )
-        ),
-        h("section", { className: "settings-major settings-major--static", "data-settings-category": "labels" },
-          h("div", { className: "settings-major-static-head" }, h("span", { className: "settings-major-name" }, "ラベル"), h("span", { className: "settings-major-hint" }, "params出力・式からの参照"), h("span", { className: "settings-major-count" }, `${1 + (state.customStatuses || []).filter((item) => (item.place || "status") === "params").length + (state.uniqueBuffs || []).filter((item) => (item.place || "status") === "params" && item.noST !== true).length + (window.LBT_collectSkillDiceVars?.(state) || []).filter((item) => item.place === "params").length}件`)),
-          h("div", { className: "settings-major-body stack-3" },
-            h(LabelParamsPanel, { state, onAddCustom: addCs, onPatchCustom: patchCs, onRemoveCustom: rmCs, onPatchMorale: (value) => setF("moraleLine", value) }),
-            h("details", { className: "settings-disclosure" }, h("summary", null, "出力しないカスタム項目"), h("div", { className: "settings-disclosure-body stack-2" },
-              h("p", { className: "settings-section-note" }, "ここにある項目はメモ用で、CCFOLIA JSONのstatusにもparamsにも出力されません。"),
-              h("div", { className: "settings-local-actions" }, h(Button, { size: "sm", variant: "ghost", icon: "plus", onClick: () => addCs("none") }, "項目を追加")),
-              (state.customStatuses || []).filter((item) => (item.place || "status") === "none").length ? h("div", { className: "settings-hidden-custom-list" }, (state.customStatuses || []).filter((item) => (item.place || "status") === "none").map(hiddenCustomRow)) : h("div", { className: "empty", style: { padding: "var(--s-3)" } }, "出力しない項目はありません")
-            ))
-          )
-        ),
 h("details", { className: "settings-major", "data-settings-category": "share" },
           sectionSummary("同期情報の表示", "共有HTML・各種出力の人格情報表示"),
           h("div", { className: "settings-major-body stack-2" },
@@ -2105,6 +3595,9 @@ Object.assign(window, {
   EgoSection,
   SpiritSection,
   EnhancementSection,
+  BuildWorkspace,
+  ShopSection,
+  AcquireBar,
   RosterSection,
   SettingsSection,
   UniqueBuffsBlock

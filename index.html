@@ -33,20 +33,21 @@
         items,
          v66-accounts;
 </style>
-<link rel="stylesheet" href="assets/design-system.css?v=2b36b605">
-		<link rel="stylesheet" href="assets/workspace.css?v=57db600f">
-	<link rel="stylesheet" href="assets/persona-codex.css?v=d0b1b04b">
-		<link rel="stylesheet" href="assets/sections.css?v=9f665d4a">
+<link rel="stylesheet" href="assets/design-system.css?v=910f9485">
+		<link rel="stylesheet" href="assets/workspace.css?v=e65deca5">
+	<link rel="stylesheet" href="assets/persona-codex.css?v=f7d6f495">
+		<link rel="stylesheet" href="assets/sections.css?v=1be15820">
 	<link rel="stylesheet" href="assets/v52-overlay.css?v=785971b6">
 	<link rel="stylesheet" href="assets/v53-overlay.css?v=1b57bfe6">
 
-											<link rel="stylesheet" href="assets/v56-refinements.css?v=22247250">
+											<link rel="stylesheet" href="assets/v56-refinements.css?v=973dc2d9">
 										<link rel="stylesheet" href="assets/v65r29-draft-import.css?v=40401fec">
 			<link rel="stylesheet" href="assets/v65r43-ego-readability.css?v=563284f8">
-		<link rel="stylesheet" href="assets/v65r44-ego-quick-detail.css?v=4b576ee5">
+		<link rel="stylesheet" href="assets/v65r44-ego-quick-detail.css?v=1bb6dfa1">
 		<link rel="stylesheet" href="assets/v65r47-ego-card-marks.css?v=aaf12533">
 									<link rel="stylesheet" href="assets/items.css?v=7cf01d95">
-									<link rel="stylesheet" href="assets/v66-accounts.css?v=e957c0ed">
+									<link rel="stylesheet" href="assets/v66-accounts.css?v=1b22f804">
+<link rel="stylesheet" href="assets/v67-persona-redesign.css?v=7c8af091">
 </head>
 <body style="background-color:#14110d">
   <div id="root"></div>
@@ -79,20 +80,27 @@
   </script>
 <script src="js/core.js?v=d79b98be"></script>
 			<script src="js/ego-slot-forms.js?v=85aa4887"></script>
-				<script src="js/state.js?v=da305b24"></script>
-				<script src="js/persona-draft-import.js?v=77d69192"></script>
+				<script src="js/state.js?v=e70c88bf"></script>
+				<script src="js/persona-draft-import.js?v=37f8afb4"></script>
 					<script src="js/share-link.js?v=deb1ab16"></script>
 					<script src="js/generator.js?v=61eac2ba"></script>
-<script src="js/ui.js?v=35400d99"></script>
-				<script src="js/PersonaCodex.js?v=109eaace"></script>
+<script src="js/ui.js?v=8943eab8"></script>
+				<script src="js/PersonaCodex.js?v=f367a4b5"></script>
 		<script src="js/ItemCodex.js?v=f81cdb3e"></script>
 <script src="js/SkillDeck.js?v=a60cfad8"></script>
-								<script src="js/OtherSections.js?v=baf032ce"></script>
-				<script src="js/LivePreview.js?v=bae75723"></script>
+								<script src="js/OtherSections.js?v=3913042a"></script>
+				<script src="js/LivePreview.js?v=56001bc0"></script>
 <script src="js/DataQuality.js?v=a8365c72"></script>
 <script src="js/icon-cropper.js?v=20900dc8"></script>
-<script src="js/accounts-ui.js?v=b24928c5"></script>
-<script src="js/App.js?v=8375ba75"></script>
+<script src="js/roster-resolver.js?v=54c494e3"></script>
+<script src="js/result-log-parser.js?v=43c5aa47"></script>
+<script src="js/ledger-provenance.js?v=49fd1710"></script>
+<script src="js/ledger-import-reconcile.js?v=3dc52547"></script>
+<script src="js/garasumado-roster-import.js?v=09b14a49"></script>
+<script src="js/garasumado-import-ui.js?v=b5791ddd"></script>
+  <script src="js/name-fuzzy.js?v=d3eb29a1"></script>
+<script src="js/accounts-ui.js?v=ef8bfe4f"></script>
+<script src="js/App.js?v=cf8c9732"></script>
 <script>
   loadDB().then(lbtBoot).catch(function(){
     document.getElementById("root").innerHTML = "<div style=\"color:#c8a84b;padding:40px;text-align:center;font-family:sans-serif\">DBの読み込みに失敗しました。file:// で直接開いている場合はローカルサーバー経由で開いてください（README参照）。</div>";

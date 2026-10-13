@@ -742,4 +742,483 @@ main.acct-gate {
   .acct-card { min-height: 124px; padding: var(--s-3) var(--s-2) var(--s-2); }
   .acct-panel-foot { padding: var(--s-3); }
 }
+
+/* ---------------------------------------------------------------------------
+   硝子窓からの取り込み（GarasumadoImportPanel）— 決定面。
+
+   この面の仕事は 1 つ:「何を入れるか」を利用者が決めること。
+   だから装飾は一切入れない。構造だけで意味を伝える。
+
+   色の使いどころ:
+     - 金色（--gold）は switch の ON と主要ボタンだけ。
+       「入れる」という決定にだけ accent を使う。
+     - 赤（--err）は消さない。「判定できない」と「価格が引けない」の2つ。
+     - それ以外は全部ニュートラル（--tx-2 / --line）。
+
+   形の使いどころ:
+     - 角は r-sm（入力）と r-lg（面）の2種類だけ。pill は switch だけ。
+     - 影は面の段差に1つだけ。カードには影を持たせない。
+
+   動き:
+     - パネルは既存の --t(180ms) / --e-out に合わせる。
+     - 行は 100ms 間隔で順に入る（低頻度の操作なので許す）。
+     - switch は --t-fast(120ms) の色のみ。動きが唯一の手がかりにならないよう
+       文字（ON/OFF）も同時に切り替える。
+     - prefers-reduced-motion は design-system.css が --t* を 0ms にするので
+       ここでは追加の無効化は不要。
+   --------------------------------------------------------------------------- */
+
+.gara {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.gara-title {
+  margin: 0;
+  font-size: var(--fs-md, 15px);
+  font-weight: 600;
+  color: var(--tx);
+  letter-spacing: .01em;
+}
+
+.gara-lead {
+  margin: 0;
+  font-size: var(--fs-sm, 13px);
+  line-height: 1.7;
+  color: var(--tx-2);
+}
+
+.gara-hint,
+.gara-note {
+  margin: 0;
+  font-size: var(--fs-sm, 13px);
+  line-height: 1.7;
+  color: var(--tx-2);
+}
+
+.gara-note { color: var(--line-hot); }
+
+.gara-out {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+}
+
+/* --- URL 入力 ----------------------------------------------------------- */
+.gara-input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.gara-field { flex: 1 1 320px; }
+.gara-label {
+  display: block;
+  margin-bottom: var(--s-1);
+  font-size: var(--fs-sm, 13px);
+  color: var(--tx-2);
+}
+
+.gara-error {
+  margin: 0;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--err);
+  border-radius: var(--r-sm);
+  background: rgba(217, 74, 68, .10);
+  font-size: var(--fs-sm, 13px);
+  line-height: 1.6;
+  color: var(--err-ink);
+}
+
+/* --- グループ ----------------------------------------------------------- */
+.gara-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.gara-group-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+.gara-group-title {
+  margin: 0;
+  font-size: var(--fs-sm, 13px);
+  font-weight: 600;
+  color: var(--tx);
+}
+
+.gara-group-note {
+  margin: 0;
+  flex: 1 1 auto;
+  font-size: var(--fs-sm, 13px);
+  color: var(--tx-2);
+}
+
+.gara-group-acts {
+  display: flex;
+  gap: var(--s-1);
+  margin-left: auto;
+}
+
+.gara-mini {
+  min-height: 28px;
+  padding: 0 var(--s-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  font-size: var(--fs-sm, 13px);
+  color: var(--tx-2);
+  cursor: pointer;
+  transition: border-color var(--t-fast) var(--e-out), background-color var(--t-fast) var(--e-out), color var(--t-fast) var(--e-out);
+}
+.gara-mini:hover:not(:disabled) {
+  border-color: var(--line-hot);
+  background: var(--surface-3);
+  color: var(--tx);
+}
+.gara-mini:disabled { opacity: .45; cursor: default; }
+
+/* --- 行 ---------------------------------------------------------------- */
+.gara-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.gara-row {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: var(--s-2);
+  animation: gara-row-in 220ms var(--e-out) backwards;
+  animation-delay: min(calc(var(--i, 0) * 40ms), 400ms);
+}
+
+@keyframes gara-row-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* 押すと候補が開く本体。 */
+.gara-row-hit {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 40px;
+  padding: var(--s-1) var(--s-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-1);
+  color: var(--tx);
+  text-align: left;
+  font: inherit;
+  font-size: var(--fs-sm, 13px);
+  cursor: pointer;
+  transition: border-color var(--t-fast) var(--e-out), background-color var(--t-fast) var(--e-out);
+}
+.gara-row-hit:hover {
+  border-color: var(--line-hot);
+  background: var(--surface-2);
+}
+.gara-row-hit.is-open {
+  border-color: var(--gold-line);
+  background: var(--surface-2);
+}
+.gara-row.is-unsure .gara-row-hit {
+  border-color: rgba(217, 74, 68, .45);
+}
+
+.gara-row-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gara-row-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: var(--fs-xs, 12px);
+  color: var(--tx-2);
+}
+
+.gara-row-caret {
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: var(--tx-2);
+  transition: transform var(--t-fast) var(--e-out);
+}
+.gara-row-hit.is-open .gara-row-caret { transform: rotate(180deg); }
+
+/* ON / OFF。文字と色の両方で状態を示す（色だけに頼らない）。 */
+.gara-switch {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 var(--s-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--tx-2);
+  font-size: var(--fs-xs, 12px);
+  cursor: pointer;
+  transition: border-color var(--t-fast) var(--e-out), background-color var(--t-fast) var(--e-out), color var(--t-fast) var(--e-out);
+}
+.gara-switch:hover { border-color: var(--line-hot); color: var(--tx); }
+.gara-switch-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--line-hot);
+  transition: background-color var(--t-fast) var(--e-out);
+}
+.gara-switch.is-on {
+  border-color: var(--gold-line);
+  background: var(--gold-tint);
+  color: var(--gold-hi);
+}
+.gara-switch.is-on .gara-switch-dot { background: var(--gold); }
+.gara-switch-text {
+  min-width: 2ch;
+  text-align: center;
+  font-weight: 600;
+  letter-spacing: .04em;
+}
+
+/* --- 候補のポップオーバー ------------------------------------------------ */
+/* --- 候補のポップオーバー（固定座標・親の overflow に切られない） ---------- */
+.gara-pop {
+  position: fixed;
+  z-index: 10090;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-lg);
+  background: var(--surface-0);
+  box-shadow: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  animation: gara-pop-in 140ms var(--e-out);
+}
+
+@keyframes gara-pop-in {
+  from { opacity: 0; transform: translateY(-4px) scale(.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.gara-pop-head {
+  margin: 0;
+  font-size: var(--fs-xs, 12px);
+  font-weight: 600;
+  color: var(--tx-2);
+  letter-spacing: .04em;
+}
+
+.gara-pop-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.gara-pop-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 40px;
+  padding: var(--s-1) var(--s-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-1);
+  color: var(--tx);
+  text-align: left;
+  font: inherit;
+  font-size: var(--fs-sm, 13px);
+  cursor: pointer;
+  transition: border-color var(--t-fast) var(--e-out), background-color var(--t-fast) var(--e-out);
+}
+.gara-pop-item:hover {
+  border-color: var(--gold-line);
+  background: var(--surface-2);
+}
+.gara-pop-item.is-chosen {
+  border-color: var(--gold-line);
+  background: var(--gold-tint);
+}
+
+.gara-pop-name {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gara-pop-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  font-size: var(--fs-xs, 12px);
+  color: var(--tx-2);
+}
+
+.gara-pop-src,
+.gara-pop-src-inline {
+  font-size: var(--fs-xs, 12px);
+  color: var(--line-hot);
+}
+
+.gara-pop-empty {
+  margin: 0;
+  padding: var(--s-2) 0;
+  font-size: var(--fs-sm, 13px);
+  line-height: 1.6;
+  color: var(--tx-2);
+}
+
+.gara-pop-foot {
+  display: flex;
+  gap: var(--s-1);
+}
+
+.gara-pop-hint {
+  margin: 0;
+  font-size: var(--fs-xs, 12px);
+  color: var(--line-hot);
+}
+
+.gara-pick-dot { color: var(--line-hot); }
+
+/* --- 購入履歴 ----------------------------------------------------------- */
+.gara-scen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.gara-scen-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.gara-scen-name {
+  font-size: var(--fs-xs, 12px);
+  color: var(--tx-2);
+}
+
+/* --- 実行 --------------------------------------------------------------- */
+.gara-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line);
+}
+
+.gara-foot-meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  font-size: var(--fs-sm, 13px);
+  color: var(--tx-2);
+}
+
+.gara-foot-warn {
+  font-size: var(--fs-sm, 13px);
+  color: var(--err-ink);
+}
+
+.gara-foot-acts {
+  display: flex;
+  gap: var(--s-2);
+  margin-left: auto;
+}
+
+/* 320px まで縦積みを崩さない。 */
+@media (max-width: 420px) {
+  .gara-row { flex-wrap: wrap; }
+  .gara-row-hit { flex: 1 1 100%; }
+  .gara-switch { min-height: 34px; }
+  .gara-pop { width: 100%; }
+}
+
+
+/* アカウント編集カードの硝子窓取り込み導線。
+   アイコンの行と同じ形（ラベル + 動作）に合わせる。 */
+.acct-gara-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  padding: var(--s-2) 0;
+  border-top: 1px solid var(--line);
+}
+.acct-gara-row .acct-icon-row-label { flex: 0 0 auto; }
+
+.acct-gara-body {
+  padding: var(--s-2) 0 var(--s-1);
+}
+
+/* ------------------------------------------------------------
+   topbar の残高チップ。どの画面でも見える必要があるため
+   .topbar-actions の外側（.topbar の直接子）に置く。
+   ------------------------------------------------------------ */
+.topbar-balance {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  flex: 0 0 auto;
+  padding: 5px var(--s-3);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  color: var(--tx);
+  font-family: var(--f-display);
+  font-size: var(--fs-11);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast);
+}
+.topbar-balance:hover { background: var(--surface-3); border-color: var(--gold-line); }
+.topbar-balance:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.topbar-balance-item { display: inline-flex; align-items: baseline; gap: 3px; }
+.topbar-balance-num { font-variant-numeric: tabular-nums; font-weight: 700; }
+.topbar-balance-unit { font-size: var(--fs-9); color: var(--tx-2); letter-spacing: 0.08em; }
+.topbar-balance-sep { color: var(--tx-2); }
+
+/* リザルトタブでは中身を持たないため、見出しの下罫線を持たない。 */
+.record-tabbar.is-bodyless .card-header { border-bottom-color: transparent; }
+
+/* 幅が足りないときは brand の副題が先に畳まれ、残高は残るようにする。 */
+@media (max-width: 640px) {
+  .topbar-balance { padding: 4px var(--s-2); font-size: var(--fs-10); gap: var(--s-1); }
+  .topbar-balance-unit { font-size: var(--fs-9); }
+}
+
 }
