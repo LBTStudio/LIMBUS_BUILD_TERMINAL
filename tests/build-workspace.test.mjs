@@ -312,21 +312,26 @@ test("ショップは未所持のみを既定で出し、導入は購入とし�
   assert.match(shop, /className: "shop-grid"/);
 });
 
-test("人格の獲得は core 3章 P19-20 の3分岐で値段が変わる", () => {
+test("人格の獲得は core 3章 P19-20 の2種類だけ（30LP支給を人格価格にしない）", () => {
   const prov = read("../js/ledger-provenance.js");
-  /* キャラ作成時は 30LP 支給（core:344）。所持状態では変わらない。 */
-  assert.match(prov, /personaCreation: \{ lp: 30[\s\S]{0,80}?キャラ作成時30LP支給/);
-  assert.match(prov, /if \(provenance === "creation"\) return \{ \.\.\.CORE_RULES\.personaCreation \};/);
-  /* 抽出: 未所持無料 / 所持100LP（core:338/348）。購入: 未所持20LP / 所持200LP（core:355/359）。 */
-  assert.match(prov, /personaGacha: \{ lp: 100[\s\S]{0,80}?人格抽出/);
-  assert.match(prov, /personaPurchase: \{ lp: 200[\s\S]{0,80}?人格購入/);
-  assert.match(prov, /personaPurchaseFirst: \{ lp: 20[\s\S]{0,80}?人格購入（未所持時）/);
-  assert.match(prov, /personaGachaFirst: \{ lp: 0[\s\S]{0,80}?人格抽出（未所持時）/);
-  /* UI は人格だけ3択。E.G.O 等は2択のまま。 */
-  assert.match(sections, /\[\["creation", "初期作成"\], \["gacha", "ランダム"\], \["purchase", "指定購入"\]\]/);
-  assert.match(sections, /\[\["purchase", "指定購入"\], \["gacha", "抽出"\]\]/);
-  /* ボタン文言も分岐に合わせる（「購入」固定は抽出・作成時に嘘になる）。 */
-  assert.match(sections, /how === "gacha" \? "抽出する" : how === "creation" \? "初期作成で指定" : "購入"/);
+  const acqKinds = sections.slice(sections.indexOf("const ACQUIRE_KINDS = ["), sections.indexOf("function resolveAcquireCost"));
+  /* core:336「人格を入手する方法は2種類あります『抽出』と『購入』です」 */
+  assert.match(prov, /抽出: 未所持なら無料 \/ 1つでも所持なら 100LP/);
+  assert.match(prov, /購入: 未所持なら 20LP  \/ 1つでも所持なら 200LP/);
+  assert.match(prov, /personaGacha: \{ lp: 100/);
+  assert.match(prov, /personaPurchase: \{ lp: 200/);
+  assert.match(prov, /personaPurchaseFirst: \{ lp: 20/);
+  assert.match(prov, /personaGachaFirst: \{ lp: 0/);
+  /* 「キャラ作成時に30LPが支給」は初期資金であって人格の価格ではない。
+     3種類目の creation 分岐を作ると、所持0個ではありえない状態を想定してしまう。 */
+  assert.doesNotMatch(prov, /personaCreation/);
+  assert.doesNotMatch(prov, /provenance === "creation"/);
+  /* UI も2択。3択にしない。 */
+  assert.doesNotMatch(sections, /\["creation", "初期作成"\]/);
+  assert.match(sections, /\[\["purchase", "指定購入"\], \["gacha", "ランダム"\]\]/);
+  assert.match(acqKinds, /\{ id: "persona", label: "人格", supports: true \}/);
+  /* ボタン文言は方法に合わせる（「購入」固定は抽出時に嘘になる）。 */
+  assert.match(sections, /how === "gacha" \? "抽出する" : "購入"/);
 });
 
 test("人格の獲得費用は必ず window  через解決する（未定義だと全部『無料』になる）", () => {
@@ -590,11 +595,11 @@ test("削除は Undo/Redo が効く即時削除で、ごみ箱は置かない", 
 test("取得は種別と方法から金額を自動計算し、直近リザルトへ記録する", () => {
   /* 金額は DB 価格、無ければ core ルールの抽出/購入価格。 */
   assert.match(sections, /function resolveAcquireCost\(kind, how, context\)/);
-  assert.match(sections, /window\.LBT_acquireCost\?\.\(kind, how === "purchase" \? "purchase" : how === "creation" \? "creation" : "gachaPaid", context\)/);
+  assert.match(sections, /window\.LBT_acquireCost\?\.\(kind, how === "purchase" \? "purchase" : "gachaPaid", context\)/);
   assert.match(sections, /window\.LBT_provenance\?\.priceOf/);
   /* 純粋な種別 → 抽出/購入の二択を出すのは人格とE.G.Oだけ。 */
   const acq = sections.slice(sections.indexOf("const ACQUIRE_KINDS = ["), sections.indexOf("function resolveAcquireCost"));
-  assert.match(acq, /\{ id: "persona", label: "人格", supports: true, threeWay: true \}/);
+  assert.match(acq, /\{ id: "persona", label: "人格", supports: true \}/);
   assert.match(acq, /\{ id: "ego", label: "E\.G\.O", supports: true \}/);
   assert.match(acq, /\{ id: "support", label: "サポート", supports: false \}/);
   /* 明細は直近リザルトへ倒す（実装は state.js 側）。表示側で state を

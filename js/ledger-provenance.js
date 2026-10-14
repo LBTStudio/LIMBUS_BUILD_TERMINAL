@@ -124,30 +124,28 @@
     return { ...manifest, groups };
   }
 
-  /* core 3章「人格を入手する」P19-20 の全文に对齐した価格。
-     - キャラ作成時 30LP 支給（core:344「PCにはキャラ作成時に30LPが支給されます」）
-     - 人格抽出: 未所持なら無料 / 1つでも所持なら 100LP（core:338/348）
-     - 人格購入: 未所持なら 20LP  / 1つでも所持なら 200LP（core:355/359）
-     - 同種人格の複数保有は不可（core:361）・既持人格の購入は不可（core:359）。
-     ランダム取得（抽出）と指定取得（購入）は別の价钱で、抽出のほうが安い。 */
+  /* core 3章「3. 人格を入手する」P19-20 の価格。
+     入手方法は2種類だけ（core:336「人格を入手する方法は2種類あります。『抽出』と『購入』です」）。
+       人格抽出: 未所持なら無料 / 1つでも所持なら 100LP（core:338/348）
+       人格購入: 未所持なら 20LP  / 1つでも所持なら 200LP（core:355/359）
+     制約: 同種人格の複数保有は不可（core:361）/ 既持人格の購入は不可（core:359）。
+     注意: 「キャラ作成時に30LPが支給」（core:344）は初期資金であって人格の価格ではない。
+     PCは始めから人格を持っておらず（core:335「必ず1つ以上の人格を保有」になるまで）、
+     最初の1個は「未所持」の値段 免费/20LP で扱う。支給額的价格はここに入れない。 */
   const CORE_RULES = {
-    personaGacha: { lp: 100, shards: 0, source: "core:338/348 人格抽出（所持時）", freeWhenFirst: true },
-    personaPurchase: { lp: 200, shards: 0, source: "core:355/359 人格購入（所持時）", freeWhenFirst: true },
-    personaPurchaseFirst: { lp: 20, shards: 0, source: "core:359 人格購入（未所持時）", freeWhenFirst: false },
-    personaGachaFirst: { lp: 0, shards: 0, source: "core:338 人格抽出（未所持時）", freeWhenFirst: false },
-    /* キャラ作成時的人格指定は 30LP 支給から支払う。所持状態では変わらない。 */
-    personaCreation: { lp: 30, shards: 0, source: "core:344 キャラ作成時30LP支給", freeWhenFirst: false },
+    personaGacha: { lp: 100, shards: 0, source: "core:338/348 人格抽出（所持時）" },
+    personaPurchase: { lp: 200, shards: 0, source: "core:355/359 人格購入（所持時）" },
+    personaPurchaseFirst: { lp: 20, shards: 0, source: "core:359 人格購入（未所持時）" },
+    personaGachaFirst: { lp: 0, shards: 0, source: "core:338 人格抽出（未所持時）" },
     egoGacha: { lp: 0, shards: 100, source: "core:9501-9503 E.G.O抽出" }
   };
 
   /* 保持状况が価格を変える。人格は「既に1つでも持っていれば」 wikipedia FEEが跳ね上がる。
-     personaCreation（キャラ作成時）は 30LP 支給なので所持状態に依存しない。 */
+     入手方法は抽出/購入の2種類のみ（core:336）。所持0個=未所持是第一個の状態。 */
   function acquireCost(kind, provenance, context) {
     const ctx = context || {};
     const ownsOne = ctx.ownsPersona === undefined ? true : Boolean(ctx.ownsPersona);
     if (kind === "persona") {
-      /* キャラ作成時の人格指定。30LP 支給から支払うので所持状態で変わらない。 */
-      if (provenance === "creation") return { ...CORE_RULES.personaCreation };
       if (provenance === "gachaPaid" || provenance === "gachaTicket") {
         return ownsOne ? { ...CORE_RULES.personaGacha } : { ...CORE_RULES.personaGachaFirst };
       }

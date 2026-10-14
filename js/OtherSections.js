@@ -1722,8 +1722,8 @@ if (typeof window !== "undefined") window.LBT_BUILD_TABS = BUILD_TABS;
    精神/強化）は DB 価格、价格的の無い人格・E.G.O は抽出/購入の core ルールで
    金額を出す。どちらでも明細は appendLedgerEntry が直近リザルトへ倒す（無ければ未分類）。 */
 const ACQUIRE_KINDS = [
-  /* 人格だけは3分岐（core 3章 P19-20）。他は指定購入/抽出のみ。 */
-  { id: "persona", label: "人格", supports: true, threeWay: true },
+  /* 入手方法は抽出/購入の2種類（core:336）。 */
+  { id: "persona", label: "人格", supports: true },
   { id: "ego", label: "E.G.O", supports: true },
   { id: "support", label: "サポート", supports: false },
   { id: "deathSupport", label: "死亡後", supports: false },
@@ -1746,12 +1746,10 @@ function resolveAcquireCost(kind, how, context) {
   /* E.G.O購入は各E.G.O番号横の欠片数を消費する（core:9509-9512）。
      core ルールの抽出，建筑式ここしかないため、指定購入は DB 価格を使う。
      間違えると「無料」になり原典に反する。 */
-  /* 3分岐。core 3章 P19-20:
-       creation = キャラ作成時の人格指定（30LP支給から。所持状態に依存しない）
-       gacha    = ランダムで1つ（未所持無料 / 所持100LP）
-       purchase = 任意で1つ確定（未所持20LP / 所持200LP） */
+  /* 入手方法は2種類だけ（core:336）。
+     30LPはキャラ作成時の支給額であって人格の価格ではないので、ここでは扱わない。 */
   if (kind === "persona" || (kind === "ego" && how !== "purchase")) {
-    const rule = window.LBT_acquireCost?.(kind, how === "purchase" ? "purchase" : how === "creation" ? "creation" : "gachaPaid", context);
+    const rule = window.LBT_acquireCost?.(kind, how === "purchase" ? "purchase" : "gachaPaid", context);
     if (!rule || !(rule.lp || rule.shards)) return { lp: 0, shards: 0, label: "無料", source: rule?.source || "" };
     return { ...rule, label: formatAcquireCost(rule.lp, rule.shards) };
   }
@@ -1785,17 +1783,12 @@ const AcquireBar = ({ state, kind, name, how, setHow, onAcquire, disabled, disab
     h("div", { className: "acquire-how" },
       spec.supports
         ? h("div", { className: "segmented", role: "radiogroup", "aria-label": `${spec.label}の取得方法` },
-          /* 3分岐。core 3章 P19-20「人格を入手する方法は2種類」に加え、
-             キャラ作成時の30LP支給からの人格指定を明示する。 */
-          (kind === "persona"
-            ? [["creation", "初期作成"], ["gacha", "ランダム"], ["purchase", "指定購入"]]
-            : [["purchase", "指定購入"], ["gacha", "抽出"]]
-          ).map(([value, label]) => h("button", { key: value, type: "button", role: "radio", "aria-checked": how === value, className: how === value ? "is-active" : "", onClick: () => setHow(value) }, label)))
+          /* 2択。core:336「人格を入手する方法は2種類あります『抽出』と『購入』です」。 */
+          [["purchase", "指定購入"], ["gacha", "ランダム"]].map(([value, label]) => h("button", { key: value, type: "button", role: "radio", "aria-checked": how === value, className: how === value ? "is-active" : "", onClick: () => setHow(value) }, label)))
         : h("span", { className: "acquire-how-placeholder", "aria-hidden": "true" })),
     h("span", { className: "acquire-cost" }, cost.label || "無料"),
-    /* 支配の method で名前は変わる。「購入」固定だと抽出・作成時に嘘になる。 */
     h(Button, { size: "sm", variant: "primary", icon: "plus", disabled, onClick: onAcquire, title: disabledReason || undefined },
-      how === "gacha" ? "抽出する" : how === "creation" ? "初期作成で指定" : "購入")
+      how === "gacha" ? "抽出する" : "購入")
   );
 };
 
