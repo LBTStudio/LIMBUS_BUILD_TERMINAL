@@ -2733,6 +2733,49 @@ const LedgerPanel = ({ state, dispatch }) => {
 const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   /* リザルト単位の操作メニューと、硝子窓へ変換した結果。 */
   const [exportFor, setExportFor] = React.useState(null);
+  /* 抽籤権利は卓で報酬として受け取るので、リザルトの収入に種別別に積む。
+     どのリザルト 대상으로記録するかを選んでから種別と枚数を決める。 */
+  const [ticketPanel, setTicketPanel] = React.useState(null);
+  const packs = window.LBT_gachaDraw?.themePacks?.() || [];
+  const ticketLabel = (kind, pack) => (window.LBT_ticketLabel ? window.LBT_ticketLabel(kind, pack) : (window.LBT_TICKET_KIND_LABEL?.[kind] || "抽籤権利"));
+  /* このリザルトの収入に入っている抽籤権利（消費前の受領数）。 */
+  const resultTicketChips = (result) => {
+    const inc = result.income?.tickets || {};
+    const rows = ["persona", "ego", "choice"]
+      .filter((kind) => Number(inc[kind]) > 0)
+      .map((kind) => ({ key: kind, kind, pack: null, count: Number(inc[kind]) }));
+    for (const [pack, count] of Object.entries(inc.pack || {})) {
+      if (Number(count) > 0) rows.push({ key: `pack:${pack}`, kind: "pack", pack, count: Number(count) });
+    }
+    return rows.map((r) => ({ ...r, label: ticketLabel(r.kind, r.pack) }));
+  };
+  const TicketIncomePanel = () => {
+    const target = (state.results || []).find((r) => r.id === ticketPanel);
+    if (!target) return null;
+    const close = () => setTicketPanel(null);
+    return h("div", { className: "gacha-tickets-panel stack-3", role: "dialog", "aria-label": "抽籤権利の記録" },
+      h("p", { className: "ledger-note" },
+        `「${target.name}」で受け取った抽籤権利を記録します。卓の報酬として収入に置かれ、残数は収入 − 使用履歴で計算されます。`),
+      ...["persona", "ego", "choice"].map((kind) => h("div", { key: kind, className: "ledger-result-ticket-row" },
+        h("span", { className: "ledger-note" }, ticketLabel(kind)),
+        h("input", {
+          className: "input", type: "number", min: "0", style: { width: 90 },
+          value: String(Number(target.income?.tickets?.[kind]) || 0),
+          "aria-label": `${ticketLabel(kind)} の枚数`,
+          onChange: (e) => dispatch({ type: "GRANT_TICKET", kind, pack: null, count: (Number(e.target.value) || 0) - (Number(target.income?.tickets?.[kind]) || 0), resultId: target.id })
+        }))),
+      packs.length > 0 && h("div", { className: "ledger-result-ticket-pack" },
+        h("span", { className: "t-label" }, "特定抽出パック"),
+        packs.map((p) => h("div", { key: p.name, className: "ledger-result-ticket-row" },
+          h("span", { className: "ledger-note" }, ticketLabel("pack", p.name)),
+          h("input", {
+            className: "input", type: "number", min: "0", style: { width: 90 },
+            value: String(Number(target.income?.tickets?.pack?.[p.name]) || 0),
+            "aria-label": `${ticketLabel("pack", p.name)} の枚数`,
+            onChange: (e) => dispatch({ type: "GRANT_TICKET", kind: "pack", pack: p.name, count: (Number(e.target.value) || 0) - (Number(target.income?.tickets?.pack?.[p.name]) || 0), resultId: target.id })
+          })))),
+      h("div", { className: "shop-toolbar-main" }, h(Button, { size: "sm", variant: "primary", onClick: close }, "閉じる")));
+  };
   /* 硝子窓からの取り込み（入力方向）。出力方向は撤去した。 */
   const [importPanel, setImportPanel] = React.useState(false);
   const [importNote, setImportNote] = React.useState(null);
@@ -3046,6 +3089,7 @@ const importHeldPersonas = () => {
       )
     ),
 
+    ticketPanel && h(TicketIncomePanel, {}),
     importPanel && h("div", { className: "ledger-gara-wrap" },
     h("div", { className: "card-header owned-library-bar" },
     h("span", { className: "t-label" }, "硝子窓から取り込む"),
@@ -3308,6 +3352,12 @@ h(Card, { className: "ledger-card" },
     type: "button",
     className: "ledger-card-menu-item",
     role: "menuitem",
+    onClick: () => { setExportFor(null); setTicketPanel(result.id); }
+    }, "抽籤権利を記録"),
+    h("button", {
+    type: "button",
+    className: "ledger-card-menu-item",
+    role: "menuitem",
     onClick: () => { setExportFor(null); setImportPanel(true); }
     }, "硝子窓から取り込む"),
     h("button", {
@@ -3326,6 +3376,9 @@ h(Card, { className: "ledger-card" },
               h("span", { className: "ledger-card-spent" },
                 `支出 LP ${spent.lp.toLocaleString("ja-JP")} / 欠片 ${spent.shards.toLocaleString("ja-JP")}`)
             ),
+            resultTicketChips(result).length > 0 && h("div", { className: "ledger-card-tickets" },
+              h("span", { className: "t-label" }, "抽籤権利"),
+              resultTicketChips(result).map((t) => h("span", { key: t.key, className: "gacha-held-ticket" }, `${t.label} ×${t.count}`))),
             rows.length === 0
               ? h("p", { className: "ledger-empty-note" }, "未分類の明細をここへドラッグするか、移動ボタンで歸属します。")
               : h("div", { className: "stack-2" }, rows.map((entry) => h("div", { key: entry.id, className: "ledger-row is-owned", ...dragProps(entry) },

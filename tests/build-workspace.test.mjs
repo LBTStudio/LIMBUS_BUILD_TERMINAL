@@ -327,6 +327,23 @@ test("特異人格は指定購入できない（core P203 に購入が無い）"
   assert.match(codex, /!isOwned && onQuickAcquire && !purchaseBlocked/);
 });
 
+test("抽籤権利はリザルトの画面から種別別に記録できる", () => {
+  /* データモデルがあっても記録する口が無いと意味が無い。
+     リザルトカードのメニューから種別ごとの入力で収入へ足す。 */
+  assert.match(sections, /role: "menuitem",\s*onClick: \(\) => \{ setExportFor\(null\); setTicketPanel\(result\.id\); \}/);
+  assert.match(sections, /\}, "抽籤権利を記録"\)/);
+  assert.match(sections, /const \[ticketPanel, setTicketPanel\] = React\.useState\(null\);/);
+  assert.match(sections, /const resultTicketChips = \(result\) => \{/);
+  assert.match(sections, /ticketPanel && h\(TicketIncomePanel, \{\}\)/);
+  /* 種別3種は固定、パックは全17件。入力は収入との差分を GRANT_TICKET で返す。 */
+  assert.match(sections, /\["persona", "ego", "choice"\]\.map\(\(kind\) => h\("div"/);
+  assert.match(sections, /packs\.map\(\(p\) => h\("div", \{ key: p\.name/);
+  assert.match(sections, /dispatch\(\{ type: "GRANT_TICKET", kind, pack: null, count: \(Number\(e\.target\.value\) \|\| 0\) - \(Number\(target\.income\?\.tickets\?\.\[kind\]\) \|\| 0\), resultId: target\.id \}\)/);
+  assert.match(sections, /dispatch\(\{ type: "GRANT_TICKET", kind: "pack", pack: p\.name,/);
+  /* カードには受領した枚数が的实施で出る。 */
+  assert.match(sections, /resultTicketChips\(result\)\.length > 0 && h\("div", \{ className: "ledger-card-tickets"/);
+});
+
 test("抽籤権利はリザルト収入で管理し、ショップのガチャタブで扱う（ローカルルール）", () => {
 /* 4分類。抽籤権利は卓で報酬として受け渡されるため、リザルトの収入に積む。 */
      assert.match(reducer, /const TICKET_KINDS = \["persona", "ego", "choice", "pack"\];/);

@@ -1056,3 +1056,29 @@ label:has(> input[type="checkbox"]) {
   white-space: nowrap;
 }
 
+/* --- リザルト別の抽籤権利 -------------------------------------------------
+   卓の報酬なのでリザルトの収入に載る。カードには受領した分を、
+   メニューからは種別ごとの入力で足す。 */
+.ledger-card-tickets {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.ledger-result-ticket-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-1) 0;
+}
+.ledger-result-ticket-pack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  max-block-size: 260px;
+  overflow-y: auto;
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--line-dim);
+}
+
