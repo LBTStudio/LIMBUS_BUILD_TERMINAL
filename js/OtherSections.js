@@ -1934,12 +1934,22 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
       toast("特異人格チャンス！ 最大値を出したので特異人格抽出に移ります");
       return;
     }
-    toast(`${hit.name} を抽出しました（${out.paidBy === "ticket" ? (labels[ticketKind] || "チケット") : out.cost.label}）`);
+    toast(`${hit.name} を抽出しました（${out.paidBy === "ticket" ? ticketLabel(ticketKind, ticketPack) : out.cost.label}）`);
   };
+
+  const ticketLabel = (kind, pack) => (window.LBT_ticketLabel ? window.LBT_ticketLabel(kind, pack) : (labels[kind] || "チケット"));
+  /* 所持している抽出権利の一覧。パック別は 1 パック 1 行で、残り数が分かる。 */
+  const heldTickets = (Array.isArray(state.tickets) ? state.tickets : [])
+    .filter((t) => Number(t.count) > 0)
+    .map((t) => ({ ...t, label: ticketLabel(t.kind, t.pack) }));
 
   return h("div", { className: "gacha-tickets-panel stack-3" },
     h("p", { className: "ledger-note" },
       "抽出全般。ルートごとに通貨で払うか抽出チケットを使うかを選べます。所得は直近のリザルトに帰属します。"),
+    heldTickets.length > 0 && h("div", { className: "gacha-held-tickets" },
+      h("span", { className: "t-label" }, "所持の抽出権利"),
+      heldTickets.map((t) => h("span", { key: `${t.kind}:${t.pack || ""}`, className: "gacha-held-ticket" },
+        `${t.label} ×${Number(t.count) || 0}`))),
     h("div", { className: "segmented", role: "radiogroup", "aria-label": "抽出の方法" },
       ROUTES.map((r) => h("button", {
         key: r.id, type: "button", role: "radio", "aria-checked": route === r.id,
@@ -1953,7 +1963,7 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
         onChange: (e) => { setPackName(e.target.value); setLast(null); }
       }, packs.map((p) => h("option", { key: p.name, value: p.name }, `${p.name}（1d${p.die}・LP ${p.lp}）`)))),
     h("div", { className: "segmented", role: "radiogroup", "aria-label": "支払い方法" },
-      [["paid", "通貨で払う"], ["ticket", `${labels[ticketKind] || "チケット"} ×${held}`]].map(([v, label]) => h("button", {
+      [["paid", "通貨で払う"], ["ticket", `${ticketLabel(ticketKind, ticketPack)} ×${held}`]].map(([v, label]) => h("button", {
         key: v, type: "button", role: "radio", "aria-checked": pay === v,
         className: pay === v ? "is-active" : "", onClick: () => { setPay(v); setLast(null); }
       }, label))),

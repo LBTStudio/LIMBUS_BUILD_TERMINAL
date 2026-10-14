@@ -14,18 +14,31 @@ function personaKeywordEvidence(persona) {
     ])
   ].filter(Boolean).join("\n");
 }
-/* 抽出権利の分類。_localルール_（ルールブックには無いが卓で配られる）。
+/* キャラ作成時の支給額。core 3章 P19-20「PCにはキャラ作成時に30LPが支給」
+   （core:344）。人格出家/購入の値段ではなく初期資金で、「初期作成」リザルトの
+   収入として計上する。 */
+const INITIAL_LP = 30;
+window.LBT_INITIAL_LP = INITIAL_LP;
+/* 抽出権利の分類。ローカルルール（ルールブックには無いが卓で配られる）。
    kind=persona 人格抽出チケット … 人格からランダム1つ
    kind=ego     E.G.O抽出チケット … E.G.Oからランダム1つ
    kind=choice  選択抽出チケット … 人格かE.G.Oのどちらかを選んでランダム1つ
    kind=pack    特定抽出パック … そのパックの中からランダム1つ（pack にパック名） */
 const TICKET_KINDS = ["persona", "ego", "choice", "pack"];
 const TICKET_KIND_LABEL = {
-  persona: "人格抽出チケット",
-  ego: "E.G.O抽出チケット",
-  choice: "選択抽出チケット",
-  pack: "特定抽出パック"
-};
+    persona: "人格抽出チケット",
+    ego: "E.G.O抽出チケット",
+    choice: "選択抽出チケット",
+    pack: "特定抽出パック"
+  };
+  /* パック別チケットは「〈パック名〉抽出チケット」と表記する。卓で配られる時に
+     「このパックなら引ける」という名前で渡されることが多いので、
+     パックの識別がそのまま立つようにする。 */
+  window.LBT_ticketLabel = function (kind, pack) {
+    const base = TICKET_KIND_LABEL[kind] || "抽出チケット";
+    if (kind !== "pack") return base;
+    return pack ? `〈${pack}〉抽出チケット` : "特定抽出パック";
+  };
 function inferPersonaKeywords(persona, secondaryPassive) {
   const evidence = [personaKeywordEvidence(persona), secondaryPassive?.always, secondaryPassive?.effect].filter(Boolean).join("\n");
   const existing = Array.isArray(persona?.keywords) ? persona.keywords.filter(Boolean) : [];
@@ -1095,6 +1108,22 @@ function normalizeStateShape(raw) {
     income: normalizeCurrency(result.income),
     note: String(result.note || "")
   }));
+  /* キャラ作成直後の所得は「初期作成」リザルトにまとめる。
+     core 3章 P19-20「PCにはキャラ作成時に30LPが支給」（core:344）なので、
+     その30LPをこのリザルトの収入に置き、最初に選んだ人格などの支出も
+     ここに帰属させる（直近リザルトは結果が1件だけなので自然にここへ落ちる）。
+     既にリザルトのあるアカウントには足さない。最初の獲得を既に別のリザルトで
+     記録している場合、ここで30LPを二重に数えることになるため。 */
+  if (!next.results.length) {
+    next.results = [{
+      id: "res-initial",
+      name: "初期作成",
+      date: String(new Date().toISOString().slice(0, 10)),
+      income: { lp: INITIAL_LP, shards: 0 },
+      note: "キャラ作成時の支給（core:344）。この直後の獲得はここに帰属します。",
+      createdAt: Date.now()
+    }];
+  }
   const knownResultIds = new Set(next.results.map((r) => r.id));
   next.entries = next.entries.map((entry) => ({
     ...entry,

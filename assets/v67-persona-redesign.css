@@ -1037,3 +1037,22 @@ label:has(> input[type="checkbox"]) {
   flex-wrap: wrap;
 }
 
+/* 所持の抽出権利。パック別チケットは 1 パック 1 チップで、残り数が読める。 */
+.gacha-held-tickets {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-sm);
+  background: var(--surface-1);
+}
+.gacha-held-ticket {
+  padding: 2px var(--s-2);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-sm);
+  color: var(--text-strong);
+  white-space: nowrap;
+}
+

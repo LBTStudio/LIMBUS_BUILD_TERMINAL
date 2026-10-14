@@ -78,3 +78,35 @@ test("tickets が無い旧セーブは空配列になる", () => {
   const next = context.window.LBT_normalizeStateShape(legacy);
   assert.deepEqual([...next.tickets], []);
 });
+
+test("パック別チケットは『〈パック名〉抽出チケット』と表記される", () => {
+  const label = context.window.LBT_ticketLabel;
+  assert.equal(label("persona"), "人格抽出チケット");
+  assert.equal(label("ego"), "E.G.O抽出チケット");
+  /* 卓では「そのパックなら引ける」という名前で配られることが多い。 */
+  assert.equal(label("pack", "肉斬骨断"), "〈肉斬骨断〉抽出チケット");
+  assert.equal(label("pack", null), "特定抽出パック", "パック未指定なら総称");
+});
+
+test("リザルトが空なら『初期作成』を作り、キャラ作成時の30LPを収入に置く", () => {
+  const fresh = { ...base, results: [], entries: [] };
+  const next = context.window.LBT_normalizeStateShape(fresh);
+  assert.equal(next.results.length, 1, "初期作成が1件できる");
+  const initial = next.results[0];
+  assert.equal(initial.name, "初期作成");
+  assert.equal(initial.income.lp, 30, "core:344 キャラ作成時30LP");
+  assert.equal(initial.income.shards, 0);
+  /* 最初に選んだ人格などの支出は、この1件しかないためここに帰属する。 */
+  assert.equal(context.window.LBT_latestResultId(next), initial.id);
+});
+
+test("既にリザルトのあるアカウントには初期作成を足さない（二重計上を避ける）", () => {
+  const played = {
+    ...base,
+    results: [{ id: "res-1", name: "第一夜", income: { lp: "500", shards: "500" } }],
+    entries: []
+  };
+  const next = context.window.LBT_normalizeStateShape(played);
+  assert.equal(next.results.length, 1, "増えない");
+  assert.equal(next.results[0].name, "第一夜");
+});
