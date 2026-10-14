@@ -3097,6 +3097,71 @@ if (nextValue && !action.preview && !rosterEgos.some((entry) => entry.rank === a
       return dropLedgerEntriesForRef(next, { kind: "rosterSpirit", uid: action.uid });
     }
     /* ---- 通帳（リザルトと収支明細）---- 残高は保存しない。収入合計から支出合計を引くだけなので、歸属を直せばリザルトごとに収支が説明できる。 */
+    /* 複数まとめての所持追加。一括抽取のように同じ手つきで何件も入る操作で
+       は、1回ごとに dispatch すると前の更新が次の書き込みで上書きされる。
+       まとめて1つの action としてphal 同じ state に対して積む。 */
+    case "ADD_ROSTER_MANY": {
+      const adds = Array.isArray(action.adds) ? action.adds : [];
+      if (!adds.length) return state;
+      const personas = [...(state.roster.personas || [])];
+      const egos = [...(state.roster.egos || [])];
+      const known = new Set(personas.map((p) => `${p.mode}:${p.no}`));
+      const knownEgo = new Set(egos.map((e) => `${e.rank}:${e.no}`));
+      const spent = normalizeCurrency(action.cost);
+      const startedAt = Date.now();
+      let next = state;
+      let n = 0;
+      for (const add of adds) {
+        if (add?.type === "ego") {
+          if (knownEgo.has(`${add.rank}:${add.no}`)) continue;
+          knownEgo.add(`${add.rank}:${add.no}`);
+          egos.push({ uid: `er-${startedAt}-${n}`, no: add.no, rank: add.rank, analyzed: false, analyzeMax: false, notes: "", build: null });
+          next = appendLedgerEntry(next, {
+            kind: "ego",
+            name: `${add.rank} No.${add.no}`,
+            cost: priceEgo(add.rank, add.no),
+            resultId: action.resultId,
+            ref: { kind: "rosterEgo", uid: `er-${startedAt}-${n}` }
+          });
+        } else if (add?.type === "persona") {
+          if (known.has(`${add.mode}:${add.no}`)) continue;
+          known.add(`${add.mode}:${add.no}`);
+          const uid = `pr-${startedAt}-${n}`;
+          personas.push({ uid, no: add.no, mode: add.mode, equipped: false, syncRank: null, syncMax: false, notes: "" });
+          const persona = (add.mode === "t" ? window.DB?.tokui_personas : window.DB?.normal_personas || []).find((p) => String(p.no) === String(add.no));
+          next = appendLedgerEntry(next, {
+            kind: "persona",
+            name: persona?.name || `人格 ${String(add.mode).toUpperCase()} No.${add.no}`,
+            cost: spent,
+            resultId: action.resultId,
+            ref: { kind: "rosterPersona", uid }
+          });
+        }
+        n += 1;
+      }
+      return { ...next, roster: { ...next.roster, personas, egos } };
+    }
+    /* 既存リザルトの登録情報の書き換え。収入を差し替えるので、
+       抽籤権利の残数はここから読み直す（明細側は変えない）。 */
+    case "UPDATE_RESULT": {
+      const id = action.id;
+      const now = Date.now();
+      let hit = false;
+      const results = (state.results || []).map((r) => {
+        if (r.id !== id) return r;
+        hit = true;
+        return {
+          ...r,
+          name: action.name === undefined ? r.name : String(action.name).slice(0, 80),
+          date: action.date === undefined ? r.date : String(action.date).slice(0, 10),
+          income: action.income === undefined
+            ? r.income
+            : { ...normalizeCurrency(action.income), tickets: normalizeTickets(action.income?.tickets) },
+          updatedAt: now
+        };
+      });
+      return hit ? { ...state, results } : state;
+    }
     case "ADD_RESULT": {
       const now = Date.now();
       return {

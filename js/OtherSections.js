@@ -1898,6 +1898,7 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
   const [pay, setPay] = React.useState("paid");
   const [packName, setPackName] = React.useState("");
   const [last, setLast] = React.useState(null);
+  const [times, setTimes] = React.useState(1);
   const ROUTES = G?.ROUTES || [];
   const packs = G?.themePacks?.() || [];
   const spec = ROUTES.find((r) => r.id === route);
@@ -1917,29 +1918,27 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
   const labels = window.LBT_TICKET_KIND_LABEL || {};
 
   const run = () => {
-    const out = G?.draw(route, state, { pay, pack: activePack });
-    if (!out || !out.hit) {
+    const out = G?.drawN(route, state, { pay, pack: activePack, times });
+    if (!out || !out.hits.length) {
       const why = out?.reason === "no-ticket" ? "対応するチケットを持っていません" : "抽選できる対象がありません";
       toast(why);
       return;
     }
-    const hit = out.hit;
-    /* A ticket is income on a result; spending it writes an entry. Remaining = income - spent, so each draw with a ticket adds one entry. */
+    const hits = out.hits;
     if (out.paidBy === "ticket") {
-      dispatch({ type: "SPEND_TICKET", kind: out.ticketKind, pack: out.ticketPack, ref: { kind: "gacha", no: hit.no } });
+      dispatch({ type: "SPEND_TICKET", kind: out.ticketKind, pack: out.ticketPack, count: -hits.length });
     }
-    if (hit.type === "ego") {
-      dispatch({ type: "ADD_ROSTER_EGO", no: hit.no, rank: hit.rank, purchase: true });
-    } else {
-      dispatch({ type: "ADD_ROSTER", mode: hit.mode, no: hit.no, purchase: true, cost: { lp: out.cost.lp || 0, shards: out.cost.shards || 0 } });
-    }
-    setLast({ ...hit, paidBy: out.paidBy, cost: out.cost, branch: out.branch });
-    /* 分岐した時は特異人格抽出に移ったことを明示する（core:6344-6345）。 */
-    if (out.branch === "special") {
-      toast("特異人格チャンス！ 最大値を出したので特異人格抽出に移ります");
-      return;
-    }
-    toast(`${hit.name} を抽出しました（${out.paidBy === "ticket" ? ticketLabel(ticketKind, ticketPack) : out.cost.label}）`);
+    /* 同じ手つきで何件も入るので、1回ごとに dispatch すると前の書き込みが
+       上書きされる。まとめて1つの action にする。 */
+    dispatch({
+      type: "ADD_ROSTER_MANY",
+      cost: { lp: out.cost.lp || 0, shards: out.cost.shards || 0 },
+      adds: hits.filter((hit) => hit.type === "ego" || hit.type === "persona")
+    });
+    setLast({ hits, paidBy: out.paidBy, cost: out.cost });
+    const branched = hits.filter((x) => x.branch === "special").length;
+    const note = branched ? `\uFF08\u3046\u3061\u7279\u7570\u4EBA\u683C\u30C1\u30E3\u30F3\u30B9 ${branched}\uFF09` : "";
+    toast(`${hits.length}\u679A\u3092\u62BD\u51FA\u3057\u307E\u3057\u305F${note}\uFF08${out.paidBy === "ticket" ? ticketLabel(ticketKind, ticketPack) : out.cost.label}\uFF09`);
   };
 
   const ticketLabel = (kind, pack) => (window.LBT_ticketLabel ? window.LBT_ticketLabel(kind, pack) : (labels[kind] || "チケット"));
@@ -1981,6 +1980,12 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
         className: pay === v ? "is-active" : "", onClick: () => { setPay(v); setLast(null); }
       }, label))),
     h("div", { className: "gacha-ticket-row" },
+      h("label", { className: "ledger-note" }, "回数"),
+      h("div", { className: "segmented", role: "radiogroup", "aria-label": "抽出手数" },
+        [1, 3, 5, 10].map((n) => h("button", {
+          key: n, type: "button", role: "radio", "aria-checked": times === n,
+          className: times === n ? "is-active" : "", onClick: () => setTimes(n)
+        }, `${n}回`))),
       h("span", { className: "ledger-note" }, cost?.label || "無料"),
       h("div", { className: "shop-toolbar-main" },
         h(Button, {
@@ -1991,13 +1996,16 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
         h(Button, { size: "sm", variant: "ghost", onClick: () => dispatch({ type: "GRANT_TICKET", kind: ticketKind, pack: ticketPack, count: 1 }) }, "+1"),
         h(Button, { size: "sm", variant: "ghost", onClick: () => dispatch({ type: "GRANT_TICKET", kind: ticketKind, pack: ticketPack, count: 5 }) }, "+5"),
         h(Button, { size: "sm", variant: "primary", onClick: run, disabled: poolSize <= 0 || (pay === "ticket" && held <= 0) }, "抽選する"))),
-    last && h("div", { className: `gacha-ticket-result${last.branch === "special" ? " is-branch" : ""}` },
-      last.branch === "special" && h("span", { className: "gacha-branch-badge" }, "特異人格チャンス"),
-      h("span", { className: "t-label" }, "抽選結果"),
-      h("strong", null, last.name),
-      h("span", { className: "ledger-note" }, `${hitLabel(last)}　${last.paidBy === "ticket" ? "チケット使用" : last.cost?.label || "無料"}`))
-  );
-};
+    last && h("div", { className: `gacha-ticket-result${last.hits.some((x) => x.branch === "special") ? " is-branch" : ""}` },
+      last.hits.some((x) => x.branch === "special") && h("span", { className: "gacha-branch-badge" }, "特異人格チャンス"),
+      h("span", { className: "t-label" }, `抽選結果（${last.hits.length}件）`),
+      h("div", { className: "gacha-result-list" },
+        last.hits.map((hit, i) => h("div", { key: `${hitLabel(hit)}-${i}`, className: "gacha-result-row" },
+          h("strong", null, hit.name),
+          h("span", { className: "ledger-note" }, `${hitLabel(hit)}${hit.branch === "special" ? "（特異人格チャンス）" : ""}`)))),
+      h("span", { className: "ledger-note" }, `${last.paidBy === "ticket" ? "チケット使用" : last.cost?.label || "無料"}`)
+    ));
+  };
 const ShopSection = ({ state, dispatch }) => {
   const h = React.createElement;
   const tab = state.ui?.shopTab || "support";
@@ -2416,15 +2424,23 @@ const RosterSection = ({ state, dispatch }) => {
     return resolveRosterPersonaSource(entry, db.find((item) => item.no === entry.no) || null);
   };
   const findEgo = (entry) => (DB.egos || []).find((item) => item.rank === entry.rank && item.no === entry.no) || entry.build || null;
+  /* サポートと精神も並びます。以前は人格/E.G.O の二分岐しか無く、
+     サポパ/精神タブが E.G.O の内容を出し続けていた。 */
   const rawItems = libraryTab === "personas" ? (roster.personas || []).map((entry, addedIndex) => {
     const src = findPersona(entry);
     const baseName = entry.displayName || src?.name || "名称未設定";
     const name = entry.syncMax && !/\s*\[MAX\]\s*$/i.test(baseName) ? `${baseName} [MAX]` : baseName;
     return { entry, src, id: entry.uid, type: "personas", name, equipped: `${entry.mode}:${entry.no}` === currentPersonaKey, saved: !!entry.build, synced: isRosterPersonaSynced(entry), addedIndex, meta: entry.mode === "n" ? "通常人格" : entry.mode === "t" ? "特異人格" : "創作人格" };
-  }).filter((item) => item.src) : (roster.egos || []).map((entry, addedIndex) => {
+  }).filter((item) => item.src) : libraryTab === "egos" ? (roster.egos || []).map((entry, addedIndex) => {
     const src = findEgo(entry);
     return { entry, src, id: entry.uid, type: "egos", name: entry.build?.name || src?.name || "名称未設定", equipped: currentEgoKeys.has(`${entry.rank}:${entry.no}`), saved: !!entry.build, addedIndex, meta: `${entry.rank} · No.${String(entry.no || "").padStart(3, "0")}` };
-  }).filter((item) => item.src);
+  }).filter((item) => item.src) : libraryTab === "supports" ? (roster.supports || []).map((entry, addedIndex) => ({
+    entry, src: entry, id: `spp-${entry.name}`, type: "supports", name: entry.name,
+    equipped: false, saved: false, addedIndex, meta: "サポートパッシブ"
+  })) : libraryTab === "spirits" ? (roster.spirits || []).map((entry, addedIndex) => ({
+    entry, src: entry, id: `spi-${entry.name}`, type: "spirits", name: entry.name,
+    equipped: state.spirit === entry.name, saved: false, addedIndex, meta: "精神"
+  })) : [];
   const items = sortRosterLibraryItems(rawItems.filter((item) => (
     (filter === "all"
       || filter === "custom" && item.type === "personas" && item.entry.mode === "custom"
@@ -2451,8 +2467,14 @@ const RosterSection = ({ state, dispatch }) => {
     if (!target.length) { toast("削除できる項目を選択してください"); return; }
     const names = target.slice(0, 3).map((item) => item.name).join("、");
     const suffix = target.length > 3 ? `、ほか${target.length - 3}件` : "";
-    if (!confirm(`${libraryTab === "personas" ? "人格" : "E.G.O"} ${target.length}件を所持ライブラリから削除しますか？\n${names}${suffix}\n装備中の項目は削除されません。`)) return;
-    dispatch({ type: libraryTab === "personas" ? "REMOVE_ROSTER_BATCH" : "REMOVE_ROSTER_EGO_BATCH", uids: target.map((item) => item.id), deleteCustomConfirmed: true });
+    const kindLabel = libraryTab === "personas" ? "人格" : libraryTab === "egos" ? "E.G.O" : libraryTab === "supports" ? "サポパ" : "精神";
+    if (!confirm(`${kindLabel} ${target.length}件を所持ライブラリから削除しますか？\n${names}${suffix}\n装備中の項目は削除されません。`)) return;
+    /* サポートと精神は uid ではなく名前で所持している。 */
+    if (libraryTab === "supports" || libraryTab === "spirits") {
+      dispatch({ type: libraryTab === "supports" ? "REMOVE_ROSTER_SUPPORT" : "REMOVE_ROSTER_SPIRIT", name: target[0].name });
+    } else {
+      dispatch({ type: libraryTab === "personas" ? "REMOVE_ROSTER_BATCH" : "REMOVE_ROSTER_EGO_BATCH", uids: target.map((item) => item.id), deleteCustomConfirmed: true });
+    }
     setUndo({ kind: libraryTab, items: target.map((item) => item.entry), expires: Date.now() + 10000 });
     clearSelection();
     setDetailId(null);
@@ -2600,7 +2622,9 @@ const RosterSection = ({ state, dispatch }) => {
     ),
     detailId === item.id && !manageMode && renderDetail(item)
   );
-  const label = libraryTab === "personas" ? "人格" : libraryTab === "egos" ? "E.G.O" : libraryTab === "supports" ? "サポパ" : libraryTab === "spirits" ? "精神" : "リザルト";
+  const libraryTabLabel = (tab) => (tab === "personas" ? "人格" : tab === "egos" ? "E.G.O" : tab === "supports" ? "サポパ" : tab === "spirits" ? "精神" : "リザルト");
+if (typeof window !== "undefined") window.LBT_libraryTabLabel = libraryTabLabel;
+  const label = libraryTabLabel(libraryTab);
   /* ヘッダ（タブ帯）は全タブで描画する。ここで早戻りするとタブごと消えて
      他タブへ移る手段が無くなるため、出し分けるのは中身だけにする。 */
   const onLibrary = !["ledger", "inventory"].includes(libraryTab);
@@ -2724,11 +2748,16 @@ const LedgerPanel = ({ state, dispatch }) => {
   /* 既存カードで「記録 / 修正」を押した対象。カード上へ直接並べるのは
      17パックの項目が毎回開くことになるため、記録は専用画面で行う。 */
   const [ticketPanel, setTicketPanel] = React.useState(null);
-  /* 既存リザルトの抽籤権利を記録する画面。カードからは常時表示の入口で開く。 */
+  /* このリザルトの登録情報（LP・欠片・抽籤権利）をまとめて直す画面。
+     カード右上の「編集」から開く。 */
   const TicketIncomePanel = () => {
     const target = (state.results || []).find((r) => r.id === ticketPanel);
     if (!target) return null;
     const [pick, setPick] = React.useState("");
+    const [name, setName] = React.useState(target.name || "");
+    const [date, setDate] = React.useState(target.date || "");
+    const [lp, setLp] = React.useState(String(target.income?.lp ?? ""));
+    const [shards, setShards] = React.useState(String(target.income?.shards ?? ""));
     const packName = pick || packs[0]?.name || "";
     const cur = target.income?.tickets || { persona: 0, ego: 0, choice: 0, pack: {} };
     const setKind = (kind, value) => {
@@ -2739,13 +2768,52 @@ const LedgerPanel = ({ state, dispatch }) => {
       const delta = value - (Number(cur.pack?.[packName]) || 0);
       if (delta) dispatch({ type: "GRANT_TICKET", kind: "pack", pack: packName, count: delta, resultId: target.id });
     };
-    return h("div", { className: "gacha-tickets-panel stack-3", role: "dialog", "aria-label": "抽籤権利の記録" },
+    const saveHead = () => {
+      dispatch({
+        type: "UPDATE_RESULT",
+        id: target.id,
+        name: name.trim() || target.name,
+        date,
+        income: { ...normalizeResultIncome(target.income), lp: Number(lp) || 0, shards: Number(shards) || 0 }
+      });
+      toast(`「${name.trim() || target.name}」の登録情報を更新しました`);
+      setTicketPanel(null);
+    };
+    return h("div", { className: "gacha-tickets-panel stack-3", role: "dialog", "aria-label": "リザルトの登録情報を編集" },
       h("div", { className: "owned-library-bar", style: { gap: "var(--s-2)" } },
-        h("span", { className: "t-label" }, `「${target.name}」の抽籤権利`),
+        h("span", { className: "t-label" }, "リザルトの登録情報を編集"),
         h("div", { style: { flex: 1 } }),
         h(Button, { size: "sm", variant: "ghost", icon: "x", onClick: () => setTicketPanel(null) }, "閉じる")),
-      h("p", { className: "ledger-note" },
-        "卓の報酬としてこのリザルトの収入に置かれます。残数は収入 − 使用履歴で計算されます。"),
+      h("div", { className: "ledger-ticket-grid" },
+        h("label", { className: "ledger-ticket-field" },
+          h("span", null, "リザルトの名称"),
+          h("input", {
+            className: "ledger-input", value: name,
+            "aria-label": "リザルトの名称",
+            onChange: (e) => setName(e.target.value)
+          })),
+        h("label", { className: "ledger-ticket-field" },
+          h("span", null, "プレイした日付"),
+          h("input", {
+            className: "ledger-input", type: "date", value: date,
+            "aria-label": "プレイした日付",
+            onChange: (e) => setDate(e.target.value)
+          })),
+        h("label", { className: "ledger-ticket-field" },
+          h("span", null, "獲得LP"),
+          h("input", {
+            className: "ledger-input ledger-input--num", type: "number", min: "0", inputMode: "numeric",
+            value: lp, "aria-label": "獲得LP",
+            onChange: (e) => setLp(e.target.value)
+          })),
+        h("label", { className: "ledger-ticket-field" },
+          h("span", null, "獲得欠片"),
+          h("input", {
+            className: "ledger-input ledger-input--num", type: "number", min: "0", inputMode: "numeric",
+            value: shards, "aria-label": "獲得欠片",
+            onChange: (e) => setShards(e.target.value)
+          }))),
+      h("span", { className: "t-label" }, "抽籤権利（卓の報酬）"),
       h("div", { className: "ledger-ticket-grid" },
         ["persona", "ego", "choice"].map((kind) => h("label", { key: kind, className: "ledger-ticket-field" },
           h("span", null, ticketLabel(kind)),
@@ -2770,9 +2838,10 @@ const LedgerPanel = ({ state, dispatch }) => {
             "aria-label": `${ticketLabel("pack", packName)} の枚数`,
             onChange: (e) => setPack(Number(e.target.value) || 0)
           }))),
-      /* 記録済みのパックはこのリザルトで何を受け取ったかを一覧する。 */
       resultTicketChips(target).length > 0 && h("div", { className: "ledger-card-tickets" },
-        resultTicketChips(target).map((t) => h("span", { key: t.key, className: "gacha-held-ticket" }, `${t.label} ×${t.count}`))));
+        resultTicketChips(target).map((t) => h("span", { key: t.key, className: "gacha-held-ticket" }, `${t.label} ×${t.count}`))),
+      h("div", { className: "shop-toolbar-main" },
+        h(Button, { size: "sm", variant: "primary", icon: "check", onClick: saveHead }, "更新")));
   };
   /* 手動の支出・消耗。DBに価格が無いもの、戦闘で消えたものを記録する。 */
   const [newEntry, setNewEntry] = React.useState({ name: "", kind: "expense", lp: "", shards: "" });
@@ -2786,6 +2855,8 @@ const LedgerPanel = ({ state, dispatch }) => {
   const [heldPicking, setHeldPicking] = React.useState(null);
   /* 候補に出すときの種別名。利用者がどれを選んでいるか分かるようにする。 */
   const HELD_KIND_LABEL = { persona: "人格", ego: "E.G.O", spirit: "精神", support: "サポート" };
+/* 編集画面がincome を作り直すとき、抽籤権利を落とさないようにする。 */
+const normalizeResultIncome = (income) => (income && typeof income === "object" ? income : {});
 const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   /* リザルト単位の操作メニューと、硝子窓へ変換した結果。 */
   const [exportFor, setExportFor] = React.useState(null);
@@ -3416,10 +3487,19 @@ h(Card, { className: "ledger-card" },
     h("span", { className: "ledger-card-title" }, result.name),
     h("span", { className: "ledger-card-date" }, result.date || "—"),
     h("div", { className: "ledger-card-actions" },
+    /* 編集はこのリザルトの登記情報（LP・欠片・抽籤権利）をまとめて直す口。
+       「⋯」は別の操作なので隣に分ける。 */
+    h("button", {
+    type: "button",
+    className: "ledger-card-edit-btn",
+    title: "このリザルトの登録情報（LP・欠片・抽籤権利）を編集します",
+    "aria-label": `${result.name} の登録情報を編集`,
+    onClick: () => setTicketPanel(result.id)
+    }, "編集"),
     h("button", {
     type: "button",
     className: "ledger-card-menu-btn",
-    title: "このリザルトの操作",
+    title: "このリザルトのその他の操作",
     "aria-label": `${result.name} の操作を開く`,
     "aria-expanded": exportFor === result.id,
     onClick: () => setExportFor(exportFor === result.id ? null : result.id)
@@ -3447,20 +3527,12 @@ h(Card, { className: "ledger-card" },
               h("span", { className: "ledger-card-spent" },
                 `支出 LP ${spent.lp.toLocaleString("ja-JP")} / 欠片 ${spent.shards.toLocaleString("ja-JP")}`)
             ),
-            /* 抽籤権利はカード上へ直接並べない（17パックの項目が毎回開く）。
-               ただし「⋯」に隠すと見つからないので、名前入りの常時表示の
-               入口を置いて1工程で辿れるようにする。 */
+            /* 抽籤権利はカード上に並べるだけ。編集はカード右上の「編集」から。 */
             h("div", { className: "ledger-card-tickets" },
               h("span", { className: "t-label" }, "抽籤権利"),
               resultTicketChips(result).length > 0
                 ? resultTicketChips(result).map((t) => h("span", { key: t.key, className: "gacha-held-ticket" }, `${t.label} ×${t.count}`))
-                : h("span", { className: "ledger-note" }, "未記録"),
-              h("button", {
-                type: "button",
-                className: "ledger-ticket-entry",
-                onClick: () => setTicketPanel(result.id),
-                title: "このリザルトで受け取った抽籤権利を記録・修正します"
-              }, resultTicketChips(result).length > 0 ? "修正" : "記録")),
+                : h("span", { className: "ledger-note" }, "未記録")),
             rows.length === 0
               ? h("p", { className: "ledger-empty-note" }, "未分類の明細をここへドラッグするか、移動ボタンで歸属します。")
               : h("div", { className: "stack-2" }, rows.map((entry) => h("div", { key: entry.id, className: "ledger-row is-owned", ...dragProps(entry) },

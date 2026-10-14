@@ -327,23 +327,53 @@ test("特異人格は指定購入できない（core P203 に購入が無い）"
   assert.match(codex, /!isOwned && onQuickAcquire && !purchaseBlocked/);
 });
 
-test("抽籤権利は記録フォームで受け取り、既存カードは常時表示の入口から直す", () => {
+test("リザルトの登録情報はカード右上の『編集』から直す（⋯ではなく名前で示す）", () => {
   /* 記録は収入と同じ場所で受ける：「記録」フォームに同居させ、工程は 0。 */
   assert.match(sections, /const TicketInputs = \(\{ current, onChange, idPrefix, packPick, setPackPick \}\) => \{/);
   assert.match(sections, /const \[newResultPack, setNewResultPack\] = React\.useState\(""\);/);
-  assert.match(sections, /idPrefix: "new-result",\s*current: newResult\.tickets,\s*packPick: newResultPack,\s*setPackPick: setNewResultPack,\s*onChange: \(tickets\) => setNewResult\(\(p\) => \(\{ \.\.\.p, tickets \}\)\)/);
+  assert.match(sections, /idPrefix: "new-result",\s*current: newResult\.tickets,\s*packPick: newResultPack,\s*setPackPick: setNewResultPack,/);
   assert.match(sections, /tickets: newResult\.tickets \|\| \{ persona: 0, ego: 0, choice: 0, pack: \{\} \}/);
-  assert.match(sections, /useState\(\{ name: "", date: "", lp: "", shards: "", tickets: \{ persona: 0, ego: 0, choice: 0, pack: \{\} \} \}\)/);
-  /* 既存カードへ17パックの入力欄を並べると、パックを逐一開くことになる。専用画面に戻す。 */
-  assert.doesNotMatch(sections, /h\(TicketInputs, \{\s*idPrefix: `result-\$\{result\.id\}`,/);
+  /* 既存カードは専用画面に戻す。17パックの欄を常時並べない。 */
+  assert.doesNotMatch(sections, /h\(TicketInputs, \{\s*idPrefix: `result-/);
+  /* 「⋯」の隣に名前入りの「編集」。⋯ は別の操作として残す。 */
+  assert.match(sections, /className: "ledger-card-edit-btn",\s*title: "このリザルトの登録情報（LP・欠片・抽籤権利）を編集します",\s*"aria-label": `\$\{result\.name\} の登録情報を編集`,\s*onClick: \(\) => setTicketPanel\(result\.id\)\s*\}, "編集"\)/);
+  assert.match(sections, /className: "ledger-card-menu-btn",\s*title: "このリザルトのその他の操作",/);
+  /* 編集画面は LP・欠片・抽籤権利をまとめて直す。 */
   assert.match(sections, /const TicketIncomePanel = \(\) => \{/);
-  assert.match(sections, /ticketPanel && h\(TicketIncomePanel, \{\}\)/);
-  /* 入口は「⋯」に隠さない。名前入りの常時表示のボタンで1工程。 */
-  assert.match(sections, /className: "ledger-ticket-entry",\s*onClick: \(\) => setTicketPanel\(result\.id\),/);
-  assert.match(sections, /resultTicketChips\(result\)\.length > 0 \? "修正" : "記録"/);
-  /* メニューは硝子窓の取り込みだけ。抽籤権利の入口はここには置かない。 */
+  assert.match(sections, /"aria-label": "リザルトの登録情報を編集"/);
+  assert.match(sections, /type: "UPDATE_RESULT",\s*id: target\.id,\s*name: name\.trim\(\) \|\| target\.name,\s*date,\s*income: \{ \.\.\.normalizeResultIncome\(target\.income\), lp: Number\(lp\) \|\| 0, shards: Number\(shards\) \|\| 0 \}/);
+  assert.match(reducer, /case "UPDATE_RESULT"[\s\S]{0,900}?tickets: normalizeTickets\(action\.income\?\.tickets\)/);
+  /* メニューは硝子窓の取り込みだけ。 */
   assert.doesNotMatch(sections, /"抽籤権利を記録"\)/);
-  assert.match(sections, /const resultTicketChips = \(result\) => \{/);
+});
+
+test("所持ライブラリはサポパ/精神も自分の中身を出す（EGOのまま開かない）", () => {
+  /* 以前は人格/E.G.O の二分岐しか無く、サポパ/精神タブが E.G.O を出し続けた。 */
+  assert.match(sections, /: libraryTab === "egos" \? \(roster\.egos \|\| \[\]\)\.map/);
+  assert.match(sections, /: libraryTab === "supports" \? \(roster\.supports \|\| \[\]\)\.map/);
+  assert.match(sections, /: libraryTab === "spirits" \? \(roster\.spirits \|\| \[\]\)\.map/);
+  assert.match(sections, /: \[\];\s*$/m);
+  /* 削除も名前ベースの種別に対応する。 */
+  assert.match(sections, /libraryTab === "supports" \|\| libraryTab === "spirits"/);
+  assert.match(sections, /libraryTab === "supports" \? "REMOVE_ROSTER_SUPPORT" : "REMOVE_ROSTER_SPIRIT"/);
+  assert.match(sections, /const label = libraryTabLabel\(libraryTab\);/);
+});
+
+test("ガチャは任意回数をまとめて引ける（既得は再抽選しない）", () => {
+  const g = read("../js/gacha-tickets.js");
+  assert.match(g, /function drawN\(route, state, opts\)/);
+  assert.match(g, /const want = Math\.max\(1, Number\.parseInt\(options\.times, 10\) \|\| 1\);/);
+  /* 引いたものは次からプールから外す（同種複数保有は不可: core:361/7536）。 */
+  assert.match(g, /const taken = new Set\(\);/);
+  assert.match(g, /if \(taken\.has\(key\)\) break;/);
+  assert.match(g, /if \(pay === "ticket" && held - hits\.length <= 0\) break;/);
+  assert.match(g, /paidCost, ticketCount, ticketKindFor, draw, drawPersonaWithBranch, drawN/);
+  /* UI は回数を選べ、結果はまとめて出る。 */
+  assert.match(sections, /const \[times, setTimes\] = React\.useState\(1\);/);
+  assert.match(sections, /\[1, 3, 5, 10\]\.map\(\(n\) => h\("button"/);
+  assert.match(sections, /G\?\.drawN\(route, state, \{ pay, pack: activePack, times \}\)/);
+  assert.match(sections, /type: "SPEND_TICKET", kind: out\.ticketKind, pack: out\.ticketPack, count: -hits\.length/);
+  assert.match(sections, /抽選結果（\$\{last\.hits\.length\}件）/);
 });
 
 test("抽籤権利はリザルト収入で管理し、ショップのガチャタブで扱う（ローカルルール）", () => {
@@ -388,7 +418,7 @@ test("抽籤権利はリザルト収入で管理し、ショップのガチャ�
   assert.doesNotMatch(g, /s\.nextInt\(/);
   /* 分岐表示。 */
   assert.match(sections, /gacha-branch-badge" \}, "特異人格チャンス"/);
-  assert.match(sections, /toast\("特異人格チャンス！ 最大値を出したので特異人格抽出に移ります"\)/);
+  assert.match(sections, /const branched = hits\.filter\(\(x\) => x\.branch === "special"\)\.length;/);
   /* 抽選は通貨かチケットの2択。 */
   assert.match(g, /const pay = options\.pay === "ticket" \? "ticket" : "paid";/);
   assert.match(g, /if \(pay === "ticket" && held <= 0\) return \{ hit: null, reason: "no-ticket" \};/);

@@ -192,9 +192,61 @@
     return { hit, cost, paidBy: pay, ticketKind, ticketPack, branch, remaining: pay === "ticket" ? held - 1 : held };
   }
 
+  /* 複数回まとめて引く。1回の draw を繰り返すが、プールから既に取ったものは
+     次の抽選で除外する（同種複数保有は不可：core:361 / core:7536）。
+     チケットOUT のときは残数を超える回数を引かない（超出した分は消費しない）。 */
+  function drawN(route, state, opts) {
+    const options = opts || {};
+    const want = Math.max(1, Number.parseInt(options.times, 10) || 1);
+    const pay = options.pay === "ticket" ? "ticket" : "paid";
+    const ticketKind = ticketKindFor(route);
+    const ticketPack = route === "pack" ? (options.pack || null) : null;
+    const held = pay === "ticket" ? ticketCount(state, ticketKind, ticketPack) : 0;
+    if (pay === "ticket" && held <= 0) return { hits: [], reason: "no-ticket", remaining: held };
+
+    /* ループごとに「既に取ったもの」を除いたプールを作り直す。 */
+    const taken = new Set();
+    const simulated = {
+      roster: {
+        ...(state.roster || {}),
+        personas: [...((state.roster || {}).personas || [])],
+        egos: [...((state.roster || {}).egos || [])]
+      }
+    };
+    const hits = [];
+    for (let i = 0; i < want; i++) {
+      if (pay === "ticket" && held - hits.length <= 0) break;
+      const step = draw(route, { ...simulated, ...state }, { ...options, pay: "paid" });
+      if (!step.hit) break;
+      const key = step.hit.type === "ego"
+        ? `e:${step.hit.rank}:${step.hit.no}`
+        : step.hit.type === "themePack"
+          ? `p:${step.hit.pack}:${step.hit.no}`
+          : `a:${step.hit.mode}:${step.hit.no}`;
+      if (taken.has(key)) break;
+      taken.add(key);
+      hits.push({ ...step.hit, branch: step.branch });
+      /* 次の回から引かれないよう、模擬の roster へ積む。 */
+      if (step.hit.type === "ego") {
+        simulated.roster.egos.push({ uid: `sim-${key}`, no: step.hit.no, rank: step.hit.rank });
+      } else if (step.hit.type === "persona") {
+        simulated.roster.personas.push({ uid: `sim-${key}`, no: step.hit.no, mode: step.hit.mode });
+      }
+    }
+    return {
+      hits,
+      reason: hits.length ? null : "empty",
+      paidBy: pay,
+      ticketKind,
+      ticketPack,
+      cost: pay === "ticket" ? { lp: 0, shards: 0, label: "無料" } : paidCost(route, state, options.pack),
+      remaining: pay === "ticket" ? Math.max(0, held - hits.length) : held
+    };
+  }
+
   window.LBT_gachaDraw = {
     ROUTES, KINDS,
     buildPool, buildPackPool, themePacks, findPack,
-    paidCost, ticketCount, ticketKindFor, draw, drawPersonaWithBranch
+    paidCost, ticketCount, ticketKindFor, draw, drawPersonaWithBranch, drawN
   };
 })();
