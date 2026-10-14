@@ -176,20 +176,82 @@
      （さreon「欠片」だけの行を名前と誤判定して通過させない） */
   function isTotalOnlyLine(line) {
     var t = String(line).replace(/現在|残/g, "").trim();
-    /* 通貨名だけ收割してから、漢字/ラテンが残るか見る。 */
+    /* 通貨名だけ刈り取って���から、漢字/ラテンが残るか見る。 */
     var stripped = t.replace(/LP|欠片|かけら|欠けら|カケラ/gi, " ").trim();
     if (/[A-Za-zぁ-んァ-ヶ一-龠]/.test(stripped)) return false;
     /* 通貨名を落とした残りが「数値と空白だけ」なら合計行。 */
     return /^[\s　0-9+\-　]*$/.test(stripped) && /\d/.test(stripped);
   }
 
-  /* 1つの memo を { income, tickets, spends, reasons } へ。 */
+  /* シナリオが「誰を倒したか」を書く行。収入セクションにあり、
+     通貨も数値もないので、獲得した人格/E.G.O の名前である。
+     DB 照合は呼び出し側（buildManifest）で行う。ここでは
+     「名前候補である」と分かる行だけ，洗い出す。 */
+  function isAcquisitionNameLine(line) {
+    var t = String(line).replace(/現在|残/g, "").trim();
+    if (!t) return false;
+    /* 見出し・効果文・合計行は除く */
+    if (/^【/.test(t)) return false;
+    if (isTotalOnlyLine(t)) return false;
+    if (isNarrativeLine(t)) return false;
+    /* チケット行は別に数えるので、ここでは扱わない */
+    if (/チケ|チケット|ガチャ|抽出/.test(t)) return false;
+    /* 通貨が数値と隣接していれば金額行 */
+    if (/\d\s*(LP|欠片|かけら|欠けら|カケラ)/i.test(t)) return false;
+    /* 英語名だけの行は対象外（人名ではない） */
+    if (/^[A-Za-z0-9\s.:_\-]+$/.test(t)) return false;
+    /* 「なし」「無し」「特になし」は「記録が無い」意味であり、
+       獲得した人格ではない。 */
+    if (/^(なし|無し|特になし|無し|特になし|何もない|.$)$/.test(t)) return false;
+    return true;
+  }
+
+  /* チケット種別の表示名。消費した記録に「どのチケット由来か」を書く。 */
+  var TICKET_LABEL = {
+    persona: "人格抽出チケット",
+    ego: "E.G.O抽出チケット",
+    choice: "選択抽出チケット"
+  };
+
+  /* チケット行から「抽出した人格/E.G.O」の名前だけを抜き出す。
+     実書式:
+       人格抽出チケット：N 社小鎚の人格
+       人格抽出チケット:寝落ちの謝罪のため確定：西武ツヴァイ協会３課フィクサー
+       抽出ガチャチケット×1「N 社中鎚の人格」
+       抽出1：LCE E.G.O:ねばつきの人格
+     区切りは ：/: /「」のどれか。区切りが無いなら語を全部削る。 */
+  function ticketSourceName(line) {
+    var t = String(line).trim();
+    var body = null;
+    var br = t.match(/[「『]([^」』]+)[」』]/);
+    if (br) body = br[1];
+    else {
+      /* 区切りの後ろ側を取る。複数あるなら最後のもの。 */
+      var parts = t.split(/[：:]/).map(function (s) { return s.trim(); }).filter(Boolean);
+      /* 先頭は「人格抽出チケット」等の見出し。後ろが名前。 */
+      if (parts.length >= 2) body = parts[parts.length - 1];
+    }
+    if (!body) return "";
+    /* 見出し語とNoise を削る */
+    var name = body
+      .replace(/^.*?(?=の|：|:)/, function (m) { return m.includes("の") ? m.slice(m.indexOf("の") + 1) : m; })
+      .replace(/(抽出|チケット|ガチャ|チケ|人格|E\.?G\.?O|の|ため|確定|：|:)+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    /* 名前が無いか短すぎたら採らない */
+    if (name.length < 2) return "";
+    return name;
+  }
+
+  /* 1つの memo を { income, tickets, pack, spends, reasons, wins } へ。 */
   function parseMemo(memo) {
     var income = { lp: 0, shards: 0 };
     var tickets = { persona: 0, ego: 0, choice: 0 };
     var pack = {};
     var spends = [];
     var reasons = [];
+    /* シナリオで直接払い出された人格/E.G.O の名前。 */
+    var wins = [];
 
     var lines = String(memo || "").split(/\r?\n/);
     var mode = "income";
@@ -203,11 +265,23 @@
       if (mode === "current") continue;  // 現在値の羅列は取り込まない
 
       var tk = ticketOf(line);
-      if (tk) { tickets[tk.kind] += tk.count; continue; }
+      if (tk) {
+        tickets[tk.kind] += tk.count;
+        /* チケット从哪里抽出的。ソースの書式は
+           「人格抽出チケット：N 社小鎚の人格」「抽出1：LCE E.G.O:ねばつき」*/
+        var src = ticketSourceName(line);
+        if (src) wins.push({ name: src, via: TICKET_LABEL[tk.kind], kind: tk.kind });
+        continue;
+      }
 
       /* 「抽出1：E.G.O:提灯」のような「抽出NN」だけの行。 */
       var bd = bareDrawOf(line);
-      if (bd) { tickets[bd.kind] += bd.count; continue; }
+      if (bd) {
+        tickets[bd.kind] += bd.count;
+        var src2 = ticketSourceName(line);
+        if (src2) wins.push({ name: src2, via: TICKET_LABEL[bd.kind], kind: bd.kind });
+        continue;
+      }
 
       /* アイテムの効果説明。「▶︎〜」や「〜を得る」は金額行ではない。 */
       if (isNarrativeLine(line)) continue;
@@ -237,12 +311,14 @@
           if (cur === "lp") income.lp += amt; else income.shards += amt;
           continue;
         }
-        /* 数字も通貨も無い行は「どの機関に勝ったか」の名前行
-           （北部ヂェーヴィチ協会 4 課フィクサー 等）。収入でも支出でも
-           ないので、理由に載せない。載せると
-           「47件が読めなかった」という印象になり、
-           実際は正常な名前行eministである。
-           「4 課」のように数字を含んでも通貨と数値の並びが
+        /* 数字も通貨も無い行は「どの機関に勝ったか」の名前行。
+           シナリオが直接払った人格/E.G.O なので、獲得として記録する。
+           DB 照合は呼び出し側で行う。ここでは名前候補として残す。 */
+        if (isAcquisitionNameLine(line)) {
+          wins.push({ name: line, via: "", kind: "" });
+          continue;
+        }
+        /* 「4 課」のように数字を含んでも通貨と数値の並びが
            间断とそれである（「90LP」「29欠片」なら数値が通貨名に隣接）。 */
         if (!/\d\s*(LP|欠片|かけら|欠けら|カケラ)/i.test(line) && !/現在|残/.test(line)) continue;
         if (!/現在|残/.test(line)) {
@@ -299,7 +375,7 @@
       }
     }
 
-    return { income: income, tickets: tickets, pack: pack, spends: spends, reasons: reasons };
+    return { income: income, tickets: tickets, pack: pack, spends: spends, reasons: reasons, wins: wins };
   }
 
   /* scenarioHistory 配列を分解する。 */
@@ -314,17 +390,21 @@
         tickets: parsed.tickets,
         pack: parsed.pack,
         spends: parsed.spends,
-          reasons: parsed.reasons,
-          /* 支出だけがあるシナリオもある（「・支出」節に数行、
-             収入が writtenされていない、または 0 だった）。
-             収入だけを条件にすると，它们は取liners。
-             支出があるならリザルトとして残す（明細だけFabriculture）。 */
-          hasData: parsed.income.lp > 0 || parsed.income.shards > 0 ||
-            parsed.tickets.persona + parsed.tickets.ego + parsed.tickets.choice > 0 ||
-            Object.keys(parsed.pack).length > 0 ||
-            parsed.spends.length > 0
-        };
-      });
+        reasons: parsed.reasons,
+        /* シナリオで直接払い出された人格/E.G.O。
+           チケットだけ記入されている場合も「どのチケット由来か」を
+           持つので、ここに入る。 */
+        wins: parsed.wins,
+        /* 支出だけがあるシナリオもある（「・支出」節に数行、
+           収入が書かれていない、または 0 だった）。
+           収入だけを条件にすると、それらは取りこぼされる。 */
+        hasData: parsed.income.lp > 0 || parsed.income.shards > 0 ||
+          parsed.tickets.persona + parsed.tickets.ego + parsed.tickets.choice > 0 ||
+          Object.keys(parsed.pack).length > 0 ||
+          parsed.spends.length > 0 ||
+          parsed.wins.length > 0
+      };
+    });
   }
 
   var api = { parseMemo: parseMemo, parseScenarioHistory: parseScenarioHistory, currencyOf: currencyOf, amountOf: amountOf, sectionOf: sectionOf, ticketOf: ticketOf };

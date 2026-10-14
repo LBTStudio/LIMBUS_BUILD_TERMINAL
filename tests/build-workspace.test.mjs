@@ -617,9 +617,11 @@ test("判定できなかった名前は候補から選べて補完する（完�
   /* 選んだ対応は再走査で先に効く。 */
   assert.match(sections, /if \(\(resolved \|\| \{\}\)\[rest\] && hit\(resolved\[rest\]\)\) return;/);
   assert.match(sections, /setHeldScan\(scanHeldPersonas\(heldPaste, heldResolved\)\)/);
-  /* 取り込みは既定で閉じておく（低頻度の整備作業）。 */
+  /* 取り込みは既定で閉じておく（低頻度の整備作業）。
+     入口は記録フォームの「取り込む」で、そこで開く。 */
   assert.match(sections, /const \[heldOpen, setHeldOpen\] = React\.useState\(false\);/);
-  assert.match(sections, /heldOpen && h\("div", \{ className: "card-body stack-2" \}/);
+  assert.match(sections, /heldOpen && h\(Card, \{ className: "ledger-gara-wrap" \}/);
+  assert.match(sections, /openHeld/);
   /* 一覧に並べる形にする（文字列連結で1行に潰さない）。 */
   assert.match(sections, /className: "ledger-held-unknown-list"/);
   assert.match(sections, /className: "ledger-unknown-candidates"/);
@@ -676,7 +678,14 @@ test("硝子窓の取り込みはリザルトに押し込まずアカウント�
    まとめて読む全体操作なので、リザルト単位の操作メニューには置かない。 */
    assert.doesNotMatch(led, /importFor/);
    assert.doesNotMatch(sections, /applyGarasumadoImport[\s\S]{0,400}?resultId/);
-   assert.match(led, /\}, "硝子窓から一括取り込む"\)/);
+  /* 取り込みは3つとも低頻度なので「取り込む」1つに畳む。
+     開くと3つ並ぶ。persona リストもここに入る。 */
+  assert.match(led, /"取り込む"/);
+  assert.match(led, /\}, "硝子窓から一括取り込む"\)/);
+  assert.match(led, /\}, "テキスト流し込み"\)/);
+  assert.match(led, /\}, "所持人格リストを取り込む"\)/);
+  /* 重ねて常時3つ並べない */
+  assert.doesNotMatch(led, /card-header[\s\S]{0,320}硝子窓から一括取り込む[\s\S]{0,120}テキスト流し込み[\s\S]{0,200}所持人格リスト/);
    assert.doesNotMatch(led, /ledger-card-menu/);
   /* シナリオ1件 = リザルト1件。順序が歸属を決める。
      収入は opts.income の空値ではなく、memo パーサが読んだ実額が入る。 */

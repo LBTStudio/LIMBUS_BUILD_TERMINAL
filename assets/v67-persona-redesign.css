@@ -1132,3 +1132,40 @@ label:has(> input[type="checkbox"]) {
   min-inline-size: 200px;
 }
 
+/* --- 取り込みボタン ------------------------------------------------------
+   .btn--quiet は background と border が共に transparent で、
+   背景と同化して「押せるのか expansそうでないのか」が分からなかった。
+   取り込みは低頻度なので強調はしない。ただし輪郭と文字色は
+   読ませる。主張させない程度に留める。 */
+.ledger-import-toggle {
+  border-color: var(--line-mid) !important;
+  color: var(--tx-2) !important;
+  background: var(--surface-2) !important;
+}
+.ledger-import-toggle:hover:not(:disabled),
+.ledger-import-toggle:focus-visible {
+  border-color: var(--gold-line, var(--gold)) !important;
+  color: var(--tx-main) !important;
+  background: var(--surface-3) !important;
+}
+
+.ledger-import-menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  border-block-start: 1px solid var(--line-dim);
+}
+/* 展開した 3 つの取り込み先。静かだが輪郭は残す。 */
+.ledger-import-menu .btn {
+  border-color: var(--line-dim) !important;
+  color: var(--tx-2) !important;
+  background: transparent;
+}
+.ledger-import-menu .btn:hover:not(:disabled),
+.ledger-import-menu .btn:focus-visible {
+  border-color: var(--line-mid) !important;
+  color: var(--tx-main) !important;
+  background: var(--surface-2) !important;
+}
+

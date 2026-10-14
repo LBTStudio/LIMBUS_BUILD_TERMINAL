@@ -129,15 +129,47 @@
     });
 
     /* シナリオ履歴。memo を専用パーサにかけ、収入・チケット・支出へ分解する。
-       ここで初めて「シナリオ1件 = リザルト1件 + その支出明細」になる。 */
+       ここで初めて「シナリオ1件 = リザルト1件 + その支出明細」になる。
+
+       wins（シナリオで直接払い出された人格/E.G.O）は名前だけでは
+       取り込み先に決まらないので、既存の名前索引で DB へ引く。
+       引けなかったものは利用者に渡し、勝手に埋めずに残す。 */
     const memoApi = (typeof window !== "undefined" && window.LBT_garaMemo) || null;
+    /* wins の照合は、既存の nameIndex.resolve と同じ形の索引を使う。
+       resolve が無ければ名前だけで種別を見分ける（番号は取れない）。 */
+    const indexForWins = resolve ? { resolve } : (nameIndex || null);
+    const resolveWins = (list) => (list || []).map((w) => {
+      const raw = String(w.name || "").trim();
+      if (!raw) return null;
+      let kinds = [];
+      const hit = indexForWins && typeof indexForWins.resolve === "function"
+        ? indexForWins.resolve(raw)
+        : null;
+      if (hit) kinds = hit.kinds || [];
+      if (!kinds.length) {
+        /* 索引が無ければ最低限の種別判定だけ。
+           番号は入れない（勝手に埋めると原本と食い違う）。 */
+        if (/E\.?G\.?O|イゴ/i.test(raw)) kinds = [{ kind: "ego" }];
+        else kinds = [{ kind: "persona" }];
+      }
+      return {
+        raw,
+        name: raw,
+        kinds,
+        /* チケット由来なら via に入っている（例: 人格抽出チケット） */
+        via: w.via || "",
+        resolved: Boolean(hit)
+      };
+    }).filter(Boolean);
+
     const history = (doc && doc.scenarioHistory) || [];
     const scenarios = history
       .filter((row) => row && (row.name || row.memo))
       .map((row, index) => {
         const base = { key: "scenario:" + index, name: String(row.name || "").trim() || "無題", group: "scenarios" };
-        if (!memoApi) return { ...base, memo: String(row.memo || ""), income: { lp: 0, shards: 0 }, tickets: {}, pack: {}, spends: [], reasons: [{ reason: "メモパーサが読み込まれていない" }] };
+        if (!memoApi) return { ...base, memo: String(row.memo || ""), income: { lp: 0, shards: 0 }, tickets: {}, pack: {}, spends: [], wins: [], reasons: [{ reason: "メモパーサが読み込まれていない" }] };
         const parsed = memoApi.parseMemo(row.memo);
+        const wins = resolveWins(parsed.wins);
         return {
           ...base,
           memo: String(row.memo || ""),
@@ -146,6 +178,8 @@
           pack: parsed.pack,
           spends: parsed.spends,
           reasons: parsed.reasons,
+          /* シナリオで直接払い出された人格/E.G.O。 */
+          wins,
           /* 金額が入らなかったシナリオも一覧には出す。利用者が
              「読み取れなかった」ことを知情できるようにするためで、
              取り込みの判断は利用者に返す。
@@ -154,7 +188,8 @@
           hasData: parsed.income.lp > 0 || parsed.income.shards > 0 ||
             (parsed.tickets.persona + parsed.tickets.ego + parsed.tickets.choice) > 0 ||
             Object.keys(parsed.pack || {}).length > 0 ||
-            (parsed.spends || []).length > 0
+            (parsed.spends || []).length > 0 ||
+            wins.length > 0
         };
       });
 
@@ -243,6 +278,33 @@
           }
         }
       });
+
+      /* シナリオで直接払い出された人格/E.G.O。所持へ足す。
+         チケット由来なら「どのチケット由来か」を使って
+         消費記録を 1 件残し、直近のリザルトに帰属させる。
+         金額ゼロの明細なので、帳簿の収支は乱れない。 */
+      for (const win of scenario.wins || []) {
+        const kinds = win.kinds || [];
+        const persona = kinds.find((k) => k && k.kind === "persona" && k.no != null);
+        const ego = kinds.find((k) => k && k.kind === "ego" && k.no != null && k.rank);
+        if (persona) {
+          actions.push({ type: "ADD_ROSTER", no: String(persona.no), mode: persona.mode || "n" });
+        } else if (ego) {
+          actions.push({ type: "ADD_ROSTER_EGO", no: String(ego.no), rank: ego.rank });
+        } else if (kinds.some((k) => k && k.kind === "ego")) {
+          /* 番号が引けない E.G.O。所持には入れず、理由だけ残す。 */
+          skipped.push({ key: win.raw, reason: "E.G.O の番号が引けないため所持へ入れない" });
+          continue;
+        }
+        if (win.via) {
+          actions.push({
+            type: "ADD_ENTRY",
+            kind: "other",
+            name: `${win.via}で獲得：${win.raw}`.slice(0, 120),
+            cost: { lp: 0, shards: 0 }
+          });
+        }
+      }
 
       /* memo の「・支出」「・支払い」以下が支出明細。
          「LPを欠片に変換：+11欠片 -22LP」のように両通貨が 1 行に並ぶことがある。

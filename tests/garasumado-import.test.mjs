@@ -167,6 +167,69 @@ test("「人格抽出：」「人格抽出チケット：」はどちらでも�
   assert.equal(b.tickets.persona, 1);
 });
 
+/* --- シナリオで直接払い出された人格 ---------------------------------------
+   支出節より前に人格名が書かれていれば、チケット及び、
+   シナリオ報酬として直接払われたものとして扱う。
+   チケット由来のときは「どのチケット由来か」を残す。 */
+
+test("支出より前の人格名は獲得として拾う（直接払い出し）", () => {
+  const r = MEMO.parseMemo("北部ヂェーヴィチ協会 4 課フィクサー\n90LP：現在100LP");
+  assert.equal(r.wins.length, 1);
+  assert.equal(r.wins[0].name, "北部ヂェーヴィチ協会 4 課フィクサー");
+  assert.equal(r.wins[0].via, "", "チケット経由ではないので via は空");
+});
+
+test("チケット由来の獲得は「どのチケット由来か」を持つ", () => {
+  const a = MEMO.parseMemo("人格抽出チケット：N 社小鎚の人格");
+  assert.equal(a.tickets.persona, 1);
+  assert.equal(a.wins.length, 1);
+  assert.equal(a.wins[0].name, "N 社小鎚", "「の人格」を落とした名前にする");
+  assert.equal(a.wins[0].via, "人格抽出チケット");
+
+  const b = MEMO.parseMemo("抽出ガチャチケット×1「N 社中鎚の人格」");
+  assert.equal(b.tickets.ego, 1, "ガチャは E.G.O 相当");
+  assert.equal(b.wins[0].via, "E.G.O抽出チケット");
+  assert.equal(b.wins[0].name, "N 社中鎚");
+
+  const c = MEMO.parseMemo("人格抽出チケット:寝落ちの謝罪のため確定：西武ツヴァイ協会３課フィクサー");
+  assert.equal(c.wins[0].name, "西武ツヴァイ協会３課フィクサー", "挟まった語を除いた名前");
+  assert.equal(c.wins[0].via, "人格抽出チケット");
+});
+
+test("「なし」は獲得ではない", () => {
+  const r = MEMO.parseMemo("なし");
+  assert.equal(r.wins.length, 0, "「なし」は記録が無い意味");
+});
+
+test("合計行も効果説明も獲得にしない", () => {
+  const r = MEMO.parseMemo("0欠片　40LP\n▶︎戦闘中1度だけ、E.G.O使用時に消費する精神と資源の量を半減し、火傷10を得る");
+  assert.equal(r.wins.length, 0);
+});
+
+test("リザルト作用で人格の所持追加とチケット消費記録が出る", () => {
+  const manifest = {
+    scenarios: [{
+      key: "scenario:0",
+      name: "テストシナリオ",
+      income: { lp: 50, shards: 20 },
+      tickets: { persona: 1, ego: 0, choice: 0 },
+      pack: {},
+      spends: [],
+      wins: [
+        { raw: "A", name: "A", kinds: [{ kind: "persona", no: 12, mode: "n" }], via: "人格抽出チケット" },
+        { raw: "B", name: "B", kinds: [{ kind: "persona", no: 34, mode: "n" }], via: "" }
+      ]
+    }]
+  };
+  const { actions } = G.toDispatchActions(manifest, ["scenario:0"], { purchases: {} });
+  const roster = actions.filter((a) => a.type === "ADD_ROSTER").map((a) => String(a.no));
+  assert.equal(roster.join(","), "12,34", "直接払い出しもチケット経由も所持へ入る");
+  const ticketNote = actions.find((a) => a.type === "ADD_ENTRY" && /で獲得：A/.test(a.name || ""));
+  assert.ok(ticketNote, "チケット由来の記録が残る");
+  assert.equal(ticketNote.cost.lp, 0, "金額ゼロなので帳簿が乱れない");
+  assert.equal(ticketNote.cost.shards, 0);
+});
+
 test("共有URL からドキュメント ID とコレクションを抜く", () => {
   const a = G.parseShareUrl("https://lbt-garasumado.vercel.app/view/mMIbGr32lGZix60RDmoN");
   assert.equal(a.ok, true);

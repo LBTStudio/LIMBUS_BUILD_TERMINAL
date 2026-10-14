@@ -2902,7 +2902,12 @@ const LedgerPanel = ({ state, dispatch }) => {
   const [heldPaste, setHeldPaste] = React.useState("");
   const [heldScan, setHeldScan] = React.useState({ found: [], unknown: [], unknownCount: 0 });
   /* 取り込みは整備作業なので、既定では閉じておく。 */
+  /* 所持人格リストのパネル。記録フォームの「取り込む」から開く。
+     単独フラグで、開閉はここで行う。 */
   const [heldOpen, setHeldOpen] = React.useState(false);
+  const [importMenuOpen, setImportMenuOpen] = React.useState(false);
+  const openHeld = () => setHeldOpen(true);
+  const closeHeld = () => setHeldOpen(false);
   /* 判定できなかった文字列 -> 利用者が選んだ正しい名前。検出時に先に差し込む。 */
   const [heldResolved, setHeldResolved] = React.useState({});
   const [heldPicking, setHeldPicking] = React.useState(null);
@@ -3327,15 +3332,31 @@ const importHeldPersonas = () => {
       )
     ),
 
-    /* リザルトの追加。 */
+    /* リザルトの追加。
+       取り込みは3つとも低頻度なので、1つの「取り込む」ボタンに畳む。
+       開くと3つ並ぶ。 pessoaリストはさらに個別に畳む（三段構造は要らない）。 */
     h(Card, null,
       h("div", { className: "card-header" },
         h("span", { className: "t-label" }, "リザルトを記録"),
+        /* 取り込みの入口。3つを畳んで隠す。
+           heldOpen は既存の人格リスト自身の開閉なので使わない。 */
+        h(Button, {
+          size: "sm",
+          variant: "secondary",
+          icon: "download",
+          className: "ledger-import-toggle",
+          "aria-expanded": importMenuOpen,
+          onClick: () => setImportMenuOpen((v) => !v)
+        }, "取り込む")
+      ),
+      importMenuOpen && h("div", { className: "ledger-import-menu" },
         /* 硝子窓の取り込みはリザルト個別ではなく全体操作。共有URLから
            シナリオをまとめて読み取り、複数リザルトをまとめて作ります。 */
-        h(Button, { size: "sm", variant: "ghost", icon: "download", onClick: () => setImportPanel(true) }, "硝子窓から一括取り込む"),
+        h(Button, { size: "sm", variant: "quiet", icon: "download", onClick: () => { setImportMenuOpen(false); setImportPanel(true); } }, "硝子窓から一括取り込む"),
         /* 手打ちの記録を読み込む。同じリザルトカードから入れられるように隣に置く。 */
-        h(Button, { size: "sm", variant: "ghost", icon: "copy", onClick: () => setTextPanel(true) }, "テキスト流し込み")
+        h(Button, { size: "sm", variant: "quiet", icon: "copy", onClick: () => { setImportMenuOpen(false); setTextPanel(true); } }, "テキスト流し込み"),
+        /* 所持人格リストの一括取込。 */
+        h(Button, { size: "sm", variant: "quiet", icon: "grid", onClick: () => { setImportMenuOpen(false); openHeld(); } }, "所持人格リストを取り込む")
       ),
       h("div", { className: "card-body" },
         h("div", { className: "ledger-add-row" },
@@ -3519,19 +3540,19 @@ const importHeldPersonas = () => {
     ),
 
     /* 所持人格リストの一括取込。貼り付けたテキストから DB 上の人格名を拾い、
-       何を足すかを確認してから所持へ加える。 */
-    h(Card, { className: "ledger-collapsible" + (heldOpen ? " is-open" : "") },
+       何を足すかを確認してから所持へ加える。
+       入口は記録フォームの「取り込む」に畳んで隠した。 */
+    heldOpen && h(Card, { className: "ledger-gara-wrap" },
       h("div", { className: "card-header owned-library-bar" },
         h("span", { className: "t-label" }, "所持人格リストを取り込む"),
         h(Button, {
           size: "sm",
-          variant: "ghost",
-          icon: heldOpen ? "chevron-up" : "chevron-down",
-          "aria-expanded": heldOpen,
-          onClick: () => setHeldOpen((v) => !v)
-        }, heldOpen ? "閉じる" : "開く")
+          variant: "quiet",
+          icon: "x",
+          onClick: closeHeld
+        }, "閉じる")
       ),
-      heldOpen && h("div", { className: "card-body stack-2" },
+      h("div", { className: "card-body stack-2" },
         h("textarea", {
           className: "ledger-input ledger-held-paste",
           rows: 4,
