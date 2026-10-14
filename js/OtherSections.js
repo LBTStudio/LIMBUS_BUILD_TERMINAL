@@ -3421,7 +3421,7 @@ const importHeldPersonas = () => {
             className: "ledger-textarea",
             "aria-label": "記録のテキスト",
             rows: 8,
-            placeholder: "【中央通路戦線】(作：無礼面様)\n報酬｜LP:150/自我の欠片:70/人格抽出チケットx1\n購入｜人格抽出x2(100LP)/EGO購入-TETH[鬼退治](75欠片)\n追加購入｜壊し砕く打撃(150LP)",
+            placeholder: "【シナリオA】(作：作者名)\n報酬｜LP:150/自我の欠片:70/人格抽出チケットx1\n購入｜人格抽出x2(100LP)/EGO購入-TETH[鬼退治](75欠片)\n追加購入｜壊し砕く打撃(150LP)",
             value: textDraft,
             onChange: (e) => setTextDraft(e.target.value)
           })
@@ -3761,7 +3761,9 @@ h(Card, { className: "ledger-card" },
 const DEFAULT_FMLs = [
   { name: "MT", expr: "{\u30D1\u30EF\u30FC}-{\u865A\u5F31}+{\u5171\u9CF4}+{\u30B9\u30AD\u30EB\u5A01\u529B}+{\u30DE\u30C3\u30C1\u5A01\u529B\u5897\u52A0}-{\u30DE\u30C3\u30C1\u5A01\u529B\u4F4E\u4E0B}", builtin: true },
   { name: "DM", expr: "{\u30D1\u30EF\u30FC}-{\u865A\u5F31}+{\u5171\u9CF4}+{\u30B9\u30AD\u30EB\u5A01\u529B}+{\u30C0\u30E1\u30FC\u30B8\u91CF\u5897\u52A0}-{\u30C0\u30E1\u30FC\u30B8\u91CF\u6E1B\u5C11}", builtin: true },
-  { name: "DT", expr: "{\u5171\u9CF4}+{\u5FCD\u8010}-{\u6B66\u88C5\u89E3\u9664}+{\u30B9\u30AD\u30EB\u5A01\u529B}+{\u5B88\u5099\u5A01\u529B}", builtin: true },
+  /* 守備威力は「進むべき守備」を得たときだけ足す前提なので、既定には入れない。
+     generator.js の DEF_FMLS と同じ内容に保つこと（ここが設定画面の表示値）。 */
+  { name: "DT", expr: "{\u5171\u9CF4}+{\u5FCD\u8010}-{\u6B66\u88C5\u89E3\u9664}+{\u30B9\u30AD\u30EB\u5A01\u529B}", builtin: true },
   { name: "QB", expr: "{\u30AF\u30A4\u30C3\u30AF}-{\u675F\u7E1B}", builtin: true }
 ];
 const FACTORY_DEFAULT_STATUS = [

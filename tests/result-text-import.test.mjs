@@ -29,8 +29,12 @@ function load() {
 
 const T = load();
 
+/* 例テキストに実在の投稿者のハンドル名を混ぜない。
+   抽出機能の検証であって作者名の検証ではないため、値は誰でも書ける
+   仮称でよい。実名が入ると、テンプレートとしてもサンプルとしても
+   その人に紛らわしくなる。 */
 const SAMPLE = [
-  "【中央通路戦線】(作：無礼面様)",
+  "【シナリオA】(作：作者名)",
   "報酬｜LP:150(+9)/自我の欠片:70(+16)/人格抽出チケットx1",
   "購入｜人格抽出x2(無料1/100LP)/第四銀太刀派同期化(50欠片)/EGO購入-TETH[鬼退治](75欠片)/EGO解析-TETH[鬼退治](40欠片)",
   "追加購入｜壊し砕く打撃(150LP)/乱打(50LP)"
@@ -41,13 +45,34 @@ const SAMPLE = [
 test("【シナリオ名】(作：著者) から名前と作者を取り出す", () => {
   const out = T.parseText(SAMPLE);
   assert.equal(out.records.length, 1);
-  assert.equal(out.records[0].title, "中央通路戦線");
-  assert.equal(out.records[0].author, "無礼面様");
+  assert.equal(out.records[0].title, "シナリオA");
+  assert.equal(out.records[0].author, "作者名");
+});
+
+/* 例テキストは誰でも書ける仮称只用。実在の投稿者のハンドル名や
+   公開済みのシナリオ名をテンプレートに載せると、その人の引用に見え、
+   サンプルと混ざって誤読される。 */
+const BANNED = ["無\u793C\u9762", "\u4E2D\u592E\u901A\u8DEF\u6226\u7DDA"];  // 実在ハンドル名 / 実在シナリオ名
+
+test("例テキストに実在の個人名・シナリオ名を使わない", () => {
+  const src = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
+  const placeholders = [...src.matchAll(/placeholder:\s*"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]);
+  const examples = placeholders.filter((p) => /作：|【/.test(p));
+  assert.ok(examples.length > 0, "例テキストが存在する");
+  for (const p of examples) {
+    for (const banned of BANNED) {
+      assert.equal(p.includes(banned), false, "例テキストに実在名が混ざっている: " + p);
+    }
+  }
+  const self = readFileSync(new URL(import.meta.url), "utf8");
+  for (const banned of BANNED) {
+    assert.equal(self.includes(banned), false, "テスト側にも実在名が残っている");
+  }
 });
 
 test("【の前の装飾文字（絵文字等）は無視する", () => {
-  const out = T.parseText("❤❤【中央通路戦線】\n報酬｜LP:150\n");
-  assert.equal(out.records[0].title, "中央通路戦線");
+  const out = T.parseText("❤❤【シナリオA】\n報酬｜LP:150\n");
+  assert.equal(out.records[0].title, "シナリオA");
 });
 
 test("作者の書き方が違っても著者として読む", () => {
@@ -170,7 +195,7 @@ test("見出しの無い本文だけの貼り付けは 1 件のリザルトと�
 test("ADD_RESULT と ADD_ENTRY の並びになる（明細は直前のリザルトに帰属）", () => {
   const plan = T.plan(T.parseText(SAMPLE), {});
   assert.equal(plan.actions[0].type, "ADD_RESULT");
-  assert.equal(plan.actions[0].name, "中央通路戦線");
+  assert.equal(plan.actions[0].name, "シナリオA");
   assert.deepEqual(plan.actions[0].income.lp, 150);
   assert.deepEqual(plan.actions[0].income.shards, 70);
   for (const a of plan.actions.slice(1)) assert.equal(a.type, "ADD_ENTRY", "明細が続く");
