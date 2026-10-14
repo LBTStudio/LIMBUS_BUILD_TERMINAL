@@ -345,11 +345,24 @@ test("抽象権3種を区別してショップのガチャタブで扱う（ロ�
   assert.match(sections, /tab === "gacha" \? h\(GachaTicketsPanel, \{ state, dispatch \}\)/);
 
   const g = read("../js/gacha-tickets.js");
-  /* 抽出全般を単独モジュールが担う：4ルート全部。 */
+  /* 抽出全般を単独モジュールが担う。特異人格抽出は単独ルートではなく分岐。 */
   assert.match(g, /\{ id: "persona", label: "人格抽出", rule: "core:346-349"/);
-  assert.match(g, /\{ id: "special", label: "特異人格抽出"/);
   assert.match(g, /\{ id: "ego", label: "E\.G\.O抽出"/);
   assert.match(g, /\{ id: "pack", label: "特定抽出パック"/);
+  assert.doesNotMatch(g, /\{ id: "special", label:/);
+  /* 人格抽出は 1d(人格総数)。最大値 = 番号が無いので特異人格抽出へ分岐（core:6344-6345）。 */
+  assert.match(g, /function drawPersonaWithBranch\(state, session\)/);
+  assert.match(g, /const maxDie = rollOne\(normalTotal\);/);
+  assert.match(g, /if \(maxDie >= normalTotal\) \{/);
+  assert.match(g, /const specialPool = buildPool\("special", state\);/);
+  assert.match(g, /branch: "special"/);
+  assert.match(g, /branch, remaining: pay === "ticket"/);
+  /* RNG は nextInt ではなく 1-indexed の roll。nextInt を呼ぶと常に undefined。 */
+  assert.match(g, /function rollOne\(max\)[\s\S]{0,300}?typeof s\.roll === "function"\) return s\.roll\(max\);/);
+  assert.doesNotMatch(g, /s\.nextInt\(/);
+  /* 分岐表示。 */
+  assert.match(sections, /gacha-branch-badge" \}, "特異人格チャンス"/);
+  assert.match(sections, /toast\("特異人格チャンス！ 最大値を出したので特異人格抽出に移ります"\)/);
   /* 抽選は通貨かチケットの2択。 */
   assert.match(g, /const pay = options\.pay === "ticket" \? "ticket" : "paid";/);
   assert.match(g, /if \(pay === "ticket" && held <= 0\) return \{ hit: null, reason: "no-ticket" \};/);

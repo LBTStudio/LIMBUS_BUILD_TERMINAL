@@ -1928,7 +1928,12 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
     } else {
       dispatch({ type: "ADD_ROSTER", mode: hit.mode, no: hit.no, purchase: true, cost: { lp: out.cost.lp || 0, shards: out.cost.shards || 0 } });
     }
-    setLast({ ...hit, paidBy: out.paidBy, cost: out.cost });
+    setLast({ ...hit, paidBy: out.paidBy, cost: out.cost, branch: out.branch });
+    /* 分岐した時は特異人格抽出に移ったことを明示する（core:6344-6345）。 */
+    if (out.branch === "special") {
+      toast("特異人格チャンス！ 最大値を出したので特異人格抽出に移ります");
+      return;
+    }
     toast(`${hit.name} を抽出しました（${out.paidBy === "ticket" ? (labels[ticketKind] || "チケット") : out.cost.label}）`);
   };
 
@@ -1963,7 +1968,8 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
         h(Button, { size: "sm", variant: "ghost", onClick: () => dispatch({ type: "GRANT_TICKET", kind: ticketKind, pack: ticketPack, count: 1 }) }, "+1"),
         h(Button, { size: "sm", variant: "ghost", onClick: () => dispatch({ type: "GRANT_TICKET", kind: ticketKind, pack: ticketPack, count: 5 }) }, "+5"),
         h(Button, { size: "sm", variant: "primary", onClick: run, disabled: poolSize <= 0 || (pay === "ticket" && held <= 0) }, "抽選する"))),
-    last && h("div", { className: "gacha-ticket-result" },
+    last && h("div", { className: `gacha-ticket-result${last.branch === "special" ? " is-branch" : ""}` },
+      last.branch === "special" && h("span", { className: "gacha-branch-badge" }, "特異人格チャンス"),
       h("span", { className: "t-label" }, "抽選結果"),
       h("strong", null, last.name),
       h("span", { className: "ledger-note" }, `${hitLabel(last)}　${last.paidBy === "ticket" ? "チケット使用" : last.cost?.label || "無料"}`))
