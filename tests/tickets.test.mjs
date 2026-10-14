@@ -235,3 +235,25 @@ test("複数枚の消費は明細に枚数が残る", () => {
   assert.equal(entry.tickets.persona, 5, "明細が 5 枚ぶんの消費を表す");
   assert.match(entry.name, /5枚/, "明細の名にも枚数が分かる");
 });
+
+/* --- 抽選の決定記録 -------------------------------------------------------
+   支払いと取得物はUndoで巻き戻る（それは正しい）。
+   「この抽選で何が出た」という決定だけは、Undoしてもアカウントを
+   切り替えても、セーブデータを読み込んでも残る。 */
+
+test("抽選の決定記録は追記され、二重にならない", () => {
+  const entry = { id: "c1", at: "2026-01-01T00:00:00Z", route: "persona", times: 1, hits: [{ name: "A" }] };
+  let s = reducer(context.window.LBT_normalizeStateShape({}), { type: "ADD_GACHA_LOG", entry });
+  assert.equal(s.gachaLog.length, 1);
+  s = reducer(s, { type: "ADD_GACHA_LOG", entry });
+  assert.equal(s.gachaLog.length, 1, "同じ id は二重に入らない（Undoでの再適用でも安全）");
+  const other = reducer(s, { type: "ADD_GACHA_LOG", entry: { ...entry, id: "c2" } });
+  assert.equal(other.gachaLog.length, 2, "別の抽選は追記される");
+});
+
+test("抽選の記録はソートせず、決まった順に積む", () => {
+  let s = context.window.LBT_normalizeStateShape({});
+  for (const id of ["a", "b", "c"]) s = reducer(s, { type: "ADD_GACHA_LOG", entry: { id, hits: [] } });
+  assert.equal(s.gachaLog.map((e) => e.id).join(","), "a,b,c");
+});
+

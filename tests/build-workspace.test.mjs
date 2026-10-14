@@ -371,22 +371,38 @@ test("ガチャは任意回数をまとめて引ける（既得は再抽選し�
   assert.match(g, /if \(taken\.has\(key\)\) break;/);
   assert.match(g, /if \(pay === "ticket" && held - hits\.length <= 0\) break;/);
   assert.match(g, /paidCost, ticketCount, ticketKindFor, draw, drawPersonaWithBranch, drawN/);
-  /* UI は回数を選べ、結果はまとめて出る。 */
+  /* UI は回数を自分で入れ、結果はまとめて出る。
+     プルダウンではなく数字入力にする（任意の回数を直接入れられるため、
+     ±1/＋1/＋5 は不要。 */
   assert.match(sections, /const \[times, setTimes\] = React\.useState\(1\);/);
-  assert.match(sections, /const TIMES_OPTIONS = \[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20\];/);
-  /* 回数はプルダウン。1〜20 の任意の回数を入れられる。 */
+  assert.doesNotMatch(sections, /const TIMES_OPTIONS/);
   assert.match(sections, /className: "gacha-times-field"[\s\S]{0,400}?"aria-label": "抽出手数"/);
-  assert.match(sections, /TIMES_OPTIONS\.map\(\(n\) => h\("option", \{ key: n, value: String\(n\) \}, `\$\{n\}回`\)\)/);
+  assert.match(sections, /type: "number"[\s\S]{0,200}?"aria-label": "抽出手数"/);
+  /* 入力は抽選ボタンと同じ行。±1/＋1/＋5 は撤去。 */
+  assert.match(sections, /className: "gacha-draw-row"/);
+  assert.doesNotMatch(sections, /\}, "\+1"\)/);
+  assert.doesNotMatch(sections, /\}, "\+5"\)/);
+  assert.doesNotMatch(sections, /"−1"/);
   assert.doesNotMatch(sections, /role: "radiogroup", "aria-label": "抽出手数"/);
   /* 通貨で払うときは回数ぶんの合計残高で可否を判定する。
      1回分だけを見ると「途中まで引いて止まる」ことになる。 */
   assert.match(sections, /const totalCost = \{ lp: \(Number\(cost\.lp\) \|\| 0\) \* times, shards: \(Number\(cost\.shards\) \|\| 0\) \* times \};/);
   assert.match(sections, /const currencyShort = pay === "paid" && balance && \(Number\(balance\.lp\) < totalCost\.lp \|\| Number\(balance\.shards\) < totalCost\.shards\);/);
   assert.match(sections, /const ticketShort = pay === "ticket" && held < times;/);
-  assert.match(sections, /disabled: !!blockedReason, title: blockedReason \|\| undefined \}/);
+  assert.match(sections, /onClick: requestDraw, disabled: !!blockedReason, title: blockedReason \|\| undefined/);
   assert.match(sections, /blockedReason && h\("p", \{ className: "ledger-note", role: "status" \}, blockedReason\)/);
   assert.match(sections, /if \(blockedReason\) \{ toast\(blockedReason\); return; \}/);
-  assert.match(sections, /G\?\.drawN\(route, state, \{ pay, pack: activePack, times \}\)/);
+  /* 確認を挟む。押しただけでは何も入らない。 */
+  assert.match(sections, /const requestDraw = \(\) => \{/);
+  assert.match(sections, /const seed = drawSeed\(\);[\s\S]{0,420}?setPending\(\{ seed, out \}\);/);
+  assert.match(sections, /className: "gacha-confirm"/);
+  assert.match(sections, /\}, "取り消す"\)/);
+  assert.match(sections, /\}, "確定する"\)/);
+  /* 種は暗号学的乱数から作る。時刻やMath.randomは予測できる。 */
+  assert.match(read("../js/gacha-tickets.js"), /function seededSession\(seed\)/);
+  assert.match(sections, /window\.crypto \|\| window\.msCrypto/);
+  assert.match(sections, /getRandomValues\(buf\)/);
+  assert.match(sections, /G\?\.drawN\(route, state, \{ pay, pack: activePack, times, seed \}\)/);
   assert.match(sections, /type: "SPEND_TICKET", kind: out\.ticketKind, pack: out\.ticketPack, count: -hits\.length/);
   assert.match(sections, /抽選結果（\$\{last\.hits\.length\}件）/);
 });

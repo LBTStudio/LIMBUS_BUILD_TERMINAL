@@ -1889,8 +1889,7 @@ const BuildItemsPanel = ({ state, dispatch }) => {
    既定は「未所持のみ」。カード1枚で所持化＝購入でき、金額は自動計算して
    直近リザルトへ記録する（リザルト未登録なら未分類＝待機項目）。 */
 /* 抽選結果の1行表示。種別の記号はここで閉じる。 */
-/* 抽出手数。1〜10 は等間隔で、さらに 15/20 を足す。任意回数を入れたい時は直接指定できる。 */
-const TIMES_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20];
+/* 抽出手数は利用者が数字で直接入れる（1〜99）。 */
 const hitLabel = (hit) => (hit.type === "ego"
   ? `E.G.O ${hit.rank} No.${hit.no}`
   : hit.type === "themePack"
@@ -1911,7 +1910,6 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
   const [times, setTimes] = React.useState(1);
   const ROUTES = G?.ROUTES || [];
   const packs = G?.themePacks?.() || [];
-  const spec = ROUTES.find((r) => r.id === route);
   const activePack = packName || packs[0]?.name || "";
   const ticketKind = G?.ticketKindFor ? G.ticketKindFor(route) : "persona";
   const ticketPack = route === "pack" ? activePack : null;
@@ -1944,30 +1942,83 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
         ? `残高が不足しています（${Number(balance.lp) < totalCost.lp ? `LP ${balance.lp} / 必要 ${totalCost.lp}` : ""}${Number(balance.lp) < totalCost.lp && Number(balance.shards) < totalCost.shards ? " / " : ""}${Number(balance.shards) < totalCost.shards ? `欠片 ${balance.shards} / 必要 ${totalCost.shards}` : ""}）`
         : "";
 
-  const run = () => {
-    /* 二重実行を防ぐ。残高不足は押前に止めているが、ここでも拒否する。 */
+  /* --- 抽選は「確認 → 確定」の2段構え ---------------------------------
+     1段目で結果を決める。種は暗号学的乱数から作り、状態（所持・対象一覧・
+     アカウント）には一切依存させない。よって確認ダイアログを操作している
+     間にセーブデータが変わっても、対象が変わっても、出目は変わらない。
+     2段目でそれを適用する。__noHistory を付けてUndo/Redoの履歴に載せない。 */
+
+  /* 出目の種。時刻やMath.randomは予測できるので使わない。 */
+  const drawSeed = () => {
+    const buf = new Uint32Array(4);
+    const c = typeof window !== "undefined" ? (window.crypto || window.msCrypto) : null;
+    if (c && typeof c.getRandomValues === "function") {
+      c.getRandomValues(buf);
+      return Array.from(buf).map((n) => n.toString(16).padStart(8, "0")).join("");
+    }
+    /* crypto が無い環境（古いブラウザとテスト）向けの保険。
+       ここでは少なくとも時刻由来の重複を避ける。 */
+    return [Date.now().toString(16), Math.random().toString(16).slice(2)].join("x");
+  };
+
+  /* 対象一覧を「その場で」確定する。プール搭建時に
+     所持状態を読むので、呼び出した時点の顔がそのまま結果になる。 */
+  const drawWithSeed = (seed) =>
+    G?.drawN(route, state, { pay, pack: activePack, times, seed });
+
+  const [pending, setPending] = React.useState(null);
+
+  const requestDraw = () => {
     if (blockedReason) { toast(blockedReason); return; }
-    const out = G?.drawN(route, state, { pay, pack: activePack, times });
-    if (!out || !out.hits.length) {
+    /* ここで一度だけ出目を決める。以後は何をしても変わらない。 */
+    const seed = drawSeed();
+    const out = drawWithSeed(seed);
+    if (!out || !out.hits || !out.hits.length) {
       const why = out?.reason === "no-ticket" ? "対応するチケットを持っていません" : "抽選できる対象がありません";
       toast(why);
       return;
     }
+    setPending({ seed, out });
+  };
+
+  const cancelDraw = () => { setPending(null); toast("抽選を取り消しました"); };
+
+  const commitDraw = () => {
+    if (!pending) return;
+    const { seed, out } = pending;
     const hits = out.hits;
     if (out.paidBy === "ticket") {
       dispatch({ type: "SPEND_TICKET", kind: out.ticketKind, pack: out.ticketPack, count: -hits.length });
     }
     /* 同じ手つきで何件も入るので、1回ごとに dispatch すると前の書き込みが
-       上書きされる。まとめて1つの action にする。 */
+       上書きされる。まとめて1つの action にする。
+       支払いと取得物はUndoで巻き戻る（それは正しい）。 */
     dispatch({
       type: "ADD_ROSTER_MANY",
       cost: { lp: out.cost.lp || 0, shards: out.cost.shards || 0 },
       adds: hits.filter((hit) => hit.type === "ego" || hit.type === "persona")
     });
-    setLast({ hits, paidBy: out.paidBy, cost: out.cost });
+    /* 抽選の決定だけを記録に残す。Undoで巻き戻しても消えない。
+       種は出さず commit（種から計算した指紋）だけを持つ。 */
+    dispatch({
+      type: "ADD_GACHA_LOG",
+      __sealed: true,
+      entry: {
+        id: out.commit || `draw-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+        at: new Date().toISOString(),
+        route,
+        times,
+        pay: out.paidBy,
+        cost: { lp: out.cost.lp || 0, shards: out.cost.shards || 0 },
+        hits: hits.map((hit) => ({ name: hit.name, type: hit.type, no: hit.no, rank: hit.rank, mode: hit.mode, pack: hit.pack, branch: hit.branch })),
+        commit: out.commit || null
+      }
+    });
+    setLast({ hits, paidBy: out.paidBy, cost: out.cost, commit: out.commit || null });
+    setPending(null);
     const branched = hits.filter((x) => x.branch === "special").length;
-    const note = branched ? `\uFF08\u3046\u3061\u7279\u7570\u4EBA\u683C\u30C1\u30E3\u30F3\u30B9 ${branched}\uFF09` : "";
-    toast(`${hits.length}\u679A\u3092\u62BD\u51FA\u3057\u307E\u3057\u305F${note}\uFF08${out.paidBy === "ticket" ? ticketLabel(ticketKind, ticketPack) : out.cost.label}\uFF09`);
+    const note = branched ? `（うち特異人格チャンス ${branched}）` : "";
+    toast(`${hits.length}枚を抽出しました${note}（${out.paidBy === "ticket" ? ticketLabel(ticketKind, ticketPack) : out.cost.label}）`);
   };
 
   const ticketLabel = (kind, pack) => (window.LBT_ticketLabel ? window.LBT_ticketLabel(kind, pack) : (labels[kind] || "チケット"));
@@ -1996,7 +2047,10 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
         key: r.id, type: "button", role: "radio", "aria-checked": route === r.id,
         className: route === r.id ? "is-active" : "", onClick: () => { setRoute(r.id); setLast(null); }
       }, r.label))),
-    h("div", { className: "ledger-note" }, `${spec?.rule || ""}　対象 ${poolSize} 件`),
+    /* 出所（core:346-349 など）は利用者には無意味なので出さない。
+       規則番号はコードと provenance に残せば足りる。
+       画面で意味を持つのは「対象が何件か」だけ。 */
+    h("div", { className: "ledger-note" }, `候補 ${poolSize} 件`),
     route === "pack" && h("label", { className: "ledger-note" },
       h("span", null, "パック　"),
       h("select", {
@@ -2008,29 +2062,46 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
         key: v, type: "button", role: "radio", "aria-checked": pay === v,
         className: pay === v ? "is-active" : "", onClick: () => { setPay(v); setLast(null); }
       }, label))),
-    h("div", { className: "gacha-ticket-row" },
-      /* 回数はプルダウンで。1〜20 の任意の回数を指定できる。 */
+    /* 回数は抽選ボタンと同じ行に置く。数は自分で入れる。
+       ±1/＋1/＋5 を置く意味が薄かった（任意の数字が直接入れられるため）。 */
+    h("div", { className: "gacha-draw-row" },
       h("label", { className: "gacha-times-field" },
         h("span", { className: "ledger-note" }, "回数"),
-        h("select", {
-          className: "select",
+        h("input", {
+          className: "input ledger-input gacha-times-input",
+          type: "number",
+          min: 1,
+          max: 99,
+          step: 1,
+          inputMode: "numeric",
           value: String(times),
           "aria-label": "抽出手数",
-          onChange: (e) => { setTimes(Math.max(1, Number(e.target.value) || 1)); setLast(null); }
-        }, TIMES_OPTIONS.map((n) => h("option", { key: n, value: String(n) }, `${n}回`)))),
+          onChange: (e) => { setTimes(Math.min(99, Math.max(1, Number.parseInt(e.target.value, 10) || 1))); setLast(null); }
+        })),
       h("span", { className: "ledger-note" }, pay === "ticket"
         ? `${ticketLabel(ticketKind, ticketPack)} ×${held}（1回あたり1枚）`
         : totalCostLabel),
-      h("div", { className: "shop-toolbar-main" },
-        h(Button, {
-          size: "sm", variant: "ghost",
-          onClick: () => dispatch({ type: "GRANT_TICKET", kind: ticketKind, pack: ticketPack, count: -1 }),
-          disabled: held <= 0
-        }, "−1"),
-        h(Button, { size: "sm", variant: "ghost", onClick: () => dispatch({ type: "GRANT_TICKET", kind: ticketKind, pack: ticketPack, count: 1 }) }, "+1"),
-        h(Button, { size: "sm", variant: "ghost", onClick: () => dispatch({ type: "GRANT_TICKET", kind: ticketKind, pack: ticketPack, count: 5 }) }, "+5"),
-        h(Button, { size: "sm", variant: "primary", onClick: run, disabled: !!blockedReason, title: blockedReason || undefined }, times > 1 ? `${times}回抽選` : "抽選する"))),
+      h(Button, {
+        size: "sm", variant: "primary", onClick: requestDraw, disabled: !!blockedReason, title: blockedReason || undefined
+      }, times > 1 ? `${times}回抽選` : "抽選する")),
+    h("p", { className: "ledger-note" },
+      "抽選結果はこの瞬間に決まります。確定後は取り消せません。"),
     blockedReason && h("p", { className: "ledger-note", role: "status" }, blockedReason),
+    /* 確認。ここまでで出目は確定済みなので、経路や回数などを変えても
+       同じ顔が出る。ここで「取り消す」を選んだときだけ何も起きない。 */
+    pending && h("div", { className: "gacha-confirm", role: "group", "aria-label": "抽選の確認" },
+      h("span", { className: "t-label" }, `この内容で ${pending.out.hits.length} 件を確定します`),
+      h("div", { className: "gacha-confirm-list" },
+        pending.out.hits.map((hit, i) => h("div", { key: `${hitLabel(hit)}-${i}`, className: "gacha-result-row" },
+          h("strong", null, hit.name),
+          h("span", { className: "ledger-note" }, `${hitLabel(hit)}${hit.branch === "special" ? "（特異人格チャンス）" : ""}`)))),
+      h("div", { className: "gacha-confirm-cost ledger-note" },
+        pending.out.paidBy === "ticket"
+          ? `${ticketLabel(ticketKind, ticketPack)} を ${pending.out.hits.length} 枚使います`
+          : `支払い ${pending.out.cost?.label || "無料"}`),
+      h("div", { className: "shop-toolbar-main" },
+        h(Button, { size: "sm", variant: "secondary", onClick: cancelDraw }, "取り消す"),
+        h(Button, { size: "sm", variant: "primary", onClick: commitDraw }, "確定する"))),
     last && h("div", { className: `gacha-ticket-result${last.hits.some((x) => x.branch === "special") ? " is-branch" : ""}` },
       last.hits.some((x) => x.branch === "special") && h("span", { className: "gacha-branch-badge" }, "特異人格チャンス"),
       h("span", { className: "t-label" }, `抽選結果（${last.hits.length}件）`),

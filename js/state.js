@@ -1936,6 +1936,9 @@ const INIT_STATE = {
   // dedicated death-passive slot
   // {id, name, cond, effect, lp}
   // Roster: owned personas & egos with supplement flags
+  // 抽選の決定記録。支払いと取得物はUndoで巻き戻るが、この記録は残る。
+  // { id, at, route, times, pay, cost, hits, commit }
+  gachaLog: [],
   roster: {
     personas: [],
     // {uid, no, mode, syncRank:'0'|'00'|'000'|null, syncMax:bool, lcb:bool, equipped:bool, notes}
@@ -3141,6 +3144,16 @@ if (nextValue && !action.preview && !rosterEgos.some((entry) => entry.rank === a
     /* 複数まとめての所持追加。一括抽出のように同じ手つきで何件も入る操作で
        は、1回ごとに dispatch すると前の更新が次の書き込みで上書きされる。
        まとめて1つの action としてphal 同じ state に対して積む。 */
+    /* 抽選の決定記録。支払いも取得物も通常どおりUndoで巻き戻るが、
+       「この抽選で何が出たか」は_account ごとに永久に残る。
+       後から追記されるだけなので、同じ id が二重に生まれないよう弾く。 */
+    case "ADD_GACHA_LOG": {
+      const entry = action.entry || null;
+      if (!entry || !entry.id) return state;
+      const log = Array.isArray(state.gachaLog) ? state.gachaLog : [];
+      if (log.some((e) => e && e.id === entry.id)) return state;
+      return { ...state, gachaLog: [...log, entry] };
+    }
     case "ADD_ROSTER_MANY": {
       const adds = Array.isArray(action.adds) ? action.adds : [];
       if (!adds.length) return state;
@@ -3698,7 +3711,16 @@ function useAppState() {
     }
     return normalizeStateShape(init);
   });
+  /* seals は「巻き戻させない操作」の記録。
+     履歴を全部消すと他の操作まで巻き添えになり、
+     抽選より前までUndo不可にするのも他の編集の巻き戻しを奪う。
+     そこで、履歴を通常どおり残し、Undoで過去のスナップショットへ戻るときに
+     抽選の記録だけを叠加え直す。支払いも取得物も通常どおり巻き戻り、
+     「この抽選で何が出た」という決定だけが残る。
+     atPastLength は、その action の直前に積まれていたスナップショット数。
+     つまりインデックスがそれ未満のスナップショットは抽選より前の状態。 */
   const historyRef = React.useRef({ past: [], future: [] });
+  const sealsRef = React.useRef([]);
   const skipHistoryRef = React.useRef(false);
   const [saveStatus, setSaveStatus] = React.useState({ phase: "saving", savedAt: null, error: "" });
   React.useEffect(() => {
@@ -3727,6 +3749,16 @@ function useAppState() {
     return () => clearTimeout(t);
   }, [state]);
   const wrappedDispatch = React.useCallback((action) => {
+    /* __sealed は「履歴に記録しないが、Undoで巻き戻されたとき復元する」。
+       抽選の決定記録に使う。支払いと取得物は普通の action なので、
+       それらは通常どおりUndoで巻き戻る。 */
+    if (action && action.__sealed) {
+      const h = historyRef.current;
+      sealsRef.current.push({ atPastLength: h.past.length, action });
+      skipHistoryRef.current = false;
+      dispatch(action);
+      return;
+    }
     if (action.type !== "SET_UI" && !skipHistoryRef.current) {
       // 1つのハンドラで連続dispatchした場合、再レンダリングが走るまで
       // 同じstate参照が閉包に残る。同一参照を重ねて積むと、1回目のundoで
@@ -3741,17 +3773,30 @@ function useAppState() {
     skipHistoryRef.current = false;
     dispatch(action);
   }, [state]);
+  /* 戻ったスナップショットより後に決まった抽選があれば、記録だけ戻す。 */
+  const reseal = (index) => {
+    for (const seal of sealsRef.current) {
+      if (seal.atPastLength > index) {
+        skipHistoryRef.current = true;
+        dispatch(seal.action);
+      }
+    }
+  };
   const undo = React.useCallback(() => {
-    if (!historyRef.current.past.length) return;
-    const prev = historyRef.current.past.pop();
-    historyRef.current.future.unshift(state);
+    const h = historyRef.current;
+    if (!h.past.length) return;
+    const index = h.past.length - 1;
+    const prev = h.past.pop();
+    h.future.unshift(state);
     skipHistoryRef.current = true;
     dispatch({ type: "HYDRATE", state: prev });
+    reseal(index);
   }, [state]);
   const redo = React.useCallback(() => {
-    if (!historyRef.current.future.length) return;
-    const next = historyRef.current.future.shift();
-    historyRef.current.past.push(state);
+    const h = historyRef.current;
+    if (!h.future.length) return;
+    const next = h.future.shift();
+    h.past.push(state);
     skipHistoryRef.current = true;
     dispatch({ type: "HYDRATE", state: next });
   }, [state]);

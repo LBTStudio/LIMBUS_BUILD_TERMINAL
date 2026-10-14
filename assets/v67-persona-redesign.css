@@ -967,6 +967,43 @@ label:has(> input[type="checkbox"]) {
   padding-top: var(--s-2);
   border-top: 1px solid var(--line-dim);
 }
+
+/* 回数入力と抽出ボタンを同じ行に置く。 */
+.gacha-draw-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--line-dim);
+}
+.gacha-draw-row > .ledger-note {
+  margin-inline-end: auto;
+}
+.gacha-times-input {
+  inline-size: 5.5rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 確認。抽選結果はここで確定済み。 */
+.gacha-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  background: var(--gold-tint);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-sm);
+}
+.gacha-confirm-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.gacha-confirm > .shop-toolbar-main {
+  justify-content: flex-end;
+}
 .gacha-ticket-result {
   display: flex;
   align-items: baseline;
