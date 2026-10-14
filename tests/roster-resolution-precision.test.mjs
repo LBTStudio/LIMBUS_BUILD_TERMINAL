@@ -99,3 +99,37 @@ test("利用者が宣言した別名は推測の長さ制限に出さない", ()
   const without = R.resolveCandidates(idx, "涙剣CT2を短縮 1589LP");
   assert.equal(without.length, 0, "別名を置いていないときは当てない");
 });
+
+/* --- 候補が 0 にならないこと -----------------------------------------------
+   「海賊団組員」は DB に無い。前方一致も部分一致も決まらないので、
+   以前は候補 0 になり、利用者が選べなかった。
+   1 文字でも一致する名前を出し、一致数順に並べる。 */
+
+test("引けなかった名前は文字一致で候補を返す（0 件にしない）", () => {
+  const cands = R.candidatesFor({ name: "海賊団組員", sourceLine: "海賊団組員" }, idx);
+  assert.ok(cands.length > 0, "候補が 0 ではない");
+  const names = cands.map((c) => c.name);
+  assert.ok(names.some((n) => n.includes("海賊")), "海賊を含む名前が上来了");
+});
+
+test("文字一致は一致数が多い順に並ぶ", () => {
+  const cands = R.candidatesFor({ name: "南部ツヴァイ", sourceLine: "南部ツヴァイ" }, idx);
+  const overlaps = cands.filter((c) => c.confidence === "char-overlap").map((c) => c.overlap || 0);
+  assert.ok(overlaps.length > 0, "文字一致の候補がある");
+  for (let i = 1; i < overlaps.length; i++) {
+    assert.ok(overlaps[i - 1] >= overlaps[i], "一致数が減 défa順に並んでいる");
+  }
+  assert.ok(cands[0].name.includes("南部ツヴァイ"), "入力に近い名前が先頭");
+});
+
+test("無関係な文字列でも上限を用意し、1 文字だけの入力は出さない", () => {
+  const junk = R.candidatesFor({ name: "xture مص", sourceLine: "xture مص" }, idx);
+  assert.ok(junk.length <= 12, "無制限に増えない");
+  const one = R.candidatesFor({ name: "a", sourceLine: "a" }, idx);
+  assert.equal(one.length, 0, "1 文字は偶発一致なので出さない");
+});
+
+test("完全一致は文字一致に優先して残る", () => {
+  const exact = R.candidatesFor({ name: "黒雲会組員", sourceLine: "黒雲会組員" }, idx);
+  assert.equal(exact[0].confidence, "exact", "完全一致が先頭");
+});

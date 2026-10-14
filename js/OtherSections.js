@@ -3171,6 +3171,51 @@ const addEntry = () => {
 const PERSONA_NAME_KEY = (name) => String(name || "").replace(/[\s\u3000]+/g, "").toLowerCase();
 const PERSONA_BOUNDARY = /[\u3001,\uFF0C\/\uFF0F|]/;
 
+/* 名前が1文字違えば完全一致は当たらない。候補が0になると利用者が選べないので、
+   1文字でも一致する名前を出し、一致した文字数順に並べる。
+   一致数だけだと「部」だけの名前が上に来るので、連続一致の長さを優先する。 */
+const OVERLAP_MIN_CHARS = 2;
+const OVERLAP_MIN_RATIO = 0.25;
+const OVERLAP_LIMIT = 10;
+const overlapCandidates = (index, raw) => {
+  const text = PERSONA_NAME_KEY(raw);
+  if (!text || text.length < 2) return [];
+  const chars = [...new Set(text.replace(/\s+/g, ""))];
+  if (chars.length < OVERLAP_MIN_CHARS) return [];
+  const scored = [];
+  const seen = new Set();
+  for (const [key, rec] of index) {
+    const packed = key.replace(/\s+/g, "");
+    if (packed.length < 2) continue;
+    let hit = 0;
+    for (const c of chars) if (packed.includes(c)) hit += 1;
+    if (hit === 0) continue;
+    const ratio = hit / chars.length;
+    /* 1文字しか一致しないのは偶然なので出さない。 */
+    if (hit < OVERLAP_MIN_CHARS && ratio < OVERLAP_MIN_RATIO) continue;
+    if (seen.has(rec.name)) continue;
+    let bestRun = 0;
+    let run = 0;
+    for (const c of chars) {
+      if (packed.includes(c)) { run += 1; if (run > bestRun) bestRun = run; }
+      else run = 0;
+    }
+    seen.add(rec.name);
+    scored.push({ rec, hit, bestRun, ratio, score: hit + bestRun * 2 + ratio * 2 });
+  }
+  scored.sort((a, b) => (b.score - a.score) || b.hit - a.hit || String(a.rec.name).length - String(b.rec.name).length);
+  return scored.slice(0, OVERLAP_LIMIT).map((s) => ({
+    name: s.rec.name,
+    kind: s.rec.kind,
+    no: s.rec.no,
+    rank: s.rec.rank,
+    mode: s.rec.mode,
+    slot: s.rec.slot,
+    overlap: s.hit,
+    ratio: Math.round(s.ratio * 100)
+  }));
+};
+
 const scanHeldPersonas = (text, resolved) => {
   const tokui = window.DB?.tokui_personas || [];
   const index = new Map();
@@ -3247,7 +3292,12 @@ const scanHeldPersonas = (text, resolved) => {
     }
     /* どの切り方でも1件にならない。先頭の区切りで切って残りを回す。 */
     const first = bounds[0];
-    unknown.push(first === undefined ? rest : rest.slice(0, first));
+    const left = first === undefined ? rest : rest.slice(0, first);
+    /* 「候補が1つも無い」は異常なので、ここで底线を引く。
+       上記の index は完全一致のみ。名前が1文字違えば candidate は空になり、
+       利用者が選べなくなる。そこで 1 文字でも一致する名前を出し、
+       一致した文字数順に並べる（Hubi 側で選ぶ）。 */
+    unknown.push({ text: left, candidates: overlapCandidates(index, left) });
     if (first !== undefined) consume(rest.slice(first + 1), depth + 1);
   };
 
@@ -3596,8 +3646,13 @@ const importHeldPersonas = () => {
 heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: "group", "aria-label": "判定できなかった名前" },
         h("p", { className: "ledger-note" },
         `${heldScan.unknownCount} 件が見つかりませんでした。近い候補から選べば取り込めます。`),
-        h("div", { className: "ledger-held-unknown-list" }, heldScan.unknown.map((label) => {
-        const options = window.LBT_fuzzyNameCandidatesAcross?.(window.DB, label, 6) || [];
+        h("div", { className: "ledger-held-unknown-list" }, heldScan.unknown.map((entry) => {
+        const label = typeof entry === "string" ? entry : entry.text;
+        /* 文字一致の候補を先に並べる。候補が0にならないことが最優先。 */
+        const options = [
+          ...(typeof entry === "object" && entry.candidates ? entry.candidates : []),
+          ...(window.LBT_fuzzyNameCandidatesAcross?.(window.DB, label, 6) || [])
+        ].filter((o, i, arr) => arr.findIndex((x) => x.name === o.name) === i);
         const open = heldPicking === label;
         return h("div", { key: label, className: `ledger-unknown-row${open ? " is-open" : ""}` },
         h("button", {

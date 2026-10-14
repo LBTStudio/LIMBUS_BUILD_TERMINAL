@@ -194,6 +194,63 @@
          DB の価格は提示したまま、利用者に選んでもらう。 */
   const FREE_BY_PROVENANCE = new Set(["gachaTicket", "grant"]);
 
+  /* 文字単位の類似で候補を作る。
+     完全一致も前方一致も外れたとき、「海賊団組員」に対して候補が 0 になる。
+     DB に「海賊」は無くても「双鉤海賊団組員」なら引けるので、
+     1 文字でも一致すれば候補に出し、一致した文字数で並べる。
+     一致数だけだと「部」だけの名前が上位に来るので、
+     連続一致の長さも見て同点なら長い方を上に置く。
+
+     「知らない名前」のような無関係な文字列にも何か出るが、それは
+     _specified 通り。全部出すと選択が不可能になるので、
+     最低一致数（2 文字）と一致率（25%）を下限にする。 */
+  const MIN_OVERLAP_CHARS = 2;
+  const MIN_OVERLAP_RATIO = 0.25;
+  const OVERLAP_LIMIT = 12;
+
+  function charOverlapCandidates(idx, query, limit) {
+    const max = limit || OVERLAP_LIMIT;
+    const q = fold(query);
+    if (q.length < 2) return [];
+    const chars = [...new Set(q.replace(/\s+/g, ""))];
+    if (chars.length < MIN_OVERLAP_CHARS) return [];
+
+    const scored = [];
+    const seen = new Set();
+    for (const { key, entry } of idx.keys) {
+      const packed = key.replace(/\s+/g, "");
+      if (packed.length < 2) continue;
+      let hit = 0;
+      for (const c of chars) if (packed.includes(c)) hit += 1;
+      if (hit === 0) continue;
+      const ratio = hit / chars.length;
+      /* 下限に満たないものは出さない。1 文字しか一致しないのは偶然。 */
+      if (hit < MIN_OVERLAP_CHARS && ratio < MIN_OVERLAP_RATIO) continue;
+      if (seen.has(entry.name)) continue;
+
+      /* 連続一致 runs を数える。「海賊」が並んでいれば高い。 */
+      let bestRun = 0;
+      let run = 0;
+      for (const c of chars) {
+        if (packed.includes(c)) { run += 1; if (run > bestRun) bestRun = run; }
+        else run = 0;
+      }
+      /* 連続 longe > 散発。ratio は入力長に対する一致率。 */
+      scored.push({ entry, hit, bestRun, ratio, score: hit + bestRun * 2 + ratio * 2 });
+      seen.add(entry.name);
+    }
+    scored.sort((a, b) => (b.score - a.score) || b.hit - a.hit || String(a.entry.name).length - String(b.entry.name).length);
+    /* 上位は必ず残す。全部不掉。 */
+    return scored.slice(0, max).map((s) => ({
+      ...s.entry,
+      confidence: "char-overlap",
+      overlap: s.hit,
+      overlapChars: s.hit,
+      run: s.bestRun,
+      ratio: Math.round(s.ratio * 100)
+    }));
+  }
+
   function candidatesFor(item, idx) {
       const out = [];
       const line = String(item.sourceLine || item.name || "");
@@ -225,6 +282,9 @@
           free: freeByProvenance || undefined,
           source: (extra && extra.source) || (fromDb ? "DB" : ""),
           confidence,
+          /* 文字一致の候補は一致数を持つ。並びと表示に使う。 */
+          overlap: (extra && extra.overlap) || undefined,
+          ratio: (extra && extra.ratio) || undefined,
           probe
         });
       };
@@ -286,6 +346,26 @@
         }
       }
 
+      /* 4b. 上のどれでも決まらなかったら、1 文字でも一致する名前を出す。
+            完全一致も前方一致も外れると候補が 0 になり、
+            利用者が選べなくなる。一致した文字数が多い順に並べる。 */
+      if (!raw) {
+        for (const c of charOverlapCandidates(idx, item.name)) {
+          for (const k of c.kinds) {
+            push(c.name, k, "char-overlap", `${c.overlap}/${[...fold(item.name)].length}字一致`, {
+              overlap: c.overlap,
+              ratio: c.ratio
+            });
+          }
+        }
+        /* 前期のはみ出した部分も。 */
+        if (!out.some((o) => o.confidence === "char-overlap")) {
+          for (const c of charOverlapCandidates(idx, line)) {
+            for (const k of c.kinds) push(c.name, k, "char-overlap", `${c.overlap}字一致`, { overlap: c.overlap, ratio: c.ratio });
+          }
+        }
+      }
+
       /* 5. 価格が DB に無い種別は、公式ルールの入手手段を候補に足す。
             名前だけでは抽出か購入か決められないので、両方を出して利用者に選んでもらう。 */
       if (!out.some((o) => o.price)) {
@@ -293,9 +373,11 @@
         for (const k of (raw ? raw.kinds : item.kinds) || []) ruleCandidates(k, ownsOne);
       }
 
-      /* 確度順。exact が最初に見えるようにする。 */
-      const order = { exact: 0, alias: 1, suffix: 2, "unique-substring": 3, "head-prefix": 4, rule: 5 };
-      return out.sort((a, b) => (order[a.confidence] ?? 9) - (order[b.confidence] ?? 9));
+      /* 確度順。exact が最初に見えるようにする。
+         char-overlap は文字一致なので、一致数で内部並びを保つ
+         （入れ替えると feels が崩れる）。 */
+      const order = { exact: 0, alias: 1, suffix: 2, "unique-substring": 3, "head-prefix": 4, "char-overlap": 5, rule: 6 };
+      return out.sort((a, b) => (order[a.confidence] ?? 9) - (order[b.confidence] ?? 9) || (b.overlap || 0) - (a.overlap || 0));
     }
 
   /* 候補の価格は購入由来のときだけ成り立つ。 */
