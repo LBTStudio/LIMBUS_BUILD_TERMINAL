@@ -120,11 +120,15 @@
   }
 
   /* チケット1枚の残数。state.tickets は分類付き在庫（配列）。 */
+  /* 残数は収支から求める（リザルトの収入 − 明細の消費）。
+     旧来の state.tickets 行配列は移行済みで、ここには残らない。 */
   function ticketCount(state, kind, pack) {
-    if (window.LBT_ticketCount) return window.LBT_ticketCount(state.tickets, kind, pack || null);
-    return (Array.isArray(state.tickets) ? state.tickets : [])
-      .filter((t) => t.kind === kind && (t.pack || null) === (pack || null))
-      .reduce((s, t) => s + (Number(t.count) || 0), 0);
+    if (window.LBT_computeTicketBalance) {
+      const balance = window.LBT_computeTicketBalance(state.results || [], state.entries || []);
+      return kind === "pack" ? (Number(balance.pack?.[pack]) || 0) : (Number(balance[kind]) || 0);
+    }
+    if (window.LBT_ticketCount) return window.LBT_ticketCount(state, kind, pack || null);
+    return 0;
   }
 
   /* ルートに対応するチケット種別。persona/special は人格、E.G.O は ego。 */

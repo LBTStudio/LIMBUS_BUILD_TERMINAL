@@ -43,7 +43,7 @@ function hasInitialGrant(results) {
   const income = normalizeCurrency(latest?.income);
   return income.lp === INITIAL_LP && income.shards === 0;
 }
-/* 抽出権利の分類。ローカルルール（ルールブックには無いが卓で配られる）。
+/* 抽籤権利の分類。ローカルルール（ルールブックには無いが卓で配られる）。
    kind=persona 人格抽出チケット … 人格からランダム1つ
    kind=ego     E.G.O抽出チケット … E.G.Oからランダム1つ
    kind=choice  選択抽出チケット … 人格かE.G.Oのどちらかを選んでランダム1つ
@@ -71,11 +71,10 @@ function inferPersonaKeywords(persona, secondaryPassive) {
 window.LBT_inferPersonaKeywords = inferPersonaKeywords;
 window.LBT_TICKET_KINDS = TICKET_KINDS;
 window.LBT_TICKET_KIND_LABEL = TICKET_KIND_LABEL;
-/* 抽取権利の残数汇总。パック別チケットは1パック1行で数える。 */
-window.LBT_ticketCount = function (tickets, kind, pack) {
-  return (Array.isArray(tickets) ? tickets : [])
-    .filter((t) => t.kind === kind && (t.pack || null) === (pack || null))
-    .reduce((sum, t) => sum + (Number(t.count) || 0), 0);
+/* Ticket stock: result income minus entries, the same shape as LP and shards. */
+window.LBT_ticketCount = function (state, kind, pack) {
+  const src = state && state.results ? state : { results: state, entries: [] };
+  return ticketTotal(computeTicketBalance(src.results || [], src.entries || []), kind, pack);
 };
 function enrichPersonaKeywords(database) {  const keywords = window.LBT_PDF_KEYWORD_ORDER || [];
   const groups = ["normal_personas", "tokui_personas", "abnormal_personas"];
@@ -890,7 +889,92 @@ function normalizeCurrency(value) {
   return { lp: toNumber(raw.lp), shards: toNumber(raw.shards) };
 }
 
-let ownedUidCounter = 0;
+  /* 抽出権利も通貨と同じ収支で扱う。卓で報酬として受け渡されるもので、
+     リザルトの収入に「種別ごとの枚数」として積む。パック別は pack の下に
+     パック名を並べるので、どのパックなら引けるかが収入の時点で分かる。 */
+  function normalizeTickets(value) {
+    const raw = value && typeof value === "object" ? value : {};
+    const toNumber = (input) => {
+      const parsed = Number.parseInt(input, 10);
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+    const out = { persona: toNumber(raw.persona), ego: toNumber(raw.ego), choice: toNumber(raw.choice), pack: {} };
+    const packs = raw.pack && typeof raw.pack === "object" ? raw.pack : {};
+    for (const [name, count] of Object.entries(packs)) {
+      const n = toNumber(count);
+      if (n) out.pack[name] = n;
+    }
+    return out;
+  }
+
+  /* 所持の抽出権利は「全リザルトの収入 − 全明細の消費」で求める。
+     LP/欠片と同じ式なので、増減を追う経路がどこであれ結果が求まる。 */
+  function computeTicketBalance(results, entries) {
+    const out = { persona: 0, ego: 0, choice: 0, pack: {} };
+    for (const result of results || []) {
+      const inc = normalizeTickets(result?.income?.tickets);
+      out.persona += inc.persona;
+      out.ego += inc.ego;
+      out.choice += inc.choice;
+      for (const [name, n] of Object.entries(inc.pack)) out.pack[name] = (out.pack[name] || 0) + n;
+    }
+    for (const entry of entries || []) {
+      /* 消費は負数で持つ（明細は支出なので）。 */
+      const used = normalizeTickets(entry?.tickets);
+      out.persona -= used.persona;
+      out.ego -= used.ego;
+      out.choice -= used.choice;
+      for (const [name, n] of Object.entries(used.pack)) out.pack[name] = (out.pack[name] || 0) - n;
+    }
+    for (const key of ["persona", "ego", "choice"]) out[key] = Math.max(0, out[key]);
+    for (const [name, n] of Object.entries(out.pack)) out.pack[name] = Math.max(0, n);
+    return out;
+  }
+
+function ticketTotal(balance, kind, pack) {
+  if (!balance) return 0;
+  if (kind === "pack") return Number(balance.pack?.[pack]) || 0;
+  return Number(balance[kind]) || 0;
+}
+
+/* 抽籤権利の増減を「直近リザルトの収入」に積む。卓報酬としての受け渡しなので、
+   収入に置くのが自然。resultId の指定があればそのリザルト、無ければ直近。 */
+function setTicketIncome(state, kind, pack, delta, resultId) {
+  const targetId = resultId || latestResultId(state);
+  if (!targetId) return state;
+  const results = (state.results || []).map((r) => {
+    if (r.id !== targetId) return r;
+    const cur = normalizeTickets(r.income?.tickets);
+    const next = kind === "pack"
+      ? { ...cur, pack: { ...cur.pack } }
+      : { ...cur };
+    if (kind === "pack") {
+      const nextVal = Math.max(0, (Number(next.pack[pack]) || 0) + delta);
+      if (nextVal) next.pack[pack] = nextVal;
+      else delete next.pack[pack];
+    } else {
+      next[kind] = Math.max(0, (Number(next[kind]) || 0) + delta);
+    }
+    return { ...r, income: { ...normalizeCurrency(r.income), tickets: next } };
+  });
+  return { ...state, results };
+}
+
+/* 抽籤権利を消費した明細を立てる（所持を引いた証拠）。 */
+function appendTicketSpend(state, kind, pack, ref, resultId) {
+  const label = window.LBT_ticketLabel ? window.LBT_ticketLabel(kind, pack) : (TICKET_KIND_LABEL[kind] || "抽出チケット");
+  const tickets = kind === "pack" ? { persona: 0, ego: 0, choice: 0, pack: { [pack]: 1 } } : { persona: 0, ego: 0, choice: 0, pack: {}, [kind]: 1 };
+  return appendLedgerEntry(state, {
+    kind: "ticket",
+    name: `${label} を使用`,
+    cost: { lp: 0, shards: 0 },
+    tickets,
+    resultId,
+    ref
+  });
+}
+
+  let ownedUidCounter = 0;
 function makeOwnedUid(prefix) {
   ownedUidCounter = (ownedUidCounter + 1) % 100000;
   return `${prefix}-${Date.now()}-${ownedUidCounter}`;
@@ -1015,20 +1099,40 @@ function normalizeStateShape(raw) {
   if (!Array.isArray(next.roster.egos)) next.roster.egos = [];
   if (!Array.isArray(next.roster.supports)) next.roster.supports = [];
   if (!Array.isArray(next.roster.spirits)) next.roster.spirits = [];
-  /* 抽選権利は後から足した項目。旧セーブの {persona:3} 形式は
-     分類付き在庫（配列）へ読み替える。数字だけ持っていても kind が無いので
-     persona として引き継ぐ（旧UIは人格枠しか無かった）。 */
-  next.tickets = (Array.isArray(next.tickets)
+  /* 抽籤権利は卓で報酬として受け渡されるため、リザルトの収入として管理する。
+     旧セーブは state.tickets に行配列（または {persona:3} 形式）で残っているので、
+     残数があるなら「抽籤権利の受領」というリザルトの収入へ移す。
+     受け渡したタイミングは保存データに無いので、受領日のリザルトとして置く。 */
+  const legacyTickets = (Array.isArray(next.tickets)
     ? next.tickets
     : Object.entries(next.tickets || {}).map(([kind, count], i) => ({
-      id: `tk-legacy-${kind}-${i}`,
-      kind,
-      pack: null,
-      count: Math.max(0, Number(count) || 0),
-      acquiredAt: 0,
-      resultId: null
+      kind, pack: null, count: Math.max(0, Number(count) || 0)
     }))
-  ).filter((t) => t && TICKET_KINDS.includes(t.kind) && (t.count > 0));
+  ).filter((t) => t && TICKET_KINDS.includes(t.kind) && Number(t.count) > 0);
+  next.tickets = [];
+  if (legacyTickets.length) {
+    let total = { persona: 0, ego: 0, choice: 0, pack: {} };
+    for (const t of legacyTickets) {
+      if (t.kind === "pack" && t.pack) total.pack[t.pack] = (total.pack[t.pack] || 0) + Number(t.count);
+      else total[t.kind] = (Number(total[t.kind]) || 0) + Number(t.count);
+    }
+    /* 既に同じ内容を持つリザルトがあれば二重に積まない。 */
+    const already = (next.results || []).some((r) => {
+      const inc = normalizeTickets(r.income?.tickets);
+      return inc.persona === total.persona && inc.ego === total.ego && inc.choice === total.choice
+        && JSON.stringify(inc.pack) === JSON.stringify(total.pack);
+    });
+    if (!already) {
+      next.results = [{
+        id: "res-ticket-grant",
+        name: "抽籤権利の受領",
+        date: String(new Date().toISOString().slice(0, 10)),
+        income: { lp: 0, shards: 0, tickets: total },
+        note: "以前所持していた抽籤権利をリザルト収入へ移行しました。",
+        createdAt: Date.now()
+      }, ...(next.results || [])];
+    }
+  }
   next.roster = {
     ...next.roster,
     // 同期MAXは同期ランク（0/00/000）と別に保存する。旧保存データはfalseへ補完する。
@@ -1129,7 +1233,7 @@ function normalizeStateShape(raw) {
     id: result.id || makeOwnedUid("res"),
     name: String(result.name || "").slice(0, 80),
     date: String(result.date || "").slice(0, 10),
-    income: normalizeCurrency(result.income),
+    income: { ...normalizeCurrency(result.income), tickets: normalizeTickets(result.income?.tickets) },
     note: String(result.note || "")
   }));
   /* キャラ作成直後の所得は「初期作成」リザルトにまとめる。
@@ -1156,6 +1260,8 @@ function normalizeStateShape(raw) {
     kind: String(entry.kind || "other"),
     name: String(entry.name || "").slice(0, 120),
     cost: normalizeCurrency(entry.cost),
+    /* 抽籤権利の消費も明細に持つ（残数 = 収入 − 消費）。 */
+    tickets: normalizeTickets(entry.tickets),
     resultId: knownResultIds.has(entry.resultId) ? entry.resultId : null,
     ref: entry.ref && typeof entry.ref === "object" ? { kind: String(entry.ref.kind || ""), uid: String(entry.ref.uid || "") } : null
   }));
@@ -1329,7 +1435,9 @@ function appendLedgerEntry(state, detail) {
       id: makeOwnedUid("ent"),
       kind: String(detail.kind || "other"),
       name: String(detail.name).slice(0, 120),
-      cost: normalizeCurrency(detail.cost),
+        cost: normalizeCurrency(detail.cost),
+        /* 抽籤権利の消費。収入側（リザルト）と対で残数が求まる。 */
+        tickets: normalizeTickets(detail.tickets),
       resultId: resultId || null,
       ref: detail.ref || null,
       at: Date.now(),
@@ -1369,10 +1477,15 @@ function computeLedgerBalance(results, entries) {
     incomeShards,
     spentLp,
     spentShards,
+    /* 抽出権利も同じ収支。卓報酬としてリザルトの収入に積まれる。 */
+    tickets: computeTicketBalance(results, entries),
     unclassified
   };
 }
 window.LBT_computeLedgerBalance = computeLedgerBalance;
+window.LBT_normalizeTickets = normalizeTickets;
+window.LBT_computeTicketBalance = computeTicketBalance;
+window.LBT_ticketTotal = ticketTotal;
 window.LBT_latestResultId = latestResultId;
 window.LBT_normalizeStateShape = normalizeStateShape;
 
@@ -2195,56 +2308,40 @@ function appReducer(state, action) {
       return { ...state, favorites: has ? state.favorites.filter((x) => x !== k) : [...state.favorites, k] };
     }
     /* ---- Roster ---- */
-    /* 卓で配られる抽出権利の在庫。分類ごとに1行を束ねる（pack 付きのパック別チケット）。
-       抽選時は pack も指定するので、行の特定には id ではなく (kind, pack) を使う。 */
+    /* 抽籤権利は卓で報酬として受け渡されるもので、所持ている monologue lists ではなく
+       リザルトの収入として記録する。種別ごとに数え、パック別はパック名ごとに並べる。
+       所持の残数は「全リザルトの収入 − 全明細の消費」で求まるので、
+       どこで受け取ってどこで使っても同じ数になる。 */
     case "SET_TICKET_COUNT": {
       const kind = action.kind;
       if (!TICKET_KINDS.includes(kind)) return state;
       const pack = kind === "pack" ? String(action.pack || "") : null;
       if (kind === "pack" && !pack) return state;
-      const count = Math.max(0, Number(action.count) || 0);
-      const tickets = state.tickets || [];
-      const idx = tickets.findIndex((t) => t.kind === kind && (t.pack || null) === pack);
-      if (!count) {
-        return { ...state, tickets: idx < 0 ? tickets : tickets.filter((_, i) => i !== idx) };
-      }
-      const entry = {
-        id: idx >= 0 ? tickets[idx].id : `tk-${kind}-${pack || "any"}-${Math.random().toString(36).slice(2, 8)}`,
-        kind, pack, count,
-        acquiredAt: idx >= 0 ? tickets[idx].acquiredAt : Date.now(),
-        resultId: idx >= 0 ? tickets[idx].resultId : (action.resultId || null)
-      };
-      return {
-        ...state,
-        tickets: idx < 0 ? [...tickets, entry] : tickets.map((t, i) => (i === idx ? entry : t))
-      };
+      const target = Number(action.count) || 0;
+      const balance = computeTicketBalance(state.results || [], state.entries || []);
+      const current = ticketTotal(balance, kind, pack);
+      const delta = target - current;
+      if (!delta) return state;
+      return setTicketIncome(state, kind, pack, delta, action.resultId);
     }
     case "GRANT_TICKET": {
       const kind = action.kind;
       if (!TICKET_KINDS.includes(kind)) return state;
       const pack = kind === "pack" ? String(action.pack || "") : null;
       if (kind === "pack" && !pack) return state;
-      /* 加算でも減算でもある。-abs- を0で潰すと「1枚使う」が無効になり、
-         在庫が減らない。減算は結果の最終値を0以上に留める。 */
       const delta = Number(action.count) || 0;
       if (!delta) return state;
-      const tickets = state.tickets || [];
-      const idx = tickets.findIndex((t) => t.kind === kind && (t.pack || null) === pack);
-      const current = idx >= 0 ? Number(tickets[idx].count) || 0 : 0;
-      const next = Math.max(0, current + delta);
-      if (next === current) return state;
-      if (idx < 0) {
-        return {
-          ...state,
-          tickets: [...tickets, {
-            id: `tk-${kind}-${pack || "any"}-${Math.random().toString(36).slice(2, 8)}`,
-            kind, pack, count: next, acquiredAt: Date.now(), resultId: action.resultId || null
-          }]
-        };
-      }
-      const updated = tickets.map((t, i) => (i === idx ? { ...t, count: next } : t));
-      /* 在庫が尽きた行は残さない。残数カウントなので 0 は無い状態として扱う。 */
-      return { ...state, tickets: next > 0 ? updated : updated.filter((_, i) => i !== idx) };
+      return setTicketIncome(state, kind, pack, delta, action.resultId);
+    }
+    /* 抽籤権利を使ったときの消費。収入から引いて残数が減る。 */
+    case "SPEND_TICKET": {
+      const kind = action.kind;
+      if (!TICKET_KINDS.includes(kind)) return state;
+      const pack = kind === "pack" ? String(action.pack || "") : null;
+      if (kind === "pack" && !pack) return state;
+      const balance = computeTicketBalance(state.results || [], state.entries || []);
+      if (ticketTotal(balance, kind, pack) <= 0) return state;
+      return appendTicketSpend(state, kind, pack, action.ref, action.resultId);
     }
     /* 所持への追加。人格は DB 価格が無いため、purchase に core ルールの金額
        （抽出/購入）を渡されたときだけ明細を立てる。所持だけの操作は

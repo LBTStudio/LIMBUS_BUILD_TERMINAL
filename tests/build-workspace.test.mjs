@@ -327,22 +327,29 @@ test("特異人格は指定購入できない（core P203 に購入が無い）"
   assert.match(codex, /!isOwned && onQuickAcquire && !purchaseBlocked/);
 });
 
-test("抽象権3種を区別してショップのガチャタブで扱う（ローカルルール）", () => {
-  /* 4分類。パック別チケットも同じ在庫に入る。 */
-  assert.match(reducer, /const TICKET_KINDS = \["persona", "ego", "choice", "pack"\];/);
-  assert.match(reducer, /tickets: \[\],/);
-  assert.match(reducer, /case "SET_TICKET_COUNT"[\s\S]{0,300}?TICKET_KINDS\.includes\(kind\)/);
-  /* 加算と減算の両方。減算を 0 で潰すと「使う」が無効になる。 */
-  assert.match(reducer, /case "GRANT_TICKET"[\s\S]{0,400}?const delta = Number\(action\.count\) \|\| 0;/);
-  assert.match(reducer, /const next = Math\.max\(0, current \+ delta\);/);
-  /* パック別は (kind, pack) で行を特定する。 */
-  assert.match(reducer, /tickets\.findIndex\(\(t\) => t\.kind === kind && \(t\.pack \|\| null\) === pack\)/);
-  /* state とUIが同じ分類を共有。 */
-  assert.match(sections, /const hitLabel = \(hit\) =>/);
-  assert.match(sections, /const GachaTicketsPanel = \(\{ state, dispatch \}\) =>/);
-  assert.match(sections, /window\.LBT_TICKET_KIND_LABEL/);
-  /* ガチャタブは商品を並べた画面ではないので検索/カテゴリを出さない。 */
-  assert.match(sections, /tab === "gacha" \? h\(GachaTicketsPanel, \{ state, dispatch \}\)/);
+test("抽籤権利はリザルト収入で管理し、ショップのガチャタブで扱う（ローカルルール）", () => {
+/* 4分類。抽籤権利は卓で報酬として受け渡されるため、リザルトの収入に積む。 */
+     assert.match(reducer, /const TICKET_KINDS = \["persona", "ego", "choice", "pack"\];/);
+     /* 残数は「全リザルトの収入 − 全明細の消費」。LP/欠片と同じ収支モデル。 */
+     assert.match(reducer, /function computeTicketBalance\(results, entries\)/);
+     assert.match(reducer, /function normalizeTickets\(value\)/);
+     assert.match(reducer, /const out = \{ persona: toNumber\(raw\.persona\), ego: toNumber\(raw\.ego\), choice: toNumber\(raw\.choice\), pack: \{\} \};/);
+     assert.match(reducer, /income: \{ \.\.\.normalizeCurrency\(result\.income\), tickets: normalizeTickets\(result\.income\?\.tickets\) \},/);
+     assert.match(reducer, /tickets: normalizeTickets\(entry\.tickets\),/);
+     /* 付与は直近リザルトの収入へ、消費は明細へ。 */
+     assert.match(reducer, /case "GRANT_TICKET"[\s\S]{0,300}?return setTicketIncome\(state, kind, pack, delta, action\.resultId\);/);
+     assert.match(reducer, /case "SPEND_TICKET"[\s\S]{0,400}?return appendTicketSpend\(state, kind, pack, action\.ref, action\.resultId\);/);
+     assert.match(reducer, /function setTicketIncome\(state, kind, pack, delta, resultId\)/);
+     assert.match(reducer, /const targetId = resultId \|\| latestResultId\(state\);/);
+     /* state とUIが同じ分類を共有。 */
+     assert.match(sections, /const hitLabel = \(hit\) =>/);
+     assert.match(sections, /const GachaTicketsPanel = \(\{ state, dispatch \}\) =>/);
+     assert.match(sections, /window\.LBT_ticketLabel/);
+     /* 所持表示も収支から引く。 */
+     assert.match(sections, /window\.LBT_computeTicketBalance/);
+     assert.doesNotMatch(sections, /Array\.isArray\(state\.tickets\)/);
+     /* ガチャタブは商品を並べた画面ではないので検索/カテゴリを出さない。 */
+     assert.match(sections, /tab === "gacha" \? h\(GachaTicketsPanel, \{ state, dispatch \}\)/);
 
   const g = read("../js/gacha-tickets.js");
   /* 抽出全般を単独モジュールが担う。特異人格抽出は単独ルートではなく分岐。 */

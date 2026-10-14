@@ -1904,7 +1904,12 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
   const activePack = packName || packs[0]?.name || "";
   const ticketKind = G?.ticketKindFor ? G.ticketKindFor(route) : "persona";
   const ticketPack = route === "pack" ? activePack : null;
-  const held = G?.ticketCount ? G.ticketCount(state, ticketKind, ticketPack) : 0;
+  const ticketBalanceAll = window.LBT_computeTicketBalance
+    ? window.LBT_computeTicketBalance(state.results || [], state.entries || [])
+    : { persona: 0, ego: 0, choice: 0, pack: {} };
+  const held = route === "pack"
+    ? (Number(ticketBalanceAll.pack?.[ticketPack]) || 0)
+    : (Number(ticketBalanceAll[ticketKind]) || 0);
   const poolSize = route === "pack"
     ? (G?.buildPackPool?.(activePack, state).length || 0)
     : (G?.buildPool?.(route, state)?.length || 0);
@@ -1919,9 +1924,9 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
       return;
     }
     const hit = out.hit;
-    /* チケットなら1枚消費してから、所得を直近リザルトに帰属させる。 */
+    /* A ticket is income on a result; spending it writes an entry. Remaining = income - spent, so each draw with a ticket adds one entry. */
     if (out.paidBy === "ticket") {
-      dispatch({ type: "GRANT_TICKET", kind: out.ticketKind, pack: out.ticketPack, count: -1 });
+      dispatch({ type: "SPEND_TICKET", kind: out.ticketKind, pack: out.ticketPack, ref: { kind: "gacha", no: hit.no } });
     }
     if (hit.type === "ego") {
       dispatch({ type: "ADD_ROSTER_EGO", no: hit.no, rank: hit.rank, purchase: true });
@@ -1938,10 +1943,18 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
   };
 
   const ticketLabel = (kind, pack) => (window.LBT_ticketLabel ? window.LBT_ticketLabel(kind, pack) : (labels[kind] || "チケット"));
-  /* 所持している抽出権利の一覧。パック別は 1 パック 1 行で、残り数が分かる。 */
-  const heldTickets = (Array.isArray(state.tickets) ? state.tickets : [])
-    .filter((t) => Number(t.count) > 0)
-    .map((t) => ({ ...t, label: ticketLabel(t.kind, t.pack) }));
+  /* Ticket stock, derived from result income minus entries. Tickets arrive as table rewards. */
+  const ticketBalance = window.LBT_computeTicketBalance
+    ? window.LBT_computeTicketBalance(state.results || [], state.entries || [])
+    : { persona: 0, ego: 0, choice: 0, pack: {} };
+  const heldTickets = [
+    ...["persona", "ego", "choice"]
+      .filter((kind) => Number(ticketBalance[kind]) > 0)
+      .map((kind) => ({ kind, pack: null, count: Number(ticketBalance[kind]) })),
+    ...Object.entries(ticketBalance.pack || {})
+      .filter(([, n]) => Number(n) > 0)
+      .map(([pack, count]) => ({ kind: "pack", pack, count: Number(count) }))
+  ].map((t) => ({ ...t, label: ticketLabel(t.kind, t.pack) }));
 
   return h("div", { className: "gacha-tickets-panel stack-3" },
     h("p", { className: "ledger-note" },
