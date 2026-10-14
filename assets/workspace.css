@@ -546,7 +546,7 @@
   gap: 6px;
 }
 .pv-sec-toolbar {
-  position: static; /* 追従をやめた（内容より 위에居座るため） */
+  position: static; /* 追従をやめた（内容より上に居座るため） */
   top: -12px;
   z-index: 2;
   display: flex;
@@ -731,6 +731,22 @@
   /* 収支の数値は途中で折り返さない。折れると「LP」「欠片」の対応が読めない。 */
   white-space: nowrap;
 }
+/* 貼り付けた記録の原文。折り返しは自然にさせる。 */
+.ledger-textarea {
+  inline-size: 100%;
+  min-block-size: 132px;
+  padding: var(--s-2);
+  font: 500 var(--fs-11) / 1.7 var(--f-mono);
+  color: var(--tx);
+  background: var(--surface-inset);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-sm);
+  resize: vertical;
+}
+.ledger-textarea:focus {
+  outline: none;
+  border-color: var(--gold-lo);
+}
 /* カード内の収入。単位は数字の横に小さく添えるだけ（「収入」とは書かない）。 */
 .ledger-pair { display: inline-flex; align-items: baseline; gap: 5px; }
 .ledger-pair-label {
@@ -889,7 +905,7 @@
    「装備する」「購入」が常に見える必要があり、本文が尽きる手前で
    ウィンドウ下端に合わせて動く（sticky footer）。 */
 .detail-dialog-body .detail-actions {
-  position: static; /* 追従をやめた（内容より 위에居座るため） */
+  position: static; /* 追従をやめた（内容より上に居座るため） */
   bottom: calc(-1 * var(--s-4));
   z-index: 3;
   display: flex;
@@ -912,7 +928,7 @@
 }
 .detail-dialog-body .ego-quick-detail > .ego-quick-actions { margin-top: auto; }
 .detail-dialog-body .ego-quick-actions {
-  position: static; /* 追従をやめた（内容より 위에居座るため） */
+  position: static; /* 追従をやめた（内容より上に居座るため） */
   bottom: calc(-1 * var(--s-4));
   z-index: 3;
   flex-wrap: wrap;
@@ -996,7 +1012,7 @@ body.has-detail-dialog main.preview { overflow: hidden; }
 /* 検索窓はスクロールしても追従させる。ただし宙に浮くと位置が曖昧になり、
    件数テキストが切れる。上端固定でセンタリングし、フィルタまで一緒に追従させる。 */
 .shop-filters {
-  position: static; /* 追従をやめた（内容より 위에居座るため） */
+  position: static; /* 追従をやめた（内容より上に居座るため） */
   top: 0;
   z-index: 5;
   display: grid;
@@ -1237,7 +1253,7 @@ body.has-detail-dialog main.preview { overflow: hidden; }
 .pc-persona .es-keywords { display: flex; flex-wrap: wrap; gap: 6px; }
 .pc-persona .es-kw-addrow { display: flex; gap: 6px; width: 100%; margin-top: 2px; }
 
-/* 操作群は右寄せの1行。旧 v56 の全幅 그리ッドを打ち消す。 */
+/* 操作群は右寄せの1行。旧 v56 の全幅グリッドを打ち消す。 */
 .pc-persona .es-actions {
   display: flex !important;
   flex: none !important;

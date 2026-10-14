@@ -1,0 +1,211 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import vm from "node:vm";
+
+/* ---------------------------------------------------------------------------
+   記録のテキスト流し込み。｜区切りの手書きログをリザルトと支出明細に落とす。
+
+   取り込む形式:
+     【シナリオ名】(作：著者)
+     報酬｜LP:150/自我の欠片:70/人格抽出チケットx1
+     購入｜人格抽出x2(100LP)/第四銀太刀派同期化(50欠片)/EGO購入-TETH[鬼退治](75欠片)
+     追加購入｜壊し砕く打撃(150LP)/乱打(50LP)
+
+   守るべき性質:
+     - 括弧と鉤括弧の中の / は区切りに数えない（人格抽出x2(無料1/100LP) が壊れない）
+     - 金額は括弧書きから取る。取れなければ 0 ではなく「要確認」で出す（勝手に埋めない）
+     - 分からない行は「無視」せず、理由つきの skipped にする
+     - 複数シナリオを空行・次の見出しで区切って読み分ける
+   --------------------------------------------------------------------------- */
+
+function load() {
+  const source = readFileSync(new URL("../js/result-text-import.js", import.meta.url), "utf8");
+  const ctx = { window: {}, console, module: { exports: {} } };
+  vm.createContext(ctx);
+  vm.runInContext(source, ctx, { filename: "result-text-import.js" });
+  return ctx.window.LBT_textImport;
+}
+
+const T = load();
+
+const SAMPLE = [
+  "【中央通路戦線】(作：無礼面様)",
+  "報酬｜LP:150(+9)/自我の欠片:70(+16)/人格抽出チケットx1",
+  "購入｜人格抽出x2(無料1/100LP)/第四銀太刀派同期化(50欠片)/EGO購入-TETH[鬼退治](75欠片)/EGO解析-TETH[鬼退治](40欠片)",
+  "追加購入｜壊し砕く打撃(150LP)/乱打(50LP)"
+].join("\n");
+
+/* --- 見出し ------------------------------------------------------------- */
+
+test("【シナリオ名】(作：著者) から名前と作者を取り出す", () => {
+  const out = T.parseText(SAMPLE);
+  assert.equal(out.records.length, 1);
+  assert.equal(out.records[0].title, "中央通路戦線");
+  assert.equal(out.records[0].author, "無礼面様");
+});
+
+test("【の前の装飾文字（絵文字等）は無視する", () => {
+  const out = T.parseText("❤❤【中央通路戦線】\n報酬｜LP:150\n");
+  assert.equal(out.records[0].title, "中央通路戦線");
+});
+
+test("作者の書き方が違っても著者として読む", () => {
+  assert.equal(T.parseText("【A】(作：X)").records[0].author, "X");
+  assert.equal(T.parseText("【A】(作成者：X)").records[0].author, "X");
+  assert.equal(T.parseText("【A】").records[0].author, null, "書かなければ著者なし");
+});
+
+/* --- 報酬 --------------------------------------------------------------- */
+
+test("報酬行は収入になる", () => {
+  const rec = T.parseText(SAMPLE).records[0];
+  assert.equal(rec.income.lp, 150);
+  assert.equal(rec.income.shards, 70);
+});
+
+test("括弧の中の増減 (±N) は収入に混ぜない（残高差であり獲得ではない）", () => {
+  const rec = T.parseText(SAMPLE).records[0];
+  assert.equal(rec.income.lp, 150, "+9 を足さない");
+  assert.equal(rec.income.shards, 70, "+16 を足さない");
+  /* 消えないよう、原文に残す。 */
+  assert.deepEqual([...rec.deltas].map((d) => ({ ...d })), [{ currency: "lp", value: 9 }, { currency: "shards", value: 16 }]);
+});
+
+test("抽出チケットの種類が分かるものは種類まで読む", () => {
+  const rec = T.parseText(SAMPLE).records[0];
+  assert.deepEqual([...rec.tickets].map((t) => ({ ...t })), [{ kind: "persona", count: 1 }]);
+});
+
+test("全角の書き方（：やＥ.Ｇ.Ｏ）でも同じ Rewards として読む", () => {
+  const rec = T.parseText("【A】\n報酬｜LP：150/欠片：70/E.G.O抽出チケットx2\n").records[0];
+  assert.equal(rec.income.lp, 150, "全角コロンでもよい");
+  assert.equal(rec.income.shards, 70);
+  assert.deepEqual([...rec.tickets].map((t) => ({ ...t })), [{ kind: "ego", count: 2 }]);
+});
+
+/* --- 購入 --------------------------------------------------------------- */
+
+test("購入行は支出明細に落ちる（人数ではなく個数が数になる）", () => {
+  const rec = T.parseText(SAMPLE).records[0];
+  const names = [...rec.spends].map((s) => s.name);
+  assert.deepEqual(names, [
+    "人格抽出x2", "第四銀太刀派同期化", "EGO購入-TETH[鬼退治]", "EGO解析-TETH[鬼退治]", "壊し砕く打撃", "乱打"
+  ]);
+});
+
+test("括弧の中の / は区切りに数えない", () => {
+  const gacha = T.parseText(SAMPLE).records[0].spends[0];
+  assert.equal(gacha.name, "人格抽出x2", "(無料1/100LP) で割られない");
+  assert.ok(gacha.needsDecision, "無料か 100LP かが決まらないので要確認");
+});
+
+test("括弧書きから LP と欠片の金額を取る", () => {
+  const s = T.parseText(SAMPLE).records[0].spends;
+  assert.deepEqual(costOf(s[1]), { lp: 0, shards: 50 }, "第四銀太刀派同期化");
+  assert.deepEqual(costOf(s[2]), { lp: 0, shards: 75 }, "EGO購入");
+  assert.deepEqual(costOf(s[4]), { lp: 150, shards: 0 }, "壊し砕く打撃");
+  assert.deepEqual(costOf(s[5]), { lp: 50, shards: 0 }, "乱打");
+});
+
+function costOf(spend) {
+  return { lp: spend.cost.lp, shards: spend.cost.shards };
+}
+
+test("金額は読めなければ「要確認」で、勝手に 0 埋めしない", () => {
+  const rec = T.parseText("【A】\n購入｜謎のアイテム(無料)\n").records[0];
+  const s = rec.spends[0];
+  assert.equal(s.cost.lp, 0);
+  assert.equal(s.cost.shards, 0);
+  assert.ok(s.needsDecision, "無料としか書いてない");
+  assert.equal(s.reason, "金額が読めない");
+});
+
+test("E.G.O と人格は明細の種別を名前から推測する", () => {
+  const s = T.parseText(SAMPLE).records[0].spends;
+  assert.equal(s[1].kindHint, "persona", "人格の同期化");
+  assert.equal(s[2].kindHint, "ego", "EGO購入");
+  assert.equal(s[3].kindHint, "ego", "EGO解析");
+  assert.equal(s[0].kindHint, "persona", "人格抽出");
+});
+
+/* --- 分からないもの ----------------------------------------------------- */
+
+test("見出しが分からない行は、捨てずに理由つきの skipped にする", () => {
+  const out = T.parseText("【A】\n報酬｜LP:10\n不时　｜ Lufthansa\n");
+  assert.equal(out.records.length, 1);
+  assert.equal(out.skipped.length, 1);
+  assert.equal(out.skipped[0].reason, "見出しが不明");
+  assert.equal(out.skipped[0].text, "不时　｜ Lufthansa");
+});
+
+test("空行だけの行は空行として無視する（skipped に載せない）", () => {
+  const out = T.parseText("【A】\n報酬｜LP:10\n\n\n");
+  assert.equal(out.records.length, 1);
+  assert.equal(out.skipped.length, 0);
+});
+
+/* --- 複数シナリオ ------------------------------------------------------- */
+
+test("空行で区切ると別リザルトとして読む", () => {
+  const out = T.parseText("【A】\n報酬｜LP:10\n\n【B】\n報酬｜LP:20\n");
+  assert.deepEqual([...out.records].map((r) => r.title), ["A", "B"]);
+  assert.deepEqual([...out.records].map((r) => r.income.lp), [10, 20]);
+});
+
+test("見出しが連続しても別リザルトとして読む", () => {
+  const out = T.parseText("【A】\n報酬｜LP:10\n【B】\n報酬｜LP:20\n");
+  assert.deepEqual([...out.records].map((r) => r.title), ["A", "B"]);
+});
+
+test("見出しの無い本文だけの貼り付けは 1 件のリザルトとしてまとめる", () => {
+  const out = T.parseText("報酬｜LP:10\n購入｜乱打(50LP)\n");
+  assert.equal(out.records.length, 1);
+  assert.equal(out.records[0].title, null, "名前が書いてないなら未定");
+  assert.equal(out.records[0].income.lp, 10);
+});
+
+/* --- action 化 ---------------------------------------------------------- */
+
+test("ADD_RESULT と ADD_ENTRY の並びになる（明細は直前のリザルトに帰属）", () => {
+  const plan = T.plan(T.parseText(SAMPLE), {});
+  assert.equal(plan.actions[0].type, "ADD_RESULT");
+  assert.equal(plan.actions[0].name, "中央通路戦線");
+  assert.deepEqual(plan.actions[0].income.lp, 150);
+  assert.deepEqual(plan.actions[0].income.shards, 70);
+  for (const a of plan.actions.slice(1)) assert.equal(a.type, "ADD_ENTRY", "明細が続く");
+});
+
+test("明細の種別は kindHint が無いとき解決器に任せる（引けなければ手動支出）", () => {
+  const parsed = T.parseText("【A】\n追加購入｜壊し砕く打撃(150LP)\n");
+  /* 解決器が support を返したら support、無ければ手動支出。 */
+  const withSpp = T.plan(parsed, { resolve: () => ({ kinds: [{ kind: "support" }], dbName: "壊し砕く打撃" }) });
+  assert.equal(withSpp.actions[1].kind, "support");
+  assert.equal(withSpp.actions[1].name, "壊し砕く打撃", "DB 名に寄せる");
+
+  const without = T.plan(parsed, { resolve: () => null });
+  assert.equal(without.actions[1].kind, "expense");
+});
+
+test("選択を外した明細は action にしない", () => {
+  const parsed = T.parseText(SAMPLE);
+  const all = T.plan(parsed, {});
+  /* 金額は決められない 1 件は既定で入らない。だから「全部で何件」からの差を見る。 */
+  assert.equal(all.actions.filter((a) => a.type === "ADD_ENTRY").length, 5, "決める 5 件は入る");
+  const off = new Set([1]);
+  const plan = T.plan(parsed, { excluded: off });
+  assert.equal(plan.actions.filter((a) => a.type === "ADD_ENTRY").length, 4, "外した 1 件が減る");
+});
+
+test("要確認の明細は確定させず skipped に理由を出す", () => {
+  const plan = T.plan(T.parseText("【A】\n購入｜謎のアイテム(無料)\n"), {});
+  assert.equal(plan.actions.filter((a) => a.type === "ADD_ENTRY").length, 0);
+  assert.equal(plan.skipped.length, 1);
+  assert.equal(plan.skipped[0].reason, "金額が読めない");
+});
+
+test("著者はメモに載せる（リザルト名には混ぜない）", () => {
+  const plan = T.plan(T.parseText("【A】(作：X)"), {});
+  assert.equal(plan.actions[0].name, "A");
+  assert.match(plan.actions[0].note, /X/);
+});

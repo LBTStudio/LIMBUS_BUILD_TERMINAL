@@ -2981,6 +2981,11 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   /* 硝子窓からの取り込み（入力方向）。出力方向は撤去した。 */
   const [importPanel, setImportPanel] = React.useState(false);
   const [importNote, setImportNote] = React.useState(null);
+  /* 手打ちの記録をテキストで流し込む画面。硝子窓 版と同じく、
+     貼っただけでは確定せず、作れる内容を確認してから入れる。 */
+  const [textPanel, setTextPanel] = React.useState(false);
+  const [textDraft, setTextDraft] = React.useState("");
+  const [textExcluded, setTextExcluded] = React.useState(() => new Set());
   /* 取り込み（硝子窓）はリザルト個別ではなくアカウント全体の操作として
    アカウント選択画面で行う。ここでは扱わない。 */
   const [editing, setEditing] = React.useState(null);
@@ -3073,9 +3078,52 @@ const applyGarasumadoImport = (applied) => {
   toast("取り込みました");
 };
 const IMPORT_TYPE_LABEL = {
-  ADD_ROSTER: "人格", ADD_ROSTER_EGO: "E.G.O", ADD_ROSTER_SUPPORT: "パッシブ",
-  ADD_ROSTER_SPIRIT: "精神", ADD_ITEM_INVENTORY: "アイテム",
-  ADD_RESULT: "リザルト", ADD_ENTRY: "明細"
+    ADD_ROSTER: "人格", ADD_ROSTER_EGO: "E.G.O", ADD_ROSTER_SUPPORT: "パッシブ",
+    ADD_ROSTER_SPIRIT: "精神", ADD_ITEM_INVENTORY: "アイテム",
+    ADD_RESULT: "リザルト", ADD_ENTRY: "明細"
+  };
+
+/* テキスト流し込みの解析結果。入力が変わるたびに読み直す。 */
+const parsedText = React.useMemo(() => {
+    if (!textPanel || !textDraft.trim()) return null;
+    const api = window.LBT_textImport;
+    return api ? api.parseText(textDraft) : null;
+  }, [textPanel, textDraft]);
+/* 貼り付けた文字列から、明細の名前を DB へ引く。取れれば名称を DB 名のまま使う
+   （表記ゆれで明細が二重に増えないように）。索引の組み立ては 1 回だけ。 */
+const spendNameIndex = React.useMemo(() => {
+    if (!textPanel) return null;
+    const db = (typeof window !== "undefined" && window.DB) || null;
+    return db && window.LBT_buildNameIndex ? (window.LBT_buildNameIndex(db, {}) || null) : null;
+  }, [textPanel]);
+const resolveSpendName = React.useCallback((name) => {
+    if (!spendNameIndex || typeof window.LBT_resolveCandidates !== "function") return null;
+    try { return window.LBT_resolveCandidates(spendNameIndex, name)?.[0] || null; } catch (_) { return null; }
+  }, [spendNameIndex]);
+const textPlan = React.useMemo(() => {
+    const api = window.LBT_textImport;
+    if (!api || !parsedText) return null;
+    return api.plan(parsedText, { resolve: resolveSpendName, excluded: textExcluded });
+  }, [parsedText, textExcluded, resolveSpendName]);
+
+/* テキストの取り込み。硝子窓 版と同じ取り込み口を使うので、
+   APPLY_IMPORT_BATCH の紐付けと Undo 1 回がそのまま効く。 */
+const applyTextImport = () => {
+  if (!textPlan || !textPlan.actions.length) { toast("取り込めるものがありません"); return; }
+  window.dispatchEvent(new CustomEvent("lbt:apply-import", {
+    detail: { actions: textPlan.actions, skipped: textPlan.skipped }
+  }));
+  const results = textPlan.actions.filter((a) => a.type === "ADD_RESULT").length;
+  const entries = textPlan.actions.filter((a) => a.type === "ADD_ENTRY").length;
+  setImportNote({
+    summary: `${IMPORT_TYPE_LABEL.ADD_RESULT} ${results}件・${IMPORT_TYPE_LABEL.ADD_ENTRY} ${entries}件`,
+    skipped: textPlan.skipped.slice(0, 12),
+    skippedCount: textPlan.skipped.length
+  });
+  setTextPanel(false);
+  setTextDraft("");
+  setTextExcluded(new Set());
+  toast("取り込みました");
 };
 
 /* 手動支出・消耗の記録。歸属は未分類で入れる（後からドラッグで振る）。 */
@@ -3267,7 +3315,10 @@ const importHeldPersonas = () => {
         h("span", { className: "t-label" }, "リザルトを記録"),
         /* 硝子窓の取り込みはリザルト個別ではなく全体操作。共有URLから
            シナリオをまとめて読み取り、複数リザルトをまとめて作ります。 */
-        h(Button, { size: "sm", variant: "ghost", icon: "download", onClick: () => setImportPanel(true) }, "硝子窓から一括取り込む")),
+        h(Button, { size: "sm", variant: "ghost", icon: "download", onClick: () => setImportPanel(true) }, "硝子窓から一括取り込む"),
+        /* 手打ちの記録を読み込む。同じリザルトカードから入れられるように隣に置く。 */
+        h(Button, { size: "sm", variant: "ghost", icon: "copy", onClick: () => setTextPanel(true) }, "テキスト流し込み")
+      ),
       h("div", { className: "card-body" },
         h("div", { className: "ledger-add-row" },
           h("input", {
@@ -3334,6 +3385,60 @@ const importHeldPersonas = () => {
       onApply: (applied) => { setImportPanel(false); applyGarasumadoImport(applied); }
     })
     : h("p", { className: "ledger-note" }, "取り込み画面が読み込まれていません。ページを再読み込みしてください。")
+    ),
+
+    /* テキスト流し込み。貼り付けた直後に「何ことになるか」を見せる。
+       読めなかった行は黙って落とさず、理由ごと一覧に出す。
+       決定できない金額は既定で入れず、外す判断は利用者に返す。 */
+    textPanel && h("div", { className: "ledger-gara-wrap" },
+      h("div", { className: "card-header owned-library-bar" },
+        h("span", { className: "t-label" }, "テキスト流し込み"),
+        h("span", { className: "ledger-note" }, "【シナリオ名】と 報酬｜購入｜追加購入｜ の行を貼り付けると、リザルトと支出の提案になります。入れる前に内容を確認できます"),
+        h(Button, { size: "sm", variant: "ghost", icon: "x", onClick: () => setTextPanel(false) }, "閉じる")
+      ),
+      h("div", { className: "card-body stack-2" },
+        h("label", { className: "ledger-ticket-field" },
+          h("span", null, "記録のテキスト"),
+          h("textarea", {
+            className: "ledger-textarea",
+            "aria-label": "記録のテキスト",
+            rows: 8,
+            placeholder: "【中央通路戦線】(作：無礼面様)\n報酬｜LP:150/自我の欠片:70/人格抽出チケットx1\n購入｜人格抽出x2(100LP)/EGO購入-TETH[鬼退治](75欠片)\n追加購入｜壊し砕く打撃(150LP)",
+            value: textDraft,
+            onChange: (e) => setTextDraft(e.target.value)
+          })
+        ),
+        parsedText && parsedText.records.map((rec, ri) => h("div", { key: `rec-${ri}`, className: "stack-2" },
+          h("span", { className: "t-label" },
+            `${rec.title || "無題"}${rec.author ? `（作：${rec.author}）` : ""} — 収入 LP ${rec.income.lp} / 欠片 ${rec.income.shards}`
+            + (rec.tickets.length ? ` / チケット ${rec.tickets.map((t) => `${t.count}`).join("・")}` : "")),
+          rec.deltas.length > 0 && h("span", { className: "ledger-note" },
+            `増減の注記 ${rec.deltas.map((d) => `${d.currency === "lp" ? "LP" : "欠片"} ${d.value > 0 ? "+" : ""}${d.value}`).join(" / ")} は残高差なので収入には入れていません`),
+          rec.spends.map((spend, si) => h("label", { key: `sp-${ri}-${si}`, className: "chip is-sm" },
+            h("input", {
+              type: "checkbox",
+              checked: !spend.needsDecision && !textExcluded.has(si),
+              disabled: Boolean(spend.needsDecision),
+              onChange: (e) => setTextExcluded((prev) => {
+                const next = new Set(prev);
+                if (e.target.checked) next.delete(si); else next.add(si);
+                return next;
+              })
+            }),
+            h("span", null, `${spend.name} ${spend.cost.lp ? `${spend.cost.lp}LP ` : ""}${spend.cost.shards ? `${spend.cost.shards}欠片` : ""}`.trim()),
+            spend.needsDecision && h("span", { className: "ledger-note" }, `（${spend.reason}）`)
+          ))
+        )),
+        textPlan && textPlan.skipped.length > 0 && h("div", { className: "ledger-held-result", role: "status" },
+          h("p", { className: "ledger-note" }, `入れなかったものが ${textPlan.skipped.length} 件あります：`),
+          h("ul", { className: "ledger-warn-list" }, textPlan.skipped.map((s, i) => h("li", { key: i }, `${s.text || s.name || s.key}：${s.reason || "不明"}`)))
+        ),
+        h(Button, {
+          size: "sm", variant: "primary", icon: "check",
+          disabled: !textPlan || !textPlan.actions.length,
+          onClick: applyTextImport
+        }, "取り込む")
+      )
     ),
 
     importNote && h(Card, { className: "ledger-export-card" },
