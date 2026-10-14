@@ -2885,8 +2885,9 @@ const LedgerPanel = ({ state, dispatch }) => {
 /* 編集画面がincome を作り直すとき、抽籤権利を落とさないようにする。 */
 const normalizeResultIncome = (income) => (income && typeof income === "object" ? income : {});
 const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
-  /* リザルト単位の操作メニューと、硝子窓へ変換した結果。 */
-  const [exportFor, setExportFor] = React.useState(null);
+  /* リザルト単位の操作メニューは撤去した。硝子窓の取り込みは全体操作である。
+     共有URLのシナリオ群を一括で読むため、リザルト単位では成立しない。
+     記録の訂正はカード右上の「編集」から行う。 */
   /* 抽籤権利は卓で報酬として受け取るので、リザルトの収入に種別別に積む。
      どのリザルト 대상으로記録するかを選んでから種別と枚数を決める。 */
   const packs = window.LBT_gachaDraw?.themePacks?.() || [];
@@ -3217,7 +3218,11 @@ const importHeldPersonas = () => {
 
     /* リザルトの追加。 */
     h(Card, null,
-      h("div", { className: "card-header" }, h("span", { className: "t-label" }, "リザルトを記録")),
+      h("div", { className: "card-header" },
+        h("span", { className: "t-label" }, "リザルトを記録"),
+        /* 硝子窓の取り込みはリザルト個別ではなく全体操作。共有URLから
+           シナリオをまとめて読み取り、複数リザルトをまとめて作ります。 */
+        h(Button, { size: "sm", variant: "ghost", icon: "download", onClick: () => setImportPanel(true) }, "硝子窓から一括取り込む")),
       h("div", { className: "card-body" },
         h("div", { className: "ledger-add-row" },
           h("input", {
@@ -3250,7 +3255,7 @@ const importHeldPersonas = () => {
             "aria-label": "獲得欠片",
             onChange: (e) => setNewResult((p) => ({ ...p, shards: e.target.value }))
           }),
-          h(Button, { size: "sm", variant: "primary", icon: "check", onClick: addResult, disabled: !String(newResult.name || "").trim() }, "記録")
+          h(Button, { size: "sm", variant: "primary", icon: "check", onClick: addResult, disabled: !String(newResult.name || "").trim() }, "編集")
         ),
         /* 抽籤権利も収入と同じ場所で受け取る。GPTの追加工程なしで、
            LP・欠片と同時にこのリザルトへ入る。 */
@@ -3267,8 +3272,8 @@ const importHeldPersonas = () => {
     ticketPanel && h(TicketIncomePanel, {}),
     importPanel && h("div", { className: "ledger-gara-wrap" },
     h("div", { className: "card-header owned-library-bar" },
-    h("span", { className: "t-label" }, "硝子窓から取り込む"),
-    h("span", { className: "ledger-note" }, "人格・E.G.O・パッシブ・精神・アイテム。アカウント全体へ反映します"),
+    h("span", { className: "t-label" }, "硝子窓から一括取り込む"),
+    h("span", { className: "ledger-note" }, "共有URLからシナリオをまとめて読み取り、リザルトを複数一括で作ります。1件ごとではなく全体へ反映します"),
     h(Button, { size: "sm", variant: "ghost", icon: "x", onClick: () => setImportPanel(false) }, "閉じる")
     ),
     typeof window.GarasumadoImportPanel === "function"
@@ -3522,30 +3527,7 @@ h(Card, { className: "ledger-card" },
     title: "このリザルトの登録情報（LP・欠片・抽籤権利）を編集します",
     "aria-label": `${result.name} の登録情報を編集`,
     onClick: () => setTicketPanel(result.id)
-    }, "編集"),
-    h("button", {
-    type: "button",
-    className: "ledger-card-menu-btn",
-    title: "このリザルトのその他の操作",
-    "aria-label": `${result.name} の操作を開く`,
-    "aria-expanded": exportFor === result.id,
-    onClick: () => setExportFor(exportFor === result.id ? null : result.id)
-    }, "⋯"),
-    exportFor === result.id && h("div", { className: "ledger-card-menu", role: "menu" },
-    h("button", {
-    type: "button",
-    className: "ledger-card-menu-item",
-    role: "menuitem",
-    onClick: () => { setExportFor(null); setImportPanel(true); }
-    }, "硝子窓から取り込む"),
-    h("button", {
-    type: "button",
-    className: "ledger-card-menu-item",
-    role: "menuitem",
-    onClick: () => setExportFor(null)
-    }, "閉じる")
-    )
-    )
+    }, "編集")
     ),
             h("div", { className: "card-body stack-2" },
               h("div", { className: "ledger-card-income" },
@@ -3590,7 +3572,8 @@ h(Card, { className: "ledger-card" },
               )
             )
           )
-        );
+        )
+      )
       })
     )
   );

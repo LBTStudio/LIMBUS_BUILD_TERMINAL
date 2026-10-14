@@ -335,9 +335,12 @@ test("リザルトの登録情報はカード右上の『編集』から直す�
   assert.match(sections, /tickets: newResult\.tickets \|\| \{ persona: 0, ego: 0, choice: 0, pack: \{\} \}/);
   /* 既存カードは専用画面に戻す。17パックの欄を常時並べない。 */
   assert.doesNotMatch(sections, /h\(TicketInputs, \{\s*idPrefix: `result-/);
-  /* 「⋯」の隣に名前入りの「編集」。⋯ は別の操作として残す。 */
+  /* 「⋯」は撤去した。硝子窓の取り込みは全体操作である。
+     記録の訂正はカード右上に名前入りの「編集」1つだけ。 */
   assert.match(sections, /className: "ledger-card-edit-btn",\s*title: "このリザルトの登録情報（LP・欠片・抽籤権利）を編集します",\s*"aria-label": `\$\{result\.name\} の登録情報を編集`,\s*onClick: \(\) => setTicketPanel\(result\.id\)\s*\}, "編集"\)/);
-  assert.match(sections, /className: "ledger-card-menu-btn",\s*title: "このリザルトのその他の操作",/);
+  assert.doesNotMatch(sections, /ledger-card-menu-btn/);
+  assert.doesNotMatch(sections, /exportFor/);
+  assert.doesNotMatch(sections, /"抽籤権利を記録"\)/);
   /* 編集画面は LP・欠片・抽籤権利をまとめて直す。 */
   assert.match(sections, /const TicketIncomePanel = \(\) => \{/);
   assert.match(sections, /"aria-label": "リザルトの登録情報を編集"/);
@@ -544,7 +547,7 @@ test("硝子窓は入力方向だけを持つ（出力の変換は撤去した�
   assert.doesNotMatch(led, /硝子窓（CCFOLIA）へ変換/);
   assert.doesNotMatch(sections, /const garasumadoExport = /);
   /* 入力（取り込み）は残す。リザルトの操作メニューから開く。 */
-  assert.match(led, /\}, "硝子窓から取り込む"\),/);
+  assert.match(led, /\}, "硝子窓から一括取り込む"\)/);
   assert.match(led, /typeof window\.GarasumadoImportPanel === "function"/);
   /* 反映先はアカウント全体。1 件のリザルトへ押し込まない。 */
   assert.match(sections, /const applyGarasumadoImport = \(applied\) => \{[\s\S]{0,300}?lbt:apply-import/);
@@ -669,14 +672,12 @@ test("硝子窓の取り込みはリザルトに押し込まずアカウント�
   /* 取り込みは「アカウント引き継ぎ」── 所持も収入も明細も、
      硝子窓側の記録すべてがアカウントに入る。1件のリザルトに押し込むと
      持ち主のない所持とdebisesのない支出が残る。 */
-  /* 取り込み画面はリザルトの操作メニューから開く。
-     ただし反映先は1件のリザルトではなくアカウント全体。 */
-  assert.doesNotMatch(led, /importFor/);
-  assert.doesNotMatch(sections, /applyGarasumadoImport[\s\S]{0,400}?resultId/);
-/* 出力（変換）は撤去。入力（取り込み）だけを残す。 */
-  assert.match(led, /"aria-expanded": exportFor === result\.id/);
-  assert.match(led, /setExportFor\(exportFor === result\.id \? null : result\.id\)/);
-  assert.match(led, /role: "menu"[\s\S]{0,200}?role: "menuitem"/);
+/* 取り込み画面は記録フォームの見出しから開く。共有URLのシナリオ群を
+   まとめて読む全体操作なので、リザルト単位の操作メニューには置かない。 */
+   assert.doesNotMatch(led, /importFor/);
+   assert.doesNotMatch(sections, /applyGarasumadoImport[\s\S]{0,400}?resultId/);
+   assert.match(led, /\}, "硝子窓から一括取り込む"\)/);
+   assert.doesNotMatch(led, /ledger-card-menu/);
   /* シナリオ1件 = リザルト1件。順序が歸属を決める。 */
   assert.match(read("../js/garasumado-roster-import.js"), /actions\.push\(\{ type: "ADD_RESULT", name: scenario\.name/);
   /* アカウント編集側にも同じ取り込みが生きている。 */
