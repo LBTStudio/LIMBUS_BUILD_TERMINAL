@@ -1065,6 +1065,27 @@ label:has(> input[type="checkbox"]) {
   gap: var(--s-2);
   flex-wrap: wrap;
 }
+/* 「⋯」に隠すと見つからないので、名前入りの常時表示の入口を置く。
+   押した先の画面が本体で、ここは入口にすぎない。 */
+.ledger-ticket-entry {
+  margin-inline-start: auto;
+  min-block-size: 24px;
+  padding: 2px var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--text-strong);
+  font-size: var(--fs-1);
+  cursor: pointer;
+}
+.ledger-ticket-entry:hover {
+  border-color: var(--gold-line);
+  background: var(--surface-3);
+}
+.ledger-ticket-entry:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
 .ledger-result-ticket-row {
   display: flex;
   align-items: center;

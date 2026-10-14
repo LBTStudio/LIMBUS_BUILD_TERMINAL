@@ -327,39 +327,23 @@ test("特異人格は指定購入できない（core P203 に購入が無い）"
   assert.match(codex, /!isOwned && onQuickAcquire && !purchaseBlocked/);
 });
 
-test("抽籤権利はリザルト記録の場所で、工程を増やさずに編集できる", () => {
-  /* 抽籤権利は卓の報酬なので、収入と同じ場所で受け取る。つまり「記録」フォームに
-     同居させ、既存カードはカード上で直接直す。⋯メニューは開かない：工程は 0 である。 */
-  /* 種別3種 + パック選択 + パック枚数。選択中のパックは TicketInputs 内で持つと、
-     親が組み立てる income に選んだパック名が入らない。親が保持する。 */
+test("抽籤権利は記録フォームで受け取り、既存カードは常時表示の入口から直す", () => {
+  /* 記録は収入と同じ場所で受ける：「記録」フォームに同居させ、工程は 0。 */
   assert.match(sections, /const TicketInputs = \(\{ current, onChange, idPrefix, packPick, setPackPick \}\) => \{/);
-  assert.doesNotMatch(sections, /const TicketInputs = \(\{ current, onChange, idPrefix \}\) => \{/);
   assert.match(sections, /const \[newResultPack, setNewResultPack\] = React\.useState\(""\);/);
-  assert.match(sections, /const \[cardPackPick, setCardPackPick\] = React\.useState\(\{\}\);/);
-  assert.match(sections, /packPick: cardPackPick\[result\.id\] \|\| "",/);
-  assert.match(sections, /\["persona", "ego", "choice"\]\.map\(\(kind\) => h\("label", \{ key: kind, className: "ledger-ticket-field"/);
-  assert.match(sections, /"aria-label": "特定抽出パックの選択"/);
-  assert.match(sections, /pack: \{ \.\.\.current\?\.pack, \[pickPack\]: Number\(e\.target\.value\) \|\| 0 \}/);
-  /* 記録フォームに同居。LP・欠片と同時にこのリザルトへ入る。 */
   assert.match(sections, /idPrefix: "new-result",\s*current: newResult\.tickets,\s*packPick: newResultPack,\s*setPackPick: setNewResultPack,\s*onChange: \(tickets\) => setNewResult\(\(p\) => \(\{ \.\.\.p, tickets \}\)\)/);
   assert.match(sections, /tickets: newResult\.tickets \|\| \{ persona: 0, ego: 0, choice: 0, pack: \{\} \}/);
   assert.match(sections, /useState\(\{ name: "", date: "", lp: "", shards: "", tickets: \{ persona: 0, ego: 0, choice: 0, pack: \{\} \} \}\)/);
-  /* 既存カードでも直接編集。メニューを開く工程にしない。 */
-  assert.match(sections, /h\(TicketInputs, \{\s*idPrefix: `result-\$\{result\.id\}`,/);
-  assert.doesNotMatch(sections, /setTicketPanel/);
-  assert.doesNotMatch(sections, /TicketIncomePanel/);
-  /* 選択中のパックは TicketInputs 内で持つと、親が組み立てる income に
-     選んだパック名が入らない。親（フォーム/カード）が保持する。 */
-  assert.match(sections, /const TicketInputs = \(\{ current, onChange, idPrefix, packPick, setPackPick \}\) => \{/);
-  assert.doesNotMatch(sections, /const TicketInputs = \(\{ current, onChange, idPrefix \}\) => \{\s*const \[packPick, setPackPick\] = React\.useState/);
-  assert.match(sections, /const \[newResultPack, setNewResultPack\] = React\.useState\(""\);/);
-  assert.match(sections, /const \[cardPackPick, setCardPackPick\] = React\.useState\(\{\}\);/);
-  assert.match(sections, /idPrefix: "new-result",\s*current: newResult\.tickets,\s*packPick: newResultPack,\s*setPackPick: setNewResultPack,/);
-  assert.match(sections, /packPick: cardPackPick\[result\.id\] \|\| "",/);
-  /* メニューに残るのは硝子窓の取り込みだけ。 */
-  assert.doesNotMatch(sections, /"抽籤権利を記録"/);
+  /* 既存カードへ17パックの入力欄を並べると、パックを逐一開くことになる。専用画面に戻す。 */
+  assert.doesNotMatch(sections, /h\(TicketInputs, \{\s*idPrefix: `result-\$\{result\.id\}`,/);
+  assert.match(sections, /const TicketIncomePanel = \(\) => \{/);
+  assert.match(sections, /ticketPanel && h\(TicketIncomePanel, \{\}\)/);
+  /* 入口は「⋯」に隠さない。名前入りの常時表示のボタンで1工程。 */
+  assert.match(sections, /className: "ledger-ticket-entry",\s*onClick: \(\) => setTicketPanel\(result\.id\),/);
+  assert.match(sections, /resultTicketChips\(result\)\.length > 0 \? "修正" : "記録"/);
+  /* メニューは硝子窓の取り込みだけ。抽籤権利の入口はここには置かない。 */
+  assert.doesNotMatch(sections, /"抽籤権利を記録"\)/);
   assert.match(sections, /const resultTicketChips = \(result\) => \{/);
-  assert.match(sections, /resultTicketChips\(result\)\.length > 0 && h\("div", \{ className: "ledger-card-tickets"/);
 });
 
 test("抽籤権利はリザルト収入で管理し、ショップのガチャタブで扱う（ローカルルール）", () => {
