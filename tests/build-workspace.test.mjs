@@ -678,8 +678,10 @@ test("硝子窓の取り込みはリザルトに押し込まずアカウント�
    assert.doesNotMatch(sections, /applyGarasumadoImport[\s\S]{0,400}?resultId/);
    assert.match(led, /\}, "硝子窓から一括取り込む"\)/);
    assert.doesNotMatch(led, /ledger-card-menu/);
-  /* シナリオ1件 = リザルト1件。順序が歸属を決める。 */
-  assert.match(read("../js/garasumado-roster-import.js"), /actions\.push\(\{ type: "ADD_RESULT", name: scenario\.name/);
+  /* シナリオ1件 = リザルト1件。順序が歸属を決める。
+     収入は opts.income の空値ではなく、memo パーサが読んだ実額が入る。 */
+  assert.match(read("../js/garasumado-roster-import.js"), /actions\.push\(\{\s*\n\s*type: "ADD_RESULT",\s*\n\s*name: scenario\.name/);
+  assert.match(read("../js/garasumado-roster-import.js"), /lp: income\.lp \|\| 0,\s*\n\s*shards: income\.shards \|\| 0,\s*\n\s*tickets:/);
   /* アカウント編集側にも同じ取り込みが生きている。 */
   assert.match(acct, /function applyGarasumadoImport\(result\)/);
   assert.match(acct, /lbt:apply-import/);

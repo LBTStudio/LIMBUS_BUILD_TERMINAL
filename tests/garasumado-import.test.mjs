@@ -23,6 +23,98 @@ function load(file, apiName) {
 }
 
 const G = load("garasumado-roster-import.js", "LBT_garasumado");
+/* メモパーサは roster-import より前に読む必要があるので、同じ VM に先に載せる。 */
+const MEMO = (() => {
+  const source = readFileSync(new URL("../js/garasumado-memo-parse.js", import.meta.url), "utf8");
+  const context = { window: {}, console, module: { exports: {} } };
+  vm.createContext(context);
+  vm.runInContext(source, context);
+  return context.window.LBT_garaMemo;
+})();
+
+/* --- シナリオ履歴（scenarioHistory[].memo）→ リザルト --------------------
+   memo は自由記述。「現在NN」は収入ではなく残額、
+   「・支出」以降は支出明細。この二つを取り違えると帳尻が全部ズレる。 */
+
+test("memo の収入は「現在NN」ではなく行頭の金額を読む", () => {
+  const r = MEMO.parseMemo("90LP：現在100LP\n29欠片：現在39欠片");
+  assert.equal(r.income.lp, 90, "収入 LP は 90（現在 100 は残額）");
+  assert.equal(r.income.shards, 29, "収入 欠片は 29");
+  assert.equal(r.spends.length, 0, "収入行は支出にならない");
+});
+
+test("欠片の表記ゆれを吸収する（欠片/かけら/欠けら/カケラ）", () => {
+  for (const word of ["欠片", "かけら", "欠けら", "カケラ"]) {
+    const r = MEMO.parseMemo(`40${word}：現在60`);
+    assert.equal(r.income.shards, 40, word + " を欠片として読む");
+    assert.equal(r.income.lp, 0);
+  }
+});
+
+test("1行に両通貨があれば両方を取る（片方だけだと帳尻が合わない）", () => {
+  const r = MEMO.parseMemo("・支払い\nLPを欠片に変換：+11欠片 -22LP");
+  assert.equal(r.spends.length, 1);
+  assert.equal(r.spends[0].lp, 22, "LP 側は 22");
+  assert.equal(r.spends[0].shards, 11, "欠片側は 11");
+  assert.notEqual(r.spends[0].lp, r.spends[0].shards, "両通貨が同じ値にならない");
+});
+
+test("「・支出」以降は支出になる", () => {
+  const r = MEMO.parseMemo("60LP：現在100LP\n・支出\n正義購入 現在87欠片");
+  assert.equal(r.income.lp, 60);
+  assert.equal(r.spends.length, 1);
+  assert.equal(r.spends[0].shards, 87);
+});
+
+test("「・支払い」「・支出」どちらの表記でも支出になる", () => {
+  for (const head of ["・支出", "・支払い"]) {
+    const r = MEMO.parseMemo(`40LP：現在80LP\n${head}\n吐き出す傲慢：40LP　現在40LP`);
+    assert.equal(r.spends.length, 1, head + " が支出節として読める");
+  }
+});
+
+test("残額だけの行は支出に入らない（動詞なしなら残WRITE）", () => {
+  /* 「現在NN」は支払後の残高。支出かどうかは動詞（消費/購入/行使…）で決まる。
+     実データに「黒獣-午　現在48LP」「東部センク　闘志 残り117欠片」等同型があり、
+     これらを支出に数えると帳尻が狂う。 */
+  const r = MEMO.parseMemo("・支出\n黒獣-午　現在48LP\n東部センク　闘志 残り117欠片");
+  assert.equal(r.spends.length, 0, "動詞なし行は残WRITEであり支出ではない");
+});
+
+test("動詞があれば「現在NN」がその支出額になる", () => {
+  const a = MEMO.parseMemo("・支出\n正義購入 現在87欠片");
+  assert.equal(a.spends.length, 1, "購入 があるので支出");
+  assert.equal(a.spends[0].shards, 87);
+  const b = MEMO.parseMemo("・支出\n刺し貫く貫通購入：現在130LP");
+  assert.equal(b.spends.length, 1);
+  assert.equal(b.spends[0].lp, 130);
+});
+
+test("「〜へ」で終わる行は前半の数が支出（後半は残WRITE）", () => {
+  const r = MEMO.parseMemo("・支出\n切り伏せる斬撃を購入、150LP消費　300LPへ");
+  assert.equal(r.spends.length, 1);
+  assert.equal(r.spends[0].lp, 150, "消費した額。300LPへ の 300 は残WRITE");
+});
+test("チケットの個数と種別を読む", () => {
+  const a = MEMO.parseMemo("抽出チケットx1：シュエ家私兵の人格");
+  assert.equal(a.tickets.persona, 1);
+  const b = MEMO.parseMemo("人格抽出チケットx2：某某");
+  assert.equal(b.tickets.persona, 2);
+  const c = MEMO.parseMemo("E.G.O抽出チケット：某某");
+  assert.equal(c.tickets.ego, 1);
+});
+
+test("manifest のシナリオが収入と支出を持つ", () => {
+  const m = MEMO.parseScenarioHistory([
+    { name: "S1", memo: "90LP：現在100LP\n29欠片：現在39欠片\n・支出\n憎悪購入：-50欠片" },
+    { name: "S2", memo: "" },
+    { name: "S3", memo: "なし" }
+  ]);
+  const s1 = m.find((s) => s.name === "S1");
+  assert.equal(s1.income.lp, 90);
+  assert.equal(s1.spends.length, 1);
+  assert.equal(m.filter((s) => s.hasData).length, 1, "読めたシナリオだけ hasData");
+});
 
 test("共有URL からドキュメント ID とコレクションを抜く", () => {
   const a = G.parseShareUrl("https://lbt-garasumado.vercel.app/view/mMIbGr32lGZix60RDmoN");

@@ -128,14 +128,32 @@
       };
     });
 
-    const scenarios = (doc && doc.scenarioHistory ? doc.scenarioHistory : [])
-      .filter((row) => row && (row.memo || row.name))
-      .map((row, index) => ({
-        key: "scenario:" + index,
-        name: String(row.name || "").trim(),
-        memo: String(row.memo || ""),
-        group: "scenarios"
-      }));
+    /* シナリオ履歴。memo を専用パーサにかけ、収入・チケット・支出へ分解する。
+       ここで初めて「シナリオ1件 = リザルト1件 + その支出明細」になる。 */
+    const memoApi = (typeof window !== "undefined" && window.LBT_garaMemo) || null;
+    const history = (doc && doc.scenarioHistory) || [];
+    const scenarios = history
+      .filter((row) => row && (row.name || row.memo))
+      .map((row, index) => {
+        const base = { key: "scenario:" + index, name: String(row.name || "").trim() || "無題", group: "scenarios" };
+        if (!memoApi) return { ...base, memo: String(row.memo || ""), income: { lp: 0, shards: 0 }, tickets: {}, pack: {}, spends: [], reasons: [{ reason: "メモパーサが読み込まれていない" }] };
+        const parsed = memoApi.parseMemo(row.memo);
+        return {
+          ...base,
+          memo: String(row.memo || ""),
+          income: parsed.income,
+          tickets: parsed.tickets,
+          pack: parsed.pack,
+          spends: parsed.spends,
+          reasons: parsed.reasons,
+          /* 金額が入らなかったシナリオも一覧には出す。利用者が
+             「読み取れなかった」ことを知情できるようにするためで、
+             取り込みの判断は利用者に返す。 */
+          hasData: parsed.income.lp > 0 || parsed.income.shards > 0 ||
+            (parsed.tickets.persona + parsed.tickets.ego + parsed.tickets.choice) > 0 ||
+            Object.keys(parsed.pack || {}).length > 0
+        };
+      });
 
     return {
       character: {
@@ -195,11 +213,50 @@
 
     /* シナリオ履歴。選択した分を「結果」として作り、そのシナリオの
        購入候補（選ばれたもの）を支出明細として続ける。
-       順序が意味を持つ: ADD_ENTRY は直前の ADD_RESULT に歸属する。 */
+       順序が意味を持つ: ADD_ENTRY は直前の ADD_RESULT に歸属する。
+
+       収入と支出は scenarioHistory[].memo から読む。memo は自由記述なので
+       専用パーサに任せる（LBT_garaMemo.parseMemo）。読めなかった行は
+       金額を入れず、理由だけ总署利用者へ返す。 */
     const purchases = opts.purchases || {};
     for (const scenario of (manifest && manifest.scenarios) || []) {
       if (!selected.has(scenario.key)) continue;
-      actions.push({ type: "ADD_RESULT", name: scenario.name || "無題", income: opts.income || { lp: "", shards: "" } });
+      const income = scenario.income || { lp: "", shards: "" };
+      const tickets = scenario.tickets || {};
+      const pack = scenario.pack || {};
+      /* チケットは income.tickets に入る。reducer は action.income.tickets を読む
+         （normalizeTickets）。incomeTickets という別キーは見てくれない。 */
+      actions.push({
+        type: "ADD_RESULT",
+        name: scenario.name || "無題",
+        income: {
+          lp: income.lp || 0,
+          shards: income.shards || 0,
+          tickets: {
+            persona: tickets.persona || 0,
+            ego: tickets.ego || 0,
+            choice: tickets.choice || 0,
+            pack
+          }
+        }
+      });
+
+      /* memo の「・支出」「・支払い」以下が支出明細。
+         「LPを欠片に変換：+11欠片 -22LP」のように両通貨が 1 行に並ぶことがある。
+         片方だけ取ると帳尻が合わなくなるので両方を拾う。
+         読み取れなかった金額は 0 のままにして名前だけ残す。
+         勝手に埋めれば、原本と食い違う数字が残る。 */
+      for (const spend of scenario.spends || []) {
+        actions.push({
+          type: "ADD_ENTRY",
+          kind: "other",
+          name: String(spend.name || "（明細）").slice(0, 120),
+          cost: { lp: spend.lp || 0, shards: spend.shards || 0 }
+        });
+      }
+
+      /* 利用者が選んだ購入分。memo の支出と二重にならないよう、
+         それは選択されたものだけ足す。 */
       for (const pick of purchases[scenario.key] || []) {
         actions.push({
           type: "ADD_ENTRY",
