@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import assert from "node:assert/strict";
 import test from "node:test";
+import { loadRuntime } from "../tools/provenance/pipeline-harness.mjs";
 
 /* ---------------------------------------------------------------------------
    アカウント切替UI（SINNER SELECT オーバーレイ）の構造・操作・アクセシビリティを
@@ -185,4 +186,40 @@ test("index.html がアセットとレイヤーを宣言している", () => {
   assert.match(indexHtml, /js\/accounts-ui\.js\?v=[0-9a-f]+/, "JS は版付きで読み込む");
   assert.match(indexHtml, /js\/icon-cropper\.js\?v=[0-9a-f]+/, "切り抜きエディタも版付きで読み込む");
   assert.match(indexHtml, /@layer[\s\S]*?\bv66-accounts\s*;/, "レイヤー順を index.html で宣言する");
+});
+
+/* topbar の残高は LP と欠片だけだった。抽出チケットも「何枚あるか」を
+   同じ場所に同じ形で出す。0 枚でも枠を残し、aria からも落とさない。 */
+test("topbar の残高に抽出チケットの枚数が出る（LP・欠片と同じ形）", () => {
+  const src = readFileSync(new URL("../js/accounts-ui.js", import.meta.url), "utf8");
+  const chip = src.slice(src.indexOf("const BalanceChip"), src.indexOf("const AccountSummary"));
+  assert.match(chip, /LBT_computeTicketBalance/, "チケット残数を計算している");
+  assert.match(chip, /\["persona", "ego", "choice"\]/, "種別を全て足している");
+  assert.match(chip, /tickets\.pack/, "パック別も足している");
+  assert.match(chip, /topbar-balance-unit" \}, "枚"/, "残数に「枚」の単位が出る");
+  assert.match(chip, /抽出チケット 0枚/, "0 枚でも aria に残る");
+});
+
+/* 戦術スキルのダイス行は「マッチ / ダメージ」をダイスごとに交互に置いていた。
+   2 ダイスなら 2-1：マッチ / 2-1：ダメージ / 2-2：マッチ / 2-2：ダメージ となり、
+   どのダイスが高度かを読めなかった。マッチ行を揃え、ダメージ行を揃える。 */
+test("戦術スキルの行はマッチを揃えてからダメージを並べる", () => {
+  const gen = loadRuntime().gen;
+  const state = {
+    ...loadRuntime().initialState,
+    name: "監査用", san: 10, personaSrc: { name: "黒雲会組員", hp: 105, san: 48 },
+    skills: [{
+      name: "術2 後始末", type: "貫通", sin: "傲慢", rank: "スキル2",
+      dice: [{ roll: "3d5", effect: "的中時、次のRに出血2を付与" }, { roll: "2d7", effect: "" }]
+    }]
+  };
+  const cmds = String(gen.buildCcfoliaJSON(state).data.commands || "");
+  const rows = cmds.split("\n").map((s) => s.trim()).filter((l) => /\{MT\}|\{DM\}/.test(l));
+  const kinds = rows.map((r) => (r.includes("{MT}") ? "M" : "D")).join("");
+  assert.ok(rows.length >= 4, "2 ダイスぶんの行がある");
+  assert.equal(kinds, "MMDD", "交互ではなくマッチ→ダメージで整列している");
+  assert.match(rows[0], /2-1：マッチ$/, "先頭は 2-1 のマッチ");
+  assert.match(rows[1], /2-2：マッチ$/, "次もマッチ");
+  assert.match(rows[2], /2-1：ダメージ$/, "その後に 2-1 のダメージ");
+  assert.match(rows[3], /2-2：ダメージ$/, "最後に 2-2 のダメージ");
 });

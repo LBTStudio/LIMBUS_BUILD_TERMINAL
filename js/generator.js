@@ -182,8 +182,25 @@ function stripDiceIndexPrefix(effect) {
   if (/^\d[\d-]*$/.test(body.trim())) return "";
   return body;
 }
-function buildLabeledBlock(header, text, bullet = true) {
-  const lines = toArrowLines(text, bullet);
+/* 戦術スキルのダイス行を「マッチ → ダメージ」の順に並べる。
+   ダイスごとに2行を push すると
+   「2-1：マッチ / 2-1：ダメージ / 2-2：マッチ / 2-2：ダメージ」と交互になり、
+   どのダイスが高度Mbps を読めない。マッチ行を全部集めてから
+   ダメージ行を並べる。各行のラベルは 2-1 のように元のまま残る。 */
+function pushExecRows(out, mahi, label, isDefense) {
+  if (isDefense) {
+    out.push({ kind: "dt", text: `${mahi}+{DT} ${label}：判定` });
+    return;
+  }
+  out.push({ kind: "mt", text: `${mahi}+{MT} ${label}：マッチ` });
+  out.push({ kind: "dm", text: `${mahi}+{DM} ${label}：ダメージ` });
+}
+function flushExecRows(out, rows, transform) {
+  const map = (kind) => rows.filter((r) => r.kind === kind).map((r) => (transform ? transform(r.text) : r.text));
+  [...map("dt"), ...map("mt"), ...map("dm")].forEach((t) => out.push(t));
+}
+
+function buildLabeledBlock(header, text, bullet = true) {  const lines = toArrowLines(text, bullet);
   if (!lines.length) return "";
   const first = lines[0];
   const rest = lines.slice(1);
@@ -346,7 +363,7 @@ function detectSkillDiceVariance(effectTextOrSkill) {
 const DEF_FMLS = [
   { name: "MT", expr: "{\u30D1\u30EF\u30FC}-{\u865A\u5F31}+{\u5171\u9CF4}+{\u30B9\u30AD\u30EB\u5A01\u529B}+{\u30DE\u30C3\u30C1\u5A01\u529B\u5897\u52A0}-{\u30DE\u30C3\u30C1\u5A01\u529B\u4F4E\u4E0B}", builtin: true },
   { name: "DM", expr: "{\u30D1\u30EF\u30FC}-{\u865A\u5F31}+{\u5171\u9CF4}+{\u30B9\u30AD\u30EB\u5A01\u529B}+{\u30C0\u30E1\u30FC\u30B8\u91CF\u5897\u52A0}-{\u30C0\u30E1\u30FC\u30B8\u91CF\u6E1B\u5C11}", builtin: true },
-  { name: "DT", expr: "{\u5171\u9CF4}+{\u5FCD\u8010}-{\u6B66\u88C5\u89E3\u9664}+{\u30B9\u30AD\u30EB\u5A01\u529B}+{\u5B88\u5099\u5A01\u529B}", builtin: true },
+  { name: "DT", expr: "{\u5171\u9CF4}+{\u5FCD\u8010}-{\u6B66\u88C5\u89E3\u9664}+{\u30B9\u30AD\u30EB\u5A01\u529B}", builtin: true },
   { name: "QB", expr: "{\u30AF\u30A4\u30C3\u30AF}-{\u675F\u7E1B}", builtin: true }
 ];
 const DEFAULT_STATUS_LIST = [
@@ -419,7 +436,7 @@ function detectMTMods(state) {
 }
 function resolveFormulas(state) {
   const custom = (state.formulas || []).filter((f) => f.name && f.expr);
-  const { atkModLabel, hasVigor } = detectMTMods(state);
+  const { atkModLabel, hasVigor, hasDefMod } = detectMTMods(state);
   const ov = state.builtinFormulasOverride || {};
   const out = [];
   DEF_FMLS.forEach((f) => {
@@ -428,6 +445,11 @@ function resolveFormulas(state) {
     if (f.name === "MT" || f.name === "DM") {
       if (hasVigor && !expr.includes("{\u95D8\u5FD7}")) expr += "+{\u95D8\u5FD7}";
       if (atkModLabel && !expr.includes("{" + atkModLabel + "}")) expr += "+{" + atkModLabel + "}";
+    }
+    /* 守備威力は「進むべき守備」を得たときだけ足す。守備のないキャラクターが
+       定義のないラベルを引く式を持たないよう、既定のDTには入れない。 */
+    if (f.name === "DT" && hasDefMod && !expr.includes("{\u5B88\u5099\u5A01\u529B}")) {
+      expr += "+{\u5B88\u5099\u5A01\u529B}";
     }
     out.push({ name: f.name, expr, builtin: true, overridden: typeof ov[f.name] === "string" });
   });
@@ -733,16 +755,15 @@ function buildPalette(state) {
 	        const mahi = buildMahiFormula(roll, dval, "", dPlusVar, dCntVar, dPlusOp);
         if (isDefense) {
           const defLabel = useDiceIdx ? `${rn}-${did}` : `${rn}`;
-          execRows.push(`${mahi}+{DT} ${defLabel}\uFF1A\u5224\u5B9A`);
+          pushExecRows(execRows, mahi, defLabel, true);
         } else {
           const label = useDiceIdx ? `${rn}-${did}` : `${rn}`;
-          execRows.push(`${mahi}+{MT} ${label}\uFF1A\u30DE\u30C3\u30C1`);
-          execRows.push(`${mahi}+{DM} ${label}\uFF1A\u30C0\u30E1\u30FC\u30B8`);
+          pushExecRows(execRows, mahi, label, false);
         }
       });
       if (displayDice.length) headParts.push(displayDice.join("\\n"));
       L.push(headParts.join("\\n"));
-      execRows.forEach((r) => L.push(r));
+      flushExecRows(L, execRows);
       L.push("");
     });
   }
@@ -780,17 +801,16 @@ function buildPalette(state) {
             displayDice.push(formatDiceEffectDisplay(roll, stripDiceIndexPrefix(d.effect), "\\n"));
             const mahi = buildMahiFormula(roll, dval, "", null, null);
             if (isDefense) {
-              const defLabel = useDiceIdx ? `\u540C\u5316${rn}-${did}` : `\u540C\u5316${rn}`;
-              execRows.push(`${mahi}+{DT} ${defLabel}\uFF1A\u5224\u5B9A`);
+              const defLabel = useDiceIdx ? `同化${rn}-${did}` : `同化${rn}`;
+              pushExecRows(execRows, mahi, defLabel, true);
             } else {
-              const label = useDiceIdx ? `\u540C\u5316${rn}-${did}` : `\u540C\u5316${rn}`;
-              execRows.push(`${mahi}+{MT} ${label}\uFF1A\u30DE\u30C3\u30C1`);
-              execRows.push(`${mahi}+{DM} ${label}\uFF1A\u30C0\u30E1\u30FC\u30B8`);
+              const label = useDiceIdx ? `同化${rn}-${did}` : `同化${rn}`;
+              pushExecRows(execRows, mahi, label, false);
             }
           });
           if (displayDice.length) headParts.push(displayDice.join("\\n"));
           L.push(redactEgoSanFromPalette(headParts.join("\\n")));
-          execRows.forEach((r) => L.push(redactEgoSanFromPalette(r)));
+          flushExecRows(L, execRows, redactEgoSanFromPalette);
           L.push("");
         });
       });
@@ -1309,10 +1329,10 @@ function buildCcfoliaJSON(state, opts) {
     if (!v.label || v.place !== "params") return;
     addParam(v.label, "");
   });
-  /* 代入式が参照する変数は、CCFOLIA側にstatusかparamsのどちらかが存在しないと解決できない。
-     組込式のDTは常に{守備威力}を参照するが、この補正は「進むべき守備」を取得したときだけ
-     paramsへ出力していたため、未取得のキャラクターではDTが未定義変数を参照していた。
-     未解決の参照ラベルは、値0のラベルとしてparamsへ補完し、式が必ず評価できる状態にする。 */
+  /* 組込式のDTは「進むべき守備」を取得したときだけ{守備威力}を参照する。
+     強化が無いキャラクターに定義のないラベルを抱えさせない。
+     hasDefMod は detectMTMods が返し、resolveFormulas が後段で足す。
+     残る未解決ラベルは値0として補完し、式が必ず評価できる状態にする。 */
   const outputFormulas = resolveFormulas(p);
   const formulaNames = new Set(outputFormulas.map((formula) => normalizeLabel(formula.name)));
   outputFormulas.forEach((formula) => {

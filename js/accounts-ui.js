@@ -161,7 +161,7 @@ const AccountChip = () => {
   );
 };
 
-/* LP と欠片の残高。どの画面でも見えるように topbar に常設する。
+/* LP・欠片・抽出チケットの残高。どの画面でも見えるように topbar に常設する。
    .topbar-actions の中に入れると ≤640px と横向きで display:none に
    なるため、.topbar の直接子として置く。 */
 const BalanceChip = ({ state, onClick }) => {
@@ -170,13 +170,28 @@ const BalanceChip = ({ state, onClick }) => {
   const balance = window.LBT_computeLedgerBalance
     ? window.LBT_computeLedgerBalance(results, entries)
     : { lp: 0, shards: 0 };
+  /* チケットは種別・パック別で何枚あるかが違うため、総数で出す。
+     内訳は title に載せる。 */
+  const tickets = window.LBT_computeTicketBalance
+    ? window.LBT_computeTicketBalance(results, entries)
+    : { persona: 0, ego: 0, choice: 0, pack: {} };
   const num = (value) => Number(value || 0).toLocaleString("ja-JP");
+  const ticketTotal = ["persona", "ego", "choice"].reduce((n, k) => n + (Number(tickets[k]) || 0), 0)
+    + Object.values(tickets.pack || {}).reduce((n, v) => n + (Number(v) || 0), 0);
+  const ticketBreakdown = [
+    `人格 ${num(tickets.persona)}`, `E.G.O ${num(tickets.ego)}`, `選択 ${num(tickets.choice)}`,
+    ...Object.entries(tickets.pack || {}).map(([name, n]) => `${name} ${num(n)}`)
+  ].join(" / ");
+  const ticketTitle = ticketTotal > 0 ? `、抽出チケット ${num(ticketTotal)}枚（${ticketBreakdown}）` : "";
+  /* 視覚にも 0 枚を出しているため、aria からも落とさない。
+     内訳は 1 枚以上あるときだけ添える（0 個の項目を列挙しても情報にならない）。 */
+  const ticketAria = ticketTotal > 0 ? `、抽出チケット ${num(ticketTotal)}枚` : "、抽出チケット 0枚";
   return h("button", {
     type: "button",
     className: "topbar-balance",
     onClick,
-    title: `残高 — LP ${num(balance.lp)} / 欠片 ${num(balance.shards)}。リザルトを開く`,
-    "aria-label": `残高 LP ${num(balance.lp)}、欠片 ${num(balance.shards)}。リザルトを開く`
+    title: `残高 — LP ${num(balance.lp)} / 欠片 ${num(balance.shards)}${ticketTitle}。リザルトを開く`,
+    "aria-label": `残高 LP ${num(balance.lp)}、欠片 ${num(balance.shards)}${ticketAria}。リザルトを開く`
   },
     h("span", { className: "topbar-balance-item" },
       h("span", { className: "topbar-balance-num" }, num(balance.lp)),
@@ -184,7 +199,12 @@ const BalanceChip = ({ state, onClick }) => {
     h("span", { className: "topbar-balance-sep", "aria-hidden": "true" }, "/"),
     h("span", { className: "topbar-balance-item" },
       h("span", { className: "topbar-balance-num" }, num(balance.shards)),
-      h("span", { className: "topbar-balance-unit" }, "欠片"))
+      h("span", { className: "topbar-balance-unit" }, "欠片")),
+    /* 0 枚でも枠は残す。「持っていない」と「0 枚」は別だから。 */
+    h("span", { className: "topbar-balance-sep", "aria-hidden": "true" }, "/"),
+    h("span", { className: "topbar-balance-item" },
+      h("span", { className: "topbar-balance-num" }, num(ticketTotal)),
+      h("span", { className: "topbar-balance-unit" }, "枚"))
   );
 };
 
@@ -207,13 +227,7 @@ const AccountSummary = () => {
           ? "端末内への保存が有効なブラウザで開いてください。"
           : [active?.purpose ? `用途: ${active.purpose}` : "用途タグなし", `最終更新 ${relativeUpdatedAt(active?.updatedAt)}`, `${info.accounts.length}件の保存領域`].join("・"))
       )
-    ),
-    h(Button, {
-      size: "sm",
-      variant: "secondary",
-      icon: "grid",
-      onClick: () => window.dispatchEvent(new CustomEvent(ACCOUNTS_OPEN_EVENT))
-    }, "アカウントを切替・管理")
+    )
   );
 };
 
