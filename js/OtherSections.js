@@ -2768,7 +2768,7 @@ const LedgerPanel = ({ state, dispatch }) => {
   */
   const [dragId, setDragId] = React.useState(null);
   const [overId, setOverId] = React.useState(null);
-  const [newResult, setNewResult] = React.useState({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} } });
+  const [newResult, setNewResult] = React.useState({ name: "", date: "", lp: "", shards: "", exchange: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} } });
   /* 選択中のパックはフォーム側が持つ。TicketInputs 内で持つと、親が組み立てる
      income に選んだパック名が入らない（内部 state だから）。 */
   const [newResultPack, setNewResultPack] = React.useState("");
@@ -2785,6 +2785,7 @@ const LedgerPanel = ({ state, dispatch }) => {
     const [date, setDate] = React.useState(target.date || "");
     const [lp, setLp] = React.useState(String(target.income?.lp ?? ""));
     const [shards, setShards] = React.useState(String(target.income?.shards ?? ""));
+    const [exchange, setExchange] = React.useState(target.exchange?.shards ? String(target.exchange.shards) : "");
     const packName = pick || packs[0]?.name || "";
     const cur = target.income?.tickets || { persona: 0, ego: 0, choice: 0, pack: {} };
     const setKind = (kind, value) => {
@@ -2801,7 +2802,8 @@ const LedgerPanel = ({ state, dispatch }) => {
         id: target.id,
         name: name.trim() || target.name,
         date,
-        income: { ...normalizeResultIncome(target.income), lp: Number(lp) || 0, shards: Number(shards) || 0 }
+        income: { ...normalizeResultIncome(target.income), lp: Number(lp) || 0, shards: Number(shards) || 0 },
+        exchange: exchangeOf(exchange)
       });
       toast(`「${name.trim() || target.name}」の登録情報を更新しました`);
       setTicketPanel(null);
@@ -2840,6 +2842,12 @@ const LedgerPanel = ({ state, dispatch }) => {
             value: shards, "aria-label": "獲得欠片",
             onChange: (e) => setShards(e.target.value)
           }))),
+      /* 編集画面でも同じ換算を入れないと、「記録した時だけ计入される」扱いになる。 */
+      h(ExchangeInputs, {
+        idPrefix: `edit-result-${target.id}`,
+        current: exchange,
+        onChange: setExchange
+      }),
       h("span", { className: "t-label" }, "抽出チケット（卓の報酬）"),
       h("div", { className: "ledger-ticket-grid" },
         ["persona", "ego", "choice"].map((kind) => h("label", { key: kind, className: "ledger-ticket-field" },
@@ -2889,7 +2897,7 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
      共有URLのシナリオ群を一括で読むため、リザルト単位では成立しない。
      記録の訂正はカード右上の「編集」から行う。 */
   /* 抽出チケットは卓で報酬として受け取るので、リザルトの収入に種別別に積む。
-     どのリザルト 대상으로記録するかを選んでから種別と枚数を決める。 */
+     どのリザルトを対象にして記録するかを選んでから種別と枚数を決める。 */
   const packs = window.LBT_gachaDraw?.themePacks?.() || [];
   const ticketLabel = (kind, pack) => (window.LBT_ticketLabel ? window.LBT_ticketLabel(kind, pack) : (window.LBT_TICKET_KIND_LABEL?.[kind] || "抽出チケット"));
   /* このリザルトの収入に入っている抽出チケット（消費前の受領数）。 */
@@ -2938,6 +2946,37 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
             "aria-label": `${ticketLabel("pack", pickPack)} の枚数`,
             onChange: (e) => onChange({ ...current, pack: { ...current?.pack, [pickPack]: Number(e.target.value) || 0 } })
           }))));
+  };
+  /* LP を欠片に換えた額。core P317 特殊アイテム「自我の欠片　購入時、自我の欠片1を得る 2LP」。
+     規則で額が決まっているので、入力は欠片の個数だけにし、使う LP は導出する。
+     LP 金額から逆算すると端数が出て、1個ぶんの欠片が消える。*/
+  const shardExchangeOf = (count) => (window.LBT_shardExchange ? window.LBT_shardExchange(count) : null);
+  /* 換算していない入力（空・0・負・文字列）は「換えていない」で 0/0 にする。
+     0 欠片 0 LP を保存すると「0 で換えた」という偽った記録が残る。 */
+  const exchangeOf = (count) => shardExchangeOf(count) || { lp: 0, shards: 0 };
+  const ExchangeInputs = ({ idPrefix, current, onChange }) => {
+    const rule = shardExchangeOf(current);
+    const ruleOf = (window.LBT_provenance || {}).LP_TO_SHARD;
+    return h("div", { className: "ledger-ticket-inputs" },
+      h("span", { className: "t-label" }, `LPを欠片に換算（${ruleOf ? ruleOf.source : "core:317 自我の欠片 2LP"}）`),
+      h("div", { className: "ledger-ticket-grid" },
+        h("label", { className: "ledger-ticket-field" },
+          h("span", null, "換算した欠片数"),
+          h("input", {
+            className: "ledger-input ledger-input--num",
+            id: `${idPrefix}-exchange`,
+            type: "number", min: "0", inputMode: "numeric",
+            value: current === "" || current === null || current === undefined ? "" : String(current),
+            "aria-label": "LPを欠片に換算した個数",
+            "aria-describedby": `${idPrefix}-exchange-derived`,
+            onChange: (e) => onChange(e.target.value)
+          })),
+        /* 入力した瞬間に結果を出さないと、「何個入れたら何が変わるのか」が
+           規則ブックを開かないと分からない。 */
+        h("span", { className: "ledger-ticket-field" },
+          h("span", null, "使う LP / 得る 欠片"),
+          h("b", { className: "ledger-stat", id: `${idPrefix}-exchange-derived` },
+            rule ? `−${rule.lp.toLocaleString("ja-JP")} LP / ＋${rule.shards.toLocaleString("ja-JP")} 欠片` : "−0 LP / ＋0 欠片"))));
   };
   /* 硝子窓からの取り込み（入力方向）。出力方向は撤去した。 */
   const [importPanel, setImportPanel] = React.useState(false);
@@ -3008,9 +3047,10 @@ const readDragId = (event) => {
           lp: Number(newResult.lp) || 0,
           shards: Number(newResult.shards) || 0,
           tickets: newResult.tickets || { persona: 0, ego: 0, choice: 0, pack: {} }
-        }
+        },
+        exchange: exchangeOf(newResult.exchange)
       });
-      setNewResult({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} } });
+      setNewResult({ name: "", date: "", lp: "", shards: "", exchange: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} } });
   };
 
 /* 硝子窓の読み込み結果をアカウント全体へ入れる。
@@ -3210,7 +3250,12 @@ const importHeldPersonas = () => {
           /* stat() は要素を返すので文字列補間に埋めると "[object Object]" になる。 */
           h("span", { className: "ledger-balance-sub" },
             "収入 ", stat(balance.incomeLp), " LP / ", stat(balance.incomeShards), " 欠片",
-            " ・ 支出 ", stat(balance.spentLp), " LP / ", stat(balance.spentShards), " 欠片"
+            " ・ 支出 ", stat(balance.spentLp), " LP / ", stat(balance.spentShards), " 欠片",
+/* 0 のときは出さない。0/0 を書くと「0 で換えた」と読まれる。
+               stat() は要素を返すので必ず子として並べる。文字列に足すと [object Object]。 */
+            (Number(balance.exchangeLp) || Number(balance.exchangeShards))
+              ? [" ・ 換算 −", stat(balance.exchangeLp), " LP / ＋", stat(balance.exchangeShards), " 欠片"]
+              : null
           )
         )
       )
@@ -3265,6 +3310,13 @@ const importHeldPersonas = () => {
           packPick: newResultPack,
           setPackPick: setNewResultPack,
           onChange: (tickets) => setNewResult((p) => ({ ...p, tickets }))
+        }),
+        /* 欠片は配給されないので、足りない分は LP で買う(core:317)。ここへ置かないと
+           「獲得欠片」と二重計上することになり、帳尻が合わなくなる。 */
+        h(ExchangeInputs, {
+          idPrefix: "new-result",
+          current: newResult.exchange,
+          onChange: (exchange) => setNewResult((p) => ({ ...p, exchange }))
         })
       )
     ),
@@ -3529,12 +3581,17 @@ h(Card, { className: "ledger-card" },
     onClick: () => setTicketPanel(result.id)
     }, "編集")
     ),
+    ),
             h("div", { className: "card-body stack-2" },
               h("div", { className: "ledger-card-income" },
               h("span", { className: "ledger-pair" }, bigNum(result.income?.lp || 0, "lp"), h("span", { className: "ledger-pair-label" }, "LP")),
               h("span", { className: "ledger-pair" }, bigNum(result.income?.shards || 0, "shard"), h("span", { className: "ledger-pair-label" }, "欠片")),
               h("span", { className: "ledger-card-spent" },
-                `支出 LP ${spent.lp.toLocaleString("ja-JP")} / 欠片 ${spent.shards.toLocaleString("ja-JP")}`)
+                `支出 LP ${spent.lp.toLocaleString("ja-JP")} / 欠片 ${spent.shards.toLocaleString("ja-JP")}`),
+              /* 換算額は明細ではないので行を作らず、収入と同じ行の端に置く。
+                 別の行にするとカードの高さが明細の数で伸びて読みにくい。 */
+              Number(result.exchange?.shards) > 0 && h("span", { className: "ledger-card-spent" },
+                `LP→欠片 ${Number(result.exchange.lp || 0).toLocaleString("ja-JP")} LP → ${Number(result.exchange.shards).toLocaleString("ja-JP")} 欠片`)
             ),
             /* 抽出チケットはカード上に並べるだけ。編集はカード右上の「編集」から。 */
             h("div", { className: "ledger-card-tickets" },
@@ -3573,7 +3630,6 @@ h(Card, { className: "ledger-card" },
             )
           )
         )
-      )
       })
     )
   );

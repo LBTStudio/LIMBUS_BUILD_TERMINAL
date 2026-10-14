@@ -702,11 +702,19 @@
   font: 600 var(--fs-13) var(--f-display);
   color: var(--tx);
   letter-spacing: 0.04em;
+  /* 折り返さない。日本語は文字間のどこからでも改行できるため、幅が詰まると
+     1文字ずつ縦に積まれる（＝見出しが「縦文字」になる）。サイズは列に合わせる。 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-inline-size: 0;
 }
 .ledger-card-date {
   font-family: var(--f-mono);
   font-size: var(--fs-10);
   color: var(--tx-mute);
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 .ledger-card-income {
   display: flex;
@@ -720,6 +728,8 @@
   font-family: var(--f-mono);
   font-size: var(--fs-10);
   color: var(--tx-mute);
+  /* 収支の数値は途中で折り返さない。折れると「LP」「欠片」の対応が読めない。 */
+  white-space: nowrap;
 }
 /* カード内の収入。単位は数字の横に小さく添えるだけ（「収入」とは書かない）。 */
 .ledger-pair { display: inline-flex; align-items: baseline; gap: 5px; }
@@ -733,6 +743,7 @@
   font-family: var(--f-mono);
   font-weight: 700;
   color: var(--tx-2);
+  white-space: nowrap;
 }
 .ledger-empty-note {
   margin: 0;

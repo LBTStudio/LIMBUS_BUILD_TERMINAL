@@ -1234,6 +1234,9 @@ function normalizeStateShape(raw) {
     name: String(result.name || "").slice(0, 80),
     date: String(result.date || "").slice(0, 10),
     income: { ...normalizeCurrency(result.income), tickets: normalizeTickets(result.income?.tickets) },
+    /* LP→欠片の換算。core:317「2LP → 自我の欠片1」で額が決まるが、
+       保存するのは利用者が入力したときの金額そのもの。導出は入力側に持たせる。 */
+    exchange: normalizeCurrency(result.exchange),
     note: String(result.note || "")
   }));
   /* キャラ作成直後の所得は「初期作成」リザルトにまとめる。
@@ -1457,9 +1460,16 @@ function dropLedgerEntriesForRef(state, ref) {
 function computeLedgerBalance(results, entries) {
   let incomeLp = 0;
   let incomeShards = 0;
+  let exchangeLp = 0;
+  let exchangeShards = 0;
   for (const result of results || []) {
     incomeLp += normalizeCurrency(result?.income).lp;
     incomeShards += normalizeCurrency(result?.income).shards;
+    /* LP を欠片に換えた分は収入でも支出でもない。「払う LP」と「得る欠片」が
+       同時に起きる1つの取引なので、支出に混ぜると明細の表示が嘘になる。 */
+    const exchanged = normalizeCurrency(result?.exchange);
+    exchangeLp += exchanged.lp;
+    exchangeShards += exchanged.shards;
   }
   let spentLp = 0;
   let spentShards = 0;
@@ -1471,12 +1481,14 @@ function computeLedgerBalance(results, entries) {
     if (!entry?.resultId) unclassified += 1;
   }
   return {
-    lp: incomeLp - spentLp,
-    shards: incomeShards - spentShards,
+    lp: incomeLp - spentLp - exchangeLp,
+    shards: incomeShards - spentShards + exchangeShards,
     incomeLp,
     incomeShards,
     spentLp,
     spentShards,
+    exchangeLp,
+    exchangeShards,
     /* 抽出チケットも同じ収支。卓報酬としてリザルトの収入に積まれる。 */
     tickets: computeTicketBalance(results, entries),
     unclassified
@@ -1947,9 +1959,12 @@ const INIT_STATE = {
      所持・強化・アイテムはすべて entries（明細）として書き出し、
      どのリザルトで入手したかは resultId が持つ。resultId が null の明細は
      「未分類」。income は利用者が獲得額だけ入力する（自動取得はしない）。
+     exchange は LP を欠片に換えた取引。core:317「2LP → 自我の欠片1」なので
+     額は対になり、使う LP も得る欠片も導出できる。明細にしないのは、換算額を
+     帰属済みの明細として残すと、リザルトを編集した瞬間に明細だけ古くなるから。
      残高は保存せず全リザルトの収入から全明細の支出を引いて導出する。 */
   results: [],
-  // [{id, name, date, income:{lp,shards}, note, createdAt, updatedAt}]
+  // [{id, name, date, income:{lp,shards}, exchange:{lp,shards}, note, createdAt, updatedAt}]
   entries: [],
   // [{id, kind, name, cost:{lp,shards}, resultId, at, note}]
   /* 抽出リスト。ガチャ結果をバッチ単位で保存する（結果と錨を紐付ける）。
@@ -3157,6 +3172,7 @@ if (nextValue && !action.preview && !rosterEgos.some((entry) => entry.rank === a
           income: action.income === undefined
             ? r.income
             : { ...normalizeCurrency(action.income), tickets: normalizeTickets(action.income?.tickets) },
+          exchange: action.exchange === undefined ? r.exchange : normalizeCurrency(action.exchange),
           updatedAt: now
         };
       });
@@ -3171,6 +3187,7 @@ if (nextValue && !action.preview && !rosterEgos.some((entry) => entry.rank === a
           name: String(action.name || "").slice(0, 80) || "無題",
           date: String(action.date || new Date().toISOString().slice(0, 10)).slice(0, 10),
           income: { ...normalizeCurrency(action.income), tickets: normalizeTickets(action.income?.tickets) },
+          exchange: normalizeCurrency(action.exchange),
           note: String(action.note || "").slice(0, 2000),
           createdAt: now,
           updatedAt: now
@@ -3187,6 +3204,7 @@ if (nextValue && !action.preview && !rosterEgos.some((entry) => entry.rank === a
               ...(action.patch?.date !== void 0 ? { date: String(action.patch.date).slice(0, 10) } : {}),
               ...(action.patch?.note !== void 0 ? { note: String(action.patch.note).slice(0, 2000) } : {}),
               ...(action.patch?.income !== void 0 ? { income: normalizeCurrency(action.patch.income) } : {}),
+              ...(action.patch?.exchange !== void 0 ? { exchange: normalizeCurrency(action.patch.exchange) } : {}),
               updatedAt: Date.now()
             }
           : r))
