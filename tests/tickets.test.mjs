@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
+import { loadRuntime } from "../tools/provenance/pipeline-harness.mjs";
 
 /* 抽出チケットは卓で報酬として受け渡されるため、リザルトの収入として管理する。
    所持の残数は「全リザルトの収入 − 全明細の消費」で求める。 */
@@ -153,4 +154,40 @@ test("初期作成の30LPから人格購入が差し引かれる", () => {
   const next = reducer(fresh, { type: "ADD_ROSTER", mode: "n", no: 1, purchase: true, cost: { lp: 20, shards: 0 } });
   assert.equal(context.window.LBT_computeLedgerBalance(next.results, next.entries).lp, 10);
   assert.equal(next.entries[0].resultId, "res-initial");
+});
+
+/* --- サポートの手動編集 ---------------------------------------------------
+   装備枠（state.supports）は roster.supports からの投影。PATCH_SUPPORT が
+   reducer に無く default: return state へ落ちていたため、4つの入力欄
+   （名前・発動条件・効果・LP）は何も起こらずに黙って捨てられていた。 */
+test("サポート枠の手動編集が保存される（投影へ反映される）", () => {
+  const { reducer, initialState } = loadRuntime();
+  const added = reducer(initialState, {
+    type: "ADD_ROSTER_SUPPORT",
+    spp: { id: 7, name: "テストサポート", cond: "なし", effect: "効果", lp: 3 }
+  });
+  const target = (added.roster?.supports || [])[0];
+  assert.ok(target, "サポートが所持へ入る");
+  const equipped = reducer(added, { type: "SET_ROSTER_SUPPORT_EQUIPPED", uid: target.uid, equipped: true });
+
+  const after = reducer(equipped, { type: "PATCH_SUPPORT", id: target.uid, patch: { lp: 99, effect: "書き換え済み" } });
+
+  assert.equal((after.roster?.supports || []).find((s) => s.uid === target.uid).lp, 99, "roster 側が変わる");
+  const projected = (after.supports || []).find((s) => s.id === target.uid);
+  assert.ok(projected, "装備枠に投影される");
+  assert.equal(projected.lp, 99, "装備枠の LP が変わる");
+  assert.equal(projected.effect, "書き換え済み", "装備枠の効果が変わる");
+});
+
+test("UI が送る action はすべて reducer が受け付けている", () => {
+  const fs = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
+  const reducerTypes = new Set([...fs.matchAll(/case\s+"([A-Z_0-9]+)":/g)].map((m) => m[1]));
+  const orphans = [];
+  for (const f of ["OtherSections.js", "App.js", "PersonaCodex.js", "ItemCodex.js", "accounts-ui.js", "ui.js", "DataQuality.js"]) {
+    const src = readFileSync(new URL("../js/" + f, import.meta.url), "utf8");
+    for (const m of src.matchAll(/dispatch\(\s*\{\s*type:\s*"([A-Z_0-9]+)"/g)) {
+      if (!reducerTypes.has(m[1])) orphans.push(f + ": " + m[1]);
+    }
+  }
+  assert.deepEqual(orphans, [], "reducer に無い action を送ると default へ落ちて黙って捨てられる: " + orphans.join(", "));
 });

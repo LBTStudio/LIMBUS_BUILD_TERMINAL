@@ -2921,6 +2921,19 @@ if (nextValue && !action.preview && !rosterEgos.some((entry) => entry.rank === a
     case "PATCH_DEATH_SUPPORT":
       if (!state.deathSupport) return state;
       return { ...state, deathSupport: { ...state.deathSupport, ...action.patch } };
+    /* 通常サポートの手動編集。
+       装備枠（state.supports）は roster.supports からの投影なので、
+       ここだけ直しても次の projectEquipmentFromRoster で消える。
+       roster の該当 uid へ書き込み、投影し直す。 */
+    case "PATCH_SUPPORT": {
+      const roster = state.roster || {};
+      const list = roster.supports || [];
+      const idx = list.findIndex((s) => s.uid === action.id);
+      if (idx < 0) return state;
+      const supports = list.map((s, i) => (i === idx ? { ...s, ...action.patch } : s));
+      const next = { ...state, roster: { ...roster, supports } };
+      return { ...next, ...projectEquipmentFromRoster(next.roster) };
+    }
     /* ---- 所持モデル（サポパ・精神）----
        裝備は所持の投影なので、どの操作でも最後に projectEquipmentFromRoster を通す。
        slot は「通常スロット」と「死亡後スロット」の別。同一名称は重複所持しない。 */
