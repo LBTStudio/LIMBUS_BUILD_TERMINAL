@@ -2232,10 +2232,15 @@ function appReducer(state, action) {
       const rankToSync = syncRank === undefined ? entry.syncRank : syncRank;
       const wantMax = syncMax === undefined ? entry.syncMax : syncMax;
       const next = { ...state, roster: { ...state.roster, personas } };
-      /* 新たに立てた操作だけ記録する。既に立ってるものには二重で掛からない。 */
+      /* 費用は「新たに同期（またはMAX）を立てた」1回だけ。
+         既に立ってる状態から解除する操作、或いは既に立ってるままの呼び出しでは
+         一切掛からない。 Toggle を往復させても二重で引かれない。 */
       const isMax = Boolean(wantMax);
-      /* 解除で元に戻す操作には費用は発生しない。 */
-      if (!rankToSync && !isMax) return next;
+      const wasMax = entry.syncMax === true;
+      const wasSynced = Boolean(entry.syncRank) || wasMax;
+      const nowSynced = Boolean(rankToSync) || isMax;
+      /* 立っていなかった状態から初めて立つときだけ費用。 */
+      if (wasSynced || !nowSynced) return next;
       const op = isMax ? "syncMax" : "sync";
       const cost = window.LBT_operationCost?.(op, { ...persona, no: entry.no }, window.DB);
       if (!cost) return next;

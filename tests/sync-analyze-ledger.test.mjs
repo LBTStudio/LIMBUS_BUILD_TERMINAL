@@ -52,6 +52,34 @@ test("解除は明細を立てない", () => {
   assert.equal(off.entries.length, 1, "解除では増えない");
 });
 
+test("解除しても既存明細は消えない（支払いは取り戻さない）", () => {
+  /* 既に同期済みの人格にMAXを重ねても、費用はagain 掛からない（往復で二重に引かない）。 */
+  const synced = reducer(base, { type: "APPLY_PERSONA_SYNC", uid: "pr-1", syncRank: "0" });
+  const maxed = reducer(synced, { type: "APPLY_PERSONA_SYNC", uid: "pr-1", syncMax: true });
+  assert.equal(maxed.entries.length, 1, "同期済みへのMAX重ねは課金しない");
+  const off = reducer(maxed, { type: "APPLY_PERSONA_SYNC", uid: "pr-1", syncRank: null, syncMax: false });
+  assert.equal(off.roster.personas[0].syncMax, false, "フラグは解除される");
+  assert.equal(off.roster.personas[0].syncRank, null);
+  assert.equal(off.entries.length, 1, "既に払った明細は残る（返金はしない）");
+});
+
+test("同期ランク解除（null）も費用は掛からない", () => {
+  const synced = reducer(base, { type: "APPLY_PERSONA_SYNC", uid: "pr-1", syncRank: "000" });
+  const off = reducer(synced, { type: "APPLY_PERSONA_SYNC", uid: "pr-1", syncRank: null });
+  assert.equal(off.roster.personas[0].syncRank, null);
+  assert.equal(off.entries.length, 1);
+});
+
+test("トグルを往復しても一章も増えない（50個だけ）", () => {
+  let s = reducer(base, { type: "APPLY_PERSONA_SYNC", uid: "pr-1", syncMax: true });
+  assert.equal(s.entries.length, 1);
+  s = reducer(s, { type: "APPLY_PERSONA_SYNC", uid: "pr-1", syncMax: false });
+  assert.equal(s.entries.length, 1, "解除で増えない");
+  s = reducer(s, { type: "APPLY_PERSONA_SYNC", uid: "pr-1", syncMax: true });
+  assert.equal(s.entries.length, 2, "再び立てると新たに50（合計100）");
+  const total = s.entries.reduce((n, e) => n + e.cost.shards, 0);
+  assert.equal(total, 100);
+});
 test("解析は危険度ランクの欠片を引く", () => {
   const before = shardsOf(base);
   const next = reducer(base, { type: "APPLY_EGO_ANALYZE", uid: "er-1" });

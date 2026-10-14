@@ -1016,3 +1016,24 @@ label:has(> input[type="checkbox"]) {
   box-shadow: inset 0 0 0 1px var(--gold-line);
 }
 
+/* --- 所持詳細: 同期化・同期MAXの操作 -----------------------------------
+   解除の手段が届かない状態を無くすため、設定と解除を同じ場所に並べる。 */
+.roster-sync-ops {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-sm);
+  background: var(--surface-1);
+}
+.roster-sync-ops-head .t-label {
+  color: var(--text-muted);
+}
+.roster-sync-rank-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+

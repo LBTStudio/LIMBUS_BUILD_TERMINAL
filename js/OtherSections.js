@@ -2492,7 +2492,7 @@ const RosterSection = ({ state, dispatch }) => {
       return;
     }
     if (on && c) {
-      const bal = window.LBT_computeLedgerBalance?.(state);
+      const bal = window.LBT_computeLedgerBalance?.(state.results, state.entries);
       if (bal && Number(bal.shards) < Number(c.shards)) {
         toast(`自我の欠片が足りません（必要 ${c.shards} / 手持ち ${bal.shards}）`);
         return;
@@ -2502,12 +2502,24 @@ const RosterSection = ({ state, dispatch }) => {
     if (on && c) {
       toast(`${item.name} を同期MAXにしました（自我の欠片 ${c.shards}個）`);
     } else if (!on) {
-      toast("同期MAXを解除しました");
+      toast("同期MAXを解除しました（使用済みの欠片は戻りません）");
     }
+  };
+  /* 同期ランク（人格ランク 0/00/000）。解除（なし，回到未同期）なら費用は掛からない。 */
+  const applySyncRank = (item, value) => {
+    const wasSynced = Boolean(item.entry.syncRank) || item.entry.syncMax === true;
+    const willBeSynced = Boolean(value) || item.entry.syncMax === true;
+    dispatch({ type: "APPLY_PERSONA_SYNC", uid: item.entry.uid, syncRank: value });
+    if (!willBeSynced && wasSynced) toast(`『${item.name}』の同期を解除しました`);
+    else if (value) toast(`『${item.name}』を同期${value}にしました（自我の欠片 50個）`);
   };
   const renderDetail = (item) => {
     const src = item.src || {};
-    const canModifySyncMax = item.type === "personas" && item.equipped && canEditPersonaState(state);
+    /* 同期/同期MAXの操作は装備状態に依存しない。canEditPersonaState は
+       「DB人格の HP/SAN を手編集できるか」の話で、保守処理とは無関係。
+       これを条件にしていたせいで、DB 人格の同期MAXは設定も解除もできなかった。 */
+    const canModifySyncMax = item.type === "personas";
+    const hasSync = Boolean(item.entry.syncRank) || item.entry.syncMax === true;
     const summarizeEgoSkill = (skill) => {
       if (!skill) return "未設定";
       const type = [skill.attr, skill.sin].filter(Boolean).join("・");
@@ -2528,7 +2540,22 @@ const RosterSection = ({ state, dispatch }) => {
     return h("div", { className: "roster-detail", role: "region", "aria-label": `${item.name}の詳細` },
       h("div", { className: "roster-detail-head" }, h("div", null, h("span", { className: "t-label" }, item.type === "personas" ? "PERSONA DETAIL / 簡易詳細" : "E.G.O DETAIL / 簡易詳細"), h("div", { className: "roster-detail-title" }, item.name)), h("button", { className: "btn btn--quiet btn-icon", onClick: () => setDetailId(null), title: "詳細を閉じる", "aria-label": "詳細を閉じる" }, h(Icon, { name: "x", size: 15 }))),
       h("div", { className: "roster-detail-lines" }, summary.map((line, index) => h("div", { key: index }, line))),
-      item.type === "personas" && canModifySyncMax && h("label", { className: `sync-max-detail-toggle${item.entry.syncMax ? " is-on" : ""}`, onClick: (event) => event.stopPropagation(), title: "同期MAXを設定・解除（自我の欠片50個／supplement P7・P23）" }, h("input", { type: "checkbox", checked: item.entry.syncMax === true, onChange: (event) => applySyncMax(item, event.target.checked) }), h("span", { className: "sync-max-detail-label" }, "同期MAXとして設定"), h("span", { className: "sync-max-detail-note" }, "同期ランクとは別・名称と共有に反映")),
+      item.type === "personas" && canModifySyncMax && h("div", { className: "roster-sync-ops" },
+        h("div", { className: "roster-sync-ops-head" }, h("span", { className: "t-label" }, "同期化・同期MAX（supplement P7 / P23）")),
+        h("div", { className: "roster-sync-rank-row" },
+          h("span", { className: "ledger-note" }, "人格ランク"),
+          h("div", { className: "segmented", role: "radiogroup", "aria-label": "同期人格ランク" },
+            [[null, "なし"], ["0", "0"], ["00", "00"], ["000", "000"]].map(([value, text]) => h("button", {
+              key: String(value), type: "button", role: "radio",
+              "aria-checked": (item.entry.syncRank || null) === value,
+              className: (item.entry.syncRank || null) === value ? "is-active" : "",
+              onClick: () => applySyncRank(item, value)
+            }, text)))),
+        h("label", { className: `sync-max-detail-toggle${item.entry.syncMax ? " is-on" : ""}`, title: "同期MAXを設定・解除（自我の欠片50個／supplement P7・P23）" },
+          h("input", { type: "checkbox", checked: item.entry.syncMax === true, onChange: (event) => applySyncMax(item, event.target.checked) }),
+          h("span", { className: "sync-max-detail-label" }, item.entry.syncMax ? "同期MAXを解除する" : "同期MAXとして設定"),
+          h("span", { className: "sync-max-detail-note" }, "自我の欠片50個・名称と共有に反映")),
+        hasSync && h("p", { className: "ledger-note" }, "同期は自己の欠片を支払う処理です。誤った操作なら上の操作で解除できます（費用は戻りません）。")),
       h("div", { className: "roster-detail-actions" },
         item.equipped ? h("span", { className: "badge", style: { color: "var(--gold)", borderColor: "var(--gold-line)" } }, "現在装備中") : h(Button, { size: "md", variant: "primary", icon: "check", className: "roster-detail-equip", onClick: () => equipItem(item) }, item.type === "personas" ? "この人格を装備する" : "このE.G.Oを装備する"),
         item.saved && h("span", { className: "roster-detail-saved" }, item.type === "personas" ? "保存済みビルドを復元して装備します" : "保存済み解析を復元して装備します")
