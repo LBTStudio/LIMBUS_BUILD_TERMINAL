@@ -1082,3 +1082,35 @@ label:has(> input[type="checkbox"]) {
   border-top: 1px solid var(--line-dim);
 }
 
+/* 抽籤権利の入力はリザルト記録フォームと既存カードの両方に置き、
+   追加の工程を無くす。メニューを開く動線は作らない。 */
+.ledger-ticket-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding-top: var(--s-2);
+}
+.ledger-ticket-grid {
+  display: flex;
+  align-items: end;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+.ledger-ticket-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+}
+.ledger-ticket-field > span {
+  color: var(--text-muted);
+  font-size: var(--fs-1);
+  white-space: nowrap;
+}
+.ledger-ticket-field .ledger-input--num {
+  inline-size: 92px;
+}
+.ledger-ticket-field .select {
+  min-inline-size: 200px;
+}
+

@@ -3105,7 +3105,7 @@ if (nextValue && !action.preview && !rosterEgos.some((entry) => entry.rank === a
           id: makeOwnedUid("res"),
           name: String(action.name || "").slice(0, 80) || "無題",
           date: String(action.date || new Date().toISOString().slice(0, 10)).slice(0, 10),
-          income: normalizeCurrency(action.income),
+          income: { ...normalizeCurrency(action.income), tickets: normalizeTickets(action.income?.tickets) },
           note: String(action.note || "").slice(0, 2000),
           createdAt: now,
           updatedAt: now
