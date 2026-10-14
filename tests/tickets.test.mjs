@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 
-/* 抽出権利（ローカルルール）の在庫は、加算と減算の両方で効く必要がある。
-   減算を 0 で潰すと「1枚使う」が無効になり、在庫が減らない。 */
+/* 抽取権利は分類付き在庫（配列）。パック別チケットは1パック1行で数え、
+   残数は LP/欠片と同じ「数」として持つ。0 の行は残さない。 */
 
 const source = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
 const window = { DB: { normal_personas: [], tokui_personas: [], egos: [], items: [], support_passives: [] }, console, URL, TextEncoder, TextDecoder, setTimeout, clearTimeout };
@@ -14,49 +14,67 @@ vm.createContext(context);
 vm.runInContext(source, context, { filename: "state.js" });
 
 const reducer = context.window.appReducer;
-const base = {
-  roster: { personas: [], egos: [], supports: [], spirits: [] },
-  tickets: { persona: 5, ego: 2, choice: 1 },
-  results: [],
-  entries: [],
-  inventory: []
-};
+const countOf = context.window.LBT_ticketCount;
+const base = { roster: { personas: [], egos: [], supports: [], spirits: [] }, tickets: [], results: [], entries: [], inventory: [] };
 
-test("抽出権利は3種が独立した在庫を持つ", () => {
-  const next = reducer(base, { type: "GRANT_TICKET", kind: "ego", count: 3 });
-  assert.equal(next.tickets.ego, 5, "E.G.Oだけ増える");
-  assert.equal(next.tickets.persona, 5, "人格は変わらない");
-  assert.equal(next.tickets.choice, 1, "選択は変わらない");
+test("分類ごとに独立した在庫を持つ", () => {
+  let s = reducer(base, { type: "GRANT_TICKET", kind: "persona", count: 3 });
+  s = reducer(s, { type: "GRANT_TICKET", kind: "ego", count: 2 });
+  assert.equal(countOf(s.tickets, "persona"), 3);
+  assert.equal(countOf(s.tickets, "ego"), 2);
+  assert.equal(countOf(s.tickets, "choice"), 0);
 });
 
-test("抽出権利は減算できる（使う=消費）", () => {
-  const next = reducer(base, { type: "GRANT_TICKET", kind: "persona", count: -1 });
-  assert.equal(next.tickets.persona, 4, "1枚使ったら減る");
+test("パック別チケットは 1 パック 1 行で数える", () => {
+  let s = reducer(base, { type: "GRANT_TICKET", kind: "pack", pack: "ロボトミーコーポレーション", count: 2 });
+  s = reducer(s, { type: "GRANT_TICKET", kind: "pack", pack: "肉斬骨断", count: 5 });
+  s = reducer(s, { type: "GRANT_TICKET", kind: "pack", pack: "肉斬骨断", count: 1 });
+  assert.equal(s.tickets.filter((t) => t.kind === "pack").length, 2, "同じパックは行を足さない");
+  assert.equal(countOf(s.tickets, "pack", "肉斬骨断"), 6, "同パックは合算");
+  assert.equal(countOf(s.tickets, "pack", "ロボトミーコーポレーション"), 2, "別パックは別");
 });
 
-test("在庫は0未満にならない", () => {
-  const next = reducer(base, { type: "GRANT_TICKET", kind: "persona", count: -99 });
-  assert.equal(next.tickets.persona, 0, "0で留まる");
+test("パック指定が無い pack チケットは作らない", () => {
+  const s = reducer(base, { type: "GRANT_TICKET", kind: "pack", count: 1 });
+  assert.equal(s.tickets.length, 0);
 });
 
-test("未知の種別と0は state を変えない", () => {
+test("使う = 減算され、残数 0 の行は消える", () => {
+  let s = reducer(base, { type: "GRANT_TICKET", kind: "ego", count: 1 });
+  s = reducer(s, { type: "GRANT_TICKET", kind: "ego", count: -1 });
+  assert.equal(countOf(s.tickets, "ego"), 0);
+  assert.equal(s.tickets.filter((t) => t.kind === "ego").length, 0, "0 の行は残さない");
+});
+
+test("在庫は 0 未満にならない", () => {
+  const s = reducer(base, { type: "GRANT_TICKET", kind: "persona", count: -99 });
+  assert.equal(countOf(s.tickets, "persona"), 0);
+});
+
+test("未知の種別と 0 は何も変えない", () => {
   assert.equal(reducer(base, { type: "GRANT_TICKET", kind: "nope", count: 5 }), base);
   assert.equal(reducer(base, { type: "GRANT_TICKET", kind: "persona", count: 0 }), base);
   assert.equal(reducer(base, { type: "SET_TICKET_COUNT", kind: "nope", count: 1 }), base);
 });
 
-test("SET_TICKET_COUNT で直接設定できる", () => {
-  const next = reducer(base, { type: "SET_TICKET_COUNT", kind: "choice", count: 9 });
-  assert.equal(next.tickets.choice, 9);
+test("SET_TICKET_COUNT で残数を直接指定できる", () => {
+  const s = reducer(base, { type: "SET_TICKET_COUNT", kind: "choice", count: 9 });
+  assert.equal(countOf(s.tickets, "choice"), 9);
+  const cleared = reducer(s, { type: "SET_TICKET_COUNT", kind: "choice", count: 0 });
+  assert.equal(cleared.tickets.length, 0, "0 にすると行が消える");
 });
 
-test("旧保存データに tickets が無くても 0 で補完される", () => {
+test("旧セーブの {persona:3} 形式は配列へ読み替わる", () => {
+  const legacy = { ...base, tickets: { persona: 3, ego: 1 } };
+  const next = context.window.LBT_normalizeStateShape(legacy);
+  assert.ok(Array.isArray(next.tickets), "配列になる");
+  assert.equal(countOf(next.tickets, "persona"), 3);
+  assert.equal(countOf(next.tickets, "ego"), 1);
+});
+
+test("tickets が無い旧セーブは空配列になる", () => {
   const legacy = { ...base };
   delete legacy.tickets;
   const next = context.window.LBT_normalizeStateShape(legacy);
-  assert.deepEqual(
-    { ...next.tickets },
-    { persona: 0, ego: 0, choice: 0 },
-    "旧データを開いても在庫が壊れない"
-  );
+  assert.deepEqual([...next.tickets], []);
 });

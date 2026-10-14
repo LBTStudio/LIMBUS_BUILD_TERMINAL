@@ -14,14 +14,33 @@ function personaKeywordEvidence(persona) {
     ])
   ].filter(Boolean).join("\n");
 }
+/* 抽出権利の分類。_localルール_（ルールブックには無いが卓で配られる）。
+   kind=persona 人格抽出チケット … 人格からランダム1つ
+   kind=ego     E.G.O抽出チケット … E.G.Oからランダム1つ
+   kind=choice  選択抽出チケット … 人格かE.G.Oのどちらかを選んでランダム1つ
+   kind=pack    特定抽出パック … そのパックの中からランダム1つ（pack にパック名） */
+const TICKET_KINDS = ["persona", "ego", "choice", "pack"];
+const TICKET_KIND_LABEL = {
+  persona: "人格抽出チケット",
+  ego: "E.G.O抽出チケット",
+  choice: "選択抽出チケット",
+  pack: "特定抽出パック"
+};
 function inferPersonaKeywords(persona, secondaryPassive) {
   const evidence = [personaKeywordEvidence(persona), secondaryPassive?.always, secondaryPassive?.effect].filter(Boolean).join("\n");
   const existing = Array.isArray(persona?.keywords) ? persona.keywords.filter(Boolean) : [];
   return [...new Set([...existing, ...(window.LBT_PDF_KEYWORD_ORDER || []).filter((keyword) => evidence.includes(keyword))])];
 }
 window.LBT_inferPersonaKeywords = inferPersonaKeywords;
-function enrichPersonaKeywords(database) {
-  const keywords = window.LBT_PDF_KEYWORD_ORDER || [];
+window.LBT_TICKET_KINDS = TICKET_KINDS;
+window.LBT_TICKET_KIND_LABEL = TICKET_KIND_LABEL;
+/* 抽取権利の残数汇总。パック別チケットは1パック1行で数える。 */
+window.LBT_ticketCount = function (tickets, kind, pack) {
+  return (Array.isArray(tickets) ? tickets : [])
+    .filter((t) => t.kind === kind && (t.pack || null) === (pack || null))
+    .reduce((sum, t) => sum + (Number(t.count) || 0), 0);
+};
+function enrichPersonaKeywords(database) {  const keywords = window.LBT_PDF_KEYWORD_ORDER || [];
   const groups = ["normal_personas", "tokui_personas", "abnormal_personas"];
   const updated = [];
   let total = 0;
@@ -959,12 +978,20 @@ function normalizeStateShape(raw) {
   if (!Array.isArray(next.roster.egos)) next.roster.egos = [];
   if (!Array.isArray(next.roster.supports)) next.roster.supports = [];
   if (!Array.isArray(next.roster.spirits)) next.roster.spirits = [];
-  /* 抽選権利は後から足した項目。旧保存データに無いので0で補完する。 */
-  next.tickets = {
-    persona: Math.max(0, Number(next.tickets?.persona) || 0),
-    ego: Math.max(0, Number(next.tickets?.ego) || 0),
-    choice: Math.max(0, Number(next.tickets?.choice) || 0)
-  };
+  /* 抽選権利は後から足した項目。旧セーブの {persona:3} 形式は
+     分類付き在庫（配列）へ読み替える。数字だけ持っていても kind が無いので
+     persona として引き継ぐ（旧UIは人格枠しか無かった）。 */
+  next.tickets = (Array.isArray(next.tickets)
+    ? next.tickets
+    : Object.entries(next.tickets || {}).map(([kind, count], i) => ({
+      id: `tk-legacy-${kind}-${i}`,
+      kind,
+      pack: null,
+      count: Math.max(0, Number(count) || 0),
+      acquiredAt: 0,
+      resultId: null
+    }))
+  ).filter((t) => t && TICKET_KINDS.includes(t.kind) && (t.count > 0));
   next.roster = {
     ...next.roster,
     // 同期MAXは同期ランク（0/00/000）と別に保存する。旧保存データはfalseへ補完する。
@@ -1740,17 +1767,15 @@ const INIT_STATE = {
     spirits: []
     // {uid, name, equipped:bool, resultId:string|null, addedAt:number, notes}
   },
-  /* 卓で配られる抽出権利。ルールブックには無いローカルルール（core 3章 P19-20 の
-     有料抽出とは別経路）。3種 Jeep 別々で数える：
-       personaTicket 人格抽出チケット … 人格からランダム1つ
-       egoTicket     E.G.O抽出チケット … E.G.Oからランダム1つ
-       choiceTicket  選択抽出チケット … 人格かE.G.Oのどちらか（利用者が選ぶ）から1つ
-     セッションごとに持ち越さないので state 內で_session内_の在庫として扱う。 */
-  tickets: {
-    persona: 0,
-    ego: 0,
-    choice: 0
-  },
+  /* 卓で配られる抽取権利。ルールブックには無いローカルルール（core 3章 P19-20 の
+     有料抽出とは別経路）。分類ごとに在庫を持つ：
+       kind=persona  人格抽出チケット … 人格からランダム1つ
+       kind=ego      E.G.O抽出チケット … E.G.Oからランダム1つ
+       kind=choice   選択抽出チケット … 人格かE.G.Oのどちらか（利用者が選ぶ）から1つ
+       kind=pack     特定抽出パック（P.7-18）… そのパックの中からランダム1つ
+     pack には data/gacha-theme-packs.json のパック名が入る。kind=pack のときだけ必須。
+     取得はリザルトへの帰属を持つ（acquiredAt / resultId）。 */
+  tickets: [],
   /* 通帳。リザルト（1回の周回）と、その収支明細。
      所持・強化・アイテムはすべて entries（明細）として書き出し、
      どのリザルトで入手したかは resultId が持つ。resultId が null の明細は
@@ -2116,25 +2141,56 @@ function appReducer(state, action) {
       return { ...state, favorites: has ? state.favorites.filter((x) => x !== k) : [...state.favorites, k] };
     }
     /* ---- Roster ---- */
-    /* 卓で配られる抽出権利の増減。3種は別在庫で数える（core 3章 P19-20 の
-       有料抽出とは別経路のローカルルール）。個数は0未満にしない。 */
+    /* 卓で配られる抽出権利の在庫。分類ごとに1行を束ねる（pack 付きのパック別チケット）。
+       抽選時は pack も指定するので、行の特定には id ではなく (kind, pack) を使う。 */
     case "SET_TICKET_COUNT": {
       const kind = action.kind;
-      if (!["persona", "ego", "choice"].includes(kind)) return state;
+      if (!TICKET_KINDS.includes(kind)) return state;
+      const pack = kind === "pack" ? String(action.pack || "") : null;
+      if (kind === "pack" && !pack) return state;
       const count = Math.max(0, Number(action.count) || 0);
-      return { ...state, tickets: { ...(state.tickets || {}), [kind]: count } };
+      const tickets = state.tickets || [];
+      const idx = tickets.findIndex((t) => t.kind === kind && (t.pack || null) === pack);
+      if (!count) {
+        return { ...state, tickets: idx < 0 ? tickets : tickets.filter((_, i) => i !== idx) };
+      }
+      const entry = {
+        id: idx >= 0 ? tickets[idx].id : `tk-${kind}-${pack || "any"}-${Math.random().toString(36).slice(2, 8)}`,
+        kind, pack, count,
+        acquiredAt: idx >= 0 ? tickets[idx].acquiredAt : Date.now(),
+        resultId: idx >= 0 ? tickets[idx].resultId : (action.resultId || null)
+      };
+      return {
+        ...state,
+        tickets: idx < 0 ? [...tickets, entry] : tickets.map((t, i) => (i === idx ? entry : t))
+      };
     }
     case "GRANT_TICKET": {
       const kind = action.kind;
-      if (!["persona", "ego", "choice"].includes(kind)) return state;
+      if (!TICKET_KINDS.includes(kind)) return state;
+      const pack = kind === "pack" ? String(action.pack || "") : null;
+      if (kind === "pack" && !pack) return state;
       /* 加算でも減算でもある。-abs- を0で潰すと「1枚使う」が無効になり、
          在庫が減らない。減算は結果の最終値を0以上に留める。 */
       const delta = Number(action.count) || 0;
       if (!delta) return state;
-      const tickets = state.tickets || {};
-      const next = Math.max(0, (Number(tickets[kind]) || 0) + delta);
-      if (next === (Number(tickets[kind]) || 0)) return state;
-      return { ...state, tickets: { ...tickets, [kind]: next } };
+      const tickets = state.tickets || [];
+      const idx = tickets.findIndex((t) => t.kind === kind && (t.pack || null) === pack);
+      const current = idx >= 0 ? Number(tickets[idx].count) || 0 : 0;
+      const next = Math.max(0, current + delta);
+      if (next === current) return state;
+      if (idx < 0) {
+        return {
+          ...state,
+          tickets: [...tickets, {
+            id: `tk-${kind}-${pack || "any"}-${Math.random().toString(36).slice(2, 8)}`,
+            kind, pack, count: next, acquiredAt: Date.now(), resultId: action.resultId || null
+          }]
+        };
+      }
+      const updated = tickets.map((t, i) => (i === idx ? { ...t, count: next } : t));
+      /* 在庫が尽きた行は残さない。残数カウントなので 0 は無い状態として扱う。 */
+      return { ...state, tickets: next > 0 ? updated : updated.filter((_, i) => i !== idx) };
     }
     /* 所持への追加。人格は DB 価格が無いため、purchase に core ルールの金額
        （抽出/購入）を渡されたときだけ明細を立てる。所持だけの操作は

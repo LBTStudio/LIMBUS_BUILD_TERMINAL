@@ -328,27 +328,40 @@ test("特異人格は指定購入できない（core P203 に購入が無い）"
 });
 
 test("抽象権3種を区別してショップのガチャタブで扱う（ローカルルール）", () => {
-  /* 3種は別在庫。人格/E.G.O/選択(どちらからか)を混ぜない。 */
-  assert.match(reducer, /tickets: \{\s*persona: 0,\s*ego: 0,\s*choice: 0\s*\}/);
-  assert.match(reducer, /case "SET_TICKET_COUNT"[\s\S]{0,400}?\["persona", "ego", "choice"\]\.includes\(kind\)/);
+  /* 4分類。パック別チケットも同じ在庫に入る。 */
+  assert.match(reducer, /const TICKET_KINDS = \["persona", "ego", "choice", "pack"\];/);
+  assert.match(reducer, /tickets: \[\],/);
+  assert.match(reducer, /case "SET_TICKET_COUNT"[\s\S]{0,300}?TICKET_KINDS\.includes\(kind\)/);
   /* 加算と減算の両方。減算を 0 で潰すと「使う」が無効になる。 */
   assert.match(reducer, /case "GRANT_TICKET"[\s\S]{0,400}?const delta = Number\(action\.count\) \|\| 0;/);
-  assert.match(reducer, /const next = Math\.max\(0, \(Number\(tickets\[kind\]\) \|\| 0\) \+ delta\);/);
-  /* state の3種とUIの3種が同じ id を共有していること。 */
+  assert.match(reducer, /const next = Math\.max\(0, current \+ delta\);/);
+  /* パック別は (kind, pack) で行を特定する。 */
+  assert.match(reducer, /tickets\.findIndex\(\(t\) => t\.kind === kind && \(t\.pack \|\| null\) === pack\)/);
+  /* state とUIが同じ分類を共有。 */
   assert.match(sections, /const hitLabel = \(hit\) =>/);
   assert.match(sections, /const GachaTicketsPanel = \(\{ state, dispatch \}\) =>/);
+  assert.match(sections, /window\.LBT_TICKET_KIND_LABEL/);
   /* ガチャタブは商品を並べた画面ではないので検索/カテゴリを出さない。 */
   assert.match(sections, /tab === "gacha" \? h\(GachaTicketsPanel, \{ state, dispatch \}\)/);
-  /* 選択抽出だけ人格かE.G.Oの選択が要る。 */
-  assert.match(sections, /kind === "choice" && h\("div", \{ className: "segmented"[\s\S]{0,200}?\[\["persona", "人格から"\], \["ego", "E\.G\.Oから"\]\]/);
-  /* 使用は1枚消費してから所持へ。抽選結果を所持へ入れる。 */
-  assert.match(sections, /dispatch\(\{ type: "GRANT_TICKET", kind, count: -1 \}\);/);
-  assert.match(sections, /if \(hit\.type === "ego"\) dispatch\(\{ type: "ADD_ROSTER_EGO", no: hit\.no, rank: hit\.rank, purchase: true \}\);\s*else dispatch\(\{ type: "ADD_ROSTER", mode: hit\.mode, no: hit\.no, purchase: true, cost: \{ lp: 0, shards: 0 \} \}\);/);
+
+  const g = read("../js/gacha-tickets.js");
+  /* 抽出全般を単独モジュールが担う：4ルート全部。 */
+  assert.match(g, /\{ id: "persona", label: "人格抽出", rule: "core:346-349"/);
+  assert.match(g, /\{ id: "special", label: "特異人格抽出"/);
+  assert.match(g, /\{ id: "ego", label: "E\.G\.O抽出"/);
+  assert.match(g, /\{ id: "pack", label: "特定抽出パック"/);
+  /* 抽選は通貨かチケットの2択。 */
+  assert.match(g, /const pay = options\.pay === "ticket" \? "ticket" : "paid";/);
+  assert.match(g, /if \(pay === "ticket" && held <= 0\) return \{ hit: null, reason: "no-ticket" \};/);
   /* 所持済みは引かない（core:361/7536 同種複数保有禁止）。 */
-  const tickets = read("../js/gacha-tickets.js");
-  assert.match(tickets, /owned\.ego\.has\(`\$\{e\.rank\}:\$\{e\.no\}`\)/);
-  assert.match(tickets, /!owned\.persona\.has\(String\(p\.no\)\)/);
-  assert.match(tickets, /!owned\.tokui\.has\(String\(p\.no\)\)/);
+  assert.match(g, /!owned\.ego\.has\(`\$\{e\.rank\}:\$\{e\.no\}`\)/);
+  assert.match(g, /!owned\.normal\.has\(String\(p\.no\)\)/);
+  assert.match(g, /!owned\.special\.has\(String\(p\.no\)\)/);
+  /* パックは 1d(die) で当てるので、パック単位のプールを引く。 */
+  assert.match(g, /function buildPackPool\(packName, state\)/);
+  assert.match(g, /const pack = findPack\(packName\);/);
+  /* 所得は cost 経由で明細に立つので、直近リザルトへの帰属が効く。 */
+  assert.match(sections, /cost: \{ lp: out\.cost\.lp \|\| 0, shards: out\.cost\.shards \|\| 0 \}/);
 });
 
 test("人格の獲得は core 3章 P19-20 の2種類だけ（30LP支給を人格価格にしない）", () => {

@@ -1883,64 +1883,90 @@ const BuildItemsPanel = ({ state, dispatch }) => {
 /* 抽選結果の1行表示。種別の記号はここで閉じる。 */
 const hitLabel = (hit) => (hit.type === "ego"
   ? `E.G.O ${hit.rank} No.${hit.no}`
-  : `${hit.mode === "t" ? "特異人格" : "人格"} No.${hit.no}`);
+  : hit.type === "themePack"
+    ? `特定抽出パック【${hit.pack}】 No.${hit.no}`
+    : `${hit.mode === "t" ? "特異人格" : "人格"} No.${hit.no}`);
 
-/* ショップ「ガチャ」タブ。卓で配られる抽出権利（ローカルルール）の3種を区別する。
-   persona 人格抽出チケット … 人格からランダム1つ
-   ego     E.G.O抽出チケット … E.G.Oからランダム1つ
-   choice  選択抽出チケット … 人格かE.G.Oのどちらかを選んでからランダム1つ
-   有料の抽出（core P19-20/P242）とは別経路。使用しても明細には立たない。 */
+/* ショップ「ガチャ」タブ。抽出全般を1つの場所にまとめる。
+   core P19-20（人格）/ P203（特異人格）/ P242（E.G.O）/ 特定抽出パック P.7-18。
+   ルートごとに「通貨で払うか、対応するチケットを使うか」を選ぶ。
+   どちらの経路でも所得は直近のリザルトに帰属する（明細を立てる）。 */
 const GachaTicketsPanel = ({ state, dispatch }) => {
   const h = React.createElement;
-  const tickets = state.tickets || {};
-  const [kind, setKind] = React.useState("persona");
-  const [choicePool, setChoicePool] = React.useState("persona");
+  const G = window.LBT_gachaDraw;
+  const [route, setRoute] = React.useState("persona");
+  const [pay, setPay] = React.useState("paid");
+  const [packName, setPackName] = React.useState("");
   const [last, setLast] = React.useState(null);
-  const KINDS = window.LBT_gachaTickets?.TICKET_KINDS || [];
-  const spec = KINDS.find((t) => t.id === kind);
-  const count = Number(tickets[kind]) || 0;
-  const poolKind = kind === "ego" ? "ego" : "persona";
-  const poolSize = window.LBT_gachaTickets?.buildPool
-    ? window.LBT_gachaTickets.buildPool(poolKind, state).length
-    : 0;
-  const bump = (delta) => dispatch({ type: "GRANT_TICKET", kind, count: delta });
+  const ROUTES = G?.ROUTES || [];
+  const packs = G?.themePacks?.() || [];
+  const spec = ROUTES.find((r) => r.id === route);
+  const activePack = packName || packs[0]?.name || "";
+  const ticketKind = G?.ticketKindFor ? G.ticketKindFor(route) : "persona";
+  const ticketPack = route === "pack" ? activePack : null;
+  const held = G?.ticketCount ? G.ticketCount(state, ticketKind, ticketPack) : 0;
+  const poolSize = route === "pack"
+    ? (G?.buildPackPool?.(activePack, state).length || 0)
+    : (G?.buildPool?.(route, state)?.length || 0);
+  const cost = pay === "ticket" ? { lp: 0, shards: 0, label: "無料" } : (G?.paidCost?.(route, state, activePack) || {});
+  const labels = window.LBT_TICKET_KIND_LABEL || {};
 
-  const use = () => {
-    if (count <= 0) { toast(`${spec?.label || "このチケット"}を持っていません`); return; }
-    const out = window.LBT_gachaTickets?.previewRoll(kind, choicePool, state);
-    if (!out || !out.hit) { toast("抽選できる対象がありません（全人格／E.G.Oを所持しています）"); return; }
+  const run = () => {
+    const out = G?.draw(route, state, { pay, pack: activePack });
+    if (!out || !out.hit) {
+      const why = out?.reason === "no-ticket" ? "対応するチケットを持っていません" : "抽選できる対象がありません";
+      toast(why);
+      return;
+    }
     const hit = out.hit;
-    dispatch({ type: "GRANT_TICKET", kind, count: -1 });
-    if (hit.type === "ego") dispatch({ type: "ADD_ROSTER_EGO", no: hit.no, rank: hit.rank, purchase: true });
-    else dispatch({ type: "ADD_ROSTER", mode: hit.mode, no: hit.no, purchase: true, cost: { lp: 0, shards: 0 } });
-    setLast(hit);
-    toast(`${hit.name} を抽出しました（${spec?.label || "チケット"}）`);
+    /* チケットなら1枚消費してから、所得を直近リザルトに帰属させる。 */
+    if (out.paidBy === "ticket") {
+      dispatch({ type: "GRANT_TICKET", kind: out.ticketKind, pack: out.ticketPack, count: -1 });
+    }
+    if (hit.type === "ego") {
+      dispatch({ type: "ADD_ROSTER_EGO", no: hit.no, rank: hit.rank, purchase: true });
+    } else {
+      dispatch({ type: "ADD_ROSTER", mode: hit.mode, no: hit.no, purchase: true, cost: { lp: out.cost.lp || 0, shards: out.cost.shards || 0 } });
+    }
+    setLast({ ...hit, paidBy: out.paidBy, cost: out.cost });
+    toast(`${hit.name} を抽出しました（${out.paidBy === "ticket" ? (labels[ticketKind] || "チケット") : out.cost.label}）`);
   };
 
   return h("div", { className: "gacha-tickets-panel stack-3" },
     h("p", { className: "ledger-note" },
-      "卓で配られる抽出権利。ルールブックには無いローカルルールで、有料の抽出とは別経路です。1回ごとに1枚を消費します。"),
-    h("div", { className: "segmented", role: "radiogroup", "aria-label": "抽選チケットの種類" },
-      KINDS.map((t) => h("button", {
-        key: t.id, type: "button", role: "radio", "aria-checked": kind === t.id,
-        className: kind === t.id ? "is-active" : "", onClick: () => { setKind(t.id); setLast(null); }
-      }, `${t.label} ×${Number(tickets[t.id]) || 0}`))),
-    kind === "choice" && h("div", { className: "segmented", role: "radiogroup", "aria-label": "選択抽出の抽出元" },
-      [["persona", "人格から"], ["ego", "E.G.Oから"]].map(([v, label]) => h("button", {
-        key: v, type: "button", role: "radio", "aria-checked": choicePool === v,
-        className: choicePool === v ? "is-active" : "", onClick: () => { setChoicePool(v); setLast(null); }
+      "抽出全般。ルートごとに通貨で払うか抽出チケットを使うかを選べます。所得は直近のリザルトに帰属します。"),
+    h("div", { className: "segmented", role: "radiogroup", "aria-label": "抽出の方法" },
+      ROUTES.map((r) => h("button", {
+        key: r.id, type: "button", role: "radio", "aria-checked": route === r.id,
+        className: route === r.id ? "is-active" : "", onClick: () => { setRoute(r.id); setLast(null); }
+      }, r.label))),
+    h("div", { className: "ledger-note" }, `${spec?.rule || ""}　対象 ${poolSize} 件`),
+    route === "pack" && h("label", { className: "ledger-note" },
+      h("span", null, "パック　"),
+      h("select", {
+        className: "select", value: activePack, "aria-label": "特定抽出パック",
+        onChange: (e) => { setPackName(e.target.value); setLast(null); }
+      }, packs.map((p) => h("option", { key: p.name, value: p.name }, `${p.name}（1d${p.die}・LP ${p.lp}）`)))),
+    h("div", { className: "segmented", role: "radiogroup", "aria-label": "支払い方法" },
+      [["paid", "通貨で払う"], ["ticket", `${labels[ticketKind] || "チケット"} ×${held}`]].map(([v, label]) => h("button", {
+        key: v, type: "button", role: "radio", "aria-checked": pay === v,
+        className: pay === v ? "is-active" : "", onClick: () => { setPay(v); setLast(null); }
       }, label))),
     h("div", { className: "gacha-ticket-row" },
-      h("span", { className: "ledger-note" }, `${spec?.hint || ""}　対象 ${poolSize} 件`),
+      h("span", { className: "ledger-note" }, cost?.label || "無料"),
       h("div", { className: "shop-toolbar-main" },
-        h(Button, { size: "sm", variant: "ghost", onClick: () => bump(-1), disabled: count <= 0 }, "−1"),
-        h(Button, { size: "sm", variant: "ghost", onClick: () => bump(1) }, "+1"),
-        h(Button, { size: "sm", variant: "ghost", onClick: () => bump(5) }, "+5"),
-        h(Button, { size: "sm", variant: "primary", onClick: use, disabled: count <= 0 }, "抽選する"))),
+        h(Button, {
+          size: "sm", variant: "ghost",
+          onClick: () => dispatch({ type: "GRANT_TICKET", kind: ticketKind, pack: ticketPack, count: -1 }),
+          disabled: held <= 0
+        }, "−1"),
+        h(Button, { size: "sm", variant: "ghost", onClick: () => dispatch({ type: "GRANT_TICKET", kind: ticketKind, pack: ticketPack, count: 1 }) }, "+1"),
+        h(Button, { size: "sm", variant: "ghost", onClick: () => dispatch({ type: "GRANT_TICKET", kind: ticketKind, pack: ticketPack, count: 5 }) }, "+5"),
+        h(Button, { size: "sm", variant: "primary", onClick: run, disabled: poolSize <= 0 || (pay === "ticket" && held <= 0) }, "抽選する"))),
     last && h("div", { className: "gacha-ticket-result" },
       h("span", { className: "t-label" }, "抽選結果"),
       h("strong", null, last.name),
-      h("span", { className: "ledger-note" }, hitLabel(last)))
+      h("span", { className: "ledger-note" }, `${hitLabel(last)}　${last.paidBy === "ticket" ? "チケット使用" : last.cost?.label || "無料"}`))
   );
 };
 const ShopSection = ({ state, dispatch }) => {
