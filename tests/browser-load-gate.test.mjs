@@ -47,6 +47,32 @@ test("全画面の JS はブラウザのスクリプトモードで読める", (
   assert.deepEqual(broken, [], "スクリプトとして読めないファイルがある");
 });
 
+test("React フックは React. 名前空間経由で呼んでいる（ компонンスコープに無い）", () => {
+  /* vm.Script は構文しか見ないので、useMemo を素で呼んでも通ってしまう。
+     実機はここで RosterSection が落ちて所持一覧ごと消えた。
+     各コンポーネントは `const h = React.createElement` の形だけ社会保险なので、
+     素のフック呼び出しが残っていないかソースで探す。 */
+  const offenders = [];
+  for (const file of FILES) {
+    let src;
+    try {
+      src = readFileSync(new URL("../" + file, import.meta.url), "utf8");
+    } catch {
+      continue;
+    }
+    src.split("\n").forEach((line, i) => {
+      /* 定義行（const useState = ... 等）は除外する。 */
+      if (/\bconst\s+(use[A-Z]\w*)\s*=/.test(line)) return;
+      /* React. が付いている正しい形は通過させる。 */
+      if (/React\.use[A-Z]\w*\s*\(/.test(line)) return;
+      if (/\buse(State|Memo|Effect|Ref|Callback|Reducer|LayoutEffect)\s*\(/.test(line)) {
+        offenders.push(`${file}:${i + 1}: ${line.trim().slice(0, 80)}`);
+      }
+    });
+  }
+  assert.deepEqual(offenders, [], "素のフック呼び出しがある（React. を付けて読む）");
+});
+
 test("全画面の JS に不正な文字（U+FFFD）が混ざっていない", () => {
   const dirty = [];
   for (const file of FILES) {

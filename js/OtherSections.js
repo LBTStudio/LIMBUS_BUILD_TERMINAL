@@ -2461,6 +2461,50 @@ const RosterSection = ({ state, dispatch }) => {
       toast(`${item.entry.rank}: 『${item.name}』を装備`);
     }
   };
+    /* 既存アカウント向け。同期/解析のフラグは立ってるのに明細が無い状態を
+       一括で遡及記録する。二重計上は reducer 側で uid+kind で弾く。 */
+    const backfillable = React.useMemo(() => {
+      const seen = new Set((state.entries || []).map((e) => `${e.kind}:${e.ref?.uid}`));
+      let n = 0;
+      for (const e of state.roster.personas || []) {
+        const hasSync = Boolean(e.syncRank) || e.syncMax === true;
+        if (hasSync && !seen.has(`${e.syncMax === true ? "personaSyncMax" : "personaSync"}:${e.uid}`)) n++;
+      }
+      for (const e of state.roster.egos || []) {
+        const hasAnalyze = e.analyzed === true || e.analyzeMax === true;
+        if (hasAnalyze && !seen.has(`${e.analyzeMax === true ? "egoAnalyzeMax" : "egoAnalyze"}:${e.uid}`)) n++;
+      }
+      return n;
+    }, [state.roster.personas, state.roster.egos, state.entries]);
+
+    /* 同期化・同期MAXは自我の欠片を支払う（supplement P7/P23）。
+     ただのフラグで済ませると欠片が帳から消えるので、必ず明細として残す。 */
+  const syncCost = (uid, syncMax) => {
+    const persona = (window.DB?.normal_personas || window.DB?.tokui_personas || []).find((p) => String(p.no) === String((state.roster.personas || []).find((x) => x.uid === uid)?.no));
+    return window.LBT_operationCost?.(syncMax ? "syncMax" : "sync", { ...persona }, window.DB) || null;
+  };
+  const applySyncMax = (item, on) => {
+    const c = syncCost(item.entry.uid, on);
+    if (!on && !item.entry.syncMax) {
+      /* 解除なら費用は発生しない。 */
+      dispatch({ type: "APPLY_PERSONA_SYNC", uid: item.entry.uid, syncMax: false });
+      toast("同期MAXを解除しました");
+      return;
+    }
+    if (on && c) {
+      const bal = window.LBT_computeLedgerBalance?.(state);
+      if (bal && Number(bal.shards) < Number(c.shards)) {
+        toast(`自我の欠片が足りません（必要 ${c.shards} / 手持ち ${bal.shards}）`);
+        return;
+      }
+    }
+    dispatch({ type: "APPLY_PERSONA_SYNC", uid: item.entry.uid, syncMax: on });
+    if (on && c) {
+      toast(`${item.name} を同期MAXにしました（自我の欠片 ${c.shards}個）`);
+    } else if (!on) {
+      toast("同期MAXを解除しました");
+    }
+  };
   const renderDetail = (item) => {
     const src = item.src || {};
     const canModifySyncMax = item.type === "personas" && item.equipped && canEditPersonaState(state);
@@ -2484,7 +2528,7 @@ const RosterSection = ({ state, dispatch }) => {
     return h("div", { className: "roster-detail", role: "region", "aria-label": `${item.name}の詳細` },
       h("div", { className: "roster-detail-head" }, h("div", null, h("span", { className: "t-label" }, item.type === "personas" ? "PERSONA DETAIL / 簡易詳細" : "E.G.O DETAIL / 簡易詳細"), h("div", { className: "roster-detail-title" }, item.name)), h("button", { className: "btn btn--quiet btn-icon", onClick: () => setDetailId(null), title: "詳細を閉じる", "aria-label": "詳細を閉じる" }, h(Icon, { name: "x", size: 15 }))),
       h("div", { className: "roster-detail-lines" }, summary.map((line, index) => h("div", { key: index }, line))),
-      item.type === "personas" && canModifySyncMax && h("label", { className: `sync-max-detail-toggle${item.entry.syncMax ? " is-on" : ""}`, onClick: (event) => event.stopPropagation(), title: "同期MAXを設定・解除" }, h("input", { type: "checkbox", checked: item.entry.syncMax === true, onChange: (event) => dispatch({ type: "PATCH_ROSTER", uid: item.entry.uid, patch: { syncMax: event.target.checked } }) }), h("span", { className: "sync-max-detail-label" }, "同期MAXとして設定"), h("span", { className: "sync-max-detail-note" }, "同期ランクとは別・名称と共有に反映")),
+      item.type === "personas" && canModifySyncMax && h("label", { className: `sync-max-detail-toggle${item.entry.syncMax ? " is-on" : ""}`, onClick: (event) => event.stopPropagation(), title: "同期MAXを設定・解除（自我の欠片50個／supplement P7・P23）" }, h("input", { type: "checkbox", checked: item.entry.syncMax === true, onChange: (event) => applySyncMax(item, event.target.checked) }), h("span", { className: "sync-max-detail-label" }, "同期MAXとして設定"), h("span", { className: "sync-max-detail-note" }, "同期ランクとは別・名称と共有に反映")),
       h("div", { className: "roster-detail-actions" },
         item.equipped ? h("span", { className: "badge", style: { color: "var(--gold)", borderColor: "var(--gold-line)" } }, "現在装備中") : h(Button, { size: "md", variant: "primary", icon: "check", className: "roster-detail-equip", onClick: () => equipItem(item) }, item.type === "personas" ? "この人格を装備する" : "このE.G.Oを装備する"),
         item.saved && h("span", { className: "roster-detail-saved" }, item.type === "personas" ? "保存済みビルドを復元して装備します" : "保存済み解析を復元して装備します")
@@ -2526,6 +2570,12 @@ const RosterSection = ({ state, dispatch }) => {
           h("div", { className: "segmented", role: "tablist", "aria-label": "所持状態フィルタ" }, [["all", "すべて"], ["custom", "カスタム人格"], ["saved", "保存済み"]].map(([key, text]) => h("button", { key, type: "button", role: "tab", "aria-selected": filter === key, className: filter === key ? "is-active" : "", onClick: () => setFilter(key) }, text))),
           libraryTab === "personas" && h("div", { className: "segmented", role: "tablist", "aria-label": "同期状態フィルタ" }, [["all", "すべて"], ["synced", "同期済み"], ["unsynced", "未同期"]].map(([key, text]) => h("button", { key, type: "button", role: "tab", "aria-selected": syncFilter === key, className: syncFilter === key ? "is-active" : "", onClick: () => setSyncFilter(key) }, text))),
           libraryTab === "personas" && h("div", { className: "segmented", role: "tablist", "aria-label": "同期・MAXフィルタ" }, [["all", "同期・MAXすべて"], ["0", "同期0"], ["00", "同期00"], ["000", "同期000"], ["max", "同期MAX"]].map(([key, text]) => h("button", { key, type: "button", role: "tab", "aria-selected": syncRankFilter === key, className: syncRankFilter === key ? "is-active" : "", onClick: () => setSyncRankFilter(key) }, text))),
+          /* 既存アカウントは同期/解析がただのフラグで残ってる。ここで明細を遡って作る。 */
+          backfillable > 0 && h(Button, {
+            size: "sm", variant: "secondary", icon: "download",
+            title: "同期・解析の自我の欠片を、直近のリザルトへ明細として記録します（supplement P7/P23）",
+            onClick: () => { dispatch({ type: "BACKFILL_SYNC_ENTRIES" }); toast(`同期・解析の明細を ${backfillable} 件記録しました`); }
+          }, `同期・解析の明細を遡って記録（${backfillable}件）`),
           h("label", { className: "roster-sort-control", title: "所持一覧の並び順" }, h("span", { className: "t-label" }, "並び順"), h("select", { className: "select", value: sortBy, onChange: (event) => setSortBy(event.target.value) }, h("option", { value: "added" }, "追加順"), h("option", { value: "name" }, "名前順"), h("option", { value: "number" }, libraryTab === "personas" ? "No.順" : "ランク・No.順"), libraryTab === "personas" && h("option", { value: "sync" }, "同期順"))),
           h("div", { style: { flex: 1 } }),
           manageMode ? h(React.Fragment, null, h(Button, { size: "sm", variant: "ghost", onClick: selectedIds.length === selectableItems.length && selectableItems.length ? clearSelection : selectAll }, selectedIds.length === selectableItems.length && selectableItems.length ? "選択を解除" : "全て選択"), h(Button, { size: "sm", variant: "ghost", onClick: exitManage }, "管理を終了")) : h(Button, { size: "sm", variant: "secondary", icon: "edit", onClick: () => setManageMode(true) }, "管理する")

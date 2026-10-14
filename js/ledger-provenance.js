@@ -189,13 +189,17 @@
   const SOURCE = { persona: "core:594-621", ego: "core:9499-9512" };
 
   /* --- 同期・解析のコスト -------------------------------------------------
-     supplement:945-947「同期化・解析を行った時と同じ個数だけ、自我の欠片を支払う」。
-     つまり金額は取得時点に遡り、記録するリザルトは操作時点のものになる。 */
+     supplement P7「同期化・解析とは、入手した人格・E.G.Oに『PCらしさ』を
+     自我の欠片を50個支払うことで…」／ P7「ZAYIN：20欠片 TETH：40欠片
+     HE：60欠片 WAW：80欠片 ALEPH：100欠片」
+     supplement P23「同期化・解析を行った時と同じ個数だけ、自我の欠片を支払う」
+     → MAX は同期化/解析と同額。所持のTEXTUAL価格とは無関係な固定額。 */
+  const EGO_ANALYZE_SHARDS = { ZAYIN: 20, TETH: 40, HE: 60, WAW: 80, ALEPH: 100 };
   const OPERATION_COST = {
-    sync: { kind: "sync", label: "同期", source: "supplement:945-947 同期化・解析を行った時と同じ個数" },
-    analyze: { kind: "analyze", label: "解析", source: "supplement:945-947 同期化・解析を行った時と同じ個数" },
-    syncMax: { kind: "syncMax", label: "同期MAX", source: "supplement:945-947 同期化・解析を行った時と同じ個数" },
-    analyzeMax: { kind: "analyzeMax", label: "解析MAX", source: "supplement:945-947 同期化・解析を行った時と同じ個数" }
+    sync: { kind: "sync", label: "同期", shards: 50, source: "supplement P7 同期化（自我の欠片50個）" },
+    analyze: { kind: "analyze", label: "解析", shardsByRank: EGO_ANALYZE_SHARDS, source: "supplement P7 解析（危険度ランク別の欠片）" },
+    syncMax: { kind: "syncMax", label: "同期MAX", shards: 50, source: "supplement P23 同期化と同じ個数（自我の欠片50個）" },
+    analyzeMax: { kind: "analyzeMax", label: "解析MAX", shardsByRank: EGO_ANALYZE_SHARDS, source: "supplement P23 解析と同じ個数（危険度ランク別）" }
   };
 
   const OPERATION_CUES = /(同期(?:化|MAX)?|解析(?:化|MAX)?|浄化|特異化)/;
@@ -204,14 +208,22 @@
     return OPERATION_CUES.test(String(line || ""));
   }
 
-  /* 操作の金額は、対象が入手したときの価格と同じ。 */
+  /* 操作の金額はルールが定めた固定額。所持した時の価格とは無関係。
+     target は E.G.O のとき rank を取り出すためだけ使う。 */
   function operationCost(operationId, target, db) {
     const op = OPERATION_COST[operationId];
     if (!op) return null;
-    if (!target) return null;
-    const base = priceOf(target.name, target.kind, db);
-    if (!base) return null;
-    return { lp: base.lp, shards: base.shards, source: op.source, operation: op.kind, label: op.label };
+    if (op.shardsByRank) {
+      /* 解析/解析MAX は危険度ランクで額が変わる。 */
+      const rank = target?.rank || (Array.isArray(db?.egos)
+        ? (db.egos.find((e) => String(e.no) === String(target?.no) && (!target?.rank || e.rank === target.rank)) || {}).rank
+        : null);
+      const shards = rank ? op.shardsByRank[rank] : null;
+      if (shards === undefined || shards === null) return null;
+      return { lp: 0, shards, source: op.source, operation: op.kind, label: `${op.label}（${rank}）` };
+    }
+    if (!op.shards) return null;
+    return { lp: 0, shards: op.shards, source: op.source, operation: op.kind, label: op.label };
   }
 
   /* 操作は、所持にはないため、金額は独立で物を計算できない。 */

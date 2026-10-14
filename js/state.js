@@ -2215,6 +2215,106 @@ function appReducer(state, action) {
         ref: { kind: "rosterPersona", uid }
       });
     }
+    /* 同期化・解析・そのMAX（supplement P7/P23）。人格・E.G.O の「-sync/analyze 済み」
+       フラグを立てるだけで済ませると、規則が定めた自我の欠片が帳から消える。
+       ここを通すので、欠片は直近リザルトの明細として落ち、収入から引かれる。
+       既存アカウントのフラグ済み項目には明細が無いので、
+       後からまとめて記録できる BACKFILL_SYNC_ENTRIES を用意する。 */
+    case "APPLY_PERSONA_SYNC": {
+      const { uid, syncRank, syncMax } = action;
+      const personas = (state.roster.personas || []).map((p) => {
+        if (p.uid !== uid) return p;
+        return { ...p, syncRank: syncRank === undefined ? p.syncRank : syncRank, syncMax: syncMax === undefined ? p.syncMax : syncMax };
+      });
+      const entry = (state.roster.personas || []).find((p) => p.uid === uid);
+      if (!entry) return state;
+      const persona = (entry.mode === "t" ? window.DB?.tokui_personas : window.DB?.normal_personas || []).find((p) => String(p.no) === String(entry.no));
+      const rankToSync = syncRank === undefined ? entry.syncRank : syncRank;
+      const wantMax = syncMax === undefined ? entry.syncMax : syncMax;
+      const next = { ...state, roster: { ...state.roster, personas } };
+      /* 新たに立てた操作だけ記録する。既に立ってるものには二重で掛からない。 */
+      const isMax = Boolean(wantMax);
+      /* 解除で元に戻す操作には費用は発生しない。 */
+      if (!rankToSync && !isMax) return next;
+      const op = isMax ? "syncMax" : "sync";
+      const cost = window.LBT_operationCost?.(op, { ...persona, no: entry.no }, window.DB);
+      if (!cost) return next;
+      return appendLedgerEntry(next, {
+        kind: isMax ? "personaSyncMax" : "personaSync",
+        name: `${persona?.name || `人格 No.${entry.no}`}${isMax ? " 同期MAX" : rankToSync ? ` 同期${rankToSync}` : " 同期"}`,
+        cost: normalizeCurrency(cost),
+        resultId: action.resultId,
+        ref: { kind: "rosterPersona", uid }
+      });
+    }
+    case "APPLY_EGO_ANALYZE": {
+      const { uid, analyzeMax } = action;
+      const egos = (state.roster.egos || []).map((e) => {
+        if (e.uid !== uid) return e;
+        return { ...e, analyzed: true, analyzeMax: analyzeMax === undefined ? e.analyzeMax : analyzeMax };
+      });
+      const entry = (state.roster.egos || []).find((e) => e.uid === uid);
+      if (!entry) return state;
+      const next = { ...state, roster: { ...state.roster, egos } };
+      const wantMax = analyzeMax === undefined ? entry.analyzeMax : analyzeMax;
+      /* 解析は1回だけ。既に解析済みなら二重に引かない。 */
+      if (entry.analyzed === true) return next;
+      const isMax = Boolean(wantMax);
+      const cost = window.LBT_operationCost?.(isMax ? "analyzeMax" : "analyze", { rank: entry.rank, no: entry.no }, window.DB);
+      if (!cost) return next;
+      return appendLedgerEntry(next, {
+        kind: isMax ? "egoAnalyzeMax" : "egoAnalyze",
+        name: `${entry.rank} No.${entry.no} ${isMax ? "解析MAX" : "解析"}`,
+        cost: normalizeCurrency(cost),
+        resultId: action.resultId,
+        ref: { kind: "rosterEgo", uid }
+      });
+    }
+    /* 既存アカウント用の遡及記録。同期/解析のフラグは既に立ってるが、明細が無い
+       状態が残ってる（従来はただのフラグで記録されずに通っていた）。
+       既存明細に同 uid の明細が無いものだけを、開いたリザルトへ遡って積む。
+       二重計上を避けるため uid+kind で一度だけ。 */
+    case "BACKFILL_SYNC_ENTRIES": {
+      const existing = new Set((state.entries || []).map((e) => `${e.kind}:${e.ref?.uid}`));
+      let next = state;
+      const fallback = next.results.length ? next.results[next.results.length - 1].id : null;
+      for (const entry of next.roster.personas || []) {
+        const persona = (entry.mode === "t" ? window.DB?.tokui_personas : window.DB?.normal_personas || []).find((p) => String(p.no) === String(entry.no));
+        const hasSync = Boolean(entry.syncRank) || entry.syncMax === true;
+        if (!hasSync) continue;
+        const key = `${entry.syncMax === true ? "personaSyncMax" : "personaSync"}:${entry.uid}`;
+        if (existing.has(key)) continue;
+        const op = entry.syncMax === true ? "syncMax" : "sync";
+        const cost = window.LBT_operationCost?.(op, { ...persona, no: entry.no }, window.DB);
+        if (!cost) continue;
+        next = appendLedgerEntry(next, {
+          kind: entry.syncMax === true ? "personaSyncMax" : "personaSync",
+          name: `${persona?.name || `人格 No.${entry.no}`}${entry.syncRank ? ` 同期${entry.syncRank}` : " 同期"}`,
+          cost: normalizeCurrency(cost),
+          resultId: action.resultId === undefined ? fallback : action.resultId,
+          ref: { kind: "rosterPersona", uid: entry.uid }
+        });
+        existing.add(key);
+      }
+      for (const entry of next.roster.egos || []) {
+        const hasAnalyze = entry.analyzed === true || entry.analyzeMax === true;
+        if (!hasAnalyze) continue;
+        const key = `${entry.analyzeMax === true ? "egoAnalyzeMax" : "egoAnalyze"}:${entry.uid}`;
+        if (existing.has(key)) continue;
+        const op = entry.analyzeMax === true ? "analyzeMax" : "analyze";
+        const cost = window.LBT_operationCost?.(op, { rank: entry.rank, no: entry.no }, window.DB);
+        if (!cost) continue;
+        next = appendLedgerEntry(next, {
+          kind: entry.analyzeMax === true ? "egoAnalyzeMax" : "egoAnalyze",
+          name: `${entry.rank} No.${entry.no} ${entry.analyzeMax === true ? "解析MAX" : "解析"}`,
+          cost: normalizeCurrency(cost),
+          resultId: action.resultId === undefined ? fallback : action.resultId,
+          ref: { kind: "rosterEgo", uid: entry.uid }
+        });
+        existing.add(key);
+      }
+      return next;
+    }
     /* V23: 所持EGO一覧への追加・削除（人格の ADD_ROSTER / REMOVE_ROSTER に相当）
        purchase=true はショップ経由の購入。装备（SET_EGO_SLOT）からの
        自動登録では明細を立てない（購入と二重請求になるため）。 */
@@ -2542,9 +2642,22 @@ if (nextValue && !action.preview && !rosterEgos.some((entry) => entry.rank === a
       const build = { savedAt: Date.now(), ...cloneJSON(slot) };
       const egos = (state.roster.egos || []).slice();
       const idx = egos.findIndex((e) => e.rank === rank && e.no === slot.no);
+      const wasAnalyzed = idx >= 0 && egos[idx].analyzed === true;
       if (idx >= 0) egos[idx] = { ...egos[idx], analyzed: true, build };
       else egos.push({ uid: `er-${Date.now()}`, no: slot.no, rank, analyzed: true, analyzeMax: false, notes: "", build });
-      return { ...state, roster: { ...state.roster, egos } };
+      const next = { ...state, roster: { ...state.roster, egos } };
+      /* 解析は危険度ランク分の自我の欠片を支払う（supplement P7）。保存のたびに
+         取るのは誤りで、解析を初めて確定させた1回だけ。既に解析済みなら積まない。 */
+      if (wasAnalyzed) return next;
+      const uid = egos[idx >= 0 ? idx : egos.length - 1].uid;
+      const cost = window.LBT_operationCost?.("analyze", { rank, no: slot.no }, window.DB);
+      if (!cost) return next;
+      return appendLedgerEntry(next, {
+        kind: "egoAnalyze",
+        name: `${rank} No.${slot.no} 解析`,
+        cost: normalizeCurrency(cost),
+        ref: { kind: "rosterEgo", uid }
+      });
     }
     /* V01/V25: 所持EGOの保存解析を破棄して DB 既定に戻す */
     case "CLEAR_EGO_BUILD": {
