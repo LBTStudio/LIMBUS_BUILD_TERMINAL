@@ -667,10 +667,15 @@ const PersonaCodex = ({ state, dispatch, ownedOnly = false }) => {
   const [acquireHow, setAcquireHow] = React.useState("purchase");
   const resolveAcquireCost = (kind, how, context) => (window.LBT_resolveAcquireCost ? window.LBT_resolveAcquireCost(kind, how, context) : { lp: 0, shards: 0, label: "無料" });
   const acquirePersona = (persona) => {
-    const cost = resolveAcquireCost("persona", acquireHow, { name: persona.name, ownsPersona: (roster.personas || []).length > 0 });
     const personaMode = personaModeFor(persona);
-    const p = persona;
-    dispatch({ type: "ADD_ROSTER", mode: personaMode, no: p.no, purchase: true, cost: { lp: cost.lp || 0, shards: cost.shards || 0 } });
+    /* 所持済みの再獲得は二重計上と嘘のトーストになるので断る。
+       reducer と同じ mode:no の一意キーで判定する。 */
+    if ((state.roster?.personas || []).some((r) => `${r.mode}:${r.no}` === `${personaMode}:${persona.no}`)) {
+      toast(`『${persona.name}』は既に所持しています`);
+      return;
+    }
+    const cost = resolveAcquireCost("persona", acquireHow, { name: persona.name, ownsPersona: (state.roster?.personas || []).length > 0 });
+    dispatch({ type: "ADD_ROSTER", mode: personaMode, no: persona.no, purchase: true, cost: { lp: cost.lp || 0, shards: cost.shards || 0 } });
     toast(`${persona.name} を獲得しました（${cost.label}）`);
   };
 
@@ -921,11 +926,16 @@ const PersonaCodex = ({ state, dispatch, ownedOnly = false }) => {
     }, 20);
     toast(`\u300E${p.name}\u300F\u3092\u88C5\u5099`);
   };
-  const addRoster = (p) => {
+const addRoster = (p) => {
     const m = pool.find((x) => x.p === p)?.mode || mode;
-
-    const cost = resolveAcquireCost("persona", acquireHow, { name: p.name, ownsPersona: (roster.personas || []).length > 0 });    dispatch({ type: "ADD_ROSTER", mode: m, no: p.no, purchase: true, cost: { lp: cost.lp || 0, shards: cost.shards || 0 } });
-    toast("\u6240\u6301\u30EA\u30B9\u30C8\u3078\u8FFD\u52A0");
+    /* 既に所持なら「追加した」と嘘をつくので在这里で止める。 */
+    if ((roster.personas || []).some((r) => `${r.mode}:${r.no}` === `${m}:${p.no}`)) {
+      toast(`『${p.name}』は既に所持しています`);
+      return;
+    }
+    const cost = resolveAcquireCost("persona", acquireHow, { name: p.name, ownsPersona: (roster.personas || []).length > 0 });
+    dispatch({ type: "ADD_ROSTER", mode: m, no: p.no, purchase: true, cost: { lp: cost.lp || 0, shards: cost.shards || 0 } });
+    toast("所持リストへ追加");
   };
   const unequip = () => {
     dispatch({ type: "UNEQUIP_PERSONA" });

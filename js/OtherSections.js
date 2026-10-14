@@ -1763,6 +1763,9 @@ function resolveAcquireCost(kind, how, context) {
   if (!price) return { lp: 0, shards: 0, label: "無料" };
   return { ...price, label: formatAcquireCost(price.lp, price.shards) };
 }
+/* PersonaCodex はこの関数を読む。露出しないと undefined のまま
+   else 節の「無料」に落ち、全人格が無償で入手できてしまう。 */
+if (typeof window !== "undefined") window.LBT_resolveAcquireCost = resolveAcquireCost;
 
 const AcquireBar = ({ state, kind, name, how, setHow, onAcquire, disabled, disabledReason }) => {
   const h = React.createElement;

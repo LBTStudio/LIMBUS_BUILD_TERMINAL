@@ -312,6 +312,27 @@ test("ショップは未所持のみを既定で出し、導入は購入とし�
   assert.match(shop, /className: "shop-grid"/);
 });
 
+test("人格の獲得費用は必ず window  через解決する（未定義だと全部『無料』になる）", () => {
+  const codex = read("../js/PersonaCodex.js");
+  /* PersonaCodex は window.LBT_resolveAcquireCost だけを読む。
+     OtherSections 側の定義が window に露出していないと else 節の
+     {lp:0, shards:0, label:"無料"} に落ち、全人格が無償で入手できてしまう。 */
+  assert.match(sections, /window\.LBT_resolveAcquireCost = resolveAcquireCost;/);
+  assert.match(codex, /window\.LBT_resolveAcquireCost \? window\.LBT_resolveAcquireCost\(kind, how, context\)/);
+  /* フォールバックの『無料』は未露出時だけ。露出後は常に本関数が走る。 */
+  assert.equal((sections.match(/window\.LBT_resolveAcquireCost\s*=/g) || []).length, 1);
+});
+
+test("所持済みの人格は再獲得せず、嘘の『所持へ追加』トーストを出さない", () => {
+  const codex = read("../js/PersonaCodex.js");
+  /* カード獲得と詳細の所持追加の2経路。どちらも reducer と同じ mode:no で
+     判定してから dispatch する。UI 側の !isOwned ガードは表示だけを守る。 */
+  assert.match(codex, /const acquirePersona = \(persona\) => \{[\s\S]{0,700}?roster\?\.personas \|\| \[\]\)\.some\([\s\S]{0,200}?既に所持しています[\s\S]{0,120}?return;/);
+  assert.match(codex, /const addRoster = \(p\) => \{[\s\S]{0,600}?roster\.personas \|\| \[\]\)\.some\([\s\S]{0,200}?既に所持しています[\s\S]{0,120}?return;/);
+  /* reducer 側の一意キーも同じ mode:no。 */
+  assert.match(reducer, /case "ADD_ROSTER"[\s\S]{0,200}?`\$\{mode\}:\$\{no\}`[\s\S]{0,160}?return state;/);
+});
+
 test("購入は最新リザルトへ直接入り、残高が足りなければ行わない", () => {
   const shop = sections.slice(sections.indexOf("const ShopSection ="), sections.indexOf("const BuildWorkspace ="));
   /* 明細 resultId の既定は「最後に記録したリザルト」。 */
