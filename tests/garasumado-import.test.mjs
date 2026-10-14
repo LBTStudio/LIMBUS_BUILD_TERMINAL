@@ -116,6 +116,57 @@ test("manifest のシナリオが収入と支出を持つ", () => {
   assert.equal(m.filter((s) => s.hasData).length, 1, "読めたシナリオだけ hasData");
 });
 
+/* --- 実データで判明した表記ゆれ（共有73シナリオから採った実物） --------- */
+
+test("シナリオ名だけの行は「読めなかった」扱いにしない", () => {
+  /* 収入セクションには「どの機関に勝ったか」の名前行が並ぶ。
+     数字を含まないもの（北部ヂェーヴィチ協会 4 課フィクサー）と、
+     課番号だけ持つもの（T社3級徴収職職員）は金額行ではない。
+     reasons に載せると「全部読めなかった」という誤解を招く。 */
+  const r = MEMO.parseMemo("90LP：現在100LP\n北部ヂェーヴィチ協会 4 課フィクサー\nT社3級徴収職職員");
+  assert.equal(r.income.lp, 90);
+  assert.equal(r.reasons.length, 0, "名前行はエラーではない");
+});
+
+test("効果の説明文は金額行ではない", () => {
+  const r = MEMO.parseMemo("『壊れ砕けた黄金の残火』×1(消費アイテム)\n▶︎戦闘中1度だけ、E.G.O使用時に消費する精神と資源の量を半減し、火傷10を得る");
+  assert.equal(r.income.lp, 0);
+  assert.equal(r.income.shards, 0);
+  assert.equal(r.reasons.length, 0, "説明文は金額でも名前でもない");
+});
+
+test("合計行（0欠片　40LP）は収入でも支出でもない", () => {
+  const r = MEMO.parseMemo("90LP：現在100LP\n29欠片：現在39欠片\n・支払い\n憎悪購入：-50欠片\n0欠片　40LP");
+  assert.equal(r.income.lp, 90, "合計行が収入に加算されない");
+  assert.equal(r.spends.length, 1, "合計行が支出に増えない");
+});
+
+test("「抽出NN：」だけの行は抽出として数える", () => {
+  const a = MEMO.parseMemo("抽出1：LCE E.G.O:提灯の人格");
+  assert.equal(a.tickets.ego, 1, "E.G.O が書いてあれば E.G.O 抽出");
+  const b = MEMO.parseMemo("抽出2：某の人格");
+  assert.equal(b.tickets.persona, 2);
+});
+
+test("「チケ」だけの表記もチケットとして数える", () => {
+  const r = MEMO.parseMemo("ガチャチケ1枚　第四銀工房銃鎚派");
+  assert.equal(r.reasons.length, 0);
+  assert.ok(r.tickets.persona + r.tickets.ego + r.tickets.choice > 0, "チケ表記がチケットになる");
+});
+
+test("識別子のハイフン（因子コード G-5）を負の金額に読まない", () => {
+  const r = MEMO.parseMemo("因子コード G-5購入 7LP");
+  assert.equal(r.income.lp, 7, "G-5 の -5 を金額にしない");
+  assert.equal(r.reasons.length, 0);
+});
+
+test("「人格抽出：」「人格抽出チケット：」はどちらでもチケットになる", () => {
+  const a = MEMO.parseMemo("人格抽出：南部リウ協会４課フィクサー");
+  assert.equal(a.tickets.persona, 1);
+  const b = MEMO.parseMemo("人格抽出チケット:寝落ちの謝罪のため確定：西武ツヴァイ協会３課フィクサー");
+  assert.equal(b.tickets.persona, 1);
+});
+
 test("共有URL からドキュメント ID とコレクションを抜く", () => {
   const a = G.parseShareUrl("https://lbt-garasumado.vercel.app/view/mMIbGr32lGZix60RDmoN");
   assert.equal(a.ok, true);

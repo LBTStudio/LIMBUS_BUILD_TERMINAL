@@ -48,13 +48,20 @@
   }
 
   /* 金額を取る。「現在NN」と「残りNN」は残額なので先に落とす。
-     落在這裡的只有「支出額」。 */
+     落在這裡的只有「支出額」。
+     「因子コード G-5購入 7LP」のように識別子に数字が混ざっていても、
+     通貨名に隣接する数値を採る（7 が金額、G-5 の 5 は識別子）。 */
   function amountOf(line) {
     var cleaned = String(line)
-      .replace(/現在[：:]?\s*(LP|欠片|かけら|欠けら|カケラ|LP)?\s*-?\d+/gi, " ")
+      .replace(/現在[：:]?\s*(LP|欠片|かけら|欠けら|カケラ)?\s*-?\d+/gi, " ")
       .replace(/残り\s*-?\d+/gi, " ")
       .replace(/へ\s*$/, " ");
-    var m = cleaned.match(/-?\d+/);
+    /* 通貨名に隣接する数値を優先（-22LP → 22、7LP → 7）。 */
+    var near = cleaned.match(/(-?\d+)\s*(LP|欠片|かけら|欠けら|カケラ)/i);
+    if (near) return parseInt(near[1], 10);
+    /* 通貨名が無ければ先頭の数字。識別子のハイフンは符号ではない。 */
+    var rest = cleaned.replace(/([A-Za-z0-9])-(?=\d)/g, "$1 ");
+    var m = rest.match(/-?\d+/);
     if (!m) return null;
     var n = parseInt(m[0], 10);
     return isFinite(n) ? n : null;
@@ -62,16 +69,45 @@
 
   /* チケットの種類。複数形・表記ゆれを吸収。 */
   function ticketOf(line) {
-    if (!/チケット/.test(line)) return null;
+    /* 「チケット」だけでなく略字の「チケ」も受ける。実データに
+       「ガチャチケ1枚　第四銀工房銃鎚派」がある。 */
+    if (!/チケ|チケット/.test(line)) return null;
     var text = String(line);
     var count = 1;
     var cm = text.match(/[x×]\s*(\d+)/);
     if (cm) count = parseInt(cm[1], 10) || 1;
+    /* 「ガチャチケ1枚」 */
+    var cm2 = text.match(/(?:チケ|チケット)\s*(\d+)\s*枚/);
+    if (cm2) count = parseInt(cm2[1], 10) || 1;
 
     var kind = "persona";
     if (EGO_WORDS.some(function (w) { return text.indexOf(w) >= 0; })) kind = "ego";
     else if (/選択|zr|upgrade/i.test(text)) kind = "choice";
+    /* 「ガチャ」はE.G.O打ちのmixedword。LBTではガチャ=E.G.O相当。 */
+    if (/ガチャ/.test(text)) kind = "ego";
     return { kind: kind, count: count };
+  }
+
+  /* 「抽出1：E.G.O:提灯」のような「抽出NN」だけの行。
+     副語に E.G.O があれば E.G.O 抽出、無ければ人格抽出。
+     数字無し「人格抽出：南部〜」も 1 回として数える。 */
+  function bareDrawOf(line) {
+    var m = String(line).match(/(?:抽出|ガチャ)\s*(\d+)?/);
+    if (!m) return null;
+    /* 「抽出」か「ガチャ」が単独で教务之外に無ければ何でもない。 */
+    if (!/抽出|ガチャ/.test(String(line))) return null;
+    var count = m[1] ? parseInt(m[1], 10) || 1 : 1;
+    var isEgo = EGO_WORDS.some(function (w) { return String(line).indexOf(w) >= 0; }) || /ガチャ/.test(line);
+    return { kind: isEgo ? "ego" : "persona", count: count };
+  }
+
+  /* アイテムの効果説明文。「▶︎〜」で始まる行や、
+     「〜を得る」「〜を獲得する」で終わる行は説明であって金額行ではない。 */
+  function isNarrativeLine(line) {
+    var t = String(line);
+    if (/^\s*[▶►▷]\s*/.test(t)) return true;
+    if (/(得る|獲得する|消費する|半減し|発動する)/.test(t) && !/\d\s*(LP|欠片|かけら|欠けら|カケラ)/.test(t)) return true;
+    return false;
   }
 
   /* 「現在NN」と「残りNN」は残額。支出額として読むと大きな数字が立つので、
@@ -134,6 +170,19 @@
     return null;
   }
 
+  /* 合計行。「0欠片　40LP」のように、数値と通貨だけの並びで
+     動詞も名前も無い行。収入でも支出でもない。
+     通貨名は漢字を含むので、判定前に取り除く。
+     （さreon「欠片」だけの行を名前と誤判定して通過させない） */
+  function isTotalOnlyLine(line) {
+    var t = String(line).replace(/現在|残/g, "").trim();
+    /* 通貨名だけ收割してから、漢字/ラテンが残るか見る。 */
+    var stripped = t.replace(/LP|欠片|かけら|欠けら|カケラ/gi, " ").trim();
+    if (/[A-Za-zぁ-んァ-ヶ一-龠]/.test(stripped)) return false;
+    /* 通貨名を落とした残りが「数値と空白だけ」なら合計行。 */
+    return /^[\s　0-9+\-　]*$/.test(stripped) && /\d/.test(stripped);
+  }
+
   /* 1つの memo を { income, tickets, spends, reasons } へ。 */
   function parseMemo(memo) {
     var income = { lp: 0, shards: 0 };
@@ -155,6 +204,16 @@
 
       var tk = ticketOf(line);
       if (tk) { tickets[tk.kind] += tk.count; continue; }
+
+      /* 「抽出1：E.G.O:提灯」のような「抽出NN」だけの行。 */
+      var bd = bareDrawOf(line);
+      if (bd) { tickets[bd.kind] += bd.count; continue; }
+
+      /* アイテムの効果説明。「▶︎〜」や「〜を得る」は金額行ではない。 */
+      if (isNarrativeLine(line)) continue;
+
+      /* 合計行。「0欠片　40LP」は収入でも支出でもない。 */
+      if (isTotalOnlyLine(line)) continue;
 
       /* パック別チケット「〈肉斬骨断〉抽出チケット」 */
       var pm = line.match(/[〈《]([^〉》]+)[〉》]?\s*抽出チケット/);
@@ -178,6 +237,14 @@
           if (cur === "lp") income.lp += amt; else income.shards += amt;
           continue;
         }
+        /* 数字も通貨も無い行は「どの機関に勝ったか」の名前行
+           （北部ヂェーヴィチ協会 4 課フィクサー 等）。収入でも支出でも
+           ないので、理由に載せない。載せると
+           「47件が読めなかった」という印象になり、
+           実際は正常な名前行eministである。
+           「4 課」のように数字を含んでも通貨と数値の並びが
+           间断とそれである（「90LP」「29欠片」なら数値が通貨名に隣接）。 */
+        if (!/\d\s*(LP|欠片|かけら|欠けら|カケラ)/i.test(line) && !/現在|残/.test(line)) continue;
         if (!/現在|残/.test(line)) {
           reasons.push({ line: line, reason: "通貨か金額が読み取れない" });
         }
@@ -186,6 +253,8 @@
 
       /* 支出 */
       if (mode === "spend") {
+        /* 合計行。「0欠片　40LP」は収入でも支出でもない。 */
+        if (isTotalOnlyLine(line)) continue;
         /* 支出節の行を2種に分ける。
            A) 支出額が明示されている行
               「正義購入 現在87欠片」      → 87 が支出（前置詞 + 現在NN）
@@ -245,12 +314,17 @@
         tickets: parsed.tickets,
         pack: parsed.pack,
         spends: parsed.spends,
-        reasons: parsed.reasons,
-        hasData: parsed.income.lp > 0 || parsed.income.shards > 0 ||
-          parsed.tickets.persona + parsed.tickets.ego + parsed.tickets.choice > 0 ||
-          Object.keys(parsed.pack).length > 0
-      };
-    });
+          reasons: parsed.reasons,
+          /* 支出だけがあるシナリオもある（「・支出」節に数行、
+             収入が writtenされていない、または 0 だった）。
+             収入だけを条件にすると，它们は取liners。
+             支出があるならリザルトとして残す（明細だけFabriculture）。 */
+          hasData: parsed.income.lp > 0 || parsed.income.shards > 0 ||
+            parsed.tickets.persona + parsed.tickets.ego + parsed.tickets.choice > 0 ||
+            Object.keys(parsed.pack).length > 0 ||
+            parsed.spends.length > 0
+        };
+      });
   }
 
   var api = { parseMemo: parseMemo, parseScenarioHistory: parseScenarioHistory, currencyOf: currencyOf, amountOf: amountOf, sectionOf: sectionOf, ticketOf: ticketOf };

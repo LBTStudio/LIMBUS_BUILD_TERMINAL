@@ -148,10 +148,13 @@
           reasons: parsed.reasons,
           /* 金額が入らなかったシナリオも一覧には出す。利用者が
              「読み取れなかった」ことを知情できるようにするためで、
-             取り込みの判断は利用者に返す。 */
+             取り込みの判断は利用者に返す。
+             支出だけのシナリオもある（収入が 0 だったもの）ので、
+             支出がある場合も残す。 */
           hasData: parsed.income.lp > 0 || parsed.income.shards > 0 ||
             (parsed.tickets.persona + parsed.tickets.ego + parsed.tickets.choice) > 0 ||
-            Object.keys(parsed.pack || {}).length > 0
+            Object.keys(parsed.pack || {}).length > 0 ||
+            (parsed.spends || []).length > 0
         };
       });
 
