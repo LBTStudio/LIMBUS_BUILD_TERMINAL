@@ -124,23 +124,30 @@
     return { ...manifest, groups };
   }
 
-  /* 公式ルールブック/core 3章「人格を入手する」・E.G.Oデータ からの価格。
-   ランダム抽取（有 价格）と指定購入（有价格）は別の价钱で、抽出_backward安いが
-   ランダム、購入は高価だが確定。 core:594 「人格を入手する方法は2種類あります。
-   『抽出』と『購入』です」 / core:9501 E.G.O抽出。 */
+  /* core 3章「人格を入手する」P19-20 の全文に对齐した価格。
+     - キャラ作成時 30LP 支給（core:344「PCにはキャラ作成時に30LPが支給されます」）
+     - 人格抽出: 未所持なら無料 / 1つでも所持なら 100LP（core:338/348）
+     - 人格購入: 未所持なら 20LP  / 1つでも所持なら 200LP（core:355/359）
+     - 同種人格の複数保有は不可（core:361）・既持人格の購入は不可（core:359）。
+     ランダム取得（抽出）と指定取得（購入）は別の价钱で、抽出のほうが安い。 */
   const CORE_RULES = {
-    personaGacha: { lp: 100, shards: 0, source: "core:603-607 人格抽出", freeWhenFirst: true },
-    personaPurchase: { lp: 200, shards: 0, source: "core:617-621 人格購入", freeWhenFirst: true },
-    personaPurchaseFirst: { lp: 20, shards: 0, source: "core:620 人格購入（未所持時）" },
-    personaGachaFirst: { lp: 0, shards: 0, source: "core:606-607 人格抽出（未所持時）" },
+    personaGacha: { lp: 100, shards: 0, source: "core:338/348 人格抽出（所持時）", freeWhenFirst: true },
+    personaPurchase: { lp: 200, shards: 0, source: "core:355/359 人格購入（所持時）", freeWhenFirst: true },
+    personaPurchaseFirst: { lp: 20, shards: 0, source: "core:359 人格購入（未所持時）", freeWhenFirst: false },
+    personaGachaFirst: { lp: 0, shards: 0, source: "core:338 人格抽出（未所持時）", freeWhenFirst: false },
+    /* キャラ作成時的人格指定は 30LP 支給から支払う。所持状態では変わらない。 */
+    personaCreation: { lp: 30, shards: 0, source: "core:344 キャラ作成時30LP支給", freeWhenFirst: false },
     egoGacha: { lp: 0, shards: 100, source: "core:9501-9503 E.G.O抽出" }
   };
 
-  /* 保持状况が価格を変える。人格は「既に1つでも持っていれば」 wikipedia FEEが跳ね上がる。 */
+  /* 保持状况が価格を変える。人格は「既に1つでも持っていれば」 wikipedia FEEが跳ね上がる。
+     personaCreation（キャラ作成時）は 30LP 支給なので所持状態に依存しない。 */
   function acquireCost(kind, provenance, context) {
     const ctx = context || {};
     const ownsOne = ctx.ownsPersona === undefined ? true : Boolean(ctx.ownsPersona);
     if (kind === "persona") {
+      /* キャラ作成時の人格指定。30LP 支給から支払うので所持状態で変わらない。 */
+      if (provenance === "creation") return { ...CORE_RULES.personaCreation };
       if (provenance === "gachaPaid" || provenance === "gachaTicket") {
         return ownsOne ? { ...CORE_RULES.personaGacha } : { ...CORE_RULES.personaGachaFirst };
       }
