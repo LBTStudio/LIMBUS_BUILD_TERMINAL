@@ -15,6 +15,34 @@ import { readFileSync } from "node:fs";
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const app = read("../js/App.js");
 const sections = read("../js/OtherSections.js");
+
+/* 所持一覧の空状態はタブごとに導線が違う。2択で書くと E.G.O の文言が
+   サポパ・精神にもそのまま出る（実際に出た）。文言がタブ名を名指しして
+   いるかを、ソース上で固定する。 */
+test("所持一覧の空状態はタブごとにそのタブの導線を言う", () => {
+  const body = sections.slice(
+    sections.indexOf("const how = libraryTab ==="),
+    sections.indexOf("const how = libraryTab ===") + 700
+  );
+  for (const [tab, phrase] of [
+    ["personas", "人格を装備"],
+    ["egos", "E.G.Oを所持に追加または装備"],
+    ["supports", "サポートを装備"],
+    ["spirits", "精神を所持に追加"]
+  ]) {
+    assert.ok(
+      body.includes(`libraryTab === "${tab}" ? "${phrase}"`),
+      `${tab} タブの導線が "${phrase}" になっている`
+    );
+  }
+  /* 旧実装の 2 択（persona 以外は E.G.O）が残っていないこと。 */
+  assert.doesNotMatch(
+    body,
+    /libraryTab === "personas" \? "人格を装備" : "E\.G\.Oを所持に追加または装備"/,
+    "E.G.O の文言が他のタブへ漏れる 2 択は残っていない"
+  );
+});
+
 const accounts = read("../js/accounts-ui.js");
 const css = read("../assets/v66-accounts.css");
 const workspaceCss = read("../assets/workspace.css");
@@ -122,3 +150,4 @@ test("初期枠の定義と取り込みが UI から投げられる", () => {
   assert.match(sections, /type: "APPLY_INITIAL_ITEMS"/);
   assert.match(sections, /最初から持っているもの。取り込んでも支出は立ちません/);
 });
+

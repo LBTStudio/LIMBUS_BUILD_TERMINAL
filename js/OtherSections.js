@@ -2689,7 +2689,18 @@ if (typeof window !== "undefined") window.LBT_libraryTabLabel = libraryTabLabel;
           manageMode ? h(React.Fragment, null, h(Button, { size: "sm", variant: "ghost", onClick: selectedIds.length === selectableItems.length && selectableItems.length ? clearSelection : selectAll }, selectedIds.length === selectableItems.length && selectableItems.length ? "選択を解除" : "全て選択"), h(Button, { size: "sm", variant: "ghost", onClick: exitManage }, "管理を終了")) : h(Button, { size: "sm", variant: "secondary", icon: "edit", onClick: () => setManageMode(true) }, "管理する")
         ),
         manageMode && h("div", { className: "roster-manage-bar" }, h("span", { style: { color: "var(--warn)" } }, "選択削除"), h("span", null, `${selectedIds.length}件を選択中。装備中の項目は保護されます。`), h("div", { style: { flex: 1 } }), h(Button, { size: "md", variant: "danger", icon: "trash", disabled: !selectedIds.length, onClick: removeSelected }, `${selectedIds.length}件を削除`)),
-        items.length === 0 ? h("div", { className: "empty", style: { padding: "var(--s-5)" } }, filter === "all" ? `所持${label}はまだありません。${libraryTab === "personas" ? "人格を装備" : "E.G.Oを所持に追加または装備"}するとここへ保存されます。` : "この条件に一致する所持項目はありません。") : h("div", { className: "stack-2" }, items.map(renderItem)),
+        /* 空状態の導線はタブごとに書く。2択にすると E.G.O の文言が
+           サポパ・精神にもそのまま出てしまう（実際に出ていた）。 */
+        (() => {
+          const how = libraryTab === "personas" ? "人格を装備"
+            : libraryTab === "egos" ? "E.G.Oを所持に追加または装備"
+            : libraryTab === "supports" ? "サポートを装備"
+            : libraryTab === "spirits" ? "精神を所持に追加"
+            : "「アイテム」で追加";
+          return items.length === 0
+            ? h("div", { className: "empty", style: { padding: "var(--s-5)" } }, filter === "all" ? `所持${label}はまだありません。${how}するとここへ保存されます。` : "この条件に一致する所持項目はありません。")
+            : h("div", { className: "stack-2" }, items.map(renderItem));
+        })(),
         undo && h("div", { className: "roster-undo-bar" }, h("span", null, `${undo.items.length}件を削除しました。`), h(Button, { size: "sm", variant: "ghost", icon: "undo", onClick: restore }, "元に戻す"))
       )
     ),
