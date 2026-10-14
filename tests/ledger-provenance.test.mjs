@@ -171,3 +171,40 @@ test("利用者が個別に決められる（force で全件の上書きでき�
   assert.equal(forcedPersona.include, true, "利用者が選べば入る");
   assert.equal(autoPersona.includeIsAuto, false, "自動判定は入らないだった");
 });
+
+/* --- E.G.O 購入価格（core:7536） -----------------------------------------
+   「必要な欠片の個数は、E.G.O番号の横に記載されています」。番号とランクが
+   引けなければ該当行が見つからず 無料 に落ちる。ショップのカードは
+   key="RANK:no" しか渡さないので、そこから復元できることが必須になる。 */
+
+test("E.G.O 購入は番号とランクで欠片数を引く（core:7536）", () => {
+  const acquire = load("ledger-provenance.js", "LBT_acquireCost", { DB: { egos: db.egos } });
+  const sample = db.egos.find((e) => e.rank === "ZAYIN" && Number(e.shards) > 0);
+  assert.ok(sample, "ZAYIN の価格付き E.G.O が存在する");
+
+  const hit = acquire("ego", "purchase", { rank: sample.rank, no: sample.no });
+  assert.ok(hit, "該当行が引ける");
+  assert.equal(hit.shards, Number(sample.shards), "番号横の欠片数が価格になる");
+  assert.equal(hit.lp, 0, "E.G.O 購入は LP ではなく欠片");
+});
+
+test("番号が無くてもショップの key から価格に到達できる（無料落地の防止）", () => {
+  const acquire = load("ledger-provenance.js", "LBT_acquireCost", { DB: { egos: db.egos } });
+  const sample = db.egos[0];
+  /* 復元は resolveAcquireCost 側の責務。ここでは「key があれば引ける」前提を
+     数字で固定し、復元が外れたとき 0 へ落ちるのを検出できるようにする。 */
+  const pair = `${sample.rank}:${sample.no}`.match(/^(.+):(\d+)$/);
+  assert.ok(pair, "ショップの key は RANK:no 形式");
+  const hit = acquire("ego", "purchase", { rank: pair[1], no: pair[2] });
+  assert.equal(hit.shards, Number(sample.shards), "key から復元した番号で価格が決まる");
+  assert.ok(hit.shards > 0, "E.G.O が無料にならない");
+});
+
+test("resolveAcquireCost は E.G.O の key から rank:no を復元する", () => {
+  const src = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
+  const body = src.slice(src.indexOf("function resolveAcquireCost("), src.indexOf("window.LBT_resolveAcquireCost"));
+  assert.match(body, /kind === "ego" && ctx\.no == null && ctx\.id/,
+    "番号が無いとき key から復元する分岐がある");
+  assert.match(body, /\^\(\.\+\):\(\\d\+\)\$/,
+    "key は RANK:no として分解される");
+});

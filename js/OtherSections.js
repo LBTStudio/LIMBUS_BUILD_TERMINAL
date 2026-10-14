@@ -1749,7 +1749,15 @@ function resolveAcquireCost(kind, how, context) {
      30LPはキャラ作成時の支給額であって人格の価格ではないので、ここでは扱わない。 */
   if (kind === "persona" || kind === "ego") {
     const provenance = how === "purchase" ? "purchase" : how === "ticket" ? "gachaTicket" : "gachaPaid";
-    const rule = window.LBT_acquireCost?.(kind, provenance, context);
+    /* 価格は「E.G.O番号の横》记载値core:7536 なので、番号と危険度ランクで引く。
+       番号が無いと該当行が見つからず 無料 に落ちる。ショップのカードは
+       key が "RANK:no" 形式（例 "ZAYIN:1"）なので、そこから復元する。 */
+    let ctx = context || {};
+    if (kind === "ego" && ctx.no == null && ctx.id) {
+      const pair = String(ctx.id).match(/^(.+):(\d+)$/);
+      if (pair) ctx = { ...ctx, rank: pair[1], no: pair[2] };
+    }
+    const rule = window.LBT_acquireCost?.(kind, provenance, ctx);
     if (!rule || !(rule.lp || rule.shards)) return { lp: 0, shards: 0, label: "無料", source: rule?.source || "" };
     return { ...rule, label: formatAcquireCost(rule.lp, rule.shards) };
   }
@@ -2176,8 +2184,7 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
       [
         h(EgoResourceChips, { resources: ego.resources, className: "is-catalog" }),
         h("div", { className: "p-kw-row shop-card-kw-row" },
-          h("span", { className: "p-kw" }, "SAN ", ego.san_cost),
-          h("span", { className: "p-kw" }, "欠片 ", ego.shards))
+          h("span", { className: "p-kw" }, "SAN ", ego.san_cost))
       ], null,
       [
         h("span", { className: "shop-card-num" }, "No.", String(ego.no).padStart(3, "0")),
