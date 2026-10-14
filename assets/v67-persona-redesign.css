@@ -947,7 +947,7 @@ label:has(> input[type="checkbox"]) {
   gap: var(--s-2);
 }
 
-/* --- ガチャ（抽出権利）: 商品を並べる画面ではないので帯の連続を保つ --- */
+/* --- ガチャ（抽出チケット）: 商品を並べる画面ではないので帯の連続を保つ --- */
 /* .shop-filters が無いタブなので、sticky 直下は操作パネルになる。
    既存カテゴリと同じ面と枠に落とし、この画面の中の1セクションと読めるようにする。 */
 .gacha-tickets-panel {
@@ -1033,7 +1033,7 @@ label:has(> input[type="checkbox"]) {
   flex-wrap: wrap;
 }
 
-/* 所持の抽出権利。パック別チケットは 1 パック 1 チップで、残り数が読める。 */
+/* 所持の抽出チケット。パック別チケットは 1 パック 1 チップで、残り数が読める。 */
 .gacha-held-tickets {
   display: flex;
   align-items: center;
@@ -1052,7 +1052,7 @@ label:has(> input[type="checkbox"]) {
   white-space: nowrap;
 }
 
-/* --- リザルト別の抽籤権利 -------------------------------------------------
+/* --- リザルト別の抽出チケット -------------------------------------------------
    卓の報酬なのでリザルトの収入に載る。カードには受領した分を、
    メニューからは種別ごとの入力で足す。 */
 .ledger-card-tickets {
@@ -1062,7 +1062,7 @@ label:has(> input[type="checkbox"]) {
   flex-wrap: wrap;
 }
 /* カード右上の「編集」。⋯ と同じ場所に並べるが絵文字ではなく名前で示す。
-   LP・欠片・抽籤権利をまとめて直せる。 */
+   LP・欠片・抽出チケットをまとめて直せる。 */
 .ledger-card-edit-btn {
   min-block-size: 24px;
   padding: 2px var(--s-3);
@@ -1098,7 +1098,7 @@ label:has(> input[type="checkbox"]) {
   border-top: 1px solid var(--line-dim);
 }
 
-/* 抽籤権利の入力はリザルト記録フォームと既存カードの両方に置き、
+/* 抽出チケットの入力はリザルト記録フォームと既存カードの両方に置き、
    追加の工程を無くす。メニューを開く動線は作らない。 */
 .ledger-ticket-inputs {
   display: flex;

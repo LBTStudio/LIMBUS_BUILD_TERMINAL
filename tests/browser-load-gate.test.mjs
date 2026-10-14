@@ -88,6 +88,33 @@ test("全画面の JS に不正な文字（U+FFFD）が混ざっていない", (
   assert.deepEqual(dirty, []);
 });
 
+test("日本語ソースに他言語の混入・誤字が無い（コードポイント混線防止）", () => {
+  /* 過去の実害: U+7C64 を「抽籤」とCombiningした「抽籤権利」が46箇所へ入り、
+     さらに部分置換で隣接文字まで崩した。U+FFFD だけでは素通りするので、
+     ハングル・中国語の誤訳・Hebrew を文字コード层面で弾く。 */
+  const BANNED = [
+    [/\uAC00-\uD7AF/u, "ハングル混入"],          // hangul syllables
+    [/\u1100-\u11FF/u, "ハングル字母混入"],
+    [/\u0590-\u05FF/u, "Hebrew 混入"],             // 뜻/ydrogen 付近の事故
+    [/\u62BD\u7C64/u, "誤字 抽籤"],                  // 抽籤 は誤用（正しくは 抽出）
+    [/抽取|其它|或者|状况|第一個|谢谢|关闭|开始|用户|准确/u, "中国語訳の混入"],
+    [/\bof\b(?!\s)/u, "ラテン語 of の混入"]
+  ];
+  const dirty = [];
+  for (const file of FILES) {
+    let src;
+    try {
+      src = readFileSync(new URL("../" + file, import.meta.url), "utf8");
+    } catch {
+      continue;
+    }
+    for (const [re, why] of BANNED) {
+      if (re.test(src)) dirty.push(`${file}: ${why}`);
+    }
+  }
+  assert.deepEqual(dirty, [], "混入: " + dirty.join(", "));
+});
+
 test("カード内の价格・資源・ランクは行ごとに固定枠で揃える", () => {
   const css = readFileSync(new URL("../assets/v67-persona-redesign.css", import.meta.url), "utf8");
   /* 実測: カード幅251・名前35px・資源 y=93/x=13 は全カードで一致していた。

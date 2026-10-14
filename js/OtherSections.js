@@ -1745,7 +1745,7 @@ function resolveAcquireCost(kind, how, context) {
   const db = window.LBT_provenance?.priceOf;
   /* E.G.O購入は各E.G.O番号横の欠片数を消費する（core:7536）。
      ここが人格と共通の入口なので、E.G.O購入も同じ関数から出す。 */
-  /* 入手方法は2種類だけ（core:336/7532）。加えて卓配布の無料抽出権利（local）を別枠で扱う。
+  /* 入手方法は2種類だけ（core:336/7532）。加えて卓配布の無料抽出チケット（local）を別枠で扱う。
      30LPはキャラ作成時の支給額であって人格の価格ではないので、ここでは扱わない。 */
   if (kind === "persona" || kind === "ego") {
     const provenance = how === "purchase" ? "purchase" : how === "ticket" ? "gachaTicket" : "gachaPaid";
@@ -1784,12 +1784,12 @@ const AcquireBar = ({ state, kind, name, no, rank, how, setHow, onAcquire, disab
     h("div", { className: "acquire-how" },
       spec.supports
         ? h("div", { className: "segmented", role: "radiogroup", "aria-label": `${spec.label}の取得方法` },
-          /* 2択 + 卓配布の無料抽出権利（local）。ルールブックは抽出/購入の2種類。 */
-          [["purchase", "指定購入"], ["gacha", "ランダム"], ["ticket", "配布権利"]].map(([value, label]) => h("button", { key: value, type: "button", role: "radio", "aria-checked": how === value, className: how === value ? "is-active" : "", onClick: () => setHow(value) }, label)))
+          /* 2択 + 卓配布の無料抽出チケット（local）。ルールブックは抽出/購入の2種類。 */
+          [["purchase", "指定購入"], ["gacha", "ランダム"], ["ticket", "配布チケット"]].map(([value, label]) => h("button", { key: value, type: "button", role: "radio", "aria-checked": how === value, className: how === value ? "is-active" : "", onClick: () => setHow(value) }, label)))
         : h("span", { className: "acquire-how-placeholder", "aria-hidden": "true" })),
     h("span", { className: "acquire-cost" }, cost.label || "無料"),
     h(Button, { size: "sm", variant: "primary", icon: "plus", disabled, onClick: onAcquire, title: disabledReason || undefined },
-      how === "gacha" ? "抽出する" : how === "ticket" ? "権利を使う" : "購入")
+      how === "gacha" ? "抽出する" : how === "ticket" ? "チケットを使う" : "購入")
   );
 };
 
@@ -1937,7 +1937,7 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
         : "";
 
   const run = () => {
-    /* 二重実行を防ぐ。残高不足は押 전에止めているが、ここでも，拒绝する。 */
+    /* 二重実行を防ぐ。残高不足は押前に止めているが、ここでも拒否する。 */
     if (blockedReason) { toast(blockedReason); return; }
     const out = G?.drawN(route, state, { pay, pack: activePack, times });
     if (!out || !out.hits.length) {
@@ -1980,7 +1980,7 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
     h("p", { className: "ledger-note" },
       "抽出全般。ルートごとに通貨で払うか抽出チケットを使うかを選べます。所得は直近のリザルトに帰属します。"),
     heldTickets.length > 0 && h("div", { className: "gacha-held-tickets" },
-      h("span", { className: "t-label" }, "所持の抽出権利"),
+      h("span", { className: "t-label" }, "所持の抽出チケット"),
       heldTickets.map((t) => h("span", { key: `${t.kind}:${t.pack || ""}`, className: "gacha-held-ticket" },
         `${t.label} ×${Number(t.count) || 0}`))),
     h("div", { className: "segmented", role: "radiogroup", "aria-label": "抽出の方法" },
@@ -2775,7 +2775,7 @@ const LedgerPanel = ({ state, dispatch }) => {
   /* 既存カードで「記録 / 修正」を押した対象。カード上へ直接並べるのは
      17パックの項目が毎回開くことになるため、記録は専用画面で行う。 */
   const [ticketPanel, setTicketPanel] = React.useState(null);
-  /* このリザルトの登録情報（LP・欠片・抽籤権利）をまとめて直す画面。
+  /* このリザルトの登録情報（LP・欠片・抽出チケット）をまとめて直す画面。
      カード右上の「編集」から開く。 */
   const TicketIncomePanel = () => {
     const target = (state.results || []).find((r) => r.id === ticketPanel);
@@ -2840,7 +2840,7 @@ const LedgerPanel = ({ state, dispatch }) => {
             value: shards, "aria-label": "獲得欠片",
             onChange: (e) => setShards(e.target.value)
           }))),
-      h("span", { className: "t-label" }, "抽籤権利（卓の報酬）"),
+      h("span", { className: "t-label" }, "抽出チケット（卓の報酬）"),
       h("div", { className: "ledger-ticket-grid" },
         ["persona", "ego", "choice"].map((kind) => h("label", { key: kind, className: "ledger-ticket-field" },
           h("span", null, ticketLabel(kind)),
@@ -2882,17 +2882,17 @@ const LedgerPanel = ({ state, dispatch }) => {
   const [heldPicking, setHeldPicking] = React.useState(null);
   /* 候補に出すときの種別名。利用者がどれを選んでいるか分かるようにする。 */
   const HELD_KIND_LABEL = { persona: "人格", ego: "E.G.O", spirit: "精神", support: "サポート" };
-/* 編集画面がincome を作り直すとき、抽籤権利を落とさないようにする。 */
+/* 編集画面がincome を作り直すとき、抽出チケットを落とさないようにする。 */
 const normalizeResultIncome = (income) => (income && typeof income === "object" ? income : {});
 const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   /* リザルト単位の操作メニューは撤去した。硝子窓の取り込みは全体操作である。
      共有URLのシナリオ群を一括で読むため、リザルト単位では成立しない。
      記録の訂正はカード右上の「編集」から行う。 */
-  /* 抽籤権利は卓で報酬として受け取るので、リザルトの収入に種別別に積む。
+  /* 抽出チケットは卓で報酬として受け取るので、リザルトの収入に種別別に積む。
      どのリザルト 대상으로記録するかを選んでから種別と枚数を決める。 */
   const packs = window.LBT_gachaDraw?.themePacks?.() || [];
-  const ticketLabel = (kind, pack) => (window.LBT_ticketLabel ? window.LBT_ticketLabel(kind, pack) : (window.LBT_TICKET_KIND_LABEL?.[kind] || "抽籤権利"));
-  /* このリザルトの収入に入っている抽籤権利（消費前の受領数）。 */
+  const ticketLabel = (kind, pack) => (window.LBT_ticketLabel ? window.LBT_ticketLabel(kind, pack) : (window.LBT_TICKET_KIND_LABEL?.[kind] || "抽出チケット"));
+  /* このリザルトの収入に入っている抽出チケット（消費前の受領数）。 */
   const resultTicketChips = (result) => {
     const inc = result.income?.tickets || {};
     const rows = ["persona", "ego", "choice"]
@@ -2908,7 +2908,7 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   const TicketInputs = ({ current, onChange, idPrefix, packPick, setPackPick }) => {
     const pickPack = packPick || packs[0]?.name || "";
     return h("div", { className: "ledger-ticket-inputs" },
-      h("span", { className: "t-label" }, "抽籤権利（卓の報酬）"),
+      h("span", { className: "t-label" }, "抽出チケット（卓の報酬）"),
       h("div", { className: "ledger-ticket-grid" },
         ["persona", "ego", "choice"].map((kind) => h("label", { key: kind, className: "ledger-ticket-field" },
           h("span", null, ticketLabel(kind)),
@@ -3064,7 +3064,7 @@ const scanHeldPersonas = (text, resolved) => {
   const tokui = window.DB?.tokui_personas || [];
   const index = new Map();
   /* 所持に入れられるものは全部ここで引く。精神も E.G.O もパッシブも
-     貼り付けた 사람이 Candida  occurr 同じ扱いにする（種別だけが違う）。 */
+     貼り付けた人が Candida と同じ扱いにする（種別だけが違う）。 */
   const sources = [
     [window.DB?.normal_personas || [], "persona"],
     [tokui, "persona"],
@@ -3257,7 +3257,7 @@ const importHeldPersonas = () => {
           }),
           h(Button, { size: "sm", variant: "primary", icon: "check", onClick: addResult, disabled: !String(newResult.name || "").trim() }, "編集")
         ),
-        /* 抽籤権利も収入と同じ場所で受け取る。GPTの追加工程なしで、
+        /* 抽出チケットも収入と同じ場所で受け取る。GPTの追加工程なしで、
            LP・欠片と同時にこのリザルトへ入る。 */
         h(TicketInputs, {
           idPrefix: "new-result",
@@ -3519,12 +3519,12 @@ h(Card, { className: "ledger-card" },
     h("span", { className: "ledger-card-title" }, result.name),
     h("span", { className: "ledger-card-date" }, result.date || "—"),
     h("div", { className: "ledger-card-actions" },
-    /* 編集はこのリザルトの登記情報（LP・欠片・抽籤権利）をまとめて直す口。
+    /* 編集はこのリザルトの登記情報（LP・欠片・抽出チケット）をまとめて直す口。
        「⋯」は別の操作なので隣に分ける。 */
     h("button", {
     type: "button",
     className: "ledger-card-edit-btn",
-    title: "このリザルトの登録情報（LP・欠片・抽籤権利）を編集します",
+    title: "このリザルトの登録情報（LP・欠片・抽出チケット）を編集します",
     "aria-label": `${result.name} の登録情報を編集`,
     onClick: () => setTicketPanel(result.id)
     }, "編集")
@@ -3536,9 +3536,9 @@ h(Card, { className: "ledger-card" },
               h("span", { className: "ledger-card-spent" },
                 `支出 LP ${spent.lp.toLocaleString("ja-JP")} / 欠片 ${spent.shards.toLocaleString("ja-JP")}`)
             ),
-            /* 抽籤権利はカード上に並べるだけ。編集はカード右上の「編集」から。 */
+            /* 抽出チケットはカード上に並べるだけ。編集はカード右上の「編集」から。 */
             h("div", { className: "ledger-card-tickets" },
-              h("span", { className: "t-label" }, "抽籤権利"),
+              h("span", { className: "t-label" }, "抽出チケット"),
               resultTicketChips(result).length > 0
                 ? resultTicketChips(result).map((t) => h("span", { key: t.key, className: "gacha-held-ticket" }, `${t.label} ×${t.count}`))
                 : h("span", { className: "ledger-note" }, "未記録")),

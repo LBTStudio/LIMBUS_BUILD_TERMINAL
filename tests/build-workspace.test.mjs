@@ -305,7 +305,7 @@ test("ショップは未所持のみを既定で出し、導入は購入とし�
   assert.match(shop, /dispatch\(\{ type: "ADD_ITEM", itemId: item\.id \}\);/);
   /* 所持上限に達したアイテムは購入できない。 */
   assert.match(shop, /card\(item\.id, item\.name, item\.category \|\| "その他", "item",[\s\S]{0,200}?atCap\(item\), "所持上限に達しています"/);
-/* 4種別のタブ + ガチャ（抽出権利）。 */
+/* 4種別のタブ + ガチャ（抽出チケット）。 */
      assert.match(shop, /\[\["support", "サポート"\], \["ego", "E\.G\.O"\], \["spirit", "精神"\], \["item", "アイテム"\], \["gacha", "ガチャ"\]\]/);
   /* 共通カードで描く。 */
   assert.match(shop, /className: "shop-card spirit-item"/);
@@ -337,17 +337,17 @@ test("リザルトの登録情報はカード右上の『編集』から直す�
   assert.doesNotMatch(sections, /h\(TicketInputs, \{\s*idPrefix: `result-/);
   /* 「⋯」は撤去した。硝子窓の取り込みは全体操作である。
      記録の訂正はカード右上に名前入りの「編集」1つだけ。 */
-  assert.match(sections, /className: "ledger-card-edit-btn",\s*title: "このリザルトの登録情報（LP・欠片・抽籤権利）を編集します",\s*"aria-label": `\$\{result\.name\} の登録情報を編集`,\s*onClick: \(\) => setTicketPanel\(result\.id\)\s*\}, "編集"\)/);
+  assert.match(sections, /className: "ledger-card-edit-btn",\s*title: "このリザルトの登録情報（LP・欠片・抽出チケット）を編集します",\s*"aria-label": `\$\{result\.name\} の登録情報を編集`,\s*onClick: \(\) => setTicketPanel\(result\.id\)\s*\}, "編集"\)/);
   assert.doesNotMatch(sections, /ledger-card-menu-btn/);
   assert.doesNotMatch(sections, /exportFor/);
-  assert.doesNotMatch(sections, /"抽籤権利を記録"\)/);
-  /* 編集画面は LP・欠片・抽籤権利をまとめて直す。 */
+  assert.doesNotMatch(sections, /"抽出チケットを記録"\)/);
+  /* 編集画面は LP・欠片・抽出チケットをまとめて直す。 */
   assert.match(sections, /const TicketIncomePanel = \(\) => \{/);
   assert.match(sections, /"aria-label": "リザルトの登録情報を編集"/);
   assert.match(sections, /type: "UPDATE_RESULT",\s*id: target\.id,\s*name: name\.trim\(\) \|\| target\.name,\s*date,\s*income: \{ \.\.\.normalizeResultIncome\(target\.income\), lp: Number\(lp\) \|\| 0, shards: Number\(shards\) \|\| 0 \}/);
   assert.match(reducer, /case "UPDATE_RESULT"[\s\S]{0,900}?tickets: normalizeTickets\(action\.income\?\.tickets\)/);
   /* メニューは硝子窓の取り込みだけ。 */
-  assert.doesNotMatch(sections, /"抽籤権利を記録"\)/);
+  assert.doesNotMatch(sections, /"抽出チケットを記録"\)/);
 });
 
 test("所持ライブラリはサポパ/精神も自分の中身を出す（EGOのまま開かない）", () => {
@@ -391,8 +391,8 @@ test("ガチャは任意回数をまとめて引ける（既得は再抽選し�
   assert.match(sections, /抽選結果（\$\{last\.hits\.length\}件）/);
 });
 
-test("抽籤権利はリザルト収入で管理し、ショップのガチャタブで扱う（ローカルルール）", () => {
-/* 4分類。抽籤権利は卓で報酬として受け渡されるため、リザルトの収入に積む。 */
+test("抽出チケットはリザルト収入で管理し、ショップのガチャタブで扱う（ローカルルール）", () => {
+/* 4分類。抽出チケットは卓で報酬として受け渡されるため、リザルトの収入に積む。 */
      assert.match(reducer, /const TICKET_KINDS = \["persona", "ego", "choice", "pack"\];/);
      /* 残数は「全リザルトの収入 − 全明細の消費」。LP/欠片と同じ収支モデル。 */
      assert.match(reducer, /function computeTicketBalance\(results, entries\)/);
@@ -462,19 +462,19 @@ test("人格の獲得は core 3章 P19-20 の2種類だけ（30LP支給を人格
      3種類目の creation 分岐を作ると、所持0個ではありえない状態を想定してしまう。 */
   assert.doesNotMatch(prov, /personaCreation/);
   assert.doesNotMatch(prov, /provenance === "creation"/);
-  /* UI は2択 + 卓配布の無料抽出権利（local ルール）。 */
+  /* UI は2択 + 卓配布の無料抽出チケット（local ルール）。 */
   assert.doesNotMatch(sections, /\["creation", "初期作成"\]/);
-  assert.match(sections, /\[\["purchase", "指定購入"\], \["gacha", "ランダム"\], \["ticket", "配布権利"\]\]/);
+  assert.match(sections, /\[\["purchase", "指定購入"\], \["gacha", "ランダム"\], \["ticket", "配布チケット"\]\]/);
   assert.match(acqKinds, /\{ id: "persona", label: "人格", supports: true \}/);
   /* ボタン文言は方法に合わせる（「購入」固定は抽出時に嘘になる）。 */
-  assert.match(sections, /how === "gacha" \? "抽出する" : how === "ticket" \? "権利を使う" : "購入"/);
+  assert.match(sections, /how === "gacha" \? "抽出する" : how === "ticket" \? "チケットを使う" : "購入"/);
 });
 
-test("卓で配られる無料抽出権利は有料抽出とは別経路（local ルール）", () => {
+test("卓で配られる無料抽出チケットは有料抽出とは別経路（local ルール）", () => {
   const prov = read("../js/ledger-provenance.js");
   /* ルールブックに無いが卓では配られ消費されるので、経路としては独立させる。 */
-  assert.match(prov, /personaGachaTicket: \{ lp: 0, shards: 0, source: "local:卓配布の無料人格抽出権利" \}/);
-  assert.match(prov, /egoGachaTicket: \{ lp: 0, shards: 0, source: "local:卓配布の無料E\.G\.O抽出権利" \}/);
+  assert.match(prov, /personaGachaTicket: \{ lp: 0, shards: 0, source: "local:卓配布の無料人格抽出チケット" \}/);
+  assert.match(prov, /egoGachaTicket: \{ lp: 0, shards: 0, source: "local:卓配布の無料E\.G\.O抽出チケット" \}/);
   /* 有料抽出（所持100LP）とは別。所持状態を引き上げない。 */
   assert.match(prov, /if \(provenance === "gachaTicket"\) return \{ \.\.\.CORE_RULES\.personaGachaTicket \};/);
   assert.match(prov, /if \(provenance === "gachaTicket"\) return \{ \.\.\.CORE_RULES\.egoGachaTicket \};/);

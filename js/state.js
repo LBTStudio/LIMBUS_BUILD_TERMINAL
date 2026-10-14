@@ -43,7 +43,7 @@ function hasInitialGrant(results) {
   const income = normalizeCurrency(latest?.income);
   return income.lp === INITIAL_LP && income.shards === 0;
 }
-/* 抽籤権利の分類。ローカルルール（ルールブックには無いが卓で配られる）。
+/* 抽出チケットの分類。ローカルルール（ルールブックには無いが卓で配られる）。
    kind=persona 人格抽出チケット … 人格からランダム1つ
    kind=ego     E.G.O抽出チケット … E.G.Oからランダム1つ
    kind=choice  選択抽出チケット … 人格かE.G.Oのどちらかを選んでランダム1つ
@@ -889,7 +889,7 @@ function normalizeCurrency(value) {
   return { lp: toNumber(raw.lp), shards: toNumber(raw.shards) };
 }
 
-  /* 抽出権利も通貨と同じ収支で扱う。卓で報酬として受け渡されるもので、
+  /* 抽出チケットも通貨と同じ収支で扱う。卓で報酬として受け渡されるもので、
      リザルトの収入に「種別ごとの枚数」として積む。パック別は pack の下に
      パック名を並べるので、どのパックなら引けるかが収入の時点で分かる。 */
   function normalizeTickets(value) {
@@ -907,7 +907,7 @@ function normalizeCurrency(value) {
     return out;
   }
 
-  /* 所持の抽出権利は「全リザルトの収入 − 全明細の消費」で求める。
+  /* 所持の抽出チケットは「全リザルトの収入 − 全明細の消費」で求める。
      LP/欠片と同じ式なので、増減を追う経路がどこであれ結果が求まる。 */
   function computeTicketBalance(results, entries) {
     const out = { persona: 0, ego: 0, choice: 0, pack: {} };
@@ -937,7 +937,7 @@ function ticketTotal(balance, kind, pack) {
   return Number(balance[kind]) || 0;
 }
 
-/* 抽籤権利の増減を「直近リザルトの収入」に積む。卓報酬としての受け渡しなので、
+/* 抽出チケットの増減を「直近リザルトの収入」に積む。卓報酬としての受け渡しなので、
    収入に置くのが自然。resultId の指定があればそのリザルト、無ければ直近。 */
 function setTicketIncome(state, kind, pack, delta, resultId) {
   const targetId = resultId || latestResultId(state);
@@ -960,7 +960,7 @@ function setTicketIncome(state, kind, pack, delta, resultId) {
   return { ...state, results };
 }
 
-/* 抽籤権利を消費した明細を立てる（所持を引いた証拠）。 */
+/* 抽出チケットを消費した明細を立てる（所持を引いた証拠）。 */
 function appendTicketSpend(state, kind, pack, ref, resultId) {
   const label = window.LBT_ticketLabel ? window.LBT_ticketLabel(kind, pack) : (TICKET_KIND_LABEL[kind] || "抽出チケット");
   const tickets = kind === "pack" ? { persona: 0, ego: 0, choice: 0, pack: { [pack]: 1 } } : { persona: 0, ego: 0, choice: 0, pack: {}, [kind]: 1 };
@@ -1099,9 +1099,9 @@ function normalizeStateShape(raw) {
   if (!Array.isArray(next.roster.egos)) next.roster.egos = [];
   if (!Array.isArray(next.roster.supports)) next.roster.supports = [];
   if (!Array.isArray(next.roster.spirits)) next.roster.spirits = [];
-  /* 抽籤権利は卓で報酬として受け渡されるため、リザルトの収入として管理する。
+  /* 抽出チケットは卓で報酬として受け渡されるため、リザルトの収入として管理する。
      旧セーブは state.tickets に行配列（または {persona:3} 形式）で残っているので、
-     残数があるなら「抽籤権利の受領」というリザルトの収入へ移す。
+     残数があるなら「抽出チケットの受領」というリザルトの収入へ移す。
      受け渡したタイミングは保存データに無いので、受領日のリザルトとして置く。 */
   const legacyTickets = (Array.isArray(next.tickets)
     ? next.tickets
@@ -1125,10 +1125,10 @@ function normalizeStateShape(raw) {
     if (!already) {
       next.results = [{
         id: "res-ticket-grant",
-        name: "抽籤権利の受領",
+        name: "抽出チケットの受領",
         date: String(new Date().toISOString().slice(0, 10)),
         income: { lp: 0, shards: 0, tickets: total },
-        note: "以前所持していた抽籤権利をリザルト収入へ移行しました。",
+        note: "以前所持していた抽出チケットをリザルト収入へ移行しました。",
         createdAt: Date.now()
       }, ...(next.results || [])];
     }
@@ -1260,7 +1260,7 @@ function normalizeStateShape(raw) {
     kind: String(entry.kind || "other"),
     name: String(entry.name || "").slice(0, 120),
     cost: normalizeCurrency(entry.cost),
-    /* 抽籤権利の消費も明細に持つ（残数 = 収入 − 消費）。 */
+    /* 抽出チケットの消費も明細に持つ（残数 = 収入 − 消費）。 */
     tickets: normalizeTickets(entry.tickets),
     resultId: knownResultIds.has(entry.resultId) ? entry.resultId : null,
     ref: entry.ref && typeof entry.ref === "object" ? { kind: String(entry.ref.kind || ""), uid: String(entry.ref.uid || "") } : null
@@ -1436,7 +1436,7 @@ function appendLedgerEntry(state, detail) {
       kind: String(detail.kind || "other"),
       name: String(detail.name).slice(0, 120),
         cost: normalizeCurrency(detail.cost),
-        /* 抽籤権利の消費。収入側（リザルト）と対で残数が求まる。 */
+        /* 抽出チケットの消費。収入側（リザルト）と対で残数が求まる。 */
         tickets: normalizeTickets(detail.tickets),
       resultId: resultId || null,
       ref: detail.ref || null,
@@ -1477,7 +1477,7 @@ function computeLedgerBalance(results, entries) {
     incomeShards,
     spentLp,
     spentShards,
-    /* 抽出権利も同じ収支。卓報酬としてリザルトの収入に積まれる。 */
+    /* 抽出チケットも同じ収支。卓報酬としてリザルトの収入に積まれる。 */
     tickets: computeTicketBalance(results, entries),
     unclassified
   };
@@ -1506,7 +1506,7 @@ function purchaseAffordability(state, cost) {
 }
 window.LBT_purchaseAffordability = purchaseAffordability;
 
-/* 購入 action がNovaokuする金額。null は「購入ではない操作」 뜻。 */
+  /* 購入 action が計上する金額。null は「購入ではない操作」。 */
 function purchaseCostOf(state, action) {
   if (action.type === "ADD_ROSTER") return action.purchase ? normalizeCurrency(action.cost) : null;
   if (action.type === "ADD_ROSTER_EGO") return action.purchase ? priceEgo(action.rank, action.no) : null;
@@ -1934,7 +1934,7 @@ const INIT_STATE = {
     spirits: []
     // {uid, name, equipped:bool, resultId:string|null, addedAt:number, notes}
   },
-  /* 卓で配られる抽取権利。ルールブックには無いローカルルール（core 3章 P19-20 の
+    /* 卓で配られる抽出チケット。ルールブックには無いローカルルール（core 3章 P19-20 の
      有料抽出とは別経路）。分類ごとに在庫を持つ：
        kind=persona  人格抽出チケット … 人格からランダム1つ
        kind=ego      E.G.O抽出チケット … E.G.Oからランダム1つ
@@ -2308,7 +2308,7 @@ function appReducer(state, action) {
       return { ...state, favorites: has ? state.favorites.filter((x) => x !== k) : [...state.favorites, k] };
     }
     /* ---- Roster ---- */
-    /* 抽籤権利は卓で報酬として受け渡されるもので、所持ている monologue lists ではなく
+    /* 抽出チケットは卓で報酬として受け渡されるもので、所持ている monologue lists ではなく
        リザルトの収入として記録する。種別ごとに数え、パック別はパック名ごとに並べる。
        所持の残数は「全リザルトの収入 − 全明細の消費」で求まるので、
        どこで受け取ってどこで使っても同じ数になる。 */
@@ -2333,7 +2333,7 @@ function appReducer(state, action) {
       if (!delta) return state;
       return setTicketIncome(state, kind, pack, delta, action.resultId);
     }
-    /* 抽籤権利を使ったときの消費。収入から引いて残数が減る。 */
+    /* 抽出チケットを使ったときの消費。収入から引いて残数が減る。 */
     case "SPEND_TICKET": {
       const kind = action.kind;
       if (!TICKET_KINDS.includes(kind)) return state;
@@ -3097,7 +3097,7 @@ if (nextValue && !action.preview && !rosterEgos.some((entry) => entry.rank === a
       return dropLedgerEntriesForRef(next, { kind: "rosterSpirit", uid: action.uid });
     }
     /* ---- 通帳（リザルトと収支明細）---- 残高は保存しない。収入合計から支出合計を引くだけなので、歸属を直せばリザルトごとに収支が説明できる。 */
-    /* 複数まとめての所持追加。一括抽取のように同じ手つきで何件も入る操作で
+    /* 複数まとめての所持追加。一括抽出のように同じ手つきで何件も入る操作で
        は、1回ごとに dispatch すると前の更新が次の書き込みで上書きされる。
        まとめて1つの action としてphal 同じ state に対して積む。 */
     case "ADD_ROSTER_MANY": {
@@ -3142,7 +3142,7 @@ if (nextValue && !action.preview && !rosterEgos.some((entry) => entry.rank === a
       return { ...next, roster: { ...next.roster, personas, egos } };
     }
     /* 既存リザルトの登録情報の書き換え。収入を差し替えるので、
-       抽籤権利の残数はここから読み直す（明細側は変えない）。 */
+       抽出チケットの残数はここから読み直す（明細側は変えない）。 */
     case "UPDATE_RESULT": {
       const id = action.id;
       const now = Date.now();

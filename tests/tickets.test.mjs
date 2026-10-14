@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 
-/* 抽籤権利は卓で報酬として受け渡されるため、リザルトの収入として管理する。
+/* 抽出チケットは卓で報酬として受け渡されるため、リザルトの収入として管理する。
    所持の残数は「全リザルトの収入 − 全明細の消費」で求める。 */
 
 const DB = { normal_personas: [{ no: 1, name: "黒雲会組員" }], tokui_personas: [], egos: [], items: [] };
@@ -91,7 +91,7 @@ test("旧セーブの state.tickets はリザルト収入へ移行する", () =>
   assert.equal(b.persona, 2, "所持が収入へ移る");
   assert.equal(b.pack["肉斬骨断"], 1, "パック名も移る");
   assert.deepEqual([...next.tickets], [], "旧在庫は空になる");
-  assert.ok(next.results.some((r) => r.name === "抽籤権利の受領"), "受領リザルトができる");
+  assert.ok(next.results.some((r) => r.name === "抽出チケットの受領"), "受領リザルトができる");
 });
 
 test("同じ内容が既に収入にある場合は移行しない（二重計上を避ける）", () => {
@@ -101,7 +101,7 @@ test("同じ内容が既に収入にある場合は移行しない（二重計�
   };
   const next = context.window.LBT_normalizeStateShape(legacy);
   assert.equal(balanceOf(next).persona, 2, "増えない");
-  assert.equal(next.results.filter((r) => r.name === "抽籤権利の受領").length, 0);
+  assert.equal(next.results.filter((r) => r.name === "抽出チケットの受領").length, 0);
 });
 
 test("パック別チケットは『〈パック名〉抽出チケット』と表記される", () => {

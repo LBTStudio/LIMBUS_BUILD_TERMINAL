@@ -20,8 +20,8 @@
   /* 根拠となる語。見つけたものを「推定の理由」として返す。 */
   const CUES = [
     { id: "gachaTicket", re: /(?:抽出|ガチャ|チケ|チケット)/, weight: 2 },
-    { id: "gachaPaid", re: /(?:ガチャ|抽取)/, weight: 1 },
-    { id: "purchase", re: /(?:購入|指名|指定| 正文| abstract)/, weight: 2 },
+    { id: "gachaPaid", re: /(?:ガチャ|抽出)/, weight: 1 },
+    { id: "purchase", re: /(?:購入|指名|指定|選定)/, weight: 2 },
     { id: "grant", re: /(?:配布|報酬|与服务|スキル|獲得)/, weight: 1 }
   ];
 
@@ -138,22 +138,22 @@
        E.G.O購入: 各E.G.Oの番号横に記載の欠片数（core:7536、DB の shards を読む）
      既に持っているE.G.Oの購入は不可（core:7536）。
 
-     gachaTicket（卓で配られる無料の抽出権利）はローカルルール。
-     ルールブックに記述はないが卓では配られ普通に消費されるので、
-     有料の抽出とは別の経路として扱う。 */
+      gachaTicket（卓で配られる無料の抽出チケット）はローカルルール。
+      ルールブックに記述はないが卓では配られ普通に消費されるので、
+      有料の抽出とは別の経路として扱う。 */
   const CORE_RULES = {
     personaGacha: { lp: 100, shards: 0, source: "core:338/348 人格抽出（所持時）" },
     personaPurchase: { lp: 200, shards: 0, source: "core:355/359 人格購入（所持時）" },
     personaPurchaseFirst: { lp: 20, shards: 0, source: "core:359 人格購入（未所持時）" },
     personaGachaFirst: { lp: 0, shards: 0, source: "core:338 人格抽出（未所持時）" },
-    /* 卓で配られる無料の抽出権利。所持状態に依存せず常に0。 */
-    personaGachaTicket: { lp: 0, shards: 0, source: "local:卓配布の無料人格抽出権利" },
+    /* 卓で配られる無料の抽出チケット。所持状態に依存せず常に0。 */
+    personaGachaTicket: { lp: 0, shards: 0, source: "local:卓配布の無料人格抽出チケット" },
     egoGacha: { lp: 0, shards: 100, source: "core:7533 E.G.O抽出" },
-    egoGachaTicket: { lp: 0, shards: 0, source: "local:卓配布の無料E.G.O抽出権利" }
+    egoGachaTicket: { lp: 0, shards: 0, source: "local:卓配布の無料E.G.O抽出チケット" }
   };
 
-  /* 保持状况が価格を変える。人格は「既に1つでも持っていれば」 wikipedia FEEが跳ね上がる。
-     入手方法は抽出/購入の2種類のみ（core:336）。所持0個=未所持是第一個の状態。 */
+  /* 所持状況が価格を変える。人格は「既に1つでも持っていれば」 wikipedia FEEが跳ね上がる。
+     入手方法は抽出/購入の2種類のみ（core:336）。所持0個=未所持は最初の状態。 */
   function acquireCost(kind, provenance, context) {
     const ctx = context || {};
     const ownsOne = ctx.ownsPersona === undefined ? true : Boolean(ctx.ownsPersona);
@@ -185,7 +185,7 @@
     return null;
   }
 
-  /* 価格定额は種別ごとにSOURCE。 ここ其它はとなり. */
+  /* 価格上限は種別ごとに SOURCE。 */
   const SOURCE = { persona: "core:594-621", ego: "core:9499-9512" };
 
   /* --- 同期・解析のコスト -------------------------------------------------
