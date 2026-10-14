@@ -229,20 +229,6 @@ const FocusedSkillCard = ({ skill, onPatch, onRemove, onAddDice, onPatchDice, on
     )
   );
 };
-function isSkillFromDB(sk, srcSkill) {
-  if (!srcSkill) return false;
-  if (sk.rank !== srcSkill.rank) return false;
-  if (sk.name !== srcSkill.name) return false;
-  if (sk.type !== (srcSkill.type || "")) return false;
-  if ((sk.effect || "") !== (srcSkill.effect || "")) return false;
-  const a = sk.dice || [], b = srcSkill.dice || [];
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if ((a[i].roll || "") !== (b[i].roll || "")) return false;
-    if ((a[i].effect || "") !== (b[i].effect || "")) return false;
-  }
-  return true;
-}
 const SkillDeck = ({ state, dispatch }) => {
   const skills = state.skills || [];
   const editable = canEditSkillState(state);

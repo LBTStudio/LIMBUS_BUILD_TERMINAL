@@ -1,9 +1,5 @@
 const SIN_LIST = ["\u61A4\u6012", "\u8272\u6B32", "\u6020\u60F0", "\u66B4\u98DF", "\u6182\u9B31", "\u50B2\u6162", "\u5AC9\u59AC"];
 /* SUPPORT_DEATH_RE は state.js で宣言済み（クラシックスクリプト共通グローバル）。重複宣言は読み込みエラーになるため除去。 */
-function isDeathSupportPassive(s) {
-  const txt = `${s?.name || ""} ${s?.cond || ""} ${s?.effect || ""}`;
-  return SUPPORT_DEATH_RE.test(txt);
-}
 function canEditPersonaState(state) {
   const src = state.personaSrc || {};
   const isCustom = state.personaMode === "custom" || src.__custom;
@@ -236,7 +232,6 @@ const PassiveSection = ({ state, dispatch }) => {
   );
   return /* @__PURE__ */ React.createElement("div", { className: "stack-6" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: "var(--s-3)", marginBottom: "var(--s-3)", paddingBottom: "var(--s-2)", borderBottom: "1px solid var(--line-dim)" } }, /* @__PURE__ */ React.createElement("span", { className: "section-title-num", style: { fontSize: "var(--fs-18)" } }, "A"), /* @__PURE__ */ React.createElement("span", { style: { fontFamily: "var(--f-display)", fontWeight: 700, fontSize: "var(--fs-16)", letterSpacing: "0.06em", color: "var(--tx)" } }, "PERSONA PASSIVE / \u4EBA\u683C\u30D1\u30C3\u30B7\u30D6"), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }), editable && isAutoFromDB && /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", icon: "edit", onClick: () => setForceEdit(true) }, "手動編集"), !!state.pas?.name && /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", icon: "eye", onClick: () => setForceEdit(false) }, "\u30AB\u30FC\u30C9\u8868\u793A\u306B\u623B\u3059")), isAutoFromDB ? /* @__PURE__ */ React.createElement(PassiveCard, { title: "PERSONA PASSIVE / \u4EBA\u683C\u30D1\u30C3\u30B7\u30D6", pas: state.pas, sin: primarySin }) : /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { className: "card-body stack-3" }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--s-3)" } }, /* @__PURE__ */ React.createElement(Field, { label: "\u30D1\u30C3\u30B7\u30D6\u540D" }, /* @__PURE__ */ React.createElement("input", { className: "input", placeholder: "\u4F8B\uFF1A\u6289\u308A\u51FA\u3057", value: state.pas.name, disabled: !editable, onChange: (e) => patchPas({ name: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "\u767A\u52D5\u6761\u4EF6" }, /* @__PURE__ */ React.createElement("input", { className: "input", placeholder: "\u4F8B\uFF1A\u8272\u6B32x2 \u5171\u9CF4", value: state.pas.cond, disabled: !editable, onChange: (e) => patchPas({ cond: e.target.value }) }))), /* @__PURE__ */ React.createElement(Field, { label: "\u5E38\u6642\u52B9\u679C\uFF08\u4EFB\u610F\uFF09" }, /* @__PURE__ */ React.createElement("textarea", { className: "textarea", rows: 2, placeholder: "\u5E38\u6642\u767A\u52D5\u3059\u308B\u52B9\u679C", value: state.pas.always, disabled: !editable, onChange: (e) => patchPas({ always: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "\u52B9\u679C" }, /* @__PURE__ */ React.createElement("textarea", { className: "textarea", rows: 3, placeholder: "\u4F8B\uFF1A\u30DE\u30C3\u30C1\u52DD\u5229\u6642\u3001\u5BFE\u8C61\u304C\u51FA\u8840\u72B6\u614B\u306A\u3089\u2026", value: state.pas.effect, disabled: !editable, onChange: (e) => patchPas({ effect: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "\u30AF\u30A4\u30C3\u30AF\u30D1\u30EC\u30C3\u30C8\uFF08:\u30B3\u30DE\u30F3\u30C9\uFF09", hint: "\u4F8B\uFF1A:\u51FA\u8840+1 :\u51FA\u8840-1\uFF08\u4EBA\u683CDB\u304B\u3089\u81EA\u52D5\u62BD\u51FA\u53EF\uFF09" }, /* @__PURE__ */ React.createElement("input", { className: "input", placeholder: ":\u51FA\u8840+1 :\u51FA\u8840-1", value: state.pas.quick, disabled: !editable, onChange: (e) => patchPas({ quick: e.target.value }) })))), state.pas2Enabled ? /* @__PURE__ */ React.createElement(Card, { className: "mt-3", style: { marginTop: "var(--s-3)" } }, /* @__PURE__ */ React.createElement("div", { className: "card-header", style: { justifyContent: "space-between" } }, /* @__PURE__ */ React.createElement("span", { className: "t-label" }, "PASSIVE 2\uFF08\u4EFB\u610F\uFF09"), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", onClick: togglePas2, disabled: !editable, icon: "x" }, "\u30D1\u30C3\u30B7\u30D62\u3092\u524A\u9664")), /* @__PURE__ */ React.createElement("div", { className: "card-body stack-3" }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--s-3)" } }, /* @__PURE__ */ React.createElement(Field, { label: "\u30D1\u30C3\u30B7\u30D6\u540D2" }, /* @__PURE__ */ React.createElement("input", { className: "input", value: state.pas2.name, disabled: !editable, onChange: (e) => patchPas2({ name: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "\u767A\u52D5\u6761\u4EF62" }, /* @__PURE__ */ React.createElement("input", { className: "input", value: state.pas2.cond, disabled: !editable, onChange: (e) => patchPas2({ cond: e.target.value }) }))), /* @__PURE__ */ React.createElement(Field, { label: "\u5E38\u6642\u52B9\u679C2\uFF08\u4EFB\u610F\uFF09" }, /* @__PURE__ */ React.createElement("textarea", { className: "textarea", rows: 2, placeholder: "\u5E38\u6642\u767A\u52D5\u3059\u308B\u52B9\u679C", value: state.pas2.always || "", disabled: !editable, onChange: (e) => patchPas2({ always: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "\u52B9\u679C2" }, /* @__PURE__ */ React.createElement("textarea", { className: "textarea", rows: 2, value: state.pas2.effect, disabled: !editable, onChange: (e) => patchPas2({ effect: e.target.value }) })))) : /* @__PURE__ */ React.createElement("div", { style: { marginTop: "var(--s-3)" } }, /* @__PURE__ */ React.createElement(Button, { variant: "ghost", icon: "plus", onClick: togglePas2, disabled: !editable, title: editable ? "パッシブ2を追加" : "編集モード時のみ追加可能" }, "\u30D1\u30C3\u30B7\u30D62\u3092\u8FFD\u52A0"))));
 };
-const UNIQUE_BUFF_TYPES = ["\u30D0\u30D5", "\u30C7\u30D0\u30D5", "\u4E2D\u7ACB\u30D0\u30D5", "\u4E2D\u7ACB\u30C7\u30D0\u30D5", "\u305D\u306E\u4ED6"];
 const UniqueBuffsBlock = ({ state, dispatch }) => {
   const editable = canEditPersonaState(state);
   const h = React.createElement;
@@ -564,9 +559,6 @@ const SupportSection = ({ state, dispatch, ownedOnly = false }) => {
   );
 };
 const EGO_RANKS = ["ZAYIN", "TETH", "HE", "WAW", "ALEPH"];
-function cloneEgoForManualEdit(ego) {
-  return JSON.parse(JSON.stringify(ego || {}));
-}
 function normalizeEgoDice(d) {
   const dval = d?.dval ?? d?.d ?? "";
   return {
@@ -866,38 +858,6 @@ const EgoSlotVariantEditor = ({ slotKey, label, model, onCommit }) => {
     React.createElement("div", { className: "ego-variant-choice", role: "group", "aria-label": `${label}E.G.Oスキルの形態` }, EGO_VARIANT_OPTIONS.map((option) => React.createElement("button", { key: option.key, type: "button", className: `ego-variant-option${variant === option.key ? " is-active" : ""}`, onClick: () => setVariant(option.key), "aria-pressed": variant === option.key }, React.createElement("b", null, option.label), React.createElement("span", null, option.help)))),
     React.createElement("div", { className: "ego-variant-status" }, `現在の形態: ${EGO_VARIANT_LABEL[variant]}`),
     variant === "assimilation" ? renderAssimilation() : variant === "influence" ? renderInfluence() : renderStandard(EGO_VARIANT_LABEL[variant])
-  );
-};
-const EgoSkillSummary = ({ entry, active, onSelect }) => {
-  const sk = ensureSkillShape(entry.skill);
-  const diceCount = sk.dice?.length || 0;
-  const labels = [sk.kind || entry.kind, (sk.kind || entry.kind) === "同化" ? sk.attr : sk.type, sk.sin].filter(Boolean);
-  const summary = sk.effect || sk.cond || "未入力のスキル";
-  const branchSummary = entry.branchSummary || "";
-  return React.createElement("button", { type: "button", className: `ego-skill-summary${active ? " is-active" : ""}`, onClick: onSelect, "aria-pressed": active, "aria-label": `${entry.label}を編集` },
-    React.createElement("span", { className: "ego-skill-summary-index" }, entry.index),
-    React.createElement("span", { className: "ego-skill-summary-main" }, React.createElement("span", { className: "ego-skill-summary-title" }, sk.name || entry.label), React.createElement("span", { className: "ego-skill-summary-meta" }, labels.map((item, i) => React.createElement("span", { key: `${item}-${i}`, className: `ego-meta-chip${item === sk.sin ? " is-sin" : ""}` }, item)), React.createElement("span", { className: "ego-meta-chip is-dice" }, `${diceCount}ダイス`)), React.createElement("span", { className: "ego-skill-summary-effect" }, summary), branchSummary && React.createElement("span", { className: "ego-skill-summary-branches" }, branchSummary)), React.createElement("span", { className: "ego-skill-summary-arrow", "aria-hidden": true }, active ? "編集中" : "›")
-  );
-};
-const EgoReadOnlySkill = ({ skill, label, className = "" }) => {
-  const h = React.createElement;
-  const sk = ensureSkillShape(skill);
-  const fmt = (value) => window.formatEffectLines ? window.formatEffectLines(value) : value || "";
-  const dice = sk.dice || [];
-  return h("div", { className: `ego-connected-read ${className}` },
-    h("div", { className: "ego-connected-read-head" },
-      h("span", { className: "ego-connected-read-label" }, label),
-      sk.attr || sk.type ? h("span", { className: "ego-meta-chip" }, sk.attr || sk.type) : null,
-      sk.sin ? h("span", { className: "ego-meta-chip is-sin" }, sk.sin) : null,
-      sk.aoe ? h("span", { className: "ego-meta-chip" }, sk.aoe) : null
-    ),
-    sk.name ? h("div", { className: "ego-connected-read-name" }, sk.name) : null,
-    dice.length ? h("div", { className: "ego-connected-rolls", "aria-label": `${label}のダイス` }, dice.map((die, index) => h("div", { key: `${label}-roll-${index}`, className: "ego-connected-roll" },
-      h("span", { className: "ego-connected-roll-index" }, index + 1),
-      h("strong", null, die.roll || "—"),
-      die.effect ? h("span", null, fmt(die.effect)) : h("span", { className: "ego-connected-empty" }, "効果なし")
-    ))) : h("div", { className: "ego-connected-empty" }, "ダイスなし"),
-    sk.effect ? h("div", { className: "ego-connected-effect" }, fmt(sk.effect)) : null
   );
 };
 const EquippedEgoEditor = ({ rank, ego, dispatch }) => {
@@ -1597,35 +1557,6 @@ const SpiritSection = ({ state, dispatch, ownedOnly = false }) => {
     )))
   );
   return /* @__PURE__ */ React.createElement("div", { className: "stack-4" }, spiritBody, spiritInitialFrame);
-};
-const LegacyEnhancementSection = ({ state, dispatch }) => {
-  /* 強化の追加は roster へ入れず、所持ファイル承受の SET_FIELD のままでは購入が記録されない。 */
-
-  const addEnh = (e) => {
-    if (state.enhancements.some((x) => x.name === e.name)) {
-      toast("\u65E2\u306B\u8FFD\u52A0\u6E08\u307F");
-      return;
-    }
-    dispatch({ type: "ADD_ENHANCEMENT", group: e.group, name: e.name, effect: e.effect, category: e.category });
-    toast(`\u300E${e.name}\u300F\u3092\u8FFD\u52A0`);
-  };
-  const removeEnh = (id) => dispatch({ type: "REMOVE_ENHANCEMENT", id });
-  const [category, setCategory] = React.useState("special");
-  const sourceRows = category === "special" ? (DB.special_enhancements || []) : DB.normal_enhancements.filter((e) => e.category === category);
-  const bodyRows = sourceRows.filter((entry) => String(entry?.name || "").startsWith("肉体強化"));
-  const mindRows = sourceRows.filter((entry) => String(entry?.name || "").startsWith("精神強化"));
-  const otherRows = sourceRows.filter((entry) => !bodyRows.includes(entry) && !mindRows.includes(entry));
-  // 2列グリッドは行単位に流れるため、肉体・精神を交互に並べると、
-  // PCでは肉体強化が左列、精神強化が右列へまとまって表示される。
-  const pairedSpecialRows = Array.from({ length: Math.max(bodyRows.length, mindRows.length) }, (_, index) => [bodyRows[index], mindRows[index]].filter(Boolean)).flat();
-  const catList = bodyRows.length || mindRows.length ? [...pairedSpecialRows, ...otherRows] : sourceRows;
-  const cats = [
-    { v: "special", l: "\u7279\u6B8A\u5F37\u5316" },
-    { v: "persona", l: "\u901A\u5E38\u4EBA\u683C" },
-    { v: "prisoner", l: "LCB\u4EBA\u683C" },
-    { v: "sync", l: "\u540C\u671F\u5316\u4EBA\u683C" }
-  ];
-  return /* @__PURE__ */ React.createElement("div", { className: "stack-4" }, /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { className: "card-header" }, /* @__PURE__ */ React.createElement("span", { className: "t-label" }, "\u5F37\u5316DB"), /* @__PURE__ */ React.createElement("div", { className: "grow" }), /* @__PURE__ */ React.createElement("div", { className: "segmented", role: "tablist", "aria-label": "強化カテゴリ" }, cats.map((c) => /* @__PURE__ */ React.createElement("button", { key: c.v, type: "button", role: "tab", "aria-selected": category === c.v, className: category === c.v ? "is-active" : "", onClick: () => setCategory(c.v) }, c.l)))), /* @__PURE__ */ React.createElement("div", { style: { padding: "var(--s-2)", maxHeight: 320, overflowY: "auto" } }, /* @__PURE__ */ React.createElement("div", { className: "spp-list", style: { maxHeight: "none", padding: 0, background: "transparent", border: "none" } }, catList.map((e) => /* @__PURE__ */ React.createElement("div", { key: e.name, className: "spp-item", onClick: () => addEnh(e) }, /* @__PURE__ */ React.createElement("div", { className: "spp-item-name" }, e.name, " ", /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-10)", color: "var(--gold)", fontWeight: 400 } }, "\u6B20\u7247", e.shards)), /* @__PURE__ */ React.createElement("div", { className: "spp-item-eff" }, e.effect)))))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "t-label", style: { marginBottom: "var(--s-2)" } }, "\u53D6\u5F97\u6E08\u307F (", state.enhancements.length, ")"), state.enhancements.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "empty" }, "\u5F37\u5316\u306F\u3042\u308A\u307E\u305B\u3093") : /* @__PURE__ */ React.createElement("div", { className: "stack-2" }, state.enhancements.map((e) => /* @__PURE__ */ React.createElement("div", { key: e.id, className: "list-item" }, /* @__PURE__ */ React.createElement("div", { className: "list-item-head" }, /* @__PURE__ */ React.createElement("span", { className: "list-item-title" }, e.name), /* @__PURE__ */ React.createElement("span", { className: "badge" }, "\u6B20\u7247", e.shards), /* @__PURE__ */ React.createElement("button", { className: "btn-ghost btn-icon", onClick: () => removeEnh(e.id) }, /* @__PURE__ */ React.createElement(Icon, { name: "trash", size: 12 }))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-12)", color: "var(--tx-2)" } }, e.effect))))));
 };
 const EnhancementSection = ({ state, dispatch }) => {
   const h = React.createElement;

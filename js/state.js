@@ -223,9 +223,6 @@ function normalizeEgoVariantName(value) {
   if (value === "影響" || value === "influence") return "influence";
   return "skill";
 }
-function egoVariantLabel(value) {
-  return value === "assimilation" ? "同化" : value === "influence" ? "影響" : "スキル";
-}
 // 基本PDF／DBの影響は、属性・罪悪・ダイスのない`[影響] nR`効果として記録される。
 // 明示的なkindがない旧データでも、攻撃スキルとして誤って編集させないよう分岐を推定する。
 function inferEgoVariantFromSkill(skill) {
@@ -385,7 +382,6 @@ function statusOccurrenceHasForeignRecipient(text, index) {
    状態検出1回あたり最大1750回のRegExpコンパイルが発生し、テキスト量の
    多い人格でキー入力1回あたり86msの劣化要因になる。モジュールスコープで
    一度だけ構築する。 */
-const STATUS_GAIN_RE = /(?:得る|得て(?!い)|獲得(?:する|して)?)(?![てたな])/u;
 const STATUS_CHAINED_RE_CACHE = {};
 function statusGainChainRegExp() {
   const key = (window.LBT_PDF_KEYWORD_ORDER || []).length + ":" + LBT_TRACKABLE_STATUSES.length;
