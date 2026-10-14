@@ -263,6 +263,15 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
             item.needsDecision = "unknown-name";
             item.include = false;
           }
+          /* 由来が「抽出チケット」「配布」なら支出ではない。core:9502 の抽出は
+             100欠片でも、チケットなら 0、配布も 0。
+             上の候補判定より後に置く。ここに置いていないと、DB の購入価格が
+             include=true を上書きして、チケットで得た E.G.O に購入金額を請求する。 */
+          if (item.provenance && item.provenance.priced === false
+            && (item.provenance.id === "gachaTicket" || item.provenance.id === "grant")) {
+            item.needsDecision = null;
+            item.include = false;
+          }
         }
       }
 

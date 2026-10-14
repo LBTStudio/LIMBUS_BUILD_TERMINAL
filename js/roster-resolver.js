@@ -189,15 +189,31 @@
        断定はしない。利用者が1つ選ぶと価格が決まる。
        価格は DB が価格を持つ種別なら DB、人格・E.G.O は公式ルールから引く。
        名前が同じでも「抽出」か「購入」かで価格が違うので、両方を別候補として出す。 */
-    function candidatesFor(item, idx) {
+    /* 由来が「支出ではない」と語れるもの。価格を出さない。
+         unknown はここに入れない。由来が読めないのと無料のは別なので、
+         DB の価格は提示したまま、利用者に選んでもらう。 */
+  const FREE_BY_PROVENANCE = new Set(["gachaTicket", "grant"]);
+
+  function candidatesFor(item, idx) {
       const out = [];
       const line = String(item.sourceLine || item.name || "");
+      /* 由来が「抽出チケット」「配布」なら支出ではない。core:9502 の抽出は
+         100欠片だが、チケットなら 0、配布も 0。
+         ここを見ないと、チケットで得た E.G.O を core:9510 の購入価格で
+         請求してしまう。 */
+      const prov = typeof window !== "undefined" && typeof window.LBT_inferProvenance === "function"
+        ? window.LBT_inferProvenance(line)
+        : null;
+      const freeByProvenance = prov && FREE_BY_PROVENANCE.has(prov.id);
       const push = (name, kindEntry, confidence, probe, extra) => {
         if (!name || !kindEntry) return;
         const acquisition = (extra && extra.acquisition) || "db";
         if (out.some((o) => o.name === name && o.kind === kindEntry.kind && o.acquisition === acquisition)) return;
         const fromDb = priceOf(name, kindEntry.kind, (typeof window !== "undefined" && window.DB) || {});
-        const price = fromDb || (extra && extra.price) || null;
+        /* チケット/配布なら 0 ではなく、支払いが発生していない状態。0 を書くと
+           「0 で購入した」ように見えるので、null のまま出す。
+           候補そのものは消さない。消すと利用者が所持へ追加する手段を失う。 */
+        const price = freeByProvenance ? null : (fromDb || (extra && extra.price) || null);
         out.push({
           key: "cand:" + kindEntry.kind + ":" + acquisition + ":" + name,
           name,
@@ -205,7 +221,8 @@
           kindLabel: kindLabel(kindEntry.kind),
           price,
           acquisition,
-          acquisitionLabel: (extra && extra.acquisitionLabel) || "",
+          acquisitionLabel: (extra && extra.acquisitionLabel) || (freeByProvenance ? prov.label : ""),
+          free: freeByProvenance || undefined,
           source: (extra && extra.source) || (fromDb ? "DB" : ""),
           confidence,
           probe
