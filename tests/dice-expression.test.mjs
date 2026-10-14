@@ -164,23 +164,37 @@ test("代入式のfloor・切り捨て関数はCCFOLIA・BCDICE互換の括弧�
 });
 
 
-test("代入式が参照するラベルは、補正未取得でもparamsへ0で補完して未定義参照を残さない", () => {
+test("守備威力は「進むべき守備」を得たときだけ DT が参照し、得ていなければ params にも出さない", () => {
   const generator = loadGenerator();
   const state = createState();
 
   const json = generator.buildCcfoliaJSON(state);
-  const statusLabels = json.data.status.map((entry) => entry.label);
   const paramLabels = json.data.params.map((entry) => entry.label);
-  const known = new Set([...statusLabels, ...paramLabels]);
+  const dt = generator.resolveFormulas(state).find((formula) => formula.name === "DT");
 
-  assert.equal(paramLabels.includes("守備威力"), true);
-  assert.equal(json.data.params.find((entry) => entry.label === "守備威力").value, "0");
+  /* 補強が無いのに守備威力を引く式を持たない。0 で補完すると
+     「使うことのないラベル」が利用者をurve 表示AMA ため、参照もラベルも出さない。 */
+  assert.equal(dt.expr.includes("{守備威力}"), false, "補強が無いのに DT が守備威力を参照する");
+  assert.equal(paramLabels.includes("守備威力"), false, "補強が無いのに params へ守備威力が出る");
+
+  /* 参照ラベルは必ず定義されている、という安全網は残す。 */
+  const known = new Set([...json.data.status.map((e) => e.label), ...paramLabels]);
   generator.resolveFormulas(state).forEach((formula) => {
     (formula.expr.match(/\{[^{}]+\}/g) || []).forEach((token) => {
-      const label = token.slice(1, -1);
-      assert.equal(known.has(label), true, `${formula.name}の参照ラベル ${label} が未定義`);
+      assert.equal(known.has(token.slice(1, -1)), true, `${formula.name} の参照ラベルが未定義`);
     });
   });
+});
+
+test("「進むべき守備」を得ると DT が守備威力を参照し、ラベルも出る", () => {
+  const generator = loadGenerator();
+  const state = createState();
+  state.enhancements = [...(state.enhancements || []), { name: "進むべき守備", rank: 0, level: 3, slot: "normal" }];
+
+  const json = generator.buildCcfoliaJSON(state);
+  const dt = generator.resolveFormulas(state).find((formula) => formula.name === "DT");
+  assert.equal(dt.expr.includes("{守備威力}"), true, "補強があれば DT が守備威力を引く");
+  assert.equal(json.data.params.find((entry) => entry.label === "守備威力") !== undefined, true, "ラベルも出る");
 });
 
 
@@ -227,3 +241,21 @@ test("指令の加護は計算式の互換化後も固有バフ本体と出力�
   assert.match(palette, /指令の加護\+1/);
   assert.match(palette, /指令の加護-1/);
 });
+
+/* 組込式は generator.js の DEF_FMLS と OtherSections.js の DEFAULT_FMLs に
+   二重に定義されている。片方だけ直すと、設定画面の表示と実際の出力が
+   食い違う（この不具合で一度取りこぼした）。同じ内容に保たせる。 */
+test("設定画面の組込式と生成器の DEF_FMLS が一致する", () => {
+  const fs = readFileSync(new URL("../js/generator.js", import.meta.url), "utf8");
+  const os = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
+  const grab = (src, marker) => {
+    const body = src.slice(src.indexOf(marker));
+    const names = ["MT", "DM", "DT", "QB"];
+    return names.map((n) => {
+      const i = body.indexOf(`name: "${n}"`);
+      return body.slice(i, i + 260).match(/expr:\s*"([^"]+)"/)?.[1] || "";
+    });
+  };
+  assert.deepEqual(grab(os, "const DEFAULT_FMLs = ["), grab(fs, "const DEF_FMLS = ["));
+});
+
