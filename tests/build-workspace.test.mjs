@@ -149,7 +149,7 @@ test("E.G.O は購入も所持登録もしない試着装備ができる", () =>
 test("未所持のカードからその場で買える", () => {
   const codex = read("../js/PersonaCodex.js");
   assert.match(codex, /className: "p-card-quick-acquire"/);
-  assert.match(codex, /onQuickAcquire: gated \? null : \(persona\) => acquirePersona\(persona\)/);
+  assert.match(codex, /onQuickAcquire: gated \|\| \(acquireHow === "purchase" && personaPurchaseBlocked\(p, m\)\)/);
   assert.match(codex, /isOwned: gated \|\| ownedPersonaKeys\.has\(`\$\{m\}:\$\{p\.no\}`\)/);
   assert.match(codex, /quickAcquireLabel: `\$\{resolveAcquireCost\("persona", acquireHow/);
   assert.match(css, /\.p-card-quick-acquire \{[\s\S]*?border: 1px solid var\(--gold-line\);/);
@@ -310,6 +310,21 @@ test("ショップは未所持のみを既定で出し、導入は購入とし�
   /* 共通カードで描く。 */
   assert.match(shop, /className: "shop-card spirit-item"/);
   assert.match(shop, /className: "shop-grid"/);
+});
+
+test("特異人格は指定購入できない（core P203 に購入が無い）", () => {
+  const codex = read("../js/PersonaCodex.js");
+  /* core P203「特異人格の入手方法」には抽出しか無い。
+     指定で好きな1つを選ぶ方法は core:336 の人格購入だけで、特異人格に存在しない。 */
+  assert.match(codex, /const personaPurchaseBlocked = \(persona, mode\) => \(mode === "t" \? "特異人格は抽出しでのみ入手できます" : null\);/);
+  /* カード上の獲得経路でも遮断する（押しても入らない）。 */
+  assert.match(codex, /const acquirePersona = \(persona\) => \{[\s\S]{0,1200}?const blocked = acquireHow === "purchase" \? personaPurchaseBlocked\(persona, personaMode\) : null;[\s\S]{0,80}?if \(blocked\) \{ toast\(blocked\); return; \}/);
+  /* 詳細ダイアログの所持追加側も同じ判定を使う。 */
+  assert.match(codex, /const addRoster = \(p\) => \{[\s\S]{0,700}?const blocked = acquireHow === "purchase" \? personaPurchaseBlocked\(p, m\) : null;[\s\S]{0,80}?if \(blocked\) \{ toast\(blocked\); return; \}/);
+  /* 購入選択中は特異人格カードの獲得ボタン自体を出さない。 */
+  assert.match(codex, /purchaseBlocked: acquireHow === "purchase" && Boolean\(personaPurchaseBlocked\(p, m\)\)/);
+  assert.match(codex, /onQuickAcquire: gated \|\| \(acquireHow === "purchase" && personaPurchaseBlocked\(p, m\)\)\s*\?\s*null/);
+  assert.match(codex, /!isOwned && onQuickAcquire && !purchaseBlocked/);
 });
 
 test("人格の獲得は core 3章 P19-20 の2種類だけ（30LP支給を人格価格にしない）", () => {

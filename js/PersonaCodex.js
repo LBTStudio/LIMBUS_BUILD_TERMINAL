@@ -130,7 +130,7 @@ function getPrimarySin(p) {
 }
 /* React.memo で199人格カードの無差別再レンダリングを防ぐ。
    props が変わらないカードは前回の結果を再利用する。 */
-const PersonaCard = React.memo(({ persona, mode, isEquipped, isActive, isFav, isOwned, onQuickAcquire, quickAcquireLabel, onSelect, onToggleFav, onEquip }) => {
+const PersonaCard = React.memo(({ persona, mode, isEquipped, isActive, isFav, isOwned, onQuickAcquire, quickAcquireLabel, onSelect, onToggleFav, onEquip, purchaseBlocked }) => {
   const p = decoratePersona(persona);
   const kws = orderPersonaKeywordDisplay(p.keywords).slice(0, 3);
   const primarySin = getPrimarySin(p);
@@ -172,8 +172,9 @@ const PersonaCard = React.memo(({ persona, mode, isEquipped, isActive, isFav, is
     /* @__PURE__ */ React.createElement(ResRow, { s: p.res_slash, p: p.res_pierce, b: p.res_blunt }),
     /* @__PURE__ */ React.createElement(PersonaSinPills, { skills: p.skills }),
     kws.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "p-kw-row" }, kws.map((k) => /* @__PURE__ */ React.createElement("span", { key: k, className: "p-kw" }, k))),
-    /* 獲得は詳細ポップオーバーを開かずにカード上で完結させる。 */
-    !isOwned && onQuickAcquire && /* @__PURE__ */ React.createElement(Button, {
+    /* 獲得は詳細ポップオーバーを開かずにカード上で完結させる。
+       特異人格は指定購入できない（core P203）なので、抽出が選択されている時だけ出す。 */
+    !isOwned && onQuickAcquire && !purchaseBlocked && /* @__PURE__ */ React.createElement(Button, {
       size: "sm",
       variant: "ghost",
       className: "p-card-quick-acquire",
@@ -659,6 +660,10 @@ const PersonaCodex = ({ state, dispatch, ownedOnly = false }) => {
 
   /* DB のどちらの枠（通常人格/特異人格）に属するかを解決する。 */
   const personaModeFor = (persona) => (window.DB?.normal_personas || []).some((x) => x.no === persona.no) ? "n" : "t";
+  /* 特異人格には購入が無い。core P203「特異人格の入手方法」に，唯一あるのは
+     特異人格抽出（1d総数の出目に対応）和通过柴油+1 抽出来的两条路而已。
+     指定で好きな1つを买到的方法は人格購入だけ，特異人格には存在しない。 */
+  const personaPurchaseBlocked = (persona, mode) => (mode === "t" ? "特異人格は抽出しでのみ入手できます" : null);
   /* カード内購入。詳細ポップオーバーを開かずに獲得を完結させる。 */
 
   /* 所持ゲートの解除。解除すると全DBから選べるので、未所持を探索できる。 */
@@ -674,6 +679,9 @@ const PersonaCodex = ({ state, dispatch, ownedOnly = false }) => {
       toast(`『${persona.name}』は既に所持しています`);
       return;
     }
+    /* 指定購入は通常人格だけ。特異人格は抽出のみ。 */
+    const blocked = acquireHow === "purchase" ? personaPurchaseBlocked(persona, personaMode) : null;
+    if (blocked) { toast(blocked); return; }
     const cost = resolveAcquireCost("persona", acquireHow, { name: persona.name, ownsPersona: (state.roster?.personas || []).length > 0 });
     dispatch({ type: "ADD_ROSTER", mode: personaMode, no: persona.no, purchase: true, cost: { lp: cost.lp || 0, shards: cost.shards || 0 } });
     toast(`${persona.name} を獲得しました（${cost.label}）`);
@@ -933,6 +941,9 @@ const addRoster = (p) => {
       toast(`『${p.name}』は既に所持しています`);
       return;
     }
+    /* 指定購入は通常人格だけ。特異人格は抽出のみ（core P203）。 */
+    const blocked = acquireHow === "purchase" ? personaPurchaseBlocked(p, m) : null;
+    if (blocked) { toast(blocked); return; }
     const cost = resolveAcquireCost("persona", acquireHow, { name: p.name, ownsPersona: (roster.personas || []).length > 0 });
     dispatch({ type: "ADD_ROSTER", mode: m, no: p.no, purchase: true, cost: { lp: cost.lp || 0, shards: cost.shards || 0 } });
     toast("所持リストへ追加");
@@ -1141,7 +1152,11 @@ const addRoster = (p) => {
       onToggleFav: toggleFav,
       /* カード上での獲得は詳細ポップオーバーを経由しない。 */
       isOwned: gated || ownedPersonaKeys.has(`${m}:${p.no}`),
-      onQuickAcquire: gated ? null : (persona) => acquirePersona(persona),
+      /* 特異人格は指定購入できない（core P203）。購入選択時は押せないようにする。 */
+      purchaseBlocked: acquireHow === "purchase" && Boolean(personaPurchaseBlocked(p, m)),
+      onQuickAcquire: gated || (acquireHow === "purchase" && personaPurchaseBlocked(p, m))
+        ? null
+        : (persona) => acquirePersona(persona),
       quickAcquireLabel: `${resolveAcquireCost("persona", acquireHow, { name: p.name, ownsPersona: (roster.personas || []).length > 0 }).label} 獲得`
     }
   )))), /* @__PURE__ */ React.createElement(
