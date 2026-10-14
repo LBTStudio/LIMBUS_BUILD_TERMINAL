@@ -1031,7 +1031,7 @@ const EgoQuickDetail = ({ ego, currentSlot, isOwned, onEquip, onUnequip, onToggl
       currentSlot ? h("div", { className: "ego-quick-equipped" }, "★ 現在 ", currentSlot, " に装備中") : null,
       currentSlot ? h(Button, { variant: "ghost", size: "sm", onClick: onUnequip, icon: "x" }, "装備解除") : h(Button, { variant: "primary", size: "sm", onClick: onEquip, icon: "check" }, ego.rank, " スロットへ装備"),
       currentSlot ? h(Button, { variant: "ghost", size: "sm", onClick: onOpenFullDetail, icon: "edit", title: "効果全文の確認と直接編集を開く" }, "詳細・直接編集") : null,
-      onAcquire && acquireHow && onAcquireHowChange && !isOwned ? h(AcquireBar, { state, kind: "ego", name: ego.name, how: acquireHow, setHow: onAcquireHowChange, onAcquire }) : null,
+      onAcquire && acquireHow && onAcquireHowChange && !isOwned ? h(AcquireBar, { state, kind: "ego", name: ego.name, no: ego.no, rank: ego.rank, how: acquireHow, setHow: onAcquireHowChange, onAcquire }) : null,
       onPreviewEquip ? h(Button, { variant: "ghost", size: "sm", onClick: onPreviewEquip, icon: "eye", title: "購入も所持登録もしない試着装備です。効果だけ確かめられます" }, "試着装備") : null,
       onToggleOwned ? h(Button, { variant: "ghost", size: "sm", onClick: onToggleOwned, icon: isOwned ? "check" : "x", title: isOwned ? "所持リストから外す" : "購入せずに所持リストへ追加する" }, isOwned ? "所持済み" : "購入せず所持に追加") : null
     )
@@ -1743,13 +1743,13 @@ function formatAcquireCost(lp, shards) {
 
 function resolveAcquireCost(kind, how, context) {
   const db = window.LBT_provenance?.priceOf;
-  /* E.G.O購入は各E.G.O番号横の欠片数を消費する（core:9509-9512）。
-     core ルールの抽出，建筑式ここしかないため、指定購入は DB 価格を使う。
-     間違えると「無料」になり原典に反する。 */
-  /* 入手方法は2種類だけ（core:336）。
+  /* E.G.O購入は各E.G.O番号横の欠片数を消費する（core:7536）。
+     ここが人格と共通の入口なので、E.G.O購入も同じ関数から出す。 */
+  /* 入手方法は2種類だけ（core:336/7532）。加えて卓配布の無料抽出権利（local）を別枠で扱う。
      30LPはキャラ作成時の支給額であって人格の価格ではないので、ここでは扱わない。 */
-  if (kind === "persona" || (kind === "ego" && how !== "purchase")) {
-    const rule = window.LBT_acquireCost?.(kind, how === "purchase" ? "purchase" : "gachaPaid", context);
+  if (kind === "persona" || kind === "ego") {
+    const provenance = how === "purchase" ? "purchase" : how === "ticket" ? "gachaTicket" : "gachaPaid";
+    const rule = window.LBT_acquireCost?.(kind, provenance, context);
     if (!rule || !(rule.lp || rule.shards)) return { lp: 0, shards: 0, label: "無料", source: rule?.source || "" };
     return { ...rule, label: formatAcquireCost(rule.lp, rule.shards) };
   }
@@ -1770,25 +1770,26 @@ function resolveAcquireCost(kind, how, context) {
    else 節の「無料」に落ち、全人格が無償で入手できてしまう。 */
 if (typeof window !== "undefined") window.LBT_resolveAcquireCost = resolveAcquireCost;
 
-const AcquireBar = ({ state, kind, name, how, setHow, onAcquire, disabled, disabledReason }) => {
+const AcquireBar = ({ state, kind, name, no, rank, how, setHow, onAcquire, disabled, disabledReason }) => {
   const h = React.createElement;
   const spec = ACQUIRE_KINDS.find((k) => k.id === kind) || ACQUIRE_KINDS[0];
   /* state は呼び出し側（PersonaDetail の埋め込み表示など）によって無いことがある。
      ここで1段で吸収して、描画の主画面を白紙にしない。 */
   const ownsOne = (state?.roster?.personas || []).length > 0;
-  const cost = resolveAcquireCost(kind, how, { name, ownsPersona: ownsOne });
+  /* E.G.O購入は番号とランクで DB を引く（core:7536）。名前だけだと一意に決まらない。 */
+  const cost = resolveAcquireCost(kind, how, { name, no, rank, ownsPersona: ownsOne });
   return h("div", { className: "acquire-bar" },
     /* 抽出/購入の切替は幅を固定する。切り替えのたびに購入ボタンが横にずれると
        押し損なうので、方法欄には常に同じ横幅を持たせる。 */
     h("div", { className: "acquire-how" },
       spec.supports
         ? h("div", { className: "segmented", role: "radiogroup", "aria-label": `${spec.label}の取得方法` },
-          /* 2択。core:336「人格を入手する方法は2種類あります『抽出』と『購入』です」。 */
-          [["purchase", "指定購入"], ["gacha", "ランダム"]].map(([value, label]) => h("button", { key: value, type: "button", role: "radio", "aria-checked": how === value, className: how === value ? "is-active" : "", onClick: () => setHow(value) }, label)))
+          /* 2択 + 卓配布の無料抽出権利（local）。ルールブックは抽出/購入の2種類。 */
+          [["purchase", "指定購入"], ["gacha", "ランダム"], ["ticket", "配布権利"]].map(([value, label]) => h("button", { key: value, type: "button", role: "radio", "aria-checked": how === value, className: how === value ? "is-active" : "", onClick: () => setHow(value) }, label)))
         : h("span", { className: "acquire-how-placeholder", "aria-hidden": "true" })),
     h("span", { className: "acquire-cost" }, cost.label || "無料"),
     h(Button, { size: "sm", variant: "primary", icon: "plus", disabled, onClick: onAcquire, title: disabledReason || undefined },
-      how === "gacha" ? "抽出する" : "購入")
+      how === "gacha" ? "抽出する" : how === "ticket" ? "権利を使う" : "購入")
   );
 };
 

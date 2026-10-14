@@ -131,13 +131,25 @@
      制約: 同種人格の複数保有は不可（core:361）/ 既持人格の購入は不可（core:359）。
      注意: 「キャラ作成時に30LPが支給」（core:344）は初期資金であって人格の価格ではない。
      PCは始めから人格を持っておらず（core:335「必ず1つ以上の人格を保有」になるまで）、
-     最初の1個は「未所持」の値段 免费/20LP で扱う。支給額的价格はここに入れない。 */
+     最初の1個は「未所持」の値段 免费/20LP で扱う。支給額的价格はここに入れない。
+
+     E.G.O は core P242「E.G.Oを入手する方法には、以下の二つが存在します」。
+       E.G.O抽出: 自我の欠片100個（所持状態に依存しない）
+       E.G.O購入: 各E.G.Oの番号横に記載の欠片数（core:7536、DB の shards を読む）
+     既に持っているE.G.Oの購入は不可（core:7536）。
+
+     gachaTicket（卓で配られる無料の抽出権利）はローカルルール。
+     ルールブックに記述はないが卓では配られ普通に消費されるので、
+     有料の抽出とは別の経路として扱う。 */
   const CORE_RULES = {
     personaGacha: { lp: 100, shards: 0, source: "core:338/348 人格抽出（所持時）" },
     personaPurchase: { lp: 200, shards: 0, source: "core:355/359 人格購入（所持時）" },
     personaPurchaseFirst: { lp: 20, shards: 0, source: "core:359 人格購入（未所持時）" },
     personaGachaFirst: { lp: 0, shards: 0, source: "core:338 人格抽出（未所持時）" },
-    egoGacha: { lp: 0, shards: 100, source: "core:9501-9503 E.G.O抽出" }
+    /* 卓で配られる無料の抽出権利。所持状態に依存せず常に0。 */
+    personaGachaTicket: { lp: 0, shards: 0, source: "local:卓配布の無料人格抽出権利" },
+    egoGacha: { lp: 0, shards: 100, source: "core:7533 E.G.O抽出" },
+    egoGachaTicket: { lp: 0, shards: 0, source: "local:卓配布の無料E.G.O抽出権利" }
   };
 
   /* 保持状况が価格を変える。人格は「既に1つでも持っていれば」 wikipedia FEEが跳ね上がる。
@@ -146,7 +158,9 @@
     const ctx = context || {};
     const ownsOne = ctx.ownsPersona === undefined ? true : Boolean(ctx.ownsPersona);
     if (kind === "persona") {
-      if (provenance === "gachaPaid" || provenance === "gachaTicket") {
+      /* 配布権利は有料の抽出とは別枠。所持状態でを引き上げる。 */
+      if (provenance === "gachaTicket") return { ...CORE_RULES.personaGachaTicket };
+      if (provenance === "gachaPaid") {
         return ownsOne ? { ...CORE_RULES.personaGacha } : { ...CORE_RULES.personaGachaFirst };
       }
       if (provenance === "purchase") {
@@ -155,7 +169,17 @@
       return { lp: 0, shards: 0, source: "配布" };
     }
     if (kind === "ego") {
-      if (provenance === "gachaPaid" || provenance === "gachaTicket") return { ...CORE_RULES.egoGacha };
+      if (provenance === "gachaTicket") return { ...CORE_RULES.egoGachaTicket };
+      if (provenance === "gachaPaid") return { ...CORE_RULES.egoGacha };
+      /* 購入は各E.G.Oの番号横の欠片数（core:7536）。番号が不明なときは算出しない。 */
+      if (provenance === "purchase") {
+        const hit = (ctx.db?.egos || window.DB?.egos || []).find((e) =>
+          String(e.no) === String(ctx.no) && (!ctx.rank || e.rank === ctx.rank));
+        if (!hit) return null;
+        const matched = String(hit.shards ?? "").match(/\d+/);
+        const shards = matched ? Number.parseInt(matched[0], 10) || 0 : 0;
+        return { lp: 0, shards, source: `core:7536 E.G.O購入（${hit.rank} No.${hit.no}）` };
+      }
       return null;
     }
     return null;

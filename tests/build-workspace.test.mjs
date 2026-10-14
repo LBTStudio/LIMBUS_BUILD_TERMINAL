@@ -341,12 +341,34 @@ test("人格の獲得は core 3章 P19-20 の2種類だけ（30LP支給を人格
      3種類目の creation 分岐を作ると、所持0個ではありえない状態を想定してしまう。 */
   assert.doesNotMatch(prov, /personaCreation/);
   assert.doesNotMatch(prov, /provenance === "creation"/);
-  /* UI も2択。3択にしない。 */
+  /* UI は2択 + 卓配布の無料抽出権利（local ルール）。 */
   assert.doesNotMatch(sections, /\["creation", "初期作成"\]/);
-  assert.match(sections, /\[\["purchase", "指定購入"\], \["gacha", "ランダム"\]\]/);
+  assert.match(sections, /\[\["purchase", "指定購入"\], \["gacha", "ランダム"\], \["ticket", "配布権利"\]\]/);
   assert.match(acqKinds, /\{ id: "persona", label: "人格", supports: true \}/);
   /* ボタン文言は方法に合わせる（「購入」固定は抽出時に嘘になる）。 */
-  assert.match(sections, /how === "gacha" \? "抽出する" : "購入"/);
+  assert.match(sections, /how === "gacha" \? "抽出する" : how === "ticket" \? "権利を使う" : "購入"/);
+});
+
+test("卓で配られる無料抽出権利は有料抽出とは別経路（local ルール）", () => {
+  const prov = read("../js/ledger-provenance.js");
+  /* ルールブックに無いが卓では配られ消費されるので、経路としては独立させる。 */
+  assert.match(prov, /personaGachaTicket: \{ lp: 0, shards: 0, source: "local:卓配布の無料人格抽出権利" \}/);
+  assert.match(prov, /egoGachaTicket: \{ lp: 0, shards: 0, source: "local:卓配布の無料E\.G\.O抽出権利" \}/);
+  /* 有料抽出（所持100LP）とは別。所持状態を引き上げない。 */
+  assert.match(prov, /if \(provenance === "gachaTicket"\) return \{ \.\.\.CORE_RULES\.personaGachaTicket \};/);
+  assert.match(prov, /if \(provenance === "gachaTicket"\) return \{ \.\.\.CORE_RULES\.egoGachaTicket \};/);
+  assert.match(prov, /if \(provenance === "gachaPaid"\) \{\s*return ownsOne/);
+  /* UI 側の振り分け。 */
+  assert.match(sections, /how === "purchase" \? "purchase" : how === "ticket" \? "gachaTicket" : "gachaPaid"/);
+});
+
+test("E.G.O は core P242 の2経路（抽出100欠片 / 購入は番号横の欠片数）", () => {
+  const prov = read("../js/ledger-provenance.js");
+  assert.match(prov, /egoGacha: \{ lp: 0, shards: 100, source: "core:7533 E\.G\.O抽出"/);
+  /* 購入は DB の shards から引く。番号不明なら作らない（0 にしない）。 */
+  assert.match(prov, /if \(provenance === "purchase"\) \{[\s\S]{0,400}?if \(!hit\) return null;/);
+  assert.match(prov, /const shards = matched \? Number\.parseInt\(matched\[0\], 10\) \|\| 0 : 0;/);
+  assert.match(prov, /core:7536 E\.G\.O購入/);
 });
 
 test("人格の獲得費用は必ず window  через解決する（未定義だと全部『無料』になる）", () => {
@@ -610,7 +632,7 @@ test("削除は Undo/Redo が効く即時削除で、ごみ箱は置かない", 
 test("取得は種別と方法から金額を自動計算し、直近リザルトへ記録する", () => {
   /* 金額は DB 価格、無ければ core ルールの抽出/購入価格。 */
   assert.match(sections, /function resolveAcquireCost\(kind, how, context\)/);
-  assert.match(sections, /window\.LBT_acquireCost\?\.\(kind, how === "purchase" \? "purchase" : "gachaPaid", context\)/);
+  assert.match(sections, /const provenance = how === "purchase" \? "purchase" : how === "ticket" \? "gachaTicket" : "gachaPaid";/);
   assert.match(sections, /window\.LBT_provenance\?\.priceOf/);
   /* 純粋な種別 → 抽出/購入の二択を出すのは人格とE.G.Oだけ。 */
   const acq = sections.slice(sections.indexOf("const ACQUIRE_KINDS = ["), sections.indexOf("function resolveAcquireCost"));
@@ -778,7 +800,7 @@ test("E.G.O検索の簡易詳細もポップオーバーで開き、購入導線
      強要されない。 */
   assert.match(sections, /h\(DetailDialog, \{ open: !!selected, onClose: \(\) => setSelected\(null\), label: "E\.G\.O 詳細" \}, h\(EgoQuickDetail/);
   /* 未所持のときは購入（明細つき）。所持済みのときは購入導線を重ねない。 */
-  assert.match(sections, /onAcquire && acquireHow && onAcquireHowChange && !isOwned \? h\(AcquireBar, \{ state, kind: "ego", name: ego\.name, how: acquireHow, setHow: onAcquireHowChange, onAcquire \}\) : null/);
+  assert.match(sections, /onAcquire && acquireHow && onAcquireHowChange && !isOwned \? h\(AcquireBar, \{ state, kind: "ego", name: ego\.name, no: ego\.no, rank: ego\.rank, how: acquireHow, setHow: onAcquireHowChange, onAcquire \}\) : null/);
   assert.match(sections, /dispatch\(\{ type: "ADD_ROSTER_EGO", rank: selected\.rank, no: selected\.no, purchase: true \}\)/);
   /* 「購入せず所持に追加」（明細なし）を残す。 */
   assert.match(sections, /"購入せず所持に追加"/);
@@ -790,7 +812,7 @@ test("E.G.O の指定購入は無料にせず原典どおり欠片数を出す",
   assert.match(resolver, /acquisition: "purchase", acquisitionLabel: "指定購入",\s*price: \{ lp: 0, shards: Number\.parseInt\(egoEntry\?\.shards, 10\) \|\| 0 \}/);
   assert.match(resolver, /source: "core:9510 E\.G\.O購入"/);
   /* UI 側も指定購入を core ルール（抽出しか無い）に送らない。 */
-  assert.match(sections, /if \(kind === "persona" \|\| \(kind === "ego" && how !== "purchase"\)\)/);
+  assert.match(sections, /if \(kind === "persona" \|\| kind === "ego"\)/);
 });
 
 test("ショップとビルドの体裁がある", () => {
