@@ -659,7 +659,10 @@ const App = () => {
       case "items-build":
         return /* @__PURE__ */ React.createElement(BuildWorkspace, { state, dispatch });
       case "baseinfo":
-        return /* @__PURE__ */ React.createElement(BaseInfoWorkspace, { state, dispatch });
+        /* 他のセクション（roster/help/settings）と同じく SectionTitle を付ける。
+           ここは SECTIONS に title:"BASE INFO" / subtitle が定義されているのに
+           描画されておらず、本文が CHARACTER NAME の入力欄から始まっていた。 */
+        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SectionTitle, { num: sec.num, title: sec.title, subtitle: sec.subtitle }), /* @__PURE__ */ React.createElement(BaseInfoWorkspace, { state, dispatch }));
       case "roster":
         return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SectionTitle, { num: sec.num, title: sec.title, subtitle: sec.subtitle }), /* @__PURE__ */ React.createElement(RosterSection, { state, dispatch }));
       case "shop":
