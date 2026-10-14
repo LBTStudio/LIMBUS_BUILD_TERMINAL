@@ -972,3 +972,32 @@ label:has(> input[type="checkbox"]) {
   gap: var(--s-2);
 }
 
+/* --- ガチャ（抽出権利）: 商品を並べる画面ではないので帯の連続を保つ --- */
+/* .shop-filters が無いタブなので、sticky 直下は操作パネルになる。
+   既存カテゴリと同じ面と枠に落とし、この画面の中の1セクションと読めるようにする。 */
+.gacha-tickets-panel {
+  padding: var(--s-4);
+  background: var(--surface-1);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-md);
+}
+.gacha-ticket-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--line-dim);
+}
+.gacha-ticket-result {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  padding: var(--s-3);
+  background: var(--gold-tint);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-sm);
+}
+

@@ -1880,6 +1880,69 @@ const BuildItemsPanel = ({ state, dispatch }) => {
 /* ショップ。所持の唯一の取得口。
    既定は「未所持のみ」。カード1枚で所持化＝購入でき、金額は自動計算して
    直近リザルトへ記録する（リザルト未登録なら未分類＝待機項目）。 */
+/* 抽選結果の1行表示。種別の記号はここで閉じる。 */
+const hitLabel = (hit) => (hit.type === "ego"
+  ? `E.G.O ${hit.rank} No.${hit.no}`
+  : `${hit.mode === "t" ? "特異人格" : "人格"} No.${hit.no}`);
+
+/* ショップ「ガチャ」タブ。卓で配られる抽出権利（ローカルルール）の3種を区別する。
+   persona 人格抽出チケット … 人格からランダム1つ
+   ego     E.G.O抽出チケット … E.G.Oからランダム1つ
+   choice  選択抽出チケット … 人格かE.G.Oのどちらかを選んでからランダム1つ
+   有料の抽出（core P19-20/P242）とは別経路。使用しても明細には立たない。 */
+const GachaTicketsPanel = ({ state, dispatch }) => {
+  const h = React.createElement;
+  const tickets = state.tickets || {};
+  const [kind, setKind] = React.useState("persona");
+  const [choicePool, setChoicePool] = React.useState("persona");
+  const [last, setLast] = React.useState(null);
+  const KINDS = window.LBT_gachaTickets?.TICKET_KINDS || [];
+  const spec = KINDS.find((t) => t.id === kind);
+  const count = Number(tickets[kind]) || 0;
+  const poolKind = kind === "ego" ? "ego" : "persona";
+  const poolSize = window.LBT_gachaTickets?.buildPool
+    ? window.LBT_gachaTickets.buildPool(poolKind, state).length
+    : 0;
+  const bump = (delta) => dispatch({ type: "GRANT_TICKET", kind, count: delta });
+
+  const use = () => {
+    if (count <= 0) { toast(`${spec?.label || "このチケット"}を持っていません`); return; }
+    const out = window.LBT_gachaTickets?.previewRoll(kind, choicePool, state);
+    if (!out || !out.hit) { toast("抽選できる対象がありません（全人格／E.G.Oを所持しています）"); return; }
+    const hit = out.hit;
+    dispatch({ type: "GRANT_TICKET", kind, count: -1 });
+    if (hit.type === "ego") dispatch({ type: "ADD_ROSTER_EGO", no: hit.no, rank: hit.rank, purchase: true });
+    else dispatch({ type: "ADD_ROSTER", mode: hit.mode, no: hit.no, purchase: true, cost: { lp: 0, shards: 0 } });
+    setLast(hit);
+    toast(`${hit.name} を抽出しました（${spec?.label || "チケット"}）`);
+  };
+
+  return h("div", { className: "gacha-tickets-panel stack-3" },
+    h("p", { className: "ledger-note" },
+      "卓で配られる抽出権利。ルールブックには無いローカルルールで、有料の抽出とは別経路です。1回ごとに1枚を消費します。"),
+    h("div", { className: "segmented", role: "radiogroup", "aria-label": "抽選チケットの種類" },
+      KINDS.map((t) => h("button", {
+        key: t.id, type: "button", role: "radio", "aria-checked": kind === t.id,
+        className: kind === t.id ? "is-active" : "", onClick: () => { setKind(t.id); setLast(null); }
+      }, `${t.label} ×${Number(tickets[t.id]) || 0}`))),
+    kind === "choice" && h("div", { className: "segmented", role: "radiogroup", "aria-label": "選択抽出の抽出元" },
+      [["persona", "人格から"], ["ego", "E.G.Oから"]].map(([v, label]) => h("button", {
+        key: v, type: "button", role: "radio", "aria-checked": choicePool === v,
+        className: choicePool === v ? "is-active" : "", onClick: () => { setChoicePool(v); setLast(null); }
+      }, label))),
+    h("div", { className: "gacha-ticket-row" },
+      h("span", { className: "ledger-note" }, `${spec?.hint || ""}　対象 ${poolSize} 件`),
+      h("div", { className: "shop-toolbar-main" },
+        h(Button, { size: "sm", variant: "ghost", onClick: () => bump(-1), disabled: count <= 0 }, "−1"),
+        h(Button, { size: "sm", variant: "ghost", onClick: () => bump(1) }, "+1"),
+        h(Button, { size: "sm", variant: "ghost", onClick: () => bump(5) }, "+5"),
+        h(Button, { size: "sm", variant: "primary", onClick: use, disabled: count <= 0 }, "抽選する"))),
+    last && h("div", { className: "gacha-ticket-result" },
+      h("span", { className: "t-label" }, "抽選結果"),
+      h("strong", null, last.name),
+      h("span", { className: "ledger-note" }, hitLabel(last)))
+  );
+};
 const ShopSection = ({ state, dispatch }) => {
   const h = React.createElement;
   const tab = state.ui?.shopTab || "support";
@@ -2140,12 +2203,15 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
        另一位的天空に持ち越すと、「同じ列表の続き」に見えるため）。 */
     h("div", { className: "shop-tabs-sticky" },
       h("div", { className: "segmented shop-tabs", role: "tablist", "aria-label": "ショップの種別" },
-        [["support", "サポート"], ["ego", "E.G.O"], ["spirit", "精神"], ["item", "アイテム"]].map(([value, label]) => h("button", {
+        [["support", "サポート"], ["ego", "E.G.O"], ["spirit", "精神"], ["item", "アイテム"], ["gacha", "ガチャ"]].map(([value, label]) => h("button", {
           key: value, type: "button", role: "tab", "aria-selected": tab === value, className: tab === value ? "is-active" : "",
           onClick: () => { setTab(value); scrollWorkspaceToTop(); }
         }, label))
       )
     ),
+    /* ガチャは商品を並べた画面ではなく、抽選権利の操作画面。
+       検索/カテゴリ/ソートは全部意味が無いので、このタブだけ専用パネルに分ける。 */
+    tab === "gacha" ? h(GachaTicketsPanel, { state, dispatch }) :
     h("div", { className: `shop-filters codex-filters${tab === "ego" ? " ego-catalog-filters" : ""}` },
       h("div", { className: "shop-toolbar-main" },
         h("div", { className: "codex-search" }, h(Icon, { name: "search", size: 14 }),

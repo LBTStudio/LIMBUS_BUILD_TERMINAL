@@ -305,8 +305,8 @@ test("ショップは未所持のみを既定で出し、導入は購入とし�
   assert.match(shop, /dispatch\(\{ type: "ADD_ITEM", itemId: item\.id \}\);/);
   /* 所持上限に達したアイテムは購入できない。 */
   assert.match(shop, /card\(item\.id, item\.name, item\.category \|\| "その他", "item",[\s\S]{0,200}?atCap\(item\), "所持上限に達しています"/);
-  /* 4種別のタブ。 */
-  assert.match(shop, /\[\["support", "サポート"\], \["ego", "E\.G\.O"\], \["spirit", "精神"\], \["item", "アイテム"\]\]/);
+/* 4種別のタブ + ガチャ（抽出権利）。 */
+     assert.match(shop, /\[\["support", "サポート"\], \["ego", "E\.G\.O"\], \["spirit", "精神"\], \["item", "アイテム"\], \["gacha", "ガチャ"\]\]/);
   /* 共通カードで描く。 */
   assert.match(shop, /className: "shop-card spirit-item"/);
   assert.match(shop, /className: "shop-grid"/);
@@ -325,6 +325,30 @@ test("特異人格は指定購入できない（core P203 に購入が無い）"
   assert.match(codex, /purchaseBlocked: acquireHow === "purchase" && Boolean\(personaPurchaseBlocked\(p, m\)\)/);
   assert.match(codex, /onQuickAcquire: gated \|\| \(acquireHow === "purchase" && personaPurchaseBlocked\(p, m\)\)\s*\?\s*null/);
   assert.match(codex, /!isOwned && onQuickAcquire && !purchaseBlocked/);
+});
+
+test("抽象権3種を区別してショップのガチャタブで扱う（ローカルルール）", () => {
+  /* 3種は別在庫。人格/E.G.O/選択(どちらからか)を混ぜない。 */
+  assert.match(reducer, /tickets: \{\s*persona: 0,\s*ego: 0,\s*choice: 0\s*\}/);
+  assert.match(reducer, /case "SET_TICKET_COUNT"[\s\S]{0,400}?\["persona", "ego", "choice"\]\.includes\(kind\)/);
+  /* 加算と減算の両方。減算を 0 で潰すと「使う」が無効になる。 */
+  assert.match(reducer, /case "GRANT_TICKET"[\s\S]{0,400}?const delta = Number\(action\.count\) \|\| 0;/);
+  assert.match(reducer, /const next = Math\.max\(0, \(Number\(tickets\[kind\]\) \|\| 0\) \+ delta\);/);
+  /* state の3種とUIの3種が同じ id を共有していること。 */
+  assert.match(sections, /const hitLabel = \(hit\) =>/);
+  assert.match(sections, /const GachaTicketsPanel = \(\{ state, dispatch \}\) =>/);
+  /* ガチャタブは商品を並べた画面ではないので検索/カテゴリを出さない。 */
+  assert.match(sections, /tab === "gacha" \? h\(GachaTicketsPanel, \{ state, dispatch \}\)/);
+  /* 選択抽出だけ人格かE.G.Oの選択が要る。 */
+  assert.match(sections, /kind === "choice" && h\("div", \{ className: "segmented"[\s\S]{0,200}?\[\["persona", "人格から"\], \["ego", "E\.G\.Oから"\]\]/);
+  /* 使用は1枚消費してから所持へ。抽選結果を所持へ入れる。 */
+  assert.match(sections, /dispatch\(\{ type: "GRANT_TICKET", kind, count: -1 \}\);/);
+  assert.match(sections, /if \(hit\.type === "ego"\) dispatch\(\{ type: "ADD_ROSTER_EGO", no: hit\.no, rank: hit\.rank, purchase: true \}\);\s*else dispatch\(\{ type: "ADD_ROSTER", mode: hit\.mode, no: hit\.no, purchase: true, cost: \{ lp: 0, shards: 0 \} \}\);/);
+  /* 所持済みは引かない（core:361/7536 同種複数保有禁止）。 */
+  const tickets = read("../js/gacha-tickets.js");
+  assert.match(tickets, /owned\.ego\.has\(`\$\{e\.rank\}:\$\{e\.no\}`\)/);
+  assert.match(tickets, /!owned\.persona\.has\(String\(p\.no\)\)/);
+  assert.match(tickets, /!owned\.tokui\.has\(String\(p\.no\)\)/);
 });
 
 test("人格の獲得は core 3章 P19-20 の2種類だけ（30LP支給を人格価格にしない）", () => {
