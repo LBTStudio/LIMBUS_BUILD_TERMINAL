@@ -370,7 +370,19 @@ test("ガチャは任意回数をまとめて引ける（既得は再抽選し�
   assert.match(g, /paidCost, ticketCount, ticketKindFor, draw, drawPersonaWithBranch, drawN/);
   /* UI は回数を選べ、結果はまとめて出る。 */
   assert.match(sections, /const \[times, setTimes\] = React\.useState\(1\);/);
-  assert.match(sections, /\[1, 3, 5, 10\]\.map\(\(n\) => h\("button"/);
+  assert.match(sections, /const TIMES_OPTIONS = \[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20\];/);
+  /* 回数はプルダウン。1〜20 の任意の回数を入れられる。 */
+  assert.match(sections, /className: "gacha-times-field"[\s\S]{0,400}?"aria-label": "抽出手数"/);
+  assert.match(sections, /TIMES_OPTIONS\.map\(\(n\) => h\("option", \{ key: n, value: String\(n\) \}, `\$\{n\}回`\)\)/);
+  assert.doesNotMatch(sections, /role: "radiogroup", "aria-label": "抽出手数"/);
+  /* 通貨で払うときは回数ぶんの合計残高で可否を判定する。
+     1回分だけを見ると「途中まで引いて止まる」ことになる。 */
+  assert.match(sections, /const totalCost = \{ lp: \(Number\(cost\.lp\) \|\| 0\) \* times, shards: \(Number\(cost\.shards\) \|\| 0\) \* times \};/);
+  assert.match(sections, /const currencyShort = pay === "paid" && balance && \(Number\(balance\.lp\) < totalCost\.lp \|\| Number\(balance\.shards\) < totalCost\.shards\);/);
+  assert.match(sections, /const ticketShort = pay === "ticket" && held < times;/);
+  assert.match(sections, /disabled: !!blockedReason, title: blockedReason \|\| undefined \}/);
+  assert.match(sections, /blockedReason && h\("p", \{ className: "ledger-note", role: "status" \}, blockedReason\)/);
+  assert.match(sections, /if \(blockedReason\) \{ toast\(blockedReason\); return; \}/);
   assert.match(sections, /G\?\.drawN\(route, state, \{ pay, pack: activePack, times \}\)/);
   assert.match(sections, /type: "SPEND_TICKET", kind: out\.ticketKind, pack: out\.ticketPack, count: -hits\.length/);
   assert.match(sections, /抽選結果（\$\{last\.hits\.length\}件）/);

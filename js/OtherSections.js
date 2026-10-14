@@ -1881,6 +1881,8 @@ const BuildItemsPanel = ({ state, dispatch }) => {
    既定は「未所持のみ」。カード1枚で所持化＝購入でき、金額は自動計算して
    直近リザルトへ記録する（リザルト未登録なら未分類＝待機項目）。 */
 /* 抽選結果の1行表示。種別の記号はここで閉じる。 */
+/* 抽出手数。1〜10 は等間隔で、さらに 15/20 を足す。任意回数を入れたい時は直接指定できる。 */
+const TIMES_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20];
 const hitLabel = (hit) => (hit.type === "ego"
   ? `E.G.O ${hit.rank} No.${hit.no}`
   : hit.type === "themePack"
@@ -1917,7 +1919,26 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
   const cost = pay === "ticket" ? { lp: 0, shards: 0, label: "無料" } : (G?.paidCost?.(route, state, activePack) || {});
   const labels = window.LBT_TICKET_KIND_LABEL || {};
 
+  /* 通貨で払うとき、回数ぶんの合計残高でできるかを判定する。
+     1回分だけを見ると「3回押したけど2回目で余额が尽きる」を防げない。 */
+  const totalCost = { lp: (Number(cost.lp) || 0) * times, shards: (Number(cost.shards) || 0) * times };
+  const balance = window.LBT_computeLedgerBalance?.(state.results || [], state.entries || []);
+  const totalCostLabel = totalCost.lp || totalCost.shards
+    ? `1回 ${cost.label || ""} × ${times} = ${totalCost.lp ? `LP ${totalCost.lp}` : ""}${totalCost.lp && totalCost.shards ? " / " : ""}${totalCost.shards ? `欠片 ${totalCost.shards}` : ""}`
+    : "無料";
+  const ticketShort = pay === "ticket" && held < times;
+  const currencyShort = pay === "paid" && balance && (Number(balance.lp) < totalCost.lp || Number(balance.shards) < totalCost.shards);
+  const blockedReason = poolSize <= 0
+    ? "抽選できる対象がありません"
+    : pay === "ticket"
+      ? (held <= 0 ? "対応するチケットを持っていません" : ticketShort ? `チケットが足りません（必要 ${times}枚 / 所持 ${held}枚）` : "")
+      : currencyShort
+        ? `残高が不足しています（${Number(balance.lp) < totalCost.lp ? `LP ${balance.lp} / 必要 ${totalCost.lp}` : ""}${Number(balance.lp) < totalCost.lp && Number(balance.shards) < totalCost.shards ? " / " : ""}${Number(balance.shards) < totalCost.shards ? `欠片 ${balance.shards} / 必要 ${totalCost.shards}` : ""}）`
+        : "";
+
   const run = () => {
+    /* 二重実行を防ぐ。残高不足は押 전에止めているが、ここでも，拒绝する。 */
+    if (blockedReason) { toast(blockedReason); return; }
     const out = G?.drawN(route, state, { pay, pack: activePack, times });
     if (!out || !out.hits.length) {
       const why = out?.reason === "no-ticket" ? "対応するチケットを持っていません" : "抽選できる対象がありません";
@@ -1980,13 +2001,18 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
         className: pay === v ? "is-active" : "", onClick: () => { setPay(v); setLast(null); }
       }, label))),
     h("div", { className: "gacha-ticket-row" },
-      h("label", { className: "ledger-note" }, "回数"),
-      h("div", { className: "segmented", role: "radiogroup", "aria-label": "抽出手数" },
-        [1, 3, 5, 10].map((n) => h("button", {
-          key: n, type: "button", role: "radio", "aria-checked": times === n,
-          className: times === n ? "is-active" : "", onClick: () => setTimes(n)
-        }, `${n}回`))),
-      h("span", { className: "ledger-note" }, cost?.label || "無料"),
+      /* 回数はプルダウンで。1〜20 の任意の回数を指定できる。 */
+      h("label", { className: "gacha-times-field" },
+        h("span", { className: "ledger-note" }, "回数"),
+        h("select", {
+          className: "select",
+          value: String(times),
+          "aria-label": "抽出手数",
+          onChange: (e) => { setTimes(Math.max(1, Number(e.target.value) || 1)); setLast(null); }
+        }, TIMES_OPTIONS.map((n) => h("option", { key: n, value: String(n) }, `${n}回`)))),
+      h("span", { className: "ledger-note" }, pay === "ticket"
+        ? `${ticketLabel(ticketKind, ticketPack)} ×${held}（1回あたり1枚）`
+        : totalCostLabel),
       h("div", { className: "shop-toolbar-main" },
         h(Button, {
           size: "sm", variant: "ghost",
@@ -1995,7 +2021,8 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
         }, "−1"),
         h(Button, { size: "sm", variant: "ghost", onClick: () => dispatch({ type: "GRANT_TICKET", kind: ticketKind, pack: ticketPack, count: 1 }) }, "+1"),
         h(Button, { size: "sm", variant: "ghost", onClick: () => dispatch({ type: "GRANT_TICKET", kind: ticketKind, pack: ticketPack, count: 5 }) }, "+5"),
-        h(Button, { size: "sm", variant: "primary", onClick: run, disabled: poolSize <= 0 || (pay === "ticket" && held <= 0) }, "抽選する"))),
+        h(Button, { size: "sm", variant: "primary", onClick: run, disabled: !!blockedReason, title: blockedReason || undefined }, times > 1 ? `${times}回抽選` : "抽選する"))),
+    blockedReason && h("p", { className: "ledger-note", role: "status" }, blockedReason),
     last && h("div", { className: `gacha-ticket-result${last.hits.some((x) => x.branch === "special") ? " is-branch" : ""}` },
       last.hits.some((x) => x.branch === "special") && h("span", { className: "gacha-branch-badge" }, "特異人格チャンス"),
       h("span", { className: "t-label" }, `抽選結果（${last.hits.length}件）`),

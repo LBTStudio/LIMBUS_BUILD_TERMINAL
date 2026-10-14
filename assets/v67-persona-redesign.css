@@ -1027,6 +1027,15 @@ label:has(> input[type="checkbox"]) {
   gap: var(--s-2);
   flex-wrap: wrap;
 }
+/* 回数はプルダウン。1..20 を任意で選べる。 */
+.gacha-times-field {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+.gacha-times-field .select {
+  min-inline-size: 88px;
+}
 
 /* --- 所持詳細: 同期化・同期MAXの操作 -----------------------------------
    解除の手段が届かない状態を無くすため、設定と解除を同じ場所に並べる。 */
