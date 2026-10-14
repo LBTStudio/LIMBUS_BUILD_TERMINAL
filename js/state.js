@@ -19,6 +19,30 @@ function personaKeywordEvidence(persona) {
    収入として計上する。 */
 const INITIAL_LP = 30;
 window.LBT_INITIAL_LP = INITIAL_LP;
+
+/* 「初期作成」リザルトを作る。キャラ作成時の支給（core:344）を収入に置く。 */
+function makeInitialResult() {
+  return {
+    id: "res-initial",
+    name: "初期作成",
+    date: String(new Date().toISOString().slice(0, 10)),
+    income: { lp: INITIAL_LP, shards: 0 },
+    note: "キャラ作成時の支給（core:344）。この直後の獲得はここに帰属します。",
+    createdAt: Date.now()
+  };
+}
+
+/* 継承アカウントの判定。直近リザルトの収入が初期支給（30LP）と一致するなら、
+   その支給は既に記録済みなので「初期作成」を重ねない。
+   一致の判定は「リザルト名が初期作成」または「収入がちょうど30LP」で見る。 */
+function hasInitialGrant(results) {
+  const list = Array.isArray(results) ? results : [];
+  if (!list.length) return false;
+  if (list.some((r) => r?.id === "res-initial" || r?.name === "初期作成")) return true;
+  const latest = list[list.length - 1];
+  const income = normalizeCurrency(latest?.income);
+  return income.lp === INITIAL_LP && income.shards === 0;
+}
 /* 抽出権利の分類。ローカルルール（ルールブックには無いが卓で配られる）。
    kind=persona 人格抽出チケット … 人格からランダム1つ
    kind=ego     E.G.O抽出チケット … E.G.Oからランダム1つ
@@ -1111,18 +1135,19 @@ function normalizeStateShape(raw) {
   /* キャラ作成直後の所得は「初期作成」リザルトにまとめる。
      core 3章 P19-20「PCにはキャラ作成時に30LPが支給」（core:344）なので、
      その30LPをこのリザルトの収入に置き、最初に選んだ人格などの支出も
-     ここに帰属させる（直近リザルトは結果が1件だけなので自然にここへ落ちる）。
-     既にリザルトのあるアカウントには足さない。最初の獲得を既に別のリザルトで
-     記録している場合、ここで30LPを二重に数えることになるため。 */
+     ここに帰属させる（直近リザルトが1件だけなので自然にここへ落ちる）。
+
+     継承アカウントの判定：
+       - リザルトが無い … 新規作成。初期作成を作って 30LP を置く。
+       - 直近リザルトが初期支給と一致 … 既に誰かがこの支給を記録済み。
+         30LP を重ねると二重計上なので触らない。
+       - 直近リザルトが初期支給と違う … 記録済みだが支給が別リザルトに
+         散らばっている可能性。.initial を先頭に差し、ここへ 30LP を置いて
+         以後の差分をこのリザルト起点で追えるようにする。 */
   if (!next.results.length) {
-    next.results = [{
-      id: "res-initial",
-      name: "初期作成",
-      date: String(new Date().toISOString().slice(0, 10)),
-      income: { lp: INITIAL_LP, shards: 0 },
-      note: "キャラ作成時の支給（core:344）。この直後の獲得はここに帰属します。",
-      createdAt: Date.now()
-    }];
+    next.results = [makeInitialResult()];
+  } else if (!hasInitialGrant(next.results)) {
+    next.results = [makeInitialResult(), ...next.results];
   }
   const knownResultIds = new Set(next.results.map((r) => r.id));
   next.entries = next.entries.map((entry) => ({

@@ -100,13 +100,39 @@ test("リザルトが空なら『初期作成』を作り、キャラ作成時�
   assert.equal(context.window.LBT_latestResultId(next), initial.id);
 });
 
-test("既にリザルトのあるアカウントには初期作成を足さない（二重計上を避ける）", () => {
-  const played = {
+test("継承アカウント: 直近リザルトが初期支給(30LP)と一致するなら足さない", () => {
+  /* 誰かが既に支給を記録済みのケース。重ねると30LPが二重計上になる。 */
+  const already = {
+    ...base,
+    results: [{ id: "res-1", name: "第一夜", income: { lp: "30", shards: "0" } }],
+    entries: []
+  };
+  const next = context.window.LBT_normalizeStateShape(already);
+  assert.equal(next.results.length, 1, "増えない");
+  assert.equal(next.results[0].name, "第一夜");
+});
+
+test("継承アカウント: 支給が一致しなければ先頭に初期作成を置く", () => {
+  /* 支給を記録していない/記録が散らばっているケース。基点を作る。 */
+  const legacy = {
     ...base,
     results: [{ id: "res-1", name: "第一夜", income: { lp: "500", shards: "500" } }],
     entries: []
   };
-  const next = context.window.LBT_normalizeStateShape(played);
-  assert.equal(next.results.length, 1, "増えない");
-  assert.equal(next.results[0].name, "第一夜");
+  const next = context.window.LBT_normalizeStateShape(legacy);
+  assert.equal(next.results.length, 2, "先頭に初期作成が増える");
+  assert.equal(next.results[0].id, "res-initial");
+  assert.equal(next.results[0].income.lp, 30);
+  assert.equal(next.results[1].name, "第一夜", "既存リザルトは残る");
+});
+
+test("初期作成の30LPから人格購入が差し引かれる", () => {
+  const fresh = context.window.LBT_normalizeStateShape({ ...base, results: [], entries: [] });
+  const before = context.window.LBT_computeLedgerBalance(fresh.results, fresh.entries).lp;
+  assert.equal(before, 30, "初期支給30LP");
+  /* 未所持の人格を購入は20LP（core:620）。同じリザルトから減る。 */
+  const next = reducer(fresh, { type: "ADD_ROSTER", mode: "n", no: 1, purchase: true, cost: { lp: 20, shards: 0 } });
+  const after = context.window.LBT_computeLedgerBalance(next.results, next.entries).lp;
+  assert.equal(after, 10, "30 - 20 = 10 が残る");
+  assert.equal(next.entries[0].resultId, "res-initial", "初期作成に帰属");
 });
