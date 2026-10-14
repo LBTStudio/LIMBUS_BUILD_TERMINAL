@@ -961,12 +961,15 @@ function setTicketIncome(state, kind, pack, delta, resultId) {
 }
 
 /* 抽出チケットを消費した明細を立てる（所持を引いた証拠）。 */
-function appendTicketSpend(state, kind, pack, ref, resultId) {
+function appendTicketSpend(state, kind, pack, count, ref, resultId) {
+  const n = Math.max(1, Number(count) || 1);
   const label = window.LBT_ticketLabel ? window.LBT_ticketLabel(kind, pack) : (TICKET_KIND_LABEL[kind] || "抽出チケット");
-  const tickets = kind === "pack" ? { persona: 0, ego: 0, choice: 0, pack: { [pack]: 1 } } : { persona: 0, ego: 0, choice: 0, pack: {}, [kind]: 1 };
+  const tickets = kind === "pack"
+    ? { persona: 0, ego: 0, choice: 0, pack: { [pack]: n } }
+    : { persona: 0, ego: 0, choice: 0, pack: {}, [kind]: n };
   return appendLedgerEntry(state, {
     kind: "ticket",
-    name: `${label} を使用`,
+    name: n > 1 ? `${label} を${n}枚使用` : `${label} を使用`,
     cost: { lp: 0, shards: 0 },
     tickets,
     resultId,
@@ -2348,15 +2351,25 @@ function appReducer(state, action) {
       if (!delta) return state;
       return setTicketIncome(state, kind, pack, delta, action.resultId);
     }
-    /* 抽出チケットを使ったときの消費。収入から引いて残数が減る。 */
+    /* 抽出チケットを使ったときの消費。収入から引いて残数が減る。
+       一括抽選は「引いた回数ぶん」をまとめて 1 action で送るので、
+       count を honoured しないと 5 回引いて 1 枚しか消費されない。
+       実際は 5 枚で 5 回引くと残数が 5 → 6 になり、引くほど増える。 */
     case "SPEND_TICKET": {
       const kind = action.kind;
       if (!TICKET_KINDS.includes(kind)) return state;
       const pack = kind === "pack" ? String(action.pack || "") : null;
       if (kind === "pack" && !pack) return state;
       const balance = computeTicketBalance(state.results || [], state.entries || []);
-      if (ticketTotal(balance, kind, pack) <= 0) return state;
-      return appendTicketSpend(state, kind, pack, action.ref, action.resultId);
+      const available = ticketTotal(balance, kind, pack);
+      if (available <= 0) return state;
+      /* count は負数で「消費した枚数」を表す。指定が無ければ 1 枚。 */
+      const asked = Math.abs(Number(action.count) || 0);
+      const use = asked > 0 ? asked : 1;
+      /* 所持より多くは消費できない。足りなければそれだけ使う。 */
+      const take = Math.min(use, available);
+      if (take <= 0) return state;
+      return appendTicketSpend(state, kind, pack, take, action.ref, action.resultId);
     }
     /* 所持への追加。人格は DB 価格が無いため、purchase に core ルールの金額
        （抽出/購入）を渡されたときだけ明細を立てる。所持だけの操作は

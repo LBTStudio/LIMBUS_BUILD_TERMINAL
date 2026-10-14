@@ -400,10 +400,13 @@ test("抽出チケットはリザルト収入で管理し、ショップのガ�
      assert.match(reducer, /const out = \{ persona: toNumber\(raw\.persona\), ego: toNumber\(raw\.ego\), choice: toNumber\(raw\.choice\), pack: \{\} \};/);
      assert.match(reducer, /income: \{ \.\.\.normalizeCurrency\(result\.income\), tickets: normalizeTickets\(result\.income\?\.tickets\) \},/);
      assert.match(reducer, /tickets: normalizeTickets\(entry\.tickets\),/);
-     /* 付与は直近リザルトの収入へ、消費は明細へ。 */
-     assert.match(reducer, /case "GRANT_TICKET"[\s\S]{0,300}?return setTicketIncome\(state, kind, pack, delta, action\.resultId\);/);
-     assert.match(reducer, /case "SPEND_TICKET"[\s\S]{0,400}?return appendTicketSpend\(state, kind, pack, action\.ref, action\.resultId\);/);
-     assert.match(reducer, /function setTicketIncome\(state, kind, pack, delta, resultId\)/);
+      /* 付与は直近リザルトの収入へ、消費は明細へ。
+         消費は枚数を受け取る（一括抽選は引いた回数ぶんを一度に送る）。 */
+      assert.match(reducer, /case "GRANT_TICKET"[\s\S]{0,300}?return setTicketIncome\(state, kind, pack, delta, action\.resultId\);/);
+      assert.match(reducer, /case "SPEND_TICKET"[\s\S]{0,700}?Math\.min\(use, available\)/);
+      assert.match(reducer, /return appendTicketSpend\(state, kind, pack, take, action\.ref, action\.resultId\);/);
+      assert.match(reducer, /function appendTicketSpend\(state, kind, pack, count, ref, resultId\)/);
+      assert.match(reducer, /function setTicketIncome\(state, kind, pack, delta, resultId\)/);
      assert.match(reducer, /const targetId = resultId \|\| latestResultId\(state\);/);
      /* state とUIが同じ分類を共有。 */
      assert.match(sections, /const hitLabel = \(hit\) =>/);

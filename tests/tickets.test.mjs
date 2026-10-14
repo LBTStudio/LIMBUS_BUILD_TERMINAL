@@ -191,3 +191,47 @@ test("UI が送る action はすべて reducer が受け付けている", () => 
   }
   assert.deepEqual(orphans, [], "reducer に無い action を送ると default へ落ちて黙って捨てられる: " + orphans.join(", "));
 });
+
+/* --- 一括抽選のチケット消費 ------------------------------------------------
+   ガチャは「引いた回数ぶん」を count でまとめて 1 action で送る。
+   SPEND_TICKET が count を無視すると、5 枚で 5 回引いても 1 枚しか消費されず、
+   残数が増える（5 - (-1) = 6）。 */
+const withTickets = (n) => reducer(context.window.LBT_normalizeStateShape({}), {
+  type: "ADD_RESULT",
+  name: "初期",
+  income: { lp: 0, shards: 0, tickets: { persona: n, ego: 0, choice: 0, pack: {} } }
+});
+
+test("一括抽選は引いた回数ぶんチケットを消費する", () => {
+  const next = reducer(withTickets(5), { type: "SPEND_TICKET", kind: "persona", count: -5 });
+  assert.equal(balanceOf(next).persona, 0, "5枚で5回なら残0");
+});
+
+test("SPEND_TICKET の count は負数で「消費した枚数」を表す", () => {
+  const next = reducer(withTickets(10), { type: "SPEND_TICKET", kind: "persona", count: -3 });
+  assert.equal(balanceOf(next).persona, 7);
+});
+
+test("count 無しなら 1 枚だけ消費する（従来どおり）", () => {
+  const next = reducer(withTickets(5), { type: "SPEND_TICKET", kind: "persona" });
+  assert.equal(balanceOf(next).persona, 4);
+});
+
+test("所持より多くは消費しない（残を負にしない）", () => {
+  const next = reducer(withTickets(3), { type: "SPEND_TICKET", kind: "persona", count: -5 });
+  assert.equal(balanceOf(next).persona, 0, "足りなければ手前まで使って止まる");
+});
+
+test("0枚なら何も消費しない（明細も残さない）", () => {
+  const before = withTickets(0);
+  const next = reducer(before, { type: "SPEND_TICKET", kind: "persona", count: -1 });
+  assert.equal(balanceOf(next).persona, 0);
+  assert.equal((next.entries || []).length, (before.entries || []).length, "明細が増えるべきでない");
+});
+
+test("複数枚の消費は明細に枚数が残る", () => {
+  const next = reducer(withTickets(5), { type: "SPEND_TICKET", kind: "persona", count: -5 });
+  const entry = (next.entries || [])[0];
+  assert.equal(entry.tickets.persona, 5, "明細が 5 枚ぶんの消費を表す");
+  assert.match(entry.name, /5枚/, "明細の名にも枚数が分かる");
+});
