@@ -604,9 +604,16 @@ test("ステータス一覧とラベル一覧は駒整形へ移設する（設�
   assert.doesNotMatch(sections, /settings-major-name" \}, "ステータス"\)/);
   assert.doesNotMatch(sections, /settings-major-name" \}, "ラベル"\)/);
   assert.match(sections, /"組み立て \/ BUILD PARAMETERS"/);
-  /* 組み立て設定は人格と無関係。空状態の表現に隠さない。 */
-  const order = codex.indexOf("まだ人格が装備されていません。");
-  assert.ok(order > 0 && codex.indexOf("LBT_BuildParamsPanel") > order, "空状態より後ろに置く");
+  /* 組み立て設定は人格と無関係。人格が未装備でも、名前・PL・立ち絵・
+     INITIATIVE・COLOR と組み立て設定の両方を開ける。 */
+  const order = codex.indexOf("人格は未装備です。");
+  assert.ok(order > 0 && codex.indexOf("LBT_BuildParamsPanel") > order, "補足より後ろに組み立てを置く");
+  /* 人格未装備を理由に駒整形を null にしない。名前等的設定は人格とは別。 */
+  assert.doesNotMatch(codex, /if \(!state\.personaSrc \|\| !BaseSection\) return null;/);
+  assert.match(codex, /if \(!BaseSection\) return null;/);
+  /* 補充表示は妨げにしない（元の empty 枠ではなく補助の一行にする）。 */
+  assert.match(codex, /!equipped && h\("p", \{ className: "ledger-note"/);
+  assert.doesNotMatch(codex, /!equipped && h\("div", \{ className: "empty"/);
   /* 面板が使う値も一緒に移っている（_settings側だけにあると壊れる）。 */
   assert.match(sections, /const effectiveStatuses = React\.useMemo\(\(\) => \{[\s\S]{0,900}?dst\.forEach/);
   assert.equal((sections.match(/const effectiveStatuses = React\.useMemo/g) || []).length, 1);

@@ -480,7 +480,10 @@ const EquippedSummary = ({ state, dispatch, onExpand, onShowDetail, detailShown,
    HP/SAN/速度・耐性・キーワード・固有バフはビルドの人格タブが担当する。 */
 const BaseInfoPanel = ({ state, dispatch }) => {
   const BaseSection = window.BaseSection;
-  if (!state.personaSrc || !BaseSection) return null;
+  /* 名前・PL・立ち絵・INITIATIVE・COLOR はキャラクター自身の設定で、人格とは
+     独立している。ここで人格未装備を理由に null を返すと、キャラクターを作る
+     前の段階で駒整机を触れなくなり、「人格を選んでから名前をつける」順序になる。 */
+  if (!BaseSection) return null;
   return /* @__PURE__ */ React.createElement("div", { className: "base-info-panel" },
     /* @__PURE__ */ React.createElement(BaseSection, { state, dispatch })
   );
@@ -490,12 +493,11 @@ const BaseInfoWorkspace = ({ state, dispatch }) => {
   const h = React.createElement;
   const equipped = !!state.personaSrc;
   return h("div", { className: "baseinfo-workspace" },
+    /* 名前・PL・立ち絵・INITIATIVE・COLOR は人格と無関係なので、常に開ける。
+       人格が無くてもここでキャラクターを組み立ててから人格を選べる。 */
     h("div", { className: "equipped-unified" }, h(BaseInfoPanel, { state, dispatch })),
-    !equipped && h("div", { className: "empty", style: { padding: "var(--s-5)" } },
-      "まだ人格が装備されていません。",
-      h("br", null),
-      "ビルドの人格タブから人格を選んで装備すると、ここに名前と駒が表示されます。"
-    ),
+    !equipped && h("p", { className: "ledger-note", style: { marginTop: "var(--s-2)" } },
+      "人格は未装備です。上の名前・PL・立ち絵・INITIATIVE・COLOR は人格と無関係なので、先にここで整えてからビルドの人格タブで人格を選んでください。"),
     /* 組み立て設定（ステータス一覧・ラベル一覧）はここが唯一の場所。
        人格と無関係なので、人格が装備されていなくても開ける。 */
     typeof window.LBT_BuildParamsPanel === "function" ? window.LBT_BuildParamsPanel({ state, dispatch }) : null
