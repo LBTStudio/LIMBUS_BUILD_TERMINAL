@@ -125,8 +125,11 @@ test("card-body が card-header の内側に入っていない", () => {
 
 test("リザルトカードは header と body が兄弟になっている", () => {
   /* 2026-10-15 の回帰。card-header の閉じ括弧が1つ落ちていた。
-     同じ取り違えが再発しないよう、カード本体の並びを直接見る。 */
-  const body = callsWithClassName("card-body").find((b) => b.line > 3500 && b.line < 3700);
+     同じ取り違えが再発しないよう、カード本体の並びを直接見る。
+     2026-10-16: 行番号固定だと無関係な追記で壊れるため、見出しラベルを錨にする。 */
+  const anchor = sections.indexOf('"RESULT / リザルト"');
+  assert.ok(anchor > 0, "リザルトの見出しがあること");
+  const body = callsWithClassName("card-body").find((b) => b.open > anchor);
   assert.ok(body, "リザルトカードの card-body があること");
   const header = callsWithClassName("card-header").find((hd) => hd.line < body.line && body.line - hd.line < 20);
   assert.ok(header, "card-body の直前に card-header があること");

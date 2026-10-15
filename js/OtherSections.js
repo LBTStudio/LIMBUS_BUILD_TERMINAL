@@ -1934,9 +1934,45 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
   /* やめるのは「まだ何も記録していない」状態だけ（出目を見てから選び直す、
      というのは別の抜け道）。文言でそう伝える：
      利用者が「引いた結果を取り消した」と誤解しないこと。 */
-  const cancelDraw = () => { setPending(null); toast("まだ引いていません。記録は残していません。"); };
+  const cancelDraw = () => {
+    if (committingRef.current) return; /* 確定処理中は取り消せない（記録が宙に浮く） */
+    setPending(null);
+    toast("まだ引いていません。記録は残していません。");
+  };
+
+  /* 確定処理はビーコン取得と署名で非同期になる。連打で二重に記録しない
+     よう施錠する。 */
+  const committingRef = React.useRef(false);
+
+  /* 直近の drand ラウンドを外部錨として取る。取れなければ null を返し、
+     未検証のまま記録する（記録しないより正直に残す方がよい）。確定操作の
+     手触りを壊さないよう 2 秒で見切る。 */
+  const fetchBeaconForDraw = async () => {
+    if (!G?.fetchBeacon || !G?.beaconRoundAt) return null;
+    try {
+      const round = G.beaconRoundAt(Math.floor(Date.now() / 1000));
+      const beacon = await Promise.race([
+        G.fetchBeacon({ round }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 2000))
+      ]);
+      return beacon || null;
+    } catch (e) {
+      return null;
+    }
+  };
 
   const commitDraw = () => {
+    if (!pending || committingRef.current) return;
+    committingRef.current = true;
+    commitDrawAsync()
+      .catch((error) => {
+        console.error("gacha: 確定処理に失敗", error);
+        toast("確定処理で問題が起きました。画面を再読み込みして記録を確認してください。");
+      })
+      .finally(() => { committingRef.current = false; });
+  };
+
+  const commitDrawAsync = async () => {
     if (!pending) return;
     const { seed, out } = pending;
     const hits = out.hits;
@@ -1951,7 +1987,18 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
        この action を打ち直して行う。seal を付けないと、確定済みの抽出が
        Ctrl+Z 1回で丸ごと消え、支払いも戻って「引いたのに引いた形跡が
        ない」状態になる。証明できない記録は、記録しないのと同じ。 */
-    const batch = G?.sealBatch ? G.sealBatch(out) : null;
+    /* 外部錨（drand）と署名は封緘の前後で一度だけ載せる。錨を後から足すと
+       署名対象が変わり、署名が「足す前の顔」を指して食い違う。 */
+    const beacon = await fetchBeaconForDraw();
+    let batch = G?.sealBatch ? G.sealBatch(out, { beacon }) : null;
+    if (batch && window.LBT_gachaIdentity) {
+      try {
+        const identity = await window.LBT_gachaIdentity.ensureIdentity();
+        batch = await window.LBT_gachaIdentity.signBatch(batch, identity);
+      } catch (e) {
+        /* 署名できない環境（WebCrypto なし等）でも封緘までは残す。 */
+      }
+    }
     if (batch) {
       dispatch({ type: "ADD_DRAW_BATCH", __sealed: true, batch });
     } else {
@@ -2964,6 +3011,91 @@ const DrawLedgerPanel = ({ state }) => {
   const G = window.LBT_gachaDraw;
   const batches = React.useMemo(() => (Array.isArray(state.draws) ? state.draws : []), [state.draws]);
   const [openHash, setOpenHash] = React.useState(null);
+  const P = window.LBT_gachaProof;
+  const I = window.LBT_gachaIdentity;
+  const [proofBusy, setProofBusy] = React.useState(null);
+  const [proofNote, setProofNote] = React.useState(null);
+  const [verifyReport, setVerifyReport] = React.useState(null);
+
+  /* 画像は「見た目」と「埋め込みデータ」の両方を同じ記録から作る。片方だけ
+     書き換えた画像（レタッチ等）は、検証時の突き合わせで必ず食い違う。 */
+  const buildProofBlob = async (batch) => {
+    const chain = G && typeof G.verifyBatch === "function" ? G.verifyBatch(batch) : null;
+    const assessment = I && typeof I.assessBatch === "function"
+      ? await I.assessBatch(batch, { gacha: window.LBT_gacha, timeoutMs: 4000 })
+      : { state: "unverified", reasons: ["署名モジュールが読み込まれていません"] };
+    const canvas = document.createElement("canvas");
+    P.drawProofCard(canvas, {
+      batch,
+      assessment,
+      chain,
+      generatedAt: Date.now(),
+      url: location.href.split("?")[0].split("#")[0]
+    });
+    const blob = await P.canvasToBlob(canvas);
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    return new Blob([P.embedProof(bytes, P.buildPayload(batch))], { type: "image/png" });
+  };
+
+  const saveProof = (batch, blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = P.fileName(batch);
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  };
+
+  const makeProof = async (batch, mode) => {
+    const key = batch.batchHash || "batch";
+    if (!P || proofBusy) return;
+    setProofBusy(key);
+    setProofNote(null);
+    try {
+      const blob = await buildProofBlob(batch);
+      if (mode === "copy") {
+        if (!navigator.clipboard || typeof ClipboardItem === "undefined") {
+          setProofNote("このブラウザは画像のコピーに未対応です。保存をご利用ください。");
+        } else {
+          await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+          setProofNote("証明画像をクリップボードへコピーしました。");
+        }
+      } else if (mode === "share") {
+        const file = new File([blob], P.fileName(batch), { type: "image/png" });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: "抽出証明", text: "LIMBUS BUILD TERMINAL の抽出証明画像です。" });
+          setProofNote("共有しました。");
+        } else {
+          saveProof(batch, blob);
+          setProofNote("この端末は直接共有に未対応のため、画像を保存しました。");
+        }
+      } else {
+        saveProof(batch, blob);
+        setProofNote("証明画像を保存しました。画像を送るだけで、相手は同じアプリで照合できます。");
+      }
+    } catch (e) {
+      /* 共有ダイアログを閉じただけの AbortError は失敗ではない。 */
+      if (!e || e.name !== "AbortError") setProofNote(`証明画像を作れませんでした: ${e.message}`);
+    } finally {
+      setProofBusy(null);
+    }
+  };
+
+  const verifyProofFile = async (event) => {
+    const file = event.target.files && event.target.files[0];
+    event.target.value = "";
+    if (!file || !P) return;
+    setVerifyReport({ state: "checking" });
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const report = await P.verifyPng(bytes, { identity: I, gacha: window.LBT_gacha, timeoutMs: 4000 });
+      setVerifyReport(Object.assign({}, report, { fileName: file.name }));
+    } catch (e) {
+      setVerifyReport({ state: "unverified", reasons: [`画像を読めませんでした: ${e.message}`], batch: null });
+    }
+  };
 
   /* 検証は描画のたびに走らせる（記録が動いたときだけ再計算される）。
      合格と書くのに、合格を確かめていない理由がない。 */
@@ -2984,10 +3116,46 @@ const DrawLedgerPanel = ({ state }) => {
       h("span", { className: "ledger-note" },
         batches.length === 0
           ? "0件"
-          : `${checked.length}件・${checked.length - broken}件が検証済み`)),
+          : `${checked.length}件・${checked.length - broken}件が検証済み`),
+      /* 受け取った証明画像を照合する入口。検証はこの端末で完結する
+         （相手の環境やサーバーに依存しない）。 */
+      h("label", { className: "btn btn-sm", style: { cursor: "pointer" } },
+        "証明画像を検証",
+        h("input", { type: "file", accept: "image/png", onChange: verifyProofFile, style: { display: "none" } }))),
     h("div", { className: "card-body stack-2" },
       /* 空の理由と次にできることを書く。「まだ無い」だけでは、
          どこで抽するのか分からない。 */
+      /* 受け取った証明画像の照合結果。埋め込みデータの一覧を出し、
+         画像の見た目と目で突き合わせられるようにする。 */
+      verifyReport
+        ? h("div", { className: "draw-batch-body", role: "status" },
+          h("p", { className: "ledger-note" },
+            verifyReport.state === "checking"
+              ? "証明画像を照合しています…"
+              : `証明画像の検証: ${(P.STATE_LABELS[verifyReport.state]) || verifyReport.state}${verifyReport.fileName ? `（${verifyReport.fileName}）` : ""}`),
+          verifyReport.reasons && verifyReport.reasons.length
+            ? h("ul", { className: "ledger-warn-list" }, verifyReport.reasons.map((r, i) => h("li", { key: i }, r)))
+            : null,
+          verifyReport.batch
+            ? h("div", null,
+              h("p", { className: "ledger-note" },
+                `埋め込みデータ: ${(verifyReport.batch.records || []).length}件 / 指紋 ${fingerprint(verifyReport.batch.batchHash)} / 署名者 ${verifyReport.batch.signer && verifyReport.batch.signer.keyId ? verifyReport.batch.signer.keyId : "なし"}`),
+              h("p", { className: "ledger-note" },
+                "次の一覧は画像に埋め込まれた記録です。画像の表示と一致するか目で照合してください。"),
+              h("div", { className: "draw-record-list" },
+                (verifyReport.batch.records || []).map((record, i) => {
+                  const line = drawRecordLine(record);
+                  return h("div", { key: `${record.hash || i}`, className: "draw-record" },
+                    h("span", { className: "draw-record-label" }, line.label),
+                    h("span", { className: "draw-record-cost" }, line.paid),
+                    line.note ? h("span", { className: "draw-record-note" }, line.note) : null);
+                })))
+            : null,
+          h(Button, { variant: "ghost", size: "sm", onClick: () => setVerifyReport(null) }, "閉じる"))
+        : null,
+      proofNote
+        ? h("p", { className: "ledger-note", role: "status" }, proofNote)
+        : null,
       batches.length === 0
         ? h("p", { className: "ledger-empty-note" },
           "まだ抽していません。ショップ > ガチャで抽選すると、結果がハッシュ鎖つきの記録としてここへ残ります。")
@@ -3036,7 +3204,13 @@ const DrawLedgerPanel = ({ state }) => {
                   line.note ? h("span", { className: "draw-record-note" }, line.note) : null);
               })),
             h("p", { className: "ledger-note" },
-              `錨 ${fingerprint(batch.commit)} / 種 ${fingerprint(batch.serverSeed)} / ルール表 ${fingerprint(batch.rulesetHash)}`))
+              `錨 ${fingerprint(batch.commit)} / 種 ${fingerprint(batch.serverSeed)} / ルール表 ${fingerprint(batch.rulesetHash)}`),
+            h("div", { className: "draw-proof-actions" },
+              h(Button, { variant: "ghost", size: "sm", disabled: !P || proofBusy === (batch.batchHash || "batch"), onClick: () => makeProof(batch, "save") },
+                proofBusy === (batch.batchHash || "batch") ? "作成中…" : "証明画像を保存"),
+              h(Button, { variant: "ghost", size: "sm", disabled: !P || proofBusy === (batch.batchHash || "batch"), onClick: () => makeProof(batch, "copy") }, "画像をコピー"),
+              h(Button, { variant: "ghost", size: "sm", disabled: !P || proofBusy === (batch.batchHash || "batch"), onClick: () => makeProof(batch, "share") }, "共有"),
+              h("span", { className: "ledger-note" }, "結果と検証要素（署名・錨）を1枚にまとめます")))
         );
       }))
   );

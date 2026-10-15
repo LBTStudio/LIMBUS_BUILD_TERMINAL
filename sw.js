@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-7d4b0f20";
+const CACHE_NAME = "lbt-e999530d";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -38,7 +38,7 @@ const PRECACHE_URLS = [
   "assets/v65r44-ego-quick-detail.css?v=1bb6dfa1",
   "assets/v65r47-ego-card-marks.css?v=aaf12533",
   "assets/v66-accounts.css?v=8c56b479",
-  "assets/v67-persona-redesign.css?v=5a5e01ef",
+  "assets/v67-persona-redesign.css?v=458bf9f1",
   "assets/workspace.css?v=253d0319",
   "data/db.json?v=b04a7751",
   "data/gacha-theme-packs.json?v=8d4dced2",
@@ -47,13 +47,15 @@ const PRECACHE_URLS = [
   "js/DataQuality.js?v=a8365c72",
   "js/ItemCodex.js?v=f81cdb3e",
   "js/LivePreview.js?v=911e0b56",
-  "js/OtherSections.js?v=34f4e143",
+  "js/OtherSections.js?v=fe6297da",
   "js/PersonaCodex.js?v=5300ddff",
   "js/SkillDeck.js?v=0e7a3640",
   "js/accounts-ui.js?v=59b44784",
   "js/core.js?v=d79b98be",
   "js/ego-slot-forms.js?v=85aa4887",
-  "js/gacha-tickets.js?v=911012aa",
+  "js/gacha-identity.js?v=1ec5e234",
+  "js/gacha-proof.js?v=568ae912",
+  "js/gacha-tickets.js?v=c67b2ac7",
   "js/gacha.js?v=7c84ae89",
   "js/garasumado-import-ui.js?v=7f49d190",
   "js/garasumado-memo-parse.js?v=bae36915",

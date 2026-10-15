@@ -742,6 +742,13 @@
   color: var(--tx-dim);
   font-size: var(--fs-10);
 }
+.draw-proof-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  padding-top: var(--s-1);
+}
 .draw-ledger-broken {
   padding: var(--s-2) var(--s-3);
   border: 1px solid color-mix(in oklab, var(--err) 46%, var(--line));

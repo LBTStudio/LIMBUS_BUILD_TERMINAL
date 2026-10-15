@@ -254,11 +254,17 @@
     return g ? g.rulesetHash : null;
   }
 
-  /* 1件分の結果を封緘して、抽出リストへ積める形にする。 */
-  function sealBatch(out) {
+  /* 1件分の結果を封緘して、抽出リストへ積める形にする。外部錨（ビーコン）は
+     呼び手が取って渡す。署名は封緘の後に載せる（署名対象に錨を含めるため、
+     錨は必ずここで入れる）。 */
+  function sealBatch(out, options) {
     const g = gachaEngine();
     if (!g || !out || !out.engineOut) return null;
-    return g.finalizeBatch(out.engineOut, out.session, { ruleset: out.paidBy === "ticket" ? "core-ticket" : "core", rulesetHash: g.rulesetHash });
+    return g.finalizeBatch(out.engineOut, out.session, {
+      ruleset: out.paidBy === "ticket" ? "core-ticket" : "core",
+      rulesetHash: g.rulesetHash,
+      beacon: (options && options.beacon) || null
+    });
   }
 
   /* 読み手側の検証。.engine が無くても、記録は数字だけなので検証できる。 */

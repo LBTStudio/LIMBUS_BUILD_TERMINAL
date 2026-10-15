@@ -1065,7 +1065,9 @@ test("ガチャ: 確定済みの抽出は Undo で消えない（記録・所持
 
 test("ガチャ: やめる操作は「まだ引いていない」と伝える（引いた結果を取り消したと思わせない）", () => {
   const sections = read("../js/OtherSections.js");
-  assert.match(sections, /const cancelDraw = \(\) => \{ setPending\(null\); toast\("まだ引いていません。記録は残していません。"\); \};/);
+  /* 2026-10-16: 確定処理中ガード（committingRef）が入ったため、一行の形ではなく
+     setPending(null) → 文言 の順序だけを固定する。 */
+  assert.match(sections, /const cancelDraw = \(\) => \{[\s\S]{0,160}?setPending\(null\);[\s\S]{0,80}?toast\("まだ引いていません。記録は残していません。"\);[\s\S]{0,40}?\};/);
   assert.doesNotMatch(sections, /toast\("抽選を取り消しました"\)/);
   /* 確定後に戻らないことは、受けと結果の両方で言う。 */
   assert.match(sections, /確定後は取り消せません/);
