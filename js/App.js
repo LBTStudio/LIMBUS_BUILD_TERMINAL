@@ -41,7 +41,7 @@ const HelpSection = () => {
       h("div", { className: "guide-items" },
         h("article", { className: "guide-item" },
           h("div", { className: "guide-item-icon" }, h(Icon, { name: "persona", size: 16 })),
-          h("div", null, h("h3", null, "公式人格を調整する"), h("p", null, "人格を装備して「◇ 同期化して手動編集」を押します。編集後は「✓ 編集を終了」。同期ランクは0・00・000、MAXなら「同期MAX」を使います。"))
+          h("div", null, h("h3", null, "公式人格を調整する"), h("p", null, "人格を装備して「◈ 同期化して手動編集」を押します。編集後は「✓ 編集を終了」。同期ランクは0・00・000、MAXなら「同期MAX」を使います。"))
         ),
         h("article", { className: "guide-item" },
           h("div", { className: "guide-item-icon" }, h(Icon, { name: "plus", size: 16 })),

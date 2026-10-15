@@ -2038,9 +2038,11 @@ body.has-detail-dialog main.preview { overflow: hidden; }
   color: var(--tx-mute);
 }
 @media (max-width: 640px) {
-  /* 狭幅でタブ帯の文字を押し潰さず横スクロールで到達可能にする。 */
-  .build-tabs .segmented { overflow-x: auto; }
-  .build-tabs .segmented > button { padding: 6px 10px; flex: 0 0 auto; white-space: nowrap; }
+/* 狭幅でタブ帯の文字を押し潰さず横スクロールで到達可能にする。 */
+.build-tabs .segmented,
+.record-tabbar .segmented { overflow-x: auto; max-width: 100%; }
+.build-tabs .segmented > button,
+.record-tabbar .segmented > button { padding: 6px 10px; flex: 0 0 auto; white-space: nowrap; }
 }
 /* 効果段落の▶︎。操作はPALETTEの出力を見たまま行うため、
    展開系ボタンと同じ制御の列に並べ、区切り線で操作群とヒントを分ける。 */

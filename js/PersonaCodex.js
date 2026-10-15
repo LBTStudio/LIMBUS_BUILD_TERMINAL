@@ -1043,7 +1043,13 @@ const addRoster = (p) => {
     {
       className: "pw-listbar",
       onClick: toggleCodexList,
+      onKeyDown: (event) => {
+        if (event.target !== event.currentTarget) return;
+        if (event.key === "Enter" || event.key === " ") { event.preventDefault(); toggleCodexList(); }
+      },
       role: "button",
+      tabIndex: 0,
+      "aria-expanded": codexExpanded,
       title: codexExpanded ? "\u4EBA\u683C\u4E00\u89A7\u3092\u6298\u308A\u7573\u3080" : "\u4EBA\u683C\u4E00\u89A7\u3092\u5C55\u958B\u3057\u3066\u5225\u306E\u4EBA\u683C\u3092\u9078\u3076"
     },
     /* @__PURE__ */ React.createElement("span", { className: "caret" }, codexExpanded ? "\u25BC" : "\u25B6"),
@@ -1085,7 +1091,7 @@ const addRoster = (p) => {
       },
       title: "\u9078\u629E\u4E2D\u306E\u5927\u7F6A\u3067\u30B9\u30AD\u30EB\u591A\u3044\u9806\u306B\u30BD\u30FC\u30C8"
     },
-    "\u{1F3AF} \u5927\u7F6A\u30BD\u30FC\u30C8"
+    "\u5927\u7F6A\u30BD\u30FC\u30C8"
   ))), /* @__PURE__ */ React.createElement("div", { className: "codex-filter-row" }, /* @__PURE__ */ React.createElement("span", { className: "filter-label" }, "\u8010\u6027"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "var(--s-2)", flexWrap: "wrap", alignItems: "center" } }, ["S", "P", "B"].map((k, i) => {
     const key = `filterRes${k}`;
     const label = ["\u65AC\u6483", "\u8CAB\u901A", "\u6253\u6483"][i];

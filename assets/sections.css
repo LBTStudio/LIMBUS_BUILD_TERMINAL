@@ -1243,6 +1243,12 @@
 }
 }
 
+/* 狭幅で card-header の flex 収縮がラベルを1文字幅まで潰す（ビルド内アイテムタブで実測17px）ため、ラベルは縮めない。 */
+.card-header.owned-library-bar .t-label {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 /* 検索/フィルタ操作部のスクロール追従。
    追従するのは「絞り込みの操作帯」だけ。カード見出し（.owned-library-bar）は
    画面内に1枚ごとに1枚あるため、すべて吸頂すると重なって下の内容を隠す
@@ -1272,6 +1278,16 @@
   .ego-catalog-filters,
   .owned-library-bar {
     position: static;
+  }
+  /* ラベルの1文字潰れを防ぐため2段化を許可（V65r68 UI監査 H1）。 */
+  .card-header.owned-library-bar {
+    flex-wrap: wrap;
+    row-gap: var(--s-2);
+  }
+  /* 空セルは deck 全列分(1248px)に伸び、中央寄せのCTAが画面外に出るため左寄せにする（V65r68 UI監査 H2）。 */
+  .deck-empty-cell {
+    justify-content: flex-start;
+    padding-left: var(--s-4);
   }
 }
 /* end @layer sections */
