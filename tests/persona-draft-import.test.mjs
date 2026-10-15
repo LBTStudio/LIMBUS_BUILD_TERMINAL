@@ -471,3 +471,8 @@ test("人格図鑑は草案の解析・プレビュー・確認後の適用入�
   assert.match(source, /LBT_fetchGarasumadoPersona/);
   assert.match(source, /所有者・メモ・チャットパレット・強化一覧は移行しません/);
 });
+
+test("破損疑いマークはDB原典データのみに表示し、同期・カスタム人格には出さない", () => {
+  const source = readFileSync(new URL("../js/PersonaCodex.js", import.meta.url), "utf8");
+  assert.match(source, /!p\.__custom && !p\.__draftImported && personaHasIssue\(p\)/);
+});
