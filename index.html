@@ -8,11 +8,13 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <script>
 /* DB 取得は後段の本体 <script> に依存しないので、ここで先に開始して読込を重ねる。
-   stylesheet より後ろに置くと CSS 待ちで開始が遅れるため、head の先頭側に置く。 */
+   stylesheet より後ろに置くと CSS 待ちで開始が遅れるため、head の先頭側に置く。
+   db.json は起動の律速なので priority:"high"。40 本超のアセット読込と
+   帯域を奪い合っても後回しにされない。 */
 function loadDB(){
   return new Promise(function(resolve, reject){
     if(window.fetch){
-      Promise.all([fetch("data/db.json?v=b04a7751"), fetch("data/items.json?v=b47b58ae"), fetch("data/gacha-theme-packs.json?v=8d4dced2")]).then(function(rs){ return Promise.all(rs.map(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json(); })); })
+      Promise.all([fetch("data/db.json?v=b04a7751", {priority:"high"}), fetch("data/items.json?v=b47b58ae"), fetch("data/gacha-theme-packs.json?v=8d4dced2")]).then(function(rs){ return Promise.all(rs.map(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json(); })); })
         .then(function(rows){ window.DB = rows[0]; window.DB.items = Array.isArray(rows[1]) ? rows[1] : []; window.LBT_GACHA_PACKS = rows[2] || { packs: [] }; resolve(); }).catch(reject);
       return;
     }
@@ -38,7 +40,17 @@ function lbtBoot(){
 
 var lbtDbReady = loadDB();
 </script>
-<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Cormorant+Garamond:wght@500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@500;700&family=Share+Tech+Mono&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<script>
+/* Google Fonts は load イベント後に読み始める。クリティカルパスから外すことで、
+   外部フォントへの到達性（遮断地域・オフライン・遅い DNS）が本文の描画を妨げない。
+   display=swap のため本文は先にシステムフォントで出る（以前の media=print 方式と同挙動）。 */
+window.addEventListener("load", function(){
+  var l = document.createElement("link");
+  l.rel = "stylesheet";
+  l.href = "https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Cormorant+Garamond:wght@500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@500;700&family=Share+Tech+Mono&family=IBM+Plex+Mono:wght@400;500&display=swap";
+  document.head.appendChild(l);
+});
+</script>
 <noscript><link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Cormorant+Garamond:wght@500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@500;700&family=Share+Tech+Mono&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"></noscript>
 <style>
 /* CSS カスケード層の宣言。
@@ -117,6 +129,19 @@ var lbtDbReady = loadDB();
   lbtDbReady.then(lbtBoot).catch(function(){
     document.getElementById("root").innerHTML = "<div style=\"color:#c8a84b;padding:40px;text-align:center;font-family:sans-serif\">DBの読み込みに失敗しました。file:// で直接開いている場合はローカルサーバー経由で開いてください（README参照）。</div>";
   });
+</script>
+<script>
+/* Service Worker: 再訪時は ?v= 付きアセットをキャッシュから即座に返す（オフライン起動も可）。
+   ?v= は内容ハッシュなので cache-first が安全（sw.js のリストは sync ツールが生成）。
+   登録は load 後。初回のクリティカルパスと帯域を precache に奪わせない。
+   reg.update() がデプロイ後の SW 更新チェックを起動する（既定は 24 時間待ち）。 */
+(function(){
+  if(!("serviceWorker" in navigator)) return;
+  if(location.protocol !== "https:" && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") return;
+  window.addEventListener("load", function(){
+    navigator.serviceWorker.register("sw.js").then(function(reg){ reg.update(); }).catch(function(){});
+  });
+})();
 </script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"af6b738f063049d0b34e8d0e919d07f4"}' crossorigin="anonymous"></script>
 </body>

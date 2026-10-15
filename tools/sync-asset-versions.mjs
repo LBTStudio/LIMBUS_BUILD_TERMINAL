@@ -21,8 +21,11 @@
    という3点が同時に解決する。版番号の採番は人手に委ねなくてよくなった。
    読み込みが遅くならない理由は別に後述。
 
+   sw.js（Service Worker）の precache リストもここで生成する。sw.js 内の
+   GENERATED マーカー間だけを書き換えるので、SW のロジックは手書きのまま。
+
    使い方
-     node tools/sync-asset-versions.mjs            # 同期する（ファイルを書く）
+      node tools/sync-asset-versions.mjs            # 同期する（ファイルを書く）
      node tools/sync-asset-versions.mjs --check    # 検査のみ。ずれてたら exit 1
      node tools/sync-asset-versions.mjs --all abc123  # 全アセットを強制破棄
 
@@ -150,6 +153,10 @@ function scanRefs() {
 
     const consider = (assetRel, withVersion) => {
       if (/^(?:https?:)?\/\//.test(assetRel)) return;
+      /* sw.js だけは ?v= を持たない。SW の更新チェックはブラウザが登録時に
+         自前で行う（index.html 側で reg.update() も呼ぶ）ため、URL に版を
+         混ぜる必要がない。 */
+      if (assetRel === "sw.js") return;
       /* ソース自身のディレクトリ基準でも解決.try する。
          CSS 内の url() はその CSS の位置が基準になる。 */
       const candidates = [resolve(baseDir, assetRel), resolve(selfDir, assetRel)];
@@ -170,6 +177,71 @@ function scanRefs() {
   /* 同じファイルの重複報告を潰す（1 箇所に 2 回出るケースがある） */
   const dedupe = (rows) => [...new Map(rows.map((r) => [`${r.source}|${r.asset}`, r])).values()];
   return { versionless: dedupe(versionless), missing: dedupe(missing) };
+}
+
+/* ---------------------------------------------------------------------------
+   sw.js の precache リスト。手で維持すると参照漏れで「オフラインなのに
+   資産が欠ける」状態が静かに生まれる。index.html / share.html が実際に
+   参照している版付き URL から生成し、--check で一致を強制する。
+   --------------------------------------------------------------------------- */
+const SW_FILE = "sw.js";
+const SW_BEGIN = "/* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */";
+const SW_END = "/* ==== /GENERATED ==== */";
+const PRECACHE_PAGES = ["index.html", "share.html", "mobile-preview.html"];
+
+function collectPrecacheUrls() {
+  const urls = new Set();
+  for (const source of SOURCES) {
+    if (!source.file.endsWith(".html")) continue;
+    const text = readFileSync(resolve(ROOT, source.file), "utf8");
+    for (const m of text.matchAll(VERSION_RE)) urls.add(m[1]);
+  }
+  const pages = PRECACHE_PAGES.filter((p) => existsSync(resolve(ROOT, p)));
+  return [...pages, ...[...urls].sort()];
+}
+
+function buildSwBlock() {
+  const urls = collectPrecacheUrls();
+  const cacheId = createHash("sha256").update(urls.join("\n")).digest("hex").slice(0, HASH_LEN);
+  const body = urls.map((u) => `  "${u}",`).join("\n");
+  return `${SW_BEGIN}\nconst CACHE_NAME = "lbt-${cacheId}";\nconst PRECACHE_URLS = [\n${body}\n];\n${SW_END}`;
+}
+
+function readSwBlock(text) {
+  const start = text.indexOf(SW_BEGIN);
+  const end = text.indexOf(SW_END);
+  return start === -1 || end < start ? null : text.slice(start, end + SW_END.length);
+}
+
+/* index.html が SW を登録しているときだけ検査する。テスト用の最小フィクスチャ
+   （tools/ と数ファイルだけの複製）には sw.js が無い。そこで落とさないため。 */
+function checkSwBlock() {
+  if (!/"sw\.js"/.test(readFileSync(resolve(ROOT, "index.html"), "utf8"))) return;
+  if (!existsSync(resolve(ROOT, SW_FILE))) {
+    console.error(`${SW_FILE} が存在しません（index.html が登録しています）。\n`);
+    process.exit(1);
+  }
+  const current = readSwBlock(readFileSync(resolve(ROOT, SW_FILE), "utf8").replace(/\r\n/g, "\n"));
+  if (current !== buildSwBlock()) {
+    console.error(
+      "sw.js の precache リストが index.html / share.html と同期していません。node tools/sync-asset-versions.mjs を実行してください。\n"
+    );
+    process.exit(1);
+  }
+}
+
+function writeSwBlock() {
+  if (!/"sw\.js"/.test(readFileSync(resolve(ROOT, "index.html"), "utf8"))) return null;
+  const abs = resolve(ROOT, SW_FILE);
+  if (!existsSync(abs)) return { missing: true };
+  const text = readFileSync(abs, "utf8");
+  const current = readSwBlock(text);
+  if (!current) return { noMarker: true };
+  const expected = buildSwBlock();
+  const urls = collectPrecacheUrls().length;
+  if (current === expected) return { changed: false, urls };
+  writeFileSync(abs, text.replace(current, expected), "utf8");
+  return { changed: true, urls };
 }
 
 /* ---------------------------------------------------------------------------
@@ -243,6 +315,8 @@ if (CHECK) {
     process.exit(1);
   }
 
+  checkSwBlock();
+
   console.log("?v= は全ファイルの内容ハッシュと同期しています。");
   console.log(`参照 ${hashCache.size} 件: 版パラメータ有り、全ファイル存在。`);
   process.exit(0);
@@ -260,3 +334,9 @@ if (!report.length) {
   console.log(`\n変更されたアセット ${touched.size} 件 / 参照 ${hashCache.size} 件`);
   console.log("編集していないファイルの ?v= は変わらず、ブラウザキャッシュはそのまま効きます。");
 }
+
+const sw = writeSwBlock();
+if (sw && sw.missing) console.error(`${SW_FILE} が存在しません（index.html が登録しています）。`);
+else if (sw && sw.noMarker) console.error(`${SW_FILE} に GENERATED マーカーが無いため precache を更新できません。`);
+else if (sw && sw.changed) console.log(`\n${SW_FILE} の precache リストを更新しました（${sw.urls} 件）。`);
+else if (sw) console.log(`\n${SW_FILE} の precache リストは最新です（${sw.urls} 件）。`);
