@@ -1428,6 +1428,19 @@ function latestResultId(state) {
   const results = state?.results || [];
   return results.length ? results[results.length - 1].id : null;
 }
+/* 所持品の入手元シナリオ。共有データの owned にはこの列为無いので、
+   シナリオ履歴との照合で求めた値をそのまま保持する。
+   空なら「判別できなかった」を意味し、推測では埋めない。 */
+function normalizeVia(via) {
+  if (!Array.isArray(via)) return [];
+  const seen = new Set();
+  for (const name of via) {
+    const s = String(name || "").trim();
+    if (s) seen.add(s.slice(0, 120));
+  }
+  return [...seen];
+}
+
 function appendLedgerEntry(state, detail) {
   if (!detail || !detail.name) return state;
   const resultId = detail.resultId === undefined ? latestResultId(state) : detail.resultId;
@@ -2378,7 +2391,7 @@ function appReducer(state, action) {
       const uniqKey = `${mode}:${no}`;
       if (state.roster.personas.some((p) => `${p.mode}:${p.no}` === uniqKey)) return state;
       const uid = `pr-${Date.now()}`;
-      const entry = { uid, no, mode, syncRank: null, syncMax: false, lcb: false, equipped: false, notes: "" };
+      const entry = { uid, no, mode, syncRank: null, syncMax: false, lcb: false, equipped: false, notes: "", via: normalizeVia(action.via) };
       const next = { ...state, roster: { ...state.roster, personas: [...state.roster.personas, entry] } };
       if (!action.purchase) return next;
       const persona = (mode === "t" ? window.DB?.tokui_personas : window.DB?.normal_personas || []).find((p) => String(p.no) === String(no));
@@ -2505,7 +2518,7 @@ function appReducer(state, action) {
       const { rank, no } = action;
       if ((state.roster.egos || []).some((e) => e.rank === rank && String(e.no) === String(no))) return state;
       const uid = `er-${Date.now()}`;
-      const egos = [...(state.roster.egos || []), { uid, no, rank, analyzed: false, analyzeMax: false, notes: "", build: null }];
+      const egos = [...(state.roster.egos || []), { uid, no, rank, analyzed: false, analyzeMax: false, notes: "", build: null, via: normalizeVia(action.via) }];
       const next = { ...state, roster: { ...state.roster, egos } };
       if (!action.purchase) return next;
       const ego = (window.DB?.egos || []).find((e) => e.rank === rank && String(e.no) === String(no));

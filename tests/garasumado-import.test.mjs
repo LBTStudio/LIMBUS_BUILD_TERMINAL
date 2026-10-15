@@ -351,13 +351,24 @@ test("取り込み: 実サンプル 49 文書から所持を列挙し、action �
   assert.equal(charDocs.length, 49);
   let resolved = 0;
   let actions = 0;
+  let heldBack = 0;
   for (const doc of charDocs) {
     const m = resolvedManifest(doc);
     for (const g of m.groups) for (const it of g.items) if (it.kinds?.length) resolved++;
-    actions += G.toDispatchActions(m, m.groups.flatMap((g) => g.items.map((i) => i.key)), {}).actions.length;
+    const keys = m.groups.flatMap((g) => g.items.map((i) => i.key));
+    /* 帰属先が未決の所持品は、選ぶまで入れない。 */
+    const before = G.toDispatchActions(m, keys, {});
+    heldBack += before.skipped.filter((s) => /どのシナリオ/.test(s.reason)).length;
+    /* 利用者が帰属先を選んだあとは全部入る。 */
+    const first = (m.scenarios || [])[0];
+    for (const g of m.groups) {
+      for (const i of g.items) if (i.needsAttribution && !i.pickedScenario && first) i.pickedScenario = first.name;
+    }
+    actions += G.toDispatchActions(m, keys, {}).actions.length;
   }
   assert.ok(resolved > 800, "大半の所持が DB に引ける（実際 " + resolved + "）");
-  assert.ok(actions > 800, "所持追加 action を大量に出せる（実際 " + actions + "）");
+  assert.ok(actions > 800, "帰属先を決めると所持追加 action を大量に出せる（実際 " + actions + "）");
+  assert.ok(heldBack > 0, "シナリオに無い所持品は、帰属先を選ぶまで止まる（実際 " + heldBack + "）");
 });
 
 test("取り込み: 所持だけ入れず reducer の購入経路に預ける（番号は数値のまま預ける）", () => {

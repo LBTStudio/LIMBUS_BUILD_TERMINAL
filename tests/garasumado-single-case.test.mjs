@@ -109,7 +109,16 @@ test("未解決の名前を受け付け しても取り込みは止まらない"
   assert.equal(actions.length, supportOrSpirit.length, "名前だけで足せるものは全部入る");
 });
 
+/* 確認未済の所持品は归属先を済める。テストは対象の利用者が遙択してから。 */
+function decideAttribution(m) {
+  const first = (m.scenarios || [])[0];
+  if (!first) return m;
+  for (const g of m.groups) for (const i of g.items) if (i.needsAttribution && !i.pickedScenario) i.pickedScenario = first.name;
+  return m;
+}
+
 test("選択した分だけ action になる", () => {
+  decideAttribution(manifest);
   const keys = manifest.groups.flatMap((g) => g.items).map((i) => i.key);
   const one = keys.slice(0, 1);
   const { actions } = G.toDispatchActions(manifest, one);

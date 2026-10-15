@@ -102,11 +102,100 @@
     { id: "spirits", label: "所持精神" }
   ];
 
+  /* 人名照合用のキー。共有データの人名は体裁が揺れるため、
+     空白・全角英数字・大小文字を吸収する。 */
+  function nameKey(s) {
+    return String(s || "")
+      .replace(/[\s\u3000]/g, "")
+      .replace(/[\uFF01-\uFF5E]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+      .toLowerCase();
+  }
+
+  /* 所持一覧とシナリオ履歴を突き合わせて、どのシナリオで手に入れたかを求める。
+     共有データの owned には入手元の列が無く、シナリオ履歴の獲得idr人だけが
+     手掛かりになる。引けなかったものを消す・推測で埋めることはしない。
+     件数を返して、利用者に「判別できなかった」を知情させる。 */
+  function attributeOwned(groups, scenarios) {
+    const byKey = new Map();
+    for (const scenario of scenarios) {
+      const name = String(scenario.name || "").trim();
+      if (!name) continue;
+      for (const win of scenario.wins || []) {
+        const key = nameKey(win.raw || win.name);
+        if (!key) continue;
+        if (!byKey.has(key)) byKey.set(key, { via: [], wins: [] });
+        const slot = byKey.get(key);
+        if (!slot.via.includes(name)) slot.via.push(name);
+        slot.wins.push({ scenario: name, raw: win.raw || win.name, via: win.via || "" });
+      }
+    }
+    let matched = 0;
+    let unmatched = 0;
+    let needsIdentity = 0;
+    const unmatchedNames = [];
+    for (const group of groups) {
+      for (const item of group.items) {
+        const hit = byKey.get(nameKey(item.name));
+        item.via = hit ? hit.via : [];
+        item.wins = hit ? hit.wins : [];
+        item.source = guessSource(item.wins);
+        if (item.needsIdentity) needsIdentity += 1;
+        if (item.via.length) matched += 1;
+        else {
+          unmatched += 1;
+          unmatchedNames.push(item.name);
+          /* シナリオに記載が無いので、自動では紐付けない。
+             帰属先そのものが未決なので、利用者が選ぶまで登録しない。 */
+          item.needsAttribution = true;
+          item.pickedScenario = "";
+        }
+      }
+    }
+    return { matched, unmatched, needsIdentity, unmatchedNames };
+  }
+
+  /* 入手方法の初期値。履歴の書き方から分かるものはそのまま入れ、
+     分からないものは空欄（=利用者が設定する）にして推測しない。 */
+const SOURCES = [
+    { id: "ticket", label: "チケット" },
+    { id: "buy", label: "購入（LP/欠片）" },
+    { id: "given", label: "配布" }
+  ];
+
+  function guessSource(wins) {
+    for (const win of wins || []) {
+      const text = `${win.via || ""} ${win.raw || ""}`;
+      if (/抽劵|チケット/.test(text)) return "ticket";
+    }
+    return "";
+  }
+
+/* 名前から DB の行を列挙する。索引の resolve は「1 つに絞った答え」しか
+   返さないため、所持項目のように同名・異種が混在しうる場面では
+   候補そのものを利用者に選ばせる必要がある。
+   候補を 0 件のまま確定にはしない（推測はしない）。 */
+/* 索引の候補を「1 行的zeniaユーザが選べる項目」へ平坦化する。
+   resolve は先頭 1 件しか返さないため、同名複数がある这个名字とは限らない。
+   名前の比較だけでは 이런 ambiguity は出ない。 */
+function toIdentityChoices(hits) {
+  const out = [];
+  for (const hit of hits || []) {
+    for (const k of hit.kinds || []) {
+      if (!k || !k.kind) continue;
+      const key = [k.kind, k.rank || "", k.no ?? k.spp ?? k.id ?? "", k.mode || ""].join(":");
+      if (out.some((o) => o.key === key)) continue;
+      out.push({ ...k, key, name: hit.name || k.name || String(hit.probe || "") });
+    }
+  }
+  return out;
+}
   /* 取込候補の一覧を作る。利用者が「何を取り込むか」を選べるようにするため、
      ここではまだ何も state へ入れない。 */
-  function buildManifest(doc, nameIndex) {
+  function buildManifest(doc, nameIndex, db) {
     const owned = (doc && doc.owned) || {};
     const resolve = typeof nameIndex?.resolve === "function" ? nameIndex.resolve : null;
+    /* 候補を全部返す解決器。1 件に絞らないので、同名複数をユーザーに見せられる。 */
+    const resolveMany = typeof nameIndex?.candidates === "function" ? nameIndex.candidates : null;
 
     const groups = GROUPS.map((group) => {
       const names = [...new Set((owned[group.id] || []).map(nameOf).filter(Boolean))];
@@ -115,6 +204,7 @@
         label: group.label,
         items: names.map((name) => {
           const hit = resolve ? resolve(name) : null;
+          const candidates = toIdentityChoices(resolveMany ? resolveMany(name) : null);
           return {
             key: group.id + ":" + name,
             group: group.id,
@@ -122,7 +212,19 @@
             resolved: Boolean(hit),
             dbName: hit ? hit.name : "",
             kinds: hit ? hit.kinds : [],
-            confidence: hit ? hit.confidence : ""
+            confidence: hit ? hit.confidence : "",
+/* どのDB行と一致するか。複数あれば利用者に選ばせる。 */
+            candidates,
+            identityCandidates: candidates,
+
+            /* 候補が 1 つに決まらない、または 0 件（DBに無い）場合は選択が必要。 */
+            needsIdentity: candidates.length !== 1,
+            picked: null,
+            /* 入手方法（抽出/チケット/配布）。シナリオ履歴の記載から
+               推定できるものは初期値にし、違うものは利用者が変える。 */
+            source: "",
+            /* 照合で見つかった獲得idrの明細（シナリオ名と書き方）。 */
+            wins: []
           };
         })
       };
@@ -193,6 +295,8 @@
         };
       });
 
+    const attribution = attributeOwned(groups, scenarios);
+
     return {
       character: {
         name: String((doc && doc.name) || ""),
@@ -204,15 +308,37 @@
       },
       groups,
       scenarios,
+      /* 所持品の歸属照合結果。matched=どのシナリオか判明、unmatched=履歴に記載なし。 */
+      attribution,
       counts: {
         personas: groups[0].items.length,
         egos: groups[1].items.length,
         supportPassives: groups[2].items.length,
         spirits: groups[3].items.length,
         scenarios: scenarios.length,
-        unresolved: groups.reduce((n, g) => n + g.items.filter((i) => !i.resolved).length, 0)
+        unresolved: groups.reduce((n, g) => n + g.items.filter((i) => !i.resolved).length, 0),
+        attributed: attribution.matched,
+        unattributed: attribution.unmatched
       }
     };
+  }
+
+  /* 利用者が「どのDB行か」「どう手に入れたか」を決めた結果を優先する。
+     決まっていなければ確定させず、理由つきで skipped へ渡す。 */
+  function chosenKind(item) {
+    if (item.picked) return item.picked;
+    if (item.candidates && item.candidates.length === 1) return item.candidates[0];
+    return null;
+  }
+
+  /* 帰属先。シナリオに載っていないものは自動では付けず、
+     利用者が選んだシナリオを 1 件だけ使う（未決なら null）。
+     定めるのはコート時だけ。他の利用者は従来通り通す。 */
+  function chosenVia(item) {
+    if (item.via && item.via.length) return item.via;
+    if (item.pickedScenario) return [item.pickedScenario];
+    if (item.needsAttribution) return null;
+    return [];
   }
 
   /* 選択された manifest を、実際に投げる action の一覧にする。
@@ -227,22 +353,47 @@
     for (const group of (manifest && manifest.groups) || []) {
       for (const item of group.items) {
         if (!selected.has(item.key)) continue;
-        // 種別は取込側が決まったので、ここでは「どれとして入れるか」を選ぶ。
-        const persona = item.kinds.find((k) => k.kind === "persona");
-        const ego = item.kinds.find((k) => k.kind === "ego");
-        const support = item.kinds.find((k) => k.kind === "support" || k.kind === "deathSupport");
-        const spirit = item.kinds.find((k) => k.kind === "spirit");
+        /* 種別は取込側が決まったので、ここでは「どれとして入れるか」を選ぶ。
+           利用者の選択（picked）が最優先。決まっていなければ補わない。 */
+        /* シナリオに記載が無い所持品は、帰属先を選んでから入れる。 */
+        const via = chosenVia(item);
+        if (!via) {
+          skipped.push({ key: item.key, reason: "どのシナリオのものか選んでください" });
+          continue;
+        }
+        const chosen = chosenKind(item);
+        /* 同名候補が複数あるときは、索引の先頭で決めつけず選ばせる。 */
+        const ambiguous = (item.identityCandidates || []).length > 1;
+        const kinds = (f) => (ambiguous ? null : item.kinds.find(f));
+        const persona = (chosen && chosen.kind === "persona") ? chosen : kinds((k) => k.kind === "persona");
+        const ego = (chosen && chosen.kind === "ego") ? chosen : kinds((k) => k.kind === "ego");
+        const support = (chosen && (chosen.kind === "support" || chosen.kind === "deathSupport")) ? chosen
+          : kinds((k) => k.kind === "support" || k.kind === "deathSupport");
+        const spirit = (chosen && chosen.kind === "spirit") ? chosen : kinds((k) => k.kind === "spirit");
 
         if (group.id === "personas") {
-          if (!persona || !persona.no) { skipped.push({ key: item.key, reason: "DB番号が引けない" }); continue; }
-          actions.push({ type: "ADD_ROSTER", no: String(persona.no), mode: persona.mode || "n" });
+          if (!persona || !persona.no) {
+            skipped.push({
+              key: item.key,
+              reason: (item.identityCandidates || item.candidates || []).length > 1
+                ? "DB番号が複数あります。候補を選んでください"
+                : "DB番号が引けない"
+            });
+            continue;
+          }
+          actions.push({ type: "ADD_ROSTER", no: String(persona.no), mode: persona.mode || "n", via, source: item.source || "", purchase: item.source === "buy" });
         } else if (group.id === "egos") {
-          if (!ego || !ego.no || !ego.rank) { skipped.push({ key: item.key, reason: "DB番号かランクが引けない" }); continue; }
-          actions.push({ type: "ADD_ROSTER_EGO", no: String(ego.no), rank: ego.rank });
+          if (!ego || !ego.no || !ego.rank) {
+            skipped.push({ key: item.key, reason: "DB番号かランクが引けない" });
+            continue;
+          }
+          actions.push({ type: "ADD_ROSTER_EGO", no: String(ego.no), rank: ego.rank, via, source: item.source || "", purchase: item.source === "buy" });
         } else if (group.id === "supportPassives") {
-          actions.push({ type: "ADD_ROSTER_SUPPORT", spp: { name: item.dbName || item.name } });
+          if (!support) { skipped.push({ key: item.key, reason: "DB番号が引けない" }); continue; }
+          actions.push({ type: "ADD_ROSTER_SUPPORT", spp: { name: support.name || item.dbName || item.name } });
         } else if (group.id === "spirits") {
-          actions.push({ type: "ADD_ROSTER_SPIRIT", spirit: { name: item.dbName || item.name } });
+          if (!spirit) { skipped.push({ key: item.key, reason: "DB番号が引けない" }); continue; }
+          actions.push({ type: "ADD_ROSTER_SPIRIT", spirit: { name: spirit.name || item.dbName || item.name } });
         } else {
           skipped.push({ key: item.key, reason: "未知のグループ" });
         }
@@ -342,6 +493,10 @@
     fetchGarasumadoDocument,
     buildManifest,
     toDispatchActions,
+    attributeOwned,
+    nameKey,
+    toIdentityChoices,
+    SOURCES,
     unwrapFirestore,
     publicApiKey,
     GROUPS

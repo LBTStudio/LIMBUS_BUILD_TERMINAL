@@ -580,7 +580,7 @@ test("硝子窓の取り込み画面は既存の利用側を壊さず足し物�
      アカウント引き継ぎとして使うなら、面板側は中立なまま。 */
   assert.match(ui, /onApply\?\.\(\{ actions: result\.actions, skipped: result\.skipped, rosterActions: result\.actions, manifest, keys \}\)/);
   /* 購入明細は「どのシナリオの支出か」を保ったまま渡す。 */
-  assert.match(ui, /const result = window\.LBT_toDispatchActions\?\.\(manifest, keys, \{ purchases \}\)/);
+  assert.match(ui, /const result = window\.LBT_toDispatchActions\?\.\(merged, keys, \{ purchases \}\)/);
 });
 
 test("貼り付け取り込みは人格・精神・E.G.O・サポートを区別して扱う", () => {

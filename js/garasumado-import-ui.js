@@ -130,17 +130,19 @@ function CandidatePopover({ anchor, item, onPick, onClose }) {
 }
 
 /* 項目の状態文。価格と判断の有無を重複させずに1回だけ言う。 */
-  const stateText = (item, price) => {
-    if (item.needsDecision === "unknown-name") return "名前が未解決";
-    if (item.needsDecision === "pick-mode") return "入手手段を選んでください";
-    if (item.needsDecision) return "価格なし";
-    if (!price) return "価格なし";
-    return "価格が決まっています";
-  };
+const stateText = (item, price) => {
+      if (item.needsAttribution && !item.pickedScenario && !(item.via && item.via.length)) return "帰属先を選んでください";
+      if (!item.source) return "入手方法を選んでください";
+      if (item.needsDecision === "unknown-name") return "名前が未解決";
+      if (item.needsDecision === "pick-mode") return "入手手段を選んでください";
+      if (item.needsDecision) return "価格なし";
+      if (!price) return "価格なし";
+      return "価格が決まっています";
+    };
 
 /* --- 1 項目 ---------------------------------------------------------------
    押すと候補が開く。名前は変わらない。変わるのは「どう手に入れたか」と価格。 */
-function ImportRow({ item, onPick, onToggle }) {
+function ImportRow({ item, onPick, onToggle, onPickIdentity }) {
   const [open, setOpen] = React.useState(false);
   const anchor = React.useRef(null);
   const chosen = item.candidates?.find((c) => c.chosen);
@@ -163,8 +165,54 @@ function ImportRow({ item, onPick, onToggle }) {
         h("span", { className: "gara-pick-dot", "aria-hidden": "true" }, "·"),
         stateText(item, price)
       ),
-      h("span", { className: "gara-row-caret", "aria-hidden": "true" }, "▾")
-    ),
+h("span", { className: "gara-row-caret", "aria-hidden": "true" }, "▾")
+      ),
+item.decide ? h("div", { className: "gara-decide" },
+        /* 同名複数で一意に決まらないときだけ、候補名を並べ選ぶ。 */
+        (item.identityCandidates && item.identityCandidates.length > 1)
+          ? h("label", { className: "gara-decide-field" },
+            h("span", { className: "gara-label" }, "どれのことか"),
+            h("select", {
+              className: "input",
+              value: item.picked?.key || "",
+              "aria-label": `${item.name} がどのもの か`,
+              onChange: (event) => {
+                const found = item.identityCandidates.find((c) => c.key === event.target.value) || null;
+                onPickIdentity(item.key, { picked: found });
+              }
+            },
+              h("option", { value: "" }, "選んでください"),
+              item.identityCandidates.map((c) => h("option", { key: c.key, value: c.key },
+                c.kind === "persona" ? `${c.mode === "t" ? "外套" : "通常"}｜${c.name}` : c.rank ? `${c.rank}｜${c.name}` : c.name))
+            )
+          )
+: null,
+        h("label", { className: "gara-decide-field" },
+          h("span", { className: "gara-label" }, "どのシナリオのものか"),
+          h("select", {
+            className: "input",
+            value: item.pickedScenario || "",
+            "aria-label": `${item.name} の帰属先シナリオ`,
+            onChange: (event) => onPickIdentity(item.key, { pickedScenario: event.target.value })
+          },
+            h("option", { value: "" }, "選んでください"),
+            (item.scenarioOptions || []).map((name) => h("option", { key: name, value: name }, name))
+          )
+        ),
+        h("label", { className: "gara-decide-field" },
+            h("span", { className: "gara-label" }, "入手方法"),
+          h("select", {
+            className: "input",
+            value: item.source || "",
+            "aria-label": `${item.name} の入手方法`,
+            onChange: (event) => onPickIdentity(item.key, { source: event.target.value })
+          },
+            h("option", { value: "" }, "選んでください"),
+            (item.sourceOptions || []).map((s) => h("option", { key: s.id, value: s.id }, s.label))
+          )
+        ),
+        (item.via && item.via.length) ? h("p", { className: "gara-note" }, `履歴から判明：${item.via.join(" / ")}`) : null
+      ) : null,
       h("button", {
         type: "button",
         className: `gara-switch${item.include ? " is-on" : ""}`,
@@ -188,7 +236,7 @@ function ImportRow({ item, onPick, onToggle }) {
   );
 }
 
-const GarasumadoGroup = ({ group, onPick, onToggle, onToggleAll }) => {
+const GarasumadoGroup = ({ group, onPick, onToggle, onToggleAll, onPickIdentity }) => {
   const items = group.items;
   const included = items.filter((i) => i.include).length;
   const priced = items.filter((i) => (i.price || (i.candidates || []).some((c) => c.price))).length;
@@ -208,7 +256,7 @@ const GarasumadoGroup = ({ group, onPick, onToggle, onToggleAll }) => {
     ),
     h("div", { className: "gara-rows", role: "group", "aria-label": `${group.label} の取り込み` },
       items.map((item, index) => h("div", { key: item.key, style: { "--i": index } },
-        h(ImportRow, { item, onPick, onToggle })
+        h(ImportRow, { item, onPick, onToggle, onPickIdentity })
       ))
     )
   );
@@ -239,9 +287,18 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
     const index = window.LBT_buildNameIndex?.(db, {}) || null;
     const resolve = index ? (name) => window.LBT_resolveCandidates?.(index, name)?.[0] || null : () => null;
 
-    const built = window.LBT_buildGarasumadoManifest?.(result.doc, { resolve }) || null;
+    const built = window.LBT_buildGarasumadoManifest?.(result.doc, {
+      resolve,
+      /* 候補を絞らない。1 件に-collapse せず同名すべてを utilisation に出させる。 */
+      candidates: (name) => window.LBT_resolveCandidates?.(index, name) || []
+    }, db) || null;
     if (!built) { setError("取り込み内容を組み立てられませんでした"); return; }
     const annotated = window.LBT_annotateManifest?.(built, { db }) || built;
+
+    /* 帰属先（どのシナリオ）と入手方法は利用者が決める。
+       シナリオに載っていない所持品は、自動では紐付けず選ばせる。 */
+    const scenarioOptions = (annotated.scenarios || []).map((s) => s.name).filter(Boolean);
+    const sourceOptions = window.LBT_garasumado?.SOURCES || [];
 
 /* 各項目に候補を持たせる。予測変換はここで作る。
        持論の注意: DB に価格が無く、公式ルールの「抽出 / 購入」しか候補が無い
@@ -249,6 +306,8 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
        だから自動では ON にせず、ポップオーバーで選んでもらう。 */
       for (const group of annotated.groups) {
         for (const item of group.items) {
+          /* identityCandidates は同名候補（選ぶ対象）。candidates は購入候補で別物。 */
+          item.identityCandidates = item.identityCandidates || item.candidates || [];
           item.candidates = window.LBT_candidatesFor?.(item, index) || [];
           const fromDb = item.candidates.filter((c) => c.acquisition === "db" && c.price);
           const fromRule = item.candidates.filter((c) => c.acquisition !== "db" && c.price);
@@ -272,6 +331,11 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
             item.needsDecision = null;
             item.include = false;
           }
+          /* 帰属が決まっており、入手方法も決まっていれば選択画面は出さない。 */
+          item.scenarioOptions = scenarioOptions;
+          item.sourceOptions = sourceOptions;
+          const attributed = (item.via && item.via.length) || Boolean(item.pickedScenario);
+          item.decide = !(attributed && (item.source || item.provenance?.priced === false));
         }
       }
 
@@ -306,6 +370,36 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
     setDecided((prev) => ({ ...prev, [itemKey]: true }));
   };
 
+  /* 帰属先（どのシナリオ）と入手方法の選択を manifest へ書き戻す。
+     toDispatchActions は manifest を直接読むので、ここが唯一の書き込み口。 */
+  /* 帰属先と入手方法の選択は UI 状態として持つ。manifest を直接書き直すと
+     再描画で直前の選択が落ちるため、manifest は読み取り専用のままにする。 */
+  const [identity, setIdentity] = React.useState({});
+  const onPickIdentity = (itemKey, next) => {
+    setIdentity((prev) => ({ ...prev, [itemKey]: { ...(prev[itemKey] || {}), ...next } }));
+    setPicked((prev) => ({ ...prev, [itemKey]: true }));
+  };
+
+  /* 利用者の選択を manifest に被せる。manifest 自体は書き換えない。 */
+  const merged = manifest
+    ? {
+      ...manifest,
+      groups: manifest.groups.map((g) => ({
+        ...g,
+        items: g.items.map((i) => {
+          const item = { ...i, ...(identity[i.key] || {}) };
+          /* 未決かどうかは保存せず、その都度ここから決める。 */
+          const attributed = (item.via && item.via.length) || Boolean(item.pickedScenario);
+          /* 候補が複数なら、どれか1つを明示的に選ばせないと確定しない。 */
+          const identityOk = !(item.identityCandidates && item.identityCandidates.length > 1)
+            || Boolean(item.picked);
+          item.decide = !(attributed && identityOk && (item.source || item.provenance?.priced === false));
+          return item;
+        })
+      }))
+    }
+    : null;
+
   const findCandidate = (itemKey, candidateKey) => {
     const groups = manifest.groups.flatMap((g) => g.items.map((i) => ({ ...i, group: g.id })));
     const item = groups.find((i) => i.key === itemKey);
@@ -324,7 +418,7 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
         .map((p) => ({ name: p.name, kind: p.kind, cost: p.cost }));
       if (picks.length) purchases[op.key] = picks;
     }
-const result = window.LBT_toDispatchActions?.(manifest, keys, { purchases }) || { actions: [], skipped: [] };
+const result = window.LBT_toDispatchActions?.(merged, keys, { purchases }) || { actions: [], skipped: [] };
   /* manifest と選択キーは「記録へ歸属する明細」を作るために必要。
      既存の利用側（アカウント編集）は読まないので、壊さず足すだけで済む。 */
   onApply?.({ actions: result.actions, skipped: result.skipped, rosterActions: result.actions, manifest, keys });
@@ -332,9 +426,12 @@ const result = window.LBT_toDispatchActions?.(manifest, keys, { purchases }) || 
 };
 
   /* 内訳は3つ。手段の選択が必要なもの・名前が解けないもの・それだけで足りるもの。 */
-  const counts = manifest
+/* 帰属先と入手方法が未決の項目。取り込みの完了条件から除く。 */
+  const pendingCount = (merged ? merged.groups : [])
+    .reduce((n, g) => n + g.items.filter((i) => i.decide).length, 0);
+  const counts = merged
     ? {
-      total: manifest.groups.flatMap((g) => g.items).length,
+      total: merged.groups.flatMap((g) => g.items).length,
       pickMode: manifest.groups.flatMap((g) => g.items).filter((i) => i.needsDecision === "pick-mode").length,
       unknownName: manifest.groups.flatMap((g) => g.items).filter((i) => i.needsDecision === "unknown-name").length,
       included: Object.values(picked).filter(Boolean).length,
@@ -371,7 +468,7 @@ const result = window.LBT_toDispatchActions?.(manifest, keys, { purchases }) || 
       h("p", { className: "gara-lead" }, `残高 LP ${manifest.currency.lp || "—"}・欠片 ${manifest.currency.shards || "—"}`)
     ),
     h("p", { className: "gara-hint" }, "項目を押すと変換候補が開きます。候補を選ぶと価格が決まります。"),
-    manifest.groups.filter((g) => g.items.length).map((group) => h(GarasumadoGroup, {
+    merged.groups.filter((g) => g.items.length).map((group) => h(GarasumadoGroup, {
       key: group.id,
       group: { ...group, items: group.items.map((i) => ({
           ...i,
@@ -380,6 +477,7 @@ const result = window.LBT_toDispatchActions?.(manifest, keys, { purchases }) || 
           candidates: (i.candidates || []).map(function (c) { return { ...c, chosen: Boolean(decided[i.key]) && choices[i.key] === c.key }; })
         })) },
       onPick: pick,
+      onPickIdentity,
       onToggle: (key) => setPicked({ ...picked, [key]: !picked[key] }),
       onToggleAll: (id, value) => {
         const next = { ...picked };
@@ -427,14 +525,16 @@ const result = window.LBT_toDispatchActions?.(manifest, keys, { purchases }) || 
         `${counts.included}件を所持へ・${counts.lineOn}件を明細へ`,
         [
           counts.pickMode ? h("span", { key: "pm", className: "gara-foot-warn" }, `${counts.pickMode}件は入手手段の選択が必要`) : null,
-          counts.unknownName ? h("span", { key: "un", className: "gara-foot-warn" }, `${counts.unknownName}件は名前が解けていません`) : null
+counts.unknownName ? h("span", { key: "un", className: "gara-foot-warn" }, `${counts.unknownName}件は名前が解けていません`) : null,
+          pendingCount ? h("span", { key: "pd", className: "gara-foot-warn" }, `${pendingCount}件は帰属先・入手方法の選択が必要`) : null
         ]
       ),
       h("div", { className: "gara-foot-acts" },
         h(Button, { size: "sm", variant: "ghost", onClick: () => setManifest(null) }, "URLを貼り直す"),
         h(Button, {
           size: "sm", variant: "primary", icon: "check", onClick: apply,
-          disabled: counts.included === 0 && counts.lineOn === 0
+          disabled: pendingCount > 0 || (counts.included === 0 && counts.lineOn === 0),
+          title: pendingCount > 0 ? "帰属先と入手方法を決めてください" : ""
         }, "この内容で取り込む")
       )
     ),

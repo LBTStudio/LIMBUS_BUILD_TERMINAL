@@ -1119,6 +1119,31 @@ main.acct-gate {
   gap: var(--s-3);
 }
 
+/* 帰属先と入手方法を選ぶ欄。1 行に 2 列で置き、狭い画面では積む。 */
+.gara-decide {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border: 1px solid var(--line-soft, var(--border-soft, rgba(127, 127, 127, 0.25)));
+  border-radius: var(--r-sm, 4px);
+  background: var(--bg-sub, transparent);
+}
+
+.gara-decide-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1, 4px);
+  min-width: 0;
+}
+
+/* 所持全件は縦に長くなるので、照合結果は枠内でスクロールさせる。 */
+.gara-scen.is-scroll {
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: var(--s-2, 4px);
+}
+
 .gara-scen-row {
   display: flex;
   flex-direction: column;
