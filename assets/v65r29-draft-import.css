@@ -6,7 +6,8 @@
    --------------------------------------------------------------------------- */
 @layer v65r29-draft-import {
 /* V65r29: Google Docs 等の同期人格草案を、既存人格を壊さず確認して取り込む。 */
-.persona-draft-import-trigger {
+.persona-draft-import-trigger,
+.persona-custom-trigger {
   flex: 0 0 auto;
   min-height: 32px;
   margin-left: 8px;
@@ -22,7 +23,9 @@
   letter-spacing: .08em;
 }
 .persona-draft-import-trigger:hover,
-.persona-draft-import-trigger:focus-visible {
+.persona-custom-trigger:hover,
+.persona-draft-import-trigger:focus-visible,
+.persona-custom-trigger:focus-visible {
   border-style: solid;
   border-color: var(--gold);
   background: var(--gold-tint);
@@ -102,7 +105,11 @@
 .persona-draft-message.is-error { color: var(--danger); }
 .persona-draft-message.is-warning { color: var(--warn); }
 @media (max-width: 640px) {
-  .persona-draft-import-trigger { min-height: 40px; margin-left: 6px; padding-inline: 9px; }
+  .persona-draft-import-trigger, .persona-custom-trigger { min-height: 40px; margin-left: 6px; padding-inline: 9px; }
+  /* 創作人格の入口はテキスト流し込みの左に併設する（所持のみ表示でも消えない）。 */
+  .pw-listbar { flex-wrap: wrap; row-gap: 6px; }
+  .pw-listbar .pw-listbar-spacer { display: none; }
+  .pw-listbar .persona-custom-trigger, .pw-listbar .persona-draft-import-trigger { flex: 1 1 45%; min-height: 40px; margin-left: 0; padding-inline: 9px; justify-content: center; }
   .persona-draft-backdrop { align-items: end; padding: 8px; }
   .persona-draft-dialog { max-height: calc(100dvh - 16px); border-radius: var(--r) var(--r) 0 0; }
   .persona-draft-dialog-head h2 { font-size: var(--fs-16); }
