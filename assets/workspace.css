@@ -1009,6 +1009,12 @@ body.has-detail-dialog main.preview { overflow: hidden; }
   grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
   gap: var(--s-3);
 }
+/* ショップは1タブ300枚超のカードを一括描画するため、画面外カードの
+   スタイル計算・レイアウト・描画をブラウザにスキップさせる（切替時のLayout支配を削る）。 */
+.shop-grid > * {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
+}
 /* 検索窓はスクロールしても追従させる。ただし宙に浮くと位置が曖昧になり、
    件数テキストが切れる。上端固定でセンタリングし、フィルタまで一緒に追従させる。 */
 .shop-filters {

@@ -2115,6 +2115,10 @@ const ShopSection = ({ state, dispatch }) => {
   const [categoryFilter, setCategoryFilter] = React.useState("all");
   const [sinFilter, setSinFilter] = React.useState("");
   const [sourceFilter, setSourceFilter] = React.useState("all");
+  /* ショップは1タブ最大300枚超のカードになる。初期は48枚だけ組み、
+     末尾付近までスクロールしたら48枚ずつ足す（切替と検索入力のJSを枚数ぶん軽くする）。 */
+  const [visibleCount, setVisibleCount] = React.useState(48);
+  const lastGrowHeightRef = React.useRef(0);
 
   const inventory = Array.isArray(state.inventory) ? state.inventory : [];
   const ownedSupportNames = React.useMemo(() => new Set((state.roster?.supports || []).map((s) => s.name)), [state.roster?.supports]);
@@ -2217,11 +2221,12 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
     && window.LBT_egoMatchesResourceFilters(ego, requiredResources, excludedResources)
     && (!keywordFilter || window.LBT_egoMatchesKeyword(ego, keywordFilter))
     && hit(`${ego.name} ${ego.rank} ${ego.passive_name || ""} ${ego.passive_effect || ""}`));
-  /* キーワードの語彙はビルド側と同じ順序・同じ並びで出す。 */
-  const egoKeywordOptions = EGO_KEYWORD_ORDER
+  /* キーワードの語彙はビルド側と同じ順序・同じ並びで出す。
+     語彙×EGO全件の照合で重く、カタログは静的（カスタムアイテムは ego に影響しない）なので初回だけ計算する。 */
+  const egoKeywordOptions = React.useMemo(() => EGO_KEYWORD_ORDER
     .map((keyword) => String(keyword || "").trim())
     .filter(Boolean)
-    .filter((keyword) => (DB.egos || []).some((ego) => window.LBT_egoMatchesKeyword(ego, keyword)));
+    .filter((keyword) => (DB.egos || []).some((ego) => window.LBT_egoMatchesKeyword(ego, keyword))), []);
 
   const spirits = (DB.spirits || []).filter((sp) => (!unownedOnly || !ownedSpiritNames.has(sp.name))
     && (sourceFilter === "all" || catalogSource(sp) === sourceFilter)
@@ -2231,11 +2236,13 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
     && (categoryFilter === "all" || String(item?.category || "その他") === categoryFilter)
     && hit(`${item.name} ${item.category || ""} ${(item.tags || []).join(" ")} ${item.effect || ""}`));
 
+  /* カードはタブを開いたときだけ組む。全タブ分を毎描画で作ると
+     300枚超×4タブの要素ツリーになり、切替・検索入力のたびにJSが数百msかかる。 */
   const lists = {
-    support: supports.map((entry) => card(`${entry.slot}:${entry.name}`, entry.name, entry.slot === "death" ? "死亡後専用" : null, entry.kind,
+    support: () => supports.map((entry) => card(`${entry.slot}:${entry.name}`, entry.name, entry.slot === "death" ? "死亡後専用" : null, entry.kind,
       () => { dispatch({ type: "ADD_ROSTER_SUPPORT", spp: entry }); toast(`「${entry.name}」を所持に購入しました`, "assertive"); },
       false, null, shopCardLines(entry.kind, entry), ownedSupportNames.has(entry.name))),
-    ego: egos.map((ego) => card(`${ego.rank}:${ego.no}`, ego.name, null, "ego",
+    ego: () => egos.map((ego) => card(`${ego.rank}:${ego.no}`, ego.name, null, "ego",
       () => { dispatch({ type: "ADD_ROSTER_EGO", rank: ego.rank, no: ego.no, purchase: true }); toast(`「${ego.name}」を所持に購入しました`, "assertive"); },
       false, null, null, ownedEgoKeys.has(`${ego.rank}:${ego.no}`),
       null,
@@ -2249,14 +2256,14 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
         h("span", { className: "badge", "data-rank": ego.rank }, ego.rank),
         (ego.sub_skills || []).length > 0 ? h("span", { className: "ego-doka-badge", title: "同化スキル対応EGO" }, "◆ 同化") : null
       ].filter(Boolean))),
-    spirit: spirits.map((sp) => card(sp.name, sp.name, (Number(sp.price) || 0) > 0 ? null : "初期選択可", "spirit",
+    spirit: () => spirits.map((sp) => card(sp.name, sp.name, (Number(sp.price) || 0) > 0 ? null : "初期選択可", "spirit",
       () => { dispatch({ type: "ADD_ROSTER_SPIRIT", spirit: sp }); toast(`「${sp.name}」を所持に購入しました`, "assertive"); },
       false, null, shopCardLines("spirit", sp), ownedSpiritNames.has(sp.name),
       null, null,
       /* 精神の費用はビルドと同じ規則で表す。価格 0 は費用ではなく
          ルール情報なので、価格枠ではなく head のフラグ（所持バッジの隣）へ出す。 */
       formatAcquireCost(0, sp.price))),
-    item: items.map((item) => card(item.id, item.name, item.category || "その他", "item",
+    item: () => items.map((item) => card(item.id, item.name, item.category || "その他", "item",
       () => { dispatch({ type: "ADD_ITEM", itemId: item.id }); toast(`「${item.name}」を購入しました`, "assertive"); },
       atCap(item), "所持上限に達しています", shopCardLines("item", item), ownedItemIds.has(item.id)))
   };
@@ -2266,7 +2273,38 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
     spirit: (DB.spirits || []).length,
     item: catalogItems.length
   };
-  const list = lists[tab] || [];
+  const list = lists[tab] ? lists[tab]() : [];
+  const shownList = list.slice(0, visibleCount);
+  /* 絞り込みが変わったら表示枚数を初期値に戻す（前のリストの表示枚数を持ち越さない）。 */
+  React.useEffect(() => { setVisibleCount(48); }, [tab, unownedOnly, query, rankFilter, categoryFilter, sinFilter, sourceFilter, keywordFilter, requiredResources, excludedResources]);
+  React.useEffect(() => {
+    /* IntersectionObserver は content-visibility の推定高さとスクロールアンカリングで
+       判定が不安定になるため、スクロール位置と実測高さで末尾到達を判定する。 */
+    const grow = () => {
+      const scroller = document.querySelector("main.focus");
+      const scrollable = scroller && scroller.scrollHeight > scroller.clientHeight + 1;
+      const nearBottom = scrollable
+        ? scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 1200
+        : window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 1200;
+      if (!nearBottom) return;
+      /* 同じ高さのまま複数のスクロールイベントが来ても、追記は1回までにする。 */
+      const span = scroller && scrollable ? scroller.scrollHeight : document.documentElement.scrollHeight;
+      if (span === lastGrowHeightRef.current) return;
+      lastGrowHeightRef.current = span;
+      setVisibleCount((count) => Math.min(count + 48, list.length));
+    };
+    grow();
+    const onScroll = { passive: true };
+    const scroller = document.querySelector("main.focus");
+    if (scroller) scroller.addEventListener("scroll", grow, onScroll);
+    window.addEventListener("scroll", grow, onScroll);
+    window.addEventListener("resize", grow);
+    return () => {
+      if (scroller) scroller.removeEventListener("scroll", grow, onScroll);
+      window.removeEventListener("scroll", grow, onScroll);
+      window.removeEventListener("resize", grow);
+    };
+  }, [shownList.length, list.length]);
   const total = totals[tab] || 0;
   const emptyMessage = { support: "条件に合う未所持のサポートはありません。", ego: "条件に合う未所持のE.G.Oはありません。", spirit: "条件に合う未所持の精神はありません。", item: "条件に合う未所持のアイテムはありません。" }[tab];
 
@@ -2382,7 +2420,8 @@ h(Button, {
       ),
       filterRows
     ),
-    list.length === 0 ? h("div", { className: "empty" }, emptyMessage) : h("div", { className: "shop-grid", "data-tab": tab }, list)
+    list.length === 0 ? h("div", { className: "empty" }, emptyMessage) : h("div", { className: "shop-grid", "data-tab": tab },
+      shownList)
   );
 };
 const BuildWorkspace = ({ state, dispatch }) => {
@@ -2410,6 +2449,27 @@ const BuildWorkspace = ({ state, dispatch }) => {
                 : EnhancementSection;
   /* 所持ゲートを、roster を唯一の基準とするタブ（人格/サポート/E.G.O/精神）へ渡す。 */
   const panelProps = ["persona", "support", "ego", "spirit"].includes(active.id) ? { ownedOnly: owned } : {};
+  /* 一度表示したタブはツリーを保持し、切替は hidden のみにする（再マウントと画像再デコードを毎回払わない）。 */
+  const visitedRef = React.useRef([]);
+  const paneCacheRef = React.useRef({});
+  if (!visitedRef.current.includes(active.id)) visitedRef.current = visitedRef.current.concat(active.id);
+  if (!paneCacheRef.current[active.id] || paneCacheRef.current[active.id].state !== state) {
+    paneCacheRef.current[active.id] = {
+      state,
+      element: Component ? h(Component, { state, dispatch, ...panelProps }) : null
+    };
+  }
+  const panes = BUILD_TABS.map((tab) => {
+    const cache = paneCacheRef.current[tab.id];
+    return h("div", {
+      key: tab.id,
+      className: "build-tabpane",
+      id: "bpanel-" + tab.id,
+      role: "tabpanel",
+      "aria-labelledby": "btab-" + tab.id,
+      hidden: tab.id !== active.id
+    }, visitedRef.current.includes(tab.id) && cache ? cache.element : null);
+  });
   return h("div", { className: "build-workspace" },
     h(SectionTitle, { num: active.num, title: active.title, subtitle: active.subtitle }),
     h("div", { className: "build-tabs" },
@@ -2420,11 +2480,13 @@ const BuildWorkspace = ({ state, dispatch }) => {
           role: "tab",
           "aria-selected": active.id === tab.id,
           className: active.id === tab.id ? "is-active" : "",
-          onClick: () => setTab(tab.id)
+          onClick: () => setTab(tab.id),
+          id: "btab-" + tab.id,
+          "aria-controls": "bpanel-" + tab.id
         }, tab.label))
       )
     ),
-    h("div", { className: "build-tabpanel" }, Component ? h(Component, { state, dispatch, ...panelProps }) : null)
+    h("div", { className: "build-tabpanel" }, panes)
   );
 };
 
