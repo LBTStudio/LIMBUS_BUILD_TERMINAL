@@ -4431,23 +4431,6 @@ const SettingsSection = ({ state, dispatch }) => {
   const rmFml = (id) => setF("formulas", state.formulas.filter((f) => f.id !== id));
   const bov = state.builtinFormulasOverride || {};
   const setBov = (name, val) => setF("builtinFormulasOverride", { ...bov, [name]: val });
-  const [editingBuiltin, setEditingBuiltin] = React.useState(null);
-  const [editDraft, setEditDraft] = React.useState("");
-  const startEditBuiltin = (name, currentExpr) => {
-    setEditingBuiltin(name);
-    setEditDraft(currentExpr);
-  };
-  const commitEditBuiltin = () => {
-    if (editingBuiltin) {
-      setBov(editingBuiltin, editDraft);
-      setEditingBuiltin(null);
-      toast("\u7D44\u8FBC\u5F0F\u3092\u4E0A\u66F8\u304D");
-    }
-  };
-  const cancelEditBuiltin = () => {
-    setEditingBuiltin(null);
-    setEditDraft("");
-  };
   const removeBuiltin = (name) => {
     if (confirm(`\u7D44\u8FBC\u5F0F\u300C${name}\u300D\u3092\u975E\u8868\u793A\uFF08\u524A\u9664\uFF09\u3057\u307E\u3059\u304B\uFF1F\u30C1\u30E3\u30C3\u30C8\u30D1\u30EC\u30C3\u30C8\u306B\u51FA\u529B\u3055\u308C\u306A\u304F\u306A\u308A\u307E\u3059\u3002`)) {
       setBov(name, null);

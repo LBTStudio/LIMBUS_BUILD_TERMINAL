@@ -20,3 +20,12 @@ tmp_*.*
 # tempfile.TemporaryDirectory(dir=ROOT) の残骸。8文字のランダム名なので
 # tmp_*.* （拡張子必須）に一致せず、未追跡に漏れていた。
 tmp????????/
+# Playwright MCP のローカル出力（スクラッチ）。docs/ui-audit-v65r68.md が参照する
+# audit-pc/mob-*.png のみ同ディレクトリに残す。
+.playwright-mcp/
+# Serena MCP のローカル設定・キャッシュ。
+.serena/
+# ルート直下の一時スクリーンショット（検証時に再取得可能）。
+/*.png
+# 旧レイアウトの OAAH 状態ファイル（現行は data/state/ 配下）。
+/STATE.md

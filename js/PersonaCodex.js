@@ -1172,5 +1172,3 @@ window.PersonaCodex = PersonaCodex;
 window.PersonaDetail = PersonaDetail;
 window.LBT_buildRosterDetailPersona = buildRosterDetailPersona;
 window.getPrimarySin = getPrimarySin;
-window.inferAffiliation = inferAffiliation;
-window.decoratePersona = decoratePersona;

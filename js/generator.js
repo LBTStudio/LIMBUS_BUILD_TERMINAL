@@ -12,7 +12,6 @@ function formatAoe(aoe, aoeCount) {
   const n = sanitizeInline(aoeCount);
   return n ? `${a} ${n}\u540D` : a;
 }
-window.formatAoe = formatAoe;
 /* 発動タイミング見出しの語彙。
    正規表現の選択肢は左から順に評価されるため、「攻撃時」を「一方攻撃時」より先に置くと
    長い語の途中で一致し「一方 / 攻撃時」と誤って分断される（黒獣-卯 S2・夜明事務所代表 S2 等）。
