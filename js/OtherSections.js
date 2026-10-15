@@ -277,8 +277,12 @@ const SourceFilterRow = ({ h, kind, value, onChange }) => h(
   h("span", { className: "filter-label" }, "出典"),
   ...SOURCE_OPTIONS.map(([key, text]) => h("button", { key, type: "button", className: `chip${value === key ? " is-active" : ""}`, "aria-pressed": value === key, onClick: () => onChange(key) }, text))
 );
-const useSourceFilterControl = (kind, value, onChange) => {
+/* 出典（core/supplement/pack1）を持つのはサポートパッシブと精神だけ。
+   持たないカタログにこの行を出すと、押しても何も変わらない操作子になる。 */
+const SOURCE_KINDS = { support: "サポート", spirit: "精神" };
+const useSourceFilterControl = (kind, value, onChange, enabled = true) => {
   React.useEffect(() => {
+    if (!enabled) return void 0;
     const anchor = document.querySelector(".focus .codex-filters");
     if (!anchor) return void 0;
     const host = document.createElement("div");
@@ -296,7 +300,7 @@ const useSourceFilterControl = (kind, value, onChange) => {
     });
     anchor.after(host);
     return () => host.remove();
-  }, [kind, value, onChange]);
+  }, [kind, value, onChange, enabled]);
 };
 const SupportSection = ({ state, dispatch, ownedOnly = false }) => {
   const h = React.createElement;
@@ -341,9 +345,13 @@ const SupportSection = ({ state, dispatch, ownedOnly = false }) => {
     () => (state.roster?.supports || []).map((entry) => ({ ...entry, slot: entry.slot || "normal" })),
     [state.roster?.supports]
   );
-  const catalogSource = gated ? ownedSupports : DB.support_passives;
+  /* ここを catalogSource と名付けると、上の関数（entry → 出典）が
+     配列で影を落とし、applyFilters 内の catalogSource(s) が
+     「関数ではない」という型エラーになる。出典チップを選ぶたびタブごと落ちる。
+     データの名前と関数の名前を分けておく。 */
+  const supportCatalog = gated ? ownedSupports : DB.support_passives;
   const deathCatalogSource = gated ? ownedSupports.filter((entry) => entry.slot === "death") : DB.death_passives;
-  const filtered = React.useMemo(() => applyFilters(catalogSource), [query, sinFilter, lpFilter, sourceFilter, catalogSource]);
+  const filtered = React.useMemo(() => applyFilters(supportCatalog), [query, sinFilter, lpFilter, sourceFilter, supportCatalog]);
   // 死亡後専用スロットの候補は専用DB (death_passives) を単独ソースとする。
   // 通常DBを正規表現で推測分類すると誤検出・取りこぼしが起きるため混在させない。
   const deathFiltered = React.useMemo(() => applyFilters(deathCatalogSource), [query, sinFilter, lpFilter, sourceFilter, deathCatalogSource]);
@@ -351,7 +359,7 @@ const SupportSection = ({ state, dispatch, ownedOnly = false }) => {
   const visibleStandard = catalogMode !== "death" ? standardFiltered : [];
   const visibleDeath = catalogMode !== "standard" ? deathFiltered : [];
   const visibleCount = catalogMode === "death" ? deathFiltered.length : catalogMode === "all" ? standardFiltered.length + deathFiltered.length : standardFiltered.length;
-  const visibleTotal = catalogMode === "death" ? (deathCatalogSource || []).length : catalogMode === "all" ? (catalogSource || []).length + (deathCatalogSource || []).length : (catalogSource || []).length;
+  const visibleTotal = catalogMode === "death" ? (deathCatalogSource || []).length : catalogMode === "all" ? (supportCatalog || []).length + (deathCatalogSource || []).length : (supportCatalog || []).length;
   const equipped = Array.isArray(state.supports) ? state.supports : [];
   const deathSupport = state.deathSupport || null;
   const maxSupports = activeEnhancements.some((e) => e.name === "サポートスロット追加") ? 3 : 2;
@@ -1521,6 +1529,9 @@ const SpiritSection = ({ state, dispatch, ownedOnly = false }) => {
         isEquipped && h("span", { className: "spirit-item-equipped" }, "装備中")
       )
     );
+    /* ここを返さないと map が undefined を並べ、列表は空のままになる。
+       件数（counter）は別に出るので、一見すると「あるのに出ない」状態になる。 */
+    return spiritBody;
   }))), selected ? /* @__PURE__ */ React.createElement("div", { className: "codex-detail" }, /* @__PURE__ */ React.createElement("div", { className: "detail-head", style: { "--sin-primary": "var(--gold)" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-eyebrow" }, /* @__PURE__ */ React.createElement("span", { className: "detail-num" }, selected.price > 0 ? `\u6B20\u7247 ${selected.price}` : "\u521D\u671F\u9078\u629E\u53EF"), /* @__PURE__ */ React.createElement("span", { className: "detail-type" }, "SPIRIT / \u7CBE\u795E")), /* @__PURE__ */ React.createElement("div", { className: "detail-name" }, selected.name)), /* @__PURE__ */ React.createElement("div", { className: "detail-body" }, selected.always_effect && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u5E38\u6642\u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive" }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" }, selected.always_effect))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u58EB\u6C17\u4F4E\u4E0B\u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive", style: { borderLeftColor: "var(--warn)" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" }, selected.morale_effect || "\u306A\u3057"))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u6DF7\u4E71\u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive", style: { borderLeftColor: "var(--err)" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" }, selected.confuse_effect)))), /* @__PURE__ */ React.createElement("div", { className: "detail-actions" }, state.spirit === selected.name ? /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--gold)", textAlign: "center", fontFamily: "var(--f-display)", letterSpacing: "0.2em", textTransform: "uppercase" } }, "\u2605 \u73FE\u5728\u88C5\u5099\u4E2D") : /* @__PURE__ */ React.createElement(Button, { variant: "primary", onClick: () => applySpirit(selected), icon: "check" }, "\u3053\u306E\u7CBE\u795E\u3092\u88C5\u5099"))) : /* @__PURE__ */ React.createElement("div", { className: "codex-detail" }, /* @__PURE__ */ React.createElement("div", { className: "detail-empty" }, /* @__PURE__ */ React.createElement("div", { className: "detail-empty-icon" }, "\u{1F701}"), /* @__PURE__ */ React.createElement("div", { className: "t-label" }, "\u5DE6\u306E\u30AB\u30FC\u30C9\u3092\u9078\u629E"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-11)", color: "var(--tx-mute)", marginTop: 8 } }, "\u7CBE\u795E\u3092\u9078\u629E\u3059\u308B\u3068\u8A73\u7D30\u304C\u8868\u793A\u3055\u308C\u307E\u3059\u3002", /* @__PURE__ */ React.createElement("br", null), "\u30C0\u30D6\u30EB\u30AF\u30EA\u30C3\u30AF\u3067\u88C5\u5099\u3002")))));
   /* 精神の初期枠。アイテムと同じ操作だが、精神は装備するものであって
      買うものではないため、取り込んでも支出は発生しない。 */
@@ -1650,7 +1661,7 @@ if (typeof window !== "undefined") window.LBT_BUILD_TABS = BUILD_TABS;
 /* 取得（所持化）の共通部品。
 
    urso 導出の軸は「取得.kind」。DB に価格のある種別（サポート/死亡後/アイテム/
-   精神/強化）は DB 価格、价格的の無い人格・E.G.O は抽出/購入の core ルールで
+   精神/強化）は DB 価格、価格が無いの人格・E.G.O は抽出/購入の core ルールで
    金額を出す。どちらでも明細は appendLedgerEntry が直近リザルトへ倒す（無ければ未分類）。 */
 const ACQUIRE_KINDS = [
   /* 入手方法は抽出/購入の2種類（core:336）。 */
@@ -1857,12 +1868,20 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
   const labels = window.LBT_TICKET_KIND_LABEL || {};
 
   /* 通貨で払うとき、回数ぶんの合計残高でできるかを判定する。
-     1回分だけを見ると「3回押したけど2回目で余额が尽きる」を防げない。 */
-  const totalCost = { lp: (Number(cost.lp) || 0) * times, shards: (Number(cost.shards) || 0) * times };
+     1回分だけを見ると「3回押したけど2回目で余额が尽きる」を防げない。
+     合計は抽出手順そのものと同じ式で出す（engine の逐次計算）。
+     ここで式を別にすると、見える金額と実際に引く金額がずれる。 */
+  const ownsAnyPersona = ((state.roster || {}).personas || []).length > 0;
+  const perDraw = pay === "ticket" ? { lp: 0, shards: 0 } : (G?.paidCost?.(route, state, activePack) || { lp: 0, shards: 0 });
+  /* 人格抽出の1回目は未所持なら無料（core:338）。2回目以降は同額。 */
+  const totalCost = route === "persona" && pay === "paid"
+    ? { lp: (ownsAnyPersona ? Number(perDraw.lp) || 0 : 0) + Math.max(0, times - 1) * ((Number(perDraw.lp) || 0)), shards: 0 }
+    : { lp: (Number(perDraw.lp) || 0) * times, shards: (Number(perDraw.shards) || 0) * times };
   const balance = window.LBT_computeLedgerBalance?.(state.results || [], state.entries || []);
-  const totalCostLabel = totalCost.lp || totalCost.shards
-    ? `1回 ${cost.label || ""} × ${times} = ${totalCost.lp ? `LP ${totalCost.lp}` : ""}${totalCost.lp && totalCost.shards ? " / " : ""}${totalCost.shards ? `欠片 ${totalCost.shards}` : ""}`
-    : "無料";
+  const costParts = [];
+  if (totalCost.lp) costParts.push(`LP ${totalCost.lp}`);
+  if (totalCost.shards) costParts.push(`欠片 ${totalCost.shards}`);
+  const totalCostLabel = costParts.length ? costParts.join(" / ") : "無料";
   const ticketShort = pay === "ticket" && held < times;
   const currencyShort = pay === "paid" && balance && (Number(balance.lp) < totalCost.lp || Number(balance.shards) < totalCost.shards);
   const blockedReason = poolSize <= 0
@@ -1912,7 +1931,10 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
     setPending({ seed, out });
   };
 
-  const cancelDraw = () => { setPending(null); toast("抽選を取り消しました"); };
+  /* やめるのは「まだ何も記録していない」状態だけ（出目を見てから選び直す、
+     というのは別の抜け道）。文言でそう伝える：
+     利用者が「引いた結果を取り消した」と誤解しないこと。 */
+  const cancelDraw = () => { setPending(null); toast("まだ引いていません。記録は残していません。"); };
 
   const commitDraw = () => {
     if (!pending) return;
@@ -1921,14 +1943,25 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
     if (out.paidBy === "ticket") {
       dispatch({ type: "SPEND_TICKET", kind: out.ticketKind, pack: out.ticketPack, count: -hits.length });
     }
-    /* 同じ手つきで何件も入るので、1回ごとに dispatch すると前の書き込みが
-       上書きされる。まとめて1つの action にする。
-       支払いと取得物はUndoで巻き戻る（それは正しい）。 */
-    dispatch({
-      type: "ADD_ROSTER_MANY",
-      cost: { lp: out.cost.lp || 0, shards: out.cost.shards || 0 },
-      adds: hits.filter((hit) => hit.type === "ego" || hit.type === "persona")
-    });
+    /* 結果をハッシュ鎖で封緘し、抽出リストへ積む。
+       所持への反映もこの action の中で行うので、画面が数えた顔ではなく
+       「封緘された顔」が入る。2つに分けると片方だけ後から狂う。
+
+       __sealed は必須。Undoで巻き戻した時の復元は wrappedDispatch が
+       この action を打ち直して行う。seal を付けないと、確定済みの抽出が
+       Ctrl+Z 1回で丸ごと消え、支払いも戻って「引いたのに引いた形跡が
+       ない」状態になる。証明できない記録は、記録しないのと同じ。 */
+    const batch = G?.sealBatch ? G.sealBatch(out) : null;
+    if (batch) {
+      dispatch({ type: "ADD_DRAW_BATCH", __sealed: true, batch });
+    } else {
+      /* 検証器が無い環境（古い読み込み）は記録しないが、所持は残す。 */
+      dispatch({
+        type: "ADD_ROSTER_MANY",
+        cost: { lp: out.cost.lp || 0, shards: out.cost.shards || 0 },
+        adds: hits.filter((hit) => hit.type === "ego" || hit.type === "persona")
+      });
+    }
     /* 抽選の決定だけを記録に残す。Undoで巻き戻しても消えない。
        種は出さず commit（種から計算した指紋）だけを持つ。 */
     dispatch({
@@ -1945,11 +1978,27 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
         commit: out.commit || null
       }
     });
-    setLast({ hits, paidBy: out.paidBy, cost: out.cost, commit: out.commit || null });
+    setLast({ hits, paidBy: out.paidBy, cost: out.cost, commit: out.commit || null, drawn: hits.length, requested: out.requested || hits.length, stopped: out.stopped || "complete" });
     setPending(null);
     const branched = hits.filter((x) => x.branch === "special").length;
     const note = branched ? `（うち特異人格チャンス ${branched}）` : "";
-    toast(`${hits.length}枚を抽出しました${note}（${out.paidBy === "ticket" ? ticketLabel(ticketKind, ticketPack) : out.cost.label}）`);
+    const short = stopNote(out);
+    toast(`${hits.length}枚を抽出しました${note}（${out.paidBy === "ticket" ? ticketLabel(ticketKind, ticketPack) : out.cost.label}）${short ? ` ${short}` : ""}`);
+  };
+
+  /* 途中で止まったときだけ、その理由と残りを書く。
+     足りなかったのに「引けた分だけ」としか言わないと、
+     残った回数がどこへ消えたのか利用者に分からない。 */
+  const stopNote = (out) => {
+    const requested = Number(out.requested) || 0;
+    const drawn = Number(out.drawn ?? out.hits?.length) || 0;
+    if (!requested || drawn >= requested) return "";
+    const left = requested - drawn;
+    if (out.stopped === "insufficientLP") return `残りの${left}回はLPが足りず引けませんでした。`;
+    if (out.stopped === "insufficientShards") return `残りの${left}回は自我の欠片が足りず引けませんでした。`;
+    if (out.stopped === "insufficientTickets") return `残りの${left}回はチケットが足りませんでした。`;
+    if (out.stopped === "poolExhausted") return `残りの${left}回は未所持がなくなったら止まりました。`;
+    return `残りの${left}回は引けませんでした。`;
   };
 
   const ticketLabel = (kind, pack) => (window.LBT_ticketLabel ? window.LBT_ticketLabel(kind, pack) : (labels[kind] || "チケット"));
@@ -2019,20 +2068,25 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
       "抽選結果はこの瞬間に決まります。確定後は取り消せません。"),
     blockedReason && h("p", { className: "ledger-note", role: "status" }, blockedReason),
     /* 確認。ここまでで出目は確定済みなので、経路や回数などを変えても
-       同じ顔が出る。ここで「取り消す」を選んだときだけ何も起きない。 */
+       同じ顔が出る。ここでは顔を出さない。
+       出目を先に見せてから「取り消す」を置くと、見る → 嫌だ → 引いたことに
+       しない、という抜け道ができる。出目が出るのは確定のあとだけ。
+       「まだ引かない」は何も起きていない状態をやめる操作なので、損得がない。 */
     pending && h("div", { className: "gacha-confirm", role: "group", "aria-label": "抽選の確認" },
-      h("span", { className: "t-label" }, `この内容で ${pending.out.hits.length} 件を確定します`),
-      h("div", { className: "gacha-confirm-list" },
-        pending.out.hits.map((hit, i) => h("div", { key: `${hitLabel(hit)}-${i}`, className: "gacha-result-row" },
-          h("strong", null, hit.name),
-          h("span", { className: "ledger-note" }, `${hitLabel(hit)}${hit.branch === "special" ? "（特異人格チャンス）" : ""}`)))),
+      h("span", { className: "t-label" }, `この内容で ${pending.out.hits.length} 件を記録します`),
       h("div", { className: "gacha-confirm-cost ledger-note" },
         pending.out.paidBy === "ticket"
           ? `${ticketLabel(ticketKind, ticketPack)} を ${pending.out.hits.length} 枚使います`
           : `支払い ${pending.out.cost?.label || "無料"}`),
+      /* 途中で止まる場合は、確定前に理由を書く。トーストは消えるので、
+         「引けなかった分」はここに書いて残す。 */
+      (() => { const note = stopNote(pending.out); return note ? h("div", { className: "gacha-confirm-cost ledger-note" }, note) : null; })(),
+      h("p", { className: "ledger-note" },
+        "この画面では出目を出しません。「確定する」を押した瞬間に結果が出て、それ以降は取り消せません。"),
       h("div", { className: "shop-toolbar-main" },
-        h(Button, { size: "sm", variant: "secondary", onClick: cancelDraw }, "取り消す"),
+        h(Button, { size: "sm", variant: "secondary", onClick: cancelDraw }, "まだ引かない"),
         h(Button, { size: "sm", variant: "primary", onClick: commitDraw }, "確定する"))),
+
     last && h("div", { className: `gacha-ticket-result${last.hits.some((x) => x.branch === "special") ? " is-branch" : ""}` },
       last.hits.some((x) => x.branch === "special") && h("span", { className: "gacha-branch-badge" }, "特異人格チャンス"),
       h("span", { className: "t-label" }, `抽選結果（${last.hits.length}件）`),
@@ -2040,7 +2094,9 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
         last.hits.map((hit, i) => h("div", { key: `${hitLabel(hit)}-${i}`, className: "gacha-result-row" },
           h("strong", null, hit.name),
           h("span", { className: "ledger-note" }, `${hitLabel(hit)}${hit.branch === "special" ? "（特異人格チャンス）" : ""}`)))),
-      h("span", { className: "ledger-note" }, `${last.paidBy === "ticket" ? "チケット使用" : last.cost?.label || "無料"}`)
+      h("span", { className: "ledger-note" }, `${last.paidBy === "ticket" ? "チケット使用" : last.cost?.label || "無料"}`),
+      stopNote(last) ? h("span", { className: "ledger-note" }, stopNote(last)) : null,
+      h("p", { className: "ledger-note" }, "この記録は「記録 > 抽出リスト」にハッシュ鎖つきで残ります。Undo（元に戻す）でも消えません。")
     ));
   };
 const ShopSection = ({ state, dispatch }) => {
@@ -2113,7 +2169,7 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
      key（= item.id）で引く。state.js priceItemById と同じ参照。 */
   const price = resolveAcquireCost(kind, "purchase", { name, id: key });
   /* 残高が足りなければ購入しない。ただし黙って無効化するのではなく、
-     押した瞬間に理由を伝える（購入可否は判断 Debe the user がする）。 */
+     押した瞬間に理由を伝える（購入の可否は利用者が判断する）。 */
   const afford = window.LBT_purchaseAffordability
     ? window.LBT_purchaseAffordability(state, price)
     : { ok: true, reason: "" };
@@ -2281,7 +2337,7 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
           onClick: () => setSinFilter(sin)
         }, sin || "すべて"))))
     : null;
-  useSourceFilterControl(tab === "support" ? "サポート" : "精神", sourceFilter, setSourceFilter);
+  useSourceFilterControl(SOURCE_KINDS[tab] || "", sourceFilter, setSourceFilter, !!SOURCE_KINDS[tab]);
 
   const searchLabel = { support: "サポート名・条件・効果で検索", ego: "E.G.O名・効果・ランクで検索", spirit: "精神名・効果で検索", item: "アイテム名・効果・タグ・カテゴリで検索" }[tab];
 
@@ -2776,6 +2832,154 @@ const InventoryPanel = ({ state, dispatch }) => {
     )
   );
 };
+
+/* --- 抽出リスト（ガチャの記録）-----------------------------------------
+   抽選の結果はバッチ単位で封緘される。1つのバッチに錨は1つだけ、
+   結果はハッシュ鎖で連結されている。1件でも編集・削除・並べ替えを
+   されれば鎖が切れる。
+
+   この面が表示する「検証済み / 検証に失敗」は飾りではなく、
+   実際の verifyBatch の戻り値。飾りにすると、書き換えられた記録に
+   「検証済み」と嘘をつくことになる。 */
+const DRAW_KIND_LABEL = {
+  persona: "人格抽出",
+  specialPersona: "特異人格",
+  ego: "E.G.O抽出",
+  themePack: "特定抽出パック"
+};
+
+/* 指紋は先頭と末尾だけ。全文は長すぎて、画面では誰も照合しない。 */
+const fingerprint = (hash) => {
+  const s = String(hash || "");
+  if (s.length <= 16) return s || "—";
+  return `${s.slice(0, 8)}…${s.slice(-8)}`;
+};
+
+/* 名前から DB の人格へ引く。パックの項目は pack 内の通し番号しか
+   持ってないので、所持との突き合わせもここを通す。
+   所持は {mode, no} で持つ（名前は持たない）のでキーも mode:no にする。 */
+function personaRefByName(name) {
+  const hit = String(name || "").trim();
+  if (!hit) return null;
+  const normal = (window.DB?.normal_personas || []).find((p) => p.name === hit);
+  if (normal) return { no: Number(normal.no), mode: "n", key: `n:${Number(normal.no)}` };
+  const special = (window.DB?.tokui_personas || []).find((p) => p.name === hit);
+  if (special) return { no: Number(special.no), mode: "t", key: `t:${Number(special.no)}` };
+  return null;
+}
+
+/* テーマパックの項目は、DB に人格データがあるものと無いものが混ざっている。
+   無ければ所持には入らない。黙っておくと「払ったのに届いたものがない」
+   ように見えるので、理由まで書く。
+
+   判定は「今この瞬間の所持」ではなく記録自身（duplicate / item.kind）で行う。
+   所持で判定すると、この抽出で入れたばかりの分まで「所持にある」と出て嘘になる。 */
+const drawRecordNote = (record) => {
+  if (record.duplicate) return `重複・欠片 ${record.grantedShards || 0}`;
+  const isPack = record.kind === "themePack" || record.item?.kind === "themePack";
+  if (!isPack) return "";
+  /* duplicate が立っていない = 引いた時点で持っていなかった = 所持へ入った。 */
+  return personaRefByName(record.item?.name) ? "所持へ追加" : "記録のみ（DBに人格データ無し）";
+};
+
+const drawRecordLine = (record) => {
+  const item = record?.item || {};
+  const no = item.no == null ? "" : ` No.${item.no}`;
+  const label = record.kind === "ego" ? `${item.rank || ""}${no}` : `${item.name || ""}${no}`;
+  const cost = record.cost || {};
+  const paid = cost.lp ? `LP ${cost.lp}` : cost.shards ? `欠片 ${cost.shards}` : "無料";
+  return { label: label.trim() || "（名前なし）", paid, note: drawRecordNote(record) };
+};
+
+const DrawLedgerPanel = ({ state }) => {
+  const h = React.createElement;
+  const G = window.LBT_gachaDraw;
+  const batches = React.useMemo(() => (Array.isArray(state.draws) ? state.draws : []), [state.draws]);
+  const [openHash, setOpenHash] = React.useState(null);
+
+  /* 検証は描画のたびに走らせる（記録が動いたときだけ再計算される）。
+     合格と書くのに、合格を確かめていない理由がない。 */
+  const checked = React.useMemo(() => batches.map((batch) => {
+    const v = G && typeof G.verifyBatch === "function" ? G.verifyBatch(batch) : { ok: false, reasons: ["検証器が読み込まれていません"] };
+    return { batch, ok: v.ok === true, reasons: v.reasons || [] };
+  }), [batches, G]);
+
+  const broken = checked.filter((c) => !c.ok).length;
+  const lp = checked.reduce((n, c) => n + sumRecords(c.batch, "lp"), 0);
+  const shards = checked.reduce((n, c) => n + sumRecords(c.batch, "shards"), 0);
+
+  return h(Card, { className: "draw-ledger" },
+    h("div", { className: "card-header owned-library-bar" },
+      h("span", { className: "t-label" }, "抽出リスト"),
+      /* 件数は常に書く（0件も0件）。無いことを隠すと、
+         「まだ抽っていない」と「記録が消えた」が同じに見える。 */
+      h("span", { className: "ledger-note" },
+        batches.length === 0
+          ? "0件"
+          : `${checked.length}件・${checked.length - broken}件が検証済み`)),
+    h("div", { className: "card-body stack-2" },
+      /* 空の理由と次にできることを書く。「まだ無い」だけでは、
+         どこで抽するのか分からない。 */
+      batches.length === 0
+        ? h("p", { className: "ledger-empty-note" },
+          "まだ抽していません。ショップ > ガチャで抽選すると、結果がハッシュ鎖つきの記録としてここへ残ります。")
+        : null,
+      /* 合計は「全部が検証できているとき」だけ書く。1件でも改ざんが
+         見つかっているのに「支出の証明」と書くと、壊れた記録を
+         信用しているように見える。 */
+      batches.length > 0 && broken === 0
+        ? h("p", { className: "ledger-note" },
+          `この一覧は支出の証明です。合計 LP ${lp.toLocaleString("ja-JP")} / 欠片 ${shards.toLocaleString("ja-JP")}。`)
+        : null,
+      broken > 0
+        ? h("div", { className: "draw-ledger-broken", role: "alert" },
+          h("p", { className: "ledger-note" },
+            `${broken}件が検証に失敗しました。保存データを書き換えたか、途中で編集された可能性があります。この記録は「何が引けたか」を証明できません。所持と通帳は抽出した時点のままなので、追記は必要ありません。`))
+        : null,
+      checked.map(({ batch, ok, reasons }, index) => {
+        const records = Array.isArray(batch.records) ? batch.records : [];
+        const open = openHash === batch.batchHash;
+        const lpSum = sumRecords(batch, "lp");
+        const shardSum = sumRecords(batch, "shards");
+        return h("div", { key: `${batch.batchHash || "no-hash"}-${index}`, className: `draw-batch${ok ? "" : " is-broken"}` },
+          h("button", {
+            type: "button",
+            className: "draw-batch-head",
+            "aria-expanded": open,
+            onClick: () => setOpenHash(open ? null : batch.batchHash)
+          },
+          h("span", { className: "draw-batch-kind" }, DRAW_KIND_LABEL[batch.kind] || batch.kind || "抽出"),
+          h("span", { className: "draw-batch-count" }, `${records.length}件`),
+          h("span", { className: "draw-batch-cost" },
+            [lpSum ? `LP ${lpSum}` : null, shardSum ? `欠片 ${shardSum}` : null].filter(Boolean).join(" / ") || "無料"),
+          /* 検証状態は実際の状態なので、色と文字の両方で示す
+             （色だけで伝えない）。 */
+          h("span", { className: `draw-batch-state${ok ? "" : " is-broken"}` }, ok ? "検証済み" : "検証に失敗"),
+          h("span", { className: "draw-batch-fp" }, fingerprint(batch.batchHash))),
+          open && h("div", { className: "draw-batch-body" },
+            !ok && h("ul", { className: "ledger-warn-list" },
+              reasons.map((r, i) => h("li", { key: i }, r))),
+            h("div", { className: "draw-record-list" },
+              records.map((record, i) => {
+                const line = drawRecordLine(record);
+                return h("div", { key: `${record.hash || i}`, className: "draw-record" },
+                  h("span", { className: "draw-record-label" }, line.label),
+                  h("span", { className: "draw-record-cost" }, line.paid),
+                  line.note ? h("span", { className: "draw-record-note" }, line.note) : null);
+              })),
+            h("p", { className: "ledger-note" },
+              `錨 ${fingerprint(batch.commit)} / 種 ${fingerprint(batch.serverSeed)} / ルール表 ${fingerprint(batch.rulesetHash)}`))
+        );
+      }))
+  );
+};
+
+/* バッチの支出合計。1件ずつ足す（総額を別に持つと、
+   抽出の並びが壊れても気がつかない）。 */
+function sumRecords(batch, field) {
+  const records = Array.isArray(batch?.records) ? batch.records : [];
+  return records.reduce((n, r) => n + (Number(r?.cost?.[field]) || 0), 0);
+}
 
 const LedgerPanel = ({ state, dispatch }) => {
   /* 通帳。所持したものがどのリザルトで手に入ったかと、LP・欠片の残高を
@@ -3540,7 +3744,11 @@ const importHeldPersonas = () => {
     h("div", { className: "card-body stack-2" },
     importNote.skippedCount > 0 && h("div", { className: "ledger-held-result", role: "status" },
     h("p", { className: "ledger-note" }, `入れなかったものが ${importNote.skippedCount} 件あります：`),
-    h("ul", { className: "ledger-warn-list" }, importNote.skipped.map((s, i) => h("li", { key: i }, `${s.name || s.key}：${s.reason || s.kind || "不明"}`)))
+    /* 取り込み口が2つある（硝子窓は {key,name}、テキスト流しは {text}）。
+       形の違う行を同じ枠に出すので、取りこぼさない順に全部見る。
+       どれも無ければ「行を特定できない」と書く。空欄は読者を嘘に導く。 */
+    h("ul", { className: "ledger-warn-list" }, importNote.skipped.map((s, i) => h("li", { key: i },
+      `${s.text || s.name || s.key || "（行を特定できません）"}：${s.reason || s.kind || "不明"}`)))
     ),
     h(Button, { size: "sm", variant: "ghost", onClick: () => setImportNote(null) }, "閉じる")
     )
@@ -3750,6 +3958,10 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
     )
     ),
 
+    /* 抽出リスト。ガチャの結果をハッシュ鎖つきで残す場所。
+       通帳（明細）と並べて置くのは、同じ支出の証明に属するから。
+       ただしここでは計算しない。鎖は読み手側で再計算して確かめる。 */
+    h(DrawLedgerPanel, { state }),
 
     /* リザルトカード。ドロップ先。 */
     h("div", { className: "ledger-cards" },
@@ -3781,8 +3993,9 @@ h(Card, { className: "ledger-card" },
     "aria-label": `${result.name} の登録情報を編集`,
     onClick: () => setTicketPanel(result.id)
     }, "編集")
+        ),
     ),
-    ),
+
             h("div", { className: "card-body stack-2" },
               h("div", { className: "ledger-card-income" },
               h("span", { className: "ledger-pair" }, bigNum(result.income?.lp || 0, "lp"), h("span", { className: "ledger-pair-label" }, "LP")),

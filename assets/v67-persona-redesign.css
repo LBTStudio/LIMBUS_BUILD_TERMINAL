@@ -649,6 +649,106 @@
   text-decoration: line-through;
 }
 
+/* --- 抽出リスト（ガチャの記録）---
+   1バッチ=1行。行はボタンで全文が開く（詳細を見るために2段踏みにしない）。
+   検証状態は行内で文字と色の両方で出す。色だけだと、色覚の違う利用者には
+   「合格」と「失敗」が同じ帯に見える。 */
+.draw-ledger {
+  border-color: var(--accent-dim);
+}
+.draw-batch {
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-sm);
+  background: var(--surface-1);
+}
+.draw-batch.is-broken {
+  border-color: color-mix(in oklab, var(--err) 46%, var(--line));
+}
+.draw-batch-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  inline-size: 100%;
+  padding: var(--s-2) var(--s-3);
+  background: none;
+  border: 0;
+  border-radius: var(--r-sm);
+  text-align: start;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.draw-batch-head:hover {
+  background: var(--surface-2);
+}
+.draw-batch-head:focus-visible {
+  outline: 2px solid var(--amber-hi);
+  outline-offset: 2px;
+}
+.draw-batch-kind {
+  font-family: var(--f-display);
+  font-size: var(--fs-12);
+  color: var(--text-strong);
+}
+.draw-batch-count,
+.draw-batch-cost {
+  font-size: var(--fs-11);
+  color: var(--tx-2);
+  font-variant-numeric: tabular-nums;
+}
+/* 指紋は照合用の文字列。装飾ではなく識別子なので等幅で揃える。 */
+.draw-batch-fp {
+  margin-inline-start: auto;
+  font-family: var(--f-mono);
+  font-size: var(--fs-10);
+  color: var(--tx-dim);
+  letter-spacing: 0.02em;
+}
+.draw-batch-state {
+  padding: 1px var(--s-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-10);
+  color: var(--tx-2);
+  white-space: nowrap;
+}
+.draw-batch-state.is-broken {
+  border-color: color-mix(in oklab, var(--err) 55%, var(--line));
+  color: var(--err-ink);
+}
+.draw-batch-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: 0 var(--s-3) var(--s-3);
+}
+.draw-record-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.draw-record {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  font-size: var(--fs-11);
+}
+.draw-record-label {
+  color: var(--text-strong);
+}
+.draw-record-cost,
+.draw-record-note {
+  color: var(--tx-dim);
+  font-size: var(--fs-10);
+}
+.draw-ledger-broken {
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid color-mix(in oklab, var(--err) 46%, var(--line));
+  border-radius: var(--r-sm);
+  background: color-mix(in oklab, var(--err) 8%, var(--surface-1));
+}
+
 /* --- 16. 人格カードの「獲得」ボタンがカード全面のヒット領域に潰されないようにする ---
    .p-card-hit は inset:0 / z-index:1 でカード全体を覆う。獲得ボタンはその上に
    載っているが z-index が無く、実マウスでは .p-card-hit が events を横取りする

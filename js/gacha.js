@@ -371,9 +371,15 @@
   /* 残LP（残欠片）を上限に、指定回数までまとめて引く。
      コストは所持数の増加で変わるため1回ずつ再計算し、足りなければ止める。
      引いた候補は所持へ反映しながら進めるので、同じ候補を2度選ばない。
-     テーマパックだけは重複を欠片へ変換するのが原典の正規動作。 */
+     テーマパックだけは重複を欠片へ変換するのが原典の正規動作。
+
+     method: "ticket" は卓で配られる抽出チケット。通貨は払わないので
+     残額も見て止めない（上限はチケットの枚数で呼び出し側が決める）。
+     それでも原典の1d と重複回避はそのまま使う：出目の規則は経路で変えない。 */
   function drawBatch(input) {
     const kind = input.kind;
+    const method = input.method === "ticket" ? "ticket" : "draw";
+    const free = method === "ticket";
     const count = Math.max(0, Math.floor(Number(input.count) || 0));
     const results = [];
     let totalCost = { lp: 0, shards: 0 };
@@ -390,8 +396,8 @@
       const own = ownedSets(input.owned);
       let lp = Number(input.lp) || 0;
       for (let i = 0; i < count; i++) {
-        const cost = personaDrawCost(own.personas.size);
-        if (cost.lp > lp) { stopped = "insufficientLP"; break; }
+        const cost = free ? { lp: 0, shards: 0 } : personaDrawCost(own.personas.size);
+        if (!free && cost.lp > lp) { stopped = "insufficientLP"; break; }
         let draw;
         try {
           draw = drawPersona({
@@ -400,9 +406,12 @@
             plusOne: input.plusOne
           });
         } catch (err) { stopped = "poolExhausted"; break; }
-        lp -= Number(draw.cost?.lp) || 0;
-        addCost(draw.cost);
-        results.push(draw);
+        if (!free) lp -= Number(draw.cost?.lp) || 0;
+        /* チケット経路は engine が出した金額を書き換える（請求しないため）。
+           ここを直すので、どの経路でも記録の金額は「実際に払った額」。 */
+        const result = free ? { ...draw, method, cost: { lp: 0, shards: 0 } } : { ...draw, method };
+        addCost(result.cost);
+        results.push(result);
         if (draw.kind === "specialPersona") own.specialPersonas.add(Number(draw.item.no));
         else own.personas.add(Number(draw.item.no));
       }
@@ -411,14 +420,15 @@
       const own = ownedSets(input.owned);
       let shards = Number(input.shards) || 0;
       for (let i = 0; i < count; i++) {
-        if (RULES.egoDraw.costShards > shards) { stopped = "insufficientShards"; break; }
+        if (!free && RULES.egoDraw.costShards > shards) { stopped = "insufficientShards"; break; }
         let draw;
         try {
           draw = drawEgo({ session: input.session, pool, owned: { egos: [...own.egos] } });
         } catch (err) { stopped = "poolExhausted"; break; }
-        shards -= RULES.egoDraw.costShards;
-        addCost(draw.cost);
-        results.push(draw);
+        if (!free) shards -= RULES.egoDraw.costShards;
+        const result = free ? { ...draw, method, cost: { lp: 0, shards: 0 } } : { ...draw, method };
+        addCost(result.cost);
+        results.push(result);
         own.egos.add(Number(draw.item.no));
       }
     } else if (kind === "themePack") {
@@ -427,19 +437,20 @@
       const held = input.heldNames instanceof Set ? new Set(input.heldNames) : new Set(input.heldNames || []);
       let lp = Number(input.lp) || 0;
       for (let i = 0; i < count; i++) {
-        const cost = { lp: Number(pack.lp) || 0, shards: 0 };
-        if (cost.lp > lp) { stopped = "insufficientLP"; break; }
+        const cost = free ? { lp: 0, shards: 0 } : { lp: Number(pack.lp) || 0, shards: 0 };
+        if (!free && cost.lp > lp) { stopped = "insufficientLP"; break; }
         const draw = drawThemePack({ session: input.session, pack, heldNames: held });
-        lp -= cost.lp;
-        addCost(cost);
-        results.push(draw);
+        if (!free) lp -= cost.lp;
+        const result = free ? { ...draw, method, cost: { lp: 0, shards: 0 } } : { ...draw, method };
+        addCost(result.cost);
+        results.push(result);
         held.add(draw.item.name);
       }
     } else {
       throw new Error(`gacha: 未対応のバッチ種別 ${kind}`);
     }
 
-    return { kind, results, totalCost, requested: count, drawn: results.length, stopped };
+    return { kind, method, results, totalCost, requested: count, drawn: results.length, stopped };
   }
 
   /* ============================ 結果の封緘・検証 ============================ */

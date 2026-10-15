@@ -200,10 +200,10 @@ test("バッチ錨: 外部ビーコンは後から差し込める（round を錨
 
 /* --- 抽出リスト（state.draws）への保存 --------------------------------- */
 
-function loadState() {
+function loadState(realDb) {
   const source = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
   const context = {
-    window: { DB: { support_passives: [], death_passives: [], spirits: [], items: [] } },
+    window: { DB: realDb || { support_passives: [], death_passives: [], spirits: [], items: [] } },
     console, setTimeout, clearTimeout, URL, TextEncoder, TextDecoder,
     React: { useReducer: () => {}, useRef: () => ({ current: null }), useState: () => [null, () => {}], useEffect: () => {} }
   };
@@ -224,13 +224,226 @@ test("抽出リスト: 既存保存データに draws が無くても配列と�
 
 test("抽出リスト: ADD_DRAW_BATCH は結果と錨をそのまま保存する（再計算しない）", () => {
   const w = loadState();
-  const reducer = w.appReducer;
   const { batch } = finalizedBatch();
-  const next = reducer({ draws: [] }, { type: "ADD_DRAW_BATCH", batch });
+  const next = w.appReducer({ draws: [], roster: { personas: [], egos: [] } }, { type: "ADD_DRAW_BATCH", batch });
   assert.equal(next.draws.length, 1);
   assert.equal(next.draws[0].batchHash, batch.batchHash);
   assert.equal(next.draws[0].records.length, batch.records.length);
   // 保存後に読み直しても鎖は生きている（移行が記録を書き換えない）。
   const reloaded = w.LBT_normalizeStateShape({ ...next, roster: next.roster || { personas: [], egos: [], supports: [], spirits: [] }, ui: next.ui || {} });
   assert.equal(G.verifyBatch(reloaded.draws[0]).ok, true);
+});
+
+/* --- 所持への反映 -------------------------------------------------------
+   記録（records）こそが唯一のソース。画面が数えた顔ではなく
+   封緘された顔が所持に入る。出所が2つあると片方だけ後から狂う。 */
+
+const base = () => ({
+  draws: [],
+  entries: [],
+  results: [],
+  roster: { personas: [], egos: [], supports: [], spirits: [] }
+});
+
+test("ADD_DRAW_BATCH は封緘された records から所持へ足す", () => {
+  const w = loadState(db);
+  const { batch } = finalizedBatch();
+  const next = w.appReducer(base(), { type: "ADD_DRAW_BATCH", batch });
+  const drawn = batch.records.map((r) => r.item.no);
+  assert.equal(next.roster.personas.length, drawn.length, "記録の件数だけ入る");
+  assert.deepEqual(j(next.roster.personas.map((p) => p.no).sort((a, b) => a - b)), j(drawn.sort((a, b) => a - b)));
+});
+
+test("所持への反映は 1件ごとに、その件が文書どおり払った額だけ引く", () => {
+  const w = loadState(db);
+  /* finalizedBatch は「1件は所持済み」で始まるので全件100LP。
+     ここでは未所持から始めて、1回目が無料・以降100LP を見る。 */
+  const { batch } = finalizedBatch();
+  assert.equal(batch.records.length, 3, "3件のはず");
+  const next = w.appReducer(base(), { type: "ADD_DRAW_BATCH", batch });
+  const byName = new Map(next.entries.map((e) => [e.name, e.cost]));
+  assert.equal(byName.size, 3, "明細も1件ずつ");
+  const costs = batch.records.map((r) => byName.get(db.normal_personas.find((p) => p.no === r.item.no)?.name)?.lp);
+  assert.deepEqual(j(costs), [100, 100, 100], "所持済みなら全部100LP");
+  const total = next.entries.reduce((n, e) => n + (Number(e.cost?.lp) || 0), 0);
+  assert.equal(total, batch.records.reduce((n, r) => n + (Number(r.cost?.lp) || 0), 0), "明細の合計＝記録の合計");
+});
+
+test("未所持なら 1件目の請求は0になる（バッチ全体で1つの金額にしない）", () => {
+  const w = loadState(db);
+  const session = G.createSession({ serverSeed: "first-free", clientSeed: "p" });
+  const out = gacha.drawBatch({
+    session, kind: "persona", owned: { personas: [], specialPersonas: [], egos: [] },
+    lp: 1000, count: 2
+  });
+  const batch = G.finalizeBatch(out, session, { rulesetHash: gacha.rulesetHash });
+  const next = w.appReducer(base(), { type: "ADD_DRAW_BATCH", batch });
+  const byName = new Map(next.entries.map((e) => [e.name, e.cost?.lp]));
+  const costs = batch.records.map((r) => byName.get(db.normal_personas.find((p) => p.no === r.item.no)?.name));
+  assert.deepEqual(j(costs), [0, 100], "1回目は無料、2回目は100LP");
+  assert.equal(next.entries.reduce((n, e) => n + (Number(e.cost?.lp) || 0), 0), 100, "合計も100LP");
+});
+
+test("ADD_DRAW_BATCH は同じ内容を二重に入れない", () => {
+  const w = loadState(db);
+  const { batch } = finalizedBatch();
+  const once = w.appReducer(base(), { type: "ADD_DRAW_BATCH", batch });
+  const twice = w.appReducer(once, { type: "ADD_DRAW_BATCH", batch });
+  assert.equal(twice.roster.personas.length, once.roster.personas.length, "所持は増えない");
+  assert.equal(twice.entries.length, once.entries.length, "明細も増えない");
+});
+test("テーマパック: DBに人格がある項目は所持へ入り、無いものは通帳だけ", () => {
+  const w = loadState(db);
+  const pack = gacha.findPack("属せない＆愛することのできない");
+  const dbNames = new Set(db.normal_personas.map((p) => p.name));
+  const inDb = pack.entries.find((e) => dbNames.has(e.name));
+  const notInDb = pack.entries.find((e) => !dbNames.has(e.name));
+  assert.ok(inDb, "DBに人物が混ざっている（1件だけの検証にならない）");
+  assert.ok(notInDb, "専用人物（DBに無い）も混ざっている");
+
+  /* 出目を決めない座谈: 1回目をDB有、2回目をDB無に固定する。 */
+  const session = scripted([pack.entries.indexOf(inDb) + 1, pack.entries.indexOf(notInDb) + 1]);
+  const out = gacha.drawBatch({ session, kind: "themePack", pack, heldNames: new Set(), lp: pack.lp * 2, count: 2 });
+  const batch = G.finalizeBatch(out, session, { rulesetHash: gacha.rulesetHash });
+  const next = w.appReducer(base(), { type: "ADD_DRAW_BATCH", batch });
+
+  assert.equal(next.roster.personas.length, 1, "DBにある1件だけ所持へ入る");
+  assert.equal(next.roster.personas[0].no, Number(db.normal_personas.find((p) => p.name === inDb.name).no));
+  /* DBに無い項目は記録と支払いが残る（破棄しない）。 */
+  assert.equal(next.draws.length, 1);
+  assert.equal(batch.records.length, 2);
+  /* 記録1件につき通帳1行。所持に入った方は persona 行、
+     入らなかった方は 特定抽出パック の消費行。 */
+  assert.equal(next.entries.length, 2, "記録2件＝通帳2行");
+  const entryForPackOnly = next.entries.find((e) => e.name.includes("特定抽出パック"));
+  assert.ok(entryForPackOnly, "所持へ入らなかった分が消費として残る");
+  assert.ok(entryForPackOnly.name.includes(notInDb.name), "どの項目だったかが名前に残る");
+  assert.equal(entryForPackOnly.cost.lp, pack.lp);
+  const entryForOwned = next.entries.find((e) => e.name === inDb.name);
+  assert.ok(entryForOwned, "所持へ入った人格が人格行で残る");
+  assert.equal(entryForOwned.cost.lp, pack.lp);
+  assert.equal(next.entries.reduce((n, e) => n + (Number(e.cost?.lp) || 0), 0), pack.lp * 2, "合計は記録と一致");
+});
+
+test("テーマパック: 重複は所持ではなく欠片50、通帳にも所持の名は残さない", () => {
+  const w = loadState(db);
+  const pack = gacha.findPack("属せない＆愛することのできない");
+  const session = scripted([1, 1, 2]);
+  const out = gacha.drawBatch({
+    session, kind: "themePack", pack, heldNames: new Set(),
+    lp: pack.lp * 3, count: 3
+  });
+  const batch = G.finalizeBatch(out, session, { rulesetHash: gacha.rulesetHash });
+  const dupes = batch.records.filter((r) => r.duplicate);
+  assert.equal(dupes.length, 1, "2回目が重複");
+  assert.equal(dupes[0].grantedShards, 50, "重複は欠片50");
+  const next = w.appReducer(base(), { type: "ADD_DRAW_BATCH", batch });
+  /* roster.personas は名前を持たない（{uid,no,mode,…}）ので、
+     重複の判定は mode:no で行う。名前で引くと必ず外れて嘘が出る。 */
+  const keys = new Set(next.roster.personas.map((p) => `${p.mode}:${p.no}`));
+  assert.equal(keys.size, next.roster.personas.length, "所持に重複がない");
+  /* 支払いは「記録に残った額」と必ず一致する。1件でも欠けると、
+     抽出リストの合計と通帳の合計がずれて、利用者がどちらかを疑う。 */
+  const spentLp = next.entries.reduce((n, e) => n + (Number(e.cost?.lp) || 0), 0);
+  const recordLp = batch.records.filter((r) => !r.duplicate).reduce((n, r) => n + (Number(r.cost?.lp) || 0), 0);
+  assert.equal(spentLp, recordLp, "通帳の合計＝記録の合計（重複分は払っていない）");
+  /* 入った人格と、入らなかった分は明細が1件ずつ。 */
+  assert.equal(next.entries.length, 2, "所持に入った分＋入らなかった分");
+});
+
+/* --- 画面が実際に通る道（LBT_gachaDraw.drawN）---------------------------
+   engine 単体ではなく、ショップの「ガチャ」タブが呼ぶ入口を検査する。
+   ここが封緘を返さないと、抽出リストは何も増えない。 */
+
+function loadDraw() {
+  const context = { window: {}, console, crypto: globalThis.crypto, TextEncoder, TextDecoder };
+  context.window.crypto = globalThis.crypto;
+  context.globalThis = context;
+  vm.createContext(context);
+  for (const file of ["gacha.js", "gacha-tickets.js"]) {
+    vm.runInContext(readFileSync(new URL("../js/" + file, import.meta.url), "utf8"), context, { filename: file });
+  }
+  context.window.DB = db;
+  context.window.LBT_GACHA_PACKS = themePacks;
+  context.window.LBT_computeLedgerBalance = () => context.window.__balance;
+  context.window.LBT_computeTicketBalance = () => context.window.__tickets;
+  return context.window;
+}
+
+const appState = (over) => ({
+  results: [], entries: [], draws: [], gachaLog: [],
+  roster: { personas: [], egos: [], supports: [], spirits: [] },
+  ...over
+});
+
+test("drawN（通貨）: 残LPで回数が決まる。返した出目はそのまま封緘できる", () => {  const w = loadDraw();
+  w.__balance = { lp: 100, shards: 0 };
+  const out = w.LBT_gachaDraw.drawN("persona", appState(), { pay: "paid", times: 3, seed: "ui-seed-1" });
+  /* 未所持なので1回目は無料、2回目は100LPで残りが尽きる。 */
+  assert.equal(out.drawn, 2, "引けたのは2回");
+  assert.equal(out.requested, 3, "3回頼んだ");
+  assert.equal(out.stopped, "insufficientLP", "足りなくなった理由が返る");
+  assert.equal(out.hits.length, out.engineOut.results.length, "画面に出る顔と記録の件数が一致する");
+
+  const batch = w.LBT_gachaDraw.sealBatch(out);
+  assert.ok(batch && Array.isArray(batch.records), "封緘できる");
+  assert.equal(batch.records.length, 2);
+  assert.ok(batch.batchHash && batch.commit && batch.rulesetHash, "錨が揃う");
+  assert.equal(w.LBT_gachaDraw.verifyBatch(batch).ok, true, "そのまま検証を通る");
+});
+
+test("drawN（通貨）: 途中で止まっても引けたぶんは検証できる（残りを黙って落とさない）", () => {
+  const w = loadDraw();
+  w.__balance = { lp: 0, shards: 0 };
+  const out = w.LBT_gachaDraw.drawN("persona", appState(), { pay: "paid", times: 5, seed: "ui-seed-2" });
+  assert.equal(out.drawn, 1, "1回目だけ引ける");
+  assert.equal(out.stopped, "insufficientLP");
+  const batch = w.LBT_gachaDraw.sealBatch(out);
+  assert.equal(batch.records.length, 1);
+  assert.equal(w.LBT_gachaDraw.verifyBatch(batch).ok, true);
+});
+
+test("drawN（E.G.O）: 残欠片で止まり、100欠片ずつで記録される", () => {
+  const w = loadDraw();
+  w.__balance = { lp: 0, shards: 250 };
+  const out = w.LBT_gachaDraw.drawN("ego", appState(), { pay: "paid", times: 5, seed: "ui-seed-3" });
+  assert.equal(out.drawn, 2);
+  assert.equal(out.stopped, "insufficientShards");
+  assert.equal(out.cost.shards, 200);
+  const batch = w.LBT_gachaDraw.sealBatch(out);
+  assert.equal(batch.records.length, 2);
+  assert.deepEqual(j(batch.records.map((r) => r.cost.shards)), [100, 100]);
+  assert.equal(w.LBT_gachaDraw.verifyBatch(batch).ok, true);
+});
+
+test("drawN（チケット）: 無料のまま、同じ1本の鎖に載る", () => {
+  const w = loadDraw();
+  w.__balance = { lp: 0, shards: 0 };
+  w.__tickets = { persona: 2, ego: 0, choice: 0, pack: {} };
+  const out = w.LBT_gachaDraw.drawN("persona", appState(), { pay: "ticket", times: 5, seed: "ui-seed-4" });
+  assert.equal(out.drawn, 2, "残数の2枚だけ");
+  assert.equal(out.stopped, "insufficientTickets");
+  assert.equal(out.cost.lp, 0);
+  assert.equal(out.cost.shards, 0, "チケットは支出ではない");
+  const batch = w.LBT_gachaDraw.sealBatch(out);
+  assert.equal(batch.records.length, 2);
+  assert.deepEqual(j(batch.records.map((r) => r.cost)), [{ lp: 0, shards: 0 }, { lp: 0, shards: 0 }]);
+  assert.equal(w.LBT_gachaDraw.verifyBatch(batch).ok, true, "経路が違っても検証は同じ1つ");
+});
+
+test("drawN: 同じ種なら確認画面で出目が変わらない（2段構えの前提）", () => {
+  const w = loadDraw();
+  w.__balance = { lp: 5000, shards: 5000 };
+  const a = w.LBT_gachaDraw.drawN("persona", appState(), { pay: "paid", times: 2, seed: "same-seed" });
+  const b = w.LBT_gachaDraw.drawN("persona", appState(), { pay: "paid", times: 2, seed: "same-seed" });
+  assert.deepEqual(a.hits.map((x) => x.no), b.hits.map((x) => x.no), "種が同じなら同じ顔");
+  assert.equal(a.commit, b.commit, "commitも同じ");
+});
+
+test("drawN: 1バッチ内で同じ人格を2度引かない", () => {
+  const w = loadDraw();
+  w.__balance = { lp: 100000, shards: 0 };
+  const out = w.LBT_gachaDraw.drawN("persona", appState(), { pay: "paid", times: 8, seed: "dupe-check" });
+  const nos = out.hits.map((x) => x.no);
+  assert.equal(new Set(nos).size, nos.length, "重複なし");
 });

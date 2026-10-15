@@ -790,6 +790,18 @@ function refreshEquippedPersonaFromDB(next) {
   if (latest.passive_effect !== void 0) next.personaSrc.passive_effect = latest.passive_effect;
   return next;
 }
+/* 出典はカタログ（DB）側の属性。所持エントリはカタログの抜粋を写すので、
+   写し漏らすと「所持のみ」表示の出典フィルタが全件ルールブックに化ける
+   （未所持も表示なら正しいので、所持を持つまで気づけない）。名前で引き直す。 */
+function catalogSourceByName(kind, name) {
+  const db = window.DB || {};
+  const lists = kind === "support" ? [db.support_passives, db.death_passives] : [db.spirits];
+  for (const list of lists) {
+    const hit = (Array.isArray(list) ? list : []).find((entry) => entry && entry.name === name);
+    if (hit) return String(hit.source || "core");
+  }
+  return "core";
+}
 /* personaSrc と同様に、DB 由来のデータコピー（サポート・死亡後・強化・精神・
    E.G.O スロット）も保存済みビルドから古いまま復元され続ける。
    名前で DB と照合し、公式由来のレコードだけを最新へ更新する。
@@ -996,7 +1008,8 @@ function addRosterSupport(state, spp) {
     equipped: false,
     resultId: null,
     addedAt: Date.now(),
-    notes: ""
+    notes: "",
+    source: String(spp?.source || catalogSourceByName("support", name))
   };
   return { ...state, roster: { ...roster, supports: [...(roster.supports || []), entry] } };
 }
@@ -1155,7 +1168,8 @@ function normalizeStateShape(raw) {
         equipped: entry.equipped === true,
         resultId: entry.resultId || null,
         addedAt: Number(entry.addedAt) || Date.now(),
-        notes: String(entry.notes || "")
+        notes: String(entry.notes || ""),
+        ...(entry.source ? { source: String(entry.source) } : {})
       })),
     spirits: next.roster.spirits
       .filter((entry) => entry && entry.name)
@@ -1165,7 +1179,8 @@ function normalizeStateShape(raw) {
         equipped: entry.equipped === true,
         resultId: entry.resultId || null,
         addedAt: Number(entry.addedAt) || Date.now(),
-        notes: String(entry.notes || "")
+        notes: String(entry.notes || ""),
+        ...(entry.source ? { source: String(entry.source) } : {})
       }))
   };
   /* 所持モデルへ移行する前のデータ（装備スロットしか持たない版）は、
@@ -1348,6 +1363,19 @@ function normalizeStateShape(raw) {
       const { trashedAt, ...rest } = e;
       return rest;
     });
+  }
+  /* 所持エントリの出典を名前で補う。生成点が複数（ショップ購入・一括取り込み・
+     旧保存の移行・初期支給の精神）あるので、作り手ごとではなくここで一度に揃える。
+     DB が未ロードのときは空のまま残す。既定値を焼き込むと、後から正しい値へ
+     直せなくなる（未所持も表示なら正しく、所持のみ表示のときだけ全件ルールブックに
+     化けていた＝この非対称が発見を遅らせた）。 */
+  if (window.DB) {
+    for (const entry of next.roster.supports) {
+      if (entry && !entry.source) entry.source = catalogSourceByName("support", entry.name);
+    }
+    for (const entry of next.roster.spirits) {
+      if (entry && !entry.source) entry.source = catalogSourceByName("spirit", entry.name);
+    }
   }
   return normalizeStatusCollections(next);
 }
@@ -2063,6 +2091,94 @@ const INIT_STATE = {
     // {sectionKey: true/false}
   }
 };
+/* 所持へまとめて足し、その支出を通帳に積む。
+   購入（一括）と抽出（封緘済みの記録）は別の入口だが、所持の写法は
+   1つにまとめたい。2つにすると、抽出だけ明細の付き方が変わる。 */
+function applyRosterAdds(state, adds, options) {
+  const list = Array.isArray(adds) ? adds : [];
+  if (!list.length) return state;
+  const opts = options || {};
+  /* 移行途中の保存データでは roster が無いことがある。落ちると
+     抽出した gente が丸ごと消えるので、必ず書き込みできる形にしてから出す。 */
+  const roster = state.roster || {};
+  const personas = [...(roster.personas || [])];
+  const egos = [...(roster.egos || [])];
+  const known = new Set(personas.map((p) => `${p.mode}:${p.no}`));
+  const knownEgo = new Set(egos.map((e) => `${e.rank}:${e.no}`));
+  const startedAt = Date.now();
+  let next = state;
+  let n = 0;
+  for (const add of list) {
+    /* 1件ごとに価格が違う抽出では、その件の record.cost を優先する。
+       零售商は「全部同じ額」なので既定の cost へ落とす。 */
+    const own = add?.cost || opts.cost || null;
+    if (add?.type === "ego") {
+      if (knownEgo.has(`${add.rank}:${add.no}`)) continue;
+      knownEgo.add(`${add.rank}:${add.no}`);
+      egos.push({ uid: `er-${startedAt}-${n}`, no: add.no, rank: add.rank, analyzed: false, analyzeMax: false, notes: "", build: null });
+      next = appendLedgerEntry(next, {
+        kind: "ego",
+        name: `${add.rank} No.${add.no}`,
+        cost: own || priceEgo(add.rank, add.no),
+        resultId: opts.resultId,
+        ref: { kind: "rosterEgo", uid: `er-${startedAt}-${n}` }
+      });
+    } else if (add?.type === "persona") {
+      if (known.has(`${add.mode}:${add.no}`)) continue;
+      known.add(`${add.mode}:${add.no}`);
+      const uid = `pr-${startedAt}-${n}`;
+      personas.push({ uid, no: add.no, mode: add.mode, equipped: false, syncRank: null, syncMax: false, notes: "" });
+      const persona = (add.mode === "t" ? window.DB?.tokui_personas : window.DB?.normal_personas || []).find((p) => String(p.no) === String(add.no));
+      next = appendLedgerEntry(next, {
+        kind: "persona",
+        name: persona?.name || `人格 ${String(add.mode).toUpperCase()} No.${add.no}`,
+        cost: normalizeCurrency(own),
+        resultId: opts.resultId,
+        ref: { kind: "rosterPersona", uid }
+      });
+    }
+    n += 1;
+  }
+  return { ...next, roster: { ...next.roster, personas, egos } };
+}
+
+/* パックの項目は pack 内の通し番号しか持ってない。所持へ写すには
+   DB の人格へ名前に引き直す。特定抽出パックには DB に無い専用人格が
+   混ざっているので、引けないものは所持にも通帳の明細にもしない。 */
+function personaNoByName(name) {
+  const hit = String(name || "").trim();
+  if (!hit) return null;
+  const normal = (window.DB?.normal_personas || []).find((p) => p.name === hit);
+  if (normal) return { no: Number(normal.no), mode: "n" };
+  const special = (window.DB?.tokui_personas || []).find((p) => p.name === hit);
+  if (special) return { no: Number(special.no), mode: "t" };
+  return null;
+}
+
+/* 封緘済みバッチの records から、所持へ足す形へ落とす。
+   記録が正である限りここから復元できる（画面側の state を
+   信用しない。「引いたか」を記録側に持たせる必要もない）。 */
+function rosterAddsFromDrawBatch(batch) {
+  const records = Array.isArray(batch?.records) ? batch.records : [];
+  const adds = [];
+  for (const record of records) {
+    const item = record && record.item;
+    if (!item) continue;
+    /* テーマパックの重複は欠片50への変換で、所持には入らない。 */
+    if (record.duplicate) continue;
+    const cost = { lp: Number(record.cost?.lp) || 0, shards: Number(record.cost?.shards) || 0 };
+    if (item.kind === "ego") { adds.push({ type: "ego", no: item.no, rank: item.rank, cost }); continue; }
+    if (item.kind === "persona") { adds.push({ type: "persona", no: item.no, mode: item.mode === "t" ? "t" : "n", cost }); continue; }
+    if (item.kind === "themePack") {
+      /* パック内の通し番号ではなく、DB の人格番号で所持へ入れる。
+         金額は記録のものをそのまま渡す：通帳の1行を、この1件で作る。 */
+      const found = personaNoByName(item.name);
+      if (found) adds.push({ type: "persona", no: found.no, mode: found.mode, cost });
+    }
+  }
+  return adds;
+}
+
 function appReducer(state, action) {
   /* 購入系は残高が足りなければ行わない。UI で無効化するだけでは、
      他の入口（自動登録・取り込み）から通過する経路が残るため 这里で止める。 */
@@ -2907,11 +3023,30 @@ if (nextValue && !action.preview && !rosterEgos.some((entry) => entry.rank === a
     }
     /* ---- 抽出リスト（ガチャ結果の保存所）----
        結果と錨はバッチ単位で束ねて保存する。再計算や整形はしない
-       （移行が記録を書き換えるとハッシュ鎖が切れる）。 */
+       （移行が記録を書き換えるとハッシュ鎖が切れる）。
+       所持への反映もここから行う。記録の records が唯一のソースなので、
+       画面が渡した顔ではなく「封緘された顔」が所持に入る。 */
     case "ADD_DRAW_BATCH": {
       const batch = action.batch;
       if (!batch || typeof batch !== "object" || !Array.isArray(batch.records)) return state;
-      return { ...state, draws: [...(state.draws || []), batch] };
+      let next = applyRosterAdds(state, rosterAddsFromDrawBatch(batch), { resultId: action.resultId });
+      /* テーマパックで引いたのが DB に無い専用人格のときだけ、所持へ入らない。
+         そのぶんは通帳に「消費」として残す。放入できた件は applyRosterAdds が
+         記録の金額ごと記済みなので、ここで二重に書くと二重の請求になる。
+         どちらの経路でも、記録に残った額と通帳の合計は一致する。 */
+      for (const record of batch.records) {
+        if (record?.kind !== "themePack" || record.duplicate) continue;
+        if (personaNoByName(record.item?.name)) continue;
+        const lp = Number(record.cost?.lp) || 0;
+        if (!lp) continue;
+        next = appendLedgerEntry(next, {
+          kind: "expense",
+          name: `特定抽出パック ${record.pack || ""}${record.item?.name ? `：${record.item.name}` : ""}`.trim(),
+          cost: { lp, shards: 0 },
+          resultId: action.resultId
+        });
+      }
+      return { ...next, draws: [...(next.draws || []), batch] };
     }
     /* ---- Support ---- */
     /* 装備の入口は所持（roster.supports）を経由する。未所持のものは
@@ -2980,7 +3115,8 @@ if (nextValue && !action.preview && !rosterEgos.some((entry) => entry.rank === a
         equipped: false,
         resultId: null,
         addedAt: Date.now(),
-        notes: ""
+        notes: "",
+        source: String(spp.source || catalogSourceByName("support", name))
       };
       const nextRoster = { ...roster, supports: [...(roster.supports || []), entry] };
       const withEquipment = { ...state, roster: nextRoster, ...projectEquipmentFromRoster(nextRoster) };
@@ -3095,7 +3231,8 @@ if (nextValue && !action.preview && !rosterEgos.some((entry) => entry.rank === a
         equipped: false,
         resultId: null,
         addedAt: Date.now(),
-        notes: ""
+        notes: "",
+        source: String(action.spirit?.source || catalogSourceByName("spirit", name))
       };
       const nextRoster = { ...roster, spirits: [...(roster.spirits || []), entry] };
       const withEquipment = { ...state, roster: nextRoster, ...projectEquipmentFromRoster(nextRoster) };
@@ -3164,45 +3301,7 @@ if (nextValue && !action.preview && !rosterEgos.some((entry) => entry.rank === a
       return { ...state, gachaLog: [...log, entry] };
     }
     case "ADD_ROSTER_MANY": {
-      const adds = Array.isArray(action.adds) ? action.adds : [];
-      if (!adds.length) return state;
-      const personas = [...(state.roster.personas || [])];
-      const egos = [...(state.roster.egos || [])];
-      const known = new Set(personas.map((p) => `${p.mode}:${p.no}`));
-      const knownEgo = new Set(egos.map((e) => `${e.rank}:${e.no}`));
-      const spent = normalizeCurrency(action.cost);
-      const startedAt = Date.now();
-      let next = state;
-      let n = 0;
-      for (const add of adds) {
-        if (add?.type === "ego") {
-          if (knownEgo.has(`${add.rank}:${add.no}`)) continue;
-          knownEgo.add(`${add.rank}:${add.no}`);
-          egos.push({ uid: `er-${startedAt}-${n}`, no: add.no, rank: add.rank, analyzed: false, analyzeMax: false, notes: "", build: null });
-          next = appendLedgerEntry(next, {
-            kind: "ego",
-            name: `${add.rank} No.${add.no}`,
-            cost: priceEgo(add.rank, add.no),
-            resultId: action.resultId,
-            ref: { kind: "rosterEgo", uid: `er-${startedAt}-${n}` }
-          });
-        } else if (add?.type === "persona") {
-          if (known.has(`${add.mode}:${add.no}`)) continue;
-          known.add(`${add.mode}:${add.no}`);
-          const uid = `pr-${startedAt}-${n}`;
-          personas.push({ uid, no: add.no, mode: add.mode, equipped: false, syncRank: null, syncMax: false, notes: "" });
-          const persona = (add.mode === "t" ? window.DB?.tokui_personas : window.DB?.normal_personas || []).find((p) => String(p.no) === String(add.no));
-          next = appendLedgerEntry(next, {
-            kind: "persona",
-            name: persona?.name || `人格 ${String(add.mode).toUpperCase()} No.${add.no}`,
-            cost: spent,
-            resultId: action.resultId,
-            ref: { kind: "rosterPersona", uid }
-          });
-        }
-        n += 1;
-      }
-      return { ...next, roster: { ...next.roster, personas, egos } };
+      return applyRosterAdds(state, Array.isArray(action.adds) ? action.adds : [], { cost: action.cost, resultId: action.resultId });
     }
     /* 既存リザルトの登録情報の書き換え。収入を差し替えるので、
        抽出チケットの残数はここから読み直す（明細側は変えない）。 */

@@ -73,38 +73,19 @@
     return pack.entries.map((entry) => ({ type: "themePack", pack: pack.name, no: entry.no, name: entry.name, book: entry.book, page: entry.page }));
   }
 
-  /* --- 抽選 ------------------------------------------------------------ */
-  /* gacha.js の commit-reveal セッションを使う。セッションの公开メソッドは
+  /* --- セッション --------------------------------------------------------
+     gacha.js の commit-reveal セッションを使う。セッションの公开メソッドは
      nextInt ではなく roll(max) で、返りは 1..max（1-indexed）。
-     nextInt を呼ぶと常に undefined になり Math.random に落ちてしまう。 */
-  let session = null;
-  function ensureSession() {
-    const g = window.LBT_gacha;
-    if (g && typeof g.createSession === "function") {
-      if (!session) session = g.createSession({ serverSeed: String(Date.now()), clientSeed: String(Math.random()) });
-      return session;
-    }
-    return null;
-  }
-  /* 種から毎回新しいセッションを作る。既存の singleton を触らないので、
-     別の抽選の結果に混ざらない。確認時に一度だけ作って出目を固定する用途。 */
+     nextInt を呼ぶと常に undefined になり Math.random に落ちてしまう。
+
+     出目の読み方は engine だけが持つ。ここでは種からセッションを
+     作る責務だけが残る（確認画面用に同じ種を再現する用途）。 */
   function seededSession(seed) {
     const g = window.LBT_gacha;
     if (g && typeof g.createSession === "function") {
       return g.createSession({ serverSeed: String(seed), clientSeed: String(seed) });
     }
     return null;
-  }
-  /* 1..max の出目を取る。 */
-  function rollOne(max) {
-    if (max < 1) return 0;
-    const s = ensureSession();
-    if (s && typeof s.roll === "function") return s.roll(max);
-    return Math.floor(Math.random() * max) + 1;
-  }
-  function roll(pool) {
-    if (!pool || !pool.length) return null;
-    return pool[rollOne(pool.length) - 1] || null;
   }
 
   /* --- 支払い ---------------------------------------------------------- */
@@ -147,70 +128,73 @@
     return "persona";
   }
 
-  /* 人格抽出は 1d(通常人格の総数) を振る。その出目に対応する番号が
-     無い（= 最大値を引き当てた）とき 特異人格抽出 に分岐する（core:6344-6345）。
-     既に持っている場合は再度人格抽出ダイスを振る（core:6346）。
-     ファントは分岐しなかった場合の通し番号、分岐時は特異人格の番号。 */
-  function drawPersonaWithBranch(state, session) {
-    const normalTotal = (window.DB?.normal_personas || []).length;
-    const normalPool = buildPool("persona", state);
-    /* 1d(人格の総数) の出目。 */
-    const maxDie = rollOne(normalTotal);
-    /* 最大値 = 対応する人格番号が存在しない → 特異人格抽出へ。 */
-    if (maxDie >= normalTotal) {
-      const specialPool = buildPool("special", state);
-      if (!specialPool.length) return { hit: null, reason: "empty" };
-      /* 特異人格抽出は 1d（特異人格の総数）ではなく、所持していない特異人格から引く。 */
-      const special = specialPool[rollOne(specialPool.length) - 1];
-      return { hit: special, branch: "special", dieMax: maxDie, normalTotal };
-    }
-    const hit = normalPool[maxDie - 1];
-    if (!hit) return { hit: null, reason: "empty" };
-    return { hit, branch: null, die: maxDie, normalTotal };
+
+  /* --- エンジン接続 ------------------------------------------------------
+     gacha.js が原典のルール表とプールを持ち、1回ごとの逐次計算ができる。
+     自前の draw() は「1件だけ出す」だけで、残額の管理と原典の
+     1d(未所持+1) がない。ここでは同じ式を二重に書かずに済むよう、
+     通貨で払う経路は engine.drawBatch に預ける（錨と検証もそこから出土る）。 */
+  let engine = null;
+  function gachaEngine() {
+    const api = window.LBT_gacha;
+    if (!api || typeof api.createGacha !== "function") return null;
+    if (engine) return engine;
+    engine = api.createGacha({ db: window.DB || {}, themePacks: { packs: themePacks() } });
+    return engine;
   }
 
-  /* 抽選を実行。pay は 'paid' | 'ticket'。
-     ticket のときは kind と pack を指定して在庫を1つ減らす。
-     返り値は {hit, cost, paidBy, remaining, branch}。 */
-  function draw(route, state, opts) {
-    const options = opts || {};
-    const pay = options.pay === "ticket" ? "ticket" : "paid";
-    const packName = options.pack || null;
-    const ticketKind = ticketKindFor(route);
-    const ticketPack = route === "pack" ? packName : null;
-    const held = pay === "ticket" ? ticketCount(state, ticketKind, ticketPack) : 0;
-    if (pay === "ticket" && held <= 0) return { hit: null, reason: "no-ticket" };
-    /* 呼び出し側がセッションを固定していたら 그것 を使う。 */
-    const sess = options.session || ensureSession();
-    const rollFrom = (pool) => {
-      if (!pool || !pool.length) return null;
-      if (sess && typeof sess.roll === "function") return pool[sess.roll(pool.length) - 1] || null;
-      return pool[rollOne(pool.length) - 1] || null;
+  /* engine の結果（{kind,item,cost,duplicate,grantedShards}）を、
+     画面の hit（{type,no,name,mode,rank,pack}）へ揃える。 */
+  function hitOf(result) {
+    const item = result.item || {};
+    if (result.kind === "ego" || item.kind === "ego") {
+      return { type: "ego", no: item.no, rank: item.rank, name: item.name };
+    }
+    if (result.kind === "themePack" || item.kind === "themePack") {
+      return { type: "themePack", pack: result.pack, no: item.no, name: item.name };
+    }
+    /* specialPersona は特異人格。画面の hit では mode:"t" で表す。 */
+    return { type: "persona", mode: result.kind === "specialPersona" ? "t" : "n", no: item.no, name: item.name };
+  }
+
+  /* 批量抽出。原典の1d と逐次計算は engine が一つだけ持つ。
+     通貨なら残額が回数を決め、チケットなら残枚が回数を決める
+     （engine には method:"ticket" を渡して請求だけ0にする）。
+     どちらの経路でも engineOut が封緘の材料になり、
+     記録は経路によらず同じ1本の鎖に並ぶ。 */
+  function engineBatchN(route, state, options) {
+    const g = gachaEngine();
+    const want = options.want;
+    const balance = window.LBT_computeLedgerBalance
+      ? window.LBT_computeLedgerBalance(state.results || [], state.entries || {}) || {}
+      : {};
+    const owned = {
+      personas: (state.roster?.personas || []).filter((p) => p.mode !== "t").map((p) => p.no),
+      specialPersonas: (state.roster?.personas || []).filter((p) => p.mode === "t").map((p) => p.no),
+      egos: (state.roster?.egos || []).map((e) => e.no)
     };
-    let hit;
-    let branch = null;
-    if (route === "pack") {
-      const pool = buildPackPool(packName, state);
-      if (!pool.length) return { hit: null, reason: "empty" };
-      hit = rollFrom(pool);
-    } else if (route === "persona") {
-      /* 人格抽出は特異人格への分岐を持つ。 */
-      const out = drawPersonaWithBranch(state, sess);
-      hit = out.hit;
-      branch = out.branch;
-    } else {
-      const pool = buildPool(route, state, options);
-      if (!pool.length) return { hit: null, reason: "empty" };
-      hit = rollFrom(pool);
-    }
-    if (!hit) return { hit: null, reason: "empty" };
-    const cost = pay === "ticket" ? { lp: 0, shards: 0, label: "無料" } : paidCost(route, state, packName);
-    return { hit, cost, paidBy: pay, ticketKind, ticketPack, branch, remaining: pay === "ticket" ? held - 1 : held };
+    const method = options.method === "ticket" ? "ticket" : "draw";
+    const input = {
+      session: options.session,
+      method,
+      owned,
+      count: options.capped == null ? want : Math.min(want, options.capped),
+      /* チケットは通貨を使わないので、残高を見wakeない。 */
+      lp: method === "ticket" ? Number.POSITIVE_INFINITY : (Number(balance.lp) || 0),
+      shards: method === "ticket" ? Number.POSITIVE_INFINITY : (Number(balance.shards) || 0),
+      /* テーマパックの重複判定は、現在既に持っている名前で渡す。 */
+      heldNames: Array.from(
+        new Set([...(state.roster?.personas || []).map((p) => p.name), ...(state.roster?.egos || []).map((e) => e.name)].filter(Boolean))
+      )
+    };
+    if (route === "persona") return g.drawBatch({ ...input, kind: "persona" });
+    if (route === "ego") return g.drawBatch({ ...input, kind: "ego" });
+    return g.drawBatch({ ...input, kind: "themePack", pack: options.pack || null });
   }
 
-  /* 複数回まとめて引く。1回の draw を繰り返すが、プールから既に取ったものは
-     次の抽選で除外する（同種複数保有は不可：core:361 / core:7536）。
-     チケットOUT のときは残数を超える回数を引かない（超出した分は消費しない）。
+  /* 複数回まとめて引く。同じ候補は2度選ばない（同種複数保有は不可：
+     core:361 / core:7536）。チケットのときは残枚を超える回数 引かない
+     （超えた分は消費しない）。
 
      seed を渡すと、その種から新しいセッションを作って 1 回だけ引く。
      確認ダイアログで開く前に呼べば、ダイアログを操作している間に
@@ -227,52 +211,67 @@
     const fixed = options.seed != null ? seededSession(options.seed) : (options.session || null);
     const commit = fixed && typeof fixed.commit === "function" ? fixed.commit() : null;
 
-    /* ループごとに「既に取ったもの」を除いたプールを作り直す。 */
-    const taken = new Set();
-    const simulated = {
-      roster: {
-        ...(state.roster || {}),
-        personas: [...((state.roster || {}).personas || [])],
-        egos: [...((state.roster || {}).egos || [])]
-      }
-    };
-    const hits = [];
-    for (let i = 0; i < want; i++) {
-      if (pay === "ticket" && held - hits.length <= 0) break;
-      const step = draw(route, { ...simulated, ...state }, { ...options, pay: "paid", session: fixed });
-      if (!step.hit) break;
-      const key = step.hit.type === "ego"
-        ? `e:${step.hit.rank}:${step.hit.no}`
-        : step.hit.type === "themePack"
-          ? `p:${step.hit.pack}:${step.hit.no}`
-          : `a:${step.hit.mode}:${step.hit.no}`;
-      if (taken.has(key)) break;
-      taken.add(key);
-      hits.push({ ...step.hit, branch: step.branch });
-      /* 次の回から引かれないよう、模擬の roster へ積む。 */
-      if (step.hit.type === "ego") {
-        simulated.roster.egos.push({ uid: `sim-${key}`, no: step.hit.no, rank: step.hit.rank });
-      } else if (step.hit.type === "persona") {
-        simulated.roster.personas.push({ uid: `sim-${key}`, no: step.hit.no, mode: step.hit.mode });
-      }
-    }
+    const g = gachaEngine();
+    if (!g) return { hits: [], reason: "empty", paidBy: pay, ticketKind, ticketPack, remaining: held, commit };
+
+    const out = engineBatchN(route, state, { want, session: fixed, pack: options.pack, method: pay, capped: pay === "ticket" ? held : null });
+    const hits = (out.results || []).map((r) => ({ ...hitOf(r), branch: r.kind === "specialPersona" ? "special" : null }));
+    /* チケットの枚数が余ったら、engine は「全部引けた」と返す。
+       利用者に「残り何枚」と伝わるよう、ここで区別する。 */
+    const short = pay === "ticket" && hits.length < want;
     return {
       hits,
+      engineOut: out,
+      session: fixed,
+      kind: out.kind,
       reason: hits.length ? null : "empty",
       paidBy: pay,
       ticketKind,
       ticketPack,
-      cost: pay === "ticket" ? { lp: 0, shards: 0, label: "無料" } : paidCost(route, state, options.pack),
+      cost: { ...(out.totalCost || { lp: 0, shards: 0 }), label: formatBatchCost(out.totalCost) },
+      drawn: out.drawn,
+      requested: want,
+      stopped: short ? "insufficientTickets" : out.stopped,
       remaining: pay === "ticket" ? Math.max(0, held - hits.length) : held,
-      /* 種から出目を固定したときだけ入る。検証用。 */
       commit
     };
+  }
+
+  /* engine が請求した合計を画面と同じ書式にする。 */
+  function formatBatchCost(total) {
+    const lp = Number(total?.lp) || 0;
+    const shards = Number(total?.shards) || 0;
+    const parts = [];
+    if (lp > 0) parts.push(`LP ${lp}`);
+    if (shards > 0) parts.push(`欠片 ${shards}`);
+    return parts.join(" / ") || "無料";
+  }
+
+  /* ルール表とプールの指紋。記録の錨に載せる。engine をまだ建てていなければ
+     ここで一度だけ立てる。 */
+  function rulesetHash() {
+    const g = gachaEngine();
+    return g ? g.rulesetHash : null;
+  }
+
+  /* 1件分の結果を封緘して、抽出リストへ積める形にする。 */
+  function sealBatch(out) {
+    const g = gachaEngine();
+    if (!g || !out || !out.engineOut) return null;
+    return g.finalizeBatch(out.engineOut, out.session, { ruleset: out.paidBy === "ticket" ? "core-ticket" : "core", rulesetHash: g.rulesetHash });
+  }
+
+  /* 読み手側の検証。.engine が無くても、記録は数字だけなので検証できる。 */
+  function verifyBatch(batch) {
+    const api = window.LBT_gacha;
+    if (!api || typeof api.verifyBatch !== "function") return { ok: false, reasons: ["検証器が読み込まれていません"] };
+    return api.verifyBatch(batch);
   }
 
   window.LBT_gachaDraw = {
     ROUTES, KINDS,
     buildPool, buildPackPool, themePacks, findPack,
-    paidCost, ticketCount, ticketKindFor, draw, drawPersonaWithBranch, drawN,
-    seededSession
+    paidCost, ticketCount, ticketKindFor, drawN,
+    seededSession, rulesetHash, sealBatch, verifyBatch
   };
 })();

@@ -101,7 +101,7 @@ test("所持ゲートはロックではなくフィルタで解除できる", ()
   assert.match(sections, /"所持のみ"/);
   /* サポート・精神はゲート方式のまま。 */
   assert.match(sections, /const gated = ownedOnly && !gateOpen;/);
-  assert.match(sections, /const catalogSource = gated \? ownedSupports : DB\.support_passives;/);
+  assert.match(sections, /const supportCatalog = gated \? ownedSupports : DB\.support_passives;/);
   assert.match(sections, /if \(!gated\) return DB\.spirits;/);
   /* ゲート帯の体裁。 */
   assert.match(css, /\.owned-gate-row \{[\s\S]*?border-bottom: 1px dashed var\(--line-dim\);/);
@@ -232,7 +232,10 @@ test("人格コードクスは build では所持モードに固定し、人格�
 
 test("build のサポートとE.G.Oの既定表示（サポートはゲート、E.G.O はフィルタ）", () => {
   assert.match(sections, /const SupportSection = \(\{ state, dispatch, ownedOnly = false \}\) => \{/);
-  assert.match(sections, /const catalogSource = gated \? ownedSupports : DB\.support_passives;/);
+  /* データの束縛は catalogSource と名付けない。同名の関数（出典分類）が
+     影に落ちて applyFilters 内の catalogSource(s) が落ちる。 */
+  assert.match(sections, /const supportCatalog = gated \? ownedSupports : DB\.support_passives;/);
+  assert.doesNotMatch(sections, /const catalogSource = gated/);
   assert.match(sections, /const deathCatalogSource = gated \? ownedSupports\.filter\(\(entry\) => entry\.slot === "death"\) : DB\.death_passives;/);
   assert.match(sections, /const EgoSection = \(\{ state, dispatch, ownedOnly: ownedOnlyProp = false \}\) => \{/);
   /* E.G.O は既定で全件（未所持も購入も出る）。所持だけ出すのは単一フィルタ。 */
@@ -366,11 +369,14 @@ test("ガチャは任意回数をまとめて引ける（既得は再抽選し�
   const g = read("../js/gacha-tickets.js");
   assert.match(g, /function drawN\(route, state, opts\)/);
   assert.match(g, /const want = Math\.max\(1, Number\.parseInt\(options\.times, 10\) \|\| 1\);/);
-  /* 引いたものは次からプールから外す（同種複数保有は不可: core:361/7536）。 */
-  assert.match(g, /const taken = new Set\(\);/);
-  assert.match(g, /if \(taken\.has\(key\)\) break;/);
-  assert.match(g, /if \(pay === "ticket" && held - hits\.length <= 0\) break;/);
-  assert.match(g, /paidCost, ticketCount, ticketKindFor, draw, drawPersonaWithBranch, drawN/);
+  /* 引いたものは次からプールから外す（同種複数保有は不可: core:361/7536）。
+     ここで出目の規則を持ち替えない：1d と重複回避は gacha.js の engine が
+     一意に持ち、どちらの経路（通貨/チケット）もそこに預ける。 */
+  assert.doesNotMatch(g, /function drawPersonaWithBranch/);
+  assert.doesNotMatch(g, /function draw\(route, state, opts\)/);
+  assert.match(g, /engine\.drawBatch|const out = engineBatchN\(route, state/);
+  assert.match(g, /capped: pay === "ticket" \? held : null/);
+  assert.match(g, /paidCost, ticketCount, ticketKindFor, drawN/);
   /* UI は回数を自分で入れ、結果はまとめて出る。
      プルダウンではなく数字入力にする（任意の回数を直接入れられるため、
      ±1/＋1/＋5 は不要。 */
@@ -385,8 +391,11 @@ test("ガチャは任意回数をまとめて引ける（既得は再抽選し�
   assert.doesNotMatch(sections, /"−1"/);
   assert.doesNotMatch(sections, /role: "radiogroup", "aria-label": "抽出手数"/);
   /* 通貨で払うときは回数ぶんの合計残高で可否を判定する。
-     1回分だけを見ると「途中まで引いて止まる」ことになる。 */
-  assert.match(sections, /const totalCost = \{ lp: \(Number\(cost\.lp\) \|\| 0\) \* times, shards: \(Number\(cost\.shards\) \|\| 0\) \* times \};/);
+     1回分だけを見ると「途中まで引いて止まる」ことになる。
+     合計は抽出手順と同じ式で出す（engine の逐次計算）。
+     別の式で書くと、画面に出る金額と実際に引く金額がずれる。 */
+  assert.match(sections, /const totalCost = route === "persona" && pay === "paid"/);
+  assert.match(sections, /Math\.max\(0, times - 1\)/);
   assert.match(sections, /const currencyShort = pay === "paid" && balance && \(Number\(balance\.lp\) < totalCost\.lp \|\| Number\(balance\.shards\) < totalCost\.shards\);/);
   assert.match(sections, /const ticketShort = pay === "ticket" && held < times;/);
   assert.match(sections, /onClick: requestDraw, disabled: !!blockedReason, title: blockedReason \|\| undefined/);
@@ -396,7 +405,6 @@ test("ガチャは任意回数をまとめて引ける（既得は再抽選し�
   assert.match(sections, /const requestDraw = \(\) => \{/);
   assert.match(sections, /const seed = drawSeed\(\);[\s\S]{0,420}?setPending\(\{ seed, out \}\);/);
   assert.match(sections, /className: "gacha-confirm"/);
-  assert.match(sections, /\}, "取り消す"\)/);
   assert.match(sections, /\}, "確定する"\)/);
   /* 種は暗号学的乱数から作る。時刻やMath.randomは予測できる。 */
   assert.match(read("../js/gacha-tickets.js"), /function seededSession\(seed\)/);
@@ -440,22 +448,22 @@ test("抽出チケットはリザルト収入で管理し、ショップのガ�
   assert.match(g, /\{ id: "ego", label: "E\.G\.O抽出"/);
   assert.match(g, /\{ id: "pack", label: "特定抽出パック"/);
   assert.doesNotMatch(g, /\{ id: "special", label:/);
-  /* 人格抽出は 1d(人格総数)。最大値 = 番号が無いので特異人格抽出へ分岐（core:6344-6345）。 */
-  assert.match(g, /function drawPersonaWithBranch\(state, session\)/);
-  assert.match(g, /const maxDie = rollOne\(normalTotal\);/);
-  assert.match(g, /if \(maxDie >= normalTotal\) \{/);
-  assert.match(g, /const specialPool = buildPool\("special", state\);/);
-  assert.match(g, /branch: "special"/);
-  assert.match(g, /branch, remaining: pay === "ticket"/);
+  /* 人格抽出の分岐（1d で最大値＝特異人格抽出へ、core:6344-6345）は
+     engine 側が持つ。gacha-tickets には出目の式を残さない。 */
+  const engine = read("../js/gacha.js");
+  assert.match(engine, /const max = pool\.personas\.length \+ \(plusOne && RULES\.personaDraw\.plusOneTriggersSpecial \? 1 : 0\);/);
+  assert.match(engine, /if \(value > pool\.personas\.length\) \{/);
+  assert.match(engine, /trigger: "plusOneMax"/);
+  assert.match(g, /branch: r\.kind === "specialPersona" \? "special" : null/);
   /* RNG は nextInt ではなく 1-indexed の roll。nextInt を呼ぶと常に undefined。 */
-  assert.match(g, /function rollOne\(max\)[\s\S]{0,300}?typeof s\.roll === "function"\) return s\.roll\(max\);/);
   assert.doesNotMatch(g, /s\.nextInt\(/);
+  assert.doesNotMatch(g, /Math\.floor\(Math\.random\(\) \* max\)/);
   /* 分岐表示。 */
   assert.match(sections, /gacha-branch-badge" \}, "特異人格チャンス"/);
   assert.match(sections, /const branched = hits\.filter\(\(x\) => x\.branch === "special"\)\.length;/);
   /* 抽選は通貨かチケットの2択。 */
   assert.match(g, /const pay = options\.pay === "ticket" \? "ticket" : "paid";/);
-  assert.match(g, /if \(pay === "ticket" && held <= 0\) return \{ hit: null, reason: "no-ticket" \};/);
+  assert.match(g, /if \(pay === "ticket" && held <= 0\) return \{ hits: \[\], reason: "no-ticket", remaining: held \};/);
   /* 所持済みは引かない（core:361/7536 同種複数保有禁止）。 */
   assert.match(g, /!owned\.ego\.has\(`\$\{e\.rank\}:\$\{e\.no\}`\)/);
   assert.match(g, /!owned\.normal\.has\(String\(p\.no\)\)/);
@@ -901,8 +909,9 @@ test("ショップはビルドと同じ検索窓形式で絞り込む", () => {
   assert.match(shop, /tab === "support" \? h\("div", \{ className: "codex-filter-row" \}[\s\S]*?\["", \.\.\.SIN_LIST\]/);
   assert.match(shop, /"aria-pressed": rankFilter === rank/);
   assert.match(shop, /"aria-pressed": categoryFilter === category/);
-  /* 出典フィルタはビルドと同じ DOM 注入フックに任せる。 */
-  assert.match(shop, /useSourceFilterControl\(tab === "support" \? "サポート" : "精神", sourceFilter, setSourceFilter\);/);
+  /* 出典フィルタはビルドと同じ DOM 注入フックに任せる。
+     出典を持つのはサポートと精神だけなので、そのタブに限って注入する。 */
+  assert.match(shop, /useSourceFilterControl\(SOURCE_KINDS\[tab\] \|\| "", sourceFilter, setSourceFilter, !!SOURCE_KINDS\[tab\]\);/);
   /* 絞り込みは実際に一覧へ効く。 */
   assert.match(shop, /&&\s*\(sinFilter \? \(entry\.cond \|\| ""\)\.includes\(sinFilter\) : true\)/);
   assert.match(shop, /\(!rankFilter \|\| ego\.rank === rankFilter\)/);
@@ -1003,4 +1012,177 @@ test("ショップとビルドの体裁がある", () => {
   assert.match(css, /\.inv-pick-button \{[\s\S]*?border-radius: var\(--r-pill\);/);
   assert.match(css, /\.inv-pick-button:disabled \{ opacity: \.45; cursor: not-allowed; \}/);
   assert.match(css, /@media \(max-width: 640px\) \{\s*\/\* 狭幅でタブ帯の文字を押し潰さず横スクロールで到達可能にする。 \*\/\s*\.build-tabs \.segmented \{ overflow-x: auto; \}/);
+});
+
+/* ---------------------------------------------------------------------------
+   ガチャの厳格規定：結果の信頼性と改ざん耐性は最優先。
+
+   壊れていた挙動（ブラウザ実測で再現済み）:
+     1) 確認画面が出目を出していた。「見る → 嫌だ → 取り消す」で
+        8回出目を見て、記録 0 件・支払 0 LP のまま選び直せた。
+        見る前に選び直せないので、これは抽選の抜け道になる。
+     2) 確定済みの抽出が Ctrl+Z 1回で消えていた。state.draws の
+        ハッシュ鎖つきの記録・所持・支出がすべて巻き戻り、
+        「引いたのに引いた形跡がない」状態になっていた。
+        原因は ADD_DRAW_BATCH に __sealed が無かったこと。
+        __sealed が無いと wrappedDispatch の reseal が働かない。
+
+   守るべき性質:
+     - 確認画面は件数と金額だけを出す。出目は確定のあとまで隠す
+     - 確定済みの抽出を Undo で消せない（記録・所持・支出が一緒に残る）
+     - やめられるのは「まだ何も起きていない」状態だけ
+   --------------------------------------------------------------------------- */
+
+test("ガチャ: 確認画面は出目を出さない（出目を見てから選び直す抜け道を塞ぐ）", () => {
+  const sections = read("../js/OtherSections.js");
+  const start = sections.indexOf('pending && h("div", { className: "gacha-confirm"');
+  assert.ok(start > 0, "確認画面が見つからない");
+  const block = sections.slice(start, sections.indexOf("last && h(", start));
+  assert.ok(block, "確認画面の区切りが見つからない");
+  /* 出目は gacha-result-row / gacha-confirm-list に載せる。
+     どちらも確認画面へ置いてはいけない。置いた瞬間に抜け道ができる。 */
+  assert.doesNotMatch(block, /gacha-confirm-list/);
+  assert.doesNotMatch(block, /gacha-result-row/);
+  assert.doesNotMatch(block, /pending\.out\.hits\.map/);
+  /* 出目が出ないことを画面上で明示する。 */
+  assert.match(block, /この画面では出目を出しません/);
+  /* やめるボタンは「まだ引かない」。引いた結果を消しているように
+     読まれる文言は使わない。 */
+  assert.match(block, /\}, "まだ引かない"\)/);
+  assert.doesNotMatch(block, /\}, "取り消す"\)/);
+});
+
+test("ガチャ: 確定済みの抽出は Undo で消えない（記録・所持・支出が一緒に残る）", () => {
+  const sections = read("../js/OtherSections.js");
+  assert.match(sections, /dispatch\(\{ type: "ADD_DRAW_BATCH", __sealed: true, batch \}\);/,
+    "ADD_DRAW_BATCH は __sealed 付き。無いと reseal が効かず Ctrl+Z で記録が消える");
+  assert.match(sections, /type: "ADD_GACHA_LOG",\s*__sealed: true,/);
+  /* 受け側：sealed は履歴に載せず、巻き戻しのあとに打ち直す。 */
+  const st = read("../js/state.js");
+  assert.match(st, /if \(action && action\.__sealed\) \{[\s\S]{0,240}?sealsRef\.current\.push/);
+  assert.match(st, /const reseal = \(index\) => \{/);
+});
+
+test("ガチャ: やめる操作は「まだ引いていない」と伝える（引いた結果を取り消したと思わせない）", () => {
+  const sections = read("../js/OtherSections.js");
+  assert.match(sections, /const cancelDraw = \(\) => \{ setPending\(null\); toast\("まだ引いていません。記録は残していません。"\); \};/);
+  assert.doesNotMatch(sections, /toast\("抽選を取り消しました"\)/);
+  /* 確定後に戻らないことは、受けと結果の両方で言う。 */
+  assert.match(sections, /確定後は取り消せません/);
+  assert.match(sections, /Undo（元に戻す）でも消えません/);
+});
+
+/* ---------------------------------------------------------------------------
+   一覧が空なのに「n 件」と出ている状態を許さない。
+
+   実害: ビルド > 精神 の一覧がいつも空だった。原因は
+   filtered.map((sp) => { const spiritBody = ... }) が spiritBody を
+   組み立てて返していないこと。React は [undefined, undefined, undefined] を
+   受け取るので一覧は空、かつ counter は別に描画されるので
+   「3 / 48」と出ていた。表示範囲を「未所持も表示」に変えても空のままだと、
+   フィルタの問題に見えてしまう。
+
+   検査を空振りさせないために、故意に return を外した版でも
+   必ず落ちることを同じテストの中で確かめる。
+   --------------------------------------------------------------------------- */
+
+/* 開始目印と終端目印で挟み、その間に return があるかを見る。
+   文字列の目印で区切るのは、括弧の対応を取らないため
+   正規表現リテラルやテンプレートリテラルで位置がずれることがない。 */
+function sliceBetween(src, startNeedle, endNeedle) {
+  const start = src.indexOf(startNeedle);
+  assert.ok(start >= 0, "開始目印が見つからない: " + startNeedle);
+  const from = start + startNeedle.length;
+  const end = src.indexOf(endNeedle, from);
+  assert.ok(end > from, "終端目印が見つからない: " + endNeedle);
+  return src.slice(from, end);
+}
+
+test("ビルド>精神: 一覧の map は要素を返す（返さないと件数だけ出て一覧が空になる）", () => {
+  const sections = read("../js/OtherSections.js");
+  const body = sliceBetween(sections, "filtered.map((sp) => {", "}))), selected ?");
+  assert.match(body, /const spiritBody =/,
+    "spiritBody を組み立てている（返さないと空になる）");
+  assert.match(body, /return\s+spiritBody;\s*$/,
+    "組み立てた spiritBody を返さないと、React は undefined を受け取って一覧が空になる");
+});
+
+test("同じ検査は、return を外した版では必ず落ちる（空振りしないことの確認）", () => {
+  const good = "filtered.map((sp) => {\n  const spiritBody = h('div');\n  return spiritBody;\n";
+  const bad = "filtered.map((sp) => {\n  const spiritBody = h('div');\n";
+  const hasReturn = (src) => /return\s+spiritBody;\s*$/.test(src);
+  assert.equal(hasReturn(good), true, "return があれば合格");
+  assert.equal(hasReturn(bad), false, "return を外したら不合格になる（この検査は効く）");
+  /* 実ファイル側にも同じ並びで検査する */
+  const real = read("../js/OtherSections.js");
+  const realBody = sliceBetween(real, "filtered.map((sp) => {", "}))), selected ?");
+  assert.equal(hasReturn(realBody), true, "実ファイル側にも return がある");
+});
+
+/* ---------------------------------------------------------------------------
+   名前の衝突（影）をフィルタ経路で弾く。
+
+   実害: ビルド > サポート の「出典」チップを選ぶと
+   TypeError: catalogSource is not a function でタブごと落ちた。
+   原因はモジュール直下の関数（entry → 出典を返す）に、
+   SupportSection 内の同名の配列 const が影を落としていたこと。
+   既定 sourceFilter="all" は短絡するので通常時は気づけない。
+
+   検査対象は「インデント0の関数定義と同じ名前が、インデント付きで
+   関数でない束縛として再宣言される」形のみ。コンポーネント内の
+   ローカル名の重複（isEquipped 等）は対象外にする。
+   --------------------------------------------------------------------------- */
+
+function shadowedModuleHelpers(src) {
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const offenders = [];
+  const moduleFn = /^(?:const|let|function)\s+([A-Za-z_$][\w$]*)\s*(?:=\s*\(|\()/gm;
+  const names = new Set();
+  let m;
+  while ((m = moduleFn.exec(src))) names.add(m[1]);
+  for (const name of names) {
+    const callRe = new RegExp("(?<![\\w$.])" + esc(name) + "\\s*\\(", "g");
+    if (![...src.matchAll(callRe)].length) continue;
+    /* インデント付きで、= ( 以外の値に束縛している再宣言を探す。 */
+    const localDecl = new RegExp("^[ \\t]+(?:const|let|var)\\s+" + esc(name) + "\\s*=\\s*(?!\\()", "gm");
+    const localFn = new RegExp("^[ \\t]+(?:const|let|var)\\s+" + esc(name) + "\\s*=\\s*\\(", "gm");
+    const dataDecls = [...src.matchAll(localDecl)].length;
+    const fnDecls = [...src.matchAll(localFn)].length;
+    if (dataDecls > fnDecls) {
+      offenders.push({ name, dataDecls, fnDecls });
+    }
+  }
+  return offenders;
+}
+
+test("フィルタ経路: モジュール関数を同名の配列が影に落としていない（出典チップでタブが落ちる）", () => {
+  const sections = read("../js/OtherSections.js");
+  const names = shadowedModuleHelpers(sections).map((o) => o.name);
+  assert.deepEqual(names, [], "モジュール直下の関数と同じ名前の関数でない束縛がある: " + names.join(", "));
+});
+
+test("この検査は影があると実際に落ちる（空振りしないことの確認）", () => {
+  const withShadow = [
+    "const catalogSource = (entry) => entry.source;",
+    "function Panel() {",
+    "  const catalogSource = DB.items;",
+    "  return list.filter((s) => catalogSource(s) !== 'all');",
+    "}"
+  ].join("\n");
+  const withoutShadow = [
+    "const catalogSource = (entry) => entry.source;",
+    "function Panel() {",
+    "  const supportCatalog = DB.items;",
+    "  return list.filter((s) => catalogSource(s) !== 'all');",
+    "}"
+  ].join("\n");
+  const localOnly = [
+    "function Panel() {",
+    "  const hit = (x) => x;",
+    "  const hit2 = hit(1);",
+    "}"
+  ].join("\n");
+  assert.ok(shadowedModuleHelpers(withShadow).map((o) => o.name).includes("catalogSource"), "影があれば検出できる");
+  assert.ok(!shadowedModuleHelpers(withoutShadow).map((o) => o.name).includes("catalogSource"), "影がなければ検出しない");
+  assert.deepEqual(shadowedModuleHelpers(localOnly), [], "コンポーネント内ローカルの重複は対象外");
 });

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
 import test from "node:test";
+import vm from "node:vm";
 
 /* 出典フィルタの契約。
  *
@@ -98,4 +99,113 @@ test("出典フィルタは 4 つの選択肢を持つ", () => {
   // 選択肢の配列を 2 箇所（SourceFilterRow と useSourceFilterControl）が共有している
   assert.equal((sectionSource.match(/SOURCE_OPTIONS\.(map|forEach)/g) || []).length, 2);
   assert.doesNotMatch(sectionSource, /"rulebook"/, "旧 2 値リストの 'rulebook' が残っていないこと");
+});
+
+/* ---------------------------------------------------------------------------
+   所持（roster）を経由すると出典が消える経路。
+
+   SupportSection のデータ束縛をモジュール関数と同じ catalogSource と名付けると、
+   applyFilters 内の catalogSource(s) がその配列を指し、出典チップを選んだ瞬間に
+   TypeError でタブごと落ちていた（既定 "all" が短絡するので通常時は無症状）。
+   さらに所持エントリはカタログの抜粋を写すため、書き写す項目に source が
+   無いと「所持のみ」表示のときだけ全件ルールブックに化ける。
+   --------------------------------------------------------------------------- */
+test("出典を返す関数を、同じ名前の配列が影に落としていない", () => {
+  assert.match(sectionSource, /const catalogSource = \(entry\) => entry\?\.source \|\| "core";/);
+  assert.doesNotMatch(sectionSource, /const catalogSource = (?!\(entry\))/, "関数以外の同名束縛を置かない");
+  assert.match(sectionSource, /const supportCatalog = gated \? ownedSupports : DB\.support_passives;/);
+});
+
+const stateSourceForOwned = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
+
+function loadStateWithDb(dbOverrides) {
+  const base = { support_passives: [], death_passives: [], spirits: [], normal_enhancements: [], special_enhancements: [] };
+  const context = {
+    window: { DB: { ...base, ...dbOverrides } },
+    console,
+    setTimeout,
+    clearTimeout,
+    URL,
+    TextEncoder,
+    TextDecoder,
+    React: { useReducer: () => {}, useRef: () => ({ current: null }), useState: () => [null, () => {}], useEffect: () => {} }
+  };
+  context.globalThis = context;
+  vm.createContext(context);
+  vm.runInContext(stateSourceForOwned, context);
+  return context.window;
+}
+
+const ownedState = (roster) => ({
+  supports: [], deathSupport: null, spirit: "", inventory: [], customItems: [], enhancements: [],
+  roster: { personas: [], egos: [], supports: roster.supports || [], spirits: roster.spirits || [] },
+  results: [], entries: [], ui: {}, historyRecent: [], favorites: []
+});
+
+test("所持へ写すとき出典を落とさない（サポート・精神）", () => {
+  const w = loadStateWithDb({
+    support_passives: [{ name: "潜撃", cond: "条件", effect: "効果", lp: "50", source: "supplement" }],
+    spirits: [{ name: "快撃", morale_effect: "m", source: "supplement" }]
+  });
+  const withSupport = w.appReducer(ownedState({}), { type: "ADD_ROSTER_SUPPORT", spp: { name: "潜撃" } });
+  assert.equal(withSupport.roster.supports[0].source, "supplement", "所持サポートが出典を保つ");
+  const withSpirit = w.appReducer(ownedState({}), { type: "ADD_ROSTER_SPIRIT", spirit: { name: "快撃" } });
+  assert.equal(withSpirit.roster.spirits[0].source, "supplement", "所持精神が出典を保つ");
+});
+
+test("出典を持たない旧セーブの所持は名前から引き直す", () => {
+  const w = loadStateWithDb({
+    support_passives: [{ name: "潜撃", cond: "", effect: "", lp: "50", source: "supplement" }],
+    spirits: [{ name: "快撃", morale_effect: "m", source: "supplement" }]
+  });
+  const normalized = w.LBT_normalizeStateShape(
+    ownedState({ supports: [{ name: "潜撃" }], spirits: [{ name: "快撃" }] })
+  );
+  assert.equal(normalized.roster.supports[0].source, "supplement");
+  assert.equal(normalized.roster.spirits[0].source, "supplement");
+});
+
+test("DB に無い手動追加の所持は core として扱う（落とさない）", () => {
+  const w = loadStateWithDb({});
+  const normalized = w.LBT_normalizeStateShape(ownedState({ supports: [{ name: "手動で足したパッシブ" }] }));
+  assert.equal(normalized.roster.supports.length, 1, "名前が無いわけではないので保全する");
+  assert.equal(normalized.roster.supports[0].source, "core");
+});
+
+test("DB 未ロードでは出典を焼き込まず、後から引き直せる", () => {
+  const w = loadStateWithDb({});
+  delete w.DB;
+  const before = w.LBT_normalizeStateShape(ownedState({ supports: [{ name: "潜撃" }] }));
+  assert.equal(before.roster.supports[0].source, undefined, "DB が無いときは空のまま残す");
+  w.DB = { support_passives: [{ name: "潜撃", source: "supplement" }] };
+  const after = w.LBT_normalizeStateShape(before);
+  assert.equal(after.roster.supports[0].source, "supplement", "DB が来たら引き直す");
+});
+
+/* ---------------------------------------------------------------------------
+   出典フィルタは「出典を持つカタログ」にだけ出す。
+
+   ショップはタブを問わず出典行を DOM へ注入していたため、E.G.O（115件）と
+   アイテム（35件）のタブにも押しても何も変わらない操作子が出ていた。
+   出典は support_passives と spirits だけが持つので、行はその 2 タブに限る。
+   --------------------------------------------------------------------------- */
+test("出典を持つのはサポートパッシブと精神だけ（E.G.O・アイテムは持たない）", () => {
+  const withSource = (list) => list.filter((e) => e && typeof e === "object" && "source" in e).length;
+  assert.equal(withSource(db.support_passives), db.support_passives.length);
+  assert.equal(withSource(db.spirits), db.spirits.length);
+  assert.equal(withSource(db.egos), 0);
+  const items = JSON.parse(readFileSync(new URL("../data/items.json", import.meta.url), "utf8"));
+  assert.equal(withSource(items), 0);
+});
+
+test("ショップの出典行は出典を持つタブにだけ注入する", () => {
+  assert.match(sectionSource, /const SOURCE_KINDS = \{ support: "サポート", spirit: "精神" \};/);
+  assert.match(sectionSource, /const useSourceFilterControl = \(kind, value, onChange, enabled = true\) => \{/);
+  assert.match(sectionSource, /if \(!enabled\) return void 0;/);
+  assert.match(sectionSource, /\[kind, value, onChange, enabled\]/);
+  assert.match(
+    sectionSource,
+    /useSourceFilterControl\(SOURCE_KINDS\[tab\] \|\| "", sourceFilter, setSourceFilter, !!SOURCE_KINDS\[tab\]\)/
+  );
+  assert.doesNotMatch(sectionSource, /useSourceFilterControl\(tab === "support"/, "全タブ注入の旧呼び出しを残さない");
 });

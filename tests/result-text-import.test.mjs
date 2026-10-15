@@ -234,3 +234,44 @@ test("著者はメモに載せる（リザルト名には混ぜない）", () =>
   assert.equal(plan.actions[0].name, "A");
   assert.match(plan.actions[0].note, /X/);
 });
+
+/* --- skipped の表示 ------------------------------------------------------
+   skipped は「取り込み口」ごとに形が違う。硝子窓は {key,name}、テキスト
+   流しは {text}。両方を同じ「取り込み結果」カードへ出すので、描画は
+   どれか1つの形しか見ない実装だと、他方の行が `undefined：理由` と
+   表示される。   読者に «読めない» を «読めていない» と騙すので、
+   ここでは構造で塞ぐ（全形の持ち方と、区切りが必ず落ちること）。 */
+
+test("テキスト流しの skipped は必ず行の中身（text）を持つ", () => {
+  const parsed = T.parseText("【A】\n購入｜謎のアイテム(無料)\n理解できない見出し｜本文\n");
+  const plan = T.plan(parsed, {});
+  assert.ok(plan.skipped.length >= 2, "両方ともスキップされる");
+  for (const s of plan.skipped) {
+    assert.equal(typeof s.text, "string", "text が文字列");
+    assert.ok(s.text.trim().length > 0, "空文字を出さない");
+    assert.ok(typeof s.reason === "string" && s.reason.length > 0, "理由が空でない");
+  }
+});
+
+test("取り込み結果の行表示は undefined を印刷しない（形の違う取り込み口が2つある）", () => {
+  const src = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
+  const renderers = [...src.matchAll(/importNote\.skipped\.map\(([^)]*)\)\s*=>\s*h\("li"[^`]*`([^`]*)`/g)];
+  assert.equal(renderers.length, 1, "描画は1箇所に留まる");
+  const template = renderers[0][2];
+  for (const field of ["s.text", "s.name", "s.key"]) {
+    assert.ok(template.includes(field), `${field} を読む`);
+  }
+  assert.ok(!/undefined/.test(template), "既定値を不用意に書かない");
+  assert.match(template, /（行を特定できません）/);
+  assert.match(template, /s\.reason\s*\|\|\s*s\.kind\s*\|\|/);
+});
+
+test("読み込んだ行と理由は読者に同じ文で出す（型の取り違えをしない）", () => {
+  const src = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
+  const chains = [...src.matchAll(/\$\{(s\.[^}]*)\}：\$\{(s\.reason[^}]*)\}/g)].map((m) => [m[1], m[2]]);
+  assert.ok(chains.length >= 2, "2つの取り込み口が同じ並びで出す");
+  for (const [label, reason] of chains) {
+    assert.ok(label.startsWith("s.text"), `${label} は text を先に見る`);
+    assert.ok(reason.includes('"不明"'), `${reason} は最後の値がある`);
+  }
+});
