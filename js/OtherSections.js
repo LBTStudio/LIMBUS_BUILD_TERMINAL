@@ -2279,27 +2279,33 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
   React.useEffect(() => { setVisibleCount(48); }, [tab, unownedOnly, query, rankFilter, categoryFilter, sinFilter, sourceFilter, keywordFilter, requiredResources, excludedResources]);
   React.useEffect(() => {
     /* IntersectionObserver は content-visibility の推定高さとスクロールアンカリングで
-       判定が不安定になるため、スクロール位置と実測高さで末尾到達を判定する。 */
-    const grow = () => {
-      const scroller = document.querySelector("main.focus");
+       判定が不安定になるため、スクロール位置と実測高さで末尾到達を判定する。
+       高さの読み取りは強制レイアウトを伴うので、1フレーム1回にまとめる。 */
+    const scroller = document.querySelector("main.focus");
+    let scheduled = false;
+    let cancelled = false;
+    const measure = () => {
+      scheduled = false;
+      if (cancelled) return;
       const scrollable = scroller && scroller.scrollHeight > scroller.clientHeight + 1;
       const nearBottom = scrollable
         ? scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 1200
         : window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 1200;
       if (!nearBottom) return;
       /* 同じ高さのまま複数のスクロールイベントが来ても、追記は1回までにする。 */
-      const span = scroller && scrollable ? scroller.scrollHeight : document.documentElement.scrollHeight;
+      const span = scrollable ? scroller.scrollHeight : document.documentElement.scrollHeight;
       if (span === lastGrowHeightRef.current) return;
       lastGrowHeightRef.current = span;
       setVisibleCount((count) => Math.min(count + 48, list.length));
     };
+    const grow = () => { if (!scheduled) { scheduled = true; requestAnimationFrame(measure); } };
     grow();
     const onScroll = { passive: true };
-    const scroller = document.querySelector("main.focus");
     if (scroller) scroller.addEventListener("scroll", grow, onScroll);
     window.addEventListener("scroll", grow, onScroll);
     window.addEventListener("resize", grow);
     return () => {
+      cancelled = true;
       if (scroller) scroller.removeEventListener("scroll", grow, onScroll);
       window.removeEventListener("scroll", grow, onScroll);
       window.removeEventListener("resize", grow);
