@@ -968,6 +968,23 @@ function setTicketIncome(state, kind, pack, delta, resultId) {
   return { ...state, results };
 }
 
+/* テーマパック重複で受け取った自我の欠片を「直近リザルトの収入」に積む。
+   支出側（entries の負コスト）に置くと支出合計が狂う。収入はリザルト側の概念。 */
+function addShardIncome(state, delta, resultId) {
+  const add = Math.max(0, Number(delta) || 0);
+  if (!add) return state;
+  const targetId = resultId || latestResultId(state);
+  if (!targetId) return state;
+  const results = (state.results || []).map((r) => {
+    if (r.id !== targetId) return r;
+    const cur = normalizeCurrency(r.income);
+    const income = { ...cur, shards: cur.shards + add };
+    if (r.income && r.income.tickets !== undefined) income.tickets = r.income.tickets;
+    return { ...r, income };
+  });
+  return { ...state, results };
+}
+
 /* 抽出チケットを消費した明細を立てる（所持を引いた証拠）。 */
 function appendTicketSpend(state, kind, pack, count, ref, resultId) {
   const n = Math.max(1, Number(count) || 1);
@@ -3043,12 +3060,27 @@ if (nextValue && !action.preview && !rosterEgos.some((entry) => entry.rank === a
       const batch = action.batch;
       if (!batch || typeof batch !== "object" || !Array.isArray(batch.records)) return state;
       let next = applyRosterAdds(state, rosterAddsFromDrawBatch(batch), { resultId: action.resultId });
-      /* テーマパックで引いたのが DB に無い専用人格のときだけ、所持へ入らない。
-         そのぶんは通帳に「消費」として残す。放入できた件は applyRosterAdds が
-         記録の金額ごと記済みなので、ここで二重に書くと二重の請求になる。
+      /* テーマパックは毎回ぶんを請求する。引いたのが DB に無い専用人格なら
+         所持へ入らず、そのぶんを通帳に「消費」として残す。放入できた件は
+         applyRosterAdds が記録の金額ごと記済みなので、ここで二重に書くと
+         二重の請求になる。重複は所持へ入れず、代わりに欠片を受け取る。
          どちらの経路でも、記録に残った額と通帳の合計は一致する。 */
       for (const record of batch.records) {
-        if (record?.kind !== "themePack" || record.duplicate) continue;
+        if (record?.kind !== "themePack") continue;
+        if (record.duplicate) {
+          /* 重複でも1回ぶんは払う。支出は通帳へ、欠片はリザルトの収入へ分けて積む。 */
+          const lp = Number(record.cost?.lp) || 0;
+          if (lp) {
+            next = appendLedgerEntry(next, {
+              kind: "expense",
+              name: `特定抽出パック ${record.pack || ""}${record.item?.name ? `：${record.item.name}` : ""}（重複）`.trim(),
+              cost: { lp, shards: 0 },
+              resultId: action.resultId
+            });
+          }
+          next = addShardIncome(next, Number(record.grantedShards) || 0, action.resultId);
+          continue;
+        }
         if (personaNoByName(record.item?.name)) continue;
         const lp = Number(record.cost?.lp) || 0;
         if (!lp) continue;

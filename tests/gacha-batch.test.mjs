@@ -325,7 +325,7 @@ test("テーマパック: DBに人格がある項目は所持へ入り、無い�
   assert.equal(next.entries.reduce((n, e) => n + (Number(e.cost?.lp) || 0), 0), pack.lp * 2, "合計は記録と一致");
 });
 
-test("テーマパック: 重複は所持ではなく欠片50、通帳にも所持の名は残さない", () => {
+test("テーマパック: 重複でも1回ぶんを請求し、欠片50は収入に積む", () => {
   const w = loadState(db);
   const pack = gacha.findPack("属せない＆愛することのできない");
   const session = scripted([1, 1, 2]);
@@ -337,18 +337,21 @@ test("テーマパック: 重複は所持ではなく欠片50、通帳にも所�
   const dupes = batch.records.filter((r) => r.duplicate);
   assert.equal(dupes.length, 1, "2回目が重複");
   assert.equal(dupes[0].grantedShards, 50, "重複は欠片50");
-  const next = w.appReducer(base(), { type: "ADD_DRAW_BATCH", batch });
+  const before = { ...base(), results: [{ id: "r1", income: { lp: 0, shards: 0 } }] };
+  const next = w.appReducer(before, { type: "ADD_DRAW_BATCH", batch });
   /* roster.personas は名前を持たない（{uid,no,mode,…}）ので、
      重複の判定は mode:no で行う。名前で引くと必ず外れて嘘が出る。 */
   const keys = new Set(next.roster.personas.map((p) => `${p.mode}:${p.no}`));
   assert.equal(keys.size, next.roster.personas.length, "所持に重複がない");
-  /* 支払いは「記録に残った額」と必ず一致する。1件でも欠けると、
-     抽出リストの合計と通帳の合計がずれて、利用者がどちらかを疑う。 */
+  /* 重複でも1回ぶんなら請求する。記録（重複含む）の合計と通帳の合計が一致する。 */
   const spentLp = next.entries.reduce((n, e) => n + (Number(e.cost?.lp) || 0), 0);
-  const recordLp = batch.records.filter((r) => !r.duplicate).reduce((n, r) => n + (Number(r.cost?.lp) || 0), 0);
-  assert.equal(spentLp, recordLp, "通帳の合計＝記録の合計（重複分は払っていない）");
-  /* 入った人格と、入らなかった分は明細が1件ずつ。 */
-  assert.equal(next.entries.length, 2, "所持に入った分＋入らなかった分");
+  const recordLp = batch.records.reduce((n, r) => n + (Number(r.cost?.lp) || 0), 0);
+  assert.equal(spentLp, recordLp, "通帳の合計＝記録の合計（重複分も払う）");
+  /* 人格に入った分＋入らなかった分＋重複1件。 */
+  assert.equal(next.entries.length, 3, "重複も1行として残る");
+  /* 重複の欠片50は支出でなく収入側（リザルト）へ入り、支出合計を狂わせない。 */
+  const shards = next.results.reduce((n, r) => n + (Number(r.income?.shards) || 0), 0);
+  assert.equal(shards, 50, "重複1件で欠片50が収入になる");
 });
 
 /* --- 画面が実際に通る道（LBT_gachaDraw.drawN）---------------------------
