@@ -196,3 +196,79 @@ test("歸属先（resultId）は読み書きで保持される", () => {
   s = reducer(s, { type: "SET_ROSTER_SUPPORT_RESULT", uid, resultId: null });
   assert.equal(s.roster.supports[0].resultId, null, "未分類へ戻せる");
 });
+
+test("所持済みでも未装備なら、装備操作（ADD_SUPPORT）で装備できる", () => {
+  const { reducer } = reducerOf();
+  let s = reducer(baseState(), { type: "ADD_SUPPORT", spp: { name: "出血促進" } });
+  const uid = s.roster.supports[0].uid;
+  s = reducer(s, { type: "SET_ROSTER_SUPPORT_EQUIPPED", uid, equipped: false });
+  assert.equal(s.supports.length, 0, "外れている");
+  s = reducer(s, { type: "ADD_SUPPORT", spp: { name: "出血促進" } });
+  assert.equal(s.roster.supports.length, 1, "所持は増えない");
+  assert.equal(s.supports.length, 1, "一覧からの装備操作で装備される");
+  assert.equal(s.supports[0].name, "出血促進");
+});
+
+test("死亡後パッシブも所持済みなら SET_DEATH_SUPPORT で再装備できる", () => {
+  const { reducer } = reducerOf();
+  let s = reducer(baseState(), { type: "SET_DEATH_SUPPORT", spp: { name: "覚悟" } });
+  assert.equal(s.deathSupport?.name, "覚悟");
+  s = reducer(s, { type: "SET_DEATH_SUPPORT", spp: null });
+  assert.equal(s.deathSupport, null, "外れる");
+  s = reducer(s, { type: "SET_DEATH_SUPPORT", spp: { name: "覚悟" } });
+  assert.equal(s.roster.supports.length, 1, "所持は増えない");
+  assert.equal(s.deathSupport?.name, "覚悟", "再装備できる");
+});
+
+test("装備の取り外し（REMOVE_SUPPORT）は装備を外すだけで所持を消さない", () => {
+  const { reducer } = reducerOf();
+  let s = reducer(baseState(), { type: "ADD_SUPPORT", spp: { name: "出血促進" } });
+  const uid = s.roster.supports[0].uid;
+  s = reducer(s, { type: "REMOVE_SUPPORT", id: uid });
+  assert.equal(s.supports.length, 0, "装備から外れる");
+  assert.equal(s.roster.supports.length, 1, "所持は残る（一覧から消えない）");
+  assert.equal(s.roster.supports[0].equipped, false);
+});
+
+test("拡張なしでは従来どおり通常2枠。3件目は最古が外れ、所持は残る", () => {
+  const { reducer } = reducerOf();
+  let s = baseState();
+  for (const name of ["出血促進", "消化", "追加サポ"]) {
+    s = reducer(s, { type: "ADD_SUPPORT", spp: { name } });
+  }
+  assert.equal(s.supports.length, 2, "2枠のまま");
+  assert.ok(s.supports.some((x) => x.name === "追加サポ"), "新しい方が入る");
+  assert.ok(!s.supports.some((x) => x.name === "出血促進"), "最古が外れる");
+  assert.equal(s.roster.supports.length, 3, "外れた分も所持には残る");
+});
+
+test("拡張『サポートスロット追加』があれば通常3枠を装備でき、既存が外れない", () => {
+  const { reducer } = reducerOf();
+  let s = { ...baseState(), enhancements: [{ name: "サポートスロット追加" }] };
+  for (const name of ["出血促進", "消化", "追加サポ"]) {
+    s = reducer(s, { type: "ADD_SUPPORT", spp: { name } });
+  }
+  assert.equal(s.roster.supports.length, 3);
+  assert.equal(s.supports.length, 3, "3枠目を装備しても既存が外れない");
+});
+
+test("拡張ありでは所持一覧からの装備（SET_ROSTER_SUPPORT_EQUIPPED）も3枠を保つ", () => {
+  const { reducer } = reducerOf();
+  let s = { ...baseState(), enhancements: [{ name: "サポートスロット追加" }] };
+  for (const name of ["出血促進", "消化", "追加サポ"]) {
+    s = reducer(s, { type: "ADD_ROSTER_SUPPORT", spp: { name } });
+  }
+  for (const entry of s.roster.supports) {
+    s = reducer(s, { type: "SET_ROSTER_SUPPORT_EQUIPPED", uid: entry.uid });
+  }
+  assert.equal(s.supports.length, 3, "3件とも装備のまま");
+});
+
+test("手動サポート（空名）も所持へ追加でき、空名同士は重複扱いしない", () => {
+  const { reducer } = reducerOf();
+  let s = reducer(baseState(), { type: "ADD_SUPPORT", spp: { name: "", cond: "", effect: "", lp: "" } });
+  assert.equal(s.roster.supports.length, 1, "空名でも所持に入る");
+  assert.equal(s.supports.length, 1, "装備される");
+  s = reducer(s, { type: "ADD_SUPPORT", spp: { name: "" } });
+  assert.equal(s.roster.supports.length, 2, "空名は同名扱いで弾かない");
+});

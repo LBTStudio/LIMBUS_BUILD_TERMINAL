@@ -991,12 +991,11 @@ function makeOwnedUid(prefix) {
   return `${prefix}-${Date.now()}-${ownedUidCounter}`;
 }
 
-/* 未所持のサポパを所持へ写す（重複は写さない）。 */
+/* 未所持のサポパを所持へ写す（同名の重複は写さない。空名=手動追加は重複扱いしない）。 */
 function addRosterSupport(state, spp) {
   const name = String(spp?.name || "");
-  if (!name) return null;
   const roster = state.roster || {};
-  if ((roster.supports || []).some((s) => s.name === name)) return null;
+  if (name && (roster.supports || []).some((s) => s.name === name)) return null;
   const isDeath = isDeathSupportPassiveRecord({ name });
   const entry = {
     uid: makeOwnedUid("spt"),
@@ -1013,12 +1012,26 @@ function addRosterSupport(state, spp) {
   };
   return { ...state, roster: { ...roster, supports: [...(roster.supports || []), entry] } };
 }
+/* 所持（roster.supports）から同名の1件を探す。空名（手動追加）は対象外。 */
+function findOwnedSupport(state, name) {
+  if (!name) return null;
+  return (state?.roster?.supports || []).find((s) => s.name === name) || null;
+}
+/* 通常スロットの上限は拡張「サポートスロット追加」で3。UI（maxSupports）と
+   出力（stateWithVisibleSupports）は既にそう振る舞う。reducer だけ2のままだと
+   3枠目を装備した瞬間に既存が外れて消えるため、generator と同じ判定で数える。 */
+function supportSlotLimit(state, slot) {
+  if (slot === "death") return 1;
+  const resolver = typeof window !== "undefined" ? window.LBT_getActiveEnhancements : null;
+  const active = typeof resolver === "function" ? resolver(state) : (state?.enhancements || []);
+  return (active || []).some((e) => String(e?.name || "").includes("サポートスロット追加")) ? 3 : 2;
+}
 /* 指定の所持を装備する。枠の上限は slot で決まる。 */
 function equipRosterSupport(state, uid) {
   const roster = state.roster || {};
   const target = (roster.supports || []).find((s) => s.uid === uid);
   if (!target) return state;
-  const limit = target.slot === "death" ? 1 : 2;
+  const limit = supportSlotLimit(state, target.slot);
   const marked = (roster.supports || []).map((s) => (s.uid === uid ? { ...s, equipped: true } : s));
   const sameSlot = marked.filter((s) => s.slot === target.slot && s.equipped);
   const overflowUids = new Set(sameSlot.slice(0, Math.max(0, sameSlot.length - limit)).map((s) => s.uid));
@@ -3050,18 +3063,23 @@ if (nextValue && !action.preview && !rosterEgos.some((entry) => entry.rank === a
     }
     /* ---- Support ---- */
     /* 装備の入口は所持（roster.supports）を経由する。未所持のものは
-       同時に所持へ写してから装備する。テレポートせずに装備できていた
-       経路を塞ぎ、所持一覧と裝備の食い違いを起こさない。 */
+       同時に所持へ写してから装備する。所持済みの装備操作は所持を増やさず
+       既存の1件を装備し直す（写さずに return すると装備が空振りする）。 */
     case "ADD_SUPPORT": {
+      const owned = findOwnedSupport(state, String(action.spp?.name || ""));
+      if (owned) return equipRosterSupport(state, owned.uid);
       const added = addRosterSupport(state, action.spp);
       if (!added) return state;
       return equipRosterSupport(added, added.roster.supports[added.roster.supports.length - 1].uid);
     }
     case "REMOVE_SUPPORT": {
+      /* 装備の取り外しは equipped を落とすだけ。所持ごと消すと
+         「外したら一覧から消えた」= 欠損になる。所持の削除は
+         REMOVE_ROSTER_SUPPORT（支出も戻る）が担う。 */
       const roster = state.roster || {};
       const target = (roster.supports || []).find((s) => s.uid === action.id);
-      if (!target) return { ...state, supports: state.supports.filter((s) => s.id !== action.id) };
-      const supports = (roster.supports || []).filter((s) => s.uid !== action.id);
+      if (!target) return { ...state, supports: (state.supports || []).filter((s) => s.id !== action.id) };
+      const supports = (roster.supports || []).map((s) => (s.uid === action.id ? { ...s, equipped: false } : s));
       const next = { ...state, roster: { ...roster, supports } };
       return { ...next, ...projectEquipmentFromRoster(next.roster) };
     }
@@ -3072,6 +3090,8 @@ if (nextValue && !action.preview && !rosterEgos.some((entry) => entry.rank === a
         const next = { ...state, roster: { ...roster, supports } };
         return { ...next, ...projectEquipmentFromRoster(next.roster) };
       }
+      const owned = findOwnedSupport(state, String(action.spp?.name || ""));
+      if (owned) return equipRosterSupport(state, owned.uid);
       const added = addRosterSupport(state, action.spp);
       if (!added) return state;
       const entry = [...added.roster.supports].reverse().find((s) => s.name === action.spp?.name);
@@ -3177,7 +3197,7 @@ if (nextValue && !action.preview && !rosterEgos.some((entry) => entry.rank === a
       const target = (roster.supports || []).find((s) => s.uid === action.uid);
       if (!target) return state;
       const equip = action.equipped !== false;
-      const limit = target.slot === "death" ? 1 : 2;
+      const limit = supportSlotLimit(state, target.slot);
       let supports = (roster.supports || []).map((s) => (
         s.uid === action.uid ? { ...s, equipped: equip } : s
       ));
@@ -3201,7 +3221,7 @@ if (nextValue && !action.preview && !rosterEgos.some((entry) => entry.rank === a
       if (!target) return state;
       const slot = action.slot === "death" ? "death" : "normal";
       if (target.slot === slot) return state;
-      const limit = slot === "death" ? 1 : 2;
+      const limit = supportSlotLimit(state, slot);
       const others = (roster.supports || []).filter((s) => s.uid !== action.uid && s.slot === slot && s.equipped);
       const occupantUids = new Set(others.slice(0, Math.max(0, others.length + 1 - limit)).map((s) => s.uid));
       const supports = (roster.supports || []).map((s) => {
