@@ -122,7 +122,11 @@ test("選択した分だけ action になる", () => {
   const keys = manifest.groups.flatMap((g) => g.items).map((i) => i.key);
   const one = keys.slice(0, 1);
   const { actions } = G.toDispatchActions(manifest, one);
-  assert.equal(actions.length, 1, "1 件だけ選んだら 1 件だけ");
+  /* 帰属先に選んだシナリオのリザルト（ADD_RESULT）も出る。帰属先が無いまま
+     明細だけ入る状態は、元々あり得ない状態だった。 */
+  const results = actions.filter((a) => a.type === "ADD_RESULT");
+  assert.equal(actions.length - results.length, 1, "所持は選んだ1件だけ");
+  assert.equal(results.length, 1, "帰属先に選んだシナリオのリザルトが1件できる");
   const none = G.toDispatchActions(manifest, []);
   assert.equal(none.actions.length, 0, "選ばなければ入れない");
 });

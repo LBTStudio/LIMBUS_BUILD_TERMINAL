@@ -207,6 +207,8 @@
     let matchedByLoose = 0;
     let needsIdentity = 0;
     const unmatchedNames = [];
+    /* 帰属先として選ばせるシナリオ名。重複と空文字は落とす。 */
+    const scenarioNames = [...new Set((scenarios || []).map((s) => String(s?.name || "").trim()).filter(Boolean))];
     for (const group of groups) {
       for (const item of group.items) {
         let hit = byKey.get(nameKey(item.name));
@@ -231,9 +233,16 @@
           unmatched += 1;
           unmatchedNames.push(item.name);
           /* シナリオに記載が無いので、自動では紐付けない。
-             帰属先そのものが未決なので、利用者が選ぶまで登録しない。 */
-          item.needsAttribution = true;
-          item.pickedScenario = "";
+             帰属先そのものが未決なので、利用者が選ぶまで登録しない。
+             選ばせるには選択肢が要る。ここでシナリオ名一覧を候補として持たせる。
+             シナリオ履歴が1件も無い文書には帰属先が存在しないので、
+             未決扱いにしない（選ばせる対象が無いまま「選んでください」で
+             詰める形になる）。その場合は帰属なしの未分類として通す。 */
+          if (scenarioNames.length) {
+            item.needsAttribution = true;
+            item.pickedScenario = "";
+            item.scenarioOptions = [...scenarioNames];
+          }
         }
       }
     }
@@ -497,8 +506,21 @@ function toIdentityChoices(hits) {
        専用パーサに任せる（LBT_garaMemo.parseMemo）。読めなかった行は
        金額を入れず、理由だけを利用者へ返す。 */
     const purchases = opts.purchases || {};
+    /* 帰属先として選ばれたシナリオは、利用者が「ここから取り込む」と決めたシナリオ。
+       所持品のチェック状態に依らず ADD_RESULT を作る。選ばないまま取り込むと
+       帰属先となるリザトが1件も無く、明細だけが宙に浮いて照合できない。 */
+    const attributedScenarioKeys = new Set();
+    for (const group of (manifest && manifest.groups) || []) {
+      for (const item of group.items) {
+        if (!selected.has(item.key)) continue;
+        for (const name of chosenVia(item) || []) {
+          const hit = ((manifest && manifest.scenarios) || []).find((s) => s && s.name === name);
+          if (hit) attributedScenarioKeys.add(hit.key);
+        }
+      }
+    }
     for (const scenario of (manifest && manifest.scenarios) || []) {
-      if (!selected.has(scenario.key)) continue;
+      if (!selected.has(scenario.key) && !attributedScenarioKeys.has(scenario.key)) continue;
       const income = scenario.income || { lp: "", shards: "" };
       const tickets = scenario.tickets || {};
       const pack = scenario.pack || {};

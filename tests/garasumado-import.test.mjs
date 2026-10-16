@@ -445,6 +445,73 @@ test("取り込み: 実サンプル 49 文書から所持を列挙し、action �
   assert.ok(heldBack > 0, "シナリオに無い所持品は、帰属先を選ぶまで止まる（実際 " + heldBack + "）");
 });
 
+/* 帰属先の選択が実際に機能するかを、UI と同じ手順で確認する。
+   選ばせる項目は「帰属先を選んでください」で終わるだけの状態では
+   機能にならない（選択肢が無い、空 calibre のまま詰まる）。 */
+
+test("帰属先を選ばせる項目には必ず選択肢が入っている", () => {
+  let missing = 0;
+  for (const doc of charDocs) {
+    const m = resolvedManifest(doc);
+    for (const g of m.groups) {
+      for (const i of g.items) {
+        if (!i.needsAttribution) continue;
+        if (!(i.scenarioOptions || []).length) missing += 1;
+      }
+    }
+  }
+  assert.equal(missing, 0, "選択肢の無い項目がある（選べる帰属先が無いまま詰まる）");
+});
+
+test("シナリオ履歴が無い文書では帰属先を尋ねない（帰属先が原理的に無い）", () => {
+  const M = loadImportWithMemo();
+  const m = M.buildManifest({
+    currency: { lp: 0, fragments: 0 },
+    owned: { personas: [], egos: [], supportPassives: ["握る者闘志"], spirits: [] },
+    scenarioHistory: []
+  }, { resolve: (name) => ({ name, kinds: [{ kind: "support", name }] }) });
+  assert.equal((m.scenarios || []).length, 0, "シナリオ履歴が無い");
+  const target = m.groups.flatMap((g) => g.items).find((i) => String(i.name).includes("握る者闘志"));
+  assert.ok(target, "所持は並ぶ");
+  assert.equal(target.needsAttribution, undefined, "帰属先を尋ねない");
+});
+
+test("帰属先に選んだシナリオのリザルト（ADD_RESULT）が作られる", () => {
+  const M = loadImportWithMemo();
+  const m = M.buildManifest({
+    currency: { lp: 0, fragments: 0 },
+    owned: { personas: [], egos: [], supportPassives: ["握る者闘志"], spirits: [] },
+    scenarioHistory: [{ name: "夜A", memo: "" }, { name: "夜B", memo: "" }]
+  }, { resolve: (name) => ({ name, kinds: [{ kind: "support", name }] }) });
+  const target = m.groups.flatMap((g) => g.items).find((i) => String(i.name).includes("握る者闘志"));
+  assert.ok(target, "所持は並ぶ");
+  assert.equal(target.needsAttribution, true, "履歴に記載が無いので帰属先を選ぶ");
+
+  /* 所持のチェックは入れたが、シナリオのチェックは無視して帰属先がReflectされる */
+  target.pickedScenario = "夜B";
+  const out = M.toDispatchActions(m, [target.key], {});
+  const results = out.actions.filter((a) => a.type === "ADD_RESULT");
+  assert.equal(results.length, 1, "帰属先に選んだシナリオのリザルトだけを作る");
+  assert.equal(results[0].name, "夜B");
+  const held = out.actions.filter((a) => a.type === "ADD_ROSTER_SUPPORT");
+  assert.equal(held.length, 1, "所持も入る");
+  assert.equal(held[0].via.join("/"), "夜B", "帰属先は選んだシナリオ");
+  assert.equal(out.skipped.length, 0, "詰まらない");
+});
+
+test("何も選ばない場合はリザルトも作らない（勝手に作らない）", () => {
+  const M = loadImportWithMemo();
+  const m = M.buildManifest({
+    currency: { lp: 0, fragments: 0 },
+    owned: { personas: [], egos: [], supportPassives: ["握る者闘志"], spirits: [] },
+    scenarioHistory: [{ name: "夜A", memo: "" }]
+  }, { resolve: (name) => ({ name, kinds: [{ kind: "support", name }] }) });
+  const target = m.groups.flatMap((g) => g.items).find((i) => String(i.name).includes("握る者闘志"));
+  const out = M.toDispatchActions(m, [target.key], {});
+  assert.equal(out.actions.filter((a) => a.type === "ADD_RESULT").length, 0, "未決なら作らない");
+  assert.ok(out.skipped.some((s) => /シナリオ/.test(s.reason)), "選ばなかった理由を返す");
+});
+
 test("所持は支出行とも照合され、購入（source=buy）として帰属する", () => {
   const M = loadImportWithMemo();
   const doc = {

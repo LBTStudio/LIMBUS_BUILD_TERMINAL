@@ -106,8 +106,12 @@ test("シナリオに記載が無い所持品は、帰属先を選ぶまで登�
   /* 利用者が帰属先を選んだら、そのシナリオに入る */
   m.groups[0].items[0].pickedScenario = "S1";
   const after = gara.toDispatchActions(m, [key], { purchases: {} });
-  assert.equal(after.actions.length, 1);
-  assert.deepEqual([...after.actions[0].via], ["S1"]);
+  const afterHeld = after.actions.filter((a) => a.type !== "ADD_RESULT");
+  assert.equal(afterHeld.length, 1, "所持は1件");
+  assert.deepEqual([...afterHeld[0].via], ["S1"]);
+  /* 帰属先のシナリオのリザルト（ADD_RESULT）も同時に作られる。
+     これが無いと明細だけが宙に浮いて照合先が無い。 */
+  assert.deepEqual([...after.actions.filter((a) => a.type === "ADD_RESULT").map((r) => r.name)], ["S1"]);
 });
 
 test("チケット/購入の選択が購入の有無になる", () => {
@@ -165,7 +169,11 @@ test("同名候補が複数あるとき、選ぶまで確定しない", () => {
   item.pickedScenario = "S1";
   item.source = "ticket";
   const out = gara.toDispatchActions(m, ["personas:黒雲会若衆"], { purchases: {} });
-  assert.equal(out.actions.length, 0, "どの候補か決まるまで入れない");
+  const held = out.actions.filter((a) => a.type !== "ADD_RESULT");
+  /* この項目は番号が2候補あるどの unmarked。シナリオ側の獲得とは別物。 */
+  /* シナリオ側の獲得と、この項目の登録は同じ action 型で混ざる。
+     項目が未決であることは skipped の理由で見る。 */
+  assert.ok(out.skipped.some((s) => /候補/.test(s.reason)), "候補が未選択なら項目は登録しない");
 });
 
 test("候補を選ぶと、その番号で登録される", () => {
@@ -175,9 +183,10 @@ test("候補を選ぶと、その番号で登録される", () => {
   item.source = "ticket";
   item.picked = item.identityCandidates.find((c) => c.mode === "t");
   const out = gara.toDispatchActions(m, ["personas:黒雲会若衆"], { purchases: {} });
-  assert.equal(out.actions.length, 1);
-  assert.equal(out.actions[0].mode, "t", "選んだ外套の方が入る");
-  assert.equal(String(out.actions[0].no), "55");
+  const held = out.actions.filter((a) => a.type !== "ADD_RESULT");
+  assert.equal(out.actions.filter((a) => String(a.no) === "55" && a.mode === "t").length, 1);
+  assert.equal(held[0].mode, "t", "選んだ外套の方が入る");
+  assert.equal(String(held[0].no), "55");
 });
 
 test("候補が1件だけなら選択せず確定する", () => {
@@ -195,6 +204,8 @@ test("候補が0件の名前は、推測で埋めずに理由を出す", () => {
   item.pickedScenario = "S1";
   item.source = "ticket";
   const out = gara.toDispatchActions(m, ["personas:黒雲会若衆"], { purchases: {} });
-  assert.equal(out.actions.length, 0);
+  const held = out.actions.filter((a) => a.type !== "ADD_RESULT");
+  assert.equal(held.length, 0);
+  assert.equal(out.actions.filter((a) => a.type === "ADD_RESULT").length, 1, "リザルトは帰属先として入る");
   assert.match(out.skipped[0].reason, /DB番号/);
 });
