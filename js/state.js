@@ -20,16 +20,33 @@ function personaKeywordEvidence(persona) {
 const INITIAL_LP = 30;
 window.LBT_INITIAL_LP = INITIAL_LP;
 
-/* 「初期作成」リザルトを作る。キャラ作成時の支給（core:344）を収入に置く。 */
-function makeInitialResult() {
+/* 「初期作成」リザルトを作る。キャラ作成時の支給（core:344）を収入に置く。
+   人格を1つも持たないこの段階では、最初の1人格は「指定購入（20LP）」でも
+   「初期作成用人格チケットでの抽出」でも決められる。どちらを選んでも
+   初期作成に1枚だけ与えておく。 */
+function makeInitialResult(options) {
+  const withPersonaTicket = options?.withPersonaTicket === true;
   return {
     id: "res-initial",
     name: "初期作成",
     date: String(new Date().toISOString().slice(0, 10)),
-    income: { lp: INITIAL_LP, shards: 0 },
+    income: {
+      ...normalizeCurrency({ lp: INITIAL_LP, shards: 0 }),
+      tickets: normalizeTickets(withPersonaTicket ? { persona: 1 } : {})
+    },
     note: "キャラ作成時の支給（core:344）。この直後の獲得はここに帰属します。",
     createdAt: Date.now()
   };
+}
+
+/* 初期作成用人格チケットの消費。最初の1人格が所持になった時点で1枚消す。
+   指定購入でも所持追加でも抽出でも通す。そうしないと
+   「20LPで指定して、さらに無料抽出チケットも残る」二重得になる。
+   チケットで抽出した場合は既に消費済み（残高0）なので素通りする。 */
+function consumeInitialPersonaTicket(state, resultId) {
+  const balance = computeTicketBalance(state.results, state.entries);
+  if ((Number(balance?.persona) || 0) <= 0) return state;
+  return appendTicketSpend(state, "persona", null, 1, { kind: "initialPersonaTicket" }, resultId);
 }
 
 /* 継承アカウントの判定。直近リザルトの収入が初期支給（30LP）と一致するなら、
@@ -1296,8 +1313,13 @@ function normalizeStateShape(raw) {
          散らばっている可能性。.initial を先頭に差し、ここへ 30LP を置いて
          以後の差分をこのリザルト起点で追えるようにする。 */
   if (!next.results.length) {
-    next.results = [makeInitialResult()];
+    /* 新規キャラクター作成。人格を1つも持たないなら、最初の1人格を
+       指定購入でも初期作成用人格チケットでの抽出でも決められるようにする。 */
+    next.results = [makeInitialResult({ withPersonaTicket: !(next.roster?.personas || []).length })];
   } else if (!hasInitialGrant(next.results)) {
+    /* 既存アカウントへの後付けは支給だけ足す。初期作成用人格チケットは
+       新規キャラクター作成のときの1枚だけで、継承アカウントに配ると
+       既に都市参加済みのキャラでも無料抽出が1回湧くことになる。 */
     next.results = [makeInitialResult(), ...next.results];
   }
   const knownResultIds = new Set(next.results.map((r) => r.id));
@@ -2138,6 +2160,7 @@ function applyRosterAdds(state, adds, options) {
   const startedAt = Date.now();
   let next = state;
   let n = 0;
+  let gainedPersona = false;
   for (const add of list) {
     /* 1件ごとに価格が違う抽出では、その件の record.cost を優先する。
        零售商は「全部同じ額」なので既定の cost へ落とす。 */
@@ -2166,9 +2189,13 @@ function applyRosterAdds(state, adds, options) {
         resultId: opts.resultId,
         ref: { kind: "rosterPersona", uid }
       });
+      gainedPersona = true;
     }
     n += 1;
   }
+  /* 最初の人格が所持になったら初期作成用チケットを1枚消す。
+     抽出した場合は既に消費済み（残高0）で素通りする。 */
+  if (gainedPersona) next = consumeInitialPersonaTicket(next, opts.resultId);
   return { ...next, roster: { ...next.roster, personas, egos } };
 }
 
@@ -2539,12 +2566,13 @@ function appReducer(state, action) {
       const uid = `pr-${Date.now()}`;
       const entry = { uid, no, mode, syncRank: null, syncMax: false, lcb: false, equipped: false, notes: "", via: normalizeVia(action.via) };
       const next = { ...state, roster: { ...state.roster, personas: [...state.roster.personas, entry] } };
-      if (!action.purchase) return next;
+      const withTicket = consumeInitialPersonaTicket(next, action.resultId);
+      if (!action.purchase) return withTicket;
       const persona = (mode === "t" ? window.DB?.tokui_personas : window.DB?.normal_personas || []).find((p) => String(p.no) === String(no));
       /* resultId の明示指定は常に勝つ（appendLedgerEntry の契約）。未指定なら
          appendLedgerEntry が Support/EGO/Item/Spirit と同じ「直近のリザルト」へ
          倒すので、人格だけ帰属が違うことはない。 */
-      return appendLedgerEntry(next, {
+      return appendLedgerEntry(withTicket, {
         kind: "persona",
         name: persona?.name || `人格 ${mode.toUpperCase()} No.${no}`,
         cost: normalizeCurrency(action.cost),

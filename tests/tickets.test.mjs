@@ -156,6 +156,79 @@ test("初期作成の30LPから人格購入が差し引かれる", () => {
   assert.equal(next.entries[0].resultId, "res-initial");
 });
 
+/* --- 初期作成用人格チケット -----------------------------------------------
+   人格を1つも持たない初期状態では、最初の1人格は指定購入か抽出のどちらかで決める。
+   どちらを選んでも二重得にならないよう、最初の人格が所持になった時点で
+   初期作成用チケットは消費する。 */
+
+const ticketBalance = (s) => context.window.LBT_computeTicketBalance(s.results, s.entries);
+const freshState = () => context.window.LBT_normalizeStateShape({
+  roster: { personas: [], egos: [], supports: [], spirits: [] }, results: [], entries: [], inventory: []
+});
+
+test("人格を1つも持たない初期状態には初期作成用人格チケットが1枚ある", () => {
+  const fresh = freshState();
+  assert.equal(ticketBalance(fresh).persona, 1, "初期作成リザルトが人格チケットを1枚 Lashえる");
+});
+
+test("初期作成用人格チケットで抽出すると初期作成リザルトに帰属する", () => {
+  const fresh = freshState();
+  const spent = reducer(fresh, { type: "SPEND_TICKET", kind: "persona", count: 1, resultId: "res-initial" });
+  assert.equal(ticketBalance(spent).persona, 0, "抽出手番でチケットが消費される");
+  const drawn = reducer(spent, {
+    type: "ADD_DRAW_BATCH",
+    resultId: "res-initial",
+    batch: { records: [{ kind: "persona", item: { kind: "persona", mode: "n", no: 1, name: "黒雲会組員" }, cost: { lp: 0, shards: 0 } }] }
+  });
+  assert.equal(drawn.roster.personas.length, 1, "抽出した人格が所持へ入る");
+  assert.equal(drawn.entries.find((e) => e.ref?.kind === "rosterPersona")?.resultId, "res-initial");
+  assert.equal(ticketBalance(drawn).persona, 0, "チケットは消費済みなので二重消費しない");
+});
+
+test("指定購入で人格を決めたら初期作成用チケットは残らない", () => {
+  const fresh = freshState();
+  assert.equal(ticketBalance(fresh).persona, 1, "購入前は1枚ある");
+  const bought = reducer(fresh, { type: "ADD_ROSTER", mode: "n", no: 1, purchase: true, cost: { lp: 20, shards: 0 } });
+  assert.equal(ticketBalance(bought).persona, 0, "指定購入ならチケットは消える");
+  assert.ok(bought.entries.some((e) => e.kind === "ticket"), "チケット消費が明細に残る");
+  assert.equal(context.window.LBT_computeLedgerBalance(bought.results, bought.entries).lp, 10, "購入の20LPは引かれる");
+});
+
+test("購入せず所持に追加した場合も初期作成用チケットは消える", () => {
+  const bought = reducer(freshState(), { type: "ADD_ROSTER", mode: "n", no: 1 });
+  assert.equal(ticketBalance(bought).persona, 0, "所持になったらチケットは意味を失う");
+});
+
+test("複数人をまとめて所持へ入れても初期作成用チケットは1枚だけ消費する", () => {
+  const fresh = freshState();
+  const next = reducer(fresh, {
+    type: "ADD_DRAW_BATCH",
+    resultId: "res-initial",
+    batch: { records: [
+      { kind: "persona", item: { kind: "persona", mode: "n", no: 1, name: "黒雲会組員" }, cost: { lp: 0, shards: 0 } },
+      { kind: "persona", item: { kind: "persona", mode: "n", no: 2, name: "黒雲会組員" }, cost: { lp: 0, shards: 0 } }
+    ] }
+  });
+  assert.equal(ticketBalance(next).persona, 0, "残りは0");
+  assert.equal(next.entries.filter((e) => e.kind === "ticket").length, 1, "チケット消費は1件だけ");
+});
+
+test("セーブの取り込みでは初期作成用チケットを消費しない", () => {
+  const fresh = freshState();
+  const imported = reducer(fresh, { type: "ADD_ROSTER_PERSONAS_BULK", personas: [{ mode: "n", no: 1 }] });
+  assert.equal(ticketBalance(imported).persona, 1, "取り込みは購入でも抽選でもないのでチケットは残る");
+});
+
+test("先行シナリオのログが初期作成用人格チケットを壊さない", () => {
+  const legacy = {
+    roster: { personas: [], egos: [], supports: [], spirits: [] },
+    results: [{ id: "res-1", name: "第一夜", income: { lp: "500", shards: "0" } }],
+    entries: [], inventory: []
+  };
+  const next = context.window.LBT_normalizeStateShape(legacy);
+  assert.equal(ticketBalance(next).persona, 0, "継承アカウントには初期チケットを足さない");
+});
+
 /* --- サポートの手動編集 ---------------------------------------------------
    装備枠（state.supports）は roster.supports からの投影。PATCH_SUPPORT が
    reducer に無く default: return state へ落ちていたため、4つの入力欄
@@ -196,7 +269,11 @@ test("UI が送る action はすべて reducer が受け付けている", () => 
    ガチャは「引いた回数ぶん」を count でまとめて 1 action で送る。
    SPEND_TICKET が count を無視すると、5 枚で 5 回引いても 1 枚しか消費されず、
    残数が増える（5 - (-1) = 6）。 */
-const withTickets = (n) => reducer(context.window.LBT_normalizeStateShape({}), {
+const withTickets = (n) => reducer(context.window.LBT_normalizeStateShape({
+  /* 初期作成直後ではないProgress済みアカウント。初期作成用人格チケットが
+     混ざると「n枚でn回」の残数検証が1ずれる。 */
+  results: [{ id: "res-1", name: "第一夜", income: { lp: "500", shards: "0" } }], entries: [], inventory: []
+}), {
   type: "ADD_RESULT",
   name: "初期",
   income: { lp: 0, shards: 0, tickets: { persona: n, ego: 0, choice: 0, pack: {} } }

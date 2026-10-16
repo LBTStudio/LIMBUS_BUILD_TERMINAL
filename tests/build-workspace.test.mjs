@@ -824,9 +824,11 @@ test("取得は種別と方法から金額を自動計算し、直近リザル�
   const state = read("../js/state.js");
   assert.match(state, /function latestResultId\(state\)/);
   assert.match(state, /const resultId = detail\.resultId === undefined \? latestResultId\(state\) : detail\.resultId;/);
-  /* 購入導線は購入として明細を立てる。 */
+  /* 購入導線は購入として明細を立てる。所持になるだけで初期作成用人格チケットを
+     消費するので、その1段を挟んでから購入の分岐に入る。 */
   const addRoster = state.slice(state.indexOf('case "ADD_ROSTER"'), state.indexOf('case "ADD_ROSTER_EGO"'));
-  assert.match(addRoster, /if \(!action\.purchase\) return next;/);
+  assert.match(addRoster, /const withTicket = consumeInitialPersonaTicket\(next, action\.resultId\);/);
+  assert.match(addRoster, /if \(!action\.purchase\) return withTicket;/);
   assert.match(addRoster, /kind: "persona"/);
   assert.match(addRoster, /cost: normalizeCurrency\(action\.cost\),/);
   assert.match(addRoster, /ref: \{ kind: "rosterPersona", uid \}/);
