@@ -254,17 +254,44 @@
     return { lp: 0, shards: op.shards, source: op.source, operation: op.kind, label: op.label };
   }
 
+  /* 操作行から対象名を引く。
+
+     同期化／解析の対象は「操作語の直後に括弧書きされた名前」か
+     「操作語の前に出た名前」（「鬼門同期」「第四銀同期」）のどちらか。
+     どちらにも無ければ対象は不明のままにする（推測しない）。
+
+     CT1ここから／CT解除 のような進行の書き方は対象.Operationの指示ではなく
+     費用も発生しないので、対象を求めず null を返す。 */
+  const OPERATION_CUE = /同期(?:化|MAX)?|解析(?:化|MAX)?|浄化|特異化/;
+  function extractOperationTarget(line) {
+    const text = String(line || "");
+    if (!OPERATION_CUE.test(text)) return null;
+    /* CT の進行は費用も発生しない。対象も決めない。 */
+    if (/CT\s*\d|CT解除|ここから/.test(text)) return null;
+    const cueAt = text.search(OPERATION_CUE);
+    /* 操作語より後ろに括弧書きがあるときだけ対象（CT行の括弧は
+       「アイテム「硝子の破片」」のように物資名で、対象ではない）。 */
+    const quoted = /[「『]([^」』]+)[」』]/.exec(text);
+    if (quoted && quoted.index > cueAt) return quoted[1].replace(/^[θ×※*・\s]+/, "");
+    /* 「鬼門同期」「第四銀同期」のように操作語の前に名前が来る書き方。 */
+    const before = /([^。「」『』、。\s]{2,20}?)(?:同期|解析|浄化|特異化)\s*(?:化|MAX)?(?:依頼)?/.exec(text.slice(0, cueAt + 2));
+    if (before) return before[1].replace(/^[θ×※*・\s]+/, "");
+    return null;
+  }
+
   /* 操作は、所持にはないため、金額は独立で物を計算できない。 */
   function annotateOperations(lines, db) {
     const out = [];
     for (const raw of lines || []) {
       const line = String(raw || "");
       if (!isOperation(line)) continue;
+      const target = extractOperationTarget(line);
       out.push({
         line,
         operation: (line.match(/解析(?:化|MAX)?/) || [])[0] ? "analyze" : "sync",
-        hasTarget: false,
-        text: line
+        /* CT の進行は対象を持たない。それ以外は名前が出れば，引けるようにする。 */
+        target,
+        hasTarget: Boolean(target)
       });
     }
     return out;

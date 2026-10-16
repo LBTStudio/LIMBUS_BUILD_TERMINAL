@@ -571,6 +571,28 @@ function toIdentityChoices(hits) {
         }
       });
 
+      /* 同期化・解析は人格の獲得とは別の費用記録として計上する（supplement P7/P23）。
+         操作キーワードで種別が決まる（同期→人格、解析→E.G.O）。名前で対象を引き、
+         引けなかったものは勝手に当てない。uid は APPLY_IMPORT_BATCH が解決する。 */
+      const opLines = String(scenario.memo || "").split(/[\n\r]/).map((t) => t.trim()).filter(Boolean);
+      for (const op of (window.LBT_annotateOperations || (() => []))(opLines, opts.db || window.DB || {})) {
+        if (!op.hasTarget || !op.target) continue;
+        const hit = (opts.resolve || (() => null))(op.target);
+        if (!hit) continue;
+        const isAnalyze = op.operation === "analyze";
+        const isMax = /MAX/.test(op.line);
+        const target = op.operation === "analyze"
+          ? (isMax ? "analyzeMax" : "analyze")
+          : (isMax ? "syncMax" : "sync");
+        const persona = (hit.kinds || []).find((k) => k.kind === "persona");
+        const ego = (hit.kinds || []).find((k) => k.kind === "ego");
+        if (isAnalyze && ego) {
+          actions.push({ type: "APPLY_EGO_ANALYZE", egoName: egoNameOf(ego), analyzeMax: isMax, resultId: null });
+        } else if (persona) {
+          actions.push({ type: "APPLY_PERSONA_SYNC", personaName: personaNameOf(persona), syncMax: isMax, synced: true, resultId: null });
+        }
+      }
+
       /* シナリオで直接払い出された人格/E.G.O。所持へ足す。
          チケット由来なら「どのチケット由来か」を使って
          消費記録を 1 件残し、直近のリザルトに帰属させる。

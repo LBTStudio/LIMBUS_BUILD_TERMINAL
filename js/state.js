@@ -1198,7 +1198,11 @@ function normalizeStateShape(raw) {
     personas: next.roster.personas.map((entry) => ({
       ...entry,
       syncRank: ["0", "00", "000"].includes(String(entry?.syncRank || "")) ? String(entry.syncRank) : null,
-      syncMax: entry?.syncMax === true
+      syncMax: entry?.syncMax === true,
+      /* 同期の段階（0/00/000）が記録できないでも「同期化した」事実は残す。
+         取り込みのメモには段階が書かれておらず、段階が無いまま
+         素通りさせると費用だけが失われる。 */
+      synced: entry?.synced === true || Boolean(entry?.syncRank) || entry?.syncMax === true
     })),
     /* 所持へ統合した2種は、人格・E.G.O と同じく uid と帰属先（resultId）を持つ。
        resultId は「どのリザルトで手に入れたか」。null は未分類で、
@@ -1486,6 +1490,21 @@ function priceSpirit(name) {
   const hit = (window.DB?.spirits || []).find((s) => s.name === name);
   return parsePriceText(hit?.price, "shards");
 }
+/* 人格エントリから DB の正式名を引く（同期化・解析の対象解決に使う）。 */
+function personaDbName(entry) {
+  if (!entry) return "";
+  const list = entry.mode === "t" ? window.DB?.tokui_personas : window.DB?.normal_personas;
+  const hit = (list || []).find((p) => String(p.no) === String(entry.no));
+  return hit ? String(hit.name || "") : "";
+}
+
+/* E.G.O エントリから DB の正式名を引く。 */
+function egoDbName(entry) {
+  if (!entry) return "";
+  const hit = (window.DB?.egos || []).find((e) => e.rank === entry.rank && String(e.no) === String(entry.no));
+  return hit ? String(hit.name || "") : "";
+}
+
 function priceSupport(name, slot) {
   if (slot === "death") {
     const hit = (window.DB?.death_passives || []).find((s) => s.name === name);
@@ -2594,7 +2613,12 @@ function appReducer(state, action) {
       const { uid, syncRank, syncMax } = action;
       const personas = (state.roster.personas || []).map((p) => {
         if (p.uid !== uid) return p;
-        return { ...p, syncRank: syncRank === undefined ? p.syncRank : syncRank, syncMax: syncMax === undefined ? p.syncMax : syncMax };
+        return {
+        ...p,
+        syncRank: syncRank === undefined ? p.syncRank : syncRank,
+        syncMax: syncMax === undefined ? p.syncMax : syncMax,
+        synced: action.synced === undefined ? p.synced : action.synced === true
+      };
       });
       const entry = (state.roster.personas || []).find((p) => p.uid === uid);
       if (!entry) return state;
@@ -2607,8 +2631,11 @@ function appReducer(state, action) {
          一切掛からない。 Toggle を往復させても二重で引かれない。 */
       const isMax = Boolean(wantMax);
       const wasMax = entry.syncMax === true;
-      const wasSynced = Boolean(entry.syncRank) || wasMax;
-      const nowSynced = Boolean(rankToSync) || isMax;
+      /* 同期の段階（rank）が無くても「同期化した」事実は残る。取り込みでは
+         メモに段階が書かれていないので、synced で明示的に受け入れる。
+         段階が無いまま素通りさせると、料だけ取られず同期も残らない。 */
+      const wasSynced = Boolean(entry.syncRank) || wasMax || entry.synced === true;
+      const nowSynced = Boolean(rankToSync) || isMax || entry.synced === true || action.synced === true;
       /* 立っていなかった状態から初めて立つときだけ費用。 */
       if (wasSynced || !nowSynced) return next;
       const op = isMax ? "syncMax" : "sync";
@@ -3500,6 +3527,17 @@ case "ADD_CUSTOM_ITEM": {
             target = lastResultId;
           }
           next = appReducer(next, { ...sub, resultId: target });
+          continue;
+        }
+        /* 同期化・解析は「名前」で指定できる。uid は reducer が生成する
+           ので、取り込み側からは (-> 名前) で解決する。解決できなかった
+           ものは黙って捨てる（推測で他的人格へ当てない）。 */
+        if (sub.type === "APPLY_PERSONA_SYNC" || sub.type === "APPLY_EGO_ANALYZE") {
+          const resolved = sub.type === "APPLY_PERSONA_SYNC"
+            ? (next.roster.personas || []).find((p) => personaDbName(p) === String(sub.personaName || ""))
+            : (next.roster.egos || []).find((e) => egoDbName(e) === String(sub.egoName || ""));
+          if (!resolved) continue;
+          next = appReducer(next, { ...sub, uid: resolved.uid, resultId: sub.resultId === undefined ? lastResultId : sub.resultId });
           continue;
         }
         const applied = appReducer(next, sub);

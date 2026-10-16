@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-bfda84bf";
+const CACHE_NAME = "lbt-96523d07";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -59,11 +59,11 @@ const PRECACHE_URLS = [
   "js/gacha.js?v=7c84ae89",
   "js/garasumado-import-ui.js?v=d7540cb9",
   "js/garasumado-memo-parse.js?v=704b2463",
-  "js/garasumado-roster-import.js?v=59c0a33b",
+  "js/garasumado-roster-import.js?v=dad5ebe2",
   "js/generator.js?v=2dca0394",
   "js/icon-cropper.js?v=20900dc8",
   "js/ledger-import-reconcile.js?v=d63c36d5",
-  "js/ledger-provenance.js?v=79a1e381",
+  "js/ledger-provenance.js?v=53c12252",
   "js/name-fuzzy.js?v=d3eb29a1",
   "js/persona-draft-import.js?v=37f8afb4",
   "js/result-log-parser.js?v=43c5aa47",
@@ -71,7 +71,7 @@ const PRECACHE_URLS = [
   "js/roster-resolver.js?v=c778eb30",
   "js/share-link.js?v=deb1ab16",
   "js/share-viewer.js?v=9521f675",
-  "js/state.js?v=fad6ee8a",
+  "js/state.js?v=7f220a71",
   "js/ui.js?v=8943eab8",
   "vendor/react-dom.min.js?v=35f4f974",
   "vendor/react.min.js?v=d949f1c3",
