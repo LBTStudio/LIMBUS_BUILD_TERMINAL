@@ -290,16 +290,22 @@ function toIdentityChoices(hits) {
      ここではまだ何も state へ入れない。 */
   function buildManifest(doc, nameIndex, db) {
     const owned = (doc && doc.owned) || {};
+    let spiritsExcluded = 0;
     const resolve = typeof nameIndex?.resolve === "function" ? nameIndex.resolve : null;
     /* 候補を全部返す解決器。1 件に絞らないので、同名複数をユーザーに見せられる。 */
     const resolveMany = typeof nameIndex?.candidates === "function" ? nameIndex.candidates : null;
 
     const groups = GROUPS.map((group) => {
       const names = [...new Set((owned[group.id] || []).map(nameOf).filter(Boolean))];
+      /* 精神は全て初期精神系（DB の spirits は48件すべて無料）。
+         初めから持っているものとして数えるもので、クリア側から
+         所持へ登録すると明細のない支出だけが増える。計上対象から外す。 */
+      const listed = group.id === "spirits" ? [] : names;
+      if (group.id === "spirits") spiritsExcluded = names.length;
       return {
         id: group.id,
         label: group.label,
-        items: names.map((name) => {
+        items: listed.map((name) => {
           const hit = resolve ? resolve(name) : null;
           const candidates = toIdentityChoices(resolveMany ? resolveMany(name) : null);
           return {
@@ -410,6 +416,8 @@ function toIdentityChoices(hits) {
         supportPassives: groups[2].items.length,
         spirits: groups[3].items.length,
         scenarios: scenarios.length,
+        /* 初期精神系（全て無料）は計上対象外。件数を残して黙って消さない。 */
+        spiritsExcluded,
         unresolved: groups.reduce((n, g) => n + g.items.filter((i) => !i.resolved).length, 0),
         attributed: attribution.matched,
         unattributed: attribution.unmatched,
@@ -459,6 +467,12 @@ function toIdentityChoices(hits) {
           skipped.push({ key: item.key, reason: "どのシナリオのものか選んでください" });
           continue;
         }
+        /* 入手方法（チケット／購入／配布）は三分類で、利用者が選ぶ。
+           空欄を「配布」と勝手に解釈すると、抽出でも購入でも無料計入になり
+           帳が狂う。由来が明確で無料と確定しているものだけ通す。
+           番号が引けない項目は利用者が直せないので、その理由を先に言う。 */
+        const sourceOk = Boolean(item.source) || (item.provenance && item.provenance.priced === false);
+        const holdOnSource = () => skipped.push({ key: item.key, reason: "入手方法を選んでください" });
         const chosen = chosenKind(item);
         /* 同名候補が複数あるときは、索引の先頭で決めつけず選ばせる。 */
         const ambiguous = (item.identityCandidates || []).length > 1;
@@ -479,18 +493,22 @@ function toIdentityChoices(hits) {
             });
             continue;
           }
+          if (!sourceOk) { holdOnSource(); continue; }
           actions.push({ type: "ADD_ROSTER", no: String(persona.no), mode: persona.mode || "n", via, source: item.source || "", purchase: item.source === "buy" });
         } else if (group.id === "egos") {
           if (!ego || !ego.no || !ego.rank) {
             skipped.push({ key: item.key, reason: "DB番号かランクが引けない" });
             continue;
           }
+          if (!sourceOk) { holdOnSource(); continue; }
           actions.push({ type: "ADD_ROSTER_EGO", no: String(ego.no), rank: ego.rank, via, source: item.source || "", purchase: item.source === "buy" });
         } else if (group.id === "supportPassives") {
           if (!support) { skipped.push({ key: item.key, reason: "DB番号が引けない" }); continue; }
+          if (!sourceOk) { holdOnSource(); continue; }
           actions.push({ type: "ADD_ROSTER_SUPPORT", spp: { name: support.name || item.dbName || item.name }, via });
         } else if (group.id === "spirits") {
           if (!spirit) { skipped.push({ key: item.key, reason: "DB番号が引けない" }); continue; }
+          if (!sourceOk) { holdOnSource(); continue; }
           actions.push({ type: "ADD_ROSTER_SPIRIT", spirit: { name: spirit.name || item.dbName || item.name }, via });
         } else {
           skipped.push({ key: item.key, reason: "未知のグループ" });

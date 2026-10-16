@@ -103,8 +103,12 @@ test("シナリオに記載が無い所持品は、帰属先を選ぶまで登�
   assert.equal(before.actions.length, 0, "帰属先が決まるまで登録しない");
   assert.match(before.skipped[0].reason, /どのシナリオ/);
 
-  /* 利用者が帰属先を選んだら、そのシナリオに入る */
+  /* 利用者が帰属先を選んだら、そのシナリオに入る。
+     入手方法（三分類）も選ばないと確定しない。 */
   m.groups[0].items[0].pickedScenario = "S1";
+  const unanswered = gara.toDispatchActions(m, [key], { purchases: {} });
+  assert.ok(unanswered.skipped.some((s) => /入手方法/.test(s.reason)), "入手方法が未決なら入れない");
+  m.groups[0].items[0].source = "ticket";
   const after = gara.toDispatchActions(m, [key], { purchases: {} });
   const afterHeld = after.actions.filter((a) => a.type !== "ADD_RESULT");
   assert.equal(afterHeld.length, 1, "所持は1件");
@@ -131,6 +135,31 @@ test("チケット/購入の選択が購入の有無になる", () => {
   buy.groups[0].items[0].source = "buy";
   const b = gara.toDispatchActions(buy, [key], { purchases: {} }).actions[0];
   assert.equal(b.purchase, true, "購入なら DB 価で請求する");
+});
+
+test("入手方法（三分類）に未回答なら確定させない", () => {
+  const owned = { personas: [{ name: "黒雲会若衆" }], egos: [], supportPassives: [], spirits: [] };
+  const m = gara.buildManifest(makeDoc(owned, [{ name: "S1", memo: "" }]), {
+    resolve: () => ({ name: "黒雲会若衆", confidence: "exact", kinds: [{ kind: "persona", no: 208, mode: "n" }] })
+  });
+  const key = "personas:黒雲会若衆";
+  const item = m.groups[0].items[0];
+  item.pickedScenario = "S1";
+
+  /* 歸属先だけ選んで、入手方法に答えない。空欄を「配布」と勝手に解釈すると
+     抽出でも購入でも無料計入になり、帳が狂う。 */
+  assert.equal(item.source, "", "入手方法は未決");
+  const out = gara.toDispatchActions(m, [key], { purchases: {} });
+  assert.equal(out.actions.filter((a) => a.type === "ADD_ROSTER").length, 0, "所持へ入れない");
+  assert.ok(out.skipped.some((s) => /入手方法/.test(s.reason)), "理由を返す: " + JSON.stringify(out.skipped));
+
+  /* 答えるまで入れない */
+  for (const source of ["ticket", "buy", "given"]) {
+    item.source = source;
+    const next = gara.toDispatchActions(m, [key], { purchases: {} });
+    assert.equal(next.actions.filter((a) => a.type === "ADD_ROSTER").length, 1, source + " は入る");
+    assert.equal(next.actions.find((a) => a.type === "ADD_ROSTER").source, source);
+  }
 });
 
 /* --- 同名候補の選択 ------------------------------------------------- */

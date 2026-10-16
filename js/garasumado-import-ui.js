@@ -470,6 +470,10 @@ const result = window.LBT_toDispatchActions?.(merged, keys, { purchases }) || { 
       h("p", { className: "gara-lead" }, `残高 LP ${manifest.currency.lp || "—"}・欠片 ${manifest.currency.shards || "—"}`)
     ),
     h("p", { className: "gara-hint" }, "項目を押すと変換候補が開きます。候補を選ぶと価格が決まります。"),
+    (manifest.counts?.spiritsExcluded || 0) > 0
+      ? h("p", { className: "gara-note" },
+        `初期精神系 ${manifest.counts.spiritsExcluded} 件は最初から持っているものとして数えるため、計上対象外にしました。`)
+      : null,
     merged.groups.filter((g) => g.items.length).map((group) => h(GarasumadoGroup, {
       key: group.id,
       group: { ...group, items: group.items.map((i) => ({

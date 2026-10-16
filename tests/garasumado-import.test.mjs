@@ -436,7 +436,7 @@ test("取り込み: 実サンプル 49 文書から所持を列挙し、action �
     /* 利用者が帰属先を選んだあとは全部入る。 */
     const first = (m.scenarios || [])[0];
     for (const g of m.groups) {
-      for (const i of g.items) if (i.needsAttribution && !i.pickedScenario && first) i.pickedScenario = first.name;
+      for (const i of g.items) if (i.needsAttribution && !i.pickedScenario && first) { i.pickedScenario = first.name; i.source = i.source || "given"; }
     }
     actions += G.toDispatchActions(m, keys, {}).actions.length;
   }
@@ -448,6 +448,20 @@ test("取り込み: 実サンプル 49 文書から所持を列挙し、action �
 /* 帰属先の選択が実際に機能するかを、UI と同じ手順で確認する。
    選ばせる項目は「帰属先を選んでください」で終わるだけの状態では
    機能にならない（選択肢が無い、空 calibre のまま詰まる）。 */
+
+test("初期精神系は計上対象に数えない", () => {
+  const M = loadImportWithMemo();
+  const m = M.buildManifest({
+    currency: { lp: 0, fragments: 0 },
+    owned: { personas: [], egos: [], supportPassives: [], spirits: ["萎縮パニック", "パニック"] },
+    scenarioHistory: [{ name: "夜A", memo: "" }]
+  }, { resolve: (name) => ({ name, kinds: [{ kind: "spirit", name }] }) });
+  const group = m.groups.find((g) => g.id === "spirits");
+  assert.equal(group.items.length, 0, "精神は所持へ入れない");
+  assert.ok(m.counts.spiritsExcluded >= 2, "除外した件数が分かる");
+  const out = M.toDispatchActions(m, [], {});
+  assert.equal(out.actions.filter((a) => a.type === "ADD_ROSTER_SPIRIT").length, 0, "精神の登録 action は出ない");
+});
 
 test("帰属先を選ばせる項目には必ず選択肢が入っている", () => {
   let missing = 0;
@@ -489,6 +503,7 @@ test("帰属先に選んだシナリオのリザルト（ADD_RESULT）が作ら�
 
   /* 所持のチェックは入れたが、シナリオのチェックは無視して帰属先がReflectされる */
   target.pickedScenario = "夜B";
+  target.source = "given";
   const out = M.toDispatchActions(m, [target.key], {});
   const results = out.actions.filter((a) => a.type === "ADD_RESULT");
   assert.equal(results.length, 1, "帰属先に選んだシナリオのリザルトだけを作る");
@@ -573,10 +588,10 @@ test("ゆれ鍵が所持側で重複するときは決めない（同期0とMAX�
 test("取り込み: 所持だけ入れず reducer の購入経路に預ける（番号は数値のまま預ける）", () => {
   const manifest = {
     groups: [
-      { id: "personas", items: [{ key: "p1", name: "黒雲会組員", dbName: "黒雲会組員", kinds: [{ kind: "persona", no: 1, mode: "n" }] }] },
-      { id: "egos", items: [{ key: "e1", name: "X", dbName: "X", kinds: [{ kind: "ego", no: 32, rank: "TETH" }] }] },
-      { id: "spirits", items: [{ key: "s1", name: "Y", dbName: "Y", kinds: [{ kind: "spirit" }] }] },
-      { id: "supportPassives", items: [{ key: "b1", name: "Z", dbName: "Z", kinds: [{ kind: "support" }] }] }
+      { id: "personas", items: [{ key: "p1", name: "黒雲会組員", dbName: "黒雲会組員", source: "buy", kinds: [{ kind: "persona", no: 1, mode: "n" }] }] },
+      { id: "egos", items: [{ key: "e1", name: "X", dbName: "X", source: "ticket", kinds: [{ kind: "ego", no: 32, rank: "TETH" }] }] },
+      { id: "spirits", items: [{ key: "s1", name: "Y", dbName: "Y", source: "given", kinds: [{ kind: "spirit" }] }] },
+      { id: "supportPassives", items: [{ key: "b1", name: "Z", dbName: "Z", source: "given", kinds: [{ kind: "support" }] }] }
     ],
     scenarios: []
   };
@@ -596,9 +611,9 @@ test("取り込み: 番号やランクが引けないものは理由付きで除
   const manifest = {
     groups: [
       { id: "egos", items: [
-        { key: "bad1", name: "A", dbName: "A", kinds: [{ kind: "ego", rank: "TETH" }] },
-        { key: "bad2", name: "B", dbName: "B", kinds: [{ kind: "ego", no: 5 }] },
-        { key: "ok", name: "C", dbName: "C", kinds: [{ kind: "ego", no: 5, rank: "HE" }] }
+        { key: "bad1", name: "A", dbName: "A", source: "buy", kinds: [{ kind: "ego", rank: "TETH" }] },
+        { key: "bad2", name: "B", dbName: "B", source: "buy", kinds: [{ kind: "ego", no: 5 }] },
+        { key: "ok", name: "C", dbName: "C", source: "buy", kinds: [{ kind: "ego", no: 5, rank: "HE" }] }
       ] }
     ],
     scenarios: []
