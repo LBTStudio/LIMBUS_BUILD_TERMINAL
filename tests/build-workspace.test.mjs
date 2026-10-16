@@ -866,6 +866,11 @@ test("人格の所持化は取得方法を選べるワンボタンになり、�
   const codex = read("../js/PersonaCodex.js");
   /* 未所持のときだけ AcquireBar が出る。 */
   assert.match(codex, /!isInRoster && acquireHow && onAcquireHowChange && \/\* @__PURE__ \*\/ React\.createElement\(AcquireBar/);
+  /* 詳細ポップオーバーまで取得方法を配線する。渡し忘れると未所持の詳細が素の装備ボタンだけになり、
+     装備経由の所持化が購入明細を素通りする。 */
+  assert.match(codex, /isInRoster: currentIsInRoster,[\s\S]{0,160}?state,[\s\S]{0,80}?acquireHow,[\s\S]{0,80}?onAcquireHowChange: setAcquireHow,[\s\S]{0,80}?onAcquire: \(\) => acquirePersona\(selectedPersona\)/);
+  /* 装備ボタンは所持済みのときだけ出す。 */
+  assert.match(codex, /isInRoster && \/\* @__PURE__ \*\/ React\.createElement\(Button, \{ variant: "primary", onClick: onEquip/);
   assert.match(codex, /const \[acquireHow, setAcquireHow\] = React\.useState\("purchase"\);/);
   /* 導入は購入として明細に落ちる。 */
   assert.match(codex, /dispatch\(\{ type: "ADD_ROSTER", mode: m, no: p\.no, purchase: true, cost: \{ lp: cost\.lp \|\| 0, shards: cost\.shards \|\| 0 \} \}\);/);
