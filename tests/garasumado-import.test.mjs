@@ -206,6 +206,70 @@ test("合計行も効果説明も獲得にしない", () => {
   assert.equal(r.wins.length, 0);
 });
 
+test("箇条書きの報酬行（・40LP / ・基本報酬 50LP/15欠片）を読む", () => {
+  const a = MEMO.parseMemo("❚報酬\n・基本報酬 50LP/15欠片\n❚追加報酬\n150/65");
+  assert.equal(a.income.lp, 50);
+  assert.equal(a.income.shards, 15);
+  const b = MEMO.parseMemo("【基本報酬】\n・40LP\n・10欠片\n【戦闘クリア】\n・40LP\n・10欠片");
+  assert.equal(b.income.lp, 80);
+  assert.equal(b.income.shards, 20);
+  const c = MEMO.parseMemo("・時間殺人時間テーマパック抽出\n・LP：25 + 欠片：25");
+  assert.equal(c.income.lp, 25);
+  assert.equal(c.income.shards, 25);
+});
+
+test("箇条書きのチケットは獲得だけを数え、消費とダイス条件は数えない", () => {
+  const a = MEMO.parseMemo("・人格抽出チケット1枚\n・任意のテーマパックひとつ");
+  assert.equal(a.tickets.persona, 1);
+  const b = MEMO.parseMemo("・人格抽出チケット×1消費\n・EGO抽出チケット×1 消費");
+  assert.equal(b.tickets.persona + b.tickets.ego, 0);
+  const c = MEMO.parseMemo("・1d100を振りGMの出目以下を出した人は人格抽出チケットを1枚");
+  assert.equal(c.tickets.persona, 0);
+  const d = MEMO.parseMemo("・人格抽出🎫×1\n・EGO抽出🎫×1");
+  assert.equal(d.tickets.persona, 1);
+  assert.equal(d.tickets.ego, 1);
+});
+
+test("箇条書きのチャット名と記号計算は獲得にしない", () => {
+  const a = MEMO.parseMemo("・ハコツムリ 様\n・わぁい");
+  assert.equal(a.wins.length, 0);
+  const b = MEMO.parseMemo("・(願いの数x10)LP - 20LP");
+  assert.equal(b.income.lp, 0);
+  assert.equal(b.income.shards, 0);
+  const c = MEMO.parseMemo("・任意の200LP以下のテーマパック+1");
+  assert.equal(c.income.lp, 0);
+  assert.equal(c.wins.length, 0);
+});
+
+test("ガチャ結果の矢印書式から獲得名を取る", () => {
+  const names = (r) => r.wins.map((w) => w.name).join("|");
+  const a = MEMO.parseMemo("LP45、欠片32、ガチャチケ1枚を獲得。ガチャ結果→N社E.G.O:ねばつき");
+  assert.equal(names(a), "N社E.G.O:ねばつき");
+  const b = MEMO.parseMemo("慈悲ありクリア。LP90、欠片45、人格チケ2枚を獲得。ガチャ結果→N社中鎚、ジャーマ工房フィクサー");
+  assert.equal(names(b), "N社中鎚|ジャーマ工房フィクサー");
+  const c = MEMO.parseMemo("ガチャ結果→黒獣-卯");
+  assert.equal(names(c), "黒獣-卯");
+  const d = MEMO.parseMemo("→LP100消費ガチャ:厳粛な哀悼獲得");
+  assert.equal(names(d), "厳粛な哀悼");
+  const e = MEMO.parseMemo("終了後、LP200消費してテーマパック「眺めることしかできない」抽出→被りにより欠片50獲得");
+  assert.equal(e.wins.length, 0);
+  const f = MEMO.parseMemo("選択抽出チケット→ego");
+  assert.equal(f.wins.length, 0, "プレースホルダは名前ではない");
+  const g = MEMO.parseMemo("2026/10/6");
+  assert.equal(g.wins.length, 0, "日付は名前ではない");
+});
+
+test("使用の記録と表の見出しは獲得名にしない", () => {
+  const wins = (r) => r.wins.map((w) => w.name).join("|");
+  assert.equal(wins(MEMO.parseMemo("第四銀弓使用")), "");
+  assert.equal(wins(MEMO.parseMemo("エドガー継承者使用会")), "");
+  assert.equal(wins(MEMO.parseMemo("1卓目")), "");
+  assert.equal(wins(MEMO.parseMemo("7/13 2卓目")), "");
+  assert.equal(wins(MEMO.parseMemo("LP/欠片")), "");
+  assert.equal(wins(MEMO.parseMemo("追加")), "");
+  assert.equal(wins(MEMO.parseMemo("人格抽出チケット: AEDD")), "");
+});
+
 test("リザルト作用で人格の所持追加とチケット消費記録が出る", () => {
   const manifest = {
     scenarios: [{

@@ -94,8 +94,8 @@
   function bareDrawOf(line) {
     var m = String(line).match(/(?:抽出|ガチャ)\s*(\d+)?/);
     if (!m) return null;
-    /* 「抽出」か「ガチャ」が単独で教务之外に無ければ何でもない。 */
-    if (!/抽出|ガチャ/.test(String(line))) return null;
+    /* 「時間殺人時間テーマパック抽出」はパックの獲得であり、チケットの消費ではない。 */
+    if (/パック/.test(String(line))) return null;
     var count = m[1] ? parseInt(m[1], 10) || 1 : 1;
     var isEgo = EGO_WORDS.some(function (w) { return String(line).indexOf(w) >= 0; }) || /ガチャ/.test(line);
     return { kind: isEgo ? "ego" : "persona", count: count };
@@ -299,8 +299,16 @@
     if (/チケ|チケット|ガチャ|抽出/.test(t)) return false;
     /* 通貨が数値と隣接していれば金額行 */
     if (/\d\s*(LP|欠片|かけら|欠けら|カケラ)/i.test(t)) return false;
-    /* 英語名だけの行は対象外（人名ではない） */
-    if (/^[A-Za-z0-9\s.:_\-]+$/.test(t)) return false;
+    /* 英語名だけの行は対象外（人名ではない）。日付（2026/10/6）もここで落とす。 */
+    if (/^[A-Za-z0-9\s.:_\-/]+$/.test(t)) return false;
+    /* 「第四銀弓使用」「エドガー継承者使用会」= 使った記録。獲得名ではない。 */
+    if (/使用/.test(t)) return false;
+    /* セッション番号（「1卓目」「7/13 2卓目」）は名前ではない。 */
+    if (/^\d[\d\/\s]*\d?\s*卓目?$/.test(t)) return false;
+    /* 表の見出し（「LP/欠片」「欠片」）は名前ではない。 */
+    if (/^[ＬＰLP\/／\s]*欠片[\s\/／]*$/.test(t)) return false;
+    /* 記録ラベル（「追加」等の裸の見出し語）は名前ではない。 */
+    if (/^(?:追加|報酬|配布|内訳|メモ|備考|補足|その他)$/.test(t)) return false;
     /* 「なし」「無し」「特になし」は「記録が無い」意味であり、
        獲得した人格ではない。 */
     if (/^(なし|無し|特になし|無し|特になし|何もない|.$)$/.test(t)) return false;
@@ -370,7 +378,38 @@
     if (/使用済み|\//.test(name)) return "";
     /* 名前には文字が要る（記号だけの断片を弾く）。 */
     if (!/[A-Za-zぁ-んァ-ヶ一-龠]/.test(name)) return "";
+    /* 「抽出チケット: AEDD」の英字略号はロスターに解決できないので採らない。 */
+    if (/^[A-Za-z0-9\s.:_\-/]+$/.test(name)) return "";
     return name;
+  }
+
+  /* 「ガチャ結果→◯◯」「→黒獣-卯」の矢印書式の獲得名（実データ。複数名は「、」区切り）。
+     補償の叙述（「→被りにより欠片50獲得」）は獲得名ではない。 */
+  function arrowWinsOf(line) {
+    var t = String(line);
+    var at = t.lastIndexOf("→");
+    if (at < 0) return [];
+    var tail = t.slice(at + 1).replace(/[。．\s]+$/g, "").trim();
+    if (!tail) return [];
+    var out = [];
+    tail.split(/[、，,]/).forEach(function (frag) {
+      /* 「→LP100消費ガチャ:厳粛な哀悼獲得」は最後の区切りの後ろが名前。
+         「N社E.G.O:ねばつき」の 区切りは名前の一部なので切らない。 */
+      var cut = Math.max(frag.lastIndexOf("："), frag.lastIndexOf(":"));
+      if (cut >= 0 && /(ガチャ|抽出|消費|使用|チケ|LP|ＬＰ|欠片)/.test(frag.slice(0, cut))) frag = frag.slice(cut + 1);
+      var name = frag.trim()
+        .replace(/^[「『]\s*/, "").replace(/[」』]\s*$/, "")
+        .replace(/^抽出\s*\d*\s*/, "")
+        .replace(/(?:を)?(?:獲得|入手)(?:した)?$/, "")
+        .trim();
+      if (name.length < 2) return;
+      if (!/[A-Za-zぁ-んァ-ヶ一-龠]/.test(name)) return;
+      /* 「選択抽出チケット→ego」のプレースホルダ。英語だけの断片は名前ではない。 */
+      if (/^[A-Za-z0-9\s.:_\-/]+$/.test(name)) return;
+      if (/LP|ＬＰ|欠片|かけら|欠けら|カケラ|消費|使用|解除|被り|チケット|チケ|枚/.test(name)) return;
+      out.push(name);
+    });
+    return out;
   }
 
   /* 1つの memo を { income, tickets, pack, spends, reasons, wins } へ。 */
@@ -399,16 +438,33 @@
       prevLine = line;
 
       var sec = sectionOf(line);
-      if (sec) { mode = sec === "other" ? mode : sec; continue; }
+      /* 「・」見出しは節の切り替え。それ以外の箇条書きは報酬行として中身を読む
+         （「・40LP」「・基本報酬 50LP/15欠片」「・人格抽出チケット1枚」）。
+         チャットの名前列（「・◯◯ 様」）を獲得名にしないため、
+         箇条書き由来の名前は win にしない（金額とチケットだけを取る）。 */
+      var isBullet = false;
+      var sec = sectionOf(line);
+      if (sec) {
+        if (sec !== "other") { mode = sec; continue; }
+        isBullet = true;
+        line = line.replace(/^\s*[・･]\s*/, "");
+        /* 「・(願いの数x10)LP - 20LP」のような記号の計算は金額にしない。 */
+        if (/[（(][^）)]*[x×][^）)]*[）)]/.test(line)) continue;
+      }
       if (mode === "current") continue;  // 現在値の羅列は取り込まない
+
+      /* 箇条書きの「・人格抽出チケット×1消費」は使った記録であって獲得ではない。
+         ダイス条件（「・1d100を…出した人は…チケットを1枚」）も獲得扱いしない。 */
+      if (isBullet && /消費|使用済|使用し|d\d{2,}/.test(line) && /チケ|チケット|抽出|ガチャ/.test(line)) continue;
 
       var tk = ticketOf(line);
       if (tk) {
         tickets[tk.kind] += tk.count;
-        /* チケット从哪里抽出的。ソースの書式は
+        /* チケットからどの人格/E.G.Oを得たか。ソースの書式は
            「人格抽出チケット：N 社小鎚の人格」「抽出1：LCE E.G.O:ねばつき」*/
-        var src = ticketSourceName(line);
-        if (src) wins.push({ name: src, via: TICKET_LABEL[tk.kind], kind: tk.kind });
+        var srcNames = arrowWinsOf(line);
+        if (!srcNames.length) { var src = ticketSourceName(line); if (src) srcNames = [src]; }
+        srcNames.forEach(function (nm) { wins.push({ name: nm, via: TICKET_LABEL[tk.kind], kind: tk.kind }); });
         /* チケット行に報酬額が並ぶ書式がある（「140LP 90欠片　EGOチケット」）。
            収入節では金額も読む。支出節では従来どおり金額を取らない。 */
         if (mode !== "income") continue;
@@ -418,8 +474,9 @@
         var bd = bareDrawOf(line);
         if (bd) {
           tickets[bd.kind] += bd.count;
-          var src2 = ticketSourceName(line);
-          if (src2) wins.push({ name: src2, via: TICKET_LABEL[bd.kind], kind: bd.kind });
+          var bdNames = arrowWinsOf(line);
+          if (!bdNames.length) { var src2 = ticketSourceName(line); if (src2) bdNames = [src2]; }
+          bdNames.forEach(function (nm) { wins.push({ name: nm, via: TICKET_LABEL[bd.kind], kind: bd.kind }); });
           /* 金額が同居する書式（「LP：181、欠片:136、EGO抽出🎫x1を獲得」）を
              落とさないため、収入節では金額の読み取りへ続ける。 */
           if (mode !== "income") continue;
@@ -430,7 +487,7 @@
       if (isNarrativeLine(line)) continue;
 
       /* 合計行の扱いは節で違う。数値と通貨だけの並び（「0欠片　40LP」）は
-         支出節では合計・残WRITEなので読み飛ばす。収入節では 0 を含む
+         支出節では合計・残高なので読み飛ばす。収入節では 0 を含む
          合計だけを飛ばし、0 を含まない数値だけの行はそのシナリオの
          報酬額として読む（「140LP 90欠片」形式を旧実装は無言で落としていた）。 */
       if (isTotalOnlyLine(line)) {
@@ -451,7 +508,7 @@
         /* 「LP200を消費してガチャ」「LP300使用して人格抽出」のような消費の叙述は収入ではない。
            ただし「30LP、30欠片…を獲得。硝酸の欠片×1を消費して…」のように
            獲得が先に書かれた行は、消費の手前までを金額として読む。
-           識別子の「G-5購入 7LP」は購入の後に金額が来る収入行なのでここでは切らない。 */
+           「G-5購入 7LP」の購入額も残高から引かれる支出（実データで確認）。 */
         var spendAt = line.search(/消費|購入|使用し/);
         if (spendAt >= 0) {
           var head = line.slice(0, spendAt);
@@ -485,7 +542,7 @@
         /* 数字も通貨も無い行は「どの機関に勝ったか」の名前行。
            シナリオが直接払った人格/E.G.O なので、獲得として記録する。
            DB 照合は呼び出し側で行う。ここでは名前候補として残す。 */
-        if (!/使用人格/.test(prev) && isAcquisitionNameLine(line)) {
+        if (!isBullet && !/使用人格/.test(prev) && isAcquisitionNameLine(line)) {
           wins.push({ name: line, via: "", kind: "" });
           continue;
         }
