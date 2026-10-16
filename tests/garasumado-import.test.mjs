@@ -154,9 +154,9 @@ test("「チケ」だけの表記もチケットとして数える", () => {
   assert.ok(r.tickets.persona + r.tickets.ego + r.tickets.choice > 0, "チケ表記がチケットになる");
 });
 
-test("識別子のハイフン（因子コード G-5）を負の金額に読まない", () => {
+test("識別子のハイフン（因子コード G-5）を金額として読まない", () => {
   const r = MEMO.parseMemo("因子コード G-5購入 7LP");
-  assert.equal(r.income.lp, 7, "G-5 の -5 を金額にしない");
+  assert.equal(r.income.lp, 0, "購入の額は残高から引かれる支出（実データ: 237→230）");
   assert.equal(r.reasons.length, 0);
 });
 
@@ -490,4 +490,64 @@ test("ラベル・装飾・叙述・数量行は獲得名にしない", () => {
   }
   const w = MEMO.parseMemo("W錬成セット×1(中身は下記のパックから選択)");
   assert.equal(w.wins.length, 0, "数量付きの行は記録であって名前ではない");
+});
+
+/* 実データ（硝子窓の書式ゆれ）から採った回帰ケース。 */
+
+test("「LP30 欠片25」型は通貨ごとに分けて読む（片方に寄せない）", () => {
+  const r = MEMO.parseMemo("LP30 欠片25");
+  assert.equal(r.income.lp, 30);
+  assert.equal(r.income.shards, 25);
+  const rev = MEMO.parseMemo("LP+37 欠片+22");
+  assert.equal(rev.income.lp, 37);
+  assert.equal(rev.income.shards, 22);
+});
+
+test("獲得の後の消費叙述は手前までを金額として読む", () => {
+  const r = MEMO.parseMemo("30LP、30欠片、硝子の欠片×1を獲得。硝子の欠片×1を消費して同期化鬼門CT解除。");
+  assert.equal(r.income.lp, 30);
+  assert.equal(r.income.shards, 30);
+});
+
+test("消費・使用の叙述は収入に数えない（「消費し」「消費ガチャ」を含む）", () => {
+  const a = MEMO.parseMemo("終了後、LP200を消費し人格特定抽出「剣契殺手A」");
+  assert.equal(a.income.lp, 0);
+  const b = MEMO.parseMemo("→LP100消費ガチャ:厳粛な哀悼獲得");
+  assert.equal(b.income.lp, 0);
+  const c = MEMO.parseMemo("LP300、欠片116、人格チケット2枚獲得。ガチャ結果→W社2級整理要員\n終了後、LP300使用して人格抽出→LCE E.G.O：提灯\n欠片100を消費してEGO抽出→一生シチュー");
+  assert.equal(c.income.lp, 300);
+  assert.equal(c.income.shards, 116);
+});
+
+test("報酬を挟んだ通貨・計算式の結果・数量条件のマスク", () => {
+  const a = MEMO.parseMemo("LP報酬　49　現在93LP");
+  assert.equal(a.income.lp, 49);
+  const b = MEMO.parseMemo("LP:35+GABA=40　現在41LP");
+  assert.equal(b.income.lp, 40, "計算式は結果だけを読む");
+  const c = MEMO.parseMemo("LP120、欠片60、LP200以下の任意のテーマパック×1を獲得。");
+  assert.equal(c.income.lp, 120, "「LP200以下」は条件であって金額ではない");
+  assert.equal(c.income.shards, 60);
+  const d = MEMO.parseMemo("120LP、50欠片、200LP以内のパック(夢の終わる：西部ツヴァイ3課)");
+  assert.equal(d.income.lp, 120);
+  assert.equal(d.wins.length, 0, "パック断片は獲得名ではない");
+});
+
+test("「LP/欠片」見出しのスラッシュ対は合計を優先する", () => {
+  const r = MEMO.parseMemo("報酬\nLP/欠片\n120/80\n\nパッシブボーナス +50%\n\n合計\n180/120");
+  assert.equal(r.income.lp, 180);
+  assert.equal(r.income.shards, 120);
+  const rev = MEMO.parseMemo("欠片/LP\n40/60");
+  assert.equal(rev.income.lp, 60);
+  assert.equal(rev.income.shards, 40);
+});
+
+test("使用人格・PC・人格の記録行は獲得にせず、の人格終わりの実名は残す", () => {
+  const used = MEMO.parseMemo("【使用人格】\nヴェネリア専用　鬼門事務所フィクサーの人格　RANK0\nディアマン・ノワール構成員（p.199）");
+  assert.equal(used.wins.length, 1, "【使用人格】の次行と使用人格の見出しは数えない");
+  assert.ok(used.wins[0].name.includes("ディアマン・ノワール構成員"), "実在の結果行は獲得名");
+  const pc = MEMO.parseMemo("PC:ソーシャ・ファラティ テケリーリ\n人格:炎拳事務所フィクサーの人格00\n報酬:156LP、40欠片、抽出チケットx1");
+  assert.equal(pc.wins.length, 0);
+  assert.equal(pc.income.lp, 156);
+  const real = MEMO.parseMemo("美味しいですねカルボナーラ工房フィクサーの人格");
+  assert.equal(real.wins.length, 1, "「の人格」終わりの実名は獲得名");
 });

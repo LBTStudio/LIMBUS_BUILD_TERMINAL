@@ -119,32 +119,87 @@
     return (u === "LP" || u === "ＬＰ") ? "lp" : "shards";
   }
 
-  /* 1 行から「通貨×数値」の対を全部読む。数値は通貨に隣接していれば
-     前後どちらでもよい（「40LP」「LP：71」「LP60」「欠片40」）。
-     旧実装は 1 対しか読まず、「40LP 20欠片」の 40 を欠片に寄せる等
-     取り違えていた。現在/残の直後は残額なので先に伏せる。 */
+  /* 1 行から「通貨×数値」の対を全部読む。通貨と数値は前後どちらの順でもよく
+     （「40LP」「LP：71」「LP60」「欠片40」「85：LP」）、各数値の持ち主を通貨
+     ひとつへ決める。両側に通貨があるときは、後置側が自分の数値を持たない
+     限り前置側が持つ（「40LP 20欠片」の 20 は欠片、「LP30 欠片15」の 30 は LP）。
+     隣に通貨が無い数値は行内では持ち主無しにする（choice[...]・CT3・消費額を
+     文脈継承で拾うと帳簿に幻の収入が乗る。実測 202 行 +32396）。
+     現在/残の直後は残額なので先に伏せる。 */
   function incomePairs(line) {
     var text = String(line)
-      .replace(/現在[：:]?\s*(LP|欠片|かけら|欠けら|カケラ)?\s*-?\d+(?:\s*[+＋]\s*\d+)*/gi, " ")
-      .replace(/残り?\s*-?\d+/gi, " ")
+      .replace(/現在[：:]?\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ)?\s*-?\d+(?:\s*[+＋]\s*\d+)*(?:\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ))?/gi, " ")
+      .replace(/残り?\s*-?\d+(?:\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ))?/gi, " ")
       /* 「300LPへ」は支払後の残高に振り直す書き方。額ではなく結果。 */
-      .replace(/-?\d+(?:\s*[+＋]\s*\d+)*\s*(LP|欠片|かけら|欠けら|カケラ|ＬＰ)\s*へ/g, " ")
+      .replace(/-?\d+(?:\s*[+＋]\s*\d+)*\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ)\s*へ/gi, " ")
       /* 「G-5」のような識別子のハイフンを負号と混同しない。 */
       .replace(/([A-Za-z0-9])-(?=\d)/g, "$1 ");
-    var out = [];
+    var tokens = [];
+    var re = /(LP|ＬＰ|欠片|かけら|欠けら|カケラ)|([+-]?\d+(?:\s*[+＋]\s*\d+)*)/gi;
     var m;
-    var reNum = /([+-]?\d+(?:\s*[+＋]\s*\d+)*)\s*(LP|欠片|かけら|欠けら|カケラ|ＬＰ)/gi;
-    while ((m = reNum.exec(text)) !== null) {
-      out.push({ amount: chainSum(m[1]), currency: currencyOfPair(m[2]) });
+    var lastEnd = 0;
+    while ((m = re.exec(text)) !== null) {
+      tokens.push({
+        cur: m[1] ? currencyOfPair(m[1]) : null,
+        num: m[1] ? null : chainSum(m[2]),
+        gap: text.slice(lastEnd, m.index)
+      });
+      lastEnd = re.lastIndex;
     }
-    var reCur = /(LP|欠片|かけら|欠けら|カケラ|ＬＰ)\s*[:：]?\s*([+-]?\d+(?:\s*[+＋]\s*\d+)*)/gi;
-    while ((m = reCur.exec(text)) !== null) {
-      /* 数値の直後に別の通貨名が続くなら、その数値はそちらのもの
-         （「40LP 20欠片」の 20 を LP と読まない）。 */
-      if (/^\s*(LP|欠片|かけら|欠けら|カケラ|ＬＰ)/i.test(text.slice(reCur.lastIndex))) continue;
-      out.push({ amount: chainSum(m[2]), currency: currencyOfPair(m[1]) });
+    var isGap = function (g) { return /^[\s　:：]*$/.test(g); };
+    var out = [];
+    for (var i = 0; i < tokens.length; i++) {
+      var tk = tokens[i];
+      if (tk.num === null) continue;
+      var pre = i > 0 && tokens[i - 1].cur && isGap(tk.gap) ? tokens[i - 1].cur : null;
+      var postTok = i + 1 < tokens.length ? tokens[i + 1] : null;
+      var post = postTok && postTok.cur && isGap(postTok.gap) ? postTok.cur : null;
+      var owner;
+      if (pre && post) {
+        var after = i + 2 < tokens.length ? tokens[i + 2] : null;
+        owner = after && after.num !== null && isGap(after.gap) ? pre : post;
+      } else {
+        owner = pre || post;
+      }
+      if (owner) out.push({ amount: tk.num, currency: owner });
     }
     return out;
+  }
+
+  /* 「LP/欠片」の見出しの下に「120/80」とだけ書く形式（実データ）。
+     見出しの並びが通貨の順序。合計行の直後の対があればそれを、無ければ最初の対を取る。
+     見出しが無い裸の「N/M」は読まない（日付・分数と区別できない）。 */
+  function parseSlashPairs(memo) {
+    var res = { lp: 0, shards: 0 };
+    var lines = String(memo || "").split(/\r?\n/);
+    var order = null;
+    var headerAt = -1;
+    for (var i = 0; i < lines.length; i++) {
+      var h = lines[i].trim();
+      if (/^(LP|ＬＰ)\s*\/\s*(欠片|かけら|欠けら|カケラ)$/i.test(h)) { order = ["lp", "shards"]; headerAt = i; break; }
+      if (/^(欠片|かけら|欠けら|カケラ)\s*\/\s*(LP|ＬＰ)$/i.test(h)) { order = ["shards", "lp"]; headerAt = i; break; }
+    }
+    if (!order) return res;
+    var cands = [];
+    var prevNonEmpty = "";
+    for (var j = 0; j < lines.length; j++) {
+      var t = lines[j].trim();
+      if (!t) continue;
+      var pm = t.match(/^(\d+)\s*\/\s*(\d+)$/);
+      if (pm && j > headerAt) {
+        cands.push({ a: parseInt(pm[1], 10), b: parseInt(pm[2], 10), afterTotal: /合計/.test(prevNonEmpty) });
+      }
+      prevNonEmpty = t;
+    }
+    if (!cands.length) return res;
+    var pick = null;
+    for (var k = cands.length - 1; k >= 0; k--) {
+      if (cands[k].afterTotal) { pick = cands[k]; break; }
+    }
+    if (!pick) pick = cands[0];
+    res[order[0]] += pick.a;
+    res[order[1]] += pick.b;
+    return res;
   }
 
   /* アイテムの効果説明文。「▶︎〜」で始まる行や、
@@ -256,7 +311,11 @@
     /* 数量だけの断片（「1枚」「×1」）。 */
     if (/^[×xｘＸ✕✖\s]*\d+\s*(枚|個|回|つ|セット)?$/i.test(t)) return false;
     /* 数量付きの行は記録であって名前ではない（「W錬成セット×1(中身は…)」）。 */
-    if (/[×xｘＸ✕✖]\s*\d|\d\s*(枚|個|本|セット)/.test(t)) return false;
+    if (/[×xｘＸ✕✖\*＊]\s*\d|\d\s*(枚|個|本|セット)/.test(t)) return false;
+    /* チケット・抽出の行は獲得名の入れ物ではない（名前は ticketSourceName が取る）。
+       「…の人格」で終わる行は実在の人格名なので除外しない
+       （「【使用人格】」の次の行と「PC:」「人格:」の記録行だけを除く）。 */
+    if (/使用人格|^PC[:：]|^人格[:：]|シナリオクリア|ロスト者|以下に記載|なし\s*$|パック/.test(t)) return false;
     /* 句読点を含む行は説明文。獲得名ではない。 */
     if (/[。、]/.test(t)) return false;
     /* アイテム・効果の説明。 */
@@ -306,7 +365,9 @@
        「人格抽出チケット：1枚」の 1枚 が獲得名として記録された実害がある。 */
     if (/^[×xｘＸ✕✖\s]*\d+\s*(枚|個|回|つ|セット)?$/i.test(name)) return "";
     /* 数量付きの断片も名前ではない（「人格抽出チケット：任意テーマパック 1枚」）。 */
-    if (/[×xｘＸ✕✖]\s*\d|\d\s*(枚|個|本|セット)/.test(name)) return "";
+    if (/[×xｘＸ✕✖\*＊]\s*\d|\d\s*(枚|個|本|セット)/.test(name)) return "";
+    /* 記録の断片（「…（使用済み）」「LP75 / 自我 欠片30」）は名前ではない。 */
+    if (/使用済み|\//.test(name)) return "";
     /* 名前には文字が要る（記号だけの断片を弾く）。 */
     if (!/[A-Za-zぁ-んァ-ヶ一-龠]/.test(name)) return "";
     return name;
@@ -324,10 +385,18 @@
 
     var lines = String(memo || "").split(/\r?\n/);
     var mode = "income";
+    var prevLine = "";
+
+    /* 「LP/欠片」見出し＋「120/80」の対（合計優先）は行スキャンと別に一度だけ読む。 */
+    var slashPair = parseSlashPairs(memo);
+    income.lp += slashPair.lp;
+    income.shards += slashPair.shards;
 
     for (var i = 0; i < lines.length; i++) {
       var line = String(lines[i]).trim();
       if (!line) continue;
+      var prev = prevLine;
+      prevLine = line;
 
       var sec = sectionOf(line);
       if (sec) { mode = sec === "other" ? mode : sec; continue; }
@@ -351,7 +420,9 @@
           tickets[bd.kind] += bd.count;
           var src2 = ticketSourceName(line);
           if (src2) wins.push({ name: src2, via: TICKET_LABEL[bd.kind], kind: bd.kind });
-          continue;
+          /* 金額が同居する書式（「LP：181、欠片:136、EGO抽出🎫x1を獲得」）を
+             落とさないため、収入節では金額の読み取りへ続ける。 */
+          if (mode !== "income") continue;
         }
       }
 
@@ -377,6 +448,22 @@
       }
 
       if (mode === "income") {
+        /* 「LP200を消費してガチャ」「LP300使用して人格抽出」のような消費の叙述は収入ではない。
+           ただし「30LP、30欠片…を獲得。硝酸の欠片×1を消費して…」のように
+           獲得が先に書かれた行は、消費の手前までを金額として読む。
+           識別子の「G-5購入 7LP」は購入の後に金額が来る収入行なのでここでは切らない。 */
+        var spendAt = line.search(/消費|購入|使用し/);
+        if (spendAt >= 0) {
+          var head = line.slice(0, spendAt);
+          if (!/獲得|入手|報酬/.test(head)) continue;
+          line = head;
+        }
+        /* 「LP報酬　49」の報酬を挟んだ通貨と金額を隣接扱いにする（実データ）。 */
+        line = line.replace(/(LP|ＬＰ)\s*報酬/g, "$1");
+        /* 「LP:35+GABA=40」のような計算式は結果の 40 だけを読む。 */
+        line = line.replace(/\d+\s*\+\s*[^\s\d]+\s*=\s*(\d+)/g, "$1");
+        /* 「LP200以下」「200LPまで」の数量条件は金額ではない。 */
+        line = line.replace(/(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|パック)?\s*\d+\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|パック)?\s*(?:以下|以上|以内|未満|まで)/g, " ");
         /* 「LPを欠片に変換」は収入ではなく明細。 */
         if (/変換|換算/.test(line)) {
           spends.push({ name: line, lp: 0, shards: 0, raw: line, reason: "換算行のため金額は未確定" });
@@ -398,7 +485,7 @@
         /* 数字も通貨も無い行は「どの機関に勝ったか」の名前行。
            シナリオが直接払った人格/E.G.O なので、獲得として記録する。
            DB 照合は呼び出し側で行う。ここでは名前候補として残す。 */
-        if (isAcquisitionNameLine(line)) {
+        if (!/使用人格/.test(prev) && isAcquisitionNameLine(line)) {
           wins.push({ name: line, via: "", kind: "" });
           continue;
         }
