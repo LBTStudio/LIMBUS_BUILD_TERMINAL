@@ -995,12 +995,19 @@ const EgoQuickDetail = ({ ego, currentSlot, isOwned, onEquip, onUnequip, onToggl
       skillSummary("覚醒", ego.kakusei, "awake"),
       skillSummary("侵蝕", ego.shinshoku, "corrode")
     ),
+    /* 未所持E.G.Oの主操作は指定購入にする。装備は所持登録に波及しないので、
+       装備ボタンが主だと指定購入を跨いで「帳に何も無いまま所持だけ増える」状態が生まれる。
+       効果だけ確かめる用途は試着装備が担う。 */
     h("div", { className: "ego-quick-actions" },
       currentSlot ? h("div", { className: "ego-quick-equipped" }, "★ 現在 ", currentSlot, " に装備中") : null,
-      currentSlot ? h(Button, { variant: "ghost", size: "sm", onClick: onUnequip, icon: "x" }, "装備解除") : h(Button, { variant: "primary", size: "sm", onClick: onEquip, icon: "check" }, ego.rank, " スロットへ装備"),
+      currentSlot
+        ? h(Button, { variant: "ghost", size: "sm", onClick: onUnequip, icon: "x" }, "装備解除")
+        : isOwned
+          ? h(Button, { variant: "primary", size: "sm", onClick: onEquip, icon: "check" }, ego.rank, " スロットへ装備")
+          : null,
       currentSlot ? h(Button, { variant: "ghost", size: "sm", onClick: onOpenFullDetail, icon: "edit", title: "効果全文の確認と直接編集を開く" }, "詳細・直接編集") : null,
       onAcquire && acquireHow && onAcquireHowChange && !isOwned ? h(AcquireBar, { state, kind: "ego", name: ego.name, no: ego.no, rank: ego.rank, how: acquireHow, setHow: onAcquireHowChange, onAcquire }) : null,
-      onPreviewEquip ? h(Button, { variant: "ghost", size: "sm", onClick: onPreviewEquip, icon: "eye", title: "購入も所持登録もしない試着装備です。効果だけ確かめられます" }, "試着装備") : null,
+      onPreviewEquip ? h(Button, { variant: isOwned ? "ghost" : "primary", size: "sm", onClick: onPreviewEquip, icon: "eye", title: "購入も所持登録もしない試着装備です。効果だけ確かめられます" }, "試着装備") : null,
       onToggleOwned ? h(Button, { variant: "ghost", size: "sm", onClick: onToggleOwned, icon: isOwned ? "check" : "x", title: isOwned ? "所持リストから外す" : "購入せずに所持リストへ追加する" }, isOwned ? "所持済み" : "購入せず所持に追加") : null
     )
   );

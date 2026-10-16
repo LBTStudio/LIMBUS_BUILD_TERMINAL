@@ -2958,19 +2958,15 @@ case "ADD_CUSTOM_ITEM": {
         const saved = (state.roster.egos || []).find((e) => e.rank === action.rank && e.no === nextValue.no && e.build);
         if (saved) nextValue = { ...nextValue, ...cloneJSON(saved.build) };
       }
-      let rosterEgos = [...(state.roster?.egos || [])];
-      // 装備は所持の確定行為として扱う。解析を終える前でもライブラリから再選択できるようにする。
-if (nextValue && !action.preview && !rosterEgos.some((entry) => entry.rank === action.rank && entry.no === nextValue.no)) {
-      rosterEgos.push({ uid: `er-${Date.now()}`, no: nextValue.no, rank: action.rank, analyzed: false, analyzeMax: false, notes: "", build: null });
-    }
-    /* 試着は所持に触れない枠。名录にも明細にも出ないので、「買ったつもり」が
-       静かに所持へ混ざらないようにする。 */
-    if (nextValue && action.preview) nextValue = { ...nextValue, __preview: true };
+/* 装備は所持を確定させない。所持への登録は ADD_ROSTER_EGO（指定購入＝欠片を請求、
+         または購入せず所持に追加＝無料）だけが行う。装備を所持確定にしていると、未所持E.G.Oの
+         詳細画面で装備を押した瞬間に指定購入を跨いで帳も明細も動かないまま所持へ入る。 */
+      if (nextValue && action.preview) nextValue = { ...nextValue, __preview: true };
       const nextEgoSlots = normalizeEgoSlots({ ...state.egoSlots, [action.rank]: nextValue });
       // 装備・付け替え・解除はどれも直接編集を終了する。解除後に別スロットの詳細へ
       // 編集状態だけが残り、クリック一回で解析面が表示されることを防ぐ。
       const nextUi = { ...state.ui, ...(nextValue ? { egoListExpanded: false } : {}), egoDetailSlot: null };
-      return syncCustomEgoState({ ...state, egoSlots: nextEgoSlots, roster: { ...state.roster, egos: rosterEgos }, ui: nextUi, egoManual: false });
+      return syncCustomEgoState({ ...state, egoSlots: nextEgoSlots, ui: nextUi, egoManual: false });
     }
     /* V01/V25: EGO解析モード（手動編集）のトグル。人格の SET_SYNCED_MANUAL に相当 */
     case "SET_EGO_MANUAL":

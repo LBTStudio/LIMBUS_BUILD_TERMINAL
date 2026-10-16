@@ -131,3 +131,39 @@ test("解析済みE.G.Oのビルド保存では二重に引かない", () => {
   const resaved = reducer(withSlot, { type: "SAVE_EGO_BUILD", rank: "HE" });
   assert.equal(resaved.entries.length, analyzed.entries.length, "保存し直しても明細は増えない");
 });
+
+/* 未所持E.G.Oの装備を所持確定にしてはいけない（specified purchase を飛ばさせるため）。
+   所持への登録は ADD_ROSTER_EGO だけが行う。 */
+
+const unowned = () => ({ ...base, roster: { ...base.roster, egos: [] }, egoSlots: {} });
+
+test("装備しても未所持E.G.Oは所持リストへ入らない", () => {
+  const next = reducer(unowned(), { type: "SET_EGO_SLOT", rank: "HE", value: { no: 1, rank: "HE", name: "欲望の終着点" } });
+  assert.equal(next.roster.egos.length, 0, "装備は所持を確定させない");
+  assert.equal(next.egoSlots.HE?.no, 1, "スロットには入る");
+});
+
+test("試着装備も所持リストへ入れない", () => {
+  const next = reducer(unowned(), { type: "SET_EGO_SLOT", rank: "HE", value: { no: 1, rank: "HE" }, preview: true });
+  assert.equal(next.roster.egos.length, 0, "試着は所持に触れない");
+});
+
+test("指定購入だけが欠片を請求して所持へ入れる", () => {
+  const before = unowned();
+  const next = reducer(before, { type: "ADD_ROSTER_EGO", rank: "HE", no: 1, purchase: true });
+  assert.equal(next.roster.egos.length, 1, "購入は所持へ入る");
+  assert.ok(next.entries.some((e) => e.cost.shards > 0), "購入は欠片を請求する");
+});
+
+test("購入せず所持に追加は欠片を請求しない", () => {
+  const before = unowned();
+  const next = reducer(before, { type: "ADD_ROSTER_EGO", rank: "HE", no: 1 });
+  assert.equal(next.roster.egos.length, 1, "所持へ入る");
+  assert.equal(next.entries.length, 0, "無料追加なので請求なし");
+});
+
+test("装備操作だけでは欠片を請求しない", () => {
+  const before = unowned();
+  const next = reducer(before, { type: "SET_EGO_SLOT", rank: "HE", value: { no: 1, rank: "HE" } });
+  assert.equal(next.entries.length, 0, "装備で帳が動かない");
+});

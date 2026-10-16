@@ -141,9 +141,24 @@ test("E.G.O は購入も所持登録もしない試着装備ができる", () =>
   assert.match(codex, /const previewEquip = \(\) => \{[\s\S]*?preview: true \}\);/);
   assert.match(codex, /onPreviewEquip: previewEquip,/);
   assert.match(codex, /"試着装備"/);
-  /* 所持登録は preview のとき走らない。走ると「買ったつもり」が混入する。 */
-  assert.match(reducer, /if \(nextValue && !action\.preview && !rosterEgos\.some/);
+  /* 装備も試着も所持登録しない。所持への登録は ADD_ROSTER_EGO だけが行う。
+     装備を所持確定にすると未所持E.G.Oの装備で指定購入を跨いでしまう。 */
+  assert.doesNotMatch(reducer, /rosterEgos\.push\(\{ uid: `er-/);
+  assert.doesNotMatch(codex, /rosterEgos\.push/);
   assert.match(reducer, /if \(nextValue && action\.preview\) nextValue = \{ \.\.\.nextValue, __preview: true \};/);
+});
+
+test("未所持のE.G.O は装備ではなく指定購入を主操作にする", () => {
+  const codex = read("../js/OtherSections.js");
+  /* 装備ボタンは所持済みのときだけ出す。未所持で出すと指定購入を跨ぐ。 */
+  assert.match(codex, /: isOwned\s*\?\s*h\(Button, \{ variant: "primary", size: "sm", onClick: onEquip/);
+  /* 未所持のときは試着装備が主操作。取得（AcquireBar）はその手前に出る。 */
+  assert.match(codex, /variant: isOwned \? "ghost" : "primary", size: "sm", onClick: onPreviewEquip/);
+  const actions = codex.slice(codex.indexOf('h("div", { className: "ego-quick-actions"'));
+  assert.ok(
+    actions.indexOf("AcquireBar") < actions.indexOf("onPreviewEquip"),
+    "指定購入（AcquireBar）を試着装備より前に出す"
+  );
 });
 
 test("未所持のカードからその場で買える", () => {
