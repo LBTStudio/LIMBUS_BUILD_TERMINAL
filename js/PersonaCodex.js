@@ -660,11 +660,12 @@ const PersonaCodex = ({ state, dispatch, ownedOnly = false }) => {
   const [showAll, setShowAll] = React.useState(false);
   const gated = ownedOnly && !showAll;
 
-  /* DB のどちらの枠（通常人格/特異人格）に属するかを解決する。 */
-  const personaModeFor = (persona) => (window.DB?.normal_personas || []).some((x) => x.no === persona.no) ? "n" : "t";
-  /* 特異人格には購入が無い。core P203「特異人格の入手方法」に，唯一あるのは
-     特異人格抽出（1d総数の出目に対応）和通过柴油+1 抽出来的两条路而已。
-     指定で好きな1つを买到的方法は人格購入だけ，特異人格には存在しない。 */
+  /* 枠（通常人格/特異人格）の解決は roster-resolver の resolvePersonaMode に任せる。
+     no はグループ間で重複する（no=30 は通常人格の「南部リウ協会4課フィクサー」と
+     特異人格の「LCAウアジェト 先鋒三隊隊長」の両方にある）。no だけで決めると
+     特異人格を通常人格と誤認し、獲得した内容が別の人格の名前で入ってしまう。 */
+  const personaModeFor = (persona) => window.LBT_resolvePersonaMode?.(persona) || "n";
+
   const personaPurchaseBlocked = (persona, mode) => (mode === "t" ? "特異人格は抽出しでのみ入手できます" : null);
   /* カード内購入。詳細ポップオーバーを開かずに獲得を完結させる。 */
 

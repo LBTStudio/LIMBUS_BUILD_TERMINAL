@@ -101,7 +101,7 @@
     const text = toHalf(name);
     if (/e\.?g\.?o/i.test(text) || /ＥＧＯ/.test(text)) return "ego";
     if (/同期化|解析|max|ＭＡＸ/i.test(text)) return "persona";
-    if (/人格|抽取/.test(text)) return "persona";
+    if (/人格|抽出/.test(text)) return "persona";
     return null;
   }
 

@@ -109,7 +109,7 @@ test("引けなかった名前は文字一致で候補を返す（0 件にしな
   const cands = R.candidatesFor({ name: "海賊団組員", sourceLine: "海賊団組員" }, idx);
   assert.ok(cands.length > 0, "候補が 0 ではない");
   const names = cands.map((c) => c.name);
-  assert.ok(names.some((n) => n.includes("海賊")), "海賊を含む名前が上来了");
+  assert.ok(names.some((n) => n.includes("海賊")), "海賊を含む名前が候補に出る");
 });
 
 test("文字一致は一致数が多い順に並ぶ", () => {
@@ -123,7 +123,7 @@ test("文字一致は一致数が多い順に並ぶ", () => {
 });
 
 test("無関係な文字列でも上限を用意し、1 文字だけの入力は出さない", () => {
-  const junk = R.candidatesFor({ name: "xture مص", sourceLine: "xture مص" }, idx);
+  const junk = R.candidatesFor({ name: "xture-zz", sourceLine: "xture-zz" }, idx);
   assert.ok(junk.length <= 12, "無制限に増えない");
   const one = R.candidatesFor({ name: "a", sourceLine: "a" }, idx);
   assert.equal(one.length, 0, "1 文字は偶発一致なので出さない");
@@ -132,4 +132,40 @@ test("無関係な文字列でも上限を用意し、1 文字だけの入力は
 test("完全一致は文字一致に優先して残る", () => {
   const exact = R.candidatesFor({ name: "黒雲会組員", sourceLine: "黒雲会組員" }, idx);
   assert.equal(exact[0].confidence, "exact", "完全一致が先頭");
+});
+
+/* ---------------------------------------------------------------------------
+   枠の解決（通常人格 / 特異人格）。
+
+   no はグループ間で重複する。no=30 は通常人格の「南部リウ協会4課フィクサー」と
+   特異人格の「LCAウアジェト 先鋒三隊隊長」の両方にある。no だけで枠を決めると
+   特異人格を通常人格と誤認し、獲得した内容が別の人格の名前で入ってしまう。
+   --------------------------------------------------------------------------- */
+
+function loadResolverWithDb(database) {
+  const source = readFileSync(new URL("../js/roster-resolver.js", import.meta.url), "utf8");
+  const context = { window: { DB: database }, console, module: { exports: {} } };
+  context.globalThis = context;
+  vm.createContext(context);
+  vm.runInContext(source, context);
+  return context.window;
+}
+
+test("同じ no でも通常人格と特異人格を取り違えない", () => {
+  const w = loadResolverWithDb(db);
+  const normal = (db.normal_personas || []).find((p) => p.no === 30);
+  const special = (db.tokui_personas || []).find((p) => p.no === 30);
+  assert.ok(normal && special, "no=30 が両方のグループに実在する前提");
+  assert.notEqual(normal.name, special.name, "名前が違う");
+  assert.equal(w.LBT_resolvePersonaMode(normal), "n");
+  assert.equal(w.LBT_resolvePersonaMode(special), "t", "特異人格を通常人格にしない");
+});
+
+test("枠の解決は実際の名前索引と食い違わない", () => {
+  const w = loadResolverWithDb(db);
+  const special = (db.tokui_personas || []).find((p) => /ウアジェト/.test(p.name));
+  assert.ok(special, "LCAウアジェト が特異人格にある");
+  const hit = w.LBT_resolveCandidates(w.LBT_buildNameIndex(db, {}), "ウアジェト");
+  assert.equal(hit[0].name, special.name, "名前解決は特異人格を引く");
+  assert.equal(w.LBT_resolvePersonaMode(hit[0]), "t", "引いた結果の枠も特異人格");
 });

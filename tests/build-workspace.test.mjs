@@ -568,7 +568,11 @@ test("購入は最新リザルトへ直接入り、残高が足りなければ�
   assert.match(shop, /const afford = window\.LBT_purchaseAffordability/);
   /* 収入記録が 1 件も無いときは無制限。新規ユーザーが何も買えなくなるのを避ける。 */
   assert.match(reducer, /const tracked = \(\(state\?\.results \|\| \[\]\)\.length > 0\);/);
-  assert.match(reducer, /const ok = !tracked \|\| \(balance\.lp >= want\.lp && balance\.shards >= want\.shards\);/);
+  /* 比較するのは「必要としている通貨」だけ。必要額0の通貨と残高を比べると
+     欠片が負のとき LP だけで買える人格購入まで止まる（欠片は人格購入に無関係）。 */
+  assert.match(reducer, /const lpOk = want\.lp <= 0 \|\| balance\.lp >= want\.lp;/);
+  assert.match(reducer, /const shardsOk = want\.shards <= 0 \|\| balance\.shards >= want\.shards;/);
+  assert.match(reducer, /const ok = !tracked \|\| \(lpOk && shardsOk\);/);
   /* 残高不足は「买えない」ことだけ静かに示し、理由は押した瞬間に toast で伝える。 */
   assert.match(shop, /"data-blocked": blocked \? "1" : null/);
   assert.doesNotMatch(shop, /className: "shop-card-blocked"/);

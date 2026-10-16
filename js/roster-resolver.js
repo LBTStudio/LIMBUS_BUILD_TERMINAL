@@ -425,7 +425,27 @@
     return labels[kind] || kind || "不明";
   }
 
-  const api = { buildNameIndex, resolveCandidates, resolveText, tryMatch, tryMatchLoose, fold, candidatesFor, kindLabel };
+  /* 人格が通常か特異かを解決する。no はグループ間で重複する
+     （no=30 は通常人格の「南部リウ協会4課フィクサー」と特異人格の
+     「LCAウアジェト 先鋒三隊隊長」の両方にある）ので、no だけで決めると
+     後者を通常人格と誤認し、獲得した内容が別の人格の名前で入ってしまう。
+     DB のオブジェクトそのものを鍵にする（同一性は取り違えない）。 */
+  const PERSONA_MODE_OF = new WeakMap();
+  function registerPersonaModes(list, mode) {
+    for (const one of list || []) PERSONA_MODE_OF.set(one, mode);
+  }
+  function resolvePersonaMode(persona) {
+    /* 名前索引が返す候補は DB の実体ではなく、kinds に mode を持つ。 */
+    const fromKinds = (persona?.kinds || []).find((k) => k && k.kind === "persona");
+    if (fromKinds?.mode) return fromKinds.mode;
+    const known = PERSONA_MODE_OF.get(persona);
+    if (known) return known;
+    registerPersonaModes(window.DB?.normal_personas, "n");
+    registerPersonaModes(window.DB?.tokui_personas, "t");
+    return PERSONA_MODE_OF.get(persona) || null;
+  }
+
+  const api = { buildNameIndex, resolveCandidates, resolveText, tryMatch, tryMatchLoose, fold, candidatesFor, kindLabel, resolvePersonaMode };
   if (typeof window !== "undefined") {
     window.LBT_buildNameIndex = buildNameIndex;
     window.LBT_resolveCandidates = resolveCandidates;
@@ -433,6 +453,7 @@
     window.LBT_rosterResolver = api;
     window.LBT_candidatesFor = candidatesFor;
     window.LBT_kindLabel = kindLabel;
+    window.LBT_resolvePersonaMode = resolvePersonaMode;
   }
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })();

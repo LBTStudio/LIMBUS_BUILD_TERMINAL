@@ -2739,7 +2739,14 @@ const RosterSection = ({ state, dispatch }) => {
     /* 同期化・同期MAXは自我の欠片を支払う（supplement P7/P23）。
      ただのフラグで済ませると欠片が帳から消えるので、必ず明細として残す。 */
   const syncCost = (uid, syncMax) => {
-    const persona = (window.DB?.normal_personas || window.DB?.tokui_personas || []).find((p) => String(p.no) === String((state.roster.personas || []).find((x) => x.uid === uid)?.no));
+    /* no はグループ間で重複する（no=30 は通常人格にも特異人格にもある）。
+       mode を見ずに通常人格だけを探すと、特異人格の同期費用が
+       別の同じ no の通常人格の数値で計算される。 */
+    const entry = (state.roster?.personas || []).find((x) => x.uid === uid);
+    if (!entry) return null;
+    const persona = (entry.mode === "t"
+      ? window.DB?.tokui_personas || []
+      : window.DB?.normal_personas || []).find((p) => String(p.no) === String(entry.no));
     return window.LBT_operationCost?.(syncMax ? "syncMax" : "sync", { ...persona }, window.DB) || null;
   };
   const applySyncMax = (item, on) => {

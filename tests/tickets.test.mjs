@@ -219,6 +219,40 @@ test("セーブの取り込みでは初期作成用チケットを消費しな�
   assert.equal(ticketBalance(imported).persona, 1, "取り込みは購入でも抽選でもないのでチケットは残る");
 });
 
+/* --- 購入可否は「必要な通貨だけ」と比べる -------------------------------
+   欠片が負でも、欠片を必要としない人格購入（core:359 の20LP）は通す。
+   必要額0の通貨と残高を比べる意味が無いので、比較しない。 */
+
+const negativeShardState = () => ({
+  roster: { personas: [], egos: [], supports: [], spirits: [] },
+  results: [{ id: "res-1", name: "第一夜", income: { lp: "100", shards: "0" } }],
+  entries: [{ id: "e1", kind: "ego", name: "解析", cost: { lp: 0, shards: "160" }, resultId: "res-1" }],
+  inventory: []
+});
+
+test("欠片が負でも人格購入（欠片不要）は通る", () => {
+  const st = negativeShardState();
+  assert.equal(context.window.LBT_computeLedgerBalance(st.results, st.entries).shards, -160, "前提: 欠片は負");
+  const afford = context.window.LBT_purchaseAffordability(st, { lp: 20, shards: 0 });
+  assert.equal(afford.ok, true, "必要0の欠片で不足にしない: " + afford.reason);
+  const next = reducer(st, { type: "ADD_ROSTER", mode: "n", no: 1, purchase: true, cost: { lp: 20, shards: 0 } });
+  assert.equal(next.roster.personas.length, 1, "所持へ入る");
+  assert.equal(next.entries.length, 2, "購入の明細も立つ");
+});
+
+test("欠片が必要なものは残高不足で従来どおり止まる", () => {
+  const st = negativeShardState();
+  const afford = context.window.LBT_purchaseAffordability(st, { lp: 0, shards: 50 });
+  assert.equal(afford.ok, false);
+  assert.match(afford.reason, /欠片/);
+});
+
+test("購入可否の理由に『必要 0』の不足は出ない", () => {
+  const st = negativeShardState();
+  const reason = context.window.LBT_purchaseAffordability(st, { lp: 20, shards: 0 }).reason;
+  assert.doesNotMatch(reason, /必要 0/);
+});
+
 test("先行シナリオのログが初期作成用人格チケットを壊さない", () => {
   const legacy = {
     roster: { personas: [], egos: [], supports: [], spirits: [] },

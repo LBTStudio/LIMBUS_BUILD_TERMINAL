@@ -1602,10 +1602,15 @@ function purchaseAffordability(state, cost) {
   const want = normalizeCurrency(cost);
   const balance = computeLedgerBalance(state?.results || [], state?.entries || []);
   const tracked = ((state?.results || []).length > 0);
-  const ok = !tracked || (balance.lp >= want.lp && balance.shards >= want.shards);
+  /* 比較するのは「必要としている通貨」だけ。必要額0の通貨と残高を比べると、
+     欠片が負のとき LP だけで買える人格購入まで『欠片 -160 / 必要 0』で
+     止まり、購入も記録も黙って消える。欠片は人格購入の値段に無関係。 */
+  const lpOk = want.lp <= 0 || balance.lp >= want.lp;
+  const shardsOk = want.shards <= 0 || balance.shards >= want.shards;
+  const ok = !tracked || (lpOk && shardsOk);
   const short = [];
-  if (tracked && balance.lp < want.lp) short.push(`LP ${balance.lp} / 必要 ${want.lp}`);
-  if (tracked && balance.shards < want.shards) short.push(`欠片 ${balance.shards} / 必要 ${want.shards}`);
+  if (tracked && !lpOk) short.push(`LP ${balance.lp} / 必要 ${want.lp}`);
+  if (tracked && !shardsOk) short.push(`欠片 ${balance.shards} / 必要 ${want.shards}`);
   return { ok, tracked, lp: balance.lp, shards: balance.shards, need: want, reason: ok ? "" : `残高が不足しています（${short.join("・")}）` };
 }
 window.LBT_purchaseAffordability = purchaseAffordability;

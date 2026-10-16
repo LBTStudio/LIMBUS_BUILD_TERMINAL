@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-4f7f8e31";
+const CACHE_NAME = "lbt-2344c796";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -47,8 +47,8 @@ const PRECACHE_URLS = [
   "js/DataQuality.js?v=a8365c72",
   "js/ItemCodex.js?v=f81cdb3e",
   "js/LivePreview.js?v=911e0b56",
-  "js/OtherSections.js?v=c73cc107",
-  "js/PersonaCodex.js?v=db09f8f5",
+  "js/OtherSections.js?v=a440040b",
+  "js/PersonaCodex.js?v=cc11f563",
   "js/SkillDeck.js?v=0e7a3640",
   "js/accounts-ui.js?v=59b44784",
   "js/core.js?v=d79b98be",
@@ -67,11 +67,11 @@ const PRECACHE_URLS = [
   "js/name-fuzzy.js?v=d3eb29a1",
   "js/persona-draft-import.js?v=37f8afb4",
   "js/result-log-parser.js?v=43c5aa47",
-  "js/result-text-import.js?v=ca450af4",
-  "js/roster-resolver.js?v=7ac624a8",
+  "js/result-text-import.js?v=c0c996f4",
+  "js/roster-resolver.js?v=c778eb30",
   "js/share-link.js?v=deb1ab16",
   "js/share-viewer.js?v=9521f675",
-  "js/state.js?v=ffda36ed",
+  "js/state.js?v=14eefe45",
   "js/ui.js?v=8943eab8",
   "vendor/react-dom.min.js?v=35f4f974",
   "vendor/react.min.js?v=d949f1c3",
