@@ -408,8 +408,6 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
 
     /* 帰属先（どのシナリオ）と入手方法は利用者が決める。
        シナリオに載っていない所持品は、自動では紐付けず選ばせる。 */
-    const scenarioOptions = (annotated.scenarios || []).map((s) => s.name).filter(Boolean);
-    const sourceOptions = window.LBT_garasumado?.SOURCES || [];
 
 /* 各項目に候補を持たせる。予測変換はここで作る。
        持論の注意: DB に価格が無く、公式ルールの「抽出 / 購入」しか候補が無い
@@ -517,6 +515,13 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
   /* 割当の下書き。UI とは独立した純関数から作る。
      画面に出る数字と実際に入る action が必ず一致するのは、ここを唯一の情報源に
      しているため（別途集計し直さない）。 */
+  /* 帰属先（どのシナリオ）と入手方法の選択肢。描画から使うので
+     コンポーネントのスコープで持つ（load の中の一時変数だと参照できない）。 */
+  const scenarioOptions = manifest
+    ? (manifest.scenarios || []).map((s) => s && s.name).filter(Boolean)
+    : [];
+  const sourceOptions = window.LBT_garasumado?.SOURCES || [];
+
   const draft = React.useMemo(() => {
     if (!manifest) return null;
     const database = window.DB || {};
