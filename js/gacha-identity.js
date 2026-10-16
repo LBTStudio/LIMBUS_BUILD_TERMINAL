@@ -184,6 +184,22 @@
     if (batch && batch.signer && batch.userSignature) {
       try { sigOk = await verifyBatchSignature(batch); } catch (e) { sigOk = false; }
       if (sigOk === false) { hardMismatch = true; reasons.push("署名が一致しない（なりすまし、または改変）"); }
+      /* keyId は署名対象外の表示ラベル。公開鍵から再計算した値と食い違えば
+         ラベルだけの偽装（他人の名前を表示させる）なので通さない。 */
+      if (sigOk === true) {
+        try {
+          var expectedKeyId = await publicKeyId(batch.signer.publicKey);
+          if (batch.signer.keyId !== expectedKeyId) {
+            sigOk = false;
+            hardMismatch = true;
+            reasons.push("署名者の識別子が公開鍵と一致しない（表示の偽装）");
+          }
+        } catch (e) {
+          sigOk = false;
+          hardMismatch = true;
+          reasons.push("署名者の公開鍵が不正");
+        }
+      }
     } else {
       reasons.push("署名が無い（未検証）");
     }

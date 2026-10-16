@@ -144,3 +144,14 @@ test("検証: 埋め込みの無い画像は unverified（改ざんではない�
   assert.equal(v.batch, null);
   assert.match(v.reasons[0], /埋め込まれていません/);
 });
+
+test("検証: 署名者ラベル(keyId)だけの差し替えも mismatch（表示の偽装）", async () => {
+  const signed = await buildSignedBatch();
+  const other = await ID.generateIdentity();
+  const payload = JSON.parse(P.buildPayload(signed));
+  payload.batch.signer.keyId = await ID.publicKeyId(other.publicKey);
+  const png = P.embedProof(makePng(), JSON.stringify(payload));
+  const v = await P.verifyPng(png, { identity: ID, gacha });
+  assert.equal(v.state, "mismatch");
+  assert.ok(v.reasons.some((r) => /識別子/.test(r)), `理由に識別子の不一致が出る（${v.reasons.join(" / ")}）`);
+});
