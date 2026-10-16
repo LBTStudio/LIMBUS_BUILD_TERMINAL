@@ -770,6 +770,10 @@ function toIdentityChoices(hits) {
     const opts = options || {};
     const db = opts.db || null;
     const identity = opts.identity || {};
+    /* 選択されている品目だけを見る。指定が無ければ全部が対象。
+       画面が「チェックされている分だけ」でシミュレーションを出才不会、
+       実際に取り込む内容と数字がずれる。 */
+    const selected = Array.isArray(opts.selected) ? new Set(opts.selected) : null;
     const scenarios = (manifest && manifest.scenarios) || [];
     const evidence = buildEvidence(scenarios);
 
@@ -790,6 +794,7 @@ function toIdentityChoices(hits) {
     for (const group of (manifest && manifest.groups) || []) {
       for (const raw of group.items || []) {
         const patch = identity[raw.key] || {};
+        if (selected && !selected.has(raw.key)) continue;
         const item = { ...raw, ...patch };
         /* 略称（鬼門、ロジアトなど）は正式名を引いてから本文照合する。
            名前索引の文字一致を使い、一意に絞れるものだけ名前解決に使う。 */
