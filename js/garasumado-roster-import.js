@@ -455,6 +455,9 @@ function toIdentityChoices(hits) {
     const selected = new Set(selectedKeys || []);
     const actions = [];
     const skipped = [];
+    /* 所持ループで既に納入した品目。シナリオの獲得ループが同じ人格・E.G.O を
+       二重に登録しないためのもの（所持一覧と獲得行の両方に出る品目は 1 件だけ）。 */
+    const taken = new Set();
 
     for (const group of (manifest && manifest.groups) || []) {
       for (const item of group.items) {
@@ -494,6 +497,7 @@ function toIdentityChoices(hits) {
             continue;
           }
           if (!sourceOk) { holdOnSource(); continue; }
+          taken.add(`persona:${persona.mode || "n"}:${persona.no}`);
           actions.push({ type: "ADD_ROSTER", no: String(persona.no), mode: persona.mode || "n", via, source: item.source || "", purchase: item.source === "buy" });
         } else if (group.id === "egos") {
           if (!ego || !ego.no || !ego.rank) {
@@ -501,11 +505,19 @@ function toIdentityChoices(hits) {
             continue;
           }
           if (!sourceOk) { holdOnSource(); continue; }
+          taken.add(`ego:${ego.rank}:${ego.no}`);
           actions.push({ type: "ADD_ROSTER_EGO", no: String(ego.no), rank: ego.rank, via, source: item.source || "", purchase: item.source === "buy" });
         } else if (group.id === "supportPassives") {
           if (!support) { skipped.push({ key: item.key, reason: "DB番号が引けない" }); continue; }
           if (!sourceOk) { holdOnSource(); continue; }
-          actions.push({ type: "ADD_ROSTER_SUPPORT", spp: { name: support.name || item.dbName || item.name }, via });
+          /* 購入だったときだけ課帳する（ADD_ROSTER と同じ契約）。
+             配布・シナリオ報酬で得たパッシブに 7LP を課すと帳が膨らむ。 */
+          actions.push({
+            type: "ADD_ROSTER_SUPPORT",
+            spp: { name: support.name || item.dbName || item.name },
+            via,
+            purchase: item.source === "buy"
+          });
         } else if (group.id === "spirits") {
           if (!spirit) { skipped.push({ key: item.key, reason: "DB番号が引けない" }); continue; }
           if (!sourceOk) { holdOnSource(); continue; }
@@ -568,8 +580,14 @@ function toIdentityChoices(hits) {
         const persona = kinds.find((k) => k && k.kind === "persona" && k.no != null);
         const ego = kinds.find((k) => k && k.kind === "ego" && k.no != null && k.rank);
         if (persona) {
+          const key = `persona:${persona.mode || "n"}:${persona.no}`;
+          if (taken.has(key)) continue;
+          taken.add(key);
           actions.push({ type: "ADD_ROSTER", no: String(persona.no), mode: persona.mode || "n" });
         } else if (ego) {
+          const key = `ego:${ego.rank}:${ego.no}`;
+          if (taken.has(key)) continue;
+          taken.add(key);
           actions.push({ type: "ADD_ROSTER_EGO", no: String(ego.no), rank: ego.rank });
         } else if (kinds.some((k) => k && k.kind === "ego")) {
           /* 番号が引けない E.G.O。所持には入れず、理由だけ残す。 */
@@ -620,6 +638,231 @@ function toIdentityChoices(hits) {
     return { actions, skipped };
   }
 
+/* --- 割当の下書き -------------------------------------------------------
+   画面に出る「どのリザルトに何が入っているか」を、UI とは独立に作る。
+   1シナリオ＝1リザルト。所持は照合できたAutomaticで割り当て、できないものだけ
+   未割当に残す。利用者が個別に決めた分（identity）はここで被せる。
+
+   照合の階級:
+     A  構造化された獲得行と完全一致        自動・確定
+     C  支出行と一致                      自動・確定（入手=購入）
+     D  シナリオのメモ本文中に出現          自動・本文言及
+     F  文字一致で候補が1件に絞れた        自動・要確認
+     F? 文字一致で候補が複数              未割当（利用者が選ぶ）
+     E  どこにも出ない                    未割当
+
+   同期/解析とサポートパッシブは、帰属と入手方法をそのまま Automaticで確定する。
+   人格と E.G.O は、証跡が無いと購入か抽選かを区別できないので入手方法は
+   利用者に選ばせる。                                        */
+
+  /* 照合に使う文字集合。装飾や記号を落としてIntersectionの土台にする。 */
+  function overlapChars(s) {
+    return [...new Set([...String(s || "")].filter((c) => /[\u4e00-\u9fffA-Za-z0-9]/.test(c)))];
+  }
+  const F_MATCH_RATIO = 0.5;
+  const F_MAX_CANDIDATES = 8;
+  const F_MIN_DB_NAME = 5;
+
+  /* 文字一致の候補を一致率の降順で並べる。上限は表示と操作の項数。
+     一意に絞れたときだけ自動割り当てに使う（複数なら利用者が選ぶ）。 */
+  function overlapCandidates(name, db) {
+    const want = overlapChars(name);
+    if (!want.length) return [];
+    const out = [];
+    const push = (row, kind) => {
+      const dbChars = overlapChars(row && row.name);
+      if (dbChars.length < F_MIN_DB_NAME) return;
+      const hit = want.filter((c) => dbChars.includes(c)).length;
+      if (hit < 2) return;
+      const ratio = hit / want.length;
+      if (ratio < F_MATCH_RATIO) return;
+      out.push({ kind, name: row.name, no: row.no, rank: row.rank, mode: row.mode, ratio, hit });
+    };
+    for (const row of (db && db.normal_personas) || []) push(row, "persona");
+    for (const row of (db && db.tokui_personas) || []) push(row, "persona");
+    for (const row of (db && db.egos) || []) push(row, "ego");
+    for (const row of (db && db.support_passives) || []) push(row, "support");
+    for (const row of (db && db.death_passives) || []) push(row, "deathSupport");
+    out.sort((a, b) => b.ratio - a.ratio || b.hit - a.hit);
+    return out.slice(0, F_MAX_CANDIDATES);
+  }
+
+  /* シナリオごとの証拠索引。完全一致・ゆれ一致・本文出現を1回で判定する。 */
+  function buildEvidence(scenarios) {
+    const list = [];
+    for (const scenario of scenarios || []) {
+      const name = String(scenario.name || "");
+      if (!name) continue;
+      list.push({
+        key: scenario.key,
+        name,
+        exact: new Set([
+          ...(scenario.wins || []).map((w) => nameKey(w.name)),
+          ...(scenario.spends || []).map((s) => nameKey(spendNameOf(s)))
+        ]),
+        spend: new Set((scenario.spends || []).map((s) => nameKey(spendNameOf(s)))),
+        text: nameKey(scenario.memo || "")
+      });
+    }
+    return list;
+  }
+
+  /* 1件の所持が、どのシナリオ帰属ならAutomaticで決まるかを返す。 */
+  /* 本文中にその名前が現れるシナリオを探す。 */
+  function scenarioMentioning(name, evidence) {
+    const key = nameKey(name);
+    if (!key) return null;
+    const hits = evidence.filter((e) => e.text.includes(key));
+    return hits.length ? { tier: "D", scenario: hits[0].name, unique: hits.length === 1, hits: hits.length } : null;
+  }
+
+  /* 1件の所持が、どのシナリオ帰属なら自動確定できるかを返す。
+     names は照合に使う名前の追加候補（所持名が略称なら正式名を足す）。
+     略称（鬼門、ロジアトなど）は本文照合力度が弱いので、正式名でも試す。 */
+  function attributionOf(item, evidence, names) {
+    const keys = [...new Set([item.name, ...(names || [])].map(nameKey).filter(Boolean))];
+    if (!keys.length) return null;
+    /* 構造化された証拠（獲得行・支出行）を先に照合する。 */
+    for (const key of keys) {
+      const exact = evidence.filter((e) => e.exact.has(key));
+      if (exact.length) {
+        /* 支出行にあれば購入。複数シナリオにあれば上（シナリオ順）。 */
+        const bought = exact.find((e) => e.spend.has(key));
+        return { tier: bought ? "C" : "A", scenario: (bought || exact[0]).name, unique: exact.length === 1 };
+      }
+    }
+    /* 証拠が無くても本文に書いてあれば帰属は決まる（本文言及）。 */
+    for (const name of [item.name, ...(names || [])]) {
+      const hit = scenarioMentioning(name, evidence);
+      if (hit) return hit;
+    }
+    return null;
+  }
+
+  /* 自動分類できるグループか。人格（personas）と E.G.O（egos）は証跡が無いと
+     購入か抽選かを区別できないので、入手方法を利用者に選ばせる。
+     同期/解析とサポートパッシブはそのまま確定できる。 */
+  const AUTO_GROUPS = new Set(["supportPassives"]);
+
+  function buildResultDraft(manifest, options) {
+    const opts = options || {};
+    const db = opts.db || null;
+    const identity = opts.identity || {};
+    const scenarios = (manifest && manifest.scenarios) || [];
+    const evidence = buildEvidence(scenarios);
+
+    const blocks = new Map();
+    for (const scenario of scenarios) {
+      blocks.set(scenario.name, {
+        key: scenario.key,
+        name: scenario.name,
+        memo: String(scenario.memo || ""),
+        income: scenario.income || { lp: 0, shards: 0 },
+        tickets: scenario.tickets || {},
+        items: [],
+        missing: []
+      });
+    }
+    const unassigned = [];
+
+    for (const group of (manifest && manifest.groups) || []) {
+      for (const raw of group.items || []) {
+        const patch = identity[raw.key] || {};
+        const item = { ...raw, ...patch };
+        /* 略称（鬼門、ロジアトなど）は正式名を引いてから本文照合する。
+           名前索引の文字一致を使い、一意に絞れるものだけ名前解決に使う。 */
+        const cands = db ? overlapCandidates(item.name, db) : [];
+        const names = cands.length === 1 ? [cands[0].name] : [];
+        const found = attributionOf(item, evidence, names);
+        /* 归属 Override があれば、照合より優先する。 */
+        const chosen = item.pickedScenario || (found ? found.scenario : "");
+        const tier = item.pickedScenario ? "M" : found ? found.tier : "";
+        const source = item.source || "";
+
+        const record = {
+          key: item.key,
+          name: item.name,
+          group: group.id,
+          tier,
+          source,
+          automatic: AUTO_GROUPS.has(group.id),
+          candidates: cands,
+          auto: Boolean(!item.pickedScenario && cands.length === 1 && AUTO_GROUPS.has(group.id))
+        };
+
+        if (chosen && blocks.has(chosen)) {
+          /* E.G.O と人格は証跡が無いと購入か抽選かが決まらないので、入手方法を
+             選ばせる。同期/解析とサポートパッシブはそのまま確定できる。 */
+          record.needsSource = !record.automatic && !source;
+          blocks.get(chosen).items.push(record);
+          continue;
+        }
+        if (found && found.tier === "F") { /* 下の else と同じ扱い */ }
+        record.reason = !found
+          ? (cands.length ? "候補が複数あります（選んでください）" : "照合できるシナリオがありません")
+          : "シナリオが決まっていません";
+        unassigned.push(record);
+      }
+    }
+
+    const resultBlocks = [...blocks.values()];
+    const simulation = simulateDraft(manifest, resultBlocks, unassigned, identity, opts);
+    return { blocks: resultBlocks, unassigned, simulation };
+  }
+
+  /* 画面に出る数字と実際に入る action を一致させる。simulation は
+     toDispatchActions と同じ変換を覗くだけにして、另有計算しない。 */
+  function simulateDraft(manifest, blocks, unassigned, identity, opts) {
+    const db = opts && opts.db;
+    const selected = [];
+    for (const block of blocks) {
+      for (const item of block.items) {
+        if (item.needsSource) continue;
+        selected.push(item.key);
+      }
+    }
+    const overlay = {
+      ...manifest,
+      groups: (manifest.groups || []).map((g) => ({
+        ...g,
+        items: g.items.map((i) => ({ ...i, ...(identity[i.key] || {}) }))
+      }))
+    };
+    const actions = toDispatchActions(overlay, selected, { purchases: (opts && opts.purchases) || {} }).actions;
+    let lp = 0;
+    let shards = 0;
+    const bySource = { ticket: 0, buy: 0, given: 0, other: 0 };
+    let held = 0;
+    for (const action of actions) {
+      if (action.type === "ADD_RESULT") {
+        lp += Number(action.income && action.income.lp) || 0;
+        shards += Number(action.income && action.income.shards) || 0;
+        continue;
+      }
+      if (action.type === "ADD_ENTRY") {
+        lp -= Number(action.cost && action.cost.lp) || 0;
+        shards -= Number(action.cost && action.cost.shards) || 0;
+        continue;
+      }
+      if (String(action.type || "").startsWith("ADD_ROSTER")) {
+        held += 1;
+        const s = action.source || (action.purchase ? "buy" : "given");
+        bySource[s] = (bySource[s] || 0) + 1;
+      }
+    }
+    return {
+      results: actions.filter((a) => a.type === "ADD_RESULT").length,
+      held,
+      lp,
+      shards,
+      bySource,
+      unassigned: unassigned.length,
+      awaitingSource: blocks.reduce(
+        (n, b) => n + b.items.filter((i) => i.needsSource).length, 0
+      )
+    };
+  }
+
   const api = {
     parseShareUrl,
     fetchGarasumadoDocument,
@@ -631,7 +874,9 @@ function toIdentityChoices(hits) {
     SOURCES,
     unwrapFirestore,
     publicApiKey,
-    GROUPS
+    GROUPS,
+    buildResultDraft,
+    overlapCandidates
   };
   if (typeof window !== "undefined") {
     window.LBT_garasumado = api;
@@ -639,6 +884,7 @@ function toIdentityChoices(hits) {
     window.LBT_fetchGarasumadoDocument = fetchGarasumadoDocument;
     window.LBT_buildGarasumadoManifest = buildManifest;
     window.LBT_toDispatchActions = toDispatchActions;
+    window.LBT_buildResultDraft = buildResultDraft;
   }
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })();

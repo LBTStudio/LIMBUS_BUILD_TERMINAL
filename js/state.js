@@ -3201,14 +3201,18 @@ case "ADD_CUSTOM_ITEM": {
       };
       const nextRoster = { ...roster, supports: [...(roster.supports || []), entry] };
       const withEquipment = { ...state, roster: nextRoster, ...projectEquipmentFromRoster(nextRoster) };
-      /* 所持へ入れた時点で支出として明細を足す（価格はDBから引く）。 */
-      return appendLedgerEntry(withEquipment, {
-        kind: entry.slot === "death" ? "deathSupport" : "support",
-        name: entry.name,
-        cost: priceSupport(entry.name, entry.slot),
-        resultId: action.resultId,
-        ref: { kind: "rosterSupport", uid: entry.uid }
-      });
+      /* 所持へ入れた時点で支出として明細を足す（価格はDBから引く）。
+         ただし購入として扱われたときだけ。シナリオ報酬や配布で得たパッシブに
+         7LP を課すと帳が実際より膨らむ。人格の ADD_ROSTER と同じ契約
+         （purchase が false なら明細を立てない）。指定省略は購入とみなす。 */
+        if (action.purchase === false) return withEquipment;
+          return appendLedgerEntry(withEquipment, {
+          kind: entry.slot === "death" ? "deathSupport" : "support",
+          name: entry.name,
+          cost: priceSupport(entry.name, entry.slot),
+          resultId: action.resultId,
+          ref: { kind: "rosterSupport", uid: entry.uid }
+        });
     }
     /* 硝子窓の所持まるごと取り込み。既存と重複する No は入れ替えない。 */
     case "ADD_ROSTER_PERSONAS_BULK": {
