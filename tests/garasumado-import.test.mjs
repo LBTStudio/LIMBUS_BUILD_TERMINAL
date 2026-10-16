@@ -66,6 +66,14 @@ test("「・支出」以降は支出になる", () => {
   assert.equal(r.spends[0].shards, 87);
 });
 
+test("E.G.O の読みは「エゴ」で読む", () => {
+  /* 「イゴ」を E.G.O の別名にしていたため、実データに一度も出ない表記を
+     信用していた。正しい読みは「エゴ」。 */
+  const r = MEMO.parseMemo("・支出\nエゴを愉しむ 50欠片");
+  assert.equal(r.spends.length, 1, "エゴで書かれた行が支出になる");
+  assert.equal(r.spends[0].shards, 50);
+});
+
 test("「・支払い」「・支出」どちらの表記でも支出になる", () => {
   for (const head of ["・支出", "・支払い"]) {
     const r = MEMO.parseMemo(`40LP：現在80LP\n${head}\n吐き出す傲慢：40LP　現在40LP`);

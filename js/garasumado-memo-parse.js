@@ -20,7 +20,10 @@
 (function (global) {
   /* 欠片の表記ゆれ。硝子窓の入力は自由なので全部受ける。 */
   var SHARD_WORDS = ["欠片", "かけら", "欠けら", "カケラ", "欠け片"];
-  var EGO_WORDS = ["EGO", "ＥＧＯ", "E.G.O", "イゴ", " egos "];
+  /* E.G.O の読みは「エゴ」。ここに「イゴ」を書いていたため、実データで一度も
+     出ない表記を E.G.O の別名として信用していた。「エゴ」を正式な読みとして
+     受理する（「イゴ」は他人の入力に合わせ残す）。 */
+  var EGO_WORDS = ["EGO", "ＥＧＯ", "E.G.O", "エゴ", "イゴ", " egos "];
 
   function hasShard(text) {
     for (var i = 0; i < SHARD_WORDS.length; i++) {
