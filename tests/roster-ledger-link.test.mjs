@@ -69,7 +69,7 @@ test("人格の所持追加: 明細の ref.uid が所持の uid と一致する"
   assert.equal(s.entries[0].cost.lp, 0, "人格はガチャ費用ではなく、所持へ入れた時点で明細が立つ");
 });
 
-test("所持.passive と spirit も明示したリザルトへ歸属する（常に直近へ倒さない）", () => {
+test("所持.passive と spirit も明示したリザルトへ帰属する（常に直近へ倒さない）", () => {
   const reducer = loadReducer();
   const withSupport = reducer(base(), { type: "ADD_ROSTER_SUPPORT", spp: { name: db.support_passives[0].name }, resultId: "res-a" });
   assert.equal(withSupport.entries[0].resultId, "res-a", "res-a を明示しているのに res-b へ倒れない");

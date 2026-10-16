@@ -72,7 +72,7 @@ test("履歴が無い・memoが空でも落とさない", () => {
   assert.equal(m.attribution.unmatched, 1);
 });
 
-test("取り込み action にも歸属シナリオが伝わる", () => {
+test("取り込み action にも帰属シナリオが伝わる", () => {
   const doc = makeDoc(
     { personas: [{ name: "黒雲会若衆" }], egos: [], supportPassives: [], spirits: [] },
     [{ name: "S1", memo: "人格抽出チケットで獲得：黒雲会若衆" }]

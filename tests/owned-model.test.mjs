@@ -10,7 +10,7 @@ import vm from "node:vm";
      - 装備スロットは所持の投影。所持を書き換えると装備が追随する
      - 所持していないものは装備できない（旧経路も塞ぐ）
      - 旧保存データ（装備しか持たない版）はデータを落とさず未分類所持へ移る
-     - 歸属先（resultId）は保存・読み込み後も保持される
+     - 帰属先（resultId）は保存・読み込み後も保持される
 --------------------------------------------------------------------------- */
 
 const source = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
@@ -75,7 +75,7 @@ test("未所持のサポパは装備と同時に所持へ写る（テレポー�
   const { reducer } = reducerOf();
   const next = reducer(baseState(), { type: "ADD_SUPPORT", spp: { name: "出血促進", cond: "出血", effect: "X", lp: "3LP" } });
   assert.equal(next.roster.supports.length, 1, "所持へ写る");
-  assert.equal(next.roster.supports[0].resultId, null, "歸属は未分類");
+  assert.equal(next.roster.supports[0].resultId, null, "帰属は未分類");
   assert.equal(next.supports.length, 1, "装備投影に載る");
   assert.equal(next.supports[0].name, "出血促進");
   assert.equal(next.supports[0].cond, "出血があるなら", "効果文はDB定義を正とする");
@@ -147,7 +147,7 @@ test("精神も所持を経由する。未所持なら写してから装備", ()
   assert.equal(s.spiritAlways, "常時A");
   assert.equal(s.roster.spirits.length, 1, "所持へ写る");
   assert.equal(s.roster.spirits[0].equipped, true);
-  assert.equal(s.roster.spirits[0].resultId, null, "歸属は未分類");
+  assert.equal(s.roster.spirits[0].resultId, null, "帰属は未分類");
 });
 
 test("精神の装備は常に1件。切り替えは前のものを外す", () => {
@@ -187,12 +187,12 @@ test("舊保存データ（装備のみ）は未分類の所持へ移り、デ�
   assert.equal(next.spiritMorale, "士気M", "精神の効果文もDBを正とする");
 });
 
-test("歸属先（resultId）は読み書きで保持される", () => {
+test("帰属先（resultId）は読み書きで保持される", () => {
   const { reducer } = reducerOf();
   let s = reducer(baseState(), { type: "ADD_SUPPORT", spp: { name: "出血促進" } });
   const uid = s.roster.supports[0].uid;
   s = reducer(s, { type: "SET_ROSTER_SUPPORT_RESULT", uid, resultId: "rs-1" });
-  assert.equal(s.roster.supports[0].resultId, "rs-1", "歸属を設定できる");
+  assert.equal(s.roster.supports[0].resultId, "rs-1", "帰属を設定できる");
   s = reducer(s, { type: "SET_ROSTER_SUPPORT_RESULT", uid, resultId: null });
   assert.equal(s.roster.supports[0].resultId, null, "未分類へ戻せる");
 });

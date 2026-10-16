@@ -8,7 +8,7 @@ import vm from "node:vm";
 
    守るべき性質:
      - DB が価格を持つものは、購入しただけで明細が1件できる
-     - 明細の歸属は「未分類」から始まり、利用者に選ばせない
+     - 明細の帰属は「未分類」から始まり、利用者に選ばせない
      - 所持・強化を外したら、その支出も戻る（残高を狂わせない）
      - 価格を持たないもの（人格・E.G.O）は勝手に入らない
      -  موجودしない窓（node）で計算が壊れない
@@ -73,7 +73,7 @@ test("アイテムの導入で LP 支出の明細が1件できる（未分類か
   assert.equal(s.entries[0].kind, "item");
   assert.equal(s.entries[0].name, "包帯", "表示名はDBの名称");
   assert.equal(s.entries[0].cost.lp, 15, "価格はDBから引く");
-  assert.equal(s.entries[0].resultId, null, "歸属は未分類（利用者に選ばせない）");
+  assert.equal(s.entries[0].resultId, null, "帰属は未分類（利用者に選ばせない）");
   assert.equal(balance(s.results, s.entries).lp, -15, "残り inmediatamente反映");
 });
 
@@ -148,7 +148,7 @@ test("装備し直しても明細は増えない（購入であって装備で�
   assert.equal(s.supports.length, 1, "装備は戻っている");
 });
 
-test("購入は最後に記録したリザルトへ歸属する（リザルトが無ければ未分類で待つ）", () => {
+test("購入は最後に記録したリザルトへ帰属する（リザルトが無ければ未分類で待つ）", () => {
   let s = reducer(baseState(), { type: "ADD_ITEM", itemId: "syringe" });
   assert.equal(s.entries[0].resultId, null, "リザルトが無いので未分類（待機）");
   assert.equal(balance(s.results, s.entries).lp, -30, "でも収支には反映される");
@@ -159,12 +159,12 @@ test("購入は最後に記録したリザルトへ歸属する（リザルト�
   s = reducer(s, { type: "ADD_ITEM", itemId: "heal-bandage" });
   assert.equal(s.entries[s.entries.length - 1].resultId, resultId, "購入は直近リザルトへ入る");
 
-  /* 後から歸属を振り直す（ドラッグ&ドロップ相当）。 */
+  /* 後から帰属を振り直す（ドラッグ&ドロップ相当）。 */
   const entryId = s.entries[s.entries.length - 1].id;
   s = reducer(s, { type: "SET_ENTRY_RESULT", id: entryId, resultId: null });
   assert.equal(s.entries[s.entries.length - 1].resultId, null, "未分類へ戻せる");
   s = reducer(s, { type: "SET_ENTRY_RESULT", id: entryId, resultId });
-  assert.equal(s.entries[s.entries.length - 1].resultId, resultId, "後から歸属できる");
+  assert.equal(s.entries[s.entries.length - 1].resultId, resultId, "後から帰属できる");
   assert.equal(balance(s.results, s.entries).lp, 955, "残高は変わらない");
 });
 

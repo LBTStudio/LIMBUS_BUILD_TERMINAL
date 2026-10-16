@@ -884,7 +884,7 @@ const LEDGER_ENTRY_KINDS = [
 ];
 window.LBT_LEDGER_ENTRY_KINDS = LEDGER_ENTRY_KINDS;
 /* 所持エントリの uid を採番する。Date.now() だけだと同じミリ秒に作出的で
-   衝突し、uid をキーにした装備・歸属の更新が別の要素へ誤爆する。
+   衝突し、uid をキーにした装備・帰属の更新が別の要素へ誤爆する。
    連番を添えて必ず一意にする。 */
 /* 通約を LP と欠片の2種に揃える。文字列や未定義が入っても計算が場わないよう、
    必ず数値へ落とす（不清な値や0として扱う）。 */
@@ -1166,9 +1166,9 @@ function normalizeStateShape(raw) {
       syncRank: ["0", "00", "000"].includes(String(entry?.syncRank || "")) ? String(entry.syncRank) : null,
       syncMax: entry?.syncMax === true
     })),
-    /* 所持へ統合した2種は、人格・E.G.O と同じく uid と歸属先（resultId）を持つ。
+    /* 所持へ統合した2種は、人格・E.G.O と同じく uid と帰属先（resultId）を持つ。
        resultId は「どのリザルトで手に入れたか」。null は未分類で、
-       以前のデータはここに入る（歸属の断定は利用者が行う）。 */
+       以前のデータはここに入る（帰属の断定は利用者が行う）。 */
     supports: next.roster.supports
       .filter((entry) => entry && entry.name)
       .map((entry, index) => ({
@@ -1247,7 +1247,7 @@ function normalizeStateShape(raw) {
   }
   /* 装備スロットは所持の投影。所持を書き換えたら必ずここで整合させる。 */
   /* 旧保存データの通帳を正規化する。残高は保存しないので個別の値だけ整える。
-     歸属先の無い明細と、存在しないリザルトを指す明細は未分類へ戻す。
+     帰属先の無い明細と、存在しないリザルトを指す明細は未分類へ戻す。
      リザルトを消しても明細は消さない。支出額が失われると残高が狂う。 */
   if (!Array.isArray(next.results)) next.results = [];
   if (!Array.isArray(next.entries)) next.entries = [];
@@ -1393,7 +1393,7 @@ function normalizeStateShape(raw) {
   return normalizeStatusCollections(next);
 }
 /* 残高は保存しない。収入合計から支出合計を引くだけなので、
-   歸属を直すとこの値が動く。明細の歸属を直せば連載ごとに収支を説明できる。 */
+   帰属を直すとこの値が動く。明細の帰属を直せば連載ごとに収支を説明できる。 */
 /* ---- 価格の導出 ------------------------------------------------------
    通帳へ自動記録するのは「DB が価格を持つもの」だけ。
    アイテムは価格文字列（"15LP"・"50欠片"・"10LP 30SHARD" など）、強化と精神と
@@ -1460,7 +1460,7 @@ function priceEgo(rank, no) {
   return parsePriceText(hit?.shards, "shards");
 }
 
-/* 明細の追記と除去。歸属は「直近のリザルト」で決める。
+/* 明細の追記と除去。帰属は「直近のリザルト」で決める。
    利用者が購入のたびにリザルトを選ばせるのは検算のたびに手续が増えるため、
    最後に記録したリザルトへ倒し込む。リザルトが1件も無ければ分類できないので
    未分類（resultId:null = 通帳の「未分類」欄＝待機項目）に置く。
@@ -1995,8 +1995,8 @@ const INIT_STATE = {
     egos: [],
     // {uid, no, rank, analyzed:bool, analyzeMax:bool, notes}
     /* サポートパッシブと精神も所持モデルへ統合する。人格・E.G.O は所持一覧が
-       あるが、この2つは装備スロットしか無く、所持と歸属（リザルト）を持てなかった。
-       equipped は装備中、resultId は歸属先のリザルト（null=未分類）。 */
+       あるが、この2つは装備スロットしか無く、所持と帰属（リザルト）を持てなかった。
+       equipped は装備中、resultId は帰属先のリザルト（null=未分類）。 */
     supports: [],
     // {uid, name, cond, effect, lp, slot:'normal'|'death', equipped:bool, resultId:string|null, addedAt:number, notes}
     spirits: []
@@ -3133,7 +3133,7 @@ if (nextValue && !action.preview && !rosterEgos.some((entry) => entry.rank === a
         lp: String(spp.lp || ""),
         slot: isDeath ? "death" : "normal",
         equipped: false,
-        resultId: null,
+        resultId: action.resultId === undefined ? null : action.resultId,
         addedAt: Date.now(),
         notes: "",
         source: String(spp.source || catalogSourceByName("support", name))
@@ -3249,7 +3249,7 @@ if (nextValue && !action.preview && !rosterEgos.some((entry) => entry.rank === a
         uid: makeOwnedUid("spr"),
         name,
         equipped: false,
-        resultId: null,
+        resultId: action.resultId === undefined ? null : action.resultId,
         addedAt: Date.now(),
         notes: "",
         source: String(action.spirit?.source || catalogSourceByName("spirit", name))
@@ -3265,7 +3265,7 @@ if (nextValue && !action.preview && !rosterEgos.some((entry) => entry.rank === a
         ref: { kind: "rosterSpirit", uid: entry.uid }
       });
     }
-    /* 強化の購入。欠片はDB定义の shards をthermometerする。 */
+    /* 強化の購入。欠片の価格は DB 定義の shards を引く。 */
     case "ADD_ENHANCEMENT": {
       const group = String(action.group || "");
       const name = String(action.name || "");
@@ -3306,7 +3306,7 @@ if (nextValue && !action.preview && !rosterEgos.some((entry) => entry.rank === a
       /* 所持から外した精神は支出も戻す。 */
       return dropLedgerEntriesForRef(next, { kind: "rosterSpirit", uid: action.uid });
     }
-    /* ---- 通帳（リザルトと収支明細）---- 残高は保存しない。収入合計から支出合計を引くだけなので、歸属を直せばリザルトごとに収支が説明できる。 */
+    /* ---- 通帳（リザルトと収支明細）---- 残高は保存しない。収入合計から支出合計を引くだけなので、帰属を直せばリザルトごとに収支が説明できる。 */
     /* 複数まとめての所持追加。一括抽出のように同じ手つきで何件も入る操作で
        は、1回ごとに dispatch すると前の更新が次の書き込みで上書きされる。
        まとめて1つの action としてphal 同じ state に対して積む。 */
@@ -3376,8 +3376,6 @@ if (nextValue && !action.preview && !rosterEgos.some((entry) => entry.rank === a
             }
           : r))
       };
-    /* リザルトを消しても明細は消さない。歸属先を失うだけで、
-       支出額はいずれリザルトで使った feasibly 分でも shouldn’t 消えるため。 */
     /* リザルトを消したら、そのリザルトに紐づく明細も消す。
        かつ未分類へ戻すと、削除した支出が別の予算に紛れ込んで
        「消したのにまだ残っている」ように見える。削除なら削除。 */
@@ -3388,23 +3386,55 @@ if (nextValue && !action.preview && !rosterEgos.some((entry) => entry.rank === a
         entries: (state.entries || []).filter((e) => e.resultId !== action.id)
       };
     
-/* 取り込みは 1 手で終わらせる。複数の action を順に適用し、
-     「ADD_RESULT の直後に続く ADD_ENTRY はそのリザルトに歸属する」という
-     紐付けをこの中で解決する。利用者からは UNDO 1 回で全部戻る。 */
+/* 取り込みは 1 手で終わらせる。複数の action を順に適用し、明細をどの
+     リザルトへ帰属させるかをこの中で解決する。利用者からは UNDO 1 回で全部戻る。
+     所持の action はシナリオのリザルトより前に並ぶため、先に全リザルトを作って
+     シナリオ名 → リザルト id の索引を引き、via（どのシナリオの記載か）の名前で
+     引き当てる。引けない・同名が複数なら未分類(null)のまま、勝手に決めない。
+     ADD_ENTRY は従来どおり直前の ADD_RESULT に帰属する（位置契約）。 */
     case "APPLY_IMPORT_BATCH": {
       let next = state;
+      const resultIds = [];
+      const resultIdByName = new Map();
+      for (const sub of action.actions || []) {
+        if (!sub || typeof sub !== "object" || sub.type !== "ADD_RESULT") continue;
+        next = appReducer(next, sub);
+        const added = next.results[next.results.length - 1];
+        if (!added) continue;
+        resultIds.push(added.id);
+        const key = String(added.name || "");
+        resultIdByName.set(key, [...(resultIdByName.get(key) || []), added.id]);
+      }
       let lastResultId = null;
+      let resultIndex = 0;
       for (const sub of action.actions || []) {
         if (!sub || typeof sub !== "object") continue;
         if (sub.type === "ADD_RESULT") {
-          lastResultId = null;
-          next = appReducer(next, sub);
-          const added = next.results[next.results.length - 1];
-          lastResultId = added ? added.id : null;
+          lastResultId = resultIds[resultIndex] || null;
+          resultIndex += 1;
           continue;
         }
         if (sub.type === "ADD_ENTRY" && lastResultId && !sub.resultId) {
           next = appReducer(next, { ...sub, resultId: lastResultId });
+          continue;
+        }
+        const rosterSub = sub.type === "ADD_ROSTER" || sub.type === "ADD_ROSTER_EGO"
+          || sub.type === "ADD_ROSTER_SUPPORT" || sub.type === "ADD_ROSTER_SPIRIT";
+        if (rosterSub && sub.resultId === undefined && resultIds.length > 0) {
+          /* 付随物の帰属先: via の名前が唯一のリザルトへ解決すればそこへ。
+             曖昧・不一致なら未分類。via 無し（シナリオの獲得一覧）は直前へ。 */
+          let target = null;
+          const viaNames = (Array.isArray(sub.via) ? sub.via : []).filter(Boolean);
+          if (viaNames.length) {
+            const ids = new Set();
+            for (const viaName of viaNames) {
+              for (const id of resultIdByName.get(String(viaName)) || []) ids.add(id);
+            }
+            target = ids.size === 1 ? [...ids][0] : null;
+          } else {
+            target = lastResultId;
+          }
+          next = appReducer(next, { ...sub, resultId: target });
           continue;
         }
         const applied = appReducer(next, sub);
@@ -3441,7 +3471,7 @@ case "ADD_ENTRY":
             }
           : e))
       };
-    /* 歸属の差し替え。ドラッグ&ドロップはこの1つだけを呼ぶ。 */
+    /* 帰属の差し替え。ドラッグ&ドロップはこの1つだけを呼ぶ。 */
     case "SET_ENTRY_RESULT": {
       const entries = (state.entries || []).map((e) => (e.id === action.id ? { ...e, resultId: action.resultId || null } : e));
       if (!(state.entries || []).some((e) => e.id === action.id)) return state;

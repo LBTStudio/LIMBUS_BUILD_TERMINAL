@@ -353,7 +353,7 @@ test("実サンプルの manifest が全キャラクターで組める", () => {
 test("manifest は「解けた／解けない」を区別して出す", () => {
   const doc = chars.find(([, { doc: d }]) =>
     JSON.stringify(d.owned || {}).includes("ミートパイ"));
-  assert.ok(doc, "ミート파이を含むキャラクターが存在する");
+  assert.ok(doc, "ミートパイを含むキャラクターが存在する");
   const m = G.buildManifest(doc[1].doc, {
     resolve(name) {
       return name.includes("ミートパイ")
@@ -411,6 +411,16 @@ function resolvedManifest(doc) {
   return G.buildManifest(doc, { resolve: (name) => w.LBT_resolveCandidates(index, name)?.[0] || null });
 }
 
+/* memo パーサを同居させた読み込み。収入・支出を manifest へ通す検証用。 */
+function loadImportWithMemo() {
+  const context = { window: {}, console, module: { exports: {} } };
+  vm.createContext(context);
+  for (const f of ["garasumado-memo-parse.js", "garasumado-roster-import.js"]) {
+    vm.runInContext(readFileSync(new URL("../js/" + f, import.meta.url), "utf8"), context, { filename: f });
+  }
+  return context.window.LBT_garasumado;
+}
+
 test("取り込み: 実サンプル 49 文書から所持を列挙し、action を大量に出せる", () => {
   assert.equal(charDocs.length, 49);
   let resolved = 0;
@@ -433,6 +443,64 @@ test("取り込み: 実サンプル 49 文書から所持を列挙し、action �
   assert.ok(resolved > 800, "大半の所持が DB に引ける（実際 " + resolved + "）");
   assert.ok(actions > 800, "帰属先を決めると所持追加 action を大量に出せる（実際 " + actions + "）");
   assert.ok(heldBack > 0, "シナリオに無い所持品は、帰属先を選ぶまで止まる（実際 " + heldBack + "）");
+});
+
+test("所持は支出行とも照合され、購入（source=buy）として帰属する", () => {
+  const M = loadImportWithMemo();
+  const doc = {
+    currency: { lp: 0, fragments: 0 },
+    owned: { personas: [], egos: [], supportPassives: ["握る者闘志"], spirits: [] },
+    scenarioHistory: [{ name: "夜A", memo: "・支出\n握る者闘志 210欠片" }]
+  };
+  const m = M.buildManifest(doc, { resolve: () => null });
+  const items = m.groups.flatMap((g) => g.items);
+  const target = items.find((i) => String(i.name).includes("握る者闘志"));
+  assert.ok(target, "所持一覧に握る者闘志がある");
+  assert.deepEqual([...target.via], ["夜A"], "支出行からシナリオが判明する");
+  assert.equal(target.source, "buy", "獲得行に無く支出行にあるので購入");
+  assert.equal(target.spends.length, 1, "支出の証跡を持つ");
+  assert.equal(target.spends[0].shards, 210, "支出額 210 欠片を写す");
+  assert.equal(target.needsAttribution, undefined, "帰属が決まったので選ばせない");
+  assert.equal(m.attribution.matched, 1, "matched に数える");
+  assert.equal(m.attribution.matchedBySpend, 1, "支出由来として数える");
+  assert.equal(m.counts.boughtViaSpend, 1);
+});
+
+test("装飾ゆれ（【…】/[MAX]/の人格）でも照合し、ゆれ一致は印が付く", () => {
+  const M = loadImportWithMemo();
+  const doc = {
+    currency: { lp: 0, fragments: 0 },
+    owned: { personas: [{ name: "【同期000】テストの人格" }], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{ name: "夜B", memo: "人格抽出チケット：テストの人格" }]
+  };
+  const m = M.buildManifest(doc, { resolve: () => null });
+  const items = m.groups.flatMap((g) => g.items);
+  const target = items.find((i) => String(i.name).includes("テスト"));
+  assert.ok(target, "所持一覧にテストの人格がある");
+  assert.deepEqual([...target.via], ["夜B"], "装飾を落として照合できる");
+  assert.equal(target.matchTier, "loose", "ゆれ一致として印が付く");
+  assert.equal(target.needsAttribution, undefined, "帰属が決まったので選ばせない");
+  assert.equal(m.attribution.matchedByLoose, 1);
+});
+
+test("ゆれ鍵が所持側で重複するときは決めない（同期0とMAXの取り違え防止）", () => {
+  const M = loadImportWithMemo();
+  const doc = {
+    currency: { lp: 0, fragments: 0 },
+    owned: {
+      personas: [{ name: "テストの人格" }, { name: "【MAX】テストの人格" }],
+      egos: [], supportPassives: [], spirits: []
+    },
+    scenarioHistory: [{ name: "夜C", memo: "ガチャ結果→テスト" }]
+  };
+  const m = M.buildManifest(doc, { resolve: () => null });
+  const items = m.groups.flatMap((g) => g.items).filter((i) => String(i.name).includes("テスト"));
+  assert.equal(items.length, 2);
+  for (const item of items) {
+    assert.equal(item.matchTier, "", "重複するゆれ鍵では照合しない");
+    assert.equal(item.needsAttribution, true, "帰属先は利用者が選ぶ");
+    assert.deepEqual([...item.via], []);
+  }
 });
 
 test("取り込み: 所持だけ入れず reducer の購入経路に預ける（番号は数値のまま預ける）", () => {
@@ -490,7 +558,7 @@ test("取り込み: シナリオ1件ごとに ADD_RESULT が出て、ADD_ENTRY �
   const types = [...built.actions.map((a) => a.type)];
   assert.deepEqual(types, ["ADD_RESULT", "ADD_ENTRY", "ADD_RESULT"]);
   assert.equal(built.actions[0].name, "第一夜");
-  /* 支出明細は直前のリザルトに歸属する。順序が崩れると明細が別の夜に入る。 */
+  /* 支出明細は直前のリザルトに帰属する。順序が崩れると明細が別の夜に入る。 */
   assert.equal(built.actions[1].kind, "spirit");
   assert.equal(built.actions[2].name, "第二夜");
 });

@@ -7,7 +7,9 @@ import vm from "node:vm";
    取り込みは 1 手で終わらせる（APPLY_IMPORT_BATCH）。
 
    守るべき性質:
-     - ADD_RESULT の直後の ADD_ENTRY はそのリザルトに歸属する
+     - ADD_RESULT の直後の ADD_ENTRY はそのリザルトに帰属する
+     - 所持の action は via（シナリオ名）から該当リザルトへ帰属し、
+       引けない・曖昧なときは未分類のまま（勝手に決めない）
      - 購入履歴の金額が resultId 付きで入る（未分類のままにならない）
      - UNDO 1 回で全部戻る（state は 1 回の遷移）
      - 壊れた子 action があっても全体が落ちない
@@ -54,7 +56,7 @@ function baseState() {
   };
 }
 
-test("ADD_RESULT の直後の ADD_ENTRY はそのリザルトに歸属する", () => {
+test("ADD_RESULT の直後の ADD_ENTRY はそのリザルトに帰属する", () => {
   const before = baseState();
   const after = reducer(before, {
     type: "APPLY_IMPORT_BATCH",
@@ -67,8 +69,8 @@ test("ADD_RESULT の直後の ADD_ENTRY はそのリザルトに歸属する", (
   });
   assert.equal(after.results.length, 2, "リザルトが 2 件");
   assert.equal(after.entries.length, 2, "明細が 2 件");
-  assert.equal(after.entries[0].resultId, after.results[0].id, "1件目は第1回に屬属");
-  assert.equal(after.entries[1].resultId, after.results[1].id, "2件目は第2回に歸属");
+  assert.equal(after.entries[0].resultId, after.results[0].id, "1件目は第1回に帰属");
+  assert.equal(after.entries[1].resultId, after.results[1].id, "2件目は第2回に帰属");
 });
 
 test("明示した resultId は上書きしない", () => {
@@ -95,7 +97,7 @@ test("UNDO 1 回で全部戻る（1 回の reducer 呼び出しで全部入る�
   assert.ok(after.results.length > before.results.length, "リザルトが増えている");
   assert.ok(after.entries.length > before.entries.length, "明細が増えている");
   assert.equal(after.entries[after.entries.length - 1].resultId, after.results[after.results.length - 1].id,
-    "明細はリザルトに屬属");
+    "明細はリザルトに帰属");
   /* React 側の履歴は dispatch 1 回につき 1 個。batch は dispatch 1 回なので
      UNDO 1 回で before に戻る。 */
 });
@@ -119,4 +121,60 @@ test("空の batch は何もしない", () => {
   const before = baseState();
   const after = reducer(before, { type: "APPLY_IMPORT_BATCH", actions: [] });
   assert.equal(after, before, "同じ state");
+});
+
+test("所持の action は via のシナリオ名から正しいリザルトへ帰属する（リザルトより先に並んでも）", () => {
+  const sppName = db.support_passives.find((s) => s && s.name).name;
+  const after = reducer(baseState(), {
+    type: "APPLY_IMPORT_BATCH",
+    actions: [
+      { type: "ADD_ROSTER_SUPPORT", spp: { name: sppName }, via: ["闇鍋"] },
+      { type: "ADD_RESULT", name: "闇鍋", income: { lp: 0, shards: 0 } },
+      { type: "ADD_RESULT", name: "別の夜", income: { lp: 0, shards: 0 } }
+    ]
+  });
+  const nakamiId = after.results[0].id;
+  assert.equal(after.roster.supports.length, 1, "所持に入る");
+  assert.equal(after.roster.supports[0].resultId, nakamiId, "所持は via の闇鍋へ帰属");
+  assert.equal(after.entries.length, 1, "サポートの明細が出る");
+  assert.equal(after.entries[0].resultId, nakamiId, "明細も同じリザルトへ");
+});
+
+test("via が同名複数のリザルトにまたがるなら勝手に決めない（未分類）", () => {
+  const sppName = db.support_passives.find((s) => s && s.name).name;
+  const after = reducer(baseState(), {
+    type: "APPLY_IMPORT_BATCH",
+    actions: [
+      { type: "ADD_RESULT", name: "闇鍋", income: { lp: 0, shards: 0 } },
+      { type: "ADD_RESULT", name: "闇鍋", income: { lp: 0, shards: 0 } },
+      { type: "ADD_ROSTER_SUPPORT", spp: { name: sppName }, via: ["闇鍋"] }
+    ]
+  });
+  assert.equal(after.roster.supports[0].resultId, null, "同名 2 件は未分類");
+  assert.equal(after.entries[0].resultId, null, "明細も未分類");
+});
+
+test("via がバッチ内のリザルトに一致しなければ未分類（直前へ倒さない）", () => {
+  const sppName = db.support_passives.find((s) => s && s.name).name;
+  const after = reducer(baseState(), {
+    type: "APPLY_IMPORT_BATCH",
+    actions: [
+      { type: "ADD_RESULT", name: "夜A", income: { lp: 0, shards: 0 } },
+      { type: "ADD_ROSTER_SUPPORT", spp: { name: sppName }, via: ["選択しなかった夜"] }
+    ]
+  });
+  assert.equal(after.roster.supports[0].resultId, null, "不一致は未分類");
+});
+
+test("シナリオの獲得一覧（via 無し）の所持は直前のリザルトへ帰属する", () => {
+  const spiritName = db.spirits.find((s) => s && s.name).name;
+  const after = reducer(baseState(), {
+    type: "APPLY_IMPORT_BATCH",
+    actions: [
+      { type: "ADD_RESULT", name: "獲得上の夜", income: { lp: 0, shards: 0 } },
+      { type: "ADD_ROSTER_SPIRIT", spirit: { name: spiritName } }
+    ]
+  });
+  assert.equal(after.roster.spirits[0].resultId, after.results[0].id, "直前のリザルトへ");
+  assert.equal(after.entries[0].resultId, after.results[0].id);
 });

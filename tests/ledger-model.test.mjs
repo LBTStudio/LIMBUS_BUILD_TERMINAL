@@ -8,7 +8,7 @@ import vm from "node:vm";
 
    守るべき性質:
      - 残高は保存せず、収入合計 − 支出合計として必ず導出できる
-     - 歸属（resultId）を差し替えても明細は消えない
+     - 帰属（resultId）を差し替えても明細は消えない
      - リザルトを消しても明細は残る（支出額が失われると残高が狂う）
      - 存在しないリザルトを指す明細は未分類へ戻る
      - 通貨は LP と欠片の2種に揃い、壊れた入力でも計算が壊れない
@@ -79,7 +79,7 @@ test("支出明細は収入から差し引く（LP と 欠片を別口座で扱�
   assert.equal(b.spentShards, 5);
 });
 
-test("歸属の差し替えだけで、連載ごとの収支が変わる（明細は消えない）", () => {
+test("帰属の差し替えだけで、連載ごとの収支が変わる（明細は消えない）", () => {
   let s = reducer(baseState(), { type: "ADD_RESULT", name: "A", income: { lp: 1000, shards: 0 } });
   const aId = s.results[0].id;
   s = reducer(s, { type: "ADD_RESULT", name: "B", income: { lp: 1000, shards: 0 } });
@@ -96,7 +96,7 @@ test("歸属の差し替えだけで、連載ごとの収支が変わる（明�
   assert.equal(balance(s.results, s.entries).lp, 1985, "残高は変わらない（支出は起きたまま）");
 });
 
-test("未分類の明細は件数が分かる（歸属し忘れに気付ける）", () => {
+test("未分類の明細は件数が分かる（帰属し忘れに気付ける）", () => {
   let s = reducer(baseState(), { type: "ADD_RESULT", name: "A", income: { lp: 100 } });
   const aId = s.results[0].id;
   s = reducer(s, { type: "ADD_ENTRY", kind: "item", name: "包帯", cost: { lp: 15 } });
@@ -166,7 +166,7 @@ test("手動の支出（DBに価格が無いもの）を記録できる", () => 
   let s = reducer(baseState(), { type: "ADD_RESULT", name: "A", income: { lp: 500 } });
   s = reducer(s, { type: "ADD_ENTRY", kind: "expense", name: "自作のトークン", cost: { lp: 40, shards: 3 } });
   assert.equal(s.entries[0].kind, "expense");
-  assert.equal(s.entries[0].resultId, null, "歸属は未分類（後から振る）");
+  assert.equal(s.entries[0].resultId, null, "帰属は未分類（後から振る）");
   assert.equal(balance(s.results, s.entries).lp, 460);
   assert.equal(balance(s.results, s.entries).shards, -3);
 });

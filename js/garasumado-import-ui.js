@@ -211,7 +211,9 @@ item.decide ? h("div", { className: "gara-decide" },
             (item.sourceOptions || []).map((s) => h("option", { key: s.id, value: s.id }, s.label))
           )
         ),
-        (item.via && item.via.length) ? h("p", { className: "gara-note" }, `履歴から判明：${item.via.join(" / ")}`) : null
+        (item.via && item.via.length)
+          ? h("p", { className: "gara-note" }, `履歴から判明：${item.via.join(" / ")}${item.matchTier === "loose" ? "（表記ゆれ照合）" : ""}`)
+          : null
       ) : null,
       h("button", {
         type: "button",
@@ -407,7 +409,7 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
   };
 
   /* 選択されたものを action の列にする。購入明細は「どのシナリオの支出か」
-      を維持したまま渡す。順番は APPLY_IMPORT_BATCH が歸属を解決する。 */
+      を維持したまま渡す。順番は APPLY_IMPORT_BATCH が帰属を解決する。 */
   const apply = () => {
     if (!manifest) return;
     const keys = Object.keys(picked).filter((k) => picked[k]);
@@ -419,7 +421,7 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
       if (picks.length) purchases[op.key] = picks;
     }
 const result = window.LBT_toDispatchActions?.(merged, keys, { purchases }) || { actions: [], skipped: [] };
-  /* manifest と選択キーは「記録へ歸属する明細」を作るために必要。
+  /* manifest と選択キーは「記録へ帰属する明細」を作るために必要。
      既存の利用側（アカウント編集）は読まないので、壊さず足すだけで済む。 */
   onApply?.({ actions: result.actions, skipped: result.skipped, rosterActions: result.actions, manifest, keys });
   onClose?.();

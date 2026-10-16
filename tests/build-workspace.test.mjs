@@ -584,7 +584,7 @@ test("硝子窓は入力方向だけを持つ（出力の変換は撤去した�
 
 test("硝子窓の取り込み画面は既存の利用側を壊さず足し物（manifest と選択キーを渡す）", () => {
   const ui = read("../js/garasumado-import-ui.js");
-  /* manifest と選択キーは「記録へ歸属させる明細」を作るために必要。
+  /* manifest と選択キーは「記録へ帰属させる明細」を作るために必要。
      アカウント引き継ぎとして使うなら、面板側は中立なまま。 */
   assert.match(ui, /onApply\?\.\(\{ actions: result\.actions, skipped: result\.skipped, rosterActions: result\.actions, manifest, keys \}\)/);
   /* 購入明細は「どのシナリオの支出か」を保ったまま渡す。 */
@@ -714,7 +714,7 @@ test("硝子窓の取り込みはリザルトに押し込まずアカウント�
   /* 重ねて常時3つ並べない */
   assert.doesNotMatch(led, /card-header[\s\S]{0,320}硝子窓から一括取り込む[\s\S]{0,120}テキスト流し込み[\s\S]{0,200}所持人格リスト/);
    assert.doesNotMatch(led, /ledger-card-menu/);
-  /* シナリオ1件 = リザルト1件。順序が歸属を決める。
+  /* シナリオ1件 = リザルト1件。順序が帰属を決める。
      収入は opts.income の空値ではなく、memo パーサが読んだ実額が入る。 */
   assert.match(read("../js/garasumado-roster-import.js"), /actions\.push\(\{\s*\n\s*type: "ADD_RESULT",\s*\n\s*name: scenario\.name/);
   assert.match(read("../js/garasumado-roster-import.js"), /lp: income\.lp \|\| 0,\s*\n\s*shards: income\.shards \|\| 0,\s*\n\s*tickets:/);
@@ -783,7 +783,7 @@ test("削除は Undo/Redo が効く即時削除で、ごみ箱は置かない", 
   assert.doesNotMatch(reducer, /if \(entry\?\.trashedAt\) continue;/);
   /* 保存済みのゴミ箱時代の明細は、その場で通常明細へ戻す。 */
   assert.match(reducer, /const \{ trashedAt, \.\.\.rest \} = e;/);
-  /* 歸属を外す（未分類へ戻す）と削除は別ボタン。 */
+  /* 帰属を外す（未分類へ戻す）と削除は別ボタン。 */
   assert.match(led, /className: "ledger-row-release"[\s\S]{0,320}?moveEntry\(entry\.id, null\)/);
   /* リザルトの行もドラッグで移せる。 */
   assert.match(led, /className: "ledger-row is-owned", \.\.\.dragProps\(entry\)/);

@@ -126,7 +126,7 @@ test("欠片を使った明細と併用しても両方が正しく効く", () =>
   const b = balance(s.results, s.entries);
   assert.equal(b.lp, 980, "明細は LP を引かない");
   assert.equal(b.shards, -20, "30 使い、10 得た");
-  assert.equal(b.unclassified, 0, "歸属済みなので未分類に増えない");
+  assert.equal(b.unclassified, 0, "帰属済みなので未分類に増えない");
 });
 
 /* --- 編集 --------------------------------------------------------------- */

@@ -111,34 +111,120 @@
       .toLowerCase();
   }
 
+  /* 支出行は「名前 金額通貨（消費/購入）」の 1 行なので、照合には
+     末尾の金額通貨と動詞を落とした名前を使う。
+     「切り伏せる斬撃 150LP消費」「握る者闘志 210欠片」→ 名前だけ。 */
+  function spendNameOf(spend) {
+    let text = String((spend && spend.name) || "").trim();
+    for (let i = 0; i < 3; i += 1) {
+      const cleaned = text
+        .replace(/[0-9０-９]+\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|枚)\s*(?:消費|購入|使用)?\s*へ?\s*$/i, "")
+        .trim();
+      if (!cleaned || cleaned === text) break;
+      text = cleaned;
+    }
+    return text.replace(/(?:消費|購入|使用|行使|要した|支出|支払|補充|回復|切替)+$/g, "").trim();
+  }
+
   /* 所持一覧とシナリオ履歴を突き合わせて、どのシナリオで手に入れたかを求める。
-     共有データの owned には入手元の列が無く、シナリオ履歴の獲得idr人だけが
-     手掛かりになる。引けなかったものを消す・推測で埋めることはしない。
-     件数を返して、利用者に「判別できなかった」を知情させる。 */
+     共有データの owned には入手元の列が無く、シナリオ履歴の獲得記述（獲得行と
+     支出行）だけが手掛かりになる。引けなかったものを消す・推測で埋めることはしない。
+     件数を返して、利用者に「判別できなかった」を通知する。 */
   function attributeOwned(groups, scenarios) {
     const byKey = new Map();
+    const slotOf = (key) => {
+      if (!byKey.has(key)) byKey.set(key, { via: [], wins: [], spends: [] });
+      return byKey.get(key);
+    };
+    /* 表示ゆれの照合。所持側の名前は【同期000】や [MAX] などの装飾を
+       持ち、獲得行は素の名前で書かれがち。装飾を落とした鍵でも引く。
+       ゆれ一致は衝突しやすいので、所持側で鍵が重複するときは決めない。 */
+    const looseKey = (s) => nameKey(String(s || "")
+      .replace(/【[^】]*】/g, "")
+      .replace(/\[[^\]]*\]/g, "")
+      .replace(/（[^）]*）|\([^)]*\)/g, "")
+      .replace(/MAX|max|専用|の人格/g, ""));
+    const byLoose = new Map();
+    const looseSlotOf = (key) => {
+      if (!byLoose.has(key)) byLoose.set(key, { via: [], wins: [], spends: [] });
+      return byLoose.get(key);
+    };
     for (const scenario of scenarios) {
       const name = String(scenario.name || "").trim();
       if (!name) continue;
       for (const win of scenario.wins || []) {
-        const key = nameKey(win.raw || win.name);
-        if (!key) continue;
-        if (!byKey.has(key)) byKey.set(key, { via: [], wins: [] });
-        const slot = byKey.get(key);
-        if (!slot.via.includes(name)) slot.via.push(name);
-        slot.wins.push({ scenario: name, raw: win.raw || win.name, via: win.via || "" });
+        const rawName = win.raw || win.name;
+        const key = nameKey(rawName);
+        const loose = looseKey(rawName);
+        if (key) {
+          const slot = slotOf(key);
+          if (!slot.via.includes(name)) slot.via.push(name);
+          slot.wins.push({ scenario: name, raw: rawName, via: win.via || "" });
+        }
+        if (loose) {
+          const slot = looseSlotOf(loose);
+          if (!slot.via.includes(name)) slot.via.push(name);
+          if (!slot.wins.some((w) => w.raw === rawName)) {
+            slot.wins.push({ scenario: name, raw: rawName, via: win.via || "" });
+          }
+        }
+      }
+      /* 支出行も入手の痕跡。買ったものは所持一覧に載る。 */
+      for (const spend of scenario.spends || []) {
+        const spendName = spendNameOf(spend);
+        const key = nameKey(spendName);
+        const loose = looseKey(spendName);
+        if (!key && !loose) continue;
+        const evidence = {
+          scenario: name,
+          name: String(spend.name || "").trim(),
+          lp: Number(spend.lp || 0),
+          shards: Number(spend.shards || 0)
+        };
+        if (key) {
+          const slot = slotOf(key);
+          if (!slot.via.includes(name)) slot.via.push(name);
+          slot.spends.push(evidence);
+        }
+        if (loose) {
+          const slot = looseSlotOf(loose);
+          if (!slot.via.includes(name)) slot.via.push(name);
+          if (!slot.spends.some((s) => s.name === evidence.name)) slot.spends.push(evidence);
+        }
+      }
+    }
+    /* 所持側のゆれ鍵の重複数（同期0とMAXなど）。重複した鍵は決めない。 */
+    const looseCounts = new Map();
+    for (const group of groups) {
+      for (const item of group.items) {
+        const loose = looseKey(item.name);
+        if (loose) looseCounts.set(loose, (looseCounts.get(loose) || 0) + 1);
       }
     }
     let matched = 0;
     let unmatched = 0;
+    let matchedBySpend = 0;
+    let matchedByLoose = 0;
     let needsIdentity = 0;
     const unmatchedNames = [];
     for (const group of groups) {
       for (const item of group.items) {
-        const hit = byKey.get(nameKey(item.name));
+        let hit = byKey.get(nameKey(item.name));
+        let tier = hit ? "exact" : "";
+        if (!hit) {
+          const loose = looseKey(item.name);
+          if (loose && looseCounts.get(loose) === 1 && byLoose.has(loose)) {
+            hit = byLoose.get(loose);
+            tier = "loose";
+          }
+        }
         item.via = hit ? hit.via : [];
         item.wins = hit ? hit.wins : [];
-        item.source = guessSource(item.wins);
+        item.spends = hit ? hit.spends : [];
+        item.matchTier = tier;
+        item.source = guessSource(item.wins, item.spends);
+        if (tier === "loose") matchedByLoose += 1;
+        if (item.wins.length === 0 && item.spends.length > 0) matchedBySpend += 1;
         if (item.needsIdentity) needsIdentity += 1;
         if (item.via.length) matched += 1;
         else {
@@ -151,7 +237,7 @@
         }
       }
     }
-    return { matched, unmatched, needsIdentity, unmatchedNames };
+    return { matched, unmatched, matchedBySpend, matchedByLoose, needsIdentity, unmatchedNames };
   }
 
   /* 入手方法の初期値。履歴の書き方から分かるものはそのまま入れ、
@@ -162,21 +248,23 @@ const SOURCES = [
     { id: "given", label: "配布" }
   ];
 
-  function guessSource(wins) {
+  function guessSource(wins, spends) {
     for (const win of wins || []) {
       const text = `${win.via || ""} ${win.raw || ""}`;
-      if (/抽劵|チケット/.test(text)) return "ticket";
+      if (/抽選|チケット/.test(text)) return "ticket";
     }
+    /* 獲得行に無く支出行にあるなら購入。 */
+    if ((spends || []).length) return "buy";
     return "";
   }
 
 /* 名前から DB の行を列挙する。索引の resolve は「1 つに絞った答え」しか
    返さないため、所持項目のように同名・異種が混在しうる場面では
    候補そのものを利用者に選ばせる必要がある。
-   候補を 0 件のまま確定にはしない（推測はしない）。 */
-/* 索引の候補を「1 行的zeniaユーザが選べる項目」へ平坦化する。
-   resolve は先頭 1 件しか返さないため、同名複数がある这个名字とは限らない。
-   名前の比較だけでは 이런 ambiguity は出ない。 */
+   候補を 0 件のまま確定にはしない（推測はしない）。
+   索引の候補を「1 行 = 利用者が選べる項目」へ平坦化する。
+   resolve は先頭 1 件しか返さないため、同名複数があると名前だけでは
+   区別できない。 */
 function toIdentityChoices(hits) {
   const out = [];
   for (const hit of hits || []) {
@@ -223,7 +311,7 @@ function toIdentityChoices(hits) {
             /* 入手方法（抽出/チケット/配布）。シナリオ履歴の記載から
                推定できるものは初期値にし、違うものは利用者が変える。 */
             source: "",
-            /* 照合で見つかった獲得idrの明細（シナリオ名と書き方）。 */
+            /* 照合で見つかった獲得の明細（シナリオ名と書き方）。 */
             wins: []
           };
         })
@@ -305,7 +393,7 @@ function toIdentityChoices(hits) {
       },
       groups,
       scenarios,
-      /* 所持品の歸属照合結果。matched=どのシナリオか判明、unmatched=履歴に記載なし。 */
+      /* 所持品の帰属照合結果。matched=どのシナリオか判明、unmatched=履歴に記載なし。 */
       attribution,
       counts: {
         personas: groups[0].items.length,
@@ -315,7 +403,11 @@ function toIdentityChoices(hits) {
         scenarios: scenarios.length,
         unresolved: groups.reduce((n, g) => n + g.items.filter((i) => !i.resolved).length, 0),
         attributed: attribution.matched,
-        unattributed: attribution.unmatched
+        unattributed: attribution.unmatched,
+        /* 支出行（購入）との照合で帰属が決まった数。 */
+        boughtViaSpend: attribution.matchedBySpend,
+        /* 表記ゆれ照合で帰属が決まった数（完全一致は含まない）。 */
+        matchedByLoose: attribution.matchedByLoose
       }
     };
   }
@@ -387,10 +479,10 @@ function toIdentityChoices(hits) {
           actions.push({ type: "ADD_ROSTER_EGO", no: String(ego.no), rank: ego.rank, via, source: item.source || "", purchase: item.source === "buy" });
         } else if (group.id === "supportPassives") {
           if (!support) { skipped.push({ key: item.key, reason: "DB番号が引けない" }); continue; }
-          actions.push({ type: "ADD_ROSTER_SUPPORT", spp: { name: support.name || item.dbName || item.name } });
+          actions.push({ type: "ADD_ROSTER_SUPPORT", spp: { name: support.name || item.dbName || item.name }, via });
         } else if (group.id === "spirits") {
           if (!spirit) { skipped.push({ key: item.key, reason: "DB番号が引けない" }); continue; }
-          actions.push({ type: "ADD_ROSTER_SPIRIT", spirit: { name: spirit.name || item.dbName || item.name } });
+          actions.push({ type: "ADD_ROSTER_SPIRIT", spirit: { name: spirit.name || item.dbName || item.name }, via });
         } else {
           skipped.push({ key: item.key, reason: "未知のグループ" });
         }
@@ -399,11 +491,11 @@ function toIdentityChoices(hits) {
 
     /* シナリオ履歴。選択した分を「結果」として作り、そのシナリオの
        購入候補（選ばれたもの）を支出明細として続ける。
-       順序が意味を持つ: ADD_ENTRY は直前の ADD_RESULT に歸属する。
+       順序が意味を持つ: ADD_ENTRY は直前の ADD_RESULT に帰属する。
 
        収入と支出は scenarioHistory[].memo から読む。memo は自由記述なので
        専用パーサに任せる（LBT_garaMemo.parseMemo）。読めなかった行は
-       金額を入れず、理由だけ总署利用者へ返す。 */
+       金額を入れず、理由だけを利用者へ返す。 */
     const purchases = opts.purchases || {};
     for (const scenario of (manifest && manifest.scenarios) || []) {
       if (!selected.has(scenario.key)) continue;

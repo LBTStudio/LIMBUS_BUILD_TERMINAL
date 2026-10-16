@@ -3229,7 +3229,7 @@ const LedgerPanel = ({ state, dispatch }) => {
 
      設計の主意:
        - 残高は自動。手入力ではなく収入（リザルト）と支出（明細）から導く
-       - 歸属は後から変えられる。購入した瞬間にリザルトを選ばせない
+       - 帰属は後から変えられる。購入した瞬間にリザルトを選ばせない
        - ドラッグ&ドロップが主、キーボードからの代替（選択して移動）も用意する
   */
   const [dragId, setDragId] = React.useState(null);
@@ -3483,7 +3483,7 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     const hit = (window.LBT_LEDGER_ENTRY_KINDS || []).find((k) => k.id === id);
     return hit ? hit.label : id || "その他";
   };
-  /* 歸属の移動。ドラッグ中のIDは state と dataTransfer の両方に持たせる。
+  /* 帰属の移動。ドラッグ中のIDは state と dataTransfer の両方に持たせる。
      state だけだと、ドラッグ中に再レンダーが入ったときに古い値を参照して
      drop が無音で失敗する。dataTransfer はドラッグ操作そのものが持つ値なので、
      その操作の中では常に正しい。 */
@@ -3531,7 +3531,7 @@ const readDragId = (event) => {
 
 /* 硝子窓の読み込み結果をアカウント全体へ入れる。
    人格・E.G.O・サポート・パッシブ・精神・アイテムが manifest 経由で並ぶ。
-   1件のリザルトへ押し込まない（持ち主のない所持と歸属のない支出が残るため）。
+   1件のリザルトへ押し込まない（持ち主のない所持と帰属のない支出が残るため）。
    APPLY_IMPORT_BATCH が ADD_RESULT と ADD_ENTRY の紐付けを解決し、Undo 1 回で戻る。 */
 const applyGarasumadoImport = (applied) => {
   const actions = applied?.actions || applied?.rosterActions || [];
@@ -3597,7 +3597,7 @@ const applyTextImport = () => {
   toast("取り込みました");
 };
 
-/* 手動支出・消耗の記録。歸属は未分類で入れる（後からドラッグで振る）。 */
+/* 手動支出・消耗の記録。帰属は未分類で入れる（後からドラッグで振る）。 */
 const addEntry = () => {
   const name = String(newEntry.name || "").trim();
   if (!name) return;
@@ -4160,7 +4160,7 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
       )
     ),
 
-    /* 未分類。ここが歸属待ちの队列。空でも受け皿として残す。 */
+    /* 未分類。ここが帰属待ちのキュー。空でも受け皿として残す。 */
     h("div", {
       className: `ledger-card-wrap${overId === "__queue" ? " is-over" : ""}`,
       ...dropTargetProps("__queue")
@@ -4168,7 +4168,7 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
     h(Card, { className: "ledger-queue" },
       h("div", { className: "card-header owned-library-bar" },
         h("span", { className: "t-label" }, "未分類"),
-        h("span", { className: "ledger-note" }, "リザルトへ持って行くか、移動ボタンで歸属できます")
+        h("span", { className: "ledger-note" }, "リザルトへ持って行くか、移動ボタンで帰属できます")
       ),
       h("div", { className: "card-body stack-2" },
         unclassified.length === 0
@@ -4184,7 +4184,7 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
           h("span", { className: "ledger-row-cost" }, entry.cost?.lp ? `${entry.cost.lp}LP` : entry.cost?.shards ? `${entry.cost.shards}SHARD` : "—"),
           h("select", {
             className: "ledger-row-move",
-            "aria-label": `${entry.name} の歸属先`,
+            "aria-label": `${entry.name} の帰属先`,
             value: "",
             onChange: (e) => { if (e.target.value) moveEntry(entry.id, e.target.value); }
           }, h("option", { value: "" }, "移動先"), results.map((r) => h("option", { key: r.id, value: r.id }, r.name))),
@@ -4209,7 +4209,7 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
     h("div", { className: "ledger-cards" },
       results.length === 0 && h(Card, null,
         h("div", { className: "empty", style: { padding: "var(--s-4)" } },
-          "まだリザルトがありません。上で獲得LPと欠片を記録すると、所持したものの歸属先になります。")
+          "まだリザルトがありません。上で獲得LPと欠片を記録すると、所持したものの帰属先になります。")
       ),
       results.map((result) => {
         const rows = byResult(result.id);
@@ -4256,22 +4256,22 @@ h(Card, { className: "ledger-card" },
                 ? resultTicketChips(result).map((t) => h("span", { key: t.key, className: "gacha-held-ticket" }, `${t.label} ×${t.count}`))
                 : h("span", { className: "ledger-note" }, "未記録")),
             rows.length === 0
-              ? h("p", { className: "ledger-empty-note" }, "未分類の明細をここへドラッグするか、移動ボタンで歸属します。")
+              ? h("p", { className: "ledger-empty-note" }, "未分類の明細をここへドラッグするか、移動ボタンで帰属します。")
               : h("div", { className: "stack-2" }, rows.map((entry) => h("div", { key: entry.id, className: "ledger-row is-owned", ...dragProps(entry) },
                   h("span", { className: "ledger-row-name" }, entry.name),
                   h("span", { className: "ledger-row-kind" }, kindLabel(entry.kind)),
                   h("span", { className: "ledger-row-cost" }, entry.cost?.lp ? `${entry.cost.lp}LP` : entry.cost?.shards ? `${entry.cost.shards}SHARD` : "—"),
                   h("select", {
                     className: "ledger-row-move",
-                    "aria-label": `${entry.name} の歸属先`,
+                    "aria-label": `${entry.name} の帰属先`,
                     value: "",
                     onChange: (e) => { if (e.target.value) moveEntry(entry.id, e.target.value); }
                   }, h("option", { value: "" }, "移動先"), results.filter((r) => r.id !== entry.resultId).map((r) => h("option", { key: r.id, value: r.id }, r.name))),
                   h("button", {
                     type: "button",
                     className: "ledger-row-release",
-                    title: "歸属を外して未分類へ戻す",
-                    "aria-label": `${entry.name} の歸属を外す`,
+                    title: "帰属を外して未分類へ戻す",
+                    "aria-label": `${entry.name} の帰属を外す`,
                     onClick: () => moveEntry(entry.id, null)
                   }, "解除"),
                   h("button", {
