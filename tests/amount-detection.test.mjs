@@ -98,11 +98,11 @@ test("実データ: 通貨も現在も無い数字行は、全部名前か明記
       if (record.kind !== "registration") continue;
       const line = record.text || "";
       if (!/\d/.test(line)) continue;
-      // 名前に含まれる数字は放置ではない（人���名の一部）。
+  // 名前に含まれる数字は除外ではない（人物名の一部）。
       if (/現在の?\s*\d/.test(line)) { leftovers += 1; examples.push(line); }
     }
   }
-  assert.equal(leftovers, 0, "「現在 + 数字」を置�� 去りにする行が残っている: " + examples.slice(0, 5).join(" / "));
+  assert.equal(leftovers, 0, "「現在 + 数字」を放置扱いにした行が残っている: " + examples.slice(0, 5).join(" / "));
 });
 
 test("実データ: 推測として拾った行はすべて LP 金額の形", () => {

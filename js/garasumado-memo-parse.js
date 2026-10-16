@@ -280,7 +280,7 @@
      （さreon「欠片」だけの行を名前と誤判定して通過させない） */
   function isTotalOnlyLine(line) {
     var t = String(line).replace(/現在|残/g, "").trim();
-    /* 通貨名だけ刈り取って���から、漢字/ラテンが残るか見る。 */
+    /* 通貨名だけ刈り取ったあと、漢字/ラテンが残るか見る。 */
     var stripped = t.replace(/LP|欠片|かけら|欠けら|カケラ/gi, " ").trim();
     if (/[A-Za-zぁ-んァ-ヶ一-龠]/.test(stripped)) return false;
     /* 通貨名を落とした残りが「数値と空白だけ」なら合計行。 */

@@ -179,7 +179,7 @@
   }
 
   /* 明細の種別。解決器が种类を返したらそれを優先し、なければ名前から推測した
-     ヒントを使う。どれにも当たらないものは手動支出（要把判断留给用户）。 */
+  ヒントを使う。どれにも当たらないものは手動支出（判断は利用者に残す）。 */
   function kindOf(spend, resolve) {
     const hit = typeof resolve === "function" ? resolve(spend.name) : null;
     const kinds = (hit && hit.kinds) || [];

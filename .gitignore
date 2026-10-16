@@ -17,6 +17,11 @@ AGENTS.md
 ogp-gateway/.wrangler/
 # Root-level scratch scripts and raw PDF extraction dumps.
 tmp_*.*
+# 診断・計測スクリプトの置き場所。
+# %TEMP% 配下は write ツールと node が見るファイルシステムが別レイヤになる
+# ことがある（書いたスクリプトが "Cannot find module" になる）。
+# 書き込みと実行を同じリポジトリ内に置けば確実に見える。
+tmp/
 # tempfile.TemporaryDirectory(dir=ROOT) の残骸。8文字のランダム名なので
 # tmp_*.* （拡張子必須）に一致せず、未追跡に漏れていた。
 tmp????????/

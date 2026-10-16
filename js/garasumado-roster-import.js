@@ -885,7 +885,7 @@ function toIdentityChoices(hits) {
        「シミュレーションに出す品目」と「実際に入る品目」がずれる（実測4文書でずれた）。
        入手方法が未決の品目は toDispatchActions 側で skip される。ここでは，特别是在手を出さない。 */
     const selected = Array.isArray(opts.selected) ? opts.selected.slice() : [];
-    /* 利用者が選択した品目は「入れる」と決めたMCsのもの。入手方法を決めて
+    /* 利用者が選択した品目は「入れる」と決めたもの。入手方法を決めて
        いないなら配布として扱う（配布は費用ゼロなので、勝手に購入にはしない）。
        そうしないと「チェックしたのに何も入らない」状態になる。 */
     const chosenKeys = new Set(opts.selected || []);
