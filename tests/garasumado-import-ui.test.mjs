@@ -61,6 +61,25 @@ test("選択状態は draft にも渡る（シミュレーションの取り込�
   assert.match(ui, /selected: chosen,/);
 });
 
+test("確定の瞬間がコンバート確定になる（確定前は反映されない）", () => {
+  /* シミュレーションは「反映前の1手前」。確定ボタンを押した瞬間に確定する。 */
+  assert.match(ui, /const \[confirmed, setConfirmed\] = React\.useState\(null\);/);
+  assert.match(ui, /onApply\?\.\(applied\);/);
+  /* 確定したら自動で閉じず、結果を見せる（確認してから閉じる）。 */
+  assert.doesNotMatch(ui, /onApply\?\.\([\s\S]{0,160}?onClose\?\.\(\);/);
+  assert.match(ui, /\}, "変換を確定する"\)/);
+  assert.match(ui, /"変換を確定しました"/);
+  assert.match(ui, /h\(Button, \{ size: "sm", variant: "primary", icon: "check", onClick: onClose \}, "閉じる"\)/);
+});
+
+test("確定結果は実際に入った action の内訳", () => {
+  assert.match(ui, /function appliedSummary\(actions\)/);
+  assert.match(ui, /setConfirmed\(\{[\s\S]{0,80}?counts: appliedSummary\(result\.actions\)/);
+  /* シミュレーションと食い違ったら知らせる（表示と実体のずれを隠さない）。 */
+  assert.match(ui, /const mismatched = Boolean\(sim\) && sim\.held !== confirmed\.counts\.held;/);
+  assert.match(ui, /シミュレーション（所持/);
+});
+
 test("GarasumadoGroup（1件ずつ並べる一覧）は画面から消えている", () => {
   /* 定義が残っていても、画面から描画されていないこと。 */
   assert.doesNotMatch(ui, /h\(GarasumadoGroup, \{/);

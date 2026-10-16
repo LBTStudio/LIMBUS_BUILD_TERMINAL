@@ -20,7 +20,18 @@
 const h = React.createElement;
 
 /* 金額を1行で読む。両方あれば「LP・欠片」、片方だけならその通货。 */
-const moneyText = (price) => {
+/* 確定結果に出す action 名の日本語。 */
+  const ACTION_LABEL = {
+    ADD_RESULT: "記録（リザルト）",
+    ADD_ENTRY: "明細",
+    ADD_ROSTER: "人格",
+    ADD_ROSTER_EGO: "E.G.O",
+    ADD_ROSTER_SUPPORT: "サポート",
+    ADD_ROSTER_SPIRIT: "精神",
+    SPEND_TICKET: "チケット消費"
+  };
+
+  const moneyText = (price) => {
   if (!price) return "価格なし";
   if (price.lp && price.shards) return `${price.lp} LP・${price.shards} 欠片`;
   if (price.lp) return `${price.lp} LP`;
@@ -471,6 +482,9 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
   /* 帰属先と入手方法の選択は UI 状態として持つ。manifest を直接書き直すと
      再描画で直前の選択が落ちるため、manifest は読み取り専用のままにする。 */
   const [identity, setIdentity] = React.useState({});
+  /* 確定後の結果。シミュレーションは「反映前の1手前」なので、
+     確定した時点で入る内容を残し、自動で閉じずに確認できるようにする。 */
+  const [confirmed, setConfirmed] = React.useState(null);
   const onPickIdentity = (itemKey, next) => {
     setIdentity((prev) => ({ ...prev, [itemKey]: { ...(prev[itemKey] || {}), ...next } }));
     setPicked((prev) => ({ ...prev, [itemKey]: true }));
@@ -549,9 +563,27 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
 const result = window.LBT_toDispatchActions?.(merged, keys, { purchases }) || { actions: [], skipped: [] };
   /* manifest と選択キーは「記録へ帰属する明細」を作るために必要。
      既存の利用側（アカウント編集）は読まないので、壊さず足すだけで済む。 */
-  onApply?.({ actions: result.actions, skipped: result.skipped, rosterActions: result.actions, manifest, keys });
-  onClose?.();
+  const applied = { actions: result.actions, skipped: result.skipped, rosterActions: result.actions, manifest, keys };
+  onApply?.(applied);
+  /* ここでコンバート確定。画面は閉じずに確定結果を見せる。 */
+  setConfirmed({
+    counts: appliedSummary(result.actions),
+    skipped: applied.skipped || [],
+    simulation: draft ? draft.simulation : null
+  });
 };
+
+/* 実際に入る action の内訳。シミュレーションと同じ数のはずなので、
+   食い違えば「表示と実体がずれた」と分かる。 */
+function appliedSummary(actions) {
+  const byType = {};
+  let held = 0;
+  for (const a of actions || []) {
+    byType[a.type] = (byType[a.type] || 0) + 1;
+    if (String(a.type || "").startsWith("ADD_ROSTER")) held += 1;
+  }
+  return { byType, held, total: (actions || []).length };
+}
 
   /* 内訳は3つ。手段の選択が必要なもの・名前が解けないもの・それだけで足りるもの。 */
 /* 帰属先と入手方法が未決の項目。取り込みの完了条件から除く。
@@ -570,6 +602,42 @@ const result = window.LBT_toDispatchActions?.(merged, keys, { purchases }) || { 
     : { total: 0, pickMode: 0, unknownName: 0, included: 0, ops: 0, unknownLine: 0, lineOn: 0 };
 
   if (!manifest) {
+  /* 確定済みなら確定結果だけを出す。シミュレーションは「反映前の1手前」で、
+     確定した内容をそのまま確認できるようにする。画面は自動で閉じない。 */
+  if (confirmed) {
+    const sim = confirmed.simulation;
+    const mismatched = Boolean(sim) && sim.held !== confirmed.counts.held;
+    const typeRows = Object.entries(confirmed.counts.byType)
+      .sort((a, b) => b[1] - a[1])
+      .map(([type, n]) => h("div", { key: type, className: "gara-row" },
+        h("span", { className: "gara-row-name" }, ACTION_LABEL[type] || type),
+        h("span", { className: "gara-row-meta" }, n + "件")
+      ));
+    const lead = "記録 " + (confirmed.counts.byType.ADD_RESULT || 0) + "件・所持 "
+      + confirmed.counts.held + "件・処理 " + confirmed.counts.total + "件";
+    return h("div", { className: "gara" },
+      h("div", { className: "gara-out" },
+        h("h3", { className: "gara-title" }, "変換を確定しました"),
+        h("p", { className: "gara-lead" }, lead)
+      ),
+      mismatched
+        ? h("p", { className: "gara-foot-warn" },
+          "シミュレーション（所持 " + sim.held + "件）と実際に入った数（"
+            + confirmed.counts.held + "件）が違います。記録を確認してください。")
+        : null,
+      h("div", { className: "gara-rows" }, typeRows),
+      confirmed.skipped.length
+        ? h("p", { className: "gara-note" },
+          "入れなかった項目が " + confirmed.skipped.length + " 件あります。履歴には残っていません。")
+        : null,
+      h("div", { className: "gara-foot" },
+        h("div", { className: "gara-foot-acts" },
+          h(Button, { size: "sm", variant: "primary", icon: "check", onClick: onClose }, "閉じる")
+        )
+      )
+    );
+  }
+
     return h("div", { className: "gara" },
       h("h3", { className: "gara-title" }, "硝子窓から取り込む"),
       h("p", { className: "gara-lead" }, "共有URLを貼り付けると、そのキャラクターの所持が読み込まれます。取り込むものは1件ずつ選べます。"),
@@ -676,7 +744,7 @@ const result = window.LBT_toDispatchActions?.(merged, keys, { purchases }) || { 
           size: "sm", variant: "primary", icon: "check", onClick: apply,
           disabled: pendingCount > 0 || (counts.included === 0 && counts.lineOn === 0),
           title: pendingCount > 0 ? "帰属先と入手方法を決めてください" : ""
-        }, "この内容で取り込む")
+        }, "変換を確定する")
       )
     ),
     h("p", { className: "gara-note" }, "取り込み後も記録とリザルトはいつでも編集できます。")

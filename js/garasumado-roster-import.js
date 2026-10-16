@@ -841,13 +841,10 @@ function toIdentityChoices(hits) {
      toDispatchActions と同じ変換を覗くだけにして、另有計算しない。 */
   function simulateDraft(manifest, blocks, unassigned, identity, opts) {
     const db = opts && opts.db;
-    const selected = [];
-    for (const block of blocks) {
-      for (const item of block.items) {
-        if (item.needsSource) continue;
-        selected.push(item.key);
-      }
-    }
+    /* 選択は呼び出し側が渡したものをそのまま使う。ここで blocks から作り直すと
+       「シミュレーションに出す品目」と「実際に入る品目」がずれる（実測4文書でずれた）。
+       入手方法が未決の品目は toDispatchActions 側で skip される。ここでは，特别是在手を出さない。 */
+    const selected = Array.isArray(opts.selected) ? opts.selected.slice() : [];
     const overlay = {
       ...manifest,
       groups: (manifest.groups || []).map((g) => ({

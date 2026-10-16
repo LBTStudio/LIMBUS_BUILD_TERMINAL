@@ -3933,7 +3933,8 @@ const importHeldPersonas = () => {
     typeof window.GarasumadoImportPanel === "function"
     ? h(window.GarasumadoImportPanel, {
       onClose: () => setImportPanel(false),
-      onApply: (applied) => { setImportPanel(false); applyGarasumadoImport(applied); }
+      /* 確定結果は画面に出るので、ここでは閉じない（閉じるのは確定結果の「閉じる」）。 */
+      onApply: (applied) => applyGarasumadoImport(applied)
     })
     : h("p", { className: "ledger-note" }, "取り込み画面が読み込まれていません。ページを再読み込みしてください。")
     ),

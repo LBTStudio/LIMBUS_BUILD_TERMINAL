@@ -38,6 +38,7 @@ const make = (owned, history) => G.buildManifest(
 );
 
 const PERSONA = db.normal_personas[0].name;
+const samples = JSON.parse(readFileSync(new URL("./fixtures/garasumado-samples.json", import.meta.url), "utf8"));
 const PASSIVE = db.support_passives[0].name;
 const OTHER_PERSONA = db.normal_personas[1].name;
 
@@ -140,15 +141,20 @@ test("シミュレーションは実際に入る action と一致する", () => 
     { personas: [{ name: PERSONA }], egos: [], supportPassives: [], spirits: [] },
     [{ name: "夜I", memo: `ガチャ結果→${PERSONA}\n40LPを獲得` }]
   );
-  const draft = G.buildResultDraft(m, { db, identity: {} });
-  const built = G.toDispatchActions(m, [m.groups[0].items[0].key], {});
-  const sim = draft.simulation;
-  assert.equal(sim.results, built.actions.filter((a) => a.type === "ADD_RESULT").length, "リザルト数が一致");
-  assert.equal(sim.held, built.actions.filter((a) => String(a.type).startsWith("ADD_ROSTER")).length, "所持数が一致");
-  const simLp = built.actions
+  /* 選択を渡さないと何も入らない。 */
+  const off = G.buildResultDraft(m, { db, identity: {} });
+  const offBuilt = G.toDispatchActions(m, [], {});
+  assert.equal(off.simulation.held, offBuilt.actions.filter((a) => String(a.type).startsWith("ADD_ROSTER")).length, "未選択の一致");
+
+  const key = m.groups[0].items[0].key;
+  const draft = G.buildResultDraft(m, { db, identity: {}, selected: [key] });
+  const built = G.toDispatchActions(m, [key], {});
+  assert.equal(draft.simulation.results, built.actions.filter((a) => a.type === "ADD_RESULT").length, "リザルト数が一致");
+  assert.equal(draft.simulation.held, built.actions.filter((a) => String(a.type).startsWith("ADD_ROSTER")).length, "所持数が一致");
+  const lp = built.actions
     .filter((a) => a.type === "ADD_RESULT" || a.type === "ADD_ENTRY")
-    .reduce((n, a) => n + ((a.type === "ADD_RESULT" ? Number(a.income?.lp) : -Number(a.cost?.lp)) || 0), 0);
-  assert.equal(sim.lp, simLp, "LP の合計が一致");
+    .reduce((n, a) => n + ((a.type === "ADD_RESULT" ? Number(a.income && a.income.lp) : -Number(a.cost && a.cost.lp)) || 0), 0);
+  assert.equal(draft.simulation.lp, lp, "LP の合計が一致");
 });
 
 test("同じ人格が二重に登録されない", () => {
@@ -163,6 +169,36 @@ test("同じ人格が二重に登録されない", () => {
     built.actions.filter((a) => a.type === "ADD_ROSTER").length, 1,
     "所持一覧と獲得行の両方にあっても 1 件だけ"
   );
+});
+
+test("シミュレーションは実際に入る action と一致する（実50文書で0件の食い違い）", () => {
+  const docs = Object.entries(samples).map(([, v]) => v.doc).filter(Boolean);
+  let mismatch = 0;
+  let checked = 0;
+  for (const doc of docs) {
+    const manifest = G.buildManifest(doc, { resolve });
+    /* 初期状態と同じ「帰属済みのものだけチェック済み」とする。 */
+    const picked = [];
+    for (const g of manifest.groups) for (const i of g.items) if (i.via && i.via.length) picked.push(i.key);
+    const draft = G.buildResultDraft(manifest, { db, identity: {}, selected: picked, resolve });
+    const built = G.toDispatchActions(manifest, picked, {});
+    const held = built.actions.filter((a) => String(a.type || "").startsWith("ADD_ROSTER")).length;
+    checked += 1;
+    if (draft.simulation.held !== held) mismatch += 1;
+  }
+  assert.ok(checked > 10, "実データで十分に文書がある（実際 " + checked + "）");
+  assert.equal(mismatch, 0, "シミュレーションと実際に入る件数が全文書で一致する");
+});
+
+test("選択を変えるとシミュレーションも変わる", () => {
+  const m = make(
+    { personas: [{ name: PERSONA }], egos: [], supportPassives: [], spirits: [] },
+    [{ name: "夜K", memo: `ガチャ結果→${PERSONA}` }]
+  );
+  const none = G.buildResultDraft(m, { db, identity: {}, selected: [], resolve });
+  assert.equal(none.simulation.held, 0, "未選択なら入らない");
+  const on = G.buildResultDraft(m, { db, identity: {}, selected: [m.groups[0].items[0].key], resolve });
+  assert.equal(on.simulation.held, 1, "選択すれば入る");
 });
 
 test("文字一致の候補は一致率の降順で並ぶ", () => {
