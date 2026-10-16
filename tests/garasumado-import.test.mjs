@@ -430,3 +430,64 @@ test("取り込み: シナリオ1件ごとに ADD_RESULT が出て、ADD_ENTRY �
   assert.equal(built.actions[1].kind, "spirit");
   assert.equal(built.actions[2].name, "第二夜");
 });
+
+/* --- 表記ゆれ耐性（実データの共有URLで観測した書き方をそのまま固定する） -- */
+
+test("1行2通貨・順序反転・前置きラベル・通貨先・全角をまとめて取る", () => {
+  const a = MEMO.parseMemo("40LP 20欠片");
+  assert.equal(a.income.lp, 40);
+  assert.equal(a.income.shards, 20);
+  const b = MEMO.parseMemo("20欠片 40LP");
+  assert.equal(b.income.lp, 40, "通貨の順序が逆でも同じ");
+  assert.equal(b.income.shards, 20);
+  const c = MEMO.parseMemo("報酬 40LP 20欠片");
+  assert.equal(c.income.lp, 40, "前置きのラベルは金額に混ざらない");
+  assert.equal(c.income.shards, 20);
+  const d = MEMO.parseMemo("LP60\n欠片40");
+  assert.equal(d.income.lp, 60, "通貨が先でも読む");
+  assert.equal(d.income.shards, 40);
+  const e = MEMO.parseMemo("ＬＰ60");
+  assert.equal(e.income.lp, 60, "全角の通貨名も読む");
+});
+
+test("+連結（45+5）と負の中間集計を合算する", () => {
+  assert.equal(MEMO.parseMemo("LP 45+5").income.lp, 50);
+  assert.equal(MEMO.parseMemo("かけら 30+4").income.shards, 34);
+  /* 実データ（汝の名は？）: 消費の後に受け取りが続く書き方。符号付きで合算。 */
+  const net = MEMO.parseMemo("-15LP\n+154LP +41欠片");
+  assert.equal(net.income.lp, 139);
+  assert.equal(net.income.shards, 41);
+});
+
+test("「NNLPへ」は残高の書き直しであり受け取りではない", () => {
+  const r = MEMO.parseMemo("300LPへ");
+  assert.equal(r.income.lp, 0, "支払後の残高を収入に数えない");
+});
+
+test("チケットと金額が同じ行にあっても両方を読む", () => {
+  const r = MEMO.parseMemo("140LP 90欠片　EGOチケット");
+  assert.equal(r.income.lp, 140);
+  assert.equal(r.income.shards, 90);
+  assert.equal(r.tickets.ego, 1);
+});
+
+test("チケット行を二重に数えず、幻の獲得を作らない", () => {
+  const a = MEMO.parseMemo("人格抽出チケット：1枚");
+  assert.equal(a.tickets.persona, 1, "数はチケット側で1回だけ");
+  assert.equal(a.wins.length, 0, "「1枚」は獲得名ではない");
+  const b = MEMO.parseMemo("ワンキル報酬：人格抽出チケット×1");
+  assert.equal(b.tickets.persona, 1);
+  assert.equal(b.wins.length, 0);
+  const c = MEMO.parseMemo("ガチャチケ1枚　第四銀工房銃鎚派");
+  assert.equal(c.tickets.ego, 1, "ガチャはE.G.O相当（LBTの分類）");
+  assert.equal(c.wins.length, 0, "チケット行は獲得を捏造しない");
+});
+
+test("ラベル・装飾・叙述・数量行は獲得名にしない", () => {
+  for (const line of ["シナリオ報酬:", "報酬合計", "ーーーRESULTーーー", "[最大所持数1]",
+    "㊗️全員生存", "R開始時に使用できる。"]) {
+    assert.equal(MEMO.parseMemo(line).wins.length, 0, `「${line}」を獲得にしない`);
+  }
+  const w = MEMO.parseMemo("W錬成セット×1(中身は下記のパックから選択)");
+  assert.equal(w.wins.length, 0, "数量付きの行は記録であって名前ではない");
+});

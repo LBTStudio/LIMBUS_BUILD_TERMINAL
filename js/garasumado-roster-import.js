@@ -248,12 +248,9 @@ function toIdentityChoices(hits) {
         ? indexForWins.resolve(raw)
         : null;
       if (hit) kinds = hit.kinds || [];
-      if (!kinds.length) {
-        /* 索引が無ければ最低限の種別判定だけ。
-           番号は入れない（勝手に埋めると原本と食い違う）。 */
-        if (/E\.?G\.?O|イゴ/i.test(raw)) kinds = [{ kind: "ego" }];
-        else kinds = [{ kind: "persona" }];
-      }
+      /* 引けなかった wins に種別を捏造しない。以前は「人格」を既定で
+         埋めていたため、ラベルや叙述の断片が獲得として記録に入った。
+         番号が無ければ所持には入らない（原本と食い違う記録を作らない）。 */
       return {
         raw,
         name: raw,
@@ -447,7 +444,10 @@ function toIdentityChoices(hits) {
           skipped.push({ key: win.raw, reason: "E.G.O の番号が引けないため所持へ入れない" });
           continue;
         }
-        if (win.via) {
+        /* 由来の記録は、実際に所持へ入った獲得にだけ付ける。解決できない
+           wins に明細を作ると帳簿に幻の行が残る（「人格抽出チケットで
+           獲得：1枚」等の実害が出ていた）。 */
+        if (win.via && (persona || ego)) {
           actions.push({
             type: "ADD_ENTRY",
             kind: "other",

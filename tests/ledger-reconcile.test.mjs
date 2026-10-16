@@ -150,3 +150,27 @@ test("実データ: 履歴から購入候補が実際に引ける", () => {
   assert.ok(total > 0, "購入候補が引ける（実際 " + total + " 件）");
   assert.equal(withPrice, total, "引けた候補はすべて価格が確定している");
 });
+
+/* --- 判定不能行の範囲（実データで 254 行の壁になった挙動の固定） -------- */
+
+test("判定不能は支出節の名前行だけに絞る（収入・現在・換算は対象外）", () => {
+  const resolve = (n) => R.resolveCandidates(idx, n)[0] || null;
+  const memo = [
+    "誰も死ななかった！ボーナス人格チケット1枚",
+    "涙剣 同期化 欠片134",
+    "・支出",
+    "东部親指ソルダードII　87 現在52LP",
+    "LPを欠片に変換：+11欠片 -22LP",
+    "东部親指ソルダードII　87"
+  ].join("\n");
+  const { unresolved } = C.proposePurchases(memo, { resolve });
+  assert.equal(unresolved.length, 1, "支出節の名前行だけが残る");
+  assert.equal(unresolved[0].lineNo, 6);
+  assert.match(unresolved[0].line, /东部親指ソルダードII/);
+});
+
+test("購入候補の抽出は節で絞らない（再現率優先・確認は利用者）", () => {
+  const memo = ["・買い物", "ルサンチマン　現在52LP"].join("\n");
+  const { proposals } = C.proposePurchases(memo, { resolve: (n) => R.resolveCandidates(idx, n)[0] || null });
+  assert.equal(proposals.length, 1, "支出見出しが無くても候補は出す");
+});

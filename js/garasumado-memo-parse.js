@@ -101,6 +101,52 @@
     return { kind: isEgo ? "ego" : "persona", count: count };
   }
 
+  /* 「+154」や「45+5」を 1 つの額に。「45+5」は加算の連なり（=50）、
+     先頭の符号だけが全体の符号（「-15」は -15 のまま）。 */
+  function chainSum(raw) {
+    var s = String(raw).replace(/＋/g, "+").replace(/\s+/g, "");
+    var sign = 1;
+    if (s.charAt(0) === "-") { sign = -1; s = s.slice(1); }
+    else if (s.charAt(0) === "+") s = s.slice(1);
+    var total = 0;
+    var parts = s.split("+");
+    for (var i = 0; i < parts.length; i++) total += parseInt(parts[i], 10) || 0;
+    return sign * total;
+  }
+
+  function currencyOfPair(token) {
+    var u = String(token).toUpperCase();
+    return (u === "LP" || u === "ＬＰ") ? "lp" : "shards";
+  }
+
+  /* 1 行から「通貨×数値」の対を全部読む。数値は通貨に隣接していれば
+     前後どちらでもよい（「40LP」「LP：71」「LP60」「欠片40」）。
+     旧実装は 1 対しか読まず、「40LP 20欠片」の 40 を欠片に寄せる等
+     取り違えていた。現在/残の直後は残額なので先に伏せる。 */
+  function incomePairs(line) {
+    var text = String(line)
+      .replace(/現在[：:]?\s*(LP|欠片|かけら|欠けら|カケラ)?\s*-?\d+(?:\s*[+＋]\s*\d+)*/gi, " ")
+      .replace(/残り?\s*-?\d+/gi, " ")
+      /* 「300LPへ」は支払後の残高に振り直す書き方。額ではなく結果。 */
+      .replace(/-?\d+(?:\s*[+＋]\s*\d+)*\s*(LP|欠片|かけら|欠けら|カケラ|ＬＰ)\s*へ/g, " ")
+      /* 「G-5」のような識別子のハイフンを負号と混同しない。 */
+      .replace(/([A-Za-z0-9])-(?=\d)/g, "$1 ");
+    var out = [];
+    var m;
+    var reNum = /([+-]?\d+(?:\s*[+＋]\s*\d+)*)\s*(LP|欠片|かけら|欠けら|カケラ|ＬＰ)/gi;
+    while ((m = reNum.exec(text)) !== null) {
+      out.push({ amount: chainSum(m[1]), currency: currencyOfPair(m[2]) });
+    }
+    var reCur = /(LP|欠片|かけら|欠けら|カケラ|ＬＰ)\s*[:：]?\s*([+-]?\d+(?:\s*[+＋]\s*\d+)*)/gi;
+    while ((m = reCur.exec(text)) !== null) {
+      /* 数値の直後に別の通貨名が続くなら、その数値はそちらのもの
+         （「40LP 20欠片」の 20 を LP と読まない）。 */
+      if (/^\s*(LP|欠片|かけら|欠けら|カケラ|ＬＰ)/i.test(text.slice(reCur.lastIndex))) continue;
+      out.push({ amount: chainSum(m[2]), currency: currencyOfPair(m[1]) });
+    }
+    return out;
+  }
+
   /* アイテムの効果説明文。「▶︎〜」で始まる行や、
      「〜を得る」「〜を獲得する」で終わる行は説明であって金額行ではない。 */
   function isNarrativeLine(line) {
@@ -203,6 +249,22 @@
     /* 「なし」「無し」「特になし」は「記録が無い」意味であり、
        獲得した人格ではない。 */
     if (/^(なし|無し|特になし|無し|特になし|何もない|.$)$/.test(t)) return false;
+    /* ラベル・見出し語。実データで「シナリオ報酬」「報酬合計」
+       「ーーーRESULTーーー」等が獲得名として混じった。 */
+    if (/(報酬|合計|結果|RESULT|ボーナス)/i.test(t)) return false;
+    if (/[：:]\s*$/.test(t)) return false;
+    /* 数量だけの断片（「1枚」「×1」）。 */
+    if (/^[×xｘＸ✕✖\s]*\d+\s*(枚|個|回|つ|セット)?$/i.test(t)) return false;
+    /* 数量付きの行は記録であって名前ではない（「W錬成セット×1(中身は…)」）。 */
+    if (/[×xｘＸ✕✖]\s*\d|\d\s*(枚|個|本|セット)/.test(t)) return false;
+    /* 句読点を含む行は説明文。獲得名ではない。 */
+    if (/[。、]/.test(t)) return false;
+    /* アイテム・効果の説明。 */
+    if (/^(使用時|使用後|使用す|効果\s*[:：]|item\b|Item\b)/.test(t)) return false;
+    /* 絵文字・装飾記号を含む行。 */
+    if (/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{3297}\u{3299}]/u.test(t)) return false;
+    /* 「[最大所持数1]」のような注記。 */
+    if (/^[\[\(（]/.test(t)) return false;
     return true;
   }
 
@@ -240,6 +302,13 @@
       .trim();
     /* 名前が無いか短すぎたら採らない */
     if (name.length < 2) return "";
+    /* 数量だけの断片（「1枚」「×1」「x1」）は名前ではない。
+       「人格抽出チケット：1枚」の 1枚 が獲得名として記録された実害がある。 */
+    if (/^[×xｘＸ✕✖\s]*\d+\s*(枚|個|回|つ|セット)?$/i.test(name)) return "";
+    /* 数量付きの断片も名前ではない（「人格抽出チケット：任意テーマパック 1枚」）。 */
+    if (/[×xｘＸ✕✖]\s*\d|\d\s*(枚|個|本|セット)/.test(name)) return "";
+    /* 名前には文字が要る（記号だけの断片を弾く）。 */
+    if (!/[A-Za-zぁ-んァ-ヶ一-龠]/.test(name)) return "";
     return name;
   }
 
@@ -271,23 +340,32 @@
            「人格抽出チケット：N 社小鎚の人格」「抽出1：LCE E.G.O:ねばつき」*/
         var src = ticketSourceName(line);
         if (src) wins.push({ name: src, via: TICKET_LABEL[tk.kind], kind: tk.kind });
-        continue;
-      }
-
-      /* 「抽出1：E.G.O:提灯」のような「抽出NN」だけの行。 */
-      var bd = bareDrawOf(line);
-      if (bd) {
-        tickets[bd.kind] += bd.count;
-        var src2 = ticketSourceName(line);
-        if (src2) wins.push({ name: src2, via: TICKET_LABEL[bd.kind], kind: bd.kind });
-        continue;
+        /* チケット行に報酬額が並ぶ書式がある（「140LP 90欠片　EGOチケット」）。
+           収入節では金額も読む。支出節では従来どおり金額を取らない。 */
+        if (mode !== "income") continue;
+      } else {
+        /* 「抽出1：E.G.O:提灯」のような「抽出NN」だけの行。
+           チケット行と二重に数えない（抽出の語を含むため）。 */
+        var bd = bareDrawOf(line);
+        if (bd) {
+          tickets[bd.kind] += bd.count;
+          var src2 = ticketSourceName(line);
+          if (src2) wins.push({ name: src2, via: TICKET_LABEL[bd.kind], kind: bd.kind });
+          continue;
+        }
       }
 
       /* アイテムの効果説明。「▶︎〜」や「〜を得る」は金額行ではない。 */
       if (isNarrativeLine(line)) continue;
 
-      /* 合計行。「0欠片　40LP」は収入でも支出でもない。 */
-      if (isTotalOnlyLine(line)) continue;
+      /* 合計行の扱いは節で違う。数値と通貨だけの並び（「0欠片　40LP」）は
+         支出節では合計・残WRITEなので読み飛ばす。収入節では 0 を含む
+         合計だけを飛ばし、0 を含まない数値だけの行はそのシナリオの
+         報酬額として読む（「140LP 90欠片」形式を旧実装は無言で落としていた）。 */
+      if (isTotalOnlyLine(line)) {
+        if (mode === "spend") continue;
+        if (/(^|[\s　:：])0\s*(LP|欠片|かけら|欠けら|カケラ)/i.test(line)) continue;
+      }
 
       /* パック別チケット「〈肉斬骨断〉抽出チケット」 */
       var pm = line.match(/[〈《]([^〉》]+)[〉》]?\s*抽出チケット/);
@@ -305,10 +383,16 @@
           reasons.push({ line: line, reason: "LP⇄欠片の換算行。増減の両方があって単一金額にならない" });
           continue;
         }
-        var cur = currencyOf(line);
-        var amt = amountOf(line);
-        if (cur && amt != null && amt > 0) {
-          if (cur === "lp") income.lp += amt; else income.shards += amt;
+        /* 「90LP」「LP：71」「LP60」「40LP 20欠片」「+154LP +41欠片」——
+           通貨と数値の対を、行内で隣接する分だけ全部読む。1 行に両通貨が
+           並ぶ書式で片方だけ・誤った通貨に割り当てていたのを、対ごとに読む。
+           現在/残の直後は incomePairs 内で先に伏せている。
+           「LP 45+5」は 45+5=50、「-15LP」は -15 と符号を保つ。 */
+        var pairs = incomePairs(line);
+        if (pairs.length) {
+          for (var pi = 0; pi < pairs.length; pi++) {
+            if (pairs[pi].amount) income[pairs[pi].currency] += pairs[pi].amount;
+          }
           continue;
         }
         /* 数字も通貨も無い行は「どの機関に勝ったか」の名前行。
@@ -329,8 +413,6 @@
 
       /* 支出 */
       if (mode === "spend") {
-        /* 合計行。「0欠片　40LP」は収入でも支出でもない。 */
-        if (isTotalOnlyLine(line)) continue;
         /* 支出節の行を2種に分ける。
            A) 支出額が明示されている行
               「正義購入 現在87欠片」      → 87 が支出（前置詞 + 現在NN）

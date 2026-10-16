@@ -513,8 +513,8 @@ const result = window.LBT_toDispatchActions?.(merged, keys, { purchases }) || { 
               )
             )),
             op.unresolved.map((u) => h("div", { key: "u" + u.lineNo, className: "gara-row is-unsure" },
-              h("span", { className: "gara-row-name" }, `行 ${u.lineNo}`),
-              h("span", { className: "gara-row-meta" }, "判定できませんでした")
+              h("span", { className: "gara-row-name" }, u.line),
+              h("span", { className: "gara-row-meta" }, `行 ${u.lineNo}・判定できませんでした`)
             ))
           )
         ))

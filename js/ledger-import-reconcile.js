@@ -79,18 +79,33 @@
     const proposals = [];
     const unresolved = [];
 
+    /* 判定不能行の意味を「購入候補にできない支出節の行」へ絞る。
+       以前は収入行・チケット行・見出しまで unresolved に積んでいたため、
+       UI が「行 N 判定できませんでした」の壁になっていた。 */
+    let inSpend = false;
+
     let lineNo = 0;
     for (const raw of String(memo || "").split("\n")) {
       lineNo += 1;
       const line = raw.trim();
       if (!line) continue;
+
+      /* セクション見出し。以降の行の文脈を決める。 */
+      const section = line.match(/^\s*[・･]\s*(.+?)\s*$/);
+      if (section) {
+        if (/支出|支払/.test(section[1])) inSpend = true;
+        else if (/現在/.test(section[1])) inSpend = false;
+        continue;
+      }
+
       // 通貨だけの行は名前を持たない。
       if (/^[LP欠片\d\s:：現在値+.-]+$/.test(line)) continue;
 
       const hit = resolve(line);
       if (!hit) {
-        // 名前らしさがあっても引けなかった行は、利用者が判断できるよう残す。
-        if (/[^\s\d.,:()（）-]{3,}/.test(line) && !/^\s*[\d\s]+$/.test(line)) {
+        /* 残額の書き直し（現在/残り）と換算行は支出額の判定に
+           関係しない。収入節の行は購入候補の文脈ではない。 */
+        if (inSpend && !/現在|残|変換|換算/.test(line)) {
           unresolved.push({ lineNo, line });
         }
         continue;
