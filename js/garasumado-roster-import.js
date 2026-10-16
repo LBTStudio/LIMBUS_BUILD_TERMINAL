@@ -111,6 +111,14 @@
       .toLowerCase();
   }
 
+  /* 所持側の品目名には装飾（【…】/[…]/（…）/MAX/の人格）が付く。
+     メモ側は正式名で書かれることが多いので、装飾を除いた形でも照合する。 */
+  const looseKey = (s) => nameKey(String(s || "")
+    .replace(/【[^】]*】/g, "")
+    .replace(/\[[^\]]*\]/g, "")
+    .replace(/（[^）]*）|\([^)]*\)/g, "")
+    .replace(/MAX|max|専用|の人格/g, ""));
+
   /* 支出行は「名前 金額通貨（消費/購入）」の 1 行なので、照合には
      末尾の金額通貨と動詞を落とした名前を使う。
      「切り伏せる斬撃 150LP消費」「握る者闘志 210欠片」→ 名前だけ。 */
@@ -139,11 +147,7 @@
     /* 表示ゆれの照合。所持側の名前は【同期000】や [MAX] などの装飾を
        持ち、獲得行は素の名前で書かれがち。装飾を落とした鍵でも引く。
        ゆれ一致は衝突しやすいので、所持側で鍵が重複するときは決めない。 */
-    const looseKey = (s) => nameKey(String(s || "")
-      .replace(/【[^】]*】/g, "")
-      .replace(/\[[^\]]*\]/g, "")
-      .replace(/（[^）]*）|\([^)]*\)/g, "")
-      .replace(/MAX|max|専用|の人格/g, ""));
+
     const byLoose = new Map();
     const looseSlotOf = (key) => {
       if (!byLoose.has(key)) byLoose.set(key, { via: [], wins: [], spends: [] });
@@ -464,8 +468,12 @@ function toIdentityChoices(hits) {
         if (!selected.has(item.key)) continue;
         /* 種別は取込側が決まったので、ここでは「どれとして入れるか」を選ぶ。
            利用者の選択（picked）が最優先。決まっていなければ補わない。 */
-        /* シナリオに記載が無い所持品は、帰属先を選んでから入れる。 */
-        const via = chosenVia(item);
+        /* シナリオに記載が無い所持品は、帰属先を選んでから入れる。
+           ただし利用者が「入れる」と選んだ品目は、帰属先が未決でも
+           入れたくなる（チェックしたのに何も入らないのは操作としても嘘）。
+           そのときは所属が決められないので、帰属なしの所持として入れる
+           （明細は「未分類＝待機項目」の欄に入るのが既存仕様）。 */
+        const via = chosenVia(item) || (selected.has(item.key) ? [] : null);
         if (!via) {
           skipped.push({ key: item.key, reason: "どのシナリオのものか選んでください" });
           continue;
@@ -549,8 +557,13 @@ function toIdentityChoices(hits) {
         }
       }
     }
+    /* 除外指定（Cyclades/履歴Noise で明示的に落としたもの）だけが外れる。 */
+    const excluded = new Set(opts.excludeScenarios || []);
     for (const scenario of (manifest && manifest.scenarios) || []) {
-      if (!selected.has(scenario.key) && !attributedScenarioKeys.has(scenario.key)) continue;
+      /* シナリオはそれ自体が 1 リザルト。帰属する所持が 1 件もなくても、
+         記録があれば必ず作る（収入のあるシナリオが黙って消えると、
+         履歴としては「その日对美国记录が存在しなかった」ことになってしまう）。 */
+      if (excluded.has(scenario.key)) continue;
       const income = scenario.income || { lp: "", shards: "" };
       const tickets = scenario.tickets || {};
       const pack = scenario.pack || {};
@@ -710,6 +723,16 @@ function toIdentityChoices(hits) {
   }
 
   /* シナリオごとの証拠索引。完全一致・ゆれ一致・本文出現を1回で判定する。 */
+  /* シナリオのメモから、同期・解析の対象名を捨てる。 */
+  function syncTargetsOf(memo) {
+    const lines = String(memo || "").split(/[\n\r]/).map((t) => t.trim()).filter(Boolean);
+    const annotate = window.LBT_annotateOperations;
+    if (!annotate) return [];
+    return annotate(lines, window.DB || {})
+      .filter((op) => op.hasTarget && op.target)
+      .map((op) => op.target);
+  }
+
   function buildEvidence(scenarios) {
     const list = [];
     for (const scenario of scenarios || []) {
@@ -723,6 +746,10 @@ function toIdentityChoices(hits) {
           ...(scenario.spends || []).map((s) => nameKey(spendNameOf(s)))
         ]),
         spend: new Set((scenario.spends || []).map((s) => nameKey(spendNameOf(s)))),
+        /* 同期・解析の対象名。同期できない品目は書けないので、
+           「ここに同期の記載がある」= その品目が既に所持に存在した証拠になる。
+           単なる本文 언급より強い根拠として、獲得行と同列に扱う。 */
+        synced: new Set(syncTargetsOf(scenario.memo).map(nameKey).filter(Boolean)),
         text: nameKey(scenario.memo || "")
       });
     }
@@ -742,7 +769,11 @@ function toIdentityChoices(hits) {
      names は照合に使う名前の追加候補（所持名が略称なら正式名を足す）。
      略称（鬼門、ロジアトなど）は本文照合力度が弱いので、正式名でも試す。 */
   function attributionOf(item, evidence, names) {
-    const keys = [...new Set([item.name, ...(names || [])].map(nameKey).filter(Boolean))];
+    /* 所持側の品目名は「剣契殺手Aの人格」「N社E.G.O:ねばつき」のように
+       装飾が付く。メモ側の同期対象は正式名（剣契殺手A）なので、
+       装飾を除いた形でも照合する（両方のキーを見る）。 */
+    const raw = [item.name, ...(names || [])];
+    const keys = [...new Set(raw.flatMap((n) => [nameKey(n), looseKey(n)]).filter(Boolean))];
     if (!keys.length) return null;
     /* 構造化された証拠（獲得行・支出行）を先に照合する。 */
     for (const key of keys) {
@@ -751,6 +782,14 @@ function toIdentityChoices(hits) {
         /* 支出行にあれば購入。複数シナリオにあれば上（シナリオ順）。 */
         const bought = exact.find((e) => e.spend.has(key));
         return { tier: bought ? "C" : "A", scenario: (bought || exact[0]).name, unique: exact.length === 1 };
+      }
+    }
+    /* 同期・解析の記載がある。它的対象は既に所持に存在した品目なので、
+       獲得行に載っていなくても帰属が決まる（本文言及より強い）。 */
+    for (const key of keys) {
+      const synced = evidence.filter((e) => e.synced.has(key));
+      if (synced.length) {
+        return { tier: "S", scenario: synced[0].name, unique: synced.length === 1 };
       }
     }
     /* 証拠が無くても本文に書いてあれば帰属は決まる（本文言及）。 */
@@ -777,18 +816,18 @@ function toIdentityChoices(hits) {
     const scenarios = (manifest && manifest.scenarios) || [];
     const evidence = buildEvidence(scenarios);
 
-    const blocks = new Map();
-    for (const scenario of scenarios) {
-      blocks.set(scenario.name, {
-        key: scenario.key,
-        name: scenario.name,
-        memo: String(scenario.memo || ""),
-        income: scenario.income || { lp: 0, shards: 0 },
-        tickets: scenario.tickets || {},
-        items: [],
-        missing: []
-      });
-    }
+    /* 同名のシナリオが別々に存在する（同じ卓を二度やった、或いは「無題」が多い）。
+       名前で Map を作ると潰れてカードが減る（実測で 74件 → 13件）ので、シナリオの key で並べる。 */
+    const blocks = scenarios.map((scenario) => ({
+      key: scenario.key,
+      name: scenario.name,
+      memo: String(scenario.memo || ""),
+      income: scenario.income || { lp: 0, shards: 0 },
+      tickets: scenario.tickets || {},
+      items: []
+    }));
+    const blockOfName = new Map();
+    for (const b of blocks) if (!blockOfName.has(b.name)) blockOfName.set(b.name, b);
     const unassigned = [];
 
     for (const group of (manifest && manifest.groups) || []) {
@@ -802,7 +841,8 @@ function toIdentityChoices(hits) {
         const names = cands.length === 1 ? [cands[0].name] : [];
         const found = attributionOf(item, evidence, names);
         /* 归属 Override があれば、照合より優先する。 */
-        const chosen = item.pickedScenario || (found ? found.scenario : "");
+        const chosenName = item.pickedScenario || (found ? found.scenario : "");
+        const chosenBlock = chosenName ? (blockOfName.get(chosenName) || null) : null;
         const tier = item.pickedScenario ? "M" : found ? found.tier : "";
         const source = item.source || "";
 
@@ -817,11 +857,12 @@ function toIdentityChoices(hits) {
           auto: Boolean(!item.pickedScenario && cands.length === 1 && AUTO_GROUPS.has(group.id))
         };
 
-        if (chosen && blocks.has(chosen)) {
+        if (chosenBlock) {
           /* E.G.O と人格は証跡が無いと購入か抽選かが決まらないので、入手方法を
              選ばせる。同期/解析とサポートパッシブはそのまま確定できる。 */
           record.needsSource = !record.automatic && !source;
-          blocks.get(chosen).items.push(record);
+          record.scenarioKey = chosenBlock.key;
+          chosenBlock.items.push(record);
           continue;
         }
         if (found && found.tier === "F") { /* 下の else と同じ扱い */ }
@@ -832,9 +873,8 @@ function toIdentityChoices(hits) {
       }
     }
 
-    const resultBlocks = [...blocks.values()];
-    const simulation = simulateDraft(manifest, resultBlocks, unassigned, identity, opts);
-    return { blocks: resultBlocks, unassigned, simulation };
+    const simulation = simulateDraft(manifest, blocks, unassigned, identity, opts);
+    return { blocks, unassigned, simulation };
   }
 
   /* 画面に出る数字と実際に入る action を一致させる。simulation は
@@ -845,11 +885,19 @@ function toIdentityChoices(hits) {
        「シミュレーションに出す品目」と「実際に入る品目」がずれる（実測4文書でずれた）。
        入手方法が未決の品目は toDispatchActions 側で skip される。ここでは，特别是在手を出さない。 */
     const selected = Array.isArray(opts.selected) ? opts.selected.slice() : [];
+    /* 利用者が選択した品目は「入れる」と決めたMCsのもの。入手方法を決めて
+       いないなら配布として扱う（配布は費用ゼロなので、勝手に購入にはしない）。
+       そうしないと「チェックしたのに何も入らない」状態になる。 */
+    const chosenKeys = new Set(opts.selected || []);
     const overlay = {
       ...manifest,
       groups: (manifest.groups || []).map((g) => ({
         ...g,
-        items: g.items.map((i) => ({ ...i, ...(identity[i.key] || {}) }))
+        items: g.items.map((i) => {
+          const merged = { ...i, ...(identity[i.key] || {}) };
+          if (chosenKeys.has(i.key) && !merged.source) merged.source = "given";
+          return merged;
+        })
       }))
     };
     const actions = toDispatchActions(overlay, selected, { purchases: (opts && opts.purchases) || {} }).actions;

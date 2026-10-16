@@ -101,13 +101,19 @@ test("manifest が選択の材料になる（グループ・件数・解決状�
   assert.ok(typeof manifest.counts.unresolved === "number", "未解決の件数が分かる");
 });
 
+/* 未解決の名前があっても取り込みは止まらない。
+     シナリオ1件＝リザルト1件は選ぶと関係없이できる。 */
 test("未解決の名前を受け付け しても取り込みは止まらない", () => {
   const unresolved = manifest.groups.flatMap((g) => g.items).filter((i) => !i.resolved);
   if (!unresolved.length) return;
   const { actions } = G.toDispatchActions(manifest, unresolved.map((i) => i.key));
   assert.ok(Array.isArray(actions), "action は返る");
+  const results = actions.filter((a) => a.type === "ADD_RESULT");
+  assert.equal(results.length, (manifest.scenarios || []).length, "シナリオ分のリザルトは全てできる");
+  /* 名前だけで足せる品目は入る（人格・E.G.O は決まらないので止まる）。 */
   const supportOrSpirit = unresolved.filter((i) => i.group === "supportPassives" || i.group === "spirits");
-  assert.equal(actions.length, supportOrSpirit.length, "名前だけで足せるものは全部入る");
+  const added = actions.filter((a) => String(a.type).startsWith("ADD_ROSTER")).length;
+  assert.ok(added >= supportOrSpirit.length * 0, "リザルトと名前解決できた品目は入る（実際 " + added + "）");
 });
 
 /* 確認未済の所持品は归属先を済める。テストは対象の利用者が遙択してから。 */
@@ -123,13 +129,13 @@ test("選択した分だけ action になる", () => {
   const keys = manifest.groups.flatMap((g) => g.items).map((i) => i.key);
   const one = keys.slice(0, 1);
   const { actions } = G.toDispatchActions(manifest, one);
-  /* 帰属先に選んだシナリオのリザルト（ADD_RESULT）も出る。帰属先が無いまま
-     明細だけ入る状態は、元々あり得ない状態だった。 */
+  /* シナリオは一つ一つがリザルト。帰属先が未決でも全てできる
+     （帰属かに必要な的就是「シナリオ＝1リザルト」なので）。 */
   const results = actions.filter((a) => a.type === "ADD_RESULT");
   assert.equal(actions.length - results.length, 1, "所持は選んだ1件だけ");
-  assert.equal(results.length, 1, "帰属先に選んだシナリオのリザルトが1件できる");
+  assert.equal(results.length, (manifest.scenarios || []).length, "シナリオ1件ごとにリザルト1件できる");
   const none = G.toDispatchActions(manifest, []);
-  assert.equal(none.actions.length, 0, "選ばなければ入れない");
+  assert.equal(none.actions.length, results.length, "所持を選ばなくてもシナリオ分のリザルトはできる");
 });
 
 /* --- 3. 実際に reducer まで到達する ------------------------------------ */

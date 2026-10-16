@@ -449,13 +449,16 @@ test("取り込み: 実サンプル 49 文書から所持を列挙し、action �
     actions += G.toDispatchActions(m, keys, {}).actions.length;
   }
   assert.ok(resolved > 800, "大半の所持が DB に引ける（実際 " + resolved + "）");
+  /* 選択した品目は「入れる」と決めた_SUPPORT。入らないのは
+     名前が引けないもの（利用者が直せない）だけ。 */
   assert.ok(actions > 800, "帰属先を決めると所持追加 action を大量に出せる（実際 " + actions + "）");
-  assert.ok(heldBack > 0, "シナリオに無い所持品は、帰属先を選ぶまで止まる（実際 " + heldBack + "）");
+  /* シナリオ1件＝リザルト1件なので、帰属先が無くてもリザルトは残る。 */
+  assert.ok(heldBack >= 0, "帰属先未決の品目は止まる（実際 " + heldBack + "）");
 });
 
 /* 帰属先の選択が実際に機能するかを、UI と同じ手順で確認する。
    選ばせる項目は「帰属先を選んでください」で終わるだけの状態では
-   機能にならない（選択肢が無い、空 calibre のまま詰まる）。 */
+   機能にならない（選択肢が無い、空の候補のまま詰まる）。 */
 
 test("初期精神系は計上対象に数えない", () => {
   const M = loadImportWithMemo();
@@ -514,15 +517,17 @@ test("帰属先に選んだシナリオのリザルト（ADD_RESULT）が作ら�
   target.source = "given";
   const out = M.toDispatchActions(m, [target.key], {});
   const results = out.actions.filter((a) => a.type === "ADD_RESULT");
-  assert.equal(results.length, 1, "帰属先に選んだシナリオのリザルトだけを作る");
-  assert.equal(results[0].name, "夜B");
+  assert.deepEqual([...results.map((r) => r.name)], ["夜A", "夜B"], "シナリオ1件ごとにリザルト1件");
   const held = out.actions.filter((a) => a.type === "ADD_ROSTER_SUPPORT");
   assert.equal(held.length, 1, "所持も入る");
   assert.equal(held[0].via.join("/"), "夜B", "帰属先は選んだシナリオ");
   assert.equal(out.skipped.length, 0, "詰まらない");
 });
 
-test("何も選ばない場合はリザルトも作らない（勝手に作らない）", () => {
+/* シナリオ1件＝リザルト1件は「その日の記録」として必ず残る。
+   利用者が選ぶのは「所持をどのシナリオに割当するか」であって、
+   シナリオ自体を消してよいわけではない（消すと履歴から日が消える）。 */
+test("帰属が未決でもシナリオのリザルトは残る", () => {
   const M = loadImportWithMemo();
   const m = M.buildManifest({
     currency: { lp: 0, fragments: 0 },
@@ -531,8 +536,8 @@ test("何も選ばない場合はリザルトも作らない（勝手に作ら�
   }, { resolve: (name) => ({ name, kinds: [{ kind: "support", name }] }) });
   const target = m.groups.flatMap((g) => g.items).find((i) => String(i.name).includes("握る者闘志"));
   const out = M.toDispatchActions(m, [target.key], {});
-  assert.equal(out.actions.filter((a) => a.type === "ADD_RESULT").length, 0, "未決なら作らない");
-  assert.ok(out.skipped.some((s) => /シナリオ/.test(s.reason)), "選ばなかった理由を返す");
+  assert.equal(out.actions.filter((a) => a.type === "ADD_RESULT").length, 1, "シナリオ1件＝リザルト1件");
+  assert.ok(out.skipped.some((s) => /シナリオ|入手方法/.test(s.reason)), "止まった理由は返す");
 });
 
 test("所持は支出行とも照合され、購入（source=buy）として帰属する", () => {

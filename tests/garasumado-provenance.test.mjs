@@ -100,14 +100,20 @@ test("シナリオに記載が無い所持品は、帰属先を選ぶまで登�
 
   /* 未決のままなら入れてはいけない */
   const before = gara.toDispatchActions(m, [key], { purchases: {} });
-  assert.equal(before.actions.length, 0, "帰属先が決まるまで登録しない");
-  assert.match(before.skipped[0].reason, /どのシナリオ/);
+  /* シナリオ1件＝リザルト1件は、帰属先が未決でもできる。
+     止まるのは「その品目の帰属」だけ。 */
+  assert.equal(before.actions.filter((a) => a.type === "ADD_RESULT").length, 1, "シナリオ分のリザルトはできる");
+  assert.equal(before.actions.filter((a) => a.type === "ADD_ROSTER").length, 0, "帰属先が決まるまで所持には入らない");
+  assert.ok(
+    before.skipped.some((s) => /どのシナリオ/.test(s.reason) || /入手方法/.test(s.reason)),
+    "止まった理由が残る: " + JSON.stringify(before.skipped.map((s) => s.reason))
+  );
 
   /* 利用者が帰属先を選んだら、そのシナリオに入る。
      入手方法（三分類）も選ばないと確定しない。 */
   m.groups[0].items[0].pickedScenario = "S1";
   const unanswered = gara.toDispatchActions(m, [key], { purchases: {} });
-  assert.ok(unanswered.skipped.some((s) => /入手方法/.test(s.reason)), "入手方法が未決なら入れない");
+  assert.ok(unanswered.skipped.some((s) => /入手方法/.test(s.reason)), "入手方法が未決なら所持には入らない");
   m.groups[0].items[0].source = "ticket";
   const after = gara.toDispatchActions(m, [key], { purchases: {} });
   const afterHeld = after.actions.filter((a) => a.type !== "ADD_RESULT");

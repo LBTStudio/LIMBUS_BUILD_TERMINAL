@@ -261,11 +261,15 @@ item.decide ? h("div", { className: "gara-decide" },
      利用者が触るのはこの中の「未決」行だけ。 */
   function ResultCard({ block, scenarioOptions, sourceOptions, onPickIdentity }) {
     const income = block.income || { lp: 0, shards: 0 };
+    /* 無題は名前が無いのでカード名として使えない。個数と合計で示す。 */
+    const title = block.name && block.name !== "無題"
+      ? block.name
+      : "無題 " + block.orphanNote;
     const note = "収入 LP " + (income.lp || 0) + "・欠片 " + (income.shards || 0)
       + "・割当 " + block.items.length + "件";
     return h("section", { className: "gara-group gara-result" },
       h("div", { className: "gara-group-head" },
-        h("h4", { className: "gara-group-title" }, block.name || "無題"),
+        h("h4", { className: "gara-group-title" }, title),
         h("p", { className: "gara-group-note" }, note)
       ),
       h("div", { className: "gara-rows", role: "group", "aria-label": (block.name || "無題") + " の割当" },
@@ -668,7 +672,7 @@ function appliedSummary(actions) {
       ? h("p", { className: "gara-note" },
         `初期精神系 ${manifest.counts.spiritsExcluded} 件は最初から持っているものとして数えるため、計上対象外にしました。`)
       : null,
-    draft && draft.blocks.filter((b) => b.items.length).map((block) => h(ResultCard, {
+    draft && draft.blocks.map((block) => h(ResultCard, {
       key: block.key || block.name,
       block,
       scenarioOptions,

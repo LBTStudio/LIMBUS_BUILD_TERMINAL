@@ -22,7 +22,7 @@ function load() {
   const c = { window: w, console, URL, TextEncoder, TextDecoder, setTimeout, clearTimeout, module: { exports: {} } };
   c.globalThis = c;
   vm.createContext(c);
-  for (const f of ["js/garasumado-memo-parse.js", "js/garasumado-roster-import.js", "js/roster-resolver.js"]) {
+  for (const f of ["js/roster-resolver.js", "js/garasumado-memo-parse.js", "js/ledger-provenance.js", "js/garasumado-roster-import.js"]) {
     vm.runInContext(readFileSync(new URL("../" + f, import.meta.url), "utf8"), c, { filename: f });
   }
   return c.window;
@@ -195,10 +195,111 @@ test("選択を変えるとシミュレーションも変わる", () => {
     { personas: [{ name: PERSONA }], egos: [], supportPassives: [], spirits: [] },
     [{ name: "夜K", memo: `ガチャ結果→${PERSONA}` }]
   );
+  /* メモが「ガチャ結果→X」と書いている品目は、チェックの有無に関わらず
+     記録として入り込む（その場の獲得記録なので）。チェックで効くのは、
+     メモに獲得の記載が無い品目。 */
   const none = G.buildResultDraft(m, { db, identity: {}, selected: [], resolve });
-  assert.equal(none.simulation.held, 0, "未選択なら入らない");
   const on = G.buildResultDraft(m, { db, identity: {}, selected: [m.groups[0].items[0].key], resolve });
-  assert.equal(on.simulation.held, 1, "選択すれば入る");
+  assert.equal(none.simulation.held, 1, "獲得行のある品目は入る");
+  assert.equal(on.simulation.held, 1, "選択しても二重には入らない");
+
+  const only = make(
+    { personas: [{ name: OTHER_PERSONA }], egos: [], supportPassives: [], spirits: [] },
+    [{ name: "夜K2", memo: "何もない" }]
+  );
+  const key = only.groups[0].items[0].key;
+  const off = G.buildResultDraft(only, { db, identity: {}, selected: [], resolve });
+  const checked = G.buildResultDraft(only, { db, identity: {}, selected: [key], resolve });
+  assert.equal(off.simulation.held, 0, "獲得の記載が無い品目は未選択なら入らない");
+  assert.equal(checked.simulation.held, 1, "選択すれば入る");
+});
+
+test("シナリオは一つ一つがリザルトになる（帰属が無くても作られる）", () => {
+  const m = make(
+    { personas: [], egos: [], supportPassives: [], spirits: [] },
+    [{ name: "夜R1", memo: "60LPを獲得" }, { name: "夜R2", memo: "40欠片を獲得" }]
+  );
+  const built = G.toDispatchActions(m, [], {});
+  const results = built.actions.filter((a) => a.type === "ADD_RESULT");
+  assert.equal(results.length, 2, "所持が1件も無くてもシナリオ2件 → リザルト2件");
+  assert.equal(results.reduce((n, a) => n + Number(a.income && a.income.lp || 0), 0), 60, "収入も入る");
+});
+
+test("実サンプル：シナリオ数とリザルト数が全文書で一致する", () => {
+  const docs = Object.entries(samples).map(([, v]) => (v && v.doc ? v.doc : v)).filter((d) => d && d.owned);
+  let mismatch = 0;
+  let checked = 0;
+  let incomeMismatch = 0;
+  for (const doc of docs) {
+    const manifest = G.buildManifest(doc, { resolve });
+    const scenarios = manifest.scenarios || [];
+    const built = G.toDispatchActions(manifest, [], {});
+    const results = built.actions.filter((a) => a.type === "ADD_RESULT");
+    checked += 1;
+    if (results.length !== scenarios.length) mismatch += 1;
+    const scLp = scenarios.reduce((n, s) => n + (Number(s.income && s.income.lp) || 0), 0);
+    const scSh = scenarios.reduce((n, s) => n + (Number(s.income && s.income.shards) || 0), 0);
+    const rLp = results.reduce((n, a) => n + (Number(a.income && a.income.lp) || 0), 0);
+    const rSh = results.reduce((n, a) => n + (Number(a.income && a.income.shards) || 0), 0);
+    if (scLp !== rLp || scSh !== rSh) incomeMismatch += 1;
+  }
+  assert.ok(checked > 40, "実サンプルを十分に含む（実際 " + checked + "）");
+  assert.equal(mismatch, 0, "シナリオ数とリザルト数が全文書で一致する");
+  assert.equal(incomeMismatch, 0, "シナリオの収入が1件も落ちていない");
+});
+
+test("同名のシナリオが潰れてカードが減らない", () => {
+  const m = make(
+    { personas: [], egos: [], supportPassives: [], spirits: [] },
+    [{ name: "同じ名前", memo: "10LPを獲得" }, { name: "同じ名前", memo: "20LPを獲得" }]
+  );
+  const draft = G.buildResultDraft(m, { db, identity: {} });
+  assert.equal(draft.blocks.length, 2, "同名のシナリオも2枚のカードとして残る");
+  const built = G.toDispatchActions(m, [], {});
+  assert.equal(built.actions.filter((a) => a.type === "ADD_RESULT").length, 2, "リザルトも2件");
+});
+
+test("同期・解析の記載があれば、獲得行に無くても帰属が決まる（所持に存在した証拠）", () => {
+  const w2 = load();
+  const resolve2 = (n) => w2.LBT_resolveCandidates(w2.LBT_buildNameIndex(db, {}), n)?.[0] || null;
+  /* 獲得行（ガチャ結果→）が無く、同答主語だけがある。 */
+  const doc = {
+    currency: { lp: 0, fragments: 0 },
+    owned: { personas: [{ name: "剣契殺手Aの人格" }], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{ name: "夜S", memo: "欠片50を消費して同期化「θ剣契殺手A」" }]
+  };
+  const m = w2.LBT_garasumado.buildManifest(doc, { resolve: resolve2 });
+  const draft = w2.LBT_garasumado.buildResultDraft(m, { db, identity: {}, resolve: resolve2 });
+  const block = draft.blocks.find((b) => b.name === "夜S");
+  assert.ok(block, "夜S のリザルトがある");
+  assert.equal(block.items.length, 1, "同期対象は所持に存在するので帰属が決まる");
+  assert.equal(block.items[0].name, "剣契殺手Aの人格");
+  assert.equal(block.items[0].tier, "S", "同期の記載による帰属");
+});
+
+test("所持名に装飾があっても、正式名の同期対象と一致する", () => {
+  const w2 = load();
+  const resolve2 = (n) => w2.LBT_resolveCandidates(w2.LBT_buildNameIndex(db, {}), n)?.[0] || null;
+  /* 所持側は「剣契殺手Aの人格」（装飾付き）、メモ側は正式名「剣契殺手A」。 */
+  const doc = {
+    currency: { lp: 0, fragments: 0 },
+    owned: { personas: [{ name: "剣契殺手Aの人格" }], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{ name: "夜T", memo: "同期化「剣契殺手A」" }]
+  };
+  const m = w2.LBT_garasumado.buildManifest(doc, { resolve: resolve2 });
+  const draft = w2.LBT_garasumado.buildResultDraft(m, { db, identity: {}, resolve: resolve2 });
+  const block = draft.blocks.find((b) => b.name === "夜T");
+  assert.equal(block.items.length, 1, "装飾を除いた形で一致する");
+});
+
+test("同期の記載にも本文にも無いものは未割当のまま（推測しない）", () => {
+  const m = make(
+    { personas: [{ name: "まったく別の名前" }], egos: [], supportPassives: [], spirits: [] },
+    [{ name: "夜U", memo: "同期化「剣契殺手A」" }]
+  );
+  const draft = G.buildResultDraft(m, { db, identity: {} });
+  assert.equal(draft.blocks.every((b) => b.items.length === 0), true, "别人的名前は入らない");
+  assert.equal(draft.unassigned.length, 1);
 });
 
 test("文字一致の候補は一致率の降順で並ぶ", () => {

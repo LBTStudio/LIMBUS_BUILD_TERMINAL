@@ -46,7 +46,7 @@ test("画面は draft（純関数）から描画する", () => {
   assert.match(ui, /const draft = React\.useMemo\(\(\) => \{/);
   assert.match(ui, /window\.LBT_buildResultDraft/);
   /* 集計を画面側でやり直さない。 */
-  assert.match(ui, /draft\.blocks\.filter\(\(b\) => b\.items\.length\)\.map\(\(block\) => h\(ResultCard/);
+  assert.match(ui, /draft && draft\.blocks\.map\(\(block\) => h\(ResultCard/);
   assert.match(ui, /h\(UnassignedPool, \{ items: draft\.unassigned/);
 });
 
