@@ -714,8 +714,10 @@
            （「刺し貫く貫通購入：現在130LP」「正義購入 現在87欠片」など）。
            金額の記帳は支出読みに任せる。 */
         var pnm = purchaseNameOf(line);
-        if (pnm && !wins.some((w) => w.name === pnm)) {
-          wins.push({ name: pnm, via: "", kind: "", bought: true });
+        for (const pn of purchaseNamesFrom(line)) {
+          if (!wins.some((w) => w.name === pn)) {
+            wins.push({ name: pn, via: "", kind: "", bought: true });
+          }
         }
         /* 支出節の行を2種に分ける。
            A) 支出額が明示されている行
@@ -831,6 +833,22 @@
     m = t.match(/^([^0-9\s：:][^：:]{0,24}?)\s*を購入[、,]/);
     if (m) return m[1].trim();
     return null;
+  }
+
+  /* 一行で複数を買った購入行（「ピークォド号航海士の人格、および
+     呼吸熱購入」）。名前を読み取った区切りに分けて列にする。
+     金額は行で一つなので支出の分割はしない。解決できない区切りは
+     所持側で捨てられるので、ここでは治りすぎない。 */
+  function purchaseNamesFrom(line) {
+    var t = String(line || "").trim();
+    var m = t.match(/^([^0-9\s：:][^：:]{0,24}?)\s*(?:購入|消費)(?:[　\s]*[：:]?)?\s*(?:現在|残)/);
+    if (!m) m = t.match(/^([^0-9\s：:][^：:]{0,24}?)\s*を購入[、,]/);
+    if (!m) return [];
+    return String(m[1]).trim().replace(/を$/, "").split(/[、，]/)
+      .map(function (s) {
+        return s.replace(/^(?:および|及び|そして)/, "").trim().replace(/を$/, "");
+      })
+      .filter(Boolean);
   }
 
   var api = { parseMemo: parseMemo, parseScenarioHistory: parseScenarioHistory, currencyOf: currencyOf, amountOf: amountOf, sectionOf: sectionOf, ticketOf: ticketOf, purchaseRowOf: purchaseRowOf };

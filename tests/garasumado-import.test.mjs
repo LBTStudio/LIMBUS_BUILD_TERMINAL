@@ -196,6 +196,14 @@ test("「〜へ」で終わる行は前半の数が支出（後半は残WRITE）
   assert.equal(r.spends.length, 1);
   assert.equal(r.spends[0].lp, 150, "消費した額。300LPへ の 300 は残WRITE");
 });
+
+test("一行で複数を買った購入行は名前を区切って所持の証跡にする", () => {
+  const r = MEMO.parseMemo("・支出\nピークォド号航海士の人格、および呼吸熱購入 現在19LP");
+  assert.equal(r.spends.length, 1, "金額は行で一つ。分割で二重に数えない");
+  assert.equal(r.spends[0].lp, 19);
+  assert.ok(r.wins.some((w) => w.name === "呼吸熱" && w.bought), "区切った名前の勝ち");
+  assert.ok(r.wins.some((w) => w.name === "ピークォド号航海士の人格" && w.bought), "接続詞の前の名前も勝ち");
+});
 test("チケットの個数と種別を読む", () => {
   const a = MEMO.parseMemo("抽出チケットx1：シュエ家私兵の人格");
   assert.equal(a.tickets.persona, 1);
