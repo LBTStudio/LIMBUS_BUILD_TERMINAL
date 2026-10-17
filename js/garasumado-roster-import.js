@@ -592,6 +592,9 @@ function toIdentityChoices(hits) {
     /* 所持ループで既に納入した品目。シナリオの獲得ループが同じ人格・E.G.O を
        二重に登録しないためのもの（所持一覧と獲得行の両方に出る品目は 1 件だけ）。 */
     const taken = new Set();
+    /* memo の支出明細に既に購入費が載っている所持は、ADD で二重に課帳しない
+       （リザルトに書かれた購入費が真実。DB の価格は memo が無いときの照合値）。 */
+    const memoPaid = (item) => (item.spends || []).length > 0;
 
     for (const group of (manifest && manifest.groups) || []) {
       for (const item of group.items) {
@@ -631,14 +634,14 @@ function toIdentityChoices(hits) {
             continue;
           }
           taken.add(`persona:${persona.mode || "n"}:${persona.no}`);
-          actions.push({ type: "ADD_ROSTER", no: String(persona.no), mode: persona.mode || "n", via, source: item.source || "", purchase: item.source === "buy" });
+          actions.push({ type: "ADD_ROSTER", no: String(persona.no), mode: persona.mode || "n", via, source: item.source || "", purchase: item.source === "buy" && !memoPaid(item) });
         } else if (group.id === "egos") {
           if (!ego || !ego.no || !ego.rank) {
             skipped.push({ key: item.key, reason: "DB番号かランクが引けない" });
             continue;
           }
           taken.add(`ego:${ego.rank}:${ego.no}`);
-          actions.push({ type: "ADD_ROSTER_EGO", no: String(ego.no), rank: ego.rank, via, source: item.source || "", purchase: item.source === "buy" });
+          actions.push({ type: "ADD_ROSTER_EGO", no: String(ego.no), rank: ego.rank, via, source: item.source || "", purchase: item.source === "buy" && !memoPaid(item) });
         } else if (group.id === "supportPassives") {
           if (!support) { skipped.push({ key: item.key, reason: "DB番号が引けない" }); continue; }
           /* サポートパッシブは三分類の対象外（同期/解析と同じ「そのまま確定」）。
@@ -649,7 +652,7 @@ function toIdentityChoices(hits) {
             type: "ADD_ROSTER_SUPPORT",
             spp: { name: support.name || item.dbName || item.name },
             via,
-            purchase: item.source === "buy"
+            purchase: item.source === "buy" && !memoPaid(item)
           });
         } else if (group.id === "spirits") {
           if (!spirit) { skipped.push({ key: item.key, reason: "DB番号が引けない" }); continue; }

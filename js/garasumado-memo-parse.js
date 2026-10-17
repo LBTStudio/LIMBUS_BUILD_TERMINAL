@@ -600,7 +600,9 @@
            実買の記録なので、収入節と同じ共通経路で読む。 */
         var buyAny = purchaseRowOf(line);
         if (buyAny) {
-          spends.push({ name: buyAny.name, lp: buyAny.lp, shards: buyAny.shards, raw: line, reason: "購入の短文" });
+          if (buyAny.lp || buyAny.shards) {
+            spends.push({ name: buyAny.name, lp: buyAny.lp, shards: buyAny.shards, raw: line, reason: "購入の短文" });
+          }
           if (!wins.some((w) => w.name === buyAny.name)) {
             wins.push({ name: buyAny.name, via: "", kind: "", bought: true });
           }
@@ -615,7 +617,9 @@
            帰属の証跡になる）。 */
         var buyRow = purchaseRowOf(line);
         if (buyRow) {
-          spends.push({ name: buyRow.name, lp: buyRow.lp, shards: buyRow.shards, raw: line, reason: "購入の短文" });
+          if (buyRow.lp || buyRow.shards) {
+            spends.push({ name: buyRow.name, lp: buyRow.lp, shards: buyRow.shards, raw: line, reason: "購入の短文" });
+          }
           if (!wins.some((w) => w.name === buyRow.name)) {
             wins.push({ name: buyRow.name, via: "", kind: "", bought: true });
           }
@@ -706,6 +710,13 @@
 
       /* 支出 */
       if (mode === "spend") {
+        /* 支出節に書かれた購入行は所持の証跡。名前だけはいつでも勝ちに積む
+           （「刺し貫く貫通購入：現在130LP」「正義購入 現在87欠片」など）。
+           金額の記帳は支出読みに任せる。 */
+        var pnm = purchaseNameOf(line);
+        if (pnm && !wins.some((w) => w.name === pnm)) {
+          wins.push({ name: pnm, via: "", kind: "", bought: true });
+        }
         /* 支出節の行を2種に分ける。
            A) 支出額が明示されている行
               「正義購入 現在87欠片」      → 87 が支出（前置詞 + 現在NN）
@@ -737,12 +748,12 @@
 
         if (lp == null && sh == null) {
           if (isRemainderOnly) continue;
-          spends.push({ name: line, lp: 0, shards: 0, raw: line });
+          spends.push({ name: pnm || line, lp: 0, shards: 0, raw: line });
           reasons.push({ line: line, reason: "支出金額が読み取れない（要確認）" });
           continue;
         }
         spends.push({
-          name: line,
+          name: pnm || line,
           lp: lp != null ? Math.abs(lp) : 0,
           shards: sh != null ? Math.abs(sh) : 0,
           raw: line
@@ -804,10 +815,21 @@
     if (m) return mk(m[1], m[2], m[3]);
     m = t.match(/^(LP|ＬＰ|欠片|かけら|欠けら|カケラ)?\s*[-−]?\s*([0-9０-９]+)\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ)?[^「『]*[「『]([^「『」』]+)[」』].*?(?:購入|消費)\s*[。．.」』]*$/);
     if (m) return mk(m[4], m[2], m[3] || m[1]);
-    /* 「憎悪購入：-50欠片」のように金額が残高差分（負数）で書かれる購入行。
-       リザルトに記された購入なら支出であり、所持の証跡にもなる。 */
     m = t.match(/^([^0-9\s：:][^：:]{0,24}?)\s*(?:購入|消費)[：:]\s*[-−]\s*([0-9０-９]+)\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ)?\s*[。．.」』]*$/);
     if (m) return mk(m[1], m[2], m[3]);
+    return null;
+  }
+
+  /* 支出節に書かれた購入行のうち、「正義購入 現在87欠片」
+     「刺し貫く貫通購入：現在130LP」のように動詞さえあれば名前が
+     読める行。金額は残額の可能性があるので所持の証跡（名前の勝ち）
+     だけを返す。金額の記帳は支出側の既存の読みに任せる。 */
+  function purchaseNameOf(line) {
+    var t = String(line || "").trim();
+    var m = t.match(/^([^0-9\s：:][^：:]{0,24}?)\s*(?:購入|消費)(?:[　\s]*[：:]?)?\s*(?:現在|残)/);
+    if (m) return m[1].trim().replace(/を$/, "");
+    m = t.match(/^([^0-9\s：:][^：:]{0,24}?)\s*を購入[、,]/);
+    if (m) return m[1].trim();
     return null;
   }
 
