@@ -251,12 +251,32 @@ item.decide ? h("div", { className: "gara-decide" },
 
 /* 未割当は右レールの1本に統合する。同期/解析は獲得でも購入でも
      ないためリストには入れず、それ以外の未割当は全部入れる。
-     ドラッグが使えない環境でも選べるように、各行に帰属先の select を置く。 */
-  function UnclassifiedRail({ items, scenarioOptions, onPickIdentity }) {
-    if (!items.length) return null;
-    return h("aside", { className: "gara-rail", "aria-label": "未割当の所持" },
+     ドラッグが使えない環境でも選べるように、各行に帰属先の select を置く。
+     カードの行をここへ戻すと未割当に返り、帰属先を選び直せる（再分類）。 */
+  function UnclassifiedRail({ items, scenarioOptions, onPickIdentity, onReturnItem }) {
+    const [over, setOver] = React.useState(false);
+    return h("aside", {
+      className: "gara-rail" + (over ? " is-over" : ""),
+      "aria-label": "未割当の所持",
+      onDragOver: (event) => {
+        if (!onReturnItem) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        if (!over) setOver(true);
+      },
+      onDragLeave: (event) => {
+        if (event.currentTarget === event.target && over) setOver(false);
+      },
+      onDrop: (event) => {
+        if (!onReturnItem) return;
+        event.preventDefault();
+        if (over) setOver(false);
+        const key = event.dataTransfer.getData("text/plain");
+        if (key) onReturnItem(key);
+      }
+    },
       h("h4", { className: "gara-rail-title" }, `未割当 ${items.length}件`),
-      h("p", { className: "gara-rail-hint" }, "カードへドラッグ、または下の選択肢で帰属先を指定"),
+      h("p", { className: "gara-rail-hint" }, "カードへドラッグで割当。カードの行をここへ戻すと再分類できます"),
       h("div", { className: "gara-rail-list" },
         items.map((item) => h("div", {
           key: item.key,
@@ -288,7 +308,8 @@ item.decide ? h("div", { className: "gara-decide" },
             )
           )
         ))
-      )
+      ),
+      items.length ? null : h("p", { className: "gara-rail-hint" }, "カードから戻した所持はここに出ます")
     );
   }
 
@@ -302,8 +323,9 @@ item.decide ? h("div", { className: "gara-decide" },
 
   /* 1シナリオ＝1リザルトのカード。見本（記録のリザルトカード）と同じ言語で
      見せる: .cardの面、card-headerの罫線、収入の金色大数字ペア。
-     行の中身（帰属先・入手方法・DB候補）だけが取り込み独自。 */
-  function ResultCard({ block, scenarioOptions, sourceOptions, onPickIdentity, onDropItem }) {
+     行の中身（入手方法・DB候補）だけが取り込み独自。帰属先はカード所属が
+     決める。選び直しは行を未割当リストへ戻す（ドラッグ、または「未割当へ」）。 */
+  function ResultCard({ block, scenarioOptions, sourceOptions, onPickIdentity, onDropItem, onReturnItem }) {
     const income = block.income || { lp: 0, shards: 0 };
     /* 無題は名前が無いのでカード名として使えない。個数と合計で示す。 */
     const title = block.name && block.name !== "無題"
@@ -343,7 +365,15 @@ item.decide ? h("div", { className: "gara-decide" },
         },
         block.items.map((item) => h("div", {
           key: item.key,
-          className: "gara-row gara-row-assigned" + (item.needsSource ? " is-unsure" : "")
+          className: "gara-row gara-row-assigned" + (item.needsSource ? " is-unsure" : ""),
+          /* 帰属先はカードの所属で決まる。やり直すときはこの行を右の
+             未割当リストへ戻す（再分類）。決まった行に select は置かない。 */
+          draggable: true,
+          title: "右の未割当リストへ戻すと帰属先を選び直せます",
+          onDragStart: (event) => {
+            event.dataTransfer.setData("text/plain", item.key);
+            event.dataTransfer.effectAllowed = "move";
+          }
         },
           /* 名称は操作フィールドと縦に分ける。横並びだと select が幅を奪い
              名称が数文字で切れる（2026-10-17 実機確認）。 */
@@ -369,18 +399,6 @@ item.decide ? h("div", { className: "gara-decide" },
             )
           ),
           h("label", { className: "gara-decide-field" },
-            h("span", { className: "gara-label" }, "帰属先"),
-            h("select", {
-              className: "input",
-              value: item.tier === "M" ? block.name : "",
-              "aria-label": item.name + " の帰属先シナリオ",
-              onChange: (event) => onPickIdentity(item.key, { pickedScenario: event.target.value })
-            },
-              h("option", { value: "" }, "選んでください"),
-              scenarioOptions.map((name) => h("option", { key: name, value: name }, name))
-            )
-          ),
-          h("label", { className: "gara-decide-field" },
             h("span", { className: "gara-label" }, "入手方法"),
             h("select", {
               className: "input",
@@ -392,7 +410,15 @@ item.decide ? h("div", { className: "gara-decide" },
               h("option", { value: "" }, "選んでください"),
               sourceOptions.map((s) => h("option", { key: s.id, value: s.id }, s.label))
             )
-          )
+          ),
+          /* ドラッグが使えない環境（キーボード操作を含む）でも戻せるように、
+             同じ戻しをボタンでも置く。 */
+          h("button", {
+            type: "button",
+            className: "gara-mini",
+            onClick: () => onReturnItem?.(item.key),
+            title: item.name + " を未割当へ戻して帰属先を選び直す"
+          }, "未割当へ")
           )
         )),
         block.items.length === 0
@@ -605,8 +631,10 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
         ...g,
         items: g.items.map((i) => {
           const item = { ...i, ...(identity[i.key] || {}) };
-          /* 未決かどうかは保存せず、その都度ここから決める。 */
-          const attributed = (item.via && item.via.length) || Boolean(item.pickedScenario);
+          /* 未決かどうかは保存せず、その都度ここから決める。
+             カードから戻された所持は照合より戻しを優先して未決に戻る。 */
+          const attributed = !(item.returned && !item.pickedScenario)
+            && ((item.via && item.via.length) || Boolean(item.pickedScenario));
           /* 候補が複数なら、どれか1つを明示的に選ばせないと確定しない。 */
           const identityOk = !(item.identityCandidates && item.identityCandidates.length > 1)
             || Boolean(item.picked);
@@ -631,7 +659,14 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
      ドラッグ済みのものも undo で戻せるよう、拾われ口は onPickIdentity 1 本にする。 */
   const dropToBlock = (itemKey, blockName) => {
     if (!itemKey || !blockName) return;
-    onPickIdentity(itemKey, { pickedScenario: blockName });
+    onPickIdentity(itemKey, { pickedScenario: blockName, returned: false });
+  };
+
+  /* カードから戻された行は未割当へ返し、帰属先を選び直せるようにする。
+     照合結果より戻しを優先する印（returned）を立てる。 */
+  const returnItem = (itemKey) => {
+    if (!itemKey) return;
+    onPickIdentity(itemKey, { pickedScenario: "", returned: true });
   };
 
   const draft = React.useMemo(() => {
@@ -798,10 +833,11 @@ function appliedSummary(actions) {
       scenarioOptions,
       sourceOptions,
       onPickIdentity,
-      onDropItem: dropToBlock
+      onDropItem: dropToBlock,
+      onReturnItem: returnItem
     })),
-    unclassified.length
-      ? h(UnclassifiedRail, { items: unclassified, scenarioOptions, onPickIdentity })
+    unclassified.length || (draft && draft.blocks.some((b) => (b.items || []).length))
+      ? h(UnclassifiedRail, { items: unclassified, scenarioOptions, onPickIdentity, onReturnItem: returnItem })
       : null,
     counts.ops || counts.unknownName ? h("section", { className: "gara-group gara-result" },
       h("div", { className: "gara-group-head" },

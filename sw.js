@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-5925e867";
+const CACHE_NAME = "lbt-9700e628";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -37,7 +37,7 @@ const PRECACHE_URLS = [
   "assets/v65r43-ego-readability.css?v=563284f8",
   "assets/v65r44-ego-quick-detail.css?v=1bb6dfa1",
   "assets/v65r47-ego-card-marks.css?v=aaf12533",
-  "assets/v66-accounts.css?v=6f06c415",
+  "assets/v66-accounts.css?v=6f96f1ee",
   "assets/v67-persona-redesign.css?v=458bf9f1",
   "assets/workspace.css?v=253d0319",
   "data/db.json?v=b04a7751",
@@ -57,9 +57,9 @@ const PRECACHE_URLS = [
   "js/gacha-proof.js?v=568ae912",
   "js/gacha-tickets.js?v=c67b2ac7",
   "js/gacha.js?v=7c84ae89",
-  "js/garasumado-import-ui.js?v=518e4803",
+  "js/garasumado-import-ui.js?v=07e33e86",
   "js/garasumado-memo-parse.js?v=0240e20e",
-  "js/garasumado-roster-import.js?v=af7a0217",
+  "js/garasumado-roster-import.js?v=15774abc",
   "js/generator.js?v=2dca0394",
   "js/icon-cropper.js?v=20900dc8",
   "js/ledger-import-reconcile.js?v=d63c36d5",

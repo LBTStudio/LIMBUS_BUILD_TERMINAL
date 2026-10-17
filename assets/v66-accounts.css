@@ -828,6 +828,13 @@ main.acct-gate {
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   background: var(--surface-2);
+  transition: border-color .12s ease, background .12s ease;
+}
+
+/* カードの行をここへ戻すドラッグ中。受け取る場所だと分かるように縁を灯す。 */
+.gara-rail.is-over {
+  border-color: var(--accent-line);
+  background: color-mix(in srgb, var(--accent-line) 10%, var(--surface-2));
 }
 
 .gara-rail-title {

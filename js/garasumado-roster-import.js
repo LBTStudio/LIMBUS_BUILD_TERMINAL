@@ -573,8 +573,10 @@ function toIdentityChoices(hits) {
 
   /* 帰属先。シナリオに載っていないものは自動では付けず、
      利用者が選んだシナリオを 1 件だけ使う（未決なら null）。
-     定めるのはコート時だけ。他の利用者は従来通り通す。 */
+     定めるのはコート時だけ。他の利用者は従来通り通す。
+     カードから戻された所持は照合より戻しを優先し、帰属先未決に戻る。 */
   function chosenVia(item) {
+    if (item.returned && !item.pickedScenario) return [];
     if (item.via && item.via.length) return item.via;
     if (item.pickedScenario) return [item.pickedScenario];
     if (item.needsAttribution) return null;
@@ -966,9 +968,12 @@ function toIdentityChoices(hits) {
            名前索引の文字一致を使い、一意に絞れるものだけ名前解決に使う。 */
         const cands = db ? overlapCandidates(item.name, db) : [];
         const names = cands.length === 1 ? [cands[0].name] : [];
-        const found = attributionOf(item, evidence, names);
+        /* カードから戻された所持は照合結果より戻しを優先して未割当に返す。
+           帰属先を選び直せば（pickedScenario が入れば）戻しは解ける。 */
+        const returned = Boolean(patch.returned) && !item.pickedScenario;
+        const found = returned ? null : attributionOf(item, evidence, names);
         /* 归属 Override があれば、照合より優先する。 */
-        const chosenName = item.pickedScenario || (found ? found.scenario : "");
+        const chosenName = returned ? "" : (item.pickedScenario || (found ? found.scenario : ""));
         const chosenBlock = chosenName ? (blockOfName.get(chosenName) || null) : null;
         const tier = item.pickedScenario ? "M" : found ? found.tier : "";
         const source = item.source || "";
@@ -993,9 +998,11 @@ function toIdentityChoices(hits) {
           continue;
         }
         if (found && found.tier === "F") { /* 下の else と同じ扱い */ }
-        record.reason = !found
-          ? (cands.length ? "候補が複数あります（選んでください）" : "照合できるシナリオがありません")
-          : "シナリオが決まっていません";
+        record.reason = returned
+          ? "カードから戻しました（帰属先を選び直してください）"
+          : !found
+            ? (cands.length ? "候補が複数あります（選んでください）" : "照合できるシナリオがありません")
+            : "シナリオが決まっていません";
         unassigned.push(record);
       }
     }

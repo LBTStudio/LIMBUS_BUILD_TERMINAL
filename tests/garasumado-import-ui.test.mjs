@@ -16,7 +16,7 @@ const ui = readFileSync(new URL("../js/garasumado-import-ui.js", import.meta.url
 const uiFlat = ui.replace(/\s+/g, " ");
 
 test("1シナリオ＝1リザルトのカードがある", () => {
-  assert.match(uiFlat, /function ResultCard\(\{ block, scenarioOptions, sourceOptions, onPickIdentity, onDropItem \}\)/);
+  assert.match(uiFlat, /function ResultCard\(\{ block, scenarioOptions, sourceOptions, onPickIdentity, onDropItem, onReturnItem \}\)/);
   assert.match(uiFlat, /"gara-group gara-result"/);
   /* 照合済みの所持は最初からカードの中に出る。 */
   assert.match(uiFlat, /block\.items\.map\(\(item\) => h\("div", \{/);
@@ -29,10 +29,11 @@ test("照合の階級が表示に現れる", () => {
   assert.match(uiFlat, /TIER_NOTE\[item\.tier\]/);
 });
 
-test("カードの中で個別に帰属先と入手方法を選べる", () => {
-  assert.match(uiFlat, /"aria-label": item\.name \+ " の帰属先シナリオ"/);
+test("カードの中で入手方法を選べる。帰属先はカード所属で決まり select を置かない", () => {
+  /* ユーザー指示: 分類済みの行に「選んでください」のプルダウンは邪魔。
+     やり直しはカードの行を未割当リストへドラッグで戻す（再分類）。 */
+  assert.doesNotMatch(uiFlat, /の帰属先シナリオ"/);
   assert.match(uiFlat, /"aria-label": item\.name \+ " の入手方法"/);
-  assert.match(uiFlat, /onPickIdentity\(item\.key, \{ pickedScenario: event\.target\.value \}\)/);
   assert.match(uiFlat, /onPickIdentity\(item\.key, \{ source: event\.target\.value \}\)/);
 });
 
@@ -93,7 +94,7 @@ test("未分類_personaは宣言後にしか参照しない（TDZ の再発防�
 });
 
 test("未分類所持は右側の追従リストへ出し、カードへドラッグで帰属先を決められる", () => {
-  assert.match(uiFlat, /function UnclassifiedRail\(\{ items, scenarioOptions, onPickIdentity \}\)/);
+  assert.match(uiFlat, /function UnclassifiedRail\(\{ items, scenarioOptions, onPickIdentity, onReturnItem \}\)/);
   assert.match(uiFlat, /className: "gara-rail"/);
   assert.match(uiFlat, /draggable: true,/);
   assert.match(uiFlat, /event\.dataTransfer\.setData\("text\/plain", item\.key\)/);
@@ -101,6 +102,22 @@ test("未分類所持は右側の追従リストへ出し、カードへドラ�
   assert.match(uiFlat, /onDropItem\(key, block\.name \|\| ""\)/);
   /* ドラッグが使えない環境用のフォールバック。 */
   assert.match(uiFlat, /の帰属先シナリオ（未分類）/);
+  assert.match(uiFlat, /onPickIdentity\(item\.key, \{ pickedScenario: event\.target\.value \}\)/);
+});
+
+test("カードの行を未割当リストへ戻して再分類できる（ドラッグ・バック）", () => {
+  /* ユーザー指示: 分類し直しはドラッグでリストへ戻す。 */
+  assert.match(uiFlat, /onDragStart: \(event\) => \{/);
+  assert.match(uiFlat, /onReturnItem: returnItem/);
+  assert.match(uiFlat, /const returnItem = \(itemKey\) => \{/);
+  assert.match(uiFlat, /onPickIdentity\(itemKey, \{ pickedScenario: "", returned: true \}\)/);
+  /* レールはカードからの受け皿。空でも置ける（最後の1件も戻せる）。 */
+  assert.match(uiFlat, /onDrop: \(event\) => \{/);
+  assert.match(uiFlat, /getData\("text\/plain"\)/);
+  assert.match(uiFlat, /draft\.blocks\.some\(\(b\) => \(b\.items \|\| \[\]\)\.length\)/);
+  /* ドラッグが使えない環境（キーボード含む）でも戻せるようにボタンでも置く。 */
+  assert.match(uiFlat, /onClick: \(\) => onReturnItem\?\.\(item\.key\)/);
+  assert.match(uiFlat, /\}, "未割当へ"\)/);
 });
 
 test("分類できないが確定済みの所持はカード内で DB 候補を選んで決められる", () => {

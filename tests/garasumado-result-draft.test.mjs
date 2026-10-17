@@ -103,8 +103,26 @@ test("利用者が帰属先を選んだ分は照合より優先される（M）"
   assert.equal(e.items[0].tier, "M", "利用者の選択");
 });
 
-test("証跡が無い人格は入手方法（source）を選ばせる", () => {
-  /* 獲得行がある＝証跡がある。guessSource が決めるので自動化で足りる。 */
+test("カードから戻した所持は未割当へ返り、選び直すと再分類できる", () => {
+  const m = make(
+    { personas: [{ name: PERSONA }], egos: [], supportPassives: [], spirits: [] },
+    [{ name: "夜E", memo: "空" }, { name: "夜F", memo: `ガチャ結果→${PERSONA}` }]
+  );
+  const key = m.groups[0].items[0].key;
+  /* 照合で入っている状態を、戻しで未割当へ返す（照合より戻しが優先）。 */
+  const back = G.buildResultDraft(m, { db, identity: { [key]: { returned: true } } });
+  assert.equal(back.blocks.every((b) => b.items.length === 0), true, "どのカードにも残らない");
+  assert.equal(back.unassigned.length, 1, "未割当へ返る");
+  assert.match(back.unassigned[0].reason, /戻しました/, "戻したことが分かる理由");
+  /* 戻したまま別のシナリオを選べば、戻しは解けて再分類される。 */
+  const again = G.buildResultDraft(m, { db, identity: { [key]: { returned: true, pickedScenario: "夜E" } } });
+  const e = again.blocks.find((b) => b.name === "夜E");
+  assert.equal(e.items.length, 1, "選び直しが優先される");
+  assert.equal(e.items[0].tier, "M", "選び直しは利用者指定");
+  assert.equal(again.unassigned.length, 0);
+});
+
+test("証跡が無い人格は入手方法（source）を選ばせる", () => {  /* 獲得行がある＝証跡がある。guessSource が決めるので自動化で足りる。 */
   const withWin = make(
     { personas: [{ name: PERSONA }], egos: [], supportPassives: [], spirits: [] },
     [{ name: "夜G", memo: `ガチャ結果→${PERSONA}` }]
