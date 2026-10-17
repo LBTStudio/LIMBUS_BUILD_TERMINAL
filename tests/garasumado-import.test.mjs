@@ -364,6 +364,27 @@ test("サポートパッシブの購入行は括弧内の名前を獲得とし�
   assert.equal(wins(MEMO.parseMemo("LP-20 サポートパッシブ「人生一発」購入")).length, 1, "購入語が後ろにあっても読む");
 });
 
+test("名前付き購入行「蒼羽蝶：75LP消費」は支出として読まれる", () => {
+  /* 実データ mMIbGr32lGZix60RDmoN の GM練習卓 memo。ラベル（通貨でない語）
+     の直後に金額が置かれ、行が消費の語で終わる形だけを購入と見なす。 */
+  const r = MEMO.parseMemo("蒼羽蝶：75LP消費");
+  assert.equal(r.spends.length, 1, "名前付き購入は支出になる");
+  assert.equal(r.spends[0].name, "蒼羽蝶");
+  assert.equal(r.spends[0].lp, 75);
+  assert.equal(r.income.lp, 0, "購入の額は収入にしない");
+
+  /* 演出名：本体名：金額消費 の二重コロンは最後の：までを名前にする。 */
+  const full = MEMO.parseMemo("メラメラ燃えた羽：蒼羽蝶：75LP消費");
+  assert.equal(full.spends.length, 1);
+  assert.equal(full.spends[0].name, "メラメラ燃えた羽：蒼羽蝶");
+
+  /* 叙述の「LP200を消費してガチャ」や負数は名前付き購入にしない。 */
+  assert.equal(MEMO.parseMemo("LP200を消費してガチャ").spends.length, 0, "叙述は支出にしない");
+  assert.equal(MEMO.parseMemo("憎悪購入：-50欠片").spends.length, 0, "負数は支出にしない");
+  /* ラベルが通貨の「90LP：現在100LP」は収入のまま。 */
+  assert.equal(MEMO.parseMemo("90LP：現在100LP").income.lp, 90);
+});
+
 test("サポートパッシブの所持が購入記述と照合されて via を得る", () => {
   /* パーサと取り込みを同じ VM に載せる（実ブラウザと同じ構成）。 */
   const context = { window: {}, console, module: { exports: {} } };
@@ -393,6 +414,30 @@ test("サポートパッシブの所持が購入記述と照合されて via を
   assert.ok((byName["ルサンチマン"].via || []).includes("ダミーチキンとの戦闘"), "購入が書かれたシナリオに帰属する");
   assert.ok((byName["肩慣らし"].via || []).includes("ダミーチキンとの戦闘"));
   assert.equal(byName["照合されないパッシブ"].via.length, 0, "記述の無いものは勝手に紐付けない");
+});
+
+test("E.G.O は演出名を剥がして本体名で照合する", () => {
+  /* パーサと取り込みを同じ VM に載せる（実ブラウザと同じ構成）。 */
+  const context = { window: {}, console, module: { exports: {} } };
+  vm.createContext(context);
+  for (const file of ["garasumado-memo-parse.js", "garasumado-roster-import.js"]) {
+    vm.runInContext(readFileSync(new URL("../js/" + file, import.meta.url), "utf8"), context);
+  }
+  const GB = context.window.LBT_garasumado;
+  const doc = {
+    name: "テスト維持",
+    owned: { egos: ["メラメラ燃えた羽：蒼羽蝶"] },
+    scenarioHistory: [{ name: "GM練習卓", memo: "蒼羽蝶：75LP消費" }]
+  };
+  const m = GB.buildManifest(doc, {
+    resolve: (name) => (String(name).includes("蒼羽蝶")
+      ? { name: "メラメラ燃えた羽：蒼羽蝶", kinds: [{ kind: "ego", no: 31, rank: "Ztut" }] }
+      : null),
+    candidates: () => []
+  });
+  const item = m.groups.find((g) => g.id === "egos").items[0];
+  assert.ok((item.via || []).includes("GM練習卓"), "メモの本体名に帰属する");
+  assert.equal(item.source, "buy", "購入記述があるので入手方法は購入");
 });
 
 test("リザルト作用で人格の所持追加とチケット消費記録が出る", () => {

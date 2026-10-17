@@ -454,6 +454,25 @@
     if (/(LP|ＬＰ|欠片|かけら|欠けら|カケラ)\s*$/.test(label[1].trim())) return false;
     return /\d+\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ)/.test(t.slice(label[0].length));
   }
+  /* 「蒼羽蝶：75LP消費」のような名前前置・消費語後置の購入行。
+     ラベル（通貨でない語）の直後に金額が置かれ、行が消費の語で終わる
+     形だけを購入と見なす。「LP200を消費してガチャ」の叙述はラベルが
+     通貨なので弾く。「名前：75LP、82欠片消費」の両通貨は金額の並びが
+     隣接しないので読まない（落としたまま）。 */
+  function namedPurchaseOf(line) {
+    var t = String(line || "").trim();
+    if (!/(消費|購入)[。．.」』]*$/.test(t)) return null;
+    var m = t.match(/^([^0-9\s：:].+)[：:]\s*([0-9０-９]+)\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ)([^0-9]*)$/i);
+    if (!m) return null;
+    var name = m[1].trim();
+    if (!name) return null;
+    if (/(LP|ＬＰ|欠片|かけら|欠けら|カケラ)\s*$/.test(name)) return null;
+    var cost = { lp: 0, shards: 0 };
+    cost[/LP/i.test(m[3]) ? "lp" : "shards"] = Number(String(m[2]).replace(/[０-９]/g, function (c) {
+      return String.fromCharCode(c.charCodeAt(0) - 0xFEE0);
+    }));
+    return Object.assign({ name: name, raw: t, reason: "名前付きの購入行" }, cost);
+  }
 
   function parseMemo(memo) {
     var income = { lp: 0, shards: 0 };
@@ -585,7 +604,13 @@
         var spendAt = line.search(/消費|購入|使用し/);
         if (spendAt >= 0) {
           var head = line.slice(0, spendAt);
-          if (!/獲得|入手|報酬/.test(head)) continue;
+          if (!/獲得|入手|報酬/.test(head)) {
+            /* 「蒼羽蝶：75LP消費」の名前付き購入は残高から差し引く支出。
+               この形を落とすと購入の記録が名前・金額とも消える。 */
+            var namedBuy = namedPurchaseOf(line);
+            if (namedBuy) spends.push(namedBuy);
+            continue;
+          }
           line = head;
         }
         /* 「LP報酬　49」の報酬を挟んだ通貨と金額を隣接扱いにする（実データ）。 */

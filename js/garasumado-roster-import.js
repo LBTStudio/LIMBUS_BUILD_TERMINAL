@@ -113,12 +113,16 @@
   }
 
   /* 所持側の品目名には装飾（【…】/[…]/（…）/MAX/の人格）が付く。
-     メモ側は正式名で書かれることが多いので、装飾を除いた形でも照合する。 */
+      メモ側は正式名で書かれることが多いので、装飾を除いた形でも照合する。
+      E.G.O は「演出名：本体名」なので、：より前の演出名も剥がす。
+      メモは本体名だけ（蒼羽蝶）で書くことが多い。重複は照合側の
+      一意性検査（looseCounts===1）で弾く。 */
   const looseKey = (s) => nameKey(String(s || "")
     .replace(/【[^】]*】/g, "")
     .replace(/\[[^\]]*\]/g, "")
     .replace(/（[^）]*）|\([^)]*\)/g, "")
-    .replace(/MAX|max|専用|の人格/g, ""));
+    .replace(/MAX|max|専用|の人格/g, "")
+    .replace(/^[^：:]{1,24}[：:]/, ""));
 
   /* 支出行は「名前 金額通貨（消費/購入）」の 1 行なので、照合には
      末尾の金額通貨と動詞を落とした名前を使う。
@@ -499,13 +503,9 @@ function toIdentityChoices(hits) {
           skipped.push({ key: item.key, reason: "どのシナリオのものか選んでください" });
           continue;
         }
-        /* 入手方法（チケット／購入／配布）は三分類で、利用者が選ぶ。
-           空欄を「配布」と勝手に解釈すると、抽出でも購入でも無料計入になり
-           帳が狂う。由来が明確で無料と確定しているものだけ通す。
-           番号が引けない項目は利用者が直せないので、その理由を先に言う。 */
-        const sourceOk = Boolean(item.source) || (item.provenance && item.provenance.priced === false);
-        const holdOnSource = () => skipped.push({ key: item.key, reason: "入手方法を選んでください" });
-        const chosen = chosenKind(item);
+        /* チェックした品目は必ず入れる（チェック＝入れるへの同意）。
+           入手方法が未決なら配布（purchase=false）として入れるので
+           帳が吹くことはない。チケット・購入は三分類が決めてから課す。 */        const chosen = chosenKind(item);
         /* 同名候補が複数あるときは、索引の先頭で決めつけず選ばせる。 */
         const ambiguous = (item.identityCandidates || []).length > 1;
         const kinds = (f) => (ambiguous ? null : item.kinds.find(f));
@@ -525,7 +525,6 @@ function toIdentityChoices(hits) {
             });
             continue;
           }
-          if (!sourceOk) { holdOnSource(); continue; }
           taken.add(`persona:${persona.mode || "n"}:${persona.no}`);
           actions.push({ type: "ADD_ROSTER", no: String(persona.no), mode: persona.mode || "n", via, source: item.source || "", purchase: item.source === "buy" });
         } else if (group.id === "egos") {
@@ -533,7 +532,6 @@ function toIdentityChoices(hits) {
             skipped.push({ key: item.key, reason: "DB番号かランクが引けない" });
             continue;
           }
-          if (!sourceOk) { holdOnSource(); continue; }
           taken.add(`ego:${ego.rank}:${ego.no}`);
           actions.push({ type: "ADD_ROSTER_EGO", no: String(ego.no), rank: ego.rank, via, source: item.source || "", purchase: item.source === "buy" });
         } else if (group.id === "supportPassives") {
@@ -550,7 +548,6 @@ function toIdentityChoices(hits) {
           });
         } else if (group.id === "spirits") {
           if (!spirit) { skipped.push({ key: item.key, reason: "DB番号が引けない" }); continue; }
-          if (!sourceOk) { holdOnSource(); continue; }
           actions.push({ type: "ADD_ROSTER_SPIRIT", spirit: { name: spirit.name || item.dbName || item.name }, via });
         } else {
           skipped.push({ key: item.key, reason: "未知のグループ" });
@@ -911,15 +908,14 @@ function toIdentityChoices(hits) {
        いないなら配布として扱う（配布は費用ゼロなので、勝手に購入にはしない）。
        そうしないと「チェックしたのに何も入らない」状態になる。 */
     const chosenKeys = new Set(opts.selected || []);
+    /* 選ばれた品目は toDispatchActions の契約で入る（チェック＝入れる、
+       未決なら配布）。ここで source を差し替える二重実装は持たない
+       （実測2文書で画面の数字と実際が食い違った）。 */
     const overlay = {
       ...manifest,
       groups: (manifest.groups || []).map((g) => ({
         ...g,
-        items: g.items.map((i) => {
-          const merged = { ...i, ...(identity[i.key] || {}) };
-          if (chosenKeys.has(i.key) && !merged.source) merged.source = "given";
-          return merged;
-        })
+        items: g.items.map((i) => ({ ...i, ...(identity[i.key] || {}) }))
       }))
     };
     const actions = toDispatchActions(overlay, selected, { purchases: (opts && opts.purchases) || {} }).actions;

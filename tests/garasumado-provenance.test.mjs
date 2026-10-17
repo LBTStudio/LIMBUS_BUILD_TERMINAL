@@ -87,7 +87,7 @@ test("取り込み action にも帰属シナリオが伝わる", () => {
   assert.deepEqual([...add.via], ["S1"]);
 });
 
-test("シナリオに記載が無い所持品は、帰属先を選ぶまで登録しない", () => {
+test("チェックした所持品は帰属未決でも配布として入る", () => {
   const doc = makeDoc(
     { personas: [{ name: "黒雲会若衆" }], egos: [], supportPassives: [], spirits: [] },
     [{ name: "S1", memo: "人格抽出チケットで獲得：別の人格" }]
@@ -98,23 +98,19 @@ test("シナリオに記載が無い所持品は、帰属先を選ぶまで登�
   const m = gara.buildManifest(doc, index);
   const key = "personas:黒雲会若衆";
 
-  /* 未決のままなら入れてはいけない */
+  /* チェック＝入れるへの同意。帰属先が未決でも入れる（チェックしたのに
+     何も入らないのは操作としても嘘）。帰属が決まらないので明細は
+     「未分類＝待機項目」へ置かれる。 */
   const before = gara.toDispatchActions(m, [key], { purchases: {} });
-  /* シナリオ1件＝リザルト1件は、帰属先が未決でもできる。
-     止まるのは「その品目の帰属」だけ。 */
+  /* シナリオ1件＝リザルト1件は、帰属先が未決でもできる。 */
   assert.equal(before.actions.filter((a) => a.type === "ADD_RESULT").length, 1, "シナリオ分のリザルトはできる");
-  assert.equal(before.actions.filter((a) => a.type === "ADD_ROSTER").length, 0, "帰属先が決まるまで所持には入らない");
-  assert.ok(
-    before.skipped.some((s) => /どのシナリオ/.test(s.reason) || /入手方法/.test(s.reason)),
-    "止まった理由が残る: " + JSON.stringify(before.skipped.map((s) => s.reason))
-  );
+  const beforeHeld = before.actions.filter((a) => a.type === "ADD_ROSTER");
+  assert.equal(beforeHeld.length, 1, "チェックした所持は配布として入る");
+  assert.equal(beforeHeld[0].purchase, false, "帰属未決では課帳しない");
+  assert.equal(before.skipped.length, 0, "入れるので理由は出ない");
 
-  /* 利用者が帰属先を選んだら、そのシナリオに入る。
-     入手方法（三分類）も選ばないと確定しない。 */
+  /* 利用者が帰属先を選んだら、そのシナリオに入る。 */
   m.groups[0].items[0].pickedScenario = "S1";
-  const unanswered = gara.toDispatchActions(m, [key], { purchases: {} });
-  assert.ok(unanswered.skipped.some((s) => /入手方法/.test(s.reason)), "入手方法が未決なら所持には入らない");
-  m.groups[0].items[0].source = "ticket";
   const after = gara.toDispatchActions(m, [key], { purchases: {} });
   const afterHeld = after.actions.filter((a) => a.type !== "ADD_RESULT");
   assert.equal(afterHeld.length, 1, "所持は1件");
@@ -143,7 +139,7 @@ test("チケット/購入の選択が購入の有無になる", () => {
   assert.equal(b.purchase, true, "購入なら DB 価で請求する");
 });
 
-test("入手方法（三分類）に未回答なら確定させない", () => {
+test("入手方法に未回答のチェック済み品目は配布として入る", () => {
   const owned = { personas: [{ name: "黒雲会若衆" }], egos: [], supportPassives: [], spirits: [] };
   const m = gara.buildManifest(makeDoc(owned, [{ name: "S1", memo: "" }]), {
     resolve: () => ({ name: "黒雲会若衆", confidence: "exact", kinds: [{ kind: "persona", no: 208, mode: "n" }] })
@@ -152,14 +148,16 @@ test("入手方法（三分類）に未回答なら確定させない", () => {
   const item = m.groups[0].items[0];
   item.pickedScenario = "S1";
 
-  /* 歸属先だけ選んで、入手方法に答えない。空欄を「配布」と勝手に解釈すると
-     抽出でも購入でも無料計入になり、帳が狂う。 */
+  /* チェック＝入れるへの同意。未回答を配布と勝手に解釈しても、
+     purchase は false なので帳は膨らまない（課帳は回答が決めてから）。 */
   assert.equal(item.source, "", "入手方法は未決");
   const out = gara.toDispatchActions(m, [key], { purchases: {} });
-  assert.equal(out.actions.filter((a) => a.type === "ADD_ROSTER").length, 0, "所持へ入れない");
-  assert.ok(out.skipped.some((s) => /入手方法/.test(s.reason)), "理由を返す: " + JSON.stringify(out.skipped));
+  const held = out.actions.filter((a) => a.type === "ADD_ROSTER");
+  assert.equal(held.length, 1, "所持へ入る");
+  assert.equal(held[0].purchase, false, "未回答では課帳しない");
+  assert.equal(out.skipped.length, 0, "理由は出ない");
 
-  /* 答えるまで入れない */
+  /* 答えたらその分類で入る */
   for (const source of ["ticket", "buy", "given"]) {
     item.source = source;
     const next = gara.toDispatchActions(m, [key], { purchases: {} });
