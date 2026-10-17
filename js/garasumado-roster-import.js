@@ -538,7 +538,8 @@ function toIdentityChoices(hits) {
           actions.push({ type: "ADD_ROSTER_EGO", no: String(ego.no), rank: ego.rank, via, source: item.source || "", purchase: item.source === "buy" });
         } else if (group.id === "supportPassives") {
           if (!support) { skipped.push({ key: item.key, reason: "DB番号が引けない" }); continue; }
-          if (!sourceOk) { holdOnSource(); continue; }
+          /* サポートパッシブは三分類の対象外（同期/解析と同じ「そのまま確定」）。
+             課帳の有無は purchase フラグ（source === "buy"）だけが決める。 */
           /* 購入だったときだけ課帳する（ADD_ROSTER と同じ契約）。
              配布・シナリオ報酬で得たパッシブに 7LP を課すと帳が膨らむ。 */
           actions.push({

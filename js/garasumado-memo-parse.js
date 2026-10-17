@@ -511,7 +511,29 @@
            収入節では金額も読む。支出節では従来どおり金額を取らない。 */
         if (mode !== "income") continue;
       } else {
-        /* 「抽出1：E.G.O:提灯」のような「抽出NN」だけの行。
+  /* 「サポートパッシブ「X」を購入したのでLP-9」「サポパ購入『X』」のような
+     行から括弧内の所持名を取り出す。所持照合（attributeOwned）は
+     名前一致だけなので、括弧内の名前がそのまま当たる。
+     「ボーナス」「スロット解放」は取得ではない。 */
+  function supportPurchasesOf(line) {
+    var t = String(line);
+    if (!/(サポートパッシブ|サポパ|サポート|パッシブ)/.test(t)) return [];
+    if (!/購入|取得|入手|獲得/.test(t)) return [];
+    if (/ボーナス/.test(t)) return [];
+    var names = [];
+    var re = /[「『｢]([^「『｢」』｣]+)[」』｣]/g;
+    var m;
+    while ((m = re.exec(t)) !== null) {
+      var nm = String(m[1]).trim();
+      if (!nm) continue;
+      /* 括弧の中身が金額注釈だけなら名前ではない（「LP-7」等）。 */
+      if (/^(LP|ＬＰ|欠片)\s*-?\d*$/i.test(nm)) continue;
+      if (!names.includes(nm)) names.push(nm);
+    }
+    return names;
+  }
+
+  /* 「抽出1：E.G.O:提灯」のような「抽出NN」だけの行。
            チケット行と二重に数えない（抽出の語を含むため）。 */
         var bd = bareDrawOf(line);
         if (bd) {
@@ -522,6 +544,15 @@
           /* 金額が同居する書式（「LP：181、欠片:136、EGO抽出🎫x1を獲得」）を
              落とさないため、収入節では金額の読み取りへ続ける。 */
           if (mode !== "income") continue;
+        }
+      }
+
+      /* サポートパッシブの購入行は名前だけ入手記録に積む。
+         金額（LP-27 など）は既存の収入/支出読みに任せる。 */
+      if (!tk && !bd) {
+        var supNames = supportPurchasesOf(line);
+        for (var si = 0; si < supNames.length; si++) {
+          wins.push({ name: supNames[si], via: "", kind: "support" });
         }
       }
 

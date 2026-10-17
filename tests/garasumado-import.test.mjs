@@ -339,6 +339,62 @@ test("使用の記録と表の見出しは獲得名にしない", () => {
   assert.equal(wins(MEMO.parseMemo("人格抽出チケット: AEDD")), "");
 });
 
+test("サポートパッシブの購入行は括弧内の名前を獲得として積む", () => {
+  const wins = (r) => [...r.wins.map((w) => w.name)];
+  const kinds = (r) => [...r.wins.map((w) => w.kind)];
+  const a = MEMO.parseMemo("終了後サポートパッシブ「ルサンチマン」と「肩慣らし」を購入したためLP-27。");
+  assert.deepEqual(wins(a), ["ルサンチマン", "肩慣らし"], "1行に2つの購入でも両方積む");
+  assert.deepEqual(kinds(a), ["support", "support"]);
+  /* 金額は既存の支出読みに任せる。購入語が頭にない行の LP-27 は
+     従来どおり負額支出に回る。 */
+  const b = MEMO.parseMemo("終了後、サポートパッシブ「幻想狩り」を購入したのでLP-50");
+  assert.deepEqual(wins(b), ["幻想狩り"]);
+  assert.equal(a.income.lp, 0, "購入行は収入にしない");
+  assert.equal(a.spends.reduce((s, x) => s + x.lp, 0), 0, "既存の読み（頭が購入語の行は落とす）を変えない");
+
+  const c = MEMO.parseMemo("サポートパッシブ「因子コードG-5」を購入したのでLP-7、「深呼吸」を購入したのでLP-15");
+  assert.deepEqual(wins(c), ["因子コードG-5", "深呼吸"]);
+
+  const d = MEMO.parseMemo("★サポパ購入『遺伝コードG-5』：7LP消費（合計45LP/82欠片）");
+  assert.deepEqual(wins(d), ["遺伝コードG-5"], "全角括弧『』の略記サポパも読む");
+
+  /* 購入ではない行は獲得にしない。 */
+  assert.equal(wins(MEMO.parseMemo("人差し指紙片のサポートスロット解放　現在99欠片")).length, 0, "スロット解放は取得ではない");
+  assert.equal(wins(MEMO.parseMemo("パッシブボーナス +50%")).length, 0, "ボーナスは取得ではない");
+  assert.equal(wins(MEMO.parseMemo("LP-20 サポートパッシブ「人生一発」購入")).length, 1, "購入語が後ろにあっても読む");
+});
+
+test("サポートパッシブの所持が購入記述と照合されて via を得る", () => {
+  /* パーサと取り込みを同じ VM に載せる（実ブラウザと同じ構成）。 */
+  const context = { window: {}, console, module: { exports: {} } };
+  vm.createContext(context);
+  for (const file of ["garasumado-memo-parse.js", "garasumado-roster-import.js"]) {
+    vm.runInContext(readFileSync(new URL("../js/" + file, import.meta.url), "utf8"), context);
+  }
+  const GB = context.window.LBT_garasumado;
+  const doc = {
+    name: "テスト維持",
+    owned: {
+      supportPassives: [
+        { condition: "なし", name: "ルサンチマン", effect: "テスト用" },
+        { condition: "なし", name: "肩慣らし", effect: "テスト用" },
+        { condition: "なし", name: "照合されないパッシブ", effect: "テスト用" }
+      ]
+    },
+    scenarioHistory: [{
+      name: "ダミーチキンとの戦闘",
+      memo: "終了後サポートパッシブ「ルサンチマン」と「肩慣らし」を購入したためLP-27。"
+    }]
+  };
+  const m = GB.buildManifest(doc, null);
+  const sp = m.groups.find((g) => g.id === "supportPassives");
+  assert.ok(sp, "サポートパッシブのグループがある");
+  const byName = Object.fromEntries(sp.items.map((i) => [i.name, i]));
+  assert.ok((byName["ルサンチマン"].via || []).includes("ダミーチキンとの戦闘"), "購入が書かれたシナリオに帰属する");
+  assert.ok((byName["肩慣らし"].via || []).includes("ダミーチキンとの戦闘"));
+  assert.equal(byName["照合されないパッシブ"].via.length, 0, "記述の無いものは勝手に紐付けない");
+});
+
 test("リザルト作用で人格の所持追加とチケット消費記録が出る", () => {
   const manifest = {
     scenarios: [{
@@ -651,7 +707,11 @@ test("帰属が未決でもシナリオのリザルトは残る", () => {
   const target = m.groups.flatMap((g) => g.items).find((i) => String(i.name).includes("握る者闘志"));
   const out = M.toDispatchActions(m, [target.key], {});
   assert.equal(out.actions.filter((a) => a.type === "ADD_RESULT").length, 1, "シナリオ1件＝リザルト1件");
-  assert.ok(out.skipped.some((s) => /シナリオ|入手方法/.test(s.reason)), "止まった理由は返す");
+  /* チェックした品目は帰属未決でも入る（入らないと画面の所持数が嘘になる）。
+     サポートパッシブは三分類の対象外なので、購入記述が無い限り課帳しない。 */
+  const sup = out.actions.find((a) => a.type === "ADD_ROSTER_SUPPORT");
+  assert.ok(sup, "チェックした所持は配布扱いで入る");
+  assert.equal(sup.purchase, false, "購入の記述が無いので課帳しない");
 });
 
 test("所持は支出行とも照合され、購入（source=buy）として帰属する", () => {
