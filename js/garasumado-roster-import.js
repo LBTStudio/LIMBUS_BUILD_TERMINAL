@@ -267,6 +267,9 @@ const SOURCES = [
   ];
 
   function guessSource(wins, spends) {
+    /* 「ルサンチマン購入-7」のような購入の短文。名前が勝ちの中にあり、
+       購入の事実を伴うなら購入。 */
+    if ((wins || []).some((win) => win.bought)) return "buy";
     for (const win of wins || []) {
       const text = `${win.via || ""} ${win.raw || ""}`;
       if (/抽選|チケット/.test(text)) return "ticket";
@@ -375,6 +378,8 @@ function toIdentityChoices(hits) {
         kinds,
         /* チケット由来なら via に入っている（例: 人格抽出チケット） */
         via: w.via || "",
+        /* 購入の短文（「ルサンチマン購入-7」等）で読めた勝ちは購入 */
+        bought: Boolean(w.bought),
         resolved: Boolean(hit)
       };
     }).filter(Boolean);
@@ -410,7 +415,36 @@ function toIdentityChoices(hits) {
         };
       });
 
-    const attribution = attributeOwned(groups, scenarios);
+    /* 自由メモの購入記録。secret/history 等に「LP-20 サポートパッシブ
+       「人生一発」購入」「ルサンチマン購入-7」のような短文を書くユーザーが
+       実データにいる。文章全体を解析すると物語の名前まで拾うので、
+       購入の短文の形の行だけを購入履歴として読む。シナリオの一覧には
+       載せない（リザルトの実体ではない）。帰属の証跡だけに使う。 */
+    const freeNotes = (doc && doc.freeNotes) || {};
+    const purchaseMemo = ["secret", "history", "memo", "setting"]
+      .flatMap((field) => String(freeNotes[field] || "").split(/\r?\n/))
+      .map((line) => String(line || "").trim())
+      .filter(Boolean)
+      .filter((line) => memoApi && memoApi.purchaseRowOf && memoApi.purchaseRowOf(line))
+      .join("\n");
+    let purchaseScenario = null;
+    if (purchaseMemo && memoApi) {
+      const parsed = memoApi.parseMemo(purchaseMemo);
+      purchaseScenario = {
+        key: "scenario:purchases",
+        name: "購入履歴",
+        group: "scenarios",
+        memo: purchaseMemo,
+        income: { lp: 0, shards: 0 },
+        tickets: { persona: 0, ego: 0, choice: 0 },
+        pack: {},
+        spends: parsed.spends,
+        wins: resolveWins(parsed.wins),
+        reasons: []
+      };
+    }
+
+    const attribution = attributeOwned(groups, purchaseScenario ? [...scenarios, purchaseScenario] : scenarios);
 
     /* 初期精神は「無料（DB で price が無い）」の3件だけ。それ以上は原理的に存在しない
        ので、4件目が現れたら共有データかDBのどちらかが壊れている。 */

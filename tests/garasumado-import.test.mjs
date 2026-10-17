@@ -60,6 +60,38 @@ test("「名前：名前 150欠片 現在184」は購入で収入に足さない
   assert.equal(MEMO.parseMemo("90LP：現在100LP").income.lp, 90, "ラベル形式の現在値は収入");
 });
 
+test("名前と金額が一行に収まった購入の短文は支出と勝ちの両方になる", () => {
+  const r = MEMO.parseMemo([
+    "購入：ルサンチマン-7LP",
+    "ルサンチマン購入-7",
+    "因子コード G-5購入 7LP",
+    "LP-20 サポートパッシブ「人生一発」購入"
+  ].join("\n"));
+  assert.equal(r.income.lp, 0, "購入の短文は収入に足さない");
+  assert.equal(r.spends.length, 4, "購入 4 件は支出");
+  assert.deepEqual([...r.spends.map((s) => `${s.name} ${s.lp}LP${s.shards ? " " + s.shards + "欠片" : ""}`)], [
+    "ルサンチマン 7LP",
+    "ルサンチマン 7LP",
+    "因子コード G-5 7LP",
+    "人生一発 20LP"
+  ]);
+  const winNames = [...new Set(r.wins.map((w) => w.name))];
+  assert.deepEqual(winNames, ["ルサンチマン", "因子コード G-5", "人生一発"], "購入された名前は勝ちにもなる");
+  assert.equal(r.wins.every((w) => w.bought), true, "購入の勝ちには bought が付く");
+});
+
+test("購入の短文の形でない叙述は購入の記録にしない", () => {
+  const r = MEMO.parseMemo(
+    "終了後サポートパッシブ「ルサンチマン」と「肩慣らし」を購入したためLP-27。\n" +
+    "切り伏せる斬撃を購入、150LP消費　300LPへ\n" +
+    "30LP、30欠片…を獲得。硝酸の欠片×1を消費して同期化"
+  );
+  assert.equal(r.spends.length, 0, "金額が一行に収まらない叙述は支出にしない");
+  assert.ok(r.wins.some((w) => w.name === "ルサンチマン"), "サポパの名前は従来どおり勝ちに入る");
+  assert.equal(r.income.lp, 30, "収入は 30LP の獲得行だけ（購入の叙述は混ぜない）");
+  assert.equal(r.income.shards, 30, "欠片も同じ獲得行から 30");
+});
+
 test("掉落値の内訳が括弧に入っても外側の額を読む", () => {
   const r = MEMO.parseMemo("120LP、75(理性60+15)欠片、人格チケット×1を獲得。");
   assert.equal(r.income.lp, 120, "LP は 120");
@@ -714,6 +746,39 @@ test("シナリオ履歴が無い文書では帰属先を尋ねない（帰属�
   const target = m.groups.flatMap((g) => g.items).find((i) => String(i.name).includes("握る者闘志"));
   assert.ok(target, "所持は並ぶ");
   assert.equal(target.needsAttribution, undefined, "帰属先を尋ねない");
+});
+
+test("自由メモの購入の短文は購入履歴として帰属の証跡になる", () => {
+  const M = loadImportWithMemo();
+  const m = M.buildManifest({
+    currency: { lp: 0, fragments: 0 },
+    owned: { personas: [], egos: [], supportPassives: ["ルサンチマン"], spirits: [] },
+    scenarioHistory: [{ name: "夜A", memo: "" }],
+    freeNotes: { memo: "現在87欠片。", secret: "購入：ルサンチマン-7LP", history: "", setting: "" }
+  }, { resolve: (name) => ({ name, kinds: [{ kind: "support", name }] }) });
+  /* 購入履歴はシナリオの一覧には載せない（リザルトの実体ではない）。 */
+  assert.ok(!(m.scenarios || []).some((s) => s.name === "購入履歴"), "シナリオ一覧に入れない");
+  const target = m.groups.flatMap((g) => g.items).find((i) => String(i.name).includes("ルサンチマン"));
+  assert.ok(target, "所持は並ぶ");
+  assert.deepEqual([...target.via], ["購入履歴"], "購入履歴が帰属先に入る");
+  assert.equal(target.source, "buy", "購入の証跡から入手方法は購入");
+  assert.equal(target.needsAttribution, undefined, "記録があるので帰属先を尋ねない");
+  assert.equal(target.spends[0]?.lp, 7, "支出の証跡も持つ");
+  assert.equal(m.attribution.matched, 1, "帰層できたと数える");
+});
+
+test("自由メモに購入の短文が無ければ帰属先未決のまま選ばせる", () => {
+  const M = loadImportWithMemo();
+  const m = M.buildManifest({
+    currency: { lp: 0, fragments: 0 },
+    owned: { personas: [], egos: [], supportPassives: ["ルサンチマン"], spirits: [] },
+    scenarioHistory: [{ name: "夜A", memo: "" }],
+    freeNotes: { memo: "現在87欠片。ここの文章は人格について。", secret: "45LP。", history: "", setting: "" }
+  }, { resolve: (name) => ({ name, kinds: [{ kind: "support", name }] }) });
+  const target = m.groups.flatMap((g) => g.items).find((i) => String(i.name).includes("ルサンチマン"));
+  assert.ok(target, "所持は並ぶ");
+  assert.equal(target.via.length, 0, "帰層していない");
+  assert.equal(target.needsAttribution, true, "帰層先を選ばせる");
 });
 
 test("帰属先に選んだシナリオのリザルト（ADD_RESULT）が作られる", () => {

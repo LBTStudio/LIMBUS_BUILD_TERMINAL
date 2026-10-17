@@ -571,7 +571,7 @@
       if (!tk && !bd) {
         var supNames = supportPurchasesOf(line);
         for (var si = 0; si < supNames.length; si++) {
-          wins.push({ name: supNames[si], via: "", kind: "support" });
+          wins.push({ name: supNames[si], via: "", kind: "support", bought: /購入|消費/.test(line) });
         }
       }
 
@@ -597,6 +597,18 @@
       }
 
       if (mode === "income") {
+        /* 「購入：ルサンチマン-7LP」「ルサンチマン購入-7」「LP-20 サポパ
+           「人生一発」購入」のような購入の短文は、残高から引く支出であり
+           かつその名前が手元に来たことを意味する（ purchased の勝ちは
+           帰属の証跡になる）。 */
+        var buyRow = purchaseRowOf(line);
+        if (buyRow) {
+          spends.push({ name: buyRow.name, lp: buyRow.lp, shards: buyRow.shards, raw: line, reason: "購入の短文" });
+          if (!wins.some((w) => w.name === buyRow.name)) {
+            wins.push({ name: buyRow.name, via: "", kind: "", bought: true });
+          }
+          continue;
+        }
         /* 「LP200を消費してガチャ」「LP300使用して人格抽出」のような消費の叙述は収入ではない。
            ただし「30LP、30欠片…を獲得。硝酸の欠片×1を消費して…」のように
            獲得が先に書かれた行は、消費の手前までを金額として読む。
@@ -758,7 +770,32 @@
     });
   }
 
-  var api = { parseMemo: parseMemo, parseScenarioHistory: parseScenarioHistory, currencyOf: currencyOf, amountOf: amountOf, sectionOf: sectionOf, ticketOf: ticketOf };
+  /* 「購入：ルサンチマン-7LP」「ルサンチマン購入-7」「因子コード G-5購入 7LP」
+     「LP-20 サポートパッシブ「人生一発」購入」のような購入の短文。
+     名前と金額が1行に収まっている場合はこの形で読む（実データの自由メモ）。
+     形が窄い（行末が金額で終わる／括弧名＋行末の購入）ので、文章の名前を
+     拾わない。名前が括弧にないと名前は動詞の直前の語になる。 */
+  function purchaseRowOf(line) {
+    var t = String(line || "").trim();
+    if (!/(購入|消費)/.test(t)) return null;
+    function mk(name, amount, cur) {
+      var n = parseInt(String(amount).replace(/[０-９]/g, function (c) {
+        return String.fromCharCode(c.charCodeAt(0) - 0xFEE0);
+      }), 10) || 0;
+      var cost = { lp: 0, shards: 0 };
+      cost[/^(LP|ＬＰ)$/i.test(String(cur || "LP")) ? "lp" : "shards"] = Math.abs(n);
+      return { name: String(name).trim(), lp: cost.lp, shards: cost.shards };
+    }
+    var m = t.match(/^購入[：:]\s*([^0-9\s：:][^：:]{0,24}?)\s*[-−]?\s*([0-9０-９]+)\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ)?\s*[。．.」』]*$/);
+    if (m) return mk(m[1], m[2], m[3]);
+    m = t.match(/^([^0-9\s：:][^：:]{0,24}?)\s*(?:購入|消費)\s*[-−]?\s*([0-9０-９]+)\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ)?\s*[。．.」』]*$/);
+    if (m) return mk(m[1], m[2], m[3]);
+    m = t.match(/^(LP|ＬＰ|欠片|かけら|欠けら|カケラ)?\s*[-−]?\s*([0-9０-９]+)\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ)?[^「『]*[「『]([^「『」』]+)[」』].*?(?:購入|消費)\s*[。．.」』]*$/);
+    if (m) return mk(m[4], m[2], m[3] || m[1]);
+    return null;
+  }
+
+  var api = { parseMemo: parseMemo, parseScenarioHistory: parseScenarioHistory, currencyOf: currencyOf, amountOf: amountOf, sectionOf: sectionOf, ticketOf: ticketOf, purchaseRowOf: purchaseRowOf };
   if (typeof window !== "undefined") window.LBT_garaMemo = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
