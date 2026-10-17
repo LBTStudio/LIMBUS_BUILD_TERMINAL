@@ -12,75 +12,156 @@ import { readFileSync } from "node:fs";
    --------------------------------------------------------------------------- */
 
 const ui = readFileSync(new URL("../js/garasumado-import-ui.js", import.meta.url), "utf8");
+/* 整形（改行位置）は規約ではない。行をまたぐ検査は空白を潰してから照合する。 */
+const uiFlat = ui.replace(/\s+/g, " ");
 
 test("1シナリオ＝1リザルトのカードがある", () => {
-  assert.match(ui, /function ResultCard\(\{ block, scenarioOptions, sourceOptions, onPickIdentity \}\)/);
-  assert.match(ui, /"gara-group gara-result"/);
+  assert.match(uiFlat, /function ResultCard\(\{ block, scenarioOptions, sourceOptions, onPickIdentity, onDropItem \}\)/);
+  assert.match(uiFlat, /"gara-group gara-result"/);
   /* 照合済みの所持は最初からカードの中に出る。 */
-  assert.match(ui, /block\.items\.map\(\(item\) => h\("div", \{/);
-  assert.match(ui, /gara-row-assigned/);
+  assert.match(uiFlat, /block\.items\.map\(\(item\) => h\("div", \{/);
+  assert.match(uiFlat, /gara-row-assigned/);
 });
 
 test("照合の階級が表示に現れる", () => {
-  assert.match(ui, /const TIER_NOTE = \{/);
-  for (const k of ["A", "C", "D", "M"]) assert.match(ui, new RegExp(k + ": "));
-  assert.match(ui, /TIER_NOTE\[item\.tier\]/);
+  assert.match(uiFlat, /const TIER_NOTE = \{/);
+  for (const k of ["A", "C", "D", "M"]) assert.match(uiFlat, new RegExp(k + ": "));
+  assert.match(uiFlat, /TIER_NOTE\[item\.tier\]/);
 });
 
 test("カードの中で個別に帰属先と入手方法を選べる", () => {
-  assert.match(ui, /"aria-label": item\.name \+ " の帰属先シナリオ"/);
-  assert.match(ui, /"aria-label": item\.name \+ " の入手方法"/);
-  assert.match(ui, /onPickIdentity\(item\.key, \{ pickedScenario: event\.target\.value \}\)/);
-  assert.match(ui, /onPickIdentity\(item\.key, \{ source: event\.target\.value \}\)/);
+  assert.match(uiFlat, /"aria-label": item\.name \+ " の帰属先シナリオ"/);
+  assert.match(uiFlat, /"aria-label": item\.name \+ " の入手方法"/);
+  assert.match(uiFlat, /onPickIdentity\(item\.key, \{ pickedScenario: event\.target\.value \}\)/);
+  assert.match(uiFlat, /onPickIdentity\(item\.key, \{ source: event\.target\.value \}\)/);
 });
 
-test("未割当は1件ずつ並べず、一括操作だけ出す", () => {
-  assert.match(ui, /function UnassignedPool\(\{ items, onPickIdentity, onAssignAll \}\)/);
-  /* 上限 40 枚だけ出して、残りは数で示す。 */
-  assert.match(ui, /items\.slice\(0, 40\)/);
-  assert.match(ui, /onAssignAll\(""\)/);
-  assert.match(ui, /onAssignAll\("given"\)/);
+test("未割当はプールに出さず、右レールに一本化する（一括ボタン撤去）", () => {
+  /* ユーザー指示: 未割当セクションは廃止し、右の追従リストに統合する。 */
+  assert.doesNotMatch(uiFlat, /function UnassignedPool\(/);
+  assert.doesNotMatch(uiFlat, /onAssignAll\(""\)/);
+  assert.doesNotMatch(uiFlat, /全て OFF のままにする/);
+  assert.doesNotMatch(uiFlat, /全て「配布」として入れる/);
+});
+
+test("本文テキストに罫線용トークンを配色しない（コントラスト実測 2.89:1 の再発防止）", () => {
+  /* --line-* は罫線用の色。テキストに使うと WCAG 1.4.3 に落ちる（実測 2.89:1）。 */
+  const css = readFileSync(new URL("../assets/v66-accounts.css", import.meta.url), "utf8");
+  const blocks = css.match(/\.[a-z0-9-]+\s*\{[^}]*\}/gi) || [];
+  for (const b of blocks) {
+    const sel = b.slice(0, b.indexOf("{")).trim();
+    if (!/\b(gara-note|gara-hint|gara-lead|gara-group-note)\b/.test(sel)) continue;
+    const color = (b.match(/color:\s*var\((--[\w-]+)/i) || [])[1];
+    if (!color) continue;
+    assert.doesNotMatch(color, /^--line-/, `${sel} が ${color} を文字色に使っている`);
+  }
+});
+
+test("空の表示は「収入が無い」のか「割当が無い」のかを区別する", () => {
+  /* 収入があるのに割当0のカードで「まだ何も割り当てられていません」だけを出すと、
+     ユーザーには収入が取り込まれていないように見える（実測の誤読原因）。 */
+  assert.match(uiFlat, /報酬は記録済みです/);
+  assert.match(uiFlat, /メモに報酬の金額が見つからないため、収入は 0 です/);
+  assert.match(uiFlat, /メモが空のため、記録できる報酬がありません/);
+  assert.doesNotMatch(uiFlat, /"まだ何も割り当てられていません。"/);
+});
+
+test("初期精神は未計上にならず、上限を超えたら画面が警告する", () => {
+  assert.doesNotMatch(uiFlat, /計上対象外/);
+  assert.match(uiFlat, /manifest\.counts\?\.initialSpiritOverflow/);
+  assert.match(uiFlat, /初期精神は3件までなので/);
+});
+
+test("残高照合は記録が無いユーザーには言わず、不一致だけエラーとして出す", () => {
+  assert.match(uiFlat, /window\.LBT_reconcileBalance\(manifest, doc\)/);
+  assert.match(uiFlat, /balance && balance\.checked && !balance\.ok/);
+  /* 照合していないユーザー（残高変動の記載0件）には何も出さない。 */
+  assert.doesNotMatch(uiFlat, /!balance\.checked\s*&&\s*balance\.message/);
+});
+
+test("未分類_personaは宣言後にしか参照しない（TDZ の再発防止）", () => {
+  /* 「Cannot access 'draft' before initialization」を静かに再発させない。 */
+  const at = (re) => ui.search(re);
+  const draft = at(/const draft = React\.useMemo/);
+  const unclassified = at(/const unclassified = draft/);
+  const dropTo = at(/const dropToBlock =/);
+  assert.ok(draft > 0 && unclassified > 0 && dropTo > 0, "3つとも定義されている");
+  assert.ok(dropTo < draft, "dropToBlock は draft より前（drop先だけが必要）");
+  assert.ok(draft < unclassified, "unclassified は draft の宣言より後ろ");
+  const render = at(/unclassified\.length/);
+  assert.ok(unclassified < render, "描画は unclassified の宣言より後ろ");
+});
+
+test("未分類所持は右側の追従リストへ出し、カードへドラッグで帰属先を決められる", () => {
+  assert.match(uiFlat, /function UnclassifiedRail\(\{ items, scenarioOptions, onPickIdentity \}\)/);
+  assert.match(uiFlat, /className: "gara-rail"/);
+  assert.match(uiFlat, /draggable: true,/);
+  assert.match(uiFlat, /event\.dataTransfer\.setData\("text\/plain", item\.key\)/);
+  assert.match(uiFlat, /onDropItem: dropToBlock/);
+  assert.match(uiFlat, /onDropItem\(key, block\.name \|\| ""\)/);
+  /* ドラッグが使えない環境用のフォールバック。 */
+  assert.match(uiFlat, /の帰属先シナリオ（未分類）/);
+});
+
+test("分類できないが確定済みの所持はカード内で DB 候補を選んで決められる", () => {
+  assert.match(uiFlat, /"aria-label": item\.name \+ " の DB 候補"/);
+  assert.match(uiFlat, /pickedCandidate: event\.target\.value/);
+});
+
+test("割当の変更は取り込み画面内で Undo/Redo できる（ドラッグミスも戻せる）", () => {
+  assert.match(uiFlat, /const \[past, setPast\] = React\.useState\(\[\]\)/);
+  assert.match(uiFlat, /const \[future, setFuture\] = React\.useState\(\[\]\)/);
+  /* 変更のたびに直前を積み、undo で戻し、redo で進める。 */
+  assert.match(uiFlat, /setPast\(\(h\) => \[\.\.\.h\.slice\(-49\), \{ identity, picked \}\]\)/);
+  assert.match(uiFlat, /const undoPick = React\.useCallback/);
+  assert.match(uiFlat, /const redoPick = React\.useCallback/);
+  /* 取り込み確定前はアプリ側 state を触らないので、ここを奪わない。 */
+  assert.match(uiFlat, /k === "z" && !event\.shiftKey/);
+  assert.match(uiFlat, /k === "y"/);
+  assert.match(uiFlat, /onClick: undoPick/);
+  assert.match(uiFlat, /onClick: redoPick/);
 });
 
 test("画面は draft（純関数）から描画する", () => {
-  assert.match(ui, /const draft = React\.useMemo\(\(\) => \{/);
-  assert.match(ui, /window\.LBT_buildResultDraft/);
+  assert.match(uiFlat, /const draft = React\.useMemo\(\(\) => \{/);
+  assert.match(uiFlat, /window\.LBT_buildResultDraft/);
   /* 集計を画面側でやり直さない。 */
-  assert.match(ui, /draft && draft\.blocks\.map\(\(block\) => h\(ResultCard/);
-  assert.match(ui, /h\(UnassignedPool, \{ items: draft\.unassigned/);
+  assert.match(uiFlat, /draft && draft\.blocks\.map\(\(block\) => h\(ResultCard/);
+  /* 未割当はレールに一本化（Util者指示）。 */
+  assert.match(uiFlat, /h\(UnclassifiedRail, \{ items: unclassified,/);
 });
 
 test("シミュレーションは常設で、実際の取り込みと一致する", () => {
-  assert.match(ui, /シミュレーション：リザルト \$\{draft\.simulation\.results\}件・所持 \$\{draft\.simulation\.held\}件/);
+  assert.match(uiFlat, /シミュレーション：リザルト \$\{draft\.simulation\.results\}件・所持 \$\{draft\.simulation\.held\}件/);
   /* 完了条件も draft の値に従う（画面が別に数えない）。 */
-  assert.match(ui, /const pendingCount = draft \? \(draft\.simulation\.awaitingSource \|\| 0\) : 0;/);
+  assert.match(uiFlat, /const pendingCount = draft \? \(draft\.simulation\.awaitingSource \|\| 0\) : 0;/);
 });
 
 test("選択状態は draft にも渡る（シミュレーションの取り込み内容の一致）", () => {
-  assert.match(ui, /const chosen = Object\.keys\(picked\)\.filter\(\(k\) => picked\[k\]\);/);
-  assert.match(ui, /selected: chosen,/);
+  assert.match(uiFlat, /const chosen = Object\.keys\(picked\)\.filter\(\(k\) => picked\[k\]\);/);
+  assert.match(uiFlat, /selected: chosen,/);
 });
 
 test("確定の瞬間がコンバート確定になる（確定前は反映されない）", () => {
   /* シミュレーションは「反映前の1手前」。確定ボタンを押した瞬間に確定する。 */
-  assert.match(ui, /const \[confirmed, setConfirmed\] = React\.useState\(null\);/);
-  assert.match(ui, /onApply\?\.\(applied\);/);
+  assert.match(uiFlat, /const \[confirmed, setConfirmed\] = React\.useState\(null\);/);
+  assert.match(uiFlat, /onApply\?\.\(applied\);/);
   /* 確定したら自動で閉じず、結果を見せる（確認してから閉じる）。 */
-  assert.doesNotMatch(ui, /onApply\?\.\([\s\S]{0,160}?onClose\?\.\(\);/);
-  assert.match(ui, /\}, "変換を確定する"\)/);
-  assert.match(ui, /"変換を確定しました"/);
-  assert.match(ui, /h\(Button, \{ size: "sm", variant: "primary", icon: "check", onClick: onClose \}, "閉じる"\)/);
+  assert.doesNotMatch(uiFlat, /onApply\?\.\([\s\S]{0,160}?onClose\?\.\(\);/);
+  assert.match(uiFlat, /\}, "変換を確定する"\)/);
+  assert.match(uiFlat, /"変換を確定しました"/);
+  assert.match(uiFlat, /h\(Button, \{ size: "sm", variant: "primary", icon: "check", onClick: onClose \}, "閉じる"\)/);
 });
 
 test("確定結果は実際に入った action の内訳", () => {
-  assert.match(ui, /function appliedSummary\(actions\)/);
-  assert.match(ui, /setConfirmed\(\{[\s\S]{0,80}?counts: appliedSummary\(result\.actions\)/);
+  assert.match(uiFlat, /function appliedSummary\(actions\)/);
+  assert.match(uiFlat, /setConfirmed\(\{[\s\S]{0,80}?counts: appliedSummary\(result\.actions\)/);
   /* シミュレーションと食い違ったら知らせる（表示と実体のずれを隠さない）。 */
-  assert.match(ui, /const mismatched = Boolean\(sim\) && sim\.held !== confirmed\.counts\.held;/);
-  assert.match(ui, /シミュレーション（所持/);
+  assert.match(uiFlat, /const mismatched = Boolean\(sim\) && sim\.held !== confirmed\.counts\.held;/);
+  assert.match(uiFlat, /シミュレーション（所持/);
 });
 
 test("GarasumadoGroup（1件ずつ並べる一覧）は画面から消えている", () => {
   /* 定義が残っていても、画面から描画されていないこと。 */
-  assert.doesNotMatch(ui, /h\(GarasumadoGroup, \{/);
+  assert.doesNotMatch(uiFlat, /h\(GarasumadoGroup, \{/);
 });

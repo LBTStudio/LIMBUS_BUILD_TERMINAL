@@ -98,9 +98,10 @@
   const GROUPS = [
     { id: "personas", label: "所持人格" },
     { id: "egos", label: "所持 E.G.O" },
-    { id: "supportPassives", label: "所持パッシブ" },
-    { id: "spirits", label: "所持精神" }
-  ];
+{ id: "supportPassives", label: "所持パッシブ" },
+   { id: "spirits", label: "所持精神" },
+   { id: "items", label: "所持アイテム" }
+   ];
 
   /* 人名照合用のキー。共有データの人名は体裁が揺れるため、
      空白・全角英数字・大小文字を吸収する。 */
@@ -294,18 +295,24 @@ function toIdentityChoices(hits) {
      ここではまだ何も state へ入れない。 */
   function buildManifest(doc, nameIndex, db) {
     const owned = (doc && doc.owned) || {};
-    let spiritsExcluded = 0;
+    
     const resolve = typeof nameIndex?.resolve === "function" ? nameIndex.resolve : null;
     /* 候補を全部返す解決器。1 件に絞らないので、同名複数をユーザーに見せられる。 */
     const resolveMany = typeof nameIndex?.candidates === "function" ? nameIndex.candidates : null;
 
     const groups = GROUPS.map((group) => {
-      const names = [...new Set((owned[group.id] || []).map(nameOf).filter(Boolean))];
-      /* 精神は全て初期精神系（DB の spirits は48件すべて無料）。
-         初めから持っているものとして数えるもので、クリア側から
-         所持へ登録すると明細のない支出だけが増える。計上対象から外す。 */
-      const listed = group.id === "spirits" ? [] : names;
-      if (group.id === "spirits") spiritsExcluded = names.length;
+      /* アイテムだけは owned ではなく共有ドキュメントのトップレベルにある。
+         個数が 0 のものは所持ではないので落とさない（残すと「持っていないのに
+         計上」になるため、個数で除外する）。 */
+      const source = group.id === "items"
+        ? ((doc && doc.items) || []).filter((it) => Number(it && it.count) > 0)
+        : (owned[group.id] || []);
+      const names = [...new Set(source.map(nameOf).filter(Boolean))];
+      /* 精神も計上する。DB の spirits 48件のうち無料は初期精神の3件
+         （パニック/圧倒/萎縮）で、残り45件は 50〜1000 LP の有料品。
+         以前は「48件すべて無料」と誤認して所持から落としていたが、
+         そのせいで有料の精神まで購入記録ごと消えていた。 */
+      const listed = names;
       return {
         id: group.id,
         label: group.label,
@@ -401,6 +408,16 @@ function toIdentityChoices(hits) {
 
     const attribution = attributeOwned(groups, scenarios);
 
+    /* 初期精神は「無料（DB で price が無い）」の3件だけ。それ以上は原理的に存在しない
+       ので、4件目が現れたら共有データかDBのどちらかが壊れている。 */
+    const spiritPrices = new Map(
+      ((db && db.spirits) || []).map((s) => [nameKey(s.name), Number(s.price) || 0])
+    );
+    const initialSpiritNames = ((groups[3] && groups[3].items) || [])
+      .filter((it) => !(spiritPrices.get(nameKey(it.name)) > 0))
+      .map((it) => it.name);
+    const INITIAL_SPIRIT_MAX = 3;
+
     return {
       character: {
         name: String((doc && doc.name) || ""),
@@ -419,9 +436,13 @@ function toIdentityChoices(hits) {
         egos: groups[1].items.length,
         supportPassives: groups[2].items.length,
         spirits: groups[3].items.length,
+        items: (groups[4] && groups[4].items.length) || 0,
         scenarios: scenarios.length,
-        /* 初期精神系（全て無料）は計上対象外。件数を残して黙って消さない。 */
-        spiritsExcluded,
+        /* 初期精神（DB で無料扱いの3件）。件数を残して黙って消さない。 */
+        initialSpirits: initialSpiritNames.length,
+        initialSpiritsOwned: initialSpiritNames,
+        /* 3件を超えたら壊れたデータ。取り込み前にエラーとして出す。 */
+        initialSpiritOverflow: initialSpiritNames.length > INITIAL_SPIRIT_MAX,
         unresolved: groups.reduce((n, g) => n + g.items.filter((i) => !i.resolved).length, 0),
         attributed: attribution.matched,
         unattributed: attribution.unmatched,
@@ -935,8 +956,60 @@ function toIdentityChoices(hits) {
     };
   }
 
-  const api = {
-    parseShareUrl,
+/* 残高照合。表示残高（doc.currency）とリザルト計算（開始残高＋収入−消費）を
+   突き合わせる。ただし「残高変動を1件も記載していないユーザー」には
+   エラーを返さない：何を書けば良いか分からない人を責めることになる。 */
+  function reconcileBalance(manifest, doc) {
+    const cur = (doc && doc.currency) || {};
+    const shownLp = Number(cur.lp);
+    const shownSh = Number(cur.fragment);
+    const out = {
+      checked: false, ok: true,
+      openingLp: null, openingShards: null,
+      computedLp: null, computedShards: null,
+      shownLp: Number.isFinite(shownLp) ? shownLp : null,
+      shownShards: Number.isFinite(shownSh) ? shownSh : null,
+      message: ""
+    };
+    const scenarios = (manifest && manifest.scenarios) || [];
+    let openingLp = null, openingSh = null;
+    let incLp = 0, incSh = 0, spLp = 0, spSh = 0;
+    for (const s of scenarios) {
+      const memo = String(s.memo || "");
+      const income = s.income || {};
+      incLp += Number(income.lp) || 0;
+      incSh += Number(income.shards) || 0;
+      for (const sp of parseSpends(memo)) { spLp += Number(sp.lp) || 0; spSh += Number(sp.shards) || 0; }
+      /* 最初に見つかった現在値が開始残高。scenarioHistory は時系列。 */
+      const lp = memo.match(/(?:LP|ＬＰ)?\s*(?:[:：]\s*)?現在\s*(\d+)/);
+      if (lp && openingLp === null) openingLp = Number(lp[1]);
+      const sh = memo.match(/(?:欠片|かけら|欠けら|カケラ)[\s\S]{0,8}?現在\s*(\d+)/);
+      if (sh && openingSh === null) openingSh = Number(sh[1]);
+    }
+    out.openingLp = openingLp;
+    out.openingShards = openingSh;
+    if (openingLp === null && openingSh === null) {
+      out.message = "残高変動の記載が無いので照合しません。";
+      return out;
+    }
+    out.checked = true;
+    out.computedLp = openingLp === null ? null : openingLp + incLp - spLp;
+    out.computedShards = openingSh === null ? null : openingSh + incSh - spSh;
+    const badLp = out.computedLp !== null && out.shownLp !== null && out.computedLp !== out.shownLp;
+    const badSh = out.computedShards !== null && out.shownShards !== null && out.computedShards !== out.shownShards;
+    out.ok = !(badLp || badSh);
+    if (!out.ok) {
+      const parts = [];
+      if (badLp) parts.push("LP 計算 " + out.computedLp + " / 表示 " + out.shownLp);
+      if (badSh) parts.push("欠片 計算 " + out.computedShards + " / 表示 " + out.shownShards);
+      out.message = parts.join("、") + " が一致しません。";
+    }
+    return out;
+  }
+
+const api = {
+   parseShareUrl,
+   reconcileBalance,
     fetchGarasumadoDocument,
     buildManifest,
     toDispatchActions,
@@ -950,13 +1023,21 @@ function toIdentityChoices(hits) {
     buildResultDraft,
     overlapCandidates
   };
+  function parseSpends(memo) {
+    if (window.LBT_garaMemo && window.LBT_garaMemo.parseMemo) {
+      return window.LBT_garaMemo.parseMemo(String(memo || "")).spends || [];
+    }
+    return [];
+  }
+
   if (typeof window !== "undefined") {
-    window.LBT_garasumado = api;
+  window.LBT_garasumado = api;
     window.LBT_parseShareUrl = parseShareUrl;
     window.LBT_fetchGarasumadoDocument = fetchGarasumadoDocument;
     window.LBT_buildGarasumadoManifest = buildManifest;
     window.LBT_toDispatchActions = toDispatchActions;
     window.LBT_buildResultDraft = buildResultDraft;
+   window.LBT_reconcileBalance = reconcileBalance;
   }
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })();

@@ -91,10 +91,11 @@ assert.ok(subject, "4種持っているサンプルが存在する");
 const manifest = G.buildManifest(subject[1].doc, { resolve });
 assert.ok(manifest.counts.personas > 0 && manifest.counts.egos > 0 &&
   manifest.counts.supportPassives > 0, "4種のうち人格・E.G.O・パッシブが並ぶ");
-assert.ok(manifest.counts.spiritsExcluded > 0, "精神は計上対象ではなく、除外件数で示す");
+assert.ok(manifest.counts.spirits > 0, "精神も計上対象として並ぶ");
+assert.ok(manifest.counts.initialSpiritsOwned.length <= 3, "初期精神は3件を超えない");
 
 test("manifest が選択の材料になる（グループ・件数・解決状況）", () => {
-  assert.equal(manifest.groups.length, 4);
+  assert.equal(manifest.groups.length, 5);
   const all = manifest.groups.flatMap((g) => g.items);
   assert.ok(all.every((i) => i.key && i.group && i.name), "全部に選択用の key がある");
   assert.ok(all.some((i) => i.resolved), "解けたものが混ざる");
@@ -206,9 +207,8 @@ test("取り込んだ結果が state へ実際に反映される", () => {
   assert.ok(addedPersonas > 0, "人格が入った（" + addedPersonas + "）");
   assert.ok(addedEgos > 0, "E.G.O が入った（" + addedEgos + "）");
   assert.ok(addedSupports > 0, "パッシブが入った（" + addedSupports + "）");
-  /* 精神は全て初期精神系（DB で無料）なので取り込みでは所持へ入れない。
-     明細のない支出だけが増えるのを避けるための意図的な除外。 */
-  assert.equal(addedSpirits, 0, "精神は計上対象外（初期精神系）");
+  /* 精神は有料と無料（初期精神）が混在するので、どちらも所持へ入れる。 */
+  assert.ok(addedSpirits > 0, "精神が入った（" + addedSpirits + "）");
 
   // 2回入れても増えない。
   for (const action of actions) s = reducer(s, action);

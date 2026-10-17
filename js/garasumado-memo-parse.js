@@ -136,7 +136,10 @@
       /* 「300LPへ」は支払後の残高に振り直す書き方。額ではなく結果。 */
       .replace(/-?\d+(?:\s*[+＋]\s*\d+)*\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ)\s*へ/gi, " ")
       /* 「G-5」のような識別子のハイフンを負号と混同しない。 */
-      .replace(/([A-Za-z0-9])-(?=\d)/g, "$1 ");
+      .replace(/([A-Za-z0-9])-(?=\d)/g, "$1 ")
+      /* 括弧注釈は掉落値。「75(理性60+15)欠片」の内訳を外すと
+         75 が欠片の直前に残るので 75 として読める。 */
+      .replace(/[（(][^）)]*[）)]/g, " ");
     var tokens = [];
     var re = /(LP|ＬＰ|欠片|かけら|欠けら|カケラ)|([+-]?\d+(?:\s*[+＋]\s*\d+)*)/gi;
     var m;
@@ -169,6 +172,29 @@
     return out;
   }
 
+  /* 通貨語が1つも無いメモで「80」「40」が縦に並ぶ書き方（実データ）。
+     LR の報酬は必ず LP→欠片 の順なので 2 行なら順序が確定する。
+     3 行以上は順序が確定せず、日付（2026/10/6 を縦に割ったもの）を
+     読み違えるので読まない。通貨語がどこかにあればラベル経路が優先される。 */
+  function parseBareStack(lines) {
+    var res = { lp: 0, shards: 0 };
+    var joined = lines.join("\n");
+    if (/(LP|ＬＰ|欠片|かけら|欠けら|カケラ)/i.test(joined)) return res;
+    var runs = [];
+    var cur = [];
+    for (var i = 0; i < lines.length; i++) {
+      var t = String(lines[i] || "").trim();
+      if (/^\d+$/.test(t)) { cur.push(parseInt(t, 10)); continue; }
+      if (cur.length) { runs.push(cur); cur = []; }
+    }
+    if (cur.length) runs.push(cur);
+    if (runs.length !== 1 || runs[0].length !== 2) return res;
+    if (runs[0][0] > 999 || runs[0][1] > 999) return res;
+    res.lp = runs[0][0];
+    res.shards = runs[0][1];
+    return res;
+  }
+
   /* 「LP/欠片」の見出しの下に「120/80」とだけ書く形式（実データ）。
      見出しの並びが通貨の順序。合計行の直後の対があればそれを、無ければ最初の対を取る。
      見出しが無い裸の「N/M」は読まない（日付・分数と区別できない）。 */
@@ -182,7 +208,7 @@
       if (/^(LP|ＬＰ)\s*\/\s*(欠片|かけら|欠けら|カケラ)$/i.test(h)) { order = ["lp", "shards"]; headerAt = i; break; }
       if (/^(欠片|かけら|欠けら|カケラ)\s*\/\s*(LP|ＬＰ)$/i.test(h)) { order = ["shards", "lp"]; headerAt = i; break; }
     }
-    if (!order) return res;
+    if (!order) return parseBareStack(lines);
     var cands = [];
     var prevNonEmpty = "";
     for (var j = 0; j < lines.length; j++) {
@@ -416,6 +442,19 @@
   }
 
   /* 1つの memo を { income, tickets, pack, spends, reasons, wins } へ。 */
+  /* 「名前：名前 150欠片　現在184」の購入行判定。
+     収入との差は「：」の手前が通貨でないラベルであることと現在の記載が
+     あること。「90LP：現在100」は：の手前が通貨なので収入のまま。 */
+  function isPurchaseSnapshot(line) {
+    var t = String(line || "");
+    if (/(獲得|収入|報酬)/.test(t)) return false;
+    if (!/(現在|残)/.test(t)) return false;
+    var label = t.match(/([^0-9\s：:][^：:]{0,24})[：:]/);
+    if (!label) return false;
+    if (/(LP|ＬＰ|欠片|かけら|欠けら|カケラ)\s*$/.test(label[1].trim())) return false;
+    return /\d+\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ)/.test(t.slice(label[0].length));
+  }
+
   function parseMemo(memo) {
     var income = { lp: 0, shards: 0 };
     var tickets = { persona: 0, ego: 0, choice: 0 };
@@ -536,9 +575,36 @@
            現在/残の直後は incomePairs 内で先に伏せている。
            「LP 45+5」は 45+5=50、「-15LP」は -15 と符号を保つ。 */
         var pairs = incomePairs(line);
+        /* 「涙剣：燃え上がる闘志 150欠片　現在184」は購入額。収入の
+           「欠片60　現在334」と形が同じなので、：の手前が通貨でない
+           ラベル付きかどうかと現在の記載で区別する（実測 shards が
+           210 になり、60 の収入に購入 150 が混ざっていた）。 */
+        var buy = isPurchaseSnapshot(line);
         if (pairs.length) {
+          if (pairs.length && buy) {
+            var buyCost = { lp: 0, shards: 0 };
+            for (var bi = 0; bi < pairs.length; bi++) {
+              if (pairs[bi].amount <= 0) continue;
+              buyCost[pairs[bi].currency] += pairs[bi].amount;
+            }
+            spends.push(Object.assign({ name: line, raw: line, reason: "購入行（現在の記載つき）" }, buyCost));
+            continue;
+          }
           for (var pi = 0; pi < pairs.length; pi++) {
-            if (pairs[pi].amount) income[pairs[pi].currency] += pairs[pi].amount;
+            /* 支出の語がある行の負額は収入に差し引かない。「欠片-300」は消費であって
+            収入の減額なので、絶対値で支出へ回す（実測 shards が -290 になり、
+            収入のある行的が「未計上」に見えた）。収入セクション内で消費の語が
+            無い負額は、受け取り同士の差として従来どおり合算する。 */
+            if (pairs[pi].amount > 0) income[pairs[pi].currency] += pairs[pi].amount;
+            else if (pairs[pi].amount < 0) {
+              if (/(消費|購入|解放|支払)/.test(line)) {
+                var loss = { lp: 0, shards: 0 };
+                loss[pairs[pi].currency] = -pairs[pi].amount;
+                spends.push(loss);
+              } else {
+                income[pairs[pi].currency] += pairs[pi].amount;
+              }
+            }
           }
           continue;
         }

@@ -769,9 +769,27 @@ main.acct-gate {
    --------------------------------------------------------------------------- */
 
 .gara {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
   gap: var(--s-4);
+}
+
+.gara > *:not(.gara-rail) {
+  grid-column: 1;
+}
+
+/* 狭い幅では右列を廃して 1 段に戻す。追従レールのままでは狭くて使えない。 */
+@media (max-width: 900px) {
+  .gara {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gara-rail {
+    grid-column: 1;
+    grid-row: auto;
+    position: static;
+    max-height: none;
+  }
 }
 
 .gara-title {
@@ -797,7 +815,70 @@ main.acct-gate {
   color: var(--tx-2);
 }
 
-.gara-note { color: var(--line-hot); }
+.gara-rail {
+  /* 右列。スクロールしても追従して消えない。 */
+  position: sticky;
+  top: 0;
+  align-self: start;
+  grid-column: 2;
+  grid-row: 1 / span 64;
+  max-height: 100vh;
+  overflow: auto;
+  padding: var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+}
+
+.gara-rail-title {
+  margin: 0 0 var(--s-1);
+  font-size: var(--fs-sm, 13px);
+  font-weight: 600;
+  color: var(--tx);
+}
+
+.gara-rail-hint {
+  margin: 0 0 var(--s-2);
+  font-size: var(--fs-sm, 13px);
+  color: var(--tx-2);
+}
+
+.gara-rail-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.gara-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  padding: var(--s-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-1);
+  cursor: grab;
+}
+
+.gara-chip:active {
+  cursor: grabbing;
+}
+
+.gara-chip-name {
+  font-size: var(--fs-sm, 13px);
+  color: var(--tx);
+}
+
+/* ドロップ先のカード。カーソルを-drop に変えて受け皿欠缺を示す。 */
+.gara-result .gara-rows {
+  min-height: 12px;
+}
+
+.gara-result.is-drop {
+  outline: 2px dashed var(--line-hot);
+  outline-offset: 3px;
+}
 
 .gara-out {
   display: flex;

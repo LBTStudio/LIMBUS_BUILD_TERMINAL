@@ -51,6 +51,67 @@ test("欠片の表記ゆれを吸収する（欠片/かけら/欠けら/カケ�
   }
 });
 
+test("「名前：名前 150欠片 現在184」は購入で収入に足さない", () => {
+  const r = MEMO.parseMemo("欠片60　現在334\n涙剣：燃え上がる闘志 150欠片　現在184");
+  assert.equal(r.income.shards, 60, "収入は 60 だけ（購入150は混ぜない）");
+  assert.equal(r.spends.length, 1, "購入は支出として 1 件");
+  assert.equal(r.spends[0].shards, 150);
+  /* 「90LP：現在100」は：の前が通貨なので収入のまま。 */
+  assert.equal(MEMO.parseMemo("90LP：現在100LP").income.lp, 90, "ラベル形式の現在値は収入");
+});
+
+test("掉落値の内訳が括弧に入っても外側の額を読む", () => {
+  const r = MEMO.parseMemo("120LP、75(理性60+15)欠片、人格チケット×1を獲得。");
+  assert.equal(r.income.lp, 120, "LP は 120");
+  assert.equal(r.income.shards, 75, "括弧は掉落内訳なので欠片は外側の 75");
+  const only = MEMO.parseMemo("75(理性60+15)欠片");
+  assert.equal(only.income.shards, 75);
+});
+
+test("通貨語なしの裸数値が縦に並ぶ書き方を読む（80/40/人格チケット 形式）", () => {
+  const r = MEMO.parseMemo("80\n40\n人格チケット");
+  assert.equal(r.income.lp, 80, "1行目が LP");
+  assert.equal(r.income.shards, 40, "2行目が 欠片");
+});
+
+test("裸数値スタックは EGO やセレンが後ろに続いても読む", () => {
+  const r = MEMO.parseMemo("80\n45\n人格\n ego\nセレン");
+  assert.equal(r.income.lp, 80);
+  assert.equal(r.income.shards, 45);
+});
+
+test("裸数値スタックは前後の文章（まけた！等）を挟んでも読む", () => {
+  const r = MEMO.parseMemo("まけた！\n25\n25");
+  assert.equal(r.income.lp, 25);
+  assert.equal(r.income.shards, 25);
+});
+
+test("通貨語が1つでもあれば裸数値スタックは読まない（二重計上防止）", () => {
+  const r = MEMO.parseMemo("80\n40\n人格チケット\n欠片：12");
+  assert.equal(r.income.shards, 12, "ラベル付きの値だけを採用");
+  assert.equal(r.income.lp, 0, "裸数値の LP は重ねない");
+});
+
+test("日付や比率は裸数値スタックとして読まない", () => {
+  const d = MEMO.parseMemo("2026/10/6\n報酬\n+165LP、75欠片");
+  assert.equal(d.income.lp, 165);
+  assert.equal(d.income.shards, 75);
+  const two = MEMO.parseMemo("7/13\n報酬");
+  assert.equal(two.income.lp, 0, "日付の 7/13 は収入ではない");
+  assert.equal(two.income.shards, 0);
+});
+
+test("3行以上の純数字列は順序が確定しないので読まない", () => {
+  const r = MEMO.parseMemo("2026\n10\n6");
+  assert.equal(r.income.lp, 0);
+  assert.equal(r.income.shards, 0);
+});
+
+test("数字がCircle区切りや文字列に混ざった行はスタックに数えない", () => {
+  const r = MEMO.parseMemo("125どちらとも\n選択抽出チケット");
+  assert.equal(r.income.lp, 0, "数値に語尾が付く行は数量として読まない");
+});
+
 test("1行に両通貨があれば両方を取る（片方だけだと帳尻が合わない）", () => {
   const r = MEMO.parseMemo("・支払い\nLPを欠片に変換：+11欠片 -22LP");
   assert.equal(r.spends.length, 1);
@@ -346,7 +407,7 @@ test("実サンプルの manifest が全キャラクターで組める", () => {
   for (const [, { doc }] of chars) {
     const m = G.buildManifest(doc, null);
     assert.ok(m.character.name, "キャラクター名が取れる");
-    assert.equal(m.groups.length, 4, "人格 / E.G.O / パッシブ / 精神 の 4 グループ");
+    assert.equal(m.groups.length, 5, "人格 / E.G.O / パッシブ / 精神 / アイテム の 5 グループ");
     // 重複名は 1 件に畳まれる。所以 manifest は「一意な名前」の数になる。
     const unique = new Set((doc.owned?.personas || [])
       .map((v) => (typeof v === "string" ? v.trim() : (v && v.name ? String(v.name).trim() : "")))
@@ -383,7 +444,7 @@ test("manifest は「解けた／解けない」を区別して出す", () => {
 test("壊れた値でも manifest を落とさない", () => {
   for (const bad of [{}, null, { owned: null }, { owned: { personas: null } }, { owned: { personas: [null, {}, 3] } }]) {
     const m = G.buildManifest(bad, null);
-    assert.equal(m.groups.length, 4);
+    assert.equal(m.groups.length, 5);
     assert.equal(m.counts.scenarios, 0);
   }
 });
@@ -460,18 +521,71 @@ test("取り込み: 実サンプル 49 文書から所持を列挙し、action �
    選ばせる項目は「帰属先を選んでください」で終わるだけの状態では
    機能にならない（選択肢が無い、空の候補のまま詰まる）。 */
 
-test("初期精神系は計上対象に数えない", () => {
+test("精神は所持へ計上する（初期精神の未計上を許さない）", () => {
   const M = loadImportWithMemo();
   const m = M.buildManifest({
     currency: { lp: 0, fragments: 0 },
-    owned: { personas: [], egos: [], supportPassives: [], spirits: ["萎縮パニック", "パニック"] },
+    owned: { personas: [], egos: [], supportPassives: [], spirits: ["萎縮", "パニック", "颠倒"] },
     scenarioHistory: [{ name: "夜A", memo: "" }]
-  }, { resolve: (name) => ({ name, kinds: [{ kind: "spirit", name }] }) });
+  }, { resolve: (name) => ({ name, kinds: [{ kind: "spirit", name }] }) }, { spirits: [{ name: "萎縮" }, { name: "パニック" }, { name: "颠倒", price: 100 }] });
   const group = m.groups.find((g) => g.id === "spirits");
-  assert.equal(group.items.length, 0, "精神は所持へ入れない");
-  assert.ok(m.counts.spiritsExcluded >= 2, "除外した件数が分かる");
-  const out = M.toDispatchActions(m, [], {});
-  assert.equal(out.actions.filter((a) => a.type === "ADD_ROSTER_SPIRIT").length, 0, "精神の登録 action は出ない");
+  assert.equal(group.items.length, 3, "精神3件を所持へ入れる");
+  assert.ok(m.counts.initialSpirits >= 1, "初期精神の件数が分かる");
+  assert.equal(m.counts.initialSpiritsOwned.includes("パニック"), true, "初期精神の名が分かる");
+  assert.equal(m.counts.initialSpiritsOwned.includes("颠倒"), false, "有料の精神は初期精神に数えない");
+  assert.equal(m.counts.initialSpiritOverflow, false, "3件なら異常ではない");
+});
+
+test("初期精神が3件を超える入力は異常として出す", () => {
+  const M = loadImportWithMemo();
+  const names = ["萎縮", "パニック", "颠倒", "逆恨み"];
+  const m = M.buildManifest({
+    currency: { lp: 0, fragments: 0 },
+    owned: { personas: [], egos: [], supportPassives: [], spirits: names },
+    scenarioHistory: [{ name: "夜A", memo: "" }]
+  }, { resolve: (name) => ({ name, kinds: [{ kind: "spirit", name }] }) }, { spirits: names.map((n) => ({ name: n })) });
+  assert.equal(m.counts.initialSpiritOverflow, true, "4件以上は壊れたデータとして報告する");
+  assert.equal(m.counts.initialSpirits, 4);
+});
+
+test("残高変動を記載していないユーザーにはエラーも不一致も返さない", () => {
+  const M = loadImportWithMemo();
+  const m = M.buildManifest({
+    currency: { lp: 335, fragment: 171 },
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{ name: "夜A", memo: "80LP\n40欠片" }]
+  }, { resolve: () => null });
+  const r = M.reconcileBalance(m, { currency: { lp: 335, fragment: 171 } });
+  assert.equal(r.checked, false, "照合しない");
+  assert.equal(r.ok, true, "エラーにしない");
+  assert.equal(r.computedLp, null);
+});
+
+test("残高変動を記載していて計算値と表示残高が違う場合はエラーにする", () => {
+  const M = loadImportWithMemo();
+  const m = M.buildManifest({
+    currency: { lp: 0, fragments: 0 },
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{ name: "夜A", memo: "現在300LP\n80LP\n40欠片" }]
+  }, { resolve: () => null });
+  const r = M.reconcileBalance(m, { currency: { lp: 335, fragment: 171 } });
+  assert.equal(r.checked, true, "照合する");
+  assert.equal(r.ok, false, "不一致はエラー");
+  assert.equal(r.computedLp, 380);
+  assert.equal(r.shownLp, 335);
+  assert.match(r.message, /一致しません/);
+});
+
+test("残高変動を記載していて計算値と表示残高が一致すればエラーにしない", () => {
+  const M = loadImportWithMemo();
+  const m = M.buildManifest({
+    currency: { lp: 0, fragments: 0 },
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{ name: "夜A", memo: "現在300LP\n80LP\n40欠片" }]
+  }, { resolve: () => null });
+  const r = M.reconcileBalance(m, { currency: { lp: 380, fragment: 40 } });
+  assert.equal(r.ok, true, "一致ならエラーにしない");
+  assert.equal(r.message, "");
 });
 
 test("帰属先を選ばせる項目には必ず選択肢が入っている", () => {

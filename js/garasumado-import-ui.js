@@ -249,7 +249,44 @@ item.decide ? h("div", { className: "gara-decide" },
   );
 }
 
-/* 照合の階級。表示の文言をここ 1 か所に閉じる。 */
+/* 未割当は右レールの1本に統合する。同期/解析は獲得でも購入でも
+     ないためリストには入れず、それ以外の未割当は全部入れる。
+     ドラッグが使えない環境でも選べるように、各行に帰属先の select を置く。 */
+  function UnclassifiedRail({ items, scenarioOptions, onPickIdentity }) {
+    if (!items.length) return null;
+    return h("aside", { className: "gara-rail", "aria-label": "未割当の所持" },
+      h("h4", { className: "gara-rail-title" }, `未割当 ${items.length}件`),
+      h("p", { className: "gara-rail-hint" }, "カードへドラッグ、または下の選択肢で帰属先を指定"),
+      h("div", { className: "gara-rail-list" },
+        items.map((item) => h("div", {
+          key: item.key,
+          className: "gara-row gara-row-assigned is-unsure gara-chip",
+          draggable: true,
+          onDragStart: (event) => {
+            event.dataTransfer.setData("text/plain", item.key);
+            event.dataTransfer.effectAllowed = "move";
+          }
+        },
+          h("span", { className: "gara-row-name" }, item.name),
+          h("span", { className: "gara-row-meta" }, item.reason),
+          h("label", { className: "gara-decide-field" },
+            h("span", { className: "gara-label" }, "帰属先"),
+            h("select", {
+              className: "input",
+              value: item.pickedScenario || "",
+              "aria-label": item.name + " の帰属先シナリオ（未分類）",
+              onChange: (event) => onPickIdentity(item.key, { pickedScenario: event.target.value })
+            },
+              h("option", { value: "" }, "選んでください"),
+              scenarioOptions.map((name) => h("option", { key: name, value: name }, name))
+            )
+          )
+        ))
+      )
+    );
+  }
+
+  /* 照合の階級。表示の文言をここ 1 か所に閉じる。 */
   const TIER_NOTE = {
     A: "獲得行と一致",
     C: "支出行と一致",
@@ -257,22 +294,47 @@ item.decide ? h("div", { className: "gara-decide" },
     M: "利用者が指定"
   };
 
-  /* 1シナリオ＝1リザルトのカード。割当済みの所持は最初からここに出る。
-     利用者が触るのはこの中の「未決」行だけ。 */
-  function ResultCard({ block, scenarioOptions, sourceOptions, onPickIdentity }) {
+  /* 1シナリオ＝1リザルトのカード。見本（記録のリザルトカード）と同じ言語で
+     見せる: .cardの面、card-headerの罫線、収入の金色大数字ペア。
+     行の中身（帰属先・入手方法・DB候補）だけが取り込み独自。 */
+  function ResultCard({ block, scenarioOptions, sourceOptions, onPickIdentity, onDropItem }) {
     const income = block.income || { lp: 0, shards: 0 };
     /* 無題は名前が無いのでカード名として使えない。個数と合計で示す。 */
     const title = block.name && block.name !== "無題"
       ? block.name
       : "無題 " + block.orphanNote;
-    const note = "収入 LP " + (income.lp || 0) + "・欠片 " + (income.shards || 0)
-      + "・割当 " + block.items.length + "件";
-    return h("section", { className: "gara-group gara-result" },
-      h("div", { className: "gara-group-head" },
-        h("h4", { className: "gara-group-title" }, title),
-        h("p", { className: "gara-group-note" }, note)
+    /* 金額は見本と同じbigNumペア。単位は数字の横に小さく添えるだけ。 */
+    const bigNum = (value, tone) =>
+      h("b", { className: `ledger-chip-num is-${tone}` }, (Number(value) || 0).toLocaleString("ja-JP"));
+    const pair = (value, tone, label) =>
+      h("span", { className: "ledger-pair" }, bigNum(value, tone),
+        h("span", { className: "ledger-pair-label" }, label));
+    return h("section", { className: "card gara-result" },
+      h("div", { className: "card-header gara-card-head" },
+        h("span", { className: "ledger-card-title" }, title),
+        h("span", { className: "ledger-card-spent" }, `割当 ${block.items.length}件`)
       ),
-      h("div", { className: "gara-rows", role: "group", "aria-label": (block.name || "無題") + " の割当" },
+      h("div", { className: "card-body gara-card-body" },
+        h("div", { className: "ledger-card-income" },
+          pair(income.lp, "lp", "LP"),
+          pair(income.shards, "shard", "欠片")
+        ),
+        h("div", {
+          className: "gara-rows",
+          role: "group",
+          "aria-label": (block.name || "無題") + " の割当",
+          onDragOver: (event) => {
+            if (!onDropItem) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "move";
+          },
+          onDrop: (event) => {
+            if (!onDropItem) return;
+            event.preventDefault();
+            const key = event.dataTransfer.getData("text/plain");
+            if (key) onDropItem(key, block.name || "");
+          }
+        },
         block.items.map((item) => h("div", {
           key: item.key,
           className: "gara-row gara-row-assigned" + (item.needsSource ? " is-unsure" : "")
@@ -282,6 +344,19 @@ item.decide ? h("div", { className: "gara-decide" },
             item.tier ? h("span", { className: "gara-tag" }, TIER_NOTE[item.tier] || "") : null,
             item.needsSource ? "入手方法を選んでください" : (item.source || "配布")
           ]),
+          h("label", { className: "gara-decide-field" },
+            h("span", { className: "gara-label" }, "DB候補"),
+            h("select", {
+              className: "input",
+              value: item.candidates.length === 1 ? item.candidates[0].name : "",
+              "aria-label": item.name + " の DB 候補",
+              disabled: item.candidates.length < 2,
+              onChange: (event) => onPickIdentity(item.key, { pickedCandidate: event.target.value })
+            },
+              h("option", { value: "" }, item.candidates.length > 1 ? "選んでください" : (item.candidates[0] ? item.candidates[0].name : "候補なし")),
+              item.candidates.map((cand) => h("option", { key: cand.name, value: cand.name }, cand.name))
+            )
+          ),
           h("label", { className: "gara-decide-field" },
             h("span", { className: "gara-label" }, "帰属先"),
             h("select", {
@@ -308,41 +383,15 @@ item.decide ? h("div", { className: "gara-decide" },
             )
           )
         )),
-        block.items.length === 0 ? h("p", { className: "gara-note" }, "まだ何も割り当てられていません。") : null
-      )
-    );
-  }
-
-  /* 未割当。1件ずつ並べて select を並べるのは手順が増えるだけなので、
-     件数と内訳、一括操作だけを出す。 */
-  function UnassignedPool({ items, onPickIdentity, onAssignAll }) {
-    if (!items.length) return null;
-    const multi = items.filter((i) => i.candidates.length > 1).length;
-    const note = items.length + "件（照合できるシナリオがありません。"
-      + multi + "件は候補が複数あります）";
-    return h("section", { className: "gara-group" },
-      h("div", { className: "gara-group-head" },
-        h("h4", { className: "gara-group-title" }, "未割当"),
-        h("p", { className: "gara-group-note" }, note),
-        h("div", { className: "gara-group-acts" },
-          h("button", { type: "button", className: "gara-mini", onClick: () => onAssignAll("") },
-            "全て OFF のままにする"),
-          h("button", { type: "button", className: "gara-mini", onClick: () => onAssignAll("given") },
-            "全て「配布」として入れる")
+        block.items.length === 0
+          ? h("p", { className: "ledger-empty-note" },
+            (income.lp || income.shards)
+              ? "報酬は記録済みです。割当てるものは下のリストから選んでください。"
+              : (String(block.memo || "").trim()
+                ? "メモに報酬の金額が見つからないため、収入は 0 です。金額を書き足してください。"
+                : "メモが空のため、記録できる報酬がありません。"))
+          : null
         )
-      ),
-      h("div", { className: "gara-rows" },
-        items.slice(0, 40).map((item) => h("div", {
-          key: item.key,
-          className: "gara-row is-unsure"
-        },
-          h("span", { className: "gara-row-name" }, item.name),
-          h("span", { className: "gara-row-meta" }, item.reason),
-          item.candidates.length === 1
-            ? h("span", { className: "gara-tag" }, "候補: " + item.candidates[0].name)
-            : null
-        )),
-        items.length > 40 ? h("p", { className: "gara-note" }, "ほか " + (items.length - 40) + " 件") : null
       )
     );
   }
@@ -384,6 +433,8 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
   const [lineToggle, setLineToggle] = React.useState({});
   const [choices, setChoices] = React.useState({});
   const [decided, setDecided] = React.useState({});
+  /* 残高照合は元文書（doc）にも当てるので、manifest と並べて保持する。 */
+  const [doc, setDoc] = React.useState(null);
 
   const load = async () => {
     const parsed = window.LBT_parseShareUrl?.(url);
@@ -393,6 +444,7 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
     const result = await window.LBT_fetchGarasumadoDocument?.(url);
     setBusy(false);
     if (!result || !result.ok) { setError(result?.error || "取得に失敗しました"); return; }
+    setDoc(result.doc);
 
     const db = window.DB || {};
     const index = window.LBT_buildNameIndex?.(db, {}) || null;
@@ -484,13 +536,54 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
   /* 帰属先と入手方法の選択は UI 状態として持つ。manifest を直接書き直すと
      再描画で直前の選択が落ちるため、manifest は読み取り専用のままにする。 */
   const [identity, setIdentity] = React.useState({});
+  /* 割当ミスは取り込み画面内で戻せる。履歴は identity と picked の対ごと積む。
+     上限は 50 手前まで。入力欄での文字取り消しは横取りしない。
+     取り込み確定前はアプリ側 state を触らないので、ここを奪わない。 */
+  const [past, setPast] = React.useState([]);
+  const [future, setFuture] = React.useState([]);
   /* 確定後の結果。シミュレーションは「反映前の1手前」なので、
      確定した時点で入る内容を残し、自動で閉じずに確認できるようにする。 */
   const [confirmed, setConfirmed] = React.useState(null);
   const onPickIdentity = (itemKey, next) => {
+    setPast((h) => [...h.slice(-49), { identity, picked }]);
+    setFuture([]);
     setIdentity((prev) => ({ ...prev, [itemKey]: { ...(prev[itemKey] || {}), ...next } }));
     setPicked((prev) => ({ ...prev, [itemKey]: true }));
   };
+  const undoPick = React.useCallback(() => {
+    const snap = past[past.length - 1];
+    if (!snap) return;
+    setPast((h) => h.slice(0, -1));
+    setFuture((f) => [...f, { identity, picked }]);
+    setIdentity(snap.identity || {});
+    setPicked(snap.picked || {});
+  }, [past, future, identity, picked]);
+  const redoPick = React.useCallback(() => {
+    const snap = future[future.length - 1];
+    if (!snap) return;
+    setFuture((f) => f.slice(0, -1));
+    setPast((h) => [...h.slice(-49), { identity, picked }]);
+    setIdentity(snap.identity);
+    setPicked(snap.picked);
+  }, [past, future, identity, picked]);
+  /* Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y。App.js のアプリ全体 undo（window で拾う）より
+     先に裁くため capture で受け、パネルが開いている間は横流ししない。
+     履歴が無ければ何もしないが、巻き戻しもしない（取り込み途中の巻き戻しは事故る）。 */
+  React.useEffect(() => {
+    const onKey = (event) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+      const t = event.target;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      const k = String(event.key).toLowerCase();
+      if (k !== "z" && k !== "y") return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (k === "z" && !event.shiftKey) undoPick();
+      else if (k === "y" || k === "z") redoPick();
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [undoPick, redoPick]);
 
   /* 利用者の選択を manifest に被せる。manifest 自体は書き換えない。 */
   const merged = manifest
@@ -522,6 +615,13 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
     : [];
   const sourceOptions = window.LBT_garasumado?.SOURCES || [];
 
+  /* カードへ落とした未割当は、そのシナリオの帰属先として確定させる。
+     ドラッグ済みのものも undo で戻せるよう、拾われ口は onPickIdentity 1 本にする。 */
+  const dropToBlock = (itemKey, blockName) => {
+    if (!itemKey || !blockName) return;
+    onPickIdentity(itemKey, { pickedScenario: blockName });
+  };
+
   const draft = React.useMemo(() => {
     if (!manifest) return null;
     const database = window.DB || {};
@@ -535,21 +635,16 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
     }) : null;
   }, [manifest, identity, picked]);
 
-  /* 未割当を一括で「配布」にする／OFF に戻す。1件ずつ選ばせないための逃げ道。 */
-  const assignAll = (source) => {
-    if (!draft) return;
-    const patch = {};
-    for (const item of draft.unassigned) {
-      if (!source) { setPicked((prev) => ({ ...prev, [item.key]: false })); continue; }
-      patch[item.key] = { ...(identity[item.key] || {}), source };
-    }
-    if (Object.keys(patch).length) setIdentity((prev) => ({ ...prev, ...patch }));
-    setPicked((prev) => {
-      const next = { ...prev };
-      for (const item of draft.unassigned) next[item.key] = Boolean(source);
-      return next;
-    });
-  };
+  /* 右レールに出す未分類所持。同期・解析は獲得でも購入でもないので外す。 */
+  const unclassified = draft
+    ? draft.unassigned.filter((it) => it.tier !== "F"
+      && !(it.via || []).some((v) => /同期|解析/.test(String(v))))
+    : [];
+
+  /* 残高照合。変動記載の無いユーザー（checked=false）には何も言わない。 */
+  const balance = manifest && doc && window.LBT_reconcileBalance
+    ? window.LBT_reconcileBalance(manifest, doc)
+    : null;
 
   const findCandidate = (itemKey, candidateKey) => {
     const groups = manifest.groups.flatMap((g) => g.items.map((i) => ({ ...i, group: g.id })));
@@ -673,21 +768,30 @@ function appliedSummary(actions) {
       h("p", { className: "gara-lead" }, `残高 LP ${manifest.currency.lp || "—"}・欠片 ${manifest.currency.shards || "—"}`)
     ),
     h("p", { className: "gara-hint" }, "項目を押すと変換候補が開きます。候補を選ぶと価格が決まります。"),
-    (manifest.counts?.spiritsExcluded || 0) > 0
+    (manifest.counts?.initialSpirits || 0) > 0
       ? h("p", { className: "gara-note" },
-        `初期精神系 ${manifest.counts.spiritsExcluded} 件は最初から持っているものとして数えるため、計上対象外にしました。`)
+        `初期精神 ${manifest.counts.initialSpirits} 件（${(manifest.counts.initialSpiritsOwned || []).join("・")}）は最初から所持として数えます。`)
+      : null,
+    manifest.counts?.initialSpiritOverflow
+      ? h("p", { className: "gara-note gara-note-warn" },
+        `初期精神は3件までなので共有URLの記載を確認してください（現在 ${manifest.counts.initialSpirits} 件）。`)
+      : null,
+    balance && balance.checked && !balance.ok
+      ? h("p", { className: "gara-note gara-note-warn" },
+        `残高照合: ${balance.message}（LP ${balance.computedLp} 欠片 ${balance.computedShards} に対し、記載は LP ${balance.shownLp} 欠片 ${balance.shownShards}）`)
       : null,
     draft && draft.blocks.map((block) => h(ResultCard, {
       key: block.key || block.name,
       block,
       scenarioOptions,
       sourceOptions,
-      onPickIdentity
+      onPickIdentity,
+      onDropItem: dropToBlock
     })),
-    draft && draft.unassigned.length
-      ? h(UnassignedPool, { items: draft.unassigned, onPickIdentity, onAssignAll: assignAll })
+    unclassified.length
+      ? h(UnclassifiedRail, { items: unclassified, scenarioOptions, onPickIdentity })
       : null,
-    counts.ops || counts.unknownName ? h("section", { className: "gara-group" },
+    counts.ops || counts.unknownName ? h("section", { className: "gara-group gara-result" },
       h("div", { className: "gara-group-head" },
         h("h4", { className: "gara-group-title" }, "購入履歴（予測変換）"),
         h("p", { className: "gara-group-note" }, `${counts.ops}件の候補・${counts.unknownLine}件は判定できませんでした`)
@@ -748,6 +852,18 @@ function appliedSummary(actions) {
         ]
       ),
       h("div", { className: "gara-foot-acts" },
+        h(Button, {
+          size: "sm", variant: "ghost",
+          onClick: undoPick,
+          disabled: past.length === 0,
+          title: "Ctrl+Z"
+        }, "元に戻す"),
+        h(Button, {
+          size: "sm", variant: "ghost",
+          onClick: redoPick,
+          disabled: future.length === 0,
+          title: "Ctrl+Y"
+        }, "やり直す"),
         h(Button, { size: "sm", variant: "ghost", onClick: () => setManifest(null) }, "URLを貼り直す"),
         h(Button, {
           size: "sm", variant: "primary", icon: "check", onClick: apply,
