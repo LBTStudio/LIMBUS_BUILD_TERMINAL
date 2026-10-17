@@ -267,18 +267,24 @@ item.decide ? h("div", { className: "gara-decide" },
             event.dataTransfer.effectAllowed = "move";
           }
         },
-          h("span", { className: "gara-row-name" }, item.name),
-          h("span", { className: "gara-row-meta" }, item.reason),
-          h("label", { className: "gara-decide-field" },
-            h("span", { className: "gara-label" }, "帰属先"),
-            h("select", {
-              className: "input",
-              value: item.pickedScenario || "",
-              "aria-label": item.name + " の帰属先シナリオ（未分類）",
-              onChange: (event) => onPickIdentity(item.key, { pickedScenario: event.target.value })
-            },
-              h("option", { value: "" }, "選んでください"),
-              scenarioOptions.map((name) => h("option", { key: name, value: name }, name))
+          /* 名称は折り返して全文を見せる。レールは細いので select と横並びにすると
+             名前が数文字で切れ、どれがどれだか分からない（2026-10-17 実機確認）。 */
+          h("div", { className: "gara-item-head" },
+            h("span", { className: "gara-chip-name" }, item.name),
+            h("span", { className: "gara-row-meta" }, item.reason)
+          ),
+          h("div", { className: "gara-item-acts gara-item-acts-one" },
+            h("label", { className: "gara-decide-field" },
+              h("span", { className: "gara-label" }, "帰属先"),
+              h("select", {
+                className: "input",
+                value: item.pickedScenario || "",
+                "aria-label": item.name + " の帰属先シナリオ（未分類）",
+                onChange: (event) => onPickIdentity(item.key, { pickedScenario: event.target.value })
+              },
+                h("option", { value: "" }, "選んでください"),
+                scenarioOptions.map((name) => h("option", { key: name, value: name }, name))
+              )
             )
           )
         ))
@@ -339,12 +345,17 @@ item.decide ? h("div", { className: "gara-decide" },
           key: item.key,
           className: "gara-row gara-row-assigned" + (item.needsSource ? " is-unsure" : "")
         },
-          h("span", { className: "gara-row-name" }, item.name),
-          h("span", { className: "gara-row-meta" }, [
-            item.tier ? h("span", { className: "gara-tag" }, TIER_NOTE[item.tier] || "") : null,
-            item.needsSource ? "入手方法を選んでください" : (item.source || "配布")
-          ]),
-          h("label", { className: "gara-decide-field" },
+          /* 名称は操作フィールドと縦に分ける。横並びだと select が幅を奪い
+             名称が数文字で切れる（2026-10-17 実機確認）。 */
+          h("div", { className: "gara-item-head" },
+            h("span", { className: "gara-row-name" }, item.name),
+            h("span", { className: "gara-row-meta" }, [
+              item.tier ? h("span", { className: "gara-tag" }, TIER_NOTE[item.tier] || "") : null,
+              item.needsSource ? "入手方法を選んでください" : (item.source || "配布")
+            ])
+          ),
+          h("div", { className: "gara-item-acts" },
+            h("label", { className: "gara-decide-field" },
             h("span", { className: "gara-label" }, "DB候補"),
             h("select", {
               className: "input",
@@ -381,6 +392,7 @@ item.decide ? h("div", { className: "gara-decide" },
               h("option", { value: "" }, "選んでください"),
               sourceOptions.map((s) => h("option", { key: s.id, value: s.id }, s.label))
             )
+          )
           )
         )),
         block.items.length === 0

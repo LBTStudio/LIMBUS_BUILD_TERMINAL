@@ -851,8 +851,10 @@ main.acct-gate {
 
 .gara-chip {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  /* 名称・理由を上、select を下に積む。横並びでは select が幅を奪い
+     名称が数文字で切れて判別できない（2026-10-17 実機確認）。 */
+  flex-direction: column;
+  align-items: stretch;
   gap: var(--s-2);
   padding: var(--s-2);
   border: 1px solid var(--line);
@@ -866,8 +868,60 @@ main.acct-gate {
 }
 
 .gara-chip-name {
+  font-weight: 600;
+  line-height: 1.45;
+  /* レール幅でも全文を出す。折り返す前に省略しない。 */
+  white-space: normal;
+  overflow-wrap: anywhere;
   font-size: var(--fs-sm, 13px);
   color: var(--tx);
+}
+
+/* チップ内では名称を1行・理由をその下に。横に続けると
+   折り返しが文中に混ざって読みにくい。 */
+.gara-chip .gara-item-head {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+}
+
+/* 割当済み行は名称行→操作行の縦積み。select に幅を奪わせない。 */
+.gara-row-assigned {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--s-2);
+}
+
+.gara-item-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.gara-item-acts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-2);
+  align-items: end;
+}
+
+.gara-item-acts .gara-decide-field {
+  min-width: 0;
+}
+
+.gara-item-acts .input {
+  width: 100%;
+}
+
+.gara-item-acts-one {
+  grid-template-columns: 1fr;
+}
+
+@media (max-width: 560px) {
+  .gara-item-acts {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ドロップ先のカード。カーソルを-drop に変えて受け皿欠缺を示す。 */
