@@ -767,8 +767,35 @@ test("自由メモの購入の短文は購入履歴として帰属の証跡に�
   assert.equal(m.attribution.matched, 1, "帰層できたと数える");
 });
 
-test("自由メモに購入の短文が無ければ帰属先未決のまま選ばせる", () => {
+test("シナリオの本文に名前がそのまま書かれていれば本文言及で帰属する", () => {
   const M = loadImportWithMemo();
+  const m = M.buildManifest({
+    currency: { lp: 0, fragments: 0 },
+    owned: { personas: [], egos: [], supportPassives: ["握る者闘志"], spirits: [] },
+    scenarioHistory: [{ name: "夜A", memo: "夜Aの結果。握る者闘志を入手した描写は無いが本文に登場する。" }]
+  }, { resolve: (name) => ({ name, kinds: [{ kind: "support", name }] }) });
+  const target = m.groups.flatMap((g) => g.items).find((i) => String(i.name).includes("握る者闘志"));
+  assert.ok(target, "所持は並ぶ");
+  assert.deepEqual([...target.via], ["夜A"], "本文言及で帰属先が分かる");
+  assert.equal(target.matchTier, "mention", "言及照合であることが分かる");
+  assert.equal(target.needsAttribution, undefined, "記録があるので帰属先を尋ねない");
+  assert.equal(m.counts.attributedByMention, 1, "件数が分かる");
+});
+
+test("本文言及は解けていない名前には当てない（該当地名の事故を防ぐ）", () => {
+  const M = loadImportWithMemo();
+  const m = M.buildManifest({
+    currency: { lp: 0, fragments: 0 },
+    owned: { personas: [], egos: [], supportPassives: ["何かの欠片"], spirits: [] },
+    scenarioHistory: [{ name: "夜A", memo: "夜Aの結果。何かの欠片を欠の語が本文に含まれる。" }]
+  }, { resolve: () => null });
+  const target = m.groups.flatMap((g) => g.items).find((i) => String(i.name).includes("何かの欠片"));
+  assert.ok(target, "所持は並ぶ");
+  assert.equal(target.via.length, 0, "解けていない名前は言及でも帰属しない");
+  assert.equal(target.needsAttribution, true, "帰属先を選ばせる");
+});
+
+test("自由メモに購入の短文が無ければ帰属先未決のまま選ばせる", () => {  const M = loadImportWithMemo();
   const m = M.buildManifest({
     currency: { lp: 0, fragments: 0 },
     owned: { personas: [], egos: [], supportPassives: ["ルサンチマン"], spirits: [] },

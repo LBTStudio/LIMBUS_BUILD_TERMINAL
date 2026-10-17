@@ -210,6 +210,17 @@
         if (loose) looseCounts.set(loose, (looseCounts.get(loose) || 0) + 1);
       }
     }
+    /* 本文言及の照合。勝ち／支出行が無くても、シナリオの本文に
+       項目名がそのまま書かれていれば帰属できる（「本文言及」階級）。
+       DB で解決済みの人格・E.G.O・サポパだけに限る。名前の無い所持
+       （未解決）や短い語（精神・逸失の欠片）は、文章の名前とたまたま
+       一致する事故があるので勝手に当てない。 */
+    const mentions = (scenarios || [])
+      .filter((s) => s.key !== "scenario:purchases" && String(s.memo || "").trim())
+      .map((s) => ({ name: String(s.name || "").trim(), text: String(s.memo) }))
+      .filter((m) => m.name);
+    const mentionGroups = new Set(["personas", "egos", "supportPassives"]);
+    let matchedByMention = 0;
     let matched = 0;
     let unmatched = 0;
     let matchedBySpend = 0;
@@ -229,12 +240,22 @@
             tier = "loose";
           }
         }
+        if (!hit && mentionGroups.has(group.id) && item.resolved && String(item.name || "").trim().length >= 3) {
+          for (const m of mentions) {
+            if (m.text.includes(String(item.name).trim())) {
+              hit = { via: [m.name], wins: [], spends: [] };
+              tier = "mention";
+              break;
+            }
+          }
+        }
         item.via = hit ? hit.via : [];
         item.wins = hit ? hit.wins : [];
         item.spends = hit ? hit.spends : [];
         item.matchTier = tier;
         item.source = guessSource(item.wins, item.spends);
         if (tier === "loose") matchedByLoose += 1;
+        if (tier === "mention") matchedByMention += 1;
         if (item.wins.length === 0 && item.spends.length > 0) matchedBySpend += 1;
         if (item.needsIdentity) needsIdentity += 1;
         if (item.via.length) matched += 1;
@@ -255,7 +276,7 @@
         }
       }
     }
-    return { matched, unmatched, matchedBySpend, matchedByLoose, needsIdentity, unmatchedNames };
+    return { matched, unmatched, matchedBySpend, matchedByLoose, matchedByMention, needsIdentity, unmatchedNames };
   }
 
   /* 入手方法の初期値。履歴の書き方から分かるものはそのまま入れ、
@@ -487,7 +508,9 @@ function toIdentityChoices(hits) {
         /* 支出行（購入）との照合で帰属が決まった数。 */
         boughtViaSpend: attribution.matchedBySpend,
         /* 表記ゆれ照合で帰属が決まった数（完全一致は含まない）。 */
-        matchedByLoose: attribution.matchedByLoose
+        matchedByLoose: attribution.matchedByLoose,
+        /* 本文言及（シナリオの本文に名前がそのまま書かれていた）で帰属した数。 */
+        attributedByMention: attribution.matchedByMention
       }
     };
   }
