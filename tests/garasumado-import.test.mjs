@@ -410,9 +410,15 @@ test("名前付き購入行「蒼羽蝶：75LP消費」は支出として読ま�
   assert.equal(full.spends.length, 1);
   assert.equal(full.spends[0].name, "メラメラ燃えた羽：蒼羽蝶");
 
-  /* 叙述の「LP200を消費してガチャ」や負数は名前付き購入にしない。 */
+  /* 叙述の「LP200を消費してガチャ」は名前付き購入にしない。
+     一方、リザルトへ書かれた負数の購入行（憎悪購入：-50欠片）は
+     実買として支出になる（残高差分の表記でも、記された購入は
+     記録する。ユーザー指定の契約）。 */
   assert.equal(MEMO.parseMemo("LP200を消費してガチャ").spends.length, 0, "叙述は支出にしない");
-  assert.equal(MEMO.parseMemo("憎悪購入：-50欠片").spends.length, 0, "負数は支出にしない");
+  const hate = MEMO.parseMemo("憎悪購入：-50欠片");
+  assert.equal(hate.spends.length, 1, "負数でも購入行は支出になる");
+  assert.equal(hate.spends[0].name, "憎悪");
+  assert.equal(hate.spends[0].shards, 50);
   /* ラベルが通貨の「90LP：現在100LP」は収入のまま。 */
   assert.equal(MEMO.parseMemo("90LP：現在100LP").income.lp, 90);
 });
@@ -606,6 +612,33 @@ function loadResolver() {
 }
 
 const charDocs = chars.map(([, { doc }]) => doc);
+
+test("リザルトの購入記述は所持の証跡になる（所持列が空の文書でも勝ちから補充する）", () => {
+  /* mMIb はサポパ所持列が 11 枠とも空文字。憎悪・倍返しの準備・肩慣らしは
+     リザルトの購入行にしか出てこない。リザルトに書かれた購入＝所持とする
+     （1 種別だけに解ける名前に限り、解けない名前は捏造しない）。 */
+  const mmib = samples.mMIbGr32lGZix60RDmoN && samples.mMIbGr32lGZix60RDmoN.doc;
+  assert.ok(mmib, "mMIb の実サンプルがある");
+  const context = { window: { DB: db }, console, module: { exports: {} } };
+  vm.createContext(context);
+  for (const f of ["roster-resolver.js", "garasumado-memo-parse.js", "ledger-provenance.js", "garasumado-roster-import.js"]) {
+    vm.runInContext(readFileSync(new URL("../js/" + f, import.meta.url), "utf8"), context, { filename: f });
+  }
+  const idx = context.window.LBT_buildNameIndex(db, {});
+  const m = context.window.LBT_garasumado.buildManifest(mmib, {
+    resolve: (n) => (context.window.LBT_resolveCandidates(idx, n) || [])[0] || null,
+    candidates: (n) => context.window.LBT_resolveCandidates(idx, n) || []
+  });
+  const names = (g) => (((m.groups || []).find((x) => x.id === g) || {}).items || []).map((i) => i.name);
+  assert.ok(names("supportPassives").includes("倍返しの準備"), "購入短文からサポパを補充する");
+  assert.ok(names("supportPassives").includes("肩慣らし"), "所持列に無いサポパ名も購入行から補充する");
+  assert.ok(names("spirits").includes("憎悪"), "精神の購入行から精神を補充する");
+  for (const nm of ["憎悪", "倍返しの準備", "肩慣らし"]) {
+    const item = [...names("supportPassives"), ...names("spirits")].includes(nm) && ((m.groups || []).flatMap((g) => g.items)).find((i) => i.name === nm);
+    assert.ok(item, nm + " の項目が存在する");
+    assert.ok(item.resolved, nm + " は DB に解けている");
+  }
+});
 
 function resolvedManifest(doc) {
   const w = loadResolver();

@@ -476,6 +476,43 @@ function toIdentityChoices(hits) {
       };
     }
 
+    /* 購入記述を所持証跡に載せる。所持列が名前を持たない文書（mMIb は
+       サポパ 11 枠が全て空文字、憎悪・倍返しの準備・因子コードG-5 は
+       リザルトの購入行にしか出てこない）では、リザルトの購入行が
+       実質の所持記録になる。そこで wins のうち DB で 1 種別にだけ
+       解ける support/spirit の名を所持に補充する。解けない名前は
+       所持に載せない（勝った番号も無い行からの捏造をしない）。 */
+    for (const sc of purchaseScenario
+      ? [...scenarios, purchaseScenario]
+      : scenarios) {
+      for (const win of (sc.wins || [])) {
+        if (!win.resolved || win.kinds.length !== 1) continue;
+        const kind = win.kinds[0].kind;
+        const gid = kind === "support" ? "supportPassives" : kind === "spirit" ? "spirits" : "";
+        if (!gid) continue;
+        const targetGroup = groups.find((g) => g.id === gid);
+        if (!targetGroup) continue;
+        const nkey = nameKey(win.name);
+        if (targetGroup.items.some((it) => nameKey(it.name) === nkey)) continue;
+        targetGroup.items.push({
+          key: gid + ":" + win.name,
+          group: gid,
+          name: win.name,
+          resolved: true,
+          dbName: win.name,
+          kinds: win.kinds,
+          confidence: "index",
+          candidates: [],
+          identityCandidates: [],
+          needsIdentity: false,
+          picked: null,
+          source: "",
+          fromResults: true,
+          wins: []
+        });
+      }
+    }
+
     const attribution = attributeOwned(groups, purchaseScenario ? [...scenarios, purchaseScenario] : scenarios);
 
     /* 初期精神は「無料（DB で price が無い）」の3件だけ。それ以上は原理的に存在しない

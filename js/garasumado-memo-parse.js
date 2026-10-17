@@ -285,7 +285,6 @@
         var only = text.match(/-?\d+/);
         return only ? parseInt(only[0], 10) : null;
       }
-      return null;
     }
 
     var re = /欠片|かけら|欠けら|カケラ/g;
@@ -596,6 +595,19 @@
         continue;
       }
 
+      if (mode !== "income") {
+        /* 支出節にある購入短文（「憎悪購入：-50欠片」）は残高差分の書式でも
+           実買の記録なので、収入節と同じ共通経路で読む。 */
+        var buyAny = purchaseRowOf(line);
+        if (buyAny) {
+          spends.push({ name: buyAny.name, lp: buyAny.lp, shards: buyAny.shards, raw: line, reason: "購入の短文" });
+          if (!wins.some((w) => w.name === buyAny.name)) {
+            wins.push({ name: buyAny.name, via: "", kind: "", bought: true });
+          }
+          continue;
+        }
+      }
+
       if (mode === "income") {
         /* 「購入：ルサンチマン-7LP」「ルサンチマン購入-7」「LP-20 サポパ
            「人生一発」購入」のような購入の短文は、残高から引く支出であり
@@ -792,6 +804,10 @@
     if (m) return mk(m[1], m[2], m[3]);
     m = t.match(/^(LP|ＬＰ|欠片|かけら|欠けら|カケラ)?\s*[-−]?\s*([0-9０-９]+)\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ)?[^「『]*[「『]([^「『」』]+)[」』].*?(?:購入|消費)\s*[。．.」』]*$/);
     if (m) return mk(m[4], m[2], m[3] || m[1]);
+    /* 「憎悪購入：-50欠片」のように金額が残高差分（負数）で書かれる購入行。
+       リザルトに記された購入なら支出であり、所持の証跡にもなる。 */
+    m = t.match(/^([^0-9\s：:][^：:]{0,24}?)\s*(?:購入|消費)[：:]\s*[-−]\s*([0-9０-９]+)\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ)?\s*[。．.」』]*$/);
+    if (m) return mk(m[1], m[2], m[3]);
     return null;
   }
 
