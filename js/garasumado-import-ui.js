@@ -253,8 +253,18 @@ item.decide ? h("div", { className: "gara-decide" },
      ないためリストには入れず、それ以外の未割当は全部入れる。
      ドラッグが使えない環境でも選べるように、各行に帰属先の select を置く。
      カードの行をここへ戻すと未割当に返り、帰属先を選び直せる（再分類）。 */
-  function UnclassifiedRail({ items, scenarioOptions, onPickIdentity, onReturnItem }) {
+  function UnclassifiedRail({ items, scenarioOptions, onPickIdentity, onReturnItem, focusKey, onFocusHandled }) {
     const [over, setOver] = React.useState(false);
+    const rowRefs = React.useRef({});
+    /* 戻した直後は、返ってきた行へフォーカスを移す。カードの行が消えて
+       フォーカスが body に落ちると、キーボード操作の続きが分からなくなる。 */
+    React.useEffect(() => {
+      if (!focusKey) return;
+      const el = rowRefs.current[focusKey];
+      if (!el) return;
+      el.focus();
+      if (onFocusHandled) onFocusHandled();
+    }, [focusKey, items.length]);
     return h("aside", {
       className: "gara-rail" + (over ? " is-over" : ""),
       "aria-label": "未割当の所持",
@@ -280,6 +290,11 @@ item.decide ? h("div", { className: "gara-decide" },
       h("div", { className: "gara-rail-list" },
         items.map((item) => h("div", {
           key: item.key,
+          ref: (el) => {
+            if (el) rowRefs.current[item.key] = el;
+            else delete rowRefs.current[item.key];
+          },
+          tabIndex: -1,
           className: "gara-row gara-row-assigned is-unsure gara-chip",
           draggable: true,
           onDragStart: (event) => {
@@ -663,10 +678,13 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
   };
 
   /* カードから戻された行は未割当へ返し、帰属先を選び直せるようにする。
-     照合結果より戻しを優先する印（returned）を立てる。 */
+     照合結果より戻しを優先する印（returned）を立てる。
+     返った先（レールの行）へフォーカスを移すため、戻したキーを預ける。 */
+  const [focusKey, setFocusKey] = React.useState("");
   const returnItem = (itemKey) => {
     if (!itemKey) return;
     onPickIdentity(itemKey, { pickedScenario: "", returned: true });
+    setFocusKey(itemKey);
   };
 
   const draft = React.useMemo(() => {
@@ -837,7 +855,14 @@ function appliedSummary(actions) {
       onReturnItem: returnItem
     })),
     unclassified.length || (draft && draft.blocks.some((b) => (b.items || []).length))
-      ? h(UnclassifiedRail, { items: unclassified, scenarioOptions, onPickIdentity, onReturnItem: returnItem })
+      ? h(UnclassifiedRail, {
+        items: unclassified,
+        scenarioOptions,
+        onPickIdentity,
+        onReturnItem: returnItem,
+        focusKey,
+        onFocusHandled: () => setFocusKey("")
+      })
       : null,
     counts.ops || counts.unknownName ? h("section", { className: "gara-group gara-result" },
       h("div", { className: "gara-group-head" },

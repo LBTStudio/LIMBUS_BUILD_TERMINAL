@@ -837,6 +837,12 @@ main.acct-gate {
   background: color-mix(in srgb, var(--accent-line) 10%, var(--surface-2));
 }
 
+/* 戻した行はフォーカスが移る。見えないとどこへ戻ったか分からない。 */
+.gara-rail .gara-chip:focus {
+  outline: 2px solid var(--accent-line);
+  outline-offset: 2px;
+}
+
 .gara-rail-title {
   margin: 0 0 var(--s-1);
   font-size: var(--fs-sm, 13px);

@@ -94,7 +94,7 @@ test("未分類_personaは宣言後にしか参照しない（TDZ の再発防�
 });
 
 test("未分類所持は右側の追従リストへ出し、カードへドラッグで帰属先を決められる", () => {
-  assert.match(uiFlat, /function UnclassifiedRail\(\{ items, scenarioOptions, onPickIdentity, onReturnItem \}\)/);
+  assert.match(uiFlat, /function UnclassifiedRail\(\{ items, scenarioOptions, onPickIdentity, onReturnItem, focusKey, onFocusHandled \}\)/);
   assert.match(uiFlat, /className: "gara-rail"/);
   assert.match(uiFlat, /draggable: true,/);
   assert.match(uiFlat, /event\.dataTransfer\.setData\("text\/plain", item\.key\)/);
@@ -118,6 +118,12 @@ test("カードの行を未割当リストへ戻して再分類できる（ド�
   /* ドラッグが使えない環境（キーボード含む）でも戻せるようにボタンでも置く。 */
   assert.match(uiFlat, /onClick: \(\) => onReturnItem\?\.\(item\.key\)/);
   assert.match(uiFlat, /\}, "未割当へ"\)/);
+  /* 戻した直後はフォーカスをレールの行へ移す（body に落とさない）。 */
+  assert.match(uiFlat, /const \[focusKey, setFocusKey\] = React\.useState\(""\)/);
+  assert.match(uiFlat, /setFocusKey\(itemKey\)/);
+  assert.match(uiFlat, /onFocusHandled: \(\) => setFocusKey\(""\)/);
+  assert.match(uiFlat, /tabIndex: -1,/);
+  assert.match(uiFlat, /el\.focus\(\);/);
 });
 
 test("分類できないが確定済みの所持はカード内で DB 候補を選んで決められる", () => {
