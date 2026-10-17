@@ -767,6 +767,32 @@ test("自由メモの購入の短文は購入履歴として帰属の証跡に�
   assert.equal(m.attribution.matched, 1, "帰層できたと数える");
 });
 
+test("トップレベルのサポパ一覧（name/condition/effect）を所持に載せる", () => {
+  const M = loadImportWithMemo();
+  const m = M.buildManifest({
+    currency: { lp: 0, fragments: 0 },
+    owned: { personas: [], egos: [], supportPassives: ["", "", ""], spirits: [] },
+    supportPassives: [
+      { condition: "なし", name: "切り伏せる斬撃", effect: "テスト" },
+      { condition: "なし", name: "指令通達", effect: "テスト" }
+    ]
+  }, { resolve: (name) => ({ name, kinds: [{ kind: "support", name }] }) });
+  const spo = m.groups.find((g) => g.id === "supportPassives");
+  assert.ok(spo, "サポパの組がある");
+  assert.deepEqual([...spo.items.map((i) => i.name)], ["切り伏せる斬撃", "指令通達"], "空文字スロットではなく実名が載る");
+});
+
+test("トップレベルのサポパ名は owned と同名なら重ねない（.sheet 真実の重複排除）", () => {
+  const M = loadImportWithMemo();
+  const m = M.buildManifest({
+    currency: { lp: 0, fragments: 0 },
+    owned: { personas: [], egos: [], supportPassives: ["ルサンチマン"], spirits: [] },
+    supportPassives: [{ condition: "なし", name: "ルサンチマン" }, { condition: "なし", name: "呼吸熱" }]
+  }, { resolve: (name) => ({ name, kinds: [{ kind: "support", name }] }) });
+  const spo = m.groups.find((g) => g.id === "supportPassives");
+  assert.deepEqual([...spo.items.map((i) => i.name)].sort(), ["ルサンチマン", "呼吸熱"], "同名は1件");
+});
+
 test("シナリオの本文に名前がそのまま書かれていれば本文言及で帰属する", () => {
   const M = loadImportWithMemo();
   const m = M.buildManifest({

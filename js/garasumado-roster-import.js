@@ -335,7 +335,18 @@ function toIdentityChoices(hits) {
       const source = group.id === "items"
         ? ((doc && doc.items) || []).filter((it) => Number(it && it.count) > 0)
         : (owned[group.id] || []);
-      const names = [...new Set(source.map(nameOf).filter(Boolean))];
+      /* サポパは文書のトップレベルにも sheet の真実がある（name/condition/effect）。
+         owned.supportPassives が空文字スロットだけの文書（mMIb）や、
+         owned に列が無い 11 文書 19 件の実名がここにしか無い。
+         owned と同名のものは重ねない。 */
+      const sheetSupports = group.id === "supportPassives"
+        ? ((doc && doc.supportPassives) || [])
+          .map((row) => (row && String(row.name || "").trim()) || "")
+          .filter(Boolean)
+        : [];
+      const knownNames = new Set(source.map(nameOf).map(nameKey));
+      const sheetOnly = sheetSupports.filter((nm) => !knownNames.has(nameKey(nm)));
+      const names = [...new Set([...source.map(nameOf).filter(Boolean), ...sheetOnly])];
       /* 精神も計上する。DB の spirits 48件のうち無料は初期精神の3件
          （パニック/圧倒/萎縮）で、残り45件は 50〜1000 LP の有料品。
          以前は「48件すべて無料」と誤認して所持から落としていたが、
