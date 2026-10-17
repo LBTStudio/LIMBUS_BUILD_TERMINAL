@@ -204,6 +204,35 @@ test("一行で複数を買った購入行は名前を区切って所持の証�
   assert.ok(r.wins.some((w) => w.name === "呼吸熱" && w.bought), "区切った名前の勝ち");
   assert.ok(r.wins.some((w) => w.name === "ピークォド号航海士の人格" && w.bought), "接続詞の前の名前も勝ち");
 });
+
+test("支出は行で示された通貨だけを帳に載せる（欠片行から幻のLPを作らない）", () => {
+  const a = MEMO.parseMemo("・支出\n正義購入 現在87欠片");
+  assert.equal(a.spends[0].lp, 0, "欠片しか書かれていない行の LP 送信は幻");
+  assert.equal(a.spends[0].shards, 87);
+});
+
+test("叙述体の精神購入は括弧の名前を所持の証跡にする", () => {
+  const a = MEMO.parseMemo("・支出\n終了後、精神「正義」を購入したため欠片-200");
+  assert.equal(a.spends.length, 1);
+  assert.equal(a.spends[0].shards, 200);
+  assert.equal(a.spends[0].name, "正義");
+  assert.ok(a.wins.some((w) => w.name === "正義" && w.bought));
+  const b = MEMO.parseMemo("・支出\n精神「優越」を買ったので欠片-100");
+  assert.equal(b.spends[0].shards, 100);
+  assert.equal(b.spends[0].name, "優越");
+  assert.ok(b.wins.some((w) => w.name === "優越" && w.bought), "買ったも購入語");
+});
+
+test("収入節に書かれた叙述体の購入も所持の証跡になり、金額は帳に入れ直さない", () => {
+  const a = MEMO.parseMemo("LP60、欠片30、人格抽出チケット*1を獲得。ガチャ結果→ピークォド号船長\n精神「正義」を購入したため欠片-200");
+  assert.ok(a.wins.some((w) => w.name === "正義" && w.bought), "括弧の名前の勝ち");
+  assert.equal(a.spends.length, 0, "購入の金額は叙述から帳に数えない");
+  assert.equal(a.income.lp, 60, "獲得行だけが収入");
+  const b = MEMO.parseMemo("85LP、47カケラ、EGO抽出ガチャチケ＆人格抽出チケットを獲得\nサポパ「嚥下」を購入したのでLP-25\n精神「分別できる理性」を購入したので欠片-1000");
+  assert.ok(b.wins.some((w) => w.name === "嚥下" && w.bought));
+  assert.ok(b.wins.some((w) => w.name === "分別できる理性" && w.bought));
+  assert.equal(b.spends.length, 0, "購入語が頭にない行は負額支出に回さない（既存の読み）");
+});
 test("チケットの個数と種別を読む", () => {
   const a = MEMO.parseMemo("抽出チケットx1：シュエ家私兵の人格");
   assert.equal(a.tickets.persona, 1);

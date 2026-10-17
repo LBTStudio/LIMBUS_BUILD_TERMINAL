@@ -168,13 +168,13 @@
         if (key) {
           const slot = slotOf(key);
           if (!slot.via.includes(name)) slot.via.push(name);
-          slot.wins.push({ scenario: name, raw: rawName, via: win.via || "" });
+          slot.wins.push({ scenario: name, raw: rawName, via: win.via || "", bought: Boolean(win.bought) });
         }
         if (loose) {
           const slot = looseSlotOf(loose);
           if (!slot.via.includes(name)) slot.via.push(name);
           if (!slot.wins.some((w) => w.raw === rawName)) {
-            slot.wins.push({ scenario: name, raw: rawName, via: win.via || "" });
+            slot.wins.push({ scenario: name, raw: rawName, via: win.via || "", bought: Boolean(win.bought) });
           }
         }
       }

@@ -285,6 +285,7 @@
         var only = text.match(/-?\d+/);
         return only ? parseInt(only[0], 10) : null;
       }
+      return null;
     }
 
     var re = /欠片|かけら|欠けら|カケラ/g;
@@ -629,14 +630,29 @@
            ただし「30LP、30欠片…を獲得。硝酸の欠片×1を消費して…」のように
            獲得が先に書かれた行は、消費の手前までを金額として読む。
            「G-5購入 7LP」の購入額も残高から引かれる支出（実データで確認）。 */
-        var spendAt = line.search(/消費|購入|使用し/);
+        var spendAt = line.search(/消費|購入|買った|使用し/);
         if (spendAt >= 0) {
           var head = line.slice(0, spendAt);
           if (!/獲得|入手|報酬/.test(head)) {
             /* 「蒼羽蝶：75LP消費」の名前付き購入は残高から差し引く支出。
                この形を落とすと購入の記録が名前・金額とも消える。 */
             var namedBuy = namedPurchaseOf(line);
-            if (namedBuy) spends.push(namedBuy);
+            if (namedBuy) {
+              spends.push(namedBuy);
+              continue;
+            }
+            /* 叙述体の精神・人格購入（「精神「正義」を購入したため
+               欠片-200」）。購入の金額は従来どおり帳に混ぜず、名前だけ
+               を所持の証跡にする（複数購入・単数購入の区別が読めない
+               ため)。サポパ記載の行は所持側の別経路が受け持つ。 */
+            var narrName = bracketPurchaseNameOf(line);
+            var narrPair = (String(line).match(/[「『]/g) || []).length === 1;
+            if (narrName && narrPair && !/サポパ|サポートパッシブ/.test(line)) {
+              if (!wins.some((w) => w.name === narrName)) {
+                wins.push({ name: narrName, via: "", kind: "", bought: true });
+              }
+              continue;
+            }
             continue;
           }
           line = head;
@@ -719,6 +735,12 @@
             wins.push({ name: pn, via: "", kind: "", bought: true });
           }
         }
+        /* 叙述体の購入（「精神「正義」を購入したため欠片-200」）も
+           支出の事実。括弧内の名前を所持の証跡にする。 */
+        var bnm = bracketPurchaseNameOf(line);
+        if (bnm && !wins.some((w) => w.name === bnm)) {
+          wins.push({ name: bnm, via: "", kind: "", bought: true });
+        }
         /* 支出節の行を2種に分ける。
            A) 支出額が明示されている行
               「正義購入 現在87欠片」      → 87 が支出（前置詞 + 現在NN）
@@ -726,9 +748,9 @@
               「切り伏せる斬撃 150LP消費」 → 150 が支出
            B) 残額だけの行
               「Foobar　現在130LP」        → 130 は支払後の残WRITE
-           区別は「支出を示す動詞（消費/購入/使用/行使…）があるか、
+           区別は「支出を示す動詞（消費/購入/使用/行使/買った…）があるか、
            もしくは「〜へ」で終わっているか」で行う。 */
-        var hasVerb = /(消費|購入|使用|行使|心疼|費やす|払う|使う|引|要した|支出|支払|補充|回復|切替|升值)/.test(line);
+        var hasVerb = /(消費|購入|使用|行使|心疼|費やす|払う|使う|買った|引|要した|支出|支払|補充|回復|切替|升值)/.test(line);
         var endsToHe = /へ\s*$/.test(line);
         var isRemainderOnly = !hasVerb && !endsToHe;
 
@@ -750,12 +772,12 @@
 
         if (lp == null && sh == null) {
           if (isRemainderOnly) continue;
-          spends.push({ name: pnm || line, lp: 0, shards: 0, raw: line });
+          spends.push({ name: pnm || bnm || line, lp: 0, shards: 0, raw: line });
           reasons.push({ line: line, reason: "支出金額が読み取れない（要確認）" });
           continue;
         }
         spends.push({
-          name: pnm || line,
+          name: pnm || bnm || line,
           lp: lp != null ? Math.abs(lp) : 0,
           shards: sh != null ? Math.abs(sh) : 0,
           raw: line
@@ -831,6 +853,15 @@
     var m = t.match(/^([^0-9\s：:][^：:]{0,24}?)\s*(?:購入|消費)(?:[　\s]*[：:]?)?\s*(?:現在|残)/);
     if (m) return m[1].trim().replace(/を$/, "");
     m = t.match(/^([^0-9\s：:][^：:]{0,24}?)\s*を購入[、,]/);
+    if (m) return m[1].trim();
+    return null;
+  }
+
+  /* 叙述体の購入（「精神「正義」を購入したため欠片-200」）。
+     括弧内の名前と直後の購入語がそろえば名前とする。使用・行使は
+     購入ではないので外す（使用人格の記録行を買ったと読まない）。 */
+  function bracketPurchaseNameOf(line) {
+    var m = String(line || "").match(/[「『]([^「『」』]{1,24})[」』]\s*を?\s*(?:購入|買っ|消費)/);
     if (m) return m[1].trim();
     return null;
   }
