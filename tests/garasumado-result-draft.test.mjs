@@ -352,6 +352,16 @@ test("所持の DB 候補には同名の DB 行（本人）が必ず入る", () 
   assert.equal(G.overlapCandidates("黒", db).length, 0, "完全一致の無い 1 文字は依然として推測しない");
 });
 
+/* カナだけの名前は overlapChars（漢字・英数のみ）が拾わない。完全一致の判定を
+   文字種から独立させないと候補 0 になり、本人を選べない。強化も走査から漏れていた。 */
+test("カナだけの名前と強化も、本人が DB 候補に出る", () => {
+  const panic = G.overlapCandidates("パニック", db);
+  assert.ok(panic.some((c) => c.name === "パニック" && c.kind === "spirit"), "カナ名の精神が自身の候補になる");
+  assert.equal(panic[0].name, "パニック", "完全一致は先頭");
+  const enha = G.overlapCandidates("燃え上がる闘志", db);
+  assert.ok(enha.some((c) => c.name === "燃え上がる闘志" && c.kind === "enhancement"), "強化が自身の候補になる");
+});
+
 test("実サンプル: 購入した精神 憎悪 がシナリオカードの DB 候補に出る", () => {
   const mmib = samples.mMIbGr32lGZix60RDmoN.doc;
   const m = G.buildManifest(mmib, { resolve, candidates: (n) => w.LBT_resolveCandidates(index, n) || [] }, db);

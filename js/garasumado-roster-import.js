@@ -831,21 +831,25 @@ function toIdentityChoices(hits) {
      一意に絞れたときだけ自動割り当てに使う（複数なら利用者が選ぶ）。 */
   function overlapCandidates(name, db) {
     const want = overlapChars(name);
-    if (!want.length) return [];
     const key = nameKey(name);
+    /* カタカナ・ひらがなだけの名前は overlapChars が拾わない（照合は漢字と
+       英数だけを見る）。それでも本人（同名の DB 行）は選べないと困るので、
+       完全一致の判定だけは文字種に依らず行う。 */
+    if (!want.length && !key) return [];
     const out = [];
     const seen = new Set();
     const push = (row, kind) => {
       const rowName = row && row.name;
-      const dbChars = overlapChars(rowName);
       /* DB 行と同名なら本人。下限（文字数・一致数・一致率）を課さない。
          憎悪(2文字)・肩慣らし(4文字)のような短い名前は下限で落ち、
          本人を選べなくなっていた。同名なら誤爆ではないので必ず出す。 */
       const isExact = Boolean(key) && nameKey(rowName) === key;
+      if (!isExact && !want.length) return;
+      const dbChars = overlapChars(rowName);
       if (!isExact && dbChars.length < F_MIN_DB_NAME) return;
       const hit = want.filter((c) => dbChars.includes(c)).length;
       if (!isExact && hit < 2) return;
-      const ratio = isExact ? 1 : hit / want.length;
+      const ratio = isExact ? 1 : (want.length ? hit / want.length : 0);
       if (!isExact && ratio < F_MATCH_RATIO) return;
       const dedupe = kind + ":" + nameKey(rowName);
       if (seen.has(dedupe)) return;
@@ -859,6 +863,9 @@ function toIdentityChoices(hits) {
     for (const row of (db && db.death_passives) || []) push(row, "deathSupport");
     /* 精神（混乱効果）も所持の対象。以前はここに無く、憎悪を照会できなかった。 */
     for (const row of (db && db.spirits) || []) push(row, "spirit");
+    /* 強化も所持の対象（欠片で買う）。同じく走査から漏れていた。 */
+    for (const row of (db && db.normal_enhancements) || []) push(row, "enhancement");
+    for (const row of (db && db.special_enhancements) || []) push(row, "enhancement");
     out.sort((a, b) => (b.exact ? 1 : 0) - (a.exact ? 1 : 0) || b.ratio - a.ratio || b.hit - a.hit);
     return out.slice(0, F_MAX_CANDIDATES);
   }

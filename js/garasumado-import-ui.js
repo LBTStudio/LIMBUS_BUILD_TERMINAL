@@ -913,7 +913,7 @@ function appliedSummary(actions) {
     ) : null,
     h("div", { className: "gara-foot" },
       h("div", { className: "gara-foot-meta" },
-        `${counts.included}件を所持へ・${counts.lineOn}件を明細へ`,
+        `${counts.included}件を所持へ・購入の明細 ${counts.lineOn}件を追加（メモの支出はそのまま明細）`,
         [
           counts.pickMode ? h("span", { key: "pm", className: "gara-foot-warn" }, `${counts.pickMode}件は入手手段の選択が必要`) : null,
           counts.unknownName ? h("span", { key: "un", className: "gara-foot-warn" }, `${counts.unknownName}件は名前が解けていません`) : null,
