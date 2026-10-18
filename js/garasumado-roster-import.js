@@ -832,22 +832,34 @@ function toIdentityChoices(hits) {
   function overlapCandidates(name, db) {
     const want = overlapChars(name);
     if (!want.length) return [];
+    const key = nameKey(name);
     const out = [];
+    const seen = new Set();
     const push = (row, kind) => {
-      const dbChars = overlapChars(row && row.name);
-      if (dbChars.length < F_MIN_DB_NAME) return;
+      const rowName = row && row.name;
+      const dbChars = overlapChars(rowName);
+      /* DB 行と同名なら本人。下限（文字数・一致数・一致率）を課さない。
+         憎悪(2文字)・肩慣らし(4文字)のような短い名前は下限で落ち、
+         本人を選べなくなっていた。同名なら誤爆ではないので必ず出す。 */
+      const isExact = Boolean(key) && nameKey(rowName) === key;
+      if (!isExact && dbChars.length < F_MIN_DB_NAME) return;
       const hit = want.filter((c) => dbChars.includes(c)).length;
-      if (hit < 2) return;
-      const ratio = hit / want.length;
-      if (ratio < F_MATCH_RATIO) return;
-      out.push({ kind, name: row.name, no: row.no, rank: row.rank, mode: row.mode, ratio, hit });
+      if (!isExact && hit < 2) return;
+      const ratio = isExact ? 1 : hit / want.length;
+      if (!isExact && ratio < F_MATCH_RATIO) return;
+      const dedupe = kind + ":" + nameKey(rowName);
+      if (seen.has(dedupe)) return;
+      seen.add(dedupe);
+      out.push({ kind, name: rowName, no: row.no, rank: row.rank, mode: row.mode, ratio, hit, exact: isExact });
     };
     for (const row of (db && db.normal_personas) || []) push(row, "persona");
     for (const row of (db && db.tokui_personas) || []) push(row, "persona");
     for (const row of (db && db.egos) || []) push(row, "ego");
     for (const row of (db && db.support_passives) || []) push(row, "support");
     for (const row of (db && db.death_passives) || []) push(row, "deathSupport");
-    out.sort((a, b) => b.ratio - a.ratio || b.hit - a.hit);
+    /* 精神（混乱効果）も所持の対象。以前はここに無く、憎悪を照会できなかった。 */
+    for (const row of (db && db.spirits) || []) push(row, "spirit");
+    out.sort((a, b) => (b.exact ? 1 : 0) - (a.exact ? 1 : 0) || b.ratio - a.ratio || b.hit - a.hit);
     return out.slice(0, F_MAX_CANDIDATES);
   }
 

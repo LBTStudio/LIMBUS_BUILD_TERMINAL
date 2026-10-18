@@ -337,3 +337,26 @@ test("推測で埋めない：1文字の所持は候補も割当も出さない"
   assert.equal(draft.unassigned.length, 1);
   assert.equal(draft.unassigned[0].candidates.length, 0, "偶発一致を出さない");
 });
+
+/* --- DB候補に本人を必ず含める ---------------------------------------------
+   憎悪は spirits（混乱効果）の 2 文字、肩慣らしは 4 文字のサポパ。以前は
+   文字一致の下限（F_MIN_DB_NAME=5）と spirits 未走査のせいで本人が候補から
+   落ち、憎悪は E.G.O の「愛と憎悪の名の下に」だけが候補になっていた。
+   名前が DB 行と完全一致するなら、短くても・精神でも本人を候補に出す。 */
+test("所持の DB 候補には同名の DB 行（本人）が必ず入る", () => {
+  const hate = G.overlapCandidates("憎悪", db);
+  assert.ok(hate.some((c) => c.name === "憎悪" && c.kind === "spirit"), "精神 憎悪 が自身の候補になる");
+  assert.equal(hate[0].name, "憎悪", "完全一致は先頭に来る");
+  const kata = G.overlapCandidates("肩慣らし", db);
+  assert.ok(kata.some((c) => c.name === "肩慣らし" && c.kind === "support"), "短いサポパ名も自身の候補になる");
+  assert.equal(G.overlapCandidates("黒", db).length, 0, "完全一致の無い 1 文字は依然として推測しない");
+});
+
+test("実サンプル: 購入した精神 憎悪 がシナリオカードの DB 候補に出る", () => {
+  const mmib = samples.mMIbGr32lGZix60RDmoN.doc;
+  const m = G.buildManifest(mmib, { resolve, candidates: (n) => w.LBT_resolveCandidates(index, n) || [] }, db);
+  const draft = G.buildResultDraft(m, { db, identity: {} });
+  const row = draft.blocks.flatMap((b) => b.items).find((i) => i.name === "憎悪");
+  assert.ok(row, "憎悪 の行がシナリオカードにある");
+  assert.ok(row.candidates.some((c) => c.name === "憎悪" && c.kind === "spirit"), "DB 候補に本人（精神）が入る");
+});
