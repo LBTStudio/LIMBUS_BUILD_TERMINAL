@@ -483,7 +483,6 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
   const [manifest, setManifest] = React.useState(null);
   const [picked, setPicked] = React.useState({});
   const [lines, setLines] = React.useState([]);
-  const [lineToggle, setLineToggle] = React.useState({});
   const [choices, setChoices] = React.useState({});
   const [decided, setDecided] = React.useState({});
   /* 残高照合は元文書（doc）にも当てるので、manifest と並べて保持する。 */
@@ -565,9 +564,6 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
     const next = {};
     for (const g of annotated.groups) for (const i of g.items) next[i.key] = i.include;
     setPicked(next);
-    const nextLine = {};
-    for (const op of ops) for (const p of op.proposals) nextLine[p.key] = p.include;
-    setLineToggle(nextLine);
   };
 
   /* 候補を選んだとき。名前は変えずに、価格と入手手段だけを確定する。
@@ -687,6 +683,27 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
     setFocusKey(itemKey);
   };
 
+  /* 購入明細の予定。分類できた購入のうち、リザルトの支出として既に計上済みの
+     行（scenario.spends）は除く。同じ行を二重計上しないため、名前を解決して
+     突き合わせる。分類できた購入はカード内の行として既に帰属している。 */
+  const purchasePlan = React.useMemo(() => {
+    if (!manifest) return {};
+    const idx = window.LBT_buildNameIndex ? window.LBT_buildNameIndex(window.DB || {}, {}) : null;
+    const resolveName = (n) => (idx && window.LBT_resolveCandidates
+      ? (window.LBT_resolveCandidates(idx, n)?.[0] || {}).name || "" : "");
+    const byKey = new Map((manifest.scenarios || []).map((s) => [s.key, s]));
+    const out = {};
+    for (const op of lines) {
+      const scenario = byKey.get(op.key);
+      const booked = new Set((scenario?.spends || []).map((s) => resolveName(s.name)).filter(Boolean));
+      const picks = op.proposals
+        .filter((p) => !booked.has(p.name))
+        .map((p) => ({ name: p.name, kind: p.kind, cost: p.cost }));
+      if (picks.length) out[op.key] = picks;
+    }
+    return out;
+  }, [manifest, lines]);
+
   const draft = React.useMemo(() => {
     if (!manifest) return null;
     const database = window.DB || {};
@@ -696,9 +713,10 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
       db: database,
       identity,
       selected: chosen,
+      purchases: purchasePlan,
       resolve: idx ? (name) => (window.LBT_resolveCandidates ? window.LBT_resolveCandidates(idx, name)?.[0] || null : null) : () => null
     }) : null;
-  }, [manifest, identity, picked]);
+  }, [manifest, identity, picked, purchasePlan]);
 
   /* 右レールに出す未分類所持。同期・解析は獲得でも購入でもないので外す。 */
   const unclassified = draft
@@ -722,14 +740,8 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
   const apply = () => {
     if (!manifest) return;
     const keys = Object.keys(picked).filter((k) => picked[k]);
-    const purchases = {};
-    for (const op of lines) {
-      const picks = op.proposals
-        .filter((p) => lineToggle[p.key])
-        .map((p) => ({ name: p.name, kind: p.kind, cost: p.cost }));
-      if (picks.length) purchases[op.key] = picks;
-    }
-const result = window.LBT_toDispatchActions?.(merged, keys, { purchases }) || { actions: [], skipped: [] };
+    const purchases = purchasePlan;
+    const result = window.LBT_toDispatchActions?.(merged, keys, { purchases }) || { actions: [], skipped: [] };
   /* manifest と選択キーは「記録へ帰属する明細」を作るために必要。
      既存の利用側（アカウント編集）は読まないので、壊さず足すだけで済む。 */
   const applied = { actions: result.actions, skipped: result.skipped, rosterActions: result.actions, manifest, keys };
@@ -764,9 +776,9 @@ function appliedSummary(actions) {
       pickMode: manifest.groups.flatMap((g) => g.items).filter((i) => i.needsDecision === "pick-mode").length,
       unknownName: manifest.groups.flatMap((g) => g.items).filter((i) => i.needsDecision === "unknown-name").length,
       included: Object.values(picked).filter(Boolean).length,
-      ops: lines.reduce((n, o) => n + o.proposals.length, 0),
+      ops: 0,
       unknownLine: lines.reduce((n, o) => n + o.unresolved.length, 0),
-      lineOn: Object.values(lineToggle).filter(Boolean).length
+      lineOn: Object.values(purchasePlan).reduce((n, picks) => n + picks.length, 0)
     }
     : { total: 0, pickMode: 0, unknownName: 0, included: 0, ops: 0, unknownLine: 0, lineOn: 0 };
 
@@ -864,37 +876,17 @@ function appliedSummary(actions) {
         onFocusHandled: () => setFocusKey("")
       })
       : null,
-    counts.ops || counts.unknownName ? h("section", { className: "gara-group gara-result" },
+    /* 分類できた購入はリザルトの行として既に帰属しているので、ここには
+       残らない。名前も価格も引けなかった購入行だけを別枠で見せる。 */
+    counts.unknownLine ? h("section", { className: "gara-group gara-result" },
       h("div", { className: "gara-group-head" },
-        h("h4", { className: "gara-group-title" }, "購入履歴（予測変換）"),
-        h("p", { className: "gara-group-note" }, `${counts.ops}件の候補・${counts.unknownLine}件は判定できませんでした`)
+        h("h4", { className: "gara-group-title" }, "判定できなかった購入行"),
+        h("p", { className: "gara-group-note" }, `${counts.unknownLine}件。金額を書き足すか、支出として残してください`)
       ),
       h("div", { className: "gara-scen" },
-        lines.filter((o) => o.proposals.length || o.unresolved.length).slice(0, 10).map((op) => h("div", { key: op.title + (op.memo || ""), className: "gara-scen-row" },
+        lines.filter((o) => o.unresolved.length).slice(0, 10).map((op) => h("div", { key: op.title + (op.memo || ""), className: "gara-scen-row" },
           h("span", { className: "gara-scen-name" }, op.title || "無題"),
           h("div", { className: "gara-rows" },
-            op.proposals.map((p) => h("div", { key: p.key, className: "gara-row" },
-              h("span", { className: "gara-row-name" }, p.name),
-              h("span", { className: "gara-row-meta" },
-                /* 何として分類したかを種別ラベルで出す。名前だけでは
-                   精神かサポートパッシブか分からず「分類されていない」ように見える。
-                   金額は提案が持つ cost を読む（price では常に「価格なし」になっていた）。 */
-                h("span", { className: "gara-pop-src" }, window.LBT_kindLabel ? window.LBT_kindLabel(p.kind) : p.kind),
-                moneyText(p.cost),
-                h("span", { className: "gara-pick-dot", "aria-hidden": "true" }, "·"),
-                `行 ${p.lineNo}`,
-                p.confidence ? h("span", { className: "gara-pop-src" }, p.confidence) : null
-              ),
-              h("button", {
-                type: "button",
-                className: `gara-switch${lineToggle[p.key] ? " is-on" : ""}`,
-                "aria-pressed": Boolean(lineToggle[p.key]),
-                onClick: () => setLineToggle({ ...lineToggle, [p.key]: !lineToggle[p.key] })
-              },
-                h("span", { className: "gara-switch-dot", "aria-hidden": "true" }),
-                h("span", { className: "gara-switch-text" }, lineToggle[p.key] ? "ON" : "OFF")
-              )
-            )),
             op.unresolved.map((u) => h("div", { key: "u" + u.lineNo, className: "gara-row is-unsure" },
               h("span", { className: "gara-row-name" }, u.line),
               h("span", { className: "gara-row-meta" }, `行 ${u.lineNo}・判定できませんでした`)
