@@ -876,7 +876,11 @@ function appliedSummary(actions) {
             op.proposals.map((p) => h("div", { key: p.key, className: "gara-row" },
               h("span", { className: "gara-row-name" }, p.name),
               h("span", { className: "gara-row-meta" },
-                p.price ? (p.price.lp ? `${p.price.lp} LP` : `${p.price.shards} 欠片`) : "価格なし",
+                /* 何として分類したかを種別ラベルで出す。名前だけでは
+                   精神かサポートパッシブか分からず「分類されていない」ように見える。
+                   金額は提案が持つ cost を読む（price では常に「価格なし」になっていた）。 */
+                h("span", { className: "gara-pop-src" }, window.LBT_kindLabel ? window.LBT_kindLabel(p.kind) : p.kind),
+                moneyText(p.cost),
                 h("span", { className: "gara-pick-dot", "aria-hidden": "true" }, "·"),
                 `行 ${p.lineNo}`,
                 p.confidence ? h("span", { className: "gara-pop-src" }, p.confidence) : null
