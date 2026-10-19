@@ -128,7 +128,10 @@ test("カードの行を未割当リストへ戻して再分類できる（ド�
 
 test("分類できないが確定済みの所持はカード内で DB 候補を選んで決められる", () => {
   assert.match(uiFlat, /"aria-label": item\.name \+ " の DB 候補"/);
-  assert.match(uiFlat, /pickedCandidate: event\.target\.value/);
+  /* 選んだ候補は picked（完全な候補オブジェクト）として渡す。名前だけを渡して
+     いた頃は action を作る側が読まず、選んでも何も変わらなかった。 */
+  assert.match(uiFlat, /onPickIdentity\(item\.key, \{ picked: found, pickedCandidate: name \}\)/);
+  assert.match(uiFlat, /const found = \(item\.candidates \|\| \[\]\)\.find\(\(c\) => c\.name === name\) \|\| null;/);
 });
 
 test("割当の変更は取り込み画面内で Undo/Redo できる（ドラッグミスも戻せる）", () => {

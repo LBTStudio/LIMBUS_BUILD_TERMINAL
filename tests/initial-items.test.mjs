@@ -175,3 +175,23 @@ test("初期枠定義は人格切替で所持がリセットされても残る",
   assert.equal(again.inventory.length, 1, "定義があれば取り込みをやり直せる");
   assert.equal(again.inventory[0].origin, "initial");
 });
+
+/* 硝子窓の取り込みは、所持アイテムを ADD_ITEM_INVENTORY で足す。ADD_ITEM は
+   「所持追加＝支出計上」なので、メモの支出行と二重に課帳してしまう。 */
+test("ADD_ITEM_INVENTORY は所持だけを足し、支出明細を作らない", () => {
+  const { reducer } = reducerOf();
+  const s = reducer(baseState(), { type: "ADD_ITEM_INVENTORY", itemId: "heal-bandage", quantity: 2 });
+  assert.equal(s.inventory.length, 1);
+  assert.equal(s.inventory[0].itemId, "heal-bandage");
+  assert.equal(s.inventory[0].quantity, 2, "記載の個数を持つ");
+  assert.equal(s.entries.length, 0, "支出はメモのリザルトが持つ（二重計上しない）");
+});
+
+test("ADD_ITEM_INVENTORY は同じ所持へ数量を足す（重複所持しない）", () => {
+  const { reducer } = reducerOf();
+  let s = reducer(baseState(), { type: "ADD_ITEM", itemId: "heal-hp-ampoule" });
+  s = reducer(s, { type: "ADD_ITEM_INVENTORY", itemId: "heal-hp-ampoule", quantity: 1 });
+  assert.equal(s.inventory.length, 1);
+  assert.equal(s.inventory[0].quantity, 2);
+  assert.equal(s.entries.length, 1, "明細は購入した 1 件だけ");
+});

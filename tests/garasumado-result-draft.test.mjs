@@ -16,6 +16,7 @@ import vm from "node:vm";
    --------------------------------------------------------------------------- */
 
 const db = JSON.parse(readFileSync(new URL("../data/db.json", import.meta.url), "utf8"));
+db.items = JSON.parse(readFileSync(new URL("../data/items.json", import.meta.url), "utf8"));
 
 function load() {
   const w = { DB: db, console, URL, TextEncoder, TextDecoder, setTimeout, clearTimeout, module: { exports: {} } };
@@ -369,4 +370,48 @@ test("実サンプル: 購入した精神 憎悪 がシナリオカードの DB 
   const row = draft.blocks.flatMap((b) => b.items).find((i) => i.name === "憎悪");
   assert.ok(row, "憎悪 の行がシナリオカードにある");
   assert.ok(row.candidates.some((c) => c.name === "憎悪" && c.kind === "spirit"), "DB 候補に本人（精神）が入る");
+});
+
+/* --- 所持アイテム（包帯・鎮静剤…） ----------------------------------------
+   toDispatchActions は items グループを知らず、全部「未知のグループ」として
+   捨てていた（45/50 文書・131 行）。アイテムは items.json にしか無いので、
+   人格・E.G.O の索引では候補も出ない。 */
+test("所持アイテムの候補はアイテムカタログからだけ引く", () => {
+  const cands = G.overlapCandidates("包帯", db, { only: "items" });
+  assert.ok(cands.some((c) => c.name === "包帯" && c.kind === "item"), "カタログの本人が候補になる");
+  assert.ok(cands.every((c) => c.kind === "item"), "人格・E.G.O を混ぜない");
+  const typo = G.overlapCandidates("命体切断システム装置", db, { only: "items" });
+  assert.deepEqual(Array.from(typo, (c) => c.name), ["生命体切断システム装置"], "一字違いのカタログ名が候補になる");
+});
+
+test("所持アイテムは所持として入る（購入として課帳しない）", () => {
+  const m = G.buildManifest(
+    { currency: { lp: 0, fragments: 0 }, owned: { personalities: [], egos: [], supports: [] }, items: [{ name: "包帯", count: "2" }], scenarioHistory: [] },
+    { resolve }
+  );
+  const keys = m.groups.flatMap((g) => g.items.map((i) => i.key));
+  const out = G.toDispatchActions(m, keys, { purchases: {}, db });
+  const add = out.actions.filter((a) => a.type === "ADD_ITEM_INVENTORY");
+  assert.equal(add.length, 1, "アイテムが所持として入る");
+  assert.equal(add[0].itemId, "heal-bandage", "カタログの id へ引く");
+  assert.equal(add[0].quantity, 2, "個数を持たせる");
+  assert.ok(!out.skipped.some((s) => /未知のグループ/.test(s.reason || "")), "未知のグループにしない");
+});
+
+test("実サンプル: 所持アイテムの行がどの文書でも捨てられない", () => {
+  const ids = new Set(db.items.map((it) => String(it.id)));
+  let rows = 0;
+  for (const entry of Object.values(samples)) {
+    const doc = entry && entry.doc;
+    if (!doc) continue;
+    const m = G.buildManifest(doc, { resolve, candidates: (n) => w.LBT_resolveCandidates(index, n) || [] }, db);
+    const keys = m.groups.flatMap((g) => g.items.map((i) => i.key));
+    const out = G.toDispatchActions(m, keys, { purchases: {}, db });
+    assert.ok(!out.skipped.some((s) => /未知のグループ/.test(s.reason || "")), "未知のグループを出さない");
+    for (const a of out.actions.filter((a) => a.type === "ADD_ITEM_INVENTORY")) {
+      assert.ok(ids.has(a.itemId), "カタログに無い id を所持へ足さない: " + a.itemId);
+    }
+    for (const it of ((doc.items) || []).filter((i) => Number(i.count) > 0)) rows += 1;
+  }
+  assert.equal(rows, 131, "所持アイテムの総行数（実サンプル 50 文書）");
 });

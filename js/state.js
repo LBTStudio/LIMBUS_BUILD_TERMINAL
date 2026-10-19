@@ -2816,6 +2816,22 @@ return appendLedgerEntry(next, {
         ref: { kind: "inventory", uid: owned?.uid || itemId }
       });
     }
+    /* 共有データから「所持」だけを取り込む。ADD_ITEM と違い明細を起こさない。
+       支出はメモ（リザルトの支出行）が持っており、ここで DB 価格を課すと
+       二重計上になる。取得の事実だけを所持へ足す。 */
+    case "ADD_ITEM_INVENTORY": {
+      const itemId = String(action.itemId || "");
+      if (!itemId) return state;
+      const qty = Math.max(1, Number.parseInt(action.quantity, 10) || 1);
+      const current = Array.isArray(state.inventory) ? state.inventory : [];
+      const existing = current.find((entry) => entry.itemId === itemId);
+      const inventory = existing
+        ? current.map((entry) => entry.itemId === itemId
+          ? { ...entry, quantity: clampItemQuantity(state, itemId, (Number(entry.quantity) || 1) + qty) }
+          : entry)
+        : [...current, { uid: makeOwnedUid("it"), itemId, quantity: clampItemQuantity(state, itemId, qty), memo: true, palette: true, origin: "acquired" }];
+      return { ...state, inventory };
+    }
     case "PATCH_ITEM": {
       const inventory = (state.inventory || []).map((entry) => entry.uid === action.uid ? { ...entry, ...action.patch, quantity: clampItemQuantity(state, entry.itemId, action.patch?.quantity ?? entry.quantity) } : entry);
       return { ...state, inventory };

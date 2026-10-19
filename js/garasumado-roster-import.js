@@ -352,6 +352,10 @@ function toIdentityChoices(hits) {
          以前は「48件すべて無料」と誤認して所持から落としていたが、
          そのせいで有料の精神まで購入記録ごと消えていた。 */
       const listed = names;
+      /* アイテムは個数を持つ（包帯x2 等）。取り込みで数を落とさない。 */
+      const itemQty = group.id === "items"
+        ? new Map(source.map((it) => [nameKey(nameOf(it)), Number(it && it.count) || 1]))
+        : null;
       return {
         id: group.id,
         label: group.label,
@@ -362,6 +366,7 @@ function toIdentityChoices(hits) {
             key: group.id + ":" + name,
             group: group.id,
             name,
+            quantity: itemQty ? (itemQty.get(nameKey(name)) || 1) : undefined,
             resolved: Boolean(hit),
             dbName: hit ? hit.name : "",
             kinds: hit ? hit.kinds : [],
@@ -591,6 +596,16 @@ function toIdentityChoices(hits) {
     const selected = new Set(selectedKeys || []);
     const actions = [];
     const skipped = [];
+    /* 所持アイテムの名前を DB（items.json）の id へ引く。引けない名前は
+       捏造せず、理由つきで落とす。 */
+    const itemDb = opts.db || (typeof window !== "undefined" && window.DB) || {};
+    const itemIdOf = (name) => {
+      /* 所持列のアイテム名には個数が付く（バラのスパナ工房の外付け強化義足×1）。 */
+      const key = nameKey(String(name || "").replace(/[×xX]\s*\d+\s*$/, ""));
+      if (!key) return "";
+      const hit = (itemDb.items || []).find((row) => nameKey(row && row.name) === key);
+      return hit ? String(hit.id || "") : "";
+    };
     /* 所持ループで既に納入した品目。シナリオの獲得ループが同じ人格・E.G.O を
        二重に登録しないためのもの（所持一覧と獲得行の両方に出る品目は 1 件だけ）。 */
     const taken = new Set();
@@ -659,6 +674,20 @@ function toIdentityChoices(hits) {
         } else if (group.id === "spirits") {
           if (!spirit) { skipped.push({ key: item.key, reason: "DB番号が引けない" }); continue; }
           actions.push({ type: "ADD_ROSTER_SPIRIT", spirit: { name: spirit.name || item.dbName || item.name }, via });
+        } else if (group.id === "items") {
+          /* 所持アイテム。支出はメモ（リザルトの支出行）が持つので、取得だけを
+             足す。ADD_ITEM は購入として DB 価格を課すため、ここで使うと
+             二重計上になる。DB 候補がアイテムで一意ならそれを使う（所持列の
+             名前は ×1 が付いたり、カタログ表記と一字違うことがある）。
+             マニフェスト段階の candidates は人格・E.G.O の索引なので、
+             kind が item のものだけを信用する。 */
+          const itemCand = (item.candidates || []).length === 1 && item.candidates[0].kind === "item"
+            ? item.candidates[0].name
+            : "";
+          const itemName = (item.picked && item.picked.name) || itemCand || item.name;
+          const itemId = itemIdOf(itemName);
+          if (!itemId) { skipped.push({ key: item.key, reason: "アイテム名が DB に無い" }); continue; }
+          actions.push({ type: "ADD_ITEM_INVENTORY", itemId, quantity: Number(item.quantity) || 1 });
         } else {
           skipped.push({ key: item.key, reason: "未知のグループ" });
         }
@@ -829,9 +858,14 @@ function toIdentityChoices(hits) {
 
   /* 文字一致の候補を一致率の降順で並べる。上限は表示と操作の項数。
      一意に絞れたときだけ自動割り当てに使う（複数なら利用者が選ぶ）。 */
-  function overlapCandidates(name, db) {
+  function overlapCandidates(name, db, options) {
+    const opts = options || {};
+    /* アイテムは items.json にしか無い。他の種別と混ぜると、たまたま名前が
+       近いだけの人格・E.G.O を候補に出してしまうので、アイテム行では
+       アイテムだけを見る。 */
+    const onlyItems = opts.only === "items";
     const want = overlapChars(name);
-    const key = nameKey(name);
+    const key = nameKey(String(name || "").replace(/[×xX]\s*\d+\s*$/, ""));
     /* カタカナ・ひらがなだけの名前は overlapChars が拾わない（照合は漢字と
        英数だけを見る）。それでも本人（同名の DB 行）は選べないと困るので、
        完全一致の判定だけは文字種に依らず行う。 */
@@ -856,16 +890,21 @@ function toIdentityChoices(hits) {
       seen.add(dedupe);
       out.push({ kind, name: rowName, no: row.no, rank: row.rank, mode: row.mode, ratio, hit, exact: isExact });
     };
-    for (const row of (db && db.normal_personas) || []) push(row, "persona");
-    for (const row of (db && db.tokui_personas) || []) push(row, "persona");
-    for (const row of (db && db.egos) || []) push(row, "ego");
-    for (const row of (db && db.support_passives) || []) push(row, "support");
-    for (const row of (db && db.death_passives) || []) push(row, "deathSupport");
-    /* 精神（混乱効果）も所持の対象。以前はここに無く、憎悪を照会できなかった。 */
-    for (const row of (db && db.spirits) || []) push(row, "spirit");
-    /* 強化も所持の対象（欠片で買う）。同じく走査から漏れていた。 */
-    for (const row of (db && db.normal_enhancements) || []) push(row, "enhancement");
-    for (const row of (db && db.special_enhancements) || []) push(row, "enhancement");
+    if (onlyItems) {
+      /* アイテム行はアイテムカタログ（items.json）だけを引く。 */
+      for (const row of (db && db.items) || []) push(row, "item");
+    } else {
+      for (const row of (db && db.normal_personas) || []) push(row, "persona");
+      for (const row of (db && db.tokui_personas) || []) push(row, "persona");
+      for (const row of (db && db.egos) || []) push(row, "ego");
+      for (const row of (db && db.support_passives) || []) push(row, "support");
+      for (const row of (db && db.death_passives) || []) push(row, "deathSupport");
+      /* 精神（混乱効果）も所持の対象。以前はここに無く、憎悪を照会できなかった。 */
+      for (const row of (db && db.spirits) || []) push(row, "spirit");
+      /* 強化も所持の対象（欠片で買う）。同じく走査から漏れていた。 */
+      for (const row of (db && db.normal_enhancements) || []) push(row, "enhancement");
+      for (const row of (db && db.special_enhancements) || []) push(row, "enhancement");
+    }
     out.sort((a, b) => (b.exact ? 1 : 0) - (a.exact ? 1 : 0) || b.ratio - a.ratio || b.hit - a.hit);
     return out.slice(0, F_MAX_CANDIDATES);
   }
@@ -985,7 +1024,7 @@ function toIdentityChoices(hits) {
         const item = { ...raw, ...patch };
         /* 略称（鬼門、ロジアトなど）は正式名を引いてから本文照合する。
            名前索引の文字一致を使い、一意に絞れるものだけ名前解決に使う。 */
-        const cands = db ? overlapCandidates(item.name, db) : [];
+        const cands = db ? overlapCandidates(item.name, db, group.id === "items" ? { only: "items" } : null) : [];
         const names = cands.length === 1 ? [cands[0].name] : [];
         /* カードから戻された所持は照合結果より戻しを優先して未割当に返す。
            帰属先を選び直せば（pickedScenario が入れば）戻しは解ける。 */
@@ -1168,6 +1207,8 @@ const api = {
     window.LBT_buildGarasumadoManifest = buildManifest;
     window.LBT_toDispatchActions = toDispatchActions;
     window.LBT_buildResultDraft = buildResultDraft;
+    /* 所持アイテムの候補を UI で出すため。名前索引はアイテムを持たない。 */
+    window.LBT_overlapCandidates = overlapCandidates;
    window.LBT_reconcileBalance = reconcileBalance;
   }
   if (typeof module !== "undefined" && module.exports) module.exports = api;

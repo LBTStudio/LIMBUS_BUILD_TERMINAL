@@ -404,12 +404,23 @@ item.decide ? h("div", { className: "gara-decide" },
             h("span", { className: "gara-label" }, "DB候補"),
             h("select", {
               className: "input",
-              value: item.candidates.length === 1 ? item.candidates[0].name : "",
+              value: item.picked
+                ? item.picked.name
+                : (item.candidatesNeedPick ? "" : (item.candidates.length === 1 ? item.candidates[0].name : "")),
               "aria-label": item.name + " の DB 候補",
-              disabled: item.candidates.length < 2,
-              onChange: (event) => onPickIdentity(item.key, { pickedCandidate: event.target.value })
+              disabled: item.candidatesNeedPick ? false : item.candidates.length < 2,
+              /* 選んだ候補は picked（完全な候補オブジェクト）として渡す。
+                 pickedCandidate（名前だけ）は action を作る側が読まないため、
+                 これだけでは選んでも何も変わらなかった。 */
+              onChange: (event) => {
+                const name = event.target.value;
+                const found = (item.candidates || []).find((c) => c.name === name) || null;
+                onPickIdentity(item.key, { picked: found, pickedCandidate: name });
+              }
             },
-              h("option", { value: "" }, item.candidates.length > 1 ? "選んでください" : (item.candidates[0] ? item.candidates[0].name : "候補なし")),
+              h("option", { value: "" }, item.candidatesNeedPick
+                ? "選んでください"
+                : (item.candidates.length > 1 ? "選んでください" : (item.candidates[0] ? item.candidates[0].name : "候補なし"))),
               item.candidates.map((cand) => h("option", { key: cand.name, value: cand.name }, cand.name))
             )
           ),
@@ -451,6 +462,16 @@ item.decide ? h("div", { className: "gara-decide" },
 
 const GarasumadoGroup = ({ group, onPick, onToggle, onToggleAll, onPickIdentity }) => {
   const items = group.items;
+  /* 所持アイテムの候補はアイテムカタログから引く。名前索引（人格・E.G.O）には
+     アイテムが無いため、そのままでは候補が出ず選び直せない。 */
+  const withCandidates = (item) => {
+    if (group.id !== "items") return item;
+    const cands = window.LBT_overlapCandidates?.(item.name, window.DB || {}, { only: "items" }) || [];
+    /* 一字違いの別アイテム（鎮痛剤 ↔ 鎮静剤）を勝手に採ると、買った覚えのない
+       物を所持に足すことになる。名前が同じとき以外は利用者に選ばせる。 */
+    const same = cands.length === 1 && String(cands[0].name).trim() === String(item.name).trim();
+    return { ...item, candidates: cands, candidatesNeedPick: cands.length > 0 && !same };
+  };
   const included = items.filter((i) => i.include).length;
   const priced = items.filter((i) => (i.price || (i.candidates || []).some((c) => c.price))).length;
   /* n件中m件、ではなく「何件に価格があるか」を1文で言う。 */
@@ -469,7 +490,7 @@ const GarasumadoGroup = ({ group, onPick, onToggle, onToggleAll, onPickIdentity 
     ),
     h("div", { className: "gara-rows", role: "group", "aria-label": `${group.label} の取り込み` },
       items.map((item, index) => h("div", { key: item.key, style: { "--i": index } },
-        h(ImportRow, { item, onPick, onToggle, onPickIdentity })
+        h(ImportRow, { item: withCandidates(item), onPick, onToggle, onPickIdentity })
       ))
     )
   );
