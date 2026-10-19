@@ -384,6 +384,50 @@ test("所持アイテムの候補はアイテムカタログからだけ引く",
   assert.deepEqual(Array.from(typo, (c) => c.name), ["生命体切断システム装置"], "一字違いのカタログ名が候補になる");
 });
 
+/* --- 同一品目が種別ごとに別名（賭博師＝サポパ行 / ギャンブラー＝精神行） ---
+   メモの章立て（精神の章に賭博師、サポパの章にギャンブラー）と実体の
+   種別が食い違うことがある。存在する種別のほうへ入れる（捨てない）。 */
+test("賭博師はサポパ行として実在する", () => {
+  const cands = G.overlapCandidates("賭博師", db);
+  assert.ok(cands.some((c) => c.name === "賭博師" && c.kind === "support"), "サポパの賭博師");
+  assert.ok(cands.every((c) => c.kind === "support"), "同名の精神は無い（精神側はギャンブラー）");
+});
+
+test("精神の章に賭博師と書いた文書は ADD_ROSTER_SUPPORT で入る", () => {
+  const m = make(
+    { personas: [], egos: [], supportPassives: [], spirits: [{ name: "賭博師" }] },
+    [{ name: "夜L", memo: "何もない" }]
+  );
+  const group = m.groups.find((g) => g.id === "spirits");
+  const item = group.items[0];
+  const built = G.toDispatchActions(m, [item.key], {});
+  const supports = built.actions.filter((a) => a.type === "ADD_ROSTER_SUPPORT");
+  assert.equal(supports.length, 1, "実体の種別（サポパ）で入る");
+  assert.equal(supports[0].spp.name, "賭博師");
+  assert.ok(!built.skipped.some((s) => s.key === item.key), "捨てない");
+});
+
+test("サポパと精神の両方に同名 ギャンブラー が実在する（候補は種別まで選べる）", () => {
+  const cands = G.overlapCandidates("ギャンブラー", db);
+  assert.ok(cands.some((c) => c.name === "ギャンブラー" && c.kind === "support"), "サポパのギャンブラー");
+  assert.ok(cands.some((c) => c.name === "ギャンブラー" && c.kind === "spirit"), "精神のギャンブラー");
+});
+
+test("サポパ章の所持でも精神候補を pick すれば ADD_ROSTER_SPIRIT で入る", () => {
+  const m = make(
+    { personas: [], egos: [], supportPassives: [{ name: "ギャンブラー" }], spirits: [] },
+    [{ name: "夜M", memo: "何もない" }]
+  );
+  const group = m.groups.find((g) => g.id === "supportPassives");
+  const item = group.items[0];
+  item.picked = (G.overlapCandidates("ギャンブラー", db) || []).find((c) => c.kind === "spirit");
+  const built = G.toDispatchActions(m, [item.key], {});
+  const spirits = built.actions.filter((a) => a.type === "ADD_ROSTER_SPIRIT");
+  assert.equal(spirits.length, 1, "選んだ種別（精神）で入る");
+  assert.equal(spirits[0].spirit.name, "ギャンブラー");
+  assert.ok(!built.skipped.some((s) => s.key === item.key), "捨てない");
+});
+
 test("所持アイテムは所持として入る（購入として課帳しない）", () => {
   const m = G.buildManifest(
     { currency: { lp: 0, fragments: 0 }, owned: { personalities: [], egos: [], supports: [] }, items: [{ name: "包帯", count: "2" }], scenarioHistory: [] },

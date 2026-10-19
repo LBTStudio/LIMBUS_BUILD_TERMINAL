@@ -633,7 +633,10 @@ function toIdentityChoices(hits) {
            帳が吹くことはない。チケット・購入は三分類が決めてから課す。 */        const chosen = chosenKind(item);
         /* 同名候補が複数あるときは、索引の先頭で決めつけず選ばせる。 */
         const ambiguous = (item.identityCandidates || []).length > 1;
-        const kinds = (f) => (ambiguous ? null : item.kinds.find(f));
+        /* 利用者が pick したなら、その種別だけを使う。章立て（グループ）の
+           種別が item.kinds にあっても pick を上書きしてはいけない
+           （「利用者の選択が最優先」の契約）。pick が無いときだけ補う。 */
+        const kinds = (f) => (ambiguous || chosen ? null : item.kinds.find(f));
         const persona = (chosen && chosen.kind === "persona") ? chosen : kinds((k) => k.kind === "persona");
         const ego = (chosen && chosen.kind === "ego") ? chosen : kinds((k) => k.kind === "ego");
         const support = (chosen && (chosen.kind === "support" || chosen.kind === "deathSupport")) ? chosen
@@ -660,7 +663,19 @@ function toIdentityChoices(hits) {
           taken.add(`ego:${ego.rank}:${ego.no}`);
           actions.push({ type: "ADD_ROSTER_EGO", no: String(ego.no), rank: ego.rank, via, source: item.source || "", purchase: item.source === "buy" && !memoPaid(item) });
         } else if (group.id === "supportPassives") {
-          if (!support) { skipped.push({ key: item.key, reason: "DB番号が引けない" }); continue; }
+          if (!support) {
+            /* メモの章立てと実体の種別が違うことがある（同一品目が
+               サポパ「賭博師」と精神「ギャンブラー」として别名で登録
+               されている）。存在する種別のほうへ入れる。
+               賭博師を精神の章に書いた文書が support 軒の DB行を持つ
+               ため、捨てると所持が消える。 */
+            if (spirit) {
+              actions.push({ type: "ADD_ROSTER_SPIRIT", spirit: { name: spirit.name || item.dbName || item.name }, via });
+              continue;
+            }
+            skipped.push({ key: item.key, reason: "DB番号が引けない" });
+            continue;
+          }
           /* サポートパッシブは三分類の対象外（同期/解析と同じ「そのまま確定」）。
              課帳の有無は purchase フラグ（source === "buy"）だけが決める。 */
           /* 購入だったときだけ課帳する（ADD_ROSTER と同じ契約）。
@@ -672,7 +687,20 @@ function toIdentityChoices(hits) {
             purchase: item.source === "buy" && !memoPaid(item)
           });
         } else if (group.id === "spirits") {
-          if (!spirit) { skipped.push({ key: item.key, reason: "DB番号が引けない" }); continue; }
+          if (!spirit) {
+            /* 逆方向: 精神の章に賭博師（=サポパ行）と書いた文書も通す。 */
+            if (support) {
+              actions.push({
+                type: "ADD_ROSTER_SUPPORT",
+                spp: { name: support.name || item.dbName || item.name },
+                via,
+                purchase: item.source === "buy" && !memoPaid(item)
+              });
+              continue;
+            }
+            skipped.push({ key: item.key, reason: "DB番号が引けない" });
+            continue;
+          }
           actions.push({ type: "ADD_ROSTER_SPIRIT", spirit: { name: spirit.name || item.dbName || item.name }, via });
         } else if (group.id === "items") {
           /* 所持アイテム。支出はメモ（リザルトの支出行）が持つので、取得だけを

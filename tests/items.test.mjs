@@ -181,3 +181,27 @@ test("オリジナルアイテムの価格は保存・読込後も明細の価�
   assert.equal(entry.cost.lp, 10);
   assert.equal(entry.cost.shards, 20);
 });
+
+/* 価格文字列の唯一の解釈経路。日本語入力では全角数字・全角ＬＰが混ざる
+   （"１５ＬＰ"、"２０欠片"）。半角しか読めないと価格が常に 0 になり、
+   帳の残高が動かない。 */
+test("価格表記は全角数字・全角単位でも読める", () => {
+  const context = { window: { DB: { items: itemRecords } }, console };
+  context.globalThis = context;
+  vm.createContext(context);
+  vm.runInContext(readFileSync(new URL("../js/core.js", import.meta.url), "utf8"), context);
+  vm.runInContext(readFileSync(new URL("../js/state.js", import.meta.url), "utf8"), context);
+  const parse = context.window.LBT_parsePriceText;
+
+  /* vm 境界を跨ぐオブジェクトは realm が違うので、フィールドで比較する。 */
+  const eq = (raw, lp, shards) => {
+    const got = parse(raw);
+    assert.equal(got.lp, lp, raw + " の lp");
+    assert.equal(got.shards, shards, raw + " の shards");
+  };
+  eq("１５ＬＰ", 15, 0);
+  eq("ＬＰ15", 15, 0);
+  eq("１５ＬＰ３０欠片", 15, 30);
+  eq("２欠片", 0, 2);
+  eq("３０", 30, 0);
+});

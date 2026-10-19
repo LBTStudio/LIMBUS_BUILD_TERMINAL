@@ -15,8 +15,14 @@ const ui = readFileSync(new URL("../js/garasumado-import-ui.js", import.meta.url
 /* 整形（改行位置）は規約ではない。行をまたぐ検査は空白を潰してから照合する。 */
 const uiFlat = ui.replace(/\s+/g, " ");
 
-test("1シナリオ＝1リザルトのカードがある", () => {
-  assert.match(uiFlat, /function ResultCard\(\{ block, scenarioOptions, sourceOptions, onPickIdentity, onDropItem, onReturnItem \}\)/);
+test("取得中の busy は取得が例外でも必ず解除される（finally）", () => {
+  /* fetch へ渡す以降の実装が throw に変わっても、busy が true のまま残ると
+     画面が「取得中」のまま固まり、再試行の入口が分からなくなる。 */
+  assert.match(uiFlat, /try \{ (result = )?await window\.LBT_fetchGarasumadoDocument/, "await は try の中");
+  assert.match(uiFlat, /finally \{ setBusy\(false\);/, "busy 解除は finally");
+});
+
+test("1シナリオ＝1リザルトのカードがある", () => {  assert.match(uiFlat, /function ResultCard\(\{ block, scenarioOptions, sourceOptions, onPickIdentity, onDropItem, onReturnItem \}\)/);
   assert.match(uiFlat, /"gara-group gara-result"/);
   /* 照合済みの所持は最初からカードの中に出る。 */
   assert.match(uiFlat, /block\.items\.map\(\(item\) => h\("div", \{/);
@@ -131,7 +137,11 @@ test("分類できないが確定済みの所持はカード内で DB 候補を�
   /* 選んだ候補は picked（完全な候補オブジェクト）として渡す。名前だけを渡して
      いた頃は action を作る側が読まず、選んでも何も変わらなかった。 */
   assert.match(uiFlat, /onPickIdentity\(item\.key, \{ picked: found, pickedCandidate: name \}\)/);
-  assert.match(uiFlat, /const found = \(item\.candidates \|\| \[\]\)\.find\(\(c\) => c\.name === name\) \|\| null;/);
+  /* 候補は種別まで見て選ぶ。同名の別種（ギャンブラーはサポパと精神の両方に
+     実在する）を名前だけで比べると、先頭が常に選ばれて誤った種別で入る。 */
+  assert.match(uiFlat, /const found = \(item\.candidates \|\| \[\]\)\.find\(\(c\) => candKey\(c\) === name\) \|\| null;/);
+  assert.match(uiFlat, /const candKey = \(cand\) => \(cand \? cand\.kind \+ ":" \+ cand\.name : ""\);/);
+  assert.match(uiFlat, /const dupNamesOf = \(candidates\) => new Set\(/);
 });
 
 test("割当の変更は取り込み画面内で Undo/Redo できる（ドラッグミスも戻せる）", () => {

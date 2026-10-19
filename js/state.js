@@ -1461,7 +1461,10 @@ function ownedName(state, itemId) {
 function parsePriceText(raw, defaultUnit) {
   if (typeof raw === "number") return normalizeCurrency(defaultUnit === "shards" ? { shards: raw } : { lp: raw });
   if (typeof raw !== "string") return normalizeCurrency(raw);
-  const text = raw.trim();
+  /* 日本語入力は全角数字・全角アルファベット（１５ＬＰ）を出す。
+     半角しか読めないと価格が常に 0 になり、帳の残高が動かない。 */
+  const normalized = raw.replace(/[\uFF01-\uFF5E]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+  const text = normalized.trim();
   if (!text) return { lp: 0, shards: 0 };
   /* 数字と単位語は「隣り合う対」で読み、左から順に消費する。
      先読みで結合を決めないので "LP10 SHARD30" の 10 が SHARD 側へ

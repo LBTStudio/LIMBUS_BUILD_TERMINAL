@@ -31,6 +31,13 @@ const h = React.createElement;
     SPEND_TICKET: "チケット消費"
   };
 
+  /* DB候補の選択値は「種別:名前」。ギャンブラーのようにサポパと精神の両方に
+     同名が実在するため、名前だけでは種別を一意に決められない。 */
+  const candKey = (cand) => (cand ? cand.kind + ":" + cand.name : "");
+  const dupNamesOf = (candidates) => new Set(
+    (candidates || []).map((c) => c.name).filter((n, i, all) => all.indexOf(n) !== i)
+  );
+
   const moneyText = (price) => {
   if (!price) return "価格なし";
   if (price.lp && price.shards) return `${price.lp} LP・${price.shards} 欠片`;
@@ -405,8 +412,8 @@ item.decide ? h("div", { className: "gara-decide" },
             h("select", {
               className: "input",
               value: item.picked
-                ? item.picked.name
-                : (item.candidatesNeedPick ? "" : (item.candidates.length === 1 ? item.candidates[0].name : "")),
+                ? candKey(item.picked)
+                : (item.candidatesNeedPick ? "" : (item.candidates.length === 1 ? candKey(item.candidates[0]) : "")),
               "aria-label": item.name + " の DB 候補",
               disabled: item.candidatesNeedPick ? false : item.candidates.length < 2,
               /* 選んだ候補は picked（完全な候補オブジェクト）として渡す。
@@ -414,14 +421,23 @@ item.decide ? h("div", { className: "gara-decide" },
                  これだけでは選んでも何も変わらなかった。 */
               onChange: (event) => {
                 const name = event.target.value;
-                const found = (item.candidates || []).find((c) => c.name === name) || null;
+                /* 候補は種別まで見て選ぶ。同名の別種（ギャンブラーはサポパと
+                   精神の両方に実在する）を名前だけで比べると、先頭が常に
+                   選ばれて誤った種別の明細が入る。 */
+                const found = (item.candidates || []).find((c) => candKey(c) === name) || null;
                 onPickIdentity(item.key, { picked: found, pickedCandidate: name });
               }
             },
               h("option", { value: "" }, item.candidatesNeedPick
                 ? "選んでください"
                 : (item.candidates.length > 1 ? "選んでください" : (item.candidates[0] ? item.candidates[0].name : "候補なし"))),
-              item.candidates.map((cand) => h("option", { key: cand.name, value: cand.name }, cand.name))
+              item.candidates
+                .map((cand) => h("option", {
+                  key: candKey(cand),
+                  value: candKey(cand)
+                }, dupNamesOf(item.candidates).has(cand.name)
+                  ? cand.name + "（" + (window.LBT_kindLabel?.(cand.kind) || cand.kind) + "）"
+                  : cand.name))
             )
           ),
           h("label", { className: "gara-decide-field" },
@@ -514,8 +530,14 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
     if (!parsed || !parsed.ok) { setError(parsed?.error || "URL を確認してください"); return; }
     setBusy(true);
     setError("");
-    const result = await window.LBT_fetchGarasumadoDocument?.(url);
-    setBusy(false);
+    /* busy は await 自体が例外でも解除する。true のまま残ると画面が
+       「取得中」のまま固まり、再試行の入口が分からなくなる。 */
+    let result;
+    try {
+      result = await window.LBT_fetchGarasumadoDocument?.(url);
+    } finally {
+      setBusy(false);
+    }
     if (!result || !result.ok) { setError(result?.error || "取得に失敗しました"); return; }
     setDoc(result.doc);
 
