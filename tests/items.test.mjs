@@ -154,3 +154,30 @@ test("オリジナルアイテムにも任意の最大所持数を設定でき�
   assert.equal(reduced.customItems[0].maxOwned, 1);
   assert.equal(reduced.inventory[0].quantity, 1);
 });
+
+/* 購入明細は表示名と価格が所持の行と同じ経路から決まる。オリジナルアイテム
+   は公式 DB に存在しないので、state.customItems から拾わないと名前が
+   "custom-…" のままで価格も 0 になり、帳の残高が動かない。 */
+test("オリジナルアイテムを買うと名前と価格が明細に載る", () => {
+  const { reducer, initState } = loadStateReducer();
+  const id = "custom-priced-tonic";
+  const created = reducer(initState, { type: "ADD_CUSTOM_ITEM", item: { id, name: "試製トニック", price: "30LP" } });
+  const purchased = reducer(created, { type: "ADD_ITEM", itemId: id });
+
+  assert.equal(purchased.entries.length, 1, "購入は明細になる");
+  assert.equal(purchased.entries[0].name, "試製トニック", "明細はカスタム名を使う");
+  assert.equal(purchased.entries[0].cost.lp, 30, "価格は custom.price から引く");
+  assert.equal(purchased.entries[0].cost.shards, 0);
+  assert.equal(purchased.inventory[0].itemId, id);
+});
+
+test("オリジナルアイテムの価格は保存・読込後も明細の価格として続く", () => {
+  const { reducer, initState } = loadStateReducer();
+  const id = "custom-reload-price";
+  let s = reducer(initState, { type: "ADD_CUSTOM_ITEM", item: { id, name: "値段つき", price: "10LP 20欠片" } });
+  s = reducer(s, { type: "ADD_ITEM", itemId: id });
+  const entry = s.entries[s.entries.length - 1];
+
+  assert.equal(entry.cost.lp, 10);
+  assert.equal(entry.cost.shards, 20);
+});

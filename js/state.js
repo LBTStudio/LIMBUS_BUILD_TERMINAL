@@ -1443,11 +1443,13 @@ function normalizeStateShape(raw) {
    死亡後サポパは欠片、通常サポパは LP の数値。表記の解釈は parsePriceText に
    一任する。価格は独立した保存値を持たせない。
    値が変わっても明細が古びないよう、表示時に DB から引く。 */
-/* 明細の表示名。公式DBにあれば公式名、なければ保存在使う。 */
-function ownedName(itemId) {
+/* 明細の表示名。公式DBにあれば公式名、なければ所持しているカスタム定義を使う。
+   かつてここは window.LBT_customItems を読んでいたが、どこでも代入されない
+   死んだ参照で、カスタムアイテムの明細が "custom-…" のまま表示されていた。 */
+function ownedName(state, itemId) {
   const official = (window.DB?.items || []).find((i) => i.id === itemId);
   if (official?.name) return String(official.name);
-  const custom = (window.LBT_customItems || []).find((i) => i.id === itemId);
+  const custom = Array.isArray(state?.customItems) ? state.customItems.find((i) => i?.id === itemId) : null;
   return String(custom?.name || itemId || "");
 }
 /* 価格表記を LP と欠片に分けて読む。単位語（LP・SHARD・欠片・欠）が
@@ -1477,9 +1479,14 @@ function parsePriceText(raw, defaultUnit) {
   return normalizeCurrency(bare ? (defaultUnit === "shards" ? { shards: bare[1] } : { lp: bare[1] }) : {});
 }
 window.LBT_parsePriceText = parsePriceText;
-function priceItemById(itemId) {
-  const item = (window.DB?.items || window.DB?.itemList || []).find((i) => i.id === itemId);
-  return parsePriceText(item?.price);
+function priceItemById(state, itemId) {
+  const id = String(itemId || "");
+  const official = (window.DB?.items || window.DB?.itemList || []).find((i) => i?.id === id);
+  if (official) return parsePriceText(official.price);
+  /* オリジナルアイテムも価格を持てる。state を参照しないと購入明細の
+     価格が常に 0 になり、帳の残高から購入が消える。 */
+  const custom = Array.isArray(state?.customItems) ? state.customItems.find((i) => i?.id === id) : null;
+  return parsePriceText(custom?.price);
 }
 function priceEnhancement(group, name) {
   const all = [...(window.DB?.normal_enhancements || []), ...(window.DB?.special_enhancements || [])];
@@ -1638,7 +1645,7 @@ window.LBT_purchaseAffordability = purchaseAffordability;
 function purchaseCostOf(state, action) {
   if (action.type === "ADD_ROSTER") return action.purchase ? normalizeCurrency(action.cost) : null;
   if (action.type === "ADD_ROSTER_EGO") return action.purchase ? priceEgo(action.rank, action.no) : null;
-  if (action.type === "ADD_ITEM") return priceItemById(action.itemId);
+  if (action.type === "ADD_ITEM") return priceItemById(state, action.itemId);
   if (action.type === "ADD_ROSTER_SUPPORT") {
     const spp = action.spp || {};
     return normalizeCurrency({ lp: spp.lp });
@@ -2810,8 +2817,8 @@ return appendLedgerEntry(next, {
       const owned = next.inventory.find((entry) => entry.itemId === itemId);
       return appendLedgerEntry(next, {
         kind: "item",
-        name: ownedName(itemId),
-        cost: priceItemById(itemId),
+        name: ownedName(state, itemId),
+        cost: priceItemById(state, itemId),
         resultId: action.resultId,
         ref: { kind: "inventory", uid: owned?.uid || itemId }
       });
