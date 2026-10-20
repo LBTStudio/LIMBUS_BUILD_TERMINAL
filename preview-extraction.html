@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>抽出演出プレビュー（開発用・本番未配線）</title>
+<link rel="stylesheet" href="assets/design-system.css">
+<link rel="stylesheet" href="assets/gacha-extraction.css">
+<style>
+  body { margin: 0; padding: 24px; background: #0c0908; color: #f4ead9; font: 14px/1.6 system-ui, sans-serif; }
+  h1 { font-size: 16px; margin: 0 0 4px; }
+  p.note { margin: 0 0 18px; color: #b8ac9e; font-size: 12px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  button.scn { padding: 9px 14px; border-radius: 10px; border: 1px solid #4a3527; background: #1a120c; color: #f4ead9; font: 600 13px system-ui; cursor: pointer; }
+  button.scn:hover { border-color: #e8963c; }
+  button.scn:focus-visible { outline: 2px solid #e9c46a; outline-offset: 2px; }
+  pre { background: #120c09; border: 1px solid #2a1d15; border-radius: 10px; padding: 12px; overflow: auto; color: #d8cbb8; }
+  #list { margin: 12px 0 0; padding: 0; list-style: none; }
+  #list li { padding: 4px 0; border-bottom: 1px solid #221812; }
+</style>
+</head>
+<body>
+<h1>抽出演出プレビュー</h1>
+<p class="note">開発用。本番の index.html / ガチャ画面には未配線。機構は Limbus Company の「鎖の球」に着想、描画は LBT のデザイン言語で自作。</p>
+
+<div class="row">
+  <button class="scn" data-scn="single-normal">通常 単発</button>
+  <button class="scn" data-scn="ten-none">10連（特異なし）</button>
+  <button class="scn" data-scn="ten-late">10連（特異が後半 → 途中で金）</button>
+  <button class="scn" data-scn="single-first">単発（特異が先頭 → 開始から金）</button>
+  <button class="scn" data-scn="single-ego">E.G.O 単発</button>
+  <button class="scn" data-scn="single-pack">特定抽出パック 単発</button>
+</div>
+<p class="note" id="rm"></p>
+<pre id="plan">plan() の出力がここに出ます。</pre>
+<ul id="list" aria-live="polite"></ul>
+
+<script src="js/gacha-extraction.js"></script>
+<script>
+(function () {
+  var api = window.LBT_gachaExtraction;
+  var pre = document.getElementById("plan");
+  var list = document.getElementById("list");
+  document.getElementById("rm").textContent =
+    "prefers-reduced-motion: " + (api.reduceMotion() ? "reduce（移動なしで即時表示）" : "no-preference");
+
+  function persona(n) { return { type: "persona", mode: "n", no: n, name: "人格 No." + n }; }
+  var SCENARIOS = {
+    "single-normal": [persona(3)],
+    "ten-none": [persona(1), persona(2), persona(3), persona(4), persona(5), persona(6), persona(7), persona(8), persona(9), persona(10)],
+    "ten-late": [persona(1), persona(2), persona(3), persona(4), persona(5), persona(6), persona(7), persona(8), persona(9),
+      { type: "persona", mode: "t", branch: "special", no: 99, name: "特異人格 No.99" }],
+    "single-first": [{ type: "persona", mode: "t", branch: "special", no: 7, name: "特異人格 No.7" }],
+    "single-ego": [{ type: "ego", rank: "HE", no: 12, name: "E.G.O No.12" }],
+    "single-pack": [{ type: "themePack", pack: "向き合わない", no: 4, name: "パック No.4" }]
+  };
+
+  document.querySelectorAll("button.scn").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var hits = SCENARIOS[btn.dataset.scn];
+      pre.textContent = JSON.stringify(api.plan(hits), null, 2);
+      list.textContent = "";
+      api.play(hits, {
+        onSkip: function () { pre.textContent += "\n（スキップされました）"; }
+      }).then(function (st) {
+        list.textContent = "";
+        hits.forEach(function (h) {
+          var li = document.createElement("li");
+          li.textContent = api.label(h) + "：" + h.name;
+          list.appendChild(li);
+        });
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
