@@ -3020,7 +3020,7 @@ case "ADD_CUSTOM_ITEM": {
       return normalizeStatusCollections({ ...state, skills: state.skills.map((s, index) => {
         if (s.id !== action.id) return s;
         const next = { ...s, ...patch };
-        // rankを直接編集した場合は、以前の派生番号を優先して元へ戻さない。
+        // rankを書き換えた場合は、以前の派生番号を優先して元へ戻さない。
         // 同じ親番号・派生番号を複数のスキルへ指定することも許可する。
         if (Object.prototype.hasOwnProperty.call(patch, "rank")) {
           next.rank = normalizeEditedSkillRank(patch.rank);
@@ -3117,7 +3117,7 @@ case "ADD_CUSTOM_ITEM": {
          詳細画面で装備を押した瞬間に指定購入を跨いで帳も明細も動かないまま所持へ入る。 */
       if (nextValue && action.preview) nextValue = { ...nextValue, __preview: true };
       const nextEgoSlots = normalizeEgoSlots({ ...state.egoSlots, [action.rank]: nextValue });
-      // 装備・付け替え・解除はどれも直接編集を終了する。解除後に別スロットの詳細へ
+      // 装備・付け替え・解除はどれも解析モードを終了する。解除後に別スロットの詳細へ
       // 編集状態だけが残り、クリック一回で解析面が表示されることを防ぐ。
       const nextUi = { ...state.ui, ...(nextValue ? { egoListExpanded: false } : {}), egoDetailSlot: null };
       return syncCustomEgoState({ ...state, egoSlots: nextEgoSlots, ui: nextUi, egoManual: false });

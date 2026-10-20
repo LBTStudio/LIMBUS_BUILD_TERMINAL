@@ -718,10 +718,10 @@ const EgoSkillEditor = ({ title, kind, skill, onPatch, onAddDice, onPatchDice, o
     );
   };
 
-  return React.createElement(Card, { title, sub: "選択中の詳細編集", compact: true, className: "ego-editor-detail" },
+  return React.createElement(Card, { title, sub: "選択中の解析対象", compact: true, className: "ego-editor-detail" },
     React.createElement("div", { className: "stack-3 ego-skill-editor" },
       React.createElement("div", { className: "ego-editor-toolbar" },
-        React.createElement("span", { className: "t-label" }, "EGO SKILL / 編集対象"),
+        React.createElement("span", { className: "t-label" }, "EGO SKILL / 解析対象"),
         !hideKindSelect && React.createElement("select", { className: "select ego-kind-select", value: sk.kind, onChange: (e) => onPatch({ kind: e.target.value }), title: "スキルの区分", "aria-label": "スキルの区分" },
           EGO_SKILL_KINDS.map((k) => React.createElement("option", { key: k, value: k }, k))),
         onRemove && React.createElement(Button, { variant: "ghost", size: "sm", icon: "trash", onClick: onRemove }, "削除")
@@ -835,11 +835,11 @@ const EgoSlotVariantEditor = ({ slotKey, label, model, onCommit }) => {
       onRemoveDice: removeDice,
       hideKindSelect: true
     }),
-    React.createElement("section", { className: "ego-derived-block", "aria-label": `${label}の派生スキル（任意数）` },
+    React.createElement("section", { className: "ego-derived-block", "data-slot": slotKey, "aria-label": `${label}の派生スキル（任意数）` },
       React.createElement("div", { className: "ego-derived-head" },
         React.createElement("div", null,
           React.createElement("div", { className: "t-label" }, "DERIVED SKILLS / 派生スキル"),
-          React.createElement("div", { className: "ego-derived-note" }, `この${label}に属する派生を任意数追加できます。親のランクを引き継ぎ、連番で採番します。`)
+          React.createElement("div", { className: "ego-derived-note" }, `この${label}に属する派生スキルを任意数追加できます。親のランクを引き継ぎ、連番で採番します。`)
         ),
         React.createElement(Button, { size: "sm", variant: "ghost", icon: "plus", onClick: addDerived, title: `${label}の派生スキルを複製して追加` }, "派生を追加")
       ),
@@ -894,7 +894,7 @@ const EgoSlotVariantEditor = ({ slotKey, label, model, onCommit }) => {
     const renderDirectSkillCard = (skill, index) => {
       const current = ensureSkillShape(skill || { kind: "同化" });
       const rank = current.rank || `S${index + 1}`;
-      return React.createElement("article", { key: current.id || `${slotKey}-direct-${index}`, className: "ego-assim-direct-card", "data-sin": current.sin || "", "aria-label": `同化 ${rank} ${current.name || "名称未設定"}の直接編集` },
+      return React.createElement("article", { key: current.id || `${slotKey}-direct-${index}`, className: "ego-assim-direct-card", "data-sin": current.sin || "", "aria-label": `同化 ${rank} ${current.name || "名称未設定"}の解析` },
         React.createElement("div", { className: "ego-assim-direct-card-head" },
           React.createElement("span", { className: "ego-assim-card-index" }, rank),
           React.createElement("span", { className: "ego-assim-card-copy" }, "同化スキル"),
@@ -949,7 +949,7 @@ const EgoSlotVariantEditor = ({ slotKey, label, model, onCommit }) => {
             "この形態には同化スキルが登録されていません。手動で作成する場合のみ、下のボタンから1件目を作成してください。",
             React.createElement(Button, { size: "sm", icon: "plus", onClick: addSub, style: { marginTop: 8 } }, "同化スキルを作成")
           )
-        : React.createElement("div", { className: "ego-assim-direct-list", "aria-label": "同化スキルの直接編集" },
+        : React.createElement("div", { className: "ego-assim-direct-list", "aria-label": "同化スキルの解析" },
             subSkills.map(renderDirectSkillCard)
           ),
       subSkills.length > 0 && React.createElement(Button, { size: "sm", icon: "plus", className: "ego-assim-direct-add", onClick: addSub }, "同化スキルを追加")
@@ -970,7 +970,7 @@ const EgoSlotVariantEditor = ({ slotKey, label, model, onCommit }) => {
   return React.createElement("section", { className: "ego-slot-variant", "aria-label": `${label}E.G.Oスキルの形態編集` },
     React.createElement("div", { className: "ego-slot-variant-head" },
       React.createElement("div", null, React.createElement("div", { className: "ego-panel-kicker" }, label === "覚醒" ? "01 / AWAKENING" : "02 / CORROSION"), React.createElement("div", { className: "ego-panel-title" }, `${label}E.G.Oスキル`)),
-      React.createElement("span", { className: "ego-active-help" }, variant === "assimilation" ? "各スキルカードをこの場で直接編集します。効果はダイスより先に入力します" : model.selectedByUser ? "選択した形態を編集中。ほかの形態の下書きは保持されます" : "原データの形態を表示中。選ぶと編集形態を切り替えます")
+      React.createElement("span", { className: "ego-active-help" }, variant === "assimilation" ? "各スキルカードをこの場で解析します。効果はダイスより先に入力します" : model.selectedByUser ? "選択した形態を解析中。ほかの形態の下書きは保持されます" : "原データの形態を表示中。選ぶと解析する形態を切り替えます")
     ),
     React.createElement("div", { className: "ego-variant-choice", role: "group", "aria-label": `${label}E.G.Oスキルの形態` }, EGO_VARIANT_OPTIONS.map((option) => React.createElement("button", { key: option.key, type: "button", className: `ego-variant-option${variant === option.key ? " is-active" : ""}`, onClick: () => setVariant(option.key), "aria-pressed": variant === option.key }, React.createElement("b", null, option.label), React.createElement("span", null, option.help)))),
     React.createElement("div", { className: "ego-variant-status" }, `現在の形態: ${EGO_VARIANT_LABEL[variant]}`),
@@ -992,11 +992,11 @@ const EquippedEgoEditor = ({ rank, ego, dispatch }) => {
     `覚醒：${activeForm(models.kakusei)}`,
     `侵蝕：${activeForm(models.shinshoku)}`
   ].join(" · ");
-  return h(Card, { title: `${rank} E.G.O`, sub: "解析・手動編集", compact: true, className: "ego-variant-workbench" },
+  return h(Card, { title: `${rank} E.G.O`, sub: "解析", compact: true, className: "ego-variant-workbench" },
     h("div", { className: "stack-4 ego-editor" },
       h("div", { className: "ego-overview-panel" },
         h("div", { className: "ego-overview-copy" },
-          h("div", { className: "ego-overview-eyebrow" }, "E.G.O EDITOR / 直接編集"),
+          h("div", { className: "ego-overview-eyebrow" }, "E.G.O ANALYSIS / 解析"),
           h("div", { className: "ego-overview-name" }, slot.name || "名称未設定"),
           h("div", { className: "ego-overview-meta" }, `${slot.rank || rank} · ${formSummary}`)
         ),
@@ -1116,7 +1116,7 @@ const EgoQuickDetail = ({ ego, currentSlot, isOwned, onEquip, onUnequip, onToggl
         : isOwned
           ? h(Button, { variant: "primary", size: "sm", onClick: onEquip, icon: "check" }, ego.rank, " スロットへ装備")
           : null,
-      currentSlot ? h(Button, { variant: "ghost", size: "sm", onClick: onOpenFullDetail, icon: "edit", title: "効果全文の確認と直接編集を開く" }, "詳細・直接編集") : null,
+      currentSlot ? h(Button, { variant: "ghost", size: "sm", onClick: onOpenFullDetail, icon: "edit", title: "効果全文の確認と解析を開く" }, "詳細・解析") : null,
       onAcquire && acquireHow && onAcquireHowChange && !isOwned ? h(AcquireBar, { state, kind: "ego", name: ego.name, no: ego.no, rank: ego.rank, how: acquireHow, setHow: onAcquireHowChange, onAcquire }) : null,
       onPreviewEquip ? h(Button, { variant: isOwned ? "ghost" : "primary", size: "sm", onClick: onPreviewEquip, icon: "eye", title: "購入も所持登録もしない試着装備です。効果だけ確かめられます" }, "試着装備") : null,
       onToggleOwned ? h(Button, { variant: "ghost", size: "sm", onClick: onToggleOwned, icon: isOwned ? "check" : "x", title: isOwned ? "所持リストから外す" : "購入せずに所持リストへ追加する" }, isOwned ? "所持済み" : "購入せず所持に追加") : null
@@ -1244,7 +1244,7 @@ const EgoSection = ({ state, dispatch, ownedOnly: ownedOnlyProp = false }) => {
   const [excludedResources, setExcludedResources] = React.useState([]);
   const [keywordFilter, setKeywordFilter] = React.useState("");
   // V01/V25: EGO は解析モード（egoManual）で編集可能にする。人格の同期化とは独立。
-  // 直接編集は、装備中詳細を開いた状態で「直接編集を開始」を選んだ場合だけ有効にする。
+  // 解析モードは、装備中詳細を開いた状態で「解析を開始」を選んだ場合だけ有効にする。
   // 保存値や別スロットから残った編集フラグだけでは編集面を表示しない。
   const editable = !!state.egoManual && !!state.ui.egoDetailSlot && !!state.egoSlots[state.ui.egoDetailSlot];
   const detailSlot = state.ui.egoDetailSlot;
@@ -1401,7 +1401,7 @@ const [ownedOnly, setOwnedOnly] = React.useState(false);
               setDetailSlot(null);
               dispatch({ type: "SET_EGO_MANUAL", value: false });
             } else {
-              // 選択直後は右列の簡易カードだけを開く。全文確認・直接編集は明示操作で開くため、
+              // 選択直後は右列の簡易カードだけを開く。全文確認・解析は明示操作で開くため、
               // 一覧直下へ巨大な詳細を自動挿入しない。
               setSelected(e);
               dispatch({ type: "SET_EGO_MANUAL", value: false });
@@ -1497,7 +1497,7 @@ const [ownedOnly, setOwnedOnly] = React.useState(false);
     onClick: () => updateOwnedOnly(true)
     }, "所持のみ")
     ),
-      detailSlot && state.egoSlots[detailSlot] ? h("div", { className: "equipped-detail-wrap" }, h("div", { style: { display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", background: "var(--surface-2)", borderBottom: "1px solid var(--line-dim)" } }, h("span", { className: "badge", "data-rank": detailSlot }, detailSlot), h("span", { style: { fontFamily: "var(--f-display)", fontWeight: 600, color: "var(--tx)" } }, state.egoManual ? "装備中E.G.O / 直接編集" : "装備中E.G.O / 詳細"), h("div", { style: { flex: 1 } }),
+      detailSlot && state.egoSlots[detailSlot] ? h("div", { className: "equipped-detail-wrap" }, h("div", { style: { display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", background: "var(--surface-2)", borderBottom: "1px solid var(--line-dim)" } }, h("span", { className: "badge", "data-rank": detailSlot }, detailSlot), h("span", { style: { fontFamily: "var(--f-display)", fontWeight: 600, color: "var(--tx)" } }, state.egoManual ? "装備中E.G.O / 解析" : "装備中E.G.O / 詳細"), h("div", { style: { flex: 1 } }),
       h("button", { className: "btn btn-sm " + (state.egoManual ? "btn-primary" : "btn-ghost"), onClick: () => {
         if (state.egoManual) {
           dispatch({ type: "SAVE_EGO_BUILD", rank: detailSlot });
@@ -1505,9 +1505,9 @@ const [ownedOnly, setOwnedOnly] = React.useState(false);
           toast("解析内容を保持したまま解析モードを終了しました");
         } else {
           dispatch({ type: "SET_EGO_MANUAL", value: true });
-          toast("直接編集：E.G.Oの効果・ダイスをその場で編集できます");
+          toast("解析：E.G.Oの効果・ダイスをその場で確認・修正できます");
         }
-      }, title: state.egoManual ? "直接編集を終了（内容は保持）" : "直接編集を開始" }, h(Icon, { name: state.egoManual ? "check" : "edit", size: 12 }), state.egoManual ? " 編集を終了" : " 直接編集を開始"),
+      }, title: state.egoManual ? "解析を終了（内容は保持）" : "解析を開始" }, h(Icon, { name: state.egoManual ? "check" : "edit", size: 12 }), state.egoManual ? " 解析を終了" : " 解析を開始"),
       h("button", { className: "btn btn-sm btn-ghost", onClick: () => { dispatch({ type: "SET_EGO_MANUAL", value: false }); setDetailSlot(null); }, title: "閉じる" }, h(Icon, { name: "x", size: 12 }), " 閉じる")), h("div", { className: "equipped-detail-inner" }, editable ? null : h(EgoDetail, { ego: state.egoSlots[detailSlot], equipTo: detailSlot, currentSlot: detailSlot, onEquip: () => {}, onUnequip: () => { clearSlot(detailSlot); setDetailSlot(null); }, dispatch }), editable ? h(EquippedEgoEditor, { rank: detailSlot, ego: state.egoSlots[detailSlot], dispatch }) : null)) : null,
       hasAnyEgo && !listExpanded ? h("div", { className: "codex-collapsed-hint" }, h("span", { style: { color: "var(--tx-mute)", fontSize: "var(--fs-11)", letterSpacing: "0.14em", fontFamily: "var(--f-display)" } }, "◇ E.G.O 一覧は折り畳み中"), h("span", { style: { marginLeft: 12, fontSize: "var(--fs-10)", color: "var(--tx-dim)" } }, "未装備スロットをクリックすると、そのランクだけ絞り込んで展開されます。"), h("button", { className: "btn btn-sm", style: { marginLeft: "auto" }, onClick: () => { setListExpanded(true); setRankFilter(""); } }, "一覧を展開")) : null
     ),
@@ -4772,7 +4772,7 @@ const SettingsSection = ({ state, dispatch }) => {
   const sectionSummary = (name, hint, count) => h("summary", null, h("span", { className: "settings-major-name" }, name), h("span", { className: "settings-major-hint" }, hint), count !== undefined ? h("span", { className: "settings-major-count" }, count) : null);
   return h("div", { className: "stack-4 settings-linear" },
     h(Card, { className: "settings-linear-card" },
-      h("div", { className: "card-header" }, h("div", null, h("span", { className: "t-label" }, "BUILD PARAMETERS / 設定"), h("div", { className: "settings-header-copy" }, "ステータスは一覧で直接編集・並べ替えできます。代入式と危険な操作は必要なときだけ開きます。"))),
+      h("div", { className: "card-header" }, h("div", null, h("span", { className: "t-label" }, "BUILD PARAMETERS / 設定"), h("div", { className: "settings-header-copy" }, "ステータスは一覧でその場で編集・並べ替えできます。代入式と危険な操作は必要なときだけ開きます。"))),
       h("div", { className: "card-body settings-linear-stack" },
         (state.selfStatusCandidates || []).length ? h("section", { className: "self-status-candidate-panel stack-2", "aria-label": "自己管理ステータスの検出候補" },
           h("div", { className: "settings-subhead" }, h("span", null, "自己管理ステータスの検出候補"), h("span", null, `${state.selfStatusCandidates.length}件・確認待ち`)),

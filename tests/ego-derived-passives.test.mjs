@@ -140,6 +140,14 @@ test("E.G.O解析の編集面には派生スキルの追加UIがある", () => {
   assert.match(otherSections, /branches\[variant\]\.derived/);
   assert.match(otherSections, /ego-derived-item/);
   assert.match(refinements, /\.ego-derived-item \{/);
+  // 派生カードのアクセントは親スロットに合わせる（覚醒=金 / 侵蝕=赤）。
+  assert.match(otherSections, /"data-slot": slotKey/);
+  assert.match(refinements, /\.ego-derived-block\[data-slot="shinshoku"\] \{ --derived-accent: var\(--err\); \}/);
+  // E.G.Oの面は「解析」で統一する。
+  assert.match(otherSections, /E\.G\.O ANALYSIS \/ 解析/);
+  assert.match(otherSections, /解析を開始/);
+  assert.match(otherSections, /解析を終了/);
+  assert.doesNotMatch(otherSections, /直接編集/);
   // 編集モデルの往復（ensureSkillShape）で派生配列を落とさない。
   assert.match(otherSections, /derived: Array\.isArray\(skill\.derived\) \? skill\.derived : \[\]/);
 });

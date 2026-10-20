@@ -2020,14 +2020,28 @@ details > summary {
   .ego-assim-direct-card-head .ego-assim-card-origin { order: 3; }
 }
 
-/* 覚醒・侵蝕にも戦術スキルと同じ派生スキルを任意数追加する。 */
+/* 覚醒・侵蝕にも戦術スキルと同じ派生スキルを任意数追加する。
+   派生カードのアクセントは親スロットに合わせる（覚醒=金 / 侵蝕=赤）。
+   金一色だと侵蝕パネルの中で覚醒の派生に見え、親子の対応が読めない。 */
 .ego-derived-block {
+  --derived-accent: var(--gold);
   display: grid;
   gap: var(--s-3);
   margin-top: var(--s-4);
   padding-top: var(--s-3);
   border-top: 1px solid var(--line);
 }
+.ego-derived-block[data-slot="shinshoku"] { --derived-accent: var(--err); }
+.ego-derived-head .t-label { color: var(--derived-accent); }
+.ego-derived-head .btn {
+  color: var(--derived-accent);
+  border-color: color-mix(in oklab, var(--derived-accent) 45%, transparent);
+}
+.ego-derived-head .btn:hover {
+  border-color: var(--derived-accent);
+  background: color-mix(in oklab, var(--derived-accent) 10%, var(--surface-0));
+}
+.ego-derived-head .btn:focus-visible { outline-color: var(--derived-accent); }
 .ego-derived-head {
   display: flex;
   align-items: flex-end;
@@ -2055,13 +2069,22 @@ details > summary {
   padding: var(--s-3);
   background: var(--surface-inset);
   border: 1px solid var(--line-dim);
-  border-left: 3px solid var(--gold-line);
+  border-left: 3px solid color-mix(in oklab, var(--derived-accent) 55%, transparent);
   border-radius: var(--r);
 }
 .ego-derived-item-head {
   display: flex;
   align-items: center;
   gap: var(--s-2);
+}
+.ego-derived-item-head .ego-assim-card-index {
+  background: color-mix(in oklab, var(--derived-accent) 14%, var(--surface-0));
+  color: var(--tx);
+  border: 1px solid color-mix(in oklab, var(--derived-accent) 55%, transparent);
+  font-weight: 600;
+}
+.ego-derived-item .ego-editor-toolbar .t-label {
+  color: color-mix(in oklab, var(--derived-accent) 72%, var(--tx-2));
 }
 .ego-derived-item-copy {
   font-size: var(--fs-12);
