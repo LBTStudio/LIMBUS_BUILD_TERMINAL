@@ -942,7 +942,7 @@ const EgoSlotVariantEditor = ({ slotKey, label, model, onCommit }) => {
 
     return React.createElement("div", { className: "ego-assim-manager ego-assim-direct-manager", "data-ego-variant": "assimilation" },
       React.createElement("div", { className: "ego-assim-explainer" },
-        "[同化]は、元のHP・SAN・耐性・戦術0・パッシブを引き継いだ上で、以下の戦術スキル群を使用します。各スキルカードをその場で編集でき、使用時などの効果はダイスより先に入力します。"
+        "[同化]は、元のHP・SAN・耐性・戦術0・パッシブを引き継いだ上で、以下の戦術スキル群を使用します。各スキルカードをその場で解析でき、使用時などの効果はダイスより先に入力します。"
       ),
       subSkills.length === 0
         ? React.createElement("div", { className: "empty ego-assim-empty" },
@@ -1472,11 +1472,11 @@ const [ownedOnly, setOwnedOnly] = React.useState(false);
     { className: `stack-4 ego-section${selected ? " has-selection" : " is-catalog-only"}` },
     h("div", null, h(Button, { icon: "plus", variant: "primary", onClick: () => setCreating(!creating), "aria-expanded": creating }, "E.G.Oを新規作成")),
     creating && h("form", { className: "card card-body stack-3", onSubmit: createEgo, "aria-label": "E.G.O新規作成" },
-      h("p", null, "DBを変更せず、空のオリジナルE.G.Oを作成します。作成後に覚醒・侵蝕・費用・固有を編集できます。"),
+      h("p", null, "DBを変更せず、空のオリジナルE.G.Oを作成します。作成後に覚醒・侵蝕・費用・固有を解析できます。"),
       h(Field, { label: "新規E.G.O名" }, h("input", { className: "input", "aria-label": "新規E.G.O名", required: true, autoFocus: true, value: newName, onChange: (event) => setNewName(event.target.value) })),
       h(Field, { label: "作成ランク" }, h("select", { className: "select", "aria-label": "作成ランク", value: newRank, onChange: (event) => setNewRank(event.target.value) }, ...EGO_RANKS.map((rank) => h("option", { key: rank, value: rank }, rank)))),
       state.egoSlots[newRank] && h("p", { role: "status" }, "このランクは装備済みです。作成時に確認し、現在の編集内容はライブラリへ保存します。"),
-      h("div", { style: { display: "flex", gap: 8 } }, h("button", { className: "btn btn-primary", type: "submit", disabled: !newName.trim() }, "作成して編集"), h("button", { className: "btn btn-ghost", type: "button", onClick: () => setCreating(false) }, "キャンセル"))),
+      h("div", { style: { display: "flex", gap: 8 } }, h("button", { className: "btn btn-primary", type: "submit", disabled: !newName.trim() }, "作成して解析"), h("button", { className: "btn btn-ghost", type: "button", onClick: () => setCreating(false) }, "キャンセル"))),
     h("div", null,
       h("div", { className: "t-label", style: { marginBottom: "var(--s-2)", display: "flex", alignItems: "center", gap: 8 } }, h("span", null, "装備中のE.G.O"), h("span", { style: { fontSize: "var(--fs-9)", color: "var(--tx-mute)", fontWeight: 400, letterSpacing: "0.08em" } }, "装備済スロット：クリックで詳細を開く　未装備スロット：クリックで一覧展開"), h("div", { style: { flex: 1 } }), hasAnyEgo ? h(Button, { size: "sm", icon: listExpanded ? "chevronU" : "chevronD", onClick: () => { setListExpanded(!listExpanded); if (listExpanded) setRankFilter(""); }, title: listExpanded ? "一覧を折り畳む" : "別のE.G.Oを選ぶ" }, listExpanded ? "一覧を畳む" : "別のE.G.Oを選ぶ") : null),
       h("div", { className: "ego-slots" }, ...slotCards),
