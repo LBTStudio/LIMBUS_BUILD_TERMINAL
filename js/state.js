@@ -161,6 +161,30 @@ function cloneJSON(obj) {
   return obj == null ? obj : JSON.parse(JSON.stringify(obj));
 }
 
+/* 人格パッシブは pas を根とし、2件目以降は extraPassives に上限なく積む。
+   旧保存データの pas2（1件だけ）は読み込み時に1件目へ畳み込む。 */
+function normalizeExtraPassive(entry, index = 0) {
+  const p = entry || {};
+  return {
+    id: String(p.id || `pas-extra-${index}`),
+    name: String(p.name || ""),
+    cond: String(p.cond || ""),
+    always: String(p.always || ""),
+    effect: String(p.effect || ""),
+    quick: String(p.quick || "")
+  };
+}
+function mergeExtraPassives(list, legacy) {
+  const out = Array.isArray(list) ? list.filter((p) => p && typeof p === "object") : [];
+  const passive = legacy?.passive;
+  if (legacy?.enabled && passive && (passive.name || passive.effect)) {
+    const dup = out.some((p) => String(p.name || "") === String(passive.name || "")
+      && String(p.effect || "") === String(passive.effect || ""));
+    if (!dup) out.push({ ...passive, quick: passive.quick || "" });
+  }
+  return out.map(normalizeExtraPassive);
+}
+
 // 人格切替・明示保存で共有する完全ビルドスナップショット。
 // 切替前にE.G.O・精神・サポート・強化等を人格別rosterへ退避する。
 function createPersonaBuildSnapshot(state) {
@@ -170,6 +194,7 @@ function createPersonaBuildSnapshot(state) {
     hp: state.hp, san: state.san, speed: state.speed, initiative: state.initiative, bullets: state.bullets,
     resS: state.resS, resP: state.resP, resB: state.resB,
     pas: cloneJSON(state.pas), pas2Enabled: !!state.pas2Enabled, pas2: cloneJSON(state.pas2),
+    extraPassives: cloneJSON(state.extraPassives || []),
     skills: cloneJSON(state.skills || []), uniqueBuffs: cloneJSON(state.uniqueBuffs || []),
     spirit: state.spirit, spiritMorale: state.spiritMorale, spiritConfuse: state.spiritConfuse, spiritAlways: state.spiritAlways,
     supports: cloneJSON(state.supports || []), deathSupport: state.deathSupport ? cloneJSON(state.deathSupport) : null,
@@ -274,6 +299,16 @@ function normalizeEgoSlotVariants(slot) {
     );
 
     if (!branches.skill) branches.skill = cloneJSON(next[slotKey] || {});
+    // 覚醒・侵蝕の「通常」形態にも、戦術スキルと同じ派生スキルを任意数持たせる。
+    // 根のスキルは branches.skill 自体、派生は branches.skill.derived[] に置く。
+    branches.skill.derived = (Array.isArray(branches.skill.derived) ? branches.skill.derived : [])
+      .filter((sk) => sk && typeof sk === "object")
+      .map((sk, i) => ({
+        ...sk,
+        id: sk.id || `${slotKey}-derived-${i}`,
+        kind: "スキル",
+        originSlot: slotKey
+      }));
     if (!branches.assimilation) branches.assimilation = { skills: [] };
     if (loadSourceAssimilation) {
       branches.assimilation.skills = cloneJSON(next.sub_skills || []);
@@ -570,11 +605,15 @@ function detectSelfManagedStatuses(personaSrc) {
 function activePersonaStatusSource(state) {
   if (!state?.personaSrc) return null;
   // 同期化（手動編集）では、画面で編集中のパッシブ・スキル・固有バフを優先する。
-  // 第2パッシブも本文判定へ合流させ、手動人格で追加した自己付与を取りこぼさない。
+  // 追加パッシブ（上限なし）も本文判定へ合流させ、手動人格で追加した自己付与を取りこぼさない。
   const primaryAlways = state?.pas?.always ?? state.personaSrc.passive_always ?? "";
   const primaryEffect = state?.pas?.effect ?? state.personaSrc.passive_effect ?? "";
-  const secondAlways = state?.pas2Enabled ? state?.pas2?.always || "" : "";
-  const secondEffect = state?.pas2Enabled ? state?.pas2?.effect || "" : "";
+  const extraRecords = [
+    ...(state?.pas2Enabled && state?.pas2 ? [state.pas2] : []),
+    ...(Array.isArray(state?.extraPassives) ? state.extraPassives : [])
+  ];
+  const secondAlways = extraRecords.map((p) => p?.always || "").filter(Boolean).join("\n");
+  const secondEffect = extraRecords.map((p) => p?.effect || "").filter(Boolean).join("\n");
   return {
     ...state.personaSrc,
     passive_name: state?.pas?.name ?? state.personaSrc.passive_name,
@@ -1133,6 +1172,9 @@ function dbSupportCond(entry, field) {
 function normalizeStateShape(raw) {
   const next = refreshDBReferencedData(refreshEquippedPersonaFromDB({ ...raw }));
   next.schemaVersion = next.schemaVersion || SAVE_SCHEMA_VERSION;
+  // パッシブ2は追加パッシブ列の1件目へ移行する。以後は上限なしの extraPassives が正準。
+  next.extraPassives = mergeExtraPassives(next.extraPassives, { enabled: next.pas2Enabled, passive: next.pas2 });
+  next.pas2Enabled = false;
   // 共有用画像は端末内でWebP/JPEGへ圧縮済みのdata URIだけを保持する。
   // 外部URLや任意MIMEを受け付けないことで、共有HTMLへそのまま安全に埋め込める。
   const shareImageData = String(next.shareImageData || "");
@@ -2035,6 +2077,8 @@ const INIT_STATE = {
   pas: { name: "", cond: "", always: "", effect: "", quick: "" },
   pas2Enabled: false,
   pas2: { name: "", cond: "", always: "", effect: "" },
+  // 2件目以降の人格パッシブ。上限なし。{id,name,cond,always,effect,quick}
+  extraPassives: [],
   // Unique buffs (custom keyword-like statuses on this persona)
   uniqueBuffs: [],
   // {id, name, type, initial, max, desc, place:'status'|'params'|'none'}
@@ -2304,6 +2348,28 @@ function appReducer(state, action) {
       return normalizeStatusCollections({ ...state, pas: { ...state.pas, ...action.patch } });
     case "PATCH_PAS2":
       return normalizeStatusCollections({ ...state, pas2: { ...state.pas2, ...action.patch } });
+    /* 追加パッシブ（2件目以降）は上限なし。index で1件を編集・削除する。 */
+    case "ADD_EXTRA_PASSIVE":
+      return normalizeStatusCollections({
+        ...state,
+        extraPassives: [...(state.extraPassives || []), { id: `pas-${Date.now()}`, name: "", cond: "", always: "", effect: "", quick: "" }]
+      });
+    case "PATCH_EXTRA_PASSIVE": {
+      const index = Number(action.index);
+      if (!Number.isInteger(index) || index < 0) return state;
+      return normalizeStatusCollections({
+        ...state,
+        extraPassives: (state.extraPassives || []).map((p, i) => i === index ? { ...p, ...action.patch } : p)
+      });
+    }
+    case "REMOVE_EXTRA_PASSIVE": {
+      const index = Number(action.index);
+      if (!Number.isInteger(index) || index < 0) return state;
+      return normalizeStatusCollections({
+        ...state,
+        extraPassives: (state.extraPassives || []).filter((_, i) => i !== index)
+      });
+    }
     /* 精神の手動入力（旧UIの退路）。所持へは写さず、装備投影のみを書き換える。
        所持一覧に無い精神が装備できる状態になりうるため、新規UIは
        APPLY_SPIRIT / REMOVE_ROSTER_SPIRIT を使う。 */
@@ -2337,7 +2403,7 @@ function appReducer(state, action) {
     case "APPLY_PARTIAL": {
       const ALLOWED = ["charName","plName","imgUrls","shareImageData","color","personaMode","personaNo","personaSrc","syncedManual",
         "hp","san","speed","bullets","resS","resP","resB","spirit","spiritMorale","spiritConfuse","spiritAlways",
-        "pas","pas2Enabled","pas2","uniqueBuffs","skills","egoSlots","supports","deathSupport","roster",
+        "pas","pas2Enabled","pas2","extraPassives","uniqueBuffs","skills","egoSlots","supports","deathSupport","roster",
         "enhancements","customStatuses","defaultStatuses","formulas","builtinFormulasOverride","autoFml",
         "moraleLine","extraCmd","outputExclude","shareOptions","paletteOptions","results","entries","inventory","customItems",
         "favorites","historyRecent"];
@@ -2438,6 +2504,7 @@ function appReducer(state, action) {
         inventory: state.inventory,
         pas2Enabled: false,
         pas2: { name: "", cond: "", always: "", effect: "" },
+        extraPassives: [],
         hp: String(src.hp || ""),
         san: String(src.san || ""),
         speed: src.speed || "",
@@ -2486,8 +2553,9 @@ function appReducer(state, action) {
           resP: b.resP ?? base.resP,
           resB: b.resB ?? base.resB,
           pas: b.pas ? cloneJSON(b.pas) : base.pas,
-          pas2Enabled: !!b.pas2Enabled,
-          pas2: b.pas2 ? cloneJSON(b.pas2) : base.pas2,
+          extraPassives: mergeExtraPassives(b.extraPassives, { enabled: b.pas2Enabled, passive: b.pas2 }),
+          pas2Enabled: false,
+          pas2: base.pas2,
           skills: Array.isArray(b.skills) ? migrateLegacyDerivedSkills(cloneJSON(b.skills), src.skills || []) : base.skills,
           uniqueBuffs: Array.isArray(b.uniqueBuffs) ? cloneJSON(b.uniqueBuffs) : base.uniqueBuffs,
           spirit: b.spirit ?? "",
@@ -3801,8 +3869,16 @@ case "ADD_ENTRY":
         hp: String(effectiveSrc.hp ?? 100), san: String(effectiveSrc.san ?? 45), speed: effectiveSrc.speed || "1d5", initiative: 0, bullets: effectiveSrc.bullets || "×",
         resS: effectiveSrc.res_slash || "普通", resP: effectiveSrc.res_pierce || "普通", resB: effectiveSrc.res_blunt || "普通",
         pas: { name: effectiveSrc.passive_name || "", cond: effectiveSrc.passive_cond || "", always: effectiveSrc.passive_always || "", effect: effectiveSrc.passive_effect || "", quick: "" },
-        pas2Enabled: !!action.secondaryPassive?.name,
-        pas2: { name: action.secondaryPassive?.name || "", cond: action.secondaryPassive?.cond || "", always: action.secondaryPassive?.always || "", effect: action.secondaryPassive?.effect || "" },
+        extraPassives: action.secondaryPassive?.name ? [{
+          id: "pas-import-1",
+          name: action.secondaryPassive?.name || "",
+          cond: action.secondaryPassive?.cond || "",
+          always: action.secondaryPassive?.always || "",
+          effect: action.secondaryPassive?.effect || "",
+          quick: ""
+        }] : [],
+        pas2Enabled: false,
+        pas2: { name: "", cond: "", always: "", effect: "" },
         skills: cloneJSON(skills),
         uniqueBuffs: cloneJSON(uniqueBuffs),
         personaSrc: cloneJSON(importedSource),
@@ -3861,8 +3937,16 @@ case "ADD_ENTRY":
         resP: effectiveSrc.res_pierce || "普通",
         resB: effectiveSrc.res_blunt || "普通",
         pas: { name: effectiveSrc.passive_name || "", cond: effectiveSrc.passive_cond || "", always: effectiveSrc.passive_always || "", effect: effectiveSrc.passive_effect || "", quick: "" },
-        pas2Enabled: !!action.secondaryPassive?.name,
-        pas2: { name: action.secondaryPassive?.name || "", cond: action.secondaryPassive?.cond || "", always: action.secondaryPassive?.always || "", effect: action.secondaryPassive?.effect || "" },
+        extraPassives: action.secondaryPassive?.name ? [{
+          id: "pas-import-1",
+          name: action.secondaryPassive?.name || "",
+          cond: action.secondaryPassive?.cond || "",
+          always: action.secondaryPassive?.always || "",
+          effect: action.secondaryPassive?.effect || "",
+          quick: ""
+        }] : [],
+        pas2Enabled: false,
+        pas2: { name: "", cond: "", always: "", effect: "" },
         skills,
         uniqueBuffs,
         defaultStatuses: importedBuild.defaultStatuses,

@@ -196,41 +196,74 @@ const PassiveCard = ({ title, pas, sin }) => /* @__PURE__ */ React.createElement
   title
 ), pas.cond && /* @__PURE__ */ React.createElement("span", { className: "cond-chips-lg", style: { marginLeft: 8 } }, /* @__PURE__ */ React.createElement(CondChips, { cond: pas.cond }))), /* @__PURE__ */ React.createElement("div", { className: "deck-name", style: { fontFamily: "var(--f-display)", fontWeight: 700, fontSize: "var(--fs-18)", color: "var(--tx)", marginBottom: "var(--s-3)", lineHeight: 1.2 } }, pas.name), /* @__PURE__ */ React.createElement("div", { className: "stack-3" }, pas.always && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-display)", fontSize: "var(--fs-9)", letterSpacing: "0.18em", color: "var(--gold)", textTransform: "uppercase", marginBottom: 4 } }, "ALWAYS / \u5E38\u6642\u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-12)", color: "var(--tx-2)", lineHeight: 1.7, padding: "8px 12px", background: "var(--gold-tint)", border: "1px solid var(--gold-line)", borderLeft: "3px solid var(--gold)", borderRadius: "var(--r-sm)", whiteSpace: "pre-wrap" } }, pas.always)), pas.effect && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-display)", fontSize: "var(--fs-9)", letterSpacing: "0.18em", color: "var(--gold)", textTransform: "uppercase", marginBottom: 4 } }, "EFFECT / \u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-12)", color: "var(--tx-2)", lineHeight: 1.7, padding: "8px 12px", background: "var(--surface-inset)", border: "1px solid var(--line-dim)", borderLeft: "3px solid var(--gold)", borderRadius: "var(--r-sm)", whiteSpace: "pre-wrap" } }, pas.effect)), pas.quick && /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-mono)", fontSize: "var(--fs-11)", color: "var(--tx-dim)", padding: "4px 8px", background: "var(--surface-2)", borderRadius: "var(--r-sm)" } }, /* @__PURE__ */ React.createElement("span", { style: { color: "var(--gold)" } }, "QUICK"), " ", pas.quick)));
 const PassiveSection = ({ state, dispatch }) => {
+  const h = React.createElement;
+  const editable = canEditPersonaState(state);
+  const extras = Array.isArray(state.extraPassives) ? state.extraPassives : [];
   const patchPas = (patch) => dispatch({ type: "PATCH_PAS", patch });
-  const patchPas2 = (patch) => dispatch({ type: "PATCH_PAS2", patch });
-  const togglePas2 = () => {
+  const patchExtra = (index, patch) => dispatch({ type: "PATCH_EXTRA_PASSIVE", index, patch });
+  const addPassive = () => {
     if (!editable) {
-      toast("パッシブ2の追加・削除は編集モード時のみ可能です");
+      toast("パッシブの追加は編集モード時のみ可能です");
       return;
     }
-    dispatch({ type: "SET_FIELD", field: "pas2Enabled", value: !state.pas2Enabled });
+    dispatch({ type: "ADD_EXTRA_PASSIVE" });
   };
+  const removePassive = (index) => dispatch({ type: "REMOVE_EXTRA_PASSIVE", index });
   // null=未選択（既定表示）／true=編集欄／false=閲覧カード。
   const [forceEdit, setForceEdit] = React.useState(null);
   const src = state.personaSrc;
-  const editable = canEditPersonaState(state);
   const isAutoFromDB = !!src && !editable && !forceEdit && state.pas.name === (src.passive_name || "") && !!state.pas.name;
   const primarySin = src ? window.getPrimarySin ? window.getPrimarySin(src) : null : null;
-  const h = React.createElement;
   // 同期編集（手動編集）中は編集欄を既定表示にし、閲覧専用の人格だけカードを既定にする。
   // 利用者が明示的に切り替えた場合は、その選択（forceEdit）を常に優先する。
-  const isPassiveReadView = !!state.pas?.name && (forceEdit === null ? !editable : forceEdit === false);
+  const hasAnyPassive = !!state.pas?.name || extras.some((pas) => pas && pas.name);
+  const isPassiveReadView = hasAnyPassive && (forceEdit === null ? !editable : forceEdit === false);
+
+  const renderEditor = (pas, { key, title, onPatch, onRemove }) => h(Card, { key, className: onRemove ? "mt-3" : undefined },
+    h("div", { className: "card-header", style: { justifyContent: "space-between" } },
+      h("span", { className: "t-label" }, title),
+      onRemove ? h(Button, { variant: "ghost", size: "sm", onClick: onRemove, disabled: !editable, icon: "x" }, "このパッシブを削除") : null),
+    h("div", { className: "card-body stack-3" },
+      h("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--s-3)" } },
+        h(Field, { label: "パッシブ名" }, h("input", { className: "input", placeholder: "例：掬り出し", value: pas.name || "", disabled: !editable, onChange: (e) => onPatch({ name: e.target.value }) })),
+        h(Field, { label: "発動条件" }, h("input", { className: "input", placeholder: "例：色欲x2 共鳴", value: pas.cond || "", disabled: !editable, onChange: (e) => onPatch({ cond: e.target.value }) }))),
+      h(Field, { label: "常時効果（任意）" }, h("textarea", { className: "textarea", rows: 2, placeholder: "常時発動する効果", value: pas.always || "", disabled: !editable, onChange: (e) => onPatch({ always: e.target.value }) })),
+      h(Field, { label: "効果" }, h("textarea", { className: "textarea", rows: 3, placeholder: "例：マッチ勝利時、対象が出血状態なら…", value: pas.effect || "", disabled: !editable, onChange: (e) => onPatch({ effect: e.target.value }) })),
+      h(Field, { label: "クイックパレット（:コマンド）", hint: "例：:出血+1 :出血-1（人格DBから自動抽出可）" }, h("input", { className: "input", placeholder: ":出血+1 :出血-1", value: pas.quick || "", disabled: !editable, onChange: (e) => onPatch({ quick: e.target.value }) }))));
+
   if (isPassiveReadView) return h("div", { className: "stack-6 passive-read-workspace" },
     h("div", { className: "passive-read-toolbar" },
       h("div", { className: "passive-read-copy" },
         h("span", { className: "section-title-num", style: { fontSize: "var(--fs-18)" } }, "A"),
         h("div", null,
           h("div", { className: "passive-read-title" }, "PERSONA PASSIVE / 人格パッシブ"),
-          h("div", { className: "passive-read-note" }, "内容はカードで確認し、変更が必要なときだけ編集を開きます。")
-        )
-      ),
-      editable ? h(Button, { variant: "ghost", size: "sm", icon: "edit", onClick: () => setForceEdit(true) }, "この枠を編集") : null
-    ),
+          h("div", { className: "passive-read-note" }, "内容はカードで確認し、変更が必要なときだけ編集を開きます。"))),
+      editable ? h(Button, { variant: "ghost", size: "sm", icon: "edit", onClick: () => setForceEdit(true) }, "この枠を編集") : null),
     h(PassiveCard, { title: "PERSONA PASSIVE / 人格パッシブ", pas: state.pas, sin: primarySin }),
-    state.pas2Enabled && state.pas2?.name ? h(PassiveCard, { title: "PASSIVE 2 / 追加パッシブ", pas: state.pas2, sin: primarySin }) : null,
-    !state.pas2Enabled && editable ? h("div", { className: "passive-read-add" }, h(Button, { variant: "ghost", icon: "plus", onClick: togglePas2, title: "パッシブ2を追加" }, "パッシブ2を追加")) : null
-  );
-  return /* @__PURE__ */ React.createElement("div", { className: "stack-6" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: "var(--s-3)", marginBottom: "var(--s-3)", paddingBottom: "var(--s-2)", borderBottom: "1px solid var(--line-dim)" } }, /* @__PURE__ */ React.createElement("span", { className: "section-title-num", style: { fontSize: "var(--fs-18)" } }, "A"), /* @__PURE__ */ React.createElement("span", { style: { fontFamily: "var(--f-display)", fontWeight: 700, fontSize: "var(--fs-16)", letterSpacing: "0.06em", color: "var(--tx)" } }, "PERSONA PASSIVE / \u4EBA\u683C\u30D1\u30C3\u30B7\u30D6"), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }), editable && isAutoFromDB && /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", icon: "edit", onClick: () => setForceEdit(true) }, "手動編集"), !!state.pas?.name && /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", icon: "eye", onClick: () => setForceEdit(false) }, "\u30AB\u30FC\u30C9\u8868\u793A\u306B\u623B\u3059")), isAutoFromDB ? /* @__PURE__ */ React.createElement(PassiveCard, { title: "PERSONA PASSIVE / \u4EBA\u683C\u30D1\u30C3\u30B7\u30D6", pas: state.pas, sin: primarySin }) : /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { className: "card-body stack-3" }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--s-3)" } }, /* @__PURE__ */ React.createElement(Field, { label: "\u30D1\u30C3\u30B7\u30D6\u540D" }, /* @__PURE__ */ React.createElement("input", { className: "input", placeholder: "\u4F8B\uFF1A\u6289\u308A\u51FA\u3057", value: state.pas.name, disabled: !editable, onChange: (e) => patchPas({ name: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "\u767A\u52D5\u6761\u4EF6" }, /* @__PURE__ */ React.createElement("input", { className: "input", placeholder: "\u4F8B\uFF1A\u8272\u6B32x2 \u5171\u9CF4", value: state.pas.cond, disabled: !editable, onChange: (e) => patchPas({ cond: e.target.value }) }))), /* @__PURE__ */ React.createElement(Field, { label: "\u5E38\u6642\u52B9\u679C\uFF08\u4EFB\u610F\uFF09" }, /* @__PURE__ */ React.createElement("textarea", { className: "textarea", rows: 2, placeholder: "\u5E38\u6642\u767A\u52D5\u3059\u308B\u52B9\u679C", value: state.pas.always, disabled: !editable, onChange: (e) => patchPas({ always: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "\u52B9\u679C" }, /* @__PURE__ */ React.createElement("textarea", { className: "textarea", rows: 3, placeholder: "\u4F8B\uFF1A\u30DE\u30C3\u30C1\u52DD\u5229\u6642\u3001\u5BFE\u8C61\u304C\u51FA\u8840\u72B6\u614B\u306A\u3089\u2026", value: state.pas.effect, disabled: !editable, onChange: (e) => patchPas({ effect: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "\u30AF\u30A4\u30C3\u30AF\u30D1\u30EC\u30C3\u30C8\uFF08:\u30B3\u30DE\u30F3\u30C9\uFF09", hint: "\u4F8B\uFF1A:\u51FA\u8840+1 :\u51FA\u8840-1\uFF08\u4EBA\u683CDB\u304B\u3089\u81EA\u52D5\u62BD\u51FA\u53EF\uFF09" }, /* @__PURE__ */ React.createElement("input", { className: "input", placeholder: ":\u51FA\u8840+1 :\u51FA\u8840-1", value: state.pas.quick, disabled: !editable, onChange: (e) => patchPas({ quick: e.target.value }) })))), state.pas2Enabled ? /* @__PURE__ */ React.createElement(Card, { className: "mt-3", style: { marginTop: "var(--s-3)" } }, /* @__PURE__ */ React.createElement("div", { className: "card-header", style: { justifyContent: "space-between" } }, /* @__PURE__ */ React.createElement("span", { className: "t-label" }, "PASSIVE 2\uFF08\u4EFB\u610F\uFF09"), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", onClick: togglePas2, disabled: !editable, icon: "x" }, "\u30D1\u30C3\u30B7\u30D62\u3092\u524A\u9664")), /* @__PURE__ */ React.createElement("div", { className: "card-body stack-3" }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--s-3)" } }, /* @__PURE__ */ React.createElement(Field, { label: "\u30D1\u30C3\u30B7\u30D6\u540D2" }, /* @__PURE__ */ React.createElement("input", { className: "input", value: state.pas2.name, disabled: !editable, onChange: (e) => patchPas2({ name: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "\u767A\u52D5\u6761\u4EF62" }, /* @__PURE__ */ React.createElement("input", { className: "input", value: state.pas2.cond, disabled: !editable, onChange: (e) => patchPas2({ cond: e.target.value }) }))), /* @__PURE__ */ React.createElement(Field, { label: "\u5E38\u6642\u52B9\u679C2\uFF08\u4EFB\u610F\uFF09" }, /* @__PURE__ */ React.createElement("textarea", { className: "textarea", rows: 2, placeholder: "\u5E38\u6642\u767A\u52D5\u3059\u308B\u52B9\u679C", value: state.pas2.always || "", disabled: !editable, onChange: (e) => patchPas2({ always: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "\u52B9\u679C2" }, /* @__PURE__ */ React.createElement("textarea", { className: "textarea", rows: 2, value: state.pas2.effect, disabled: !editable, onChange: (e) => patchPas2({ effect: e.target.value }) })))) : /* @__PURE__ */ React.createElement("div", { style: { marginTop: "var(--s-3)" } }, /* @__PURE__ */ React.createElement(Button, { variant: "ghost", icon: "plus", onClick: togglePas2, disabled: !editable, title: editable ? "パッシブ2を追加" : "編集モード時のみ追加可能" }, "\u30D1\u30C3\u30B7\u30D62\u3092\u8FFD\u52A0"))));
+    extras.map((pas, index) => (pas && pas.name
+      ? h(PassiveCard, { key: pas.id || index, title: `PASSIVE ${index + 2} / 追加パッシブ`, pas, sin: primarySin })
+      : null)),
+    editable ? h("div", { className: "passive-read-add" }, h(Button, { variant: "ghost", icon: "plus", onClick: () => { addPassive(); setForceEdit(true); }, title: "追加パッシブを追加（上限なし）" }, "追加パッシブを追加")) : null);
+
+  return h("div", { className: "stack-6" },
+    h("div", null,
+      h("div", { style: { display: "flex", alignItems: "baseline", gap: "var(--s-3)", marginBottom: "var(--s-3)", paddingBottom: "var(--s-2)", borderBottom: "1px solid var(--line-dim)" } },
+        h("span", { className: "section-title-num", style: { fontSize: "var(--fs-18)" } }, "A"),
+        h("span", { style: { fontFamily: "var(--f-display)", fontWeight: 700, fontSize: "var(--fs-16)", letterSpacing: "0.06em", color: "var(--tx)" } }, "PERSONA PASSIVE / 人格パッシブ"),
+        h("div", { style: { flex: 1 } }),
+        editable && isAutoFromDB ? h(Button, { variant: "ghost", size: "sm", icon: "edit", onClick: () => setForceEdit(true) }, "手動編集") : null,
+        state.pas?.name ? h(Button, { variant: "ghost", size: "sm", icon: "eye", onClick: () => setForceEdit(false) }, "カード表示に戻す") : null),
+      isAutoFromDB
+        ? h(PassiveCard, { title: "PERSONA PASSIVE / 人格パッシブ", pas: state.pas, sin: primarySin })
+        : renderEditor(state.pas, { key: "primary", title: "PERSONA PASSIVE / 人格パッシブ", onPatch: patchPas }),
+      extras.map((pas, index) => renderEditor(pas, {
+        key: pas.id || `extra-${index}`,
+        title: `PASSIVE ${index + 2} / 追加パッシブ`,
+        onPatch: (patch) => patchExtra(index, patch),
+        onRemove: () => removePassive(index)
+      })),
+      h("div", { style: { marginTop: "var(--s-3)" } },
+        h(Button, { variant: "ghost", icon: "plus", onClick: addPassive, title: editable ? "追加パッシブを追加（上限なし）" : "編集モード時のみ追加可能" }, "追加パッシブを追加"))));
 };
 const UniqueBuffsBlock = ({ state, dispatch }) => {
   const editable = canEditPersonaState(state);
@@ -609,6 +642,8 @@ function ensureSkillShape(sk) {
     dPlusLabel: skill.dPlusLabel || "",
     dCntLabel: skill.dCntLabel || "",
     dVarPlace: skill.dVarPlace || "status",
+    // 覚醒・侵蝕の派生スキルは根のスキルにぶら下がる。編集モデルを往復しても失わない。
+    derived: Array.isArray(skill.derived) ? skill.derived : [],
     dice: cloneEgoDiceList(skill)
   };
 }
@@ -747,16 +782,90 @@ const EgoSlotVariantEditor = ({ slotKey, label, model, onCommit }) => {
     next.branches[variant].dice = list.filter((_, i) => i !== diceIdx);
   });
   const subSkills = branch.skills || [];
-  const renderStandard = (kindLabel) => React.createElement(EgoSkillEditor, {
-    title: `${label}スキル`,
-    kind: EGO_VARIANT_KIND[variant],
-    skill: branch,
-    onPatch: patchSkill,
-    onAddDice: addDice,
-    onPatchDice: patchDice,
-    onRemoveDice: removeDice,
-    hideKindSelect: true
+  const derivedSkills = Array.isArray(branch.derived) ? branch.derived : [];
+  const patchDerived = (index, patch) => updateModel((next) => {
+    const list = next.branches[variant].derived || [];
+    next.branches[variant].derived = list.map((skill, i) => i === index ? { ...skill, ...patch, kind: "スキル" } : skill);
   });
+  const patchDerivedDice = (index, diceIdx, patch) => updateModel((next) => {
+    const list = next.branches[variant].derived || [];
+    next.branches[variant].derived = list.map((skill, i) => i === index
+      ? { ...skill, dice: (skill.dice || []).map((die, di) => di === diceIdx ? { ...die, ...patch } : die) }
+      : skill);
+  });
+  const addDerivedDice = (index) => updateModel((next) => {
+    const list = next.branches[variant].derived || [];
+    next.branches[variant].derived = list.map((skill, i) => i === index
+      ? { ...skill, dice: [...(skill.dice || []), { roll: "", dval: "", d: "", plus: false, dPlus: false, dCnt: false, effect: "" }] }
+      : skill);
+  });
+  const removeDerivedDice = (index, diceIdx) => updateModel((next) => {
+    const list = next.branches[variant].derived || [];
+    next.branches[variant].derived = list.map((skill, i) => i === index
+      ? { ...skill, dice: (skill.dice || []).filter((_, di) => di !== diceIdx) }
+      : skill);
+  });
+  const addDerived = () => updateModel((next) => {
+    const branchNext = next.branches[variant];
+    const list = branchNext.derived || [];
+    const { derived, ...baseSkill } = branchNext;
+    const rankBase = String(baseSkill.rank || "").replace(/-\d+$/, "") || (label === "覚醒" ? "覚醒" : "侵蝕");
+    const used = list.map((skill) => Number(String(skill.rank || "").match(/-(\d+)$/)?.[1]) || 1);
+    const index = Math.max(1, ...used) + 1;
+    list.push({
+      ...JSON.parse(JSON.stringify(baseSkill)),
+      id: `${slotKey}-derived-${Date.now()}`,
+      rank: `${rankBase}-${index}`,
+      kind: "スキル",
+      originSlot: slotKey
+    });
+    branchNext.derived = list;
+  });
+  const removeDerived = (index) => updateModel((next) => {
+    next.branches[variant].derived = (next.branches[variant].derived || []).filter((_, i) => i !== index);
+  });
+  const renderStandard = () => React.createElement(React.Fragment, null,
+    React.createElement(EgoSkillEditor, {
+      title: `${label}スキル`,
+      kind: EGO_VARIANT_KIND[variant],
+      skill: branch,
+      onPatch: patchSkill,
+      onAddDice: addDice,
+      onPatchDice: patchDice,
+      onRemoveDice: removeDice,
+      hideKindSelect: true
+    }),
+    React.createElement("section", { className: "ego-derived-block", "aria-label": `${label}の派生スキル（任意数）` },
+      React.createElement("div", { className: "ego-derived-head" },
+        React.createElement("div", null,
+          React.createElement("div", { className: "t-label" }, "DERIVED SKILLS / 派生スキル"),
+          React.createElement("div", { className: "ego-derived-note" }, `この${label}に属する派生を任意数追加できます。親のランクを引き継ぎ、連番で採番します。`)
+        ),
+        React.createElement(Button, { size: "sm", variant: "ghost", icon: "plus", onClick: addDerived, title: `${label}の派生スキルを複製して追加` }, "派生を追加")
+      ),
+      derivedSkills.length === 0
+        ? React.createElement("div", { className: "ego-derived-empty" }, "派生はまだありません。必要なときだけ追加してください。")
+        : React.createElement("div", { className: "ego-derived-list" },
+            derivedSkills.map((skill, index) => React.createElement("article", { key: skill.id || `${slotKey}-derived-${index}`, className: "ego-derived-item" },
+              React.createElement("div", { className: "ego-derived-item-head" },
+                React.createElement("span", { className: "ego-assim-card-index" }, skill.rank || `${label}-${index + 2}`),
+                React.createElement("span", { className: "ego-derived-item-copy" }, skill.name || "派生スキル"),
+                React.createElement(Button, { variant: "ghost", size: "sm", icon: "trash", onClick: () => removeDerived(index), title: `${skill.rank || "派生"}を削除` }, "削除")
+              ),
+              React.createElement(EgoSkillEditor, {
+                title: `${label}派生${index + 2}`,
+                kind: "スキル",
+                skill,
+                hideKindSelect: true,
+                onPatch: (patch) => patchDerived(index, patch),
+                onAddDice: () => addDerivedDice(index),
+                onPatchDice: (diceIdx, patch) => patchDerivedDice(index, diceIdx, patch),
+                onRemoveDice: (diceIdx) => removeDerivedDice(index, diceIdx)
+              })
+            ))
+          )
+    )
+  );
   const renderAssimilation = () => {
     const patchSub = (subIdx, patch) => updateModel((next) => {
       const list = next.branches.assimilation.skills || [];
@@ -865,7 +974,7 @@ const EgoSlotVariantEditor = ({ slotKey, label, model, onCommit }) => {
     ),
     React.createElement("div", { className: "ego-variant-choice", role: "group", "aria-label": `${label}E.G.Oスキルの形態` }, EGO_VARIANT_OPTIONS.map((option) => React.createElement("button", { key: option.key, type: "button", className: `ego-variant-option${variant === option.key ? " is-active" : ""}`, onClick: () => setVariant(option.key), "aria-pressed": variant === option.key }, React.createElement("b", null, option.label), React.createElement("span", null, option.help)))),
     React.createElement("div", { className: "ego-variant-status" }, `現在の形態: ${EGO_VARIANT_LABEL[variant]}`),
-    variant === "assimilation" ? renderAssimilation() : variant === "influence" ? renderInfluence() : renderStandard(EGO_VARIANT_LABEL[variant])
+    variant === "assimilation" ? renderAssimilation() : variant === "influence" ? renderInfluence() : renderStandard()
   );
 };
 const EquippedEgoEditor = ({ rank, ego, dispatch }) => {
@@ -993,7 +1102,9 @@ const EgoQuickDetail = ({ ego, currentSlot, isOwned, onEquip, onUnequip, onToggl
     ) : null,
     h("div", { className: "ego-quick-skills" },
       skillSummary("覚醒", ego.kakusei, "awake"),
-      skillSummary("侵蝕", ego.shinshoku, "corrode")
+      (ego.kakusei?.derived || []).map((skill, index) => skillSummary(`覚醒${index + 2}`, skill, "awake")),
+      skillSummary("侵蝕", ego.shinshoku, "corrode"),
+      (ego.shinshoku?.derived || []).map((skill, index) => skillSummary(`侵蝕${index + 2}`, skill, "corrode"))
     ),
     /* 未所持E.G.Oの主操作は指定購入にする。装備は所持登録に波及しないので、
        装備ボタンが主だと指定購入を跨いで「帳に何も無いまま所持だけ増える」状態が生まれる。

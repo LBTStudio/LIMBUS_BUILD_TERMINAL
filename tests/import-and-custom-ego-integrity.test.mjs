@@ -148,7 +148,7 @@ test('persona create, import, hydrate and re-equip never populate basic characte
       assert.equal(state.charName, charName);
       assert.equal(state.personaSrc.name, name);
       assert.equal(JSON.stringify(state.personaSrc.keywords), keywords);
-      assert.equal(state.pas2.effect, parsed.secondaryPassive?.effect || '');
+      assert.equal(state.extraPassives[0]?.effect || '', parsed.secondaryPassive?.effect || '');
     }
   }
 });

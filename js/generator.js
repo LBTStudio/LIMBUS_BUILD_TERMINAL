@@ -544,9 +544,21 @@ function computeMoraleLine(state, sanMax) {
 // 「捨てた枚数」は、能動的にスキルを捨てる人格だけが使う戦術選択用の変数。
 // 固有名詞や「捨てられたなら」といった受動効果は誤検出しない。
 const SUTE_ACTIVE = /(?:ランダムな)?スキルを[^。\n]{0,8}?捨てる|捨てたスキルの数|捨てた枚数/;
+/* 人格パッシブは pas が根。2件目以降は extraPassives（上限なし）で、
+   旧保存データの pas2 も同じ列に合流させる。 */
+function personaExtraPassives(p) {
+  const list = (Array.isArray(p.extraPassives) ? p.extraPassives : [])
+    .filter((entry) => entry && (entry.name || entry.effect || entry.always));
+  if (p.pas2Enabled && p.pas2?.name) {
+    const dup = list.some((entry) => String(entry.name || "") === String(p.pas2.name || "")
+      && String(entry.effect || "") === String(p.pas2.effect || ""));
+    if (!dup) list.push(p.pas2);
+  }
+  return list;
+}
 function hasActiveSkillDiscard(state) {
   const p = state || {};
-  const dump = [p.pas?.always, p.pas?.effect, ...(p.skills || []).map((sk) => (sk.effect || "") + " " + (sk.dice || []).map((d) => d.effect || "").join(" "))].join(" ");
+  const dump = [p.pas?.always, p.pas?.effect, ...personaExtraPassives(p).flatMap((entry) => [entry.always || "", entry.effect || ""]), ...(p.skills || []).map((sk) => (sk.effect || "") + " " + (sk.dice || []).map((d) => d.effect || "").join(" "))].join(" ");
   return SUTE_ACTIVE.test(dump);
 }
 function buildPalette(state) {
@@ -565,8 +577,7 @@ function buildPalette(state) {
   const allEffectText = [
     p.pas.always,
     p.pas.effect,
-    p.pas2Enabled ? p.pas2.always || "" : "",
-    p.pas2Enabled ? p.pas2.effect : "",
+    ...personaExtraPassives(p).flatMap((entry) => [entry.always || "", entry.effect || ""]),
     p.spiritMorale,
     p.spiritConfuse,
     p.spiritAlways,
@@ -639,26 +650,32 @@ function buildPalette(state) {
     }
     L.push("");
   }
-  if (p.pas.name) {
+  const extraPassives = personaExtraPassives(p);
+  if (p.pas.name || extraPassives.length) {
     L.push("\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC\u30FC");
     L.push("### \u25A0 \u30D1\u30C3\u30B7\u30D6");
-    const parts = [`\u4EBA\u683C\u30D1\u30C3\u30B7\u30D6\u3010${p.pas.name}\u3011`, `\u767A\u52D5\u6761\u4EF6\uFF1A${p.pas.cond || ""}`];
-    const alwaysBlk = buildLabeledBlock("\u5E38\u6642\u52B9\u679C\uFF1A", p.pas.always, effectBullet);
-    if (alwaysBlk) parts.push(alwaysBlk);
-    const effBlk = buildLabeledBlock("\u52B9\u679C\uFF1A", p.pas.effect, effectBullet);
-    if (effBlk) parts.push(effBlk);
-    L.push(parts.join("\\n"));
-    if (p.pas.quick) {
-      p.pas.quick.split(/\s+/).filter((s) => s.startsWith(":")).forEach((cmd) => L.push(sanitizeInline(cmd)));
+    if (p.pas.name) {
+      const parts = [`\u4EBA\u683C\u30D1\u30C3\u30B7\u30D6\u3010${p.pas.name}\u3011`, `\u767A\u52D5\u6761\u4EF6\uFF1A${p.pas.cond || ""}`];
+      const alwaysBlk = buildLabeledBlock("\u5E38\u6642\u52B9\u679C\uFF1A", p.pas.always, effectBullet);
+      if (alwaysBlk) parts.push(alwaysBlk);
+      const effBlk = buildLabeledBlock("\u52B9\u679C\uFF1A", p.pas.effect, effectBullet);
+      if (effBlk) parts.push(effBlk);
+      L.push(parts.join("\\n"));
+      if (p.pas.quick) {
+        p.pas.quick.split(/\s+/).filter((s) => s.startsWith(":")).forEach((cmd) => L.push(sanitizeInline(cmd)));
+      }
     }
-    if (p.pas2Enabled && p.pas2.name) {
-      const p2 = [`\u4EBA\u683C\u30D1\u30C3\u30B7\u30D6\u3010${p.pas2.name}\u3011`, `\u767A\u52D5\u6761\u4EF6\uFF1A${p.pas2.cond || ""}`];
-      const p2always = buildLabeledBlock("\u5E38\u6642\u52B9\u679C\uFF1A", p.pas2.always, effectBullet);
-      if (p2always) p2.push(p2always);
-      const p2eff = buildLabeledBlock("\u52B9\u679C\uFF1A", p.pas2.effect, effectBullet);
-      if (p2eff) p2.push(p2eff);
-      L.push(p2.join("\\n"));
-    }
+    extraPassives.forEach((extra) => {
+      const extraParts = [`\u4EBA\u683C\u30D1\u30C3\u30B7\u30D6\u3010${extra.name}\u3011`, `\u767A\u52D5\u6761\u4EF6\uFF1A${extra.cond || ""}`];
+      const extraAlways = buildLabeledBlock("\u5E38\u6642\u52B9\u679C\uFF1A", extra.always, effectBullet);
+      if (extraAlways) extraParts.push(extraAlways);
+      const extraEff = buildLabeledBlock("\u52B9\u679C\uFF1A", extra.effect, effectBullet);
+      if (extraEff) extraParts.push(extraEff);
+      L.push(extraParts.join("\\n"));
+      if (extra.quick) {
+        extra.quick.split(/\s+/).filter((s) => s.startsWith(":")).forEach((cmd) => L.push(sanitizeInline(cmd)));
+      }
+    });
     L.push("");
   }
   if (p.supports.length) {
@@ -854,6 +871,28 @@ function buildPalette(state) {
           L.push(`${mahi}+{DM} \u899A\u9192\uFF5C${nameBase}\uFF1A\u30C0\u30E1\u30FC\u30B8${suf}`);
         });
       }
+      // 覚醒の派生スキル（任意数）。表示順は親→派生の追加順。
+      (kSk.derived || []).forEach((dk, di) => {
+        if (!dk || (!dk.effect && !(dk.dice || []).length)) return;
+        const label = `覚醒${di + 2}`;
+        const parts = [`【${label}|${rank}】${dk.name || nameBase}`];
+        if (cost) parts.push(`コスト：${cost}`);
+        if (dk.attr || dk.sin || dk.aoe) {
+          parts.push(`${dk.attr || ""}${dk.sin ? "：" + dk.sin : ""}${dk.aoe ? "　広域：" + dk.aoe : ""}`);
+        }
+        const eff = buildLabeledBlock("覚醒効果：", dk.effect, effectBullet);
+        if (eff) parts.push(eff);
+        const diceLines = (dk.dice || []).map((d) => formatDiceEffectDisplay(d.roll, stripDiceIndexPrefix(d.effect), "\\n")).filter(Boolean);
+        if (diceLines.length) parts.push(diceLines.join("\\n"));
+        L.push(redactEgoSanFromPalette(parts.join("\\n")));
+        (dk.dice || []).forEach((d, i) => {
+          if (!d.roll) return;
+          const mahi = buildMahiFormula(d.roll, "", "", null, null);
+          const suf = (dk.dice || []).length > 1 ? String(i + 1) : "";
+          L.push(`${mahi}+{MT} ${label}\uFF5C${nameBase}\uFF1A\u30DE\u30C3\u30C1${suf}`);
+          L.push(`${mahi}+{DM} ${label}\uFF5C${nameBase}\uFF1A\u30C0\u30E1\u30FC\u30B8${suf}`);
+        });
+      });
       if (sSk.effect || (sSk.dice || []).length) {
         const sParts = [`\u3010\u4FB5\u8755\uFF5C${rank}\u3011${nameBase}`, cost ? `\u30B3\u30B9\u30C8\uFF1A${cost}` : ""];
         if (sSk.attr || sSk.sin || sSk.aoe) {
@@ -872,6 +911,28 @@ function buildPalette(state) {
           L.push(`${mahi}+{DM} \u4FB5\u8755\uFF5C${nameBase}\uFF1A\u30C0\u30E1\u30FC\u30B8${suf}`);
         });
       }
+      // 侵蝕の派生スキル（任意数）。
+      (sSk.derived || []).forEach((dk, di) => {
+        if (!dk || (!dk.effect && !(dk.dice || []).length)) return;
+        const label = `侵蝕${di + 2}`;
+        const parts = [`【${label}|${rank}】${dk.name || nameBase}`];
+        if (cost) parts.push(`コスト：${cost}`);
+        if (dk.attr || dk.sin || dk.aoe) {
+          parts.push(`${dk.attr || ""}${dk.sin ? "：" + dk.sin : ""}${dk.aoe ? "　広域：" + dk.aoe : ""}`);
+        }
+        const eff = buildLabeledBlock("侵蝕効果：", dk.effect, effectBullet);
+        if (eff) parts.push(eff);
+        const diceLines = (dk.dice || []).map((d) => formatDiceEffectDisplay(d.roll, stripDiceIndexPrefix(d.effect), "\\n")).filter(Boolean);
+        if (diceLines.length) parts.push(diceLines.join("\\n"));
+        L.push(redactEgoSanFromPalette(parts.join("\\n")));
+        (dk.dice || []).forEach((d, i) => {
+          if (!d.roll) return;
+          const mahi = buildMahiFormula(d.roll, "", "", null, null);
+          const suf = (dk.dice || []).length > 1 ? String(i + 1) : "";
+          L.push(`${mahi}+{MT} ${label}\uFF5C${nameBase}\uFF1A\u30DE\u30C3\u30C1${suf}`);
+          L.push(`${mahi}+{DM} ${label}\uFF5C${nameBase}\uFF1A\u30C0\u30E1\u30FC\u30B8${suf}`);
+        });
+      });
       if (e.unique_buff) {
         const buffBlock = buildProseBlock("固有バフ：", e.unique_buff, effectBullet);
         L.push(redactEgoSanFromPalette(`E.G.O【${e.name}】\\n${buffBlock}`));
@@ -910,10 +971,10 @@ function buildPalette(state) {
       if (KW_CANDIDATES.includes(k)) kwSet.add(lbl);
     });
   }
-  // パッシブ2が無効のとき、その本文はキーワード自動コマンドの走査対象から外す。
-  // 無効化したパッシブの状態語が :火傷+1 等のコマンドとして残ると、
+  // 空の追加パッシブはキーワード自動コマンドの走査対象から外す。
+  // 名前も効果も無い行の状態語が :火傷+1 等のコマンドとして残ると、
   // 管理していないステータスを操作する行がパレットに混入する。
-  const effectDump = [p.pas.always, p.pas.effect, ...(p.pas2Enabled ? [p.pas2.always, p.pas2.effect] : []), ...(p.skills || []).map((s) => (s.effect || "") + (s.dice || []).map((d) => d.effect).join(" ")), p.spiritAlways, p.spiritMorale, p.spiritConfuse, ...(p.supports || []).map((s) => s.effect), ...(p.enhancements || []).map((e) => e.effect || "")].join(" ");
+  const effectDump = [p.pas.always, p.pas.effect, ...personaExtraPassives(p).flatMap((entry) => [entry.always || "", entry.effect || ""]), ...(p.skills || []).map((s) => (s.effect || "") + (s.dice || []).map((d) => d.effect).join(" ")), p.spiritAlways, p.spiritMorale, p.spiritConfuse, ...(p.supports || []).map((s) => s.effect), ...(p.enhancements || []).map((e) => e.effect || "")].join(" ");
   KW_CANDIDATES.forEach((k) => {
     const lbl = KW_LABELS[k] || k;
     if (effectDump.includes(k) || effectDump.includes(lbl)) kwSet.add(lbl);
@@ -1016,16 +1077,19 @@ function buildMemo(state) {
     if (p.spiritConfuse) L.push(`\u3000\u6DF7\u4E71\uFF1A${p.spiritConfuse.trim()}`);
   }
   L.push("");
-  if (p.pas.name) {
+  const memoExtras = personaExtraPassives(p);
+  if (p.pas.name || memoExtras.length) {
     L.push("\u25A0 \u4EBA\u683C\u30D1\u30C3\u30B7\u30D6");
-    L.push(`\u3000${p.pas.name}\uFF08${p.pas.cond || "\u5E38\u6642"}\uFF09`);
-    pushMemoEffect(L, "\u5E38\u6642\uFF1A", p.pas.always);
-    pushMemoEffect(L, "\u52B9\u679C\uFF1A", p.pas.effect);
-    if (p.pas2Enabled && p.pas2.name) {
-      L.push(`\u3000${p.pas2.name}\uFF08${p.pas2.cond || ""}\uFF09`);
-      pushMemoEffect(L, "\u5E38\u6642\uFF1A", p.pas2.always);
-      pushMemoEffect(L, "\u52B9\u679C\uFF1A", p.pas2.effect);
+    if (p.pas.name) {
+      L.push(`\u3000${p.pas.name}\uFF08${p.pas.cond || "\u5E38\u6642"}\uFF09`);
+      pushMemoEffect(L, "\u5E38\u6642\uFF1A", p.pas.always);
+      pushMemoEffect(L, "\u52B9\u679C\uFF1A", p.pas.effect);
     }
+    memoExtras.forEach((extra) => {
+      L.push(`\u3000${extra.name}\uFF08${extra.cond || ""}\uFF09`);
+      pushMemoEffect(L, "\u5E38\u6642\uFF1A", extra.always);
+      pushMemoEffect(L, "\u52B9\u679C\uFF1A", extra.effect);
+    });
     L.push("");
   }
   if (p.supports.length) {
@@ -1482,7 +1546,9 @@ function buildShareSheetHTML(state) {
           ${e.resources ? `<div class="ego-res">${esc(e.resources)}</div>` : ""}
           ${e.passive_name ? `<div class="ego-p"><b>${esc(e.passive_name)}</b>${e.passive_cond ? ` <span class="cond">${esc(e.passive_cond)}</span>` : ""}<div class="eff">${fmt(e.passive_effect || "")}</div></div>` : ""}
           ${egoSkillHTML("\u899A\u9192\u52B9\u679C", e.kakusei, "kakusei")}
+          ${(e.kakusei?.derived || []).map((skill, index) => egoSkillHTML(`\u899A\u9192${index + 2}${skill.name ? "\uFF1A" + esc(skill.name) : ""}`, skill, "kakusei")).join("")}
           ${egoSkillHTML("\u4FB5\u8755\u52B9\u679C", e.shinshoku, "shinshoku")}
+          ${(e.shinshoku?.derived || []).map((skill, index) => egoSkillHTML(`\u4FB5\u8755${index + 2}${skill.name ? "\uFF1A" + esc(skill.name) : ""}`, skill, "shinshoku")).join("")}
           ${(e.sub_skills || []).map((skill, index) => egoSkillHTML(`同化S${skill.no ?? index + 1}：${esc(skill.name || "")}`, skill, "douka")).join("")}
           ${e.unique_buff ? `<div class="eff"><u>\u56FA\u6709\u30D0\u30D5</u><br>${nl(e.unique_buff)}</div>` : ""}
         </article>
@@ -1540,14 +1606,15 @@ function buildShareSheetHTML(state) {
         <div class="eff">${nl(e.effect)}</div>
       </details>` : `<div class="spp"><div class="spp-h"><b>${esc(e.name)}</b><span class="cond">\u6B20\u7247${esc(e.shards)}</span></div><div class="eff">${nl(e.effect)}</div></div>`).join("")}
     </section>` : "";
-  const pasHTML = p.pas.name ? `
+  const pasExtraHTML = personaExtraPassives(p).map((extra) => `<div class="panel"><div class="pas-h"><b>${esc(extra.name)}</b>${extra.cond ? `<span class="cond">${esc(extra.cond)}</span>` : ""}</div>${extra.always ? `<div class="eff always">\u5E38\u6642\uFF1A${fmt(extra.always)}</div>` : ""}${extra.effect ? `<div class="eff">${fmt(extra.effect)}</div>` : ""}</div>`).join("");
+  const pasHTML = p.pas.name || pasExtraHTML ? `
     <section class="sec"><h2>PASSIVE / \u30D1\u30C3\u30B7\u30D6</h2>
-      <div class="panel">
+      ${p.pas.name ? `<div class="panel">
         <div class="pas-h"><b>${esc(p.pas.name)}</b>${p.pas.cond ? `<span class="cond">${esc(p.pas.cond)}</span>` : ""}</div>
         ${p.pas.always ? `<div class="eff always">\u5E38\u6642\uFF1A${fmt(p.pas.always)}</div>` : ""}
         ${p.pas.effect ? `<div class="eff">${fmt(p.pas.effect)}</div>` : ""}
-      </div>
-      ${p.pas2Enabled && p.pas2?.name ? `<div class="panel"><div class="pas-h"><b>${esc(p.pas2.name)}</b>${p.pas2.cond ? `<span class="cond">${esc(p.pas2.cond)}</span>` : ""}</div>${p.pas2.always ? `<div class="eff always">\u5E38\u6642\uFF1A${fmt(p.pas2.always)}</div>` : ""}${p.pas2.effect ? `<div class="eff">${fmt(p.pas2.effect)}</div>` : ""}</div>` : ""}
+      </div>` : ""}
+      ${pasExtraHTML}
     </section>` : "";
 	return `<!DOCTYPE html>
 	<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">

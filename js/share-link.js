@@ -28,7 +28,7 @@
   const SHARE_KEYS = new Set([
     "charName", "plName", "shareImageData", "personaMode", "personaNo", "personaSrc",
     "hp", "san", "speed", "bullets", "resS", "resP", "resB",
-    "pas", "pas2Enabled", "pas2", "spirit", "spiritAlways", "spiritMorale", "spiritConfuse",
+    "pas", "pas2Enabled", "pas2", "extraPassives", "spirit", "spiritAlways", "spiritMorale", "spiritConfuse",
     "skills", "egoSlots", "supports", "deathSupport", "uniqueBuffs", "customStatuses", "enhancements",
     // 手動設定の士気低下ラインは出力（computeMoraleLine）が優先して使う共有対象の値。
     // スナップショットから落とすと、共有ページだけ SAN/4 の自動計算へ戻ってしまう。

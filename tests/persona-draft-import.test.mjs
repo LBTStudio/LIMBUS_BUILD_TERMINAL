@@ -378,7 +378,9 @@ test("解析済み草案は既存人格を消さず、手動編集可能なカ�
   assert.equal(next.personaMode, "custom");
   assert.equal(next.syncedManual, true);
   assert.equal(next.personaSrc.name, "草案テスト人格");
-  assert.equal(next.pas2Enabled, true);
+  assert.equal(next.extraPassives.length, 1);
+  assert.equal(next.extraPassives[0].name, "第二の演算");
+  assert.equal(next.pas2Enabled, false);
   assert.equal(next.skills.length, 2);
   assert.equal(next.roster.personas.length, 2);
   assert.equal(next.roster.personas[0].equipped, false);

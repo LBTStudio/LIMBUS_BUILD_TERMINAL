@@ -2020,6 +2020,62 @@ details > summary {
   .ego-assim-direct-card-head .ego-assim-card-origin { order: 3; }
 }
 
+/* 覚醒・侵蝕にも戦術スキルと同じ派生スキルを任意数追加する。 */
+.ego-derived-block {
+  display: grid;
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line);
+}
+.ego-derived-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+.ego-derived-note {
+  margin-top: 4px;
+  font-size: var(--fs-11);
+  color: var(--tx-mute);
+  line-height: 1.5;
+}
+.ego-derived-empty {
+  padding: var(--s-3);
+  font-size: var(--fs-11);
+  color: var(--tx-mute);
+  border: 1px dashed var(--line);
+  border-radius: var(--r);
+}
+.ego-derived-list { display: grid; gap: var(--s-3); }
+.ego-derived-item {
+  display: grid;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  background: var(--surface-inset);
+  border: 1px solid var(--line-dim);
+  border-left: 3px solid var(--gold-line);
+  border-radius: var(--r);
+}
+.ego-derived-item-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+.ego-derived-item-copy {
+  font-size: var(--fs-12);
+  color: var(--tx-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ego-derived-item-head .btn { margin-left: auto; }
+@media (max-width: 640px) {
+  .ego-derived-head { align-items: stretch; }
+  .ego-derived-head .btn { width: 100%; justify-content: center; min-height: 44px; }
+}
+
 /* v64r45: 長尺の編集面でも現在位置を失わない、LBT共通のスクロールバー。 */
 :root {
   scrollbar-color: var(--gold-lo) var(--surface-inset);
