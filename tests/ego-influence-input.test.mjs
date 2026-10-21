@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 
 const source = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
+const stateSource = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
 const helperStart = source.indexOf("const getInfluenceRounds = ");
 const helperEnd = source.indexOf("const getEgoVariantModel = ", helperStart);
 assert.ok(helperStart >= 0 && helperEnd > helperStart, "影響ヘッダーの入出力ヘルパーが存在する");
@@ -50,4 +51,16 @@ test("影響E.G.Oの入力欄は raw value を往復し、trimで空白やEnter�
   assert.match(block, /value: stripInfluenceHeader\(branch\.effect\)/);
   assert.doesNotMatch(block, /e\.target\.value\.trim\(\)/);
   assert.doesNotMatch(block, /stripInfluenceHeader\(branch\.effect\)[\s\S]{0,150}\.trim\(\)/);
+});
+
+
+test("新規E.G.Oは作成直後に対象ランクの解析画面を開き、影響入力へ到達できる", () => {
+  const start = stateSource.indexOf('case "CREATE_CUSTOM_EGO":');
+  const end = stateSource.indexOf('case "RESET_EGO_SLOT_TO_DB":', start);
+  assert.ok(start >= 0 && end > start, "新規E.G.O生成のreducer処理が存在する");
+  const block = stateSource.slice(start, end);
+  assert.match(block, /egoManual:\s*true/);
+  assert.match(block, /egoDetailSlot:\s*rank/);
+  assert.match(source, /const renderInfluence = \(\) =>/);
+  assert.match(source, /label: "ラウンド効果"/);
 });
