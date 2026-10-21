@@ -21,17 +21,40 @@ function splitPreviewSections(text) {
   if (cur) sections.push(cur);
   return sections.filter((s) => s.title || s.body.some((l) => l.trim()));
 }
-// プレビューに表示する原文の見出し表記を保ったまま、JSON出力から除外されたカテゴリだけを
-// コピー対象から取り除く。表示の折り畳み状態はコピー内容へ影響させない。
+// プレビューに表示する原文の見出し表記と改行を保ったまま、JSON出力から除外された
+// カテゴリだけをコピー対象から取り除く。表示の折り畳み状態はコピー内容へ影響させない。
 function filterPreviewCopyOutput(text, excluded) {
-  return splitPreviewSections(text)
-    .filter((section) => !section.title || !(excluded || {})[section.title])
-    .map((section) => {
-      const body = section.body.join("\n").replace(/^\n+|\n+$/g, "");
-      return [section.title ? section.header || `■ ${section.title}` : "", body].filter(Boolean).join("\n");
-    })
-    .filter(Boolean)
-    .join("\n\n");
+  if (!text) return "";
+  const ex = excluded || {};
+  if (!Object.keys(ex).length) return text;
+  const lines = String(text).split("\n");
+  const HEAD_RE = /^(?:###\s*■?\s*(.+?)\s*$|【(.+?)】\s*$|■\s*(.+?)\s*$)/;
+  const SEP_RE = /^\s*[ー─]{5,}\s*$/;
+  const drop = new Array(lines.length).fill(false);
+  let hide = false;
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(HEAD_RE);
+    if (m) {
+      const title = m[1] || m[2] || m[3] || "";
+      hide = !!ex[title];
+      if (hide) {
+        // 見出し直前の空行1つと区切り線も落とし、見出しだけ消えた余白を残さない。
+        let j = i - 1;
+        if (j >= 0 && !lines[j].trim()) drop[j--] = true;
+        while (j >= 0 && SEP_RE.test(lines[j])) drop[j--] = true;
+      }
+    }
+    if (!hide) continue;
+    // 除外したセクションの末尾にある空行は、次に残る見出しとの区切りとしてだけ残す。
+    if (!lines[i].trim()) {
+      let k = i + 1;
+      while (k < lines.length && !lines[k].trim()) k++;
+      const next = k < lines.length ? lines[k].match(HEAD_RE) : null;
+      if (next && !ex[next[1] || next[2] || next[3] || ""]) continue;
+    }
+    drop[i] = true;
+  }
+  return lines.filter((_, i) => !drop[i]).join("\n").replace(/^\n+|\n+$/g, "");
 }
 window.LBT_filterPreviewCopyOutput = filterPreviewCopyOutput;
 // 生成順を標準順としつつ、ユーザーが保存した見出し順だけを優先する。
@@ -137,15 +160,14 @@ const LivePreview = ({ state, dispatch }) => {
       toast("\u30B3\u30D4\u30FC\u5931\u6557");
     }
   };
-  /* コピーは表示の折り畳み・出力除外の影響を受けない。
-     卓中のコピペは「いま見えているもの」ではなく「いま必要な全文」を
-     そのまま持ち出す操作であり、項目の出し入れを挟むと事故る。
-     表示の制御は折り畳みに任せ、コピーは常に全文を返す。 */
+  /* コピーは表示の折り畳みには影響されないが、JSON出力から除外したカテゴリは
+     JSONへ送らないという利用者の意思なので、コピーからも外す。
+     除外の判定は表示のチェックと同じ outputExclude を参照する。 */
   const copyCurrent = async () => {
     const t = tab === "memo"
-      ? memo
+      ? filterPreviewCopyOutput(memo, outputExclude.memo)
       : tab === "palette"
-        ? palette
+        ? filterPreviewCopyOutput(palette, outputExclude.palette)
         : JSON.stringify(LBT_gen.buildCcfoliaJSON(state));
     try {
       await navigator.clipboard.writeText(t);

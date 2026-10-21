@@ -315,6 +315,11 @@ function requestPersonaUnequip(state, dispatch, afterUnequip) {
   return true;
 }
 
+/* 現在装備中の人格の所持レコード。no はグループ間で重複するため mode も見る。
+   ここを「同じ mode の先頭」で済ませると、別人格の MAX が名前へ漏れる。 */
+const findCurrentRosterPersona = (state) => (state?.roster?.personas || [])
+  .find((persona) => persona.mode === state?.personaMode && String(persona.no) === String(state?.personaNo)) || null;
+
 const EquippedSummary = ({ state, dispatch, onExpand, onShowDetail, detailShown, syncMaxControl, innateSlot }) => {
   const hasSavedBuild = !!state.roster?.personas?.some((r) => r.mode === state.personaMode && r.no === state.personaNo && r.build);
   const p = state.personaSrc;
@@ -325,7 +330,7 @@ const EquippedSummary = ({ state, dispatch, onExpand, onShowDetail, detailShown,
   const isSavedCustom = isCustom && p.__saved;
   const editable = isSynced || isCustom && !isSavedCustom;
   const patchMeta = (patch) => dispatch({ type: "PATCH_PERSONA_META", patch });
-  const rosterEntry = (state.roster?.personas || []).find((persona) => persona.mode === state.personaMode && String(persona.no) === String(persona.no));
+  const rosterEntry = findCurrentRosterPersona(state);
   const displayPersonaName = rosterEntry?.syncMax && !/\s*\[MAX\]\s*$/i.test(p.name || "") ? `${p.name || ""} [MAX]` : p.name;
   const affiliation = decoratePersona(p).__aff;
   const RES_VALUES = ["普通", "脆弱", "弱点", "抵抗", "耐性", "免疫"];
@@ -570,24 +575,37 @@ function buildRosterDetailPersona(entry, fallback) {
   };
 }
 const SyncMaxControl = ({ state, dispatch }) => {
-  const entry = (state.roster?.personas || []).find((persona) => persona.mode === state.personaMode && String(persona.no) === String(state.personaNo));
+  const entry = findCurrentRosterPersona(state);
   if (!state.personaSrc || !entry) return null;
-  const baseName = state.personaSrc.name || "名称未設定";
   const syncRank = ["0", "00", "000"].includes(entry.syncRank) ? entry.syncRank : null;
-  const isCustom = state.personaMode === "custom" || state.personaSrc.__custom;
-  const isSavedCustom = isCustom && state.personaSrc.__saved;
-  const editable = Boolean(state.syncedManual || isCustom && !isSavedCustom);
-  return React.createElement("section", { className: `es-sync-max-control${entry.syncMax ? " is-on" : ""}${editable ? "" : " is-readonly"}`, "aria-label": "同期状態" },
+  const toggle = (checked) => {
+    if (!checked) {
+      dispatch({ type: "APPLY_PERSONA_SYNC", uid: entry.uid, syncMax: false });
+      return;
+    }
+    const persona = (entry.mode === "t" ? window.DB?.tokui_personas || [] : window.DB?.normal_personas || [])
+      .find((p) => String(p.no) === String(entry.no));
+    const cost = window.LBT_operationCost?.("syncMax", { ...persona, no: entry.no }, window.DB) || null;
+    const bal = window.LBT_computeLedgerBalance?.(state.results, state.entries);
+    if (cost && bal && Number(bal.shards) < Number(cost.shards)) {
+      toast(`自我の欠片が足りません（必要 ${cost.shards} / 手持ち ${bal.shards}）`);
+      return;
+    }
+    dispatch({ type: "APPLY_PERSONA_SYNC", uid: entry.uid, syncMax: true });
+  };
+  /* MAX は HP/SAN の手編集モードとは別の保守操作。所持していれば DB 人格でも
+     設定・解除できる（所持詳細のトグルと同じ扱い）。 */
+  return React.createElement("section", { className: `es-sync-max-control${entry.syncMax ? " is-on" : ""}`, "aria-label": "同期状態" },
     React.createElement("div", { className: "es-sync-max-status" },
       React.createElement("span", { className: "es-sync-max-kicker" }, "SYNC STATUS / 同期状態"),
       React.createElement("span", { className: "es-sync-max-rank" }, syncRank ? `同期${syncRank}` : "同期ランク未設定"),
       entry.syncMax && React.createElement("span", { className: "es-sync-max-badge" }, "[MAX]")
     ),
-    editable && React.createElement("label", { className: "es-sync-max-toggle", title: "同期MAXを設定・解除" },
-      React.createElement("input", { type: "checkbox", checked: entry.syncMax === true, onChange: (event) => dispatch({ type: "PATCH_ROSTER", uid: entry.uid, patch: { syncMax: event.target.checked } }) }),
+    React.createElement("label", { className: "es-sync-max-toggle", title: "同期MAXを設定・解除" },
+      React.createElement("input", { type: "checkbox", checked: entry.syncMax === true, onChange: (event) => toggle(event.target.checked) }),
       React.createElement("span", { className: "es-sync-max-label" }, "同期MAXとして設定"),
     ),
-    editable && React.createElement("span", { className: "es-sync-max-note" }, "同期ランクとは別・名称と共有に [MAX] を反映")
+    React.createElement("span", { className: "es-sync-max-note" }, "同期ランクとは別・名称と共有に [MAX] を反映")
   );
 };
 const normalizeDraftAffiliationName = (value) => String(value || "").normalize("NFKC").replace(/[「」『』【】\[\]()（）\s　・]/g, "").toLowerCase();
@@ -596,7 +614,7 @@ const findDraftAffiliationCandidates = (name, options) => {
   if (!normalized) return [];
   return (options || []).filter((entry) => normalizeDraftAffiliationName(entry.name) === normalized);
 };
-const PersonaDraftImportDialog = ({ draftText, draftSections, draftInputMode, draftResult, draftSyncMax, draftAffiliationKey, draftAffiliationQuery, autoAffiliationKey, affiliationOptions, onChange, onSectionsChange, onInputModeChange, onAnalyze, onSyncMaxChange, onAffiliationChange, onAffiliationQueryChange, onApply, onClose }) => {
+const PersonaDraftImportDialog = ({ draftText, draftSections, draftInputMode, draftResult, draftSyncMax, draftSyncMaxLocked, draftAffiliationKey, draftAffiliationQuery, autoAffiliationKey, affiliationOptions, onChange, onSectionsChange, onInputModeChange, onAnalyze, onSyncMaxChange, onAffiliationChange, onAffiliationQueryChange, onApply, onClose }) => {
   const h = React.createElement;
   const affiliation = (affiliationOptions || []).find((entry) => entry.key === draftAffiliationKey) || null;
   const autoMatched = !!affiliation && affiliation.key === autoAffiliationKey;
@@ -632,9 +650,9 @@ const PersonaDraftImportDialog = ({ draftText, draftSections, draftInputMode, dr
         h("textarea", { className: "persona-draft-import-text", value: draftText, onChange: (event) => onChange(event.target.value), placeholder: "表記は多少異なっても読み込みます\n人格 名：「完成人格」\nHP:160　SAN：55　速度:1d5＋2\nパッシブ名：...\n０－２：スキル名\n斬撃:傲慢\n2d9：的中時、...\n\n【戦術スキル１】・0：・0-2：も対応\n※必須項目の不足や文章型速度は修正が必要です", autoFocus: true }),
       h("div", { className: "persona-draft-import-actions" },
         h("button", { className: "btn btn--secondary", type: "button", onClick: onAnalyze, disabled: !hasInput }, draftInputMode === "garasumado" ? "公開人格を解析" : "解析する"),
-        draftResult?.ok && h("label", { className: "persona-draft-max-option" },
-          h("input", { type: "checkbox", checked: draftSyncMax, onChange: (event) => onSyncMaxChange(event.target.checked) }),
-          "同期MAXとして作成"),
+        draftResult?.ok && h("label", { className: `persona-draft-max-option${draftSyncMaxLocked ? " is-locked" : ""}`, title: draftSyncMaxLocked ? "この人格は既に同期MAXです。解除は人格詳細の同期MAXトグルから行えます。" : void 0 },
+          h("input", { type: "checkbox", checked: draftSyncMax, disabled: draftSyncMaxLocked, onChange: (event) => onSyncMaxChange(event.target.checked) }),
+          draftSyncMaxLocked ? "同期MAX（解除は人格詳細から）" : "同期MAXとして作成"),
         draftResult?.ok && h("button", { className: "btn btn--primary", type: "button", onClick: onApply }, affiliation ? "同期人格として反映" : "この人格を作成")),
       draftResult?.ok && h("div", { className: "persona-draft-affiliation" },
         h("label", { className: "persona-draft-affiliation-label", htmlFor: "persona-draft-affiliation-search" }, "同期元を検索して選択"),
@@ -758,6 +776,11 @@ const PersonaCodex = ({ state, dispatch, ownedOnly = false }) => {
   ], []);
   const draftAffiliationCandidates = React.useMemo(() => findDraftAffiliationCandidates(draftResult?.persona?.name, draftAffiliationOptions), [draftResult, draftAffiliationOptions]);
   const draftAutoAffiliationKey = draftAffiliationCandidates.length === 1 ? draftAffiliationCandidates[0].key : "";
+  const draftSyncMaxLocked = React.useMemo(() => {
+    const option = draftAffiliationOptions.find((entry) => entry.key === draftAffiliationKey);
+    if (!option) return false;
+    return (roster.personas || []).some((entry) => entry.mode === option.mode && String(entry.no) === String(option.no) && entry.syncMax === true);
+  }, [draftAffiliationKey, draftAffiliationOptions, roster.personas]);
   const affiliations = React.useMemo(() => {
     const set = /* @__PURE__ */ new Set();
     pool.forEach(({ p }) => set.add(decoratePersona(p).__aff));
@@ -980,18 +1003,47 @@ const addRoster = (p) => {
     }, 20);
     toast(`\u30AB\u30B9\u30BF\u30E0\u4EBA\u683C\u300E${name}\u300F\u3092\u88C5\u5099`);
   };
+  const chooseDraftAffiliation = (key) => {
+    setDraftAffiliationKey(key);
+    const option = draftAffiliationOptions.find((entry) => entry.key === key);
+    const existing = option ? (roster.personas || []).find((entry) => entry.mode === option.mode && String(entry.no) === String(option.no)) : null;
+    setDraftSyncMax(existing?.syncMax === true || !!draftResult?.suggestSyncMax);
+  };
   const analyzeDraft = async () => {
     const result = (draftInputMode === "garasumado" ? await window.LBT_fetchGarasumadoPersona?.(draftText) : (draftInputMode === "sections" ? window.LBT_parsePersonaDraftSections?.(draftSections) : window.LBT_parsePersonaDraft?.(draftText))) || { ok: false, errors: ["草案解析器を読み込めませんでした。ページを再読み込みしてください。"], warnings: [] };
-    setDraftResult(result);
-    setDraftSyncMax(!!result.suggestSyncMax);
     const candidates = result.ok ? findDraftAffiliationCandidates(result.persona?.name, draftAffiliationOptions) : [];
-    setDraftAffiliationKey(candidates.length === 1 ? candidates[0].key : "");
+    const candidate = candidates.length === 1 ? candidates[0] : null;
+    const existing = candidate ? (roster.personas || []).find((entry) => entry.mode === candidate.mode && String(entry.no) === String(candidate.no)) : null;
+    setDraftResult(result);
+    setDraftSyncMax(existing?.syncMax === true || !!result.suggestSyncMax);
+    setDraftAffiliationKey(candidate?.key || "");
     setDraftAffiliationQuery("");
   };
   const applyDraft = () => {
     if (!draftResult?.ok) return;
     const affiliation = draftAffiliationOptions.find((entry) => entry.key === draftAffiliationKey) || null;
-    dispatch({ type: "IMPORT_PERSONA_DRAFT", persona: draftResult.persona, secondaryPassive: draftResult.secondaryPassive, provided: draftResult.provided, syncRank: draftResult.syncRank, syncMax: draftSyncMax, affiliation: affiliation ? { mode: affiliation.mode, no: affiliation.no } : null });
+    const existing = affiliation ? (roster.personas || []).find((entry) => entry.mode === affiliation.mode && String(entry.no) === String(affiliation.no)) : null;
+    const draftRank = ["0", "00", "000"].includes(draftResult.syncRank) ? draftResult.syncRank : null;
+    const existingRank = String(existing?.syncRank || "") || null;
+    const wantRank = draftRank && String(draftRank).length > String(existingRank || "").length ? draftRank : (existingRank || draftRank);
+    const wantMax = draftSyncMax || existing?.syncMax === true;
+    const wasSynced = Boolean(existing && (existing.syncRank || existing.syncMax === true || existing.synced === true));
+    const maxJustOn = wantMax === true && existing?.syncMax !== true;
+    const syncJustOn = !wasSynced && (Boolean(wantRank) || wantMax === true);
+    const op = maxJustOn ? "syncMax" : (syncJustOn ? "sync" : null);
+    const persona = affiliation ? (affiliation.mode === "t" ? DB.tokui_personas || [] : DB.normal_personas || []).find((entry) => String(entry.no) === String(affiliation.no)) : null;
+    const cost = op ? window.LBT_operationCost?.(op, { ...persona, no: affiliation?.no }, window.DB) : null;
+    const bal = cost ? window.LBT_computeLedgerBalance?.(state.results, state.entries) : null;
+    const short = !!(cost && bal && Number(bal.shards) < Number(cost.shards));
+    dispatch({
+      type: "IMPORT_PERSONA_DRAFT",
+      persona: draftResult.persona,
+      secondaryPassive: draftResult.secondaryPassive,
+      provided: draftResult.provided,
+      syncRank: short ? existingRank : draftResult.syncRank,
+      syncMax: short ? existing?.syncMax === true : draftSyncMax,
+      affiliation: affiliation ? { mode: affiliation.mode, no: affiliation.no } : null
+    });
     dispatch({ type: "SET_UI", ui: { codexExpanded: false } });
     setShowEquippedDetail(false);
     setDraftImportOpen(false);
@@ -1000,14 +1052,16 @@ const addRoster = (p) => {
     setDraftResult(null);
     setDraftAffiliationKey("");
     setDraftAffiliationQuery("");
-    toast(affiliation ? `草案を『${affiliation.name}』の同期人格として反映` : `草案人格『${draftResult.persona.name}』を編集中として装備`);
+    toast(short
+      ? "草案を反映しました（自我の欠片が足りないため同期は未設定）"
+      : (affiliation ? `草案を『${affiliation.name}』の同期人格として反映` : `草案人格『${draftResult.persona.name}』を編集中として装備`), short ? "assertive" : void 0);
     setTimeout(() => document.querySelector("main.focus")?.scrollTo({ top: 0, behavior: scrollBehavior() }), 20);
   };
   const hasActiveFilters = ui.filterSins.length || ui.filterKws.length || ui.filterAffs.length || ui.searchQuery || ui.filterResS || ui.filterResP || ui.filterResB || ui.filterOwnedOnly;
   const equippedPersona = state.personaSrc;
   const equippedDetailPersona = buildEquippedDetailPersona(state);
   const equippedMeta = equippedPersona ? { p: equippedPersona, mode: state.personaMode || "n" } : null;
-  return /* @__PURE__ */ React.createElement(React.Fragment, null, draftImportOpen && /* @__PURE__ */ React.createElement(PersonaDraftImportDialog, { draftText, draftSections, draftInputMode, draftResult, draftSyncMax, draftAffiliationKey, draftAffiliationQuery, autoAffiliationKey: draftAutoAffiliationKey, affiliationOptions: draftAffiliationOptions, onChange: (value) => { setDraftText(value); setDraftResult(null); setDraftAffiliationKey(""); setDraftAffiliationQuery(""); }, onSectionsChange: (key, value) => { setDraftSections((current) => ({ ...current, [key]: value })); setDraftResult(null); setDraftAffiliationKey(""); setDraftAffiliationQuery(""); }, onInputModeChange: (modeValue) => { setDraftInputMode(modeValue); setDraftResult(null); setDraftAffiliationKey(""); setDraftAffiliationQuery(""); }, onAnalyze: analyzeDraft, onSyncMaxChange: setDraftSyncMax, onAffiliationChange: setDraftAffiliationKey, onAffiliationQueryChange: setDraftAffiliationQuery, onApply: applyDraft, onClose: () => { setDraftImportOpen(false); setDraftAffiliationKey(""); setDraftAffiliationQuery(""); } }), /* @__PURE__ */ React.createElement("div", { className: "codex-shell" }, /* @__PURE__ */ React.createElement("div", { className: "persona-workspace" }, equippedPersona && /* @__PURE__ */ React.createElement("div", { className: "equipped-unified" }, /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement(React.Fragment, null, draftImportOpen && /* @__PURE__ */ React.createElement(PersonaDraftImportDialog, { draftText, draftSections, draftInputMode, draftResult, draftSyncMax, draftSyncMaxLocked, draftAffiliationKey, draftAffiliationQuery, autoAffiliationKey: draftAutoAffiliationKey, affiliationOptions: draftAffiliationOptions, onChange: (value) => { setDraftText(value); setDraftResult(null); setDraftAffiliationKey(""); setDraftAffiliationQuery(""); }, onSectionsChange: (key, value) => { setDraftSections((current) => ({ ...current, [key]: value })); setDraftResult(null); setDraftAffiliationKey(""); setDraftAffiliationQuery(""); }, onInputModeChange: (modeValue) => { setDraftInputMode(modeValue); setDraftResult(null); setDraftAffiliationKey(""); setDraftAffiliationQuery(""); }, onAnalyze: analyzeDraft, onSyncMaxChange: setDraftSyncMax, onAffiliationChange: chooseDraftAffiliation, onAffiliationQueryChange: setDraftAffiliationQuery, onApply: applyDraft, onClose: () => { setDraftImportOpen(false); setDraftAffiliationKey(""); setDraftAffiliationQuery(""); } }), /* @__PURE__ */ React.createElement("div", { className: "codex-shell" }, /* @__PURE__ */ React.createElement("div", { className: "persona-workspace" }, equippedPersona && /* @__PURE__ */ React.createElement("div", { className: "equipped-unified" }, /* @__PURE__ */ React.createElement(
     EquippedSummary,
     {
       state,
@@ -1176,4 +1230,5 @@ const addRoster = (p) => {
 window.PersonaCodex = PersonaCodex;
 window.PersonaDetail = PersonaDetail;
 window.LBT_buildRosterDetailPersona = buildRosterDetailPersona;
+window.LBT_findCurrentRosterPersona = findCurrentRosterPersona;
 window.getPrimarySin = getPrimarySin;

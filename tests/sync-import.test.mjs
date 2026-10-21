@@ -148,3 +148,53 @@ test("同期化は1回しか課帳されない（重ねても二重に引かな�
   });
   assert.equal(next.entries.filter((e) => e.kind === "personaSync").length, 1, "1件だけ");
 });
+
+test("シナリオの同期・解析は、そのシナリオのリザルトへ帰属する", () => {
+  /* 取り込みの実経路（toDispatchActions → APPLY_IMPORT_BATCH）を通す。
+     以前は解決器を渡しておらず操作行が毎回捨てられ、さらに名前の取得に
+     未定義関数を使っていたため、実データでは一度も動いていなかった。 */
+  const w3 = load([
+    "js/ledger-provenance.js",
+    "js/roster-resolver.js",
+    "js/garasumado-roster-import.js",
+    "js/state.js"
+  ]);
+  const ego = db.egos.find((e) => e && e.name && e.rank && e.no != null);
+  assert.ok(ego, "解析に使える E.G.O がある");
+  const scenario = {
+    key: "scenario:0",
+    name: "同期と解析の夜",
+    memo: `同期「${PERSONA.name}」\n解析「${ego.name}」`,
+    income: { lp: 100, shards: 500 },
+    tickets: {},
+    pack: {},
+    spends: [],
+    wins: [
+      { raw: PERSONA.name, name: PERSONA.name, kinds: [{ kind: "persona", no: PERSONA.no, mode: "n" }], via: "" },
+      { raw: ego.name, name: ego.name, kinds: [{ kind: "ego", no: ego.no, rank: ego.rank }], via: "" }
+    ]
+  };
+  const index = w3.LBT_buildNameIndex(db, {});
+  const resolve = (name) => w3.LBT_resolveCandidates(index, name)?.[0] || null;
+  const { actions } = w3.LBT_garasumado.toDispatchActions({ groups: [], scenarios: [scenario] }, [], { resolve });
+
+  const rosterIndex = actions.findIndex((a) => a.type === "ADD_ROSTER");
+  const syncIndex = actions.findIndex((a) => a.type === "APPLY_PERSONA_SYNC");
+  const egoIndex = actions.findIndex((a) => a.type === "ADD_ROSTER_EGO");
+  const analyzeIndex = actions.findIndex((a) => a.type === "APPLY_EGO_ANALYZE");
+  assert.ok(rosterIndex >= 0 && syncIndex > rosterIndex, "人格を所持へ入れてから同期する");
+  assert.ok(egoIndex >= 0 && analyzeIndex > egoIndex, "E.G.O を所持へ入れてから解析する");
+  assert.equal(actions[syncIndex].personaName, PERSONA.name, "DB 名で uid を解決できる");
+  assert.equal(actions[analyzeIndex].egoName, ego.name);
+
+  const before = { roster: { personas: [], egos: [], supports: [], spirits: [] }, results: [], entries: [], inventory: [] };
+  const next = w3.appReducer(before, { type: "APPLY_IMPORT_BATCH", actions });
+  const resultId = next.results[0]?.id;
+  assert.equal(next.roster.personas[0]?.synced, true, "同期が立つ");
+  assert.equal(next.roster.egos[0]?.analyzed, true, "解析が立つ");
+  const sync = next.entries.find((e) => e.kind === "personaSync");
+  const analyze = next.entries.find((e) => e.kind === "egoAnalyze");
+  assert.ok(sync && analyze, "同期と解析の明細が立つ");
+  assert.equal(sync.resultId, resultId, "同期の費用がシナリオのリザルトへ付く");
+  assert.equal(analyze.resultId, resultId, "解析の費用がシナリオのリザルトへ付く");
+});

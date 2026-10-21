@@ -1249,6 +1249,28 @@ const EgoSection = ({ state, dispatch, ownedOnly: ownedOnlyProp = false }) => {
   const editable = !!state.egoManual && !!state.ui.egoDetailSlot && !!state.egoSlots[state.ui.egoDetailSlot];
   const detailSlot = state.ui.egoDetailSlot;
   const setDetailSlot = (v) => dispatch({ type: "SET_UI", ui: { egoDetailSlot: v } });
+  const toggleEgoManual = () => {
+    if (state.egoManual) {
+      dispatch({ type: "SAVE_EGO_BUILD", rank: detailSlot });
+      dispatch({ type: "SET_EGO_MANUAL", value: false });
+      toast("解析内容を保持したまま解析モードを終了しました");
+      return;
+    }
+    const slot = detailSlot ? state.egoSlots[detailSlot] : null;
+    if (!slot) return;
+    const owned = (state.roster?.egos || []).find((entry) => entry.rank === detailSlot && String(entry.no) === String(slot.no));
+    const wasAnalyzed = !!owned && (owned.analyzed === true || owned.analyzeMax === true);
+    const cost = wasAnalyzed ? null : window.LBT_operationCost?.("analyze", { rank: detailSlot, no: slot.no }, window.DB);
+    if (cost) {
+      const bal = window.LBT_computeLedgerBalance?.(state.results, state.entries);
+      if (bal && Number(bal.shards) < Number(cost.shards)) {
+        toast(`自我の欠片が足りません（必要 ${cost.shards} / 手持ち ${bal.shards}）`, "assertive");
+        return;
+      }
+    }
+    dispatch({ type: "SET_EGO_MANUAL", value: true });
+    toast("解析：E.G.Oの効果・ダイスをその場で確認・修正できます");
+  };
   const hasAnyEgo = Object.values(state.egoSlots || {}).some(Boolean);
   // 一覧は既定で展開。以前は「EGO を持っていれば畳む」= !hasAnyEgo にして
   // いたが、装備済みだと E.G.O 一覧が最初から隠れた状態になり、
@@ -1498,16 +1520,7 @@ const [ownedOnly, setOwnedOnly] = React.useState(false);
     }, "所持のみ")
     ),
       detailSlot && state.egoSlots[detailSlot] ? h("div", { className: "equipped-detail-wrap" }, h("div", { style: { display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", background: "var(--surface-2)", borderBottom: "1px solid var(--line-dim)" } }, h("span", { className: "badge", "data-rank": detailSlot }, detailSlot), h("span", { style: { fontFamily: "var(--f-display)", fontWeight: 600, color: "var(--tx)" } }, state.egoManual ? "装備中E.G.O / 解析" : "装備中E.G.O / 詳細"), h("div", { style: { flex: 1 } }),
-      h("button", { className: "btn btn-sm " + (state.egoManual ? "btn-primary" : "btn-ghost"), onClick: () => {
-        if (state.egoManual) {
-          dispatch({ type: "SAVE_EGO_BUILD", rank: detailSlot });
-          dispatch({ type: "SET_EGO_MANUAL", value: false });
-          toast("解析内容を保持したまま解析モードを終了しました");
-        } else {
-          dispatch({ type: "SET_EGO_MANUAL", value: true });
-          toast("解析：E.G.Oの効果・ダイスをその場で確認・修正できます");
-        }
-      }, title: state.egoManual ? "解析を終了（内容は保持）" : "解析を開始" }, h(Icon, { name: state.egoManual ? "check" : "edit", size: 12 }), state.egoManual ? " 解析を終了" : " 解析を開始"),
+      h("button", { className: "btn btn-sm " + (state.egoManual ? "btn-primary" : "btn-ghost"), onClick: toggleEgoManual, title: state.egoManual ? "解析を終了（内容は保持）" : "解析を開始" }, h(Icon, { name: state.egoManual ? "check" : "edit", size: 12 }), state.egoManual ? " 解析を終了" : " 解析を開始"),
       h("button", { className: "btn btn-sm btn-ghost", onClick: () => { dispatch({ type: "SET_EGO_MANUAL", value: false }); setDetailSlot(null); }, title: "閉じる" }, h(Icon, { name: "x", size: 12 }), " 閉じる")), h("div", { className: "equipped-detail-inner" }, editable ? null : h(EgoDetail, { ego: state.egoSlots[detailSlot], equipTo: detailSlot, currentSlot: detailSlot, onEquip: () => {}, onUnequip: () => { clearSlot(detailSlot); setDetailSlot(null); }, dispatch }), editable ? h(EquippedEgoEditor, { rank: detailSlot, ego: state.egoSlots[detailSlot], dispatch }) : null)) : null,
       hasAnyEgo && !listExpanded ? h("div", { className: "codex-collapsed-hint" }, h("span", { style: { color: "var(--tx-mute)", fontSize: "var(--fs-11)", letterSpacing: "0.14em", fontFamily: "var(--f-display)" } }, "◇ E.G.O 一覧は折り畳み中"), h("span", { style: { marginLeft: 12, fontSize: "var(--fs-10)", color: "var(--tx-dim)" } }, "未装備スロットをクリックすると、そのランクだけ絞り込んで展開されます。"), h("button", { className: "btn btn-sm", style: { marginLeft: "auto" }, onClick: () => { setListExpanded(true); setRankFilter(""); } }, "一覧を展開")) : null
     ),
@@ -1689,7 +1702,6 @@ const SpiritSection = ({ state, dispatch, ownedOnly = false }) => {
 };
 const EnhancementSection = ({ state, dispatch }) => {
   const h = React.createElement;
-  const setEnh = (list) => dispatch({ type: "SET_FIELD", field: "enhancements", value: list });
   const isUnsyncedOnly = window.LBT_isUnsyncedOnlyEnhancement || ((entry) => entry?.category === "persona");
   const isUnavailableDuringSync = (entry) => !!state.syncedManual && isUnsyncedOnly(entry);
   const activeEnhancements = window.LBT_getActiveEnhancements?.(state) || (state.enhancements || []).filter((entry) => !isUnavailableDuringSync(entry));
@@ -1702,10 +1714,17 @@ const EnhancementSection = ({ state, dispatch }) => {
       toast("既に追加済み");
       return;
     }
-    setEnh([...(state.enhancements || []), { ...entry, id: `enh-${Date.now()}` }]);
+    /* 強化は購入。SET_FIELD で所持だけ増やすと、DB 価格と明細が
+       通帳から抜け落ちる。追加・削除とも購入 reducer を通す。 */
+    const afford = window.LBT_purchaseAffordability?.(state, { lp: 0, shards: Number(entry.shards) || 0 });
+    if (afford && !afford.ok) {
+      toast(afford.reason, "assertive");
+      return;
+    }
+    dispatch({ type: "ADD_ENHANCEMENT", group: String(entry.group || ""), name: entry.name, effect: entry.effect || "", category: entry.category || "" });
     toast(`『${entry.name}』を追加`);
   };
-  const removeEnh = (id) => setEnh((state.enhancements || []).filter((entry) => entry.id !== id));
+  const removeEnh = (id) => dispatch({ type: "REMOVE_ENHANCEMENT", id });
   const [category, setCategory] = React.useState("special");
   React.useEffect(() => {
     if (state.syncedManual && category === "persona") setCategory("sync");
@@ -2788,26 +2807,32 @@ const RosterSection = ({ state, dispatch }) => {
     setDetailId((current) => current === item.id ? null : item.id);
   };
   const removeSelected = () => {
-    const target = rawItems.filter((item) => selected.has(item.id) && !item.equipped);
+    const target = rawItems.filter((item) => selected.has(item.id) && !item.equipped && item.entry?.uid);
     if (!target.length) { toast("削除できる項目を選択してください"); return; }
     const names = target.slice(0, 3).map((item) => item.name).join("、");
     const suffix = target.length > 3 ? `、ほか${target.length - 3}件` : "";
     const kindLabel = libraryTab === "personas" ? "人格" : libraryTab === "egos" ? "E.G.O" : libraryTab === "supports" ? "サポパ" : "精神";
     if (!confirm(`${kindLabel} ${target.length}件を所持ライブラリから削除しますか？\n${names}${suffix}\n装備中の項目は削除されません。`)) return;
-    /* サポートと精神は uid ではなく名前で所持している。 */
-    if (libraryTab === "supports" || libraryTab === "spirits") {
-      dispatch({ type: libraryTab === "supports" ? "REMOVE_ROSTER_SUPPORT" : "REMOVE_ROSTER_SPIRIT", name: target[0].name });
-    } else {
-      dispatch({ type: libraryTab === "personas" ? "REMOVE_ROSTER_BATCH" : "REMOVE_ROSTER_EGO_BATCH", uids: target.map((item) => item.id), deleteCustomConfirmed: true });
-    }
-    setUndo({ kind: libraryTab, items: target.map((item) => item.entry), expires: Date.now() + 10000 });
+    /* 所持レコードは uid で識別する（表示用の id は名前から作った合成キー）。
+       一括削除でも単体削除と同じく、対応する購入明細まで外す。 */
+    const uids = target.map((item) => item.entry.uid);
+    const refKind = {
+      personas: "rosterPersona", egos: "rosterEgo",
+      supports: "rosterSupport", spirits: "rosterSpirit"
+    }[libraryTab];
+    const uidSet = new Set(uids);
+    const removedEntries = (state.entries || []).filter((entry) => entry.ref?.kind === refKind && uidSet.has(entry.ref.uid));
+    if (libraryTab === "supports") dispatch({ type: "REMOVE_ROSTER_SUPPORT_BATCH", uids });
+    else if (libraryTab === "spirits") dispatch({ type: "REMOVE_ROSTER_SPIRIT_BATCH", uids });
+    else dispatch({ type: libraryTab === "personas" ? "REMOVE_ROSTER_BATCH" : "REMOVE_ROSTER_EGO_BATCH", uids, deleteCustomConfirmed: true });
+    setUndo({ kind: libraryTab, items: target.map((item) => item.entry), entries: removedEntries, expires: Date.now() + 10000 });
     clearSelection();
     setDetailId(null);
     toast(`${target.length}件をライブラリから削除しました。下の「元に戻す」で復元できます`);
   };
   const restore = () => {
     if (!undo) return;
-    dispatch({ type: "RESTORE_ROSTER_BATCH", kind: undo.kind, items: undo.items });
+    dispatch({ type: "RESTORE_ROSTER_BATCH", kind: undo.kind, items: undo.items, entries: undo.entries || [] });
     toast(`${undo.items.length}件をライブラリへ復元しました`);
     setUndo(null);
   };
@@ -2886,9 +2911,17 @@ const RosterSection = ({ state, dispatch }) => {
   const applySyncRank = (item, value) => {
     const wasSynced = Boolean(item.entry.syncRank) || item.entry.syncMax === true;
     const willBeSynced = Boolean(value) || item.entry.syncMax === true;
+    const cost = !wasSynced && willBeSynced ? syncCost(item.entry.uid, false) : null;
+    if (cost) {
+      const bal = window.LBT_computeLedgerBalance?.(state.results, state.entries);
+      if (bal && Number(bal.shards) < Number(cost.shards)) {
+        toast(`自我の欠片が足りません（必要 ${cost.shards} / 手持ち ${bal.shards}）`, "assertive");
+        return;
+      }
+    }
     dispatch({ type: "APPLY_PERSONA_SYNC", uid: item.entry.uid, syncRank: value });
     if (!willBeSynced && wasSynced) toast(`『${item.name}』の同期を解除しました`);
-    else if (value) toast(`『${item.name}』を同期${value}にしました（自我の欠片 50個）`);
+    else if (value) toast(`『${item.name}』を同期${value}にしました（自我の欠片 ${cost?.shards ?? 50}個）`);
   };
   const renderDetail = (item) => {
     const src = item.src || {};
@@ -3881,12 +3914,12 @@ const scanHeldPersonas = (text, resolved) => {
 const importHeldPersonas = () => {
     const targets = heldScan.found.filter((p) => !p.owned);
     if (!targets.length) return;
-    /* 種別ごとに所持追加の入口へ渡す。明細を立てるかどうかは
-       reducer 側に任せる（精神は装備扱いで明細は出ない）。 */
+    /* 種別ごとに所持追加の入口へ渡す。テキストから拾った既存の所持は
+       購入ではないので、購入フラグを明示して明細を立てない。 */
     for (const p of targets) {
       if (p.kind === "ego") dispatch({ type: "ADD_ROSTER_EGO", no: p.no, rank: p.rank });
-      else if (p.kind === "spirit") dispatch({ type: "ADD_ROSTER_SPIRIT", spirit: { name: p.name } });
-      else if (p.kind === "support") dispatch({ type: "ADD_ROSTER_SUPPORT", spp: { name: p.name } });
+      else if (p.kind === "spirit") dispatch({ type: "ADD_ROSTER_SPIRIT", spirit: { name: p.name }, purchase: false });
+      else if (p.kind === "support") dispatch({ type: "ADD_ROSTER_SUPPORT", spp: { name: p.name }, purchase: false });
       else dispatch({ type: "ADD_ROSTER", mode: p.mode, no: p.no });
     }
     /* 種別ごとに数えてから1文で伝える。名前を出す（DB番号は

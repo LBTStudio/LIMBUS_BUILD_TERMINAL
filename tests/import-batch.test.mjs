@@ -85,6 +85,17 @@ test("明示した resultId は上書きしない", () => {
   assert.equal(after.entries[0].resultId, "指定したID");
 });
 
+test("明示した未分類（null）は直近リザルトへ倒さない", () => {
+  const after = reducer(baseState(), {
+    type: "APPLY_IMPORT_BATCH",
+    actions: [
+      { type: "ADD_RESULT", name: "A", income: { lp: 10, shards: 0 } },
+      { type: "ADD_ENTRY", kind: "support", name: "剃刀", cost: { lp: 10 }, resultId: null }
+    ]
+  });
+  assert.equal(after.entries[0].resultId, null);
+});
+
 test("UNDO 1 回で全部戻る（1 回の reducer 呼び出しで全部入る）", () => {
   const before = baseState();
   const actions = [
@@ -129,8 +140,8 @@ test("所持の action は via のシナリオ名から正しいリザルトへ�
     type: "APPLY_IMPORT_BATCH",
     actions: [
       { type: "ADD_ROSTER_SUPPORT", spp: { name: sppName }, via: ["闇鍋"] },
-      { type: "ADD_RESULT", name: "闇鍋", income: { lp: 0, shards: 0 } },
-      { type: "ADD_RESULT", name: "別の夜", income: { lp: 0, shards: 0 } }
+      { type: "ADD_RESULT", name: "闇鍋", income: { lp: 100, shards: 0 } },
+      { type: "ADD_RESULT", name: "別の夜", income: { lp: 100, shards: 0 } }
     ]
   });
   const nakamiId = after.results[0].id;
@@ -145,8 +156,8 @@ test("via が同名複数のリザルトにまたがるなら勝手に決めな�
   const after = reducer(baseState(), {
     type: "APPLY_IMPORT_BATCH",
     actions: [
-      { type: "ADD_RESULT", name: "闇鍋", income: { lp: 0, shards: 0 } },
-      { type: "ADD_RESULT", name: "闇鍋", income: { lp: 0, shards: 0 } },
+      { type: "ADD_RESULT", name: "闇鍋", income: { lp: 100, shards: 0 } },
+      { type: "ADD_RESULT", name: "闇鍋", income: { lp: 100, shards: 0 } },
       { type: "ADD_ROSTER_SUPPORT", spp: { name: sppName }, via: ["闇鍋"] }
     ]
   });
@@ -159,7 +170,7 @@ test("via がバッチ内のリザルトに一致しなければ未分類（直�
   const after = reducer(baseState(), {
     type: "APPLY_IMPORT_BATCH",
     actions: [
-      { type: "ADD_RESULT", name: "夜A", income: { lp: 0, shards: 0 } },
+      { type: "ADD_RESULT", name: "夜A", income: { lp: 100, shards: 0 } },
       { type: "ADD_ROSTER_SUPPORT", spp: { name: sppName }, via: ["選択しなかった夜"] }
     ]
   });
@@ -171,7 +182,7 @@ test("シナリオの獲得一覧（via 無し）の所持は直前のリザル�
   const after = reducer(baseState(), {
     type: "APPLY_IMPORT_BATCH",
     actions: [
-      { type: "ADD_RESULT", name: "獲得上の夜", income: { lp: 0, shards: 0 } },
+      { type: "ADD_RESULT", name: "獲得上の夜", income: { lp: 0, shards: 1000 } },
       { type: "ADD_ROSTER_SPIRIT", spirit: { name: spiritName } }
     ]
   });

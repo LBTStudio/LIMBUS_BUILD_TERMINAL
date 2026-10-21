@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-2df2de41";
+const CACHE_NAME = "lbt-10aa13dd";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -32,8 +32,8 @@ const PRECACHE_URLS = [
   "assets/sections.css?v=fdd86e81",
   "assets/v52-overlay.css?v=785971b6",
   "assets/v53-overlay.css?v=1b57bfe6",
-  "assets/v56-refinements.css?v=3366e3be",
-  "assets/v65r29-draft-import.css?v=26fa07ac",
+  "assets/v56-refinements.css?v=6d8d1244",
+  "assets/v65r29-draft-import.css?v=ab5c4fe7",
   "assets/v65r43-ego-readability.css?v=563284f8",
   "assets/v65r44-ego-quick-detail.css?v=1bb6dfa1",
   "assets/v65r47-ego-card-marks.css?v=aaf12533",
@@ -46,9 +46,9 @@ const PRECACHE_URLS = [
   "js/App.js?v=69bf0a82",
   "js/DataQuality.js?v=a8365c72",
   "js/ItemCodex.js?v=f81cdb3e",
-  "js/LivePreview.js?v=911e0b56",
-  "js/OtherSections.js?v=e7c6de7d",
-  "js/PersonaCodex.js?v=cc11f563",
+  "js/LivePreview.js?v=1b6767e6",
+  "js/OtherSections.js?v=e9a27fb6",
+  "js/PersonaCodex.js?v=6d04bd19",
   "js/SkillDeck.js?v=0e7a3640",
   "js/accounts-ui.js?v=59b44784",
   "js/core.js?v=d79b98be",
@@ -57,9 +57,9 @@ const PRECACHE_URLS = [
   "js/gacha-proof.js?v=568ae912",
   "js/gacha-tickets.js?v=c67b2ac7",
   "js/gacha.js?v=7c84ae89",
-  "js/garasumado-import-ui.js?v=bc678543",
+  "js/garasumado-import-ui.js?v=5e7676dc",
   "js/garasumado-memo-parse.js?v=0240e20e",
-  "js/garasumado-roster-import.js?v=b8c2ff89",
+  "js/garasumado-roster-import.js?v=70630388",
   "js/generator.js?v=8cada6c2",
   "js/icon-cropper.js?v=20900dc8",
   "js/ledger-import-reconcile.js?v=d63c36d5",
@@ -71,7 +71,7 @@ const PRECACHE_URLS = [
   "js/roster-resolver.js?v=c778eb30",
   "js/share-link.js?v=cddbca97",
   "js/share-viewer.js?v=9521f675",
-  "js/state.js?v=86b8c29a",
+  "js/state.js?v=d5f589c4",
   "js/ui.js?v=8943eab8",
   "vendor/react-dom.min.js?v=35f4f974",
   "vendor/react.min.js?v=d949f1c3",

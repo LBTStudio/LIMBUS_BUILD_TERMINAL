@@ -431,6 +431,28 @@ test("草案の同期帰属先を選ぶと、既存人格のmode/noを維持し�
   assert.equal(restored.skills[0].name, "切断");
 });
 
+test("既存人格へ同期草案を取り込んでも既存の同期ランクとMAXを消さない（加算のみ）", () => {
+  const parse = loadParser();
+  const parsed = parse(labeledDraft);
+  const official = { no: 17, name: "既存の通常人格", hp: 100, san: 45, speed: "1d5", bullets: "×", skills: [], unique_buffs: [], keywords: [] };
+  const { reducer, initState } = loadStateReducer({ normal_personas: [official] });
+  const existing = {
+    ...initState,
+    roster: { personas: [{ uid: "official-17", mode: "n", no: 17, equipped: true, syncRank: "000", syncMax: true }], egos: [] }
+  };
+
+  const next = reducer(existing, { type: "IMPORT_PERSONA_DRAFT", persona: parsed.persona, secondaryPassive: parsed.secondaryPassive, syncRank: null, syncMax: false, affiliation: { mode: "n", no: 17 } });
+
+  assert.equal(next.roster.personas[0].syncRank, "000");
+  assert.equal(next.roster.personas[0].syncMax, true);
+  assert.equal((next.entries || []).length, (existing.entries || []).length);
+
+  const upgradeBase = { ...existing, roster: { personas: [{ uid: "official-17", mode: "n", no: 17, equipped: true, syncRank: "0", syncMax: false }], egos: [] } };
+  const upgraded = reducer(upgradeBase, { type: "IMPORT_PERSONA_DRAFT", persona: parsed.persona, secondaryPassive: parsed.secondaryPassive, syncRank: "000", syncMax: true, affiliation: { mode: "n", no: 17 } });
+  assert.equal(upgraded.roster.personas[0].syncRank, "000");
+  assert.equal(upgraded.roster.personas[0].syncMax, true);
+});
+
 test("人格名と戦術が空の部分入力を既存人格へ同期反映すると、未入力区分を維持して固有だけを更新する", () => {
   const context = { window: {}, console };
   context.globalThis = context;
@@ -472,6 +494,9 @@ test("人格図鑑は草案の解析・プレビュー・確認後の適用入�
   assert.match(source, /persona-draft-garasumado-url/);
   assert.match(source, /LBT_fetchGarasumadoPersona/);
   assert.match(source, /所有者・メモ・チャットパレット・強化一覧は移行しません/);
+  assert.match(source, /draftSyncMaxLocked/);
+  assert.match(source, /既に同期MAX/);
+  assert.match(source, /自我の欠片が足りないため同期は未設定/);
 });
 
 test("破損疑いマークはDB原典データのみに表示し、同期・カスタム人格には出さない", () => {

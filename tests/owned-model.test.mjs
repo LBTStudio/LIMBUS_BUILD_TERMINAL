@@ -138,6 +138,43 @@ test("所持から削除すると装備も外れる（取り残しを作らな�
   assert.equal(s.supports.length, 0, "装備投影も空になる");
 });
 
+test("サポパと精神の一括削除は uid で全件消し、購入明細も外す", () => {
+  const { reducer } = reducerOf();
+  let s = reducer(baseState(), { type: "ADD_ROSTER_SUPPORT", spp: { name: "出血促進" } });
+  s = reducer(s, { type: "ADD_ROSTER_SUPPORT", spp: { name: "消化" } });
+  s = reducer(s, { type: "ADD_ROSTER_SPIRIT", spirit: { name: "泉水" } });
+  assert.equal(s.entries.length, 3, "購入した3件に明細が立つ");
+
+  const supportUids = s.roster.supports.map((entry) => entry.uid);
+  s = reducer(s, { type: "REMOVE_ROSTER_SUPPORT_BATCH", uids: supportUids });
+  assert.equal(s.roster.supports.length, 0, "名前ではなく uid で全件消える");
+  assert.equal(s.entries.filter((entry) => entry.kind === "support").length, 0);
+
+  const spiritUid = s.roster.spirits[0].uid;
+  s = reducer(s, { type: "REMOVE_ROSTER_SPIRIT_BATCH", uids: [spiritUid] });
+  assert.equal(s.roster.spirits.length, 0);
+  assert.equal(s.entries.length, 0);
+});
+
+test("一括削除の undo は所持と購入明細を戻す（削除で残高を増やさない）", () => {
+  const { reducer, context } = reducerOf();
+  let s = reducer(baseState(), { type: "ADD_ROSTER_SUPPORT", spp: { name: "出血促進" } });
+  const support = s.roster.supports[0];
+  const entry = s.entries[0];
+  const before = context.window.LBT_computeLedgerBalance(s.results || [], s.entries);
+
+  s = reducer(s, { type: "REMOVE_ROSTER_SUPPORT_BATCH", uids: [support.uid] });
+  assert.equal(s.entries.length, 0);
+
+  s = reducer(s, { type: "RESTORE_ROSTER_BATCH", kind: "supports", items: [support], entries: [entry] });
+  assert.equal(s.roster.supports.length, 1, "サポパへ戻る（人格へ混ざらない）");
+  assert.equal(s.roster.personas.length, 0);
+  assert.equal(s.entries.length, 1, "購入明細も戻る");
+  assert.equal(s.entries[0].id, entry.id);
+  const after = context.window.LBT_computeLedgerBalance(s.results || [], s.entries);
+  assert.equal(after.lp, before.lp, "削除と復元で残高が動かない");
+});
+
 test("精神も所持を経由する。未所持なら写してから装備", () => {
   const { reducer } = reducerOf();
   const s = reducer(baseState(), { type: "APPLY_SPIRIT", spirit: { name: "泉水" } });

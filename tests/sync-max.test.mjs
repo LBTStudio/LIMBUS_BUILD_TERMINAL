@@ -168,17 +168,28 @@ test("同期MAX設定は同期ランクと並ぶ（駒整形と所持詳細の�
   const panel = personaCodex.slice(personaCodex.indexOf("const BaseInfoPanel = ("));
   assert.match(panel, /React\.createElement\(BaseSection, \{ state, dispatch \}\)/);
   assert.doesNotMatch(panel.slice(0, panel.indexOf("const PersonaCodex")), /ResRow|es-resistance|es-keywords|es-stat/);
-  assert.match(personaCodex, /className: `es-sync-max-control\$\{entry\.syncMax \? " is-on" : ""\}\$\{editable \? "" : " is-readonly"\}`/);
+  assert.match(personaCodex, /className: `es-sync-max-control\$\{entry\.syncMax \? " is-on" : ""\}`/);
   assert.match(personaCodex, /同期ランクとは別・名称と共有に \[MAX\] を反映/);
   assert.match(otherSections, /item\.type === "personas" && canModifySyncMax && h\("div", \{ className: "roster-sync-ops"/);
   assert.match(refinements, /\.es-sync-max-toggle input,[\s\S]*?accent-color: var\(--gold\)/);
   assert.match(refinements, /\.sync-max-detail-toggle input \{ width: 18px; height: 18px;/);
 });
 
+test("装備中の人格の同期MAXはリザルトへ記録される操作を通す", () => {
+  /* PATCH_ROSTER はフラグを立てるだけで明細を作らない。
+     同期MAXの費用を帳へ残すため、APPLY_PERSONA_SYNC へ寄せる。 */
+  assert.match(personaCodex, /dispatch\(\{ type: "APPLY_PERSONA_SYNC", uid: entry\.uid, syncMax: false \}\)/);
+  assert.match(personaCodex, /dispatch\(\{ type: "APPLY_PERSONA_SYNC", uid: entry\.uid, syncMax: true \}\)/);
+  assert.doesNotMatch(personaCodex, /dispatch\(\{ type: "PATCH_ROSTER", uid: entry\.uid, patch: \{ syncMax:/);
+});
+
 test("同期MAXは装備状態に依存せず、どの人格でも設定と解除ができる", () => {
-  assert.match(personaCodex, /const editable = Boolean\(state\.syncedManual \|\| isCustom && !isSavedCustom\);/);
-  assert.match(personaCodex, /editable && React\.createElement\("label", \{ className: "es-sync-max-toggle"/);
+  /* コード側のトグルは「手編集モード（syncedManual）」ではなく所持の有無だけで出す。
+     以前は DB 人格ではトグル自体が出ず、名前だけ [MAX] が残って解除できなかった。 */
+  assert.match(personaCodex, /const toggle = \(checked\) => \{/);
+  assert.match(personaCodex, /React\.createElement\("label", \{ className: "es-sync-max-toggle"/);
   assert.match(personaCodex, /entry\.syncMax && React\.createElement\("span", \{ className: "es-sync-max-badge"/);
+  assert.doesNotMatch(personaCodex, /is-readonly/);
   /* canEditPersonaState は「DB人格の HP/SAN を手編集できるか」の話で、保守操作とは
      無関係。これを条件にしていたせいで DB 人格は同期MAXを設定も解除もできなかった。
      装備中かどうかも関係なく、どの所持人格にも操作を出す。 */
@@ -188,5 +199,23 @@ test("同期MAXは装備状態に依存せず、どの人格でも設定と解�
   /* 解除の手段が同じ場所に縦に並ぶ。 */
   assert.match(otherSections, /item\.entry\.syncMax \? "同期MAXを解除する" : "同期MAXとして設定"/);
   assert.match(otherSections, /const applySyncRank = \(item, value\) => \{/);
-  assert.match(refinements, /\.equipped-summary \.es-sync-max-control\.is-readonly \{ grid-template-columns: minmax\(0, 1fr\); \}/);
+});
+
+test("装備中人格の同期MAXは現在の人格だけを見る", () => {
+  const context = { window: {}, console, React: { memo: (value) => value, createElement: () => null } };
+  context.globalThis = context;
+  vm.createContext(context);
+  vm.runInContext(personaCodex, context);
+  const find = context.window.LBT_findCurrentRosterPersona;
+  const state = {
+    personaMode: "n",
+    personaNo: 2,
+    roster: { personas: [
+      { uid: "maxed", mode: "n", no: 1, syncMax: true },
+      { uid: "current", mode: "n", no: 2, syncMax: false }
+    ] }
+  };
+  assert.equal(find(state).uid, "current");
+  assert.equal(find({ ...state, personaNo: 3 }), null);
+  assert.equal(find({ ...state, personaMode: "t" }), null);
 });

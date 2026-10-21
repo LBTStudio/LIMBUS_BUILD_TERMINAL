@@ -784,7 +784,13 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
     if (!manifest) return;
     const keys = Object.keys(picked).filter((k) => picked[k]);
     const purchases = purchasePlan;
-    const result = window.LBT_toDispatchActions?.(merged, keys, { purchases }) || { actions: [], skipped: [] };
+    /* 同期・解析の対象名を DB の人格/E.G.O へ引く。渡さないと
+       toDispatchActions は操作行を解決できず、費用の明細が立たない。 */
+    const index = window.LBT_buildNameIndex ? window.LBT_buildNameIndex(window.DB || {}, {}) : null;
+    const resolve = index && window.LBT_resolveCandidates
+      ? (name) => window.LBT_resolveCandidates(index, name)?.[0] || null
+      : () => null;
+    const result = window.LBT_toDispatchActions?.(merged, keys, { purchases, resolve }) || { actions: [], skipped: [] };
   /* manifest と選択キーは「記録へ帰属する明細」を作るために必要。
      既存の利用側（アカウント編集）は読まないので、壊さず足すだけで済む。 */
   const applied = { actions: result.actions, skipped: result.skipped, rosterActions: result.actions, manifest, keys };

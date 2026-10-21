@@ -1065,6 +1065,28 @@ test("取り込み: シナリオ1件ごとに ADD_RESULT が出て、ADD_ENTRY �
   assert.equal(built.actions[2].name, "第二夜");
 });
 
+test("取り込み: 精神も入手方法に応じて purchase を渡す（報酬・既払いを再課金しない）", () => {
+  const scenario = { key: "scenario:0", name: "第一夜", memo: "", group: "scenarios" };
+  const item = (source, spends) => ({
+    key: "spirit:0",
+    name: "泉水",
+    dbName: "泉水",
+    kinds: [{ kind: "spirit", name: "泉水" }],
+    source,
+    spends,
+    via: ["scenario:0"]
+  });
+  const build = (source, spends) => G.toDispatchActions({
+    groups: [{ id: "spirits", items: [item(source, spends)] }],
+    scenarios: [scenario]
+  }, ["spirit:0"], {});
+  const actionOf = (built) => built.actions.find((a) => a.type === "ADD_ROSTER_SPIRIT");
+
+  assert.equal(actionOf(build("given", [])).purchase, false, "配布は購入ではない");
+  assert.equal(actionOf(build("buy", [])).purchase, true, "購入は課帳する");
+  assert.equal(actionOf(build("buy", [{}])).purchase, false, "メモに購入が載っているなら二重計上しない");
+});
+
 /* --- 表記ゆれ耐性（実データの共有URLで観測した書き方をそのまま固定する） -- */
 
 test("1行2通貨・順序反転・前置きラベル・通貨先・全角をまとめて取る", () => {

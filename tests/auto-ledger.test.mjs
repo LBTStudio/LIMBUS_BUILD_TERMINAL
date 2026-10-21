@@ -105,6 +105,44 @@ test("精神は欠片で記録される", () => {
   assert.equal(s.entries[0].cost.shards, 100);
 });
 
+test("購入ではない精神・サポパの所持追加は明細を立てない", () => {
+  const spirit = reducer(baseState(), { type: "ADD_ROSTER_SPIRIT", spirit: { name: "泉水" }, purchase: false });
+  assert.equal(spirit.roster.spirits.length, 1, "所持には入る");
+  assert.equal(spirit.entries.length, 0, "報酬・取り込みで支出を作らない");
+
+  const support = reducer(baseState(), { type: "ADD_ROSTER_SUPPORT", spp: { name: "ルサンチマン" }, purchase: false });
+  assert.equal(support.roster.supports.length, 1, "所持には入る");
+  assert.equal(support.entries.length, 0, "報酬・取り込みで支出を作らない");
+});
+
+test("購入可否の判定は実際の請求額（DB価格）を使う", () => {
+  const death = context.window.LBT_purchaseCostOf(baseState(), { type: "ADD_ROSTER_SUPPORT", spp: { name: "覚悟" } });
+  assert.equal(death.lp, 0);
+  assert.equal(death.shards, 50, "死亡後サポパは欠片で判定する");
+  const spirit = context.window.LBT_purchaseCostOf(baseState(), { type: "ADD_ROSTER_SPIRIT", spirit: { name: "泉水" } });
+  assert.equal(spirit.lp, 0);
+  assert.equal(spirit.shards, 100, "精神はDB価格で判定する");
+  assert.equal(context.window.LBT_purchaseCostOf(baseState(), {
+    type: "ADD_ROSTER_SPIRIT", spirit: { name: "泉水" }, purchase: false
+  }), null, "非購入は残高を見ない");
+});
+
+test("PATCH_RESULT は収入を差し替えてもチケットを落とさない", () => {
+  const before = {
+    ...baseState(),
+    results: [{ id: "res-1", name: "第一夜", income: { lp: 100, shards: 0, tickets: { persona: 2, ego: 0, choice: 0, pack: {} } } }]
+  };
+  const s = reducer(before, {
+    type: "PATCH_RESULT",
+    id: "res-1",
+    patch: { income: { lp: 50, shards: 5, tickets: { persona: 3 } } }
+  });
+  assert.equal(s.results[0].income.lp, 50);
+  assert.equal(s.results[0].income.shards, 5);
+  assert.equal(s.results[0].income.tickets.persona, 3, "チケット収入が消えない");
+  assert.equal(s.results[0].income.tickets.ego, 0);
+});
+
 test("強化の購入は欠片の明細になる", () => {
   const s = reducer(baseState(), { type: "ADD_ENHANCEMENT", group: "肉体強化0", name: "肉体強化0-1", category: "persona" });
   assert.equal(s.entries.length, 1);
@@ -120,6 +158,22 @@ test("強化を外すと支出も戻る（残高を狂わせない）", () => {
   s = reducer(s, { type: "REMOVE_ENHANCEMENT", id });
   assert.equal(s.entries.length, 0, "明細も戻る");
   assert.equal(balance(s.results, s.entries).shards, 0, "残高は0へ戻る");
+});
+
+test("強化の購入は残高が足りなければ所持にも明細にも入らない", () => {
+  const before = { ...baseState(), results: [{ id: "res-1", income: { lp: 0, shards: 4 } }] };
+  const s = reducer(before, { type: "ADD_ENHANCEMENT", group: "肉体強化0", name: "肉体強化0-1", category: "persona" });
+  assert.equal(s.enhancements.length, 0, "所持は増えない");
+  assert.equal(s.entries.length, 0, "明細も増えない");
+});
+
+test("強化の購入は残高が足りれば通り、直近リザルトへ帰属する", () => {
+  const before = { ...baseState(), results: [{ id: "res-1", income: { lp: 0, shards: 5 } }] };
+  const s = reducer(before, { type: "ADD_ENHANCEMENT", group: "肉体強化0", name: "肉体強化0-1", category: "persona" });
+  assert.equal(s.enhancements.length, 1);
+  assert.equal(s.entries.length, 1);
+  assert.equal(s.entries[0].resultId, "res-1", "購入は直近リザルトに付く");
+  assert.equal(balance(s.results, s.entries).shards, 0);
 });
 
 test("所持から外したサポパは支出も戻る", () => {

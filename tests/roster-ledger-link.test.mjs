@@ -82,6 +82,34 @@ test("所持.passive と spirit も明示したリザルトへ帰属する（常
   assert.equal(withSpirit.entries[0].ref.uid, withSpirit.roster.spirits[0].uid);
 });
 
+test("resultId 未指定の所持追加は、所持レコードと明細が同じ直近リザルトを指す", () => {
+  const reducer = loadReducer();
+  const support = reducer(base(), { type: "ADD_ROSTER_SUPPORT", spp: { name: db.support_passives[0].name } });
+  assert.equal(support.roster.supports[0].resultId, "res-b");
+  assert.equal(support.entries[0].resultId, "res-b");
+
+  const spirit = reducer(base(), { type: "ADD_ROSTER_SPIRIT", spirit: { name: dbSpirit.name } });
+  assert.equal(spirit.roster.spirits[0].resultId, "res-b");
+  assert.equal(spirit.entries[0].resultId, "res-b");
+});
+
+test("購入でない所持は、明細が無いので未分類のまま（勝手に直近へ倒さない）", () => {
+  const reducer = loadReducer();
+  const support = reducer(base(), { type: "ADD_ROSTER_SUPPORT", spp: { name: db.support_passives[0].name }, purchase: false });
+  assert.equal(support.roster.supports[0].resultId, null);
+  const spirit = reducer(base(), { type: "ADD_ROSTER_SPIRIT", spirit: { name: dbSpirit.name }, purchase: false });
+  assert.equal(spirit.roster.spirits[0].resultId, null);
+});
+
+test("通帳の帰属を変えると、対応する所持レコードも同じリザルトへ動く", () => {
+  const reducer = loadReducer();
+  let s = reducer(base(), { type: "ADD_ROSTER_SUPPORT", spp: { name: db.support_passives[0].name } });
+  const entry = s.entries[0];
+  s = reducer(s, { type: "SET_ENTRY_RESULT", id: entry.id, resultId: "res-a" });
+  assert.equal(s.entries[0].resultId, "res-a");
+  assert.equal(s.roster.supports[0].resultId, "res-a", "片方だけ動かさない");
+});
+
 test("所持を外すと、その所持に対応する支出も同時に消える", () => {
   const reducer = loadReducer();
   let s = reducer(base(), { type: "ADD_ROSTER_EGO", no: String(dbEgo.no), rank: dbEgo.rank, purchase: true, resultId: "res-a" });
@@ -119,4 +147,28 @@ test("精神の試着（初期枠）は所持へは入るが購入明細は立�
   const seeded = reducer(viaInitial, { type: "APPLY_INITIAL_SPIRITS" });
   assert.equal(seeded.roster.spirits.length, 1);
   assert.equal(seeded.entries.length, 0, "初期枠は装備扱いで明細を立てない");
+});
+
+test("人格・E.G.O の一括削除も購入明細を外し、undo で所持と明細を戻す", () => {
+  const reducer = loadReducer();
+  let s = reducer(base(), { type: "ADD_ROSTER", mode: "n", no: 1, purchase: true, cost: { lp: 0, shards: 0 }, resultId: "res-a" });
+  const persona = s.roster.personas[0];
+  const personaEntry = s.entries[0];
+  s = reducer(s, { type: "REMOVE_ROSTER_BATCH", uids: [persona.uid] });
+  assert.equal(s.roster.personas.length, 0);
+  assert.equal(s.entries.length, 0, "単体削除と同じく明細も外す");
+  s = reducer(s, { type: "RESTORE_ROSTER_BATCH", kind: "personas", items: [persona], entries: [personaEntry] });
+  assert.equal(s.roster.personas.length, 1);
+  assert.equal(s.entries.length, 1);
+  assert.equal(s.entries[0].id, personaEntry.id);
+
+  let e = reducer(base(), { type: "ADD_ROSTER_EGO", no: String(dbEgo.no), rank: dbEgo.rank, purchase: true, resultId: "res-a" });
+  const ego = e.roster.egos[0];
+  const egoEntry = e.entries[0];
+  e = reducer(e, { type: "REMOVE_ROSTER_EGO_BATCH", uids: [ego.uid], deleteCustomConfirmed: true });
+  assert.equal(e.roster.egos.length, 0);
+  assert.equal(e.entries.length, 0);
+  e = reducer(e, { type: "RESTORE_ROSTER_BATCH", kind: "egos", items: [ego], entries: [egoEntry] });
+  assert.equal(e.roster.egos.length, 1);
+  assert.equal(e.entries.length, 1);
 });

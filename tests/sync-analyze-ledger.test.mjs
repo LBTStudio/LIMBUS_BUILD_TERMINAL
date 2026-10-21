@@ -52,15 +52,19 @@ test("解除は明細を立てない", () => {
   assert.equal(off.entries.length, 1, "解除では増えない");
 });
 
-test("解除しても既存明細は消えない（支払いは取り戻さない）", () => {
-  /* 既に同期済みの人格にMAXを重ねても、費用はagain 掛からない（往復で二重に引かない）。 */
+test("同期済みの人格を同期MAXにすると追加で50欠片を請求する", () => {
+  /* 同期MAXは同期ランクとは別の操作。同期済みでもMAX化には50欠片かかる
+     （supplement P23「同期化を行った時と同じ個数」）。 */
   const synced = reducer(base, { type: "APPLY_PERSONA_SYNC", uid: "pr-1", syncRank: "0" });
   const maxed = reducer(synced, { type: "APPLY_PERSONA_SYNC", uid: "pr-1", syncMax: true });
-  assert.equal(maxed.entries.length, 1, "同期済みへのMAX重ねは課金しない");
+  assert.equal(maxed.entries.length, 2, "同期50 + MAX50");
+  assert.equal(maxed.entries[1].kind, "personaSyncMax");
+  assert.equal(maxed.entries[1].cost.shards, 50);
+  assert.equal(maxed.entries[1].resultId, "res-1", "直近リザルトに帰属する");
   const off = reducer(maxed, { type: "APPLY_PERSONA_SYNC", uid: "pr-1", syncRank: null, syncMax: false });
   assert.equal(off.roster.personas[0].syncMax, false, "フラグは解除される");
   assert.equal(off.roster.personas[0].syncRank, null);
-  assert.equal(off.entries.length, 1, "既に払った明細は残る（返金はしない）");
+  assert.equal(off.entries.length, 2, "既に払った明細は残る（返金はしない）");
 });
 
 test("同期ランク解除（null）も費用は掛からない", () => {
@@ -80,6 +84,22 @@ test("トグルを往復しても一章も増えない（50個だけ）", () => 
   const total = s.entries.reduce((n, e) => n + e.cost.shards, 0);
   assert.equal(total, 100);
 });
+test("草案を同期MAXとして作成すると、直近リザルトへ50欠片の明細を立てる", () => {
+  const draft = {
+    __custom: true,
+    name: "検証人格",
+    hp: 100, san: 45, speed: "1d5", bullets: "×",
+    res_slash: "普通", res_pierce: "普通", res_blunt: "普通",
+    passive_name: "", passive_cond: "", passive_always: "", passive_effect: "",
+    skills: [], unique_buffs: [], keywords: []
+  };
+  const next = reducer(base, { type: "IMPORT_PERSONA_DRAFT", persona: draft, syncRank: null, syncMax: true });
+  const entry = next.entries.find((e) => e.kind === "personaSyncMax");
+  assert.ok(entry, "同期MAXの明細ができる");
+  assert.equal(entry.cost.shards, 50);
+  assert.equal(entry.resultId, "res-1", "直近リザルトに帰属する");
+});
+
 test("解析は危険度ランクの欠片を引く", () => {
   const before = shardsOf(base);
   const next = reducer(base, { type: "APPLY_EGO_ANALYZE", uid: "er-1" });
@@ -93,6 +113,25 @@ test("解析MAXは解析と同額", () => {
   const next = reducer(base, { type: "APPLY_EGO_ANALYZE", uid: "er-1", analyzeMax: true });
   assert.equal(next.entries[0].kind, "egoAnalyzeMax");
   assert.equal(next.entries[0].cost.shards, 60);
+});
+
+test("解析済みE.G.Oを解析MAXにすると追加でランク料金を請求する", () => {
+  const analyzed = reducer(base, { type: "APPLY_EGO_ANALYZE", uid: "er-1" });
+  const maxed = reducer(analyzed, { type: "APPLY_EGO_ANALYZE", uid: "er-1", analyzeMax: true });
+  assert.equal(maxed.entries.length, 2, "解析60 + MAX60");
+  assert.equal(maxed.entries[1].kind, "egoAnalyzeMax");
+  assert.equal(maxed.entries[1].cost.shards, 60);
+  assert.equal(maxed.roster.egos[0].analyzeMax, true);
+});
+
+test("解析MAXを解除しても返金せず、再設定で新たに請求する", () => {
+  const analyzed = reducer(base, { type: "APPLY_EGO_ANALYZE", uid: "er-1" });
+  const maxed = reducer(analyzed, { type: "APPLY_EGO_ANALYZE", uid: "er-1", analyzeMax: true });
+  const off = reducer(maxed, { type: "APPLY_EGO_ANALYZE", uid: "er-1", analyzeMax: false });
+  assert.equal(off.roster.egos[0].analyzeMax, false);
+  assert.equal(off.entries.length, 2, "解除で増えない");
+  const again = reducer(off, { type: "APPLY_EGO_ANALYZE", uid: "er-1", analyzeMax: true });
+  assert.equal(again.entries.length, 3, "再設定で新たに請求");
 });
 
 test("既存アカウントのフラグ付き項目を遡って記録できる", () => {
@@ -130,6 +169,19 @@ test("解析済みE.G.Oのビルド保存では二重に引かない", () => {
   const withSlot = { ...analyzed, egoSlots: { HE: { no: 1, build: {} } } };
   const resaved = reducer(withSlot, { type: "SAVE_EGO_BUILD", rank: "HE" });
   assert.equal(resaved.entries.length, analyzed.entries.length, "保存し直しても明細は増えない");
+});
+
+test("解析費用を払えないビルド保存は、編集内容を残して解析フラグを立てない", () => {
+  const poor = {
+    ...base,
+    results: [{ id: "res-1", name: "第一夜", income: { lp: 0, shards: 0 } }],
+    egoSlots: { HE: { no: 1, rank: "HE", name: "欲望の終着点", build: {} } }
+  };
+  const next = reducer(poor, { type: "SAVE_EGO_BUILD", rank: "HE" });
+  const entry = next.roster.egos.find((e) => e.rank === "HE" && e.no === 1);
+  assert.ok(entry?.build, "編集内容は保存される");
+  assert.equal(entry.analyzed, false, "支払えない解析は確定しない");
+  assert.equal(next.entries.length, 0, "明細も立てない");
 });
 
 /* 未所持E.G.Oの装備を所持確定にしてはいけない（specified purchase を飛ばさせるため）。

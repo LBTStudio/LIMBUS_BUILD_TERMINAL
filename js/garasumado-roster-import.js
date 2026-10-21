@@ -670,7 +670,12 @@ function toIdentityChoices(hits) {
                賭博師を精神の章に書いた文書が support 軒の DB行を持つ
                ため、捨てると所持が消える。 */
             if (spirit) {
-              actions.push({ type: "ADD_ROSTER_SPIRIT", spirit: { name: spirit.name || item.dbName || item.name }, via });
+              actions.push({
+                type: "ADD_ROSTER_SPIRIT",
+                spirit: { name: spirit.name || item.dbName || item.name },
+                via,
+                purchase: item.source === "buy" && !memoPaid(item)
+              });
               continue;
             }
             skipped.push({ key: item.key, reason: "DB番号が引けない" });
@@ -701,7 +706,12 @@ function toIdentityChoices(hits) {
             skipped.push({ key: item.key, reason: "DB番号が引けない" });
             continue;
           }
-          actions.push({ type: "ADD_ROSTER_SPIRIT", spirit: { name: spirit.name || item.dbName || item.name }, via });
+          actions.push({
+            type: "ADD_ROSTER_SPIRIT",
+            spirit: { name: spirit.name || item.dbName || item.name },
+            via,
+            purchase: item.source === "buy" && !memoPaid(item)
+          });
         } else if (group.id === "items") {
           /* 所持アイテム。支出はメモ（リザルトの支出行）が持つので、取得だけを
              足す。ADD_ITEM は購入として DB 価格を課すため、ここで使うと
@@ -770,28 +780,6 @@ function toIdentityChoices(hits) {
         }
       });
 
-      /* 同期化・解析は人格の獲得とは別の費用記録として計上する（supplement P7/P23）。
-         操作キーワードで種別が決まる（同期→人格、解析→E.G.O）。名前で対象を引き、
-         引けなかったものは勝手に当てない。uid は APPLY_IMPORT_BATCH が解決する。 */
-      const opLines = String(scenario.memo || "").split(/[\n\r]/).map((t) => t.trim()).filter(Boolean);
-      for (const op of (window.LBT_annotateOperations || (() => []))(opLines, opts.db || window.DB || {})) {
-        if (!op.hasTarget || !op.target) continue;
-        const hit = (opts.resolve || (() => null))(op.target);
-        if (!hit) continue;
-        const isAnalyze = op.operation === "analyze";
-        const isMax = /MAX/.test(op.line);
-        const target = op.operation === "analyze"
-          ? (isMax ? "analyzeMax" : "analyze")
-          : (isMax ? "syncMax" : "sync");
-        const persona = (hit.kinds || []).find((k) => k.kind === "persona");
-        const ego = (hit.kinds || []).find((k) => k.kind === "ego");
-        if (isAnalyze && ego) {
-          actions.push({ type: "APPLY_EGO_ANALYZE", egoName: egoNameOf(ego), analyzeMax: isMax, resultId: null });
-        } else if (persona) {
-          actions.push({ type: "APPLY_PERSONA_SYNC", personaName: personaNameOf(persona), syncMax: isMax, synced: true, resultId: null });
-        }
-      }
-
       /* シナリオで直接払い出された人格/E.G.O。所持へ足す。
          チケット由来なら「どのチケット由来か」を使って
          消費記録を 1 件残し、直近のリザルトに帰属させる。
@@ -825,6 +813,27 @@ function toIdentityChoices(hits) {
             name: `${win.via}で獲得：${win.raw}`.slice(0, 120),
             cost: { lp: 0, shards: 0 }
           });
+        }
+      }
+
+      /* 同期化・解析は人格の獲得とは別の費用記録として計上する（supplement P7/P23）。
+         操作キーワードで種別が決まる（同期→人格、解析→E.G.O）。名前で対象を引き、
+         引けなかったものは勝手に当てない。uid は APPLY_IMPORT_BATCH が解決する。
+         獲得（wins）の後に置くのは、このシナリオで新しく所持へ入る人格/E.G.O も
+         同期・解析の対象にできるようにするため（所持一覧に無い獲得を先に反映する）。 */
+      const opLines = String(scenario.memo || "").split(/[\n\r]/).map((t) => t.trim()).filter(Boolean);
+      for (const op of (window.LBT_annotateOperations || (() => []))(opLines, opts.db || window.DB || {})) {
+        if (!op.hasTarget || !op.target) continue;
+        const hit = (opts.resolve || (() => null))(op.target);
+        if (!hit) continue;
+        const isAnalyze = op.operation === "analyze";
+        const isMax = /MAX/.test(op.line);
+        const persona = (hit.kinds || []).find((k) => k.kind === "persona");
+        const ego = (hit.kinds || []).find((k) => k.kind === "ego");
+        if (isAnalyze && ego) {
+          actions.push({ type: "APPLY_EGO_ANALYZE", egoName: hit.name, analyzeMax: isMax });
+        } else if (persona) {
+          actions.push({ type: "APPLY_PERSONA_SYNC", personaName: hit.name, syncMax: isMax, synced: true });
         }
       }
 

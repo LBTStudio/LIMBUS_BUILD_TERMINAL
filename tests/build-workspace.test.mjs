@@ -260,6 +260,25 @@ test("build のサポートとE.G.Oの既定表示（サポートはゲート、
   assert.match(sections, /const spiritSource = React\.useMemo\(\(\) => \{[\s\S]*?if \(!gated\) return DB\.spirits;/);
 });
 
+test("強化は所持の直接編集ではなく購入・返却のreducerを通す", () => {
+  const panel = sections.slice(sections.indexOf("const EnhancementSection ="), sections.indexOf("/* 人格・スキル・パッシブ・強化"));
+  assert.match(panel, /dispatch\(\{ type: "ADD_ENHANCEMENT", group: String\(entry\.group \|\| ""\), name: entry\.name/);
+  assert.match(panel, /const removeEnh = \(id\) => dispatch\(\{ type: "REMOVE_ENHANCEMENT", id \}\);/);
+  assert.doesNotMatch(panel, /SET_FIELD", field: "enhancements"/);
+  /* 残高不足のまま所持だけ増やさない。 */
+  assert.match(panel, /LBT_purchaseAffordability/);
+});
+
+test("同期ランクとE.G.O解析は欠片残高を確認してから実行する", () => {
+  const sync = sections.slice(sections.indexOf("const applySyncRank ="), sections.indexOf("const renderDetail ="));
+  assert.match(sync, /LBT_computeLedgerBalance/);
+  assert.match(sync, /自我の欠片が足りません/);
+  const ego = sections.slice(sections.indexOf("const toggleEgoManual ="), sections.indexOf("const hasAnyEgo ="));
+  assert.match(ego, /LBT_operationCost\?\.\("analyze"/);
+  assert.match(ego, /LBT_computeLedgerBalance/);
+  assert.match(ego, /自我の欠片が足りません/);
+});
+
 test("ビルドのアイテムタブは持っていく個数と出力先を選べる", () => {
   const panel = sections.slice(sections.indexOf("const BuildItemsPanel ="), sections.indexOf("/* ショップ。所持の唯一の取得口。"));
   assert.match(panel, /const BuildItemsPanel = \(\{ state, dispatch \}\) => \{/);
@@ -374,9 +393,9 @@ test("所持ライブラリはサポパ/精神も自分の中身を出す（EGO�
   assert.match(sections, /: libraryTab === "supports" \? \(roster\.supports \|\| \[\]\)\.map/);
   assert.match(sections, /: libraryTab === "spirits" \? \(roster\.spirits \|\| \[\]\)\.map/);
   assert.match(sections, /: \[\];\s*$/m);
-  /* 削除も名前ベースの種別に対応する。 */
-  assert.match(sections, /libraryTab === "supports" \|\| libraryTab === "spirits"/);
-  assert.match(sections, /libraryTab === "supports" \? "REMOVE_ROSTER_SUPPORT" : "REMOVE_ROSTER_SPIRIT"/);
+  /* 削除も uid ベースの種別に対応する（表示 id の名前ではなく所持の uid）。 */
+  assert.match(sections, /REMOVE_ROSTER_SUPPORT_BATCH/);
+  assert.match(sections, /REMOVE_ROSTER_SPIRIT_BATCH/);
   assert.match(sections, /const label = libraryTabLabel\(libraryTab\);/);
 });
 
@@ -611,9 +630,10 @@ test("硝子窓の取り込み画面は既存の利用側を壊さず足し物�
   /* 確定がコンバート確定。押した瞬間に確定し、結果を見せる（自動で閉じない）。 */
   assert.match(ui, /onApply\?\.\(applied\);/);
   /* 購入明細は「どのシナリオの支出か」を保ったまま渡す。 */
-  assert.match(ui, /const result = window\.LBT_toDispatchActions\?\.\(merged, keys, \{ purchases \}\)/);
-  /* 購入明細は「どのシナリオの支出か」を保ったまま渡す。 */
-  assert.match(ui, /const result = window\.LBT_toDispatchActions\?\.\(merged, keys, \{ purchases \}\)/);
+  assert.match(ui, /const result = window\.LBT_toDispatchActions\?\.\(merged, keys, \{ purchases, resolve \}\)/);
+  /* 同期・解析の対象名を DB へ引く解決器も渡す（渡さないと操作行が捨てられる）。 */
+  assert.match(ui, /LBT_buildNameIndex/);
+  assert.match(ui, /LBT_resolveCandidates\(index, name\)/);
 });
 
 test("貼り付け取り込みは人格・精神・E.G.O・サポートを区別して扱う", () => {
@@ -624,10 +644,11 @@ test("貼り付け取り込みは人格・精神・E.G.O・サポートを区別
   assert.match(sections, /\[window\.DB\?\.spirits \|\| \[\], "spirit"\],/);
   assert.match(sections, /\[window\.DB\?\.support_passives \|\| \[\], "support"\],/);
   assert.match(sections, /\[window\.DB\?\.death_passives \|\| \[\], "support"\]\s*\];/);
-  /* 種別ごとに所持追加の入口へ渡す。明細を立てるかは reducer に任せる。 */
+  /* 種別ごとに所持追加の入口へ渡す。テキストから拾った既存の所持は
+     購入ではないので、購入フラグを明示して明細を立てない。 */
   assert.match(sections, /if \(p\.kind === "ego"\) dispatch\(\{ type: "ADD_ROSTER_EGO", no: p\.no, rank: p\.rank \}\);/);
-  assert.match(sections, /else if \(p\.kind === "spirit"\) dispatch\(\{ type: "ADD_ROSTER_SPIRIT", spirit: \{ name: p\.name \} \}\);/);
-  assert.match(sections, /else if \(p\.kind === "support"\) dispatch\(\{ type: "ADD_ROSTER_SUPPORT", spp: \{ name: p\.name \} \}\);/);
+  assert.match(sections, /else if \(p\.kind === "spirit"\) dispatch\(\{ type: "ADD_ROSTER_SPIRIT", spirit: \{ name: p\.name \}, purchase: false \}\);/);
+  assert.match(sections, /else if \(p\.kind === "support"\) dispatch\(\{ type: "ADD_ROSTER_SUPPORT", spp: \{ name: p\.name \}, purchase: false \}\);/);
   assert.match(sections, /else dispatch\(\{ type: "ADD_ROSTER", mode: p\.mode, no: p\.no \}\);/);
   /* 所持済み判定も種別ごとに持つ（E.G.O は rank で同一性を決める）。 */
   assert.match(sections, /ego: new Set\(\(state\.roster\?\.egos \|\| \[\]\)\.map\(\(e\) => `\$\{e\.rank\}:\$\{e\.no\}`\)\),/);
@@ -640,6 +661,13 @@ test("貼り付け取り込みは人格・精神・E.G.O・サポートを区別
   /* 種別が1つなら内訳は冗長。不要な分岐と未使用の集計を置かない。 */
   assert.doesNotMatch(sections, /toast\(HELD_KIND_LABEL\[targets\[0\]\.kind\] \?/);
   assert.doesNotMatch(sections, /const byKind = targets\.reduce\(\(acc, p\) => \(\{ \.\.\.acc/);
+});
+
+test("ライブラリの一括削除はサポパ・精神も uid で消し、undo に明細を渡す", () => {
+  assert.match(sections, /REMOVE_ROSTER_SUPPORT_BATCH/);
+  assert.match(sections, /REMOVE_ROSTER_SPIRIT_BATCH/);
+  assert.match(sections, /entries: removedEntries/);
+  assert.doesNotMatch(sections, /type: libraryTab === "supports" \? "REMOVE_ROSTER_SUPPORT" : "REMOVE_ROSTER_SPIRIT", name:/);
 });
 
 test("判定できなかった名前は候補から選べて補完する（完全一致で待たない）", () => {

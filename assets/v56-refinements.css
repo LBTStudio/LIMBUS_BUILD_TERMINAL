@@ -1634,7 +1634,6 @@ details > summary {
 .es-sync-max-toggle { grid-column: 1 / -1; }
 .es-sync-max-toggle input,
 .sync-max-detail-toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--gold); flex: 0 0 auto; cursor: pointer; }
-.equipped-summary .es-sync-max-control.is-readonly { grid-template-columns: minmax(0, 1fr); }
 .es-sync-max-badge,
 .sync-max-detail-badge { padding: 1px 6px; border: 1px solid var(--gold-line); border-radius: var(--r-sm); color: var(--gold); font: 700 var(--fs-10) var(--f-mono); letter-spacing: .06em; }
 .es-sync-max-note { grid-column: 1 / -1; color: var(--tx-dim); font-size: var(--fs-10); line-height: 1.4; }
