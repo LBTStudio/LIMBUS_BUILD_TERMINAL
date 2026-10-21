@@ -58,6 +58,18 @@ test("?v= は全参照がファイル内容ハッシュと同期している", (
   assert.match(out, /同期しています/);
 });
 
+
+test("Service Worker はCSS内のローカルフォントをスタイルシート相対のURLで事前キャッシュする", () => {
+  const css = readFileSync(resolve(ROOT, "assets/design-system.css"), "utf8");
+  const sw = readFileSync(resolve(ROOT, "sw.js"), "utf8");
+  const fonts = [...css.matchAll(/url\(['"]?([^'")]+\.woff2\?v=[0-9a-f]{8})['"]?\)/g)].map((m) => m[1]);
+  assert.ok(fonts.length >= 1, "design-system.css がローカルフォントを参照する");
+  for (const asset of fonts) {
+    assert.ok(sw.includes(`"assets/${asset}"`), `Service Worker は assets/${asset} を事前キャッシュする`);
+    assert.ok(!sw.includes(`"${asset}"`), `誤ったルート相対の ${asset} はキャッシュしない`);
+  }
+});
+
 test("参照されるアセットは実在し、旧来の手動版（65r69 など）は残っていない", () => {
   const seen = new Set();
   let refs = 0;
