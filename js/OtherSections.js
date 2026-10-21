@@ -737,13 +737,9 @@ const EGO_VARIANT_OPTIONS = [
 ];
 const EGO_VARIANT_LABEL = { skill: "通常", assimilation: "同化", influence: "影響" };
 const EGO_VARIANT_KIND = { skill: "スキル", assimilation: "同化", influence: "影響" };
-const getInfluenceRounds = (effect) => (String(effect || "").match(/\[\s*影響\s*\]\s*(\d+R)?/) || [])[1] || "";
-const stripInfluenceHeader = (effect) => String(effect || "").replace(/^\s*\[\s*影響\s*\]\s*(\d+R)?\s*[:：]?\s*/, "").trim();
-const makeInfluenceEffect = (rounds, effect) => {
-  const label = `[影響]${rounds ? ` ${rounds}` : ""}`;
-  const body = stripInfluenceHeader(effect);
-  return body ? `${label}：${body}` : label;
-};
+const getInfluenceRounds = (effect) => window.LBT_EGO_INFLUENCE_TEXT?.getRounds(effect) || "";
+const stripInfluenceHeader = (effect) => window.LBT_EGO_INFLUENCE_TEXT?.stripHeader(effect) ?? String(effect || "");
+const makeInfluenceEffect = (rounds, effect) => window.LBT_EGO_INFLUENCE_TEXT?.makeEffect(rounds, effect) ?? String(effect || "");
 const getEgoVariantModel = (slot, slotKey) => {
   const normalized = window.LBT_normalizeEgoSlotVariants ? window.LBT_normalizeEgoSlotVariants(slot || {}) : (slot || {});
   const model = normalized.slotVariants?.[slotKey] || { active: "skill", branches: { skill: normalized[slotKey] || {}, assimilation: { skills: [] }, influence: {} } };
@@ -753,7 +749,13 @@ const getEgoVariantModel = (slot, slotKey) => {
     branches: {
       skill: ensureSkillShape({ ...(model.branches?.skill || {}), kind: "スキル" }),
       assimilation: { skills: (model.branches?.assimilation?.skills || []).map((s, i) => ensureSkillShape({ ...s, id: s.id || `${slotKey}-assim-${i}`, kind: "同化", originSlot: slotKey })) },
-      influence: ensureSkillShape({ ...(model.branches?.influence || {}), kind: "影響" })
+      influence: (() => {
+        const influence = model.branches?.influence || {};
+        return {
+          ...ensureSkillShape({ ...influence, kind: "影響" }),
+          rounds: String(influence.rounds ?? getInfluenceRounds(influence.effect))
+        };
+      })()
     }
   };
 };
@@ -957,11 +959,11 @@ const EgoSlotVariantEditor = ({ slotKey, label, model, onCommit }) => {
   };
 
   const renderInfluence = () => {
-    const rounds = getInfluenceRounds(branch.effect);
+    const rounds = String(branch.rounds ?? getInfluenceRounds(branch.effect));
     return React.createElement(Card, { title: `${label}E.G.Oスキル [影響]`, sub: "R進行効果（攻撃属性・罪悪・ダイスは使用しない）", compact: true, className: "ego-editor-detail ego-influence-editor" },
       React.createElement("div", { className: "stack-3" },
         React.createElement("div", { className: "ego-influence-note" }, "影響はこのスロットを置き換えるラウンド進行効果です。属性・罪悪・広域・ダイスを入力しません。"),
-        React.createElement(Field, { label: "継続ラウンド（任意）" }, React.createElement("input", { className: "input", value: rounds, onChange: (e) => patchSkill({ effect: makeInfluenceEffect(e.target.value.trim(), branch.effect) }), placeholder: "例：2R", inputMode: "text" })),
+        React.createElement(Field, { label: "継続ラウンド（任意）" }, React.createElement("input", { className: "input", value: rounds, onChange: (e) => patchSkill({ rounds: e.target.value, effect: makeInfluenceEffect(e.target.value, branch.effect) }), placeholder: "例：2R", inputMode: "text", "aria-label": "影響の継続ラウンド" })),
         React.createElement(Field, { label: "ラウンド効果" }, React.createElement(AutoTextarea, { className: "textarea", minRows: 4, value: stripInfluenceHeader(branch.effect), onChange: (e) => patchSkill({ effect: makeInfluenceEffect(rounds, e.target.value) }), placeholder: "例：1R：… 2R：… 3R：…" })),
         React.createElement("div", { className: "ego-influence-preview", style: { whiteSpace: "pre-wrap" } }, window.formatEffectLines ? window.formatEffectLines(branch.effect) : branch.effect)
       )
@@ -2930,6 +2932,8 @@ const RosterSection = ({ state, dispatch }) => {
        これを条件にしていたせいで、DB 人格の同期MAXは設定も解除もできなかった。 */
     const canModifySyncMax = item.type === "personas";
     const hasSync = Boolean(item.entry.syncRank) || item.entry.syncMax === true;
+    const syncRankCost = canModifySyncMax ? syncCost(item.entry.uid, false) : null;
+    const syncMaxCost = canModifySyncMax ? syncCost(item.entry.uid, true) : null;
     const summarizeEgoSkill = (skill) => {
       if (!skill) return "未設定";
       const type = [skill.attr, skill.sin].filter(Boolean).join("・");
@@ -2951,7 +2955,8 @@ const RosterSection = ({ state, dispatch }) => {
       h("div", { className: "roster-detail-head" }, h("div", null, h("span", { className: "t-label" }, item.type === "personas" ? "PERSONA DETAIL / 簡易詳細" : "E.G.O DETAIL / 簡易詳細"), h("div", { className: "roster-detail-title" }, item.name)), h("button", { className: "btn btn--quiet btn-icon", onClick: () => setDetailId(null), title: "詳細を閉じる", "aria-label": "詳細を閉じる" }, h(Icon, { name: "x", size: 15 }))),
       h("div", { className: "roster-detail-lines" }, summary.map((line, index) => h("div", { key: index }, line))),
       item.type === "personas" && canModifySyncMax && h("div", { className: "roster-sync-ops" },
-        h("div", { className: "roster-sync-ops-head" }, h("span", { className: "t-label" }, "同期化・同期MAX（supplement P7 / P23）")),
+        h("div", { className: "roster-sync-ops-head" }, h("span", { className: "t-label" }, "同期ランク・同期MAX（supplement P7 / P23）")),
+        h("p", { className: "roster-sync-cost-note" }, `未同期からの同期ランク設定：自我の欠片 ${syncRankCost?.shards ?? 50}個。同期MAXの設定：自我の欠片 ${syncMaxCost?.shards ?? 50}個。同期ランクの変更は追加費用なし。解除しても使用済みの欠片は返還されません。`),
         h("div", { className: "roster-sync-rank-row" },
           h("span", { className: "ledger-note" }, "人格ランク"),
           h("div", { className: "segmented", role: "radiogroup", "aria-label": "同期人格ランク" },
