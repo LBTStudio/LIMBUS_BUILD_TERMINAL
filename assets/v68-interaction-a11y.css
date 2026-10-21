@@ -187,4 +187,20 @@
       min-block-size: 40px;
     }
   }
+
+  /* Unique-status descriptions are source data, not preview snippets.
+     The former two-line clamp hid effect conditions and exceptions, making
+     the build card unreliable for quick verification. Keep the card grid,
+     but let the text occupy its natural height and preserve source newlines. */
+  .ubc-desc {
+    display: block;
+    overflow: visible;
+    max-block-size: none;
+    -webkit-box-orient: initial;
+    -webkit-line-clamp: unset;
+    line-clamp: none;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+  }
 }
