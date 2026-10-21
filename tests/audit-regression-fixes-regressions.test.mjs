@@ -99,3 +99,15 @@ test("Service Workerは必須プリキャッシュ失敗時に新バージョン
   assert.match(serviceWorker, /await Promise\.allSettled\(\[\.\.\.OPTIONAL_PRECACHE_URLS\]\.map\(\(u\) => cache\.add\(u\)\)\)/);
   assert.ok(serviceWorker.indexOf("await Promise.all(REQUIRED_PRECACHE_URLS") < serviceWorker.indexOf("await self.skipWaiting()"));
 });
+
+
+test("同期設定はランク選択と同期MAXを横並びにし、補足文・余白を圧縮する", () => {
+  const css = readFileSync(new URL("../assets/v68-interaction-a11y.css", import.meta.url), "utf8");
+  assert.match(otherSections, /className: "roster-sync-ops-head"[\s\S]{0,250}"同期設定"/);
+  assert.match(otherSections, /className: "roster-sync-source"/);
+  assert.match(otherSections, /初回設定時：同期ランク/);
+  assert.match(css, /\.roster-sync-ops\s*\{[^}]*display: grid;[^}]*grid-template-columns: minmax\(0, 1fr\) max-content/s);
+  assert.match(css, /\.sync-max-detail-toggle\s*\{[^}]*grid-column: 2;/s);
+  assert.match(css, /@media \(max-width: 640px\)[\s\S]*?\.roster-sync-ops\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\)/);
+  assert.doesNotMatch(otherSections, /同期は自己の欠片を支払う処理です。誤った操作なら上の操作で解除できます/);
+});

@@ -295,23 +295,94 @@
     outline: 2px solid var(--gold-hi);
     outline-offset: 2px;
   }
+  /* Compact layout: settings label + concise cost note, then rank and MAX side-by-side. */
   .roster-sync-ops {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) max-content;
+    align-items: center;
+    gap: 6px 12px;
+    padding: 10px 12px;
     border-color: var(--line-strong);
     background: color-mix(in oklab, var(--gold) 4%, var(--surface-1));
   }
+  .roster-sync-ops-head {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+  }
+  .roster-sync-ops-head .t-label {
+    color: var(--text-muted);
+    font-size: var(--fs-11);
+  }
+  .roster-sync-source {
+    flex: 0 0 auto;
+    padding: 2px 6px;
+    border: 1px solid var(--line-dim);
+    border-radius: 999px;
+    color: var(--tx-dim);
+    font: 500 9px/1.4 var(--f-mono);
+    letter-spacing: .04em;
+    white-space: nowrap;
+  }
   .roster-sync-cost-note {
+    grid-column: 1 / -1;
     margin: 0;
-    padding: 8px 10px;
-    border-left: 3px solid var(--amber);
-    background: color-mix(in oklab, var(--amber) 8%, var(--surface-inset));
-    color: var(--tx);
-    font-size: var(--fs-12);
-    font-weight: 600;
-    line-height: 1.6;
+    padding: 4px 8px;
+    border-left: 2px solid var(--amber);
+    background: color-mix(in oklab, var(--amber) 6%, var(--surface-inset));
+    color: var(--tx-2);
+    font-size: var(--fs-11);
+    font-weight: 500;
+    line-height: 1.45;
+  }
+  .roster-sync-rank-row {
+    grid-column: 1;
+    flex-wrap: nowrap;
+    gap: 8px;
+    min-width: 0;
+  }
+  .roster-sync-rank-row > .ledger-note {
+    flex: 0 0 auto;
+    margin: 0;
+    white-space: nowrap;
+    font-size: var(--fs-11);
+  }
+  .roster-sync-rank-row > .segmented {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .roster-sync-rank-row > .segmented > button {
+    flex: 1 1 0;
+    min-width: 28px;
+    min-height: 32px;
+    padding-inline: 8px;
   }
   .sync-max-detail-toggle {
+    grid-column: 2;
+    justify-self: start;
+    align-self: center;
+    width: max-content;
+    max-width: 100%;
+    min-height: 36px;
+    margin-top: 0;
+    padding: 5px 8px;
+    gap: 6px;
+    flex-wrap: nowrap;
     border-color: var(--line-strong);
     background: var(--surface-2);
+  }
+  .sync-max-detail-label,
+  .sync-max-detail-note {
+    white-space: nowrap;
+  }
+  .sync-max-detail-note {
+    flex: 0 1 auto;
+    margin-left: 0;
+    font-size: var(--fs-10);
   }
   .sync-max-detail-toggle.is-on {
     border-color: var(--gold);
@@ -321,6 +392,32 @@
   .sync-max-detail-toggle:focus-within {
     outline: 2px solid var(--gold-hi);
     outline-offset: 2px;
+  }
+  @media (max-width: 640px) {
+    .roster-sync-ops {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 6px;
+      padding: 8px;
+    }
+    .roster-sync-ops-head,
+    .roster-sync-cost-note,
+    .roster-sync-rank-row,
+    .sync-max-detail-toggle {
+      grid-column: 1;
+    }
+    .roster-sync-rank-row > .segmented > button {
+      min-width: 0;
+      min-height: 40px;
+      padding-inline: 6px;
+    }
+    .sync-max-detail-toggle {
+      width: 100%;
+      box-sizing: border-box;
+      min-height: 40px;
+    }
+    .sync-max-detail-note {
+      margin-inline-start: auto;
+    }
   }
   @media (max-width: 640px) {
     .pw-listbar { align-items: stretch; }
