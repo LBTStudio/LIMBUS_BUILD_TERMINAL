@@ -969,7 +969,6 @@
   }
 }
 
-}
 /* --- 25. 折りたたみ（summary）に操作の手掛かりを与える ---
    実測: 「立ち絵URL / 共有画像を編集」は border 0px / background transparent /
    font-weight 400 で、本文と同じ淡い灰色だった。三角形の印也只有で、
@@ -1311,5 +1310,6 @@ label:has(> input[type="checkbox"]) {
   border-color: var(--line-mid) !important;
   color: var(--tx-main) !important;
   background: var(--surface-2) !important;
+}
 }
 
