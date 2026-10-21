@@ -4,6 +4,16 @@
       "persona": "人差し指遂行者：【紙片】",
       "label": "passive_always",
       "reason": "DBは原典の passive_always 本文を意図的に絞り込みました。原典では「指令の印_skillの使用時」「指令の印_skillで1以上ダメージを与える」「指令対象に1以上ダメージを与える」「これらを1つも達成できなかった場合…」の4段落が存在しますが、DBは「指令の印_skillの使用時」「指令の印_skillで1以上ダメージを与える」の2段落のみを保持しています。これはDB維持者の意図的な整形であり、原典への強制修正は行いません。"
+    },
+    {
+      "persona": "東部親指カポIIII",
+      "label": "固有バフ「弾丸-虎標弾」",
+      "reason": "Formatting normalization: core p.231 prefixes this effect with a dash; the same named bullet definition in the core glossary p.312 presents it without that dash. The DB stores readable glossary-style prose."
+    },
+    {
+      "persona": "東部親指カポIIII",
+      "label": "固有バフ「弾丸-猛虎標弾」",
+      "reason": "Formatting normalization: core p.231 wraps this effect in leading/trailing dashes; the same named bullet definition in the core glossary p.312 presents it without those delimiters. The DB stores readable glossary-style prose."
     }
   ]
 }

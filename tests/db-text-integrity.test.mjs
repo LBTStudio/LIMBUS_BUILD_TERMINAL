@@ -146,3 +146,15 @@ test("DBの本文はPDF原典と同じ表記の語彙を保持している（既
   );
   assert.equal(skillOf("カジノ警備員", "スキル4").effect, "");
 });
+
+
+test("東部親指カポIIIIの弾丸固有効果は説明本文を囲む書式ハイフンを表示しない", () => {
+  const persona = db.tokui_personas.find((entry) => entry.name === "東部親指カポIIII");
+  assert.ok(persona, "対象人格が存在する");
+  const tiger = persona.unique_buffs.find((buff) => buff.name === "弾丸-虎標弾");
+  const raging = persona.unique_buffs.find((buff) => buff.name === "弾丸-猛虎標弾");
+  assert.equal(tiger.desc, "弾丸を消費するダイスのダメージ量+2。火傷付与量と振動付与量+1\n消費することで特定戦術の能力が向上");
+  assert.equal(raging.desc, "弾丸を消費するダイスのダメージ量+3。火傷付与量と振動付与量+2。自分の速度が対象より早ければ振動爆発ダメージ量+5\n消費することで特定戦術の能力が向上");
+  assert.equal(/^[-]|-$|\n-|-\n/.test(tiger.desc), false);
+  assert.equal(/^[-]|-$|\n-|-\n/.test(raging.desc), false);
+});

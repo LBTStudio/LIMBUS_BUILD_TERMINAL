@@ -6297,5 +6297,33 @@
    "type",
    "max"
   ]
+ },
+ {
+  "kind": "tokui_personas",
+  "name": "東部親指カポIIII",
+  "source": "core",
+  "pages": [
+   231,
+   312
+  ],
+  "field": "unique_buffs[2].desc",
+  "before": "-弾丸を消費するダイスのダメージ量+2。火傷付与量と振動付与量+1\n消費することで特定戦術の能力が向上",
+  "after": "弾丸を消費するダイスのダメージ量+2。火傷付与量と振動付与量+1\n消費することで特定戦術の能力が向上",
+  "reason": "Core p.231 prefixes this effect prose with a dash; the matching canonical bullet definition at p.312 states the same effect without that dash. Normalize only the formatting marker; mechanics and wording remain unchanged.",
+  "row_ids": []
+ },
+ {
+  "kind": "tokui_personas",
+  "name": "東部親指カポIIII",
+  "source": "core",
+  "pages": [
+   231,
+   312
+  ],
+  "field": "unique_buffs[3].desc",
+  "before": "-弾丸を消費するダイスのダメージ量+3。火傷付与量と振動付与量+2。自分の速度が対象より早ければ振動爆発ダメージ量+5-\n消費することで特定戦術の能力が向上",
+  "after": "弾丸を消費するダイスのダメージ量+3。火傷付与量と振動付与量+2。自分の速度が対象より早ければ振動爆発ダメージ量+5\n消費することで特定戦術の能力が向上",
+  "reason": "Core p.231 wraps the effect prose in leading/trailing dashes, while the matching canonical bullet definition at p.312 has neither delimiter. Normalize the effect prose to glossary style; the conditional and values are unchanged.",
+  "row_ids": []
  }
 ]
