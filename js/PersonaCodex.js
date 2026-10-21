@@ -432,19 +432,21 @@ const EquippedSummary = ({ state, dispatch, onExpand, onShowDetail, detailShown,
       {
         size: "sm",
         variant: isSynced ? "primary" : "ghost",
+        className: "persona-manual-edit-trigger",
+        "aria-pressed": isSynced,
         icon: isSynced ? "check" : "edit",
         onClick: () => {
           if (isSynced) {
             dispatch({ type: "SET_SYNCED_MANUAL", value: false });
-            toast("編集モードを終了しました。変更は装備解除時に保存を選べます");
+            toast("手動編集を終了しました。変更は装備解除時に保存を選べます");
           } else {
             dispatch({ type: "SET_SYNCED_MANUAL", value: true });
-            toast(isSavedCustom ? "編集モード：保存済み人格を手動編集中" : "同期化：全項目を手動編集可能に");
+            toast(isSavedCustom ? "編集モード：保存済み人格を手動編集中" : "手動編集：全項目を編集可能に");
           }
         },
-        title: isSynced ? "編集モードを解除" : "同期化：ステータス・パッシブ・スキル・固有バフを手動で書き換え可能にする"
+        title: isSynced ? "手動編集モードを終了" : "手動編集を開始：ステータス・パッシブ・スキル・固有バフを編集可能にする"
       },
-      isSynced ? "✓ 編集を終了（内容は保持）" : "◈ 同期化して手動編集"
+      isSynced ? "✓ 編集を終了（内容は保持）" : "✎ 手動編集を開始"
     ), /* @__PURE__ */ React.createElement(
       Button,
       {
@@ -479,7 +481,7 @@ const EquippedSummary = ({ state, dispatch, onExpand, onShowDetail, detailShown,
         title: onExpand.expanded ? "一覧を折り畳む" : "別の人格を選ぶ (Codex を展開)"
       },
       onExpand.expanded ? "一覧を畳む" : "別の人格を選ぶ"
-    )), /* @__PURE__ */ React.createElement("div", { className: "es-hint" }, isSynced ? "同期化モード：装備時点のデータを組んしています。" : "装備データを手動書き換えする場合は「◈ 同期化して手動編集」を押してください。"));
+    )), /* @__PURE__ */ React.createElement("div", { className: "es-hint" }, isSynced ? "手動編集中：装備中のデータを編集しています。" : "装備データを変更するには「手動編集を開始」を押してください。"));
 };
 /* 駒整形（BASE INFO）。名前・PL・立ち絵・INITIATIVE・COLOR・共有シート画像を置く。
    HP/SAN/速度・耐性・キーワード・固有バフはビルドの人格タブが担当する。 */
@@ -1061,7 +1063,13 @@ const addRoster = (p) => {
   const equippedPersona = state.personaSrc;
   const equippedDetailPersona = buildEquippedDetailPersona(state);
   const equippedMeta = equippedPersona ? { p: equippedPersona, mode: state.personaMode || "n" } : null;
-  return /* @__PURE__ */ React.createElement(React.Fragment, null, draftImportOpen && /* @__PURE__ */ React.createElement(PersonaDraftImportDialog, { draftText, draftSections, draftInputMode, draftResult, draftSyncMax, draftSyncMaxLocked, draftAffiliationKey, draftAffiliationQuery, autoAffiliationKey: draftAutoAffiliationKey, affiliationOptions: draftAffiliationOptions, onChange: (value) => { setDraftText(value); setDraftResult(null); setDraftAffiliationKey(""); setDraftAffiliationQuery(""); }, onSectionsChange: (key, value) => { setDraftSections((current) => ({ ...current, [key]: value })); setDraftResult(null); setDraftAffiliationKey(""); setDraftAffiliationQuery(""); }, onInputModeChange: (modeValue) => { setDraftInputMode(modeValue); setDraftResult(null); setDraftAffiliationKey(""); setDraftAffiliationQuery(""); }, onAnalyze: analyzeDraft, onSyncMaxChange: setDraftSyncMax, onAffiliationChange: chooseDraftAffiliation, onAffiliationQueryChange: setDraftAffiliationQuery, onApply: applyDraft, onClose: () => { setDraftImportOpen(false); setDraftAffiliationKey(""); setDraftAffiliationQuery(""); } }), /* @__PURE__ */ React.createElement("div", { className: "codex-shell" }, /* @__PURE__ */ React.createElement("div", { className: "persona-workspace" }, equippedPersona && /* @__PURE__ */ React.createElement("div", { className: "equipped-unified" }, /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement(React.Fragment, null, draftImportOpen && /* @__PURE__ */ React.createElement(PersonaDraftImportDialog, { draftText, draftSections, draftInputMode, draftResult, draftSyncMax, draftSyncMaxLocked, draftAffiliationKey, draftAffiliationQuery, autoAffiliationKey: draftAutoAffiliationKey, affiliationOptions: draftAffiliationOptions, onChange: (value) => { setDraftText(value); setDraftResult(null); setDraftAffiliationKey(""); setDraftAffiliationQuery(""); }, onSectionsChange: (key, value) => { setDraftSections((current) => ({ ...current, [key]: value })); setDraftResult(null); setDraftAffiliationKey(""); setDraftAffiliationQuery(""); }, onInputModeChange: (modeValue) => { setDraftInputMode(modeValue); setDraftResult(null); setDraftAffiliationKey(""); setDraftAffiliationQuery(""); }, onAnalyze: analyzeDraft, onSyncMaxChange: setDraftSyncMax, onAffiliationChange: chooseDraftAffiliation, onAffiliationQueryChange: setDraftAffiliationQuery, onApply: applyDraft, onClose: () => { setDraftImportOpen(false); setDraftAffiliationKey(""); setDraftAffiliationQuery(""); } }), /* @__PURE__ */ React.createElement("div", { className: "codex-shell" }, /* @__PURE__ */ React.createElement("div", { className: "persona-workspace" },
+    /* Always-visible entry points: do not put creation/import controls behind the equipped-persona condition. */
+    React.createElement("div", { className: "pw-list-actions", role: "group", "aria-label": "人格作成・流し込み" },
+      /* @__PURE__ */ React.createElement("button", { className: "persona-custom-trigger", type: "button", onClick: (event) => { event.stopPropagation(); equipCustom(); }, title: "DB\u306B\u7121\u3044\u5275\u4F5C\u4EBA\u683C\u3092\u624B\u5165\u529B\u3067\u88C5\u5099 (v45\u4E92\u63DB)" }, "\uFF0B \u30AB\u30B9\u30BF\u30E0\u4EBA\u683C"),
+    /* @__PURE__ */ React.createElement("button", { className: "persona-draft-import-trigger", type: "button", onClick: (event) => { event.stopPropagation(); setDraftImportOpen(true); }, title: "完成した人格データをテキストで流し込み、確認して反映" }, "テキスト流し込み反映"),
+    ),
+    equippedPersona && /* @__PURE__ */ React.createElement("div", { className: "equipped-unified" }, /* @__PURE__ */ React.createElement(
     EquippedSummary,
     {
       state,
@@ -1112,8 +1120,6 @@ const addRoster = (p) => {
     /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)" } }, codexExpanded ? `${sorted.length}\u4EF6\u8868\u793A\u4E2D` : "\u6298\u308A\u7573\u307F\u4E2D"),
     /* @__PURE__ */ React.createElement("div", { className: "pw-listbar-spacer", style: { flex: 1 } }),
     !codexExpanded && /* @__PURE__ */ React.createElement("span", { className: "pw-listbar-hint", style: { fontSize: "var(--fs-10)", color: "var(--gold)" } }, "\u30AF\u30EA\u30C3\u30AF\u3067\u5C55\u958B"),
-    /* @__PURE__ */ React.createElement("button", { className: "persona-custom-trigger", type: "button", onClick: (event) => { event.stopPropagation(); equipCustom(); }, title: "DB\u306B\u7121\u3044\u5275\u4F5C\u4EBA\u683C\u3092\u624B\u5165\u529B\u3067\u88C5\u5099 (v45\u4E92\u63DB)" }, "\uFF0B \u30AB\u30B9\u30BF\u30E0\u4EBA\u683C"),
-    /* @__PURE__ */ React.createElement("button", { className: "persona-draft-import-trigger", type: "button", onClick: (event) => { event.stopPropagation(); setDraftImportOpen(true); }, title: "完成した人格データをテキストで流し込み、確認して反映" }, "テキスト流し込み反映"),
     null
   ), (!equippedPersona || codexExpanded) && /* @__PURE__ */ React.createElement("div", { id: "persona-list-region", className: "codex pw-body" }, /* @__PURE__ */ React.createElement("div", { className: "codex-main" }, !gated && /* @__PURE__ */ React.createElement("div", { className: "codex-modes" }, modes.map((m) => /* @__PURE__ */ React.createElement("button", { key: m.value, className: mode === m.value ? "is-active" : "", onClick: () => dispatch({ type: "SET_UI", ui: { codexMode: m.value } }), type: "button" }, m.label, " ", /* @__PURE__ */ React.createElement("span", { className: "count" }, m.count)))), /* @__PURE__ */ React.createElement("div", { className: "codex-filters" }, /* @__PURE__ */ React.createElement("div", { className: "codex-filter-row" }, /* @__PURE__ */ React.createElement("div", { className: "codex-search" }, /* @__PURE__ */ React.createElement(Icon, { name: "search", size: 14 }), /* @__PURE__ */ React.createElement("input", { type: "text", "aria-label": "人格コードと名前で検索", placeholder: "\u540D\u524D\u30FB\u30D1\u30C3\u30B7\u30D6\u52B9\u679C\u30FB\u30AD\u30FC\u30EF\u30FC\u30C9\u3067\u691C\u7D22...", value: ui.searchQuery || "", onChange: (e) => dispatch({ type: "SET_UI", ui: { searchQuery: e.target.value } }) })), /* @__PURE__ */ React.createElement("div", { className: "codex-count" }, /* @__PURE__ */ React.createElement("strong", null, sorted.length), " / ", pool.length), /* @__PURE__ */ React.createElement("select", { className: "codex-sort", "aria-label": "人格の並び替え", value: ui.sortBy || "no", onChange: (e) => dispatch({ type: "SET_UI", ui: { sortBy: e.target.value } }) }, /* @__PURE__ */ React.createElement("optgroup", { label: "\u57FA\u672C" }, /* @__PURE__ */ React.createElement("option", { value: "owned" }, "\u6240\u6301\u3057\u3066\u3044\u308B\u3082\u306E\u512A\u5148"), /* @__PURE__ */ React.createElement("option", { value: "no" }, "No.\u9806"), /* @__PURE__ */ React.createElement("option", { value: "name" }, "\u540D\u524D\u9806"), /* @__PURE__ */ React.createElement("option", { value: "hp" }, "HP\u964D\u9806"), /* @__PURE__ */ React.createElement("option", { value: "san" }, "SAN\u964D\u9806"), /* @__PURE__ */ React.createElement("option", { value: "speed" }, "\u901F\u5EA6\u4E0A\u9650\u964D\u9806")), /* @__PURE__ */ React.createElement("optgroup", { label: "\u5927\u7F6A\u30B9\u30AD\u30EB\u6570\u304C\u591A\u3044\u9806" }, SINS_ORDER.map((s) => /* @__PURE__ */ React.createElement("option", { key: s, value: `sin:${s}` }, s, "\u30B9\u30AD\u30EB\u591A\u3044\u9806"))))), /* @__PURE__ */ React.createElement("div", { className: "codex-filter-row" }, /* @__PURE__ */ React.createElement("span", { className: "filter-label" }, "\u5927\u7F6A"), /* @__PURE__ */ React.createElement("div", { className: "chips-group" }, SINS_ORDER.map((s) => /* @__PURE__ */ React.createElement(
     Chip,
