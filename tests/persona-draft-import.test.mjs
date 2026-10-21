@@ -503,3 +503,32 @@ test("破損疑いマークはDB原典データのみに表示し、同期・カ
   const source = readFileSync(new URL("../js/PersonaCodex.js", import.meta.url), "utf8");
   assert.match(source, /!p\.__custom && !p\.__draftImported && personaHasIssue\(p\)/);
 });
+
+
+test("MEMOのルールブック形式固有一覧は初期値・管理先・対象付与を保ち、次の見出しで終わる", () => {
+  const parse = loadParser();
+  const result = parse(`人格名：「MEMO書式テスト」
+HP：100 SAN：45 速度：1d5
+固有
+[固有見本] 最大5 固有バフ
+戦闘開始時、保護1を得る。
+[斬撃補正] 最大2 その他 初期2 パラメータ側
+斬撃スキル威力+2
+[指令対象] 最大1 中立バフ 対象に付与
+R開始時、対象を指定する。
+■ 特殊強化
+・次の項目`, { allowPartial: true });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.persona.unique_buffs.length, 3);
+  assert.deepEqual(result.persona.unique_buffs.map((b) => b.name), ["固有見本", "斬撃補正", "指令対象"]);
+  assert.equal(result.persona.unique_buffs[0].max, 5);
+  assert.equal(result.persona.unique_buffs[0].initial, 0);
+  assert.equal(result.persona.unique_buffs[0].desc, "戦闘開始時、保護1を得る。");
+  assert.equal(result.persona.unique_buffs[1].initial, 2);
+  assert.equal(result.persona.unique_buffs[1].place, "params");
+  assert.equal(result.persona.unique_buffs[1].desc, "斬撃スキル威力+2");
+  assert.equal(result.persona.unique_buffs[2].noST, true);
+  assert.equal(result.persona.unique_buffs[2].desc, "R開始時、対象を指定する。");
+  assert.ok(result.persona.unique_buffs.every((b) => !/後続見出し確認/.test(b.desc)));
+});
