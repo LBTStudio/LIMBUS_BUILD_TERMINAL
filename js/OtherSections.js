@@ -737,12 +737,18 @@ const EGO_VARIANT_OPTIONS = [
 ];
 const EGO_VARIANT_LABEL = { skill: "通常", assimilation: "同化", influence: "影響" };
 const EGO_VARIANT_KIND = { skill: "スキル", assimilation: "同化", influence: "影響" };
-const getInfluenceRounds = (effect) => (String(effect || "").match(/\[\s*影響\s*\]\s*(\d+R)?/) || [])[1] || "";
-const stripInfluenceHeader = (effect) => String(effect || "").replace(/^\s*\[\s*影響\s*\]\s*(\d+R)?\s*[:：]?\s*/, "").trim();
+// 継続ラウンドは編集中の未完成値（"2"）も保持する。本文側の数字や改行から
+// ラウンド数を誤検出しないよう、[影響] ヘッダーだけを解析する。
+const getInfluenceRounds = (effect) => {
+  const match = String(effect || "").match(/^\s*\[\s*影響\s*\](?:[ \t]+(\d*R?))?[ \t]*(?=[:：]|$)/);
+  return match?.[1] || "";
+};
+// ヘッダーだけを剥がし、本文の先頭・末尾の空白、Enter による改行を一切 trim しない。
+const stripInfluenceHeader = (effect) => String(effect || "").replace(/^\s*\[\s*影響\s*\](?:[ \t]+\d*R?)?[ \t]*[:：]?/, "");
 const makeInfluenceEffect = (rounds, effect) => {
   const label = `[影響]${rounds ? ` ${rounds}` : ""}`;
   const body = stripInfluenceHeader(effect);
-  return body ? `${label}：${body}` : label;
+  return `${label}：${body}`;
 };
 const getEgoVariantModel = (slot, slotKey) => {
   const normalized = window.LBT_normalizeEgoSlotVariants ? window.LBT_normalizeEgoSlotVariants(slot || {}) : (slot || {});
@@ -961,7 +967,7 @@ const EgoSlotVariantEditor = ({ slotKey, label, model, onCommit }) => {
     return React.createElement(Card, { title: `${label}E.G.Oスキル [影響]`, sub: "R進行効果（攻撃属性・罪悪・ダイスは使用しない）", compact: true, className: "ego-editor-detail ego-influence-editor" },
       React.createElement("div", { className: "stack-3" },
         React.createElement("div", { className: "ego-influence-note" }, "影響はこのスロットを置き換えるラウンド進行効果です。属性・罪悪・広域・ダイスを入力しません。"),
-        React.createElement(Field, { label: "継続ラウンド（任意）" }, React.createElement("input", { className: "input", value: rounds, onChange: (e) => patchSkill({ effect: makeInfluenceEffect(e.target.value.trim(), branch.effect) }), placeholder: "例：2R", inputMode: "text" })),
+        React.createElement(Field, { label: "継続ラウンド（任意）" }, React.createElement("input", { className: "input", value: rounds, onChange: (e) => patchSkill({ effect: makeInfluenceEffect(e.target.value, branch.effect) }), placeholder: "例：2R", inputMode: "text", "aria-label": "影響E.G.Oの継続ラウンド" })),
         React.createElement(Field, { label: "ラウンド効果" }, React.createElement(AutoTextarea, { className: "textarea", minRows: 4, value: stripInfluenceHeader(branch.effect), onChange: (e) => patchSkill({ effect: makeInfluenceEffect(rounds, e.target.value) }), placeholder: "例：1R：… 2R：… 3R：…" })),
         React.createElement("div", { className: "ego-influence-preview", style: { whiteSpace: "pre-wrap" } }, window.formatEffectLines ? window.formatEffectLines(branch.effect) : branch.effect)
       )
@@ -1520,7 +1526,7 @@ const [ownedOnly, setOwnedOnly] = React.useState(false);
     }, "所持のみ")
     ),
       detailSlot && state.egoSlots[detailSlot] ? h("div", { className: "equipped-detail-wrap" }, h("div", { style: { display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", background: "var(--surface-2)", borderBottom: "1px solid var(--line-dim)" } }, h("span", { className: "badge", "data-rank": detailSlot }, detailSlot), h("span", { style: { fontFamily: "var(--f-display)", fontWeight: 600, color: "var(--tx)" } }, state.egoManual ? "装備中E.G.O / 解析" : "装備中E.G.O / 詳細"), h("div", { style: { flex: 1 } }),
-      h("button", { className: "btn btn-sm " + (state.egoManual ? "btn-primary" : "btn-ghost"), onClick: toggleEgoManual, title: state.egoManual ? "解析を終了（内容は保持）" : "解析を開始" }, h(Icon, { name: state.egoManual ? "check" : "edit", size: 12 }), state.egoManual ? " 解析を終了" : " 解析を開始"),
+      h("button", { type: "button", className: "ego-analysis-toggle btn btn-sm " + (state.egoManual ? "btn-primary" : "btn-secondary"), "aria-pressed": state.egoManual, onClick: toggleEgoManual, title: state.egoManual ? "解析を終了（内容は保持）" : "解析を開始" }, h(Icon, { name: state.egoManual ? "check" : "edit", size: 12 }), state.egoManual ? " 解析を終了" : " 解析を開始"),
       h("button", { className: "btn btn-sm btn-ghost", onClick: () => { dispatch({ type: "SET_EGO_MANUAL", value: false }); setDetailSlot(null); }, title: "閉じる" }, h(Icon, { name: "x", size: 12 }), " 閉じる")), h("div", { className: "equipped-detail-inner" }, editable ? null : h(EgoDetail, { ego: state.egoSlots[detailSlot], equipTo: detailSlot, currentSlot: detailSlot, onEquip: () => {}, onUnequip: () => { clearSlot(detailSlot); setDetailSlot(null); }, dispatch }), editable ? h(EquippedEgoEditor, { rank: detailSlot, ego: state.egoSlots[detailSlot], dispatch }) : null)) : null,
       hasAnyEgo && !listExpanded ? h("div", { className: "codex-collapsed-hint" }, h("span", { style: { color: "var(--tx-mute)", fontSize: "var(--fs-11)", letterSpacing: "0.14em", fontFamily: "var(--f-display)" } }, "◇ E.G.O 一覧は折り畳み中"), h("span", { style: { marginLeft: 12, fontSize: "var(--fs-10)", color: "var(--tx-dim)" } }, "未装備スロットをクリックすると、そのランクだけ絞り込んで展開されます。"), h("button", { className: "btn btn-sm", style: { marginLeft: "auto" }, onClick: () => { setListExpanded(true); setRankFilter(""); } }, "一覧を展開")) : null
     ),
@@ -2930,6 +2936,10 @@ const RosterSection = ({ state, dispatch }) => {
        これを条件にしていたせいで、DB 人格の同期MAXは設定も解除もできなかった。 */
     const canModifySyncMax = item.type === "personas";
     const hasSync = Boolean(item.entry.syncRank) || item.entry.syncMax === true;
+    const syncCosts = item.type === "personas" ? {
+      rank: syncCost(item.entry.uid, false),
+      max: syncCost(item.entry.uid, true)
+    } : null;
     const summarizeEgoSkill = (skill) => {
       if (!skill) return "未設定";
       const type = [skill.attr, skill.sin].filter(Boolean).join("・");
@@ -2951,7 +2961,8 @@ const RosterSection = ({ state, dispatch }) => {
       h("div", { className: "roster-detail-head" }, h("div", null, h("span", { className: "t-label" }, item.type === "personas" ? "PERSONA DETAIL / 簡易詳細" : "E.G.O DETAIL / 簡易詳細"), h("div", { className: "roster-detail-title" }, item.name)), h("button", { className: "btn btn--quiet btn-icon", onClick: () => setDetailId(null), title: "詳細を閉じる", "aria-label": "詳細を閉じる" }, h(Icon, { name: "x", size: 15 }))),
       h("div", { className: "roster-detail-lines" }, summary.map((line, index) => h("div", { key: index }, line))),
       item.type === "personas" && canModifySyncMax && h("div", { className: "roster-sync-ops" },
-        h("div", { className: "roster-sync-ops-head" }, h("span", { className: "t-label" }, "同期化・同期MAX（supplement P7 / P23）")),
+        h("div", { className: "roster-sync-ops-head" }, h("span", { className: "t-label" }, "同期ランク・同期MAX（supplement P7 / P23）")),
+        h("p", { className: "roster-sync-cost-note" }, `初回設定時：同期ランク ${syncCosts?.rank?.shards ?? 50}個／同期MAX ${syncCosts?.max?.shards ?? 50}個。解除しても消費済みの欠片は返還されません。`),
         h("div", { className: "roster-sync-rank-row" },
           h("span", { className: "ledger-note" }, "人格ランク"),
           h("div", { className: "segmented", role: "radiogroup", "aria-label": "同期人格ランク" },
