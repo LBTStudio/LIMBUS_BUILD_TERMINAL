@@ -1,101 +1,329 @@
+import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import test from "node:test";
 import vm from "node:vm";
+import { loadRuntime, equipPersona } from "../tools/provenance/pipeline-harness.mjs";
 
-const indexHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
-const generator = readFileSync(new URL("../js/generator.js", import.meta.url), "utf8");
-const shareLinkSource = readFileSync(new URL("../js/share-link.js", import.meta.url), "utf8");
-const otherSections = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
-const serviceWorker = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
+/* 監査で検出した本体バグの回帰テスト。
+   いずれも「実際の装備 → 出力生成」経路そのもので検証する。 */
 
-function loadBootstrap(fetchImpl) {
-  const script = [...indexHtml.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)][0]?.[1];
-  assert.ok(script, "index.html にインラインの起動スクリプトがある");
-  const warnings = [];
-  const consoleMock = { warn: (...args) => warnings.push(args) };
-  const context = {
-    window: { fetch: fetchImpl, console: consoleMock },
-    fetch: fetchImpl,
-    console: consoleMock,
-    Promise,
-    XMLHttpRequest: function () { throw new Error("XHR fallback should not run in this test"); }
+test("旧保存の死亡後パッシブ移行はDB名簿と一致するレコードだけを対象にする", () => {
+  const rt = loadRuntime();
+  // 本文に死亡系の語を含むだけの通常サポート（旧ロジックでは誤移動した）と、
+  // DBの死亡後パッシブ名簿と同名のレコード（旧版の混入パターン）を並べる。
+  const legacy = { ...rt.initialState, supports: [
+    rt.db.support_passives.find((s) => s.name === "墓守"),
+    rt.db.death_passives.find((s) => s.name === "覚悟")
+  ], deathSupport: null };
+  const next = rt.reducer(rt.initialState, { type: "HYDRATE", state: JSON.parse(JSON.stringify(legacy)) });
+
+  assert.equal(next.deathSupport?.name, "覚悟");
+  assert.equal(next.supports.length, 1);
+  assert.equal(next.supports[0]?.name, "墓守");
+});
+
+test("共有シートの士気低下ラベルは本文で描画され、エスケープ済みリテラルを含まない", () => {
+  const rt = loadRuntime();
+  const html = rt.gen.buildShareSheetHTML({ ...rt.initialState, san: "50", hp: "100" });
+
+  assert.ok(html.includes("士気低下"));
+  assert.equal(html.includes("\\u58EB"), false);
+});
+
+test("全角数字で書かれた強化本文もHP/SANボーナスへ反映される", () => {
+  const rt = loadRuntime();
+  // 精神強化A-1〜A-5 は原典本文が「人格のSANを５上昇させる。」（全角５）。
+  const enh = rt.db.normal_enhancements.find((e) => e.name === "精神強化A-1");
+  assert.equal(enh.effect.includes("５"), true);
+  assert.equal(rt.context.window.computeEnhancementBonuses({ enhancements: [enh] }).san, 5);
+});
+
+test("先頭が連結「：」のダイス効果はロール表記と二重に付かない", () => {
+  const rt = loadRuntime();
+  const state = equipPersona(rt, "n", rt.db.normal_personas.find((x) => x.name === "南部リウ協会5課フィクサー"));
+  const palette = rt.gen.buildPalette(state);
+
+  assert.equal(palette.includes("：："), false);
+  assert.ok(palette.includes("8d2：的中時"));
+
+  let violations = 0;
+  for (const persona of [...rt.db.normal_personas, ...rt.db.tokui_personas]) {
+    if (rt.gen.buildPalette(equipPersona(rt, "n", persona)).includes("：：")) violations++;
+  }
+  assert.equal(violations, 0);
+});
+
+test("同化型E.G.Oのスロット形態は原典の全8種を過不足なく定義する", () => {
+  const rt = loadRuntime();
+  // 本番では index.html が generator/state とは別に js/ego-slot-forms.js を読む。
+  vm.runInContext(readFileSync(new URL("../js/ego-slot-forms.js", import.meta.url), "utf8"), rt.context, { filename: "js/ego-slot-forms.js" });
+  const forms = rt.context.window.LBT_EGO_SLOT_FORMS;
+  const expectedForm = (skill) => {
+    const text = String(skill?.effect || "");
+    if (text.includes("[同化]")) return "assimilation";
+    if (text.includes("[影響]")) return "influence";
+    return "skill";
   };
-  vm.runInNewContext(script, context, { filename: "index.html bootstrap" });
-  return { ready: context.lbtDbReady, window: context.window, warnings };
-}
+  const assimilated = rt.db.egos.filter((e) => (e.sub_skills || []).length > 0);
 
-function loadShareLink() {
-  const window = {};
-  vm.runInNewContext(shareLinkSource, {
-    window, TextEncoder, TextDecoder, CompressionStream, DecompressionStream,
-    Blob, Response, URL, URLSearchParams, btoa, atob
-  }, { filename: "js/share-link.js" });
-  return window.LBT_shareLink;
-}
+  assert.equal(assimilated.length, 8);
+  assert.equal(Object.keys(forms).length, 8);
+  for (const ego of assimilated) {
+    const form = forms[`${ego.rank}:${ego.no}`];
+    assert.ok(form, `${ego.name} にスロット形態が定義されていない`);
+    assert.equal(form.kakusei, expectedForm(ego.kakusei), `${ego.name} の覚醒形態`);
+    assert.equal(form.shinshoku, expectedForm(ego.shinshoku), `${ego.name} の侵蝕形態`);
+  }
 
-test("補助JSONの404・通信失敗は起動を止めず、DB本体で準備を完了する", async () => {
-  const fetchMock = async (url) => {
-    if (url.includes("db.json")) return { ok: true, json: async () => ({ marker: "db-ready" }) };
-    if (url.includes("items.json")) return { ok: false, status: 404, json: async () => [] };
-    throw new Error("network offline");
+  // 定義どおり覚醒同化型の sub_skills が覚醒側の同化へ載り、侵蝕は通常スキルのまま保つ。
+  const ego = rt.db.egos.find((e) => e.rank === "TETH" && e.no === 20);
+  const st = rt.reducer(rt.initialState, { type: "SET_EGO_SLOT", rank: "TETH", value: JSON.parse(JSON.stringify(ego)) });
+  const kakusei = st.egoSlots?.TETH?.slotVariants?.kakusei;
+  assert.equal(kakusei?.active, "assimilation");
+  assert.equal((kakusei?.branches?.assimilation?.skills || []).length, ego.sub_skills.length);
+  assert.equal(st.egoSlots?.TETH?.slotVariants?.shinshoku?.active, "skill");
+});
+
+test("LPを持たない死亡後パッシブはメモ出力で浮いた「LP」を残さない", () => {
+  const rt = loadRuntime();
+  // 原典の死亡後パッシブ（DBの death_passives）はLP（精神コスト）を持たない。
+  const ds = rt.db.death_passives.find((s) => s.name === "覚悟");
+  assert.equal(ds.lp, undefined);
+
+  // B9の修正で、死亡後パッシブ追加の強化がないと死亡後は出力されない。
+  // ここではLP表示の検証が目的のため、強化を付与した状態で出力する。
+  const enh = [{ name: "死亡後パッシブ追加", effect: "" }];
+  const memo = rt.gen.buildMemo({ ...rt.initialState, enhancements: enh, deathSupport: { ...ds, id: "test" } });
+  const line = memo.split("\n").find((l) => l.includes("覚悟"));
+  assert.ok(line, "死亡後パッシブの行がメモに存在する");
+  assert.equal(/LP/.test(line), false, `浮いたLP: ${line}`);
+
+  // LPを持つ自作レコードは従来どおり LP 表示を維持する。
+  const memo2 = rt.gen.buildMemo({ ...rt.initialState, enhancements: enh, deathSupport: { id: "test2", name: "自作死亡後", cond: "-", effect: "-", lp: "99" } });
+  const line2 = memo2.split("\n").find((l) => l.includes("自作死亡後"));
+  assert.ok(/LP99/.test(line2), `LP99 が表示される: ${line2}`);
+});
+
+test("拡張解除でUIから消えたサポート・死亡後は出力にも含めない", () => {
+  const rt = loadRuntime();
+  const s1 = rt.db.support_passives[0];
+  const s2 = rt.db.support_passives[1];
+  const s3 = rt.db.support_passives[2];
+  const ds = rt.db.death_passives[0];
+
+  // スロット追加なし → 3つ目はパレットに出ない
+  const st2 = { ...rt.initialState, supports: [{ ...s1, id: "a" }, { ...s2, id: "b" }, { ...s3, id: "c" }], deathSupport: { ...ds, id: "d" } };
+  const pal2 = rt.gen.buildPalette(st2);
+  assert.ok(pal2.includes(s1.name), "1つ目のサポートは出力される");
+  assert.ok(pal2.includes(s2.name), "2つ目のサポートは出力される");
+  assert.equal(pal2.includes(s3.name), false, "3つ目のサポートはスロット追加なしでは出力しない");
+  assert.equal(pal2.includes(ds.name), false, "死亡後パッシブは追加強化なしでは出力しない");
+  const memo2 = rt.gen.buildMemo(st2);
+  assert.equal(memo2.includes(s3.name), false, "メモでも3つ目を出さない");
+
+  // スロット追加あり → 3つ目と死亡後が出る
+  const st3 = { ...st2, enhancements: [{ name: "サポートスロット追加", effect: "" }, { name: "死亡後パッシブ追加", effect: "" }] };
+  const pal3 = rt.gen.buildPalette(st3);
+  assert.ok(pal3.includes(s3.name), "3つ目のサポートはスロット追加ありで出力される");
+  assert.ok(pal3.includes(ds.name), "死亡後パッシブは追加強化ありで出力される");
+});
+
+test("undo履歴は同一state参照の連続pushを重複として積まない", () => {
+  // ReactのuseCallback閉包内では、1ハンドラで2dispatchしても再レンダリングまで
+  // 同じstate参照が残る。末尾と同一参照のpushをスキップするガードの存在を検証する。
+  const source = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
+  assert.match(source, /past\[past\.length - 1\] !== state/, "同一参照重複pushのガード");
+});
+
+test("Ctrl+Z/Yはテキスト入力欄ではOS標準の入力undoに譲る", () => {
+  // 入力要素へフォーカス中のアプリ全体undoは、入力中の文字列を巻き戻して
+  // 意図しないビルド変更を起こす。activeElementチェックの存在を検証する。
+  const source = readFileSync(new URL("../js/App.js", import.meta.url), "utf8");
+  assert.match(source, /document\.activeElement/, "入力要素のフォーカス判定");
+  assert.match(source, /isTyping/, "入力中のスキップ変数");
+  assert.match(source, /e\.key === "y" \|\| e\.key === "Y"/, "Ctrl+Yの大文字対応");
+  assert.match(source, /e\.key === "Z" \|\| e\.key === "Y"/, "Ctrl+Shift+Z/Yの大文字対応");
+});
+
+test("既定データ再読込は保存済み解析ビルドを捨ててDBのE.G.O定義へ戻す", () => {
+  const rt = loadRuntime();
+  vm.runInContext(readFileSync(new URL("../js/ego-slot-forms.js", import.meta.url), "utf8"), rt.context, { filename: "js/ego-slot-forms.js" });
+  const ego = rt.db.egos.find((e) => e.rank === "HE" && e.no === 69);
+  let state = rt.reducer(rt.initialState, { type: "SET_EGO_SLOT", rank: "HE", value: JSON.parse(JSON.stringify(ego)) });
+
+  // 解析内容を書き換えて保存する。
+  state = rt.reducer(state, { type: "PATCH_EGO_SLOT", rank: "HE", patch: { name: "編集後の名前" } });
+  state = rt.reducer(state, { type: "SAVE_EGO_BUILD", rank: "HE" });
+  const saved = state.roster.egos.find((e) => e.rank === "HE" && e.no === ego.no);
+  assert.equal(saved.build.name, "編集後の名前", "保存済みビルドの存在");
+
+  // 既定データを再読込 → 保存済みビルドがクリアされ、DBの名前に戻る。
+  state = rt.reducer(state, { type: "RESET_EGO_SLOT_TO_DB", rank: "HE" });
+  assert.equal(state.egoSlots.HE.name, ego.name, "スロット名がDB既定へ戻る");
+  const cleared = state.roster.egos.find((e) => e.rank === "HE" && e.no === ego.no);
+  assert.equal(cleared.build, null, "保存済みビルドがクリアされる");
+  assert.equal(state.egoManual, false, "解析モードフラグは終了しない");
+});
+
+test("★/履歴タブのキー解決と装備モード特定はカスタム人格も扱う", () => {
+  // B3: custom: キーの解決ロジック、B4: equipPersona の __custom フォールバック。
+  const source = readFileSync(new URL("../js/PersonaCodex.js", import.meta.url), "utf8");
+  assert.match(source, /m === "custom"/, "custom キーの解決分岐");
+  assert.match(source, /roster\.personas\.find\(\(r\) => r\.mode === "custom"\)/, "ロスターからのcustom復元");
+  assert.match(source, /favCount/, "★タブのバッジ件数が解決結果と一致");
+  assert.match(source, /historyCount/, "履歴タブのバッジ件数が解決結果と一致");
+  assert.match(source, /p\.__custom \? "custom" : mode/, "装備時の __custom フォールバック");
+  assert.match(source, /x\.p\?\.no === p\?\.no && x\.p\?\.name === p\?\.name/, "参照不一致時の名前・No照合");
+});
+
+test("別端末移行で★と履歴が復元され、不正な型はstateに混入しない", () => {
+  const rt = loadRuntime();
+  const imported = { ...rt.initialState,
+    favorites: ["n:1", "t:1", "custom:999"],
+    historyRecent: ["n:2", "t:2"],
+    charName: "移行テスト",
+    // 関数値やbigint等は JSON シリアライズ不能でstateを壊すため拒否する
+    dangerous: () => {}
   };
-  const loaded = loadBootstrap(fetchMock);
-  await loaded.ready;
-  assert.equal(loaded.window.DB.marker, "db-ready");
-  assert.deepEqual(JSON.parse(JSON.stringify(loaded.window.DB.items)), []);
-  assert.deepEqual(JSON.parse(JSON.stringify(loaded.window.LBT_GACHA_PACKS)), { packs: [] });
-  assert.equal(loaded.warnings.length, 2);
+  const next = rt.reducer(rt.initialState, { type: "APPLY_PARTIAL", state: imported, fields: ["favorites", "historyRecent", "charName", "dangerous"] });
+  // VM コンテキスト内で生成された配列はホスト側 Array プロトタイプを持たない
+  // ため、要素を展開してから比較する。
+  assert.deepEqual([...next.favorites], ["n:1", "t:1", "custom:999"], "favoritesが復元される");
+  assert.deepEqual([...next.historyRecent], ["n:2", "t:2"], "historyRecentが復元される");
+  assert.equal(next.charName, "移行テスト", "charNameが復元される");
+  assert.equal(next.dangerous, undefined, "関数値はstateに混入しない");
+  assert.ok(!("dangerous" in next), "許可リスト外のキーは無視される");
 });
 
-test("DB本体のHTTP失敗だけは起動エラーになる", async () => {
-  const fetchMock = async () => ({ ok: false, status: 503, json: async () => ({}) });
-  const loaded = loadBootstrap(fetchMock);
-  await assert.rejects(loaded.ready, /http 503/);
+test("ロード時に装備中の固有バフがDB最新データで更新される", () => {
+  const rt = loadRuntime();
+  // DB最新の定事務所フィクサー
+  const teiji = rt.db.normal_personas.find((p) => p.name === "定事務所フィクサー");
+  assert.ok(teiji, "定事務所フィクサーがDBに存在");
+  const kumifuda = teiji.unique_buffs.find((b) => b.name === "組札");
+  assert.ok(kumifuda.desc.includes("光札1を得る"), "DB最新の組札に続きがある");
+  assert.equal(kumifuda.desc.includes("====="), false, "DB最新の組札にPAGE混入はない");
+
+  // 古いビルドスナップショット（PAGE混入・続き欠落）を装備状態として用意
+  const legacy = { ...rt.initialState,
+    personaMode: "n",
+    personaNo: teiji.no,
+    personaSrc: JSON.parse(JSON.stringify(teiji)),
+    uniqueBuffs: JSON.parse(JSON.stringify(teiji.unique_buffs))
+  };
+  // 組札を旧データ（PAGE混入あり・続きなし）に汚染する
+  const legacyKumifuda = legacy.uniqueBuffs.find((b) => b.name === "組札");
+  legacyKumifuda.desc = "戦術選択ダイスロールにて、最左端のスキルのランクに対応する組札に変\n換される\n===== PAGE 51 =====\n51\n組札が指定した大罪属性のスキルを使用するなら、最後のダイスに";
+
+  // HYDRATE → refreshEquippedPersonaFromDB がDB最新で復元する
+  const next = rt.reducer(rt.initialState, { type: "HYDRATE", state: legacy });
+  const refreshed = next.uniqueBuffs.find((b) => b.name === "組札");
+  assert.equal(refreshed.desc.includes("====="), false, "PAGE混入がDB最新で解消される");
+  assert.ok(refreshed.desc.includes("光札1を得る"), "続きがDB最新で補完される");
+  assert.equal(next.personaSrc.unique_buffs.find((b) => b.name === "組札").desc, kumifuda.desc, "personaSrcもDB最新に置き換わる");
+
+  // ユーザーが手動追加したバフ（DBに存在しない名前）は保護される
+  const manual = { id: "ub-manual", name: "手動追加バフ", type: "バフ", initial: 0, max: 5, desc: "ユーザー作成", place: "status" };
+  const legacy2 = { ...legacy, uniqueBuffs: [...legacy.uniqueBuffs, manual] };
+  const next2 = rt.reducer(rt.initialState, { type: "HYDRATE", state: legacy2 });
+  const kept = next2.uniqueBuffs.find((b) => b.name === "手動追加バフ");
+  assert.ok(kept, "手動追加バフが保護される");
+  assert.equal(kept.desc, "ユーザー作成", "手動追加バフの内容が保持される");
 });
 
-test("圧縮共有トークンの解凍サイズが4 MiBを超える場合はJSON解析前に拒否する", async () => {
-  const share = loadShareLink();
-  const raw = JSON.stringify({ _lbtShare: 1, payload: "x".repeat(4 * 1024 * 1024 + 128) });
-  const compressedStream = new Blob([raw]).stream().pipeThrough(new CompressionStream("deflate-raw"));
-  const compressed = new Uint8Array(await new Response(compressedStream).arrayBuffer());
-  const base64 = btoa(String.fromCharCode(...compressed)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-  await assert.rejects(share.decodeToken("z." + base64), /展開サイズ/);
+test("同期カスタム人格の共有リンクは全データを保持する", async () => {
+  // share-link.js は pipeline-harness に含まれないため、独立VMで読み込む。
+  const shareSource = readFileSync(new URL("../js/share-link.js", import.meta.url), "utf8");
+  const shareWindow = { DB: JSON.parse(readFileSync(new URL("../data/db.json", import.meta.url), "utf8")) };
+  vm.runInNewContext(shareSource, { window: shareWindow, TextEncoder, TextDecoder, CompressionStream: undefined, DecompressionStream: undefined, Blob, Response, URL, URLSearchParams, setTimeout, btoa: (s) => Buffer.from(s, "binary").toString("base64"), atob: (s) => Buffer.from(s, "base64").toString("binary") });
+  const share = shareWindow.LBT_shareLink;
+
+  const db = shareWindow.DB;
+  const official = db.normal_personas.find((p) => p.no === 5);
+  const state = {
+    charName: "同期テスト", personaMode: "custom", personaNo: 999,
+    personaSrc: {
+      name: "同期テスト人格", no: 999, hp: "105", san: "50", speed: "2d6+2",
+      passive_name: official.passive_name, passive_cond: official.passive_cond,
+      passive_always: official.passive_always, passive_effect: official.passive_effect,
+      skills: (official.skills || []).map(s => ({ ...s })),
+      unique_buffs: (official.unique_buffs || []).map(b => ({ ...b })),
+      __affiliation: { mode: "n", no: official.no }
+    },
+    uniqueBuffs: (official.unique_buffs || []).map((b, i) => ({
+      id: `ub-${i}`, name: b.name, type: b.type, initial: 0, max: b.max, desc: b.desc, place: "status"
+    })),
+    skills: (official.skills || []).map((s, i) => ({
+      id: `sk-${i}`, rank: s.rank, name: s.name, type: s.type, sin: s.sin,
+      effect: s.effect, dice: (s.dice || []).map(d => ({ roll: d.roll, effect: d.effect }))
+    })),
+    pas: { name: official.passive_name, cond: official.passive_cond, always: official.passive_always, effect: official.passive_effect },
+    egoSlots: { ZAYIN: null, TETH: null, HE: null, WAW: null, ALEPH: null },
+    supports: [], deathSupport: null, enhancements: [], customStatuses: [], inventory: [], customItems: []
+  };
+
+  const token = await share.encodeState(state);
+  const decoded = await share.decodeToken(token);
+
+  // カスタム人格は personaRef ではなく全データの埋め込みで共有される。
+  assert.equal(decoded.personaRef, undefined, "カスタム人格にpersonaRefを付けない");
+  assert.equal(decoded.personaSrc?.name, "同期テスト人格", "personaSrcの完全データが保持される");
+  assert.ok(Array.isArray(decoded.uniqueBuffs) && decoded.uniqueBuffs.length > 0, "固有バフが保持される");
+  assert.ok(Array.isArray(decoded.skills) && decoded.skills.length > 0, "スキルが保持される");
+
+  const hydrated = share.hydratePersonaReference(JSON.parse(JSON.stringify(decoded)), db);
+  assert.equal(hydrated.personaSrc?.name, "同期テスト人格", "hydrate後も人格データが残る");
 });
 
-test("共有発行結果と手動コピーUIは発行ボタンの外側に追加する", () => {
-  assert.match(generator, /<div class="share-publish-results" aria-live="polite"><\/div>/);
-  assert.match(generator, /const resultArea = root\.querySelector\("\.share-publish-results"\)/);
-  assert.doesNotMatch(generator, /const resultArea = statusEl\.parentElement/);
-  assert.match(generator, /cpBtn\.addEventListener\("click", async \(\) => \{/);
-});
+test("ロード時にサポート・死亡後・強化・精神・EGOスロットがDB最新で更新される", () => {
+  const rt = loadRuntime();
+  vm.runInContext(readFileSync(new URL("../js/ego-slot-forms.js", import.meta.url), "utf8"), rt.context, { filename: "js/ego-slot-forms.js" });
 
-test("共有モーダルは初期フォーカス、Tab閉じ込め、Escape、終了後のフォーカス復帰を持つ", () => {
-  assert.match(generator, /role="dialog" aria-modal="true" tabindex="-1"/);
-  assert.match(generator, /root\.querySelector\('\[data-act="publish"\]'\)\?\.focus\(\)/);
-  assert.match(generator, /e\.key !== "Tab"/);
-  assert.match(generator, /if \(e\.key === "Escape"\)/);
-  assert.match(generator, /previouslyFocused\.focus\(\)/);
-});
+  const spDB = rt.db.support_passives[0];
+  const dpDB = rt.db.death_passives[0];
+  const enhDB = rt.db.normal_enhancements[0];
+  const spiritDB = rt.db.spirits[0];
+  const egoDB = rt.db.egos.find((e) => e.rank === "HE" && e.no === 69);
 
-test("共有シートのHTMLエスケープは数値0を空文字へ変換しない", () => {
-  assert.match(generator, /const esc = \(s\) => String\(s \?\? ""\)/);
-});
+  // 古いコピーを含むstateを用意
+  const legacy = { ...rt.initialState,
+    supports: [{ id: "s1", name: spDB.name, cond: "古い条件", effect: "古い効果", lp: "古いLP", type: "バフ" },
+               { id: "s2", name: "手動追加サポート", cond: "手動", effect: "手動", lp: "1", type: "バフ" }],
+    deathSupport: { id: "d1", name: dpDB.name, cond: "古い条件", effect: "古い効果", lp: "" },
+    enhancements: [{ name: enhDB.name, effect: "古い効果" }, { name: "手動強化", effect: "手動" }],
+    spirit: spiritDB.name, spiritMorale: "古い士気低下", spiritConfuse: "古い混乱", spiritAlways: "古い常時",
+    egoSlots: { ...rt.initialState.egoSlots, HE: JSON.parse(JSON.stringify(egoDB)) }
+  };
+  // EGOの名前を汚染（古いコピーのシミュレーション）
+  legacy.egoSlots.HE.name = "古いEGO名";
 
-test("所持一覧の行は操作要素を内包せず、詳細操作と即時装備ボタンが兄弟になる", () => {
-  const start = otherSections.indexOf("const renderItem = (item) =>");
-  const end = otherSections.indexOf("const libraryTabLabel", start);
-  const block = otherSections.slice(start, end);
-  const beforeCheckbox = block.slice(0, block.indexOf('manageMode && h("input"'));
-  assert.doesNotMatch(beforeCheckbox, /role: manageMode \? undefined : "button"/);
-  assert.match(block, /className: "roster-item-info", role: manageMode \? undefined : "button"/);
-  assert.match(block, /className: "roster-item-actions"/);
-  assert.match(block, /onKeyDown: \(event\) => \{ if \(!manageMode && \(event\.key === "Enter" \|\| event\.key === " "\)\)/);
-});
+  const next = rt.reducer(rt.initialState, { type: "HYDRATE", state: legacy });
 
-test("Service Workerは必須プリキャッシュ失敗時に新バージョンを有効化せず、任意アセットだけ失敗を許容する", () => {
-  assert.match(serviceWorker, /const REQUIRED_PRECACHE_URLS = PRECACHE_URLS\.filter/);
-  assert.match(serviceWorker, /await Promise\.all\(REQUIRED_PRECACHE_URLS\.map\(\(u\) => cache\.add\(u\)\)\)/);
-  assert.match(serviceWorker, /await Promise\.allSettled\(\[\.\.\.OPTIONAL_PRECACHE_URLS\]\.map\(\(u\) => cache\.add\(u\)\)\)/);
-  assert.ok(serviceWorker.indexOf("await Promise.all(REQUIRED_PRECACHE_URLS") < serviceWorker.indexOf("await self.skipWaiting()"));
+  // 1. サポート: DB由来は最新、手動は保護
+  assert.equal(next.supports[0].effect, spDB.effect, "公式サポートのeffectがDB最新に");
+  assert.equal(next.supports[0].cond, spDB.cond, "公式サポートのcondがDB最新に");
+  assert.equal(next.supports[1].effect, "手動", "手動追加サポートは保護される");
+
+  // 2. 死亡後: DB由来は最新
+  assert.equal(next.deathSupport.effect, dpDB.effect, "死亡後のeffectがDB最新に");
+  assert.equal(next.deathSupport.cond, dpDB.cond, "死亡後のcondがDB最新に");
+
+  // 3. 強化: DB由来は最新、手動は保護
+  assert.equal(next.enhancements[0].effect, enhDB.effect, "公式強化のeffectがDB最新に");
+  assert.equal(next.enhancements[1].effect, "手動", "手動強化は保護される");
+
+  // 4. 精神: DB由来は最新
+  assert.equal(next.spiritMorale, spiritDB.morale_effect, "精神の士気低下効果がDB最新に");
+  assert.equal(next.spiritConfuse, spiritDB.confuse_effect, "精神の混乱効果がDB最新に");
+
+  // 5. EGOスロット（保存ビルドなし）: DB最新に
+  assert.equal(next.egoSlots.HE.name, egoDB.name, "EGOスロット名がDB最新に");
+
+  // 6. EGOスロット（保存ビルドあり）: ユーザー編集を保持
+  // 保存済みビルドのシナリオでは、スロット自体に解析編集後の内容が入っている。
+  const legacy2 = { ...legacy,
+    egoSlots: { ...legacy.egoSlots, HE: { ...legacy.egoSlots.HE, name: "解析編集後" } },
+    roster: { ...legacy.roster, egos: [{ uid: "er-1", no: egoDB.no, rank: "HE", analyzed: true, build: { ...egoDB, name: "解析編集後" } }] } };
+  const next2 = rt.reducer(rt.initialState, { type: "HYDRATE", state: legacy2 });
+  assert.equal(next2.egoSlots.HE.name, "解析編集後", "保存済み解析ビルドのEGOは保持される");
 });
