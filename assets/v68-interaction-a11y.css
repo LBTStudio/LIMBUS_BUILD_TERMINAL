@@ -282,4 +282,19 @@
     }
   }
 
+  .ego-analysis-cost-note {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--line-dim);
+    background: var(--surface-inset);
+    color: var(--tx-2);
+    font-size: var(--fs-11);
+    line-height: 1.6;
+  }
+  .ego-analysis-cost-note.is-short {
+    border-bottom-color: var(--err);
+    background: color-mix(in oklab, var(--err) 8%, var(--surface-inset));
+    color: var(--err);
+    font-weight: 600;
+  }
+
 }
