@@ -204,3 +204,139 @@
     text-overflow: clip;
   }
 }
+
+
+/* Action-path audit: keep creation/import reachable without an equipped persona,
+   and distinguish entry into edit/analysis mode from passive controls. */
+@layer v68-interaction-a11y {
+  .pw-listbar {
+    cursor: default;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+  }
+  .pw-listbar-toggle,
+  .pw-listbar-static {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    flex: 1 1 250px;
+    min-width: 0;
+    padding: 2px 0;
+    border: 0;
+    border-radius: var(--r-sm);
+    background: transparent;
+    color: var(--tx-2);
+    font: inherit;
+    text-align: left;
+  }
+  .pw-listbar-toggle { cursor: pointer; }
+  .pw-listbar-toggle:hover { color: var(--tx); }
+  .pw-listbar-toggle:focus-visible {
+    outline: 2px solid var(--gold-hi);
+    outline-offset: 2px;
+  }
+  .pw-listbar-title { color: var(--tx-2); font-size: var(--fs-11); letter-spacing: .1em; }
+  .pw-listbar-count { color: var(--tx-mute); font-size: var(--fs-10); }
+  .pw-listbar-spacer { flex: 1 1 0; }
+  .pw-listbar-hint { color: var(--gold-hi); font-size: var(--fs-10); }
+  .pw-listbar-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--s-2);
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+  }
+  .pw-listbar-actions .persona-custom-trigger,
+  .pw-listbar-actions .persona-draft-import-trigger {
+    min-height: 40px;
+    margin-left: 0;
+    border-style: solid;
+    border-color: var(--gold-line);
+  }
+  .pw-listbar[data-equipped="0"] {
+    border-color: var(--line-strong);
+    background: color-mix(in oklab, var(--gold) 4%, var(--surface-1));
+  }
+  .pw-listbar[data-equipped="0"] .pw-listbar-static {
+    flex: 1 1 240px;
+    color: var(--tx);
+  }
+  .persona-edit-toggle.btn--secondary,
+  .persona-edit-toggle.btn-ghost {
+    min-height: var(--control-h, 40px);
+    border: 1px solid var(--gold-line);
+    background: color-mix(in oklab, var(--gold) 8%, var(--surface-1));
+    color: var(--gold-hi);
+    font-weight: 700;
+  }
+  .persona-edit-toggle.btn--secondary:hover,
+  .persona-edit-toggle.btn--secondary:focus-visible,
+  .persona-edit-toggle.btn-ghost:hover,
+  .persona-edit-toggle.btn-ghost:focus-visible {
+    border-color: var(--gold);
+    background: var(--gold-tint);
+    color: var(--tx);
+  }
+  .ego-analysis-toggle.btn-secondary {
+    min-height: 40px;
+    border: 1px solid var(--gold-line);
+    background: color-mix(in oklab, var(--gold) 8%, var(--surface-1));
+    color: var(--gold-hi);
+    font-weight: 700;
+  }
+  .ego-analysis-toggle.btn-secondary:hover,
+  .ego-analysis-toggle.btn-secondary:focus-visible {
+    border-color: var(--gold);
+    background: var(--gold-tint);
+    color: var(--tx);
+  }
+  .ego-analysis-toggle:focus-visible {
+    outline: 2px solid var(--gold-hi);
+    outline-offset: 2px;
+  }
+  .roster-sync-ops {
+    border-color: var(--line-strong);
+    background: color-mix(in oklab, var(--gold) 4%, var(--surface-1));
+  }
+  .roster-sync-cost-note {
+    margin: 0;
+    padding: 8px 10px;
+    border-left: 3px solid var(--amber);
+    background: color-mix(in oklab, var(--amber) 8%, var(--surface-inset));
+    color: var(--tx);
+    font-size: var(--fs-12);
+    font-weight: 600;
+    line-height: 1.6;
+  }
+  .sync-max-detail-toggle {
+    border-color: var(--line-strong);
+    background: var(--surface-2);
+  }
+  .sync-max-detail-toggle.is-on {
+    border-color: var(--gold);
+    background: var(--gold-tint);
+    box-shadow: 0 0 0 1px var(--gold-line);
+  }
+  .sync-max-detail-toggle:focus-within {
+    outline: 2px solid var(--gold-hi);
+    outline-offset: 2px;
+  }
+  @media (max-width: 640px) {
+    .pw-listbar { align-items: stretch; }
+    .pw-listbar-toggle,
+    .pw-listbar-static { flex-basis: 100%; }
+    .pw-listbar-actions {
+      flex: 1 1 100%;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .pw-listbar-actions .persona-custom-trigger,
+    .pw-listbar-actions .persona-draft-import-trigger {
+      width: 100%;
+      min-width: 0;
+      padding-inline: 8px;
+      white-space: normal;
+    }
+  }
+}
