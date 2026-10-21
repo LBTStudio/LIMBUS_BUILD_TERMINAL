@@ -203,4 +203,83 @@
     overflow-wrap: anywhere;
     text-overflow: clip;
   }
+
+  /* High-value actions remain visible before the first persona is equipped. */
+  .pw-list-actions {
+    display: flex;
+    align-items: stretch;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    padding: var(--s-2);
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    background: var(--surface-1);
+  }
+  .pw-list-actions .persona-custom-trigger,
+  .pw-list-actions .persona-draft-import-trigger {
+    display: inline-flex;
+    flex: 1 1 210px;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    margin: 0;
+    border-style: solid;
+    font-size: var(--fs-12);
+  }
+  .pw-list-actions .persona-custom-trigger {
+    color: var(--gold-hi);
+    border-color: var(--gold-line);
+    background: var(--gold-tint);
+  }
+  .pw-list-actions .persona-draft-import-trigger {
+    color: var(--tx);
+    border-color: var(--line-strong);
+    background: var(--surface-2);
+  }
+
+  /* Manual editing is a primary entry point, not an unframed ghost action. */
+  .pc-persona .persona-manual-edit-trigger:not(.btn--primary) {
+    color: var(--gold-hi);
+    border: 1px solid var(--gold-line);
+    background: var(--gold-tint);
+    font-weight: 700;
+  }
+  .pc-persona .persona-manual-edit-trigger:hover:not(:disabled) {
+    color: var(--gold-hi);
+    border-color: var(--gold);
+    background: color-mix(in oklab, var(--gold) 15%, var(--surface-1));
+  }
+
+  /* Selected tabs and rank filters need a visibly bounded active state. */
+  .segmented > button.is-active,
+  .segmented > button[aria-selected="true"],
+  .segmented > button[aria-checked="true"] {
+    color: var(--gold-hi);
+    border-color: var(--gold);
+    background: color-mix(in oklab, var(--gold) 16%, var(--surface-3));
+    box-shadow: inset 0 0 0 1px var(--gold-tint);
+    font-weight: 700;
+  }
+
+  .roster-sync-cost-note {
+    margin: 0;
+    padding: 8px 10px;
+    border-left: 3px solid var(--amber);
+    background: color-mix(in oklab, var(--amber) 7%, var(--surface-inset));
+    color: var(--tx-2);
+    font-size: var(--fs-11);
+    line-height: 1.6;
+  }
+
+  @media (max-width: 640px) {
+    .pw-list-actions {
+      flex-direction: column;
+    }
+    .pw-list-actions .persona-custom-trigger,
+    .pw-list-actions .persona-draft-import-trigger {
+      width: 100%;
+      flex-basis: auto;
+    }
+  }
+
 }
