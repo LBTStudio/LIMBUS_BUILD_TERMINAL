@@ -1111,13 +1111,19 @@ function buildMemo(state) {
     L.push("");
   }
   if ((p.uniqueBuffs || []).length) {
-    L.push("\u25A0 \u56FA\u6709\u30D0\u30D5\u30FB\u30B9\u30C6\u30FC\u30BF\u30B9");
+    L.push("■ 固有バフ・ステータス");
     p.uniqueBuffs.forEach((b) => {
-      // 対象へ付与する目印は自分の初期値を持たないため、付与先が対象であることを示す。
-      const meta = isForeignTargetBuff(b)
-        ? `${b.type || "\u56FA\u6709\u30D0\u30D5"}\u3001\u5BFE\u8C61\u306B\u4ED8\u4E0E${b.max !== void 0 && b.max !== "" ? `\u3001\u6700\u5927${b.max}` : ""}`
-        : `${b.type || "\u56FA\u6709\u30D0\u30D5"}\u3001\u521D\u671F${b.initial ?? 0}${b.max !== void 0 && b.max !== "" ? `\u3001\u6700\u5927${b.max}` : ""}`;
-      L.push(`\u3000\u30FB${b.name}\uFF08${meta}\uFF09${b.desc ? `\uFF1A${b.desc}` : ""}`);
+      // MEMOの固有一覧はルールブック/草案インポートと同じ見出し形式にする。
+      // 初期値0は標準表記から省き、DB拡張値だけを必要時に明示する。
+      const foreignTarget = isForeignTargetBuff(b);
+      const hasMax = b.max !== void 0 && b.max !== null && b.max !== "";
+      const initial = Number(b.initial ?? 0);
+      const initialMeta = !foreignTarget && Number.isFinite(initial) && initial !== 0 ? ` 初期${initial}` : "";
+      const placeMeta = b.place === "params" ? " パラメータ側" : b.place === "none" ? " 登録先なし" : "";
+      const targetMeta = foreignTarget ? " 対象に付与" : "";
+      const head = `　[${b.name}]${hasMax ? ` 最大${b.max}` : ""} ${b.type || "固有バフ"}${initialMeta}${placeMeta}${targetMeta}`;
+      L.push(head);
+      if (b.desc) pushMemoEffect(L, "", b.desc);
     });
     L.push("");
   }

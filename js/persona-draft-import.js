@@ -26,13 +26,16 @@
     if (end < 0) return null;
     const tail = line.slice(end + 1).trim();
     // Metadata must start the tail. [1R] and [人格専用効果] remain prose.
-    const metadata = tail.match(/^(?:(?:最大(?:値|数)?\s*[:：;；]?\s*[０-９0-9]+|中立デバフ|中立バフ|デバフ|バフ|その他|特別処理)\s*)+/);
+    const metadata = tail.match(/^(?:(?:最大(?:値|数)?\s*[:：;；]?\s*[０-９0-9]+|初期(?:値)?\s*[:：;；]?\s*[０-９0-9]+|パラメータ側|ステータス側|登録先なし|対象に付与|固有弾丸|固有バフ|中立デバフ|中立バフ|デバフ|バフ|その他|特別処理)\s*)+/);
     if (!metadata) return null;
     const normalized = forMatch(metadata[0]);
     const max = normalized.match(/最大(?:値|数)?\s*[:;]?\s*(\d+)/);
-    return { name: line.slice(1, end), type: (normalized.match(/中立デバフ|中立バフ|デバフ|バフ|その他|特別処理/) || ["バフ"])[0],
-      max: max ? Number(max[1]) : 20, desc: tail.slice(metadata[0].length).replace(/^効果\s*[:：]\s*/, "") };
-  };
+    const initial = normalized.match(/初期(?:値)?\s*[:;]?\s*(\d+)/);
+    const noST = /対象に付与/.test(normalized);
+    return { name: line.slice(1, end), type: (normalized.match(/固有弾丸|固有バフ|中立デバフ|中立バフ|デバフ|バフ|その他|特別処理/) || ["バフ"])[0],
+      max: max ? Number(max[1]) : 20, initial: initial ? Number(initial[1]) : 0,
+      place: /パラメータ側/.test(normalized) ? "params" : /登録先なし/.test(normalized) ? "none" : "status", ...(noST ? { noST: true } : {}),
+      desc: tail.slice(metadata[0].length).replace(/^効果\s*[:：]\s*/, "") };
   const sectionTitle = (line) => clean(line).match(/^[◯○●]\s*(.+)$/)?.[1] || "";
   const buffHeaderAt = (lines, index) => {
     const direct = detectBuffHeader(lines[index]);
@@ -238,10 +241,15 @@
       const detected = buffHeaderAt(lines, index);
       if (detected) {
         push();
-        current = { ...detected.header, initial: 0, place: "status" };
+        current = { ...detected.header, initial: detected.header.initial ?? 0, place: detected.header.place || "status" };
         if (condition) current.desc = [condition, current.desc].filter(Boolean).join("\n");
         index = detected.end;
         continue;
+      }
+      // buildMemoの後続セクションを最後の固有効果本文へ誤連結しない。
+      if (current && /^■\s*(?:特殊強化|装備E\.G\.O|所持品)(?:\s|$)/.test(line)) {
+        push();
+        break;
       }
       if (current) appendLine(current, "desc", line.replace(/^効果\s*[:：]\s*/, ""));
     }

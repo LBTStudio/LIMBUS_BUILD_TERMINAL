@@ -155,3 +155,31 @@ test("握る者のチャットパレット出力で固有バフ本文と敵討�
     "戦術4「処断」の敵討伐時効果が欠落または分断されている"
   );
 });
+
+
+test("MEMO固有一覧はルールブック形式で本文を分離し、DB拡張値も表示する", () => {
+  const state = equipPersona(runtime, "n", runtime.db.normal_personas[0]);
+  state.uniqueBuffs = [
+    { id: "memo-rulebook", name: "固有見本", type: "固有バフ", initial: 0, max: 5,
+      desc: "戦闘開始時、保護1を得る。\nR開始時、保護2を得る。", place: "status" },
+    { id: "memo-param", name: "斬撃補正", type: "その他", initial: 2, max: 2,
+      desc: "斬撃スキル威力+2", place: "params" },
+    { id: "memo-none", name: "未管理", type: "その他", initial: 0, max: 3,
+      desc: "管理用の変数を使わない。", place: "none" },
+    { id: "memo-bullet", name: "弾丸固有", type: "固有弾丸", initial: 0, max: 9,
+      desc: "専用弾丸を1つ消費する。", place: "status" },
+    { id: "memo-target", name: "指令対象", type: "中立バフ", initial: 0, max: 1,
+      desc: "R開始時、対象を指定する。", place: "status", noST: true }
+  ];
+  state.enhancements = [{ name: "後続見出し確認", shards: 0, effect: "固有説明の後ろへ混入してはいけない" }];
+  const memo = runtime.gen.buildMemo(state);
+
+  assert.match(memo, /\[固有見本\] 最大5 固有バフ/);
+  assert.ok(memo.includes("戦闘開始時、保護1を得る。"));
+  assert.ok(memo.includes("R開始時、保護2を得る。"));
+  assert.match(memo, /\[斬撃補正\] 最大2 その他 初期2 パラメータ側/);
+  assert.match(memo, /\[未管理\] 最大3 その他 登録先なし/);
+  assert.match(memo, /\[弾丸固有\] 最大9 固有弾丸/);
+  assert.match(memo, /\[指令対象\] 最大1 中立バフ 対象に付与/);
+  assert.doesNotMatch(memo, /固有見本（固有バフ、初期0、最大5）：/);
+});
