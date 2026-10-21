@@ -18,7 +18,7 @@ test("人格未装備でもカスタム人格・テキスト流し込みの操�
   assert.doesNotMatch(block, /equippedPersona\s*&&/);
   assert.doesNotMatch(block, /role:\s*"button"/, "操作ボタンを内包する親はボタン役割にしない");
   assert.match(block, /className: "pw-listbar-toggle"/);
-  assert.match(block, /aria-controls: "persona-list-region"/);
+  assert.doesNotMatch(block, /aria-controls: "persona-list-region"/, "折り畳み中は対象要素がDOMから外れるため dangling IDREF を作らない");
 });
 
 test("人格編集開始とE.G.O解析開始は通常時にもボタンとして視認できる", () => {
@@ -26,7 +26,7 @@ test("人格編集開始とE.G.O解析開始は通常時にもボタンとして
   assert.match(personaSource, /"aria-pressed": isSynced/);
   assert.match(otherSections, /className: "ego-analysis-toggle btn btn-sm "/);
   assert.match(otherSections, /"aria-pressed": state\.egoManual/);
-  assert.match(interactionCss, /\.persona-edit-toggle\.btn-secondary/);
+  assert.match(interactionCss, /\.persona-edit-toggle\.btn--secondary/);
   assert.match(interactionCss, /\.ego-analysis-toggle\.btn-secondary/);
 });
 
