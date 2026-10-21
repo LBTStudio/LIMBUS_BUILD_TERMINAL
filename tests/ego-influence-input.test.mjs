@@ -43,7 +43,7 @@ test("ラウンド本文中の数字は継続ラウンドとして誤認せず�
 
 test("影響E.G.Oの入力欄は raw value を往復し、trimで空白やEnterを落とさない", () => {
   const start = source.indexOf("const renderInfluence = ");
-  const end = source.indexOf('return React.createElement("section", { className: `ego-slot-variant`', start);
+  const end = source.indexOf('return React.createElement("section", { className: "ego-slot-variant"', start);
   assert.ok(start >= 0 && end > start, "影響E.G.Oの編集UIが存在する");
   const block = source.slice(start, end);
   assert.match(block, /makeInfluenceEffect\(e\.target\.value, branch\.effect\)/);
