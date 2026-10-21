@@ -2960,7 +2960,6 @@ const RosterSection = ({ state, dispatch }) => {
        「DB人格の HP/SAN を手編集できるか」の話で、保守処理とは無関係。
        これを条件にしていたせいで、DB 人格の同期MAXは設定も解除もできなかった。 */
     const canModifySyncMax = item.type === "personas";
-    const hasSync = Boolean(item.entry.syncRank) || item.entry.syncMax === true;
     const syncCosts = item.type === "personas" ? {
       rank: syncCost(item.entry.uid, false),
       max: syncCost(item.entry.uid, true)
@@ -2986,8 +2985,10 @@ const RosterSection = ({ state, dispatch }) => {
       h("div", { className: "roster-detail-head" }, h("div", null, h("span", { className: "t-label" }, item.type === "personas" ? "PERSONA DETAIL / 簡易詳細" : "E.G.O DETAIL / 簡易詳細"), h("div", { className: "roster-detail-title" }, item.name)), h("button", { className: "btn btn--quiet btn-icon", onClick: () => setDetailId(null), title: "詳細を閉じる", "aria-label": "詳細を閉じる" }, h(Icon, { name: "x", size: 15 }))),
       h("div", { className: "roster-detail-lines" }, summary.map((line, index) => h("div", { key: index }, line))),
       item.type === "personas" && canModifySyncMax && h("div", { className: "roster-sync-ops" },
-        h("div", { className: "roster-sync-ops-head" }, h("span", { className: "t-label" }, "同期ランク・同期MAX（supplement P7 / P23）")),
-        h("p", { className: "roster-sync-cost-note" }, `初回設定時：同期ランク ${syncCosts?.rank?.shards ?? 50}個／同期MAX ${syncCosts?.max?.shards ?? 50}個。解除しても消費済みの欠片は返還されません。`),
+        h("div", { className: "roster-sync-ops-head" },
+          h("span", { className: "t-label" }, "同期設定"),
+          h("span", { className: "roster-sync-source", title: "新リンバスTRPG サプリメント P7 / P23" }, "SUPPLEMENT P7 / P23")),
+        h("p", { className: "roster-sync-cost-note" }, `初回設定時：同期ランク ${syncCosts?.rank?.shards ?? 50}個 / MAX ${syncCosts?.max?.shards ?? 50}個 · 解除時も返還なし`),
         h("div", { className: "roster-sync-rank-row" },
           h("span", { className: "ledger-note" }, "人格ランク"),
           h("div", { className: "segmented", role: "radiogroup", "aria-label": "同期人格ランク" },
@@ -3000,8 +3001,7 @@ const RosterSection = ({ state, dispatch }) => {
         h("label", { className: `sync-max-detail-toggle${item.entry.syncMax ? " is-on" : ""}`, title: "同期MAXを設定・解除（自我の欠片50個／supplement P7・P23）" },
           h("input", { type: "checkbox", checked: item.entry.syncMax === true, onChange: (event) => applySyncMax(item, event.target.checked) }),
           h("span", { className: "sync-max-detail-label" }, item.entry.syncMax ? "同期MAXを解除する" : "同期MAXとして設定"),
-          h("span", { className: "sync-max-detail-note" }, "自我の欠片50個・名称と共有に反映")),
-        hasSync && h("p", { className: "ledger-note" }, "同期は自己の欠片を支払う処理です。誤った操作なら上の操作で解除できます（費用は戻りません）。")),
+          h("span", { className: "sync-max-detail-note" }, "名称・共有に反映"))),
       h("div", { className: "roster-detail-actions" },
         item.equipped ? h("span", { className: "badge", style: { color: "var(--gold)", borderColor: "var(--gold-line)" } }, "現在装備中") : h(Button, { size: "md", variant: "primary", icon: "check", className: "roster-detail-equip", onClick: () => equipItem(item) }, item.type === "personas" ? "この人格を装備する" : "このE.G.Oを装備する"),
         item.saved && h("span", { className: "roster-detail-saved" }, item.type === "personas" ? "保存済みビルドを復元して装備します" : "保存済み解析を復元して装備します")
