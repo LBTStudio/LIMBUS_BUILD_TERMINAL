@@ -21,12 +21,14 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-577888bb";
+const CACHE_NAME = "lbt-3665c7cf";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
   "mobile-preview.html",
   "assets/design-system.css?v=910f9485",
+  "assets/fonts/corporate-logo-bold-subset.woff2?v=b56fa468",
+  "assets/fonts/corporate-logo-medium-subset.woff2?v=dbbdb67e",
   "assets/items.css?v=7cf01d95",
   "assets/persona-codex.css?v=f7d6f495",
   "assets/sections.css?v=fdd86e81",
@@ -39,23 +41,21 @@ const PRECACHE_URLS = [
   "assets/v65r47-ego-card-marks.css?v=aaf12533",
   "assets/v66-accounts.css?v=523c7986",
   "assets/v67-persona-redesign.css?v=b595e3d5",
-  "assets/v68-interaction-a11y.css?v=f8bd9448",
+  "assets/v68-interaction-a11y.css?v=7e73e1d3",
   "assets/workspace.css?v=253d0319",
   "data/db.json?v=b04a7751",
   "data/gacha-theme-packs.json?v=8d4dced2",
   "data/items.json?v=b47b58ae",
-  "fonts/corporate-logo-bold-subset.woff2?v=b56fa468",
-  "fonts/corporate-logo-medium-subset.woff2?v=dbbdb67e",
   "js/App.js?v=69bf0a82",
   "js/DataQuality.js?v=a8365c72",
   "js/ItemCodex.js?v=f81cdb3e",
   "js/LivePreview.js?v=1b6767e6",
-  "js/OtherSections.js?v=e9a27fb6",
-  "js/PersonaCodex.js?v=6d04bd19",
+  "js/OtherSections.js?v=3e9efdb1",
+  "js/PersonaCodex.js?v=c4dc3e24",
   "js/SkillDeck.js?v=0e7a3640",
   "js/accounts-ui.js?v=59b44784",
   "js/core.js?v=d79b98be",
-  "js/ego-slot-forms.js?v=85aa4887",
+  "js/ego-slot-forms.js?v=ed2c8976",
   "js/gacha-identity.js?v=50e150d6",
   "js/gacha-proof.js?v=568ae912",
   "js/gacha-tickets.js?v=c67b2ac7",
