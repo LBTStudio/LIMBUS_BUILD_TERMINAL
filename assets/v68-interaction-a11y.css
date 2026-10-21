@@ -1,0 +1,190 @@
+/* ---------------------------------------------------------------------------
+   v68-interaction-a11y.css
+   Interaction and readability corrections following a source-level UI audit.
+   Loaded after v67-persona-redesign; keep fixes scoped to interaction surfaces.
+--------------------------------------------------------------------------- */
+@layer v68-interaction-a11y {
+  /* Restore the shared design-system tokens used by later UI patches.
+     Without these aliases, text, outlines and semantic borders silently fall
+     back to browser defaults or become invalid at computed-value time. */
+  :root {
+    --text-strong: var(--tx);
+    --tx-main: var(--tx);
+    --tx-sub: var(--tx-2);
+    --text-muted: var(--tx-dim);
+    --line-mid: var(--line-strong);
+    --accent-dim: var(--accent-line);
+    --focus: var(--gold);
+    --fs-1: var(--fs-12);
+    --f-disp: var(--f-display);
+    --r-1: var(--r-sm);
+    --r-2: var(--r);
+    --r-3: var(--r-lg);
+    --r-md: var(--r);
+  }
+
+  /* ALEPH red was too dark when used as text on the card surface (~2.7:1).
+     Keep the red identity but use a readable foreground for text, not fills. */
+  .badge[data-rank="ALEPH"],
+  .ego-slot[data-rank="ALEPH"] .ego-slot-rank {
+    color: #f07a70;
+  }
+  .badge[data-rank="ALEPH"] {
+    border-color: #f07a70;
+  }
+
+  /* Secondary actions should still look like controls; disabled means
+     unavailable, not almost invisible. */
+  .btn:disabled {
+    opacity: 0.6;
+  }
+  .btn-sm {
+    min-block-size: 36px;
+    font-size: var(--fs-12);
+  }
+  .btn-icon {
+    min-inline-size: 36px;
+    min-block-size: 36px;
+    width: 36px;
+    height: 36px;
+  }
+  .tab {
+    min-block-size: 40px;
+    font-size: var(--fs-12);
+  }
+  .segmented > button,
+  .codex-modes button {
+    min-block-size: 36px;
+    font-size: var(--fs-12);
+  }
+  button.chip,
+  .source-filter-row .chip,
+  .item-filter {
+    min-block-size: 36px;
+  }
+  .item-filter {
+    padding: 7px 10px;
+    font-size: var(--fs-12);
+  }
+  .item-filter small {
+    opacity: 1;
+    color: var(--tx-dim);
+  }
+
+  /* Make disclosure controls read as clickable rows before hover, and make
+     the open state explicit rather than relying on a tiny hint alone. */
+  details.pw-subsec > summary {
+    min-block-size: 40px;
+    padding: 10px 12px;
+    font-size: var(--fs-12);
+  }
+  details.pw-subsec > summary::after {
+    font-size: var(--fs-12);
+    padding: 4px 8px;
+    color: var(--tx-2);
+    border-color: var(--line);
+    background: var(--surface-2);
+  }
+  details.pw-subsec[open] > summary {
+    color: var(--tx);
+    background: var(--gold-tint);
+    border-bottom: 1px solid var(--line);
+  }
+  details.pw-subsec[open] > summary::after {
+    color: var(--gold-hi);
+    border-style: solid;
+    border-color: var(--gold-line);
+  }
+  .pc-edit-summary,
+  .build-items-head {
+    min-block-size: 40px;
+    font-size: var(--fs-12);
+  }
+  .pc-edit[open] > .pc-edit-summary,
+  .build-items-head[aria-expanded="true"] {
+    color: var(--gold-hi);
+    background: var(--gold-tint);
+  }
+
+  /* Preview expand/collapse and ledger row actions have enough hit area and
+     a visible keyboard focus indicator. */
+  .preview-edge-toggle {
+    font-size: var(--fs-12);
+  }
+  .pv-sec-head,
+  .preview-readiness-jump,
+  .pv-sec-tbtn {
+    min-block-size: 36px;
+  }
+  .pv-sec-bullet-toggle {
+    min-block-size: 32px;
+    padding: 6px 10px;
+    font-size: var(--fs-12);
+  }
+  .ledger-row-release,
+  .ledger-row-trash,
+  .ledger-row-move {
+    min-inline-size: 36px;
+    min-block-size: 36px;
+  }
+  .ledger-card-edit-btn {
+    min-inline-size: 44px;
+    min-block-size: 36px;
+    padding: 4px 12px;
+    color: var(--tx);
+    background: var(--surface-2);
+    border-color: var(--line);
+    font-size: var(--fs-12);
+  }
+  .ledger-import-toggle,
+  .ledger-import-menu .btn {
+    min-block-size: 40px;
+  }
+  .ledger-unknown-label {
+    min-block-size: 40px;
+    color: var(--tx-2);
+    font-size: var(--fs-12);
+  }
+
+  /* Restore a consistent high-contrast focus ring even where component rules
+     replace outline color with a project-specific token. */
+  .ledger-card-edit-btn:focus-visible,
+  .ledger-unknown-label:focus-visible,
+  .preview-edge-toggle:focus-visible,
+  .pv-sec-head:focus-visible,
+  .preview-readiness-jump:focus-visible,
+  .pv-sec-tbtn:focus-visible,
+  .ledger-row-release:focus-visible,
+  .ledger-row-trash:focus-visible,
+  .ledger-row-move:focus-visible,
+  .pc-edit-summary:focus-visible,
+  details.pw-subsec > summary:focus-visible,
+  .build-items-head:focus-visible {
+    outline: 2px solid var(--gold-hi);
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 640px) {
+    .btn-icon {
+      min-inline-size: 40px;
+      min-block-size: 40px;
+      width: 40px;
+      height: 40px;
+    }
+    .segmented > button,
+    .codex-modes button,
+    button.chip,
+    .source-filter-row .chip,
+    .item-filter,
+    .ledger-import-toggle,
+    .ledger-import-menu .btn {
+      min-block-size: 40px;
+    }
+    .ledger-row-release,
+    .ledger-row-trash,
+    .ledger-row-move {
+      min-inline-size: 40px;
+      min-block-size: 40px;
+    }
+  }
+}

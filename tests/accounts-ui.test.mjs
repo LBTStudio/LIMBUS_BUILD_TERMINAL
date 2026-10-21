@@ -185,7 +185,7 @@ test("index.html がアセットとレイヤーを宣言している", () => {
   assert.match(indexHtml, /assets\/v66-accounts\.css\?v=[0-9a-f]+/, "CSS は版付きで読み込む");
   assert.match(indexHtml, /js\/accounts-ui\.js\?v=[0-9a-f]+/, "JS は版付きで読み込む");
   assert.match(indexHtml, /js\/icon-cropper\.js\?v=[0-9a-f]+/, "切り抜きエディタも版付きで読み込む");
-  assert.match(indexHtml, /@layer[\s\S]*?\bv66-accounts\s*;/, "レイヤー順を index.html で宣言する");
+  assert.match(indexHtml, /@layer[\s\S]*?\bv66-accounts\s*[,;]/, "レイヤー順を index.html で宣言する");
 });
 
 /* topbar の残高は LP と欠片だけだった。抽出チケットも「何枚あるか」を
