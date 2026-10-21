@@ -40,6 +40,9 @@ test("ラウンド本文中の数字は継続ラウンドとして誤認せず�
   assert.equal(effect, "[影響]：" + body);
   assert.equal(api.getInfluenceRounds(effect), "");
   assert.equal(api.stripInfluenceHeader(effect), body);
+  assert.equal(api.makeInfluenceEffect("2R", ""), "[影響] 2R");
+  assert.equal(api.getInfluenceRounds(api.makeInfluenceEffect("2R", "")), "2R");
+  assert.equal(api.stripInfluenceHeader(api.makeInfluenceEffect("2R", "")), "");
 });
 
 test("影響E.G.Oの入力欄は raw value を往復し、trimで空白やEnterを落とさない", () => {
