@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-c4142d60";
+const CACHE_NAME = "lbt-473c76a2";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -39,7 +39,7 @@ const PRECACHE_URLS = [
   "assets/v65r47-ego-card-marks.css?v=aaf12533",
   "assets/v66-accounts.css?v=523c7986",
   "assets/v67-persona-redesign.css?v=b595e3d5",
-  "assets/v68-interaction-a11y.css?v=aaf92bb7",
+  "assets/v68-interaction-a11y.css?v=8d2cced6",
   "assets/workspace.css?v=253d0319",
   "data/db.json?v=b04a7751",
   "data/gacha-theme-packs.json?v=8d4dced2",
@@ -49,7 +49,7 @@ const PRECACHE_URLS = [
   "js/ItemCodex.js?v=f81cdb3e",
   "js/LivePreview.js?v=1b6767e6",
   "js/OtherSections.js?v=ba4fd119",
-  "js/PersonaCodex.js?v=95ab8263",
+  "js/PersonaCodex.js?v=f5425554",
   "js/SkillDeck.js?v=0e7a3640",
   "js/accounts-ui.js?v=59b44784",
   "js/core.js?v=d79b98be",
