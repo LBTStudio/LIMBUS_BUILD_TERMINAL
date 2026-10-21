@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-9b27c8ab";
+const CACHE_NAME = "lbt-08cac498";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -50,7 +50,7 @@ const PRECACHE_URLS = [
   "js/DataQuality.js?v=a8365c72",
   "js/ItemCodex.js?v=f81cdb3e",
   "js/LivePreview.js?v=1b6767e6",
-  "js/OtherSections.js?v=7818945c",
+  "js/OtherSections.js?v=c26269a2",
   "js/PersonaCodex.js?v=f5425554",
   "js/SkillDeck.js?v=0e7a3640",
   "js/accounts-ui.js?v=59b44784",
@@ -63,7 +63,7 @@ const PRECACHE_URLS = [
   "js/garasumado-import-ui.js?v=5e7676dc",
   "js/garasumado-memo-parse.js?v=0240e20e",
   "js/garasumado-roster-import.js?v=70630388",
-  "js/generator.js?v=a79a5a54",
+  "js/generator.js?v=73d3bd17",
   "js/icon-cropper.js?v=20900dc8",
   "js/ledger-import-reconcile.js?v=d63c36d5",
   "js/ledger-provenance.js?v=53c12252",
@@ -72,7 +72,7 @@ const PRECACHE_URLS = [
   "js/result-log-parser.js?v=43c5aa47",
   "js/result-text-import.js?v=8cc0b8d2",
   "js/roster-resolver.js?v=c778eb30",
-  "js/share-link.js?v=cddbca97",
+  "js/share-link.js?v=1a1caa2c",
   "js/share-viewer.js?v=9521f675",
   "js/state.js?v=d5f589c4",
   "js/ui.js?v=8943eab8",
@@ -82,6 +82,8 @@ const PRECACHE_URLS = [
 /* ==== /GENERATED ==== */
 
 const PAGE_FILES = ["index.html", "share.html", "mobile-preview.html"];
+const OPTIONAL_PRECACHE_URLS = new Set(PRECACHE_URLS.filter((url) => url === "mobile-preview.html" || url.startsWith("assets/fonts/")));
+const REQUIRED_PRECACHE_URLS = PRECACHE_URLS.filter((url) => !OPTIONAL_PRECACHE_URLS.has(url));
 const PRECACHE_ABS = new Set(PRECACHE_URLS.map((u) => new URL(u, self.location).href));
 
 function isPageUrl(url) {
@@ -92,9 +94,11 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(CACHE_NAME);
-      /* 1 件の 404 で precache 全体を落とさない。欠けた資産はオンラインの
-         network-first 側が復旧経路になる。 */
-      await Promise.allSettled(PRECACHE_URLS.map((u) => cache.add(u)));
+      /* アプリ本体・DB・必須CSS/JSは全件キャッシュできる場合だけ更新する。
+         必須資産の失敗で install を reject すれば、旧SWと旧キャッシュが残る。
+         プレビュー専用ページとフォントだけは任意資産として失敗を許容する。 */
+      await Promise.all(REQUIRED_PRECACHE_URLS.map((u) => cache.add(u)));
+      await Promise.allSettled([...OPTIONAL_PRECACHE_URLS].map((u) => cache.add(u)));
       await self.skipWaiting();
     })()
   );

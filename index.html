@@ -14,13 +14,25 @@
 function loadDB(){
   return new Promise(function(resolve, reject){
     if(window.fetch){
-      Promise.all([fetch("data/db.json?v=b04a7751", {priority:"high"}), fetch("data/items.json?v=b47b58ae"), fetch("data/gacha-theme-packs.json?v=8d4dced2")]).then(function(rs){ return Promise.all(rs.map(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json(); })); })
-        .then(function(rows){ window.DB = rows[0]; window.DB.items = Array.isArray(rows[1]) ? rows[1] : []; window.LBT_GACHA_PACKS = rows[2] || { packs: [] }; resolve(); }).catch(reject);
+      function readJSON(url, options){ return fetch(url, options).then(function(r){ if(!r.ok) throw new Error("http "+r.status+" for "+url); return r.json(); }); }
+      readJSON("data/db.json?v=b04a7751", {priority:"high"}).then(function(db){
+        window.DB = db;
+        return Promise.allSettled([
+          readJSON("data/items.json?v=b47b58ae"),
+          readJSON("data/gacha-theme-packs.json?v=8d4dced2")
+        ]).then(function(aux){
+          window.DB.items = aux[0].status === "fulfilled" && Array.isArray(aux[0].value) ? aux[0].value : [];
+          window.LBT_GACHA_PACKS = aux[1].status === "fulfilled" && aux[1].value && typeof aux[1].value === "object" ? aux[1].value : { packs: [] };
+          if(aux[0].status === "rejected" && window.console && console.warn) console.warn("items.json を読み込めません。空のアイテム一覧で起動します。", aux[0].reason);
+          if(aux[1].status === "rejected" && window.console && console.warn) console.warn("gacha-theme-packs.json を読み込めません。既定のパック一覧で起動します。", aux[1].reason);
+          resolve();
+        });
+      }).catch(reject);
       return;
     }
     var xhr = new XMLHttpRequest();
     xhr.open("GET", "data/db.json?v=b04a7751", true);
-    xhr.onload = function(){ if(xhr.status===200 || xhr.status===0){ try{ window.DB = JSON.parse(xhr.responseText); window.DB.items = []; resolve(); }catch(e){ reject(e); } } else reject(new Error("http "+xhr.status)); };
+    xhr.onload = function(){ if(xhr.status===200 || xhr.status===0){ try{ window.DB = JSON.parse(xhr.responseText); window.DB.items = []; window.LBT_GACHA_PACKS = { packs: [] }; resolve(); }catch(e){ reject(e); } } else reject(new Error("http "+xhr.status)); };
     xhr.onerror = function(){ reject(new Error("xhr error")); };
     xhr.send();
   });
@@ -105,13 +117,13 @@ window.addEventListener("load", function(){
 			<script src="js/ego-slot-forms.js?v=85aa4887"></script>
 				<script src="js/state.js?v=d5f589c4"></script>
 				<script src="js/persona-draft-import.js?v=4c89a3ee"></script>
-					<script src="js/share-link.js?v=cddbca97"></script>
-					<script src="js/generator.js?v=a79a5a54"></script>
+					<script src="js/share-link.js?v=1a1caa2c"></script>
+					<script src="js/generator.js?v=73d3bd17"></script>
 <script src="js/ui.js?v=8943eab8"></script>
 				<script src="js/PersonaCodex.js?v=f5425554"></script>
 		<script src="js/ItemCodex.js?v=f81cdb3e"></script>
 <script src="js/SkillDeck.js?v=0e7a3640"></script>
-								<script src="js/OtherSections.js?v=7818945c"></script>
+								<script src="js/OtherSections.js?v=c26269a2"></script>
 				<script src="js/LivePreview.js?v=1b6767e6"></script>
 <script src="js/DataQuality.js?v=a8365c72"></script>
 <script src="js/icon-cropper.js?v=20900dc8"></script>

@@ -1,0 +1,101 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+import vm from "node:vm";
+
+const indexHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+const generator = readFileSync(new URL("../js/generator.js", import.meta.url), "utf8");
+const shareLinkSource = readFileSync(new URL("../js/share-link.js", import.meta.url), "utf8");
+const otherSections = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
+const serviceWorker = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
+
+function loadBootstrap(fetchImpl) {
+  const script = [...indexHtml.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)][0]?.[1];
+  assert.ok(script, "index.html にインラインの起動スクリプトがある");
+  const warnings = [];
+  const consoleMock = { warn: (...args) => warnings.push(args) };
+  const context = {
+    window: { fetch: fetchImpl, console: consoleMock },
+    fetch: fetchImpl,
+    console: consoleMock,
+    Promise,
+    XMLHttpRequest: function () { throw new Error("XHR fallback should not run in this test"); }
+  };
+  vm.runInNewContext(script, context, { filename: "index.html bootstrap" });
+  return { ready: context.lbtDbReady, window: context.window, warnings };
+}
+
+function loadShareLink() {
+  const window = {};
+  vm.runInNewContext(shareLinkSource, {
+    window, TextEncoder, TextDecoder, CompressionStream, DecompressionStream,
+    Blob, Response, URL, URLSearchParams, btoa, atob
+  }, { filename: "js/share-link.js" });
+  return window.LBT_shareLink;
+}
+
+test("補助JSONの404・通信失敗は起動を止めず、DB本体で準備を完了する", async () => {
+  const fetchMock = async (url) => {
+    if (url.includes("db.json")) return { ok: true, json: async () => ({ marker: "db-ready" }) };
+    if (url.includes("items.json")) return { ok: false, status: 404, json: async () => [] };
+    throw new Error("network offline");
+  };
+  const loaded = loadBootstrap(fetchMock);
+  await loaded.ready;
+  assert.equal(loaded.window.DB.marker, "db-ready");
+  assert.deepEqual(JSON.parse(JSON.stringify(loaded.window.DB.items)), []);
+  assert.deepEqual(JSON.parse(JSON.stringify(loaded.window.LBT_GACHA_PACKS)), { packs: [] });
+  assert.equal(loaded.warnings.length, 2);
+});
+
+test("DB本体のHTTP失敗だけは起動エラーになる", async () => {
+  const fetchMock = async () => ({ ok: false, status: 503, json: async () => ({}) });
+  const loaded = loadBootstrap(fetchMock);
+  await assert.rejects(loaded.ready, /http 503/);
+});
+
+test("圧縮共有トークンの解凍サイズが4 MiBを超える場合はJSON解析前に拒否する", async () => {
+  const share = loadShareLink();
+  const raw = JSON.stringify({ _lbtShare: 1, payload: "x".repeat(4 * 1024 * 1024 + 128) });
+  const compressedStream = new Blob([raw]).stream().pipeThrough(new CompressionStream("deflate-raw"));
+  const compressed = new Uint8Array(await new Response(compressedStream).arrayBuffer());
+  const base64 = btoa(String.fromCharCode(...compressed)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  await assert.rejects(share.decodeToken("z." + base64), /展開サイズ/);
+});
+
+test("共有発行結果と手動コピーUIは発行ボタンの外側に追加する", () => {
+  assert.match(generator, /<div class="share-publish-results" aria-live="polite"><\/div>/);
+  assert.match(generator, /const resultArea = root\.querySelector\("\.share-publish-results"\)/);
+  assert.doesNotMatch(generator, /const resultArea = statusEl\.parentElement/);
+  assert.match(generator, /cpBtn\.addEventListener\("click", async \(\) => \{/);
+});
+
+test("共有モーダルは初期フォーカス、Tab閉じ込め、Escape、終了後のフォーカス復帰を持つ", () => {
+  assert.match(generator, /role="dialog" aria-modal="true" tabindex="-1"/);
+  assert.match(generator, /root\.querySelector\('\[data-act="publish"\]'\)\?\.focus\(\)/);
+  assert.match(generator, /e\.key !== "Tab"/);
+  assert.match(generator, /if \(e\.key === "Escape"\)/);
+  assert.match(generator, /previouslyFocused\.focus\(\)/);
+});
+
+test("共有シートのHTMLエスケープは数値0を空文字へ変換しない", () => {
+  assert.match(generator, /const esc = \(s\) => String\(s \?\? ""\)/);
+});
+
+test("所持一覧の行は操作要素を内包せず、詳細操作と即時装備ボタンが兄弟になる", () => {
+  const start = otherSections.indexOf("const renderItem = (item) =>");
+  const end = otherSections.indexOf("const libraryTabLabel", start);
+  const block = otherSections.slice(start, end);
+  const beforeCheckbox = block.slice(0, block.indexOf('manageMode && h("input"'));
+  assert.doesNotMatch(beforeCheckbox, /role: manageMode \? undefined : "button"/);
+  assert.match(block, /className: "roster-item-info", role: manageMode \? undefined : "button"/);
+  assert.match(block, /className: "roster-item-actions"/);
+  assert.match(block, /onKeyDown: \(event\) => \{ if \(!manageMode && \(event\.key === "Enter" \|\| event\.key === " "\)\)/);
+});
+
+test("Service Workerは必須プリキャッシュ失敗時に新バージョンを有効化せず、任意アセットだけ失敗を許容する", () => {
+  assert.match(serviceWorker, /const REQUIRED_PRECACHE_URLS = PRECACHE_URLS\.filter/);
+  assert.match(serviceWorker, /await Promise\.all\(REQUIRED_PRECACHE_URLS\.map\(\(u\) => cache\.add\(u\)\)\)/);
+  assert.match(serviceWorker, /await Promise\.allSettled\(\[\.\.\.OPTIONAL_PRECACHE_URLS\]\.map\(\(u\) => cache\.add\(u\)\)\)/);
+  assert.ok(serviceWorker.indexOf("await Promise.all(REQUIRED_PRECACHE_URLS") < serviceWorker.indexOf("await self.skipWaiting()"));
+});

@@ -1444,7 +1444,7 @@ function buildShareSheetHTML(state) {
   const personaSync = getCurrentPersonaSyncState(p);
   const personaName = formatPersonaDisplayName(p);
   const showSyncRank = p.shareOptions?.showSyncRank !== false;
-  const esc = (s) => String(s || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   // 外部HTMLホストへ発行したページは、Discord等のクローラーが実行前のheadだけを読む。
   // そのため、ページごとに確定した文言をここでOGPタグへ埋め込む。
   const clipShareMeta = (text, max = 56) => {
@@ -1896,6 +1896,7 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
 const LBT_SHARE_VIEWER_URL = "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html";
 async function openShareSheet(state) {
   const html = buildShareSheetHTML(state);
+  const previouslyFocused = document.activeElement;
   const filename = `${(state.charName || "character").replace(/[^\w\-一-龥ぁ-んァ-ヴ]/g, "_") || "character"}_sheet.html`;
   const prev = document.getElementById("lbt-share-modal-root");
   if (prev) prev.remove();
@@ -1907,7 +1908,7 @@ async function openShareSheet(state) {
    reduced motion では固定した環に差し替える。色は gold を保ったまま。 */
 @media (prefers-reduced-motion: reduce){.share-opt-status.is-progress::before{animation:none;border-top-color:var(--gold,#c8a84b);opacity:.9}}</style>
     <div class="share-modal-backdrop" data-close>
-      <div class="share-modal" role="dialog" aria-labelledby="lbt-share-title">
+      <div class="share-modal" role="dialog" aria-modal="true" tabindex="-1" aria-labelledby="lbt-share-title">
         <div class="share-modal-head">
           <div class="share-modal-title" id="lbt-share-title">\u25C8 \u5171\u6709\u30B7\u30FC\u30C8 \u2014 \u767A\u884C\u65B9\u6CD5\u3092\u9078\u629E</div>
           <button class="share-modal-close" data-close aria-label="\u9589\u3058\u308B">\u2715</button>
@@ -1942,6 +1943,7 @@ async function openShareSheet(state) {
             </span>
           </button>
         </div>
+        <div class="share-publish-results" aria-live="polite"></div>
         <div class="share-modal-foot">
           LBT ${window.LBT_VERSION || "v64r45"} \u2014 Shift+Escape \u3067\u3082\u9589\u3058\u3089\u308C\u307E\u3059
         </div>
@@ -1949,14 +1951,37 @@ async function openShareSheet(state) {
     </div>
   `;
   document.body.appendChild(root);
+  const dialog = root.querySelector(".share-modal");
+  const focusableSelector = 'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
   const close = () => {
     root.remove();
     document.removeEventListener("keydown", onKey);
+    if (previouslyFocused && previouslyFocused.isConnected && typeof previouslyFocused.focus === "function") previouslyFocused.focus();
   };
   const onKey = (e) => {
-    if (e.key === "Escape") close();
+    if (e.key === "Escape") {
+      close();
+      return;
+    }
+    if (e.key !== "Tab" || !dialog) return;
+    const focusable = Array.from(dialog.querySelectorAll(focusableSelector)).filter((el) => !el.disabled && el.getAttribute("aria-hidden") !== "true");
+    if (!focusable.length) {
+      e.preventDefault();
+      dialog.focus();
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+      e.preventDefault();
+      first.focus();
+    }
   };
   document.addEventListener("keydown", onKey);
+  root.querySelector('[data-act="publish"]')?.focus();
   root.querySelectorAll("[data-close]").forEach((el) => {
     el.addEventListener("click", (e) => {
       // 背景そのものを押した時だけ閉じる。currentTarget は子要素のクリックでも
@@ -2065,7 +2090,7 @@ async function openShareSheet(state) {
         // 主URLはDiscordへ貼る対象として常に最初に見せ、手動コピーもここで完結させる。
         const statusEl = root.querySelector('[data-status="publish"]');
         if (statusEl) {
-          const resultArea = statusEl.parentElement;
+          const resultArea = root.querySelector(".share-publish-results");
           resultArea.querySelectorAll(".share-url-field,.share-url-backups,.share-publish-card").forEach((el) => el.remove());
           const preview = r.preview || {};
           const summary = document.createElement("div");
@@ -2138,7 +2163,7 @@ async function openShareSheet(state) {
         }
       } catch (e) {
         const message = e.message || "\u516C\u958B\u5931\u6557";
-        root.querySelector('[data-status="publish"]')?.parentElement?.querySelectorAll(".share-url-field,.share-url-backups,.share-publish-card").forEach((el) => el.remove());
+        root.querySelector(".share-publish-results")?.querySelectorAll(".share-url-field,.share-url-backups,.share-publish-card").forEach((el) => el.remove());
         const retry = /\u5171\u6709\u753B\u50CF.*(?:\u898F\u5B9A\u91CF|\u518D\u30A2\u30C3\u30D7\u30ED\u30FC\u30C9|\u5F62\u5F0F)/.test(message)
           ? "\u2014 Base info\u3067\u5171\u6709\u753B\u50CF\u3092\u518D\u30A2\u30C3\u30D7\u30ED\u30FC\u30C9\u3057\u3066\u304B\u3089\u3001\u3082\u3046\u4E00\u5EA6\u5171\u6709\u30EA\u30F3\u30AF\u3092\u767A\u884C\u3057\u3066\u304F\u3060\u3055\u3044"
           : "\u2014 \u2460\u30C0\u30A6\u30F3\u30ED\u30FC\u30C9\u304B\u3001\u6642\u9593\u3092\u7F6E\u3044\u3066\u518D\u8A66\u884C\u3057\u3066\u304F\u3060\u3055\u3044";
