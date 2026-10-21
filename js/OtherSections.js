@@ -748,7 +748,7 @@ const stripInfluenceHeader = (effect) => String(effect || "").replace(/^\s*\[\s*
 const makeInfluenceEffect = (rounds, effect) => {
   const label = `[影響]${rounds ? ` ${rounds}` : ""}`;
   const body = stripInfluenceHeader(effect);
-  return `${label}：${body}`;
+  return body ? `${label}：${body}` : label;
 };
 const getEgoVariantModel = (slot, slotKey) => {
   const normalized = window.LBT_normalizeEgoSlotVariants ? window.LBT_normalizeEgoSlotVariants(slot || {}) : (slot || {});
