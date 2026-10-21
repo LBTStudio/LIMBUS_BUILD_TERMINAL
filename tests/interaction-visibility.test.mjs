@@ -51,3 +51,15 @@ test("主要操作に最低タップ領域と明示的フォーカス表示を�
   assert.match(css, /\.ledger-card-edit-btn:focus-visible,[\s\S]*?outline:\s*2px solid var\(--gold-hi\)/);
   assert.match(css, /@media\s*\(max-width:\s*640px\)/);
 });
+
+test("固有効果テキストは2行で切らずに全文と改行を表示する", () => {
+  const rule = css.match(/\.ubc-desc\s*\{([^}]*)\}/);
+  assert.ok(rule, ".ubc-desc の上書きルールが存在する");
+  assert.match(rule[1], /display:\s*block/);
+  assert.match(rule[1], /overflow:\s*visible/);
+  assert.match(rule[1], /max-block-size:\s*none/);
+  assert.match(rule[1], /-webkit-line-clamp:\s*unset/);
+  assert.match(rule[1], /line-clamp:\s*none/);
+  assert.match(rule[1], /white-space:\s*pre-wrap/);
+  assert.match(rule[1], /overflow-wrap:\s*anywhere/);
+});
