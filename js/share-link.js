@@ -6,6 +6,7 @@
 (function () {
   const SHARE_SCHEMA = 1;
   const MAX_TOKEN_LENGTH = 160000;
+  const MAX_DECOMPRESSED_BYTES = 4 * 1024 * 1024;
   const PRACTICAL_DISCORD_URL_LENGTH = 1900;
   const SHARE_IMAGE_TARGET_BYTES = 32 * 1024;
   // Telegraphのページ本文は64KB上限。フォームエンコードとプレフィックス分を見込み、
@@ -491,13 +492,37 @@
     return Uint8Array.from(binary, (char) => char.charCodeAt(0));
   }
 
-  async function transform(bytes, stream) {
+  async function transform(bytes, stream, maxOutputBytes = MAX_DECOMPRESSED_BYTES) {
     const transformed = new Blob([bytes]).stream().pipeThrough(stream);
-    return new Uint8Array(await new Response(transformed).arrayBuffer());
+    const reader = transformed.getReader();
+    const chunks = [];
+    let total = 0;
+    try {
+      while (true) {
+        const part = await reader.read();
+        if (part.done) break;
+        total += part.value.byteLength;
+        if (total > maxOutputBytes) {
+          try { await reader.cancel(); } catch (_) {}
+          throw new Error("共有データの展開サイズが上限（4 MiB）を超えています");
+        }
+        chunks.push(part.value);
+      }
+    } finally {
+      try { reader.releaseLock(); } catch (_) {}
+    }
+    const output = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+      output.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return output;
   }
 
   async function encodeState(state) {
     const bytes = new TextEncoder().encode(JSON.stringify(snapshotState(state)));
+    if (bytes.byteLength > MAX_DECOMPRESSED_BYTES) throw new Error("共有データが上限（4 MiB）を超えています");
     if (typeof CompressionStream === "function") {
       const compressed = await transform(bytes, new CompressionStream("deflate-raw"));
       return `z.${bytesToBase64Url(compressed)}`;
