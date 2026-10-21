@@ -1106,7 +1106,6 @@ const addRoster = (p) => {
           className: "pw-listbar-toggle",
           onClick: toggleCodexList,
           "aria-expanded": codexExpanded,
-          "aria-controls": "persona-list-region",
           title: codexExpanded ? "人格一覧を折り畳む" : "人格一覧を展開して別の人格を選ぶ"
         },
           /* @__PURE__ */ React.createElement("span", { className: "caret" }, codexExpanded ? "▼" : "▶"),
