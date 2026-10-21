@@ -1,19 +1,18 @@
-/* 原典照合済みのE.G.Oスキル形態。keyは「ランク:No」で、値は覚醒・侵蝕の初期形態。 */
 const LBT_EGO_INFLUENCE_TEXT = (() => {
   const getRounds = (effect) => {
-    const match = String(effect || "").match(/^\\s*\\[\\s*影響\\s*\\][ \\t]*(\\d+R?)/i);
+    const match = String(effect || "").match(/^\s*\[\s*影響\s*\][ \t]*(\d+R?)/i);
     return match ? match[1] : "";
   };
   /* Strip only the serialized header. The effect body must keep its own spaces,
      including trailing spaces and line breaks while a controlled textarea is edited. */
-  const stripHeader = (effect) => String(effect || "").replace(/^\\s*\\[\\s*影響\\s*\\](?:[ \\t]*\\d+R?)?[ \\t]*(?:[:：])?/i, "");
+  const stripHeader = (effect) => String(effect || "").replace(/^\s*\[\s*影響\s*\](?:[ \t]*\d+R?)?[ \t]*(?:[:：])?/i, "");
   const makeEffect = (rounds, effect) => {
     const rawRounds = String(rounds ?? "").trim();
-    const match = /^(\\d+)R?$/i.exec(rawRounds);
-    const canonicalRounds = rawRounds ? (match ? `${match[1]}R` : rawRounds) : "";
-    const label = `[影響]${canonicalRounds ? ` ${canonicalRounds}` : ""}`;
+    const match = /^(\d+)R?$/i.exec(rawRounds);
+    const canonicalRounds = rawRounds ? (match ? match[1] + "R" : rawRounds) : "";
+    const label = "[影響]" + (canonicalRounds ? " " + canonicalRounds : "");
     const body = stripHeader(effect);
-    return body.length ? `${label}：${body}` : label;
+    return body.length ? label + "：" + body : label;
   };
   return Object.freeze({ getRounds, stripHeader, makeEffect });
 })();
