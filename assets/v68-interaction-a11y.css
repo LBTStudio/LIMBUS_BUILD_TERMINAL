@@ -187,4 +187,20 @@
       min-block-size: 40px;
     }
   }
+
+  /* Unique-status descriptions are source data, not preview snippets.
+     The previous two-line clamp hid effect conditions and exceptions.
+     Keep the card grid and metadata layout, but let the description use its
+     natural height and preserve source newlines for quick verification. */
+  .ubc-desc {
+    display: block;
+    overflow: visible;
+    max-block-size: none;
+    -webkit-box-orient: initial;
+    -webkit-line-clamp: unset;
+    line-clamp: none;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+  }
 }
