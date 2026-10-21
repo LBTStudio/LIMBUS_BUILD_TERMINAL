@@ -1119,7 +1119,7 @@ function buildMemo(state) {
       const hasMax = b.max !== void 0 && b.max !== null && b.max !== "";
       const initial = Number(b.initial ?? 0);
       const initialMeta = !foreignTarget && Number.isFinite(initial) && initial !== 0 ? ` 初期${initial}` : "";
-      const placeMeta = b.place === "params" ? " パラメータ側" : "";
+      const placeMeta = b.place === "params" ? " パラメータ側" : b.place === "none" ? " 登録先なし" : "";
       const targetMeta = foreignTarget ? " 対象に付与" : "";
       const head = `　[${b.name}]${hasMax ? ` 最大${b.max}` : ""} ${b.type || "固有バフ"}${initialMeta}${placeMeta}${targetMeta}`;
       L.push(head);
