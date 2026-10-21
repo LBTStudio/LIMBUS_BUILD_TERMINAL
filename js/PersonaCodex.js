@@ -431,7 +431,9 @@ const EquippedSummary = ({ state, dispatch, onExpand, onShowDetail, detailShown,
       Button,
       {
         size: "sm",
-        variant: isSynced ? "primary" : "ghost",
+        variant: isSynced ? "primary" : "secondary",
+        className: "persona-edit-toggle",
+        "aria-pressed": isSynced,
         icon: isSynced ? "check" : "edit",
         onClick: () => {
           if (isSynced) {
@@ -1093,28 +1095,46 @@ const addRoster = (p) => {
     }
   )
     })))), 
-  equippedPersona && /* @__PURE__ */ React.createElement(
+  /* 人格未装備でも、カスタム作成とテキスト取り込みは常に利用可能にする。
+   開閉ボタンと操作ボタンを分離し、button の入れ子も避ける。 */
+  /* @__PURE__ */ React.createElement(
     "div",
-    {
-      className: "pw-listbar",
-      onClick: toggleCodexList,
-      onKeyDown: (event) => {
-        if (event.target !== event.currentTarget) return;
-        if (event.key === "Enter" || event.key === " ") { event.preventDefault(); toggleCodexList(); }
-      },
-      role: "button",
-      tabIndex: 0,
-      "aria-expanded": codexExpanded,
-      title: codexExpanded ? "\u4EBA\u683C\u4E00\u89A7\u3092\u6298\u308A\u7573\u3080" : "\u4EBA\u683C\u4E00\u89A7\u3092\u5C55\u958B\u3057\u3066\u5225\u306E\u4EBA\u683C\u3092\u9078\u3076"
-    },
-    /* @__PURE__ */ React.createElement("span", { className: "caret" }, codexExpanded ? "\u25BC" : "\u25B6"),
-    /* @__PURE__ */ React.createElement("span", { className: "pw-listbar-title", style: { fontFamily: "var(--f-display)", fontSize: "var(--fs-11)", letterSpacing: "0.14em", color: "var(--tx-2)" } }, "PERSONA LIST / \u4EBA\u683C\u4E00\u89A7"),
-    /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)" } }, codexExpanded ? `${sorted.length}\u4EF6\u8868\u793A\u4E2D` : "\u6298\u308A\u7573\u307F\u4E2D"),
-    /* @__PURE__ */ React.createElement("div", { className: "pw-listbar-spacer", style: { flex: 1 } }),
-    !codexExpanded && /* @__PURE__ */ React.createElement("span", { className: "pw-listbar-hint", style: { fontSize: "var(--fs-10)", color: "var(--gold)" } }, "\u30AF\u30EA\u30C3\u30AF\u3067\u5C55\u958B"),
-    /* @__PURE__ */ React.createElement("button", { className: "persona-custom-trigger", type: "button", onClick: (event) => { event.stopPropagation(); equipCustom(); }, title: "DB\u306B\u7121\u3044\u5275\u4F5C\u4EBA\u683C\u3092\u624B\u5165\u529B\u3067\u88C5\u5099 (v45\u4E92\u63DB)" }, "\uFF0B \u30AB\u30B9\u30BF\u30E0\u4EBA\u683C"),
-    /* @__PURE__ */ React.createElement("button", { className: "persona-draft-import-trigger", type: "button", onClick: (event) => { event.stopPropagation(); setDraftImportOpen(true); }, title: "完成した人格データをテキストで流し込み、確認して反映" }, "テキスト流し込み反映"),
-    null
+    { className: "pw-listbar", "data-equipped": equippedPersona ? "1" : "0" },
+    equippedPersona
+      ? /* @__PURE__ */ React.createElement("button", {
+          type: "button",
+          className: "pw-listbar-toggle",
+          onClick: toggleCodexList,
+          "aria-expanded": codexExpanded,
+          "aria-controls": "persona-list-region",
+          title: codexExpanded ? "人格一覧を折り畳む" : "人格一覧を展開して別の人格を選ぶ"
+        },
+          /* @__PURE__ */ React.createElement("span", { className: "caret" }, codexExpanded ? "▼" : "▶"),
+          /* @__PURE__ */ React.createElement("span", { className: "pw-listbar-title" }, "PERSONA LIST / 人格一覧"),
+          /* @__PURE__ */ React.createElement("span", { className: "pw-listbar-count" }, codexExpanded ? `${sorted.length}件表示中` : "折り畳み中"),
+          /* @__PURE__ */ React.createElement("span", { className: "pw-listbar-spacer" }),
+          !codexExpanded && /* @__PURE__ */ React.createElement("span", { className: "pw-listbar-hint" }, "クリックで展開")
+        )
+      : /* @__PURE__ */ React.createElement("div", { className: "pw-listbar-static" },
+          /* @__PURE__ */ React.createElement("span", { className: "pw-listbar-title" }, "PERSONA LIST / 人格一覧"),
+          /* @__PURE__ */ React.createElement("span", { className: "pw-listbar-count" }, `${sorted.length}件表示中`),
+          /* @__PURE__ */ React.createElement("span", { className: "pw-listbar-spacer" }),
+          /* @__PURE__ */ React.createElement("span", { className: "pw-listbar-hint" }, "人格未装備でも作成・流し込みできます")
+        ),
+    /* @__PURE__ */ React.createElement("div", { className: "pw-listbar-actions" },
+      /* @__PURE__ */ React.createElement("button", {
+        className: "persona-custom-trigger",
+        type: "button",
+        onClick: equipCustom,
+        title: "DBに無い創作人格を手入力で装備"
+      }, "＋ カスタム人格"),
+      /* @__PURE__ */ React.createElement("button", {
+        className: "persona-draft-import-trigger",
+        type: "button",
+        onClick: () => setDraftImportOpen(true),
+        title: "完成した人格データをテキストで流し込み、確認して反映"
+      }, "テキスト流し込み反映")
+    )
   ), (!equippedPersona || codexExpanded) && /* @__PURE__ */ React.createElement("div", { id: "persona-list-region", className: "codex pw-body" }, /* @__PURE__ */ React.createElement("div", { className: "codex-main" }, !gated && /* @__PURE__ */ React.createElement("div", { className: "codex-modes" }, modes.map((m) => /* @__PURE__ */ React.createElement("button", { key: m.value, className: mode === m.value ? "is-active" : "", onClick: () => dispatch({ type: "SET_UI", ui: { codexMode: m.value } }), type: "button" }, m.label, " ", /* @__PURE__ */ React.createElement("span", { className: "count" }, m.count)))), /* @__PURE__ */ React.createElement("div", { className: "codex-filters" }, /* @__PURE__ */ React.createElement("div", { className: "codex-filter-row" }, /* @__PURE__ */ React.createElement("div", { className: "codex-search" }, /* @__PURE__ */ React.createElement(Icon, { name: "search", size: 14 }), /* @__PURE__ */ React.createElement("input", { type: "text", "aria-label": "人格コードと名前で検索", placeholder: "\u540D\u524D\u30FB\u30D1\u30C3\u30B7\u30D6\u52B9\u679C\u30FB\u30AD\u30FC\u30EF\u30FC\u30C9\u3067\u691C\u7D22...", value: ui.searchQuery || "", onChange: (e) => dispatch({ type: "SET_UI", ui: { searchQuery: e.target.value } }) })), /* @__PURE__ */ React.createElement("div", { className: "codex-count" }, /* @__PURE__ */ React.createElement("strong", null, sorted.length), " / ", pool.length), /* @__PURE__ */ React.createElement("select", { className: "codex-sort", "aria-label": "人格の並び替え", value: ui.sortBy || "no", onChange: (e) => dispatch({ type: "SET_UI", ui: { sortBy: e.target.value } }) }, /* @__PURE__ */ React.createElement("optgroup", { label: "\u57FA\u672C" }, /* @__PURE__ */ React.createElement("option", { value: "owned" }, "\u6240\u6301\u3057\u3066\u3044\u308B\u3082\u306E\u512A\u5148"), /* @__PURE__ */ React.createElement("option", { value: "no" }, "No.\u9806"), /* @__PURE__ */ React.createElement("option", { value: "name" }, "\u540D\u524D\u9806"), /* @__PURE__ */ React.createElement("option", { value: "hp" }, "HP\u964D\u9806"), /* @__PURE__ */ React.createElement("option", { value: "san" }, "SAN\u964D\u9806"), /* @__PURE__ */ React.createElement("option", { value: "speed" }, "\u901F\u5EA6\u4E0A\u9650\u964D\u9806")), /* @__PURE__ */ React.createElement("optgroup", { label: "\u5927\u7F6A\u30B9\u30AD\u30EB\u6570\u304C\u591A\u3044\u9806" }, SINS_ORDER.map((s) => /* @__PURE__ */ React.createElement("option", { key: s, value: `sin:${s}` }, s, "\u30B9\u30AD\u30EB\u591A\u3044\u9806"))))), /* @__PURE__ */ React.createElement("div", { className: "codex-filter-row" }, /* @__PURE__ */ React.createElement("span", { className: "filter-label" }, "\u5927\u7F6A"), /* @__PURE__ */ React.createElement("div", { className: "chips-group" }, SINS_ORDER.map((s) => /* @__PURE__ */ React.createElement(
     Chip,
     {
