@@ -963,8 +963,8 @@ const EgoSlotVariantEditor = ({ slotKey, label, model, onCommit }) => {
     return React.createElement(Card, { title: `${label}E.G.Oスキル [影響]`, sub: "R進行効果（攻撃属性・罪悪・ダイスは使用しない）", compact: true, className: "ego-editor-detail ego-influence-editor" },
       React.createElement("div", { className: "stack-3" },
         React.createElement("div", { className: "ego-influence-note" }, "影響はこのスロットを置き換えるラウンド進行効果です。属性・罪悪・広域・ダイスを入力しません。"),
-        React.createElement(Field, { label: "継続ラウンド（任意）" }, React.createElement("input", { className: "input", value: rounds, onChange: (e) => patchSkill({ rounds: e.target.value, effect: makeInfluenceEffect(e.target.value, branch.effect) }), placeholder: "例：2R", inputMode: "text", "aria-label": "影響の継続ラウンド" })),
-        React.createElement(Field, { label: "ラウンド効果" }, React.createElement(AutoTextarea, { className: "textarea", minRows: 4, value: stripInfluenceHeader(branch.effect), onChange: (e) => patchSkill({ effect: makeInfluenceEffect(rounds, e.target.value) }), placeholder: "例：1R：… 2R：… 3R：…" })),
+        React.createElement(Field, { label: "継続ラウンド（任意）", hint: "2 または 2R の形式で入力します。ラウンド効果の本文とは別に保持されます。" }, React.createElement("input", { className: "input", value: rounds, onChange: (e) => patchSkill({ rounds: e.target.value, effect: makeInfluenceEffect(e.target.value, branch.effect) }), placeholder: "例：2R", inputMode: "text", "aria-label": "影響の継続ラウンド" })),
+        React.createElement(Field, { label: "ラウンド効果", hint: "改行・スペースを保持します。Enter で改行し、Space も通常どおり入力できます。" }, React.createElement(AutoTextarea, { className: "textarea", minRows: 4, value: stripInfluenceHeader(branch.effect), onChange: (e) => patchSkill({ effect: makeInfluenceEffect(rounds, e.target.value) }), placeholder: "例：1R：… 2R：… 3R：…", "aria-label": "影響のラウンド効果" })),
         React.createElement("div", { className: "ego-influence-preview", style: { whiteSpace: "pre-wrap" } }, window.formatEffectLines ? window.formatEffectLines(branch.effect) : branch.effect)
       )
     );
