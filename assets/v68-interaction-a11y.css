@@ -262,7 +262,7 @@
     flex: 1 1 240px;
     color: var(--tx);
   }
-  .persona-edit-toggle.btn-secondary,
+  .persona-edit-toggle.btn--secondary,
   .persona-edit-toggle.btn-ghost {
     min-height: var(--control-h, 40px);
     border: 1px solid var(--gold-line);
@@ -270,8 +270,8 @@
     color: var(--gold-hi);
     font-weight: 700;
   }
-  .persona-edit-toggle.btn-secondary:hover,
-  .persona-edit-toggle.btn-secondary:focus-visible,
+  .persona-edit-toggle.btn--secondary:hover,
+  .persona-edit-toggle.btn--secondary:focus-visible,
   .persona-edit-toggle.btn-ghost:hover,
   .persona-edit-toggle.btn-ghost:focus-visible {
     border-color: var(--gold);
