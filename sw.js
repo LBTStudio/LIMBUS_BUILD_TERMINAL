@@ -21,12 +21,14 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-e21a51c7";
+const CACHE_NAME = "lbt-9b27c8ab";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
   "mobile-preview.html",
   "assets/design-system.css?v=910f9485",
+  "assets/fonts/corporate-logo-bold-subset.woff2?v=b56fa468",
+  "assets/fonts/corporate-logo-medium-subset.woff2?v=dbbdb67e",
   "assets/items.css?v=7cf01d95",
   "assets/persona-codex.css?v=f7d6f495",
   "assets/sections.css?v=fdd86e81",
@@ -39,16 +41,16 @@ const PRECACHE_URLS = [
   "assets/v65r47-ego-card-marks.css?v=aaf12533",
   "assets/v66-accounts.css?v=523c7986",
   "assets/v67-persona-redesign.css?v=b595e3d5",
-  "assets/v68-interaction-a11y.css?v=8d2cced6",
+  "assets/v68-interaction-a11y.css?v=7b822438",
   "assets/workspace.css?v=253d0319",
   "data/db.json?v=b04a7751",
   "data/gacha-theme-packs.json?v=8d4dced2",
   "data/items.json?v=b47b58ae",
-  "js/App.js?v=69bf0a82",
+  "js/App.js?v=b8361645",
   "js/DataQuality.js?v=a8365c72",
   "js/ItemCodex.js?v=f81cdb3e",
   "js/LivePreview.js?v=1b6767e6",
-  "js/OtherSections.js?v=4c77b400",
+  "js/OtherSections.js?v=7818945c",
   "js/PersonaCodex.js?v=f5425554",
   "js/SkillDeck.js?v=0e7a3640",
   "js/accounts-ui.js?v=59b44784",

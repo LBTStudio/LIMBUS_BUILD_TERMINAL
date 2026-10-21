@@ -759,7 +759,13 @@ const getEgoVariantModel = (slot, slotKey) => {
     branches: {
       skill: ensureSkillShape({ ...(model.branches?.skill || {}), kind: "スキル" }),
       assimilation: { skills: (model.branches?.assimilation?.skills || []).map((s, i) => ensureSkillShape({ ...s, id: s.id || `${slotKey}-assim-${i}`, kind: "同化", originSlot: slotKey })) },
-      influence: ensureSkillShape({ ...(model.branches?.influence || {}), kind: "影響" })
+      influence: (() => {
+        const influence = model.branches?.influence || {};
+        return {
+          ...ensureSkillShape({ ...influence, kind: "影響" }),
+          rounds: String(influence.rounds ?? getInfluenceRounds(influence.effect))
+        };
+      })()
     }
   };
 };
@@ -963,12 +969,12 @@ const EgoSlotVariantEditor = ({ slotKey, label, model, onCommit }) => {
   };
 
   const renderInfluence = () => {
-    const rounds = getInfluenceRounds(branch.effect);
+    const rounds = String(branch.rounds ?? getInfluenceRounds(branch.effect));
     return React.createElement(Card, { title: `${label}E.G.Oスキル [影響]`, sub: "R進行効果（攻撃属性・罪悪・ダイスは使用しない）", compact: true, className: "ego-editor-detail ego-influence-editor" },
       React.createElement("div", { className: "stack-3" },
         React.createElement("div", { className: "ego-influence-note" }, "影響はこのスロットを置き換えるラウンド進行効果です。属性・罪悪・広域・ダイスを入力しません。"),
-        React.createElement(Field, { label: "継続ラウンド（任意）" }, React.createElement("input", { className: "input", value: rounds, onChange: (e) => patchSkill({ effect: makeInfluenceEffect(e.target.value, branch.effect) }), placeholder: "例：2R", inputMode: "text", "aria-label": "影響E.G.Oの継続ラウンド" })),
-        React.createElement(Field, { label: "ラウンド効果" }, React.createElement(AutoTextarea, { className: "textarea", minRows: 4, value: stripInfluenceHeader(branch.effect), onChange: (e) => patchSkill({ effect: makeInfluenceEffect(rounds, e.target.value) }), placeholder: "例：1R：… 2R：… 3R：…" })),
+        React.createElement(Field, { label: "継続ラウンド（任意）", hint: "2 または 2R の形式で入力します。ラウンド効果の本文とは別に保持されます。" }, React.createElement("input", { className: "input", value: rounds, onChange: (e) => patchSkill({ rounds: e.target.value, effect: makeInfluenceEffect(e.target.value, branch.effect) }), placeholder: "例：2R", inputMode: "text", "aria-label": "影響の継続ラウンド" })),
+        React.createElement(Field, { label: "ラウンド効果", hint: "改行・スペースを保持します。Enter で改行し、Space も通常どおり入力できます。" }, React.createElement(AutoTextarea, { className: "textarea", minRows: 4, value: stripInfluenceHeader(branch.effect), onChange: (e) => patchSkill({ effect: makeInfluenceEffect(rounds, e.target.value) }), placeholder: "例：1R：… 2R：… 3R：…", "aria-label": "影響のラウンド効果" })),
         React.createElement("div", { className: "ego-influence-preview", style: { whiteSpace: "pre-wrap" } }, window.formatEffectLines ? window.formatEffectLines(branch.effect) : branch.effect)
       )
     );
@@ -1255,24 +1261,37 @@ const EgoSection = ({ state, dispatch, ownedOnly: ownedOnlyProp = false }) => {
   const editable = !!state.egoManual && !!state.ui.egoDetailSlot && !!state.egoSlots[state.ui.egoDetailSlot];
   const detailSlot = state.ui.egoDetailSlot;
   const setDetailSlot = (v) => dispatch({ type: "SET_UI", ui: { egoDetailSlot: v } });
+  const getEgoAnalysisInfo = (rank, slot) => {
+    const owned = (state.roster?.egos || []).find((entry) => entry.rank === rank && String(entry.no) === String(slot?.no));
+    const alreadyAnalyzed = !!owned && (owned.analyzed === true || owned.analyzeMax === true);
+    return {
+      alreadyAnalyzed,
+      cost: alreadyAnalyzed || !slot ? null : window.LBT_operationCost?.("analyze", { rank, no: slot.no }, window.DB) || null,
+      balance: window.LBT_computeLedgerBalance?.(state.results, state.entries) || null
+    };
+  };
+  const analysisInfo = detailSlot && state.egoSlots[detailSlot]
+    ? getEgoAnalysisInfo(detailSlot, state.egoSlots[detailSlot])
+    : null;
   const toggleEgoManual = () => {
     if (state.egoManual) {
+      const slot = detailSlot ? state.egoSlots[detailSlot] : null;
+      const info = slot ? getEgoAnalysisInfo(detailSlot, slot) : null;
+      const short = !!(info && !info.alreadyAnalyzed && info.cost && info.balance
+        && Number(info.balance.shards) < Number(info.cost.shards));
       dispatch({ type: "SAVE_EGO_BUILD", rank: detailSlot });
       dispatch({ type: "SET_EGO_MANUAL", value: false });
-      toast("解析内容を保持したまま解析モードを終了しました");
+      toast(short
+        ? `解析内容は保存しましたが、自我の欠片が不足しているため解析済み扱い・費用記録は付きません（必要 ${info.cost.shards} / 手持ち ${info.balance.shards}）。所持残高を整えて再度確定してください。`
+        : "解析内容を保持したまま解析モードを終了しました", short ? "assertive" : void 0);
       return;
     }
     const slot = detailSlot ? state.egoSlots[detailSlot] : null;
     if (!slot) return;
-    const owned = (state.roster?.egos || []).find((entry) => entry.rank === detailSlot && String(entry.no) === String(slot.no));
-    const wasAnalyzed = !!owned && (owned.analyzed === true || owned.analyzeMax === true);
-    const cost = wasAnalyzed ? null : window.LBT_operationCost?.("analyze", { rank: detailSlot, no: slot.no }, window.DB);
-    if (cost) {
-      const bal = window.LBT_computeLedgerBalance?.(state.results, state.entries);
-      if (bal && Number(bal.shards) < Number(cost.shards)) {
-        toast(`自我の欠片が足りません（必要 ${cost.shards} / 手持ち ${bal.shards}）`, "assertive");
-        return;
-      }
+    const info = getEgoAnalysisInfo(detailSlot, slot);
+    if (info.cost && info.balance && Number(info.balance.shards) < Number(info.cost.shards)) {
+      toast(`自我の欠片が足りません（必要 ${info.cost.shards} / 手持ち ${info.balance.shards}）`, "assertive");
+      return;
     }
     dispatch({ type: "SET_EGO_MANUAL", value: true });
     toast("解析：E.G.Oの効果・ダイスをその場で確認・修正できます");
@@ -1527,7 +1546,13 @@ const [ownedOnly, setOwnedOnly] = React.useState(false);
     ),
       detailSlot && state.egoSlots[detailSlot] ? h("div", { className: "equipped-detail-wrap" }, h("div", { style: { display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", background: "var(--surface-2)", borderBottom: "1px solid var(--line-dim)" } }, h("span", { className: "badge", "data-rank": detailSlot }, detailSlot), h("span", { style: { fontFamily: "var(--f-display)", fontWeight: 600, color: "var(--tx)" } }, state.egoManual ? "装備中E.G.O / 解析" : "装備中E.G.O / 詳細"), h("div", { style: { flex: 1 } }),
       h("button", { type: "button", className: "ego-analysis-toggle btn btn-sm " + (state.egoManual ? "btn-primary" : "btn-secondary"), "aria-pressed": state.egoManual, onClick: toggleEgoManual, title: state.egoManual ? "解析を終了（内容は保持）" : "解析を開始" }, h(Icon, { name: state.egoManual ? "check" : "edit", size: 12 }), state.egoManual ? " 解析を終了" : " 解析を開始"),
-      h("button", { className: "btn btn-sm btn-ghost", onClick: () => { dispatch({ type: "SET_EGO_MANUAL", value: false }); setDetailSlot(null); }, title: "閉じる" }, h(Icon, { name: "x", size: 12 }), " 閉じる")), h("div", { className: "equipped-detail-inner" }, editable ? null : h(EgoDetail, { ego: state.egoSlots[detailSlot], equipTo: detailSlot, currentSlot: detailSlot, onEquip: () => {}, onUnequip: () => { clearSlot(detailSlot); setDetailSlot(null); }, dispatch }), editable ? h(EquippedEgoEditor, { rank: detailSlot, ego: state.egoSlots[detailSlot], dispatch }) : null)) : null,
+      h("button", { className: "btn btn-sm btn-ghost", onClick: () => { dispatch({ type: "SET_EGO_MANUAL", value: false }); setDetailSlot(null); }, title: "閉じる" }, h(Icon, { name: "x", size: 12 }), " 閉じる")),       analysisInfo && h("div", { className: `ego-analysis-cost-note${analysisInfo.cost && analysisInfo.balance && Number(analysisInfo.balance.shards) < Number(analysisInfo.cost.shards) ? " is-short" : ""}`, role: "note" },
+        analysisInfo.alreadyAnalyzed
+          ? "解析済み：編集内容は自動保存され、再編集では追加費用は発生しません。"
+          : analysisInfo.cost
+            ? `初回解析の確定時に自我の欠片 ${analysisInfo.cost.shards} 個を消費します${analysisInfo.balance ? `。現在残高 ${analysisInfo.balance.shards} 個` : ""}。残高不足の場合、編集内容は保存されますが解析済み扱い・費用記録は付きません。`
+            : "このE.G.Oの解析費用を取得できませんでした。編集内容の保存後、費用記録を確認してください。"),
+h("div", { className: "equipped-detail-inner" }, editable ? null : h(EgoDetail, { ego: state.egoSlots[detailSlot], equipTo: detailSlot, currentSlot: detailSlot, onEquip: () => {}, onUnequip: () => { clearSlot(detailSlot); setDetailSlot(null); }, dispatch }), editable ? h(EquippedEgoEditor, { rank: detailSlot, ego: state.egoSlots[detailSlot], dispatch }) : null)) : null,
       hasAnyEgo && !listExpanded ? h("div", { className: "codex-collapsed-hint" }, h("span", { style: { color: "var(--tx-mute)", fontSize: "var(--fs-11)", letterSpacing: "0.14em", fontFamily: "var(--f-display)" } }, "◇ E.G.O 一覧は折り畳み中"), h("span", { style: { marginLeft: 12, fontSize: "var(--fs-10)", color: "var(--tx-dim)" } }, "未装備スロットをクリックすると、そのランクだけ絞り込んで展開されます。"), h("button", { className: "btn btn-sm", style: { marginLeft: "auto" }, onClick: () => { setListExpanded(true); setRankFilter(""); } }, "一覧を展開")) : null
     ),
     (!hasAnyEgo || listExpanded) ? h("div", { className: "codex" }, h("div", { className: "codex-main" }, h("div", { className: `codex-filters ego-catalog-filters${filtersOpen ? " is-filter-open" : ""}` }, h("div", { className: "codex-filter-row" }, h("div", { className: "codex-search" }, h(Icon, { name: "search", size: 14 }), h("input", { type: "text", "aria-label": "E.G.O名・効果・キーワード・資源で検索", placeholder: "E.G.O名・効果・キーワード・資源で検索...", value: query, onChange: (e) => updateQuery(e.target.value) })), h("div", { className: "codex-count" }, h("strong", null, visibleEgos.length), isExploringAll ? " / " : " 件の候補", isExploringAll ? catalogEgos.length : ""), h("button", { className: "btn btn-sm ego-filter-toggle", onClick: () => setFiltersOpen(!filtersOpen), "aria-expanded": filtersOpen, title: "ランク・大罪・キーワード・所持の絞り込みを開く" }, filtersOpen ? "絞り込みを閉じる" : "絞り込み"), !isExploringAll ? h("button", { className: "btn btn-sm ego-browse-all", onClick: () => setBrowseAll(true), title: "全E.G.Oを一覧から探す" }, "全件を見る") : null, rankFilter ? h("button", { className: "btn btn-sm", onClick: () => setRankFilter(""), style: { color: "var(--gold)", borderColor: "var(--gold-line)" } }, rankFilter, " 絞り込み中 ×") : null), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "ランク"), h("div", { className: "chips-group" }, ...EGO_RANKS.map((r) => h("button", { key: r, className: "chip", onClick: () => setRankFilter(rankFilter === r ? "" : r), style: { background: rankFilter === r ? `color-mix(in oklab, var(--rank-${r}) 25%, var(--surface-2))` : void 0, borderColor: rankFilter === r ? `var(--rank-${r})` : void 0, color: rankFilter === r ? "var(--tx)" : void 0 } }, h("span", { style: { width: 6, height: 6, borderRadius: 999, background: `var(--rank-${r})`, marginRight: 4, display: "inline-block" } }), r)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "大罪"), h("div", { className: "chips-group" }, ...SIN_LIST.map((s) => h(Chip, { key: s, sin: s, active: sinFilter === s, onClick: () => updateSinFilter(sinFilter === s ? "" : s) }, s)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "キーワード"), h("div", { className: "chips-group" }, ...egoKeywordOptions.map((keyword) => h(Chip, { key: keyword, size: "sm", active: keywordFilter === keyword, onClick: () => updateKeywordFilter(keywordFilter === keyword ? "" : keyword) }, keyword)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "所持"), h("div", { className: "chips-group" }, h(Chip, { size: "sm", active: ownedOnly, onClick: () => updateOwnedOnly(!ownedOnly) }, "所持しているもののみ", ownedOnly ? ` (${ownedKeys.size})` : ""))), !isExploringAll && visibleEgos.length === 0 ? h("div", { className: "ego-discovery-empty" }, h("strong", null, "最近使用・所持中のE.G.Oはありません"), h("span", null, "名称で検索するか、「全件を見る」から探してください。")) : egoGrid)), h(DetailDialog, { open: !!selected, onClose: () => setSelected(null), label: "E.G.O 詳細" }, h(EgoQuickDetail, { ego: selected, currentSlot, state, acquireHow, onAcquireHowChange: setAcquireHow, onAcquire: () => { dispatch({ type: "ADD_ROSTER_EGO", rank: selected.rank, no: selected.no, purchase: true }); toast(`「${selected.name}」を所持に購入しました`, "assertive"); }, onEquip: equip, onUnequip: unequip,

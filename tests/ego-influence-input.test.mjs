@@ -67,3 +67,10 @@ test("新規E.G.Oは作成直後に対象ランクの解析画面を開き、影
   assert.match(source, /const renderInfluence = \(\) =>/);
   assert.match(source, /label: "ラウンド効果"/);
 });
+
+
+test("rounds 下書きはE.G.O効果本文とは独立して保持する", () => {
+  assert.match(source, /rounds: String\(influence\.rounds \?\? getInfluenceRounds\(influence\.effect\)\)/);
+  assert.match(source, /patchSkill\(\{ rounds: e\.target\.value, effect: makeInfluenceEffect\(e\.target\.value, branch\.effect\) \}\)/);
+  assert.match(source, /const rounds = String\(branch\.rounds \?\? getInfluenceRounds\(branch\.effect\)\)/);
+});

@@ -1,6 +1,6 @@
 /* V13: 基本機能の説明書（ヘルプ）セクション */
 const HELP_ITEMS = [
-  { group: "prepare", icon: "persona", title: "人格を装備する", body: "人格タブでカードを選び、同じカードをもう一度押して装備します。装備後にHP、SAN、耐性、パッシブ、スキルを確認します。内容を変える場合は「同期化して手動編集」を使います。" },
+  { group: "prepare", icon: "persona", title: "人格を装備する", body: "人格タブでカードを選び、同じカードをもう一度押して装備します。装備後にHP、SAN、耐性、パッシブ、スキルを確認します。内容を変える場合は「手動編集を開始」を使います。" },
   { group: "prepare", icon: "ego", title: "E.G.Oをランク枠に装備する", body: "E.G.Oタブで、ZAYINからALEPHまでの各ランク枠にE.G.Oを装備します。装備済みの枠を押すと詳細と解析を開けます。覚醒と侵蝕は、それぞれの入力欄で確認・編集します。" },
   { group: "blocks", icon: "skill", title: "戦術スキルを確認・編集する", body: "スキルタブでは、戦術スキルのオーダー、名称、種別、大罪、範囲、効果、ダイスを確認・編集します。d値・d数が変動する効果は、スキル全体または個別ダイスで変動設定を選びます。" },
   { group: "blocks", icon: "passive", title: "パッシブとサポートを確認する", body: "パッシブタブでは装備中人格の人格パッシブを、サポートタブではサポートパッシブを確認します。内容を変更する場合だけ「この枠を編集」を選びます。" },
@@ -41,7 +41,7 @@ const HelpSection = () => {
       h("div", { className: "guide-items" },
         h("article", { className: "guide-item" },
           h("div", { className: "guide-item-icon" }, h(Icon, { name: "persona", size: 16 })),
-          h("div", null, h("h3", null, "公式人格を調整する"), h("p", null, "人格を装備して「◈ 同期化して手動編集」を押します。編集後は「✓ 編集を終了」。同期ランクは0・00・000、MAXなら「同期MAX」を使います。"))
+          h("div", null, h("h3", null, "公式人格を調整する"), h("p", null, "人格を装備して「手動編集を開始」を押します。編集後は「編集を終了」。ゲーム上の同期ランク（0・00・000）と同期MAXは所持詳細で設定します。"))
         ),
         h("article", { className: "guide-item" },
           h("div", { className: "guide-item-icon" }, h(Icon, { name: "plus", size: 16 })),

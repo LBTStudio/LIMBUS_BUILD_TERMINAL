@@ -340,3 +340,31 @@
     }
   }
 }
+
+
+/* Warn about E.G.O analysis cost before editing/confirmation. */
+.ego-analysis-cost-note {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line-dim);
+  background: var(--surface-inset);
+  color: var(--tx-2);
+  font-size: var(--fs-11);
+  line-height: 1.6;
+}
+.ego-analysis-cost-note.is-short {
+  border-bottom-color: var(--err);
+  background: color-mix(in oklab, var(--err) 8%, var(--surface-inset));
+  color: var(--err);
+  font-weight: 600;
+}
+
+/* Keep selected rank/toggle options visibly bounded. */
+.segmented > button.is-active,
+.segmented > button[aria-selected="true"],
+.segmented > button[aria-checked="true"] {
+  color: var(--gold-hi);
+  border-color: var(--gold);
+  background: color-mix(in oklab, var(--gold) 16%, var(--surface-3));
+  box-shadow: inset 0 0 0 1px var(--gold-tint);
+  font-weight: 700;
+}

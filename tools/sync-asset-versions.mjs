@@ -192,9 +192,24 @@ const PRECACHE_PAGES = ["index.html", "share.html", "mobile-preview.html"];
 function collectPrecacheUrls() {
   const urls = new Set();
   for (const source of SOURCES) {
-    if (!source.file.endsWith(".html")) continue;
+    const isHtml = source.file.endsWith(".html");
+    const isStylesheet = source.file.endsWith(".css");
+    if (!isHtml && !isStylesheet) continue;
     const text = readFileSync(resolve(ROOT, source.file), "utf8");
-    for (const m of text.matchAll(VERSION_RE)) urls.add(m[1]);
+    for (const m of text.matchAll(VERSION_RE)) {
+      const referencedUrl = m[1];
+      /* CSS url() paths are relative to the stylesheet, but Service Worker
+         cache.add() resolves URLs relative to sw.js at the site root.
+         Prefix the stylesheet base so local fonts are precached at the URL
+         the browser actually requests (assets/fonts/..., not /fonts/...). */
+      if (isStylesheet) {
+        if (/^(?:https?:)?\/\//.test(referencedUrl)) continue;
+        const base = source.base.replace(/^\.\//, "").replace(/\/+$/, "");
+        urls.add(base ? `${base}/${referencedUrl}` : referencedUrl);
+      } else {
+        urls.add(referencedUrl);
+      }
+    }
   }
   const pages = PRECACHE_PAGES.filter((p) => existsSync(resolve(ROOT, p)));
   return [...pages, ...[...urls].sort()];
