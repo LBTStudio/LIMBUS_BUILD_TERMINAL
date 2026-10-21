@@ -88,3 +88,14 @@ test("選択中のタブとフィルタは色だけに頼らず強い境界を�
   assert.match(css, /\.segmented > button\[aria-checked="true"\]/);
   assert.match(css, /border-color: var\(--gold\);/);
 });
+
+
+test("E.G.O解析は開始前に費用を表示し、確定時の残高不足も黙って処理しない", () => {
+  const other = read("../js/OtherSections.js");
+  assert.match(other, /const getEgoAnalysisInfo = \(rank, slot\) =>/);
+  assert.match(other, /初回解析の確定時に自我の欠片/);
+  assert.match(other, /残高不足の場合、編集内容は保存されますが解析済み扱い・費用記録は付きません/);
+  assert.match(other, /if \(info\.cost && info\.balance && Number\(info\.balance\.shards\) < Number\(info\.cost\.shards\)\)/);
+  assert.match(other, /analysisInfo\.alreadyAnalyzed/);
+  assert.match(css, /\.ego-analysis-cost-note\.is-short/);
+});
