@@ -737,9 +737,19 @@ const EGO_VARIANT_OPTIONS = [
 ];
 const EGO_VARIANT_LABEL = { skill: "通常", assimilation: "同化", influence: "影響" };
 const EGO_VARIANT_KIND = { skill: "スキル", assimilation: "同化", influence: "影響" };
-const getInfluenceRounds = (effect) => window.LBT_EGO_INFLUENCE_TEXT?.getRounds(effect) || "";
-const stripInfluenceHeader = (effect) => window.LBT_EGO_INFLUENCE_TEXT?.stripHeader(effect) ?? String(effect || "");
-const makeInfluenceEffect = (rounds, effect) => window.LBT_EGO_INFLUENCE_TEXT?.makeEffect(rounds, effect) ?? String(effect || "");
+// 継続ラウンドは編集中の未完成値（"2"）も保持する。本文側の数字や改行から
+// ラウンド数を誤検出しないよう、[影響] ヘッダーだけを解析する。
+const getInfluenceRounds = (effect) => {
+  const match = String(effect || "").match(/^\s*\[\s*影響\s*\](?:[ \t]+(\d*R?))?[ \t]*(?=[:：]|$)/);
+  return match?.[1] || "";
+};
+// ヘッダーだけを剥がし、本文の先頭・末尾の空白、Enter による改行を一切 trim しない。
+const stripInfluenceHeader = (effect) => String(effect || "").replace(/^\s*\[\s*影響\s*\](?:[ \t]+\d*R?)?[ \t]*[:：]?/, "");
+const makeInfluenceEffect = (rounds, effect) => {
+  const label = `[影響]${rounds ? ` ${rounds}` : ""}`;
+  const body = stripInfluenceHeader(effect);
+  return body ? `${label}：${body}` : label;
+};
 const getEgoVariantModel = (slot, slotKey) => {
   const normalized = window.LBT_normalizeEgoSlotVariants ? window.LBT_normalizeEgoSlotVariants(slot || {}) : (slot || {});
   const model = normalized.slotVariants?.[slotKey] || { active: "skill", branches: { skill: normalized[slotKey] || {}, assimilation: { skills: [] }, influence: {} } };
@@ -1535,15 +1545,14 @@ const [ownedOnly, setOwnedOnly] = React.useState(false);
     }, "所持のみ")
     ),
       detailSlot && state.egoSlots[detailSlot] ? h("div", { className: "equipped-detail-wrap" }, h("div", { style: { display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", background: "var(--surface-2)", borderBottom: "1px solid var(--line-dim)" } }, h("span", { className: "badge", "data-rank": detailSlot }, detailSlot), h("span", { style: { fontFamily: "var(--f-display)", fontWeight: 600, color: "var(--tx)" } }, state.egoManual ? "装備中E.G.O / 解析" : "装備中E.G.O / 詳細"), h("div", { style: { flex: 1 } }),
-      h("button", { className: "btn btn-sm " + (state.egoManual ? "btn-primary" : "btn-ghost"), onClick: toggleEgoManual, title: state.egoManual ? "解析を終了（内容は保持）" : "解析を開始" }, h(Icon, { name: state.egoManual ? "check" : "edit", size: 12 }), state.egoManual ? " 解析を終了" : " 解析を開始"),
-      h("button", { className: "btn btn-sm btn-ghost", onClick: () => { dispatch({ type: "SET_EGO_MANUAL", value: false }); setDetailSlot(null); }, title: "閉じる" }, h(Icon, { name: "x", size: 12 }), " 閉じる")),
-      analysisInfo && h("div", { className: `ego-analysis-cost-note${analysisInfo.cost && analysisInfo.balance && Number(analysisInfo.balance.shards) < Number(analysisInfo.cost.shards) ? " is-short" : ""}`, role: "note" },
+      h("button", { type: "button", className: "ego-analysis-toggle btn btn-sm " + (state.egoManual ? "btn-primary" : "btn-secondary"), "aria-pressed": state.egoManual, onClick: toggleEgoManual, title: state.egoManual ? "解析を終了（内容は保持）" : "解析を開始" }, h(Icon, { name: state.egoManual ? "check" : "edit", size: 12 }), state.egoManual ? " 解析を終了" : " 解析を開始"),
+      h("button", { className: "btn btn-sm btn-ghost", onClick: () => { dispatch({ type: "SET_EGO_MANUAL", value: false }); setDetailSlot(null); }, title: "閉じる" }, h(Icon, { name: "x", size: 12 }), " 閉じる")),       analysisInfo && h("div", { className: `ego-analysis-cost-note${analysisInfo.cost && analysisInfo.balance && Number(analysisInfo.balance.shards) < Number(analysisInfo.cost.shards) ? " is-short" : ""}`, role: "note" },
         analysisInfo.alreadyAnalyzed
           ? "解析済み：編集内容は自動保存され、再編集では追加費用は発生しません。"
           : analysisInfo.cost
             ? `初回解析の確定時に自我の欠片 ${analysisInfo.cost.shards} 個を消費します${analysisInfo.balance ? `。現在残高 ${analysisInfo.balance.shards} 個` : ""}。残高不足の場合、編集内容は保存されますが解析済み扱い・費用記録は付きません。`
             : "このE.G.Oの解析費用を取得できませんでした。編集内容の保存後、費用記録を確認してください。"),
-      h("div", { className: "equipped-detail-inner" }, editable ? null : h(EgoDetail, { ego: state.egoSlots[detailSlot], equipTo: detailSlot, currentSlot: detailSlot, onEquip: () => {}, onUnequip: () => { clearSlot(detailSlot); setDetailSlot(null); }, dispatch }), editable ? h(EquippedEgoEditor, { rank: detailSlot, ego: state.egoSlots[detailSlot], dispatch }) : null)) : null,
+h("div", { className: "equipped-detail-inner" }, editable ? null : h(EgoDetail, { ego: state.egoSlots[detailSlot], equipTo: detailSlot, currentSlot: detailSlot, onEquip: () => {}, onUnequip: () => { clearSlot(detailSlot); setDetailSlot(null); }, dispatch }), editable ? h(EquippedEgoEditor, { rank: detailSlot, ego: state.egoSlots[detailSlot], dispatch }) : null)) : null,
       hasAnyEgo && !listExpanded ? h("div", { className: "codex-collapsed-hint" }, h("span", { style: { color: "var(--tx-mute)", fontSize: "var(--fs-11)", letterSpacing: "0.14em", fontFamily: "var(--f-display)" } }, "◇ E.G.O 一覧は折り畳み中"), h("span", { style: { marginLeft: 12, fontSize: "var(--fs-10)", color: "var(--tx-dim)" } }, "未装備スロットをクリックすると、そのランクだけ絞り込んで展開されます。"), h("button", { className: "btn btn-sm", style: { marginLeft: "auto" }, onClick: () => { setListExpanded(true); setRankFilter(""); } }, "一覧を展開")) : null
     ),
     (!hasAnyEgo || listExpanded) ? h("div", { className: "codex" }, h("div", { className: "codex-main" }, h("div", { className: `codex-filters ego-catalog-filters${filtersOpen ? " is-filter-open" : ""}` }, h("div", { className: "codex-filter-row" }, h("div", { className: "codex-search" }, h(Icon, { name: "search", size: 14 }), h("input", { type: "text", "aria-label": "E.G.O名・効果・キーワード・資源で検索", placeholder: "E.G.O名・効果・キーワード・資源で検索...", value: query, onChange: (e) => updateQuery(e.target.value) })), h("div", { className: "codex-count" }, h("strong", null, visibleEgos.length), isExploringAll ? " / " : " 件の候補", isExploringAll ? catalogEgos.length : ""), h("button", { className: "btn btn-sm ego-filter-toggle", onClick: () => setFiltersOpen(!filtersOpen), "aria-expanded": filtersOpen, title: "ランク・大罪・キーワード・所持の絞り込みを開く" }, filtersOpen ? "絞り込みを閉じる" : "絞り込み"), !isExploringAll ? h("button", { className: "btn btn-sm ego-browse-all", onClick: () => setBrowseAll(true), title: "全E.G.Oを一覧から探す" }, "全件を見る") : null, rankFilter ? h("button", { className: "btn btn-sm", onClick: () => setRankFilter(""), style: { color: "var(--gold)", borderColor: "var(--gold-line)" } }, rankFilter, " 絞り込み中 ×") : null), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "ランク"), h("div", { className: "chips-group" }, ...EGO_RANKS.map((r) => h("button", { key: r, className: "chip", onClick: () => setRankFilter(rankFilter === r ? "" : r), style: { background: rankFilter === r ? `color-mix(in oklab, var(--rank-${r}) 25%, var(--surface-2))` : void 0, borderColor: rankFilter === r ? `var(--rank-${r})` : void 0, color: rankFilter === r ? "var(--tx)" : void 0 } }, h("span", { style: { width: 6, height: 6, borderRadius: 999, background: `var(--rank-${r})`, marginRight: 4, display: "inline-block" } }), r)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "大罪"), h("div", { className: "chips-group" }, ...SIN_LIST.map((s) => h(Chip, { key: s, sin: s, active: sinFilter === s, onClick: () => updateSinFilter(sinFilter === s ? "" : s) }, s)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "キーワード"), h("div", { className: "chips-group" }, ...egoKeywordOptions.map((keyword) => h(Chip, { key: keyword, size: "sm", active: keywordFilter === keyword, onClick: () => updateKeywordFilter(keywordFilter === keyword ? "" : keyword) }, keyword)))), h("div", { className: "codex-filter-row" }, h("span", { className: "filter-label" }, "所持"), h("div", { className: "chips-group" }, h(Chip, { size: "sm", active: ownedOnly, onClick: () => updateOwnedOnly(!ownedOnly) }, "所持しているもののみ", ownedOnly ? ` (${ownedKeys.size})` : ""))), !isExploringAll && visibleEgos.length === 0 ? h("div", { className: "ego-discovery-empty" }, h("strong", null, "最近使用・所持中のE.G.Oはありません"), h("span", null, "名称で検索するか、「全件を見る」から探してください。")) : egoGrid)), h(DetailDialog, { open: !!selected, onClose: () => setSelected(null), label: "E.G.O 詳細" }, h(EgoQuickDetail, { ego: selected, currentSlot, state, acquireHow, onAcquireHowChange: setAcquireHow, onAcquire: () => { dispatch({ type: "ADD_ROSTER_EGO", rank: selected.rank, no: selected.no, purchase: true }); toast(`「${selected.name}」を所持に購入しました`, "assertive"); }, onEquip: equip, onUnequip: unequip,
@@ -2952,8 +2961,10 @@ const RosterSection = ({ state, dispatch }) => {
        これを条件にしていたせいで、DB 人格の同期MAXは設定も解除もできなかった。 */
     const canModifySyncMax = item.type === "personas";
     const hasSync = Boolean(item.entry.syncRank) || item.entry.syncMax === true;
-    const syncRankCost = canModifySyncMax ? syncCost(item.entry.uid, false) : null;
-    const syncMaxCost = canModifySyncMax ? syncCost(item.entry.uid, true) : null;
+    const syncCosts = item.type === "personas" ? {
+      rank: syncCost(item.entry.uid, false),
+      max: syncCost(item.entry.uid, true)
+    } : null;
     const summarizeEgoSkill = (skill) => {
       if (!skill) return "未設定";
       const type = [skill.attr, skill.sin].filter(Boolean).join("・");
@@ -2976,7 +2987,7 @@ const RosterSection = ({ state, dispatch }) => {
       h("div", { className: "roster-detail-lines" }, summary.map((line, index) => h("div", { key: index }, line))),
       item.type === "personas" && canModifySyncMax && h("div", { className: "roster-sync-ops" },
         h("div", { className: "roster-sync-ops-head" }, h("span", { className: "t-label" }, "同期ランク・同期MAX（supplement P7 / P23）")),
-        h("p", { className: "roster-sync-cost-note" }, `未同期からの同期ランク設定：自我の欠片 ${syncRankCost?.shards ?? 50}個。同期MAXの設定：自我の欠片 ${syncMaxCost?.shards ?? 50}個。同期ランクの変更は追加費用なし。解除しても使用済みの欠片は返還されません。`),
+        h("p", { className: "roster-sync-cost-note" }, `初回設定時：同期ランク ${syncCosts?.rank?.shards ?? 50}個／同期MAX ${syncCosts?.max?.shards ?? 50}個。解除しても消費済みの欠片は返還されません。`),
         h("div", { className: "roster-sync-rank-row" },
           h("span", { className: "ledger-note" }, "人格ランク"),
           h("div", { className: "segmented", role: "radiogroup", "aria-label": "同期人格ランク" },

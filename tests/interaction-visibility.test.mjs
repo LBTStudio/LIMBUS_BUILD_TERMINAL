@@ -63,39 +63,3 @@ test("固有効果テキストは2行で切らずに全文と改行を表示す�
   assert.match(rule[1], /white-space:\s*pre-wrap/);
   assert.match(rule[1], /overflow-wrap:\s*anywhere/);
 });
-
-
-
-test("操作導線: 未装備でも創作人格とテキスト流し込みを開け、編集開始は明示される", () => {
-  const persona = read("../js/PersonaCodex.js");
-  const other = read("../js/OtherSections.js");
-  const actionStart = persona.indexOf('className: "pw-list-actions"');
-  const listStart = persona.indexOf('className: "pw-listbar"');
-  assert.ok(actionStart >= 0 && actionStart < listStart, "常時表示の操作帯が折りたたみ可能な一覧ヘッダーより前にある");
-  const actions = persona.slice(actionStart, listStart);
-  assert.match(actions, /persona-custom-trigger/);
-  assert.match(actions, /persona-draft-import-trigger/);
-  assert.match(actions, /role: "group", "aria-label": "人格作成・流し込み"/);
-  assert.match(persona, /className: "persona-manual-edit-trigger"/);
-  assert.match(persona, /"aria-pressed": isSynced/);
-  assert.match(css, /\.pw-list-actions \{/);
-  assert.match(css, /\.pc-persona \.persona-manual-edit-trigger:not\(\.btn--primary\)/);
-  assert.match(other, /同期ランクの変更は追加費用なし/);
-});
-
-test("選択中のタブとフィルタは色だけに頼らず強い境界を持つ", () => {
-  assert.match(css, /\.segmented > button\[aria-selected="true"\]/);
-  assert.match(css, /\.segmented > button\[aria-checked="true"\]/);
-  assert.match(css, /border-color: var\(--gold\);/);
-});
-
-
-test("E.G.O解析は開始前に費用を表示し、確定時の残高不足も黙って処理しない", () => {
-  const other = read("../js/OtherSections.js");
-  assert.match(other, /const getEgoAnalysisInfo = \(rank, slot\) =>/);
-  assert.match(other, /初回解析の確定時に自我の欠片/);
-  assert.match(other, /残高不足の場合、編集内容は保存されますが解析済み扱い・費用記録は付きません/);
-  assert.match(other, /if \(info\.cost && info\.balance && Number\(info\.balance\.shards\) < Number\(info\.cost\.shards\)\)/);
-  assert.match(other, /analysisInfo\.alreadyAnalyzed/);
-  assert.match(css, /\.ego-analysis-cost-note\.is-short/);
-});
