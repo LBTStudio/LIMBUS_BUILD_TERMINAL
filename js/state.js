@@ -1,4 +1,12 @@
 const STORAGE_KEY = "lbt_v46_state";
+
+/* ユーザーが記録する日付は端末のローカル暦日を使う。toISOString() はUTC日付なので、
+   日本時間の0:00〜8:59などでは意図せず前日が記録される。 */
+function localDateString(date = new Date()) {
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+window.LBT_localDateString = localDateString;
 // 基本ルールPDFのキーワード掲載順は js/core.js が window.LBT_PDF_KEYWORD_ORDER
 // として定義する（両ページが最初に読み込む）。ここでは再定義しない。
 // 人格キーワードは効果本文・固有バフ・ダイス効果で検索できる状態名を漏れなく持つ。
@@ -29,7 +37,7 @@ function makeInitialResult(options) {
   return {
     id: "res-initial",
     name: "初期作成",
-    date: String(new Date().toISOString().slice(0, 10)),
+    date: localDateString(),
     income: {
       ...normalizeCurrency({ lp: INITIAL_LP, shards: 0 }),
       tickets: normalizeTickets(withPersonaTicket ? { persona: 1 } : {})
@@ -1237,7 +1245,7 @@ function normalizeStateShape(raw) {
       next.results = [{
         id: "res-ticket-grant",
         name: "抽出チケットの受領",
-        date: String(new Date().toISOString().slice(0, 10)),
+        date: localDateString(),
         income: { lp: 0, shards: 0, tickets: total },
         note: "以前所持していた抽出チケットをリザルト収入へ移行しました。",
         createdAt: Date.now()
@@ -3638,7 +3646,7 @@ case "ADD_CUSTOM_ITEM": {
         results: [...(state.results || []), {
           id: makeOwnedUid("res"),
           name: String(action.name || "").slice(0, 80) || "無題",
-          date: String(action.date || new Date().toISOString().slice(0, 10)).slice(0, 10),
+          date: String(action.date || localDateString()).slice(0, 10),
           income: { ...normalizeCurrency(action.income), tickets: normalizeTickets(action.income?.tickets) },
           exchange: normalizeCurrency(action.exchange),
           note: String(action.note || "").slice(0, 2000),
