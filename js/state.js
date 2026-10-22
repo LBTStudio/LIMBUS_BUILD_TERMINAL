@@ -2604,6 +2604,52 @@ function validateDrawTargetsCurrent(state, batch) {
   return { ok: true, reason: "" };
 }
 
+/* 証明バッチの種別とペイロードを確定前に検査する。
+   未知の record.kind を料金だけ徴収して所持へ変換しない「成功扱い」にしない。 */
+function validateDrawRecordShapes(batch) {
+  const validBatchKinds = new Set(["persona", "ego", "themePack"]);
+  const validRecordKinds = new Set(["persona", "specialPersona", "ego", "themePack"]);
+  const batchKind = batch.kind == null || batch.kind === "" ? null : String(batch.kind);
+  if (batchKind && !validBatchKinds.has(batchKind)) {
+    return { ok: false, reason: "invalid-batch-kind", kind: batchKind };
+  }
+  let inferredFamily = batchKind;
+  for (let index = 0; index < batch.records.length; index += 1) {
+    const record = batch.records[index];
+    if (!record || typeof record !== "object" || Array.isArray(record)) {
+      return { ok: false, reason: "invalid-record", index };
+    }
+    const kind = String(record.kind || "");
+    const item = record.item;
+    if (!validRecordKinds.has(kind)) {
+      return { ok: false, reason: "invalid-record-kind", index, kind };
+    }
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      return { ok: false, reason: "invalid-record-item", index };
+    }
+    // 一部の旧バージョンに item.kind が無い記録は許容するが、
+    // 値がある場合に record.kind と不一致なら拒否する。
+    if (item.kind != null && String(item.kind) !== kind) {
+      return { ok: false, reason: "record-item-kind-mismatch", index, kind, itemKind: String(item.kind) };
+    }
+    const family = kind === "specialPersona" ? "persona" : kind;
+    if (!inferredFamily) inferredFamily = family;
+    if (family !== inferredFamily) {
+      return { ok: false, reason: "mixed-record-kinds", index, expected: inferredFamily, actual: family };
+    }
+    if ((kind === "persona" || kind === "specialPersona") && item.no == null) {
+      return { ok: false, reason: "invalid-persona-item", index };
+    }
+    if (kind === "ego" && (item.no == null || !String(item.rank || "").trim())) {
+      return { ok: false, reason: "invalid-ego-item", index };
+    }
+    if (kind === "themePack" && !String(item.name || "").trim()) {
+      return { ok: false, reason: "invalid-theme-pack-item", index };
+    }
+  }
+  return { ok: true, reason: "" };
+}
+
 function validateDrawBatchApplication(state, action) {
   const batch = action?.batch;
   if (!batch || typeof batch !== "object" || !Array.isArray(batch.records)) {
@@ -2616,6 +2662,8 @@ function validateDrawBatchApplication(state, action) {
     return { ok: false, reason: "duplicate-batch" };
   }
   if (!batch.records.length) return { ok: false, reason: "empty-batch" };
+  const recordShapes = validateDrawRecordShapes(batch);
+  if (!recordShapes.ok) return recordShapes;
 
   // 費用の正本は各抽選レコード。呼び出し側が渡す action.cost だけを信頼すると、
   // 別の経路や将来の回帰でゼロを渡して支払いを迂回できる。
