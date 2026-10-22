@@ -2449,6 +2449,39 @@ function validateDrawBatchApplication(state, action) {
   if (draws.some((existing) => String(existing?.batchHash || existing?.commit || "") === proofKey)) {
     return { ok: false, reason: "duplicate-batch" };
   }
+  if (!batch.records.length) return { ok: false, reason: "empty-batch" };
+
+  // 費用の正本は各抽選レコード。呼び出し側が渡す action.cost だけを信頼すると、
+  // 別の経路や将来の回帰でゼロを渡して支払いを迂回できる。
+  const batchCost = { lp: 0, shards: 0 };
+  for (let i = 0; i < batch.records.length; i += 1) {
+    const record = batch.records[i];
+    if (!record || typeof record !== "object" || Array.isArray(record)) {
+      return { ok: false, reason: "invalid-record", index: i };
+    }
+    const rawCost = record.cost;
+    if (!rawCost || typeof rawCost !== "object" || Array.isArray(rawCost)) {
+      return { ok: false, reason: "invalid-record-cost", index: i };
+    }
+    for (const currency of ["lp", "shards"]) {
+      const raw = rawCost[currency] === void 0 ? 0 : rawCost[currency];
+      let amount;
+      if (typeof raw === "number") {
+        amount = Number.isSafeInteger(raw) && raw >= 0 ? raw : null;
+      } else {
+        const text = String(raw ?? "").trim();
+        if (!/^\+?(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(text)) amount = null;
+        else amount = Number(text.replace(/,/g, ""));
+        if (amount !== null && (!Number.isSafeInteger(amount) || amount < 0)) amount = null;
+      }
+      if (amount === null) return { ok: false, reason: "invalid-record-cost", index: i, currency };
+      batchCost[currency] += amount;
+      if (!Number.isSafeInteger(batchCost[currency])) {
+        return { ok: false, reason: "invalid-record-cost", index: i, currency };
+      }
+    }
+  }
+
   const ticketSpend = action?.ticketSpend;
   if (ticketSpend) {
     const kind = ticketSpend.kind;
@@ -2458,15 +2491,28 @@ function validateDrawBatchApplication(state, action) {
     if ((kind === "pack" && !pack) || count <= 0) {
       return { ok: false, reason: "invalid-ticket-count" };
     }
+    if (batchCost.lp !== 0 || batchCost.shards !== 0) {
+      return { ok: false, reason: "ticket-batch-has-currency-cost" };
+    }
     const balance = computeTicketBalance(state?.results || [], state?.entries || []);
     const available = ticketTotal(balance, kind, pack);
     if (available < count) {
       return { ok: false, reason: "insufficient-tickets", available, requested: count };
     }
-  }
-  if (action?.cost && !purchaseAffordability(state, action.cost).ok) {
-    const affordability = purchaseAffordability(state, action.cost);
-    return { ok: false, reason: "insufficient-currency", ...affordability };
+  } else {
+    if (action?.cost) {
+      const provided = normalizeCurrency(action.cost);
+      if (provided.lp !== batchCost.lp || provided.shards !== batchCost.shards) {
+        return {
+          ok: false,
+          reason: "cost-mismatch",
+          expected: batchCost,
+          provided
+        };
+      }
+    }
+    const affordability = purchaseAffordability(state, batchCost);
+    if (!affordability.ok) return { ok: false, reason: "insufficient-currency", ...affordability };
   }
   return { ok: true, reason: "" };
 }
