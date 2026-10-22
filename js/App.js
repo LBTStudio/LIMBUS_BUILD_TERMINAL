@@ -363,6 +363,25 @@ function validateImportData(data) {
       !String(batch.batchHash || batch.commit || "").trim()
     );
     if (missingProof >= 0) return "draws[" + missingProof + "] に batchHash または commit がありません";
+    for (let i = 0; i < data.draws.length; i += 1) {
+      const badRecord = data.draws[i].records.findIndex((record) =>
+        !record || typeof record !== "object" || Array.isArray(record)
+      );
+      if (badRecord >= 0) return "draws[" + i + "].records[" + badRecord + "] はオブジェクトではありません";
+    }
+  }
+
+  // ID重複は編集／削除／帰属操作が複数行へ誤爆する。古いレコードでIDが無いものは
+  // state 正規化が採番するため許容し、同じIDを明示したレコードだけを拒否する。
+  for (const field of ["results", "entries"]) {
+    if (!Array.isArray(data[field])) continue;
+    const seenIds = new Set();
+    for (let i = 0; i < data[field].length; i += 1) {
+      const id = String(data[field][i].id ?? "").trim();
+      if (!id) continue;
+      if (seenIds.has(id)) return field + "[" + i + "] に重複ID " + id + " があります";
+      seenIds.add(id);
+    }
   }
 
   // 所持ライブラリの単独ファイル／通常セーブのどちらも、roster配下の配列を検証する。
