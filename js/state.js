@@ -3340,15 +3340,17 @@ case "ADD_CUSTOM_ITEM": {
 
       let next = state;
       const ticketSpend = action.ticketSpend;
-      if (ticketSpend && TICKET_KINDS.includes(ticketSpend.kind)) {
-        const pack = ticketSpend.kind === "pack" ? String(ticketSpend.pack || "") : null;
+      if (ticketSpend) {
+        const kind = ticketSpend.kind;
+        if (!TICKET_KINDS.includes(kind)) return state;
+        const pack = kind === "pack" ? String(ticketSpend.pack || "") : null;
         const count = Math.max(0, Math.trunc(Number(ticketSpend.count) || 0));
-        if (!(ticketSpend.kind === "pack" && !pack) && count > 0) {
-          const balance = computeTicketBalance(next.results || [], next.entries || []);
-          const available = ticketTotal(balance, ticketSpend.kind, pack);
-          const take = Math.min(count, available);
-          if (take > 0) next = appendTicketSpend(next, ticketSpend.kind, pack, take, { kind: "gachaBatch" }, action.resultId);
-        }
+        if ((kind === "pack" && !pack) || count <= 0) return state;
+        const balance = computeTicketBalance(next.results || [], next.entries || []);
+        const available = ticketTotal(balance, kind, pack);
+        // 抽選プレビュー作成後に残高が変わっても、チケット不足のまま抽選品を付与しない。
+        if (available < count) return state;
+        next = appendTicketSpend(next, kind, pack, count, { kind: "gachaBatch" }, action.resultId);
       }
       return applyDrawBatchEffects(next, batch, action.resultId);
     }
