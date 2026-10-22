@@ -2387,6 +2387,39 @@ function rosterAddsFromDrawBatch(batch) {
   return adds;
 }
 
+/* 抽選バッチの経済的な副作用。証明の保存は ADD_DRAW_RECORD と分ける。
+   通常履歴にこの副作用だけを1回積み、Undo後には証明だけを再生できるようにする。 */
+function applyDrawBatchEffects(state, batch, resultId) {
+  let next = applyRosterAdds(state, rosterAddsFromDrawBatch(batch), { resultId });
+  for (const record of batch.records) {
+    if (record?.kind !== "themePack") continue;
+    if (record.duplicate) {
+      /* 重複でも1回ぶんは払う。支出は通帳へ、欠片はリザルトの収入へ分けて積む。 */
+      const lp = Number(record.cost?.lp) || 0;
+      if (lp) {
+        next = appendLedgerEntry(next, {
+          kind: "expense",
+          name: `特定抽出パック ${record.pack || ""}${record.item?.name ? `：${record.item.name}` : ""}（重複）`.trim(),
+          cost: { lp, shards: 0 },
+          resultId
+        });
+      }
+      next = addShardIncome(next, Number(record.grantedShards) || 0, resultId);
+      continue;
+    }
+    if (personaNoByName(record.item?.name)) continue;
+    const lp = Number(record.cost?.lp) || 0;
+    if (!lp) continue;
+    next = appendLedgerEntry(next, {
+      kind: "expense",
+      name: `特定抽出パック ${record.pack || ""}${record.item?.name ? `：${record.item.name}` : ""}`.trim(),
+      cost: { lp, shards: 0 },
+      resultId
+    });
+  }
+  return next;
+}
+
 function appReducer(state, action) {
   /* 購入系は残高が足りなければ行わない。UI で無効化するだけでは、
      他の入口（自動登録・取り込み）から通過する経路が残るため 这里で止める。 */
@@ -3297,43 +3330,36 @@ case "ADD_CUSTOM_ITEM": {
       if (batch.batchHash && draws.some((existing) => existing?.batchHash === batch.batchHash)) return state;
       return { ...state, draws: [...draws, batch] };
     }
+    /* 抽選の所持・費用・チケットを通常のUndo履歴へ1つの取引として積む。
+       証明本体はこのactionでは保存せず、呼び出し側が別途sealedにする。 */
+    case "APPLY_DRAW_BATCH": {
+      const batch = action.batch;
+      if (!batch || typeof batch !== "object" || !Array.isArray(batch.records)) return state;
+      const draws = Array.isArray(state.draws) ? state.draws : [];
+      if (batch.batchHash && draws.some((existing) => existing?.batchHash === batch.batchHash)) return state;
+
+      let next = state;
+      const ticketSpend = action.ticketSpend;
+      if (ticketSpend && TICKET_KINDS.includes(ticketSpend.kind)) {
+        const pack = ticketSpend.kind === "pack" ? String(ticketSpend.pack || "") : null;
+        const count = Math.max(0, Math.trunc(Number(ticketSpend.count) || 0));
+        if (!(ticketSpend.kind === "pack" && !pack) && count > 0) {
+          const balance = computeTicketBalance(next.results || [], next.entries || []);
+          const available = ticketTotal(balance, ticketSpend.kind, pack);
+          const take = Math.min(count, available);
+          if (take > 0) next = appendTicketSpend(next, ticketSpend.kind, pack, take, { kind: "gachaBatch" }, action.resultId);
+        }
+      }
+      return applyDrawBatchEffects(next, batch, action.resultId);
+    }
+    /* 互換用: 旧呼び出しは経済効果と証明の両方を適用する。Undoでの再生は
+       replaySealedAction が ADD_DRAW_RECORD に変換し、証明だけを残す。 */
     case "ADD_DRAW_BATCH": {
       const batch = action.batch;
       if (!batch || typeof batch !== "object" || !Array.isArray(batch.records)) return state;
       const draws = Array.isArray(state.draws) ? state.draws : [];
       if (batch.batchHash && draws.some((existing) => existing?.batchHash === batch.batchHash)) return state;
-      let next = applyRosterAdds(state, rosterAddsFromDrawBatch(batch), { resultId: action.resultId });
-      /* テーマパックは毎回ぶんを請求する。引いたのが DB に無い専用人格なら
-         所持へ入らず、そのぶんを通帳に「消費」として残す。放入できた件は
-         applyRosterAdds が記録の金額ごと記済みなので、ここで二重に書くと
-         二重の請求になる。重複は所持へ入れず、代わりに欠片を受け取る。
-         どちらの経路でも、記録に残った額と通帳の合計は一致する。 */
-      for (const record of batch.records) {
-        if (record?.kind !== "themePack") continue;
-        if (record.duplicate) {
-          /* 重複でも1回ぶんは払う。支出は通帳へ、欠片はリザルトの収入へ分けて積む。 */
-          const lp = Number(record.cost?.lp) || 0;
-          if (lp) {
-            next = appendLedgerEntry(next, {
-              kind: "expense",
-              name: `特定抽出パック ${record.pack || ""}${record.item?.name ? `：${record.item.name}` : ""}（重複）`.trim(),
-              cost: { lp, shards: 0 },
-              resultId: action.resultId
-            });
-          }
-          next = addShardIncome(next, Number(record.grantedShards) || 0, action.resultId);
-          continue;
-        }
-        if (personaNoByName(record.item?.name)) continue;
-        const lp = Number(record.cost?.lp) || 0;
-        if (!lp) continue;
-        next = appendLedgerEntry(next, {
-          kind: "expense",
-          name: `特定抽出パック ${record.pack || ""}${record.item?.name ? `：${record.item.name}` : ""}`.trim(),
-          cost: { lp, shards: 0 },
-          resultId: action.resultId
-        });
-      }
+      const next = applyDrawBatchEffects(state, batch, action.resultId);
       return appReducer(next, { type: "ADD_DRAW_RECORD", batch });
     }
     /* ---- Support ---- */
