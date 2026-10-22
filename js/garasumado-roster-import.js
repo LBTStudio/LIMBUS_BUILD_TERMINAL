@@ -23,26 +23,35 @@
      スラッシュ・検索語・フラグメントが付いていても同じ ID を取り出せるようにする。 */
   function parseShareUrl(raw) {
     const text = String(raw || "").trim();
+    const invalid = { ok: false, error: "硝子窓の共有URLを貼り付けてください（…/view/ID の形式）" };
     if (!text) return { ok: false, error: "URL を入力してください" };
 
-    // -domain が硝子窓であることを先に確かめる。異なるドメインの /view/ を
-    // 受け入れると、別サービスの ID を硝子窓として引いてしまう。
-    if (!/garasumado/i.test(text)) {
-      // ただし ID だけの貼り付けは許す（コピー結果に URL が含まれることがある）。
-      const bare = text.match(/^[A-Za-z0-9_-]{20}$/);
-      if (bare) return { ok: true, id: text, collection: "characters" };
-      return { ok: false, error: "硝子窓の共有URLを貼り付けてください（…/view/ID の形式）" };
+    const bare = text.match(/^[A-Za-z0-9_-]{20}$/);
+    if (bare) return { ok: true, id: text, collection: "characters" };
+
+    const officialHost = "lbt-garasumado.vercel.app";
+    let candidate = "";
+    const absolute = text.match(/https?:\/\/[^\s]+/i);
+    if (absolute) {
+      candidate = absolute[0];
+    } else {
+      const hostless = text.match(/(^|[^A-Za-z0-9.-])((?:www\.)?lbt-garasumado\.vercel\.app(?:\/[^\s]*)?)/i);
+      if (!hostless) return invalid;
+      candidate = "https://" + hostless[2];
     }
 
-    // 本来の形式。persona 配置は先に見る（characters にも同じ語がある）。
-    const full = text.match(/(persona)?\/view\/([A-Za-z0-9_-]{6,})/);
-    if (full) return { ok: true, id: full[2], collection: full[1] ? "personas" : "characters" };
+    let url;
+    try {
+      url = new URL(candidate);
+    } catch (_) {
+      return invalid;
+    }
+    const hostname = String(url.hostname || "").toLowerCase();
+    if (hostname !== officialHost && hostname !== "www." + officialHost) return invalid;
 
-    // スキームだけ落ちた形式。
-    const hostless = text.match(/garasumado[^\s/]*\/view\/([A-Za-z0-9_-]{6,})/);
-    if (hostless) return { ok: true, id: hostless[1], collection: "characters" };
-
-    return { ok: false, error: "硝子窓の共有URLを貼り付けてください（…/view/ID の形式）" };
+    const full = url.pathname.match(/^\/(persona\/)?view\/([A-Za-z0-9_-]{6,})\/?$/);
+    if (!full) return invalid;
+    return { ok: true, id: full[2], collection: full[1] ? "personas" : "characters" };
   }
 
   /* Firestore の値表現を素の値へ。 */
