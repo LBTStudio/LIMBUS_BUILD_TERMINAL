@@ -15,7 +15,7 @@ function loadDB(){
   return new Promise(function(resolve, reject){
     if(window.fetch){
       function readJSON(url, options){ return fetch(url, options).then(function(r){ if(!r.ok) throw new Error("http "+r.status+" for "+url); return r.json(); }); }
-      readJSON("data/db.json?v=b04a7751", {priority:"high"}).then(function(db){
+      readJSON("data/db.json?v=6577e906", {priority:"high"}).then(function(db){
         window.DB = db;
         return Promise.allSettled([
           readJSON("data/items.json?v=b47b58ae"),
@@ -31,7 +31,7 @@ function loadDB(){
       return;
     }
     var xhr = new XMLHttpRequest();
-    xhr.open("GET", "data/db.json?v=b04a7751", true);
+    xhr.open("GET", "data/db.json?v=6577e906", true);
     xhr.onload = function(){ if(xhr.status===200 || xhr.status===0){ try{ window.DB = JSON.parse(xhr.responseText); window.DB.items = []; window.LBT_GACHA_PACKS = { packs: [] }; resolve(); }catch(e){ reject(e); } } else reject(new Error("http "+xhr.status)); };
     xhr.onerror = function(){ reject(new Error("xhr error")); };
     xhr.send();
@@ -118,7 +118,7 @@ window.addEventListener("load", function(){
 				<script src="js/state.js?v=3d6b5f5a"></script>
 				<script src="js/persona-draft-import.js?v=a4692646"></script>
 					<script src="js/share-link.js?v=1a1caa2c"></script>
-					<script src="js/generator.js?v=73d3bd17"></script>
+					<script src="js/generator.js?v=bf0aa2e9"></script>
 <script src="js/ui.js?v=8943eab8"></script>
 				<script src="js/PersonaCodex.js?v=f5425554"></script>
 		<script src="js/ItemCodex.js?v=f81cdb3e"></script>
