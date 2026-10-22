@@ -364,6 +364,22 @@ function validateImportData(data) {
   const personaSourceError = validatePersonaSource(data.personaSrc, "personaSrc");
   if (personaSourceError) return personaSourceError;
 
+  // 未解決の旧チケット行は移行のために保持する。形式そのものが壊れている場合だけ拒否し、
+  // パック名なし／不明な種類など、移行不能なレコード内容は勝手に捨てない。
+  if (data.tickets !== void 0) {
+    if (Array.isArray(data.tickets)) {
+      const badIndex = data.tickets.findIndex((ticket) => !isRecord(ticket));
+      if (badIndex >= 0) return "tickets[" + badIndex + "] はオブジェクトではありません";
+    } else if (isRecord(data.tickets)) {
+      const badKey = Object.entries(data.tickets).find(([, count]) =>
+        count !== null && typeof count !== "number" && typeof count !== "string"
+      );
+      if (badKey) return "tickets." + badKey[0] + " は数値または数値文字列ではありません";
+    } else {
+      return "tickets は配列またはオブジェクトではありません";
+    }
+  }
+
   // インポートに使う配列フィールドは適用前に型を確認する。
   const arrayFields = [
     "skills", "supports", "gachaLog", "draws", "results", "entries", "inventory",
