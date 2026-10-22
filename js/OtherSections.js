@@ -2111,17 +2111,18 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
      間にセーブデータが変わっても、対象が変わっても、出目は変わらない。
      2段目でそれを適用する。__noHistory を付けてUndo/Redoの履歴に載せない。 */
 
-  /* 出目の種。時刻やMath.randomは予測できるので使わない。 */
+  /* 出目の種は暗号学的乱数からのみ作る。弱い種にフォールバックすると、
+     抽選結果の予測困難性を保証できないため、利用できない環境では抽選を開始しない。 */
   const drawSeed = () => {
     const buf = new Uint32Array(4);
     const c = typeof window !== "undefined" ? (window.crypto || window.msCrypto) : null;
-    if (c && typeof c.getRandomValues === "function") {
+    if (!c || typeof c.getRandomValues !== "function") return null;
+    try {
       c.getRandomValues(buf);
-      return Array.from(buf).map((n) => n.toString(16).padStart(8, "0")).join("");
+    } catch (_) {
+      return null;
     }
-    /* crypto が無い環境（古いブラウザとテスト）向けの保険。
-       ここでは少なくとも時刻由来の重複を避ける。 */
-    return [Date.now().toString(16), Math.random().toString(16).slice(2)].join("x");
+    return Array.from(buf).map((n) => n.toString(16).padStart(8, "0")).join("");
   };
 
   /* 対象一覧を「その場で」確定する。プール搭建時に
@@ -2135,6 +2136,10 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
     if (blockedReason) { toast(blockedReason); return; }
     /* ここで一度だけ出目を決める。以後は何をしても変わらない。 */
     const seed = drawSeed();
+    if (!seed) {
+      toast("暗号学的に安全な乱数源を利用できないため、抽選を開始できません。HTTPSまたはlocalhostで開き、ページを再読み込みしてください。");
+      return;
+    }
     const out = drawWithSeed(seed);
     if (!out || !out.hits || !out.hits.length) {
       const why = out?.reason === "no-ticket" ? "対応するチケットを持っていません" : "抽選できる対象がありません";
