@@ -406,6 +406,63 @@ function validateImportData(data) {
     if (badIndex >= 0) return field + "[" + badIndex + "] はオブジェクトではありません";
   }
 
+  // 通帳の通貨／チケット数量は部分一致の parseInt で解釈しない。
+  // 不正な金額を正規化時に0へ落とすだけだと、バックアップを取り込めたように見えて
+  // 収入や支出の数字だけ消えるため、適用前に項目パス付きで拒否する。
+  const isNonNegativeIntegerAmount = (value) => {
+    if (value === void 0 || value === null || value === "") return true;
+    if (typeof value === "number") return Number.isSafeInteger(value) && value >= 0;
+    if (typeof value !== "string") return false;
+    const text = value.trim();
+    if (!/^\+?(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(text)) return false;
+    const number = Number(text.replace(/,/g, ""));
+    return Number.isSafeInteger(number) && number >= 0;
+  };
+  const validateMoneyObject = (value, path) => {
+    if (value === void 0 || value === null) return null;
+    if (!isRecord(value)) return path + " はオブジェクトではありません";
+    for (const currency of ["lp", "shards"]) {
+      if (!isNonNegativeIntegerAmount(value[currency])) {
+        return path + "." + currency + " は0以上の整数で入力してください";
+      }
+    }
+    return null;
+  };
+  const validateTicketCounts = (value, path) => {
+    if (value === void 0 || value === null) return null;
+    if (!isRecord(value)) return path + " はオブジェクトではありません";
+    for (const kind of ["persona", "ego", "choice"]) {
+      if (!isNonNegativeIntegerAmount(value[kind])) {
+        return path + "." + kind + " は0以上の整数で入力してください";
+      }
+    }
+    if (value.pack !== void 0 && value.pack !== null) {
+      if (!isRecord(value.pack)) return path + ".pack はオブジェクトではありません";
+      for (const [name, count] of Object.entries(value.pack)) {
+        if (!isNonNegativeIntegerAmount(count)) {
+          return path + ".pack." + name + " は0以上の整数で入力してください";
+        }
+      }
+    }
+    return null;
+  };
+  for (let i = 0; i < (data.results || []).length; i += 1) {
+    const result = data.results[i];
+    for (const [field, value] of [["income", result.income], ["exchange", result.exchange]]) {
+      const error = validateMoneyObject(value, "results[" + i + "]." + field);
+      if (error) return error;
+    }
+    const ticketError = validateTicketCounts(result.income?.tickets, "results[" + i + "].income.tickets");
+    if (ticketError) return ticketError;
+  }
+  for (let i = 0; i < (data.entries || []).length; i += 1) {
+    const entry = data.entries[i];
+    const moneyError = validateMoneyObject(entry.cost, "entries[" + i + "].cost");
+    if (moneyError) return moneyError;
+    const ticketError = validateTicketCounts(entry.tickets, "entries[" + i + "].tickets");
+    if (ticketError) return ticketError;
+  }
+
   // 抽選の封緘記録は検証単位の records を必要とする。壊れたバッチを
   // 正規化時に黙って捨てるのではなく、インポート時点で明示的に拒否する。
   if (Array.isArray(data.draws)) {
