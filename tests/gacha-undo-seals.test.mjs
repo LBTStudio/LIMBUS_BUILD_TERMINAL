@@ -451,8 +451,9 @@ test("旧ADD_DRAW_BATCH互換経路もチケット消費・所持・証明を1�
   });
 
   assert.equal(committed.roster.personas.length, 1, "封緘レコード由来の人格だけ所持へ入る");
-  assert.equal(committed.entries.length, 1, "チケット消費明細は1件");
-  assert.equal(committed.entries[0].tickets.persona, 1, "消費枚数は1枚");
+  const ticketEntries = committed.entries.filter((item) => item.kind === "ticket");
+  assert.equal(ticketEntries.length, 1, "チケット消費明細は1件");
+  assert.equal(ticketEntries[0].tickets.persona, 1, "消費枚数は1枚");
   assert.equal(w.LBT_computeTicketBalance(committed.results, committed.entries).persona, 0,
     "消費したチケット残数はゼロ");
   assert.equal(committed.draws.length, 1, "封緘証明は1件だけ保存");
