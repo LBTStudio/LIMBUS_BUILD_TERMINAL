@@ -23,4 +23,5 @@ jobs:
         with:
           node-version: "24"
       - name: Run the project test command
-        run: node --test tests/*.test.mjs
+        # unified-provenance はローカルの PDF/Python 環境を前提にした検査なので除外する（AGENTS.md の記載どおり）。
+        run: node --test $(find tests -maxdepth 1 -name '*.test.mjs' ! -name 'unified-provenance.test.mjs' | sort)
