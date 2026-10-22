@@ -123,3 +123,34 @@ test("壊れた出力除外・数式上書き・E.G.Oスロットを起動時に
   assert.equal(typeof normalized.pas, "object");
   assert.equal(Array.isArray(normalized.pas2), false);
 });
+
+
+test("部分インポートは重複した抽選証明キーを拒否し、別の証明は受け入れる", () => {
+  const first = { batchHash: "proof-a", records: [{ kind: "persona" }] };
+  const second = { batchHash: "proof-a", records: [{ kind: "ego" }] };
+  assert.equal(validate({ draws: [first, second] }),
+    "draws[1] に重複した証明キー proof-a があります");
+  assert.equal(validate({
+    draws: [
+      { batchHash: "proof-a", records: [{ kind: "persona" }] },
+      { commit: "proof-b", records: [{ kind: "ego" }] }
+    ]
+  }), null);
+});
+
+test("部分インポートは重複した抽選決定ログIDを拒否する", () => {
+  assert.equal(validate({
+    gachaLog: [
+      { id: "draw-1", hits: [] },
+      { id: "draw-1", hits: [] }
+    ]
+  }), "gachaLog[1] に重複ID draw-1 があります");
+  assert.equal(validate({
+    gachaLog: [
+      { id: "draw-1", hits: [] },
+      { id: "draw-2", hits: [] }
+    ]
+  }), null);
+  assert.equal(validate({ gachaLog: [{ hits: [] }] }), null,
+    "IDの無い旧ログは後方互換のため受け入れる");
+});
