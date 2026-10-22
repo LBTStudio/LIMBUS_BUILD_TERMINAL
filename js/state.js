@@ -3748,10 +3748,20 @@ case "ADD_CUSTOM_ITEM": {
       if (!batch || typeof batch !== "object" || !Array.isArray(batch.records)) return state;
       const validation = validateDrawBatchApplication(state, action);
       if (!validation.ok) return state;
-      const next = applyDrawBatchEffects(state, batch, action.resultId);
+      let next = state;
+      // 旧互換経路でも、検証済みのチケット抽選は消費明細を同じ reducer 遷移内で積む。
+      // validation は ticketSpend の種別・枚数・在庫を先に検査するので、
+      // ここでチケットを消費し、後段で二重に SPEND_TICKET しない。
+      const ticketSpend = action.ticketSpend;
+      if (ticketSpend) {
+        const pack = ticketSpend.kind === "pack" ? String(ticketSpend.pack || "") : null;
+        next = appendTicketSpend(next, ticketSpend.kind, pack, ticketSpend.count,
+          { kind: "gachaBatch" }, action.resultId);
+      }
+      next = applyDrawBatchEffects(next, batch, action.resultId);
       const proofKey = String(batch.batchHash || batch.commit || "");
       const staged = proofKey ? { ...next, _pendingDrawProofHash: proofKey } : next;
-      return appReducer(staged, { type: "ADD_DRAW_RECORD", batch });
+      return appReducer(staged, { type: "ADD_DRAW_RECORD", batch, entry: action.entry });
     }
     /* ---- Support ---- */
     /* 装備の入口は所持（roster.supports）を経由する。未所持のものは
