@@ -12,8 +12,16 @@
 (function () {
   const zero = () => ({ lp: 0, shards: 0 });
 
-  const normalize = (value) => Number(String(value ?? "").replace(/[,\s]/g, "")) || 0;
-  const hasNumber = (value) => String(value ?? "").trim() !== "" && Number.isFinite(normalize(value));
+  /* 金額欄は不正な文字列を 0 と誤認しない。入力が空なら未入力として扱う。 */
+  function parseNumber(value) {
+    const raw = String(value ?? "").trim().replace(/\\s/g, "");
+    if (!raw) return null;
+    if (!/^[+-]?(?:\\d+|\\d{1,3}(?:,\\d{3})+)(?:\\.\\d+)?$/.test(raw)) return null;
+    const number = Number(raw.replace(/,/g, ""));
+    return Number.isFinite(number) ? number : null;
+  }
+  const normalize = (value) => parseNumber(value) ?? 0;
+  const hasNumber = (value) => parseNumber(value) !== null;
 
   /* --- 1. 帳尻合わせ -----------------------------------------------------
      rows は時系列順。{ title, income:{lp,shards}, current:{lp,shards} }
@@ -21,10 +29,13 @@
   function reconcileResults(rows) {
     const out = [];
     const running = zero();
-    let started = false;
+    // LP と欠片は別々に開始基準を持つ。片方だけ残高が入力された行で、
+    // もう片方の初回残高まで既知として扱わない。
+    const started = { lp: false, shards: false };
 
     for (const raw of rows || []) {
-      const income = { lp: normalize(raw.income?.lp), shards: normalize(raw.income?.shards) };
+      const rawIncome = raw.income || {};
+      const income = { lp: normalize(rawIncome.lp), shards: normalize(rawIncome.shards) };
       const current = {
         lp: hasNumber(raw.current?.lp) ? normalize(raw.current.lp) : null,
         shards: hasNumber(raw.current?.shards) ? normalize(raw.current.shards) : null
@@ -33,31 +44,41 @@
       const implied = { lp: null, shards: null };
 
       for (const key of ["lp", "shards"]) {
-        if (current[key] === null) {
-          flags.push({ level: "info", code: "no-current", currency: key, text: "現在の残高が未入力" });
-          continue;
-        }
-        if (!started) {
-          // 最初の 1 件は前の残高が分からない。獲得분을そのまま収支の基準にする。
-          implied[key] = income[key];
-          continue;
-        }
-        const spend = running[key] + income[key] - current[key];
-        implied[key] = spend;
-        if (spend < 0) {
+        const rawValue = rawIncome[key];
+        if (String(rawValue ?? "").trim() !== "" && !hasNumber(rawValue)) {
           flags.push({
             level: "error",
-            code: "negative-spend",
+            code: "invalid-income",
             currency: key,
-            gap: -spend,
-            text: "記録した収入より残高が多く増えている（" + (-spend) + " " + label(key) + " 分の記録漏れ）"
+            value: String(rawValue),
+            text: "収入の入力が数値として解釈できません"
           });
         }
-      }
 
-      if (current.lp !== null) running.lp = current.lp;
-      if (current.shards !== null) running.shards = current.shards;
-      if (current.lp !== null || current.shards !== null) started = true;
+        if (current[key] === null) {
+          flags.push({ level: "info", code: "no-current", currency: key, text: "現在の残高が未入力または数値ではありません" });
+          continue;
+        }
+        if (!started[key]) {
+          // この通貨で初めて確認できた残高は基準点。過去の残高が不明なので、
+          // 最初の記録では収入を基準にし、架空の支出・不足を推定しない。
+          implied[key] = income[key];
+        } else {
+          const spend = running[key] + income[key] - current[key];
+          implied[key] = spend;
+          if (spend < 0) {
+            flags.push({
+              level: "error",
+              code: "negative-spend",
+              currency: key,
+              gap: -spend,
+              text: "記録した収入より残高が多く増えている（" + (-spend) + " " + label(key) + " 分の記録漏れ）"
+            });
+          }
+        }
+        running[key] = current[key];
+        started[key] = true;
+      }
 
       out.push({ title: raw.title || "", income, current, impliedSpend: implied, flags });
     }
