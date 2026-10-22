@@ -1221,10 +1221,9 @@ function sanitizeStateCollections(raw) {
     if (Array.isArray(next[field])) next[field] = next[field].filter(isRecord);
   }
   if (Array.isArray(next.draws)) {
-    next.draws = next.draws.filter((batch) =>
-      isRecord(batch) && Array.isArray(batch.records)
-      && batch.records.every(isRecord)
-    );
+    // 封緘済み証明の中身は破損していても書き換えない。records の形状は
+    // 検証器が「不合格」として可視化できるよう、バッチ自体を保持する。
+    next.draws = next.draws.filter((batch) => isRecord(batch) && Array.isArray(batch.records));
   }
   if (next.personaSrc != null && !isRecord(next.personaSrc)) next.personaSrc = null;
   if (next.deathSupport != null && !isRecord(next.deathSupport)) next.deathSupport = null;
