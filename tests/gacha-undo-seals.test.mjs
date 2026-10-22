@@ -479,3 +479,24 @@ test("抽選証明を封緘できない場合は確定を中止し、無証明�
   assert.match(body, /dispatch\(transaction\)[\s\S]*?type:\s*"ADD_DRAW_RECORD"/,
     "検証済みの経済取引と証明の両方があるときだけ確定する");
 });
+
+
+test("暗号学的乱数が使えない環境では弱い種で抽選を続行しない", () => {
+  const seedStart = drawUiSource.indexOf("const drawSeed = () => {");
+  const seedEnd = drawUiSource.indexOf("/* 対象一覧を", seedStart);
+  assert.ok(seedStart >= 0 && seedEnd > seedStart, "drawSeed 関数が存在する");
+  const seedBody = drawUiSource.slice(seedStart, seedEnd);
+  assert.match(seedBody, /getRandomValues/,
+    "暗号学的乱数源から種を作る");
+  assert.doesNotMatch(seedBody, /Math\.random|Date\.now/,
+    "時刻や非暗号学的乱数へのフォールバックを持たない");
+  assert.match(seedBody, /return null/,
+    "安全な乱数源が無い／失敗した場合は種を返さない");
+
+  const requestStart = drawUiSource.indexOf("const requestDraw = () => {");
+  const requestEnd = drawUiSource.indexOf("const cancelDraw", requestStart);
+  assert.ok(requestStart >= 0, "抽選開始ハンドラーが存在する");
+  const requestBody = drawUiSource.slice(requestStart, requestEnd > requestStart ? requestEnd : requestStart + 1800);
+  assert.match(requestBody, /if \(!seed\) \{[\s\S]{0,450}return;[\s\S]{0,180}drawWithSeed\(seed\)/,
+    "安全な種を生成できないときは結果計算前に中止する");
+});
