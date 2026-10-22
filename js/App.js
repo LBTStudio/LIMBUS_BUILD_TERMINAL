@@ -333,6 +333,7 @@ function validateImportData(data) {
   if (unknown.length > Object.keys(data).length * 0.8 && unknown.length > 3) return "LBT\u306E\u30BB\u30FC\u30D6\u30C7\u30FC\u30BF\u3067\u306F\u306A\u3044\u53EF\u80FD\u6027\u304C\u3042\u308A\u307E\u3059";
   if (data.skills !== void 0 && !Array.isArray(data.skills)) return "skills \u304C\u914D\u5217\u3067\u306F\u3042\u308A\u307E\u305B\u3093";
   if (data.supports !== void 0 && !Array.isArray(data.supports)) return "supports \u304C\u914D\u5217\u3067\u306F\u3042\u308A\u307E\u305B\u3093";
+  if (data.gachaLog !== void 0 && !Array.isArray(data.gachaLog)) return "gachaLog は配列ではありません";
   return null;
 }
 function importStateFromFile(file, dispatch) {
