@@ -1216,6 +1216,12 @@ function sanitizeStateCollections(raw) {
     "customItems", "enhancements", "uniqueBuffs", "extraPassives", "customStatuses", "formulas"
   ];
   const isRecord = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
+  const sanitizeBooleanMap = (value) => isRecord(value)
+    ? Object.fromEntries(Object.entries(value).filter(([, enabled]) => typeof enabled === "boolean"))
+    : {};
+  const sanitizeFormulaOverrides = (value) => isRecord(value)
+    ? Object.fromEntries(Object.entries(value).filter(([, expression]) => expression === null || typeof expression === "string"))
+    : {};
   const sanitizeSkillList = (value) => (Array.isArray(value) ? value : [])
     .filter(isRecord)
     .map((skill) => ({
@@ -1259,6 +1265,23 @@ function sanitizeStateCollections(raw) {
   if (next.defaultStatuses !== null && next.defaultStatuses !== void 0) {
     next.defaultStatuses = Array.isArray(next.defaultStatuses) ? next.defaultStatuses.filter(isRecord) : null;
   }
+  // 偽のJSONでは型が崩れやすい設定オブジェクトを、使用側が前提にする形へ戻す。
+  const excludes = isRecord(next.outputExclude) ? next.outputExclude : {};
+  next.outputExclude = {
+    memo: sanitizeBooleanMap(excludes.memo),
+    palette: sanitizeBooleanMap(excludes.palette)
+  };
+  next.builtinFormulasOverride = sanitizeFormulaOverrides(next.builtinFormulasOverride);
+  const egoRanks = ["ZAYIN", "TETH", "HE", "WAW", "ALEPH"];
+  const rawSlots = isRecord(next.egoSlots) ? next.egoSlots : {};
+  next.egoSlots = Object.fromEntries(egoRanks.map((rank) => [
+    rank,
+    rawSlots[rank] == null || isRecord(rawSlots[rank]) ? (rawSlots[rank] ?? null) : null
+  ]));
+  next.pas = isRecord(next.pas) ? next.pas : { name: "", cond: "", always: "", effect: "", quick: "" };
+  next.pas2 = isRecord(next.pas2) ? next.pas2 : { name: "", cond: "", always: "", effect: "" };
+  next.ui = isRecord(next.ui) ? next.ui : {};
+  next.ui.previewCollapsed = isRecord(next.ui.previewCollapsed) ? next.ui.previewCollapsed : {};
   next.skills = sanitizeSkillList(next.skills);
   if (next.uniqueBuffs !== undefined) {
     next.uniqueBuffs = Array.isArray(next.uniqueBuffs) ? next.uniqueBuffs.filter(isRecord) : [];
