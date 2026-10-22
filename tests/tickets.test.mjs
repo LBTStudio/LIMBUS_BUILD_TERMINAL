@@ -180,15 +180,40 @@ test("人格を1つも持たない初期状態には初期作成用人格チケ�
 
 test("初期作成用人格チケットで抽出すると初期作成リザルトに帰属する", () => {
   const fresh = freshState();
-  const spent = reducer(fresh, { type: "SPEND_TICKET", kind: "persona", count: 1, resultId: "res-initial" });
-  assert.equal(ticketBalance(spent).persona, 0, "抽出手番でチケットが消費される");
-  const drawn = reducer(spent, {
-    type: "ADD_DRAW_BATCH",
+  const batch = {
+    schemaVersion: 1,
+    ruleset: "core-ticket",
+    kind: "persona",
+    count: 1,
+    commit: "ticket-migration-test-commit",
+    batchHash: "ticket-migration-test-hash",
+    records: [{
+      index: 0,
+      kind: "persona",
+      method: "ticket",
+      item: { kind: "persona", mode: "n", no: 1, name: "黒雲会組員" },
+      cost: { lp: 0, shards: 0 },
+      duplicate: false,
+      grantedShards: 0
+    }]
+  };
+  const applied = reducer(fresh, {
+    type: "APPLY_DRAW_BATCH",
     resultId: "res-initial",
-    batch: { records: [{ kind: "persona", item: { kind: "persona", mode: "n", no: 1, name: "黒雲会組員" }, cost: { lp: 0, shards: 0 } }] }
+    batch,
+    ticketSpend: { kind: "persona", count: 1 }
   });
-  assert.equal(drawn.roster.personas.length, 1, "抽出した人格が所持へ入る");
-  assert.equal(drawn.entries.find((e) => e.ref?.kind === "rosterPersona")?.resultId, "res-initial");
+  assert.equal(ticketBalance(applied).persona, 0, "経済取引の一括適用でチケットを消費する");
+  assert.equal(applied.roster.personas.length, 1, "抽出した人格が所持へ入る");
+  assert.equal(applied.entries.find((e) => e.ref?.kind === "rosterPersona")?.resultId, "res-initial");
+
+  const drawn = reducer(applied, {
+    type: "ADD_DRAW_RECORD",
+    batch,
+    entry: { id: "ticket-migration-test-log", at: "2026-10-23T00:00:00.000Z", hits: ["黒雲会組員"] }
+  });
+  assert.equal(drawn.draws.length, 1, "証明の記録が確定する");
+  assert.equal(drawn.gachaLog.length, 1, "決定ログが同じ確定へ結び付く");
   assert.equal(ticketBalance(drawn).persona, 0, "チケットは消費済みなので二重消費しない");
 });
 
