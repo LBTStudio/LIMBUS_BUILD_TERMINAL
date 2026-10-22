@@ -3257,21 +3257,26 @@ function personaRefByName(name) {
 
    判定は「今この瞬間の所持」ではなく記録自身（duplicate / item.kind）で行う。
    所持で判定すると、この抽出で入れたばかりの分まで「所持にある」と出て嘘になる。 */
+const safeDrawRecord = (record) =>
+  record && typeof record === "object" && !Array.isArray(record) ? record : {};
+
 const drawRecordNote = (record) => {
-  if (record.duplicate) return `重複・欠片 ${record.grantedShards || 0}`;
-  const isPack = record.kind === "themePack" || record.item?.kind === "themePack";
+  const safe = safeDrawRecord(record);
+  if (safe.duplicate) return `重複・欠片 ${safe.grantedShards || 0}`;
+  const isPack = safe.kind === "themePack" || safe.item?.kind === "themePack";
   if (!isPack) return "";
   /* duplicate が立っていない = 引いた時点で持っていなかった = 所持へ入った。 */
-  return personaRefByName(record.item?.name) ? "所持へ追加" : "記録のみ（DBに人格データ無し）";
+  return personaRefByName(safe.item?.name) ? "所持へ追加" : "記録のみ（DBに人格データ無し）";
 };
 
 const drawRecordLine = (record) => {
-  const item = record?.item || {};
+  const safe = safeDrawRecord(record);
+  const item = safe.item && typeof safe.item === "object" && !Array.isArray(safe.item) ? safe.item : {};
   const no = item.no == null ? "" : ` No.${item.no}`;
-  const label = record.kind === "ego" ? `${item.rank || ""}${no}` : `${item.name || ""}${no}`;
-  const cost = record.cost || {};
+  const label = safe.kind === "ego" ? `${item.rank || ""}${no}` : `${item.name || ""}${no}`;
+  const cost = safe.cost && typeof safe.cost === "object" && !Array.isArray(safe.cost) ? safe.cost : {};
   const paid = cost.lp ? `LP ${cost.lp}` : cost.shards ? `欠片 ${cost.shards}` : "無料";
-  return { label: label.trim() || "（名前なし）", paid, note: drawRecordNote(record) };
+  return { label: label.trim() || "（名前なし）", paid, note: drawRecordNote(safe) };
 };
 
 const DrawLedgerPanel = ({ state }) => {
