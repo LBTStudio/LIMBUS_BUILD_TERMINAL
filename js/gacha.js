@@ -561,15 +561,31 @@
       reasons.push("ロール列がシード開示と一致しない（結果またはシードが改変されている）");
     }
 
-    const records = Array.isArray(batch.records) ? batch.records : [];
+    if (!Array.isArray(batch.records)) {
+      reasons.push("抽選 records が配列ではない");
+      return { ok: false, reasons };
+    }
+    const records = batch.records;
+    if (!records.length) reasons.push("抽選レコードが空");
+    if (!/^[0-9a-f]{64}$/i.test(String(batch.batchHash || ""))) {
+      reasons.push("バッチハッシュが無いか、形式が不正");
+    }
+    if (batch.count != null && Number(batch.count) !== records.length) {
+      reasons.push("バッチの件数と records の件数が一致しない");
+    }
     let prev = GENESIS_HASH;
-    for (const record of records) {
+    for (let index = 0; index < records.length; index += 1) {
+      const record = records[index];
+      if (!record || typeof record !== "object" || Array.isArray(record)) {
+        reasons.push(`records[${index}] がオブジェクトではない`);
+        break;
+      }
       if (record.prev !== prev) { reasons.push("結果の鎖が連結していない（削除・並べ替え・挿入）"); break; }
       const hash = contentHash(batchRecordBody(record));
       if (hash !== record.hash) { reasons.push("結果のハッシュが一致しない（記録が改変されている）"); break; }
       prev = hash;
     }
-    if (records.length && prev !== batch.batchHash) reasons.push("バッチハッシュが鎖の先頭と一致しない");
+    if (prev !== batch.batchHash) reasons.push("バッチハッシュが鎖の先頭と一致しない");
 
     if (options && options.expectedBeaconRound != null) {
       const got = batch.beacon && batch.beacon.round;
