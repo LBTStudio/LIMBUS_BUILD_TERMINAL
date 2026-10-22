@@ -31,7 +31,7 @@
       // ただし ID だけの貼り付けは許す（コピー結果に URL が含まれることがある）。
       const bare = text.match(/^[A-Za-z0-9_-]{20}$/);
       if (bare) return { ok: true, id: text, collection: "characters" };
-      return { ok: false, error: "硝子窓の共有URLを貼りってください（…/view/ID の形式）" };
+      return { ok: false, error: "硝子窓の共有URLを貼り付けてください（…/view/ID の形式）" };
     }
 
     // 本来の形式。persona 配置は先に見る（characters にも同じ語がある）。
@@ -42,7 +42,7 @@
     const hostless = text.match(/garasumado[^\s/]*\/view\/([A-Za-z0-9_-]{6,})/);
     if (hostless) return { ok: true, id: hostless[1], collection: "characters" };
 
-    return { ok: false, error: "硝子窓の共有URLを貼りってください（…/view/ID の形式）" };
+    return { ok: false, error: "硝子窓の共有URLを貼り付けてください（…/view/ID の形式）" };
   }
 
   /* Firestore の値表現を素の値へ。 */
