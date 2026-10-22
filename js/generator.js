@@ -1907,7 +1907,7 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
       <input id="share-search-input" type="search" placeholder="効果名・状態名・キーワード" autocomplete="off" aria-describedby="share-search-help">
       <button id="share-search-clear" type="button" class="share-search-clear">クリア</button>
     </div>
-    <p id="share-search-help" class="share-search-help">折り畳み内も検索します。検索だけではセクションは開きません。ブラウザー標準のCtrl+Fではなく、この検索欄を使ってください。</p>
+    <p id="share-search-help" class="share-search-help">閉じた項目も検索します。検索では自動展開せず、結果の「この項目を開く」で必要なものだけ展開できます。</p>
     <p id="share-search-status" class="share-search-status" role="status" aria-live="polite"></p>
     <ol id="share-search-results" class="share-search-results" hidden></ol>
   </section>
@@ -2038,6 +2038,13 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
      input.value = "";
      renderResults();
      input.focus();
+   });
+   // Browser find shortcuts are routed to this search where the page receives the key event.
+   document.addEventListener("keydown", (event) => {
+     if (!(event.ctrlKey || event.metaKey) || event.key.toLocaleLowerCase() !== "f" || event.shiftKey || event.altKey) return;
+     event.preventDefault();
+     input.focus();
+     input.select();
    });
    status.textContent = "折り畳み内も検索対象です。検索だけではセクションは開きません。";
  })();
