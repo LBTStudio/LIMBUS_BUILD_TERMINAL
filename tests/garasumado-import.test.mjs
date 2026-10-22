@@ -550,6 +550,8 @@ test("共有URL からドキュメント ID とコレクションを抜く", () 
   const schemeless = G.parseShareUrl("lbt-garasumado.vercel.app/view/mMIbGr32lGZix60RDmoN?share=1#preview");
   assert.equal(schemeless.ok, true, "公式ホストはスキーム省略とquery/hashを許可");
   assert.equal(schemeless.id, "mMIbGr32lGZix60RDmoN");
+  const pasted = G.parseShareUrl("Copied: (https://lbt-garasumado.vercel.app/view/mMIbGr32lGZix60RDmoN)");
+  assert.equal(pasted.ok, true, "コピー文の前置きと括弧があっても公式URLを取り出す");
 
   const foreignQuery = G.parseShareUrl("https://evil.example/view/ABCDEFGHIJKLMNOPQRST?source=garasumado");
   assert.equal(foreignQuery.ok, false, "クエリに garasumado があるだけでは受理しない");
