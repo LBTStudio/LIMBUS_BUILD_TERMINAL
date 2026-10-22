@@ -500,3 +500,54 @@ test("暗号学的乱数が使えない環境では弱い種で抽選を続行�
   assert.match(requestBody, /if \(!seed\) \{[\s\S]{0,450}return;[\s\S]{0,180}drawWithSeed\(seed\)/,
     "安全な種を生成できないときは結果計算前に中止する");
 });
+
+
+test("テーマパックの重複報酬は規定の50欠片だけを許可する", () => {
+  const before = stateWithOnePersonaTicket();
+  before.results[0].income.lp = 500;
+  before.roster.personas.push({
+    uid: "owned-theme-pack-item",
+    mode: "n",
+    no: 999,
+    name: "既所持パック項目"
+  });
+  const baseBatch = {
+    schemaVersion: 1,
+    ruleset: "core",
+    kind: "themePack",
+    count: 1,
+    batchHash: "theme-pack-duplicate-reward-test",
+    records: [{
+      index: 0,
+      kind: "themePack",
+      method: "draw",
+      pack: "テストパック",
+      item: { kind: "themePack", name: "既所持パック項目", no: 1 },
+      cost: { lp: 125, shards: 0 },
+      duplicate: true,
+      grantedShards: 500
+    }]
+  };
+  const action = { type: "APPLY_DRAW_BATCH", batch: baseBatch, cost: { lp: 125, shards: 0 } };
+  const validation = w.LBT_validateDrawBatchApplication(before, action);
+  assert.equal(validation.ok, false);
+  assert.equal(validation.reason, "invalid-shard-grant",
+    "規定外の欠片付与を費用検証済みのバッチでも拒否する");
+  assert.equal(reducer(before, action), before,
+    "誤った報酬量なら支出・収入・所持・証明を一切変更しない");
+
+  const validBatch = structuredClone(baseBatch);
+  validBatch.batchHash = "theme-pack-valid-duplicate-reward-test";
+  validBatch.records[0].grantedShards = 50;
+  const validAction = {
+    type: "APPLY_DRAW_BATCH",
+    batch: validBatch,
+    cost: { lp: 125, shards: 0 }
+  };
+  assert.equal(w.LBT_validateDrawBatchApplication(before, validAction).ok, true);
+  const after = reducer(before, validAction);
+  assert.equal(after.results[0].income.shards, 50,
+    "正規の重複では欠片50を収入として記録する");
+  assert.equal(w.LBT_computeLedgerBalance(after.results, after.entries).lp, 375,
+    "重複報酬のLP支出も通帳に一度だけ反映する");
+});
