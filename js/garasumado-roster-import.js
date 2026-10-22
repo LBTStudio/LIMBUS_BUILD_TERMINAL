@@ -33,11 +33,11 @@
     let candidate = "";
     const absolute = text.match(/https?:\/\/[^\s]+/i);
     if (absolute) {
-      candidate = absolute[0];
+      candidate = absolute[0].replace(/[)\],.;]+$/g, "");
     } else {
       const hostless = text.match(/(^|[^A-Za-z0-9.-])((?:www\.)?lbt-garasumado\.vercel\.app(?:\/[^\s]*)?)/i);
       if (!hostless) return invalid;
-      candidate = "https://" + hostless[2];
+      candidate = ("https://" + hostless[2]).replace(/[)\],.;]+$/g, "");
     }
 
     let url;
