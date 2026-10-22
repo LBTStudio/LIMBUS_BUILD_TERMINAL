@@ -1334,7 +1334,7 @@ function normalizeStateShape(raw) {
       count = raw;
     } else if (typeof raw === "string") {
       const text = raw.trim();
-      if (!/^\\+?(?:\\d+|\\d{1,3}(?:,\\d{3})+)$/.test(text)) return null;
+      if (!/^\+?(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(text)) return null;
       count = Number(text.replace(/,/g, ""));
     } else {
       return null;
