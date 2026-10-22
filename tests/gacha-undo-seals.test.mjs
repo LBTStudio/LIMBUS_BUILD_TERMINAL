@@ -263,6 +263,43 @@ test("抽選確定までの間に所持状態が変わったら、費用・チ�
     "抽選時は未所持でも確定前に所持済みになった項目を通常報酬として処理しない");
 });
 
+test("抽選バッチの種別とアイテム形状が一致しない場合は経済取引を拒否する", () => {
+  const before = stateWithOnePersonaTicket();
+
+  const unknownKind = structuredClone(batch);
+  unknownKind.records[0].kind = "unrecognized";
+  assert.equal(w.LBT_validateDrawBatchApplication(before, {
+    type: "APPLY_DRAW_BATCH", batch: unknownKind, ticketSpend: { kind: "persona", count: 1 }
+  }).reason, "invalid-record-kind");
+
+  const kindMismatch = structuredClone(batch);
+  kindMismatch.records[0].item.kind = "ego";
+  assert.equal(w.LBT_validateDrawBatchApplication(before, {
+    type: "APPLY_DRAW_BATCH", batch: kindMismatch, ticketSpend: { kind: "persona", count: 1 }
+  }).reason, "record-item-kind-mismatch");
+
+  const mixedKinds = structuredClone(batch);
+  mixedKinds.records.push({
+    index: 1,
+    kind: "ego",
+    method: "ticket",
+    item: { kind: "ego", no: 1, rank: "ZAYIN", name: "試験E.G.O" },
+    cost: { lp: 0, shards: 0 },
+    duplicate: false,
+    grantedShards: 0
+  });
+  mixedKinds.count = 2;
+  assert.equal(w.LBT_validateDrawBatchApplication(before, {
+    type: "APPLY_DRAW_BATCH", batch: mixedKinds, ticketSpend: { kind: "persona", count: 2 }
+  }).reason, "mixed-record-kinds");
+
+  const malformedItem = structuredClone(batch);
+  malformedItem.records[0].item.no = null;
+  assert.equal(w.LBT_validateDrawBatchApplication(before, {
+    type: "APPLY_DRAW_BATCH", batch: malformedItem, ticketSpend: { kind: "persona", count: 1 }
+  }).reason, "invalid-persona-item");
+});
+
 test("非同期確定後に残高が変わった場合、証明を追記する前に確定を中止する", () => {
   const componentStart = drawUiSource.indexOf("const GachaTicketsPanel");
   const commitStart = drawUiSource.indexOf("const commitDrawAsync", componentStart);
