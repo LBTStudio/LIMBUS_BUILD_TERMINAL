@@ -3418,7 +3418,7 @@ const DrawLedgerPanel = ({ state }) => {
               h("div", { className: "draw-record-list" },
                 (verifyReport.batch.records || []).map((record, i) => {
                   const line = drawRecordLine(record);
-                  return h("div", { key: `${record.hash || i}`, className: "draw-record" },
+                  return h("div", { key: `${record?.hash || i}`, className: "draw-record" },
                     h("span", { className: "draw-record-label" }, line.label),
                     h("span", { className: "draw-record-cost" }, line.paid),
                     line.note ? h("span", { className: "draw-record-note" }, line.note) : null);
@@ -3471,7 +3471,7 @@ const DrawLedgerPanel = ({ state }) => {
             h("div", { className: "draw-record-list" },
               records.map((record, i) => {
                 const line = drawRecordLine(record);
-                return h("div", { key: `${record.hash || i}`, className: "draw-record" },
+                return h("div", { key: `${record?.hash || i}`, className: "draw-record" },
                   h("span", { className: "draw-record-label" }, line.label),
                   h("span", { className: "draw-record-cost" }, line.paid),
                   line.note ? h("span", { className: "draw-record-note" }, line.note) : null);
