@@ -139,3 +139,18 @@ test("LP購入のUndoは通帳支出を戻し、証明だけを保持する", ()
   assert.equal(rewound.roster.personas.length, 0, "Undoで所持品は戻る");
   assert.equal(rewound.draws.length, 1, "抽選証明は保持する");
 });
+
+
+test("確定前にチケット残高が不足した場合、抽選品も費用も反映しない", () => {
+  const before = stateWithOnePersonaTicket();
+  before.results[0].income.tickets.persona = 0;
+  const after = reducer(before, {
+    type: "APPLY_DRAW_BATCH",
+    batch,
+    ticketSpend: { kind: "persona", count: 1 }
+  });
+  assert.equal(after.roster.personas.length, 0, "不足時は所持品を追加しない");
+  assert.equal(after.entries.length, 0, "不足時は通帳も変更しない");
+  assert.equal(after.draws.length, 0, "不足時は証明をまだ書かない");
+  assert.equal(w.LBT_computeTicketBalance(after.results, after.entries).persona, 0);
+});
