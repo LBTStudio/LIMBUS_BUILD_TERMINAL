@@ -379,6 +379,61 @@ const appState = (over) => ({
   ...over
 });
 
+test("人格抽選の最大出目は特異人格へ分岐し、所持と通帳へ反映する", () => {
+  const drawer = loadDraw();
+  drawer.__balance = { lp: 100, shards: 0 };
+  const session = {
+    rolls: 0,
+    roll(max) {
+      this.rolls += 1;
+      return this.rolls === 1 ? max : 1;
+    }
+  };
+  const state = appState({
+    results: [{ id: "r-special", name: "検証シナリオ", income: { lp: 100, shards: 0 } }],
+    roster: {
+      personas: [{ uid: "owned-normal", mode: "n", no: 1 }],
+      egos: [], supports: [], spirits: []
+    }
+  });
+  const out = drawer.LBT_gachaDraw.drawN("persona", state, { pay: "paid", times: 1, session });
+  assert.equal(out.hits.length, 1);
+  assert.equal(out.hits[0].branch, "special", "最大+1の出目は特異人格ルート");
+  assert.equal(out.hits[0].mode, "t");
+  assert.equal(out.cost.lp, 100, "所持人格がある場合の通常抽選費用は維持される");
+  const raw = out.engineOut.results[0];
+  assert.equal(raw.kind, "specialPersona");
+  assert.equal(raw.item.kind, "specialPersona");
+
+  const w = loadState(db);
+  const batch = {
+    schemaVersion: 1,
+    ruleset: "core",
+    kind: "persona",
+    count: 1,
+    commit: "special-persona-test-commit",
+    batchHash: "special-persona-test-batch",
+    records: [{
+      index: 0, kind: raw.kind, method: "draw", item: raw.item,
+      cost: raw.cost, duplicate: false, grantedShards: 0, prev: G.GENESIS_HASH, hash: "fixture"
+    }]
+  };
+  const before = {
+    ...base(),
+    results: [{ id: "r-special", name: "検証シナリオ", income: { lp: 100, shards: 0 } }],
+    roster: {
+      personas: [{ uid: "owned-normal", mode: "n", no: 1 }],
+      egos: [], supports: [], spirits: []
+    }
+  };
+  const after = w.appReducer(before, { type: "ADD_DRAW_BATCH", batch });
+  assert.ok(after.roster.personas.some((p) => p.no === raw.item.no && p.mode === "t"),
+    "特異人格が mode=t として所持へ入る");
+  const ledger = after.entries.find((entry) => entry.name === raw.item.name && entry.ref?.kind === "rosterPersona");
+  assert.ok(ledger, "特異人格の取得明細が残る");
+  assert.equal(ledger.cost.lp, 100, "抽選レコードと同額の費用が通帳へ入る");
+});
+
 test("drawN（通貨）: 残LPで回数が決まる。返した出目はそのまま封緘できる", () => {  const w = loadDraw();
   w.__balance = { lp: 100, shards: 0 };
   const out = w.LBT_gachaDraw.drawN("persona", appState(), { pay: "paid", times: 3, seed: "ui-seed-1" });
