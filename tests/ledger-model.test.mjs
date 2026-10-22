@@ -207,6 +207,7 @@ test("APPLY_PARTIAL は移行可能な履歴・初期設定の全項目を保持
     initialItems: ["first-aid-kit"],
     draws: [{ id: "batch-1", records: [] }],
     [drawLogField]: [{ id: "roll-1", route: "ego", hits: ["B"] }],
+    tickets: [{ kind: "pack", pack: "", count: 3 }],
     favorites: ["persona-145"],
     historyRecent: ["command-export"]
   };
@@ -216,6 +217,8 @@ test("APPLY_PARTIAL は移行可能な履歴・初期設定の全項目を保持
   assert.deepEqual(JSON.parse(JSON.stringify(next.initialItems)), incoming.initialItems);
   assert.deepEqual(JSON.parse(JSON.stringify(next.draws)), incoming.draws);
   assert.deepEqual(JSON.parse(JSON.stringify(next[drawLogField])), incoming[drawLogField]);
+  assert.deepEqual(JSON.parse(JSON.stringify(next.tickets)), incoming.tickets,
+    "未解決の旧チケット行を部分インポートでも失わない");
   assert.deepEqual(JSON.parse(JSON.stringify(next.favorites)), incoming.favorites);
   assert.deepEqual(JSON.parse(JSON.stringify(next.historyRecent)), incoming.historyRecent);
 });
