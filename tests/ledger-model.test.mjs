@@ -200,17 +200,24 @@ test("既定の日付はUTCではなくローカル暦日から組み立てる",
     "既定のユーザー入力日付にUTC日付への変換を使わない");
 });
 
-test("APPLY_PARTIAL は抽選記録を移行先へ保持する", () => {
+test("APPLY_PARTIAL は移行可能な履歴・初期設定の全項目を保持する", () => {
   const drawLogField = ["gacha", "Log"].join("");
-  const prior = [{ id: "old-roll", route: "persona", hits: ["A"] }];
-  const incoming = [{ id: "new-roll", route: "ego", hits: ["B"] }];
-  const before = { ...baseState(), [drawLogField]: prior };
-  const next = reducer(before, {
-    type: "APPLY_PARTIAL",
-    state: { [drawLogField]: incoming },
-    fields: [drawLogField]
-  });
-  assert.deepEqual(JSON.parse(JSON.stringify(next[drawLogField])), incoming);
+  const incoming = {
+    initiative: 17,
+    initialItems: ["first-aid-kit"],
+    draws: [{ id: "batch-1", records: [] }],
+    [drawLogField]: [{ id: "roll-1", route: "ego", hits: ["B"] }],
+    favorites: ["persona-145"],
+    historyRecent: ["command-export"]
+  };
+  const before = { ...baseState(), ...Object.fromEntries(Object.keys(incoming).map((key) => [key, Array.isArray(incoming[key]) ? [] : 0])) };
+  const next = reducer(before, { type: "APPLY_PARTIAL", state: incoming, fields: Object.keys(incoming) });
+  assert.equal(next.initiative, 17);
+  assert.deepEqual(JSON.parse(JSON.stringify(next.initialItems)), incoming.initialItems);
+  assert.deepEqual(JSON.parse(JSON.stringify(next.draws)), incoming.draws);
+  assert.deepEqual(JSON.parse(JSON.stringify(next[drawLogField])), incoming[drawLogField]);
+  assert.deepEqual(JSON.parse(JSON.stringify(next.favorites)), incoming.favorites);
+  assert.deepEqual(JSON.parse(JSON.stringify(next.historyRecent)), incoming.historyRecent);
 });
 
 test("壊れた保存状態の抽選記録は空配列へ正規化する", () => {
