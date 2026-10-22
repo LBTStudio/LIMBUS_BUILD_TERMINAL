@@ -180,6 +180,13 @@ test("抽選取引の直前検証はチケット不足と重複バッチを拒�
   });
   assert.equal(duplicate.ok, false);
   assert.equal(duplicate.reason, "duplicate-batch");
+
+  const missingProof = w.LBT_validateDrawBatchApplication(before, {
+    type: "APPLY_DRAW_BATCH",
+    batch: { records: [] }
+  });
+  assert.equal(missingProof.ok, false);
+  assert.equal(missingProof.reason, "missing-proof-key");
 });
 
 test("非同期確定後に残高が変わった場合、証明を追記する前に確定を中止する", () => {
