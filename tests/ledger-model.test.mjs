@@ -250,3 +250,46 @@ test("金額・抽出チケットの正規化は部分一致や負数で残高�
   assert.deepEqual(JSON.parse(JSON.stringify(fractional.tickets)),
     { persona: 0, ego: 0, choice: 0, pack: {} }, "端数のチケットは枚数として計上しない");
 });
+
+
+test("旧チケット移行は同額の通常リザルトを移行済みと誤認しない", () => {
+  const raw = {
+    ...baseState(),
+    tickets: [{ kind: "persona", pack: null, count: 2 }],
+    results: [{
+      id: "ordinary-result",
+      name: "通常のシナリオ報酬",
+      date: "2026-10-22",
+      income: { lp: 0, shards: 0, tickets: { persona: 2, ego: 0, choice: 0, pack: {} } },
+      exchange: { lp: 0, shards: 0 },
+      note: ""
+    }],
+    entries: []
+  };
+  const migrated = normalize(raw);
+  assert.ok(migrated.results.some((r) => r.id === "res-ticket-grant"),
+    "通常リザルトの枚数が一致しても、旧在庫を移行する");
+  assert.equal(balance(migrated.results, migrated.entries).tickets.persona, 4,
+    "通常報酬2枚と旧セーブ在庫2枚を両方残す");
+
+  const reopened = normalize(migrated);
+  assert.equal(balance(reopened.results, reopened.entries).tickets.persona, 4,
+    "移行後に再読込しても二重加算しない");
+});
+
+test("旧抽出パックの移行はパック名なし・端数枚数を誤ったチケット種別へ変換しない", () => {
+  const raw = {
+    ...baseState(),
+    tickets: [
+      { kind: "pack", pack: "", count: 3 },
+      { kind: "persona", pack: null, count: 1.5 }
+    ],
+    results: [],
+    entries: []
+  };
+  const migrated = normalize(raw);
+  assert.equal(migrated.results.some((r) => r.id === "res-ticket-grant"), false,
+    "復元できない抽出パック名や端数枚数を別のチケット在庫に変換しない");
+  assert.deepEqual(JSON.parse(JSON.stringify(balance(migrated.results, migrated.entries).tickets)),
+    { persona: 0, ego: 0, choice: 0, pack: {} });
+});
