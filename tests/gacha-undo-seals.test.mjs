@@ -194,19 +194,15 @@ test("非同期確定後に残高が変わった場合、証明を追記する�
 
   const preflight = component.indexOf("if (!validation?.ok)");
   const abort = component.indexOf("return;", preflight);
-  const economicCommit = component.indexOf('dispatch(transaction)', preflight);
-  const proofCommit = component.indexOf('dispatch({ type: "ADD_DRAW_RECORD", __sealed: true, batch })', preflight);
-  const logCommit = component.indexOf('type: "ADD_GACHA_LOG"', preflight);
-  assert.ok(preflight >= 0 && abort > preflight && economicCommit > abort,
-    "失敗時は経済処理をdispatchする前に中止する");
+  const economicCommit = component.indexOf("dispatch(transaction)", preflight);
   const proofCommit = component.indexOf('dispatch({ type: "ADD_DRAW_RECORD", __sealed: true, batch, entry: drawLogEntry })', preflight);
   const fallbackLogCommit = component.indexOf('dispatch({ type: "ADD_GACHA_LOG", __sealed: true, entry: drawLogEntry })', preflight);
   assert.ok(preflight >= 0 && abort > preflight && economicCommit > abort,
     "失敗時は経済処理をdispatchする前に中止する");
   assert.ok(proofCommit > economicCommit && fallbackLogCommit > proofCommit,
-    "証明とログは取引成功後にのみ記録し、古い検証器のfallbackログとは分離する");
+    "証明と決定ログは承認された取引へ結び付け、旧検証器のfallbackログとは分離する");
+  assert.match(component, /cost: paidCost/, "LP／欠片残高もreducerの同じ取引で再検証する");
 });
-
 
 test("残高検証で拒否された取引には証明も決定ログも結び付けない", () => {
   const before = stateWithOnePersonaTicket();
