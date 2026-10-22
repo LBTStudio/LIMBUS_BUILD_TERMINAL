@@ -1205,8 +1205,44 @@ function dbSupportCond(entry, field) {
   return String(entry[field] || "");
 }
 
+/* ブラウザー内の旧セーブはJSONとして読めても、配列にnullやプリミティブを含む場合がある。
+   DB参照による正規化の前にオブジェクト配列を掃除し、読み込み例外→初期状態保存で
+   利用者の既存データを上書きする経路を防ぐ。配列要素の順序と正常なレコードは保持する。 */
+function sanitizeStateCollections(raw) {
+  const source = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+  const next = { ...source };
+  const recordArrays = [
+    "skills", "supports", "gachaLog", "results", "entries", "inventory",
+    "customItems", "enhancements", "uniqueBuffs", "extraPassives", "customStatuses"
+  ];
+  const isRecord = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+  for (const field of recordArrays) {
+    if (Array.isArray(next[field])) next[field] = next[field].filter(isRecord);
+  }
+  if (Array.isArray(next.draws)) {
+    next.draws = next.draws.filter((batch) =>
+      isRecord(batch) && Array.isArray(batch.records)
+      && batch.records.every(isRecord)
+    );
+  }
+  if (next.personaSrc != null && !isRecord(next.personaSrc)) next.personaSrc = null;
+  if (next.deathSupport != null && !isRecord(next.deathSupport)) next.deathSupport = null;
+  if (!isRecord(next.roster)) {
+    next.roster = { personas: [], egos: [], supports: [], spirits: [] };
+  } else {
+    next.roster = { ...next.roster };
+    for (const field of ["personas", "egos", "supports", "spirits"]) {
+      next.roster[field] = Array.isArray(next.roster[field])
+        ? next.roster[field].filter(isRecord)
+        : [];
+    }
+  }
+  return next;
+}
+
 function normalizeStateShape(raw) {
-  const next = refreshDBReferencedData(refreshEquippedPersonaFromDB({ ...raw }));
+  const next = refreshDBReferencedData(refreshEquippedPersonaFromDB(sanitizeStateCollections(raw)));
   next.schemaVersion = next.schemaVersion || SAVE_SCHEMA_VERSION;
   // パッシブ2は追加パッシブ列の1件目へ移行する。以後は上限なしの extraPassives が正準。
   next.extraPassives = mergeExtraPassives(next.extraPassives, { enabled: next.pas2Enabled, passive: next.pas2 });
