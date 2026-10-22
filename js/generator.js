@@ -2039,13 +2039,15 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
      renderResults();
      input.focus();
    });
-   // Browser find shortcuts are routed to this search where the page receives the key event.
-   document.addEventListener("keydown", (event) => {
+   // Capture the browser-find shortcut before page-level handlers can interfere.
+   // The dedicated search reads collapsed sections without changing their open state.
+   window.addEventListener("keydown", (event) => {
      if (!(event.ctrlKey || event.metaKey) || event.key.toLocaleLowerCase() !== "f" || event.shiftKey || event.altKey) return;
      event.preventDefault();
+     event.stopImmediatePropagation();
      input.focus();
      input.select();
-   });
+   }, true);
    status.textContent = "折り畳み内も検索対象です。検索だけではセクションは開きません。";
  })();
  </script>
