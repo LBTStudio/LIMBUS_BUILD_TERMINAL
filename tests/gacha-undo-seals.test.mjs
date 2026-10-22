@@ -281,7 +281,7 @@ test("抽選UIは選択抽出チケットを明示的に選べる", () => {
   const component = drawUiSource.slice(start, start + 24000);
   assert.match(component, /const \[ticketPreference, setTicketPreference\] = React\.useState\("specific"\)/);
   assert.match(component, /ticketBalanceAll\.choice/);
-  assert.match(component, /ticketKind: ticketKind/);
+  assert.match(component, /ticketKind, times, seed/);
   assert.match(component, /使用する抽出チケット/);
   assert.match(component, /setTicketPreference\("choice"\)/);
 });
