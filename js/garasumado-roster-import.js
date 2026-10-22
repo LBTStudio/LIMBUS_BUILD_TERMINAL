@@ -35,9 +35,9 @@
     if (absolute) {
       candidate = absolute[0].replace(/[)\],.;]+$/g, "");
     } else {
-      const hostless = text.match(/(^|[^A-Za-z0-9.-])((?:www\.)?lbt-garasumado\.vercel\.app(?:\/[^\s]*)?)/i);
+      const hostless = text.match(/(?:^|[\s"\'(<\[:])((?:www\.)?lbt-garasumado\.vercel\.app(?:\/[^\s]*)?)/i);
       if (!hostless) return invalid;
-      candidate = ("https://" + hostless[2]).replace(/[)\],.;]+$/g, "");
+      candidate = ("https://" + hostless[1]).replace(/[)\],.;]+$/g, "");
     }
 
     let url;
