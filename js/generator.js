@@ -1724,6 +1724,27 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
 	.share-visual img{display:block;width:100%;max-height:460px;object-fit:contain;border-radius:2px;background:#0e0b09}
 	.share-visual figcaption{font:10px var(--mono);letter-spacing:.15em;color:var(--tx3);padding:7px 3px 0;text-transform:uppercase}
 
+
+ /* In-sheet search reads closed details without changing their open state. */
+ .share-search{margin:0 0 22px;padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:3px}
+ .share-search-title{display:block;margin:0 0 7px;color:var(--gold-hi);font-size:14px;font-weight:700}
+ .share-search-controls{display:flex;gap:8px;align-items:stretch}
+ #share-search-input{flex:1;min-width:0;padding:10px 12px;border:1px solid var(--line);border-radius:3px;background:var(--bg);color:var(--tx);font:inherit;font-size:14px}
+ #share-search-input:focus-visible,.share-search button:focus-visible{outline:2px solid var(--gold-hi);outline-offset:2px}
+ .share-search-clear,.share-search-open{flex:none;padding:8px 12px;border:1px solid var(--gold);border-radius:3px;background:rgba(212,175,95,.08);color:var(--gold-hi);font:inherit;font-size:13px;cursor:pointer}
+ .share-search-help,.share-search-status{margin:7px 0 0;color:var(--tx3);font-size:12px;line-height:1.6}
+ .share-search-results{margin:10px 0 0;padding:0;list-style:none}
+ .share-search-result{padding:10px 0;border-top:1px solid var(--line)}
+ .share-search-result-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;margin-bottom:4px}
+ .share-search-category{color:var(--gold);font-size:11px;font-family:var(--mono)}
+ .share-search-name{color:var(--tx);font-size:14px;font-weight:700;overflow-wrap:anywhere}
+ .share-search-snippet{margin:0 0 7px;color:var(--tx2);font-size:13px;line-height:1.7;overflow-wrap:anywhere}
+ .share-search-snippet mark{background:#f0d58d;color:#17120d;padding:0 1px;border-radius:2px}
+ .share-search-result.is-search-hit{outline:2px solid var(--gold);outline-offset:3px}
+ .share-search-results[hidden]{display:none!important}
+ @media(max-width:640px){.share-search{padding:10px}.share-search-clear,.share-search-open{padding:8px 10px}.share-search-snippet{font-size:13.5px}}
+ @media print{.share-search{display:none!important}}
+
 /* --- Stats --- */
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px}
 .stat{padding:10px 14px;background:var(--panel2);border:1px solid var(--line);border-radius:2px}
@@ -1880,6 +1901,16 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
 	    <h1>${esc(p.charName || "PC")}</h1>
 	  </header>
 	  ${shareVisualHTML}
+  <section class="share-search" aria-labelledby="share-search-title">
+    <label id="share-search-title" class="share-search-title" for="share-search-input">このシート内を検索</label>
+    <div class="share-search-controls">
+      <input id="share-search-input" type="search" placeholder="効果名・状態名・キーワード" autocomplete="off" aria-describedby="share-search-help">
+      <button id="share-search-clear" type="button" class="share-search-clear">クリア</button>
+    </div>
+    <p id="share-search-help" class="share-search-help">折り畳み内も検索します。検索だけではセクションは開きません。</p>
+    <p id="share-search-status" class="share-search-status" role="status" aria-live="polite"></p>
+    <ol id="share-search-results" class="share-search-results" hidden></ol>
+  </section>
   <div class="stats">
     <div class="stat"><div class="lbl">HP</div><div class="val">${esc(shareHp)}</div></div>
     <div class="stat"><div class="lbl">SAN</div><div class="val">${esc(shareSan)}</div></div>
@@ -1902,6 +1933,115 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
   ${enhHTML}
   ${inventoryHTML}
   <div class="foot">LIMBUS BUILD TERMINAL ${esc(window.LBT_VERSION || "v64r45")} \xB7 Character Sheet \xB7 Generated ${(/* @__PURE__ */ new Date()).toLocaleString("ja-JP")}</div>
+ <script>
+ (() => {
+   const input = document.getElementById("share-search-input");
+   const clear = document.getElementById("share-search-clear");
+   const status = document.getElementById("share-search-status");
+   const results = document.getElementById("share-search-results");
+   const sheet = document.querySelector(".wrap");
+   if (!input || !clear || !status || !results || !sheet) return;
+
+   const searchableSelector = ".skl,.ego,.spp,.share-unique,.share-item,.panel,.stat,.res";
+   let activeBlocks = [];
+   const getDisplayText = (element) => (element.textContent || "").replace(/\s+/g, " ").trim();
+   const getTitle = (element) => {
+     const heading = element.querySelector(".skl-name,.ego-name,.spp-h b,.u-head b,.share-item-h b,.pas-h b,.spirit-h b");
+     return heading ? getDisplayText(heading) : getDisplayText(element).slice(0, 90);
+   };
+   const getCategory = (element) => {
+     const section = element.closest(".sec");
+     const heading = section && section.querySelector("h2");
+     return heading ? getDisplayText(heading) : "基本情報";
+   };
+   const clearHighlights = () => {
+     activeBlocks.forEach((element) => element.classList.remove("is-search-hit"));
+     activeBlocks = [];
+   };
+   const openOnRequest = (element) => {
+     let parent = element;
+     while (parent && parent !== sheet) {
+       if (parent.tagName === "DETAILS") parent.open = true;
+       parent = parent.parentElement;
+     }
+     element.classList.add("is-search-hit");
+     activeBlocks.push(element);
+     element.scrollIntoView({
+       behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+       block: "center"
+     });
+   };
+   const renderResults = () => {
+     clearHighlights();
+     results.replaceChildren();
+     const query = input.value.trim().toLocaleLowerCase("ja-JP");
+     if (!query) {
+       results.hidden = true;
+       status.textContent = "折り畳み内も検索対象です。検索だけではセクションは開きません。";
+       return;
+     }
+
+     const blocks = Array.from(sheet.querySelectorAll(searchableSelector)).filter((element) => {
+       if (element.classList.contains("panel") && element.querySelector(".share-unique,.share-item")) return false;
+       return getDisplayText(element).toLocaleLowerCase("ja-JP").includes(query);
+     });
+     const visibleBlocks = blocks.slice(0, 50);
+     visibleBlocks.forEach((element) => {
+       const text = getDisplayText(element);
+       const lower = text.toLocaleLowerCase("ja-JP");
+       const at = lower.indexOf(query);
+       const start = Math.max(0, at - 48);
+       const finish = Math.min(text.length, at + query.length + 88);
+       const snippet = (start > 0 ? "…" : "") + text.slice(start, finish) + (finish < text.length ? "…" : "");
+
+       const item = document.createElement("li");
+       item.className = "share-search-result";
+       const head = document.createElement("div");
+       head.className = "share-search-result-head";
+       const category = document.createElement("span");
+       category.className = "share-search-category";
+       category.textContent = getCategory(element);
+       const name = document.createElement("b");
+       name.className = "share-search-name";
+       name.textContent = getTitle(element);
+       head.append(category, name);
+
+       const excerpt = document.createElement("p");
+       excerpt.className = "share-search-snippet";
+       const pos = snippet.toLocaleLowerCase("ja-JP").indexOf(query);
+       if (pos >= 0) {
+         excerpt.append(document.createTextNode(snippet.slice(0, pos)));
+         const mark = document.createElement("mark");
+         mark.textContent = snippet.slice(pos, pos + query.length);
+         excerpt.append(mark, document.createTextNode(snippet.slice(pos + query.length)));
+       } else {
+         excerpt.textContent = snippet;
+       }
+
+       const open = document.createElement("button");
+       open.type = "button";
+       open.className = "share-search-open";
+       open.textContent = "この項目を開く";
+       open.addEventListener("click", () => openOnRequest(element));
+       item.append(head, excerpt, open);
+       results.appendChild(item);
+     });
+
+     results.hidden = visibleBlocks.length === 0;
+     status.textContent = blocks.length
+       ? blocks.length + "件見つかりました。折り畳みは自動で開きません。" + (blocks.length > visibleBlocks.length ? "先頭50件を表示しています。" : "")
+       : "一致する項目はありません。";
+   };
+
+   input.addEventListener("input", renderResults);
+   clear.addEventListener("click", () => {
+     input.value = "";
+     renderResults();
+     input.focus();
+   });
+   status.textContent = "折り畳み内も検索対象です。検索だけではセクションは開きません。";
+ })();
+ </script>
 </div></body></html>`;
 }
 // 通常はURL fragmentに圧縮して保持する。Discord実用長を超える場合は分散トークン保存を使い、
