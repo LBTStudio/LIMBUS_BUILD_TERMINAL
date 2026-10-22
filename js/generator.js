@@ -1516,7 +1516,7 @@ function buildShareSheetHTML(state) {
           ${joinedEffectHTML(p.deathSupport.always || p.deathSupport.always_effect, p.deathSupport.effect)}
         </div>` : "";
   const supportHTML = p.supports.length || deathSpp ? `
-    <section class="sec"><details class="fold"><summary><h2>SUPPORT PASSIVES / \u30B5\u30DD\u30FC\u30C8\u30D1\u30C3\u30B7\u30D6</h2></summary>
+    <section class="sec"><details class="fold"><summary><h2>SUPPORT PASSIVES / \u30B5\u30DD\u30FC\u30C8\u30D1\u30C3\u30B7\u30D6 <span class="section-count">${p.supports.length + (deathSpp ? 1 : 0)}件</span></h2></summary>
       ${p.supports.map((s) => `
         <div class="spp">
           <div class="spp-h"><b>${esc(s.name)}</b>${s.lp ? `<span class="cond lp">LP${esc(s.lp)}</span>` : ""}${s.cond ? `<span class="cond">${esc(s.cond)}</span>` : ""}</div>
@@ -1541,7 +1541,7 @@ function buildShareSheetHTML(state) {
     `;
   };
   const egosHTML = eqEgos.length ? `
-    <section class="sec"><details class="fold"><summary><h2>E.G.O EQUIPMENT / E.G.O \u88C5\u5099</h2></summary>
+    <section class="sec"><details class="fold"><summary><h2>E.G.O EQUIPMENT / E.G.O \u88C5\u5099 <span class="section-count">${eqEgos.length}件</span></h2></summary>
       ${eqEgos.map((e) => `
         <article class="ego" data-rank="${esc(e._rank)}">
           <div class="ego-h">
@@ -1694,7 +1694,7 @@ details.fold>summary::-webkit-details-marker{display:none}
 details.fold>summary h2{margin:0;flex:1;pointer-events:none}
 details.fold>summary::before{content:'\\25B6';display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;flex:none;font-size:11px;color:var(--gold);border:1px solid var(--gold);border-radius:3px;background:rgba(200,168,75,.10);transition:transform .18s ease}
 details.fold[open]>summary::before{transform:rotate(90deg)}
-details.fold>summary::after{content:'クリックで展開';font-size:9px;letter-spacing:.12em;color:var(--tx3,#888);border:1px dashed rgba(255,255,255,.25);padding:2px 8px;border-radius:99px;flex:none;font-family:var(--mono,monospace)}
+details.fold>summary::after{content:'クリックで展開';font-size:10.5px;letter-spacing:.04em;color:var(--tx3,#888);border:1px dashed rgba(255,255,255,.25);padding:3px 8px;border-radius:99px;flex:none;font-family:var(--mono,monospace)}
 details.fold[open]>summary::after{content:'クリックで折りたたむ';color:var(--gold);border-style:solid;border-color:var(--gold)}
 details.fold>summary:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:4px}
 details.fold:not([open])>summary{opacity:.9}
@@ -1714,7 +1714,8 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
 .hd-plpc{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px;font-size:11px;font-family:var(--mono);letter-spacing:0.14em}
 .hd-plpc span b{color:var(--gold);margin-right:6px;font-weight:normal}
 .hd-plpc span{color:var(--tx2)}
-.hd h1{font-family:var(--head);font-weight:700;letter-spacing:0.04em;font-size:38px;margin:0 0 6px;color:var(--tx);line-height:1.1}
+.hd h1{font-family:var(--head);font-weight:700;letter-spacing:0.04em;font-size:38px;margin:0 0 6px;color:var(--tx);line-height:1.1;min-width:0;overflow-wrap:anywhere}
+.hd-plpc span,.hd .persona-line .val{min-width:0;overflow-wrap:anywhere}
 .hd .persona-line{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
 .hd .persona-line .lbl{font-family:var(--mono);font-size:10px;letter-spacing:0.2em;color:var(--tx3);text-transform:uppercase;padding:3px 10px;background:rgba(212,175,95,0.1);border:1px solid rgba(212,175,95,0.4);border-radius:2px}
 .hd .persona-line .val{font-family:var(--head);font-weight:700;font-size:24px;color:var(--gold-hi);letter-spacing:0.02em}
@@ -1768,11 +1769,11 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
 /* v52: \u30C0\u30A4\u30B9\u30BB\u30AF\u30B7\u30E7\u30F3\u306E\u533A\u5207\u308A\u5F37\u5316 */
 .dice-title{font-family:var(--head);font-size:11px;letter-spacing:0.28em;color:var(--gold);text-transform:uppercase;margin:12px 0 8px;padding:4px 8px;background:linear-gradient(90deg,rgba(212,175,95,0.15),transparent 70%);border-left:2px solid var(--gold);font-weight:700}
 .dice-block{display:flex;flex-direction:column;gap:4px;padding:6px;background:rgba(0,0,0,0.25);border:1px solid var(--line);border-radius:3px}
-.dice-row{display:grid;grid-template-columns:20px minmax(64px,max-content) 1fr;gap:8px;align-items:baseline;font-size:12.5px;padding:5px 8px;background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--gold-hi);border-radius:2px}
+.dice-row{display:grid;grid-template-columns:20px minmax(64px,max-content) 1fr;gap:8px;align-items:baseline;font-size:13.5px;padding:5px 8px;background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--gold-hi);border-radius:2px}
 .dice-row + .dice-row{margin-top:0}
 .dice-idx{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--gold-hi);text-align:center;line-height:1.4;background:rgba(212,175,95,0.15);border:1px solid var(--gold);border-radius:2px;padding:2px 0}
 .dice-roll{font-family:var(--mono);color:var(--gold-hi);font-weight:700;font-size:13.5px;letter-spacing:0.04em;padding-right:8px;border-right:1px dashed var(--line2);white-space:nowrap}
-.dice-eff{color:var(--tx);line-height:1.6;min-width:0;word-break:break-word;font-size:12.5px}
+.dice-eff{color:var(--tx);line-height:1.7;min-width:0;word-break:break-word;font-size:13.5px}
 
 /* --- \u5927\u7F6A\u30AB\u30E9\u30FC\u30BF\u30B0 --- */
 .sin-tag{display:inline-block;padding:2px 10px;font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:0.08em;border-radius:2px;background:var(--sin-color,var(--panel2));color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.55),0 0 2px rgba(0,0,0,0.35);border:1px solid rgba(0,0,0,0.25)}
@@ -1786,6 +1787,8 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
 .sin-tag[data-sin="\u50B2\u6162"]{--sin-color:var(--sin-\u50B2\u6162)}
 .sin-tag[data-sin="\u5AC9\u59AC"]{--sin-color:var(--sin-\u5AC9\u59AC)}
 .sin-tag[data-sin="\u7279\u6B8A"]{--sin-color:var(--sin-\u7279\u6B8A)}
+/* WCAG text contrast: lighter sin colors use a dark foreground instead of white text+shadow. */
+.sin-tag[data-sin="色欲"],.sin-tag[data-sin="怠惰"],.sin-tag[data-sin="暴食"],.sin-tag[data-sin="特殊"]{color:#17120d;text-shadow:none}
 .aoe-tag{display:inline-block;padding:1px 8px;font-family:var(--head);font-size:10px;color:var(--gold);border:1px solid var(--gold);border-radius:2px;letter-spacing:0.12em;font-weight:700}
 
 /* --- EGO --- */
@@ -1815,7 +1818,7 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
 .spp .cond.lp{color:var(--gold);border-color:rgba(212,175,95,0.4)}
 .spp.is-death{border-left:3px solid var(--accent-hi);}
 .cond.death{background:rgba(232,92,74,0.14);border-color:rgba(232,92,74,0.45);color:#fff;}
-.spp .eff{margin-top:4px;font-size:12.5px;color:var(--tx2);line-height:1.7}
+.spp .eff{margin-top:4px;font-size:13.5px;color:var(--tx2);line-height:1.8}
 .special-enhancement-fold{padding:0}
 .special-enhancement-fold>summary{list-style:none;cursor:pointer;padding:10px 14px;margin:0;user-select:none;-webkit-tap-highlight-color:transparent}
 .special-enhancement-fold>summary::-webkit-details-marker{display:none}
@@ -1846,15 +1849,25 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
 .spirit-h b{font-family:var(--head);font-weight:700;font-size:16px;color:var(--tx)}
 .pas-h b{font-family:var(--head);font-weight:700;font-size:16px;color:var(--tx)}
 .pas-h .cond{margin-left:10px;font-family:var(--mono);font-size:11px;color:var(--tx3)}
-.eff{font-size:12.5px;color:var(--tx2);line-height:1.7;margin-top:6px}
+.eff{font-size:13.5px;color:var(--tx2);line-height:1.8;margin-top:6px}
 .eff.always{padding:6px 10px;background:rgba(212,175,95,0.06);border-left:2px solid var(--gold);margin-bottom:6px}
 .eff-joined{padding:7px 10px;background:rgba(212,175,95,0.045);border-left:2px solid var(--gold)}
-.eff-label{color:var(--gold);font-family:var(--head);font-size:11px;letter-spacing:.08em}
+.eff-label{color:var(--gold);font-family:var(--head);font-size:12px;letter-spacing:.04em}
 .eff-sep{color:var(--tx3);padding:0 5px}
-.eff u{color:var(--gold);text-decoration:none;font-family:var(--head);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;font-weight:700}
-.tim{color:var(--gold);font-family:var(--head);font-size:11.5px;letter-spacing:0.08em;font-weight:700}
+.eff u{color:var(--gold);text-decoration:none;font-family:var(--head);font-size:12px;letter-spacing:0.08em;text-transform:uppercase;font-weight:700}
+.tim{color:var(--gold);font-family:var(--head);font-size:12.5px;letter-spacing:0.04em;font-weight:700}
 .foot{margin-top:36px;padding-top:16px;border-top:1px solid var(--line2);font-family:var(--mono);font-size:10px;color:var(--tx3);letter-spacing:0.1em;text-align:center}
-@media print{ body{background:#fff;color:#000} }
+@media print{
+  :root{--bg:#fff;--panel:#fff;--panel2:#f6f4ef;--line:#bcb5a8;--line2:#ddd7cb;--gold:#73520d;--gold-hi:#634800;--tx:#111;--tx2:#222;--tx3:#444}
+  @page{margin:12mm}
+  body{background:#fff!important;color:#111!important;padding:0;font-size:10.5pt;line-height:1.55;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .wrap{max-width:none}
+  .sec,.skl,.ego,.ego-sk,.spp,.panel,.share-unique,.stat,.res,.dice-row,.share-item{break-inside:avoid}
+  .sec h2,.dice-title,.hd{break-after:avoid}
+  .skl,.ego,.ego-sk,.spp,.panel,.share-unique,.stat,.dice-block,.dice-row{box-shadow:none}
+  details.fold:not([open])>:not(summary),.special-enhancement-fold:not([open])>.eff{display:block!important}
+  details.fold>summary::before,details.fold>summary::after,.special-enhancement-fold>summary::after{display:none!important}
+}
 @media (max-width:640px){ body{padding:12px;font-size:13px} .stats{grid-template-columns:repeat(2,1fr)} .hd h1{font-size:28px} .res{min-width:120px;padding:9px 16px;font-size:17px} }
 </style></head><body>
 <div class="wrap">
