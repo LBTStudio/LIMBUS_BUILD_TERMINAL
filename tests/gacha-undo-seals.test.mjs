@@ -242,3 +242,23 @@ test("残高検証で拒否された取引には証明も決定ログも結び�
   assert.equal(proofAttempt.draws.length, 0);
   assert.equal(proofAttempt.gachaLog.length, 0);
 });
+
+
+test("抽選証明キーが無い取引は所持・費用・証明を適用しない", () => {
+  const before = stateWithOnePersonaTicket();
+  const invalidBatch = { records: batch.records };
+  const action = { type: "APPLY_DRAW_BATCH", batch: invalidBatch, cost: { lp: 0, shards: 0 } };
+  const validation = w.LBT_validateDrawBatchApplication(before, action);
+  assert.equal(validation.ok, false);
+  assert.equal(validation.reason, "missing-proof-key");
+  const rejected = reducer(before, action);
+  assert.equal(rejected.roster.personas.length, 0);
+  assert.equal(rejected.entries.length, 0);
+  assert.equal(rejected.draws.length, 0);
+  assert.equal(reducer(rejected, {
+    type: "ADD_DRAW_RECORD",
+    batch: invalidBatch,
+    proofOnly: true,
+    entry: { id: "missing-proof-key-log" }
+  }).draws.length, 0, "proofOnlyでも検証キーのないレコードを残さない");
+});
