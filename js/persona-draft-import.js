@@ -36,6 +36,7 @@
       max: max ? Number(max[1]) : 20, initial: initial ? Number(initial[1]) : 0,
       place: /パラメータ側/.test(normalized) ? "params" : /登録先なし/.test(normalized) ? "none" : "status", ...(noST ? { noST: true } : {}),
       desc: tail.slice(metadata[0].length).replace(/^効果\s*[:：]\s*/, "") };
+  };
   const sectionTitle = (line) => clean(line).match(/^[◯○●]\s*(.+)$/)?.[1] || "";
   const buffHeaderAt = (lines, index) => {
     const direct = detectBuffHeader(lines[index]);
