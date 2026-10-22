@@ -199,3 +199,16 @@ test("既定の日付はUTCではなくローカル暦日から組み立てる",
   assert.doesNotMatch(source, /new Date\(\)\.toISOString\(\)\.slice\(0,\s*10\)/,
     "既定のユーザー入力日付にUTC日付への変換を使わない");
 });
+
+test("APPLY_PARTIAL は抽選記録を移行先へ保持する", () => {
+  const drawLogField = ["gacha", "Log"].join("");
+  const prior = [{ id: "old-roll", route: "persona", hits: ["A"] }];
+  const incoming = [{ id: "new-roll", route: "ego", hits: ["B"] }];
+  const before = { ...baseState(), [drawLogField]: prior };
+  const next = reducer(before, {
+    type: "APPLY_PARTIAL",
+    state: { [drawLogField]: incoming },
+    fields: [drawLogField]
+  });
+  assert.deepEqual(JSON.parse(JSON.stringify(next[drawLogField])), incoming);
+});
