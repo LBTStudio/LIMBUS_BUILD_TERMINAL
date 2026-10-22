@@ -2154,10 +2154,11 @@
  "difference_classification": {
   "source_boundary_punctuation": 184,
   "glossary_or_persona_adapter_review": 3,
-  "local_text_verified_metadata_review": 9,
-  "content_or_mapping_review": 17,
+  "local_text_verified_metadata_review": 7,
+  "content_or_mapping_review": 18,
   "glossary_text_verified_metadata_review": 17,
   "glossary_content_or_local_variant_review": 1,
+  "local_content_review": 2,
   "local_definition_mapping_review": 2
  },
  "excluded": [
@@ -6035,10 +6036,10 @@
     "type": "バフ",
     "initial": 0,
     "max": 20,
-    "desc": "-弾丸を消費するダイスのダメージ量+2。火傷付与量と振動付与量+1\n消費することで特定戦術の能力が向上",
+    "desc": "弾丸を消費するダイスのダメージ量+2。火傷付与量と振動付与量+1\n消費することで特定戦術の能力が向上",
     "place": "status"
    },
-   "classification": "local_text_verified_metadata_review",
+   "classification": "local_content_review",
    "glossary_review": {
     "source": "core",
     "pages": [
@@ -6077,7 +6078,7 @@
      "max"
     ],
     "note": "Owner-local definition; glossary differences do not authorize replacement or metadata inference",
-    "text_matches": true
+    "text_matches": false
    }
   },
   {
@@ -6097,10 +6098,10 @@
     "type": "バフ",
     "initial": 0,
     "max": 20,
-    "desc": "-弾丸を消費するダイスのダメージ量+3。火傷付与量と振動付与量+2。自分の速度が対象より早ければ振動爆発ダメージ量+5-\n消費することで特定戦術の能力が向上",
+    "desc": "弾丸を消費するダイスのダメージ量+3。火傷付与量と振動付与量+2。\n自分の速度が対象より早ければ、振動爆発ダメージ量+5\n消費することで特定戦術の能力が向上",
     "place": "status"
    },
-   "classification": "local_text_verified_metadata_review",
+   "classification": "local_content_review",
    "glossary_review": {
     "source": "core",
     "pages": [
@@ -6141,7 +6142,7 @@
      "max"
     ],
     "note": "Owner-local definition; glossary differences do not authorize replacement or metadata inference",
-    "text_matches": true
+    "text_matches": false
    }
   },
   {
@@ -6546,6 +6547,24 @@
     "core:349:40",
     "core:349:41"
    ]
+  },
+  {
+   "kind": "tokui_personas",
+   "name": "蜘蛛の巣 中指の親方",
+   "source": "pack1",
+   "pages": [
+    160,
+    161,
+    162,
+    163,
+    164
+   ],
+   "code": "field_difference",
+   "path": "tokui_personas[47].passive_effect",
+   "expected": "自分が敵にダメージを受けるたびに中指-怨恨2を得る（1Rに2回）。戦闘開始時、嫉妬共鳴1ごとに中指-怨恨1を得る（最大7）。自分の剣がレーヴァテイン状態なら、、HPが25％未満の味方が敵とのマッチで敗北したとき、その敵をメインターゲット、その味方をサブターゲットに指定した「家族のために犠牲になる娘ちゃんの気持ち、忘れずにお返ししてやる」を使用する\n（戦闘中1回）。当該スキルで中指所属の味方を倒した場合、次のRに嫉妬ダメージ量増加1を得る。蜘蛛の巣中指の子方を倒した場合、代わりに次のRに家族の復讐1を得る",
+   "actual": "自分が敵にダメージを受けるたびに中指-怨恨2を得る（1Rに2回）。戦闘開始時、嫉妬共鳴1ごとに中指-怨恨1を得る（最大7）。自分の剣がレーヴァテイン状態なら、HPが25％未満の味方が敵とのマッチで敗北したとき、その敵をメインターゲット、その味方をサブターゲットに指定した「家族のために犠牲になる娘ちゃんの気持ち、忘れずにお返ししてやる」を使用する\n（戦闘中1回）。当該スキルで中指所属の味方を倒した場合、次のRに嫉妬ダメージ量増加1を得る。蜘蛛の巣中指の子方を倒した場合、代わりに次のRに家族の復讐1を得る",
+   "classification": "content_or_mapping_review",
+   "row_ids": []
   },
   {
    "kind": "normal_personas",
