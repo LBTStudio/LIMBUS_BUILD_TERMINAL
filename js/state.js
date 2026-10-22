@@ -2444,6 +2444,10 @@ function validateDrawBatchApplication(state, action) {
       return { ok: false, reason: "insufficient-tickets", available, requested: count };
     }
   }
+  if (action?.cost && !purchaseAffordability(state, action.cost).ok) {
+    const affordability = purchaseAffordability(state, action.cost);
+    return { ok: false, reason: "insufficient-currency", ...affordability };
+  }
   return { ok: true, reason: "" };
 }
 window.LBT_validateDrawBatchApplication = validateDrawBatchApplication;
@@ -3354,9 +3358,23 @@ case "ADD_CUSTOM_ITEM": {
     case "ADD_DRAW_RECORD": {
       const batch = action.batch;
       if (!batch || typeof batch !== "object" || !Array.isArray(batch.records)) return state;
-      const draws = Array.isArray(state.draws) ? state.draws : [];
-      if (batch.batchHash && draws.some((existing) => existing?.batchHash === batch.batchHash)) return state;
-      return { ...state, draws: [...draws, batch] };
+      const proofKey = String(batch.batchHash || batch.commit || "");
+      const proofOnly = action.proofOnly === true;
+      if (!proofOnly && (!proofKey || state._pendingDrawProofHash !== proofKey)) return state;
+      const { _pendingDrawProofHash, ...cleanState } = state;
+      const draws = Array.isArray(cleanState.draws) ? cleanState.draws : [];
+      if (proofKey && draws.some((existing) => String(existing?.batchHash || existing?.commit || "") === proofKey)) {
+        return cleanState;
+      }
+      const next = { ...cleanState, draws: [...draws, batch] };
+      const entry = action.entry;
+      if (entry?.id) {
+        const log = Array.isArray(next.gachaLog) ? next.gachaLog : [];
+        if (!log.some((item) => item?.id === entry.id)) {
+          next.gachaLog = [...log, entry];
+        }
+      }
+      return next;
     }
     /* 抽選の所持・費用・チケットを通常のUndo履歴へ1つの取引として積む。
        証明本体はこのactionでは保存せず、呼び出し側が別途sealedにする。 */
@@ -3374,17 +3392,21 @@ case "ADD_CUSTOM_ITEM": {
         const count = Math.max(0, Math.trunc(Number(ticketSpend.count) || 0));
         next = appendTicketSpend(next, kind, pack, count, { kind: "gachaBatch" }, action.resultId);
       }
-      return applyDrawBatchEffects(next, batch, action.resultId);
+      const next = applyDrawBatchEffects(next, batch, action.resultId);
+      const proofKey = String(batch.batchHash || batch.commit || "");
+      return proofKey ? { ...next, _pendingDrawProofHash: proofKey } : next;
     }
     /* 互換用: 旧呼び出しは経済効果と証明の両方を適用する。Undoでの再生は
        replaySealedAction が ADD_DRAW_RECORD に変換し、証明だけを残す。 */
     case "ADD_DRAW_BATCH": {
       const batch = action.batch;
       if (!batch || typeof batch !== "object" || !Array.isArray(batch.records)) return state;
-      const draws = Array.isArray(state.draws) ? state.draws : [];
-      if (batch.batchHash && draws.some((existing) => existing?.batchHash === batch.batchHash)) return state;
+      const validation = validateDrawBatchApplication(state, action);
+      if (!validation.ok) return state;
       const next = applyDrawBatchEffects(state, batch, action.resultId);
-      return appReducer(next, { type: "ADD_DRAW_RECORD", batch });
+      const proofKey = String(batch.batchHash || batch.commit || "");
+      const staged = proofKey ? { ...next, _pendingDrawProofHash: proofKey } : next;
+      return appReducer(staged, { type: "ADD_DRAW_RECORD", batch });
     }
     /* ---- Support ---- */
     /* 装備の入口は所持（roster.supports）を経由する。未所持のものは
@@ -4276,8 +4298,13 @@ case "ADD_ENTRY":
    Undoで戻した所持品を復活させたり、チケット消費を戻した状態で抽選品だけ残す。
    再生時には proof（draws）の追記専用アクションへ変換する。 */
 function replaySealedAction(action) {
-  if (action?.type === "ADD_DRAW_BATCH") {
-    return { type: "ADD_DRAW_RECORD", batch: action.batch };
+  if (action?.type === "ADD_DRAW_BATCH" || action?.type === "ADD_DRAW_RECORD") {
+    return {
+      type: "ADD_DRAW_RECORD",
+      batch: action.batch,
+      entry: action.entry,
+      proofOnly: true
+    };
   }
   return action;
 }
