@@ -2698,10 +2698,11 @@ function validateDrawRecordShapes(batch) {
 
     // 重複欠片はテーマパックの規定報酬だけ。費用やハッシュが整っていても
     // 任意の grantedShards を通すと、誤った確定バッチが残高を増やせてしまう。
-    if (typeof record.duplicate !== "boolean") {
+    if (record.duplicate !== undefined && typeof record.duplicate !== "boolean") {
       return { ok: false, reason: "invalid-duplicate-flag", index };
     }
-    if (kind !== "themePack" && record.duplicate) {
+    const isDuplicate = record.duplicate === true;
+    if (kind !== "themePack" && isDuplicate) {
       return { ok: false, reason: "invalid-duplicate-flag", index, kind };
     }
     const grantedShards = record.grantedShards === undefined ? 0 : record.grantedShards;
@@ -2711,7 +2712,7 @@ function validateDrawRecordShapes(batch) {
     const configuredDuplicateShards = Number(window.LBT_gacha?.RULES?.themePack?.duplicateShards);
     const duplicateShardReward = Number.isSafeInteger(configuredDuplicateShards) && configuredDuplicateShards >= 0
       ? configuredDuplicateShards : 50;
-    const expectedShardGrant = kind === "themePack" && record.duplicate ? duplicateShardReward : 0;
+    const expectedShardGrant = kind === "themePack" && isDuplicate ? duplicateShardReward : 0;
     if (grantedShards !== expectedShardGrant) {
       return { ok: false, reason: "invalid-shard-grant", index, expected: expectedShardGrant, actual: grantedShards };
     }
