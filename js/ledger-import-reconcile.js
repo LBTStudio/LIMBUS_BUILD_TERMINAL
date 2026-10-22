@@ -14,9 +14,9 @@
 
   /* 金額欄は不正な文字列を 0 と誤認しない。入力が空なら未入力として扱う。 */
   function parseNumber(value) {
-    const raw = String(value ?? "").trim().replace(/\\s/g, "");
+    const raw = String(value ?? "").trim().replace(/\s/g, "");
     if (!raw) return null;
-    if (!/^[+-]?(?:\\d+|\\d{1,3}(?:,\\d{3})+)(?:\\.\\d+)?$/.test(raw)) return null;
+    if (!/^[+-]?(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?$/.test(raw)) return null;
     const number = Number(raw.replace(/,/g, ""));
     return Number.isFinite(number) ? number : null;
   }
