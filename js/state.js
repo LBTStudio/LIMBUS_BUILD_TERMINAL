@@ -2535,6 +2535,75 @@ function applyDrawBatchEffects(state, batch, resultId) {
   return next;
 }
 
+/* 抽選結果を計算した後、ビーコン／署名待ちの間に所持状態が変わっていないか確認する。
+   roster はDB参照型（人格は mode/no、E.G.Oは rank/no）なので、名前だけで重複を判定しない。
+   テーマパックの duplicate フラグは所持名から引き直し、バッチ内の先行抽選も順に反映する。 */
+function drawOwnershipSnapshot(state) {
+  const roster = state?.roster || {};
+  const personas = Array.isArray(roster.personas) ? roster.personas : [];
+  const egos = Array.isArray(roster.egos) ? roster.egos : [];
+  const personaKeys = new Set();
+  const egoKeys = new Set();
+  const names = new Set();
+  for (const entry of personas) {
+    if (!entry) continue;
+    const mode = entry.mode === "t" ? "t" : "n";
+    if (entry.no != null) personaKeys.add(`${mode}:${String(entry.no)}`);
+    const pool = mode === "t" ? (window.DB?.tokui_personas || []) : (window.DB?.normal_personas || []);
+    const source = pool.find((persona) => String(persona?.no) === String(entry.no));
+    const name = String(entry.name || entry.displayName || entry.build?.personaSrc?.name || source?.name || "").trim();
+    if (name) names.add(name);
+  }
+  for (const entry of egos) {
+    if (!entry) continue;
+    if (entry.no != null) egoKeys.add(`${String(entry.rank || "")}:${String(entry.no)}`);
+    const source = (window.DB?.egos || []).find((ego) =>
+      String(ego?.no) === String(entry.no) && String(ego?.rank || "") === String(entry.rank || "")
+    );
+    const name = String(entry.name || entry.displayName || entry.build?.name || source?.name || "").trim();
+    if (name) names.add(name);
+  }
+  return { personaKeys, egoKeys, names };
+}
+
+function validateDrawTargetsCurrent(state, batch) {
+  const owned = drawOwnershipSnapshot(state);
+  for (let index = 0; index < batch.records.length; index += 1) {
+    const record = batch.records[index];
+    const item = record?.item || {};
+    const kind = String(record?.kind || item.kind || batch.kind || "");
+    if (kind === "themePack" || item.kind === "themePack") {
+      const name = String(item.name || "").trim();
+      if (!name) return { ok: false, reason: "invalid-theme-pack-item", index };
+      const expectedDuplicate = owned.names.has(name);
+      if (!!record.duplicate !== expectedDuplicate) {
+        return { ok: false, reason: "stale-duplicate-state", index, name, expectedDuplicate, recordedDuplicate: !!record.duplicate };
+      }
+      owned.names.add(name);
+      continue;
+    }
+    if (kind === "persona" || kind === "specialPersona" || item.kind === "persona" || item.kind === "specialPersona") {
+      if (item.no == null) return { ok: false, reason: "invalid-persona-item", index };
+      const mode = kind === "specialPersona" || item.kind === "specialPersona" || item.mode === "t" ? "t" : "n";
+      const key = `${mode}:${String(item.no)}`;
+      if (owned.personaKeys.has(key)) return { ok: false, reason: "draw-target-already-owned", index, key };
+      owned.personaKeys.add(key);
+      const name = String(item.name || "").trim();
+      if (name) owned.names.add(name);
+      continue;
+    }
+    if (kind === "ego" || item.kind === "ego") {
+      if (item.no == null || !item.rank) return { ok: false, reason: "invalid-ego-item", index };
+      const key = `${String(item.rank)}:${String(item.no)}`;
+      if (owned.egoKeys.has(key)) return { ok: false, reason: "draw-target-already-owned", index, key };
+      owned.egoKeys.add(key);
+      const name = String(item.name || "").trim();
+      if (name) owned.names.add(name);
+    }
+  }
+  return { ok: true, reason: "" };
+}
+
 function validateDrawBatchApplication(state, action) {
   const batch = action?.batch;
   if (!batch || typeof batch !== "object" || !Array.isArray(batch.records)) {
@@ -2578,6 +2647,9 @@ function validateDrawBatchApplication(state, action) {
       }
     }
   }
+
+  const targetState = validateDrawTargetsCurrent(state, batch);
+  if (!targetState.ok) return targetState;
 
   if (batch.count != null && Number(batch.count) !== batch.records.length) {
     return { ok: false, reason: "batch-count-mismatch" };
