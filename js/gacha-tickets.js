@@ -203,7 +203,11 @@
     const options = opts || {};
     const want = Math.max(1, Number.parseInt(options.times, 10) || 1);
     const pay = options.pay === "ticket" ? "ticket" : "paid";
-    const ticketKind = ticketKindFor(route);
+    // 選択抽出チケットは「人格かE.G.Oのどちらか」を選べる共通チケット。
+    // 特定パック以外では明示指定でき、通常のルート別チケットと同じ収支経路を使う。
+    const ticketKind = pay === "ticket" && route !== "pack" && options.ticketKind === "choice"
+      ? "choice"
+      : ticketKindFor(route);
     const ticketPack = route === "pack" ? (options.pack || null) : null;
     const held = pay === "ticket" ? ticketCount(state, ticketKind, ticketPack) : 0;
     if (pay === "ticket" && held <= 0) return { hits: [], reason: "no-ticket", remaining: held };
