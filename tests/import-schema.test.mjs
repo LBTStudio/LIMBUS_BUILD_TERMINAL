@@ -78,3 +78,48 @@ test("既存の保存データの既定ステータスが壊れていても起�
     { label: "HP", initial: 0, max: "hp" }
   ]);
 });
+
+
+test("部分インポートは出力除外マップの型と真偽値を検証する", () => {
+  assert.equal(validate({ outputExclude: "broken" }), "outputExclude はオブジェクトではありません");
+  assert.equal(validate({ outputExclude: { memo: "broken" } }), "outputExclude.memo はオブジェクトではありません");
+  assert.equal(validate({ outputExclude: { memo: { "基本情報": "yes" } } }), "outputExclude.memo.基本情報 は真偽値ではありません");
+  assert.equal(validate({ outputExclude: { memo: { "基本情報": true }, palette: {} } }), null);
+});
+
+test("部分インポートは数式上書きとE.G.Oスロットの形状を検証する", () => {
+  assert.equal(validate({ builtinFormulasOverride: "broken" }), "builtinFormulasOverride はオブジェクトではありません");
+  assert.equal(validate({ builtinFormulasOverride: { MT: true } }), "builtinFormulasOverride.MT は文字列またはnullではありません");
+  assert.equal(validate({ builtinFormulasOverride: { MT: "{速度}+{QB}", DM: null } }), null);
+
+  assert.equal(validate({ egoSlots: "broken" }), "egoSlots はオブジェクトではありません");
+  assert.equal(validate({ egoSlots: { ZAYIN: "broken" } }), "egoSlots.ZAYIN はオブジェクトまたはnullではありません");
+  assert.equal(validate({ egoSlots: { UNKNOWN: null } }), "egoSlots.UNKNOWN は未知のランクです");
+  assert.equal(validate({ egoSlots: { ZAYIN: null, TETH: { no: 2, name: "試験E.G.O" } } }), null);
+});
+
+test("壊れた出力除外・数式上書き・E.G.Oスロットを起動時に正規化する", () => {
+  const base = JSON.parse(JSON.stringify(w.INIT_STATE));
+  const normalized = w.LBT_normalizeStateShape({
+    ...base,
+    outputExclude: { memo: "broken", palette: { "パレット": "yes", "基本情報": true } },
+    builtinFormulasOverride: { MT: true, DM: "{速度}+{QB}", DT: null },
+    egoSlots: "broken",
+    ui: { previewCollapsed: "broken" },
+    pas: "broken",
+    pas2: ["broken"]
+  });
+  assert.deepEqual(JSON.parse(JSON.stringify(normalized.outputExclude)), {
+    memo: {},
+    palette: { "基本情報": true }
+  });
+  assert.deepEqual(JSON.parse(JSON.stringify(normalized.builtinFormulasOverride)), {
+    DM: "{速度}+{QB}",
+    DT: null
+  });
+  assert.deepEqual(Object.keys(normalized.egoSlots).sort(), ["ALEPH", "HE", "TETH", "WAW", "ZAYIN"].sort());
+  assert.ok(Object.values(normalized.egoSlots).every((slot) => slot === null));
+  assert.deepEqual(JSON.parse(JSON.stringify(normalized.ui.previewCollapsed)), {});
+  assert.equal(typeof normalized.pas, "object");
+  assert.equal(Array.isArray(normalized.pas2), false);
+});
