@@ -504,16 +504,22 @@
      1つに束ねる。records は順序込みで固定されるため、編集・削除・並べ替えは
      鎖の不一致として露見する。beacon は外部錨（drand 等）を後から差し込む枠。 */
   function batchRecordBody(record) {
-    return {
+    // 旧レコードには pack フィールドが無いため、pack がある場合だけハッシュ対象へ含める。
+    // これにより既存バッチのハッシュ互換性を壊さず、新しいテーマパック証明は対象パックまで固定する。
+    const body = {
       index: record.index,
       kind: record.kind,
-      method: record.method || "draw",
+      method: record.method || "draw"
+    };
+    if (record.pack !== void 0 && record.pack !== null) body.pack = String(record.pack);
+    Object.assign(body, {
       item: record.item,
       cost: record.cost || { lp: 0, shards: 0 },
       duplicate: !!record.duplicate,
       grantedShards: record.grantedShards || 0,
       prev: record.prev
-    };
+    });
+    return body;
   }
 
   function finalizeBatch(drawOut, session, options) {
@@ -525,6 +531,7 @@
         index,
         kind: result.kind,
         method: result.method || "draw",
+        pack: result.pack,
         item: result.item,
         cost: result.cost,
         duplicate: result.duplicate,
