@@ -81,19 +81,18 @@ test("Undoで抽選を越えたとき、抽選証明だけ再生し所持・支�
   assert.equal(committed.roster.personas.length, 1, "確定時は抽選品が所持に反映される");
   assert.equal(committed.draws.length, 0, "経済効果と証明記録を分離する");
 
-  const proof = reducer(committed, { type: "ADD_DRAW_RECORD", __sealed: true, batch });
+  const drawLogEntry = { id: "draw-proof-1", at: "2026-10-23T00:00:00.000Z", hits: ["試験人格"] };
+  const proof = reducer(committed, { type: "ADD_DRAW_RECORD", __sealed: true, batch, entry: drawLogEntry });
   assert.equal(proof.draws.length, 1, "確定時に証明記録をsealed actionとして追加する");
+  assert.equal(proof.gachaLog.length, 1, "証明が確定したときだけ決定ログも一緒に保存する");
 
-  const seal = context.replaySealedAction({ type: "ADD_DRAW_RECORD", __sealed: true, batch });
+  const seal = context.replaySealedAction({ type: "ADD_DRAW_RECORD", __sealed: true, batch, entry: drawLogEntry });
   assert.equal(seal.type, "ADD_DRAW_RECORD", "Undoの再生時は証明記録専用アクションだけを再生する");
+  assert.equal(seal.proofOnly, true, "Undoの再生は取引承認を要求せず、証明だけを保持する");
   assert.equal(context.replaySealedAction({ type: "ADD_DRAW_BATCH", __sealed: true, batch }).type,
     "ADD_DRAW_RECORD", "旧形式のsealed batchも再生時は副作用を再適用しない");
 
   let rewound = reducer(before, seal);
-  rewound = reducer(rewound, {
-    type: "ADD_GACHA_LOG",
-    entry: { id: "draw-proof-1", at: "2026-10-23T00:00:00.000Z", hits: ["試験人格"] }
-  });
 
   assert.equal(rewound.roster.personas.length, 0, "Undo後に抽選品が復活しない");
   assert.equal(rewound.entries.length, 0, "Undo後に通帳の支出明細を復活させない");
@@ -200,6 +199,43 @@ test("非同期確定後に残高が変わった場合、証明を追記する�
   const logCommit = component.indexOf('type: "ADD_GACHA_LOG"', preflight);
   assert.ok(preflight >= 0 && abort > preflight && economicCommit > abort,
     "失敗時は経済処理をdispatchする前に中止する");
-  assert.ok(proofCommit > economicCommit && logCommit > proofCommit,
-    "検証失敗時には抽選証明・抽選履歴を追記しない");
+  const proofCommit = component.indexOf('dispatch({ type: "ADD_DRAW_RECORD", __sealed: true, batch, entry: drawLogEntry })', preflight);
+  const fallbackLogCommit = component.indexOf('dispatch({ type: "ADD_GACHA_LOG", __sealed: true, entry: drawLogEntry })', preflight);
+  assert.ok(preflight >= 0 && abort > preflight && economicCommit > abort,
+    "失敗時は経済処理をdispatchする前に中止する");
+  assert.ok(proofCommit > economicCommit && fallbackLogCommit > proofCommit,
+    "証明とログは取引成功後にのみ記録し、古い検証器のfallbackログとは分離する");
+});
+
+
+test("残高検証で拒否された取引には証明も決定ログも結び付けない", () => {
+  const before = stateWithOnePersonaTicket();
+  before.results[0].income.lp = 5;
+  const expensiveBatch = {
+    batchHash: "insufficient-lp-batch",
+    records: [{
+      kind: "persona",
+      item: { kind: "persona", no: 1, mode: "n", name: "試験人格" },
+      cost: { lp: 20, shards: 0 },
+      duplicate: false
+    }]
+  };
+  const action = {
+    type: "APPLY_DRAW_BATCH",
+    batch: expensiveBatch,
+    cost: { lp: 20, shards: 0 }
+  };
+  const validation = w.LBT_validateDrawBatchApplication(before, action);
+  assert.equal(validation.ok, false);
+  assert.equal(validation.reason, "insufficient-currency");
+  const rejected = reducer(before, action);
+  const proofAttempt = reducer(rejected, {
+    type: "ADD_DRAW_RECORD",
+    batch: expensiveBatch,
+    entry: { id: "rejected-draw", hits: ["試験人格"] }
+  });
+  assert.equal(proofAttempt.roster.personas.length, 0);
+  assert.equal(proofAttempt.entries.length, 0);
+  assert.equal(proofAttempt.draws.length, 0);
+  assert.equal(proofAttempt.gachaLog.length, 0);
 });
