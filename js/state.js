@@ -3392,7 +3392,7 @@ case "ADD_CUSTOM_ITEM": {
         const count = Math.max(0, Math.trunc(Number(ticketSpend.count) || 0));
         next = appendTicketSpend(next, kind, pack, count, { kind: "gachaBatch" }, action.resultId);
       }
-      const next = applyDrawBatchEffects(next, batch, action.resultId);
+      next = applyDrawBatchEffects(next, batch, action.resultId);
       const proofKey = String(batch.batchHash || batch.commit || "");
       return proofKey ? { ...next, _pendingDrawProofHash: proofKey } : next;
     }
