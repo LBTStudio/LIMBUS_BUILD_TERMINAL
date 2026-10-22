@@ -154,3 +154,44 @@ test("部分インポートは重複した抽選決定ログIDを拒否する", 
   assert.equal(validate({ gachaLog: [{ hits: [] }] }), null,
     "IDの無い旧ログは後方互換のため受け入れる");
 });
+
+
+test("部分インポートは重複した所持品UIDを拒否し、旧UIDなしレコードは許可する", () => {
+  assert.equal(validate({
+    inventory: [
+      { uid: "item-1", itemId: "bandage", quantity: 1 },
+      { uid: "item-1", itemId: "ammo", quantity: 2 }
+    ]
+  }), "inventory[1] に重複uid item-1 があります");
+  assert.equal(validate({
+    inventory: [
+      { itemId: "bandage", quantity: 1 },
+      { itemId: "ammo", quantity: 2 }
+    ]
+  }), null, "UIDの無い旧データは正規化時に採番する");
+});
+
+test("部分インポートは所持ライブラリとユーザー定義アイテムの重複IDを拒否する", () => {
+  assert.equal(validate({
+    roster: {
+      personas: [{ uid: "owned-1", mode: "n", no: 1 }, { uid: "owned-1", mode: "t", no: 1 }],
+      egos: [],
+      supports: [],
+      spirits: []
+    }
+  }), "roster.personas[1] に重複uid owned-1 があります");
+  assert.equal(validate({
+    customItems: [
+      { id: "custom-1", name: "包帯A" },
+      { id: "custom-1", name: "包帯B" }
+    ]
+  }), "customItems[1] に重複id custom-1 があります");
+  assert.equal(validate({
+    roster: {
+      personas: [{ mode: "n", no: 1 }, { mode: "t", no: 1 }],
+      egos: [],
+      supports: [],
+      spirits: []
+    }
+  }), null, "UID未付与の旧所持データは許可する");
+});
