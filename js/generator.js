@@ -1530,7 +1530,7 @@ function buildShareSheetHTML(state) {
           ${joinedEffectHTML(p.deathSupport.always || p.deathSupport.always_effect, p.deathSupport.effect)}
         </div>` : "";
   const supportHTML = p.supports.length || deathSpp ? `
-    <section class="sec"><details class="fold"><summary><h2>SUPPORT PASSIVES / \u30B5\u30DD\u30FC\u30C8\u30D1\u30C3\u30B7\u30D6</h2></summary>
+    <section class="sec"><details class="fold"><summary><h2>SUPPORT PASSIVES / \u30B5\u30DD\u30FC\u30C8\u30D1\u30C3\u30B7\u30D6 <span class="section-count">${p.supports.length + (deathSpp ? 1 : 0)}件</span></h2></summary>
       ${p.supports.map((s) => `
         <div class="spp">
           <div class="spp-h"><b>${esc(s.name)}</b>${s.lp ? `<span class="cond lp">LP${esc(s.lp)}</span>` : ""}${s.cond ? `<span class="cond">${esc(s.cond)}</span>` : ""}</div>
@@ -1555,7 +1555,7 @@ function buildShareSheetHTML(state) {
     `;
   };
   const egosHTML = eqEgos.length ? `
-    <section class="sec"><details class="fold"><summary><h2>E.G.O EQUIPMENT / E.G.O \u88C5\u5099</h2></summary>
+    <section class="sec"><details class="fold"><summary><h2>E.G.O EQUIPMENT / E.G.O \u88C5\u5099 <span class="section-count">${eqEgos.length}件</span></h2></summary>
       ${eqEgos.map((e) => `
         <article class="ego" data-rank="${esc(e._rank)}">
           <div class="ego-h">
@@ -1708,7 +1708,7 @@ details.fold>summary::-webkit-details-marker{display:none}
 details.fold>summary h2{margin:0;flex:1;pointer-events:none}
 details.fold>summary::before{content:'\\25B6';display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;flex:none;font-size:11px;color:var(--gold);border:1px solid var(--gold);border-radius:3px;background:rgba(200,168,75,.10);transition:transform .18s ease}
 details.fold[open]>summary::before{transform:rotate(90deg)}
-details.fold>summary::after{content:'クリックで展開';font-size:9px;letter-spacing:.12em;color:var(--tx3,#888);border:1px dashed rgba(255,255,255,.25);padding:2px 8px;border-radius:99px;flex:none;font-family:var(--mono,monospace)}
+details.fold>summary::after{content:'クリックで展開';font-size:10.5px;letter-spacing:.04em;color:var(--tx3,#888);border:1px dashed rgba(255,255,255,.25);padding:3px 8px;border-radius:99px;flex:none;font-family:var(--mono,monospace)}
 details.fold[open]>summary::after{content:'クリックで折りたたむ';color:var(--gold);border-style:solid;border-color:var(--gold)}
 details.fold>summary:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:4px}
 details.fold:not([open])>summary{opacity:.9}
@@ -1728,7 +1728,8 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
 .hd-plpc{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px;font-size:11px;font-family:var(--mono);letter-spacing:0.14em}
 .hd-plpc span b{color:var(--gold);margin-right:6px;font-weight:normal}
 .hd-plpc span{color:var(--tx2)}
-.hd h1{font-family:var(--head);font-weight:700;letter-spacing:0.04em;font-size:38px;margin:0 0 6px;color:var(--tx);line-height:1.1}
+.hd h1{font-family:var(--head);font-weight:700;letter-spacing:0.04em;font-size:38px;margin:0 0 6px;color:var(--tx);line-height:1.1;min-width:0;overflow-wrap:anywhere}
+.hd-plpc span,.hd .persona-line .val{min-width:0;overflow-wrap:anywhere}
 .hd .persona-line{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
 .hd .persona-line .lbl{font-family:var(--mono);font-size:10px;letter-spacing:0.2em;color:var(--tx3);text-transform:uppercase;padding:3px 10px;background:rgba(212,175,95,0.1);border:1px solid rgba(212,175,95,0.4);border-radius:2px}
 .hd .persona-line .val{font-family:var(--head);font-weight:700;font-size:24px;color:var(--gold-hi);letter-spacing:0.02em}
@@ -1736,6 +1737,27 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
 	.share-visual{margin:0 0 20px;border:1px solid var(--line);background:var(--panel);padding:8px;border-radius:3px}
 	.share-visual img{display:block;width:100%;max-height:460px;object-fit:contain;border-radius:2px;background:#0e0b09}
 	.share-visual figcaption{font:10px var(--mono);letter-spacing:.15em;color:var(--tx3);padding:7px 3px 0;text-transform:uppercase}
+
+
+ /* In-sheet search reads closed details without changing their open state. */
+ .share-search{margin:0 0 22px;padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:3px}
+ .share-search-title{display:block;margin:0 0 7px;color:var(--gold-hi);font-size:14px;font-weight:700}
+ .share-search-controls{display:flex;gap:8px;align-items:stretch}
+ #share-search-input{flex:1;min-width:0;padding:10px 12px;border:1px solid var(--line);border-radius:3px;background:var(--bg);color:var(--tx);font:inherit;font-size:14px}
+ #share-search-input:focus-visible,.share-search button:focus-visible{outline:2px solid var(--gold-hi);outline-offset:2px}
+ .share-search-clear,.share-search-open{flex:none;padding:8px 12px;border:1px solid var(--gold);border-radius:3px;background:rgba(212,175,95,.08);color:var(--gold-hi);font:inherit;font-size:13px;cursor:pointer}
+ .share-search-help,.share-search-status{margin:7px 0 0;color:var(--tx3);font-size:12px;line-height:1.6}
+ .share-search-results{margin:10px 0 0;padding:0;list-style:none}
+ .share-search-result{padding:10px 0;border-top:1px solid var(--line)}
+ .share-search-result-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;margin-bottom:4px}
+ .share-search-category{color:var(--gold);font-size:11px;font-family:var(--mono)}
+ .share-search-name{color:var(--tx);font-size:14px;font-weight:700;overflow-wrap:anywhere}
+ .share-search-snippet{margin:0 0 7px;color:var(--tx2);font-size:13px;line-height:1.7;overflow-wrap:anywhere}
+ .share-search-snippet mark{background:#f0d58d;color:#17120d;padding:0 1px;border-radius:2px}
+ .wrap .is-search-hit{outline:2px solid var(--gold);outline-offset:3px}
+ .share-search-results[hidden]{display:none!important}
+ @media(max-width:640px){.share-search{padding:10px}.share-search-clear,.share-search-open{padding:8px 10px}.share-search-snippet{font-size:13.5px}}
+ @media print{.share-search{display:none!important}}
 
 /* --- Stats --- */
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px}
@@ -1782,11 +1804,11 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
 /* v52: \u30C0\u30A4\u30B9\u30BB\u30AF\u30B7\u30E7\u30F3\u306E\u533A\u5207\u308A\u5F37\u5316 */
 .dice-title{font-family:var(--head);font-size:11px;letter-spacing:0.28em;color:var(--gold);text-transform:uppercase;margin:12px 0 8px;padding:4px 8px;background:linear-gradient(90deg,rgba(212,175,95,0.15),transparent 70%);border-left:2px solid var(--gold);font-weight:700}
 .dice-block{display:flex;flex-direction:column;gap:4px;padding:6px;background:rgba(0,0,0,0.25);border:1px solid var(--line);border-radius:3px}
-.dice-row{display:grid;grid-template-columns:20px minmax(64px,max-content) 1fr;gap:8px;align-items:baseline;font-size:12.5px;padding:5px 8px;background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--gold-hi);border-radius:2px}
+.dice-row{display:grid;grid-template-columns:20px minmax(64px,max-content) 1fr;gap:8px;align-items:baseline;font-size:13.5px;padding:5px 8px;background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--gold-hi);border-radius:2px}
 .dice-row + .dice-row{margin-top:0}
 .dice-idx{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--gold-hi);text-align:center;line-height:1.4;background:rgba(212,175,95,0.15);border:1px solid var(--gold);border-radius:2px;padding:2px 0}
 .dice-roll{font-family:var(--mono);color:var(--gold-hi);font-weight:700;font-size:13.5px;letter-spacing:0.04em;padding-right:8px;border-right:1px dashed var(--line2);white-space:nowrap}
-.dice-eff{color:var(--tx);line-height:1.6;min-width:0;word-break:break-word;font-size:12.5px}
+.dice-eff{color:var(--tx);line-height:1.7;min-width:0;word-break:break-word;font-size:13.5px}
 
 /* --- \u5927\u7F6A\u30AB\u30E9\u30FC\u30BF\u30B0 --- */
 .sin-tag{display:inline-block;padding:2px 10px;font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:0.08em;border-radius:2px;background:var(--sin-color,var(--panel2));color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.55),0 0 2px rgba(0,0,0,0.35);border:1px solid rgba(0,0,0,0.25)}
@@ -1800,6 +1822,8 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
 .sin-tag[data-sin="\u50B2\u6162"]{--sin-color:var(--sin-\u50B2\u6162)}
 .sin-tag[data-sin="\u5AC9\u59AC"]{--sin-color:var(--sin-\u5AC9\u59AC)}
 .sin-tag[data-sin="\u7279\u6B8A"]{--sin-color:var(--sin-\u7279\u6B8A)}
+/* WCAG text contrast: lighter sin colors use a dark foreground instead of white text+shadow. */
+.sin-tag[data-sin="色欲"],.sin-tag[data-sin="怠惰"],.sin-tag[data-sin="暴食"],.sin-tag[data-sin="特殊"]{color:#17120d;text-shadow:none}
 .aoe-tag{display:inline-block;padding:1px 8px;font-family:var(--head);font-size:10px;color:var(--gold);border:1px solid var(--gold);border-radius:2px;letter-spacing:0.12em;font-weight:700}
 
 /* --- EGO --- */
@@ -1829,7 +1853,7 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
 .spp .cond.lp{color:var(--gold);border-color:rgba(212,175,95,0.4)}
 .spp.is-death{border-left:3px solid var(--accent-hi);}
 .cond.death{background:rgba(232,92,74,0.14);border-color:rgba(232,92,74,0.45);color:#fff;}
-.spp .eff{margin-top:4px;font-size:12.5px;color:var(--tx2);line-height:1.7}
+.spp .eff{margin-top:4px;font-size:13.5px;color:var(--tx2);line-height:1.8}
 .special-enhancement-fold{padding:0}
 .special-enhancement-fold>summary{list-style:none;cursor:pointer;padding:10px 14px;margin:0;user-select:none;-webkit-tap-highlight-color:transparent}
 .special-enhancement-fold>summary::-webkit-details-marker{display:none}
@@ -1860,15 +1884,26 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
 .spirit-h b{font-family:var(--head);font-weight:700;font-size:16px;color:var(--tx)}
 .pas-h b{font-family:var(--head);font-weight:700;font-size:16px;color:var(--tx)}
 .pas-h .cond{margin-left:10px;font-family:var(--mono);font-size:11px;color:var(--tx3)}
-.eff{font-size:12.5px;color:var(--tx2);line-height:1.7;margin-top:6px}
+.eff{font-size:13.5px;color:var(--tx2);line-height:1.8;margin-top:6px}
 .eff.always{padding:6px 10px;background:rgba(212,175,95,0.06);border-left:2px solid var(--gold);margin-bottom:6px}
 .eff-joined{padding:7px 10px;background:rgba(212,175,95,0.045);border-left:2px solid var(--gold)}
-.eff-label{color:var(--gold);font-family:var(--head);font-size:11px;letter-spacing:.08em}
+.eff-label{color:var(--gold);font-family:var(--head);font-size:12px;letter-spacing:.04em}
 .eff-sep{color:var(--tx3);padding:0 5px}
-.eff u{color:var(--gold);text-decoration:none;font-family:var(--head);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;font-weight:700}
-.tim{color:var(--gold);font-family:var(--head);font-size:11.5px;letter-spacing:0.08em;font-weight:700}
+.eff u{color:var(--gold);text-decoration:none;font-family:var(--head);font-size:12px;letter-spacing:0.08em;text-transform:uppercase;font-weight:700}
+.tim{color:var(--gold);font-family:var(--head);font-size:12.5px;letter-spacing:0.04em;font-weight:700}
 .foot{margin-top:36px;padding-top:16px;border-top:1px solid var(--line2);font-family:var(--mono);font-size:10px;color:var(--tx3);letter-spacing:0.1em;text-align:center}
-@media print{ body{background:#fff;color:#000} }
+@media print{
+  :root{--bg:#fff;--panel:#fff;--panel2:#f6f4ef;--line:#bcb5a8;--line2:#ddd7cb;--gold:#73520d;--gold-hi:#634800;--tx:#111;--tx2:#222;--tx3:#444}
+  @page{margin:12mm}
+  body{background:#fff!important;color:#111!important;padding:0;font-size:10.5pt;line-height:1.55;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .wrap{max-width:none}
+  .sec,.skl,.ego,.ego-sk,.spp,.panel,.share-unique,.stat,.res,.dice-row,.share-item{break-inside:avoid}
+  .sec h2,.dice-title,.hd{break-after:avoid}
+  .skl,.ego,.ego-sk,.spp,.panel,.share-unique,.stat,.dice-block,.dice-row{box-shadow:none}
+  /* 閉じた折り畳みの本文は、このCSSでは出せない（Chromium は閉じた details の内容抑制を
+     display で上書かせない）。印刷時の本文は beforeprint ハンドラで全展開して出す。 */
+  details.fold>summary::before,details.fold>summary::after,.special-enhancement-fold>summary::after{display:none!important}
+}
 @media (max-width:640px){ body{padding:12px;font-size:13px} .stats{grid-template-columns:repeat(2,1fr)} .hd h1{font-size:28px} .res{min-width:120px;padding:9px 16px;font-size:17px} }
 </style></head><body>
 <div class="wrap">
@@ -1881,6 +1916,16 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
 	    <h1>${esc(p.charName || "PC")}</h1>
 	  </header>
 	  ${shareVisualHTML}
+  <section class="share-search" aria-labelledby="share-search-title">
+    <label id="share-search-title" class="share-search-title" for="share-search-input">このシート内を検索</label>
+    <div class="share-search-controls">
+      <input id="share-search-input" type="search" placeholder="効果名・状態名・キーワード" autocomplete="off" aria-describedby="share-search-help">
+      <button id="share-search-clear" type="button" class="share-search-clear">クリア</button>
+    </div>
+    <p id="share-search-help" class="share-search-help">閉じた項目も検索します。検索では自動展開せず、結果の「この項目を開く」で必要なものだけ展開できます。</p>
+    <p id="share-search-status" class="share-search-status" role="status" aria-live="polite"></p>
+    <ol id="share-search-results" class="share-search-results" hidden></ol>
+  </section>
   <div class="stats">
     <div class="stat"><div class="lbl">HP</div><div class="val">${esc(shareHp)}</div></div>
     <div class="stat"><div class="lbl">SAN</div><div class="val">${esc(shareSan)}</div></div>
@@ -1903,6 +1948,127 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
   ${enhHTML}
   ${inventoryHTML}
   <div class="foot">LIMBUS BUILD TERMINAL ${esc(window.LBT_VERSION || "v64r45")} \xB7 Character Sheet \xB7 Generated ${(/* @__PURE__ */ new Date()).toLocaleString("ja-JP")}</div>
+ <script>
+ (() => {
+   const input = document.getElementById("share-search-input");
+   const clear = document.getElementById("share-search-clear");
+   const status = document.getElementById("share-search-status");
+   const results = document.getElementById("share-search-results");
+   const sheet = document.querySelector(".wrap");
+   if (!input || !clear || !status || !results || !sheet) return;
+
+   const searchableSelector = ".hd,.skl,.ego,.spp,.share-unique,.share-item,.panel,.stat,.res,.foot";
+   let activeBlocks = [];
+   const getDisplayText = (element) => (element.textContent || "").replace(/\s+/g, " ").trim();
+   const getTitle = (element) => {
+     const heading = element.querySelector(".skl-name,.ego-name,.spp-h b,.u-head b,.share-item-h b,.pas-h b,.spirit-h b");
+     return heading ? getDisplayText(heading) : getDisplayText(element).slice(0, 90);
+   };
+   const getCategory = (element) => {
+     const section = element.closest(".sec");
+     const heading = section && section.querySelector("h2");
+     return heading ? getDisplayText(heading) : "基本情報";
+   };
+   const clearHighlights = () => {
+     activeBlocks.forEach((element) => element.classList.remove("is-search-hit"));
+     activeBlocks = [];
+   };
+   const openOnRequest = (element) => {
+     let parent = element;
+     while (parent && parent !== sheet) {
+       if (parent.tagName === "DETAILS") parent.open = true;
+       parent = parent.parentElement;
+     }
+     element.classList.add("is-search-hit");
+     activeBlocks.push(element);
+     element.scrollIntoView({
+       behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+       block: "center"
+     });
+   };
+   const renderResults = () => {
+     clearHighlights();
+     results.replaceChildren();
+     const query = input.value.trim().toLocaleLowerCase("ja-JP");
+     if (!query) {
+       results.hidden = true;
+       status.textContent = "折り畳み内も検索対象です。検索だけではセクションは開きません。";
+       return;
+     }
+
+     const blocks = Array.from(sheet.querySelectorAll(searchableSelector)).filter((element) => {
+       if (element.classList.contains("panel") && element.querySelector(".share-unique,.share-item")) return false;
+       return getDisplayText(element).toLocaleLowerCase("ja-JP").includes(query);
+     });
+     const visibleBlocks = blocks.slice(0, 50);
+     visibleBlocks.forEach((element) => {
+       const text = getDisplayText(element);
+       const lower = text.toLocaleLowerCase("ja-JP");
+       const at = lower.indexOf(query);
+       const start = Math.max(0, at - 48);
+       const finish = Math.min(text.length, at + query.length + 88);
+       const snippet = (start > 0 ? "…" : "") + text.slice(start, finish) + (finish < text.length ? "…" : "");
+
+       const item = document.createElement("li");
+       item.className = "share-search-result";
+       const head = document.createElement("div");
+       head.className = "share-search-result-head";
+       const category = document.createElement("span");
+       category.className = "share-search-category";
+       category.textContent = getCategory(element);
+       const name = document.createElement("b");
+       name.className = "share-search-name";
+       name.textContent = getTitle(element);
+       head.append(category, name);
+
+       const excerpt = document.createElement("p");
+       excerpt.className = "share-search-snippet";
+       const pos = snippet.toLocaleLowerCase("ja-JP").indexOf(query);
+       if (pos >= 0) {
+         excerpt.append(document.createTextNode(snippet.slice(0, pos)));
+         const mark = document.createElement("mark");
+         mark.textContent = snippet.slice(pos, pos + query.length);
+         excerpt.append(mark, document.createTextNode(snippet.slice(pos + query.length)));
+       } else {
+         excerpt.textContent = snippet;
+       }
+
+       const open = document.createElement("button");
+       open.type = "button";
+       open.className = "share-search-open";
+       open.textContent = "この項目を開く";
+       open.addEventListener("click", () => openOnRequest(element));
+       item.append(head, excerpt, open);
+       results.appendChild(item);
+     });
+
+     results.hidden = visibleBlocks.length === 0;
+     status.textContent = blocks.length
+       ? blocks.length + "件見つかりました。折り畳みは自動で開きません。" + (blocks.length > visibleBlocks.length ? "先頭50件を表示しています。" : "")
+       : "一致する項目はありません。";
+   };
+
+   input.addEventListener("input", renderResults);
+   clear.addEventListener("click", () => {
+     input.value = "";
+     renderResults();
+     input.focus();
+   });
+   // ブラウザ標準のページ内検索（Ctrl+F / Cmd+F）は無効化しない。専用検索は並存する追加の手段。
+   // 印刷時は閉じた折り畳みの本文も出す。閉じた <details> の内容抑制は CSS では
+   // 上書けないため、印刷前に全て開き、印刷後に元の開閉状態へ戻す。
+   let printOpenStates = null;
+   window.addEventListener("beforeprint", () => {
+     printOpenStates = [...sheet.querySelectorAll("details")].map((d) => [d, d.open]);
+     sheet.querySelectorAll("details").forEach((d) => { d.open = true; });
+   });
+   window.addEventListener("afterprint", () => {
+     if (printOpenStates) printOpenStates.forEach(([d, wasOpen]) => { d.open = wasOpen; });
+     printOpenStates = null;
+   });
+   status.textContent = "折り畳み内も検索対象です。検索だけではセクションは開きません。";
+ })();
+ </script>
 </div></body></html>`;
 }
 // 通常はURL fragmentに圧縮して保持する。Discord実用長を超える場合は分散トークン保存を使い、
