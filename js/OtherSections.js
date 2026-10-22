@@ -3411,7 +3411,7 @@ const DrawLedgerPanel = ({ state }) => {
       h("span", { className: "ledger-note" },
         batches.length === 0
           ? "0件"
-          : `${checked.length}件・${checked.length - broken}件が検証済み`),
+          : `${checked.length}件・${checked.length - broken}件のハッシュ鎖が正常`),
       /* 受け取った証明画像を照合する入口。検証はこの端末で完結する
          （相手の環境やサーバーに依存しない）。 */
       h("label", { className: "btn btn-sm", style: { cursor: "pointer" } },
@@ -3460,7 +3460,7 @@ const DrawLedgerPanel = ({ state }) => {
          信用しているように見える。 */
       batches.length > 0 && broken === 0
         ? h("p", { className: "ledger-note" },
-          `この一覧は支出の証明です。合計 LP ${lp.toLocaleString("ja-JP")} / 欠片 ${shards.toLocaleString("ja-JP")}。`)
+          `ハッシュ鎖の整合性は確認済みです（署名・外部ビーコンは未検証）。合計は記録値です。真正性の完全検証は「証明画像を検証」で確認してください。合計 LP ${lp.toLocaleString("ja-JP")} / 欠片 ${shards.toLocaleString("ja-JP")}。`)
         : null,
       broken > 0
         ? h("div", { className: "draw-ledger-broken", role: "alert" },
@@ -3485,7 +3485,7 @@ const DrawLedgerPanel = ({ state }) => {
             [lpSum ? `LP ${lpSum}` : null, shardSum ? `欠片 ${shardSum}` : null].filter(Boolean).join(" / ") || "無料"),
           /* 検証状態は実際の状態なので、色と文字の両方で示す
              （色だけで伝えない）。 */
-          h("span", { className: `draw-batch-state${ok ? "" : " is-broken"}` }, ok ? "検証済み" : "検証に失敗"),
+          h("span", { className: `draw-batch-state${ok ? "" : " is-broken"}` }, ok ? "ハッシュ鎖OK" : "鎖不整合"),
           h("span", { className: "draw-batch-fp" }, fingerprint(batch.batchHash))),
           open && h("div", { className: "draw-batch-body" },
             !ok && h("ul", { className: "ledger-warn-list" },
