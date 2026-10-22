@@ -15,7 +15,7 @@ test("初回導線は駒整形からビルド・プレビューまでの順に�
   assert.ok(appSource.includes("「駒整形」でキャラクター名・PL名・立ち絵などを設定します"));
   assert.ok(appSource.includes("左側の「ビルド」を開き、ビルド内の「人格」タブ"));
   assert.ok(appSource.includes("通常の編集内容はブラウザー内へ自動保存されます"));
-  assert.match(appSource, /\\.guide-quick/);
+  assert.ok(appSource.includes("guide-quick"));
 });
 
 test("人格編集の実ボタン名と、変更を所持ビルドへ保存する操作が説明されている", () => {
@@ -29,7 +29,7 @@ test("人格編集の実ボタン名と、変更を所持ビルドへ保存す�
   assert.ok(coreSource.includes("OK：変更を所持人格へ保存して装備解除"));
   assert.ok(coreSource.includes("キャンセル：装備を継続（変更はそのまま）"));
   assert.ok(appSource.includes("同期ランクと同期MAXは別設定です。"));
-  assert.match(personaSource, /isSynced \\? "✓ 編集を終了（内容は保持）" : "◈ 同期化して手動編集"/);
+  assert.ok(personaSource.includes('isSynced ? "✓ 編集を終了（内容は保持）" : "◈ 同期化して手動編集"'));
 });
 
 test("E.G.Oの案内は簡易詳細・解析開始／終了・オリジナル作成を区別する", () => {
@@ -37,8 +37,8 @@ test("E.G.Oの案内は簡易詳細・解析開始／終了・オリジナル作
   assert.ok(appSource.includes("「解析を開始」を押します。終えるときは「解析を終了」"));
   assert.ok(appSource.includes("オリジナルE.G.Oを作成する"));
   assert.ok(appSource.includes("E.G.Oを新規作成"));
-  assert.match(sectionsSource, /state\\.egoManual \\? " 解析を終了" : " 解析を開始"/);
-  assert.match(sectionsSource, /dispatch\\(\\{ type: "SAVE_EGO_BUILD", rank: detailSlot \\}\\)/);
+  assert.ok(sectionsSource.includes('state.egoManual ? " 解析を終了" : " 解析を開始"'));
+  assert.ok(sectionsSource.includes('dispatch({ type: "SAVE_EGO_BUILD", rank: detailSlot })'));
 });
 
 test("パッシブとサポートの編集条件・未所持候補の表示方法が案内されている", () => {
@@ -46,33 +46,33 @@ test("パッシブとサポートの編集条件・未所持候補の表示方�
   assert.ok(appSource.includes("「この枠を編集」を押します。"));
   assert.ok(appSource.includes("「所持のみ」です。未所持候補は「未所持も表示（全体から選ぶ）」"));
   assert.ok(sectionsSource.includes("未所持も表示（全体から選ぶ）"));
-  assert.match(sectionsSource, /const gated = ownedOnly && !gateOpen/);
+  assert.ok(sectionsSource.includes("const gated = ownedOnly && !gateOpen"));
 });
 
 test("設定タブのステータス順とプレビューのメモ／パレット順を混同しない", () => {
   assert.ok(appSource.includes("ステータスの出力順"));
   assert.ok(appSource.includes("メモ／チャットパレットの段落順は設定タブではなく、プレビューの各タブで並べ替えます。"));
   assert.ok(appSource.includes("ステータス順は設定タブの「ステータス一覧・編集・出力順」"));
-  assert.match(sectionsSource, /ステータス一覧・編集・出力順/);
-  assert.match(liveSource, /previewSectionOrder/);
-  assert.doesNotMatch(appSource, /メモ・チャットパレット・JSONの出力順を確認・調整します/);
+  assert.ok(sectionsSource.includes("ステータス一覧・編集・出力順"));
+  assert.ok(liveSource.includes("previewSectionOrder"));
+  assert.ok(!appSource.includes("メモ・チャットパレット・JSONの出力順を確認・調整します"));
 });
 
 test("人格図鑑のフィルターと記録タブの同期フィルターを区別する", () => {
   assert.ok(appSource.includes("通常の人格図鑑では名前・効果・キーワード"));
   assert.ok(appSource.includes("「記録」の所持人格一覧には同期・同期ランク／MAXの絞り込みがあり"));
-  assert.match(personaSource, /filterSins\\.length/);
-  assert.match(personaSource, /filterAffs\\.length/);
-  assert.match(sectionsSource, /syncRankFilter/);
-  assert.match(sectionsSource, /requiredResources/);
-  assert.match(sectionsSource, /excludedResources/);
+  assert.ok(personaSource.includes("filterSins.length"));
+  assert.ok(personaSource.includes("filterAffs.length"));
+  assert.ok(sectionsSource.includes("syncRankFilter"));
+  assert.ok(sectionsSource.includes("requiredResources"));
+  assert.ok(sectionsSource.includes("excludedResources"));
 });
 
 test("所持ライブラリの書き出しに含まれるお気に入りと履歴は読み込みカテゴリにも含まれる", () => {
-  assert.match(appSource, /favorites: state\\.favorites \\|\\| \\[\\]/);
-  assert.match(appSource, /historyRecent: state\\.historyRecent \\|\\| \\[\\]/);
+  assert.ok(appSource.includes("favorites: state.favorites || []"));
+  assert.ok(appSource.includes("historyRecent: state.historyRecent || []"));
   assert.ok(appSource.includes('fields: ["roster","favorites","historyRecent"]'));
-  assert.match(stateSource, /"favorites","historyRecent"/);
+  assert.ok(stateSource.includes('"favorites","historyRecent"'));
 });
 
 test("作業状態ファイルの範囲、読込時の初期選択、抽選ログの制限を説明する", () => {
@@ -80,21 +80,22 @@ test("作業状態ファイルの範囲、読込時の初期選択、抽選ロ�
   assert.ok(appSource.includes("ファイルに存在するカテゴリが初期選択されます"));
   assert.ok(appSource.includes("残したいものはチェックを外し、表示された適用範囲を確認してください。"));
   assert.ok(appSource.includes("抽選ログは現行のカテゴリ選択読み込みでは復元されません。"));
-  assert.match(appSource, /const \\{ ui, \\.\\.\\.data \\} = state/);
-  assert.match(appSource, /sel\\[g\\.key\\] = g\\.fields\\.some\\(\\(f\\) => f in data\\)/);
-  assert.match(stateSource, /const ALLOWED = \\[/);
+  assert.ok(appSource.includes("const { ui, ...data } = state"));
+  assert.ok(appSource.includes("sel[g.key] = g.fields.some((f) => f in data)"));
+  assert.ok(stateSource.includes("const ALLOWED = ["));
 });
 
 test("元に戻す・クイック検索の説明が現行ショートカットと一致する", () => {
   assert.ok(appSource.includes("PCでは入力欄の外でCtrl+Z"));
   assert.ok(appSource.includes("入力欄にカーソルがある間は、Ctrl+Zは文字入力の取り消しを優先します。"));
   assert.ok(appSource.includes("クイック検索はPCではCtrl+K（Macでは⌘K）、スマートフォンでは検索ボタンから開きます。"));
-  assert.match(appSource, /if \\(isCtrl && e\\.key === "k"\\)/);
-  assert.match(appSource, /if \\(isTyping\\) return/);
+  assert.ok(appSource.includes('if (isCtrl && e.key === "k")'));
+  assert.ok(appSource.includes("if (isTyping) return"));
 });
 
 test("ナビゲーションとモバイル表示が現行レイアウトに沿って案内されている", () => {
   assert.ok(appSource.includes("PCでは画面左側のナビゲーション、スマートフォンでは画面下部のタブ"));
   assert.ok(appSource.includes("「ビルド」内に人格・スキル・パッシブ・サポート・E.G.Oなどのタブがあります。"));
-  assert.match(guideCss, /\\.guide-quick,\\.guide-items\\s*\\{\\s*grid-template-columns:1fr;/);
+  assert.ok(guideCss.includes(".guide-quick,.guide-items"));
+  assert.ok(guideCss.includes("grid-template-columns:1fr"));
 });
