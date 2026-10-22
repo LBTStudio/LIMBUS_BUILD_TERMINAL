@@ -1466,7 +1466,8 @@ function buildShareSheetHTML(state) {
   // 静的share.htmlのDiscordカードはサーバー側動的headが必要なため、既定カードを維持する。
   const embeddedShareImage = /^data:image\/(webp|jpeg);base64,[A-Za-z0-9+/]+=*$/.test(String(p.shareImageData || "")) && String(p.shareImageData).length <= 48000 ? String(p.shareImageData) : "";
   const shareImage = embeddedShareImage || "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/assets/lbt-share-card.png";
-  const shareImageType = embeddedShareImage.startsWith("data:image/webp") ? "image/webp" : "image/png";
+  const shareImageType = embeddedShareImage.startsWith("data:image/webp") ? "image/webp"
+    : embeddedShareImage.startsWith("data:image/jpeg") ? "image/jpeg" : "image/png";
   const shareVisualHTML = embeddedShareImage ? `<figure class="share-visual"><img src="${embeddedShareImage}" alt="${esc(p.charName || "共有シート画像")}"><figcaption>SHARE IMAGE / 共有シート画像</figcaption></figure>` : "";
   const nl = (s) => esc(s).replace(/\n/g, "<br>");
   const fmt = (t) => {
