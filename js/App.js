@@ -326,17 +326,46 @@ const IMPORT_GROUPS = [
 ];
 function validateImportData(data) {
   // 既知の構造のみ受け入れる。壊れたデータの部分適用で state を壊さない。
-  if (!data || typeof data !== "object" || Array.isArray(data)) return "\u30AA\u30D6\u30B8\u30A7\u30AF\u30C8\u5F62\u5F0F\u3067\u306F\u3042\u308A\u307E\u305B\u3093";
-  // V22: roster 単体ファイル（所持人格/E.G.Oのみ）はそのまま許可
-  if (data._lbtRosterOnly && data.roster) return null;
-  const known = IMPORT_GROUPS.flatMap((g) => g.fields).concat(["schemaVersion","favorites","historyRecent","ui"]);
+  if (!data || typeof data !== "object" || Array.isArray(data)) return "オブジェクト形式ではありません";
+
+  // インポートに使う配列フィールドは適用前に型を確認する。
+  const arrayFields = [
+    "skills", "supports", "gachaLog", "draws", "results", "entries", "inventory",
+    "initialItems", "customItems", "enhancements", "uniqueBuffs", "extraPassives",
+    "customStatuses", "favorites", "historyRecent"
+  ];
+  for (const field of arrayFields) {
+    if (data[field] !== void 0 && !Array.isArray(data[field])) {
+      return field + " は配列ではありません";
+    }
+  }
+
+  // 所持ライブラリの単独ファイル／通常セーブのどちらも、roster配下の配列を検証する。
+  if (data.roster !== void 0) {
+    if (!data.roster || typeof data.roster !== "object" || Array.isArray(data.roster)) {
+      return "roster はオブジェクトではありません";
+    }
+    for (const field of ["personas", "egos", "supports", "spirits"]) {
+      if (data.roster[field] !== void 0 && !Array.isArray(data.roster[field])) {
+        return "roster." + field + " は配列ではありません";
+      }
+    }
+  }
+
+  // V22: roster 単体ファイル（所持人格/E.G.Oのみ）はここで検証後に受け入れる。
+  if (data._lbtRosterOnly) {
+    if (!data.roster) return "roster 単体ファイルに所持データがありません";
+    return null;
+  }
+
+  const known = IMPORT_GROUPS.flatMap((g) => g.fields).concat(["schemaVersion", "ui"]);
   const unknown = Object.keys(data).filter((k) => !known.includes(k));
-  if (unknown.length > Object.keys(data).length * 0.8 && unknown.length > 3) return "LBT\u306E\u30BB\u30FC\u30D6\u30C7\u30FC\u30BF\u3067\u306F\u306A\u3044\u53EF\u80FD\u6027\u304C\u3042\u308A\u307E\u3059";
-  if (data.skills !== void 0 && !Array.isArray(data.skills)) return "skills \u304C\u914D\u5217\u3067\u306F\u3042\u308A\u307E\u305B\u3093";
-  if (data.supports !== void 0 && !Array.isArray(data.supports)) return "supports \u304C\u914D\u5217\u3067\u306F\u3042\u308A\u307E\u305B\u3093";
-  if (data.gachaLog !== void 0 && !Array.isArray(data.gachaLog)) return "gachaLog は配列ではありません";
+  if (unknown.length > Object.keys(data).length * 0.8 && unknown.length > 3) {
+    return "LBTのセーブデータではない可能性があります";
+  }
   return null;
 }
+
 function importStateFromFile(file, dispatch) {
   const rd = new FileReader();
   rd.onload = () => {
