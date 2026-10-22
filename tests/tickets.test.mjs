@@ -95,14 +95,21 @@ test("旧セーブの state.tickets はリザルト収入へ移行する", () =>
   assert.ok(next.results.some((r) => r.name === "抽出チケットの受領"), "受領リザルトができる");
 });
 
-test("同じ内容が既に収入にある場合は移行しない（二重計上を避ける）", () => {
+test("移行専用IDを持つ同一内容は再計上しない（二重計上を避ける）", () => {
   const legacy = {
-    ...withResult({ persona: 2 }),
+    ...withResult({}),
+    roster: { personas: [{ uid: "owned-1", mode: "n", no: 1 }], egos: [], supports: [], spirits: [] },
+    results: [{
+      id: "res-ticket-grant",
+      name: "抽出チケットの受領",
+      income: { lp: 0, shards: 0, tickets: { persona: 2, ego: 0, choice: 0, pack: {} } }
+    }],
     tickets: [{ kind: "persona", pack: null, count: 2 }]
   };
   const next = context.window.LBT_normalizeStateShape(legacy);
-  assert.equal(balanceOf(next).persona, 2, "増えない");
-  assert.equal(next.results.filter((r) => r.name === "抽出チケットの受領").length, 0);
+  assert.equal(balanceOf(next).persona, 2, "移行済み在庫は再加算されない");
+  assert.equal(next.results.filter((r) => r.id === "res-ticket-grant").length, 1);
+  assert.deepEqual([...next.tickets], []);
 });
 
 test("パック別チケットは『〈パック名〉抽出チケット』と表記される", () => {
