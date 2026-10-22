@@ -1740,7 +1740,7 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
  .share-search-name{color:var(--tx);font-size:14px;font-weight:700;overflow-wrap:anywhere}
  .share-search-snippet{margin:0 0 7px;color:var(--tx2);font-size:13px;line-height:1.7;overflow-wrap:anywhere}
  .share-search-snippet mark{background:#f0d58d;color:#17120d;padding:0 1px;border-radius:2px}
- .share-search-result.is-search-hit{outline:2px solid var(--gold);outline-offset:3px}
+ .wrap .is-search-hit{outline:2px solid var(--gold);outline-offset:3px}
  .share-search-results[hidden]{display:none!important}
  @media(max-width:640px){.share-search{padding:10px}.share-search-clear,.share-search-open{padding:8px 10px}.share-search-snippet{font-size:13.5px}}
  @media print{.share-search{display:none!important}}
@@ -1907,7 +1907,7 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
       <input id="share-search-input" type="search" placeholder="効果名・状態名・キーワード" autocomplete="off" aria-describedby="share-search-help">
       <button id="share-search-clear" type="button" class="share-search-clear">クリア</button>
     </div>
-    <p id="share-search-help" class="share-search-help">折り畳み内も検索します。検索だけではセクションは開きません。</p>
+    <p id="share-search-help" class="share-search-help">折り畳み内も検索します。検索だけではセクションは開きません。ブラウザー標準のCtrl+Fではなく、この検索欄を使ってください。</p>
     <p id="share-search-status" class="share-search-status" role="status" aria-live="polite"></p>
     <ol id="share-search-results" class="share-search-results" hidden></ol>
   </section>
