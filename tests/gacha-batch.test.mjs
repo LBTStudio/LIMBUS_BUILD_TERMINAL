@@ -337,7 +337,7 @@ test("テーマパック: 重複でも1回ぶんを請求し、欠片50は収入
   const dupes = batch.records.filter((r) => r.duplicate);
   assert.equal(dupes.length, 1, "2回目が重複");
   assert.equal(dupes[0].grantedShards, 50, "重複は欠片50");
-  const before = { ...base(), results: [{ id: "r1", income: { lp: 0, shards: 0 } }] };
+  const before = { ...base(), results: [{ id: "r1", income: { lp: pack.lp * 3, shards: 0 } }] };
   const next = w.appReducer(before, { type: "ADD_DRAW_BATCH", batch });
   /* roster.personas は名前を持たない（{uid,no,mode,…}）ので、
      重複の判定は mode:no で行う。名前で引くと必ず外れて嘘が出る。 */
