@@ -290,6 +290,10 @@ test("旧抽出パックの移行はパック名なし・端数枚数を誤っ�
   const migrated = normalize(raw);
   assert.equal(migrated.results.some((r) => r.id === "res-ticket-grant"), false,
     "復元できない抽出パック名や端数枚数を別のチケット在庫に変換しない");
+  assert.deepEqual(JSON.parse(JSON.stringify(migrated.tickets)), raw.tickets,
+    "未解決行を state に保持し、バックアップ／部分インポートで復旧できるようにする");
   assert.deepEqual(JSON.parse(JSON.stringify(balance(migrated.results, migrated.entries).tickets)),
     { persona: 0, ego: 0, choice: 0, pack: {} });
+  assert.deepEqual(JSON.parse(JSON.stringify(normalize(migrated).tickets)), raw.tickets,
+    "再読込でも未解決行を消さない");
 });
