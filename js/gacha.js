@@ -63,7 +63,7 @@
   function sha256Bytes(input) {
     const bytes = input instanceof Uint8Array ? input : Uint8Array.from(input);
     const bitLen = bytes.length * 8;
-    const withPad = new Uint8Array((((bytes.length + 9) >> 6) + 1) << 6);
+    const withPad = new Uint8Array(Math.ceil((bytes.length + 9) / 64) * 64);
     withPad.set(bytes);
     withPad[bytes.length] = 0x80;
     const dv = new DataView(withPad.buffer);
