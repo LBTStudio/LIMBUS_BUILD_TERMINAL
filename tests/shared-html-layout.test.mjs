@@ -61,7 +61,7 @@ test("共有HTML内検索は折り畳み内も検索し、検索だけでは項�
   assert.match(html, /id="share-search-results"/);
   assert.match(html, /document\.addEventListener\("keydown", \(event\) => \{/);
   assert.match(html, /event\.preventDefault\(\);\s*input\.focus\(\);\s*input\.select\(\);/);
-  assert.match(html, /折り畳み内も検索します。検索だけではセクションは開きません。/);
+  assert.match(html, /閉じた項目も検索します。検索では自動展開せず、結果の「この項目を開く」で必要なものだけ展開できます。/);
   assert.match(html, /sheet\.querySelectorAll\(searchableSelector\)/);
   assert.match(html, /element\.textContent/);
 
