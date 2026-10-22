@@ -397,3 +397,36 @@ test("抽選証明キーが無い取引は所持・費用・証明を適用し�
   }).draws.length, 0, "proofOnlyでも検証キーのないレコードを残さない");
 });
 
+
+
+test("拒否された抽選確定のsealed actionはUndo後にも証明として再生しない", () => {
+  const before = stateWithOnePersonaTicket();
+  const sealAction = {
+    type: "ADD_DRAW_RECORD",
+    __sealed: true,
+    batch,
+    entry: { id: "rejected-draw-log", hits: ["試験人格"] }
+  };
+  assert.equal(context.isSealedActionCommitted(sealAction, before), false,
+    "reducerが受理していないバッチはdrawsに存在しない");
+
+  const noTicket = stateWithOnePersonaTicket();
+  noTicket.results[0].income.tickets.persona = 0;
+  const rejected = reducer(noTicket, {
+    type: "APPLY_DRAW_BATCH",
+    batch,
+    ticketSpend: { kind: "persona", count: 1 }
+  });
+  assert.equal(rejected, noTicket, "チケット不足の取引は拒否される");
+  assert.equal(context.isSealedActionCommitted(sealAction, rejected), false,
+    "失敗した取引のsealed actionを後から復活させない");
+
+  const economic = reducer(before, {
+    type: "APPLY_DRAW_BATCH",
+    batch,
+    ticketSpend: { kind: "persona", count: 1 }
+  });
+  const committed = reducer(economic, { type: "ADD_DRAW_RECORD", batch, entry: sealAction.entry });
+  assert.equal(context.isSealedActionCommitted(sealAction, committed), true,
+    "実際に確定済みの証明だけはUndo後も保持する");
+});
