@@ -972,10 +972,10 @@ function normalizeCurrency(value) {
       const text = String(input ?? "").trim();
       // Do not accept parseInt's partial matches ("1200abc" -> 1200).
       // Thousands separators are accepted only in correctly grouped triplets.
-      if (!/^\+?(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?$/.test(text)) return 0;
+      if (!/^\+?(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(text)) return 0;
       parsed = Number(text.replace(/,/g, ""));
     }
-    return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 0;
+    return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 0;
   };
   return { lp: toNumber(raw.lp), shards: toNumber(raw.shards) };
 }
@@ -993,11 +993,10 @@ function normalizeCurrency(value) {
         const text = String(input ?? "").trim();
         // Ticket counts are non-negative. Reject partial numeric strings and negative
         // imported entry counts, which would otherwise mint tickets when subtracted.
-        if (!/^\+?(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?$/.test(text)) return 0;
+        if (!/^\+?(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(text)) return 0;
         parsed = Number(text.replace(/,/g, ""));
       }
-      return Number.isSafeInteger(Math.trunc(parsed)) && Number.isFinite(parsed) && parsed > 0
-        ? Math.trunc(parsed) : 0;
+      return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 0;
     };
     const out = { persona: toNumber(raw.persona), ego: toNumber(raw.ego), choice: toNumber(raw.choice), pack: {} };
     const packs = raw.pack && typeof raw.pack === "object" && !Array.isArray(raw.pack) ? raw.pack : {};
