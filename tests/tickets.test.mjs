@@ -95,6 +95,34 @@ test("旧セーブの state.tickets はリザルト収入へ移行する", () =>
   assert.ok(next.results.some((r) => r.name === "抽出チケットの受領"), "受領リザルトができる");
 });
 
+test("旧チケット移行は不正枚数・不完全パック・プリミティブを数値化せず保持する", () => {
+  const legacy = {
+    ...withResult({}),
+    tickets: [
+      { kind: "persona", pack: null, count: 2 },
+      { kind: "choice", pack: null, count: "3" },
+      { kind: "ego", pack: null, count: true },
+      { kind: "persona", pack: null, count: "2.5" },
+      { kind: "persona", pack: null, count: "2x" },
+      { kind: "pack", pack: "", count: 4 },
+      null
+    ]
+  };
+  const next = context.window.LBT_normalizeStateShape(legacy);
+  const balance = balanceOf(next);
+  assert.equal(balance.persona, 2, "正しい人格チケットだけ移行される");
+  assert.equal(balance.choice, 3, "数値文字列の整数は移行される");
+  assert.equal(balance.ego, 0, "boolean を枚数1として誤移行しない");
+  assert.equal(next.tickets.length, 5, "移行できない行は失わず保持する");
+  assert.ok(next.tickets.every((ticket) => ticket && typeof ticket === "object" && !Array.isArray(ticket)),
+    "不正なプリミティブもJSON移送できるレコードとして保持する");
+  assert.ok(next.tickets.some((ticket) => ticket._lbtLegacyUnresolvedReason === "missing-pack-name"));
+  assert.ok(next.tickets.some((ticket) => ticket._lbtLegacyUnresolvedReason === "invalid-ticket-count"));
+  const again = context.window.LBT_normalizeStateShape(next);
+  assert.equal(balanceOf(again).persona, 2, "再ロード時に在庫を二重計上しない");
+  assert.equal(again.tickets.length, 5, "未解決行を再ラップ／削除しない");
+});
+
 test("移行専用IDを持つ同一内容は再計上しない（二重計上を避ける）", () => {
   const legacy = {
     ...withResult({}),
