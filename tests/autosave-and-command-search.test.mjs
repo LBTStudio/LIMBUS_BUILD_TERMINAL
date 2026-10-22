@@ -67,3 +67,38 @@ test("インポート検証は配列項目と所持データの形を事前に�
   assert.ok(app.includes('if (!data.roster || typeof data.roster !== "object" || Array.isArray(data.roster))'));
   assert.ok(app.includes('if (!data.roster) return "roster 単体ファイルに所持データがありません"'));
 });
+
+
+test("保存フィールド・インポートカテゴリ・APPLY_PARTIAL許可リストは相互に整合する", () => {
+  const groupBlock = app.match(/const IMPORT_GROUPS = \\[([\\s\\S]*?)\\n\\];/)?.[1];
+  assert.ok(groupBlock, "IMPORT_GROUPS を読み取れる");
+  const groupedFields = [...groupBlock.matchAll(/fields:\\s*\\[([^\\]]*)\\]/g)]
+    .flatMap(([, list]) => [...list.matchAll(/"([^"]+)"/g)].map(([, field]) => field));
+
+  const partialStart = state.indexOf('case "APPLY_PARTIAL": {');
+  const allowStart = state.indexOf("const ALLOWED = [", partialStart);
+  const allowEnd = state.indexOf("];", allowStart);
+  assert.ok(partialStart >= 0 && allowStart > partialStart && allowEnd > allowStart,
+    "APPLY_PARTIAL の許可リストを読み取れる");
+  const allowedFields = [...state.slice(allowStart, allowEnd).matchAll(/"([^"]+)"/g)]
+    .map(([, field]) => field);
+
+  assert.deepEqual([...new Set(groupedFields)].sort(), [...groupedFields].sort(),
+    "同じフィールドを複数カテゴリへ重複登録しない");
+  assert.deepEqual(groupedFields.filter((field) => !allowedFields.includes(field)), [],
+    "UIカテゴリにある全フィールドをreducerも受け入れる");
+
+  const initStart = state.indexOf("const INIT_STATE = {");
+  const initEnd = state.indexOf("\\n};", initStart);
+  assert.ok(initStart >= 0 && initEnd > initStart, "INIT_STATE を読み取れる");
+  const initFields = [...state.slice(initStart, initEnd).matchAll(/^  ([A-Za-z_$][\\w$]*):/gm)]
+    .map(([, field]) => field);
+  const deliberateExclusions = new Set([
+    "schemaVersion", "ui", "shareImageBlockedReason", "egoManual", "tickets", "selfStatusCandidates"
+  ]);
+  const missingCategories = initFields.filter((field) =>
+    !groupedFields.includes(field) && !deliberateExclusions.has(field)
+  );
+  assert.deepEqual(missingCategories, [],
+    "新しい永続フィールドはカテゴリへ追加するか、意図的な除外理由を明示する");
+});
