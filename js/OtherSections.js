@@ -265,6 +265,13 @@ const PassiveSection = ({ state, dispatch }) => {
       h("div", { style: { marginTop: "var(--s-3)" } },
         h(Button, { variant: "ghost", icon: "plus", onClick: addPassive, title: editable ? "追加パッシブを追加（上限なし）" : "編集モード時のみ追加可能" }, "追加パッシブを追加"))));
 };
+/* 手動で選べる固有バフの種別。DB実測（バフ/デバフ/中立バフ/固有バフ/固有弾丸/その他）と
+   草案取込が解釈する語（中立デバフ/特別処理）の和集合。 */
+const UB_TYPE_OPTIONS = ["バフ", "デバフ", "中立バフ", "中立デバフ", "固有バフ", "固有弾丸", "その他", "特別処理"];
+const ubCountValue = (value) => {
+  const n = Math.floor(Number(value));
+  return Number.isFinite(n) && n > 0 ? n : 0;
+};
 const UniqueBuffsBlock = ({ state, dispatch }) => {
   const editable = canEditPersonaState(state);
   const h = React.createElement;
@@ -285,13 +292,39 @@ const UniqueBuffsBlock = ({ state, dispatch }) => {
         )
       : h("div", { className: "ubc-grid" }, state.uniqueBuffs.map((b, i) =>
           h("article", { key: b.id, className: "ubc-card", "data-type": b.type || "" },
-            h("div", { className: "ubc-card-top" },
-              h("div", { className: "ubc-name", title: b.name || "" }, b.name || "\u672a\u547d\u540d"),
-              b.type && h("span", { className: "ubc-type", "data-type": b.type, "data-kind": b.type }, b.type),
-              b.place && b.place !== "none" && h("span", { className: "ubc-place" }, b.place === "params" ? "\u30d1\u30e9\u30e1\u30fc\u30bf\u5074" : "\u30b9\u30c6\u30fc\u30bf\u30b9\u5074")
-            ),
-            h("div", { className: "ubc-count" }, "\u521d\u671f ", h("b", null, String(b.initial ?? 0)), " / \u6700\u5927 ", String(b.max || 0)),
-            b.desc && h("div", { className: "ubc-desc", title: b.desc }, b.desc),
+            editable
+              /* 同期編集（手動編集）中はカードをそのまま入力欄にする。
+                 追加した固有バフをその場で書けないと「手動追加」が意味を持たない。 */
+              ? h("div", { className: "ubc-edit" },
+                  h("label", { className: "ubc-field" }, h("span", null, "名称"),
+                    h("input", { className: "input", value: b.name || "", placeholder: "例：呼吸", onChange: (e) => dispatch({ type: "PATCH_UB", id: b.id, patch: { name: e.target.value } }) })),
+                  h("div", { className: "ubc-edit-row" },
+                    h("label", { className: "ubc-field" }, h("span", null, "種別"),
+                      h("select", { className: "input", value: b.type || "バフ", onChange: (e) => dispatch({ type: "PATCH_UB", id: b.id, patch: { type: e.target.value } }) },
+                        (UB_TYPE_OPTIONS.includes(b.type) || !b.type ? UB_TYPE_OPTIONS : [...UB_TYPE_OPTIONS, b.type]).map((type) => h("option", { key: type, value: type }, type)))),
+                    h("label", { className: "ubc-field" }, h("span", null, "出力先"),
+                      h("select", { className: "input", value: b.place || "status", onChange: (e) => dispatch({ type: "PATCH_UB", id: b.id, patch: { place: e.target.value } }) },
+                        h("option", { value: "status" }, "ステータス側"),
+                        h("option", { value: "params" }, "パラメータ側"),
+                        h("option", { value: "none" }, "登録先なし")))),
+                  h("div", { className: "ubc-edit-row" },
+                    h("label", { className: "ubc-field" }, h("span", null, "初期値"),
+                      h("input", { className: "input", type: "number", min: "0", value: String(b.initial ?? 0), onChange: (e) => dispatch({ type: "PATCH_UB", id: b.id, patch: { initial: ubCountValue(e.target.value) } }) })),
+                    h("label", { className: "ubc-field" }, h("span", null, "最大値"),
+                      h("input", { className: "input", type: "number", min: "0", value: String(b.max ?? 0), onChange: (e) => dispatch({ type: "PATCH_UB", id: b.id, patch: { max: ubCountValue(e.target.value) } }) }))),
+                  h("label", { className: "ubc-check" },
+                    h("input", { type: "checkbox", checked: b.noST === true, onChange: (e) => dispatch({ type: "PATCH_UB", id: b.id, patch: { noST: e.target.checked } }) }),
+                    "ST・ラベルへ出さない（対象に付与など）"),
+                  h("label", { className: "ubc-field" }, h("span", null, "説明"),
+                    h("textarea", { className: "textarea", rows: 3, value: b.desc || "", onChange: (e) => dispatch({ type: "PATCH_UB", id: b.id, patch: { desc: e.target.value } }) })))
+              : h(React.Fragment, null,
+                  h("div", { className: "ubc-card-top" },
+                    h("div", { className: "ubc-name", title: b.name || "" }, b.name || "\u672a\u547d\u540d"),
+                    b.type && h("span", { className: "ubc-type", "data-type": b.type, "data-kind": b.type }, b.type),
+                    b.place && b.place !== "none" && h("span", { className: "ubc-place" }, b.place === "params" ? "\u30d1\u30e9\u30e1\u30fc\u30bf\u5074" : "\u30b9\u30c6\u30fc\u30bf\u30b9\u5074")
+                  ),
+                  h("div", { className: "ubc-count" }, "\u521d\u671f ", h("b", null, String(b.initial ?? 0)), " / \u6700\u5927 ", String(b.max || 0)),
+                  b.desc && h("div", { className: "ubc-desc", title: b.desc }, b.desc)),
             editable && h("div", { className: "ubc-tools" },
               h("button", { className: "reorder-btn", onClick: () => dispatch({ type: "REORDER_LIST", field: "uniqueBuffs", key: b.id, dir: -1 }), disabled: i === 0, title: "\u4e0a\u3078" }, h(Icon, { name: "arrowU", size: 10 })),
               h("button", { className: "reorder-btn", onClick: () => dispatch({ type: "REORDER_LIST", field: "uniqueBuffs", key: b.id, dir: 1 }), disabled: i === state.uniqueBuffs.length - 1, title: "\u4e0b\u3078" }, h(Icon, { name: "arrowD", size: 10 })),

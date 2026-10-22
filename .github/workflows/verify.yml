@@ -1,0 +1,27 @@
+name: verify
+
+# 2026-10-21: f8611d7 が構文エラー入りの js/persona-draft-import.js を main へ
+# 直接 push し、硝子窓URL取り込みが本番で起動不能になった。検査自体は
+# tests/browser-load-gate.test.mjs に存在していたが、push 前に走らせる層が
+# 無かったため素通りした。ここがその層。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Run the project test command
+        # unified-provenance はローカルの PDF/Python 環境を前提にした検査なので除外する（AGENTS.md の記載どおり）。
+        run: node --test $(find tests -maxdepth 1 -name '*.test.mjs' ! -name 'unified-provenance.test.mjs' | sort)

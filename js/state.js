@@ -650,6 +650,16 @@ window.LBT_detectSelfManagedStatuses = detectSelfManagedStatuses;
 window.LBT_getSelfManagedStatusEntries = collectSelfManagedStatusEntries;
 window.LBT_getStateSelfManagedStatusEntries = getStateSelfManagedStatusEntries;
 
+/* 手動追加の固有バフ id。同じミリ秒に続けて追加しても重複させない。
+   id は編集・削除・並べ替えの引き当てに使うため、重複すると別のカードを巻き込む。 */
+function nextUniqueBuffId(list) {
+  const base = `ub-${Date.now()}`;
+  let id = base;
+  let n = 0;
+  while ((list || []).some((buff) => buff && buff.id === id)) id = `${base}-${n += 1}`;
+  return id;
+}
+
 function normalizeStatusCollections(state) {
   const next = { ...state };
   // DBで固有バフとして定義された名前は、編集中の名称が変わったり削除された後も
@@ -3805,8 +3815,11 @@ case "ADD_ENTRY":
       // "固有バフ" はDB人格由来の語であり、手動新規の既定にするとセレクトの初期表示と
       // 齟齬して「固定バフ内の固定バフがdefault」に見える原因になるため使用しない。
       // 既存保存データの type は変更しない（非破壊・後方互換）。
+      //
+      // id は既存と衝突させない。同一ミリ秒に連続で追加すると `ub-<時刻>` が重複し、
+      // id で引く編集・削除・並べ替えが別のカードへ当たる（実測: 2枚が同時に書き換わった）。
       return { ...state, uniqueBuffs: [...state.uniqueBuffs, {
-        id: `ub-${Date.now()}`,
+        id: nextUniqueBuffId(state.uniqueBuffs),
         name: "",
         type: "\u30D0\u30D5",
         max: 20,
