@@ -1333,6 +1333,14 @@ body.has-detail-dialog main.preview { overflow: hidden; }
   -webkit-line-clamp: 2;
 }
 .ubc-tools { display: flex; gap: 6px; margin-top: auto; }
+/* 同期編集（手動編集）中のカードは入力欄になる。追加した固有バフをその場で書けないと
+   「手動追加」が意味を持たないため、表示カードと同じ枠の中に編集子を置く。 */
+.ubc-edit { display: grid; gap: 6px; }
+.ubc-edit-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.ubc-field { display: grid; gap: 2px; min-width: 0; font-size: var(--fs-10); letter-spacing: 0.04em; color: var(--tx-dim); }
+.ubc-field .input,
+.ubc-field .textarea { font-size: var(--fs-12); }
+.ubc-check { display: flex; align-items: center; gap: 6px; min-block-size: 24px; font-size: var(--fs-10); color: var(--tx-2); }
 @media (max-width: 720px) {
   .esc-card--res .es-resistance-grid { grid-template-columns: 1fr; }
 }
