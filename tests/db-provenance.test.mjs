@@ -130,3 +130,21 @@ test("例外登録には人格名・項目・理由がそろっている", () =>
     .map((entry) => JSON.stringify(entry));
   assert.deepEqual(problems, []);
 });
+
+
+test("東部親指カポIIIIの弾丸固有効果から説明区切りのハイフンが混入しない", () => {
+  const persona = db.tokui_personas.find((item) => item.name === "東部親指カポIIII");
+  assert.ok(persona, "対象人格がDBに存在する");
+  const buffOf = (name) => persona.unique_buffs.find((buff) => buff.name === name);
+
+  assert.equal(
+    buffOf("弾丸-虎標弾").desc,
+    "弾丸を消費するダイスのダメージ量+2。火傷付与量と振動付与量+1\n消費することで特定戦術の能力が向上"
+  );
+  assert.equal(
+    buffOf("弾丸-猛虎標弾").desc,
+    "弾丸を消費するダイスのダメージ量+3。火傷付与量と振動付与量+2。\n自分の速度が対象より早ければ、振動爆発ダメージ量+5\n消費することで特定戦術の能力が向上"
+  );
+  assert.equal(buffOf("弾丸-虎標弾").name, "弾丸-虎標弾", "正式名称中のハイフンは保持する");
+  assert.equal(buffOf("弾丸-猛虎標弾").name, "弾丸-猛虎標弾", "正式名称中のハイフンは保持する");
+});

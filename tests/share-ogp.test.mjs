@@ -14,8 +14,8 @@ test("共有HTMLは外部クローラー向けのLBTキャラクターシートO
   assert.match(source, /property="og:image"/);
   assert.match(source, /lbt-share-card\.png/);
   assert.match(source, /const embeddedShareImage = \/\^data:image\\\//);
-  assert.match(source, /embeddedShareImage\.startsWith\("data:image\\/webp"\) \? "image\\/webp"/);
-  assert.match(source, /embeddedShareImage\.startsWith\("data:image\\/jpeg"\) \? "image\\/jpeg"/,
+  assert.match(source, /embeddedShareImage\.startsWith\("data:image\/webp"\) \? "image\/webp"/);
+  assert.match(source, /embeddedShareImage\.startsWith\("data:image\/jpeg"\) \? "image\/jpeg"/,
     "JPEGのdata URIに対してOGPのMIMEをimage/jpegとして出す");
   assert.match(source, /const shareVisualHTML = embeddedShareImage/);
   assert.match(source, /class="share-visual"/);
