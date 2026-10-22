@@ -359,6 +359,10 @@ function validateImportData(data) {
   if (Array.isArray(data.draws)) {
     const badBatch = data.draws.findIndex((batch) => !Array.isArray(batch.records));
     if (badBatch >= 0) return "draws[" + badBatch + "].records は配列ではありません";
+    const missingProof = data.draws.findIndex((batch) =>
+      !String(batch.batchHash || batch.commit || "").trim()
+    );
+    if (missingProof >= 0) return "draws[" + missingProof + "] に batchHash または commit がありません";
   }
 
   // 所持ライブラリの単独ファイル／通常セーブのどちらも、roster配下の配列を検証する。
