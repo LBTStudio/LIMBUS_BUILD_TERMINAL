@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import vm from "node:vm";
 
 const state = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
 const app = readFileSync(new URL("../js/App.js", import.meta.url), "utf8");
@@ -101,4 +102,25 @@ test("保存フィールド・インポートカテゴリ・APPLY_PARTIAL許可�
   );
   assert.deepEqual(missingCategories, [],
     "新しい永続フィールドはカテゴリへ追加するか、意図的な除外理由を明示する");
+});
+
+
+test("JSONインポートはレコード配列の不正要素を適用前に拒否する", () => {
+  const groups = app.match(/const IMPORT_GROUPS = \[[\s\S]*?\n\];/)?.[0];
+  const validateStart = app.indexOf("function validateImportData(data) {");
+  const validateEnd = app.indexOf("\nfunction importStateFromFile", validateStart);
+  assert.ok(groups, "カテゴリ定義が取得できる");
+  assert.ok(validateStart >= 0 && validateEnd > validateStart, "インポート検証器が取得できる");
+  const validator = app.slice(validateStart, validateEnd);
+  const context = vm.createContext({});
+  vm.runInContext(`${groups}\n${validator}\nglobalThis.validateImportData = validateImportData;`, context);
+  const validate = context.validateImportData;
+
+  assert.match(validate({ schemaVersion: 5, results: [null] }), /results\[0\]/);
+  assert.match(validate({ schemaVersion: 5, entries: ["broken"] }), /entries\[0\]/);
+  assert.match(validate({ schemaVersion: 5, draws: [{ batchHash: "broken" }] }), /draws\[0\]\.records/);
+  assert.match(validate({ _lbtRosterOnly: true, roster: { personas: [null] } }), /roster\.personas\[0\]/);
+  assert.equal(validate({ schemaVersion: 5, results: [], entries: [], draws: [], roster: {
+    personas: [], egos: [], supports: [], spirits: []
+  } }), null, "正常な空セーブは受け入れる");
 });
