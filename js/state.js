@@ -3380,8 +3380,9 @@ case "ADD_CUSTOM_ITEM": {
       const batch = action.batch;
       if (!batch || typeof batch !== "object" || !Array.isArray(batch.records)) return state;
       const proofKey = String(batch.batchHash || batch.commit || "");
+      if (!proofKey) return state;
       const proofOnly = action.proofOnly === true;
-      if (!proofOnly && (!proofKey || state._pendingDrawProofHash !== proofKey)) return state;
+      if (!proofOnly && state._pendingDrawProofHash !== proofKey) return state;
       const { _pendingDrawProofHash, ...cleanState } = state;
       const draws = Array.isArray(cleanState.draws) ? cleanState.draws : [];
       if (proofKey && draws.some((existing) => String(existing?.batchHash || existing?.commit || "") === proofKey)) {
