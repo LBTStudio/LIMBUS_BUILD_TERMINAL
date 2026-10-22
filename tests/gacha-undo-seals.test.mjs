@@ -430,3 +430,33 @@ test("拒否された抽選確定のsealed actionはUndo後にも証明として
   assert.equal(context.isSealedActionCommitted(sealAction, committed), true,
     "実際に確定済みの証明だけはUndo後も保持する");
 });
+
+
+test("旧ADD_DRAW_BATCH互換経路もチケット消費・所持・証明を1回ずつ反映する", () => {
+  const before = stateWithOnePersonaTicket();
+  const entry = {
+    id: "legacy-ticket-draw",
+    at: "2026-10-23T00:00:00.000Z",
+    route: "persona",
+    times: 1,
+    pay: "ticket",
+    hits: [{ name: "試験人格", type: "persona", no: 1, mode: "n" }],
+    commit: batch.commit
+  };
+  const committed = reducer(before, {
+    type: "ADD_DRAW_BATCH",
+    batch,
+    ticketSpend: { kind: "persona", count: 1 },
+    entry
+  });
+
+  assert.equal(committed.roster.personas.length, 1, "封緘レコード由来の人格だけ所持へ入る");
+  assert.equal(committed.entries.length, 1, "チケット消費明細は1件");
+  assert.equal(committed.entries[0].tickets.persona, 1, "消費枚数は1枚");
+  assert.equal(w.LBT_computeTicketBalance(committed.results, committed.entries).persona, 0,
+    "消費したチケット残数はゼロ");
+  assert.equal(committed.draws.length, 1, "封緘証明は1件だけ保存");
+  assert.equal(committed.gachaLog.length, 1, "決定ログも一緒に保存");
+  assert.equal(committed.gachaLog[0].id, entry.id);
+  assert.equal("_pendingDrawProofHash" in committed, false, "一時的な検証キーを永続stateへ残さない");
+});
