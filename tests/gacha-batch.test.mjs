@@ -450,3 +450,27 @@ test("drawN: 1バッチ内で同じ人格を2度引かない", () => {
   const nos = out.hits.map((x) => x.no);
   assert.equal(new Set(nos).size, nos.length, "重複なし");
 });
+
+
+test("抽選証明の検証は空バッチ・不正レコードを安全に不合格にする", () => {
+  const { batch } = finalizedBatch();
+  const malformed = structuredClone(batch);
+  malformed.records[1] = null;
+  const malformedResult = G.verifyBatch(malformed);
+  assert.equal(malformedResult.ok, false);
+  assert.ok(malformedResult.reasons.some((reason) => /records\\[1\\]/.test(reason)));
+  
+  const empty = structuredClone(batch);
+  empty.records = [];
+  empty.count = 0;
+  empty.batchHash = G.GENESIS_HASH;
+  const emptyResult = G.verifyBatch(empty);
+  assert.equal(emptyResult.ok, false, "シードが正しくても0件のバッチは抽選証明として合格させない");
+  assert.ok(emptyResult.reasons.some((reason) => /空/.test(reason)));
+  
+  const noHash = structuredClone(batch);
+  delete noHash.batchHash;
+  const noHashResult = G.verifyBatch(noHash);
+  assert.equal(noHashResult.ok, false);
+  assert.ok(noHashResult.reasons.some((reason) => /バッチハッシュ/.test(reason)));
+});
