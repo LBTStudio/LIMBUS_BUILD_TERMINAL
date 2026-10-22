@@ -1216,16 +1216,53 @@ function sanitizeStateCollections(raw) {
     "customItems", "enhancements", "uniqueBuffs", "extraPassives", "customStatuses"
   ];
   const isRecord = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
+  const sanitizeSkillList = (value) => (Array.isArray(value) ? value : [])
+    .filter(isRecord)
+    .map((skill) => ({
+      ...skill,
+      ...(skill.dice !== undefined
+        ? { dice: Array.isArray(skill.dice) ? skill.dice.filter(isRecord) : [] }
+        : {})
+    }));
+  const sanitizePersonaSource = (value) => {
+    if (!isRecord(value)) return value == null ? value : null;
+    const result = { ...value };
+    if (result.skills !== undefined) result.skills = sanitizeSkillList(result.skills);
+    if (result.unique_buffs !== undefined) {
+      result.unique_buffs = Array.isArray(result.unique_buffs) ? result.unique_buffs.filter(isRecord) : [];
+    }
+    if (result.keywords !== undefined) {
+      result.keywords = Array.isArray(result.keywords)
+        ? result.keywords.filter((keyword) => typeof keyword === "string")
+        : [];
+    }
+    return result;
+  };
+  const sanitizePersonaBuild = (value) => {
+    if (!isRecord(value)) return null;
+    const result = { ...value };
+    if (result.skills !== undefined) result.skills = sanitizeSkillList(result.skills);
+    for (const field of ["uniqueBuffs", "extraPassives", "supports", "enhancements", "customStatuses", "formulas"]) {
+      if (result[field] !== undefined) {
+        result[field] = Array.isArray(result[field]) ? result[field].filter(isRecord) : [];
+      }
+    }
+    if (result.personaSrc !== undefined) result.personaSrc = sanitizePersonaSource(result.personaSrc);
+    return result;
+  };
 
   for (const field of recordArrays) {
     if (Array.isArray(next[field])) next[field] = next[field].filter(isRecord);
   }
+  next.skills = sanitizeSkillList(next.skills);
+  if (next.uniqueBuffs !== undefined) {
+    next.uniqueBuffs = Array.isArray(next.uniqueBuffs) ? next.uniqueBuffs.filter(isRecord) : [];
+  }
+  if (next.personaSrc != null) next.personaSrc = sanitizePersonaSource(next.personaSrc);
   if (Array.isArray(next.draws)) {
-    // 封緘済み証明の中身は破損していても書き換えない。records の形状は
-    // 検証器が「不合格」として可視化できるよう、バッチ自体を保持する。
+    // 封緘済み証明のrecordsの形状は改変せず、バッチ自体を保持して検証器で不合格にできるようにする。
     next.draws = next.draws.filter((batch) => isRecord(batch) && Array.isArray(batch.records));
   }
-  if (next.personaSrc != null && !isRecord(next.personaSrc)) next.personaSrc = null;
   if (next.deathSupport != null && !isRecord(next.deathSupport)) next.deathSupport = null;
   if (!isRecord(next.roster)) {
     next.roster = { personas: [], egos: [], supports: [], spirits: [] };
@@ -1236,6 +1273,14 @@ function sanitizeStateCollections(raw) {
         ? next.roster[field].filter(isRecord)
         : [];
     }
+    next.roster.personas = next.roster.personas.map((entry) => ({
+      ...entry,
+      ...(entry.build !== undefined ? { build: sanitizePersonaBuild(entry.build) } : {})
+    }));
+    next.roster.egos = next.roster.egos.map((entry) => ({
+      ...entry,
+      ...(entry.build !== undefined && !isRecord(entry.build) ? { build: null } : {})
+    }));
   }
   return next;
 }
