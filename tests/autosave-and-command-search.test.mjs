@@ -70,9 +70,9 @@ test("インポート検証は配列項目と所持データの形を事前に�
 
 
 test("保存フィールド・インポートカテゴリ・APPLY_PARTIAL許可リストは相互に整合する", () => {
-  const groupBlock = app.match(/const IMPORT_GROUPS = \\[([\\s\\S]*?)\\n\\];/)?.[1];
+  const groupBlock = app.match(/const IMPORT_GROUPS = \[([\s\S]*?)\n\];/)?.[1];
   assert.ok(groupBlock, "IMPORT_GROUPS を読み取れる");
-  const groupedFields = [...groupBlock.matchAll(/fields:\\s*\\[([^\\]]*)\\]/g)]
+  const groupedFields = [...groupBlock.matchAll(/fields:\s*\[([^\]]*)\]/g)]
     .flatMap(([, list]) => [...list.matchAll(/"([^"]+)"/g)].map(([, field]) => field));
 
   const partialStart = state.indexOf('case "APPLY_PARTIAL": {');
@@ -89,9 +89,9 @@ test("保存フィールド・インポートカテゴリ・APPLY_PARTIAL許可�
     "UIカテゴリにある全フィールドをreducerも受け入れる");
 
   const initStart = state.indexOf("const INIT_STATE = {");
-  const initEnd = state.indexOf("\\n};", initStart);
+  const initEnd = state.indexOf("\n};", initStart);
   assert.ok(initStart >= 0 && initEnd > initStart, "INIT_STATE を読み取れる");
-  const initFields = [...state.slice(initStart, initEnd).matchAll(/^  ([A-Za-z_$][\\w$]*):/gm)]
+  const initFields = [...state.slice(initStart, initEnd).matchAll(/^  ([A-Za-z_$][\w$]*):/gm)]
     .map(([, field]) => field);
   const deliberateExclusions = new Set([
     "schemaVersion", "ui", "shareImageBlockedReason", "egoManual", "tickets", "selfStatusCandidates"
