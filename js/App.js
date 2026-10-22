@@ -363,6 +363,11 @@ function validateImportData(data) {
   if (rootSkillError) return rootSkillError;
   const personaSourceError = validatePersonaSource(data.personaSrc, "personaSrc");
   if (personaSourceError) return personaSourceError;
+  // null は「DB既定を使う」正常値。配列なら各状態がオブジェクトであることを要求する。
+  if (data.defaultStatuses !== void 0 && data.defaultStatuses !== null) {
+    const statusError = validateRecordArray(data.defaultStatuses, "defaultStatuses");
+    if (statusError) return statusError;
+  }
 
   // 未解決の旧チケット行は移行のために保持する。形式そのものが壊れている場合だけ拒否し、
   // パック名なし／不明な種類など、移行不能なレコード内容は勝手に捨てない。
@@ -382,7 +387,7 @@ function validateImportData(data) {
 
   // インポートに使う配列フィールドは適用前に型を確認する。
   const arrayFields = [
-    "skills", "supports", "gachaLog", "draws", "results", "entries", "inventory",
+    "skills", "supports", "gachaLog", "draws", "results", "entries", "inventory", "formulas",
     "initialItems", "customItems", "enhancements", "uniqueBuffs", "extraPassives",
     "customStatuses", "favorites", "historyRecent"
   ];
@@ -395,7 +400,7 @@ function validateImportData(data) {
   // reducer の正規化処理は results / entries の各要素をレコードとして参照する。
   // JSON として有効でも [null] や ["broken"] が入ると、適用時に例外または静かな欠損を起こす。
   const objectArrayFields = [
-    "skills", "supports", "gachaLog", "draws", "results", "entries", "inventory",
+    "skills", "supports", "gachaLog", "draws", "results", "entries", "inventory", "formulas",
     "customItems", "enhancements", "uniqueBuffs", "extraPassives", "customStatuses"
   ];
   for (const field of objectArrayFields) {
