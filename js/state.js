@@ -1241,14 +1241,19 @@ function normalizeStateShape(raw) {
      旧セーブは state.tickets に行配列（または {persona:3} 形式）で残っているので、
      残数があるなら「抽出チケットの受領」というリザルトの収入へ移す。
      受け渡したタイミングは保存データに無いので、受領日のリザルトとして置く。 */
-  const legacyTickets = (Array.isArray(next.tickets)
+  const legacyTicketRows = (Array.isArray(next.tickets)
     ? next.tickets
-    : Object.entries(next.tickets || {}).map(([kind, count], i) => ({
-      kind, pack: null, count: Math.max(0, Number(count) || 0)
-    }))
-  ).filter((t) => t && TICKET_KINDS.includes(t.kind)
-    && Number.isSafeInteger(Number(t.count)) && Number(t.count) > 0
-    && (t.kind !== "pack" || String(t.pack || "").trim() !== ""));
+    : Object.entries(next.tickets || {}).map(([kind, count]) => ({ kind, pack: null, count }))
+  );
+  const isMigratableLegacyTicket = (ticket) => ticket
+    && TICKET_KINDS.includes(ticket.kind)
+    && Number.isSafeInteger(Number(ticket.count))
+    && Number(ticket.count) > 0
+    && (ticket.kind !== "pack" || String(ticket.pack || "").trim() !== "");
+  const legacyTickets = legacyTicketRows.filter(isMigratableLegacyTicket);
+  // 正規化できない旧行（例：パック名なし／小数枚数）は誤変換しない。
+  // 作業状態JSONへ残して別端末へ移せるよう、未解決分だけ tickets に保持する。
+  const unresolvedLegacyTickets = legacyTicketRows.filter((ticket) => !isMigratableLegacyTicket(ticket));
   if (legacyTickets.length) {
     let total = { persona: 0, ego: 0, choice: 0, pack: {} };
     for (const t of legacyTickets) {
@@ -1276,7 +1281,7 @@ function normalizeStateShape(raw) {
       }, ...(next.results || [])];
     }
   }
-  next.tickets = [];
+  next.tickets = unresolvedLegacyTickets;
   next.roster = {
     ...next.roster,
     // 同期MAXは同期ランク（0/00/000）と別に保存する。旧保存データはfalseへ補完する。
