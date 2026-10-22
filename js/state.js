@@ -2475,9 +2475,9 @@ function appReducer(state, action) {
        ここでも配列/オブジェクトの型だけは防御的に確認する。 */
     case "APPLY_PARTIAL": {
       const ALLOWED = ["charName","plName","imgUrls","shareImageData","color","personaMode","personaNo","personaSrc","syncedManual",
-        "hp","san","speed","bullets","resS","resP","resB","spirit","spiritMorale","spiritConfuse","spiritAlways",
+        "hp","san","initiative","speed","bullets","resS","resP","resB","spirit","spiritMorale","spiritConfuse","spiritAlways",
         "pas","pas2Enabled","pas2","extraPassives","uniqueBuffs","skills","egoSlots","supports","deathSupport","roster",
-        "enhancements","customStatuses","defaultStatuses","formulas","builtinFormulasOverride","autoFml",
+        "enhancements","initialItems","draws","customStatuses","defaultStatuses","formulas","builtinFormulasOverride","autoFml",
         "moraleLine","extraCmd","outputExclude","shareOptions","paletteOptions","results","entries","inventory","customItems",
         "favorites","historyRecent","gachaLog"];
       // 別端末移行（exportState/importStateFromFile）は favorites、historyRecent、
