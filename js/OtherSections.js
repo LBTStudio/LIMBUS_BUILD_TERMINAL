@@ -2177,9 +2177,6 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
     if (!pending) return;
     const { seed, out } = pending;
     const hits = out.hits;
-    if (out.paidBy === "ticket") {
-      dispatch({ type: "SPEND_TICKET", kind: out.ticketKind, pack: out.ticketPack, count: -hits.length });
-    }
     /* 結果をハッシュ鎖で封緘し、抽出リストへ積む。
        所持への反映もこの action の中で行うので、画面が数えた顔ではなく
        「封緘された顔」が入る。2つに分けると片方だけ後から狂う。
@@ -2201,9 +2198,21 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
       }
     }
     if (batch) {
-      dispatch({ type: "ADD_DRAW_BATCH", __sealed: true, batch });
+      /* 所持・通帳・チケット消費は通常のUndo履歴へ1つの取引として入れる。
+         抽選バッチそのものは別のsealed actionにし、Undoで証明だけを残す。 */
+      dispatch({
+        type: "APPLY_DRAW_BATCH",
+        batch,
+        ticketSpend: out.paidBy === "ticket"
+          ? { kind: out.ticketKind, pack: out.ticketPack, count: hits.length }
+          : null
+      });
+      dispatch({ type: "ADD_DRAW_RECORD", __sealed: true, batch });
     } else {
       /* 検証器が無い環境（古い読み込み）は記録しないが、所持は残す。 */
+      if (out.paidBy === "ticket") {
+        dispatch({ type: "SPEND_TICKET", kind: out.ticketKind, pack: out.ticketPack, count: -hits.length });
+      }
       dispatch({
         type: "ADD_ROSTER_MANY",
         cost: { lp: out.cost.lp || 0, shards: out.cost.shards || 0 },
