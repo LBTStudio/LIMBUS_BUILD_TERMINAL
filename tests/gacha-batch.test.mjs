@@ -510,6 +510,29 @@ test("drawN（選択抽出チケット）: 人格・E.G.Oルートで共通チ�
   assert.equal(w.LBT_gachaDraw.verifyBatch(batch).ok, true);
 });
 
+test("テーマパックは所持レコードの No から名前を引き、重複時に欠片50へ変換する", () => {
+  const w = loadDraw();
+  const pack = themePacks.packs.find((item) => item.name === "属せない＆愛することのできない");
+  const ownedPersona = db.normal_personas.find((persona) => persona.name === "旧G社兵士");
+  assert.ok(pack && ownedPersona, "fixture pack/persona exists");
+  w.__balance = { lp: pack.lp, shards: 0 };
+  const state = appState({
+    results: [{ id: "owned-pack-test", name: "所持テスト", income: { lp: pack.lp, shards: 0 } }],
+    roster: {
+      personas: [{ uid: "old-g-persona", mode: "n", no: Number(ownedPersona.no), equipped: false }],
+      egos: [], supports: [], spirits: []
+    }
+  });
+  const session = { roll: () => 1 };
+  const out = w.LBT_gachaDraw.drawN("pack", state, {
+    pay: "paid", pack: pack.name, times: 1, session
+  });
+  assert.equal(out.engineOut.results[0].item.name, "旧G社兵士");
+  assert.equal(out.engineOut.results[0].duplicate, true, "所持には name が無くても No から重複判定する");
+  assert.equal(out.engineOut.results[0].grantedShards, 50);
+  assert.equal(out.cost.lp, pack.lp, "重複でもパックの価格は記録される");
+});
+
 test("テーマパックの抽選証明はパック名までハッシュで固定する", () => {
   const pack = themePacks.packs[0];
   const session = G.createSession({ serverSeed: "proof-pack-seed", clientSeed: "auditor" });
