@@ -231,15 +231,15 @@ test("購入せず所持に追加した場合も初期作成用チケットは�
   assert.equal(ticketBalance(bought).persona, 0, "所持になったらチケットは意味を失う");
 });
 
-test("複数人をまとめて所持へ入れても初期作成用チケットは1枚だけ消費する", () => {
+test("複数人を1アクションで所持へ入れても初期作成用チケットは1枚だけ消費する", () => {
   const fresh = freshState();
   const next = reducer(fresh, {
-    type: "ADD_DRAW_BATCH",
+    type: "ADD_ROSTER_MANY",
     resultId: "res-initial",
-    batch: { records: [
-      { kind: "persona", item: { kind: "persona", mode: "n", no: 1, name: "黒雲会組員" }, cost: { lp: 0, shards: 0 } },
-      { kind: "persona", item: { kind: "persona", mode: "n", no: 2, name: "黒雲会組員" }, cost: { lp: 0, shards: 0 } }
-    ] }
+    adds: [
+      { type: "persona", mode: "n", no: 1, cost: { lp: 0, shards: 0 } },
+      { type: "persona", mode: "n", no: 2, cost: { lp: 0, shards: 0 } }
+    ]
   });
   assert.equal(ticketBalance(next).persona, 0, "残りは0");
   assert.equal(next.entries.filter((e) => e.kind === "ticket").length, 1, "チケット消費は1件だけ");
