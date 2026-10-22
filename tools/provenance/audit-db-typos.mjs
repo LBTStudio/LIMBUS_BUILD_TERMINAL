@@ -58,6 +58,9 @@ const DOUBLES = ["のの", "をを", "がが", "にに", "とと"];
 const HALF_KATA_RE = /[\uFF66-\uFF9D]{3,}/;
 const MIXED_WIDTH_DIGIT_RE = /(?:[0-9][0-9]*[０-９]|[０-９][０-９]*[0-9])/;
 const DOUBLE_SPACE_RE = /\S(?: {2,}|\u3000{2,})\S/;
+/* 連続・混在した句読点は体裁不良として全コレクションで検出する。
+   ASCII の `::` は E.G.O 名の正規記法なので検査対象に含めない。 */
+const DUPLICATE_PUNCTUATION_RE = /(?:[、。]{2,}|，{2,}|,{2,}|：{2,}|；{2,}|;{2,}|．{2,}|[、。][,，;；]|[,，;；][、。])/g;
 
 function walk(node, trail, sink) {
   if (typeof node === "string") {
@@ -92,6 +95,9 @@ const sink = (entry) => {
   if (mx) findings.push({ rule: "mixed-width-digits", wrong: mx[0], trail, text: text.slice(0, 40) });
   const ds = text.match(DOUBLE_SPACE_RE);
   if (ds) findings.push({ rule: "double-space", wrong: ds[0], trail, text: text.slice(0, 60) });
+  for (const m of text.matchAll(DUPLICATE_PUNCTUATION_RE)) {
+    findings.push({ rule: "duplicate-punctuation", wrong: m[0], trail, text: text.slice(Math.max(0, m.index - 20), m.index + m[0].length + 20) });
+  }
 };
 
 for (const label of ["db", "items"]) {

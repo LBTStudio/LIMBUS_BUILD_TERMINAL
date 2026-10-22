@@ -6,6 +6,7 @@ data/provenance/*-ledger.sqlite
 # Local browser verification dependencies and disposable logs.
 .browser-deps/
 .cache/
+.cocoindex_code/
 tools/ui/shots/
 tests/*-run.log
 tmp/

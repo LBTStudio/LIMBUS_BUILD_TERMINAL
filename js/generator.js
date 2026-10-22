@@ -93,6 +93,17 @@ const ROUND_STAGE_MARKER = "\\d+R\\s{0,2}[\uFF1A:]";
    `（1Rに2回）` が `（` と `1Rに2回）` に分断される。 */
 const PARAGRAPH_OPEN_CHARS = "\u300C\u300E[\uFF08\u3010(\uFF3B";
 const PARAGRAPH_CLOSE_CHARS = "\u300D\u300F]\uFF09\u3011)\uFF3D";
+/* 紙面の見出しと箇条書きは `-血染めの鋏の刃Ⅰ-` `-温度が10以上…-` のように
+   区切りハイフンで囲まれ、そのままDBへ転記されている。DBは原典の写しなので
+   本文は変えず、段落の先頭・末尾に残った区切りだけを表示時に外す。
+   残すと `…振動爆発ダメージ量+5-\n消費…` のように行末のハイフンが
+   CCFOLIAのコマンド区切りと紛れ、改段が崩れる。
+   段落の途中のハイフン（`弾丸-虎標弾` `解禁-Ⅰ` `中指-怨恨`）は名前の一部なので触らない。 */
+function stripSeparatorDashes(paragraph) {
+  const trimmed = String(paragraph).trim();
+  const body = trimmed.replace(/^-+/, "").replace(/-+$/, "").trim();
+  return body || trimmed;
+}
 function scanEffectParagraphs(text) {
   const normalized = normalizeMultiline(text);
   if (!normalized) return [];
@@ -121,7 +132,7 @@ function scanEffectParagraphs(text) {
     }
     if (buf.trim()) out.push(buf);
   }
-  return out.map((s) => s.trim()).filter(Boolean);
+  return out.map((s) => stripSeparatorDashes(s.trim())).filter(Boolean);
 }
 /* 効果段落の頭に付ける▶︎（U+25B6 U+FE0E）。出力書式の設定で外せる。 */
 const EFFECT_ARROW = "\u25B6\uFE0E";
@@ -142,6 +153,7 @@ function formatEffectLines(text) {
 }
 window.formatEffectLines = formatEffectLines;
 window.splitEffectLinesPlain = splitEffectLinesPlain;
+window.LBT_stripSeparatorDashes = stripSeparatorDashes;
 function toArrowLines(text, bullet = true) {
   return splitEffectLines(text, bullet);
 }
@@ -1468,7 +1480,9 @@ function buildShareSheetHTML(state) {
   const shareImage = embeddedShareImage || "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/assets/lbt-share-card.png";
   const shareImageType = embeddedShareImage.startsWith("data:image/webp") ? "image/webp" : "image/png";
   const shareVisualHTML = embeddedShareImage ? `<figure class="share-visual"><img src="${embeddedShareImage}" alt="${esc(p.charName || "共有シート画像")}"><figcaption>SHARE IMAGE / 共有シート画像</figcaption></figure>` : "";
-  const nl = (s) => esc(s).replace(/\n/g, "<br>");
+  /* 共有シートは段落分割器を通さない項目（固有バフ・所持品）があるため、
+     ここでも区切りハイフンを外して他の出力と揃える。 */
+  const nl = (s) => esc(String(s ?? "").split("\n").map(stripSeparatorDashes).join("\n")).replace(/\n/g, "<br>");
   const fmt = (t) => {
     if (!t) return "";
     const normalized = formatEffectLines(t);
