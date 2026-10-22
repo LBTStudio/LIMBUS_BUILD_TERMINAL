@@ -45,13 +45,10 @@ test("クイック検索のE.G.O・アイテム候補は詳細画面へ移動す
 });
 
 
-test("作業状態の部分インポートは抽選記録も独立したカテゴリとして提示する", () => {
-  assert.match(app, /\{ key: "gacha", label: "[^"]+", fields: \["gachaLog"\] \}/);
-  assert.match(state, /"favorites","historyRecent","gachaLog"\]/);
-});
-
+ 
 test("作業状態の部分インポートは抽選記録も独立したカテゴリとして提示する", () => {
   const drawLogField = ["gacha", "Log"].join("");
+  assert.equal((app.match(/key: "gacha"/g) || []).length, 1, "カテゴリは重複しない");
   assert.ok(app.includes(`fields: ["${drawLogField}"]`));
   assert.ok(state.includes(`"historyRecent","${drawLogField}"]`));
 });
