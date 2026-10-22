@@ -35,8 +35,9 @@ test("共有HTMLの明るい大罪タグは暗い文字色で十分なコント�
     const a = luminance(foreground), b = luminance(background);
     return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
   };
-  for (const background of ["#c96424", "#e29a20", "#7a9b40", "#9a989b"]) {
-    assert.ok(ratio("#17120d", background) >= 4.5, `contrast below 4.5:1 for ${background}`);
+  for (const [sin, background] of [["色欲", "#c96424"], ["怠惰", "#e29a20"], ["暴食", "#7a9b40"], ["特殊", "#9a989b"]]) {
+    assert.ok(html.includes(`--sin-${sin}:${background}`), `unexpected background for ${sin}`);
+    assert.ok(ratio("#17120d", background) >= 4.5, `contrast below 4.5:1 for ${sin} / ${background}`);
   }
 });
 
