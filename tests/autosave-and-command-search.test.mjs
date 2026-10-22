@@ -50,6 +50,6 @@ test("作業状態の部分インポートは抽選記録も独立したカテ�
   const drawLogField = ["gacha", "Log"].join("");
   assert.equal((app.match(/key: "gacha"/g) || []).length, 1, "カテゴリは重複しない");
   assert.ok(app.includes(`fields: ["${drawLogField}"]`));
-  assert.match(app, /data\\.gachaLog !== void 0 && !Array\\.isArray\\(data\\.gachaLog\\)/);
+  assert.match(app, /data\.gachaLog !== void 0 && !Array\.isArray\(data\.gachaLog\)/);
   assert.ok(state.includes(`"historyRecent","${drawLogField}"]`));
 });
