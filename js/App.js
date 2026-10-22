@@ -309,7 +309,7 @@ function exportRoster(state) {
 /* T26: セーブデータのカテゴリ定義（部分ロード用）。
    各カテゴリはトップレベル state フィールドの集合。 */
 const IMPORT_GROUPS = [
-  { key: "persona", label: "\u88C5\u5099\u4EBA\u683C\u30FB\u57FA\u672C\u60C5\u5831", fields: ["charName","plName","imgUrls","shareImageData","color","personaMode","personaNo","personaSrc","syncedManual","hp","san","speed","bullets","resS","resP","resB"] },
+  { key: "persona", label: "\u88C5\u5099\u4EBA\u683C\u30FB\u57FA\u672C\u60C5\u5831", fields: ["charName","plName","imgUrls","shareImageData","color","initiative","personaMode","personaNo","personaSrc","syncedManual","hp","san","speed","bullets","resS","resP","resB"] },
   { key: "skills", label: "\u30B9\u30AD\u30EB\uFF08\u6D3E\u751F\u542B\u3080\uFF09", fields: ["skills"] },
   { key: "passive", label: "\u30D1\u30C3\u30B7\u30D6", fields: ["pas","pas2Enabled","pas2","extraPassives"] },
   { key: "support", label: "\u30B5\u30DD\u30FC\u30C8\u30D1\u30C3\u30B7\u30D6\uFF08\u6B7B\u4EA1\u5F8C\u542B\u3080\uFF09", fields: ["supports","deathSupport"] },
