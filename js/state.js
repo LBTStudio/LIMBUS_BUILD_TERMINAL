@@ -1246,23 +1246,28 @@ function normalizeStateShape(raw) {
     : Object.entries(next.tickets || {}).map(([kind, count], i) => ({
       kind, pack: null, count: Math.max(0, Number(count) || 0)
     }))
-  ).filter((t) => t && TICKET_KINDS.includes(t.kind) && Number(t.count) > 0);
-  next.tickets = [];
+  ).filter((t) => t && TICKET_KINDS.includes(t.kind)
+    && Number.isSafeInteger(Number(t.count)) && Number(t.count) > 0
+    && (t.kind !== "pack" || String(t.pack || "").trim() !== ""));
   if (legacyTickets.length) {
     let total = { persona: 0, ego: 0, choice: 0, pack: {} };
     for (const t of legacyTickets) {
-      if (t.kind === "pack" && t.pack) total.pack[t.pack] = (total.pack[t.pack] || 0) + Number(t.count);
+      if (t.kind === "pack") total.pack[t.pack] = (total.pack[t.pack] || 0) + Number(t.count);
       else total[t.kind] = (Number(total[t.kind]) || 0) + Number(t.count);
     }
-    /* 既に同じ内容を持つリザルトがあれば二重に積まない。 */
+    /* 数量が一致するだけの通常リザルトは移行済みとはみなさない。
+       移行専用IDを持つ記録が完全一致する場合だけ、再度の加算を防ぐ。 */
     const already = (next.results || []).some((r) => {
+      if (r?.id !== "res-ticket-grant") return false;
       const inc = normalizeTickets(r.income?.tickets);
       return inc.persona === total.persona && inc.ego === total.ego && inc.choice === total.choice
         && JSON.stringify(inc.pack) === JSON.stringify(total.pack);
     });
     if (!already) {
+      const migrationId = (next.results || []).some((r) => r?.id === "res-ticket-grant")
+        ? makeOwnedUid("res-ticket-grant") : "res-ticket-grant";
       next.results = [{
-        id: "res-ticket-grant",
+        id: migrationId,
         name: "抽出チケットの受領",
         date: localDateString(),
         income: { lp: 0, shards: 0, tickets: total },
@@ -1271,6 +1276,7 @@ function normalizeStateShape(raw) {
       }, ...(next.results || [])];
     }
   }
+  next.tickets = [];
   next.roster = {
     ...next.roster,
     // 同期MAXは同期ランク（0/00/000）と別に保存する。旧保存データはfalseへ補完する。
