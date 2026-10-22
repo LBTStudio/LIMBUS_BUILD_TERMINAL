@@ -42,7 +42,7 @@ test("共有HTMLの明るい大罪タグは暗い文字色で十分なコント�
 
 test("折り畳みセクションに件数を表示し、印刷時は本文を表示する", () => {
   const html = sampleShareHtml();
-  assert.ok((html.match(/<span class="section-count">1件<\\/span>/g) || []).length >= 2, "E.G.O とサポートパッシブの件数が表示される");
+  assert.ok((html.match(/<span class="section-count">1件<[/]span>/g) || []).length >= 2, "E.G.O とサポートパッシブの件数が表示される");
   assert.match(html, /font-size:10\.5px;letter-spacing:\.04em/);
   assert.match(html, /@media print\{[\s\S]*--tx2:#222[\s\S]*details\.fold:not\(\[open\]\)>:\s*not\(summary\)[\s\S]*display:block!important/);
 });
