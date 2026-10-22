@@ -434,6 +434,38 @@ test("drawN（チケット）: 無料のまま、同じ1本の鎖に載る", () 
   assert.equal(w.LBT_gachaDraw.verifyBatch(batch).ok, true, "経路が違っても検証は同じ1つ");
 });
 
+test("drawN（選択抽出チケット）: 人格・E.G.Oルートで共通チケットを消費できる", () => {
+  const w = loadDraw();
+  w.__balance = { lp: 0, shards: 0 };
+  w.__tickets = { persona: 0, ego: 0, choice: 2, pack: {} };
+  const out = w.LBT_gachaDraw.drawN("persona", appState(), {
+    pay: "ticket", ticketKind: "choice", times: 1, seed: "choice-ticket-seed"
+  });
+  assert.equal(out.ticketKind, "choice");
+  assert.equal(out.drawn, 1);
+  assert.equal(out.cost.lp, 0);
+  assert.equal(out.cost.shards, 0);
+  const batch = w.LBT_gachaDraw.sealBatch(out);
+  assert.equal(batch.ruleset, "core-ticket");
+  assert.equal(batch.kind, "persona");
+  assert.ok(batch.records.every((record) => record.method === "ticket"));
+  assert.equal(w.LBT_gachaDraw.verifyBatch(batch).ok, true);
+});
+
+test("テーマパックの抽選証明はパック名までハッシュで固定する", () => {
+  const pack = themePacks.packs[0];
+  const session = G.createSession({ serverSeed: "proof-pack-seed", clientSeed: "auditor" });
+  const out = gacha.drawBatch({
+    session, kind: "themePack", pack, heldNames: new Set(), lp: pack.lp, count: 1
+  });
+  const batch = G.finalizeBatch(out, session, { ruleset: "core", rulesetHash: gacha.rulesetHash });
+  assert.equal(batch.records[0].pack, pack.name);
+  assert.equal(G.verifyBatch(batch).ok, true);
+  const altered = structuredClone(batch);
+  altered.records[0].pack = "別のパック";
+  assert.equal(G.verifyBatch(altered).ok, false, "同じアイテム名でも抽選プールの出所を差し替えられない");
+});
+
 test("drawN: 同じ種なら確認画面で出目が変わらない（2段構えの前提）", () => {
   const w = loadDraw();
   w.__balance = { lp: 5000, shards: 5000 };
