@@ -53,3 +53,20 @@ test("長いPC名・人格名を含む場合もヘッダーは強制折り返し
   assert.match(html, /\.hd h1\{[^}]*overflow-wrap:anywhere/);
   assert.match(html, /\.hd-plpc span,\.hd \.persona-line \.val\{min-width:0;overflow-wrap:anywhere\}/);
 });
+
+test("共有HTML内検索は折り畳み内も検索し、検索だけでは項目を開かない", () => {
+  const html = sampleShareHtml();
+  assert.match(html, /id="share-search-input"/);
+  assert.match(html, /id="share-search-results"/);
+  assert.match(html, /折り畳み内も検索します。検索だけではセクションは開きません。/);
+  assert.match(html, /sheet\.querySelectorAll\(searchableSelector\)/);
+  assert.match(html, /element\.textContent/);
+
+  const renderStart = html.indexOf("const renderResults");
+  const renderEnd = html.indexOf('input.addEventListener("input", renderResults)', renderStart);
+  assert.ok(renderStart >= 0 && renderEnd > renderStart, "検索描画関数がある");
+  assert.doesNotMatch(html.slice(renderStart, renderEnd), /\.open\s*=\s*true/, "検索の実行は折り畳みを開かない");
+  assert.match(html, /open\.addEventListener\("click", \(\) => openOnRequest\(element\)\)/);
+  assert.match(html, /parent\.open = true/, "利用者が「この項目を開く」を押した時だけ祖先のdetailsを開く");
+  assert.match(html, /textContent = snippet\.slice\(pos, pos \+ query\.length\)/, "検索語を安全に文字列として表示する");
+});
