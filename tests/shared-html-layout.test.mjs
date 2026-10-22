@@ -59,8 +59,8 @@ test("共有HTML内検索は折り畳み内も検索し、検索だけでは項�
   const html = sampleShareHtml();
   assert.match(html, /id="share-search-input"/);
   assert.match(html, /id="share-search-results"/);
-  assert.match(html, /document\.addEventListener\("keydown", \(event\) => \{/);
-  assert.match(html, /event\.preventDefault\(\);\s*input\.focus\(\);\s*input\.select\(\);/);
+  assert.match(html, /window\.addEventListener\("keydown", \(event\) => \{/);
+  assert.match(html, /event\.preventDefault\(\);\s*event\.stopImmediatePropagation\(\);\s*input\.focus\(\);\s*input\.select\(\);\s*\}, true\);/);
   assert.match(html, /閉じた項目も検索します。検索では自動展開せず、結果の「この項目を開く」で必要なものだけ展開できます。/);
   assert.match(html, /sheet\.querySelectorAll\(searchableSelector\)/);
   assert.match(html, /element\.textContent/);
