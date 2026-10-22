@@ -307,6 +307,7 @@ test("破損したローカルセーブの配列要素は正規化前に除外�
     ...baseState(),
     supports: [null, { name: "通常サポパ", cond: "", effect: "", lp: 7 }],
     enhancements: [null, { name: "肉体強化0-1", group: "肉体強化0", shards: 5 }],
+    personaSrc: { name: "自作人格", skills: "壊れた配列", unique_buffs: [null], keywords: "壊れた配列" },
     results: [null, {
       id: "result-good", name: "正常な結果", date: "2026-10-23",
       income: { lp: 100, shards: 0, tickets: {} }, exchange: { lp: 0, shards: 0 }, note: ""
@@ -320,7 +321,7 @@ test("破損したローカルセーブの配列要素は正規化前に除外�
     gachaLog: [null, { id: "draw-log-good", hits: [] }],
     draws: [null, { batchHash: "broken-batch", records: [null] }],
     roster: {
-      personas: [null, { uid: "persona-good", no: 1, mode: "n", equipped: false }],
+      personas: [null, { uid: "persona-good", no: 1, mode: "n", equipped: false, build: { skills: "壊れた配列", uniqueBuffs: [null], personaSrc: { skills: "壊れた配列", unique_buffs: [null], keywords: "壊れた配列" } } }],
       egos: [null, { uid: "ego-good", rank: "ZAYIN", no: 1 }],
       supports: [null, { uid: "roster-support-good", name: "所持サポパ" }],
       spirits: [null, { uid: "roster-spirit-good", name: "所持精神" }]
@@ -341,6 +342,16 @@ test("破損したローカルセーブの配列要素は正規化前に除外�
   }
   assert.equal(normalized.gachaLog.some((entry) => entry?.id === "draw-log-good"), true,
     "正常な抽選ログは保持する");
+  assert.deepEqual(JSON.parse(JSON.stringify(normalized.personaSrc.skills)), [],
+    "ローカル保存のpersonaSrc.skillsが不正型でも正規化を継続する");
+  assert.deepEqual(JSON.parse(JSON.stringify(normalized.personaSrc.unique_buffs)), [],
+    "ローカル保存のunique_buffsにあるnullを除外する");
+  assert.deepEqual(JSON.parse(JSON.stringify(normalized.personaSrc.keywords)), [],
+    "ローカル保存のkeywordsが不正型でも正規化を継続する");
+  assert.deepEqual(JSON.parse(JSON.stringify(normalized.roster.personas[0].build.skills)), [],
+    "所持人格の保存ビルド内skillsも正規化する");
+  assert.deepEqual(JSON.parse(JSON.stringify(normalized.roster.personas[0].build.uniqueBuffs)), [],
+    "所持人格の保存ビルド内uniqueBuffsも正規化する");
   assert.equal(normalized.draws.length, 1, "破損した証明バッチも黙って削除しない");
   assert.deepEqual(JSON.parse(JSON.stringify(normalized.draws[0].records)), [null],
     "検証不合格の根拠となる原記録を保持する");
