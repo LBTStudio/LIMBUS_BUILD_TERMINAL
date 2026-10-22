@@ -557,6 +557,8 @@ test("共有URL からドキュメント ID とコレクションを抜く", () 
   assert.equal(foreignQuery.ok, false, "クエリに garasumado があるだけでは受理しない");
   const lookalikeHost = G.parseShareUrl("https://evil-garasumado.example/view/ABCDEFGHIJKLMNOPQRST");
   assert.equal(lookalikeHost.ok, false, "似たホスト名を受理しない");
+  const nestedHost = G.parseShareUrl("evil.example/?next=lbt-garasumado.vercel.app/view/ABCDEFGHIJKLMNOPQRST");
+  assert.equal(nestedHost.ok, false, "スキーム省略時もクエリ中のホスト文字列をURL本体と誤認しない");
 
 
   assert.equal(G.parseShareUrl("").ok, false);
