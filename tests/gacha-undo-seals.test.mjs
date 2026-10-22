@@ -218,6 +218,51 @@ test("抽選取引はチケット種別・支払方式・枚数とバッチの�
   }).ok, true, "選択抽出チケットは人格ルートで利用できる");
 });
 
+test("抽選確定までの間に所持状態が変わったら、費用・チケット・証明の一部適用を拒否する", () => {
+  const alreadyOwned = stateWithOnePersonaTicket();
+  alreadyOwned.roster.personas.push({ uid: "owned-between-preview-and-commit", mode: "n", no: 1 });
+  const stalePersona = w.LBT_validateDrawBatchApplication(alreadyOwned, {
+    type: "APPLY_DRAW_BATCH",
+    batch,
+    ticketSpend: { kind: "persona", count: 1 }
+  });
+  assert.equal(stalePersona.ok, false);
+  assert.equal(stalePersona.reason, "draw-target-already-owned");
+
+  const unchanged = reducer(alreadyOwned, {
+    type: "APPLY_DRAW_BATCH",
+    batch,
+    ticketSpend: { kind: "persona", count: 1 }
+  });
+  assert.equal(unchanged, alreadyOwned, "reducer は取引を丸ごと拒否する");
+  assert.equal(w.LBT_computeTicketBalance(unchanged.results, unchanged.entries).persona, 1,
+    "拒否された抽選でチケットを消費しない");
+  assert.equal(unchanged.entries.length, 0);
+  assert.equal(unchanged.draws.length, 0);
+
+  const stalePackState = stateWithOnePersonaTicket();
+  stalePackState.roster.personas.push({
+    uid: "owned-pack-item", mode: "n", no: 999, name: "旧G社兵士"
+  });
+  const packBatch = {
+    batchHash: "stale-theme-pack",
+    ruleset: "core",
+    kind: "themePack",
+    count: 1,
+    records: [{
+      kind: "themePack", method: "draw", pack: "属せない＆愛することのできない",
+      item: { kind: "themePack", name: "旧G社兵士", no: 1 },
+      cost: { lp: 125, shards: 0 }, duplicate: false, grantedShards: 0
+    }]
+  };
+  const stalePack = w.LBT_validateDrawBatchApplication(stalePackState, {
+    type: "APPLY_DRAW_BATCH", batch: packBatch, cost: { lp: 125, shards: 0 }
+  });
+  assert.equal(stalePack.ok, false);
+  assert.equal(stalePack.reason, "stale-duplicate-state",
+    "抽選時は未所持でも確定前に所持済みになった項目を通常報酬として処理しない");
+});
+
 test("非同期確定後に残高が変わった場合、証明を追記する前に確定を中止する", () => {
   const componentStart = drawUiSource.indexOf("const GachaTicketsPanel");
   const commitStart = drawUiSource.indexOf("const commitDrawAsync", componentStart);
