@@ -2484,6 +2484,12 @@ function rosterAddsFromDrawBatch(batch) {
     /* テーマパックの重複は欠片50への変換で、所持には入らない。 */
     if (record.duplicate) continue;
     const cost = { lp: Number(record.cost?.lp) || 0, shards: Number(record.cost?.shards) || 0 };
+    // 特異人格は record.kind / item.kind が specialPersona。人格と同じ所持モデルに
+    // mode:"t" で積まないと、抽選表示・証明だけが残り、所持と費用明細が抜ける。
+    if (record.kind === "specialPersona" || item.kind === "specialPersona") {
+      adds.push({ type: "persona", no: item.no, mode: "t", cost });
+      continue;
+    }
     if (item.kind === "ego") { adds.push({ type: "ego", no: item.no, rank: item.rank, cost }); continue; }
     if (item.kind === "persona") { adds.push({ type: "persona", no: item.no, mode: item.mode === "t" ? "t" : "n", cost }); continue; }
     if (item.kind === "themePack") {
