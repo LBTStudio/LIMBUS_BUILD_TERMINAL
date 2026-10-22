@@ -1213,7 +1213,7 @@ function sanitizeStateCollections(raw) {
   const next = { ...source };
   const recordArrays = [
     "skills", "supports", "gachaLog", "results", "entries", "inventory",
-    "customItems", "enhancements", "uniqueBuffs", "extraPassives", "customStatuses"
+    "customItems", "enhancements", "uniqueBuffs", "extraPassives", "customStatuses", "formulas"
   ];
   const isRecord = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
   const sanitizeSkillList = (value) => (Array.isArray(value) ? value : [])
@@ -1253,6 +1253,11 @@ function sanitizeStateCollections(raw) {
 
   for (const field of recordArrays) {
     if (Array.isArray(next[field])) next[field] = next[field].filter(isRecord);
+  }
+  // 設定画面は formulas を map/filter するため、破損した保存値を文字列のまま残さない。
+  next.formulas = Array.isArray(next.formulas) ? next.formulas.filter(isRecord) : [];
+  if (next.defaultStatuses !== null && next.defaultStatuses !== void 0) {
+    next.defaultStatuses = Array.isArray(next.defaultStatuses) ? next.defaultStatuses.filter(isRecord) : null;
   }
   next.skills = sanitizeSkillList(next.skills);
   if (next.uniqueBuffs !== undefined) {
