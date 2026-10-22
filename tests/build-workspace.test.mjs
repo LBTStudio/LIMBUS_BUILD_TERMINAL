@@ -273,10 +273,10 @@ test("同期ランクとE.G.O解析は欠片残高を確認してから実行す
   const sync = sections.slice(sections.indexOf("const applySyncRank ="), sections.indexOf("const renderDetail ="));
   assert.match(sync, /LBT_computeLedgerBalance/);
   assert.match(sync, /自我の欠片が足りません/);
-  const ego = sections.slice(sections.indexOf("const toggleEgoManual ="), sections.indexOf("const hasAnyEgo ="));
+  const ego = sections.slice(sections.indexOf("const getEgoAnalysisInfo ="), sections.indexOf("const hasAnyEgo ="));
   assert.match(ego, /LBT_operationCost\?\.\("analyze"/);
   assert.match(ego, /LBT_computeLedgerBalance/);
-  assert.match(ego, /自我の欠片が足りません/);
+  assert.match(ego, /自我の欠片が不足/);
 });
 
 test("ビルドのアイテムタブは持っていく個数と出力先を選べる", () => {

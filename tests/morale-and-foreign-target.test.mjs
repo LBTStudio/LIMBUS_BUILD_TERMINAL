@@ -113,7 +113,7 @@ test("対象へ付与する目印も説明としては残し、付与先が対�
   const palette = generator.buildPalette(state);
   const memo = generator.buildMemo(state);
   assert.match(palette, /【指令対象】（中立バフ） 対象に付与/);
-  assert.match(memo, /指令対象（中立バフ、対象に付与/);
+  assert.match(memo, /\[指令対象\] 最大1 中立バフ 対象に付与/);
   // 自分が保持する値は従来どおり初期値と増減コマンドを持つ。
   assert.match(palette, /【指令の加護】（バフ） 初期0/);
   assert.ok(palette.includes(":指令の加護+1"));
