@@ -118,6 +118,17 @@ test("JSONインポートはレコード配列の不正要素を適用前に拒�
 
   assert.match(validate({ schemaVersion: 5, results: [null] }), /results\[0\]/);
   assert.match(validate({ schemaVersion: 5, entries: ["broken"] }), /entries\[0\]/);
+  assert.match(validate({ schemaVersion: 5, personaSrc: { name: "Custom", skills: "broken" } }),
+    /personaSrc\.skills は配列ではありません/);
+  assert.match(validate({ schemaVersion: 5, personaSrc: {
+    name: "Custom", skills: [{ rank: "スキル1", dice: "broken" }]
+  } }), /personaSrc\.skills\[0\]\.dice は配列ではありません/);
+  assert.match(validate({ schemaVersion: 5, roster: {
+    personas: [{ uid: "p1", build: { skills: "broken" } }]
+  } }), /roster\.personas\[0\]\.build\.skills は配列ではありません/);
+  assert.match(validate({ schemaVersion: 5, roster: {
+    personas: [{ uid: "p1", build: { skills: [{ rank: "スキル1", dice: "broken" }] } }]
+  } }), /roster\.personas\[0\]\.build\.skills\[0\]\.dice は配列ではありません/);
   assert.match(validate({ schemaVersion: 5, draws: [{ batchHash: "broken" }] }), /draws\[0\]\.records/);
   assert.match(validate({ schemaVersion: 5, draws: [{ records: [] }] }), /draws\[0\] に batchHash または commit/);
   assert.equal(validate({ schemaVersion: 5, draws: [{ batchHash: "valid-hash", records: [] }] }), null,
