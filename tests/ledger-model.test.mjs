@@ -187,3 +187,15 @@ test("種別の一覧がUIから参照できる", () => {
     assert.ok(kinds.some((k) => k.id === need), `${need} が定義されている`);
   }
 });
+
+
+test("既定の日付はUTCではなくローカル暦日から組み立てる", () => {
+  const localCalendarDate = {
+    getFullYear: () => 2026,
+    getMonth: () => 9,
+    getDate: () => 23
+  };
+  assert.equal(context.window.LBT_localDateString(localCalendarDate), "2026-10-23");
+  assert.doesNotMatch(source, /new Date\(\)\.toISOString\(\)\.slice\(0,\s*10\)/,
+    "既定のユーザー入力日付にUTC日付への変換を使わない");
+});
