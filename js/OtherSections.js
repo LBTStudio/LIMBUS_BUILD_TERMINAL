@@ -2050,18 +2050,28 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
   const G = window.LBT_gachaDraw;
   const [route, setRoute] = React.useState("persona");
   const [pay, setPay] = React.useState("paid");
+  const [ticketPreference, setTicketPreference] = React.useState("specific");
   const [packName, setPackName] = React.useState("");
   const [last, setLast] = React.useState(null);
   const [times, setTimes] = React.useState(1);
   const ROUTES = G?.ROUTES || [];
   const packs = G?.themePacks?.() || [];
   const activePack = packName || packs[0]?.name || "";
-  const ticketKind = G?.ticketKindFor ? G.ticketKindFor(route) : "persona";
+  const specificTicketKind = G?.ticketKindFor ? G.ticketKindFor(route) : "persona";
   const ticketPack = route === "pack" ? activePack : null;
   const ticketBalanceAll = window.LBT_computeTicketBalance
     ? window.LBT_computeTicketBalance(state.results || [], state.entries || [])
     : { persona: 0, ego: 0, choice: 0, pack: {} };
-  const held = route === "pack"
+  const specificTicketHeld = route === "pack"
+    ? (Number(ticketBalanceAll.pack?.[ticketPack]) || 0)
+    : (Number(ticketBalanceAll[specificTicketKind]) || 0);
+  const choiceTicketHeld = route === "pack" ? 0 : (Number(ticketBalanceAll.choice) || 0);
+  const ticketKind = route === "pack"
+    ? "pack"
+    : (ticketPreference === "choice" && choiceTicketHeld > 0) || (specificTicketHeld <= 0 && choiceTicketHeld > 0)
+      ? "choice"
+      : specificTicketKind;
+  const held = ticketKind === "pack"
     ? (Number(ticketBalanceAll.pack?.[ticketPack]) || 0)
     : (Number(ticketBalanceAll[ticketKind]) || 0);
   const poolSize = route === "pack"
@@ -2117,7 +2127,7 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
   /* 対象一覧を「その場で」確定する。プール搭建時に
      所持状態を読むので、呼び出した時点の顔がそのまま結果になる。 */
   const drawWithSeed = (seed) =>
-    G?.drawN(route, state, { pay, pack: activePack, times, seed });
+    G?.drawN(route, state, { pay, pack: activePack, ticketKind, times, seed });
 
   const [pending, setPending] = React.useState(null);
 
@@ -2272,7 +2282,7 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
     const branched = hits.filter((x) => x.branch === "special").length;
     const note = branched ? `（うち特異人格チャンス ${branched}）` : "";
     const short = stopNote(out);
-    toast(`${hits.length}枚を抽出しました${note}（${out.paidBy === "ticket" ? ticketLabel(ticketKind, ticketPack) : out.cost.label}）${short ? ` ${short}` : ""}`);
+    toast(`${hits.length}枚を抽出しました${note}（${out.paidBy === "ticket" ? ticketLabel(out.ticketKind || ticketKind, out.ticketPack || ticketPack) : out.cost.label}）${short ? ` ${short}` : ""}`);
   };
 
   /* 途中で止まったときだけ、その理由と残りを書く。
@@ -2331,6 +2341,18 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
         key: v, type: "button", role: "radio", "aria-checked": pay === v,
         className: pay === v ? "is-active" : "", onClick: () => { setPay(v); setLast(null); }
       }, label))),
+    pay === "ticket" && route !== "pack" && choiceTicketHeld > 0 && specificTicketHeld > 0 &&
+      h("div", { className: "segmented", role: "radiogroup", "aria-label": "使用する抽出チケット" },
+        h("button", {
+          type: "button", role: "radio", "aria-checked": ticketKind === specificTicketKind,
+          className: ticketKind === specificTicketKind ? "is-active" : "",
+          onClick: () => { setTicketPreference("specific"); setLast(null); }
+        }, `${ticketLabel(specificTicketKind, null)} ×${specificTicketHeld}`),
+        h("button", {
+          type: "button", role: "radio", "aria-checked": ticketKind === "choice",
+          className: ticketKind === "choice" ? "is-active" : "",
+          onClick: () => { setTicketPreference("choice"); setLast(null); }
+        }, `${ticketLabel("choice", null)} ×${choiceTicketHeld}`)),
     /* 回数は抽選ボタンと同じ行に置く。数は自分で入れる。
        ±1/＋1/＋5 を置く意味が薄かった（任意の数字が直接入れられるため）。 */
     h("div", { className: "gacha-draw-row" },
@@ -2365,7 +2387,7 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
       h("span", { className: "t-label" }, `この内容で ${pending.out.hits.length} 件を記録します`),
       h("div", { className: "gacha-confirm-cost ledger-note" },
         pending.out.paidBy === "ticket"
-          ? `${ticketLabel(ticketKind, ticketPack)} を ${pending.out.hits.length} 枚使います`
+          ? `${ticketLabel(pending.out.ticketKind || ticketKind, pending.out.ticketPack || ticketPack)} を ${pending.out.hits.length} 枚使います`
           : `支払い ${pending.out.cost?.label || "無料"}`),
       /* 途中で止まる場合は、確定前に理由を書く。トーストは消えるので、
          「引けなかった分」はここに書いて残す。 */
