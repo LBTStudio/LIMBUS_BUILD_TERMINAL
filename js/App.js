@@ -317,6 +317,7 @@ const IMPORT_GROUPS = [
   { key: "mental", label: "\u7CBE\u795E", fields: ["spirit","spiritMorale","spiritConfuse","spiritAlways"] },
   { key: "roster", label: "\u6240\u6301\u4EBA\u683C\u30FBE.G.O\u4E00\u89A7", fields: ["roster"] },
   { key: "ledger", label: "\u901A\u5E33\uFF08\u30EA\u30B6\u30EB\u30C8\u3068\u6536\u652F\u660E\u7D30\uFF09", fields: ["results", "entries"] },
+  { key: "gacha", label: "\\u62BD\\u9078\\u8A18\\u9332", fields: ["gachaLog"] },
   { key: "status", label: "\u30B9\u30C6\u30FC\u30BF\u30B9\u30FB\u56FA\u6709\u30D0\u30D5\u30FB\u51FA\u529B\u8A2D\u5B9A", fields: ["uniqueBuffs","customStatuses","defaultStatuses","outputExclude","shareOptions","paletteOptions"] },
   { key: "enh", label: "\u7279\u6B8A\u5F37\u5316", fields: ["enhancements"] },
   { key: "items", label: "\u5C0E\u5165\u6E08\u307F\u30A2\u30A4\u30C6\u30E0", fields: ["inventory","customItems"] },
