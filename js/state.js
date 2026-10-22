@@ -2480,8 +2480,9 @@ function appReducer(state, action) {
         "enhancements","initialItems","draws","customStatuses","defaultStatuses","formulas","builtinFormulasOverride","autoFml",
         "moraleLine","extraCmd","outputExclude","shareOptions","paletteOptions","results","entries","inventory","customItems",
         "favorites","historyRecent","gachaLog"];
-      // 別端末移行（exportState/importStateFromFile）は favorites、historyRecent、
-      // gachaLog を出力する。許可リスト／カテゴリから漏れると履歴が黙って失われる。
+      // 別端末移行（exportState/importStateFromFile）には initiative、initialItems、
+      // draws、favorites、historyRecent、gachaLog が含まれる。許可リスト／カテゴリから
+      // 漏れると設定や検証履歴が黙って失われる。
       const isSafePartialValue = (v) => {
         if (v === null || v === void 0) return true;
         if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") return true;
