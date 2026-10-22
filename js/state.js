@@ -1201,6 +1201,7 @@ function normalizeStateShape(raw) {
   next.shareImageBlockedReason = typeof next.shareImageBlockedReason === "string" ? next.shareImageBlockedReason.slice(0, 300) : "";
   // 旧版の自由文候補は確認前でも誤登録の起点になり得るため、読み込み時に引き継がない。
   next.selfStatusCandidates = [];
+  if (!Array.isArray(next.gachaLog)) next.gachaLog = [];
   if (!Array.isArray(next.supports)) next.supports = [];
   if (next.deathSupport === void 0) next.deathSupport = null;
   if (!next.deathSupport && Array.isArray(next.supports)) {
