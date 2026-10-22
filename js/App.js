@@ -340,6 +340,27 @@ function validateImportData(data) {
     }
   }
 
+  // reducer の正規化処理は results / entries の各要素をレコードとして参照する。
+  // JSON として有効でも [null] や ["broken"] が入ると、適用時に例外または静かな欠損を起こす。
+  const objectArrayFields = [
+    "skills", "supports", "gachaLog", "draws", "results", "entries", "inventory",
+    "customItems", "enhancements", "uniqueBuffs", "extraPassives", "customStatuses"
+  ];
+  for (const field of objectArrayFields) {
+    if (!Array.isArray(data[field])) continue;
+    const badIndex = data[field].findIndex((item) =>
+      !item || typeof item !== "object" || Array.isArray(item)
+    );
+    if (badIndex >= 0) return field + "[" + badIndex + "] はオブジェクトではありません";
+  }
+
+  // 抽選の封緘記録は検証単位の records を必要とする。壊れたバッチを
+  // 正規化時に黙って捨てるのではなく、インポート時点で明示的に拒否する。
+  if (Array.isArray(data.draws)) {
+    const badBatch = data.draws.findIndex((batch) => !Array.isArray(batch.records));
+    if (badBatch >= 0) return "draws[" + badBatch + "].records は配列ではありません";
+  }
+
   // 所持ライブラリの単独ファイル／通常セーブのどちらも、roster配下の配列を検証する。
   if (data.roster !== void 0) {
     if (!data.roster || typeof data.roster !== "object" || Array.isArray(data.roster)) {
@@ -348,6 +369,12 @@ function validateImportData(data) {
     for (const field of ["personas", "egos", "supports", "spirits"]) {
       if (data.roster[field] !== void 0 && !Array.isArray(data.roster[field])) {
         return "roster." + field + " は配列ではありません";
+      }
+      if (Array.isArray(data.roster[field])) {
+        const badIndex = data.roster[field].findIndex((entry) =>
+          !entry || typeof entry !== "object" || Array.isArray(entry)
+        );
+        if (badIndex >= 0) return "roster." + field + "[" + badIndex + "] はオブジェクトではありません";
       }
     }
   }
