@@ -576,6 +576,49 @@ function validateImportData(data) {
     }
   }
 
+  // ID/UID は編集・削除・通帳帰属で対象レコードを指定するキー。
+  // JSONとして有効でも同じキーが複数あると、一操作で複数行を更新／削除し、
+  // 異なる所持品の支出明細まで一緒に消す可能性がある。古い形式でキーが無い
+  // レコードは正規化で採番するため許容し、明示された重複だけを拒否する。
+  const validateUniqueIdentity = (rows, field, path) => {
+    if (!Array.isArray(rows)) return null;
+    const seen = new Set();
+    for (let i = 0; i < rows.length; i += 1) {
+      const raw = rows[i]?.[field];
+      if (raw === void 0 || raw === null || String(raw).trim() === "") continue;
+      const id = String(raw).trim();
+      if (seen.has(id)) return path + "[" + i + "] に重複" + field + " " + id + " があります";
+      seen.add(id);
+    }
+    return null;
+  };
+  const identityCollections = [
+    ["skills", data.skills, "id"],
+    ["supports", data.supports, "id"],
+    ["inventory", data.inventory, "uid"],
+    ["customItems", data.customItems, "id"],
+    ["enhancements", data.enhancements, "id"],
+    ["uniqueBuffs", data.uniqueBuffs, "id"],
+    ["extraPassives", data.extraPassives, "id"],
+    ["customStatuses", data.customStatuses, "id"],
+    ["formulas", data.formulas, "id"]
+  ];
+  for (const [path, rows, field] of identityCollections) {
+    const error = validateUniqueIdentity(rows, field, path);
+    if (error) return error;
+  }
+  if (data.roster) {
+    for (const [field, rows] of [
+      ["personas", data.roster.personas],
+      ["egos", data.roster.egos],
+      ["supports", data.roster.supports],
+      ["spirits", data.roster.spirits]
+    ]) {
+      const error = validateUniqueIdentity(rows, "uid", "roster." + field);
+      if (error) return error;
+    }
+  }
+
   // V22: roster 単体ファイル（所持人格/E.G.Oのみ）はここで検証後に受け入れる。
   if (data._lbtRosterOnly) {
     if (!data.roster) return "roster 単体ファイルに所持データがありません";
