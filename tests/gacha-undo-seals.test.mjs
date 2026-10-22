@@ -70,20 +70,23 @@ const batch = {
 
 test("Undoで抽選を越えたとき、抽選証明だけ再生し所持・支払いは戻す", () => {
   const before = stateWithOnePersonaTicket();
-  const afterTicketSpend = reducer(before, {
-    type: "SPEND_TICKET",
-    kind: "persona",
-    count: -1
+  const committed = reducer(before, {
+    type: "APPLY_DRAW_BATCH",
+    batch,
+    ticketSpend: { kind: "persona", count: 1 }
   });
-  assert.equal(w.LBT_computeTicketBalance(afterTicketSpend.results, afterTicketSpend.entries).persona, 0,
-    "抽選前にチケットを1枚消費する");
-
-  const committed = reducer(afterTicketSpend, { type: "ADD_DRAW_BATCH", batch });
+  assert.equal(w.LBT_computeTicketBalance(committed.results, committed.entries).persona, 0,
+    "確定時に抽選とチケット消費を同じ取引で処理する");
   assert.equal(committed.roster.personas.length, 1, "確定時は抽選品が所持に反映される");
-  assert.equal(committed.draws.length, 1, "確定時は抽選証明も保存される");
+  assert.equal(committed.draws.length, 0, "経済効果と証明記録を分離する");
 
-  const seal = context.replaySealedAction({ type: "ADD_DRAW_BATCH", __sealed: true, batch });
-  assert.equal(seal.type, "ADD_DRAW_RECORD", "Undoの再生時は副作用のない証明記録専用アクションへ変換");
+  const proof = reducer(committed, { type: "ADD_DRAW_RECORD", __sealed: true, batch });
+  assert.equal(proof.draws.length, 1, "確定時に証明記録をsealed actionとして追加する");
+
+  const seal = context.replaySealedAction({ type: "ADD_DRAW_RECORD", __sealed: true, batch });
+  assert.equal(seal.type, "ADD_DRAW_RECORD", "Undoの再生時は証明記録専用アクションだけを再生する");
+  assert.equal(context.replaySealedAction({ type: "ADD_DRAW_BATCH", __sealed: true, batch }).type,
+    "ADD_DRAW_RECORD", "旧形式のsealed batchも再生時は副作用を再適用しない");
 
   let rewound = reducer(before, seal);
   rewound = reducer(rewound, {
@@ -108,4 +111,31 @@ test("証明記録専用アクションは所持・通帳・残高を変更し�
   assert.equal(after.draws.length, 1);
   assert.equal(reducer(after, { type: "ADD_DRAW_RECORD", batch }).draws.length, 1,
     "同じbatchHashの証明を二重登録しない");
+});
+
+
+test("LP購入のUndoは通帳支出を戻し、証明だけを保持する", () => {
+  const before = stateWithOnePersonaTicket();
+  before.results[0].income.lp = 100;
+  const paidBatch = {
+    batchHash: "sealed-batch-for-lp-undo-test",
+    records: [{
+      kind: "persona",
+      item: { kind: "persona", no: 1, mode: "n", name: "試験人格" },
+      cost: { lp: 20, shards: 0 },
+      duplicate: false
+    }]
+  };
+  const committed = reducer(before, { type: "APPLY_DRAW_BATCH", batch: paidBatch });
+  assert.equal(w.LBT_computeLedgerBalance(committed.results, committed.entries).lp, 80,
+    "確定時はLP支出が計上される");
+  assert.equal(committed.roster.personas.length, 1);
+
+  const rewound = reducer(before, context.replaySealedAction({
+    type: "ADD_DRAW_RECORD", __sealed: true, batch: paidBatch
+  }));
+  assert.equal(w.LBT_computeLedgerBalance(rewound.results, rewound.entries).lp, 100,
+    "UndoでLP支出は戻る");
+  assert.equal(rewound.roster.personas.length, 0, "Undoで所持品は戻る");
+  assert.equal(rewound.draws.length, 1, "抽選証明は保持する");
 });
