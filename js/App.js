@@ -368,6 +368,30 @@ function validateImportData(data) {
     const statusError = validateRecordArray(data.defaultStatuses, "defaultStatuses");
     if (statusError) return statusError;
   }
+  if (data.outputExclude !== void 0 && data.outputExclude !== null) {
+    if (!isRecord(data.outputExclude)) return "outputExclude はオブジェクトではありません";
+    for (const group of ["memo", "palette"]) {
+      const map = data.outputExclude[group];
+      if (map !== void 0 && !isRecord(map)) return "outputExclude." + group + " はオブジェクトではありません";
+      if (isRecord(map)) {
+        const badKey = Object.entries(map).find(([, enabled]) => typeof enabled !== "boolean");
+        if (badKey) return "outputExclude." + group + "." + badKey[0] + " は真偽値ではありません";
+      }
+    }
+  }
+  if (data.builtinFormulasOverride !== void 0 && data.builtinFormulasOverride !== null) {
+    if (!isRecord(data.builtinFormulasOverride)) return "builtinFormulasOverride はオブジェクトではありません";
+    const badOverride = Object.entries(data.builtinFormulasOverride).find(([, value]) => value !== null && typeof value !== "string");
+    if (badOverride) return "builtinFormulasOverride." + badOverride[0] + " は文字列またはnullではありません";
+  }
+  if (data.egoSlots !== void 0 && data.egoSlots !== null) {
+    if (!isRecord(data.egoSlots)) return "egoSlots はオブジェクトではありません";
+    const validRanks = new Set(["ZAYIN", "TETH", "HE", "WAW", "ALEPH"]);
+    for (const [rank, slot] of Object.entries(data.egoSlots)) {
+      if (!validRanks.has(rank)) return "egoSlots." + rank + " は未知のランクです";
+      if (slot !== null && !isRecord(slot)) return "egoSlots." + rank + " はオブジェクトまたはnullではありません";
+    }
+  }
 
   // 未解決の旧チケット行は移行のために保持する。形式そのものが壊れている場合だけ拒否し、
   // パック名なし／不明な種類など、移行不能なレコード内容は勝手に捨てない。
