@@ -42,11 +42,22 @@ test("共有HTMLの明るい大罪タグは暗い文字色で十分なコント�
   }
 });
 
-test("折り畳みセクションに件数を表示し、印刷時は本文を表示する", () => {
+test("折り畳みセクションに件数を表示し、印刷パレットは白地・濃色文字へ切り替わる", () => {
   const html = sampleShareHtml();
   assert.ok((html.match(/<span class="section-count">1件<\/span>/g) || []).length >= 2, "E.G.O とサポートパッシブの件数が表示される");
   assert.match(html, /font-size:10\.5px;letter-spacing:\.04em/);
-  assert.match(html, /@media print\{[\s\S]*--tx2:#222[\s\S]*details\.fold:not\(\[open\]\)>:\s*not\(summary\)[\s\S]*display:block!important/);
+  assert.match(html, /@media print\{[\s\S]*--tx2:#222[\s\S]*break-inside:avoid/);
+  /* 閉じたdetailsの強制表示をCSSに書いても実機では機能しない。印刷時の本文は
+     beforeprint/afterprint ハンドラで担保するため、このCSSは存在しないこと。 */
+  assert.doesNotMatch(html, /details\.fold:not\(\[open\]\)>:\s*not\(summary\)\{display:block!important\}/);
+});
+
+test("印刷時は閉じた折り畳みも全て開き、印刷後に元の開閉状態へ戻す", () => {
+  const html = sampleShareHtml();
+  assert.match(html, /window\.addEventListener\("beforeprint", \(\) => \{/);
+  assert.match(html, /window\.addEventListener\("afterprint", \(\) => \{/);
+  assert.match(html, /printOpenStates = \[\.\.\.sheet\.querySelectorAll\("details"\)\]\.map\(\(d\) => \[d, d\.open\]\)/);
+  assert.match(html, /printOpenStates\.forEach\(\(\[d, wasOpen\]\) => \{ d\.open = wasOpen; \}\)/);
 });
 
 test("長いPC名・人格名を含む場合もヘッダーは強制折り返しできる", () => {
@@ -55,12 +66,16 @@ test("長いPC名・人格名を含む場合もヘッダーは強制折り返し
   assert.match(html, /\.hd-plpc span,\.hd \.persona-line \.val\{min-width:0;overflow-wrap:anywhere\}/);
 });
 
-test("共有HTML内検索は折り畳み内も検索し、検索だけでは項目を開かない", () => {
+test("共有HTML内検索は折り畳み内も検索し、標準検索を無効化しない", () => {
   const html = sampleShareHtml();
   assert.match(html, /id="share-search-input"/);
   assert.match(html, /id="share-search-results"/);
-  assert.match(html, /window\.addEventListener\("keydown", \(event\) => \{/);
-  assert.match(html, /event\.preventDefault\(\);\s*event\.stopImmediatePropagation\(\);\s*input\.focus\(\);\s*input\.select\(\);\s*\}, true\);/);
+  /* ブラウザ標準のページ内検索（Ctrl+F / Cmd+F）は奪わない。 */
+  assert.doesNotMatch(html, /window\.addEventListener\("keydown"/);
+  assert.doesNotMatch(html, /stopImmediatePropagation/);
+  assert.doesNotMatch(html, /preventDefault\(\)/);
+  /* 検索対象はヘッダー（PC名・人格名）とフッタを含み、標準検索で見つかる主な本文を漏らさない。 */
+  assert.match(html, /const searchableSelector = "\.hd,\.skl,\.ego,\.spp,\.share-unique,\.share-item,\.panel,\.stat,\.res,\.foot"/);
   assert.match(html, /閉じた項目も検索します。検索では自動展開せず、結果の「この項目を開く」で必要なものだけ展開できます。/);
   assert.match(html, /sheet\.querySelectorAll\(searchableSelector\)/);
   assert.match(html, /element\.textContent/);

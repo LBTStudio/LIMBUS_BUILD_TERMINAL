@@ -1900,7 +1900,8 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
   .sec,.skl,.ego,.ego-sk,.spp,.panel,.share-unique,.stat,.res,.dice-row,.share-item{break-inside:avoid}
   .sec h2,.dice-title,.hd{break-after:avoid}
   .skl,.ego,.ego-sk,.spp,.panel,.share-unique,.stat,.dice-block,.dice-row{box-shadow:none}
-  details.fold:not([open])>:not(summary),.special-enhancement-fold:not([open])>.eff{display:block!important}
+  /* 閉じた折り畳みの本文は、このCSSでは出せない（Chromium は閉じた details の内容抑制を
+     display で上書かせない）。印刷時の本文は beforeprint ハンドラで全展開して出す。 */
   details.fold>summary::before,details.fold>summary::after,.special-enhancement-fold>summary::after{display:none!important}
 }
 @media (max-width:640px){ body{padding:12px;font-size:13px} .stats{grid-template-columns:repeat(2,1fr)} .hd h1{font-size:28px} .res{min-width:120px;padding:9px 16px;font-size:17px} }
@@ -1956,7 +1957,7 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
    const sheet = document.querySelector(".wrap");
    if (!input || !clear || !status || !results || !sheet) return;
 
-   const searchableSelector = ".skl,.ego,.spp,.share-unique,.share-item,.panel,.stat,.res";
+   const searchableSelector = ".hd,.skl,.ego,.spp,.share-unique,.share-item,.panel,.stat,.res,.foot";
    let activeBlocks = [];
    const getDisplayText = (element) => (element.textContent || "").replace(/\s+/g, " ").trim();
    const getTitle = (element) => {
@@ -2053,15 +2054,18 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
      renderResults();
      input.focus();
    });
-   // Capture the browser-find shortcut before page-level handlers can interfere.
-   // The dedicated search reads collapsed sections without changing their open state.
-   window.addEventListener("keydown", (event) => {
-     if (!(event.ctrlKey || event.metaKey) || event.key.toLocaleLowerCase() !== "f" || event.shiftKey || event.altKey) return;
-     event.preventDefault();
-     event.stopImmediatePropagation();
-     input.focus();
-     input.select();
-   }, true);
+   // ブラウザ標準のページ内検索（Ctrl+F / Cmd+F）は無効化しない。専用検索は並存する追加の手段。
+   // 印刷時は閉じた折り畳みの本文も出す。閉じた <details> の内容抑制は CSS では
+   // 上書けないため、印刷前に全て開き、印刷後に元の開閉状態へ戻す。
+   let printOpenStates = null;
+   window.addEventListener("beforeprint", () => {
+     printOpenStates = [...sheet.querySelectorAll("details")].map((d) => [d, d.open]);
+     sheet.querySelectorAll("details").forEach((d) => { d.open = true; });
+   });
+   window.addEventListener("afterprint", () => {
+     if (printOpenStates) printOpenStates.forEach(([d, wasOpen]) => { d.open = wasOpen; });
+     printOpenStates = null;
+   });
    status.textContent = "折り畳み内も検索対象です。検索だけではセクションは開きません。";
  })();
  </script>
