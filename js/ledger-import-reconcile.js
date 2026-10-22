@@ -16,7 +16,7 @@
   function parseNumber(value) {
     const raw = String(value ?? "").trim().replace(/\s/g, "");
     if (!raw) return null;
-    if (!/^[+-]?(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?$/.test(raw)) return null;
+    if (!/^[+-]?(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(raw)) return null;
     const number = Number(raw.replace(/,/g, ""));
     return Number.isFinite(number) ? number : null;
   }
