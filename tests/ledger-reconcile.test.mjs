@@ -214,3 +214,16 @@ test("購入候補の抽出は節で絞らない（再現率優先・確認は�
   const { proposals } = C.proposePurchases(memo, { resolve: (n) => R.resolveCandidates(idx, n)[0] || null });
   assert.equal(proposals.length, 1, "支出見出しが無くても候補は出す");
 });
+
+
+test("通貨入力の小数はLP／欠片の残高として扱わない", () => {
+  const out = C.reconcileResults([
+    { title: "小数入力", income: { lp: "1.5", shards: "0.5" }, current: { lp: "2.5", shards: 10 } }
+  ]);
+  assert.equal(out[0].income.lp, 0);
+  assert.equal(out[0].income.shards, 0);
+  assert.ok(out[0].flags.some((f) => f.code === "invalid-income" && f.currency === "lp"));
+  assert.ok(out[0].flags.some((f) => f.code === "invalid-income" && f.currency === "shards"));
+  assert.equal(out[0].current.lp, null);
+  assert.ok(out[0].flags.some((f) => f.code === "no-current" && f.currency === "lp"));
+});
