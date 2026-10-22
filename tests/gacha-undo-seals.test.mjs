@@ -275,6 +275,16 @@ test("残高検証で拒否された取引には証明も決定ログも結び�
 });
 
 
+test("抽選リストはハッシュ鎖の確認と署名／ビーコンの完全検証を区別する", () => {
+  const start = drawUiSource.indexOf("const checked = React.useMemo(() => batches.map((batch)");
+  assert.ok(start >= 0);
+  const component = drawUiSource.slice(start, start + 6000);
+  assert.match(component, /件・\$\{checked\.length - broken\}件のハッシュ鎖が正常/);
+  assert.match(component, /ハッシュ鎖OK/);
+  assert.match(component, /署名・外部ビーコンは未検証/);
+  assert.doesNotMatch(component, /この一覧は支出の証明です/);
+});
+
 test("抽選UIは選択抽出チケットを明示的に選べる", () => {
   const start = drawUiSource.indexOf("const GachaTicketsPanel");
   assert.ok(start >= 0);
