@@ -51,7 +51,7 @@ test("クイック検索のE.G.O・アイテム候補は詳細画面へ移動す
 test("作業状態の部分インポートは全ての永続履歴・初期設定をカテゴリに含める", () => {
   const drawLogField = ["gacha", "Log"].join("");
   assert.equal((app.match(/key: "gacha"/g) || []).length, 1, "抽選カテゴリは重複しない");
-  assert.ok(app.includes(`fields: ["${drawLogField}","draws"]`));
+  assert.ok(app.includes(`fields: ["${drawLogField}","draws","tickets"]`));
   assert.ok(app.includes('fields: ["favorites","historyRecent"]'));
   const personaGroup = app.slice(app.indexOf('{ key: "persona"'), app.indexOf("\n", app.indexOf('{ key: "persona"')));
   const itemGroup = app.slice(app.indexOf('{ key: "items"'), app.indexOf("\n", app.indexOf('{ key: "items"')));
@@ -60,6 +60,14 @@ test("作業状態の部分インポートは全ての永続履歴・初期設�
   assert.ok(state.includes('"hp","san","initiative","speed"'));
   assert.ok(state.includes('"enhancements","initialItems","draws"'));
   assert.ok(state.includes(`"historyRecent","${drawLogField}"]`));
+});
+
+test("未解決の旧チケットデータは妥当な配列／マップ形式で検証し、保持対象から外さない", () => {
+  assert.match(app, /if \(data\.tickets !== void 0\)/);
+  assert.match(app, /tickets\[\"?\s*\+ badIndex \+\s*\"?\]/);
+  assert.match(app, /return \"tickets は配列またはオブジェクトではありません\"/);
+  assert.ok(app.includes('fields: ["gachaLog","draws","tickets"]'));
+  assert.ok(state.includes('"historyRecent","gachaLog","tickets"]'));
 });
 
 test("インポート検証は配列項目と所持データの形を事前に検証する", () => {
@@ -95,7 +103,7 @@ test("保存フィールド・インポートカテゴリ・APPLY_PARTIAL許可�
   const initFields = [...state.slice(initStart, initEnd).matchAll(/^  ([A-Za-z_$][\w$]*):/gm)]
     .map(([, field]) => field);
   const deliberateExclusions = new Set([
-    "schemaVersion", "ui", "shareImageBlockedReason", "egoManual", "tickets", "selfStatusCandidates"
+    "schemaVersion", "ui", "shareImageBlockedReason", "egoManual", "selfStatusCandidates"
   ]);
   const missingCategories = initFields.filter((field) =>
     !groupedFields.includes(field) && !deliberateExclusions.has(field)
