@@ -2444,8 +2444,10 @@ function validateDrawBatchApplication(state, action) {
   if (!batch || typeof batch !== "object" || !Array.isArray(batch.records)) {
     return { ok: false, reason: "invalid-batch" };
   }
+  const proofKey = String(batch.batchHash || batch.commit || "");
+  if (!proofKey) return { ok: false, reason: "missing-proof-key" };
   const draws = Array.isArray(state?.draws) ? state.draws : [];
-  if (batch.batchHash && draws.some((existing) => existing?.batchHash === batch.batchHash)) {
+  if (draws.some((existing) => String(existing?.batchHash || existing?.commit || "") === proofKey)) {
     return { ok: false, reason: "duplicate-batch" };
   }
   const ticketSpend = action?.ticketSpend;
