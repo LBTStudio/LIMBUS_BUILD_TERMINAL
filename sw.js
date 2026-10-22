@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-9c2e5606";
+const CACHE_NAME = "lbt-7db27272";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -46,7 +46,7 @@ const PRECACHE_URLS = [
   "data/db.json?v=b04a7751",
   "data/gacha-theme-packs.json?v=8d4dced2",
   "data/items.json?v=b47b58ae",
-  "js/App.js?v=c88b49a2",
+  "js/App.js?v=c707c05f",
   "js/DataQuality.js?v=a8365c72",
   "js/ItemCodex.js?v=f81cdb3e",
   "js/LivePreview.js?v=1b6767e6",
