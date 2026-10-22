@@ -113,6 +113,27 @@ test("保存フィールド・インポートカテゴリ・APPLY_PARTIAL許可�
 });
 
 
+test("通帳の金額・チケット数は部分一致の数値として取り込まず、明細パスで拒否する", () => {
+  const groups = app.match(/const IMPORT_GROUPS = \[[\s\S]*?\n\];/)?.[0];
+  const validateStart = app.indexOf("function validateImportData(data) {");
+  const validateEnd = app.indexOf("\nfunction importStateFromFile", validateStart);
+  const context = vm.createContext({});
+  vm.runInContext(`${groups}\n${app.slice(validateStart, validateEnd)}\nglobalThis.validateImportData = validateImportData;`, context);
+  const validate = context.validateImportData;
+  assert.match(validate({ schemaVersion: 5, results: [
+    { id: "r1", income: { lp: "100abc", shards: 0 } }
+  ] }), /results\[0\]\.income\.lp/);
+  assert.match(validate({ schemaVersion: 5, entries: [
+    { id: "e1", cost: { lp: "2.5", shards: 0 } }
+  ] }), /entries\[0\]\.cost\.lp/);
+  assert.match(validate({ schemaVersion: 5, results: [
+    { id: "r1", income: { lp: "1,200", shards: 0, tickets: { persona: "2x" } } }
+  ] }), /results\[0\]\.income\.tickets\.persona/);
+  assert.equal(validate({ schemaVersion: 5, results: [
+    { id: "r1", income: { lp: "1,200", shards: 0, tickets: { persona: "2", pack: { A: 3 } } } }
+  ] }), null, "桁区切りを含む妥当な整数データは受け入れる");
+});
+
 test("JSONインポートはレコード配列の不正要素を適用前に拒否する", () => {
   const groups = app.match(/const IMPORT_GROUPS = \[[\s\S]*?\n\];/)?.[0];
   const validateStart = app.indexOf("function validateImportData(data) {");
