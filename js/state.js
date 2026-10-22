@@ -1323,22 +1323,57 @@ function normalizeStateShape(raw) {
      受け渡したタイミングは保存データに無いので、受領日のリザルトとして置く。 */
   const legacyTicketRows = (Array.isArray(next.tickets)
     ? next.tickets
-    : Object.entries(next.tickets || {}).map(([kind, count]) => ({ kind, pack: null, count }))
-  );
-  const isMigratableLegacyTicket = (ticket) => ticket
+    : (next.tickets && typeof next.tickets === "object"
+      ? Object.entries(next.tickets).map(([kind, count]) => ({ kind, pack: null, count }))
+      : next.tickets == null || next.tickets === "" ? [] : [next.tickets]));
+  const legacyTicketCount = (ticket) => {
+    if (!ticket || typeof ticket !== "object" || Array.isArray(ticket) || ticket._lbtLegacyUnresolved === true) return null;
+    const raw = ticket.count;
+    let count;
+    if (typeof raw === "number") {
+      count = raw;
+    } else if (typeof raw === "string") {
+      const text = raw.trim();
+      if (!/^\\+?(?:\\d+|\\d{1,3}(?:,\\d{3})+)$/.test(text)) return null;
+      count = Number(text.replace(/,/g, ""));
+    } else {
+      return null;
+    }
+    return Number.isSafeInteger(count) && count > 0 ? count : null;
+  };
+  const legacyTicketReason = (ticket) => {
+    if (!ticket || typeof ticket !== "object" || Array.isArray(ticket)) return "invalid-ticket-record";
+    if (ticket._lbtLegacyUnresolved === true) return String(ticket._lbtLegacyUnresolvedReason || "unresolved-legacy-ticket");
+    if (!TICKET_KINDS.includes(ticket.kind)) return "unknown-ticket-kind";
+    if (legacyTicketCount(ticket) === null) return "invalid-ticket-count";
+    if (ticket.kind === "pack" && (typeof ticket.pack !== "string" || !ticket.pack.trim())) return "missing-pack-name";
+    return "unresolved-legacy-ticket";
+  };
+  const isMigratableLegacyTicket = (ticket) => !!ticket
+    && typeof ticket === "object" && !Array.isArray(ticket)
     && TICKET_KINDS.includes(ticket.kind)
-    && Number.isSafeInteger(Number(ticket.count))
-    && Number(ticket.count) > 0
-    && (ticket.kind !== "pack" || String(ticket.pack || "").trim() !== "");
+    && legacyTicketCount(ticket) !== null
+    && (ticket.kind !== "pack" || (typeof ticket.pack === "string" && !!ticket.pack.trim()));
   const legacyTickets = legacyTicketRows.filter(isMigratableLegacyTicket);
-  // 正規化できない旧行（例：パック名なし／小数枚数）は誤変換しない。
-  // 作業状態JSONへ残して別端末へ移せるよう、未解決分だけ tickets に保持する。
-  const unresolvedLegacyTickets = legacyTicketRows.filter((ticket) => !isMigratableLegacyTicket(ticket));
+  // 正規化できない旧行は誤変換せず、理由と原値を保持する。プリミティブ行も
+  // オブジェクトで包むことで、別端末へのJSON移送時に検証器が行ごと捨てないようにする。
+  const unresolvedLegacyTickets = legacyTicketRows.filter((ticket) => !isMigratableLegacyTicket(ticket)).map((ticket) => {
+    if (ticket && typeof ticket === "object" && !Array.isArray(ticket)) {
+      if (ticket._lbtLegacyUnresolved === true) return ticket;
+      return { ...ticket, _lbtLegacyUnresolved: true, _lbtLegacyUnresolvedReason: legacyTicketReason(ticket) };
+    }
+    return {
+      _lbtLegacyUnresolved: true,
+      _lbtLegacyUnresolvedReason: legacyTicketReason(ticket),
+      sourceValue: ticket
+    };
+  });
   if (legacyTickets.length) {
     let total = { persona: 0, ego: 0, choice: 0, pack: {} };
     for (const t of legacyTickets) {
-      if (t.kind === "pack") total.pack[t.pack] = (total.pack[t.pack] || 0) + Number(t.count);
-      else total[t.kind] = (Number(total[t.kind]) || 0) + Number(t.count);
+      const count = legacyTicketCount(t);
+      if (t.kind === "pack") total.pack[t.pack] = (total.pack[t.pack] || 0) + count;
+      else total[t.kind] = (Number(total[t.kind]) || 0) + count;
     }
     /* 数量が一致するだけの通常リザルトは移行済みとはみなさない。
        移行専用IDを持つ記録が完全一致する場合だけ、再度の加算を防ぐ。 */
