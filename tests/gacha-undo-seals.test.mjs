@@ -60,12 +60,20 @@ function stateWithOnePersonaTicket() {
 }
 
 const batch = {
+  schemaVersion: 1,
+  ruleset: "core-ticket",
+  kind: "persona",
+  count: 1,
+  commit: "sealed-commit-for-undo-test",
   batchHash: "sealed-batch-for-undo-test",
   records: [{
+    index: 0,
     kind: "persona",
+    method: "ticket",
     item: { kind: "persona", no: 1, mode: "n", name: "試験人格" },
     cost: { lp: 0, shards: 0 },
-    duplicate: false
+    duplicate: false,
+    grantedShards: 0
   }]
 };
 
@@ -189,6 +197,27 @@ test("抽選取引の直前検証はチケット不足と重複バッチを拒�
   assert.equal(missingProof.reason, "missing-proof-key");
 });
 
+test("抽選取引はチケット種別・支払方式・枚数とバッチの内容を一致させる", () => {
+  const base = stateWithOnePersonaTicket();
+  assert.equal(w.LBT_validateDrawBatchApplication(base, {
+    type: "APPLY_DRAW_BATCH", batch
+  }).reason, "ticket-spend-required", "チケット取引から支払い指定を省略できない");
+
+  assert.equal(w.LBT_validateDrawBatchApplication(base, {
+    type: "APPLY_DRAW_BATCH", batch, ticketSpend: { kind: "ego", count: 1 }
+  }).reason, "ticket-kind-mismatch", "E.G.Oチケットで人格バッチを確定できない");
+
+  assert.equal(w.LBT_validateDrawBatchApplication(base, {
+    type: "APPLY_DRAW_BATCH", batch, ticketSpend: { kind: "persona", count: 2 }
+  }).reason, "ticket-count-mismatch", "記録件数より少ない消費枚数を指定できない");
+
+  const choiceState = stateWithOnePersonaTicket();
+  choiceState.results[0].income.tickets.choice = 1;
+  assert.equal(w.LBT_validateDrawBatchApplication(choiceState, {
+    type: "APPLY_DRAW_BATCH", batch, ticketSpend: { kind: "choice", count: 1 }
+  }).ok, true, "選択抽出チケットは人格ルートで利用できる");
+});
+
 test("非同期確定後に残高が変わった場合、証明を追記する前に確定を中止する", () => {
   const componentStart = drawUiSource.indexOf("const GachaTicketsPanel");
   const commitStart = drawUiSource.indexOf("const commitDrawAsync", componentStart);
@@ -245,6 +274,17 @@ test("残高検証で拒否された取引には証明も決定ログも結び�
   assert.equal(proofAttempt.gachaLog.length, 0);
 });
 
+
+test("抽選UIは選択抽出チケットを明示的に選べる", () => {
+  const start = drawUiSource.indexOf("const GachaTicketsPanel");
+  assert.ok(start >= 0);
+  const component = drawUiSource.slice(start, start + 24000);
+  assert.match(component, /const \[ticketPreference, setTicketPreference\] = React\.useState\("specific"\)/);
+  assert.match(component, /ticketBalanceAll\.choice/);
+  assert.match(component, /ticketKind: ticketKind/);
+  assert.match(component, /使用する抽出チケット/);
+  assert.match(component, /setTicketPreference\("choice"\)/);
+});
 
 test("抽選証明キーが無い取引は所持・費用・証明を適用しない", () => {
   const before = stateWithOnePersonaTicket();
