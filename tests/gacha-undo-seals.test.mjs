@@ -105,12 +105,12 @@ test("Undoで抽選を越えたとき、抽選証明だけ再生し所持・支�
 
 test("証明記録専用アクションは所持・通帳・残高を変更しない", () => {
   const before = stateWithOnePersonaTicket();
-  const after = reducer(before, { type: "ADD_DRAW_RECORD", batch });
+  const after = reducer(before, { type: "ADD_DRAW_RECORD", batch, proofOnly: true });
   assert.equal(after.roster.personas.length, 0);
   assert.equal(after.entries.length, 0);
   assert.equal(w.LBT_computeTicketBalance(after.results, after.entries).persona, 1);
   assert.equal(after.draws.length, 1);
-  assert.equal(reducer(after, { type: "ADD_DRAW_RECORD", batch }).draws.length, 1,
+  assert.equal(reducer(after, { type: "ADD_DRAW_RECORD", batch, proofOnly: true }).draws.length, 1,
     "同じbatchHashの証明を二重登録しない");
 });
 
