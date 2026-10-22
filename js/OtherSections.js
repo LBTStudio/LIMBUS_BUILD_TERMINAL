@@ -2045,6 +2045,8 @@ const hitLabel = (hit) => (hit.type === "ego"
    どちらの経路でも所得は直近のリザルトに帰属する（明細を立てる）。 */
 const GachaTicketsPanel = ({ state, dispatch }) => {
   const h = React.createElement;
+  const stateRef = React.useRef(state);
+  stateRef.current = state;
   const G = window.LBT_gachaDraw;
   const [route, setRoute] = React.useState("persona");
   const [pay, setPay] = React.useState("paid");
@@ -2198,15 +2200,30 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
       }
     }
     if (batch) {
-      /* 所持・通帳・チケット消費は通常のUndo履歴へ1つの取引として入れる。
-         抽選バッチそのものは別のsealed actionにし、Undoで証明だけを残す。 */
-      dispatch({
+      /* ビーコン取得・署名待ちの間に別操作でチケット残高や抽選記録が変わることがある。
+         reducerで経済取引が拒否された後に証明だけ記録しないよう、確定直前に最新 state を検証する。 */
+      const transaction = {
         type: "APPLY_DRAW_BATCH",
         batch,
         ticketSpend: out.paidBy === "ticket"
           ? { kind: out.ticketKind, pack: out.ticketPack, count: hits.length }
           : null
-      });
+      };
+      const currentState = stateRef.current || state;
+      const validation = window.LBT_validateDrawBatchApplication?.(currentState, transaction);
+      if (!validation?.ok) {
+        setPending(null);
+        if (validation?.reason === "insufficient-tickets") {
+          toast("確定前にチケット残数が変わったため、抽選を取り消しました。残数を確認してもう一度引いてください。");
+        } else if (validation?.reason === "duplicate-batch") {
+          toast("この抽選記録は既に登録されています。重複登録を防ぐため確定を取り消しました。");
+        } else {
+          toast("抽選の確定前検証に失敗しました。状態を確認してもう一度お試しください。");
+        }
+        return;
+      }
+      /* 検証OKの取引を1つのUndo単位で反映し、成功したものだけ証明・履歴を残す。 */
+      dispatch(transaction);
       dispatch({ type: "ADD_DRAW_RECORD", __sealed: true, batch });
     } else {
       /* 検証器が無い環境（古い読み込み）は記録しないが、所持は残す。 */
