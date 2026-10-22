@@ -71,5 +71,5 @@ tests/help-tutorial.test.mjs を拡張し、現行の人格編集ボタン名、
 
 - tests/help-tutorial.test.mjsを拡張し、初回導線、編集済みビルドの保存、E.G.O解析、所持フィルター、設定／プレビューの並び替え、所持ライブラリの往復、読込時の初期選択と抽選ログ制約、ショートカット、モバイル表示を検査対象に追加。
 - アセットの内容ハッシュ参照およびService Workerの生成済みキャッシュを更新。
-- CIの全体テストを実行し、合否を追記する。
+- GitHub Actionsのverifyを実行。最新実行では全1,043件成功・失敗0件（[実行結果](https://github.com/LBTStudio/LIMBUS_BUILD_TERMINAL/actions/runs/39819721158)）。
 - 実ブラウザーでの操作・表示確認、実機画面での折返し・スクロール・タップ確認は未実施。
