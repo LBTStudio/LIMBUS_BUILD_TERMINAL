@@ -4654,6 +4654,26 @@ function replaySealedAction(action) {
   return action;
 }
 
+/* Sealed action は dispatch 時点では reducer の検証結果をまだ受け取れない。
+   取引が拒否された場合でも sealsRef に意図だけが残ることがあるため、Undo再生直前に
+   実際の state に proof が保存済みか照合し、未確定の証明を後から生やさない。 */
+function isSealedActionCommitted(action, committedState) {
+  if (action?.type === "ADD_DRAW_BATCH" || action?.type === "ADD_DRAW_RECORD") {
+    const batch = action.batch;
+    const key = String(batch?.batchHash || batch?.commit || "");
+    if (!key) return false;
+    return (Array.isArray(committedState?.draws) ? committedState.draws : [])
+      .some((entry) => String(entry?.batchHash || entry?.commit || "") === key);
+  }
+  if (action?.type === "ADD_GACHA_LOG") {
+    const id = String(action.entry?.id || "");
+    if (!id) return false;
+    return (Array.isArray(committedState?.gachaLog) ? committedState.gachaLog : [])
+      .some((entry) => String(entry?.id || "") === id);
+  }
+  return true;
+}
+
 function useAppState() {
   const [state, dispatch] = React.useReducer(appReducer, INIT_STATE, (init) => {
     try {
@@ -4735,7 +4755,7 @@ function useAppState() {
   /* 戻ったスナップショットより後に決まった抽選があれば、記録だけ戻す。 */
   const reseal = (index) => {
     for (const seal of sealsRef.current) {
-      if (seal.atPastLength > index) {
+      if (seal.atPastLength > index && isSealedActionCommitted(seal.action, state)) {
         skipHistoryRef.current = true;
         dispatch(replaySealedAction(seal.action));
       }
