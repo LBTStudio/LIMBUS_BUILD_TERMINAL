@@ -341,4 +341,7 @@ test("破損したローカルセーブの配列要素は正規化前に除外�
   }
   assert.equal(normalized.gachaLog.some((entry) => entry?.id === "draw-log-good"), true,
     "正常な抽選ログは保持する");
+  assert.equal(normalized.draws.length, 1, "破損した証明バッチも黙って削除しない");
+  assert.deepEqual(JSON.parse(JSON.stringify(normalized.draws[0].records)), [null],
+    "検証不合格の根拠となる原記録を保持する");
 });
