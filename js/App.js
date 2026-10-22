@@ -328,6 +328,42 @@ function validateImportData(data) {
   // 既知の構造のみ受け入れる。壊れたデータの部分適用で state を壊さない。
   if (!data || typeof data !== "object" || Array.isArray(data)) return "オブジェクト形式ではありません";
 
+  const isRecord = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
+  const validateRecordArray = (value, path) => {
+    if (value === void 0) return null;
+    if (!Array.isArray(value)) return path + " は配列ではありません";
+    const badIndex = value.findIndex((entry) => !isRecord(entry));
+    return badIndex < 0 ? null : path + "[" + badIndex + "] はオブジェクトではありません";
+  };
+  const validateSkillArray = (value, path) => {
+    const arrayError = validateRecordArray(value, path);
+    if (arrayError) return arrayError;
+    if (!Array.isArray(value)) return null;
+    for (let i = 0; i < value.length; i += 1) {
+      const diceError = validateRecordArray(value[i].dice, path + "[" + i + "].dice");
+      if (diceError) return diceError;
+    }
+    return null;
+  };
+  const validatePersonaSource = (value, path) => {
+    if (value === void 0 || value === null) return null;
+    if (!isRecord(value)) return path + " はオブジェクトではありません";
+    const skillError = validateSkillArray(value.skills, path + ".skills");
+    if (skillError) return skillError;
+    const buffError = validateRecordArray(value.unique_buffs, path + ".unique_buffs");
+    if (buffError) return buffError;
+    if (value.keywords !== void 0 && (!Array.isArray(value.keywords)
+      || value.keywords.some((keyword) => typeof keyword !== "string"))) {
+      return path + ".keywords は文字列配列ではありません";
+    }
+    return null;
+  };
+
+  const rootSkillError = validateSkillArray(data.skills, "skills");
+  if (rootSkillError) return rootSkillError;
+  const personaSourceError = validatePersonaSource(data.personaSrc, "personaSrc");
+  if (personaSourceError) return personaSourceError;
+
   // インポートに使う配列フィールドは適用前に型を確認する。
   const arrayFields = [
     "skills", "supports", "gachaLog", "draws", "results", "entries", "inventory",
@@ -398,6 +434,27 @@ function validateImportData(data) {
           !entry || typeof entry !== "object" || Array.isArray(entry)
         );
         if (badIndex >= 0) return "roster." + field + "[" + badIndex + "] はオブジェクトではありません";
+      }
+    }
+    for (let i = 0; i < (data.roster.personas || []).length; i += 1) {
+      const persona = data.roster.personas[i];
+      const path = "roster.personas[" + i + "]";
+      if (persona.build !== void 0 && persona.build !== null) {
+        if (!isRecord(persona.build)) return path + ".build はオブジェクトではありません";
+        const buildSkillError = validateSkillArray(persona.build.skills, path + ".build.skills");
+        if (buildSkillError) return buildSkillError;
+        for (const field of ["uniqueBuffs", "extraPassives", "supports", "enhancements", "customStatuses", "formulas"]) {
+          const error = validateRecordArray(persona.build[field], path + ".build." + field);
+          if (error) return error;
+        }
+        const buildSourceError = validatePersonaSource(persona.build.personaSrc, path + ".build.personaSrc");
+        if (buildSourceError) return buildSourceError;
+      }
+    }
+    for (let i = 0; i < (data.roster.egos || []).length; i += 1) {
+      const build = data.roster.egos[i].build;
+      if (build !== void 0 && build !== null && !isRecord(build)) {
+        return "roster.egos[" + i + "].build はオブジェクトではありません";
       }
     }
   }
