@@ -2695,6 +2695,27 @@ function validateDrawRecordShapes(batch) {
     if (item.kind != null && String(item.kind) !== kind) {
       return { ok: false, reason: "record-item-kind-mismatch", index, kind, itemKind: String(item.kind) };
     }
+
+    // 重複欠片はテーマパックの規定報酬だけ。費用やハッシュが整っていても
+    // 任意の grantedShards を通すと、誤った確定バッチが残高を増やせてしまう。
+    if (typeof record.duplicate !== "boolean") {
+      return { ok: false, reason: "invalid-duplicate-flag", index };
+    }
+    if (kind !== "themePack" && record.duplicate) {
+      return { ok: false, reason: "invalid-duplicate-flag", index, kind };
+    }
+    const grantedShards = record.grantedShards === undefined ? 0 : record.grantedShards;
+    if (typeof grantedShards !== "number" || !Number.isSafeInteger(grantedShards) || grantedShards < 0) {
+      return { ok: false, reason: "invalid-shard-grant", index };
+    }
+    const configuredDuplicateShards = Number(window.LBT_gacha?.RULES?.themePack?.duplicateShards);
+    const duplicateShardReward = Number.isSafeInteger(configuredDuplicateShards) && configuredDuplicateShards >= 0
+      ? configuredDuplicateShards : 50;
+    const expectedShardGrant = kind === "themePack" && record.duplicate ? duplicateShardReward : 0;
+    if (grantedShards !== expectedShardGrant) {
+      return { ok: false, reason: "invalid-shard-grant", index, expected: expectedShardGrant, actual: grantedShards };
+    }
+
     const family = kind === "specialPersona" ? "persona" : kind;
     if (!inferredFamily) inferredFamily = family;
     if (family !== inferredFamily) {
