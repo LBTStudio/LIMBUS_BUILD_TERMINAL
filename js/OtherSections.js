@@ -2199,22 +2199,36 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
         /* 署名できない環境（WebCrypto なし等）でも封緘までは残す。 */
       }
     }
+    const ticketSpend = out.paidBy === "ticket"
+      ? { kind: out.ticketKind, pack: out.ticketPack, count: hits.length }
+      : null;
+    const paidCost = ticketSpend ? null : {
+      lp: Number(out.cost.lp) || 0,
+      shards: Number(out.cost.shards) || 0
+    };
+    const drawLogEntry = {
+      id: out.commit || `draw-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+      at: new Date().toISOString(),
+      route,
+      times,
+      pay: out.paidBy,
+      cost: { lp: out.cost.lp || 0, shards: out.cost.shards || 0 },
+      hits: hits.map((hit) => ({ name: hit.name, type: hit.type, no: hit.no, rank: hit.rank, mode: hit.mode, pack: hit.pack, branch: hit.branch })),
+      commit: out.commit || null
+    };
+
     if (batch) {
-      /* ビーコン取得・署名待ちの間に別操作でチケット残高や抽選記録が変わることがある。
-         reducerで経済取引が拒否された後に証明だけ記録しないよう、確定直前に最新 state を検証する。 */
-      const transaction = {
-        type: "APPLY_DRAW_BATCH",
-        batch,
-        ticketSpend: out.paidBy === "ticket"
-          ? { kind: out.ticketKind, pack: out.ticketPack, count: hits.length }
-          : null
-      };
+      /* ビーコン取得・署名待ち中の通貨残高／チケット残数の変化も確定直前に再検査。
+         reducer側でも同じ条件を検査し、拒否時は証明と決定ログも残さない。 */
+      const transaction = { type: "APPLY_DRAW_BATCH", batch, ticketSpend, cost: paidCost };
       const currentState = stateRef.current || state;
       const validation = window.LBT_validateDrawBatchApplication?.(currentState, transaction);
       if (!validation?.ok) {
         setPending(null);
         if (validation?.reason === "insufficient-tickets") {
           toast("確定前にチケット残数が変わったため、抽選を取り消しました。残数を確認してもう一度引いてください。");
+        } else if (validation?.reason === "insufficient-currency") {
+          toast("確定前にLP／欠片の残高が変わったため、抽選を取り消しました。残高を確認してもう一度引いてください。");
         } else if (validation?.reason === "duplicate-batch") {
           toast("この抽選記録は既に登録されています。重複登録を防ぐため確定を取り消しました。");
         } else {
@@ -2222,36 +2236,37 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
         }
         return;
       }
-      /* 検証OKの取引を1つのUndo単位で反映し、成功したものだけ証明・履歴を残す。 */
       dispatch(transaction);
-      dispatch({ type: "ADD_DRAW_RECORD", __sealed: true, batch });
+      dispatch({ type: "ADD_DRAW_RECORD", __sealed: true, batch, entry: drawLogEntry });
     } else {
-      /* 検証器が無い環境（古い読み込み）は記録しないが、所持は残す。 */
-      if (out.paidBy === "ticket") {
-        dispatch({ type: "SPEND_TICKET", kind: out.ticketKind, pack: out.ticketPack, count: -hits.length });
+      /* 検証器が無い環境（古い読み込み）は証明を残せないが、残高は確定直前に確認する。 */
+      const currentState = stateRef.current || state;
+      if (ticketSpend) {
+        const balance = window.LBT_computeTicketBalance?.(currentState.results || [], currentState.entries || []);
+        const available = ticketSpend.kind === "pack"
+          ? Number(balance?.pack?.[ticketSpend.pack]) || 0
+          : Number(balance?.[ticketSpend.kind]) || 0;
+        if (available < hits.length) {
+          setPending(null);
+          toast("確定前にチケット残数が変わったため、抽選を取り消しました。残数を確認してもう一度引いてください。");
+          return;
+        }
+      } else if (paidCost && window.LBT_purchaseAffordability
+        && !window.LBT_purchaseAffordability(currentState, paidCost).ok) {
+        setPending(null);
+        toast("確定前にLP／欠片の残高が変わったため、抽選を取り消しました。残高を確認してもう一度引いてください。");
+        return;
+      }
+      if (ticketSpend) {
+        dispatch({ type: "SPEND_TICKET", kind: ticketSpend.kind, pack: ticketSpend.pack, count: -hits.length });
       }
       dispatch({
         type: "ADD_ROSTER_MANY",
         cost: { lp: out.cost.lp || 0, shards: out.cost.shards || 0 },
         adds: hits.filter((hit) => hit.type === "ego" || hit.type === "persona")
       });
+      dispatch({ type: "ADD_GACHA_LOG", __sealed: true, entry: drawLogEntry });
     }
-    /* 抽選の決定だけを記録に残す。Undoで巻き戻しても消えない。
-       種は出さず commit（種から計算した指紋）だけを持つ。 */
-    dispatch({
-      type: "ADD_GACHA_LOG",
-      __sealed: true,
-      entry: {
-        id: out.commit || `draw-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
-        at: new Date().toISOString(),
-        route,
-        times,
-        pay: out.paidBy,
-        cost: { lp: out.cost.lp || 0, shards: out.cost.shards || 0 },
-        hits: hits.map((hit) => ({ name: hit.name, type: hit.type, no: hit.no, rank: hit.rank, mode: hit.mode, pack: hit.pack, branch: hit.branch })),
-        commit: out.commit || null
-      }
-    });
     setLast({ hits, paidBy: out.paidBy, cost: out.cost, commit: out.commit || null, drawn: hits.length, requested: out.requested || hits.length, stopped: out.stopped || "complete" });
     setPending(null);
     const branched = hits.filter((x) => x.branch === "special").length;
