@@ -4,6 +4,7 @@ import test from "node:test";
 import vm from "node:vm";
 
 const stateSource = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
+const drawUiSource = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
 
 function load() {
   const context = {
@@ -153,4 +154,52 @@ test("確定前にチケット残高が不足した場合、抽選品も費用�
   assert.equal(after.entries.length, 0, "不足時は通帳も変更しない");
   assert.equal(after.draws.length, 0, "不足時は証明をまだ書かない");
   assert.equal(w.LBT_computeTicketBalance(after.results, after.entries).persona, 0);
+});
+
+
+test("抽選取引の直前検証はチケット不足と重複バッチを拒否する", () => {
+  const before = stateWithOnePersonaTicket();
+  before.results[0].income.tickets.persona = 0;
+  const transaction = {
+    type: "APPLY_DRAW_BATCH",
+    batch,
+    ticketSpend: { kind: "persona", count: 1 }
+  };
+  const validation = w.LBT_validateDrawBatchApplication(before, transaction);
+  assert.equal(validation.ok, false);
+  assert.equal(validation.reason, "insufficient-tickets");
+  const rejected = reducer(before, transaction);
+  assert.equal(rejected.roster.personas.length, 0);
+  assert.equal(rejected.entries.length, 0);
+  assert.equal(rejected.draws.length, 0);
+  assert.equal(rejected.gachaLog.length, 0);
+
+  const alreadyDrawn = { ...stateWithOnePersonaTicket(), draws: [batch] };
+  const duplicate = w.LBT_validateDrawBatchApplication(alreadyDrawn, {
+    type: "APPLY_DRAW_BATCH",
+    batch
+  });
+  assert.equal(duplicate.ok, false);
+  assert.equal(duplicate.reason, "duplicate-batch");
+});
+
+test("非同期確定後に残高が変わった場合、証明を追記する前に確定を中止する", () => {
+  const componentStart = drawUiSource.indexOf("const GachaTicketsPanel");
+  const commitStart = drawUiSource.indexOf("const commitDrawAsync", componentStart);
+  const commitEnd = drawUiSource.indexOf("const stopNote", commitStart);
+  assert.ok(componentStart >= 0 && commitStart > componentStart && commitEnd > commitStart);
+  const component = drawUiSource.slice(componentStart, commitEnd);
+  assert.match(component, /const stateRef = React\.useRef\(state\)/);
+  assert.match(component, /stateRef\.current = state/);
+  assert.match(component, /LBT_validateDrawBatchApplication\?\.\(currentState, transaction\)/);
+
+  const preflight = component.indexOf("if (!validation?.ok)");
+  const abort = component.indexOf("return;", preflight);
+  const economicCommit = component.indexOf('dispatch(transaction)', preflight);
+  const proofCommit = component.indexOf('dispatch({ type: "ADD_DRAW_RECORD", __sealed: true, batch })', preflight);
+  const logCommit = component.indexOf('type: "ADD_GACHA_LOG"', preflight);
+  assert.ok(preflight >= 0 && abort > preflight && economicCommit > abort,
+    "失敗時は経済処理をdispatchする前に中止する");
+  assert.ok(proofCommit > economicCommit && logCommit > proofCommit,
+    "検証失敗時には抽選証明・抽選履歴を追記しない");
 });
