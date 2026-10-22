@@ -187,7 +187,9 @@
         new Set([...(state.roster?.personas || []).map((p) => p.name), ...(state.roster?.egos || []).map((e) => e.name)].filter(Boolean))
       )
     };
-    if (route === "persona") return g.drawBatch({ ...input, kind: "persona" });
+    // 人格抽選の最大出目は「人格番号に対応しない +1」の枠。
+    // ここを渡さないと drawPersona の特異人格分岐がUI経由では永久に到達しない。
+    if (route === "persona") return g.drawBatch({ ...input, kind: "persona", plusOne: true });
     if (route === "ego") return g.drawBatch({ ...input, kind: "ego" });
     return g.drawBatch({ ...input, kind: "themePack", pack: options.pack || null });
   }
