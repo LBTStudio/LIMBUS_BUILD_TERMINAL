@@ -7,7 +7,10 @@ const guideCss = readFileSync(new URL("../assets/v56-refinements.css", import.me
 
 test("使い方の初歩チュートリアルは詳細ガイドより前に同期化と創作人格を案内する", () => {
   const tutorial = appSource.indexOf("はじめに：人格を選ぶ・作る");
-  const sync = appSource.indexOf("◈ 同期化して手動編集");
+  /* 手動編集の案内は「◈ 同期化して手動編集」ではなく「手動編集を開始」と書く
+     （df0ddc8: ゲーム側の同期ランク・同期MAXと混同しないため）。
+     見出しより前の詳細ガイドを数えないよう、見出し以降だけを探す。 */
+  const sync = appSource.indexOf("手動編集を開始", tutorial);
   const custom = appSource.indexOf("＋ カスタム人格");
   const detailedGroups = appSource.indexOf("groups.map((g) =>");
 

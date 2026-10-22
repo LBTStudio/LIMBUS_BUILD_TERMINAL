@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 
    個別の人格を狙った回帰テストでは同種の再発を検出できないため、
    「破損の型」をDB全体に対して検査する。 */
-import { loadRuntime, collectDbTexts } from "../tools/provenance/pipeline-harness.mjs";
+import { loadRuntime, equipPersona, collectDbTexts } from "../tools/provenance/pipeline-harness.mjs";
 
 const runtime = loadRuntime();
 const split = runtime.splitEffectLinesPlain;

@@ -274,8 +274,13 @@ test("同期ランクとE.G.O解析は欠片残高を確認してから実行す
   assert.match(sync, /LBT_computeLedgerBalance/);
   assert.match(sync, /自我の欠片が足りません/);
   const ego = sections.slice(sections.indexOf("const toggleEgoManual ="), sections.indexOf("const hasAnyEgo ="));
-  assert.match(ego, /LBT_operationCost\?\.\("analyze"/);
-  assert.match(ego, /LBT_computeLedgerBalance/);
+  /* 費用と残高は解析ヘルパーが1か所で引き、トグルはその結果で止める。
+     LBT_operationCost("analyze") と台帳残高の参照はヘルパー側にある。 */
+  const helper = sections.slice(sections.indexOf("const getEgoAnalysisInfo ="), sections.indexOf("const analysisInfo ="));
+  assert.match(helper, /LBT_operationCost\?\.\("analyze"/);
+  assert.match(helper, /LBT_computeLedgerBalance/);
+  assert.match(ego, /getEgoAnalysisInfo\(detailSlot, slot\)/);
+  assert.match(ego, /Number\(info\.balance\.shards\) < Number\(info\.cost\.shards\)/);
   assert.match(ego, /自我の欠片が足りません/);
 });
 
