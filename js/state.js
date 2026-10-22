@@ -2420,6 +2420,34 @@ function applyDrawBatchEffects(state, batch, resultId) {
   return next;
 }
 
+function validateDrawBatchApplication(state, action) {
+  const batch = action?.batch;
+  if (!batch || typeof batch !== "object" || !Array.isArray(batch.records)) {
+    return { ok: false, reason: "invalid-batch" };
+  }
+  const draws = Array.isArray(state?.draws) ? state.draws : [];
+  if (batch.batchHash && draws.some((existing) => existing?.batchHash === batch.batchHash)) {
+    return { ok: false, reason: "duplicate-batch" };
+  }
+  const ticketSpend = action?.ticketSpend;
+  if (ticketSpend) {
+    const kind = ticketSpend.kind;
+    if (!TICKET_KINDS.includes(kind)) return { ok: false, reason: "invalid-ticket-kind" };
+    const pack = kind === "pack" ? String(ticketSpend.pack || "") : null;
+    const count = Math.max(0, Math.trunc(Number(ticketSpend.count) || 0));
+    if ((kind === "pack" && !pack) || count <= 0) {
+      return { ok: false, reason: "invalid-ticket-count" };
+    }
+    const balance = computeTicketBalance(state?.results || [], state?.entries || []);
+    const available = ticketTotal(balance, kind, pack);
+    if (available < count) {
+      return { ok: false, reason: "insufficient-tickets", available, requested: count };
+    }
+  }
+  return { ok: true, reason: "" };
+}
+window.LBT_validateDrawBatchApplication = validateDrawBatchApplication;
+
 function appReducer(state, action) {
   /* 購入系は残高が足りなければ行わない。UI で無効化するだけでは、
      他の入口（自動登録・取り込み）から通過する経路が残るため 这里で止める。 */
@@ -3334,22 +3362,16 @@ case "ADD_CUSTOM_ITEM": {
        証明本体はこのactionでは保存せず、呼び出し側が別途sealedにする。 */
     case "APPLY_DRAW_BATCH": {
       const batch = action.batch;
-      if (!batch || typeof batch !== "object" || !Array.isArray(batch.records)) return state;
-      const draws = Array.isArray(state.draws) ? state.draws : [];
-      if (batch.batchHash && draws.some((existing) => existing?.batchHash === batch.batchHash)) return state;
-
+      const validation = validateDrawBatchApplication(state, action);
+      // UI側も確定直前に同じ検証関数を呼ぶ。reducerで拒否された場合は
+      // ticket/ownership/proof/log を部分的に積まないよう、先に失敗理由を共有する。
+      if (!validation.ok) return state;
       let next = state;
       const ticketSpend = action.ticketSpend;
       if (ticketSpend) {
         const kind = ticketSpend.kind;
-        if (!TICKET_KINDS.includes(kind)) return state;
         const pack = kind === "pack" ? String(ticketSpend.pack || "") : null;
         const count = Math.max(0, Math.trunc(Number(ticketSpend.count) || 0));
-        if ((kind === "pack" && !pack) || count <= 0) return state;
-        const balance = computeTicketBalance(next.results || [], next.entries || []);
-        const available = ticketTotal(balance, kind, pack);
-        // 抽選プレビュー作成後に残高が変わっても、チケット不足のまま抽選品を付与しない。
-        if (available < count) return state;
         next = appendTicketSpend(next, kind, pack, count, { kind: "gachaBatch" }, action.resultId);
       }
       return applyDrawBatchEffects(next, batch, action.resultId);
