@@ -395,8 +395,13 @@
       const pool = input.pool;
       const own = ownedSets(input.owned);
       let lp = Number(input.lp) || 0;
+      // 人格の価格段階は通常人格だけでなく、特異人格も含めた総所持人数で進める。
+      // 出目が特異人格だった場合に通常人格セットだけを数えると、次の抽選まで無料になる。
+      let personasOwnedForCost = Number.isSafeInteger(input.personaCountForCost) && input.personaCountForCost >= 0
+        ? input.personaCountForCost
+        : own.personas.size + own.specialPersonas.size;
       for (let i = 0; i < count; i++) {
-        const cost = free ? { lp: 0, shards: 0 } : personaDrawCost(own.personas.size);
+        const cost = free ? { lp: 0, shards: 0 } : personaDrawCost(personasOwnedForCost);
         if (!free && cost.lp > lp) { stopped = "insufficientLP"; break; }
         let draw;
         try {
@@ -414,6 +419,7 @@
         results.push(result);
         if (draw.kind === "specialPersona") own.specialPersonas.add(Number(draw.item.no));
         else own.personas.add(Number(draw.item.no));
+        personasOwnedForCost += 1;
       }
     } else if (kind === "ego") {
       const pool = input.pool;
