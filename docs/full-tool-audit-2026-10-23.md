@@ -158,4 +158,4 @@ LIMBUS BUILD TERMINAL の不具合を、画面・状態管理・データ取り�
 - `index.html` のアセット参照と `sw.js` のプリキャッシュ内容ハッシュを更新。
 - GitHub Actions `verify` run #52：1,042 tests passed、0 failed。ただし run #52 の対象コミットは `b03635a` で、後段で追加した抽選確定の残高ガード、厳密な通貨／チケット正規化、レコード要素の型検証、証明キーの必須化を含まない。[実行結果](https://github.com/LBTStudio/LIMBUS_BUILD_TERMINAL/actions/runs/39830745731)。
 - 最新のコード変更・テスト追加は監査ブランチに反映済み。既存のGitHub Actions `verify` run #52 は古いスナップショットで、後から追加した費用検証・部分インポート・証明キー・小数拒否・Undoのテストを含まない。[旧run #52](https://github.com/LBTStudio/LIMBUS_BUILD_TERMINAL/actions/runs/39830745731) は1,042件成功／0件失敗だが、**最新コードのCI成功を意味しない**。
-- 最新監査ブランチHEADは `b66325b24ee0133a06b604ff2bbe11a6cf97b3ff`。このHEADを対象とする新しいActions runは現時点で確認できず、**最新コードは未検証**。PR headで全テストを実行し、`node tools/sync-asset-versions.mjs --check` も成功することを確認してからマージする必要がある。
+- 最新のコード／アセット更新コミットは `b66325b24ee0133a06b604ff2bbe11a6cf97b3ff`。その後は監査文書・PR説明の更新のみで、コード変更を対象とする新しいActions runは現時点で確認できず、**最新コードは未検証**。PR headで全テストを実行し、`node tools/sync-asset-versions.mjs --check` も成功することを確認してからマージする必要がある。
