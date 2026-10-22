@@ -63,10 +63,10 @@ const CONTEXT_MIN = 10;
 
 /* DB本文から、段落境界の一覧を作る。
    1件は「境界の直前の本文」と「直後の本文」の対である。 */
-export function paragraphBoundaries(text) {
+export function paragraphBoundaries(text, normalize = (value) => value) {
   const segments = String(text == null ? "" : text)
     .split("\n")
-    .map((segment) => segment.trim())
+    .map((segment) => normalize(segment.trim()))
     .filter(Boolean);
   const boundaries = [];
   for (let index = 0; index < segments.length - 1; index++) {
@@ -172,7 +172,8 @@ export function auditOutputParagraphs(runtime, equipPersona, { mutate = null } =
         continue;
       }
       for (const item of items) {
-        for (const boundary of paragraphBoundaries(item.text)) {
+        const normalize = runtime.context?.window?.LBT_stripSeparatorDashes || ((value) => value);
+        for (const boundary of paragraphBoundaries(item.text, normalize)) {
           checked++;
           const excerpt = findLostBoundary(output, boundary, route.breaks);
           if (!excerpt) continue;

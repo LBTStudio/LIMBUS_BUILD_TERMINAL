@@ -118,7 +118,11 @@ export function auditOutputContent(runtime, { mutate = null, kinds = null } = {}
           counts[kind].fields++;
           const expected = kind === 'egos' && route.family === 'palette'
             ? field.text.replace(/SAN/g, '精神力') : field.text;
-          if (!actual.includes(visibleText(expected))) findings.push({ code: 'missing_text',
+          /* 紙面の区切りハイフンは表示で外す記号であり、本文ではない。
+             出力側と同じ規則で入力側も外してから照合する。 */
+          const stripSeparators = runtime.context?.window?.LBT_stripSeparatorDashes || ((value) => value);
+          const expectedBody = expected.split('\n').map((line) => stripSeparators(line)).join('\n');
+          if (!actual.includes(visibleText(expectedBody))) findings.push({ code: 'missing_text',
             route: route.key, path: `${base}/${field.path}`, text: field.text });
         }
       }

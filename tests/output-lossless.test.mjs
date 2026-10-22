@@ -18,6 +18,12 @@ const texts = collectDbTexts(runtime.db);
 // 分割器は行頭・行末の空白を落とし空行を捨てる。意味の欠落と空白の整形を区別する。
 const squeeze = (value) => String(value || "").replace(/[\s\u3000]/g, "");
 
+/* 紙面の区切りハイフン（`-温度が10以上…-`）は表示で外す版面の記号であり、
+   本文ではない。入力側も同じ規則で外してから比べ、区切り以外の
+   文字の欠落・重複だけを違反とする。 */
+const presentation = runtime.context.window.LBT_stripSeparatorDashes || ((value) => value);
+const withoutSeparators = (text) => text.split("\n").map(presentation).join("\n");
+
 test("DBに本文が存在し、検査対象が十分な件数ある", () => {
   assert.ok(texts.length > 3000, `検査対象が少なすぎる: ${texts.length}件`);
 });
@@ -26,7 +32,7 @@ test("段落分割で本文の文字が欠落・重複しない", () => {
   const problems = [];
   for (const { path, text } of texts) {
     const parts = split(text);
-    if (squeeze(parts.join("")) !== squeeze(text)) {
+    if (squeeze(parts.join("")) !== squeeze(withoutSeparators(text))) {
       problems.push(`${path}: ${JSON.stringify(parts)}`);
     }
   }

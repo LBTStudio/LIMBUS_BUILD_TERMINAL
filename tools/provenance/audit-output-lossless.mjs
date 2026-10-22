@@ -42,7 +42,12 @@ for (const { path, text } of texts) {
   const parts = split(text);
 
   // 1. 無損失
-  if (squeeze(parts.join("")) !== squeeze(text)) {
+  /* 紙面の区切りハイフン（`-温度が10以上…-`）は表示で外す版面の記号であり、
+     本文ではない。入力側も同じ規則で外してから比べ、区切り以外の
+     文字の欠落・重複だけを違反とする。 */
+  const presentation = runtime.context?.window?.LBT_stripSeparatorDashes || ((value) => value);
+  const normalizedInput = text.split("\n").map((line) => presentation(line)).join("\n");
+  if (squeeze(parts.join("")) !== squeeze(normalizedInput)) {
     findings.push({ path, code: "text-loss", text, parts });
   }
 
