@@ -43,3 +43,9 @@ test("クイック検索のE.G.O・アイテム候補は詳細画面へ移動す
   assert.match(sections, /const searchTarget = state\.ui\?\.egoSearchTarget/);
   assert.match(sections, /setSelected\(target\)/);
 });
+
+
+test("作業状態の部分インポートは抽選記録も独立したカテゴリとして提示する", () => {
+  assert.match(app, /\{ key: "gacha", label: "[^"]+", fields: \["gachaLog"\] \}/);
+  assert.match(state, /"favorites","historyRecent","gachaLog"\]/);
+});
