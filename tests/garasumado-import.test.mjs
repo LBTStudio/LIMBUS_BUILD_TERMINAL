@@ -549,7 +549,10 @@ test("共有URL からドキュメント ID とコレクションを抜く", () 
   assert.equal(b.collection, "personas");
 
   assert.equal(G.parseShareUrl("").ok, false);
-  assert.equal(G.parseShareUrl("https://example.com/view/abc123").ok, false);
+  const invalid = G.parseShareUrl("https://example.com/view/abc123");
+  assert.equal(invalid.ok, false);
+  assert.match(invalid.error, /貼り付けてください/);
+  assert.doesNotMatch(invalid.error, /貼りってください/);
 });
 
 test("Firestore の値表現を素の値へ戻す", () => {
