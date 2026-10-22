@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-3025c7d4";
+const CACHE_NAME = "lbt-c0e8928c";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -46,7 +46,7 @@ const PRECACHE_URLS = [
   "data/db.json?v=b04a7751",
   "data/gacha-theme-packs.json?v=8d4dced2",
   "data/items.json?v=b47b58ae",
-  "js/App.js?v=5473e698",
+  "js/App.js?v=41b54f87",
   "js/DataQuality.js?v=a8365c72",
   "js/ItemCodex.js?v=f81cdb3e",
   "js/LivePreview.js?v=1b6767e6",
@@ -65,7 +65,7 @@ const PRECACHE_URLS = [
   "js/garasumado-roster-import.js?v=20ee027a",
   "js/generator.js?v=73d3bd17",
   "js/icon-cropper.js?v=20900dc8",
-  "js/ledger-import-reconcile.js?v=9f139bcd",
+  "js/ledger-import-reconcile.js?v=37d98c7b",
   "js/ledger-provenance.js?v=53c12252",
   "js/name-fuzzy.js?v=d3eb29a1",
   "js/persona-draft-import.js?v=a4692646",
@@ -74,7 +74,7 @@ const PRECACHE_URLS = [
   "js/roster-resolver.js?v=c778eb30",
   "js/share-link.js?v=1a1caa2c",
   "js/share-viewer.js?v=9521f675",
-  "js/state.js?v=23fe2050",
+  "js/state.js?v=2f6d8e4d",
   "js/ui.js?v=8943eab8",
   "vendor/react-dom.min.js?v=35f4f974",
   "vendor/react.min.js?v=d949f1c3",
