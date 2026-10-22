@@ -76,11 +76,11 @@ LIMBUS BUILD TERMINAL の不具合を、画面・状態管理・データ取り�
 2. ローカルのPDF/Python依存を満たした環境で、原典照合・DB来歴監査を実行し、未解決差分を一覧で追跡する。
 3. PCとスマートフォンで、新規作成・人格の手動編集・E.G.O解析・所持保存・通帳入力・硝子窓取込・作業状態JSONの部分読み込みを一通り実操作する。
 4. ブラウザーをオンライン→オフライン→オンラインへ遷移させ、Service Worker更新失敗時の既存キャッシュ保持、アセット更新後の復帰、共有HTML検索／印刷を確認する。
-5. 作業状態JSONの `gachaLog` を部分読み込み対象へ含めるか、明示的に復元対象外とするか、仕様として決めてガイドとテストに固定する。
+5. 追加したフィールド整合性契約テストで、INIT_STATE・インポートカテゴリ・APPLY_PARTIAL許可リストの対応を継続検査する。新しい永続フィールドを加えたときは、カテゴリ追加か意図的な除外理由を明記する。
 
 ## 検証ステータス
 
 - コード修正と回帰テストを監査用ブランチ `audit/full-tool-bugs-2026-10-23` に反映。
 - `index.html` のアセット参照と `sw.js` のプリキャッシュ内容ハッシュを更新。
-- GitHub Actions `verify` run #52：1,042 tests passed、0 failed。ただしこれは、今回後段で追加した移行項目・型検証のテストを含まない前のソーススナップショット。[実行結果](https://github.com/LBTStudio/LIMBUS_BUILD_TERMINAL/actions/runs/39830745731)。
+- GitHub Actions `verify` run #52：1,042 tests passed、0 failed。ただしこれは、今回後段で追加した移行項目・型検証・フィールド整合性契約テストを含まない前のソーススナップショット。[実行結果](https://github.com/LBTStudio/LIMBUS_BUILD_TERMINAL/actions/runs/39830745731)。
 - GitHub App経由で更新した最新監査ブランチのコミットには新しいActions runが紐づいていないため、最新コードをCIで検証済みとは扱わない。マージ前に最新headでのCI再実行が必要。
