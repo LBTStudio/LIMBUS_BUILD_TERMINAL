@@ -224,3 +224,21 @@ test("壊れた保存状態の抽選記録は空配列へ正規化する", () =>
   const normalized = normalize({ ...baseState(), gachaLog: { broken: true } });
   assert.deepEqual(JSON.parse(JSON.stringify(normalized.gachaLog)), []);
 });
+
+
+test("金額・抽出チケットの正規化は部分一致や負数で残高を捏造しない", () => {
+  const out = balance([
+    { income: {
+      lp: "1200abc",
+      shards: "1,200",
+      tickets: { persona: "3x", ego: -1, choice: "2", pack: { invalid: -4, valid: "1,000" } }
+    } }
+  ], [
+    { cost: { lp: 0, shards: 0 }, tickets: { persona: -100, ego: "2abc", choice: 1, pack: { valid: -200 } } }
+  ]);
+  assert.equal(out.lp, 0, "部分一致の金額をLPとして数えない");
+  assert.equal(out.shards, 1200, "正しい桁区切りは受け入れる");
+  assert.deepEqual(JSON.parse(JSON.stringify(out.tickets)), {
+    persona: 0, ego: 0, choice: 1, pack: { valid: 1000 }
+  }, "不正な文字列・負の明細を使ってチケット残数を増やせない");
+});
