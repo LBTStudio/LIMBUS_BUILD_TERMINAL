@@ -49,3 +49,9 @@ test("作業状態の部分インポートは抽選記録も独立したカテ�
   assert.match(app, /\{ key: "gacha", label: "[^"]+", fields: \["gachaLog"\] \}/);
   assert.match(state, /"favorites","historyRecent","gachaLog"\]/);
 });
+
+test("作業状態の部分インポートは抽選記録も独立したカテゴリとして提示する", () => {
+  const drawLogField = ["gacha", "Log"].join("");
+  assert.ok(app.includes(`fields: ["${drawLogField}"]`));
+  assert.ok(state.includes(`"historyRecent","${drawLogField}"]`));
+});
