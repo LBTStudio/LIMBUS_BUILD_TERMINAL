@@ -2209,6 +2209,13 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
         /* 署名できない環境（WebCrypto なし等）でも封緘までは残す。 */
       }
     }
+    if (!batch) {
+      // 所持・残高を変えたのに抽選証明だけが欠落する状態は受け入れない。
+      // アセット不整合や検証器不在なら確定を中止し、利用者に再読込を促す。
+      setPending(null);
+      toast("抽選証明を作成できなかったため、今回は確定していません。所持・残高は変更していません。ページを再読み込みしてもう一度お試しください。");
+      return;
+    }
     const ticketSpend = out.paidBy === "ticket"
       ? { kind: out.ticketKind, pack: out.ticketPack, count: hits.length }
       : null;
@@ -2227,56 +2234,24 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
       commit: out.commit || null
     };
 
-    if (batch) {
-      /* ビーコン取得・署名待ち中の通貨残高／チケット残数の変化も確定直前に再検査。
-         reducer側でも同じ条件を検査し、拒否時は証明と決定ログも残さない。 */
-      const transaction = { type: "APPLY_DRAW_BATCH", batch, ticketSpend, cost: paidCost };
-      const currentState = stateRef.current || state;
-      const validation = window.LBT_validateDrawBatchApplication?.(currentState, transaction);
-      if (!validation?.ok) {
-        setPending(null);
-        if (validation?.reason === "insufficient-tickets") {
-          toast("確定前にチケット残数が変わったため、抽選を取り消しました。残数を確認してもう一度引いてください。");
-        } else if (validation?.reason === "insufficient-currency") {
-          toast("確定前にLP／欠片の残高が変わったため、抽選を取り消しました。残高を確認してもう一度引いてください。");
-        } else if (validation?.reason === "duplicate-batch") {
-          toast("この抽選記録は既に登録されています。重複登録を防ぐため確定を取り消しました。");
-        } else {
-          toast("抽選の確定前検証に失敗しました。状態を確認してもう一度お試しください。");
-        }
-        return;
-      }
-      dispatch(transaction);
-      dispatch({ type: "ADD_DRAW_RECORD", __sealed: true, batch, entry: drawLogEntry });
-    } else {
-      /* 検証器が無い環境（古い読み込み）は証明を残せないが、残高は確定直前に確認する。 */
-      const currentState = stateRef.current || state;
-      if (ticketSpend) {
-        const balance = window.LBT_computeTicketBalance?.(currentState.results || [], currentState.entries || []);
-        const available = ticketSpend.kind === "pack"
-          ? Number(balance?.pack?.[ticketSpend.pack]) || 0
-          : Number(balance?.[ticketSpend.kind]) || 0;
-        if (available < hits.length) {
-          setPending(null);
-          toast("確定前にチケット残数が変わったため、抽選を取り消しました。残数を確認してもう一度引いてください。");
-          return;
-        }
-      } else if (paidCost && window.LBT_purchaseAffordability
-        && !window.LBT_purchaseAffordability(currentState, paidCost).ok) {
-        setPending(null);
+    const transaction = { type: "APPLY_DRAW_BATCH", batch, ticketSpend, cost: paidCost };
+    const currentState = stateRef.current || state;
+    const validation = window.LBT_validateDrawBatchApplication?.(currentState, transaction);
+    if (!validation?.ok) {
+      setPending(null);
+      if (validation?.reason === "insufficient-tickets") {
+        toast("確定前にチケット残数が変わったため、抽選を取り消しました。残数を確認してもう一度引いてください。");
+      } else if (validation?.reason === "insufficient-currency") {
         toast("確定前にLP／欠片の残高が変わったため、抽選を取り消しました。残高を確認してもう一度引いてください。");
-        return;
+      } else if (validation?.reason === "duplicate-batch") {
+        toast("この抽選記録は既に登録されています。重複登録を防ぐため確定を取り消しました。");
+      } else {
+        toast("抽選の確定前検証に失敗しました。状態を確認してもう一度お試しください。");
       }
-      if (ticketSpend) {
-        dispatch({ type: "SPEND_TICKET", kind: ticketSpend.kind, pack: ticketSpend.pack, count: -hits.length });
-      }
-      dispatch({
-        type: "ADD_ROSTER_MANY",
-        cost: { lp: out.cost.lp || 0, shards: out.cost.shards || 0 },
-        adds: hits.filter((hit) => hit.type === "ego" || hit.type === "persona")
-      });
-      dispatch({ type: "ADD_GACHA_LOG", __sealed: true, entry: drawLogEntry });
+      return;
     }
+    dispatch(transaction);
+    dispatch({ type: "ADD_DRAW_RECORD", __sealed: true, batch, entry: drawLogEntry });
     setLast({ hits, paidBy: out.paidBy, cost: out.cost, commit: out.commit || null, drawn: hits.length, requested: out.requested || hits.length, stopped: out.stopped || "complete" });
     setPending(null);
     const branched = hits.filter((x) => x.branch === "special").length;
