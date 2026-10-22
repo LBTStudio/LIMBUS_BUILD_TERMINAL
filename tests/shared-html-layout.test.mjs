@@ -27,7 +27,8 @@ test("共有HTMLの明るい大罪タグは暗い文字色で十分なコント�
   assert.match(html, /\.sin-tag\[data-sin="色欲"\],\.sin-tag\[data-sin="怠惰"\],\.sin-tag\[data-sin="暴食"\],\.sin-tag\[data-sin="特殊"\]\{color:#17120d;text-shadow:none\}/);
 
   const luminance = (hex) => {
-    const rgb = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+    const value = hex.replace(/^#/, "");
+    const rgb = [0, 2, 4].map((i) => parseInt(value.slice(i, i + 2), 16) / 255);
     const linear = rgb.map((v) => v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
     return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
   };
