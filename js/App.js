@@ -495,17 +495,32 @@ function validateImportData(data) {
   // 抽選の封緘記録は検証単位の records を必要とする。壊れたバッチを
   // 正規化時に黙って捨てるのではなく、インポート時点で明示的に拒否する。
   if (Array.isArray(data.draws)) {
-    const badBatch = data.draws.findIndex((batch) => !Array.isArray(batch.records));
-    if (badBatch >= 0) return "draws[" + badBatch + "].records は配列ではありません";
-    const missingProof = data.draws.findIndex((batch) =>
-      !String(batch.batchHash || batch.commit || "").trim()
-    );
-    if (missingProof >= 0) return "draws[" + missingProof + "] に batchHash または commit がありません";
+    const seenProofKeys = new Set();
     for (let i = 0; i < data.draws.length; i += 1) {
-      const badRecord = data.draws[i].records.findIndex((record) =>
+      const batch = data.draws[i];
+      if (!Array.isArray(batch.records)) return "draws[" + i + "].records は配列ではありません";
+      const proofKey = String(batch.batchHash || batch.commit || "").trim();
+      if (!proofKey) return "draws[" + i + "] に batchHash または commit がありません";
+      if (seenProofKeys.has(proofKey)) {
+        return "draws[" + i + "] に重複した証明キー " + proofKey + " があります";
+      }
+      seenProofKeys.add(proofKey);
+      const badRecord = batch.records.findIndex((record) =>
         !record || typeof record !== "object" || Array.isArray(record)
       );
       if (badRecord >= 0) return "draws[" + i + "].records[" + badRecord + "] はオブジェクトではありません";
+    }
+  }
+
+  // 抽選ログは封緘バッチとは別に表示されるが、同じ明示IDを複数行受け入れると
+  // 画面上で同じ抽選の件数・結果を二重に数えうる。IDなしの旧ログは互換のため許容する。
+  if (Array.isArray(data.gachaLog)) {
+    const seenLogIds = new Set();
+    for (let i = 0; i < data.gachaLog.length; i += 1) {
+      const id = String(data.gachaLog[i].id ?? "").trim();
+      if (!id) continue;
+      if (seenLogIds.has(id)) return "gachaLog[" + i + "] に重複ID " + id + " があります";
+      seenLogIds.add(id);
     }
   }
 
