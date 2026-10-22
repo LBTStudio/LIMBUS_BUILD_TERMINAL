@@ -2573,24 +2573,50 @@ function validateDrawBatchApplication(state, action) {
     }
   }
 
+  if (batch.count != null && Number(batch.count) !== batch.records.length) {
+    return { ok: false, reason: "batch-count-mismatch" };
+  }
+  const recordMethods = batch.records.map((record) => String(record?.method || "draw"));
+  const isTicketBatch = batch.ruleset === "core-ticket" || recordMethods.includes("ticket");
   const ticketSpend = action?.ticketSpend;
   if (ticketSpend) {
     const kind = ticketSpend.kind;
     if (!TICKET_KINDS.includes(kind)) return { ok: false, reason: "invalid-ticket-kind" };
     const pack = kind === "pack" ? String(ticketSpend.pack || "") : null;
-    const count = Math.max(0, Math.trunc(Number(ticketSpend.count) || 0));
-    if ((kind === "pack" && !pack) || count <= 0) {
+    const rawCount = Number(ticketSpend.count);
+    if (!Number.isSafeInteger(rawCount) || rawCount <= 0 || (kind === "pack" && !pack)) {
       return { ok: false, reason: "invalid-ticket-count" };
+    }
+    if (!isTicketBatch || recordMethods.some((method) => method !== "ticket")) {
+      return { ok: false, reason: "ticket-method-mismatch" };
+    }
+    if (rawCount !== batch.records.length) {
+      return { ok: false, reason: "ticket-count-mismatch", requested: rawCount, records: batch.records.length };
+    }
+    const compatibleKinds = {
+      persona: ["persona"],
+      ego: ["ego"],
+      choice: ["persona", "ego"],
+      pack: ["themePack"]
+    };
+    if (!compatibleKinds[kind]?.includes(String(batch.kind || ""))) {
+      return { ok: false, reason: "ticket-kind-mismatch", ticketKind: kind, batchKind: batch.kind || null };
+    }
+    if (kind === "pack" && batch.records.some((record) => String(record.pack || "") !== pack)) {
+      return { ok: false, reason: "ticket-pack-mismatch", pack };
     }
     if (batchCost.lp !== 0 || batchCost.shards !== 0) {
       return { ok: false, reason: "ticket-batch-has-currency-cost" };
     }
     const balance = computeTicketBalance(state?.results || [], state?.entries || []);
     const available = ticketTotal(balance, kind, pack);
-    if (available < count) {
-      return { ok: false, reason: "insufficient-tickets", available, requested: count };
+    if (available < rawCount) {
+      return { ok: false, reason: "insufficient-tickets", available, requested: rawCount };
     }
   } else {
+    if (isTicketBatch || recordMethods.some((method) => method === "ticket")) {
+      return { ok: false, reason: "ticket-spend-required" };
+    }
     if (action?.cost) {
       const provided = normalizeCurrency(action.cost);
       if (provided.lp !== batchCost.lp || provided.shards !== batchCost.shards) {
