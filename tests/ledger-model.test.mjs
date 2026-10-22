@@ -241,4 +241,12 @@ test("金額・抽出チケットの正規化は部分一致や負数で残高�
   assert.deepEqual(JSON.parse(JSON.stringify(out.tickets)), {
     persona: 0, ego: 0, choice: 1, pack: { valid: 1000 }
   }, "不正な文字列・負の明細を使ってチケット残数を増やせない");
+
+  const fractional = balance([
+    { income: { lp: 1.5, shards: "2.5", tickets: { persona: 1.5, choice: "2.5" } } }
+  ], []);
+  assert.equal(fractional.lp, 0, "端数のLPは切り捨てて有効額にしない");
+  assert.equal(fractional.shards, 0, "端数の欠片は切り捨てて有効額にしない");
+  assert.deepEqual(JSON.parse(JSON.stringify(fractional.tickets)),
+    { persona: 0, ego: 0, choice: 0, pack: {} }, "端数のチケットは枚数として計上しない");
 });
