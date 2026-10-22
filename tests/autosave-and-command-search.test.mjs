@@ -122,6 +122,14 @@ test("JSONインポートはレコード配列の不正要素を適用前に拒�
   assert.match(validate({ schemaVersion: 5, draws: [{ records: [] }] }), /draws\[0\] に batchHash または commit/);
   assert.equal(validate({ schemaVersion: 5, draws: [{ batchHash: "valid-hash", records: [] }] }), null,
     "有効な抽選証明は受け入れる");
+  assert.match(validate({ schemaVersion: 5, draws: [{ batchHash: "valid-hash", records: [null] }] }),
+    /draws\[0\]\.records\[0\]/, "抽選記録の内部要素も検証する");
+  assert.match(validate({ schemaVersion: 5, results: [
+    { id: "same", name: "A" }, { id: "same", name: "B" }
+  ] }), /results\[1\] に重複ID/, "同じリザルトIDはインポート前に拒否する");
+  assert.match(validate({ schemaVersion: 5, entries: [
+    { id: "same", name: "A" }, { id: "same", name: "B" }
+  ] }), /entries\[1\] に重複ID/, "同じ明細IDはインポート前に拒否する");
   assert.match(validate({ _lbtRosterOnly: true, roster: { personas: [null] } }), /roster\.personas\[0\]/);
   assert.equal(validate({ schemaVersion: 5, results: [], entries: [], draws: [], roster: {
     personas: [], egos: [], supports: [], spirits: []
