@@ -26,8 +26,8 @@ test("人格編集の実ボタン名と、変更を所持ビルドへ保存す�
   assert.ok(edit > tutorial);
   assert.ok(finish > edit);
   assert.ok(appSource.includes("所持人格の保存ビルドとして変更を残すには"));
-  assert.ok(coreSource.includes("OK：変更を所持人格へ保存して装備解除"));
-  assert.ok(coreSource.includes("キャンセル：装備を継続（変更はそのまま）"));
+  assert.ok(personaSource.includes("OK：変更を所持人格へ保存して装備解除"));
+  assert.ok(personaSource.includes("キャンセル：装備を継続（変更はそのまま）"));
   assert.ok(appSource.includes("同期ランクと同期MAXは別設定です。"));
   assert.ok(personaSource.includes('isSynced ? "✓ 編集を終了（内容は保持）" : "◈ 同期化して手動編集"'));
 });
