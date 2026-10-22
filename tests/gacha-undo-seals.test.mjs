@@ -461,3 +461,21 @@ test("旧ADD_DRAW_BATCH互換経路もチケット消費・所持・証明を1�
   assert.equal(committed.gachaLog[0].id, entry.id);
   assert.equal("_pendingDrawProofHash" in committed, false, "一時的な検証キーを永続stateへ残さない");
 });
+
+
+test("抽選証明を封緘できない場合は確定を中止し、無証明の所持・支払いを行わない", () => {
+  const start = drawUiSource.indexOf("const commitDrawAsync = async () => {");
+  const end = drawUiSource.indexOf("/* 途中で止まったときだけ", start);
+  assert.ok(start >= 0 && end > start, "抽選確定ハンドラーが存在する");
+  const body = drawUiSource.slice(start, end);
+  assert.match(body, /if \(!batch\) \{[\s\S]*?setPending\(null\)[\s\S]*?return;/,
+    "証明がないときは pending を解除して確定処理を終了する");
+  assert.match(body, /抽選証明を作成できなかったため、今回は確定していません/,
+    "無証明の抽選を確定しないことを利用者へ明示する");
+  assert.doesNotMatch(body, /type:\s*"ADD_ROSTER_MANY"/,
+    "証明なしのフォールバックで所持だけを追加しない");
+  assert.doesNotMatch(body, /type:\s*"SPEND_TICKET"/,
+    "証明生成失敗時にチケットだけ消費しない");
+  assert.match(body, /dispatch\(transaction\)[\s\S]*?type:\s*"ADD_DRAW_RECORD"/,
+    "検証済みの経済取引と証明の両方があるときだけ確定する");
+});
