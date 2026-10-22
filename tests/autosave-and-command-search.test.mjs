@@ -64,7 +64,7 @@ test("作業状態の部分インポートは全ての永続履歴・初期設�
 
 test("未解決の旧チケットデータは妥当な配列／マップ形式で検証し、保持対象から外さない", () => {
   assert.match(app, /if \(data\.tickets !== void 0\)/);
-  assert.match(app, /tickets\[\"?\s*\+ badIndex \+\s*\"?\]/);
+  assert.ok(app.includes('return "tickets[" + badIndex + "] はオブジェクトではありません"'));
   assert.match(app, /return \"tickets は配列またはオブジェクトではありません\"/);
   assert.ok(app.includes('fields: ["gachaLog","draws","tickets"]'));
   assert.ok(state.includes('"historyRecent","gachaLog","tickets"]'));
