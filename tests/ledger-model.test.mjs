@@ -212,3 +212,8 @@ test("APPLY_PARTIAL は抽選記録を移行先へ保持する", () => {
   });
   assert.deepEqual(JSON.parse(JSON.stringify(next[drawLogField])), incoming);
 });
+
+test("壊れた保存状態の抽選記録は空配列へ正規化する", () => {
+  const normalized = normalize({ ...baseState(), gachaLog: { broken: true } });
+  assert.deepEqual(JSON.parse(JSON.stringify(normalized.gachaLog)), []);
+});
