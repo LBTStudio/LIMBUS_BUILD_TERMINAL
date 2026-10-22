@@ -297,3 +297,45 @@ test("旧抽出パックの移行はパック名なし・端数枚数を誤っ�
   assert.deepEqual(JSON.parse(JSON.stringify(normalize(migrated).tickets)), raw.tickets,
     "再読込でも未解決行を消さない");
 });
+
+
+test("破損したローカルセーブの配列要素は正規化前に除外する", () => {
+  const raw = {
+    ...baseState(),
+    supports: [null, { name: "通常サポパ", cond: "", effect: "", lp: 7 }],
+    enhancements: [null, { name: "肉体強化0-1", group: "肉体強化0", shards: 5 }],
+    results: [null, {
+      id: "result-good", name: "正常な結果", date: "2026-10-23",
+      income: { lp: 100, shards: 0, tickets: {} }, exchange: { lp: 0, shards: 0 }, note: ""
+    }],
+    entries: [null, {
+      id: "entry-good", kind: "expense", name: "正常な支出",
+      cost: { lp: 7, shards: 0 }, tickets: {}, resultId: "result-good"
+    }],
+    inventory: [null, { uid: "item-good", itemId: "bandage", quantity: 2 }],
+    customItems: [null, { id: "custom-good", name: "自作アイテム", category: "その他" }],
+    gachaLog: [null, { id: "draw-log-good", hits: [] }],
+    draws: [null, { batchHash: "broken-batch", records: [null] }],
+    roster: {
+      personas: [null, { uid: "persona-good", no: 1, mode: "n", equipped: false }],
+      egos: [null, { uid: "ego-good", rank: "ZAYIN", no: 1 }],
+      supports: [null, { uid: "roster-support-good", name: "所持サポパ" }],
+      spirits: [null, { uid: "roster-spirit-good", name: "所持精神" }]
+    }
+  };
+  const normalized = normalize(raw);
+  assert.ok(normalized, "保存内容が一部壊れていても正規化を完了する");
+  assert.deepEqual(normalized.results.map((r) => r.id).filter((id) => id === "result-good"), ["result-good"]);
+  assert.deepEqual(normalized.entries.map((e) => e.id).filter((id) => id === "entry-good"), ["entry-good"]);
+  for (const field of ["supports", "enhancements", "inventory", "customItems", "gachaLog", "draws"]) {
+    assert.ok(Array.isArray(normalized[field]), field + " は配列として維持される");
+    assert.equal(normalized[field].some((entry) => !entry || typeof entry !== "object" || Array.isArray(entry)), false,
+      field + " にnull／プリミティブ要素を残さない");
+  }
+  for (const field of ["personas", "egos", "supports", "spirits"]) {
+    assert.equal(normalized.roster[field].some((entry) => !entry || typeof entry !== "object" || Array.isArray(entry)), false,
+      "roster." + field + " に不正要素を残さない");
+  }
+  assert.equal(normalized.gachaLog.some((entry) => entry?.id === "draw-log-good"), true,
+    "正常な抽選ログは保持する");
+});
