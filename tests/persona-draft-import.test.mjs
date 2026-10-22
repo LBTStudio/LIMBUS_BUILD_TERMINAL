@@ -525,7 +525,9 @@ R開始時、対象を指定する。
 
   assert.equal(result.ok, true);
   assert.equal(result.persona.unique_buffs.length, 5);
-  assert.deepEqual(result.persona.unique_buffs.map((b) => b.name), ["固有見本", "斬撃補正", "未管理", "弾丸固有", "指令対象"]);
+  /* vm レルムの配列は deepStrictEqual がプロトタイプ差で拒む（assert/strict では deepEqual が厳格比較）。
+     呼び出し側レルムの配列へ写してから比較する。 */
+  assert.deepEqual(Array.from(result.persona.unique_buffs, (b) => b.name), ["固有見本", "斬撃補正", "未管理", "弾丸固有", "指令対象"]);
   assert.equal(result.persona.unique_buffs[0].max, 5);
   assert.equal(result.persona.unique_buffs[0].initial, 0);
   assert.equal(result.persona.unique_buffs[0].desc, "戦闘開始時、保護1を得る。");

@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-e205cf43";
+const CACHE_NAME = "lbt-2a79017e";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -50,7 +50,7 @@ const PRECACHE_URLS = [
   "js/DataQuality.js?v=a8365c72",
   "js/ItemCodex.js?v=f81cdb3e",
   "js/LivePreview.js?v=1b6767e6",
-  "js/OtherSections.js?v=c26269a2",
+  "js/OtherSections.js?v=5b484c1a",
   "js/PersonaCodex.js?v=f5425554",
   "js/SkillDeck.js?v=0e7a3640",
   "js/accounts-ui.js?v=59b44784",
@@ -68,7 +68,7 @@ const PRECACHE_URLS = [
   "js/ledger-import-reconcile.js?v=d63c36d5",
   "js/ledger-provenance.js?v=53c12252",
   "js/name-fuzzy.js?v=d3eb29a1",
-  "js/persona-draft-import.js?v=4c89a3ee",
+  "js/persona-draft-import.js?v=a4692646",
   "js/result-log-parser.js?v=43c5aa47",
   "js/result-text-import.js?v=8cc0b8d2",
   "js/roster-resolver.js?v=c778eb30",
