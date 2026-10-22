@@ -3290,9 +3290,18 @@ case "ADD_CUSTOM_ITEM": {
        （移行が記録を書き換えるとハッシュ鎖が切れる）。
        所持への反映もここから行う。記録の records が唯一のソースなので、
        画面が渡した顔ではなく「封緘された顔」が所持に入る。 */
+    case "ADD_DRAW_RECORD": {
+      const batch = action.batch;
+      if (!batch || typeof batch !== "object" || !Array.isArray(batch.records)) return state;
+      const draws = Array.isArray(state.draws) ? state.draws : [];
+      if (batch.batchHash && draws.some((existing) => existing?.batchHash === batch.batchHash)) return state;
+      return { ...state, draws: [...draws, batch] };
+    }
     case "ADD_DRAW_BATCH": {
       const batch = action.batch;
       if (!batch || typeof batch !== "object" || !Array.isArray(batch.records)) return state;
+      const draws = Array.isArray(state.draws) ? state.draws : [];
+      if (batch.batchHash && draws.some((existing) => existing?.batchHash === batch.batchHash)) return state;
       let next = applyRosterAdds(state, rosterAddsFromDrawBatch(batch), { resultId: action.resultId });
       /* テーマパックは毎回ぶんを請求する。引いたのが DB に無い専用人格なら
          所持へ入らず、そのぶんを通帳に「消費」として残す。放入できた件は
@@ -3325,7 +3334,7 @@ case "ADD_CUSTOM_ITEM": {
           resultId: action.resultId
         });
       }
-      return { ...next, draws: [...(next.draws || []), batch] };
+      return appReducer(next, { type: "ADD_DRAW_RECORD", batch });
     }
     /* ---- Support ---- */
     /* 装備の入口は所持（roster.supports）を経由する。未所持のものは
@@ -4212,6 +4221,17 @@ case "ADD_ENTRY":
       return state;
   }
 }
+/* Undoで抽選を越えて過去状態へ戻るとき、永久に残すのは証明記録だけ。
+   ADD_DRAW_BATCH は最初の確定時に所持・支出も反映するため、そのまま再生すると
+   Undoで戻した所持品を復活させたり、チケット消費を戻した状態で抽選品だけ残す。
+   再生時には proof（draws）の追記専用アクションへ変換する。 */
+function replaySealedAction(action) {
+  if (action?.type === "ADD_DRAW_BATCH") {
+    return { type: "ADD_DRAW_RECORD", batch: action.batch };
+  }
+  return action;
+}
+
 function useAppState() {
   const [state, dispatch] = React.useReducer(appReducer, INIT_STATE, (init) => {
     try {
@@ -4295,7 +4315,7 @@ function useAppState() {
     for (const seal of sealsRef.current) {
       if (seal.atPastLength > index) {
         skipHistoryRef.current = true;
-        dispatch(seal.action);
+        dispatch(replaySealedAction(seal.action));
       }
     }
   };
