@@ -2621,9 +2621,9 @@ function appReducer(state, action) {
         "pas","pas2Enabled","pas2","extraPassives","uniqueBuffs","skills","egoSlots","supports","deathSupport","roster",
         "enhancements","initialItems","draws","customStatuses","defaultStatuses","formulas","builtinFormulasOverride","autoFml",
         "moraleLine","extraCmd","outputExclude","shareOptions","paletteOptions","results","entries","inventory","customItems",
-        "favorites","historyRecent","gachaLog"];
+        "favorites","historyRecent","gachaLog","tickets"];
       // 別端末移行（exportState/importStateFromFile）には initiative、initialItems、
-      // draws、favorites、historyRecent、gachaLog が含まれる。許可リスト／カテゴリから
+      // draws、favorites、historyRecent、gachaLog、tickets（未解決の旧チケット移行行）が含まれる。許可リスト／カテゴリから
       // 漏れると設定や検証履歴が黙って失われる。
       const isSafePartialValue = (v) => {
         if (v === null || v === void 0) return true;
