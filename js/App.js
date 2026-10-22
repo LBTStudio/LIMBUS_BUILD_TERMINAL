@@ -41,7 +41,7 @@ const HelpSection = () => {
       h("div", { className: "guide-items" },
         h("article", { className: "guide-item" },
           h("div", { className: "guide-item-icon" }, h(Icon, { name: "persona", size: 16 })),
-          h("div", null, h("h3", null, "公式人格を調整する"), h("p", null, "人格を装備して「◈ 同期化して手動編集」を押します。これは人格の全項目を手動編集可能にするための編集モードで、ゲーム上の同期ランク（0・00・000）や同期MAXを設定する操作ではありません。終えるときは「✓ 編集を終了（内容は保持）」を押します。ゲーム上の同期ランクと同期MAXは所持詳細で設定します。"))
+          h("div", null, h("h3", null, "公式人格を調整する"), h("p", null, "人格を装備して「◈ 同期化して手動編集」を押します。これはステータス・パッシブ・スキル・固有バフを手動編集するモードで、ゲーム上の同期ランク（0・00・000）や同期MAXを設定する操作ではありません。終えるときは「✓ 編集を終了（内容は保持）」を押します。ゲーム上の同期ランクと同期MAXは所持詳細で設定します。"))
         ),
         h("article", { className: "guide-item" },
           h("div", { className: "guide-item-icon" }, h(Icon, { name: "plus", size: 16 })),
