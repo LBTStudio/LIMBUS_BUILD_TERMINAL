@@ -256,6 +256,24 @@ test("判定不能は支出節の名前行だけに絞る（収入・現在・�
   assert.match(unresolved[0].line, /东部親指ソルダードII/);
 });
 
+test("支出セクションの終了後は報酬行を未解決支出に混ぜない", () => {
+  const memo = [
+    "・支出",
+    "識別できない購入名",
+    "・報酬",
+    "不明な報酬の説明"
+  ].join("\n");
+  const { unresolved } = C.proposePurchases(memo, { resolve: () => null });
+  assert.equal(unresolved.length, 1);
+  assert.equal(unresolved[0].line, "識別できない購入名");
+});
+
+test("カンマ区切り・全角の通貨だけの行は購入名の未解決候補にしない", () => {
+  const memo = ["・支出", "1,200LP", "２５０欠片", "１，２００ＬＰ"].join("\n");
+  const { unresolved } = C.proposePurchases(memo, { resolve: () => null });
+  assert.deepEqual(unresolved, []);
+});
+
 test("購入候補の抽出は節で絞らない（再現率優先・確認は利用者）", () => {
   const memo = ["・買い物", "ルサンチマン　現在52LP"].join("\n");
   const { proposals } = C.proposePurchases(memo, { resolve: (n) => R.resolveCandidates(idx, n)[0] || null });
