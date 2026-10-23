@@ -38,6 +38,7 @@ function createStorage(initial = {}) {
 function loadAccounts(storage, overrides = {}) {
   const win = { localStorage: storage };
   if (Object.hasOwn(overrides, "crypto")) win.crypto = overrides.crypto;
+  if (Object.hasOwn(overrides, "DB")) win.DB = overrides.DB;
   const context = {
     window: win, console, setTimeout, clearTimeout, Blob, URL,
     Date: overrides.Date || Date,
@@ -239,6 +240,28 @@ test("索引キー自体が消えても残存する保存本体からアカウ�
   assert.equal(listed.activeId, activeId);
   assert.equal(accounts.loadActive().charName, "索引なしのキャラクター");
   assert.equal(JSON.parse(storage.getItem(INDEX_KEY)).accounts.length, 1, "索引を再構築して保存する");
+});
+
+test("新規アカウントは価格0が明示された精神だけを初期所持にする", () => {
+  const storage = createStorage();
+  const accounts = loadAccounts(storage, {
+    DB: {
+      spirits: [
+        { name: "無料・数値", price: 0 },
+        { name: "無料・文字列", price: "0" },
+        { name: "有料", price: 10 },
+        { name: "価格欠落" },
+        { name: "価格null", price: null },
+        { name: "価格空欄", price: "" },
+        { name: "価格不正", price: "unknown" },
+        { name: "価格Boolean", price: false }
+      ]
+    }
+  });
+  const account = accounts.create("初期所持確認", "");
+  assert.ok(account);
+  const saved = JSON.parse(storage.getItem(ACCOUNT_PREFIX + account.id));
+  assert.deepEqual(saved.roster.spirits.map((item) => item.name), ["無料・数値", "無料・文字列"]);
 });
 
 test("初回移行は旧データをバックアップへ複製し、旧キーを変更・削除しない", () => {
