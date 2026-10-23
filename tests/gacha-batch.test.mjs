@@ -132,6 +132,29 @@ function finalizedBatch(secret) {
   return { batch, out };
 }
 
+test("rulesetHash は抽選結果に関わる名前・ランク・パック出典の変更を検知する", () => {
+  const baseHash = gacha.rulesetHash;
+  const renamedPersona = structuredClone(db);
+  renamedPersona.normal_personas[0].name += "（変更）";
+  assert.notEqual(G.createGacha({ db: renamedPersona, themePacks }).rulesetHash, baseHash,
+    "人格名の変更で指紋が変わる");
+
+  const relabeledEgo = structuredClone(db);
+  relabeledEgo.egos[0].rank = relabeledEgo.egos[0].rank === "ZAYIN" ? "TETH" : "ZAYIN";
+  assert.notEqual(G.createGacha({ db: relabeledEgo, themePacks }).rulesetHash, baseHash,
+    "E.G.Oランクの変更で指紋が変わる");
+
+  const renamedEgo = structuredClone(db);
+  renamedEgo.egos[0].name += "（変更）";
+  assert.notEqual(G.createGacha({ db: renamedEgo, themePacks }).rulesetHash, baseHash,
+    "E.G.O名の変更で指紋が変わる");
+
+  const changedPack = structuredClone(themePacks);
+  changedPack.packs[0].entries[0].page += 1;
+  assert.notEqual(G.createGacha({ db, themePacks: changedPack }).rulesetHash, baseHash,
+    "パックの出典ページ変更で指紋が変わる");
+});
+
 test("バッチ錨: 結果は鎖で連結し、検証を通る", () => {
   const { batch } = finalizedBatch("GM-KEY");
   assert.equal(batch.records.length, batch.count);

@@ -132,6 +132,28 @@ test("通帳の金額・チケット数は部分一致の数値として取り�
   assert.equal(validate({ schemaVersion: 5, results: [
     { id: "r1", income: { lp: "1,200", shards: 0, tickets: { persona: "2", pack: { A: 3 } } } }
   ] }), null, "桁区切りを含む妥当な整数データは受け入れる");
+
+  assert.match(validate({ schemaVersion: 5, inventory: [
+    { uid: "i1", itemId: "bandage", quantity: "12abc" }
+  ] }), /inventory\[0\]\.quantity/, "不正な所持数量を黙って12個へ読み替えない");
+  assert.match(validate({ schemaVersion: 5, inventory: [
+    { uid: "i1", itemId: "bandage", quantity: 1.5 }
+  ] }), /inventory\[0\]\.quantity/, "小数の所持数量を拒否する");
+  assert.match(validate({ schemaVersion: 5, inventory: [
+    { uid: "i1", itemId: "bandage", quantity: 1 },
+    { uid: "i2", itemId: "bandage", quantity: 1 }
+  ] }), /inventory\[1\] に重複 itemId/, "同じアイテムの重複行で最大所持数を迂回させない");
+  assert.match(validate({ schemaVersion: 5, inventory: [
+    { uid: "i1", quantity: 1 }
+  ] }), /inventory\[0\]\.itemId/, "表示先のないアイテム行はインポート前に拒否する");
+  assert.match(validate({ schemaVersion: 5, customItems: [
+    { id: "c1", name: "用品", maxOwned: "5pcs" }
+  ] }), /customItems\[0\]\.maxOwned/, "不正な所持上限も部分一致で解釈しない");
+  assert.equal(validate({ schemaVersion: 5, inventory: [
+    { uid: "i1", itemId: "bandage", quantity: "2" }
+  ], customItems: [
+    { id: "c1", name: "用品", maxOwned: "5" }
+  ] }), null, "旧ファイル互換の整数文字列は受け入れる");
 });
 
 test("JSONインポートはレコード配列の不正要素を適用前に拒否する", () => {
@@ -170,6 +192,15 @@ test("JSONインポートはレコード配列の不正要素を適用前に拒�
   assert.match(validate({ schemaVersion: 5, entries: [
     { id: "same", name: "A" }, { id: "same", name: "B" }
   ] }), /entries\[1\] に重複ID/, "同じ明細IDはインポート前に拒否する");
+  assert.match(validate({ schemaVersion: 5, roster: { personas: [
+    { uid: "p1", no: 1, mode: "n" }, { uid: "p2", no: 1, mode: "n" }
+  ] } }), /roster\.personas\[1\] に重複人格/, "所持人格のNo重複を拒否する");
+  assert.match(validate({ schemaVersion: 5, roster: { egos: [
+    { uid: "e1", rank: "ZAYIN", no: 1 }, { uid: "e2", rank: "ZAYIN", no: 1 }
+  ] } }), /roster\.egos\[1\] に重複E\.G\.O/, "所持E.G.Oのランク・No重複を拒否する");
+  assert.match(validate({ schemaVersion: 5, roster: { supports: [
+    { uid: "s1", name: "同名サポート" }, { uid: "s2", name: "同名サポート" }
+  ] } }), /roster\.supports\[1\] に重複名称/, "同名サポートの重複所持を拒否する");
   assert.match(validate({ _lbtRosterOnly: true, roster: { personas: [null] } }), /roster\.personas\[0\]/);
   assert.equal(validate({ schemaVersion: 5, results: [], entries: [], draws: [], roster: {
     personas: [], egos: [], supports: [], spirits: []
