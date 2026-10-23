@@ -115,6 +115,48 @@ test("破損したアカウント索引に同じIDが複数あっても一つの
   assert.equal(accounts.loadActive().charName, "唯一の保存領域");
 });
 
+test("破損したアカウント索引から、個別キーに残っている複数の保存を復元する", () => {
+  const firstId = "acc-recovery-first";
+  const secondId = "acc-recovery-active";
+  const corruptIndex = "{broken-json";
+  const storage = createStorage({
+    [INDEX_KEY]: corruptIndex,
+    [ACCOUNT_PREFIX + firstId]: JSON.stringify({ schemaVersion: 5, charName: "復旧キャラクターA" }),
+    [ACCOUNT_PREFIX + secondId]: JSON.stringify({ schemaVersion: 5, charName: "復旧キャラクターB" }),
+    [ACTIVE_KEY]: secondId
+  });
+  const accounts = loadAccounts(storage);
+
+  const listed = accounts.list();
+  assert.equal(listed.accounts.length, 2, "index破損でアカウント本体を空扱いしない");
+  assert.equal(Array.from(listed.accounts, (entry) => entry.id).sort().join("|"), [firstId, secondId].sort().join("|"));
+  assert.equal(listed.activeId, secondId, "有効なアクティブIDを維持する");
+  assert.equal(accounts.loadActive().charName, "復旧キャラクターB");
+  assert.ok(storage.keys().some((key) => key.startsWith(INDEX_KEY + ".corrupt.")), "破損した索引の原文を退避する");
+  const repaired = JSON.parse(storage.getItem(INDEX_KEY));
+  assert.equal(repaired.accounts.length, 2, "復元した索引を再保存する");
+});
+
+test("空または不正な形の索引も、保存済みアカウントがあれば初回状態と誤認しない", () => {
+  for (const brokenShape of [
+    JSON.stringify({ version: 1, accounts: "not-an-array" }),
+    JSON.stringify({ version: 1, accounts: [] })
+  ]) {
+    const firstId = "acc-recovery-shape-first";
+    const secondId = "acc-recovery-shape-second";
+    const storage = createStorage({
+      [INDEX_KEY]: brokenShape,
+      [ACCOUNT_PREFIX + firstId]: JSON.stringify({ schemaVersion: 5, charName: "形状復旧A" }),
+      [ACCOUNT_PREFIX + secondId]: JSON.stringify({ schemaVersion: 5, charName: "形状復旧B" })
+    });
+    const accounts = loadAccounts(storage);
+    const listed = accounts.list();
+    assert.equal(listed.accounts.length, 2, "indexの形だけが壊れていても本体を復元する");
+    assert.equal(accounts.loadActive().charName, "形状復旧A", "選択先がない場合は復旧一覧の先頭を開く");
+    assert.equal(JSON.parse(storage.getItem(INDEX_KEY)).accounts.length, 2);
+  }
+});
+
 test("初回移行は旧データをバックアップへ複製し、旧キーを変更・削除しない", () => {
   const legacy = legacyStateJson();
   const storage = createStorage({ [LEGACY_KEY]: legacy });
