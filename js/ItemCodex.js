@@ -116,7 +116,7 @@ const ItemCodex = ({ state, dispatch }) => {
           h("label", null, "チャットパレット文", h("textarea", { value: selected.palette || "", onChange: (event) => patchCustomItem({ palette: event.target.value }) })),
           h(Button, { size: "sm", variant: "ghost", icon: "trash", onClick: removeCustomItem, title: "オリジナルアイテムと所持品登録を削除" }, "オリジナルを削除")
         ) : h(React.Fragment, null,
-          h("div", { className: "item-effect-block" }, h("span", { className: "t-label" }, "効果"), h("p", null, window.LBT_GLOSSARY_TEXT ? window.LBT_GLOSSARY_TEXT(selected.effect, "アイテム効果") : selected.effect)),
+          h("div", { className: "item-effect-block" }, h("span", { className: "t-label" }, "効果"), h("p", null, window.LBT_GLOSSARY_TEXT ? window.LBT_GLOSSARY_TEXT(selected.effect, { ownerType: "item", ownerName: selected.name }) : selected.effect)),
           h("div", { className: "item-effect-block item-palette-preview" }, h("span", { className: "t-label" }, "チャットパレットへ反映"), h("pre", null, `◆ ${selected.name}\n${selected.palette || selected.effect}`))
         ),
         selectedEntry ? h("div", { className: "item-owned-controls" },

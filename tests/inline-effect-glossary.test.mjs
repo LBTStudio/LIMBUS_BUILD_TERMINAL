@@ -110,10 +110,66 @@ test("the same reusable renderer is connected to persona, E.G.O, support, item a
   const sections = readFileSync(resolve(ROOT, "js/OtherSections.js"), "utf8");
   const items = readFileSync(resolve(ROOT, "js/ItemCodex.js"), "utf8");
   const skills = readFileSync(resolve(ROOT, "js/SkillDeck.js"), "utf8");
-  assert.match(persona, /LBT_GLOSSARY_TEXT\(p\.passive_effect/);
+  assert.match(persona, /LBT_GLOSSARY_TEXT\(p\.passive_effect, \{ ownerType: "persona", ownerName: p\.name \}\)/);
   assert.match(persona, /LBT_GLOSSARY_TEXT\(d\.effect/);
-  assert.match(sections, /LBT_GLOSSARY_TEXT\(ego\.unique_buff/);
-  assert.match(sections, /LBT_GLOSSARY_TEXT\(spp\.effect/);
-  assert.match(items, /LBT_GLOSSARY_TEXT\(selected\.effect/);
-  assert.match(skills, /LBT_GLOSSARY_TEXT\(skill\.effect/);
+  assert.match(sections, /LBT_GLOSSARY_TEXT\(ego\.unique_buff, \{ ownerType: "ego", ownerName: ego\.name/);
+  assert.match(sections, /LBT_GLOSSARY_TEXT\(spp\.effect, \{ ownerType: "support", ownerName: spp\.name \}\)/);
+  assert.match(items, /LBT_GLOSSARY_TEXT\(selected\.effect, \{ ownerType: "item", ownerName: selected\.name \}\)/);
+  assert.match(skills, /LBT_GLOSSARY_TEXT\(skill\.effect, \{ ownerType: "customSkill", ownerName: skill\.name \}\)/);
+});
+
+
+test("same-named persona unique buffs resolve to the owner in the active persona context", () => {
+  const personas = [...db.normal_personas, ...db.tokui_personas];
+  const byName = new Map();
+  let pair = null;
+  for (const p of personas) for (const buff of p.unique_buffs || []) {
+    if (!byName.has(buff.name)) byName.set(buff.name, []);
+    byName.get(buff.name).push({ persona: p, buff });
+  }
+  for (const [name, owners] of byName) {
+    if (owners.length > 1 && owners[0].persona.name !== owners[1].persona.name) {
+      pair = { name, first: owners[0], second: owners[1] }; break;
+    }
+  }
+  assert.ok(pair, "DBには同名の人格固有バフが存在する");
+  const api = loadGlossary();
+  for (const selected of [pair.first, pair.second]) {
+    const piece = api.tokenize(selected.buff.name, db, { ownerType: "persona", ownerName: selected.persona.name })
+      .find((part) => part.term === selected.buff.name);
+    assert.ok(piece);
+    assert.equal(piece.entries.length, 1);
+    assert.equal(piece.entries[0].ownerName, selected.persona.name);
+    assert.ok(piece.entries[0].description.includes(selected.buff.desc));
+  }
+});
+
+test("generic buffs and debuffs show one PDF-backed rules definition, not identity examples", () => {
+  const api = loadGlossary();
+  const core = readFileSync(resolve(ROOT, "data/provenance/core.txt"), "utf8");
+  const ctx = { ownerType: "persona", ownerName: "検証用の人格" };
+  for (const item of [
+    { term: "パワー", page: 304, needle: "攻撃スキル威力" },
+    { term: "出血", page: 307, needle: "ダイスロール時" },
+    { term: "煙", page: 311, needle: "与えるダメージ" },
+    { term: "弾丸", page: 312, needle: "特定戦術の能力が向上" }
+  ]) {
+    const piece = api.tokenize(item.term, db, ctx).find((part) => part.term === item.term);
+    assert.ok(piece, item.term);
+    assert.equal(piece.entries.length, 1, item.term);
+    assert.equal(piece.entries[0].source, "基本ルール p." + item.page, item.term);
+    assert.ok(piece.entries[0].description.includes(item.needle), item.term);
+    const heading = "===== PAGE " + item.page + " =====";
+    const start = core.indexOf(heading), end = core.indexOf("===== PAGE ", start + heading.length);
+    assert.ok(start >= 0 && core.slice(start, end >= 0 ? end : core.length).includes(item.term),
+      item.term + " is in the PDF-derived source corpus");
+  }
+});
+
+test("glossary resolution never emits related-effect example lists", () => {
+  const api = loadGlossary();
+  const glossary = api.buildGlossary(db);
+  for (const entries of glossary.values()) assert.equal(entries.some((entry) => entry.category === "関連効果の例"), false);
+  assert.doesNotMatch(source, /entries\.slice\(0, 5\)|ほか .*件の参照があります/);
+  assert.equal(api.tokenize("パワー", db)[0].entries.length, 1);
 });
