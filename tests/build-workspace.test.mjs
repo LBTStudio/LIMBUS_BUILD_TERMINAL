@@ -800,6 +800,8 @@ test("無料の精神は最初から所持として数える（購入ではな�
   assert.match(sections, /const spiritInitialSeeded = \(state\.roster\?\.spirits \|\| \[\]\)\.filter\(\(entry\) => \{[\s\S]{0,240}?return def && isExplicitlyFreeSpirit\(def\);/);
   assert.match(sections, /disabled: !knownPrice/);
   assert.match(sections, /"価格不明"/);
+  assert.match(sections, /isExplicitlyFreeSpirit\(sp\)/);
+  assert.match(sections, /!hasExplicitSpiritPrice\(sp\) \? "価格不明"/);
 });
 
 test("所持人格リストの一括取り込みは、名前に区切り文字を含んでも壊さない", () => {
