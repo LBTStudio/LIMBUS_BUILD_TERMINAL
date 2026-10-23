@@ -15,6 +15,9 @@ test("価格: 桁区切り付き LP／欠片を切り捨てずに読む", () => 
   assert.deepEqual({ ...parsePriceText("1,200LP") }, { lp: 1200, shards: 0 });
   assert.deepEqual({ ...parsePriceText("LP1,200 SHARD2,500") }, { lp: 1200, shards: 2500 });
   assert.deepEqual({ ...parsePriceText("１，２００ＬＰ ２，５００欠片") }, { lp: 1200, shards: 2500 });
+  assert.deepEqual({ ...parsePriceText("1,200") }, { lp: 1200, shards: 0 }, "単位なしの桁区切り価格は既定のLPとして読む");
+  assert.deepEqual({ ...parsePriceText("2,500", "shards") }, { lp: 0, shards: 2500 }, "既定単位が欠片の場合も桁区切りを保持する");
+  assert.deepEqual({ ...parsePriceText("1,20") }, { lp: 0, shards: 0 }, "不正区切りの単位なし価格は拒否する");
   assert.deepEqual({ ...parsePriceText("１５ＬＰ３０欠片") }, { lp: 15, shards: 30 }, "区切り無しの従来表記も保持する");
 });
 
