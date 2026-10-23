@@ -235,6 +235,8 @@
 .acct-card-hit {
   position: absolute;
   inset: 0;
+  z-index: 1;
+  pointer-events: auto;
   border-radius: inherit;
   background: none;
   border: 0;
@@ -322,6 +324,7 @@
 }
 .acct-card-actions {
   position: absolute;
+  z-index: 2;
   bottom: var(--s-2);
   right: var(--s-2);
   display: flex;
@@ -541,6 +544,7 @@ main.acct-gate {
   transform: translateY(-3px);
 }
 .acct-gate-cta {
+  pointer-events: none;
   margin-top: auto;
   font: 700 var(--fs-10) var(--f-display);
   letter-spacing: .1em;
