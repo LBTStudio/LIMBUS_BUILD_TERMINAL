@@ -100,12 +100,15 @@ test("非数値の現在残高はゼロと誤認せず未入力として警告�
   assert.equal(out[0].impliedSpend.lp, null);
 });
 
-test("非数値の収入をゼロとして黙って通さない", () => {
+test("非数値の収入は支出導出に使わず、有効な現在残高は次行の基準に残す", () => {
   const out = C.reconcileResults([
-    { title: "入力ミス", income: { lp: "12abc" }, current: { lp: 100 } }
+    { title: "入力ミス", income: { lp: "12abc" }, current: { lp: 100 } },
+    { title: "次の行", income: { lp: 10 }, current: { lp: 90 } }
   ]);
-  assert.equal(out[0].income.lp, 0);
+  assert.equal(out[0].income.lp, 0, "既存の表示用正規化は維持");
   assert.ok(out[0].flags.some((f) => f.code === "invalid-income" && f.currency === "lp"));
+  assert.equal(out[0].impliedSpend.lp, null, "無効な収入から 0 LP 支出を捏造しない");
+  assert.equal(out[1].impliedSpend.lp, 20, "不正行の現在残高を有効な次行基準として使う");
 });
 
 

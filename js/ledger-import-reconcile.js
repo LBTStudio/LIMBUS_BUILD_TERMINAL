@@ -45,7 +45,8 @@
 
       for (const key of ["lp", "shards"]) {
         const rawValue = rawIncome[key];
-        if (String(rawValue ?? "").trim() !== "" && !hasNumber(rawValue)) {
+        const invalidIncome = String(rawValue ?? "").trim() !== "" && !hasNumber(rawValue);
+        if (invalidIncome) {
           flags.push({
             level: "error",
             code: "invalid-income",
@@ -57,6 +58,13 @@
 
         if (current[key] === null) {
           flags.push({ level: "info", code: "no-current", currency: key, text: "現在の残高が未入力または数値ではありません" });
+          continue;
+        }
+        /* この行の収入が不正なら、この行の支出は導出しない。
+           ただし現在残高は有効な基準点なので、次の行の計算には引き継ぐ。 */
+        if (invalidIncome) {
+          running[key] = current[key];
+          started[key] = true;
           continue;
         }
         if (!started[key]) {
