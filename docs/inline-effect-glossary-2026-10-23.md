@@ -22,4 +22,7 @@
 
 ## 検証
 
+`node --test tests/inline-effect-glossary.test.mjs` で、PDF定義の出典、同名固有用語の文脈分離、別人格への誤フォールバック禁止、関連効果例の撤去、タッチ操作とアクセシビリティを確認する。
+
+
 `node --test tests/inline-effect-glossary.test.mjs` で、基本ルール用語の出典、人格固有／E.G.O固有の説明、角括弧付き参照語、最長一致、PC／タッチ操作設定、HTMLを文字列として挿入しないこと、複数画面への統合を確認する。
