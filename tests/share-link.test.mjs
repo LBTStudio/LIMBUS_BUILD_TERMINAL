@@ -3,10 +3,18 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import vm from "node:vm";
 
-function loadShareLink(db = null, config = {}) {
+function loadShareLink(db = null, config = {}, environment = {}) {
   const source = readFileSync(new URL("../js/share-link.js", import.meta.url), "utf8");
   const window = { DB: db, ...config };
-  vm.runInNewContext(source, { window, TextEncoder, TextDecoder, CompressionStream, DecompressionStream, Blob, Response, URL, URLSearchParams, btoa, atob });
+  const globals = { window, TextEncoder, TextDecoder, Blob, Response, URL, URLSearchParams, btoa, atob };
+  if (environment.compression !== false) {
+    globals.CompressionStream = CompressionStream;
+    globals.DecompressionStream = DecompressionStream;
+  } else {
+    globals.CompressionStream = undefined;
+    globals.DecompressionStream = undefined;
+  }
+  vm.runInNewContext(source, globals);
   return window.LBT_shareLink;
 }
 
@@ -584,4 +592,29 @@ test("長いRentry共有トークンは切断されない短い連番チャン�
     return new Response(storedText);
   });
   assert.equal(restoredToken, expectedToken);
+});
+
+
+test("圧縮後トークンが復元上限を超える共有状態は、無効リンクを発行せず明示的に拒否する", async () => {
+  const share = loadShareLink();
+  // 決定論的な高エントロピー文字列。JSON自体は4 MiB未満だが、deflate後も
+  // decodeToken の160,000文字上限を超える大きさになる。
+  let seed = 0x13579bdf;
+  let content = "";
+  for (let i = 0; i < 240000; i += 1) {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    content += String.fromCharCode(33 + (seed % 90));
+  }
+  await assert.rejects(
+    () => share.encodeState({ charName: "大きな共有状態", customStatuses: [{ label: "高エントロピー", initial: content }] }),
+    /復元側のサイズ上限/
+  );
+});
+
+test("CompressionStreamが無いブラウザでも、復元できない巨大な非圧縮トークンを発行しない", async () => {
+  const share = loadShareLink(null, {}, { compression: false });
+  await assert.rejects(
+    () => share.encodeState({ charName: "圧縮非対応", customStatuses: [{ label: "長文", initial: "x".repeat(130000) }] }),
+    /復元側のサイズ上限/
+  );
 });
