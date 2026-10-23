@@ -800,6 +800,41 @@ test("現在残高の行より前の収入を二重加算せず、通貨別に�
   assert.equal(result.ok, true, "同じ残高を誤って不一致にしない");
 });
 
+test("共有残高照合は全角数字・カンマ・通貨名を半角と同じように解釈する", () => {
+  const M = loadImportWithMemo();
+  const doc = {
+    currency: { lp: "１００", fragment: "３９" },
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{
+      name: "全角の受領記録",
+      memo: "９０ＬＰ：現在１００ＬＰ\n２９欠片：現在３９欠片"
+    }]
+  };
+  const manifest = M.buildManifest(doc, null);
+  const result = M.reconcileBalance(manifest, doc);
+  assert.equal(result.shownLp, 100);
+  assert.equal(result.shownShards, 39);
+  assert.equal(result.checked, true, "全角の現在残高をアンカーとして検出");
+  assert.equal(result.computedLp, 100);
+  assert.equal(result.computedShards, 39);
+  assert.equal(result.ok, true);
+});
+
+test("全角の不正な桁区切りは有効な共有残高にしない", () => {
+  const M = loadImportWithMemo();
+  const doc = {
+    currency: { lp: "１，２", fragment: "" },
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{
+      name: "不正な金額",
+      memo: "９０ＬＰ：現在１，２ＬＰ"
+    }]
+  };
+  const result = M.reconcileBalance(M.buildManifest(doc, null), doc);
+  assert.equal(result.shownLp, null);
+  assert.equal(result.checked, false, "不正な残高から帳尻を捏造しない");
+});
+
 test("空欄・null の共有残高はゼロではなく未入力として扱う", () => {
   const M = loadImportWithMemo();
   const doc = {
