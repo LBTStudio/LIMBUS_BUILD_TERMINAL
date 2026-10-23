@@ -1748,9 +1748,19 @@ function parsePriceText(raw, defaultUnit) {
      溢れない。各通貨は最初に見つかった対を採る。 */
   let lp = 0;
   let shards = 0;
-  for (const m of text.matchAll(/(\d+)\s*(?:LP|SHARD|欠片|欠)|(?:LP|SHARD|欠片|欠)\s*(\d+)/gi)) {
-    const amount = m[1] !== undefined ? m[1] : m[2];
-    const unit = m[0].replace(/\d+/g, "").replace(/\s+/g, "");
+  /* 桁区切りがある金額も正しく一つの数値として読む。
+     \\d+ だけだと「1,200LP」が「200LP」に部分一致し、帳の支出が
+     1,000LP 少なく記録される。カンマの途中から部分一致することも防ぐ。 */
+  const amountPattern = "(?:\\\\d{1,3}(?:,\\\\d{3})+|\\\\d+)";
+  const unitPattern = "(?:LP|SHARD|欠片|欠)";
+  const pricePairs = new RegExp(
+    "(^|[^\\\\d,])(" + amountPattern + ")\\\\s*(" + unitPattern + ")(?![A-Z])"
+      + "|(^|[^\\\\d,])(" + unitPattern + ")\\\\s*(" + amountPattern + ")(?![\\\\d,])",
+    "gi"
+  );
+  for (const m of text.matchAll(pricePairs)) {
+    const amount = m[2] !== undefined ? m[2] : m[6];
+    const unit = m[3] !== undefined ? m[3] : m[5];
     if (/SHARD|欠/i.test(unit)) { if (!shards) shards = amount; }
     else if (!lp) lp = amount;
   }
