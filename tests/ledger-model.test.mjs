@@ -375,3 +375,22 @@ test("破損したローカルセーブの配列要素は正規化前に除外�
   assert.deepEqual(JSON.parse(JSON.stringify(normalized.draws[0].records)), [null],
     "検証不合格の根拠となる原記録を保持する");
 });
+
+
+test("所持アイテムの破損した数量を部分一致で増やさず、安全な値へ正規化する", () => {
+  const normalized = normalize({
+    ...baseState(),
+    inventory: [
+      { uid: "bad-partial", itemId: "bandage", quantity: "12abc" },
+      { uid: "bad-decimal", itemId: "bandage-2", quantity: 1.5 },
+      { uid: "good", itemId: "bandage-3", quantity: "2" }
+    ],
+    customItems: [
+      { id: "custom-bad-cap", name: "試験用品", maxOwned: "5pcs" }
+    ]
+  });
+  assert.deepEqual(Array.from(normalized.inventory, (item) => item.quantity), [1, 1, 2]);
+  assert.equal(context.window.LBT_getItemMaxOwned({
+    customItems: [{ id: "custom-bad-cap", maxOwned: "5pcs" }]
+  }, "custom-bad-cap"), 99, "不正な上限値を部分一致で採用せず既定の上限へ戻す");
+});
