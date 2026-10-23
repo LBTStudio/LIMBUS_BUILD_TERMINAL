@@ -84,6 +84,21 @@ const PRECACHE_URLS = [
 /* ==== /GENERATED ==== */
 
 const PAGE_FILES = ["index.html", "share.html", "mobile-preview.html"];
+/* Cache Storage is shared by every application on the same origin, even when a
+   Service Worker has a narrower path scope. Identify this app's old caches by
+   their own page URLs rather than deleting every cache on the origin. */
+const APP_PAGE_URLS = new Set(PAGE_FILES.map((file) => new URL(file, self.location).href));
+
+async function isOwnAppCache(cacheName) {
+  try {
+    const cache = await caches.open(cacheName);
+    const requests = await cache.keys();
+    return requests.some((request) => APP_PAGE_URLS.has(new URL(request.url).href));
+  } catch (_) {
+    // If ownership cannot be confirmed, preserve the cache rather than risk data loss.
+    return false;
+  }
+}
 const OPTIONAL_PRECACHE_URLS = new Set(PRECACHE_URLS.filter((url) => url === "mobile-preview.html" || url.startsWith("assets/fonts/")));
 const REQUIRED_PRECACHE_URLS = PRECACHE_URLS.filter((url) => !OPTIONAL_PRECACHE_URLS.has(url));
 const PRECACHE_ABS = new Set(PRECACHE_URLS.map((u) => new URL(u, self.location).href));
@@ -110,7 +125,11 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
       const keys = await caches.keys();
-      await Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)));
+      const staleOwnCaches = (await Promise.all(keys
+        .filter((key) => key !== CACHE_NAME)
+        .map(async (key) => await isOwnAppCache(key) ? key : null)))
+        .filter(Boolean);
+      await Promise.all(staleOwnCaches.map((key) => caches.delete(key)));
       await self.clients.claim();
     })()
   );
