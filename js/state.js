@@ -858,7 +858,7 @@ function refreshEquippedPersonaFromDB(next) {
   const pool = next.personaMode === "n" ? window.DB?.normal_personas
     : next.personaMode === "t" ? window.DB?.tokui_personas : null;
   if (!Array.isArray(pool)) return next;
-  const latest = pool.find((p) => p.no === next.personaNo && p.name === next.personaSrc.name);
+  const latest = pool.find((p) => String(p.no) === String(next.personaNo) && p.name === next.personaSrc.name);
   if (!latest) return next;
   // DB 参照データ（図鑑の説明文・パッシブ原文等）は常に最新に置き換える。
   next.personaSrc = latest;
@@ -3584,7 +3584,7 @@ function appReducer(state, action) {
     case "PATCH_PERSONA_META": {
       const patch = action.patch || {};
       const nextSrc = state.personaSrc ? { ...state.personaSrc, ...patch.src || {} } : state.personaSrc;
-      const personas = (state.roster?.personas || []).map((entry) => entry.mode === state.personaMode && entry.no === state.personaNo
+      const personas = (state.roster?.personas || []).map((entry) => entry.mode === state.personaMode && String(entry.no) === String(state.personaNo)
         ? { ...entry, displayName: nextSrc?.name || entry.displayName || "", updatedAt: Date.now() }
         : entry);
       return {
@@ -3838,10 +3838,10 @@ return appendLedgerEntry(next, {
       const personas = state.roster.personas.filter((p) => p.uid !== action.uid);
       const next = { ...state, roster: { ...state.roster, personas } };
       // V16: 削除された人格を装備中なら、編集内容を破棄して DB 既定へリセットする。
-      if (removed && state.personaSrc && removed.mode === state.personaMode && removed.no === state.personaNo) {
+      if (removed && state.personaSrc && removed.mode === state.personaMode && String(removed.no) === String(state.personaNo)) {
         const srcPool = removed.mode === "n" ? (window.DB?.normal_personas || [])
           : removed.mode === "t" ? (window.DB?.tokui_personas || []) : [];
-        const dbSrc = srcPool.find((x) => x.no === removed.no);
+        const dbSrc = srcPool.find((x) => String(x.no) === String(removed.no));
         if (dbSrc) {
           next.hp = String(dbSrc.hp || "");
           next.san = String(dbSrc.san || "");
