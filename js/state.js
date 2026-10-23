@@ -2044,6 +2044,8 @@ const ACCOUNTS_INDEX_KEY = "lbt_accounts_index";
 const ACCOUNT_PREFIX = "lbt_account_";
 const ACCOUNT_ACTIVE_KEY = "lbt_account_active";
 const ACCOUNT_ICONS_KEY = "lbt_accounts_icons";
+const ACCOUNT_EPOCH_PREFIX = "lbt_epoch_account_";
+const BOOT_ACCOUNT_EPOCHS = new Map();
 const LEGACY_BACKUP_PREFIX = `${STORAGE_KEY}.backup.`;
 const ACCOUNT_NAME_MAX = 40;
 /* アイコンは索引とは別キーに置く。索引は毎回の一覧描画で読むため、
@@ -2075,6 +2077,21 @@ function readStorageRaw(key) {
   } catch (_) {
     return null;
   }
+}
+
+/* reset 前から開いている別タブの遅延保存を無効化するための世代トークン。
+   accountId は維持したままでも、reset 時に epoch が変われば古い画面からの
+   saveActive は拒否される。 */ 
+function readAccountEpoch(id) {
+  return readStorageRaw(ACCOUNT_EPOCH_PREFIX + id) ?? "";
+}
+function captureBootAccountEpoch(id) {
+  if (id && !BOOT_ACCOUNT_EPOCHS.has(id)) BOOT_ACCOUNT_EPOCHS.set(id, readAccountEpoch(id));
+}
+function makeAccountEpoch(previous) {
+  let next = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  if (next === previous) next += "-next";
+  return next;
 }
 function writeStorageRaw(key, value) {
   const storage = lbtStorage();
@@ -2280,6 +2297,8 @@ function newAccountId(existingAccounts = []) {
     const id = `acc-${Date.now().toString(36)}-${suffix}-${attempt.toString(36)}`;
     if (usedIds.has(id)) continue;
     if (storage && readStorageRaw(ACCOUNT_PREFIX + id) != null) continue;
+    /* 削除・リセット前に開いていたタブの保存世代を誤って再利用しない。 */
+    if (readStorageRaw(ACCOUNT_EPOCH_PREFIX + id) != null) continue;
     return id;
   }
   return null;
@@ -2341,7 +2360,9 @@ function listAccounts() {
   return { accounts: accounts.map((entry) => ({ ...entry })), activeId };
 }
 function getActiveAccountId() {
-  return migrateLegacyAccounts().activeId;
+  const id = migrateLegacyAccounts().activeId;
+  captureBootAccountEpoch(id);
+  return id;
 }
 function loadActiveAccountState() {
   const { activeId } = migrateLegacyAccounts();
@@ -2370,6 +2391,10 @@ function saveActiveAccountState(state, accountId) {
     targetId = migrateLegacyAccounts().activeId;
     if (!targetId) return false;
   }
+  /* 起動後に同じアカウントが完全リセットされた場合、旧画面が残した state を
+     保存すると削除済みデータが復活する。世代が変わった save は拒否する。 */
+  if (BOOT_ACCOUNT_EPOCHS.has(targetId)
+    && readAccountEpoch(targetId) !== BOOT_ACCOUNT_EPOCHS.get(targetId)) return false;
   let serialized = "";
   try {
     serialized = JSON.stringify(state);
@@ -2520,7 +2545,10 @@ function removeAccountIcon(id) {
 function resetActiveAccount() {
   const { activeId } = migrateLegacyAccounts();
   if (!activeId) return false;
+  captureBootAccountEpoch(activeId);
   const key = ACCOUNT_PREFIX + activeId;
+  const epochKey = ACCOUNT_EPOCH_PREFIX + activeId;
+  const previousEpoch = readStorageRaw(epochKey);
   const storage = lbtStorage();
   if (!storage || typeof storage.key !== "function") return false;
   /* リセット対象の本体を書き換える前に、現アカウントの破損退避を削除する。
@@ -2539,19 +2567,28 @@ function resetActiveAccount() {
     return false;
   }
   const removed = [];
+  const restoreSnapshots = () => {
+    for (const previous of removed) {
+      if (readStorageRaw(previous.key) == null) writeStorageRaw(previous.key, previous.raw);
+    }
+  };
   for (const snapshot of snapshots) {
     if (!removeStorageRaw(snapshot.key)) {
-      for (const previous of removed) {
-        if (readStorageRaw(previous.key) == null) writeStorageRaw(previous.key, previous.raw);
-      }
+      restoreSnapshots();
       return false;
     }
     removed.push(snapshot);
   }
+  /* 世代トークンを更新してから空状態を保存する。既存タブの保存は世代不一致で
+     拒否される。世代の書き込みに失敗した場合は本体へ触れずに戻す。 */
+  if (!writeStorageRaw(epochKey, makeAccountEpoch(previousEpoch ?? ""))) {
+    restoreSnapshots();
+    return false;
+  }
   if (!writeStorageRaw(key, JSON.stringify({ schemaVersion: SAVE_SCHEMA_VERSION }))) {
-    for (const previous of removed) {
-      if (readStorageRaw(previous.key) == null) writeStorageRaw(previous.key, previous.raw);
-    }
+    if (previousEpoch == null) removeStorageRaw(epochKey);
+    else writeStorageRaw(epochKey, previousEpoch);
+    restoreSnapshots();
     return false;
   }
   return true;
