@@ -15,14 +15,17 @@ const packs = {
   ]
 };
 
-function loadEstimator() {
+function loadRuntime() {
   const context = { window: { DB, LBT_GACHA_PACKS: packs }, console };
   context.globalThis = context;
   vm.createContext(context);
   for (const file of ["js/gacha.js", "js/gacha-tickets.js"]) {
     vm.runInContext(readFileSync(new URL("../" + file, import.meta.url), "utf8"), context, { filename: file });
   }
-  return context.window.LBT_gachaDraw;
+  return { draw: context.window.LBT_gachaDraw, engine: context.window.LBT_gacha };
+}
+function loadEstimator() {
+  return loadRuntime().draw;
 }
 
 const stateWithPersonaCount = (count) => ({
@@ -37,6 +40,23 @@ test("未所持の人格抽出は初回だけ無料。複数回費用は逐次�
   assert.deepEqual(JSON.parse(JSON.stringify(draw.estimateTotalCost("persona", stateWithPersonaCount(0), "", 1))), { lp: 0, shards: 0 });
   assert.deepEqual(JSON.parse(JSON.stringify(draw.estimateTotalCost("persona", stateWithPersonaCount(0), "", 2))), { lp: 100, shards: 0 });
   assert.deepEqual(JSON.parse(JSON.stringify(draw.estimateTotalCost("persona", stateWithPersonaCount(0), "", 3))), { lp: 200, shards: 0 });
+});
+
+test("見積もりの合計LPは抽選エンジンの実取引と一致する", () => {
+  const { draw, engine } = loadRuntime();
+  const state = stateWithPersonaCount(0);
+  const session = engine.createSession({ serverSeed: "cost-audit-seed", clientSeed: "cost-audit-client" });
+  const actual = engine.createGacha({ db: DB, themePacks: packs }).drawBatch({
+    session,
+    kind: "persona",
+    owned: { personas: [], specialPersonas: [], egos: [] },
+    lp: 1000,
+    count: 2
+  });
+  const estimate = draw.estimateTotalCost("persona", state, "", 2);
+  assert.equal(actual.drawn, 2, "2回分の人格プールが残っている");
+  assert.equal(estimate.lp, actual.totalCost.lp, "見積もりと封緘対象の取引費用が同額");
+  assert.equal(estimate.lp, 100);
 });
 
 test("既所持人格がある場合は全回に所持後価格が適用される", () => {
