@@ -78,10 +78,10 @@
     var text = String(line);
     var count = 1;
     var cm = text.match(/[x×]\s*(\d+)/);
-    if (cm) count = parseInt(cm[1], 10) || 1;
+    if (cm) count = parseInt(cm[1], 10);
     /* 「ガチャチケ1枚」 */
     var cm2 = text.match(/(?:チケ|チケット)\s*(\d+)\s*枚/);
-    if (cm2) count = parseInt(cm2[1], 10) || 1;
+    if (cm2) count = parseInt(cm2[1], 10);
 
     var kind = "persona";
     if (EGO_WORDS.some(function (w) { return text.indexOf(w) >= 0; })) kind = "ego";
@@ -99,7 +99,7 @@
     if (!m) return null;
     /* 「時間殺人時間テーマパック抽出」はパックの獲得であり、チケットの消費ではない。 */
     if (/パック/.test(String(line))) return null;
-    var count = m[1] ? parseInt(m[1], 10) || 1 : 1;
+    var count = m[1] ? parseInt(m[1], 10) : 1;
     var isEgo = EGO_WORDS.some(function (w) { return String(line).indexOf(w) >= 0; }) || /ガチャ/.test(line);
     return { kind: isEgo ? "ego" : "persona", count: count };
   }
@@ -523,9 +523,13 @@
         tickets[tk.kind] += tk.count;
         /* チケットからどの人格/E.G.Oを得たか。ソースの書式は
            「人格抽出チケット：N 社小鎚の人格」「抽出1：LCE E.G.O:ねばつき」*/
-        var srcNames = arrowWinsOf(line);
-        if (!srcNames.length) { var src = ticketSourceName(line); if (src) srcNames = [src]; }
-        srcNames.forEach(function (nm) { wins.push({ name: nm, via: TICKET_LABEL[tk.kind], kind: tk.kind }); });
+        /* 明示された x0 / 0枚は獲得抽出ではない。チケット収入を増やさないだけでなく、
+           結果名から所持まで推定すると「0枚で獲得」になるため候補も作らない。 */
+        if (tk.count > 0) {
+          var srcNames = arrowWinsOf(line);
+          if (!srcNames.length) { var src = ticketSourceName(line); if (src) srcNames = [src]; }
+          srcNames.forEach(function (nm) { wins.push({ name: nm, via: TICKET_LABEL[tk.kind], kind: tk.kind }); });
+        }
         /* チケット行に報酬額が並ぶ書式がある（「140LP 90欠片　EGOチケット」）。
            収入節では金額も読む。支出節では従来どおり金額を取らない。 */
         if (mode !== "income") continue;
@@ -557,9 +561,12 @@
         var bd = bareDrawOf(line);
         if (bd) {
           tickets[bd.kind] += bd.count;
-          var bdNames = arrowWinsOf(line);
-          if (!bdNames.length) { var src2 = ticketSourceName(line); if (src2) bdNames = [src2]; }
-          bdNames.forEach(function (nm) { wins.push({ name: nm, via: TICKET_LABEL[bd.kind], kind: bd.kind }); });
+          /* 抽出0 は回数も獲得候補もゼロ。名前があるだけで所持へ追加しない。 */
+          if (bd.count > 0) {
+            var bdNames = arrowWinsOf(line);
+            if (!bdNames.length) { var src2 = ticketSourceName(line); if (src2) bdNames = [src2]; }
+            bdNames.forEach(function (nm) { wins.push({ name: nm, via: TICKET_LABEL[bd.kind], kind: bd.kind }); });
+          }
           /* 金額が同居する書式（「LP：181、欠片:136、EGO抽出🎫x1を獲得」）を
              落とさないため、収入節では金額の読み取りへ続ける。 */
           if (mode !== "income") continue;
