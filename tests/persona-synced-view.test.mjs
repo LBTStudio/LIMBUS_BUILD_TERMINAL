@@ -11,7 +11,8 @@ assert.ok(start >= 0 && end > start, "PersonaCodex exposes isolated roster view 
 function loadResolver() {
   const context = {};
   vm.createContext(context);
-  vm.runInContext(source.slice(start, end) + "\nglobalThis.__resolve = resolvePersonaCodexEntry;", context);
+  vm.runInContext(source.slice(start, end) + "\nglobalThis.__resolve = resolvePersonaCodexEntry; globalThis.__resolveSelected = resolveSelectedPersonaFromPool;", context);
+  context.__resolve.resolveSelectedPool = context.__resolveSelected;
   return context.__resolve;
 }
 
@@ -71,6 +72,16 @@ test("アカウント移行で古いdisplayNameと新しい保存buildが共存�
   }, { no: 17, name: "DBの名前" }, { personaMode: null, personaNo: null, personaSrc: null });
   assert.equal(view.name, "最新ビルド側の同期名");
   assert.equal(view.skills[0].name, "最新スキル");
+});
+
+test("一覧データ更新後は詳細を同じモード・Noの最新オブジェクトへ再結合する", () => {
+  const resolveSelectedPool = loadResolver().resolveSelectedPool;
+  const previous = { no: 17, name: "旧同期名", skills: [{ name: "旧スキル" }] };
+  const refreshed = { no: 17, name: "新同期名", skills: [{ name: "新スキル" }] };
+  const pool = [{ mode: "n", p: refreshed }];
+  assert.strictEqual(resolveSelectedPool(pool, previous, "n"), refreshed);
+  assert.strictEqual(resolveSelectedPool(pool, previous, "t"), previous, "Noが同じでも別モードを混同しない");
+  assert.equal(resolveSelectedPool(pool, null, "n"), null);
 });
 
 test("保存ビルドがなくても同期名をDB人格の表示へ適用する", () => {

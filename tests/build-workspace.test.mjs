@@ -907,7 +907,7 @@ test("人格詳細はポップオーバーで開き、自動スクロールし�
   assert.doesNotMatch(codex, /setSelectedPersona\(state\.personaSrc\)/);
   /* 詳細の中はポップオーバーに載せ、閉じる操作はヘッダの × だけ。 */
   assert.match(codex, /React\.createElement\(\s*\n\s*DetailDialog,/);
-  assert.match(codex, /open: !!selectedPersona, onClose: \(\) => setSelectedPersona\(null\)/);
+  assert.match(codex, /open: !!selectedPersona, onClose: \(\) => \{ setSelectedPersona\(null\); setSelectedPersonaMode\(null\); \}/);
 });
 
 test("詳細の操作帯はスクロールしても下端に見える（sticky footer）", () => {
@@ -941,7 +941,7 @@ test("人格の所持化は取得方法を選べるワンボタンになり、�
   assert.match(codex, /!isInRoster && acquireHow && onAcquireHowChange && \/\* @__PURE__ \*\/ React\.createElement\(AcquireBar/);
   /* 詳細ポップオーバーまで取得方法を配線する。渡し忘れると未所持の詳細が素の装備ボタンだけになり、
      装備経由の所持化が購入明細を素通りする。 */
-  assert.match(codex, /isInRoster: currentIsInRoster,[\s\S]{0,160}?state,[\s\S]{0,80}?acquireHow,[\s\S]{0,80}?onAcquireHowChange: setAcquireHow,[\s\S]{0,80}?onAcquire: \(\) => acquirePersona\(selectedPersona\)/);
+  assert.match(codex, /isInRoster: currentIsInRoster,[\s\S]{0,160}?state,[\s\S]{0,80}?acquireHow,[\s\S]{0,80}?onAcquireHowChange: setAcquireHow,[\s\S]{0,80}?onAcquire: \(\) => acquirePersona\(selectedPersonaView\)/);
   /* 装備ボタンは所持済みのときだけ出す。 */
   assert.match(codex, /isInRoster && \/\* @__PURE__ \*\/ React\.createElement\(Button, \{ variant: "primary", onClick: onEquip/);
   assert.match(codex, /const \[acquireHow, setAcquireHow\] = React\.useState\("purchase"\);/);

@@ -611,6 +611,13 @@ function buildRosterDetailPersona(entry, fallback) {
     keywords: Array.isArray(source.keywords) ? source.keywords.slice() : (persona.keywords || [])
   };
 }
+function resolveSelectedPersonaFromPool(pool, selectedPersona, selectedMode) {
+  if (!selectedPersona || !Array.isArray(pool)) return selectedPersona || null;
+  const selectedNo = String(selectedPersona.no ?? "");
+  const matched = pool.find((entry) => entry?.mode === selectedMode
+    && String(entry?.p?.no ?? "") === selectedNo);
+  return matched?.p || selectedPersona;
+}
 function resolvePersonaCodexEntry(entry, fallback, state) {
   const isEquipped = Boolean(state?.personaSrc)
     && String(state.personaMode) === String(entry?.mode)
@@ -621,6 +628,7 @@ if (typeof window !== "undefined") {
   window.LBT_buildEquippedDetailPersona = buildEquippedDetailPersona;
   window.LBT_resolvePersonaCodexEntry = resolvePersonaCodexEntry;
   window.LBT_resolvePersonaDisplayName = resolvePersonaDisplayName;
+  window.LBT_resolveSelectedPersonaFromPool = resolveSelectedPersonaFromPool;
 }
 const SyncMaxControl = ({ state, dispatch }) => {
   const entry = findCurrentRosterPersona(state);
@@ -760,6 +768,7 @@ const PersonaCodex = ({ state, dispatch, ownedOnly = false }) => {
   const { ui, personaMode, personaNo, favorites, historyRecent, roster } = state;
   const mode = gated ? "roster" : ui.codexMode || "n";
   const [selectedPersona, setSelectedPersona] = React.useState(null);
+  const [selectedPersonaMode, setSelectedPersonaMode] = React.useState(null);
   const pendingDetailFocusRef = React.useRef(false);
   const [draftImportOpen, setDraftImportOpen] = React.useState(false);
   const [draftText, setDraftText] = React.useState("");
@@ -808,6 +817,10 @@ const PersonaCodex = ({ state, dispatch, ownedOnly = false }) => {
     }).filter(Boolean);
     return [];
   }, [mode, favorites, historyRecent, roster, state]);
+  const selectedPersonaView = resolveSelectedPersonaFromPool(pool, selectedPersona, selectedPersonaMode);
+  React.useEffect(() => {
+    if (selectedPersonaView && selectedPersonaView !== selectedPersona) setSelectedPersona(selectedPersonaView);
+  }, [selectedPersonaView, selectedPersona]);
   // ★/履歴のバッジ件数は、実際に表示できる件数と一致させる。
   // 解決できないキー（例: 削除済みロスターの custom）を含めて数えると
   // 「★3 なのに一覧が2件」のような不一致が起きる。
@@ -1044,11 +1057,11 @@ const addRoster = (p) => {
     toast("\u88C5\u5099\u3092\u89E3\u9664");
   };
   const toggleFav = (m, no) => dispatch({ type: "TOGGLE_FAV", mode: m, no });
-  const currentMeta = pool.find((x) => x.p === selectedPersona);
-  const currentMode = currentMeta?.mode || mode;
-  const currentIsEquipped = personaNo === selectedPersona?.no && personaMode === currentMode;
-  const currentIsInRoster = selectedPersona && roster.personas.some((r) => r.no === selectedPersona.no && r.mode === currentMode);
-  const currentIsFav = selectedPersona && favorites.includes(`${currentMode}:${selectedPersona.no}`);
+  const currentMeta = pool.find((x) => x.mode === selectedPersonaMode && String(x.p.no) === String(selectedPersona?.no));
+  const currentMode = currentMeta?.mode || selectedPersonaMode || mode;
+  const currentIsEquipped = personaNo === selectedPersonaView?.no && personaMode === currentMode;
+  const currentIsInRoster = selectedPersonaView && roster.personas.some((r) => String(r.no) === String(selectedPersonaView.no) && r.mode === currentMode);
+  const currentIsFav = selectedPersonaView && favorites.includes(`${currentMode}:${selectedPersonaView.no}`);
   const modes = [
     { value: "n", label: "\u901A\u5E38", count: DB.normal_personas.length },
     { value: "t", label: "\u7279\u7570", count: DB.tokui_personas.length },
@@ -1141,7 +1154,7 @@ const addRoster = (p) => {
   ), equippedPersona && showEquippedDetail && /* @__PURE__ */ React.createElement("div", { className: "equipped-detail-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "equipped-detail-inner" }, /* @__PURE__ */ React.createElement(
     DetailDialog,
     {
-      open: !!selectedPersona, onClose: () => setSelectedPersona(null), label: "\u4EBA\u683C\u8A73\u7D30",
+      open: !!selectedPersona, onClose: () => { setSelectedPersona(null); setSelectedPersonaMode(null); }, label: "\u4EBA\u683C\u8A73\u7D30",
       children: /* @__PURE__ */ React.createElement(
     PersonaDetail,
     {
@@ -1271,16 +1284,16 @@ const addRoster = (p) => {
       persona: p,
       mode: m,
       isEquipped: personaMode === m && personaNo === p.no,
-      isActive: selectedPersona === p,
+      isActive: selectedPersonaMode === m && String(selectedPersona?.no) === String(p.no),
       isFav: favorites.includes(`${m}:${p.no}`),
       onSelect: (persona) => {
-        // V02: 既に選択中（簡易詳細が出ている）同じカードを再度クリックしたら装備。
-        if (selectedPersona === persona) {
+        // 同じモード・No の選択中カードを再クリックしたら装備する。
+        if (selectedPersonaMode === m && String(selectedPersona?.no) === String(persona.no)) {
           equipPersona(persona);
           return;
         }
-        // 描画後に詳細先頭へ確実に移動する。選択結果と次の行為を連続して提示する。
         pendingDetailFocusRef.current = true;
+        setSelectedPersonaMode(m);
         setSelectedPersona(persona);
       },
       onEquip: equipPersona,
@@ -1297,23 +1310,23 @@ const addRoster = (p) => {
   )))), /* @__PURE__ */ React.createElement(
     DetailDialog,
     {
-      open: !!selectedPersona, onClose: () => setSelectedPersona(null), label: "\u4EBA\u683C\u8A73\u7D30",
+      open: !!selectedPersona, onClose: () => { setSelectedPersona(null); setSelectedPersonaMode(null); }, label: "\u4EBA\u683C\u8A73\u7D30",
       children: /* @__PURE__ */ React.createElement(
     PersonaDetail,
     {
-      persona: selectedPersona,
+      persona: selectedPersonaView,
       mode: currentMode,
       isEquipped: currentIsEquipped,
-      onEquip: () => equipPersona(selectedPersona),
+      onEquip: () => equipPersona(selectedPersonaView),
       onUnequip: unequip,
-      onAddRoster: () => addRoster(selectedPersona),
+      onAddRoster: () => addRoster(selectedPersonaView),
       isInRoster: currentIsInRoster,
       onReturnToList: returnToSelectedCard,
       onOpenDraft: () => setDraftImportOpen(true),
       state,
       acquireHow,
       onAcquireHowChange: setAcquireHow,
-      onAcquire: () => acquirePersona(selectedPersona)
+      onAcquire: () => acquirePersona(selectedPersonaView)
     }
   )
     })))));
