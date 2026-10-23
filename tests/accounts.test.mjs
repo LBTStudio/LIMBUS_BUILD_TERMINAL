@@ -35,8 +35,14 @@ function createStorage(initial = {}) {
   };
 }
 
-function loadAccounts(storage) {
-  const context = { window: { localStorage: storage }, console, setTimeout, clearTimeout, Blob, URL };
+function loadAccounts(storage, overrides = {}) {
+  const win = { localStorage: storage };
+  if (Object.hasOwn(overrides, "crypto")) win.crypto = overrides.crypto;
+  const context = {
+    window: win, console, setTimeout, clearTimeout, Blob, URL,
+    Date: overrides.Date || Date,
+    Math: overrides.Math || Math
+  };
   context.globalThis = context;
   vm.createContext(context);
   vm.runInContext(stateSource, context);
@@ -59,6 +65,55 @@ function legacyStateJson() {
     favorites: ["n:1"]
   });
 }
+
+
+test("アカウントIDが既存ID／孤立保存キーと衝突しても既存データを上書きしない", () => {
+  const fixedNow = 1700000000000;
+  class FixedDate extends Date { static now() { return fixedNow; } }
+  const repeatedCrypto = {
+    getRandomValues(bytes) { bytes.fill(7); return bytes; }
+  };
+  const suffix = "07".repeat(16);
+  const collidingId = `acc-${fixedNow.toString(36)}-${suffix}-0`;
+
+  /* 索引に登録済みのアカウントとの衝突 */
+  const indexedStorage = createStorage({
+    [INDEX_KEY]: JSON.stringify({ version: 1, accounts: [{ id: collidingId, name: "既存", purpose: "" }] }),
+    [ACCOUNT_PREFIX + collidingId]: JSON.stringify({ schemaVersion: 5, charName: "既存キャラクター" })
+  });
+  const indexedAccounts = loadAccounts(indexedStorage, { Date: FixedDate, crypto: repeatedCrypto });
+  const created = indexedAccounts.create("新規", "監査テスト");
+  assert.ok(created, "再試行で別IDを確保する");
+  assert.notEqual(created.id, collidingId);
+  assert.equal(JSON.parse(indexedStorage.getItem(ACCOUNT_PREFIX + collidingId)).charName, "既存キャラクター");
+  assert.equal(indexedAccounts.list().accounts.length, 2);
+
+  /* 索引にない孤立キーでも、保存先が存在するIDを再利用しない */
+  const orphanStorage = createStorage({
+    [ACCOUNT_PREFIX + collidingId]: JSON.stringify({ schemaVersion: 5, charName: "孤立データ" })
+  });
+  const orphanAccounts = loadAccounts(orphanStorage, { Date: FixedDate, crypto: repeatedCrypto });
+  const orphanCreate = orphanAccounts.create("新規アカウント", "");
+  assert.ok(orphanCreate);
+  assert.notEqual(orphanCreate.id, collidingId);
+  assert.equal(JSON.parse(orphanStorage.getItem(ACCOUNT_PREFIX + collidingId)).charName, "孤立データ");
+});
+
+test("破損したアカウント索引に同じIDが複数あっても一つの保存領域として扱う", () => {
+  const duplicateId = "acc-duplicate-key";
+  const storage = createStorage({
+    [INDEX_KEY]: JSON.stringify({ version: 1, accounts: [
+      { id: duplicateId, name: "先行アカウント", purpose: "保存領域A" },
+      { id: duplicateId, name: "重複表示", purpose: "別保存領域に見える" }
+    ] }),
+    [ACCOUNT_PREFIX + duplicateId]: JSON.stringify({ schemaVersion: 5, charName: "唯一の保存領域" })
+  });
+  const accounts = loadAccounts(storage);
+  const listed = accounts.list().accounts;
+  assert.equal(listed.length, 1);
+  assert.equal(listed[0].name, "先行アカウント");
+  assert.equal(accounts.loadActive().charName, "唯一の保存領域");
+});
 
 test("初回移行は旧データをバックアップへ複製し、旧キーを変更・削除しない", () => {
   const legacy = legacyStateJson();
