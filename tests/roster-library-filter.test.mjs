@@ -32,6 +32,15 @@ test("所持E.G.Oは原典が見つからないとき保存ビルドへ戻る", 
   assert.equal(resolved.name, "創作E.G.Oの保存ビルド");
 });
 
+test("E.G.O一覧の選択・装備・所持行照合はNoの数値/文字列混在を許容する", () => {
+  const source = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
+  assert.match(source, /String\(v\.no \?\? ""\) === String\(selected\.no \?\? ""\)/);
+  assert.match(source, /String\(selected\?\.no \?\? ""\) === String\(e\.no \?\? ""\)/);
+  assert.match(source, /String\(x\.no \?\? ""\) === String\(selected\.no \?\? ""\)/);
+  const { resolveRosterEgoSource } = loadRosterLibrary();
+  assert.equal(resolveRosterEgoSource({ rank: "TETH", no: "17" }, [{ rank: "TETH", no: 17, name: "原典E.G.O" }]).name, "原典E.G.O");
+});
+
 test("所持人格は同期ランクまたは同期MAXがあれば同期済みとして判定する", () => {
   const { isRosterPersonaSynced, rosterPersonaMatchesSyncFilters } = loadRosterLibrary();
   assert.equal(isRosterPersonaSynced({ syncRank: "00" }), true);
