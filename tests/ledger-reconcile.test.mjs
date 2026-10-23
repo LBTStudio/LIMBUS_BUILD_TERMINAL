@@ -271,7 +271,7 @@ test("支出セクションの終了後は報酬行を未解決支出に混ぜ�
 test("カンマ区切り・全角の通貨だけの行は購入名の未解決候補にしない", () => {
   const memo = ["・支出", "1,200LP", "２５０欠片", "１，２００ＬＰ"].join("\n");
   const { unresolved } = C.proposePurchases(memo, { resolve: () => null });
-  assert.deepEqual(unresolved, []);
+  assert.equal(unresolved.length, 0);
 });
 
 test("購入候補の抽出は節で絞らない（再現率優先・確認は利用者）", () => {
