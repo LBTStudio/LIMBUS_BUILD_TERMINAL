@@ -568,9 +568,21 @@ function buildEquippedDetailPersona(state) {
     keywords: Array.isArray(src.keywords) ? src.keywords.slice() : []
   };
 }
+function resolvePersonaDisplayName(entry, sourceName) {
+  const displayName = String(entry?.displayName || "").trim();
+  const savedName = String(sourceName || "").trim();
+  if (!displayName) return savedName;
+  if (!savedName) return displayName;
+  /* account import can carry an older roster displayName and a newer saved build.
+     PATCH_PERSONA_META updates entry.updatedAt; SAVE_PERSONA_BUILD updates build.savedAt.
+     Prefer whichever name record is newer, while keeping displayName authoritative on ties. */
+  const displayUpdatedAt = Number(entry?.updatedAt) || 0;
+  const buildSavedAt = Number(entry?.build?.savedAt) || 0;
+  return buildSavedAt > displayUpdatedAt ? savedName : displayName;
+}
 function buildRosterDetailPersona(entry, fallback) {
   const build = entry?.build;
-  if (!build) return entry?.displayName && fallback ? { ...fallback, name: entry.displayName } : fallback;
+  if (!build) return fallback ? { ...fallback, name: resolvePersonaDisplayName(entry, fallback.name) } : fallback;
   const source = build.personaSrc && typeof build.personaSrc === "object" ? build.personaSrc : {};
   const persona = { ...fallback, ...source, no: fallback?.no };
   return {
@@ -586,7 +598,7 @@ function buildRosterDetailPersona(entry, fallback) {
     passive_cond: build.pas?.cond ?? persona.passive_cond,
     passive_always: build.pas?.always ?? persona.passive_always,
     passive_effect: build.pas?.effect ?? persona.passive_effect,
-    name: entry?.displayName || persona.name,
+    name: resolvePersonaDisplayName(entry, persona.name),
     skills: Array.isArray(build.skills) ? build.skills : persona.skills,
     unique_buffs: Array.isArray(build.uniqueBuffs) ? build.uniqueBuffs : persona.unique_buffs,
     extra_passives: Array.isArray(build.extraPassives) ? build.extraPassives.map((p) => ({
@@ -604,6 +616,7 @@ function resolvePersonaCodexEntry(entry, fallback, state) {
 if (typeof window !== "undefined") {
   window.LBT_buildEquippedDetailPersona = buildEquippedDetailPersona;
   window.LBT_resolvePersonaCodexEntry = resolvePersonaCodexEntry;
+  window.LBT_resolvePersonaDisplayName = resolvePersonaDisplayName;
 }
 const SyncMaxControl = ({ state, dispatch }) => {
   const entry = findCurrentRosterPersona(state);
