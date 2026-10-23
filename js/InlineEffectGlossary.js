@@ -39,7 +39,7 @@
     "指令": { group: "特殊用語", source: "基本ルール／データ内参照", text: "人格・E.G.Oの効果文に登場する特殊用語。具体的な数値や条件は、該当する参照元の効果文を併せて確認できる。" }
   };
 
-  const escapeRegExp = (value) => value.replace(/[.*+?^$()|[\]\\]/g, "\\$&");
+  const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\const escapeRegExp = (value) => value.replace(/[.*+?^$()|[\]\\]/g, "\\$&");");
   const cleanTerm = (value) => String(value || "").replace(/^\[|\]$/g, "").trim();
   const shortText = (value, limit = 250) => {
     const text = String(value || "").trim();
@@ -267,10 +267,11 @@
       setOpen((value) => !value);
     };
     const panel = open && position ? React.createElement("div", {
-      id: panelId, ref: panelRef, className: "lbt-glossary-popover", role: "tooltip",
+      id: panelId, ref: panelRef, className: "lbt-glossary-popover", role: "dialog", "aria-label": "用語詳細：" + term, "aria-modal": false,
       style: { position: "fixed", top: position.top, left: position.left, width: position.width },
       onPointerEnter: () => { clearTimer(closeTimer); },
-      onPointerLeave: () => closeSoon(220)
+      onPointerLeave: () => closeSoon(220),
+      onKeyDown: (event) => { if (event.key === "Escape") setOpen(false); }
     },
       React.createElement("div", { className: "lbt-glossary-popover-head" },
         React.createElement("span", { className: "lbt-glossary-popover-kicker" }, "用語リファレンス"),
@@ -302,7 +303,7 @@
         "aria-label": "用語詳細：" + term, "aria-haspopup": "true",
         "aria-expanded": open, "aria-describedby": open ? panelId : undefined,
         title: "PCはホバー、スマホはタップ／長押しで詳細を表示",
-        onFocus: () => setOpen(true), onClick
+        onFocus: (event) => { if (event.currentTarget.matches(":focus-visible")) setOpen(true); }, onClick
       }, props.children || term),
       portal
     );
