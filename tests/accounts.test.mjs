@@ -444,6 +444,29 @@ test("アカウント本体の削除に失敗したら成功扱いせず、索�
   assert.equal(storage.getItem(ACTIVE_KEY), second.id, "削除が失敗したため元の選択を維持");
 });
 
+
+test("完全リセットは旧タブの遅延保存を無効化し、新しいタブの保存は許可する", () => {
+  const storage = createStorage({ [LEGACY_KEY]: legacyStateJson() });
+  const oldTab = loadAccounts(storage);
+  const activeId = oldTab.getActiveId();
+  assert.ok(activeId);
+  assert.equal(oldTab.saveActive({ charName: "リセット前の状態" }, activeId), true);
+
+  const resettingTab = loadAccounts(storage);
+  assert.equal(resettingTab.getActiveId(), activeId);
+  assert.equal(resettingTab.resetActive(), true);
+  assert.equal(JSON.parse(storage.getItem(ACCOUNT_PREFIX + activeId)).charName, undefined, "リセット後の保存本体は空");
+  assert.equal(oldTab.resetActive(), false, "古いタブから後続のリセットも実行できない");
+
+  assert.equal(oldTab.saveActive({ charName: "古いタブからの遅延保存" }, activeId), false, "古い世代からは保存できない");
+  assert.equal(JSON.parse(storage.getItem(ACCOUNT_PREFIX + activeId)).charName, undefined, "空状態が復活書き込みで上書きされない");
+
+  const newTab = loadAccounts(storage);
+  assert.equal(newTab.getActiveId(), activeId);
+  assert.equal(newTab.saveActive({ charName: "リセット後の新しい状態" }, activeId), true, "新しい世代では保存できる");
+  assert.equal(newTab.loadActive().charName, "リセット後の新しい状態");
+});
+
 test("resetActive は現アカウントだけ既定へ戻し、旧キーと他データはそのまま", () => {  const storage = createStorage({ [LEGACY_KEY]: legacyStateJson() });
   const accounts = loadAccounts(storage);
   const { activeId } = accounts.list();
