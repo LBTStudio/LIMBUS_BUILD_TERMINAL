@@ -2098,8 +2098,8 @@ function removeStorageRaw(key) {
 }
 /* 読めない保存値は上書きせず、別キーへ退避してから初めて既定で再出発できる。 */
 function preserveUnreadable(key, raw) {
-  if (raw == null) return;
-  writeStorageRaw(`${key}.corrupt.${Date.now()}`, raw);
+  if (raw == null) return true;
+  return writeStorageRaw(`${key}.corrupt.${Date.now()}`, raw);
 }
 function normalizeAccountName(value, fallback) {
   const name = String(value || "").trim().slice(0, ACCOUNT_NAME_MAX);
@@ -2330,7 +2330,8 @@ function saveActiveAccountState(state, accountId) {
     try {
       JSON.parse(existing);
     } catch (_) {
-      preserveUnreadable(key, existing);
+      /* バックアップを確保できないなら、唯一の壊れた原本を上書きしない。 */
+      if (!preserveUnreadable(key, existing)) return false;
     }
   }
   if (!writeStorageRaw(key, serialized)) return false;
