@@ -383,6 +383,78 @@ function validateImportedInventoryCaps(data, fields, currentState) {
   return null;
 }
 
+/* Shared roster imports must be all-or-nothing per item ID when the combined
+   quantity would exceed its ownership cap. The reducer clamps quantities for local safety;
+   this boundary prevents a successful-looking import from silently discarding part of it. */
+function filterInventoryImportActions(actions, state) {
+  const source = Array.isArray(actions) ? actions : [];
+  const inventory = Array.isArray(state?.inventory) ? state.inventory : [];
+  const parseQuantity = (value) => {
+    if (value === void 0 || value === null || value === "") return 1;
+    if (typeof value === "number") return Number.isSafeInteger(value) && value > 0 ? value : null;
+    if (typeof value !== "string" || !/^\d+$/.test(value.trim())) return null;
+    const parsed = Number(value.trim());
+    return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+  };
+
+  const rejectedActions = new Set();
+  const skipped = [];
+  const quantitiesByItem = new Map();
+
+  for (const action of source) {
+    if (action?.type !== "ADD_ITEM_INVENTORY") continue;
+    const itemId = typeof action.itemId === "string" ? action.itemId.trim() : "";
+    if (!itemId) {
+      rejectedActions.add(action);
+      skipped.push({ key: "", reason: "アイテムIDがありません" });
+      continue;
+    }
+    const quantity = parseQuantity(action.quantity);
+    if (quantity === null) {
+      rejectedActions.add(action);
+      skipped.push({ key: itemId, reason: "アイテムの個数が正の整数ではありません" });
+      continue;
+    }
+    const group = quantitiesByItem.get(itemId) || { quantity: 0 };
+    group.quantity += quantity;
+    quantitiesByItem.set(itemId, group);
+  }
+
+  const overCapItemIds = new Set();
+  for (const [itemId, incoming] of quantitiesByItem) {
+    const currentQuantity = inventory.reduce((sum, entry) => {
+      if (entry?.itemId !== itemId) return sum;
+      const quantity = Number(entry.quantity);
+      return sum + (Number.isFinite(quantity) && quantity > 0 ? quantity : 0);
+    }, 0);
+    let maximum = 99;
+    try {
+      const rawMaximum = window.LBT_getItemMaxOwned?.(state, itemId);
+      if (Number.isSafeInteger(rawMaximum) && rawMaximum > 0) maximum = Math.min(99, rawMaximum);
+    } catch (_) {
+      /* If catalog metadata is unavailable, use the same default cap as the reducer. */
+    }
+    if (currentQuantity + incoming.quantity <= maximum) continue;
+    overCapItemIds.add(itemId);
+    const official = Array.isArray(window.DB?.items)
+      ? window.DB.items.find((item) => item?.id === itemId) : null;
+    const custom = Array.isArray(state?.customItems)
+      ? state.customItems.find((item) => item?.id === itemId) : null;
+    const name = String((official || custom)?.name || itemId);
+    skipped.push({
+      key: itemId,
+      reason: "「" + name + "」は所持上限×" + maximum + "を超えるため未取り込み（現在"
+        + currentQuantity + "個／追加" + incoming.quantity + "個）"
+    });
+  }
+
+  return {
+    actions: source.filter((action) => action?.type !== "ADD_ITEM_INVENTORY"
+      || (!rejectedActions.has(action) && !overCapItemIds.has(String(action.itemId || "").trim()))),
+    skipped
+  };
+}
+
 function validateImportData(data) {
   // 既知の構造のみ受け入れる。壊れたデータの部分適用で state を壊さない。
   if (!data || typeof data !== "object" || Array.isArray(data)) return "オブジェクト形式ではありません";
@@ -902,6 +974,8 @@ const RailNavigation = ({ sections, current, dispatch, onOpenUtilities, state })
 
 const App = () => {
   const [state, dispatch, { undo, redo, canUndo, canRedo, saveStatus }] = useAppState();
+  const latestStateRef = React.useRef(state);
+  latestStateRef.current = state;
   const [cpOpen, setCpOpen] = React.useState(false);
   const [qiOpen, setQiOpen] = React.useState(false);
   const [utilityOpen, setUtilityOpen] = React.useState(false);
@@ -1014,14 +1088,29 @@ const App = () => {
   /* 取り込みは accounts-ui からイベントで届く。状態の所在は App に一元する。 */
   React.useEffect(() => {
     const onImport = (event) => {
-      const actions = (event.detail && event.detail.actions) || [];
-      if (!actions.length) return;
-      dispatch({ type: "APPLY_IMPORT_BATCH", actions });
-      const skipped = (event.detail && event.detail.skipped) || [];
-      const bad = skipped.filter((s) => /番号|価格/.test(s.reason || ""));
-      toast(bad.length
-        ? actions.length + "件を取り込みました（" + bad.length + "件は判別できず飛ばしました）"
-        : actions.length + "件を取り込みました（Ctrl+Z で戻せます）");
+      const detail = event.detail && typeof event.detail === "object" ? event.detail : {};
+      const requestedActions = Array.isArray(detail.actions) ? detail.actions : [];
+      const filtered = filterInventoryImportActions(requestedActions, latestStateRef.current);
+      const skipped = [
+        ...(Array.isArray(detail.skipped) ? detail.skipped : []),
+        ...filtered.skipped
+      ];
+      /* CustomEvent.detail is shared with the synchronous caller, so return the accepted
+         actions and skipped reasons for the source UI's result summary. */
+      detail.actions = filtered.actions;
+      detail.skipped = skipped;
+
+      if (!filtered.actions.length) {
+        toast(skipped.length
+          ? "取り込める項目がありません（" + skipped.length + "件を除外しました。理由は取り込み結果を確認してください）"
+          : "取り込む項目がありません", "assertive");
+        return;
+      }
+
+      dispatch({ type: "APPLY_IMPORT_BATCH", actions: filtered.actions });
+      toast(skipped.length
+        ? filtered.actions.length + "件を取り込みました（" + skipped.length + "件を除外しました。理由は取り込み結果を確認してください）"
+        : filtered.actions.length + "件を取り込みました（Ctrl+Z で戻せます）");
     };
     window.addEventListener("lbt:apply-import", onImport);
     return () => window.removeEventListener("lbt:apply-import", onImport);
