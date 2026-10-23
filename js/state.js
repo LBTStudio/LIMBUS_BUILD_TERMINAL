@@ -2347,13 +2347,19 @@ function migrateLegacyAccounts() {
   if (!writeStorageRaw(ACCOUNT_PREFIX + id, stateToStore)) {
     return { accounts: [], activeId: null };
   }
-  // 3. 索引。書けなければ孤立キーを片付けて次回に再挑戦させる。
-  if (!writeAccountsIndex([account])) {
+  /* 3. 索引。別タブが同時に旧セーブを移行している可能性があるため、
+     関数冒頭で読んだ空索引をそのまま書かず、保存本体作成後の最新索引へ追加する。
+     最新索引が空でも readAccountsIndex() が自分や他タブの本体を復旧する場合があるので、
+     自分のIDだけ差し替え、他の有効なアカウントを維持する。 */
+  const latestIndex = readAccountsIndex();
+  const latestOthers = latestIndex.accounts.filter((entry) => entry.id !== id);
+  const mergedAccounts = [...latestOthers, account];
+  if (!writeAccountsIndex(mergedAccounts)) {
     removeStorageRaw(ACCOUNT_PREFIX + id);
-    return { accounts: [], activeId: null };
+    return { accounts: latestIndex.accounts, activeId: readStorageRaw(ACCOUNT_ACTIVE_KEY) };
   }
   writeStorageRaw(ACCOUNT_ACTIVE_KEY, id);
-  return { accounts: [account], activeId: id };
+  return { accounts: mergedAccounts, activeId: id };
 }
 function listAccounts() {
   const { accounts, activeId } = migrateLegacyAccounts();
