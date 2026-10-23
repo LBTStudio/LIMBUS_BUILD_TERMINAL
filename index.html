@@ -31,7 +31,7 @@ function loadDB(){
       return;
     }
     var xhr = new XMLHttpRequest();
-    xhr.open("GET", "data/db.json?v=6577e906", true);
+    xhr.open("GET", "data/db.json?v=16b6df9e", true);
     xhr.onload = function(){ if(xhr.status===200 || xhr.status===0){ try{ window.DB = JSON.parse(xhr.responseText); window.DB.items = []; window.LBT_GACHA_PACKS = { packs: [] }; resolve(); }catch(e){ reject(e); } } else reject(new Error("http "+xhr.status)); };
     xhr.onerror = function(){ reject(new Error("xhr error")); };
     xhr.send();
@@ -120,7 +120,7 @@ window.addEventListener("load", function(){
 					<script src="js/share-link.js?v=1a1caa2c"></script>
 					<script src="js/generator.js?v=7a6430dc"></script>
 <script src="js/ui.js?v=8943eab8"></script>
-				<script src="js/PersonaCodex.js?v=5c0912c6"></script>
+				<script src="js/PersonaCodex.js?v=2a8effaf"></script>
 		<script src="js/ItemCodex.js?v=f81cdb3e"></script>
 <script src="js/SkillDeck.js?v=0e7a3640"></script>
 								<script src="js/OtherSections.js?v=d1b85fcb"></script>
