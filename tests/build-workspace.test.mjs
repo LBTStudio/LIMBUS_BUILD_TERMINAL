@@ -415,7 +415,7 @@ test("ガチャは任意回数をまとめて引ける（既得は再抽選し�
   assert.doesNotMatch(g, /function draw\(route, state, opts\)/);
   assert.match(g, /engine\.drawBatch|const out = engineBatchN\(route, state/);
   assert.match(g, /capped: pay === "ticket" \? held : null/);
-  assert.match(g, /paidCost, ticketCount, ticketKindFor, drawN/);
+  assert.match(g, /paidCost, estimateTotalCost, paymentShortfall, ticketCount, ticketKindFor, drawN/);
   /* UI は回数を自分で入れ、結果はまとめて出る。
      プルダウンではなく数字入力にする（任意の回数を直接入れられるため、
      ±1/＋1/＋5 は不要。 */
