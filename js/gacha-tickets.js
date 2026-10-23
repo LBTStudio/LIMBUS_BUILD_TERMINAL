@@ -266,6 +266,40 @@
     return parts.join(" / ") || "無料";
   }
 
+  /* 抽選前に表示する費用を、エンジンと同じ逐次価格規則から計算する。
+     人格抽出は初回（所持0件）のみ無料で、同じバッチの2回目から有料。
+     UIで単価を1回だけ取って times 倍すると、初回無料時に全回無料と誤表示する。 */
+  function estimateTotalCost(route, state, packName, requestedTimes) {
+    const rawTimes = Number(requestedTimes);
+    const times = Number.isSafeInteger(rawTimes) && rawTimes > 0
+      ? Math.min(99, rawTimes)
+      : 1;
+    const rules = window.LBT_gacha?.RULES || {};
+    const amount = (value) => {
+      const n = Number(value);
+      return Number.isSafeInteger(n) && n >= 0 ? n : 0;
+    };
+
+    if (route === "persona") {
+      const pricing = rules.personaDraw || {};
+      let personaCount = (state?.roster?.personas || []).length;
+      let lp = 0;
+      for (let i = 0; i < times; i += 1) {
+        lp += amount(personaCount === 0 ? pricing.costNoOwnedLP : pricing.costOwnedLP);
+        personaCount += 1;
+      }
+      return { lp, shards: 0 };
+    }
+    if (route === "ego") {
+      return { lp: 0, shards: amount(rules.egoDraw?.costShards) * times };
+    }
+    if (route === "pack") {
+      return { lp: amount(findPack(packName)?.lp) * times, shards: 0 };
+    }
+    const unit = paidCost(route, state, packName);
+    return { lp: amount(unit?.lp) * times, shards: amount(unit?.shards) * times };
+  }
+
   /* ルール表とプールの指紋。記録の錨に載せる。engine をまだ建てていなければ
      ここで一度だけ立てる。 */
   function rulesetHash() {
@@ -296,7 +330,7 @@
   window.LBT_gachaDraw = {
     ROUTES, KINDS,
     buildPool, buildPackPool, themePacks, findPack,
-    paidCost, ticketCount, ticketKindFor, drawN,
+    paidCost, estimateTotalCost, ticketCount, ticketKindFor, drawN,
     seededSession, rulesetHash, sealBatch, verifyBatch
   };
 })();
