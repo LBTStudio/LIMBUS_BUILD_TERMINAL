@@ -2441,18 +2441,25 @@ function saveActiveAccountState(state, accountId) {
 /* 無料（price 0）の精神は最初から持っているものとして数える。
    「初期選択可」は選ぶかどうかの表示ではなく、初めからあるもの。
    有料のものだけ roster に入る。明細は立てない（購入ではない）。 */
+/* 価格の欠落・null・空欄・不正値を0と混同しない。
+   初期所持、初期枠の表示、適用アクションで同じ価格判定を共有する。 */
+function hasExplicitSpiritPrice(definition) {
+  if (!definition || !definition.name) return false;
+  const price = definition.price;
+  const hasNumericValue =
+    (typeof price === "number" && Number.isFinite(price)) ||
+    (typeof price === "string" && price.trim() !== "" && Number.isFinite(Number(price)));
+  return hasNumericValue && Number(price) >= 0;
+}
+function isExplicitlyFreeSpirit(definition) {
+  return hasExplicitSpiritPrice(definition) && Number(definition.price) === 0;
+}
+window.LBT_hasExplicitSpiritPrice = hasExplicitSpiritPrice;
+window.LBT_isExplicitlyFreeSpirit = isExplicitlyFreeSpirit;
+
 function initialFreeSpirits() {
   const list = (window.DB && window.DB.spirits) || [];
-  /* 価格0が明示されたものだけを初期所持へ入れる。price 欠落・null・空文字・
-     非数値を Number(...) で0扱いすると、価格不明の人格まで無料で付与される。 */
-  const free = list.filter((s) => {
-    if (!s || !s.name) return false;
-    const price = s.price;
-    const hasExplicitPrice =
-      (typeof price === "number" && Number.isFinite(price)) ||
-      (typeof price === "string" && price.trim() !== "" && Number.isFinite(Number(price)));
-    return hasExplicitPrice && Number(price) === 0;
-  });
+  const free = list.filter(isExplicitlyFreeSpirit);
   if (!free.length) return [];
   return free.map((s, i) => ({
     uid: `spr-init-${i}-${String(s.name).replace(/[^\w-]+/g, "")}`,
@@ -3949,7 +3956,14 @@ case "SET_INITIAL_SPIRITS": {
 case "APPLY_INITIAL_SPIRITS": {
   const current = Array.isArray(state.roster?.spirits) ? state.roster.spirits : [];
   const owned = new Set(current.map((entry) => entry.name));
-  const wanted = (Array.isArray(state.initialSpirits) ? state.initialSpirits : []).filter((name) => !owned.has(name));
+  const knownPriceNames = new Set(
+    (Array.isArray(window.DB?.spirits) ? window.DB.spirits : [])
+      .filter(hasExplicitSpiritPrice)
+      .map((definition) => definition.name)
+  );
+  /* 価格不明の古い選択値や手動dispatchから、根拠のない初期所持を作らない。 */
+  const wanted = (Array.isArray(state.initialSpirits) ? state.initialSpirits : [])
+    .filter((name) => !owned.has(name) && knownPriceNames.has(name));
   if (wanted.length === 0) return state;
   const roster = [...current, ...wanted.map((name) => ({
     uid: makeOwnedUid("spr"),
