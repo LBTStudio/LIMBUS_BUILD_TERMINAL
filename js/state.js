@@ -2451,10 +2451,33 @@ function deleteAccount(id) {
   if (index.accounts.length <= 1) return false;
   const next = index.accounts.filter((entry) => entry.id !== id);
   if (next.length === index.accounts.length) return false;
-  if (!writeAccountsIndex(next)) return false;
-  removeStorageRaw(ACCOUNT_PREFIX + id);
-  removeAccountIcon(id);
-  if (readStorageRaw(ACCOUNT_ACTIVE_KEY) === id) writeStorageRaw(ACCOUNT_ACTIVE_KEY, next[0].id);
+
+  const storageKey = ACCOUNT_PREFIX + id;
+  const previousState = readStorageRaw(storageKey);
+  const previousActiveId = readStorageRaw(ACCOUNT_ACTIVE_KEY);
+  const wasActive = previousActiveId === id;
+  /* 削除が失敗したときに index / active ID を元へ戻せるよう、先に選択先を
+     切り替える。書き込みに失敗したら、データ本体にはまだ触れず中止する。 */
+  if (wasActive && !writeStorageRaw(ACCOUNT_ACTIVE_KEY, next[0].id)) return false;
+  if (!writeAccountsIndex(next)) {
+    if (wasActive) writeStorageRaw(ACCOUNT_ACTIVE_KEY, previousActiveId);
+    return false;
+  }
+  if (!removeStorageRaw(storageKey)) {
+    /* removeItem が失敗したのに index だけ削除すると、保存本体が孤立して
+       後日の索引復旧で「削除したはずのアカウント」が再出現する。 */
+    writeAccountsIndex(index.accounts);
+    if (wasActive) writeStorageRaw(ACCOUNT_ACTIVE_KEY, previousActiveId);
+    return false;
+  }
+  if (!removeAccountIcon(id)) {
+    /* アイコン除去に失敗した場合も、アカウントの保存本体と索引を戻して
+       不完全な削除を成功扱いしない。 */
+    if (previousState != null) writeStorageRaw(storageKey, previousState);
+    writeAccountsIndex(index.accounts);
+    if (wasActive) writeStorageRaw(ACCOUNT_ACTIVE_KEY, previousActiveId);
+    return false;
+  }
   return true;
 }
 /* ---- アカウントアイコン（ユーザーアップロード画像） ---- */
