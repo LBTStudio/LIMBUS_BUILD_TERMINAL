@@ -1251,13 +1251,13 @@ test("取り込み: 不正なアイテム個数は成功 action にせず、正�
     groups: [{
       id: "items",
       items: [
-        { key: "valid", name: "包帯", quantity: 2 },
-        { key: "string-quantity", name: "救急包", quantity: "3" },
-        { key: "missing-quantity", name: "止血剤" },
-        { key: "fraction", name: "薬草", quantity: 1.5 },
-        { key: "unsafe", name: "装置", quantity: Number.MAX_SAFE_INTEGER + 1 },
-        { key: "zero", name: "投薬器", quantity: 0 },
-        { key: "junk", name: "薬瓶", quantity: "2abc" }
+        { key: "valid", name: "包帯", quantity: 2, kinds: [] },
+        { key: "string-quantity", name: "救急包", quantity: "3", kinds: [] },
+        { key: "missing-quantity", name: "止血剤", kinds: [] },
+        { key: "fraction", name: "薬草", quantity: 1.5, kinds: [] },
+        { key: "unsafe", name: "装置", quantity: Number.MAX_SAFE_INTEGER + 1, kinds: [] },
+        { key: "zero", name: "投薬器", quantity: 0, kinds: [] },
+        { key: "junk", name: "薬瓶", quantity: "2abc", kinds: [] }
       ]
     }],
     scenarios: []
