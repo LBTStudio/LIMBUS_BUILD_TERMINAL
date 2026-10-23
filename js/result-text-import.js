@@ -103,7 +103,9 @@
         : /e\.?g\.?o/i.test(numeric) || /ＥＧＯ/i.test(numeric) ? "ego"
         : /人格/.test(numeric) ? "persona"
         : /選択/.test(numeric) ? "choice" : null;
-      const ticket = { kind, count, raw: item };
+      const ticket = { kind, count };
+      /* 原文は保留表示用の内部メタデータ。既存のJSON形状とdeep equalityは変えない。 */
+      Object.defineProperty(ticket, "raw", { value: item, enumerable: false });
       if (packMatch) ticket.pack = packMatch[1].trim();
       return { ticket, deltas, invalidDelta, raw: item };
     }
