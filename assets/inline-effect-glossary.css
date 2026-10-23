@@ -14,7 +14,7 @@
 .lbt-glossary-term:focus-visible { border-radius: 3px; box-shadow: 0 0 0 2px rgba(214, 173, 83, .65); }
 .lbt-glossary-popover {
   z-index: 100000; box-sizing: border-box; display: flex; flex-direction: column;
-  max-width: calc(100vw - 24px); max-height: min(48vh, 390px); overflow: hidden;
+  max-width: calc(100vw - 24px); max-height: min(42vh, 280px); overflow: hidden;
   background: #17140f; color: #f4eee1; border: 1px solid rgba(220, 183, 105, .72);
   border-radius: 10px; box-shadow: 0 14px 40px rgba(0, 0, 0, .58), 0 0 0 1px rgba(0, 0, 0, .28);
   pointer-events: auto; text-align: left; font: 12px/1.55 var(--f-body, system-ui, sans-serif);
@@ -40,10 +40,9 @@
 .lbt-glossary-entry-meta b { color: #dfbd79; font-size: 10px; }
 .lbt-glossary-entry-meta span { color: #9f988b; font-size: 10px; }
 .lbt-glossary-entry p { margin: 0; color: #f2ede3; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
-.lbt-glossary-more { padding: 8px 0 2px; color: #c3a871; font-size: 10px; }
 .lbt-glossary-popover-foot { padding: 7px 12px; border-top: 1px solid rgba(220, 183, 105, .24); color: #a9a092; font-size: 9px; }
 @media (max-width: 640px) {
-  .lbt-glossary-popover { max-height: min(52vh, 390px); font-size: 12px; }
+  .lbt-glossary-popover { max-height: min(42vh, 280px); font-size: 12px; }
   .lbt-glossary-popover-close { width: 36px; height: 36px; }
   .lbt-glossary-term { padding-inline: 2px; border-bottom-style: solid; border-bottom-color: rgba(224, 190, 112, .52); }
 }
