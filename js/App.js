@@ -459,7 +459,14 @@ function validateImportData(data) {
     const number = Number(text);
     return Number.isSafeInteger(number) && number > 0;
   };
+  const seenInventoryItemIds = new Set();
   for (let i = 0; i < (data.inventory || []).length; i += 1) {
+    const itemId = typeof data.inventory[i].itemId === "string" ? data.inventory[i].itemId.trim() : "";
+    if (!itemId) return "inventory[" + i + "].itemId は空でない文字列で入力してください";
+    if (seenInventoryItemIds.has(itemId)) {
+      return "inventory[" + i + "] に重複 itemId " + itemId + " があります";
+    }
+    seenInventoryItemIds.add(itemId);
     if (!isPositiveIntegerCount(data.inventory[i].quantity)) {
       return "inventory[" + i + "].quantity は1以上の整数で入力してください";
     }
