@@ -176,6 +176,32 @@ test("索引配列の項目がすべて不正でも、保存本体からアカ�
   assert.ok(storage.keys().some((key) => key.startsWith(INDEX_KEY + ".corrupt.")), "元の索引を退避する");
 });
 
+
+test("索引の一部だけ不正でも、索引に無い保存本体を含めて復元する", () => {
+  const listedId = "acc-partial-index-listed";
+  const hiddenId = "acc-partial-index-unlisted";
+  const rawIndex = JSON.stringify({ version: 1, accounts: [
+    { id: listedId, name: "索引にあるキャラクター", purpose: "" },
+    null
+  ] });
+  const storage = createStorage({
+    [INDEX_KEY]: rawIndex,
+    [ACCOUNT_PREFIX + listedId]: JSON.stringify({ schemaVersion: 5, charName: "保存A" }),
+    [ACCOUNT_PREFIX + hiddenId]: JSON.stringify({ schemaVersion: 5, charName: "保存B" }),
+    [ACTIVE_KEY]: hiddenId
+  });
+  const accounts = loadAccounts(storage);
+  const listed = accounts.list();
+
+  assert.equal(listed.accounts.length, 2, "一部正常な索引だけで復旧完了と判断しない");
+  assert.ok(listed.accounts.some((entry) => entry.id === listedId));
+  assert.ok(listed.accounts.some((entry) => entry.id === hiddenId), "索引から欠落していた保存本体も戻す");
+  assert.equal(listed.activeId, hiddenId, "現アカウントを優先して復元する");
+  assert.equal(accounts.loadActive().charName, "保存B");
+  assert.equal(JSON.parse(storage.getItem(INDEX_KEY)).accounts.length, 2, "索引も再構築する");
+  assert.ok(storage.keys().some((key) => key.startsWith(INDEX_KEY + ".corrupt.")), "元の不正索引は保全する");
+});
+
 test("壊れた索引の退避に失敗した場合は、復旧書き込みでも原文を上書きしない", () => {
   const id = "acc-index-backup-failure";
   const rawIndex = "{broken-index";

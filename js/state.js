@@ -2232,13 +2232,21 @@ function readAccountsIndex() {
     seenIds.add(entry.id);
     accounts.push(normalizeAccountEntry(entry, accounts.length));
   }
-  /* 配列の項目が全部不正だと、JSON parse だけでは「正常な空索引」と誤認する。
-     本体キーを走査して復元し、書き換えは writeAccountsIndex の保護を通す。 */
-  if (accounts.length === 0) {
+  /* 無効な行が混じった場合だけ保存本体を走査する。重複IDは別保存領域ではない
+     ため、従来どおり最初の索引エントリ（名前・用途）を優先する。復旧結果にも
+     現在の索引にあった有効エントリを残し、索引から欠落していた本体だけを足す。 */
+  const hasInvalidEntries = list.some((entry) =>
+    !entry || typeof entry.id !== "string" || !entry.id);
+  if (hasInvalidEntries) {
     const recovered = recoverAccountsFromStorage();
     if (recovered.length) {
-      writeAccountsIndex(recovered);
-      return { version: 1, accounts: recovered };
+      const knownIds = new Set(accounts.map((entry) => entry.id));
+      const merged = [
+        ...accounts,
+        ...recovered.filter((entry) => !knownIds.has(entry.id))
+      ];
+      writeAccountsIndex(merged);
+      return { version: 1, accounts: merged };
     }
     preserveUnreadable(ACCOUNTS_INDEX_KEY, raw);
   }
