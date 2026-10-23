@@ -1172,11 +1172,18 @@ function toIdentityChoices(hits) {
     };
   }
 
-/* 共有ドキュメントの残高は未入力・null・不正値を 0 と混同しない。 */
+/* 共有ドキュメントの金額は半角・全角の数字／カンマを同じ形式へそろえる。 */
+function normalizeCurrencyText(value) {
+  return String(value ?? "")
+    .replace(/[\uFF01-\uFF5E]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+    .replace(/\u3000/g, " ");
+}
+
+/* 未入力・null・不正値を 0 と混同しない。 */
 function parseCurrencyBalance(value) {
   if (value === null || value === void 0) return null;
   if (typeof value === "string") {
-    const raw = value.trim();
+    const raw = normalizeCurrencyText(value).trim();
     if (!raw || !/^(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(raw)) return null;
     value = Number(raw.replace(/,/g, ""));
   } else if (typeof value !== "number") {
@@ -1195,9 +1202,11 @@ function findBalanceAnchor(memo, currency) {
     : /現在\s*(?:(?:欠片|かけら|欠けら|カケラ|けっか)\s*)?([0-9][0-9,]*)\s*(?:欠片|かけら|欠けら|カケラ|けっか)?/;
   let offset = 0;
   for (const line of normalized.split("\n")) {
+    const lineForParsing = normalizeCurrencyText(line);
     const currentAt = line.indexOf("現在");
-    if (currentAt >= 0 && marker.test(line)) {
-      const match = line.slice(currentAt).match(amountAfterCurrent);
+    if (currentAt >= 0 && marker.test(lineForParsing)) {
+      /* 全角数字と英字は1コード単位で半角化されるので、現在の位置は変わらない。 */
+      const match = lineForParsing.slice(currentAt).match(amountAfterCurrent);
       if (match) {
         const value = parseCurrencyBalance(match[1]);
         if (value !== null) {
