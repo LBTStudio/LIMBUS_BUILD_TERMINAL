@@ -1111,10 +1111,24 @@ function appendTicketSpend(state, kind, pack, count, ref, resultId) {
   });
 }
 
-  let ownedUidCounter = 0;
+let ownedUidCounter = 0;
 function makeOwnedUid(prefix) {
-  ownedUidCounter = (ownedUidCounter + 1) % 100000;
-  return `${prefix}-${Date.now()}-${ownedUidCounter}`;
+  ownedUidCounter += 1;
+  let entropy = "";
+  try {
+    const cryptoApi = window.crypto || window.msCrypto;
+    if (cryptoApi && typeof cryptoApi.randomUUID === "function") {
+      entropy = cryptoApi.randomUUID();
+    } else if (cryptoApi && typeof cryptoApi.getRandomValues === "function") {
+      const bytes = new Uint8Array(8);
+      cryptoApi.getRandomValues(bytes);
+      entropy = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    }
+  } catch (_) {
+    // In restricted browser contexts, fall back to local entropy plus the monotonic counter.
+  }
+  if (!entropy) entropy = Math.random().toString(36).slice(2, 10) || ownedUidCounter.toString(36);
+  return `${prefix}-${Date.now()}-${ownedUidCounter}-${entropy}`;
 }
 
 /* 未所持のサポパを所持へ写す（同名の重複は写さない。空名=手動追加は重複扱いしない）。 */
@@ -3003,7 +3017,7 @@ function appReducer(state, action) {
     case "ADD_EXTRA_PASSIVE":
       return normalizeStatusCollections({
         ...state,
-        extraPassives: [...(state.extraPassives || []), { id: `pas-${Date.now()}`, name: "", cond: "", always: "", effect: "", quick: "" }]
+        extraPassives: [...(state.extraPassives || []), { id: makeOwnedUid("pas"), name: "", cond: "", always: "", effect: "", quick: "" }]
       });
     case "PATCH_EXTRA_PASSIVE": {
       const index = Number(action.index);
@@ -3083,7 +3097,7 @@ function appReducer(state, action) {
       const { mode, no, src } = action;
       const kw = (src.keywords || []).filter((k) => !["\u7206\u767A", "\u6DF7\u4E71"].includes(k));
       const skills = migrateLegacyDerivedSkills((src.skills || []).map((sk, i) => ({
-        id: `sk-${Date.now()}-${i}`,
+        id: makeOwnedUid("sk"),
         rank: sk.rank || `スキル${i}`,
         derived_from: sk.derived_from || "",
         derived_index: sk.derived_index,
@@ -3098,7 +3112,7 @@ function appReducer(state, action) {
         quick: ""
       })));
       const ubs = (src.unique_buffs || []).map((b, i) => ({
-        id: `ub-${Date.now()}-${i}`,
+        id: makeOwnedUid("ub"),
         name: normalizeStatusLabel(b.name || ""),
         type: b.type || "\u30D0\u30D5",
         initial: b.initial !== void 0 ? b.initial : 0,
@@ -3125,7 +3139,7 @@ function appReducer(state, action) {
         personas[existing] = { ...personas[existing], equipped: true };
       } else {
         personas.push({
-          uid: `pr-${Date.now()}`,
+          uid: makeOwnedUid("pr"),
           no,
           mode,
           syncRank: null,
@@ -3317,7 +3331,7 @@ function appReducer(state, action) {
       const { mode, no } = action;
       const uniqKey = `${mode}:${no}`;
       if (state.roster.personas.some((p) => `${p.mode}:${p.no}` === uniqKey)) return state;
-      const uid = `pr-${Date.now()}`;
+      const uid = makeOwnedUid("pr");
       const entry = { uid, no, mode, syncRank: null, syncMax: false, lcb: false, equipped: false, notes: "", via: normalizeVia(action.via) };
       const next = { ...state, roster: { ...state.roster, personas: [...state.roster.personas, entry] } };
       const withTicket = consumeInitialPersonaTicket(next, action.resultId);
@@ -3440,7 +3454,7 @@ function appReducer(state, action) {
     case "ADD_ROSTER_EGO": {
       const { rank, no } = action;
       if ((state.roster.egos || []).some((e) => e.rank === rank && String(e.no) === String(no))) return state;
-      const uid = `er-${Date.now()}`;
+      const uid = makeOwnedUid("er");
       const egos = [...(state.roster.egos || []), { uid, no, rank, analyzed: false, analyzeMax: false, notes: "", build: null, via: normalizeVia(action.via) }];
       const next = { ...state, roster: { ...state.roster, egos } };
       if (!action.purchase) return next;
@@ -3514,8 +3528,8 @@ return appendLedgerEntry(next, {
           next.resP = dbSrc.res_pierce || "\u666E\u901A";
           next.resB = dbSrc.res_blunt || "\u666E\u901A";
           next.pas = { name: dbSrc.passive_name || "", cond: dbSrc.passive_cond || "", always: dbSrc.passive_always || "", effect: dbSrc.passive_effect || "", quick: "" };
-          next.skills = cloneJSON(dbSrc.skills || []).map((sk, i) => ({ id: `sk-${Date.now()}-${i}`, ...sk, dice: (sk.dice || []).map((d) => ({ roll: d.roll || "", d: d.d ?? "", plus: !!d.plus, effect: d.effect || "" })) }));
-          next.uniqueBuffs = cloneJSON(dbSrc.unique_buffs || []).map((b, i) => ({ id: `ub-${Date.now()}-${i}`, name: b.name || "", type: b.type || "\u56FA\u6709\u30D0\u30D5", initial: b.initial ?? 0, max: b.max ?? 0, desc: b.desc || "", place: b.place || "status", noST: b.noST === true }));
+          next.skills = cloneJSON(dbSrc.skills || []).map((sk, i) => ({ id: makeOwnedUid("sk"), ...sk, dice: (sk.dice || []).map((d) => ({ roll: d.roll || "", d: d.d ?? "", plus: !!d.plus, effect: d.effect || "" })) }));
+          next.uniqueBuffs = cloneJSON(dbSrc.unique_buffs || []).map((b, i) => ({ id: makeOwnedUid("ub"), name: b.name || "", type: b.type || "\u56FA\u6709\u30D0\u30D5", initial: b.initial ?? 0, max: b.max ?? 0, desc: b.desc || "", place: b.place || "status", noST: b.noST === true }));
           next.personaSrc = cloneJSON(dbSrc);
           next.spirit = ""; next.spiritMorale = ""; next.spiritConfuse = ""; next.spiritAlways = "";
           next.supports = []; next.deathSupport = null;
@@ -3712,7 +3726,7 @@ case "ADD_CUSTOM_ITEM": {
     }
     case "ADD_SKILL":
       return normalizeStatusCollections({ ...state, skills: [...state.skills, {
-        id: `sk-${Date.now()}`,
+        id: makeOwnedUid("sk"),
         rank: nextRootSkillRank(state.skills),
         type: "\u6253\u6483",
         sin: "",
@@ -3733,7 +3747,7 @@ case "ADD_CUSTOM_ITEM": {
         const candidate = skill.derived_from === family ? Number(skill.derived_index) : parseDerivedSkillRank(skill.rank)?.parent === family ? parseDerivedSkillRank(skill.rank).index : 1;
         return Math.max(max, Number.isFinite(candidate) ? candidate : 1);
       }, 1);
-      base.id = `sk-${Date.now()}`;
+      base.id = makeOwnedUid("sk");
       base.derived_from = family;
       base.derived_index = Math.max(2, maxNo + 1);
       base.derived_condition = base.derived_condition || "";
@@ -3816,7 +3830,7 @@ case "ADD_CUSTOM_ITEM": {
       const cost = wasAnalyzed ? null : window.LBT_operationCost?.("analyze", { rank, no: slot.no }, window.DB);
       const canAnalyze = wasAnalyzed || !cost || operationAffordability(state, cost).ok;
       if (idx >= 0) egos[idx] = { ...egos[idx], analyzed: canAnalyze, build };
-      else egos.push({ uid: `er-${Date.now()}`, no: slot.no, rank, analyzed: canAnalyze, analyzeMax: false, notes: "", build });
+      else egos.push({ uid: makeOwnedUid("er"), no: slot.no, rank, analyzed: canAnalyze, analyzeMax: false, notes: "", build });
       const next = { ...state, roster: { ...state.roster, egos } };
       if (!canAnalyze || wasAnalyzed || !cost) return next;
       const uid = egos[idx >= 0 ? idx : egos.length - 1].uid;
@@ -4500,7 +4514,7 @@ case "ADD_ENTRY":
         ...state,
         inventory: [],
         personaMode: "custom",
-        personaNo: `custom-${Date.now()}`,
+        personaNo: makeOwnedUid("custom"),
         personaSrc: {
           name: action.name || "\u30AB\u30B9\u30BF\u30E0\u4EBA\u683C",
           no: 999,
@@ -4566,7 +4580,7 @@ case "ADD_ENTRY":
         unique_buffs: provided.uniques ? src.unique_buffs : (sourceBase.unique_buffs || src.unique_buffs)
       };
       effectiveSrc.keywords = inferPersonaKeywords(effectiveSrc, action.secondaryPassive);
-      const uid = `custom-${Date.now()}`;
+      const uid = makeOwnedUid("custom");
       /* 硝子窓の派生番号は 1 始まり（0-1, 0-2）で届く。かつ LBT 準拠の
          2 始まり（0-2, 0-3）が混在しうる。どちらが正解かは受信データだけでは
          判別できないので、rank 文字列はそのまま保持する。
@@ -4650,7 +4664,7 @@ case "ADD_ENTRY":
           : draftSyncRank;
         appliedSyncMax = beforeSync ? beforeSync.syncMax === true || draftSyncMax : draftSyncMax;
         const affiliatedEntry = {
-          uid: existingIndex >= 0 ? personas[existingIndex].uid : `pr-${Date.now()}`,
+          uid: existingIndex >= 0 ? personas[existingIndex].uid : makeOwnedUid("pr"),
           no: affiliatedSource.no,
           mode: affiliatedMode,
           displayName: importedSource.name || affiliatedSource.name,
@@ -4768,7 +4782,7 @@ case "ADD_ENTRY":
         __custom: true,
         __saved: true
       };
-      const uid = state.personaNo || `custom-${Date.now()}`;
+      const uid = state.personaNo || makeOwnedUid("custom");
       const personas = state.roster.personas.map((p) => ({ ...p }));
       const idx = personas.findIndex((p) => p.uid === uid);
       const entry = {
@@ -4802,7 +4816,7 @@ case "ADD_ENTRY":
         personas[idx] = { ...personas[idx], build };
       } else {
         personas.push({
-          uid: `pr-${Date.now()}`, no: state.personaNo, mode: state.personaMode,
+          uid: makeOwnedUid("pr"), no: state.personaNo, mode: state.personaMode,
           syncRank: null, syncMax: false, lcb: false, equipped: true, notes: "", build
         });
       }
