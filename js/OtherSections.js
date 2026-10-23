@@ -2892,13 +2892,18 @@ const resolveRosterPersonaSource = (entry, fallback, state) => {
   const build = entry?.build;
   if (!build) {
     const source = fallback || entry?.src || null;
-    return source && entry?.displayName ? { ...source, name: entry.displayName } : source;
+    if (!source) return null;
+    const resolveName = window.LBT_resolvePersonaDisplayName;
+    const name = typeof resolveName === "function" ? resolveName(entry, source.name) : (entry?.displayName || source.name);
+    return { ...source, name };
   }
   const savedSource = build.personaSrc && typeof build.personaSrc === "object" ? build.personaSrc : {};
   const source = { ...(fallback || {}), ...savedSource };
   return {
     ...source,
-    name: entry?.displayName || source.name,
+    name: typeof window.LBT_resolvePersonaDisplayName === "function"
+      ? window.LBT_resolvePersonaDisplayName(entry, source.name)
+      : (entry?.displayName || source.name),
     hp: build.hp ?? source.hp,
     san: build.san ?? source.san,
     speed: build.speed ?? source.speed,
