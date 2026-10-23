@@ -456,4 +456,4 @@ LIMBUS BUILD TERMINAL の不具合を、画面・状態管理・データ取り�
 
 - PR #25 に共有トークン上限の修正・回帰テストを統合し、別PR間で `index.html`／`sw.js` が競合するのを避けた。
 - 第二巡コード変更後、`js/state.js` の内容ハッシュは `31c479df`、共有上限ガードを含む `js/share-link.js` は `fefbb751`。Service Workerは55 URLの現在のプリキャッシュ一覧に合わせて再生成した。
-- 最新のPR HEADのCI結果は、コード・テスト・報告書更新後に確認する。
+- 統合後のPR #25 HEAD `86bc6578` に対する GitHub Actions `verify` run #93 は **1,124 tests passed / 0 failed**。アセット版とService Workerの同期検査を含む。[CI #93](https://github.com/LBTStudio/LIMBUS_BUILD_TERMINAL/actions/runs/39922378003)。この追記はその成功結果を記録する文書のみの変更であり、次のCIでも回帰を再確認する。
