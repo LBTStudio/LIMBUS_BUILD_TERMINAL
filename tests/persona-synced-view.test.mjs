@@ -54,6 +54,25 @@ test("非装備人格は保存ビルド内容と最新の同期名を併せて�
   assert.equal(view.unique_buffs[0].name, "保存固有"); assert.equal(view.extra_passives[0].name, "保存追加パッシブ");
 });
 
+test("アカウント移行で古いdisplayNameと新しい保存buildが共存したら新しいbuild名を優先する", () => {
+  const resolve = loadResolver();
+  const view = resolve({
+    mode: "n", no: 17,
+    displayName: "旧アカウントの名前",
+    updatedAt: 100,
+    build: {
+      savedAt: 200,
+      personaSrc: { name: "最新ビルド側の同期名", hp: 210 },
+      hp: "210", san: "55",
+      pas: { name: "最新パッシブ", cond: "", always: "", effect: "" },
+      skills: [{ rank: "スキル0", name: "最新スキル" }],
+      uniqueBuffs: []
+    }
+  }, { no: 17, name: "DBの名前" }, { personaMode: null, personaNo: null, personaSrc: null });
+  assert.equal(view.name, "最新ビルド側の同期名");
+  assert.equal(view.skills[0].name, "最新スキル");
+});
+
 test("保存ビルドがなくても同期名をDB人格の表示へ適用する", () => {
   const view = loadResolver()({ mode: "n", no: 17, displayName: "手動変更名" }, { no: 17, name: "DB名" }, null);
   assert.equal(view.name, "手動変更名");
