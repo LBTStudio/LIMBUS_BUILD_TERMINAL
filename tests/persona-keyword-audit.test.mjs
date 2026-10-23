@@ -60,4 +60,6 @@ test("filter UI does not truncate tags and exposes OR/AND and affiliation contro
   assert.match(codex, /すべて一致/);
   assert.match(codex, /affiliations\.map\(\(aff\)/);
   assert.match(codex, /countKeywordInPool\(k\)/);
+  assert.match(codex, /ui\.rosterBuildFilter !== "all"/);
+  assert.match(codex, /rosterBuildFilter: "all"/);
 });
