@@ -2108,17 +2108,77 @@ function normalizeAccountEntry(entry, index) {
     updatedAt: Number(entry?.updatedAt) || Number(entry?.createdAt) || Date.now()
   };
 }
+/* 索引が壊れていても、アカウント本体は個別キーに残っている場合がある。
+   INDEX を既定の空配列で上書きすると複数キャラクターの保存が UI から消えるため、
+   本体キーを走査して索引を再構築する。内容を読めない本体も削除せず一覧に残し、
+   選択後の通常の破損データ退避へ渡す。 */
+function recoverAccountsFromStorage() {
+  const storage = lbtStorage();
+  if (!storage || typeof storage.key !== "function") return [];
+  let length = 0;
+  try { length = Number(storage.length) || 0; } catch (_) { return []; }
+  const recovered = [];
+  const seenIds = new Set();
+  const now = Date.now();
+  for (let i = 0; i < length; i += 1) {
+    let key = null;
+    try { key = storage.key(i); } catch (_) { break; }
+    if (typeof key !== "string"
+      || !key.startsWith(ACCOUNT_PREFIX)
+      || key === ACCOUNT_ACTIVE_KEY
+      || key.includes(".corrupt.")) continue;
+    const id = key.slice(ACCOUNT_PREFIX.length);
+    if (!id || seenIds.has(id)) continue;
+    seenIds.add(id);
+    const raw = readStorageRaw(key);
+    if (raw == null) continue;
+    let state = null;
+    try { state = JSON.parse(raw); } catch (_) {}
+    const name = state?.charName || state?.personaSrc?.name || "";
+    recovered.push(normalizeAccountEntry({
+      id,
+      name,
+      purpose: "",
+      createdAt: now,
+      updatedAt: now
+    }, recovered.length));
+  }
+  // アクティブIDが分かれば先頭へ置き、一覧再構築後も同じキャラクターを開く。
+  const activeId = readStorageRaw(ACCOUNT_ACTIVE_KEY);
+  const activeIndex = recovered.findIndex((entry) => entry.id === activeId);
+  if (activeIndex > 0) recovered.unshift(recovered.splice(activeIndex, 1)[0]);
+  return recovered;
+}
 function readAccountsIndex() {
   const raw = readStorageRaw(ACCOUNTS_INDEX_KEY);
-  if (raw == null) return { version: 1, accounts: [] };
+  if (raw == null) {
+    // 索引キー自体が消えても、保存本体が残っていれば復旧できるようにする。
+    const recovered = recoverAccountsFromStorage();
+    if (recovered.length) writeAccountsIndex(recovered);
+    return { version: 1, accounts: recovered };
+  }
   let parsed = null;
   try {
     parsed = JSON.parse(raw);
   } catch (_) {
     preserveUnreadable(ACCOUNTS_INDEX_KEY, raw);
+    const recovered = recoverAccountsFromStorage();
+    if (recovered.length) writeAccountsIndex(recovered);
+    return { version: 1, accounts: recovered };
+  }
+  const list = Array.isArray(parsed?.accounts) ? parsed.accounts : Array.isArray(parsed) ? parsed : null;
+  if (!list || list.length === 0) {
+    // {} や accounts が文字列になったセーブ、あるいは空索引に見えるのに
+    // 本体だけ残っている状態を「初回訪問」と誤認しない。
+    const recovered = recoverAccountsFromStorage();
+    if (recovered.length) {
+      preserveUnreadable(ACCOUNTS_INDEX_KEY, raw);
+      writeAccountsIndex(recovered);
+      return { version: 1, accounts: recovered };
+    }
+    if (!list) preserveUnreadable(ACCOUNTS_INDEX_KEY, raw);
     return { version: 1, accounts: [] };
   }
-  const list = Array.isArray(parsed?.accounts) ? parsed.accounts : Array.isArray(parsed) ? parsed : [];
   /* The index is a lookup table, so one ID may refer to exactly one account blob.
      Treat a duplicate ID as a duplicate pointer, not as a second account: showing
      both entries makes delete/switch ambiguous because they share one storage key. */
