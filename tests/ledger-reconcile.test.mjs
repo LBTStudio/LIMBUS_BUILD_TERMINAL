@@ -119,6 +119,32 @@ test("カンマ区切りの金額は許可し、不正な桁区切りは拒否�
   assert.ok(out[1].flags.some((f) => f.code === "no-current" && f.currency === "lp"));
 });
 
+test("通貨の負数は収入・残高として扱わずエラー／未入力にする", () => {
+  const out = C.reconcileResults([
+    { title: "負の収入", income: { lp: "-5", shards: -1 }, current: { lp: 100, shards: 50 } },
+    { title: "負の残高", income: { lp: 10, shards: 1 }, current: { lp: "-1", shards: "-2" } }
+  ]);
+  assert.equal(out[0].income.lp, 0);
+  assert.equal(out[0].income.shards, 0);
+  assert.ok(out[0].flags.some((f) => f.code === "invalid-income" && f.currency === "lp"));
+  assert.ok(out[0].flags.some((f) => f.code === "invalid-income" && f.currency === "shards"));
+  assert.equal(out[1].current.lp, null);
+  assert.equal(out[1].current.shards, null);
+  assert.ok(out[1].flags.some((f) => f.code === "no-current" && f.currency === "lp"));
+  assert.ok(out[1].flags.some((f) => f.code === "no-current" && f.currency === "shards"));
+});
+
+test("安全整数の範囲を超えた通貨値は精度を落とさず拒否する", () => {
+  const out = C.reconcileResults([
+    { title: "unsafe income", income: { lp: "9007199254740993" }, current: { lp: 100 } },
+    { title: "unsafe balance", income: { lp: 10 }, current: { lp: "9007199254740993" } }
+  ]);
+  assert.equal(out[0].income.lp, 0);
+  assert.ok(out[0].flags.some((f) => f.code === "invalid-income" && f.currency === "lp"));
+  assert.equal(out[1].current.lp, null);
+  assert.ok(out[1].flags.some((f) => f.code === "no-current" && f.currency === "lp"));
+});
+
 /* --- 2. 予測変換（名前から価格を引く） --------------------------------- */
 
 test("名前が一致すれば、ログに金額が無くても価格が確定する", () => {

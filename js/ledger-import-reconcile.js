@@ -18,7 +18,9 @@
     if (!raw) return null;
     if (!/^[+-]?(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(raw)) return null;
     const number = Number(raw.replace(/,/g, ""));
-    return Number.isFinite(number) ? number : null;
+    // Currency amounts are non-negative safe integers; reject negatives and
+    // values that JavaScript cannot represent exactly before reconciliation.
+    return Number.isSafeInteger(number) && number >= 0 ? number : null;
   }
   const normalize = (value) => parseNumber(value) ?? 0;
   const hasNumber = (value) => parseNumber(value) !== null;

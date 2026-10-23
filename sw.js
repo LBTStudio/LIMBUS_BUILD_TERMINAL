@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-d9afeabe";
+const CACHE_NAME = "lbt-e0c1ad8c";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -67,7 +67,7 @@ const PRECACHE_URLS = [
   "js/garasumado-roster-import.js?v=90d4e140",
   "js/generator.js?v=7a6430dc",
   "js/icon-cropper.js?v=20900dc8",
-  "js/ledger-import-reconcile.js?v=37d98c7b",
+  "js/ledger-import-reconcile.js?v=e940f989",
   "js/ledger-provenance.js?v=53c12252",
   "js/name-fuzzy.js?v=d3eb29a1",
   "js/persona-draft-import.js?v=a4692646",
