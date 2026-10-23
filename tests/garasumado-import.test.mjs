@@ -1252,6 +1252,7 @@ test("取り込み: 不正なアイテム個数は成功 action にせず、正�
       id: "items",
       items: [
         { key: "valid", name: "包帯", quantity: 2 },
+        { key: "string-quantity", name: "救急包", quantity: "3" },
         { key: "missing-quantity", name: "止血剤" },
         { key: "fraction", name: "薬草", quantity: 1.5 },
         { key: "unsafe", name: "装置", quantity: Number.MAX_SAFE_INTEGER + 1 },
@@ -1261,9 +1262,10 @@ test("取り込み: 不正なアイテム個数は成功 action にせず、正�
     }],
     scenarios: []
   };
-  const built = G.toDispatchActions(manifest, ["valid", "missing-quantity", "fraction", "unsafe", "zero", "junk"], {
+  const built = G.toDispatchActions(manifest, ["valid", "string-quantity", "missing-quantity", "fraction", "unsafe", "zero", "junk"], {
     db: { items: [
       { id: "bandage", name: "包帯" },
+      { id: "emergency-kit", name: "救急包" },
       { id: "hemostat", name: "止血剤" },
       { id: "herb", name: "薬草" },
       { id: "device", name: "装置" },
@@ -1273,7 +1275,7 @@ test("取り込み: 不正なアイテム個数は成功 action にせず、正�
   });
   assert.deepEqual(
     Array.from(built.actions, (action) => [action.itemId, action.quantity]),
-    [["bandage", 2], ["hemostat", 1]]
+    [["bandage", 2], ["emergency-kit", 3], ["hemostat", 1]]
   );
   assert.deepEqual(
     Array.from(built.skipped, (item) => [item.key, item.reason]),
