@@ -94,7 +94,7 @@ ui-skills.com のカタログに、本監査の指摘に**直接対応する**�
 
 **実測証拠**: `uiarc.dev`（Arc UI）を実際に取得したところrocytes ->
 > "Run the **shadcn CLI** on its page, or copy the source."
-> "Add them with the shadcn CLI, or point your AI tool at the docs"
+> "Add them with the shadcn CLI, or consult the component documentation"
 
 shadcn CLI は Tailwind + モジュールバンドラ前提であり、**本リポジトリの核心的制約「build stepなし・GitHub Pages配信・`vendor/react.min.js` を `<script>` 直読み」に正面から衝突する**。
 
