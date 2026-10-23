@@ -2453,8 +2453,11 @@ function createAccount(name, purpose) {
      作成開始時に読んだ index をそのまま書くと、後から完了したタブが先に作られた
      別アカウントの索引エントリを消してしまう。索引書き込み直前の最新版へ追加する。 */
   const latestIndex = readAccountsIndex();
-  if (latestIndex.accounts.some((entry) => entry.id === account.id)
-    || !writeAccountsIndex([...latestIndex.accounts, account])) {
+  /* 索引自体がまだ無い初回環境では、上で書いた自分の本体を readAccountsIndex()
+     が孤立本体として復旧し、同じIDを返すことがある。その行だけは作成競合では
+     ないので除いて、フォームから入力された正式な名前・用途を持つ account を足す。 */
+  const latestOthers = latestIndex.accounts.filter((entry) => entry.id !== account.id);
+  if (!writeAccountsIndex([...latestOthers, account])) {
     removeStorageRaw(ACCOUNT_PREFIX + account.id);
     return null;
   }
