@@ -2882,13 +2882,23 @@ const sortRosterLibraryItems = (items, sortBy, libraryTab) => {
   });
   return rows;
 };
-const resolveRosterPersonaSource = (entry, fallback) => {
+const resolveRosterPersonaSource = (entry, fallback, state) => {
+  const isEquipped = Boolean(state?.personaSrc)
+    && String(state.personaMode) === String(entry?.mode)
+    && String(state.personaNo) === String(entry?.no);
+  if (isEquipped && typeof window.LBT_buildEquippedDetailPersona === "function") {
+    return window.LBT_buildEquippedDetailPersona(state);
+  }
   const build = entry?.build;
-  if (!build) return fallback;
+  if (!build) {
+    const source = fallback || entry?.src || null;
+    return source && entry?.displayName ? { ...source, name: entry.displayName } : source;
+  }
   const savedSource = build.personaSrc && typeof build.personaSrc === "object" ? build.personaSrc : {};
   const source = { ...(fallback || {}), ...savedSource };
   return {
     ...source,
+    name: entry?.displayName || source.name,
     hp: build.hp ?? source.hp,
     san: build.san ?? source.san,
     speed: build.speed ?? source.speed,
@@ -2901,7 +2911,8 @@ const resolveRosterPersonaSource = (entry, fallback) => {
     passive_always: build.pas?.always ?? source.passive_always,
     passive_effect: build.pas?.effect ?? source.passive_effect,
     skills: Array.isArray(build.skills) ? build.skills : source.skills,
-    unique_buffs: Array.isArray(build.uniqueBuffs) ? build.uniqueBuffs : source.unique_buffs
+    unique_buffs: Array.isArray(build.uniqueBuffs) ? build.uniqueBuffs : source.unique_buffs,
+    extra_passives: Array.isArray(build.extraPassives) ? build.extraPassives : (source.extra_passives || [])
   };
 };
 window.LBT_rosterLibrary = { isRosterPersonaSynced, rosterPersonaMatchesSyncFilters, sortRosterLibraryItems, resolveRosterPersonaSource };
@@ -2924,16 +2935,16 @@ const RosterSection = ({ state, dispatch }) => {
   const currentPersonaKey = `${state.personaMode}:${state.personaNo}`;
   const currentEgoKeys = new Set(Object.entries(state.egoSlots || {}).filter(([, value]) => value).map(([rank, value]) => `${rank}:${value.no}`));
   const findPersona = (entry) => {
-    if (entry.mode === "custom") return resolveRosterPersonaSource(entry, entry.src || null);
+    if (entry.mode === "custom") return resolveRosterPersonaSource(entry, entry.src || entry.build?.personaSrc || null, state);
     const db = entry.mode === "n" ? (DB.normal_personas || []) : (DB.tokui_personas || []);
-    return resolveRosterPersonaSource(entry, db.find((item) => item.no === entry.no) || null);
+    return resolveRosterPersonaSource(entry, db.find((item) => String(item.no) === String(entry.no)) || null, state);
   };
   const findEgo = (entry) => (DB.egos || []).find((item) => item.rank === entry.rank && item.no === entry.no) || entry.build || null;
   /* サポートと精神も並びます。以前は人格/E.G.O の二分岐しか無く、
      サポパ/精神タブが E.G.O の内容を出し続けていた。 */
   const rawItems = libraryTab === "personas" ? (roster.personas || []).map((entry, addedIndex) => {
     const src = findPersona(entry);
-    const baseName = entry.displayName || src?.name || "名称未設定";
+    const baseName = src?.name || entry.displayName || "名称未設定";
     const name = entry.syncMax && !/\s*\[MAX\]\s*$/i.test(baseName) ? `${baseName} [MAX]` : baseName;
     return { entry, src, id: entry.uid, type: "personas", name, equipped: `${entry.mode}:${entry.no}` === currentPersonaKey, saved: !!entry.build, synced: isRosterPersonaSynced(entry), addedIndex, meta: entry.mode === "n" ? "通常人格" : entry.mode === "t" ? "特異人格" : "創作人格" };
   }).filter((item) => item.src) : libraryTab === "egos" ? (roster.egos || []).map((entry, addedIndex) => {
