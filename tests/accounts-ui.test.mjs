@@ -30,6 +30,11 @@ test("作成・名前変更はインラインフォームで行い prompt に依
   assert.match(ui, /acct-card--form/, "フォームはカード化する");
   assert.match(ui, /setDraft\(\{ \.\.\.draft, name: event\.target\.value \}\)/);
   assert.match(ui, /window\.LBT_accounts\?\.update\?\.\(editingId/, "名前・用途の保存は update");
+  const saveEdit = ui.slice(ui.indexOf("const saveEdit ="), ui.indexOf("const saveCreate ="));
+  assert.ok(saveEdit.includes("const updated = window.LBT_accounts?.update?.("), "更新結果を確認する");
+  assert.ok(saveEdit.includes("if (!updated)"), "保存失敗を検知する");
+  assert.ok(saveEdit.includes("アカウントを更新できませんでした"), "失敗理由を表示する");
+  assert.ok(saveEdit.indexOf("if (!updated)") < saveEdit.indexOf("cancelForm()"), "失敗時はフォームを閉じない");
   assert.match(ui, /window\.LBT_accounts\?\.create\?\.\(draft\.name\.trim\(\)/, "作成後にそのアカウントへ切替");
   assert.doesNotMatch(sections, /prompt\("新しいアカウント名/, "アカウント作成の prompt を残さない");
   assert.doesNotMatch(sections, /prompt\("アカウント名", acc\.name/, "アカウント改名の prompt を残さない");
