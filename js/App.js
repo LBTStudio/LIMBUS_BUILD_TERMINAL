@@ -361,6 +361,9 @@ function validateImportedInventoryCaps(data, fields, currentState) {
     return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
   };
 
+  /* normalizeStateShape coalesces repeated item IDs into one stack, so validate the
+     same aggregate here rather than allowing individually-valid rows to be silently capped. */
+  const quantitiesByItemId = new Map();
   for (let i = 0; i < data.inventory.length; i += 1) {
     const entry = data.inventory[i];
     const itemId = typeof entry?.itemId === "string" ? entry.itemId.trim() : "";
@@ -368,24 +371,30 @@ function validateImportedInventoryCaps(data, fields, currentState) {
 
     const quantity = parseQuantity(entry.quantity);
     if (quantity === null) return "inventory[" + i + "].quantity は1以上の整数で入力してください";
+    const group = quantitiesByItemId.get(itemId) || { quantity: 0, lastIndex: i };
+    const total = group.quantity + quantity;
+    if (!Number.isSafeInteger(total)) {
+      return "inventory[" + i + "].quantity の合計が安全な整数の範囲を超えています";
+    }
+    group.quantity = total;
+    group.lastIndex = i;
+    quantitiesByItemId.set(itemId, group);
+  }
 
+  for (const [itemId, incoming] of quantitiesByItemId) {
     const rawMaximum = window.LBT_getItemMaxOwned?.(candidateState, itemId);
     const maximum = Number.isSafeInteger(rawMaximum) && rawMaximum > 0 ? rawMaximum : 99;
-    if (quantity <= maximum) continue;
+    if (incoming.quantity <= maximum) continue;
 
     const official = Array.isArray(window.DB?.items)
       ? window.DB.items.find((item) => item?.id === itemId) : null;
     const custom = customItems.find((item) => item?.id === itemId) || null;
     const itemName = String((official || custom)?.name || itemId);
-    return "inventory[" + i + "]「" + itemName + "」の数量 " + quantity
+    return "inventory[" + incoming.lastIndex + "]「" + itemName + "」の合計数量 " + incoming.quantity
       + " 個は所持上限 " + maximum + " 個を超えています";
   }
   return null;
 }
-
-/* Shared roster imports must be all-or-nothing per item ID when the combined
-   quantity would exceed its ownership cap. The reducer clamps quantities for local safety;
-   this boundary prevents a successful-looking import from silently discarding part of it. */
 function filterInventoryImportActions(actions, state) {
   const source = Array.isArray(actions) ? actions : [];
   const inventory = Array.isArray(state?.inventory) ? state.inventory : [];
