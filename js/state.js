@@ -3950,20 +3950,25 @@ return appendLedgerEntry(next, {
    「装備するもの」なので所持へ送るだけで、明細は立てない（購入と数えない）。 */
 case "SET_INITIAL_SPIRITS": {
   const names = Array.isArray(action.names) ? action.names : [];
-  const cleaned = [...new Set(names.map((name) => String(name || "").trim()).filter(Boolean))];
+  const freeSpiritNames = new Set(
+    (Array.isArray(window.DB?.spirits) ? window.DB.spirits : [])
+      .filter(isExplicitlyFreeSpirit)
+      .map((definition) => definition.name)
+  );
+  const cleaned = [...new Set(names.map((name) => String(name || "").trim()).filter((name) => name && freeSpiritNames.has(name)))];
   return { ...state, initialSpirits: cleaned };
 }
 case "APPLY_INITIAL_SPIRITS": {
   const current = Array.isArray(state.roster?.spirits) ? state.roster.spirits : [];
   const owned = new Set(current.map((entry) => entry.name));
-  const knownPriceNames = new Set(
+  const freeSpiritNames = new Set(
     (Array.isArray(window.DB?.spirits) ? window.DB.spirits : [])
-      .filter(hasExplicitSpiritPrice)
+      .filter(isExplicitlyFreeSpirit)
       .map((definition) => definition.name)
   );
-  /* 価格不明の古い選択値や手動dispatchから、根拠のない初期所持を作らない。 */
+  /* 旧保存値や手動dispatchから、有料・価格不明の精神を無料初期所持へ追加させない。 */
   const wanted = (Array.isArray(state.initialSpirits) ? state.initialSpirits : [])
-    .filter((name) => !owned.has(name) && knownPriceNames.has(name));
+    .filter((name) => !owned.has(name) && freeSpiritNames.has(name));
   if (wanted.length === 0) return state;
   const roster = [...current, ...wanted.map((name) => ({
     uid: makeOwnedUid("spr"),
