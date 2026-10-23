@@ -2,9 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { auditPersonaKeywords, detectPersonaKeywordCandidates, loadPersonaDb } from "../tools/persona-keyword-audit.mjs";
 
-const ROOT = resolve(new URL("..", import.meta.url).pathname);
+/* Windows では new URL().pathname が /C:/... を返し resolve で C:\C:\ に壊れる。
+   fileURLToPath が正しい絶対パスを返すので全プラットフォームでこれを使う。 */
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const db = loadPersonaDb();
 const personas = [...db.normal_personas, ...db.tokui_personas];
 
