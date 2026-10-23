@@ -301,8 +301,11 @@
       var ml;
       var bestLp = null;
       while ((ml = reLp.exec(text)) !== null) {
-        var backTxt = text.slice(Math.max(0, ml.index - 14), ml.index);
-        var backNums = backTxt.match(/-?\d+/g);
+        /* 通貨直前の数値はトークン全体を取る。固定長の窓では桁数の多い
+           金額が末尾だけへ切り詰められ、小さい支出として誤記帳される。 */
+        var backPrefix = text.slice(0, ml.index);
+        var directBack = backPrefix.match(/(-?\d+)\s*$/);
+        var backNums = directBack ? [directBack[1]] : backPrefix.slice(Math.max(0, backPrefix.length - 14)).match(/-?\d+/g);
         var fwdTxt = text.slice(ml.index + 2);
         var fwdN = fwdTxt.match(/-?\d+/);
         /* -（減算）を最優先。_11 のような加算は金額として採らない。 */
@@ -330,7 +333,9 @@
       var tail = text.slice(mm.index + mm[0].length);
       var nm = tail.match(/-?\d+/);
       if (nm) return parseInt(nm[0], 10);
-      var backS = text.slice(Math.max(0, mm.index - 12), mm.index).match(/-?\d+/g);
+      var beforeShard = text.slice(0, mm.index);
+      var directShard = beforeShard.match(/(-?\d+)\s*$/);
+      var backS = directShard ? [directShard[1]] : beforeShard.slice(Math.max(0, beforeShard.length - 12)).match(/-?\d+/g);
       if (backS && backS.length) return parseInt(backS[backS.length - 1], 10);
     }
     return null;
