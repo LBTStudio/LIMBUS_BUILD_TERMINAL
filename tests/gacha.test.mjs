@@ -150,6 +150,16 @@ test("コミット→開示: 正直な開示は検証を通り、改ざんは落
   const badOrder = structuredClone(revealed);
   badOrder.rolls.reverse();
   assert.equal(G.verifyReveal(badOrder), false);
+
+  const missingRolls = structuredClone(revealed);
+  delete missingRolls.rolls;
+  assert.equal(G.verifyReveal(missingRolls), false, "rolls 欠落を空配列と解釈しない");
+
+  for (const rolls of [null, "not-an-array", [null], [{ max: 0, value: 1 }],
+    [{ max: 6, value: 0 }], [{ max: 6, value: 7 }], [{ max: 1.5, value: 1 }],
+    [{ max: 6, value: 1.5 }]]) {
+    assert.equal(G.verifyReveal({ ...revealed, rolls }), false, JSON.stringify(rolls));
+  }
 });
 
 test("commit() は種を漏らさない", () => {
