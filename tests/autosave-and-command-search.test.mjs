@@ -132,6 +132,21 @@ test("通帳の金額・チケット数は部分一致の数値として取り�
   assert.equal(validate({ schemaVersion: 5, results: [
     { id: "r1", income: { lp: "1,200", shards: 0, tickets: { persona: "2", pack: { A: 3 } } } }
   ] }), null, "桁区切りを含む妥当な整数データは受け入れる");
+
+  assert.match(validate({ schemaVersion: 5, inventory: [
+    { uid: "i1", itemId: "bandage", quantity: "12abc" }
+  ] }), /inventory\[0\]\.quantity/, "不正な所持数量を黙って12個へ読み替えない");
+  assert.match(validate({ schemaVersion: 5, inventory: [
+    { uid: "i1", itemId: "bandage", quantity: 1.5 }
+  ] }), /inventory\[0\]\.quantity/, "小数の所持数量を拒否する");
+  assert.match(validate({ schemaVersion: 5, customItems: [
+    { id: "c1", name: "用品", maxOwned: "5pcs" }
+  ] }), /customItems\[0\]\.maxOwned/, "不正な所持上限も部分一致で解釈しない");
+  assert.equal(validate({ schemaVersion: 5, inventory: [
+    { uid: "i1", itemId: "bandage", quantity: "2" }
+  ], customItems: [
+    { id: "c1", name: "用品", maxOwned: "5" }
+  ] }), null, "旧ファイル互換の整数文字列は受け入れる");
 });
 
 test("JSONインポートはレコード配列の不正要素を適用前に拒否する", () => {
