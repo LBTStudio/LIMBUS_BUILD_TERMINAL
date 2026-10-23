@@ -394,3 +394,25 @@ test("所持アイテムの破損した数量を部分一致で増やさず、�
     customItems: [{ id: "custom-bad-cap", maxOwned: "5pcs" }]
   }, "custom-bad-cap"), 99, "不正な上限値を部分一致で採用せず既定の上限へ戻す");
 });
+
+
+test("重複した所持アイテム行は合算し、最大所持数と通帳参照を維持する", () => {
+  context.window.DB.items = [{ id: "bandage", maxOwned: 3 }];
+  const normalized = normalize({
+    ...baseState(),
+    inventory: [
+      { uid: "item-a", itemId: "bandage", quantity: 2, memo: true, palette: true, origin: "initial" },
+      { uid: "item-b", itemId: "bandage", quantity: 2, memo: true, palette: true, origin: "acquired" }
+    ],
+    entries: [{
+      id: "entry-b", kind: "item", name: "包帯", cost: { lp: 10, shards: 0 },
+      ref: { kind: "inventory", uid: "item-b" }
+    }]
+  });
+  assert.equal(normalized.inventory.length, 1, "同じitemIdを2行で所持しない");
+  assert.equal(normalized.inventory[0].uid, "item-a", "最初のUIDを代表として維持");
+  assert.equal(normalized.inventory[0].quantity, 3, "重複行の合算後に最大所持数を適用");
+  assert.equal(normalized.inventory[0].origin, "acquired", "初期所持と購入の混在は取得済みとして扱う");
+  assert.equal(normalized.entries[0].ref.uid, "item-a", "通帳からの参照UIDを代表行へ移す");
+  context.window.DB.items = [];
+});
