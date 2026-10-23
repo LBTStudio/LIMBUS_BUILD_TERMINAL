@@ -169,7 +169,7 @@ test("★/履歴タブのキー解決と装備モード特定はカスタム人�
   // B3: custom: キーの解決ロジック、B4: equipPersona の __custom フォールバック。
   const source = readFileSync(new URL("../js/PersonaCodex.js", import.meta.url), "utf8");
   assert.match(source, /m === "custom"/, "custom キーの解決分岐");
-  assert.match(source, /roster\.personas\.find\(\(r\) => r\.mode === "custom"\)/, "ロスターからのcustom復元");
+  assert.match(source, /roster\.personas\.find\(\(owned\) => owned\.mode === "custom" && \(String\(owned\.uid\) === no \|\| String\(owned\.no\) === no\)\)/, "キーのUID/Noに一致するcustomを復元");
   assert.match(source, /favCount/, "★タブのバッジ件数が解決結果と一致");
   assert.match(source, /historyCount/, "履歴タブのバッジ件数が解決結果と一致");
   assert.match(source, /p\.__custom \? "custom" : mode/, "装備時の __custom フォールバック");
