@@ -287,6 +287,24 @@ test("パック別抽出チケットは通常チケットと重複せず、特�
   assert.equal(zeroPack.tickets.persona, 0);
 });
 
+test("安全整数の上限を超える金額や回数は黙って丸めず未計上理由を残す", () => {
+  const unsafeAmount = MEMO.parseMemo("9007199254740992LP");
+  assert.equal(unsafeAmount.income.lp, 0);
+  assert.ok(unsafeAmount.reasons.some((r) => /LP金額が安全整数/.test(r.reason)));
+
+  const overflowTotal = MEMO.parseMemo("6000000000000000LP\n6000000000000000LP");
+  assert.equal(overflowTotal.income.lp, 6000000000000000, "合計が安全整数を超える行は加算しない");
+  assert.ok(overflowTotal.reasons.some((r) => /通貨収入合計が安全整数/.test(r.reason)));
+
+  const unsafeSpend = MEMO.parseMemo("・支出\n精神「正義」を購入 9007199254740992欠片");
+  assert.equal(unsafeSpend.spends.length, 0, "安全整数でない支出を明細へ記帳しない");
+  assert.ok(unsafeSpend.reasons.some((r) => /支出金額が安全整数/.test(r.reason)));
+
+  const unsafeTickets = MEMO.parseMemo("人格抽出チケットx9007199254740992");
+  assert.equal(unsafeTickets.tickets.persona, 0);
+  assert.ok(unsafeTickets.reasons.some((r) => /抽出チケット数が安全整数/.test(r.reason)));
+});
+
 test("チケットの個数と種別を読む", () => {
   const a = MEMO.parseMemo("抽出チケットx1：シュエ家私兵の人格");
   assert.equal(a.tickets.persona, 1);
