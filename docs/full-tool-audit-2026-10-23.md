@@ -379,6 +379,7 @@ LIMBUS BUILD TERMINAL の不具合を、画面・状態管理・データ取り�
 ### 2026-10-23 追補：マージ後CIと共有トークン上限
 
 - PR #24 は `65ca9642` で `main` へマージ済み。マージ後の最新 `main` コミット `9ac5768b` で GitHub Actions `verify` run #63 が **1,116 tests passed / 0 failed** を確認。[CI #63](https://github.com/LBTStudio/LIMBUS_BUILD_TERMINAL/actions/runs/39901774523)。
-- この追補で共有トークンの生成側サイズ検査（項目33）と圧縮あり／なしの回帰テストを追加。監査ブランチ `audit/share-token-size-guard-2026-10-23` に反映し、PR #25 でCI検証する。
-- アセット版は `js/share-link.js` の内容ハッシュ、`index.html`／`share.html` の参照、Service Workerの55件のプリキャッシュとキャッシュIDを同期した。CIの `asset-version-sync.test.mjs` でも確認する。
+- この追補で共有トークンの生成側サイズ検査（項目33）と圧縮あり／なしの回帰テストを追加。監査ブランチ `audit/share-token-size-guard-2026-10-23` に反映し、PR #26 でCI検証した。
+- アセット版は `js/share-link.js` の内容ハッシュ、`index.html`／`share.html` の参照、Service Workerの55件のプリキャッシュとキャッシュIDを同期した。初回 run #87 ではキャッシュIDの差異を検出したが、生成ツールの規則に合わせて修正した。
+- PR #26 の現在HEAD `abd6ea35` に対する GitHub Actions `verify` run #88 は **1,118 tests passed / 0 failed**。アセット版と Service Worker のプリキャッシュ同期検査を含む。[CI #88](https://github.com/LBTStudio/LIMBUS_BUILD_TERMINAL/actions/runs/39921387102)。
 
