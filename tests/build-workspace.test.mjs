@@ -788,13 +788,17 @@ test("硝子窓の取り込みはリザルトに押し込まずアカウント�
 test("無料の精神は最初から所持として数える（購入ではない）", () => {
   /* 「初期選択可」は選ぶかどうかの表示ではなく、初めからあるもの。 */
   assert.match(reducer, /function initialFreeSpirits\(\)/);
-  assert.match(reducer, /const free = list\.filter\(\(s\) => s && s\.name && !\(Number\(s\.price\) > 0\)\);/);
+  assert.match(reducer, /function hasExplicitSpiritPrice\(definition\)/);
+  assert.match(reducer, /function isExplicitlyFreeSpirit\(definition\)/);
+  assert.match(reducer, /const free = list\.filter\(isExplicitlyFreeSpirit\);/);
   /* 新規アカウントは就已経入っている。 */
   assert.match(reducer, /roster: \{ spirits: initialFreeSpirits\(\) \}/);
   assert.match(reducer, /for \(const seed of initialFreeSpirits\(\)\) \{[\s\S]{0,140}?if \(!ownedSpirit\.has\(seed\.name\)\) spiritList\.push\(seed\);/);
   /* 既存アカウントは読み込み時に補完（明細は立てない）。 */
   /* 判定は保存経路に依存させない（origin は保存で落ちる）。 */
-  assert.match(sections, /const spiritInitialSeeded = \(state\.roster\?\.spirits \|\| \[\]\)\.filter\(\(entry\) => \{[\s\S]{0,200}?!\(Number\(def\.price\) > 0\)/);
+  assert.match(sections, /const spiritInitialSeeded = \(state\.roster\?\.spirits \|\| \[\]\)\.filter\(\(entry\) => \{[\s\S]{0,240}?return def && isExplicitlyFreeSpirit\(def\);/);
+  assert.match(sections, /disabled: !knownPrice/);
+  assert.match(sections, /"価格不明"/);
 });
 
 test("所持人格リストの一括取り込みは、名前に区切り文字を含んでも壊さない", () => {
