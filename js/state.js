@@ -2087,16 +2087,52 @@ function readAccountsIndex() {
     return { version: 1, accounts: [] };
   }
   const list = Array.isArray(parsed?.accounts) ? parsed.accounts : Array.isArray(parsed) ? parsed : [];
-  return {
-    version: 1,
-    accounts: list.filter((entry) => entry && typeof entry.id === "string" && entry.id).map(normalizeAccountEntry)
-  };
+  /* The index is a lookup table, so one ID may refer to exactly one account blob.
+     Treat a duplicate ID as a duplicate pointer, not as a second account: showing
+     both entries makes delete/switch ambiguous because they share one storage key. */
+  const seenIds = new Set();
+  const accounts = [];
+  for (const entry of list) {
+    if (!entry || typeof entry.id !== "string" || !entry.id || seenIds.has(entry.id)) continue;
+    seenIds.add(entry.id);
+    accounts.push(normalizeAccountEntry(entry, accounts.length));
+  }
+  return { version: 1, accounts };
 }
 function writeAccountsIndex(accounts) {
   return writeStorageRaw(ACCOUNTS_INDEX_KEY, JSON.stringify({ version: 1, accounts }));
 }
-function newAccountId() {
-  return `acc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+/* IDs are opaque storage keys. Check both the index and the backing store before
+   returning one: a collision must never overwrite an existing character save.
+   Prefer browser crypto for a wider random suffix; the bounded retry also makes
+   deterministic/failed RNG degrade safely instead of clobbering data. */
+function newAccountId(existingAccounts = []) {
+  const usedIds = new Set((Array.isArray(existingAccounts) ? existingAccounts : [])
+    .map((entry) => String(entry?.id || "")).filter(Boolean));
+  const storage = lbtStorage();
+  const cryptoApi = window.crypto || window.msCrypto;
+  for (let attempt = 0; attempt < 32; attempt += 1) {
+    let suffix = "";
+    try {
+      if (cryptoApi && typeof cryptoApi.getRandomValues === "function") {
+        const bytes = new Uint8Array(16);
+        cryptoApi.getRandomValues(bytes);
+        suffix = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+      }
+    } catch (_) {
+      suffix = "";
+    }
+    if (!suffix) {
+      suffix = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+    }
+    /* Including the retry number makes retries distinct even if a test/browser
+       RNG repeats the same value. Existing IDs and orphaned blobs are still checked. */
+    const id = `acc-${Date.now().toString(36)}-${suffix}-${attempt.toString(36)}`;
+    if (usedIds.has(id)) continue;
+    if (storage && readStorageRaw(ACCOUNT_PREFIX + id) != null) continue;
+    return id;
+  }
+  return null;
 }
 /* 初回のみ旧キーからアカウントを作る。既に索引があれば何もしない（冪等）。 */
 function migrateLegacyAccounts() {
@@ -2124,7 +2160,8 @@ function migrateLegacyAccounts() {
     legacyState = null;
   }
   const now = Date.now();
-  const id = newAccountId();
+  const id = newAccountId(index.accounts);
+  if (!id) return { accounts: [], activeId: null };
   const account = normalizeAccountEntry({
     id,
     name: legacyState?.charName || legacyState?.personaSrc?.name || "アカウント1",
@@ -2224,8 +2261,10 @@ function initialFreeSpirits() {
 function createAccount(name, purpose) {
   const index = readAccountsIndex();
   const now = Date.now();
+  const id = newAccountId(index.accounts);
+  if (!id) return null;
   const account = normalizeAccountEntry({
-    id: newAccountId(),
+    id,
     name,
     purpose,
     createdAt: now,
