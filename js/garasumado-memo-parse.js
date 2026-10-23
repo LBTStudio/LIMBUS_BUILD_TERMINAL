@@ -45,6 +45,21 @@
     return text;
   }
 
+  /* 金額／チケットの加算は、安全整数の範囲を超えた値を保存しない。
+     黙って丸める代わりに reasons へ残し、入力元を確認できるようにする。 */
+  function addSafeAmount(target, key, amount, line, reasons, label) {
+    var next = target[key] + amount;
+    if (!Number.isSafeInteger(amount) || !Number.isSafeInteger(next)) {
+      reasons.push({
+        line: String(line ?? ""),
+        reason: (label || "数値") + "が安全整数の範囲を超えているため未計上"
+      });
+      return false;
+    }
+    target[key] = next;
+    return true;
+  }
+
   function hasShard(text) {
     for (var i = 0; i < SHARD_WORDS.length; i++) {
       if (String(text).indexOf(SHARD_WORDS[i]) >= 0) return true;
@@ -510,8 +525,8 @@
 
     /* 「LP/欠片」見出し＋「120/80」の対（合計優先）は行スキャンと別に一度だけ読む。 */
     var slashPair = parseSlashPairs(memo);
-    income.lp += slashPair.lp;
-    income.shards += slashPair.shards;
+    addSafeAmount(income, "lp", slashPair.lp, memo, reasons, "LP収入の合計");
+    addSafeAmount(income, "shards", slashPair.shards, memo, reasons, "欠片収入の合計");
 
     for (var i = 0; i < lines.length; i++) {
       var line = String(lines[i]).trim();
@@ -560,12 +575,12 @@
 
       var tk = packTicketMatch ? null : ticketOf(line);
       if (tk) {
-        tickets[tk.kind] += tk.count;
+        var ticketCountAdded = addSafeAmount(tickets, tk.kind, tk.count, line, reasons, "抽出チケット数");
         /* チケットからどの人格/E.G.Oを得たか。ソースの書式は
            「人格抽出チケット：N 社小鎚の人格」「抽出1：LCE E.G.O:ねばつき」*/
         /* 明示された x0 / 0枚は獲得抽出ではない。チケット収入を増やさないだけでなく、
            結果名から所持まで推定すると「0枚で獲得」になるため候補も作らない。 */
-        if (tk.count > 0) {
+        if (ticketCountAdded && tk.count > 0) {
           var srcNames = arrowWinsOf(line);
           if (!srcNames.length) { var src = ticketSourceName(line); if (src) srcNames = [src]; }
           srcNames.forEach(function (nm) { wins.push({ name: nm, via: TICKET_LABEL[tk.kind], kind: tk.kind }); });
@@ -600,9 +615,9 @@
            チケット行と二重に数えない（抽出の語を含むため）。 */
         var bd = packTicketMatch ? null : bareDrawOf(line);
         if (bd) {
-          tickets[bd.kind] += bd.count;
+          var drawCountAdded = addSafeAmount(tickets, bd.kind, bd.count, line, reasons, "抽出回数");
           /* 抽出0 は回数も獲得候補もゼロ。名前があるだけで所持へ追加しない。 */
-          if (bd.count > 0) {
+          if (drawCountAdded && bd.count > 0) {
             var bdNames = arrowWinsOf(line);
             if (!bdNames.length) { var src2 = ticketSourceName(line); if (src2) bdNames = [src2]; }
             bdNames.forEach(function (nm) { wins.push({ name: nm, via: TICKET_LABEL[bd.kind], kind: bd.kind }); });
@@ -713,6 +728,17 @@
            現在/残の直後は incomePairs 内で先に伏せている。
            「LP 45+5」は 45+5=50、「-15LP」は -15 と符号を保つ。 */
         var pairs = incomePairs(line);
+        var unsafePairs = pairs.filter(function (pair) { return !Number.isSafeInteger(pair.amount); });
+        if (unsafePairs.length) {
+          unsafePairs.forEach(function (pair) {
+            reasons.push({
+              line: line,
+              reason: (pair.currency === "lp" ? "LP" : "欠片") + "金額が安全整数の範囲を超えているため未計上"
+            });
+          });
+          pairs = pairs.filter(function (pair) { return Number.isSafeInteger(pair.amount); });
+          if (!pairs.length) continue;
+        }
         /* 「涙剣：燃え上がる闘志 150欠片　現在184」は購入額。収入の
            「欠片60　現在334」と形が同じなので、：の手前が通貨でない
            ラベル付きかどうかと現在の記載で区別する（実測 shards が
@@ -723,7 +749,7 @@
             var buyCost = { lp: 0, shards: 0 };
             for (var bi = 0; bi < pairs.length; bi++) {
               if (pairs[bi].amount <= 0) continue;
-              buyCost[pairs[bi].currency] += pairs[bi].amount;
+              addSafeAmount(buyCost, pairs[bi].currency, pairs[bi].amount, line, reasons, "購入額合計");
             }
             spends.push(Object.assign({ name: line, raw: line, reason: "購入行（現在の記載つき）" }, buyCost));
             continue;
@@ -733,14 +759,14 @@
             収入の減額なので、絶対値で支出へ回す（実測 shards が -290 になり、
             収入のある行的が「未計上」に見えた）。収入セクション内で消費の語が
             無い負額は、受け取り同士の差として従来どおり合算する。 */
-            if (pairs[pi].amount > 0) income[pairs[pi].currency] += pairs[pi].amount;
+            if (pairs[pi].amount > 0) addSafeAmount(income, pairs[pi].currency, pairs[pi].amount, line, reasons, "通貨収入合計");
             else if (pairs[pi].amount < 0) {
               if (/(消費|購入|解放|支払)/.test(line)) {
                 var loss = { lp: 0, shards: 0 };
                 loss[pairs[pi].currency] = -pairs[pi].amount;
                 spends.push(loss);
               } else {
-                income[pairs[pi].currency] += pairs[pi].amount;
+                addSafeAmount(income, pairs[pi].currency, pairs[pi].amount, line, reasons, "通貨収入合計");
               }
             }
           }
@@ -808,6 +834,10 @@
         var lp = isRemainderOnly ? amountNear(cleanedSpend, "lp", false) : amountNear(line, "lp", true);
         var sh = isRemainderOnly ? amountNear(cleanedSpend, "shards", false) : amountNear(line, "shards", true);
 
+        if ((lp != null && !Number.isSafeInteger(lp)) || (sh != null && !Number.isSafeInteger(sh))) {
+          reasons.push({ line: line, reason: "支出金額が安全整数の範囲を超えているため未計上" });
+          continue;
+        }
         if (lp == null && sh == null) {
           if (isRemainderOnly) continue;
           spends.push({ name: pnm || bnm || line, lp: 0, shards: 0, raw: line });
@@ -867,6 +897,7 @@
       var n = parseInt(String(amount).replace(/[０-９]/g, function (c) {
         return String.fromCharCode(c.charCodeAt(0) - 0xFEE0);
       }), 10) || 0;
+      if (!Number.isSafeInteger(n)) return null;
       var cost = { lp: 0, shards: 0 };
       cost[/^(LP|ＬＰ)$/i.test(String(cur || "LP")) ? "lp" : "shards"] = Math.abs(n);
       return { name: String(name).trim(), lp: cost.lp, shards: cost.shards };
