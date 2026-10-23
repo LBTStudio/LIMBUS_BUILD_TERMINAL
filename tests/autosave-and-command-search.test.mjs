@@ -192,6 +192,15 @@ test("JSONインポートはレコード配列の不正要素を適用前に拒�
   assert.match(validate({ schemaVersion: 5, entries: [
     { id: "same", name: "A" }, { id: "same", name: "B" }
   ] }), /entries\[1\] に重複ID/, "同じ明細IDはインポート前に拒否する");
+  assert.match(validate({ schemaVersion: 5, roster: { personas: [
+    { uid: "p1", no: 1, mode: "n" }, { uid: "p2", no: 1, mode: "n" }
+  ] } }), /roster\.personas\[1\] に重複人格/, "所持人格のNo重複を拒否する");
+  assert.match(validate({ schemaVersion: 5, roster: { egos: [
+    { uid: "e1", rank: "ZAYIN", no: 1 }, { uid: "e2", rank: "ZAYIN", no: 1 }
+  ] } }), /roster\.egos\[1\] に重複E\.G\.O/, "所持E.G.Oのランク・No重複を拒否する");
+  assert.match(validate({ schemaVersion: 5, roster: { supports: [
+    { uid: "s1", name: "同名サポート" }, { uid: "s2", name: "同名サポート" }
+  ] } }), /roster\.supports\[1\] に重複名称/, "同名サポートの重複所持を拒否する");
   assert.match(validate({ _lbtRosterOnly: true, roster: { personas: [null] } }), /roster\.personas\[0\]/);
   assert.equal(validate({ schemaVersion: 5, results: [], entries: [], draws: [], roster: {
     personas: [], egos: [], supports: [], spirits: []
