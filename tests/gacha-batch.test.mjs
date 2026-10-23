@@ -201,6 +201,50 @@ test("バッチ錨: シード・コミットの差し替えは再計算不一致
   assert.equal(G.verifyBatch(badCommit).ok, false);
 });
 
+test("バッチ錨: rolls 欠落・不正形状は例外ではなく不合格になる", () => {
+  const { batch } = finalizedBatch();
+  const missing = structuredClone(batch);
+  delete missing.rolls;
+  assert.equal(G.verifyBatch(missing).ok, false, "rolls 欠落を通さない");
+
+  for (const rolls of [null, "bad", [null], [{ max: 0, value: 1 }]]) {
+    const broken = structuredClone(batch);
+    broken.rolls = rolls;
+    assert.doesNotThrow(() => G.verifyBatch(broken), JSON.stringify(rolls));
+    assert.equal(G.verifyBatch(broken).ok, false, JSON.stringify(rolls));
+  }
+});
+
+test("バッチ錨: ルール指紋・種別・ビーコンを編集するとメタデータ不整合になる", () => {
+  const { batch } = finalizedBatch();
+  assert.equal(batch.schemaVersion, 2);
+  assert.match(batch.integrityHash, /^[0-9a-f]{64}$/);
+
+  for (const field of ["rulesetHash", "kind", "beacon", "count"]) {
+    const changed = structuredClone(batch);
+    changed[field] = field === "beacon"
+      ? { type: "drand", round: 7, randomness: "altered" }
+      : field === "count" ? changed.count + 1
+      : field === "kind" ? "ego" : "0".repeat(64);
+    const result = G.verifyBatch(changed);
+    assert.equal(result.ok, false, field);
+    assert.ok(result.reasons.some((reason) => /メタデータ/.test(reason)), field);
+  }
+
+  const missingManifest = structuredClone(batch);
+  delete missingManifest.integrityHash;
+  assert.equal(G.verifyBatch(missingManifest).ok, false, "新形式ではメタデータハッシュが必須");
+
+  const downgrade = structuredClone(batch);
+  downgrade.schemaVersion = 1;
+  assert.equal(G.verifyBatch(downgrade).ok, false, "バージョンだけを変えても残ったハッシュを検査");
+
+  const legacy = structuredClone(batch);
+  legacy.schemaVersion = 1;
+  delete legacy.integrityHash;
+  assert.equal(G.verifyBatch(legacy).ok, true, "旧形式に読み取り互換性を残す");
+});
+
 test("バッチ錨: 署名者は項目差し替えを止め、鍵違いは不合格", () => {
   const { batch } = finalizedBatch("GM-KEY");
   assert.ok(batch.signature);
