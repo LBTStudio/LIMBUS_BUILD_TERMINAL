@@ -107,8 +107,8 @@ test("two original personas saved in the same millisecond do not overwrite each 
 
   assert.equal(state.roster.personas.length, 2);
   assert.notEqual(state.roster.personas[0].uid, state.roster.personas[1].uid);
-  assert.deepEqual(
-    state.roster.personas.map((entry) => entry.src.name).sort(),
-    ["オリジナル人格A", "オリジナル人格B"]
+  assert.equal(
+    Array.from(state.roster.personas, (entry) => entry.src.name).sort().join("|"),
+    "オリジナル人格A|オリジナル人格B"
   );
 });
