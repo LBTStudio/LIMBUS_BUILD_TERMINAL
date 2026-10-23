@@ -2443,7 +2443,16 @@ function saveActiveAccountState(state, accountId) {
    有料のものだけ roster に入る。明細は立てない（購入ではない）。 */
 function initialFreeSpirits() {
   const list = (window.DB && window.DB.spirits) || [];
-  const free = list.filter((s) => s && s.name && !(Number(s.price) > 0));
+  /* 価格0が明示されたものだけを初期所持へ入れる。price 欠落・null・空文字・
+     非数値を Number(...) で0扱いすると、価格不明の人格まで無料で付与される。 */
+  const free = list.filter((s) => {
+    if (!s || !s.name) return false;
+    const price = s.price;
+    const hasExplicitPrice =
+      (typeof price === "number" && Number.isFinite(price)) ||
+      (typeof price === "string" && price.trim() !== "" && Number.isFinite(Number(price)));
+    return hasExplicitPrice && Number(price) === 0;
+  });
   if (!free.length) return [];
   return free.map((s, i) => ({
     uid: `spr-init-${i}-${String(s.name).replace(/[^\w-]+/g, "")}`,
