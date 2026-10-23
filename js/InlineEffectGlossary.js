@@ -56,7 +56,7 @@
     const sourceRows = [];
     const add = (term, entry) => {
       const key = cleanTerm(term);
-      if (key.length < 2 || key.length > 64) return;
+      if (!key || key.length > 64 || (key.length === 1 && !OFFICIAL_TERMS[key])) return;
       if (!glossary.has(key)) glossary.set(key, []);
       const entries = glossary.get(key);
       const uniqueKey = [entry.category, entry.source, entry.description].join("|");
