@@ -571,7 +571,8 @@ test("抽選証明の検証は空バッチ・不正レコードを安全に不�
   malformed.records[1] = null;
   const malformedResult = G.verifyBatch(malformed);
   assert.equal(malformedResult.ok, false);
-  assert.ok(malformedResult.reasons.some((reason) => /records\\[1\\]/.test(reason)));
+  assert.ok(malformedResult.reasons.some((reason) => /records\[1\]/.test(reason)),
+    "不正レコードの位置を理由へ含める");
   
   const empty = structuredClone(batch);
   empty.records = [];

@@ -411,10 +411,11 @@
             plusOne: input.plusOne
           });
         } catch (err) { stopped = "poolExhausted"; break; }
-        if (!free) lp -= Number(draw.cost?.lp) || 0;
-        /* チケット経路は engine が出した金額を書き換える（請求しないため）。
-           ここを直すので、どの経路でも記録の金額は「実際に払った額」。 */
-        const result = free ? { ...draw, method, cost: { lp: 0, shards: 0 } } : { ...draw, method };
+        /* drawPersona は内部で「通常人格のみ」の所持数から費用を出す。
+           特異人格も価格段階に数えるため、ここでループ側の費用に差し替えて
+           記録と残高減算を揃える（片方だけ直すと請求と記録が食い違う）。 */
+        if (!free) lp -= cost.lp;
+        const result = free ? { ...draw, method, cost: { lp: 0, shards: 0 } } : { ...draw, method, cost };
         addCost(result.cost);
         results.push(result);
         if (draw.kind === "specialPersona") own.specialPersonas.add(Number(draw.item.no));

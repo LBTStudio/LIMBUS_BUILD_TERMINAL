@@ -59,7 +59,7 @@ test("作業状態の部分インポートは全ての永続履歴・初期設�
   assert.ok(itemGroup.includes('"initialItems"'), "初期所持アイテムの定義を復元する");
   assert.ok(state.includes('"hp","san","initiative","speed"'));
   assert.ok(state.includes('"enhancements","initialItems","draws"'));
-  assert.ok(state.includes(`"historyRecent","${drawLogField}"]`));
+  assert.ok(state.includes(`"historyRecent","${drawLogField}","tickets"]`));
 });
 
 test("未解決の旧チケットデータは妥当な配列／マップ形式で検証し、保持対象から外さない", () => {

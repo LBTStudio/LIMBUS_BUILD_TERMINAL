@@ -969,9 +969,13 @@ function normalizeCurrency(value) {
     if (typeof input === "number") {
       parsed = input;
     } else {
-      const text = String(input ?? "").trim();
-      // Do not accept parseInt's partial matches ("1200abc" -> 1200).
-      // Thousands separators are accepted only in correctly grouped triplets.
+      /* 価格の入力は "15LP" や全角 "１５ＬＰ" で届くことがある（正規な形式）。
+         単位だけを外してから検査する。parseInt と違い "1200abc" のような
+         部分一致は拒否し、桁区切りは正しく3桁ごとに分かれた形だけ許可する。 */
+      const text = String(input ?? "").trim()
+        .replace(/[\uFF01-\uFF5E]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+        .replace(/\s+/g, "")
+        .replace(/LP$/i, "");
       if (!/^\+?(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(text)) return 0;
       parsed = Number(text.replace(/,/g, ""));
     }
@@ -2840,7 +2844,9 @@ function validateDrawBatchApplication(state, action) {
       }
     }
     const affordability = purchaseAffordability(state, batchCost);
-    if (!affordability.ok) return { ok: false, reason: "insufficient-currency", ...affordability };
+    /* affordability.reason は人間向け文言。スプレッドの後から機械可読な理由で
+       上書きする（UI は reason のコードでトーストを選ぶため、順序を逆に壊せない）。 */
+    if (!affordability.ok) return { ok: false, ...affordability, reason: "insufficient-currency" };
   }
   return { ok: true, reason: "" };
 }

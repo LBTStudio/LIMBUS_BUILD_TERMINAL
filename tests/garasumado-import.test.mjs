@@ -16,7 +16,9 @@ import vm from "node:vm";
 
 function load(file, apiName) {
   const source = readFileSync(new URL("../js/" + file, import.meta.url), "utf8");
-  const context = { window: {}, console, module: { exports: {} } };
+  /* parseShareUrl は WHATWG の URL でホスト名を検証する。vm サンドボックスには
+     Node の URL が自動で生えないため、本番ブラウザーと同じ能力をここへ渡す。 */
+  const context = { window: {}, console, module: { exports: {} }, URL };
   vm.createContext(context);
   vm.runInContext(source, context);
   return context.window[apiName];

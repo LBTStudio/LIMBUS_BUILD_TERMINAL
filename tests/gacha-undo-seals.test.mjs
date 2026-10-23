@@ -314,11 +314,13 @@ test("非同期確定後に残高が変わった場合、証明を追記する�
   const abort = component.indexOf("return;", preflight);
   const economicCommit = component.indexOf("dispatch(transaction)", preflight);
   const proofCommit = component.indexOf('dispatch({ type: "ADD_DRAW_RECORD", __sealed: true, batch, entry: drawLogEntry })', preflight);
-  const fallbackLogCommit = component.indexOf('dispatch({ type: "ADD_GACHA_LOG", __sealed: true, entry: drawLogEntry })', preflight);
+  const fallbackLogCommit = component.indexOf('dispatch({ type: "ADD_GACHA_LOG"', preflight);
   assert.ok(preflight >= 0 && abort > preflight && economicCommit > abort,
     "失敗時は経済処理をdispatchする前に中止する");
-  assert.ok(proofCommit > economicCommit && fallbackLogCommit > proofCommit,
-    "証明と決定ログは承認された取引へ結び付け、旧検証器のfallbackログとは分離する");
+  assert.ok(proofCommit > economicCommit,
+    "証明は承認済み取引の後にだけ残す");
+  assert.equal(fallbackLogCommit, -1,
+    "証明の無い ADD_GACHA_LOG だけを保存する旧フォールバックは存在しない");
   assert.match(component, /cost: paidCost/, "LP／欠片残高もreducerの同じ取引で再検証する");
 });
 

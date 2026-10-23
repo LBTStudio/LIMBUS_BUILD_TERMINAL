@@ -217,8 +217,13 @@ test("APPLY_PARTIAL は移行可能な履歴・初期設定の全項目を保持
   assert.deepEqual(JSON.parse(JSON.stringify(next.initialItems)), incoming.initialItems);
   assert.deepEqual(JSON.parse(JSON.stringify(next.draws)), incoming.draws);
   assert.deepEqual(JSON.parse(JSON.stringify(next[drawLogField])), incoming[drawLogField]);
-  assert.deepEqual(JSON.parse(JSON.stringify(next.tickets)), incoming.tickets,
-    "未解決の旧チケット行を部分インポートでも失わない");
+  /* 未解決の旧チケット行は、理由フラグ（_lbtLegacyUnresolved*）付きで保持される。
+     部分インポートでも行そのものは失わない。 */
+  const unresolvedRows = JSON.parse(JSON.stringify(next.tickets));
+  assert.equal(unresolvedRows.length, 1, "未解決の旧チケット行を部分インポートでも失わない");
+  assert.deepEqual([unresolvedRows[0].kind, unresolvedRows[0].pack, unresolvedRows[0].count], ["pack", "", 3]);
+  assert.equal(unresolvedRows[0]._lbtLegacyUnresolved, true);
+  assert.equal(unresolvedRows[0]._lbtLegacyUnresolvedReason, "missing-pack-name");
   assert.deepEqual(JSON.parse(JSON.stringify(next.favorites)), incoming.favorites);
   assert.deepEqual(JSON.parse(JSON.stringify(next.historyRecent)), incoming.historyRecent);
 });
@@ -293,11 +298,23 @@ test("旧抽出パックの移行はパック名なし・端数枚数を誤っ�
   const migrated = normalize(raw);
   assert.equal(migrated.results.some((r) => r.id === "res-ticket-grant"), false,
     "復元できない抽出パック名や端数枚数を別のチケット在庫に変換しない");
-  assert.deepEqual(JSON.parse(JSON.stringify(migrated.tickets)), raw.tickets,
-    "未解決行を state に保持し、バックアップ／部分インポートで復旧できるようにする");
+  /* 未解決行は原値に理由フラグを付けて state へ保持する。
+     バックアップ／部分インポートで行ごと捨てられないようにするため。 */
+  const unresolved = JSON.parse(JSON.stringify(migrated.tickets));
+  assert.equal(unresolved.length, 2, "未解決行を state に保持する");
+  assert.deepEqual([unresolved[0].kind, unresolved[0].pack, unresolved[0].count], ["pack", "", 3]);
+  assert.equal(unresolved[0]._lbtLegacyUnresolved, true);
+  assert.equal(unresolved[0]._lbtLegacyUnresolvedReason, "missing-pack-name");
+  assert.deepEqual([unresolved[1].kind, unresolved[1].pack, unresolved[1].count], ["persona", null, 1.5]);
+  assert.equal(unresolved[1]._lbtLegacyUnresolved, true);
+  assert.equal(unresolved[1]._lbtLegacyUnresolvedReason, "invalid-ticket-count");
+  /* 未解決行はどの種別へも変換しない。正規化は空リザルトのアカウントへ初期作成の
+     人格チケット1枚を置くため、絶対値でなく tickets 無し状態との差分で判定する。 */
+  const baseline = normalize({ ...raw, tickets: [] });
   assert.deepEqual(JSON.parse(JSON.stringify(balance(migrated.results, migrated.entries).tickets)),
-    { persona: 0, ego: 0, choice: 0, pack: {} });
-  assert.deepEqual(JSON.parse(JSON.stringify(normalize(migrated).tickets)), raw.tickets,
+    JSON.parse(JSON.stringify(balance(baseline.results, baseline.entries).tickets)),
+    "移行できない行はチケット残高を増やさない");
+  assert.deepEqual(JSON.parse(JSON.stringify(normalize(migrated).tickets)), unresolved,
     "再読込でも未解決行を消さない");
 });
 
@@ -329,8 +346,10 @@ test("破損したローカルセーブの配列要素は正規化前に除外�
   };
   const normalized = normalize(raw);
   assert.ok(normalized, "保存内容が一部壊れていても正規化を完了する");
-  assert.deepEqual(normalized.results.map((r) => r.id).filter((id) => id === "result-good"), ["result-good"]);
-  assert.deepEqual(normalized.entries.map((e) => e.id).filter((id) => id === "entry-good"), ["entry-good"]);
+  /* reducer は vm レルムで動くため、その返した配列はプロトタイプが vm 側になる。
+     assert/strict の deepEqual はプロトタイプ差を拒むため、呼び出し側レルムへ写す。 */
+  assert.deepEqual(Array.from(normalized.results, (r) => r.id).filter((id) => id === "result-good"), ["result-good"]);
+  assert.deepEqual(Array.from(normalized.entries, (e) => e.id).filter((id) => id === "entry-good"), ["entry-good"]);
   for (const field of ["supports", "enhancements", "inventory", "customItems", "gachaLog", "draws"]) {
     assert.ok(Array.isArray(normalized[field]), field + " は配列として維持される");
     assert.equal(normalized[field].some((entry) => !entry || typeof entry !== "object" || Array.isArray(entry)), false,
