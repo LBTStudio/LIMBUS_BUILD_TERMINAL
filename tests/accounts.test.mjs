@@ -281,6 +281,37 @@ test("アクセス時のゲートは保存領域が使えるときだけ出す",
   assert.equal(blocked.storageAvailable(), false, "使えない端末では素通し（入口を塞がない）");
 });
 
+
+test("別タブの旧セーブ移行が割り込んでも、両方の作成済み保存本体を索引に残す", () => {
+  const storage = createStorage({ [LEGACY_KEY]: legacyStateJson() });
+  const tabA = loadAccounts(storage);
+  const tabB = loadAccounts(storage);
+  let interleave = true;
+  let migratedByTabB = null;
+  const originalSetItem = storage.setItem.bind(storage);
+
+  storage.setItem = (key, value) => {
+    /* tab A がバックアップを書いた後、自分の本体を書く直前に tab B の初回移行を走らせる。
+       B は先に索引を書き、A が古い空索引で上書きする状況を再現する。 */
+    if (interleave && key.startsWith(ACCOUNT_PREFIX) && !key.includes(".corrupt.")) {
+      interleave = false;
+      migratedByTabB = tabB.list();
+    }
+    return originalSetItem(key, value);
+  };
+
+  const migratedByTabA = tabA.list();
+  assert.ok(migratedByTabB);
+  assert.equal(migratedByTabB.accounts.length, 1);
+  assert.equal(migratedByTabA.accounts.length, 2, "後から終わったタブが先行移行の索引を消さない");
+  const ids = new Set(migratedByTabA.accounts.map((entry) => entry.id));
+  assert.ok(ids.has(migratedByTabB.activeId), "先に移行したアカウントを保持");
+  assert.notEqual(migratedByTabA.activeId, migratedByTabB.activeId, "両タブは異なる保存本体を作った");
+  for (const id of ids) {
+    assert.ok(storage.getItem(ACCOUNT_PREFIX + id), "索引の各IDに保存本体がある");
+  }
+});
+
 test("旧セーブを持つ人はゲートでアカウント1を選び、その保存領域が読める", () => {
   const legacy = legacyStateJson();
   const storage = createStorage({ [LEGACY_KEY]: legacy });
