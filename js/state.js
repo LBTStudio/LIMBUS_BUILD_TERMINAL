@@ -2232,15 +2232,17 @@ function readAccountsIndex() {
     seenIds.add(entry.id);
     accounts.push(normalizeAccountEntry(entry, accounts.length));
   }
-  /* 配列の項目が全部不正だと、JSON parse だけでは「正常な空索引」と誤認する。
-     本体キーを走査して復元し、書き換えは writeAccountsIndex の保護を通す。 */
-  if (accounts.length === 0) {
+  /* 一部だけ壊れた配列も放置しない。正常な行が1つあるだけでは、索引に
+     現れない保存本体が他にないことを保証できない。壊れた原文を退避したうえで
+     本体キーから再構築し、書き換えは writeAccountsIndex の保護を通す。 */
+  if (accounts.length !== list.length) {
     const recovered = recoverAccountsFromStorage();
     if (recovered.length) {
       writeAccountsIndex(recovered);
       return { version: 1, accounts: recovered };
     }
     preserveUnreadable(ACCOUNTS_INDEX_KEY, raw);
+    return { version: 1, accounts };
   }
   return { version: 1, accounts };
 }
