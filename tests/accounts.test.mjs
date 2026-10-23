@@ -157,6 +157,22 @@ test("空または不正な形の索引も、保存済みアカウントがあ�
   }
 });
 
+test("索引キー自体が消えても残存する保存本体からアカウントを復元する", () => {
+  const activeId = "acc-index-key-missing";
+  const storage = createStorage({
+    [ACCOUNT_PREFIX + activeId]: JSON.stringify({ schemaVersion: 5, charName: "索引なしのキャラクター" }),
+    [ACTIVE_KEY]: activeId
+  });
+  const accounts = loadAccounts(storage);
+
+  const listed = accounts.list();
+  assert.equal(listed.accounts.length, 1, "索引不在を初回訪問と誤認しない");
+  assert.equal(listed.accounts[0].id, activeId);
+  assert.equal(listed.activeId, activeId);
+  assert.equal(accounts.loadActive().charName, "索引なしのキャラクター");
+  assert.equal(JSON.parse(storage.getItem(INDEX_KEY)).accounts.length, 1, "索引を再構築して保存する");
+});
+
 test("初回移行は旧データをバックアップへ複製し、旧キーを変更・削除しない", () => {
   const legacy = legacyStateJson();
   const storage = createStorage({ [LEGACY_KEY]: legacy });
