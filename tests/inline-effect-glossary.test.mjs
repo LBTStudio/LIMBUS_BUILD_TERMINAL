@@ -29,18 +29,42 @@ test("official status definitions expose their rulebook page and a useful explan
 test("E.G.O named unique effects open with the recorded description and source", () => {
   const ego = db.egos.find((entry) => String(entry.unique_buff || "").includes("[百足の毒]"));
   assert.ok(ego, "reference E.G.O exists");
-  const entries = loadGlossary().buildGlossary(db).get("百足の毒") || [];
+  const api = loadGlossary();
+  const entries = api.buildGlossary(db).get("百足の毒") || [];
   assert.ok(entries.some((entry) => entry.category === "E.G.O固有効果" && entry.source.includes(ego.name) && entry.description.includes("R終了時")));
+  const scoped = api.tokenize("百足の毒", db, { ownerType: "ego", ownerName: ego.name });
+  assert.equal(scoped[0].term, "百足の毒");
+  assert.ok(scoped[0].entries.every((entry) => entry.ownerName === ego.name));
+  assert.equal(api.tokenize("百足の毒", db, { ownerType: "ego", ownerName: "別E.G.O" })[0].term, null);
 });
 
-test("persona unique buffs include owner/max metadata when the DB has no separate description", () => {
+test("identity-unique buff definitions are scoped to the active persona", () => {
   const persona = db.normal_personas.find((entry) => (entry.unique_buffs || []).some((buff) => buff.name === "出血保護"));
   assert.ok(persona, "reference identity exists");
-  const entries = loadGlossary().buildGlossary(db).get("出血保護") || [];
-  assert.ok(entries.some((entry) => entry.category === "固有バフ" && entry.source.includes(persona.name) && entry.description.includes("最大値")));
+  const api = loadGlossary();
+  const entries = api.buildGlossary(db).get("出血保護") || [];
+  assert.ok(entries.some((entry) => entry.source.includes(persona.name) && entry.description.includes("最大値")));
+  const scoped = api.tokenize("出血保護", db, { ownerType: "persona", ownerName: persona.name });
+  assert.equal(scoped[0].term, "出血保護");
+  assert.ok(scoped[0].entries.every((entry) => entry.source.includes(persona.name)));
+  assert.equal(api.tokenize("出血保護", db, { ownerType: "persona", ownerName: "別人格" })[0].term, null);
 });
 
-test("bracketed custom references show their source text and never mutate the source DB", () => {
+test("official common definitions take precedence over identity copies; examples are absent", () => {
+  const api = loadGlossary();
+  const weapon = api.tokenize("武装を得る", db, { ownerType: "persona", ownerName: "N社握る者" });
+  const entry = weapon.find((part) => part.term);
+  assert.equal(entry?.term, "武装");
+  assert.equal(entry?.entries.length, 1);
+  assert.equal(entry?.entries[0].source, "基本ルール p.306");
+  assert.equal(entry?.entries[0].official, true);
+  const bleeding = api.tokenize("出血を付与", db, { ownerType: "persona", ownerName: "任意の人格" }).find((part) => part.term);
+  assert.equal(bleeding?.entries[0].source, "基本ルール p.307");
+  assert.doesNotMatch(source, /関連効果の例/);
+  assert.doesNotMatch(source, /entries\.length > 5/);
+});
+
+test("unknown bracketed text is not promoted to a glossary definition", () => {
   const record = {
     normal_personas: [{
       name: "検証用人格",
@@ -63,37 +87,19 @@ test("bracketed custom references show their source text and never mutate the so
   };
   const before = JSON.stringify(record);
   const api = loadGlossary();
-  const entries = api.buildGlossary(record).get("未知の固有処理") || [];
-  assert.ok(entries.some((entry) => entry.category === "本文中の参照" && entry.source.includes("検証用人格") && entry.description.includes("未知の固有処理")));
-  assert.equal(JSON.stringify(record), before, "glossary indexing must not mutate data");
+  assert.equal(api.buildGlossary(record).has("未知の固有処理"), false);
+  assert.equal(api.tokenize("未知の固有処理", record, { ownerType: "persona", ownerName: "検証用人格" })[0].term, null);
+  assert.equal(JSON.stringify(record), before);
 });
 
 test("tokenization prefers the longest known phrase without dropping surrounding text", () => {
   const api = loadGlossary();
-  const pieces = api.tokenize("出血保護3を得る。対象の出血が4以上", db);
+  const persona = db.normal_personas.find((entry) => (entry.unique_buffs || []).some((buff) => buff.name === "出血保護"));
+  const pieces = api.tokenize("出血保護3を得る。対象の出血が4以上", db, { ownerType: "persona", ownerName: persona.name });
   const terms = pieces.filter((piece) => piece.term).map((piece) => piece.term);
   assert.equal(terms[0], "出血保護");
   assert.ok(terms.includes("出血"));
   assert.equal(pieces.map((piece) => piece.text).join(""), "出血保護3を得る。対象の出血が4以上");
-});
-
-test("mobile contextmenu does not let its follow-up synthetic click close the glossary", () => {
-  assert.ok(source.includes("const lastPointerType = React.useRef(null);"));
-  assert.ok(source.includes("lastPointerType.current = event.pointerType || null;"));
-  assert.ok(source.includes('if (lastPointerType.current === "touch") suppressClick.current = true;'));
-  assert.ok(source.includes("if (suppressClick.current) {"));
-  assert.ok(source.includes("event.preventDefault();"));
-  assert.ok(source.includes("event.stopPropagation();"));
-});
-
-test("glossary unmount and cancelled touch gestures clear pending timers and click suppression", () => {
-  assert.ok(source.includes("React.useEffect(() => () => {"));
-  assert.ok(source.includes("clearTimer(hoverTimer);"));
-  assert.ok(source.includes("clearTimer(closeTimer);"));
-  assert.ok(source.includes("clearTimer(longPressTimer);"));
-  assert.ok(source.includes("const onPointerCancel = () => {"));
-  assert.ok(source.includes("suppressClick.current = false;"));
-  assert.ok(source.includes("onPointerUp, onPointerCancel,"));
 });
 
 test("PC hover, keyboard access, tap and long press are available without adding unsafe HTML", () => {

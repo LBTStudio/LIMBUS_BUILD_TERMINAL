@@ -39,6 +39,60 @@
     "指令": { group: "特殊用語", source: "基本ルール／データ内参照", text: "人格・E.G.Oの効果文に登場する特殊用語。具体的な数値や条件は、該当する参照元の効果文を併せて確認できる。" }
   };
 
+
+  Object.assign(OFFICIAL_TERMS, {
+    "クールタイム": { group: "基本用語", source: "基本ルール p.10", text: "人格や特異人格などを使用した後、指定回数のセッションを終了するまで使用できない期間。" },
+    "パワー": { group: "バフ", source: "基本ルール p.304", text: "[1R] 数値の数だけ攻撃スキル威力が増加する（最大10）。" },
+    "忍耐": { group: "バフ", source: "基本ルール p.304", text: "[1R] 数値の数だけ守備スキル威力が増加する（最大10）。" },
+    "クイック": { group: "バフ", source: "基本ルール p.304", text: "[1R] 速度が数値の数だけ増加する（最大10）。" },
+    "充電": { group: "バフ／蓄積資源", source: "基本ルール p.304", text: "消費時に特定スキルの能力が上昇する。R終了時に1減少する（最大20）。" },
+    "呼吸": { group: "バフ／蓄積資源", source: "基本ルール p.304", text: "攻撃前、数値×5%の確率でクリティカル攻撃となる。成功時、スキルの全ダイスのダメージ+2、ダイス数×3だけ呼吸が減少。R終了時に1減少する（最大99）。" },
+    "HP回復量増加": { group: "バフ", source: "基本ルール p.304", text: "[1R] HP回復を受けた時、数値だけ回復量が増加する（最大10）。" },
+    "SAN回復量増加": { group: "バフ", source: "基本ルール p.304", text: "[1R] SAN回復を受けた時、数値だけ回復量が増加する（最大10）。" },
+    "E.G.O資源獲得量増加": { group: "バフ", source: "基本ルール p.304", text: "[1R] スキル使用時に獲得する大罪資源数が数値だけ増加する（最大5）。" },
+    "大罪威力増加": { group: "バフ", source: "基本ルール p.304", text: "[1R] 該当する大罪のスキル威力が数値だけ増加する（最大10）。" },
+    "大罪ダメージ量増加": { group: "バフ", source: "基本ルール p.304", text: "[1R] 該当する大罪のスキル全ダイスのダメージ量が数値だけ増加する（最大10）。" },
+    "大罪保護": { group: "バフ", source: "基本ルール p.305", text: "[1R] 該当する大罪のスキルのダイスから受けるダメージが数値だけ減少する（最大10）。" },
+    "属性威力増加": { group: "バフ", source: "基本ルール p.305", text: "[1R] 該当する攻撃属性のスキル威力が数値だけ増加する（最大10）。" },
+    "属性ダメージ量増加": { group: "バフ", source: "基本ルール p.305", text: "[1R] 該当する攻撃属性のスキル全ダイスのダメージ量が数値だけ増加する（最大10）。" },
+    "属性保護": { group: "バフ", source: "基本ルール p.305", text: "[1R] 該当する攻撃属性のスキルのダイスから受けるダメージが数値だけ減少する（最大10）。" },
+    "デバフ保護": { group: "バフ", source: "基本ルール p.305", text: "[1R] 該当するデバフから受けるダメージが数値だけ減少する（最大10）。" },
+    "d値強化": { group: "バフ", source: "基本ルール p.305", text: "[1R] スキルの全ダイスのd値が数値だけ増加する（最大10）。" },
+    "武装": { group: "バフ／用語集定義", source: "基本ルール p.306", text: "R開始時、武装の数2ごとに忍耐1を得る（最大10）。" },
+    "あなたの盾": { group: "バフ／用語集定義", source: "基本ルール p.306", text: "守備スキル使用時、数値×3だけバリアを得る。ツヴァイ協会所属なら代わりに数値×5。R終了時、数値が半減する（最大10）。" },
+    "充電力場": { group: "バフ／用語集定義", source: "基本ルール p.306", text: "戦闘開始時、数値×3だけバリアを得る。W社所属なら代わりに数値×5。R終了時、数値だけ充電を得て消滅する（最大10）。" },
+    "時間貸与": { group: "バフ／用語集定義", source: "基本ルール p.306", text: "R終了時、数値−1だけ次のRにクイック・マッチ威力増加・脆弱を得る。数値が1なら代わりに束縛2。R開始時に1減少。所持クイックより束縛が多い場合、混乱状態となり消滅する（最大3）。" },
+    "狂信": { group: "バフ／用語集定義", source: "基本ルール p.306", text: "[1R] 数値2ごとにダメージ量+1。対象にN社の釘があれば、数値2ごとにスキル威力+1（最大10）。" },
+    "共振": { group: "バフ／用語集定義", source: "基本ルール p.306", text: "対象に振動爆発を行う時、共振の数×対象の振動の数÷4だけ固定ダメージを与える。振動爆発を行ったR終了時に消滅する（最大10）。" },
+    "振動同化": { group: "バフ／用語集定義", source: "基本ルール p.306", text: "スキル使用時、対象の振動の数5ごとに3回まで、振動2を得てマッチ威力+1（最大1）。" },
+    "紅硬": { group: "バフ／用語集定義", source: "基本ルール p.306", text: "呼吸獲得量+1。出血・振動・恐慌付与量+1。破裂爆発で15以上のダメージを与えた時、次のRに派閥に応じた属性威力増加を得る（最大1）。" },
+    "知識鍛錬": { group: "バフ／用語集定義", source: "基本ルール p.306", text: "R開始時、探求した知識2以上ならマッチ威力増加1。スキルを捨てる時、数値×3だけバリアを得る。被ダメージ時に数値が1減少し、混乱時に消滅（最大6）。" },
+    "基盤": { group: "バフ／用語集定義", source: "基本ルール p.306", text: "R開始時、自己共振回路100ごとに5回までダメージ量増加1を得る（最大1）。" },
+    "大罪威力減少": { group: "デバフ", source: "基本ルール p.307", text: "[1R] 該当する大罪のスキル威力が数値だけ減少する（最大10）。" },
+    "大罪ダメージ量減少": { group: "デバフ", source: "基本ルール p.308", text: "[1R] 該当する大罪のスキルのダイスから受けるダメージが数値だけ減少する（最大10）。" },
+    "大罪脆弱": { group: "デバフ", source: "基本ルール p.308", text: "[1R] 該当する大罪のスキル全ダイスのダメージ量が数値だけ増加する（最大10）。" },
+    "属性威力減少": { group: "デバフ", source: "基本ルール p.308", text: "[1R] 該当する攻撃属性のスキル威力が数値だけ減少する（最大10）。" },
+    "属性ダメージ量減少": { group: "デバフ", source: "基本ルール p.308", text: "[1R] 該当する攻撃属性のスキル全ダイスのダメージ量が数値だけ減少する（最大10）。" },
+    "属性脆弱": { group: "デバフ", source: "基本ルール p.308", text: "[1R] 該当する攻撃属性のスキルのダイスから受けるダメージが数値だけ増加する（最大10）。" },
+    "デバフ脆弱": { group: "デバフ", source: "基本ルール p.308", text: "[1R] 該当するデバフから受けるダメージが数値だけ増加する（最大10）。" },
+    "麻痺": { group: "デバフ", source: "基本ルール p.308", text: "[1R] 麻痺の数÷2だけスキルの全ダイスのd値が減少。麻痺が1なら代わりに1減少する（最大10）。" },
+    "烙印": { group: "デバフ／特殊効果", source: "基本ルール p.309", text: "被ダメージ時、火傷の数÷5だけ固定HPダメージを受ける（最大1）。" },
+    "N社の釘": { group: "デバフ／特殊効果", source: "基本ルール p.310", text: "R終了時、数値だけ次のRに出血を持ち越し、数値を半減する（最大10）。" },
+    "内臓崩壊": { group: "デバフ／特殊効果", source: "基本ルール p.310", text: "出血が攻撃スキル以外の全ダイスロールでも発動する。HPアンプルで除去可能（最大1）。" },
+    "精神崩壊": { group: "デバフ／特殊効果", source: "基本ルール p.310", text: "恐慌が攻撃スキル以外の全ダイスロールでも発動する。鎮静剤で除去可能（最大1）。" },
+    "挑発値": { group: "中立バフ", source: "基本ルール p.311", text: "[1R] 敵が対象を選ぶ時、数値×5%の確率で自分が選ばれる（最大10）。" },
+    "電圧": { group: "中立バフ", source: "基本ルール p.311", text: "特定スキルの能力が上昇する（最大10）。" },
+    "血餐": { group: "蓄積要素", source: "基本ルール p.311", text: "この戦闘で全キャラクターが受けた出血ダメージの数だけ増加する。数値は全員で共有。" },
+    "弾丸-魔弾": { group: "弾丸", source: "基本ルール p.312", text: "銃撃ダイスのあるスキルでマッチ勝利時、火傷3を付与。消費すると特定戦術の能力が向上する。" },
+    "弾丸-装甲弾": { group: "弾丸", source: "基本ルール p.312", text: "銃撃ダイスでマッチする時、対象のマッチ威力−1。消費すると特定戦術の能力が向上する。" },
+    "弾丸-氷結弾": { group: "弾丸", source: "基本ルール p.312", text: "銃撃ダイス的中時、次のRに武装解除1。マッチ勝利時、次のRに麻痺1。消費すると特定戦術の能力が向上する。" },
+    "弾丸-火炎弾": { group: "弾丸", source: "基本ルール p.312", text: "銃撃ダイスで攻撃的中時、火傷2を付与。消費すると特定戦術の能力が向上する。" },
+    "弾丸-火縄": { group: "弾丸", source: "基本ルール p.312", text: "銃撃ダイスでマッチ勝利的中時、火傷を1〜7付与。消費すると特定戦術の能力が向上する。" },
+    "弾丸-虎標弾": { group: "弾丸", source: "基本ルール p.312", text: "銃撃ダイスのダメージ+2。速度6以上なら追加でダメージ+3。消費すると特定戦術の能力が向上する。" },
+    "弾丸-猛虎標弾": { group: "弾丸", source: "基本ルール p.312", text: "銃撃ダイスのダメージ+3、火傷・振動付与量+2。速度が対象より速ければ振動爆発ダメージ+5。消費すると特定戦術の能力が向上する。" },
+    "爆発": { group: "特殊処理", source: "基本ルール p.313", text: "バフ・デバフの数値を参照する特殊処理。破裂爆発・振動爆発など、正式名称ごとの定義を確認する。" },
+    "混乱": { group: "状態", source: "基本ルール p.303・各効果文", text: "キャラクターの状態として発生する。発生条件や追加処理は、各効果文に書かれた条件に従う。" }
+  });
   const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const cleanTerm = (value) => String(value || "").replace(/^\[|\]$/g, "").trim();
   const shortText = (value, limit = 250) => {
@@ -53,42 +107,32 @@
   function buildGlossary(db) {
     if (db && db === cachedDb && cachedGlossary) return cachedGlossary;
     const glossary = new Map();
-    const sourceRows = [];
     const add = (term, entry) => {
       const key = cleanTerm(term);
       if (!key || key.length > 64 || (key.length === 1 && !OFFICIAL_TERMS[key])) return;
       if (!glossary.has(key)) glossary.set(key, []);
       const entries = glossary.get(key);
-      const uniqueKey = [entry.category, entry.source, entry.description].join("|");
+      const uniqueKey = [entry.category, entry.source, entry.description, entry.ownerType, entry.ownerName].join("|");
       if (entries.some((item) => item._key === uniqueKey)) return;
       entries.push({ ...entry, term: key, _key: uniqueKey });
     };
-    const addSourceRow = (text, category, source, title) => {
-      const value = String(text || "").trim();
-      if (!value) return;
-      const row = { text: value, category: category || "効果本文", source: source || "データ", title: title || "" };
-      sourceRows.push(row);
-      for (const match of value.matchAll(/\[([^\]\n]{2,64})\]/gu)) {
-        const name = cleanTerm(match[1]);
-        if (!name || /^\d+R$/u.test(name)) continue;
-        add(name, { category: "本文中の参照", source: row.source, description: shortText(value), priority: 20 });
-      }
-    };
-    const addEntity = (term, category, source, description, priority = 80) => {
+    // Effect prose is not a canonical glossary definition.
+    const addSourceRow = () => {};
+
+    const addEntity = (term, category, source, description, priority = 80, owner = null) => {
       const value = String(description || "").trim();
       add(term, {
         category: category || "固有効果",
         source: source || "データベース",
-        description: value || "この項目の個別説明はデータに登録されていません。下の関連効果で実際の使用箇所を確認できます。",
-        priority
+        description: value || "この項目の個別説明はデータに登録されていません。",
+        priority,
+        ...(owner ? { ownerType: owner.type, ownerName: owner.name } : {})
       });
-      if (value) addSourceRow(value, category, source, term);
     };
     const combine = (...values) => values.map((value) => String(value || "").trim()).filter(Boolean).join("\n");
 
     Object.entries(OFFICIAL_TERMS).forEach(([term, entry]) => {
-      add(term, { category: entry.group, source: entry.source, description: entry.text, priority: 120 });
-      sourceRows.push({ text: entry.text, category: entry.group, source: entry.source, title: term });
+      add(term, { category: entry.group, source: entry.source, description: entry.text, priority: 120, official: true });
     });
 
     const personas = [...(db && Array.isArray(db.normal_personas) ? db.normal_personas : []),
@@ -96,11 +140,10 @@
     personas.forEach((persona) => {
       const identity = "人格：" + (persona.name || "名称未設定");
       const passive = combine(persona.passive_cond && "発動条件：" + persona.passive_cond, persona.passive_always && "常時：" + persona.passive_always, persona.passive_effect);
-      if (persona.passive_name) addEntity(persona.passive_name, "人格パッシブ", identity, passive, 90);
-      addSourceRow(passive, "人格パッシブ", identity, persona.passive_name);
+      if (persona.passive_name) addEntity(persona.passive_name, "人格パッシブ", identity, passive, 90, { type: "persona", name: persona.name });
       (persona.unique_buffs || []).forEach((buff) => {
         const description = combine(buff.desc, buff.type && "種別：" + buff.type, buff.initial != null && "初期値：" + buff.initial, buff.max != null && "最大値：" + buff.max);
-        addEntity(buff.name, buff.type || "人格固有バフ", identity, description, 105);
+        addEntity(buff.name, buff.type || "人格固有バフ", identity, description, 105, { type: "persona", name: persona.name });
       });
       (persona.skills || []).forEach((skill, index) => {
         const source = identity + "／" + (skill.name || skill.rank || "スキル" + index);
@@ -111,7 +154,7 @@
 
     (db && Array.isArray(db.egos) ? db.egos : []).forEach((ego) => {
       const source = "E.G.O：" + (ego.rank ? "[" + ego.rank + "] " : "") + (ego.name || "名称未設定");
-      if (ego.passive_name) addEntity(ego.passive_name, "E.G.Oパッシブ", source, combine(ego.passive_cond && "発動条件：" + ego.passive_cond, ego.passive_effect), 95);
+      if (ego.passive_name) addEntity(ego.passive_name, "E.G.Oパッシブ", source, combine(ego.passive_cond && "発動条件：" + ego.passive_cond, ego.passive_effect), 95, { type: "ego", name: ego.name });
       addSourceRow(ego.passive_effect, "E.G.Oパッシブ", source, ego.passive_name);
       if (ego.unique_buff) {
         const uniqueText = String(ego.unique_buff);
@@ -119,7 +162,7 @@
           .map((match) => cleanTerm(match[1]))
           .filter((name) => name && !/^\d+R$/u.test(name));
         const mainName = names[0] || uniqueText.split(/\r?\n/u)[0].replace(/^(?:固有バフ|固有効果)\s*[:：]?/u, "").trim();
-        if (mainName) addEntity(mainName, "E.G.O固有効果", source, uniqueText, 110);
+        if (mainName) addEntity(mainName, "E.G.O固有効果", source, uniqueText, 110, { type: "ego", name: ego.name });
         addSourceRow(uniqueText, "E.G.O固有効果", source, mainName);
       }
       [ego.kakusei, ego.shinshoku, ...(ego.sub_skills || [])].filter(Boolean).forEach((skill, index) => {
@@ -131,35 +174,25 @@
     });
 
     (db && Array.isArray(db.support_passives) ? db.support_passives : []).forEach((item) => {
-      addEntity(item.name, "サポートパッシブ", "サポートパッシブ", combine(item.cond && "発動条件：" + item.cond, item.effect), 95);
+      addEntity(item.name, "サポートパッシブ", "サポートパッシブ", combine(item.cond && "発動条件：" + item.cond, item.effect), 95, { type: "support", name: item.name });
     });
     (db && Array.isArray(db.death_passives) ? db.death_passives : []).forEach((item) => {
-      addEntity(item.name, "死亡後パッシブ", "死亡後パッシブ", combine(item.cond && "発動条件：" + item.cond, item.effect), 90);
+      addEntity(item.name, "死亡後パッシブ", "死亡後パッシブ", combine(item.cond && "発動条件：" + item.cond, item.effect), 90, { type: "deathSupport", name: item.name });
     });
     (db && Array.isArray(db.special_enhancements) ? db.special_enhancements : []).forEach((item) => {
-      addEntity(item.name, "特殊強化", "特殊強化", item.effect, 90);
+      addEntity(item.name, "特殊強化", "特殊強化", item.effect, 90, { type: "enhancement", name: item.name });
     });
     (db && Array.isArray(db.normal_enhancements) ? db.normal_enhancements : []).forEach((item) => {
-      addEntity(item.name, "通常強化", "通常強化", item.effect, 80);
+      addEntity(item.name, "通常強化", "通常強化", item.effect, 80, { type: "enhancement", name: item.name });
     });
     (db && Array.isArray(db.spirits) ? db.spirits : []).forEach((item) => {
-      addEntity(item.name, "精神状態", "精神状態", combine(item.always_effect, item.morale_effect, item.confuse_effect), 85);
+      addEntity(item.name, "精神状態", "精神状態", combine(item.always_effect, item.morale_effect, item.confuse_effect), 85, { type: "spirit", name: item.name });
     });
     (db && Array.isArray(db.items) ? db.items : []).forEach((item) => {
-      addEntity(item.name, "アイテム", "アイテム", item.effect, 80);
+      addEntity(item.name, "アイテム", "アイテム", item.effect, 80, { type: "item", name: item.name });
     });
 
-    const usageTerms = [...glossary.keys()].sort((a, b) => b.length - a.length);
-    usageTerms.forEach((term) => {
-      const entries = glossary.get(term);
-      let added = 0;
-      for (const row of sourceRows) {
-        if (!row.text.includes(term) || row.title === term) continue;
-        add(term, { category: "関連効果の例", source: row.source, description: shortText(row.text), priority: 25 });
-        added += 1;
-        if (added >= 3 || entries.length >= 7) break;
-      }
-    });
+    // Do not add cross-persona "related effect examples": the rulebook/owner is the definition source.
 
     glossary.forEach((entries) => entries.sort((a, b) => (b.priority || 0) - (a.priority || 0)));
     cachedDb = db;
@@ -169,7 +202,22 @@
     return glossary;
   }
 
-  function tokenize(text, db) {
+  function selectEntries(entries, scope) {
+    const candidates = Array.isArray(entries) ? entries : [];
+    const official = candidates.filter((entry) => entry.official);
+    if (official.length) return official.slice(0, 2);
+    const context = scope && typeof scope === "object" ? scope : {};
+    const ownerType = String(context.ownerType || "");
+    const ownerName = String(context.ownerName || "");
+    if (ownerType && ownerName) {
+      const owned = candidates.filter((entry) => entry.ownerType === ownerType && entry.ownerName === ownerName);
+      if (owned.length) return owned.slice(0, 1);
+    }
+    // A private definition from a different persona/E.G.O is never a fallback.
+    return candidates.filter((entry) => !entry.ownerType && !entry.ownerName).slice(0, 1);
+  }
+
+  function tokenize(text, db, scope) {
     const input = String(text == null ? "" : text);
     const glossary = buildGlossary(db || global.DB);
     if (!input || !cachedPattern) return [{ text: input, term: null, entries: [] }];
@@ -179,7 +227,8 @@
     for (const match of input.matchAll(cachedPattern)) {
       if (match.index > lastIndex) parts.push({ text: input.slice(lastIndex, match.index), term: null, entries: [] });
       const term = match[0];
-      parts.push({ text: term, term, entries: (glossary.get(term) || []).slice(0, 7) });
+      const entries = selectEntries(glossary.get(term) || [], scope);
+      parts.push(entries.length ? { text: term, term, entries } : { text: term, term: null, entries: [] });
       lastIndex = match.index + term.length;
     }
     if (lastIndex < input.length) parts.push({ text: input.slice(lastIndex), term: null, entries: [] });
@@ -199,7 +248,6 @@
     const closeTimer = React.useRef(null);
     const longPressTimer = React.useRef(null);
     const suppressClick = React.useRef(false);
-    const lastPointerType = React.useRef(null);
     const uid = React.useId().replace(/:/g, "");
     const panelId = "lbt-glossary-" + uid;
     const clearTimer = (ref) => { if (ref.current) global.clearTimeout(ref.current); ref.current = null; };
@@ -237,12 +285,6 @@
         global.document.removeEventListener("pointerdown", outside, true);
       };
     }, [open]);
-    /* A pending gesture must not outlive the term component. */
-    React.useEffect(() => () => {
-      clearTimer(hoverTimer);
-      clearTimer(closeTimer);
-      clearTimer(longPressTimer);
-    }, []);
     const startHover = (event) => {
       if (event.pointerType !== "mouse") return;
       clearTimer(closeTimer);
@@ -255,12 +297,7 @@
       closeSoon(360);
     };
     const onPointerDown = (event) => {
-      lastPointerType.current = event.pointerType || null;
-      if (event.pointerType !== "touch") {
-        /* A new non-touch gesture also clears stale touch-click suppression. */
-        suppressClick.current = false;
-        return;
-      }
+      if (event.pointerType !== "touch") return;
       clearTimer(longPressTimer);
       suppressClick.current = false;
       longPressTimer.current = global.setTimeout(() => {
@@ -269,17 +306,6 @@
       }, 480);
     };
     const onPointerUp = () => clearTimer(longPressTimer);
-    const onPointerCancel = () => {
-      clearTimer(longPressTimer);
-      suppressClick.current = false;
-    };
-    const onContextMenu = (event) => {
-      event.preventDefault();
-      /* Some mobile browsers dispatch contextmenu before the 480ms timer.
-         Suppress its follow-up synthetic click, or the click toggles this open panel shut. */
-      if (lastPointerType.current === "touch") suppressClick.current = true;
-      setOpen(true);
-    };
     const onClick = (event) => {
       if (suppressClick.current) {
         suppressClick.current = false;
@@ -302,14 +328,13 @@
         React.createElement("button", { type: "button", className: "lbt-glossary-popover-close", "aria-label": "用語詳細を閉じる", onClick: () => setOpen(false) }, "×")
       ),
       React.createElement("div", { className: "lbt-glossary-popover-body" },
-        entries.slice(0, 5).map((entry, index) => React.createElement("section", { key: entry._key || entry.source + index, className: "lbt-glossary-entry" },
+        entries.slice(0, 2).map((entry, index) => React.createElement("section", { key: entry._key || entry.source + index, className: "lbt-glossary-entry" },
           React.createElement("div", { className: "lbt-glossary-entry-meta" },
             React.createElement("b", null, entry.category || "関連効果"),
             entry.source ? React.createElement("span", null, entry.source) : null
           ),
           React.createElement("p", null, entry.description || "この項目の説明は未登録です。")
-        )),
-        entries.length > 5 ? React.createElement("div", { className: "lbt-glossary-more" }, "ほか " + (entries.length - 5) + " 件の参照があります。") : null
+        ))
       ),
       React.createElement("div", { className: "lbt-glossary-popover-foot" }, "PC：ホバー／クリック　スマホ：タップ／長押し　Escで閉じる")
     ) : null;
@@ -317,8 +342,8 @@
     return React.createElement("span", {
       className: "lbt-glossary-anchor", ref: anchorRef,
       onPointerEnter: startHover, onPointerLeave: endHover, onPointerDown,
-      onPointerUp, onPointerCancel,
-      onContextMenu,
+      onPointerUp, onPointerCancel: onPointerUp,
+      onContextMenu: (event) => { event.preventDefault(); setOpen(true); },
       onKeyDown: (event) => { if (event.key === "Escape") setOpen(false); }
     },
       React.createElement("button", {
@@ -334,14 +359,14 @@
 
   function InlineGlossaryText(props) {
     const React = global.React;
-    const pieces = tokenize(props.text, global.DB);
+    const pieces = tokenize(props.text, global.DB, props.scope);
     return React.createElement(React.Fragment, null, pieces.map((piece, index) => piece.term
       ? React.createElement(TooltipTerm, { key: index + "-" + piece.term, term: piece.term, entries: piece.entries }, piece.text)
       : React.createElement(React.Fragment, { key: index }, piece.text)));
   }
   function render(text, scope) {
     if (text == null || text === "") return text;
-    return global.React.createElement(InlineGlossaryText, { text: String(text), scope: scope || "" });
+    return global.React.createElement(InlineGlossaryText, { text: String(text), scope: scope || {} });
   }
   global.LBTInlineEffectGlossary = {
     buildGlossary, tokenize, render,
