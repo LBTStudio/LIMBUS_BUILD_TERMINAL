@@ -529,14 +529,20 @@ function toIdentityChoices(hits) {
 
     const attribution = attributeOwned(groups, purchaseScenario ? [...scenarios, purchaseScenario] : scenarios);
 
-    /* 初期精神は「無料（DB で price が無い）」の3件だけ。それ以上は原理的に存在しない
-       ので、4件目が現れたら共有データかDBのどちらかが壊れている。 */
+    /* 初期精神は、DB で価格 0 が明示されたものだけ。価格の欠落・null・空欄・
+       不正値を無料と混同しない。共有文書に価格不明の精神があっても所持一覧には
+       残すが、初期所持数の判定には使わない。 */
     const spiritPrices = new Map(
-      ((db && db.spirits) || []).map((s) => [nameKey(s.name), Number(s.price) || 0])
+      ((db && db.spirits) || [])
+        .filter((s) => s && s.name && (
+          (typeof s.price === "number" && Number.isFinite(s.price))
+          || (typeof s.price === "string" && s.price.trim() !== "" && Number.isFinite(Number(s.price)))
+        ))
+        .map((s) => [nameKey(s.name), Number(s.price)])
     );
     const initialSpiritNames = ((groups[3] && groups[3].items) || [])
-      .filter((it) => !(spiritPrices.get(nameKey(it.name)) > 0))
-      .map((it) => it.name);
+      .filter((item) => spiritPrices.get(nameKey(item.name)) === 0)
+      .map((item) => item.name);
     const INITIAL_SPIRIT_MAX = 3;
 
     return {
