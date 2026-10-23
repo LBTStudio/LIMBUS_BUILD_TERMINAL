@@ -804,7 +804,7 @@ const PersonaCodex = ({ state, dispatch, ownedOnly = false }) => {
     return counts;
   }, [pool, ui.filterKws]);
   // The source list is independent of the PDF status list length: custom and one-off tags stay filterable.
-  const allKws = React.useMemo(() => sortPersonaKeywordsByPdf(Array.from(keywordCounts.keys())), [keywordCounts]);
+  const allKws = React.useMemo(() => orderPersonaKeywordOptions(Array.from(keywordCounts.keys())), [keywordCounts]);
   const countKeywordInPool = (keyword) => keywordCounts.get(keyword) || 0;
   // N19: 所持人格キーセット（フィルタとソートの両方で使うため filtered より前に定義）
   const ownedPersonaKeys = React.useMemo(() => new Set((roster.personas || []).map((r) => `${r.mode}:${r.no}`)), [roster.personas]);
