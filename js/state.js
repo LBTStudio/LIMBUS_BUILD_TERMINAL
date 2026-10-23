@@ -3792,7 +3792,7 @@ return appendLedgerEntry(next, {
     }
     case "REMOVE_ROSTER_EGO": {
       const entry = (state.roster.egos || []).find((e) => e.uid === action.uid);
-      if (entry?.build?.__custom && (!action.deleteCustomConfirmed || state.egoSlots?.[entry.rank]?.no === entry.no)) return state;
+      if (entry?.build?.__custom && (!action.deleteCustomConfirmed || String(state.egoSlots?.[entry.rank]?.no) === String(entry.no))) return state;
       const egos = (state.roster.egos || []).filter((e) => e.uid !== action.uid);
       /* ショップで購入したものは所持から外すと同額の支出を戻す。 */
       return dropLedgerEntriesForRef({ ...state, roster: { ...state.roster, egos } }, { kind: "rosterEgo", uid: action.uid });
@@ -3806,7 +3806,7 @@ return appendLedgerEntry(next, {
     case "REMOVE_ROSTER_EGO_BATCH": {
       const ids = new Set(action.uids || []);
       const egos = (state.roster.egos || []).filter((entry) =>
-        !ids.has(entry.uid) || (entry.build?.__custom && (!action.deleteCustomConfirmed || state.egoSlots?.[entry.rank]?.no === entry.no)));
+        !ids.has(entry.uid) || (entry.build?.__custom && (!action.deleteCustomConfirmed || String(state.egoSlots?.[entry.rank]?.no) === String(entry.no))));
       /* 装備中の創作E.G.Oは保護される。消えていないものの明細まで外さない。 */
       const removed = [...ids].filter((uid) => !egos.some((entry) => entry.uid === uid));
       const next = { ...state, roster: { ...state.roster, egos } };
