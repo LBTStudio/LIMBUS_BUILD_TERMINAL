@@ -103,7 +103,7 @@
         : /e\.?g\.?o/i.test(numeric) || /ＥＧＯ/i.test(numeric) ? "ego"
         : /人格/.test(numeric) ? "persona"
         : /選択/.test(numeric) ? "choice" : null;
-      const ticket = { kind, count };
+      const ticket = { kind, count, raw: item };
       if (packMatch) ticket.pack = packMatch[1].trim();
       return { ticket, deltas, invalidDelta, raw: item };
     }
