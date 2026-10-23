@@ -791,6 +791,7 @@ test("無料の精神は最初から所持として数える（購入ではな�
   assert.match(reducer, /function hasExplicitSpiritPrice\(definition\)/);
   assert.match(reducer, /function isExplicitlyFreeSpirit\(definition\)/);
   assert.match(reducer, /const free = list\.filter\(isExplicitlyFreeSpirit\);/);
+  assert.match(reducer, /knownPriceNames\.has\(name\)/, "価格不明の初期枠選択値は適用しない");
   /* 新規アカウントは就已経入っている。 */
   assert.match(reducer, /roster: \{ spirits: initialFreeSpirits\(\) \}/);
   assert.match(reducer, /for \(const seed of initialFreeSpirits\(\)\) \{[\s\S]{0,140}?if \(!ownedSpirit\.has\(seed\.name\)\) spiritList\.push\(seed\);/);
