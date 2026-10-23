@@ -58,7 +58,8 @@ test("削除は確認つきで、最後の1件は削除できない", () => {
   assert.match(ui, /if \(!confirm\(`アカウント「\$\{entry\.name\}」を削除しますか？/, "削除は confirm を通す");
   assert.match(ui, /window\.LBT_accounts\?\.delete\?\.\(entry\.id\)/);
   assert.match(ui, /canRemove: total > 1/, "最後の1件には削除ボタンを出さない");
-  assert.match(ui, /最後のアカウントは削除できません/, "削除失敗は理由を通知する");
+  assert.match(ui, /最後のアカウントは削除できません/, "最後の1件は削除できない");
+  assert.match(ui, /アカウントを削除できませんでした（保存領域が使用できない可能性があります）/, "保存失敗を最後の1件と誤案内しない");
 });
 
 test("モーダル規約: role/aria-modal/Esc/フォーカストラップ/初期フォーカス", () => {
