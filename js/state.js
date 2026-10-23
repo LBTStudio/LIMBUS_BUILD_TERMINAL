@@ -2449,7 +2449,15 @@ function createAccount(name, purpose) {
   /* 新規アカウントは高級な精神が既に。そこに明细は立てない。 */
   const seed = { schemaVersion: SAVE_SCHEMA_VERSION, roster: { spirits: initialFreeSpirits() } };
   if (!writeStorageRaw(ACCOUNT_PREFIX + account.id, JSON.stringify(seed))) return null;
-  if (!writeAccountsIndex([...index.accounts, account])) {
+  /* アカウント本体を書いている間に別タブが作成を完了している可能性がある。
+     作成開始時に読んだ index をそのまま書くと、後から完了したタブが先に作られた
+     別アカウントの索引エントリを消してしまう。索引書き込み直前の最新版へ追加する。 */
+  const latestIndex = readAccountsIndex();
+  /* 索引自体がまだ無い初回環境では、上で書いた自分の本体を readAccountsIndex()
+     が孤立本体として復旧し、同じIDを返すことがある。その行だけは作成競合では
+     ないので除いて、フォームから入力された正式な名前・用途を持つ account を足す。 */
+  const latestOthers = latestIndex.accounts.filter((entry) => entry.id !== account.id);
+  if (!writeAccountsIndex([...latestOthers, account])) {
     removeStorageRaw(ACCOUNT_PREFIX + account.id);
     return null;
   }
