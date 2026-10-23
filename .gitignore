@@ -12,7 +12,7 @@ tests/*-run.log
 tmp/
 .opencode/
 AGENTS.md
-# Agent harness output dumps (spill of long tool-call stdout). Not repo content.
+# Local generated diagnostics; not application source.
 .oaah/
 # Wrangler build cache for the OGP edge worker.
 ogp-gateway/.wrangler/
