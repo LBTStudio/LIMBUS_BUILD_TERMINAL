@@ -997,6 +997,14 @@ function normalizeCurrency(value) {
   return { lp: toNumber(raw.lp), shards: toNumber(raw.shards) };
 }
 
+  /* パック名はユーザー定義文字列なので、"__proto__" 等もデータとして保持する。 */
+  function setSafeRecordEntry(record, key, value) {
+    Object.defineProperty(record, String(key), { value, writable: true, enumerable: true, configurable: true });
+  }
+  function getSafeRecordEntry(record, key, fallback = 0) {
+    return record && Object.prototype.hasOwnProperty.call(record, String(key)) ? record[String(key)] : fallback;
+  }
+
   /* 抽出チケットも通貨と同じ収支で扱う。卓で報酬として受け渡されるもので、
      リザルトの収入に「種別ごとの枚数」として積む。パック別は pack の下に
      パック名を並べるので、どのパックなら引けるかが収入の時点で分かる。 */
@@ -1019,7 +1027,7 @@ function normalizeCurrency(value) {
     const packs = raw.pack && typeof raw.pack === "object" && !Array.isArray(raw.pack) ? raw.pack : {};
     for (const [name, count] of Object.entries(packs)) {
       const n = toNumber(count);
-      if (n) out.pack[name] = n;
+      if (n) setSafeRecordEntry(out.pack, name, n);
     }
     return out;
   }
@@ -1033,7 +1041,7 @@ function normalizeCurrency(value) {
       out.persona += inc.persona;
       out.ego += inc.ego;
       out.choice += inc.choice;
-      for (const [name, n] of Object.entries(inc.pack)) out.pack[name] = (out.pack[name] || 0) + n;
+      for (const [name, n] of Object.entries(inc.pack)) setSafeRecordEntry(out.pack, name, Number(getSafeRecordEntry(out.pack, name, 0)) + n);
     }
     for (const entry of entries || []) {
       /* 消費は負数で持つ（明細は支出なので）。 */
@@ -1041,7 +1049,7 @@ function normalizeCurrency(value) {
       out.persona -= used.persona;
       out.ego -= used.ego;
       out.choice -= used.choice;
-      for (const [name, n] of Object.entries(used.pack)) out.pack[name] = (out.pack[name] || 0) - n;
+      for (const [name, n] of Object.entries(used.pack)) setSafeRecordEntry(out.pack, name, Number(getSafeRecordEntry(out.pack, name, 0)) - n);
     }
     for (const key of ["persona", "ego", "choice"]) out[key] = Math.max(0, out[key]);
     for (const [name, n] of Object.entries(out.pack)) out.pack[name] = Math.max(0, n);
@@ -1066,8 +1074,8 @@ function setTicketIncome(state, kind, pack, delta, resultId) {
       ? { ...cur, pack: { ...cur.pack } }
       : { ...cur };
     if (kind === "pack") {
-      const nextVal = Math.max(0, (Number(next.pack[pack]) || 0) + delta);
-      if (nextVal) next.pack[pack] = nextVal;
+      const nextVal = Math.max(0, (Number(getSafeRecordEntry(next.pack, pack, 0)) || 0) + delta);
+      if (nextVal) setSafeRecordEntry(next.pack, pack, nextVal);
       else delete next.pack[pack];
     } else {
       next[kind] = Math.max(0, (Number(next[kind]) || 0) + delta);
@@ -1431,7 +1439,7 @@ function normalizeStateShape(raw) {
     let total = { persona: 0, ego: 0, choice: 0, pack: {} };
     for (const t of legacyTickets) {
       const count = legacyTicketCount(t);
-      if (t.kind === "pack") total.pack[t.pack] = (total.pack[t.pack] || 0) + count;
+      if (t.kind === "pack") setSafeRecordEntry(total.pack, t.pack, Number(getSafeRecordEntry(total.pack, t.pack, 0)) + count);
       else total[t.kind] = (Number(total[t.kind]) || 0) + count;
     }
     /* 数量が一致するだけの通常リザルトは移行済みとはみなさない。
