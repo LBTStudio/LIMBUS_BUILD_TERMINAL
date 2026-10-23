@@ -2099,7 +2099,28 @@ function removeStorageRaw(key) {
 /* 読めない保存値は上書きせず、別キーへ退避してから初めて既定で再出発できる。 */
 function preserveUnreadable(key, raw) {
   if (raw == null) return true;
-  return writeStorageRaw(`${key}.corrupt.${Date.now()}`, raw);
+  const prefix = `${key}.corrupt.`;
+  const storage = lbtStorage();
+  /* 同じ原文を既に退避していれば再利用し、一覧表示や複数タブの再試行で
+     同じ破損内容のコピーを際限なく増やさない。 */
+  if (storage && typeof storage.key === "function") {
+    try {
+      for (let i = 0; i < storage.length; i += 1) {
+        const candidate = storage.key(i);
+        if (typeof candidate === "string" && candidate.startsWith(prefix)
+          && readStorageRaw(candidate) === raw) return true;
+      }
+    } catch (_) {}
+  }
+  /* 同一ミリ秒に別の破損値が来ても前の退避を上書きしない。 */
+  const base = `${prefix}${Date.now()}`;
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const candidate = attempt === 0 ? base : `${base}.${attempt}`;
+    const existing = readStorageRaw(candidate);
+    if (existing === raw) return true;
+    if (existing == null) return writeStorageRaw(candidate, raw);
+  }
+  return false;
 }
 function normalizeAccountName(value, fallback) {
   const name = String(value || "").trim().slice(0, ACCOUNT_NAME_MAX);
@@ -2155,6 +2176,26 @@ function recoverAccountsFromStorage() {
   if (activeIndex > 0) recovered.unshift(recovered.splice(activeIndex, 1)[0]);
   return recovered;
 }
+function accountsIndexRawIsUsable(raw) {
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch (_) { return false; }
+  const list = Array.isArray(parsed?.accounts) ? parsed.accounts : Array.isArray(parsed) ? parsed : null;
+  if (!Array.isArray(list) || list.length === 0) return false;
+  const ids = new Set();
+  for (const entry of list) {
+    if (!entry || typeof entry.id !== "string" || !entry.id || ids.has(entry.id)) return false;
+    ids.add(entry.id);
+  }
+  return true;
+}
+function writeAccountsIndex(accounts) {
+  const existing = readStorageRaw(ACCOUNTS_INDEX_KEY);
+  /* 不正な索引を再構築で置き換える場合も、原文を確保できることが先。
+     ここを唯一の書き込み境界にして、別の呼び出し元からの上書きも防ぐ。 */
+  if (existing != null && !accountsIndexRawIsUsable(existing)
+    && !preserveUnreadable(ACCOUNTS_INDEX_KEY, existing)) return false;
+  return writeStorageRaw(ACCOUNTS_INDEX_KEY, JSON.stringify({ version: 1, accounts }));
+}
 function readAccountsIndex() {
   const raw = readStorageRaw(ACCOUNTS_INDEX_KEY);
   if (raw == null) {
@@ -2167,9 +2208,9 @@ function readAccountsIndex() {
   try {
     parsed = JSON.parse(raw);
   } catch (_) {
-    preserveUnreadable(ACCOUNTS_INDEX_KEY, raw);
     const recovered = recoverAccountsFromStorage();
     if (recovered.length) writeAccountsIndex(recovered);
+    else preserveUnreadable(ACCOUNTS_INDEX_KEY, raw);
     return { version: 1, accounts: recovered };
   }
   const list = Array.isArray(parsed?.accounts) ? parsed.accounts : Array.isArray(parsed) ? parsed : null;
@@ -2177,13 +2218,9 @@ function readAccountsIndex() {
     // {} や accounts が文字列になったセーブ、あるいは空索引に見えるのに
     // 本体だけ残っている状態を「初回訪問」と誤認しない。
     const recovered = recoverAccountsFromStorage();
-    if (recovered.length) {
-      preserveUnreadable(ACCOUNTS_INDEX_KEY, raw);
-      writeAccountsIndex(recovered);
-      return { version: 1, accounts: recovered };
-    }
-    if (!list) preserveUnreadable(ACCOUNTS_INDEX_KEY, raw);
-    return { version: 1, accounts: [] };
+    if (recovered.length) writeAccountsIndex(recovered);
+    else if (!list) preserveUnreadable(ACCOUNTS_INDEX_KEY, raw);
+    return { version: 1, accounts: recovered };
   }
   /* The index is a lookup table, so one ID may refer to exactly one account blob.
      Treat a duplicate ID as a duplicate pointer, not as a second account: showing
@@ -2195,10 +2232,17 @@ function readAccountsIndex() {
     seenIds.add(entry.id);
     accounts.push(normalizeAccountEntry(entry, accounts.length));
   }
+  /* 配列の項目が全部不正だと、JSON parse だけでは「正常な空索引」と誤認する。
+     本体キーを走査して復元し、書き換えは writeAccountsIndex の保護を通す。 */
+  if (accounts.length === 0) {
+    const recovered = recoverAccountsFromStorage();
+    if (recovered.length) {
+      writeAccountsIndex(recovered);
+      return { version: 1, accounts: recovered };
+    }
+    preserveUnreadable(ACCOUNTS_INDEX_KEY, raw);
+  }
   return { version: 1, accounts };
-}
-function writeAccountsIndex(accounts) {
-  return writeStorageRaw(ACCOUNTS_INDEX_KEY, JSON.stringify({ version: 1, accounts }));
 }
 /* IDs are opaque storage keys. Check both the index and the backing store before
    returning one: a collision must never overwrite an existing character save.
