@@ -1740,7 +1740,9 @@ const SpiritSection = ({ state, dispatch, ownedOnly = false }) => {
   /* 精神の初期枠。アイテムと同じ操作だが、精神は装備するものであって
      買うものではないため、取り込んでも支出は発生しない。 */
   const [spiritInitialPickOpen, setSpiritInitialPickOpen] = React.useState(false);
-  const initialSpiritNames = Array.isArray(state.initialSpirits) ? state.initialSpirits : [];
+  const freeSpiritNames = new Set(DB.spirits.filter(isExplicitlyFreeSpirit).map((sp) => sp.name));
+  const initialSpiritNames = (Array.isArray(state.initialSpirits) ? state.initialSpirits : [])
+    .filter((name) => freeSpiritNames.has(name));
   /* 無料の精神は初めから所持している（保存経路でフラグが落ちても
      判定が壊れないよう、所持の有無ではなく DB の価格で数える）。 */
   const spiritInitialSeeded = (state.roster?.spirits || []).filter((entry) => {
@@ -1770,9 +1772,9 @@ const SpiritSection = ({ state, dispatch, ownedOnly = false }) => {
         h("input", {
           type: "checkbox",
           checked: initialSpiritNames.includes(sp.name),
-          disabled: !knownPrice,
-          title: knownPrice ? undefined : "価格が不明なため初期枠に追加できません",
-          onChange: () => { if (knownPrice) toggleInitialSpirit(sp.name); }
+          disabled: !isExplicitlyFreeSpirit(sp),
+          title: isExplicitlyFreeSpirit(sp) ? undefined : knownPrice ? "有料の精神はショップから取得してください" : "価格が不明なため初期枠に追加できません",
+          onChange: () => { if (isExplicitlyFreeSpirit(sp)) toggleInitialSpirit(sp.name); }
         }),
         h("span", null, sp.name),
         isExplicitlyFreeSpirit(sp)
