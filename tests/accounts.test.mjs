@@ -274,6 +274,26 @@ test("壊れたアカウントJSONは上書き前に .corrupt. キーへ退避�
   assert.equal(storage.getItem(LEGACY_KEY), legacyStateJson(), "旧キーは最後まで無傷");
 });
 
+
+test("破損セーブの退避に失敗したら原本を上書きせず保存を拒否する", () => {
+  const storage = createStorage({ [LEGACY_KEY]: legacyStateJson() });
+  const accounts = loadAccounts(storage);
+  const { activeId } = accounts.list();
+  const key = ACCOUNT_PREFIX + activeId;
+  const corrupt = "{壊れた保存データ";
+  storage.setItem(key, corrupt);
+
+  const normalSetItem = storage.setItem.bind(storage);
+  storage.setItem = (target, value) => {
+    if (target.startsWith(key + ".corrupt.")) throw new Error("quota exceeded");
+    return normalSetItem(target, value);
+  };
+
+  assert.equal(accounts.saveActive({ charName: "復旧内容" }, activeId), false, "原本退避に失敗したため保存は拒否");
+  assert.equal(storage.getItem(key), corrupt, "唯一の破損原本を上書きしない");
+  assert.equal(storage.keys().some((target) => target.startsWith(key + ".corrupt.")), false, "失敗を成功扱いしない");
+});
+
 test("作成・切替・名前変更・削除: 最低1件を保証し旧キーに触れない", () => {
   const storage = createStorage({ [LEGACY_KEY]: legacyStateJson() });
   const accounts = loadAccounts(storage);
