@@ -193,6 +193,41 @@ test("増減欄の金額形式が不正でも、主収入は保持し、増減�
   assert.ok(out.skipped.some((entry) => /増減欄/.test(entry.reason)));
 });
 
+test("パック名付き抽出チケットはパック別収入へ記録する", () => {
+  const parsed = T.parseText("【A】\n報酬｜〈肉斬骨断〉抽出チケットx2\n");
+  assert.equal(parsed.records[0].tickets[0].kind, "pack");
+  assert.equal(parsed.records[0].tickets[0].pack, "肉斬骨断");
+  assert.equal(parsed.records[0].tickets[0].count, 2);
+  const planned = T.plan(parsed);
+  assert.equal(planned.actions[0].income.tickets.pack["肉斬骨断"], 2);
+  assert.equal(planned.skipped.length, 0);
+});
+
+test("パック名の数字をチケット枚数と取り違えない", () => {
+  const parsed = T.parseText("【A】\n報酬｜〈シーズン3〉抽出チケットx2\n");
+  assert.equal(parsed.records[0].tickets[0].pack, "シーズン3");
+  assert.equal(parsed.records[0].tickets[0].count, 2);
+});
+
+test("種別不明の抽出チケットは黙って破棄せず、取り込み保留として表示する", () => {
+  const parsed = T.parseText("【A】\n報酬｜抽出チケットx2\n");
+  const planned = T.plan(parsed);
+  assert.equal(planned.actions[0].income.tickets.persona, 0);
+  assert.equal(planned.actions[0].income.tickets.ego, 0);
+  assert.equal(planned.skipped.length, 1);
+  assert.match(planned.skipped[0].reason, /種別が不明/);
+  assert.equal(planned.skipped[0].text, "抽出チケットx2");
+});
+
+test("パック別収入で __proto__ などの名前を落とさない", () => {
+  const parsed = T.parseText("【A】\n報酬｜〈__proto__〉抽出チケットx2/〈constructor〉抽出チケットx3\n");
+  const planned = T.plan(parsed);
+  const packs = planned.actions[0].income.tickets.pack;
+  assert.equal(Object.prototype.hasOwnProperty.call(packs, "__proto__"), true);
+  assert.equal(packs["__proto__"], 2);
+  assert.equal(packs.constructor, 3);
+});
+
 test("見出しが分からない行は、捨てずに理由つきの skipped にする", () => {
   const out = T.parseText("【A】\n報酬｜LP:10\n不时　｜ Lufthansa\n");
   assert.equal(out.records.length, 1);

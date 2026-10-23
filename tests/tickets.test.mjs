@@ -79,6 +79,27 @@ test("SET_TICKET_COUNT は残数の目標値に合わせる", () => {
   assert.equal(balanceOf(down).persona, 1);
 });
 
+test("特殊なプロパティ名のパックも付与・消費・復元できる", () => {
+  const granted = reducer(withResult({}), { type: "GRANT_TICKET", kind: "pack", pack: "__proto__", count: 3 });
+  assert.equal(Object.prototype.hasOwnProperty.call(balanceOf(granted).pack, "__proto__"), true);
+  assert.equal(balanceOf(granted).pack["__proto__"], 3);
+  const spent = reducer(granted, { type: "SPEND_TICKET", kind: "pack", pack: "__proto__", ref: { kind: "gacha" } });
+  assert.equal(balanceOf(spent).pack["__proto__"], 2);
+
+  const legacy = {
+    ...withResult({}),
+    tickets: [
+      { kind: "pack", pack: "__proto__", count: 2 },
+      { kind: "pack", pack: "constructor", count: 4 }
+    ]
+  };
+  const migrated = context.window.LBT_normalizeStateShape(legacy);
+  const balance = balanceOf(migrated);
+  assert.equal(balance.pack["__proto__"], 2);
+  assert.equal(balance.pack.constructor, 4);
+  assert.deepEqual([...migrated.tickets], []);
+});
+
 test("旧セーブの state.tickets はリザルト収入へ移行する", () => {
   const legacy = {
     ...withResult({}),
