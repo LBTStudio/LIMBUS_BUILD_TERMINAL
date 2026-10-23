@@ -148,3 +148,48 @@ test("鍵管理: 初回は自動生成し、以後は同じ鍵を返す（共有
   assert.ok(store.getItem(ID.STORAGE_KEY), "端末の storage に保存される");
   assert.equal(ID.loadIdentity(store).privateKey, first.privateKey);
 });
+
+
+test("鍵管理: 壊れた保存鍵を検出して再生成し、元の値も端末内に退避する", async () => {
+  const original = JSON.stringify({
+    version: 1,
+    algorithm: "ECDSA-P256",
+    publicKey: "not-a-valid-spki-key",
+    privateKey: "not-a-valid-pkcs8-key"
+  });
+  const values = new Map([[ID.STORAGE_KEY, original]]);
+  const store = {
+    getItem: (key) => values.has(key) ? values.get(key) : null,
+    setItem: (key, value) => values.set(key, value)
+  };
+
+  const recovered = await ID.ensureIdentity(store);
+  assert.notEqual(recovered.publicKey, "not-a-valid-spki-key");
+  assert.notEqual(recovered.privateKey, "not-a-valid-pkcs8-key");
+  assert.equal(values.get(ID.STORAGE_KEY + ".invalid"), original, "不正な保存値を一度だけ保全する");
+  assert.equal(JSON.parse(values.get(ID.STORAGE_KEY)).publicKey, recovered.publicKey);
+
+  const signed = await ID.signBatch(await buildBatch(), recovered);
+  assert.equal(await ID.verifyBatchSignature(signed), true, "復旧後の鍵は実際に署名を検証できる");
+});
+
+test("鍵管理: 個別には有効でも公開鍵と秘密鍵が別人の鍵なら自己修復する", async () => {
+  const publicOwner = await ID.generateIdentity();
+  const privateOwner = await ID.generateIdentity();
+  const mismatched = {
+    ...publicOwner,
+    privateKey: privateOwner.privateKey
+  };
+  const original = JSON.stringify(mismatched);
+  const values = new Map([[ID.STORAGE_KEY, original]]);
+  const store = {
+    getItem: (key) => values.has(key) ? values.get(key) : null,
+    setItem: (key, value) => values.set(key, value)
+  };
+
+  const recovered = await ID.ensureIdentity(store);
+  assert.notEqual(recovered.publicKey, publicOwner.publicKey, "不一致の公開鍵を再利用しない");
+  assert.equal(values.get(ID.STORAGE_KEY + ".invalid"), original, "古い鍵対は復旧用に保全する");
+  const signed = await ID.signBatch(await buildBatch(), recovered);
+  assert.equal(await ID.verifyBatchSignature(signed), true);
+});
