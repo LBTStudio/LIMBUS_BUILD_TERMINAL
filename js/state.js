@@ -2445,9 +2445,28 @@ function resetActiveAccount() {
   const { activeId } = migrateLegacyAccounts();
   if (!activeId) return false;
   const key = ACCOUNT_PREFIX + activeId;
-  const existing = readStorageRaw(key);
-  if (existing != null) preserveUnreadable(key, existing);
-  return writeStorageRaw(key, JSON.stringify({ schemaVersion: SAVE_SCHEMA_VERSION }));
+  /* 利用者が「このアカウントを完全削除」と明示した操作では、現在の保存値を
+     .corrupt として再退避してはいけない。リセットを書き込めた後に限り、
+     このアカウントに属する破損退避キーも掃除する。旧形式の移行バックアップと
+     他アカウントのデータは別キーなので保持する。 */
+  if (!writeStorageRaw(key, JSON.stringify({ schemaVersion: SAVE_SCHEMA_VERSION }))) return false;
+  const storage = lbtStorage();
+  if (!storage) return false;
+  let cleanupOk = true;
+  try {
+    const prefix = `${key}.corrupt.`;
+    const staleKeys = [];
+    for (let i = 0; i < storage.length; i += 1) {
+      const candidate = storage.key(i);
+      if (typeof candidate === "string" && candidate.startsWith(prefix)) staleKeys.push(candidate);
+    }
+    for (const staleKey of staleKeys) {
+      if (!removeStorageRaw(staleKey)) cleanupOk = false;
+    }
+  } catch (_) {
+    cleanupOk = false;
+  }
+  return cleanupOk;
 }
 window.LBT_accounts = {
   list: listAccounts,
