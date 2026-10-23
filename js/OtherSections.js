@@ -2087,9 +2087,12 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
   const ownsAnyPersona = ((state.roster || {}).personas || []).length > 0;
   const perDraw = pay === "ticket" ? { lp: 0, shards: 0 } : (G?.paidCost?.(route, state, activePack) || { lp: 0, shards: 0 });
   /* 人格抽出の1回目は未所持なら無料（core:338）。2回目以降は同額。 */
-  const totalCost = route === "persona" && pay === "paid"
-    ? { lp: (ownsAnyPersona ? Number(perDraw.lp) || 0 : 0) + Math.max(0, times - 1) * ((Number(perDraw.lp) || 0)), shards: 0 }
-    : { lp: (Number(perDraw.lp) || 0) * times, shards: (Number(perDraw.shards) || 0) * times };
+  /* UI表示用の合計額もエンジンの逐次価格関数へ寄せる。
+     未所持の人格抽出は1回目だけ無料、同じバッチの2回目以降は有料。 */
+  const totalCost = pay === "ticket"
+    ? { lp: 0, shards: 0 }
+    : (G?.estimateTotalCost?.(route, state, activePack, times)
+      || { lp: (Number(perDraw.lp) || 0) * times, shards: (Number(perDraw.shards) || 0) * times });
   const balance = window.LBT_computeLedgerBalance?.(state.results || [], state.entries || []);
   const costParts = [];
   if (totalCost.lp) costParts.push(`LP ${totalCost.lp}`);
