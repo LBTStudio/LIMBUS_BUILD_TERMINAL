@@ -156,6 +156,43 @@ test("E.G.O と人格は明細の種別を名前から推測する", () => {
 
 /* --- 分からないもの ----------------------------------------------------- */
 
+test("不正な桁区切り・負数・安全整数超過の報酬は収入へ入れない", () => {
+  const out = T.parseText("【A】\n報酬｜LP:10/1,2,3LP/LP:-100/9,007,199,254,740,992LP\n");
+  assert.equal(out.records.length, 1);
+  assert.equal(out.records[0].income.lp, 10);
+  assert.equal(out.skipped.length, 3, "不正な3項目は理由つきで保留");
+  assert.ok(out.skipped.every((entry) => entry.text), "元の行を保持");
+});
+
+test("合計が安全整数を超える報酬は加算せず要確認にする", () => {
+  const out = T.parseText("【A】\n報酬｜9,007,199,254,740,991LP/1LP\n");
+  assert.equal(out.records[0].income.lp, Number.MAX_SAFE_INTEGER);
+  assert.equal(out.skipped.length, 1);
+  assert.match(out.skipped[0].reason, /安全整数/);
+});
+
+test("不正な桁区切り・安全整数超過の購入価格は自動確定しない", () => {
+  const out = T.parseText("【A】\n購入｜謎の道具(1,2,3LP)/古い欠片(9,007,199,254,740,992欠片)\n");
+  assert.equal(out.records[0].spends.length, 2);
+  for (const spend of out.records[0].spends) {
+    assert.equal(spend.cost.lp + spend.cost.shards, 0);
+    assert.equal(spend.needsDecision, true);
+    assert.match(spend.reason, /決められない/);
+  }
+});
+
+test("明示されたチケット数 x0 は既定の1枚に置き換えない", () => {
+  const out = T.parseText("【A】\n報酬｜人格抽出チケットx0\n");
+  assert.equal(out.records[0].tickets.length, 1);
+  assert.equal(out.records[0].tickets[0].count, 0);
+});
+
+test("増減欄の金額形式が不正でも、主収入は保持し、増減だけ要確認にする", () => {
+  const out = T.parseText("【A】\n報酬｜LP:150(+1,2,3)\n");
+  assert.equal(out.records[0].income.lp, 150);
+  assert.ok(out.skipped.some((entry) => /増減欄/.test(entry.reason)));
+});
+
 test("見出しが分からない行は、捨てずに理由つきの skipped にする", () => {
   const out = T.parseText("【A】\n報酬｜LP:10\n不时　｜ Lufthansa\n");
   assert.equal(out.records.length, 1);
