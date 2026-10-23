@@ -54,6 +54,8 @@ test("React フックは React. 名前空間経由で呼んでいる（ комп
       continue;
     }
     src.split("\n").forEach((line, i) => {
+      /* コメントの例示を実コードと誤認しない。 */
+      if (/^\s*\/\//.test(line)) return;
       /* 定義行（const useState = ... 等）は除外する。 */
       if (/\bconst\s+(use[A-Z]\w*)\s*=/.test(line)) return;
       /* React. が付いている正しい形は通過させる。 */
