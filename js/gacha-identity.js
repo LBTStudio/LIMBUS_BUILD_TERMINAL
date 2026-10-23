@@ -147,12 +147,48 @@
     if (!s) return false;
     try { s.setItem(STORAGE_KEY, JSON.stringify(identity)); return true; } catch (e) { return false; }
   }
-  /* 初回は自動生成。利用者操作は不要。 */
+  /* 保存値が存在するだけでは有効な鍵とは限らない。JSON破損、鍵形式の破損、
+     または別々の鍵を混ぜた状態では signBatch が失敗する／署名を検証できない。
+     実際に鍵をインポートし、短いチャレンジを署名・検証して対を確認する。 */
+  async function identityPairWorks(identity) {
+    if (!identity || identity.version !== 1 || identity.algorithm !== "ECDSA-P256"
+      || typeof identity.publicKey !== "string" || typeof identity.privateKey !== "string"
+      || !identity.publicKey || !identity.privateKey) return false;
+    try {
+      var publicKey = await importPublic(identity.publicKey);
+      var privateKey = await importPrivate(identity.privateKey);
+      var challenge = te.encode("LIMBUS BUILD TERMINAL identity self-check v1");
+      var signature = await subtle.sign(SIGN_ALG, privateKey, challenge);
+      return await subtle.verify(SIGN_ALG, publicKey, signature, challenge);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /* 復旧前の値は端末内だけに一度だけ退避する。正常な署名済み抽選記録は
+     公開鍵と署名を記録自身に保持しており、この端末鍵の交換では失われない。 */
+  function preserveInvalidIdentity(storage, raw) {
+    if (!storage || raw == null) return;
+    try {
+      var backupKey = STORAGE_KEY + ".invalid";
+      if (storage.getItem(backupKey) == null) storage.setItem(backupKey, raw);
+    } catch (e) {
+      // 保存領域が読み書き不能でも、利用中の抽選記録は妨げない。
+    }
+  }
+
+  /* 初回は自動生成。保存値が壊れている場合も、有効な鍵対へ自己修復する。 */
   async function ensureIdentity(storage) {
-    var existing = loadIdentity(storage);
-    if (existing) return existing;
+    var s = storage || defaultStorage();
+    var raw = null;
+    try { if (s) raw = s.getItem(STORAGE_KEY); } catch (e) {}
+    var existing = loadIdentity(s);
+    if (await identityPairWorks(existing)) return existing;
+
+    // WebCrypto が使えない場合はここで明示的に失敗し、保存値を書き換えない。
     var created = await generateIdentity();
-    saveIdentity(created, storage);
+    preserveInvalidIdentity(s, raw);
+    saveIdentity(created, s);
     return created;
   }
 
