@@ -447,6 +447,29 @@ function validateImportData(data) {
     if (badIndex >= 0) return field + "[" + badIndex + "] はオブジェクトではありません";
   }
 
+  // 所持アイテムとオリジナルアイテムの数量・上限も部分一致で解釈しない。
+  // normalizeStateShape は破損したローカルセーブを安全な既定値へ直すが、
+  // JSONインポートは数量が変わってしまう前に項目パス付きで拒否する。
+  const isPositiveIntegerCount = (value) => {
+    if (value === void 0 || value === null || value === "") return true;
+    if (typeof value === "number") return Number.isSafeInteger(value) && value > 0;
+    if (typeof value !== "string") return false;
+    const text = value.trim();
+    if (!/^\d+$/.test(text)) return false;
+    const number = Number(text);
+    return Number.isSafeInteger(number) && number > 0;
+  };
+  for (let i = 0; i < (data.inventory || []).length; i += 1) {
+    if (!isPositiveIntegerCount(data.inventory[i].quantity)) {
+      return "inventory[" + i + "].quantity は1以上の整数で入力してください";
+    }
+  }
+  for (let i = 0; i < (data.customItems || []).length; i += 1) {
+    if (!isPositiveIntegerCount(data.customItems[i].maxOwned)) {
+      return "customItems[" + i + "].maxOwned は正の整数または未指定で入力してください";
+    }
+  }
+
   // 通帳の通貨／チケット数量は部分一致の parseInt で解釈しない。
   // 不正な金額を正規化時に0へ落とすだけだと、バックアップを取り込めたように見えて
   // 収入や支出の数字だけ消えるため、適用前に項目パス付きで拒否する。
