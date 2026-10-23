@@ -2006,7 +2006,13 @@ window.LBT_operationAffordability = operationAffordability;
 function purchaseCostOf(state, action) {
   if (action.type === "ADD_ROSTER") return action.purchase ? normalizeCurrency(action.cost) : null;
   if (action.type === "ADD_ROSTER_EGO") return action.purchase ? priceEgo(action.rank, action.no) : null;
-  if (action.type === "ADD_ITEM") return priceItemById(state, action.itemId);
+  if (action.type === "ADD_ITEM") {
+    /* ADD_ITEM は既存行なら所持数量だけを増やし、購入明細を追加しない契約。
+       その経路まで価格ゲートへ通すと、初回購入後に残高が0になった利用者は
+       2個目を足せず、reducer の「既存品は数量加算」仕様と矛盾する。 */
+    const alreadyOwned = (state?.inventory || []).some((entry) => entry?.itemId === String(action.itemId || ""));
+    return alreadyOwned ? null : priceItemById(state, action.itemId);
+  }
   if (action.type === "ADD_ROSTER_SUPPORT") {
     if (action.purchase === false) return null;
     const name = String(action.spp?.name || "");
