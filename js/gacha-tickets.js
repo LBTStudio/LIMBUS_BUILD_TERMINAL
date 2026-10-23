@@ -300,6 +300,26 @@
     return { lp: amount(unit?.lp) * times, shards: amount(unit?.shards) * times };
   }
 
+  /* 必要額が0の通貨は残高を比較しない。
+     LPだけを使う抽選を、無関係な欠片残高のマイナスで止めないための共通判定。 */
+  function paymentShortfall(balance, cost) {
+    const requiredLp = Math.max(0, Number(cost?.lp) || 0);
+    const requiredShards = Math.max(0, Number(cost?.shards) || 0);
+    const lpBalance = Number(balance?.lp) || 0;
+    const shardsBalance = Number(balance?.shards) || 0;
+    const lpShort = requiredLp > 0 && lpBalance < requiredLp;
+    const shardsShort = requiredShards > 0 && shardsBalance < requiredShards;
+    return {
+      lpShort,
+      shardsShort,
+      insufficient: lpShort || shardsShort,
+      lpBalance,
+      shardsBalance,
+      requiredLp,
+      requiredShards
+    };
+  }
+
   /* ルール表とプールの指紋。記録の錨に載せる。engine をまだ建てていなければ
      ここで一度だけ立てる。 */
   function rulesetHash() {
@@ -330,7 +350,7 @@
   window.LBT_gachaDraw = {
     ROUTES, KINDS,
     buildPool, buildPackPool, themePacks, findPack,
-    paidCost, estimateTotalCost, ticketCount, ticketKindFor, drawN,
+    paidCost, estimateTotalCost, paymentShortfall, ticketCount, ticketKindFor, drawN,
     seededSession, rulesetHash, sealBatch, verifyBatch
   };
 })();
