@@ -63,7 +63,7 @@
   function sha256Bytes(input) {
     const bytes = input instanceof Uint8Array ? input : Uint8Array.from(input);
     const bitLen = bytes.length * 8;
-    const withPad = new Uint8Array((((bytes.length + 9) >> 6) + 1) << 6);
+    const withPad = new Uint8Array(Math.ceil((bytes.length + 9) / 64) * 64);
     withPad.set(bytes);
     withPad[bytes.length] = 0x80;
     const dv = new DataView(withPad.buffer);
@@ -395,8 +395,13 @@
       const pool = input.pool;
       const own = ownedSets(input.owned);
       let lp = Number(input.lp) || 0;
+      // 人格の価格段階は通常人格だけでなく、特異人格も含めた総所持人数で進める。
+      // 出目が特異人格だった場合に通常人格セットだけを数えると、次の抽選まで無料になる。
+      let personasOwnedForCost = Number.isSafeInteger(input.personaCountForCost) && input.personaCountForCost >= 0
+        ? input.personaCountForCost
+        : own.personas.size + own.specialPersonas.size;
       for (let i = 0; i < count; i++) {
-        const cost = free ? { lp: 0, shards: 0 } : personaDrawCost(own.personas.size);
+        const cost = free ? { lp: 0, shards: 0 } : personaDrawCost(personasOwnedForCost);
         if (!free && cost.lp > lp) { stopped = "insufficientLP"; break; }
         let draw;
         try {
@@ -406,14 +411,16 @@
             plusOne: input.plusOne
           });
         } catch (err) { stopped = "poolExhausted"; break; }
-        if (!free) lp -= Number(draw.cost?.lp) || 0;
-        /* チケット経路は engine が出した金額を書き換える（請求しないため）。
-           ここを直すので、どの経路でも記録の金額は「実際に払った額」。 */
-        const result = free ? { ...draw, method, cost: { lp: 0, shards: 0 } } : { ...draw, method };
+        /* drawPersona は内部で「通常人格のみ」の所持数から費用を出す。
+           特異人格も価格段階に数えるため、ここでループ側の費用に差し替えて
+           記録と残高減算を揃える（片方だけ直すと請求と記録が食い違う）。 */
+        if (!free) lp -= cost.lp;
+        const result = free ? { ...draw, method, cost: { lp: 0, shards: 0 } } : { ...draw, method, cost };
         addCost(result.cost);
         results.push(result);
         if (draw.kind === "specialPersona") own.specialPersonas.add(Number(draw.item.no));
         else own.personas.add(Number(draw.item.no));
+        personasOwnedForCost += 1;
       }
     } else if (kind === "ego") {
       const pool = input.pool;
@@ -504,16 +511,22 @@
      1つに束ねる。records は順序込みで固定されるため、編集・削除・並べ替えは
      鎖の不一致として露見する。beacon は外部錨（drand 等）を後から差し込む枠。 */
   function batchRecordBody(record) {
-    return {
+    // 旧レコードには pack フィールドが無いため、pack がある場合だけハッシュ対象へ含める。
+    // これにより既存バッチのハッシュ互換性を壊さず、新しいテーマパック証明は対象パックまで固定する。
+    const body = {
       index: record.index,
       kind: record.kind,
-      method: record.method || "draw",
+      method: record.method || "draw"
+    };
+    if (record.pack !== void 0 && record.pack !== null) body.pack = String(record.pack);
+    Object.assign(body, {
       item: record.item,
       cost: record.cost || { lp: 0, shards: 0 },
       duplicate: !!record.duplicate,
       grantedShards: record.grantedShards || 0,
       prev: record.prev
-    };
+    });
+    return body;
   }
 
   function finalizeBatch(drawOut, session, options) {
@@ -525,6 +538,7 @@
         index,
         kind: result.kind,
         method: result.method || "draw",
+        pack: result.pack,
         item: result.item,
         cost: result.cost,
         duplicate: result.duplicate,
@@ -561,15 +575,31 @@
       reasons.push("ロール列がシード開示と一致しない（結果またはシードが改変されている）");
     }
 
-    const records = Array.isArray(batch.records) ? batch.records : [];
+    if (!Array.isArray(batch.records)) {
+      reasons.push("抽選 records が配列ではない");
+      return { ok: false, reasons };
+    }
+    const records = batch.records;
+    if (!records.length) reasons.push("抽選レコードが空");
+    if (!/^[0-9a-f]{64}$/i.test(String(batch.batchHash || ""))) {
+      reasons.push("バッチハッシュが無いか、形式が不正");
+    }
+    if (batch.count != null && Number(batch.count) !== records.length) {
+      reasons.push("バッチの件数と records の件数が一致しない");
+    }
     let prev = GENESIS_HASH;
-    for (const record of records) {
+    for (let index = 0; index < records.length; index += 1) {
+      const record = records[index];
+      if (!record || typeof record !== "object" || Array.isArray(record)) {
+        reasons.push(`records[${index}] がオブジェクトではない`);
+        break;
+      }
       if (record.prev !== prev) { reasons.push("結果の鎖が連結していない（削除・並べ替え・挿入）"); break; }
       const hash = contentHash(batchRecordBody(record));
       if (hash !== record.hash) { reasons.push("結果のハッシュが一致しない（記録が改変されている）"); break; }
       prev = hash;
     }
-    if (records.length && prev !== batch.batchHash) reasons.push("バッチハッシュが鎖の先頭と一致しない");
+    if (prev !== batch.batchHash) reasons.push("バッチハッシュが鎖の先頭と一致しない");
 
     if (options && options.expectedBeaconRound != null) {
       const got = batch.beacon && batch.beacon.round;

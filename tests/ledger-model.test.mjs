@@ -187,3 +187,191 @@ test("種別の一覧がUIから参照できる", () => {
     assert.ok(kinds.some((k) => k.id === need), `${need} が定義されている`);
   }
 });
+
+
+test("既定の日付はUTCではなくローカル暦日から組み立てる", () => {
+  const localCalendarDate = {
+    getFullYear: () => 2026,
+    getMonth: () => 9,
+    getDate: () => 23
+  };
+  assert.equal(context.window.LBT_localDateString(localCalendarDate), "2026-10-23");
+  assert.doesNotMatch(source, /new Date\(\)\.toISOString\(\)\.slice\(0,\s*10\)/,
+    "既定のユーザー入力日付にUTC日付への変換を使わない");
+});
+
+test("APPLY_PARTIAL は移行可能な履歴・初期設定の全項目を保持する", () => {
+  const drawLogField = ["gacha", "Log"].join("");
+  const incoming = {
+    initiative: 17,
+    initialItems: ["first-aid-kit"],
+    draws: [{ id: "batch-1", records: [] }],
+    [drawLogField]: [{ id: "roll-1", route: "ego", hits: ["B"] }],
+    tickets: [{ kind: "pack", pack: "", count: 3 }],
+    favorites: ["persona-145"],
+    historyRecent: ["command-export"]
+  };
+  const before = { ...baseState(), ...Object.fromEntries(Object.keys(incoming).map((key) => [key, Array.isArray(incoming[key]) ? [] : 0])) };
+  const next = reducer(before, { type: "APPLY_PARTIAL", state: incoming, fields: Object.keys(incoming) });
+  assert.equal(next.initiative, 17);
+  assert.deepEqual(JSON.parse(JSON.stringify(next.initialItems)), incoming.initialItems);
+  assert.deepEqual(JSON.parse(JSON.stringify(next.draws)), incoming.draws);
+  assert.deepEqual(JSON.parse(JSON.stringify(next[drawLogField])), incoming[drawLogField]);
+  /* 未解決の旧チケット行は、理由フラグ（_lbtLegacyUnresolved*）付きで保持される。
+     部分インポートでも行そのものは失わない。 */
+  const unresolvedRows = JSON.parse(JSON.stringify(next.tickets));
+  assert.equal(unresolvedRows.length, 1, "未解決の旧チケット行を部分インポートでも失わない");
+  assert.deepEqual([unresolvedRows[0].kind, unresolvedRows[0].pack, unresolvedRows[0].count], ["pack", "", 3]);
+  assert.equal(unresolvedRows[0]._lbtLegacyUnresolved, true);
+  assert.equal(unresolvedRows[0]._lbtLegacyUnresolvedReason, "missing-pack-name");
+  assert.deepEqual(JSON.parse(JSON.stringify(next.favorites)), incoming.favorites);
+  assert.deepEqual(JSON.parse(JSON.stringify(next.historyRecent)), incoming.historyRecent);
+});
+
+test("壊れた保存状態の抽選記録は空配列へ正規化する", () => {
+  const normalized = normalize({ ...baseState(), gachaLog: { broken: true } });
+  assert.deepEqual(JSON.parse(JSON.stringify(normalized.gachaLog)), []);
+});
+
+
+test("金額・抽出チケットの正規化は部分一致や負数で残高を捏造しない", () => {
+  const out = balance([
+    { income: {
+      lp: "1200abc",
+      shards: "1,200",
+      tickets: { persona: "3x", ego: -1, choice: "2", pack: { invalid: -4, valid: "1,000" } }
+    } }
+  ], [
+    { cost: { lp: 0, shards: 0 }, tickets: { persona: -100, ego: "2abc", choice: 1, pack: { valid: -200 } } }
+  ]);
+  assert.equal(out.lp, 0, "部分一致の金額をLPとして数えない");
+  assert.equal(out.shards, 1200, "正しい桁区切りは受け入れる");
+  assert.deepEqual(JSON.parse(JSON.stringify(out.tickets)), {
+    persona: 0, ego: 0, choice: 1, pack: { valid: 1000 }
+  }, "不正な文字列・負の明細を使ってチケット残数を増やせない");
+
+  const fractional = balance([
+    { income: { lp: 1.5, shards: "2.5", tickets: { persona: 1.5, choice: "2.5" } } }
+  ], []);
+  assert.equal(fractional.lp, 0, "端数のLPは切り捨てて有効額にしない");
+  assert.equal(fractional.shards, 0, "端数の欠片は切り捨てて有効額にしない");
+  assert.deepEqual(JSON.parse(JSON.stringify(fractional.tickets)),
+    { persona: 0, ego: 0, choice: 0, pack: {} }, "端数のチケットは枚数として計上しない");
+});
+
+
+test("旧チケット移行は同額の通常リザルトを移行済みと誤認しない", () => {
+  const raw = {
+    ...baseState(),
+    tickets: [{ kind: "persona", pack: null, count: 2 }],
+    results: [{
+      id: "ordinary-result",
+      name: "通常のシナリオ報酬",
+      date: "2026-10-22",
+      income: { lp: 0, shards: 0, tickets: { persona: 2, ego: 0, choice: 0, pack: {} } },
+      exchange: { lp: 0, shards: 0 },
+      note: ""
+    }],
+    entries: []
+  };
+  const migrated = normalize(raw);
+  assert.ok(migrated.results.some((r) => r.id === "res-ticket-grant"),
+    "通常リザルトの枚数が一致しても、旧在庫を移行する");
+  assert.equal(balance(migrated.results, migrated.entries).tickets.persona, 4,
+    "通常報酬2枚と旧セーブ在庫2枚を両方残す");
+
+  const reopened = normalize(migrated);
+  assert.equal(balance(reopened.results, reopened.entries).tickets.persona, 4,
+    "移行後に再読込しても二重加算しない");
+});
+
+test("旧抽出パックの移行はパック名なし・端数枚数を誤ったチケット種別へ変換しない", () => {
+  const raw = {
+    ...baseState(),
+    tickets: [
+      { kind: "pack", pack: "", count: 3 },
+      { kind: "persona", pack: null, count: 1.5 }
+    ],
+    results: [],
+    entries: []
+  };
+  const migrated = normalize(raw);
+  assert.equal(migrated.results.some((r) => r.id === "res-ticket-grant"), false,
+    "復元できない抽出パック名や端数枚数を別のチケット在庫に変換しない");
+  /* 未解決行は原値に理由フラグを付けて state へ保持する。
+     バックアップ／部分インポートで行ごと捨てられないようにするため。 */
+  const unresolved = JSON.parse(JSON.stringify(migrated.tickets));
+  assert.equal(unresolved.length, 2, "未解決行を state に保持する");
+  assert.deepEqual([unresolved[0].kind, unresolved[0].pack, unresolved[0].count], ["pack", "", 3]);
+  assert.equal(unresolved[0]._lbtLegacyUnresolved, true);
+  assert.equal(unresolved[0]._lbtLegacyUnresolvedReason, "missing-pack-name");
+  assert.deepEqual([unresolved[1].kind, unresolved[1].pack, unresolved[1].count], ["persona", null, 1.5]);
+  assert.equal(unresolved[1]._lbtLegacyUnresolved, true);
+  assert.equal(unresolved[1]._lbtLegacyUnresolvedReason, "invalid-ticket-count");
+  /* 未解決行はどの種別へも変換しない。正規化は空リザルトのアカウントへ初期作成の
+     人格チケット1枚を置くため、絶対値でなく tickets 無し状態との差分で判定する。 */
+  const baseline = normalize({ ...raw, tickets: [] });
+  assert.deepEqual(JSON.parse(JSON.stringify(balance(migrated.results, migrated.entries).tickets)),
+    JSON.parse(JSON.stringify(balance(baseline.results, baseline.entries).tickets)),
+    "移行できない行はチケット残高を増やさない");
+  assert.deepEqual(JSON.parse(JSON.stringify(normalize(migrated).tickets)), unresolved,
+    "再読込でも未解決行を消さない");
+});
+
+
+test("破損したローカルセーブの配列要素は正規化前に除外する", () => {
+  const raw = {
+    ...baseState(),
+    supports: [null, { name: "通常サポパ", cond: "", effect: "", lp: 7 }],
+    enhancements: [null, { name: "肉体強化0-1", group: "肉体強化0", shards: 5 }],
+    personaSrc: { name: "自作人格", skills: "壊れた配列", unique_buffs: [null], keywords: "壊れた配列" },
+    results: [null, {
+      id: "result-good", name: "正常な結果", date: "2026-10-23",
+      income: { lp: 100, shards: 0, tickets: {} }, exchange: { lp: 0, shards: 0 }, note: ""
+    }],
+    entries: [null, {
+      id: "entry-good", kind: "expense", name: "正常な支出",
+      cost: { lp: 7, shards: 0 }, tickets: {}, resultId: "result-good"
+    }],
+    inventory: [null, { uid: "item-good", itemId: "bandage", quantity: 2 }],
+    customItems: [null, { id: "custom-good", name: "自作アイテム", category: "その他" }],
+    gachaLog: [null, { id: "draw-log-good", hits: [] }],
+    draws: [null, { batchHash: "broken-batch", records: [null] }],
+    roster: {
+      personas: [null, { uid: "persona-good", no: 1, mode: "n", equipped: false, build: { skills: "壊れた配列", uniqueBuffs: [null], personaSrc: { skills: "壊れた配列", unique_buffs: [null], keywords: "壊れた配列" } } }],
+      egos: [null, { uid: "ego-good", rank: "ZAYIN", no: 1 }],
+      supports: [null, { uid: "roster-support-good", name: "所持サポパ" }],
+      spirits: [null, { uid: "roster-spirit-good", name: "所持精神" }]
+    }
+  };
+  const normalized = normalize(raw);
+  assert.ok(normalized, "保存内容が一部壊れていても正規化を完了する");
+  /* reducer は vm レルムで動くため、その返した配列はプロトタイプが vm 側になる。
+     assert/strict の deepEqual はプロトタイプ差を拒むため、呼び出し側レルムへ写す。 */
+  assert.deepEqual(Array.from(normalized.results, (r) => r.id).filter((id) => id === "result-good"), ["result-good"]);
+  assert.deepEqual(Array.from(normalized.entries, (e) => e.id).filter((id) => id === "entry-good"), ["entry-good"]);
+  for (const field of ["supports", "enhancements", "inventory", "customItems", "gachaLog", "draws"]) {
+    assert.ok(Array.isArray(normalized[field]), field + " は配列として維持される");
+    assert.equal(normalized[field].some((entry) => !entry || typeof entry !== "object" || Array.isArray(entry)), false,
+      field + " にnull／プリミティブ要素を残さない");
+  }
+  for (const field of ["personas", "egos", "supports", "spirits"]) {
+    assert.equal(normalized.roster[field].some((entry) => !entry || typeof entry !== "object" || Array.isArray(entry)), false,
+      "roster." + field + " に不正要素を残さない");
+  }
+  assert.equal(normalized.gachaLog.some((entry) => entry?.id === "draw-log-good"), true,
+    "正常な抽選ログは保持する");
+  assert.deepEqual(JSON.parse(JSON.stringify(normalized.personaSrc.skills)), [],
+    "ローカル保存のpersonaSrc.skillsが不正型でも正規化を継続する");
+  assert.deepEqual(JSON.parse(JSON.stringify(normalized.personaSrc.unique_buffs)), [],
+    "ローカル保存のunique_buffsにあるnullを除外する");
+  assert.deepEqual(JSON.parse(JSON.stringify(normalized.personaSrc.keywords)), [],
+    "ローカル保存のkeywordsが不正型でも正規化を継続する");
+  assert.deepEqual(JSON.parse(JSON.stringify(normalized.roster.personas[0].build.skills)), [],
+    "所持人格の保存ビルド内skillsも正規化する");
+  assert.deepEqual(JSON.parse(JSON.stringify(normalized.roster.personas[0].build.uniqueBuffs)), [],
+    "所持人格の保存ビルド内uniqueBuffsも正規化する");
+  assert.equal(normalized.draws.length, 1, "破損した証明バッチも黙って削除しない");
+  assert.deepEqual(JSON.parse(JSON.stringify(normalized.draws[0].records)), [null],
+    "検証不合格の根拠となる原記録を保持する");
+});

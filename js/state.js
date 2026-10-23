@@ -1,4 +1,12 @@
 const STORAGE_KEY = "lbt_v46_state";
+
+/* ユーザーが記録する日付は端末のローカル暦日を使う。toISOString() はUTC日付なので、
+   日本時間の0:00〜8:59などでは意図せず前日が記録される。 */
+function localDateString(date = new Date()) {
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+window.LBT_localDateString = localDateString;
 // 基本ルールPDFのキーワード掲載順は js/core.js が window.LBT_PDF_KEYWORD_ORDER
 // として定義する（両ページが最初に読み込む）。ここでは再定義しない。
 // 人格キーワードは効果本文・固有バフ・ダイス効果で検索できる状態名を漏れなく持つ。
@@ -29,7 +37,7 @@ function makeInitialResult(options) {
   return {
     id: "res-initial",
     name: "初期作成",
-    date: String(new Date().toISOString().slice(0, 10)),
+    date: localDateString(),
     income: {
       ...normalizeCurrency({ lp: INITIAL_LP, shards: 0 }),
       tickets: normalizeTickets(withPersonaTicket ? { persona: 1 } : {})
@@ -955,10 +963,23 @@ window.LBT_LEDGER_ENTRY_KINDS = LEDGER_ENTRY_KINDS;
 /* 通約を LP と欠片の2種に揃える。文字列や未定義が入っても計算が場わないよう、
    必ず数値へ落とす（不清な値や0として扱う）。 */
 function normalizeCurrency(value) {
-  const raw = value && typeof value === "object" ? value : {};
+  const raw = value && typeof value === "object" && !Array.isArray(value) ? value : {};
   const toNumber = (input) => {
-    const parsed = Number.parseInt(input, 10);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+    let parsed;
+    if (typeof input === "number") {
+      parsed = input;
+    } else {
+      /* 価格の入力は "15LP" や全角 "１５ＬＰ" で届くことがある（正規な形式）。
+         単位だけを外してから検査する。parseInt と違い "1200abc" のような
+         部分一致は拒否し、桁区切りは正しく3桁ごとに分かれた形だけ許可する。 */
+      const text = String(input ?? "").trim()
+        .replace(/[\uFF01-\uFF5E]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+        .replace(/\s+/g, "")
+        .replace(/LP$/i, "");
+      if (!/^\+?(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(text)) return 0;
+      parsed = Number(text.replace(/,/g, ""));
+    }
+    return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 0;
   };
   return { lp: toNumber(raw.lp), shards: toNumber(raw.shards) };
 }
@@ -967,13 +988,22 @@ function normalizeCurrency(value) {
      リザルトの収入に「種別ごとの枚数」として積む。パック別は pack の下に
      パック名を並べるので、どのパックなら引けるかが収入の時点で分かる。 */
   function normalizeTickets(value) {
-    const raw = value && typeof value === "object" ? value : {};
+    const raw = value && typeof value === "object" && !Array.isArray(value) ? value : {};
     const toNumber = (input) => {
-      const parsed = Number.parseInt(input, 10);
-      return Number.isFinite(parsed) ? parsed : 0;
+      let parsed;
+      if (typeof input === "number") {
+        parsed = input;
+      } else {
+        const text = String(input ?? "").trim();
+        // Ticket counts are non-negative. Reject partial numeric strings and negative
+        // imported entry counts, which would otherwise mint tickets when subtracted.
+        if (!/^\+?(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(text)) return 0;
+        parsed = Number(text.replace(/,/g, ""));
+      }
+      return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 0;
     };
     const out = { persona: toNumber(raw.persona), ego: toNumber(raw.ego), choice: toNumber(raw.choice), pack: {} };
-    const packs = raw.pack && typeof raw.pack === "object" ? raw.pack : {};
+    const packs = raw.pack && typeof raw.pack === "object" && !Array.isArray(raw.pack) ? raw.pack : {};
     for (const [name, count] of Object.entries(packs)) {
       const n = toNumber(count);
       if (n) out.pack[name] = n;
@@ -1179,8 +1209,116 @@ function dbSupportCond(entry, field) {
   return String(entry[field] || "");
 }
 
+/* ブラウザー内の旧セーブはJSONとして読めても、配列にnullやプリミティブを含む場合がある。
+   DB参照による正規化の前にオブジェクト配列を掃除し、読み込み例外→初期状態保存で
+   利用者の既存データを上書きする経路を防ぐ。配列要素の順序と正常なレコードは保持する。 */
+function sanitizeStateCollections(raw) {
+  const source = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+  const next = { ...source };
+  const recordArrays = [
+    "skills", "supports", "gachaLog", "results", "entries", "inventory",
+    "customItems", "enhancements", "uniqueBuffs", "extraPassives", "customStatuses", "formulas"
+  ];
+  const isRecord = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
+  const sanitizeBooleanMap = (value) => isRecord(value)
+    ? Object.fromEntries(Object.entries(value).filter(([, enabled]) => typeof enabled === "boolean"))
+    : {};
+  const sanitizeFormulaOverrides = (value) => isRecord(value)
+    ? Object.fromEntries(Object.entries(value).filter(([, expression]) => expression === null || typeof expression === "string"))
+    : {};
+  const sanitizeSkillList = (value) => (Array.isArray(value) ? value : [])
+    .filter(isRecord)
+    .map((skill) => ({
+      ...skill,
+      ...(skill.dice !== undefined
+        ? { dice: Array.isArray(skill.dice) ? skill.dice.filter(isRecord) : [] }
+        : {})
+    }));
+  const sanitizePersonaSource = (value) => {
+    if (!isRecord(value)) return value == null ? value : null;
+    const result = { ...value };
+    if (result.skills !== undefined) result.skills = sanitizeSkillList(result.skills);
+    if (result.unique_buffs !== undefined) {
+      result.unique_buffs = Array.isArray(result.unique_buffs) ? result.unique_buffs.filter(isRecord) : [];
+    }
+    if (result.keywords !== undefined) {
+      result.keywords = Array.isArray(result.keywords)
+        ? result.keywords.filter((keyword) => typeof keyword === "string")
+        : [];
+    }
+    return result;
+  };
+  const sanitizePersonaBuild = (value) => {
+    if (!isRecord(value)) return null;
+    const result = { ...value };
+    if (result.skills !== undefined) result.skills = sanitizeSkillList(result.skills);
+    for (const field of ["uniqueBuffs", "extraPassives", "supports", "enhancements", "customStatuses", "formulas"]) {
+      if (result[field] !== undefined) {
+        result[field] = Array.isArray(result[field]) ? result[field].filter(isRecord) : [];
+      }
+    }
+    if (result.personaSrc !== undefined) result.personaSrc = sanitizePersonaSource(result.personaSrc);
+    return result;
+  };
+
+  for (const field of recordArrays) {
+    if (Array.isArray(next[field])) next[field] = next[field].filter(isRecord);
+  }
+  // 設定画面は formulas を map/filter するため、破損した保存値を文字列のまま残さない。
+  next.formulas = Array.isArray(next.formulas) ? next.formulas.filter(isRecord) : [];
+  if (next.defaultStatuses !== null && next.defaultStatuses !== void 0) {
+    next.defaultStatuses = Array.isArray(next.defaultStatuses) ? next.defaultStatuses.filter(isRecord) : null;
+  }
+  // 偽のJSONでは型が崩れやすい設定オブジェクトを、使用側が前提にする形へ戻す。
+  const excludes = isRecord(next.outputExclude) ? next.outputExclude : {};
+  next.outputExclude = {
+    memo: sanitizeBooleanMap(excludes.memo),
+    palette: sanitizeBooleanMap(excludes.palette)
+  };
+  next.builtinFormulasOverride = sanitizeFormulaOverrides(next.builtinFormulasOverride);
+  const egoRanks = ["ZAYIN", "TETH", "HE", "WAW", "ALEPH"];
+  const rawSlots = isRecord(next.egoSlots) ? next.egoSlots : {};
+  next.egoSlots = Object.fromEntries(egoRanks.map((rank) => [
+    rank,
+    rawSlots[rank] == null || isRecord(rawSlots[rank]) ? (rawSlots[rank] ?? null) : null
+  ]));
+  next.pas = isRecord(next.pas) ? next.pas : { name: "", cond: "", always: "", effect: "", quick: "" };
+  next.pas2 = isRecord(next.pas2) ? next.pas2 : { name: "", cond: "", always: "", effect: "" };
+  next.ui = isRecord(next.ui) ? next.ui : {};
+  next.ui.previewCollapsed = isRecord(next.ui.previewCollapsed) ? next.ui.previewCollapsed : {};
+  next.skills = sanitizeSkillList(next.skills);
+  if (next.uniqueBuffs !== undefined) {
+    next.uniqueBuffs = Array.isArray(next.uniqueBuffs) ? next.uniqueBuffs.filter(isRecord) : [];
+  }
+  if (next.personaSrc != null) next.personaSrc = sanitizePersonaSource(next.personaSrc);
+  if (Array.isArray(next.draws)) {
+    // 封緘済み証明のrecordsの形状は改変せず、バッチ自体を保持して検証器で不合格にできるようにする。
+    next.draws = next.draws.filter((batch) => isRecord(batch) && Array.isArray(batch.records));
+  }
+  if (next.deathSupport != null && !isRecord(next.deathSupport)) next.deathSupport = null;
+  if (!isRecord(next.roster)) {
+    next.roster = { personas: [], egos: [], supports: [], spirits: [] };
+  } else {
+    next.roster = { ...next.roster };
+    for (const field of ["personas", "egos", "supports", "spirits"]) {
+      next.roster[field] = Array.isArray(next.roster[field])
+        ? next.roster[field].filter(isRecord)
+        : [];
+    }
+    next.roster.personas = next.roster.personas.map((entry) => ({
+      ...entry,
+      ...(entry.build !== undefined ? { build: sanitizePersonaBuild(entry.build) } : {})
+    }));
+    next.roster.egos = next.roster.egos.map((entry) => ({
+      ...entry,
+      ...(entry.build !== undefined && !isRecord(entry.build) ? { build: null } : {})
+    }));
+  }
+  return next;
+}
+
 function normalizeStateShape(raw) {
-  const next = refreshDBReferencedData(refreshEquippedPersonaFromDB({ ...raw }));
+  const next = refreshDBReferencedData(refreshEquippedPersonaFromDB(sanitizeStateCollections(raw)));
   next.schemaVersion = next.schemaVersion || SAVE_SCHEMA_VERSION;
   // パッシブ2は追加パッシブ列の1件目へ移行する。以後は上限なしの extraPassives が正準。
   next.extraPassives = mergeExtraPassives(next.extraPassives, { enabled: next.pas2Enabled, passive: next.pas2 });
@@ -1193,6 +1331,7 @@ function normalizeStateShape(raw) {
   next.shareImageBlockedReason = typeof next.shareImageBlockedReason === "string" ? next.shareImageBlockedReason.slice(0, 300) : "";
   // 旧版の自由文候補は確認前でも誤登録の起点になり得るため、読み込み時に引き継がない。
   next.selfStatusCandidates = [];
+  if (!Array.isArray(next.gachaLog)) next.gachaLog = [];
   if (!Array.isArray(next.supports)) next.supports = [];
   if (next.deathSupport === void 0) next.deathSupport = null;
   if (!next.deathSupport && Array.isArray(next.supports)) {
@@ -1214,36 +1353,82 @@ function normalizeStateShape(raw) {
      旧セーブは state.tickets に行配列（または {persona:3} 形式）で残っているので、
      残数があるなら「抽出チケットの受領」というリザルトの収入へ移す。
      受け渡したタイミングは保存データに無いので、受領日のリザルトとして置く。 */
-  const legacyTickets = (Array.isArray(next.tickets)
+  const legacyTicketRows = (Array.isArray(next.tickets)
     ? next.tickets
-    : Object.entries(next.tickets || {}).map(([kind, count], i) => ({
-      kind, pack: null, count: Math.max(0, Number(count) || 0)
-    }))
-  ).filter((t) => t && TICKET_KINDS.includes(t.kind) && Number(t.count) > 0);
-  next.tickets = [];
+    : (next.tickets && typeof next.tickets === "object"
+      ? Object.entries(next.tickets).map(([kind, count]) => ({ kind, pack: null, count }))
+      : next.tickets == null || next.tickets === "" ? [] : [next.tickets]));
+  const legacyTicketCount = (ticket) => {
+    if (!ticket || typeof ticket !== "object" || Array.isArray(ticket) || ticket._lbtLegacyUnresolved === true) return null;
+    const raw = ticket.count;
+    let count;
+    if (typeof raw === "number") {
+      count = raw;
+    } else if (typeof raw === "string") {
+      const text = raw.trim();
+      if (!/^\+?(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(text)) return null;
+      count = Number(text.replace(/,/g, ""));
+    } else {
+      return null;
+    }
+    return Number.isSafeInteger(count) && count > 0 ? count : null;
+  };
+  const legacyTicketReason = (ticket) => {
+    if (!ticket || typeof ticket !== "object" || Array.isArray(ticket)) return "invalid-ticket-record";
+    if (ticket._lbtLegacyUnresolved === true) return String(ticket._lbtLegacyUnresolvedReason || "unresolved-legacy-ticket");
+    if (!TICKET_KINDS.includes(ticket.kind)) return "unknown-ticket-kind";
+    if (legacyTicketCount(ticket) === null) return "invalid-ticket-count";
+    if (ticket.kind === "pack" && (typeof ticket.pack !== "string" || !ticket.pack.trim())) return "missing-pack-name";
+    return "unresolved-legacy-ticket";
+  };
+  const isMigratableLegacyTicket = (ticket) => !!ticket
+    && typeof ticket === "object" && !Array.isArray(ticket)
+    && TICKET_KINDS.includes(ticket.kind)
+    && legacyTicketCount(ticket) !== null
+    && (ticket.kind !== "pack" || (typeof ticket.pack === "string" && !!ticket.pack.trim()));
+  const legacyTickets = legacyTicketRows.filter(isMigratableLegacyTicket);
+  // 正規化できない旧行は誤変換せず、理由と原値を保持する。プリミティブ行も
+  // オブジェクトで包むことで、別端末へのJSON移送時に検証器が行ごと捨てないようにする。
+  const unresolvedLegacyTickets = legacyTicketRows.filter((ticket) => !isMigratableLegacyTicket(ticket)).map((ticket) => {
+    if (ticket && typeof ticket === "object" && !Array.isArray(ticket)) {
+      if (ticket._lbtLegacyUnresolved === true) return ticket;
+      return { ...ticket, _lbtLegacyUnresolved: true, _lbtLegacyUnresolvedReason: legacyTicketReason(ticket) };
+    }
+    return {
+      _lbtLegacyUnresolved: true,
+      _lbtLegacyUnresolvedReason: legacyTicketReason(ticket),
+      sourceValue: ticket
+    };
+  });
   if (legacyTickets.length) {
     let total = { persona: 0, ego: 0, choice: 0, pack: {} };
     for (const t of legacyTickets) {
-      if (t.kind === "pack" && t.pack) total.pack[t.pack] = (total.pack[t.pack] || 0) + Number(t.count);
-      else total[t.kind] = (Number(total[t.kind]) || 0) + Number(t.count);
+      const count = legacyTicketCount(t);
+      if (t.kind === "pack") total.pack[t.pack] = (total.pack[t.pack] || 0) + count;
+      else total[t.kind] = (Number(total[t.kind]) || 0) + count;
     }
-    /* 既に同じ内容を持つリザルトがあれば二重に積まない。 */
+    /* 数量が一致するだけの通常リザルトは移行済みとはみなさない。
+       移行専用IDを持つ記録が完全一致する場合だけ、再度の加算を防ぐ。 */
     const already = (next.results || []).some((r) => {
+      if (r?.id !== "res-ticket-grant") return false;
       const inc = normalizeTickets(r.income?.tickets);
       return inc.persona === total.persona && inc.ego === total.ego && inc.choice === total.choice
         && JSON.stringify(inc.pack) === JSON.stringify(total.pack);
     });
     if (!already) {
+      const migrationId = (next.results || []).some((r) => r?.id === "res-ticket-grant")
+        ? makeOwnedUid("res-ticket-grant") : "res-ticket-grant";
       next.results = [{
-        id: "res-ticket-grant",
+        id: migrationId,
         name: "抽出チケットの受領",
-        date: String(new Date().toISOString().slice(0, 10)),
+        date: localDateString(),
         income: { lp: 0, shards: 0, tickets: total },
         note: "以前所持していた抽出チケットをリザルト収入へ移行しました。",
         createdAt: Date.now()
       }, ...(next.results || [])];
     }
   }
+  next.tickets = unresolvedLegacyTickets;
   next.roster = {
     ...next.roster,
     // 同期MAXは同期ランク（0/00/000）と別に保存する。旧保存データはfalseへ補完する。
@@ -2366,6 +2551,12 @@ function rosterAddsFromDrawBatch(batch) {
     /* テーマパックの重複は欠片50への変換で、所持には入らない。 */
     if (record.duplicate) continue;
     const cost = { lp: Number(record.cost?.lp) || 0, shards: Number(record.cost?.shards) || 0 };
+    // 特異人格は record.kind / item.kind が specialPersona。人格と同じ所持モデルに
+    // mode:"t" で積まないと、抽選表示・証明だけが残り、所持と費用明細が抜ける。
+    if (record.kind === "specialPersona" || item.kind === "specialPersona") {
+      adds.push({ type: "persona", no: item.no, mode: "t", cost });
+      continue;
+    }
     if (item.kind === "ego") { adds.push({ type: "ego", no: item.no, rank: item.rank, cost }); continue; }
     if (item.kind === "persona") { adds.push({ type: "persona", no: item.no, mode: item.mode === "t" ? "t" : "n", cost }); continue; }
     if (item.kind === "themePack") {
@@ -2377,6 +2568,289 @@ function rosterAddsFromDrawBatch(batch) {
   }
   return adds;
 }
+
+/* 抽選バッチの経済的な副作用。証明の保存は ADD_DRAW_RECORD と分ける。
+   通常履歴にこの副作用だけを1回積み、Undo後には証明だけを再生できるようにする。 */
+function applyDrawBatchEffects(state, batch, resultId) {
+  let next = applyRosterAdds(state, rosterAddsFromDrawBatch(batch), { resultId });
+  for (const record of batch.records) {
+    if (record?.kind !== "themePack") continue;
+    if (record.duplicate) {
+      /* 重複でも1回ぶんは払う。支出は通帳へ、欠片はリザルトの収入へ分けて積む。 */
+      const lp = Number(record.cost?.lp) || 0;
+      if (lp) {
+        next = appendLedgerEntry(next, {
+          kind: "expense",
+          name: `特定抽出パック ${record.pack || ""}${record.item?.name ? `：${record.item.name}` : ""}（重複）`.trim(),
+          cost: { lp, shards: 0 },
+          resultId
+        });
+      }
+      next = addShardIncome(next, Number(record.grantedShards) || 0, resultId);
+      continue;
+    }
+    if (personaNoByName(record.item?.name)) continue;
+    const lp = Number(record.cost?.lp) || 0;
+    if (!lp) continue;
+    next = appendLedgerEntry(next, {
+      kind: "expense",
+      name: `特定抽出パック ${record.pack || ""}${record.item?.name ? `：${record.item.name}` : ""}`.trim(),
+      cost: { lp, shards: 0 },
+      resultId
+    });
+  }
+  return next;
+}
+
+/* 抽選結果を計算した後、ビーコン／署名待ちの間に所持状態が変わっていないか確認する。
+   roster はDB参照型（人格は mode/no、E.G.Oは rank/no）なので、名前だけで重複を判定しない。
+   テーマパックの duplicate フラグは所持名から引き直し、バッチ内の先行抽選も順に反映する。 */
+function drawOwnershipSnapshot(state) {
+  const roster = state?.roster || {};
+  const personas = Array.isArray(roster.personas) ? roster.personas : [];
+  const egos = Array.isArray(roster.egos) ? roster.egos : [];
+  const personaKeys = new Set();
+  const egoKeys = new Set();
+  const names = new Set();
+  for (const entry of personas) {
+    if (!entry) continue;
+    const mode = entry.mode === "t" ? "t" : "n";
+    if (entry.no != null) personaKeys.add(`${mode}:${String(entry.no)}`);
+    const pool = mode === "t" ? (window.DB?.tokui_personas || []) : (window.DB?.normal_personas || []);
+    const source = pool.find((persona) => String(persona?.no) === String(entry.no));
+    const name = String(entry.name || entry.displayName || entry.build?.personaSrc?.name || source?.name || "").trim();
+    if (name) names.add(name);
+  }
+  for (const entry of egos) {
+    if (!entry) continue;
+    if (entry.no != null) egoKeys.add(`${String(entry.rank || "")}:${String(entry.no)}`);
+    const source = (window.DB?.egos || []).find((ego) =>
+      String(ego?.no) === String(entry.no) && String(ego?.rank || "") === String(entry.rank || "")
+    );
+    const name = String(entry.name || entry.displayName || entry.build?.name || source?.name || "").trim();
+    if (name) names.add(name);
+  }
+  return { personaKeys, egoKeys, names };
+}
+
+function validateDrawTargetsCurrent(state, batch) {
+  const owned = drawOwnershipSnapshot(state);
+  for (let index = 0; index < batch.records.length; index += 1) {
+    const record = batch.records[index];
+    const item = record?.item || {};
+    const kind = String(record?.kind || item.kind || batch.kind || "");
+    if (kind === "themePack" || item.kind === "themePack") {
+      const name = String(item.name || "").trim();
+      if (!name) return { ok: false, reason: "invalid-theme-pack-item", index };
+      const expectedDuplicate = owned.names.has(name);
+      if (!!record.duplicate !== expectedDuplicate) {
+        return { ok: false, reason: "stale-duplicate-state", index, name, expectedDuplicate, recordedDuplicate: !!record.duplicate };
+      }
+      owned.names.add(name);
+      continue;
+    }
+    if (kind === "persona" || kind === "specialPersona" || item.kind === "persona" || item.kind === "specialPersona") {
+      if (item.no == null) return { ok: false, reason: "invalid-persona-item", index };
+      const mode = kind === "specialPersona" || item.kind === "specialPersona" || item.mode === "t" ? "t" : "n";
+      const key = `${mode}:${String(item.no)}`;
+      if (owned.personaKeys.has(key)) return { ok: false, reason: "draw-target-already-owned", index, key };
+      owned.personaKeys.add(key);
+      const name = String(item.name || "").trim();
+      if (name) owned.names.add(name);
+      continue;
+    }
+    if (kind === "ego" || item.kind === "ego") {
+      if (item.no == null || !item.rank) return { ok: false, reason: "invalid-ego-item", index };
+      const key = `${String(item.rank)}:${String(item.no)}`;
+      if (owned.egoKeys.has(key)) return { ok: false, reason: "draw-target-already-owned", index, key };
+      owned.egoKeys.add(key);
+      const name = String(item.name || "").trim();
+      if (name) owned.names.add(name);
+    }
+  }
+  return { ok: true, reason: "" };
+}
+
+/* 証明バッチの種別とペイロードを確定前に検査する。
+   未知の record.kind を料金だけ徴収して所持へ変換しない「成功扱い」にしない。 */
+function validateDrawRecordShapes(batch) {
+  const validBatchKinds = new Set(["persona", "ego", "themePack"]);
+  const validRecordKinds = new Set(["persona", "specialPersona", "ego", "themePack"]);
+  const batchKind = batch.kind == null || batch.kind === "" ? null : String(batch.kind);
+  if (batchKind && !validBatchKinds.has(batchKind)) {
+    return { ok: false, reason: "invalid-batch-kind", kind: batchKind };
+  }
+  let inferredFamily = batchKind;
+  for (let index = 0; index < batch.records.length; index += 1) {
+    const record = batch.records[index];
+    if (!record || typeof record !== "object" || Array.isArray(record)) {
+      return { ok: false, reason: "invalid-record", index };
+    }
+    const kind = String(record.kind || "");
+    const item = record.item;
+    if (!validRecordKinds.has(kind)) {
+      return { ok: false, reason: "invalid-record-kind", index, kind };
+    }
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      return { ok: false, reason: "invalid-record-item", index };
+    }
+    // 一部の旧バージョンに item.kind が無い記録は許容するが、
+    // 値がある場合に record.kind と不一致なら拒否する。
+    if (item.kind != null && String(item.kind) !== kind) {
+      return { ok: false, reason: "record-item-kind-mismatch", index, kind, itemKind: String(item.kind) };
+    }
+
+    // 重複欠片はテーマパックの規定報酬だけ。費用やハッシュが整っていても
+    // 任意の grantedShards を通すと、誤った確定バッチが残高を増やせてしまう。
+    if (record.duplicate !== undefined && typeof record.duplicate !== "boolean") {
+      return { ok: false, reason: "invalid-duplicate-flag", index };
+    }
+    const isDuplicate = record.duplicate === true;
+    if (kind !== "themePack" && isDuplicate) {
+      return { ok: false, reason: "invalid-duplicate-flag", index, kind };
+    }
+    const grantedShards = record.grantedShards === undefined ? 0 : record.grantedShards;
+    if (typeof grantedShards !== "number" || !Number.isSafeInteger(grantedShards) || grantedShards < 0) {
+      return { ok: false, reason: "invalid-shard-grant", index };
+    }
+    const configuredDuplicateShards = Number(window.LBT_gacha?.RULES?.themePack?.duplicateShards);
+    const duplicateShardReward = Number.isSafeInteger(configuredDuplicateShards) && configuredDuplicateShards >= 0
+      ? configuredDuplicateShards : 50;
+    const expectedShardGrant = kind === "themePack" && isDuplicate ? duplicateShardReward : 0;
+    if (grantedShards !== expectedShardGrant) {
+      return { ok: false, reason: "invalid-shard-grant", index, expected: expectedShardGrant, actual: grantedShards };
+    }
+
+    const family = kind === "specialPersona" ? "persona" : kind;
+    if (!inferredFamily) inferredFamily = family;
+    if (family !== inferredFamily) {
+      return { ok: false, reason: "mixed-record-kinds", index, expected: inferredFamily, actual: family };
+    }
+    if ((kind === "persona" || kind === "specialPersona") && item.no == null) {
+      return { ok: false, reason: "invalid-persona-item", index };
+    }
+    if (kind === "ego" && (item.no == null || !String(item.rank || "").trim())) {
+      return { ok: false, reason: "invalid-ego-item", index };
+    }
+    if (kind === "themePack" && !String(item.name || "").trim()) {
+      return { ok: false, reason: "invalid-theme-pack-item", index };
+    }
+  }
+  return { ok: true, reason: "" };
+}
+
+function validateDrawBatchApplication(state, action) {
+  const batch = action?.batch;
+  if (!batch || typeof batch !== "object" || !Array.isArray(batch.records)) {
+    return { ok: false, reason: "invalid-batch" };
+  }
+  const proofKey = String(batch.batchHash || batch.commit || "");
+  if (!proofKey) return { ok: false, reason: "missing-proof-key" };
+  const draws = Array.isArray(state?.draws) ? state.draws : [];
+  if (draws.some((existing) => String(existing?.batchHash || existing?.commit || "") === proofKey)) {
+    return { ok: false, reason: "duplicate-batch" };
+  }
+  if (!batch.records.length) return { ok: false, reason: "empty-batch" };
+  const recordShapes = validateDrawRecordShapes(batch);
+  if (!recordShapes.ok) return recordShapes;
+
+  // 費用の正本は各抽選レコード。呼び出し側が渡す action.cost だけを信頼すると、
+  // 別の経路や将来の回帰でゼロを渡して支払いを迂回できる。
+  const batchCost = { lp: 0, shards: 0 };
+  for (let i = 0; i < batch.records.length; i += 1) {
+    const record = batch.records[i];
+    if (!record || typeof record !== "object" || Array.isArray(record)) {
+      return { ok: false, reason: "invalid-record", index: i };
+    }
+    const rawCost = record.cost;
+    if (!rawCost || typeof rawCost !== "object" || Array.isArray(rawCost)) {
+      return { ok: false, reason: "invalid-record-cost", index: i };
+    }
+    for (const currency of ["lp", "shards"]) {
+      const raw = rawCost[currency] === void 0 ? 0 : rawCost[currency];
+      let amount;
+      if (typeof raw === "number") {
+        amount = Number.isSafeInteger(raw) && raw >= 0 ? raw : null;
+      } else {
+        const text = String(raw ?? "").trim();
+        if (!/^\+?(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(text)) amount = null;
+        else amount = Number(text.replace(/,/g, ""));
+        if (amount !== null && (!Number.isSafeInteger(amount) || amount < 0)) amount = null;
+      }
+      if (amount === null) return { ok: false, reason: "invalid-record-cost", index: i, currency };
+      batchCost[currency] += amount;
+      if (!Number.isSafeInteger(batchCost[currency])) {
+        return { ok: false, reason: "invalid-record-cost", index: i, currency };
+      }
+    }
+  }
+
+  const targetState = validateDrawTargetsCurrent(state, batch);
+  if (!targetState.ok) return targetState;
+
+  if (batch.count != null && Number(batch.count) !== batch.records.length) {
+    return { ok: false, reason: "batch-count-mismatch" };
+  }
+  const recordMethods = batch.records.map((record) => String(record?.method || "draw"));
+  const isTicketBatch = batch.ruleset === "core-ticket" || recordMethods.includes("ticket");
+  const ticketSpend = action?.ticketSpend;
+  if (ticketSpend) {
+    const kind = ticketSpend.kind;
+    if (!TICKET_KINDS.includes(kind)) return { ok: false, reason: "invalid-ticket-kind" };
+    const pack = kind === "pack" ? String(ticketSpend.pack || "") : null;
+    const rawCount = Number(ticketSpend.count);
+    if (!Number.isSafeInteger(rawCount) || rawCount <= 0 || (kind === "pack" && !pack)) {
+      return { ok: false, reason: "invalid-ticket-count" };
+    }
+    if (!isTicketBatch || recordMethods.some((method) => method !== "ticket")) {
+      return { ok: false, reason: "ticket-method-mismatch" };
+    }
+    if (rawCount !== batch.records.length) {
+      return { ok: false, reason: "ticket-count-mismatch", requested: rawCount, records: batch.records.length };
+    }
+    const compatibleKinds = {
+      persona: ["persona"],
+      ego: ["ego"],
+      choice: ["persona", "ego"],
+      pack: ["themePack"]
+    };
+    if (!compatibleKinds[kind]?.includes(String(batch.kind || ""))) {
+      return { ok: false, reason: "ticket-kind-mismatch", ticketKind: kind, batchKind: batch.kind || null };
+    }
+    if (kind === "pack" && batch.records.some((record) => String(record.pack || "") !== pack)) {
+      return { ok: false, reason: "ticket-pack-mismatch", pack };
+    }
+    if (batchCost.lp !== 0 || batchCost.shards !== 0) {
+      return { ok: false, reason: "ticket-batch-has-currency-cost" };
+    }
+    const balance = computeTicketBalance(state?.results || [], state?.entries || []);
+    const available = ticketTotal(balance, kind, pack);
+    if (available < rawCount) {
+      return { ok: false, reason: "insufficient-tickets", available, requested: rawCount };
+    }
+  } else {
+    if (isTicketBatch || recordMethods.some((method) => method === "ticket")) {
+      return { ok: false, reason: "ticket-spend-required" };
+    }
+    if (action?.cost) {
+      const provided = normalizeCurrency(action.cost);
+      if (provided.lp !== batchCost.lp || provided.shards !== batchCost.shards) {
+        return {
+          ok: false,
+          reason: "cost-mismatch",
+          expected: batchCost,
+          provided
+        };
+      }
+    }
+    const affordability = purchaseAffordability(state, batchCost);
+    /* affordability.reason は人間向け文言。スプレッドの後から機械可読な理由で
+       上書きする（UI は reason のコードでトーストを選ぶため、順序を逆に壊せない）。 */
+    if (!affordability.ok) return { ok: false, ...affordability, reason: "insufficient-currency" };
+  }
+  return { ok: true, reason: "" };
+}
+window.LBT_validateDrawBatchApplication = validateDrawBatchApplication;
 
 function appReducer(state, action) {
   /* 購入系は残高が足りなければ行わない。UI で無効化するだけでは、
@@ -2466,13 +2940,14 @@ function appReducer(state, action) {
        ここでも配列/オブジェクトの型だけは防御的に確認する。 */
     case "APPLY_PARTIAL": {
       const ALLOWED = ["charName","plName","imgUrls","shareImageData","color","personaMode","personaNo","personaSrc","syncedManual",
-        "hp","san","speed","bullets","resS","resP","resB","spirit","spiritMorale","spiritConfuse","spiritAlways",
+        "hp","san","initiative","speed","bullets","resS","resP","resB","spirit","spiritMorale","spiritConfuse","spiritAlways",
         "pas","pas2Enabled","pas2","extraPassives","uniqueBuffs","skills","egoSlots","supports","deathSupport","roster",
-        "enhancements","customStatuses","defaultStatuses","formulas","builtinFormulasOverride","autoFml",
+        "enhancements","initialItems","draws","customStatuses","defaultStatuses","formulas","builtinFormulasOverride","autoFml",
         "moraleLine","extraCmd","outputExclude","shareOptions","paletteOptions","results","entries","inventory","customItems",
-        "favorites","historyRecent"];
-      // 別端末移行（exportState/importStateFromFile）は favorites と historyRecent を
-      // 出力に含む。許可リストから漏れると、移行先で★と履歴だけが黙って失われる。
+        "favorites","historyRecent","gachaLog","tickets"];
+      // 別端末移行（exportState/importStateFromFile）には initiative、initialItems、
+      // draws、favorites、historyRecent、gachaLog、tickets（未解決の旧チケット移行行）が含まれる。許可リスト／カテゴリから
+      // 漏れると設定や検証履歴が黙って失われる。
       const isSafePartialValue = (v) => {
         if (v === null || v === void 0) return true;
         if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") return true;
@@ -3280,42 +3755,69 @@ case "ADD_CUSTOM_ITEM": {
        （移行が記録を書き換えるとハッシュ鎖が切れる）。
        所持への反映もここから行う。記録の records が唯一のソースなので、
        画面が渡した顔ではなく「封緘された顔」が所持に入る。 */
+    case "ADD_DRAW_RECORD": {
+      const batch = action.batch;
+      if (!batch || typeof batch !== "object" || !Array.isArray(batch.records)) return state;
+      const proofKey = String(batch.batchHash || batch.commit || "");
+      if (!proofKey) return state;
+      const proofOnly = action.proofOnly === true;
+      if (!proofOnly && state._pendingDrawProofHash !== proofKey) return state;
+      const { _pendingDrawProofHash, ...cleanState } = state;
+      const draws = Array.isArray(cleanState.draws) ? cleanState.draws : [];
+      if (proofKey && draws.some((existing) => String(existing?.batchHash || existing?.commit || "") === proofKey)) {
+        return cleanState;
+      }
+      const next = { ...cleanState, draws: [...draws, batch] };
+      const entry = action.entry;
+      if (entry?.id) {
+        const log = Array.isArray(next.gachaLog) ? next.gachaLog : [];
+        if (!log.some((item) => item?.id === entry.id)) {
+          next.gachaLog = [...log, entry];
+        }
+      }
+      return next;
+    }
+    /* 抽選の所持・費用・チケットを通常のUndo履歴へ1つの取引として積む。
+       証明本体はこのactionでは保存せず、呼び出し側が別途sealedにする。 */
+    case "APPLY_DRAW_BATCH": {
+      const batch = action.batch;
+      const validation = validateDrawBatchApplication(state, action);
+      // UI側も確定直前に同じ検証関数を呼ぶ。reducerで拒否された場合は
+      // ticket/ownership/proof/log を部分的に積まないよう、先に失敗理由を共有する。
+      if (!validation.ok) return state;
+      let next = state;
+      const ticketSpend = action.ticketSpend;
+      if (ticketSpend) {
+        const kind = ticketSpend.kind;
+        const pack = kind === "pack" ? String(ticketSpend.pack || "") : null;
+        const count = Math.max(0, Math.trunc(Number(ticketSpend.count) || 0));
+        next = appendTicketSpend(next, kind, pack, count, { kind: "gachaBatch" }, action.resultId);
+      }
+      next = applyDrawBatchEffects(next, batch, action.resultId);
+      const proofKey = String(batch.batchHash || batch.commit || "");
+      return proofKey ? { ...next, _pendingDrawProofHash: proofKey } : next;
+    }
+    /* 互換用: 旧呼び出しは経済効果と証明の両方を適用する。Undoでの再生は
+       replaySealedAction が ADD_DRAW_RECORD に変換し、証明だけを残す。 */
     case "ADD_DRAW_BATCH": {
       const batch = action.batch;
       if (!batch || typeof batch !== "object" || !Array.isArray(batch.records)) return state;
-      let next = applyRosterAdds(state, rosterAddsFromDrawBatch(batch), { resultId: action.resultId });
-      /* テーマパックは毎回ぶんを請求する。引いたのが DB に無い専用人格なら
-         所持へ入らず、そのぶんを通帳に「消費」として残す。放入できた件は
-         applyRosterAdds が記録の金額ごと記済みなので、ここで二重に書くと
-         二重の請求になる。重複は所持へ入れず、代わりに欠片を受け取る。
-         どちらの経路でも、記録に残った額と通帳の合計は一致する。 */
-      for (const record of batch.records) {
-        if (record?.kind !== "themePack") continue;
-        if (record.duplicate) {
-          /* 重複でも1回ぶんは払う。支出は通帳へ、欠片はリザルトの収入へ分けて積む。 */
-          const lp = Number(record.cost?.lp) || 0;
-          if (lp) {
-            next = appendLedgerEntry(next, {
-              kind: "expense",
-              name: `特定抽出パック ${record.pack || ""}${record.item?.name ? `：${record.item.name}` : ""}（重複）`.trim(),
-              cost: { lp, shards: 0 },
-              resultId: action.resultId
-            });
-          }
-          next = addShardIncome(next, Number(record.grantedShards) || 0, action.resultId);
-          continue;
-        }
-        if (personaNoByName(record.item?.name)) continue;
-        const lp = Number(record.cost?.lp) || 0;
-        if (!lp) continue;
-        next = appendLedgerEntry(next, {
-          kind: "expense",
-          name: `特定抽出パック ${record.pack || ""}${record.item?.name ? `：${record.item.name}` : ""}`.trim(),
-          cost: { lp, shards: 0 },
-          resultId: action.resultId
-        });
+      const validation = validateDrawBatchApplication(state, action);
+      if (!validation.ok) return state;
+      let next = state;
+      // 旧互換経路でも、検証済みのチケット抽選は消費明細を同じ reducer 遷移内で積む。
+      // validation は ticketSpend の種別・枚数・在庫を先に検査するので、
+      // ここでチケットを消費し、後段で二重に SPEND_TICKET しない。
+      const ticketSpend = action.ticketSpend;
+      if (ticketSpend) {
+        const pack = ticketSpend.kind === "pack" ? String(ticketSpend.pack || "") : null;
+        next = appendTicketSpend(next, ticketSpend.kind, pack, ticketSpend.count,
+          { kind: "gachaBatch" }, action.resultId);
       }
-      return { ...next, draws: [...(next.draws || []), batch] };
+      next = applyDrawBatchEffects(next, batch, action.resultId);
+      const proofKey = String(batch.batchHash || batch.commit || "");
+      const staged = proofKey ? { ...next, _pendingDrawProofHash: proofKey } : next;
+      return appReducer(staged, { type: "ADD_DRAW_RECORD", batch, entry: action.entry });
     }
     /* ---- Support ---- */
     /* 装備の入口は所持（roster.supports）を経由する。未所持のものは
@@ -3638,7 +4140,7 @@ case "ADD_CUSTOM_ITEM": {
         results: [...(state.results || []), {
           id: makeOwnedUid("res"),
           name: String(action.name || "").slice(0, 80) || "無題",
-          date: String(action.date || new Date().toISOString().slice(0, 10)).slice(0, 10),
+          date: String(action.date || localDateString()).slice(0, 10),
           income: { ...normalizeCurrency(action.income), tickets: normalizeTickets(action.income?.tickets) },
           exchange: normalizeCurrency(action.exchange),
           note: String(action.note || "").slice(0, 2000),
@@ -4202,6 +4704,42 @@ case "ADD_ENTRY":
       return state;
   }
 }
+/* Undoで抽選を越えて過去状態へ戻るとき、永久に残すのは証明記録だけ。
+   ADD_DRAW_BATCH は最初の確定時に所持・支出も反映するため、そのまま再生すると
+   Undoで戻した所持品を復活させたり、チケット消費を戻した状態で抽選品だけ残す。
+   再生時には proof（draws）の追記専用アクションへ変換する。 */
+function replaySealedAction(action) {
+  if (action?.type === "ADD_DRAW_BATCH" || action?.type === "ADD_DRAW_RECORD") {
+    return {
+      type: "ADD_DRAW_RECORD",
+      batch: action.batch,
+      entry: action.entry,
+      proofOnly: true
+    };
+  }
+  return action;
+}
+
+/* Sealed action は dispatch 時点では reducer の検証結果をまだ受け取れない。
+   取引が拒否された場合でも sealsRef に意図だけが残ることがあるため、Undo再生直前に
+   実際の state に proof が保存済みか照合し、未確定の証明を後から生やさない。 */
+function isSealedActionCommitted(action, committedState) {
+  if (action?.type === "ADD_DRAW_BATCH" || action?.type === "ADD_DRAW_RECORD") {
+    const batch = action.batch;
+    const key = String(batch?.batchHash || batch?.commit || "");
+    if (!key) return false;
+    return (Array.isArray(committedState?.draws) ? committedState.draws : [])
+      .some((entry) => String(entry?.batchHash || entry?.commit || "") === key);
+  }
+  if (action?.type === "ADD_GACHA_LOG") {
+    const id = String(action.entry?.id || "");
+    if (!id) return false;
+    return (Array.isArray(committedState?.gachaLog) ? committedState.gachaLog : [])
+      .some((entry) => String(entry?.id || "") === id);
+  }
+  return true;
+}
+
 function useAppState() {
   const [state, dispatch] = React.useReducer(appReducer, INIT_STATE, (init) => {
     try {
@@ -4283,9 +4821,9 @@ function useAppState() {
   /* 戻ったスナップショットより後に決まった抽選があれば、記録だけ戻す。 */
   const reseal = (index) => {
     for (const seal of sealsRef.current) {
-      if (seal.atPastLength > index) {
+      if (seal.atPastLength > index && isSealedActionCommitted(seal.action, state)) {
         skipHistoryRef.current = true;
-        dispatch(seal.action);
+        dispatch(replaySealedAction(seal.action));
       }
     }
   };

@@ -52,6 +52,28 @@ test("sha256: マルチバイト・長文を node:crypto と照合", () => {
   }
 });
 
+
+test("sha256: パディング境界の前後を node:crypto と照合", () => {
+  // SHA-256 は入力長が 55 + 64k バイトのときも正しい終端パディングが必要。
+  for (const n of [0, 1, 54, 55, 56, 57, 63, 64, 118, 119, 120, 127, 128, 182, 183, 184]) {
+    const s = "x".repeat(n);
+    assert.equal(G.sha256Hex(s), nodeSha256Hex(s), `ASCII length ${n}`);
+  }
+});
+
+test("hmac-sha256: メッセージ／長い鍵のパディング境界を node:crypto と照合", () => {
+  for (const n of [54, 55, 56, 118, 119, 120]) {
+    const message = "m".repeat(n);
+    assert.equal(G.hmacSha256Hex("boundary-key", message), nodeHmacHex("boundary-key", message),
+      `message length ${n}`);
+  }
+  for (const n of [64, 65, 118, 119, 120]) {
+    const key = "k".repeat(n);
+    assert.equal(G.hmacSha256Hex(key, "short-message"), nodeHmacHex(key, "short-message"),
+      `key length ${n}`);
+  }
+});
+
 test("hmac-sha256: RFC 4231 と node:crypto に一致", () => {
   const key = "\x0b".repeat(20);
   assert.equal(G.hmacSha256Hex(key, "Hi There"), "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7");

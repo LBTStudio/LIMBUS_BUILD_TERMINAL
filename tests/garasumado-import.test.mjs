@@ -16,7 +16,9 @@ import vm from "node:vm";
 
 function load(file, apiName) {
   const source = readFileSync(new URL("../js/" + file, import.meta.url), "utf8");
-  const context = { window: {}, console, module: { exports: {} } };
+  /* parseShareUrl は WHATWG の URL でホスト名を検証する。vm サンドボックスには
+     Node の URL が自動で生えないため、本番ブラウザーと同じ能力をここへ渡す。 */
+  const context = { window: {}, console, module: { exports: {} }, URL };
   vm.createContext(context);
   vm.runInContext(source, context);
   return context.window[apiName];
@@ -547,9 +549,25 @@ test("共有URL からドキュメント ID とコレクションを抜く", () 
 
   const b = G.parseShareUrl("https://lbt-garasumado.vercel.app/persona/view/EPm6O9SU11aYYj0obEar");
   assert.equal(b.collection, "personas");
+  const schemeless = G.parseShareUrl("lbt-garasumado.vercel.app/view/mMIbGr32lGZix60RDmoN?share=1#preview");
+  assert.equal(schemeless.ok, true, "公式ホストはスキーム省略とquery/hashを許可");
+  assert.equal(schemeless.id, "mMIbGr32lGZix60RDmoN");
+  const pasted = G.parseShareUrl("Copied: (https://lbt-garasumado.vercel.app/view/mMIbGr32lGZix60RDmoN)");
+  assert.equal(pasted.ok, true, "コピー文の前置きと括弧があっても公式URLを取り出す");
+
+  const foreignQuery = G.parseShareUrl("https://evil.example/view/ABCDEFGHIJKLMNOPQRST?source=garasumado");
+  assert.equal(foreignQuery.ok, false, "クエリに garasumado があるだけでは受理しない");
+  const lookalikeHost = G.parseShareUrl("https://evil-garasumado.example/view/ABCDEFGHIJKLMNOPQRST");
+  assert.equal(lookalikeHost.ok, false, "似たホスト名を受理しない");
+  const nestedHost = G.parseShareUrl("evil.example/?next=lbt-garasumado.vercel.app/view/ABCDEFGHIJKLMNOPQRST");
+  assert.equal(nestedHost.ok, false, "スキーム省略時もクエリ中のホスト文字列をURL本体と誤認しない");
+
 
   assert.equal(G.parseShareUrl("").ok, false);
-  assert.equal(G.parseShareUrl("https://example.com/view/abc123").ok, false);
+  const invalid = G.parseShareUrl("https://example.com/view/abc123");
+  assert.equal(invalid.ok, false);
+  assert.match(invalid.error, /貼り付けてください/);
+  assert.doesNotMatch(invalid.error, /貼りってください/);
 });
 
 test("Firestore の値表現を素の値へ戻す", () => {

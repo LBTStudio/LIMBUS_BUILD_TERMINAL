@@ -95,14 +95,49 @@ test("旧セーブの state.tickets はリザルト収入へ移行する", () =>
   assert.ok(next.results.some((r) => r.name === "抽出チケットの受領"), "受領リザルトができる");
 });
 
-test("同じ内容が既に収入にある場合は移行しない（二重計上を避ける）", () => {
+test("旧チケット移行は不正枚数・不完全パック・プリミティブを数値化せず保持する", () => {
   const legacy = {
-    ...withResult({ persona: 2 }),
+    ...withResult({}),
+    tickets: [
+      { kind: "persona", pack: null, count: 2 },
+      { kind: "choice", pack: null, count: "3" },
+      { kind: "ego", pack: null, count: true },
+      { kind: "persona", pack: null, count: "2.5" },
+      { kind: "persona", pack: null, count: "2x" },
+      { kind: "pack", pack: "", count: 4 },
+      null
+    ]
+  };
+  const next = context.window.LBT_normalizeStateShape(legacy);
+  const balance = balanceOf(next);
+  assert.equal(balance.persona, 2, "正しい人格チケットだけ移行される");
+  assert.equal(balance.choice, 3, "数値文字列の整数は移行される");
+  assert.equal(balance.ego, 0, "boolean を枚数1として誤移行しない");
+  assert.equal(next.tickets.length, 5, "移行できない行は失わず保持する");
+  assert.ok(next.tickets.every((ticket) => ticket && typeof ticket === "object" && !Array.isArray(ticket)),
+    "不正なプリミティブもJSON移送できるレコードとして保持する");
+  assert.ok(next.tickets.some((ticket) => ticket._lbtLegacyUnresolvedReason === "missing-pack-name"));
+  assert.ok(next.tickets.some((ticket) => ticket._lbtLegacyUnresolvedReason === "invalid-ticket-count"));
+  const again = context.window.LBT_normalizeStateShape(next);
+  assert.equal(balanceOf(again).persona, 2, "再ロード時に在庫を二重計上しない");
+  assert.equal(again.tickets.length, 5, "未解決行を再ラップ／削除しない");
+});
+
+test("移行専用IDを持つ同一内容は再計上しない（二重計上を避ける）", () => {
+  const legacy = {
+    ...withResult({}),
+    roster: { personas: [{ uid: "owned-1", mode: "n", no: 1 }], egos: [], supports: [], spirits: [] },
+    results: [{
+      id: "res-ticket-grant",
+      name: "抽出チケットの受領",
+      income: { lp: 0, shards: 0, tickets: { persona: 2, ego: 0, choice: 0, pack: {} } }
+    }],
     tickets: [{ kind: "persona", pack: null, count: 2 }]
   };
   const next = context.window.LBT_normalizeStateShape(legacy);
-  assert.equal(balanceOf(next).persona, 2, "増えない");
-  assert.equal(next.results.filter((r) => r.name === "抽出チケットの受領").length, 0);
+  assert.equal(balanceOf(next).persona, 2, "移行済み在庫は再加算されない");
+  assert.equal(next.results.filter((r) => r.id === "res-ticket-grant").length, 1);
+  assert.deepEqual([...next.tickets], []);
 });
 
 test("パック別チケットは『〈パック名〉抽出チケット』と表記される", () => {
@@ -173,15 +208,40 @@ test("人格を1つも持たない初期状態には初期作成用人格チケ�
 
 test("初期作成用人格チケットで抽出すると初期作成リザルトに帰属する", () => {
   const fresh = freshState();
-  const spent = reducer(fresh, { type: "SPEND_TICKET", kind: "persona", count: 1, resultId: "res-initial" });
-  assert.equal(ticketBalance(spent).persona, 0, "抽出手番でチケットが消費される");
-  const drawn = reducer(spent, {
-    type: "ADD_DRAW_BATCH",
+  const batch = {
+    schemaVersion: 1,
+    ruleset: "core-ticket",
+    kind: "persona",
+    count: 1,
+    commit: "ticket-migration-test-commit",
+    batchHash: "ticket-migration-test-hash",
+    records: [{
+      index: 0,
+      kind: "persona",
+      method: "ticket",
+      item: { kind: "persona", mode: "n", no: 1, name: "黒雲会組員" },
+      cost: { lp: 0, shards: 0 },
+      duplicate: false,
+      grantedShards: 0
+    }]
+  };
+  const applied = reducer(fresh, {
+    type: "APPLY_DRAW_BATCH",
     resultId: "res-initial",
-    batch: { records: [{ kind: "persona", item: { kind: "persona", mode: "n", no: 1, name: "黒雲会組員" }, cost: { lp: 0, shards: 0 } }] }
+    batch,
+    ticketSpend: { kind: "persona", count: 1 }
   });
-  assert.equal(drawn.roster.personas.length, 1, "抽出した人格が所持へ入る");
-  assert.equal(drawn.entries.find((e) => e.ref?.kind === "rosterPersona")?.resultId, "res-initial");
+  assert.equal(ticketBalance(applied).persona, 0, "経済取引の一括適用でチケットを消費する");
+  assert.equal(applied.roster.personas.length, 1, "抽出した人格が所持へ入る");
+  assert.equal(applied.entries.find((e) => e.ref?.kind === "rosterPersona")?.resultId, "res-initial");
+
+  const drawn = reducer(applied, {
+    type: "ADD_DRAW_RECORD",
+    batch,
+    entry: { id: "ticket-migration-test-log", at: "2026-10-23T00:00:00.000Z", hits: ["黒雲会組員"] }
+  });
+  assert.equal(drawn.draws.length, 1, "証明の記録が確定する");
+  assert.equal(drawn.gachaLog.length, 1, "決定ログが同じ確定へ結び付く");
   assert.equal(ticketBalance(drawn).persona, 0, "チケットは消費済みなので二重消費しない");
 });
 
@@ -199,15 +259,15 @@ test("購入せず所持に追加した場合も初期作成用チケットは�
   assert.equal(ticketBalance(bought).persona, 0, "所持になったらチケットは意味を失う");
 });
 
-test("複数人をまとめて所持へ入れても初期作成用チケットは1枚だけ消費する", () => {
+test("複数人を1アクションで所持へ入れても初期作成用チケットは1枚だけ消費する", () => {
   const fresh = freshState();
   const next = reducer(fresh, {
-    type: "ADD_DRAW_BATCH",
+    type: "ADD_ROSTER_MANY",
     resultId: "res-initial",
-    batch: { records: [
-      { kind: "persona", item: { kind: "persona", mode: "n", no: 1, name: "黒雲会組員" }, cost: { lp: 0, shards: 0 } },
-      { kind: "persona", item: { kind: "persona", mode: "n", no: 2, name: "黒雲会組員" }, cost: { lp: 0, shards: 0 } }
-    ] }
+    adds: [
+      { type: "persona", mode: "n", no: 1, cost: { lp: 0, shards: 0 } },
+      { type: "persona", mode: "n", no: 2, cost: { lp: 0, shards: 0 } }
+    ]
   });
   assert.equal(ticketBalance(next).persona, 0, "残りは0");
   assert.equal(next.entries.filter((e) => e.kind === "ticket").length, 1, "チケット消費は1件だけ");

@@ -71,7 +71,10 @@ test("人格図鑑のフィルターと記録タブの同期フィルターを�
 test("所持ライブラリの書き出しに含まれるお気に入りと履歴は読み込みカテゴリにも含まれる", () => {
   assert.ok(appSource.includes("favorites: state.favorites || []"));
   assert.ok(appSource.includes("historyRecent: state.historyRecent || []"));
-  assert.ok(appSource.includes('fields: ["roster","favorites","historyRecent"]'));
+  /* 読込カテゴリは「所持ライブラリ」と「お気に入り・最近の履歴」に分離している。
+     favorites/historyRecent が roster カテゴリへ重複して入らないことも固定する。 */
+  assert.ok(appSource.includes('fields: ["roster"]'));
+  assert.ok(appSource.includes('{ key: "usage-history", label: "お気に入り・最近の履歴", fields: ["favorites","historyRecent"] }'));
   assert.ok(stateSource.includes('"favorites","historyRecent"'));
 });
 

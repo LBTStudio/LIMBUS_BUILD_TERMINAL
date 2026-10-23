@@ -13,7 +13,7 @@ const HELP_ITEMS = [
   { group: "output", icon: "eye", title: "プレビューとJSON出力を確認する", body: "プレビューではメモ、チャットパレット、CCFOLIA用JSONの出力結果を確認します。PCでは通常右側に表示され、必要に応じて開閉できます。スマートフォンでは「PREVIEW」操作から開閉します。JSONをコピー／出力する前に、除外設定も含めてプレビューを確認してください。" },
   { group: "operation", icon: "undo", title: "変更を戻す・やり直す", body: "入力や並べ替えを間違えた場合は、画面上部の矢印で元に戻す・やり直すことができます。PCでは入力欄の外でCtrl+Zを押すとアプリ全体の直前の変更を戻し、Ctrl+Shift+ZまたはCtrl+Yでやり直せます。入力欄にカーソルがある間は、Ctrl+Zは文字入力の取り消しを優先します。" },
   { group: "operation", icon: "search", title: "クイック検索で画面や候補を探す", body: "クイック検索はPCではCtrl+K（Macでは⌘K）、スマートフォンでは検索ボタンから開きます。画面移動や操作、人格・E.G.O・アイテム候補を横断して探す機能です。通常の人格図鑑では名前・効果・キーワード、大罪・所属・耐性・所持条件など、E.G.O一覧では名前・効果・キーワード、ランク・必要資源／除外資源・所持条件などで絞り込めます。同期ランク／同期MAXは、通常の人格図鑑の共通フィルターではありません。一方、「記録」の所持人格一覧には同期・同期ランク／MAXの絞り込みがあり、設定変更は所持人格詳細から行います。" },
-  { group: "save", icon: "archive", title: "所持ライブラリを保存する", body: "記録タブでは所持データと保存済みビルド、リザルトと収支を確認します。PCでは上部バーのアーカイブアイコン「所持ライブラリを保存」、スマートフォンや幅の狭い画面では「操作・保存」（または「その他」）からJSONファイルを書き出し、別端末へ引き継げます。この専用ファイルは登録済みの所持データ・保存済みビルドに加えて、お気に入り・履歴を含みます。現在の作業状態ファイルとは別です。読み込み時は「所持ライブラリ・お気に入り・履歴」の適用範囲を確認してください。" },
+  { group: "save", icon: "archive", title: "所持ライブラリを保存する", body: "記録タブでは所持データと保存済みビルド、リザルトと収支を確認します。PCでは上部バーのアーカイブアイコン「所持ライブラリを保存」、スマートフォンや幅の狭い画面では「操作・保存」（または「その他」）からJSONファイルを書き出し、別端末へ引き継げます。この専用ファイルは登録済みの所持データ・保存済みビルドに加えて、お気に入り・履歴を含みます。現在の作業状態ファイルとは別です。読み込み時は「所持ライブラリ」および「お気に入り・最近の履歴」の適用範囲を確認してください。" },
   { group: "save", icon: "download", title: "作業状態を保存・復元する", body: "通常の編集内容はブラウザー内に自動保存されます。画面上部の保存状態が「端末内保存不可」と表示された場合は、作業を失わないようJSONファイルにも保存してください。「現在の作業状態を保存」は現在のキャラクターだけでなく、所持データ・導入アイテム・リザルト／収支明細・設定なども含む広い作業データを書き出します。読み込み時はファイルに存在するカテゴリが初期選択されます。適用すると選択したカテゴリを上書きするため、残したいものはチェックを外し、表示された適用範囲を確認してください。なお、抽選ログは現行のカテゴリ選択読み込みでは復元されません。" }
 ];
 
@@ -321,31 +321,330 @@ function exportRoster(state) {
 /* T26: セーブデータのカテゴリ定義（部分ロード用）。
    各カテゴリはトップレベル state フィールドの集合。 */
 const IMPORT_GROUPS = [
-  { key: "persona", label: "\u88C5\u5099\u4EBA\u683C\u30FB\u57FA\u672C\u60C5\u5831", fields: ["charName","plName","imgUrls","shareImageData","color","personaMode","personaNo","personaSrc","syncedManual","hp","san","speed","bullets","resS","resP","resB"] },
+  { key: "persona", label: "\u88C5\u5099\u4EBA\u683C\u30FB\u57FA\u672C\u60C5\u5831", fields: ["charName","plName","imgUrls","shareImageData","color","initiative","personaMode","personaNo","personaSrc","syncedManual","hp","san","speed","bullets","resS","resP","resB"] },
   { key: "skills", label: "\u30B9\u30AD\u30EB\uFF08\u6D3E\u751F\u542B\u3080\uFF09", fields: ["skills"] },
   { key: "passive", label: "\u30D1\u30C3\u30B7\u30D6", fields: ["pas","pas2Enabled","pas2","extraPassives"] },
   { key: "support", label: "\u30B5\u30DD\u30FC\u30C8\u30D1\u30C3\u30B7\u30D6\uFF08\u6B7B\u4EA1\u5F8C\u542B\u3080\uFF09", fields: ["supports","deathSupport"] },
   { key: "ego", label: "E.G.O\u88C5\u5099", fields: ["egoSlots"] },
   { key: "mental", label: "\u7CBE\u795E", fields: ["spirit","spiritMorale","spiritConfuse","spiritAlways"] },
-  { key: "roster", label: "所持ライブラリ・お気に入り・履歴", fields: ["roster","favorites","historyRecent"] },
+  { key: "roster", label: "所持ライブラリ", fields: ["roster"] },
   { key: "ledger", label: "\u901A\u5E33\uFF08\u30EA\u30B6\u30EB\u30C8\u3068\u6536\u652F\u660E\u7D30\uFF09", fields: ["results", "entries"] },
+  { key: "gacha", label: "抽選記録・旧セーブ移行データ", fields: ["gachaLog","draws","tickets"] },
+  { key: "usage-history", label: "お気に入り・最近の履歴", fields: ["favorites","historyRecent"] },
   { key: "status", label: "\u30B9\u30C6\u30FC\u30BF\u30B9\u30FB\u56FA\u6709\u30D0\u30D5\u30FB\u51FA\u529B\u8A2D\u5B9A", fields: ["uniqueBuffs","customStatuses","defaultStatuses","outputExclude","shareOptions","paletteOptions"] },
   { key: "enh", label: "\u7279\u6B8A\u5F37\u5316", fields: ["enhancements"] },
-  { key: "items", label: "\u5C0E\u5165\u6E08\u307F\u30A2\u30A4\u30C6\u30E0", fields: ["inventory","customItems"] },
+  { key: "items", label: "\u5C0E\u5165\u6E08\u307F\u30A2\u30A4\u30C6\u30E0", fields: ["inventory","initialItems","customItems"] },
   { key: "formulas", label: "\u4EE3\u5165\u5F0F\u30FB\u305D\u306E\u4ED6\u8A2D\u5B9A", fields: ["formulas","builtinFormulasOverride","autoFml","moraleLine","extraCmd"] }
 ];
 function validateImportData(data) {
   // 既知の構造のみ受け入れる。壊れたデータの部分適用で state を壊さない。
-  if (!data || typeof data !== "object" || Array.isArray(data)) return "\u30AA\u30D6\u30B8\u30A7\u30AF\u30C8\u5F62\u5F0F\u3067\u306F\u3042\u308A\u307E\u305B\u3093";
-  // V22: roster 単体ファイル（所持人格/E.G.Oのみ）はそのまま許可
-  if (data._lbtRosterOnly && data.roster) return null;
-  const known = IMPORT_GROUPS.flatMap((g) => g.fields).concat(["schemaVersion","favorites","historyRecent","ui"]);
+  if (!data || typeof data !== "object" || Array.isArray(data)) return "オブジェクト形式ではありません";
+
+  const isRecord = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
+  const validateRecordArray = (value, path) => {
+    if (value === void 0) return null;
+    if (!Array.isArray(value)) return path + " は配列ではありません";
+    const badIndex = value.findIndex((entry) => !isRecord(entry));
+    return badIndex < 0 ? null : path + "[" + badIndex + "] はオブジェクトではありません";
+  };
+  const validateSkillArray = (value, path) => {
+    const arrayError = validateRecordArray(value, path);
+    if (arrayError) return arrayError;
+    if (!Array.isArray(value)) return null;
+    for (let i = 0; i < value.length; i += 1) {
+      const diceError = validateRecordArray(value[i].dice, path + "[" + i + "].dice");
+      if (diceError) return diceError;
+    }
+    return null;
+  };
+  const validatePersonaSource = (value, path) => {
+    if (value === void 0 || value === null) return null;
+    if (!isRecord(value)) return path + " はオブジェクトではありません";
+    const skillError = validateSkillArray(value.skills, path + ".skills");
+    if (skillError) return skillError;
+    const buffError = validateRecordArray(value.unique_buffs, path + ".unique_buffs");
+    if (buffError) return buffError;
+    if (value.keywords !== void 0 && (!Array.isArray(value.keywords)
+      || value.keywords.some((keyword) => typeof keyword !== "string"))) {
+      return path + ".keywords は文字列配列ではありません";
+    }
+    return null;
+  };
+
+  const rootSkillError = validateSkillArray(data.skills, "skills");
+  if (rootSkillError) return rootSkillError;
+  const personaSourceError = validatePersonaSource(data.personaSrc, "personaSrc");
+  if (personaSourceError) return personaSourceError;
+  // null は「DB既定を使う」正常値。配列なら各状態がオブジェクトであることを要求する。
+  if (data.defaultStatuses !== void 0 && data.defaultStatuses !== null) {
+    const statusError = validateRecordArray(data.defaultStatuses, "defaultStatuses");
+    if (statusError) return statusError;
+  }
+  if (data.outputExclude !== void 0 && data.outputExclude !== null) {
+    if (!isRecord(data.outputExclude)) return "outputExclude はオブジェクトではありません";
+    for (const group of ["memo", "palette"]) {
+      const map = data.outputExclude[group];
+      if (map !== void 0 && !isRecord(map)) return "outputExclude." + group + " はオブジェクトではありません";
+      if (isRecord(map)) {
+        const badKey = Object.entries(map).find(([, enabled]) => typeof enabled !== "boolean");
+        if (badKey) return "outputExclude." + group + "." + badKey[0] + " は真偽値ではありません";
+      }
+    }
+  }
+  if (data.builtinFormulasOverride !== void 0 && data.builtinFormulasOverride !== null) {
+    if (!isRecord(data.builtinFormulasOverride)) return "builtinFormulasOverride はオブジェクトではありません";
+    const badOverride = Object.entries(data.builtinFormulasOverride).find(([, value]) => value !== null && typeof value !== "string");
+    if (badOverride) return "builtinFormulasOverride." + badOverride[0] + " は文字列またはnullではありません";
+  }
+  if (data.egoSlots !== void 0 && data.egoSlots !== null) {
+    if (!isRecord(data.egoSlots)) return "egoSlots はオブジェクトではありません";
+    const validRanks = new Set(["ZAYIN", "TETH", "HE", "WAW", "ALEPH"]);
+    for (const [rank, slot] of Object.entries(data.egoSlots)) {
+      if (!validRanks.has(rank)) return "egoSlots." + rank + " は未知のランクです";
+      if (slot !== null && !isRecord(slot)) return "egoSlots." + rank + " はオブジェクトまたはnullではありません";
+    }
+  }
+
+  // 未解決の旧チケット行は移行のために保持する。形式そのものが壊れている場合だけ拒否し、
+  // パック名なし／不明な種類など、移行不能なレコード内容は勝手に捨てない。
+  if (data.tickets !== void 0) {
+    if (Array.isArray(data.tickets)) {
+      const badIndex = data.tickets.findIndex((ticket) => !isRecord(ticket));
+      if (badIndex >= 0) return "tickets[" + badIndex + "] はオブジェクトではありません";
+    } else if (isRecord(data.tickets)) {
+      const badKey = Object.entries(data.tickets).find(([, count]) =>
+        count !== null && typeof count !== "number" && typeof count !== "string"
+      );
+      if (badKey) return "tickets." + badKey[0] + " は数値または数値文字列ではありません";
+    } else {
+      return "tickets は配列またはオブジェクトではありません";
+    }
+  }
+
+  // インポートに使う配列フィールドは適用前に型を確認する。
+  const arrayFields = [
+    "skills", "supports", "gachaLog", "draws", "results", "entries", "inventory", "formulas",
+    "initialItems", "customItems", "enhancements", "uniqueBuffs", "extraPassives",
+    "customStatuses", "favorites", "historyRecent"
+  ];
+  for (const field of arrayFields) {
+    if (data[field] !== void 0 && !Array.isArray(data[field])) {
+      return field + " は配列ではありません";
+    }
+  }
+
+  // reducer の正規化処理は results / entries の各要素をレコードとして参照する。
+  // JSON として有効でも [null] や ["broken"] が入ると、適用時に例外または静かな欠損を起こす。
+  const objectArrayFields = [
+    "skills", "supports", "gachaLog", "draws", "results", "entries", "inventory", "formulas",
+    "customItems", "enhancements", "uniqueBuffs", "extraPassives", "customStatuses"
+  ];
+  for (const field of objectArrayFields) {
+    if (!Array.isArray(data[field])) continue;
+    const badIndex = data[field].findIndex((item) =>
+      !item || typeof item !== "object" || Array.isArray(item)
+    );
+    if (badIndex >= 0) return field + "[" + badIndex + "] はオブジェクトではありません";
+  }
+
+  // 通帳の通貨／チケット数量は部分一致の parseInt で解釈しない。
+  // 不正な金額を正規化時に0へ落とすだけだと、バックアップを取り込めたように見えて
+  // 収入や支出の数字だけ消えるため、適用前に項目パス付きで拒否する。
+  const isNonNegativeIntegerAmount = (value) => {
+    if (value === void 0 || value === null || value === "") return true;
+    if (typeof value === "number") return Number.isSafeInteger(value) && value >= 0;
+    if (typeof value !== "string") return false;
+    const text = value.trim();
+    if (!/^\+?(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(text)) return false;
+    const number = Number(text.replace(/,/g, ""));
+    return Number.isSafeInteger(number) && number >= 0;
+  };
+  const validateMoneyObject = (value, path) => {
+    if (value === void 0 || value === null) return null;
+    if (!isRecord(value)) return path + " はオブジェクトではありません";
+    for (const currency of ["lp", "shards"]) {
+      if (!isNonNegativeIntegerAmount(value[currency])) {
+        return path + "." + currency + " は0以上の整数で入力してください";
+      }
+    }
+    return null;
+  };
+  const validateTicketCounts = (value, path) => {
+    if (value === void 0 || value === null) return null;
+    if (!isRecord(value)) return path + " はオブジェクトではありません";
+    for (const kind of ["persona", "ego", "choice"]) {
+      if (!isNonNegativeIntegerAmount(value[kind])) {
+        return path + "." + kind + " は0以上の整数で入力してください";
+      }
+    }
+    if (value.pack !== void 0 && value.pack !== null) {
+      if (!isRecord(value.pack)) return path + ".pack はオブジェクトではありません";
+      for (const [name, count] of Object.entries(value.pack)) {
+        if (!isNonNegativeIntegerAmount(count)) {
+          return path + ".pack." + name + " は0以上の整数で入力してください";
+        }
+      }
+    }
+    return null;
+  };
+  for (let i = 0; i < (data.results || []).length; i += 1) {
+    const result = data.results[i];
+    for (const [field, value] of [["income", result.income], ["exchange", result.exchange]]) {
+      const error = validateMoneyObject(value, "results[" + i + "]." + field);
+      if (error) return error;
+    }
+    const ticketError = validateTicketCounts(result.income?.tickets, "results[" + i + "].income.tickets");
+    if (ticketError) return ticketError;
+  }
+  for (let i = 0; i < (data.entries || []).length; i += 1) {
+    const entry = data.entries[i];
+    const moneyError = validateMoneyObject(entry.cost, "entries[" + i + "].cost");
+    if (moneyError) return moneyError;
+    const ticketError = validateTicketCounts(entry.tickets, "entries[" + i + "].tickets");
+    if (ticketError) return ticketError;
+  }
+
+  // 抽選の封緘記録は検証単位の records を必要とする。壊れたバッチを
+  // 正規化時に黙って捨てるのではなく、インポート時点で明示的に拒否する。
+  if (Array.isArray(data.draws)) {
+    const seenProofKeys = new Set();
+    for (let i = 0; i < data.draws.length; i += 1) {
+      const batch = data.draws[i];
+      if (!Array.isArray(batch.records)) return "draws[" + i + "].records は配列ではありません";
+      const proofKey = String(batch.batchHash || batch.commit || "").trim();
+      if (!proofKey) return "draws[" + i + "] に batchHash または commit がありません";
+      if (seenProofKeys.has(proofKey)) {
+        return "draws[" + i + "] に重複した証明キー " + proofKey + " があります";
+      }
+      seenProofKeys.add(proofKey);
+      const badRecord = batch.records.findIndex((record) =>
+        !record || typeof record !== "object" || Array.isArray(record)
+      );
+      if (badRecord >= 0) return "draws[" + i + "].records[" + badRecord + "] はオブジェクトではありません";
+    }
+  }
+
+  // 抽選ログは封緘バッチとは別に表示されるが、同じ明示IDを複数行受け入れると
+  // 画面上で同じ抽選の件数・結果を二重に数えうる。IDなしの旧ログは互換のため許容する。
+  if (Array.isArray(data.gachaLog)) {
+    const seenLogIds = new Set();
+    for (let i = 0; i < data.gachaLog.length; i += 1) {
+      const id = String(data.gachaLog[i].id ?? "").trim();
+      if (!id) continue;
+      if (seenLogIds.has(id)) return "gachaLog[" + i + "] に重複ID " + id + " があります";
+      seenLogIds.add(id);
+    }
+  }
+
+  // ID重複は編集／削除／帰属操作が複数行へ誤爆する。古いレコードでIDが無いものは
+  // state 正規化が採番するため許容し、同じIDを明示したレコードだけを拒否する。
+  for (const field of ["results", "entries"]) {
+    if (!Array.isArray(data[field])) continue;
+    const seenIds = new Set();
+    for (let i = 0; i < data[field].length; i += 1) {
+      const id = String(data[field][i].id ?? "").trim();
+      if (!id) continue;
+      if (seenIds.has(id)) return field + "[" + i + "] に重複ID " + id + " があります";
+      seenIds.add(id);
+    }
+  }
+
+  // 所持ライブラリの単独ファイル／通常セーブのどちらも、roster配下の配列を検証する。
+  if (data.roster !== void 0) {
+    if (!data.roster || typeof data.roster !== "object" || Array.isArray(data.roster)) {
+      return "roster はオブジェクトではありません";
+    }
+    for (const field of ["personas", "egos", "supports", "spirits"]) {
+      if (data.roster[field] !== void 0 && !Array.isArray(data.roster[field])) {
+        return "roster." + field + " は配列ではありません";
+      }
+      if (Array.isArray(data.roster[field])) {
+        const badIndex = data.roster[field].findIndex((entry) =>
+          !entry || typeof entry !== "object" || Array.isArray(entry)
+        );
+        if (badIndex >= 0) return "roster." + field + "[" + badIndex + "] はオブジェクトではありません";
+      }
+    }
+    for (let i = 0; i < (data.roster.personas || []).length; i += 1) {
+      const persona = data.roster.personas[i];
+      const path = "roster.personas[" + i + "]";
+      if (persona.build !== void 0 && persona.build !== null) {
+        if (!isRecord(persona.build)) return path + ".build はオブジェクトではありません";
+        const buildSkillError = validateSkillArray(persona.build.skills, path + ".build.skills");
+        if (buildSkillError) return buildSkillError;
+        for (const field of ["uniqueBuffs", "extraPassives", "supports", "enhancements", "customStatuses", "formulas"]) {
+          const error = validateRecordArray(persona.build[field], path + ".build." + field);
+          if (error) return error;
+        }
+        const buildSourceError = validatePersonaSource(persona.build.personaSrc, path + ".build.personaSrc");
+        if (buildSourceError) return buildSourceError;
+      }
+    }
+    for (let i = 0; i < (data.roster.egos || []).length; i += 1) {
+      const build = data.roster.egos[i].build;
+      if (build !== void 0 && build !== null && !isRecord(build)) {
+        return "roster.egos[" + i + "].build はオブジェクトではありません";
+      }
+    }
+  }
+
+  // ID/UID は編集・削除・通帳帰属で対象レコードを指定するキー。
+  // JSONとして有効でも同じキーが複数あると、一操作で複数行を更新／削除し、
+  // 異なる所持品の支出明細まで一緒に消す可能性がある。古い形式でキーが無い
+  // レコードは正規化で採番するため許容し、明示された重複だけを拒否する。
+  const validateUniqueIdentity = (rows, field, path) => {
+    if (!Array.isArray(rows)) return null;
+    const seen = new Set();
+    for (let i = 0; i < rows.length; i += 1) {
+      const raw = rows[i]?.[field];
+      if (raw === void 0 || raw === null || String(raw).trim() === "") continue;
+      const id = String(raw).trim();
+      if (seen.has(id)) return path + "[" + i + "] に重複" + field + " " + id + " があります";
+      seen.add(id);
+    }
+    return null;
+  };
+  const identityCollections = [
+    ["skills", data.skills, "id"],
+    ["supports", data.supports, "id"],
+    ["inventory", data.inventory, "uid"],
+    ["customItems", data.customItems, "id"],
+    ["enhancements", data.enhancements, "id"],
+    ["uniqueBuffs", data.uniqueBuffs, "id"],
+    ["extraPassives", data.extraPassives, "id"],
+    ["customStatuses", data.customStatuses, "id"],
+    ["formulas", data.formulas, "id"]
+  ];
+  for (const [path, rows, field] of identityCollections) {
+    const error = validateUniqueIdentity(rows, field, path);
+    if (error) return error;
+  }
+  if (data.roster) {
+    for (const [field, rows] of [
+      ["personas", data.roster.personas],
+      ["egos", data.roster.egos],
+      ["supports", data.roster.supports],
+      ["spirits", data.roster.spirits]
+    ]) {
+      const error = validateUniqueIdentity(rows, "uid", "roster." + field);
+      if (error) return error;
+    }
+  }
+
+  // V22: roster 単体ファイル（所持人格/E.G.Oのみ）はここで検証後に受け入れる。
+  if (data._lbtRosterOnly) {
+    if (!data.roster) return "roster 単体ファイルに所持データがありません";
+    return null;
+  }
+
+  const known = IMPORT_GROUPS.flatMap((g) => g.fields).concat(["schemaVersion", "ui"]);
   const unknown = Object.keys(data).filter((k) => !known.includes(k));
-  if (unknown.length > Object.keys(data).length * 0.8 && unknown.length > 3) return "LBT\u306E\u30BB\u30FC\u30D6\u30C7\u30FC\u30BF\u3067\u306F\u306A\u3044\u53EF\u80FD\u6027\u304C\u3042\u308A\u307E\u3059";
-  if (data.skills !== void 0 && !Array.isArray(data.skills)) return "skills \u304C\u914D\u5217\u3067\u306F\u3042\u308A\u307E\u305B\u3093";
-  if (data.supports !== void 0 && !Array.isArray(data.supports)) return "supports \u304C\u914D\u5217\u3067\u306F\u3042\u308A\u307E\u305B\u3093";
+  if (unknown.length > Object.keys(data).length * 0.8 && unknown.length > 3) {
+    return "LBTのセーブデータではない可能性があります";
+  }
   return null;
 }
+
 function importStateFromFile(file, dispatch) {
   const rd = new FileReader();
   rd.onload = () => {

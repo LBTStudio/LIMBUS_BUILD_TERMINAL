@@ -79,6 +79,46 @@ test("LP と 欠片 を別々に見る", () => {
   assert.equal(out[1].impliedSpend.shards, 25);
 });
 
+
+test("LP と欠片の初回残高は通貨別に判定する", () => {
+  const out = C.reconcileResults([
+    { title: "第1回", income: { lp: 10, shards: 100 }, current: { lp: 100, shards: "" } },
+    { title: "第2回", income: { lp: 10, shards: 10 }, current: { lp: 90, shards: 50 } }
+  ]);
+  assert.equal(out[1].impliedSpend.lp, 20, "LP は前回残高を基準に計算");
+  assert.equal(out[1].impliedSpend.shards, 10, "欠片は初めて残高が分かった行を基準にする");
+  assert.equal(out[1].flags.some((f) => f.code === "negative-spend" && f.currency === "shards"), false,
+    "過去の欠片残高が不明なのに架空の不足を指摘しない");
+});
+
+test("非数値の現在残高はゼロと誤認せず未入力として警告する", () => {
+  const out = C.reconcileResults([
+    { title: "入力ミス", income: { lp: 20 }, current: { lp: "abc" } }
+  ]);
+  assert.equal(out[0].current.lp, null);
+  assert.ok(out[0].flags.some((f) => f.code === "no-current" && f.currency === "lp"));
+  assert.equal(out[0].impliedSpend.lp, null);
+});
+
+test("非数値の収入をゼロとして黙って通さない", () => {
+  const out = C.reconcileResults([
+    { title: "入力ミス", income: { lp: "12abc" }, current: { lp: 100 } }
+  ]);
+  assert.equal(out[0].income.lp, 0);
+  assert.ok(out[0].flags.some((f) => f.code === "invalid-income" && f.currency === "lp"));
+});
+
+test("カンマ区切りの金額は許可し、不正な桁区切りは拒否する", () => {
+  const out = C.reconcileResults([
+    { title: "正常", income: { lp: "1,200" }, current: { lp: "1,200" } },
+    { title: "不正", income: { lp: 10 }, current: { lp: "1,2" } }
+  ]);
+  assert.equal(out[0].income.lp, 1200);
+  assert.equal(out[0].current.lp, 1200);
+  assert.equal(out[1].current.lp, null);
+  assert.ok(out[1].flags.some((f) => f.code === "no-current" && f.currency === "lp"));
+});
+
 /* --- 2. 予測変換（名前から価格を引く） --------------------------------- */
 
 test("名前が一致すれば、ログに金額が無くても価格が確定する", () => {
@@ -173,4 +213,17 @@ test("購入候補の抽出は節で絞らない（再現率優先・確認は�
   const memo = ["・買い物", "ルサンチマン　現在52LP"].join("\n");
   const { proposals } = C.proposePurchases(memo, { resolve: (n) => R.resolveCandidates(idx, n)[0] || null });
   assert.equal(proposals.length, 1, "支出見出しが無くても候補は出す");
+});
+
+
+test("通貨入力の小数はLP／欠片の残高として扱わない", () => {
+  const out = C.reconcileResults([
+    { title: "小数入力", income: { lp: "1.5", shards: "0.5" }, current: { lp: "2.5", shards: 10 } }
+  ]);
+  assert.equal(out[0].income.lp, 0);
+  assert.equal(out[0].income.shards, 0);
+  assert.ok(out[0].flags.some((f) => f.code === "invalid-income" && f.currency === "lp"));
+  assert.ok(out[0].flags.some((f) => f.code === "invalid-income" && f.currency === "shards"));
+  assert.equal(out[0].current.lp, null);
+  assert.ok(out[0].flags.some((f) => f.code === "no-current" && f.currency === "lp"));
 });

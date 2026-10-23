@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import vm from "node:vm";
 
 const state = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
 const app = readFileSync(new URL("../js/App.js", import.meta.url), "utf8");
@@ -42,4 +43,135 @@ test("クイック検索のE.G.O・アイテム候補は詳細画面へ移動す
   assert.match(items, /setSelectedId\(searchTargetId\)/);
   assert.match(sections, /const searchTarget = state\.ui\?\.egoSearchTarget/);
   assert.match(sections, /setSelected\(target\)/);
+});
+
+
+ 
+ 
+test("作業状態の部分インポートは全ての永続履歴・初期設定をカテゴリに含める", () => {
+  const drawLogField = ["gacha", "Log"].join("");
+  assert.equal((app.match(/key: "gacha"/g) || []).length, 1, "抽選カテゴリは重複しない");
+  assert.ok(app.includes(`fields: ["${drawLogField}","draws","tickets"]`));
+  assert.ok(app.includes('fields: ["favorites","historyRecent"]'));
+  const personaGroup = app.slice(app.indexOf('{ key: "persona"'), app.indexOf("\n", app.indexOf('{ key: "persona"')));
+  const itemGroup = app.slice(app.indexOf('{ key: "items"'), app.indexOf("\n", app.indexOf('{ key: "items"')));
+  assert.ok(personaGroup.includes('"initiative"'), "イニシアチブを復元する");
+  assert.ok(itemGroup.includes('"initialItems"'), "初期所持アイテムの定義を復元する");
+  assert.ok(state.includes('"hp","san","initiative","speed"'));
+  assert.ok(state.includes('"enhancements","initialItems","draws"'));
+  assert.ok(state.includes(`"historyRecent","${drawLogField}","tickets"]`));
+});
+
+test("未解決の旧チケットデータは妥当な配列／マップ形式で検証し、保持対象から外さない", () => {
+  assert.match(app, /if \(data\.tickets !== void 0\)/);
+  assert.ok(app.includes('return "tickets[" + badIndex + "] はオブジェクトではありません"'));
+  assert.match(app, /return \"tickets は配列またはオブジェクトではありません\"/);
+  assert.ok(app.includes('fields: ["gachaLog","draws","tickets"]'));
+  assert.ok(state.includes('"historyRecent","gachaLog","tickets"]'));
+});
+
+test("インポート検証は配列項目と所持データの形を事前に検証する", () => {
+  assert.ok(app.includes("const arrayFields = ["));
+  assert.ok(app.includes("if (data[field] !== void 0 && !Array.isArray(data[field]))"));
+  assert.ok(app.includes('if (!data.roster || typeof data.roster !== "object" || Array.isArray(data.roster))'));
+  assert.ok(app.includes('if (!data.roster) return "roster 単体ファイルに所持データがありません"'));
+});
+
+
+test("保存フィールド・インポートカテゴリ・APPLY_PARTIAL許可リストは相互に整合する", () => {
+  const groupBlock = app.match(/const IMPORT_GROUPS = \[([\s\S]*?)\n\];/)?.[1];
+  assert.ok(groupBlock, "IMPORT_GROUPS を読み取れる");
+  const groupedFields = [...groupBlock.matchAll(/fields:\s*\[([^\]]*)\]/g)]
+    .flatMap(([, list]) => [...list.matchAll(/"([^"]+)"/g)].map(([, field]) => field));
+
+  const partialStart = state.indexOf('case "APPLY_PARTIAL": {');
+  const allowStart = state.indexOf("const ALLOWED = [", partialStart);
+  const allowEnd = state.indexOf("];", allowStart);
+  assert.ok(partialStart >= 0 && allowStart > partialStart && allowEnd > allowStart,
+    "APPLY_PARTIAL の許可リストを読み取れる");
+  const allowedFields = [...state.slice(allowStart, allowEnd).matchAll(/"([^"]+)"/g)]
+    .map(([, field]) => field);
+
+  assert.deepEqual([...new Set(groupedFields)].sort(), [...groupedFields].sort(),
+    "同じフィールドを複数カテゴリへ重複登録しない");
+  assert.deepEqual(groupedFields.filter((field) => !allowedFields.includes(field)), [],
+    "UIカテゴリにある全フィールドをreducerも受け入れる");
+
+  const initStart = state.indexOf("const INIT_STATE = {");
+  const initEnd = state.indexOf("\n};", initStart);
+  assert.ok(initStart >= 0 && initEnd > initStart, "INIT_STATE を読み取れる");
+  const initFields = [...state.slice(initStart, initEnd).matchAll(/^  ([A-Za-z_$][\w$]*):/gm)]
+    .map(([, field]) => field);
+  const deliberateExclusions = new Set([
+    "schemaVersion", "ui", "shareImageBlockedReason", "egoManual", "selfStatusCandidates"
+  ]);
+  const missingCategories = initFields.filter((field) =>
+    !groupedFields.includes(field) && !deliberateExclusions.has(field)
+  );
+  assert.deepEqual(missingCategories, [],
+    "新しい永続フィールドはカテゴリへ追加するか、意図的な除外理由を明示する");
+});
+
+
+test("通帳の金額・チケット数は部分一致の数値として取り込まず、明細パスで拒否する", () => {
+  const groups = app.match(/const IMPORT_GROUPS = \[[\s\S]*?\n\];/)?.[0];
+  const validateStart = app.indexOf("function validateImportData(data) {");
+  const validateEnd = app.indexOf("\nfunction importStateFromFile", validateStart);
+  const context = vm.createContext({});
+  vm.runInContext(`${groups}\n${app.slice(validateStart, validateEnd)}\nglobalThis.validateImportData = validateImportData;`, context);
+  const validate = context.validateImportData;
+  assert.match(validate({ schemaVersion: 5, results: [
+    { id: "r1", income: { lp: "100abc", shards: 0 } }
+  ] }), /results\[0\]\.income\.lp/);
+  assert.match(validate({ schemaVersion: 5, entries: [
+    { id: "e1", cost: { lp: "2.5", shards: 0 } }
+  ] }), /entries\[0\]\.cost\.lp/);
+  assert.match(validate({ schemaVersion: 5, results: [
+    { id: "r1", income: { lp: "1,200", shards: 0, tickets: { persona: "2x" } } }
+  ] }), /results\[0\]\.income\.tickets\.persona/);
+  assert.equal(validate({ schemaVersion: 5, results: [
+    { id: "r1", income: { lp: "1,200", shards: 0, tickets: { persona: "2", pack: { A: 3 } } } }
+  ] }), null, "桁区切りを含む妥当な整数データは受け入れる");
+});
+
+test("JSONインポートはレコード配列の不正要素を適用前に拒否する", () => {
+  const groups = app.match(/const IMPORT_GROUPS = \[[\s\S]*?\n\];/)?.[0];
+  const validateStart = app.indexOf("function validateImportData(data) {");
+  const validateEnd = app.indexOf("\nfunction importStateFromFile", validateStart);
+  assert.ok(groups, "カテゴリ定義が取得できる");
+  assert.ok(validateStart >= 0 && validateEnd > validateStart, "インポート検証器が取得できる");
+  const validator = app.slice(validateStart, validateEnd);
+  const context = vm.createContext({});
+  vm.runInContext(`${groups}\n${validator}\nglobalThis.validateImportData = validateImportData;`, context);
+  const validate = context.validateImportData;
+
+  assert.match(validate({ schemaVersion: 5, results: [null] }), /results\[0\]/);
+  assert.match(validate({ schemaVersion: 5, entries: ["broken"] }), /entries\[0\]/);
+  assert.match(validate({ schemaVersion: 5, personaSrc: { name: "Custom", skills: "broken" } }),
+    /personaSrc\.skills は配列ではありません/);
+  assert.match(validate({ schemaVersion: 5, personaSrc: {
+    name: "Custom", skills: [{ rank: "スキル1", dice: "broken" }]
+  } }), /personaSrc\.skills\[0\]\.dice は配列ではありません/);
+  assert.match(validate({ schemaVersion: 5, roster: {
+    personas: [{ uid: "p1", build: { skills: "broken" } }]
+  } }), /roster\.personas\[0\]\.build\.skills は配列ではありません/);
+  assert.match(validate({ schemaVersion: 5, roster: {
+    personas: [{ uid: "p1", build: { skills: [{ rank: "スキル1", dice: "broken" }] } }]
+  } }), /roster\.personas\[0\]\.build\.skills\[0\]\.dice は配列ではありません/);
+  assert.match(validate({ schemaVersion: 5, draws: [{ batchHash: "broken" }] }), /draws\[0\]\.records/);
+  assert.match(validate({ schemaVersion: 5, draws: [{ records: [] }] }), /draws\[0\] に batchHash または commit/);
+  assert.equal(validate({ schemaVersion: 5, draws: [{ batchHash: "valid-hash", records: [] }] }), null,
+    "有効な抽選証明は受け入れる");
+  assert.match(validate({ schemaVersion: 5, draws: [{ batchHash: "valid-hash", records: [null] }] }),
+    /draws\[0\]\.records\[0\]/, "抽選記録の内部要素も検証する");
+  assert.match(validate({ schemaVersion: 5, results: [
+    { id: "same", name: "A" }, { id: "same", name: "B" }
+  ] }), /results\[1\] に重複ID/, "同じリザルトIDはインポート前に拒否する");
+  assert.match(validate({ schemaVersion: 5, entries: [
+    { id: "same", name: "A" }, { id: "same", name: "B" }
+  ] }), /entries\[1\] に重複ID/, "同じ明細IDはインポート前に拒否する");
+  assert.match(validate({ _lbtRosterOnly: true, roster: { personas: [null] } }), /roster\.personas\[0\]/);
+  assert.equal(validate({ schemaVersion: 5, results: [], entries: [], draws: [], roster: {
+    personas: [], egos: [], supports: [], spirits: []
+  } }), null, "正常な空セーブは受け入れる");
 });

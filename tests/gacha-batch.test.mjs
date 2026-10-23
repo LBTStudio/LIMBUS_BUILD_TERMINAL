@@ -337,7 +337,7 @@ test("テーマパック: 重複でも1回ぶんを請求し、欠片50は収入
   const dupes = batch.records.filter((r) => r.duplicate);
   assert.equal(dupes.length, 1, "2回目が重複");
   assert.equal(dupes[0].grantedShards, 50, "重複は欠片50");
-  const before = { ...base(), results: [{ id: "r1", income: { lp: 0, shards: 0 } }] };
+  const before = { ...base(), results: [{ id: "r1", income: { lp: pack.lp * 3, shards: 0 } }] };
   const next = w.appReducer(before, { type: "ADD_DRAW_BATCH", batch });
   /* roster.personas は名前を持たない（{uid,no,mode,…}）ので、
      重複の判定は mode:no で行う。名前で引くと必ず外れて嘘が出る。 */
@@ -377,6 +377,64 @@ const appState = (over) => ({
   results: [], entries: [], draws: [], gachaLog: [],
   roster: { personas: [], egos: [], supports: [], spirits: [] },
   ...over
+});
+
+test("人格抽選の最大出目は特異人格へ分岐し、所持・費用段階・通帳へ反映する", () => {
+  const drawer = loadDraw();
+  drawer.__balance = { lp: 100, shards: 0 };
+  const session = {
+    rolls: 0,
+    roll(max) {
+      this.rolls += 1;
+      if (this.rolls === 1) return max; // 人格プールの最大+1 = 特異人格へ分岐
+      if (this.rolls === 2) return 1;   // 特異人格の先頭
+      return 2;                         // 次の通常人格（所持品が更新された状態）
+    }
+  };
+  const state = appState({
+    results: [{ id: "r-special", name: "検証シナリオ", income: { lp: 100, shards: 0 } }]
+  });
+  const out = drawer.LBT_gachaDraw.drawN("persona", state, { pay: "paid", times: 3, session });
+  assert.equal(out.hits.length, 2, "100LPでは無料の初回と、有料の2回目まで");
+  assert.equal(out.hits[0].branch, "special", "最大+1の出目は特異人格ルート");
+  assert.equal(out.hits[0].mode, "t");
+  assert.equal(out.hits[1].mode, "n");
+  assert.equal(out.cost.lp, 100, "特異人格を先に引いても2回目から100LPになる");
+  assert.equal(out.stopped, "insufficientLP", "同一バッチ内で価格段階が更新される");
+  const [rawSpecial, rawNormal] = out.engineOut.results;
+  assert.equal(rawSpecial.kind, "specialPersona");
+  assert.equal(rawSpecial.item.kind, "specialPersona");
+  assert.equal(rawSpecial.cost.lp, 0);
+  assert.equal(rawNormal.cost.lp, 100);
+
+  const w = loadState(db);
+  const batch = {
+    schemaVersion: 1,
+    ruleset: "core",
+    kind: "persona",
+    count: 2,
+    commit: "special-persona-test-commit",
+    batchHash: "special-persona-test-batch",
+    records: out.engineOut.results.map((raw, index) => ({
+      index, kind: raw.kind, method: "draw", item: raw.item,
+      cost: raw.cost, duplicate: false, grantedShards: 0,
+      prev: index ? "special-persona-prev" : G.GENESIS_HASH, hash: `fixture-${index}`
+    }))
+  };
+  const before = {
+    ...base(),
+    results: [{ id: "r-special", name: "検証シナリオ", income: { lp: 100, shards: 0 } }]
+  };
+  const after = w.appReducer(before, { type: "ADD_DRAW_BATCH", batch });
+  assert.ok(after.roster.personas.some((p) => p.no === rawSpecial.item.no && p.mode === "t"),
+    "特異人格が mode=t として所持へ入る");
+  assert.ok(after.roster.personas.some((p) => p.no === rawNormal.item.no && p.mode === "n"),
+    "通常人格も通常モードで所持へ入る");
+  assert.equal(after.entries.reduce((sum, entry) => sum + (Number(entry.cost?.lp) || 0), 0), 100,
+    "通帳の費用合計が封緘レコードの100LPと一致する");
+  const ledger = after.entries.find((entry) => entry.name === rawSpecial.item.name && entry.ref?.kind === "rosterPersona");
+  assert.ok(ledger, "特異人格の取得明細が残る");
+  assert.equal(ledger.cost.lp, 0, "特異人格は実際の初回費用0LPで記録される");
 });
 
 test("drawN（通貨）: 残LPで回数が決まる。返した出目はそのまま封緘できる", () => {  const w = loadDraw();
@@ -434,6 +492,61 @@ test("drawN（チケット）: 無料のまま、同じ1本の鎖に載る", () 
   assert.equal(w.LBT_gachaDraw.verifyBatch(batch).ok, true, "経路が違っても検証は同じ1つ");
 });
 
+test("drawN（選択抽出チケット）: 人格・E.G.Oルートで共通チケットを消費できる", () => {
+  const w = loadDraw();
+  w.__balance = { lp: 0, shards: 0 };
+  w.__tickets = { persona: 0, ego: 0, choice: 2, pack: {} };
+  const out = w.LBT_gachaDraw.drawN("persona", appState(), {
+    pay: "ticket", ticketKind: "choice", times: 1, seed: "choice-ticket-seed"
+  });
+  assert.equal(out.ticketKind, "choice");
+  assert.equal(out.drawn, 1);
+  assert.equal(out.cost.lp, 0);
+  assert.equal(out.cost.shards, 0);
+  const batch = w.LBT_gachaDraw.sealBatch(out);
+  assert.equal(batch.ruleset, "core-ticket");
+  assert.equal(batch.kind, "persona");
+  assert.ok(batch.records.every((record) => record.method === "ticket"));
+  assert.equal(w.LBT_gachaDraw.verifyBatch(batch).ok, true);
+});
+
+test("テーマパックは所持レコードの No から名前を引き、重複時に欠片50へ変換する", () => {
+  const w = loadDraw();
+  const pack = themePacks.packs.find((item) => item.name === "属せない＆愛することのできない");
+  const ownedPersona = db.normal_personas.find((persona) => persona.name === "旧G社兵士");
+  assert.ok(pack && ownedPersona, "fixture pack/persona exists");
+  w.__balance = { lp: pack.lp, shards: 0 };
+  const state = appState({
+    results: [{ id: "owned-pack-test", name: "所持テスト", income: { lp: pack.lp, shards: 0 } }],
+    roster: {
+      personas: [{ uid: "old-g-persona", mode: "n", no: Number(ownedPersona.no), equipped: false }],
+      egos: [], supports: [], spirits: []
+    }
+  });
+  const session = { roll: () => 1 };
+  const out = w.LBT_gachaDraw.drawN("pack", state, {
+    pay: "paid", pack: pack.name, times: 1, session
+  });
+  assert.equal(out.engineOut.results[0].item.name, "旧G社兵士");
+  assert.equal(out.engineOut.results[0].duplicate, true, "所持には name が無くても No から重複判定する");
+  assert.equal(out.engineOut.results[0].grantedShards, 50);
+  assert.equal(out.cost.lp, pack.lp, "重複でもパックの価格は記録される");
+});
+
+test("テーマパックの抽選証明はパック名までハッシュで固定する", () => {
+  const pack = themePacks.packs[0];
+  const session = G.createSession({ serverSeed: "proof-pack-seed", clientSeed: "auditor" });
+  const out = gacha.drawBatch({
+    session, kind: "themePack", pack, heldNames: new Set(), lp: pack.lp, count: 1
+  });
+  const batch = G.finalizeBatch(out, session, { ruleset: "core", rulesetHash: gacha.rulesetHash });
+  assert.equal(batch.records[0].pack, pack.name);
+  assert.equal(G.verifyBatch(batch).ok, true);
+  const altered = structuredClone(batch);
+  altered.records[0].pack = "別のパック";
+  assert.equal(G.verifyBatch(altered).ok, false, "同じアイテム名でも抽選プールの出所を差し替えられない");
+});
+
 test("drawN: 同じ種なら確認画面で出目が変わらない（2段構えの前提）", () => {
   const w = loadDraw();
   w.__balance = { lp: 5000, shards: 5000 };
@@ -449,4 +562,29 @@ test("drawN: 1バッチ内で同じ人格を2度引かない", () => {
   const out = w.LBT_gachaDraw.drawN("persona", appState(), { pay: "paid", times: 8, seed: "dupe-check" });
   const nos = out.hits.map((x) => x.no);
   assert.equal(new Set(nos).size, nos.length, "重複なし");
+});
+
+
+test("抽選証明の検証は空バッチ・不正レコードを安全に不合格にする", () => {
+  const { batch } = finalizedBatch();
+  const malformed = structuredClone(batch);
+  malformed.records[1] = null;
+  const malformedResult = G.verifyBatch(malformed);
+  assert.equal(malformedResult.ok, false);
+  assert.ok(malformedResult.reasons.some((reason) => /records\[1\]/.test(reason)),
+    "不正レコードの位置を理由へ含める");
+  
+  const empty = structuredClone(batch);
+  empty.records = [];
+  empty.count = 0;
+  empty.batchHash = G.GENESIS_HASH;
+  const emptyResult = G.verifyBatch(empty);
+  assert.equal(emptyResult.ok, false, "シードが正しくても0件のバッチは抽選証明として合格させない");
+  assert.ok(emptyResult.reasons.some((reason) => /空/.test(reason)));
+  
+  const noHash = structuredClone(batch);
+  delete noHash.batchHash;
+  const noHashResult = G.verifyBatch(noHash);
+  assert.equal(noHashResult.ok, false);
+  assert.ok(noHashResult.reasons.some((reason) => /バッチハッシュ/.test(reason)));
 });

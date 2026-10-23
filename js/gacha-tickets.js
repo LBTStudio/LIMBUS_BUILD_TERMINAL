@@ -174,20 +174,35 @@
       egos: (state.roster?.egos || []).map((e) => e.no)
     };
     const method = options.method === "ticket" ? "ticket" : "draw";
+    const roster = state.roster || {};
+    // 所持ライブラリはDB参照型なので name を保存していない。
+    // No/モード（人格）とランク/No（E.G.O）から表示名を引き直さないと、
+    // theme-pack の「既所持なら欠片50」判定が常に false になる。
+    const ownedPersonaNames = (roster.personas || []).map((entry) => {
+      const pool = entry?.mode === "t" ? (window.DB?.tokui_personas || []) : (window.DB?.normal_personas || []);
+      const source = pool.find((persona) => String(persona?.no) === String(entry?.no));
+      return entry?.name || entry?.displayName || entry?.build?.personaSrc?.name || source?.name || "";
+    });
+    const ownedEgoNames = (roster.egos || []).map((entry) => {
+      const source = (window.DB?.egos || []).find((ego) =>
+        String(ego?.no) === String(entry?.no) && String(ego?.rank || "") === String(entry?.rank || "")
+      );
+      return entry?.name || entry?.displayName || entry?.build?.name || source?.name || "";
+    });
+    const heldNames = Array.from(new Set([...ownedPersonaNames, ...ownedEgoNames].filter(Boolean)));
     const input = {
       session: options.session,
       method,
       owned,
       count: options.capped == null ? want : Math.min(want, options.capped),
-      /* チケットは通貨を使わないので、残高を見wakeない。 */
+      /* チケットは通貨を使わないので、残高を見ない。 */
       lp: method === "ticket" ? Number.POSITIVE_INFINITY : (Number(balance.lp) || 0),
       shards: method === "ticket" ? Number.POSITIVE_INFINITY : (Number(balance.shards) || 0),
-      /* テーマパックの重複判定は、現在既に持っている名前で渡す。 */
-      heldNames: Array.from(
-        new Set([...(state.roster?.personas || []).map((p) => p.name), ...(state.roster?.egos || []).map((e) => e.name)].filter(Boolean))
-      )
+      heldNames
     };
-    if (route === "persona") return g.drawBatch({ ...input, kind: "persona" });
+    // 人格抽選の最大出目は「人格番号に対応しない +1」の枠。
+    // ここを渡さないと drawPersona の特異人格分岐がUI経由では永久に到達しない。
+    if (route === "persona") return g.drawBatch({ ...input, kind: "persona", plusOne: true, personaCountForCost: (state.roster?.personas || []).length });
     if (route === "ego") return g.drawBatch({ ...input, kind: "ego" });
     return g.drawBatch({ ...input, kind: "themePack", pack: options.pack || null });
   }
@@ -203,7 +218,11 @@
     const options = opts || {};
     const want = Math.max(1, Number.parseInt(options.times, 10) || 1);
     const pay = options.pay === "ticket" ? "ticket" : "paid";
-    const ticketKind = ticketKindFor(route);
+    // 選択抽出チケットは「人格かE.G.Oのどちらか」を選べる共通チケット。
+    // 特定パック以外では明示指定でき、通常のルート別チケットと同じ収支経路を使う。
+    const ticketKind = pay === "ticket" && route !== "pack" && options.ticketKind === "choice"
+      ? "choice"
+      : ticketKindFor(route);
     const ticketPack = route === "pack" ? (options.pack || null) : null;
     const held = pay === "ticket" ? ticketCount(state, ticketKind, ticketPack) : 0;
     if (pay === "ticket" && held <= 0) return { hits: [], reason: "no-ticket", remaining: held };

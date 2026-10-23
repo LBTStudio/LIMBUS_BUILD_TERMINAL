@@ -2045,21 +2045,33 @@ const hitLabel = (hit) => (hit.type === "ego"
    どちらの経路でも所得は直近のリザルトに帰属する（明細を立てる）。 */
 const GachaTicketsPanel = ({ state, dispatch }) => {
   const h = React.createElement;
+  const stateRef = React.useRef(state);
+  stateRef.current = state;
   const G = window.LBT_gachaDraw;
   const [route, setRoute] = React.useState("persona");
   const [pay, setPay] = React.useState("paid");
+  const [ticketPreference, setTicketPreference] = React.useState("specific");
   const [packName, setPackName] = React.useState("");
   const [last, setLast] = React.useState(null);
   const [times, setTimes] = React.useState(1);
   const ROUTES = G?.ROUTES || [];
   const packs = G?.themePacks?.() || [];
   const activePack = packName || packs[0]?.name || "";
-  const ticketKind = G?.ticketKindFor ? G.ticketKindFor(route) : "persona";
+  const specificTicketKind = G?.ticketKindFor ? G.ticketKindFor(route) : "persona";
   const ticketPack = route === "pack" ? activePack : null;
   const ticketBalanceAll = window.LBT_computeTicketBalance
     ? window.LBT_computeTicketBalance(state.results || [], state.entries || [])
     : { persona: 0, ego: 0, choice: 0, pack: {} };
-  const held = route === "pack"
+  const specificTicketHeld = route === "pack"
+    ? (Number(ticketBalanceAll.pack?.[ticketPack]) || 0)
+    : (Number(ticketBalanceAll[specificTicketKind]) || 0);
+  const choiceTicketHeld = route === "pack" ? 0 : (Number(ticketBalanceAll.choice) || 0);
+  const ticketKind = route === "pack"
+    ? "pack"
+    : (ticketPreference === "choice" && choiceTicketHeld > 0) || (specificTicketHeld <= 0 && choiceTicketHeld > 0)
+      ? "choice"
+      : specificTicketKind;
+  const held = ticketKind === "pack"
     ? (Number(ticketBalanceAll.pack?.[ticketPack]) || 0)
     : (Number(ticketBalanceAll[ticketKind]) || 0);
   const poolSize = route === "pack"
@@ -2099,23 +2111,24 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
      間にセーブデータが変わっても、対象が変わっても、出目は変わらない。
      2段目でそれを適用する。__noHistory を付けてUndo/Redoの履歴に載せない。 */
 
-  /* 出目の種。時刻やMath.randomは予測できるので使わない。 */
+  /* 出目の種は暗号学的乱数からのみ作る。弱い種にフォールバックすると、
+     抽選結果の予測困難性を保証できないため、利用できない環境では抽選を開始しない。 */
   const drawSeed = () => {
     const buf = new Uint32Array(4);
     const c = typeof window !== "undefined" ? (window.crypto || window.msCrypto) : null;
-    if (c && typeof c.getRandomValues === "function") {
+    if (!c || typeof c.getRandomValues !== "function") return null;
+    try {
       c.getRandomValues(buf);
-      return Array.from(buf).map((n) => n.toString(16).padStart(8, "0")).join("");
+    } catch (_) {
+      return null;
     }
-    /* crypto が無い環境（古いブラウザとテスト）向けの保険。
-       ここでは少なくとも時刻由来の重複を避ける。 */
-    return [Date.now().toString(16), Math.random().toString(16).slice(2)].join("x");
+    return Array.from(buf).map((n) => n.toString(16).padStart(8, "0")).join("");
   };
 
   /* 対象一覧を「その場で」確定する。プール搭建時に
      所持状態を読むので、呼び出した時点の顔がそのまま結果になる。 */
   const drawWithSeed = (seed) =>
-    G?.drawN(route, state, { pay, pack: activePack, times, seed });
+    G?.drawN(route, state, { pay, pack: activePack, ticketKind, times, seed });
 
   const [pending, setPending] = React.useState(null);
 
@@ -2123,6 +2136,10 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
     if (blockedReason) { toast(blockedReason); return; }
     /* ここで一度だけ出目を決める。以後は何をしても変わらない。 */
     const seed = drawSeed();
+    if (!seed) {
+      toast("暗号学的に安全な乱数源を利用できないため、抽選を開始できません。HTTPSまたはlocalhostで開き、ページを再読み込みしてください。");
+      return;
+    }
     const out = drawWithSeed(seed);
     if (!out || !out.hits || !out.hits.length) {
       const why = out?.reason === "no-ticket" ? "対応するチケットを持っていません" : "抽選できる対象がありません";
@@ -2177,9 +2194,6 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
     if (!pending) return;
     const { seed, out } = pending;
     const hits = out.hits;
-    if (out.paidBy === "ticket") {
-      dispatch({ type: "SPEND_TICKET", kind: out.ticketKind, pack: out.ticketPack, count: -hits.length });
-    }
     /* 結果をハッシュ鎖で封緘し、抽出リストへ積む。
        所持への反映もこの action の中で行うので、画面が数えた顔ではなく
        「封緘された顔」が入る。2つに分けると片方だけ後から狂う。
@@ -2200,38 +2214,55 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
         /* 署名できない環境（WebCrypto なし等）でも封緘までは残す。 */
       }
     }
-    if (batch) {
-      dispatch({ type: "ADD_DRAW_BATCH", __sealed: true, batch });
-    } else {
-      /* 検証器が無い環境（古い読み込み）は記録しないが、所持は残す。 */
-      dispatch({
-        type: "ADD_ROSTER_MANY",
-        cost: { lp: out.cost.lp || 0, shards: out.cost.shards || 0 },
-        adds: hits.filter((hit) => hit.type === "ego" || hit.type === "persona")
-      });
+    if (!batch) {
+      // 所持・残高を変えたのに抽選証明だけが欠落する状態は受け入れない。
+      // アセット不整合や検証器不在なら確定を中止し、利用者に再読込を促す。
+      setPending(null);
+      toast("抽選証明を作成できなかったため、今回は確定していません。所持・残高は変更していません。ページを再読み込みしてもう一度お試しください。");
+      return;
     }
-    /* 抽選の決定だけを記録に残す。Undoで巻き戻しても消えない。
-       種は出さず commit（種から計算した指紋）だけを持つ。 */
-    dispatch({
-      type: "ADD_GACHA_LOG",
-      __sealed: true,
-      entry: {
-        id: out.commit || `draw-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
-        at: new Date().toISOString(),
-        route,
-        times,
-        pay: out.paidBy,
-        cost: { lp: out.cost.lp || 0, shards: out.cost.shards || 0 },
-        hits: hits.map((hit) => ({ name: hit.name, type: hit.type, no: hit.no, rank: hit.rank, mode: hit.mode, pack: hit.pack, branch: hit.branch })),
-        commit: out.commit || null
+    const ticketSpend = out.paidBy === "ticket"
+      ? { kind: out.ticketKind, pack: out.ticketPack, count: hits.length }
+      : null;
+    const paidCost = ticketSpend ? null : {
+      lp: Number(out.cost.lp) || 0,
+      shards: Number(out.cost.shards) || 0
+    };
+    const drawLogEntry = {
+      id: out.commit || `draw-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+      at: new Date().toISOString(),
+      route,
+      times,
+      pay: out.paidBy,
+      cost: { lp: out.cost.lp || 0, shards: out.cost.shards || 0 },
+      hits: hits.map((hit) => ({ name: hit.name, type: hit.type, no: hit.no, rank: hit.rank, mode: hit.mode, pack: hit.pack, branch: hit.branch })),
+      commit: out.commit || null
+    };
+
+    const transaction = { type: "APPLY_DRAW_BATCH", batch, ticketSpend, cost: paidCost };
+    const currentState = stateRef.current || state;
+    const validation = window.LBT_validateDrawBatchApplication?.(currentState, transaction);
+    if (!validation?.ok) {
+      setPending(null);
+      if (validation?.reason === "insufficient-tickets") {
+        toast("確定前にチケット残数が変わったため、抽選を取り消しました。残数を確認してもう一度引いてください。");
+      } else if (validation?.reason === "insufficient-currency") {
+        toast("確定前にLP／欠片の残高が変わったため、抽選を取り消しました。残高を確認してもう一度引いてください。");
+      } else if (validation?.reason === "duplicate-batch") {
+        toast("この抽選記録は既に登録されています。重複登録を防ぐため確定を取り消しました。");
+      } else {
+        toast("抽選の確定前検証に失敗しました。状態を確認してもう一度お試しください。");
       }
-    });
+      return;
+    }
+    dispatch(transaction);
+    dispatch({ type: "ADD_DRAW_RECORD", __sealed: true, batch, entry: drawLogEntry });
     setLast({ hits, paidBy: out.paidBy, cost: out.cost, commit: out.commit || null, drawn: hits.length, requested: out.requested || hits.length, stopped: out.stopped || "complete" });
     setPending(null);
     const branched = hits.filter((x) => x.branch === "special").length;
     const note = branched ? `（うち特異人格チャンス ${branched}）` : "";
     const short = stopNote(out);
-    toast(`${hits.length}枚を抽出しました${note}（${out.paidBy === "ticket" ? ticketLabel(ticketKind, ticketPack) : out.cost.label}）${short ? ` ${short}` : ""}`);
+    toast(`${hits.length}枚を抽出しました${note}（${out.paidBy === "ticket" ? ticketLabel(out.ticketKind || ticketKind, out.ticketPack || ticketPack) : out.cost.label}）${short ? ` ${short}` : ""}`);
   };
 
   /* 途中で止まったときだけ、その理由と残りを書く。
@@ -2290,6 +2321,18 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
         key: v, type: "button", role: "radio", "aria-checked": pay === v,
         className: pay === v ? "is-active" : "", onClick: () => { setPay(v); setLast(null); }
       }, label))),
+    pay === "ticket" && route !== "pack" && choiceTicketHeld > 0 && specificTicketHeld > 0 &&
+      h("div", { className: "segmented", role: "radiogroup", "aria-label": "使用する抽出チケット" },
+        h("button", {
+          type: "button", role: "radio", "aria-checked": ticketKind === specificTicketKind,
+          className: ticketKind === specificTicketKind ? "is-active" : "",
+          onClick: () => { setTicketPreference("specific"); setLast(null); }
+        }, `${ticketLabel(specificTicketKind, null)} ×${specificTicketHeld}`),
+        h("button", {
+          type: "button", role: "radio", "aria-checked": ticketKind === "choice",
+          className: ticketKind === "choice" ? "is-active" : "",
+          onClick: () => { setTicketPreference("choice"); setLast(null); }
+        }, `${ticketLabel("choice", null)} ×${choiceTicketHeld}`)),
     /* 回数は抽選ボタンと同じ行に置く。数は自分で入れる。
        ±1/＋1/＋5 を置く意味が薄かった（任意の数字が直接入れられるため）。 */
     h("div", { className: "gacha-draw-row" },
@@ -2324,7 +2367,7 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
       h("span", { className: "t-label" }, `この内容で ${pending.out.hits.length} 件を記録します`),
       h("div", { className: "gacha-confirm-cost ledger-note" },
         pending.out.paidBy === "ticket"
-          ? `${ticketLabel(ticketKind, ticketPack)} を ${pending.out.hits.length} 枚使います`
+          ? `${ticketLabel(pending.out.ticketKind || ticketKind, pending.out.ticketPack || ticketPack)} を ${pending.out.hits.length} 枚使います`
           : `支払い ${pending.out.cost?.label || "無料"}`),
       /* 途中で止まる場合は、確定前に理由を書く。トーストは消えるので、
          「引けなかった分」はここに書いて残す。 */
@@ -3216,21 +3259,26 @@ function personaRefByName(name) {
 
    判定は「今この瞬間の所持」ではなく記録自身（duplicate / item.kind）で行う。
    所持で判定すると、この抽出で入れたばかりの分まで「所持にある」と出て嘘になる。 */
+const safeDrawRecord = (record) =>
+  record && typeof record === "object" && !Array.isArray(record) ? record : {};
+
 const drawRecordNote = (record) => {
-  if (record.duplicate) return `重複・欠片 ${record.grantedShards || 0}`;
-  const isPack = record.kind === "themePack" || record.item?.kind === "themePack";
+  const safe = safeDrawRecord(record);
+  if (safe.duplicate) return `重複・欠片 ${safe.grantedShards || 0}`;
+  const isPack = safe.kind === "themePack" || safe.item?.kind === "themePack";
   if (!isPack) return "";
   /* duplicate が立っていない = 引いた時点で持っていなかった = 所持へ入った。 */
-  return personaRefByName(record.item?.name) ? "所持へ追加" : "記録のみ（DBに人格データ無し）";
+  return personaRefByName(safe.item?.name) ? "所持へ追加" : "記録のみ（DBに人格データ無し）";
 };
 
 const drawRecordLine = (record) => {
-  const item = record?.item || {};
+  const safe = safeDrawRecord(record);
+  const item = safe.item && typeof safe.item === "object" && !Array.isArray(safe.item) ? safe.item : {};
   const no = item.no == null ? "" : ` No.${item.no}`;
-  const label = record.kind === "ego" ? `${item.rank || ""}${no}` : `${item.name || ""}${no}`;
-  const cost = record.cost || {};
+  const label = safe.kind === "ego" ? `${item.rank || ""}${no}` : `${item.name || ""}${no}`;
+  const cost = safe.cost && typeof safe.cost === "object" && !Array.isArray(safe.cost) ? safe.cost : {};
   const paid = cost.lp ? `LP ${cost.lp}` : cost.shards ? `欠片 ${cost.shards}` : "無料";
-  return { label: label.trim() || "（名前なし）", paid, note: drawRecordNote(record) };
+  return { label: label.trim() || "（名前なし）", paid, note: drawRecordNote(safe) };
 };
 
 const DrawLedgerPanel = ({ state }) => {
@@ -3343,7 +3391,7 @@ const DrawLedgerPanel = ({ state }) => {
       h("span", { className: "ledger-note" },
         batches.length === 0
           ? "0件"
-          : `${checked.length}件・${checked.length - broken}件が検証済み`),
+          : `${checked.length}件・${checked.length - broken}件のハッシュ鎖が正常`),
       /* 受け取った証明画像を照合する入口。検証はこの端末で完結する
          （相手の環境やサーバーに依存しない）。 */
       h("label", { className: "btn btn-sm", style: { cursor: "pointer" } },
@@ -3372,7 +3420,7 @@ const DrawLedgerPanel = ({ state }) => {
               h("div", { className: "draw-record-list" },
                 (verifyReport.batch.records || []).map((record, i) => {
                   const line = drawRecordLine(record);
-                  return h("div", { key: `${record.hash || i}`, className: "draw-record" },
+                  return h("div", { key: `${record?.hash || i}`, className: "draw-record" },
                     h("span", { className: "draw-record-label" }, line.label),
                     h("span", { className: "draw-record-cost" }, line.paid),
                     line.note ? h("span", { className: "draw-record-note" }, line.note) : null);
@@ -3392,7 +3440,7 @@ const DrawLedgerPanel = ({ state }) => {
          信用しているように見える。 */
       batches.length > 0 && broken === 0
         ? h("p", { className: "ledger-note" },
-          `この一覧は支出の証明です。合計 LP ${lp.toLocaleString("ja-JP")} / 欠片 ${shards.toLocaleString("ja-JP")}。`)
+          `ハッシュ鎖の整合性は確認済みです（署名・外部ビーコンは未検証）。合計は記録値です。真正性の完全検証は「証明画像を検証」で確認してください。合計 LP ${lp.toLocaleString("ja-JP")} / 欠片 ${shards.toLocaleString("ja-JP")}。`)
         : null,
       broken > 0
         ? h("div", { className: "draw-ledger-broken", role: "alert" },
@@ -3417,7 +3465,7 @@ const DrawLedgerPanel = ({ state }) => {
             [lpSum ? `LP ${lpSum}` : null, shardSum ? `欠片 ${shardSum}` : null].filter(Boolean).join(" / ") || "無料"),
           /* 検証状態は実際の状態なので、色と文字の両方で示す
              （色だけで伝えない）。 */
-          h("span", { className: `draw-batch-state${ok ? "" : " is-broken"}` }, ok ? "検証済み" : "検証に失敗"),
+          h("span", { className: `draw-batch-state${ok ? "" : " is-broken"}` }, ok ? "ハッシュ鎖OK" : "鎖不整合"),
           h("span", { className: "draw-batch-fp" }, fingerprint(batch.batchHash))),
           open && h("div", { className: "draw-batch-body" },
             !ok && h("ul", { className: "ledger-warn-list" },
@@ -3425,7 +3473,7 @@ const DrawLedgerPanel = ({ state }) => {
             h("div", { className: "draw-record-list" },
               records.map((record, i) => {
                 const line = drawRecordLine(record);
-                return h("div", { key: `${record.hash || i}`, className: "draw-record" },
+                return h("div", { key: `${record?.hash || i}`, className: "draw-record" },
                   h("span", { className: "draw-record-label" }, line.label),
                   h("span", { className: "draw-record-cost" }, line.paid),
                   line.note ? h("span", { className: "draw-record-note" }, line.note) : null);

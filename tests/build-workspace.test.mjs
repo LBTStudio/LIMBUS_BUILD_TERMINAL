@@ -449,8 +449,10 @@ test("ガチャは任意回数をまとめて引ける（既得は再抽選し�
   assert.match(read("../js/gacha-tickets.js"), /function seededSession\(seed\)/);
   assert.match(sections, /window\.crypto \|\| window\.msCrypto/);
   assert.match(sections, /getRandomValues\(buf\)/);
-  assert.match(sections, /G\?\.drawN\(route, state, \{ pay, pack: activePack, times, seed \}\)/);
-  assert.match(sections, /type: "SPEND_TICKET", kind: out\.ticketKind, pack: out\.ticketPack, count: -hits\.length/);
+  assert.match(sections, /G\?\.drawN\(route, state, \{ pay, pack: activePack, ticketKind, times, seed \}\)/);
+  /* チケットの消費明細は UI で個別の SPEND_TICKET を積まず、APPLY_DRAW_BATCH の
+     ticketSpend に載せて reducer 内の単一遷移で積む（二重計上を防ぐ）。 */
+  assert.match(sections, /const ticketSpend = out\.paidBy === "ticket"\s*\?\s*\{ kind: out\.ticketKind, pack: out\.ticketPack, count: hits\.length \}\s*: null;/);
   assert.match(sections, /抽選結果（\$\{last\.hits\.length\}件）/);
 });
 
@@ -1119,9 +1121,12 @@ test("ガチャ: 確認画面は出目を出さない（出目を見てから選
 
 test("ガチャ: 確定済みの抽出は Undo で消えない（記録・所持・支出が一緒に残る）", () => {
   const sections = read("../js/OtherSections.js");
-  assert.match(sections, /dispatch\(\{ type: "ADD_DRAW_BATCH", __sealed: true, batch \}\);/,
-    "ADD_DRAW_BATCH は __sealed 付き。無いと reseal が効かず Ctrl+Z で記録が消える");
-  assert.match(sections, /type: "ADD_GACHA_LOG",\s*__sealed: true,/);
+  /* 経済効果（所持・支出・チケット消費）と証明の保存は分かれている。
+     確定前の再検証を通った transaction だけが経済効果を適用する。 */
+  assert.match(sections, /const transaction = \{ type: "APPLY_DRAW_BATCH", batch, ticketSpend, cost: paidCost \};/,
+    "経済効果は APPLY_DRAW_BATCH。確定前検証を通ったものだけ適用する");
+  assert.match(sections, /dispatch\(\{ type: "ADD_DRAW_RECORD", __sealed: true, batch, entry: drawLogEntry \}\);/,
+    "ADD_DRAW_RECORD は __sealed 付き。無いと reseal が効かず Ctrl+Z で記録が消える");
   /* 受け側：sealed は履歴に載せず、巻き戻しのあとに打ち直す。 */
   const st = read("../js/state.js");
   assert.match(st, /if \(action && action\.__sealed\) \{[\s\S]{0,240}?sealsRef\.current\.push/);
