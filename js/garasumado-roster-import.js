@@ -981,7 +981,7 @@ function toIdentityChoices(hits) {
         spend: new Set((scenario.spends || []).map((s) => nameKey(spendNameOf(s)))),
         /* 同期・解析の対象名。同期できない品目は書けないので、
            「ここに同期の記載がある」= その品目が既に所持に存在した証拠になる。
-           単なる本文 언급より強い根拠として、獲得行と同列に扱う。 */
+           単なる本文での言及より強い根拠として、獲得行と同列に扱う。 */
         synced: new Set(syncTargetsOf(scenario.memo).map(nameKey).filter(Boolean)),
         text: nameKey(scenario.memo || "")
       });

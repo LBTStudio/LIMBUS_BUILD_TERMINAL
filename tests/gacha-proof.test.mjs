@@ -155,3 +155,11 @@ test("検証: 署名者ラベル(keyId)だけの差し替えも mismatch（表�
   assert.equal(v.state, "mismatch");
   assert.ok(v.reasons.some((r) => /識別子/.test(r)), `理由に識別子の不一致が出る（${v.reasons.join(" / ")}）`);
 });
+
+
+test("証明ラベルは完全な抽選公平性の証明と誤認させない", () => {
+  assert.equal(P.STATE_LABELS.verified, "記録整合性確認済み");
+  const source = readFileSync(new URL("../js/gacha-proof.js", import.meta.url), "utf8");
+  assert.match(source, /抽選結果の再計算とdrand署名の暗号学的検証は行っていません/);
+  assert.match(source, /drand値は結果決定後に記録へ添付され/);
+});

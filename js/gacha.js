@@ -782,12 +782,18 @@
     const themePacks = (config && config.themePacks) || {};
     const pool = buildPool(db);
     const packs = Array.isArray(themePacks.packs) ? themePacks.packs : [];
+    /* ルール表の指紋は抽選候補の識別に関わる内容を含める。
+       No と費用だけだと、同じNoの名前変更やE.G.Oランク変更があっても
+       rulesetHash が変わらず、後から定義が変わったことを判別できない。 */
     const rulesetHash = sha256Hex(canonicalize({
       rules: RULES,
-      personas: pool.personas.map((p) => p.no),
-      specialPersonas: pool.specialPersonas.map((p) => p.no),
-      egos: pool.egos.map((e) => [e.no, e.shards]),
-      packs: packs.map((p) => [p.name, p.lp, p.die, p.entries.map((e) => e.name)])
+      personas: pool.personas.map((p) => [p.no, p.name]),
+      specialPersonas: pool.specialPersonas.map((p) => [p.no, p.name]),
+      egos: pool.egos.map((e) => [e.rank, e.no, e.name, e.shards]),
+      packs: packs.map((p) => [
+        p.name, p.lp, p.die,
+        p.entries.map((e) => [e.no, e.name, e.book, e.page])
+      ])
     }));
     const findPack = (name) => packs.find((p) => p.name === name) || null;
     return {

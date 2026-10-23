@@ -640,9 +640,19 @@ function getStateSelfManagedStatusEntries(state) {
 function stateUsesBarrier(state) {
   return getStateSelfManagedStatusEntries(state).some((entry) => entry.label === "バリア");
 }
+function parsePositiveIntegerStrict(value) {
+  if (typeof value === "number") {
+    return Number.isSafeInteger(value) && value > 0 ? value : null;
+  }
+  if (typeof value !== "string") return null;
+  const text = value.trim();
+  if (!/^\d+$/.test(text)) return null;
+  const parsed = Number(text);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+}
 function normalizeItemMaxOwned(value) {
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? Math.min(99, parsed) : null;
+  const parsed = parsePositiveIntegerStrict(value);
+  return parsed === null ? null : Math.min(99, parsed);
 }
 function getItemMaxOwned(state, itemId) {
   const id = String(itemId || "");
@@ -651,7 +661,10 @@ function getItemMaxOwned(state, itemId) {
   return normalizeItemMaxOwned((official || custom)?.maxOwned) || 99;
 }
 function clampItemQuantity(state, itemId, quantity) {
-  return Math.min(getItemMaxOwned(state, itemId), Math.max(1, Number.parseInt(quantity, 10) || 1));
+  /* セーブが壊れていても "12abc" を12個と読み替えない。正しい整数以外は既定の1個へ安全に正規化し、
+     JSONインポートでは適用前に別途エラーとして拒否する。 */
+  const parsed = parsePositiveIntegerStrict(quantity);
+  return Math.min(getItemMaxOwned(state, itemId), parsed === null ? 1 : parsed);
 }
 window.LBT_getItemMaxOwned = getItemMaxOwned;
 window.LBT_detectSelfManagedStatuses = detectSelfManagedStatuses;
@@ -1598,7 +1611,7 @@ function normalizeStateShape(raw) {
   next.inventory = next.inventory.filter((entry) => entry && entry.itemId).map((entry) => ({
     uid: entry.uid || `it-${Date.now()}-${entry.itemId}`,
     itemId: String(entry.itemId),
-    quantity: Math.min(99, Math.max(1, Number.parseInt(entry.quantity, 10) || 1)),
+    quantity: parsePositiveIntegerStrict(entry.quantity) ?? 1,
     memo: entry.memo !== false,
     palette: entry.palette !== false,
     /* origin は「初期枠から来たのか、買ったのか」。旧保存データは買った側。 */
@@ -1618,7 +1631,34 @@ function normalizeStateShape(raw) {
     custom: true
   })).filter((item) => item.name && !seenCustomItemIds.has(item.id) && (seenCustomItemIds.add(item.id) || true));
   // 旧保存データも、現在の公式・オリジナル定義の上限へ正規化する。
-  next.inventory = next.inventory.map((entry) => ({ ...entry, quantity: clampItemQuantity(next, entry.itemId, entry.quantity) }));
+  /* 1アイテムIDにつき所持スタックは1行。破損した旧セーブに同じ itemId が複数行あると、
+     行ごとの maxOwned で合計上限を超えられ、追加時も先頭行だけ更新されてしまう。
+     ここで合算・上限適用し、削除や支出取消の参照UIDも代表行へ寄せる。 */
+  const inventoryByItemId = new Map();
+  const inventoryUidAliases = new Map();
+  for (const rawEntry of next.inventory) {
+    const itemId = String(rawEntry.itemId || "").trim();
+    if (!itemId) continue;
+    const entry = { ...rawEntry, itemId, quantity: clampItemQuantity(next, itemId, rawEntry.quantity) };
+    const current = inventoryByItemId.get(itemId);
+    if (!current) {
+      inventoryByItemId.set(itemId, entry);
+      continue;
+    }
+    current.quantity = clampItemQuantity(next, itemId, current.quantity + entry.quantity);
+    current.memo = current.memo !== false || entry.memo !== false;
+    current.palette = current.palette !== false || entry.palette !== false;
+    if (current.origin !== entry.origin) current.origin = "acquired";
+    if (entry.uid && current.uid && entry.uid !== current.uid) inventoryUidAliases.set(entry.uid, current.uid);
+  }
+  next.inventory = [...inventoryByItemId.values()];
+  if (inventoryUidAliases.size && Array.isArray(next.entries)) {
+    next.entries = next.entries.map((entry) => {
+      if (entry?.ref?.kind !== "inventory") return entry;
+      const uid = inventoryUidAliases.get(String(entry.ref.uid || ""));
+      return uid ? { ...entry, ref: { ...entry.ref, uid } } : entry;
+    });
+  }
   next.shareOptions = {
     showSyncRank: next.shareOptions?.showSyncRank !== false,
     showSyncRankInOutput: next.shareOptions?.showSyncRankInOutput === true
@@ -3447,7 +3487,12 @@ return appendLedgerEntry(next, {
     case "ADD_ITEM_INVENTORY": {
       const itemId = String(action.itemId || "");
       if (!itemId) return state;
-      const qty = Math.max(1, Number.parseInt(action.quantity, 10) || 1);
+      // 共有／移送で明示された数量は厳密に検証する。未指定だけを後方互換で1個とし、
+      // "12abc" や小数を部分一致で数量へ変換しない。
+      const qty = action.quantity === void 0 || action.quantity === null || action.quantity === ""
+        ? 1
+        : parsePositiveIntegerStrict(action.quantity);
+      if (qty === null) return state;
       const current = Array.isArray(state.inventory) ? state.inventory : [];
       const existing = current.find((entry) => entry.itemId === itemId);
       const inventory = existing
@@ -3555,12 +3600,21 @@ case "ADD_CUSTOM_ITEM": {
         inventory: (state.inventory || []).map((entry) => ({ ...entry, quantity: clampItemQuantity(next, entry.itemId, entry.quantity) }))
       };
     }
-    case "REMOVE_CUSTOM_ITEM":
-      return {
+    case "REMOVE_CUSTOM_ITEM": {
+      const id = String(action.id || "");
+      if (!id) return state;
+      const removedInventory = (state.inventory || []).filter((entry) => entry.itemId === id);
+      let next = {
         ...state,
-        customItems: (state.customItems || []).filter((item) => item.id !== action.id),
-        inventory: (state.inventory || []).filter((entry) => entry.itemId !== action.id)
+        customItems: (state.customItems || []).filter((item) => item.id !== id),
+        inventory: (state.inventory || []).filter((entry) => entry.itemId !== id),
+        initialItems: (state.initialItems || []).filter((itemId) => String(itemId) !== id)
       };
+      // 所持削除の契約を維持する。初期枠からも外し、購入時の通帳明細も
+      // 代表UID参照で削除する。定義だけ消して明細を残すと収支が不一致になる。
+      next = dropLedgerEntriesForRefs(next, "inventory", removedInventory.map((entry) => entry.uid));
+      return next;
+    }
     /* ---- Skills ---- */
     case "PATCH_SKILL": {
       const patch = action.patch || {};
