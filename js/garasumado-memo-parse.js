@@ -25,6 +25,15 @@
      受理する（「イゴ」は他人の入力に合わせ残す）。 */
   var EGO_WORDS = ["EGO", "ＥＧＯ", "E.G.O", "エゴ", "イゴ", " egos "];
 
+  /* 数値・通貨表記だけを解析する用途の正規化。実際の memo 本文や名前は書き換えない。 */
+  function normalizeNumericText(value) {
+    return String(value ?? "")
+      .replace(/[\uFF01-\uFF5E]/g, function (ch) {
+        return String.fromCharCode(ch.charCodeAt(0) - 0xFEE0);
+      })
+      .replace(/\u3000/g, " ");
+  }
+
   function hasShard(text) {
     for (var i = 0; i < SHARD_WORDS.length; i++) {
       if (String(text).indexOf(SHARD_WORDS[i]) >= 0) return true;
@@ -32,7 +41,7 @@
     return false;
   }
   function hasLp(text) {
-    return /lp/i.test(String(text));
+    return /lp/i.test(normalizeNumericText(text));
   }
   function currencyOf(text) {
     if (hasShard(text)) return "shards";
@@ -55,7 +64,7 @@
      「因子コード G-5購入 7LP」のように識別子に数字が混ざっていても、
      通貨名に隣接する数値を採る（7 が金額、G-5 の 5 は識別子）。 */
   function amountOf(line) {
-    var cleaned = String(line)
+    var cleaned = normalizeNumericText(line)
       .replace(/現在[：:]?\s*(LP|欠片|かけら|欠けら|カケラ)?\s*-?\d+/gi, " ")
       .replace(/残り\s*-?\d+/gi, " ")
       .replace(/へ\s*$/, " ");
@@ -75,7 +84,7 @@
     /* 「チケット」だけでなく略字の「チケ」も受ける。実データに
        「ガチャチケ1枚　第四銀工房銃鎚派」がある。 */
     if (!/チケ|チケット/.test(line)) return null;
-    var text = String(line);
+    var text = normalizeNumericText(line);
     var count = 1;
     var cm = text.match(/[x×]\s*(\d+)/);
     if (cm) count = parseInt(cm[1], 10);
@@ -95,19 +104,20 @@
      副語に E.G.O があれば E.G.O 抽出、無ければ人格抽出。
      数字無し「人格抽出：南部〜」も 1 回として数える。 */
   function bareDrawOf(line) {
-    var m = String(line).match(/(?:抽出|ガチャ)\s*(\d+)?/);
+    var text = normalizeNumericText(line);
+    var m = text.match(/(?:抽出|ガチャ)\s*(\d+)?/);
     if (!m) return null;
     /* 「時間殺人時間テーマパック抽出」はパックの獲得であり、チケットの消費ではない。 */
-    if (/パック/.test(String(line))) return null;
+    if (/パック/.test(text)) return null;
     var count = m[1] ? parseInt(m[1], 10) : 1;
-    var isEgo = EGO_WORDS.some(function (w) { return String(line).indexOf(w) >= 0; }) || /ガチャ/.test(line);
+    var isEgo = EGO_WORDS.some(function (w) { return text.indexOf(w) >= 0; }) || /ガチャ/.test(text);
     return { kind: isEgo ? "ego" : "persona", count: count };
   }
 
   /* 「+154」や「45+5」を 1 つの額に。「45+5」は加算の連なり（=50）、
      先頭の符号だけが全体の符号（「-15」は -15 のまま）。 */
   function chainSum(raw) {
-    var s = String(raw).replace(/＋/g, "+").replace(/\s+/g, "");
+    var s = normalizeNumericText(raw).replace(/＋/g, "+").replace(/\s+/g, "");
     var sign = 1;
     if (s.charAt(0) === "-") { sign = -1; s = s.slice(1); }
     else if (s.charAt(0) === "+") s = s.slice(1);
@@ -130,7 +140,7 @@
      文脈継承で拾うと帳簿に幻の収入が乗る。実測 202 行 +32396）。
      現在/残の直後は残額なので先に伏せる。 */
   function incomePairs(line) {
-    var text = String(line)
+    var text = normalizeNumericText(line)
       .replace(/現在[：:]?\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ)?\s*-?\d+(?:\s*[+＋]\s*\d+)*(?:\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ))?/gi, " ")
       .replace(/残り?\s*-?\d+(?:\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ))?/gi, " ")
       /* 「300LPへ」は支払後の残高に振り直す書き方。額ではなく結果。 */
@@ -178,12 +188,12 @@
      読み違えるので読まない。通貨語がどこかにあればラベル経路が優先される。 */
   function parseBareStack(lines) {
     var res = { lp: 0, shards: 0 };
-    var joined = lines.join("\n");
+    var joined = normalizeNumericText(lines.join("\n"));
     if (/(LP|ＬＰ|欠片|かけら|欠けら|カケラ)/i.test(joined)) return res;
     var runs = [];
     var cur = [];
     for (var i = 0; i < lines.length; i++) {
-      var t = String(lines[i] || "").trim();
+      var t = normalizeNumericText(lines[i] || "").trim();
       if (/^\d+$/.test(t)) { cur.push(parseInt(t, 10)); continue; }
       if (cur.length) { runs.push(cur); cur = []; }
     }
@@ -200,7 +210,7 @@
      見出しが無い裸の「N/M」は読まない（日付・分数と区別できない）。 */
   function parseSlashPairs(memo) {
     var res = { lp: 0, shards: 0 };
-    var lines = String(memo || "").split(/\r?\n/);
+    var lines = normalizeNumericText(memo).split(/\r?\n/);
     var order = null;
     var headerAt = -1;
     for (var i = 0; i < lines.length; i++) {
@@ -234,7 +244,7 @@
   /* アイテムの効果説明文。「▶︎〜」で始まる行や、
      「〜を得る」「〜を獲得する」で終わる行は説明であって金額行ではない。 */
   function isNarrativeLine(line) {
-    var t = String(line);
+    var t = normalizeNumericText(line);
     if (/^\s*[▶►▷]\s*/.test(t)) return true;
     if (/(得る|獲得する|消費する|半減し|発動する)/.test(t) && !/\d\s*(LP|欠片|かけら|欠けら|カケラ)/.test(t)) return true;
     return false;
