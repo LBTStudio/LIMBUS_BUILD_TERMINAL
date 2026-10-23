@@ -268,6 +268,25 @@ test("カンマ区切りの通貨額は全体で読み、壊れた桁区切り�
   assert.equal(invalidSpend.spends[0].shards, 0, "不正なカンマ値を 20 欠片にしない");
 });
 
+test("パック別抽出チケットは通常チケットと重複せず、特殊キーも保持する", () => {
+  const normalPack = MEMO.parseMemo("〈肉斬骨断〉抽出チケットx2");
+  assert.equal(normalPack.tickets.persona, 0, "パック専用チケットを通常の人格チケットに加算しない");
+  assert.equal(normalPack.pack["肉斬骨断"], 2);
+
+  const protoPack = MEMO.parseMemo("〈__proto__〉抽出チケットx2");
+  assert.equal(protoPack.tickets.persona, 0);
+  assert.equal(protoPack.pack["__proto__"], 2, "__proto__ は通常のパック名として保存");
+  assert.equal(Object.prototype.hasOwnProperty.call(protoPack.pack, "__proto__"), true, "__proto__ はown propertyとして保持");
+  assert.equal(Object.getPrototypeOf(protoPack.pack).constructor.name, "Object", "オブジェクトのプロトタイプを数値で上書きしない");
+
+  const constructorPack = MEMO.parseMemo("〈constructor〉抽出チケットx3");
+  assert.equal(constructorPack.pack.constructor, 3, "constructor を関数に連結しない");
+
+  const zeroPack = MEMO.parseMemo("〈Zero〉抽出チケットx0");
+  assert.equal(zeroPack.pack.Zero, 0, "明示されたパックチケット0枚は1枚へ化けない");
+  assert.equal(zeroPack.tickets.persona, 0);
+});
+
 test("チケットの個数と種別を読む", () => {
   const a = MEMO.parseMemo("抽出チケットx1：シュエ家私兵の人格");
   assert.equal(a.tickets.persona, 1);

@@ -539,7 +539,26 @@
          ダイス条件（「・1d100を…出した人は…チケットを1枚」）も獲得扱いしない。 */
       if (isBullet && /消費|使用済|使用し|d\d{2,}/.test(line) && /チケ|チケット|抽出|ガチャ/.test(line)) continue;
 
-      var tk = ticketOf(line);
+      /* パック別チケットは通常の人格抽出チケットと別勘定。先に記録し、
+         __proto__ / constructor 等もそのままデータのキーとして保持する。 */
+      var packTicketMatch = mode === "income" ? line.match(/[〈《]([^〉》]+)[〉》]?\s*抽出チケット/) : null;
+      if (packTicketMatch) {
+        var normalizedPackLine = normalizeAmountText(line);
+        var packCountMatch = normalizedPackLine.match(/[x×]\s*(\d+)/);
+        var packCount = packCountMatch ? Number(packCountMatch[1]) : 1;
+        var packName = packTicketMatch[1];
+        var existingPackCount = Object.prototype.hasOwnProperty.call(pack, packName) ? pack[packName] : 0;
+        var nextPackCount = existingPackCount + packCount;
+        if (!Number.isSafeInteger(packCount) || packCount < 0 || !Number.isSafeInteger(nextPackCount)) {
+          reasons.push({ line: line, reason: "パック抽出チケットの個数が安全整数の範囲を超えています" });
+        } else {
+          Object.defineProperty(pack, packName, {
+            value: nextPackCount, enumerable: true, configurable: true, writable: true
+          });
+        }
+      }
+
+      var tk = packTicketMatch ? null : ticketOf(line);
       if (tk) {
         tickets[tk.kind] += tk.count;
         /* チケットからどの人格/E.G.Oを得たか。ソースの書式は
@@ -579,7 +598,7 @@
 
   /* 「抽出1：E.G.O:提灯」のような「抽出NN」だけの行。
            チケット行と二重に数えない（抽出の語を含むため）。 */
-        var bd = bareDrawOf(line);
+        var bd = packTicketMatch ? null : bareDrawOf(line);
         if (bd) {
           tickets[bd.kind] += bd.count;
           /* 抽出0 は回数も獲得候補もゼロ。名前があるだけで所持へ追加しない。 */
@@ -613,15 +632,6 @@
       if (isTotalOnlyLine(line)) {
         if (mode === "spend") continue;
         if (/(^|[\s　:：])0\s*(LP|欠片|かけら|欠けら|カケラ)/i.test(line)) continue;
-      }
-
-      /* パック別チケット「〈肉斬骨断〉抽出チケット」 */
-      var pm = line.match(/[〈《]([^〉》]+)[〉》]?\s*抽出チケット/);
-      if (pm) {
-        var pn = line.match(/[x×]\s*(\d+)/);
-        var pname = pm[1];
-        pack[pname] = (pack[pname] || 0) + (pn ? parseInt(pn[1], 10) || 1 : 1);
-        continue;
       }
 
       if (mode !== "income") {
