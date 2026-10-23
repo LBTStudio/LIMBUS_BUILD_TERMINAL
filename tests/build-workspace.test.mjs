@@ -439,12 +439,12 @@ test("ガチャは任意回数をまとめて引ける（既得は再抽選し�
   assert.match(sections, /totalCost\.lp > 0 && Number\(balance\.lp\) < totalCost\.lp/);
   assert.match(sections, /totalCost\.shards > 0 && Number\(balance\.shards\) < totalCost\.shards/);
   assert.match(sections, /const ticketShort = pay === "ticket" && held < times;/);
-  assert.match(sections, /onClick: requestDraw, disabled: !!blockedReason, title: blockedReason \|\| undefined/);
+  assert.match(sections, /onClick: requestDraw, disabled: !!blockedReason \|\| !!pending, title: blockedReason \|\| undefined/);
   assert.match(sections, /blockedReason && h\("p", \{ className: "ledger-note", role: "status" \}, blockedReason\)/);
   assert.match(sections, /if \(blockedReason\) \{ toast\(blockedReason\); return; \}/);
   /* 確認を挟む。押しただけでは何も入らない。 */
   assert.match(sections, /const requestDraw = \(\) => \{/);
-  assert.match(sections, /const seed = drawSeed\(\);[\s\S]{0,420}?setPending\(\{ seed, out \}\);/);
+  assert.match(sections, /const seed = drawSeed\(\);[\s\S]{0,520}?setPending\(\{ seed, out, request: \{ route, pay, pack: activePack, ticketKind, times \} \}\);/);
   assert.match(sections, /className: "gacha-confirm"/);
   assert.match(sections, /\}, "確定する"\)/);
   /* 種は暗号学的乱数から作る。時刻やMath.randomは予測できる。 */
@@ -1114,7 +1114,7 @@ test("ガチャ: 確認画面は出目を出さない（出目を見てから選
   assert.doesNotMatch(block, /gacha-result-row/);
   assert.doesNotMatch(block, /pending\.out\.hits\.map/);
   /* 出目が出ないことを画面上で明示する。 */
-  assert.match(block, /この画面では出目を出しません/);
+  assert.match(block, /確認中は抽出方法・パック・支払い方法・回数を固定しています/);
   /* やめるボタンは「まだ引かない」。引いた結果を消しているように
      読まれる文言は使わない。 */
   assert.match(block, /\}, "まだ引かない"\)/);
