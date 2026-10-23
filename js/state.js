@@ -361,7 +361,7 @@ function syncCustomEgoState(next) {
   const egos = [...(next.roster?.egos || [])];
   for (const [rank, slot] of Object.entries(slots)) {
     if (!slot?.__custom) continue;
-    const index = egos.findIndex((entry) => entry.rank === rank && entry.no === slot.no);
+    const index = egos.findIndex((entry) => entry.rank === rank && String(entry.no) === String(slot.no));
     const entry = { ...(index >= 0 ? egos[index] : { uid: `er-${slot.no}`, no: slot.no, rank, notes: "", analyzeMax: false }), analyzed: true, build: cloneJSON(slot) };
     if (index >= 0) egos[index] = entry;
     else egos.push(entry);
@@ -4124,7 +4124,7 @@ case "ADD_CUSTOM_ITEM": {
       if (!slot) return state;
       const dbEgo = (window.DB?.egos || []).find((e) => String(e.no ?? "") === String(slot.no ?? "") && e.rank === rank);
       if (!dbEgo) return state;
-      const egos = (state.roster.egos || []).map((e) => e.rank === rank && e.no === slot.no && e.build ? { ...e, build: null } : e);
+      const egos = (state.roster.egos || []).map((e) => e.rank === rank && String(e.no) === String(slot.no) && e.build ? { ...e, build: null } : e);
       const nextEgoSlots = normalizeEgoSlots({ ...state.egoSlots, [rank]: cloneJSON(dbEgo) });
       return syncCustomEgoState({ ...state, egoSlots: nextEgoSlots, roster: { ...state.roster, egos } });
     }
@@ -4132,7 +4132,7 @@ case "ADD_CUSTOM_ITEM": {
       let nextValue = action.value ? cloneJSON(action.value) : null;
       // V01/V25: 所持EGOに保存済みの解析ビルドがあれば DB 既定の代わりにそちらを装備する。
       if (nextValue) {
-        const saved = (state.roster.egos || []).find((e) => e.rank === action.rank && e.no === nextValue.no && e.build);
+        const saved = (state.roster.egos || []).find((e) => e.rank === action.rank && String(e.no) === String(nextValue.no) && e.build);
         if (saved) nextValue = { ...nextValue, ...cloneJSON(saved.build) };
       }
 /* 装備は所持を確定させない。所持への登録は ADD_ROSTER_EGO（指定購入＝欠片を請求、
@@ -4156,7 +4156,7 @@ case "ADD_CUSTOM_ITEM": {
       if (!slot) return state;
       const build = { savedAt: Date.now(), ...cloneJSON(slot) };
       const egos = (state.roster.egos || []).slice();
-      const idx = egos.findIndex((e) => e.rank === rank && e.no === slot.no);
+      const idx = egos.findIndex((e) => e.rank === rank && String(e.no) === String(slot.no));
       const wasAnalyzed = idx >= 0 && (egos[idx].analyzed === true || egos[idx].analyzeMax === true);
       /* 解析は危険度ランク分の自我の欠片を支払う（supplement P7）。保存のたびに
          取るのは誤りで、解析を初めて確定させた1回だけ。既に解析済みなら積まない。
