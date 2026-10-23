@@ -1748,14 +1748,32 @@ function parsePriceText(raw, defaultUnit) {
      溢れない。各通貨は最初に見つかった対を採る。 */
   let lp = 0;
   let shards = 0;
-  for (const m of text.matchAll(/(\d+)\s*(?:LP|SHARD|欠片|欠)|(?:LP|SHARD|欠片|欠)\s*(\d+)/gi)) {
-    const amount = m[1] !== undefined ? m[1] : m[2];
-    const unit = m[0].replace(/\d+/g, "").replace(/\s+/g, "");
+  /* 桁区切り付き金額をひとまとまりとして読む。単純な \d+ では
+     「1,200LP」が「200LP」に途中一致し、支出が1,000LP少なく記録される。 */
+  const amountPattern = "(?:\\d{1,3}(?:,\\d{3})+|\\d+)";
+  const unitPattern = "(?:LP|SHARD|欠片|欠)";
+  const pricePairs = new RegExp(
+    "(" + amountPattern + ")\\s*(" + unitPattern + ")(?![A-Z])"
+      + "|(" + unitPattern + ")\\s*(" + amountPattern + ")(?![\\d,])",
+    "gi"
+  );
+  for (const m of text.matchAll(pricePairs)) {
+    let amount;
+    let unit;
+    if (m[1] !== undefined) {
+      /* 「1,20LP」のような不正な桁区切りで末尾の「20LP」だけを採らない。 */
+      if (/[\d,]/.test(text[m.index - 1] || "")) continue;
+      amount = m[1];
+      unit = m[2];
+    } else {
+      amount = m[4];
+      unit = m[3];
+    }
     if (/SHARD|欠/i.test(unit)) { if (!shards) shards = amount; }
     else if (!lp) lp = amount;
   }
   if (lp || shards) return normalizeCurrency({ lp, shards });
-  const bare = text.match(/^(\d+)$/);
+  const bare = text.match(/^((?:\d{1,3}(?:,\d{3})+|\d+))$/);
   return normalizeCurrency(bare ? (defaultUnit === "shards" ? { shards: bare[1] } : { lp: bare[1] }) : {});
 }
 window.LBT_parsePriceText = parsePriceText;
