@@ -1762,7 +1762,7 @@ function parsePriceText(raw, defaultUnit) {
     let unit;
     if (m[1] !== undefined) {
       /* 「1,20LP」のような不正な桁区切りで末尾の「20LP」だけを採らない。 */
-      if (/[\\d,]/.test(text[m.index - 1] || "")) continue;
+      if (/[\d,]/.test(text[m.index - 1] || "")) continue;
       amount = m[1];
       unit = m[2];
     } else {
