@@ -3487,7 +3487,12 @@ return appendLedgerEntry(next, {
     case "ADD_ITEM_INVENTORY": {
       const itemId = String(action.itemId || "");
       if (!itemId) return state;
-      const qty = Math.max(1, Number.parseInt(action.quantity, 10) || 1);
+      // 共有／移送で明示された数量は厳密に検証する。未指定だけを後方互換で1個とし、
+      // "12abc" や小数を部分一致で数量へ変換しない。
+      const qty = action.quantity === void 0 || action.quantity === null || action.quantity === ""
+        ? 1
+        : parsePositiveIntegerStrict(action.quantity);
+      if (qty === null) return state;
       const current = Array.isArray(state.inventory) ? state.inventory : [];
       const existing = current.find((entry) => entry.itemId === itemId);
       const inventory = existing
@@ -3595,12 +3600,21 @@ case "ADD_CUSTOM_ITEM": {
         inventory: (state.inventory || []).map((entry) => ({ ...entry, quantity: clampItemQuantity(next, entry.itemId, entry.quantity) }))
       };
     }
-    case "REMOVE_CUSTOM_ITEM":
-      return {
+    case "REMOVE_CUSTOM_ITEM": {
+      const id = String(action.id || "");
+      if (!id) return state;
+      const removedInventory = (state.inventory || []).filter((entry) => entry.itemId === id);
+      let next = {
         ...state,
-        customItems: (state.customItems || []).filter((item) => item.id !== action.id),
-        inventory: (state.inventory || []).filter((entry) => entry.itemId !== action.id)
+        customItems: (state.customItems || []).filter((item) => item.id !== id),
+        inventory: (state.inventory || []).filter((entry) => entry.itemId !== id),
+        initialItems: (state.initialItems || []).filter((itemId) => String(itemId) !== id)
       };
+      // 所持削除の契約を維持する。初期枠からも外し、購入時の通帳明細も
+      // 代表UID参照で削除する。定義だけ消して明細を残すと収支が不一致になる。
+      next = dropLedgerEntriesForRefs(next, "inventory", removedInventory.map((entry) => entry.uid));
+      return next;
+    }
     /* ---- Skills ---- */
     case "PATCH_SKILL": {
       const patch = action.patch || {};
