@@ -270,6 +270,22 @@ test("バッチ錨: 外部ビーコンは後から差し込める（round を錨
 function loadState(realDb) {
   const source = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
   const context = {
+    window: {
+      DB: realDb || { support_passives: [], death_passives: [], spirits: [], items: [] },
+      LBT_gacha: G
+    },
+    console, setTimeout, clearTimeout, URL, TextEncoder, TextDecoder,
+    React: { useReducer: () => {}, useRef: () => ({ current: null }), useState: () => [null, () => {}], useEffect: () => {} }
+  };
+  context.globalThis = context;
+  vm.createContext(context);
+  vm.runInContext(source, context);
+  return context.window;
+}
+
+function loadStateWithoutDrawVerifier(realDb) {
+  const source = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
+  const context = {
     window: { DB: realDb || { support_passives: [], death_passives: [], spirits: [], items: [] } },
     console, setTimeout, clearTimeout, URL, TextEncoder, TextDecoder,
     React: { useReducer: () => {}, useRef: () => ({ current: null }), useState: () => [null, () => {}], useEffect: () => {} }
@@ -405,6 +421,42 @@ test("抽選レコードのno・人格モード・E.G.Oランクの不正値を�
   assert.equal(w.LBT_validateDrawBatchApplication(base(), { type: "ADD_DRAW_BATCH", batch: makeBatch("ego", { kind: "ego", no: 1, rank: "INVALID" }) }).reason, "invalid-ego-item");
 });
 
+
+test("schema v2 の改変済みバッチは所持・通帳へ適用しない", () => {
+  const w = loadState(db);
+  const { batch } = finalizedBatch();
+  const tampered = structuredClone(batch);
+  tampered.records[0].item.name = "改変された抽選対象";
+
+  const result = w.LBT_validateDrawBatchApplication(base(), { type: "ADD_DRAW_BATCH", batch: tampered });
+  assert.equal(result.ok, false, "record の改変は確定前に拒否する");
+  assert.equal(result.reason, "invalid-batch-proof");
+  const next = w.appReducer(base(), { type: "ADD_DRAW_BATCH", batch: tampered });
+  assert.equal(next.draws.length, 0, "改変バッチを抽選証明へ保存しない");
+  assert.equal(next.roster.personas.length, 0, "改変バッチを所持へ反映しない");
+  assert.equal(next.entries.length, 0, "改変バッチの支出も記録しない");
+});
+
+test("schema v2 は検証器が無い環境で適用しない一方、schema v1 の互換性を保つ", () => {
+  const w = loadState(db);
+  const { batch } = finalizedBatch();
+  const withoutVerifier = loadStateWithoutDrawVerifier(db);
+  const result = withoutVerifier.LBT_validateDrawBatchApplication(base(), { type: "ADD_DRAW_BATCH", batch });
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "draw-proof-verifier-unavailable");
+
+  const legacy = {
+    schemaVersion: 1, ruleset: "core", kind: "persona", count: 1,
+    commit: "legacy-persona-kind", batchHash: "legacy-persona-kind-hash",
+    records: [{
+      index: 0, kind: "persona", item: { no: 999, mode: "n" },
+      cost: { lp: 0, shards: 0 }, duplicate: false, grantedShards: 0
+    }]
+  };
+  const legacyResult = w.LBT_validateDrawBatchApplication(base(), { type: "ADD_DRAW_BATCH", batch: legacy });
+  assert.equal(legacyResult.ok, true, "旧形式の既存契約は維持する");
+});
+
 test("ADD_DRAW_BATCH は同じ内容を二重に入れない", () => {
   const w = loadState(db);
   const { batch } = finalizedBatch();
@@ -426,6 +478,10 @@ test("テーマパック: DBに人格がある項目は所持へ入り、無い�
   const session = scripted([pack.entries.indexOf(inDb) + 1, pack.entries.indexOf(notInDb) + 1]);
   const out = gacha.drawBatch({ session, kind: "themePack", pack, heldNames: new Set(), lp: pack.lp * 2, count: 2 });
   const batch = G.finalizeBatch(out, session, { rulesetHash: gacha.rulesetHash });
+  /* scripted() は実際のseed/rollsを再現しないテストダブルのため、
+     ここでは適用処理の検証用に legacy 形式として固定する。 */
+  batch.schemaVersion = 1;
+  delete batch.integrityHash;
   const next = w.appReducer(base(), { type: "ADD_DRAW_BATCH", batch });
 
   assert.equal(next.roster.personas.length, 1, "DBにある1件だけ所持へ入る");
@@ -455,6 +511,10 @@ test("テーマパック: 重複でも1回ぶんを請求し、欠片50は収入
     lp: pack.lp * 3, count: 3
   });
   const batch = G.finalizeBatch(out, session, { rulesetHash: gacha.rulesetHash });
+  /* scripted() は実際の seed/rolls を再現しないテストダブルなので、ここでは
+     重複報酬と帳簿処理だけを検証する legacy 形式として扱う。 */
+  batch.schemaVersion = 1;
+  delete batch.integrityHash;
   const dupes = batch.records.filter((r) => r.duplicate);
   assert.equal(dupes.length, 1, "2回目が重複");
   assert.equal(dupes[0].grantedShards, 50, "重複は欠片50");

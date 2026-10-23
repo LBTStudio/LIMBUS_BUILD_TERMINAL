@@ -3090,6 +3090,31 @@ function validateDrawBatchApplication(state, action) {
     return { ok: false, reason: "duplicate-batch" };
   }
   if (!batch.records.length) return { ok: false, reason: "empty-batch" };
+
+  /* 現行 schema v2 は、ハッシュ鎖・seed/rolls・メタデータ整合性を検査してから
+     所持・通帳へ適用する。形状と料金だけの検証では、record を変更しても
+     hash chain を検査せず経済効果が適用され得る。旧 v1 は後方互換のため
+     従来どおり形状検証で受け入れる。検証器が欠落している環境は fail closed。 */
+  if (Number(batch.schemaVersion) >= 2) {
+    const verifyBatch = window.LBT_gacha?.verifyBatch;
+    if (typeof verifyBatch !== "function") {
+      return { ok: false, reason: "draw-proof-verifier-unavailable" };
+    }
+    let proof;
+    try {
+      proof = verifyBatch(batch);
+    } catch (_) {
+      return { ok: false, reason: "invalid-batch-proof" };
+    }
+    if (!proof?.ok) {
+      return {
+        ok: false,
+        reason: "invalid-batch-proof",
+        proofReasons: Array.isArray(proof?.reasons) ? proof.reasons : []
+      };
+    }
+  }
+
   const recordShapes = validateDrawRecordShapes(batch);
   if (!recordShapes.ok) return recordShapes;
 
