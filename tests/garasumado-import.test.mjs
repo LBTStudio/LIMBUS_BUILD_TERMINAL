@@ -720,7 +720,12 @@ test("manifest は「解けた／解けない」を区別して出す", () => {
 });
 
 test("壊れた値でも manifest を落とさない", () => {
-  for (const bad of [{}, null, { owned: null }, { owned: { personas: null } }, { owned: { personas: [null, {}, 3] } }]) {
+  for (const bad of [
+    {}, null, { owned: null }, { owned: { personas: null } }, { owned: { personas: [null, {}, 3] } },
+    { items: "not-an-array", supportPassives: "not-an-array", scenarioHistory: "not-an-array" },
+    { items: { count: 2 }, supportPassives: { name: "not-an-array" }, scenarioHistory: { name: "not-an-array" } },
+    { owned: { personas: "not-an-array", egos: {}, supportPassives: 1, spirits: "not-an-array" } }
+  ]) {
     const m = G.buildManifest(bad, null);
     assert.equal(m.groups.length, 5);
     assert.equal(m.counts.scenarios, 0);
@@ -1239,6 +1244,46 @@ test("取り込み: 番号やランクが引けないものは理由付きで除
   assert.equal(built.actions[0].no, "5");
   assert.equal(built.skipped.length, 2, "残り2件は理由付きで除外");
   assert.ok(built.skipped.every((s) => /DB番号かランク/.test(s.reason)));
+});
+
+test("取り込み: 不正なアイテム個数は成功 action にせず、正の安全な整数だけ入れる", () => {
+  const manifest = {
+    groups: [{
+      id: "items",
+      items: [
+        { key: "valid", name: "包帯", quantity: 2 },
+        { key: "missing-quantity", name: "止血剤" },
+        { key: "fraction", name: "薬草", quantity: 1.5 },
+        { key: "unsafe", name: "装置", quantity: Number.MAX_SAFE_INTEGER + 1 },
+        { key: "zero", name: "投薬器", quantity: 0 },
+        { key: "junk", name: "薬瓶", quantity: "2abc" }
+      ]
+    }],
+    scenarios: []
+  };
+  const built = G.toDispatchActions(manifest, ["valid", "missing-quantity", "fraction", "unsafe", "zero", "junk"], {
+    db: { items: [
+      { id: "bandage", name: "包帯" },
+      { id: "hemostat", name: "止血剤" },
+      { id: "herb", name: "薬草" },
+      { id: "device", name: "装置" },
+      { id: "injector", name: "投薬器" },
+      { id: "bottle", name: "薬瓶" }
+    ] }
+  });
+  assert.deepEqual(
+    Array.from(built.actions, (action) => [action.itemId, action.quantity]),
+    [["bandage", 2], ["hemostat", 1]]
+  );
+  assert.deepEqual(
+    Array.from(built.skipped, (item) => [item.key, item.reason]),
+    [
+      ["fraction", "アイテムの個数が正の整数ではない"],
+      ["unsafe", "アイテムの個数が正の整数ではない"],
+      ["zero", "アイテムの個数が正の整数ではない"],
+      ["junk", "アイテムの個数が正の整数ではない"]
+    ]
+  );
 });
 
 test("取り込み: シナリオ1件ごとに ADD_RESULT が出て、ADD_ENTRY が直後に続く", () => {
