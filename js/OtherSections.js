@@ -2157,7 +2157,7 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
       toast(why);
       return;
     }
-    setPending({ seed, out });
+    setPending({ seed, out, request: { route, pay, pack: activePack, ticketKind, times } });
   };
 
   /* やめるのは「まだ何も記録していない」状態だけ（出目を見てから選び直す、
@@ -2204,6 +2204,7 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
   const commitDrawAsync = async () => {
     if (!pending) return;
     const { seed, out } = pending;
+    const request = pending.request || { route, pay, pack: activePack, ticketKind, times };
     const hits = out.hits;
     /* 結果をハッシュ鎖で封緘し、抽出リストへ積む。
        所持への反映もこの action の中で行うので、画面が数えた顔ではなく
@@ -2242,8 +2243,8 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
     const drawLogEntry = {
       id: out.commit || `draw-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
       at: new Date().toISOString(),
-      route,
-      times,
+      route: request.route,
+      times: request.times,
       pay: out.paidBy,
       cost: { lp: out.cost.lp || 0, shards: out.cost.shards || 0 },
       hits: hits.map((hit) => ({ name: hit.name, type: hit.type, no: hit.no, rank: hit.rank, mode: hit.mode, pack: hit.pack, branch: hit.branch })),
@@ -2315,7 +2316,8 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
     h("div", { className: "segmented", role: "radiogroup", "aria-label": "抽出の方法" },
       ROUTES.map((r) => h("button", {
         key: r.id, type: "button", role: "radio", "aria-checked": route === r.id,
-        className: route === r.id ? "is-active" : "", onClick: () => { setRoute(r.id); setLast(null); }
+        className: route === r.id ? "is-active" : "", disabled: !!pending,
+        onClick: () => { setRoute(r.id); setLast(null); }
       }, r.label))),
     /* 出所（core:346-349 など）は利用者には無意味なので出さない。
        規則番号はコードと provenance に残せば足りる。
@@ -2324,24 +2326,25 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
     route === "pack" && h("label", { className: "ledger-note" },
       h("span", null, "パック　"),
       h("select", {
-        className: "select", value: activePack, "aria-label": "特定抽出パック",
+        className: "select", value: activePack, "aria-label": "特定抽出パック", disabled: !!pending,
         onChange: (e) => { setPackName(e.target.value); setLast(null); }
       }, packs.map((p) => h("option", { key: p.name, value: p.name }, `${p.name}（1d${p.die}・LP ${p.lp}）`)))),
     h("div", { className: "segmented", role: "radiogroup", "aria-label": "支払い方法" },
       [["paid", "通貨で払う"], ["ticket", `${ticketLabel(ticketKind, ticketPack)} ×${held}`]].map(([v, label]) => h("button", {
         key: v, type: "button", role: "radio", "aria-checked": pay === v,
-        className: pay === v ? "is-active" : "", onClick: () => { setPay(v); setLast(null); }
+        className: pay === v ? "is-active" : "", disabled: !!pending,
+        onClick: () => { setPay(v); setLast(null); }
       }, label))),
     pay === "ticket" && route !== "pack" && choiceTicketHeld > 0 && specificTicketHeld > 0 &&
       h("div", { className: "segmented", role: "radiogroup", "aria-label": "使用する抽出チケット" },
         h("button", {
           type: "button", role: "radio", "aria-checked": ticketKind === specificTicketKind,
-          className: ticketKind === specificTicketKind ? "is-active" : "",
+          className: ticketKind === specificTicketKind ? "is-active" : "", disabled: !!pending,
           onClick: () => { setTicketPreference("specific"); setLast(null); }
         }, `${ticketLabel(specificTicketKind, null)} ×${specificTicketHeld}`),
         h("button", {
           type: "button", role: "radio", "aria-checked": ticketKind === "choice",
-          className: ticketKind === "choice" ? "is-active" : "",
+          className: ticketKind === "choice" ? "is-active" : "", disabled: !!pending,
           onClick: () => { setTicketPreference("choice"); setLast(null); }
         }, `${ticketLabel("choice", null)} ×${choiceTicketHeld}`)),
     /* 回数は抽選ボタンと同じ行に置く。数は自分で入れる。
@@ -2357,20 +2360,20 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
           step: 1,
           inputMode: "numeric",
           value: String(times),
-          "aria-label": "抽出手数",
+          "aria-label": "抽出手数", disabled: !!pending,
           onChange: (e) => { setTimes(Math.min(99, Math.max(1, Number.parseInt(e.target.value, 10) || 1))); setLast(null); }
         })),
       h("span", { className: "ledger-note" }, pay === "ticket"
         ? `${ticketLabel(ticketKind, ticketPack)} ×${held}（1回あたり1枚）`
         : totalCostLabel),
       h(Button, {
-        size: "sm", variant: "primary", onClick: requestDraw, disabled: !!blockedReason, title: blockedReason || undefined
+        size: "sm", variant: "primary", onClick: requestDraw, disabled: !!blockedReason || !!pending, title: blockedReason || undefined
       }, times > 1 ? `${times}回抽選` : "抽選する")),
     h("p", { className: "ledger-note" },
       "抽選結果はこの瞬間に決まります。確定後は取り消せません。"),
     blockedReason && h("p", { className: "ledger-note", role: "status" }, blockedReason),
-    /* 確認。ここまでで出目は確定済みなので、経路や回数などを変えても
-       同じ顔が出る。ここでは顔を出さない。
+    /* 確認。申込時点で出目は固定し、確認中は抽出条件をロックする。
+       条件を変えたい場合は、出目を見せないまま pending を破棄してから変更する。
        出目を先に見せてから「取り消す」を置くと、見る → 嫌だ → 引いたことに
        しない、という抜け道ができる。出目が出るのは確定のあとだけ。
        「まだ引かない」は何も起きていない状態をやめる操作なので、損得がない。 */
@@ -2384,7 +2387,7 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
          「引けなかった分」はここに書いて残す。 */
       (() => { const note = stopNote(pending.out); return note ? h("div", { className: "gacha-confirm-cost ledger-note" }, note) : null; })(),
       h("p", { className: "ledger-note" },
-        "この画面では出目を出しません。「確定する」を押した瞬間に結果が出て、それ以降は取り消せません。"),
+        "確認中は抽出方法・パック・支払い方法・回数を固定しています。変更する場合は「まだ引かない」で戻ってください。結果は「確定する」を押した後に表示されます。"),
       h("div", { className: "shop-toolbar-main" },
         h(Button, { size: "sm", variant: "secondary", onClick: cancelDraw }, "まだ引かない"),
         h(Button, { size: "sm", variant: "primary", onClick: commitDraw }, "確定する"))),
