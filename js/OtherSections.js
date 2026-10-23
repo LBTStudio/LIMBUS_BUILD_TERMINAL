@@ -2099,13 +2099,21 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
   if (totalCost.shards) costParts.push(`欠片 ${totalCost.shards}`);
   const totalCostLabel = costParts.length ? costParts.join(" / ") : "無料";
   const ticketShort = pay === "ticket" && held < times;
-  const currencyShort = pay === "paid" && balance && (Number(balance.lp) < totalCost.lp || Number(balance.shards) < totalCost.shards);
+  const shortfall = pay === "paid" && balance
+    ? (G?.paymentShortfall?.(balance, totalCost) || {
+        lpShort: totalCost.lp > 0 && Number(balance.lp) < totalCost.lp,
+        shardsShort: totalCost.shards > 0 && Number(balance.shards) < totalCost.shards,
+        insufficient: (totalCost.lp > 0 && Number(balance.lp) < totalCost.lp)
+          || (totalCost.shards > 0 && Number(balance.shards) < totalCost.shards)
+      })
+    : { lpShort: false, shardsShort: false, insufficient: false };
+  const currencyShort = pay === "paid" && !!balance && shortfall.insufficient;
   const blockedReason = poolSize <= 0
     ? "抽選できる対象がありません"
     : pay === "ticket"
       ? (held <= 0 ? "対応するチケットを持っていません" : ticketShort ? `チケットが足りません（必要 ${times}枚 / 所持 ${held}枚）` : "")
       : currencyShort
-        ? `残高が不足しています（${Number(balance.lp) < totalCost.lp ? `LP ${balance.lp} / 必要 ${totalCost.lp}` : ""}${Number(balance.lp) < totalCost.lp && Number(balance.shards) < totalCost.shards ? " / " : ""}${Number(balance.shards) < totalCost.shards ? `欠片 ${balance.shards} / 必要 ${totalCost.shards}` : ""}）`
+        ? `残高が不足しています（${shortfall.lpShort ? `LP ${balance.lp} / 必要 ${totalCost.lp}` : ""}${shortfall.lpShort && shortfall.shardsShort ? " / " : ""}${shortfall.shardsShort ? `欠片 ${balance.shards} / 必要 ${totalCost.shards}` : ""}）`
         : "";
 
   /* --- 抽選は「確認 → 確定」の2段構え ---------------------------------
