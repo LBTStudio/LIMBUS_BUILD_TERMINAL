@@ -8,6 +8,7 @@ import vm from "node:vm";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const db = JSON.parse(readFileSync(resolve(ROOT, "data/db.json"), "utf8"));
 const source = readFileSync(resolve(ROOT, "js/InlineEffectGlossary.js"), "utf8");
+const coreCorpus = readFileSync(resolve(ROOT, "data/provenance/core.paragraphs.txt"), "utf8");
 
 function loadGlossary() {
   const sandbox = { window: {} };
@@ -40,6 +41,51 @@ test("persona unique buffs include owner/max metadata when the DB has no separat
   assert.ok(entries.some((entry) => entry.category === "固有バフ" && entry.source.includes(persona.name) && entry.description.includes("最大値")));
 });
 
+test("PDF用語集の共有固有バフは原典定義を一件だけ表示する", () => {
+  const api = loadGlossary();
+  const piece = api.tokenize("自分のあなたの盾を増やす", db, { scope: "人格固有バフ", owner: "南部ツヴァイ協会6課フィクサー" }).find((entry) => entry.term === "あなたの盾");
+  assert.ok(piece);
+  assert.equal(piece.entries.length, 1);
+  assert.equal(piece.entries[0].source, "基本ルール p.306");
+  assert.equal(piece.entries[0].category, "バフ／用語集");
+  assert.ok(piece.entries[0].description.includes("R終了時"));
+  assert.equal(piece.entries.some((entry) => entry.category === "関連効果の例"), false);
+});
+test("同名固有効果は表示元人格の説明だけを表示する", () => {
+  const fixture = { normal_personas: [
+    { name: "オーナーA", unique_buffs: [{ name: "固有印", type: "バフ", desc: "Aだけの効果文", max: 2 }], skills: [], keywords: [] },
+    { name: "オーナーB", unique_buffs: [{ name: "固有印", type: "バフ", desc: "Bだけの別効果文", max: 5 }], skills: [], keywords: [] }
+  ], tokui_personas: [], egos: [], support_passives: [], death_passives: [], normal_enhancements: [], special_enhancements: [], spirits: [], items: [] };
+  const api = loadGlossary();
+  const A = api.tokenize("固有印", fixture, { scope: "人格固有バフ", owner: "オーナーA" }).find(p => p.term);
+  const B = api.tokenize("固有印", fixture, { scope: "人格固有バフ", owner: "オーナーB" }).find(p => p.term);
+  assert.equal(A.entries.length, 1); assert.equal(A.entries[0].source, "人格：オーナーA");
+  assert.ok(A.entries[0].description.includes("Aだけの効果文"));
+  assert.equal(B.entries.length, 1); assert.equal(B.entries[0].source, "人格：オーナーB");
+  assert.ok(B.entries[0].description.includes("Bだけの別効果文"));
+});
+test("表示元が不明な固有効果は別人格の説明を流用しない", () => {
+  const fixture = { normal_personas: [
+    { name: "オーナーA", unique_buffs: [{ name: "固有印", type: "バフ", desc: "Aだけの効果文", max: 2 }], skills: [], keywords: [] },
+    { name: "オーナーB", unique_buffs: [{ name: "固有印", type: "バフ", desc: "Bだけの別効果文", max: 5 }], skills: [], keywords: [] }
+  ], tokui_personas: [], egos: [], support_passives: [], death_passives: [], normal_enhancements: [], special_enhancements: [], spirits: [], items: [] };
+  const piece = loadGlossary().tokenize("固有印", fixture).find(p => p.term);
+  assert.equal(piece.entries.length, 1);
+  assert.equal(piece.entries[0].source, "表示元に対応する定義なし");
+  assert.equal(piece.entries[0].description.includes("Aだけの効果文"), false);
+  assert.equal(piece.entries[0].description.includes("Bだけの別効果文"), false);
+});
+test("共通バフ出典はPDF抽出ページに存在する", () => {
+  const pageText = (n) => { const s = coreCorpus.indexOf("===== PAGE " + n + " ====="); if (s < 0) return ""; const e = coreCorpus.indexOf("===== PAGE ", s + 5); return coreCorpus.slice(s, e < 0 ? coreCorpus.length : e); };
+  const p306 = pageText(306), p311 = pageText(311), glossary = loadGlossary().buildGlossary(db);
+  for (const term of ["武装", "あなたの盾", "充電力場", "時間貸与", "狂信", "共振", "振動同化", "紅硬", "知識鍛錬"]) {
+    assert.ok(p306.includes(term), term);
+    const entry = (glossary.get(term) || []).find((row) => row.canonical);
+    assert.ok(entry, term); assert.equal(entry.source, "基本ルール p.306", term);
+  }
+  assert.ok(p311.includes("挑発値") && p311.includes("血餐") && p311.includes("自己共振回路"));
+  assert.ok((glossary.get("血餐") || []).some(e => e.canonical && e.source === "基本ルール p.311"));
+});
 test("bracketed custom references show their source text and never mutate the source DB", () => {
   const record = {
     normal_personas: [{
