@@ -2920,7 +2920,12 @@ const resolveRosterPersonaSource = (entry, fallback, state) => {
     extra_passives: Array.isArray(build.extraPassives) ? build.extraPassives : (source.extra_passives || [])
   };
 };
-window.LBT_rosterLibrary = { isRosterPersonaSynced, rosterPersonaMatchesSyncFilters, sortRosterLibraryItems, resolveRosterPersonaSource };
+const resolveRosterEgoSource = (entry, definitions = (DB.egos || [])) => {
+  const dbEntry = (Array.isArray(definitions) ? definitions : [])
+    .find((item) => item?.rank === entry?.rank && String(item?.no ?? "") === String(entry?.no ?? ""));
+  return dbEntry || entry?.build || null;
+};
+window.LBT_rosterLibrary = { isRosterPersonaSynced, rosterPersonaMatchesSyncFilters, sortRosterLibraryItems, resolveRosterPersonaSource, resolveRosterEgoSource };
 const RosterSection = ({ state, dispatch }) => {
   const h = React.createElement;
   /* タブは topbar の残高チップからも開くため state.ui に置く。local state だと外から遷移できない。 */
@@ -2944,7 +2949,7 @@ const RosterSection = ({ state, dispatch }) => {
     const db = entry.mode === "n" ? (DB.normal_personas || []) : (DB.tokui_personas || []);
     return resolveRosterPersonaSource(entry, db.find((item) => String(item.no) === String(entry.no)) || null, state);
   };
-  const findEgo = (entry) => (DB.egos || []).find((item) => item.rank === entry.rank && item.no === entry.no) || entry.build || null;
+  const findEgo = (entry) => resolveRosterEgoSource(entry, DB.egos || []);
   /* サポートと精神も並びます。以前は人格/E.G.O の二分岐しか無く、
      サポパ/精神タブが E.G.O の内容を出し続けていた。 */
   const rawItems = libraryTab === "personas" ? (roster.personas || []).map((entry, addedIndex) => {
