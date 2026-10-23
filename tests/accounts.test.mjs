@@ -535,6 +535,29 @@ test("完全削除は有効な保存値を .corrupt に複製せず、現アカ�
   assert.equal(storage.getItem(LEGACY_KEY), legacy, "旧形式の原本は契約どおり保持");
 });
 
+
+test("破損退避の削除に失敗したら、現アカウントの保存本体はリセットしない", () => {
+  const storage = createStorage({ [LEGACY_KEY]: legacyStateJson() });
+  const accounts = loadAccounts(storage);
+  const { activeId } = accounts.list();
+  accounts.saveActive({ charName: "削除失敗時も保持する" });
+  const key = ACCOUNT_PREFIX + activeId;
+  const firstBackup = `${key}.corrupt.first`;
+  const failingBackup = `${key}.corrupt.fail`;
+  storage.setItem(firstBackup, "first recovery copy");
+  storage.setItem(failingBackup, "second recovery copy");
+  const normalRemoveItem = storage.removeItem.bind(storage);
+  storage.removeItem = (candidate) => {
+    if (candidate === failingBackup) throw new Error("remove failed");
+    return normalRemoveItem(candidate);
+  };
+
+  assert.equal(accounts.resetActive(), false, "退避の掃除に失敗したら操作全体を失敗として返す");
+  assert.equal(accounts.loadActive().charName, "削除失敗時も保持する", "本体データを空にしない");
+  assert.equal(storage.getItem(firstBackup), "first recovery copy", "先に削除できた退避も戻す");
+  assert.equal(storage.getItem(failingBackup), "second recovery copy", "削除失敗した退避は保持");
+});
+
 test("resetActive は保存領域だけ空にし、アカウント名・アイコンは保持する", () => {
   const storage = createStorage();
   const accounts = loadAccounts(storage);
