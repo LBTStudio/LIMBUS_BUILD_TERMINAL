@@ -1754,13 +1754,22 @@ function parsePriceText(raw, defaultUnit) {
   const amountPattern = "(?:\\d{1,3}(?:,\\d{3})+|\\d+)";
   const unitPattern = "(?:LP|SHARD|欠片|欠)";
   const pricePairs = new RegExp(
-    "(^|[^\\d,])(" + amountPattern + ")\\s*(" + unitPattern + ")(?![A-Z])"
-      + "|(^|[^\\d,])(" + unitPattern + ")\\s*(" + amountPattern + ")(?![\\d,])",
+    "(" + amountPattern + ")\\s*(" + unitPattern + ")(?![A-Z])"
+      + "|(" + unitPattern + ")\\s*(" + amountPattern + ")(?![\\d,])",
     "gi"
   );
   for (const m of text.matchAll(pricePairs)) {
-    const amount = m[2] !== undefined ? m[2] : m[6];
-    const unit = m[3] !== undefined ? m[3] : m[5];
+    let amount;
+    let unit;
+    if (m[1] !== undefined) {
+      /* 「1,20LP」のような不正区切りで「20LP」だけを採らない。 */
+      if (/[\\d,]/.test(text[m.index - 1] || "")) continue;
+      amount = m[1];
+      unit = m[2];
+    } else {
+      amount = m[4];
+      unit = m[3];
+    }
     if (/SHARD|欠/i.test(unit)) { if (!shards) shards = amount; }
     else if (!lp) lp = amount;
   }
