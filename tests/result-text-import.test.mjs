@@ -193,6 +193,16 @@ test("増減欄の金額形式が不正でも、主収入は保持し、増減�
   assert.ok(out.skipped.some((entry) => /増減欄/.test(entry.reason)));
 });
 
+test("日本語の山括弧内のスラッシュはパック名の一部として保持する", () => {
+  const parsed = T.parseText("【A】\n報酬｜〈A/B〉抽出チケットx2/LP:10\n");
+  assert.equal(parsed.records.length, 1);
+  assert.equal(parsed.records[0].tickets.length, 1);
+  assert.equal(parsed.records[0].tickets[0].pack, "A/B");
+  assert.equal(parsed.records[0].tickets[0].count, 2);
+  assert.equal(parsed.records[0].income.lp, 10);
+  assert.equal(parsed.skipped.length, 0);
+});
+
 test("パック名付き抽出チケットはパック別収入へ記録する", () => {
   const parsed = T.parseText("【A】\n報酬｜〈肉斬骨断〉抽出チケットx2\n");
   assert.equal(parsed.records[0].tickets[0].kind, "pack");

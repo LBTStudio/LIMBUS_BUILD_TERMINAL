@@ -16,18 +16,26 @@
     .replace(/[：]/g, ":").replace(/[（]/g, "(").replace(/[）]/g, ")")
     .replace(/　/g, " ").replace(/[、]/g, ",");
 
-  /* 深さ 0 の位置だけで切る。括弧と鉤括弧の中の / や ｜ は区切りではない
-     （人格抽出x2(無料1/100LP) が 3 つに割れてはいけない）。 */
+  /* 深さ 0 の位置だけで切る。括弧と日本語の鉤括弧・山括弧の中の
+     / や ｜ は区切りではない（〈A/B〉のパック名を途中で切らない）。 */
+  const BRACKET_CLOSE = {
+    "(": ")", "[": "]", "{": "}", "（": "）",
+    "〈": "〉", "《": "》", "「": "」", "『": "』",
+    "【": "】", "〔": "〕", "〖": "〗", "〘": "〙", "〚": "〛"
+  };
   function splitTop(text, isSeparator) {
     const out = [];
-    let depth = 0;
+    const stack = [];
     let buf = "";
     const src = String(text ?? "");
     for (let i = 0; i < src.length; i += 1) {
       const c = src[i];
-      if (c === "(" || c === "[" || c === "{" || c === "（") depth += 1;
-      else if (c === ")" || c === "]" || c === "}" || c === "）") depth = Math.max(0, depth - 1);
-      if (depth === 0 && isSeparator(c)) { out.push(buf); buf = ""; continue; }
+      if (Object.prototype.hasOwnProperty.call(BRACKET_CLOSE, c)) {
+        stack.push(BRACKET_CLOSE[c]);
+      } else if (stack.length && c === stack[stack.length - 1]) {
+        stack.pop();
+      }
+      if (stack.length === 0 && isSeparator(c)) { out.push(buf); buf = ""; continue; }
       buf += c;
     }
     out.push(buf);
