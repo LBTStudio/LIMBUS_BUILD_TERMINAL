@@ -621,7 +621,7 @@ function toIdentityChoices(hits) {
       if (typeof value === "number") return Number.isSafeInteger(value) && value > 0 ? value : null;
       if (typeof value !== "string") return null;
       const text = value.trim();
-      if (!/^\\d+$/.test(text)) return null;
+      if (!/^\d+$/.test(text)) return null;
       const parsed = Number(text);
       return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
     };
