@@ -640,9 +640,19 @@ function getStateSelfManagedStatusEntries(state) {
 function stateUsesBarrier(state) {
   return getStateSelfManagedStatusEntries(state).some((entry) => entry.label === "バリア");
 }
+function parsePositiveIntegerStrict(value) {
+  if (typeof value === "number") {
+    return Number.isSafeInteger(value) && value > 0 ? value : null;
+  }
+  if (typeof value !== "string") return null;
+  const text = value.trim();
+  if (!/^\d+$/.test(text)) return null;
+  const parsed = Number(text);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+}
 function normalizeItemMaxOwned(value) {
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? Math.min(99, parsed) : null;
+  const parsed = parsePositiveIntegerStrict(value);
+  return parsed === null ? null : Math.min(99, parsed);
 }
 function getItemMaxOwned(state, itemId) {
   const id = String(itemId || "");
@@ -651,7 +661,10 @@ function getItemMaxOwned(state, itemId) {
   return normalizeItemMaxOwned((official || custom)?.maxOwned) || 99;
 }
 function clampItemQuantity(state, itemId, quantity) {
-  return Math.min(getItemMaxOwned(state, itemId), Math.max(1, Number.parseInt(quantity, 10) || 1));
+  /* セーブが壊れていても "12abc" を12個と読み替えない。正しい整数以外は既定の1個へ安全に正規化し、
+     JSONインポートでは適用前に別途エラーとして拒否する。 */
+  const parsed = parsePositiveIntegerStrict(quantity);
+  return Math.min(getItemMaxOwned(state, itemId), parsed === null ? 1 : parsed);
 }
 window.LBT_getItemMaxOwned = getItemMaxOwned;
 window.LBT_detectSelfManagedStatuses = detectSelfManagedStatuses;
