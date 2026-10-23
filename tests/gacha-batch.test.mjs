@@ -351,6 +351,60 @@ test("未所持なら 1件目の請求は0になる（バッチ全体で1つの�
   assert.equal(next.entries.reduce((n, e) => n + (Number(e.cost?.lp) || 0), 0), 100, "合計も100LP");
 });
 
+test("旧形式で item.kind が欠けても record.kind から人格/E.G.O 所持を復元する", () => {
+  const w = loadState(db);
+  const persona = db.normal_personas.find((entry) => Number(entry.no) > 0);
+  const ego = db.egos.find((entry) => Number(entry.no) > 0);
+  assert.ok(persona && ego, "テスト用の人格とE.G.Oがある");
+  const moneyState = () => ({
+    ...base(),
+    results: [{
+      id: "legacy-kind-result",
+      name: "旧記録互換テスト",
+      income: { lp: 100, shards: 100 },
+      exchange: { lp: 0, shards: 0 },
+      note: ""
+    }]
+  });
+  const personaBatch = {
+    schemaVersion: 1, ruleset: "core", kind: "persona", count: 1,
+    commit: "legacy-persona-kind", batchHash: "legacy-persona-kind-hash",
+    records: [{
+      index: 0, kind: "persona",
+      item: { no: Number(persona.no), mode: "n", name: persona.name },
+      cost: { lp: 20, shards: 0 }, duplicate: false, grantedShards: 0
+    }]
+  };
+  const personaState = w.appReducer(moneyState(), { type: "ADD_DRAW_BATCH", batch: personaBatch, cost: { lp: 20, shards: 0 } });
+  assert.ok(personaState.roster.personas.some((entry) => Number(entry.no) === Number(persona.no) && entry.mode === "n"));
+  assert.ok(personaState.entries.some((entry) => entry.name === persona.name && Number(entry.cost?.lp) === 20));
+  const egoBatch = {
+    schemaVersion: 1, ruleset: "core", kind: "ego", count: 1,
+    commit: "legacy-ego-kind", batchHash: "legacy-ego-kind-hash",
+    records: [{
+      index: 0, kind: "ego",
+      item: { no: Number(ego.no), rank: ego.rank, name: ego.name },
+      cost: { lp: 0, shards: 25 }, duplicate: false, grantedShards: 0
+    }]
+  };
+  const egoState = w.appReducer(moneyState(), { type: "ADD_DRAW_BATCH", batch: egoBatch, cost: { lp: 0, shards: 25 } });
+  assert.ok(egoState.roster.egos.some((entry) => Number(entry.no) === Number(ego.no) && entry.rank === ego.rank));
+  assert.ok(egoState.entries.some((entry) => entry.name === `${ego.rank} No.${ego.no}` && Number(entry.cost?.shards) === 25));
+});
+
+test("抽選レコードのno・人格モード・E.G.Oランクの不正値を確定前に拒否する", () => {
+  const w = loadState(db);
+  const makeBatch = (kind, item) => ({
+    kind, count: 1, batchHash: "invalid-shape-" + kind,
+    records: [{ kind, item, cost: { lp: 0, shards: 0 }, duplicate: false, grantedShards: 0 }]
+  });
+  for (const no of [0, -1, 1.5, "abc", "0", "1.5"]) {
+    assert.equal(w.LBT_validateDrawBatchApplication(base(), { type: "ADD_DRAW_BATCH", batch: makeBatch("persona", { kind: "persona", no, mode: "n" }) }).reason, "invalid-persona-item", String(no));
+  }
+  assert.equal(w.LBT_validateDrawBatchApplication(base(), { type: "ADD_DRAW_BATCH", batch: makeBatch("persona", { kind: "persona", no: 1, mode: "t" }) }).reason, "invalid-persona-mode");
+  assert.equal(w.LBT_validateDrawBatchApplication(base(), { type: "ADD_DRAW_BATCH", batch: makeBatch("ego", { kind: "ego", no: 1, rank: "INVALID" }) }).reason, "invalid-ego-item");
+});
+
 test("ADD_DRAW_BATCH は同じ内容を二重に入れない", () => {
   const w = loadState(db);
   const { batch } = finalizedBatch();

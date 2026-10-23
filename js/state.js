@@ -2630,15 +2630,16 @@ function rosterAddsFromDrawBatch(batch) {
     /* テーマパックの重複は欠片50への変換で、所持には入らない。 */
     if (record.duplicate) continue;
     const cost = { lp: Number(record.cost?.lp) || 0, shards: Number(record.cost?.shards) || 0 };
-    // 特異人格は record.kind / item.kind が specialPersona。人格と同じ所持モデルに
-    // mode:"t" で積まないと、抽選表示・証明だけが残り、所持と費用明細が抜ける。
-    if (record.kind === "specialPersona" || item.kind === "specialPersona") {
+    // record.kind is canonical. Older records may legitimately omit item.kind;
+    // relying only on item.kind would validate/pay those draws but drop ownership.
+    const kind = String(record.kind || item.kind || "");
+    if (kind === "specialPersona") {
       adds.push({ type: "persona", no: item.no, mode: "t", cost });
       continue;
     }
-    if (item.kind === "ego") { adds.push({ type: "ego", no: item.no, rank: item.rank, cost }); continue; }
-    if (item.kind === "persona") { adds.push({ type: "persona", no: item.no, mode: item.mode === "t" ? "t" : "n", cost }); continue; }
-    if (item.kind === "themePack") {
+    if (kind === "ego") { adds.push({ type: "ego", no: item.no, rank: item.rank, cost }); continue; }
+    if (kind === "persona") { adds.push({ type: "persona", no: item.no, mode: "n", cost }); continue; }
+    if (kind === "themePack") {
       /* パック内の通し番号ではなく、DB の人格番号で所持へ入れる。
          金額は記録のものをそのまま渡す：通帳の1行を、この1件で作る。 */
       const found = personaNoByName(item.name);
@@ -2712,6 +2713,13 @@ function drawOwnershipSnapshot(state) {
   return { personaKeys, egoKeys, names };
 }
 
+function isValidDrawItemNumber(value) {
+  if (typeof value === "number") return Number.isSafeInteger(value) && value > 0;
+  if (typeof value !== "string" || !/^[1-9]\d*$/.test(value)) return false;
+  return Number.isSafeInteger(Number(value));
+}
+const VALID_GACHA_EGO_RANKS = new Set(["ZAYIN", "TETH", "HE", "WAW", "ALEPH"]);
+
 function validateDrawTargetsCurrent(state, batch) {
   const owned = drawOwnershipSnapshot(state);
   for (let index = 0; index < batch.records.length; index += 1) {
@@ -2729,7 +2737,7 @@ function validateDrawTargetsCurrent(state, batch) {
       continue;
     }
     if (kind === "persona" || kind === "specialPersona" || item.kind === "persona" || item.kind === "specialPersona") {
-      if (item.no == null) return { ok: false, reason: "invalid-persona-item", index };
+      if (!isValidDrawItemNumber(item.no)) return { ok: false, reason: "invalid-persona-item", index };
       const mode = kind === "specialPersona" || item.kind === "specialPersona" || item.mode === "t" ? "t" : "n";
       const key = `${mode}:${String(item.no)}`;
       if (owned.personaKeys.has(key)) return { ok: false, reason: "draw-target-already-owned", index, key };
@@ -2739,7 +2747,9 @@ function validateDrawTargetsCurrent(state, batch) {
       continue;
     }
     if (kind === "ego" || item.kind === "ego") {
-      if (item.no == null || !item.rank) return { ok: false, reason: "invalid-ego-item", index };
+      if (!isValidDrawItemNumber(item.no) || !VALID_GACHA_EGO_RANKS.has(String(item.rank || "").trim())) {
+        return { ok: false, reason: "invalid-ego-item", index };
+      }
       const key = `${String(item.rank)}:${String(item.no)}`;
       if (owned.egoKeys.has(key)) return { ok: false, reason: "draw-target-already-owned", index, key };
       owned.egoKeys.add(key);
@@ -2805,10 +2815,16 @@ function validateDrawRecordShapes(batch) {
     if (family !== inferredFamily) {
       return { ok: false, reason: "mixed-record-kinds", index, expected: inferredFamily, actual: family };
     }
-    if ((kind === "persona" || kind === "specialPersona") && item.no == null) {
+    if ((kind === "persona" || kind === "specialPersona") && !isValidDrawItemNumber(item.no)) {
       return { ok: false, reason: "invalid-persona-item", index };
     }
-    if (kind === "ego" && (item.no == null || !String(item.rank || "").trim())) {
+    if (kind === "persona" && item.mode != null && item.mode !== "n") {
+      return { ok: false, reason: "invalid-persona-mode", index, expected: "n", actual: item.mode };
+    }
+    if (kind === "specialPersona" && item.mode != null && item.mode !== "t") {
+      return { ok: false, reason: "invalid-persona-mode", index, expected: "t", actual: item.mode };
+    }
+    if (kind === "ego" && (!isValidDrawItemNumber(item.no) || !VALID_GACHA_EGO_RANKS.has(String(item.rank || "").trim()))) {
       return { ok: false, reason: "invalid-ego-item", index };
     }
     if (kind === "themePack" && !String(item.name || "").trim()) {
