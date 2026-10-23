@@ -1615,6 +1615,15 @@ h("div", { className: "equipped-detail-inner" }, editable ? null : h(EgoDetail, 
   );
 };
 const SpiritSection = ({ state, dispatch, ownedOnly = false }) => {
+  const hasExplicitSpiritPrice = window.LBT_hasExplicitSpiritPrice || ((definition) => {
+    if (!definition || !definition.name) return false;
+    const price = definition.price;
+    const numeric = (typeof price === "number" && Number.isFinite(price))
+      || (typeof price === "string" && price.trim() !== "" && Number.isFinite(Number(price)));
+    return numeric && Number(price) >= 0;
+  });
+  const isExplicitlyFreeSpirit = window.LBT_isExplicitlyFreeSpirit
+    || ((definition) => hasExplicitSpiritPrice(definition) && Number(definition.price) === 0);
   const [selected, setSelected] = React.useState(null);
   const [query, setQuery] = React.useState("");
   const [sourceFilter, setSourceFilter] = React.useState("all");
@@ -1736,7 +1745,7 @@ const SpiritSection = ({ state, dispatch, ownedOnly = false }) => {
      判定が壊れないよう、所持の有無ではなく DB の価格で数える）。 */
   const spiritInitialSeeded = (state.roster?.spirits || []).filter((entry) => {
     const def = DB.spirits.find((s) => s.name === entry.name);
-    return def && !(Number(def.price) > 0);
+    return def && isExplicitlyFreeSpirit(def);
   }).length;
   const toggleInitialSpirit = (name) => dispatch({
     type: "SET_INITIAL_SPIRITS",
@@ -1754,13 +1763,25 @@ const SpiritSection = ({ state, dispatch, ownedOnly = false }) => {
     h(Button, { size: "sm", variant: "ghost", onClick: () => setSpiritInitialPickOpen((open) => !open) }, spiritInitialPickOpen ? "選ぶのを閉じる" : "選ぶ"),
     h(Button, { size: "sm", variant: "primary", icon: "check", disabled: !initialSpiritNames.length, onClick: () => dispatch({ type: "APPLY_INITIAL_SPIRITS" }) }, "初期枠から取り込む")
     ),
-    spiritInitialPickOpen && h("div", { className: "stack-1" }, DB.spirits.map((sp) => h("label", { key: sp.name, className: "initial-pick-row" },
-      h("input", { type: "checkbox", checked: initialSpiritNames.includes(sp.name), onChange: () => toggleInitialSpirit(sp.name) }),
-      h("span", null, sp.name),
-      Number(sp.price) > 0
-      ? h("span", { className: "ledger-note" }, `${sp.price} 欠片`)
-      : h("span", { className: "badge inv-origin is-initial" }, "初期選択可")
-    )))
+    spiritInitialPickOpen && h("div", { className: "stack-1" }, DB.spirits.map((sp) => {
+      const knownPrice = hasExplicitSpiritPrice(sp);
+      const price = Number(sp.price);
+      return h("label", { key: sp.name, className: "initial-pick-row" },
+        h("input", {
+          type: "checkbox",
+          checked: initialSpiritNames.includes(sp.name),
+          disabled: !knownPrice,
+          title: knownPrice ? undefined : "価格が不明なため初期枠に追加できません",
+          onChange: () => { if (knownPrice) toggleInitialSpirit(sp.name); }
+        }),
+        h("span", null, sp.name),
+        isExplicitlyFreeSpirit(sp)
+          ? h("span", { className: "badge inv-origin is-initial" }, "初期選択可")
+          : knownPrice && price > 0
+            ? h("span", { className: "ledger-note" }, `${sp.price} 欠片`)
+            : h("span", { className: "ledger-note" }, "価格不明")
+      );
+    }))
   );
   return /* @__PURE__ */ React.createElement("div", { className: "stack-4" }, spiritBody, spiritInitialFrame);
 };
