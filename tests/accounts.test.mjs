@@ -451,6 +451,38 @@ test("アカウント名の更新中に別タブが作成された項目を索�
   assert.ok(storage.getItem(ACCOUNT_PREFIX + createdByTabB.id), "B の保存本体も残る");
 });
 
+test("アクティブアカウント削除中に別タブが作成したアカウントを索引に残す", () => {
+  const storage = createStorage();
+  const tabA = loadAccounts(storage);
+  const target = tabA.create("削除対象", "");
+  const survivor = tabA.create("残すアカウント", "");
+  assert.ok(target && survivor);
+  assert.equal(tabA.switch(target.id), true);
+  const tabB = loadAccounts(storage);
+
+  let injected = false;
+  let createdByTabB = null;
+  const originalSetItem = storage.setItem.bind(storage);
+  storage.setItem = (key, value) => {
+    if (!injected && key === ACTIVE_KEY && value === survivor.id) {
+      injected = true;
+      /* A のアクティブ切替と索引削除の間に、別タブの作成を完了させる。 */
+      createdByTabB = tabB.create("削除中に作成", "別タブ");
+    }
+    return originalSetItem(key, value);
+  };
+
+  assert.equal(tabA.delete(target.id), true);
+  assert.ok(createdByTabB);
+  const listed = tabA.list().accounts;
+  assert.equal(listed.length, 2, "削除側が古い索引を書き戻して B を落とさない");
+  assert.ok(listed.some((entry) => entry.id === survivor.id));
+  assert.ok(listed.some((entry) => entry.id === createdByTabB.id));
+  assert.equal(listed.some((entry) => entry.id === target.id), false);
+  assert.equal(storage.getItem(ACCOUNT_PREFIX + target.id), null, "削除対象の保存本体は除去");
+  assert.equal(storage.getItem(ACTIVE_KEY), survivor.id, "残った有効なアカウントを選択");
+});
+
 test("作成・切替・名前変更・削除: 最低1件を保証し旧キーに触れない", () => {
   const storage = createStorage({ [LEGACY_KEY]: legacyStateJson() });
   const accounts = loadAccounts(storage);
