@@ -904,7 +904,8 @@ const PersonaCodex = ({ state, dispatch, ownedOnly = false }) => {
     filterResP: "",
     filterResB: "",
     filterOwnedOnly: false,
-    filterMatch: "any"
+    filterMatch: "any",
+    rosterBuildFilter: "all"
   } });
   const getFocusScroller = () => document.querySelector("main.focus");
   const scrollIntoFocus = (target, block = "start") => {
@@ -1071,7 +1072,7 @@ const addRoster = (p) => {
       : (affiliation ? `草案を『${affiliation.name}』の同期人格として反映` : `草案人格『${draftResult.persona.name}』を編集中として装備`), short ? "assertive" : void 0);
     setTimeout(() => document.querySelector("main.focus")?.scrollTo({ top: 0, behavior: scrollBehavior() }), 20);
   };
-  const hasActiveFilters = ui.filterSins.length || ui.filterKws.length || ui.filterAffs.length || ui.searchQuery || ui.filterResS || ui.filterResP || ui.filterResB || ui.filterOwnedOnly;
+  const hasActiveFilters = ui.filterSins.length || ui.filterKws.length || ui.filterAffs.length || ui.searchQuery || ui.filterResS || ui.filterResP || ui.filterResB || ui.filterOwnedOnly || (mode === "roster" && ui.rosterBuildFilter && ui.rosterBuildFilter !== "all");
   const equippedPersona = state.personaSrc;
   const equippedDetailPersona = buildEquippedDetailPersona(state);
   const equippedMeta = equippedPersona ? { p: equippedPersona, mode: state.personaMode || "n" } : null;
