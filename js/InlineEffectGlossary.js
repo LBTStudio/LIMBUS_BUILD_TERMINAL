@@ -294,7 +294,7 @@
       className: "lbt-glossary-anchor", ref: anchorRef,
       onPointerEnter: startHover, onPointerLeave: endHover, onPointerDown,
       onPointerUp, onPointerCancel: onPointerUp,
-      onContextMenu: (event) => { if (event.pointerType === "touch") event.preventDefault(); setOpen(true); },
+      onContextMenu: (event) => { event.preventDefault(); setOpen(true); },
       onKeyDown: (event) => { if (event.key === "Escape") setOpen(false); }
     },
       React.createElement("button", {
