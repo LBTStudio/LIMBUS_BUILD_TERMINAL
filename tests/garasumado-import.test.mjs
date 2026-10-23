@@ -235,6 +235,19 @@ test("収入節に書かれた叙述体の購入も所持の証跡になり、�
   assert.ok(b.wins.some((w) => w.name === "分別できる理性" && w.bought));
   assert.equal(b.spends.length, 0, "購入語が頭にない行は負額支出に回さない（既存の読み）");
 });
+test("全角の収入額・支出額・抽出回数も取り込む", () => {
+  const reward = MEMO.parseMemo("９０ＬＰ：現在１００ＬＰ\n２９欠片：現在３９欠片");
+  assert.equal(reward.income.lp, 90);
+  assert.equal(reward.income.shards, 29);
+
+  const spend = MEMO.parseMemo("・支出\n精神「正義」を購入 －２００欠片");
+  assert.equal(spend.spends.length, 1);
+  assert.equal(spend.spends[0].shards, 200);
+
+  const tickets = MEMO.parseMemo("人格抽出チケットｘ２：某某の人格");
+  assert.equal(tickets.tickets.persona, 2);
+});
+
 test("チケットの個数と種別を読む", () => {
   const a = MEMO.parseMemo("抽出チケットx1：シュエ家私兵の人格");
   assert.equal(a.tickets.persona, 1);
