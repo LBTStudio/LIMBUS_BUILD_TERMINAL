@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-df16acf5";
+const CACHE_NAME = "lbt-ef46bf21";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -29,6 +29,7 @@ const PRECACHE_URLS = [
   "assets/design-system.css?v=910f9485",
   "assets/fonts/corporate-logo-bold-subset.woff2?v=b56fa468",
   "assets/fonts/corporate-logo-medium-subset.woff2?v=dbbdb67e",
+  "assets/inline-effect-glossary.css?v=f7be0cd4",
   "assets/items.css?v=7cf01d95",
   "assets/persona-codex.css?v=f7d6f495",
   "assets/sections.css?v=fdd86e81",
@@ -48,11 +49,12 @@ const PRECACHE_URLS = [
   "data/items.json?v=b47b58ae",
   "js/App.js?v=3b88bca2",
   "js/DataQuality.js?v=a8365c72",
-  "js/ItemCodex.js?v=f81cdb3e",
+  "js/InlineEffectGlossary.js?v=fabe7e04",
+  "js/ItemCodex.js?v=22e43a05",
   "js/LivePreview.js?v=1b6767e6",
-  "js/OtherSections.js?v=d1b85fcb",
-  "js/PersonaCodex.js?v=f01ed635",
-  "js/SkillDeck.js?v=0e7a3640",
+  "js/OtherSections.js?v=415ba2e1",
+  "js/PersonaCodex.js?v=2df975c5",
+  "js/SkillDeck.js?v=bd93f4c1",
   "js/accounts-ui.js?v=59b44784",
   "js/core.js?v=d79b98be",
   "js/ego-slot-forms.js?v=85aa4887",
