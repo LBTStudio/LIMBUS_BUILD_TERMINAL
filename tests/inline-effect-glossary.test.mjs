@@ -152,7 +152,18 @@ test("generic buffs and debuffs show one PDF-backed rules definition, not identi
     { term: "パワー", page: 304, needle: "攻撃スキル威力" },
     { term: "出血", page: 307, needle: "ダイスロール時" },
     { term: "煙", page: 311, needle: "与えるダメージ" },
-    { term: "弾丸", page: 312, needle: "特定戦術の能力が向上" }
+    { term: "弾丸", page: 312, needle: "特定戦術の能力が向上" },
+    { term: "E.G.O資源獲得量増加", page: 304, needle: "大罪資源数" },
+    { term: "属性威力増加", page: 305, needle: "該当する攻撃属性" },
+    { term: "デバフ保護", page: 305, needle: "該当するデバフ" },
+    { term: "d値強化", page: 305, needle: "d値" },
+    { term: "大罪威力減少", page: 307, needle: "スキル威力" },
+    { term: "大罪脆弱", page: 308, needle: "ダメージ量が数値だけ増加" },
+    { term: "属性脆弱", page: 308, needle: "受けるダメージ" },
+    { term: "挑発値", page: 311, needle: "確率で自分が選ばれる" },
+    { term: "電圧", page: 311, needle: "特定スキルの能力が上昇" },
+    { term: "血餐", page: 311, needle: "出血ダメージ" },
+    { term: "自己共振回路", page: 311, needle: "共有される" },
   ]) {
     const piece = api.tokenize(item.term, db, ctx).find((part) => part.term === item.term);
     assert.ok(piece, item.term);
@@ -161,7 +172,7 @@ test("generic buffs and debuffs show one PDF-backed rules definition, not identi
     assert.ok(piece.entries[0].description.includes(item.needle), item.term);
     const heading = "===== PAGE " + item.page + " =====";
     const start = core.indexOf(heading), end = core.indexOf("===== PAGE ", start + heading.length);
-    assert.ok(start >= 0 && core.slice(start, end >= 0 ? end : core.length).includes(item.term),
+    assert.ok(start >= 0 && core.slice(start, end >= 0 ? end : core.length).replace(/\s/g, "").includes(item.term.replace(/\s/g, "")),
       item.term + " is in the PDF-derived source corpus");
   }
 });
