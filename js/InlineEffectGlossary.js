@@ -39,7 +39,7 @@
     "指令": { group: "特殊用語", source: "基本ルール／データ内参照", text: "人格・E.G.Oの効果文に登場する特殊用語。具体的な数値や条件は、該当する参照元の効果文を併せて確認できる。" }
   };
 
-  const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\const escapeRegExp = (value) => value.replace(/[.*+?^$()|[\]\\]/g, "\\$&");");
+  const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const cleanTerm = (value) => String(value || "").replace(/^\[|\]$/g, "").trim();
   const shortText = (value, limit = 250) => {
     const text = String(value || "").trim();
