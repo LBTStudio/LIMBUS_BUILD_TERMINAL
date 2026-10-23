@@ -2501,35 +2501,67 @@ function switchAccount(id) {
   if (!index.accounts.some((entry) => entry.id === id)) return false;
   return writeStorageRaw(ACCOUNT_ACTIVE_KEY, id);
 }
+function restoreAccountIndexAfterFailedDelete(entry, originalPosition) {
+  /* 失敗後のロールバックも元の索引スナップショットで上書きしない。
+     削除処理中に別タブが作成したアカウントを取り込み、対象だけ復元する。 */
+  const latest = readAccountsIndex().accounts;
+  if (latest.some((candidate) => candidate.id === entry.id)) return writeAccountsIndex(latest);
+  const restored = [...latest];
+  restored.splice(Math.max(0, Math.min(originalPosition, restored.length)), 0, entry);
+  return writeAccountsIndex(restored);
+}
 function deleteAccount(id) {
   const index = readAccountsIndex();
   if (index.accounts.length <= 1) return false;
-  const next = index.accounts.filter((entry) => entry.id !== id);
-  if (next.length === index.accounts.length) return false;
+  const originalPosition = index.accounts.findIndex((entry) => entry.id === id);
+  if (originalPosition < 0) return false;
+  const originalEntry = index.accounts[originalPosition];
+  const initialNext = index.accounts.filter((entry) => entry.id !== id);
+  if (!initialNext.length) return false;
 
   const storageKey = ACCOUNT_PREFIX + id;
   const previousState = readStorageRaw(storageKey);
   const previousActiveId = readStorageRaw(ACCOUNT_ACTIVE_KEY);
   const wasActive = previousActiveId === id;
-  /* 削除が失敗したときに index / active ID を元へ戻せるよう、先に選択先を
-     切り替える。書き込みに失敗したら、データ本体にはまだ触れず中止する。 */
-  if (wasActive && !writeStorageRaw(ACCOUNT_ACTIVE_KEY, next[0].id)) return false;
+  /* 削除が失敗したときに active ID を戻せるよう、先に選択先を切り替える。 */
+  if (wasActive && !writeStorageRaw(ACCOUNT_ACTIVE_KEY, initialNext[0].id)) return false;
+
+  /* 切替の間に別タブで作成・削除が終わり得る。削除前に必ず最新索引を読み直し、
+     その時点で存在する他のアカウントを維持したまま対象だけを外す。 */
+  const latestIndex = readAccountsIndex();
+  if (!latestIndex.accounts.some((entry) => entry.id === id)) {
+    if (wasActive) {
+      const active = latestIndex.accounts.find((entry) => entry.id === readStorageRaw(ACCOUNT_ACTIVE_KEY));
+      const fallbackId = active?.id || latestIndex.accounts[0]?.id;
+      if (fallbackId) writeStorageRaw(ACCOUNT_ACTIVE_KEY, fallbackId);
+      else removeStorageRaw(ACCOUNT_ACTIVE_KEY);
+    }
+    return false;
+  }
+  if (latestIndex.accounts.length <= 1) {
+    if (wasActive) writeStorageRaw(ACCOUNT_ACTIVE_KEY, id);
+    return false;
+  }
+  const next = latestIndex.accounts.filter((entry) => entry.id !== id);
+  if (wasActive && !next.some((entry) => entry.id === readStorageRaw(ACCOUNT_ACTIVE_KEY))
+    && !writeStorageRaw(ACCOUNT_ACTIVE_KEY, next[0].id)) {
+    writeStorageRaw(ACCOUNT_ACTIVE_KEY, id);
+    return false;
+  }
   if (!writeAccountsIndex(next)) {
     if (wasActive) writeStorageRaw(ACCOUNT_ACTIVE_KEY, previousActiveId);
     return false;
   }
   if (!removeStorageRaw(storageKey)) {
-    /* removeItem が失敗したのに index だけ削除すると、保存本体が孤立して
-       後日の索引復旧で「削除したはずのアカウント」が再出現する。 */
-    writeAccountsIndex(index.accounts);
+    /* 本体削除失敗時、最新索引に対象だけを戻し、途中で増えた別アカウントは保持する。 */
+    restoreAccountIndexAfterFailedDelete(originalEntry, originalPosition);
     if (wasActive) writeStorageRaw(ACCOUNT_ACTIVE_KEY, previousActiveId);
     return false;
   }
   if (!removeAccountIcon(id)) {
-    /* アイコン除去に失敗した場合も、アカウントの保存本体と索引を戻して
-       不完全な削除を成功扱いしない。 */
+    /* アイコン除去に失敗したら本体と対象行を復旧。索引の最新項目も維持する。 */
     if (previousState != null) writeStorageRaw(storageKey, previousState);
-    writeAccountsIndex(index.accounts);
+    restoreAccountIndexAfterFailedDelete(originalEntry, originalPosition);
     if (wasActive) writeStorageRaw(ACCOUNT_ACTIVE_KEY, previousActiveId);
     return false;
   }
