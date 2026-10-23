@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-137557c3";
+const CACHE_NAME = "lbt-aedde1bf";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -40,7 +40,7 @@ const PRECACHE_URLS = [
   "assets/v65r43-ego-readability.css?v=563284f8",
   "assets/v65r44-ego-quick-detail.css?v=1bb6dfa1",
   "assets/v65r47-ego-card-marks.css?v=aaf12533",
-  "assets/v66-accounts.css?v=523c7986",
+  "assets/v66-accounts.css?v=6460dd8a",
   "assets/v67-persona-redesign.css?v=b595e3d5",
   "assets/v68-interaction-a11y.css?v=7ba8b3b8",
   "assets/workspace.css?v=3f0bd1b0",
