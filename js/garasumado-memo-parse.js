@@ -259,7 +259,7 @@
        ・収入行「90LP：現在100LP」→ 100 は残額。90 が収入。
        ・支出行「正義購入 現在87欠片」  → 87 が支出そのもの。
        支出節（keepCurrent）では現在を残し、収入側では落とす。 */
-    var text = String(line)
+    var text = normalizeNumericText(line)
       .replace(/残り\s*-?\d+/gi, " ")
       .replace(/へ\s*$/, " ");
     if (!keepCurrent) {
@@ -775,12 +775,12 @@
           /* 残額だけの行。通貨名が無ければ純粋な残WRITE。
              通貨名があれば「130LP を使った」という読みできるので、
              金額として拾う（Foobar　現在130LP → LP 130）。 */
-          if (!/(LP|欠片|かけら|欠けら|カケラ)/i.test(line)) continue;
+          if (!/(LP|欠片|かけら|欠けら|カケラ)/i.test(normalizeNumericText(line))) continue;
         }
 
         /* 両通貨が 1 行に並ぶことがある:
            「LPを欠片に変換：+11欠片 -22LP」「150LP消費　300LPへ」。 */
-        var cleanedSpend = String(line)
+        var cleanedSpend = normalizeNumericText(line)
           .replace(/\d+\s*(LP|欠片|かけら|欠けら|カケラ)\s*へ\s*$/g, " ")
           .replace(/残り\s*-?\d+/gi, " ");
 
