@@ -6,7 +6,7 @@ import vm from "node:vm";
 const appSource = readFileSync(new URL("../js/App.js", import.meta.url), "utf8");
 const otherSectionsSource = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
 const filterStart = appSource.indexOf("function filterInventoryImportActions(actions, state) {");
-const filterEnd = appSource.indexOf("\nfunction validateImportedInventoryCaps(data, fields, currentState) {", filterStart);
+const filterEnd = appSource.indexOf("\nfunction validateImportData(", filterStart);
 assert.ok(filterStart >= 0 && filterEnd > filterStart, "App.js has an isolated shared-import filter");
 const filterSource = appSource.slice(filterStart, filterEnd);
 
