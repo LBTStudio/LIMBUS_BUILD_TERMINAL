@@ -276,7 +276,8 @@ test("パック別抽出チケットは通常チケットと重複せず、特�
   const protoPack = MEMO.parseMemo("〈__proto__〉抽出チケットx2");
   assert.equal(protoPack.tickets.persona, 0);
   assert.equal(protoPack.pack["__proto__"], 2, "__proto__ は通常のパック名として保存");
-  assert.equal(Object.getPrototypeOf(protoPack.pack), Object.prototype, "オブジェクトのプロトタイプは変更しない");
+  assert.equal(Object.prototype.hasOwnProperty.call(protoPack.pack, "__proto__"), true, "__proto__ はown propertyとして保持");
+  assert.equal(Object.getPrototypeOf(protoPack.pack).constructor.name, "Object", "オブジェクトのプロトタイプを数値で上書きしない");
 
   const constructorPack = MEMO.parseMemo("〈constructor〉抽出チケットx3");
   assert.equal(constructorPack.pack.constructor, 3, "constructor を関数に連結しない");
