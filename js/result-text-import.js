@@ -89,17 +89,25 @@
     const numeric = text.replace(/[（(]\s*[+-]\s*\d[\d,]*\s*[)）]/g, "").trim();
     const num = numeric.match(/([+-]?\d[\d,]*)/);
     const value = num ? safeAmount(num[1]) : 0;
-    if (num && value === null) return null;
     const rest = numeric.replace(/([+-]?\d[\d,]*)/, " ").trim();
     if (delta && deltaAmount !== null) deltas.push({ value: deltaAmount, sign: delta[1] });
 
-    /* 抽出チケットは数だけ取る。明示的な x0 は既定の 1 枚に置き換えない。 */
+    /* 数量は名前中のシーズン番号などではなく、xN/×N/チケットN枚から取る。 */
     if (/抽出|チケット/.test(numeric)) {
-      const kind = /e\.?g\.?o/i.test(numeric) || /ＥＧＯ/i.test(numeric) ? "ego"
+      const packMatch = numeric.match(/[〈《]([^〉》]+)[〉》]\s*抽出チケット/i);
+      const countMatch = numeric.match(/[x×]\s*([+-]?\d[\d,]*)/i)
+        || numeric.match(/チケット\s*[:：]?\s*([+-]?\d[\d,]*)\s*枚/i);
+      const count = countMatch ? safeAmount(countMatch[1]) : 1;
+      if (count === null) return null;
+      const kind = packMatch ? "pack"
+        : /e\.?g\.?o/i.test(numeric) || /ＥＧＯ/i.test(numeric) ? "ego"
         : /人格/.test(numeric) ? "persona"
         : /選択/.test(numeric) ? "choice" : null;
-      return { ticket: { kind, count: num ? value : 1 }, deltas, invalidDelta, raw: item };
+      const ticket = { kind, count };
+      if (packMatch) ticket.pack = packMatch[1].trim();
+      return { ticket, deltas, invalidDelta, raw: item };
     }
+    if (num && value === null) return null;
     /* 通貨は単位詞で分ける */
     const isShards = SHARD_WORD.test(numeric);
     const isLp = LP_WORD.test(numeric) || /^(lp|ＬＰ)/i.test(numeric);
@@ -221,7 +229,31 @@
     for (const record of parsed.records || []) {
       const title = record.title || "無題";
       const note = record.author ? `作：${record.author}` : "";
-      actions.push({ type: "ADD_RESULT", name: title, income: { lp: record.income.lp, shards: record.income.shards, tickets: ticketIncome(record.tickets) }, note });
+      const acceptedTickets = [];
+      const ticketTotals = new Map();
+      for (const ticket of record.tickets || []) {
+        const kind = ticket?.kind;
+        const pack = kind === "pack" ? String(ticket?.pack || "").trim() : "";
+        const knownKind = kind === "persona" || kind === "ego" || kind === "choice";
+        if (!knownKind && !(kind === "pack" && pack)) {
+          skipped.push({ text: ticket?.raw || "抽出チケット", reason: "チケット種別が不明なため、収入へ確定できません" });
+          continue;
+        }
+        const count = Number(ticket?.count);
+        if (!Number.isSafeInteger(count) || count < 0) {
+          skipped.push({ text: ticket?.raw || "抽出チケット", reason: "チケット枚数が不正です" });
+          continue;
+        }
+        const totalKey = kind === "pack" ? "pack:" + pack : kind;
+        const nextCount = (ticketTotals.get(totalKey) || 0) + count;
+        if (!Number.isSafeInteger(nextCount)) {
+          skipped.push({ text: ticket?.raw || "抽出チケット", reason: "同種チケットの合計が安全整数の範囲を超えています" });
+          continue;
+        }
+        ticketTotals.set(totalKey, nextCount);
+        acceptedTickets.push(ticket);
+      }
+      actions.push({ type: "ADD_RESULT", name: title, income: { lp: record.income.lp, shards: record.income.shards, tickets: ticketIncome(acceptedTickets) }, note });
       record.spends.forEach((spend, index) => {
         if (excluded.has(index)) return;
         if (spend.needsDecision) { skipped.push({ text: spend.raw || spend.name, reason: spend.reason || "要確認" }); return; }
@@ -237,7 +269,16 @@
   function ticketIncome(tickets) {
     const out = { persona: 0, ego: 0, choice: 0, pack: {} };
     for (const t of tickets || []) {
-      if (t.kind === "persona" || t.kind === "ego" || t.kind === "choice") out[t.kind] += t.count || 0;
+      const count = Number(t?.count) || 0;
+      if (t.kind === "persona" || t.kind === "ego" || t.kind === "choice") out[t.kind] += count;
+      else if (t.kind === "pack" && typeof t.pack === "string" && t.pack.trim()) {
+        const pack = t.pack.trim();
+        const current = Object.prototype.hasOwnProperty.call(out.pack, pack) ? out.pack[pack] : 0;
+        const next = current + count;
+        if (Number.isSafeInteger(next) && next >= 0) {
+          Object.defineProperty(out.pack, pack, { value: next, writable: true, enumerable: true, configurable: true });
+        }
+      }
     }
     return out;
   }
