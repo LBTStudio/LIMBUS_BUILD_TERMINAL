@@ -406,6 +406,23 @@ test("アカウント削除時にそのアイコンも解放される（孤立�
   assert.equal(accounts.saveActive({ charName: "退避後" }, first.id), true, "他アカウントの保存は続く");
 });
 
+test("完全削除は有効な保存値を .corrupt に複製せず、現アカウントの破損退避だけを消す", () => {
+  const legacy = legacyStateJson();
+  const storage = createStorage({ [LEGACY_KEY]: legacy });
+  const accounts = loadAccounts(storage);
+  const { activeId } = accounts.list();
+  accounts.saveActive({ charName: "削除対象のキャラクター" });
+  const key = ACCOUNT_PREFIX + activeId;
+  storage.setItem(`${key}.corrupt.older`, JSON.stringify({ charName: "以前の破損退避" }));
+  storage.setItem("lbt_account_other.corrupt.older", JSON.stringify({ charName: "別アカウントの退避" }));
+
+  assert.equal(accounts.resetActive(), true);
+  assert.equal(accounts.loadActive().charName, undefined, "現アカウントの保存状態をリセットする");
+  assert.equal(storage.keys().some((k) => k.startsWith(`${key}.corrupt.`)), false, "現アカウントの破損退避は残さない");
+  assert.equal(storage.getItem("lbt_account_other.corrupt.older"), JSON.stringify({ charName: "別アカウントの退避" }), "他アカウントの退避は保護");
+  assert.equal(storage.getItem(LEGACY_KEY), legacy, "旧形式の原本は契約どおり保持");
+});
+
 test("resetActive は保存領域だけ空にし、アカウント名・アイコンは保持する", () => {
   const storage = createStorage();
   const accounts = loadAccounts(storage);
