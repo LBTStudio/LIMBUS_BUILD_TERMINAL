@@ -139,6 +139,13 @@ test("通帳の金額・チケット数は部分一致の数値として取り�
   assert.match(validate({ schemaVersion: 5, inventory: [
     { uid: "i1", itemId: "bandage", quantity: 1.5 }
   ] }), /inventory\[0\]\.quantity/, "小数の所持数量を拒否する");
+  assert.match(validate({ schemaVersion: 5, inventory: [
+    { uid: "i1", itemId: "bandage", quantity: 1 },
+    { uid: "i2", itemId: "bandage", quantity: 1 }
+  ] }), /inventory\[1\] に重複 itemId/, "同じアイテムの重複行で最大所持数を迂回させない");
+  assert.match(validate({ schemaVersion: 5, inventory: [
+    { uid: "i1", quantity: 1 }
+  ] }), /inventory\[0\]\.itemId/, "表示先のないアイテム行はインポート前に拒否する");
   assert.match(validate({ schemaVersion: 5, customItems: [
     { id: "c1", name: "用品", maxOwned: "5pcs" }
   ] }), /customItems\[0\]\.maxOwned/, "不正な所持上限も部分一致で解釈しない");
