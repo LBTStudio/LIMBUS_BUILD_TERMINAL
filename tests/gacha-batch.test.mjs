@@ -360,10 +360,6 @@ test("未所持なら 1件目の請求は0になる（バッチ全体で1つの�
     lp: 1000, count: 2
   });
   const batch = G.finalizeBatch(out, session, { rulesetHash: gacha.rulesetHash });
-  /* scripted() は抽選対象を固定するためのテストダブルで、暗号学的RNGの実際の列を
-     生成しない。証明検証のテストではなく適用効果だけを見るため v1 互換フィクスチャにする。 */
-  batch.schemaVersion = 1;
-  delete batch.integrityHash;
   const next = w.appReducer(base(), { type: "ADD_DRAW_BATCH", batch });
   const byName = new Map(next.entries.map((e) => [e.name, e.cost?.lp]));
   const costs = batch.records.map((r) => byName.get(db.normal_personas.find((p) => p.no === r.item.no)?.name));
@@ -482,6 +478,10 @@ test("テーマパック: DBに人格がある項目は所持へ入り、無い�
   const session = scripted([pack.entries.indexOf(inDb) + 1, pack.entries.indexOf(notInDb) + 1]);
   const out = gacha.drawBatch({ session, kind: "themePack", pack, heldNames: new Set(), lp: pack.lp * 2, count: 2 });
   const batch = G.finalizeBatch(out, session, { rulesetHash: gacha.rulesetHash });
+  /* scripted() は実際のseed/rollsを再現しないテストダブルのため、
+     ここでは適用処理の検証用に legacy 形式として固定する。 */
+  batch.schemaVersion = 1;
+  delete batch.integrityHash;
   const next = w.appReducer(base(), { type: "ADD_DRAW_BATCH", batch });
 
   assert.equal(next.roster.personas.length, 1, "DBにある1件だけ所持へ入る");
