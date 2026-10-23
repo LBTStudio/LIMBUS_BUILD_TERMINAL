@@ -205,3 +205,22 @@ test("価格表記は全角数字・全角単位でも読める", () => {
   eq("２欠片", 0, 2);
   eq("３０", 30, 0);
 });
+
+test("既存アイテムの数量加算は残高ゲートに止められず、二重購入明細を作らない", () => {
+  const { reducer, initState } = loadStateReducer();
+  const id = "custom-owned-stack-price";
+  const created = reducer(initState, { type: "ADD_CUSTOM_ITEM", item: { id, name: "数量加算試験", price: "30LP", maxOwned: 5 } });
+  const tracked = {
+    ...created,
+    results: [{ id: "result-1", name: "初期作成", income: { lp: 30, shards: 0, tickets: {} }, exchange: { lp: 0, shards: 0 } }],
+    entries: []
+  };
+  const first = reducer(tracked, { type: "ADD_ITEM", itemId: id });
+  assert.equal(first.inventory[0].quantity, 1);
+  assert.equal(first.entries.length, 1, "初回導入だけは価格を課帳する");
+  assert.equal(first.entries[0].cost.lp, 30);
+
+  const second = reducer(first, { type: "ADD_ITEM", itemId: id });
+  assert.equal(second.inventory[0].quantity, 2, "残高0でも既存スタックの数量加算は成功する");
+  assert.equal(second.entries.length, 1, "数量加算で二重の支出明細を作らない");
+});
