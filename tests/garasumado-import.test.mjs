@@ -244,6 +244,20 @@ test("チケットの個数と種別を読む", () => {
   assert.equal(c.tickets.ego, 1);
 });
 
+test("明示されたゼロ枚・ゼロ回の抽出は1枚に化けず、獲得候補も作らない", () => {
+  const ticket = MEMO.parseMemo("人格抽出チケットx0：某某の人格");
+  assert.equal(ticket.tickets.persona, 0, "x0 は0枚");
+  assert.equal(ticket.wins.length, 0, "0枚の抽出から所持を推定しない");
+
+  const draw = MEMO.parseMemo("抽出0：E.G.O:提灯");
+  assert.equal(draw.tickets.ego, 0, "抽出0 は0回");
+  assert.equal(draw.wins.length, 0, "0回の抽出からE.G.O所持を推定しない");
+
+  const explicit = MEMO.parseMemo("E.G.O抽出チケット0枚：提灯");
+  assert.equal(explicit.tickets.ego, 0, "0枚表記も維持");
+  assert.equal(explicit.wins.length, 0);
+});
+
 test("manifest のシナリオが収入と支出を持つ", () => {
   const m = MEMO.parseScenarioHistory([
     { name: "S1", memo: "90LP：現在100LP\n29欠片：現在39欠片\n・支出\n憎悪購入：-50欠片" },
