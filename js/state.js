@@ -2151,7 +2151,12 @@ function recoverAccountsFromStorage() {
 }
 function readAccountsIndex() {
   const raw = readStorageRaw(ACCOUNTS_INDEX_KEY);
-  if (raw == null) return { version: 1, accounts: [] };
+  if (raw == null) {
+    // 索引キー自体が消えても、保存本体が残っていれば復旧できるようにする。
+    const recovered = recoverAccountsFromStorage();
+    if (recovered.length) writeAccountsIndex(recovered);
+    return { version: 1, accounts: recovered };
+  }
   let parsed = null;
   try {
     parsed = JSON.parse(raw);
