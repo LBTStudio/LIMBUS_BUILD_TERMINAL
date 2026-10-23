@@ -1631,7 +1631,34 @@ function normalizeStateShape(raw) {
     custom: true
   })).filter((item) => item.name && !seenCustomItemIds.has(item.id) && (seenCustomItemIds.add(item.id) || true));
   // 旧保存データも、現在の公式・オリジナル定義の上限へ正規化する。
-  next.inventory = next.inventory.map((entry) => ({ ...entry, quantity: clampItemQuantity(next, entry.itemId, entry.quantity) }));
+  /* 1アイテムIDにつき所持スタックは1行。破損した旧セーブに同じ itemId が複数行あると、
+     行ごとの maxOwned で合計上限を超えられ、追加時も先頭行だけ更新されてしまう。
+     ここで合算・上限適用し、削除や支出取消の参照UIDも代表行へ寄せる。 */
+  const inventoryByItemId = new Map();
+  const inventoryUidAliases = new Map();
+  for (const rawEntry of next.inventory) {
+    const itemId = String(rawEntry.itemId || "").trim();
+    if (!itemId) continue;
+    const entry = { ...rawEntry, itemId, quantity: clampItemQuantity(next, itemId, rawEntry.quantity) };
+    const current = inventoryByItemId.get(itemId);
+    if (!current) {
+      inventoryByItemId.set(itemId, entry);
+      continue;
+    }
+    current.quantity = clampItemQuantity(next, itemId, current.quantity + entry.quantity);
+    current.memo = current.memo !== false || entry.memo !== false;
+    current.palette = current.palette !== false || entry.palette !== false;
+    if (current.origin !== entry.origin) current.origin = "acquired";
+    if (entry.uid && current.uid && entry.uid !== current.uid) inventoryUidAliases.set(entry.uid, current.uid);
+  }
+  next.inventory = [...inventoryByItemId.values()];
+  if (inventoryUidAliases.size && Array.isArray(next.entries)) {
+    next.entries = next.entries.map((entry) => {
+      if (entry?.ref?.kind !== "inventory") return entry;
+      const uid = inventoryUidAliases.get(String(entry.ref.uid || ""));
+      return uid ? { ...entry, ref: { ...entry.ref, uid } } : entry;
+    });
+  }
   next.shareOptions = {
     showSyncRank: next.shareOptions?.showSyncRank !== false,
     showSyncRankInOutput: next.shareOptions?.showSyncRankInOutput === true
