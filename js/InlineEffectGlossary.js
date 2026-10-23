@@ -199,6 +199,7 @@
     const closeTimer = React.useRef(null);
     const longPressTimer = React.useRef(null);
     const suppressClick = React.useRef(false);
+    const lastPointerType = React.useRef(null);
     const uid = React.useId().replace(/:/g, "");
     const panelId = "lbt-glossary-" + uid;
     const clearTimer = (ref) => { if (ref.current) global.clearTimeout(ref.current); ref.current = null; };
@@ -236,6 +237,12 @@
         global.document.removeEventListener("pointerdown", outside, true);
       };
     }, [open]);
+    /* A pending gesture must not outlive the term component. */
+    React.useEffect(() => () => {
+      clearTimer(hoverTimer);
+      clearTimer(closeTimer);
+      clearTimer(longPressTimer);
+    }, []);
     const startHover = (event) => {
       if (event.pointerType !== "mouse") return;
       clearTimer(closeTimer);
@@ -248,7 +255,12 @@
       closeSoon(360);
     };
     const onPointerDown = (event) => {
-      if (event.pointerType !== "touch") return;
+      lastPointerType.current = event.pointerType || null;
+      if (event.pointerType !== "touch") {
+        /* A new non-touch gesture also clears stale touch-click suppression. */
+        suppressClick.current = false;
+        return;
+      }
       clearTimer(longPressTimer);
       suppressClick.current = false;
       longPressTimer.current = global.setTimeout(() => {
@@ -257,6 +269,17 @@
       }, 480);
     };
     const onPointerUp = () => clearTimer(longPressTimer);
+    const onPointerCancel = () => {
+      clearTimer(longPressTimer);
+      suppressClick.current = false;
+    };
+    const onContextMenu = (event) => {
+      event.preventDefault();
+      /* Some mobile browsers dispatch contextmenu before the 480ms timer.
+         Suppress its follow-up synthetic click, or the click toggles this open panel shut. */
+      if (lastPointerType.current === "touch") suppressClick.current = true;
+      setOpen(true);
+    };
     const onClick = (event) => {
       if (suppressClick.current) {
         suppressClick.current = false;
@@ -294,8 +317,8 @@
     return React.createElement("span", {
       className: "lbt-glossary-anchor", ref: anchorRef,
       onPointerEnter: startHover, onPointerLeave: endHover, onPointerDown,
-      onPointerUp, onPointerCancel: onPointerUp,
-      onContextMenu: (event) => { event.preventDefault(); setOpen(true); },
+      onPointerUp, onPointerCancel,
+      onContextMenu,
       onKeyDown: (event) => { if (event.key === "Escape") setOpen(false); }
     },
       React.createElement("button", {
