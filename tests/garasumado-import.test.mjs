@@ -248,6 +248,26 @@ test("全角の収入額・支出額・抽出回数も取り込む", () => {
   assert.equal(tickets.tickets.persona, 2);
 });
 
+test("カンマ区切りの通貨額は全体で読み、壊れた桁区切りを部分一致させない", () => {
+  const income = MEMO.parseMemo("1,200LP 2,500欠片");
+  assert.equal(income.income.lp, 1200);
+  assert.equal(income.income.shards, 2500);
+
+  const reversed = MEMO.parseMemo("LP1,200 欠片2,500");
+  assert.equal(reversed.income.lp, 1200);
+  assert.equal(reversed.income.shards, 2500);
+
+  const spend = MEMO.parseMemo("・支出\n精神「正義」を購入 1,200欠片");
+  assert.equal(spend.spends.length, 1);
+  assert.equal(spend.spends[0].shards, 1200);
+
+  const invalidIncome = MEMO.parseMemo("1,20LP");
+  assert.equal(invalidIncome.income.lp, 0, "1,20LP を 20LP と誤読しない");
+  const invalidSpend = MEMO.parseMemo("・支出\n精神「正義」を購入 1,20欠片");
+  assert.equal(invalidSpend.spends.length, 1);
+  assert.equal(invalidSpend.spends[0].shards, 0, "不正なカンマ値を 20 欠片にしない");
+});
+
 test("チケットの個数と種別を読む", () => {
   const a = MEMO.parseMemo("抽出チケットx1：シュエ家私兵の人格");
   assert.equal(a.tickets.persona, 1);

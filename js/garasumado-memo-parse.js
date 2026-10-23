@@ -34,6 +34,17 @@
       .replace(/\u3000/g, " ");
   }
 
+  /* 桁区切りは正しい3桁グループだけを除去。誤った 1,20LP を 20LP と
+     部分一致させないよう、解析用テキストでは不正なカンマ数値をマスクする。 */
+  function normalizeAmountText(value) {
+    var text = normalizeNumericText(value);
+    text = text.replace(/(^|[^\d,])([+-]?\d{1,3}(?:,\d{3})+)(?![\d,])/g,
+      function (_all, prefix, amount) { return prefix + amount.replace(/,/g, ""); });
+    text = text.replace(/(^|[^\d])([+-]?\d[\d,]*,\d+)(?=$|[^\d])/g,
+      function (_all, prefix) { return prefix + " "; });
+    return text;
+  }
+
   function hasShard(text) {
     for (var i = 0; i < SHARD_WORDS.length; i++) {
       if (String(text).indexOf(SHARD_WORDS[i]) >= 0) return true;
@@ -64,7 +75,7 @@
      「因子コード G-5購入 7LP」のように識別子に数字が混ざっていても、
      通貨名に隣接する数値を採る（7 が金額、G-5 の 5 は識別子）。 */
   function amountOf(line) {
-    var cleaned = normalizeNumericText(line)
+    var cleaned = normalizeAmountText(line)
       .replace(/現在[：:]?\s*(LP|欠片|かけら|欠けら|カケラ)?\s*-?\d+/gi, " ")
       .replace(/残り\s*-?\d+/gi, " ")
       .replace(/へ\s*$/, " ");
@@ -84,7 +95,7 @@
     /* 「チケット」だけでなく略字の「チケ」も受ける。実データに
        「ガチャチケ1枚　第四銀工房銃鎚派」がある。 */
     if (!/チケ|チケット/.test(line)) return null;
-    var text = normalizeNumericText(line);
+    var text = normalizeAmountText(line);
     var count = 1;
     var cm = text.match(/[x×]\s*(\d+)/);
     if (cm) count = parseInt(cm[1], 10);
@@ -104,7 +115,7 @@
      副語に E.G.O があれば E.G.O 抽出、無ければ人格抽出。
      数字無し「人格抽出：南部〜」も 1 回として数える。 */
   function bareDrawOf(line) {
-    var text = normalizeNumericText(line);
+    var text = normalizeAmountText(line);
     var m = text.match(/(?:抽出|ガチャ)\s*(\d+)?/);
     if (!m) return null;
     /* 「時間殺人時間テーマパック抽出」はパックの獲得であり、チケットの消費ではない。 */
@@ -117,13 +128,13 @@
   /* 「+154」や「45+5」を 1 つの額に。「45+5」は加算の連なり（=50）、
      先頭の符号だけが全体の符号（「-15」は -15 のまま）。 */
   function chainSum(raw) {
-    var s = normalizeNumericText(raw).replace(/＋/g, "+").replace(/\s+/g, "");
+    var s = normalizeAmountText(raw).replace(/＋/g, "+").replace(/\s+/g, "");
     var sign = 1;
     if (s.charAt(0) === "-") { sign = -1; s = s.slice(1); }
     else if (s.charAt(0) === "+") s = s.slice(1);
     var total = 0;
     var parts = s.split("+");
-    for (var i = 0; i < parts.length; i++) total += parseInt(parts[i], 10) || 0;
+    for (var i = 0; i < parts.length; i++) total += parseInt(parts[i].replace(/,/g, ""), 10) || 0;
     return sign * total;
   }
 
@@ -140,7 +151,7 @@
      文脈継承で拾うと帳簿に幻の収入が乗る。実測 202 行 +32396）。
      現在/残の直後は残額なので先に伏せる。 */
   function incomePairs(line) {
-    var text = normalizeNumericText(line)
+    var text = normalizeAmountText(line)
       .replace(/現在[：:]?\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ)?\s*-?\d+(?:\s*[+＋]\s*\d+)*(?:\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ))?/gi, " ")
       .replace(/残り?\s*-?\d+(?:\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ))?/gi, " ")
       /* 「300LPへ」は支払後の残高に振り直す書き方。額ではなく結果。 */
@@ -188,12 +199,12 @@
      読み違えるので読まない。通貨語がどこかにあればラベル経路が優先される。 */
   function parseBareStack(lines) {
     var res = { lp: 0, shards: 0 };
-    var joined = normalizeNumericText(lines.join("\n"));
+    var joined = normalizeAmountText(lines.join("\n"));
     if (/(LP|ＬＰ|欠片|かけら|欠けら|カケラ)/i.test(joined)) return res;
     var runs = [];
     var cur = [];
     for (var i = 0; i < lines.length; i++) {
-      var t = normalizeNumericText(lines[i] || "").trim();
+      var t = normalizeAmountText(lines[i] || "").trim();
       if (/^\d+$/.test(t)) { cur.push(parseInt(t, 10)); continue; }
       if (cur.length) { runs.push(cur); cur = []; }
     }
@@ -210,7 +221,7 @@
      見出しが無い裸の「N/M」は読まない（日付・分数と区別できない）。 */
   function parseSlashPairs(memo) {
     var res = { lp: 0, shards: 0 };
-    var lines = normalizeNumericText(memo).split(/\r?\n/);
+    var lines = normalizeAmountText(memo).split(/\r?\n/);
     var order = null;
     var headerAt = -1;
     for (var i = 0; i < lines.length; i++) {
@@ -244,7 +255,7 @@
   /* アイテムの効果説明文。「▶︎〜」で始まる行や、
      「〜を得る」「〜を獲得する」で終わる行は説明であって金額行ではない。 */
   function isNarrativeLine(line) {
-    var t = normalizeNumericText(line);
+    var t = normalizeAmountText(line);
     if (/^\s*[▶►▷]\s*/.test(t)) return true;
     if (/(得る|獲得する|消費する|半減し|発動する)/.test(t) && !/\d\s*(LP|欠片|かけら|欠けら|カケラ)/.test(t)) return true;
     return false;
@@ -259,7 +270,7 @@
        ・収入行「90LP：現在100LP」→ 100 は残額。90 が収入。
        ・支出行「正義購入 現在87欠片」  → 87 が支出そのもの。
        支出節（keepCurrent）では現在を残し、収入側では落とす。 */
-    var text = normalizeNumericText(line)
+    var text = normalizeAmountText(line)
       .replace(/残り\s*-?\d+/gi, " ")
       .replace(/へ\s*$/, " ");
     if (!keepCurrent) {
@@ -775,12 +786,12 @@
           /* 残額だけの行。通貨名が無ければ純粋な残WRITE。
              通貨名があれば「130LP を使った」という読みできるので、
              金額として拾う（Foobar　現在130LP → LP 130）。 */
-          if (!/(LP|欠片|かけら|欠けら|カケラ)/i.test(normalizeNumericText(line))) continue;
+          if (!/(LP|欠片|かけら|欠けら|カケラ)/i.test(normalizeAmountText(line))) continue;
         }
 
         /* 両通貨が 1 行に並ぶことがある:
            「LPを欠片に変換：+11欠片 -22LP」「150LP消費　300LPへ」。 */
-        var cleanedSpend = normalizeNumericText(line)
+        var cleanedSpend = normalizeAmountText(line)
           .replace(/\d+\s*(LP|欠片|かけら|欠けら|カケラ)\s*へ\s*$/g, " ")
           .replace(/残り\s*-?\d+/gi, " ");
 
@@ -840,7 +851,7 @@
      形が窄い（行末が金額で終わる／括弧名＋行末の購入）ので、文章の名前を
      拾わない。名前が括弧にないと名前は動詞の直前の語になる。 */
   function purchaseRowOf(line) {
-    var t = String(line || "").trim();
+    var t = normalizeAmountText(line || "").trim();
     if (!/(購入|消費)/.test(t)) return null;
     function mk(name, amount, cur) {
       var n = parseInt(String(amount).replace(/[０-９]/g, function (c) {
