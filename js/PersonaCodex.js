@@ -202,7 +202,18 @@ const PersonaDetail = ({ persona, mode, isEquipped, onEquip, onUnequip, onAddRos
   const p = persona;
   const primarySin = getPrimarySin(p);
   const kws = orderPersonaKeywordDisplay(p.keywords);
-  return /* @__PURE__ */ React.createElement("div", { id: !embed ? "persona-selected-detail" : void 0, className: `codex-detail${embed ? " is-embedded" : ""}`, style: { "--sin-primary": primarySin ? `var(--sin-${primarySin})` : "var(--gold)" } }, !embed && /* @__PURE__ */ React.createElement("div", { className: "detail-head" }, /* @__PURE__ */ React.createElement("div", { className: "detail-eyebrow" }, /* @__PURE__ */ React.createElement("span", { className: "detail-num" }, "No.", String(p.no).padStart(3, "0")), /* @__PURE__ */ React.createElement("span", { className: "detail-type" }, mode === "n" ? "\u901A\u5E38\u4EBA\u683C / NORMAL" : "\u7279\u7570\u4EBA\u683C / SPECIAL")), /* @__PURE__ */ React.createElement("div", { className: "detail-name" }, p.name), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "var(--s-3)" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 } }, "\u6240\u5C5E"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-12)", color: "var(--tx-2)" } }, decoratePersona(p).__aff)), /* @__PURE__ */ React.createElement("div", { className: "detail-stats" }, /* @__PURE__ */ React.createElement("div", { className: "detail-stat" }, /* @__PURE__ */ React.createElement("span", { className: "detail-stat-label" }, "HP"), /* @__PURE__ */ React.createElement("span", { className: "detail-stat-value" }, p.hp)), /* @__PURE__ */ React.createElement("div", { className: "detail-stat" }, /* @__PURE__ */ React.createElement("span", { className: "detail-stat-label" }, "SAN"), /* @__PURE__ */ React.createElement("span", { className: "detail-stat-value" }, p.san)), /* @__PURE__ */ React.createElement("div", { className: "detail-stat" }, /* @__PURE__ */ React.createElement("span", { className: "detail-stat-label" }, "\u901F\u5EA6"), /* @__PURE__ */ React.createElement("span", { className: "detail-stat-value" }, p.speed)), /* @__PURE__ */ React.createElement("div", { className: "detail-stat" }, /* @__PURE__ */ React.createElement("span", { className: "detail-stat-label" }, "\u5F3E\u4E38"), /* @__PURE__ */ React.createElement("span", { className: "detail-stat-value" }, p.bullets || "\xD7")))), /* @__PURE__ */ React.createElement("div", { className: "detail-body" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u8010\u6027 / RESISTANCE"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "var(--s-3)", flexWrap: "wrap", padding: "8px 0 12px", alignItems: "center" } }, /* @__PURE__ */ React.createElement(ResRow, { s: p.res_slash, p: p.res_pierce, b: p.res_blunt, showLabels: true }))), !embed && kws.length > 0 && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u30AD\u30FC\u30EF\u30FC\u30C9 / KEYWORDS"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } }, kws.map((k) => /* @__PURE__ */ React.createElement("span", { key: k, className: "chip is-sm" }, k)))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u30D1\u30C3\u30B7\u30D6 / PASSIVE"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive" }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-name" }, p.passive_name || "\uFF08\u306A\u3057\uFF09"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive-cond cond-chips-lg", style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)" } }, "\u767A\u52D5\u6761\u4EF6"), /* @__PURE__ */ React.createElement(CondChips, { cond: p.passive_cond || "\u306A\u3057" })), p.passive_always && /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect", style: { marginBottom: 6, color: "var(--tx-dim)" } }, /* @__PURE__ */ React.createElement("b", { style: { color: "var(--gold)", fontFamily: "var(--f-display)", fontSize: "var(--fs-10)", letterSpacing: "0.14em" } }, "\u5E38\u6642\uFF1A"), window.LBT_GLOSSARY_TEXT ? window.LBT_GLOSSARY_TEXT(p.passive_always, "人格パッシブ:" + p.name) : p.passive_always), /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" }, window.LBT_GLOSSARY_TEXT ? window.LBT_GLOSSARY_TEXT(p.passive_effect, "人格パッシブ:" + p.name) : p.passive_effect))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u6226\u8853\u30B9\u30AD\u30EB / SKILLS"), /* @__PURE__ */ React.createElement("div", { className: "detail-skills" }, (p.skills || []).map((sk, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "detail-skill", "data-sin": sk.sin, style: { flexDirection: "column", alignItems: "stretch" } },
+  return /* @__PURE__ */ React.createElement("div", { id: !embed ? "persona-selected-detail" : void 0, className: `codex-detail${embed ? " is-embedded" : ""}`, style: { "--sin-primary": primarySin ? `var(--sin-${primarySin})` : "var(--gold)" } }, !embed && /* @__PURE__ */ React.createElement("div", { className: "detail-head" }, /* @__PURE__ */ React.createElement("div", { className: "detail-eyebrow" }, /* @__PURE__ */ React.createElement("span", { className: "detail-num" }, "No.", String(p.no).padStart(3, "0")), /* @__PURE__ */ React.createElement("span", { className: "detail-type" }, mode === "n" ? "\u901A\u5E38\u4EBA\u683C / NORMAL" : "\u7279\u7570\u4EBA\u683C / SPECIAL")), /* @__PURE__ */ React.createElement("div", { className: "detail-name" }, p.name), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "var(--s-3)" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 4 } }, "\u6240\u5C5E"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-12)", color: "var(--tx-2)" } }, decoratePersona(p).__aff)), /* @__PURE__ */ React.createElement("div", { className: "detail-stats" }, /* @__PURE__ */ React.createElement("div", { className: "detail-stat" }, /* @__PURE__ */ React.createElement("span", { className: "detail-stat-label" }, "HP"), /* @__PURE__ */ React.createElement("span", { className: "detail-stat-value" }, p.hp)), /* @__PURE__ */ React.createElement("div", { className: "detail-stat" }, /* @__PURE__ */ React.createElement("span", { className: "detail-stat-label" }, "SAN"), /* @__PURE__ */ React.createElement("span", { className: "detail-stat-value" }, p.san)), /* @__PURE__ */ React.createElement("div", { className: "detail-stat" }, /* @__PURE__ */ React.createElement("span", { className: "detail-stat-label" }, "\u901F\u5EA6"), /* @__PURE__ */ React.createElement("span", { className: "detail-stat-value" }, p.speed)), /* @__PURE__ */ React.createElement("div", { className: "detail-stat" }, /* @__PURE__ */ React.createElement("span", { className: "detail-stat-label" }, "\u5F3E\u4E38"), /* @__PURE__ */ React.createElement("span", { className: "detail-stat-value" }, p.bullets || "\xD7")))), /* @__PURE__ */ React.createElement("div", { className: "detail-body" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u8010\u6027 / RESISTANCE"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "var(--s-3)", flexWrap: "wrap", padding: "8px 0 12px", alignItems: "center" } }, /* @__PURE__ */ React.createElement(ResRow, { s: p.res_slash, p: p.res_pierce, b: p.res_blunt, showLabels: true }))), !embed && kws.length > 0 && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u30AD\u30FC\u30EF\u30FC\u30C9 / KEYWORDS"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } }, kws.map((k) => /* @__PURE__ */ React.createElement("span", { key: k, className: "chip is-sm" }, k)))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u30D1\u30C3\u30B7\u30D6 / PASSIVE"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive" }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-name" }, p.passive_name || "\uFF08\u306A\u3057\uFF09"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive-cond cond-chips-lg", style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)" } }, "\u767A\u52D5\u6761\u4EF6"), /* @__PURE__ */ React.createElement(CondChips, { cond: p.passive_cond || "\u306A\u3057" })), p.passive_always && /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect", style: { marginBottom: 6, color: "var(--tx-dim)" } }, /* @__PURE__ */ React.createElement("b", { style: { color: "var(--gold)", fontFamily: "var(--f-display)", fontSize: "var(--fs-10)", letterSpacing: "0.14em" } }, "\u5E38\u6642\uFF1A"), window.LBT_GLOSSARY_TEXT ? window.LBT_GLOSSARY_TEXT(p.passive_always, "人格パッシブ:" + p.name) : p.passive_always), /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" }, window.LBT_GLOSSARY_TEXT ? window.LBT_GLOSSARY_TEXT(p.passive_effect, "人格パッシブ:" + p.name) : p.passive_effect))), Array.isArray(p.extra_passives) && p.extra_passives.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "detail-extra-passives", style: { marginTop: 10 } },
+        /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "追加パッシブ / EXTRA PASSIVES"),
+        p.extra_passives.map((passive, index) => /* @__PURE__ */ React.createElement("div", { key: index, className: "detail-passive", style: { marginBottom: 8 } },
+          /* @__PURE__ */ React.createElement("div", { className: "detail-passive-name" }, passive.name || "名称未設定"),
+          passive.cond && /* @__PURE__ */ React.createElement("div", { className: "detail-passive-cond cond-chips-lg", style: { display: "flex", alignItems: "center", gap: 6 } },
+            /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)" } }, "発動条件"),
+            React.createElement(CondChips, { cond: passive.cond })),
+          passive.always && /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect", style: { marginBottom: 6, color: "var(--tx-dim)" } },
+            React.createElement("b", { style: { color: "var(--gold)", fontSize: "var(--fs-10)" } }, "常時："),
+            window.LBT_GLOSSARY_TEXT ? window.LBT_GLOSSARY_TEXT(passive.always, "追加パッシブ:" + p.name) : passive.always),
+          passive.effect && /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" },
+            window.LBT_GLOSSARY_TEXT ? window.LBT_GLOSSARY_TEXT(passive.effect, "追加パッシブ:" + p.name) : passive.effect))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u6226\u8853\u30B9\u30AD\u30EB / SKILLS"), /* @__PURE__ */ React.createElement("div", { className: "detail-skills" }, (p.skills || []).map((sk, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "detail-skill", "data-sin": sk.sin, style: { flexDirection: "column", alignItems: "stretch" } },
         /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: 8 } },
           /* @__PURE__ */ React.createElement("span", { className: "detail-skill-rank" }, "S", (sk.rank || "").replace(/[^0-9-]/g, "") || i),
           /* @__PURE__ */ React.createElement("span", { className: "detail-skill-name" }, sk.name),
@@ -551,14 +562,17 @@ function buildEquippedDetailPersona(state) {
       desc: b.desc || "",
       place: b.place || "status"
     })),
+    extra_passives: (state.extraPassives || []).map((p) => ({
+      name: p.name || "", cond: p.cond || "", always: p.always || "", effect: p.effect || ""
+    })),
     keywords: Array.isArray(src.keywords) ? src.keywords.slice() : []
   };
 }
 function buildRosterDetailPersona(entry, fallback) {
   const build = entry?.build;
-  if (!build) return fallback;
+  if (!build) return entry?.displayName && fallback ? { ...fallback, name: entry.displayName } : fallback;
   const source = build.personaSrc && typeof build.personaSrc === "object" ? build.personaSrc : {};
-  const persona = { ...fallback, ...source, no: fallback.no };
+  const persona = { ...fallback, ...source, no: fallback?.no };
   return {
     ...persona,
     hp: build.hp ?? persona.hp,
@@ -572,10 +586,24 @@ function buildRosterDetailPersona(entry, fallback) {
     passive_cond: build.pas?.cond ?? persona.passive_cond,
     passive_always: build.pas?.always ?? persona.passive_always,
     passive_effect: build.pas?.effect ?? persona.passive_effect,
+    name: entry?.displayName || persona.name,
     skills: Array.isArray(build.skills) ? build.skills : persona.skills,
     unique_buffs: Array.isArray(build.uniqueBuffs) ? build.uniqueBuffs : persona.unique_buffs,
+    extra_passives: Array.isArray(build.extraPassives) ? build.extraPassives.map((p) => ({
+      name: p.name || "", cond: p.cond || "", always: p.always || "", effect: p.effect || ""
+    })) : (persona.extra_passives || []),
     keywords: Array.isArray(source.keywords) ? source.keywords.slice() : (persona.keywords || [])
   };
+}
+function resolvePersonaCodexEntry(entry, fallback, state) {
+  const isEquipped = Boolean(state?.personaSrc)
+    && String(state.personaMode) === String(entry?.mode)
+    && String(state.personaNo) === String(entry?.no);
+  return isEquipped ? buildEquippedDetailPersona(state) : buildRosterDetailPersona(entry, fallback);
+}
+if (typeof window !== "undefined") {
+  window.LBT_buildEquippedDetailPersona = buildEquippedDetailPersona;
+  window.LBT_resolvePersonaCodexEntry = resolvePersonaCodexEntry;
 }
 const SyncMaxControl = ({ state, dispatch }) => {
   const entry = findCurrentRosterPersona(state);
@@ -732,44 +760,49 @@ const PersonaCodex = ({ state, dispatch, ownedOnly = false }) => {
     if (!selectedPersona && state.personaSrc) setSelectedPersona(null);
   }, []);
   const pool = React.useMemo(() => {
-    // ★/履歴のキー（mode:no）をDBまたはロスターの実データへ解決する。
-    // custom: のキーはロスターのカスタム人格エントリから復元する。
-    const resolveKey = (k) => {
-      const [m, no] = k.split(":");
-      if (m === "custom") {
-        const entry = roster.personas.find((r) => r.mode === "custom");
-        return entry?.src ? { p: entry.src, mode: "custom", roster: entry } : null;
+    const resolveOwnedEntry = (entry, fallback) => ({ p: resolvePersonaCodexEntry(entry, fallback, state), mode: entry.mode, roster: entry });
+    const resolveCatalogEntry = (persona, personaMode) => {
+      const entry = roster.personas.find((owned) => owned.mode === personaMode && String(owned.no) === String(persona.no));
+      return entry ? resolveOwnedEntry(entry, persona) : { p: persona, mode: personaMode };
+    };
+    const resolveKey = (key) => {
+      const [personaMode, ...rest] = key.split(":");
+      const no = rest.join(":");
+      if (personaMode === "custom") {
+        const entry = roster.personas.find((owned) => owned.mode === "custom" && (String(owned.uid) === no || String(owned.no) === no));
+        return entry ? resolveOwnedEntry(entry, entry.src || entry.build?.personaSrc || null) : null;
       }
-      const src = m === "n" ? DB.normal_personas : DB.tokui_personas;
-      const found = src.find((x) => x.no === parseInt(no));
-      return found ? { p: found, mode: m } : null;
-};
-    if (mode === "n") return DB.normal_personas.map((p) => ({ p, mode: "n" }));
-    if (mode === "t") return DB.tokui_personas.map((p) => ({ p, mode: "t" }));
+      const source = personaMode === "n" ? DB.normal_personas : DB.tokui_personas;
+      const found = source.find((persona) => String(persona.no) === no);
+      return found ? resolveCatalogEntry(found, personaMode) : null;
+    };
+    if (mode === "n") return DB.normal_personas.map((p) => resolveCatalogEntry(p, "n"));
+    if (mode === "t") return DB.tokui_personas.map((p) => resolveCatalogEntry(p, "t"));
     if (mode === "fav") return favorites.map(resolveKey).filter(Boolean);
     if (mode === "history") return historyRecent.map(resolveKey).filter(Boolean);
-    if (mode === "roster") return roster.personas.map((r) => {
-      if (r.mode === "custom") {
-        return r.src ? { p: r.src, mode: "custom", roster: r } : null;
+    if (mode === "roster") return roster.personas.map((entry) => {
+      if (entry.mode === "custom") {
+        const fallback = entry.src || entry.build?.personaSrc || null;
+        return fallback ? resolveOwnedEntry(entry, fallback) : null;
       }
-      const src = r.mode === "n" ? DB.normal_personas : DB.tokui_personas;
-      const found = src.find((x) => x.no === r.no);
-      return found ? { p: buildRosterDetailPersona(r, found), mode: r.mode, roster: r } : null;
+      const source = entry.mode === "n" ? DB.normal_personas : DB.tokui_personas;
+      const fallback = source.find((p) => String(p.no) === String(entry.no));
+      return fallback ? resolveOwnedEntry(entry, fallback) : null;
     }).filter(Boolean);
     return [];
-  }, [mode, favorites, historyRecent, roster]);
+  }, [mode, favorites, historyRecent, roster, state]);
   // ★/履歴のバッジ件数は、実際に表示できる件数と一致させる。
   // 解決できないキー（例: 削除済みロスターの custom）を含めて数えると
   // 「★3 なのに一覧が2件」のような不一致が起きる。
   const favCount = React.useMemo(() => favorites.filter((k) => {
     const [m, no] = k.split(":");
-    if (m === "custom") return roster.personas.some((r) => r.mode === "custom");
+    if (m === "custom") return roster.personas.some((r) => r.mode === "custom" && (String(r.uid) === String(no) || String(r.no) === String(no)));
     const src = m === "n" ? DB.normal_personas : DB.tokui_personas;
     return src.some((x) => x.no === parseInt(no));
   }).length, [favorites, roster.personas]);
   const historyCount = React.useMemo(() => historyRecent.filter((k) => {
     const [m, no] = k.split(":");
-    if (m === "custom") return roster.personas.some((r) => r.mode === "custom");
+    if (m === "custom") return roster.personas.some((r) => r.mode === "custom" && (String(r.uid) === String(no) || String(r.no) === String(no)));
     const src = m === "n" ? DB.normal_personas : DB.tokui_personas;
     return src.some((x) => x.no === parseInt(no));
   }).length, [historyRecent, roster.personas]);
