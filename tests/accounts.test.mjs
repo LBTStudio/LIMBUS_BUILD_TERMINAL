@@ -362,6 +362,34 @@ test("破損セーブの退避に失敗したら原本を上書きせず保存�
   assert.equal(storage.keys().some((target) => target.startsWith(key + ".corrupt.")), false, "失敗を成功扱いしない");
 });
 
+
+test("別タブでアカウント作成が割り込んでも、先に作成された索引項目を落とさない", () => {
+  const storage = createStorage();
+  const tabA = loadAccounts(storage);
+  const existing = tabA.create("既存", "");
+  assert.ok(existing);
+  const tabB = loadAccounts(storage);
+
+  let interleave = true;
+  let createdByTabB = null;
+  const originalSetItem = storage.setItem.bind(storage);
+  storage.setItem = (key, value) => {
+    originalSetItem(key, value);
+    if (interleave && key.startsWith(ACCOUNT_PREFIX) && !key.includes(".corrupt.")) {
+      interleave = false;
+      createdByTabB = tabB.create("先に索引へ入るタブB", "");
+    }
+  };
+
+  const createdByTabA = tabA.create("後から索引を書くタブA", "");
+  assert.ok(createdByTabB && createdByTabA);
+  const listed = tabA.list().accounts;
+  assert.equal(listed.length, 3, "既存アカウントと両タブの新規アカウントを保持");
+  assert.ok(listed.some((entry) => entry.id === createdByTabA.id));
+  assert.ok(listed.some((entry) => entry.id === createdByTabB.id));
+  assert.equal(JSON.parse(storage.getItem(ACCOUNT_PREFIX + createdByTabB.id)).schemaVersion, 5, "先に作った保存本体も残る");
+});
+
 test("作成・切替・名前変更・削除: 最低1件を保証し旧キーに触れない", () => {
   const storage = createStorage({ [LEGACY_KEY]: legacyStateJson() });
   const accounts = loadAccounts(storage);
