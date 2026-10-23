@@ -270,6 +270,22 @@ test("バッチ錨: 外部ビーコンは後から差し込める（round を錨
 function loadState(realDb) {
   const source = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
   const context = {
+    window: {
+      DB: realDb || { support_passives: [], death_passives: [], spirits: [], items: [] },
+      LBT_gacha: G
+    },
+    console, setTimeout, clearTimeout, URL, TextEncoder, TextDecoder,
+    React: { useReducer: () => {}, useRef: () => ({ current: null }), useState: () => [null, () => {}], useEffect: () => {} }
+  };
+  context.globalThis = context;
+  vm.createContext(context);
+  vm.runInContext(source, context);
+  return context.window;
+}
+
+function loadStateWithoutDrawVerifier(realDb) {
+  const source = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
+  const context = {
     window: { DB: realDb || { support_passives: [], death_passives: [], spirits: [], items: [] } },
     console, setTimeout, clearTimeout, URL, TextEncoder, TextDecoder,
     React: { useReducer: () => {}, useRef: () => ({ current: null }), useState: () => [null, () => {}], useEffect: () => {} }
@@ -403,6 +419,42 @@ test("抽選レコードのno・人格モード・E.G.Oランクの不正値を�
   }
   assert.equal(w.LBT_validateDrawBatchApplication(base(), { type: "ADD_DRAW_BATCH", batch: makeBatch("persona", { kind: "persona", no: 1, mode: "t" }) }).reason, "invalid-persona-mode");
   assert.equal(w.LBT_validateDrawBatchApplication(base(), { type: "ADD_DRAW_BATCH", batch: makeBatch("ego", { kind: "ego", no: 1, rank: "INVALID" }) }).reason, "invalid-ego-item");
+});
+
+
+test("schema v2 の改変済みバッチは所持・通帳へ適用しない", () => {
+  const w = loadState(db);
+  const { batch } = finalizedBatch();
+  const tampered = structuredClone(batch);
+  tampered.records[0].item.name = "改変された抽選対象";
+
+  const result = w.LBT_validateDrawBatchApplication(base(), { type: "ADD_DRAW_BATCH", batch: tampered });
+  assert.equal(result.ok, false, "record の改変は確定前に拒否する");
+  assert.equal(result.reason, "invalid-batch-proof");
+  const next = w.appReducer(base(), { type: "ADD_DRAW_BATCH", batch: tampered });
+  assert.equal(next.draws.length, 0, "改変バッチを抽選証明へ保存しない");
+  assert.equal(next.roster.personas.length, 0, "改変バッチを所持へ反映しない");
+  assert.equal(next.entries.length, 0, "改変バッチの支出も記録しない");
+});
+
+test("schema v2 は検証器が無い環境で適用しない一方、schema v1 の互換性を保つ", () => {
+  const w = loadState(db);
+  const { batch } = finalizedBatch();
+  const withoutVerifier = loadStateWithoutDrawVerifier(db);
+  const result = withoutVerifier.LBT_validateDrawBatchApplication(base(), { type: "ADD_DRAW_BATCH", batch });
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "draw-proof-verifier-unavailable");
+
+  const legacy = {
+    schemaVersion: 1, ruleset: "core", kind: "persona", count: 1,
+    commit: "legacy-persona-kind", batchHash: "legacy-persona-kind-hash",
+    records: [{
+      index: 0, kind: "persona", item: { no: 999, mode: "n" },
+      cost: { lp: 0, shards: 0 }, duplicate: false, grantedShards: 0
+    }]
+  };
+  const legacyResult = w.LBT_validateDrawBatchApplication(base(), { type: "ADD_DRAW_BATCH", batch: legacy });
+  assert.equal(legacyResult.ok, true, "旧形式の既存契約は維持する");
 });
 
 test("ADD_DRAW_BATCH は同じ内容を二重に入れない", () => {
