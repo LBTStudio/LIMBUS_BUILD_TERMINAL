@@ -383,7 +383,11 @@ const AccountSwitcher = ({ open, onClose }) => {
   };
   const saveEdit = () => {
     if (!requiredName()) return;
-    window.LBT_accounts?.update?.(editingId, { name: draft.name.trim(), purpose: draft.purpose.trim() });
+    const updated = window.LBT_accounts?.update?.(editingId, { name: draft.name.trim(), purpose: draft.purpose.trim() });
+    if (!updated) {
+      toast("アカウントを更新できませんでした（保存領域が使用できません）", "assertive");
+      return;
+    }
     cancelForm();
     announceAccountsChanged();
     toast("アカウントを更新しました");
