@@ -1172,56 +1172,129 @@ function toIdentityChoices(hits) {
     };
   }
 
+/* 共有ドキュメントの残高は未入力・null・不正値を 0 と混同しない。 */
+function parseCurrencyBalance(value) {
+  if (value === null || value === void 0) return null;
+  if (typeof value === "string") {
+    const raw = value.trim();
+    if (!raw || !/^(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(raw)) return null;
+    value = Number(raw.replace(/,/g, ""));
+  } else if (typeof value !== "number") {
+    return null;
+  }
+  return Number.isSafeInteger(value) && value >= 0 ? value : null;
+}
+
+/* 最初の「現在」はスナップショット。行頭に書かれた収入や支出はその残高へ
+   既に反映されているため、その位置より前の流れを合計から差し引く。 */
+function findBalanceAnchor(memo, currency) {
+  const normalized = String(memo || "").replace(/\r\n/g, "\n");
+  const marker = currency === "lp" ? /(?:LP|ＬＰ)/i : /(?:欠片|かけら|欠けら|カケラ|けっか)/;
+  const amountAfterCurrent = currency === "lp"
+    ? /現在\s*(?:LP|ＬＰ)?\s*([0-9][0-9,]*)\s*(?:LP|ＬＰ)?/i
+    : /現在\s*(?:(?:欠片|かけら|欠けら|カケラ|けっか)\s*)?([0-9][0-9,]*)\s*(?:欠片|かけら|欠けら|カケラ|けっか)?/;
+  let offset = 0;
+  for (const line of normalized.split("\n")) {
+    const currentAt = line.indexOf("現在");
+    if (currentAt >= 0 && marker.test(line)) {
+      const match = line.slice(currentAt).match(amountAfterCurrent);
+      if (match) {
+        const value = parseCurrencyBalance(match[1]);
+        if (value !== null) {
+          return { value, prefix: normalized.slice(0, offset + currentAt) };
+        }
+      }
+    }
+    offset += line.length + 1;
+  }
+  return null;
+}
+
+function flowOf(record, currency) {
+  const income = Number(record && record.income && record.income[currency]) || 0;
+  const spends = Array.isArray(record && record.spends) ? record.spends : [];
+  const spent = spends.reduce((sum, item) => sum + (Number(item && item[currency]) || 0), 0);
+  return income - spent;
+}
+
 /* 残高照合。表示残高（doc.currency）とリザルト計算（開始残高＋収入−消費）を
    突き合わせる。ただし「残高変動を1件も記載していないユーザー」には
-   エラーを返さない：何を書けば良いか分からない人を責めることになる。 */
-  function reconcileBalance(manifest, doc) {
-    const cur = (doc && doc.currency) || {};
-    const shownLp = Number(cur.lp);
-    const shownSh = Number(cur.fragment);
-    const out = {
-      checked: false, ok: true,
-      openingLp: null, openingShards: null,
-      computedLp: null, computedShards: null,
-      shownLp: Number.isFinite(shownLp) ? shownLp : null,
-      shownShards: Number.isFinite(shownSh) ? shownSh : null,
-      message: ""
+   エラーを返さない。最初の残高が履歴内の収入後に書かれている場合、
+   その収入を再加算しないよう、スナップショット以前の純変動を控除する。 */
+function reconcileBalance(manifest, doc) {
+  const cur = (doc && doc.currency) || {};
+  const shownLp = parseCurrencyBalance(cur.lp);
+  const shownSh = parseCurrencyBalance(cur.fragment);
+  const out = {
+    checked: false, ok: true,
+    openingLp: null, openingShards: null,
+    computedLp: null, computedShards: null,
+    shownLp, shownShards: shownSh,
+    message: ""
+  };
+  const scenarios = (manifest && manifest.scenarios) || [];
+  const memoApi = (typeof window !== "undefined" && window.LBT_garaMemo) || null;
+  let openingLp = null, openingSh = null;
+  let openingOffsetLp = 0, openingOffsetSh = 0;
+  let incLp = 0, incSh = 0, spLp = 0, spSh = 0;
+  const cumulativeBefore = { lp: 0, shards: 0 };
+
+  for (const s of scenarios) {
+    const memo = String(s.memo || "");
+    const income = s.income || {};
+    const scenarioSpends = Array.isArray(s.spends) ? s.spends : parseSpends(memo);
+    const scenarioFlow = {
+      lp: (Number(income.lp) || 0) - scenarioSpends.reduce((sum, item) => sum + (Number(item && item.lp) || 0), 0),
+      shards: (Number(income.shards) || 0) - scenarioSpends.reduce((sum, item) => sum + (Number(item && item.shards) || 0), 0)
     };
-    const scenarios = (manifest && manifest.scenarios) || [];
-    let openingLp = null, openingSh = null;
-    let incLp = 0, incSh = 0, spLp = 0, spSh = 0;
-    for (const s of scenarios) {
-      const memo = String(s.memo || "");
-      const income = s.income || {};
-      incLp += Number(income.lp) || 0;
-      incSh += Number(income.shards) || 0;
-      for (const sp of parseSpends(memo)) { spLp += Number(sp.lp) || 0; spSh += Number(sp.shards) || 0; }
-      /* 最初に見つかった現在値が開始残高。scenarioHistory は時系列。 */
-      const lp = memo.match(/(?:LP|ＬＰ)?\s*(?:[:：]\s*)?現在\s*(\d+)/);
-      if (lp && openingLp === null) openingLp = Number(lp[1]);
-      const sh = memo.match(/(?:欠片|かけら|欠けら|カケラ)[\s\S]{0,8}?現在\s*(\d+)/);
-      if (sh && openingSh === null) openingSh = Number(sh[1]);
+    incLp += Number(income.lp) || 0;
+    incSh += Number(income.shards) || 0;
+    spLp += scenarioSpends.reduce((sum, item) => sum + (Number(item && item.lp) || 0), 0);
+    spSh += scenarioSpends.reduce((sum, item) => sum + (Number(item && item.shards) || 0), 0);
+
+    for (const currency of ["lp", "shards"]) {
+      const hasOpening = currency === "lp" ? openingLp !== null : openingSh !== null;
+      if (!hasOpening) {
+        const anchor = findBalanceAnchor(memo, currency);
+        if (anchor) {
+          const prefix = memoApi && typeof memoApi.parseMemo === "function"
+            ? memoApi.parseMemo(anchor.prefix)
+            : { income: {}, spends: [] };
+          const prefixFlow = flowOf(prefix, currency);
+          if (currency === "lp") {
+            openingLp = anchor.value;
+            openingOffsetLp = cumulativeBefore.lp + prefixFlow;
+          } else {
+            openingSh = anchor.value;
+            openingOffsetSh = cumulativeBefore.shards + prefixFlow;
+          }
+        }
+      }
     }
-    out.openingLp = openingLp;
-    out.openingShards = openingSh;
-    if (openingLp === null && openingSh === null) {
-      out.message = "残高変動の記載が無いので照合しません。";
-      return out;
-    }
-    out.checked = true;
-    out.computedLp = openingLp === null ? null : openingLp + incLp - spLp;
-    out.computedShards = openingSh === null ? null : openingSh + incSh - spSh;
-    const badLp = out.computedLp !== null && out.shownLp !== null && out.computedLp !== out.shownLp;
-    const badSh = out.computedShards !== null && out.shownShards !== null && out.computedShards !== out.shownShards;
-    out.ok = !(badLp || badSh);
-    if (!out.ok) {
-      const parts = [];
-      if (badLp) parts.push("LP 計算 " + out.computedLp + " / 表示 " + out.shownLp);
-      if (badSh) parts.push("欠片 計算 " + out.computedShards + " / 表示 " + out.shownShards);
-      out.message = parts.join("、") + " が一致しません。";
-    }
+    cumulativeBefore.lp += scenarioFlow.lp;
+    cumulativeBefore.shards += scenarioFlow.shards;
+  }
+
+  out.openingLp = openingLp;
+  out.openingShards = openingSh;
+  if (openingLp === null && openingSh === null) {
+    out.message = "残高変動の記載が無いので照合しません。";
     return out;
   }
+  out.checked = true;
+  out.computedLp = openingLp === null ? null : openingLp + incLp - spLp - openingOffsetLp;
+  out.computedShards = openingSh === null ? null : openingSh + incSh - spSh - openingOffsetSh;
+  const badLp = out.computedLp !== null && out.shownLp !== null && out.computedLp !== out.shownLp;
+  const badSh = out.computedShards !== null && out.shownShards !== null && out.computedShards !== out.shownShards;
+  out.ok = !(badLp || badSh);
+  if (!out.ok) {
+    const parts = [];
+    if (badLp) parts.push("LP 計算 " + out.computedLp + " / 表示 " + out.shownLp);
+    if (badSh) parts.push("欠片 計算 " + out.computedShards + " / 表示 " + out.shownShards);
+    out.message = parts.join("、") + " が一致しません。";
+  }
+  return out;
+}
 
 const api = {
    parseShareUrl,
