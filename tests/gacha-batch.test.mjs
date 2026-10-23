@@ -655,3 +655,33 @@ test("抽選証明の検証は空バッチ・不正レコードを安全に不�
   assert.equal(noHashResult.ok, false);
   assert.ok(noHashResult.reasons.some((reason) => /バッチハッシュ/.test(reason)));
 });
+
+test("抽選レコード数よりロール数が少ないバッチは整合性ハッシュを再計算しても拒否する", () => {
+  const { batch } = finalizedBatch();
+  assert.ok(batch.rolls.length >= batch.records.length, "正常なバッチは各レコードに最低1ロールがある");
+
+  const rehashMetadata = (candidate) => {
+    candidate.integrityHash = G.contentHash({
+      schemaVersion: candidate.schemaVersion,
+      ruleset: candidate.ruleset ?? null,
+      rulesetHash: candidate.rulesetHash ?? null,
+      kind: candidate.kind ?? null,
+      count: candidate.count,
+      commit: candidate.commit,
+      serverSeed: candidate.serverSeed,
+      clientSeed: candidate.clientSeed,
+      rolls: candidate.rolls,
+      beacon: candidate.beacon ?? null,
+      batchHash: candidate.batchHash
+    });
+  };
+
+  for (const rolls of [[], batch.rolls.slice(0, Math.max(0, batch.records.length - 1))]) {
+    const truncated = structuredClone(batch);
+    truncated.rolls = rolls;
+    rehashMetadata(truncated);
+    const result = G.verifyBatch(truncated);
+    assert.equal(result.ok, false, "メタデータハッシュを再計算しても不足ロールは拒否");
+    assert.ok(result.reasons.some((reason) => /ロール数/.test(reason)), result.reasons.join(" / "));
+  }
+});

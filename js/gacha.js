@@ -617,6 +617,12 @@
     if (batch.count != null && Number(batch.count) !== records.length) {
       reasons.push("バッチの件数と records の件数が一致しない");
     }
+    /* Each batch record is one draw iteration, and every iteration consumes at
+       least one roll. Special-persona routing may consume more. Reject empty or
+       truncated roll lists even if an attacker recalculates the v2 metadata hash. */
+    if (Array.isArray(batch.rolls) && batch.rolls.length < records.length) {
+      reasons.push("抽選レコード数に対してロール数が不足している");
+    }
     let prev = GENESIS_HASH;
     for (let index = 0; index < records.length; index += 1) {
       const record = records[index];
