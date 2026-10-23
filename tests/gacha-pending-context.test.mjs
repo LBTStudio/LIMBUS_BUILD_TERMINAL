@@ -35,7 +35,8 @@ test("抽選確認中は条件の操作をロックし、キャンセル後に�
 
   // route / pack / payment / specific-or-choice ticket / times / draw button
   const lockCount = [...controls.matchAll(/disabled:\s*!!pending/g)].length;
-  assert.ok(lockCount >= 7, `確認中の設定・申込操作を7か所以上ロックする（実際: ${lockCount}）`);
+  assert.ok(lockCount >= 6, `確認中の設定操作を6か所以上ロックする（実際: ${lockCount}）`);
+  assert.match(controls, /disabled: !!blockedReason \\|\\| !!pending/, "確認中の再申込ボタンも無効化する");
   assert.match(source, /確認中は抽出方法・パック・支払い方法・回数を固定しています。変更する場合は「まだ引かない」で戻ってください/);
   assert.match(source, /onClick: cancelDraw }, "まだ引かない"/);
 });
