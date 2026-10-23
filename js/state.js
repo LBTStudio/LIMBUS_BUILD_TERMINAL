@@ -2480,10 +2480,18 @@ function createAccount(name, purpose) {
 function updateAccount(id, patch) {
   const index = readAccountsIndex();
   if (!index.accounts.some((entry) => entry.id === id)) return false;
-  const accounts = index.accounts.map((entry) => entry.id === id ? {
+  /* フォーム値を先に確定し、その間に別タブが作成したアカウントを
+     書き戻し前の索引再読込で取り込む。開始時の一覧で全索引を上書きしない。 */
+  const requestedName = patch?.name;
+  const hasName = requestedName !== void 0;
+  const requestedPurpose = patch?.purpose;
+  const hasPurpose = requestedPurpose !== void 0;
+  const latestIndex = readAccountsIndex();
+  if (!latestIndex.accounts.some((entry) => entry.id === id)) return false;
+  const accounts = latestIndex.accounts.map((entry) => entry.id === id ? {
     ...entry,
-    name: patch?.name !== void 0 ? normalizeAccountName(patch.name, entry.name) : entry.name,
-    purpose: patch?.purpose !== void 0 ? String(patch.purpose || "").trim().slice(0, ACCOUNT_NAME_MAX) : entry.purpose,
+    name: hasName ? normalizeAccountName(requestedName, entry.name) : entry.name,
+    purpose: hasPurpose ? String(requestedPurpose || "").trim().slice(0, ACCOUNT_NAME_MAX) : entry.purpose,
     updatedAt: Date.now()
   } : entry);
   return writeAccountsIndex(accounts);
