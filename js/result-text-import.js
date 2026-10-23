@@ -42,20 +42,28 @@
   /* (150LP) や (50欠片) の中の金額。取れなければ null（0 ではない）。
      数が合わないときは「読めない」のではなく「決まらない」として別扱いする
      （無料1/100LP は無料か 100LP かで意味が違う）。 */
+  /* 手書き金額も帳簿へ入るため、桁区切りと安全整数を厳密に検査する。 */
+  function safeAmount(token) {
+    const raw = String(token ?? "").trim();
+    if (!/^\+?(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(raw)) return null;
+    const value = Number(raw.replace(/,/g, ""));
+    return Number.isSafeInteger(value) && value >= 0 ? value : null;
+  }
+
   function costFromParens(text) {
     const lp = [...text.matchAll(/(\d[\d,]*)\s*(?:lp|LP|Lp)/g)];
     const shards = [...text.matchAll(/(\d[\d,]*)\s*(?:欠片|欠牁|カケラ|かけら|けっか)/g)];
-    const one = (list) => (list.length === 1 ? Number(list[0][1].replace(/,/g, "")) : null);
+    const one = (list) => (list.length === 1 ? safeAmount(list[0][1]) : null);
     const l = one(lp);
     const s = one(shards);
-    if (l === null && s === null) return null;
-    /* 括弧の中の数字が、通貨として拾えた数字より多いなら余分がある
-       （無料1/100LP の 1 や、150LP/50欠片 の両方）。 */
+    if (lp.length + shards.length === 0) return null;
+    /* 不正な桁区切り・安全整数超過・複数価格は決め打ちせず要確認にする。 */
+    const invalidAmount = [...lp, ...shards].some((match) => safeAmount(match[1]) === null);
     const numbers = (text.match(/\d[\d,]*/g) || []).length;
     const recognized = lp.length + shards.length;
     return {
-      lp: l || 0, shards: s || 0,
-      ambiguous: lp.length + shards.length > 1 || numbers > recognized
+      lp: l ?? 0, shards: s ?? 0,
+      ambiguous: invalidAmount || lp.length + shards.length > 1 || numbers > recognized || (lp.length === 1 && l === null) || (shards.length === 1 && s === null)
     };
   }
 
@@ -75,25 +83,30 @@
     const text = toHalf(item);
     /* 増減 (±N) は残高差なので、収入には足さない。原文は残す。 */
     const delta = text.match(/([+-])\s*(\d[\d,]*)/);
+    const deltaAmount = delta ? safeAmount(delta[2]) : null;
+    const invalidDelta = Boolean(delta) && deltaAmount === null;
     const deltas = [];
     const numeric = text.replace(/[（(]\s*[+-]\s*\d[\d,]*\s*[)）]/g, "").trim();
-    const num = numeric.match(/(\d[\d,]*)/);
-    const value = num ? Number(num[1].replace(/,/g, "")) : 0;
-    const rest = numeric.replace(/(\d[\d,]*)/, " ").trim();
-    if (delta) deltas.push({ value: Number(delta[2].replace(/,/g, "")), sign: delta[1] });
+    const num = numeric.match(/([+-]?\d[\d,]*)/);
+    const value = num ? safeAmount(num[1]) : 0;
+    if (num && value === null) return null;
+    const rest = numeric.replace(/([+-]?\d[\d,]*)/, " ").trim();
+    if (delta && deltaAmount !== null) deltas.push({ value: deltaAmount, sign: delta[1] });
 
-    /* 抽出チケットは数だけ取る */
+    /* 抽出チケットは数だけ取る。明示的な x0 は既定の 1 枚に置き換えない。 */
     if (/抽出|チケット/.test(numeric)) {
       const kind = /e\.?g\.?o/i.test(numeric) || /ＥＧＯ/i.test(numeric) ? "ego"
         : /人格/.test(numeric) ? "persona"
         : /選択/.test(numeric) ? "choice" : null;
-      return { ticket: { kind, count: value || 1 }, deltas, raw: item };
+      return { ticket: { kind, count: num ? value : 1 }, deltas, invalidDelta, raw: item };
     }
     /* 通貨は単位詞で分ける */
     const isShards = SHARD_WORD.test(numeric);
     const isLp = LP_WORD.test(numeric) || /^(lp|ＬＰ)/i.test(numeric);
     if (!isShards && !isLp) return null;
-    return { currency: isShards ? "shards" : "lp", value, deltas, rest, raw: item };
+    /* 収入として負額を反転加算しない。補正は元データを直してから再取込する。 */
+    if (num && num[1].startsWith("-")) return null;
+    return { currency: isShards ? "shards" : "lp", value, deltas, invalidDelta, rest, raw: item };
   }
 
   /* 明細の候補。種別のヒントは名前から読む（DB 解決は呼び出し側）。 */
@@ -151,8 +164,14 @@
           if (kind === "income") {
             const got = readReward(item);
             if (!got) { skipped.push({ text: item, reason: "報酬の書式が読めない" }); continue; }
+            if (got.invalidDelta) skipped.push({ text: item, reason: "増減欄の金額形式が不正です" });
             if (got.ticket) { current.tickets.push(got.ticket); current.deltas.push(...(got.deltas || [])); continue; }
-            current.income[got.currency] += got.value;
+            const nextIncome = current.income[got.currency] + got.value;
+            if (!Number.isSafeInteger(nextIncome)) {
+              skipped.push({ text: item, reason: "収入合計が安全整数の範囲を超えています" });
+              continue;
+            }
+            current.income[got.currency] = nextIncome;
             for (const d of got.deltas || []) current.deltas.push({ currency: got.currency, value: d.value * (d.sign === "-" ? -1 : 1) });
             continue;
           }
