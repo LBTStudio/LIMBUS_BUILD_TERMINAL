@@ -93,13 +93,18 @@ test("日本語ソースに他言語の混入・誤字が無い（コードポ�
      さらに部分置換で隣接文字まで崩した。U+FFFD だけでは素通りするので、
      ハングル・中国語の誤訳・Hebrew を文字コード层面で弾く。 */
   const BANNED = [
-    [/\uAC00-\uD7AF/u, "ハングル混入"],          // hangul syllables
-    [/\u1100-\u11FF/u, "ハングル字母混入"],
-    [/\u0590-\u05FF/u, "Hebrew 混入"],             // 뜻/ydrogen 付近の事故
+    [/[\uAC00-\uD7AF]/u, "ハングル混入"],          // hangul syllables
+    [/[\u1100-\u11FF]/u, "ハングル字母混入"],
+    [/[\u0590-\u05FF]/u, "Hebrew 混入"],             // 뜻/ydrogen 付近の事故
     [/\u62BD\u7C64/u, "誤字 抽籤"],                  // 抽籤 は誤用（正しくは 抽出）
     [/抽取|其它|或者|状况|第一個|谢谢|关闭|开始|用户|准确/u, "中国語訳の混入"],
     [/\bof\b(?!\s)/u, "ラテン語 of の混入"]
   ];
+  // 正規表現自身の回帰テスト。各範囲内の代表文字を必ず検出すること。
+  assert.ok(BANNED[0][0].test("한"), "ハングル音節を検出する");
+  assert.ok(BANNED[1][0].test("ᄀ"), "ハングル字母を検出する");
+  assert.ok(BANNED[2][0].test("א"), "ヘブライ文字を検出する");
+
   const dirty = [];
   for (const file of FILES) {
     let src;
