@@ -1611,7 +1611,7 @@ function normalizeStateShape(raw) {
   next.inventory = next.inventory.filter((entry) => entry && entry.itemId).map((entry) => ({
     uid: entry.uid || `it-${Date.now()}-${entry.itemId}`,
     itemId: String(entry.itemId),
-    quantity: Math.min(99, Math.max(1, Number.parseInt(entry.quantity, 10) || 1)),
+    quantity: parsePositiveIntegerStrict(entry.quantity) ?? 1,
     memo: entry.memo !== false,
     palette: entry.palette !== false,
     /* origin は「初期枠から来たのか、買ったのか」。旧保存データは買った側。 */
