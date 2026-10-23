@@ -88,3 +88,35 @@ test("App の APPLY_PARTIAL 適用前に実際のカテゴリ選択で上限を�
     "部分ロードで選択した項目と現在のstateを使って適用前に検証する"
   );
 });
+
+test("同じアイテムIDが複数行に分かれていても合計数量で上限を検証する", () => {
+  const validate = loadValidator();
+  const withinCap = validate({
+    inventory: [
+      { uid: "inv-1", itemId: "official-low", quantity: 1 },
+      { uid: "inv-2", itemId: "official-low", quantity: 1 }
+    ]
+  }, ["inventory"], { customItems: [] });
+  assert.equal(withinCap, null, "合計が上限と同じなら許可する");
+
+  const overCap = validate({
+    inventory: [
+      { uid: "inv-3", itemId: "official-low", quantity: 2 },
+      { uid: "inv-4", itemId: "official-low", quantity: 1 }
+    ]
+  }, ["inventory"], { customItems: [] });
+  assert.match(overCap, /公式アイテム/);
+  assert.match(overCap, /合計数量 3 個/);
+  assert.match(overCap, /所持上限 2 個/);
+});
+
+test("重複した数量の合算が安全な整数の範囲を超えたら拒否する", () => {
+  const validate = loadValidator();
+  const error = validate({
+    inventory: [
+      { uid: "inv-5", itemId: "official-default", quantity: Number.MAX_SAFE_INTEGER },
+      { uid: "inv-6", itemId: "official-default", quantity: 1 }
+    ]
+  }, ["inventory"], { customItems: [] });
+  assert.match(error, /安全な整数の範囲を超えています/);
+});
