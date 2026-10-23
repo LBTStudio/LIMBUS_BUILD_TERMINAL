@@ -2545,6 +2545,8 @@ function removeAccountIcon(id) {
 function resetActiveAccount() {
   const { activeId } = migrateLegacyAccounts();
   if (!activeId) return false;
+  if (BOOT_ACCOUNT_EPOCHS.has(activeId)
+    && readAccountEpoch(activeId) !== BOOT_ACCOUNT_EPOCHS.get(activeId)) return false;
   captureBootAccountEpoch(activeId);
   const key = ACCOUNT_PREFIX + activeId;
   const epochKey = ACCOUNT_EPOCH_PREFIX + activeId;
