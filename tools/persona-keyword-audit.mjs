@@ -104,7 +104,7 @@ export function loadPersonaDb(filePath = DEFAULT_DB_PATH) {
 function main() {
   const report = auditPersonaKeywords(loadPersonaDb());
   if (process.argv.includes("--json")) {
-    process.stdout.write(JSON.stringify(report, null, 2) + "\\n");
+    process.stdout.write(JSON.stringify(report, null, 2) + "\n");
     return;
   }
   console.log("Persona keyword evidence audit (suggestions only; no data is modified)");
