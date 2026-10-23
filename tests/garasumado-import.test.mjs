@@ -782,6 +782,41 @@ test("残高変動を記載していないユーザーにはエラーも不一�
   assert.equal(r.computedLp, null);
 });
 
+test("現在残高の行より前の収入を二重加算せず、通貨別に照合する", () => {
+  const M = loadImportWithMemo();
+  const doc = {
+    currency: { lp: "100", fragment: "39" },
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{
+      name: "受領記録",
+      memo: "90LP：現在100LP\n29欠片：現在39欠片"
+    }]
+  };
+  const manifest = M.buildManifest(doc, null);
+  const result = M.reconcileBalance(manifest, doc);
+  assert.equal(result.checked, true);
+  assert.equal(result.computedLp, 100, "現在100LPには既に収入90LPが反映されている");
+  assert.equal(result.computedShards, 39, "現在39欠片には既に収入29欠片が反映されている");
+  assert.equal(result.ok, true, "同じ残高を誤って不一致にしない");
+});
+
+test("空欄・null の共有残高はゼロではなく未入力として扱う", () => {
+  const M = loadImportWithMemo();
+  const doc = {
+    currency: { lp: "100", fragment: "39" },
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{
+      name: "受領記録",
+      memo: "90LP：現在100LP\n29欠片：現在39欠片"
+    }]
+  };
+  const manifest = M.buildManifest(doc, null);
+  const result = M.reconcileBalance(manifest, { currency: { lp: "", fragment: null } });
+  assert.equal(result.shownLp, null);
+  assert.equal(result.shownShards, null);
+  assert.equal(result.ok, true, "空欄の通貨に架空の残高不一致を出さない");
+});
+
 test("残高変動を記載していて計算値と表示残高が違う場合はエラーにする", () => {
   const M = loadImportWithMemo();
   const m = M.buildManifest({
