@@ -1459,15 +1459,15 @@ const [ownedOnly, setOwnedOnly] = React.useState(false);
   };
   const unequip = () => {
     if (!selected) return;
-    const slot = Object.entries(state.egoSlots || {}).find(([_, v]) => v && v.name === selected.name && v.no === selected.no)?.[0];
+    const slot = Object.entries(state.egoSlots || {}).find(([_, v]) => v && v.name === selected.name && String(v.no ?? "") === String(selected.no ?? ""))?.[0];
     if (slot) dispatch({ type: "SET_EGO_SLOT", rank: slot, value: null });
   };
   const clearSlot = (rk) => dispatch({ type: "SET_EGO_SLOT", rank: rk, value: null });
-  const currentSlot = selected ? Object.entries(state.egoSlots || {}).find(([_, v]) => v && v.name === selected.name && v.no === selected.no)?.[0] : null;
+  const currentSlot = selected ? Object.entries(state.egoSlots || {}).find(([_, v]) => v && v.name === selected.name && String(v.no ?? "") === String(selected.no ?? ""))?.[0] : null;
   const slotCards = EGO_RANKS.map((rk) => {
     const e = state.egoSlots[rk];
     const isDetailActive = detailSlot === rk;
-    const isSlotSelected = !!e && selected?.no === e.no && selected?.name === e.name;
+    const isSlotSelected = !!e && String(selected?.no ?? "") === String(e.no ?? "") && selected?.name === e.name;
     return h(
       "div",
       {
@@ -1512,12 +1512,12 @@ const [ownedOnly, setOwnedOnly] = React.useState(false);
     );
   });
   const egoGrid = h("div", { className: "codex-grid", style: { gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" } }, ...(visibleEgos.map((e) => {
-    const isEquipped = Object.values(state.egoSlots || {}).some((v) => v && v.no === e.no && v.name === e.name);
+    const isEquipped = Object.values(state.egoSlots || {}).some((v) => v && String(v.no ?? "") === String(e.no ?? "") && v.name === e.name);
     return h(
       "div",
       {
         key: `${e.rank}-${e.no}`,
-        className: `p-card${selected?.no === e.no && selected?.name === e.name ? " is-active" : ""}${isEquipped ? " is-equipped" : ""}`,
+        className: `p-card${String(selected?.no ?? "") === String(e.no ?? "") && selected?.name === e.name ? " is-active" : ""}${isEquipped ? " is-equipped" : ""}`,
         style: { "--sin-primary": `var(--rank-${e.rank})`, minHeight: 120 },
         onClick: () => setSelected(e),
         onDoubleClick: () => { setSelected(e); recordRecentEgo(e); dispatch({ type: "SET_EGO_SLOT", rank: e.rank, value: e }); toast(`${e.rank}: 『${e.name}』を装備`); }
@@ -1593,7 +1593,7 @@ h("div", { className: "equipped-detail-inner" }, editable ? null : h(EgoDetail, 
     onPreviewEquip: previewEquip,
       onToggleOwned: () => {
         if (!selected) return;
-        const entry = (state.roster?.egos || []).find((x) => x.rank === selected.rank && x.no === selected.no);
+        const entry = (state.roster?.egos || []).find((x) => x.rank === selected.rank && String(x.no ?? "") === String(selected.no ?? ""));
         if (entry) {
           if (entry.build?.__custom && currentSlot) { toast("装備中の自作E.G.Oは削除できません。先に装備を外してください。", "assertive"); return; }
           if (entry.build?.__custom && !confirm(`『${selected.name}』の自作E.G.O定義を削除しますか？元のDBには存在しないため、保存ファイルがなければ復元できません。`)) return;
