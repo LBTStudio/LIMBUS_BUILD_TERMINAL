@@ -2087,22 +2087,33 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
   const ownsAnyPersona = ((state.roster || {}).personas || []).length > 0;
   const perDraw = pay === "ticket" ? { lp: 0, shards: 0 } : (G?.paidCost?.(route, state, activePack) || { lp: 0, shards: 0 });
   /* 人格抽出の1回目は未所持なら無料（core:338）。2回目以降は同額。 */
-  const totalCost = route === "persona" && pay === "paid"
-    ? { lp: (ownsAnyPersona ? Number(perDraw.lp) || 0 : 0) + Math.max(0, times - 1) * ((Number(perDraw.lp) || 0)), shards: 0 }
-    : { lp: (Number(perDraw.lp) || 0) * times, shards: (Number(perDraw.shards) || 0) * times };
+  /* UI表示用の合計額もエンジンの逐次価格関数へ寄せる。
+     未所持の人格抽出は1回目だけ無料、同じバッチの2回目以降は有料。 */
+  const totalCost = pay === "ticket"
+    ? { lp: 0, shards: 0 }
+    : (G?.estimateTotalCost?.(route, state, activePack, times)
+      || { lp: (Number(perDraw.lp) || 0) * times, shards: (Number(perDraw.shards) || 0) * times });
   const balance = window.LBT_computeLedgerBalance?.(state.results || [], state.entries || []);
   const costParts = [];
   if (totalCost.lp) costParts.push(`LP ${totalCost.lp}`);
   if (totalCost.shards) costParts.push(`欠片 ${totalCost.shards}`);
   const totalCostLabel = costParts.length ? costParts.join(" / ") : "無料";
   const ticketShort = pay === "ticket" && held < times;
-  const currencyShort = pay === "paid" && balance && (Number(balance.lp) < totalCost.lp || Number(balance.shards) < totalCost.shards);
+  const shortfall = pay === "paid" && balance
+    ? (G?.paymentShortfall?.(balance, totalCost) || {
+        lpShort: totalCost.lp > 0 && Number(balance.lp) < totalCost.lp,
+        shardsShort: totalCost.shards > 0 && Number(balance.shards) < totalCost.shards,
+        insufficient: (totalCost.lp > 0 && Number(balance.lp) < totalCost.lp)
+          || (totalCost.shards > 0 && Number(balance.shards) < totalCost.shards)
+      })
+    : { lpShort: false, shardsShort: false, insufficient: false };
+  const currencyShort = pay === "paid" && !!balance && shortfall.insufficient;
   const blockedReason = poolSize <= 0
     ? "抽選できる対象がありません"
     : pay === "ticket"
       ? (held <= 0 ? "対応するチケットを持っていません" : ticketShort ? `チケットが足りません（必要 ${times}枚 / 所持 ${held}枚）` : "")
       : currencyShort
-        ? `残高が不足しています（${Number(balance.lp) < totalCost.lp ? `LP ${balance.lp} / 必要 ${totalCost.lp}` : ""}${Number(balance.lp) < totalCost.lp && Number(balance.shards) < totalCost.shards ? " / " : ""}${Number(balance.shards) < totalCost.shards ? `欠片 ${balance.shards} / 必要 ${totalCost.shards}` : ""}）`
+        ? `残高が不足しています（${shortfall.lpShort ? `LP ${balance.lp} / 必要 ${totalCost.lp}` : ""}${shortfall.lpShort && shortfall.shardsShort ? " / " : ""}${shortfall.shardsShort ? `欠片 ${balance.shards} / 必要 ${totalCost.shards}` : ""}）`
         : "";
 
   /* --- 抽選は「確認 → 確定」の2段構え ---------------------------------

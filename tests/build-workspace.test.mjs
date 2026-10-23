@@ -415,7 +415,7 @@ test("ガチャは任意回数をまとめて引ける（既得は再抽選し�
   assert.doesNotMatch(g, /function draw\(route, state, opts\)/);
   assert.match(g, /engine\.drawBatch|const out = engineBatchN\(route, state/);
   assert.match(g, /capped: pay === "ticket" \? held : null/);
-  assert.match(g, /paidCost, ticketCount, ticketKindFor, drawN/);
+  assert.match(g, /paidCost, estimateTotalCost, paymentShortfall, ticketCount, ticketKindFor, drawN/);
   /* UI は回数を自分で入れ、結果はまとめて出る。
      プルダウンではなく数字入力にする（任意の回数を直接入れられるため、
      ±1/＋1/＋5 は不要。 */
@@ -433,9 +433,11 @@ test("ガチャは任意回数をまとめて引ける（既得は再抽選し�
      1回分だけを見ると「途中まで引いて止まる」ことになる。
      合計は抽出手順と同じ式で出す（engine の逐次計算）。
      別の式で書くと、画面に出る金額と実際に引く金額がずれる。 */
-  assert.match(sections, /const totalCost = route === "persona" && pay === "paid"/);
-  assert.match(sections, /Math\.max\(0, times - 1\)/);
-  assert.match(sections, /const currencyShort = pay === "paid" && balance && \(Number\(balance\.lp\) < totalCost\.lp \|\| Number\(balance\.shards\) < totalCost\.shards\);/);
+  assert.ok(sections.includes('const totalCost = pay === "ticket"'), "ticket payment has no currency cost");
+  assert.ok(sections.includes("G?.estimateTotalCost?.(route, state, activePack, times)"), "UI uses sequential engine cost estimate");
+  assert.ok(sections.includes("G?.paymentShortfall?.(balance, totalCost)"), "UI uses currency-specific affordability check");
+  assert.match(sections, /totalCost\.lp > 0 && Number\(balance\.lp\) < totalCost\.lp/);
+  assert.match(sections, /totalCost\.shards > 0 && Number\(balance\.shards\) < totalCost\.shards/);
   assert.match(sections, /const ticketShort = pay === "ticket" && held < times;/);
   assert.match(sections, /onClick: requestDraw, disabled: !!blockedReason, title: blockedReason \|\| undefined/);
   assert.match(sections, /blockedReason && h\("p", \{ className: "ledger-note", role: "status" \}, blockedReason\)/);
