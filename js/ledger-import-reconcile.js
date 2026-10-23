@@ -132,13 +132,19 @@
       /* セクション見出し。以降の行の文脈を決める。 */
       const section = line.match(/^\s*[・･]\s*(.+?)\s*$/);
       if (section) {
-        if (/支出|支払/.test(section[1])) inSpend = true;
-        else if (/現在/.test(section[1])) inSpend = false;
+        /* セクションの切替時は必ず文脈を更新する。
+           支出系でない見出しが来ても inSpend を残すと、後続の報酬などを
+           判定不能な支出として誤検出する。 */
+        inSpend = /支出|支払/.test(section[1]);
         continue;
       }
 
-      // 通貨だけの行は名前を持たない。
-      if (/^[LP欠片\d\s:：現在値+.-]+$/.test(line)) continue;
+      // 通貨だけの行は購入名を持たない。正しい桁区切り・全角入力も認識する。
+      const currencyLine = line
+        .replace(/[０-９Ａ-Ｚａ-ｚ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+        .replace(/[，]/g, ",")
+        .replace(/　/g, " ");
+      if (/^[LP欠片\d\s,:：現在値+.-]+$/i.test(currencyLine)) continue;
 
       const hit = resolve(line);
       if (!hit) {
