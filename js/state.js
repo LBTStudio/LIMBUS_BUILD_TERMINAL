@@ -2521,28 +2521,40 @@ function resetActiveAccount() {
   const { activeId } = migrateLegacyAccounts();
   if (!activeId) return false;
   const key = ACCOUNT_PREFIX + activeId;
-  /* 利用者が「このアカウントを完全削除」と明示した操作では、現在の保存値を
-     .corrupt として再退避してはいけない。リセットを書き込めた後に限り、
-     このアカウントに属する破損退避キーも掃除する。旧形式の移行バックアップと
-     他アカウントのデータは別キーなので保持する。 */
-  if (!writeStorageRaw(key, JSON.stringify({ schemaVersion: SAVE_SCHEMA_VERSION }))) return false;
   const storage = lbtStorage();
-  if (!storage) return false;
-  let cleanupOk = true;
+  if (!storage || typeof storage.key !== "function") return false;
+  /* リセット対象の本体を書き換える前に、現アカウントの破損退避を削除する。
+     どれか1つでも削除できない場合は本体を残し、既に消した退避は可能な限り戻す。
+     これにより false を返したのに保存本体だけ空になる部分更新を防ぐ。 */
+  const prefix = `${key}.corrupt.`;
+  const snapshots = [];
   try {
-    const prefix = `${key}.corrupt.`;
-    const staleKeys = [];
     for (let i = 0; i < storage.length; i += 1) {
       const candidate = storage.key(i);
-      if (typeof candidate === "string" && candidate.startsWith(prefix)) staleKeys.push(candidate);
-    }
-    for (const staleKey of staleKeys) {
-      if (!removeStorageRaw(staleKey)) cleanupOk = false;
+      if (typeof candidate !== "string" || !candidate.startsWith(prefix)) continue;
+      const raw = readStorageRaw(candidate);
+      if (raw != null) snapshots.push({ key: candidate, raw });
     }
   } catch (_) {
-    cleanupOk = false;
+    return false;
   }
-  return cleanupOk;
+  const removed = [];
+  for (const snapshot of snapshots) {
+    if (!removeStorageRaw(snapshot.key)) {
+      for (const previous of removed) {
+        if (readStorageRaw(previous.key) == null) writeStorageRaw(previous.key, previous.raw);
+      }
+      return false;
+    }
+    removed.push(snapshot);
+  }
+  if (!writeStorageRaw(key, JSON.stringify({ schemaVersion: SAVE_SCHEMA_VERSION }))) {
+    for (const previous of removed) {
+      if (readStorageRaw(previous.key) == null) writeStorageRaw(previous.key, previous.raw);
+    }
+    return false;
+  }
+  return true;
 }
 window.LBT_accounts = {
   list: listAccounts,
