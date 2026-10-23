@@ -420,6 +420,30 @@ test("削除済みアカウントIDへの保存は拒否し、キーを蘇生さ
   assert.equal(accounts.saveActive({ charName: "現役へは書ける" }, first.id), true);
 });
 
+
+test("アカウント本体の削除に失敗したら成功扱いせず、索引とアクティブ選択を戻す", () => {
+  const storage = createStorage();
+  const accounts = loadAccounts(storage);
+  const first = accounts.create("残すキャラクター", "");
+  const second = accounts.create("削除失敗テスト", "");
+  assert.ok(first && second);
+  assert.equal(accounts.switch(second.id), true);
+
+  const storageKey = ACCOUNT_PREFIX + second.id;
+  const originalSave = storage.getItem(storageKey);
+  const normalRemoveItem = storage.removeItem.bind(storage);
+  storage.removeItem = (key) => {
+    if (key === storageKey) throw new Error("storage removal failed");
+    return normalRemoveItem(key);
+  };
+
+  assert.equal(accounts.delete(second.id), false, "保存本体を消せなければ削除失敗を返す");
+  assert.equal(storage.getItem(storageKey), originalSave, "保存本体はそのまま残る");
+  assert.equal(accounts.list().accounts.length, 2, "索引にアカウントを戻す");
+  assert.ok(accounts.list().accounts.some((entry) => entry.id === second.id));
+  assert.equal(storage.getItem(ACTIVE_KEY), second.id, "削除が失敗したため元の選択を維持");
+});
+
 test("resetActive は現アカウントだけ既定へ戻し、旧キーと他データはそのまま", () => {  const storage = createStorage({ [LEGACY_KEY]: legacyStateJson() });
   const accounts = loadAccounts(storage);
   const { activeId } = accounts.list();
