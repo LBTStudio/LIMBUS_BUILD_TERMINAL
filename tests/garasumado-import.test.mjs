@@ -832,13 +832,37 @@ test("精神は所持へ計上する（初期精神の未計上を許さない�
     currency: { lp: 0, fragments: 0 },
     owned: { personas: [], egos: [], supportPassives: [], spirits: ["萎縮", "パニック", "颠倒"] },
     scenarioHistory: [{ name: "夜A", memo: "" }]
-  }, { resolve: (name) => ({ name, kinds: [{ kind: "spirit", name }] }) }, { spirits: [{ name: "萎縮" }, { name: "パニック" }, { name: "颠倒", price: 100 }] });
+  }, { resolve: (name) => ({ name, kinds: [{ kind: "spirit", name }] }) }, { spirits: [{ name: "萎縮", price: 0 }, { name: "パニック", price: "0" }, { name: "颠倒", price: 100 }] });
   const group = m.groups.find((g) => g.id === "spirits");
   assert.equal(group.items.length, 3, "精神3件を所持へ入れる");
   assert.ok(m.counts.initialSpirits >= 1, "初期精神の件数が分かる");
   assert.equal(m.counts.initialSpiritsOwned.includes("パニック"), true, "初期精神の名が分かる");
   assert.equal(m.counts.initialSpiritsOwned.includes("颠倒"), false, "有料の精神は初期精神に数えない");
   assert.equal(m.counts.initialSpiritOverflow, false, "3件なら異常ではない");
+});
+
+test("共有取り込みの初期精神は価格0が明示されたものだけを無料扱いする", () => {
+  const M = loadImportWithMemo();
+  const names = ["無料数値", "無料文字列", "有料", "価格欠落", "価格null", "価格空欄", "価格不正", "価格Boolean"];
+  const m = M.buildManifest({
+    currency: { lp: 0, fragments: 0 },
+    owned: { personas: [], egos: [], supportPassives: [], spirits: names },
+    scenarioHistory: [{ name: "夜A", memo: "" }]
+  }, { resolve: (name) => ({ name, kinds: [{ kind: "spirit", name }] }) }, {
+    spirits: [
+      { name: "無料数値", price: 0 },
+      { name: "無料文字列", price: "0" },
+      { name: "有料", price: 100 },
+      { name: "価格欠落" },
+      { name: "価格null", price: null },
+      { name: "価格空欄", price: "" },
+      { name: "価格不正", price: "unknown" },
+      { name: "価格Boolean", price: false }
+    ]
+  });
+  assert.equal(m.groups.find((group) => group.id === "spirits").items.length, 8, "所持一覧の精神は欠落させない");
+  assert.deepEqual(Array.from(m.counts.initialSpiritsOwned), ["無料数値", "無料文字列"]);
+  assert.equal(m.counts.initialSpiritOverflow, false, "価格不明の精神を無料件数に混ぜない");
 });
 
 test("初期精神が3件を超える入力は異常として出す", () => {
@@ -848,7 +872,7 @@ test("初期精神が3件を超える入力は異常として出す", () => {
     currency: { lp: 0, fragments: 0 },
     owned: { personas: [], egos: [], supportPassives: [], spirits: names },
     scenarioHistory: [{ name: "夜A", memo: "" }]
-  }, { resolve: (name) => ({ name, kinds: [{ kind: "spirit", name }] }) }, { spirits: names.map((n) => ({ name: n })) });
+  }, { resolve: (name) => ({ name, kinds: [{ kind: "spirit", name }] }) }, { spirits: names.map((n) => ({ name: n, price: 0 })) });
   assert.equal(m.counts.initialSpiritOverflow, true, "4件以上は壊れたデータとして報告する");
   assert.equal(m.counts.initialSpirits, 4);
 });
