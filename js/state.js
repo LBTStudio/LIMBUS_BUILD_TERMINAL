@@ -1749,13 +1749,13 @@ function parsePriceText(raw, defaultUnit) {
   let lp = 0;
   let shards = 0;
   /* 桁区切りがある金額も正しく一つの数値として読む。
-     \\d+ だけだと「1,200LP」が「200LP」に部分一致し、帳の支出が
+     \d+ だけだと「1,200LP」が「200LP」に部分一致し、帳の支出が
      1,000LP 少なく記録される。カンマの途中から部分一致することも防ぐ。 */
-  const amountPattern = "(?:\\\\d{1,3}(?:,\\\\d{3})+|\\\\d+)";
+  const amountPattern = "(?:\\d{1,3}(?:,\\d{3})+|\\d+)";
   const unitPattern = "(?:LP|SHARD|欠片|欠)";
   const pricePairs = new RegExp(
-    "(^|[^\\\\d,])(" + amountPattern + ")\\\\s*(" + unitPattern + ")(?![A-Z])"
-      + "|(^|[^\\\\d,])(" + unitPattern + ")\\\\s*(" + amountPattern + ")(?![\\\\d,])",
+    "(^|[^\\d,])(" + amountPattern + ")\\s*(" + unitPattern + ")(?![A-Z])"
+      + "|(^|[^\\d,])(" + unitPattern + ")\\s*(" + amountPattern + ")(?![\\d,])",
     "gi"
   );
   for (const m of text.matchAll(pricePairs)) {
