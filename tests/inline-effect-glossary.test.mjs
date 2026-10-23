@@ -7,6 +7,7 @@ import vm from "node:vm";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const db = JSON.parse(readFileSync(resolve(ROOT, "data/db.json"), "utf8"));
+const coreCorpus = readFileSync(resolve(ROOT, "data/provenance/core.paragraphs.txt"), "utf8");
 const source = readFileSync(resolve(ROOT, "js/InlineEffectGlossary.js"), "utf8");
 
 function loadGlossary() {
