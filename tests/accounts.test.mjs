@@ -157,6 +157,48 @@ test("空または不正な形の索引も、保存済みアカウントがあ�
   }
 });
 
+
+test("索引配列の項目がすべて不正でも、保存本体からアカウントを復元する", () => {
+  const id = "acc-invalid-index-entries";
+  const rawIndex = JSON.stringify({ version: 1, accounts: [null, {}, { id: "" }] });
+  const storage = createStorage({
+    [INDEX_KEY]: rawIndex,
+    [ACCOUNT_PREFIX + id]: JSON.stringify({ schemaVersion: 5, charName: "復元対象" }),
+    [ACTIVE_KEY]: id
+  });
+  const accounts = loadAccounts(storage);
+  const listed = accounts.list();
+
+  assert.equal(listed.accounts.length, 1);
+  assert.equal(listed.accounts[0].id, id);
+  assert.equal(accounts.loadActive().charName, "復元対象");
+  assert.equal(JSON.parse(storage.getItem(INDEX_KEY)).accounts.length, 1, "索引を安全に再構築する");
+  assert.ok(storage.keys().some((key) => key.startsWith(INDEX_KEY + ".corrupt.")), "元の索引を退避する");
+});
+
+test("壊れた索引の退避に失敗した場合は、復旧書き込みでも原文を上書きしない", () => {
+  const id = "acc-index-backup-failure";
+  const rawIndex = "{broken-index";
+  const storage = createStorage({
+    [INDEX_KEY]: rawIndex,
+    [ACCOUNT_PREFIX + id]: JSON.stringify({ schemaVersion: 5, charName: "保存本体は残る" }),
+    [ACTIVE_KEY]: id
+  });
+  const normalSetItem = storage.setItem.bind(storage);
+  storage.setItem = (key, value) => {
+    if (key.startsWith(INDEX_KEY + ".corrupt.")) throw new Error("quota exceeded");
+    return normalSetItem(key, value);
+  };
+
+  const accounts = loadAccounts(storage);
+  assert.equal(accounts.list().accounts.length, 1, "本体はメモリ上で引き続き復旧可能");
+  assert.equal(storage.getItem(INDEX_KEY), rawIndex, "退避できない索引は上書きしない");
+  assert.equal(storage.keys().some((key) => key.startsWith(INDEX_KEY + ".corrupt.")), false);
+  assert.equal(accounts.create("上書き禁止", ""), null, "新規作成経路からも壊れた索引を上書きしない");
+  assert.equal(storage.getItem(INDEX_KEY), rawIndex);
+  assert.equal(storage.getItem(ACCOUNT_PREFIX + id), JSON.stringify({ schemaVersion: 5, charName: "保存本体は残る" }));
+});
+
 test("索引キー自体が消えても残存する保存本体からアカウントを復元する", () => {
   const activeId = "acc-index-key-missing";
   const storage = createStorage({
