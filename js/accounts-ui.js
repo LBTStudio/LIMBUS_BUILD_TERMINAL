@@ -415,7 +415,8 @@ const AccountSwitcher = ({ open, onClose }) => {
   const doRemove = (entry) => {
     if (!confirm(`アカウント「${entry.name}」を削除しますか？\nこの保存領域は復元できません。他のアカウントと旧データのバックアップには影響しません。`)) return;
     if (window.LBT_accounts?.delete?.(entry.id)) { announceAccountsChanged(); location.reload(); }
-    else toast("最後のアカウントは削除できません", "assertive");
+    else if (info.accounts.length <= 1) toast("最後のアカウントは削除できません", "assertive");
+    else toast("アカウントを削除できませんでした（保存領域が使用できない可能性があります）", "assertive");
   };
 
   return h("div", {
