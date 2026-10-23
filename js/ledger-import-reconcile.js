@@ -16,9 +16,9 @@
   function parseNumber(value) {
     const raw = String(value ?? "").trim().replace(/\s/g, "");
     if (!raw) return null;
-    if (!/^[+-]?(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(raw)) return null;
+    if (!/^\+?(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(raw)) return null;
     const number = Number(raw.replace(/,/g, ""));
-    return Number.isFinite(number) ? number : null;
+    return Number.isSafeInteger(number) ? number : null;
   }
   const normalize = (value) => parseNumber(value) ?? 0;
   const hasNumber = (value) => parseNumber(value) !== null;
@@ -65,15 +65,25 @@
           implied[key] = income[key];
         } else {
           const spend = running[key] + income[key] - current[key];
-          implied[key] = spend;
-          if (spend < 0) {
+          if (!Number.isSafeInteger(spend)) {
+            implied[key] = null;
             flags.push({
               level: "error",
-              code: "negative-spend",
+              code: "unsafe-derived-spend",
               currency: key,
-              gap: -spend,
-              text: "記録した収入より残高が多く増えている（" + (-spend) + " " + label(key) + " 分の記録漏れ）"
+              text: "収入と残高から導いた支出額が安全整数の範囲外です。入力を見直してください"
             });
+          } else {
+            implied[key] = spend;
+            if (spend < 0) {
+              flags.push({
+                level: "error",
+                code: "negative-spend",
+                currency: key,
+                gap: -spend,
+                text: "記録した収入より残高が多く増えている（" + (-spend) + " " + label(key) + " 分の記録漏れ）"
+              });
+            }
           }
         }
         running[key] = current[key];

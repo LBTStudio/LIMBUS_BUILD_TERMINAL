@@ -108,6 +108,50 @@ test("非数値の収入をゼロとして黙って通さない", () => {
   assert.ok(out[0].flags.some((f) => f.code === "invalid-income" && f.currency === "lp"));
 });
 
+
+
+test("金額の安全整数上限を超える収入・残高は不正として扱う", () => {
+  const safe = C.reconcileResults([
+    { title: "安全上限", income: { lp: "9,007,199,254,740,991" }, current: { lp: "9,007,199,254,740,991" } }
+  ]);
+  assert.equal(safe[0].income.lp, Number.MAX_SAFE_INTEGER);
+  assert.equal(safe[0].current.lp, Number.MAX_SAFE_INTEGER);
+
+  const unsafe = C.reconcileResults([
+    { title: "上限超過の収入", income: { lp: "9,007,199,254,740,993" }, current: { lp: 100 } },
+    { title: "上限超過の残高", income: { lp: 10 }, current: { lp: "9,007,199,254,740,993" } }
+  ]);
+  assert.equal(unsafe[0].income.lp, 0, "unsafe integerは0へ正規化されるが、エラーを明示する");
+  assert.ok(unsafe[0].flags.some((f) => f.code === "invalid-income" && f.currency === "lp"));
+  assert.equal(unsafe[1].current.lp, null, "unsafe integerを現在残高として採用しない");
+  assert.ok(unsafe[1].flags.some((f) => f.code === "no-current" && f.currency === "lp"));
+});
+
+
+
+
+
+test("差額計算の結果が安全整数範囲を超える場合は支出額を確定しない", () => {
+  const max = Number.MAX_SAFE_INTEGER;
+  const out = C.reconcileResults([
+    { title: "基準", income: { lp: max }, current: { lp: max } },
+    { title: "差額超過", income: { lp: max }, current: { lp: 0 } }
+  ]);
+  assert.equal(out[1].impliedSpend.lp, null);
+  assert.ok(out[1].flags.some((f) => f.code === "unsafe-derived-spend" && f.currency === "lp"));
+});
+
+test("負の収入・負の残高は有効な通帳金額として扱わない", () => {
+  const out = C.reconcileResults([
+    { title: "負の収入", income: { lp: "-10" }, current: { lp: 20 } },
+    { title: "負の残高", income: { lp: 10 }, current: { lp: "-20" } }
+  ]);
+  assert.equal(out[0].income.lp, 0);
+  assert.ok(out[0].flags.some((f) => f.code === "invalid-income" && f.currency === "lp"));
+  assert.equal(out[1].current.lp, null);
+  assert.ok(out[1].flags.some((f) => f.code === "no-current" && f.currency === "lp"));
+});
+
 test("カンマ区切りの金額は許可し、不正な桁区切りは拒否する", () => {
   const out = C.reconcileResults([
     { title: "正常", income: { lp: "1,200" }, current: { lp: "1,200" } },
