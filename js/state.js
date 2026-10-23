@@ -2418,7 +2418,15 @@ function saveActiveAccountState(state, accountId) {
     }
   }
   if (!writeStorageRaw(key, serialized)) return false;
-  const accounts = index.accounts.map((entry) => entry.id === targetId ? { ...entry, updatedAt: Date.now() } : entry);
+  /* 別タブが保存中にアカウントを作成すると、開始時の index は古くなる。
+     保存本体を書いた後に索引を読み直し、後から追加された保存領域を落とさない。 */
+  const latestIndex = readAccountsIndex();
+  if (!latestIndex.accounts.some((entry) => entry.id === targetId)) {
+    /* 他タブの削除が先に完了していた場合、孤立本体を残して復旧時に蘇生させない。 */
+    removeStorageRaw(key);
+    return false;
+  }
+  const accounts = latestIndex.accounts.map((entry) => entry.id === targetId ? { ...entry, updatedAt: Date.now() } : entry);
   if (accounts.some((entry) => entry.id === targetId)) writeAccountsIndex(accounts);
   return true;
 }

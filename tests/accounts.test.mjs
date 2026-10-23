@@ -449,6 +449,35 @@ test("作成・切替・名前変更・削除: 最低1件を保証し旧キー�
   assert.equal(storage.getItem(LEGACY_KEY), legacyStateJson(), "どの操作でも旧キーは無傷");
 });
 
+test("状態保存中に別タブが作成したアカウントを索引から落とさない", () => {
+  const storage = createStorage();
+  const tabA = loadAccounts(storage);
+  const saveTarget = tabA.create("保存対象", "");
+  assert.ok(saveTarget);
+  const tabB = loadAccounts(storage);
+
+  let interleave = true;
+  let createdByTabB = null;
+  const originalSetItem = storage.setItem.bind(storage);
+  storage.setItem = (key, value) => {
+    originalSetItem(key, value);
+    if (interleave && key === ACCOUNT_PREFIX + saveTarget.id) {
+      interleave = false;
+      /* A が保存本体を書いた直後、索引更新の前に B がアカウント作成を完了する。 */
+      createdByTabB = tabB.create("保存中に作成", "別タブ");
+    }
+  };
+
+  assert.equal(tabA.saveActive({ charName: "保存後の状態" }, saveTarget.id), true);
+  assert.ok(createdByTabB);
+  const listed = tabA.list().accounts;
+  assert.equal(listed.length, 2, "保存側が古い索引を戻して B を落とさない");
+  assert.ok(listed.some((entry) => entry.id === saveTarget.id));
+  assert.ok(listed.some((entry) => entry.id === createdByTabB.id));
+  assert.equal(JSON.parse(storage.getItem(ACCOUNT_PREFIX + saveTarget.id)).charName, "保存後の状態");
+  assert.ok(storage.getItem(ACCOUNT_PREFIX + createdByTabB.id), "B の保存本体も残る");
+});
+
 test("切替直後の旧画面保存は起動時束縛IDへ書き、新アカウントへ混入しない", () => {
   const storage = createStorage({ [LEGACY_KEY]: legacyStateJson() });
   const accounts = loadAccounts(storage);
