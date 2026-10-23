@@ -447,6 +447,36 @@ function validateImportData(data) {
     if (badIndex >= 0) return field + "[" + badIndex + "] はオブジェクトではありません";
   }
 
+  // 所持アイテムとオリジナルアイテムの数量・上限も部分一致で解釈しない。
+  // normalizeStateShape は破損したローカルセーブを安全な既定値へ直すが、
+  // JSONインポートは数量が変わってしまう前に項目パス付きで拒否する。
+  const isPositiveIntegerCount = (value) => {
+    if (value === void 0 || value === null || value === "") return true;
+    if (typeof value === "number") return Number.isSafeInteger(value) && value > 0;
+    if (typeof value !== "string") return false;
+    const text = value.trim();
+    if (!/^\d+$/.test(text)) return false;
+    const number = Number(text);
+    return Number.isSafeInteger(number) && number > 0;
+  };
+  const seenInventoryItemIds = new Set();
+  for (let i = 0; i < (data.inventory || []).length; i += 1) {
+    const itemId = typeof data.inventory[i].itemId === "string" ? data.inventory[i].itemId.trim() : "";
+    if (!itemId) return "inventory[" + i + "].itemId は空でない文字列で入力してください";
+    if (seenInventoryItemIds.has(itemId)) {
+      return "inventory[" + i + "] に重複 itemId " + itemId + " があります";
+    }
+    seenInventoryItemIds.add(itemId);
+    if (!isPositiveIntegerCount(data.inventory[i].quantity)) {
+      return "inventory[" + i + "].quantity は1以上の整数で入力してください";
+    }
+  }
+  for (let i = 0; i < (data.customItems || []).length; i += 1) {
+    if (!isPositiveIntegerCount(data.customItems[i].maxOwned)) {
+      return "customItems[" + i + "].maxOwned は正の整数または未指定で入力してください";
+    }
+  }
+
   // 通帳の通貨／チケット数量は部分一致の parseInt で解釈しない。
   // 不正な金額を正規化時に0へ落とすだけだと、バックアップを取り込めたように見えて
   // 収入や支出の数字だけ消えるため、適用前に項目パス付きで拒否する。
@@ -628,6 +658,35 @@ function validateImportData(data) {
     ]) {
       const error = validateUniqueIdentity(rows, "uid", "roster." + field);
       if (error) return error;
+    }
+    const personaKeys = new Set();
+    for (let i = 0; i < (data.roster.personas || []).length; i += 1) {
+      const persona = data.roster.personas[i];
+      const no = String(persona.no ?? "").trim();
+      if (!no) continue; // 旧形式で識別子のない行は既存の互換処理へ任せる
+      const key = (persona.mode === "t" ? "t:" : "n:") + no;
+      if (personaKeys.has(key)) return "roster.personas[" + i + "] に重複人格 " + key + " があります";
+      personaKeys.add(key);
+    }
+    const egoKeys = new Set();
+    for (let i = 0; i < (data.roster.egos || []).length; i += 1) {
+      const ego = data.roster.egos[i];
+      const no = String(ego.no ?? "").trim();
+      const rank = String(ego.rank ?? "").trim();
+      if (!no || !rank) continue;
+      const key = rank + ":" + no;
+      if (egoKeys.has(key)) return "roster.egos[" + i + "] に重複E.G.O " + key + " があります";
+      egoKeys.add(key);
+    }
+    for (const field of ["supports", "spirits"]) {
+      const names = new Set();
+      const rows = data.roster[field] || [];
+      for (let i = 0; i < rows.length; i += 1) {
+        const name = String(rows[i].name ?? "").trim();
+        if (!name) continue;
+        if (names.has(name)) return "roster." + field + "[" + i + "] に重複名称 " + name + " があります";
+        names.add(name);
+      }
     }
   }
 

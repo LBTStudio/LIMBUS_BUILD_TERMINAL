@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import vm from "node:vm";
 
 /* ---------------------------------------------------------------------------
@@ -11,23 +11,16 @@ import vm from "node:vm";
    ここはその穴を塞ぐゲート。全画面 JS はスクリプトとして読めなければならない。
    --------------------------------------------------------------------------- */
 
+const JS_DIR = new URL("../js/", import.meta.url);
+/* アプリJSは固定リストで列挙すると、新規追加ファイルを検査し忘れる。
+   js/ 内の全JSと Service Worker を自動で対象にし、存在しない旧パスの
+   catch-and-continue による静かな検査漏れもなくす。 */
 const FILES = [
-  "js/App.js",
-  "js/state.js",
-  "js/OtherSections.js",
-  "js/PersonaCodex.js",
-  "js/garasumado-export.js",
-  "js/garasumado-import-ui.js",
-  "js/garasumado-roster-import.js",
-  "js/persona-draft-import.js",
-  "js/roster-resolver.js",
-  "js/ledger-provenance.js",
-  "js/ledger-import-reconcile.js",
-  "js/result-log-parser.js",
-  "js/ui.js",
-  "js/accounts-ui.js",
-  "js/generator.js"
-];
+  ...readdirSync(JS_DIR, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".js"))
+    .map((entry) => "js/" + entry.name),
+  "sw.js"
+].sort();
 
 test("全画面の JS はブラウザのスクリプトモードで読める", () => {
   const broken = [];
@@ -61,6 +54,8 @@ test("React フックは React. 名前空間経由で呼んでいる（ комп
       continue;
     }
     src.split("\n").forEach((line, i) => {
+      /* コメントの例示を実コードと誤認しない。 */
+      if (/^\s*\/\//.test(line)) return;
       /* 定義行（const useState = ... 等）は除外する。 */
       if (/\bconst\s+(use[A-Z]\w*)\s*=/.test(line)) return;
       /* React. が付いている正しい形は通過させる。 */
@@ -93,13 +88,18 @@ test("日本語ソースに他言語の混入・誤字が無い（コードポ�
      さらに部分置換で隣接文字まで崩した。U+FFFD だけでは素通りするので、
      ハングル・中国語の誤訳・Hebrew を文字コード层面で弾く。 */
   const BANNED = [
-    [/\uAC00-\uD7AF/u, "ハングル混入"],          // hangul syllables
-    [/\u1100-\u11FF/u, "ハングル字母混入"],
-    [/\u0590-\u05FF/u, "Hebrew 混入"],             // 뜻/ydrogen 付近の事故
+    [/[\uAC00-\uD7AF]/u, "ハングル混入"],          // hangul syllables
+    [/[\u1100-\u11FF]/u, "ハングル字母混入"],
+    [/[\u0590-\u05FF]/u, "Hebrew 混入"],             // 뜻/ydrogen 付近の事故
     [/\u62BD\u7C64/u, "誤字 抽籤"],                  // 抽籤 は誤用（正しくは 抽出）
     [/抽取|其它|或者|状况|第一個|谢谢|关闭|开始|用户|准确/u, "中国語訳の混入"],
     [/\bof\b(?!\s)/u, "ラテン語 of の混入"]
   ];
+  // 正規表現自身の回帰テスト。各範囲内の代表文字を必ず検出すること。
+  assert.ok(BANNED[0][0].test("한"), "ハングル音節を検出する");
+  assert.ok(BANNED[1][0].test("ᄀ"), "ハングル字母を検出する");
+  assert.ok(BANNED[2][0].test("א"), "ヘブライ文字を検出する");
+
   const dirty = [];
   for (const file of FILES) {
     let src;

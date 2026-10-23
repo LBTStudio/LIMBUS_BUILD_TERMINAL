@@ -523,11 +523,23 @@
   async function encodeState(state) {
     const bytes = new TextEncoder().encode(JSON.stringify(snapshotState(state)));
     if (bytes.byteLength > MAX_DECOMPRESSED_BYTES) throw new Error("共有データが上限（4 MiB）を超えています");
+
+    // decode側はbase64url本文を MAX_TOKEN_LENGTH で拒否するため、発行側も同じ
+    // 上限を強制する。圧縮非対応ブラウザや高エントロピーのカスタム本文で
+    // 上限超過を許すと、発行できたように見えるのに自分では復元できないリンクになる。
+    const tokenFromBytes = (prefix, payload) => {
+      const encoded = bytesToBase64Url(payload);
+      if (encoded.length > MAX_TOKEN_LENGTH) {
+        throw new Error("共有データが復元側のサイズ上限（160,000文字）を超えています。カスタムデータを減らして再発行してください");
+      }
+      return `${prefix}.${encoded}`;
+    };
+
     if (typeof CompressionStream === "function") {
       const compressed = await transform(bytes, new CompressionStream("deflate-raw"));
-      return `z.${bytesToBase64Url(compressed)}`;
+      return tokenFromBytes("z", compressed);
     }
-    return `j.${bytesToBase64Url(bytes)}`;
+    return tokenFromBytes("j", bytes);
   }
 
   async function decodeToken(token) {

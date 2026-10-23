@@ -18,7 +18,7 @@
   var APP_NAME = "LIMBUS BUILD TERMINAL";
   var FILE_PREFIX = "lbt-proof";
 
-  var STATE_LABELS = { verified: "検証済み", mismatch: "不一致（改ざんの疑い）", unverified: "未検証" };
+  var STATE_LABELS = { verified: "記録整合性確認済み", mismatch: "不一致（改ざんの疑い）", unverified: "未検証" };
 
   function fail(message) { throw new Error("gacha-proof: " + message); }
   function requireUtf8() {
@@ -285,7 +285,7 @@
     var titleH = 112, metaH = 78, headingH = 46;
     var rowsH = shown.length * 40 + (hiddenCount > 0 ? 28 : 0);
     var trustH = 20 + trustRows * 30 + (reasons.length ? 12 : 0);
-    var footH = 92;
+    var footH = 138;
     var H = pad + titleH + metaH + headingH + rowsH + 20 + trustH + 20 + footH + pad;
 
     canvas.width = W * scale;
@@ -393,7 +393,9 @@
     var footLines = [
       "この画像には検証用データ（署名付き記録）が埋め込まれています。",
       "検証方法: " + APP_NAME + " の「記録 → 抽出リスト → 証明画像を検証」でこの画像を読み込むと、",
-      "埋め込みデータの一覧が表示されます。画像の表示と一致するか照合してください。"
+      "埋め込みデータの一覧が表示されます。画像の表示と一致するか照合してください。",
+      "注意: 抽選結果の再計算とdrand署名の暗号学的検証は行っていません。",
+      "drand値は結果決定後に記録へ添付され、抽選の乱数種には混合されません。署名者の本人確認も別途必要です。"
     ];
     footLines.forEach(function (line) { ctx.fillText(line, x, y); y += 22; });
 

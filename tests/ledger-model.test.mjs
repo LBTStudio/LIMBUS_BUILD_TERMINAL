@@ -375,3 +375,78 @@ test("破損したローカルセーブの配列要素は正規化前に除外�
   assert.deepEqual(JSON.parse(JSON.stringify(normalized.draws[0].records)), [null],
     "検証不合格の根拠となる原記録を保持する");
 });
+
+
+test("所持アイテムの破損した数量を部分一致で増やさず、安全な値へ正規化する", () => {
+  const normalized = normalize({
+    ...baseState(),
+    inventory: [
+      { uid: "bad-partial", itemId: "bandage", quantity: "12abc" },
+      { uid: "bad-decimal", itemId: "bandage-2", quantity: 1.5 },
+      { uid: "good", itemId: "bandage-3", quantity: "2" }
+    ],
+    customItems: [
+      { id: "custom-bad-cap", name: "試験用品", maxOwned: "5pcs" }
+    ]
+  });
+  assert.deepEqual(Array.from(normalized.inventory, (item) => item.quantity), [1, 1, 2]);
+  assert.equal(context.window.LBT_getItemMaxOwned({
+    customItems: [{ id: "custom-bad-cap", maxOwned: "5pcs" }]
+  }, "custom-bad-cap"), 99, "不正な上限値を部分一致で採用せず既定の上限へ戻す");
+});
+
+
+test("重複した所持アイテム行は合算し、最大所持数と通帳参照を維持する", () => {
+  context.window.DB.items = [{ id: "bandage", maxOwned: 3 }];
+  const normalized = normalize({
+    ...baseState(),
+    inventory: [
+      { uid: "item-a", itemId: "bandage", quantity: 2, memo: true, palette: true, origin: "initial" },
+      { uid: "item-b", itemId: "bandage", quantity: 2, memo: true, palette: true, origin: "acquired" }
+    ],
+    entries: [{
+      id: "entry-b", kind: "item", name: "包帯", cost: { lp: 10, shards: 0 },
+      ref: { kind: "inventory", uid: "item-b" }
+    }]
+  });
+  assert.equal(normalized.inventory.length, 1, "同じitemIdを2行で所持しない");
+  assert.equal(normalized.inventory[0].uid, "item-a", "最初のUIDを代表として維持");
+  assert.equal(normalized.inventory[0].quantity, 3, "重複行の合算後に最大所持数を適用");
+  assert.equal(normalized.inventory[0].origin, "acquired", "初期所持と購入の混在は取得済みとして扱う");
+  assert.equal(normalized.entries[0].ref.uid, "item-a", "通帳からの参照UIDを代表行へ移す");
+  context.window.DB.items = [];
+});
+
+
+test("オリジナルアイテムの定義削除は所持・初期枠・参照支出を一緒に解消する", () => {
+  const before = {
+    ...baseState(),
+    results: [{ id: "r1", name: "報酬", income: { lp: 100, shards: 0 }, exchange: { lp: 0, shards: 0 } }],
+    customItems: [{ id: "custom-bandage", name: "自作包帯", category: "回復", price: "15LP" }],
+    inventory: [{ uid: "custom-owned-1", itemId: "custom-bandage", quantity: 1, origin: "acquired" }],
+    initialItems: ["custom-bandage", "official-bandage"],
+    entries: [{
+      id: "custom-purchase-1", kind: "item", name: "自作包帯", cost: { lp: 15, shards: 0 },
+      resultId: "r1", ref: { kind: "inventory", uid: "custom-owned-1" }
+    }]
+  };
+  const next = reducer(before, { type: "REMOVE_CUSTOM_ITEM", id: "custom-bandage" });
+  assert.equal(next.customItems.some((item) => item.id === "custom-bandage"), false);
+  assert.equal(next.inventory.some((entry) => entry.itemId === "custom-bandage"), false);
+  assert.deepEqual(Array.from(next.initialItems), ["official-bandage"],
+    "削除したIDを初期所持リストに残さない");
+  assert.equal(next.entries.some((entry) => entry.id === "custom-purchase-1"), false,
+    "所持削除と同じ契約でそのUIDの購入支出も消す");
+  assert.equal(balance(next.results, next.entries).lp, 100,
+    "残高を減らす孤立した支出明細を残さない");
+});
+
+test("共有所持の明示数量は厳密に検証し、不正文字列を部分一致で増やさない", () => {
+  const before = { ...baseState(), inventory: [] };
+  const bad = reducer(before, { type: "ADD_ITEM_INVENTORY", itemId: "bandage", quantity: "12abc" });
+  assert.equal(bad.inventory.length, 0, "不正な数量は無視する");
+  const decimal = reducer(before, { type: "ADD_ITEM_INVENTORY", itemId: "bandage", quantity: 1.5 });
+  assert.equal(decimal.inventory.length, 0, "小数も無視する");
+  const legacy = reducer(before, { type: "ADD_ITEM_INVENTORY", itemId: "bandage" });
+  assert.equal(legacy.inventory[0].quantity, 1, "未指定数量は従来どおり1個");
+});
