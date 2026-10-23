@@ -360,6 +360,10 @@ test("未所持なら 1件目の請求は0になる（バッチ全体で1つの�
     lp: 1000, count: 2
   });
   const batch = G.finalizeBatch(out, session, { rulesetHash: gacha.rulesetHash });
+  /* scripted() は抽選対象を固定するためのテストダブルで、暗号学的RNGの実際の列を
+     生成しない。証明検証のテストではなく適用効果だけを見るため v1 互換フィクスチャにする。 */
+  batch.schemaVersion = 1;
+  delete batch.integrityHash;
   const next = w.appReducer(base(), { type: "ADD_DRAW_BATCH", batch });
   const byName = new Map(next.entries.map((e) => [e.name, e.cost?.lp]));
   const costs = batch.records.map((r) => byName.get(db.normal_personas.find((p) => p.no === r.item.no)?.name));
@@ -507,6 +511,10 @@ test("テーマパック: 重複でも1回ぶんを請求し、欠片50は収入
     lp: pack.lp * 3, count: 3
   });
   const batch = G.finalizeBatch(out, session, { rulesetHash: gacha.rulesetHash });
+  /* scripted() は実際の seed/rolls を再現しないテストダブルなので、ここでは
+     重複報酬と帳簿処理だけを検証する legacy 形式として扱う。 */
+  batch.schemaVersion = 1;
+  delete batch.integrityHash;
   const dupes = batch.records.filter((r) => r.duplicate);
   assert.equal(dupes.length, 1, "2回目が重複");
   assert.equal(dupes[0].grantedShards, 50, "重複は欠片50");
