@@ -582,7 +582,11 @@ function resolvePersonaDisplayName(entry, sourceName) {
 }
 function buildRosterDetailPersona(entry, fallback) {
   const build = entry?.build;
-  if (!build) return fallback ? { ...fallback, name: resolvePersonaDisplayName(entry, fallback.name) } : fallback;
+  if (!build) {
+    if (!fallback) return fallback;
+    const resolvedName = resolvePersonaDisplayName(entry, fallback.name);
+    return resolvedName === fallback.name ? fallback : { ...fallback, name: resolvedName };
+  }
   const source = build.personaSrc && typeof build.personaSrc === "object" ? build.personaSrc : {};
   const persona = { ...fallback, ...source, no: fallback?.no };
   return {
