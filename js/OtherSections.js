@@ -1615,6 +1615,15 @@ h("div", { className: "equipped-detail-inner" }, editable ? null : h(EgoDetail, 
   );
 };
 const SpiritSection = ({ state, dispatch, ownedOnly = false }) => {
+  const hasExplicitSpiritPrice = window.LBT_hasExplicitSpiritPrice || ((definition) => {
+    if (!definition || !definition.name) return false;
+    const price = definition.price;
+    const numeric = (typeof price === "number" && Number.isFinite(price))
+      || (typeof price === "string" && price.trim() !== "" && Number.isFinite(Number(price)));
+    return numeric && Number(price) >= 0;
+  });
+  const isExplicitlyFreeSpirit = window.LBT_isExplicitlyFreeSpirit
+    || ((definition) => hasExplicitSpiritPrice(definition) && Number(definition.price) === 0);
   const [selected, setSelected] = React.useState(null);
   const [query, setQuery] = React.useState("");
   const [sourceFilter, setSourceFilter] = React.useState("all");
@@ -1697,7 +1706,7 @@ const SpiritSection = ({ state, dispatch, ownedOnly = false }) => {
         onClick: () => setSelected(sp),
         onDoubleClick: () => applySpirit(sp)
       },
-      /* @__PURE__ */ React.createElement("div", { className: "spirit-item-head" }, /* @__PURE__ */ React.createElement("div", { className: "spirit-item-name" }, sp.name), /* @__PURE__ */ React.createElement("span", { className: "spirit-item-price" }, sp.price > 0 ? `\u6B20\u7247 ${sp.price}` : "\u521D\u671F\u9078\u629E\u53EF"), isEquipped && /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontSize: "var(--fs-9)", color: "var(--gold)", fontFamily: "var(--f-display)", letterSpacing: "0.16em" } }, "\u2605 \u88C5\u5099\u4E2D")),
+      /* @__PURE__ */ React.createElement("div", { className: "spirit-item-head" }, /* @__PURE__ */ React.createElement("div", { className: "spirit-item-name" }, sp.name), /* @__PURE__ */ React.createElement("span", { className: "spirit-item-price" }, isExplicitlyFreeSpirit(sp) ? "\u521D\u671F\u9078\u629E\u53EF" : hasExplicitSpiritPrice(sp) && Number(sp.price) > 0 ? `\u6B20\u7247 ${sp.price}` : "\u4FA1\u683C\u4E0D\u660E"), isEquipped && /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontSize: "var(--fs-9)", color: "var(--gold)", fontFamily: "var(--f-display)", letterSpacing: "0.16em" } }, "\u2605 \u88C5\u5099\u4E2D")),
       sp.always_effect && /* @__PURE__ */ React.createElement("div", { className: "spirit-item-line" }, /* @__PURE__ */ React.createElement("span", { className: "spirit-item-tag", "data-tag": "always" }, "\u5E38\u6642"), /* @__PURE__ */ React.createElement("span", null, sp.always_effect)),
       sp.morale_effect && sp.morale_effect !== "\u306A\u3057" && /* @__PURE__ */ React.createElement("div", { className: "spirit-item-line" }, /* @__PURE__ */ React.createElement("span", { className: "spirit-item-tag", "data-tag": "morale" }, "\u58EB\u6C17"), /* @__PURE__ */ React.createElement("span", null, sp.morale_effect)),
       /* @__PURE__ */ React.createElement("div", { className: "spirit-item-line" }, /* @__PURE__ */ React.createElement("span", { className: "spirit-item-tag", "data-tag": "confuse" }, "\u6DF7\u4E71"), /* @__PURE__ */ React.createElement("span", null, sp.confuse_effect)),
@@ -1727,7 +1736,7 @@ const SpiritSection = ({ state, dispatch, ownedOnly = false }) => {
     /* ここを返さないと map が undefined を並べ、列表は空のままになる。
        件数（counter）は別に出るので、一見すると「あるのに出ない」状態になる。 */
     return spiritBody;
-  }))), selected ? /* @__PURE__ */ React.createElement("div", { className: "codex-detail" }, /* @__PURE__ */ React.createElement("div", { className: "detail-head", style: { "--sin-primary": "var(--gold)" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-eyebrow" }, /* @__PURE__ */ React.createElement("span", { className: "detail-num" }, selected.price > 0 ? `\u6B20\u7247 ${selected.price}` : "\u521D\u671F\u9078\u629E\u53EF"), /* @__PURE__ */ React.createElement("span", { className: "detail-type" }, "SPIRIT / \u7CBE\u795E")), /* @__PURE__ */ React.createElement("div", { className: "detail-name" }, selected.name)), /* @__PURE__ */ React.createElement("div", { className: "detail-body" }, selected.always_effect && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u5E38\u6642\u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive" }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" }, selected.always_effect))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u58EB\u6C17\u4F4E\u4E0B\u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive", style: { borderLeftColor: "var(--warn)" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" }, selected.morale_effect || "\u306A\u3057"))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u6DF7\u4E71\u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive", style: { borderLeftColor: "var(--err)" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" }, selected.confuse_effect)))), /* @__PURE__ */ React.createElement("div", { className: "detail-actions" }, state.spirit === selected.name ? /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--gold)", textAlign: "center", fontFamily: "var(--f-display)", letterSpacing: "0.2em", textTransform: "uppercase" } }, "\u2605 \u73FE\u5728\u88C5\u5099\u4E2D") : /* @__PURE__ */ React.createElement(Button, { variant: "primary", onClick: () => applySpirit(selected), icon: "check" }, "\u3053\u306E\u7CBE\u795E\u3092\u88C5\u5099"))) : /* @__PURE__ */ React.createElement("div", { className: "codex-detail" }, /* @__PURE__ */ React.createElement("div", { className: "detail-empty" }, /* @__PURE__ */ React.createElement("div", { className: "detail-empty-icon" }, "\u{1F701}"), /* @__PURE__ */ React.createElement("div", { className: "t-label" }, "\u5DE6\u306E\u30AB\u30FC\u30C9\u3092\u9078\u629E"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-11)", color: "var(--tx-mute)", marginTop: 8 } }, "\u7CBE\u795E\u3092\u9078\u629E\u3059\u308B\u3068\u8A73\u7D30\u304C\u8868\u793A\u3055\u308C\u307E\u3059\u3002", /* @__PURE__ */ React.createElement("br", null), "\u30C0\u30D6\u30EB\u30AF\u30EA\u30C3\u30AF\u3067\u88C5\u5099\u3002")))));
+  }))), selected ? /* @__PURE__ */ React.createElement("div", { className: "codex-detail" }, /* @__PURE__ */ React.createElement("div", { className: "detail-head", style: { "--sin-primary": "var(--gold)" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-eyebrow" }, /* @__PURE__ */ React.createElement("span", { className: "detail-num" }, isExplicitlyFreeSpirit(selected) ? "\u521D\u671F\u9078\u629E\u53EF" : hasExplicitSpiritPrice(selected) && Number(selected.price) > 0 ? `\u6B20\u7247 ${selected.price}` : "\u4FA1\u683C\u4E0D\u660E"), /* @__PURE__ */ React.createElement("span", { className: "detail-type" }, "SPIRIT / \u7CBE\u795E")), /* @__PURE__ */ React.createElement("div", { className: "detail-name" }, selected.name)), /* @__PURE__ */ React.createElement("div", { className: "detail-body" }, selected.always_effect && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u5E38\u6642\u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive" }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" }, selected.always_effect))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u58EB\u6C17\u4F4E\u4E0B\u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive", style: { borderLeftColor: "var(--warn)" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" }, selected.morale_effect || "\u306A\u3057"))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u6DF7\u4E71\u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive", style: { borderLeftColor: "var(--err)" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" }, selected.confuse_effect)))), /* @__PURE__ */ React.createElement("div", { className: "detail-actions" }, state.spirit === selected.name ? /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--gold)", textAlign: "center", fontFamily: "var(--f-display)", letterSpacing: "0.2em", textTransform: "uppercase" } }, "\u2605 \u73FE\u5728\u88C5\u5099\u4E2D") : /* @__PURE__ */ React.createElement(Button, { variant: "primary", onClick: () => applySpirit(selected), icon: "check" }, "\u3053\u306E\u7CBE\u795E\u3092\u88C5\u5099"))) : /* @__PURE__ */ React.createElement("div", { className: "codex-detail" }, /* @__PURE__ */ React.createElement("div", { className: "detail-empty" }, /* @__PURE__ */ React.createElement("div", { className: "detail-empty-icon" }, "\u{1F701}"), /* @__PURE__ */ React.createElement("div", { className: "t-label" }, "\u5DE6\u306E\u30AB\u30FC\u30C9\u3092\u9078\u629E"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-11)", color: "var(--tx-mute)", marginTop: 8 } }, "\u7CBE\u795E\u3092\u9078\u629E\u3059\u308B\u3068\u8A73\u7D30\u304C\u8868\u793A\u3055\u308C\u307E\u3059\u3002", /* @__PURE__ */ React.createElement("br", null), "\u30C0\u30D6\u30EB\u30AF\u30EA\u30C3\u30AF\u3067\u88C5\u5099\u3002")))));
   /* 精神の初期枠。アイテムと同じ操作だが、精神は装備するものであって
      買うものではないため、取り込んでも支出は発生しない。 */
   const [spiritInitialPickOpen, setSpiritInitialPickOpen] = React.useState(false);
@@ -1736,7 +1745,7 @@ const SpiritSection = ({ state, dispatch, ownedOnly = false }) => {
      判定が壊れないよう、所持の有無ではなく DB の価格で数える）。 */
   const spiritInitialSeeded = (state.roster?.spirits || []).filter((entry) => {
     const def = DB.spirits.find((s) => s.name === entry.name);
-    return def && !(Number(def.price) > 0);
+    return def && isExplicitlyFreeSpirit(def);
   }).length;
   const toggleInitialSpirit = (name) => dispatch({
     type: "SET_INITIAL_SPIRITS",
@@ -1754,13 +1763,25 @@ const SpiritSection = ({ state, dispatch, ownedOnly = false }) => {
     h(Button, { size: "sm", variant: "ghost", onClick: () => setSpiritInitialPickOpen((open) => !open) }, spiritInitialPickOpen ? "選ぶのを閉じる" : "選ぶ"),
     h(Button, { size: "sm", variant: "primary", icon: "check", disabled: !initialSpiritNames.length, onClick: () => dispatch({ type: "APPLY_INITIAL_SPIRITS" }) }, "初期枠から取り込む")
     ),
-    spiritInitialPickOpen && h("div", { className: "stack-1" }, DB.spirits.map((sp) => h("label", { key: sp.name, className: "initial-pick-row" },
-      h("input", { type: "checkbox", checked: initialSpiritNames.includes(sp.name), onChange: () => toggleInitialSpirit(sp.name) }),
-      h("span", null, sp.name),
-      Number(sp.price) > 0
-      ? h("span", { className: "ledger-note" }, `${sp.price} 欠片`)
-      : h("span", { className: "badge inv-origin is-initial" }, "初期選択可")
-    )))
+    spiritInitialPickOpen && h("div", { className: "stack-1" }, DB.spirits.map((sp) => {
+      const knownPrice = hasExplicitSpiritPrice(sp);
+      const price = Number(sp.price);
+      return h("label", { key: sp.name, className: "initial-pick-row" },
+        h("input", {
+          type: "checkbox",
+          checked: initialSpiritNames.includes(sp.name),
+          disabled: !knownPrice,
+          title: knownPrice ? undefined : "価格が不明なため初期枠に追加できません",
+          onChange: () => { if (knownPrice) toggleInitialSpirit(sp.name); }
+        }),
+        h("span", null, sp.name),
+        isExplicitlyFreeSpirit(sp)
+          ? h("span", { className: "badge inv-origin is-initial" }, "初期選択可")
+          : knownPrice && price > 0
+            ? h("span", { className: "ledger-note" }, `${sp.price} 欠片`)
+            : h("span", { className: "ledger-note" }, "価格不明")
+      );
+    }))
   );
   return /* @__PURE__ */ React.createElement("div", { className: "stack-4" }, spiritBody, spiritInitialFrame);
 };
@@ -2406,6 +2427,15 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
   };
 const ShopSection = ({ state, dispatch }) => {
   const h = React.createElement;
+  const hasExplicitSpiritPrice = window.LBT_hasExplicitSpiritPrice || ((definition) => {
+    if (!definition || !definition.name) return false;
+    const price = definition.price;
+    const numeric = (typeof price === "number" && Number.isFinite(price))
+      || (typeof price === "string" && price.trim() !== "" && Number.isFinite(Number(price)));
+    return numeric && Number(price) >= 0;
+  });
+  const isExplicitlyFreeSpirit = window.LBT_isExplicitlyFreeSpirit
+    || ((definition) => hasExplicitSpiritPrice(definition) && Number(definition.price) === 0);
   const tab = state.ui?.shopTab || "support";
   const setTab = (id) => dispatch({ type: "SET_UI", ui: { shopTab: id } });
   const [unownedOnly, setUnownedOnly] = React.useState(true);
@@ -2561,13 +2591,21 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
         h("span", { className: "badge", "data-rank": ego.rank }, ego.rank),
         (ego.sub_skills || []).length > 0 ? h("span", { className: "ego-doka-badge", title: "同化スキル対応EGO" }, "◆ 同化") : null
       ].filter(Boolean))),
-    spirit: () => spirits.map((sp) => card(sp.name, sp.name, (Number(sp.price) || 0) > 0 ? null : "初期選択可", "spirit",
-      () => { dispatch({ type: "ADD_ROSTER_SPIRIT", spirit: sp }); toast(`「${sp.name}」を所持に購入しました`, "assertive"); },
+    spirit: () => spirits.map((sp) => card(sp.name, sp.name,
+      !hasExplicitSpiritPrice(sp) ? "価格不明" : Number(sp.price) > 0 ? null : "初期選択可", "spirit",
+      () => {
+        if (!hasExplicitSpiritPrice(sp)) {
+          toast("価格が不明なため追加できません", "assertive");
+          return;
+        }
+        dispatch({ type: "ADD_ROSTER_SPIRIT", spirit: sp });
+        toast(`「${sp.name}」を所持に購入しました`, "assertive");
+      },
       false, null, shopCardLines("spirit", sp), ownedSpiritNames.has(sp.name),
       null, null,
       /* 精神の費用はビルドと同じ規則で表す。価格 0 は費用ではなく
          ルール情報なので、価格枠ではなく head のフラグ（所持バッジの隣）へ出す。 */
-      formatAcquireCost(0, sp.price))),
+      hasExplicitSpiritPrice(sp) ? formatAcquireCost(0, sp.price) : "価格不明")),
     item: () => items.map((item) => card(item.id, item.name, item.category || "その他", "item",
       () => { dispatch({ type: "ADD_ITEM", itemId: item.id }); toast(`「${item.name}」を購入しました`, "assertive"); },
       atCap(item), "所持上限に達しています", shopCardLines("item", item), ownedItemIds.has(item.id)))
