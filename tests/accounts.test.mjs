@@ -456,6 +456,7 @@ test("完全リセットは旧タブの遅延保存を無効化し、新しい�
   assert.equal(resettingTab.getActiveId(), activeId);
   assert.equal(resettingTab.resetActive(), true);
   assert.equal(JSON.parse(storage.getItem(ACCOUNT_PREFIX + activeId)).charName, undefined, "リセット後の保存本体は空");
+  assert.equal(oldTab.resetActive(), false, "古いタブから後続のリセットも実行できない");
 
   assert.equal(oldTab.saveActive({ charName: "古いタブからの遅延保存" }, activeId), false, "古い世代からは保存できない");
   assert.equal(JSON.parse(storage.getItem(ACCOUNT_PREFIX + activeId)).charName, undefined, "空状態が復活書き込みで上書きされない");
