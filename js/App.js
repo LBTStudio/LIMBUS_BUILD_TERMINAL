@@ -659,6 +659,35 @@ function validateImportData(data) {
       const error = validateUniqueIdentity(rows, "uid", "roster." + field);
       if (error) return error;
     }
+    const personaKeys = new Set();
+    for (let i = 0; i < (data.roster.personas || []).length; i += 1) {
+      const persona = data.roster.personas[i];
+      const no = String(persona.no ?? "").trim();
+      if (!no) continue; // 旧形式で識別子のない行は既存の互換処理へ任せる
+      const key = (persona.mode === "t" ? "t:" : "n:") + no;
+      if (personaKeys.has(key)) return "roster.personas[" + i + "] に重複人格 " + key + " があります";
+      personaKeys.add(key);
+    }
+    const egoKeys = new Set();
+    for (let i = 0; i < (data.roster.egos || []).length; i += 1) {
+      const ego = data.roster.egos[i];
+      const no = String(ego.no ?? "").trim();
+      const rank = String(ego.rank ?? "").trim();
+      if (!no || !rank) continue;
+      const key = rank + ":" + no;
+      if (egoKeys.has(key)) return "roster.egos[" + i + "] に重複E.G.O " + key + " があります";
+      egoKeys.add(key);
+    }
+    for (const field of ["supports", "spirits"]) {
+      const names = new Set();
+      const rows = data.roster[field] || [];
+      for (let i = 0; i < rows.length; i += 1) {
+        const name = String(rows[i].name ?? "").trim();
+        if (!name) continue;
+        if (names.has(name)) return "roster." + field + "[" + i + "] に重複名称 " + name + " があります";
+        names.add(name);
+      }
+    }
   }
 
   // V22: roster 単体ファイル（所持人格/E.G.Oのみ）はここで検証後に受け入れる。
