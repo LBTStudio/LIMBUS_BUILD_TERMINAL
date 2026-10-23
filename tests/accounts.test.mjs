@@ -421,6 +421,36 @@ test("別タブでアカウント作成が割り込んでも、先に作成さ�
   assert.equal(JSON.parse(storage.getItem(ACCOUNT_PREFIX + createdByTabB.id)).schemaVersion, 5, "先に作った保存本体も残る");
 });
 
+test("アカウント名の更新中に別タブが作成された項目を索引から落とさない", () => {
+  const storage = createStorage();
+  const tabA = loadAccounts(storage);
+  const target = tabA.create("変更対象", "");
+  assert.ok(target);
+  const tabB = loadAccounts(storage);
+
+  let injected = false;
+  let createdByTabB = null;
+  const patch = {
+    get name() {
+      if (!injected) {
+        injected = true;
+        /* A が古い索引を読んだ後、索引を書き戻す前に B の作成を完了させる。 */
+        createdByTabB = tabB.create("変更中に作成", "別タブ");
+      }
+      return "変更後の名前";
+    },
+    purpose: "変更テスト"
+  };
+
+  assert.equal(tabA.update(target.id, patch), true);
+  assert.ok(createdByTabB);
+  const listed = tabA.list().accounts;
+  assert.equal(listed.length, 2, "更新側が古い索引を書き戻して B を落とさない");
+  assert.equal(listed.find((entry) => entry.id === target.id).name, "変更後の名前");
+  assert.ok(listed.some((entry) => entry.id === createdByTabB.id));
+  assert.ok(storage.getItem(ACCOUNT_PREFIX + createdByTabB.id), "B の保存本体も残る");
+});
+
 test("作成・切替・名前変更・削除: 最低1件を保証し旧キーに触れない", () => {
   const storage = createStorage({ [LEGACY_KEY]: legacyStateJson() });
   const accounts = loadAccounts(storage);
