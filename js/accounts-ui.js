@@ -66,6 +66,8 @@ function useAccountIconEditor(onStored) {
     if (window.LBT_accounts?.removeIcon?.(accountId)) {
       announceAccountsChanged();
       toast("アイコンを外しました");
+    } else {
+      toast("アイコンを外せませんでした（保存領域が使用できません）", "assertive");
     }
   };
   const applyCrop = async (result) => {
@@ -396,10 +398,15 @@ const AccountSwitcher = ({ open, onClose }) => {
     if (!requiredName()) return;
     const created = window.LBT_accounts?.create?.(draft.name.trim(), draft.purpose.trim());
     if (!created) { toast("アカウントを作成できませんでした（保存領域が使用できません）", "assertive"); return; }
-    if (pendingIcon) window.LBT_accounts?.setIcon?.(created.id, pendingIcon);
+    const iconSaved = !pendingIcon || window.LBT_accounts?.setIcon?.(created.id, pendingIcon) === true;
     cancelForm();
     announceAccountsChanged();
+    if (!iconSaved) {
+      toast("アカウントは作成されましたが、アイコンを保存できませんでした。後から設定できます。", "assertive");
+      return;
+    }
     if (window.LBT_accounts?.switch?.(created.id)) location.reload();
+    else toast("アカウントは作成されましたが、切替に失敗しました。一覧から選択してください。", "assertive");
   };
   const doSelect = (id) => {
     if (window.LBT_accounts?.switch?.(id)) location.reload();

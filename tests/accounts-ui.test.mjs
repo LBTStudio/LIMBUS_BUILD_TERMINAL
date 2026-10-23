@@ -41,6 +41,19 @@ test("作成・名前変更はインラインフォームで行い prompt に依
   assert.doesNotMatch(sections, /doSwitchAccount|doCreateAccount|doRenameAccount|doDeleteAccount/, "古いインライン実装の変数を残さない");
 });
 
+test("アイコン保存・解除に失敗したとき成功扱いせず、通知を出す", () => {
+  const editor = ui.slice(ui.indexOf("function useAccountIconEditor"), ui.indexOf("function AccountMark"));
+  const switcher = ui.slice(ui.indexOf("const saveCreate ="), ui.indexOf("const doSelect ="));
+  const clear = editor.slice(editor.indexOf("const clearIcon ="), editor.indexOf("const applyCrop ="));
+
+  assert.match(clear, /アイコンを外せませんでした/);
+  assert.match(clear, /toast\("アイコンを外せませんでした（保存領域が使用できません）", "assertive"\)/);
+  assert.match(switcher, /const iconSaved = !pendingIcon \|\| window\.LBT_accounts\?\.setIcon\?\./);
+  assert.match(switcher, /アカウントは作成されましたが、アイコンを保存できませんでした/);
+  assert.match(switcher, /アカウントは作成されましたが、切替に失敗しました/);
+  assert.ok(switcher.indexOf("if (!iconSaved)") < switcher.indexOf("window.LBT_accounts?.switch?."), "アイコン保存失敗時はリロード前に通知する");
+});
+
 test("削除は確認つきで、最後の1件は削除できない", () => {
   assert.match(ui, /if \(!confirm\(`アカウント「\$\{entry\.name\}」を削除しますか？/, "削除は confirm を通す");
   assert.match(ui, /window\.LBT_accounts\?\.delete\?\.\(entry\.id\)/);
