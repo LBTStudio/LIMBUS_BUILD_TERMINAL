@@ -2232,17 +2232,23 @@ function readAccountsIndex() {
     seenIds.add(entry.id);
     accounts.push(normalizeAccountEntry(entry, accounts.length));
   }
-  /* 一部だけ壊れた配列も放置しない。正常な行が1つあるだけでは、索引に
-     現れない保存本体が他にないことを保証できない。壊れた原文を退避したうえで
-     本体キーから再構築し、書き換えは writeAccountsIndex の保護を通す。 */
-  if (accounts.length !== list.length) {
+  /* 無効な行が混じった場合だけ保存本体を走査する。重複IDは別保存領域ではない
+     ため、従来どおり最初の索引エントリ（名前・用途）を優先する。復旧結果にも
+     現在の索引にあった有効エントリを残し、索引から欠落していた本体だけを足す。 */
+  const hasInvalidEntries = list.some((entry) =>
+    !entry || typeof entry.id !== "string" || !entry.id);
+  if (hasInvalidEntries) {
     const recovered = recoverAccountsFromStorage();
     if (recovered.length) {
-      writeAccountsIndex(recovered);
-      return { version: 1, accounts: recovered };
+      const knownIds = new Set(accounts.map((entry) => entry.id));
+      const merged = [
+        ...accounts,
+        ...recovered.filter((entry) => !knownIds.has(entry.id))
+      ];
+      writeAccountsIndex(merged);
+      return { version: 1, accounts: merged };
     }
     preserveUnreadable(ACCOUNTS_INDEX_KEY, raw);
-    return { version: 1, accounts };
   }
   return { version: 1, accounts };
 }
