@@ -77,6 +77,25 @@ test("tokenization prefers the longest known phrase without dropping surrounding
   assert.equal(pieces.map((piece) => piece.text).join(""), "出血保護3を得る。対象の出血が4以上");
 });
 
+test("mobile contextmenu does not let its follow-up synthetic click close the glossary", () => {
+  assert.ok(source.includes("const lastPointerType = React.useRef(null);"));
+  assert.ok(source.includes("lastPointerType.current = event.pointerType || null;"));
+  assert.ok(source.includes('if (lastPointerType.current === "touch") suppressClick.current = true;'));
+  assert.ok(source.includes("if (suppressClick.current) {"));
+  assert.ok(source.includes("event.preventDefault();"));
+  assert.ok(source.includes("event.stopPropagation();"));
+});
+
+test("glossary unmount and cancelled touch gestures clear pending timers and click suppression", () => {
+  assert.ok(source.includes("React.useEffect(() => () => {"));
+  assert.ok(source.includes("clearTimer(hoverTimer);"));
+  assert.ok(source.includes("clearTimer(closeTimer);"));
+  assert.ok(source.includes("clearTimer(longPressTimer);"));
+  assert.ok(source.includes("const onPointerCancel = () => {"));
+  assert.ok(source.includes("suppressClick.current = false;"));
+  assert.ok(source.includes("onPointerUp, onPointerCancel,"));
+});
+
 test("PC hover, keyboard access, tap and long press are available without adding unsafe HTML", () => {
   assert.match(source, /pointerType !== "mouse"/);
   assert.match(source, /pointerType !== "touch"/);
