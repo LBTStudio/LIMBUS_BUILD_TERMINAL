@@ -1774,7 +1774,7 @@ function parsePriceText(raw, defaultUnit) {
     else if (!lp) lp = amount;
   }
   if (lp || shards) return normalizeCurrency({ lp, shards });
-  const bare = text.match(/^(\d+)$/);
+  const bare = text.match(/^((?:\d{1,3}(?:,\d{3})+|\d+))$/);
   return normalizeCurrency(bare ? (defaultUnit === "shards" ? { shards: bare[1] } : { lp: bare[1] }) : {});
 }
 window.LBT_parsePriceText = parsePriceText;
