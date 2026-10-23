@@ -3865,17 +3865,17 @@ const readDragId = (event) => {
 const applyGarasumadoImport = (applied) => {
   const actions = applied?.actions || applied?.rosterActions || [];
   if (!actions.length) { toast("取り込むものが選ばれていません"); return; }
-  window.dispatchEvent(new CustomEvent("lbt:apply-import", {
-    detail: { actions, skipped: applied.skipped || [] }
-  }));
+  const detail = { actions, skipped: Array.isArray(applied.skipped) ? [...applied.skipped] : [] };
+  window.dispatchEvent(new CustomEvent("lbt:apply-import", { detail }));
+  const accepted = Array.isArray(detail.actions) ? detail.actions : [];
+  const skipped = Array.isArray(detail.skipped) ? detail.skipped : [];
   const byType = {};
-  for (const a of actions) byType[a.type] = (byType[a.type] || 0) + 1;
+  for (const action of accepted) byType[action.type] = (byType[action.type] || 0) + 1;
   setImportNote({
-    summary: Object.entries(byType).map(([k, n]) => `${IMPORT_TYPE_LABEL[k] || k} ${n}件`).join("・"),
-    skipped: (applied.skipped || []).slice(0, 12),
-    skippedCount: (applied.skipped || []).length
+    summary: Object.entries(byType).map(([key, count]) => (IMPORT_TYPE_LABEL[key] || key) + " " + count + "件").join("・"),
+    skipped: skipped.slice(0, 12),
+    skippedCount: skipped.length
   });
-  toast("取り込みました");
 };
 const IMPORT_TYPE_LABEL = {
     ADD_ROSTER: "人格", ADD_ROSTER_EGO: "E.G.O", ADD_ROSTER_SUPPORT: "パッシブ",
@@ -3910,20 +3910,23 @@ const textPlan = React.useMemo(() => {
    APPLY_IMPORT_BATCH の紐付けと Undo 1 回がそのまま効く。 */
 const applyTextImport = () => {
   if (!textPlan || !textPlan.actions.length) { toast("取り込めるものがありません"); return; }
-  window.dispatchEvent(new CustomEvent("lbt:apply-import", {
-    detail: { actions: textPlan.actions, skipped: textPlan.skipped }
-  }));
-  const results = textPlan.actions.filter((a) => a.type === "ADD_RESULT").length;
-  const entries = textPlan.actions.filter((a) => a.type === "ADD_ENTRY").length;
+  const detail = {
+    actions: textPlan.actions,
+    skipped: Array.isArray(textPlan.skipped) ? [...textPlan.skipped] : []
+  };
+  window.dispatchEvent(new CustomEvent("lbt:apply-import", { detail }));
+  const accepted = Array.isArray(detail.actions) ? detail.actions : [];
+  const skipped = Array.isArray(detail.skipped) ? detail.skipped : [];
+  const results = accepted.filter((action) => action.type === "ADD_RESULT").length;
+  const entries = accepted.filter((action) => action.type === "ADD_ENTRY").length;
   setImportNote({
-    summary: `${IMPORT_TYPE_LABEL.ADD_RESULT} ${results}件・${IMPORT_TYPE_LABEL.ADD_ENTRY} ${entries}件`,
-    skipped: textPlan.skipped.slice(0, 12),
-    skippedCount: textPlan.skipped.length
+    summary: IMPORT_TYPE_LABEL.ADD_RESULT + " " + results + "件・" + IMPORT_TYPE_LABEL.ADD_ENTRY + " " + entries + "件",
+    skipped: skipped.slice(0, 12),
+    skippedCount: skipped.length
   });
   setTextPanel(false);
   setTextDraft("");
   setTextExcluded(new Set());
-  toast("取り込みました");
 };
 
 /* 手動支出・消耗の記録。帰属は未分類で入れる（後からドラッグで振る）。 */
