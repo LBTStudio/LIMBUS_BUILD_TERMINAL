@@ -331,7 +331,10 @@ function toIdentityChoices(hits) {
   /* 取込候補の一覧を作る。利用者が「何を取り込むか」を選べるようにするため、
      ここではまだ何も state へ入れない。 */
   function buildManifest(doc, nameIndex, db) {
-    const owned = (doc && doc.owned) || {};
+    /* Firestore の外部文書はスキーマが古い／破損していることがある。
+       配列でない欄を map/filter に渡すと、取り込み全体が例外で止まる。 */
+    const owned = doc && doc.owned && typeof doc.owned === "object" && !Array.isArray(doc.owned)
+      ? doc.owned : {};
     
     const resolve = typeof nameIndex?.resolve === "function" ? nameIndex.resolve : null;
     /* 候補を全部返す解決器。1 件に絞らないので、同名複数をユーザーに見せられる。 */
@@ -342,14 +345,14 @@ function toIdentityChoices(hits) {
          個数が 0 のものは所持ではないので落とさない（残すと「持っていないのに
          計上」になるため、個数で除外する）。 */
       const source = group.id === "items"
-        ? ((doc && doc.items) || []).filter((it) => Number(it && it.count) > 0)
-        : (owned[group.id] || []);
+        ? (Array.isArray(doc && doc.items) ? doc.items : []).filter((it) => Number(it && it.count) > 0)
+        : (Array.isArray(owned[group.id]) ? owned[group.id] : []);
       /* サポパは文書のトップレベルにも sheet の真実がある（name/condition/effect）。
          owned.supportPassives が空文字スロットだけの文書（mMIb）や、
          owned に列が無い 11 文書 19 件の実名がここにしか無い。
          owned と同名のものは重ねない。 */
       const sheetSupports = group.id === "supportPassives"
-        ? ((doc && doc.supportPassives) || [])
+        ? (Array.isArray(doc && doc.supportPassives) ? doc.supportPassives : [])
           .map((row) => (row && String(row.name || "").trim()) || "")
           .filter(Boolean)
         : [];
@@ -430,7 +433,7 @@ function toIdentityChoices(hits) {
       };
     }).filter(Boolean);
 
-    const history = (doc && doc.scenarioHistory) || [];
+    const history = Array.isArray(doc && doc.scenarioHistory) ? doc.scenarioHistory : [];
     const scenarios = history
       .filter((row) => row && (row.name || row.memo))
       .map((row, index) => {
@@ -614,6 +617,14 @@ function toIdentityChoices(hits) {
     /* 所持アイテムの名前を DB（items.json）の id へ引く。引けない名前は
        捏造せず、理由つきで落とす。 */
     const itemDb = opts.db || (typeof window !== "undefined" && window.DB) || {};
+    const parseImportQuantity = (value) => {
+      if (typeof value === "number") return Number.isSafeInteger(value) && value > 0 ? value : null;
+      if (typeof value !== "string") return null;
+      const text = value.trim();
+      if (!/^\\d+$/.test(text)) return null;
+      const parsed = Number(text);
+      return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+    };
     const itemIdOf = (name) => {
       /* 所持列のアイテム名には個数が付く（バラのスパナ工房の外付け強化義足×1）。 */
       const key = nameKey(String(name || "").replace(/[×xX]\s*\d+\s*$/, ""));
@@ -740,7 +751,13 @@ function toIdentityChoices(hits) {
           const itemName = (item.picked && item.picked.name) || itemCand || item.name;
           const itemId = itemIdOf(itemName);
           if (!itemId) { skipped.push({ key: item.key, reason: "アイテム名が DB に無い" }); continue; }
-          actions.push({ type: "ADD_ITEM_INVENTORY", itemId, quantity: Number(item.quantity) || 1 });
+          const quantity = item.quantity === undefined || item.quantity === null || item.quantity === ""
+            ? 1 : parseImportQuantity(item.quantity);
+          if (quantity === null) {
+            skipped.push({ key: item.key, reason: "アイテムの個数が正の整数ではない" });
+            continue;
+          }
+          actions.push({ type: "ADD_ITEM_INVENTORY", itemId, quantity });
         } else {
           skipped.push({ key: item.key, reason: "未知のグループ" });
         }
