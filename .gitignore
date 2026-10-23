@@ -35,3 +35,4 @@ tmp????????/
 /*.png
 # 旧レイアウトの OAAH 状態ファイル（現行は data/state/ 配下）。
 /STATE.md
+opencode.json
