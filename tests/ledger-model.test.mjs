@@ -416,3 +416,37 @@ test("重複した所持アイテム行は合算し、最大所持数と通帳�
   assert.equal(normalized.entries[0].ref.uid, "item-a", "通帳からの参照UIDを代表行へ移す");
   context.window.DB.items = [];
 });
+
+
+test("オリジナルアイテムの定義削除は所持・初期枠・参照支出を一緒に解消する", () => {
+  const before = {
+    ...baseState(),
+    results: [{ id: "r1", name: "報酬", income: { lp: 100, shards: 0 }, exchange: { lp: 0, shards: 0 } }],
+    customItems: [{ id: "custom-bandage", name: "自作包帯", category: "回復", price: "15LP" }],
+    inventory: [{ uid: "custom-owned-1", itemId: "custom-bandage", quantity: 1, origin: "acquired" }],
+    initialItems: ["custom-bandage", "official-bandage"],
+    entries: [{
+      id: "custom-purchase-1", kind: "item", name: "自作包帯", cost: { lp: 15, shards: 0 },
+      resultId: "r1", ref: { kind: "inventory", uid: "custom-owned-1" }
+    }]
+  };
+  const next = reducer(before, { type: "REMOVE_CUSTOM_ITEM", id: "custom-bandage" });
+  assert.equal(next.customItems.some((item) => item.id === "custom-bandage"), false);
+  assert.equal(next.inventory.some((entry) => entry.itemId === "custom-bandage"), false);
+  assert.deepEqual(Array.from(next.initialItems), ["official-bandage"],
+    "削除したIDを初期所持リストに残さない");
+  assert.equal(next.entries.some((entry) => entry.id === "custom-purchase-1"), false,
+    "所持削除と同じ契約でそのUIDの購入支出も消す");
+  assert.equal(balance(next.results, next.entries).lp, 100,
+    "残高を減らす孤立した支出明細を残さない");
+});
+
+test("共有所持の明示数量は厳密に検証し、不正文字列を部分一致で増やさない", () => {
+  const before = { ...baseState(), inventory: [] };
+  const bad = reducer(before, { type: "ADD_ITEM_INVENTORY", itemId: "bandage", quantity: "12abc" });
+  assert.equal(bad.inventory.length, 0, "不正な数量は無視する");
+  const decimal = reducer(before, { type: "ADD_ITEM_INVENTORY", itemId: "bandage", quantity: 1.5 });
+  assert.equal(decimal.inventory.length, 0, "小数も無視する");
+  const legacy = reducer(before, { type: "ADD_ITEM_INVENTORY", itemId: "bandage" });
+  assert.equal(legacy.inventory[0].quantity, 1, "未指定数量は従来どおり1個");
+});
