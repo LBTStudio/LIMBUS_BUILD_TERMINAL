@@ -172,15 +172,15 @@ test("アイコンUIとゲートのCSSがトークンのみで定義されてい
 });
 
 test("カードの選択領域は表示要素より前面、管理ボタンはその上に配置する", () => {
-  const hit = css.match(/\.acct-card-hit\\s*\\{([^}]*)\\}/s)?.[1] || "";
-  const actions = css.match(/\.acct-card-actions\\s*\\{([^}]*)\\}/s)?.[1] || "";
-  const gateCta = css.match(/\.acct-gate-cta\\s*\\{([^}]*)\\}/s)?.[1] || "";
-  assert.match(hit, /position:\\s*absolute/);
-  assert.match(hit, /inset:\\s*0/);
-  assert.match(hit, /z-index:\\s*1/);
-  assert.match(hit, /pointer-events:\\s*auto/);
-  assert.match(actions, /z-index:\\s*2/);
-  assert.match(gateCta, /pointer-events:\\s*none/);
+  const hit = css.match(/\.acct-card-hit\s*\{([^}]*)\}/s)?.[1] || "";
+  const actions = css.match(/\.acct-card-actions\s*\{([^}]*)\}/s)?.[1] || "";
+  const gateCta = css.match(/\.acct-gate-cta\s*\{([^}]*)\}/s)?.[1] || "";
+  assert.match(hit, /position:\s*absolute/);
+  assert.match(hit, /inset:\s*0/);
+  assert.match(hit, /z-index:\s*1/);
+  assert.match(hit, /pointer-events:\s*auto/);
+  assert.match(actions, /z-index:\s*2/);
+  assert.match(gateCta, /pointer-events:\s*none/);
 });
 
 test("切り抜きエディタは丸い枠・グリッド・実サイズプレビューを持つ", () => {
