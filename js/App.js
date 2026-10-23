@@ -336,6 +336,53 @@ const IMPORT_GROUPS = [
   { key: "items", label: "\u5C0E\u5165\u6E08\u307F\u30A2\u30A4\u30C6\u30E0", fields: ["inventory","initialItems","customItems"] },
   { key: "formulas", label: "\u4EE3\u5165\u5F0F\u30FB\u305D\u306E\u4ED6\u8A2D\u5B9A", fields: ["formulas","builtinFormulasOverride","autoFml","moraleLine","extraCmd"] }
 ];
+/* Partial JSON import checks caps against the definitions that will actually be used.
+   normalizeStateShape clamps over-cap quantities; reject beforehand instead of reporting a successful
+   import that silently reduces the number of owned items. */
+function validateImportedInventoryCaps(data, fields, currentState) {
+  const selectedFields = new Set(Array.isArray(fields) ? fields : []);
+  if (!selectedFields.has("inventory") || !Array.isArray(data?.inventory)) return null;
+
+  /* If custom item definitions are included in the selected import, validate against those;
+     otherwise the existing definitions in the current state remain authoritative. */
+  const useIncomingCustomItems = selectedFields.has("customItems")
+    && Object.prototype.hasOwnProperty.call(data, "customItems")
+    && Array.isArray(data.customItems);
+  const customItems = useIncomingCustomItems
+    ? data.customItems
+    : (Array.isArray(currentState?.customItems) ? currentState.customItems : []);
+  const candidateState = { customItems };
+
+  const parseQuantity = (value) => {
+    if (value === void 0 || value === null || value === "") return 1;
+    if (typeof value === "number") return Number.isSafeInteger(value) && value > 0 ? value : null;
+    if (typeof value !== "string" || !/^\d+$/.test(value.trim())) return null;
+    const parsed = Number(value.trim());
+    return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+  };
+
+  for (let i = 0; i < data.inventory.length; i += 1) {
+    const entry = data.inventory[i];
+    const itemId = typeof entry?.itemId === "string" ? entry.itemId.trim() : "";
+    if (!itemId) continue; // validateImportData reports missing IDs before the dialog opens.
+
+    const quantity = parseQuantity(entry.quantity);
+    if (quantity === null) return "inventory[" + i + "].quantity は1以上の整数で入力してください";
+
+    const rawMaximum = window.LBT_getItemMaxOwned?.(candidateState, itemId);
+    const maximum = Number.isSafeInteger(rawMaximum) && rawMaximum > 0 ? rawMaximum : 99;
+    if (quantity <= maximum) continue;
+
+    const official = Array.isArray(window.DB?.items)
+      ? window.DB.items.find((item) => item?.id === itemId) : null;
+    const custom = customItems.find((item) => item?.id === itemId) || null;
+    const itemName = String((official || custom)?.name || itemId);
+    return "inventory[" + i + "]「" + itemName + "」の数量 " + quantity
+      + " 個は所持上限 " + maximum + " 個を超えています";
+  }
+  return null;
+}
+
 function validateImportData(data) {
   // 既知の構造のみ受け入れる。壊れたデータの部分適用で state を壊さない。
   if (!data || typeof data !== "object" || Array.isArray(data)) return "オブジェクト形式ではありません";
@@ -898,6 +945,8 @@ const App = () => {
       ? IMPORT_GROUPS.flatMap((g) => g.fields)
       : IMPORT_GROUPS.filter((g) => importSel[g.key]).flatMap((g) => g.fields);
     if (!fields.length) { toast("\u8AAD\u307F\u8FBC\u3080\u9805\u76EE\u304C\u9078\u629E\u3055\u308C\u3066\u3044\u307E\u305B\u3093"); return; }
+    const inventoryCapError = validateImportedInventoryCaps(importData, fields, state);
+    if (inventoryCapError) { toast("インポート失敗: " + inventoryCapError, "assertive"); return; }
     dispatch({ type: "APPLY_PARTIAL", state: importData, fields });
     setImportData(null);
     toast(all ? "\u5168\u9805\u76EE\u3092\u30A4\u30F3\u30DD\u30FC\u30C8\u3057\u307E\u3057\u305F\uFF08Ctrl+Z\u3067\u5DEE\u3057\u623B\u3057\u53EF\uFF09" : "\u9078\u629E\u9805\u76EE\u3092\u30A4\u30F3\u30DD\u30FC\u30C8\u3057\u307E\u3057\u305F\uFF08Ctrl+Z\u3067\u5DEE\u3057\u623B\u3057\u53EF\uFF09");
