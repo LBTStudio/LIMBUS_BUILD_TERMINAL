@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import vm from "node:vm";
 
 /* ---------------------------------------------------------------------------
@@ -11,23 +11,16 @@ import vm from "node:vm";
    ここはその穴を塞ぐゲート。全画面 JS はスクリプトとして読めなければならない。
    --------------------------------------------------------------------------- */
 
+const JS_DIR = new URL("../js/", import.meta.url);
+/* アプリJSは固定リストで列挙すると、新規追加ファイルを検査し忘れる。
+   js/ 内の全JSと Service Worker を自動で対象にし、存在しない旧パスの
+   catch-and-continue による静かな検査漏れもなくす。 */
 const FILES = [
-  "js/App.js",
-  "js/state.js",
-  "js/OtherSections.js",
-  "js/PersonaCodex.js",
-  "js/garasumado-export.js",
-  "js/garasumado-import-ui.js",
-  "js/garasumado-roster-import.js",
-  "js/persona-draft-import.js",
-  "js/roster-resolver.js",
-  "js/ledger-provenance.js",
-  "js/ledger-import-reconcile.js",
-  "js/result-log-parser.js",
-  "js/ui.js",
-  "js/accounts-ui.js",
-  "js/generator.js"
-];
+  ...readdirSync(JS_DIR, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".js"))
+    .map((entry) => "js/" + entry.name),
+  "sw.js"
+].sort();
 
 test("全画面の JS はブラウザのスクリプトモードで読める", () => {
   const broken = [];
