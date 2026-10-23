@@ -57,8 +57,30 @@ test("回数の異常値は安全な表示範囲に制限する", () => {
   assert.deepEqual(JSON.parse(JSON.stringify(draw.estimateTotalCost("persona", stateWithPersonaCount(0), "", "3x"))), { lp: 0, shards: 0 });
 });
 
+test("残高不足は必要な通貨だけを判定する", () => {
+  const draw = loadEstimator();
+  const lpOnlyWithNegativeShards = draw.paymentShortfall({ lp: 200, shards: -50 }, { lp: 200, shards: 0 });
+  assert.equal(lpOnlyWithNegativeShards.insufficient, false, "欠片残高が負でもLPだけの抽選は止めない");
+  assert.equal(lpOnlyWithNegativeShards.shardsShort, false);
+
+  const shardsOnlyWithNegativeLp = draw.paymentShortfall({ lp: -20, shards: 100 }, { lp: 0, shards: 100 });
+  assert.equal(shardsOnlyWithNegativeLp.insufficient, false, "LP残高が負でも欠片だけの抽選は止めない");
+  assert.equal(shardsOnlyWithNegativeLp.lpShort, false);
+
+  const realLpShortage = draw.paymentShortfall({ lp: 99, shards: -500 }, { lp: 100, shards: 0 });
+  assert.equal(realLpShortage.insufficient, true);
+  assert.equal(realLpShortage.lpShort, true);
+  assert.equal(realLpShortage.shardsShort, false);
+
+  const realShardShortage = draw.paymentShortfall({ lp: -500, shards: 99 }, { lp: 0, shards: 100 });
+  assert.equal(realShardShortage.insufficient, true);
+  assert.equal(realShardShortage.lpShort, false);
+  assert.equal(realShardShortage.shardsShort, true);
+});
+
 test("抽選確認UIはエンジンの合計費用見積もりを使う", () => {
   const source = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
   assert.match(source, /G\?\.estimateTotalCost\?\.\(route, state, activePack, times\)/);
   assert.doesNotMatch(source, /Math\.max\(0, times - 1\) \* \(\(Number\(perDraw\.lp\) \|\| 0\)\)/);
+  assert.match(source, /G\?\.paymentShortfall\?\.\(balance, totalCost\)/);
 });
