@@ -5416,10 +5416,19 @@ case "ADD_ENTRY":
     case "SAVE_CUSTOM_PERSONA": {
       const src = state.personaSrc;
       if (!src || !src.__custom) return state;
+      // Reject partial/non-integer input instead of persisting NaN or silently
+      // truncating values such as "12abc" or "45.5" into a different stat.
+      const savedStat = (value, fallback) => {
+        if (value === "" || value == null) return fallback;
+        const raw = String(value).trim();
+        if (!/^-?\d+$/.test(raw)) return fallback;
+        const parsed = Number(raw);
+        return Number.isSafeInteger(parsed) ? parsed : fallback;
+      };
       const snap = {
         ...src,
-        hp: state.hp === "" || state.hp == null ? src.hp ?? 100 : parseInt(state.hp, 10),
-        san: state.san === "" || state.san == null ? src.san ?? 45 : parseInt(state.san, 10),
+        hp: savedStat(state.hp, src.hp ?? 100),
+        san: savedStat(state.san, src.san ?? 45),
         speed: state.speed ?? src.speed ?? "1d5",
         bullets: state.bullets ?? src.bullets ?? "\xD7",
         res_slash: state.resS || src.res_slash || "\u666E\u901A",
