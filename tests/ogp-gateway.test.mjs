@@ -11,6 +11,24 @@ function token(snapshot) {
 }
 
 
+test("SPDを持たない旧共有URLは保存tokenを読み直し、実際のSPDをOGPへ表示する", async () => {
+  const query = new URL("https://lbt-ogp.example/s?s=t:LBT-Legacy&lbt_n=旧人格&lbt_hp=120&lbt_san=45&lbt_sync=00");
+  assert.equal(previewFromQuery(query), null, "SPDのない旧summaryはsnapshot経路へ戻す");
+  const shareToken = token({
+    personaSrc: { name: "旧人格" },
+    hp: "120", san: "45", speed: "2d3+1",
+    roster: { personas: [{ syncRank: "00", syncMax: false }] }
+  });
+  const fetchImpl = async (url) => {
+    assert.equal(String(url), "https://api.telegra.ph/getPage/LBT-Legacy?return_content=true");
+    return new Response(JSON.stringify({ ok: true, result: { content: [{ children: [`LBT_SHARE_TOKEN=${shareToken}`] }] } }));
+  };
+  const page = await handleRequest(new Request(query), { fetchImpl });
+  const html = await page.text();
+  assert.match(html, /<meta property="og:title" content="旧人格">/);
+  assert.match(html, /HP 120 ｜ SAN 45 ｜ SPD 2d3\+1 ｜ 同期00/);
+});
+
 test("query preview は SPD を含めて OGP 説明文を生成する", () => {
   const preview = previewFromQuery(new URL("https://lbt-ogp.example/s?s=t:abc&lbt_n=人格&lbt_hp=120&lbt_san=50&lbt_spd=3-7&lbt_sync=000&lbt_max=1"));
   assert.equal(preview.description, "HP 120 ｜ SAN 50 ｜ SPD 3-7 ｜ 同期000 · MAX");
