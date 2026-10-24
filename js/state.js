@@ -1386,6 +1386,10 @@ function resolveActiveCustomPersonaIdentity(state) {
 
   if (currentNo && currentNo !== "999") {
     active = entries.find((entry) => String(entry.uid ?? "") === currentNo || String(entry.no ?? "") === currentNo) || null;
+    /* A non-placeholder key with no roster match is a real unsaved draft identity.
+       Never attach it to a different owned Persona merely because the names match. */
+    if (active) return { personaNo: String(active.no), activeUid: String(active.no) };
+    return { personaNo: currentNo, activeUid: null };
   }
   if (!active) {
     const sourceName = String(state.personaSrc?.name || "").trim();
