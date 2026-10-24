@@ -17,16 +17,16 @@
     --gx-grid-stagger: 70ms;
     --gx-settle: 2600ms;
     --gx-skip-at: 1200ms;
-    --gx-c-norm: #d8c8b2;
-    --gx-c-pack: #8fbf6a;
-    --gx-c-ego: #b872d9;
-    --gx-c-spec: #e9c46a;
+    --gx-c-norm: #c5ae92;
+    --gx-c-pack: #859b78;
+    --gx-c-ego: #9d83af;
+    --gx-c-spec: #dfbd70;
 
     position: fixed;
     inset: 0;
     z-index: 300;
-    background: #050202;
-    color: #f2ceb2;
+    background: #070809;
+    color: #ece3d7;
     font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
   }
 
@@ -582,4 +582,19 @@
     .lbt-gx__splash.is-in::before { animation: none; opacity: 0; }
     .lbt-gx__stage { filter: none; }
   }
+}
+
+
+/* UI polish: keep the extraction motion intact; soften the palette and surface treatment. */
+@layer gacha-extraction {
+  .lbt-gx__canvas { filter: saturate(.9) contrast(1.035); }
+  .lbt-gx__card-frame { box-shadow: 0 0 26px rgba(223,189,112,.19), 0 0 78px rgba(173,94,47,.13); }
+  .lbt-gx__card-frame::before, .lbt-gx__card-frame::after { height: 7px; opacity: .72; box-shadow: 0 0 7px rgba(223,189,112,.3), inset 0 -1px 2px rgba(0,0,0,.55); }
+  .lbt-gx__card-frame::after { opacity: .48; }
+  .lbt-gx__card-prism { opacity: .25; filter: blur(16px); }
+  .lbt-gx__grade { background: radial-gradient(120% 90% at 50% 10%, rgba(100,139,150,.09), transparent 55%), radial-gradient(130% 100% at 50% 104%, rgba(191,115,62,.14), transparent 62%); }
+  .lbt-gx__grain { opacity: .035; }
+  .lbt-gx__splash { background: radial-gradient(90% 70% at 50% 42%, rgba(210,225,232,.95) 0%, rgba(137,166,183,.91) 30%, rgba(58,91,114,.88) 62%, rgba(12,25,36,.98) 100%) #0c1924; }
+  .lbt-gx__tile { background: linear-gradient(180deg,#191716,#0e0f10); }
+  .lbt-gx__tile--is-special { box-shadow: 0 0 13px rgba(223,189,112,.22); }
 }
