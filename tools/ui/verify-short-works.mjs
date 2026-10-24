@@ -9,29 +9,53 @@ import vm from "node:vm";
  *   3. 短縮前より長くなっていても、復元laces できるなら「短縮」の目的は達成
  */
 
-// ローカル検証用の最小 fetch（外部に出さない）
+// 実通信は行わず、外部保存先の本文・取得応答まで保持するテスト用fetch。
 function mockFetch() {
   const store = new Map();
   let seq = 0;
-  return async (input) => {
-    const url = String(input);
-    if (url.includes("rentry.co/api/new")) {
-      const id = "mock" + (++seq);
-      store.set(id, String(url).length);
+  const fetchImpl = async (input, options = {}) => {
+    const url = new URL(String(input));
+    if (url.origin === "https://rentry.co" && url.pathname === "/api/new") {
+      const id = "mock-rentry-" + (++seq);
+      const text = new URLSearchParams(String(options.body || "")).get("text") || "";
+      store.set(`rentry:${id}`, text);
       return new Response(JSON.stringify({ url_short: id }), { status: 200 });
     }
-    if (url.includes("createAccount")) return new Response(JSON.stringify({ ok: true, result: { access_token: "mock" } }), { status: 200 });
-    if (url.includes("createPage")) return new Response(JSON.stringify({ ok: true, result: { path: "LBT-Mock-" + seq } }), { status: 200 });
+    if (url.origin === "https://api.telegra.ph" && url.pathname === "/createAccount") {
+      return new Response(JSON.stringify({ ok: true, result: { access_token: "mock" } }), { status: 200 });
+    }
+    if (url.origin === "https://api.telegra.ph" && url.pathname === "/createPage") {
+      const params = new URLSearchParams(String(options.body || ""));
+      const content = JSON.parse(params.get("content") || "[]");
+      const id = "LBT-Mock-" + (++seq);
+      store.set(`telegraph:${id}`, content);
+      return new Response(JSON.stringify({ ok: true, result: { path: id } }), { status: 200 });
+    }
+    if (url.origin === "https://api.telegra.ph" && url.pathname.startsWith("/getPage/")) {
+      const id = decodeURIComponent(url.pathname.slice("/getPage/".length));
+      const content = store.get(`telegraph:${id}`);
+      if (!content) return new Response("missing", { status: 404 });
+      return new Response(JSON.stringify({ ok: true, result: { content } }), { status: 200 });
+    }
+    if (url.origin === "https://rentry.co" && url.pathname !== "/api/new") {
+      const id = decodeURIComponent(url.pathname.slice(1));
+      const text = store.get(`rentry:${id}`);
+      return text
+        ? new Response(text, { status: 200 })
+        : new Response("missing", { status: 404 });
+    }
     throw new Error("unexpected " + url);
   };
+  fetchImpl.store = store;
+  return fetchImpl;
 }
 
 const src = readFileSync("js/share-link.js", "utf8");
 const db = JSON.parse(readFileSync("data/db.json", "utf8"));
-const window = { DB: db };
+const window = { DB: db, setTimeout, clearTimeout };
 vm.runInNewContext(src, {
   window, TextEncoder, TextDecoder, CompressionStream, DecompressionStream,
-  Blob, Response, URL, URLSearchParams, btoa, atob,
+  Blob, Response, URL, URLSearchParams, btoa, atob, AbortController, setTimeout, clearTimeout,
 });
 const S = window.LBT_shareLink;
 const BASE = "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html";
@@ -49,7 +73,8 @@ const state = {
 const snap = S.snapshotState(state);
 const token = await S.encodeState(snap);
 const selfUrl = await S.createUrl(snap, BASE);
-const pub = await S.createPublishedUrl(snap, BASE, mockFetch());
+const fetchMock = mockFetch();
+const pub = await S.createPublishedUrl(snap, BASE, fetchMock);
 
 console.log("=== 1. 圧縮 token のサイズ ===");
 console.log(`  圧縮 token 自体      : ${token.length} 文字`);
@@ -78,15 +103,36 @@ console.log(`  発行 URL に含まれるもの: 保存先 ID のみ`);
 console.log(`  → 実データ（token）は Rentry / Telegraph にあり、URL からは復元できない`);
 console.log(`  → 復元は sheet-open 時に share.html が保存先から取得して行う設計`);
 
-// 復元パスの存在確認：URL から保存先 ID を取り出せるか
+// 公開URLから保存先IDを逆引きし、モックの保存先本文から実データtokenを取得して復元する。
 const sources = S.shortSourcesFromLocation({ search: u.search });
 console.log(`\n  URL から保存先を逆引き: ${JSON.stringify(sources)}`);
-console.log(`  復元可能か: ${sources.length ? "YES（保存先 ID で token を取得できる）" : "NO"}`);
+let restored = null;
+let roundTripError = "";
+try {
+  const restoredToken = await S.tokenFromExternalSource({ search: u.search }, fetchMock);
+  restored = await S.decodeToken(restoredToken);
+} catch (error) {
+  roundTripError = error?.message || String(error);
+}
+const roundTripOk = Boolean(
+  restored
+  && restored.charName === snap.charName
+  && String(restored.hp ?? "") === String(snap.hp ?? "")
+  && String(restored.san ?? "") === String(snap.san ?? "")
+  && String(restored.speed ?? "") === String(snap.speed ?? "")
+  && JSON.stringify(restored.inventory || []) === JSON.stringify(snap.inventory || [])
+  && JSON.stringify(restored.skills || []) === JSON.stringify(snap.skills || [])
+  && JSON.stringify(restored.roster || {}) === JSON.stringify(snap.roster || {})
+);
+console.log(`  外部保存先からtokenを取得: ${restored ? "YES" : "NO"}`);
+console.log(`  共有データのround-trip: ${roundTripOk ? "PASS" : "FAIL"}`);
+if (!roundTripOk && roundTripError) console.error(`  復元エラー: ${roundTripError}`);
+console.log(`  保存先レコード数: ${fetchMock.store.size}`);
 
-const failed = urlHasToken || !sources.length || pub.length > 1900;
+const failed = urlHasToken || !sources.length || pub.length > 1900 || !roundTripOk;
 if (failed) {
-  console.error("\nFAIL: URL の短縮・保存先逆引き・1900文字上限のいずれかに問題があります");
+  console.error("\nFAIL: URL短縮・保存先逆引き・データ復元・1900文字上限のいずれかに問題があります");
   process.exitCode = 1;
 } else {
-  console.log("\nPASS: URL は短縮形式で、保存先を逆引きでき、1900文字以内です");
+  console.log("\nPASS: 短縮URLから保存先データを読み戻し、主要フィールドが一致しました");
 }
