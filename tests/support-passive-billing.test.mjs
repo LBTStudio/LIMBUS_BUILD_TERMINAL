@@ -114,6 +114,22 @@ test("死亡後専用パッシブは解除後の枠から装備できず、ス�
   assert.equal(moveToDeath.roster.supports.find((entry) => entry.uid === normal.uid).equipped, false);
 });
 
+test("旧セーブで通常枠に混入した死亡後パッシブはロック中に装備解除して移行する", () => {
+  const name = db.death_passives[0].name;
+  for (const slot of ["normal", undefined]) {
+    const entry = { uid: "legacy-death-" + String(slot), name, equipped: true, cond: "", effect: "", lp: "" };
+    if (slot !== undefined) entry.slot = slot;
+    const normalized = w.LBT_normalizeStateShape({
+      ...base(),
+      roster: { personas: [], egos: [], supports: [entry], spirits: [] }
+    });
+    const migrated = normalized.roster.supports.find((row) => row.uid === entry.uid);
+    assert.equal(migrated.slot, "death");
+    assert.equal(migrated.equipped, false);
+    assert.equal(normalized.deathSupport, null);
+  }
+});
+
 test("取り外した最後の死亡後スロット強化は、装備中の死亡後パッシブも解除する", () => {
   const death = { uid: "equipped-death", name: "装備中の死亡後パッシブ", slot: "death", equipped: false, cond: "", effect: "", lp: "" };
   const initial = {
