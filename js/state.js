@@ -1371,6 +1371,43 @@ function normalizeCustomPersonaRosterIdentity(personas) {
   });
 }
 
+/* Reconcile the active custom Persona after legacy roster IDs are migrated.
+   Old saves can still have personaNo=999 even though the owned roster now has
+   stable UIDs. Resolve by a real UID first, then source name/equipped marker;
+   if ambiguity remains, assign a fresh draft UID instead of overwriting the
+   wrong custom Persona on the next save. */
+function resolveActiveCustomPersonaIdentity(state) {
+  if (state?.personaMode !== "custom" || !state.personaSrc) {
+    return { personaNo: state?.personaNo ?? null, activeUid: null };
+  }
+  const entries = (state.roster?.personas || []).filter((entry) => entry?.mode === "custom");
+  const currentNo = String(state.personaNo ?? "").trim();
+  let active = null;
+
+  if (currentNo && currentNo !== "999") {
+    active = entries.find((entry) => String(entry.uid ?? "") === currentNo || String(entry.no ?? "") === currentNo) || null;
+  }
+  if (!active) {
+    const sourceName = String(state.personaSrc?.name || "").trim();
+    if (sourceName) {
+      const matches = entries.filter((entry) => [
+        entry.src?.name,
+        entry.build?.personaSrc?.name
+      ].some((name) => String(name || "").trim() === sourceName));
+      if (matches.length === 1) active = matches[0];
+    }
+  }
+  if (!active) {
+    const equipped = entries.filter((entry) => entry.equipped === true);
+    if (equipped.length === 1) active = equipped[0];
+  }
+  if (!active && entries.length === 1) active = entries[0];
+
+  if (active) return { personaNo: String(active.no), activeUid: String(active.no) };
+  if (currentNo && currentNo !== "999") return { personaNo: currentNo, activeUid: null };
+  return { personaNo: makeOwnedUid("custom"), activeUid: null };
+}
+
 function normalizeStateShape(raw) {
   const next = refreshDBReferencedData(refreshEquippedPersonaFromDB(sanitizeStateCollections(raw)));
   next.schemaVersion = next.schemaVersion || SAVE_SCHEMA_VERSION;
@@ -1401,6 +1438,16 @@ function normalizeStateShape(raw) {
   if (!next.roster || typeof next.roster !== "object") next.roster = { personas: [], egos: [], supports: [], spirits: [] };
   if (!Array.isArray(next.roster.personas)) next.roster.personas = [];
   next.roster.personas = normalizeCustomPersonaRosterIdentity(next.roster.personas);
+  if (next.personaMode === "custom" && next.personaSrc) {
+    const activeIdentity = resolveActiveCustomPersonaIdentity(next);
+    next.personaNo = activeIdentity.personaNo;
+    next.roster.personas = next.roster.personas.map((entry) => ({
+      ...entry,
+      equipped: activeIdentity.activeUid
+        ? entry.mode === "custom" && String(entry.no) === activeIdentity.activeUid
+        : false
+    }));
+  }
   if (!Array.isArray(next.roster.egos)) next.roster.egos = [];
   if (!Array.isArray(next.roster.supports)) next.roster.supports = [];
   if (!Array.isArray(next.roster.spirits)) next.roster.spirits = [];
