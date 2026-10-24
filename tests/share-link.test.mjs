@@ -486,12 +486,70 @@ test("OGPゲートウェイ設定時の短縮共有は個別OGP入口と明示�
     if (String(url) === "https://rentry.co/api/new") return new Response(JSON.stringify({ url_short: "lbt-rentry-ogp" }), { status: 200 });
     if (String(url) === "https://api.telegra.ph/createAccount") return new Response(JSON.stringify({ ok: true, result: { access_token: "temporary" } }), { status: 200 });
     if (String(url) === "https://api.telegra.ph/createPage") return new Response(JSON.stringify({ ok: true, result: { path: "LBT-OGP-Test" } }), { status: 200 });
+    if (String(url) === "https://lbt-ogp.lbtstudio-share.workers.dev/api/r2-share/v1") return new Response(JSON.stringify({ ok: false, error: "NOT_DEPLOYED" }), { status: 404 });
     throw new Error(`unexpected URL: ${url}`);
   };
   const result = await share.createPublishedUrl({ charName: "OGP検証", roster: { personas: [] } }, "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html", fetchMock);
   assert.equal(result.url, "https://lbt-ogp.lbtstudio-share.workers.dev/s?s=t%3ALBT-OGP-Test%2Cr%3Albt-rentry-ogp&cv=3");
   assert.equal(share.ogpGatewayUrl("https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html?s=t:LBT-OGP-Test"), "https://lbt-ogp.lbtstudio-share.workers.dev/s?s=t%3ALBT-OGP-Test&cv=3");
 });
+
+
+test("R2共有APIが利用可能なら短いCloudflare HTML URLを主URLにし、既存方式のURLを予備にする", async () => {
+  const share = loadShareLink(null, { LBT_OGP_GATEWAY_ORIGIN: "https://lbt-ogp.lbtstudio-share.workers.dev" });
+  const state = {
+    charName: "R2共有検証",
+    personaSrc: { name: "蜘蛛の巣 中指の親方" },
+    hp: "180", san: "45", speed: "1d6",
+    roster: { personas: [{ no: 48, mode: "t", syncRank: "00", syncMax: true }] }
+  };
+  const calls = [];
+  const fetchMock = async (url, options = {}) => {
+    calls.push({ url: String(url), options });
+    if (String(url) === "https://rentry.co/api/new") return new Response(JSON.stringify({ url_short: "lbt-r2-backup" }), { status: 200 });
+    if (String(url) === "https://api.telegra.ph/createAccount") return new Response(JSON.stringify({ ok: true, result: { access_token: "temporary" } }), { status: 200 });
+    if (String(url) === "https://api.telegra.ph/createPage") return new Response(JSON.stringify({ ok: true, result: { path: "LBT-R2-Primary" } }), { status: 200 });
+    if (String(url) === "https://lbt-ogp.lbtstudio-share.workers.dev/api/r2-share/v1") {
+      const payload = JSON.parse(options.body);
+      assert.match(payload.token, /^(z|j)\\./);
+      assert.equal(payload.preview.personaName, "蜘蛛の巣 中指の親方");
+      assert.equal(payload.fallbacks.length, 2);
+      return new Response(JSON.stringify({
+        ok: true, id: "AbCdEfGhIjKlMnOp",
+        url: "https://lbt-ogp.lbtstudio-share.workers.dev/s/AbCdEfGhIjKlMnOp"
+      }), { status: 201 });
+    }
+    throw new Error("unexpected URL: " + url);
+  };
+  const result = await share.createPublishedUrl(state, "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html", fetchMock);
+  const url = new URL(result.url);
+  assert.equal(result.strategy, "cloudflare-r2");
+  assert.equal(url.pathname, "/s/AbCdEfGhIjKlMnOp");
+  assert.equal(url.searchParams.get("b"), "r:lbt-r2-backup,t:LBT-R2-Primary");
+  assert.equal(url.searchParams.get("lbt_n"), "蜘蛛の巣 中指の親方");
+  assert.ok(result.length < 350);
+  assert.equal(result.backups.length, 1);
+  assert.match(result.backups[0].url, /^https:\\/\\/lbtstudio\\.github\\.io\\//);
+  assert.match(result.backups[0].url, /share\\.html\\?s=/);
+  assert.equal(calls.filter((call) => call.url.includes("/api/r2-share/v1")).length, 1);
+});
+
+test("R2共有APIが失敗したらWorkerに依存せず既存共有URLへフォールバックする", async () => {
+  const share = loadShareLink(null, { LBT_OGP_GATEWAY_ORIGIN: "https://lbt-ogp.lbtstudio-share.workers.dev" });
+  const fetchMock = async (url) => {
+    if (String(url) === "https://rentry.co/api/new") return new Response(JSON.stringify({ url_short: "lbt-r2-fallback" }), { status: 200 });
+    if (String(url) === "https://api.telegra.ph/createAccount") return new Response(JSON.stringify({ ok: true, result: { access_token: "temporary" } }), { status: 200 });
+    if (String(url) === "https://api.telegra.ph/createPage") return new Response(JSON.stringify({ ok: true, result: { path: "LBT-R2-Fallback" } }), { status: 200 });
+    if (String(url) === "https://lbt-ogp.lbtstudio-share.workers.dev/api/r2-share/v1") return new Response(JSON.stringify({ ok: false }), { status: 503 });
+    throw new Error("unexpected URL: " + url);
+  };
+  const result = await share.createPublishedUrl({ charName: "フォールバック", roster: { personas: [] } }, "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html", fetchMock);
+  assert.equal(result.strategy, "telegraph");
+  assert.ok(result.url.startsWith("https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html?s="));
+  assert.ok(!result.url.includes("lbt-ogp.lbtstudio-share.workers.dev"));
+  assert.match(result.warning, /既存の共有保存先/);
+});
+
 
 test("Telegraphの安全容量内に収まる共有画像はRentry発行失敗時も画像を保持して短縮共有する", async () => {
   const share = loadShareLink();
