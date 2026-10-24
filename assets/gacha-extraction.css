@@ -625,17 +625,17 @@
   .lbt-gx.is-grid .lbt-gx__mirror { opacity:0; transition-duration:650ms; }
   .lbt-gx__silhouette {
     position:relative; z-index:1; display:block; width:auto; height:min(84vh,790px);
-    max-width:min(78vw,560px); opacity:.86;
+    max-width:min(78vw,560px); opacity:.98;
     filter:drop-shadow(0 0 17px rgba(160,47,39,.22)) drop-shadow(0 0 46px rgba(207,157,75,.08));
     transition:filter 500ms ease, opacity 500ms ease;
   }
   .lbt-gx.is-swing .lbt-gx__silhouette {
-    opacity:.58;
+    opacity:.72;
     filter:drop-shadow(0 0 22px rgba(206,184,142,.30)) drop-shadow(0 0 42px rgba(160,47,39,.20));
   }
   .lbt-gx__mirror-pane { fill:rgba(12,15,18,.10); stroke:rgba(205,190,166,.27); stroke-width:1.2; }
   .lbt-gx__mirror-crack { fill:none; stroke:rgba(221,230,226,.50); stroke-width:1.45; stroke-linecap:round; stroke-linejoin:round; }
-  .lbt-gx__figure { fill:#281819; stroke:#542624; stroke-width:1.4; stroke-linejoin:round; }
+   .lbt-gx__figure { fill:#321b1b; stroke:#75413a; stroke-width:1.4; stroke-linejoin:round; }
   .lbt-gx__coat { fill:url(#gx-dante-coat); }
   .lbt-gx__figure-inner { fill:#0c0d0e; stroke:#3d2524; stroke-width:1.2; stroke-linejoin:round; }
   .lbt-gx__coat-edge { fill:none; stroke:#d0a74f; stroke-width:3.2; opacity:.92; stroke-linecap:round; stroke-linejoin:round; }
