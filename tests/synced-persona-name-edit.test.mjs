@@ -43,4 +43,8 @@ test("PATCH_PERSONA_META persists the renamed persona source and roster display 
   assert.equal(next.roster.personas[0].displayName, "変更後の人格名");
   assert.equal(next.roster.personas[1].displayName, "別人格");
   assert.equal(state.personaSrc.name, "元の人格名", "the reducer should not mutate the previous state");
+
+  const cleared = context.__reduce(next, { type: "PATCH_PERSONA_META", patch: { src: { name: "" } } });
+  assert.equal(cleared.personaSrc.name, "");
+  assert.equal(cleared.roster.personas[0].displayName, "", "clearing the name must not resurrect the previous roster label");
 });
