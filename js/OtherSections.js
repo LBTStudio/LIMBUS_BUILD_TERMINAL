@@ -2076,6 +2076,7 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
   const [ticketPreference, setTicketPreference] = React.useState("specific");
   const [packName, setPackName] = React.useState("");
   const [last, setLast] = React.useState(null);
+  const [reveal, setReveal] = React.useState(null);
   const [times, setTimes] = React.useState(1);
   const ROUTES = G?.ROUTES || [];
   const packs = G?.themePacks?.() || [];
@@ -2293,6 +2294,9 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
     dispatch(transaction);
     dispatch({ type: "ADD_DRAW_RECORD", __sealed: true, batch, entry: drawLogEntry });
     setLast({ hits, paidBy: out.paidBy, cost: out.cost, commit: out.commit || null, drawn: hits.length, requested: out.requested || hits.length, stopped: out.stopped || "complete" });
+    /* 最初の演出配線：単発の通常人格抽出だけ、確定後に結果をアニメーション表示する。
+       抽選・封緘・所持反映は従来経路のまま。演出は結果を変更しない。 */
+    if (request.route === "persona" && hits.length === 1) setReveal({ hit: hits[0] });
     setPending(null);
     const branched = hits.filter((x) => x.branch === "special").length;
     const note = branched ? `（うち特異人格チャンス ${branched}）` : "";
@@ -2425,7 +2429,18 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
       h("span", { className: "ledger-note" }, `${last.paidBy === "ticket" ? "チケット使用" : last.cost?.label || "無料"}`),
       stopNote(last) ? h("span", { className: "ledger-note" }, stopNote(last)) : null,
       h("p", { className: "ledger-note" }, "この記録は「記録 > 抽出リスト」にハッシュ鎖つきで残ります。Undo（元に戻す）でも消えません。")
-    ));
+    ),
+    reveal && h("div", { className: "gacha-reveal-backdrop", role: "dialog", "aria-modal": "true", "aria-label": "人格抽出演出" },
+      h("div", { className: "gacha-reveal-stage" },
+        h("span", { className: "gacha-reveal-kicker" }, "LIMBUS BUILD TERMINAL"),
+        h("div", { className: "gacha-reveal-seal", "aria-hidden": "true" }, "L"),
+        h("p", { className: "gacha-reveal-title" }, "人格抽出"),
+        h("div", { className: "gacha-reveal-card" },
+          h("span", { className: "gacha-reveal-label" }, reveal.hit.mode === "t" ? "特異人格" : "人格"),
+          h("strong", { className: "gacha-reveal-name" }, reveal.hit.name),
+          h("span", { className: "gacha-reveal-number" }, `No. ${reveal.hit.no}`)),
+        h(Button, { size: "sm", variant: "primary", onClick: () => setReveal(null) }, "結果を確認する")))
+    );
   };
 const ShopSection = ({ state, dispatch }) => {
   const h = React.createElement;
