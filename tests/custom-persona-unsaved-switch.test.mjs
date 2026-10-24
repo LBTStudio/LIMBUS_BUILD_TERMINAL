@@ -87,3 +87,23 @@ test("Persona switch, new Persona, and draft-import entry points all guard unsav
   assert.ok(customBody.indexOf("saveUnsavedCustomPersonaBeforeSwitch(state, dispatch)") < customBody.indexOf('dispatch({ type: "EQUIP_CUSTOM_PERSONA"'));
   assert.ok(draftBody.indexOf("saveUnsavedCustomPersonaBeforeSwitch(state, dispatch)") < draftBody.indexOf('type: "IMPORT_PERSONA_DRAFT"'));
 });
+
+
+test("unequipping an unchanged but unsaved custom draft saves it before clearing the active source", () => {
+  const context = loadHelpers(true, []);
+  const actions = [];
+  context.__unequip({
+    personaMode: "custom", personaNo: "custom-draft", personaSrc: { __custom: true },
+    roster: { personas: [] }
+  }, (action) => actions.push(action.type));
+  assert.deepEqual(actions, ["SAVE_CUSTOM_PERSONA", "UNEQUIP_PERSONA"]);
+});
+
+test("unequipping an unchanged ordinary Persona does not create a custom Persona save", () => {
+  const context = loadHelpers(true, []);
+  const actions = [];
+  context.__unequip({
+    personaMode: "n", personaNo: 1, personaSrc: { no: 1 }
+  }, (action) => actions.push(action.type));
+  assert.deepEqual(actions, ["UNEQUIP_PERSONA"]);
+});
