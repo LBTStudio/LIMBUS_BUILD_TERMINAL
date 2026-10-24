@@ -56,6 +56,7 @@
 
   function label(hit) {
     if (isSpecial(hit)) return "特異人格";
+    if (hit && hit.type === "themePack" && hit.pack) return "特定抽出パック：「" + hit.pack + "」";
     return TYPE_LABEL[hit && hit.type] || "人格";
   }
 
