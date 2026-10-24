@@ -163,3 +163,17 @@ test("証明ラベルは完全な抽選公平性の証明と誤認させない",
   assert.match(source, /抽選結果の再計算とdrand署名の暗号学的検証は行っていません/);
   assert.match(source, /drand値は結果決定後に記録へ添付され/);
 });
+
+
+test("抽出: iTXt の区切りが欠落した不正チャンクを拒否する", () => {
+  const malformed = new TextEncoder().encode("lbt-gacha-proof\\0\\0\\0");
+  assert.equal(P._internals.parseItxt(malformed), null, "言語・翻訳キーワードの終端NULが必須");
+  const png = concatBytes(
+    new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    P._internals.buildChunk("IHDR", new Uint8Array(13)),
+    P._internals.buildChunk("iTXt", malformed),
+    P._internals.buildChunk("IEND", new Uint8Array(0))
+  );
+  const extracted = P.extractProof(png);
+  assert.equal(extracted.ok, false, "壊れたiTXtを証明データとして受理しない");
+});
