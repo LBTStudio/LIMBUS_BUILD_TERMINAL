@@ -238,6 +238,7 @@ function checkSwBlock() {
   }
   const current = readSwBlock(readFileSync(resolve(ROOT, SW_FILE), "utf8").replace(/\r\n/g, "\n"));
   if (current !== buildSwBlock()) {
+    console.error("DEBUG_EXPECTED_SW_BLOCK\\n" + buildSwBlock() + "\\nDEBUG_CURRENT_SW_BLOCK\\n" + current);
     console.error(
       "sw.js の precache リストが index.html / share.html と同期していません。node tools/sync-asset-versions.mjs を実行してください。\n"
     );
