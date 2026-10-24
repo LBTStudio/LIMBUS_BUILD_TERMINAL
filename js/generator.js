@@ -2316,7 +2316,7 @@ async function openShareSheet(state) {
         const shareImageCheck = window.LBT_shareLink.validateShareImageForPublish?.(state);
         if (shareImageCheck && !shareImageCheck.ok) throw new Error(shareImageCheck.message);
         const r = await window.LBT_shareLink.createPublishedUrl(state, LBT_SHARE_VIEWER_URL);
-        const routeLabel = r.strategy === "cloudflare-r2" ? "Cloudflare共有HTML（OGP対応）" : r.strategy === "rentry" || r.strategy === "telegraph" ? "LBT共有ページで自動復元" : "自己完結URL";
+        const routeLabel = r.strategy === "cloudflare-kv" ? "Cloudflare共有HTML（OGP対応）" : r.strategy === "rentry" || r.strategy === "telegraph" ? "LBT共有ページで自動復元" : "自己完結URL";
         const tag = `${routeLabel}\uFF08${r.length.toLocaleString()}\u6587\u5B57\uFF09${r.reused ? "\u30FB\u76F4\u8FD1URL\u3092\u518D\u5229\u7528" : ""}`;
         // 非同期処理後でも自動コピーを試みる。ブラウザが拒否しても、下の入力欄と
         // ボタンで同じURLを手動コピーできるため、共有結果を失わない。
