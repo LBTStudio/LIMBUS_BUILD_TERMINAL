@@ -5124,6 +5124,9 @@ case "ADD_ENTRY":
           && String(entry.no) === String(state.personaNo));
         if (currentIndex >= 0) personas[currentIndex] = { ...personas[currentIndex], build: currentBuild };
       }
+      // A new draft has no owned roster row yet, so no existing Persona should
+      // remain marked equipped while the active identity points at this draft.
+      personas = personas.map((entry) => ({ ...entry, equipped: false }));
       const roster = {
         ...state.roster,
         personas,
