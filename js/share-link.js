@@ -20,7 +20,7 @@
   const EXTERNAL_READ_TIMEOUT_MS = 6000;
   // 共有内容は発行後に不変なので、Workerの実装更新とカード内容の世代を分ける。
   // Worker Cacheをバージョン横断で共有しても、この値を上げた時だけOGPカードを確実に再生成できる。
-  const OGP_CARD_CACHE_VERSION = "2";
+  const OGP_CARD_CACHE_VERSION = "3";
   // 設定時だけ短縮共有を無状態OGPゲートウェイへ渡す。未設定または配備失敗時は、
   // 従来どおりGitHub Pagesのshare.htmlを直接使うため、共有機能を止めない。
   const OGP_GATEWAY_FALLBACK_ORIGIN = "";
