@@ -86,14 +86,14 @@ test("an unknown stable draft UID never attaches to an owned Persona with the sa
 test("active custom Persona source is marked custom even when a legacy save omitted the marker", () => {
   const stateSource = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
   const start = stateSource.indexOf("function normalizeCustomPersonaRosterIdentity(personas) {");
-  const end = stateSource.indexOf("\\nfunction normalizeStateShape(raw)", start);
+  const end = stateSource.indexOf("\nfunction normalizeStateShape(raw)", start);
   assert.ok(start >= 0 && end > start);
   const context = { String, Set, Array, Math };
   context.makeOwnedUid = (prefix) => prefix + "-recovery-test";
   vm.createContext(context);
   vm.runInContext(
     stateSource.slice(start, end)
-      + "\\nglobalThis.__normalizeActive = normalizeActiveCustomPersonaState;",
+      + "\nglobalThis.__normalizeActive = normalizeActiveCustomPersonaState;",
     context
   );
   const next = context.__normalizeActive({
@@ -109,13 +109,13 @@ test("active custom Persona source is marked custom even when a legacy save omit
 test("damaged active custom source is recovered from the matching saved build first", () => {
   const stateSource = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
   const start = stateSource.indexOf("function normalizeCustomPersonaRosterIdentity(personas) {");
-  const end = stateSource.indexOf("\\nfunction normalizeStateShape(raw)", start);
+  const end = stateSource.indexOf("\nfunction normalizeStateShape(raw)", start);
   const context = { String, Set, Array, Math };
   context.makeOwnedUid = (prefix) => prefix + "-recovery-test";
   vm.createContext(context);
   vm.runInContext(
     stateSource.slice(start, end)
-      + "\\nglobalThis.__normalizeActive = normalizeActiveCustomPersonaState;",
+      + "\nglobalThis.__normalizeActive = normalizeActiveCustomPersonaState;",
     context
   );
   const next = context.__normalizeActive({
@@ -135,13 +135,13 @@ test("damaged active custom source is recovered from the matching saved build fi
 test("ambiguous damaged legacy source becomes a new editable draft without equipping an arbitrary owned Persona", () => {
   const stateSource = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
   const start = stateSource.indexOf("function normalizeCustomPersonaRosterIdentity(personas) {");
-  const end = stateSource.indexOf("\\nfunction normalizeStateShape(raw)", start);
+  const end = stateSource.indexOf("\nfunction normalizeStateShape(raw)", start);
   const context = { String, Set, Array, Math };
   context.makeOwnedUid = (prefix) => prefix + "-recovery-test";
   vm.createContext(context);
   vm.runInContext(
     stateSource.slice(start, end)
-      + "\\nglobalThis.__normalizeActive = normalizeActiveCustomPersonaState;",
+      + "\nglobalThis.__normalizeActive = normalizeActiveCustomPersonaState;",
     context
   );
   const next = context.__normalizeActive({
