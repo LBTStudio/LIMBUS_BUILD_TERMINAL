@@ -22,6 +22,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
+      - name: Verify asset version hashes and Service Worker precache
+        run: node tools/sync-asset-versions.mjs --check
       - name: Run the project test command
         # unified-provenance はローカルの PDF/Python 環境を前提にした検査なので除外する（AGENTS.md の記載どおり）。
         run: node --test $(find tests -maxdepth 1 -name '*.test.mjs' ! -name 'unified-provenance.test.mjs' | sort)

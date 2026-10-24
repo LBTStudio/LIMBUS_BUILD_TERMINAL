@@ -607,10 +607,12 @@
     const personaName = String(
       state?.personaSrc?.name || refName || official?.name || ""
     ).trim();
+    const speedValue = String(state?.speed || state?.personaSrc?.speed || "").trim();
     return {
       personaName,
       hp: displayStatus(state, "hp"),
       san: displayStatus(state, "san"),
+      speed: speedValue ? clipOgpCardText(speedValue, 16) : "",
       syncRank: selected?.syncRank || "",
       syncMax: selected?.syncMax === true
     };
@@ -1130,8 +1132,9 @@
     const personaName = String(params.get("lbt_n") || "").trim().slice(0, 72);
     const hp = String(params.get("lbt_hp") || "").trim().replace(/[^0-9?—-]/g, "").slice(0, 8);
     const san = String(params.get("lbt_san") || "").trim().replace(/[^0-9?—-]/g, "").slice(0, 8);
+    const speed = String(params.get("lbt_spd") || "").trim().replace(/[\u0000-\u001F\u007F]/g, "").slice(0, 16);
     const syncRank = ["0", "00", "000"].includes(params.get("lbt_sync") || "") ? params.get("lbt_sync") : "";
-    return { personaName, hp, san, syncRank, syncMax: params.get("lbt_max") === "1" };
+    return { personaName, hp, san, speed, syncRank, syncMax: params.get("lbt_max") === "1" };
   }
 
   window.LBT_shareLink = {

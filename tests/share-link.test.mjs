@@ -374,7 +374,7 @@ test("長い共有URLはLBT直接復元URLを主URLにし、外部短縮サー�
 test("短い共有URLは外部保管を内部利用し、共有IDと発行時summaryを最終LBT URLへ渡す", async () => {
   const share = loadShareLink();
   const state = {
-    charName: "検証PC", personaSrc: { name: "東部親指ソルダートII" }, hp: "125", san: "50",
+    charName: "検証PC", personaSrc: { name: "東部親指ソルダートII" }, hp: "125", san: "50", speed: "3-7",
     roster: { personas: [{ no: 6, mode: "n", syncRank: "00", syncMax: true, equipped: true }] }
   };
   const fetchMock = async (url) => {
@@ -392,7 +392,7 @@ test("短い共有URLは外部保管を内部利用し、共有IDと発行時sum
     result.url,
     "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html?s=t:LBT-Share-Preview,r:lbt-rentry-02"
       + "&lbt_n=%E6%9D%B1%E9%83%A8%E8%A6%AA%E6%8C%87%E3%82%BD%E3%83%AB%E3%83%80%E3%83%BC%E3%83%88II"
-      + "&lbt_hp=125&lbt_san=50&lbt_sync=00&lbt_max=1"
+      + "&lbt_hp=125&lbt_san=50&lbt_spd=3-7&lbt_sync=00&lbt_max=1"
   );
   // summary をURLに載せるぶん長くなる（232文字）。実測した1900字上限には
   // 十分収まるので、共有互換性は守られている。元の「120字以内」は満たせない。
@@ -402,6 +402,7 @@ test("短い共有URLは外部保管を内部利用し、共有IDと発行時sum
   assert.equal(restored?.personaName, "東部親指ソルダートII");
   assert.equal(restored?.hp, "125");
   assert.equal(restored?.san, "50");
+  assert.equal(restored?.speed, "3-7");
   assert.equal(restored?.syncRank, "00");
   assert.equal(restored?.syncMax, true);
   assert.deepEqual(JSON.parse(JSON.stringify(share.shortSourcesFromLocation({ search: new URL(result.url).search }))), [
