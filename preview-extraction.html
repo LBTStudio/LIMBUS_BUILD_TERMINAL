@@ -64,7 +64,7 @@
 <button class="scn" data-scn="single-first"><strong>特異人格 <em>先行</em></strong><small>開始時から金色予兆</small></button>
 <button class="scn" data-scn="ten-late"><strong>特異人格 <em>後半</em></strong><small>途中で金色へ転換</small></button>
 <button class="scn" data-scn="single-ego"><strong>E.G.O <em>1回</em></strong><small>結果枠の色分け</small></button>
-<button class="scn" data-scn="single-pack"><strong>特定抽出パック <em>1回</em></strong><small>パック結果の表示</small></button>
+<button class="scn" data-scn="single-pack"><strong>特定抽出パック <em>1回</em></strong><small>パック名と排出品名を表示</small></button>
 </div></section></section>
 <section class="panel record" aria-label="結果記録"><div class="panel-head">抽出記録<span id="rm">待機中</span></div><div class="record-body"><div class="record-mark" aria-hidden="true"><span>08</span></div><div class="record-copy"><b>RESULT RECORD</b><p id="status" aria-live="polite">シナリオを選ぶと抽出演出が始まります。</p><pre id="plan"></pre></div></div><ul id="list" aria-live="polite"></ul></section>
 <footer class="foot"><span>演出プレビュー　/　抽選・本番画面には未配線</span><span id="motion"></span></footer>
@@ -91,8 +91,13 @@
     "ten-late": normalNames.slice(0, 9).map(function (name, i) { return persona(i + 1, name, false); }).concat([persona(5, specialNames[4], true)]),
     "single-first": [persona(1, specialNames[0], true)],
     "single-ego": [{ type: "ego", rank: "HE", no: 3, name: "懺悔：たった一つの罪と何百もの善" }],
-    "single-pack": [{ type: "themePack", pack: "向き合わない", no: 4, name: "向き合わない" }]
+    "single-pack": [{ kind: "themePack", pack: "向き合わない", item: { kind: "themePack", name: "N社握る者", no: 4, book: "core", page: 204 }, cost: { lp: 150, shards: 0 }, duplicate: false, grantedShards: 0 }]
   };
+  /* gacha.js の結果形式から、抽出演出用の表示モデルへ変換する。 */
+  function extractionHit(result) {
+    if (!result || !result.item) return result;
+    return Object.assign({}, result.item, { type: result.kind, pack: result.pack });
+  }
   function tierClass(hit) {
     return api.isSpecial(hit) ? "is-special" : hit && hit.type === "ego" ? "is-ego" : hit && hit.type === "themePack" ? "is-pack" : "";
   }
@@ -115,7 +120,7 @@
     button.addEventListener("click", function () {
       if (button.disabled) return;
       buttons.forEach(function (item) { item.disabled = true; });
-      var hits = SCENARIOS[button.dataset.scn];
+      var hits = SCENARIOS[button.dataset.scn].map(extractionHit);
       var cue = api.plan(hits);
       list.textContent = "";
       status.textContent = "鎖球の反応を確認しています…";
