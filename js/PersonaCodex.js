@@ -339,6 +339,9 @@ function requestPersonaUnequip(state, dispatch, afterUnequip) {
     toast("変更を所持人格へ保存して装備解除しました");
     return true;
   }
+  // Even when the detach diff is empty, an unowned custom draft must be
+  // persisted before UNEQUIP_PERSONA clears personaSrc.
+  if (state.personaMode === "custom") dispatch({ type: "SAVE_CUSTOM_PERSONA" });
   dispatch({ type: "UNEQUIP_PERSONA" });
   afterUnequip?.();
   toast("装備を解除");
