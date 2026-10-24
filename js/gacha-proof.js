@@ -142,16 +142,22 @@
     function readUntilZero() {
       var start = o;
       while (o < data.length && data[o] !== 0) o++;
+      // Every iTXt field is NUL-terminated, including empty language fields.
+      // A truncated chunk must not be accepted as a valid proof container.
+      if (o >= data.length) return null;
       var value = data.subarray(start, o);
       o++;
       return value;
     }
-    var keyword = utf8Text(readUntilZero());
-    if (o + 2 > data.length) return null;
+    var keywordBytes = readUntilZero();
+    if (keywordBytes === null || o + 2 > data.length) return null;
+    var keyword = utf8Text(keywordBytes);
     var flag = data[o++];
     var method = data[o++];
-    readUntilZero();
-    readUntilZero();
+    var language = readUntilZero();
+    if (language === null) return null;
+    var translatedKeyword = readUntilZero();
+    if (translatedKeyword === null) return null;
     if (flag !== 0 || method !== 0) return null;
     return { keyword: keyword, text: utf8Text(data.subarray(o)) };
   }
