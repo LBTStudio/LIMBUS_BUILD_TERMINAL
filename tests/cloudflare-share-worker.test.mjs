@@ -2,28 +2,24 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import worker from "../cloudflare/ogp-worker/worker.js";
 
-function makeBucket(initial = new Map()) {
+function makeKV(initial = new Map()) {
   const objects = initial;
   return {
     objects,
-    async put(key, value, options = {}) {
-      objects.set(key, { value: String(value), options });
+    async put(key, value) {
+      objects.set(key, String(value));
     },
-    async get(key) {
+    async get(key, type = "text") {
       const stored = objects.get(key);
-      if (!stored) return null;
-      return {
-        body: new Response(stored.value).body,
-        httpMetadata: stored.options?.httpMetadata || {},
-        async text() { return stored.value; },
-      };
+      if (stored === undefined) return null;
+      return type === "json" ? JSON.parse(stored) : stored;
     },
   };
 }
 
 function makeEnv(overrides = {}) {
   return {
-    SHARES: makeBucket(),
+    SHARES: makeKV(),
     APP_ORIGIN: "https://lbtstudio.github.io",
     SHARE_VIEWER_URL: "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html",
     SHARE_PUBLIC_ORIGIN: "https://lbt-ogp.lbtstudio-share.workers.dev",
@@ -44,7 +40,7 @@ function publishRequest(body, headers = {}) {
   });
 }
 
-test("R2共有発行は固定OGP HTMLを保存し、短いURLと復元用tokenを返す", async () => {
+test("KV共有発行は固定OGP HTMLを保存し、短いURLと復元用tokenを返す", async () => {
   const env = makeEnv();
   const response = await worker.fetch(publishRequest({
     token: "z.ABC_123",
@@ -58,11 +54,10 @@ test("R2共有発行は固定OGP HTMLを保存し、短いURLと復元用token�
   assert.equal(result.url, "https://lbt-ogp.lbtstudio-share.workers.dev/s/" + result.id);
   const stored = env.SHARES.objects.get("s/" + result.id);
   assert.ok(stored);
-  assert.match(stored.value, /property="og:title" content="【人格】蜘蛛の巣 中指の親方｜LIMBUS BUILD TERMINAL"/);
-  assert.match(stored.value, /og:description/);
-  assert.match(stored.value, /share\.html#lbt=z\.ABC_123/);
-  assert.match(stored.value, /rentry-123/);
-  assert.equal(stored.options.httpMetadata.contentType, "text/html; charset=utf-8");
+  assert.match(stored, /property="og:title" content="【人格】蜘蛛の巣 中指の親方｜LIMBUS BUILD TERMINAL"/);
+  assert.match(stored, /og:description/);
+  assert.match(stored, /share\.html#lbt=z\.ABC_123/);
+  assert.match(stored, /rentry-123/);
 });
 
 test("公開APIは不正origin・不正token・レート超過を拒否する", async () => {
@@ -77,7 +72,7 @@ test("公開APIは不正origin・不正token・レート超過を拒否する", 
   assert.equal(limited.status, 429);
 });
 
-test("R2に保存済みの短縮URLはOGPを含むHTMLシェルを返す", async () => {
+test("KVに保存済みの短縮URLはOGPを含むHTMLシェルを返す", async () => {
   const env = makeEnv();
   const created = await worker.fetch(publishRequest({
     token: "j.QUJD",
@@ -94,6 +89,18 @@ test("R2に保存済みの短縮URLはOGPを含むHTMLシェルを返す", async
   assert.equal(response.headers.get("X-Content-Type-Options"), "nosniff");
 });
 
+test("KVへの書き込みが失敗したらAPIは従来方式への切り替え用エラーを返す", async () => {
+  const env = makeEnv({
+    SHARES: {
+      async put() { throw new Error("KV quota exceeded"); },
+      async get() { return null; },
+    },
+  });
+  const response = await worker.fetch(publishRequest({ token: "z.ABC_123" }), env);
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), { ok: false, error: "KV_WRITE_FAILED" });
+});
+
 test("従来の /s?s=... OGP URL を維持し、Rentry/Telegraph閲覧ページを埋め込む", async () => {
   const url = "https://lbt-ogp.lbtstudio-share.workers.dev/s?s=t%3ALBT-Share-01%2Cr%3Arentry-01&lbt_n=%E3%83%86%E3%82%B9%E3%83%88%E4%BA%BA%E6%A0%BC&lbt_hp=120";
   const response = await worker.fetch(new Request(url), makeEnv());
@@ -104,8 +111,8 @@ test("従来の /s?s=... OGP URL を維持し、Rentry/Telegraph閲覧ページ�
   assert.match(html, /LBT-Share-01/);
 });
 
-test("R2が見つからず予備保存先も使えない場合は既存リンクを提示して失敗を明示する", async () => {
-  const env = makeEnv({ SHARES: makeBucket() });
+test("KVにデータがなく予備保存先も使えない場合は既存リンクを提示して失敗を明示する", async () => {
+  const env = makeEnv({ SHARES: makeKV() });
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => new Response("not found", { status: 404 });
   try {
