@@ -1408,6 +1408,18 @@ function resolveActiveCustomPersonaIdentity(state) {
   return { personaNo: makeOwnedUid("custom"), activeUid: null };
 }
 
+/* Resolve the roster entry that actually matches the active Persona identity.
+   An imported owned library may carry equipped=true from another character; that
+   flag must not override the active mode/no stored in the current build. */
+function findActiveRosterPersona(state) {
+  const personas = Array.isArray(state?.roster?.personas) ? state.roster.personas : [];
+  if (state?.personaMode != null && state?.personaNo != null) {
+    return personas.find((entry) => entry?.mode === state.personaMode
+      && String(entry.no) === String(state.personaNo)) || null;
+  }
+  return personas.find((entry) => entry?.equipped) || null;
+}
+
 function normalizeStateShape(raw) {
   const next = refreshDBReferencedData(refreshEquippedPersonaFromDB(sanitizeStateCollections(raw)));
   next.schemaVersion = next.schemaVersion || SAVE_SCHEMA_VERSION;
@@ -1446,6 +1458,16 @@ function normalizeStateShape(raw) {
       equipped: activeIdentity.activeUid
         ? entry.mode === "custom" && String(entry.no) === activeIdentity.activeUid
         : false
+    }));
+  }
+  /* The active build identity is authoritative for every Persona mode. This also
+     neutralizes stale equipped flags imported from another character's library. */
+  if (next.personaMode != null && next.personaNo != null) {
+    const hasActiveEntry = next.roster.personas.some((entry) => entry.mode === next.personaMode
+      && String(entry.no) === String(next.personaNo));
+    next.roster.personas = next.roster.personas.map((entry) => ({
+      ...entry,
+      equipped: hasActiveEntry && entry.mode === next.personaMode && String(entry.no) === String(next.personaNo)
     }));
   }
   if (!Array.isArray(next.roster.egos)) next.roster.egos = [];
@@ -1680,7 +1702,8 @@ function normalizeStateShape(raw) {
   /* サポート/精神の装備は人格ごとに違う。装備中の人格に保存ビルドがあるなら
      それが正で、roster の投影（最後に開いた人格の装備）を当ててはいけない。
      投影するのは保存ビルドが無い場合だけで、そのときはロードする側の既定になる。 */
-  const equippedEntry = (next.roster.personas || []).find((p) => p.equipped);
+  const hasActivePersonaIdentity = next.personaMode != null && next.personaNo != null;
+  const equippedEntry = findActiveRosterPersona(next);
   if (equippedEntry?.build) {
     const refs = equippedEntry.build.equipmentRefs;
     if (refs) next.roster = applyEquipmentRefs(next.roster, refs);
@@ -1690,9 +1713,12 @@ function normalizeStateShape(raw) {
     next.spiritMorale = equippedEntry.build.spiritMorale ?? "";
     next.spiritConfuse = equippedEntry.build.spiritConfuse ?? "";
     next.spiritAlways = equippedEntry.build.spiritAlways ?? "";
-  } else {
+  } else if (equippedEntry || !hasActivePersonaIdentity) {
     Object.assign(next, projectEquipmentFromRoster(next.roster));
   }
+  /* If a partial roster import does not contain the active Persona, keep the
+     current support/mental projection. Do not apply another Persona's equipped
+     roster flags to the character whose active identity is still unchanged. */
   // 導入済みアイテムはビルド固有の所持状態。旧保存データには空配列を補完する。
   if (!Array.isArray(next.inventory)) next.inventory = [];
   if (!Array.isArray(next.initialItems)) next.initialItems = [];
