@@ -465,3 +465,137 @@
   box-shadow: inset 0 0 0 1px var(--gold-tint);
   font-weight: 700;
 }
+
+/* --- Persona identity hierarchy: make the information under the name readable.
+   Keep the name as the primary heading; render type/sin/No as readable chips and
+   give affiliation its own line so it never gets squeezed between tiny labels. */
+@layer v68-interaction-a11y {
+  .equipped-summary .es-id-main {
+    min-width: 0;
+    gap: 8px;
+  }
+  .equipped-summary .es-id-name {
+    max-width: 100%;
+    font-size: clamp(1.15rem, 2.2vw, 1.4rem);
+    line-height: 1.35;
+    letter-spacing: 0.015em;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .equipped-summary input.es-name-input {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-height: 44px;
+    padding: 7px 12px;
+    font-size: clamp(1.1rem, 2vw, 1.35rem);
+    line-height: 1.35;
+    font-weight: 650;
+  }
+  .equipped-summary .es-id-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 7px;
+    min-width: 0;
+    margin-top: 0;
+  }
+  .equipped-summary .es-id-meta > .es-label,
+  .equipped-summary .es-id-meta > .es-id-sin,
+  .equipped-summary .es-id-meta > .es-num,
+  .equipped-summary .es-id-meta > .es-id-editbadge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    box-sizing: border-box;
+    padding: 3px 9px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 650;
+    line-height: 1.4;
+    letter-spacing: 0.015em;
+    color: var(--tx);
+  }
+  .equipped-summary .es-id-meta > .es-label {
+    color: var(--tx-2);
+    background: var(--surface-2);
+  }
+  .equipped-summary .es-id-meta > .es-id-sin {
+    color: var(--gold-hi);
+    border-color: var(--gold-line);
+    background: var(--gold-tint);
+  }
+  .equipped-summary .es-id-meta > .es-num,
+  .equipped-summary .es-id-meta > .es-id-editbadge {
+    color: var(--tx-2);
+    background: var(--surface-inset);
+  }
+  .equipped-summary .es-id-meta > .es-id-affil,
+  .equipped-summary .es-id-meta > input.es-affiliation-input {
+    flex: 0 1 auto;
+    order: 10;
+    align-self: flex-start;
+    min-height: 34px;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 5px 11px;
+    border: 1px solid var(--gold-line);
+    border-radius: 8px;
+    background: color-mix(in oklab, var(--gold) 8%, var(--surface-inset));
+    color: var(--gold-hi);
+    -webkit-text-fill-color: var(--gold-hi);
+    font-size: 14px;
+    font-weight: 650;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+  .equipped-summary .es-id-meta > input.es-affiliation-input {
+    width: min(22ch, 100%);
+    min-width: min(10ch, 100%);
+    caret-color: var(--gold-hi);
+  }
+  .equipped-summary .es-id-meta > input.es-affiliation-input:focus {
+    background: var(--surface-2);
+    color: var(--tx);
+    -webkit-text-fill-color: var(--tx);
+    border-color: var(--gold-hi);
+    outline: 2px solid color-mix(in oklab, var(--gold-hi) 45%, transparent);
+    outline-offset: 1px;
+  }
+  .equipped-summary .es-vitals .es-kw-tag {
+    min-height: 30px;
+    padding: 4px 10px;
+    font-size: 13px;
+    font-weight: 550;
+    line-height: 1.4;
+    color: var(--tx);
+    border-color: var(--line-strong);
+    background: var(--surface-inset);
+  }
+  .equipped-summary .es-kw-rm {
+    min-width: 20px;
+    min-height: 20px;
+    font-size: 15px;
+  }
+  @media (max-width: 560px) {
+    .equipped-summary .es-id-main {
+      gap: 7px;
+    }
+    .equipped-summary .es-id-meta {
+      gap: 6px;
+    }
+    .equipped-summary .es-id-meta > .es-label,
+    .equipped-summary .es-id-meta > .es-id-sin,
+    .equipped-summary .es-id-meta > .es-num,
+    .equipped-summary .es-id-meta > .es-id-editbadge {
+      min-height: 32px;
+      font-size: 13px;
+    }
+    .equipped-summary .es-id-meta > .es-id-affil,
+    .equipped-summary .es-id-meta > input.es-affiliation-input {
+      font-size: 14px;
+      min-height: 36px;
+    }
+  }
+}
