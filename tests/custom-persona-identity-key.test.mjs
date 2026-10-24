@@ -102,12 +102,12 @@ test("legacy custom roster entries without unique UIDs receive distinct stable k
 test("legacy UID generation never steals a later Persona's valid stable UID", () => {
   const stateSource = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
   const start = stateSource.indexOf("function normalizeCustomPersonaRosterIdentity(personas) {");
-  const end = stateSource.indexOf("\\nfunction normalizeStateShape(raw)", start);
+  const end = stateSource.indexOf("\nfunction normalizeStateShape(raw)", start);
   assert.ok(start >= 0 && end > start);
   const context = {};
   vm.createContext(context);
   vm.runInContext(
-    stateSource.slice(start, end) + "\\nglobalThis.__normalize = normalizeCustomPersonaRosterIdentity;",
+    stateSource.slice(start, end) + "\nglobalThis.__normalize = normalizeCustomPersonaRosterIdentity;",
     context
   );
   const normalized = context.__normalize([
