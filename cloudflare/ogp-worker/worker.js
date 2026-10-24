@@ -151,7 +151,7 @@ function renderShell({ preview, iframeUrl = "", legacyUrl = "", canonicalUrl = "
 function buildResponse(html, options = {}) {
   const headers = new Headers({
     "Content-Type": "text/html; charset=utf-8",
-    "Cache-Control": options.cacheControl || ("public, max-age=0, s-maxage=" + SHARE_TTL_SECONDS),
+    "Cache-Control": options.cacheControl || ("public, max-age=0, s-maxage=" + SHARE_CACHE_TTL_SECONDS),
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",
     "Content-Security-Policy": RESPONSE_CSP,

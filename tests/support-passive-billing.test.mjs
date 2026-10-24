@@ -66,6 +66,35 @@ test("purchase を省略した従来経路は購入のまま（挙動不変）",
   assert.ok(Number(next.entries[0].cost.lp) > 0);
 });
 
+
+test("装備対象が所持一覧の先頭にあっても、通常スロットの置換では操作対象を装備状態に残す", () => {
+  const target = { uid: "target", name: "対象パッシブ", slot: "normal", equipped: false, cond: "", effect: "", lp: "" };
+  const old1 = { uid: "old-1", name: "既存パッシブ1", slot: "normal", equipped: true, cond: "", effect: "", lp: "" };
+  const old2 = { uid: "old-2", name: "既存パッシブ2", slot: "normal", equipped: true, cond: "", effect: "", lp: "" };
+  const initial = {
+    ...base(),
+    roster: { personas: [], egos: [], supports: [target, old1, old2], spirits: [] }
+  };
+  const next = reducer(initial, { type: "ADD_SUPPORT", spp: { name: target.name } });
+  const equipped = next.roster.supports.filter((entry) => entry.equipped);
+  assert.equal(next.roster.supports.find((entry) => entry.uid === target.uid).equipped, true);
+  assert.equal(equipped.length, 2, "通常スロットの上限2枠を守る");
+  assert.equal(next.supports.some((entry) => entry.name === target.name), true, "ビルドの投影にも対象が残る");
+});
+
+test("死亡後専用スロットも配列順に関係なく操作対象を装備状態に残す", () => {
+  const target = { uid: "death-target", name: "対象死亡後パッシブ", slot: "death", equipped: false, cond: "", effect: "", lp: "" };
+  const old = { uid: "death-old", name: "既存死亡後パッシブ", slot: "death", equipped: true, cond: "", effect: "", lp: "" };
+  const initial = {
+    ...base(),
+    roster: { personas: [], egos: [], supports: [target, old], spirits: [] }
+  };
+  const next = reducer(initial, { type: "SET_ROSTER_SUPPORT_EQUIPPED", uid: target.uid, equipped: true });
+  assert.equal(next.roster.supports.find((entry) => entry.uid === target.uid).equipped, true);
+  assert.equal(next.roster.supports.find((entry) => entry.uid === old.uid).equipped, false);
+  assert.equal(next.deathSupport?.name, target.name, "死亡後専用スロットの投影も対象へ切り替わる");
+});
+
 test("人格と同じ契約になっている", () => {
   const bought = reducer(base(), { type: "ADD_ROSTER", mode: "n", no: db.normal_personas[0].no, purchase: true, cost: { lp: 20, shards: 0 } });
   assert.equal(bought.entries.length, 1);
