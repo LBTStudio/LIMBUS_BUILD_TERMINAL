@@ -878,7 +878,7 @@
     }
   }
 
-  async function publishCloudflareR2Share(token, preview, fallbacks = [], fetchImpl = window.fetch?.bind(window)) {
+  async function publishCloudflareKvShare(token, preview, fallbacks = [], fetchImpl = window.fetch?.bind(window)) {
     const origin = ogpGatewayOrigin();
     if (!origin || typeof fetchImpl !== "function") return { status: "unavailable" };
 
@@ -926,8 +926,8 @@
     const sources = (fallbacks || [])
       .filter((entry) => entry && sourceCode(entry.source) && entry.id)
       .map((entry) => sourceCode(entry.source) + ":" + encodeURIComponent(String(entry.id)));
-    // OGP metadata is embedded in the immutable HTML stored in R2. Keep the share
-    // URL compact; only fallback source IDs are needed if the R2 object disappears.
+    // OGP metadata is embedded in the immutable HTML stored in Workers KV. Keep the share
+    // URL compact; only fallback source IDs are needed if the KV key expires or is missing.
     if (sources.length) url.searchParams.set("b", sources.join(","));
     url.searchParams.set("cv", "4");
     return url.toString();
@@ -1047,7 +1047,7 @@
     const telegraphToken = canKeepShareImageInTelegraph ? token : await encodeState({ ...state, shareImageData: "" });
     const preview = sharePreview(state);
     const published = await publishExternalTokens(token, target, fetchImpl, preview, telegraphToken);
-    const cloudflare = await publishCloudflareR2Share(token, preview, published, fetchImpl);
+    const cloudflare = await publishCloudflareKvShare(token, preview, published, fetchImpl);
     let result;
     if (cloudflare.status === "published") {
       const primary = state?.shareImageData
@@ -1064,10 +1064,10 @@
         ...direct,
         url,
         length: url.length,
-        strategy: "cloudflare-r2",
+        strategy: "cloudflare-kv",
         backups: [{ source: published.length ? "既存方式" : "自己完結", id: primary?.id || "", url: legacyUrl }],
         preview,
-        warning: "Cloudflare R2共有HTMLです。保存先が使えない場合は予備URLで従来方式から復元できます。"
+        warning: "Cloudflare KV共有HTMLです。保存データが失効した場合は予備URLから従来方式で復元できます。"
       };
     } else if (published.length) {
       const primary = state?.shareImageData
