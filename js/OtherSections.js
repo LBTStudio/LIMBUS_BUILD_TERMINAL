@@ -3379,8 +3379,8 @@ if (typeof window !== "undefined") window.LBT_libraryTabLabel = libraryTabLabel;
         (() => {
           const how = libraryTab === "personas" ? "人格を装備"
             : libraryTab === "egos" ? "E.G.Oを所持に追加または装備"
-            : libraryTab === "supports" ? "ビルド側で装備するかショップで入手"
-            : libraryTab === "spirits" ? "ショップで精神を入手"
+            : libraryTab === "supports" ? "サポートを装備"
+            : libraryTab === "spirits" ? "精神を所持に追加"
             : "「アイテム」で追加";
           return items.length === 0
             ? h("div", { className: "empty", style: { padding: "var(--s-5)" } }, filter === "all" ? `所持${label}はまだありません。${how}するとここへ保存されます。` : "この条件に一致する所持項目はありません。")
