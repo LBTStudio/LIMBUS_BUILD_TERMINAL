@@ -381,7 +381,7 @@ const EquippedSummary = ({ state, dispatch, onExpand, onShowDetail, detailShown,
         /* @__PURE__ */ React.createElement("div", { className: "es-id-main" },
           editable
             ? /* @__PURE__ */ React.createElement("input", {
-                className: "es-id-name es-id-name-input",
+                className: "es-name-input",
                 value: p.name || "",
                 onChange: (e) => patchMeta({ src: { name: e.target.value } }),
                 title: "人格名（編集モード）",
