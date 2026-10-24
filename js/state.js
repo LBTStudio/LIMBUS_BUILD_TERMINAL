@@ -5182,6 +5182,18 @@ case "ADD_ENTRY":
         ? ((affiliatedMode === "n" ? window.DB?.normal_personas : window.DB?.tokui_personas) || []).find((entry) => String(entry?.no) === String(affiliatedNo))
         : null;
       const isAffiliated = !!affiliatedSource;
+      const affiliatedEntryBefore = isAffiliated
+        ? (state.roster?.personas || []).find((entry) => entry.mode === affiliatedMode && String(entry.no) === String(affiliatedSource.no))
+        : null;
+      const affiliatedBuildBefore = affiliatedEntryBefore?.build && typeof affiliatedEntryBefore.build === "object"
+        && !Array.isArray(affiliatedEntryBefore.build) ? affiliatedEntryBefore.build : null;
+      const affiliatedIsActive = isAffiliated && state.personaMode === affiliatedMode
+        && String(state.personaNo) === String(affiliatedSource.no);
+      const targetBuildValue = (buildField, stateField, fallback) => {
+        if (affiliatedIsActive && stateField && state[stateField] !== undefined) return state[stateField];
+        if (affiliatedBuildBefore && affiliatedBuildBefore[buildField] !== undefined) return affiliatedBuildBefore[buildField];
+        return fallback;
+      };
       const provided = action.provided || { name: true, hp: true, san: true, speed: true, bullets: true, resistances: true, passives: true, skills: true, uniques: true };
       const sourceBase = isAffiliated ? affiliatedSource : src;
       const effectiveSrc = {
@@ -5247,29 +5259,35 @@ case "ADD_ENTRY":
         ? { ...effectiveSrc, __custom: false, __draftImported: true, __affiliation: { mode: affiliatedMode, no: affiliatedSource.no } }
         : effectiveSrc;
       const emptyEgoSlots = { ZAYIN: null, TETH: null, HE: null, WAW: null, ALEPH: null };
-      const baseStatuses = isAffiliated ? (state.defaultStatuses || getFactoryDefaultStatuses()) : getFactoryDefaultStatuses();
+      const targetCustomStatuses = targetBuildValue("customStatuses", "customStatuses", []);
+      const baseStatuses = targetBuildValue("defaultStatuses", "defaultStatuses", getFactoryDefaultStatuses()) || getFactoryDefaultStatuses();
       const importedDefaultStatuses = mergeDefaultSelfStatusEntries(baseStatuses, collectSelfManagedStatusEntries(importedSource));
       const importedSelfStatusCandidates = detectSelfStatusCandidates(importedSource, [
         ...(baseStatuses || []).map((item) => item?.label),
-        ...(isAffiliated ? (state.customStatuses || []) : []).filter((item) => (item?.place || "status") === "status").map((item) => item?.label),
+        ...(targetCustomStatuses || []).filter((item) => (item?.place || "status") === "status").map((item) => item?.label),
         ...collectSelfManagedStatusEntries(importedSource).map((entry) => entry.label)
       ]);
+      const targetEquipmentRefs = affiliatedIsActive
+        ? captureEquipmentRefs(state)
+        : cloneJSON(affiliatedBuildBefore?.equipmentRefs || { supportUids: [], spiritUid: null });
       const importedBuild = {
         savedAt: Date.now(),
-        hp: String(effectiveSrc.hp ?? 100), san: String(effectiveSrc.san ?? 45), speed: effectiveSrc.speed || "1d5", initiative: 0, bullets: effectiveSrc.bullets || "×",
+        hp: String(effectiveSrc.hp ?? 100), san: String(effectiveSrc.san ?? 45), speed: effectiveSrc.speed || "1d5",
+        initiative: Number(targetBuildValue("initiative", "initiative", 0)) || 0,
+        bullets: effectiveSrc.bullets || "×",
         resS: effectiveSrc.res_slash || "普通", resP: effectiveSrc.res_pierce || "普通", resB: effectiveSrc.res_blunt || "普通",
-        spirit: isAffiliated ? (state.spirit || "") : "",
-        spiritMorale: isAffiliated ? (state.spiritMorale || "") : "",
-        spiritConfuse: isAffiliated ? (state.spiritConfuse || "") : "",
-        spiritAlways: isAffiliated ? (state.spiritAlways || "") : "",
-        supports: isAffiliated ? cloneJSON(state.supports || []) : [],
-        deathSupport: isAffiliated && state.deathSupport ? cloneJSON(state.deathSupport) : null,
-        egoSlots: isAffiliated ? cloneJSON(state.egoSlots || emptyEgoSlots) : emptyEgoSlots,
-        egoManual: isAffiliated ? !!state.egoManual : false,
-        enhancements: isAffiliated ? cloneJSON(state.enhancements || []) : [],
-        formulas: isAffiliated ? cloneJSON(state.formulas || []) : [],
-        customStatuses: isAffiliated ? cloneJSON(state.customStatuses || []) : [],
-        equipmentRefs: isAffiliated ? captureEquipmentRefs(state) : { supportUids: [], spiritUid: null },
+        spirit: targetBuildValue("spirit", "spirit", "") || "",
+        spiritMorale: targetBuildValue("spiritMorale", "spiritMorale", "") || "",
+        spiritConfuse: targetBuildValue("spiritConfuse", "spiritConfuse", "") || "",
+        spiritAlways: targetBuildValue("spiritAlways", "spiritAlways", "") || "",
+        supports: cloneJSON(targetBuildValue("supports", "supports", []) || []),
+        deathSupport: cloneJSON(targetBuildValue("deathSupport", "deathSupport", null)),
+        egoSlots: cloneJSON(targetBuildValue("egoSlots", "egoSlots", emptyEgoSlots) || emptyEgoSlots),
+        egoManual: !!targetBuildValue("egoManual", "egoManual", false),
+        enhancements: cloneJSON(targetBuildValue("enhancements", "enhancements", []) || []),
+        formulas: cloneJSON(targetBuildValue("formulas", "formulas", []) || []),
+        customStatuses: cloneJSON(targetCustomStatuses || []),
+        equipmentRefs: targetEquipmentRefs,
         pas: { name: effectiveSrc.passive_name || "", cond: effectiveSrc.passive_cond || "", always: effectiveSrc.passive_always || "", effect: effectiveSrc.passive_effect || "", quick: "" },
         extraPassives: action.secondaryPassive?.name ? [{
           id: "pas-import-1",
@@ -5343,11 +5361,18 @@ case "ADD_ENTRY":
         personaNo: isAffiliated ? affiliatedSource.no : uid,
         personaSrc: importedSource,
         syncedManual: true,
-        ...(isAffiliated ? {} : {
-          spirit: "", spiritMorale: "", spiritConfuse: "", spiritAlways: "",
-          supports: [], deathSupport: null, egoSlots: emptyEgoSlots, egoManual: false, enhancements: [],
-          formulas: [], customStatuses: [], initiative: 0
-        }),
+        spirit: importedBuild.spirit,
+        spiritMorale: importedBuild.spiritMorale,
+        spiritConfuse: importedBuild.spiritConfuse,
+        spiritAlways: importedBuild.spiritAlways,
+        supports: cloneJSON(importedBuild.supports),
+        deathSupport: cloneJSON(importedBuild.deathSupport),
+        egoSlots: cloneJSON(importedBuild.egoSlots),
+        egoManual: importedBuild.egoManual,
+        enhancements: cloneJSON(importedBuild.enhancements),
+        formulas: cloneJSON(importedBuild.formulas),
+        customStatuses: cloneJSON(importedBuild.customStatuses),
+        initiative: importedBuild.initiative,
         hp: String(effectiveSrc.hp ?? 100),
         san: String(effectiveSrc.san ?? 45),
         speed: effectiveSrc.speed || "1d5",
@@ -5371,7 +5396,7 @@ case "ADD_ENTRY":
         defaultStatuses: importedBuild.defaultStatuses,
         selfStatusCandidates: importedBuild.selfStatusCandidates,
         charName: state.charName,
-        roster: { ...baseRoster, personas },
+        roster: { ...applyEquipmentRefs(baseRoster, importedBuild.equipmentRefs), personas },
         historyRecent: [`${isAffiliated ? affiliatedMode : "custom"}:${isAffiliated ? affiliatedSource.no : uid}`, ...(state.historyRecent || []).filter((key) => key !== `${isAffiliated ? affiliatedMode : "custom"}:${isAffiliated ? affiliatedSource.no : uid}`)].slice(0, 20)
       });
       const syncEntry = isAffiliated
