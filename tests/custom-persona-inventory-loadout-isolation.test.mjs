@@ -87,7 +87,7 @@ test("creating a custom Persona preserves shared inventory and saves the previou
   assert.equal(next.roster.personas[0].build.savedAt, 123);
   assert.equal(next.personaMode, "custom");
   assert.equal(next.personaSrc.__custom, true);
-  assert.deepEqual(next.egoSlots, blankSlots());
+  assert.deepEqual(JSON.parse(JSON.stringify(next.egoSlots)), blankSlots());
   assert.deepEqual(Array.from(next.supports), []);
   assert.equal(next.deathSupport, null);
   assert.equal(next.spirit, "");
@@ -118,7 +118,7 @@ test("importing a new custom Persona draft preserves inventory and isolates prio
   assert.deepEqual(Array.from(next.inventory, (item) => item.uid), ["item-owned-1"]);
   assert.equal(next.personaMode, "custom");
   assert.equal(next.personaSrc.name, "取り込み自作人格");
-  assert.deepEqual(next.egoSlots, blankSlots());
+  assert.deepEqual(JSON.parse(JSON.stringify(next.egoSlots)), blankSlots());
   assert.deepEqual(Array.from(next.supports), []);
   assert.equal(next.deathSupport, null);
   assert.equal(next.spirit, "");
@@ -129,7 +129,7 @@ test("importing a new custom Persona draft preserves inventory and isolates prio
   assert.ok(next.roster.supports.every((entry) => entry.equipped === false));
   assert.ok(next.roster.spirits.every((entry) => entry.equipped === false));
   const owned = next.roster.personas.find((entry) => entry.mode === "custom");
-  assert.deepEqual(owned.build.egoSlots, blankSlots());
+  assert.deepEqual(JSON.parse(JSON.stringify(owned.build.egoSlots)), blankSlots());
   assert.deepEqual(Array.from(owned.build.supports), []);
-  assert.deepEqual(owned.build.equipmentRefs, { supportUids: [], spiritUid: null });
+  assert.deepEqual(JSON.parse(JSON.stringify(owned.build.equipmentRefs)), { supportUids: [], spiritUid: null });
 });
