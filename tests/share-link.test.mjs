@@ -526,8 +526,8 @@ test("R2共有APIが利用可能なら短いCloudflare HTML URLを主URLにし�
   assert.equal(result.strategy, "cloudflare-r2");
   assert.equal(url.pathname, "/s/AbCdEfGhIjKlMnOp");
   assert.equal(url.searchParams.get("b"), "r:lbt-r2-backup,t:LBT-R2-Primary");
-  assert.equal(url.searchParams.get("lbt_n"), "蜘蛛の巣 中指の親方");
-  assert.ok(result.length < 350);
+  assert.equal(url.searchParams.has("lbt_n"), false, "OGP preview text is embedded in the stored HTML, not repeated in the URL");
+  assert.ok(result.length < 180);
   assert.equal(result.backups.length, 1);
   assert.match(result.backups[0].url, /^https:\/\/lbtstudio\.github\.io\//);
   assert.match(result.backups[0].url, /share\.html\?s=/);
