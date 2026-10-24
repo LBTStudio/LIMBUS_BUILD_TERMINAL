@@ -524,10 +524,13 @@ test("KV共有APIが利用可能なら短いCloudflare HTML URLを主URLにし�
   const result = await share.createPublishedUrl(state, "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html", fetchMock);
   const url = new URL(result.url);
   assert.equal(result.strategy, "cloudflare-kv");
+  assert.equal(url.origin, "https://lbt-ogp.lbtstudio-share.workers.dev");
   assert.equal(url.pathname, "/s/AbCdEfGhIjKlMnOp");
-  assert.equal(url.searchParams.get("b"), "r:lbt-r2-backup,t:LBT-R2-Primary");
+  assert.equal(url.search, "", "primary Cloudflare URLs do not include fallback IDs or cache-version parameters");
+  assert.equal(url.hash, "");
   assert.equal(url.searchParams.has("lbt_n"), false, "OGP preview text is embedded in the stored HTML, not repeated in the URL");
-  assert.ok(result.length < 180);
+  assert.ok(result.length < 80, "the copied URL should be the minimal short path");
+  assert.match(result.warning, /予備URLは共有リンクと別に保存/);
   assert.equal(result.backups.length, 1);
   assert.match(result.backups[0].url, /^https:\/\/lbtstudio\.github\.io\//);
   assert.match(result.backups[0].url, /share\.html\?s=/);
