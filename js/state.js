@@ -5114,6 +5114,7 @@ case "ADD_ENTRY":
         passive_always: state.pas?.always ?? src.passive_always ?? "",
         passive_effect: state.pas?.effect ?? src.passive_effect ?? "",
         skills: (state.skills || []).map((s, i) => ({
+          ...s,
           rank: s.rank || `\u30B9\u30AD\u30EB${i}`,
           type: s.type || "",
           sin: s.sin || "",
@@ -5121,7 +5122,7 @@ case "ADD_ENTRY":
           aoeCount: s.aoeCount || "",
           name: s.name || "",
           effect: s.effect || "",
-          dice: (s.dice || []).map((d) => ({ roll: d.roll || "", effect: d.effect || "" }))
+          dice: (s.dice || []).map((d) => ({ ...d, roll: d.roll || "", effect: d.effect || "" }))
         })),
         unique_buffs: (state.uniqueBuffs || []).map((b) => ({
           name: b.name || "",
@@ -5133,25 +5134,40 @@ case "ADD_ENTRY":
           // 自作人格として保存する際も、対象付与専用の宣言は失わない。
           noST: b.noST === true
         })),
+        extra_passives: (state.extraPassives || []).map((p) => ({
+          ...p,
+          name: p.name || "",
+          cond: p.cond || "",
+          always: p.always || "",
+          effect: p.effect || "",
+          quick: p.quick || ""
+        })),
         keywords: src.keywords || [],
         __custom: true,
         __saved: true
       };
-      const uid = state.personaNo || makeOwnedUid("custom");
+      const uid = String(state.personaNo || makeOwnedUid("custom"));
+      /* Saving a custom Persona must update its complete build as well as its
+         source definition. Otherwise re-equipping restores a stale build (or
+         loses E.G.O, support passives, mental state and enhancements on first save). */
+      const build = createPersonaBuildSnapshot(state);
+      if (build) build.personaSrc = cloneJSON(snap);
       const personas = state.roster.personas.map((p) => ({ ...p }));
-      const idx = personas.findIndex((p) => p.uid === uid);
+      const idx = personas.findIndex((p) => p.mode === "custom"
+        && (String(p.uid) === uid || String(p.no) === uid));
       const entry = {
         uid,
         no: uid,
         mode: "custom",
         src: snap,
+        build,
         syncRank: null,
         syncMax: false,
         lcb: false,
         equipped: true,
         notes: ""
       };
-      if (idx >= 0) personas[idx] = { ...personas[idx], src: snap, equipped: true };
+      if (idx >= 0) personas[idx] = { ...personas[idx], uid, no: uid, src: snap, build, equipped: true };
       else personas.push(entry);
       return {
         ...state,
