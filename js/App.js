@@ -790,6 +790,10 @@ function validateImportData(data) {
     const personaKeys = new Set();
     for (let i = 0; i < (data.roster.personas || []).length; i += 1) {
       const persona = data.roster.personas[i];
+      /* Custom Persona source.no was historically a shared 999 placeholder.
+         Their owned identity is uid/no after migration, so treating every custom
+         source as a normal Persona falsely rejects valid legacy multi-custom saves. */
+      if (persona.mode === "custom") continue;
       const no = String(persona.no ?? "").trim();
       if (!no) continue; // 旧形式で識別子のない行は既存の互換処理へ任せる
       const key = (persona.mode === "t" ? "t:" : "n:") + no;
