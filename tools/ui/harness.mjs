@@ -66,7 +66,7 @@ ensureShotDir();
  * ページを開いて app の準備完了まで待つ。
  * CSS には skip-link や rail-item があるので、.rail-item を合図に使う。
  */
-export async function openApp(browser, { width = 1440, height = 900, reducedMotion, bypassCache = false } = {}) {
+export async function openApp(browser, { url = BASE_URL, width = 1440, height = 900, reducedMotion, bypassCache = false } = {}) {
   const context = await browser.newContext({
     viewport: { width, height },
     ...(reducedMotion ? { reducedMotion } : {}),
@@ -89,7 +89,7 @@ export async function openApp(browser, { width = 1440, height = 900, reducedMoti
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text().slice(0, 160)); });
   page.on("pageerror", (e) => errors.push("pageerror: " + e.message.slice(0, 160)));
-  page.goto(BASE_URL, { waitUntil: "load", timeout: 90000 });
+  await page.goto(url, { waitUntil: "load", timeout: 90000 });
   await page.waitForSelector(".rail-item", { timeout: 90000 });
   await page.waitForTimeout(1500);
   return { context, page, errors };
