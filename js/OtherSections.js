@@ -2999,6 +2999,50 @@ const resolveRosterEgoSource = (entry, definitions = (DB.egos || [])) => {
   return dbEntry || entry?.build || null;
 };
 window.LBT_rosterLibrary = { isRosterPersonaSynced, rosterPersonaMatchesSyncFilters, sortRosterLibraryItems, resolveRosterPersonaSource, resolveRosterEgoSource };
+function getRosterLibraryTypePresentation(type) {
+  switch (type) {
+    case "personas":
+      return { detailTitle: "PERSONA DETAIL / 簡易詳細", equipLabel: "この人格を装備する", savedLabel: "保存済みビルドを復元して装備します" };
+    case "egos":
+      return { detailTitle: "E.G.O DETAIL / 簡易詳細", equipLabel: "このE.G.Oを装備する", savedLabel: "保存済み解析を復元して装備します" };
+    case "supports":
+      return { detailTitle: "SUPPORT PASSIVE DETAIL / サポートパッシブ", equipLabel: "このサポートパッシブを装備する", savedLabel: null };
+    case "spirits":
+      return { detailTitle: "SPIRIT DETAIL / 精神", equipLabel: "この精神を装備する", savedLabel: null };
+    default:
+      return null;
+  }
+}
+
+function getRosterLibraryEquipAction(item) {
+  if (!item || !item.entry || !item.entry.uid) return null;
+  switch (item.type) {
+    case "personas":
+      return { type: "EQUIP_PERSONA", mode: item.entry.mode, no: item.entry.no, src: item.src };
+    case "egos":
+      return { type: "SET_EGO_SLOT", rank: item.entry.rank, value: item.src };
+    case "supports":
+      return { type: "SET_ROSTER_SUPPORT_EQUIPPED", uid: item.entry.uid, equipped: true };
+    case "spirits":
+      return { type: "SET_ROSTER_SPIRIT_EQUIPPED", uid: item.entry.uid, equipped: true };
+    default:
+      return null;
+  }
+}
+
+function getRosterLibraryEquipBlockReason(item, state, activeEnhancements) {
+  if (!item || item.type !== "supports") return null;
+  const enhancements = Array.isArray(activeEnhancements) ? activeEnhancements : [];
+  if (item.entry && item.entry.slot === "death") {
+    return enhancements.some((entry) => entry && entry.name === "死亡後パッシブ追加")
+      ? null
+      : "死亡後専用スロットが未開放です";
+  }
+  const maxSupports = enhancements.some((entry) => String((entry && entry.name) || "").includes("サポートスロット追加")) ? 3 : 2;
+  const equippedSupports = Array.isArray(state && state.supports) ? state.supports : [];
+  return equippedSupports.length >= maxSupports ? "スロット上限（" + maxSupports + "枠）です" : null;
+}
+
 const RosterSection = ({ state, dispatch }) => {
   const h = React.createElement;
   /* タブは topbar の残高チップからも開くため state.ui に置く。local state だと外から遷移できない。 */
@@ -3034,11 +3078,14 @@ const RosterSection = ({ state, dispatch }) => {
     const src = findEgo(entry);
     return { entry, src, id: entry.uid, type: "egos", name: entry.build?.name || src?.name || "名称未設定", equipped: currentEgoKeys.has(`${entry.rank}:${entry.no}`), saved: !!entry.build, addedIndex, meta: `${entry.rank} · No.${String(entry.no || "").padStart(3, "0")}` };
   }).filter((item) => item.src) : libraryTab === "supports" ? (roster.supports || []).map((entry, addedIndex) => ({
-    entry, src: entry, id: `spp-${entry.name}`, type: "supports", name: entry.name,
-    equipped: false, saved: false, addedIndex, meta: "サポートパッシブ"
+    entry, src: entry, id: "spp-" + (entry.uid || entry.name), type: "supports", name: entry.name,
+    equipped: entry.equipped === true
+      || (state.supports || []).some((support) => support && support.name === entry.name)
+      || (state.deathSupport && state.deathSupport.name === entry.name),
+    saved: false, addedIndex, meta: "サポートパッシブ"
   })) : libraryTab === "spirits" ? (roster.spirits || []).map((entry, addedIndex) => ({
-    entry, src: entry, id: `spi-${entry.name}`, type: "spirits", name: entry.name,
-    equipped: state.spirit === entry.name, saved: false, addedIndex, meta: "精神"
+    entry, src: entry, id: "spi-" + (entry.uid || entry.name), type: "spirits", name: entry.name,
+    equipped: entry.equipped === true || state.spirit === entry.name, saved: false, addedIndex, meta: "精神"
   })) : [];
   const items = sortRosterLibraryItems(rawItems.filter((item) => (
     (filter === "all"
@@ -3102,13 +3149,37 @@ const RosterSection = ({ state, dispatch }) => {
     return () => window.clearTimeout(timer);
   }, [undo]);
   const equipItem = (item) => {
-    if (item.type === "personas") {
-      const entry = item.entry;
-      dispatch({ type: "EQUIP_PERSONA", mode: entry.mode, no: entry.no, src: item.src });
-      toast(`『${item.name}』を装備`);
-    } else {
-      dispatch({ type: "SET_EGO_SLOT", rank: item.entry.rank, value: item.src });
-      toast(`${item.entry.rank}: 『${item.name}』を装備`);
+    const action = getRosterLibraryEquipAction(item);
+    if (!action) {
+      toast("この種類の項目は装備できません", "assertive");
+      return;
+    }
+    if (item.type === "supports") {
+      const activeEnhancements = window.LBT_getActiveEnhancements?.(state) || (state.enhancements || []);
+      const blockReason = getRosterLibraryEquipBlockReason(item, state, activeEnhancements);
+      if (blockReason) {
+        toast(blockReason, "assertive");
+        return;
+      }
+    }
+    dispatch(action);
+    switch (item.type) {
+      case "personas":
+        toast("『" + item.name + "』を装備");
+        break;
+      case "egos":
+        toast(item.entry.rank + ": 『" + item.name + "』を装備");
+        break;
+      case "supports":
+        toast(item.entry.slot === "death"
+          ? "『" + item.name + "』を死亡後専用スロットへ装備"
+          : "『" + item.name + "』をサポートスロットへ装備");
+        break;
+      case "spirits":
+        toast("『" + item.name + "』を精神として装備");
+        break;
+      default:
+        break;
     }
   };
     /* 既存アカウント向け。同期/解析のフラグは立ってるのに明細が無い状態を
@@ -3180,6 +3251,11 @@ const RosterSection = ({ state, dispatch }) => {
   };
   const renderDetail = (item) => {
     const src = item.src || {};
+    const presentation = getRosterLibraryTypePresentation(item.type) || {
+      detailTitle: "RECORD DETAIL / 簡易詳細",
+      equipLabel: "装備する",
+      savedLabel: null
+    };
     /* 同期/同期MAXの操作は装備状態に依存しない。canEditPersonaState は
        「DB人格の HP/SAN を手編集できるか」の話で、保守処理とは無関係。
        これを条件にしていたせいで、DB 人格の同期MAXは設定も解除もできなかった。 */
@@ -3194,19 +3270,37 @@ const RosterSection = ({ state, dispatch }) => {
       const dice = (skill.dice || []).map((die) => die.roll).filter(Boolean).join(" / ");
       return [type, dice].filter(Boolean).join(" / ") || "登録済み";
     };
+    const spiritDetail = item.type === "spirits"
+      ? (DB.spirits || []).find((entry) => entry.name === item.name) || {}
+      : {};
     const summary = item.type === "personas"
       ? [
-          `HP ${src.hp ?? "?"} / SAN ${src.san ?? "?"} / 速度 ${src.speed || "?"}`,
-          src.passive_name ? `パッシブ：${src.passive_name}${src.passive_cond ? `（${src.passive_cond}）` : ""}` : "パッシブ情報なし",
-          (src.skills || []).length ? `スキル：${(src.skills || []).map((skill) => skill.name).filter(Boolean).slice(0, 4).join(" / ")}` : "スキル情報なし"
+          "HP " + (src.hp ?? "?") + " / SAN " + (src.san ?? "?") + " / 速度 " + (src.speed || "?"),
+          src.passive_name ? "パッシブ：" + src.passive_name + (src.passive_cond ? "（" + src.passive_cond + "）" : "") : "パッシブ情報なし",
+          (src.skills || []).length ? "スキル：" + (src.skills || []).map((skill) => skill.name).filter(Boolean).slice(0, 4).join(" / ") : "スキル情報なし"
         ]
-      : [
-          `ランク ${item.entry.rank} / SAN ${src.san_cost ?? src.cost ?? "未設定"} / 資源 ${src.resources || src.sin_cost || "未設定"}`,
-          src.passive_name ? `パッシブ：${src.passive_name}${src.passive_cond ? `（${src.passive_cond}）` : ""}` : "パッシブ情報なし",
-          `覚醒：${summarizeEgoSkill(src.kakusei || src.awakening)}　侵蝕：${summarizeEgoSkill(src.shinshoku || src.corrosion)}`
-        ];
+      : item.type === "egos"
+        ? [
+            "ランク " + item.entry.rank + " / SAN " + (src.san_cost ?? src.cost ?? "未設定") + " / 資源 " + (src.resources || src.sin_cost || "未設定"),
+            src.passive_name ? "パッシブ：" + src.passive_name + (src.passive_cond ? "（" + src.passive_cond + "）" : "") : "パッシブ情報なし",
+            "覚醒：" + summarizeEgoSkill(src.kakusei || src.awakening) + "　侵蝕：" + summarizeEgoSkill(src.shinshoku || src.corrosion)
+          ]
+        : item.type === "supports"
+          ? [
+              "スロット：" + (src.slot === "death" ? "死亡後専用" : "通常"),
+              "条件：" + (src.cond || "未設定"),
+              "効果：" + (src.effect || "未設定"),
+              "LP：" + (src.lp || "なし")
+            ]
+          : item.type === "spirits"
+            ? [
+                "士気効果：" + (spiritDetail.morale_effect || "未設定"),
+                "混乱効果：" + (spiritDetail.confuse_effect || "未設定"),
+                "常時効果：" + (spiritDetail.always_effect || "未設定")
+              ]
+            : [];
     return h("div", { className: "roster-detail", role: "region", "aria-label": `${item.name}の詳細` },
-      h("div", { className: "roster-detail-head" }, h("div", null, h("span", { className: "t-label" }, item.type === "personas" ? "PERSONA DETAIL / 簡易詳細" : "E.G.O DETAIL / 簡易詳細"), h("div", { className: "roster-detail-title" }, item.name)), h("button", { className: "btn btn--quiet btn-icon", onClick: () => setDetailId(null), title: "詳細を閉じる", "aria-label": "詳細を閉じる" }, h(Icon, { name: "x", size: 15 }))),
+      h("div", { className: "roster-detail-head" }, h("div", null, h("span", { className: "t-label" }, presentation.detailTitle), h("div", { className: "roster-detail-title" }, item.name)), h("button", { className: "btn btn--quiet btn-icon", onClick: () => setDetailId(null), title: "詳細を閉じる", "aria-label": "詳細を閉じる" }, h(Icon, { name: "x", size: 15 }))),
       h("div", { className: "roster-detail-lines" }, summary.map((line, index) => h("div", { key: index }, line))),
       item.type === "personas" && canModifySyncMax && h("div", { className: "roster-sync-ops" },
         h("div", { className: "roster-sync-ops-head" },
@@ -3227,8 +3321,8 @@ const RosterSection = ({ state, dispatch }) => {
           h("span", { className: "sync-max-detail-label" }, item.entry.syncMax ? "同期MAXを解除する" : "同期MAXとして設定"),
           h("span", { className: "sync-max-detail-note" }, "名称・共有に反映"))),
       h("div", { className: "roster-detail-actions" },
-        item.equipped ? h("span", { className: "badge", style: { color: "var(--gold)", borderColor: "var(--gold-line)" } }, "現在装備中") : h(Button, { size: "md", variant: "primary", icon: "check", className: "roster-detail-equip", onClick: () => equipItem(item) }, item.type === "personas" ? "この人格を装備する" : "このE.G.Oを装備する"),
-        item.saved && h("span", { className: "roster-detail-saved" }, item.type === "personas" ? "保存済みビルドを復元して装備します" : "保存済み解析を復元して装備します")
+        item.equipped ? h("span", { className: "badge", style: { color: "var(--gold)", borderColor: "var(--gold-line)" } }, "現在装備中") : h(Button, { size: "md", variant: "primary", icon: "check", className: "roster-detail-equip", onClick: () => equipItem(item) }, presentation.equipLabel),
+        item.saved && presentation.savedLabel && h("span", { className: "roster-detail-saved" }, presentation.savedLabel)
       )
     );
   };
@@ -3285,8 +3379,8 @@ if (typeof window !== "undefined") window.LBT_libraryTabLabel = libraryTabLabel;
         (() => {
           const how = libraryTab === "personas" ? "人格を装備"
             : libraryTab === "egos" ? "E.G.Oを所持に追加または装備"
-            : libraryTab === "supports" ? "サポートを装備"
-            : libraryTab === "spirits" ? "精神を所持に追加"
+            : libraryTab === "supports" ? "ビルド側で装備するかショップで入手"
+            : libraryTab === "spirits" ? "ショップで精神を入手"
             : "「アイテム」で追加";
           return items.length === 0
             ? h("div", { className: "empty", style: { padding: "var(--s-5)" } }, filter === "all" ? `所持${label}はまだありません。${how}するとここへ保存されます。` : "この条件に一致する所持項目はありません。")
