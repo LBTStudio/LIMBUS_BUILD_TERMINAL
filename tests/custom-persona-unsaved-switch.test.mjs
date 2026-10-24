@@ -85,5 +85,5 @@ test("Persona switch, new Persona, and draft-import entry points all guard unsav
   const draftBody = source.slice(draftStart, source.indexOf("const hasActiveFilters", draftStart));
   assert.ok(equipBody.indexOf("saveUnsavedCustomPersonaBeforeSwitch(state, dispatch)") < equipBody.indexOf('dispatch({ type: "EQUIP_PERSONA"'));
   assert.ok(customBody.indexOf("saveUnsavedCustomPersonaBeforeSwitch(state, dispatch)") < customBody.indexOf('dispatch({ type: "EQUIP_CUSTOM_PERSONA"'));
-  assert.ok(draftBody.indexOf("saveUnsavedCustomPersonaBeforeSwitch(state, dispatch)") < draftBody.indexOf('dispatch({\n      type: "IMPORT_PERSONA_DRAFT"'));
+  assert.ok(draftBody.indexOf("saveUnsavedCustomPersonaBeforeSwitch(state, dispatch)") < draftBody.indexOf('type: "IMPORT_PERSONA_DRAFT"'));
 });
