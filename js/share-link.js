@@ -921,18 +921,6 @@
     return { status: "published", id: result.id, url, length: url.length };
   }
 
-  function addCloudflareFallbackParams(baseUrl, fallbacks) {
-    const url = new URL(baseUrl);
-    const sources = (fallbacks || [])
-      .filter((entry) => entry && sourceCode(entry.source) && entry.id)
-      .map((entry) => sourceCode(entry.source) + ":" + encodeURIComponent(String(entry.id)));
-    // OGP metadata is embedded in the immutable HTML stored in Workers KV. Keep the share
-    // URL compact; only fallback source IDs are needed if the KV key expires or is missing.
-    if (sources.length) url.searchParams.set("b", sources.join(","));
-    url.searchParams.set("cv", "4");
-    return url.toString();
-  }
-
   async function responseJson(response, context) {
     if (!response?.ok) throw new Error(`${context}に失敗しました（HTTP ${response?.status || "?"}）`);
     const data = await response.json();
@@ -1059,7 +1047,10 @@
       const legacyUrl = published.length
         ? shortViewerUrl(target, primary, backups, preview)
         : direct.url;
-      const url = addCloudflareFallbackParams(cloudflare.url, published);
+      // KVの短縮URLには予備保存先IDやキャッシュ世代を付けない。
+      // OGPメタデータは保存済みHTMLに含まれ、予備URLは別リンクで提供する。
+      // アイドル期限切れ後はこの短縮URLも失効するため、URL自体を最短に保てる。
+      const url = cloudflare.url;
       result = {
         ...direct,
         url,
@@ -1067,7 +1058,7 @@
         strategy: "cloudflare-kv",
         backups: [{ source: published.length ? "既存方式" : "自己完結", id: primary?.id || "", url: legacyUrl }],
         preview,
-        warning: "Cloudflare KV共有HTMLです。保存データが失効した場合は予備URLから従来方式で復元できます。"
+        warning: "Cloudflare KVの短縮URLです。予備URLは共有リンクと別に保存してください。7日間アクセスがないと短縮URLの保存データは失効します。"
       };
     } else if (published.length) {
       const primary = state?.shareImageData
