@@ -28,6 +28,11 @@ test("every support passive click/tap shows a nearby hint; the next click equips
   assert.match(component, /選択中のカードをもう一度クリック／タップするか、詳細の装備ボタンを押してください。/);
 });
 
+test("owned-only catalogue keeps death-only passives out of normal-slot candidates", () => {
+  assert.match(component, /const supportCatalog = gated \? ownedSupports\.filter\(\(entry\) => entry\.slot !== "death"\) : DB\.support_passives;/);
+  assert.match(component, /const deathCatalogSource = gated \? ownedSupports\.filter\(\(entry\) => entry\.slot === "death"\) : DB\.death_passives;/);
+});
+
 test("support passive pop stays near the tap, fits mobile widths, and respects reduced-motion", () => {
   assert.match(css, /\.support-equip-pop\s*\{[^}]*position:\s*fixed/s);
   assert.match(css, /max-width:\s*min\(240px, calc\(100vw - 24px\)\)/);

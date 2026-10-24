@@ -1168,6 +1168,11 @@ function findOwnedSupport(state, name) {
 /* 通常スロットの上限は拡張「サポートスロット追加」で3。UI（maxSupports）と
    出力（stateWithVisibleSupports）は既にそう振る舞う。reducer だけ2のままだと
    3枠目を装備した瞬間に既存が外れて消えるため、generator と同じ判定で数える。 */
+function deathSupportSlotUnlocked(state) {
+  const resolver = typeof window !== "undefined" ? window.LBT_getActiveEnhancements : null;
+  const active = typeof resolver === "function" ? resolver(state) : (state?.enhancements || []);
+  return (active || []).some((entry) => String(entry?.name || "") === "死亡後パッシブ追加");
+}
 function supportSlotLimit(state, slot) {
   if (slot === "death") return 1;
   const resolver = typeof window !== "undefined" ? window.LBT_getActiveEnhancements : null;
@@ -1192,6 +1197,7 @@ function equipRosterSupport(state, uid) {
   const roster = state.roster || {};
   const target = (roster.supports || []).find((s) => s.uid === uid);
   if (!target) return state;
+  if (target.slot === "death" && !deathSupportSlotUnlocked(state)) return state;
   const limit = supportSlotLimit(state, target.slot);
   const marked = (roster.supports || []).map((s) => (s.uid === uid ? { ...s, equipped: true } : s));
   const supports = trimSupportEquippedOverflow(marked, uid, target.slot, limit);
@@ -1712,19 +1718,26 @@ function normalizeStateShape(raw) {
        以前のデータはここに入る（帰属の断定は利用者が行う）。 */
     supports: next.roster.supports
       .filter((entry) => entry && entry.name)
-      .map((entry, index) => ({
-        uid: entry.uid || `spt-${Date.now()}-${index}`,
-        name: String(entry.name),
-        cond: String(entry.cond || ""),
-        effect: String(entry.effect || ""),
-        lp: String(entry.lp || ""),
-        slot: entry.slot === "death" ? "death" : "normal",
-        equipped: entry.equipped === true,
-        resultId: entry.resultId || null,
-        addedAt: Number(entry.addedAt) || Date.now(),
-        notes: String(entry.notes || ""),
-        ...(entry.source ? { source: String(entry.source) } : {})
-      })),
+      .map((entry, index) => {
+        // Older roster records may have no slot or may have a stale "normal" slot.
+        // The canonical death-passive roster is the migration source of truth.
+        const slot = entry.slot === "death" || isDeathSupportPassiveRecord(entry) ? "death" : "normal";
+        return {
+          uid: entry.uid || `spt-${Date.now()}-${index}`,
+          name: String(entry.name),
+          cond: String(entry.cond || ""),
+          effect: String(entry.effect || ""),
+          lp: String(entry.lp || ""),
+          slot,
+          // Normalize the slot type without silently changing an existing build's equipment.
+          // New equip/move actions still require the death-slot unlock below.
+          equipped: entry.equipped === true,
+          resultId: entry.resultId || null,
+          addedAt: Number(entry.addedAt) || Date.now(),
+          notes: String(entry.notes || ""),
+          ...(entry.source ? { source: String(entry.source) } : {})
+        };
+      }),
     spirits: next.roster.spirits
       .filter((entry) => entry && entry.name)
       .map((entry, index) => ({
@@ -4578,6 +4591,7 @@ case "ADD_CUSTOM_ITEM": {
       return { ...next, ...projectEquipmentFromRoster(next.roster) };
     }
     case "SET_DEATH_SUPPORT": {
+      if (action.spp && !deathSupportSlotUnlocked(state)) return state;
       if (!action.spp) {
         const roster = state.roster || {};
         const supports = (roster.supports || []).map((s) => (s.slot === "death" ? { ...s, equipped: false } : s));
@@ -4708,6 +4722,7 @@ case "ADD_CUSTOM_ITEM": {
       const target = (roster.supports || []).find((s) => s.uid === action.uid);
       if (!target) return state;
       const equip = action.equipped !== false;
+      if (equip && target.slot === "death" && !deathSupportSlotUnlocked(state)) return state;
       const limit = supportSlotLimit(state, target.slot);
       let supports = (roster.supports || []).map((s) => (
         s.uid === action.uid ? { ...s, equipped: equip } : s
@@ -4726,6 +4741,7 @@ case "ADD_CUSTOM_ITEM": {
       if (!target) return state;
       const slot = action.slot === "death" ? "death" : "normal";
       if (target.slot === slot) return state;
+      if (slot === "death" && !deathSupportSlotUnlocked(state)) return state;
       const limit = supportSlotLimit(state, slot);
       const others = (roster.supports || []).filter((s) => s.uid !== action.uid && s.slot === slot && s.equipped);
       const occupantUids = new Set(others.slice(0, Math.max(0, others.length + 1 - limit)).map((s) => s.uid));
@@ -4803,8 +4819,18 @@ case "ADD_CUSTOM_ITEM": {
       const target = (state.enhancements || []).find((e) => e.id === action.id);
       if (!target) return state;
       const next = { ...state, enhancements: (state.enhancements || []).filter((e) => e.id !== action.id) };
+      let nextState = next;
+      // Removing the last unlock must not leave a death-only passive active in a locked slot.
+      if (deathSupportSlotUnlocked(state) && !deathSupportSlotUnlocked(next)) {
+        const roster = next.roster || {};
+        const supports = (roster.supports || []).map((entry) => (
+          entry.slot === "death" ? { ...entry, equipped: false } : entry
+        ));
+        const nextRoster = { ...roster, supports };
+        nextState = { ...next, roster: nextRoster, ...projectEquipmentFromRoster(nextRoster) };
+      }
       /* 強化を外したら支出も戻す（残高を狂わせない）。 */
-      return dropLedgerEntriesForRef(next, { kind: "enhancement", uid: action.id });
+      return dropLedgerEntriesForRef(nextState, { kind: "enhancement", uid: action.id });
     }
     /* 所持から外したサポパ・精神は支出も戻す。 */
     case "REMOVE_ROSTER_SPIRIT": {

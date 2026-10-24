@@ -120,7 +120,10 @@ test("死亡後パッシブは所持した時点で死亡後枠に入る", () =>
 
 test("死亡後スロットは1件だけ。埋まっていれば古い方を外す", () => {
   const { reducer } = reducerOf();
-  let s = reducer(baseState(), { type: "SET_DEATH_SUPPORT", spp: { name: "覚悟" } });
+  let s = reducer({
+    ...baseState(),
+    enhancements: [{ id: "death-unlock", name: "死亡後パッシブ追加", group: "test", shards: 0 }]
+  }, { type: "SET_DEATH_SUPPORT", spp: { name: "覚悟" } });
   assert.equal(s.deathSupport?.name, "覚悟");
   assert.equal(s.supports.length, 0, "死亡後は通常枠に載らない");
 
@@ -248,7 +251,10 @@ test("所持済みでも未装備なら、装備操作（ADD_SUPPORT）で装備
 
 test("死亡後パッシブも所持済みなら SET_DEATH_SUPPORT で再装備できる", () => {
   const { reducer } = reducerOf();
-  let s = reducer(baseState(), { type: "SET_DEATH_SUPPORT", spp: { name: "覚悟" } });
+  let s = reducer({
+    ...baseState(),
+    enhancements: [{ id: "death-unlock", name: "死亡後パッシブ追加", group: "test", shards: 0 }]
+  }, { type: "SET_DEATH_SUPPORT", spp: { name: "覚悟" } });
   assert.equal(s.deathSupport?.name, "覚悟");
   s = reducer(s, { type: "SET_DEATH_SUPPORT", spp: null });
   assert.equal(s.deathSupport, null, "外れる");

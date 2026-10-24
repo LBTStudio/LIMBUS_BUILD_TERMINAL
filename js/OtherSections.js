@@ -442,7 +442,7 @@ const SupportSection = ({ state, dispatch, ownedOnly = false }) => {
      配列で影を落とし、applyFilters 内の catalogSource(s) が
      「関数ではない」という型エラーになる。出典チップを選ぶたびタブごと落ちる。
      データの名前と関数の名前を分けておく。 */
-  const supportCatalog = gated ? ownedSupports : DB.support_passives;
+  const supportCatalog = gated ? ownedSupports.filter((entry) => entry.slot !== "death") : DB.support_passives;
   const deathCatalogSource = gated ? ownedSupports.filter((entry) => entry.slot === "death") : DB.death_passives;
   const filtered = React.useMemo(() => applyFilters(supportCatalog), [query, sinFilter, lpFilter, sourceFilter, supportCatalog]);
   // 死亡後専用スロットの候補は専用DB (death_passives) を単独ソースとする。
@@ -3038,10 +3038,9 @@ function getRosterLibraryEquipBlockReason(item, state, activeEnhancements) {
       ? null
       : "死亡後専用スロットが未開放です";
   }
-  // Normal-slot capacity is handled by SET_ROSTER_SUPPORT_EQUIPPED: when full,
-  // the reducer unequips the oldest occupants and keeps the requested target equipped.
-  // Blocking here made the record library disagree with the support editor.
-  return null;
+  const maxSupports = enhancements.some((entry) => String((entry && entry.name) || "").includes("サポートスロット追加")) ? 3 : 2;
+  const equippedSupports = Array.isArray(state && state.supports) ? state.supports : [];
+  return equippedSupports.length >= maxSupports ? "スロット上限（" + maxSupports + "枠）です" : null;
 }
 
 const RosterSection = ({ state, dispatch }) => {

@@ -49,14 +49,13 @@ test("record equipment maps each library type to its dedicated reducer action", 
   assert.equal(context.getRosterLibraryEquipAction({ type: "items", entry: { uid: "i1" } }), null);
 });
 
-test("record equipment allows normal-slot replacement and still enforces death-only unlock", () => {
+test("record equipment honors normal capacity and death-only unlock constraints", () => {
   const normal = { type: "supports", entry: { uid: "s1", slot: "normal" } };
   const death = { type: "supports", entry: { uid: "s2", slot: "death" } };
-  // Full normal slots are replaced by the reducer; the UI must not block the request.
-  assert.equal(context.getRosterLibraryEquipBlockReason(normal, { supports: [{}, {}] }, []), null);
+  assert.equal(context.getRosterLibraryEquipBlockReason(normal, { supports: [{}, {}] }, []), "スロット上限（2枠）です");
   assert.equal(context.getRosterLibraryEquipBlockReason(normal, { supports: [{}] }, []), null);
-  assert.equal(context.getRosterLibraryEquipBlockReason(normal, { supports: [{}, {}, {}] }, [{ name: "サポートスロット追加" }]), null);
-  // Death-only passives still require their dedicated enhancement.
+  assert.equal(context.getRosterLibraryEquipBlockReason(normal, { supports: [{}, {}] }, [{ name: "サポートスロット追加" }]), null);
+  assert.equal(context.getRosterLibraryEquipBlockReason(normal, { supports: [{}, {}, {}] }, [{ name: "サポートスロット追加" }]), "スロット上限（3枠）です");
   assert.equal(context.getRosterLibraryEquipBlockReason(death, { supports: [] }, []), "死亡後専用スロットが未開放です");
   assert.equal(context.getRosterLibraryEquipBlockReason(death, { supports: [] }, [{ name: "死亡後パッシブ追加" }]), null);
   assert.equal(context.getRosterLibraryEquipBlockReason({ type: "egos", entry: {} }, { supports: [] }, []), null);

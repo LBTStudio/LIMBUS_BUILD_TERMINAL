@@ -101,7 +101,7 @@ test("所持ゲートはロックではなくフィルタで解除できる", ()
   assert.match(sections, /"所持のみ"/);
   /* サポート・精神はゲート方式のまま。 */
   assert.match(sections, /const gated = ownedOnly && !gateOpen;/);
-  assert.match(sections, /const supportCatalog = gated \? ownedSupports : DB\.support_passives;/);
+  assert.match(sections, /const supportCatalog = gated \? ownedSupports\.filter\(\(entry\) => entry\.slot !== "death"\) : DB\.support_passives;/);
   assert.match(sections, /if \(!gated\) return DB\.spirits;/);
   /* ゲート帯の体裁。 */
   assert.match(css, /\.owned-gate-row \{[\s\S]*?border-bottom: 1px dashed var\(--line-dim\);/);
@@ -249,7 +249,7 @@ test("build のサポートとE.G.Oの既定表示（サポートはゲート、
   assert.match(sections, /const SupportSection = \(\{ state, dispatch, ownedOnly = false \}\) => \{/);
   /* データの束縛は catalogSource と名付けない。同名の関数（出典分類）が
      影に落ちて applyFilters 内の catalogSource(s) が落ちる。 */
-  assert.match(sections, /const supportCatalog = gated \? ownedSupports : DB\.support_passives;/);
+  assert.match(sections, /const supportCatalog = gated \? ownedSupports\.filter\(\(entry\) => entry\.slot !== "death"\) : DB\.support_passives;/);
   assert.doesNotMatch(sections, /const catalogSource = gated/);
   assert.match(sections, /const deathCatalogSource = gated \? ownedSupports\.filter\(\(entry\) => entry\.slot === "death"\) : DB\.death_passives;/);
   assert.match(sections, /const EgoSection = \(\{ state, dispatch, ownedOnly: ownedOnlyProp = false \}\) => \{/);

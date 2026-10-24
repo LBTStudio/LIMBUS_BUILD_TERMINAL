@@ -87,12 +87,65 @@ test("死亡後専用スロットも配列順に関係なく操作対象を装�
   const old = { uid: "death-old", name: "既存死亡後パッシブ", slot: "death", equipped: true, cond: "", effect: "", lp: "" };
   const initial = {
     ...base(),
+    enhancements: [{ id: "death-unlock", name: "死亡後パッシブ追加", group: "test", shards: 0 }],
     roster: { personas: [], egos: [], supports: [target, old], spirits: [] }
   };
   const next = reducer(initial, { type: "SET_ROSTER_SUPPORT_EQUIPPED", uid: target.uid, equipped: true });
   assert.equal(next.roster.supports.find((entry) => entry.uid === target.uid).equipped, true);
   assert.equal(next.roster.supports.find((entry) => entry.uid === old.uid).equipped, false);
   assert.equal(next.deathSupport?.name, target.name, "死亡後専用スロットの投影も対象へ切り替わる");
+});
+
+test("死亡後専用パッシブは解除後の枠から装備できず、スロット移動も拒否する", () => {
+  const death = { uid: "locked-death", name: "ロック中の死亡後パッシブ", slot: "death", equipped: false, cond: "", effect: "", lp: "" };
+  const normal = { uid: "normal-to-death", name: "通常パッシブ", slot: "normal", equipped: false, cond: "", effect: "", lp: "" };
+  const initial = { ...base(), roster: { personas: [], egos: [], supports: [death, normal], spirits: [] } };
+
+  const directEquip = reducer(initial, { type: "SET_ROSTER_SUPPORT_EQUIPPED", uid: death.uid, equipped: true });
+  assert.equal(directEquip.roster.supports.find((entry) => entry.uid === death.uid).equipped, false);
+  assert.equal(directEquip.deathSupport ?? null, null);
+
+  const directDeathEquip = reducer(initial, { type: "SET_DEATH_SUPPORT", spp: { name: death.name } });
+  assert.equal(directDeathEquip.roster.supports.length, initial.roster.supports.length, "ロック中の直接装備は所持追加もしない");
+  assert.equal(directDeathEquip.entries.length, initial.entries.length, "ロック中は支出明細も作らない");
+
+  const addSupport = reducer(initial, { type: "ADD_SUPPORT", spp: { name: death.name } });
+  assert.equal(addSupport.roster.supports.find((entry) => entry.uid === death.uid).equipped, false);
+  assert.equal(addSupport.deathSupport ?? null, null);
+
+  const moveToDeath = reducer(initial, { type: "SET_ROSTER_SUPPORT_SLOT", uid: normal.uid, slot: "death" });
+  assert.equal(moveToDeath.roster.supports.find((entry) => entry.uid === normal.uid).slot, "normal");
+  assert.equal(moveToDeath.roster.supports.find((entry) => entry.uid === normal.uid).equipped, false);
+});
+
+test("旧セーブの死亡後パッシブはスロット分類だけ正規化し、装備状態は保持する", () => {
+  const name = db.death_passives[0].name;
+  for (const slot of ["normal", undefined]) {
+    const entry = { uid: "legacy-death-" + String(slot), name, equipped: true, cond: "", effect: "", lp: "" };
+    if (slot !== undefined) entry.slot = slot;
+    const normalized = w.LBT_normalizeStateShape({
+      ...base(),
+      roster: { personas: [], egos: [], supports: [entry], spirits: [] }
+    });
+    const migrated = normalized.roster.supports.find((row) => row.uid === entry.uid);
+    assert.equal(migrated.slot, "death");
+    assert.equal(migrated.equipped, true, "旧ビルドの装備状態を無断で解除しない");
+    assert.equal(normalized.deathSupport?.name, name, "装備済みの投影も保持する");
+  }
+});
+
+test("取り外した最後の死亡後スロット強化は、装備中の死亡後パッシブも解除する", () => {
+  const death = { uid: "equipped-death", name: "装備中の死亡後パッシブ", slot: "death", equipped: false, cond: "", effect: "", lp: "" };
+  const initial = {
+    ...base(),
+    enhancements: [{ id: "death-unlock", name: "死亡後パッシブ追加", group: "test", shards: 0 }],
+    roster: { personas: [], egos: [], supports: [death], spirits: [] }
+  };
+  const equipped = reducer(initial, { type: "SET_ROSTER_SUPPORT_EQUIPPED", uid: death.uid, equipped: true });
+  assert.equal(equipped.deathSupport?.name, death.name);
+  const locked = reducer(equipped, { type: "REMOVE_ENHANCEMENT", id: "death-unlock" });
+  assert.equal(locked.roster.supports.find((entry) => entry.uid === death.uid).equipped, false);
+  assert.equal(locked.deathSupport, null);
 });
 
 test("人格と同じ契約になっている", () => {
