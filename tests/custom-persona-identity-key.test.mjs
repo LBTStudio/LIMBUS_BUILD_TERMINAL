@@ -97,3 +97,25 @@ test("legacy custom roster entries without unique UIDs receive distinct stable k
   assert.equal(new Set(Array.from(normalized, (entry) => entry.no)).size, 2);
   assert.ok(normalized.every((entry) => entry.uid === entry.no));
 });
+
+
+test("legacy UID generation never steals a later Persona's valid stable UID", () => {
+  const stateSource = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
+  const start = stateSource.indexOf("function normalizeCustomPersonaRosterIdentity(personas) {");
+  const end = stateSource.indexOf("\nfunction normalizeStateShape(raw)", start);
+  assert.ok(start >= 0 && end > start);
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(
+    stateSource.slice(start, end) + "\nglobalThis.__normalize = normalizeCustomPersonaRosterIdentity;",
+    context
+  );
+  const normalized = context.__normalize([
+    { no: 999, mode: "custom", src: { name: "旧形式・UIDなし" } },
+    { uid: "custom-legacy-1", no: 999, mode: "custom", src: { name: "既存の安定UID" } }
+  ]);
+  assert.equal(normalized[1].uid, "custom-legacy-1");
+  assert.equal(normalized[1].no, "custom-legacy-1");
+  assert.notEqual(normalized[0].uid, normalized[1].uid);
+  assert.equal(new Set(Array.from(normalized, (entry) => entry.uid)).size, 2);
+});
