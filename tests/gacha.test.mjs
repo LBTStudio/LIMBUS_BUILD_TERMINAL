@@ -349,6 +349,6 @@ test("バッチ抽出: 非有限・過大な件数を拒否し無限ループを
     assert.throws(() => gacha.drawBatch({
       session: G.createSession({ serverSeed: "bounded-count", clientSeed: "test" }),
       kind: "themePack", pack, count, method: "ticket"
-    }), RangeError, String(count));
+    }), /count は 0〜1000 の有限値/, String(count));
   }
 });
