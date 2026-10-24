@@ -13,9 +13,9 @@ function loadViews() {
   vm.createContext(context);
   vm.runInContext(
     source.slice(start, end)
-      + "\\nglobalThis.__buildEquipped = buildEquippedDetailPersona;"
-      + "\\nglobalThis.__buildRoster = buildRosterDetailPersona;"
-      + "\\nglobalThis.__resolveEntry = resolvePersonaCodexEntry;",
+      + "\nglobalThis.__buildEquipped = buildEquippedDetailPersona;"
+      + "\nglobalThis.__buildRoster = buildRosterDetailPersona;"
+      + "\nglobalThis.__resolveEntry = resolvePersonaCodexEntry;",
     context
   );
   return context;
