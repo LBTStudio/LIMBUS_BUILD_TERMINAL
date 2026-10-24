@@ -368,18 +368,26 @@ const EquippedSummary = ({ state, dispatch, onExpand, onShowDetail, detailShown,
   const affiliation = decoratePersona(p).__aff;
   const RES_VALUES = ["普通", "脆弱", "弱点", "抵抗", "耐性", "免疫"];
 
-  /* 設計方針（Kimi K3）:
+  /* 設計方針:
      1 識別（誰か） → 2 戦闘値と耐性（数字） → 3 固有バフ（個性） → 4 キーワード → 操作。
-     名前・PL・立ち絵・INITIATIVE・COLOR・共有画像は駒整形が所有するため、ここでは
-     読み取り専用の識別表示だけを残し、編集 affordance は置かない。 */
+     人格名は同期化・手動編集モードでこの欄から編集できる。PL・立ち絵・INITIATIVE・COLOR・
+     共有画像など、卓用トークン固有の設定は駒整形側で管理する。 */
   return /* @__PURE__ */ React.createElement("div", { className: "equipped-summary esc pc-persona", "data-editable": editable ? "1" : "0" },
 
     /* @__PURE__ */ React.createElement("div", { className: "es-body" },
 
-      /* 識別: 名前の読み取り専用表示。編集は駒整形で行う。 */
+      /* 識別: 編集モードでは人格名を直接編集し、通常時は表示のみ。 */
       /* @__PURE__ */ React.createElement("div", { className: "es-idstripe" },
         /* @__PURE__ */ React.createElement("div", { className: "es-id-main" },
-          /* @__PURE__ */ React.createElement("div", { className: "es-id-name", title: displayPersonaName }, displayPersonaName),
+          editable
+            ? /* @__PURE__ */ React.createElement("input", {
+                className: "es-id-name es-id-name-input",
+                value: p.name || "",
+                onChange: (e) => patchMeta({ src: { name: e.target.value } }),
+                title: "人格名（編集モード）",
+                "aria-label": "人格名"
+              })
+            : /* @__PURE__ */ React.createElement("div", { className: "es-id-name", title: displayPersonaName }, displayPersonaName),
           /* @__PURE__ */ React.createElement("div", { className: "es-id-meta" },
             /* @__PURE__ */ React.createElement("span", { className: "es-label" }, isCustom ? "CUSTOM / 創作" : state.personaMode === "n" ? "NORMAL / 通常" : "SPECIAL / 特異"),
             primarySin && /* @__PURE__ */ React.createElement("span", { className: "es-id-sin" }, primarySin),

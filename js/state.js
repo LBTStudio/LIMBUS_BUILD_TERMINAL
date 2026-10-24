@@ -3812,7 +3812,7 @@ function appReducer(state, action) {
       const patch = action.patch || {};
       const nextSrc = state.personaSrc ? { ...state.personaSrc, ...patch.src || {} } : state.personaSrc;
       const personas = (state.roster?.personas || []).map((entry) => entry.mode === state.personaMode && String(entry.no) === String(state.personaNo)
-        ? { ...entry, displayName: nextSrc?.name || entry.displayName || "", updatedAt: Date.now() }
+        ? { ...entry, displayName: nextSrc?.name ?? entry.displayName ?? "", updatedAt: Date.now() }
         : entry);
       return {
         ...state,
