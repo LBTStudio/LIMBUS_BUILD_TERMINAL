@@ -106,9 +106,15 @@ test("従来の /s?s=... OGP URL を維持し、Rentry/Telegraph閲覧ページ�
 
 test("R2が見つからず予備保存先も使えない場合は既存リンクを提示して失敗を明示する", async () => {
   const env = makeEnv({ SHARES: makeBucket() });
-  const response = await worker.fetch(new Request("https://lbt-ogp.lbtstudio-share.workers.dev/s/ABCDEFGHIJKLMNOP?b=r%3Arentry-01&lbt_n=テスト人格"), env);
-  const html = await response.text();
-  assert.equal(response.status, 503);
-  assert.match(html, /既存の共有方式で開く/);
-  assert.match(html, /share\.html\?/);
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("not found", { status: 404 });
+  try {
+    const response = await worker.fetch(new Request("https://lbt-ogp.lbtstudio-share.workers.dev/s/ABCDEFGHIJKLMNOP?b=r%3Arentry-01&lbt_n=テスト人格"), env);
+    const html = await response.text();
+    assert.equal(response.status, 503);
+    assert.match(html, /既存の共有方式で開く/);
+    assert.match(html, /share\.html\?/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
