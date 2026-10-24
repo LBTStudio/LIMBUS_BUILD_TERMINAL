@@ -48,20 +48,67 @@
     }
   }
 
-  function reuseLastPublishedUrl(token) {
+  function isCurrentCloudflareKvUrl(value) {
+    const origin = ogpGatewayOrigin();
+    if (!origin) return false;
+    try {
+      const parsed = new URL(String(value || ""));
+      return parsed.origin === origin
+        && /^\/s\/[A-Za-z0-9_-]{16}$/.test(parsed.pathname)
+        && !parsed.search
+        && !parsed.hash;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  async function reuseLastPublishedUrl(token, state, fetchImpl) {
     const storage = localStorageLike();
     if (!storage) return null;
     try {
       const cached = JSON.parse(storage.getItem(LAST_PUBLISHED_SHARE_KEY) || "null");
       if (!cached || cached.token !== token || !/^https:\/\//.test(String(cached.url || ""))) return null;
       const previousUrl = String(cached.url);
-      // OGPカード世代を上げても、localStorageに残った旧URLをそのまま返すと
-      // 古いcvでWorker/CDNキャッシュへ当たり続ける。保存先IDは再発行せず、URLだけ現行世代へ寄せる。
-      const url = ogpGatewayUrl(previousUrl) || previousUrl;
+      let url = previousUrl;
+      let strategy = isCurrentCloudflareKvUrl(previousUrl) ? "cloudflare-kv" : (cached.strategy || "self");
+      let backups = Array.isArray(cached.backups) ? cached.backups : [];
+      const preview = cached.preview || sharePreview(state);
+      let warning = "共有内容に変更がないため、直近の共有リンクを再利用しています。";
+      let migrated = false;
+
+      // 「発行済み」キャッシュが旧URL形式でも、保存済みトークンから現在のKV APIへ再発行する。
+      // これで同じ内容を再共有した時にも /s/<ID> の最新形式になり、OGP HTMLも新規保存される。
+      if (ogpGatewayOrigin() && !isCurrentCloudflareKvUrl(previousUrl)) {
+        const published = await publishCloudflareKvShare(token, preview, [], fetchImpl);
+        if (published.status === "published") {
+          url = published.url;
+          strategy = "cloudflare-kv";
+          backups = backups.slice();
+          if (!backups.some((entry) => entry?.url === previousUrl)) {
+            backups.push({ source: "移行前の共有URL", id: "", url: previousUrl });
+          }
+          warning = "既発行の共有URLを最新のCloudflare KV短縮URLへ移行しました。移行前のURLは予備リンクとして残しています。7日間アクセスがないと短縮URLの保存データは失効します。";
+          migrated = true;
+        }
+      }
+
+      // 移行先APIが利用できない時は、従来URLを壊さず、既存のOGP経路だけ更新して再利用する。
+      if (!migrated) {
+        url = ogpGatewayUrl(previousUrl) || previousUrl;
+      }
       const length = url.length;
-      if (url !== previousUrl || Number(cached.length) !== length) {
+      const updated = {
+        ...cached,
+        url,
+        length,
+        strategy,
+        backups,
+        preview,
+        savedAt: url !== previousUrl || Number(cached.length) !== length ? Date.now() : (cached.savedAt || Date.now())
+      };
+      if (url !== previousUrl || Number(cached.length) !== length || strategy !== cached.strategy || migrated) {
         try {
-          storage.setItem(LAST_PUBLISHED_SHARE_KEY, JSON.stringify({ ...cached, url, length, savedAt: Date.now() }));
+          storage.setItem(LAST_PUBLISHED_SHARE_KEY, JSON.stringify(updated));
         } catch (_) {
           // キャッシュの更新失敗は共有URLの再利用そのものを妨げない。
         }
@@ -69,11 +116,12 @@
       return {
         url,
         length,
-        strategy: cached.strategy || "self",
-        backups: Array.isArray(cached.backups) ? cached.backups : [],
-        preview: cached.preview || null,
-        warning: "共有内容に変更がないため、直近の共有リンクを再利用しています。",
-        reused: true
+        strategy,
+        backups,
+        preview,
+        warning,
+        reused: true,
+        ...(migrated ? { migrated: true } : {})
       };
     } catch (_) {
       return null;
@@ -1027,7 +1075,7 @@
     const shareImageCheck = validateShareImageForPublish(state);
     if (!shareImageCheck.ok) throw new Error(shareImageCheck.message);
     const token = await encodeState(state);
-    const reused = reuseLastPublishedUrl(token);
+    const reused = await reuseLastPublishedUrl(token, state, fetchImpl);
     if (reused) return reused;
     const direct = createUrlFromToken(token, baseUrl);
     const target = shareBaseUrl(baseUrl);
