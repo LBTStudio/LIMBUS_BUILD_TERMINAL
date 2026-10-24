@@ -3819,8 +3819,19 @@ return appendLedgerEntry(next, {
     }
     case "REMOVE_ROSTER_BATCH": {
       const ids = new Set(action.uids || []);
-      const personas = (state.roster.personas || []).filter((entry) => !ids.has(entry.uid));
-      const next = { ...state, roster: { ...state.roster, personas } };
+      const currentIsRemoved = state.personaMode != null && state.personaNo != null
+        && (state.roster.personas || []).some((entry) => ids.has(entry.uid)
+          && entry.mode === state.personaMode && String(entry.no) === String(state.personaNo));
+      const remaining = (state.roster.personas || []).filter((entry) => !ids.has(entry.uid));
+      /* Deleting the active custom Persona must not leave an equipped object that
+         no longer exists in the owned roster. Keep the current fields as an editable
+         draft, but detach the deleted identity and clear all equipped flags. */
+      const personas = currentIsRemoved ? remaining.map((entry) => ({ ...entry, equipped: false })) : remaining;
+      const next = {
+        ...state,
+        roster: { ...state.roster, personas },
+        ...(currentIsRemoved ? { personaMode: null, personaNo: null, personaSrc: null, syncedManual: false } : {})
+      };
       return dropLedgerEntriesForRefs(next, "rosterPersona", ids);
     }
     case "REMOVE_ROSTER_EGO_BATCH": {
@@ -3859,6 +3870,18 @@ return appendLedgerEntry(next, {
       const next = { ...state, roster: { ...state.roster, personas } };
       // V16: 削除された人格を装備中なら、編集内容を破棄して DB 既定へリセットする。
       if (removed && state.personaSrc && removed.mode === state.personaMode && String(removed.no) === String(state.personaNo)) {
+        /* A custom Persona has no DB fallback. Removing it must clear the active
+           identity rather than leaving an unowned, still-equipped ghost Persona. */
+        if (removed.mode === "custom") {
+          return {
+            ...next,
+            personaMode: null,
+            personaNo: null,
+            personaSrc: null,
+            syncedManual: false,
+            roster: { ...next.roster, personas: personas.map((entry) => ({ ...entry, equipped: false })) }
+          };
+        }
         const srcPool = removed.mode === "n" ? (window.DB?.normal_personas || [])
           : removed.mode === "t" ? (window.DB?.tokui_personas || []) : [];
         const dbSrc = srcPool.find((x) => String(x.no) === String(removed.no));
