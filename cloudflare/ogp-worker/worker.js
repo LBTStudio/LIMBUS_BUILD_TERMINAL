@@ -244,7 +244,7 @@ async function publishShare(request, env) {
     return jsonResponse({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405, allowedOrigin);
   }
   if (!env.SHARES || typeof env.SHARES.put !== "function") {
-    return jsonResponse({ ok: false, error: "R2_NOT_CONFIGURED" }, 503, allowedOrigin);
+    return jsonResponse({ ok: false, error: "KV_NOT_CONFIGURED" }, 503, allowedOrigin);
   }
 
   const declaredSize = Number(request.headers.get("Content-Length") || 0);
@@ -287,15 +287,9 @@ async function publishShare(request, env) {
   const html = renderShell({ preview, iframeUrl, legacyUrl, canonicalUrl: shareUrl }, env);
 
   try {
-    await env.SHARES.put("s/" + id, html, {
-      httpMetadata: {
-        contentType: "text/html; charset=utf-8",
-        cacheControl: "public, max-age=0, s-maxage=86400",
-      },
-      customMetadata: { schema: "1", createdAt: new Date().toISOString() },
-    });
+    await env.SHARES.put("s/" + id, html);
   } catch (_) {
-    return jsonResponse({ ok: false, error: "R2_WRITE_FAILED" }, 503, allowedOrigin);
+    return jsonResponse({ ok: false, error: "KV_WRITE_FAILED" }, 503, allowedOrigin);
   }
 
   return jsonResponse({ ok: true, id, url: shareUrl }, 201, allowedOrigin);
@@ -307,17 +301,9 @@ async function getShare(request, env, id) {
   const queryPreview = previewFromUrl(url);
   if (env.SHARES && typeof env.SHARES.get === "function") {
     try {
-      const object = await env.SHARES.get("s/" + id);
-      if (object) {
-        const body = object.body || await object.text();
-        const headers = new Headers({
-          "Content-Type": object.httpMetadata?.contentType || "text/html; charset=utf-8",
-          "Cache-Control": object.httpMetadata?.cacheControl || ("public, max-age=0, s-maxage=" + SHARE_TTL_SECONDS),
-          "X-Content-Type-Options": "nosniff",
-          "Referrer-Policy": "no-referrer",
-          "Content-Security-Policy": RESPONSE_CSP,
-        });
-        return new Response(body, { headers });
+      const html = await env.SHARES.get("s/" + id, "text");
+      if (typeof html === "string" && html.length > 0) {
+        return buildResponse(html, { cacheControl: "public, max-age=0, s-maxage=" + SHARE_TTL_SECONDS });
       }
     } catch (_) {
       // R2 read failure: try the independently stored Rentry/Telegraph copy below.
@@ -380,7 +366,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === API_PATH) return publishShare(request, env);
-    if (url.pathname === "/healthz") return jsonResponse({ ok: true, r2Configured: Boolean(env.SHARES) }, 200);
+    if (url.pathname === "/healthz") return jsonResponse({ ok: true, kvConfigured: Boolean(env.SHARES) }, 200);
     if (url.pathname === "/d" && request.method === "GET") return handleLegacyDownload(request, env);
     if (url.pathname === "/s" && request.method === "GET") return handleLegacyOgp(request, env);
     const shareMatch = /^\/s\/([A-Za-z0-9_-]{16})$/.exec(url.pathname);
