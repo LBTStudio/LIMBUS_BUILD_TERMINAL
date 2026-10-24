@@ -1201,7 +1201,7 @@ function equipRosterSupport(state, uid) {
      通常枠へ装備され、出力へ流れてしまう。 */
   let normalizedSupports = (roster.supports || []).map((s) => ({
     ...s,
-    slot: s.slot === "death" || isDeathSupportPassiveRecord(s) ? "death" : "normal"
+    slot: isDeathSupportPassiveRecord(s) ? "death" : "normal"
   }));
   const unlocked = deathSupportSlotUnlocked(state);
   if (!unlocked) {
