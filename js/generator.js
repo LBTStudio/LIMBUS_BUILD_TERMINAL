@@ -1464,6 +1464,7 @@ function buildShareSheetHTML(state) {
     return chars.length > max ? `${chars.slice(0, max - 1).join("")}…` : chars.join("");
   };
   const sharedPersonaName = p.personaSrc ? clipShareMeta(personaName) : "";
+  const sharedAffiliation = p.personaSrc?.affiliation ? clipShareMeta(p.personaSrc.affiliation, 32) : "";
   const sharedPcName = clipShareMeta(p.charName || "PC", 36);
   // メモは共有トークンに含めず、シート内容から作ったローカルキーで端末内にだけ保存する。
   const noteIdentity = JSON.stringify({
@@ -1486,8 +1487,9 @@ function buildShareSheetHTML(state) {
   const syncLabel = p.personaSrc && showSyncRank && personaSync.syncRank ? `・同期${personaSync.syncRank}${personaSync.syncMax ? " MAX" : ""}` : "";
   // 人格データがある共有では、Discordの小さなタイトル枠で最初に人格名を読めることを最優先する。
   const shareTitle = sharedPersonaName ? `【人格】${sharedPersonaName}｜LBT` : `${sharedPcName}｜LIMBUS BUILD TERMINAL キャラクターシート`;
+  const affiliationLabel = sharedAffiliation ? `所属：${sharedAffiliation}` : "";
   const shareDescription = sharedPersonaName
-    ? `共有人格プリセット：${sharedPersonaName}${syncLabel}。PC ${sharedPcName} / HP ${shareHp} / SAN ${shareSan} / 速度 ${p.speed || "—"}。CCFOLIA用キャラクターシート`
+    ? `共有人格プリセット：${sharedPersonaName}${affiliationLabel ? ` / ${affiliationLabel}` : ""}${syncLabel}。PC ${sharedPcName} / HP ${shareHp} / SAN ${shareSan} / 速度 ${p.speed || "—"}。CCFOLIA用キャラクターシート`
     : `LIMBUS BUILD TERMINALで作成されたキャラクターシート。HP ${shareHp} / SAN ${shareSan} / 速度 ${p.speed || "—"}。CCFOLIA用TRPGキャラクターシート`;
   // Base infoで設定した共有画像は自己完結HTMLでは直接OGPメタにも使える。
   // 静的share.htmlのDiscordカードはサーバー側動的headが必要なため、既定カードを維持する。
@@ -1937,7 +1939,7 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
 </style></head><body>
 <div class="wrap">
 	  <header class="hd">
-    ${p.personaSrc ? `<div class="persona-line share-at-a-glance"><span class="lbl">\u4EBA\u683C</span><span class="val">${esc(personaName)}</span>${p.personaMode === "t" ? '<span class="lbl" style="background:rgba(212,175,95,0.2)">\u7279\u7570</span>' : ""}<span class="lbl">HP ${esc(shareHp)}</span><span class="lbl">SAN ${esc(shareSan)}</span>${showSyncRank && personaSync.syncRank ? `<span class="lbl">\u540C\u671F${esc(personaSync.syncRank)}</span>` : ""}${personaSync.syncMax ? '<span class="lbl sync-max">\u540C\u671FMAX</span>' : ""}</div>` : ""}
+    ${p.personaSrc ? `<div class="persona-line share-at-a-glance"><span class="lbl">\u4EBA\u683C</span><span class="val">${esc(personaName)}</span>${sharedAffiliation ? `<span class="lbl affiliation-label">所属 ${esc(sharedAffiliation)}</span>` : ""}${p.personaMode === "t" ? '<span class="lbl" style="background:rgba(212,175,95,0.2)">\u7279\u7570</span>' : ""}<span class="lbl">HP ${esc(shareHp)}</span><span class="lbl">SAN ${esc(shareSan)}</span>${showSyncRank && personaSync.syncRank ? `<span class="lbl">\u540C\u671F${esc(personaSync.syncRank)}</span>` : ""}${personaSync.syncMax ? '<span class="lbl sync-max">\u540C\u671FMAX</span>' : ""}</div>` : ""}
     <div class="hd-plpc">
       <span><b>\u3010PC\u3011</b>${esc(p.charName || "\u2014")}</span>
       ${p.plName ? `<span><b>\u3010PL\u3011</b>${esc(p.plName)}</span>` : ""}
