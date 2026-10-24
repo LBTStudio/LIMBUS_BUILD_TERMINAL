@@ -1361,9 +1361,7 @@ function normalizeCustomPersonaRosterIdentity(personas) {
     const sourceNo = String(entry.no ?? "").trim();
     let uid = String(entry.uid || "").trim();
     if (!uid || seen.has(uid)) {
-      const label = String(entry.displayName || entry.src?.name || entry.name || "").trim()
-        .toLowerCase().replace(/[^a-z0-9\\u3040-\\u30ff\\u3400-\\u9fff-]+/g, "-").replace(/^-+|-+$/g, "");
-      const base = sourceNo && sourceNo !== "999" ? sourceNo : `custom-${label || index + 1}`;
+      const base = sourceNo && sourceNo !== "999" ? sourceNo : `custom-legacy-${index + 1}`;
       uid = base;
       let suffix = 2;
       while (seen.has(uid)) uid = `${base}-${suffix++}`;
