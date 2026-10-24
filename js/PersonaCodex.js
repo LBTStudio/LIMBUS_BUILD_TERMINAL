@@ -530,6 +530,8 @@ function buildEquippedDetailPersona(state) {
   const pick = (v, fallback) => (v === void 0 || v === null ? fallback : v);
   return {
     ...src,
+    // Custom roster identity lives in personaNo; source.no may be the shared placeholder 999.
+    no: state.personaMode === "custom" ? state.personaNo : src.no,
     hp: pick(state.hp, src.hp) ?? "",
     san: pick(state.san, src.san) ?? "",
     speed: pick(state.speed, src.speed) ?? "",
@@ -585,10 +587,12 @@ function buildRosterDetailPersona(entry, fallback) {
   if (!build) {
     if (!fallback) return fallback;
     const resolvedName = resolvePersonaDisplayName(entry, fallback.name);
-    return resolvedName === fallback.name ? fallback : { ...fallback, name: resolvedName };
+    const persona = resolvedName === fallback.name ? fallback : { ...fallback, name: resolvedName };
+    // Keep custom rows keyed by their roster UID, even when their source uses no=999.
+    return entry?.mode === "custom" ? { ...persona, no: entry.no } : persona;
   }
   const source = build.personaSrc && typeof build.personaSrc === "object" ? build.personaSrc : {};
-  const persona = { ...fallback, ...source, no: fallback?.no };
+  const persona = { ...fallback, ...source, no: entry?.mode === "custom" ? entry.no : fallback?.no };
   return {
     ...persona,
     hp: build.hp ?? persona.hp,
