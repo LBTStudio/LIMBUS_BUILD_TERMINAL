@@ -1718,19 +1718,24 @@ function normalizeStateShape(raw) {
        以前のデータはここに入る（帰属の断定は利用者が行う）。 */
     supports: next.roster.supports
       .filter((entry) => entry && entry.name)
-      .map((entry, index) => ({
-        uid: entry.uid || `spt-${Date.now()}-${index}`,
-        name: String(entry.name),
-        cond: String(entry.cond || ""),
-        effect: String(entry.effect || ""),
-        lp: String(entry.lp || ""),
-        slot: entry.slot === "death" ? "death" : "normal",
-        equipped: entry.equipped === true,
-        resultId: entry.resultId || null,
-        addedAt: Number(entry.addedAt) || Date.now(),
-        notes: String(entry.notes || ""),
-        ...(entry.source ? { source: String(entry.source) } : {})
-      })),
+      .map((entry, index) => {
+        // Older roster records may have no slot or may have a stale "normal" slot.
+        // The canonical death-passive roster is the migration source of truth.
+        const slot = entry.slot === "death" || isDeathSupportPassiveRecord(entry) ? "death" : "normal";
+        return {
+          uid: entry.uid || `spt-${Date.now()}-${index}`,
+          name: String(entry.name),
+          cond: String(entry.cond || ""),
+          effect: String(entry.effect || ""),
+          lp: String(entry.lp || ""),
+          slot,
+          equipped: entry.equipped === true && (slot !== "death" || deathSupportSlotUnlocked(next)),
+          resultId: entry.resultId || null,
+          addedAt: Number(entry.addedAt) || Date.now(),
+          notes: String(entry.notes || ""),
+          ...(entry.source ? { source: String(entry.source) } : {})
+        };
+      }),
     spirits: next.roster.spirits
       .filter((entry) => entry && entry.name)
       .map((entry, index) => ({
@@ -1759,7 +1764,7 @@ function normalizeStateShape(raw) {
       effect: String(entry.effect || ""),
       lp: String(entry.lp || ""),
       slot: isDeath ? "death" : "normal",
-      equipped: true,
+      equipped: !isDeath || deathSupportSlotUnlocked(next),
       resultId: null,
       addedAt: Date.now(),
       notes: ""
@@ -1775,7 +1780,7 @@ function normalizeStateShape(raw) {
       effect: String(next.deathSupport.effect || ""),
       lp: String(next.deathSupport.lp || ""),
       slot: isDeath ? "death" : "normal",
-      equipped: true,
+      equipped: !isDeath || deathSupportSlotUnlocked(next),
       resultId: null,
       addedAt: Date.now(),
       notes: ""
