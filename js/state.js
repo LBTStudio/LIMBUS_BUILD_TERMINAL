@@ -1729,7 +1729,9 @@ function normalizeStateShape(raw) {
           effect: String(entry.effect || ""),
           lp: String(entry.lp || ""),
           slot,
-          equipped: entry.equipped === true && (slot !== "death" || deathSupportSlotUnlocked(next)),
+          // Normalize the slot type without silently changing an existing build's equipment.
+          // New equip/move actions still require the death-slot unlock below.
+          equipped: entry.equipped === true,
           resultId: entry.resultId || null,
           addedAt: Number(entry.addedAt) || Date.now(),
           notes: String(entry.notes || ""),
@@ -1764,7 +1766,7 @@ function normalizeStateShape(raw) {
       effect: String(entry.effect || ""),
       lp: String(entry.lp || ""),
       slot: isDeath ? "death" : "normal",
-      equipped: !isDeath || deathSupportSlotUnlocked(next),
+      equipped: true,
       resultId: null,
       addedAt: Date.now(),
       notes: ""
@@ -1780,7 +1782,7 @@ function normalizeStateShape(raw) {
       effect: String(next.deathSupport.effect || ""),
       lp: String(next.deathSupport.lp || ""),
       slot: isDeath ? "death" : "normal",
-      equipped: !isDeath || deathSupportSlotUnlocked(next),
+      equipped: true,
       resultId: null,
       addedAt: Date.now(),
       notes: ""
