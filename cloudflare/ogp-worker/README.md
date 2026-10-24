@@ -19,7 +19,7 @@ The live Worker is currently managed outside this repository. Do not deploy a ne
 3. Merge `worker.js` into the current Worker or deploy it after verifying all existing endpoints. Configure the R2 binding named `SHARES` to the bucket.
 4. Add the `SHARE_PUBLISH_LIMIT` rate limit binding (10 publish operations per IP per 60 seconds, per Cloudflare location). The limit is a best-effort abuse guard, not a globally strict quota.
 5. Verify the Worker name/account subdomain matches `SHARE_PUBLIC_ORIGIN`. The app currently validates the existing `lbt-ogp.*.workers.dev` origin.
-6. Deploy with Wrangler 4.x (the `[cache]` section needs a version supporting Workers Cache) or configure equivalent Worker response caching. The immutable share HTML uses `s-maxage=86400` so cached reads can bypass Worker execution after the first cache miss at an edge.
+6. Deploy with Wrangler 4.69.0 or newer (the `[cache]` section requires Workers Cache support) or configure equivalent Worker response caching. The immutable share HTML uses `s-maxage=86400` so cached reads can bypass Worker execution after the first cache miss at an edge.
 7. Verify `GET /healthz` returns `r2Configured: true`; verify POST publish from the GitHub Pages origin; open the generated `/s/<id>` URL; paste it into Discord and confirm its OGP card.
 8. Test a forced R2 miss and confirm `b=` fallback sources open the preserved Rentry/Telegraph data. Also test with the new endpoint disabled: the app should continue to create a legacy share URL.
 
