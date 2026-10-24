@@ -5109,6 +5109,7 @@ case "ADD_ENTRY":
         supports: [],
         deathSupport: null,
         egoSlots: emptyEgoSlots,
+        egoManual: false,
         enhancements: [],
         formulas: [],
         customStatuses: [],
@@ -5227,6 +5228,7 @@ case "ADD_ENTRY":
         supports: isAffiliated ? cloneJSON(state.supports || []) : [],
         deathSupport: isAffiliated && state.deathSupport ? cloneJSON(state.deathSupport) : null,
         egoSlots: isAffiliated ? cloneJSON(state.egoSlots || emptyEgoSlots) : emptyEgoSlots,
+        egoManual: isAffiliated ? !!state.egoManual : false,
         enhancements: isAffiliated ? cloneJSON(state.enhancements || []) : [],
         formulas: isAffiliated ? cloneJSON(state.formulas || []) : [],
         customStatuses: isAffiliated ? cloneJSON(state.customStatuses || []) : [],
@@ -5306,7 +5308,7 @@ case "ADD_ENTRY":
         syncedManual: true,
         ...(isAffiliated ? {} : {
           spirit: "", spiritMorale: "", spiritConfuse: "", spiritAlways: "",
-          supports: [], deathSupport: null, egoSlots: emptyEgoSlots, enhancements: [],
+          supports: [], deathSupport: null, egoSlots: emptyEgoSlots, egoManual: false, enhancements: [],
           formulas: [], customStatuses: [], initiative: 0
         }),
         hp: String(effectiveSrc.hp ?? 100),
