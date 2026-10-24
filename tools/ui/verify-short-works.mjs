@@ -6,7 +6,7 @@ import vm from "node:vm";
  * 確認すべき点:
  *   1. 発行される URL に圧縮 token が戻っていないか
  *   2. その URL から実際にシートが復元できるか（round-trip）
- *   3. 短縮前より長くなっていても、復元laces できるなら「短縮」の目的は達成
+ *   3. 短縮前より長くなっていても、実際に復元できるなら「短縮」の目的は達成
  */
 
 // 実通信は行わず、外部保存先の本文・取得応答まで保持するテスト用fetch。
@@ -98,9 +98,9 @@ console.log("\n=== 3. 短縮率 ===");
 console.log(`  自己完結 → 分散保存: ${selfUrl.length} → ${pub.length} 文字 (${Math.round((1 - pub.length / selfUrl.length) * 100)}% 短縮)`);
 console.log(`  分散保存 vs 上限1900: ${pub.length} / 1900`);
 
-console.log("\n=== 4. 復元可能性（token が外部にあれば実服务器が必要）===");
+console.log("\n=== 4. 復元可能性（保存先へのmock往復）===");
 console.log(`  発行 URL に含まれるもの: 保存先 ID のみ`);
-console.log(`  → 実データ（token）は Rentry / Telegraph にあり、URL からは復元できない`);
+console.log(`  → 実データ（token）はRentry / Telegraphの保存本文へ格納され、URL内には含まれない`);
 console.log(`  → 復元は sheet-open 時に share.html が保存先から取得して行う設計`);
 
 // 公開URLから保存先IDを逆引きし、モックの保存先本文から実データtokenを取得して復元する。
