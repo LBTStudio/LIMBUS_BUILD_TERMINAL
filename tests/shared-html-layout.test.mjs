@@ -88,3 +88,16 @@ test("共有HTML内検索は折り畳み内も検索し、標準検索を無効�
   assert.match(html, /parent\.open = true/, "利用者が「この項目を開く」を押した時だけ祖先のdetailsを開く");
   assert.match(html, /textContent = snippet\.slice\(pos, pos \+ query\.length\)/, "検索語を安全に文字列として表示する");
 });
+
+
+test("共有HTMLの個人メモはシート別に端末保存し、共有URLには含めない", () => {
+  const html = sampleShareHtml();
+  assert.match(html, /class="share-private-notes" data-storage-key="lbt-share-note-v1-[0-9a-f]+"/);
+  assert.match(html, /id="share-private-notes-input" maxlength="5000"/);
+  assert.match(html, /メモはこのブラウザ内にのみ保存され、共有URLや他の閲覧者には送信されません。/);
+  assert.match(html, /localStorage\.getItem\(storageKey\)/);
+  assert.match(html, /localStorage\.setItem\(storageKey, input\.value\)/);
+  assert.match(html, /localStorage\.removeItem\(storageKey\)/);
+  assert.match(html, /この端末のメモを消去/);
+  assert.match(html, /const searchableSelector = "\.hd,\.skl,\.ego,\.spp,\.share-unique,\.share-item,\.panel,\.stat,\.res,\.foot"/);
+});

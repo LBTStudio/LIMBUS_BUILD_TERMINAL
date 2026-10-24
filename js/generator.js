@@ -1465,6 +1465,21 @@ function buildShareSheetHTML(state) {
   };
   const sharedPersonaName = p.personaSrc ? clipShareMeta(personaName) : "";
   const sharedPcName = clipShareMeta(p.charName || "PC", 36);
+  // メモは共有トークンに含めず、シート内容から作ったローカルキーで端末内にだけ保存する。
+  const noteIdentity = JSON.stringify({
+    charName: p.charName || "", plName: p.plName || "", personaMode: p.personaMode || "",
+    personaNo: p.personaNo ?? "", personaSrc: p.personaSrc || null,
+    hp: p.hp ?? "", san: p.san ?? "", speed: p.speed ?? "", bullets: p.bullets ?? "",
+    skills: p.skills || [], supports: p.supports || [], deathSupport: p.deathSupport || null,
+    egoSlots: p.egoSlots || {}, enhancements: p.enhancements || [], spirit: p.spirit || "",
+    pas: p.pas || null, extraPassives: p.extraPassives || [], inventory: p.inventory || []
+  });
+  let noteHash = 2166136261;
+  for (let i = 0; i < noteIdentity.length; i++) {
+    noteHash ^= noteIdentity.charCodeAt(i);
+    noteHash = Math.imul(noteHash, 16777619);
+  }
+  const shareNoteKey = "lbt-share-note-v1-" + (noteHash >>> 0).toString(16);
   const shareEnhancements = computeEnhancementBonuses(p);
   const shareHp = p.hp === "" || p.hp == null ? "—" : String((parseInt(p.hp, 10) || 0) + shareEnhancements.hp);
   const shareSan = p.san === "" || p.san == null ? "—" : String((parseInt(p.san, 10) || 0) + shareEnhancements.san);
@@ -1760,6 +1775,19 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
  @media(max-width:640px){.share-search{padding:10px}.share-search-clear,.share-search-open{padding:8px 10px}.share-search-snippet{font-size:13.5px}}
  @media print{.share-search{display:none!important}}
 
+
+/* 個人メモは閲覧者の端末にだけ保存。共有ペイロードには含めない。 */
+.share-private-notes{margin:0 0 22px;padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:3px}
+.share-private-notes-title{display:block;margin:0 0 7px;color:var(--gold-hi);font-size:14px;font-weight:700}
+.share-private-notes textarea{display:block;width:100%;min-height:116px;resize:vertical;padding:10px 12px;border:1px solid var(--line);border-radius:3px;background:var(--bg);color:var(--tx);font:inherit;font-size:14px;line-height:1.7}
+.share-private-notes textarea:focus-visible,.share-private-notes button:focus-visible{outline:2px solid var(--gold-hi);outline-offset:2px}
+.share-private-notes-actions{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:7px}
+.share-private-notes-status,.share-private-notes-help{margin:0;color:var(--tx3);font-size:12px;line-height:1.6}
+.share-private-notes-clear{flex:none;padding:7px 10px;border:1px solid var(--line);border-radius:3px;background:transparent;color:var(--tx2);font:inherit;font-size:12px;cursor:pointer}
+.share-private-notes-clear:hover{border-color:var(--gold);color:var(--gold-hi)}
+@media(max-width:640px){.share-private-notes{padding:10px}.share-private-notes textarea{font-size:16px}.share-private-notes-clear{padding:8px 10px}}
+@media print{.share-private-notes{display:none!important}}
+
 /* --- Stats --- */
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px}
 .stat{padding:10px 14px;background:var(--panel2);border:1px solid var(--line);border-radius:2px}
@@ -1927,6 +1955,15 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
     <p id="share-search-status" class="share-search-status" role="status" aria-live="polite"></p>
     <ol id="share-search-results" class="share-search-results" hidden></ol>
   </section>
+  <section class="share-private-notes" data-storage-key="${shareNoteKey}" aria-labelledby="share-private-notes-title">
+    <label id="share-private-notes-title" class="share-private-notes-title" for="share-private-notes-input">個人メモ（このブラウザに保存）</label>
+    <textarea id="share-private-notes-input" maxlength="5000" rows="4" placeholder="このシートについてのメモ、確認事項、作戦案など…" aria-describedby="share-private-notes-help share-private-notes-status"></textarea>
+    <p id="share-private-notes-help" class="share-private-notes-help">メモはこのブラウザ内にのみ保存され、共有URLや他の閲覧者には送信されません。</p>
+    <div class="share-private-notes-actions">
+      <p id="share-private-notes-status" class="share-private-notes-status" role="status" aria-live="polite">メモを読み込んでいます…</p>
+      <button id="share-private-notes-clear" type="button" class="share-private-notes-clear">この端末のメモを消去</button>
+    </div>
+  </section>
   <div class="stats">
     <div class="stat"><div class="lbl">HP</div><div class="val">${esc(shareHp)}</div></div>
     <div class="stat"><div class="lbl">SAN</div><div class="val">${esc(shareSan)}</div></div>
@@ -2068,6 +2105,47 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
      printOpenStates = null;
    });
    status.textContent = "折り畳み内も検索対象です。検索だけではセクションは開きません。";
+ })();
+ </script>
+
+ <script>
+ (() => {
+   const input = document.getElementById("share-private-notes-input");
+   const clear = document.getElementById("share-private-notes-clear");
+   const status = document.getElementById("share-private-notes-status");
+   const panel = document.querySelector(".share-private-notes");
+   const storageKey = panel && panel.dataset.storageKey;
+   if (!input || !clear || !status || !storageKey) return;
+   let storageAvailable = true;
+   try {
+     input.value = localStorage.getItem(storageKey) || "";
+     status.textContent = "このブラウザに保存されています。入力内容は自動保存されます。";
+   } catch (_) {
+     storageAvailable = false;
+     status.textContent = "この環境では保存できません。入力内容はページを開いている間だけ保持されます。";
+   }
+   input.addEventListener("input", () => {
+     if (!storageAvailable) return;
+     try {
+       if (input.value.length) localStorage.setItem(storageKey, input.value);
+       else localStorage.removeItem(storageKey);
+       status.textContent = "このブラウザに保存済み";
+     } catch (_) {
+       storageAvailable = false;
+       status.textContent = "保存できません。入力内容はページを開いている間だけ保持されます。";
+     }
+   });
+   clear.addEventListener("click", () => {
+     input.value = "";
+     try {
+       localStorage.removeItem(storageKey);
+       storageAvailable = true;
+       status.textContent = "この端末のメモを消去しました。";
+     } catch (_) {
+       status.textContent = "保存データを消去できませんでした。";
+     }
+     input.focus();
+   });
  })();
  </script>
 </div></body></html>`;
