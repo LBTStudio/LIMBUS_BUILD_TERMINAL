@@ -913,20 +913,22 @@
     const url = String(result.url || (origin + "/s/" + result.id));
     try {
       const parsed = new URL(url);
-      if (parsed.protocol !== "https:" || parsed.pathname !== ("/s/" + result.id)) return { status: "unavailable" };
+      if (parsed.protocol !== "https:" || parsed.origin !== origin
+        || parsed.pathname !== ("/s/" + result.id) || parsed.search || parsed.hash) return { status: "unavailable" };
     } catch (_) {
       return { status: "unavailable" };
     }
     return { status: "published", id: result.id, url, length: url.length };
   }
 
-  function addCloudflareFallbackParams(baseUrl, fallbacks, preview) {
+  function addCloudflareFallbackParams(baseUrl, fallbacks) {
     const url = new URL(baseUrl);
     const sources = (fallbacks || [])
       .filter((entry) => entry && sourceCode(entry.source) && entry.id)
       .map((entry) => sourceCode(entry.source) + ":" + encodeURIComponent(String(entry.id)));
+    // OGP metadata is embedded in the immutable HTML stored in R2. Keep the share
+    // URL compact; only fallback source IDs are needed if the R2 object disappears.
     if (sources.length) url.searchParams.set("b", sources.join(","));
-    appendPreviewParams(url.searchParams, preview);
     url.searchParams.set("cv", "4");
     return url.toString();
   }
@@ -1057,7 +1059,7 @@
       const legacyUrl = published.length
         ? shortViewerUrl(target, primary, backups, preview)
         : direct.url;
-      const url = addCloudflareFallbackParams(cloudflare.url, published, preview);
+      const url = addCloudflareFallbackParams(cloudflare.url, published);
       result = {
         ...direct,
         url,
