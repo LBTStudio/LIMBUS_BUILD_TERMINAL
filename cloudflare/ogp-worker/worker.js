@@ -306,7 +306,7 @@ async function getShare(request, env, id) {
         return buildResponse(html, { cacheControl: "public, max-age=0, s-maxage=" + SHARE_TTL_SECONDS });
       }
     } catch (_) {
-      // R2 read failure: try the independently stored Rentry/Telegraph copy below.
+      // KV read failure or a missing key: try the independently stored Rentry/Telegraph copy below.
     }
   }
 
