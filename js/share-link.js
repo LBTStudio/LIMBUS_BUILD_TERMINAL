@@ -613,6 +613,7 @@
       hp: displayStatus(state, "hp"),
       san: displayStatus(state, "san"),
       speed: speedValue ? clipOgpCardText(speedValue, 16) : "",
+      hasShareImage: Boolean(state?.shareImageData),
       syncRank: selected?.syncRank || "",
       syncMax: selected?.syncMax === true
     };
@@ -791,6 +792,8 @@
     if (preview.speed) params.set("lbt_spd", preview.speed);
     if (preview.syncRank) params.set("lbt_sync", preview.syncRank);
     if (preview.syncMax) params.set("lbt_max", "1");
+    // 古いリンクとの互換性を守るため、画像なしも明示して軽量OGP経路の利用条件にする。
+    params.set("lbt_img", preview.hasShareImage ? "1" : "0");
   }
 
   function externalViewerUrl(baseUrl, source, id, fallbacks = [], preview = null) {
@@ -833,7 +836,7 @@
     const withSummary = `${base}&${params.toString()}`;
     if (withSummary.length > PRACTICAL_DISCORD_URL_LENGTH) {
       const url = new URL(withSummary);
-      for (const key of ["lbt_n", "lbt_hp", "lbt_san", "lbt_spd", "lbt_sync", "lbt_max"]) url.searchParams.delete(key);
+      for (const key of ["lbt_n", "lbt_hp", "lbt_san", "lbt_spd", "lbt_sync", "lbt_max", "lbt_img"]) url.searchParams.delete(key);
       const trimmed = url.toString();
       return trimmed.length <= PRACTICAL_DISCORD_URL_LENGTH ? trimmed : base;
     }
@@ -1134,7 +1137,7 @@
     const san = String(params.get("lbt_san") || "").trim().replace(/[^0-9?—-]/g, "").slice(0, 8);
     const speed = String(params.get("lbt_spd") || "").trim().replace(/[\u0000-\u001F\u007F]/g, "").slice(0, 16);
     const syncRank = ["0", "00", "000"].includes(params.get("lbt_sync") || "") ? params.get("lbt_sync") : "";
-    return { personaName, hp, san, speed, syncRank, syncMax: params.get("lbt_max") === "1" };
+    return { personaName, hp, san, speed, syncRank, syncMax: params.get("lbt_max") === "1", hasShareImage: params.get("lbt_img") === "1" };
   }
 
   window.LBT_shareLink = {
