@@ -97,3 +97,4 @@ const broken = over.length > 0 || sumLens[sumLens.length - 1] > LIMIT;
 console.log(broken
   ? "短縮仕様が損なわれている"
   : "短縮仕様は保たれている。summary は ID 短縮の効果を壊さず、1900 文字の枠内で収まっている");
+if (broken) process.exitCode = 1;
