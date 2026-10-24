@@ -1,44 +1,106 @@
-# Cloudflare R2共有HTML・OGPの設定手順
+# 完全無料で導入する共有URL・OGP（Workers Free + KV）
 
-このディレクトリには、既存の `lbt-ogp` Worker に統合する、R2保存型の共有リンク機能を置いています。
+この構成は **Cloudflare Workers FreeプランとWorkers KVの無料枠のみ** を使います。R2バケットやWorkers Paidプランへの加入は不要です。すでにR2の契約を開始している場合は、利用者自身が契約・請求状況を確認してから不要なサブスクリプションを解約してください。この手順は既存の契約を自動変更しません。
+
+## 無料枠と制限
+
+Cloudflare公式料金表に記載されているWorkers Freeプランの主な上限は次のとおりです（仕様変更の可能性があるため、作業時に公式ページも再確認してください）。
+
+- Workersリクエスト：100,000回／日
+- KV読み取り：100,000回／日
+- KV書き込み：1,000回／日
+- KV保存容量：アカウント全体で1 GB
+
+Freeプランでは、KVの各上限を超えた種類の操作はエラーになります。Workersのリクエスト上限を超えた場合もリクエストは失敗します。**意図しない請求を避けるため、CloudflareのWorkers Freeプランを維持し、Workers Paidプランへアップグレードしないでください。** 無料上限を超えるほど利用が増えた場合は、無料のまま動作が制限され、共有URLの一部が一時的に使えなくなる可能性があります。
+
+料金・制限の公式資料：
+- [Workers KVの料金](https://developers.cloudflare.com/kv/platform/pricing/)
+- [Workersの上限](https://developers.cloudflare.com/workers/platform/limits/)
+- [KV namespaceの作成・バインド](https://developers.cloudflare.com/kv/get-started/)
 
 ## 仕組み
 
-- `POST /api/r2-share/v1`：圧縮済みLBT共有トークンを検証し、IPアドレスごとの発行制限を適用します。OGP情報を安全に埋め込んだ固定HTMLを生成してR2へ保存します。利用者が任意のHTMLをアップロードする仕組みではありません。
-- `GET /s/<16文字のID>`：短い共有URLに対応するHTMLを返します。HTMLにはOGPメタデータが含まれ、既存のGitHub Pages上の共有ビューアーを埋め込みます。共有トークンはURLのフラグメントに渡すため、サーバー側のHTML要求へトークン自体は送信しません。
-- `GET /s?s=...` と `GET /d?s=...`：既存のRentry／Telegraph形式の共有URLとの互換性を保つための経路です。`/d` は既存保存先から共有トークンを取得し、従来の復元経路を支えます。
-- 共有リンク発行時は、先にRentry／Telegraphへ予備データを保存し、その後R2共有URLを発行します。R2発行APIが利用できなければ、LBT側は従来の共有URLへ切り替えます。Workerが動作している状態でR2の取得に失敗した場合も、URLに含まれる予備保存先IDから復旧を試みます。
-- 新しい短縮URLと一緒に、従来方式の予備URLも発行結果へ表示します。Cloudflare全体が停止すると同じCloudflareホスト上のURLから自動転送することはできません。その場合は発行画面に表示された予備URLを使います。
+- `POST /api/r2-share/v1`：既存のフロントエンドとの互換性のためにAPIパス名を維持していますが、保存先はR2ではなくWorkers KVです。共有トークンを検証し、OGP情報を含む固定HTMLを生成してKVに保存します。任意のHTMLを利用者から受け取って公開する設計ではありません。
+- `GET /s/<16文字のID>`：KVからHTMLを読み込み、OGP情報を返します。共有トークンはGitHub Pages上のビューアーURLのフラグメントで渡すため、そのトークン自体はビューアーのHTTP要求URLには含まれません。
+- `GET /s?s=...` と `GET /d?s=...`：既存のRentry／Telegraph形式の共有リンクとの互換性を維持します。
+- 発行時には、可能ならRentry／Telegraphの予備URLを先に作り、そのあと短縮URLを発行します。KVの書き込みに失敗した場合、サイト側は従来の共有方式へ切り替えます。KVに読み取り対象が見つからない場合も、URLに入っている予備保存先IDから復元を試みます。
+- Cloudflare自体に障害が起きた場合、Cloudflareの短縮URLだけでは復旧できません。共有発行画面に表示された予備URLを別途保存してください。
 
-## 既存リンクを壊さずに公開する
+## 導入手順
 
-稼働中のWorkerは、このリポジトリとは別に管理されています。**現在のWorkerをバックアップし、既存リンクが使う経路を確認する前に、このファイルの内容で稼働中Workerを上書きしないでください。** ここでは確認できた従来の `/s` と `/d` を残していますが、実環境のWorkerにはこのリポジトリに含まれていない経路や処理がある可能性があります。
+### 1. 既存Workerのバックアップ
 
-1. CloudflareダッシュボードでR2の **Standardバケット** を作成し、名前を `lbt-share-html` にします。すでに使うバケットがある場合は、後述の `bucket_name` を実際の名前に変更します。
-2. 稼働中の `lbt-ogp` Workerのソースをエクスポートしてバックアップします。
-3. 現行Workerのルートと動作を比較したうえで、`worker.js` の処理を統合します。R2バインディング名を `SHARES` に設定し、作成したバケットへ接続します。
-4. `SHARE_PUBLISH_LIMIT` というレート制限バインディングを追加します。設定例では、同じIPアドレスから60秒間に10回までの発行を目安にします。Cloudflareのレート制限はデータセンターごとの近似的な制限であり、世界全体で厳密に合算された上限ではありません。
-5. Workerの公開ホスト名が `SHARE_PUBLIC_ORIGIN` と一致することを確認します。LBT側は現在 `https://lbt-ogp.lbtstudio-share.workers.dev` を想定して、返却URLを検証しています。
-6. Wrangler 4.69.0以降でデプロイします。`[cache]` の設定に対応しないバージョンを使う場合は、同等のWorker応答キャッシュを別途設定します。共有HTMLは不変のデータとして `s-maxage=86400`（共有キャッシュで24時間）を指定し、エッジでのキャッシュヒット時にWorkerの実行を省けるようにします。
-7. `GET /healthz` の応答で `r2Configured: true` を確認します。GitHub Pagesのサイトから発行APIが呼べること、発行された `/s/<ID>` が開けること、Discordに貼ったときOGPカードが表示されることを確認します。
-8. R2にデータが存在しない状況をテストし、URLの `b=` に指定されたRentry／Telegraphの予備保存先から共有内容を復元できることを確認します。また、新APIを無効にした場合でも、従来方式の共有URLが発行されることを確認します。
+稼働中の `lbt-ogp` WorkerをCloudflareダッシュボードで開き、現在のソースをエクスポートまたはコピーしてバックアップします。**現行コードの経路を確認する前に、既存Workerをこのリポジトリのコードで丸ごと上書きしないでください。** リポジトリに含まれていない既存機能がある可能性があります。新コードを統合する場合は、現行の `/s`・`/d` 経路などを残してください。
 
-## 設定・制約・運用上の注意
+### 2. ローカルにリポジトリを取得
 
-- 既定の公開URLは、DNS変更を不要にするため、現在の `lbt-ogp.lbtstudio-share.workers.dev` を使います。大規模配信向けに、後からR2のカスタムドメインで `s/<ID>` を直接配信する構成へ移行することもできます。ただし、読み取り時にWorkerを通らなくなるため、R2オブジェクトが見つからない場合に、その要求の中でWorkerが予備保存先へ自動復旧する構成とは両立しません。
-- 保存するのはサイズ制限をかけた共有トークンと、固定テンプレートから生成するHTMLだけです。任意の生HTMLを保存せず、OGP情報は長さを制限し、HTMLエスケープして出力します。
-- 共有発行ごとにR2オブジェクトを1件作成します。Rentry／Telegraphへの予備保存も維持するため、保存処理は増えますが、独立した復旧経路を確保できます。
-- この初期実装には共有リンクを削除する画面と、自動期限切れの機能はありません。利用者が永続的だと期待するリンクを勝手に消さないよう、R2のライフサイクルによる自動削除を設定する場合は、保存期間の方針を別途明示してください。
+Node.jsとGitがインストールされているPCでPowerShellを開き、次を実行します。
 
-## 公開範囲を広げる前の追加防御
+```powershell
+git clone https://github.com/LBTStudio/LIMBUS_BUILD_TERMINAL.git
+cd LIMBUS_BUILD_TERMINAL\cloudflare\ogp-worker
+npx wrangler@latest login
+```
 
-CloudflareのWorkersレート制限は場所ごとの近似値です。共有発行APIを広く公開する前に、Cloudflareダッシュボードで `/api/r2-share/v1` に対するWAFまたはレート制限ルールも設定し、Worker内の制限を補完してください。必要ならTurnstileなどの自動化対策も追加します。
+### 3. KV namespaceを無料で作成
 
-## 公開後の確認項目
+```powershell
+npx wrangler@latest kv namespace create SHARES
+```
 
-- [ ] 既存のRentry／Telegraph共有リンクが引き続き開く
-- [ ] R2共有URLが短く、OGPタイトル・説明・画像がDiscordに表示される
-- [ ] R2発行APIが失敗しても、従来方式の共有URLが発行できる
-- [ ] R2読み取りが失敗したとき、予備URLから復元できる
-- [ ] R2・Workerの使用量と発行エラーをダッシュボードで確認できる
-- [ ] 予備URLを利用者がコピーでき、Cloudflare全体の障害時にも独立した保存先へアクセスできる
+コマンド出力にあるnamespace IDをコピーします。R2バケットは作成しません。
+
+### 4. namespace IDを設定
+
+`wrangler.toml` を開き、次の行に先ほどのIDを設定します。
+
+```toml
+[[kv_namespaces]]
+binding = "SHARES"
+id = "ここを実際のKV namespace IDに置き換える"
+```
+
+`REPLACE_WITH_KV_NAMESPACE_ID` のままではデプロイできません。IDはCloudflareアカウントごとに異なるので、ほかの利用者のIDをコピーしないでください。
+
+### 5. 既存Workerと統合し、無料プランのままデプロイ
+
+まず、既存のWorkerコードと新しい `worker.js` のルート・処理を比較し、必要な既存処理を維持するよう統合してください。続いて設定を確認します。
+
+```powershell
+npx wrangler@latest deploy --dry-run
+```
+
+問題がなく、設定が `Workers Free` のままであることを確認できた場合のみ、デプロイします。
+
+```powershell
+npx wrangler@latest deploy
+```
+
+このコマンドは既存の `lbt-ogp` Workerを更新します。**すでに動いているWorkerへの影響を確認せずに実行しないでください。** R2の作成や有料プランへの切り替えは必要ありません。
+
+## 公開後の確認
+
+次のURLを開きます。
+
+[ヘルスチェック](https://lbt-ogp.lbtstudio-share.workers.dev/healthz)
+
+成功時には `{"ok":true,"kvConfigured":true}` 相当の応答が返ります。`kvConfigured` が `false` の場合、Workerの `SHARES` バインディングとnamespace IDを確認してください。
+
+その後、[LIMBUS BUILD TERMINAL](https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/) から共有を新規発行し、以下を確認します。
+
+- 新しい短縮URLが開き、共有シートが表示される
+- DiscordなどでOGPタイトル・説明・画像が表示される
+- 既存のRentry／Telegraph共有リンクも引き続き開く
+- 発行画面に表示された予備URLからも内容を復元できる
+- KVが利用できない場合、新規発行が従来方式へ切り替わる
+
+DiscordのOGPプレビューはキャッシュされる場合があるので、確認には新規発行したURLを使ってください。
+
+## 無料運用上の注意
+
+- アカウントをWorkers Freeプランに維持し、Workers Paidへアップグレードしないでください。
+- R2バケットを作成する必要はありません。R2に関する課金サービスを別途契約しないでください。
+- KVはアカウント全体で1 GBです。保存データの自動削除機能は初期実装に含めていません。容量が上限に達すると新規発行に失敗し、既存方式への切り替えが動作します。
+- 共有が大幅に増えると、日次のWorkerリクエスト・KV読み書きの無料上限に達し、短縮URLの閲覧が一時的に失敗する可能性があります。これは請求を避ける代わりに可用性を制限する設計です。
+- レート制限バインディングは場所ごとの近似的な制限です。これだけで世界全体の厳密な発行数制限にはなりません。
+- Cloudflare全体が停止した場合に備え、発行画面の予備URLも保管してください。
