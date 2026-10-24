@@ -1379,8 +1379,16 @@ function sanitizeStateCollections(raw) {
 /* Legacy custom Personas used source.no=999 as a shared placeholder. Keep roster identity
    in uid/no instead, so equip, save, and card keys resolve the same owned entry. */
 function normalizeCustomPersonaRosterIdentity(personas) {
+  const rows = Array.isArray(personas) ? personas : [];
+  // Reserve every existing custom UID before generating legacy replacements.
+  // Otherwise an early legacy row can claim a synthetic key that belongs to a
+  // later valid row, forcing that valid identity (and its external references) to change.
+  const reserved = new Set(rows
+    .filter((entry) => entry && entry.mode === "custom")
+    .map((entry) => String(entry.uid || "").trim())
+    .filter(Boolean));
   const seen = new Set();
-  return (Array.isArray(personas) ? personas : []).map((entry, index) => {
+  return rows.map((entry, index) => {
     if (!entry || entry.mode !== "custom") return entry;
     const sourceNo = String(entry.no ?? "").trim();
     let uid = String(entry.uid || "").trim();
@@ -1388,7 +1396,7 @@ function normalizeCustomPersonaRosterIdentity(personas) {
       const base = sourceNo && sourceNo !== "999" ? sourceNo : `custom-legacy-${index + 1}`;
       uid = base;
       let suffix = 2;
-      while (seen.has(uid)) uid = `${base}-${suffix++}`;
+      while (seen.has(uid) || reserved.has(uid)) uid = `${base}-${suffix++}`;
     }
     seen.add(uid);
     return { ...entry, uid, no: uid };
