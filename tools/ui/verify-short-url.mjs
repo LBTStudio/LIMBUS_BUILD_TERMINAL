@@ -10,7 +10,7 @@ import vm from "node:vm";
 // したがって summary を足しても、
 //   1. 圧縮 token が URL に戻る（自己完結化）        → 壊れている
 //   2. 1900 文字を超える                            → 共有不能
-//   3. 1件あたり数百文字Inflation して))$(現在の短縮幅を超える → 実用上の問題
+//   3. 1件あたり数百文字Inflationして現在の短縮幅を超える → 実用上の問題
 // を満たさなければ損なっていない。
 
 const src = readFileSync("js/share-link.js", "utf8");
@@ -27,7 +27,6 @@ function load() {
 
 const S = load();
 const BASE = "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html";
-const GATEWAY = "https://lbt-ogp.lbtstudio-share.workers.dev";
 const PRIMARY = { source: "telegraph", id: "LBT-Share-10-01-2" };
 const BACKUPS = [{ source: "rentry", id: "ocrdvn5e" }];
 const LIMIT = S.PRACTICAL_DISCORD_URL_LENGTH;
@@ -47,11 +46,10 @@ const personas = db.normal_personas || [];
 const rows = [];
 for (const p of personas) {
   const state = {
-    charName: p.name, personaMode: "n", personaNo: p.no,
+    charName: p.name, personaMode: "n", personaNo: p.no, personaSrc: p,
     hp: String(p.hp ?? ""), san: String(p.san ?? ""), speed: String(p.speed ?? ""),
     roster: { personas: [{ no: p.no, mode: "n", syncRank: "000", syncMax: false, equipped: true }] },
   };
-  const snap = S.snapshotState(state);
   // 発行時に使用する「生state」からpreviewを計算し、実際のURL生成関数を経由する。
   const preview = S.sharePreview(state);
   const selfUrl = await S.createUrl(state, BASE);
@@ -91,13 +89,13 @@ console.log("\n=== 3. 実用上の判定 ===");
 const over = rows.filter((r) => r.sum > LIMIT);
 console.log(`  1900 超過: ${over.length} / ${rows.length}`);
 console.log(`  余裕（max）: ${LIMIT - sumLens[sumLens.length - 1]} 文字`);
-const inflation = sumLens[sumLens.length - 1] / BARE.length;
-console.log(`  従来比: ${inflation.toFixed(1)} 倍（+${sumLens[sumLens.length - 1] - BARE.length} 文字）`);
+const inflation = sumLens[sumLens.length - 1] / BARE_URL.length;
+console.log(`  従来比: ${inflation.toFixed(1)} 倍（+${sumLens[sumLens.length - 1] - BARE_URL.length} 文字）`);
 console.log(`  → 共有不能になる閾値は超えていない。${inflation.toFixed(1)} 倍は 1900 に対し十分小さい`);
 
 const worst = rows.reduce((a, b) => (b.sum > a.sum ? b : a));
 console.log(`\n  最長ケース: ${worst.name}  ${worst.sum} 文字`);
-console.log(`  フォールバック実装: 1900 超過時は summary を落として ${BARE.length} 文字の従来 URL に戻す`);
+console.log(`  フォールバック実装: 1900 超過時は summary を落として ${BARE_URL.length} 文字の従来 URL に戻す`);
 
 console.log("\n=== 結論 ===");
 const broken = over.length > 0
