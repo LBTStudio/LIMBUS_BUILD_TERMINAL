@@ -1276,6 +1276,9 @@ function sanitizeStateCollections(raw) {
     if (result.unique_buffs !== undefined) {
       result.unique_buffs = Array.isArray(result.unique_buffs) ? result.unique_buffs.filter(isRecord) : [];
     }
+    if (result.extra_passives !== undefined) {
+      result.extra_passives = Array.isArray(result.extra_passives) ? result.extra_passives.filter(isRecord) : [];
+    }
     if (result.keywords !== undefined) {
       result.keywords = Array.isArray(result.keywords)
         ? result.keywords.filter((keyword) => typeof keyword === "string")

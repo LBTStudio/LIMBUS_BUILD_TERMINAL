@@ -61,3 +61,31 @@ test("local state sanitization creates a safe editable placeholder when both cus
   assert.ok(Array.isArray(src.unique_buffs));
   assert.ok(Array.isArray(next.roster.personas[0].build.skills));
 });
+
+test("roster import rejects malformed custom Persona secondary passives instead of silently dropping them", () => {
+  const error = validate({
+    _lbtRosterOnly: true,
+    roster: { personas: [{
+      uid: "custom-passive-bad", no: "custom-passive-bad", mode: "custom",
+      src: { no: 999, name: "副パッシブ破損", skills: [], unique_buffs: [], extra_passives: "broken" }
+    }], egos: [], supports: [], spirits: [] }
+  });
+  assert.match(error, /extra_passives は配列ではありません/);
+});
+
+test("local state sanitization preserves valid secondary passives and removes malformed entries only", () => {
+  const next = sanitize({
+    roster: { personas: [{
+      uid: "custom-passive-safe", no: "custom-passive-safe", mode: "custom",
+      src: {
+        no: 999, name: "副パッシブ復旧",
+        extra_passives: [
+          { id: "p1", name: "有効パッシブ", effect: "保持する" },
+          null,
+          "broken"
+        ]
+      }
+    }] }
+  });
+  assert.deepEqual(Array.from(next.roster.personas[0].src.extra_passives, (p) => p.name), ["有効パッシブ"]);
+});

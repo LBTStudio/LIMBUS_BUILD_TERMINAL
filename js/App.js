@@ -492,6 +492,10 @@ function validateImportData(data) {
     if (skillError) return skillError;
     const buffError = validateRecordArray(value.unique_buffs, path + ".unique_buffs");
     if (buffError) return buffError;
+    // Custom Persona secondary passives are part of the source definition and must
+    // survive equip/save/import just like the primary passive and skills.
+    const extraPassiveError = validateRecordArray(value.extra_passives, path + ".extra_passives");
+    if (extraPassiveError) return extraPassiveError;
     if (value.keywords !== void 0 && (!Array.isArray(value.keywords)
       || value.keywords.some((keyword) => typeof keyword !== "string"))) {
       return path + ".keywords は文字列配列ではありません";
