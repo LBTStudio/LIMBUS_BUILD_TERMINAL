@@ -101,6 +101,31 @@
 
   /* ------------------------------------------------------------------ */
 
+  /* Mirror intro: an original clock-headed, red-coated figure reflected in the extraction door. */
+  function danteMirrorSVG() {
+    return '<svg class="lbt-gx__silhouette" viewBox="0 0 420 700" role="presentation" focusable="false">' +
+      '<defs><linearGradient id="gx-dante-coat" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#542322"/><stop offset=".48" stop-color="#281718"/><stop offset="1" stop-color="#100f10"/></linearGradient><radialGradient id="gx-dante-clock" cx=".5" cy=".42" r=".7"><stop offset="0" stop-color="#261b18"/><stop offset=".72" stop-color="#100f10"/><stop offset="1" stop-color="#090a0b"/></radialGradient></defs>' +
+      '<path class="lbt-gx__mirror-pane" d="M210 22 342 77 330 570 210 675 90 570 78 77Z"/>' +
+      '<path class="lbt-gx__mirror-crack" d="M302 88 276 170 294 214 270 284M113 390 146 414 125 473M276 500 251 527 264 565"/>' +
+      '<g class="lbt-gx__dante-figure">' +
+        '<path class="lbt-gx__flame" d="M157 83 142 47 166 68 177 25 194 71 210 15 224 68 251 31 246 77 281 52 259 96M147 108 124 90 145 126M273 113 296 92 274 132"/>' +
+        '<path class="lbt-gx__figure" fill="url(#gx-dante-coat)" d="M178 184 147 194 112 214 88 278 59 535Q62 568 127 603L154 584 171 465 210 481 249 465 266 584 293 603Q358 568 361 535L332 278 308 214 273 194 242 184 228 211 192 211Z"/>' +
+        '<path class="lbt-gx__figure-inner" d="M178 200 162 243 168 454 210 477 252 454 258 243 242 200 224 222 196 222Z"/>' +
+        '<path class="lbt-gx__figure-inner" d="M174 448 210 470 246 448 239 623 222 651 210 632 198 651 181 623Z"/>' +
+        '<path class="lbt-gx__figure" d="M181 620 198 646 198 673 151 676Q145 660 157 640L170 622ZM222 620 239 642 258 661 258 680 208 680Q204 663 210 641Z"/>' +
+        '<path class="lbt-gx__figure" d="M178 188 139 203 119 229 104 292 157 350 180 270 194 212ZM242 188 281 203 301 229 316 292 263 350 240 270 226 212Z"/>' +
+        '<path class="lbt-gx__coat-edge" d="M177 195 145 230 128 286 158 337 177 270M243 195 275 230 292 286 262 337 243 270M133 286 111 522M287 286 309 522M91 524 120 542M329 524 300 542"/>' +
+        '<path class="lbt-gx__figure-inner" d="M196 216 210 229 224 216 219 269 210 284 201 269Z"/>' +
+        '<path class="lbt-gx__belt" d="M172 448H248V467H172Z"/><rect class="lbt-gx__buckle" x="202" y="449" width="16" height="17" rx="2"/>' +
+        '<path class="lbt-gx__cuff" d="M70 507 108 519 104 540 65 529ZM350 507 312 519 316 540 355 529Z"/>' +
+        '<text class="lbt-gx__mark" x="275" y="244">NO.10</text>' +
+        '<circle class="lbt-gx__clock-rim" cx="210" cy="112" r="67"/><circle class="lbt-gx__clock-face" cx="210" cy="112" r="54" fill="url(#gx-dante-clock)"/>' +
+        '<circle class="lbt-gx__clock-inner" cx="210" cy="112" r="44"/>' +
+        '<path class="lbt-gx__clock-hand" d="M210 112V76M210 112 235 124"/><circle class="lbt-gx__clock-pin" cx="210" cy="112" r="4"/>' +
+        '<path class="lbt-gx__clock-tick" d="M210 67V75M255 112H247M210 157V149M165 112H173M178 80 184 86M242 80 236 86"/>' +
+      '</g></svg>';
+  }
+
   function play(hits, opts) {
     opts = opts || {};
     var host = opts.container || document.body;
@@ -110,7 +135,7 @@
     var root = document.createElement("div");
     root.className = "lbt-gx" + (state.theme !== "normal" ? " is-" + state.theme : "");
     root.innerHTML =
-        '<div class="lbt-gx__stage" aria-hidden="true"><canvas class="lbt-gx__canvas"></canvas><div class="lbt-gx__grade"></div></div>' +
+        '<div class="lbt-gx__stage" aria-hidden="true"><canvas class="lbt-gx__canvas"></canvas><div class="lbt-gx__mirror">' + danteMirrorSVG() + '</div><div class="lbt-gx__grade"></div></div>' +
       '<div class="lbt-gx__quote" aria-hidden="true"></div>' +
       '<div class="lbt-gx__splash" aria-hidden="true"></div>' +
       '<div class="lbt-gx__card" aria-hidden="true"></div>' +
