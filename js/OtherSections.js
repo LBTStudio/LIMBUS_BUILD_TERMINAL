@@ -3151,14 +3151,14 @@ const RosterSection = ({ state, dispatch }) => {
   const equipItem = (item) => {
     const action = getRosterLibraryEquipAction(item);
     if (!action) {
-      toast("この種類の項目は装備できません", "assertive");
+      toast("この種類の項目は装備できません");
       return;
     }
     if (item.type === "supports") {
       const activeEnhancements = window.LBT_getActiveEnhancements?.(state) || (state.enhancements || []);
       const blockReason = getRosterLibraryEquipBlockReason(item, state, activeEnhancements);
       if (blockReason) {
-        toast(blockReason, "assertive");
+        toast(blockReason);
         return;
       }
     }

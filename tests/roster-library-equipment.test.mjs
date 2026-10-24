@@ -67,4 +67,11 @@ test("support and spirit rows track the actual equipped state and use type-speci
   assert.match(source, /case "spirits":\s*return \{ type: "SET_ROSTER_SPIRIT_EQUIPPED"/);
   assert.match(source, /presentation\.equipLabel/);
   assert.doesNotMatch(source, /item\.type === "personas" \? "この人格を装備する" : "このE\.G\.Oを装備する"/);
+  assert.doesNotMatch(source, /toast\("この種類の項目は装備できません",\s*"assertive"\)/);
+  const equipStart = source.indexOf("const equipItem = (item) => {");
+  const equipEnd = source.indexOf("\n    /* 既存アカウント向け。", equipStart);
+  const equipHandler = source.slice(equipStart, equipEnd);
+  assert.ok(equipStart >= 0 && equipEnd > equipStart, "record equipment handler exists");
+  assert.doesNotMatch(equipHandler, /toast\("この種類の項目は装備できません",\s*"assertive"\)/);
+  assert.doesNotMatch(equipHandler, /toast\(blockReason,\s*"assertive"\)/);
 });
