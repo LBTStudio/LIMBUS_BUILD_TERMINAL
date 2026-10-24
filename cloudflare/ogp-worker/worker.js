@@ -4,7 +4,13 @@ const DEFAULT_OG_IMAGE = "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/asse
 const API_PATH = "/api/r2-share/v1";
 const MAX_TOKEN_LENGTH = 160002;
 const MAX_REQUEST_BYTES = 200000;
-const SHARE_TTL_SECONDS = 86400;
+// Keep the edge cache shorter than the idle-expiry refresh window so cached hits do not
+// outlive the last point at which the Worker can refresh the KV key.
+const SHARE_CACHE_TTL_SECONDS = 6 * 60 * 60;
+// Refresh at most once per six-hour window. The extra six-hour TTL is grace for the
+// cache/touch window, so a cached hit cannot make an active link expire too early.
+const SHARE_TOUCH_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const SHARE_IDLE_TTL_SECONDS = 7 * 24 * 60 * 60 + 6 * 60 * 60;
 const RESPONSE_CSP = "default-src 'none'; base-uri 'none'; form-action 'none'; frame-src https://lbtstudio.github.io; img-src https://lbtstudio.github.io data:; style-src 'unsafe-inline'";
 
 function jsonResponse(body, status, origin = "") {
@@ -286,24 +292,57 @@ async function publishShare(request, env) {
   const iframeUrl = viewerBase + "#lbt=" + token;
   const html = renderShell({ preview, iframeUrl, legacyUrl, canonicalUrl: shareUrl }, env);
 
+  const now = new Date().toISOString();
   try {
-    await env.SHARES.put("s/" + id, html);
+    await env.SHARES.put("s/" + id, html, {
+      expirationTtl: SHARE_IDLE_TTL_SECONDS,
+      metadata: { schema: "1", createdAt: now, lastAccessRefreshAt: now },
+    });
   } catch (_) {
+    // KV Free quota failures are handled as share-publish failure; no Paid plan is enabled.
     return jsonResponse({ ok: false, error: "KV_WRITE_FAILED" }, 503, allowedOrigin);
   }
 
   return jsonResponse({ ok: true, id, url: shareUrl }, 201, allowedOrigin);
 }
 
-async function getShare(request, env, id) {
+function scheduleIdleExpiryRefresh(env, key, html, metadata, ctx) {
+  const lastRefresh = Date.parse(String(metadata?.lastAccessRefreshAt || ""));
+  const now = Date.now();
+  if (Number.isFinite(lastRefresh) && now - lastRefresh < SHARE_TOUCH_INTERVAL_MS) return null;
+
+  const nextMetadata = {
+    ...(metadata && typeof metadata === "object" ? metadata : {}),
+    schema: "1",
+    lastAccessRefreshAt: new Date(now).toISOString(),
+  };
+  // A refresh is best-effort: never break a working view because the free daily write
+  // allowance was reached. In Workers Free, over-limit KV writes fail instead of billing.
+  const refresh = env.SHARES.put(key, html, {
+    expirationTtl: SHARE_IDLE_TTL_SECONDS,
+    metadata: nextMetadata,
+  }).catch(() => undefined);
+  if (ctx && typeof ctx.waitUntil === "function") {
+    ctx.waitUntil(refresh);
+    return null;
+  }
+  return refresh;
+}
+
+async function getShare(request, env, id, ctx) {
   const url = new URL(request.url);
   const queryFallbacks = parseSourceList(url.searchParams.get("b") || "");
   const queryPreview = previewFromUrl(url);
-  if (env.SHARES && typeof env.SHARES.get === "function") {
+  if (env.SHARES && typeof env.SHARES.getWithMetadata === "function") {
     try {
-      const html = await env.SHARES.get("s/" + id, "text");
-      if (typeof html === "string" && html.length > 0) {
-        return buildResponse(html, { cacheControl: "public, max-age=0, s-maxage=" + SHARE_TTL_SECONDS });
+      const key = "s/" + id;
+      const stored = await env.SHARES.getWithMetadata(key, "text");
+      if (typeof stored?.value === "string" && stored.value.length > 0) {
+        const touch = scheduleIdleExpiryRefresh(env, key, stored.value, stored.metadata, ctx);
+        if (touch) await touch;
+        return buildResponse(stored.value, {
+          cacheControl: "public, max-age=0, s-maxage=" + SHARE_CACHE_TTL_SECONDS,
+        });
       }
     } catch (_) {
       // KV read failure or a missing key: try the independently stored Rentry/Telegraph copy below.
@@ -363,14 +402,14 @@ async function handleLegacyDownload(request, env) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.pathname === API_PATH) return publishShare(request, env);
     if (url.pathname === "/healthz") return jsonResponse({ ok: true, kvConfigured: Boolean(env.SHARES) }, 200);
     if (url.pathname === "/d" && request.method === "GET") return handleLegacyDownload(request, env);
     if (url.pathname === "/s" && request.method === "GET") return handleLegacyOgp(request, env);
     const shareMatch = /^\/s\/([A-Za-z0-9_-]{16})$/.exec(url.pathname);
-    if (shareMatch && request.method === "GET") return getShare(request, env, shareMatch[1]);
+    if (shareMatch && request.method === "GET") return getShare(request, env, shareMatch[1], ctx);
     return new Response("Not found", { status: 404, headers: {
       "Content-Type": "text/plain; charset=utf-8",
       "Cache-Control": "no-store",
