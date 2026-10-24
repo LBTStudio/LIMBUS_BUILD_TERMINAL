@@ -182,13 +182,14 @@ export function previewFromQuery(url) {
   const personaName = chars.slice(0, 48).join("") + (chars.length > 48 ? "…" : "");
   const hp = String(params.get("lbt_hp") || "").trim().slice(0, 12) || "?";
   const san = String(params.get("lbt_san") || "").trim().slice(0, 12) || "?";
+  const speed = String(params.get("lbt_spd") || "").trim().slice(0, 16) || "?";
   const syncRank = ["0", "00", "000"].includes(params.get("lbt_sync") || "") ? params.get("lbt_sync") : "";
   const syncMax = params.get("lbt_max") === "1";
   const sync = [syncRank ? `同期${syncRank}` : "", syncMax ? "MAX" : ""].filter(Boolean).join(" · ");
   return {
     personaName,
     title: personaName,
-    description: [`HP ${hp}`, `SAN ${san}`, sync].filter(Boolean).join(" ｜ "),
+    description: [`HP ${hp}`, `SAN ${san}`, `SPD ${speed}`, sync].filter(Boolean).join(" ｜ "),
     // summary 経路では snapshot を読まないので画像は空のまま返す。
     // ogpHtml は skipImageRoute で静的な既定カードを選ぶ。
     shareImageData: "",
