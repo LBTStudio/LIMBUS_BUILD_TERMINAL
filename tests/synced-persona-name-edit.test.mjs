@@ -7,7 +7,7 @@ const personaSource = readFileSync(new URL("../js/PersonaCodex.js", import.meta.
 const stateSource = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
 
 test("synchronization/manual edit mode exposes an editable persona-name input", () => {
-  assert.match(personaSource, /editable\s*\?\s*\/\* @__PURE__ \*\/ React\.createElement\("input",\s*\{[\s\S]*?className: "es-id-name es-id-name-input"[\s\S]*?value: p\.name \|\| ""[\s\S]*?onChange: \(e\) => patchMeta\(\{ src: \{ name: e\.target\.value \} \}\)/);
+  assert.match(personaSource, /editable\s*\?\s*\/\* @__PURE__ \*\/ React\.createElement\("input",\s*\{[\s\S]*?className: "es-name-input"[\s\S]*?value: p\.name \|\| ""[\s\S]*?onChange: \(e\) => patchMeta\(\{ src: \{ name: e\.target\.value \} \}\)/);
   assert.match(personaSource, /: \/\* @__PURE__ \*\/ React\.createElement\("div", \{ className: "es-id-name", title: displayPersonaName \}, displayPersonaName\)/);
 });
 
