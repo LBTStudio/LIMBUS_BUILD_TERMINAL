@@ -4722,13 +4722,17 @@ case "ADD_CUSTOM_ITEM": {
       const target = (roster.supports || []).find((s) => s.uid === action.uid);
       if (!target) return state;
       const equip = action.equipped !== false;
-      if (equip && target.slot === "death" && !deathSupportSlotUnlocked(state)) return state;
-      const limit = supportSlotLimit(state, target.slot);
+      // The canonical death-passive catalogue takes precedence over a stale or
+      // forged slot field. This prevents relabeling a death-only passive as normal.
+      const deathOnly = target.slot === "death" || isDeathSupportPassiveRecord(target);
+      const slot = deathOnly ? "death" : target.slot;
+      if (equip && deathOnly && !deathSupportSlotUnlocked(state)) return state;
+      const limit = supportSlotLimit(state, slot);
       let supports = (roster.supports || []).map((s) => (
-        s.uid === action.uid ? { ...s, equipped: equip } : s
+        s.uid === action.uid ? { ...s, slot, equipped: equip } : s
       ));
       if (equip) {
-        supports = trimSupportEquippedOverflow(supports, action.uid, target.slot, limit);
+        supports = trimSupportEquippedOverflow(supports, action.uid, slot, limit);
       }
       const nextRoster = { ...roster, supports };
       return { ...state, roster: nextRoster, ...projectEquipmentFromRoster(nextRoster) };
@@ -4740,6 +4744,10 @@ case "ADD_CUSTOM_ITEM": {
       const target = (roster.supports || []).find((s) => s.uid === action.uid);
       if (!target) return state;
       const slot = action.slot === "death" ? "death" : "normal";
+      const deathOnly = target.slot === "death" || isDeathSupportPassiveRecord(target);
+      // A death-only passive cannot be demoted into a normal slot, even if a
+      // caller dispatches this action directly or the saved slot label is stale.
+      if (deathOnly && slot !== "death") return state;
       if (target.slot === slot) return state;
       if (slot === "death" && !deathSupportSlotUnlocked(state)) return state;
       const limit = supportSlotLimit(state, slot);
@@ -4824,7 +4832,9 @@ case "ADD_CUSTOM_ITEM": {
       if (deathSupportSlotUnlocked(state) && !deathSupportSlotUnlocked(next)) {
         const roster = next.roster || {};
         const supports = (roster.supports || []).map((entry) => (
-          entry.slot === "death" ? { ...entry, equipped: false } : entry
+          entry.slot === "death" || isDeathSupportPassiveRecord(entry)
+            ? { ...entry, slot: "death", equipped: false }
+            : entry
         ));
         const nextRoster = { ...roster, supports };
         nextState = { ...next, roster: nextRoster, ...projectEquipmentFromRoster(nextRoster) };
