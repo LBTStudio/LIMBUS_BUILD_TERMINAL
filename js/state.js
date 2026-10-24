@@ -1403,6 +1403,36 @@ function normalizeCustomPersonaRosterIdentity(personas) {
   });
 }
 
+/* Favorites/history were keyed by no before custom roster rows moved from shared
+   no=999 to stable UIDs. Migrate those references with the same identity change. */
+function migrateLegacyCustomPersonaReferenceKeys(rawRows, normalizedRows, favorites, historyRecent, activeNo) {
+  const legacyUids = (Array.isArray(normalizedRows) ? normalizedRows : [])
+    .filter((entry, index) => rawRows?.[index]?.mode === "custom"
+      && String(rawRows[index]?.no ?? "").trim() === "999")
+    .map((entry) => String(entry?.uid ?? entry?.no ?? "").trim())
+    .filter(Boolean);
+  if (!legacyUids.length) return { favorites, historyRecent };
+
+  let nextFavorites = favorites;
+  if (Array.isArray(favorites)) {
+    const expanded = [];
+    for (const key of favorites) {
+      if (key === "custom:999") expanded.push(...legacyUids.map((uid) => `custom:${uid}`));
+      else expanded.push(key);
+    }
+    nextFavorites = [...new Set(expanded)];
+  }
+
+  let nextHistory = historyRecent;
+  if (Array.isArray(historyRecent)) {
+    const activeUid = String(activeNo ?? "").trim();
+    const historyUid = legacyUids.includes(activeUid) ? activeUid : legacyUids[0];
+    const migrated = historyRecent.map((key) => key === "custom:999" ? `custom:${historyUid}` : key);
+    nextHistory = [...new Set(migrated)].slice(0, 20);
+  }
+  return { favorites: nextFavorites, historyRecent: nextHistory };
+}
+
 /* Reconcile the active custom Persona after legacy roster IDs are migrated.
    Old saves can still have personaNo=999 even though the owned roster now has
    stable UIDs. Resolve by a real UID first, then source name/equipped marker;
@@ -1523,6 +1553,7 @@ function findActiveRosterPersona(state) {
 }
 
 function normalizeStateShape(raw) {
+  const rawPersonaRows = Array.isArray(raw?.roster?.personas) ? raw.roster.personas : [];
   const next = refreshDBReferencedData(refreshEquippedPersonaFromDB(sanitizeStateCollections(raw)));
   next.schemaVersion = next.schemaVersion || SAVE_SCHEMA_VERSION;
   // パッシブ2は追加パッシブ列の1件目へ移行する。以後は上限なしの extraPassives が正準。
@@ -1555,6 +1586,12 @@ function normalizeStateShape(raw) {
   if (next.personaMode === "custom") {
     Object.assign(next, normalizeActiveCustomPersonaState(next));
   }
+  const migratedCustomReferences = migrateLegacyCustomPersonaReferenceKeys(
+    rawPersonaRows, next.roster.personas, next.favorites, next.historyRecent,
+    next.personaMode === "custom" ? next.personaNo : null
+  );
+  if (Array.isArray(next.favorites)) next.favorites = migratedCustomReferences.favorites;
+  if (Array.isArray(next.historyRecent)) next.historyRecent = migratedCustomReferences.historyRecent;
   /* The active build identity is authoritative for every Persona mode. This also
      neutralizes stale equipped flags imported from another character's library. */
   if (next.personaMode != null && next.personaNo != null) {
