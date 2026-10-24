@@ -1123,6 +1123,7 @@ const addRoster = (p) => {
   };
   const applyDraft = () => {
     if (!draftResult?.ok) return;
+    if (!saveUnsavedCustomPersonaBeforeSwitch(state, dispatch)) return;
     const affiliation = draftAffiliationOptions.find((entry) => entry.key === draftAffiliationKey) || null;
     const existing = affiliation ? (roster.personas || []).find((entry) => entry.mode === affiliation.mode && String(entry.no) === String(affiliation.no)) : null;
     const draftRank = ["0", "00", "000"].includes(draftResult.syncRank) ? draftResult.syncRank : null;
