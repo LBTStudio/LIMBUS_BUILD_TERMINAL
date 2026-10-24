@@ -637,6 +637,5 @@
   .lbt-gx__clock-hand { fill:none; stroke:#e0bd55; stroke-width:4; stroke-linecap:round; }
   .lbt-gx__clock-pin { fill:#eed26d; }
   .lbt-gx__clock-tick { fill:none; stroke:#c89d4e; stroke-width:2; stroke-linecap:round; }
-
   @media (prefers-reduced-motion: reduce) { .lbt-gx__mirror { transition:none; } }
 }
