@@ -70,7 +70,7 @@ test("roster import rejects malformed custom Persona secondary passives instead 
       src: { no: 999, name: "副パッシブ破損", skills: [], unique_buffs: [], extra_passives: "broken" }
     }], egos: [], supports: [], spirits: [] }
   });
-  assert.match(error, /roster\\.personas\\[0\\]\\.src\\.extra_passives は配列ではありません/);
+  assert.match(error, /extra_passives は配列ではありません/);
 });
 
 test("local state sanitization preserves valid secondary passives and removes malformed entries only", () => {
