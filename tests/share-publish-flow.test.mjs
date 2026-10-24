@@ -8,7 +8,8 @@ const mobileOverlay = readFileSync(new URL("../assets/v53-overlay.css", import.m
 test("共有URL発行はGitHub Pagesの完全ビューアを維持し、長文時はLBT直接復元URLを使う", () => {
   assert.match(generator, /const LBT_SHARE_VIEWER_URL = "https:\/\/lbtstudio\.github\.io\/LIMBUS_BUILD_TERMINAL\/share\.html"/);
   assert.match(generator, /window\.LBT_shareLink\.createPublishedUrl\(state, LBT_SHARE_VIEWER_URL\)/);
-  assert.match(generator, /const routeLabel = r\.strategy === "rentry" \|\| r\.strategy === "telegraph"/);
+  assert.match(generator, /r\.strategy === "cloudflare-r2"/);
+  assert.match(generator, /r\.strategy === "rentry" \|\| r\.strategy === "telegraph"/);
   assert.doesNotMatch(generator, /r\.strategy === "tinyurl"/);
   assert.match(generator, /Discordへ貼るURL/);
   assert.doesNotMatch(generator, /外部ホストへアップロードしません/);
