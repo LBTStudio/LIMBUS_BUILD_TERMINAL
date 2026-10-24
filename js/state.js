@@ -3506,7 +3506,7 @@ function appReducer(state, action) {
         name: normalizeStatusLabel(b.name || ""),
         type: b.type || "\u30D0\u30D5",
         initial: b.initial !== void 0 ? b.initial : 0,
-        max: b.max || 20,
+        max: b.max ?? 20,
         desc: b.desc || "",
         place: b.place || "status",
         // noST は「対象に付与する値で、自分は保持しない」というDB側の明示宣言。装備後も保持する。
@@ -3560,7 +3560,9 @@ function appReducer(state, action) {
         inventory: state.inventory,
         pas2Enabled: false,
         pas2: { name: "", cond: "", always: "", effect: "" },
-        extraPassives: [],
+        extraPassives: Array.isArray(src.extra_passives)
+          ? src.extra_passives.map((passive, index) => normalizeExtraPassive(passive, index))
+          : [],
         hp: String(src.hp || ""),
         san: String(src.san || ""),
         speed: src.speed || "",
@@ -5198,7 +5200,7 @@ case "ADD_ENTRY":
           name: b.name || "",
           type: b.type || "\u30D0\u30D5",
           initial: b.initial !== void 0 ? b.initial : 0,
-          max: b.max || 20,
+          max: b.max ?? 20,
           desc: b.desc || "",
           place: b.place || "status",
           // 自作人格として保存する際も、対象付与専用の宣言は失わない。
@@ -5254,10 +5256,24 @@ case "ADD_ENTRY":
       let personas = state.roster.personas.slice();
       const idx = personas.findIndex((p) => `${p.mode}:${p.no}` === uniqKey);
       if (idx >= 0) {
-        personas[idx] = { ...personas[idx], build };
+        const existing = personas[idx];
+        personas[idx] = state.personaMode === "custom"
+          ? {
+            ...existing,
+            uid: String(state.personaNo),
+            no: String(state.personaNo),
+            src: existing.src || cloneJSON(state.personaSrc),
+            build
+          }
+          : { ...existing, build };
       } else {
+        const custom = state.personaMode === "custom";
+        const uid = custom ? String(state.personaNo) : makeOwnedUid("pr");
         personas.push({
-          uid: makeOwnedUid("pr"), no: state.personaNo, mode: state.personaMode,
+          uid,
+          no: custom ? uid : state.personaNo,
+          mode: state.personaMode,
+          ...(custom ? { src: cloneJSON(state.personaSrc) } : {}),
           syncRank: null, syncMax: false, lcb: false, equipped: true, notes: "", build
         });
       }
