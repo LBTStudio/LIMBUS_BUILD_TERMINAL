@@ -105,6 +105,10 @@ test("死亡後専用パッシブは解除後の枠から装備できず、ス�
   assert.equal(directEquip.roster.supports.find((entry) => entry.uid === death.uid).equipped, false);
   assert.equal(directEquip.deathSupport ?? null, null);
 
+  const directDeathEquip = reducer(initial, { type: "SET_DEATH_SUPPORT", spp: { name: death.name } });
+  assert.equal(directDeathEquip.roster.supports.length, initial.roster.supports.length, "ロック中の直接装備は所持追加もしない");
+  assert.equal(directDeathEquip.entries.length, initial.entries.length, "ロック中は支出明細も作らない");
+
   const addSupport = reducer(initial, { type: "ADD_SUPPORT", spp: { name: death.name } });
   assert.equal(addSupport.roster.supports.find((entry) => entry.uid === death.uid).equipped, false);
   assert.equal(addSupport.deathSupport ?? null, null);
