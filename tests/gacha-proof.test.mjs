@@ -166,7 +166,7 @@ test("証明ラベルは完全な抽選公平性の証明と誤認させない",
 
 
 test("抽出: iTXt の区切りが欠落した不正チャンクを拒否する", () => {
-  const malformed = new TextEncoder().encode("lbt-gacha-proof\\0\\0\\0");
+  const malformed = new TextEncoder().encode("lbt-gacha-proof\0\0\0");
   assert.equal(P._internals.parseItxt(malformed), null, "言語・翻訳キーワードの終端NULが必須");
   const png = concatBytes(
     new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
