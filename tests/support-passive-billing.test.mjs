@@ -118,6 +118,35 @@ test("死亡後専用パッシブは解除後の枠から装備できず、ス�
   assert.equal(moveToDeath.roster.supports.find((entry) => entry.uid === normal.uid).equipped, false);
 });
 
+test("死亡後専用パッシブは通常枠へ降格できず、古いslotラベルでも通常枠経由の装備を拒否する", () => {
+  const name = db.death_passives[0].name;
+  const death = { uid: "canonical-death", name, slot: "death", equipped: false, cond: "", effect: "", lp: "" };
+  const normalRoster = { personas: [], egos: [], supports: [death], spirits: [] };
+  const locked = { ...base(), roster: normalRoster };
+
+  const demote = reducer(locked, { type: "SET_ROSTER_SUPPORT_SLOT", uid: death.uid, slot: "normal" });
+  assert.equal(demote.roster.supports[0].slot, "death", "死亡後専用パッシブは通常枠へ移せない");
+  assert.equal(demote.roster.supports[0].equipped, false);
+
+  // Simulate a malformed/imported row whose slot field incorrectly says normal.
+  const stale = {
+    ...locked,
+    roster: { ...locked.roster, supports: [{ ...death, slot: "normal" }] }
+  };
+  const lockedEquip = reducer(stale, { type: "SET_ROSTER_SUPPORT_EQUIPPED", uid: death.uid, equipped: true });
+  assert.equal(lockedEquip.roster.supports[0].equipped, false, "ロック中は誤ったslotラベルでも装備できない");
+  assert.equal(lockedEquip.deathSupport ?? null, null);
+
+  const unlocked = {
+    ...stale,
+    enhancements: [{ id: "death-unlock", name: "死亡後パッシブ追加", group: "test", shards: 0 }]
+  };
+  const equipped = reducer(unlocked, { type: "SET_ROSTER_SUPPORT_EQUIPPED", uid: death.uid, equipped: true });
+  assert.equal(equipped.roster.supports[0].slot, "death", "解放済みなら装備時に正規の死亡後枠へ戻す");
+  assert.equal(equipped.roster.supports[0].equipped, true);
+  assert.equal(equipped.deathSupport?.name, name);
+});
+
 test("旧セーブの死亡後パッシブはスロット分類だけ正規化し、装備状態は保持する", () => {
   const name = db.death_passives[0].name;
   for (const slot of ["normal", undefined]) {
