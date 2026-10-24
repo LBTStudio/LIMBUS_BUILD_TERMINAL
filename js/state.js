@@ -1175,18 +1175,28 @@ function supportSlotLimit(state, slot) {
   return (active || []).some((e) => String(e?.name || "").includes("サポートスロット追加")) ? 3 : 2;
 }
 /* 指定の所持を装備する。枠の上限は slot で決まる。 */
+function trimSupportEquippedOverflow(supports, targetUid, slot, limit) {
+  const sameSlot = supports.filter((s) => s.slot === slot && s.equipped);
+  const overflowCount = Math.max(0, sameSlot.length - limit);
+  if (!overflowCount) return supports;
+  // Keep the explicit target equipped regardless of its position in the roster array.
+  const overflowUids = new Set(sameSlot
+    .filter((s) => s.uid !== targetUid)
+    .slice(0, overflowCount)
+    .map((s) => s.uid));
+  return overflowUids.size
+    ? supports.map((s) => (overflowUids.has(s.uid) ? { ...s, equipped: false } : s))
+    : supports;
+}
 function equipRosterSupport(state, uid) {
   const roster = state.roster || {};
   const target = (roster.supports || []).find((s) => s.uid === uid);
   if (!target) return state;
   const limit = supportSlotLimit(state, target.slot);
   const marked = (roster.supports || []).map((s) => (s.uid === uid ? { ...s, equipped: true } : s));
-  const sameSlot = marked.filter((s) => s.slot === target.slot && s.equipped);
-  const overflowUids = new Set(sameSlot.slice(0, Math.max(0, sameSlot.length - limit)).map((s) => s.uid));
-  const supports = overflowUids.size
-    ? marked.map((s) => (overflowUids.has(s.uid) ? { ...s, equipped: false } : s))
-    : marked;
-  return { ...state, roster: { ...roster, supports }, ...projectEquipmentFromRoster({ ...roster, supports }) };
+  const supports = trimSupportEquippedOverflow(marked, uid, target.slot, limit);
+  const nextRoster = { ...roster, supports };
+  return { ...state, roster: nextRoster, ...projectEquipmentFromRoster(nextRoster) };
 }
 function projectEquipmentFromRoster(roster) {
   const supports = (roster?.supports || []).filter((s) => s.equipped && s.slot !== "death");
@@ -4703,13 +4713,7 @@ case "ADD_CUSTOM_ITEM": {
         s.uid === action.uid ? { ...s, equipped: equip } : s
       ));
       if (equip) {
-        const sameSlot = supports.filter((s) => s.slot === target.slot && s.equipped);
-        if (sameSlot.length > limit) {
-          /* 先に付けたものから順に外し、最後の1件（操作対象）を残す。 */
-          const overflow = sameSlot.slice(0, sameSlot.length - limit);
-          const overflowUids = new Set(overflow.map((s) => s.uid));
-          supports = supports.map((s) => (overflowUids.has(s.uid) ? { ...s, equipped: false } : s));
-        }
+        supports = trimSupportEquippedOverflow(supports, action.uid, target.slot, limit);
       }
       const nextRoster = { ...roster, supports };
       return { ...state, roster: nextRoster, ...projectEquipmentFromRoster(nextRoster) };
