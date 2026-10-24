@@ -1352,6 +1352,27 @@ function sanitizeStateCollections(raw) {
   return next;
 }
 
+/* Legacy custom Personas used source.no=999 as a shared placeholder. Keep roster identity
+   in uid/no instead, so equip, save, and card keys resolve the same owned entry. */
+function normalizeCustomPersonaRosterIdentity(personas) {
+  const seen = new Set();
+  return (Array.isArray(personas) ? personas : []).map((entry, index) => {
+    if (!entry || entry.mode !== "custom") return entry;
+    const sourceNo = String(entry.no ?? "").trim();
+    let uid = String(entry.uid || "").trim();
+    if (!uid || seen.has(uid)) {
+      const label = String(entry.displayName || entry.src?.name || entry.name || "").trim()
+        .toLowerCase().replace(/[^a-z0-9\\u3040-\\u30ff\\u3400-\\u9fff-]+/g, "-").replace(/^-+|-+$/g, "");
+      const base = sourceNo && sourceNo !== "999" ? sourceNo : `custom-${label || index + 1}`;
+      uid = base;
+      let suffix = 2;
+      while (seen.has(uid)) uid = `${base}-${suffix++}`;
+    }
+    seen.add(uid);
+    return { ...entry, uid, no: uid };
+  });
+}
+
 function normalizeStateShape(raw) {
   const next = refreshDBReferencedData(refreshEquippedPersonaFromDB(sanitizeStateCollections(raw)));
   next.schemaVersion = next.schemaVersion || SAVE_SCHEMA_VERSION;
@@ -1381,6 +1402,7 @@ function normalizeStateShape(raw) {
   if (!next.ui.previewCollapsed) next.ui.previewCollapsed = {};
   if (!next.roster || typeof next.roster !== "object") next.roster = { personas: [], egos: [], supports: [], spirits: [] };
   if (!Array.isArray(next.roster.personas)) next.roster.personas = [];
+  next.roster.personas = normalizeCustomPersonaRosterIdentity(next.roster.personas);
   if (!Array.isArray(next.roster.egos)) next.roster.egos = [];
   if (!Array.isArray(next.roster.supports)) next.roster.supports = [];
   if (!Array.isArray(next.roster.spirits)) next.roster.spirits = [];
