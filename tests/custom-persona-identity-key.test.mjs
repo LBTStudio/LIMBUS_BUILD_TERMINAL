@@ -59,3 +59,41 @@ test("equipped custom persona detail uses personaNo as its selectable roster key
   assert.equal(views.__buildEquipped(state).no, "custom-equipped");
   assert.equal(views.__resolveEntry(entry, entry.src, state).no, "custom-equipped");
 });
+
+
+test("legacy custom roster entries with shared no=999 retain unique owned keys", () => {
+  const stateSource = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
+  const start = stateSource.indexOf("function normalizeCustomPersonaRosterIdentity(personas) {");
+  const end = stateSource.indexOf("\nfunction normalizeStateShape(raw)", start);
+  assert.ok(start >= 0 && end > start, "state migration exposes isolated custom identity normalizer");
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(
+    stateSource.slice(start, end) + "\nglobalThis.__normalize = normalizeCustomPersonaRosterIdentity;",
+    context
+  );
+  const normalized = context.__normalize([
+    { uid: "custom-a", no: 999, mode: "custom", src: { no: 999, name: "自作A" } },
+    { uid: "custom-b", no: 999, mode: "custom", src: { no: 999, name: "自作B" } }
+  ]);
+  assert.deepEqual(Array.from(normalized, (entry) => entry.no), ["custom-a", "custom-b"]);
+  assert.deepEqual(Array.from(normalized, (entry) => entry.uid), ["custom-a", "custom-b"]);
+});
+
+test("legacy custom roster entries without unique UIDs receive distinct stable keys", () => {
+  const stateSource = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
+  const start = stateSource.indexOf("function normalizeCustomPersonaRosterIdentity(personas) {");
+  const end = stateSource.indexOf("\nfunction normalizeStateShape(raw)", start);
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(
+    stateSource.slice(start, end) + "\nglobalThis.__normalize = normalizeCustomPersonaRosterIdentity;",
+    context
+  );
+  const normalized = context.__normalize([
+    { no: 999, mode: "custom", src: { no: 999, name: "自作A" } },
+    { no: 999, mode: "custom", src: { no: 999, name: "自作B" } }
+  ]);
+  assert.equal(new Set(Array.from(normalized, (entry) => entry.no)).size, 2);
+  assert.ok(normalized.every((entry) => entry.uid === entry.no));
+});
