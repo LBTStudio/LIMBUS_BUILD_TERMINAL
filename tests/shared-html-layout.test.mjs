@@ -101,3 +101,20 @@ test("共有HTMLの個人メモはシート別に端末保存し、共有URLに�
   assert.match(html, /この端末のメモを消去/);
   assert.match(html, /const searchableSelector = "\.hd,\.skl,\.ego,\.spp,\.share-unique,\.share-item,\.panel,\.stat,\.res,\.foot"/);
 });
+
+test("共有HTMLの人格ヘッダーとOGP説明に所属を表示する", () => {
+  const html = sampleShareHtml();
+  const persona = runtime.db.normal_personas[0];
+  assert.ok(persona.affiliation, "テスト人格に所属データがある");
+  assert.ok(html.includes("affiliation-label"), "所属ラベルがヘッダーに出力される");
+  assert.ok(html.includes(`所属 ${persona.affiliation}`), "所属名が表示される");
+  assert.ok(html.includes(`所属：${persona.affiliation}`), "OGP説明にも所属名が含まれる");
+});
+
+test("所属がないカスタム人格には空の所属ラベルを出さない", () => {
+  const persona = runtime.db.normal_personas[0];
+  const state = equipPersona(runtime, "n", persona);
+  state.personaSrc = { ...state.personaSrc, affiliation: "" };
+  const html = String(runtime.gen.buildShareSheetHTML(state));
+  assert.doesNotMatch(html, /class="lbl affiliation-label"/);
+});

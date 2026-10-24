@@ -97,7 +97,7 @@ test("死亡後専用スロットも配列順に関係なく操作対象を装�
 });
 
 test("死亡後専用パッシブは解除後の枠から装備できず、スロット移動も拒否する", () => {
-  const death = { uid: "locked-death", name: "ロック中の死亡後パッシブ", slot: "death", equipped: false, cond: "", effect: "", lp: "" };
+  const death = { uid: "locked-death", name: db.death_passives[0].name, slot: "death", equipped: false, cond: "", effect: "", lp: "" };
   const normal = { uid: "normal-to-death", name: "通常パッシブ", slot: "normal", equipped: false, cond: "", effect: "", lp: "" };
   const initial = { ...base(), roster: { personas: [], egos: [], supports: [death, normal], spirits: [] } };
 
