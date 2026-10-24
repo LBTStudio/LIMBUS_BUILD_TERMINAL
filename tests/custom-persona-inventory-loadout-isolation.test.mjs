@@ -96,6 +96,8 @@ test("creating a custom Persona preserves shared inventory and saves the previou
   assert.equal(next.roster.personas[0].build.savedAt, 123);
   assert.equal(next.personaMode, "custom");
   assert.equal(next.personaSrc.__custom, true);
+  assert.ok(next.roster.personas.every((entry) => entry.equipped === false),
+    "a new unsaved draft must not leave the previously equipped roster Persona marked equipped");
   assert.deepEqual(JSON.parse(JSON.stringify(next.egoSlots)), blankSlots());
   assert.equal(next.egoManual, false);
   assert.deepEqual(Array.from(next.supports), []);
