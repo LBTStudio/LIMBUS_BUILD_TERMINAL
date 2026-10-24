@@ -726,6 +726,8 @@ function validateImportData(data) {
     for (let i = 0; i < (data.roster.personas || []).length; i += 1) {
       const persona = data.roster.personas[i];
       const path = "roster.personas[" + i + "]";
+      const sourceError = validatePersonaSource(persona.src, path + ".src");
+      if (sourceError) return sourceError;
       if (persona.build !== void 0 && persona.build !== null) {
         if (!isRecord(persona.build)) return path + ".build はオブジェクトではありません";
         const buildSkillError = validateSkillArray(persona.build.skills, path + ".build.skills");
