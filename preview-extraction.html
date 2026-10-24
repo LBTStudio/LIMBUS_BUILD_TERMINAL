@@ -3,72 +3,132 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>抽出演出プレビュー（開発用・本番未配線）</title>
+<title>抽出演出プレビュー</title>
 <link rel="stylesheet" href="assets/design-system.css">
 <link rel="stylesheet" href="assets/gacha-extraction.css">
 <style>
-  body { margin: 0; padding: 24px; background: #0c0908; color: #f4ead9; font: 14px/1.6 system-ui, sans-serif; }
-  h1 { font-size: 16px; margin: 0 0 4px; }
-  p.note { margin: 0 0 18px; color: #b8ac9e; font-size: 12px; }
-  .row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
-  button.scn { padding: 9px 14px; border-radius: 10px; border: 1px solid #4a3527; background: #1a120c; color: #f4ead9; font: 600 13px system-ui; cursor: pointer; }
-  button.scn:hover { border-color: #e8963c; }
-  button.scn:focus-visible { outline: 2px solid #e9c46a; outline-offset: 2px; }
-  pre { background: #120c09; border: 1px solid #2a1d15; border-radius: 10px; padding: 12px; overflow: auto; color: #d8cbb8; }
-  #list { margin: 12px 0 0; padding: 0; list-style: none; }
-  #list li { padding: 4px 0; border-bottom: 1px solid #221812; }
+  body { margin:0; padding:0 20px 20px; background:#090a0b; color:#e9e0d4; font:500 13px/1.5 "Yu Gothic UI","Hiragino Kaku Gothic ProN",Meiryo,sans-serif; }
+  .preview { max-width:1040px; margin:auto; }
+  .topline { height:44px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid rgba(214,197,171,.17); color:#aaa094; font:500 9px ui-monospace,monospace; letter-spacing:.2em; }
+  .brand { color:#eee6db; font-weight:700; letter-spacing:.25em; }.brand i { color:#a94740; font-style:normal; padding:0 6px; }
+  .env { display:flex; gap:12px; }.env b { color:#cfb77f; font-weight:500; }
+  main { padding:26px 18px 0; }
+  .masthead { display:flex; align-items:flex-end; justify-content:space-between; gap:14px; margin-bottom:18px; }
+  .kicker { margin-bottom:7px; color:#ab8c6c; font:500 9px ui-monospace,monospace; letter-spacing:.2em; }
+  h1 { margin:0; color:#efe7dc; font:600 clamp(23px,3vw,30px)/1.2 "Yu Mincho","Hiragino Mincho ProN",serif; letter-spacing:.09em; }
+  .note { margin:7px 0 0; color:#a99f94; font-size:11px; }
+  .stamp { padding:7px 10px; border:1px solid rgba(218,188,132,.24); color:#c4b297; text-align:right; font:500 8px/1.5 ui-monospace,monospace; letter-spacing:.14em; }.stamp span { display:block; color:#827a71; }
+  .grid { display:grid; grid-template-columns:minmax(200px,.82fr) minmax(340px,1.18fr); gap:13px; }
+  .motif { position:relative; min-height:255px; overflow:hidden; border:1px solid rgba(214,197,171,.17); background:radial-gradient(ellipse at 50% 48%,rgba(180,117,57,.1),transparent 54%),linear-gradient(145deg,#1a1918,#0b0d0f 70%); }
+  .motif:before { content:""; position:absolute; inset:12px; border:1px solid rgba(218,197,165,.1); }
+  .dial { position:absolute; left:50%; top:47%; width:170px; aspect-ratio:1; transform:translate(-50%,-50%); border-radius:50%; background:repeating-conic-gradient(rgba(214,189,150,.37) 0deg .2deg,transparent .25deg 15deg); mask:radial-gradient(circle,transparent 0 60%,#000 60.5% 61.2%,transparent 62% 70%,#000 70.5% 71%,transparent 72%); }
+  .dial:before,.dial:after { content:""; position:absolute; left:50%; top:50%; border:1px solid rgba(215,187,139,.2); border-radius:50%; transform:translate(-50%,-50%); }
+  .dial:before { width:88px; height:88px; }.dial:after { width:5px; height:5px; background:#d6b777; box-shadow:0 0 16px 4px rgba(214,183,119,.2); }
+  .corner { position:absolute; top:20px; left:22px; color:#817b73; font:500 8px/1.8 ui-monospace,monospace; letter-spacing:.12em; }.corner b { display:block; color:#c8bcae; font-weight:500; }
+  .dial-label { position:absolute; bottom:21px; left:0; right:0; text-align:center; color:#aa9c89; font:500 8px/1.8 ui-monospace,monospace; letter-spacing:.18em; }.dial-label b { display:block; color:#d9c7aa; font-weight:500; }
+  .panel { border:1px solid rgba(214,197,171,.17); background:linear-gradient(155deg,rgba(24,25,26,.92),rgba(14,15,16,.95)); }
+  .panel-head { height:41px; display:flex; align-items:center; justify-content:space-between; padding:0 13px; border-bottom:1px solid rgba(211,196,173,.13); color:#e2d8c9; font:500 10px ui-monospace,monospace; letter-spacing:.12em; }.panel-head span { color:#8e8579; font-size:8px; }
+  .scenarios { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; padding:11px; }
+  button.scn { min-width:0; min-height:64px; padding:9px 10px; text-align:left; border:1px solid rgba(212,195,170,.17); background:rgba(9,10,11,.62); color:#e5ddd2; font:500 11px/1.35 "Yu Gothic UI","Meiryo",sans-serif; cursor:pointer; transition:border-color .18s,background .18s,transform .18s; }
+  button.scn:hover:not(:disabled) { border-color:rgba(220,188,123,.58); background:rgba(46,34,24,.55); transform:translateY(-1px); }
+  button.scn:focus-visible { outline:2px solid #d8b873; outline-offset:2px; }
+  button.scn:disabled { opacity:.55; cursor:wait; }
+  button.scn strong { display:block; margin-bottom:4px; font-size:11px; letter-spacing:.05em; }
+  button.scn small { display:block; color:#968d82; font-size:9px; }
+  button.scn em { float:right; color:#cdb17a; font:500 8px ui-monospace,monospace; letter-spacing:.1em; font-style:normal; }
+  .record { margin-top:13px; min-height:116px; }
+  .record-body { display:flex; align-items:center; gap:12px; min-height:72px; padding:11px 13px; }
+  .record-mark { flex:0 0 28px; width:28px; height:28px; display:grid; place-items:center; border:1px solid rgba(218,188,132,.35); color:#d7bc83; font:500 9px ui-monospace,monospace; transform:rotate(45deg); }.record-mark span { transform:rotate(-45deg); }
+  .record-copy { min-width:0; flex:1; }.record-copy b { display:block; color:#e2d8cb; font:500 10px ui-monospace,monospace; letter-spacing:.14em; }.record-copy p { margin:4px 0 0; color:#938a80; font-size:10px; }
+  #plan { display:inline-block; margin:3px 0 0; color:#ccb781; font:500 9px ui-monospace,monospace; letter-spacing:.08em; }
+  #list { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:6px; padding:0 13px 11px; margin:0; list-style:none; }
+  #list:empty { display:none; }
+  #list li { display:flex; justify-content:space-between; gap:8px; padding:7px 9px; border-left:2px solid #bfa878; background:rgba(8,9,10,.55); color:#d8cec1; font-size:10px; }
+  #list li.is-special { border-color:#dfbd70; }#list li.is-ego { border-color:#9d83af; }#list li.is-pack { border-color:#859b78; }
+  #list .type { flex:0 0 auto; color:#8f867b; font-size:9px; }
+  .foot { display:flex; justify-content:space-between; gap:10px; padding:10px 1px 0; color:#81796f; font:500 8px/1.5 ui-monospace,monospace; letter-spacing:.08em; }
+  @media(max-width:680px) { body { padding:0 12px 16px; } main { padding:22px 0 0; } .grid { grid-template-columns:1fr; } .motif { min-height:165px; } .dial { width:124px; } }
+  @media(max-width:390px) { .topline { font-size:8px; } .env { gap:6px; } .scenarios { grid-template-columns:1fr; } .stamp { font-size:7px; } }
 </style>
 </head>
 <body>
-<h1>抽出演出プレビュー</h1>
-<p class="note">開発用。本番の index.html / ガチャ画面には未配線。機構は Limbus Company の「鎖の球」に着想、描画は LBT のデザイン言語で自作。</p>
-
-<div class="row">
-  <button class="scn" data-scn="single-normal">通常 単発</button>
-  <button class="scn" data-scn="ten-none">10連（特異なし）</button>
-  <button class="scn" data-scn="ten-late">10連（特異が後半 → 途中で金）</button>
-  <button class="scn" data-scn="single-first">単発（特異が先頭 → 開始から金）</button>
-  <button class="scn" data-scn="single-ego">E.G.O 単発</button>
-  <button class="scn" data-scn="single-pack">特定抽出パック 単発</button>
-</div>
-<p class="note" id="rm"></p>
-<pre id="plan">plan() の出力がここに出ます。</pre>
-<ul id="list" aria-live="polite"></ul>
-
+<div class="preview">
+<header class="topline"><div class="brand">L.B.T.<i>/</i>EXTRACTION TERMINAL</div><div class="env"><span>DESIGN PREVIEW</span><b>本番未接続</b></div></header>
+<main>
+<section class="masthead"><div><div class="kicker">RECORD 01　/　MIRROR EXTRACTION</div><h1>人格・E.G.O 抽出</h1><p class="note">既存演出の動きを保ち、色調とプレビューUIを調整。</p></div><div class="stamp">EXTRACTION<span>ANIMATION STUDY</span></div></section>
+<section class="grid">
+<div class="motif" aria-hidden="true"><span class="corner">DANTE'S RECORD<b>CHRONO LOCK　08</b></span><div class="dial"></div><div class="dial-label">鎖球反応<b>SEQUENCE　01 / 10</b></div></div>
+<section class="panel" aria-label="抽出演出パターン"><div class="panel-head">演出パターン<span>SELECT TO PLAY</span></div><div class="scenarios">
+<button class="scn" data-scn="single-normal"><strong>通常人格 <em>1回</em></strong><small>標準色の鎖球演出</small></button>
+<button class="scn" data-scn="ten-none"><strong>通常人格 <em>10回</em></strong><small>結果一覧まで再生</small></button>
+<button class="scn" data-scn="single-first"><strong>特異人格 <em>先行</em></strong><small>開始時から金色予兆</small></button>
+<button class="scn" data-scn="ten-late"><strong>特異人格 <em>後半</em></strong><small>途中で金色へ転換</small></button>
+<button class="scn" data-scn="single-ego"><strong>E.G.O <em>1回</em></strong><small>結果枠の色分け</small></button>
+<button class="scn" data-scn="single-pack"><strong>特定抽出パック <em>1回</em></strong><small>パック結果の表示</small></button>
+</div></section></section>
+<section class="panel record" aria-label="結果記録"><div class="panel-head">抽出記録<span id="rm">待機中</span></div><div class="record-body"><div class="record-mark" aria-hidden="true"><span>08</span></div><div class="record-copy"><b>RESULT RECORD</b><p id="status" aria-live="polite">シナリオを選ぶと抽出演出が始まります。</p><pre id="plan"></pre></div></div><ul id="list" aria-live="polite"></ul></section>
+<footer class="foot"><span>演出プレビュー　/　抽選・本番画面には未配線</span><span id="motion"></span></footer>
+</main></div>
 <script src="js/gacha-extraction.js"></script>
 <script>
 (function () {
   var api = window.LBT_gachaExtraction;
-  var pre = document.getElementById("plan");
+  var status = document.getElementById("status");
+  var plan = document.getElementById("plan");
   var list = document.getElementById("list");
-  document.getElementById("rm").textContent =
-    "prefers-reduced-motion: " + (api.reduceMotion() ? "reduce（移動なしで即時表示）" : "no-preference");
+  var buttons = Array.prototype.slice.call(document.querySelectorAll("button.scn"));
+  document.getElementById("motion").textContent =
+    api.reduceMotion() ? "動きを抑えて即時表示" : "シナリオを選んで再生";
 
-  function persona(n) { return { type: "persona", mode: "n", no: n, name: "人格 No." + n }; }
+  function persona(no, name, rare) {
+    return { type: "persona", mode: rare ? "t" : "n", branch: rare ? "special" : null, no: no, name: name };
+  }
+  var normalNames = ["黒雲会組員","黒雲会若衆","剣契殺手A","剣契殺手B","南部親指ソルダートII","東部親指ソルダートII","黒雲会若衆","剣契殺手A","南部親指ソルダートII","黒雲会組員"];
+  var specialNames = ["N社握る者","N社握らんとする者","開花E.G.O:壇香梅","双鉤海賊団副船長","ピークォド号船長","エドガー家継承者"];
   var SCENARIOS = {
-    "single-normal": [persona(3)],
-    "ten-none": [persona(1), persona(2), persona(3), persona(4), persona(5), persona(6), persona(7), persona(8), persona(9), persona(10)],
-    "ten-late": [persona(1), persona(2), persona(3), persona(4), persona(5), persona(6), persona(7), persona(8), persona(9),
-      { type: "persona", mode: "t", branch: "special", no: 99, name: "特異人格 No.99" }],
-    "single-first": [{ type: "persona", mode: "t", branch: "special", no: 7, name: "特異人格 No.7" }],
-    "single-ego": [{ type: "ego", rank: "HE", no: 12, name: "E.G.O No.12" }],
-    "single-pack": [{ type: "themePack", pack: "向き合わない", no: 4, name: "パック No.4" }]
+    "single-normal": [persona(1, normalNames[0], false)],
+    "ten-none": normalNames.map(function (name, i) { return persona(i + 1, name, false); }),
+    "ten-late": normalNames.slice(0, 9).map(function (name, i) { return persona(i + 1, name, false); }).concat([persona(5, specialNames[4], true)]),
+    "single-first": [persona(1, specialNames[0], true)],
+    "single-ego": [{ type: "ego", rank: "HE", no: 3, name: "懺悔：たった一つの罪と何百もの善" }],
+    "single-pack": [{ type: "themePack", pack: "向き合わない", no: 4, name: "向き合わない" }]
   };
-
-  document.querySelectorAll("button.scn").forEach(function (btn) {
-    btn.addEventListener("click", function () {
-      var hits = SCENARIOS[btn.dataset.scn];
-      pre.textContent = JSON.stringify(api.plan(hits), null, 2);
+  function tierClass(hit) {
+    return api.isSpecial(hit) ? "is-special" : hit && hit.type === "ego" ? "is-ego" : hit && hit.type === "themePack" ? "is-pack" : "";
+  }
+  function showResults(hits) {
+    list.textContent = "";
+    hits.forEach(function (hit) {
+      var li = document.createElement("li");
+      var name = document.createElement("span");
+      var type = document.createElement("span");
+      li.className = tierClass(hit);
+      name.textContent = (hit.name || "") + (hit.no != null ? "　No." + hit.no : "");
+      type.className = "type";
+      type.textContent = api.label(hit);
+      li.appendChild(name);
+      li.appendChild(type);
+      list.appendChild(li);
+    });
+  }
+  buttons.forEach(function (button) {
+    button.addEventListener("click", function () {
+      if (button.disabled) return;
+      buttons.forEach(function (item) { item.disabled = true; });
+      var hits = SCENARIOS[button.dataset.scn];
+      var cue = api.plan(hits);
       list.textContent = "";
+      status.textContent = "鎖球の反応を確認しています…";
+      plan.textContent = cue.gold ? (cue.startsGold ? "予兆：開始時から金" : "予兆：途中で金へ転換") : "予兆：標準";
       api.play(hits, {
-        onSkip: function () { pre.textContent += "\n（スキップされました）"; }
-      }).then(function (st) {
-        list.textContent = "";
-        hits.forEach(function (h) {
-          var li = document.createElement("li");
-          li.textContent = api.label(h) + "：" + h.name;
-          list.appendChild(li);
-        });
+        onSkip: function () { status.textContent = "スキップ済み — 結果を表示しています。"; }
+      }).then(function () {
+        showResults(hits);
+        status.textContent = hits.length === 10 ? "10件の結果を記録しました。" : "結果を記録しました。";
+      }).catch(function () {
+        status.textContent = "演出を開始できませんでした。もう一度お試しください。";
+      }).then(function () {
+        buttons.forEach(function (item) { item.disabled = false; });
       });
     });
   });
