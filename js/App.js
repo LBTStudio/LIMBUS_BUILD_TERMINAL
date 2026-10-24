@@ -750,10 +750,11 @@ function validateImportData(data) {
   // JSONとして有効でも同じキーが複数あると、一操作で複数行を更新／削除し、
   // 異なる所持品の支出明細まで一緒に消す可能性がある。古い形式でキーが無い
   // レコードは正規化で採番するため許容し、明示された重複だけを拒否する。
-  const validateUniqueIdentity = (rows, field, path) => {
+  const validateUniqueIdentity = (rows, field, path, skipEntry = null) => {
     if (!Array.isArray(rows)) return null;
     const seen = new Set();
     for (let i = 0; i < rows.length; i += 1) {
+      if (typeof skipEntry === "function" && skipEntry(rows[i])) continue;
       const raw = rows[i]?.[field];
       if (raw === void 0 || raw === null || String(raw).trim() === "") continue;
       const id = String(raw).trim();
@@ -784,7 +785,10 @@ function validateImportData(data) {
       ["supports", data.roster.supports],
       ["spirits", data.roster.spirits]
     ]) {
-      const error = validateUniqueIdentity(rows, "uid", "roster." + field);
+      /* Custom Persona UID collisions are repairable: normalizeCustomPersonaRosterIdentity
+         deterministically assigns fresh IDs while preserving each source/build record. */
+      const skipRepairableCustomUid = field === "personas" ? (entry) => entry?.mode === "custom" : null;
+      const error = validateUniqueIdentity(rows, "uid", "roster." + field, skipRepairableCustomUid);
       if (error) return error;
     }
     const personaKeys = new Set();

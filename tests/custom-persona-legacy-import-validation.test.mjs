@@ -35,3 +35,19 @@ test("custom Persona identity is validated by UID, not by the shared source plac
     { uid: "custom-two", no: "custom-two", mode: "custom", src: { no: 999, name: "自作人格B" }, build: null }
   ])), null);
 });
+
+test("duplicate legacy custom Persona UIDs are allowed through to the migration repair", () => {
+  const data = base([
+    { uid: "legacy-duplicate", no: 999, mode: "custom", src: { no: 999, name: "自作人格A" }, build: null },
+    { uid: "legacy-duplicate", no: 999, mode: "custom", src: { no: 999, name: "自作人格B" }, build: null }
+  ]);
+  assert.equal(validate(data), null);
+});
+
+test("duplicate non-custom roster UIDs remain rejected", () => {
+  const data = base([
+    { uid: "same-id", no: 1, mode: "n", src: { no: 1, name: "通常人格A" }, build: null },
+    { uid: "same-id", no: 2, mode: "n", src: { no: 2, name: "通常人格B" }, build: null }
+  ]);
+  assert.match(validate(data), /重複uid same-id/);
+});
