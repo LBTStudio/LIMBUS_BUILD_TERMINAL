@@ -27,7 +27,8 @@ const allCss = cssFiles.map((f) => readFileSync(path.join(assetsDir, f), "utf8")
 const allJs = readdirSync(jsDir).filter((f) => f.endsWith(".js")).map((f) => readFileSync(path.join(jsDir, f), "utf8")).join("\n");
 
 // 検出された 164 件を読み込む（直前の dead-css の出力に一致するselector）
-const candidates = JSON.parse(readFileSync(process.argv[2] || "dead-list.json", "utf8"));
+const candidatesPath = process.argv[2] || path.join(REPO_ROOT, "tmp", "dead-list.json");
+const candidates = JSON.parse(readFileSync(candidatesPath, "utf8"));
 
 const stateful = /:(hover|active|focus|focus-visible|focus-within|checked|disabled|target|before|after|placeholder|selection|marker|backdrop|first-line|first-letter)\b|\[(?![a-z-]+\])|\.((is|has)-)|::/i;
 

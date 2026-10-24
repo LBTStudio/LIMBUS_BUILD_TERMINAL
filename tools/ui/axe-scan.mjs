@@ -20,7 +20,7 @@ const axeJs = readFileSync(requireDep("axe-core").path ?? path.join(".browser-de
 
 const { chromium } = loadPlaywright();
 const browser = await chromium.launch({ headless: true });
-const { context, page, errors } = await openApp(browser);
+const { context, page, errors } = await openApp(browser, { url });
 
 console.log(`target: ${url}\n`);
 
@@ -75,4 +75,5 @@ if (byRule.size) {
 if (errors.length) {
   console.log(`\nconsole errors: ${errors.length}`);
   errors.slice(0, 5).forEach((e) => console.log(`  ${e}`));
+  process.exitCode = 1;
 }

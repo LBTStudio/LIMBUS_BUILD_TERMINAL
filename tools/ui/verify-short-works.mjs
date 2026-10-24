@@ -82,3 +82,11 @@ console.log(`  → 復元は sheet-open 時に share.html が保存先から取�
 const sources = S.shortSourcesFromLocation({ search: u.search });
 console.log(`\n  URL から保存先を逆引き: ${JSON.stringify(sources)}`);
 console.log(`  復元可能か: ${sources.length ? "YES（保存先 ID で token を取得できる）" : "NO"}`);
+
+const failed = urlHasToken || !sources.length || pub.length > 1900;
+if (failed) {
+  console.error("\nFAIL: URL の短縮・保存先逆引き・1900文字上限のいずれかに問題があります");
+  process.exitCode = 1;
+} else {
+  console.log("\nPASS: URL は短縮形式で、保存先を逆引きでき、1900文字以内です");
+}
