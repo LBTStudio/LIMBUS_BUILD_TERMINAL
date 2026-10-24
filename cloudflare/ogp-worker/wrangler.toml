@@ -3,7 +3,7 @@ main = "worker.js"
 compatibility_date = "2026-10-25"
 workers_dev = true
 
-# Cache immutable share pages before executing Worker code. Requires a current Wrangler 4.x release.
+# 不変の共有ページをキャッシュし、キャッシュヒット時はWorkerの実行を省く（Wrangler 4.69.0以降）。
 [cache]
 enabled = true
 
