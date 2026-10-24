@@ -48,6 +48,12 @@ function publishRequest(body, headers = {}) {
   });
 }
 
+test("ヘルスチェックは無料のKV保存先が接続されていることを返す", async () => {
+  const response = await worker.fetch(new Request("https://lbt-ogp.lbtstudio-share.workers.dev/healthz"), makeEnv());
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { ok: true, shareStore: "kv", configured: true });
+});
+
 test("KV共有発行は固定OGP HTMLを保存し、短いURLと復元用tokenを返す", async () => {
   const env = makeEnv();
   const response = await worker.fetch(publishRequest({
