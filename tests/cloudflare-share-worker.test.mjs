@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import worker from "../cloudflare/ogp-worker/worker.js";
+import { readFileSync } from "node:fs";
+
+const workerSource = readFileSync(new URL("../cloudflare/ogp-worker/worker.js", import.meta.url), "utf8");
 
 function makeKV(initial = new Map()) {
   const objects = initial;
@@ -47,6 +50,13 @@ function publishRequest(body, headers = {}) {
     body: JSON.stringify(body),
   });
 }
+
+test("HTML応答の既定キャッシュTTLは現在の設定定数を参照する", () => {
+  const match = workerSource.match(/function buildResponse\(html, options = \{\}\) \{[\s\S]*?\n\}/);
+  assert.ok(match, "buildResponse function exists");
+  assert.match(match[0], /SHARE_CACHE_TTL_SECONDS/);
+  assert.doesNotMatch(match[0], /\bSHARE_TTL_SECONDS\b/, "the removed constant name must not remain");
+});
 
 test("ヘルスチェックは無料のKV保存先が接続されていることを返す", async () => {
   const response = await worker.fetch(new Request("https://lbt-ogp.lbtstudio-share.workers.dev/healthz"), makeEnv());
