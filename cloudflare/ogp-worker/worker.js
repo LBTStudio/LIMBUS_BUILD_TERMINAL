@@ -405,7 +405,10 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.pathname === API_PATH) return publishShare(request, env);
-    if (url.pathname === "/healthz") return jsonResponse({ ok: true, kvConfigured: Boolean(env.SHARES) }, 200);
+    if (url.pathname === "/healthz") {
+      const store = shareStoreKind(env);
+      return jsonResponse({ ok: true, shareStore: store, configured: store !== "none" }, 200);
+    }
     if (url.pathname === "/d" && request.method === "GET") return handleLegacyDownload(request, env);
     if (url.pathname === "/s" && request.method === "GET") return handleLegacyOgp(request, env);
     const shareMatch = /^\/s\/([A-Za-z0-9_-]{16})$/.exec(url.pathname);
