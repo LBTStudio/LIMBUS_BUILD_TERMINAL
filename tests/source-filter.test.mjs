@@ -113,7 +113,7 @@ test("出典フィルタは 4 つの選択肢を持つ", () => {
 test("出典を返す関数を、同じ名前の配列が影に落としていない", () => {
   assert.match(sectionSource, /const catalogSource = \(entry\) => entry\?\.source \|\| "core";/);
   assert.doesNotMatch(sectionSource, /const catalogSource = (?!\(entry\))/, "関数以外の同名束縛を置かない");
-  assert.match(sectionSource, /const supportCatalog = gated \? ownedSupports : DB\.support_passives;/);
+  assert.match(sectionSource, /const supportCatalog = gated \? ownedSupports\.filter\(\(entry\) => entry\.slot !== "death"\) : DB\.support_passives;/);
 });
 
 const stateSourceForOwned = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
