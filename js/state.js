@@ -1199,18 +1199,20 @@ function equipRosterSupport(state, uid) {
      公式死亡後パッシブ名簿を唯一の判定基準として、装備判定より先に正規化する。
      そうしないと slot:"normal" に偽装された死亡後パッシブが、未開放でも
      通常枠へ装備され、出力へ流れてしまう。 */
-  const normalizedSupports = (roster.supports || []).map((s) => ({
+  let normalizedSupports = (roster.supports || []).map((s) => ({
     ...s,
     slot: isDeathSupportPassiveRecord(s) ? "death" : "normal"
   }));
+  const unlocked = deathSupportSlotUnlocked(state);
+  if (!unlocked) {
+    // ロック中に残った死亡後装備も、別の通常装備操作で出力へ復活させない。
+    normalizedSupports = normalizedSupports.map((s) => s.slot === "death" ? { ...s, equipped: false } : s);
+  }
   const target = normalizedSupports.find((s) => s.uid === uid);
   if (!target) return state;
 
-  const unlocked = deathSupportSlotUnlocked(state);
   if (target.slot === "death" && !unlocked) {
-    // 不正な旧ラベルから投影されていた死亡後パッシブを通常枠へ残さない。
-    const supports = normalizedSupports.map((s) => s.slot === "death" ? { ...s, equipped: false } : s);
-    const nextRoster = { ...roster, supports };
+    const nextRoster = { ...roster, supports: normalizedSupports };
     return { ...state, roster: nextRoster, ...projectEquipmentFromRoster(nextRoster) };
   }
 
