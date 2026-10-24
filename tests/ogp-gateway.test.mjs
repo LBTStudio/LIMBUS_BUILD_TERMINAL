@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { handleRequest, parseSources } from "../ogp-gateway/worker.mjs";
+import { handleRequest, parseSources, previewFromQuery } from "../ogp-gateway/worker.mjs";
 
 function toBase64Url(text) {
   return Buffer.from(text).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
@@ -9,6 +9,12 @@ function toBase64Url(text) {
 function token(snapshot) {
   return `j.${toBase64Url(JSON.stringify({ _lbtShare: 1, ...snapshot }))}`;
 }
+
+
+test("query preview は SPD を含めて OGP 説明文を生成する", () => {
+  const preview = previewFromQuery(new URL("https://lbt-ogp.example/s?s=t:abc&lbt_n=人格&lbt_hp=120&lbt_san=50&lbt_spd=3-7&lbt_sync=000&lbt_max=1"));
+  assert.equal(preview.description, "HP 120 ｜ SAN 50 ｜ SPD 3-7 ｜ 同期000 · MAX");
+});
 
 test("OGPゲートウェイは許可形式の共有IDだけを受理する", () => {
   const url = new URL("https://lbt-ogp.example/s?s=t:Share-A,r:valid_id-01");
