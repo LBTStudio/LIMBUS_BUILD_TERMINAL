@@ -3038,9 +3038,10 @@ function getRosterLibraryEquipBlockReason(item, state, activeEnhancements) {
       ? null
       : "死亡後専用スロットが未開放です";
   }
-  const maxSupports = enhancements.some((entry) => String((entry && entry.name) || "").includes("サポートスロット追加")) ? 3 : 2;
-  const equippedSupports = Array.isArray(state && state.supports) ? state.supports : [];
-  return equippedSupports.length >= maxSupports ? "スロット上限（" + maxSupports + "枠）です" : null;
+  // Normal-slot capacity is handled by SET_ROSTER_SUPPORT_EQUIPPED: when full,
+  // the reducer unequips the oldest occupants and keeps the requested target equipped.
+  // Blocking here made the record library disagree with the support editor.
+  return null;
 }
 
 const RosterSection = ({ state, dispatch }) => {
