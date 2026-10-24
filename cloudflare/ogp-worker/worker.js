@@ -121,8 +121,11 @@ function renderShell({ preview, iframeUrl = "", legacyUrl = "", canonicalUrl = "
     p.syncMax ? "MAX" : "",
   ].filter(Boolean).join(" / ");
   const description = (detail ? detail + "。 " : "") + "LIMBUS BUILD TERMINALで作成された共有キャラクターシートです。";
+  const fallbackLink = legacyUrl
+    ? '<a class="fallback-link" rel="noreferrer" href="' + htmlEscape(legacyUrl) + '">予備URL</a>'
+    : "";
   const frame = iframeUrl
-    ? '<iframe class="sheet" title="共有キャラクターシート" src="' + htmlEscape(iframeUrl) + '" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-downloads"></iframe>'
+    ? '<iframe class="sheet" title="共有キャラクターシート" src="' + htmlEscape(iframeUrl) + '" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-downloads"></iframe>' + fallbackLink
     : '<main><h1>共有シートを読み込めませんでした</h1><p>' + htmlEscape(error || "共有データの取得に失敗しました。") + '</p>' + (legacyUrl ? '<p><a rel="noreferrer" href="' + htmlEscape(legacyUrl) + '">既存の共有方式で開く</a></p>' : "") + '</main>';
   return '<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
     + '<meta http-equiv="Content-Security-Policy" content="' + htmlEscape(RESPONSE_CSP) + '">'
@@ -135,7 +138,7 @@ function renderShell({ preview, iframeUrl = "", legacyUrl = "", canonicalUrl = "
     + '<meta property="og:title" content="' + htmlEscape(title) + '"><meta property="og:description" content="' + htmlEscape(description) + '">'
     + '<meta property="og:image" content="' + htmlEscape(env.OG_IMAGE_URL || DEFAULT_OG_IMAGE) + '">'
     + '<meta name="twitter:card" content="summary_large_image">'
-    + '<style>html,body{margin:0;min-height:100%;background:#17100d;color:#f2ece1;font-family:system-ui,sans-serif}body{height:100dvh;overflow:hidden}.sheet{display:block;width:100%;height:100dvh;border:0}main{box-sizing:border-box;max-width:760px;margin:10vh auto;padding:24px;line-height:1.6}a{color:#e4c16e}</style>'
+    + '<style>html,body{margin:0;min-height:100%;background:#17100d;color:#f2ece1;font-family:system-ui,sans-serif}body{height:100dvh;overflow:hidden}.sheet{display:block;width:100%;height:100dvh;border:0}main{box-sizing:border-box;max-width:760px;margin:10vh auto;padding:24px;line-height:1.6}a{color:#e4c16e}.fallback-link{position:fixed;right:8px;bottom:8px;z-index:5;padding:6px 9px;border:1px solid #6a5b3e;border-radius:5px;background:#17100df0;font-size:11px;opacity:.82}</style>'
     + '</head><body>' + frame + '</body></html>';
 }
 
