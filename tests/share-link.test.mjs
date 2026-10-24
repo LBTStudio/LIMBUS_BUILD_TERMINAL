@@ -511,7 +511,7 @@ test("R2共有APIが利用可能なら短いCloudflare HTML URLを主URLにし�
     if (String(url) === "https://api.telegra.ph/createPage") return new Response(JSON.stringify({ ok: true, result: { path: "LBT-R2-Primary" } }), { status: 200 });
     if (String(url) === "https://lbt-ogp.lbtstudio-share.workers.dev/api/r2-share/v1") {
       const payload = JSON.parse(options.body);
-      assert.match(payload.token, /^(z|j)\\./);
+      assert.match(payload.token, /^(z|j)\./);
       assert.equal(payload.preview.personaName, "蜘蛛の巣 中指の親方");
       assert.equal(payload.fallbacks.length, 2);
       return new Response(JSON.stringify({
@@ -529,8 +529,8 @@ test("R2共有APIが利用可能なら短いCloudflare HTML URLを主URLにし�
   assert.equal(url.searchParams.get("lbt_n"), "蜘蛛の巣 中指の親方");
   assert.ok(result.length < 350);
   assert.equal(result.backups.length, 1);
-  assert.match(result.backups[0].url, /^https:\\/\\/lbtstudio\\.github\\.io\\//);
-  assert.match(result.backups[0].url, /share\\.html\\?s=/);
+  assert.match(result.backups[0].url, /^https:\/\/lbtstudio\.github\.io\//);
+  assert.match(result.backups[0].url, /share\.html\?s=/);
   assert.equal(calls.filter((call) => call.url.includes("/api/r2-share/v1")).length, 1);
 });
 
