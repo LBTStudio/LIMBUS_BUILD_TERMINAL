@@ -177,12 +177,15 @@ export function previewFromSnapshot(snapshot) {
 export function previewFromQuery(url) {
   const params = url.searchParams;
   const rawName = String(params.get("lbt_n") || "").trim();
-  if (!rawName) return null;
+  const rawSpeed = String(params.get("lbt_spd") || "").trim();
+  /* SPDを持たない旧リンクでは軽量経路を使わず、保存済みtokenから正確な値を再構築する。
+     これにより旧リンクを「SPD ?」へ劣化させず、共有データとOGPの整合性を保つ。 */
+  if (!rawName || !rawSpeed) return null;
   const chars = Array.from(rawName);
   const personaName = chars.slice(0, 48).join("") + (chars.length > 48 ? "…" : "");
   const hp = String(params.get("lbt_hp") || "").trim().slice(0, 12) || "?";
   const san = String(params.get("lbt_san") || "").trim().slice(0, 12) || "?";
-  const speed = String(params.get("lbt_spd") || "").trim().slice(0, 16) || "?";
+  const speed = rawSpeed.slice(0, 16) || "?";
   const syncRank = ["0", "00", "000"].includes(params.get("lbt_sync") || "") ? params.get("lbt_sync") : "";
   const syncMax = params.get("lbt_max") === "1";
   const sync = [syncRank ? `同期${syncRank}` : "", syncMax ? "MAX" : ""].filter(Boolean).join(" · ");
