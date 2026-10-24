@@ -85,7 +85,7 @@ npx wrangler@latest deploy
 
 [ヘルスチェック](https://lbt-ogp.lbtstudio-share.workers.dev/healthz)
 
-成功時には `{"ok":true,"kvConfigured":true}` 相当の応答が返ります。`kvConfigured` が `false` の場合、Workerの `SHARES` バインディングとnamespace IDを確認してください。
+成功時には `{"ok":true,"shareStore":"kv","configured":true}` 相当の応答が返ります。`shareStore` が `none` または `configured` が `false` の場合、Workerの `SHARES` バインディングとnamespace IDを確認してください。
 
 その後、[LIMBUS BUILD TERMINAL](https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/) から共有を新規発行し、以下を確認します。
 
