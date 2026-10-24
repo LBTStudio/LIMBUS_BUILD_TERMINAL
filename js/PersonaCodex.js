@@ -108,10 +108,11 @@ function inferAffiliation(name) {
   return "\u305D\u306E\u4ED6";
 }
 function decoratePersona(p) {
-  if (!p.__aff) {
-    // Prefer the errata-derived affiliation field over name-based inference.
-    p.__aff = (p.affiliation && p.affiliation.trim()) || inferAffiliation(p.name);
-  }
+  // A manually edited affiliation is authoritative, including an intentional blank.
+  // Otherwise prefer the errata-derived value and fall back to the name-based inference.
+  p.__aff = p.__affiliationManual
+    ? String(p.affiliation || "").trim()
+    : (p.affiliation && p.affiliation.trim()) || inferAffiliation(p.name);
   return p;
 }
 function getPrimarySin(p) {
@@ -391,7 +392,15 @@ const EquippedSummary = ({ state, dispatch, onExpand, onShowDetail, detailShown,
           /* @__PURE__ */ React.createElement("div", { className: "es-id-meta" },
             /* @__PURE__ */ React.createElement("span", { className: "es-label" }, isCustom ? "CUSTOM / 創作" : state.personaMode === "n" ? "NORMAL / 通常" : "SPECIAL / 特異"),
             primarySin && /* @__PURE__ */ React.createElement("span", { className: "es-id-sin" }, primarySin),
-            affiliation && /* @__PURE__ */ React.createElement("span", { className: "es-id-affil" }, affiliation),
+            editable
+              ? /* @__PURE__ */ React.createElement("input", {
+                  className: "es-affiliation-input",
+                  value: p.__affiliationManual ? (p.affiliation || "") : (p.affiliation || affiliation || ""),
+                  onChange: (e) => patchMeta({ src: { affiliation: e.target.value, __affiliationManual: true } }),
+                  title: "所属タグ（編集モード）",
+                  "aria-label": "所属タグ"
+                })
+              : affiliation && /* @__PURE__ */ React.createElement("span", { className: "es-id-affil" }, affiliation),
             !isCustom && /* @__PURE__ */ React.createElement("span", { className: "es-num" }, "No.", String(p.no).padStart(3, "0")),
             !editable && /* @__PURE__ */ React.createElement("span", { className: "es-id-editbadge" }, "閲覧中")
           )
