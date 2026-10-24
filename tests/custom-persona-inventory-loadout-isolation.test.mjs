@@ -57,7 +57,7 @@ function previousState() {
   return {
     personaMode: "n", personaNo: 1, personaSrc: { no: 1, name: "以前の人格" },
     hp: "90", san: "40", speed: "1d5", inventory: [{ uid: "item-owned-1", itemId: "item-1", quantity: 2 }],
-    egoSlots: { ZAYIN: { no: 1, name: "以前のE.G.O" }, TETH: null, HE: null, WAW: null, ALEPH: null },
+    egoSlots: { ZAYIN: { no: 1, name: "以前のE.G.O" }, TETH: null, HE: null, WAW: null, ALEPH: null }, egoManual: true,
     spirit: "以前の精神", spiritMorale: "士気", spiritConfuse: "混乱", spiritAlways: "精神効果",
     supports: [{ id: "sup-active", name: "以前のサポート" }], deathSupport: { id: "death-1", name: "死亡後" },
     enhancements: [{ id: "enh-1", effect: "以前の強化" }],
@@ -88,6 +88,7 @@ test("creating a custom Persona preserves shared inventory and saves the previou
   assert.equal(next.personaMode, "custom");
   assert.equal(next.personaSrc.__custom, true);
   assert.deepEqual(JSON.parse(JSON.stringify(next.egoSlots)), blankSlots());
+  assert.equal(next.egoManual, false);
   assert.deepEqual(Array.from(next.supports), []);
   assert.equal(next.deathSupport, null);
   assert.equal(next.spirit, "");
@@ -130,6 +131,7 @@ test("importing a new custom Persona draft preserves inventory and isolates prio
   assert.ok(next.roster.spirits.every((entry) => entry.equipped === false));
   const owned = next.roster.personas.find((entry) => entry.mode === "custom");
   assert.deepEqual(JSON.parse(JSON.stringify(owned.build.egoSlots)), blankSlots());
+  assert.equal(owned.build.egoManual, false);
   assert.deepEqual(Array.from(owned.build.supports), []);
   assert.deepEqual(JSON.parse(JSON.stringify(owned.build.equipmentRefs)), { supportUids: [], spiritUid: null });
 });
