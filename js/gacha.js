@@ -264,6 +264,7 @@
   };
 
   const MAX_DRAW_ATTEMPTS = 100000;
+  const MAX_BATCH_COUNT = 1000;
 
   function buildPool(db) {
     const byNo = (a, b) => a.no - b.no;
@@ -388,7 +389,13 @@
     const kind = input.kind;
     const method = input.method === "ticket" ? "ticket" : "draw";
     const free = method === "ticket";
-    const count = Math.max(0, Math.floor(Number(input.count) || 0));
+    const requestedCount = input.count == null ? 0 : Number(input.count);
+    // A malformed API caller must not be able to create an unbounded theme-pack loop.
+    // Normal UI batches are far smaller; reject non-finite and excessive requests.
+    if (!Number.isFinite(requestedCount) || requestedCount > MAX_BATCH_COUNT) {
+      throw new RangeError(`gacha: count は 0〜${MAX_BATCH_COUNT} の有限値で指定してください`);
+    }
+    const count = Math.max(0, Math.floor(requestedCount || 0));
     const results = [];
     let totalCost = { lp: 0, shards: 0 };
     let stopped = "complete";
