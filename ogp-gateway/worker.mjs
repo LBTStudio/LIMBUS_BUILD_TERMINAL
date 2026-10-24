@@ -178,9 +178,9 @@ export function previewFromQuery(url) {
   const params = url.searchParams;
   const rawName = String(params.get("lbt_n") || "").trim();
   const rawSpeed = String(params.get("lbt_spd") || "").trim();
-  /* SPDを持たない旧リンクでは軽量経路を使わず、保存済みtokenから正確な値を再構築する。
-     これにより旧リンクを「SPD ?」へ劣化させず、共有データとOGPの整合性を保つ。 */
-  if (!rawName || !rawSpeed) return null;
+  /* 旧形式はSPD未収録、画像付き共有は保存tokenの画像を使う必要がある。
+     明示的に「画像なし」と示す新形式だけ軽量経路にし、それ以外はsnapshot経路へ戻す。 */
+  if (!rawName || !rawSpeed || params.get("lbt_img") !== "0") return null;
   const chars = Array.from(rawName);
   const personaName = chars.slice(0, 48).join("") + (chars.length > 48 ? "…" : "");
   const hp = String(params.get("lbt_hp") || "").trim().slice(0, 12) || "?";
