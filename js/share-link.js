@@ -878,6 +878,61 @@
     }
   }
 
+  async function publishCloudflareR2Share(token, preview, fallbacks = [], fetchImpl = window.fetch?.bind(window)) {
+    const origin = ogpGatewayOrigin();
+    if (!origin || typeof fetchImpl !== "function") return { status: "unavailable" };
+
+    const safeFallbacks = (fallbacks || [])
+      .filter((entry) => entry && sourceCode(entry.source) && entry.id)
+      .map((entry) => ({ source: entry.source, id: String(entry.id) }));
+    let response;
+    try {
+      response = await fetchImpl(origin + "/api/r2-share/v1", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, preview, fallbacks: safeFallbacks })
+      });
+    } catch (_) {
+      return { status: "unavailable" };
+    }
+
+    // 旧版Workerには新APIがない。旧 /s /d ルートをそのまま使う。
+    if (response.status === 404 || response.status === 405) return { status: "legacy-only" };
+    if (!response.ok) return { status: "unavailable" };
+
+    let result;
+    try {
+      result = await response.json();
+    } catch (_) {
+      return { status: "unavailable" };
+    }
+    if (result?.ok !== true || !/^[A-Za-z0-9_-]{16}$/.test(String(result.id || ""))) {
+      return { status: "unavailable" };
+    }
+
+    const url = String(result.url || (origin + "/s/" + result.id));
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== "https:" || parsed.origin !== origin
+        || parsed.pathname !== ("/s/" + result.id) || parsed.search || parsed.hash) return { status: "unavailable" };
+    } catch (_) {
+      return { status: "unavailable" };
+    }
+    return { status: "published", id: result.id, url, length: url.length };
+  }
+
+  function addCloudflareFallbackParams(baseUrl, fallbacks) {
+    const url = new URL(baseUrl);
+    const sources = (fallbacks || [])
+      .filter((entry) => entry && sourceCode(entry.source) && entry.id)
+      .map((entry) => sourceCode(entry.source) + ":" + encodeURIComponent(String(entry.id)));
+    // OGP metadata is embedded in the immutable HTML stored in R2. Keep the share
+    // URL compact; only fallback source IDs are needed if the R2 object disappears.
+    if (sources.length) url.searchParams.set("b", sources.join(","));
+    url.searchParams.set("cv", "4");
+    return url.toString();
+  }
+
   async function responseJson(response, context) {
     if (!response?.ok) throw new Error(`${context}に失敗しました（HTTP ${response?.status || "?"}）`);
     const data = await response.json();
@@ -992,8 +1047,29 @@
     const telegraphToken = canKeepShareImageInTelegraph ? token : await encodeState({ ...state, shareImageData: "" });
     const preview = sharePreview(state);
     const published = await publishExternalTokens(token, target, fetchImpl, preview, telegraphToken);
+    const cloudflare = await publishCloudflareR2Share(token, preview, published, fetchImpl);
     let result;
-    if (published.length) {
+    if (cloudflare.status === "published") {
+      const primary = state?.shareImageData
+        ? published.find((entry) => entry.source === "rentry")
+          || published.find((entry) => entry.source === "telegraph" && entry.includesShareImage)
+          || published[0]
+        : published.find((entry) => entry.source === "telegraph") || published[0];
+      const backups = published.filter((entry) => entry !== primary);
+      const legacyUrl = published.length
+        ? shortViewerUrl(target, primary, backups, preview)
+        : direct.url;
+      const url = addCloudflareFallbackParams(cloudflare.url, published);
+      result = {
+        ...direct,
+        url,
+        length: url.length,
+        strategy: "cloudflare-r2",
+        backups: [{ source: published.length ? "既存方式" : "自己完結", id: primary?.id || "", url: legacyUrl }],
+        preview,
+        warning: "Cloudflare R2共有HTMLです。保存先が使えない場合は予備URLで従来方式から復元できます。"
+      };
+    } else if (published.length) {
       const primary = state?.shareImageData
         ? published.find((entry) => entry.source === "rentry")
           || published.find((entry) => entry.source === "telegraph" && entry.includesShareImage)
@@ -1001,13 +1077,22 @@
         : published.find((entry) => entry.source === "telegraph") || published[0];
       const backups = published.filter((entry) => entry !== primary);
       const staticUrl = shortViewerUrl(target, primary, backups, preview);
-      const url = ogpGatewayUrl(staticUrl) || staticUrl;
+      // APIが未対応の旧Workerなら従来OGP経路を維持。
+      // Workerへの通信そのものが失敗した場合は、障害中のWorkerをURLに含めない。
+      const url = cloudflare.status === "legacy-only" ? (ogpGatewayUrl(staticUrl) || staticUrl) : staticUrl;
       result = {
         ...direct, url, length: url.length, strategy: primary.source, backups, preview,
-        warning: "短いLBT共有URLです。外部保存先は内部で自動復元し、利用者へ中間ページは表示しません。"
+        warning: cloudflare.status === "legacy-only"
+          ? "短いLBT共有URLです。外部保存先は内部で自動復元します。"
+          : "Cloudflare共有を利用できなかったため、既存の共有保存先へ切り替えました。"
       };
     } else {
-      result = { ...direct, strategy: "self", backups: [], preview, warning: "分散保存を発行できなかったため、自己完結URLを表示しています。" };
+      result = {
+        ...direct, strategy: "self",
+        backups: [{ source: "自己完結", id: "", url: direct.url }],
+        preview,
+        warning: "分散保存を発行できなかったため、自己完結URLを表示しています。"
+      };
     }
     rememberPublishedUrl(token, result);
     return result;

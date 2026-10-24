@@ -1,0 +1,120 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import worker from "../cloudflare/ogp-worker/worker.js";
+
+function makeBucket(initial = new Map()) {
+  const objects = initial;
+  return {
+    objects,
+    async put(key, value, options = {}) {
+      objects.set(key, { value: String(value), options });
+    },
+    async get(key) {
+      const stored = objects.get(key);
+      if (!stored) return null;
+      return {
+        body: new Response(stored.value).body,
+        httpMetadata: stored.options?.httpMetadata || {},
+        async text() { return stored.value; },
+      };
+    },
+  };
+}
+
+function makeEnv(overrides = {}) {
+  return {
+    SHARES: makeBucket(),
+    APP_ORIGIN: "https://lbtstudio.github.io",
+    SHARE_VIEWER_URL: "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html",
+    SHARE_PUBLIC_ORIGIN: "https://lbt-ogp.lbtstudio-share.workers.dev",
+    ...overrides,
+  };
+}
+
+function publishRequest(body, headers = {}) {
+  return new Request("https://lbt-ogp.lbtstudio-share.workers.dev/api/r2-share/v1", {
+    method: "POST",
+    headers: {
+      Origin: "https://lbtstudio.github.io",
+      "Content-Type": "application/json",
+      "CF-Connecting-IP": "203.0.113.12",
+      ...headers,
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+test("R2共有発行は固定OGP HTMLを保存し、短いURLと復元用tokenを返す", async () => {
+  const env = makeEnv();
+  const response = await worker.fetch(publishRequest({
+    token: "z.ABC_123",
+    preview: { personaName: "蜘蛛の巣 中指の親方", hp: "180", san: "45", speed: "1d6", syncRank: "00", syncMax: true },
+    fallbacks: [{ source: "rentry", id: "rentry-123" }, { source: "telegraph", id: "Page-123" }],
+  }), env);
+  assert.equal(response.status, 201);
+  const result = await response.json();
+  assert.equal(result.ok, true);
+  assert.match(result.id, /^[A-Za-z0-9_-]{16}$/);
+  assert.equal(result.url, "https://lbt-ogp.lbtstudio-share.workers.dev/s/" + result.id);
+  const stored = env.SHARES.objects.get("s/" + result.id);
+  assert.ok(stored);
+  assert.match(stored.value, /property="og:title" content="【人格】蜘蛛の巣 中指の親方｜LIMBUS BUILD TERMINAL"/);
+  assert.match(stored.value, /og:description/);
+  assert.match(stored.value, /share\.html#lbt=z\.ABC_123/);
+  assert.match(stored.value, /rentry-123/);
+  assert.equal(stored.options.httpMetadata.contentType, "text/html; charset=utf-8");
+});
+
+test("公開APIは不正origin・不正token・レート超過を拒否する", async () => {
+  const env = makeEnv({ SHARE_PUBLISH_LIMIT: { async limit() { return { success: false }; } } });
+  const wrongOrigin = await worker.fetch(publishRequest({ token: "z.ABC_123" }, { Origin: "https://evil.example" }), env);
+  assert.equal(wrongOrigin.status, 403);
+
+  const badToken = await worker.fetch(publishRequest({ token: "arbitrary html <script>" }), makeEnv());
+  assert.equal(badToken.status, 400);
+
+  const limited = await worker.fetch(publishRequest({ token: "z.ABC_123" }), env);
+  assert.equal(limited.status, 429);
+});
+
+test("R2に保存済みの短縮URLはOGPを含むHTMLシェルを返す", async () => {
+  const env = makeEnv();
+  const created = await worker.fetch(publishRequest({
+    token: "j.QUJD",
+    preview: { personaName: "テスト人格", hp: "120", san: "50" },
+    fallbacks: [],
+  }), env);
+  const { id } = await created.json();
+  const response = await worker.fetch(new Request("https://lbt-ogp.lbtstudio-share.workers.dev/s/" + id), env);
+  const html = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("Content-Type"), /text\/html/);
+  assert.match(html, /property="og:title" content="【人格】テスト人格/);
+  assert.match(html, /share\.html#lbt=j\.QUJD/);
+  assert.equal(response.headers.get("X-Content-Type-Options"), "nosniff");
+});
+
+test("従来の /s?s=... OGP URL を維持し、Rentry/Telegraph閲覧ページを埋め込む", async () => {
+  const url = "https://lbt-ogp.lbtstudio-share.workers.dev/s?s=t%3ALBT-Share-01%2Cr%3Arentry-01&lbt_n=%E3%83%86%E3%82%B9%E3%83%88%E4%BA%BA%E6%A0%BC&lbt_hp=120";
+  const response = await worker.fetch(new Request(url), makeEnv());
+  const html = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(html, /property="og:title" content="【人格】テスト人格/);
+  assert.match(html, /share\.html\?/);
+  assert.match(html, /LBT-Share-01/);
+});
+
+test("R2が見つからず予備保存先も使えない場合は既存リンクを提示して失敗を明示する", async () => {
+  const env = makeEnv({ SHARES: makeBucket() });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("not found", { status: 404 });
+  try {
+    const response = await worker.fetch(new Request("https://lbt-ogp.lbtstudio-share.workers.dev/s/ABCDEFGHIJKLMNOP?b=r%3Arentry-01&lbt_n=テスト人格"), env);
+    const html = await response.text();
+    assert.equal(response.status, 503);
+    assert.match(html, /既存の共有方式で開く/);
+    assert.match(html, /share\.html\?/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
