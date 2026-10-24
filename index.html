@@ -91,6 +91,33 @@ window.addEventListener("load", function(){
         v66-accounts,
         v67-persona-redesign,
         v68-interaction-a11y;
+
+/* Persona-name editor: explicit dark colors prevent a light browser/native input
+   surface from being paired with the light text used by the workspace. */
+@layer v68-interaction-a11y {
+  input.es-name-input {
+    color-scheme: dark;
+    background-color: #080605;
+    color: #f2ece1;
+    -webkit-text-fill-color: #f2ece1;
+    caret-color: #eecf8a;
+  }
+  input.es-name-input:hover,
+  input.es-name-input:focus {
+    background-color: #211b10;
+    color: #f2ece1;
+    -webkit-text-fill-color: #f2ece1;
+    border-color: #d4af5f;
+  }
+  input.es-name-input:-webkit-autofill,
+  input.es-name-input:-webkit-autofill:hover,
+  input.es-name-input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #f2ece1;
+    -webkit-box-shadow: 0 0 0 1000px #080605 inset;
+    box-shadow: 0 0 0 1000px #080605 inset;
+    caret-color: #eecf8a;
+  }
+}
 </style>
 <link rel="stylesheet" href="assets/design-system.css?v=910f9485">
 		<link rel="stylesheet" href="assets/workspace.css?v=3f0bd1b0">
@@ -107,7 +134,7 @@ window.addEventListener("load", function(){
 									<link rel="stylesheet" href="assets/items.css?v=7cf01d95">
 									<link rel="stylesheet" href="assets/v66-accounts.css?v=6460dd8a">
 <link rel="stylesheet" href="assets/v67-persona-redesign.css?v=b595e3d5">
-<link rel="stylesheet" href="assets/v68-interaction-a11y.css?v=b98a062e7a2598004c302efb60f5480f72c4ea1790899e4e728a5dfb2a116393">
+<link rel="stylesheet" href="assets/v68-interaction-a11y.css?v=7ba8b3b8">
 <link rel="stylesheet" href="assets/inline-effect-glossary.css?v=594970a3">
 </head>
 <body style="background-color:#14110d">
