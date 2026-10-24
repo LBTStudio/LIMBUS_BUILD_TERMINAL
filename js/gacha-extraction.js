@@ -106,7 +106,6 @@
     return '<svg class="lbt-gx__silhouette" viewBox="0 0 420 700" role="presentation" focusable="false">' +
       '<defs><linearGradient id="gx-dante-coat" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#542322"/><stop offset=".48" stop-color="#281718"/><stop offset="1" stop-color="#100f10"/></linearGradient><radialGradient id="gx-dante-clock" cx=".5" cy=".42" r=".7"><stop offset="0" stop-color="#261b18"/><stop offset=".72" stop-color="#100f10"/><stop offset="1" stop-color="#090a0b"/></radialGradient></defs>' +
       '<path class="lbt-gx__mirror-pane" d="M210 22 342 77 330 570 210 675 90 570 78 77Z"/>' +
-      '<path class="lbt-gx__mirror-crack" d="M302 88 276 170 294 214 270 284M113 390 146 414 125 473M276 500 251 527 264 565M210 22 200 90 210 112 190 154 205 188M78 77 134 94 158 124 210 112M342 77 287 95 261 127 210 112M88 278 142 294 169 326 148 365M332 278 278 294 252 326 272 367M90 570 145 531 177 514 210 481 243 514 276 531 330 570"/><path class="lbt-gx__mirror-crack lbt-gx__mirror-crack-flash" d="M210 22 200 90 210 112 190 154 205 188M78 77 134 94 158 124 210 112M342 77 287 95 261 127 210 112M88 278 142 294 169 326 148 365M332 278 278 294 252 326 272 367M90 570 145 531 177 514 210 481 243 514 276 531 330 570"/>' +
       '<g class="lbt-gx__dante-figure">' +
         '<path class="lbt-gx__flame" d="M157 83 142 47 166 68 177 25 194 71 210 15 224 68 251 31 246 77 281 52 259 96M147 108 124 90 145 126M273 113 296 92 274 132"/>' +
         '<path class="lbt-gx__figure lbt-gx__coat" fill="url(#gx-dante-coat)" d="M178 184 147 194 112 214 88 278 59 535Q62 568 127 603L154 584 171 465 210 481 249 465 266 584 293 603Q358 568 361 535L332 278 308 214 273 194 242 184 228 211 192 211Z"/>' +
@@ -123,7 +122,9 @@
         '<circle class="lbt-gx__clock-inner" cx="210" cy="112" r="44"/>' +
         '<path class="lbt-gx__clock-hand" d="M210 112V76M210 112 235 124"/><circle class="lbt-gx__clock-pin" cx="210" cy="112" r="4"/>' +
         '<path class="lbt-gx__clock-tick" d="M210 67V75M255 112H247M210 157V149M165 112H173M178 80 184 86M242 80 236 86"/>' +
-      '</g></svg>';
+      '</g>' +
+        '<path class="lbt-gx__mirror-crack" d="M302 88 276 170 294 214 270 284M113 390 146 414 125 473M276 500 251 527 264 565M210 22 200 90 210 112 190 154 205 188M78 77 134 94 158 124 210 112M342 77 287 95 261 127 210 112M88 278 142 294 169 326 148 365M332 278 278 294 252 326 272 367M90 570 145 531 177 514 210 481 243 514 276 531 330 570"/><path class="lbt-gx__mirror-crack lbt-gx__mirror-crack-flash" d="M210 22 200 90 210 112 190 154 205 188M78 77 134 94 158 124 210 112M342 77 287 95 261 127 210 112M88 278 142 294 169 326 148 365M332 278 278 294 252 326 272 367M90 570 145 531 177 514 210 481 243 514 276 531 330 570"/>' +
+      '</svg>';
   }
 
   function play(hits, opts) {
