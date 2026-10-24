@@ -114,7 +114,7 @@ test("死亡後専用パッシブは解除後の枠から装備できず、ス�
   assert.equal(moveToDeath.roster.supports.find((entry) => entry.uid === normal.uid).equipped, false);
 });
 
-test("旧セーブで通常枠に混入した死亡後パッシブはロック中に装備解除して移行する", () => {
+test("旧セーブの死亡後パッシブはスロット分類だけ正規化し、装備状態は保持する", () => {
   const name = db.death_passives[0].name;
   for (const slot of ["normal", undefined]) {
     const entry = { uid: "legacy-death-" + String(slot), name, equipped: true, cond: "", effect: "", lp: "" };
@@ -125,8 +125,8 @@ test("旧セーブで通常枠に混入した死亡後パッシブはロック�
     });
     const migrated = normalized.roster.supports.find((row) => row.uid === entry.uid);
     assert.equal(migrated.slot, "death");
-    assert.equal(migrated.equipped, false);
-    assert.equal(normalized.deathSupport, null);
+    assert.equal(migrated.equipped, true, "旧ビルドの装備状態を無断で解除しない");
+    assert.equal(normalized.deathSupport?.name, name, "装備済みの投影も保持する");
   }
 });
 
