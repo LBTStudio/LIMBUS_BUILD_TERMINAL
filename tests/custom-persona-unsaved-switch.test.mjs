@@ -73,3 +73,17 @@ test("unequipping edited custom Persona saves its complete source; ordinary Pers
   }, (action) => normalActions.push(action.type));
   assert.deepEqual(normalActions, ["SAVE_PERSONA_BUILD", "UNEQUIP_PERSONA"]);
 });
+
+
+test("Persona switch, new Persona, and draft-import entry points all guard unsaved custom drafts", () => {
+  const equipStart = source.indexOf("const equipPersona = (p) =>");
+  const customStart = source.indexOf("const equipCustom = () =>");
+  const draftStart = source.indexOf("const applyDraft = () =>");
+  assert.ok(equipStart >= 0 && customStart > equipStart && draftStart > customStart);
+  const equipBody = source.slice(equipStart, customStart);
+  const customBody = source.slice(customStart, draftStart);
+  const draftBody = source.slice(draftStart, source.indexOf("const hasActiveFilters", draftStart));
+  assert.ok(equipBody.indexOf("saveUnsavedCustomPersonaBeforeSwitch(state, dispatch)") < equipBody.indexOf('dispatch({ type: "EQUIP_PERSONA"'));
+  assert.ok(customBody.indexOf("saveUnsavedCustomPersonaBeforeSwitch(state, dispatch)") < customBody.indexOf('dispatch({ type: "EQUIP_CUSTOM_PERSONA"'));
+  assert.ok(draftBody.indexOf("saveUnsavedCustomPersonaBeforeSwitch(state, dispatch)") < draftBody.indexOf('dispatch({\n      type: "IMPORT_PERSONA_DRAFT"'));
+});
