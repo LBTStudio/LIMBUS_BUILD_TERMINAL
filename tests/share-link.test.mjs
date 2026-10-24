@@ -412,7 +412,7 @@ test("短い共有URLは外部保管を内部利用し、共有IDと発行時sum
   ]);
 });
 
-test("古いOGPキャッシュ世代のURLは外部保存を再発行せず現行世代に更新する", async () => {
+test("既発行の旧形式URLは保存済みトークンから最新のKV短縮URLへ移行する", async () => {
   const storage = memoryStorage();
   const share = loadShareLink(null, {
     localStorage: storage,
@@ -426,19 +426,33 @@ test("古いOGPキャッシュ世代のURLは外部保存を再発行せず現�
     preview: { personaName: "古い人格", hp: "120", san: "45" }, savedAt: 1
   }));
   let networkCalls = 0;
-  const fetchMock = async () => { networkCalls += 1; throw new Error("既存tokenの再利用では外部保存を呼ばない"); };
+  const fetchMock = async (url, options = {}) => {
+    networkCalls += 1;
+    assert.equal(String(url), "https://lbt-ogp.lbtstudio-share.workers.dev/api/r2-share/v1");
+    const payload = JSON.parse(options.body);
+    assert.equal(payload.token, token);
+    assert.equal(payload.preview.personaName, "古い人格");
+    assert.deepEqual(JSON.parse(JSON.stringify(payload.fallbacks)), []);
+    return new Response(JSON.stringify({
+      ok: true, id: "NewShortId123456",
+      url: "https://lbt-ogp.lbtstudio-share.workers.dev/s/NewShortId123456"
+    }), { status: 201 });
+  };
 
   const result = await share.createPublishedUrl(state, "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html", fetchMock);
   assert.equal(result.reused, true);
-  assert.equal(networkCalls, 0);
-  assert.equal(new URL(result.url).searchParams.get("cv"), "3");
-  assert.notEqual(result.url, oldUrl);
+  assert.equal(result.migrated, true);
+  assert.equal(networkCalls, 1, "既存保存先は再発行せず、KVへの移行だけ行う");
+  assert.equal(result.strategy, "cloudflare-kv");
+  assert.equal(result.url, "https://lbt-ogp.lbtstudio-share.workers.dev/s/NewShortId123456");
+  assert.equal(new URL(result.url).search, "");
   assert.equal(result.length, result.url.length);
+  assert.equal(result.backups.some((entry) => entry.url === oldUrl), true, "移行前のURLも予備として残す");
   const cached = JSON.parse(storage.getItem("lbt:last-published-share:v1"));
-  assert.equal(cached.url, result.url, "更新した世代をlocalStorageへ保存する");
+  assert.equal(cached.url, result.url, "最新方式のURLをlocalStorageへ保存し直す");
+  assert.equal(cached.strategy, "cloudflare-kv");
   assert.equal(cached.length, result.url.length);
 });
-
 test("同一の共有内容は直近URLを再利用し、外部保存を重複発行しない", async () => {
   const storage = memoryStorage();
   const share = loadShareLink(null, { localStorage: storage });
