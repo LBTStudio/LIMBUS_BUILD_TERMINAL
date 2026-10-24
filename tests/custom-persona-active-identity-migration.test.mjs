@@ -68,3 +68,16 @@ test("current custom UID remains stable and unrelated owned Personas are unequip
   assert.equal(next.roster.personas.find((entry) => entry.uid === "custom-b").equipped, true);
   assert.ok(next.roster.personas.filter((entry) => entry.uid !== "custom-b").every((entry) => entry.equipped === false));
 });
+
+test("an unknown stable draft UID never attaches to an owned Persona with the same name", () => {
+  const state = {
+    personaMode: "custom", personaNo: "custom-unsaved",
+    personaSrc: { no: 999, name: "同名の自作人格", __custom: true },
+    roster: { personas: [
+      { uid: "custom-existing", no: 999, mode: "custom", equipped: true, src: { no: 999, name: "同名の自作人格" } }
+    ] }
+  };
+  const next = migrate(state);
+  assert.equal(next.personaNo, "custom-unsaved");
+  assert.equal(next.roster.personas[0].equipped, false);
+});
