@@ -95,6 +95,38 @@ test("死亡後専用スロットも配列順に関係なく操作対象を装�
   assert.equal(next.deathSupport?.name, target.name, "死亡後専用スロットの投影も対象へ切り替わる");
 });
 
+test("死亡後専用パッシブは解除後の枠から装備できず、スロット移動も拒否する", () => {
+  const death = { uid: "locked-death", name: "ロック中の死亡後パッシブ", slot: "death", equipped: false, cond: "", effect: "", lp: "" };
+  const normal = { uid: "normal-to-death", name: "通常パッシブ", slot: "normal", equipped: false, cond: "", effect: "", lp: "" };
+  const initial = { ...base(), roster: { personas: [], egos: [], supports: [death, normal], spirits: [] } };
+
+  const directEquip = reducer(initial, { type: "SET_ROSTER_SUPPORT_EQUIPPED", uid: death.uid, equipped: true });
+  assert.equal(directEquip.roster.supports.find((entry) => entry.uid === death.uid).equipped, false);
+  assert.equal(directEquip.deathSupport, null);
+
+  const addSupport = reducer(initial, { type: "ADD_SUPPORT", spp: { name: death.name } });
+  assert.equal(addSupport.roster.supports.find((entry) => entry.uid === death.uid).equipped, false);
+  assert.equal(addSupport.deathSupport, null);
+
+  const moveToDeath = reducer(initial, { type: "SET_ROSTER_SUPPORT_SLOT", uid: normal.uid, slot: "death" });
+  assert.equal(moveToDeath.roster.supports.find((entry) => entry.uid === normal.uid).slot, "normal");
+  assert.equal(moveToDeath.roster.supports.find((entry) => entry.uid === normal.uid).equipped, false);
+});
+
+test("取り外した最後の死亡後スロット強化は、装備中の死亡後パッシブも解除する", () => {
+  const death = { uid: "equipped-death", name: "装備中の死亡後パッシブ", slot: "death", equipped: false, cond: "", effect: "", lp: "" };
+  const initial = {
+    ...base(),
+    enhancements: [{ id: "death-unlock", name: "死亡後パッシブ追加", group: "test", shards: 0 }],
+    roster: { personas: [], egos: [], supports: [death], spirits: [] }
+  };
+  const equipped = reducer(initial, { type: "SET_ROSTER_SUPPORT_EQUIPPED", uid: death.uid, equipped: true });
+  assert.equal(equipped.deathSupport?.name, death.name);
+  const locked = reducer(equipped, { type: "REMOVE_ENHANCEMENT", id: "death-unlock" });
+  assert.equal(locked.roster.supports.find((entry) => entry.uid === death.uid).equipped, false);
+  assert.equal(locked.deathSupport, null);
+});
+
 test("人格と同じ契約になっている", () => {
   const bought = reducer(base(), { type: "ADD_ROSTER", mode: "n", no: db.normal_personas[0].no, purchase: true, cost: { lp: 20, shards: 0 } });
   assert.equal(bought.entries.length, 1);
