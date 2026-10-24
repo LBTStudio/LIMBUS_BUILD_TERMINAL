@@ -412,6 +412,33 @@ test("短い共有URLは外部保管を内部利用し、共有IDと発行時sum
   ]);
 });
 
+test("古いOGPキャッシュ世代のURLは外部保存を再発行せず現行世代に更新する", async () => {
+  const storage = memoryStorage();
+  const share = loadShareLink(null, {
+    localStorage: storage,
+    LBT_OGP_GATEWAY_ORIGIN: "https://lbt-ogp.lbtstudio-share.workers.dev"
+  });
+  const state = { charName: "キャッシュ世代更新", roster: { personas: [] } };
+  const token = await share.encodeState(state);
+  const oldUrl = "https://lbt-ogp.lbtstudio-share.workers.dev/s?s=t%3ALBT-Old-Cache&lbt_n=%E5%8F%A4%E3%81%84%E4%BA%BA%E6%A0%BC&cv=2";
+  storage.setItem("lbt:last-published-share:v1", JSON.stringify({
+    token, url: oldUrl, length: oldUrl.length, strategy: "telegraph", backups: [],
+    preview: { personaName: "古い人格", hp: "120", san: "45" }, savedAt: 1
+  }));
+  let networkCalls = 0;
+  const fetchMock = async () => { networkCalls += 1; throw new Error("既存tokenの再利用では外部保存を呼ばない"); };
+
+  const result = await share.createPublishedUrl(state, "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html", fetchMock);
+  assert.equal(result.reused, true);
+  assert.equal(networkCalls, 0);
+  assert.equal(new URL(result.url).searchParams.get("cv"), "3");
+  assert.notEqual(result.url, oldUrl);
+  assert.equal(result.length, result.url.length);
+  const cached = JSON.parse(storage.getItem("lbt:last-published-share:v1"));
+  assert.equal(cached.url, result.url, "更新した世代をlocalStorageへ保存する");
+  assert.equal(cached.length, result.url.length);
+});
+
 test("同一の共有内容は直近URLを再利用し、外部保存を重複発行しない", async () => {
   const storage = memoryStorage();
   const share = loadShareLink(null, { localStorage: storage });

@@ -54,9 +54,21 @@
     try {
       const cached = JSON.parse(storage.getItem(LAST_PUBLISHED_SHARE_KEY) || "null");
       if (!cached || cached.token !== token || !/^https:\/\//.test(String(cached.url || ""))) return null;
+      const previousUrl = String(cached.url);
+      // OGPカード世代を上げても、localStorageに残った旧URLをそのまま返すと
+      // 古いcvでWorker/CDNキャッシュへ当たり続ける。保存先IDは再発行せず、URLだけ現行世代へ寄せる。
+      const url = ogpGatewayUrl(previousUrl) || previousUrl;
+      const length = url.length;
+      if (url !== previousUrl || Number(cached.length) !== length) {
+        try {
+          storage.setItem(LAST_PUBLISHED_SHARE_KEY, JSON.stringify({ ...cached, url, length, savedAt: Date.now() }));
+        } catch (_) {
+          // キャッシュの更新失敗は共有URLの再利用そのものを妨げない。
+        }
+      }
       return {
-        url: cached.url,
-        length: Number(cached.length) || String(cached.url).length,
+        url,
+        length,
         strategy: cached.strategy || "self",
         backups: Array.isArray(cached.backups) ? cached.backups : [],
         preview: cached.preview || null,
