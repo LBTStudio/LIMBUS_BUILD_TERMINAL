@@ -406,8 +406,8 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === API_PATH) return publishShare(request, env);
     if (url.pathname === "/healthz") {
-      const store = shareStoreKind(env);
-      return jsonResponse({ ok: true, shareStore: store, configured: store !== "none" }, 200);
+      const configured = Boolean(env.SHARES);
+      return jsonResponse({ ok: true, shareStore: configured ? "kv" : "none", configured }, 200);
     }
     if (url.pathname === "/d" && request.method === "GET") return handleLegacyDownload(request, env);
     if (url.pathname === "/s" && request.method === "GET") return handleLegacyOgp(request, env);
