@@ -652,7 +652,7 @@
   .lbt-gx__clock-tick { fill:none; stroke:#d5ac55; stroke-width:2; stroke-linecap:round; }
 
   .lbt-gx__mirror-name {
-    position:absolute; z-index:2; left:50%; top:43%; width:min(72vw,680px);
+    position:absolute; z-index:2; left:50%; top:43%; width:min(72vw,680px); height:clamp(38px,7vh,72px);
     transform:translate(-50%,-50%); color:rgba(239,219,174,.9);
     font:600 clamp(16px,3.2vw,34px)/1.2 "Yu Mincho","Hiragino Mincho ProN",serif;
     letter-spacing:.14em; text-align:center; white-space:nowrap;
