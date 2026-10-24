@@ -1195,11 +1195,27 @@ function trimSupportEquippedOverflow(supports, targetUid, slot, limit) {
 }
 function equipRosterSupport(state, uid) {
   const roster = state.roster || {};
-  const target = (roster.supports || []).find((s) => s.uid === uid);
+  /* 保存データの slot ラベルは古い版や手編集で誤っている可能性がある。
+     公式死亡後パッシブ名簿を唯一の判定基準として、装備判定より先に正規化する。
+     そうしないと slot:"normal" に偽装された死亡後パッシブが、未開放でも
+     通常枠へ装備され、出力へ流れてしまう。 */
+  const normalizedSupports = (roster.supports || []).map((s) => ({
+    ...s,
+    slot: isDeathSupportPassiveRecord(s) ? "death" : "normal"
+  }));
+  const target = normalizedSupports.find((s) => s.uid === uid);
   if (!target) return state;
-  if (target.slot === "death" && !deathSupportSlotUnlocked(state)) return state;
+
+  const unlocked = deathSupportSlotUnlocked(state);
+  if (target.slot === "death" && !unlocked) {
+    // 不正な旧ラベルから投影されていた死亡後パッシブを通常枠へ残さない。
+    const supports = normalizedSupports.map((s) => s.slot === "death" ? { ...s, equipped: false } : s);
+    const nextRoster = { ...roster, supports };
+    return { ...state, roster: nextRoster, ...projectEquipmentFromRoster(nextRoster) };
+  }
+
   const limit = supportSlotLimit(state, target.slot);
-  const marked = (roster.supports || []).map((s) => (s.uid === uid ? { ...s, equipped: true } : s));
+  const marked = normalizedSupports.map((s) => (s.uid === uid ? { ...s, equipped: true } : s));
   const supports = trimSupportEquippedOverflow(marked, uid, target.slot, limit);
   const nextRoster = { ...roster, supports };
   return { ...state, roster: nextRoster, ...projectEquipmentFromRoster(nextRoster) };
