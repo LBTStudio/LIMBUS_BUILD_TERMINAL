@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>抽出演出プレビュー</title>
 <link rel="stylesheet" href="assets/design-system.css">
-<link rel="stylesheet" href="assets/gacha-extraction.css">
+<link rel="stylesheet" href="assets/gacha-extraction.css?v=53c02f1">
 <style>
   body { margin:0; padding:0 20px 20px; background:#090a0b; color:#e9e0d4; font:500 13px/1.5 "Yu Gothic UI","Hiragino Kaku Gothic ProN",Meiryo,sans-serif; }
   .preview { max-width:1040px; margin:auto; }
@@ -69,7 +69,7 @@
 <section class="panel record" aria-label="結果記録"><div class="panel-head">抽出記録<span id="rm">待機中</span></div><div class="record-body"><div class="record-mark" aria-hidden="true"><span>08</span></div><div class="record-copy"><b>RESULT RECORD</b><p id="status" aria-live="polite">シナリオを選ぶと抽出演出が始まります。</p><pre id="plan"></pre></div></div><ul id="list" aria-live="polite"></ul></section>
 <footer class="foot"><span>演出プレビュー　/　抽選・本番画面には未配線</span><span id="motion"></span></footer>
 </main></div>
-<script src="js/gacha-extraction.js"></script>
+<script src="js/gacha-extraction.js?v=53c02f1"></script>
 <script>
 (function () {
   var api = window.LBT_gachaExtraction;
