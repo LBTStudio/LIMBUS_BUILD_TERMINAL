@@ -599,43 +599,82 @@
   .lbt-gx__tile--is-special { box-shadow: 0 0 13px rgba(223,189,112,.22); }
 }
 
-/* A clock-headed silhouette appears in the mirror before the existing extraction sequence. */
+/* Dante's reflection leads into the existing extraction sequence. */
 @layer gacha-extraction {
   .lbt-gx__mirror {
     position:absolute; inset:0; z-index:3; display:grid; place-items:center; overflow:hidden;
-    opacity:0; transform:translateY(8px) scale(.99);
-    transition:opacity 540ms ease, transform 850ms cubic-bezier(.2,.8,.2,1);
+    opacity:0; transform:translateY(10px) scale(.985);
+    transition:opacity 420ms ease, transform 850ms cubic-bezier(.2,.8,.2,1);
     pointer-events:none;
   }
   .lbt-gx__mirror::before {
-    content:""; position:absolute; left:50%; top:3%; width:min(54vw,500px); height:94%;
+    content:""; position:absolute; left:50%; top:2%; width:min(58vw,560px); height:96%;
     transform:translateX(-50%);
-    background:linear-gradient(90deg,transparent,rgba(139,48,43,.055) 19%,rgba(163,187,192,.075) 50%,rgba(139,48,43,.055) 81%,transparent);
-    border-inline:1px solid rgba(213,182,129,.14);
+    background:
+      linear-gradient(90deg,transparent 5%,rgba(134,34,32,.11) 22%,rgba(164,185,187,.09) 50%,rgba(134,34,32,.11) 78%,transparent 95%),
+      linear-gradient(180deg,rgba(223,197,145,.09),transparent 20% 77%,rgba(126,44,37,.10));
+    border-inline:1px solid rgba(213,182,129,.18);
     clip-path:polygon(50% 0,98% 7%,94% 91%,50% 100%,6% 91%,2% 7%);
+    box-shadow:inset 0 0 42px rgba(186,203,204,.05);
   }
-  .lbt-gx.is-door .lbt-gx__mirror { opacity:.76; transform:none; }
+  .lbt-gx.is-door .lbt-gx__mirror,
+  .lbt-gx.is-swing .lbt-gx__mirror { opacity:.84; transform:none; }
+  .lbt-gx.is-spider .lbt-gx__mirror,
+  .lbt-gx.is-card .lbt-gx__mirror,
+  .lbt-gx.is-gold .lbt-gx__mirror,
+  .lbt-gx.is-grid .lbt-gx__mirror { opacity:0; transition-duration:650ms; }
   .lbt-gx__silhouette {
-    position:relative; z-index:1; display:block; width:auto; height:min(82vh,760px);
-    max-width:min(70vw,520px); opacity:.74;
-    filter:drop-shadow(0 0 18px rgba(160,47,39,.16));
+    position:relative; z-index:1; display:block; width:auto; height:min(84vh,790px);
+    max-width:min(78vw,560px); opacity:.86;
+    filter:drop-shadow(0 0 17px rgba(160,47,39,.22)) drop-shadow(0 0 46px rgba(207,157,75,.08));
+    transition:filter 500ms ease, opacity 500ms ease;
   }
-  .lbt-gx__mirror-pane { fill:rgba(12,15,18,.10); stroke:rgba(205,190,166,.22); stroke-width:1.2; }
-  .lbt-gx__mirror-crack { fill:none; stroke:rgba(200,213,215,.20); stroke-width:1.2; stroke-linecap:round; }
+  .lbt-gx.is-swing .lbt-gx__silhouette {
+    opacity:.58;
+    filter:drop-shadow(0 0 22px rgba(206,184,142,.30)) drop-shadow(0 0 42px rgba(160,47,39,.20));
+  }
+  .lbt-gx__mirror-pane { fill:rgba(12,15,18,.10); stroke:rgba(205,190,166,.27); stroke-width:1.2; }
+  .lbt-gx__mirror-crack { fill:none; stroke:rgba(221,230,226,.50); stroke-width:1.45; stroke-linecap:round; stroke-linejoin:round; }
   .lbt-gx__figure { fill:#281819; stroke:#542624; stroke-width:1.4; stroke-linejoin:round; }
   .lbt-gx__coat { fill:url(#gx-dante-coat); }
   .lbt-gx__figure-inner { fill:#0c0d0e; stroke:#3d2524; stroke-width:1.2; stroke-linejoin:round; }
-  .lbt-gx__coat-edge { fill:none; stroke:#c39a50; stroke-width:3; opacity:.78; stroke-linecap:round; stroke-linejoin:round; }
-  .lbt-gx__belt { fill:#aea18b; opacity:.8; }
+  .lbt-gx__coat-edge { fill:none; stroke:#d0a74f; stroke-width:3.2; opacity:.92; stroke-linecap:round; stroke-linejoin:round; }
+  .lbt-gx__belt { fill:#aea18b; opacity:.88; }
   .lbt-gx__buckle { fill:#201819; stroke:#d5c8ae; stroke-width:1.5; }
-  .lbt-gx__cuff { fill:#3b1e1d; stroke:#c49b50; stroke-width:2; }
-  .lbt-gx__mark { fill:#d3b872; font:9px ui-monospace,monospace; letter-spacing:.08em; }
-  .lbt-gx__flame { fill:none; stroke:#b66b2d; stroke-width:6; stroke-linecap:round; stroke-linejoin:round; opacity:.55; }
+  .lbt-gx__cuff { fill:#3b1e1d; stroke:#d0a74f; stroke-width:2.2; }
+  .lbt-gx__mark { fill:#e0c273; font:9px ui-monospace,monospace; letter-spacing:.08em; }
+  .lbt-gx__flame { fill:none; stroke:#d9a63d; stroke-width:7; stroke-linecap:round; stroke-linejoin:round; opacity:.84; filter:drop-shadow(0 0 5px rgba(245,170,47,.35)); }
   .lbt-gx__clock-rim { fill:#431d1d; stroke:#a54038; stroke-width:10; }
   .lbt-gx__clock-face { stroke:#c59a4d; stroke-width:2; }
-  .lbt-gx__clock-inner { fill:none; stroke:rgba(198,157,78,.55); stroke-width:1.2; }
-  .lbt-gx__clock-hand { fill:none; stroke:#e0bd55; stroke-width:4; stroke-linecap:round; }
+  .lbt-gx__clock-inner { fill:none; stroke:rgba(198,157,78,.65); stroke-width:1.2; }
+  .lbt-gx__clock-hand { fill:none; stroke:#f0d05d; stroke-width:4.2; stroke-linecap:round; }
   .lbt-gx__clock-pin { fill:#eed26d; }
-  .lbt-gx__clock-tick { fill:none; stroke:#c89d4e; stroke-width:2; stroke-linecap:round; }
+  .lbt-gx__clock-tick { fill:none; stroke:#d5ac55; stroke-width:2; stroke-linecap:round; }
+
+  .lbt-gx__mirror-name {
+    position:absolute; z-index:2; left:50%; top:43%; width:min(72vw,680px);
+    transform:translate(-50%,-50%); color:rgba(239,219,174,.9);
+    font:600 clamp(16px,3.2vw,34px)/1.2 "Yu Mincho","Hiragino Mincho ProN",serif;
+    letter-spacing:.14em; text-align:center; white-space:nowrap;
+    text-shadow:0 0 9px rgba(221,194,134,.45),0 0 26px rgba(175,207,219,.26),0 2px 5px #08090a;
+    opacity:0; filter:blur(5px); transition:opacity 300ms ease,filter 420ms ease;
+  }
+  .lbt-gx.is-swing .lbt-gx__mirror-name { opacity:.88; filter:none; transition-delay:220ms; }
+  .lbt-gx__name-shard {
+    position:absolute; inset:0; display:grid; place-items:center;
+    clip-path:polygon(0 0,100% 0,100% 100%,0 100%);
+    transform:translate3d(0,0,0) rotate(0);
+    transition:transform 880ms cubic-bezier(.16,.74,.24,1),opacity 600ms ease;
+  }
+  .lbt-gx__name-shard:nth-child(1) { clip-path:polygon(0 0,100% 0,100% 29%,0 37%); }
+  .lbt-gx__name-shard:nth-child(2) { clip-path:polygon(0 34%,100% 27%,100% 64%,0 70%); }
+  .lbt-gx__name-shard:nth-child(3) { clip-path:polygon(0 67%,100% 61%,100% 100%,0 100%); }
+  .lbt-gx.is-mirror-fractured .lbt-gx__name-shard:nth-child(1) { transform:translate3d(-10px,-9px,0) rotate(-1.4deg); }
+  .lbt-gx.is-mirror-fractured .lbt-gx__name-shard:nth-child(2) { transform:translate3d(3px,1px,0); }
+  .lbt-gx.is-mirror-fractured .lbt-gx__name-shard:nth-child(3) { transform:translate3d(9px,11px,0) rotate(1.2deg); }
+  .lbt-gx__mirror-crack-flash { opacity:0; }
+  .lbt-gx.is-mirror-fractured .lbt-gx__mirror-crack-flash { opacity:1; }
+}
+
   @media (prefers-reduced-motion: reduce) { .lbt-gx__mirror { transition:none; } }
 }
