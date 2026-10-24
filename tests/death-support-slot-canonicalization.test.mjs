@@ -86,3 +86,25 @@ test("死亡後枠と誤ラベルされた通常サポートは通常枠へ正�
   assert.equal(next.supports[0].name, "通常サポート");
   assert.equal(next.deathSupport, null);
 });
+
+test("通常装備の操作でも、ロック中の死亡後装備が通常出力へ復活しない", () => {
+  const equip = loadEquip();
+  const state = {
+    ...stateWith({
+      uid: "normal-1", name: "通常サポート", slot: "normal", equipped: false,
+      cond: "条件", effect: "効果", lp: "1"
+    }),
+    supports: [{ id: "death-1", name: "死亡後専用", cond: "旧条件", effect: "旧効果", lp: "1" }],
+    deathSupport: null,
+    roster: { supports: [
+      { uid: "death-1", name: "死亡後専用", slot: "normal", equipped: true, cond: "旧条件", effect: "旧効果", lp: "1" },
+      { uid: "normal-1", name: "通常サポート", slot: "normal", equipped: false, cond: "条件", effect: "効果", lp: "1" }
+    ], spirits: [] }
+  };
+  const next = equip(state, "normal-1");
+  assert.equal(next.roster.supports.find((s) => s.uid === "death-1").slot, "death");
+  assert.equal(next.roster.supports.find((s) => s.uid === "death-1").equipped, false);
+  assert.equal(next.supports.some((s) => s.name === "死亡後専用"), false);
+  assert.equal(next.deathSupport, null);
+  assert.equal(next.supports.some((s) => s.name === "通常サポート"), true);
+});
