@@ -1340,10 +1340,31 @@ function sanitizeStateCollections(raw) {
         ? next.roster[field].filter(isRecord)
         : [];
     }
-    next.roster.personas = next.roster.personas.map((entry) => ({
-      ...entry,
-      ...(entry.build !== undefined ? { build: sanitizePersonaBuild(entry.build) } : {})
-    }));
+    next.roster.personas = next.roster.personas.map((entry) => {
+      const build = entry.build !== undefined ? sanitizePersonaBuild(entry.build) : undefined;
+      const source = entry.src !== undefined ? sanitizePersonaSource(entry.src) : null;
+      const shouldSetSource = entry.src !== undefined || entry.mode === "custom";
+      let safeSource = source || build?.personaSrc || null;
+      if (entry.mode === "custom") {
+        if (!safeSource) {
+          safeSource = {
+            no: entry.no,
+            name: String(entry.displayName || "復旧用カスタム人格"),
+            skills: [],
+            unique_buffs: [],
+            keywords: [],
+            __custom: true
+          };
+        } else {
+          safeSource = { ...safeSource, __custom: true };
+        }
+      }
+      return {
+        ...entry,
+        ...(shouldSetSource ? { src: safeSource } : {}),
+        ...(entry.build !== undefined ? { build } : {})
+      };
+    });
     next.roster.egos = next.roster.egos.map((entry) => ({
       ...entry,
       ...(entry.build !== undefined && !isRecord(entry.build) ? { build: null } : {})
