@@ -11,6 +11,27 @@ function token(snapshot) {
 }
 
 
+test("画像付き共有のquery summaryは保存tokenと画像ルートを使い、既定カードへ置き換えない", async () => {
+  const image = "data:image/webp;base64,QUJDRA==";
+  const shareToken = token({
+    personaSrc: { name: "共有画像PC" }, hp: "100", san: "45", speed: "2-4",
+    shareImageData: image, roster: { personas: [] }
+  });
+  const fetchImpl = async (url) => {
+    assert.equal(String(url), "https://api.telegra.ph/getPage/LBT-Image?return_content=true");
+    return new Response(JSON.stringify({ ok: true, result: { content: [{ children: [`LBT_SHARE_TOKEN=${shareToken}`] }] } }));
+  };
+  const search = "?s=t:LBT-Image&lbt_n=%E5%85%B1%E6%9C%89%E7%94%BB%E5%83%8FPC&lbt_hp=100&lbt_san=45&lbt_spd=2-4&lbt_img=1&cv=2";
+  const page = await handleRequest(new Request(`https://lbt-ogp.example/s${search}`), { fetchImpl });
+  const html = await page.text();
+  assert.match(html, /<meta property="og:title" content="共有画像PC">/);
+  assert.match(html, /og:image" content="https:\/\/lbt-ogp\.example\/i\?/);
+  assert.doesNotMatch(html, /og:image" content="https:\/\/lbtstudio\.github\.io\/LIMBUS_BUILD_TERMINAL\/assets\/lbt-share-card\.png"/);
+  const imageResponse = await handleRequest(new Request(`https://lbt-ogp.example/i${search}`), { fetchImpl });
+  assert.equal(imageResponse.headers.get("content-type"), "image/webp");
+  assert.equal(Buffer.from(await imageResponse.arrayBuffer()).toString(), "ABCD");
+});
+
 test("SPDを持たない旧共有URLは保存tokenを読み直し、実際のSPDをOGPへ表示する", async () => {
   const query = new URL("https://lbt-ogp.example/s?s=t:LBT-Legacy&lbt_n=旧人格&lbt_hp=120&lbt_san=45&lbt_sync=00");
   assert.equal(previewFromQuery(query), null, "SPDのない旧summaryはsnapshot経路へ戻す");
@@ -30,7 +51,7 @@ test("SPDを持たない旧共有URLは保存tokenを読み直し、実際のSPD
 });
 
 test("query preview は SPD を含めて OGP 説明文を生成する", () => {
-  const preview = previewFromQuery(new URL("https://lbt-ogp.example/s?s=t:abc&lbt_n=人格&lbt_hp=120&lbt_san=50&lbt_spd=3-7&lbt_sync=000&lbt_max=1"));
+  const preview = previewFromQuery(new URL("https://lbt-ogp.example/s?s=t:abc&lbt_n=人格&lbt_hp=120&lbt_san=50&lbt_spd=3-7&lbt_sync=000&lbt_max=1&lbt_img=0"));
   assert.equal(preview.description, "HP 120 ｜ SAN 50 ｜ SPD 3-7 ｜ 同期000 · MAX");
 });
 
