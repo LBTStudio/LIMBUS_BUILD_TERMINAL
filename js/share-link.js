@@ -786,6 +786,7 @@
     params.set("lbt_n", preview.personaName.slice(0, 72));
     if (preview.hp) params.set("lbt_hp", preview.hp);
     if (preview.san) params.set("lbt_san", preview.san);
+    if (preview.speed) params.set("lbt_spd", preview.speed);
     if (preview.syncRank) params.set("lbt_sync", preview.syncRank);
     if (preview.syncMax) params.set("lbt_max", "1");
   }
@@ -830,7 +831,7 @@
     const withSummary = `${base}&${params.toString()}`;
     if (withSummary.length > PRACTICAL_DISCORD_URL_LENGTH) {
       const url = new URL(withSummary);
-      for (const key of ["lbt_n", "lbt_hp", "lbt_san", "lbt_sync", "lbt_max"]) url.searchParams.delete(key);
+      for (const key of ["lbt_n", "lbt_hp", "lbt_san", "lbt_spd", "lbt_sync", "lbt_max"]) url.searchParams.delete(key);
       const trimmed = url.toString();
       return trimmed.length <= PRACTICAL_DISCORD_URL_LENGTH ? trimmed : base;
     }
