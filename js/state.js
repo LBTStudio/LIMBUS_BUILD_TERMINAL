@@ -4591,6 +4591,7 @@ case "ADD_CUSTOM_ITEM": {
       return { ...next, ...projectEquipmentFromRoster(next.roster) };
     }
     case "SET_DEATH_SUPPORT": {
+      if (action.spp && !deathSupportSlotUnlocked(state)) return state;
       if (!action.spp) {
         const roster = state.roster || {};
         const supports = (roster.supports || []).map((s) => (s.slot === "death" ? { ...s, equipped: false } : s));
