@@ -615,6 +615,7 @@
     clip-path:polygon(50% 0,98% 7%,94% 91%,50% 100%,6% 91%,2% 7%);
   }
   .lbt-gx.is-door .lbt-gx__mirror { opacity:.76; transform:none; }
+  .lbt-gx.is-swing .lbt-gx__mirror { opacity:.58; transform:none; }
   .lbt-gx__silhouette {
     position:relative; z-index:1; display:block; width:auto; height:min(82vh,760px);
     max-width:min(70vw,520px); opacity:.74;
@@ -622,6 +623,25 @@
   }
   .lbt-gx__mirror-pane { fill:rgba(12,15,18,.10); stroke:rgba(205,190,166,.22); stroke-width:1.2; }
   .lbt-gx__mirror-crack { fill:none; stroke:rgba(200,213,215,.20); stroke-width:1.2; stroke-linecap:round; }
+  .lbt-gx__mirror-shard {
+    fill:rgba(179,196,196,.07); stroke:rgba(222,230,226,.28); stroke-width:1;
+    opacity:0; transform-box:fill-box; transform-origin:center;
+    transition:transform 900ms cubic-bezier(.18,.72,.2,1), opacity 260ms ease;
+  }
+  .lbt-gx.is-swing .lbt-gx__mirror-shard { opacity:.78; }
+  .lbt-gx.is-swing .lbt-gx__mirror-shard--left { transform:translate(-4px,-3px) rotate(-1deg); }
+  .lbt-gx.is-swing .lbt-gx__mirror-shard--right { transform:translate(5px,-2px) rotate(1.2deg); }
+  .lbt-gx.is-swing .lbt-gx__mirror-shard--lower { transform:translate(-3px,4px) rotate(.8deg); }
+  .lbt-gx.is-swing .lbt-gx__mirror-crack {
+    stroke:rgba(226,232,229,.68); stroke-width:1.55;
+    filter:drop-shadow(0 0 3px rgba(220,232,230,.34));
+    stroke-dasharray:0 900;
+    animation:gx-mirror-fracture 620ms ease-out forwards;
+  }
+  @keyframes gx-mirror-fracture {
+    0% { opacity:.08; stroke-dasharray:0 900; }
+    100% { opacity:1; stroke-dasharray:900 0; }
+  }
   .lbt-gx__figure { fill:#281819; stroke:#542624; stroke-width:1.4; stroke-linejoin:round; }
   .lbt-gx__coat { fill:url(#gx-dante-coat); }
   .lbt-gx__figure-inner { fill:#0c0d0e; stroke:#3d2524; stroke-width:1.2; stroke-linejoin:round; }
@@ -637,5 +657,5 @@
   .lbt-gx__clock-hand { fill:none; stroke:#e0bd55; stroke-width:4; stroke-linecap:round; }
   .lbt-gx__clock-pin { fill:#eed26d; }
   .lbt-gx__clock-tick { fill:none; stroke:#c89d4e; stroke-width:2; stroke-linecap:round; }
-  @media (prefers-reduced-motion: reduce) { .lbt-gx__mirror { transition:none; } }
+  @media (prefers-reduced-motion: reduce) { .lbt-gx__mirror, .lbt-gx__mirror-shard { transition:none; } .lbt-gx.is-swing .lbt-gx__mirror-crack { animation:none; stroke-dasharray:none; } }
 }
