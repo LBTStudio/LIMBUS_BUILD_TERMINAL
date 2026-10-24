@@ -1,0 +1,23 @@
+name = "lbt-ogp"
+main = "worker.js"
+compatibility_date = "2026-10-25"
+workers_dev = true
+
+# Cache immutable share pages before executing Worker code. Requires a current Wrangler 4.x release.
+[cache]
+enabled = true
+
+[vars]
+APP_ORIGIN = "https://lbtstudio.github.io"
+SHARE_VIEWER_URL = "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html"
+SHARE_PUBLIC_ORIGIN = "https://lbt-ogp.lbtstudio-share.workers.dev"
+OG_IMAGE_URL = "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/assets/lbt-share-card.png"
+
+[[r2_buckets]]
+binding = "SHARES"
+bucket_name = "lbt-share-html"
+
+[[ratelimits]]
+name = "SHARE_PUBLISH_LIMIT"
+namespace_id = "20261025"
+simple = { limit = 10, period = 60 }
