@@ -5421,7 +5421,7 @@ case "ADD_ENTRY":
       const savedStat = (value, fallback) => {
         if (value === "" || value == null) return fallback;
         const raw = String(value).trim();
-        if (!/^-?\\d+$/.test(raw)) return fallback;
+        if (!/^-?\d+$/.test(raw)) return fallback;
         const parsed = Number(raw);
         return Number.isSafeInteger(parsed) ? parsed : fallback;
       };
