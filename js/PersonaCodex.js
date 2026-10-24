@@ -302,6 +302,24 @@ function getPersonaDetachChanges(state) {
   return Object.keys(labels).filter((key) => stablePersonaDiffValue(current[key]) !== stablePersonaDiffValue(baseline[key])).map((key) => labels[key]);
 }
 
+function saveUnsavedCustomPersonaBeforeSwitch(state, dispatch) {
+  if (state?.personaMode !== "custom" || !state.personaSrc) return true;
+  const uid = String(state.personaNo ?? "");
+  const alreadyOwned = (state.roster?.personas || []).some((entry) =>
+    entry?.mode === "custom" && (String(entry.uid ?? "") === uid || String(entry.no ?? "") === uid)
+  );
+  if (alreadyOwned) return true;
+  const confirmed = window.confirm([
+    "現在のカスタム人格は所持リストへ未保存です。",
+    "",
+    "OK：現在の人格を保存して切り替える",
+    "キャンセル：切り替えを中止して編集を続ける"
+  ].join("\n"));
+  if (!confirmed) return false;
+  dispatch({ type: "SAVE_CUSTOM_PERSONA" });
+  return true;
+}
+
 function requestPersonaUnequip(state, dispatch, afterUnequip) {
   const changes = getPersonaDetachChanges(state);
   if (changes.length) {
@@ -315,7 +333,7 @@ function requestPersonaUnequip(state, dispatch, afterUnequip) {
       "キャンセル：装備を継続（変更はそのまま）"
     ].join("\n");
     if (!window.confirm(message)) return false;
-    dispatch({ type: "SAVE_PERSONA_BUILD" });
+    dispatch({ type: state.personaMode === "custom" ? "SAVE_CUSTOM_PERSONA" : "SAVE_PERSONA_BUILD" });
     dispatch({ type: "UNEQUIP_PERSONA" });
     afterUnequip?.();
     toast("変更を所持人格へ保存して装備解除しました");
@@ -1025,6 +1043,7 @@ const PersonaCodex = ({ state, dispatch, ownedOnly = false }) => {
     }, 20);
   };
   const equipPersona = (p) => {
+    if (!saveUnsavedCustomPersonaBeforeSwitch(state, dispatch)) return;
     // 参照比較は、roster詳細パネルや再装備時の clone で同一人格を別参照として
     // 見逃す。名前とNoで照合し、それでも解決しないカスタム人格は __custom
     // フラグで確定する。フォールバックで現在タブのモードを使うと、
@@ -1076,6 +1095,7 @@ const addRoster = (p) => {
   const equipCustom = () => {
     const name = prompt("\u30AB\u30B9\u30BF\u30E0\u4EBA\u683C\u306E\u540D\u524D\u3092\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044\uFF08\u5F8C\u304B\u3089\u5168\u9805\u76EE\u3092\u7DE8\u96C6\u53EF\u80FD\uFF09", "\u5275\u4F5C\u4EBA\u683C");
     if (!name) return;
+    if (!saveUnsavedCustomPersonaBeforeSwitch(state, dispatch)) return;
     dispatch({ type: "EQUIP_CUSTOM_PERSONA", name });
     dispatch({ type: "SET_UI", ui: { codexExpanded: false } });
     setShowEquippedDetail(false);
