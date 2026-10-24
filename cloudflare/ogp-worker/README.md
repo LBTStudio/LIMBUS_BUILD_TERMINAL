@@ -1,33 +1,44 @@
-# Cloudflare R2 share publishing
+# Cloudflare R2共有HTML・OGPの設定手順
 
-This folder contains the R2-backed share endpoint intended to be integrated into the existing `lbt-ogp` Worker.
+このディレクトリには、既存の `lbt-ogp` Worker に統合する、R2保存型の共有リンク機能を置いています。
 
-## Behavior
+## 仕組み
 
-- `POST /api/r2-share/v1` validates the compressed LBT token, applies a per-IP upload limit, renders a fixed HTML shell with escaped OGP metadata, and stores it in R2. Clients cannot upload arbitrary HTML.
-- `GET /s/<16-character-id>` serves the immutable HTML share page. It contains the short OGP metadata and embeds the existing GitHub Pages share viewer with the compressed token in the URL fragment.
-- `GET /s?s=...` and `GET /d?s=...` retain the existing external-store URL format for legacy Rentry/Telegraph links. `/d` retrieves the token from those stores for the viewer's fallback path.
-- Publishing still writes a Rentry/Telegraph fallback first. If the R2 publish API is unavailable, LBT uses the old share URL path. If R2 returns an error while the Worker is available, the URL's fallback source IDs allow the Worker to retrieve the legacy token.
-- The publisher displays a legacy fallback URL alongside the new short URL. A complete Cloudflare outage cannot be auto-routed by a URL on the same Cloudflare hostname; use the visible fallback URL in that case.
+- `POST /api/r2-share/v1`：圧縮済みLBT共有トークンを検証し、IPアドレスごとの発行制限を適用します。OGP情報を安全に埋め込んだ固定HTMLを生成してR2へ保存します。利用者が任意のHTMLをアップロードする仕組みではありません。
+- `GET /s/<16文字のID>`：短い共有URLに対応するHTMLを返します。HTMLにはOGPメタデータが含まれ、既存のGitHub Pages上の共有ビューアーを埋め込みます。共有トークンはURLのフラグメントに渡すため、サーバー側のHTML要求へトークン自体は送信しません。
+- `GET /s?s=...` と `GET /d?s=...`：既存のRentry／Telegraph形式の共有URLとの互換性を保つための経路です。`/d` は既存保存先から共有トークンを取得し、従来の復元経路を支えます。
+- 共有リンク発行時は、先にRentry／Telegraphへ予備データを保存し、その後R2共有URLを発行します。R2発行APIが利用できなければ、LBT側は従来の共有URLへ切り替えます。Workerが動作している状態でR2の取得に失敗した場合も、URLに含まれる予備保存先IDから復旧を試みます。
+- 新しい短縮URLと一緒に、従来方式の予備URLも発行結果へ表示します。Cloudflare全体が停止すると同じCloudflareホスト上のURLから自動転送することはできません。その場合は発行画面に表示された予備URLを使います。
 
-## Deploying without breaking existing links
+## 既存リンクを壊さずに公開する
 
-The live Worker is currently managed outside this repository. Do not deploy a new script over it until its current source has been backed up and the routes used by existing links have been compared. The implementation here retains the observed legacy `/s` and `/d` routes, but the live Worker may contain additional routes or behavior not represented in this repository.
+稼働中のWorkerは、このリポジトリとは別に管理されています。**現在のWorkerをバックアップし、既存リンクが使う経路を確認する前に、このファイルの内容で稼働中Workerを上書きしないでください。** ここでは確認できた従来の `/s` と `/d` を残していますが、実環境のWorkerにはこのリポジトリに含まれていない経路や処理がある可能性があります。
 
-1. In Cloudflare Dashboard, create an R2 **Standard** bucket named `lbt-share-html` (or update `bucket_name` below to an existing bucket).
-2. Back up/export the current `lbt-ogp` Worker source.
-3. Merge `worker.js` into the current Worker or deploy it after verifying all existing endpoints. Configure the R2 binding named `SHARES` to the bucket.
-4. Add the `SHARE_PUBLISH_LIMIT` rate limit binding (10 publish operations per IP per 60 seconds, per Cloudflare location). The limit is a best-effort abuse guard, not a globally strict quota.
-5. Verify the Worker name/account subdomain matches `SHARE_PUBLIC_ORIGIN`. The app currently validates the existing `lbt-ogp.*.workers.dev` origin.
-6. Deploy with Wrangler 4.69.0 or newer (the `[cache]` section requires Workers Cache support) or configure equivalent Worker response caching. The immutable share HTML uses `s-maxage=86400` so cached reads can bypass Worker execution after the first cache miss at an edge.
-7. Verify `GET /healthz` returns `r2Configured: true`; verify POST publish from the GitHub Pages origin; open the generated `/s/<id>` URL; paste it into Discord and confirm its OGP card.
-8. Test a forced R2 miss and confirm `b=` fallback sources open the preserved Rentry/Telegraph data. Also test with the new endpoint disabled: the app should continue to create a legacy share URL.
+1. CloudflareダッシュボードでR2の **Standardバケット** を作成し、名前を `lbt-share-html` にします。すでに使うバケットがある場合は、後述の `bucket_name` を実際の名前に変更します。
+2. 稼働中の `lbt-ogp` Workerのソースをエクスポートしてバックアップします。
+3. 現行Workerのルートと動作を比較したうえで、`worker.js` の処理を統合します。R2バインディング名を `SHARES` に設定し、作成したバケットへ接続します。
+4. `SHARE_PUBLISH_LIMIT` というレート制限バインディングを追加します。設定例では、同じIPアドレスから60秒間に10回までの発行を目安にします。Cloudflareのレート制限はデータセンターごとの近似的な制限であり、世界全体で厳密に合算された上限ではありません。
+5. Workerの公開ホスト名が `SHARE_PUBLIC_ORIGIN` と一致することを確認します。LBT側は現在 `https://lbt-ogp.lbtstudio-share.workers.dev` を想定して、返却URLを検証しています。
+6. Wrangler 4.69.0以降でデプロイします。`[cache]` の設定に対応しないバージョンを使う場合は、同等のWorker応答キャッシュを別途設定します。共有HTMLは不変のデータとして `s-maxage=86400`（共有キャッシュで24時間）を指定し、エッジでのキャッシュヒット時にWorkerの実行を省けるようにします。
+7. `GET /healthz` の応答で `r2Configured: true` を確認します。GitHub Pagesのサイトから発行APIが呼べること、発行された `/s/<ID>` が開けること、Discordに貼ったときOGPカードが表示されることを確認します。
+8. R2にデータが存在しない状況をテストし、URLの `b=` に指定されたRentry／Telegraphの予備保存先から共有内容を復元できることを確認します。また、新APIを無効にした場合でも、従来方式の共有URLが発行されることを確認します。
 
-## Configuration and limits
+## 設定・制約・運用上の注意
 
-- The default public URL remains on the existing `lbt-ogp.lbtstudio-share.workers.dev` host so the new path works without DNS changes. For higher-scale static distribution, a later migration can serve the `s/<id>` objects directly from an R2 custom domain; doing so bypasses the Worker on reads, but also means a missing R2 object cannot be recovered automatically by that same request.
-- The endpoint only stores a bounded token and fixed HTML template, never user-supplied raw HTML. OGP fields are length-limited and HTML-escaped.
-- Each publish writes one R2 object. The existing Rentry and Telegraph fallback saves are also retained, intentionally trading a few extra write calls for independent recovery paths.
-- This initial version has no deletion UI or automatic expiry. R2 object lifecycle/retention needs a separate explicit policy; do not silently expire links that users expect to remain permanent.
+- 既定の公開URLは、DNS変更を不要にするため、現在の `lbt-ogp.lbtstudio-share.workers.dev` を使います。大規模配信向けに、後からR2のカスタムドメインで `s/<ID>` を直接配信する構成へ移行することもできます。ただし、読み取り時にWorkerを通らなくなるため、R2オブジェクトが見つからない場合に、その要求の中でWorkerが予備保存先へ自動復旧する構成とは両立しません。
+- 保存するのはサイズ制限をかけた共有トークンと、固定テンプレートから生成するHTMLだけです。任意の生HTMLを保存せず、OGP情報は長さを制限し、HTMLエスケープして出力します。
+- 共有発行ごとにR2オブジェクトを1件作成します。Rentry／Telegraphへの予備保存も維持するため、保存処理は増えますが、独立した復旧経路を確保できます。
+- この初期実装には共有リンクを削除する画面と、自動期限切れの機能はありません。利用者が永続的だと期待するリンクを勝手に消さないよう、R2のライフサイクルによる自動削除を設定する場合は、保存期間の方針を別途明示してください。
 
-Cloudflare's Workers Rate Limiting API is intentionally approximate per data-center. Keep an account-level Cloudflare WAF/rate-limiting rule on `/api/r2-share/v1` as a second line of defense before making the publish endpoint widely public.
+## 公開範囲を広げる前の追加防御
+
+CloudflareのWorkersレート制限は場所ごとの近似値です。共有発行APIを広く公開する前に、Cloudflareダッシュボードで `/api/r2-share/v1` に対するWAFまたはレート制限ルールも設定し、Worker内の制限を補完してください。必要ならTurnstileなどの自動化対策も追加します。
+
+## 公開後の確認項目
+
+- [ ] 既存のRentry／Telegraph共有リンクが引き続き開く
+- [ ] R2共有URLが短く、OGPタイトル・説明・画像がDiscordに表示される
+- [ ] R2発行APIが失敗しても、従来方式の共有URLが発行できる
+- [ ] R2読み取りが失敗したとき、予備URLから復元できる
+- [ ] R2・Workerの使用量と発行エラーをダッシュボードで確認できる
+- [ ] 予備URLを利用者がコピーでき、Cloudflare全体の障害時にも独立した保存先へアクセスできる
