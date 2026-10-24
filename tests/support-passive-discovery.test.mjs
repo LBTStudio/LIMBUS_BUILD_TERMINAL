@@ -13,7 +13,7 @@ test("every support passive click/tap shows a nearby hint; the next click equips
   assert.match(component, /const \[selectedSlotType, setSelectedSlotType\] = React\.useState\(null\)/);
   assert.match(component, /const \[supportEquipHint, setSupportEquipHint\] = React\.useState\(null\)/);
   assert.doesNotMatch(component, /equipHintShown/);
-  assert.match(component, /getBoundingClientRect\(\)/);
+  assert.match(component, /getBoundingClientRect\?\.\(\)/);
   assert.match(component, /const hasPointerPoint = Number\.isFinite\(event\?\.clientX\)/);
   assert.match(component, /const maxLeft = Math\.max\(12, viewportWidth - 252\)/);
   assert.match(component, /setSupportEquipHint\(/);
