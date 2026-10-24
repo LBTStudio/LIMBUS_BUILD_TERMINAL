@@ -379,7 +379,15 @@ const EquippedSummary = ({ state, dispatch, onExpand, onShowDetail, detailShown,
       /* 識別: 名前の読み取り専用表示。編集は駒整形で行う。 */
       /* @__PURE__ */ React.createElement("div", { className: "es-idstripe" },
         /* @__PURE__ */ React.createElement("div", { className: "es-id-main" },
-          /* @__PURE__ */ React.createElement("div", { className: "es-id-name", title: displayPersonaName }, displayPersonaName),
+          editable
+            ? /* @__PURE__ */ React.createElement("input", {
+                className: "es-id-name es-id-name-input",
+                value: p.name || "",
+                onChange: (e) => patchMeta({ src: { name: e.target.value } }),
+                title: "人格名（編集モード）",
+                "aria-label": "人格名"
+              })
+            : /* @__PURE__ */ React.createElement("div", { className: "es-id-name", title: displayPersonaName }, displayPersonaName),
           /* @__PURE__ */ React.createElement("div", { className: "es-id-meta" },
             /* @__PURE__ */ React.createElement("span", { className: "es-label" }, isCustom ? "CUSTOM / 創作" : state.personaMode === "n" ? "NORMAL / 通常" : "SPECIAL / 特異"),
             primarySin && /* @__PURE__ */ React.createElement("span", { className: "es-id-sin" }, primarySin),
