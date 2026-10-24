@@ -255,7 +255,7 @@ function compactUniqueForPersonaDiff(items) {
 }
 function getPersonaDetachChanges(state) {
   const src = state.personaSrc || {};
-  const saved = (state.roster?.personas || []).find((entry) => entry.mode === state.personaMode && entry.no === state.personaNo)?.build;
+  const saved = (state.roster?.personas || []).find((entry) => entry.mode === state.personaMode && String(entry.no) === String(state.personaNo))?.build;
   const current = {
     stats: [state.hp, state.san, state.speed, state.bullets, state.resS, state.resP, state.resB],
     passive: state.pas || {},
@@ -333,7 +333,7 @@ const findCurrentRosterPersona = (state) => (state?.roster?.personas || [])
   .find((persona) => persona.mode === state?.personaMode && String(persona.no) === String(state?.personaNo)) || null;
 
 const EquippedSummary = ({ state, dispatch, onExpand, onShowDetail, detailShown, syncMaxControl, innateSlot }) => {
-  const hasSavedBuild = !!state.roster?.personas?.some((r) => r.mode === state.personaMode && r.no === state.personaNo && r.build);
+  const hasSavedBuild = !!state.roster?.personas?.some((r) => r.mode === state.personaMode && String(r.no) === String(state.personaNo) && r.build);
   const p = state.personaSrc;
   if (!p) return null;
   const primarySin = getPrimarySin(p);
@@ -1059,7 +1059,7 @@ const addRoster = (p) => {
   const toggleFav = (m, no) => dispatch({ type: "TOGGLE_FAV", mode: m, no });
   const currentMeta = pool.find((x) => x.mode === selectedPersonaMode && String(x.p.no) === String(selectedPersona?.no));
   const currentMode = currentMeta?.mode || selectedPersonaMode || mode;
-  const currentIsEquipped = personaNo === selectedPersonaView?.no && personaMode === currentMode;
+  const currentIsEquipped = String(personaNo) === String(selectedPersonaView?.no) && personaMode === currentMode;
   const currentIsInRoster = selectedPersonaView && roster.personas.some((r) => String(r.no) === String(selectedPersonaView.no) && r.mode === currentMode);
   const currentIsFav = selectedPersonaView && favorites.includes(`${currentMode}:${selectedPersonaView.no}`);
   const modes = [
@@ -1283,7 +1283,7 @@ const addRoster = (p) => {
       key: `${m}:${p.no}`,
       persona: p,
       mode: m,
-      isEquipped: personaMode === m && personaNo === p.no,
+      isEquipped: personaMode === m && String(personaNo) === String(p.no),
       isActive: selectedPersonaMode === m && String(selectedPersona?.no) === String(p.no),
       isFav: favorites.includes(`${m}:${p.no}`),
       onSelect: (persona) => {
