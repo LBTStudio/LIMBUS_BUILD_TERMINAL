@@ -465,30 +465,3 @@
   box-shadow: inset 0 0 0 1px var(--gold-tint);
   font-weight: 700;
 }
-
-
-/* Persona-name editor: keep the editable field legible in the dark workspace.
-   Explicit colors prevent browser-native input/autofill styling from producing
-   a light surface with light text; this layer is intentionally last. */
-input.es-name-input {
-  color-scheme: dark;
-  background-color: #080605;
-  color: #f2ece1;
-  -webkit-text-fill-color: #f2ece1;
-  caret-color: #eecf8a;
-}
-input.es-name-input:hover,
-input.es-name-input:focus {
-  background-color: #211b10;
-  color: #f2ece1;
-  -webkit-text-fill-color: #f2ece1;
-  border-color: #d4af5f;
-}
-input.es-name-input:-webkit-autofill,
-input.es-name-input:-webkit-autofill:hover,
-input.es-name-input:-webkit-autofill:focus {
-  -webkit-text-fill-color: #f2ece1;
-  -webkit-box-shadow: 0 0 0 1000px #080605 inset;
-  box-shadow: 0 0 0 1000px #080605 inset;
-  caret-color: #eecf8a;
-}
