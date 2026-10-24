@@ -1444,6 +1444,72 @@ function resolveActiveCustomPersonaIdentity(state) {
   return { personaNo: makeOwnedUid("custom"), activeUid: null };
 }
 
+/* Restore the active custom Persona source after a damaged or legacy save.
+   A stable active UID may only recover from its matching roster row. The legacy
+   placeholder 999 can recover from one unambiguous equipped/sole row; ambiguity
+   creates a new editable draft instead of silently attaching the wrong Persona. */
+function normalizeActiveCustomPersonaState(state) {
+  if (state?.personaMode !== "custom") return state;
+  const rows = Array.isArray(state.roster?.personas) ? state.roster.personas : [];
+  const isRecord = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
+  let personaNo = state.personaNo;
+  let source = isRecord(state.personaSrc) ? state.personaSrc : null;
+
+  if (!source) {
+    const currentNo = String(personaNo ?? "").trim();
+    const customRows = rows.filter((entry) => entry?.mode === "custom");
+    let candidate = null;
+    if (currentNo && currentNo !== "999") {
+      candidate = customRows.find((entry) =>
+        String(entry.uid ?? "") === currentNo || String(entry.no ?? "") === currentNo
+      ) || null;
+    } else {
+      const equipped = customRows.filter((entry) => entry.equipped === true);
+      if (equipped.length === 1) candidate = equipped[0];
+      else if (customRows.length === 1) candidate = customRows[0];
+    }
+
+    const buildSource = candidate?.build?.personaSrc;
+    source = isRecord(buildSource) ? buildSource
+      : isRecord(candidate?.src) ? candidate.src
+      : null;
+    if (source && candidate) {
+      personaNo = String(candidate.no);
+    } else {
+      // Keep a corrupted active custom Persona editable without claiming any owned row.
+      // A real stable UID is retained; only the legacy shared placeholder gets replaced.
+      personaNo = currentNo && currentNo !== "999" ? currentNo : makeOwnedUid("custom");
+      source = {
+        no: 999,
+        name: "復旧用カスタム人格",
+        skills: [],
+        unique_buffs: [],
+        extra_passives: [],
+        keywords: [],
+        __custom: true
+      };
+    }
+  }
+
+  source = { ...source, __custom: true };
+  const identity = resolveActiveCustomPersonaIdentity({ ...state, personaNo, personaSrc: source });
+  personaNo = identity.personaNo;
+  return {
+    ...state,
+    personaNo,
+    personaSrc: source,
+    roster: {
+      ...state.roster,
+      personas: rows.map((entry) => ({
+        ...entry,
+        equipped: identity.activeUid
+          ? entry.mode === "custom" && String(entry.no) === identity.activeUid
+          : false
+      }))
+    }
+  };
+}
+
 /* Resolve the roster entry that actually matches the active Persona identity.
    An imported owned library may carry equipped=true from another character; that
    flag must not override the active mode/no stored in the current build. */
@@ -1486,15 +1552,8 @@ function normalizeStateShape(raw) {
   if (!next.roster || typeof next.roster !== "object") next.roster = { personas: [], egos: [], supports: [], spirits: [] };
   if (!Array.isArray(next.roster.personas)) next.roster.personas = [];
   next.roster.personas = normalizeCustomPersonaRosterIdentity(next.roster.personas);
-  if (next.personaMode === "custom" && next.personaSrc) {
-    const activeIdentity = resolveActiveCustomPersonaIdentity(next);
-    next.personaNo = activeIdentity.personaNo;
-    next.roster.personas = next.roster.personas.map((entry) => ({
-      ...entry,
-      equipped: activeIdentity.activeUid
-        ? entry.mode === "custom" && String(entry.no) === activeIdentity.activeUid
-        : false
-    }));
+  if (next.personaMode === "custom") {
+    Object.assign(next, normalizeActiveCustomPersonaState(next));
   }
   /* The active build identity is authoritative for every Persona mode. This also
      neutralizes stale equipped flags imported from another character's library. */
