@@ -163,6 +163,91 @@ test("旧セーブの死亡後パッシブはスロット分類だけ正規化�
   }
 });
 
+test("人格別保存ビルド内の死亡後専用パッシブを通常枠から移行する", () => {
+  const persona = db.normal_personas[0];
+  const normal = db.support_passives[0];
+  const death = db.death_passives[0];
+  const build = {
+    supports: [
+      { id: "normal-snapshot", name: normal.name, cond: "", effect: "normal", lp: "10" },
+      { id: "death-snapshot", name: death.name, cond: "", effect: "death", lp: "" }
+    ],
+    deathSupport: null,
+    enhancements: [{ id: "death-unlock", name: "死亡後パッシブ追加" }],
+    equipmentRefs: { supportUids: ["normal-snapshot", "death-snapshot"], spiritUid: null }
+  };
+  const initial = {
+    ...base(),
+    personaMode: "n",
+    personaNo: persona.no,
+    personaSrc: persona,
+    supports: [
+      { id: "normal-snapshot", name: normal.name, cond: "", effect: "normal", lp: "10" },
+      { id: "death-snapshot", name: death.name, cond: "", effect: "death", lp: "" }
+    ],
+    roster: {
+      personas: [{ uid: "active-persona", no: persona.no, mode: "n", equipped: true, build }],
+      egos: [],
+      supports: [
+        { uid: "normal-snapshot", name: normal.name, slot: "normal", equipped: true, cond: "", effect: "normal", lp: "10" },
+        { uid: "death-snapshot", name: death.name, slot: "normal", equipped: true, cond: "", effect: "death", lp: "" }
+      ],
+      spirits: []
+    }
+  };
+
+  const normalized = w.LBT_normalizeStateShape(initial);
+  const savedBuild = normalized.roster.personas[0].build;
+  assert.equal(savedBuild.supports.length, 1, "保存ビルドの通常スロットから死亡後専用候補を除外");
+  assert.equal(savedBuild.supports[0].name, normal.name);
+  assert.equal(savedBuild.deathSupport?.name, death.name, "旧装備を死亡後専用枠へ移行");
+  assert.ok(savedBuild.equipmentRefs.supportUids.includes("death-snapshot"), "選択中の所持参照は保持");
+  assert.equal(normalized.supports.length, 1, "実際に復元された通常枠も正規化");
+  assert.equal(normalized.supports[0].name, normal.name);
+  assert.equal(normalized.deathSupport?.name, death.name);
+  const ownedDeath = normalized.roster.supports.find((entry) => entry.uid === "death-snapshot");
+  assert.equal(ownedDeath.slot, "death", "所持記録は消さず、専用枠の分類を維持");
+});
+
+test("非アクティブ人格の古いビルドも一度の正規化で修復される", () => {
+  const persona = db.normal_personas[1];
+  const normal = db.support_passives[0];
+  const death = db.death_passives[0];
+  const initial = {
+    ...base(),
+    roster: {
+      personas: [{
+        uid: "dormant-persona",
+        no: persona.no,
+        mode: "n",
+        equipped: false,
+        build: {
+          supports: [
+            { id: "dormant-normal", name: normal.name },
+            { id: "dormant-death", name: death.name }
+          ],
+          deathSupport: null,
+          equipmentRefs: { supportUids: ["dormant-normal", "dormant-death"], spiritUid: null }
+        }
+      }],
+      egos: [],
+      supports: [
+        { uid: "dormant-normal", name: normal.name, slot: "normal", equipped: false },
+        { uid: "dormant-death", name: death.name, slot: "normal", equipped: false }
+      ],
+      spirits: []
+    }
+  };
+
+  const normalized = w.LBT_normalizeStateShape(initial);
+  const savedBuild = normalized.roster.personas[0].build;
+  assert.equal(savedBuild.supports.length, 1);
+  assert.equal(savedBuild.supports[0].name, normal.name);
+  assert.equal(savedBuild.deathSupport?.name, death.name);
+  assert.ok(savedBuild.equipmentRefs.supportUids.includes("dormant-death"));
+  assert.equal(normalized.roster.supports.find((entry) => entry.uid === "dormant-death").slot, "death");
+});
+
 test("取り外した最後の死亡後スロット強化は、装備中の死亡後パッシブも解除する", () => {
   const death = { uid: "equipped-death", name: "装備中の死亡後パッシブ", slot: "death", equipped: false, cond: "", effect: "", lp: "" };
   const initial = {
