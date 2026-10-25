@@ -2330,7 +2330,12 @@ function normalizeConsumedItems(items) {
       id: String(item.id || makeOwnedUid("use")).slice(0, 120),
       itemId, itemName,
       quantity: parsedQuantity ?? 1,
-      reason: String(item.reason || "phenomenon_processing").slice(0, 80),
+      reason: (() => {
+        const reason = String(item.reason || "").trim();
+        /* 旧UIは一般的なアイテム消費を phenomenon_processing と誤記していた。
+           これまでの汎用減少操作の履歴は「消費」へ補正する。 */
+        return !reason || reason === "phenomenon_processing" ? "consumption" : reason.slice(0, 80);
+      })(),
       consumedAt: Number.isSafeInteger(rawAt) && rawAt > 0 ? rawAt : Date.now(),
       operationId: String(item.operationId || "").trim().slice(0, 120),
       detail: String(item.detail || "").trim().slice(0, 500)
@@ -4595,7 +4600,7 @@ return appendLedgerEntry(next, {
         itemId,
         itemName: ownedName(state, itemId),
         quantity,
-        reason: String(action.reason || "phenomenon_processing").slice(0, 80),
+        reason: String(action.reason || "consumption").trim().slice(0, 80) || "consumption",
         consumedAt
       };
       const inventory = ownedQuantity === quantity
