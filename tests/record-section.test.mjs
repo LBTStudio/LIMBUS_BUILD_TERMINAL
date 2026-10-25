@@ -189,6 +189,7 @@ test("リザルトはカード内で直接編集し、下部パネルと移動�
   assert.doesNotMatch(sections, /className: "ledger-result-edit-panel"/);
   assert.doesNotMatch(sections, /scrollIntoView\(\{ behavior: reducedMotion/);
   assert.doesNotMatch(sections, /className: "ledger-row-move"/);
+  assert.match(sections, /className: "ledger-row-drag-handle"/);
   const cardStart = sections.indexOf('h(Card, { className: "ledger-card" }');
   const bodyStart = sections.indexOf('className: "card-body ledger-card-body"', cardStart);
   const editorStart = sections.indexOf('className: "ledger-card-edit-inline"', bodyStart);
