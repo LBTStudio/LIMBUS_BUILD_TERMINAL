@@ -151,3 +151,15 @@ test("初期枠の定義と取り込みが UI から投げられる", () => {
   assert.match(sections, /最初から持っているもの。取り込んでも支出は立ちません/);
 });
 
+
+test("リザルトの情報階層を整え、数値・抽出チケット・明細を追いやすくする", () => {
+  const resultCss = read("../assets/sections.css");
+  assert.match(resultCss, /\.ledger-balance\s*\{[^}]*background:\s*var\(--surface-1\)/s);
+  assert.match(resultCss, /\.ledger-cards\s*\{[^}]*min\(360px, 100%\)/s);
+  assert.match(resultCss, /\.ledger-card-income\s*\{[^}]*display:\s*grid/s);
+  assert.match(resultCss, /\.ledger-card-income > \.ledger-pair\s*\{[^}]*background:\s*var\(--surface-2\)/s);
+  assert.match(resultCss, /\.ledger-card-income \.ledger-card-spent\s*\{[^}]*grid-column:\s*1 \/ -1/s);
+  assert.match(resultCss, /\.ledger-card-tickets\s*\{[^}]*border-top:\s*1px solid var\(--line-dim\)/s);
+  assert.match(resultCss, /\.ledger-card \.ledger-row-move\s*\{[^}]*min-height:\s*36px/s);
+  assert.match(resultCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-card-income \.ledger-chip-num/);
+});

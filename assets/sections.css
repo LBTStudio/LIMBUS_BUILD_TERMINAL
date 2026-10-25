@@ -1360,3 +1360,249 @@
   .support-equip-pop { max-width: min(224px, calc(100vw - 24px)); padding: 8px 11px; font-size: var(--fs-12); }
 }
 @media (prefers-reduced-motion: reduce) { .support-equip-pop { animation: none; } }
+
+/* ---------------------------------------------------------------------------
+   リザルト/通帳：共有URL取込レビューと同じ情報階層に整える。
+   色は既存トークンのみ、明細・移動・削除の挙動やDOMは変えない。
+--------------------------------------------------------------------------- */
+.ledger-balance {
+  gap: var(--s-3);
+  padding: var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface-1);
+}
+.ledger-chip {
+  min-width: 0;
+  flex: 1 1 140px;
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r);
+  background: var(--surface-2);
+}
+.ledger-balance-sub {
+  flex: 1 1 100%;
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line-dim);
+  line-height: 1.7;
+}
+.ledger-cards {
+  grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr));
+  gap: var(--s-4);
+}
+.ledger-card-wrap { border-radius: var(--r-lg); }
+.ledger-card-wrap .ledger-card {
+  height: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface-1);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--surface-0) 72%, transparent);
+  transition: border-color var(--t-fast) var(--e-out), box-shadow var(--t-fast) var(--e-out);
+}
+.ledger-card-wrap:hover .ledger-card {
+  border-color: var(--gold-line);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--surface-0) 62%, transparent);
+}
+.ledger-card-wrap.is-over .ledger-card {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px var(--gold-line), 0 12px 28px color-mix(in srgb, var(--gold) 12%, transparent);
+}
+.ledger-card-wrap .ledger-card .card-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+  padding: var(--s-4);
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface-2) 78%, var(--surface-1));
+}
+.ledger-card-title {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: end;
+  min-width: 0;
+  font-size: var(--fs-15);
+  line-height: 1.45;
+  letter-spacing: .01em;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  text-overflow: clip;
+}
+.ledger-card-date {
+  grid-column: 1;
+  grid-row: 2;
+  font-size: var(--fs-11);
+  line-height: 1.5;
+}
+.ledger-card-actions {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  justify-self: end;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+.ledger-card-edit-btn {
+  min-height: 38px;
+  padding: 0 var(--s-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  background: var(--surface-2);
+  color: var(--tx-2);
+  font: 600 var(--fs-12) var(--f-body);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color var(--t-fast), background-color var(--t-fast), color var(--t-fast);
+}
+.ledger-card-edit-btn:hover {
+  border-color: var(--gold-line);
+  background: color-mix(in srgb, var(--gold) 7%, var(--surface-2));
+  color: var(--gold-hi);
+}
+.ledger-card-edit-btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+.ledger-card-wrap .ledger-card .card-body {
+  padding: var(--s-4);
+  gap: var(--s-3);
+}
+.ledger-card-income {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: var(--s-2);
+}
+.ledger-card-income > .ledger-pair {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+  min-width: 0;
+  padding: var(--s-3);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r);
+  background: var(--surface-2);
+}
+.ledger-card-income .ledger-chip-num {
+  min-width: 0;
+  font-size: var(--fs-20);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.ledger-card-income .ledger-pair-label {
+  flex: 0 0 auto;
+  font-size: var(--fs-10);
+  letter-spacing: .08em;
+}
+.ledger-card-income .ledger-card-spent {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: var(--s-3);
+  border-left: 2px solid var(--gold-line);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  background: color-mix(in srgb, var(--gold) 4%, var(--surface-2));
+  color: var(--tx-2);
+  line-height: 1.6;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.ledger-card-tickets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line-dim);
+}
+.ledger-card-tickets > .t-label {
+  flex: 0 0 100%;
+  line-height: 1.5;
+}
+.ledger-card .ledger-card-consumed {
+  padding: var(--s-3);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r);
+  background: var(--surface-2);
+}
+.ledger-card .ledger-card-consumed > .t-label { letter-spacing: .02em; }
+.ledger-card .ledger-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border-radius: var(--r);
+  user-select: none;
+}
+.ledger-card .ledger-row-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+.ledger-card .ledger-row-kind {
+  justify-self: end;
+  padding: 3px 7px;
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  color: var(--tx-2);
+  letter-spacing: .02em;
+}
+.ledger-card .ledger-row-cost {
+  justify-self: end;
+  white-space: nowrap;
+  font-size: var(--fs-12);
+}
+.ledger-card .ledger-row-move {
+  grid-column: 1 / span 2;
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  height: auto;
+  padding: 0 var(--s-2);
+  font-size: var(--fs-11);
+}
+.ledger-card .ledger-row-trash,
+.ledger-card .ledger-row-release {
+  grid-column: 3;
+  min-height: 36px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r);
+  font-size: var(--fs-11);
+}
+.ledger-card .ledger-row-trash {
+  border: 1px solid var(--line-dim);
+  background: transparent;
+  color: var(--tx-2);
+  cursor: pointer;
+}
+.ledger-card .ledger-row-trash:hover {
+  border-color: var(--err-line);
+  color: var(--err-ink);
+}
+.ledger-card .ledger-row-release:hover {
+  border-color: var(--gold-line);
+  color: var(--gold-hi);
+}
+.ledger-card .ledger-empty-note {
+  padding: var(--s-3);
+  border: 1px dashed var(--line);
+  border-radius: var(--r);
+  background: var(--surface-2);
+  line-height: 1.7;
+}
+@media (max-width: 560px) {
+  .ledger-balance { padding: var(--s-3); }
+  .ledger-chip { flex-basis: 100%; }
+  .ledger-card-wrap .ledger-card .card-header,
+  .ledger-card-wrap .ledger-card .card-body { padding: var(--s-3); }
+  .ledger-card-income .ledger-chip-num { font-size: var(--fs-18); }
+  .ledger-card .ledger-row { gap: var(--s-2); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ledger-card-wrap .ledger-card,
+  .ledger-card-edit-btn { transition: none; }
+}
