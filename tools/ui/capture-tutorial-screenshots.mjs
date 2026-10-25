@@ -293,7 +293,7 @@ async function captureCompactResultDetails(page, mode) {
     const effectText = await effectDisclosure.locator("p").innerText();
     if (!effectText.trim()) throw new Error("Special enhancement effect did not expand");
     const expandedFilename = "result-enhancement-expanded-" + mode + ".png";
-    await effectDisclosure.locator("p").scrollIntoViewIfNeeded();
+    await effectDisclosure.locator("p").evaluate((element) => element.scrollIntoView({ block: "center", behavior: "auto" }));
     await page.waitForTimeout(80);
     const expanded = await page.screenshot({ animations: "disabled", fullPage: false });
     fs.writeFileSync(path.join(OUT, expandedFilename.slice(0, -4) + ".json"), JSON.stringify({
