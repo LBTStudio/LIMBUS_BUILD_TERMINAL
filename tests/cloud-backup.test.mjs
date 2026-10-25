@@ -128,3 +128,14 @@ test("DB移行SQLの関数・トリガーが完結しており、レート制限
   assert.match(migration, /grant execute on function public\.lbt_consume_recovery_rate_limit\(text, integer, integer\) to service_role/i);
   assert.match(migration, /create trigger lbt_prepare_vaults_before_auth_user_delete/i);
 });
+
+test("端末内JSONバックアップはクラウドの12MB制限と分離し、100MBまで保存・復元できる", () => {
+  assert.match(client, /const MAX_LOCAL_BYTES = 12 \* 1024 \* 1024/);
+  assert.match(client, /const MAX_JSON_BACKUP_BYTES = 100 \* 1024 \* 1024/);
+  assert.match(client, /function collectLocalSnapshot\(\{ enforceCloudLimit = true \} = \{\}\)/);
+  assert.match(client, /function validateSnapshot\(payload, \{ enforceCloudLimit = true \} = \{\}\)/);
+  assert.match(client, /collectLocalSnapshot\(\{ enforceCloudLimit: false \}\)/);
+  assert.match(client, /validateSnapshot\(payload, \{ enforceCloudLimit: false \}\)/);
+  assert.match(client, /applySnapshot\(payload, \{ enableSync: false, enforceCloudLimit: false \}\)/);
+  assert.match(client, /file\.size\) > MAX_JSON_BACKUP_BYTES/);
+});
