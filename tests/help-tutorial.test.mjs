@@ -189,7 +189,7 @@ test("検索可能な索引からアカウント管理とサポート手順に�
 
 
 test("検索欄の値はReactイベントから読み取り、検索語入力後も分類で絞り込める", () => {
-  assert.match(appSource, /onChange: \(event\) => \{ const value = event\.target\.value; setQuery\(value\); setExpandedKey\(\); if \(value\.trim\(\)\) setCategory\("all"\); \}/);
+  assert.match(appSource, /onChange: \(event\) => \{ const value = event\.target\.value; setQuery\(value\); setExpandedKey\(""\); if \(value\.trim\(\)\) setCategory\("all"\); \}/);
   assert.match(appSource, /const effectiveCategory = category;/);
   assert.match(appSource, /onClick: \(\) => \{ setCategory\(entry\.key\); setExpandedKey\(""\); \}/);
 });
