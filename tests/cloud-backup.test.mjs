@@ -155,9 +155,9 @@ test("オンライン保全UIはGoogle/Xではなく復旧キーだけに一本�
   assert.match(client, /復旧キー方式/);
   assert.doesNotMatch(client, /startOAuth|handleOAuthCallback|Googleと連携|Xと連携|signInWithOAuth/);
   assert.match(client, /古いキーは無効化/);
-  assert.match(client, /復旧キーはサーバーに平文保存せず/);
+  assert.match(client, /復旧キー自体は保存せずハッシュのみを保持します/);
   assert.match(doc, /GoogleアカウントやXアカウントとの連携は実装しません/);
-  assert.match(doc, /バックアップ内容や更新回数が変わっても/);
+  assert.match(doc, /通常のバックアップ更新、revisionの増加、過去世代の復元、端末の追加ではキーを作り直しません/);
 });
 
 test("端末内JSONバックアップはクラウド12MB上限と分離し、100MBまで扱える", () => {
