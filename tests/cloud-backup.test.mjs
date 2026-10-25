@@ -16,6 +16,10 @@ const migration = read("supabase/migrations/20261025211015_lbt_account_vaults.sq
 const hardeningMigration = read("supabase/migrations/20261025212903_lbt_account_vault_access_hardening.sql");
 const anonymousMigration = read("supabase/migrations/202610260002_reject_anonymous_vault_access.sql");
 const recovery = read("supabase/functions/lbt-account-recovery/index.ts");
+const fallbackWorker = read("cloudflare/recovery-worker/worker.js");
+const fallbackSchema = read("cloudflare/recovery-worker/schema.sql");
+const accessCounter = read("js/access-counter.js");
+const shareHtml = read("share.html");
 
 test("復旧キーは任意で、初期化・ローカル保存だけではアップロードしない", () => {
   assert.match(client, /復旧キーは未設定です/);
@@ -93,16 +97,14 @@ test("アカウント選択ゲートと管理画面の双方に保全UIを提供
   assert.ok(html.indexOf("js/cloud-backup.js") < html.indexOf("js/accounts-ui.js"));
 });
 
-test("復旧キーの明示的な再発行のみ旧キーを無効化し、クラウドpayloadは維持する", () => {
-  assert.match(client, /async function rotateRecoveryKey\(\)/);
-  assert.match(client, /古いキーは無効化/);
-  assert.match(client, /action: "rotate_recovery", recoveryKey: currentKey, newRecoveryKey: newKey/);
-  assert.match(recovery, /if \(action === "rotate_recovery"\)/);
-  const rotateBlock = recovery.slice(recovery.indexOf('if (action === "rotate_recovery")'), recovery.indexOf('if (action === "create_recovery")'));
-  assert.match(rotateBlock, /recovery_hash=eq/);
-  assert.match(rotateBlock, /recovery_hash: newHash/);
-  assert.doesNotMatch(rotateBlock, /payload:/);
-  assert.doesNotMatch(rotateBlock, /revision:\s*currentRevision/);
+test("復旧キーは不変で、再発行APIを公開せず、保存先間の複製を許可する", () => {
+  assert.doesNotMatch(client, /rotateRecoveryKey|rotate_recovery|復旧キーを再発行/);
+  assert.doesNotMatch(recovery, /rotate_recovery|newRecoveryKey/);
+  assert.doesNotMatch(fallbackWorker, /rotate_recovery|newRecoveryKey/);
+  assert.match(client, /async function getRemote\(options = \{\}\)/);
+  assert.match(client, /同じ世代番号の異なるデータがあります/);
+  assert.match(recovery, /action === "replicate"/);
+  assert.match(fallbackWorker, /action === "replicate"/);
 });
 
 test("復旧キーだけでの保管庫作成にはレート制限を設ける", () => {
@@ -183,3 +185,20 @@ test("保全APIはOAuthセッションではなく復旧キーのみを受け付
   assert.match(anonymousMigration, /for all to service_role/);
 });
 
+
+test("Cloudflareの独立保管先は12MiBのチャンク保存・10世代履歴・アクセス集計を備える", () => {
+  assert.match(fallbackWorker, /MAX_PAYLOAD_BYTES = 12 \* 1024 \* 1024/);
+  assert.match(fallbackWorker, /CHUNK_CHARS = 350000/);
+  assert.match(fallbackWorker, /HISTORY_LIMIT = 10/);
+  assert.match(fallbackSchema, /CREATE TABLE IF NOT EXISTS vault_chunks/);
+  assert.match(fallbackSchema, /CREATE TABLE IF NOT EXISTS vault_version_chunks/);
+  assert.match(fallbackSchema, /CREATE TABLE IF NOT EXISTS site_counters/);
+  assert.match(fallbackWorker, /\/api\/stats\/view/);
+});
+
+test("アクセスカウンターはアプリ本体・共有ページに設置し、個人識別子をローカル保存しない", () => {
+  assert.match(html, /js\/access-counter\.js\?v=[a-f0-9]{8}/);
+  assert.match(shareHtml, /js\/access-counter\.js\?v=[a-f0-9]{8}/);
+  assert.match(accessCounter, /総アクセス/);
+  assert.doesNotMatch(accessCounter, /localStorage|sessionStorage|document\.cookie/);
+});
