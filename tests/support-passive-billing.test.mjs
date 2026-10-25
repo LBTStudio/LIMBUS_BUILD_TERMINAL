@@ -411,6 +411,34 @@ test("非アクティブ人格の古いビルドも一度の正規化で修復�
   assert.equal(normalized.roster.supports.find((entry) => entry.uid === "dormant-death").slot, "death");
 });
 
+test("ロック中の直接PATCH_DEATH_SUPPORTは死亡後枠を再装備しない", () => {
+  const death = db.death_passives[0];
+  const unlocked = reducer({
+    ...base(),
+    enhancements: [{ id: "death-unlock", name: "死亡後パッシブ追加", group: "test", shards: 0 }]
+  }, { type: "SET_DEATH_SUPPORT", spp: { name: death.name, cond: "", effect: "", lp: "" } });
+
+  // Simulate stale/imported state: the final unlock disappeared, but an old
+  // death-slot projection is still present. A low-level edit must not revive it.
+  const locked = {
+    ...unlocked,
+    enhancements: [],
+    deathSupport: { ...unlocked.deathSupport, name: "stale edit target" },
+    roster: {
+      ...unlocked.roster,
+      supports: unlocked.roster.supports.map((entry) => ({ ...entry, equipped: false }))
+    }
+  };
+  const result = reducer(locked, {
+    type: "PATCH_DEATH_SUPPORT",
+    patch: { name: "attempted re-equip", effect: "attempted bypass" }
+  });
+
+  assert.equal(result, locked, "ロック中は編集アクション自体を拒否");
+  assert.equal(result.roster.supports[0].equipped, false);
+  assert.equal(result.roster.supports[0].name, death.name);
+});
+
 test("取り外した最後の死亡後スロット強化は、装備中の死亡後パッシブも解除する", () => {
   const death = { uid: "equipped-death", name: "装備中の死亡後パッシブ", slot: "death", equipped: false, cond: "", effect: "", lp: "" };
   const initial = {
