@@ -664,16 +664,19 @@
   font-size: var(--fs-11);
   color: var(--gold-hi);
 }
-.ledger-row-move {
-  height: 22px;
-  font-size: var(--fs-10);
-  color: var(--tx-dim);
+.ledger-row-move-action {
+  min-height: 26px;
+  padding: 2px 8px;
+  font-family: var(--f-display);
+  font-size: var(--fs-9);
+  letter-spacing: 0.03em;
+  color: var(--tx-2);
   background: var(--surface-inset);
   border: 1px solid var(--line-dim);
   border-radius: var(--r-sm);
 }
 .ledger-row-release,
-.ledger-row-move { cursor: pointer; }
+.ledger-row-move-action { cursor: pointer; }
 .ledger-row-release {
   padding: 2px 8px;
   font-family: var(--f-display);
