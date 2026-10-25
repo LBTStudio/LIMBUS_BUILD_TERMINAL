@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 820" role="img" aria-labelledby="title desc">
+<title id="title">LIMBUS BUILD TERMINAL 基本の進め方</title>
+<desc id="desc">SINNER SELECT、駒整形、ビルド、必要ならショップ、プレビューとCCFOLIA JSONの順に進む図。</desc>
+<defs><marker id="arrow" markerWidth="12" markerHeight="12" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#d7b76b"/></marker></defs>
+<rect width="1200" height="820" rx="22" fill="#11100f"/>
+<text x="56" y="48" fill="#e5c879" font-family="Noto Sans JP, Yu Gothic, sans-serif" font-size="27" font-weight="700">はじめての方へ｜基本の進め方</text>
+<g font-family="Noto Sans JP, Yu Gothic, sans-serif">
+<g><rect x="90" y="76" width="1020" height="100" rx="14" fill="#242016" stroke="#d7b76b" stroke-width="2"/><circle cx="137" cy="126" r="25" fill="#d7b76b"/><text x="137" y="134" text-anchor="middle" font-size="22" font-weight="700" fill="#181510">1</text><text x="184" y="119" font-size="26" font-weight="700" fill="#f6f0e6">SINNER SELECT</text><text x="184" y="149" font-size="19" fill="#d8cfc0">作業するキャラクターを選ぶ。初めてなら「新しいキャラクター」から作成。</text></g>
+<path d="M600 178 V200" stroke="#d7b76b" stroke-width="3" marker-end="url(#arrow)"/>
+<g><rect x="90" y="208" width="1020" height="100" rx="14" fill="#1b1916" stroke="#67583d" stroke-width="2"/><circle cx="137" cy="258" r="25" fill="#d7b76b"/><text x="137" y="266" text-anchor="middle" font-size="22" font-weight="700" fill="#181510">2</text><text x="184" y="251" font-size="26" font-weight="700" fill="#f6f0e6">駒整形（必要な場合）</text><text x="184" y="281" font-size="19" fill="#d8cfc0">キャラクター名・PL名・立ち絵など、駒として見せる基本情報を整える。</text></g>
+<path d="M600 310 V332" stroke="#d7b76b" stroke-width="3" marker-end="url(#arrow)"/>
+<g><rect x="90" y="340" width="1020" height="100" rx="14" fill="#1b1916" stroke="#67583d" stroke-width="2"/><circle cx="137" cy="390" r="25" fill="#d7b76b"/><text x="137" y="398" text-anchor="middle" font-size="22" font-weight="700" fill="#181510">3</text><text x="184" y="383" font-size="26" font-weight="700" fill="#f6f0e6">ビルド</text><text x="184" y="413" font-size="19" fill="#d8cfc0">人格を装備し、スキル・パッシブ・サポート・E.G.O・精神などを整える。</text></g>
+<path d="M600 442 V464" stroke="#d7b76b" stroke-width="3" marker-end="url(#arrow)"/>
+<g><rect x="90" y="472" width="1020" height="100" rx="14" fill="#1b1916" stroke="#67583d" stroke-width="2"/><circle cx="137" cy="522" r="25" fill="#d7b76b"/><text x="137" y="530" text-anchor="middle" font-size="22" font-weight="700" fill="#181510">4</text><text x="184" y="515" font-size="26" font-weight="700" fill="#f6f0e6">ショップ（必要な場合）</text><text x="184" y="545" font-size="19" fill="#d8cfc0">欲しい候補が出ないときは、所持フィルターを解除するかショップで入手。</text></g>
+<path d="M600 574 V596" stroke="#d7b76b" stroke-width="3" marker-end="url(#arrow)"/>
+<g><rect x="90" y="604" width="1020" height="100" rx="14" fill="#242016" stroke="#d7b76b" stroke-width="2"/><circle cx="137" cy="654" r="25" fill="#d7b76b"/><text x="137" y="662" text-anchor="middle" font-size="22" font-weight="700" fill="#181510">5</text><text x="184" y="647" font-size="26" font-weight="700" fill="#f6f0e6">プレビュー → CCFOLIA JSON</text><text x="184" y="677" font-size="19" fill="#d8cfc0">出力結果を確認してコピー。別端末への移行やバックアップには保存ファイルを使う。</text></g>
+<text x="60" y="764" font-size="19" fill="#e5c879" font-weight="700">覚えておくこと</text><text x="60" y="793" font-size="18" fill="#d8cfc0">通常の編集はブラウザー内へ自動保存。共有シートはバックアップとは別の機能。</text>
+</g></svg>
