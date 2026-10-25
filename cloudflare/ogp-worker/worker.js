@@ -151,7 +151,7 @@ function renderShell({ preview, iframeUrl = "", legacyUrl = "", canonicalUrl = "
     + '<meta property="og:locale" content="ja_JP"><meta property="og:url" content="' + htmlEscape(canonicalUrl || DEFAULT_VIEWER_URL) + '">'
     + '<meta property="og:title" content="' + htmlEscape(title) + '"><meta property="og:description" content="' + htmlEscape(description) + '">'
     + '<meta property="og:image" content="' + htmlEscape(imageUrl || env.OG_IMAGE_URL || DEFAULT_OG_IMAGE) + '">'
-    + '<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="' + htmlEscape(title) + '"><meta name="twitter:description" content="' + htmlEscape(description) + '"><meta name="twitter:image" content="' + htmlEscape(imageUrl || env.OG_IMAGE_URL || DEFAULT_OG_IMAGE) + '">
+    + '<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="' + htmlEscape(title) + '"><meta name="twitter:description" content="' + htmlEscape(description) + '"><meta name="twitter:image" content="' + htmlEscape(imageUrl || env.OG_IMAGE_URL || DEFAULT_OG_IMAGE) + '">'
     + '<style>html,body{margin:0;min-height:100%;background:#17100d;color:#f2ece1;font-family:system-ui,sans-serif}body{height:100dvh;overflow:hidden}.sheet{display:block;width:100%;height:100dvh;border:0}main{box-sizing:border-box;max-width:760px;margin:10vh auto;padding:24px;line-height:1.6}a{color:#e4c16e}.fallback-link{position:fixed;right:8px;bottom:8px;z-index:5;padding:6px 9px;border:1px solid #6a5b3e;border-radius:5px;background:#17100df0;font-size:11px;opacity:.82}</style>'
     + '</head><body>' + frame + '</body></html>';
 }
