@@ -121,9 +121,10 @@ test("復旧キーはデータ更新・履歴復元で失効せず、同じキ�
   assert.match(recovery, /recovery_hash=eq/);
   assert.match(recovery, /async function getVaultByHash\(hash: string\)/);
   assert.doesNotMatch(updateBlock, /recovery_hash\s*:/);
-  assert.match(updateBlock, /\{ payload, revision: currentRevision \+ 1, updated_at: new Date\(\)\.toISOString\(\) \}/);
+  assert.match(updateBlock, /payload_hash: payloadHash/);
+  assert.match(updateBlock, /revision: currentRevision \+ 1/);
   assert.match(updateBlock, /async function updateVault/);
-  assert.match(client, /データ更新・同期・世代変更では変更・失効しません/);
+  assert.match(client, /復旧キーはデータ更新・同期・世代変更では変化しません/);
   assert.match(client, /const result = await callRecovery\(\{ action: "backup", expectedRevision: Number\(current\.revision\), payload, recoveryKey: key \}\)/);
   assert.match(client, /async function restoreRevision\(revision\)[\s\S]*?recoveryKey: key/);
   assert.doesNotMatch(client, /startOAuth|handleOAuthCallback|access_token|Googleと連携|Xと連携/);
@@ -156,7 +157,7 @@ test("オンライン保全UIはGoogle/Xではなく復旧キーだけに一本�
   assert.match(client, /button\("復旧キーからクラウドを復元"/);
   assert.match(client, /復旧キー方式/);
   assert.doesNotMatch(client, /startOAuth|handleOAuthCallback|Googleと連携|Xと連携|signInWithOAuth/);
-  assert.match(client, /古いキーは無効化/);
+  assert.doesNotMatch(client, /古いキーは無効化|キーを再発行した場合/);
   assert.match(client, /復旧キー自体は保存せずハッシュのみを保持します/);
   assert.match(doc, /GoogleアカウントやXアカウントとの連携は実装しません/);
   assert.match(doc, /通常のバックアップ更新、revisionの増加、過去世代の復元、端末の追加ではキーを作り直しません/);
@@ -194,6 +195,10 @@ test("Cloudflareの独立保管先は12MiBのチャンク保存・10世代履歴
   assert.match(fallbackSchema, /CREATE TABLE IF NOT EXISTS vault_version_chunks/);
   assert.match(fallbackSchema, /CREATE TABLE IF NOT EXISTS site_counters/);
   assert.match(fallbackWorker, /\/api\/stats\/view/);
+  assert.match(fallbackWorker, /payload_hash/);
+  assert.match(fallbackWorker, /history: \(ancestors\.results/);
+  assert.match(recovery, /history: lineage\.map/);
+  assert.match(recovery, /payload_hash: payloadHash/);
 });
 
 test("アクセスカウンターはアプリ本体・共有ページに設置し、個人識別子をローカル保存しない", () => {
@@ -201,4 +206,6 @@ test("アクセスカウンターはアプリ本体・共有ページに設置�
   assert.match(shareHtml, /js\/access-counter\.js\?v=[a-f0-9]{8}/);
   assert.match(accessCounter, /総アクセス/);
   assert.doesNotMatch(accessCounter, /localStorage|sessionStorage|document\.cookie/);
+  assert.match(fallbackWorker, /INSERT INTO site_counters \(name, value\) VALUES \('total_views', 1\)/);
+  assert.doesNotMatch(fallbackWorker, /pageViews/);
 });
