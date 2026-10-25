@@ -279,3 +279,15 @@ test("人格URLの一括取込でも解析段階の不正URLを失敗レポー�
   assert.match(personaBranch, /requested: parsedBatch\.urls\.length \+ \(parsedBatch\.invalid \|\| \[\]\)\.length/);
   assert.match(personaBranch, /failed:\s*\[\s*\.\.\.failed,[\s\S]*?imported\.filter\(\(row\) => !row\.ok\)/);
 });
+
+test("キャラクター共有URLの確認後はアカウントカードから独立した全画面ワークスペースで表示する", () => {
+  assert.match(uiFlat, /const renderWorkspace = \(content\) =>/);
+  assert.match(uiFlat, /ReactDOM\.createPortal\(/);
+  assert.match(uiFlat, /role: "dialog"/);
+  assert.match(uiFlat, /return renderWorkspace\(h\("div", \{ className: "gara gara-import-review" \}/);
+  assert.match(uiFlat, /className: "gara-review-dismiss"/);
+  assert.match(uiFlat, /event\.key !== "Escape"/);
+  const css = readFileSync(new URL("../assets/v66-accounts.css", import.meta.url), "utf8");
+  assert.match(css, /\.gara-import-workspace\s*\{[^}]*position:\s*fixed/s);
+  assert.match(css, /\.gara-import-workspace > \.gara-import-review\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\) minmax\(280px,\s*360px\)/s);
+});

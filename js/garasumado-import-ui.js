@@ -769,6 +769,31 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [] }) => {
   /* 確定後の結果。シミュレーションは「反映前の1手前」なので、
      確定した時点で入る内容を残し、自動で閉じずに確認できるようにする。 */
   const [confirmed, setConfirmed] = React.useState(null);
+
+  /* URL取込後のレビューはアカウント編集カードから切り離した全画面ワークスペースへ。
+     URL入力の入口は従来どおりに残し、内容の確認・確定時だけ作業面を切り替える。 */
+  const renderWorkspace = (content) => {
+    if (!manifest && !confirmed) return content;
+    return ReactDOM.createPortal(
+      h("div", {
+        className: "gara-import-workspace",
+        role: "dialog",
+        "aria-modal": true,
+        "aria-label": "共有データ取り込みの確認"
+      }, content),
+      document.body
+    );
+  };
+  React.useEffect(() => {
+    if (!manifest && !confirmed) return undefined;
+    const handleEscape = (event) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      onClose?.();
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [manifest, confirmed, onClose]);
   const onPickIdentity = (itemKey, next) => {
     setPast((h) => [...h.slice(-49), { identity, picked }]);
     setFuture([]);
@@ -1087,7 +1112,7 @@ function appliedSummary(actions) {
       ));
     const lead = "記録 " + (confirmed.counts.byType.ADD_RESULT || 0) + "件・所持 "
       + confirmed.counts.held + "件・処理 " + confirmed.counts.total + "件";
-    return h("div", { className: "gara gara-import-complete" },
+    return renderWorkspace(h("div", { className: "gara gara-import-complete" },
       h("div", { className: "gara-step-kicker" }, "STEP 3 / 3 · 反映結果"),
       h("div", { className: "gara-out" },
         h("h3", { className: "gara-title" }, "変換を確定しました"),
@@ -1108,7 +1133,7 @@ function appliedSummary(actions) {
           h(Button, { size: "sm", variant: "primary", icon: "check", onClick: onClose }, "閉じる")
         )
       )
-    );
+    ));
   }
 
   if (!manifest) {
@@ -1145,7 +1170,7 @@ function appliedSummary(actions) {
     );
   }
 
-  return h("div", { className: "gara gara-import-review" },
+  return renderWorkspace(h("div", { className: "gara gara-import-review" },
     h("header", { className: "gara-import-heading" },
       h("div", { className: "gara-import-heading-copy" },
         h("span", { className: "gara-step-kicker" }, "STEP 2 / 3 · 取込内容の確認"),
@@ -1153,7 +1178,10 @@ function appliedSummary(actions) {
         h("p", { className: "gara-lead" }, `共有元：${manifest.character.name || "名称未設定"}。反映する項目を選び、未決の内容を確認してから確定してください。`),
         h("p", { className: "gara-import-balance" }, `共有元の残高　LP ${manifest.currency.lp || "—"} ・ 欠片 ${manifest.currency.shards || "—"}`)
       ),
-      h("button", { type: "button", className: "gara-change-url", onClick: () => { setManifest(null); setConfirmed(null); setError(""); setUrlReport(null); setProgress(""); setPicked({}); setIdentity({}); setLines([]); setChoices({}); setDecided({}); setPast([]); setFuture([]); setDoc(null); } }, "URLを貼り直す")
+      h("div", { className: "gara-import-heading-actions" },
+        h("button", { type: "button", className: "gara-change-url", onClick: () => { setManifest(null); setConfirmed(null); setError(""); setUrlReport(null); setProgress(""); setPicked({}); setIdentity({}); setLines([]); setChoices({}); setDecided({}); setPast([]); setFuture([]); setDoc(null); } }, "URLを貼り直す"),
+        h("button", { type: "button", className: "gara-review-dismiss", onClick: onClose, title: "取り込み確認を閉じてアカウント編集へ戻る" }, "閉じて戻る")
+      )
     ),
     urlReport && urlReport.failed.length ? h("section", { className: "gara-url-report has-errors", role: "status" },
       h("strong", null, `${urlReport.successful}/${urlReport.requested}件のURLを読み込みました`),
@@ -1278,7 +1306,7 @@ function appliedSummary(actions) {
       )
     ),
     h("p", { className: "gara-note" }, "取り込み後も記録とリザルトはいつでも編集できます。")
-  );
+  ));
 };
 
 window.GarasumadoImportPanel = GarasumadoImportPanel;
