@@ -99,7 +99,8 @@ test("編集ボタンはラベル付きで常時表示し、hover に依存し�
 test("状態の所在は App に一元化し、設定からはイベントだけで開く", () => {
   assert.match(app, /const \[accountSwitcherOpen, setAccountSwitcherOpen\] = React\.useState\(false\)/);
   assert.match(app, /window\.addEventListener\("lbt:open-accounts", onOpenAccounts\)/);
-  assert.match(app, /React\.createElement\(AccountSwitcher, \{ open: accountSwitcherOpen, onClose: \(\) => setAccountSwitcherOpen\(false\) \}\)/);
+  assert.ok(app.includes("React.createElement(AccountSwitcher, { open: accountSwitcherOpen, initialEditId: accountSwitcherInitialEditId"), "編集対象IDを共有スイッチャーへ渡す");
+  assert.ok(app.includes("setAccountSwitcherInitialEditId(null)"), "閉じると編集対象を解除する");
   assert.match(app, /React\.createElement\(AccountChip, null\)/, "topbar にアカウント chip");
   assert.match(sections, /window\.dispatchEvent\(new CustomEvent\("lbt:open-accounts"\)\)/, "設定は open イベントを投げるだけ");
   assert.doesNotMatch(sections, /setAccountSwitcherOpen/, "設定側に開閉状態を持たせない");
@@ -191,19 +192,41 @@ test("アイコンUIとゲートのCSSがトークンのみで定義されてい
   assert.match(css, /\.acct-gate \{/, "アクセス時のゲート");
   assert.match(css, /\.acct-card--gate \{/, "ゲート内のカード");
   assert.match(css, /\.acct-gate-cta \{/, "開く旨の導線");
-  assert.match(css, /z-index: 10060;/, "ゲートは切替オーバーレイ(10050)より上");
+  assert.match(css, /\.acct-gate\s*\{[^}]*z-index:\s*10060;/s, "ゲートは背景レイヤーに残す");
+  assert.match(css, /\.acct-overlay\s*\{[^}]*z-index:\s*10065;/s, "ゲートから開いた編集オーバーレイはゲートより前面");
 });
 
 test("カードの選択領域は表示要素より前面、管理ボタンはその上に配置する", () => {
   const hit = css.match(/\.acct-card-hit\s*\{([^}]*)\}/s)?.[1] || "";
   const actions = css.match(/\.acct-card-actions\s*\{([^}]*)\}/s)?.[1] || "";
+  const gateEdit = css.match(/\.acct-gate-edit-btn\s*\{([^}]*)\}/s)?.[1] || "";
   const gateCta = css.match(/\.acct-gate-cta\s*\{([^}]*)\}/s)?.[1] || "";
   assert.match(hit, /position:\s*absolute/);
   assert.match(hit, /inset:\s*0/);
   assert.match(hit, /z-index:\s*1/);
   assert.match(hit, /pointer-events:\s*auto/);
   assert.match(actions, /z-index:\s*2/);
+  assert.match(gateEdit, /position:\s*absolute/);
+  assert.match(gateEdit, /z-index:\s*2/);
+  assert.match(gateEdit, /display:\s*inline-flex/);
   assert.match(gateCta, /pointer-events:\s*none/);
+});
+
+test("起動時のアカウント選択画面にも常時表示の編集ボタンを置き、対象アカウントを直接編集する", () => {
+  const gateSource = ui.slice(ui.indexOf("const AccountGate"));
+  assert.ok(gateSource.includes('className: "acct-gate-edit-btn"'), "起動時カードに専用の編集ボタン");
+  assert.ok(gateSource.includes("detail: { editId: entry.id }"), "クリックしたアカウントIDを渡す");
+  assert.ok(gateSource.includes('"aria-haspopup": "dialog"'), "ダイアログを開く操作として明示");
+  assert.match(ui, /const AccountSwitcher = \(\{ open, onClose, initialEditId \}\) => \{/);
+  assert.match(ui, /if \(!open \|\| !initialEditId\) return;[\s\S]*?setEditingId\(entry\.id\)/, "対象IDを受け取り編集フォームへ入る");
+  assert.ok(app.includes("accountSwitcherInitialEditId"), "編集対象IDを App で管理");
+  assert.ok(app.includes("event.detail?.editId || null"), "イベントから対象IDを受け取る");
+  assert.ok(app.includes("React.createElement(React.Fragment, null,"), "ゲートと共通編集UIを同時に描画");
+  assert.ok(app.includes("React.createElement(AccountGate, null),\n      React.createElement(AccountSwitcher,"), "ゲート表示中も共通編集UIをマウント");
+  const editStyles = css.match(/\.acct-gate-edit-btn\s*\{([^}]*)\}/s)?.[1] || "";
+  assert.match(editStyles, /z-index:\s*2/);
+  assert.match(editStyles, /min-height:\s*30px/);
+  assert.doesNotMatch(editStyles, /opacity:\s*0|visibility:\s*hidden|display:\s*none/);
 });
 
 test("切り抜きエディタは丸い枠・グリッド・実サイズプレビューを持つ", () => {

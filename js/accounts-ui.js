@@ -325,7 +325,7 @@ const AccountCard = ({ entry, index, active, editing, draft, setDraft, icon, onS
   );
 };
 
-const AccountSwitcher = ({ open, onClose }) => {
+const AccountSwitcher = ({ open, onClose, initialEditId }) => {
   const panelRef = React.useRef(null);
 
   const [info, setInfo] = React.useState(readAccountInfo);
@@ -343,6 +343,17 @@ const AccountSwitcher = ({ open, onClose }) => {
     window.addEventListener(ACCOUNTS_CHANGED_EVENT, onChange);
     return () => window.removeEventListener(ACCOUNTS_CHANGED_EVENT, onChange);
   }, [open]);
+
+  /* 起動時ゲートの「編集」から来た場合は、一覧を挟まず対象アカウントの編集フォームを直接開く。 */
+  React.useEffect(() => {
+    if (!open || !initialEditId) return;
+    const entry = readAccountInfo().accounts.find((account) => account.id === initialEditId);
+    if (!entry) return;
+    setCreating(false);
+    setEditingId(entry.id);
+    setDraft({ name: entry.name, purpose: entry.purpose || "" });
+    setPendingIcon("");
+  }, [open, initialEditId]);
 
   const requestClose = React.useCallback(() => {
     if (prefersReducedMotion()) { onClose(); return; }
@@ -565,6 +576,17 @@ const AccountGate = () => {
       accounts.length === 0 ? h("div", { className: "acct-empty" }, "まずキャラクターを作成してください。") : null,
       h("div", { className: "acct-grid" },
         accounts.map((entry, index) => h("div", { key: entry.id, className: `acct-card acct-card--gate${entry.id === info.activeId ? " is-active" : ""}`, style: { "--i": index } },
+          h("button", {
+            type: "button",
+            className: "acct-gate-edit-btn",
+            onClick: (event) => {
+              event.stopPropagation();
+              window.dispatchEvent(new CustomEvent(ACCOUNTS_OPEN_EVENT, { detail: { editId: entry.id } }));
+            },
+            "aria-haspopup": "dialog",
+            "aria-label": `${entry.name} のアカウント設定を編集`,
+            title: "アカウント設定を編集"
+          }, h("span", { "aria-hidden": "true" }, "✎"), h("span", null, "編集")),
           h("button", { type: "button", className: "acct-card-hit", onClick: () => choose(entry.id), "aria-label": `${entry.name} で作業を始める（${entry.purpose ? `用途 ${entry.purpose}・` : ""}最終更新 ${relativeUpdatedAt(entry.updatedAt)}）` }),
           h("div", { className: "acct-card-body" },
             h(AccountMark, { icon: info.icons?.[entry.id], name: entry.name }),

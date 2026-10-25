@@ -114,7 +114,7 @@
 .acct-overlay {
   position: fixed;
   inset: 0;
-  z-index: 10050;
+  z-index: 10065;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -546,6 +546,41 @@ main.acct-gate {
 }
 .acct-card--gate {
   min-height: 152px;
+}
+/* 起動直後のゲートでも編集導線を隠さない。選択領域より前面に置き、タッチでも即操作できる。 */
+.acct-gate-edit-btn {
+  position: absolute;
+  z-index: 2;
+  top: var(--s-2);
+  right: var(--s-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 58px;
+  min-height: 30px;
+  padding: 0 8px;
+  color: var(--gold-hi);
+  background: color-mix(in srgb, var(--surface-0) 90%, var(--gold) 10%);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-sm);
+  font: 700 var(--fs-10) var(--f-body);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--t-fast) var(--e-out), border-color var(--t-fast) var(--e-out), background-color var(--t-fast) var(--e-out);
+}
+.acct-gate-edit-btn:hover,
+.acct-gate-edit-btn:focus-visible {
+  color: var(--gold-hi);
+  border-color: var(--gold);
+  background: var(--gold-glow);
+}
+.acct-gate-edit-btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+.acct-gate-edit-btn:active {
+  transform: scale(.97);
 }
 .acct-card--gate:hover,
 .acct-card--gate:focus-within {
