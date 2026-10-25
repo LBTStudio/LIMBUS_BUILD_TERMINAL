@@ -217,6 +217,111 @@
       .toLowerCase();
   }
 
+  /* 共有ドキュメントの旧略称／範囲表記をDBの強化へ正規化する。
+     DB照合できない文字列は効果や価格を作らず、unresolved として呼び出し元へ返す。 */
+  function resolveImportedEnhancements(values, db) {
+    const rows = [
+      ...(Array.isArray(db?.normal_enhancements) ? db.normal_enhancements : []),
+      ...(Array.isArray(db?.special_enhancements) ? db.special_enhancements : [])
+    ].filter((row) => row && String(row.name || "").trim());
+    const keyOf = (value) => nameKey(value)
+      .replace(/[‐‑‒–—−]/g, "-")
+      .replace(/[〜～]/g, "~");
+    const byName = new Map(rows.map((row) => [keyOf(row.name), row]));
+    const groups = [...new Set(rows.map((row) => String(row.group || "").trim()).filter(Boolean))]
+      .sort((a, b) => keyOf(b).length - keyOf(a).length);
+    const aliases = new Map([
+      ["闘志", "燃え上がる闘志"],
+      ["自生", "自生する肉体"],
+      ["サポートスロット", "サポートスロット追加"],
+      ["サポートスロット解放", "サポートスロット追加"],
+      ["サポートスロット拡張", "サポートスロット追加"],
+      ["サポパ", "サポートスロット追加"]
+    ].map(([from, to]) => [keyOf(from), keyOf(to)]));
+    const selected = [];
+    const selectedKeys = new Set();
+    const unresolved = [];
+    const add = (row) => {
+      if (!row) return;
+      const key = keyOf(row.name) + "|" + keyOf(row.group || "");
+      if (selectedKeys.has(key)) return;
+      selectedKeys.add(key);
+      selected.push(row);
+    };
+    const resolveOne = (raw) => {
+      const whole = nameOf(raw);
+      if (!whole) return false;
+      const labels = [whole, whole.split(/[：:]/, 1)[0].trim()].filter(Boolean);
+      for (const label of labels) {
+        const key = keyOf(label);
+        const aliasTarget = aliases.get(key);
+        if (aliasTarget && byName.has(aliasTarget)) {
+          add(byName.get(aliasTarget));
+          return true;
+        }
+        const exact = byName.get(key);
+        if (exact) {
+          add(exact);
+          return true;
+        }
+        if (key === keyOf("肉体強化フル") || key === keyOf("精神強化フル")) {
+          const prefix = key.startsWith(keyOf("肉体強化")) ? keyOf("肉体強化") : keyOf("精神強化");
+          const matched = rows.filter((row) => keyOf(row.group || "").startsWith(prefix));
+          if (matched.length) {
+            matched.forEach(add);
+            return true;
+          }
+        }
+        for (const group of groups) {
+          const groupKey = keyOf(group);
+          if (!key.startsWith(groupKey)) continue;
+          const suffix = key.slice(groupKey.length);
+          const groupRows = rows.filter((row) => keyOf(row.group || "") === groupKey);
+          if (!suffix) {
+            if (groupRows.length) {
+              groupRows.forEach(add);
+              return true;
+            }
+            continue;
+          }
+          const range = suffix.match(/^-?(\d+)~(?:[a-z])?(\d+)$/i);
+          if (!range) continue;
+          const low = Number(range[1]);
+          const high = Number(range[2]);
+          if (!Number.isSafeInteger(low) || !Number.isSafeInteger(high) || low < 1 || high < low || high - low > 20) continue;
+          const matches = groupRows.filter((row) => {
+            const rowKey = keyOf(row.name);
+            const match = rowKey.match(/-(\d+)$/);
+            if (!match || !rowKey.startsWith(groupKey + "-")) return false;
+            const level = Number(match[1]);
+            return level >= low && level <= high;
+          });
+          if (matches.length) {
+            matches.forEach(add);
+            return true;
+          }
+        }
+      }
+      return false;
+    };
+    for (const value of Array.isArray(values) ? values : []) {
+      if (!resolveOne(value)) {
+        const label = nameOf(value) || String(value || "").trim();
+        if (label && !unresolved.some((item) => keyOf(item) === keyOf(label))) unresolved.push(label);
+      }
+    }
+    return {
+      rows: selected.map((row) => ({
+        group: String(row.group || ""),
+        name: String(row.name || ""),
+        effect: String(row.effect || ""),
+        shards: Number.isSafeInteger(Number(row.shards)) && Number(row.shards) >= 0 ? Number(row.shards) : 0,
+        category: String(row.category || "")
+      })),
+      unresolved
+    };
+  }
+
   /* 所持側の品目名には装飾（【…】/[…]/（…）/MAX/の人格）が付く。
       メモ側は正式名で書かれることが多いので、装飾を除いた形でも照合する。
       E.G.O は「演出名：本体名」なので、：より前の演出名も剥がす。
@@ -435,6 +540,18 @@ function toIdentityChoices(hits) {
     const resolve = typeof nameIndex?.resolve === "function" ? nameIndex.resolve : null;
     /* 候補を全部返す解決器。1 件に絞らないので、同名複数をユーザーに見せられる。 */
     const resolveMany = typeof nameIndex?.candidates === "function" ? nameIndex.candidates : null;
+    /* 強化は人格行の子データなので、名前だけに正規化する前に別途保持する。 */
+    const personaEnhancementsByName = new Map();
+    for (const row of Array.isArray(owned.personas) ? owned.personas : []) {
+      if (!row || typeof row !== "object" || Array.isArray(row) || !Array.isArray(row.enhancements)) continue;
+      const personaName = nameOf(row);
+      if (!personaName) continue;
+      const key = nameKey(personaName);
+      const names = row.enhancements.map(nameOf).filter(Boolean);
+      const existing = personaEnhancementsByName.get(key);
+      if (existing) existing.names = [...new Set([...existing.names, ...names])];
+      else personaEnhancementsByName.set(key, { names: [...new Set(names)] });
+    }
 
     const groups = GROUPS.map((group) => {
       /* アイテムだけは owned ではなく共有ドキュメントのトップレベルにある。
@@ -470,8 +587,10 @@ function toIdentityChoices(hits) {
         items: listed.map((name) => {
           const hit = resolve ? resolve(name) : null;
           const candidates = toIdentityChoices(resolveMany ? resolveMany(name) : null);
+          const sharedEnhancements = group.id === "personas" ? personaEnhancementsByName.get(nameKey(name)) : null;
           return {
             key: group.id + ":" + name,
+            ...(sharedEnhancements ? { importedEnhancementNames: sharedEnhancements.names } : {}),
             group: group.id,
             name,
             quantity: itemQty ? (itemQty.get(nameKey(name)) || 1) : undefined,
@@ -776,8 +895,23 @@ function toIdentityChoices(hits) {
             });
             continue;
           }
-          taken.add(`persona:${persona.mode || "n"}:${persona.no}`);
-          actions.push({ type: "ADD_ROSTER", no: String(persona.no), mode: persona.mode || "n", via, source: item.source || "", purchase: item.source === "buy" && !memoPaid(item) });
+          const personaMode = persona.mode || "n";
+          taken.add(`persona:${personaMode}:${persona.no}`);
+          actions.push({ type: "ADD_ROSTER", no: String(persona.no), mode: personaMode, via, source: item.source || "", purchase: item.source === "buy" && !memoPaid(item) });
+          if (Array.isArray(item.importedEnhancementNames)) {
+            const imported = resolveImportedEnhancements(item.importedEnhancementNames, itemDb);
+            if (imported.rows.length || item.importedEnhancementNames.length === 0) {
+              actions.push({
+                type: "IMPORT_PERSONA_ENHANCEMENTS",
+                no: String(persona.no),
+                mode: personaMode,
+                enhancements: imported.rows
+              });
+            }
+            for (const name of imported.unresolved) {
+              skipped.push({ key: item.key, reason: "共有データの強化「" + name + "」はDBと一致しないため、推測で取り込みません" });
+            }
+          }
         } else if (group.id === "egos") {
           if (!ego || !ego.no || !ego.rank) {
             skipped.push({ key: item.key, reason: "DB番号かランクが引けない" });
