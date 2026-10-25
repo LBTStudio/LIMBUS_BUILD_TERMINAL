@@ -4524,7 +4524,7 @@ const importHeldPersonas = () => {
             rows: 8,
             placeholder: "【シナリオA】(作：作者名)\n報酬｜LP:150/自我の欠片:70/人格抽出チケットx1\n購入｜人格抽出x2(100LP)/EGO購入-TETH[鬼退治](75欠片)\n追加購入｜壊し砕く打撃(150LP)",
             value: textDraft,
-            onChange: (e) => setTextDraft(e.target.value)
+            onChange: (e) => { setTextDraft(e.target.value); setTextExcluded(new Set()); }
           })
         ),
         parsedText && parsedText.records.map((rec, ri) => h("div", { key: `rec-${ri}`, className: "stack-2" },
@@ -4543,11 +4543,12 @@ const importHeldPersonas = () => {
           rec.spends.map((spend, si) => h("label", { key: `sp-${ri}-${si}`, className: "chip is-sm" },
             h("input", {
               type: "checkbox",
-              checked: !spend.needsDecision && !textExcluded.has(si),
+              checked: !spend.needsDecision && !textExcluded.has(`${ri}:${si}`),
               disabled: Boolean(spend.needsDecision),
               onChange: (e) => setTextExcluded((prev) => {
                 const next = new Set(prev);
-                if (e.target.checked) next.delete(si); else next.add(si);
+                const exclusionKey = `${ri}:${si}`;
+                if (e.target.checked) next.delete(exclusionKey); else next.add(exclusionKey);
                 return next;
               })
             }),
