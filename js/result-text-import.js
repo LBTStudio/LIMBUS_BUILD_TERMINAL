@@ -145,8 +145,8 @@
     /* Legacy logs include signed currency changes as well as reward totals.
        Do not treat the magnitude of "-22LP" as +22LP income. Capture sign and
        amount together so a mixed "+11欠片 -22LP" line yields both sides. */
-    const lpMatches = [...text.matchAll(/(?:\\bLP\\s*[:：]?\\s*([+-]?)\\s*(\\d[\\d,]*)|([+-]?)\\s*(\\d[\\d,]*)\\s*LP\\b)/gi)];
-    const shardMatches = [...text.matchAll(/(?:(?:自我の)?(?:欠片|かけら|欠けら|カケラ)\\s*[:：]?\\s*([+-]?)\\s*(\\d[\\d,]*)|([+-]?)\\s*(\\d[\\d,]*)\\s*(?:自我の)?(?:欠片|かけら|欠けら|カケラ))/g)];
+    const lpMatches = [...text.matchAll(/(?:\bLP\s*[:：]?\s*([+-]?)\s*(\d[\d,]*)|([+-]?)\s*(\d[\d,]*)\s*LP\b)/gi)];
+    const shardMatches = [...text.matchAll(/(?:(?:自我の)?(?:欠片|かけら|欠けら|カケラ)\s*[:：]?\s*([+-]?)\s*(\d[\d,]*)|([+-]?)\s*(\d[\d,]*)\s*(?:自我の)?(?:欠片|かけら|欠けら|カケラ))/g)];
     if (!lpMatches.length && !shardMatches.length) return null;
     const totals = (matches) => {
       let income = 0;
@@ -173,12 +173,12 @@
     const spends = [];
     if (lp.expense > 0 || shards.expense > 0) {
       const name = text
-        .replace(/\\bLP\\s*[:：]?\\s*[+-]?\\s*\\d[\\d,]*/gi, " ")
-        .replace(/[+-]?\\s*\\d[\\d,]*\\s*LP\\b/gi, " ")
-        .replace(/(?:自我の)?(?:欠片|かけら|欠けら|カケラ)\\s*[:：]?\\s*[+-]?\\s*\\d[\\d,]*/g, " ")
-        .replace(/[+-]?\\s*\\d[\\d,]*\\s*(?:自我の)?(?:欠片|かけら|欠けら|カケラ)/g, " ")
-        .replace(/^[【\\[（(「『]+|[】\\]）)」』]+$/g, " ")
-        .replace(/[+＋,，\\s]+/g, " ")
+        .replace(/\bLP\s*[:：]?\s*[+-]?\s*\d[\d,]*/gi, " ")
+        .replace(/[+-]?\s*\d[\d,]*\s*LP\b/gi, " ")
+        .replace(/(?:自我の)?(?:欠片|かけら|欠けら|カケラ)\s*[:：]?\s*[+-]?\s*\d[\d,]*/g, " ")
+        .replace(/[+-]?\s*\d[\d,]*\s*(?:自我の)?(?:欠片|かけら|欠けら|カケラ)/g, " ")
+        .replace(/^[【\[（(「『]+|[】\]）)」』]+$/g, " ")
+        .replace(/[+＋,，\s]+/g, " ")
         .trim() || "旧形式の通貨支出";
       spends.push({
         name,
