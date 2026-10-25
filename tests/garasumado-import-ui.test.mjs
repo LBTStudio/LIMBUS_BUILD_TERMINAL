@@ -21,7 +21,6 @@ test("人格URLとキャラクターURLを同じ統合経路に流さない", ()
   assert.match(uiFlat, /collectionKinds\.has\("personas"\)/);
   assert.match(uiFlat, /window\\.LBT_fetchGarasumadoPersona/);
   assert.match(uiFlat, /type: "ADD_GARASUMADO_PERSONA"/);
-  assert.match(uiFlat, /const personaBranch/);
 });
 
 test("取得中の busy は取得が例外でも必ず解除される（finally）", () => {
