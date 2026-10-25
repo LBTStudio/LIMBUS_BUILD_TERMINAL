@@ -85,7 +85,7 @@ test("KV共有発行は人物別OGP画像URLを設定し、短いURLと復元用
   assert.ok(stored.value.includes('twitter:image" content="https://lbt-ogp.lbtstudio-share.workers.dev/i/' + result.id));
   assert.match(stored.value, /share\.html#lbt=z\.ABC_123/);
   assert.match(stored.value, /rentry-123/);
-  assert.equal(stored.options.expirationTtl, 7 * 24 * 60 * 60 + 6 * 60 * 60);
+  assert.equal(stored.options.expirationTtl, 30 * 24 * 60 * 60 + 6 * 60 * 60);
   assert.equal(stored.options.metadata.schema, "1");
   assert.ok(Number.isFinite(Date.parse(stored.options.metadata.lastAccessRefreshAt)));
 });
@@ -176,7 +176,7 @@ test("アイドル中の共有は閲覧で期限が延長され、短い間隔�
   assert.equal(response.status, 200);
   assert.equal(env.SHARES.putCalls.length, writesBeforeRead + 1);
   const refreshed = env.SHARES.objects.get(key);
-  assert.equal(refreshed.options.expirationTtl, 7 * 24 * 60 * 60 + 6 * 60 * 60);
+  assert.equal(refreshed.options.expirationTtl, 30 * 24 * 60 * 60 + 6 * 60 * 60);
   assert.ok(Date.parse(refreshed.options.metadata.lastAccessRefreshAt) > Date.parse(old));
 
   const writesAfterRefresh = env.SHARES.putCalls.length;
