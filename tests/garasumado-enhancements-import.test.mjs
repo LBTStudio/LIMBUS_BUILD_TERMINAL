@@ -99,3 +99,22 @@ test("未対応の強化名はDBへ推測登録せず、理由を残す", () => 
   assert.equal(generated.actions.some((action) => action.type === "IMPORT_PERSONA_ENHANCEMENTS"), false);
   assert.ok(generated.skipped.some((item) => /判読不能な強化名/.test(item.reason)));
 });
+
+test("購入扱いでも購入額がない人格取り込みは0LPの購入明細を作らない", () => {
+  const w = load();
+  const manifest = manifestFor(w, []);
+  const item = manifest.groups.find((group) => group.id === "personas")
+    .items.find((candidate) => candidate.name === "黒雲会若衆");
+  assert.ok(item, "テスト用の人格項目がある");
+  item.source = "buy";
+  const generated = w.LBT_garasumado.toDispatchActions(
+    manifest, ["personas:黒雲会若衆"], { db, purchases: {} }
+  );
+  const rosterAction = generated.actions.find((action) => action.type === "ADD_ROSTER");
+  assert.ok(rosterAction, "人格の所持登録は行う");
+  assert.equal(rosterAction.source, "buy", "購入という入手方法は保持する");
+  assert.equal(rosterAction.purchase, false, "金額未指定で購入課帳の0LP明細を作らない");
+  const after = w.appReducer(baseState(), { type: "APPLY_IMPORT_BATCH", actions: generated.actions });
+  assert.equal(after.roster.personas.length, 1, "人格は所持へ入る");
+  assert.equal(after.entries.length, 0, "0LPの架空購入明細は残らない");
+});

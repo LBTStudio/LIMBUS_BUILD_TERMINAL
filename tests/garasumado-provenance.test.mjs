@@ -120,7 +120,7 @@ test("チェックした所持品は帰属未決でも配布として入る", ()
   assert.deepEqual([...after.actions.filter((a) => a.type === "ADD_RESULT").map((r) => r.name)], ["S1"]);
 });
 
-test("チケット/購入の選択が購入の有無になる", () => {
+test("チケット/購入は入手方法として保持し、費用不明では課帳しない", () => {
   const owned = { personas: [{ name: "黒雲会若衆" }], egos: [], supportPassives: [], spirits: [] };
   const hist = [{ name: "S1", memo: "人格抽出チケットで獲得：黒雲会若衆" }];
   const index = {
@@ -136,7 +136,7 @@ test("チケット/購入の選択が購入の有無になる", () => {
   const buy = gara.buildManifest(makeDoc(owned, hist), index);
   buy.groups[0].items[0].source = "buy";
   const b = gara.toDispatchActions(buy, [key], { purchases: {} }).actions[0];
-  assert.equal(b.purchase, true, "購入なら DB 価で請求する");
+  assert.equal(b.purchase, false, "購入という分類だけでは金額が分からないため課帳しない");
 });
 
 test("入手方法に未回答のチェック済み品目は配布として入る", () => {
