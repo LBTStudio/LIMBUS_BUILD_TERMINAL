@@ -780,7 +780,11 @@ const PersonaCodex = ({ state, dispatch, ownedOnly = false }) => {
      no はグループ間で重複する（no=30 は通常人格の「南部リウ協会4課フィクサー」と
      特異人格の「LCAウアジェト 先鋒三隊隊長」の両方にある）。no だけで決めると
      特異人格を通常人格と誤認し、獲得した内容が別の人格の名前で入ってしまう。 */
-  const personaModeFor = (persona) => window.LBT_resolvePersonaMode?.(persona) || "n";
+  const personaModeFor = (persona, modeHint) => {
+    if (modeHint === "n" || modeHint === "t") return modeHint;
+    const resolved = window.LBT_resolvePersonaMode?.(persona);
+    return resolved === "n" || resolved === "t" ? resolved : null;
+  };
 
   const personaPurchaseBlocked = (persona, mode) => (mode === "t" ? "特異人格は抽出しでのみ入手できます" : null);
   /* カード内購入。詳細ポップオーバーを開かずに獲得を完結させる。 */
@@ -790,10 +794,12 @@ const PersonaCodex = ({ state, dispatch, ownedOnly = false }) => {
 
   const [acquireHow, setAcquireHow] = React.useState("purchase");
   const resolveAcquireCost = (kind, how, context) => (window.LBT_resolveAcquireCost ? window.LBT_resolveAcquireCost(kind, how, context) : { lp: 0, shards: 0, label: "無料" });
-  const acquirePersona = (persona) => {
-    const personaMode = personaModeFor(persona);
-    /* 所持済みの再獲得は二重計上と嘘のトーストになるので断る。
-       reducer と同じ mode:no の一意キーで判定する。 */
+  const acquirePersona = (persona, modeHint) => {
+    const personaMode = personaModeFor(persona, modeHint);
+    if (!personaMode) {
+      toast("人格の種別を特定できません。通常／特異の一覧から選び直してください。", "assertive");
+      return;
+    }
     if ((state.roster?.personas || []).some((r) => `${r.mode}:${r.no}` === `${personaMode}:${persona.no}`)) {
       toast(`『${persona.name}』は既に所持しています`);
       return;
@@ -802,6 +808,15 @@ const PersonaCodex = ({ state, dispatch, ownedOnly = false }) => {
     const blocked = acquireHow === "purchase" ? personaPurchaseBlocked(persona, personaMode) : null;
     if (blocked) { toast(blocked); return; }
     const cost = resolveAcquireCost("persona", acquireHow, { name: persona.name, ownsPersona: (state.roster?.personas || []).length > 0 });
+    if (acquireHow === "purchase" && !(Number(cost?.lp) > 0 || Number(cost?.shards) > 0)) {
+      toast("指定購入の価格を特定できないため、記録を変更していません。", "assertive");
+      return;
+    }
+    const affordability = window.LBT_purchaseAffordability?.(state, cost);
+    if (affordability && !affordability.ok) {
+      toast(affordability.reason || "残高が不足しているため購入できません。", "assertive");
+      return;
+    }
     dispatch({ type: "ADD_ROSTER", mode: personaMode, no: persona.no, purchase: true, cost: { lp: cost.lp || 0, shards: cost.shards || 0 } });
     toast(`${persona.name} を獲得しました（${cost.label}）`);
   };
@@ -1082,18 +1097,11 @@ const PersonaCodex = ({ state, dispatch, ownedOnly = false }) => {
     toast(`\u300E${p.name}\u300F\u3092\u88C5\u5099`);
   };
 const addRoster = (p) => {
-    const m = pool.find((x) => x.p === p)?.mode || mode;
-    /* 既に所持なら「追加した」と嘘をつくので在这里で止める。 */
-    if ((roster.personas || []).some((r) => `${r.mode}:${r.no}` === `${m}:${p.no}`)) {
-      toast(`『${p.name}』は既に所持しています`);
-      return;
-    }
-    /* 指定購入は通常人格だけ。特異人格は抽出のみ（core P203）。 */
-    const blocked = acquireHow === "purchase" ? personaPurchaseBlocked(p, m) : null;
-    if (blocked) { toast(blocked); return; }
-    const cost = resolveAcquireCost("persona", acquireHow, { name: p.name, ownsPersona: (roster.personas || []).length > 0 });
-    dispatch({ type: "ADD_ROSTER", mode: m, no: p.no, purchase: true, cost: { lp: cost.lp || 0, shards: cost.shards || 0 } });
-    toast("所持リストへ追加");
+    const fromPool = pool.find((x) => x.p === p || (String(x.p?.no) === String(p?.no) && x.p?.name === p?.name));
+    const hintedMode = (selectedPersonaMode === "n" || selectedPersonaMode === "t")
+      ? selectedPersonaMode
+      : ((fromPool?.mode === "n" || fromPool?.mode === "t") ? fromPool.mode : ((mode === "n" || mode === "t") ? mode : null));
+    acquirePersona(p, hintedMode);
   };
   const unequip = () => {
     dispatch({ type: "UNEQUIP_PERSONA" });
@@ -1349,7 +1357,7 @@ const addRoster = (p) => {
       purchaseBlocked: acquireHow === "purchase" && Boolean(personaPurchaseBlocked(p, m)),
       onQuickAcquire: gated || (acquireHow === "purchase" && personaPurchaseBlocked(p, m))
         ? null
-        : (persona) => acquirePersona(persona),
+        : (persona) => acquirePersona(persona, m),
       quickAcquireLabel: `${resolveAcquireCost("persona", acquireHow, { name: p.name, ownsPersona: (roster.personas || []).length > 0 }).label} 獲得`
     }
   )))), /* @__PURE__ */ React.createElement(
@@ -1371,7 +1379,7 @@ const addRoster = (p) => {
       state,
       acquireHow,
       onAcquireHowChange: setAcquireHow,
-      onAcquire: () => acquirePersona(selectedPersonaView)
+      onAcquire: () => acquirePersona(selectedPersonaView, currentMode)
     }
   )
     })))));
