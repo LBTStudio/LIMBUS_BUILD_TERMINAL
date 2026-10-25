@@ -4459,23 +4459,24 @@ return appendLedgerEntry(next, {
           note: `${String(specialResource.name || itemId)}を購入`
         });
       }
+      const purchaseFromShop = action.purchase === true;
+      const purchaseCost = purchaseFromShop ? priceItemById(state, itemId) : null;
+      if (purchaseFromShop && (!purchaseCost || (purchaseCost.lp <= 0 && purchaseCost.shards <= 0) || !purchaseAffordability(state, purchaseCost).ok)) return state;
       const current = Array.isArray(state.inventory) ? state.inventory : [];
       const existing = current.find((entry) => entry.itemId === itemId);
+      const existingQuantity = existing ? (parsePositiveIntegerStrict(existing.quantity) ?? 1) : 0;
+      const maxOwned = window.LBT_getItemMaxOwned?.(state, itemId) || 99;
+      if (purchaseFromShop && existingQuantity >= maxOwned) return state;
       const inventory = existing
-        ? current.map((entry) => entry.itemId === itemId ? { ...entry, quantity: clampItemQuantity(state, itemId, (Number(entry.quantity) || 1) + 1) } : entry)
+        ? current.map((entry) => entry.itemId === itemId ? { ...entry, quantity: clampItemQuantity(state, itemId, existingQuantity + 1) } : entry)
         : [...current, { uid: `it-${Date.now()}-${itemId}`, itemId, quantity: 1, memo: true, palette: true, origin: "acquired" }];
       const next = { ...state, inventory };
-      /* 導入した時だけ明細を足す。個数の増加では個別に買っていないため、
-         増やした分は足さない（所持数の増減と支出がずれるのを防ぐ）。 */
+      /* ショップ購入は毎回1個を購入し、購入履歴を独立して残す。消費後も購入履歴は保持。 */
+      if (purchaseFromShop) return appendLedgerEntry(next, { kind: "item", name: ownedName(state, itemId), cost: purchaseCost, resultId: action.resultId });
+      /* 通常の所持追加は導入時だけ明細を作り、数量加算の二重計上を避ける。 */
       if (existing) return next;
       const owned = next.inventory.find((entry) => entry.itemId === itemId);
-      return appendLedgerEntry(next, {
-        kind: "item",
-        name: ownedName(state, itemId),
-        cost: priceItemById(state, itemId),
-        resultId: action.resultId,
-        ref: { kind: "inventory", uid: owned?.uid || itemId }
-      });
+      return appendLedgerEntry(next, { kind: "item", name: ownedName(state, itemId), cost: priceItemById(state, itemId), resultId: action.resultId, ref: { kind: "inventory", uid: owned?.uid || itemId } });
     }
     /* 共有データから「所持」だけを取り込む。ADD_ITEM と違い明細を起こさない。
        支出はメモ（リザルトの支出行）が持っており、ここで DB 価格を課すと
