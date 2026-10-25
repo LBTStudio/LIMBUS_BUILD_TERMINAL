@@ -296,7 +296,7 @@ async function captureCompactResultDetails(page, mode) {
     const expanded = await card.screenshot({ animations: "disabled" });
     fs.writeFileSync(path.join(OUT, expandedFilename.slice(0, -4) + ".json"), JSON.stringify({
       filename: expandedFilename, contentType: "image/png", base64: expanded.toString("base64")
-    }) + "\\n", "utf8");
+    }), "utf8");
     log("captured expanded special enhancement visual review " + expandedFilename);
   }
 }
