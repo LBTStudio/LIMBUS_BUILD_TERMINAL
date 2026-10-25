@@ -1,0 +1,21 @@
+name = "lbt-recovery"
+main = "worker.js"
+compatibility_date = "2026-10-26"
+workers_dev = true
+
+# Keep this as an independent Worker. Do not replace lbt-ogp.
+# Verify account billing plan before deployment; use Workers Free only.
+[[d1_databases]]
+binding = "BACKUP_DB"
+database_name = "lbt-recovery"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+[[ratelimits]]
+name = "RECOVERY_RATE_LIMIT"
+namespace_id = "2026102601"
+simple = { limit = 120, period = 60 }
+
+[[ratelimits]]
+name = "COUNTER_RATE_LIMIT"
+namespace_id = "2026102602"
+simple = { limit = 60, period = 60 }
