@@ -735,6 +735,19 @@ function toIdentityChoices(hits) {
     /* memo の支出明細に既に購入費が載っている所持は、ADD で二重に課帳しない
        （リザルトに書かれた購入費が真実。DB の価格は memo が無いときの照合値）。 */
     const memoPaid = (item) => (item.spends || []).length > 0;
+    const parseImportCostAmount = (value) => {
+      if (value === undefined || value === null || value === "") return 0;
+      const parsed = Number(value);
+      return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
+    };
+    const normalizeImportPurchaseCost = (value) => {
+      if (!value || typeof value !== "object") return null;
+      const lp = parseImportCostAmount(value.lp);
+      const shards = parseImportCostAmount(value.shards);
+      if (lp === null || shards === null || (lp <= 0 && shards <= 0)) return null;
+      return { lp, shards };
+    };
+    let hasOwnedPersona = Boolean(opts.ownsPersona);
 
     for (const group of (manifest && manifest.groups) || []) {
       for (const item of group.items) {
@@ -776,15 +789,33 @@ function toIdentityChoices(hits) {
             });
             continue;
           }
-          taken.add(`persona:${persona.mode || "n"}:${persona.no}`);
-          actions.push({ type: "ADD_ROSTER", no: String(persona.no), mode: persona.mode || "n", via, source: item.source || "", purchase: item.source === "buy" && !memoPaid(item) });
+          const personaMode = persona.mode === "n" || persona.mode === "t" ? persona.mode : "";
+          if (!personaMode) {
+            skipped.push({ key: item.key, reason: "通常／特異の人格種別を特定できません。候補を選び直してください" });
+            continue;
+          }
+          const needsPurchaseRecord = item.source === "buy" && !memoPaid(item);
+          const purchaseRaw = needsPurchaseRecord
+            ? ((typeof opts.purchaseCost === "function"
+                ? opts.purchaseCost("persona", persona, { ownsPersona: hasOwnedPersona, item })
+                : null) || persona.price || item.price)
+            : null;
+          const purchaseCost = normalizeImportPurchaseCost(purchaseRaw);
+          if (needsPurchaseRecord && !purchaseCost) {
+            skipped.push({ key: item.key, reason: "人格は購入指定ですが価格を特定できません。候補を選び直してから取り込んでください" });
+            continue;
+          }
+          taken.add(`persona:${personaMode}:${persona.no}`);
+          actions.push({ type: "ADD_ROSTER", no: String(persona.no), mode: personaMode, via, source: item.source || "",
+            purchase: needsPurchaseRecord, historicalImport: true, ...(purchaseCost ? { cost: purchaseCost } : {}) });
+          hasOwnedPersona = true;
         } else if (group.id === "egos") {
           if (!ego || !ego.no || !ego.rank) {
             skipped.push({ key: item.key, reason: "DB番号かランクが引けない" });
             continue;
           }
           taken.add(`ego:${ego.rank}:${ego.no}`);
-          actions.push({ type: "ADD_ROSTER_EGO", no: String(ego.no), rank: ego.rank, via, source: item.source || "", purchase: item.source === "buy" && !memoPaid(item) });
+          actions.push({ type: "ADD_ROSTER_EGO", no: String(ego.no), rank: ego.rank, via, source: item.source || "", purchase: item.source === "buy" && !memoPaid(item), historicalImport: true });
         } else if (group.id === "supportPassives") {
           if (!support) {
             /* メモの章立てと実体の種別が違うことがある（同一品目が
@@ -797,7 +828,7 @@ function toIdentityChoices(hits) {
                 type: "ADD_ROSTER_SPIRIT",
                 spirit: { name: spirit.name || item.dbName || item.name },
                 via,
-                purchase: item.source === "buy" && !memoPaid(item)
+                purchase: item.source === "buy" && !memoPaid(item), historicalImport: true
               });
               continue;
             }
@@ -812,7 +843,7 @@ function toIdentityChoices(hits) {
             type: "ADD_ROSTER_SUPPORT",
             spp: { name: support.name || item.dbName || item.name },
             via,
-            purchase: item.source === "buy" && !memoPaid(item)
+            purchase: item.source === "buy" && !memoPaid(item), historicalImport: true
           });
         } else if (group.id === "spirits") {
           if (!spirit) {
@@ -822,7 +853,7 @@ function toIdentityChoices(hits) {
                 type: "ADD_ROSTER_SUPPORT",
                 spp: { name: support.name || item.dbName || item.name },
                 via,
-                purchase: item.source === "buy" && !memoPaid(item)
+                purchase: item.source === "buy" && !memoPaid(item), historicalImport: true
               });
               continue;
             }
@@ -833,7 +864,7 @@ function toIdentityChoices(hits) {
             type: "ADD_ROSTER_SPIRIT",
             spirit: { name: spirit.name || item.dbName || item.name },
             via,
-            purchase: item.source === "buy" && !memoPaid(item)
+            purchase: item.source === "buy" && !memoPaid(item), historicalImport: true
           });
         } else if (group.id === "items") {
           /* 所持アイテム。支出はメモ（リザルトの支出行）が持つので、取得だけを
