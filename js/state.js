@@ -1113,6 +1113,28 @@ function ticketTotal(balance, kind, pack) {
 
 /* 抽出チケットの増減を「直近リザルトの収入」に積む。卓報酬としての受け渡しなので、
    収入に置くのが自然。resultId の指定があればそのリザルト、無ければ直近。 */
+function parseStrictTicketInteger(value, options = {}) {
+  const allowZero = options.allowZero === true;
+  const allowNegative = options.allowNegative === true;
+  let parsed;
+  if (typeof value === "number") {
+    parsed = value;
+  } else if (typeof value === "string") {
+    const text = value.trim();
+    if (!/^[+-]?\\d+$/.test(text)) return null;
+    parsed = Number(text);
+  } else {
+    return null;
+  }
+  if (!Number.isSafeInteger(parsed)) return null;
+  if (!allowNegative && parsed < 0) return null;
+  if (!allowZero && parsed === 0) return null;
+  return parsed;
+}
+
+/* 抽出チケットの枚数は整数だけを受け入れる。
+   小数を income に直接保存すると、次回 normalizeTickets で 0 枚として扱われ、
+   画面の保存値と実際の残数が食い違うため、reducer 境界で厳密に検証する。 */
 function setTicketIncome(state, kind, pack, delta, resultId) {
   const targetId = resultId || latestResultId(state);
   if (!targetId) return state;
@@ -4007,7 +4029,10 @@ function appReducer(state, action) {
       if (!TICKET_KINDS.includes(kind)) return state;
       const pack = kind === "pack" ? String(action.pack || "") : null;
       if (kind === "pack" && !pack) return state;
-      const target = Number(action.count) || 0;
+      const target = action.count === undefined || action.count === null || action.count === ""
+        ? 0
+        : parseStrictTicketInteger(action.count, { allowZero: true });
+      if (target === null) return state;
       const balance = computeTicketBalance(state.results || [], state.entries || []);
       const current = ticketTotal(balance, kind, pack);
       const delta = target - current;
@@ -4019,8 +4044,10 @@ function appReducer(state, action) {
       if (!TICKET_KINDS.includes(kind)) return state;
       const pack = kind === "pack" ? String(action.pack || "") : null;
       if (kind === "pack" && !pack) return state;
-      const delta = Number(action.count) || 0;
-      if (!delta) return state;
+      const delta = action.count === undefined || action.count === null || action.count === ""
+        ? 0
+        : parseStrictTicketInteger(action.count, { allowZero: true });
+      if (delta === null || delta === 0) return state;
       return setTicketIncome(state, kind, pack, delta, action.resultId);
     }
     /* 抽出チケットを使ったときの消費。収入から引いて残数が減る。
@@ -4035,8 +4062,12 @@ function appReducer(state, action) {
       const balance = computeTicketBalance(state.results || [], state.entries || []);
       const available = ticketTotal(balance, kind, pack);
       if (available <= 0) return state;
-      /* count は負数で「消費した枚数」を表す。指定が無ければ 1 枚。 */
-      const asked = Math.abs(Number(action.count) || 0);
+      /* count は負数で「消費した枚数」を表す。指定が無ければ 1 枚。
+         明示値に小数・部分一致文字列・安全整数外があれば状態を変更しない。 */
+      const omitted = action.count === undefined || action.count === null || action.count === "";
+      const parsedCount = omitted ? 0 : parseStrictTicketInteger(action.count, { allowZero: true, allowNegative: true });
+      if (parsedCount === null) return state;
+      const asked = Math.abs(parsedCount);
       const use = asked > 0 ? asked : 1;
       /* 所持より多くは消費できない。足りなければそれだけ使う。 */
       const take = Math.min(use, available);
