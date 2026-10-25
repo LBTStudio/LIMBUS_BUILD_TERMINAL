@@ -1,6 +1,18 @@
 name: Tutorial UI screenshot capture
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "js/App.js"
+      - "js/OtherSections.js"
+      - "js/PersonaCodex.js"
+      - "js/accounts-ui.js"
+      - "assets/**"
+      - "index.html"
+      - "tools/ui/capture-tutorial-screenshots.mjs"
+      - ".github/workflows/tutorial-screenshot-capture.yml"
+      - "docs/tutorial-guide.md"
   pull_request:
     paths:
       - "js/App.js"
