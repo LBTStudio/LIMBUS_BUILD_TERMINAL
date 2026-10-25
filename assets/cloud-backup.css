@@ -33,7 +33,7 @@
 .lbt-cloud-message {
   padding: var(--s-3);
   border-inline-start: 3px solid var(--gold);
-  border-radius: var(--r-md);
+  border-radius: var(--r-sm);
   background: var(--surface-0);
   color: inherit;
   overflow-wrap: anywhere;
@@ -79,7 +79,7 @@
   min-height: 42px;
   padding: 0 var(--s-3);
   border: 1px solid var(--line-strong);
-  border-radius: var(--r-md);
+  border-radius: var(--r-sm);
   background: var(--surface-0);
   color: inherit;
   font: inherit;
@@ -96,7 +96,7 @@
   gap: var(--s-2);
   padding: var(--s-3);
   border: 1px solid var(--line-strong);
-  border-radius: var(--r-md);
+  border-radius: var(--r-sm);
   background: var(--surface-0);
 }
 .lbt-cloud-history > strong { font-size: var(--fs-12); }
