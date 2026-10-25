@@ -11,33 +11,93 @@
    stylesheet より後ろに置くと CSS 待ちで開始が遅れるため、head の先頭側に置く。
    db.json は起動の律速なので priority:"high"。40 本超のアセット読込と
    帯域を奪い合っても後回しにされない。 */
+function validateItemCatalog(items, specialItems) {
+  if (!Array.isArray(items)) throw new Error("アイテム一覧が配列として読み込めません");
+  const requiredItems = [
+    ["enh-oxygen-cylinder", "酸素ボンベ"],
+    ["enh-villebe-cigarette", "ヴィリーブ工房の煙草"]
+  ];
+  const missingItems = requiredItems.filter(([id]) => !items.some((item) => item && item.id === id)).map(([, name]) => name);
+  if (missingItems.length) throw new Error("アイテム一覧に必須アイテムがありません: " + missingItems.join("、"));
+  if (items.length < 35) throw new Error("アイテム一覧が不完全です（通常アイテム35種以上が必要です）");
+  const itemIds = items.map((item) => String(item && item.id || ""));
+  if (itemIds.some((id) => !id) || new Set(itemIds).size !== itemIds.length) throw new Error("アイテム一覧にIDの欠落または重複があります");
+
+  if (!Array.isArray(specialItems)) throw new Error("特殊アイテム一覧が配列として読み込めません");
+  const requiredSpecialItems = [
+    ["resource-ego-shard", "自我の欠片"],
+    ["resource-glass-shard", "硝子の破片"]
+  ];
+  const missingSpecialItems = requiredSpecialItems.filter(([id]) => !specialItems.some((item) => item && item.id === id)).map(([, name]) => name);
+  if (missingSpecialItems.length) throw new Error("特殊アイテム一覧に必須項目がありません: " + missingSpecialItems.join("、"));
+  const specialIds = specialItems.map((item) => String(item && item.id || ""));
+  if (specialIds.some((id) => !id) || new Set(specialIds).size !== specialIds.length) throw new Error("特殊アイテム一覧にIDの欠落または重複があります");
+}
+
 function loadDB(){
   return new Promise(function(resolve, reject){
     if(window.fetch){
-      function readJSON(url, options){ return fetch(url, options).then(function(r){ if(!r.ok) throw new Error("http "+r.status+" for "+url); return r.json(); }); }
+      function readJSON(url, options){
+        return fetch(url, options).then(function(r){
+          if(!r.ok) throw new Error("http "+r.status+" for "+url);
+          return r.json();
+        });
+      }
       readJSON("data/db.json?v=16b6df9e", {priority:"high"}).then(function(db){
-        window.DB = db;
         return Promise.allSettled([
-          readJSON("data/items.json?v=b47b58ae"),
+          readJSON("data/items.json?v=b185394a"),
           readJSON("data/gacha-theme-packs.json?v=8d4dced2"),
           readJSON("data/special-items.json?v=aaa21cfb")
         ]).then(function(aux){
-          window.DB.items = aux[0].status === "fulfilled" && Array.isArray(aux[0].value) ? aux[0].value : [];
+          if(aux[0].status !== "fulfilled") throw new Error("必須アイテム一覧を読み込めません: data/items.json");
+          if(aux[2].status !== "fulfilled") throw new Error("必須特殊アイテム一覧を読み込めません: data/special-items.json");
+          const items = aux[0].value;
+          const specialItems = aux[2].value;
+          validateItemCatalog(items, specialItems);
+          window.DB = db;
+          window.DB.items = items;
+          window.DB.specialItems = specialItems;
           window.LBT_GACHA_PACKS = aux[1].status === "fulfilled" && aux[1].value && typeof aux[1].value === "object" ? aux[1].value : { packs: [] };
-          window.DB.specialItems = aux[2].status === "fulfilled" && Array.isArray(aux[2].value) ? aux[2].value : [];
-          if(aux[0].status === "rejected" && window.console && console.warn) console.warn("items.json を読み込めません。空のアイテム一覧で起動します。", aux[0].reason);
           if(aux[1].status === "rejected" && window.console && console.warn) console.warn("gacha-theme-packs.json を読み込めません。既定のパック一覧で起動します。", aux[1].reason);
-          if(aux[2].status === "rejected" && window.console && console.warn) console.warn("special-items.json を読み込めません。特殊資源一覧は空で起動します。", aux[2].reason);
           resolve();
         });
       }).catch(reject);
       return;
     }
-    var xhr = new XMLHttpRequest();
-    xhr.open("GET", "data/db.json?v=16b6df9e", true);
-    xhr.onload = function(){ if(xhr.status===200 || xhr.status===0){ try{ window.DB = JSON.parse(xhr.responseText); window.DB.items = []; window.DB.specialItems = []; window.LBT_GACHA_PACKS = { packs: [] }; resolve(); }catch(e){ reject(e); } } else reject(new Error("http "+xhr.status)); };
-    xhr.onerror = function(){ reject(new Error("xhr error")); };
-    xhr.send();
+
+    function readXHR(url, optional){
+      return new Promise(function(resolveJSON, rejectJSON){
+        const xhr = new XMLHttpRequest();
+        xhr.open("GET", url, true);
+        xhr.onload = function(){
+          if(xhr.status === 200 || xhr.status === 0){
+            try { resolveJSON(JSON.parse(xhr.responseText)); }
+            catch(error) { rejectJSON(error); }
+          } else if(optional) {
+            if(window.console && console.warn) console.warn(url + " を読み込めません。既定値を使います。", xhr.status);
+            resolveJSON({ packs: [] });
+          } else rejectJSON(new Error("http " + xhr.status + " for " + url));
+        };
+        xhr.onerror = function(){
+          if(optional) resolveJSON({ packs: [] });
+          else rejectJSON(new Error("xhr error for " + url));
+        };
+        xhr.send();
+      });
+    }
+    Promise.all([
+      readXHR("data/db.json?v=16b6df9e"),
+      readXHR("data/items.json?v=b185394a"),
+      readXHR("data/gacha-theme-packs.json?v=8d4dced2", true),
+      readXHR("data/special-items.json?v=aaa21cfb")
+    ]).then(function(values){
+      validateItemCatalog(values[1], values[3]);
+      window.DB = values[0];
+      window.DB.items = values[1];
+      window.DB.specialItems = values[3];
+      window.LBT_GACHA_PACKS = values[2] && typeof values[2] === "object" ? values[2] : { packs: [] };
+      resolve();
+    }).catch(reject);
   });
 }
 
@@ -176,9 +236,9 @@ window.addEventListener("load", function(){
 <script src="js/ui.js?v=8943eab8"></script>
 				<script src="js/InlineEffectGlossary.js?v=b5c1a1e0"></script>
 				<script src="js/PersonaCodex.js?v=8f23dedc"></script>
-		<script src="js/ItemCodex.js?v=903766a3"></script>
+		<script src="js/ItemCodex.js?v=5d90af49"></script>
 <script src="js/SkillDeck.js?v=a93f6cb8"></script>
-								<script src="js/OtherSections.js?v=b139cb0c"></script>
+								<script src="js/OtherSections.js?v=f86f9cf9"></script>
 				<script src="js/LivePreview.js?v=1b6767e6"></script>
 <script src="js/DataQuality.js?v=a8365c72"></script>
 <script src="js/icon-cropper.js?v=20900dc8"></script>
@@ -198,8 +258,10 @@ window.addEventListener("load", function(){
 <script src="js/accounts-ui.js?v=20b47793"></script>
 <script src="js/App.js?v=7ce8ac1d"></script>
 <script>
-  lbtDbReady.then(lbtBoot).catch(function(){
-    document.getElementById("root").innerHTML = "<div style=\"color:#c8a84b;padding:40px;text-align:center;font-family:sans-serif\">DBの読み込みに失敗しました。file:// で直接開いている場合はローカルサーバー経由で開いてください（README参照）。</div>";
+  lbtDbReady.then(lbtBoot).catch(function(error){
+    document.getElementById("root").innerHTML = "<div style=\"color:#c8a84b;padding:40px;text-align:center;font-family:sans-serif\">アイテム一覧を含む必須データの読み込みに失敗しました。ページを再読み込みしてください。<br>file:// で直接開いている場合はローカルサーバー経由で開いてください（README参照）。<p id=\"lbt-data-load-detail\" style=\"color:#b7ac9c;font-size:12px\"></p></div>";
+    var detail = document.getElementById("lbt-data-load-detail");
+    if(detail && error && error.message) detail.textContent = error.message;
   });
 </script>
 <script>
