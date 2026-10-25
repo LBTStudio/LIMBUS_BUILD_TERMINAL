@@ -30,10 +30,7 @@
     hasRecoveryKey: false,
     recoveryKeyEnabled: false,
     syncEnabled: false,
-    localMeaningful: false,
-    providerSettingsLoaded: false,
-    providerSettingsAvailable: false,
-    providers: { google: false, x: false }
+    localMeaningful: false
   };
 
   function emit(patch = {}) {
@@ -710,31 +707,9 @@
     syncTimer = setTimeout(syncAutomatically, 1800);
   }
 
-  async function refreshProviderAvailability() {
-    let available = false;
-    const providers = { google: false, x: false };
-    try {
-      const response = await fetch(SUPABASE_URL + "/auth/v1/settings", {
-        headers: { "apikey": SUPABASE_PUBLISHABLE_KEY }
-      });
-      if (response.ok) {
-        const settings = await response.json();
-        const external = settings && typeof settings.external === "object" ? settings.external : {};
-        providers.google = external.google === true;
-        providers.x = external.x === true;
-        available = true;
-      }
-    } catch (_) {
-      /* Fail closed: do not show sign-in options whose state couldn't be verified. */
-    }
-    emit({ providerSettingsLoaded: true, providerSettingsAvailable: available, providers });
-    return { available, providers };
-  }
-
   async function initialize() {
     if (initialized) return;
     initialized = true;
-    await refreshProviderAvailability();
     await handleOAuthCallback();
     await refresh();
   }
@@ -756,10 +731,10 @@
       catch (error) { emit({ busy: false, label: "処理を完了できませんでした", message: error.message || "処理に失敗しました。ローカルデータはそのままです。" }); }
       finally { emit({ busy: false }); }
     };
-    const button = (label, onClick, extraClass = "") => h("button", {
+    const button = (label, onClick, extraClass = "", disabled = false) => h("button", {
       type: "button",
       className: "acct-upload-btn lbt-cloud-btn " + extraClass,
-      disabled: view.busy,
+      disabled: view.busy || disabled,
       onClick,
     }, label);
     const connected = view.hasSession || view.hasRecoveryKey;
@@ -770,19 +745,14 @@
       ),
       h("p", { className: "lbt-cloud-description" }, "連携は必須ではありません。ローカル保存は今まで通り継続し、オンラインに送るのは保全を選んだデータだけです。"),
       h("p", { className: "lbt-cloud-message", role: "status", "aria-live": "polite" }, view.message),
-      !view.hasSession ? (
-        (view.providers?.google || view.providers?.x)
-          ? h("div", { className: "lbt-cloud-actions" },
-              view.providers?.google ? button("Googleと連携", () => run(() => startOAuth("google"))) : null,
-              view.providers?.x ? button("Xと連携", () => run(() => startOAuth("x"))) : null
-            )
-          : h("p", { className: "lbt-cloud-provider-note", role: "status" },
-              !view.providerSettingsLoaded
-                ? "利用可能なログイン方式を確認中です。"
-                : view.providerSettingsAvailable
-                  ? "Google/Xログインは現在未設定です。復旧キーまたはJSONで保全できます。無料運用を優先する場合、Xは料金条件を確認するまで有効化しないでください。"
-                  : "ログイン方式の設定状態を確認できないため、ログインボタンを表示していません。復旧キーまたはJSONによる保全・復元は利用できます。"
-            )
+      !view.hasSession ? h(React.Fragment, null,
+        h("div", { className: "lbt-cloud-actions" },
+          button("Googleと連携（未実装）", () => {}, "", true),
+          button("Xと連携（未実装）", () => {}, "", true)
+        ),
+        h("p", { className: "lbt-cloud-provider-note", role: "status" },
+          "Google / Xによるログイン連携はまだ使えません。オンライン保全を利用する場合は、復旧キーを発行するか、JSONファイルで保存してください。"
+        )
       ) : h("p", { className: "lbt-cloud-account" }, "オンライン認証済み。このブラウザーからいつでも連携を停止できます。"),
       view.hasSession && view.hasRecoveryKey && view.mode === "recovery" ? button("この復旧キーをGoogle/Xにも結びつける", () => run(linkRecoveryKeyToOAuth)) : null,
       view.hasSession && view.hasRecoveryKey && view.mode === "oauth" && view.recoveryKeyMatches === false ? button("この端末の復旧キーだけ外す", () => run(unlinkRecoveryKeyLocally)) : null,
