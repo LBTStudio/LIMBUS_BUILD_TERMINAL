@@ -1166,7 +1166,7 @@ function appliedSummary(actions) {
           h("code", null, entry.url || entry.text || "URL不明"),
           h("span", null, entry.reason || "取得できませんでした")))
       ) : null,
-      h("p", { className: "gara-field-help", id: "gara-url-help" }, "URLはこの読み込みにのみ使用し、アカウントへ保存しません。Enterキーでも読み込めます。最大150件まで一括処理できます。")
+      h("p", { className: "gara-field-help", id: "gara-url-help" }, "URLはこの読み込みにのみ使用し、アカウントへ保存しません。最大150件まで一括処理できます。")
     );
   }
 

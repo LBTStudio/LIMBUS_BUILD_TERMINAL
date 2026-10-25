@@ -17,6 +17,16 @@
     return PUBLIC_API_KEY;
   }
 
+  /* 貼り付けの前後に付く日本語の括弧・句読点・語尾は URL の一部ではない。
+     硝子窓の URL は ASCII だけで出来ているので、末尾に残った非 ASCII は
+     必ず貼り付けの装飾（「（URL）」の ）や「URLから」の から）。 */
+  function trimPastedUrl(value) {
+    return String(value || "")
+      .replace(/[)\],.;]+$/g, "")
+      .replace(/[^\x21-\x7E]+$/g, "")
+      .replace(/[)\],.;]+$/g, "");
+  }
+
   /* URL からドキュメント ID とコレクションを抜く。
      利用者が貼るのは「コピーの結果」であって正規の URL ではない。
      前後に文字が付いていても、スキームが抜けていても、末尾に
@@ -33,11 +43,11 @@
     let candidate = "";
     const absolute = text.match(/https?:\/\/[^\s]+/i);
     if (absolute) {
-      candidate = absolute[0].replace(/[)\],.;]+$/g, "");
+      candidate = trimPastedUrl(absolute[0]);
     } else {
       const hostless = text.match(/(?:^|[\s"\'(<\[:])((?:www\.)?lbt-garasumado\.vercel\.app(?:\/[^\s]*)?)/i);
       if (!hostless) return invalid;
-      candidate = ("https://" + hostless[1]).replace(/[)\],.;]+$/g, "");
+      candidate = trimPastedUrl("https://" + hostless[1]);
     }
 
     let url;
@@ -63,7 +73,7 @@
     const candidates = [];
     const seenCandidates = new Set();
     const addCandidate = (value) => {
-      const clean = String(value || "").trim().replace(/[)\],.;]+$/g, "");
+      const clean = trimPastedUrl(value);
       if (!clean || seenCandidates.has(clean)) return;
       seenCandidates.add(clean);
       candidates.push(clean);
@@ -193,6 +203,28 @@
     return value;
   }
 
+  /* 1 URL の壁時計予算。応答が返らないまま「読み込み中」で固まらないよう、
+     予算で打ち切って理由を残す。abort が無い・効かない環境でも
+     Promise.race で同じ予算を守る。 */
+  const DEFAULT_TIMEOUT_MS = 15000;
+  function withBudget(request, url, timeoutMs) {
+    const budget = Number(timeoutMs) > 0 ? Number(timeoutMs) : DEFAULT_TIMEOUT_MS;
+    const controller = typeof AbortController === "function" ? new AbortController() : null;
+    let timer = null;
+    const timedOut = new Promise((_, reject) => {
+      timer = setTimeout(() => {
+        if (controller) { try { controller.abort(); } catch (_) {} }
+        reject(new Error("timeout（" + budget + "ms 応答なし）"));
+      }, budget);
+      if (timer && typeof timer.unref === "function") timer.unref();
+    });
+    const init = { headers: { Accept: "application/json" } };
+    if (controller) init.signal = controller.signal;
+    return Promise.race([request(url, init), timedOut]).finally(() => {
+      if (timer) clearTimeout(timer);
+    });
+  }
+
   /* キャラクター列挙。 personas を先に試す（persona ドキュメントもあるため）。 */
   async function fetchGarasumadoDocument(url, options) {
     const opts = options || {};
@@ -207,7 +239,7 @@
     for (const collection of order) {
       const url = `${DOC_ROOT}/${collection}/${parsed.id}?key=${opts.apiKey || PUBLIC_API_KEY}`;
       try {
-        const response = await request(url, { headers: { Accept: "application/json" } });
+        const response = await withBudget(request, url, opts.timeoutMs);
         if (response && response.ok) {
           const body = await response.json();
           return { ok: true, id: parsed.id, collection, updateTime: body.updateTime || "", doc: unwrapFirestore(body.fields) };

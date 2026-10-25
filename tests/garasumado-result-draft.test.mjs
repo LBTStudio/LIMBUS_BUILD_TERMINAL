@@ -601,3 +601,44 @@ test("支出節の現在残高・残り残高を支出額として誤記帳し�
   assert.ok(parsed.reasons.some((reason) => /支出金額が読み取れない/.test(reason.reason)),
     "購入動詞があっても残高しかなければ、支出額の確認理由を返す");
 });
+
+test("日本語の括弧・句読点・語尾が付いたURLでも共有IDを取り出す", () => {
+  const base = "https://lbt-garasumado.vercel.app/view/AbCdEF1234567890abcd";
+  const pasted = [
+    "（" + base + "）",
+    "「" + base + "」",
+    "【" + base + "】",
+    base + "。",
+    "このURL" + base + "から取り込みました"
+  ];
+  for (const text of pasted) {
+    const parsed = G.parseShareUrl(text);
+    assert.equal(parsed.ok, true, "受理する: " + text);
+    assert.equal(parsed.id, "AbCdEF1234567890abcd");
+  }
+});
+
+test("応答が返らないURLは予算で打ち切られ、理由に timeout を残す", async () => {
+  const hanging = () => new Promise(() => {});
+  const result = await G.fetchGarasumadoDocument(
+    "https://lbt-garasumado.vercel.app/view/AbCdEF1234567890abcd",
+    { fetchImpl: hanging, timeoutMs: 20 }
+  );
+  assert.equal(result.ok, false);
+  assert.match(result.error, /timeout/);
+});
+
+test("取得できたURLは予算つき経路でも document として返る", async () => {
+  const okFetch = async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ fields: { name: { stringValue: "テスト" } }, updateTime: "2026-10-20T00:00:00Z" })
+  });
+  const result = await G.fetchGarasumadoDocument(
+    "https://lbt-garasumado.vercel.app/view/AbCdEF1234567890abcd",
+    { fetchImpl: okFetch, timeoutMs: 200 }
+  );
+  assert.equal(result.ok, true);
+  assert.equal(result.doc.name, "テスト");
+  assert.equal(result.updateTime, "2026-10-20T00:00:00Z");
+});
