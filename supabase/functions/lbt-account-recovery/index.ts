@@ -1,7 +1,7 @@
 // LBT optional account backup/recovery endpoint.
 // This function is intentionally public at the transport level (verify_jwt=false) so
-// recovery-key-only users can restore data. Every request is authorized by either a
-// verified Supabase access token or a 256-bit user-held recovery key.
+// recovery-key-only users can restore data. Every request is authorized only by a
+// high-entropy user-held recovery key; OAuth sessions are not accepted.
 // Never return or accept a Supabase service key from the client.
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SECRET_KEY") ?? "";
