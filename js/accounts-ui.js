@@ -506,6 +506,7 @@ const AccountSwitcher = ({ open, onClose, initialEditId }) => {
           h("span", null, "新しいアカウント")
         ) : null
       ) : null,
+      h(window.LBTCloudBackupPanel || "div", { compact: true }),
       h("footer", { className: "acct-panel-foot" },
         h("span", null, total > 0 ? `${total}件のアカウント・この端末内に保存` : "保存領域なし"),
         h("span", { className: "acct-foot-note" }, "切替・作成で他のアカウントは書き換わりません。初回移行時の旧データはバックアップとして残ります。")
@@ -632,9 +633,10 @@ const AccountGate = () => {
           h("span", null, "新しいキャラクター")
         ) : null
       ),
+      h(window.LBTCloudBackupPanel || "div", { compact: true }),
       h("footer", { className: "acct-panel-foot" },
         h("span", null, accounts.length > 0 ? `${accounts.length}件のアカウント・この端末内に保存` : "保存領域なし"),
-        h("span", { className: "acct-foot-note" }, "データはこの端末のブラウザ内にのみ保存されます。初回のみ、それまでの保存データが1つ目のアカウントへ自動で取り込まれます。")
+        h("span", { className: "acct-foot-note" }, "ローカル保存はこの端末のブラウザに残ります。オンライン保全を設定した場合は、明示したデータをクラウドにも保存します。初回のみ、旧保存データを1つ目のアカウントへ取り込みます。")
       ),
       iconEditor.editor
     )
