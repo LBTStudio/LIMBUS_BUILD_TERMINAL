@@ -45,7 +45,8 @@ test("補助JSONの404・通信失敗は起動を止めず、DB本体で準備�
   assert.equal(loaded.window.DB.marker, "db-ready");
   assert.deepEqual(JSON.parse(JSON.stringify(loaded.window.DB.items)), []);
   assert.deepEqual(JSON.parse(JSON.stringify(loaded.window.LBT_GACHA_PACKS)), { packs: [] });
-  assert.equal(loaded.warnings.length, 2);
+  assert.deepEqual(JSON.parse(JSON.stringify(loaded.window.DB.specialItems)), []);
+  assert.equal(loaded.warnings.length, 3);
 });
 
 test("DB本体のHTTP失敗だけは起動エラーになる", async () => {
