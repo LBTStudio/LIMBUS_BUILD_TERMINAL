@@ -42,14 +42,18 @@ test("人格に登録された特殊強化だけを直下へ表示し、効果�
 
 
 test("コンパクトなリザルト行はレイヤー外で既存の2段配置を上書きする", () => {
-  const layerClose = resultCss.lastIndexOf("\\n}\\n\\n");
-  const compactRow = resultCss.lastIndexOf(".ledger-card .ledger-result-object-row {");
-  assert.ok(layerClose >= 0 && compactRow > layerClose, "sections.css の通常ルールより強い、レイヤー外の上書きを使う");
-  const nameRule = resultCss.match(/\\.ledger-card \\.ledger-result-object-row \\.ledger-row-name \\{([^}]*)\\}/s);
-  const costRule = resultCss.match(/\\.ledger-card \\.ledger-result-object-row \\.ledger-row-cost \\{([^}]*)\\}/s);
-  assert.ok(nameRule && costRule, "名称とコストの専用ルールがある");
-  assert.match(nameRule[1], /grid-column:\\s*auto/);
-  assert.match(nameRule[1], /grid-row:\\s*auto/);
-  assert.match(costRule[1], /grid-column:\\s*auto/);
-  assert.match(costRule[1], /grid-row:\\s*auto/);
+  const newline = String.fromCharCode(10);
+  const layerStart = resultCss.indexOf("@layer v67-persona-redesign {");
+  const compactStart = resultCss.indexOf("/* リザルト明細：通常は低い1行");
+  const layerClose = resultCss.lastIndexOf(newline + "}" + newline + newline, compactStart);
+  assert.ok(layerStart >= 0 && layerClose > layerStart && compactStart > layerClose,
+    "sections.css の通常ルールより強い、レイヤー外の上書きを使う");
+
+  const nameStart = resultCss.indexOf(".ledger-card .ledger-result-object-row .ledger-row-name {", compactStart);
+  const costStart = resultCss.indexOf(".ledger-card .ledger-result-object-row .ledger-row-cost {", compactStart);
+  assert.ok(nameStart > compactStart && costStart > compactStart, "名称とコストの専用ルールがある");
+  const nameRule = resultCss.slice(nameStart, resultCss.indexOf("}", nameStart));
+  const costRule = resultCss.slice(costStart, resultCss.indexOf("}", costStart));
+  assert.ok(nameRule.includes("grid-column:auto") && nameRule.includes("grid-row:auto"));
+  assert.ok(costRule.includes("grid-column:auto") && costRule.includes("grid-row:auto"));
 });
