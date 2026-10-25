@@ -1,0 +1,203 @@
+/* UI audit follow-up: make hidden controls reachable and modal actions persistent. */
+
+.import-dialog {
+  min-height: 0;
+  max-height: min(85vh, 760px);
+  max-height: min(85dvh, 760px);
+}
+.import-dialog-header {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+.import-dialog-title {
+  margin: 0 0 4px;
+  color: var(--gold);
+  font-family: var(--f-display);
+  font-size: var(--fs-15);
+  font-weight: 700;
+  line-height: 1.35;
+}
+.import-dialog-description {
+  margin: 0 0 10px;
+  color: var(--tx-2);
+  font-size: var(--fs-11);
+  line-height: 1.6;
+}
+.import-dialog .import-apply-summary {
+  margin: 0 0 8px;
+  padding: 7px 9px;
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-sm, 4px);
+  background: var(--surface-inset);
+  color: var(--gold);
+  font-size: var(--fs-11);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.import-dialog-count {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+  color: var(--tx-2);
+  font-size: var(--fs-11);
+}
+.import-empty-toggle {
+  min-height: 36px;
+  padding: 5px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm, 4px);
+  background: var(--surface-2);
+  color: var(--tx);
+  font: inherit;
+  cursor: pointer;
+}
+.import-empty-toggle:hover,
+.import-empty-toggle:focus-visible {
+  border-color: var(--gold);
+  color: var(--gold-hi);
+}
+.import-empty-toggle:focus-visible {
+  outline: 2px solid var(--gold-hi);
+  outline-offset: 2px;
+}
+.import-groups-scroll {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 1px 2px 2px 0;
+}
+.import-group-row {
+  min-height: 40px;
+  line-height: 1.4;
+}
+.import-group-row input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+}
+.import-group-empty-label {
+  display: inline-block;
+  margin-left: 6px;
+  color: var(--tx-mute);
+  font-size: var(--fs-10);
+}
+.import-empty-note {
+  margin: 8px 0;
+  padding: 12px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-sm, 4px);
+  color: var(--tx-2);
+  font-size: var(--fs-12);
+  line-height: 1.6;
+}
+.import-dialog-footer {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-1);
+}
+.import-dialog-footer .btn {
+  min-height: 40px;
+}
+.import-footer-spacer {
+  flex: 1 1 12px;
+}
+
+@media (max-width: 640px) {
+  /* This fixed edge tab covered the rightmost labels and actions on touch screens.
+     Preview remains reachable in 操作・保存 → プレビューを開く／閉じる. */
+  body > .preview-edge-toggle {
+    display: none !important;
+  }
+
+  /* Put all eight Build sections on screen instead of hiding the tail of a scroller. */
+  .build-workspace .build-tabs {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+  .build-workspace .build-tabs .segmented {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 4px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: visible;
+    padding: 4px;
+  }
+  .build-workspace .build-tabs .segmented > button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    padding: 6px 3px;
+    font-size: var(--fs-11);
+    line-height: 1.25;
+    text-align: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  /* The help categories are short chips: wrapping is more discoverable than a hidden
+     horizontal row and keeps every destination visible without a swipe hint. */
+  .guide-filter-row {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    align-items: stretch;
+    padding-bottom: 2px;
+  }
+  .guide-filter-row .guide-filter {
+    min-height: 36px;
+  }
+
+  .import-dialog-backdrop {
+    align-items: center !important;
+    padding: 12px !important;
+  }
+  .import-dialog {
+    width: 100%;
+    min-height: 0;
+    max-height: calc(100dvh - 24px) !important;
+    padding: 12px !important;
+    border-radius: var(--r-2, 6px);
+  }
+  .import-dialog-title {
+    font-size: var(--fs-14);
+  }
+  .import-dialog-description {
+    font-size: var(--fs-12);
+    margin-bottom: 8px;
+  }
+  .import-dialog-footer {
+    gap: 6px;
+    padding-top: 10px;
+    margin-top: 10px;
+  }
+  .import-dialog-footer > .btn {
+    min-height: 40px;
+    flex: 1 1 calc(50% - 6px);
+    padding-inline: 7px;
+    font-size: var(--fs-11);
+  }
+  .import-dialog-footer .import-footer-spacer {
+    display: none;
+  }
+  .import-dialog-footer .btn-primary {
+    min-height: 44px;
+    flex-basis: 100%;
+  }
+}
