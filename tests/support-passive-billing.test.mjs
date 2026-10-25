@@ -522,6 +522,33 @@ test("正規化後も手動指定の死亡後枠を保持し、通常装備の�
   assert.equal(reprojected.deathSupport?.name, manualDeath.name);
 });
 
+test("既に所持モデルへ移行済みの死亡後二重装備は、選択中を優先して1件に正規化する", () => {
+  const [first, second] = db.death_passives.slice(0, 2);
+  assert.ok(first && second && first.name !== second.name);
+
+  const normalized = w.LBT_normalizeStateShape({
+    ...base(),
+    supports: [],
+    enhancements: [{ id: "death-unlock", name: "死亡後パッシブ追加", group: "test", shards: 0 }],
+    deathSupport: { id: "death-second", name: second.name, cond: "", effect: "selected effect", lp: "" },
+    roster: {
+      personas: [],
+      egos: [],
+      supports: [
+        { uid: "death-first", name: first.name, slot: "death", equipped: true, cond: "", effect: "old first", lp: "" },
+        { uid: "death-second", name: second.name, slot: "death", equipped: true, cond: "", effect: "selected effect", lp: "" }
+      ],
+      spirits: []
+    }
+  });
+
+  assert.equal(normalized.deathSupport?.name, second.name, "明示的に選択されていた死亡後パッシブを維持");
+  assert.equal(normalized.roster.supports.find((entry) => entry.uid === "death-first")?.equipped, false);
+  assert.equal(normalized.roster.supports.find((entry) => entry.uid === "death-second")?.equipped, true);
+  assert.equal(normalized.roster.supports.filter((entry) => entry.slot === "death" && entry.equipped).length, 1,
+    "ロード後に死亡後枠の装備済み行が重複しない");
+});
+
 test("旧通常サポート配列に死亡後専用パッシブが複数あっても通常枠へ漏らさず、1件だけを装備する", () => {
   const [first, second] = db.death_passives.slice(0, 2);
   assert.ok(first && second && first.name !== second.name, "異なる死亡後専用パッシブを用意");
