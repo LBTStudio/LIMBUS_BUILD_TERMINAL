@@ -135,6 +135,15 @@
       .map((item) => [item.key, item.value]);
     return JSON.stringify(normalize(a)) === JSON.stringify(normalize(b));
   }
+  async function hashSnapshot(payload) {
+    const entries = (payload && Array.isArray(payload.entries) ? payload.entries : [])
+      .filter((item) => item && isBackupStorageKey(item.key))
+      .slice()
+      .sort((a, b) => String(a.key).localeCompare(String(b.key)))
+      .map((item) => [item.key, item.value]);
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(entries)));
+    return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  }
   function downloadText(name, text, type = "application/json") {
     const blob = new Blob([text], { type });
     const url = URL.createObjectURL(blob);
@@ -310,12 +319,29 @@
       .find((item) => Number(item.revision) === Number(revision));
     return String(row && (row.payloadHash || row.payload_hash) || "");
   }
+  async function getProviderHead(provider, recoveryKey) {
+    const endpoint = provider === "supabase" ? RECOVERY_ENDPOINT : CLOUDFLARE_RECOVERY_ENDPOINT;
+    return await callProvider(endpoint, { action: "head", recoveryKey }, provider);
+  }
+  async function getProviderPayload(provider, recoveryKey) {
+    const endpoint = provider === "supabase" ? RECOVERY_ENDPOINT : CLOUDFLARE_RECOVERY_ENDPOINT;
+    const data = await callProvider(endpoint, { action: "get", recoveryKey }, provider);
+    if (!data.found || !data.payload) throw new Error("選択した保全先に復元可能なデータがありません。");
+    return data;
+  }
+  function historyHashForRevision(head, revision) {
+    const row = (Array.isArray(head && head.history) ? head.history : [])
+      .find((item) => Number(item.revision) === Number(revision));
+    return String(row && (row.payloadHash || row.payload_hash) || "");
+  }
   async function getRemote(options = {}) {
     const key = options.recoveryKey || readRecoveryKey();
+    const metadataOnly = options.metadataOnly === true;
     if (!key) return { found: false, revision: 0, payload: null, mode: "local" };
 
-    // Read metadata first. Payloads up to 12 MiB are transferred only after
-    // revisions and SHA-256 fingerprints tell us which provider is needed.
+    // Metadata-first reads avoid downloading two large JSON payloads just to
+    // discover that the replicas already agree. Full payloads are fetched only
+    // for restores, legacy hashless records, or an actual replica repair.
     const results = await Promise.all([
       getProviderHead("supabase", key).then((data) => ({ ok: true, data })).catch((error) => ({ ok: false, error })),
       getProviderHead("cloudflare", key).then((data) => ({ ok: true, data })).catch((error) => ({ ok: false, error }))
@@ -332,6 +358,13 @@
       const unavailable = primary.ok ? fallback.error : primary.error;
       if (!available.found) {
         throw new Error("一方の保全先に接続できず、もう一方にはデータが見つかりません。バックアップが存在しないとは判断できないため、再接続後に再試行してください。");
+      }
+      if (metadataOnly) {
+        return {
+          ...available, payload: null, mode: "recovery", provider: availableProvider,
+          mirrorSynced: false, secondaryUnavailable: true,
+          providerError: unavailable && (unavailable.message || String(unavailable))
+        };
       }
       const payload = await getProviderPayload(availableProvider, key);
       return {
@@ -353,13 +386,21 @@
       const latest = await getProviderPayload("supabase", key);
       const mirrored = await replicateTo("cloudflare", key, 0, Number(sHead.revision), latest.payload)
         .then(() => true).catch(() => false);
-      return { ...latest, mode: "recovery", provider: "supabase", mirrorSynced: mirrored, repairPending: !mirrored };
+      return {
+        ...latest, payload: metadataOnly ? null : latest.payload,
+        mode: "recovery", provider: "supabase",
+        mirrorSynced: mirrored, repairPending: !mirrored
+      };
     }
     if (!sHead.found && cHead.found) {
       const latest = await getProviderPayload("cloudflare", key);
       const mirrored = await replicateTo("supabase", key, 0, Number(cHead.revision), latest.payload)
         .then(() => true).catch(() => false);
-      return { ...latest, mode: "recovery", provider: "cloudflare", mirrorSynced: mirrored, repairPending: !mirrored };
+      return {
+        ...latest, payload: metadataOnly ? null : latest.payload,
+        mode: "recovery", provider: "cloudflare",
+        mirrorSynced: mirrored, repairPending: !mirrored
+      };
     }
 
     const sRevision = Number(sHead.revision) || 0;
@@ -372,6 +413,12 @@
         throw new Error("SupabaseとCloudflareの同じ世代に異なるデータがあります。自動上書きを停止しました。復旧先を選ぶ前にバックアップを退避してください。");
       }
       if (sHash && cHash && sHash === cHash) {
+        if (metadataOnly) {
+          return {
+            ...sHead, payload: null, mode: "recovery", provider: "supabase",
+            payloadHash: sHash, mirrorSynced: true
+          };
+        }
         const latest = await getProviderPayload("supabase", key);
         return { ...latest, mode: "recovery", provider: "supabase", mirrorSynced: true };
       }
@@ -383,7 +430,11 @@
       if (!sameData(sData.payload, cData.payload)) {
         throw new Error("SupabaseとCloudflareの同じ世代に異なるデータがあります。安全のため自動同期を停止しました。");
       }
-      return { ...sData, mode: "recovery", provider: "supabase", mirrorSynced: true };
+      const payloadHash = sData.payloadHash || cData.payloadHash || await hashSnapshot(sData.payload);
+      return {
+        ...sData, payload: metadataOnly ? null : sData.payload,
+        mode: "recovery", provider: "supabase", payloadHash, mirrorSynced: true
+      };
     }
 
     const newerProvider = sRevision > cRevision ? "supabase" : "cloudflare";
@@ -405,7 +456,8 @@
       olderProvider, key, Number(olderHead.revision), Number(newerHead.revision), latest.payload
     ).then(() => true).catch(() => false);
     return {
-      ...latest, mode: "recovery", provider: newerProvider,
+      ...latest, payload: metadataOnly ? null : latest.payload,
+      mode: "recovery", provider: newerProvider,
       mirrorSynced: repaired, repairPending: !repaired
     };
   }
