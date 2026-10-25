@@ -249,6 +249,27 @@ async function captureCompactResultDetails(page, mode) {
   await waitForApp(page);
   await clickNav(page, "記録");
   const card = page.locator(".ledger-card").filter({ hasText: "第12回 セッション" }).first();
+  if (!(await card.isVisible().catch(() => false))) {
+    const debug = await page.evaluate(() => {
+      const accounts = window.LBT_accounts;
+      const state = accounts?.loadActive?.();
+      return {
+        activeIdPresent: Boolean(accounts?.getActiveId?.()),
+        storedResultCount: Array.isArray(state?.results) ? state.results.length : null,
+        storedResultNames: Array.isArray(state?.results) ? state.results.slice(-5).map((row) => String(row?.name || "")) : [],
+        storedEntryCount: Array.isArray(state?.entries) ? state.entries.length : null,
+        hasFixtureResult: Array.isArray(state?.results) && state.results.some((row) => row?.name === "第12回 セッション"),
+        visibleLedgerCardCount: document.querySelectorAll(".ledger-card").length,
+        visibleLedgerHeadingText: [...document.querySelectorAll(".ledger-results-toolbar,.ledger-empty-note,.ledger-results-count")].map((el) => el.textContent.trim()).slice(0, 8),
+        visibleNavTitles: [...document.querySelectorAll("button[title]")].filter((el) => el.getBoundingClientRect().width > 0).map((el) => el.title).slice(0, 40),
+        bodyExcerpt: (document.body?.innerText || "").slice(0, 1800)
+      };
+    });
+    const debugPng = "result-details-debug-" + mode + ".png";
+    await page.screenshot({ path: path.join(OUT, debugPng), animations: "disabled", fullPage: false }).catch(() => {});
+    fs.writeFileSync(path.join(OUT, "result-details-debug-" + mode + ".json"), JSON.stringify(debug, null, 2) + "\n", "utf8");
+    log("result detail capture diagnostic: " + JSON.stringify(debug));
+  }
   await card.waitFor({ state: "visible", timeout: 12000 });
   await card.locator(".ledger-result-details").first().locator("summary").click();
   await card.locator(".ledger-result-object-row").first().waitFor({ state: "visible", timeout: 12000 });
