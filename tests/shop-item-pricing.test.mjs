@@ -22,7 +22,7 @@ function loadAcquireCostResolver() {
   return { resolve: context.window.LBT_resolveAcquireCost, parse: context.window.LBT_parsePriceText };
 }
 
-test("ショップは特殊資源を表示し、硝子の破片の20LP価格と再購入処理を使う", () => {
+test("ショップは消耗品カタログを所持状態から独立させ、購入後の再購入導線を残す", () => {
   const catalog = otherSectionsSource.match(/const catalogItems = React\.useMemo\(\(\) => \[(.*?)\], \[state\.customItems\]\);/s);
   assert.ok(catalog, "ショップのアイテムカタログが存在する");
   assert.match(catalog[1], /window\.DB\?\.items/);
@@ -36,11 +36,19 @@ test("ショップは特殊資源を表示し、硝子の破片の20LP価格と�
   assert.equal(glassShard?.price, "20LP");
   assert.equal(specialItemRecords.find((item) => item.id === "resource-ego-shard")?.ledgerResource, "shards");
 
+  const itemFilter = otherSectionsSource.match(/const items = catalogItems\.filter\(\(item\) =>([\s\S]*?)\);/);
+  assert.ok(itemFilter, "ショップの商品一覧フィルターが存在する");
+  assert.doesNotMatch(itemFilter[1], /unownedOnly|ownedItemIds/);
+  assert.match(otherSectionsSource, /const canRepurchaseItem = \(item\) => item\?\.ledgerResource !== "shards" && hasConfiguredPrice\(item\)/);
+  assert.match(otherSectionsSource, /購入済みでも商品は一覧に残ります/);
+  assert.match(otherSectionsSource, /disabled: capped/);
+  assert.match(otherSectionsSource, /tab !== "item" \? h\(Button/);
   const shopItemBuilder = otherSectionsSource.match(/item: \(\) => items\.map\(\(item\) => \{([\s\S]*?)\n\s*\}\)/);
   assert.ok(shopItemBuilder, "ショップのアイテムカード生成部が存在する");
   assert.match(shopItemBuilder[1], /!hasConfiguredPrice\(item\)/);
-  assert.match(shopItemBuilder[1], /dispatch\(\{ type: "ADD_ITEM", itemId: item\.id \}\)/);
-  assert.match(otherSectionsSource, /\|\| canRepurchaseSpecial\(item\)/);
+  assert.match(shopItemBuilder[1], /dispatch\(\{ type: "ADD_ITEM", itemId: item\.id, purchase: true \}\)/);
+  assert.match(otherSectionsSource, /const repeatPurchase = canRepurchaseItem\(item\)/);
+  assert.match(shopItemBuilder[1], /repeatPurchase && ownedEntry/);
   assert.match(shopItemBuilder[1], /ownedItemIds\.has\(item\.id\) && !repeatPurchase/);
   assert.match(shopItemBuilder[1], /"価格未設定"/);
   assert.match(shopItemBuilder[1], /"所持欄へ追加"/);
