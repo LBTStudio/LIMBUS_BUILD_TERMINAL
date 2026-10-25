@@ -579,7 +579,7 @@ test("混在する硝子窓URLは全件抽出し、不正URLも成功分と別�
     "lbt-garasumado.vercel.app/persona/view/ZyXwVu1234567890abcd",
     "https://lbt-garasumado.vercel.app/not-a-share-link/BadId"
   ].join("\n"));
-  assert.equal(parsed.urls.length, 2, "裸IDとホスト省略URLの同一人格文書は1件にする");
+  assert.equal(parsed.urls.length, 2, "同じキャラクターIDの裸IDを重複登録しない");
   assert.deepEqual([...parsed.urls].map((row) => row.collection), ["characters", "personas"]);
   assert.ok(parsed.invalid.some((row) => row.text.includes("not-a-share-link")),
     "不正URLを成功したURLの陰に隠して捨てない");
