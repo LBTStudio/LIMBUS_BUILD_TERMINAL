@@ -1983,6 +1983,30 @@ function normalizeStateShape(raw) {
   } else if (equippedEntry || !hasActivePersonaIdentity) {
     Object.assign(next, projectEquipmentFromRoster(next.roster));
   }
+  // Saved Persona snapshots and equipmentRefs are legacy/import boundaries too.
+  // Enforce the death-slot unlock after projection so they cannot re-equip a stale
+  // death support when the final unlock enhancement is absent.
+  if (!deathSupportSlotUnlocked(next)) {
+    const deathRows = (next.roster.supports || []).filter((entry) => (
+      entry.slot === "death" || isDeathSupportPassiveRecord(entry)
+    ));
+    const deathUids = new Set(deathRows.map((entry) => String(entry.uid || "")).filter(Boolean));
+    const deathNames = new Set(deathRows.map((entry) => String(entry.name || "").trim()).filter(Boolean));
+    next.roster = {
+      ...next.roster,
+      supports: (next.roster.supports || []).map((entry) => (
+        deathUids.has(String(entry.uid || "")) || isDeathSupportPassiveRecord(entry)
+          ? { ...entry, slot: "death", equipped: false }
+          : entry
+      ))
+    };
+    next.supports = (Array.isArray(next.supports) ? next.supports : []).filter((entry) => (
+      !isDeathSupportPassiveRecord(entry)
+      && !deathUids.has(String(entry.id || ""))
+      && !deathNames.has(String(entry.name || "").trim())
+    ));
+    next.deathSupport = null;
+  }
   /* If a partial roster import does not contain the active Persona, keep the
      current support/mental projection. Do not apply another Persona's equipped
      roster flags to the character whose active identity is still unchanged. */
