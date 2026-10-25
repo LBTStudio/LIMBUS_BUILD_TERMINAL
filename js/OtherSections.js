@@ -4092,7 +4092,7 @@ const applyGarasumadoImport = (applied) => {
   });
 };
 const IMPORT_TYPE_LABEL = {
-    ADD_ROSTER: "人格", ADD_ROSTER_EGO: "E.G.O", ADD_ROSTER_SUPPORT: "パッシブ",
+    ADD_GARASUMADO_PERSONA: "硝子窓人格", ADD_ROSTER: "人格", ADD_ROSTER_EGO: "E.G.O", ADD_ROSTER_SUPPORT: "パッシブ",
     ADD_ROSTER_SPIRIT: "精神", ADD_ITEM_INVENTORY: "アイテム",
     ADD_RESULT: "リザルト", ADD_ENTRY: "明細"
   };
@@ -4455,6 +4455,8 @@ const importHeldPersonas = () => {
     typeof window.GarasumadoImportPanel === "function"
     ? h(window.GarasumadoImportPanel, {
       onClose: () => setImportPanel(false),
+      /* 取込済み共有IDを判定して、同じ人格を再取り込み候補に出さない。 */
+      existingPersonas: state.roster?.personas || [],
       /* 確定結果は画面に出るので、ここでは閉じない（閉じるのは確定結果の「閉じる」）。 */
       onApply: (applied) => applyGarasumadoImport(applied)
     })
