@@ -254,3 +254,12 @@ test("戦術スキルの行はマッチを揃えてからダメージを並べ�
   assert.match(rows[2], /2-1：ダメージ$/, "その後に 2-1 のダメージ");
   assert.match(rows[3], /2-2：ダメージ$/, "最後に 2-2 のダメージ");
 });
+
+
+test("SINNER SELECT内の共有URL取込は全列を使い、本文が狭いカード幅に押し込まれない", () => {
+  assert.match(ui, /className: `acct-card acct-card--form\$\{importOpen \? " acct-card--import-open" : ""\}`/);
+  assert.match(css, /\.acct-card--import-open\s*\{[\s\S]*?grid-column:\s*1\s*\/\s*-1;/);
+  assert.match(css, /\.acct-card--import-open \.acct-gara-body,[\s\S]*?\.acct-card--import-open \.gara\s*\{[^}]*min-width:\s*0;[^}]*width:\s*100%;/);
+  assert.match(css, /\.acct-card--import-open:hover,[\s\S]*?\.acct-card--import-open:focus-within\s*\{\s*transform:\s*none;\s*box-shadow:\s*none;/);
+  assert.match(css, /\.gara\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(240px,\s*320px\)/);
+});
