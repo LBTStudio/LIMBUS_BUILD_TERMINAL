@@ -165,6 +165,54 @@ function isDeathSupportPassiveRecord(s) {
   const name = String(s?.name || "").trim();
   return !!name && roster.some((entry) => String(entry?.name || "").trim() === name);
 }
+
+// Older per-persona snapshots stored every equipped support in "supports".
+// If a death-only catalogue entry slipped into that array, loading the snapshot
+// restored it to a normal slot and bypassed the reducer's slot guard. Migrate
+// only exact catalogue matches; preserve the first legacy selection as the
+// death slot and keep the owned roster entry itself intact.
+function normalizePersonaSupportSnapshot(build, rosterSupports = []) {
+  if (!build || typeof build !== "object" || Array.isArray(build) || !Array.isArray(build.supports)) return build;
+  const deathRows = build.supports.filter(isDeathSupportPassiveRecord);
+  if (!deathRows.length) return build;
+
+  const normalSupports = build.supports.filter((entry) => !isDeathSupportPassiveRecord(entry));
+  const currentDeath = build.deathSupport && typeof build.deathSupport === "object" && build.deathSupport.name
+    ? build.deathSupport
+    : null;
+  const promoted = currentDeath ? null : deathRows[0];
+  const promotedRoster = promoted
+    ? rosterSupports.find((entry) => entry && String(entry.name || "").trim() === String(promoted.name || "").trim())
+    : null;
+  const promotedId = String(promoted?.id || promotedRoster?.uid || "");
+  const deathSupport = currentDeath || (promoted ? {
+    ...promoted,
+    id: promotedId || `sppd-legacy-${String(promoted.name || "death").trim().replace(/\s+/g, "-").slice(0, 48)}`
+  } : null);
+
+  const removedIds = new Set(deathRows.map((entry) => String(entry?.id || "")).filter(Boolean));
+  // If the snapshot already had an explicit death slot, retain that selection's
+  // roster reference when the same catalogue item also appears in the stale list.
+  const currentDeathRoster = currentDeath && isDeathSupportPassiveRecord(currentDeath)
+    ? rosterSupports.find((entry) => String(entry?.name || "").trim() === String(currentDeath.name || "").trim())
+    : null;
+  const keptDeathId = currentDeathRoster?.uid || (isDeathSupportPassiveRecord(currentDeath) ? currentDeath?.id : "")
+    || (promoted ? promotedId : "");
+  if (keptDeathId) removedIds.delete(String(keptDeathId));
+
+  let equipmentRefs = build.equipmentRefs;
+  if (equipmentRefs && typeof equipmentRefs === "object" && Array.isArray(equipmentRefs.supportUids)) {
+    const supportUids = equipmentRefs.supportUids.filter((uid) => !removedIds.has(String(uid)));
+    if (promotedId && !supportUids.some((uid) => String(uid) === promotedId)) supportUids.push(promotedId);
+    equipmentRefs = { ...equipmentRefs, supportUids };
+  }
+  return {
+    ...build,
+    supports: normalSupports,
+    deathSupport,
+    ...(equipmentRefs !== undefined ? { equipmentRefs } : {})
+  };
+}
 function cloneJSON(obj) {
   return obj == null ? obj : JSON.parse(JSON.stringify(obj));
 }
@@ -1818,6 +1866,14 @@ function normalizeStateShape(raw) {
     });
   }
   /* 装備スロットは所持の投影。所持を書き換えたら必ずここで整合させる。 */
+  /* すべての人格別ビルドをロード前に正規化する。
+     非アクティブの保存ビルドも次回の人格切替で同じ不具合を再現しないよう、
+     死亡後専用カタログ項目を通常枠から分離する。所持 roster は削除しない。 */
+  next.roster.personas = next.roster.personas.map((entry) => {
+    if (!entry?.build || typeof entry.build !== "object") return entry;
+    const build = normalizePersonaSupportSnapshot(entry.build, next.roster.supports);
+    return build === entry.build ? entry : { ...entry, build };
+  });
   /* 旧保存データの通帳を正規化する。残高は保存しないので個別の値だけ整える。
      帰属先の無い明細と、存在しないリザルトを指す明細は未分類へ戻す。
      リザルトを消しても明細は消さない。支出額が失われると残高が狂う。 */
