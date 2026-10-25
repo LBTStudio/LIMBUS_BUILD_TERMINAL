@@ -250,9 +250,10 @@ test("ambiguous same-named effects keep the reference owner's text rather than g
 test("glossary terms have a visible underline and warmer contrast in effect prose", () => {
   const css = readFileSync(resolve(ROOT, "assets/inline-effect-glossary.css"), "utf8");
   assert.match(css, /border-bottom: 1px dotted rgba\(244, 213, 138, \.98\)/);
-  assert.match(css, /text-underline-offset: 3px/);
-  assert.match(css, /background: rgba\(214, 173, 83, \.13\)/);
-  assert.match(css, /text-decoration-thickness: 2px/);
+  assert.match(css, /text-decoration: none/);
+  assert.match(css, /background: rgba\(214, 173, 83, \.17\)/);
+  assert.match(css, /border-bottom-style: solid/);
+  assert.match(css, /border-radius: 2px/);
 });
 
 
