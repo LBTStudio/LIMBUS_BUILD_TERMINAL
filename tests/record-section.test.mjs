@@ -160,7 +160,15 @@ test("リザルトの情報階層を整え、数値・抽出チケット・明�
   assert.match(resultCss, /\.ledger-card-income > \.ledger-pair\s*\{[^}]*background:\s*var\(--surface-2\)/s);
   assert.match(resultCss, /\.ledger-card-income \.ledger-card-spent\s*\{[^}]*grid-column:\s*1 \/ -1/s);
   assert.match(resultCss, /\.ledger-card-tickets\s*\{[^}]*border-top:\s*1px solid var\(--line-dim\)/s);
-  assert.match(resultCss, /\.ledger-card \.ledger-row-move\s*\{[^}]*min-height:\s*36px/s);
+  assert.doesNotMatch(resultCss, /\.ledger-card \.ledger-row-move\s*\{/);
+  assert.match(workspaceCss, /\.ledger-row-move-action\s*\{/);
+  assert.doesNotMatch(workspaceCss, /\.ledger-row-move\s*\{/);
+  assert.match(sections, /const startMoveEntry = \(entry\) => \{/);
+  assert.match(sections, /className: "ledger-card-move-target"/);
+  assert.match(sections, /className: "ledger-queue-move-target"/);
+  assert.match(sections, /className: "ledger-move-mode"/);
+  assert.match(resultCss, /\.ledger-card-edit-inline\s*\{[^}]*display:\s*grid/s);
+  assert.match(resultCss, /\.ledger-card-edit-ticket-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2/s);
   assert.match(resultCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-card-income \.ledger-chip-num/);
 });
 
@@ -174,22 +182,27 @@ test("リザルトの取り込み画面は切り替え時に一つだけ表示�
   assert.match(sections, /onClick: \(\) => switchResultTool\("text"\)/);
 });
 
-test("リザルト編集ボタンはクリックを受け取り、同じカードラッパ内に編集フォームを展開する", () => {
+test("リザルトはカード内で直接編集し、下部パネルと移動先プルダウンを使わない", () => {
   assert.match(sections, /onClick: \(event\) => \{\s*event\.preventDefault\(\);\s*event\.stopPropagation\(\);\s*openResultEditor\(result\);\s*\}/);
-  assert.match(sections, /const openResultEditor = \(result\) => \{\s*setImportMenuOpen\(false\);\s*setImportPanel\(false\);\s*setTextPanel\(false\);\s*setHeldOpen\(false\);\s*setImportNote\(null\);/);
-  assert.match(sections, /ticketPanel === result\.id && ticketDraft && ticketDraft\.id === result\.id && h\("div", \{\s*className: "ledger-result-edit-panel"/);
-  assert.match(sections, /React\.useEffect\(\(\) => \{\s*if \(ticketPanel === null \|\| !ticketDraft/);
-  assert.match(sections, /scrollIntoView\(\{ behavior: reducedMotion \? "auto" : "smooth", block: "nearest" \}\)/);
+  assert.match(sections, /const openResultEditor = \(result\) => \{/);
+  assert.match(sections, /const isEditing = ticketPanel === result\.id && ticketDraft\?\.id === result\.id/);
+  assert.match(sections, /className: "ledger-card-edit-head-fields"/);
+  assert.match(sections, /className: "ledger-card-edit-inline"/);
+  assert.match(sections, /className: "ledger-card-edit-save"/);
+  assert.match(sections, /className: "ledger-card-edit-cancel"/);
+  assert.match(sections, /className: `ledger-drop-hint/);
   assert.match(sections, /const saveResultEditor = \(result\) => \{/);
   assert.match(sections, /type: "UPDATE_RESULT"/);
-  assert.doesNotMatch(sections, /ticketPanel && h\(TicketIncomePanel, \{\}\)/);
+  assert.doesNotMatch(sections, /className: "ledger-result-edit-panel"/);
+  assert.doesNotMatch(sections, /scrollIntoView\(\{ behavior: reducedMotion/);
+  assert.doesNotMatch(sections, /className: "ledger-row-move"/);
   const cardStart = sections.indexOf('h(Card, { className: "ledger-card" }');
   const bodyStart = sections.indexOf('className: "card-body ledger-card-body"', cardStart);
-  const editorStart = sections.indexOf('className: "ledger-result-edit-panel"', bodyStart);
+  const editorStart = sections.indexOf('className: "ledger-card-edit-inline"', bodyStart);
   assert.ok(cardStart > 0 && bodyStart > cardStart && editorStart > bodyStart,
-    "編集フォームは card-body の後、同じカードラッパ内に表示する");
+    "編集欄はカード内の内容を置き換え、下に別パネルを作らない");
 });
-
+ 
 test("大量リザルトは検索と24件ごとのページ分割で一覧できる", () => {
   assert.match(sections, /const RESULTS_PAGE_SIZE = 24/);
   assert.match(sections, /const matchingResults = results\.filter/);

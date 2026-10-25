@@ -3861,6 +3861,7 @@ const LedgerPanel = ({ state, dispatch }) => {
   */
   const [dragId, setDragId] = React.useState(null);
   const [overId, setOverId] = React.useState(null);
+  const [movingEntryId, setMovingEntryId] = React.useState(null);
   const [newResult, setNewResult] = React.useState({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} } });
   /* 選択中のパックはフォーム側が持つ。TicketInputs 内で持つと、親が組み立てる
      income に選んだパック名が入らない（内部 state だから）。 */
@@ -3999,16 +4000,6 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     });
   };
   const cancelResultEditor = () => { setTicketPanel(null); setTicketDraft(null); };
-  /* 編集フォームは押したカードの直後に一度だけ描画し、カード内部のレイアウトや
-     overflow に埋もれないようにする。開いたときはフォームを視界内へ寄せる。 */
-  React.useEffect(() => {
-    if (ticketPanel === null || !ticketDraft || typeof document === "undefined") return;
-    const editor = document.querySelector(".ledger-result-edit-panel");
-    if (!editor || typeof editor.scrollIntoView !== "function") return;
-    const reducedMotion = typeof window !== "undefined"
-      && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
-    editor.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "nearest" });
-  }, [ticketPanel, ticketDraft?.id]);
   const updateResultDraftField = (field, value) => {
     setTicketDraft((draft) => draft ? { ...draft, [field]: value } : draft);
   };
@@ -4086,6 +4077,7 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
 /* 残額は全明細から求める。削除は Undo/Redo が効くので、
 /* 取り消し用の操作槽は置かない。 */
   const unclassified = entries.filter((e) => !e.resultId);
+  const movingEntry = movingEntryId ? entries.find((entry) => entry.id === movingEntryId) || null : null;
 
   /* リザルトごとの明細と支出合計。導出なので保存しない。 */
   const byResult = (id) => entries.filter((e) => e.resultId === id);
@@ -4106,19 +4098,33 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   const LEDGER_DRAG_MIME = "application/x-lbt-ledger-entry";
   const moveEntry = (id, resultId) => {
     if (!id) return;
-    dispatch({ type: "SET_ENTRY_RESULT", id, resultId: resultId || null });
+    const existing = (Array.isArray(state.entries) ? state.entries : []).find((entry) => entry.id === id);
+    const nextResultId = resultId || null;
+    if (!existing || (existing.resultId || null) !== nextResultId) {
+      dispatch({ type: "SET_ENTRY_RESULT", id, resultId: nextResultId });
+      toast(nextResultId ? "明細をリザルトへ移動しました" : "明細を未分類へ戻しました");
+    }
     setDragId(null);
     setOverId(null);
+    setMovingEntryId(null);
   };
+  /* ドラッグが難しいタッチ環境／キーボード向け。明細を選んでから移動先カードを押す。 */
+  const startMoveEntry = (entry) => {
+    setDragId(null);
+    setOverId(null);
+    setMovingEntryId((current) => current === entry.id ? null : entry.id);
+  };
+  const cancelMoveEntry = () => setMovingEntryId(null);
   /* 行のドラッグ属性。未分類とリザルトで同じものを使う。 */
 const dragProps = (entry) => ({
   draggable: true,
   onDragStart: (e) => {
+    setMovingEntryId(null);
     setDragId(entry.id);
     try { e.dataTransfer?.setData(LEDGER_DRAG_MIME, entry.id); } catch (_) { /* 旧Browserは無視 */ }
     try { e.dataTransfer && (e.dataTransfer.effectAllowed = "move"); } catch (_) {}
   },
-  onDragEnd: () => { setDragId(null); setOverId(null); }
+  onDragEnd: () => { setDragId(null); setOverId(null); setMovingEntryId(null); }
 });
 const readDragId = (event) => {
     try {
@@ -4522,7 +4528,7 @@ const importHeldPersonas = () => {
             "aria-label": "獲得欠片",
             onChange: (e) => setNewResult((p) => ({ ...p, shards: e.target.value }))
           }),
-          h(Button, { size: "sm", variant: "primary", icon: "check", onClick: addResult, disabled: !String(newResult.name || "").trim() }, "編集")
+          h(Button, { size: "sm", variant: "primary", icon: "check", onClick: addResult, disabled: !String(newResult.name || "").trim() }, "記録する")
         ),
         /* 抽出チケットも収入と同じ場所で受け取る。GPTの追加工程なしで、
            LP・欠片と同時にこのリザルトへ入る。 */
@@ -4849,7 +4855,13 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
     h(Card, { className: "ledger-queue" },
       h("div", { className: "card-header owned-library-bar" },
         h("span", { className: "t-label" }, "未分類"),
-        h("span", { className: "ledger-note" }, "リザルトへ持って行くか、移動ボタンで帰属できます")
+        h("span", { className: "ledger-note" }, "ドラッグ、または「移動」から選択して帰属できます"),
+        movingEntry && h("button", {
+          type: "button", className: "ledger-queue-move-target",
+          disabled: !movingEntry.resultId,
+          title: !movingEntry.resultId ? "この明細はすでに未分類です" : "選択中の明細を未分類へ戻す",
+          onClick: () => moveEntry(movingEntry.id, null)
+        }, !movingEntry.resultId ? "未分類（現在地）" : "未分類へ移動")
       ),
       h("div", { className: "card-body stack-2" },
         unclassified.length === 0
@@ -4863,18 +4875,19 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
           h("span", { className: "ledger-row-name" }, entry.name),
           h("span", { className: "ledger-row-kind" }, kindLabel(entry.kind)),
           h("span", { className: "ledger-row-cost" }, entry.cost?.lp ? `${entry.cost.lp}LP` : entry.cost?.shards ? `${entry.cost.shards}SHARD` : "—"),
-          h("select", {
-            className: "ledger-row-move",
-            "aria-label": `${entry.name} の帰属先`,
-            value: "",
-            onChange: (e) => { if (e.target.value) moveEntry(entry.id, e.target.value); }
-          }, h("option", { value: "" }, "移動先"), results.map((r) => h("option", { key: r.id, value: r.id }, r.name))),
+          h("button", {
+            type: "button", className: "ledger-row-move-action",
+            "aria-pressed": movingEntryId === entry.id,
+            "aria-label": `${entry.name} の移動先を選択`,
+            title: "ドラッグできない場合は、移動先カードを選べます",
+            onClick: () => startMoveEntry(entry)
+          }, movingEntryId === entry.id ? "選択中" : "移動"),
           h("button", {
             type: "button",
             className: "ledger-row-trash",
             title: "削除する（Ctrl+Z で取り消せます）",
             "aria-label": `${entry.name} を削除する`,
-            onClick: () => dispatch({ type: "PURGE_ENTRY", id: entry.id })
+            onClick: () => { if (movingEntryId === entry.id) setMovingEntryId(null); dispatch({ type: "PURGE_ENTRY", id: entry.id }); }
           }, "削除")
         ))
       )
@@ -4886,7 +4899,11 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
        ただしここでは計算しない。鎖は読み手側で再計算して確かめる。 */
     h(DrawLedgerPanel, { state }),
 
-    /* リザルトカード。ドロップ先。 */
+    /* リザルトカード。ドラッグ先とクリック移動先を同じカードへ統一。 */
+    movingEntry && h("div", { className: "ledger-move-mode", role: "status" },
+      h("span", null, `「${movingEntry.name}」の移動先を選択中です。対象カードの「ここへ移動」を押してください。`),
+      h(Button, { size: "sm", variant: "ghost", onClick: cancelMoveEntry }, "移動をやめる")
+    ),
     h("div", { className: "ledger-results-toolbar" },
       h("span", { className: "ledger-results-count" },
         "リザルト " + sortedResults.length + " / " + results.length + " 件"),
@@ -4921,6 +4938,7 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
         const consumedItems = Array.isArray(result.consumedItems) ? result.consumedItems : [];
         const ticketChips = resultTicketChips(result);
         const ticketCount = ticketChips.reduce((total, ticket) => total + (Number(ticket.count) || 0), 0);
+        const isEditing = ticketPanel === result.id && ticketDraft?.id === result.id;
         /* ドロップ先は Card の外側の div に置く。Card は children / className / frame
            しか受け取らないため、drag イベントを直接渡しても無視される。 */
         return h("div", {
@@ -4929,31 +4947,124 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
           ...dropTargetProps(result.id)
         },
 h(Card, { className: "ledger-card" },
-    h("div", { className: "card-header owned-library-bar" },
-    h("span", { className: "ledger-card-title" }, result.name),
-    h("span", { className: "ledger-card-date" }, result.date || "—"),
-    h("div", { className: "ledger-card-actions" },
-    /* 編集はこのリザルトの登記情報（LP・欠片・抽出チケット）をまとめて直す口。
-       「⋯」は別の操作なので隣に分ける。 */
-    h("button", {
-    type: "button",
-    className: "ledger-card-edit-btn",
-    title: "このリザルトの登録情報（LP・欠片・抽出チケット）を編集します",
-    "aria-label": `${result.name} の登録情報を編集`,
-    "aria-expanded": ticketPanel === result.id && ticketDraft?.id === result.id,
-    "aria-pressed": ticketPanel === result.id && ticketDraft?.id === result.id,
-    onClick: (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      openResultEditor(result);
-    }
-    }, ticketPanel === result.id && ticketDraft?.id === result.id ? "編集中" : "編集")
-        ),
+    h("div", { className: `card-header owned-library-bar${isEditing ? " is-editing" : ""}` },
+      isEditing
+        ? h("div", { className: "ledger-card-edit-head-fields" },
+            h("label", { className: "ledger-card-edit-head-field" },
+              h("span", null, "名称"),
+              h("input", {
+                type: "text", className: "ledger-input ledger-card-edit-title",
+                "aria-label": "リザルトの名称", value: ticketDraft.name,
+                onChange: (event) => updateResultDraftField("name", event.target.value)
+              })
+            ),
+            h("label", { className: "ledger-card-edit-head-field" },
+              h("span", null, "日付"),
+              h("input", {
+                type: "date", className: "ledger-input ledger-card-edit-date",
+                "aria-label": "プレイした日付", value: ticketDraft.date,
+                onChange: (event) => updateResultDraftField("date", event.target.value)
+              })
+            ),
+            (dragId || movingEntryId) && h("span", { className: `ledger-drop-hint${overId === result.id ? " is-over" : ""}`, "aria-live": "polite" }, movingEntryId ? (overId === result.id ? "ここへ移動" : "移動先") : (overId === result.id ? "ここへドロップ" : "ドロップ先"))
+          )
+        : h("div", { className: "ledger-card-heading" },
+            h("span", { className: "ledger-card-title" }, result.name),
+            h("span", { className: "ledger-card-date" }, result.date || "—"),
+            (dragId || movingEntryId) && h("span", { className: `ledger-drop-hint${overId === result.id ? " is-over" : ""}`, "aria-live": "polite" }, movingEntryId ? (overId === result.id ? "ここへ移動" : "移動先") : (overId === result.id ? "ここへドロップ" : "ドロップ先"))
+          ),
+      h("div", { className: "ledger-card-actions" },
+        isEditing
+          ? [
+              h("button", {
+                key: "save", type: "button", className: "ledger-card-edit-save",
+                title: "変更を保存", "aria-label": `${result.name} の変更を保存`,
+                onClick: (event) => { event.preventDefault(); event.stopPropagation(); saveResultEditor(result); }
+              }, "保存"),
+              h("button", {
+                key: "cancel", type: "button", className: "ledger-card-edit-cancel",
+                title: "変更を破棄", "aria-label": `${result.name} の編集をキャンセル`,
+                onClick: (event) => { event.preventDefault(); event.stopPropagation(); cancelResultEditor(); }
+              }, "取消")
+            ]
+          : movingEntry
+            ? h("button", {
+                type: "button", className: "ledger-card-move-target",
+                disabled: movingEntry.resultId === result.id,
+                title: movingEntry.resultId === result.id ? "この明細はすでにこのリザルトにあります" : "選択中の明細をこのリザルトへ移動",
+                "aria-label": `${movingEntry.name} を「${result.name}」へ移動`,
+                onClick: () => moveEntry(movingEntry.id, result.id)
+              }, movingEntry.resultId === result.id ? "ここが現在地" : "ここへ移動")
+            : h("button", {
+                type: "button",
+                className: "ledger-card-edit-btn",
+                title: "このリザルトの登録情報（LP・欠片・抽出チケット）を編集します",
+                "aria-label": `${result.name} の登録情報を編集`,
+                "aria-expanded": false,
+                "aria-pressed": false,
+                disabled: ticketPanel !== null && !isEditing,
+                onClick: (event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  openResultEditor(result);
+                }
+              }, "編集")
+      )
     ),
-
-
             h("div", { className: "card-body ledger-card-body" },
-              h("div", { className: "ledger-card-income" },
+              isEditing && h("div", { className: "ledger-card-edit-inline", "aria-label": "リザルトをカード内で編集" },
+                h("div", { className: "ledger-card-edit-income" },
+                  h("label", { className: "ledger-card-edit-field" },
+                    h("span", null, "獲得LP"),
+                    h("input", {
+                      className: "ledger-input ledger-input--num", type: "number", min: "0", step: "1", inputMode: "numeric",
+                      "aria-label": "獲得LP", value: ticketDraft.lp,
+                      onChange: (event) => updateResultDraftField("lp", event.target.value)
+                    })
+                  ),
+                  h("label", { className: "ledger-card-edit-field" },
+                    h("span", null, "獲得欠片"),
+                    h("input", {
+                      className: "ledger-input ledger-input--num", type: "number", min: "0", step: "1", inputMode: "numeric",
+                      "aria-label": "獲得欠片", value: ticketDraft.shards,
+                      onChange: (event) => updateResultDraftField("shards", event.target.value)
+                    })
+                  )
+                ),
+                h("div", { className: "ledger-card-edit-tickets" },
+                  h("span", { className: "t-label" }, "抽出チケット"),
+                  h("div", { className: "ledger-card-edit-ticket-grid" },
+                    ["persona", "ego", "choice"].map((kind) => h("label", { key: kind, className: "ledger-ticket-field" },
+                      h("span", null, ticketLabel(kind)),
+                      h("input", {
+                        className: "ledger-input ledger-input--num", type: "number", min: "0", step: "1", inputMode: "numeric",
+                        "aria-label": ticketLabel(kind) + " の枚数",
+                        value: String(Number(ticketDraft.tickets?.[kind]) || 0),
+                        onChange: (event) => updateResultDraftTicket(kind, event.target.value)
+                      })
+                    )),
+                    packs.length > 0 && h("label", { className: "ledger-ticket-field" },
+                      h("span", null, "対象パック"),
+                      h("select", {
+                        className: "select", "aria-label": "特定抽出パックの選択",
+                        value: ticketPackPick || packs[0]?.name || "",
+                        onChange: (event) => setTicketPackPick(event.target.value)
+                      }, packs.map((pack) => h("option", { key: pack.name, value: pack.name }, pack.name))
+                      )
+                    ),
+                    packs.length > 0 && h("label", { className: "ledger-ticket-field" },
+                      h("span", null, ticketLabel("pack", ticketPackPick || packs[0]?.name || "")),
+                      h("input", {
+                        className: "ledger-input ledger-input--num", type: "number", min: "0", step: "1", inputMode: "numeric",
+                        "aria-label": ticketLabel("pack", ticketPackPick || packs[0]?.name || "") + " の枚数",
+                        value: String(Number(ticketDraft.tickets?.pack?.[ticketPackPick || packs[0]?.name || ""]) || 0),
+                        onChange: (event) => updateResultDraftPack(ticketPackPick || packs[0]?.name || "", event.target.value)
+                      })
+                    )
+                  )
+                )
+              ),
+              !isEditing && h("div", { className: "ledger-card-income" },
                 h("span", { className: "ledger-pair" },
                   bigNum(result.income?.lp || 0, "lp"),
                   h("span", { className: "ledger-pair-label" }, "LP")
@@ -4965,7 +5076,7 @@ h(Card, { className: "ledger-card" },
                 h("span", { className: "ledger-card-spent" },
                   "支出 LP " + spent.lp.toLocaleString("ja-JP") + " / 欠片 " + spent.shards.toLocaleString("ja-JP"))
               ),
-              h("details", { className: "ledger-result-details" },
+              !isEditing && h("details", { className: "ledger-result-details" },
                 h("summary", { className: "ledger-result-summary" },
                   "明細 " + rows.length + "件 · 消耗品 " + consumedItems.length + "種 · チケット " + ticketCount + "枚"
                 ),
@@ -4997,13 +5108,13 @@ h(Card, { className: "ledger-card" },
                         h("span", { className: "ledger-row-kind" }, kindLabel(entry.kind)),
                         h("span", { className: "ledger-row-cost" },
                           entry.cost?.lp ? entry.cost.lp + "LP" : entry.cost?.shards ? entry.cost.shards + "SHARD" : "—"),
-                        h("select", {
-                          className: "ledger-row-move", "aria-label": entry.name + " の帰属先", value: "",
-                          onChange: (event) => { if (event.target.value) moveEntry(entry.id, event.target.value); }
-                        },
-                          h("option", { value: "" }, "移動先"),
-                          results.filter((r) => r.id !== entry.resultId).map((r) => h("option", { key: r.id, value: r.id }, r.name))
-                        ),
+                        h("button", {
+                          type: "button", className: "ledger-row-move-action",
+                          "aria-pressed": movingEntryId === entry.id,
+                          "aria-label": entry.name + " の移動先を選択",
+                          title: "ドラッグできない場合は、移動先カードを選べます",
+                          onClick: () => startMoveEntry(entry)
+                        }, movingEntryId === entry.id ? "選択中" : "移動"),
                         h("button", {
                           type: "button", className: "ledger-row-release",
                           title: "帰属を外して未分類へ戻す", "aria-label": entry.name + " の帰属を外す",
@@ -5012,74 +5123,13 @@ h(Card, { className: "ledger-card" },
                         h("button", {
                           type: "button", className: "ledger-row-trash",
                           title: "削除する（Ctrl+Z で取り消せます）", "aria-label": entry.name + " を削除する",
-                          onClick: () => dispatch({ type: "PURGE_ENTRY", id: entry.id })
+                          onClick: () => { if (movingEntryId === entry.id) setMovingEntryId(null); dispatch({ type: "PURGE_ENTRY", id: entry.id }); }
                         }, "削除")
                       )))
                 )
               )
             )
-          ),
-                ticketPanel === result.id && ticketDraft && ticketDraft.id === result.id && h("div", {
-      className: "ledger-result-edit-panel", role: "group", "aria-label": "リザルトの登録情報を編集"
-    },
-      h("div", { className: "ledger-result-edit-heading" },
-        h("strong", null, "リザルトを編集"),
-        h(Button, { size: "sm", variant: "ghost", icon: "x", onClick: cancelResultEditor }, "閉じる")
-      ),
-      h("div", { className: "ledger-result-edit-fields" },
-        h("label", { className: "ledger-ticket-field" },
-          h("span", null, "リザルトの名称"),
-          h("input", { className: "ledger-input", "aria-label": "リザルトの名称", value: ticketDraft.name,
-            onChange: (event) => updateResultDraftField("name", event.target.value) })
-        ),
-        h("label", { className: "ledger-ticket-field" },
-          h("span", null, "プレイした日付"),
-          h("input", { className: "ledger-input", type: "date", "aria-label": "プレイした日付", value: ticketDraft.date,
-            onChange: (event) => updateResultDraftField("date", event.target.value) })
-        ),
-        h("label", { className: "ledger-ticket-field" },
-          h("span", null, "獲得LP"),
-          h("input", { className: "ledger-input ledger-input--num", type: "number", min: "0", "aria-label": "獲得LP", value: ticketDraft.lp,
-            onChange: (event) => updateResultDraftField("lp", event.target.value) })
-        ),
-        h("label", { className: "ledger-ticket-field" },
-          h("span", null, "獲得欠片"),
-          h("input", { className: "ledger-input ledger-input--num", type: "number", min: "0", "aria-label": "獲得欠片", value: ticketDraft.shards,
-            onChange: (event) => updateResultDraftField("shards", event.target.value) })
-        )
-      ),
-      h("div", { className: "ledger-result-edit-tickets" },
-        h("span", { className: "t-label" }, "抽出チケット（卓の報酬）"),
-        h("div", { className: "ledger-ticket-grid" },
-          ["persona", "ego", "choice"].map((kind) => h("label", { key: kind, className: "ledger-ticket-field" },
-            h("span", null, ticketLabel(kind)),
-            h("input", { className: "ledger-input ledger-input--num", type: "number", min: "0",
-              "aria-label": ticketLabel(kind) + " の枚数",
-              value: String(Number(ticketDraft.tickets?.[kind]) || 0),
-              onChange: (event) => updateResultDraftTicket(kind, event.target.value) })
-          )),
-          packs.length > 0 && h("label", { className: "ledger-ticket-field" },
-            h("span", null, "特定抽出パック"),
-            h("select", { className: "select", "aria-label": "特定抽出パックの選択",
-              value: ticketPackPick || packs[0]?.name || "",
-              onChange: (event) => setTicketPackPick(event.target.value) },
-              packs.map((pack) => h("option", { key: pack.name, value: pack.name }, pack.name))
-            )
-          ),
-          packs.length > 0 && h("label", { className: "ledger-ticket-field" },
-            h("span", null, ticketLabel("pack", ticketPackPick || packs[0]?.name || "")),
-            h("input", { className: "ledger-input ledger-input--num", type: "number", min: "0",
-              "aria-label": ticketLabel("pack", ticketPackPick || packs[0]?.name || "") + " の枚数",
-              value: String(Number(ticketDraft.tickets?.pack?.[ticketPackPick || packs[0]?.name || ""]) || 0),
-              onChange: (event) => updateResultDraftPack(ticketPackPick || packs[0]?.name || "", event.target.value) })
           )
-        )
-      ),
-      h("div", { className: "ledger-result-edit-actions" },
-        h(Button, { size: "sm", variant: "ghost", onClick: cancelResultEditor }, "キャンセル"),
-        h(Button, { size: "sm", variant: "primary", icon: "check", onClick: () => saveResultEditor(result) }, "変更を保存")
-      )
-    )
         )
       })
     ),
