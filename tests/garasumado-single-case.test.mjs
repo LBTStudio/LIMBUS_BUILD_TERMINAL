@@ -135,7 +135,12 @@ test("選択した分だけ action になる", () => {
   /* シナリオは一つ一つがリザルト。帰属先が未決でも全てできる
      （帰属かに必要な的就是「シナリオ＝1リザルト」なので）。 */
   const results = actions.filter((a) => a.type === "ADD_RESULT");
-  assert.equal(actions.length - results.length, 1, "所持は選んだ1件だけ");
+  const held = actions.filter((a) => [
+    "ADD_ROSTER", "ADD_ROSTER_EGO", "ADD_ROSTER_SUPPORT", "ADD_ROSTER_SPIRIT", "ADD_ITEM_INVENTORY"
+  ].includes(a.type));
+  assert.equal(held.length, 1, "所持は選んだ1件だけ");
+  const enhancementImports = actions.filter((a) => a.type === "IMPORT_PERSONA_ENHANCEMENTS");
+  assert.ok(enhancementImports.length <= 1, "選んだ人格のビルド補助actionだけを生成する");
   assert.equal(results.length, (manifest.scenarios || []).length, "シナリオ1件ごとにリザルト1件できる");
   const none = G.toDispatchActions(manifest, []);
   assert.equal(none.actions.length, results.length, "所持を選ばなくてもシナリオ分のリザルトはできる");
