@@ -199,6 +199,79 @@ async function annotateAndSave(page, selector, fileBase, headline, detail) {
   return filename;
 }
 
+async function captureCompactResultDetails(page, mode) {
+  await page.evaluate(() => {
+    const accounts = window.LBT_accounts;
+    const accountId = accounts?.getActiveId?.();
+    const state = accounts?.loadActive?.();
+    if (!accountId || !state) throw new Error("Could not load disposable screenshot account");
+    const now = Date.now();
+    const resultId = "capture-result-compact";
+    const personaRecord = (window.DB?.normal_personas || []).find((entry) => String(entry.no) === "1")
+      || (window.DB?.normal_personas || [])[0];
+    const special = (window.DB?.special_enhancements || [])[0];
+    if (!personaRecord || !special?.name) throw new Error("Missing persona/special enhancement in DB");
+    const personaUid = "capture-persona-compact";
+    state.results = [{
+      id: resultId,
+      name: "第12回 セッション",
+      date: "2026-10-26",
+      income: { lp: 80, shards: 25, tickets: { persona: 0, ego: 0, choice: 0, pack: {} } },
+      note: "",
+      consumedItems: [{
+        id: "capture-consumed-glass-shard",
+        itemId: "resource-glass-shard",
+        itemName: "硝子の破片",
+        quantity: 1,
+        reason: "consumption",
+        consumedAt: now,
+        operationId: "capture-consumed-glass-shard"
+      }],
+      createdAt: now,
+      updatedAt: now
+    }];
+    state.entries = [
+      { id: "capture-entry-glass-shard", kind: "item", name: "硝子の破片", cost: { lp: 20, shards: 0 }, tickets: {}, resultId, ref: { kind: "inventory", uid: "capture-item-glass-shard" }, at: now, note: "" },
+      { id: "capture-entry-hp-bullet", kind: "item", name: "HP弾", cost: { lp: 20, shards: 0 }, tickets: {}, resultId, ref: { kind: "inventory", uid: "capture-item-hp-bullet" }, at: now + 1, note: "" },
+      { id: "capture-entry-persona", kind: "persona", name: String(personaRecord.name || "人格") + "（強化あり）", cost: { lp: 0, shards: 10 }, tickets: {}, resultId, ref: { kind: "rosterPersona", uid: personaUid }, at: now + 2, note: "" }
+    ];
+    state.roster = {
+      ...(state.roster || {}),
+      personas: [{
+        uid: personaUid, mode: "n", no: String(personaRecord.no), name: personaRecord.name, displayName: personaRecord.name,
+        build: { enhancements: [{
+          id: "capture-special-enhancement", group: String(special.group || ""), name: String(special.name),
+          effect: String(special.effect || ""), shards: Number(special.shards) || 0, category: String(special.category || "")
+        }] }
+      }],
+      egos: [], supports: [],
+      spirits: Array.isArray(state.roster?.spirits) ? state.roster.spirits : []
+    };
+    if (!accounts.saveActive(state, accountId)) throw new Error("Could not save disposable screenshot fixture");
+  });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForLoadState("networkidle", { timeout: 12000 }).catch(() => {});
+  await clickNav(page, "記録");
+  const card = page.locator(".ledger-card").filter({ hasText: "第12回 セッション" }).first();
+  await card.waitFor({ state: "visible", timeout: 12000 });
+  await card.locator(".ledger-result-details").first().locator("summary").click();
+  await card.locator(".ledger-result-object-row").first().waitFor({ state: "visible", timeout: 12000 });
+  const rows = await card.locator(".ledger-result-object-row").count();
+  if (rows !== 3) throw new Error("Expected 3 compact result rows, got " + rows);
+  await card.locator(".ledger-object-enhancement-label").filter({ hasText: "特殊強化：" }).first().waitFor({ state: "visible", timeout: 12000 });
+  const rendered = await card.innerText();
+  if (!rendered.includes("硝子の破片 ×1 · 消費") || rendered.includes("硝子の破片 ×1 · 現象処理")) {
+    throw new Error("Incorrect consumed item label in real UI: " + rendered);
+  }
+  await card.scrollIntoViewIfNeeded();
+  const filename = "result-details-compact-" + mode + ".png";
+  const screenshot = await card.screenshot({ animations: "disabled" });
+  fs.writeFileSync(path.join(OUT, filename.replace(/\.png$/, ".json")), JSON.stringify({
+    filename, contentType: "image/png", base64: screenshot.toString("base64")
+  }) + "\n", "utf8");
+  log("captured result card visual review " + filename);
+}
+
 async function captureViewport(browser, mode) {
   const isMobile = mode === "mobile";
   const context = await browser.newContext({
@@ -273,6 +346,19 @@ async function captureViewport(browser, mode) {
     const shareButton = page.locator(".utility-sheet-action").filter({ hasText: "共有シートを開く" }).first();
     await annotateAndSave(page, shareButton, "share-sheet-" + mode,
       "共有シートを開く", "操作・保存 → 人に見せるHTML");
+
+    // Capture the help index itself for visual QA. These review-only images go to
+    // the expiring CI Artifact, not into the 12 screenshots shown to end users.
+    await page.keyboard.press("Escape").catch(() => {});
+    await clickNav(page, "使い方");
+    await page.locator("#guide-search-input").waitFor({ state: "visible", timeout: 12000 });
+    await page.waitForTimeout(WAIT_MS);
+    const helpIndexFilename = path.join(OUT, "help-index-" + mode + ".png");
+    await page.screenshot({ path: helpIndexFilename, animations: "disabled", fullPage: false });
+    log("captured visual-review screen " + path.relative(ROOT, helpIndexFilename));
+
+    // Review result detail on the same isolated UI, desktop and mobile.
+    await captureCompactResultDetails(page, mode);
   } finally {
     await context.close();
   }
