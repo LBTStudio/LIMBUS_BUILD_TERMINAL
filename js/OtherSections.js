@@ -2004,10 +2004,13 @@ function resolveAcquireCost(kind, how, context) {
      state.js priceItemById と同じ ID 参照・同じ数字の抜き出し方で引く。
      表示が無料のまま請求だけ走ると、押しても何も起きない詐欺手感になる。 */
   if (kind === "item") {
-    const hit = (window.DB?.items || []).find((i) => (context.id ? i.id === context.id : i.name === context.name));
-    const matched = String(hit?.price || "").match(/\d+/);
-    const lp = matched ? Number.parseInt(matched[0], 10) || 0 : 0;
-    return { lp, shards: 0, label: formatAcquireCost(lp, 0) };
+    const definitions = [...(window.DB?.items || []), ...(window.DB?.specialItems || [])];
+    const hit = definitions.find((item) => (context.id ? item.id === context.id : item.name === context.name));
+    const rawPrice = context?.price !== undefined ? context.price : hit?.price;
+    const parsedPrice = window.LBT_parsePriceText?.(rawPrice);
+    const lp = Number(parsedPrice?.lp) || 0;
+    const shards = Number(parsedPrice?.shards) || 0;
+    return { ...(parsedPrice || {}), lp, shards, label: formatAcquireCost(lp, shards) };
   }
   const price = db ? db(context.name, kind, window.DB) : null;
   if (!price) return { lp: 0, shards: 0, label: "無料" };
@@ -2548,7 +2551,11 @@ const ShopSection = ({ state, dispatch }) => {
   const ownedEgoKeys = React.useMemo(() => new Set((state.roster?.egos || []).map((e) => `${e.rank}:${e.no}`)), [state.roster?.egos]);
   const ownedItemIds = React.useMemo(() => new Set(inventory.map((entry) => entry.itemId)), [inventory]);
   const ownedSpiritNames = React.useMemo(() => new Set((state.roster?.spirits || []).map((s) => s.name)), [state.roster?.spirits]);
-  const catalogItems = React.useMemo(() => [...(window.DB?.items || []), ...(Array.isArray(state.customItems) ? state.customItems : [])], [state.customItems]);
+  const catalogItems = React.useMemo(() => [
+    ...(window.DB?.items || []),
+    ...(window.DB?.specialItems || []),
+    ...(Array.isArray(state.customItems) ? state.customItems : [])
+  ], [state.customItems]);
   const itemCategories = React.useMemo(() => [...new Set(catalogItems.map((item) => String(item?.category || "その他")))], [catalogItems]);
 
   const maxOwnedOf = (itemId) => window.LBT_getItemMaxOwned?.(state, itemId) || 99;
@@ -2594,7 +2601,14 @@ const shopCardLines = (kind, entry) => {
 const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned, headExtra, body, costText, topRow) => {
   /* アイテムは同名の公式・自作が共存できるので、価格は名前ではなく
      key（= item.id）で引く。state.js priceItemById と同じ参照。 */
-  const price = resolveAcquireCost(kind, "purchase", { name, id: key });
+  const itemDefinition = kind === "item"
+    ? [
+      ...(window.DB?.items || []),
+      ...(window.DB?.specialItems || []),
+      ...(Array.isArray(state.customItems) ? state.customItems : [])
+    ].find((item) => item?.id === key)
+    : null;
+  const price = resolveAcquireCost(kind, "purchase", { name, id: key, price: itemDefinition?.price });
   /* 残高が足りなければ購入しない。ただし黙って無効化するのではなく、
      押した瞬間に理由を伝える（購入の可否は利用者が判断する）。 */
   const afford = window.LBT_purchaseAffordability
