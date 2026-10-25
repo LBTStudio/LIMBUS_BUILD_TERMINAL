@@ -1289,4 +1289,8 @@ test("リザルトの消耗表示は一般のアイテム減少を『消費』�
   assert.doesNotMatch(itemCodex, /phenomenon_processing|現象処理で消費/);
   assert.match(reducer, /reason === "phenomenon_processing" \? "consumption"/);
   assert.match(reducer, /reason: String\(action\.reason \|\| "consumption"\)/);
+  const resultCss = read("../assets/v67-persona-redesign.css");
+  assert.match(resultCss, /\.ledger-card \.ledger-result-object-row\s*\{[^}]*minmax\(0, 1fr\)/s);
+  assert.match(resultCss, /\.ledger-card \.ledger-result-object-row \.ledger-row-name\s*\{[^}]*overflow-wrap: anywhere/s);
+  assert.match(sections, /className: "ledger-object-enhancement-details"/);
 });
