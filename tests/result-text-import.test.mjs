@@ -359,6 +359,7 @@ test("旧ログの注記に混ざったDB上の人格名を照合し、所持済
   assert.equal(additions.length, 1, "未所持の人格だけを追加候補へ");
   assert.equal(additions[0].mode, "n");
   assert.equal(additions[0].no, 53);
+  assert.equal(additions[0].skipInitialTicketConsumption, true, "過去の履歴取込で現在の抽出チケットを消費しない");
   assert.equal(plan.actions.filter((action) => action.type === "ADD_RESULT").length, 2);
 });
 
@@ -377,7 +378,7 @@ test("略称などの曖昧な行は候補表示だけにして、選ばれる�
   const resolved = T.plan(parsed, {
     resolve: resolvePersonaLine,
     suggestPersona,
-    identityResolved: { "0:1": "東部センク協会3課フィクサー" }
+    identityResolved: { "0:0": "東部センク協会3課フィクサー" }
   });
   assert.equal(resolved.identities[0].name, "東部センク協会3課フィクサー");
   assert.equal(resolved.actions.filter((action) => action.type === "ADD_ROSTER").length, 1);
