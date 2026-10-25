@@ -140,7 +140,7 @@ const GuideUiLocator = ({ kind }) => {
       h("p", { className: "guide-ui-locator-secondary-title" }, item.secondaryTitle),
       imageLink(item.secondaryImage, item.secondaryMobileImage, item.secondaryAlt || item.secondaryTitle, item.secondaryTitle)
     ) : null,
-    h("p", { className: "guide-ui-locator-note" }, item.note)
+    h("p", { className: "guide-ui-locator-note" }, item.note + " 画像をクリック／タップすると拡大できます。")
   );
 };
 
@@ -215,11 +215,12 @@ const GuideFlowDiagram = ({ kind }) => {
 const HelpSection = ({ onNavigate, onOpenUtilities }) => {
   const h = React.createElement;
   const [query, setQuery] = React.useState("");
-  const [category, setCategory] = React.useState("frequent");
+  const [category, setCategory] = React.useState("start");
   const [expandedKey, setExpandedKey] = React.useState("");
   const openAccounts = () => window.dispatchEvent(new Event("lbt:open-accounts"));
   const go = (section, ui) => onNavigate?.(section, ui || {});
   const categories = [
+    { key: "start", label: "はじめて" },
     { key: "frequent", label: "よく使う" },
     { key: "imports", label: "取り込み" },
     { key: "accounts", label: "アカウント" },
@@ -229,6 +230,14 @@ const HelpSection = ({ onNavigate, onOpenUtilities }) => {
     { key: "operation", label: "検索・操作" },
     { key: "all", label: "すべて" }
   ];
+  const starterOrder = [
+    "キャラクター（アカウント）を選ぶ・作る",
+    "駒整形で基本情報を設定する",
+    "人格を装備する",
+    "プレビューとJSON出力を確認する",
+    "作業状態を保存・復元する"
+  ];
+  const starterItems = new Set(starterOrder);
   const frequentItems = new Set([
     "人格データを文章から取り込む",
     "リザルト／購入履歴を文章から取り込む",
@@ -250,6 +259,7 @@ const HelpSection = ({ onNavigate, onOpenUtilities }) => {
   const effectiveCategory = category;
   const filteredItems = HELP_ITEMS.filter((item) => {
     const categoryMatch = effectiveCategory === "all"
+      || (effectiveCategory === "start" && starterItems.has(item.title))
       || (effectiveCategory === "frequent" && frequentItems.has(item.title))
       || (categoryGroups[effectiveCategory] || []).includes(item.group);
     if (!categoryMatch) return false;
@@ -257,6 +267,9 @@ const HelpSection = ({ onNavigate, onOpenUtilities }) => {
     const haystack = (item.title + " " + item.body + " " + (groupLabels[item.group] || "")).toLocaleLowerCase("ja");
     return queryTerms.every((term) => haystack.includes(term));
   }).sort((a, b) => {
+    if (!queryTerms.length && effectiveCategory === "start") {
+      return starterOrder.indexOf(a.title) - starterOrder.indexOf(b.title);
+    }
     if (!queryTerms.length) return 0;
     const aRank = queryTerms.some((term) => a.title.toLocaleLowerCase("ja").includes(term)) ? 0 : 1;
     const bRank = queryTerms.some((term) => b.title.toLocaleLowerCase("ja").includes(term)) ? 0 : 1;
@@ -318,7 +331,7 @@ const HelpSection = ({ onNavigate, onOpenUtilities }) => {
       }),
       query ? h("button", {
         type: "button", className: "guide-search-clear",
-        onClick: () => { setQuery(""); setCategory("frequent"); setExpandedKey(""); },
+        onClick: () => { setQuery(""); setCategory("start"); setExpandedKey(""); },
         "aria-label": "検索をクリア", title: "検索をクリア"
       }, h(Icon, { name: "x", size: 15 })) : null
     ),
