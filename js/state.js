@@ -1681,13 +1681,16 @@ function normalizeStateShape(raw) {
   if (!Array.isArray(next.gachaLog)) next.gachaLog = [];
   if (!Array.isArray(next.supports)) next.supports = [];
   if (next.deathSupport === void 0) next.deathSupport = null;
-  if (!next.deathSupport && Array.isArray(next.supports)) {
-    const idx = next.supports.findIndex((s) => isDeathSupportPassiveRecord(s));
-    if (idx >= 0) {
-      const moved = next.supports[idx];
-      next.supports = next.supports.filter((_, i) => i !== idx);
+  // Older saves could contain more than one death-only passive in the normal
+  // build array. Keep one selection for the single death slot, but preserve all
+  // discovered entries in the owned roster as unequipped alternatives.
+  const legacyDeathSupportRows = next.supports.filter((s) => isDeathSupportPassiveRecord(s));
+  if (legacyDeathSupportRows.length) {
+    if (!next.deathSupport) {
+      const moved = legacyDeathSupportRows[0];
       next.deathSupport = { ...moved, id: moved.id || `sppd-${Date.now()}` };
     }
+    next.supports = next.supports.filter((s) => !isDeathSupportPassiveRecord(s));
   }
   if (!next.ui) next.ui = {};
   if (!next.ui.previewCollapsed) next.ui.previewCollapsed = {};
@@ -1852,7 +1855,12 @@ function normalizeStateShape(raw) {
      ここで落とすと spell 取り中のサポパ・精神が消えるため、無条件に保全する。 */
   const deathPassiveNames = Array.isArray(window.DB?.death_passives) ? window.DB.death_passives.map((d) => d?.name) : [];
   const seenSupport = new Set(next.roster.supports.map((s) => s.name));
-  for (const entry of Array.isArray(next.supports) ? next.supports : []) {
+  const legacySupportRows = [
+    ...(Array.isArray(next.supports) ? next.supports : []),
+    ...legacyDeathSupportRows
+  ];
+  const selectedDeathName = String(next.deathSupport?.name || "").trim();
+  for (const entry of legacySupportRows) {
     if (!entry?.name || seenSupport.has(entry.name)) continue;
     seenSupport.add(entry.name);
     const isDeath = deathPassiveNames.includes(entry.name);
@@ -1863,7 +1871,7 @@ function normalizeStateShape(raw) {
       effect: String(entry.effect || ""),
       lp: String(entry.lp || ""),
       slot: isDeath ? "death" : "normal",
-      equipped: true,
+      equipped: !isDeath || String(entry.name).trim() === selectedDeathName,
       resultId: null,
       addedAt: Date.now(),
       notes: ""
@@ -1884,6 +1892,18 @@ function normalizeStateShape(raw) {
       resultId: null,
       addedAt: Date.now(),
       notes: ""
+    });
+  }
+  // Multiple legacy death-only rows must not remain equipped together. Existing
+  // roster records are kept, but any row from this legacy normal-slot list other
+  // than the selected death passive is normalized to an unequipped death option.
+  if (legacyDeathSupportRows.length) {
+    const migratedDeathNames = new Set(legacyDeathSupportRows.map((entry) => String(entry?.name || "").trim()).filter(Boolean));
+    const selectedName = String(next.deathSupport?.name || "").trim();
+    next.roster.supports = next.roster.supports.map((entry) => {
+      const name = String(entry?.name || "").trim();
+      if (!migratedDeathNames.has(name) || name === selectedName) return entry;
+      return { ...entry, slot: "death", equipped: false };
     });
   }
   // In legacy saves, a selected deathSupport may already have a matching roster row

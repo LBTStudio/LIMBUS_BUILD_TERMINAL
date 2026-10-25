@@ -522,6 +522,42 @@ test("正規化後も手動指定の死亡後枠を保持し、通常装備の�
   assert.equal(reprojected.deathSupport?.name, manualDeath.name);
 });
 
+test("旧通常サポート配列に死亡後専用パッシブが複数あっても通常枠へ漏らさず、1件だけを装備する", () => {
+  const [first, second] = db.death_passives.slice(0, 2);
+  assert.ok(first && second && first.name !== second.name, "異なる死亡後専用パッシブを用意");
+
+  const normalized = w.LBT_normalizeStateShape({
+    ...base(),
+    supports: [
+      { id: "legacy-death-first", name: first.name, cond: "first condition", effect: "first effect" },
+      { id: "legacy-death-second", name: second.name, cond: "second condition", effect: "second effect" },
+      { id: "legacy-normal-support", name: PASSIVE, cond: "", effect: "normal effect" }
+    ],
+    deathSupport: null,
+    roster: {
+      personas: [],
+      egos: [],
+      supports: [{ uid: "legacy-death-second", name: second.name, slot: "normal", equipped: true, cond: "second condition", effect: "second effect" }],
+      spirits: []
+    }
+  });
+
+  assert.equal(normalized.supports.some((entry) => db.death_passives.some((death) => death.name === entry.name)), false,
+    "死亡後専用パッシブを通常ビルドの配列に残さない");
+  assert.deepEqual(normalized.supports.map((entry) => entry.name), [PASSIVE]);
+  assert.equal(normalized.deathSupport?.name, first.name, "先頭の旧装備を選択として保持");
+
+  const ownedFirst = normalized.roster.supports.find((entry) => entry.uid === "legacy-death-first");
+  const ownedSecond = normalized.roster.supports.find((entry) => entry.uid === "legacy-death-second");
+  assert.equal(ownedFirst?.slot, "death");
+  assert.equal(ownedFirst?.equipped, true);
+  assert.equal(ownedFirst?.effect, "first effect");
+  assert.equal(ownedSecond?.slot, "death", "古い通常slotラベルも死亡後枠へ正規化");
+  assert.equal(ownedSecond?.equipped, false, "2件目は所持に残し、装備枠の重複を防ぐ");
+  assert.equal(normalized.roster.supports.filter((entry) => entry.slot === "death" && entry.equipped).length, 1,
+    "死亡後枠の装備済み行は1件だけ");
+});
+
 test("旧形式のdeathSupportは、新規・既存の所持行どちらでもカスタム死亡後枠へ移行する", () => {
   const deathSupport = {
     id: "legacy-manual-death",
