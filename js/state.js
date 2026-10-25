@@ -4168,6 +4168,42 @@ function appReducer(state, action) {
         ref: { kind: "rosterPersona", uid }
       });
     }
+    /* 硝子窓から取得した人格別の強化を、購入明細を増やさず保存する。
+       共有文書に記録済みの所持は購入操作ではないので ADD_ENHANCEMENT を使わない。
+       アクティブ人格なら画面上の選択と人格切替時の復元ビルドを同時に更新する。 */
+    case "IMPORT_PERSONA_ENHANCEMENTS": {
+      const mode = String(action.mode || "n");
+      const no = String(action.no ?? "");
+      if (!no || !Array.isArray(action.enhancements)) return state;
+      const personasBefore = Array.isArray(state.roster?.personas) ? state.roster.personas : [];
+      const targetIndex = personasBefore.findIndex((entry) => entry.mode === mode && String(entry.no) === no);
+      if (targetIndex < 0) return state;
+      const imported = action.enhancements
+        .filter((entry) => entry && typeof entry === "object" && String(entry.name || "").trim())
+        .map((entry) => ({
+          id: makeOwnedUid("enh"),
+          group: String(entry.group || ""),
+          name: String(entry.name || "").trim().slice(0, 120),
+          effect: String(entry.effect || ""),
+          shards: Number.isSafeInteger(Number(entry.shards)) && Number(entry.shards) >= 0 ? Number(entry.shards) : 0,
+          category: String(entry.category || "")
+        }));
+      const active = state.personaMode != null && String(state.personaMode) === mode
+        && state.personaNo != null && String(state.personaNo) === no;
+      const existing = personasBefore[targetIndex];
+      const activeBuild = active ? createPersonaBuildSnapshot(state) : null;
+      const savedBuild = existing.build && typeof existing.build === "object" && !Array.isArray(existing.build)
+        ? existing.build : {};
+      const build = { ...(activeBuild || savedBuild), enhancements: cloneJSON(imported) };
+      const personas = personasBefore.map((entry, index) =>
+        index === targetIndex ? { ...entry, build } : entry
+      );
+      return {
+        ...state,
+        roster: { ...state.roster, personas },
+        ...(active ? { enhancements: cloneJSON(imported) } : {})
+      };
+    }
     /* 同期化・解析・そのMAX（supplement P7/P23）。人格・E.G.O の「-sync/analyze 済み」
        フラグを立てるだけで済ませると、規則が定めた自我の欠片が帳から消える。
        ここを通すので、欠片は直近リザルトの明細として落ち、収入から引かれる。
