@@ -17,3 +17,25 @@ test("リザルトの折りたたみ詳細は長い文字列をカード内で�
   assert.match(resultCss, /\.ledger-result-summary\s*\{[^}]*overflow-wrap:\s*anywhere/s);
   assert.match(resultCss, /\.ledger-detail-group\s*\{[^}]*min-width:\s*0/s);
 });
+
+
+test("リザルト明細はマーカー・種別・数量・コストを横並びにし、操作を初期表示から退避する", () => {
+  assert.match(sections, /className: "ledger-result-object-list"/);
+  assert.match(sections, /className: "ledger-result-object-marker"[\s\S]{0,100}"−"/);
+  assert.match(sections, /className: "ledger-result-object-quantity"/);
+  assert.match(sections, /className: "ledger-result-object-actions"/);
+  assert.match(sections, /className: "ledger-result-object-action-menu"/);
+  assert.match(resultCss, /\.ledger-card \.ledger-result-object-row\s*\{[^}]*grid-template-columns:[^}]*minmax/s);
+  assert.match(resultCss, /\.ledger-result-object-action-menu\s*\{[^}]*position:\s*absolute/s);
+});
+
+test("人格に登録された特殊強化だけを直下へ表示し、効果文は操作時に展開する", () => {
+  assert.match(sections, /entry\.ref\?\.kind === "rosterPersona"/);
+  assert.match(sections, /owner\?\.build\?\.enhancements/);
+  assert.match(sections, /window\.DB\?\.special_enhancements/);
+  assert.match(sections, /className: "ledger-object-enhancements"/);
+  assert.match(sections, /"特殊強化：" \+ name/);
+  assert.match(sections, /className: "ledger-object-enhancement-details"/);
+  assert.match(sections, /h\("summary", null, "効果を表示"\)/);
+  assert.match(resultCss, /\.ledger-object-enhancements\s*\{[^}]*flex-direction:\s*column/s);
+});
