@@ -305,17 +305,21 @@ test("ビルドのアイテムタブは持っていく個数と出力先を選�
   assert.match(panel, /"badge inv-origin is-initial" \}, "初期枠"/);
 });
 
-test("ショップは未所持のみを既定で出し、価格付き特殊アイテムは再購入できる", () => {
+test("ショップの消耗品カタログは所持状況に依存せず、在庫上限を守る", () => {
   const shop = sections.slice(sections.indexOf("const ShopSection ="), sections.indexOf("const BuildWorkspace ="));
   assert.match(shop, /const ShopSection = \(\{ state, dispatch \}\) => \{/);
   /* 既定は未所持のみ。所持済み表示は明示トグル。 */
   assert.match(shop, /const \[unownedOnly, setUnownedOnly\] = React\.useState\(true\);/);
   assert.match(shop, /\(!unownedOnly \|\| !ownedSupportNames\.has\(entry\.name\)\)/);
   assert.match(shop, /\(!unownedOnly \|\| !ownedEgoKeys\.has\(`\$\{ego\.rank\}:\$\{ego\.no\}`\)\)/);
-  assert.match(shop, /\(!unownedOnly \|\| !ownedItemIds\.has\(item\.id\) \|\| canRepurchaseSpecial\(item\)\)/);
-  assert.match(shop, /const canRepurchaseSpecial = \(item\) => item\?\.specialResource === true/);
-  assert.match(shop, /const repeatPurchase = canRepurchaseSpecial\(item\)/);
-  assert.match(shop, /unownedOnly \? "所持も表示" : "未所持のみ"/);
+  /* アイテム商品は購入・消費・在庫0に関係なくカタログに残す。 */
+  assert.match(shop, /const items = catalogItems\.filter\(\(item\) =>\s*\(categoryFilter/);
+  assert.doesNotMatch(shop.match(/const items = catalogItems\.filter\(\(item\) =>([\s\S]*?)\);/)?.[1] || "", /unownedOnly|ownedItemIds/);
+  assert.match(shop, /const canRepurchaseItem = \(item\) => item\?\.ledgerResource !== "shards" && hasConfiguredPrice\(item\)/);
+  assert.match(shop, /const repeatPurchase = canRepurchaseItem\(item\)/);
+  assert.match(shop, /repeatPurchase && ownedEntry/);
+  assert.match(shop, /購入済みでも商品は一覧に残ります/);
+  assert.match(shop, /tab !== "item" \? h\(Button/);
   /* トグルは状態を aria-pressed で公開し、フィルタに主ボタンを使わない。 */
   assert.match(shop, /"aria-pressed": unownedOnly/);
   assert.doesNotMatch(shop, /variant: unownedOnly \? "primary"/);
@@ -346,7 +350,7 @@ test("ショップは未所持のみを既定で出し、価格付き特殊ア�
   assert.match(shop, /dispatch\(\{ type: "ADD_ROSTER_SUPPORT", spp: entry \}\);/);
   assert.match(shop, /dispatch\(\{ type: "ADD_ROSTER_EGO", rank: ego\.rank, no: ego\.no, purchase: true \}\);/);
   assert.match(shop, /dispatch\(\{ type: "ADD_ROSTER_SPIRIT", spirit: sp \}\);/);
-  assert.match(shop, /dispatch\(\{ type: "ADD_ITEM", itemId: item\.id \}\);/);
+  assert.match(shop, /dispatch\(\{ type: "ADD_ITEM", itemId: item\.id, purchase: true \}\);/);
   /* 所持上限に達したアイテムは購入できない。 */
   assert.match(shop, /card\(item\.id, item\.name, item\.category \|\| "その他", "item",[\s\S]{0,200}?atCap\(item\), "所持上限に達しています"/);
 /* 4種別のタブ + ガチャ（抽出チケット）。 */
@@ -604,7 +608,8 @@ test("購入は最新リザルトへ直接入り、残高が足りなければ�
   assert.match(reducer, /const shardsOk = want\.shards <= 0 \|\| balance\.shards >= want\.shards;/);
   assert.match(reducer, /const ok = !tracked \|\| \(lpOk && shardsOk\);/);
   /* 残高不足は「买えない」ことだけ静かに示し、理由は押した瞬間に toast で伝える。 */
-  assert.match(shop, /"data-blocked": blocked \? "1" : null/);
+  assert.match(shop, /"data-blocked": blocked \|\| capped \? "1" : null/);
+  assert.match(shop, /disabled: capped/);
   assert.doesNotMatch(shop, /className: "shop-card-blocked"/);
   assert.match(shop, /onClick: blocked \? \(\) => toast\(blockReason, "assertive"\) : onAcquire/);
   /* ビルド側と同じ資源・キーワード絞り込みを使う。 */
