@@ -4548,6 +4548,7 @@ const importHeldPersonas = () => {
             value: textDraft,
             onChange: (e) => {
               setTextDraft(e.target.value);
+              setTextExcluded(new Set());
               setTextIdentityExcluded(new Set());
               setTextIdentityResolved({});
             }
@@ -4608,11 +4609,12 @@ const importHeldPersonas = () => {
           rec.spends.map((spend, si) => h("label", { key: `sp-${ri}-${si}`, className: "chip is-sm" },
             h("input", {
               type: "checkbox",
-              checked: !spend.needsDecision && !textExcluded.has(si),
+              checked: !spend.needsDecision && !textExcluded.has(`${ri}:${si}`),
               disabled: Boolean(spend.needsDecision),
               onChange: (e) => setTextExcluded((prev) => {
                 const next = new Set(prev);
-                if (e.target.checked) next.delete(si); else next.add(si);
+                const exclusionKey = `${ri}:${si}`;
+                if (e.target.checked) next.delete(exclusionKey); else next.add(exclusionKey);
                 return next;
               })
             }),
