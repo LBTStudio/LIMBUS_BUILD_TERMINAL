@@ -113,8 +113,30 @@ test("購入扱いでも購入額がない人格取り込みは0LPの購入明�
   const rosterAction = generated.actions.find((action) => action.type === "ADD_ROSTER");
   assert.ok(rosterAction, "人格の所持登録は行う");
   assert.equal(rosterAction.source, "buy", "購入という入手方法は保持する");
-  assert.equal(rosterAction.purchase, false, "金額未指定で購入課帳の0LP明細を作らない");
+  assert.equal(rosterAction.purchase, true, "購入方法は購入 action として渡す");
+  assert.equal(Object.hasOwn(rosterAction, "cost"), false, "価格を0で偽装せず reducer に解決させる");
   const after = w.appReducer(baseState(), { type: "APPLY_IMPORT_BATCH", actions: generated.actions });
   assert.equal(after.roster.personas.length, 1, "人格は所持へ入る");
-  assert.equal(after.entries.length, 0, "0LPの架空購入明細は残らない");
+  assert.equal(after.entries.length, 1, "価格が解決された購入明細が1件だけ残る");
+  assert.equal(after.entries[0].cost.lp, 20, "未所持からの購入額はルールの20LP");
+  assert.equal(after.entries[0].cost.shards, 0, "人格購入に欠片は要求しない");
+});
+
+test("人格購入は所持状態に応じて20LPまたは200LPを記帳する", () => {
+  const w = load();
+  const firstState = baseState();
+  const first = w.appReducer(firstState, {
+    type: "ADD_ROSTER", no: "2", mode: "n", purchase: true
+  });
+  assert.equal(first.entries.length, 1);
+  assert.equal(first.entries[0].cost.lp, 20, "人格未所持なら20LP");
+  const alreadyOwns = {
+    ...baseState(),
+    roster: { personas: [{ uid: "pr-existing", no: "1", mode: "n" }], egos: [], supports: [], spirits: [] }
+  };
+  const second = w.appReducer(alreadyOwns, {
+    type: "ADD_ROSTER", no: "2", mode: "n", purchase: true
+  });
+  assert.equal(second.entries.length, 1);
+  assert.equal(second.entries[0].cost.lp, 200, "既に人格を所持していれば200LP");
 });
