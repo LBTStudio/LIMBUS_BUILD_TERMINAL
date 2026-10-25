@@ -81,7 +81,7 @@ test("アカウント選択ゲートと管理画面の双方に保全UIを提供
 
 test("復旧キーの再発行は以前のキーを明示的に無効化し、保全データを上書きしない", () => {
   assert.match(client, /async function rotateRecoveryKey\(\)/);
-  assert.match(client, /古いキーは無効になり/);
+  assert.match(client, /以前の復旧キーは無効になり/);
   assert.match(client, /action: "rotate_recovery"/);
   assert.match(client, /const payload = hasExistingCloud \? existing\.payload : localPayload/);
   assert.match(recovery, /if \(action === "rotate_recovery"\)/);
