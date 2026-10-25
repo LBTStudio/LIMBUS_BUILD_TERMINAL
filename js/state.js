@@ -1487,7 +1487,7 @@ function sanitizeStateCollections(raw) {
   return next;
 }
 
-/* Imported/legacy Persona rows must have a unique mutation key. Without one,
+/* Legacy custom Personas and imported/legacy Persona rows must have a unique mutation key. Without one,
    an APPLY_PERSONA_SYNC action can update every row sharing the same UID. Keep the
    first owner of an existing UID so historical ledger references stay attached to it;
    give missing/duplicate IDs a deterministic replacement. Custom source.no=999 is a
@@ -5698,13 +5698,15 @@ case "ADD_ENTRY":
       if (!src || !src.__custom) return state;
       // Individual legacy imports may start from a roster row without a stable UID.
       // Normalize before resolving affiliation so the new build and sync charge share one exact target.
-      state = {
-        ...state,
-        roster: {
-          ...(state.roster || {}),
-          personas: normalizeCustomPersonaRosterIdentity(state.roster?.personas || [])
-        }
-      };
+      if (typeof normalizeCustomPersonaRosterIdentity === "function") {
+        state = {
+          ...state,
+          roster: {
+            ...(state.roster || {}),
+            personas: normalizeCustomPersonaRosterIdentity(state.roster?.personas || [])
+          }
+        };
+      }
       const affiliation = action.affiliation || null;
       const affiliatedMode = affiliation?.mode === "n" || affiliation?.mode === "t" ? affiliation.mode : null;
       const affiliatedNo = affiliatedMode ? affiliation?.no : null;
