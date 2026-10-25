@@ -806,9 +806,14 @@ const PersonaCodex = ({ state, dispatch, ownedOnly = false }) => {
     const blocked = acquireHow === "purchase" ? personaPurchaseBlocked(persona, personaMode) : null;
     if (blocked) { toast(blocked, "assertive"); return; }
     const cost = resolveAcquireCost("persona", acquireHow, { name: persona.name, ownsPersona: (state.roster?.personas || []).length > 0 });
-    /* reducer は残高不足なら state を変更せず return するため、成功通知の前に同条件を確認する。 */
+    /* reducer は残高不足なら state を変更せず return する。費用判定そのものが
+       読み込まれていない場合も成功通知や取得処理に進めず、安全側へ倒す。 */
     const affordability = window.LBT_purchaseAffordability?.(state, cost);
-    if (affordability && !affordability.ok) {
+    if (!affordability) {
+      toast("取得費用を検証できません。ページを再読み込みしてください", "assertive");
+      return;
+    }
+    if (!affordability.ok) {
       toast(affordability.reason || "残高が不足しています", "assertive");
       return;
     }

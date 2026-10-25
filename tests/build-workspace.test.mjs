@@ -1276,3 +1276,14 @@ test("この検査は影があると実際に落ちる（空振りしないこ�
   assert.ok(!shadowedModuleHelpers(withoutShadow).map((o) => o.name).includes("catalogSource"), "影がなければ検出しない");
   assert.deepEqual(shadowedModuleHelpers(localOnly), [], "コンポーネント内ローカルの重複は対象外");
 });
+
+
+test("人格の取得は費用判定が失敗・残高不足のとき成功通知を出さない", () => {
+  const codex = read("../js/PersonaCodex.js");
+  const acquire = codex.slice(codex.indexOf("const acquirePersona ="), codex.indexOf("const { ui, personaMode"));
+  const addRoster = codex.slice(codex.indexOf("const addRoster ="), codex.indexOf("const unequip ="));
+  assert.match(acquire, /const affordability = window\.LBT_purchaseAffordability\?\.\(state, cost\)/);
+  assert.match(acquire, /if \(!affordability\) \{[\s\S]{0,160}?return;/);
+  assert.match(acquire, /if \(!affordability\.ok\) \{[\s\S]{0,120}?affordability\.reason/);
+  assert.match(addRoster, /acquirePersona\(p, m, "所持リストへ追加"\)/);
+});

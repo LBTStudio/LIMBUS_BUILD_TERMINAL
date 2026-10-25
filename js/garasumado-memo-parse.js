@@ -346,7 +346,8 @@
      通貨名は漢字を含むので、判定前に取り除く。
      （さreon「欠片」だけの行を名前と誤判定して通過させない） */
   function isTotalOnlyLine(line) {
-    var t = String(line).replace(/現在|残/g, "").trim();
+    /* 明示ラベルを剥がしてから名前として検査する。 */
+    var t = String(explicitRewardNameOf(line) || line).replace(/現在|残/g, "").trim();
     /* 通貨名だけ刈り取ったあと、漢字/ラテンが残るか見る。 */
     var stripped = t.replace(/LP|欠片|かけら|欠けら|カケラ/gi, " ").trim();
     if (/[A-Za-zぁ-んァ-ヶ一-龠]/.test(stripped)) return false;
@@ -358,6 +359,15 @@
      通貨も数値もないので、獲得した人格/E.G.O の名前である。
      DB 照合は呼び出し側（buildManifest）で行う。ここでは
      「名前候補である」と分かる行だけ，洗い出す。 */
+  /* 明示された報酬ラベルを優先して名前部分だけを照合へ渡す。
+     一般の箇条書きや参加者名を報酬と推測する条件は広げない。 */
+  function explicitRewardNameOf(line) {
+    var t = String(line || "").trim().replace(/^[・･]\s*/, "");
+    var match = t.match(/^(?:(?:シナリオ|基本|追加|クリア)?報酬)\s*[：:]\s*(.+)$/);
+    if (!match) return "";
+    return match[1].trim().replace(/^[「『]/, "").replace(/[」』]$/, "").trim();
+  }
+
   function isAcquisitionNameLine(line) {
     var t = String(line).replace(/現在|残/g, "").trim();
     if (!t) return false;
