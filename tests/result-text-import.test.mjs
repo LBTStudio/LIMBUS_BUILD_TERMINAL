@@ -561,3 +561,27 @@ test("読み込んだ行と理由は読者に同じ文で出す（型の取り�
     assert.ok(reason.includes('"不明"'), `${reason} は最後の値がある`);
   }
 });
+
+test("支出の除外はリザルトごとに独立し、同じ行番号の別シナリオを消さない", () => {
+  const parsed = T.parseText([
+    "【シナリオA】",
+    "購入｜道具A(10LP)",
+    "",
+    "【シナリオB】",
+    "購入｜道具B(20LP)"
+  ].join("\n"));
+  assert.equal(parsed.records.length, 2);
+  const plan = T.plan(parsed, { excluded: new Set(["0:0"]) });
+  assert.deepEqual(
+    [...plan.actions.filter((action) => action.type === "ADD_ENTRY")].map((action) => [action.name, action.cost.lp]),
+    [["道具B", 20]]
+  );
+  assert.equal(plan.actions.filter((action) => action.type === "ADD_RESULT").length, 2);
+});
+
+test("欠けら表記の価格も欠片として取り込む", () => {
+  const parsed = T.parseText("【シナリオA】\n購入｜道具(50欠けら)");
+  const spend = parsed.records[0].spends[0];
+  assert.equal(Boolean(spend.needsDecision), false);
+  assert.deepEqual(costOf(spend), { lp: 0, shards: 50 });
+});
