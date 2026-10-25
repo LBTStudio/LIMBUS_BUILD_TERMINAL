@@ -861,9 +861,9 @@
         var isRemainderOnly = !hasVerb && !endsToHe;
 
         if (isRemainderOnly) {
-          /* 残額だけの行。通貨名が無ければ純粋な残WRITE。
-             通貨名があれば「130LP を使った」という読みできるので、
-             金額として拾う（Foobar　現在130LP → LP 130）。 */
+          /* 「現在130LP」「残り42欠片」は支出額ではなく、支払後の残高。
+             動詞のない現在・残り表記は支出として計上しない。 */
+          if (/(?:現在[：:]?\\s*(?:(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ)\\s*)?-?\\d|残り\\s*-?\\d)/i.test(line)) continue;
           if (!/(LP|欠片|かけら|欠けら|カケラ)/i.test(normalizeAmountText(line))) continue;
         }
 
