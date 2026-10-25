@@ -1271,8 +1271,12 @@ function equipRosterSupport(state, uid) {
   return { ...state, roster: nextRoster, ...projectEquipmentFromRoster(nextRoster) };
 }
 function projectEquipmentFromRoster(roster) {
-  const supports = (roster?.supports || []).filter((s) => s.equipped && s.slot !== "death");
-  const deathSupport = (roster?.supports || []).find((s) => s.equipped && s.slot === "death") || null;
+  // The canonical death-passive catalogue wins over stale slot labels, including
+  // values modified in-place by an edit action between save/normalize cycles.
+  const supports = (roster?.supports || []).filter((s) => s.equipped
+    && s.slot !== "death" && !isDeathSupportPassiveRecord(s));
+  const deathSupport = (roster?.supports || []).find((s) => s.equipped
+    && (s.slot === "death" || isDeathSupportPassiveRecord(s))) || null;
   const spiritEntry = (roster?.spirits || []).find((s) => s.equipped) || null;
   const spiritName = spiritEntry?.name || "";
   const dbSpirit = (window.DB?.spirits || []).find((s) => s.name === spiritName) || null;
@@ -4692,7 +4696,40 @@ case "ADD_CUSTOM_ITEM": {
       const list = roster.supports || [];
       const idx = list.findIndex((s) => s.uid === action.id);
       if (idx < 0) return state;
-      const supports = list.map((s, i) => (i === idx ? { ...s, ...action.patch } : s));
+      const patch = action.patch && typeof action.patch === "object" && !Array.isArray(action.patch)
+        ? action.patch : {};
+      // UI edits only these text fields. A patch must never mutate ownership IDs,
+      // equipment state, result attribution, or slot classification directly.
+      const safePatch = {};
+      for (const key of ["name", "cond", "effect", "lp"]) {
+        if (Object.prototype.hasOwnProperty.call(patch, key)) {
+          const value = patch[key];
+          // Older reducer callers may send numeric LP; preserve that contract.
+          safePatch[key] = key === "lp" && typeof value === "number" && Number.isFinite(value)
+            ? value : String(value ?? "");
+        }
+      }
+      if (!Object.keys(safePatch).length) return state;
+
+      const normalizedList = list.map((entry) => ({
+        ...entry,
+        slot: entry.slot === "death" || isDeathSupportPassiveRecord(entry) ? "death" : "normal"
+      }));
+      const current = normalizedList[idx];
+      const candidate = { ...current, ...safePatch };
+      // Editing a normal support into an official death-only catalogue name is
+      // rejected while that slot is locked. Once unlocked, classification comes
+      // from the catalogue, not caller-supplied slot/equipped properties.
+      if (current.slot !== "death" && !isDeathSupportPassiveRecord(current)
+        && isDeathSupportPassiveRecord(candidate) && !deathSupportSlotUnlocked(state)) return state;
+
+      const slot = current.slot === "death" || isDeathSupportPassiveRecord(candidate) ? "death" : "normal";
+      let supports = normalizedList.map((entry, i) => i === idx
+        ? { ...entry, ...safePatch, slot }
+        : entry);
+      if (slot === "death" && supports[idx].equipped) {
+        supports = trimSupportEquippedOverflow(supports, action.id, "death", supportSlotLimit(state, "death"));
+      }
       const next = { ...state, roster: { ...roster, supports } };
       return { ...next, ...projectEquipmentFromRoster(next.roster) };
     }
