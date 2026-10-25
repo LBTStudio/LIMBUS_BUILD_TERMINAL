@@ -54,6 +54,96 @@
     return { ok: true, id: full[2], collection: full[1] ? "personas" : "characters" };
   }
 
+  /* 複数URLを含む貼り付けからリンクを全件抽出する。周辺に説明文があっても、
+     硝子窓の正式ホスト以外は読み込まず、同一ドキュメントは1回だけ取得する。 */
+  function parseShareUrls(raw) {
+    const text = String(raw || "");
+    const links = text.match(/https?:\/\/[^\s<>"'`]+/gi) || [];
+    const candidates = links.length ? links : text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    const urls = [];
+    const invalid = [];
+    const seen = new Set();
+    for (const candidate of candidates) {
+      const clean = String(candidate || "").trim().replace(/[)\],.;]+$/g, "");
+      if (!clean) continue;
+      const parsed = parseShareUrl(clean);
+      if (!parsed.ok) {
+        if (!links.length) invalid.push({ text: clean, reason: parsed.error || "URL形式が不正です" });
+        continue;
+      }
+      const key = parsed.collection + ":" + parsed.id;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      urls.push({ url: clean, id: parsed.id, collection: parsed.collection });
+    }
+    return { urls, invalid };
+  }
+
+  /* 複数の共有スナップショットを1つの移行用文書へ統合する。
+     履歴は同名シナリオの別記録を保ちつつ、同じ行が複数スナップショットに
+     重複する分だけ重ねて数えない。所持数はスナップショット間で加算せず、
+     最大値を採る（同じ在庫をURLの数だけ増やさない）。 */
+  function mergeGarasumadoDocuments(sources) {
+    const rows = (Array.isArray(sources) ? sources : [])
+      .filter((source) => source && source.doc && typeof source.doc === "object")
+      .map((source, index) => ({ ...source, _order: index }))
+      .sort((a, b) => {
+        const ta = Date.parse(a.updateTime || "");
+        const tb = Date.parse(b.updateTime || "");
+        if (Number.isFinite(ta) && Number.isFinite(tb) && ta !== tb) return ta - tb;
+        if (Number.isFinite(ta) && !Number.isFinite(tb)) return 1;
+        if (!Number.isFinite(ta) && Number.isFinite(tb)) return -1;
+        return a._order - b._order;
+      });
+    if (!rows.length) return null;
+
+    /* PL名が揃っていれば、同じPLが別キャラクターの共有URLを持つ場合も履歴を統合できる。
+       PL名が無い／一部欠ける場合は、キャラクター名が違うURLを誤って束ねないよう停止する。 */
+    const plNames = new Set(rows.map((row) => nameKey(String(row.doc.plName || "").trim())).filter(Boolean));
+    const characterNames = new Set(rows.map((row) => nameKey(String(row.doc.name || "").trim())).filter(Boolean));
+    const missingPlName = rows.some((row) => !String(row.doc.plName || "").trim());
+    const mixedIdentity = plNames.size > 1 || ((plNames.size === 0 || missingPlName) && characterNames.size > 1);
+    if (mixedIdentity) {
+      return {
+        error: "異なるキャラクター／PL名の共有URLが混在しています。同じPLのURLだけをまとめて取り込んでください。",
+        identities: { plNames: [...plNames], characterNames: [...characterNames] },
+        count: rows.length
+      };
+    }
+
+    const newest = rows[rows.length - 1].doc;
+    /* 人格・E.G.O・特殊資源の現所持は最新スナップショットが正。
+       古い所持を和集合にしたり、アイテム数量を最大値にすると、消費済み在庫を復活させる。 */
+    const merged = { ...newest };
+
+    /* 同じ履歴が複数スナップショットにあるときは、重複する出現数だけ除く。
+       同名・同本文のシナリオを実際に複数回通過したケースは、出現回数分を残す。 */
+    const previousOccurrences = new Map();
+    const history = [];
+    for (const source of rows) {
+      const localOccurrences = new Map();
+      const sourceHistory = Array.isArray(source.doc.scenarioHistory) ? source.doc.scenarioHistory : [];
+      for (const scenario of sourceHistory) {
+        if (!scenario || typeof scenario !== "object") continue;
+        const signature = JSON.stringify([
+          String(scenario.name || "").trim(),
+          String(scenario.memo || "").trim(),
+          String(scenario.date || scenario.createdAt || scenario.at || "")
+        ]);
+        const occurrence = (localOccurrences.get(signature) || 0) + 1;
+        localOccurrences.set(signature, occurrence);
+        if (occurrence <= (previousOccurrences.get(signature) || 0)) continue;
+        history.push(scenario);
+      }
+      for (const [signature, count] of localOccurrences) {
+        previousOccurrences.set(signature, Math.max(previousOccurrences.get(signature) || 0, count));
+      }
+    }
+    if (rows.some((source) => Array.isArray(source.doc.scenarioHistory))) merged.scenarioHistory = history;
+
+    /* 自由メモも最新文書を正とする。履歴を足すことでシステムメモを二重に実行しない。 */
+    return merged;
+  }
   /* Firestore の値表現を素の値へ。 */
   function unwrapFirestore(value) {
     if (value === null || value === undefined) return undefined;
@@ -92,7 +182,7 @@
         const response = await request(url, { headers: { Accept: "application/json" } });
         if (response && response.ok) {
           const body = await response.json();
-          return { ok: true, id: parsed.id, collection, doc: unwrapFirestore(body.fields) };
+          return { ok: true, id: parsed.id, collection, updateTime: body.updateTime || "", doc: unwrapFirestore(body.fields) };
         }
         attempts.push(collection + ": " + (response ? response.status : "no response"));
       } catch (error) {
@@ -448,6 +538,7 @@ function toIdentityChoices(hits) {
           tickets: parsed.tickets,
           pack: parsed.pack,
           spends: parsed.spends,
+          consumedItems: parsed.consumedItems || [],
           reasons: parsed.reasons,
           /* シナリオで直接払い出された人格/E.G.O。 */
           wins,
@@ -809,7 +900,8 @@ function toIdentityChoices(hits) {
             choice: tickets.choice || 0,
             pack
           }
-        }
+        },
+        consumedItems: Array.isArray(scenario.consumedItems) ? scenario.consumedItems : []
       });
 
       /* シナリオで直接払い出された人格/E.G.O。所持へ足す。
@@ -1330,6 +1422,8 @@ function reconcileBalance(manifest, doc) {
 
 const api = {
    parseShareUrl,
+   parseShareUrls,
+   mergeGarasumadoDocuments,
    reconcileBalance,
     fetchGarasumadoDocument,
     buildManifest,
@@ -1354,6 +1448,8 @@ const api = {
   if (typeof window !== "undefined") {
   window.LBT_garasumado = api;
     window.LBT_parseShareUrl = parseShareUrl;
+    window.LBT_parseShareUrls = parseShareUrls;
+    window.LBT_mergeGarasumadoDocuments = mergeGarasumadoDocuments;
     window.LBT_fetchGarasumadoDocument = fetchGarasumadoDocument;
     window.LBT_buildGarasumadoManifest = buildManifest;
     window.LBT_toDispatchActions = toDispatchActions;
