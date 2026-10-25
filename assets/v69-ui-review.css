@@ -116,7 +116,9 @@
 @media (max-width: 640px) {
   /* This fixed edge tab covered the rightmost labels and actions on touch screens.
      Preview remains reachable in 操作・保存 → プレビューを開く／閉じる. */
-  body > .preview-edge-toggle {
+  body > .preview-edge-toggle,
+  .app .preview-reopen,
+  .app .preview-close {
     display: none !important;
   }
 
