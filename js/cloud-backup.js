@@ -28,6 +28,7 @@
     conflict: false,
     history: [],
     hasSession: false,
+    googleProviderStatus: "checking",
     hasRecoveryKey: false,
     recoveryKeyEnabled: false,
     syncEnabled: false,
@@ -242,6 +243,28 @@
     if (!response.ok) throw new Error(data.error_description || data.msg || data.message || "オンライン認証に失敗しました。");
     return data;
   }
+  async function fetchAuthProviderSettings() {
+    const response = await fetch(SUPABASE_URL + "/auth/v1/settings", {
+      method: "GET",
+      headers: { "apikey": SUPABASE_PUBLISHABLE_KEY },
+      cache: "no-store"
+    });
+    const settings = await response.json().catch(() => ({}));
+    if (!response.ok || !settings.external || typeof settings.external.google !== "boolean") {
+      throw new Error("Google認証の設定状態を確認できません。");
+    }
+    return settings.external;
+  }
+  async function refreshProviderAvailability() {
+    emit({ googleProviderStatus: "checking" });
+    try {
+      const external = await fetchAuthProviderSettings();
+      emit({ googleProviderStatus: external.google ? "enabled" : "disabled" });
+    } catch (_) {
+      emit({ googleProviderStatus: "unknown" });
+    }
+    return state.googleProviderStatus;
+  }
   async function getSession() {
     const session = readSessionRaw();
     if (!session) return null;
@@ -255,7 +278,19 @@
     }
   }
   async function startOAuth(provider) {
-    if (!["google", "x"].includes(provider)) throw new Error("未対応のログイン方法です。");
+    if (provider !== "google") throw new Error("Google連携のみ対応しています。X連携は未実装です。");
+    let external;
+    try {
+      external = await fetchAuthProviderSettings();
+    } catch (_) {
+      emit({ googleProviderStatus: "unknown" });
+      throw new Error("Google連携の設定状態を確認できません。通信状態を確認してもう一度お試しください。");
+    }
+    if (external.google !== true) {
+      emit({ googleProviderStatus: "disabled" });
+      throw new Error("Supabase側のGoogleプロバイダー設定が未完了です。Google OAuthクライアントの設定後に利用できます。");
+    }
+    emit({ googleProviderStatus: "enabled" });
     let verifier;
     try {
       verifier = randomToken(48);
@@ -267,6 +302,7 @@
     const redirectTo = location.origin + location.pathname;
     const url = new URL(SUPABASE_URL + "/auth/v1/authorize");
     url.searchParams.set("provider", provider);
+    url.searchParams.set("scopes", "openid email profile");
     url.searchParams.set("redirect_to", redirectTo);
     url.searchParams.set("code_challenge", challenge);
     url.searchParams.set("code_challenge_method", "s256");
@@ -372,7 +408,7 @@
         message: conflict
           ? "別の端末または別タブでクラウド内容が更新されています。自動上書きは停止しました。復元する内容を選んでください。"
           : remote.mode === "oauth" && key && remote.recoveryKeyMatches === false
-            ? "クラウドのGoogle/Xアカウントと、この端末の復旧キーは別の保全先です。自動同期はログイン中のアカウントだけを対象にし、復旧キーの保管庫は変更しません。"
+            ? "クラウドのGoogleアカウントと、この端末の復旧キーは別の保全先です。自動同期はログイン中のアカウントだけを対象にし、復旧キーの保管庫は変更しません。"
             : same
               ? "この端末とクラウドの内容は一致しています。"
               : "クラウドにバックアップがあります。端末にデータがある場合は、復元またはこの端末からの更新を選んでください。",
@@ -394,10 +430,10 @@
     const payload = collectLocalSnapshot();
     const session = await getSession();
     const key = readRecoveryKey();
-    if (!session && !key) throw new Error("先にGoogle/Xと連携するか、復旧キーを発行してください。");
+    if (!session && !key) throw new Error("先にGoogleと連携するか、復旧キーを発行してください。");
     const current = await getRemote();
     if (session && key && current.mode === "oauth" && current.recoveryKeyMatches === false) {
-      throw new Error("この端末の復旧キーは、ログイン中のGoogle/Xとは別の保全データを指しています。安全のため同期を止めました。Google/X側を使う場合は「この端末の復旧キーだけ外す」を選んでください。復旧キーのファイルとオンライン保管庫は削除されません。");
+      throw new Error("この端末の復旧キーは、ログイン中のGoogleとは別の保全データを指しています。安全のため同期を止めました。Google側を使う場合は「この端末の復旧キーだけ外す」を選んでください。復旧キーのファイルとオンライン保管庫は削除されません。");
     }
     const exists = Boolean(current.found);
     const same = exists && sameData(payload, current.payload);
@@ -439,7 +475,7 @@
   async function linkRecoveryKeyToOAuth() {
     const session = await getSession();
     const key = readRecoveryKey();
-    if (!session) throw new Error("先にGoogle/Xと連携してください。");
+    if (!session) throw new Error("先にGoogleと連携してください。");
     if (!key) throw new Error("先に復旧キーを発行するか、復旧キーを使って復元してください。");
 
     const recoveryVault = await callRecovery({ action: "get", recoveryKey: key });
@@ -448,9 +484,9 @@
     }
     const authVault = await callRecovery({ action: "get" }, session.access_token);
     if (authVault.found) {
-      throw new Error("このGoogle/Xアカウントには既に別のオンライン保全データがあります。安全のため、自動統合は行いません。先にどちらを残すか確認してください。");
+      throw new Error("このGoogleアカウントには既に別のオンライン保全データがあります。安全のため、自動統合は行いません。先にどちらを残すか確認してください。");
     }
-    if (!confirm("この復旧キーの保全データを、ログイン中のGoogle/Xアカウントにも結びつけます。クラウド側の保全データはそのまま維持し、今の端末データは変更しません。続けますか？")) return false;
+    if (!confirm("この復旧キーの保全データを、ログイン中のGoogleアカウントにも結びつけます。クラウド側の保全データはそのまま維持し、今の端末データは変更しません。続けますか？")) return false;
 
     /* Cloud snapshot is passed unchanged so linking an identity doesn't overwrite
        the cloud with possibly stale local data. Local sync remains disabled unless equal. */
@@ -458,7 +494,7 @@
     const result = await callRecovery({ action: "create_recovery", recoveryKey: key, payload: recoveryVault.payload }, session.access_token);
     const verified = await callRecovery({ action: "get", recoveryKey: key }, session.access_token);
     if (!verified.found || verified.recoveryKeyMatches !== true) {
-      throw new Error("Google/Xと復旧キーの結びつきを確認できませんでした。既存データは削除していません。");
+      throw new Error("Googleと復旧キーの結びつきを確認できませんでした。既存データは削除していません。");
     }
     writeStorage(REVISION_KEY, String(verified.revision));
     const matches = sameData(local, verified.payload);
@@ -468,9 +504,9 @@
       remoteExists: true,
       revision: Number(verified.revision),
       conflict: false,
-      label: "Google/Xと復旧キーを連携しました",
+      label: "Googleと復旧キーを連携しました",
       message: matches
-        ? "同じ内容の保全データをGoogle/Xと復旧キーの両方から復元できます。自動同期を有効にしました。"
+        ? "同じ内容の保全データをGoogleと復旧キーの両方から復元できます。自動同期を有効にしました。"
         : "クラウドデータを維持したまま連携しました。端末とクラウドの内容は異なるため、自動同期は停止中です。「クラウドから復元」か「この端末をクラウドへ同期」を選んでください。"
     });
     return result;
@@ -478,7 +514,7 @@
 
   async function rotateRecoveryKey() {
     const session = await getSession();
-    if (!session) throw new Error("復旧キーの再発行にはGoogle/X連携が必要です。");
+    if (!session) throw new Error("復旧キーの再発行にはGoogle連携が必要です。");
     if (!confirm("新しい復旧キーを発行します。発行すると以前の復旧キーは無効になり、古いキーだけでは復元できなくなります。今のクラウドバックアップ自体は維持されます。続けますか？")) return false;
 
     const key = "LBT1-" + randomToken(32);
@@ -542,7 +578,7 @@
       "",
       "このキーを知っている人は、オンライン保全データを復元・更新できます。",
       "安全な場所へ保管してください。LBTの画面共有や公開チャンネルには貼り付けないでください。",
-      "キーを失い、連携したGoogle/Xアカウントも利用できない場合は復元できません。",
+      "キーを失い、連携したGoogleアカウントも利用できない場合は復元できません。",
       "ファイル保管日: " + new Date().toISOString(),
       ""
     ].join("\n");
@@ -573,7 +609,7 @@
     if (!remote.found || !remote.payload) throw new Error("復元できるオンラインバックアップが見つかりません。");
     let key = readRecoveryKey();
     if (key && remote.mode === "oauth" && remote.recoveryKeyMatches === false) {
-      if (!confirm("この端末に保存された復旧キーは別の保全データを指しています。Google/X側から復元し、このブラウザーの復旧キーだけを外します。ダウンロード済みの復旧キーとオンライン保管庫は削除されません。続けますか？")) return false;
+      if (!confirm("この端末に保存された復旧キーは別の保全データを指しています。Google側から復元し、このブラウザーの復旧キーだけを外します。ダウンロード済みの復旧キーとオンライン保管庫は削除されません。続けますか？")) return false;
       removeStorage(RECOVERY_KEY);
       key = null;
     }
@@ -636,13 +672,13 @@
   }
   async function unlinkRecoveryKeyLocally() {
     if (!readRecoveryKey()) return false;
-    if (!confirm("このブラウザーに保存された復旧キーだけを外します。オンラインの復旧データと、ダウンロード済みの復旧キーは削除されません。このブラウザーではGoogle/X側の保全だけを使うようになります。続けますか？")) return false;
+    if (!confirm("このブラウザーに保存された復旧キーだけを外します。オンラインの復旧データと、ダウンロード済みの復旧キーは削除されません。このブラウザーではGoogle側の保全だけを使うようになります。続けますか？")) return false;
     removeStorage(RECOVERY_KEY);
     setEnabled(Boolean(await getSession()));
     await refresh();
     emit({
       label: "このブラウザーから復旧キーを外しました",
-      message: "復旧キーのファイルとオンライン保管庫は維持されています。このブラウザーはGoogle/X側の保全を使います。"
+      message: "復旧キーのファイルとオンライン保管庫は維持されています。このブラウザーはGoogle側の保全を使います。"
     });
     return true;
   }
@@ -671,7 +707,7 @@
           remoteExists: Boolean(current.found),
           revision: Number(current.revision) || 0,
           label: "保全先が2つに分かれています",
-          message: "Google/Xの保全データと復旧キーの保全データが一致しないため、自動同期を停止しました。どちらかを選ぶまでローカル保存は続きます。"
+          message: "Googleの保全データと復旧キーの保全データが一致しないため、自動同期を停止しました。どちらかを選ぶまでローカル保存は続きます。"
         });
         return;
       }
@@ -721,6 +757,7 @@
     if (initialized) return;
     initialized = true;
     await handleOAuthCallback();
+    await refreshProviderAvailability();
     await refresh();
   }
 
@@ -748,6 +785,21 @@
       onClick,
     }, label);
     const connected = view.hasSession || view.hasRecoveryKey;
+    const googleReady = view.googleProviderStatus === "enabled";
+    const googleButtonLabel = googleReady
+      ? "Googleと連携"
+      : view.googleProviderStatus === "checking"
+        ? "Googleと連携（確認中）"
+        : view.googleProviderStatus === "disabled"
+          ? "Googleと連携（設定待ち）"
+          : "Googleと連携（設定確認不可）";
+    const googleProviderNote = googleReady
+      ? "Google認証は利用可能です。連携しただけでは既存データは送信されません。"
+      : view.googleProviderStatus === "disabled"
+        ? "Google連携のコードは実装済みですが、Supabase側のGoogleプロバイダー設定が未完了です。設定完了後、ページを再読み込みすると利用できます。"
+        : view.googleProviderStatus === "unknown"
+          ? "Google連携の設定状態を確認できません。通信状態やSupabase側の設定を確認してください。"
+          : "Google連携の設定状態を確認しています。";
     return h("section", { className: "lbt-cloud-panel" + (compact ? " is-compact" : ""), "aria-label": "オンライン保全（任意）" },
       h("div", { className: "lbt-cloud-heading" },
         h("strong", null, "オンライン保全（任意）"),
@@ -757,14 +809,13 @@
       h("p", { className: "lbt-cloud-message", role: "status", "aria-live": "polite" }, view.message),
       !view.hasSession ? h(React.Fragment, null,
         h("div", { className: "lbt-cloud-actions" },
-          button("Googleと連携（未実装）", () => {}, "", true),
+          button(googleButtonLabel, () => run(() => startOAuth("google")), "is-primary", !googleReady),
           button("Xと連携（未実装）", () => {}, "", true)
         ),
-        h("p", { className: "lbt-cloud-provider-note", role: "status" },
-          "Google / Xによるログイン連携はまだ使えません。オンライン保全を利用する場合は、復旧キーを発行するか、JSONファイルで保存してください。"
-        )
-      ) : h("p", { className: "lbt-cloud-account" }, "オンライン認証済み。このブラウザーからいつでも連携を停止できます。"),
-      view.hasSession && view.hasRecoveryKey && view.mode === "recovery" ? button("この復旧キーをGoogle/Xにも結びつける", () => run(linkRecoveryKeyToOAuth)) : null,
+        h("p", { className: "lbt-cloud-provider-note", role: "status" }, googleProviderNote),
+        h("p", { className: "lbt-cloud-provider-note" }, "X連携は未実装のため利用できません。")
+      ) : h("p", { className: "lbt-cloud-account" }, "Googleでオンライン認証済み。このブラウザーからいつでも連携を停止できます。"),
+      view.hasSession && view.hasRecoveryKey && view.mode === "recovery" ? button("この復旧キーをGoogleにも結びつける", () => run(linkRecoveryKeyToOAuth)) : null,
       view.hasSession && view.hasRecoveryKey && view.mode === "oauth" && view.recoveryKeyMatches === false ? button("この端末の復旧キーだけ外す", () => run(unlinkRecoveryKeyLocally)) : null,
       view.hasSession && view.remoteExists && view.recoveryKeyEnabled && !view.hasRecoveryKey ? button("復旧キーを再発行（古いキーは無効化）", () => run(rotateRecoveryKey), "is-primary") : null,
       h("div", { className: "lbt-cloud-actions" },
