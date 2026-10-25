@@ -1803,3 +1803,13 @@
   .ledger-queue .ledger-row-cost { grid-column: 2; grid-row: 2; }
   .ledger-queue .ledger-row-trash { grid-column: 3; grid-row: 2; }
 }
+
+/* ドラッグ中に移動先を探す時間を減らす。対象カードの縁と見出しを同時に強調。 */
+.ledger-drop-hint {
+  justify-self: start; margin-top: 3px; padding: 2px 6px;
+  border: 1px dashed var(--gold-line); border-radius: var(--r-pill);
+  color: var(--gold); font-size: var(--fs-9); line-height: 1.2;
+}
+.ledger-drop-hint.is-over { background: var(--gold-tint); border-style: solid; color: var(--gold-hi); }
+.ledger-card-wrap.is-over { outline: 1px solid var(--gold-line); outline-offset: 1px; }
+.ledger-card-wrap.is-over .ledger-card { border-color: var(--gold); }
