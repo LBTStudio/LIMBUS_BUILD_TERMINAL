@@ -34,7 +34,10 @@ test("Supabase is primary, Cloudflare fallback is availability-based, and ordina
 });
 
 test("両保管先の世代を照合し、同一世代の異なる内容は自動上書きしない", () => {
-  assert.match(client, /Promise\.all\(\[[\s\S]*?action: "get"[\s\S]*?action: "get"/);
+  assert.match(client, /Promise\.all\(\[[\s\S]*?getProviderHead\("supabase"[\s\S]*?getProviderHead\("cloudflare"/);
+  assert.match(client, /historyHashForRevision/);
+  assert.match(client, /const ancestorHash = historyHashForRevision/);
+  assert.match(client, /olderProvider, key, Number\(olderHead\.revision\), Number\(newerHead\.revision\)/);
   assert.match(client, /同じ世代番号の異なるデータがあります/);
   assert.match(client, /olderProvider/);
   assert.match(worker, /currentRevision !== expectedRevision/);
@@ -56,7 +59,8 @@ test("Cloudflare D1 stores chunked snapshots and caps history", () => {
 test("アクセスカウンターは累計ページ閲覧数を表示し、識別子をブラウザ保存しない", () => {
   assert.match(counter, /api\/stats\/view/);
   assert.match(counter, /総アクセス/);
-  assert.match(worker, /pageViews/);
+  assert.match(worker, /INSERT INTO site_counters \(name, value\) VALUES \('total_views', 1\)/);
+  assert.doesNotMatch(worker, /pageViews/);
   assert.doesNotMatch(counter, /localStorage|sessionStorage|document\.cookie/);
   assert.match(indexHtml, /access-counter\.js\?v=/);
   assert.match(shareHtml, /access-counter\.js\?v=/);
