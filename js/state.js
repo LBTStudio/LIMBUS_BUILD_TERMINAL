@@ -1487,30 +1487,34 @@ function sanitizeStateCollections(raw) {
   return next;
 }
 
-/* Legacy custom Personas used source.no=999 as a shared placeholder. Keep roster identity
-   in uid/no instead, so equip, save, and card keys resolve the same owned entry. */
+/* Legacy custom Personas and imported/legacy Persona rows must have a unique mutation key. Without one,
+   an APPLY_PERSONA_SYNC action can update every row sharing the same UID. Keep the
+   first owner of an existing UID so historical ledger references stay attached to it;
+   give missing/duplicate IDs a deterministic replacement. Custom source.no=999 is a
+   shared placeholder, so the custom roster key must also be written to no. */
 function normalizeCustomPersonaRosterIdentity(personas) {
   const rows = Array.isArray(personas) ? personas : [];
-  // Reserve every existing custom UID before generating legacy replacements.
-  // Otherwise an early legacy row can claim a synthetic key that belongs to a
-  // later valid row, forcing that valid identity (and its external references) to change.
   const reserved = new Set(rows
-    .filter((entry) => entry && entry.mode === "custom")
-    .map((entry) => String(entry.uid || "").trim())
+    .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
+    .map((entry) => String(entry.uid ?? "").trim())
     .filter(Boolean));
   const seen = new Set();
   return rows.map((entry, index) => {
-    if (!entry || entry.mode !== "custom") return entry;
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return entry;
+    const isCustom = entry.mode === "custom";
     const sourceNo = String(entry.no ?? "").trim();
-    let uid = String(entry.uid || "").trim();
+    let uid = String(entry.uid ?? "").trim();
     if (!uid || seen.has(uid)) {
-      const base = sourceNo && sourceNo !== "999" ? sourceNo : `custom-legacy-${index + 1}`;
+      const mode = String(entry.mode || "unknown").trim() || "unknown";
+      const base = isCustom
+        ? (sourceNo && sourceNo !== "999" ? sourceNo : `custom-legacy-${index + 1}`)
+        : `pr-legacy-${mode}-${sourceNo || index + 1}`;
       uid = base;
       let suffix = 2;
       while (seen.has(uid) || reserved.has(uid)) uid = `${base}-${suffix++}`;
     }
     seen.add(uid);
-    return { ...entry, uid, no: uid };
+    return isCustom ? { ...entry, uid, no: uid } : { ...entry, uid };
   });
 }
 
@@ -4171,21 +4175,28 @@ function appReducer(state, action) {
        後からまとめて記録できる BACKFILL_SYNC_ENTRIES を用意する。 */
     case "APPLY_PERSONA_SYNC": {
       const { uid, syncRank, syncMax } = action;
-      const before = (state.roster.personas || []).find((p) => p.uid === uid);
-      if (!before) return state;
-      const personas = (state.roster.personas || []).map((p) => {
-        if (p.uid !== uid) return p;
-        return {
+      const personasBefore = Array.isArray(state.roster?.personas) ? state.roster.personas : [];
+      const targetUid = String(uid ?? "").trim();
+      if (!targetUid) return state;
+      let targetIndex = -1;
+      for (let index = 0; index < personasBefore.length; index += 1) {
+        if (String(personasBefore[index]?.uid ?? "").trim() !== targetUid) continue;
+        // An ambiguous legacy/imported UID is never permission to mutate several Personas.
+        if (targetIndex !== -1) return state;
+        targetIndex = index;
+      }
+      if (targetIndex === -1) return state;
+      const before = personasBefore[targetIndex];
+      const personas = personasBefore.map((p, index) => index !== targetIndex ? p : {
         ...p,
         syncRank: syncRank === undefined ? p.syncRank : syncRank,
         syncMax: syncMax === undefined ? p.syncMax : syncMax,
         synced: action.synced === undefined ? p.synced : action.synced === true
-      };
       });
       const next = { ...state, roster: { ...state.roster, personas } };
       /* 費用は chargeSyncOperation が操作前の状態から1回だけ決める。
          同期MAXは同期済みでも別操作として50欠片かかり、解除では請求しない。 */
-      return chargeSyncOperation(next, uid, {
+      return chargeSyncOperation(next, before.uid, {
         before,
         syncRank,
         syncMax,
@@ -4321,8 +4332,14 @@ return appendLedgerEntry(next, {
         : action.kind === "supports" ? "supports"
         : action.kind === "spirits" ? "spirits"
         : "personas";
-      const present = new Set((state.roster[kind] || []).map((entry) => entry.uid));
-      const restored = [...(state.roster[kind] || []), ...(action.items || []).filter((entry) => entry && !present.has(entry.uid))];
+      const existing = kind === "personas"
+        ? normalizeCustomPersonaRosterIdentity(state.roster[kind] || [])
+        : (state.roster[kind] || []);
+      const present = new Set(existing.map((entry) => entry.uid));
+      const restoredRows = [...existing, ...(action.items || []).filter((entry) => entry && !present.has(entry.uid))];
+      const restored = kind === "personas"
+        ? normalizeCustomPersonaRosterIdentity(restoredRows)
+        : restoredRows;
       const roster = { ...state.roster, [kind]: restored };
       const withRoster = {
         ...state,
@@ -5679,6 +5696,17 @@ case "ADD_ENTRY":
     case "IMPORT_PERSONA_DRAFT": {
       const src = action.persona;
       if (!src || !src.__custom) return state;
+      // Individual legacy imports may start from a roster row without a stable UID.
+      // Normalize before resolving affiliation so the new build and sync charge share one exact target.
+      if (typeof normalizeCustomPersonaRosterIdentity === "function") {
+        state = {
+          ...state,
+          roster: {
+            ...(state.roster || {}),
+            personas: normalizeCustomPersonaRosterIdentity(state.roster?.personas || [])
+          }
+        };
+      }
       const affiliation = action.affiliation || null;
       const affiliatedMode = affiliation?.mode === "n" || affiliation?.mode === "t" ? affiliation.mode : null;
       const affiliatedNo = affiliatedMode ? affiliation?.no : null;
