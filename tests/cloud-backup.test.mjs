@@ -10,6 +10,7 @@ const client = read("js/cloud-backup.js");
 const storage = read("js/state.js");
 const ui = read("js/accounts-ui.js");
 const html = read("index.html");
+const doc = read("docs/optional-account-cloud-backup.md");
 const migration = read("supabase/migrations/20261025211015_lbt_account_vaults.sql");
 const hardeningMigration = read("supabase/migrations/202610260002_reject_anonymous_vault_access.sql");
 const recovery = read("supabase/functions/lbt-account-recovery/index.ts");
@@ -26,7 +27,7 @@ test("オンライン保全は任意で、初期化・ローカル保存のみ�
 test("クラウドへ送るスナップショットはアカウント保存キーに限定し、認証・復旧キーを含めない", () => {
   assert.match(client, /function isBackupStorageKey\(key\)/);
   assert.match(client, /!key\.startsWith\("lbt_cloud_"\)/);
-  assert.match(client, /function collectLocalSnapshot\(\)/);
+  assert.match(client, /function collectLocalSnapshot\(\{ enforceCloudLimit = true \} = \{\}\)/);
   assert.match(client, /format: "lbt-account-backup"/);
   assert.match(client, /function validateSnapshot\(payload\)/);
   assert.doesNotMatch(client, /localStorage\.clear\(/);
@@ -134,7 +135,7 @@ test("匿名AuthユーザーはEdge FunctionとRLSの両方で保全先へアク
   assert.match(recovery, /if \(user\.is_anonymous === true\)/);
   assert.match(recovery, /匿名セッションでは個人アカウントのオンライン保全を使えません/);
   assert.match(hardeningMigration, /auth\.jwt\(\) ->> 'is_anonymous'/);
-  assert.equal((hardeningMigration.match(/coalesce\(\(select auth\.jwt\(\) ->> 'is_anonymous'\), 'false'\) <> 'true'/g) || []).length, 7);
+  assert.equal((hardeningMigration.match(/coalesce\(\(select auth\.jwt\(\) ->> 'is_anonymous'\), 'false'\) <> 'true'/g) || []).length, 8);
   assert.match(hardeningMigration, /lbt_account_recovery_rate_limits_service_role/);
   assert.match(hardeningMigration, /for all to service_role/);
 });
