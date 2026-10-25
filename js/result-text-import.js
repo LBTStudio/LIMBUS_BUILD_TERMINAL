@@ -60,7 +60,7 @@
 
   function costFromParens(text) {
     const lp = [...text.matchAll(/(\d[\d,]*)\s*(?:lp|LP|Lp)/g)];
-    const shards = [...text.matchAll(/(\d[\d,]*)\s*(?:欠片|欠けら|欠牁|カケラ|かけら|けっか)/g)];
+    const shards = [...text.matchAll(/(\d[\d,]*)\s*(?:欠片|欠けら|欠けら|カケラ|かけら|けっか)/g)];
     const one = (list) => (list.length === 1 ? safeAmount(list[0][1]) : null);
     const l = one(lp);
     const s = one(shards);
@@ -83,7 +83,7 @@
     return name ? { name, parens: m[2] } : { name: String(text).trim(), parens: "" };
   }
 
-  const SHARD_WORD = /欠片|欠けら|欠牁|カケラ|かけら|けっか/;
+  const SHARD_WORD = /欠片|欠けら|欠けら|カケラ|かけら|けっか/;
   const LP_WORD = /\d\s*(?:lp|LP|Lp)$|lp\s*\d/i;
 
   /* 報酬行の 1 項目。例: LP:150(+9) / 自我の欠片:70(+16) / 人格抽出チケットx1 */
