@@ -5,6 +5,11 @@ import vm from "node:vm";
 
 const itemRecords = JSON.parse(readFileSync(new URL("../data/items.json", import.meta.url), "utf8"));
 const specialItemRecords = JSON.parse(readFileSync(new URL("../data/special-items.json", import.meta.url), "utf8"));
+const coreItemCorpus = readFileSync(new URL("../data/provenance/core.txt", import.meta.url), "utf8");
+const itemCatalogHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+const itemCodexSource = readFileSync(new URL("../js/ItemCodex.js", import.meta.url), "utf8");
+const itemShopSource = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
+
 
 test("アイテムDBはPDFの回復8種・強化27種のみを登録し、特殊資源を含めない", () => {
   assert.equal(itemRecords.length, 35);
@@ -392,4 +397,97 @@ test("既存アイテムの数量加算は残高ゲートに止められず、�
   const second = reducer(first, { type: "ADD_ITEM", itemId: id });
   assert.equal(second.inventory[0].quantity, 2, "残高0でも既存スタックの数量加算は成功する");
   assert.equal(second.entries.length, 1, "数量加算で二重の支出明細を作らない");
+});
+
+
+test("通常アイテム35種は原典PDFの317〜320頁に載る全アイテムと一致する", () => {
+  const expectedNames = [
+    "包帯", "小さなHPアンプル", "劣化HP弾", "HPアンプル", "HP弾",
+    "たぷたぷの燃料タンク", "鎮静剤", "ルージュアイ事務所の香水",
+    "ヒートグローブ", "砥石", "ボルトット工房の外付けガントレット",
+    "生命体切断システム装置", "轟くマラカス", "メイジ工房のお手製ハンマー",
+    "エネルギー増幅装置", "酸素ボンベ", "ヴィリーブ工房の煙草",
+    "エネルギー増電器具", "黒い雲の刺青", "カモメ運送会社の外付け強化義手",
+    "エスカ事務所の強化刺青", "バラのスパナ工房の外付け強化義足",
+    "湯の花運送の防護湯煙", "ガーデンの感覚遮断薬", "月光石",
+    "出血防止手袋", "メメメメメ工房の筋トレ雑誌", "ツヴァイヘンダー",
+    "物理干渉保護フィールド", "白蓮清掃派遣会社の制服", "N社の経典",
+    "LCCB職員の棍棒と盾", "セブン協会の情報資料", "旧G社の薄汚れた軍服", "黒丸"
+  ];
+  assert.deepEqual(itemRecords.map((item) => item.name), expectedNames, "35件を原典順で完全一致させる");
+  assert.equal(new Set(itemRecords.map((item) => item.id)).size, 35, "ID重複がない");
+  assert.ok(itemRecords.every((item) => item.price && item.effect && item.palette), "全件に価格・効果・パレット文がある");
+  const compactSource = coreItemCorpus.replace(/\s+/g, "");
+  for (const name of expectedNames) {
+    assert.ok(compactSource.includes(name.replace(/\s+/g, "")), "原典の抽出テキストに名称がある: " + name);
+  }
+  assert.equal(specialItemRecords.length, 2, "特殊資源は通常35件とは別の2件");
+  assert.deepEqual(specialItemRecords.map((item) => item.name), ["自我の欠片", "硝子の破片"]);
+});
+
+test("酸素ボンベとヴィリーブ工房の煙草は正式名を維持して別表記からも検索できる", () => {
+  const oxygen = itemRecords.find((item) => item.id === "enh-oxygen-cylinder");
+  const tobacco = itemRecords.find((item) => item.id === "enh-villebe-cigarette");
+  assert.equal(oxygen.name, "酸素ボンベ");
+  assert.equal(oxygen.category, "強化");
+  assert.equal(oxygen.price, "10LP");
+  assert.equal(tobacco.name, "ヴィリーブ工房の煙草");
+  assert.equal(tobacco.category, "強化");
+  assert.equal(tobacco.price, "10LP");
+  assert.ok(tobacco.searchAliases.includes("ヴィりーぶたばこ"));
+  assert.ok(tobacco.searchAliases.includes("たばこ"));
+  assert.ok(tobacco.searchAliases.includes("煙草"));
+  assert.ok(oxygen.searchAliases.includes("酸素") && oxygen.searchAliases.includes("ボンベ"));
+  assert.match(itemCodexSource, /item\.searchAliases \|\| \[\]/, "アイテム一覧検索で別名を参照");
+  assert.match(itemShopSource, /item\.searchAliases \|\| \[\]/, "ショップ検索でも別名を参照");
+});
+
+function makeItemLoader({ mode = "fetch", items = itemRecords, specials = specialItemRecords } = {}) {
+  const loaderStart = itemCatalogHtml.indexOf("function validateItemCatalog(items, specialItems) {");
+  const loaderEnd = itemCatalogHtml.indexOf("\n\nfunction lbtBoot()", loaderStart);
+  assert.ok(loaderStart >= 0 && loaderEnd > loaderStart, "HTMLに必須カタログ検証とDBローダーがある");
+  const source = itemCatalogHtml.slice(loaderStart, loaderEnd);
+  const warnings = [];
+  const consoleStub = { warn: (...args) => warnings.push(args) };
+  const windowStub = { console: consoleStub, fetch: mode === "fetch" ? function fetchMarker() {} : null };
+  const valueFor = (url) => {
+    if (url.startsWith("data/db.json")) return { normal_personas: [], tokui_personas: [], egos: [] };
+    if (url.startsWith("data/items.json")) return items;
+    if (url.startsWith("data/gacha-theme-packs.json")) return { packs: [] };
+    if (url.startsWith("data/special-items.json")) return specials;
+    throw new Error("Unexpected URL: " + url);
+  };
+  const fetchStub = (url) => Promise.resolve({ ok: true, json: () => Promise.resolve(valueFor(url)) });
+  class XHRStub {
+    open(_method, url) { this.url = url; }
+    send() {
+      Promise.resolve().then(() => {
+        this.status = 200;
+        this.responseText = JSON.stringify(valueFor(this.url));
+        this.onload?.();
+      });
+    }
+  }
+  const context = { window: windowStub, fetch: fetchStub, XMLHttpRequest: XHRStub, console: consoleStub };
+  vm.createContext(context);
+  vm.runInContext(source, context, { filename: "index.html#item-catalog-loader" });
+  return { load: () => context.loadDB(), window: windowStub, warnings };
+}
+
+test("Fetch経路とXHR代替経路の両方でアイテム一覧全件を読み込む", async () => {
+  for (const mode of ["fetch", "xhr"]) {
+    const loader = makeItemLoader({ mode });
+    await loader.load();
+    assert.equal(loader.window.DB.items.length, 35, mode + "で通常アイテム35件");
+    assert.ok(loader.window.DB.items.some((item) => item.id === "enh-oxygen-cylinder"), mode + "で酸素ボンベがある");
+    assert.ok(loader.window.DB.items.some((item) => item.id === "enh-villebe-cigarette"), mode + "でヴィリーブ工房の煙草がある");
+    assert.equal(loader.window.DB.specialItems.length, 2, mode + "で特殊資源2件");
+  }
+});
+
+test("必須アイテムが欠けたJSONは不完全な一覧のまま起動せず欠落名をエラーにする", async () => {
+  const incomplete = itemRecords.filter((item) => item.id !== "enh-oxygen-cylinder");
+  const loader = makeItemLoader({ mode: "fetch", items: incomplete });
+  await assert.rejects(loader.load(), /酸素ボンベ/);
+  assert.equal(loader.window.DB, undefined, "検証前の不完全なDBを公開しない");
 });
