@@ -1942,7 +1942,7 @@ const EnhancementSection = ({ state, dispatch }) => {
    移行なしで受ける。App.js の palette/レールのメタと同期させる。
    人格/サポート/E.G.O/精神 の4タブは roster（＝所持済み）だけを出す。 */
 const BUILD_TABS = [
-  { id: "persona", label: "人格", num: "01", title: "OWNED PERSONAS / 所持人格", subtitle: "所持の人格を装備", icon: "persona", owned: true },
+  { id: "persona", label: "人格", num: "01", title: "OWNED PERSONAS", subtitle: "所持人格を装備", icon: "persona", owned: true },
   { id: "skill", label: "スキル", num: "02", title: "TACTICAL SKILLS", subtitle: "戦術スキル 0〜4 の編集", icon: "skill", owned: false },
   { id: "passive", label: "パッシブ", num: "03", title: "PASSIVE / 人格パッシブ", subtitle: "人格パッシブと固有効果", icon: "passive", owned: false },
   { id: "enh", label: "強化", num: "04", title: "ENHANCEMENTS", subtitle: "身体強化・特殊強化", icon: "enh", owned: false },
