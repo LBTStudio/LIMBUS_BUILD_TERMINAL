@@ -2262,7 +2262,8 @@ details > summary {
     min-height: 100dvh;
     overflow-x: clip;
   }
-  .focus { padding-bottom: calc(var(--lbt-mobile-rail-h) + 12px); }
+  /* Reserve enough scroll space for the floating preview pill above bottom navigation. */
+  .focus { padding-bottom: calc(var(--lbt-mobile-rail-h) + 60px); }
   .topbar {
     display: grid;
     grid-template-columns: 22px 34px minmax(0, 1fr);
