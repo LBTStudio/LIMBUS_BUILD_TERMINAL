@@ -187,14 +187,14 @@ const BaseSection = ({ state, dispatch }) => {
     )
   );
 };
-const PassiveCard = ({ title, pas, sin, scope }) => /* @__PURE__ */ React.createElement("div", { className: "deck-card deck-focus", "data-sin": sin || "", style: { padding: "var(--s-4)" } }, /* @__PURE__ */ React.createElement("div", { className: "deck-card-head", style: { marginBottom: "var(--s-3)" } }, /* @__PURE__ */ React.createElement(
+const PassiveCard = ({ title, pas, sin }) => /* @__PURE__ */ React.createElement("div", { className: "deck-card deck-focus", "data-sin": sin || "", style: { padding: "var(--s-4)" } }, /* @__PURE__ */ React.createElement("div", { className: "deck-card-head", style: { marginBottom: "var(--s-3)" } }, /* @__PURE__ */ React.createElement(
   "span",
   {
     className: "deck-rank",
     style: { background: "var(--gold-tint)", color: "var(--gold)", border: "1px solid var(--gold-line)", padding: "4px 10px", fontFamily: "var(--f-display)", fontWeight: 600, fontSize: "var(--fs-12)", borderRadius: "var(--r-sm)", letterSpacing: "0.08em" }
   },
   title
-), pas.cond && /* @__PURE__ */ React.createElement("span", { className: "cond-chips-lg", style: { marginLeft: 8 } }, /* @__PURE__ */ React.createElement(CondChips, { cond: pas.cond }))), /* @__PURE__ */ React.createElement("div", { className: "deck-name", style: { fontFamily: "var(--f-display)", fontWeight: 700, fontSize: "var(--fs-18)", color: "var(--tx)", marginBottom: "var(--s-3)", lineHeight: 1.2 } }, pas.name), /* @__PURE__ */ React.createElement("div", { className: "stack-3" }, pas.always && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-display)", fontSize: "var(--fs-9)", letterSpacing: "0.18em", color: "var(--gold)", textTransform: "uppercase", marginBottom: 4 } }, "ALWAYS / \u5E38\u6642\u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-12)", color: "var(--tx-2)", lineHeight: 1.7, padding: "8px 12px", background: "var(--gold-tint)", border: "1px solid var(--gold-line)", borderLeft: "3px solid var(--gold)", borderRadius: "var(--r-sm)", whiteSpace: "pre-wrap" } }, window.LBT_GLOSSARY_TEXT ? window.LBT_GLOSSARY_TEXT(pas.always, scope || "人格パッシブ") : pas.always)), pas.effect && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-display)", fontSize: "var(--fs-9)", letterSpacing: "0.18em", color: "var(--gold)", textTransform: "uppercase", marginBottom: 4 } }, "EFFECT / \u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-12)", color: "var(--tx-2)", lineHeight: 1.7, padding: "8px 12px", background: "var(--surface-inset)", border: "1px solid var(--line-dim)", borderLeft: "3px solid var(--gold)", borderRadius: "var(--r-sm)", whiteSpace: "pre-wrap" } }, window.LBT_GLOSSARY_TEXT ? window.LBT_GLOSSARY_TEXT(pas.effect, scope || "人格パッシブ") : pas.effect)), pas.quick && /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-mono)", fontSize: "var(--fs-11)", color: "var(--tx-dim)", padding: "4px 8px", background: "var(--surface-2)", borderRadius: "var(--r-sm)" } }, /* @__PURE__ */ React.createElement("span", { style: { color: "var(--gold)" } }, "QUICK"), " ", pas.quick)));
+), pas.cond && /* @__PURE__ */ React.createElement("span", { className: "cond-chips-lg", style: { marginLeft: 8 } }, /* @__PURE__ */ React.createElement(CondChips, { cond: pas.cond }))), /* @__PURE__ */ React.createElement("div", { className: "deck-name", style: { fontFamily: "var(--f-display)", fontWeight: 700, fontSize: "var(--fs-18)", color: "var(--tx)", marginBottom: "var(--s-3)", lineHeight: 1.2 } }, pas.name), /* @__PURE__ */ React.createElement("div", { className: "stack-3" }, pas.always && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-display)", fontSize: "var(--fs-9)", letterSpacing: "0.18em", color: "var(--gold)", textTransform: "uppercase", marginBottom: 4 } }, "ALWAYS / \u5E38\u6642\u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-12)", color: "var(--tx-2)", lineHeight: 1.7, padding: "8px 12px", background: "var(--gold-tint)", border: "1px solid var(--gold-line)", borderLeft: "3px solid var(--gold)", borderRadius: "var(--r-sm)", whiteSpace: "pre-wrap" } }, window.LBT_GLOSSARY_TEXT ? window.LBT_GLOSSARY_TEXT(pas.always, "パッシブ常時効果") : pas.always)), pas.effect && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-display)", fontSize: "var(--fs-9)", letterSpacing: "0.18em", color: "var(--gold)", textTransform: "uppercase", marginBottom: 4 } }, "EFFECT / \u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-12)", color: "var(--tx-2)", lineHeight: 1.7, padding: "8px 12px", background: "var(--surface-inset)", border: "1px solid var(--line-dim)", borderLeft: "3px solid var(--gold)", borderRadius: "var(--r-sm)", whiteSpace: "pre-wrap" } }, window.LBT_GLOSSARY_TEXT ? window.LBT_GLOSSARY_TEXT(pas.effect, "パッシブ効果") : pas.effect)), pas.quick && /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-mono)", fontSize: "var(--fs-11)", color: "var(--tx-dim)", padding: "4px 8px", background: "var(--surface-2)", borderRadius: "var(--r-sm)" } }, /* @__PURE__ */ React.createElement("span", { style: { color: "var(--gold)" } }, "QUICK"), " ", pas.quick)));
 const PassiveSection = ({ state, dispatch }) => {
   const h = React.createElement;
   const editable = canEditPersonaState(state);
@@ -212,7 +212,6 @@ const PassiveSection = ({ state, dispatch }) => {
   // null=未選択（既定表示）／true=編集欄／false=閲覧カード。
   const [forceEdit, setForceEdit] = React.useState(null);
   const src = state.personaSrc;
-  const passiveGlossaryScope = src?.name ? "人格パッシブ:" + src.name : "人格パッシブ";
   const isAutoFromDB = !!src && !editable && !forceEdit && state.pas.name === (src.passive_name || "") && !!state.pas.name;
   const primarySin = src ? window.getPrimarySin ? window.getPrimarySin(src) : null : null;
   // 同期編集（手動編集）中は編集欄を既定表示にし、閲覧専用の人格だけカードを既定にする。
@@ -240,9 +239,9 @@ const PassiveSection = ({ state, dispatch }) => {
           h("div", { className: "passive-read-title" }, "PERSONA PASSIVE / 人格パッシブ"),
           h("div", { className: "passive-read-note" }, "内容はカードで確認し、変更が必要なときだけ編集を開きます。"))),
       editable ? h(Button, { variant: "ghost", size: "sm", icon: "edit", onClick: () => setForceEdit(true) }, "この枠を編集") : null),
-    h(PassiveCard, { title: "PERSONA PASSIVE / 人格パッシブ", pas: state.pas, sin: primarySin, scope: passiveGlossaryScope }),
+    h(PassiveCard, { title: "PERSONA PASSIVE / 人格パッシブ", pas: state.pas, sin: primarySin }),
     extras.map((pas, index) => (pas && pas.name
-      ? h(PassiveCard, { key: pas.id || index, title: `PASSIVE ${index + 2} / 追加パッシブ`, pas, sin: primarySin, scope: passiveGlossaryScope })
+      ? h(PassiveCard, { key: pas.id || index, title: `PASSIVE ${index + 2} / 追加パッシブ`, pas, sin: primarySin })
       : null)),
     editable ? h("div", { className: "passive-read-add" }, h(Button, { variant: "ghost", icon: "plus", onClick: () => { addPassive(); setForceEdit(true); }, title: "追加パッシブを追加（上限なし）" }, "追加パッシブを追加")) : null);
 
@@ -255,7 +254,7 @@ const PassiveSection = ({ state, dispatch }) => {
         editable && isAutoFromDB ? h(Button, { variant: "ghost", size: "sm", icon: "edit", onClick: () => setForceEdit(true) }, "手動編集") : null,
         state.pas?.name ? h(Button, { variant: "ghost", size: "sm", icon: "eye", onClick: () => setForceEdit(false) }, "カード表示に戻す") : null),
       isAutoFromDB
-        ? h(PassiveCard, { title: "PERSONA PASSIVE / 人格パッシブ", pas: state.pas, sin: primarySin, scope: passiveGlossaryScope })
+        ? h(PassiveCard, { title: "PERSONA PASSIVE / 人格パッシブ", pas: state.pas, sin: primarySin })
         : renderEditor(state.pas, { key: "primary", title: "PERSONA PASSIVE / 人格パッシブ", onPatch: patchPas }),
       extras.map((pas, index) => renderEditor(pas, {
         key: pas.id || `extra-${index}`,
@@ -685,7 +684,7 @@ const SupportSection = ({ state, dispatch, ownedOnly = false }) => {
           visibleStandard.length || catalogMode === "standard" || catalogMode === "all" ? h(React.Fragment, null, h("div", { className: "t-label", style: { marginBottom: 6 } }, catalogMode === "all" ? "通常スロット用" : "通常スロット用"), renderList(visibleStandard, "standard")) : null,
           (visibleDeath.length || catalogMode === "death" || catalogMode === "all") ? h(React.Fragment, null, h("div", { className: "t-label", style: { marginTop: visibleStandard.length ? "var(--s-3)" : 0, marginBottom: 6, color: "var(--warn)" } }, "死亡後専用スロット候補", !hasDeathSlot ? "（未開放：閲覧のみ）" : ""), renderList(visibleDeath, "death")) : null
         ),
-        selected ? h("div", { className: "codex-detail" }, h("div", { className: "detail-head", style: { "--sin-primary": selectedIsDeath ? "var(--warn)" : "var(--gold)" } }, h("div", { className: "detail-eyebrow" }, selected.lp ? h("span", { className: "detail-num" }, "LP ", selected.lp) : null, h("span", { className: "detail-type" }, selectedIsDeath ? "DEATH SUPPORT PASSIVE / 死亡後専用" : "SUPPORT PASSIVE / サポートパッシブ")), h("div", { className: "detail-name" }, selected.name), h("div", { className: "cond-chips-lg", style: { marginTop: "var(--s-2)", display: "flex", alignItems: "center", gap: 6 } }, h("span", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)", fontFamily: "var(--f-display)", letterSpacing: "0.12em" } }, "発動条件"), h(CondChips, { cond: selected.cond }))), h("div", { className: "detail-body" }, h("div", null, h("div", { className: "detail-section-title" }, "効果"), h("div", { className: "detail-passive" }, h("div", { className: "detail-passive-effect", style: { whiteSpace: "pre-wrap" } }, window.LBT_GLOSSARY_TEXT ? window.LBT_GLOSSARY_TEXT(selected.effect, (selectedIsDeath ? "死亡後サポートパッシブ:" : "サポートパッシブ:") + selected.name) : selected.effect))), h("div", { className: "detail-actions" }, selectedIsDeath ? (deathSupport?.name === selected.name ? h(Button, { variant: "ghost", size: "sm", onClick: () => dispatch({ type: "SET_DEATH_SUPPORT", spp: null }), icon: "x" }, "死亡後スロットから外す") : h(Button, { variant: "primary", onClick: () => tryEquip(selected, "death"), icon: "check", disabled: !hasDeathSlot }, "死亡後スロットへ装備")) : (isEquipped(selected.name) ? h("div", { style: { fontSize: "var(--fs-10)", color: "var(--gold)", textAlign: "center", fontFamily: "var(--f-display)", letterSpacing: "0.16em", textTransform: "uppercase" } }, "★ 装備中") : h(Button, { variant: "primary", onClick: () => tryEquip(selected, "standard"), icon: "check" }, "通常スロットへ装備"))))) : h("div", { className: "codex-detail" }, h("div", { className: "detail-empty" }, h("div", { className: "detail-empty-icon" }, "◇"), h("div", { className: "t-label" }, "サポートパッシブを選択"), h("div", { style: { fontSize: "var(--fs-11)", color: "var(--tx-mute)", marginTop: 8 } }, hasDeathSlot ? "通常スロット用と死亡後専用候補を分けて表示しています。" : "一覧から選択すると詳細が表示されます。", h("br", null), "選択中のカードをもう一度クリック／タップするか、詳細の装備ボタンを押してください。")))
+        selected ? h("div", { className: "codex-detail" }, h("div", { className: "detail-head", style: { "--sin-primary": selectedIsDeath ? "var(--warn)" : "var(--gold)" } }, h("div", { className: "detail-eyebrow" }, selected.lp ? h("span", { className: "detail-num" }, "LP ", selected.lp) : null, h("span", { className: "detail-type" }, selectedIsDeath ? "DEATH SUPPORT PASSIVE / 死亡後専用" : "SUPPORT PASSIVE / サポートパッシブ")), h("div", { className: "detail-name" }, selected.name), h("div", { className: "cond-chips-lg", style: { marginTop: "var(--s-2)", display: "flex", alignItems: "center", gap: 6 } }, h("span", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)", fontFamily: "var(--f-display)", letterSpacing: "0.12em" } }, "発動条件"), h(CondChips, { cond: selected.cond }))), h("div", { className: "detail-body" }, h("div", null, h("div", { className: "detail-section-title" }, "効果"), h("div", { className: "detail-passive" }, h("div", { className: "detail-passive-effect", style: { whiteSpace: "pre-wrap" } }, window.LBT_GLOSSARY_TEXT ? window.LBT_GLOSSARY_TEXT(selected.effect, "サポートパッシブ:" + selected.name) : selected.effect))), h("div", { className: "detail-actions" }, selectedIsDeath ? (deathSupport?.name === selected.name ? h(Button, { variant: "ghost", size: "sm", onClick: () => dispatch({ type: "SET_DEATH_SUPPORT", spp: null }), icon: "x" }, "死亡後スロットから外す") : h(Button, { variant: "primary", onClick: () => tryEquip(selected, "death"), icon: "check", disabled: !hasDeathSlot }, "死亡後スロットへ装備")) : (isEquipped(selected.name) ? h("div", { style: { fontSize: "var(--fs-10)", color: "var(--gold)", textAlign: "center", fontFamily: "var(--f-display)", letterSpacing: "0.16em", textTransform: "uppercase" } }, "★ 装備中") : h(Button, { variant: "primary", onClick: () => tryEquip(selected, "standard"), icon: "check" }, "通常スロットへ装備"))))) : h("div", { className: "codex-detail" }, h("div", { className: "detail-empty" }, h("div", { className: "detail-empty-icon" }, "◇"), h("div", { className: "t-label" }, "サポートパッシブを選択"), h("div", { style: { fontSize: "var(--fs-11)", color: "var(--tx-mute)", marginTop: 8 } }, hasDeathSlot ? "通常スロット用と死亡後専用候補を分けて表示しています。" : "一覧から選択すると詳細が表示されます。", h("br", null), "選択中のカードをもう一度クリック／タップするか、詳細の装備ボタンを押してください。")))
       )
     ),
     supportEquipHint ? h("div", {
@@ -1184,12 +1183,12 @@ const EgoQuickDetail = ({ ego, currentSlot, isOwned, onEquip, onUnequip, onToggl
         h("span", null, [skill.attr, skill.sin].filter(Boolean).join("：") || "—")
       ),
       bareRolls.length ? h("div", { className: "ego-quick-rolls" }, bareRolls.join(" / ")) : null,
-      skill.effect ? h("p", { style: { whiteSpace: "pre-wrap" } }, window.LBT_GLOSSARY_TEXT ? window.LBT_GLOSSARY_TEXT(formatPreview(skill.effect, 92), "E.G.O簡易詳細:" + ego.name) : formatPreview(skill.effect, 92)) : null,
+      skill.effect ? h("p", { style: { whiteSpace: "pre-wrap" } }, window.LBT_GLOSSARY_TEXT ? window.LBT_GLOSSARY_TEXT(formatPreview(skill.effect, 92), "E.G.O簡易詳細") : formatPreview(skill.effect, 92)) : null,
       (skill.dice || []).some((die) => die.effect) ? h("div", { className: "ego-quick-dice-effects" },
         (skill.dice || []).filter((die) => die.effect).map((die, index) => h("div", { key: `effect-${index}`, className: "ego-quick-dice-effect" },
           h("span", { className: "ego-quick-dice-roll" }, die.roll || "効果"),
           h("span", { className: "ego-quick-dice-colon" }, die.effect ? "：" : ""),
-          h("span", { style: { whiteSpace: "pre-wrap" } }, window.LBT_GLOSSARY_TEXT ? window.LBT_GLOSSARY_TEXT(formatPreview(die.effect, 120), "E.G.O簡易ダイス:" + ego.name) : formatPreview(die.effect, 120))
+          h("span", { style: { whiteSpace: "pre-wrap" } }, window.LBT_GLOSSARY_TEXT ? window.LBT_GLOSSARY_TEXT(formatPreview(die.effect, 120), "E.G.O簡易ダイス") : formatPreview(die.effect, 120))
         ))
       ) : null
     );
@@ -3999,16 +3998,6 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     });
   };
   const cancelResultEditor = () => { setTicketPanel(null); setTicketDraft(null); };
-  /* 編集フォームは押したカードの直後に一度だけ描画し、カード内部のレイアウトや
-     overflow に埋もれないようにする。開いたときはフォームを視界内へ寄せる。 */
-  React.useEffect(() => {
-    if (ticketPanel === null || !ticketDraft || typeof document === "undefined") return;
-    const editor = document.querySelector(".ledger-result-edit-panel");
-    if (!editor || typeof editor.scrollIntoView !== "function") return;
-    const reducedMotion = typeof window !== "undefined"
-      && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
-    editor.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "nearest" });
-  }, [ticketPanel, ticketDraft?.id]);
   const updateResultDraftField = (field, value) => {
     setTicketDraft((draft) => draft ? { ...draft, [field]: value } : draft);
   };
@@ -4522,7 +4511,7 @@ const importHeldPersonas = () => {
             "aria-label": "獲得欠片",
             onChange: (e) => setNewResult((p) => ({ ...p, shards: e.target.value }))
           }),
-          h(Button, { size: "sm", variant: "primary", icon: "check", onClick: addResult, disabled: !String(newResult.name || "").trim() }, "編集")
+          h(Button, { size: "sm", variant: "primary", icon: "check", onClick: addResult, disabled: !String(newResult.name || "").trim() }, "記録する")
         ),
         /* 抽出チケットも収入と同じ場所で受け取る。GPTの追加工程なしで、
            LP・欠片と同時にこのリザルトへ入る。 */
@@ -4849,7 +4838,7 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
     h(Card, { className: "ledger-queue" },
       h("div", { className: "card-header owned-library-bar" },
         h("span", { className: "t-label" }, "未分類"),
-        h("span", { className: "ledger-note" }, "リザルトへ持って行くか、移動ボタンで帰属できます")
+        h("span", { className: "ledger-note" }, "リザルトカードへドラッグして帰属できます")
       ),
       h("div", { className: "card-body stack-2" },
         unclassified.length === 0
@@ -4860,15 +4849,12 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
           className: "ledger-row",
           ...dragProps(entry)
         },
-          h("span", { className: "ledger-row-name" }, entry.name),
+          h("div", { className: "ledger-row-label" },
+                          h("span", { className: "ledger-row-drag-handle", title: "ドラッグして移動", "aria-hidden": "true" }, "⋮⋮"),
+                          h("span", { className: "ledger-row-name" }, entry.name)
+                        ),
           h("span", { className: "ledger-row-kind" }, kindLabel(entry.kind)),
           h("span", { className: "ledger-row-cost" }, entry.cost?.lp ? `${entry.cost.lp}LP` : entry.cost?.shards ? `${entry.cost.shards}SHARD` : "—"),
-          h("select", {
-            className: "ledger-row-move",
-            "aria-label": `${entry.name} の帰属先`,
-            value: "",
-            onChange: (e) => { if (e.target.value) moveEntry(entry.id, e.target.value); }
-          }, h("option", { value: "" }, "移動先"), results.map((r) => h("option", { key: r.id, value: r.id }, r.name))),
           h("button", {
             type: "button",
             className: "ledger-row-trash",
@@ -4921,6 +4907,7 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
         const consumedItems = Array.isArray(result.consumedItems) ? result.consumedItems : [];
         const ticketChips = resultTicketChips(result);
         const ticketCount = ticketChips.reduce((total, ticket) => total + (Number(ticket.count) || 0), 0);
+        const isEditing = ticketPanel === result.id && ticketDraft?.id === result.id;
         /* ドロップ先は Card の外側の div に置く。Card は children / className / frame
            しか受け取らないため、drag イベントを直接渡しても無視される。 */
         return h("div", {
@@ -4929,31 +4916,114 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
           ...dropTargetProps(result.id)
         },
 h(Card, { className: "ledger-card" },
-    h("div", { className: "card-header owned-library-bar" },
-    h("span", { className: "ledger-card-title" }, result.name),
-    h("span", { className: "ledger-card-date" }, result.date || "—"),
-    h("div", { className: "ledger-card-actions" },
-    /* 編集はこのリザルトの登記情報（LP・欠片・抽出チケット）をまとめて直す口。
-       「⋯」は別の操作なので隣に分ける。 */
-    h("button", {
-    type: "button",
-    className: "ledger-card-edit-btn",
-    title: "このリザルトの登録情報（LP・欠片・抽出チケット）を編集します",
-    "aria-label": `${result.name} の登録情報を編集`,
-    "aria-expanded": ticketPanel === result.id && ticketDraft?.id === result.id,
-    "aria-pressed": ticketPanel === result.id && ticketDraft?.id === result.id,
-    onClick: (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      openResultEditor(result);
-    }
-    }, ticketPanel === result.id && ticketDraft?.id === result.id ? "編集中" : "編集")
-        ),
+    h("div", { className: `card-header owned-library-bar${isEditing ? " is-editing" : ""}` },
+      isEditing
+        ? h("div", { className: "ledger-card-edit-head-fields" },
+            h("label", { className: "ledger-card-edit-head-field" },
+              h("span", null, "名称"),
+              h("input", {
+                type: "text", className: "ledger-input ledger-card-edit-title",
+                "aria-label": "リザルトの名称", value: ticketDraft.name,
+                onChange: (event) => updateResultDraftField("name", event.target.value)
+              })
+            ),
+            h("label", { className: "ledger-card-edit-head-field" },
+              h("span", null, "日付"),
+              h("input", {
+                type: "date", className: "ledger-input ledger-card-edit-date",
+                "aria-label": "プレイした日付", value: ticketDraft.date,
+                onChange: (event) => updateResultDraftField("date", event.target.value)
+              })
+            )
+          )
+        : h("div", { className: "ledger-card-heading" },
+            h("span", { className: "ledger-card-title" }, result.name),
+            h("span", { className: "ledger-card-date" }, result.date || "—")
+          ),
+      h("div", { className: "ledger-card-actions" },
+        isEditing
+          ? [
+              h("button", {
+                key: "save", type: "button", className: "ledger-card-edit-save",
+                title: "変更を保存", "aria-label": `${result.name} の変更を保存`,
+                onClick: (event) => { event.preventDefault(); event.stopPropagation(); saveResultEditor(result); }
+              }, "保存"),
+              h("button", {
+                key: "cancel", type: "button", className: "ledger-card-edit-cancel",
+                title: "変更を破棄", "aria-label": `${result.name} の編集をキャンセル`,
+                onClick: (event) => { event.preventDefault(); event.stopPropagation(); cancelResultEditor(); }
+              }, "取消")
+            ]
+          : h("button", {
+              type: "button",
+              className: "ledger-card-edit-btn",
+              title: "このリザルトの登録情報（LP・欠片・抽出チケット）を編集します",
+              "aria-label": `${result.name} の登録情報を編集`,
+              "aria-expanded": false,
+              "aria-pressed": false,
+              disabled: ticketPanel !== null && !isEditing,
+              onClick: (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                openResultEditor(result);
+              }
+            }, "編集")
+      )
     ),
-
-
             h("div", { className: "card-body ledger-card-body" },
-              h("div", { className: "ledger-card-income" },
+              isEditing && h("div", { className: "ledger-card-edit-inline", "aria-label": "リザルトをカード内で編集" },
+                h("div", { className: "ledger-card-edit-income" },
+                  h("label", { className: "ledger-card-edit-field" },
+                    h("span", null, "獲得LP"),
+                    h("input", {
+                      className: "ledger-input ledger-input--num", type: "number", min: "0", step: "1", inputMode: "numeric",
+                      "aria-label": "獲得LP", value: ticketDraft.lp,
+                      onChange: (event) => updateResultDraftField("lp", event.target.value)
+                    })
+                  ),
+                  h("label", { className: "ledger-card-edit-field" },
+                    h("span", null, "獲得欠片"),
+                    h("input", {
+                      className: "ledger-input ledger-input--num", type: "number", min: "0", step: "1", inputMode: "numeric",
+                      "aria-label": "獲得欠片", value: ticketDraft.shards,
+                      onChange: (event) => updateResultDraftField("shards", event.target.value)
+                    })
+                  )
+                ),
+                h("div", { className: "ledger-card-edit-tickets" },
+                  h("span", { className: "t-label" }, "抽出チケット"),
+                  h("div", { className: "ledger-card-edit-ticket-grid" },
+                    ["persona", "ego", "choice"].map((kind) => h("label", { key: kind, className: "ledger-ticket-field" },
+                      h("span", null, ticketLabel(kind)),
+                      h("input", {
+                        className: "ledger-input ledger-input--num", type: "number", min: "0", step: "1", inputMode: "numeric",
+                        "aria-label": ticketLabel(kind) + " の枚数",
+                        value: String(Number(ticketDraft.tickets?.[kind]) || 0),
+                        onChange: (event) => updateResultDraftTicket(kind, event.target.value)
+                      })
+                    )),
+                    packs.length > 0 && h("label", { className: "ledger-ticket-field" },
+                      h("span", null, "対象パック"),
+                      h("select", {
+                        className: "select", "aria-label": "特定抽出パックの選択",
+                        value: ticketPackPick || packs[0]?.name || "",
+                        onChange: (event) => setTicketPackPick(event.target.value)
+                      }, packs.map((pack) => h("option", { key: pack.name, value: pack.name }, pack.name))
+                      )
+                    ),
+                    packs.length > 0 && h("label", { className: "ledger-ticket-field" },
+                      h("span", null, ticketLabel("pack", ticketPackPick || packs[0]?.name || "")),
+                      h("input", {
+                        className: "ledger-input ledger-input--num", type: "number", min: "0", step: "1", inputMode: "numeric",
+                        "aria-label": ticketLabel("pack", ticketPackPick || packs[0]?.name || "") + " の枚数",
+                        value: String(Number(ticketDraft.tickets?.pack?.[ticketPackPick || packs[0]?.name || ""]) || 0),
+                        onChange: (event) => updateResultDraftPack(ticketPackPick || packs[0]?.name || "", event.target.value)
+                      })
+                    )
+                  )
+                )
+              ),
+              !isEditing && h("div", { className: "ledger-card-income" },
                 h("span", { className: "ledger-pair" },
                   bigNum(result.income?.lp || 0, "lp"),
                   h("span", { className: "ledger-pair-label" }, "LP")
@@ -4965,7 +5035,7 @@ h(Card, { className: "ledger-card" },
                 h("span", { className: "ledger-card-spent" },
                   "支出 LP " + spent.lp.toLocaleString("ja-JP") + " / 欠片 " + spent.shards.toLocaleString("ja-JP"))
               ),
-              h("details", { className: "ledger-result-details" },
+              !isEditing && h("details", { className: "ledger-result-details" },
                 h("summary", { className: "ledger-result-summary" },
                   "明細 " + rows.length + "件 · 消耗品 " + consumedItems.length + "種 · チケット " + ticketCount + "枚"
                 ),
@@ -4993,17 +5063,13 @@ h(Card, { className: "ledger-card" },
                     : h("div", { className: "stack-2" }, rows.map((entry) => h("div", {
                         key: entry.id, className: "ledger-row is-owned", ...dragProps(entry)
                       },
-                        h("span", { className: "ledger-row-name" }, entry.name),
+                        h("div", { className: "ledger-row-label" },
+                          h("span", { className: "ledger-row-drag-handle", title: "ドラッグして移動", "aria-hidden": "true" }, "⋮⋮"),
+                          h("span", { className: "ledger-row-name" }, entry.name)
+                        ),
                         h("span", { className: "ledger-row-kind" }, kindLabel(entry.kind)),
                         h("span", { className: "ledger-row-cost" },
                           entry.cost?.lp ? entry.cost.lp + "LP" : entry.cost?.shards ? entry.cost.shards + "SHARD" : "—"),
-                        h("select", {
-                          className: "ledger-row-move", "aria-label": entry.name + " の帰属先", value: "",
-                          onChange: (event) => { if (event.target.value) moveEntry(entry.id, event.target.value); }
-                        },
-                          h("option", { value: "" }, "移動先"),
-                          results.filter((r) => r.id !== entry.resultId).map((r) => h("option", { key: r.id, value: r.id }, r.name))
-                        ),
                         h("button", {
                           type: "button", className: "ledger-row-release",
                           title: "帰属を外して未分類へ戻す", "aria-label": entry.name + " の帰属を外す",
@@ -5019,67 +5085,7 @@ h(Card, { className: "ledger-card" },
               )
             )
           ),
-                ticketPanel === result.id && ticketDraft && ticketDraft.id === result.id && h("div", {
-      className: "ledger-result-edit-panel", role: "group", "aria-label": "リザルトの登録情報を編集"
-    },
-      h("div", { className: "ledger-result-edit-heading" },
-        h("strong", null, "リザルトを編集"),
-        h(Button, { size: "sm", variant: "ghost", icon: "x", onClick: cancelResultEditor }, "閉じる")
-      ),
-      h("div", { className: "ledger-result-edit-fields" },
-        h("label", { className: "ledger-ticket-field" },
-          h("span", null, "リザルトの名称"),
-          h("input", { className: "ledger-input", "aria-label": "リザルトの名称", value: ticketDraft.name,
-            onChange: (event) => updateResultDraftField("name", event.target.value) })
-        ),
-        h("label", { className: "ledger-ticket-field" },
-          h("span", null, "プレイした日付"),
-          h("input", { className: "ledger-input", type: "date", "aria-label": "プレイした日付", value: ticketDraft.date,
-            onChange: (event) => updateResultDraftField("date", event.target.value) })
-        ),
-        h("label", { className: "ledger-ticket-field" },
-          h("span", null, "獲得LP"),
-          h("input", { className: "ledger-input ledger-input--num", type: "number", min: "0", "aria-label": "獲得LP", value: ticketDraft.lp,
-            onChange: (event) => updateResultDraftField("lp", event.target.value) })
-        ),
-        h("label", { className: "ledger-ticket-field" },
-          h("span", null, "獲得欠片"),
-          h("input", { className: "ledger-input ledger-input--num", type: "number", min: "0", "aria-label": "獲得欠片", value: ticketDraft.shards,
-            onChange: (event) => updateResultDraftField("shards", event.target.value) })
-        )
-      ),
-      h("div", { className: "ledger-result-edit-tickets" },
-        h("span", { className: "t-label" }, "抽出チケット（卓の報酬）"),
-        h("div", { className: "ledger-ticket-grid" },
-          ["persona", "ego", "choice"].map((kind) => h("label", { key: kind, className: "ledger-ticket-field" },
-            h("span", null, ticketLabel(kind)),
-            h("input", { className: "ledger-input ledger-input--num", type: "number", min: "0",
-              "aria-label": ticketLabel(kind) + " の枚数",
-              value: String(Number(ticketDraft.tickets?.[kind]) || 0),
-              onChange: (event) => updateResultDraftTicket(kind, event.target.value) })
-          )),
-          packs.length > 0 && h("label", { className: "ledger-ticket-field" },
-            h("span", null, "特定抽出パック"),
-            h("select", { className: "select", "aria-label": "特定抽出パックの選択",
-              value: ticketPackPick || packs[0]?.name || "",
-              onChange: (event) => setTicketPackPick(event.target.value) },
-              packs.map((pack) => h("option", { key: pack.name, value: pack.name }, pack.name))
-            )
-          ),
-          packs.length > 0 && h("label", { className: "ledger-ticket-field" },
-            h("span", null, ticketLabel("pack", ticketPackPick || packs[0]?.name || "")),
-            h("input", { className: "ledger-input ledger-input--num", type: "number", min: "0",
-              "aria-label": ticketLabel("pack", ticketPackPick || packs[0]?.name || "") + " の枚数",
-              value: String(Number(ticketDraft.tickets?.pack?.[ticketPackPick || packs[0]?.name || ""]) || 0),
-              onChange: (event) => updateResultDraftPack(ticketPackPick || packs[0]?.name || "", event.target.value) })
-          )
-        )
-      ),
-      h("div", { className: "ledger-result-edit-actions" },
-        h(Button, { size: "sm", variant: "ghost", onClick: cancelResultEditor }, "キャンセル"),
-        h(Button, { size: "sm", variant: "primary", icon: "check", onClick: () => saveResultEditor(result) }, "変更を保存")
-      )
-    )
+
         )
       })
     ),
