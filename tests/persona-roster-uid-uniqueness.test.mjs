@@ -91,6 +91,69 @@ test("重複UIDまたは欠落UIDを指定した同期操作は一括更新せ�
   );
 });
 
+
+test("historical persona purchase imports bypass current balance but still record the purchase", () => {
+  const context = load();
+  const persona = db.normal_personas[0];
+  const uid = "existing-owned-persona";
+  const state = {
+    roster: { personas: [row("n", persona.no, uid)], egos: [], supports: [], spirits: [] },
+    results: [{ id: "result-low", name: "低残高の過去記録", income: { lp: 0, shards: 0 } }],
+    entries: [], inventory: []
+  };
+  const imported = context.__reduce(state, {
+    type: "ADD_ROSTER", mode: "n", no: persona.no, purchase: true,
+    cost: { lp: 20, shards: 0 }, historicalImport: true, resultId: "result-low"
+  });
+  assert.equal(imported.roster.personas.length, 1, "既存の所持人格は重複追加しない");
+  assert.equal(imported.entries.length, 1, "不足していた購入明細を補完する");
+  assert.equal(imported.entries[0].kind, "persona");
+  assert.equal(imported.entries[0].cost.lp, 20);
+  assert.equal(imported.entries[0].ref.uid, uid);
+  const repeated = context.__reduce(imported, {
+    type: "ADD_ROSTER", mode: "n", no: persona.no, purchase: true,
+    cost: { lp: 20, shards: 0 }, historicalImport: true, resultId: "result-low"
+  });
+  assert.strictEqual(repeated, imported, "再取り込みで二重に課金しない");
+});
+
+test("an old zero-cost persona purchase entry is repaired instead of duplicated", () => {
+  const context = load();
+  const persona = db.normal_personas[0];
+  const uid = "legacy-owned-persona";
+  const state = {
+    roster: { personas: [row("n", persona.no, uid)], egos: [], supports: [], spirits: [] },
+    results: [{ id: "result-old", name: "旧購入記録", income: { lp: 0, shards: 0 } }],
+    entries: [{
+      id: "legacy-entry", kind: "persona", name: persona.name,
+      cost: { lp: 0, shards: 0 }, resultId: "result-old",
+      ref: { kind: "rosterPersona", uid }
+    }],
+    inventory: []
+  };
+  const repaired = context.__reduce(state, {
+    type: "ADD_ROSTER", mode: "n", no: persona.no, purchase: true,
+    cost: { lp: 20, shards: 0 }, historicalImport: true, resultId: "result-old"
+  });
+  assert.equal(repaired.entries.length, 1, "古い明細を二重化しない");
+  assert.equal(repaired.entries[0].cost.lp, 20, "0円の明細を正しい購入費に修復");
+});
+
+test("non-historical persona purchase still respects the current balance gate", () => {
+  const context = load();
+  const persona = db.normal_personas[0];
+  const state = {
+    roster: { personas: [], egos: [], supports: [], spirits: [] },
+    results: [{ id: "result-poor", name: "残高不足", income: { lp: 0, shards: 0 } }],
+    entries: [], inventory: []
+  };
+  const rejected = context.__reduce(state, {
+    type: "ADD_ROSTER", mode: "n", no: persona.no, purchase: true,
+    cost: { lp: 20, shards: 0 }
+  });
+  assert.strictEqual(rejected, state, "ショップの新規購入は残高不足なら拒否");
+});
+
 test("UID修復後の同期操作は指定した人格だけを変更する", () => {
   const context = load();
   const rows = context.__normalizePersonaRows([
