@@ -353,6 +353,9 @@ item.decide ? h("div", { className: "gara-decide" },
     const title = block.name && block.name !== "無題"
       ? block.name
       : "無題 " + block.orphanNote;
+    const importReasons = Array.isArray(block.reasons)
+      ? block.reasons.filter((row) => row && row.reason)
+      : [];
     /* 金額は見本と同じbigNumペア。単位は数字の横に小さく添えるだけ。 */
     const bigNum = (value, tone) =>
       h("b", { className: `ledger-chip-num is-${tone}` }, (Number(value) || 0).toLocaleString("ja-JP"));
@@ -368,6 +371,19 @@ item.decide ? h("div", { className: "gara-decide" },
         h("div", { className: "ledger-card-income" },
           pair(income.lp, "lp", "LP"),
           pair(income.shards, "shard", "欠片")
+        ),
+        importReasons.length > 0 && h("div", {
+          className: "gara-result-warning",
+          role: "status",
+          "aria-label": title + " の取込時の確認事項"
+        },
+          h("strong", { className: "gara-result-warning-title" }, "取込前に確認してください"),
+          h("ul", null, importReasons.slice(0, 6).map((row, index) => h("li", {
+            key: String(row.line || "warning") + ":" + index
+          }, (row.line ? row.line + " — " : "") + row.reason))),
+          importReasons.length > 6
+            ? h("p", { className: "gara-note" }, "ほか " + (importReasons.length - 6) + " 件の確認事項があります")
+            : null
         ),
         h("div", {
           className: "gara-rows",
@@ -896,7 +912,10 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [] }) => {
     const out = {};
     for (const op of lines) {
       const scenario = byKey.get(op.key);
-      const booked = new Set((scenario?.spends || []).map((s) => resolveName(s.name)).filter(Boolean));
+      const booked = new Set((scenario?.spends || [])
+        .filter((spend) => !spend.needsDecision)
+        .map((spend) => resolveName(spend.name))
+        .filter(Boolean));
       const picks = op.proposals
         .filter((p) => !booked.has(p.name))
         .map((p) => ({ name: p.name, kind: p.kind, cost: p.cost }));
