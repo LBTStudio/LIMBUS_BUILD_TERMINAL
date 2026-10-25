@@ -340,6 +340,9 @@ async function captureViewport(browser, mode) {
     await annotateAndSave(page, shareButton, "share-sheet-" + mode,
       "共有シートを開く", "操作・保存 → 人に見せるHTML");
 
+    // Review result-detail layout before switching to the help-index screen.
+    await captureCompactResultDetails(page, mode);
+
     // Capture the help index itself for visual QA. These review-only images go to
     // the expiring CI Artifact, not into the 12 screenshots shown to end users.
     await page.keyboard.press("Escape").catch(() => {});
@@ -350,8 +353,7 @@ async function captureViewport(browser, mode) {
     await page.screenshot({ path: helpIndexFilename, animations: "disabled", fullPage: false });
     log("captured visual-review screen " + path.relative(ROOT, helpIndexFilename));
 
-    // Review result-detail layout in the isolated desktop/mobile context.
-    await captureCompactResultDetails(page, mode);
+
   } finally {
     await context.close();
   }
