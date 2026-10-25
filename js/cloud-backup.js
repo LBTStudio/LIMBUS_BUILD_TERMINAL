@@ -472,7 +472,7 @@
       "安全な場所へ保管してください。LBTの画面共有や公開チャンネルには貼り付けないでください。",
       "ファイル保管日: " + new Date().toISOString(),
       ""
-    ].join("\\n");
+    ].join("\n");
     downloadText("LBT-recovery-key.txt", fileText, "text/plain;charset=utf-8");
     emit({
       mode: "oauth",
