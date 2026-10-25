@@ -366,9 +366,9 @@ test("特異人格は指定購入できない（core P203 に購入が無い）"
      指定で好きな1つを選ぶ方法は core:336 の人格購入だけで、特異人格に存在しない。 */
   assert.match(codex, /const personaPurchaseBlocked = \(persona, mode\) => \(mode === "t" \? "特異人格は抽出しでのみ入手できます" : null\);/);
   /* カード上の獲得経路でも遮断する（押しても入らない）。 */
-  assert.match(codex, /const acquirePersona = \\(persona, modeHint, successMessage\\) => \\{[\\s\\S]{0,1800}?const blocked = acquireHow === "purchase" \\? personaPurchaseBlocked\\(persona, personaMode\\) : null;[\\s\\S]{0,100}?if \\(blocked\\) \\{ toast\\(blocked, "assertive"\\); return; \\}/);
+  assert.match(codex, /const acquirePersona = \(persona, modeHint, successMessage\) => \{[\s\S]{0,1800}?const blocked = acquireHow === "purchase" \? personaPurchaseBlocked\(persona, personaMode\) : null;[\s\S]{0,100}?if \(blocked\) \{ toast\(blocked, "assertive"\); return; \}/);
   /* 詳細ダイアログの所持追加側も同じ判定を使う。 */
-  assert.match(codex, /const addRoster = \\(p\\) => \\{[\\s\\S]{0,180}?acquirePersona\\(p, m, "所持リストへ追加"\\);/);
+  assert.match(codex, /const addRoster = \(p\) => \{[\s\S]{0,180}?acquirePersona\(p, m, "所持リストへ追加"\);/);
   /* 購入選択中は特異人格カードの獲得ボタン自体を出さない。 */
   assert.match(codex, /purchaseBlocked: acquireHow === "purchase" && Boolean\(personaPurchaseBlocked\(p, m\)\)/);
   assert.match(codex, /onQuickAcquire: gated \|\| \(acquireHow === "purchase" && personaPurchaseBlocked\(p, m\)\)\s*\?\s*null/);
@@ -583,8 +583,8 @@ test("所持済みの人格は再獲得せず、嘘の『所持へ追加』ト�
   const codex = read("../js/PersonaCodex.js");
   /* カード獲得と詳細の所持追加の2経路。どちらも reducer と同じ mode:no で
      判定してから dispatch する。UI 側の !isOwned ガードは表示だけを守る。 */
-  assert.match(codex, /const acquirePersona = \\(persona, modeHint, successMessage\\) => \\{[\\s\\S]{0,1000}?roster\\?\\.personas \\|\\| \\[\\]\\)\\.some\\([\\s\\S]{0,200}?既に所持しています[\\s\\S]{0,120}?return;/);
-  assert.match(codex, /const addRoster = \\(p\\) => \\{[\\s\\S]{0,180}?acquirePersona\\(p, m, "所持リストへ追加"\\);/);
+  assert.match(codex, /const acquirePersona = \(persona, modeHint, successMessage\) => \{[\s\S]{0,1000}?roster\?\.personas \|\| \[\]\)\.some\([\s\S]{0,200}?既に所持しています[\s\S]{0,120}?return;/);
+  assert.match(codex, /const addRoster = \(p\) => \{[\s\S]{0,180}?acquirePersona\(p, m, "所持リストへ追加"\);/);
   /* reducer 側の一意キーも同じ mode:no。 */
   assert.match(reducer, /case "ADD_ROSTER"[\s\S]{0,200}?`\$\{mode\}:\$\{no\}`[\s\S]{0,160}?return state;/);
 });
@@ -948,12 +948,12 @@ test("人格の所持化は取得方法を選べるワンボタンになり、�
   assert.match(codex, /!isInRoster && acquireHow && onAcquireHowChange && \/\* @__PURE__ \*\/ React\.createElement\(AcquireBar/);
   /* 詳細ポップオーバーまで取得方法を配線する。渡し忘れると未所持の詳細が素の装備ボタンだけになり、
      装備経由の所持化が購入明細を素通りする。 */
-  assert.match(codex, /isInRoster: currentIsInRoster,[\\s\\S]{0,160}?state,[\\s\\S]{0,80}?acquireHow,[\\s\\S]{0,80}?onAcquireHowChange: setAcquireHow,[\\s\\S]{0,100}?onAcquire: \\(\\) => acquirePersona\\(selectedPersonaView, currentMode\\)/);
+  assert.match(codex, /isInRoster: currentIsInRoster,[\s\S]{0,160}?state,[\s\S]{0,80}?acquireHow,[\s\S]{0,80}?onAcquireHowChange: setAcquireHow,[\s\S]{0,100}?onAcquire: \(\) => acquirePersona\(selectedPersonaView, currentMode\)/);
   /* 装備ボタンは所持済みのときだけ出す。 */
   assert.match(codex, /isInRoster && \/\* @__PURE__ \*\/ React\.createElement\(Button, \{ variant: "primary", onClick: onEquip/);
   assert.match(codex, /const \[acquireHow, setAcquireHow\] = React\.useState\("purchase"\);/);
   /* 導入は購入として明細に落ちる。 */
-  assert.match(codex, /dispatch\\(\\{ type: "ADD_ROSTER", mode: personaMode, no: persona\\.no, purchase: true, cost: \\{ lp: cost\\.lp \\|\\| 0, shards: cost\\.shards \\|\\| 0 \\} \\}\\);/);
+  assert.match(codex, /dispatch\(\{ type: "ADD_ROSTER", mode: personaMode, no: persona\.no, purchase: true, cost: \{ lp: cost\.lp \|\| 0, shards: cost\.shards \|\| 0 \} \}\);/);
 /* 固有バフの案内は実装どおり「装備中パネル」を指す。 */
   assert.match(codex, /\\u88C5\\u5099\\u4E2D\\u30DA\\u30F3\\u30EB\\u306E\\u300C\\u56FA\\u6709\\u30D0\\u30D5/);
   /* 案内は「装備中パネル」を指すため、素の「パネルの…」だけにはしない。
