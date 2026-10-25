@@ -2617,13 +2617,14 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
   const afford = window.LBT_purchaseAffordability
     ? window.LBT_purchaseAffordability(state, price)
     : { ok: true, reason: "" };
-  const blocked = !disabled && !owned && !afford.ok;
+  const capped = Boolean(disabled);
+  const blocked = !capped && !owned && !afford.ok;
   const blockReason = afford.reason || "";
   return h("div", {
     key,
     className: "shop-card spirit-item",
     "data-owned": owned ? "1" : null,
-    "data-blocked": blocked ? "1" : null
+    "data-blocked": blocked || capped ? "1" : null
   },
     /* 識別情報は名前とは別の行に置く（ビルドの .p-card-head と同じ）。
        同一行に並べると名前の幅が蝕まれる。 */
@@ -2642,8 +2643,9 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
           size: "sm",
           variant: "primary",
           icon: "plus",
+          disabled: capped,
           onClick: blocked ? () => toast(blockReason, "assertive") : onAcquire,
-          title: blocked ? blockReason : (reason || "このカードから購入して所持にする")
+          title: capped ? (reason || "購入できません") : blocked ? blockReason : (reason || "このカードから購入して所持にする")
         }, actionLabel || "購入")));
 };
 
