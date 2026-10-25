@@ -39,3 +39,17 @@ test("人格に登録された特殊強化だけを直下へ表示し、効果�
   assert.match(sections, /h\("summary", null, "効果を表示"\)/);
   assert.match(resultCss, /\.ledger-object-enhancements\s*\{[^}]*flex-direction:\s*column/s);
 });
+
+
+test("コンパクトなリザルト行はレイヤー外で既存の2段配置を上書きする", () => {
+  const layerClose = resultCss.lastIndexOf("\\n}\\n\\n");
+  const compactRow = resultCss.lastIndexOf(".ledger-card .ledger-result-object-row {");
+  assert.ok(layerClose >= 0 && compactRow > layerClose, "sections.css の通常ルールより強い、レイヤー外の上書きを使う");
+  const nameRule = resultCss.match(/\\.ledger-card \\.ledger-result-object-row \\.ledger-row-name \\{([^}]*)\\}/s);
+  const costRule = resultCss.match(/\\.ledger-card \\.ledger-result-object-row \\.ledger-row-cost \\{([^}]*)\\}/s);
+  assert.ok(nameRule && costRule, "名称とコストの専用ルールがある");
+  assert.match(nameRule[1], /grid-column:\\s*auto/);
+  assert.match(nameRule[1], /grid-row:\\s*auto/);
+  assert.match(costRule[1], /grid-column:\\s*auto/);
+  assert.match(costRule[1], /grid-row:\\s*auto/);
+});
