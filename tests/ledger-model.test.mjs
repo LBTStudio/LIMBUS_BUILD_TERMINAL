@@ -89,6 +89,13 @@ test("旧LP換算記録は通常の支出明細と欠片収入へ一度だけ移
   assert.equal(balance(again.results, again.entries).spentLp, 8);
 });
 
+test("リザルト UI からLP→欠片の変換欄と変換ヘルパーを撤去する", () => {
+  const ui = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
+  const provenance = readFileSync(new URL("../js/ledger-provenance.js", import.meta.url), "utf8");
+  assert.doesNotMatch(ui, /ExchangeInputs|shardExchangeOf|LBT_shardExchange|LP→欠片/);
+  assert.doesNotMatch(provenance, /LP_TO_SHARD|LBT_shardExchange|shardExchange/);
+});
+
 test("リザルトを加えると収入が保存され、残高反映される", () => {
   let s = reducer(baseState(), { type: "ADD_RESULT", name: "第12回", date: "2026-10-11", income: { lp: 1200, shards: 400 } });
   assert.equal(s.results.length, 1);
