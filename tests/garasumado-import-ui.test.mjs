@@ -207,7 +207,7 @@ test("URL入力は複数行フォームで送信でき、進行状況・部分�
   assert.match(uiFlat, /name: "shareUrls"/);
   assert.match(uiFlat, /className: "gara-loading", role: "status", "aria-live": "polite"/);
   assert.match(uiFlat, /urlReport\.failed\.slice\(0, 6\)/, "一部失敗のURLを確認できる");
-  assert.match(uiFlat, /catch \(error\) \{ setError\(/, "通信・処理例外を画面内のエラーにする");
+  assert.match(uiFlat, /catch \(\_\) \{ setError\(/, "想定外の例外を利用者向けエラーにする");
   assert.match(uiFlat, /finally \{ setBusy\(false\); setProgress\(""\); \}/, "失敗時も読込状態を解除する");
 });
 
@@ -218,7 +218,7 @@ test("取込後の確認画面は対象数・未決件数・追加予定を先�
   assert.match(uiFlat, /pendingCount\}件/);
   assert.match(uiFlat, /draft \? draft\.simulation\.results : 0/);
   assert.match(uiFlat, /項目名を押すと候補や価格を確認できます/);
-  assert.match(uiFlat, /className: "gara-import-actions"/);
+  assert.match(uiFlat, /className: "gara-foot gara-import-actions"/);
 });
 
 test("確定後は manifest が残っていても確定結果画面を表示する", () => {
