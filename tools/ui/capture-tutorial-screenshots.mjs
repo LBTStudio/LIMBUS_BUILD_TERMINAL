@@ -287,6 +287,18 @@ async function captureCompactResultDetails(page, mode) {
     filename, contentType: "image/png", base64: screenshot.toString("base64")
   }) + "\n", "utf8");
   log("captured result card visual review " + filename);
+  const effectDisclosure = card.locator(".ledger-object-enhancement-details").first();
+  if (await effectDisclosure.count()) {
+    await effectDisclosure.locator("> summary").click();
+    const effectText = await effectDisclosure.locator("p").innerText();
+    if (!effectText.trim()) throw new Error("Special enhancement effect did not expand");
+    const expandedFilename = "result-enhancement-expanded-" + mode + ".png";
+    const expanded = await card.screenshot({ animations: "disabled" });
+    fs.writeFileSync(path.join(OUT, expandedFilename.replace(/\\.png$/, ".json")), JSON.stringify({
+      filename: expandedFilename, contentType: "image/png", base64: expanded.toString("base64")
+    }) + "\\n", "utf8");
+    log("captured expanded special enhancement visual review " + expandedFilename);
+  }
 }
 
 async function captureViewport(browser, mode) {
