@@ -1625,7 +1625,7 @@
 .ledger-results-sort:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .ledger-results-search:disabled,
 .ledger-results-sort:disabled { opacity: .65; }
-.ledger-cards { grid-template-columns: repeat(auto-fill, minmax(min(265px, 100%), 1fr)); align-items: start; gap: var(--s-3); }
+.ledger-cards { grid-template-columns: repeat(auto-fill, minmax(min(248px, 100%), 1fr)); align-items: start; gap: var(--s-2); }
 .ledger-card-wrap .ledger-card { height: auto; box-shadow: 0 3px 12px color-mix(in srgb, var(--surface-0) 68%, transparent); }
 .ledger-card-wrap:hover .ledger-card { box-shadow: 0 7px 18px color-mix(in srgb, var(--surface-0) 60%, transparent); }
 .ledger-card-wrap .ledger-card .card-header { padding: var(--s-3); gap: var(--s-1) var(--s-2); }
@@ -1706,4 +1706,32 @@
   .ledger-results-page-actions { justify-content: space-between; }
   .ledger-result-edit-fields { grid-template-columns: minmax(0, 1fr); }
   .ledger-result-edit-panel .ledger-ticket-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* リザルト編集操作のヒット領域をカードやドラッグ用レイヤーより前へ。
+   編集フォームは Card の内側ではなく、同じリザルトラッパの兄弟として描画する。 */
+.ledger-card-actions { position: relative; z-index: 3; }
+.ledger-card-edit-btn {
+  position: relative;
+  z-index: 4;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+.ledger-card-wrap.is-editing {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--s-2);
+}
+.ledger-card-wrap.is-editing .ledger-card-edit-btn {
+  border-color: var(--gold-line);
+  color: var(--gold-hi);
+}
+.ledger-card-wrap .ledger-result-edit-panel {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-lg);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--gold) 8%, var(--surface-0));
+  scroll-margin-block: var(--s-4);
 }

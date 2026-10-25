@@ -381,9 +381,14 @@ test("リザルトの登録情報はカード右上の『編集』から直す�
   assert.match(sections, /const \[newResultPack, setNewResultPack\] = React\.useState\(""\);/);
   assert.match(sections, /idPrefix: "new-result",\s*current: newResult\.tickets,\s*packPick: newResultPack,\s*setPackPick: setNewResultPack,/);
   assert.match(sections, /tickets: newResult\.tickets \|\| \{ persona: 0, ego: 0, choice: 0, pack: \{\} \}/);
-  /* 編集フォームは押したリザルトカード内に開き、一覧上部へ飛ばさない。 */
+  /* 編集フォームは押したリザルトカードの直後に展開し、一覧上部へ飛ばさない。 */
   assert.doesNotMatch(sections, /h\(TicketInputs, \{\s*idPrefix: `result-/);
-  assert.match(sections, /className: "ledger-card-edit-btn",\s*title: "このリザルトの登録情報（LP・欠片・抽出チケット）を編集します",\s*"aria-label": `\$\{result\.name\} の登録情報を編集`,\s*onClick: \(\) => openResultEditor\(result\)\s*\}, "編集"\)/);
+  assert.match(sections, /className: "ledger-card-edit-btn"/);
+  assert.match(sections, /"aria-label": `\$\{result\.name\} の登録情報を編集`/);
+  assert.match(sections, /"aria-expanded": ticketPanel === result\.id && ticketDraft\?\.id === result\.id/);
+  assert.match(sections, /"aria-pressed": ticketPanel === result\.id && ticketDraft\?\.id === result\.id/);
+  assert.match(sections, /onClick: \(event\) => \{\s*event\.preventDefault\(\);\s*event\.stopPropagation\(\);\s*openResultEditor\(result\);\s*\}/);
+  assert.match(sections, /ticketPanel === result\.id && ticketDraft\?\.id === result\.id \? "編集中" : "編集"/);
   assert.doesNotMatch(sections, /ledger-card-menu-btn/);
   assert.doesNotMatch(sections, /exportFor/);
   assert.doesNotMatch(sections, /"抽出チケットを記録"\)/);
