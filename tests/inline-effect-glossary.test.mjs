@@ -184,6 +184,30 @@ test("表示元が不明な固有効果は別人格の説明を流用しない",
   assert.equal(piece.entries.length, 0, "所有元が分からない固有定義を他人格から流用しない");
 });
 
+
+test("desktop click does not toggle closed a glossary popover already opened by hover", () => {
+  assert.ok(source.includes('if (lastPointerType.current === "mouse") {'));
+  assert.ok(source.includes('setOpen(true);\n        return;'));
+  assert.ok(source.includes("Desktop hover may have opened the popover before the click lands"));
+});
+
+test("persona passive cards pass owner scope to the passive name and both effect fields", () => {
+  const sections = readFileSync(resolve(ROOT, "js/OtherSections.js"), "utf8");
+  assert.ok(sections.includes('const passiveGlossaryScope = src?.name ? "人格パッシブ:" + src.name : "人格パッシブ";'));
+  assert.ok(sections.includes('LBT_GLOSSARY_TEXT(pas.name, scope || "人格パッシブ")'));
+  assert.ok(sections.includes('LBT_GLOSSARY_TEXT(pas.always, scope || "人格パッシブ")'));
+  assert.ok(sections.includes('LBT_GLOSSARY_TEXT(pas.effect, scope || "人格パッシブ")'));
+  assert.ok(sections.includes('scope: passiveGlossaryScope'));
+});
+
+test("support passive names and E.G.O quick effects use owner-scoped glossary rendering", () => {
+  const sections = readFileSync(resolve(ROOT, "js/OtherSections.js"), "utf8");
+  assert.ok(sections.includes('LBT_GLOSSARY_TEXT(spp.name, "サポートパッシブ:" + spp.name)'));
+  assert.ok(sections.includes('LBT_GLOSSARY_TEXT(selected.name, (selectedIsDeath ? "死亡後サポートパッシブ:" : "サポートパッシブ:") + selected.name)'));
+  assert.ok(sections.includes('LBT_GLOSSARY_TEXT(formatPreview(skill.effect, 92), "E.G.O簡易詳細:" + ego.name)'));
+  assert.ok(sections.includes('LBT_GLOSSARY_TEXT(formatPreview(die.effect, 120), "E.G.O簡易ダイス:" + ego.name)'));
+});
+
 test("共通用語の出典はPDF抽出ページの実在内容に対応する", () => {
   const pageText = (n) => { const s = coreCorpus.indexOf("===== PAGE " + n + " ====="); if (s < 0) return ""; const e = coreCorpus.indexOf("===== PAGE ", s + 5); return coreCorpus.slice(s, e < 0 ? coreCorpus.length : e); };
   const p306 = pageText(306), p311 = pageText(311), glossary = loadGlossary().buildGlossary(db);
