@@ -109,6 +109,9 @@ async function verifiedUser(accessToken: string): Promise<string> {
   if (!response.ok) throw new Error("ログインの有効期限が切れています。もう一度ログインしてください。");
   const user = await response.json();
   if (!user?.id) throw new Error("ログインユーザーを確認できません。");
+  if (user.is_anonymous === true) {
+    throw new Error("匿名セッションでは個人アカウントのオンライン保全を使えません。Google/X連携または復旧キーを利用してください。");
+  }
   return String(user.id);
 }
 
