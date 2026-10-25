@@ -27,7 +27,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   capture:
@@ -36,10 +36,6 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-        with:
-          # PR runs must check out the source branch so the optional asset commit
-          # is a fast-forward to the PR head, not a commit on refs/pull/*/merge.
-          ref: ${{ github.event.pull_request.head.ref || github.ref }}
 
       - uses: actions/setup-node@v4
         with:
@@ -92,21 +88,9 @@ jobs:
               raise SystemExit("Expected 12 WebP screenshots, got " + str(len(original["files"])))
           PY
 
-      - name: Commit screenshots to the source PR branch
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        env:
-          BRANCH: ${{ github.head_ref }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/tutorial-captures/*.webp
-          if git diff --cached --quiet; then
-            echo "Tutorial screenshots are unchanged."
-            exit 0
-          fi
-          git commit -m "docs: add real UI tutorial screenshots"
-          git push origin "HEAD:${BRANCH}"
-
+      # Screenshots are delivered as a workflow artifact. CI must not push
+      # generated images back into a PR branch: that creates a second PR event
+      # under the bot identity and can require manual workflow approval.
       - name: Upload screenshots and manifest
         if: always()
         uses: actions/upload-artifact@v4

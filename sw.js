@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-6810d15d";
+const CACHE_NAME = "lbt-c13e8bb9";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -58,7 +58,7 @@ const PRECACHE_URLS = [
   "js/PersonaCodex.js?v=59018e19",
   "js/SkillDeck.js?v=a93f6cb8",
   "js/accounts-ui.js?v=6f8fb33c",
-  "js/cloud-backup.js?v=501f0bd8",
+  "js/cloud-backup.js?v=a54f7915",
   "js/core.js?v=d79b98be",
   "js/ego-slot-forms.js?v=85aa4887",
   "js/gacha-identity.js?v=25e8fdfa",
