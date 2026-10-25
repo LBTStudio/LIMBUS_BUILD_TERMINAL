@@ -1470,3 +1470,16 @@ test("明示的な報酬ラベルから人格名を抽出し、参加者名の�
   assert.equal(MEMO.parseMemo("❚報酬").wins.length, 0, "見出しだけなら候補にしない");
   assert.equal(MEMO.parseMemo("・ハコツムリ 様").wins.length, 0, "参加者を獲得扱いしない");
 });
+
+
+test("別通貨の現在残高が明示支出額に混ざらない", () => {
+  const lpSpend = MEMO.parseMemo("・支出\n道具A 150LP消費 現在87欠片");
+  assert.equal(lpSpend.spends.length, 1);
+  assert.equal(lpSpend.spends[0].lp, 150);
+  assert.equal(lpSpend.spends[0].shards, 0);
+
+  const shardSpend = MEMO.parseMemo("・支出\n道具B 200欠片消費 現在130LP");
+  assert.equal(shardSpend.spends.length, 1);
+  assert.equal(shardSpend.spends[0].lp, 0);
+  assert.equal(shardSpend.spends[0].shards, 200);
+});
