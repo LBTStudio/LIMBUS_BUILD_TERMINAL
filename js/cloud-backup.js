@@ -605,8 +605,15 @@
       const revision = Number(item.revision);
       if (Number.isSafeInteger(revision) && revision > 0) {
         const previous = byRevision.get(revision);
+        const payloadHash = String(item.payloadHash || item.payload_hash || "");
+        const previousHash = String(previous && (previous.payloadHash || previous.payload_hash) || "");
+        if (previousHash && payloadHash && previousHash !== payloadHash) {
+          throw new Error("同じ世代番号の履歴に異なる内容があります。履歴の自動統合を停止しました。");
+        }
         const savedAt = String(item.saved_at || item.updated_at || "");
-        if (!previous || savedAt > String(previous.saved_at || "")) byRevision.set(revision, { ...item, revision });
+        if (!previous || (!previousHash && payloadHash) || savedAt > String(previous.saved_at || "")) {
+          byRevision.set(revision, { ...item, revision, payloadHash: payloadHash || previousHash });
+        }
       }
     }));
     const history = [...byRevision.values()].sort((a, b) => b.revision - a.revision).slice(0, 10);
