@@ -13,6 +13,7 @@ const html = read("index.html");
 const doc = read("docs/optional-account-cloud-backup.md");
 const migration = read("supabase/migrations/20261025211015_lbt_account_vaults.sql");
 const hardeningMigration = read("supabase/migrations/20261025212903_lbt_account_vault_access_hardening.sql");
+const anonymousMigration = read("supabase/migrations/202610260002_reject_anonymous_vault_access.sql");
 const recovery = read("supabase/functions/lbt-account-recovery/index.ts");
 
 test("オンライン保全は任意で、初期化・ローカル保存のみではアップロードしない", () => {
@@ -69,6 +70,7 @@ test("オンライン保全の説明はローカル保存とクラウド保存�
   assert.doesNotMatch(ui, /データはこの端末のブラウザ内にのみ保存されます/);
   assert.match(client, /クラウドへ保存されるJSON本体はエンドツーエンド暗号化されません/);
   assert.match(client, /復旧キー自体は保存せずハッシュのみを保持します/);
+  assert.match(doc, /クラウド保全データのJSON本体は、アプリ独自のエンドツーエンド暗号化を行いません/);
 });
 
 test("復旧キーは十分な乱数を使い、サーバー側ではSHA-256だけを検索キーとして保存する", () => {
@@ -153,4 +155,25 @@ test("OAuthボタンはSupabase Authで有効と確認されたプロバイダ�
   assert.match(client, /view\.providers\?\.x/);
   assert.match(client, /providerSettingsAvailable/);
   assert.match(client, /料金条件を確認するまで有効化しないでください/);
+});
+
+test("端末内JSONバックアップはクラウド12MB上限と分離し、100MBまで扱える", () => {
+  assert.match(client, /const MAX_LOCAL_BYTES = 12 \* 1024 \* 1024/);
+  assert.match(client, /const MAX_JSON_BACKUP_BYTES = 100 \* 1024 \* 1024/);
+  assert.match(client, /function collectLocalSnapshot\(\{ enforceCloudLimit = true \} = \{\}\)/);
+  assert.match(client, /function validateSnapshot\(payload, \{ enforceCloudLimit = true \} = \{\}\)/);
+  assert.match(client, /collectLocalSnapshot\(\{ enforceCloudLimit: false \}\)/);
+  assert.match(client, /validateSnapshot\(payload, \{ enforceCloudLimit: false \}\)/);
+  assert.match(client, /applySnapshot\(payload, \{ enableSync: false, enforceCloudLimit: false \}\)/);
+  assert.match(client, /Number\(file\.size\) > MAX_JSON_BACKUP_BYTES/);
+  assert.match(client, /downloadText\("LBT_" \+ suffix \+ "_" \+ date \+ "\.json", JSON\.stringify\(value\)\)/);
+});
+
+test("匿名AuthユーザーはEdge FunctionとRLSの両方で保全先へアクセスできない", () => {
+  assert.match(recovery, /if \(user\.is_anonymous === true\)/);
+  assert.match(recovery, /匿名セッションでは個人アカウントのオンライン保全を使えません/);
+  assert.match(anonymousMigration, /auth\.jwt\(\) ->> 'is_anonymous'/);
+  assert.equal((anonymousMigration.match(/coalesce\(\(select auth\.jwt\(\) ->> 'is_anonymous'\), 'false'\) <> 'true'/g) || []).length, 8);
+  assert.match(anonymousMigration, /lbt_account_recovery_rate_limits_service_role/);
+  assert.match(anonymousMigration, /for all to service_role/);
 });
