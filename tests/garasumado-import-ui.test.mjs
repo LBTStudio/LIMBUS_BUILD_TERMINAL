@@ -18,7 +18,7 @@ const uiFlat = ui.replace(/\s+/g, " ");
 test("取得中の busy は取得が例外でも必ず解除される（finally）", () => {
   /* fetch へ渡す以降の実装が throw に変わっても、busy が true のまま残ると
      画面が「取得中」のまま固まり、再試行の入口が分からなくなる。 */
-  assert.match(uiFlat, /try \{ (result = )?await window\.LBT_fetchGarasumadoDocument/, "await は try の中");
+  assert.match(uiFlat, /try \{ const fetched = await window\.LBT_fetchGarasumadoDocument/, "各URLの取得は try 内で例外処理する");
   assert.match(uiFlat, /finally \{ setBusy\(false\);/, "busy 解除は finally");
 });
 

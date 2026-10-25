@@ -323,7 +323,7 @@ test("旧ログの消費はリザルト履歴へ移し、現在庫の二重減�
   assert.equal(plan.actions.some((action) => action.type === "CONSUME_ITEM"), false);
   assert.equal(plan.actions.some((action) => action.type === "ADD_ITEM_INVENTORY"), false,
     "旧ログは現所持のスナップショットと二重計上しない");
-  assert.match(plan.actions[0].note, /獲得記録|CT解除/);
+  assert.match(plan.actions[0].consumedItems[0].detail, /CT解除/);
 });
 
 /* --- action 化 ---------------------------------------------------------- */
