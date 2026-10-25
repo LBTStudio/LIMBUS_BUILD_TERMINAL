@@ -1885,7 +1885,7 @@ function normalizeStateShape(raw) {
         lp: String(selected.lp ?? entry.lp ?? ""),
         slot: "death",
         deathSlotManual: !isDeath,
-        equipped: deathSupportCanEquip
+        equipped: true
       } : entry);
     }
   }
