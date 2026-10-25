@@ -12,6 +12,7 @@
   const REVISION_KEY = "lbt_cloud_last_revision_v1";
   const PKCE_KEY = "lbt_cloud_oauth_pkce_v1";
   const MAX_LOCAL_BYTES = 12 * 1024 * 1024;
+  const MAX_JSON_BACKUP_BYTES = 100 * 1024 * 1024;
   const h = (...args) => React.createElement(...args);
   let restoring = false;
   let syncTimer = null;
@@ -52,7 +53,7 @@
     if (key.startsWith("lbt_epoch_account_")) return true;
     return false;
   }
-  function collectLocalSnapshot() {
+  function collectLocalSnapshot({ enforceCloudLimit = true } = {}) {
     const entries = [];
     try {
       for (let i = 0; i < localStorage.length; i += 1) {
@@ -72,19 +73,24 @@
       capturedAt: new Date().toISOString(),
       entries
     };
-    if (new TextEncoder().encode(JSON.stringify(payload)).byteLength > MAX_LOCAL_BYTES) {
-      throw new Error("全アカウントのバックアップが12MBを超えています。画像を減らすか、所持ライブラリと作業データを分けてJSON保存してください。");
+    const size = new TextEncoder().encode(JSON.stringify(payload)).byteLength;
+    const limit = enforceCloudLimit ? MAX_LOCAL_BYTES : MAX_JSON_BACKUP_BYTES;
+    if (size > limit) {
+      throw new Error(enforceCloudLimit
+        ? "オンライン保全は12MBまでです。端末内の全アカウントJSONは100MBまで保存できます。"
+        : "全アカウントJSONバックアップが100MBを超えています。不要な画像や古いバックアップを整理してください。");
     }
     return payload;
   }
-  function validateSnapshot(payload) {
+  function validateSnapshot(payload, { enforceCloudLimit = true } = {}) {
     if (!payload || typeof payload !== "object" || Array.isArray(payload) ||
         payload.format !== "lbt-account-backup" || payload.version !== 1 ||
         !Array.isArray(payload.entries) || payload.entries.length > 1500) {
       throw new Error("LBTの全アカウントバックアップ形式ではありません。");
     }
     const size = new TextEncoder().encode(JSON.stringify(payload)).byteLength;
-    if (size > MAX_LOCAL_BYTES) throw new Error("このバックアップは12MBを超えています。");
+    const limit = enforceCloudLimit ? MAX_LOCAL_BYTES : MAX_JSON_BACKUP_BYTES;
+    if (size > limit) throw new Error(enforceCloudLimit ? "オンラインバックアップは12MBを超えています。" : "JSONバックアップは100MBを超えています。");
     const seenKeys = new Set();
     for (const item of payload.entries) {
       if (!item || typeof item.key !== "string" || typeof item.value !== "string" || !isBackupStorageKey(item.key)) {
@@ -145,18 +151,18 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   function downloadSnapshot(payload = null, suffix = "full-account-backup") {
-    const value = validateSnapshot(payload || collectLocalSnapshot());
+    const value = validateSnapshot(payload || collectLocalSnapshot({ enforceCloudLimit: false }), { enforceCloudLimit: false });
     const date = new Date().toISOString().replace(/[:.]/g, "-");
     downloadText("LBT_" + suffix + "_" + date + ".json", JSON.stringify(value, null, 2));
   }
   function exportLocalBackup() {
-    const snap = collectLocalSnapshot();
+    const snap = collectLocalSnapshot({ enforceCloudLimit: false });
     downloadSnapshot(snap, "all-accounts");
     emit({ message: "全アカウントのJSONバックアップを保存しました。クラウド停止時に備え、別の場所にも保管してください。", label: "JSONバックアップ作成済み" });
     return true;
   }
   function applySnapshot(payload, options = {}) {
-    const valid = validateSnapshot(payload);
+    const valid = validateSnapshot(payload, { enforceCloudLimit: options.enforceCloudLimit !== false });
     restoring = true;
     let previousEntries = [];
     try {
@@ -582,7 +588,7 @@
     return result.history || [];
   }
   async function restorePayload(payload, revision, recoveryKey = null) {
-    const local = collectLocalSnapshot();
+    const local = collectLocalSnapshot({ enforceCloudLimit: false });
     const hasLocal = hasMeaningfulLocalData(local);
     if (hasLocal && !confirm("現在の端末にもデータがあります。復元前に現在の全アカウントデータをJSONファイルとしてダウンロードし、その後クラウドの内容で端末データを置き換えます。続けますか？")) return false;
     if (hasLocal) downloadSnapshot(local, "before-cloud-restore");
@@ -597,15 +603,16 @@
   }
   async function restoreFromFile(file) {
     if (!file) return false;
+    if (Number(file.size) > MAX_JSON_BACKUP_BYTES) throw new Error("JSONバックアップは100MBまで読み込めます。");
     const text = await file.text();
     let payload;
     try { payload = JSON.parse(text); } catch (_) { throw new Error("JSONファイルを読み取れませんでした。"); }
-    validateSnapshot(payload);
-    const local = collectLocalSnapshot();
+    validateSnapshot(payload, { enforceCloudLimit: false });
+    const local = collectLocalSnapshot({ enforceCloudLimit: false });
     const hasLocal = hasMeaningfulLocalData(local);
     if (hasLocal && !confirm("現在の全アカウントデータをJSONファイルへ退避し、選んだバックアップで置き換えます。続けますか？")) return false;
     if (hasLocal) downloadSnapshot(local, "before-json-restore");
-    applySnapshot(payload, { enableSync: false });
+    applySnapshot(payload, { enableSync: false, enforceCloudLimit: false });
     removeStorage(ENABLED_KEY);
     removeStorage(REVISION_KEY);
     emit({ mode: "local", label: "JSONから復元しました", message: "ローカルJSONから復元しました。オンラインへは送信していません。", remoteExists: false, revision: 0, conflict: false });
