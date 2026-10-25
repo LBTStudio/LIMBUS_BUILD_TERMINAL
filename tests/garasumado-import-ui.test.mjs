@@ -270,3 +270,12 @@ test("SINNER SELECTの取込はモーダル幅に合わせ、確定操作をス�
   assert.match(css, /\.gara-row-hit \.gara-row-name\s*\{[^}]*white-space:\s*normal/s);
   assert.match(css, /\.gara-row-hit \.gara-row-meta\s*\{[^}]*white-space:\s*normal/s);
 });
+
+test("人格URLの一括取込でも解析段階の不正URLを失敗レポートに残す", () => {
+  const personaStart = ui.indexOf('if (collectionKinds.has("personas"))');
+  const characterStart = ui.indexOf("/* 共有データは1ドキュメントずつしか読めない", personaStart);
+  const personaBranch = ui.slice(personaStart, characterStart);
+  assert.ok(personaStart >= 0 && characterStart > personaStart);
+  assert.match(personaBranch, /requested: parsedBatch\.urls\.length \+ \(parsedBatch\.invalid \|\| \[\]\)\.length/);
+  assert.match(personaBranch, /failed: \[\.\.\.failed,[\s\S]*?imported\.filter\(\(row\) => !row\.ok\)/);
+});
