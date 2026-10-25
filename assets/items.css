@@ -136,4 +136,9 @@
   .item-custom-editor select { min-height: 40px; font-size: 16px; }
 }
 }
+.item-consume-controls{grid-column:1/-1;display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;padding-top:9px;border-top:1px solid var(--line-dim)}
+.item-consume-controls label{display:grid;gap:4px;min-width:110px;flex:1;color:var(--tx-2);font-size:11px}
+.item-consume-controls input{width:100%;box-sizing:border-box;min-height:32px;border:1px solid var(--line);border-radius:var(--r);padding:5px 8px;color:var(--tx);background:var(--surface-inset);font:12px/1.4 var(--f-body)}
+.item-consume-controls .btn{min-height:32px}
+@media(max-width:560px){.item-consume-controls{align-items:stretch;flex-direction:column}.item-consume-controls label{width:100%}.item-consume-controls input{min-height:40px;font-size:16px}.item-consume-controls .btn{width:100%;justify-content:center}}
 /* end @layer items */

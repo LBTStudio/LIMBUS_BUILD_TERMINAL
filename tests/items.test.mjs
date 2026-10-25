@@ -130,7 +130,7 @@ function loadStateReducer() {
   vm.createContext(context);
   vm.runInContext(readFileSync(new URL("../js/core.js", import.meta.url), "utf8"), context);
   vm.runInContext(readFileSync(new URL("../js/state.js", import.meta.url), "utf8"), context);
-  return { reducer: context.window.appReducer, initState: context.window.INIT_STATE, balance: context.window.LBT_computeLedgerBalance };
+  return { reducer: context.window.appReducer, initState: context.window.INIT_STATE, balance: context.window.LBT_computeLedgerBalance, normalize: context.window.LBT_normalizeStateShape };
 }
 function createOutputState(inventory, customItems = []) {
   return {
@@ -153,6 +153,73 @@ test("アイテムを導入すると数量を合算し、導入単位の表示�
   assert.equal(patched.inventory[0].quantity, 2);
   assert.equal(patched.inventory[0].memo, false);
   assert.equal(patched.inventory[0].palette, true);
+});
+
+test("現象処理で消費すると所持数と直近リザルトへ記録し、購入明細は残す", () => {
+  const { reducer, initState, balance, normalize } = loadStateReducer();
+  let state = reducer(initState, {
+    type: "ADD_RESULT",
+    name: "現象処理テスト",
+    income: { lp: 100, shards: 0 }
+  });
+  const resultId = state.results[state.results.length - 1].id;
+  state = reducer(state, { type: "ADD_ITEM", itemId: "heal-hp-bullet" });
+  state = reducer(state, { type: "ADD_ITEM_INVENTORY", itemId: "heal-hp-bullet", quantity: 2 });
+  const item = itemRecords.find((row) => row.id === "heal-hp-bullet");
+  const entryCount = state.entries.length;
+  const beforeBalance = balance(state.results, state.entries);
+
+  const first = reducer(state, {
+    type: "CONSUME_ITEM", itemId: "heal-hp-bullet", quantity: 2,
+    reason: "phenomenon_processing", operationId: "phenomenon-use-1"
+  });
+  assert.equal(first.inventory.find((entry) => entry.itemId === "heal-hp-bullet").quantity, 1);
+  const firstResult = first.results.find((result) => result.id === resultId);
+  assert.equal(firstResult.consumedItems.length, 1);
+  assert.equal(firstResult.consumedItems[0].itemId, "heal-hp-bullet");
+  assert.equal(firstResult.consumedItems[0].itemName, item.name);
+  assert.equal(firstResult.consumedItems[0].quantity, 2);
+  assert.equal(firstResult.consumedItems[0].reason, "phenomenon_processing");
+  assert.equal(first.entries.length, entryCount, "消費では購入明細を削除・追加しない");
+  assert.equal(balance(first.results, first.entries).lp, beforeBalance.lp, "消費でLP残高は変わらない");
+
+  const duplicate = reducer(first, {
+    type: "CONSUME_ITEM", itemId: "heal-hp-bullet", quantity: 2,
+    reason: "phenomenon_processing", operationId: "phenomenon-use-1"
+  });
+  assert.equal(duplicate, first, "同じ操作IDの再送では二重消費しない");
+
+  const last = reducer(first, {
+    type: "CONSUME_ITEM", itemId: "heal-hp-bullet", quantity: 1,
+    reason: "phenomenon_processing", operationId: "phenomenon-use-2"
+  });
+  assert.equal(last.inventory.some((entry) => entry.itemId === "heal-hp-bullet"), false, "全数消費で所持行だけを取り除く");
+  assert.equal(last.entries.length, entryCount, "全数消費後も購入履歴は保持する");
+  assert.equal(balance(last.results, last.entries).lp, beforeBalance.lp);
+  assert.equal(last.results.find((result) => result.id === resultId).consumedItems.length, 2);
+
+  const reloaded = normalize(JSON.parse(JSON.stringify(last)));
+  const reloadedResult = reloaded.results.find((result) => result.id === resultId);
+  assert.equal(reloadedResult.consumedItems.length, 2, "保存状態の正規化後も消費履歴を保持する");
+  assert.equal(reloadedResult.consumedItems[0].itemName, item.name);
+});
+
+test("現象処理は未所持・数量不正・所持数超過・リザルト無しでは状態を変えない", () => {
+  const { reducer, initState } = loadStateReducer();
+  const owned = reducer(initState, { type: "ADD_ITEM_INVENTORY", itemId: "heal-hp-bullet", quantity: 1 });
+  assert.equal(reducer(owned, {
+    type: "CONSUME_ITEM", itemId: "heal-hp-bullet", quantity: 2, operationId: "too-many"
+  }), owned);
+  assert.equal(reducer(owned, {
+    type: "CONSUME_ITEM", itemId: "heal-hp-bullet", quantity: "1.5", operationId: "invalid"
+  }), owned);
+  assert.equal(reducer(owned, {
+    type: "CONSUME_ITEM", itemId: "missing-item", quantity: 1, operationId: "not-owned"
+  }), owned);
+  const noResults = { ...owned, results: [] };
+  assert.equal(reducer(noResults, {
+    type: "CONSUME_ITEM", itemId: "heal-hp-bullet", quantity: 1, operationId: "no-result"
+  }), noResults);
 });
 
 test("公式アイテムの最大所持数は直接入力・追加・保存再読込で超えない", () => {

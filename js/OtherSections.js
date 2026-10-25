@@ -4742,6 +4742,7 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
       results.map((result) => {
         const rows = byResult(result.id);
         const spent = sumOf(rows);
+        const consumedItems = Array.isArray(result.consumedItems) ? result.consumedItems : [];
         /* ドロップ先は Card の外側の div に置く。Card は children / className / frame
            しか受け取らないため、drag イベントを直接渡しても無視される。 */
         return h("div", {
@@ -4779,6 +4780,13 @@ h(Card, { className: "ledger-card" },
               resultTicketChips(result).length > 0
                 ? resultTicketChips(result).map((t) => h("span", { key: t.key, className: "gacha-held-ticket" }, `${t.label} ×${t.count}`))
                 : h("span", { className: "ledger-note" }, "未記録")),
+            consumedItems.length > 0 && h("div", { className: "ledger-card-tickets ledger-card-consumed" },
+              h("span", { className: "t-label" }, "消耗したアイテム"),
+              consumedItems.map((item, index) => h("span", {
+                key: item.id || `${item.itemId}-${item.consumedAt}-${index}`,
+                className: "gacha-held-ticket",
+                title: item.reason === "phenomenon_processing" ? "現象処理" : String(item.reason || "消費")
+              }, `${item.itemName || item.name || item.itemId} ×${item.quantity || 1}${item.reason === "phenomenon_processing" ? " · 現象処理" : ""}`))),
             rows.length === 0
               ? h("p", { className: "ledger-empty-note" }, "未分類の明細をここへドラッグするか、移動ボタンで帰属します。")
               : h("div", { className: "stack-2" }, rows.map((entry) => h("div", { key: entry.id, className: "ledger-row is-owned", ...dragProps(entry) },
