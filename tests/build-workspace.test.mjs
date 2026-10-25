@@ -1280,11 +1280,12 @@ test("この検査は影があると実際に落ちる（空振りしないこ�
 
 
 test("リザルトの消耗表示は一般のアイテム減少を『消費』とし、旧ラベルを移行する", () => {
+  const resultSections = read("../js/OtherSections.js");
   const itemCodex = read("../js/ItemCodex.js");
   const resultCss = read("../assets/v67-persona-redesign.css");
-  assert.match(sections, /item\.reason === "consumption" \? "消費"/);
-  assert.match(sections, /\+ " · " \+ reasonLabel/);
-  assert.match(sections, /className: "ledger-result-object-row"/);
+  assert.match(resultSections, /item\.reason === "consumption" \? "消費"/);
+  assert.match(resultSections, /\+ " · " \+ reasonLabel/);
+  assert.match(resultSections, /className: "ledger-result-object-row"/);
   assert.match(itemCodex, /reason: "consumption"/);
   assert.match(itemCodex, /を消費し、直近リザルトへ記録しました/);
   assert.doesNotMatch(itemCodex, /phenomenon_processing|現象処理/);
@@ -1292,5 +1293,5 @@ test("リザルトの消耗表示は一般のアイテム減少を『消費』�
   assert.match(reducer, /reason: String\(action\.reason \|\| "consumption"\)/);
   assert.match(resultCss, /\.ledger-card \.ledger-result-object-row\s*\{[^}]*grid-template-columns:[^}]*minmax/s);
   assert.match(resultCss, /\.ledger-card \.ledger-result-object-row \.ledger-row-name\s*\{[^}]*overflow-wrap:anywhere/s);
-  assert.match(sections, /className: "ledger-object-enhancement-details"/);
+  assert.match(resultSections, /className: "ledger-object-enhancement-details"/);
 });
