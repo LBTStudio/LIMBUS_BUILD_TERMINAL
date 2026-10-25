@@ -199,7 +199,7 @@ test("確定の瞬間がコンバート確定になる（確定前は反映さ�
 
 test("確定結果は実際に入った action の内訳", () => {
   assert.match(uiFlat, /function appliedSummary\(actions\)/);
-  assert.match(uiFlat, /setConfirmed\(\{[\s\S]{0,80}?counts: appliedSummary\(result\.actions\)/);
+  assert.match(uiFlat, /setConfirmed\(\{[\s\S]{0,80}?counts: appliedSummary\(actions\)/);
   /* シミュレーションと食い違ったら知らせる（表示と実体のずれを隠さない）。 */
   assert.match(uiFlat, /const mismatched = Boolean\(sim\) && sim\.held !== confirmed\.counts\.held;/);
   assert.match(uiFlat, /シミュレーション（所持/);

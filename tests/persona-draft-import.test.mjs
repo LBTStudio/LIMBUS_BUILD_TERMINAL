@@ -652,7 +652,7 @@ test("硝子窓人格の一括登録は所持ライブラリへ追加し、装�
   assert.equal(imported.syncMax, true);
   assert.equal(imported.equipped, false);
   assert.equal(imported.importSource.id, action.source.id);
-  assert.deepEqual(imported.importSource.metadata, action.source.extras);
+  assert.equal(JSON.stringify(imported.importSource.metadata), JSON.stringify(action.source.extras));
 
   assert.equal(next.personaMode, initial.personaMode);
   assert.equal(next.personaNo, initial.personaNo);
