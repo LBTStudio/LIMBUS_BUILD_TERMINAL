@@ -534,6 +534,16 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
       setError(single?.error || "硝子窓の共有URLを1件以上貼り付けてください");
       return;
     }
+    const collectionKinds = new Set(parsedBatch.urls.map((entry) => entry.collection || "characters"));
+    if (collectionKinds.size > 1) {
+      setError("キャラクターURL（/view/）と人格URL（/persona/view/）は混在できません。URLの種類ごとに分けてください。");
+      return;
+    }
+    if (collectionKinds.has("personas")) {
+      setError("人格URLの一括登録は、各人格を個別に識別して登録する専用処理が必要なため、この画面では未対応です。キャラクターの所持・履歴として誤取り込みしないよう停止しました。");
+      return;
+    }
+
     if (parsedBatch.urls.length > 150) {
       setError("一度に読み込めるのは150件までです。URLを分けて読み込んでください");
       return;
@@ -939,11 +949,11 @@ function appliedSummary(actions) {
       h("p", { className: "gara-lead" }, "共有URLを貼り付けると、そのキャラクターの所持が読み込まれます。取り込むものは1件ずつ選べます。"),
       h("div", { className: "gara-input-row" },
         h("label", { className: "acct-field gara-field" },
-          h("span", { className: "gara-label" }, "硝子窓の共有URL（複数可）"),
+          h("span", { className: "gara-label" }, "硝子窓の共有URL（同じキャラクターの過去スナップショットのみ複数可）"),
           h("textarea", {
             className: "input gara-url-list", value: url, autoFocus: true, rows: 5,
             style: { width: "100%", minHeight: "124px", resize: "vertical", fontFamily: "var(--f-mono)", fontSize: "12px" },
-            placeholder: "https://lbt-garasumado.vercel.app/view/…\nhttps://lbt-garasumado.vercel.app/view/…\nURLを複数行まとめて貼り付けられます",
+            placeholder: "https://lbt-garasumado.vercel.app/view/…\nhttps://lbt-garasumado.vercel.app/view/…\n同じキャラクターの過去スナップショットを複数行貼り付けられます",
             onChange: (event) => { setUrl(event.target.value); setError(""); setUrlReport(null); }
           })
         ),
@@ -956,7 +966,7 @@ function appliedSummary(actions) {
         `URL ${urlReport.requested}件中 ${urlReport.successful}件を読み込みました。`,
         urlReport.failed.length > 0 && h("span", null, ` 取得できなかったURL：${urlReport.failed.length}件（先頭6件を表示）`),
         urlReport.failed.slice(0, 6).map((entry, index) => h("div", { key: `${entry.url}-${index}` }, `${entry.url || entry.text}：${entry.reason}`))),
-      h("p", { className: "gara-note" }, "URLは保存しません。複数URLの履歴は重複を抑えて統合し、所持数量はURL数ぶん加算しません。")
+      h("p", { className: "gara-note" }, "別キャラクターの所持は混ぜません。複数URLを指定する場合は同一キャラクターの過去スナップショットに限り、最新スナップショットの所持状態を優先します。")
     );
   }
 
