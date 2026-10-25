@@ -777,9 +777,11 @@
               view.providers?.x ? button("Xと連携", () => run(() => startOAuth("x"))) : null
             )
           : h("p", { className: "lbt-cloud-provider-note", role: "status" },
-              view.providerSettingsAvailable
-                ? "Google/Xログインは現在未設定です。復旧キーまたはJSONで保全できます。無料運用を優先する場合、Xは料金条件を確認するまで有効化しないでください。"
-                : "ログイン方式の設定状態を確認できないため、ログインボタンを表示していません。復旧キーまたはJSONによる保全・復元は利用できます。"
+              !view.providerSettingsLoaded
+                ? "利用可能なログイン方式を確認中です。"
+                : view.providerSettingsAvailable
+                  ? "Google/Xログインは現在未設定です。復旧キーまたはJSONで保全できます。無料運用を優先する場合、Xは料金条件を確認するまで有効化しないでください。"
+                  : "ログイン方式の設定状態を確認できないため、ログインボタンを表示していません。復旧キーまたはJSONによる保全・復元は利用できます。"
             )
       ) : h("p", { className: "lbt-cloud-account" }, "オンライン認証済み。このブラウザーからいつでも連携を停止できます。"),
       view.hasSession && view.hasRecoveryKey && view.mode === "recovery" ? button("この復旧キーをGoogle/Xにも結びつける", () => run(linkRecoveryKeyToOAuth)) : null,
