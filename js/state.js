@@ -4717,7 +4717,10 @@ case "ADD_CUSTOM_ITEM": {
     }
     case "PATCH_DEATH_SUPPORT": {
       const current = state.deathSupport;
-      if (!current) return state;
+      // Direct reducer callers must obey the same unlock gate as the UI.
+      // Otherwise a stale deathSupport object can re-equip its roster row after
+      // the final unlock enhancement has been removed.
+      if (!current || !deathSupportSlotUnlocked(state)) return state;
       const patch = action.patch && typeof action.patch === "object" && !Array.isArray(action.patch)
         ? action.patch : {};
       const safePatch = {};
