@@ -19,7 +19,8 @@ test("人格URLとキャラクターURLを同じ統合経路に流さない", ()
   assert.match(uiFlat, /const collectionKinds = new Set/);
   assert.match(uiFlat, /collectionKinds\.size > 1/);
   assert.match(uiFlat, /collectionKinds\.has\("personas"\)/);
-  assert.match(uiFlat, /各人格を個別に識別して登録する専用処理/);
+  assert.match(uiFlat, /window\.LBT_fetchGarasumadoPersona/);
+  assert.match(uiFlat, /type: "ADD_GARASUMADO_PERSONA"/);
 });
 
 test("取得中の busy は取得が例外でも必ず解除される（finally）", () => {
@@ -207,4 +208,28 @@ test("確定結果は実際に入った action の内訳", () => {
 test("GarasumadoGroup（1件ずつ並べる一覧）は画面から消えている", () => {
   /* 定義が残っていても、画面から描画されていないこと。 */
   assert.doesNotMatch(uiFlat, /h\(GarasumadoGroup, \{/);
+});
+
+test("人格URLの一括取り込みは人格パーサーから個別に読み、選択した人格だけを専用アクションで登録する", () => {
+  assert.match(uiFlat, /collectionKinds\.has\("personas"\)/);
+  assert.match(uiFlat, /window\.LBT_fetchGarasumadoPersona/);
+  assert.match(uiFlat, /setPersonaItems\(imported\)/);
+  assert.match(uiFlat, /personaItems\.map\(\(row\) =>/);
+  assert.match(uiFlat, /personaAlreadyImported\(row\.id\)/);
+  assert.match(uiFlat, /type: "ADD_GARASUMADO_PERSONA"/);
+  assert.match(uiFlat, /existingPersonas/);
+  assert.match(uiFlat, /装備中人格やキャラクターの履歴は変更していません/);
+  assert.doesNotMatch(uiFlat, /人格URLの一括登録は、各人格を個別に識別して登録する専用処理が必要なため、この画面では未対応です/);
+});
+
+test("人格URLの取込確定を所持ライブラリへ渡し、集約・履歴マージ処理を使わない", () => {
+  assert.match(uiFlat, /const skipped = failedRows\.map/);
+  assert.match(uiFlat, /onApply\?\.\(\{ actions, skipped \}\)/);
+  assert.match(uiFlat, /kind: "garasumado-persona"/);
+  assert.match(uiFlat, /url: row\.url/);
+  assert.match(uiFlat, /setPersonaConfirmed\(\{ count: actions\.length/);
+  const personaBranch = ui.indexOf('if (collectionKinds.has("personas"))');
+  const characterMerge = ui.indexOf("const mergedDoc = window.LBT_mergeGarasumadoDocuments");
+  assert.ok(personaBranch >= 0 && characterMerge > personaBranch);
+  assert.match(uiFlat, /setPersonaConfirmed\(null\)/);
 });

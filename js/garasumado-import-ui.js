@@ -513,7 +513,7 @@ const GarasumadoGroup = ({ group, onPick, onToggle, onToggleAll, onPickIdentity 
 };
 
 /* --- パネル本体 ----------------------------------------------------------- */
-const GarasumadoImportPanel = ({ onClose, onApply }) => {
+const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [] }) => {
   const [url, setUrl] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState("");
@@ -526,6 +526,24 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
   const [doc, setDoc] = React.useState(null);
   const [urlReport, setUrlReport] = React.useState(null);
   const [progress, setProgress] = React.useState("");
+  /* 人格共有URLはキャラクター所持・履歴とは別パネルで、人格ごとに識別して取り込む。 */
+  const [personaItems, setPersonaItems] = React.useState(null);
+  const [personaPicked, setPersonaPicked] = React.useState({});
+  const [personaConfirmed, setPersonaConfirmed] = React.useState(null);
+  const currentRosterPersonas = Array.isArray(existingPersonas) ? existingPersonas : [];
+  const personaNameKey = (value) => String(value || "").replace(/[\\s\\u3000]/g, "").toLowerCase();
+  const personaAlreadyImported = (id) => currentRosterPersonas.some((entry) =>
+    entry?.importSource?.kind === "garasumado-persona"
+      && String(entry.importSource.id || "") === String(id || ""));
+  const personaNameExists = (row, rows) => {
+    const name = personaNameKey(row?.result?.persona?.name);
+    if (!name) return false;
+    const existing = currentRosterPersonas.some((entry) => entry?.mode === "custom"
+      && personaNameKey(entry.src?.name || entry.build?.personaSrc?.name) === name);
+    const inBatch = (rows || []).some((other) => other && other.id !== row.id && other.ok
+      && personaNameKey(other.result?.persona?.name) === name);
+    return existing || inBatch;
+  };
 
   const load = async () => {
     const parsedBatch = window.LBT_parseShareUrls?.(url);
@@ -539,11 +557,6 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
       setError("キャラクターURL（/view/）と人格URL（/persona/view/）は混在できません。URLの種類ごとに分けてください。");
       return;
     }
-    if (collectionKinds.has("personas")) {
-      setError("人格URLの一括登録は、各人格を個別に識別して登録する専用処理が必要なため、この画面では未対応です。キャラクターの所持・履歴として誤取り込みしないよう停止しました。");
-      return;
-    }
-
     if (parsedBatch.urls.length > 150) {
       setError("一度に読み込めるのは150件までです。URLを分けて読み込んでください");
       return;
@@ -560,10 +573,50 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
     setIdentity({});
     setLines([]);
     setConfirmed(null);
+    setPersonaItems(null);
+    setPersonaPicked({});
+    setPersonaConfirmed(null);
     const failed = (parsedBatch.invalid || []).map((item) => ({ url: item.text, reason: item.reason }));
     const successful = [];
     let completed = 0;
     try {
+      if (collectionKinds.has("personas")) {
+        /* 人格文書は1URL=1人格。キャラクター側の merge/history/manifest へ渡さない。 */
+        const imported = [];
+        for (let offset = 0; offset < parsedBatch.urls.length; offset += 4) {
+          const batch = parsedBatch.urls.slice(offset, offset + 4);
+          const settled = await Promise.all(batch.map(async (entry) => {
+            const canonicalUrl = "https://lbt-garasumado.vercel.app/persona/view/" + entry.id;
+            try {
+              const result = await window.LBT_fetchGarasumadoPersona?.(canonicalUrl);
+              if (!result?.ok || !result?.persona) {
+                return { id: entry.id, url: canonicalUrl, ok: false,
+                  reason: (result?.errors || [])[0] || "人格データを解析できませんでした", result: result || null };
+              }
+              return { id: entry.id, url: canonicalUrl, ok: true, result };
+            } catch (error) {
+              return { id: entry.id, url: canonicalUrl, ok: false,
+                reason: error?.message || "通信に失敗しました", result: null };
+            }
+          }));
+          imported.push(...settled);
+          completed += batch.length;
+          setProgress("人格URLを確認中：" + completed + "/" + parsedBatch.urls.length);
+        }
+        setPersonaItems(imported);
+        setPersonaPicked(Object.fromEntries(imported
+          .filter((row) => row.ok && !personaAlreadyImported(row.id))
+          .map((row) => [row.id, true])));
+        setPersonaConfirmed(null);
+        setUrlReport({
+          requested: parsedBatch.urls.length + (parsedBatch.invalid || []).length,
+          successful: imported.filter((row) => row.ok).length,
+          failed: imported.filter((row) => !row.ok).map((row) => ({ url: row.url, reason: row.reason }))
+        });
+        setProgress("人格URLの確認が完了しました。取り込む人格を選んでください。");
+        return;
+      }
+
       /* 共有データは1ドキュメントずつしか読めない。4件ずつ並列取得し、
          1件失敗しても残りを続け、最後に成功した文書だけ統合する。 */
       for (let offset = 0; offset < parsedBatch.urls.length; offset += 4) {
@@ -907,8 +960,118 @@ function appliedSummary(actions) {
     }
     : { total: 0, pickMode: 0, unknownName: 0, included: 0, ops: 0, unknownLine: 0, lineOn: 0 };
 
+  if (personaItems !== null) {
+    const selectedRows = personaItems.filter((row) => row.ok && personaPicked[row.id] && !personaAlreadyImported(row.id));
+    const failedRows = personaItems.filter((row) => !row.ok);
+    if (personaConfirmed) {
+      return h("div", { className: "gara" },
+        h("div", { className: "gara-out" },
+          h("h3", { className: "gara-title" }, "人格の一括取り込みを確定しました"),
+          h("p", { className: "gara-lead" }, personaConfirmed.count + "件の人格を所持ライブラリへ登録しました。既存の装備中人格やキャラクターの履歴は変更していません。")
+        ),
+        h("div", { className: "gara-rows" }, personaConfirmed.names.map((name, index) =>
+          h("div", { key: name + ":" + index, className: "gara-row" },
+            h("span", { className: "gara-row-name" }, name),
+            h("span", { className: "gara-row-meta" }, "人格")
+          )
+        )),
+        failedRows.length
+          ? h("p", { className: "gara-note" }, "取得・解析できなかったURLが " + failedRows.length + " 件あります。")
+          : null,
+        h("div", { className: "gara-foot" },
+          h("div", { className: "gara-foot-acts" },
+            h(Button, { size: "sm", variant: "primary", icon: "check", onClick: onClose }, "閉じる"),
+            h(Button, { size: "sm", variant: "quiet", onClick: () => { setPersonaItems(null); setPersonaConfirmed(null); setError(""); setUrlReport(null); setProgress(""); } }, "別のURLを取り込む")
+          )
+        )
+      );
+    }
+    return h("div", { className: "gara" },
+      h("div", { className: "gara-out" },
+        h("h3", { className: "gara-title" }, "硝子窓の人格を一括取り込む"),
+        h("p", { className: "gara-lead" }, "URLごとに人格を識別しました。選択した人格だけを自作・派生人格として所持ライブラリに追加します。既存の人格や装備中のビルドは上書きしません。")
+      ),
+      h("p", { className: "gara-note" },
+        "有効な人格 " + personaItems.filter((row) => row.ok).length + "件・選択中 " + selectedRows.length + "件"
+        + (failedRows.length ? "・取得／解析失敗 " + failedRows.length + "件" : "")),
+      personaItems.map((row) => {
+        const name = row.result?.persona?.name || "名前を確認できません";
+        const already = personaAlreadyImported(row.id);
+        const sameName = row.ok && personaNameExists(row, personaItems);
+        const result = row.result || {};
+        const persona = result.persona || {};
+        const warningRows = [...(result.warnings || []), ...(sameName ? ["同名の人格が既にあります。別バージョンの可能性があるため、内容を確認してください。"] : [])];
+        return h("section", { key: row.id, className: "gara-group gara-result" },
+          h("div", { className: "gara-group-head" },
+            h("label", { className: "gara-row-name", style: { display: "flex", alignItems: "flex-start", gap: "8px", cursor: row.ok && !already ? "pointer" : "default" } },
+              h("input", {
+                type: "checkbox",
+                checked: Boolean(personaPicked[row.id]) && !already,
+                disabled: !row.ok || already,
+                onChange: (event) => setPersonaPicked((current) => ({ ...current, [row.id]: event.target.checked }))
+              }),
+              h("span", null, name)
+            ),
+            h("span", { className: "gara-row-meta" }, already ? "取込済み" : row.ok ? "個別登録" : "取込不可")
+          ),
+          row.ok
+            ? h("div", { className: "gara-rows" },
+              h("div", { className: "gara-row" },
+                h("span", { className: "gara-row-name" }, "基本情報"),
+                h("span", { className: "gara-row-meta" }, "HP " + persona.hp + "・SAN " + persona.san + "・速度 " + persona.speed)
+              ),
+              h("div", { className: "gara-row" },
+                h("span", { className: "gara-row-name" }, "データ内容"),
+                h("span", { className: "gara-row-meta" },
+                  "スキル " + (persona.skills || []).length + "・パッシブ "
+                  + ((persona.passive_name ? 1 : 0) + (result.secondaryPassive?.name ? 1 : 0))
+                  + "・固有 " + (persona.unique_buffs || []).length)
+              ),
+              result.source?.id
+                ? h("p", { className: "gara-note" }, "共有ID: " + result.source.id)
+                : null,
+              warningRows.length
+                ? h("p", { className: "gara-note gara-note-warn" }, warningRows.join(" "))
+                : null
+            )
+            : h("p", { className: "gara-note gara-note-warn" }, row.reason || "人格データを読み込めませんでした。")
+        );
+      }),
+      h("div", { className: "gara-foot" },
+        h("div", { className: "gara-foot-meta" },
+          selectedRows.length + "件を所持人格ライブラリへ追加。既存の人格名が同じでも、共有IDが違うものは別データとして扱います。"
+        ),
+        h("div", { className: "gara-foot-acts" },
+          h(Button, { size: "sm", variant: "quiet", onClick: () => { setPersonaItems(null); setPersonaPicked({}); setPersonaConfirmed(null); setError(""); setUrlReport(null); setProgress(""); } }, "URLを修正"),
+          h(Button, {
+            size: "sm", variant: "primary", icon: "check",
+            disabled: busy || selectedRows.length === 0,
+            onClick: () => {
+              const actions = selectedRows.map((row) => ({
+                type: "ADD_GARASUMADO_PERSONA",
+                persona: row.result.persona,
+                secondaryPassive: row.result.secondaryPassive || null,
+                syncRank: row.result.syncRank || null,
+                syncMax: row.result.suggestSyncMax === true,
+                source: {
+                  kind: "garasumado-persona",
+                  id: row.id,
+                  url: row.url,
+                  label: row.result.source?.label || row.result.persona.name
+                }
+              }));
+              const skipped = failedRows.map((row) => ({ key: row.id, url: row.url, reason: row.reason }));
+              onApply?.({ actions, skipped });
+              setPersonaConfirmed({ count: actions.length, names: selectedRows.map((row) => row.result.persona.name) });
+            }
+          }, "選択した人格を取り込む")
+        )
+      )
+    );
+  }
+
   if (!manifest) {
-  /* 確定済みなら確定結果だけを出す。シミュレーションは「反映前の1手前」で、
+  /* 確定済みなら確定結果だけを出す。シミュレーションは「反映前の1手前」で,
      確定した内容をそのまま確認できるようにする。画面は自動で閉じない。 */
   if (confirmed) {
     const sim = confirmed.simulation;
@@ -946,14 +1109,14 @@ function appliedSummary(actions) {
 
     return h("div", { className: "gara" },
       h("h3", { className: "gara-title" }, "硝子窓から取り込む"),
-      h("p", { className: "gara-lead" }, "共有URLを貼り付けると、そのキャラクターの所持が読み込まれます。取り込むものは1件ずつ選べます。"),
+      h("p", { className: "gara-lead" }, "キャラクターURLは同一キャラクターの所持・履歴を移行し、人格URLは人格ごとに識別して所持ライブラリへ登録します。URLの種類は混ぜないでください。"),
       h("div", { className: "gara-input-row" },
         h("label", { className: "acct-field gara-field" },
-          h("span", { className: "gara-label" }, "硝子窓の共有URL（同じキャラクターの過去スナップショットのみ複数可）"),
+          h("span", { className: "gara-label" }, "硝子窓の共有URL（同じ種類のURLを複数可）"),
           h("textarea", {
             className: "input gara-url-list", value: url, autoFocus: true, rows: 5,
             style: { width: "100%", minHeight: "124px", resize: "vertical", fontFamily: "var(--f-mono)", fontSize: "12px" },
-            placeholder: "https://lbt-garasumado.vercel.app/view/…\nhttps://lbt-garasumado.vercel.app/view/…\n同じキャラクターの過去スナップショットを複数行貼り付けられます",
+            placeholder: "https://lbt-garasumado.vercel.app/view/…（キャラクター）\nhttps://lbt-garasumado.vercel.app/persona/view/…（人格）\n同じ種類のURLだけを貼り付けてください",
             onChange: (event) => { setUrl(event.target.value); setError(""); setUrlReport(null); }
           })
         ),
@@ -966,7 +1129,7 @@ function appliedSummary(actions) {
         `URL ${urlReport.requested}件中 ${urlReport.successful}件を読み込みました。`,
         urlReport.failed.length > 0 && h("span", null, ` 取得できなかったURL：${urlReport.failed.length}件（先頭6件を表示）`),
         urlReport.failed.slice(0, 6).map((entry, index) => h("div", { key: `${entry.url}-${index}` }, `${entry.url || entry.text}：${entry.reason}`))),
-      h("p", { className: "gara-note" }, "別キャラクターの所持は混ぜません。複数URLを指定する場合は同一キャラクターの過去スナップショットに限り、最新スナップショットの所持状態を優先します。")
+      h("p", { className: "gara-note" }, "人格URLでは名前・HP・SAN・速度・耐性・スキル・パッシブ・固有効果だけを取り込みます。PC名・PL名・所有者情報・履歴・所持品は移行しません。")
     );
   }
 

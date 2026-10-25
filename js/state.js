@@ -5694,6 +5694,155 @@ case "ADD_ENTRY":
     }
     /* V65r29: Google Docs 等の同期人格草案を、確認済みのカスタム人格として装備する。
        解析器は UI 側でプレビュー済み。既存データを置換せず、元の所持人格は保持する。 */
+    /* 硝子窓の公開人格URLから、所持人格ライブラリへ複数人格を個別登録する。
+       IMPORT_PERSONA_DRAFT と違い、現在装備中の人格・ビルド・装備状態は変更しない。
+       入力は公開人格パーサーが名前・ステータス・戦術・パッシブ・固有だけに絞った値。 */
+    case "ADD_GARASUMADO_PERSONA": {
+      const source = action.source && typeof action.source === "object" ? action.source : {};
+      const sourceId = String(source.id || "").trim();
+      const sourceUrl = String(source.url || "").trim();
+      const persona = action.persona;
+      if (!sourceId || !sourceUrl || !persona || typeof persona !== "object"
+        || persona.__custom !== true || !String(persona.name || "").trim()
+        || !Array.isArray(persona.skills) || !persona.skills.length
+        || !Number.isSafeInteger(Number(persona.hp)) || Number(persona.hp) <= 0
+        || !Number.isSafeInteger(Number(persona.san)) || Number(persona.san) <= 0
+        || !String(persona.speed || "").trim()) return state;
+
+      const roster = state.roster || {};
+      const existingPersonas = Array.isArray(roster.personas) ? roster.personas : [];
+      /* 同じ共有ドキュメントを再度貼っても二重登録しない。別URLの同名人格は
+         別バージョンの可能性があるため、名前だけで自動統合・上書きはしない。 */
+      if (existingPersonas.some((entry) => entry?.importSource?.kind === "garasumado-persona"
+        && String(entry.importSource.id || "") === sourceId)) return state;
+
+      let uid = makeOwnedUid("custom");
+      while (existingPersonas.some((entry) => entry?.mode === "custom"
+        && (String(entry.uid || "") === uid || String(entry.no || "") === uid))) {
+        uid = makeOwnedUid("custom");
+      }
+      const importedSource = {
+        ...cloneJSON(persona),
+        no: 999,
+        __custom: true,
+        __draftImported: true
+      };
+      const skills = migrateLegacyDerivedSkills((importedSource.skills || []).map((skill, index) => ({
+        ...skill,
+        id: skill?.id || `sk-${uid}-${index + 1}`,
+        rank: skill?.rank || `スキル${index}`,
+        derived_from: skill?.derived_from || "",
+        derived_index: skill?.derived_index,
+        derived_condition: skill?.derived_condition || "",
+        type: skill?.type || "",
+        sin: skill?.sin || "",
+        aoe: skill?.aoe || "",
+        aoeCount: skill?.aoeCount || "",
+        name: skill?.name || "",
+        effect: skill?.effect || "",
+        dice: (skill?.dice || []).map((die) => ({
+          ...die,
+          roll: die?.roll || "",
+          dval: die?.dval ?? die?.d ?? "",
+          d: die?.d ?? die?.dval ?? "",
+          dPlus: !!(die?.dPlus ?? die?.plus),
+          dCnt: !!die?.dCnt,
+          plus: !!(die?.plus ?? die?.dPlus),
+          effect: die?.effect || ""
+        })),
+        quick: ""
+      })));
+      const uniqueBuffs = (importedSource.unique_buffs || []).map((buff, index) => ({
+        id: `ub-${uid}-${index + 1}`,
+        name: normalizeStatusLabel(buff?.name || ""),
+        type: buff?.type || "バフ",
+        initial: buff?.initial !== undefined ? buff.initial : 0,
+        max: buff?.max !== undefined ? buff.max : 20,
+        desc: buff?.desc || "",
+        place: buff?.place || "status",
+        noST: buff?.noST === true
+      }));
+      const secondary = action.secondaryPassive && typeof action.secondaryPassive === "object"
+        ? action.secondaryPassive : null;
+      const extraPassives = secondary && String(secondary.name || "").trim() ? [{
+        id: `pas-import-${uid}-2`,
+        name: String(secondary.name || ""),
+        cond: String(secondary.cond || ""),
+        always: String(secondary.always || ""),
+        effect: String(secondary.effect || ""),
+        quick: ""
+      }] : [];
+      const emptyEgoSlots = { ZAYIN: null, TETH: null, HE: null, WAW: null, ALEPH: null };
+      const defaultStatuses = getFactoryDefaultStatuses() || [];
+      const selfStatusEntries = collectSelfManagedStatusEntries(importedSource);
+      const importedDefaultStatuses = mergeDefaultSelfStatusEntries(defaultStatuses, selfStatusEntries);
+      const importedSelfStatusCandidates = detectSelfStatusCandidates(importedSource, [
+        ...defaultStatuses.map((item) => item?.label),
+        ...selfStatusEntries.map((entry) => entry.label)
+      ]);
+      const sourceStatus = {
+        hp: String(importedSource.hp),
+        san: String(importedSource.san),
+        speed: String(importedSource.speed),
+        bullets: String(importedSource.bullets || "×"),
+        resS: String(importedSource.res_slash || "普通"),
+        resP: String(importedSource.res_pierce || "普通"),
+        resB: String(importedSource.res_blunt || "普通")
+      };
+      const build = {
+        savedAt: Date.now(),
+        ...sourceStatus,
+        initiative: 0,
+        spirit: "",
+        spiritMorale: "",
+        spiritConfuse: "",
+        spiritAlways: "",
+        supports: [],
+        deathSupport: null,
+        egoSlots: cloneJSON(emptyEgoSlots),
+        egoManual: false,
+        enhancements: [],
+        formulas: [],
+        customStatuses: [],
+        equipmentRefs: { supportUids: [], spiritUid: null },
+        pas: {
+          name: importedSource.passive_name || "",
+          cond: importedSource.passive_cond || "",
+          always: importedSource.passive_always || "",
+          effect: importedSource.passive_effect || "",
+          quick: ""
+        },
+        extraPassives,
+        pas2Enabled: false,
+        pas2: { name: "", cond: "", always: "", effect: "" },
+        skills,
+        uniqueBuffs,
+        personaSrc: cloneJSON(importedSource),
+        syncedManual: true,
+        defaultStatuses: importedDefaultStatuses,
+        selfStatusCandidates: importedSelfStatusCandidates
+      };
+      const entry = {
+        uid,
+        no: uid,
+        mode: "custom",
+        src: cloneJSON(importedSource),
+        build,
+        syncRank: ["0", "00", "000"].includes(String(action.syncRank || "")) ? String(action.syncRank) : null,
+        syncMax: action.syncMax === true,
+        lcb: false,
+        equipped: false,
+        notes: "",
+        importSource: {
+          kind: "garasumado-persona",
+          id: sourceId,
+          url: sourceUrl,
+          label: String(source.label || importedSource.name || "").slice(0, 180),
+          importedAt: Date.now()
+        }
+      };
+      return { ...state, roster: { ...roster, personas: [...existingPersonas, entry] } };
+    }
     case "IMPORT_PERSONA_DRAFT": {
       const src = action.persona;
       if (!src || !src.__custom) return state;
