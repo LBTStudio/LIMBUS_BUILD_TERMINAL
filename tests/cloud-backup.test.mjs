@@ -10,7 +10,7 @@ const client = read("js/cloud-backup.js");
 const storage = read("js/state.js");
 const ui = read("js/accounts-ui.js");
 const html = read("index.html");
-const migration = read("supabase/migrations/202610260001_lbt_account_vaults.sql");
+const migration = read("supabase/migrations/20261025211015_lbt_account_vaults.sql");
 const recovery = read("supabase/functions/lbt-account-recovery/index.ts");
 
 test("オンライン保全は任意で、初期化・ローカル保存のみではアップロードしない", () => {
