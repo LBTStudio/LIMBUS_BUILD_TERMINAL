@@ -1510,4 +1510,212 @@ main.acct-gate {
   .topbar-balance-unit { font-size: var(--fs-9); }
 }
 
+
+/* SINNER SELECT内の狭い取込カードは一列で表示し、追従レールを通常配置へ戻す。 */
+.acct-card--import-open .acct-gara-body { min-width: 0; width: 100%; }
+.acct-card--import-open .gara { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; width: 100%; }
+.acct-card--import-open .gara-rail { position: static; grid-column: 1; grid-row: auto; max-height: none; }
+
+/* --- 硝子窓共有URLの入力・取得状況を明確にする --- */
+.gara-import-start {
+  display: grid;
+  gap: var(--s-3);
+  min-width: 0;
+  padding: var(--s-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  background: var(--surface-1);
+}
+.gara-step-kicker {
+  font: 700 var(--fs-10) var(--f-display);
+  letter-spacing: .12em;
+  color: var(--gold-hi);
+}
+.gara-url-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--s-2);
+  min-width: 0;
+}
+.gara-url-form .gara-field { min-width: 0; }
+.gara-url-list {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 132px;
+  padding: var(--s-3);
+  resize: vertical;
+  font-family: var(--f-mono);
+  font-size: var(--fs-11);
+  line-height: 1.6;
+}
+.gara-load-button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  padding: 0 var(--s-4);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r);
+  background: var(--gold);
+  color: var(--tx-inv);
+  font: 700 var(--fs-11) var(--f-body);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--e-out), opacity var(--t-fast) var(--e-out);
+}
+.gara-load-button:hover:not(:disabled) { background: var(--gold-hi); }
+.gara-load-button:disabled { opacity: .55; cursor: wait; }
+.gara-load-button:focus-visible, .gara-change-url:focus-visible { outline: 2px solid var(--gold-hi); outline-offset: 3px; }
+.gara-field-help { margin: 0; font-size: var(--fs-10); line-height: 1.65; color: var(--tx-2); }
+.gara-loading {
+  margin: 0;
+  padding: var(--s-3);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-sm);
+  background: var(--gold-tint);
+  font-size: var(--fs-sm, 13px);
+  line-height: 1.6;
+  color: var(--tx);
+}
+.gara-url-report {
+  display: grid;
+  gap: var(--s-2);
+  min-width: 0;
+  padding: var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface-2);
+  color: var(--tx);
+  font-size: var(--fs-11);
+  line-height: 1.55;
+}
+.gara-url-report.has-errors {
+  border-color: var(--err);
+  background: color-mix(in srgb, var(--err) 6%, var(--surface-1));
+}
+.gara-url-report-summary { margin: 0; color: var(--tx-2); }
+.gara-url-report-item {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--line);
+}
+.gara-url-report-item code { overflow-wrap: anywhere; color: var(--tx); font-size: var(--fs-10); }
+.gara-url-report-item span { color: var(--tx-2); }
+
+/* --- 読み込み後の確認画面：先に要点、末尾までスクロールしても確定操作を保持 --- */
+.gara-import-review { min-width: 0; }
+.gara-import-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-3);
+  min-width: 0;
+  padding: 0 0 var(--s-3);
+  border-bottom: 1px solid var(--line);
+}
+.gara-import-heading-copy { display: grid; gap: var(--s-2); min-width: 0; }
+.gara-import-balance { margin: 0; font-size: var(--fs-10); color: var(--tx-2); }
+.gara-change-url {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--tx);
+  font-size: var(--fs-10);
+  cursor: pointer;
+}
+.gara-change-url:hover { border-color: var(--gold-line); color: var(--gold-hi); }
+.gara-import-overview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-2);
+  min-width: 0;
+}
+.gara-import-stat {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  padding: var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface-1);
+}
+.gara-import-stat.is-warning { border-color: var(--err); background: color-mix(in srgb, var(--err) 7%, var(--surface-1)); }
+.gara-import-stat.is-ready { border-color: var(--gold-line); background: color-mix(in srgb, var(--gold) 5%, var(--surface-1)); }
+.gara-import-stat-label { font-size: var(--fs-10); line-height: 1.4; color: var(--tx-2); }
+.gara-import-stat-value { font: 700 var(--fs-15) var(--f-display); color: var(--tx); overflow-wrap: anywhere; }
+.gara-import-stat-detail { font-size: var(--fs-10); line-height: 1.5; color: var(--tx-2); }
+.gara-import-instructions {
+  margin: 0;
+  padding: var(--s-3);
+  border-left: 3px solid var(--gold);
+  background: var(--surface-2);
+  color: var(--tx);
+  font-size: var(--fs-11);
+  line-height: 1.65;
+}
+.gara-import-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 12;
+  align-items: center;
+  margin-top: var(--s-2);
+  padding: var(--s-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  background: var(--surface-0);
+  box-shadow: 0 -8px 20px color-mix(in srgb, var(--surface-0) 80%, transparent);
+}
+.gara-import-actions .gara-foot-meta { min-width: 0; flex: 1 1 220px; }
+.gara-import-actions .gara-foot-acts { flex-wrap: wrap; }
+.gara-import-actions .gara-foot-acts button:last-child { min-height: 40px; }
+
+/* 項目名の省略をやめ、価格・選択状況を下段で読めるようにする。 */
+.gara-row-hit {
+  position: relative;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--s-1) var(--s-2);
+  min-height: 48px;
+  padding: var(--s-2) calc(var(--s-2) + 16px) var(--s-2) var(--s-3);
+}
+.gara-row-hit .gara-row-name {
+  flex: 1 1 100%;
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+.gara-row-hit .gara-row-meta {
+  flex: 1 1 100%;
+  min-width: 0;
+  overflow: visible;
+  white-space: normal;
+  flex-wrap: wrap;
+  line-height: 1.45;
+}
+.gara-row-hit .gara-row-caret { position: absolute; top: 50%; right: var(--s-2); transform: translateY(-50%); }
+.gara-row-hit.is-open .gara-row-caret { transform: translateY(-50%) rotate(180deg); }
+
+@media (max-width: 560px) {
+  .gara-url-form { grid-template-columns: minmax(0, 1fr); }
+  .gara-load-button { width: 100%; white-space: normal; }
+  .gara-import-heading { flex-direction: column; align-items: stretch; }
+  .gara-change-url { align-self: flex-start; }
+  .gara-import-overview { grid-template-columns: minmax(0, 1fr); }
+  .gara-import-actions { align-items: stretch; }
+  .gara-import-actions .gara-foot-acts { width: 100%; margin-left: 0; }
+  .gara-import-actions .gara-foot-acts button:last-child { flex: 1 1 100%; }
+}
+
 }
