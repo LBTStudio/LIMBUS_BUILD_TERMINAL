@@ -59,22 +59,44 @@
   function parseShareUrls(raw) {
     const text = String(raw || "");
     const links = text.match(/https?:\/\/[^\s<>"'`]+/gi) || [];
-    const candidates = links.length ? links : text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    const candidates = [];
+    const seenCandidates = new Set();
+    const addCandidate = (value) => {
+      const clean = String(value || "").trim().replace(/[)\],.;]+$/g, "");
+      if (!clean || seenCandidates.has(clean)) return;
+      seenCandidates.add(clean);
+      candidates.push(clean);
+    };
+
+    /* 絶対URLが一つでもあると他の入力を無視する、という形にしない。
+       共有URLの間に裸IDやスキームなしURLが混ざる入力も扱う。 */
+    links.forEach(addCandidate);
+    for (const line of lines) {
+      if (/^[A-Za-z0-9_-]{20}$/.test(line)) {
+        addCandidate(line);
+        continue;
+      }
+      const hostlessUrl = /(?:^|[\s"'(<\[:])((?:www\.)?lbt-garasumado\.vercel\.app(?:\/[^\s]*)?)/gi;
+      let hostlessMatch;
+      while ((hostlessMatch = hostlessUrl.exec(line)) !== null) addCandidate(hostlessMatch[1]);
+    }
+    /* URLを一つも検出できない場合も、生入力を理由付きで返す。 */
+    if (!candidates.length) lines.forEach(addCandidate);
+
     const urls = [];
     const invalid = [];
     const seen = new Set();
     for (const candidate of candidates) {
-      const clean = String(candidate || "").trim().replace(/[)\],.;]+$/g, "");
-      if (!clean) continue;
-      const parsed = parseShareUrl(clean);
+      const parsed = parseShareUrl(candidate);
       if (!parsed.ok) {
-        if (!links.length) invalid.push({ text: clean, reason: parsed.error || "URL形式が不正です" });
+        invalid.push({ text: candidate, reason: parsed.error || "URL形式が不正です" });
         continue;
       }
       const key = parsed.collection + ":" + parsed.id;
       if (seen.has(key)) continue;
       seen.add(key);
-      urls.push({ url: clean, id: parsed.id, collection: parsed.collection });
+      urls.push({ url: candidate, id: parsed.id, collection: parsed.collection });
     }
     return { urls, invalid };
   }
