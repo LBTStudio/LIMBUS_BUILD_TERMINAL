@@ -1249,7 +1249,9 @@ function equipRosterSupport(state, uid) {
      通常枠へ装備され、出力へ流れてしまう。 */
   let normalizedSupports = (roster.supports || []).map((s) => ({
     ...s,
-    slot: isDeathSupportPassiveRecord(s) ? "death" : "normal"
+    // Canonical death-only records can never be demoted by a stale label, while
+    // custom records explicitly assigned to the death slot must retain that choice.
+    slot: isDeathSupportPassiveRecord(s) || s.slot === "death" ? "death" : "normal"
   }));
   const unlocked = deathSupportSlotUnlocked(state);
   if (!unlocked) {
