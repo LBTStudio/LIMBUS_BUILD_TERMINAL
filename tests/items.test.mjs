@@ -16,8 +16,8 @@ test("アイテムDBはPDFの回復8種・強化27種のみを登録し、特殊
 
 test("硝子の破片は通常アイテムDBと分離して所持数だけを管理し、MEMO・PALETTEへ反映する", () => {
   assert.equal(itemRecords.length, 35, "公式ショップの35件は維持する");
-  assert.equal(specialItemRecords.length, 1);
-  const shard = specialItemRecords[0];
+  assert.equal(specialItemRecords.length, 2);
+  const shard = specialItemRecords.find((item) => item.id === "resource-glass-shard");
   assert.equal(shard.id, "resource-glass-shard");
   assert.equal(shard.name, "硝子の破片");
   assert.equal(shard.specialResource, true);
@@ -36,6 +36,27 @@ test("硝子の破片は通常アイテムDBと分離して所持数だけを管
   const output = createOutputState(second.inventory);
   assert.match(generator.buildMemo(output), /硝子の破片 ×2/);
   assert.match(generator.buildPalette(output), /【所持品】硝子の破片 ×2/);
+});
+
+test("自我の欠片は所持インベントリではなく購入と同時に通帳へ反映する", () => {
+  const shard = specialItemRecords.find((item) => item.id === "resource-ego-shard");
+  assert.ok(shard);
+  assert.equal(shard.ledgerResource, "shards");
+  const { reducer, initState } = loadStateReducer();
+  const withResult = reducer(initState, {
+    type: "ADD_RESULT",
+    name: "特殊資源の購入テスト",
+    income: { lp: 100, shards: 0 }
+  });
+  const target = withResult.results.find((result) => result.name === "特殊資源の購入テスト");
+  assert.ok(target, "購入先となるリザルトが存在する");
+  const purchased = reducer(withResult, { type: "ADD_ITEM", itemId: shard.id, resultId: target.id });
+  const updated = purchased.results.find((result) => result.id === target.id);
+  assert.equal(updated.income.shards, target.income.shards + 1);
+  assert.equal(purchased.inventory.some((entry) => entry.itemId === shard.id), false, "通帳連動資源を所持数に二重保存しない");
+  const expense = purchased.entries.find((entry) => entry.name === "自我の欠片" && entry.resultId === target.id);
+  assert.ok(expense, "購入明細を記録する");
+  assert.equal(expense.cost.lp, 2);
 });
 
 function loadGenerator() {
