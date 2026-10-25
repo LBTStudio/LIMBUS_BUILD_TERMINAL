@@ -28,7 +28,7 @@ X APIの利用料金については、2026-10-26時点のX Developer Platform公
 
 Google / Xのログイン連携は現在まだ使えません。画面のボタンにも「（未実装）」と表示され、操作できない状態です。オンライン保全を使う場合は「復旧キーを発行して保全」または「全アカウントをJSON保存」を利用してください。
 
-別端末で同じ認証をした場合は、SINNER SELECTのオンライン保全パネルからクラウドデータを復元します。復元前に端末内データがある場合、現在のデータをJSONファイルとしてダウンロードし、確認を取ってから置き換えます。
+現時点ではGoogle/Xによるログインが未実装のため、別端末からのオンライン復元は復旧キーを使って行います。復旧キーを入力し、クラウドデータを取得してください。復元前に端末内データがある場合、現在のデータをJSONファイルとしてダウンロードし、確認を取ってから置き換えます。
 
 ### 復旧キーを使う
 
@@ -55,8 +55,8 @@ Google / Xのログイン連携は現在まだ使えません。画面のボタ�
 1. `supabase/migrations/20261025211015_lbt_account_vaults.sql` を既存プロジェクトに適用します。
 2. `supabase/migrations/20261025212903_lbt_account_vault_access_hardening.sql` を適用します。保管庫テーブルの直接アクセスはEdge Function経由に限定するため、ブラウザー向けのRLSポリシーを削除します。テーブル権限も `anon` / `authenticated` には付与せず、サーバー側の `service_role` のみが利用します。
 3. `supabase/functions/lbt-account-recovery/index.ts` を `lbt-account-recovery` としてデプロイし、`verify_jwt=false` を指定します。この関数は復旧キーだけでも利用できるため、SupabaseのユーザーJWT検証は自前で行い、復旧キーは256ビットのランダム値をSHA-256でハッシュして検索します。サービスキーはEdge Functionのサーバー環境にのみ置き、ブラウザーには出しません。
-4. Supabase Dashboard → Authentication → URL Configurationで、アプリの本番URLと利用する開発用URLをRedirect URLsへ登録します。
-5. Google / Xログインを有効にする場合は、それぞれの開発者コンソールでOAuthアプリを作成し、コールバックに `https://hobntjcrzybqsiobrpsz.supabase.co/auth/v1/callback` を設定します。得られたClient ID / SecretはSupabase Dashboard → Authentication → Providersで設定してください。Client Secretをリポジトリやフロントエンドへ追加してはいけません。
+4. **今すぐの復旧キー方式では、OAuthプロバイダー設定は不要です。** Google/Xログインはフロントエンド側で未実装のため、ボタンも無効化されています。
+5. 将来Google / Xログインを実装する段階では、Supabase Dashboard → Authentication → URL ConfigurationにRedirect URLを登録し、各プロバイダーのClient ID / SecretをSupabase側で設定してください。Client Secretをリポジトリやフロントエンドへ追加してはいけません。
 
 Google / Xのプロバイダー認証情報はこのリポジトリには含めていません。Supabase側の設定が未完了の場合、そのログイン方式は利用できませんが、ローカル保存、JSON保全、復旧キー方式を妨げません。 画面のログインボタンはSupabase Authが有効と報告したプロバイダーだけを表示し、無効または状態不明のボタンは隠します。
 
