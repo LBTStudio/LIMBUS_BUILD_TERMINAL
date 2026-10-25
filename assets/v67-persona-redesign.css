@@ -1350,5 +1350,41 @@ label:has(> input[type="checkbox"]) {
   overflow-wrap: anywhere;
 }
 
+
+/* リザルト明細：通常は低い1行、特殊強化がある人格だけ直下に補助行を持つ。 */
+.ledger-result-object-list { display:flex; flex-direction:column; gap:0; width:100%; min-width:0; max-width:100%; }
+.ledger-result-object-group { width:100%; min-width:0; max-width:100%; padding:0 0 2px; border-bottom:1px solid var(--line-dim); box-sizing:border-box; }
+.ledger-card .ledger-result-object-row {
+  position:relative; display:grid; grid-template-columns:10px minmax(0, 1fr) auto auto auto auto;
+  align-items:center; gap:var(--s-1); width:100%; min-width:0; max-width:100%; padding:5px 2px;
+  border:0; border-radius:0; background:transparent; box-sizing:border-box; overflow:visible;
+}
+.ledger-result-object-marker { color:var(--gold); font-size:var(--fs-12); font-weight:700; line-height:1; text-align:center; }
+.ledger-card .ledger-result-object-row .ledger-row-name { grid-column:auto; grid-row:auto; min-width:0; max-width:100%; font-size:var(--fs-11); line-height:1.25; overflow-wrap:anywhere; }
+.ledger-card .ledger-result-object-row .ledger-row-kind { grid-column:auto; grid-row:auto; justify-self:end; max-width:7em; padding:0; border:0; border-radius:0; background:transparent; color:var(--tx-2); font-size:var(--fs-10); letter-spacing:0; line-height:1.2; white-space:nowrap; }
+.ledger-result-object-quantity { color:var(--tx-2); font-size:var(--fs-10); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.ledger-card .ledger-result-object-row .ledger-row-cost { grid-column:auto; grid-row:auto; justify-self:end; max-width:100%; font-size:var(--fs-10); line-height:1.2; white-space:nowrap; }
+.ledger-result-object-actions { position:relative; justify-self:end; min-width:0; font-size:var(--fs-10); }
+.ledger-result-object-actions > summary { list-style:none; cursor:pointer; padding:2px 4px; border:1px solid var(--line-dim); border-radius:var(--r-sm); color:var(--tx-2); line-height:1.2; white-space:nowrap; }
+.ledger-result-object-actions > summary::-webkit-details-marker { display:none; }
+.ledger-result-object-actions[open] > summary { border-color:var(--gold-line); color:var(--gold-hi); }
+.ledger-result-object-action-menu { position:absolute; top:calc(100% + 4px); right:0; z-index:20; display:flex; align-items:center; gap:4px; padding:5px; border:1px solid var(--line); border-radius:var(--r); background:var(--surface-3); box-shadow:0 4px 12px rgba(0,0,0,.3); }
+.ledger-result-object-action-menu button { min-height:24px; padding:0 5px; font-size:var(--fs-10); white-space:nowrap; }
+.ledger-object-enhancements { display:flex; flex-direction:column; gap:2px; min-width:0; max-width:100%; padding:0 4px 3px 18px; box-sizing:border-box; }
+.ledger-object-enhancement { display:flex; align-items:baseline; flex-wrap:wrap; gap:var(--s-2); min-width:0; max-width:100%; font-size:var(--fs-10); line-height:1.35; }
+.ledger-object-enhancement-label { min-width:0; max-width:100%; color:var(--gold); overflow-wrap:anywhere; }
+.ledger-object-enhancement-details { display:inline-block; min-width:0; max-width:100%; vertical-align:top; }
+.ledger-object-enhancement-details > summary { display:inline; list-style:none; cursor:pointer; color:var(--tx-2); font-size:var(--fs-10); white-space:nowrap; }
+.ledger-object-enhancement-details > summary::-webkit-details-marker { display:none; }
+.ledger-object-enhancement-details > summary::after { content:"＋"; padding-inline-start:3px; color:var(--gold); }
+.ledger-object-enhancement-details[open] > summary::after { content:"−"; }
+.ledger-object-enhancement-details > p { width:100%; min-width:0; max-width:100%; margin:3px 0 2px; padding-inline-start:6px; border-inline-start:1px solid var(--line-dim); color:var(--tx-2); font-size:var(--fs-11); line-height:1.5; overflow-wrap:anywhere; box-sizing:border-box; }
+@media (max-width:560px) {
+  .ledger-card .ledger-result-object-row { grid-template-columns:9px minmax(22px, 1fr) auto auto auto auto; gap:4px; padding:5px 0; }
+  .ledger-card .ledger-result-object-row .ledger-row-kind { max-width:5.5em; font-size:var(--fs-9); }
+  .ledger-result-object-quantity, .ledger-card .ledger-result-object-row .ledger-row-cost { font-size:var(--fs-10); }
+}
+
+
 }
 
