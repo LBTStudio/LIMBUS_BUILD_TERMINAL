@@ -75,3 +75,61 @@ drop policy if exists lbt_account_vault_versions_delete_own on public.lbt_accoun
 create policy lbt_account_vault_versions_delete_own
   on public.lbt_account_vault_versions for delete to authenticated
   using ((select auth.uid()) = user_id);
+
+
+-- Anonymous recovery-key vault creation is public by design, so cap new vaults per
+-- source IP to avoid unbounded unauthenticated database growth. Store only an IP digest.
+create table if not exists public.lbt_account_recovery_rate_limits (
+  ip_digest text primary key check (ip_digest ~ '^[a-f0-9]{64}$'),
+  window_started_at timestamptz not null default now(),
+  request_count integer not null default 0 check (request_count >= 0)
+);
+create index if not exists lbt_account_recovery_rate_limits_window_idx
+  on public.lbt_account_recovery_rate_limits(window_started_at);
+
+alter table public.lbt_account_recovery_rate_limits enable row level security;
+revoke all on table public.lbt_account_recovery_rate_limits from public, anon, authenticated;
+grant select, insert, update, delete on table public.lbt_account_recovery_rate_limits to service_role;
+
+create or replace function public.lbt_consume_recovery_rate_limit(
+  p_ip_digest text,
+  p_limit integer default 10,
+  p_window_seconds integer default 3600
+) returns boolean
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_count integer;
+  v_reset boolean;
+  v_now timestamptz := clock_timestamp();
+begin
+  if p_ip_digest !~ '^[a-f0-9]{64}$' or p_limit < 1 or p_window_seconds < 1 then
+    return false;
+  end if;
+
+  insert into public.lbt_account_recovery_rate_limits (ip_digest, window_started_at, request_count)
+  values (p_ip_digest, v_now, 1)
+  on conflict (ip_digest) do update
+  set
+    window_started_at = case
+      when public.lbt_account_recovery_rate_limits.window_started_at
+        + make_interval(secs => p_window_seconds) <= v_now
+      then v_now
+      else public.lbt_account_recovery_rate_limits.window_started_at
+    end,
+    request_count = case
+      when public.lbt_account_recovery_rate_limits.window_started_at
+        + make_interval(secs => p_window_seconds) <= v_now
+      then 1
+      else public.lbt_account_recovery_rate_limits.request_count + 1
+    end
+  returning request_count into v_count;
+
+  return v_count <= p_limit;
+end;
+$$;
+
+revoke all on function public.lbt_consume_recovery_rate_limit(text, integer, integer) from public, anon, authenticated;
+grant execute on function public.lbt_consume_recovery_rate_limit(text, integer, integer) to service_role;
