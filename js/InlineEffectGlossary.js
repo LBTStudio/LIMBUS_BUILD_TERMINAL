@@ -391,6 +391,12 @@
         event.stopPropagation();
         return;
       }
+      // Desktop hover may have opened the popover before the click lands.
+      // Treat mouse clicks as "show details", not a toggle that immediately closes it.
+      if (lastPointerType.current === "mouse") {
+        setOpen(true);
+        return;
+      }
       setOpen((value) => !value);
     };
     const panel = open && position ? React.createElement("div", {
