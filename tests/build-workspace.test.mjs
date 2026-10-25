@@ -861,7 +861,7 @@ test("削除は Undo/Redo が効く即時削除で、ごみ箱は置かない", 
   /* 帰属を外す（未分類へ戻す）と削除は別ボタン。 */
   assert.match(led, /className: "ledger-row-release"[\s\S]{0,320}?moveEntry\(entry\.id, null\)/);
   /* リザルトの行もドラッグで移せる。 */
-  assert.match(led, /className: "ledger-row is-owned", \.\.\.dragProps\(entry\)/);
+  assert.match(led, /className: "ledger-row is-owned ledger-result-object-row", \.\.\.dragProps\(entry\)/);
   assert.match(led, /const dragProps = \(entry\) => \(\{/);
   /* 未分類は空でも残る受け皿。 */
   assert.match(led, /dropTargetProps\("__queue"\)/);
