@@ -64,11 +64,11 @@ test("ヘルスチェックは無料のKV保存先が接続されていること
   assert.deepEqual(await response.json(), { ok: true, shareStore: "kv", configured: true });
 });
 
-test("KV共有発行は固定OGP HTMLを保存し、短いURLと復元用tokenを返す", async () => {
+test("KV共有発行は人物別OGP画像URLを設定し、短いURLと復元用tokenを返す", async () => {
   const env = makeEnv();
   const response = await worker.fetch(publishRequest({
     token: "z.ABC_123",
-    preview: { personaName: "蜘蛛の巣 中指の親方", hp: "180", san: "45", speed: "1d6", syncRank: "00", syncMax: true },
+    preview: { personaName: "蜘蛛の巣 中指の親方", hp: "180", san: "45", speed: "1d6", primarySin: "傲慢", syncRank: "00", syncMax: true },
     fallbacks: [{ source: "rentry", id: "rentry-123" }, { source: "telegraph", id: "Page-123" }],
   }), env);
   assert.equal(response.status, 201);
@@ -80,11 +80,29 @@ test("KV共有発行は固定OGP HTMLを保存し、短いURLと復元用token�
   assert.ok(stored);
   assert.match(stored.value, /property="og:title" content="【人格】蜘蛛の巣 中指の親方｜LIMBUS BUILD TERMINAL"/);
   assert.match(stored.value, /og:description/);
+  assert.match(stored.value, /最多資源属性：傲慢/);
+  assert.ok(stored.value.includes('og:image" content="https://lbt-ogp.lbtstudio-share.workers.dev/i/' + result.id));
+  assert.ok(stored.value.includes('twitter:image" content="https://lbt-ogp.lbtstudio-share.workers.dev/i/' + result.id));
   assert.match(stored.value, /share\.html#lbt=z\.ABC_123/);
   assert.match(stored.value, /rentry-123/);
   assert.equal(stored.options.expirationTtl, 7 * 24 * 60 * 60 + 6 * 60 * 60);
   assert.equal(stored.options.metadata.schema, "1");
   assert.ok(Number.isFinite(Date.parse(stored.options.metadata.lastAccessRefreshAt)));
+});
+
+test("短縮共有の画像ルートはtoken内の自動生成カードを返す", async () => {
+  const env = makeEnv();
+  const snapshot = { _lbtShare: 1, charName: "画像を持つ人格", ogpImageData: "data:image/webp;base64,QUJDRA==" };
+  const token = "j." + Buffer.from(JSON.stringify(snapshot), "utf8").toString("base64url");
+  const published = await worker.fetch(publishRequest({
+    token, preview: { personaName: "画像を持つ人格", hp: "120", san: "45", speed: "2-5", primarySin: "憤怒" }, fallbacks: [],
+  }), env);
+  assert.equal(published.status, 201);
+  const { id } = await published.json();
+  const response = await worker.fetch(new Request("https://lbt-ogp.lbtstudio-share.workers.dev/i/" + id), env);
+  assert.equal(response.status, 200);
+  assert.ok(response.headers.get("content-type").includes("image/webp"));
+  assert.equal(Buffer.from(await response.arrayBuffer()).toString("utf8"), "ABCD");
 });
 
 test("公開APIは不正origin・不正token・レート超過を拒否する", async () => {
@@ -97,6 +115,23 @@ test("公開APIは不正origin・不正token・レート超過を拒否する", 
 
   const limited = await worker.fetch(publishRequest({ token: "z.ABC_123" }), env);
   assert.equal(limited.status, 429);
+});
+
+test("以前のKV共有も静的画像から人物別OGP画像URLへ切り替える", async () => {
+  const env = makeEnv();
+  const snapshot = { _lbtShare: 1, charName: "旧共有", ogpImageData: "data:image/webp;base64,QUJDRA==" };
+  const token = "j." + Buffer.from(JSON.stringify(snapshot), "utf8").toString("base64url");
+  const published = await worker.fetch(publishRequest({ token, preview: { personaName: "旧共有", hp: "100", san: "40", speed: "1d6" }, fallbacks: [] }), env);
+  const { id } = await published.json();
+  const key = "s/" + id, stored = env.SHARES.objects.get(key);
+  const oldHtml = stored.value
+    .replace(/<meta property="og:image" content="[^"]*">/, '<meta property="og:image" content="https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/assets/lbt-share-card.png">')
+    .replace(/<meta name="twitter:image" content="[^"]*">/, '<meta name="twitter:image" content="https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/assets/lbt-share-card.png">');
+  await env.SHARES.put(key, oldHtml, { ...stored.options, metadata: { ...stored.options.metadata, lastAccessRefreshAt: new Date().toISOString() } });
+  const response = await worker.fetch(new Request("https://lbt-ogp.lbtstudio-share.workers.dev/s/" + id), env);
+  const html = await response.text();
+  assert.ok(html.includes('og:image" content="https://lbt-ogp.lbtstudio-share.workers.dev/i/' + id));
+  assert.ok(html.includes('twitter:image" content="https://lbt-ogp.lbtstudio-share.workers.dev/i/' + id));
 });
 
 test("KVに保存済みの短縮URLはOGPを含むHTMLシェルを返す", async () => {

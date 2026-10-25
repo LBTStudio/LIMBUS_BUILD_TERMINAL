@@ -232,3 +232,10 @@ test("外部保存先の障害時は失敗結果を短時間キャッシュす�
   // 正常系の7日 cache とは別ポリシーであること
   assert.doesNotMatch(response.headers.get("cache-control"), /max-age=604800/);
 });
+
+
+test("OGP summary には最多資源属性も表示する", () => {
+  const preview = previewFromQuery(new URL("https://lbt-ogp.example/s?s=t:abc&lbt_n=人格&lbt_hp=120&lbt_san=50&lbt_spd=3-7&lbt_sin=%E6%86%A4%E6%80%92&lbt_sync=000&lbt_max=1&lbt_img=0"));
+  assert.equal(preview.primarySin, "憤怒");
+  assert.match(preview.description, /最多資源属性：憤怒/);
+});

@@ -152,19 +152,33 @@ function selectedSync(snapshot) {
   return [rank ? `同期${rank}` : "", selected?.syncMax === true ? "MAX" : ""].filter(Boolean).join(" ｜ ");
 }
 
+const PRIMARY_RESOURCE_ATTRIBUTES = ["憤怒", "色欲", "怠惰", "暴食", "憂鬱", "傲慢", "嫉妬"];
+function primaryResourceAttribute(skills) {
+  const counts = new Map();
+  (Array.isArray(skills) ? skills : []).forEach((skill) => {
+    const sin = String(skill?.sin || "").trim();
+    if (PRIMARY_RESOURCE_ATTRIBUTES.includes(sin)) counts.set(sin, (counts.get(sin) || 0) + 1);
+  });
+  let best = "", bestCount = 0;
+  for (const [sin, count] of counts) if (count > bestCount) { best = sin; bestCount = count; }
+  return best;
+}
+
 export function previewFromSnapshot(snapshot) {
   const rawPersonaName = String(snapshot?.personaSrc?.name || snapshot?.charName || "LBT キャラクターシート").trim();
   const personaName = Array.from(rawPersonaName).slice(0, 48).join("") + (Array.from(rawPersonaName).length > 48 ? "…" : "");
   const hp = String(snapshot?.hp ?? "?").trim().slice(0, 12) || "?";
   const san = String(snapshot?.san ?? "?").trim().slice(0, 12) || "?";
   const speed = String(snapshot?.speed ?? "?").trim().slice(0, 16) || "?";
+  const primarySin = String(snapshot?.primarySin || primaryResourceAttribute(snapshot?.skills) || primaryResourceAttribute(snapshot?.personaSrc?.skills) || "").trim();
   const sync = selectedSync(snapshot);
   return {
     personaName,
     title: personaName,
-    description: [`HP ${hp}`, `SAN ${san}`, `SPD ${speed}`, sync].filter(Boolean).join(" ｜ "),
+    description: [`HP ${hp}`, `SAN ${san}`, `SPD ${speed}`, sync, primarySin ? `最多資源属性：${primarySin}` : ""].filter(Boolean).join(" ｜ "),
     shareImageData: String(snapshot?.shareImageData || ""),
-    ogpImageData: String(snapshot?.ogpImageData || "")
+    ogpImageData: String(snapshot?.ogpImageData || ""),
+    primarySin
   };
 }
 
@@ -186,17 +200,20 @@ export function previewFromQuery(url) {
   const hp = String(params.get("lbt_hp") || "").trim().slice(0, 12) || "?";
   const san = String(params.get("lbt_san") || "").trim().slice(0, 12) || "?";
   const speed = rawSpeed.slice(0, 16) || "?";
+  const sinCandidate = String(params.get("lbt_sin") || "");
+  const primarySin = PRIMARY_RESOURCE_ATTRIBUTES.includes(sinCandidate) ? sinCandidate : "";
   const syncRank = ["0", "00", "000"].includes(params.get("lbt_sync") || "") ? params.get("lbt_sync") : "";
   const syncMax = params.get("lbt_max") === "1";
   const sync = [syncRank ? `同期${syncRank}` : "", syncMax ? "MAX" : ""].filter(Boolean).join(" · ");
   return {
     personaName,
     title: personaName,
-    description: [`HP ${hp}`, `SAN ${san}`, `SPD ${speed}`, sync].filter(Boolean).join(" ｜ "),
+    description: [`HP ${hp}`, `SAN ${san}`, `SPD ${speed}`, sync, primarySin ? `最多資源属性：${primarySin}` : ""].filter(Boolean).join(" ｜ "),
     // summary 経路では snapshot を読まないので画像は空のまま返す。
     // ogpHtml は skipImageRoute で静的な既定カードを選ぶ。
     shareImageData: "",
-    ogpImageData: ""
+    ogpImageData: "",
+    primarySin
   };
 }
 
@@ -207,7 +224,8 @@ async function enrichOfficialPersona(snapshot, fetchImpl) {
   const needsHp = snapshot?.hp === undefined || snapshot?.hp === null || snapshot?.hp === "";
   const needsSan = snapshot?.san === undefined || snapshot?.san === null || snapshot?.san === "";
   const needsSpeed = snapshot?.speed === undefined || snapshot?.speed === null || snapshot?.speed === "";
-  if ((!needsName && !needsHp && !needsSan && !needsSpeed) || !["n", "t"].includes(mode) || ref?.no === undefined || ref?.no === null) return snapshot;
+  const needsPrimarySin = !String(snapshot?.primarySin || "").trim();
+  if ((!needsName && !needsHp && !needsSan && !needsSpeed && !needsPrimarySin) || !["n", "t"].includes(mode) || ref?.no === undefined || ref?.no === null) return snapshot;
   try {
     const response = await fetchImpl(OFFICIAL_DB_URL, { headers: { Accept: "application/json" } });
     if (!response.ok) return snapshot;
@@ -220,7 +238,8 @@ async function enrichOfficialPersona(snapshot, fetchImpl) {
       personaSrc: snapshot?.personaSrc?.name ? snapshot.personaSrc : { name: persona.name },
       hp: needsHp ? persona.hp : snapshot.hp,
       san: needsSan ? persona.san : snapshot.san,
-      speed: needsSpeed ? persona.speed : snapshot.speed
+      speed: needsSpeed ? persona.speed : snapshot.speed,
+      primarySin: needsPrimarySin ? primaryResourceAttribute(persona.skills) : snapshot.primarySin
     };
   } catch (_) {
     return snapshot;
@@ -253,7 +272,7 @@ function fallbackHtml(url, detail = "") {
   return new Response(`<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><meta http-equiv="refresh" content="0;url=${safeTarget}"><title>LIMBUS BUILD TERMINAL</title><meta property="og:title" content="LIMBUS BUILD TERMINAL — キャラクターシート"><meta property="og:description" content="LBT キャラクターシート共有リンク"><meta property="og:image" content="${STATIC_FALLBACK_IMAGE}"><script>location.replace(${JSON.stringify(target)})</script></head><body><a href="${safeTarget}">LBT共有シートを開く</a>${detail ? `<small>${htmlEscape(detail)}</small>` : ""}</body></html>`, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": FALLBACK_CACHE_CONTROL } });
 }
 
-function ogpHtml(requestUrl, snapshot, { skipImageRoute = false, preview: givenPreview = null } = {}) {
+function ogpHtml(requestUrl, snapshot, { skipImageRoute = false, forceImageRoute = false, preview: givenPreview = null } = {}) {
   const url = new URL(requestUrl);
   /* summary 経路では preview が完成済みなので、snapshot を再度解釈しない。
      snapshot を渡さない場合にのみ previewFromSnapshot で求める。 */
@@ -264,7 +283,7 @@ function ogpHtml(requestUrl, snapshot, { skipImageRoute = false, preview: givenP
      静的な既定カードを使う。共有画像は /i を個別に叩いたときだけ効く。 */
   const image = skipImageRoute
     ? STATIC_FALLBACK_IMAGE
-    : /^data:image\/(webp|jpeg);base64,/.test(imageData)
+    : forceImageRoute || /^data:image\/(webp|jpeg);base64,/.test(imageData)
       ? `${url.origin}/i?${url.searchParams.toString()}`
       : STATIC_FALLBACK_IMAGE;
   const safeTarget = htmlEscape(target);
@@ -299,11 +318,11 @@ export async function handleRequest(request, { fetchImpl = fetch } = {}) {
     if (url.pathname === "/s") {
       const queryPreview = previewFromQuery(url);
       if (queryPreview) {
-        return ogpHtml(request.url, null, { skipImageRoute: true, preview: queryPreview });
+        return ogpHtml(request.url, null, { forceImageRoute: true, preview: queryPreview });
       }
     }
     const snapshot = await loadSnapshot(sources, fetchImpl);
-    if (url.pathname === "/i") return imageResponse(snapshot.shareImageData || snapshot.ogpImageData, request.method) || new Response("共有画像は設定されていません", { status: 404, headers: { "Cache-Control": "no-store" } });
+    if (url.pathname === "/i") return imageResponse(snapshot.shareImageData, request.method) || imageResponse(snapshot.ogpImageData, request.method) || new Response(null, { status: 302, headers: { Location: STATIC_FALLBACK_IMAGE, "Cache-Control": CACHE_CONTROL, "X-Content-Type-Options": "nosniff" } });
     return ogpHtml(request.url, await enrichOfficialPersona(snapshot, fetchImpl));
   } catch (error) {
     return fallbackHtml(url, error?.message || "共有データの取得に失敗しました");

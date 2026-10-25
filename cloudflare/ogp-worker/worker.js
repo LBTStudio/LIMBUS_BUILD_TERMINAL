@@ -3,7 +3,11 @@ const DEFAULT_VIEWER_URL = "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/sh
 const DEFAULT_OG_IMAGE = "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/assets/lbt-share-card.png";
 const API_PATH = "/api/r2-share/v1";
 const MAX_TOKEN_LENGTH = 160002;
+const MAX_DECOMPRESSED_BYTES = 256000;
+const MAX_IMAGE_DATA_URL_CHARS = 64000;
 const MAX_REQUEST_BYTES = 200000;
+const PRIMARY_RESOURCE_ATTRIBUTES = ["憤怒", "色欲", "怠惰", "暴食", "憂鬱", "傲慢", "嫉妬"];
+const IMAGE_CACHE_CONTROL = "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400";
 // Keep the edge cache shorter than the idle-expiry refresh window so cached hits do not
 // outlive the last point at which the Worker can refresh the KV key.
 const SHARE_CACHE_TTL_SECONDS = 6 * 60 * 60;
@@ -46,6 +50,7 @@ function sanitizePreview(value) {
     hp: cleanText(raw.hp, 8).replace(/[^0-9?—-]/g, ""),
     san: cleanText(raw.san, 8).replace(/[^0-9?—-]/g, ""),
     speed: cleanText(raw.speed, 16),
+    primarySin: PRIMARY_RESOURCE_ATTRIBUTES.includes(String(raw.primarySin || "")) ? String(raw.primarySin) : "",
     syncRank: ["0", "00", "000"].includes(String(raw.syncRank || "")) ? String(raw.syncRank) : "",
     syncMax: raw.syncMax === true,
     hasShareImage: raw.hasShareImage === true,
@@ -58,6 +63,7 @@ function previewFromUrl(url) {
     hp: url.searchParams.get("lbt_hp") || "",
     san: url.searchParams.get("lbt_san") || "",
     speed: url.searchParams.get("lbt_spd") || "",
+    primarySin: url.searchParams.get("lbt_sin") || "",
     syncRank: url.searchParams.get("lbt_sync") || "",
     syncMax: url.searchParams.get("lbt_max") === "1",
     hasShareImage: url.searchParams.get("lbt_img") === "1",
@@ -109,13 +115,14 @@ function viewerUrlForSources(sources, preview, env) {
   if (preview.hp) params.set("lbt_hp", preview.hp);
   if (preview.san) params.set("lbt_san", preview.san);
   if (preview.speed) params.set("lbt_spd", preview.speed);
+  if (preview.primarySin) params.set("lbt_sin", preview.primarySin);
   if (preview.syncRank) params.set("lbt_sync", preview.syncRank);
   if (preview.syncMax) params.set("lbt_max", "1");
   params.set("lbt_img", preview.hasShareImage ? "1" : "0");
   return (env.SHARE_VIEWER_URL || DEFAULT_VIEWER_URL) + "?" + params.toString();
 }
 
-function renderShell({ preview, iframeUrl = "", legacyUrl = "", canonicalUrl = "", error = "" }, env) {
+function renderShell({ preview, iframeUrl = "", legacyUrl = "", canonicalUrl = "", imageUrl = "", error = "" }, env) {
   const p = sanitizePreview(preview);
   const name = p.personaName || "キャラクターシート";
   const title = "【人格】" + name + "｜LIMBUS BUILD TERMINAL";
@@ -124,6 +131,7 @@ function renderShell({ preview, iframeUrl = "", legacyUrl = "", canonicalUrl = "
     p.san ? "SAN " + p.san : "",
     p.speed ? "速度 " + p.speed : "",
     p.syncRank ? "同期 " + p.syncRank : "",
+    p.primarySin ? "最多資源属性：" + p.primarySin : "",
     p.syncMax ? "MAX" : "",
   ].filter(Boolean).join(" / ");
   const description = (detail ? detail + "。 " : "") + "LIMBUS BUILD TERMINALで作成された共有キャラクターシートです。";
@@ -142,8 +150,8 @@ function renderShell({ preview, iframeUrl = "", legacyUrl = "", canonicalUrl = "
     + '<meta property="og:type" content="website"><meta property="og:site_name" content="LIMBUS BUILD TERMINAL">'
     + '<meta property="og:locale" content="ja_JP"><meta property="og:url" content="' + htmlEscape(canonicalUrl || DEFAULT_VIEWER_URL) + '">'
     + '<meta property="og:title" content="' + htmlEscape(title) + '"><meta property="og:description" content="' + htmlEscape(description) + '">'
-    + '<meta property="og:image" content="' + htmlEscape(env.OG_IMAGE_URL || DEFAULT_OG_IMAGE) + '">'
-    + '<meta name="twitter:card" content="summary_large_image">'
+    + '<meta property="og:image" content="' + htmlEscape(imageUrl || env.OG_IMAGE_URL || DEFAULT_OG_IMAGE) + '">'
+    + '<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="' + htmlEscape(title) + '"><meta name="twitter:description" content="' + htmlEscape(description) + '"><meta name="twitter:image" content="' + htmlEscape(imageUrl || env.OG_IMAGE_URL || DEFAULT_OG_IMAGE) + '">
     + '<style>html,body{margin:0;min-height:100%;background:#17100d;color:#f2ece1;font-family:system-ui,sans-serif}body{height:100dvh;overflow:hidden}.sheet{display:block;width:100%;height:100dvh;border:0}main{box-sizing:border-box;max-width:760px;margin:10vh auto;padding:24px;line-height:1.6}a{color:#e4c16e}.fallback-link{position:fixed;right:8px;bottom:8px;z-index:5;padding:6px 9px;border:1px solid #6a5b3e;border-radius:5px;background:#17100df0;font-size:11px;opacity:.82}</style>'
     + '</head><body>' + frame + '</body></html>';
 }
@@ -290,7 +298,7 @@ async function publishShare(request, env) {
   const legacyUrl = viewerUrlForSources(fallbacks, preview, env);
   const viewerBase = env.SHARE_VIEWER_URL || DEFAULT_VIEWER_URL;
   const iframeUrl = viewerBase + "#lbt=" + token;
-  const html = renderShell({ preview, iframeUrl, legacyUrl, canonicalUrl: shareUrl }, env);
+  const html = renderShell({ preview, iframeUrl, legacyUrl, canonicalUrl: shareUrl, imageUrl: publicOrigin + "/i/" + id }, env);
 
   const now = new Date().toISOString();
   try {
@@ -329,6 +337,149 @@ function scheduleIdleExpiryRefresh(env, key, html, metadata, ctx) {
   return refresh;
 }
 
+function base64UrlBytes(value) {
+  if (!/^[A-Za-z0-9_-]+$/.test(value || "") || value.length > MAX_TOKEN_LENGTH) throw new Error("Invalid share token");
+  const padded = value.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - value.length % 4) % 4);
+  const binary = atob(padded);
+  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+}
+
+async function inflateShareBytes(bytes) {
+  const reader = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw")).getReader();
+  const chunks = [];
+  let length = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    length += value.byteLength;
+    if (length > MAX_DECOMPRESSED_BYTES) throw new Error("Shared data is too large");
+    chunks.push(value);
+  }
+  const joined = new Uint8Array(length);
+  let offset = 0;
+  chunks.forEach((chunk) => { joined.set(chunk, offset); offset += chunk.byteLength; });
+  return joined;
+}
+
+async function decodeShareToken(token) {
+  const match = /^(z|j)\.([A-Za-z0-9_-]+)$/.exec(String(token || ""));
+  if (!match || String(token).length > MAX_TOKEN_LENGTH) throw new Error("Invalid share token");
+  let bytes = base64UrlBytes(match[2]);
+  if (match[1] === "z") bytes = await inflateShareBytes(bytes);
+  if (bytes.byteLength > MAX_DECOMPRESSED_BYTES) throw new Error("Shared data is too large");
+  const snapshot = JSON.parse(new TextDecoder().decode(bytes));
+  if (!snapshot || snapshot._lbtShare !== 1) throw new Error("Invalid shared snapshot");
+  return snapshot;
+}
+
+function extractTokenFromShell(html) {
+  const match = /#lbt=((?:z|j)\.([A-Za-z0-9_-]+))/.exec(String(html || ""));
+  return match ? match[1] : "";
+}
+
+function imageResponse(dataUri, method) {
+  const value = String(dataUri || "");
+  if (value.length > MAX_IMAGE_DATA_URL_CHARS) return null;
+  const match = /^data:image\/(webp|jpeg);base64,([A-Za-z0-9+/]+={0,2})$/.exec(value);
+  if (!match) return null;
+  let binary;
+  try { binary = atob(match[2]); } catch (_) { return null; }
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new Response(method === "HEAD" ? null : bytes, {
+    headers: { "Content-Type": `image/${match[1]}`, "Content-Length": String(bytes.byteLength), "Cache-Control": IMAGE_CACHE_CONTROL, "X-Content-Type-Options": "nosniff" },
+  });
+}
+
+async function imageFromToken(token, method) {
+  try {
+    const snapshot = await decodeShareToken(token);
+    return imageResponse(snapshot.shareImageData, method) || imageResponse(snapshot.ogpImageData, method);
+  } catch (_) { return null; }
+}
+
+function fallbackImageResponse(env) {
+  return new Response(null, { status: 302, headers: {
+    Location: env.OG_IMAGE_URL || DEFAULT_OG_IMAGE,
+    "Cache-Control": "public, max-age=3600, s-maxage=86400",
+    "X-Content-Type-Options": "nosniff",
+  }});
+}
+
+function htmlWithDynamicImage(html, imageUrl) {
+  let output = String(html || "");
+  const escaped = htmlEscape(imageUrl);
+  const ogTag = '<meta property="og:image" content="' + escaped + '">';
+  const twitterTag = '<meta name="twitter:image" content="' + escaped + '">';
+  output = /<meta property="og:image" content="[^"]*">/.test(output)
+    ? output.replace(/<meta property="og:image" content="[^"]*">/, ogTag)
+    : output.replace("</head>", ogTag + "</head>");
+  output = /<meta name="twitter:image" content="[^"]*">/.test(output)
+    ? output.replace(/<meta name="twitter:image" content="[^"]*">/, twitterTag)
+    : output.replace("</head>", twitterTag + "</head>");
+  return output;
+}
+
+function primaryResourceAttribute(skills) {
+  const counts = new Map();
+  (Array.isArray(skills) ? skills : []).forEach((skill) => {
+    const sin = String(skill?.sin || "").trim();
+    if (PRIMARY_RESOURCE_ATTRIBUTES.includes(sin)) counts.set(sin, (counts.get(sin) || 0) + 1);
+  });
+  let best = "", bestCount = 0;
+  for (const [sin, count] of counts) if (count > bestCount) { best = sin; bestCount = count; }
+  return best;
+}
+
+function appendPrimarySinDescription(html, sin) {
+  if (!sin || String(html).includes("最多資源属性：")) return String(html);
+  const addition = " ｜ 最多資源属性：" + sin;
+  let output = String(html);
+  for (const pattern of [
+    /(<meta property="og:description" content=")([^"]*)(")/,
+    /(<meta name="twitter:description" content=")([^"]*)(")/,
+    /(<meta name="description" content=")([^"]*)(")/,
+  ]) output = output.replace(pattern, (whole, a, b, c) => a + b + addition + c);
+  return output;
+}
+
+async function upgradeExistingShareHtml(html) {
+  if (String(html).includes("最多資源属性：")) return String(html);
+  try {
+    const token = extractTokenFromShell(html);
+    if (!token) return String(html);
+    const snapshot = await decodeShareToken(token);
+    const sin = primaryResourceAttribute(snapshot.skills) || primaryResourceAttribute(snapshot.personaSrc?.skills);
+    return sin ? appendPrimarySinDescription(html, sin) : String(html);
+  } catch (_) { return String(html); }
+}
+
+async function handleShareImage(request, env, id = "", ctx = null) {
+  let token = "";
+  if (id && env.SHARES && typeof env.SHARES.getWithMetadata === "function") {
+    try {
+      const key = "s/" + id;
+      const stored = await env.SHARES.getWithMetadata(key, "text");
+      if (typeof stored?.value === "string" && stored.value.length > 0) {
+        const touch = scheduleIdleExpiryRefresh(env, key, stored.value, stored.metadata, ctx);
+        if (touch) await touch;
+        token = extractTokenFromShell(stored.value);
+      }
+    } catch (_) { /* Try a legacy token source below. */ }
+  }
+  if (!token) {
+    const url = new URL(request.url);
+    const sources = parseSourceList(url.searchParams.get("s") || "");
+    if (sources.length) {
+      try { token = await tokenFromLegacySources(sources); } catch (_) { token = ""; }
+    }
+  }
+  if (token) {
+    const response = await imageFromToken(token, request.method);
+    if (response) return response;
+  }
+  return fallbackImageResponse(env);
+}
+
 async function getShare(request, env, id, ctx) {
   const url = new URL(request.url);
   const queryFallbacks = parseSourceList(url.searchParams.get("b") || "");
@@ -340,7 +491,9 @@ async function getShare(request, env, id, ctx) {
       if (typeof stored?.value === "string" && stored.value.length > 0) {
         const touch = scheduleIdleExpiryRefresh(env, key, stored.value, stored.metadata, ctx);
         if (touch) await touch;
-        return buildResponse(stored.value, {
+        const imageUrl = getPublicOrigin(request, env) + "/i/" + id;
+        const upgradedHtml = await upgradeExistingShareHtml(stored.value);
+        return buildResponse(htmlWithDynamicImage(upgradedHtml, imageUrl), {
           cacheControl: "public, max-age=0, s-maxage=" + SHARE_CACHE_TTL_SECONDS,
         });
       }
@@ -380,6 +533,7 @@ function handleLegacyOgp(request, env) {
     iframeUrl: viewerUrl,
     legacyUrl: viewerUrl,
     canonicalUrl: url.origin + url.pathname + url.search,
+    imageUrl: url.origin + "/i?" + url.searchParams.toString(),
   }, env), { cacheControl: "public, max-age=0, s-maxage=86400" });
 }
 
@@ -411,6 +565,9 @@ export default {
     }
     if (url.pathname === "/d" && request.method === "GET") return handleLegacyDownload(request, env);
     if (url.pathname === "/s" && request.method === "GET") return handleLegacyOgp(request, env);
+    if (url.pathname === "/i" && (request.method === "GET" || request.method === "HEAD")) return handleShareImage(request, env, "", ctx);
+    const imageMatch = /^\/i\/([A-Za-z0-9_-]{16})$/.exec(url.pathname);
+    if (imageMatch && (request.method === "GET" || request.method === "HEAD")) return handleShareImage(request, env, imageMatch[1], ctx);
     const shareMatch = /^\/s\/([A-Za-z0-9_-]{16})$/.exec(url.pathname);
     if (shareMatch && request.method === "GET") return getShare(request, env, shareMatch[1], ctx);
     return new Response("Not found", { status: 404, headers: {
