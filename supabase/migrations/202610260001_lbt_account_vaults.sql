@@ -77,6 +77,31 @@ create policy lbt_account_vault_versions_delete_own
   using ((select auth.uid()) = user_id);
 
 
+-- Keep recovery-key-backed snapshots if the linked Supabase Auth identity is deleted.
+-- Accounts without a recovery key are removed with the identity, because no supported
+-- recovery route would remain. History follows the vault's lifetime, not the identity.
+create or replace function public.lbt_prepare_vaults_for_auth_user_deletion()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $
+begin
+  delete from public.lbt_account_vaults
+    where user_id = old.id and recovery_hash is null;
+  update public.lbt_account_vaults
+    set user_id = null
+    where user_id = old.id and recovery_hash is not null;
+  return old;
+end;
+$;
+
+revoke all on function public.lbt_prepare_vaults_for_auth_user_deletion() from public, anon, authenticated;
+drop trigger if exists lbt_prepare_vaults_before_auth_user_delete on auth.users;
+create trigger lbt_prepare_vaults_before_auth_user_delete
+  before delete on auth.users
+  for each row execute function public.lbt_prepare_vaults_for_auth_user_deletion();
+
 -- Anonymous recovery-key vault creation is public by design, so cap new vaults per
 -- source IP to avoid unbounded unauthenticated database growth. Store only an IP digest.
 create table if not exists public.lbt_account_recovery_rate_limits (
@@ -105,9 +130,36 @@ declare
   v_reset boolean;
   v_now timestamptz := clock_timestamp();
 begin
-  if p_ip_digest !~ '^[a-f0-9]{64}$' or p_limit < 1 or p_window_seconds < 1 then
+  if p_ip_digest !~ '^[a-f0-9]{64} (ip_digest, window_started_at, request_count)
+  values (p_ip_digest, v_now, 1)
+  on conflict (ip_digest) do update
+  set
+    window_started_at = case
+      when public.lbt_account_recovery_rate_limits.window_started_at
+        + make_interval(secs => p_window_seconds) <= v_now
+      then v_now
+      else public.lbt_account_recovery_rate_limits.window_started_at
+    end,
+    request_count = case
+      when public.lbt_account_recovery_rate_limits.window_started_at
+        + make_interval(secs => p_window_seconds) <= v_now
+      then 1
+      else public.lbt_account_recovery_rate_limits.request_count + 1
+    end
+  returning request_count into v_count;
+
+  return v_count <= p_limit;
+end;
+$$;
+
+revoke all on function public.lbt_consume_recovery_rate_limit(text, integer, integer) from public, anon, authenticated;
+grant execute on function public.lbt_consume_recovery_rate_limit(text, integer, integer) to service_role;
+ or p_limit < 1 or p_window_seconds < 1 then
     return false;
   end if;
+
+  delete from public.lbt_account_recovery_rate_limits
+    where window_started_at < v_now - interval '1 day';
 
   insert into public.lbt_account_recovery_rate_limits (ip_digest, window_started_at, request_count)
   values (p_ip_digest, v_now, 1)
