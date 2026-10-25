@@ -1362,6 +1362,29 @@ main.acct-gate {
   padding: var(--s-2) 0 var(--s-1);
 }
 
+
+/* SINNER SELECT 内の共有URL取込は通常画面用の .gara レイアウトを使う。
+   取込パネルをカード1枚の幅に閉じ込めると、2列レイアウトの最小幅が確保できず
+   日本語の本文・ボタンが1字ずつ折り返される。展開中だけカード列全体を使う。 */
+.acct-card--import-open {
+  grid-column: 1 / -1;
+  min-width: 0;
+  width: 100%;
+  align-items: stretch;
+  text-align: left;
+}
+.acct-card--import-open .acct-gara-body,
+.acct-card--import-open .gara {
+  min-width: 0;
+  width: 100%;
+}
+/* 候補ポップオーバーの fixed 座標をカードの transform でずらさない。 */
+.acct-card--import-open:hover,
+.acct-card--import-open:focus-within {
+  transform: none;
+  box-shadow: none;
+}
+
 /* ------------------------------------------------------------
    topbar の残高チップ。どの画面でも見える必要があるため
    .topbar-actions の外側（.topbar の直接子）に置く。
