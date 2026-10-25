@@ -268,3 +268,19 @@ test('joined prose stays in one field and one palette command without losing tim
   const line = palette.split('\n').find((l) => l.includes('連結検証'));
   assert.ok(line.includes('R終了時') && line.includes('クリティカル的中時'));
 });
+
+test('persona URL fetch gives up at the wall-clock budget instead of hanging the import', async () => {
+  const context = { window: {}, console, setTimeout, clearTimeout, AbortController };
+  vm.createContext(context);
+  vm.runInContext(readFileSync(new URL('../js/persona-draft-import.js', import.meta.url), 'utf8'), context);
+  const startedAt = Date.now();
+  const fetched = await context.window.LBT_fetchGarasumadoPersona(
+    publicUrl,
+    () => new Promise(() => {}),
+    { timeoutMs: 25 }
+  );
+  assert.equal(fetched.ok, false);
+  assert.match(fetched.errors[0], /時間内に終わりませんでした/);
+  assert.ok(Date.now() - startedAt < 2000, '応答が無くても予算で打ち切る');
+});
+

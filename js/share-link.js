@@ -25,7 +25,7 @@
   // Worker Cacheをバージョン横断で共有しても、この値を上げた時だけOGPカードを確実に再生成できる。
   const OGP_CARD_CACHE_VERSION = "3";
   // localStorage tracks creation, not the Worker's last-access refresh. Refresh cached KV links
-  // conservatively before their 7-day idle expiry so a stale cache cannot return a dead URL.
+  // conservatively before their 30-day idle expiry so a stale cache cannot return a dead URL.
   const LOCAL_KV_SHARE_REUSE_MAX_AGE_MS = 6 * 24 * 60 * 60 * 1000;
   // 設定時だけ短縮共有を無状態OGPゲートウェイへ渡す。未設定または配備失敗時は、
   // 従来どおりGitHub Pagesのshare.htmlを直接使うため、共有機能を止めない。
@@ -100,7 +100,7 @@
           if (!backups.some((entry) => entry?.url === previousUrl)) {
             backups.push({ source: "移行前の共有URL", id: "", url: previousUrl });
           }
-          warning = "既発行の共有URLを最新のCloudflare KV短縮URLへ移行しました。移行前のURLは予備リンクとして残しています。7日間アクセスがないと短縮URLの保存データは失効します。";
+          warning = "既発行の共有URLを最新のCloudflare KV短縮URLへ移行しました。移行前のURLは予備リンクとして残しています。30日間アクセスがないと短縮URLの保存データは失効します。";
           migrated = true;
         }
       }
@@ -1028,7 +1028,12 @@
   async function createTinyUrl(url, fetchImpl = window.fetch?.bind(window)) {
     if (typeof fetchImpl !== "function") throw new Error("短縮URLの通信機能を利用できません");
     const endpoint = `${TINYURL_CREATE_ENDPOINT}?${new URLSearchParams({ url }).toString()}`;
-    const response = await fetchImpl(endpoint);
+    /* 他の公開経路と同じく、応答が無いまま待ち続けない（予算で打ち切る）。 */
+    const response = await withPublishTimeout(
+      (signal) => fetchImpl(endpoint, { signal }),
+      EXTERNAL_PUBLISH_TIMEOUT_MS,
+      "短縮URLの応答がタイムアウトしました"
+    );
     const shortUrl = String(await response.text()).trim();
     if (!response.ok || !/^https:\/\/tinyurl\.com\/[A-Za-z0-9_-]+$/i.test(shortUrl)) {
       throw new Error("短縮URLを発行できませんでした");
@@ -1193,7 +1198,7 @@
         strategy: "cloudflare-kv",
         backups: [{ source: published.length ? "既存方式" : "自己完結", id: primary?.id || "", url: fallbackUrl }],
         preview,
-        warning: "Cloudflare KVの短縮URLです。予備URLは共有リンクと別に保存してください。7日間アクセスがないと短縮URLの保存データは失効します。"
+        warning: "Cloudflare KVの短縮URLです。予備URLは共有リンクと別に保存してください。30日間アクセスがないと短縮URLの保存データは失効します。"
       };
     } else if (published.length) {
       const primary = state?.shareImageData

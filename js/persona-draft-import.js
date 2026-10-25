@@ -268,6 +268,26 @@
   };
   const garasumadoUrlPattern = /^https:\/\/lbt-garasumado\.vercel\.app\/(persona\/)?view\/([A-Za-z0-9]{20})\/?$/i;
   const garasumadoApiKey = "AIzaSyCzpUWr3EBQMLLEBXAixCMSl0abxSZCgY4";
+  const PERSONA_FETCH_TIMEOUT_MS = 15000;
+  /* 応答が返らないまま取込画面が「読み込み中」で固まらないよう、壁時計で打ち切る。
+     VM テストのようにタイマーが無い環境では、予算を諦めて素の fetch に任せる。 */
+  const withFetchBudget = (run, timeoutMs, onTimeout) => {
+    const schedule = typeof window.setTimeout === "function" ? window.setTimeout.bind(window)
+      : typeof setTimeout === "function" ? setTimeout : null;
+    const cancel = typeof window.clearTimeout === "function" ? window.clearTimeout.bind(window)
+      : typeof clearTimeout === "function" ? clearTimeout : null;
+    if (!schedule) return run();
+    let timer = null;
+    const deadline = new Promise((resolve, reject) => {
+      timer = schedule(() => {
+        try { onTimeout?.(); } catch (_) {}
+        reject(new Error("timeout"));
+      }, timeoutMs);
+    });
+    return Promise.race([run(), deadline]).finally(() => {
+      if (timer !== null && cancel) cancel(timer);
+    });
+  };
   const parseGarasumadoUrl = (value) => {
     // Unwrap only this documented redirect; never fetch arbitrary targets.
     const url = clean(value).replace(/^https:\/\/rd\.nan7\.net\/(?=https:\/\/lbt-garasumado\.vercel\.app\/)/i, "");
@@ -361,18 +381,28 @@
     const record = document?.fields ? firestoreFields(document.fields) : document;
     return composeGarasumadoDraft(record, source);
   };
-  const fetchGarasumadoPersona = async (sourceUrl, fetchImpl) => {
+  const fetchGarasumadoPersona = async (sourceUrl, fetchImpl, options) => {
     const source = parseGarasumadoUrl(sourceUrl);
     if (!source.ok) return garasumadoError(source.errors[0]);
     const request = fetchImpl || window.fetch?.bind(window);
     if (typeof request !== "function") return garasumadoError("このブラウザでは硝子窓の公開人格データを取得できません。", source);
+    const budget = Number(options?.timeoutMs) > 0 ? Number(options.timeoutMs) : PERSONA_FETCH_TIMEOUT_MS;
+    const controller = typeof AbortController === "function" ? new AbortController() : null;
+    const init = { method: "GET", headers: { Accept: "application/json" } };
+    if (controller) init.signal = controller.signal;
     try {
       const endpoint = `https://firestore.googleapis.com/v1/projects/lbt-garasumado/databases/(default)/documents/${source.collection}/${source.id}?key=${garasumadoApiKey}`;
-      const response = await request(endpoint, { method: "GET", headers: { Accept: "application/json" } });
+      const response = await withFetchBudget(
+        () => request(endpoint, init),
+        budget,
+        () => controller?.abort()
+      );
       if (!response?.ok) return garasumadoError(response?.status === 404 ? "この硝子窓URLの公開人格は見つかりません。" : "硝子窓の公開人格データを取得できませんでした。時間を置いて再度お試しください。", source);
       return parseGarasumadoPersonaDocument(await response.json(), source.url);
     } catch (error) {
-      return garasumadoError("硝子窓の公開人格データを取得できませんでした。ネットワーク接続を確認して再度お試しください。", source);
+      return garasumadoError(String(error?.message || "") === "timeout"
+        ? "硝子窓の公開人格データの取得が時間内に終わりませんでした。時間を置いて再度お試しください。"
+        : "硝子窓の公開人格データを取得できませんでした。ネットワーク接続を確認して再度お試しください。", source);
     }
   };
   const parsePersonaDraft = (rawText, options) => {
