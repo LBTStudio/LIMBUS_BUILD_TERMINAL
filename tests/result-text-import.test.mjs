@@ -138,6 +138,94 @@ test("共有文書の Markdown 表と全角コロン区切りを読み取る", (
   assert.equal(colon.skipped.length, 0);
 });
 
+test("実記録に使われている▼/▽形式と複数行の報酬・消費・獲得を読み取る", () => {
+  const input = [
+    "▽初期作成時記録",
+    "消費：LP20+7=27",
+    "指定：仮人格Aの人格(初回指定20LP)",
+    "仮パッシブ(7LP)",
+    "現在所持LP：30→3",
+    "現在所持欠片：10",
+    "",
+    "▼採光シナリオ",
+    "日時：2026/05/28",
+    "GM：GMさん",
+    "報酬：",
+    "LP：40+5=45",
+    "欠片：25+5=30",
+    "人格抽出チケット×1→使用済(獲得：仮人格Bの人格)",
+    "現在所持LP：3→48",
+    "現在所持欠片：10→40",
+    "",
+    "▼サポートパッシブ購入",
+    "消費：LP20",
+    "獲得：肩慣らし",
+    "現在所持LP：78→58",
+    "現在所持欠片：65",
+    "",
+    "▼人格同期化依頼×2",
+    "該当人格：仮人格A、仮人格B",
+    "消費：欠片50×2=100",
+    "現在所持LP：58",
+    "現在所持欠片：200→100"
+  ].join("\n");
+
+  const parsed = T.parseText(input);
+  assert.equal(parsed.records.length, 4);
+  assert.equal(parsed.records[0].title, "初期作成時記録");
+  assert.deepEqual([...parsed.records[0].spends].map((s) => ({ name: s.name, cost: { ...s.cost } })), [
+    { name: "仮人格Aの人格", cost: { lp: 20, shards: 0 } },
+    { name: "仮パッシブ", cost: { lp: 7, shards: 0 } }
+  ]);
+
+  assert.equal(parsed.records[1].income.lp, 45);
+  assert.equal(parsed.records[1].income.shards, 30);
+  assert.deepEqual([...parsed.records[1].tickets].map((t) => ({ kind: t.kind, count: t.count })), [
+    { kind: "persona", count: 1 }
+  ]);
+
+  assert.equal(parsed.records[2].spends.length, 1);
+  assert.equal(parsed.records[2].spends[0].name, "肩慣らし");
+  assert.deepEqual({ ...parsed.records[2].spends[0].cost }, { lp: 20, shards: 0 });
+
+  assert.equal(parsed.records[3].spends.length, 2);
+  assert.deepEqual([...parsed.records[3].spends].map((s) => ({ name: s.name, cost: { ...s.cost } })), [
+    { name: "仮人格A", cost: { lp: 0, shards: 50 } },
+    { name: "仮人格B", cost: { lp: 0, shards: 50 } }
+  ]);
+});
+
+test("消費額と獲得品の個別価格が矛盾する実記録は要確認として残す", () => {
+  const parsed = T.parseText([
+    "▼E.G.O指定購入",
+    "消費：LP450",
+    "獲得：",
+    "仮EGO A 50欠片",
+    "仮EGO B 50欠片",
+    "現在所持LP：168",
+    "現在所持欠片：451→1"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 1);
+  assert.deepEqual([...parsed.records[0].spends].map((s) => ({ name: s.name, cost: { ...s.cost } })), [
+    { name: "仮EGO A", cost: { lp: 0, shards: 50 } },
+    { name: "仮EGO B", cost: { lp: 0, shards: 50 } }
+  ]);
+  assert.ok(parsed.skipped.some((item) => /個別価格が一致しません/.test(item.reason)));
+});
+
+test("[Input]付きの見出しなし記録も空行ごとに分割する", () => {
+  const parsed = T.parseText([
+    "[Input]",
+    "報酬\tLP:10",
+    "",
+    "報酬\tLP:20"
+  ].join("\n"));
+  assert.equal(parsed.records.length, 2);
+  assert.equal(parsed.records[0].income.lp, 10);
+  assert.equal(parsed.records[1].income.lp, 20);
+});
+
 test("作者の書き方が違っても著者として読む", () => {
   assert.equal(T.parseText("【A】(作：X)").records[0].author, "X");
   assert.equal(T.parseText("【A】(作成者：X)").records[0].author, "X");
