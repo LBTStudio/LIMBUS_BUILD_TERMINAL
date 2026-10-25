@@ -778,10 +778,13 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [] }) => {
 
   /* URL取込後のレビューはアカウント編集カードから切り離した全画面ワークスペースへ。
      URL入力の入口は従来どおりに残し、内容の確認・確定時だけ作業面を切り替える。 */
+  const workspaceRef = React.useRef(null);
   const renderWorkspace = (content) => {
     if (!manifest && !confirmed) return content;
     return ReactDOM.createPortal(
       h("div", {
+        ref: workspaceRef,
+        tabIndex: -1,
         className: "gara-import-workspace",
         role: "dialog",
         "aria-modal": true,
@@ -790,16 +793,30 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [] }) => {
       document.body
     );
   };
+  /* 確認面が開いたら焦点をそこへ移し、背面のスクロールを止める。
+     面を切り替えるたびに焦点を奪い直さないよう、依存は開閉だけにする。 */
+  React.useEffect(() => {
+    if (!manifest && !confirmed) return undefined;
+    workspaceRef.current?.focus?.();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, [manifest, confirmed]);
   React.useEffect(() => {
     if (!manifest && !confirmed) return undefined;
     const handleEscape = (event) => {
       if (event.key !== "Escape") return;
       event.preventDefault();
+      /* 選んだ帰属・候補・除外は、閉じると残らない。作りかけのときだけ
+         捨ててよいかを聞く（「閉じて戻る」と同じ扱い）。 */
+      const worked = past.length > 0 || Object.keys(identity).length > 0
+        || Object.keys(choices).length > 0 || Object.keys(decided).length > 0;
+      if (worked && !window.confirm("取り込みの確認を閉じると、選んだ帰属・候補・除外は破棄されます。閉じますか？")) return;
       onClose?.();
     };
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
-  }, [manifest, confirmed, onClose]);
+  }, [manifest, confirmed, onClose, past, identity, choices, decided]);
   const onPickIdentity = (itemKey, next) => {
     setPast((h) => [...h.slice(-49), { identity, picked }]);
     setFuture([]);

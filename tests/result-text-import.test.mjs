@@ -480,6 +480,40 @@ test("略称などの曖昧な行は候補表示だけにして、選ばれる�
   assert.equal(resolved.actions.find((action) => action.type === "ADD_ROSTER").no, 27);
 });
 
+test("同名が複数ある行も候補として残し、選ばれた通常／外套だけを所持へ入れる", () => {
+  const parsed = T.parseText("『結果A』\nLP50+欠片25\n灰の狩人");
+  const ambiguous = () => ({
+    name: "灰の狩人",
+    kinds: [
+      { kind: "persona", mode: "n", no: 11 },
+      { kind: "persona", mode: "t", no: 11 }
+    ],
+    confidence: "exact"
+  });
+  const plan = T.plan(parsed, { resolve: ambiguous, suggestPersona: () => [] });
+  assert.equal(plan.identities.length, 1, "曖昧でも無言で落とさない");
+  assert.equal(plan.identities[0].name, null);
+  assert.deepEqual([...plan.identities[0].options.map((option) => `${option.mode}:${option.no}`)], ["n:11", "t:11"]);
+  assert.equal(plan.actions.some((action) => action.type === "ADD_ROSTER"), false, "選ばれるまで追加しない");
+
+  const picked = T.plan(parsed, {
+    resolve: ambiguous,
+    suggestPersona: () => [],
+    identityResolved: { "0:0": { name: "灰の狩人", mode: "t", no: 11 } }
+  });
+  assert.equal(picked.identities[0].name, "灰の狩人");
+  const additions = picked.actions.filter((action) => action.type === "ADD_ROSTER");
+  assert.equal(additions.length, 1);
+  assert.equal(additions[0].mode, "t", "選んだスロットで入れる");
+  assert.equal(additions[0].no, 11);
+});
+
+test("テキスト流し込みUIは同名候補を mode/no のオブジェクトで選ばせる", () => {
+  const sections = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
+  assert.match(sections, /hasSlot \? \{ name: option\.name, mode: option\.mode, no: option\.no \} : option\.name/);
+  assert.match(sections, /option\.mode === "t" \? "外套" : "通常"/);
+});
+
 test("履歴の購入マーカー・同期メモ・E.G.O名を人格として誤追加しない", () => {
   const parsed = T.parseText([
     "『結果A』",

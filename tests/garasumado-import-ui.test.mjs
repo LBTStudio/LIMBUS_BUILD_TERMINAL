@@ -309,3 +309,11 @@ test("キャラクター共有URLの確認後はアカウントカードから�
   assert.match(css, /\.gara-import-workspace\s*\{[^}]*position:\s*fixed/s);
   assert.match(css, /\.gara-import-workspace > \.gara-import-review\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\) minmax\(280px,\s*360px\)/s);
 });
+
+test("取込確認の全画面は焦点と背面スクロールを管理し、破棄前に確認する", () => {
+  assert.match(uiFlat, /ref: workspaceRef/);
+  assert.match(uiFlat, /workspaceRef\.current\?\.focus\?\.\(\)/, "開いたら確認面へ焦点を移す");
+  assert.match(uiFlat, /document\.body\.style\.overflow = "hidden"/, "背面スクロールを止める");
+  assert.match(uiFlat, /document\.body\.style\.overflow = previousOverflow/, "閉じたら戻す");
+  assert.match(uiFlat, /window\.confirm\("取り込みの確認を閉じると/, "作りかけを捨てる前に確認する");
+});

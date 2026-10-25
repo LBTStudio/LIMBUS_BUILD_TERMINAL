@@ -1598,7 +1598,10 @@ function reconcileBalance(manifest, doc) {
     const parts = [];
     if (badLp) parts.push("LP 計算 " + out.computedLp + " / 表示 " + out.shownLp);
     if (badSh) parts.push("欠片 計算 " + out.computedShards + " / 表示 " + out.shownShards);
-    out.message = parts.join("、") + " が一致しません。";
+    /* 照合の前提は「最初の『現在』が開始残高」。実データにはシナリオ後の
+       残高を書く人・複数セッションを混ぜて書く人がいるため、不一致=誤記録
+       とは限らない。断定せず、前提を添えて知らせる。 */
+    out.message = parts.join("、") + " が一致しません（開始残高は最初の「現在」として計算。記録の書き方によっては一致しません）。";
   }
   return out;
 }

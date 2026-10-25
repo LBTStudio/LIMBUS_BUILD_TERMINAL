@@ -60,7 +60,7 @@
 
   function costFromParens(text) {
     const lp = [...text.matchAll(/(\d[\d,]*)\s*(?:lp|LP|Lp)/g)];
-    const shards = [...text.matchAll(/(\d[\d,]*)\s*(?:欠片|欠けら|欠けら|カケラ|かけら|けっか)/g)];
+    const shards = [...text.matchAll(/(\d[\d,]*)\s*(?:欠片|欠けら|カケラ|かけら|けっか)/g)];
     const one = (list) => (list.length === 1 ? safeAmount(list[0][1]) : null);
     const l = one(lp);
     const s = one(shards);
@@ -83,7 +83,7 @@
     return name ? { name, parens: m[2] } : { name: String(text).trim(), parens: "" };
   }
 
-  const SHARD_WORD = /欠片|欠けら|欠けら|カケラ|かけら|けっか/;
+  const SHARD_WORD = /欠片|欠けら|カケラ|かけら|けっか/;
   const LP_WORD = /\d\s*(?:lp|LP|Lp)$|lp\s*\d/i;
 
   /* 報酬行の 1 項目。例: LP:150(+9) / 自我の欠片:70(+16) / 人格抽出チケットx1 */
@@ -338,7 +338,7 @@
     return { records, skipped };
   }
 
-  /* 明細の種別。解決器が种类を返したらそれを優先し、なければ名前から推測した
+  /* 明細の種別。解決器が種別を返したらそれを優先し、なければ名前から推測した
   ヒントを使う。どれにも当たらないものは手動支出（判断は利用者に残す）。 */
   function kindOf(spend, resolve) {
     const hit = typeof resolve === "function" ? resolve(spend.name) : null;
@@ -428,8 +428,19 @@
         const source = String(rawLine || "").trim();
         if (!canBeIdentityLine(source) || typeof opts.resolve !== "function") return;
         const key = `${recordIndex}:${rawIndex}`;
-        const overrideName = opts.identityResolved && opts.identityResolved[key];
-        const initialHit = opts.resolve(overrideName || source);
+        const override = opts.identityResolved && opts.identityResolved[key];
+        /* 選択は名前（文字列）と、同名を区別する (mode, no)（オブジェクト）の両方を受ける。 */
+        const overridePick = override && typeof override === "object" ? override : null;
+        const overrideName = typeof override === "string"
+          ? override
+          : (overridePick && !overridePick.mode ? String(overridePick.name || "") : "");
+        const initialHit = overridePick && overridePick.mode
+          ? {
+              name: overridePick.name || source,
+              kinds: [{ kind: "persona", mode: overridePick.mode, no: overridePick.no }],
+              confidence: "manual"
+            }
+          : opts.resolve(overrideName || source);
         const kinds = personaKindsOf(initialHit);
         if (kinds.length === 1) {
           const kind = kinds[0];
@@ -445,6 +456,18 @@
           if (!owned && !duplicate && !excludedIdentities.has(key)) {
             importedPersonaKeys.add(personaKey);
             actions.push({ type: "ADD_ROSTER", mode: kind.mode, no: kind.no, purchase: false, skipInitialTicketConsumption: true, via: title ? [title] : [] });
+          }
+          return;
+        }
+        /* 同名が複数ある（通常と外套など）ときは、選ばせる候補として必ず出す。
+           ここで黙って落とすと、行も選択操作も無言で消える。 */
+        if (kinds.length > 1) {
+          const options = kinds.map((kind) => ({
+            kind: "persona", name: initialHit.name || source, mode: kind.mode, no: kind.no
+          })).slice(0, 6);
+          identities.push({ key, recordIndex, rawIndex, source, name: null, mode: null, no: null, confidence: null, owned: false, duplicate: false, options, unresolved: true });
+          if (overridePick || overrideName) {
+            skipped.push({ text: source, reason: "選択した人格をDBで一意に解決できませんでした" });
           }
           return;
         }

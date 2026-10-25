@@ -4624,15 +4624,23 @@ const importHeldPersonas = () => {
                   : h("div", { className: "stack-2" },
                       h("span", { className: "ledger-note" }, `未確定：${candidate.source}`),
                       candidate.options?.length
-                        ? h("div", { className: "chips-group" }, candidate.options.map((option) => h("button", {
-                            key: option.name,
-                            type: "button",
-                            className: "chip chip-candidate",
-                            onClick: () => {
-                              setTextIdentityResolved((previous) => ({ ...previous, [candidate.key]: option.name }));
-                              setTextIdentityExcluded((previous) => { const next = new Set(previous); next.delete(candidate.key); return next; });
-                            }
-                          }, h("span", { className: "chip-candidate-kind" }, "人格"), option.name)))
+                        ? h("div", { className: "chips-group" }, candidate.options.map((option) => {
+                            /* 同名の通常／外套を区別するため、mode/no を持つ候補は
+                               オブジェクトで選ばせる（plan はそのまま所持へ入れる）。 */
+                            const hasSlot = Boolean(option.mode) && option.no !== undefined;
+                            return h("button", {
+                              key: hasSlot ? `${option.mode}:${option.no}` : option.name,
+                              type: "button",
+                              className: "chip chip-candidate",
+                              onClick: () => {
+                                setTextIdentityResolved((previous) => ({
+                                  ...previous,
+                                  [candidate.key]: hasSlot ? { name: option.name, mode: option.mode, no: option.no } : option.name
+                                }));
+                                setTextIdentityExcluded((previous) => { const next = new Set(previous); next.delete(candidate.key); return next; });
+                              }
+                            }, h("span", { className: "chip-candidate-kind" }, hasSlot ? (option.mode === "t" ? "外套" : "通常") : "人格"), option.name);
+                          }))
                         : h("span", { className: "ledger-note" }, "DB一致なし。自動追加はしません。")
                     )
               );
