@@ -1846,6 +1846,9 @@ function normalizeStateShape(raw) {
       notes: ""
     });
   }
+  // Explicit legacy death-slot selection is retained as owned data, but it must not
+  // revive equipment after the unlock enhancement has been removed.
+  const deathSupportCanEquip = deathSupportSlotUnlocked(next);
   if (next.deathSupport?.name && !seenSupport.has(next.deathSupport.name)) {
     seenSupport.add(next.deathSupport.name);
     const isDeath = isDeathSupportPassiveRecord(next.deathSupport);
@@ -1857,7 +1860,7 @@ function normalizeStateShape(raw) {
       lp: String(next.deathSupport.lp || ""),
       slot: "death",
       deathSlotManual: !isDeath,
-      equipped: true,
+      equipped: deathSupportCanEquip,
       resultId: null,
       addedAt: Date.now(),
       notes: ""
@@ -1884,7 +1887,8 @@ function normalizeStateShape(raw) {
         effect: String(selected.effect ?? entry.effect ?? ""),
         lp: String(selected.lp ?? entry.lp ?? ""),
         slot: "death",
-        deathSlotManual: !isDeath
+        deathSlotManual: !isDeath,
+        equipped: deathSupportCanEquip
       } : entry);
     }
   }
