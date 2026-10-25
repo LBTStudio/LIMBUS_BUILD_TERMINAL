@@ -381,18 +381,18 @@ test("リザルトの登録情報はカード右上の『編集』から直す�
   assert.match(sections, /const \[newResultPack, setNewResultPack\] = React\.useState\(""\);/);
   assert.match(sections, /idPrefix: "new-result",\s*current: newResult\.tickets,\s*packPick: newResultPack,\s*setPackPick: setNewResultPack,/);
   assert.match(sections, /tickets: newResult\.tickets \|\| \{ persona: 0, ego: 0, choice: 0, pack: \{\} \}/);
-  /* 既存カードは専用画面に戻す。17パックの欄を常時並べない。 */
+  /* 編集フォームは押したリザルトカード内に開き、一覧上部へ飛ばさない。 */
   assert.doesNotMatch(sections, /h\(TicketInputs, \{\s*idPrefix: `result-/);
-  /* 「⋯」は撤去した。硝子窓の取り込みは全体操作である。
-     記録の訂正はカード右上に名前入りの「編集」1つだけ。 */
-  assert.match(sections, /className: "ledger-card-edit-btn",\s*title: "このリザルトの登録情報（LP・欠片・抽出チケット）を編集します",\s*"aria-label": `\$\{result\.name\} の登録情報を編集`,\s*onClick: \(\) => setTicketPanel\(result\.id\)\s*\}, "編集"\)/);
+  assert.match(sections, /className: "ledger-card-edit-btn",\s*title: "このリザルトの登録情報（LP・欠片・抽出チケット）を編集します",\s*"aria-label": `\$\{result\.name\} の登録情報を編集`,\s*onClick: \(\) => openResultEditor\(result\)\s*\}, "編集"\)/);
   assert.doesNotMatch(sections, /ledger-card-menu-btn/);
   assert.doesNotMatch(sections, /exportFor/);
   assert.doesNotMatch(sections, /"抽出チケットを記録"\)/);
-  /* 編集画面は LP・欠片・抽出チケットをまとめて直す。 */
-  assert.match(sections, /const TicketIncomePanel = \(\) => \{/);
+  assert.match(sections, /const openResultEditor = \(result\) => \{/);
+  assert.match(sections, /ticketPanel === result\.id && ticketDraft && ticketDraft\.id === result\.id/);
+  assert.doesNotMatch(sections, /const TicketIncomePanel = \(\) => \{/);
   assert.match(sections, /"aria-label": "リザルトの登録情報を編集"/);
-  assert.match(sections, /type: "UPDATE_RESULT",\s*id: target\.id,\s*name: name\.trim\(\) \|\| target\.name,\s*date,\s*income: \{ \.\.\.normalizeResultIncome\(target\.income\), lp: Number\(lp\) \|\| 0, shards: Number\(shards\) \|\| 0 \}/);
+  assert.match(sections, /const saveResultEditor = \(result\) => \{/);
+  assert.match(sections, /type: "UPDATE_RESULT",[\s\S]{0,200}?id: result\.id,[\s\S]{0,400}?tickets: nextTickets/);
   assert.match(reducer, /case "UPDATE_RESULT"[\s\S]{0,900}?tickets: normalizeTickets\(action\.income\?\.tickets\)/);
   /* メニューは硝子窓の取り込みだけ。 */
   assert.doesNotMatch(sections, /"抽出チケットを記録"\)/);

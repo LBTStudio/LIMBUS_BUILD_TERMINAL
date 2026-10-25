@@ -129,7 +129,7 @@ test("同じ残高を topbar と ledger で同じ書式（3桁区切り）で出
   assert.match(accounts, /Number\(value \|\| 0\)\.toLocaleString\("ja-JP"\)/);
   assert.match(sections, /n\.toLocaleString\("ja-JP"\)/, "bigNum が 3桁区切り");
   assert.match(sections, /const stat = \(value\) => \{[\s\S]{0,160}toLocaleString\("ja-JP"\)/, "stat も同じ書式");
-  assert.match(sections, /ledger-card-spent" \},\s*`支出 LP \$\{spent\.lp\.toLocaleString\("ja-JP"\)\}/);
+  assert.match(sections, /ledger-card-spent" \},\s*"支出 LP " \+ spent\.lp\.toLocaleString\("ja-JP"\) \+ " \/ 欠片 " \+ spent\.shards\.toLocaleString\("ja-JP"\)/);
 });
 
 test("記録に所持アイテムの総覧タブがある", () => {
@@ -162,4 +162,39 @@ test("リザルトの情報階層を整え、数値・抽出チケット・明�
   assert.match(resultCss, /\.ledger-card-tickets\s*\{[^}]*border-top:\s*1px solid var\(--line-dim\)/s);
   assert.match(resultCss, /\.ledger-card \.ledger-row-move\s*\{[^}]*min-height:\s*36px/s);
   assert.match(resultCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-card-income \.ledger-chip-num/);
+});
+
+
+test("リザルトの取り込み画面は切り替え時に一つだけ表示する", () => {
+  assert.match(sections, /const switchResultTool = \(mode\) => \{/);
+  assert.match(sections, /setImportPanel\(mode === "glass"\)/);
+  assert.match(sections, /setTextPanel\(mode === "text"\)/);
+  assert.match(sections, /setHeldOpen\(mode === "held"\)/);
+  assert.match(sections, /onClick: \(\) => switchResultTool\("glass"\)/);
+  assert.match(sections, /onClick: \(\) => switchResultTool\("text"\)/);
+});
+
+test("リザルトの編集フォームは押したカード内で開き、UPDATE_RESULTで保存する", () => {
+  assert.match(sections, /onClick: \(\) => openResultEditor\(result\)/);
+  assert.match(sections, /ticketPanel === result\.id && ticketDraft && ticketDraft\.id === result\.id/);
+  assert.match(sections, /const saveResultEditor = \(result\) => \{/);
+  assert.match(sections, /type: "UPDATE_RESULT"/);
+  assert.doesNotMatch(sections, /ticketPanel && h\(TicketIncomePanel, \{\}\)/);
+});
+
+test("大量リザルトは検索と24件ごとのページ分割で一覧できる", () => {
+  assert.match(sections, /const RESULTS_PAGE_SIZE = 24/);
+  assert.match(sections, /const matchingResults = results\.filter/);
+  assert.match(sections, /const sortedResults = \[\.\.\.matchingResults\]\.sort/);
+  assert.match(sections, /pageResults\.map\(\(result\) =>/);
+  assert.match(sections, /className: "ledger-results-pagination"/);
+  assert.match(sections, /className: "ledger-results-search"/);
+});
+
+test("各リザルトの支出・チケット・消耗品詳細は折り畳み表示にする", () => {
+  const resultCss = read("../assets/sections.css");
+  assert.match(sections, /h\("details", \{ className: "ledger-result-details" \}/);
+  assert.match(sections, /className: "ledger-result-summary"/);
+  assert.match(resultCss, /\.ledger-cards\s*\{[^}]*min\(265px, 100%\)/s);
+  assert.match(resultCss, /\.ledger-result-details\s*\{[^}]*border-top/s);
 });
