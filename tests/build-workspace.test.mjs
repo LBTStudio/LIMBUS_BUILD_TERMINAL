@@ -389,6 +389,7 @@ test("リザルト登録情報はカード内で直接編集し、移動先プ�
   assert.match(sections, /const openResultEditor = \(result\) => \{/);
   assert.doesNotMatch(sections, /className: "ledger-result-edit-panel"/);
   assert.doesNotMatch(sections, /className: "ledger-row-move"/);
+  assert.match(sections, /className: "ledger-row-drag-handle"/);
   assert.match(sections, /const saveResultEditor = \(result\) => \{/);
   assert.match(sections, /type: "UPDATE_RESULT",[\s\S]{0,200}?id: result\.id,[\s\S]{0,400}?tickets: nextTickets/);
   assert.match(reducer, /case "UPDATE_RESULT"[\s\S]{0,900}?tickets: normalizeTickets\(action\.income\?\.tickets\)/);
