@@ -201,3 +201,35 @@ test("GarasumadoGroup（1件ずつ並べる一覧）は画面から消えてい�
   /* 定義が残っていても、画面から描画されていないこと。 */
   assert.doesNotMatch(uiFlat, /h\(GarasumadoGroup, \{/);
 });
+test("URL入力はフォーム送信に対応し、読込中と通信失敗を画面内で案内する", () => {
+  assert.match(uiFlat, /h\("form", \{ className: "gara-url-form", onSubmit: load, "aria-busy": busy \}/);
+  assert.match(uiFlat, /className: "input", type: "url", name: "shareUrl"/);
+  assert.match(uiFlat, /role: "status", "aria-live": "polite"/, "読込中の表示を通知する");
+  assert.match(uiFlat, /catch \(\_\) \{ setError\(/, "通信例外を利用者向けエラーに変換する");
+  assert.match(uiFlat, /finally \{ setBusy\(false\); \}/, "結果によらず読込中を解除する");
+});
+
+test("取り込み後は対象数・要確認数・追加予定を先に表示する", () => {
+  assert.match(uiFlat, /className: "gara gara-import-review"/);
+  assert.match(uiFlat, /className: "gara-import-overview"/);
+  assert.match(uiFlat, /counts\.included\} \/ \$\{counts\.total/);
+  assert.match(uiFlat, /pendingCount\}件/);
+  assert.match(uiFlat, /draft \? draft\.simulation\.results : 0/);
+  assert.match(uiFlat, /各項目の名前を押すと候補や入手方法を確認できます/);
+});
+
+test("確定後は manifest が残っていても確定結果画面を表示する", () => {
+  const panel = ui.slice(ui.indexOf("const GarasumadoImportPanel"));
+  const render = panel.slice(panel.indexOf("const pendingCount"));
+  assert.ok(render.indexOf("if (confirmed)") >= 0, "確定状態の分岐がある");
+  assert.ok(render.indexOf("if (confirmed)") < render.indexOf("if (!manifest)"), "確定結果を manifest の有無より先に描画する");
+});
+
+test("SINNER SELECTの取込は狭い幅に合わせ、確定操作をスクロール中も追従させる", () => {
+  const css = readFileSync(new URL("../assets/v66-accounts.css", import.meta.url), "utf8");
+  assert.match(css, /\.acct-card--import-open \.gara\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s);
+  assert.match(css, /\.acct-card--import-open \.gara-rail\s*\{[^}]*position:\s*static/s);
+  assert.match(css, /\.gara-import-actions\s*\{[^}]*position:\s*sticky/s);
+  assert.match(css, /\.gara-row-hit \.gara-row-name\s*\{[^}]*white-space:\s*normal/s);
+  assert.match(css, /\.gara-row-hit \.gara-row-meta\s*\{[^}]*white-space:\s*normal/s);
+});
