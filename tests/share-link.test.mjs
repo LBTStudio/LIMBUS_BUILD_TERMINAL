@@ -68,6 +68,110 @@ test("自己完結型共有リンクはUI・履歴・非選択人格を除外し
   assert.equal(restored.pas.name, "");
 });
 
+test("トークン生成は圧縮後と非圧縮の最終URL長を比較し、小さい表現を選ぶ", async () => {
+  const share = loadShareLink();
+  const states = [
+    {},
+    {
+      charName: "圧縮効率確認",
+      skills: [{
+        rank: "スキル1",
+        name: "同期で再利用される説明文".repeat(80),
+        effect: "対象の状態に応じて追加効果が発生する。".repeat(80)
+      }]
+    }
+  ];
+
+  for (const state of states) {
+    const json = JSON.stringify(share.snapshotState(state, { includeOgpImage: false }));
+    const plainPayload = Buffer.from(json, "utf8").toString("base64url");
+    const plainToken = `j.${plainPayload}`;
+    let compressedToken = plainToken;
+    if (typeof CompressionStream === "function" && typeof DecompressionStream === "function") {
+      try {
+        const stream = new Blob([new TextEncoder().encode(json)]).stream()
+          .pipeThrough(new CompressionStream("deflate-raw"));
+        const compressed = Buffer.from(await new Response(stream).arrayBuffer()).toString("base64url");
+        compressedToken = `z.${compressed}`;
+      } catch (_) {
+        // This environment does not support deflate-raw; the plain token is the only valid form.
+      }
+    }
+    const expected = compressedToken.length < plainToken.length ? compressedToken : plainToken;
+    const token = await share.encodeState(state, { includeOgpImage: false });
+    assert.equal(token, expected);
+    const restored = await share.decodeToken(token);
+    assert.equal(restored.charName, state.charName);
+    assert.deepEqual(JSON.parse(JSON.stringify(restored.skills || [])), JSON.parse(JSON.stringify(state.skills || [])));
+  }
+});
+
+test("外部保存先が応答しない場合も、OGP専用画像を除いた自己完結URLへ有限時間でフォールバックする", async () => {
+  let canvasCreations = 0;
+  const context = new Proxy({}, {
+    get(_target, property) {
+      if (property === "createLinearGradient") return () => ({ addColorStop() {} });
+      return () => {};
+    }
+  });
+  const document = {
+    createElement() {
+      canvasCreations += 1;
+      return {
+        getContext: () => context,
+        toDataURL: () => "data:image/webp;base64,QUJD"
+      };
+    }
+  };
+  const share = loadShareLink(null, { document });
+  const state = { charName: "外部保存停止時", roster: { personas: [] } };
+  const result = await share.createPublishedUrl(
+    state,
+    "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html",
+    async () => new Promise(() => {})
+  );
+
+  assert.equal(result.strategy, "self");
+  assert.match(result.url, /#lbt=(?:j|z)\.[A-Za-z0-9_-]+$/);
+  const token = result.url.split("#lbt=")[1];
+  const restored = await share.decodeToken(token);
+  assert.equal(restored.charName, "外部保存停止時");
+  assert.equal(restored.ogpImageData, "", "自己完結URLに復元されないOGP専用画像を重複格納しない");
+  assert.equal(canvasCreations, 1, "発行中の重複判定ではOGPキャンバスを余計に描画しない");
+  assert.match(result.warning, /自己完結URL/);
+});
+
+test("Cloudflare発行が停止しても、先に保存できたTelegraph/Rentryの共有へフォールバックする", async () => {
+  const origin = "https://lbt-ogp.lbtstudio-share.workers.dev";
+  const share = loadShareLink(null, { LBT_OGP_GATEWAY_ORIGIN: origin });
+  const calls = [];
+  const fetchMock = async (url, options = {}) => {
+    const target = String(url);
+    calls.push(target);
+    if (target === "https://rentry.co/api/new") {
+      return new Response(JSON.stringify({ url_short: "lbt-publish-timeout" }), { status: 200 });
+    }
+    if (target === "https://api.telegra.ph/createAccount") {
+      return new Response(JSON.stringify({ ok: true, result: { access_token: "temporary" } }), { status: 200 });
+    }
+    if (target === "https://api.telegra.ph/createPage") {
+      return new Response(JSON.stringify({ ok: true, result: { path: "LBT-Publish-Timeout" } }), { status: 200 });
+    }
+    if (target === origin + "/api/r2-share/v1") return new Promise(() => {});
+    throw new Error("unexpected URL: " + target);
+  };
+
+  const result = await share.createPublishedUrl(
+    { charName: "Cloudflare応答停止時", roster: { personas: [] } },
+    "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html",
+    fetchMock
+  );
+  assert.equal(result.strategy, "telegraph");
+  assert.match(result.url, /\?s=t:LBT-Publish-Timeout,r:lbt-publish-timeout/);
+  assert.ok(calls.includes(origin + "/api/r2-share/v1"));
+  assert.doesNotMatch(result.url, /workers\.dev/);
+});
+
 test("共有画像は対応形式・容量内だけを共有状態として復元する", async () => {
   const share = loadShareLink();
   const valid = "data:image/jpeg;base64," + "A".repeat(128);
