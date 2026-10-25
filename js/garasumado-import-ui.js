@@ -527,7 +527,8 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
   const [urlReport, setUrlReport] = React.useState(null);
   const [progress, setProgress] = React.useState("");
 
-  const load = async () => {
+  const load = async (event) => {
+    if (event && typeof event.preventDefault === "function") event.preventDefault();
     const parsedBatch = window.LBT_parseShareUrls?.(url);
     if (!parsedBatch || !Array.isArray(parsedBatch.urls) || !parsedBatch.urls.length) {
       const single = window.LBT_parseShareUrl?.(url);
@@ -897,10 +898,9 @@ function appliedSummary(actions) {
     }
     : { total: 0, pickMode: 0, unknownName: 0, included: 0, ops: 0, unknownLine: 0, lineOn: 0 };
 
-  if (!manifest) {
+  if (confirmed) {
   /* 確定済みなら確定結果だけを出す。シミュレーションは「反映前の1手前」で、
      確定した内容をそのまま確認できるようにする。画面は自動で閉じない。 */
-  if (confirmed) {
     const sim = confirmed.simulation;
     const mismatched = Boolean(sim) && sim.held !== confirmed.counts.held;
     const typeRows = Object.entries(confirmed.counts.byType)
@@ -934,38 +934,76 @@ function appliedSummary(actions) {
     );
   }
 
-    return h("div", { className: "gara" },
-      h("h3", { className: "gara-title" }, "硝子窓から取り込む"),
-      h("p", { className: "gara-lead" }, "共有URLを貼り付けると、そのキャラクターの所持が読み込まれます。取り込むものは1件ずつ選べます。"),
-      h("div", { className: "gara-input-row" },
+  if (!manifest) {
+    return h("div", { className: "gara gara-import-start" },
+      h("div", { className: "gara-step-kicker" }, "STEP 1 / 3 · 共有元を指定"),
+      h("h3", { className: "gara-title" }, "硝子窓の共有URLから取り込む"),
+      h("p", { className: "gara-lead" }, "共有URLを読み込んだ後、所持や購入履歴の候補を確認してから反映します。複数のURLは改行でまとめて貼り付けられます。読み込みだけではデータは変更されません。"),
+      h("form", { className: "gara-url-form", onSubmit: load, "aria-busy": busy },
         h("label", { className: "acct-field gara-field" },
-          h("span", { className: "gara-label" }, "硝子窓の共有URL（複数可）"),
+          h("span", { className: "gara-label" }, "硝子窓の共有URL（1行に1件）"),
           h("textarea", {
-            className: "input gara-url-list", value: url, autoFocus: true, rows: 5,
-            style: { width: "100%", minHeight: "124px", resize: "vertical", fontFamily: "var(--f-mono)", fontSize: "12px" },
-            placeholder: "https://lbt-garasumado.vercel.app/view/…\nhttps://lbt-garasumado.vercel.app/view/…\nURLを複数行まとめて貼り付けられます",
+            className: "input gara-url-list", name: "shareUrls", value: url, autoFocus: true, rows: 5,
+            autoComplete: "off", spellCheck: false, required: true,
+            "aria-describedby": "gara-url-help",
+            placeholder: "https://lbt-garasumado.vercel.app/view/…\nhttps://lbt-garasumado.vercel.app/view/…",
             onChange: (event) => { setUrl(event.target.value); setError(""); setUrlReport(null); }
           })
         ),
-        h(Button, { size: "sm", variant: "primary", icon: "link", onClick: load, disabled: busy || !url.trim() },
-          busy ? "読み込み中…" : "URLを一括読み込み")
+        h("button", { type: "submit", className: "gara-load-button", disabled: busy || !url.trim() },
+          h("span", { "aria-hidden": "true" }, busy ? "◌" : "↧"),
+          busy ? "共有データを読み込み中…" : "共有データを読み込む"
+        )
       ),
-      progress ? h("p", { className: "gara-note", role: "status" }, progress) : null,
+      progress ? h("p", { className: "gara-loading", role: "status", "aria-live": "polite" }, progress) : null,
       error ? h("p", { className: "gara-error", role: "alert" }, error) : null,
-      urlReport && h("div", { className: urlReport.failed.length ? "gara-note gara-url-report" : "gara-note", role: "status" },
-        `URL ${urlReport.requested}件中 ${urlReport.successful}件を読み込みました。`,
-        urlReport.failed.length > 0 && h("span", null, ` 取得できなかったURL：${urlReport.failed.length}件（先頭6件を表示）`),
-        urlReport.failed.slice(0, 6).map((entry, index) => h("div", { key: `${entry.url}-${index}` }, `${entry.url || entry.text}：${entry.reason}`))),
-      h("p", { className: "gara-note" }, "URLは保存しません。複数URLの履歴は重複を抑えて統合し、所持数量はURL数ぶん加算しません。")
+      urlReport ? h("section", { className: `gara-url-report${urlReport.failed.length ? " has-errors" : ""}`, role: "status", "aria-live": "polite" },
+        h("strong", null, `URL ${urlReport.requested}件中 ${urlReport.successful}件を読み込みました`),
+        urlReport.failed.length ? h("p", { className: "gara-url-report-summary" }, `取得できなかったURL：${urlReport.failed.length}件（先頭6件を表示）`) : h("p", { className: "gara-url-report-summary" }, "すべてのURLを読み込みました"),
+        urlReport.failed.slice(0, 6).map((entry, index) => h("div", { className: "gara-url-report-item", key: `${entry.url}-${index}` },
+          h("code", null, entry.url || entry.text || "URL不明"),
+          h("span", null, entry.reason || "取得できませんでした")))
+      ) : null,
+      h("p", { className: "gara-field-help", id: "gara-url-help" }, "URLはこの読み込みにのみ使用し、アカウントへ保存しません。Enterキーでも読み込めます。最大150件まで一括処理できます。")
     );
   }
 
-  return h("div", { className: "gara" },
-    h("div", { className: "gara-out" },
-      h("h3", { className: "gara-title" }, manifest.character.name || "名称未設定"),
-      h("p", { className: "gara-lead" }, `残高 LP ${manifest.currency.lp || "—"}・欠片 ${manifest.currency.shards || "—"}`)
+  return h("div", { className: "gara gara-import-review" },
+    h("header", { className: "gara-import-heading" },
+      h("div", { className: "gara-import-heading-copy" },
+        h("span", { className: "gara-step-kicker" }, "STEP 2 / 3 · 取込内容の確認"),
+        h("h3", { className: "gara-title" }, "取り込み内容を確認"),
+        h("p", { className: "gara-lead" }, `共有元：${manifest.character.name || "名称未設定"}。反映する項目を選び、未決の内容を確認してから確定してください。`),
+        h("p", { className: "gara-import-balance" }, `共有元の残高　LP ${manifest.currency.lp || "—"} ・ 欠片 ${manifest.currency.shards || "—"}`)
+      ),
+      h("button", { type: "button", className: "gara-change-url", onClick: () => { setManifest(null); setConfirmed(null); setError(""); setUrlReport(null); setProgress(""); setPicked({}); setIdentity({}); setLines([]); setChoices({}); setDecided({}); setPast([]); setFuture([]); setDoc(null); } }, "URLを貼り直す")
     ),
-    h("p", { className: "gara-hint" }, "項目を押すと変換候補が開きます。候補を選ぶと価格が決まります。"),
+    urlReport && urlReport.failed.length ? h("section", { className: "gara-url-report has-errors", role: "status" },
+      h("strong", null, `${urlReport.successful}/${urlReport.requested}件のURLを読み込みました`),
+      h("p", { className: "gara-url-report-summary" }, "一部のURLを取得できませんでした。以下は読み込みに失敗したURLです。今回読み込めた内容は引き続き確認できます。"),
+      urlReport.failed.slice(0, 6).map((entry, index) => h("div", { className: "gara-url-report-item", key: `${entry.url}-${index}` },
+        h("code", null, entry.url || entry.text || "URL不明"),
+        h("span", null, entry.reason || "取得できませんでした")))
+    ) : null,
+    h("section", { className: "gara-import-overview", "aria-label": "取り込み内容の概要" },
+      h("div", { className: "gara-import-stat" },
+        h("span", { className: "gara-import-stat-label" }, "取り込み対象"),
+        h("strong", { className: "gara-import-stat-value" }, `${counts.included} / ${counts.total}`),
+        h("span", { className: "gara-import-stat-detail" }, "項目がON")
+      ),
+      h("div", { className: `gara-import-stat${pendingCount ? " is-warning" : " is-ready"}` },
+        h("span", { className: "gara-import-stat-label" }, "確定前に要確認"),
+        h("strong", { className: "gara-import-stat-value" }, `${pendingCount}件`),
+        h("span", { className: "gara-import-stat-detail" }, pendingCount ? "帰属先・入手方法の選択待ち" : "必須の選択は完了")
+      ),
+      h("div", { className: "gara-import-stat" },
+        h("span", { className: "gara-import-stat-label" }, "追加予定のリザルト"),
+        h("strong", { className: "gara-import-stat-value" }, `${draft ? draft.simulation.results : 0}件`),
+        h("span", { className: "gara-import-stat-detail" }, `所持へ追加 ${draft ? draft.simulation.held : 0}件`)
+      )
+    ),
+    h("p", { className: "gara-import-instructions" }, "項目名を押すと候補や価格を確認できます。ON / OFFで反映対象を切り替えます。未決の項目は帰属先・入手方法を選んでください。"),
+    h("p", { className: "gara-hint" }, "候補が一意でない場合は自動決定しません。入力内容に誤りがないことを確認してから確定してください。"),
     (manifest.counts?.initialSpirits || 0) > 0
       ? h("p", { className: "gara-note" },
         `初期精神 ${manifest.counts.initialSpirits} 件（${(manifest.counts.initialSpiritsOwned || []).join("・")}）は最初から所持として数えます。`)
@@ -1032,7 +1070,7 @@ function appliedSummary(actions) {
         ]
       )
     ) : null,
-    h("div", { className: "gara-foot" },
+    h("div", { className: "gara-foot gara-import-actions" },
       h("div", { className: "gara-foot-meta" },
         `${counts.included}件を所持へ・購入の明細 ${counts.lineOn}件を追加（メモの支出はそのまま明細）`,
         [
