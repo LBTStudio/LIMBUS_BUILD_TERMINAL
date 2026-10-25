@@ -435,7 +435,7 @@
           identities.push(candidate);
           if (!owned && !duplicate && !excludedIdentities.has(key)) {
             importedPersonaKeys.add(personaKey);
-            actions.push({ type: "ADD_ROSTER", mode: kind.mode, no: kind.no, purchase: false, via: title ? [title] : [] });
+            actions.push({ type: "ADD_ROSTER", mode: kind.mode, no: kind.no, purchase: false, skipInitialTicketConsumption: true, via: title ? [title] : [] });
           }
           return;
         }
