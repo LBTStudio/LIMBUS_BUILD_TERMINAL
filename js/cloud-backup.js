@@ -752,6 +752,7 @@
   }
 
   /* React panel: shown in both initial SINNER SELECT and account-management overlay. */
+  /* React panel: shown in both initial SINNER SELECT and account-management overlay. */
   function CloudBackupPanel({ compact = false } = {}) {
     const [view, setView] = React.useState(getStatus());
     const [recoveryDraft, setRecoveryDraft] = React.useState("");
@@ -775,13 +776,6 @@
       onClick,
     }, label);
     const connected = view.hasSession || view.hasRecoveryKey;
-    return h("section", { className: "lbt-cloud-panel" + (compact ? " is-compact" : ""), "aria-label": "オンライン保全（任意）" },
-      h("div", { className: "lbt-cloud-heading" },
-        h("strong", null, "オンライン保全（任意）"),
-        h("span", { className: "lbt-cloud-state" }, view.label || "ローカル保存")
-      ),
-      h("p", { className: "lbt-cloud-description" }, "連携は必須ではありません。ローカル保存は今まで通り継続し、オンラインに送るのは保全を選んだデータだけです。"),
-      h("p", { className: "lbt-cloud-message", role: "status", "aria-live": "polite" }, view.message),
     const googleReady = view.googleProviderStatus === "enabled";
     const googleButtonLabel = googleReady
       ? "Googleと連携"
@@ -810,9 +804,7 @@
           button("Xと連携（未実装）", () => {}, "", true)
         ),
         h("p", { className: "lbt-cloud-provider-note", role: "status" }, googleProviderNote),
-        h("p", { className: "lbt-cloud-provider-note" },
-          "X連携は未実装のため利用できません。"
-        )
+        h("p", { className: "lbt-cloud-provider-note" }, "X連携は未実装のため利用できません。")
       ) : h("p", { className: "lbt-cloud-account" }, "Googleでオンライン認証済み。このブラウザーからいつでも連携を停止できます。"),
       view.hasSession && view.hasRecoveryKey && view.mode === "recovery" ? button("この復旧キーをGoogleにも結びつける", () => run(linkRecoveryKeyToOAuth)) : null,
       view.hasSession && view.hasRecoveryKey && view.mode === "oauth" && view.recoveryKeyMatches === false ? button("この端末の復旧キーだけ外す", () => run(unlinkRecoveryKeyLocally)) : null,
