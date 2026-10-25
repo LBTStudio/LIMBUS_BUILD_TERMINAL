@@ -11,10 +11,10 @@ const liveSource = readFileSync(new URL("../js/LivePreview.js", import.meta.url)
 const guideCss = readFileSync(new URL("../assets/v56-refinements.css", import.meta.url), "utf8");
 
 test("初回導線は駒整形からビルド・プレビューまでの順に案内する", () => {
-  assert.ok(appSource.includes("まず「駒整形」で名前や立ち絵などを設定し、「ビルド」で人格・E.G.O・スキルを整えます。"));
-  assert.ok(appSource.includes("「駒整形」でキャラクター名・PL名・立ち絵などを設定します"));
-  assert.ok(appSource.includes("左側の「ビルド」を開き、ビルド内の「人格」タブ"));
-  assert.ok(appSource.includes("通常の編集内容はブラウザー内へ自動保存されます"));
+  assert.ok(appSource.includes("まず「何をしたいか」から選んでください"));
+  assert.ok(appSource.includes("キャラクターを選ぶ"));
+  assert.ok(appSource.includes("人格と装備を整える"));
+  assert.ok(appSource.includes("記録または文章を取り込む"));
   assert.ok(appSource.includes("guide-quick"));
 });
 
@@ -97,8 +97,69 @@ test("元に戻す・クイック検索の説明が現行ショートカット�
 });
 
 test("ナビゲーションとモバイル表示が現行レイアウトに沿って案内されている", () => {
-  assert.ok(appSource.includes("PCでは画面左側のナビゲーション、スマートフォンでは画面下部のタブ"));
-  assert.ok(appSource.includes("「ビルド」内に人格・スキル・パッシブ・サポート・E.G.Oなどのタブがあります。"));
+  assert.ok(appSource.includes("PCでは左側のナビゲーション、スマートフォンでは画面下部のタブで移動します。"));
+  assert.ok(appSource.includes("「操作・保存」から保存や復元を開けます。"));
+  assert.ok(appSource.includes("ビルド → 人格 → テキスト流し込み反映"));
   assert.ok(guideCss.includes(".guide-quick,.guide-items"));
   assert.ok(guideCss.includes("grid-template-columns:1fr"));
+});
+
+const beginnerTutorial = readFileSync(new URL("../docs/tutorial-guide.md", import.meta.url), "utf8");
+const tutorialDiagrams = [
+  "tutorial-overview.svg",
+  "tutorial-text-import-routes.svg",
+  "tutorial-account-management.svg",
+  "tutorial-save-share.svg"
+].map((name) => ({
+  name,
+  source: readFileSync(new URL("../docs/" + name, import.meta.url), "utf8")
+}));
+
+test("初見向けガイドは目的ごとの操作経路を示し、画面へ直接移動できる", () => {
+  assert.match(appSource, /const GuideRouteCard = /);
+  assert.match(appSource, /const GUIDE_FLOWS = /);
+  assert.match(appSource, /onOpenUtilities: openUtilities/);
+  assert.match(appSource, /onNavigate: \(id, ui = \{\}\) => dispatch/);
+  assert.match(appSource, /window\.dispatchEvent\(new Event\("lbt:open-accounts"\)\)/);
+  assert.match(appSource, /人格データの文章がある/);
+  assert.match(appSource, /リザルト／購入履歴の文章がある/);
+  assert.match(appSource, /硝子窓のキャラクターURLがある/);
+  assert.match(appSource, /所持人格の名前一覧がある/);
+});
+
+test("人格テキスト、リザルトテキスト、硝子窓キャラクター取込、所持リストの入口が別々に説明される", () => {
+  assert.match(appSource, /テキスト流し込み反映/);
+  assert.match(appSource, /記録.*リザルトを記録.*取り込む.*テキスト流し込み/);
+  assert.match(appSource, /共有URLから取り込む/);
+  assert.match(appSource, /所持人格リストを取り込む/);
+  assert.match(appSource, /硝子窓URLから移行/);
+  assert.match(sectionsSource, /テキスト流し込み/);
+  assert.match(personaSource, /テキスト流し込み反映/);
+});
+
+test("アカウント管理の入口とローカル保存・削除注意が案内されている", () => {
+  assert.match(appSource, /アカウントを切替・管理/);
+  assert.match(appSource, /データはキャラクターごとに分かれ/);
+  assert.match(appSource, /最後の1件は削除できません/);
+  assert.match(appSource, /そのアカウントの保存領域を復元できなくする/);
+});
+
+test("初心者向けMarkdownには実際のSVGフローチャートを埋め込み、図の代替テキストを用意する", () => {
+  assert.match(beginnerTutorial, /!\[基本の進め方\]\(tutorial-overview\.svg\)/);
+  assert.match(beginnerTutorial, /!\[文章や共有URLの取り込み口の違い\]\(tutorial-text-import-routes\.svg\)/);
+  assert.match(beginnerTutorial, /!\[アカウント管理から共有URLを取り込む手順\]\(tutorial-account-management\.svg\)/);
+  assert.match(beginnerTutorial, /!\[保存、バックアップ、所持ライブラリ、共有の違い\]\(tutorial-save-share\.svg\)/);
+  for (const diagram of tutorialDiagrams) {
+    assert.ok(diagram.source.includes("<svg "), diagram.name + " はSVG図である");
+    assert.ok(diagram.source.includes("<title"), diagram.name + " にタイトルがある");
+    assert.ok(diagram.source.includes("<desc"), diagram.name + " に説明がある");
+  }
+});
+
+test("取り込み後の確認、データ適用範囲、保存形式の違いを説明する", () => {
+  assert.match(beginnerTutorial, /読み取れなかった行/);
+  assert.match(beginnerTutorial, /適用するカテゴリを確認/);
+  assert.match(beginnerTutorial, /バックアップファイルの代用ではありません/);
+  assert.match(beginnerTutorial, /同じ端末・同じブラウザー/);
+  assert.match(beginnerTutorial, /Ctrl\+K/);
 });

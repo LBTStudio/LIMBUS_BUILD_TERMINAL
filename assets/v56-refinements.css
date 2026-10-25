@@ -2490,4 +2490,138 @@ details > summary {
     color-mix(in oklab, var(--sin-color, var(--gold)) 4%, var(--surface-2)),
     var(--surface-1));
 }
+
+/* ============================================================
+   Beginner tutorial: purpose-first routes + readable diagrams
+   ============================================================ */
+.guide-route-panel,
+.guide-visual-section {
+  display: grid;
+  gap: var(--s-3);
+  min-width: 0;
+}
+.guide-section-heading { display: grid; gap: 5px; }
+.guide-section-heading h2,
+.guide-visual-section > h2 {
+  margin: 0;
+  color: var(--tx);
+  font: 700 var(--fs-18)/1.35 var(--f-display);
+}
+.guide-section-heading p,
+.guide-visual-section > p {
+  margin: 0;
+  color: var(--tx-2);
+  font-size: var(--fs-12);
+  line-height: 1.7;
+}
+.guide-route-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-3);
+  min-width: 0;
+}
+.guide-route-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  min-width: 0;
+  padding: var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface-1);
+}
+.guide-route-card.is-primary {
+  border-color: var(--gold-line);
+  background: color-mix(in oklab, var(--gold) 7%, var(--surface-1));
+}
+.guide-route-card-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  color: var(--gold-hi);
+  background: var(--gold-tint);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-sm);
+}
+.guide-route-card h3 {
+  margin: 0;
+  color: var(--tx);
+  font: 700 var(--fs-14)/1.45 var(--f-display);
+  overflow-wrap: anywhere;
+}
+.guide-route-card p {
+  flex: 1 1 auto;
+  margin: 0;
+  color: var(--tx-2);
+  font-size: var(--fs-12);
+  line-height: 1.7;
+}
+.guide-route-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 42px;
+  margin-top: auto;
+  padding: 8px 12px;
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-sm);
+  background: var(--gold-tint);
+  color: var(--gold-hi);
+  font: 700 var(--fs-12)/1.4 var(--f-body);
+  text-align: center;
+  cursor: pointer;
+}
+.guide-route-button:hover {
+  background: var(--gold-glow);
+  border-color: var(--gold);
+}
+.guide-route-button:focus-visible {
+  outline: 2px solid var(--gold-hi);
+  outline-offset: 3px;
+}
+.guide-flow-figure {
+  display: grid;
+  gap: var(--s-2);
+  min-width: 0;
+  margin: 0;
+  padding: var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface-1);
+}
+.guide-flow-caption {
+  color: var(--gold-hi);
+  font: 700 var(--fs-14)/1.4 var(--f-display);
+}
+.guide-flow-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.guide-flow-note {
+  margin: 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--gold);
+  background: var(--surface-2);
+  color: var(--tx-2);
+  font-size: var(--fs-11);
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1024px) {
+  .guide-route-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .guide-route-grid { grid-template-columns: minmax(0, 1fr); }
+  .guide-route-card { padding: 14px; }
+  .guide-route-button { min-height: 44px; }
+  .guide-flow-figure { padding: 8px; gap: 8px; }
+  .guide-flow-caption { padding: 2px 3px; }
+  .guide-flow-note { padding: 9px 10px; }
+}
+
 /* end @layer v56-refinements */
