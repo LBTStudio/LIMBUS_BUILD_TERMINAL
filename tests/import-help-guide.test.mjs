@@ -15,6 +15,9 @@ test("使い方に人格テキスト取込と硝子窓移行の手順がある",
   assert.ok(app.includes("一括テキストを貼り付け"));
   assert.ok(app.includes("硝子窓URLから移行"));
   assert.ok(app.includes("同期人格として反映"));
+  assert.ok(app.includes("画面の見取り図。番号は下の手順に対応します。"));
+  assert.ok(app.includes('diagram: "personaText"'));
+  assert.ok(app.includes('diagram: "personaUrl"'));
 });
 
 test("使い方にリザルトのテキスト取込と硝子窓一括取込の手順がある", () => {
@@ -23,6 +26,9 @@ test("使い方にリザルトのテキスト取込と硝子窓一括取込の�
   assert.ok(app.includes('title: "硝子窓のシナリオ履歴を一括で取り込む"'));
   assert.ok(app.includes("硝子窓から一括取り込む"));
   assert.ok(app.includes("変換を確定する"));
+  assert.ok(app.includes('diagram: "ledgerText"'));
+  assert.ok(app.includes('diagram: "ledgerUrl"'));
+  assert.ok(app.includes("data:image/svg+xml;charset=utf-8,"));
 });
 
 test("パッチノートは日付見出しと従来の追加・修正形式を使う", () => {
