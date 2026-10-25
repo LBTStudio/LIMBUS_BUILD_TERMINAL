@@ -241,12 +241,12 @@ async function captureCompactResultDetails(page, mode) {
       egos: [], supports: [], spirits: Array.isArray(state.roster?.spirits) ? state.roster.spirits : []
     };
     if (!accounts.saveActive(state, accountId)) throw new Error("Could not save disposable screenshot fixture");
+    /* Reload the React reducer from the saved account in-place. A page reload would let
+       the current stale React state auto-save over this synthetic fixture on beforeunload. */
+    window.dispatchEvent(new CustomEvent("lbt:accounts-entered", { detail: { id: accountId } }));
   });
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await page.waitForLoadState("networkidle", { timeout: 12000 }).catch(() => {});
-  /* Re-wait for the app shell after reload, then explicitly open Record.
-     The screenshot workflow may have been on the help page before seeding the fixture. */
-  await waitForApp(page);
+  await page.keyboard.press("Escape").catch(() => {});
+  await page.waitForTimeout(WAIT_MS);
   await clickNav(page, "記録");
   const card = page.locator(".ledger-card").filter({ hasText: "第12回 セッション" }).first();
   if (!(await card.isVisible().catch(() => false))) {
