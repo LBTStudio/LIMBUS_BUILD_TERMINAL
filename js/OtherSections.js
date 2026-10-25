@@ -2046,7 +2046,11 @@ const AcquireBar = ({ state, kind, name, no, rank, how, setHow, onAcquire, disab
 const BuildItemsPanel = ({ state, dispatch }) => {
   const h = React.createElement;
   const inventory = Array.isArray(state.inventory) ? state.inventory : [];
-  const catalog = React.useMemo(() => [...(window.DB?.items || []), ...(window.DB?.specialItems || []), ...(Array.isArray(state.customItems) ? state.customItems : [])], [state.customItems]);
+  const catalog = React.useMemo(() => [
+    ...(window.DB?.items || []),
+    ...(window.DB?.specialItems || []).filter((item) => !item.ledgerResource),
+    ...(Array.isArray(state.customItems) ? state.customItems : [])
+  ], [state.customItems]);
   const metaOf = (itemId) => catalog.find((item) => item.id === itemId) || {};
   const nameOf = (itemId) => metaOf(itemId).name || String(itemId || "");
   const totalQty = inventory.reduce((sum, entry) => sum + (Number(entry.quantity) || 0), 0);
@@ -3411,7 +3415,11 @@ const InventoryPanel = ({ state, dispatch }) => {
   const [pickOpen, setPickOpen] = React.useState(false);
   const inventory = Array.isArray(state.inventory) ? state.inventory : [];
   const initialItems = Array.isArray(state.initialItems) ? state.initialItems : [];
-  const catalog = [...(window.DB?.items || []), ...(window.DB?.specialItems || []), ...(Array.isArray(state.customItems) ? state.customItems : [])];
+  const catalog = [
+    ...(window.DB?.items || []),
+    ...(window.DB?.specialItems || []).filter((item) => !item.ledgerResource),
+    ...(Array.isArray(state.customItems) ? state.customItems : [])
+  ];
   const metaOf = (itemId) => catalog.find((item) => item.id === itemId) || {};
   const nameOf = (itemId) => metaOf(itemId).name || String(itemId || "");
 
