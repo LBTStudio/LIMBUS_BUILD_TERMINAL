@@ -255,7 +255,7 @@ const AccountCard = ({ entry, index, active, editing, draft, setDraft, icon, onS
   React.useEffect(() => { if (!editing) setImportOpen(false); }, [editing]);
 
   if (editing) {
-    return h("div", { className: "acct-card acct-card--form", style: { "--i": index } },
+    return h("div", { className: `acct-card acct-card--form${importOpen ? " acct-card--import-open" : ""}`, style: { "--i": index } },
       h("span", { className: "acct-form-kicker" }, "編集中"),
       h("label", { className: "acct-field" }, h("span", null, "アカウント名"), h("input", {
         className: "input", value: draft.name, autoFocus: true, maxLength: 40,
