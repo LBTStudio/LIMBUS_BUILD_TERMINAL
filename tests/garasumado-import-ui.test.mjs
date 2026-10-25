@@ -245,6 +245,17 @@ test("URL入力は複数行フォームで送信でき、進行状況・部分�
   assert.match(uiFlat, /finally \{ setBusy\(false\); setProgress\(""\); \}/, "失敗時も読込状態を解除する");
 });
 
+test("ZIP / JSON一括読込はリザルト履歴と人格シートを同じ確認画面で反映する", () => {
+  assert.match(uiFlat, /LBT_readGarasumadoExportFiles/);
+  assert.match(uiFlat, /type: "file"/);
+  assert.match(uiFlat, /accept: "\.zip,\.json,application\/zip,application\/json"/);
+  assert.match(uiFlat, /personaItems !== null && !manifest/);
+  assert.match(uiFlat, /const personaActions =/);
+  assert.match(uiFlat, /extras: row\.result\.extraData \|\| \{\}/);
+  assert.match(uiFlat, /renderBundleReport\(\)/);
+  assert.match(uiFlat, /画像・PDF・TXTは読み込まず/);
+});
+
 test("取込後の確認画面は対象数・未決件数・追加予定を先に表示する", () => {
   assert.match(uiFlat, /className: "gara gara-import-review"/);
   assert.match(uiFlat, /className: "gara-import-overview"/);

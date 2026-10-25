@@ -5906,6 +5906,9 @@ case "ADD_ENTRY":
           id: sourceId,
           url: sourceUrl,
           label: String(source.label || importedSource.name || "").slice(0, 180),
+          ...(source.extras && typeof source.extras === "object" && !Array.isArray(source.extras)
+            ? { metadata: cloneJSON(source.extras) }
+            : {}),
           importedAt: Date.now()
         }
       };

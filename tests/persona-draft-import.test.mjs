@@ -285,6 +285,36 @@ test("硝子窓の公開人格データは草案の4区分へ変換し、同期�
   assert.equal(result.suggestSyncMax, true);
 });
 
+test("人格シートのメモ・強化一覧・チャットパレット・元の戦術を保持する", () => {
+  const api = loadParserApi();
+  const record = {
+    id: "ABCDEF0123456789GHIJ",
+    isPublic: true,
+    name: "メタデータ保持テスト RANK_000",
+    status: { hp: "100", san: "45", speed: "1d5", slash: "普通", pierce: "普通", blunt: "普通", bullet: 0 },
+    tactics: [{ code: "0", name: "試験戦術", attr: "斬撃", sin: "憤怒", effect: "1d5" }],
+    passive: { name: "試験パッシブ", condition: "", alwaysEffect: "", effect: "" },
+    passives: [],
+    uniques: [],
+    enhancements: ["闘志", "サポートスロット解放"],
+    memo: "元シートのメモ",
+    chatPaletteAuto: "自動パレットの原文",
+    chatPaletteManual: "手動パレットの原文",
+    chatPaletteMode: "manual"
+  };
+  const result = api.LBT_parseGarasumadoPersonaDocument(record, "https://lbt-garasumado.vercel.app/persona/view/ABCDEF0123456789GHIJ");
+  assert.equal(result.ok, true);
+  assert.equal(result.syncRank, "000", "RANK_000 を同期ランクとして検出する");
+  assert.equal(result.persona.passive_name, "試験パッシブ", "空の passives 配列より passive を使う");
+  assert.equal(result.extraData.memo, "元シートのメモ");
+  assert.deepEqual(JSON.parse(JSON.stringify(result.extraData.enhancements)), ["闘志", "サポートスロット解放"]);
+  assert.equal(result.extraData.chatPaletteAuto, "自動パレットの原文");
+  assert.equal(result.extraData.chatPaletteManual, "手動パレットの原文");
+  assert.equal(result.extraData.chatPaletteMode, "manual");
+  assert.equal(result.extraData.originalSheet.tactics[0].effect, "1d5");
+  assert.deepEqual(JSON.parse(JSON.stringify(result.persona.garasumadoExtras.enhancements)), ["闘志", "サポートスロット解放"]);
+});
+
 test("硝子窓URL移行は非公開データと非対応URLを解析済み人格へ変換せず、安全に停止する", () => {
   const api = loadParserApi();
   const privateDocument = structuredClone(garasumadoSyncedDocument);
@@ -601,7 +631,8 @@ test("硝子窓人格の一括登録は所持ライブラリへ追加し、装�
       kind: "garasumado-persona",
       id: "EPm6O9SU11aYYj0obEar",
       url: "https://lbt-garasumado.vercel.app/persona/view/EPm6O9SU11aYYj0obEar",
-      label: persona.name
+      label: persona.name,
+      extras: { memo: "元データ", enhancements: ["闘志"], chatPaletteAuto: "パレット" }
     }
   };
 
@@ -621,6 +652,7 @@ test("硝子窓人格の一括登録は所持ライブラリへ追加し、装�
   assert.equal(imported.syncMax, true);
   assert.equal(imported.equipped, false);
   assert.equal(imported.importSource.id, action.source.id);
+  assert.deepEqual(imported.importSource.metadata, action.source.extras);
 
   assert.equal(next.personaMode, initial.personaMode);
   assert.equal(next.personaNo, initial.personaNo);

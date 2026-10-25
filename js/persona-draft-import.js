@@ -303,10 +303,12 @@
     if (!isGarasumadoRecord(status) || !tactics.length) return garasumadoError("硝子窓の人格データにステータスまたは戦術スキルを確認できません。人格データは反映していません。", source);
     const rawName = clean(source?.collection === "characters" ? status.persona : record.name);
     const displayName = cleanGarasumadoName(rawName);
-    const rankMatch = forMatch(rawName).match(/(?:RANK|LANK|ランク|同期)\s*[:：]?\s*(0{1,3})/i) || rawName.match(/の人格\s+(0{1,3})(?:\s|$)/u);
+    const rankMatch = forMatch(rawName).match(/(?:RANK|LANK|ランク|同期)\s*[_:：]?\s*(0{1,3})/i) || rawName.match(/の人格\s+(0{1,3})(?:\s|$)/u);
     const syncMax = /同期\s*MAX/i.test(rawName);
     if (!displayName || !/^\d+$/.test(clean(status.hp)) || !/^\d+$/.test(clean(status.san)) || !isDiceFormula(status.speed)) return garasumadoError("硝子窓の人格名・HP・SAN・速度を確認できません。人格データは反映していません。", source);
-    const passives = record.passives ?? (isGarasumadoRecord(record.passive) ? [record.passive] : []);
+    const passives = Array.isArray(record.passives) && record.passives.length
+      ? record.passives
+      : (isGarasumadoRecord(record.passive) ? [record.passive] : []);
     const uniques = record.uniques ?? [];
     if (!Array.isArray(passives) || !Array.isArray(uniques) || passives.length > 2
       || tactics.some((t) => !isGarasumadoRecord(t) || !/^\d+(?:-\d+)?$/.test(forMatch(t.code)) || !clean(t.name) || !clean(t.attr) || !clean(t.sin))
@@ -336,13 +338,32 @@
   if (new Set(skills.map((s) => s.rank)).size !== skills.length) return garasumadoError("戦術番号が重複しています。反映前に移行元を確認してください。", source);
     const passive = (p) => ({ name: clean(p?.name), cond: clean(p?.condition), always: clean(p?.alwaysEffect), effect: clean(p?.effect) });
     const first = passive(passives[0]);
+    const extraData = {
+      memo: typeof record.memo === "string" ? record.memo.slice(0, 30000) : "",
+      enhancements: Array.isArray(record.enhancements) ? record.enhancements.slice(0, 100) : [],
+      chatPaletteAuto: typeof record.chatPaletteAuto === "string" ? record.chatPaletteAuto.slice(0, 60000) : "",
+      chatPaletteManual: typeof record.chatPaletteManual === "string" ? record.chatPaletteManual.slice(0, 60000) : "",
+      chatPaletteMode: clean(record.chatPaletteMode || "").slice(0, 40),
+      chatPaletteAutoPersonaEnabled: record.chatPaletteAutoPersonaEnabled === true,
+      chatPaletteAutoPersonaSpeedLine: clean(record.chatPaletteAutoPersonaSpeedLine || "").slice(0, 5000),
+      chatPaletteAutoPersonaBody: clean(record.chatPaletteAutoPersonaBody || "").slice(0, 30000),
+      chatPaletteAutoPersonaTacticsSection: clean(record.chatPaletteAutoPersonaTacticsSection || "").slice(0, 30000),
+      originalSheet: {
+        status: isGarasumadoRecord(record.status) ? record.status : {},
+        tactics: Array.isArray(record.tactics) ? record.tactics : [],
+        passive: isGarasumadoRecord(record.passive) ? record.passive : null,
+        passives: Array.isArray(record.passives) ? record.passives : [],
+        uniques: Array.isArray(record.uniques) ? record.uniques : []
+      }
+    };
     const result = { ok: true, errors: [], warnings,
       persona: { name: displayName, no: 999, hp: Number(status.hp), san: Number(status.san), speed: forMatch(status.speed), bullets: normalizedGarasumadoBullet(status.bullet),
         res_slash: clean(status.slash) || "普通", res_pierce: clean(status.pierce) || "普通", res_blunt: clean(status.blunt) || "普通",
         passive_name: first.name, passive_cond: first.cond, passive_always: first.always, passive_effect: first.effect,
         skills, unique_buffs: uniques.map((u) => ({ name: clean(u.name), type: clean(u.type) || "バフ", initial: 0,
           max: /^\d+$/.test(toHalfWidth(clean(u.maxCount))) ? Number(toHalfWidth(clean(u.maxCount))) : null, desc: clean(u.effect), place: "status" })),
-        keywords: [], __custom: true, __draftImported: true },
+        keywords: [], __custom: true, __draftImported: true, garasumadoExtras: extraData },
+      extraData,
       secondaryPassive: passives[1] ? passive(passives[1]) : null,
       provided: { name: true, hp: true, san: true, speed: true, bullets: true, resistances: true, passives: passives.length > 0, skills: true, uniques: uniques.length > 0 },
       summary: { skillCount: skills.length, buffCount: uniques.length, passiveCount: passives.length } };
