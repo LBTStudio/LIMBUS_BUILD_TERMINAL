@@ -58,11 +58,16 @@ const ItemCodex = ({ state, dispatch }) => {
   };
   const addItem = () => {
     if (!selected) return;
-    dispatch(selected.specialResource
+    if (!canAddSelected) {
+      toast(`「${selected.name}」は所持上限（×${selectedMaxOwned}）です`);
+      return;
+    }
+    const ledgerLinked = selected.ledgerResource === "shards";
+    dispatch(selected.specialResource && !ledgerLinked
       ? { type: "ADD_ITEM_INVENTORY", itemId: selected.id }
       : { type: "ADD_ITEM", itemId: selected.id });
-    toast(!canAddSelected
-      ? `「${selected.name}」は所持上限（×${selectedMaxOwned}）です`
+    toast(ledgerLinked
+      ? `「${selected.name}」を1個購入し、通帳へ記録`
       : selected.specialResource
         ? (selectedEntry ? `「${selected.name}」の所持数を追加` : `「${selected.name}」を特殊資源欄へ追加`)
         : (selectedEntry ? `「${selected.name}」の数量を追加` : `「${selected.name}」をアイテム一覧へ導入`));
