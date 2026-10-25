@@ -362,20 +362,19 @@ async function handleCounter(url, req, env) {
   await throttle(env.COUNTER_RATE_LIMIT, ip, 60, 60);
   const db = env.BACKUP_DB;
   if (!db) throw jsonError("Cloudflare D1が構成されていません。", 503);
-  await db.batch([
-    db.prepare("INSERT INTO site_counters (name, value) VALUES ('total_views', 1) ON CONFLICT(name) DO UPDATE SET value = value + 1"),
-    db.prepare("INSERT INTO site_counters (name, value) VALUES (?, 1) ON CONFLICT(name) DO UPDATE SET value = value + 1").bind("page_" + page)
-  ]);
+  await db.prepare(
+    "INSERT INTO site_counters (name, value) VALUES ('total_views', 1) " +
+    "ON CONFLICT(name) DO UPDATE SET value = value + 1"
+  ).run();
   const total = await db.prepare("SELECT value FROM site_counters WHERE name = 'total_views'").first();
-  const current = await db.prepare("SELECT value FROM site_counters WHERE name = ?").bind("page_" + page).first();
-  return { ok: true, totalViews: Number(total && total.value || 0), pageViews: Number(current && current.value || 0), scope: "page_views_not_unique_visitors" };
+  return { ok: true, totalViews: Number(total && total.value || 0), page, scope: "page_views_not_unique_visitors" };
 }
 
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
     const origin = corsOrigin(req);
-    if (origin === null) return response({ error: "Origin is not allowed." }, 403, "");
+    if (origin === null) return new Response(JSON.stringify({ error: "Origin is not allowed." }), { status: 403, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" } });
     if (req.method === "OPTIONS") {
       return response({ ok: true }, 200, origin);
     }
