@@ -5165,7 +5165,7 @@ h(Card, { className: "ledger-card" },
                                     if (!details.open) return;
                                     /* 展開文が固定フッターに隠れないよう、開いたら効果文を表示域へ入れる。 */
                                     requestAnimationFrame(() => details.querySelector("p")?.scrollIntoView({
-                                      block: "nearest",
+                                      block: "center",
                                       behavior: "auto"
                                     }));
                                   }
