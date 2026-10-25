@@ -62,6 +62,13 @@ test("バックアップテーブルは所有者単位のRLSで保護される",
   assert.doesNotMatch(migration, /grant [^;]+ on table public\.lbt_account_vaults to authenticated/i);
 });
 
+test("オンライン保全の説明はローカル保存とクラウド保存を混同せず、暗号化範囲を開示する", () => {
+  assert.match(ui, /ローカル保存はこの端末のブラウザに残ります/);
+  assert.doesNotMatch(ui, /データはこの端末のブラウザ内にのみ保存されます/);
+  assert.match(client, /クラウドへ保存されるJSON本体はエンドツーエンド暗号化されません/);
+  assert.match(client, /復旧キー自体は保存せずハッシュのみを保持します/);
+});
+
 test("復旧キーは十分な乱数を使い、サーバー側ではSHA-256だけを検索キーとして保存する", () => {
   assert.match(client, /function randomToken\(byteLength = 32\)/);
   assert.match(client, /"LBT1-" \+ randomToken\(32\)/);
