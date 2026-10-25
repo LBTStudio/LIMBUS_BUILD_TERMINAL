@@ -878,7 +878,14 @@
         }
         if (lp == null && sh == null) {
           if (isRemainderOnly) continue;
-          spends.push({ name: pnm || bnm || line, lp: 0, shards: 0, raw: line });
+          spends.push({
+            name: pnm || bnm || line,
+            lp: 0,
+            shards: 0,
+            raw: line,
+            needsDecision: true,
+            reason: "支出金額が読み取れない（要確認）"
+          });
           reasons.push({ line: line, reason: "支出金額が読み取れない（要確認）" });
           continue;
         }
