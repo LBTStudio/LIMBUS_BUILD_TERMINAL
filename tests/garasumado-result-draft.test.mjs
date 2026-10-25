@@ -64,7 +64,7 @@ test("硝子の破片消費は通貨支出と分離して結果の consumedItems
   assert.match(result.consumedItems[0].detail, /CTを解除/);
 });
 
-test("複数の硝子窓URLは重複を除き、同じPLのシナリオ履歴だけを統合する", () => {
+test("複数の硝子窓URLは重複を除き、同じキャラクターの履歴だけを統合する", () => {
   const urls = [
     "https://lbt-garasumado.vercel.app/view/6yXgGPzX1eSEboi2KSLM",
     "https://lbt-garasumado.vercel.app/view/Eo19HoEJpsICZwLc7MN4",
@@ -111,21 +111,27 @@ test("複数の硝子窓URLは重複を除き、同じPLのシナリオ履歴だ
   assert.equal(merged.scenarioHistory[2].name, "最新");
 });
 
-test("同じPLの別キャラクターURLは履歴を統合し、最新スナップショットの現所持を使う", () => {
+test("同じPLでも別キャラクターURLは履歴を統合しない", () => {
   const merged = G.mergeGarasumadoDocuments([
     {
       updateTime: "2026-10-01T00:00:00Z",
-      doc: { name: "キャラクターA", plName: "同じPL", owned: { personas: [{ name: "旧所持" }] }, scenarioHistory: [{ name: "Aの履歴", memo: "50LP" }] }
+      doc: { name: "キャラクターA", plName: "同じPL", owned: { personas: [{ name: "Aの所持" }] }, scenarioHistory: [{ name: "Aの履歴", memo: "50LP" }] }
     },
     {
       updateTime: "2026-10-02T00:00:00Z",
-      doc: { name: "キャラクターB", plName: "同じPL", owned: { personas: [{ name: "新所持" }] }, scenarioHistory: [{ name: "Bの履歴", memo: "75LP" }] }
+      doc: { name: "キャラクターB", plName: "同じPL", owned: { personas: [{ name: "Bの所持" }] }, scenarioHistory: [{ name: "Bの履歴", memo: "75LP" }] }
     }
   ]);
-  assert.equal(merged.error, undefined);
-  assert.equal(merged.name, "キャラクターB", "最新URLのキャラクター情報を保持");
-  assert.deepEqual([...merged.owned.personas].map((item) => item.name), ["新所持"]);
-  assert.deepEqual([...merged.scenarioHistory].map((item) => item.name), ["Aの履歴", "Bの履歴"]);
+  assert.match(merged.error, /異なるキャラクター／PL名/);
+  assert.deepEqual([...merged.identities.characterNames], ["キャラクターa", "キャラクターb"]);
+});
+
+test("複数URLのうちキャラクター名またはPL名を確認できない場合は統合しない", () => {
+  const merged = G.mergeGarasumadoDocuments([
+    { doc: { name: "キャラクターA", plName: "同じPL", scenarioHistory: [] } },
+    { doc: { name: "キャラクターA", scenarioHistory: [] } }
+  ]);
+  assert.match(merged.error, /異なるキャラクター／PL名/);
 });
 
 test("異なるPLの硝子窓URLを誤って同じ所持へ統合しない", () => {
@@ -551,4 +557,17 @@ test("実サンプル: 所持アイテムの行がどの文書でも捨てられ
     for (const it of ((doc.items) || []).filter((i) => Number(i.count) > 0)) rows += 1;
   }
   assert.equal(rows, 131, "所持アイテムの総行数（実サンプル 50 文書）");
+});
+test("キャラクターURLと人格URLは取り込み前から別種として識別される", () => {
+  const character = G.parseShareUrl("https://lbt-garasumado.vercel.app/view/AbCdEF1234567890abcd");
+  const persona = G.parseShareUrl("https://lbt-garasumado.vercel.app/persona/view/ZyXwVu1234567890abcd");
+  assert.equal(character.ok, true);
+  assert.equal(character.collection, "characters");
+  assert.equal(persona.ok, true);
+  assert.equal(persona.collection, "personas");
+  const batch = G.parseShareUrls([
+    "https://lbt-garasumado.vercel.app/view/AbCdEF1234567890abcd",
+    "https://lbt-garasumado.vercel.app/persona/view/ZyXwVu1234567890abcd"
+  ].join("\n"));
+  assert.deepEqual([...batch.urls].map((row) => row.collection), ["characters", "personas"]);
 });
