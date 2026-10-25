@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-63f2ee21";
+const CACHE_NAME = "lbt-f418ad1b";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -30,7 +30,7 @@ const PRECACHE_URLS = [
   "assets/fonts/corporate-logo-bold-subset.woff2?v=b56fa468",
   "assets/fonts/corporate-logo-medium-subset.woff2?v=dbbdb67e",
   "assets/inline-effect-glossary.css?v=594970a3",
-  "assets/items.css?v=7cf01d95",
+  "assets/items.css?v=2c2c655e",
   "assets/persona-codex.css?v=f7d6f495",
   "assets/sections.css?v=2019b62d",
   "assets/v52-overlay.css?v=785971b6",
@@ -51,9 +51,9 @@ const PRECACHE_URLS = [
   "js/App.js?v=7ce8ac1d",
   "js/DataQuality.js?v=a8365c72",
   "js/InlineEffectGlossary.js?v=b5c1a1e0",
-  "js/ItemCodex.js?v=f02559c2",
+  "js/ItemCodex.js?v=903766a3",
   "js/LivePreview.js?v=1b6767e6",
-  "js/OtherSections.js?v=e77989c3",
+  "js/OtherSections.js?v=b139cb0c",
   "js/PersonaCodex.js?v=8f23dedc",
   "js/SkillDeck.js?v=a93f6cb8",
   "js/accounts-ui.js?v=e63b1add",
@@ -77,7 +77,7 @@ const PRECACHE_URLS = [
   "js/roster-resolver.js?v=c778eb30",
   "js/share-link.js?v=8848209f",
   "js/share-viewer.js?v=b177ecef",
-  "js/state.js?v=73d9e4c1",
+  "js/state.js?v=672dadd8",
   "js/ui.js?v=8943eab8",
   "vendor/react-dom.min.js?v=35f4f974",
   "vendor/react.min.js?v=d949f1c3",
