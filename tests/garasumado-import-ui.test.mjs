@@ -22,6 +22,12 @@ test("人格URLとキャラクターURLを同じ統合経路に流さない", ()
   assert.match(uiFlat, /各人格を個別に識別して登録する専用処理/);
 });
 
+test("人格の購入費用は現アカウントの所持数に応じて解決してから取り込む", () => {
+  assert.match(uiFlat, /GarasumadoImportPanel = \(\{ onClose, onApply, state \}\)/);
+  assert.match(uiFlat, /window\.LBT_resolveAcquireCost\(kind, "purchase", details\)/);
+  assert.match(uiFlat, /ownsPersona: \(state\?\.roster\?\.personas \|\| \[\]\)\.length > 0, purchaseCost/);
+});
+
 test("取得中の busy は取得が例外でも必ず解除される（finally）", () => {
   /* fetch へ渡す以降の実装が throw に変わっても、busy が true のまま残ると
      画面が「取得中」のまま固まり、再試行の入口が分からなくなる。 */
