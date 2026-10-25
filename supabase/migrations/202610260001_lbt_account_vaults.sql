@@ -41,10 +41,10 @@ alter table public.lbt_account_vault_versions enable row level security;
 -- caller or recovery key before using the service-role key. Browser clients cannot
 -- access recovery-key rows directly; authenticated policies are defense in depth.
 revoke all on table public.lbt_account_vaults from public, anon, authenticated;
-grant select, insert, update, delete on table public.lbt_account_vaults to authenticated;
+grant select, insert, update, delete on table public.lbt_account_vaults to service_role;
 
 revoke all on table public.lbt_account_vault_versions from public, anon, authenticated;
-grant select, insert, delete on table public.lbt_account_vault_versions to authenticated;
+grant select, insert, update, delete on table public.lbt_account_vault_versions to service_role;
 
 drop policy if exists lbt_account_vaults_select_own on public.lbt_account_vaults;
 create policy lbt_account_vaults_select_own
