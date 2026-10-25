@@ -149,12 +149,12 @@ async function addHistory(vault: any) {
   }
 }
 
-async function createVault(userId: string | null, recoveryHash: string | null, payload: Record<string, unknown>) {
+async function createVault(userId: string | null, recoveryHash: string | null, payload: Record<string, unknown>, revision = 1) {
   const rows = await rest(VAULT, "POST", "select=id,user_id,recovery_hash,payload,revision,updated_at,created_at", {
     user_id: userId,
     recovery_hash: recoveryHash,
     payload,
-    revision: 1,
+    revision,
     updated_at: new Date().toISOString()
   });
   if (!Array.isArray(rows) || !rows[0]) throw new Error("バックアップ領域を作成できませんでした。");
@@ -179,35 +179,8 @@ async function updateVault(vault: any, payload: Record<string, unknown>, expecte
 
 async function handle(body: any, req: Request) {
   const action = String(body?.action ?? "");
-  if (!["get", "backup", "create_recovery", "rotate_recovery", "history", "restore_revision"].includes(action)) {
-    throw new Error("未対応の操作です。");
-  }
-
-  if (action === "rotate_recovery") {
-    const currentKey = normalizeRecoveryKey(body.recoveryKey);
-    const newKey = normalizeRecoveryKey(body.newRecoveryKey);
-    const currentHash = await hashRecoveryKey(currentKey);
-    const newHash = await hashRecoveryKey(newKey);
-    if (currentHash === newHash) throw new Error("現在と異なる復旧キーを指定してください。");
-    const vault = await getVaultByHash(currentHash);
-    if (!vault) throw new Error("現在の復旧キーに対応する保全データが見つかりません。");
-    const occupied = await getVaultByHash(newHash);
-    if (occupied && occupied.id !== vault.id) {
-      throw new Error("新しい復旧キーは既に別の保全データで使用されています。もう一度発行してください。");
-    }
-    const rows = await rest(VAULT, "PATCH",
-      `id=eq.${vault.id}&recovery_hash=eq.${currentHash}&select=id,recovery_hash,revision,updated_at`,
-      { recovery_hash: newHash });
-    if (!Array.isArray(rows) || !rows[0]) {
-      const latest = await getVaultByHash(newHash);
-      if (!latest || latest.id !== vault.id || latest.recovery_hash !== newHash) {
-        throw new Error("復旧キーを再発行できませんでした。現在のキーは変更されていません。");
-      }
-      return { ok: true, revision: Number(latest.revision), updatedAt: latest.updated_at };
-    }
-    /* Rotation is the only explicit operation that changes the key hash.
-       It does not change the payload, revision, or backup history. */
-    return { ok: true, revision: Number(rows[0].revision), updatedAt: rows[0].updated_at };
+  if (!["get", "backup", "create_recovery", "replicate", "history", "restore_revision"].includes(action)) {
+    throw new Error("未対応の操作です。復旧キーは固定されており、サーバー側から変更する操作はありません。");
   }
 
   if (action === "create_recovery") {
@@ -229,6 +202,14 @@ async function handle(body: any, req: Request) {
       const payload = validatePayload(body.payload);
       await enforceRecoveryCreateLimit(req);
       const created = await createVault(null, hash, payload);
+      return { found: true, revision: Number(created.revision), updatedAt: created.updated_at };
+    }
+    if (action === "replicate" && Number(body.expectedRevision) === 0) {
+      const payload = validatePayload(body.payload);
+      const targetRevision = Number(body.targetRevision);
+      if (!Number.isSafeInteger(targetRevision) || targetRevision < 1) throw new Error("複製先の世代番号が不正です。");
+      await enforceRecoveryCreateLimit(req);
+      const created = await createVault(null, hash, payload, targetRevision);
       return { found: true, revision: Number(created.revision), updatedAt: created.updated_at };
     }
     return { found: false, revision: 0, payload: null };
@@ -259,6 +240,35 @@ async function handle(body: any, req: Request) {
     const result = await updateVault(vault, validatePayload(previous.payload), Number(vault.revision));
     if (result.conflict) return { conflict: true, revision: result.vault?.revision };
     return { found: true, revision: Number(result.vault.revision), payload: result.vault.payload, updatedAt: result.vault.updated_at };
+  }
+
+  if (action === "replicate") {
+    const payload = validatePayload(body.payload);
+    const expectedRevision = Number(body.expectedRevision);
+    const targetRevision = Number(body.targetRevision);
+    const currentRevision = Number(vault.revision);
+    if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0 ||
+        !Number.isSafeInteger(targetRevision) || targetRevision < 1) {
+      throw new Error("複製する世代番号が不正です。");
+    }
+    if (currentRevision === targetRevision) {
+      if (JSON.stringify(vault.payload) === JSON.stringify(payload)) {
+        return { found: true, revision: currentRevision, updatedAt: vault.updated_at, unchanged: true };
+      }
+      return { conflict: true, revision: currentRevision, payload: vault.payload, updatedAt: vault.updated_at };
+    }
+    if (currentRevision !== expectedRevision || targetRevision <= expectedRevision) {
+      return { conflict: true, revision: currentRevision, payload: vault.payload, updatedAt: vault.updated_at };
+    }
+    await addHistory(vault);
+    const rows = await rest(VAULT, "PATCH",
+      `id=eq.${vault.id}&revision=eq.${expectedRevision}&recovery_hash=eq.${hash}&select=id,revision,updated_at,payload`,
+      { payload, revision: targetRevision, updated_at: new Date().toISOString() });
+    if (!Array.isArray(rows) || !rows[0]) {
+      const latest = await getVaultByHash(hash);
+      return { conflict: true, revision: Number(latest?.revision ?? 0), payload: latest?.payload ?? null, updatedAt: latest?.updated_at ?? null };
+    }
+    return { found: true, revision: Number(rows[0].revision), updatedAt: rows[0].updated_at };
   }
 
   const payload = validatePayload(body.payload);
