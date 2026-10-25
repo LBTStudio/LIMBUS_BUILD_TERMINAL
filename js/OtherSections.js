@@ -4126,8 +4126,10 @@ const applyTextImport = () => {
   const skipped = Array.isArray(detail.skipped) ? detail.skipped : [];
   const results = accepted.filter((action) => action.type === "ADD_RESULT").length;
   const entries = accepted.filter((action) => action.type === "ADD_ENTRY").length;
+  const items = accepted.filter((action) => action.type === "ADD_ITEM_INVENTORY").length;
   setImportNote({
-    summary: IMPORT_TYPE_LABEL.ADD_RESULT + " " + results + "件・" + IMPORT_TYPE_LABEL.ADD_ENTRY + " " + entries + "件",
+    summary: IMPORT_TYPE_LABEL.ADD_RESULT + " " + results + "件・" + IMPORT_TYPE_LABEL.ADD_ENTRY + " " + entries + "件"
+      + (items ? "・アイテム " + items + "件" : ""),
     skipped: skipped.slice(0, 12),
     skippedCount: skipped.length
   });
@@ -4479,6 +4481,13 @@ const importHeldPersonas = () => {
             + (rec.tickets.length ? ` / チケット ${rec.tickets.map((t) => `${t.count}`).join("・")}` : "")),
           rec.deltas.length > 0 && h("span", { className: "ledger-note" },
             `増減の注記 ${rec.deltas.map((d) => `${d.currency === "lp" ? "LP" : "欠片"} ${d.value > 0 ? "+" : ""}${d.value}`).join(" / ")} は残高差なので収入には入れていません`),
+          rec.consumedItems?.length > 0 && h("span", { className: "ledger-note" },
+            "過去の消費履歴：" + rec.consumedItems.map((item) => `${item.itemName} ×${item.quantity}（${item.detail}）`).join(" / ")),
+          rec.itemGains?.length > 0 && h("span", { className: "ledger-note" },
+            "アイテム報酬の記載（注記として保存・現在庫は変更しません）：" + rec.itemGains.map((item) => `${item.itemName} ×${item.quantity}`).join(" / ")),
+          rec.raw?.length > 0 && h("details", { className: "ledger-import-notes" },
+            h("summary", null, `元ログの注記 ${rec.raw.length}行（同期CT・報酬名などを保存）`),
+            h("p", { className: "ledger-note" }, rec.raw.join("\n"))),
           rec.spends.map((spend, si) => h("label", { key: `sp-${ri}-${si}`, className: "chip is-sm" },
             h("input", {
               type: "checkbox",
@@ -4786,7 +4795,7 @@ h(Card, { className: "ledger-card" },
                 key: item.id || `${item.itemId}-${item.consumedAt}-${index}`,
                 className: "gacha-held-ticket",
                 title: item.reason === "phenomenon_processing" ? "現象処理" : String(item.reason || "消費")
-              }, `${item.itemName || item.name || item.itemId} ×${item.quantity || 1}${item.reason === "phenomenon_processing" ? " · 現象処理" : ""}`))),
+              }, `${item.itemName || item.name || item.itemId} ×${item.quantity || 1}${item.reason === "phenomenon_processing" ? " · 現象処理" : ""}${item.detail ? `（${String(item.detail).slice(0, 72)}）` : ""}`))),
             rows.length === 0
               ? h("p", { className: "ledger-empty-note" }, "未分類の明細をここへドラッグするか、移動ボタンで帰属します。")
               : h("div", { className: "stack-2" }, rows.map((entry) => h("div", { key: entry.id, className: "ledger-row is-owned", ...dragProps(entry) },

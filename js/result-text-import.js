@@ -136,6 +136,68 @@
     return null;
   }
 
+  /* 旧シナリオ一覧（『シナリオ名』→報酬→獲得品/同期ログ）にも対応。
+     数値と通貨の両方が明示されたペアだけ読む。硝子の破片は自我の欠片ではない。 */
+  function parseLegacyIncome(line) {
+    const text = toHalf(line).replace(/硝子の(?:破片|かけら|カケラ)/g, " ");
+    const lpMatches = [...text.matchAll(/(\d[\d,]*)\s*LP\b|\bLP\s*[:：]?\s*(\d[\d,]*)/gi)];
+    const shardMatches = [...text.matchAll(/(\d[\d,]*)\s*(?:自我の)?(?:欠片|かけら|欠けら|カケラ)|(?:自我の)?(?:欠片|かけら|欠けら|カケラ)\s*[:：]?\s*(\d[\d,]*)/g)];
+    if (!lpMatches.length && !shardMatches.length) return null;
+    const values = (matches) => {
+      let total = 0;
+      for (const match of matches) {
+        const token = match[1] || match[2];
+        const value = safeAmount(token);
+        if (value === null || !Number.isSafeInteger(total + value)) return null;
+        total += value;
+      }
+      return total;
+    };
+    const lp = values(lpMatches);
+    const shards = values(shardMatches);
+    if (lp === null || shards === null) return { error: "通貨収入の合計が不正です" };
+    return { lp, shards };
+  }
+
+  function parseLegacyTicket(line) {
+    const text = toHalf(line);
+    if (!/人格\s*(?:抽出)?\s*チケ(?:ット)?/.test(text)) return null;
+    const countMatch = text.match(/[x×]\s*(\d[\d,]*)/i) || text.match(/(\d[\d,]*)\s*枚/);
+    const count = countMatch ? safeAmount(countMatch[1]) : 1;
+    return count === null ? { error: "チケット枚数が不正です" } : { kind: "persona", count };
+  }
+
+  function parseLegacyGlassGain(line) {
+    const text = toHalf(line);
+    if (!/硝子の(?:破片|かけら|カケラ)/.test(text) || /(?:使用|消費)/.test(text)) return null;
+    const countMatch = text.match(/[x×]\s*(\d[\d,]*)/i)
+      || text.match(/(\d[\d,]*)\s*(?:個|つ)/)
+      || text.match(/([一二三四五六七八九十]+)\s*(?:個|つ)?/);
+    const kanji = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 };
+    const token = countMatch ? countMatch[1] : "";
+    const quantity = !countMatch ? 1 : (kanji[token] || safeAmount(token));
+    if (!Number.isSafeInteger(quantity) || quantity <= 0) return { error: "硝子の破片の個数が不正です" };
+    return { itemId: "resource-glass-shard", itemName: "硝子の破片", quantity };
+  }
+
+  function parseLegacyGlassUse(line) {
+    const text = toHalf(line);
+    if (!/硝子の(?:破片|かけら|カケラ)/.test(text) || !/(?:使用|消費)/.test(text)) return null;
+    const match = text.match(/硝子の(?:破片|かけら|カケラ)\s*(?:を\s*)?(?:(\d[\d,]*)\s*(?:個|つ)?|[x×]\s*(\d[\d,]*)|([一二三四五六七八九十]+)\s*(?:個|つ)?)\s*(?:を\s*)?(?:使用|消費)/);
+    if (!match) return { error: "硝子の破片の消費個数を読み取れません" };
+    const token = match[1] || match[2] || match[3] || "1";
+    const kanji = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 };
+    const quantity = match[3] ? kanji[token] : safeAmount(token);
+    if (!Number.isSafeInteger(quantity) || quantity <= 0) return { error: "硝子の破片の消費個数が不正です" };
+    return {
+      itemId: "resource-glass-shard",
+      itemName: "硝子の破片",
+      quantity,
+      reason: "phenomenon_processing",
+      detail: String(line || "").replace(/^[【\[『「]+|[】\]』」]+$/g, "").trim().slice(0, 500)
+    };
+  }
+
   function parseText(rawText) {
     const records = [];
     const skipped = [];
@@ -145,19 +207,71 @@
       if (!current) return;
       /* 見出しも本文も無い帖はリザルトにならない */
       const empty = !current.title && !current.income.lp && !current.income.shards
-        && !current.tickets.length && !current.spends.length;
+        && !current.tickets.length && !current.spends.length
+        && !(current.consumedItems || []).length && !(current.itemGains || []).length && !(current.raw || []).length;
       if (empty) current = null;
       else { records.push(current); current = null; }
     };
     const open = (title, author) => {
       flush();
-      current = { title: title || null, author: author || null, income: { lp: 0, shards: 0 }, tickets: [], spends: [], deltas: [], raw: [] };
+      current = { title: title || null, author: author || null, income: { lp: 0, shards: 0 }, tickets: [], spends: [], deltas: [], consumedItems: [], itemGains: [], raw: [] };
       return current;
     };
 
+    /* 入力内に旧形式の見出しがあるなら、先頭の「通過3」などの案内行は
+       リザルト外のタイトルとして扱い、読み取りエラーへ積まない。 */
+    let legacyMode = /^\s*『[^』]+』(?:\s+.*)?\s*$/m.test(String(rawText ?? ""));
     for (const rawLine of String(rawText ?? "").split(/\r?\n/)) {
-      const line = rawLine.trim();
-      if (!line) { flush(); continue; }
+      let line = rawLine.trim();
+      if (!line) { if (!legacyMode) flush(); continue; }
+
+      /* 旧記録の見出し。タイトルの右側に「合計：97LP+47欠片」が続く形も許可。 */
+      const legacyHeader = line.match(/^『\s*(.+?)\s*』\s*(.*)$/);
+      if (legacyHeader) {
+        legacyMode = true;
+        open(legacyHeader[1].trim(), null);
+        line = legacyHeader[2].trim();
+        if (!line) continue;
+      }
+
+      /* 硝子の破片消費は装飾見出しとして処理せず、直前のリザルトへ記録する。 */
+      const legacyUse = parseLegacyGlassUse(line);
+      if (legacyUse) {
+        if (!current) open(null, null);
+        if (legacyUse.error) skipped.push({ text: rawLine.trim(), reason: legacyUse.error });
+        else current.consumedItems.push(legacyUse);
+        continue;
+      }
+      if (legacyMode && current) {
+        const legacyIncome = parseLegacyIncome(line);
+        if (legacyIncome) {
+          if (legacyIncome.error) skipped.push({ text: line, reason: legacyIncome.error });
+          else {
+            const lp = current.income.lp + legacyIncome.lp;
+            const shards = current.income.shards + legacyIncome.shards;
+            if (Number.isSafeInteger(lp) && Number.isSafeInteger(shards)) current.income = { lp, shards };
+            else skipped.push({ text: line, reason: "リザルト収入の合計が安全整数の範囲を超えています" });
+          }
+          continue;
+        }
+        const ticket = parseLegacyTicket(line);
+        if (ticket) {
+          if (ticket.error) skipped.push({ text: line, reason: ticket.error });
+          else current.tickets.push({ ...ticket, raw: line });
+          continue;
+        }
+        const glassGain = parseLegacyGlassGain(line);
+        if (glassGain) {
+          if (glassGain.error) skipped.push({ text: line, reason: glassGain.error });
+          else current.itemGains.push(glassGain);
+          continue;
+        }
+        /* 同期CTや報酬名など、専用項目化していない文章もリザルトの注記として保持。 */
+        current.raw.push(line);
+        continue;
+      }
+
+      if (legacyMode && !current) continue;
 
       /* 見出し行。装飾文字（絵字等）は読み飛ばす。
          開く括弧の直前を英数字・記号に限定する。さもないと
@@ -235,6 +349,7 @@
     const excluded = opts.excluded || new Set();
     const actions = [];
     const skipped = (parsed.skipped || []).slice();
+    let legacyUseSequence = 0;
 
     for (const record of parsed.records || []) {
       const title = record.title || "無題";
@@ -263,7 +378,19 @@
         ticketTotals.set(totalKey, nextCount);
         acceptedTickets.push(ticket);
       }
-      actions.push({ type: "ADD_RESULT", name: title, income: { lp: record.income.lp, shards: record.income.shards, tickets: ticketIncome(acceptedTickets) }, note });
+      const legacyNotes = (record.raw || []).map((line) => String(line || "").trim()).filter(Boolean);
+      const itemGainNotes = (record.itemGains || []).map((item) => `${item.itemName} ×${item.quantity}（獲得記録）`);
+      const fullNote = [note, ...legacyNotes, ...itemGainNotes].filter(Boolean).join("\n").slice(0, 2000);
+      actions.push({
+        type: "ADD_RESULT",
+        name: title,
+        income: { lp: record.income.lp, shards: record.income.shards, tickets: ticketIncome(acceptedTickets) },
+        note: fullNote,
+        consumedItems: (record.consumedItems || []).map((item) => {
+          const operationId = `legacy-use-${Date.now()}-${legacyUseSequence++}`;
+          return { ...item, id: operationId, operationId, consumedAt: Date.now() };
+        })
+      });
       record.spends.forEach((spend, index) => {
         if (excluded.has(index)) return;
         if (spend.needsDecision) { skipped.push({ text: spend.raw || spend.name, reason: spend.reason || "要確認" }); return; }

@@ -2328,7 +2328,8 @@ function normalizeConsumedItems(items) {
       quantity: parsedQuantity ?? 1,
       reason: String(item.reason || "phenomenon_processing").slice(0, 80),
       consumedAt: Number.isSafeInteger(rawAt) && rawAt > 0 ? rawAt : Date.now(),
-      operationId: String(item.operationId || "").trim().slice(0, 120)
+      operationId: String(item.operationId || "").trim().slice(0, 120),
+      detail: String(item.detail || "").trim().slice(0, 500)
     };
   }).filter((item) => item.itemId && item.itemName);
 }
@@ -5370,7 +5371,7 @@ case "ADD_CUSTOM_ITEM": {
           date: String(action.date || localDateString()).slice(0, 10),
           income: { ...normalizeCurrency(action.income), tickets: normalizeTickets(action.income?.tickets) },
           note: String(action.note || "").slice(0, 2000),
-          consumedItems: [],
+          consumedItems: normalizeConsumedItems(action.consumedItems),
           createdAt: now,
           updatedAt: now
         }]
