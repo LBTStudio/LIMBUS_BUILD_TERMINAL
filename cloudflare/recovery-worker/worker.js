@@ -51,6 +51,14 @@ async function hashKey(key) {
   return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+async function hashPayload(payload) {
+  const entries = (payload.entries || []).slice()
+    .sort((a, b) => String(a.key).localeCompare(String(b.key)))
+    .map((item) => [item.key, item.value]);
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(entries)));
+  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 function validatePayload(payload) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)
       || payload.format !== "lbt-account-backup" || payload.version !== 1
@@ -104,7 +112,7 @@ async function throttle(binding, key, limit, period) {
 
 async function getManifest(db, hash) {
   return await db.prepare(
-    "SELECT recovery_hash, revision, updated_at, payload_bytes, chunk_count FROM vaults WHERE recovery_hash = ?"
+    "SELECT recovery_hash, revision, updated_at, payload_bytes, chunk_count, payload_hash, write_token FROM vaults WHERE recovery_hash = ?"
   ).bind(hash).first();
 }
 
@@ -127,10 +135,14 @@ async function getPayload(db, hash, revision, history) {
   let payload;
   try { payload = JSON.parse(encoded); } catch (_) { throw jsonError("保存データが破損しています。", 500); }
   validatePayload(payload);
+  const expectedHash = String((await getManifest(db, hash))?.payload_hash || "");
+  if (expectedHash && await hashPayload(payload) !== expectedHash) {
+    throw jsonError("バックアップの整合性チェックに失敗しました。", 500);
+  }
   return payload;
 }
 
-function buildCommitStatements(db, hash, current, payload, targetRevision, expectedRevision, writeToken, updatedAt) {
+function buildCommitStatements(db, hash, current, payload, payloadHash, targetRevision, expectedRevision, writeToken, updatedAt) {
   const encoded = JSON.stringify(payload);
   const chunks = splitText(encoded);
   const payloadBytes = new TextEncoder().encode(encoded).byteLength;
@@ -154,14 +166,14 @@ function buildCommitStatements(db, hash, current, payload, targetRevision, expec
   // guarded by the unique write token installed only by the winner.
   if (current) {
     statements.push(db.prepare(
-      "UPDATE vaults SET revision = ?, updated_at = ?, payload_bytes = ?, chunk_count = ?, write_token = ? " +
+      "UPDATE vaults SET revision = ?, updated_at = ?, payload_bytes = ?, chunk_count = ?, payload_hash = ?, write_token = ? " +
       "WHERE recovery_hash = ? AND revision = ?"
-    ).bind(targetRevision, updatedAt, payloadBytes, chunks.length, writeToken, hash, expectedRevision));
+    ).bind(targetRevision, updatedAt, payloadBytes, chunks.length, payloadHash, writeToken, hash, expectedRevision));
   } else {
     statements.push(db.prepare(
-      "INSERT OR IGNORE INTO vaults (recovery_hash, revision, updated_at, payload_bytes, chunk_count, write_token) " +
-      "VALUES (?, ?, ?, ?, ?, ?)"
-    ).bind(hash, targetRevision, updatedAt, payloadBytes, chunks.length, writeToken));
+      "INSERT OR IGNORE INTO vaults (recovery_hash, revision, updated_at, payload_bytes, chunk_count, payload_hash, write_token) " +
+      "VALUES (?, ?, ?, ?, ?, ?, ?)"
+    ).bind(hash, targetRevision, updatedAt, payloadBytes, chunks.length, payloadHash, writeToken));
   }
 
   statements.push(db.prepare(
@@ -195,8 +207,8 @@ async function commitPayload(db, hash, payload, expectedRevision, targetRevision
   if (actualRevision !== expectedRevision) {
     if (current && actualRevision === targetRevision) {
       const existing = await getPayload(db, hash, actualRevision, false);
-      if (JSON.stringify(existing) === JSON.stringify(validated)) {
-        return { found: true, revision: actualRevision, updatedAt: current.updated_at, unchanged: true };
+      if (await hashPayload(existing) === await hashPayload(validated)) {
+        return { found: true, revision: actualRevision, updatedAt: current.updated_at, payloadHash: current.payload_hash, unchanged: true };
       }
     }
     return { conflict: true, revision: actualRevision };
@@ -207,8 +219,9 @@ async function commitPayload(db, hash, payload, expectedRevision, targetRevision
   const token = Array.from(crypto.getRandomValues(new Uint8Array(16)))
     .map((b) => b.toString(16).padStart(2, "0")).join("");
   const now = new Date().toISOString();
+  const payloadHash = await hashPayload(validated);
   const { statements, payloadBytes, chunkCount } = buildCommitStatements(
-    db, hash, current, validated, targetRevision, expectedRevision, token, now
+    db, hash, current, validated, payloadHash, targetRevision, expectedRevision, token, now
   );
   await db.batch(statements);
   const latest = await getManifest(db, hash);
@@ -217,7 +230,7 @@ async function commitPayload(db, hash, payload, expectedRevision, targetRevision
   }
   const check = await getChunks(db, hash, targetRevision, false);
   if (check.length !== chunkCount) throw jsonError("保存後のバックアップ検証に失敗しました。", 500);
-  return { found: true, revision: targetRevision, updatedAt: latest.updated_at, payloadBytes };
+  return { found: true, revision: targetRevision, updatedAt: latest.updated_at, payloadBytes, payloadHash };
 }
 
 async function findVault(body, db) {
@@ -232,7 +245,7 @@ async function handleRecovery(req, env) {
   let body;
   try { body = await req.json(); } catch (_) { throw jsonError("JSONリクエストを読み取れません。", 400); }
   const action = String(body.action || "");
-  const supported = new Set(["get", "backup", "create_recovery", "replicate", "history", "restore_revision"]);
+  const supported = new Set(["head", "get", "backup", "create_recovery", "replicate", "history", "restore_revision"]);
   if (!supported.has(action)) throw jsonError("未対応の操作です。", 400);
 
   const foundKey = normalizeKey(body.recoveryKey);
@@ -241,6 +254,23 @@ async function handleRecovery(req, env) {
   const db = env.BACKUP_DB;
   if (!db) throw jsonError("Cloudflare D1が構成されていません。", 503);
   let vault = await getManifest(db, hash);
+
+  if (action === "head") {
+    if (!vault) return { found: false, revision: 0, payloadHash: null };
+    let payloadHash = String(vault.payload_hash || "");
+    if (!payloadHash) {
+      // Compatibility path for records written before payload hash metadata existed.
+      const payload = await getPayload(db, hash, Number(vault.revision), false);
+      payloadHash = await hashPayload(payload);
+    }
+    return {
+      found: true,
+      revision: Number(vault.revision),
+      updatedAt: vault.updated_at,
+      payloadHash,
+      payloadBytes: Number(vault.payload_bytes || 0)
+    };
+  }
 
   if (action === "create_recovery") {
     const payload = validatePayload(body.payload);
@@ -255,7 +285,7 @@ async function handleRecovery(req, env) {
     return {
       found: true, revision: Number(vault.revision),
       payload: await getPayload(db, hash, Number(vault.revision), false),
-      updatedAt: vault.updated_at, recoveryKeyEnabled: true, recoveryKeyMatches: true
+      updatedAt: vault.updated_at, payloadHash: String(vault.payload_hash || await hashPayload(vault.payload)), recoveryKeyEnabled: true, recoveryKeyMatches: true
     };
   }
 
@@ -303,7 +333,7 @@ async function handleRecovery(req, env) {
     if (!Number.isSafeInteger(targetRevision) || targetRevision < 1) throw jsonError("複製先の世代番号が不正です。", 400);
     if (vault && Number(vault.revision) === targetRevision) {
       const existing = await getPayload(db, hash, targetRevision, false);
-      if (JSON.stringify(existing) === JSON.stringify(payload)) {
+      if (await hashPayload(existing) === await hashPayload(payload)) {
         return { found: true, revision: targetRevision, updatedAt: vault.updated_at, unchanged: true };
       }
       throw jsonError("同じ世代番号に異なるデータがあります。自動同期を停止しました。", 409);
