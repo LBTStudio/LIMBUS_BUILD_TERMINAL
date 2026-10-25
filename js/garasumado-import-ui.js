@@ -529,6 +529,9 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
 
   const load = async (event) => {
     if (event && typeof event.preventDefault === "function") event.preventDefault();
+    setError("");
+    setUrlReport(null);
+    setProgress("");
     const parsedBatch = window.LBT_parseShareUrls?.(url);
     if (!parsedBatch || !Array.isArray(parsedBatch.urls) || !parsedBatch.urls.length) {
       const single = window.LBT_parseShareUrl?.(url);
@@ -668,8 +671,8 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
     const next = {};
     for (const g of annotated.groups) for (const i of g.items) next[i.key] = i.include;
     setPicked(next);
-    } catch (error) {
-      setError(error?.message || "硝子窓URLの読み込み中にエラーが発生しました");
+    } catch (_) {
+      setError("共有URLの読み込み中に問題が発生しました。URLが公開されているか、通信状態をご確認のうえ再試行してください。");
     } finally {
       setBusy(false);
       setProgress("");
@@ -911,7 +914,8 @@ function appliedSummary(actions) {
       ));
     const lead = "記録 " + (confirmed.counts.byType.ADD_RESULT || 0) + "件・所持 "
       + confirmed.counts.held + "件・処理 " + confirmed.counts.total + "件";
-    return h("div", { className: "gara" },
+    return h("div", { className: "gara gara-import-complete" },
+      h("div", { className: "gara-step-kicker" }, "STEP 3 / 3 · 反映結果"),
       h("div", { className: "gara-out" },
         h("h3", { className: "gara-title" }, "変換を確定しました"),
         h("p", { className: "gara-lead" }, lead)
