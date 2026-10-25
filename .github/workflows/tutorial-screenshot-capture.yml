@@ -65,7 +65,8 @@ jobs:
           source = Path("artifacts/tutorial-screenshots")
           target = Path("docs/tutorial-captures")
           target.mkdir(parents=True, exist_ok=True)
-          pngs = sorted(source.glob("*.png"))
+          # Keep result-preview screenshots in the Action artifact, not the published tutorial captures.
+          pngs = sorted(p for p in source.glob("*.png") if not p.stem.startswith("result-details-compact-"))
           for png in pngs:
               with Image.open(png) as im:
                   im.convert("RGB").save(
