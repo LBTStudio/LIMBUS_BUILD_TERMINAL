@@ -244,9 +244,9 @@ async function captureViewport(browser, mode) {
       "所持人格リストを取り込む", "リザルト文章の取り込みとは別機能");
 
     // Character-wide Garasumado URL: the entry is inside the target account's edit form.
-    const accountMenu = page.locator("button[title*='切替・管理を開く']").first();
-    await accountMenu.waitFor({ state: "visible", timeout: 12000 });
-    await accountMenu.click();
+    // On narrow mobile layouts the top-bar account chip is intentionally hidden.
+    // Use the same app event as the help index's "アカウント管理を開く" action.
+    await page.evaluate(() => window.dispatchEvent(new Event("lbt:open-accounts")));
     await page.waitForTimeout(WAIT_MS);
     const editButton = page.locator(".acct-card-actions .acct-edit-btn").first();
     await editButton.waitFor({ state: "visible", timeout: 12000 });
