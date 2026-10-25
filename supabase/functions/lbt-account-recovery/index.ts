@@ -192,9 +192,25 @@ async function handle(body: any, accessToken: string) {
     if (userId && vault?.recovery_hash && vault.recovery_hash !== hash) {
       throw new Error("このアカウントには既に復旧キーがあります。既存キーを保管したうえで利用してください。");
     }
+    /* 復旧キーだけで先に保全した利用者が、後からGoogle/X連携を追加できる。
+       ユーザーIDの所有確認後、未連携の保管庫だけを結びつける。 */
     if (!vault && userId) {
       const occupied = await getVaultByHash(hash);
-      if (occupied) throw new Error("この復旧キーは既に使用されています。新しいキーを発行してください。");
+      if (occupied) {
+        if (occupied.user_id && String(occupied.user_id) !== userId) {
+          throw new Error("この復旧キーは別のオンラインアカウントに結びついています。");
+        }
+        if (!occupied.user_id) {
+          const existingForUser = await getVaultByUser(userId);
+          if (existingForUser) throw new Error("このオンラインアカウントには別の保全データがあります。先にクラウドの内容を確認してください。");
+          const attached = await rest(VAULT, "PATCH",
+            `id=eq.${occupied.id}&user_id=is.null&select=id,user_id,recovery_hash,payload,revision,updated_at,created_at`,
+            { user_id: userId });
+          vault = Array.isArray(attached) && attached[0] ? attached[0] : await getVaultByHash(hash);
+        } else {
+          vault = occupied;
+        }
+      }
     }
     if (!vault) {
       vault = await createVault(userId, hash, payload);
@@ -202,19 +218,24 @@ async function handle(body: any, accessToken: string) {
       const rows = await rest(VAULT, "PATCH", `id=eq.${vault.id}&select=id,user_id,recovery_hash,payload,revision,updated_at,created_at`,
         { recovery_hash: hash });
       vault = rows?.[0] ?? vault;
-      if (JSON.stringify(vault.payload) !== JSON.stringify(payload)) {
-        const result = await updateVault(vault, payload, Number(vault.revision));
-        if (result.conflict) return { conflict: true, revision: result.vault?.revision, message: "オンラインデータが同時に更新されています。最新状態を読み直してください。" };
-        vault = result.vault;
-      }
-    } else if (!userId && !vault) {
-      vault = await createVault(null, hash, payload);
+    }
+    if (JSON.stringify(vault.payload) !== JSON.stringify(payload)) {
+      const result = await updateVault(vault, payload, Number(vault.revision));
+      if (result.conflict) return { conflict: true, revision: result.vault?.revision, message: "オンラインデータが同時に更新されています。最新状態を読み直してください。" };
+      vault = result.vault;
     }
     return { ok: true, revision: Number(vault.revision), updatedAt: vault.updated_at };
   }
 
   const { userId, vault, hash } = await getVaultForRequest(body, accessToken);
-  if (!vault) return { found: false, revision: 0, payload: null };
+  if (!vault) {
+    if (action === "backup" && Number(body.expectedRevision) === 0) {
+      const payload = validatePayload(body.payload);
+      const created = await createVault(userId, hash, payload);
+      return { found: true, revision: Number(created.revision), updatedAt: created.updated_at };
+    }
+    return { found: false, revision: 0, payload: null };
+  }
 
   if (action === "get") {
     return { found: true, revision: Number(vault.revision), payload: vault.payload, updatedAt: vault.updated_at, recoveryKeyEnabled: Boolean(vault.recovery_hash) };
