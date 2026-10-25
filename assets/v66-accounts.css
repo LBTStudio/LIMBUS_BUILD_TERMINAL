@@ -1427,10 +1427,22 @@ main.acct-gate {
   align-items: stretch;
   text-align: left;
 }
-.acct-card--import-open .acct-gara-body,
-.acct-card--import-open .gara {
+.acct-card--import-open .acct-gara-body {
   min-width: 0;
   width: 100%;
+}
+/* SINNER SELECTは外枠が狭いため、画面全体が広くても内部を2列にしない。 */
+.acct-card--import-open .gara {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  width: 100%;
+}
+.acct-card--import-open .gara-rail {
+  position: static;
+  grid-column: 1;
+  grid-row: auto;
+  max-height: none;
 }
 /* 候補ポップオーバーの fixed 座標をカードの transform でずらさない。 */
 .acct-card--import-open:hover,
@@ -1473,6 +1485,166 @@ main.acct-gate {
 @media (max-width: 640px) {
   .topbar-balance { padding: 4px var(--s-2); font-size: var(--fs-10); gap: var(--s-1); }
   .topbar-balance-unit { font-size: var(--fs-9); }
+}
+
+/* --- URL取込ステップ1：入力と状態をひとまとまりにする --- */
+.gara-import-start {
+  display: grid;
+  gap: var(--s-3);
+  min-width: 0;
+  padding: var(--s-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  background: var(--surface-1);
+}
+.gara-step-kicker {
+  font: 700 var(--fs-10) var(--f-display);
+  letter-spacing: .12em;
+  color: var(--gold-hi);
+}
+.gara-url-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--s-2);
+  min-width: 0;
+}
+.gara-url-form .gara-field { min-width: 0; }
+.gara-url-form .input { width: 100%; min-height: 44px; font-size: var(--fs-sm, 13px); }
+.gara-load-button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  padding: 0 var(--s-4);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r);
+  background: var(--gold);
+  color: var(--tx-inv);
+  font: 700 var(--fs-11) var(--f-body);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--e-out), opacity var(--t-fast) var(--e-out);
+}
+.gara-load-button:hover:not(:disabled) { background: var(--gold-hi); }
+.gara-load-button:disabled { opacity: .55; cursor: wait; }
+.gara-load-button:focus-visible, .gara-change-url:focus-visible { outline: 2px solid var(--gold-hi); outline-offset: 3px; }
+.gara-field-help { margin: 0; font-size: var(--fs-10); line-height: 1.65; color: var(--tx-2); }
+.gara-loading {
+  margin: 0;
+  padding: var(--s-3);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-sm);
+  background: var(--gold-tint);
+  font-size: var(--fs-sm, 13px);
+  color: var(--tx);
+}
+
+/* --- URL取込ステップ2：対象数・未決件数・追加予定を先に見せる --- */
+.gara-import-review { min-width: 0; }
+.gara-import-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-3);
+  min-width: 0;
+  padding: 0 0 var(--s-3);
+  border-bottom: 1px solid var(--line);
+}
+.gara-import-heading-copy { display: grid; gap: var(--s-2); min-width: 0; }
+.gara-import-balance { margin: 0; font-size: var(--fs-10); color: var(--tx-2); }
+.gara-change-url {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--tx);
+  font-size: var(--fs-10);
+  cursor: pointer;
+}
+.gara-change-url:hover { border-color: var(--gold-line); color: var(--gold-hi); }
+.gara-import-overview { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-2); min-width: 0; }
+.gara-import-stat {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  padding: var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface-1);
+}
+.gara-import-stat.is-warning { border-color: var(--err); background: color-mix(in srgb, var(--err) 7%, var(--surface-1)); }
+.gara-import-stat.is-ready { border-color: var(--gold-line); background: color-mix(in srgb, var(--gold) 5%, var(--surface-1)); }
+.gara-import-stat-label { font-size: var(--fs-10); line-height: 1.4; color: var(--tx-2); }
+.gara-import-stat-value { font: 700 var(--fs-15) var(--f-display); color: var(--tx); overflow-wrap: anywhere; }
+.gara-import-stat-detail { font-size: var(--fs-10); line-height: 1.5; color: var(--tx-2); }
+.gara-import-instructions {
+  margin: 0;
+  padding: var(--s-3);
+  border-left: 3px solid var(--gold);
+  background: var(--surface-2);
+  color: var(--tx);
+  font-size: var(--fs-11);
+  line-height: 1.65;
+}
+.gara-import-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 12;
+  align-items: center;
+  margin-top: var(--s-2);
+  padding: var(--s-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  background: var(--surface-0);
+  box-shadow: 0 -8px 20px color-mix(in srgb, var(--surface-0) 80%, transparent);
+}
+.gara-import-actions .gara-foot-meta { min-width: 0; flex: 1 1 220px; }
+.gara-import-actions .gara-foot-acts { flex-wrap: wrap; }
+.gara-import-actions .gara-foot-acts button:last-child { min-height: 40px; }
+
+/* 操作名・状態・価格を横一行に押し込まず、項目名を省略せず表示する。 */
+.gara-row-hit {
+  position: relative;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--s-1) var(--s-2);
+  min-height: 48px;
+  padding: var(--s-2) calc(var(--s-2) + 16px) var(--s-2) var(--s-3);
+}
+.gara-row-hit .gara-row-name {
+  flex: 1 1 100%;
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+.gara-row-hit .gara-row-meta {
+  flex: 1 1 100%;
+  min-width: 0;
+  overflow: visible;
+  white-space: normal;
+  flex-wrap: wrap;
+  line-height: 1.45;
+}
+.gara-row-hit .gara-row-caret { position: absolute; top: 50%; right: var(--s-2); transform: translateY(-50%); }
+.gara-row-hit.is-open .gara-row-caret { transform: translateY(-50%) rotate(180deg); }
+
+@media (max-width: 560px) {
+  .gara-url-form { grid-template-columns: minmax(0, 1fr); }
+  .gara-load-button { width: 100%; white-space: normal; }
+  .gara-import-heading { flex-direction: column; align-items: stretch; }
+  .gara-change-url { align-self: flex-start; }
+  .gara-import-overview { grid-template-columns: minmax(0, 1fr); }
+  .gara-import-actions { align-items: stretch; }
+  .gara-import-actions .gara-foot-acts { width: 100%; margin-left: 0; }
+  .gara-import-actions .gara-foot-acts button:last-child { flex: 1 1 100%; }
 }
 
 }
