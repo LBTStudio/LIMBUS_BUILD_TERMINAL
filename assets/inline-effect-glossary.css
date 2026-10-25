@@ -3,14 +3,14 @@
 .lbt-glossary-term {
   display: inline; appearance: none; border: 0;
   border-bottom: 1px dotted rgba(244, 213, 138, .98);
-  border-radius: 0; margin: 0; padding: 0 1px; color: inherit;
+  border-radius: 2px; margin: 0; padding: 0 2px; color: inherit;
   font: inherit; line-height: inherit; letter-spacing: inherit; text-align: inherit;
-  text-decoration: underline dotted rgba(244, 213, 138, .72); text-decoration-thickness: 1px; text-underline-offset: 3px;
-  background: rgba(214, 173, 83, .13); cursor: help;
+  text-decoration: none;
+  background: rgba(214, 173, 83, .17); cursor: help;
   -webkit-tap-highlight-color: rgba(214, 173, 83, .2);
 }
 .lbt-glossary-term:hover, .lbt-glossary-term:focus-visible, .lbt-glossary-term[aria-expanded="true"] {
-  color: var(--gold-hi, #f4d58a); background: rgba(214, 173, 83, .24); text-decoration-thickness: 2px; outline: none;
+  color: var(--gold-hi, #f4d58a); background: rgba(214, 173, 83, .25); border-bottom-style: solid; outline: none;
 }
 .lbt-glossary-term:focus-visible { border-radius: 3px; box-shadow: 0 0 0 2px rgba(214, 173, 83, .65); }
 .lbt-glossary-popover {
@@ -45,5 +45,5 @@
 @media (max-width: 640px) {
   .lbt-glossary-popover { max-height: min(42vh, 280px); font-size: 12px; }
   .lbt-glossary-popover-close { width: 36px; height: 36px; }
-  .lbt-glossary-term { padding-inline: 2px; border-bottom-style: solid; border-bottom-color: rgba(244, 213, 138, .9); text-decoration-style: solid; }
+  .lbt-glossary-term { padding-inline: 2px; border-bottom-style: solid; border-bottom-color: rgba(244, 213, 138, .98); }
 }
