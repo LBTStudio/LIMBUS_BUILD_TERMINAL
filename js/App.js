@@ -2,11 +2,12 @@
 const HELP_ITEMS = [
   { group: "prepare", icon: "settings", title: "駒整形で基本情報を設定する", body: "左側の「駒整形」（スマートフォンでは画面下部の同名タブ）で、キャラクター名・PL名・立ち絵URL・イニシアチブ・色などを設定します。人格を装備する前でも入力できます。立ち絵URLは画像URLを1行に1つ入力し、複数行なら差分として扱われます。" },
   { group: "prepare", icon: "persona", title: "人格を装備する", body: "左側の「ビルド」を開き、ビルド内の「人格」タブでカードを一度押すと詳細が表示され、同じカードをもう一度押すと装備します。装備後にHP、SAN、耐性、パッシブ、スキルを確認します。手動編集は上の「はじめに：人格を選ぶ・作る」を参照してください。" },
+  { group: "prepare", icon: "persona", title: "公式人格を手動編集して所持ビルドに保存する", body: "人格を装備して「◈ 同期化して手動編集」を押します。これはステータス・パッシブ・スキル・固有バフの編集モードで、ゲーム上の同期ランク（0・00・000）や同期MAXの設定とは別です。編集を終えるときは「✓ 編集を終了（内容は保持）」を押します。所持人格の保存ビルドとして変更を残すには、変更後に「装備解除」を押し、確認画面でOK（変更を所持人格へ保存して装備解除）を選びます。キャンセルすると装備を継続し、変更は現在の状態に残ります。同期ランクと同期MAXは別設定です。同期ランクは「記録」の所持人格詳細で設定でき、同期MAXはそこに加えて装備中の人格パネルからも切り替えられます。" },
   { group: "prepare", icon: "ego", title: "E.G.Oをランク枠に装備・解析する", body: "ビルド内の「E.G.O」タブでZAYINからALEPHまでの各ランク枠に装備します。装備済み枠を押すと右側に簡易詳細が表示されます。全文の確認・編集は、その詳細で「解析を開始」を押します。終えるときは「解析を終了」を押すと内容を保持して終了します。未解析のE.G.Oは、必要な自我の欠片が不足していると解析を開始できません。" },
   { group: "prepare", icon: "plus", title: "オリジナルE.G.Oを作成する", body: "ビルド内の「E.G.O」タブで「E.G.Oを新規作成」を押し、名前と作成ランクを入力して作成します。選んだランク枠が埋まっている場合は確認が表示されます。作成後は対象の枠を選び、「解析を開始」して効果・ダイスなどを編集します。" },
   { group: "prepare", icon: "item", title: "未所持の候補はショップで探す", body: "ショップではサポート・E.G.O・精神・アイテムなどを購入／入手できます。ビルド側のサポート・精神タブは初期状態で「所持のみ」を表示します。候補が見つからないときは「未所持も表示（全体から選ぶ）」へ切り替えるか、ショップで入手してからビルドへ戻ります。" },
   { group: "blocks", icon: "skill", title: "戦術スキルを確認・編集する", body: "スキルタブでは、戦術スキルのオーダー、名称、種別、大罪、範囲、効果、ダイスを確認・編集します。d値・d数が変動する効果は、スキル全体または個別ダイスで変動設定を選びます。" },
-  { group: "blocks", icon: "passive", title: "パッシブとサポートを確認・編集する", body: "人格パッシブの入力欄を編集するには、まず人格タブで「◈ 同期化して手動編集」を有効にします。表示カードへ戻すには「カード表示に戻す」を使います。サポートパッシブは、編集できる状態でカードの「この枠を編集」を押します。候補一覧は選択して詳細を確認し、「通常スロットへ装備」などから装備します。ビルド側の候補は初期状態で「所持のみ」です。未所持候補は「未所持も表示（全体から選ぶ）」を選ぶと、一覧から購入して装備できます。" },
+  { group: "blocks", icon: "passive", title: "パッシブとサポートを確認・編集する", body: "人格パッシブの入力欄を編集するには、まず人格タブで「◈ 同期化して手動編集」を有効にします。表示カードへ戻すには「カード表示に戻す」を使います。サポートパッシブは、編集できる状態でカードの「この枠を編集」を押します。候補一覧は選択して詳細を確認し、「通常スロットへ装備」などから装備します。選択中のカードをもう一度クリック／タップして装備することもできます。ビルド側の候補は初期状態で「所持のみ」です。未所持候補は「未所持も表示（全体から選ぶ）」を選ぶと、一覧から購入して装備できます。" },
   { group: "blocks", icon: "spirit", title: "精神・強化を確認・編集する", body: "精神タブでは混乱時の挙動を、強化タブでは身体強化と特殊強化を確認・編集します。該当する項目がない場合は空欄のままにします。" },
   { group: "blocks", icon: "settings", title: "ステータス・出力先・代入式を設定する", body: "設定タブでは、既定・人格固有ステータスの初期値と上限、ステータスの出力順、固有バフなどの出力先（ステータス側／パラメータ側／登録先なし）、代入式、同期ランクの表示設定などを調整します。メモ／チャットパレットの段落順は設定タブではなく、プレビューの各タブで並べ替えます。" },
   { group: "output", icon: "drag", title: "表示・出力順を変更する", body: "スキル順はビルド内のスキル一覧、ステータス順は設定タブの「ステータス一覧・編集・出力順」、メモ／チャットパレットの段落順はプレビューの各タブで変更します。各一覧の「⋮⋮」グリップをドラッグし、スマートフォンではグリップを押し続けてから動かします。対応する一覧では矢印／▲▼ボタンも使えます。" },
@@ -40,7 +41,7 @@ const GUIDE_FLOWS = {
   },
   imports: {
     title: "取り込み口は、入れたいものによって違います",
-    note: "迷ったら「何のデータを入れたいか」で選んでください。読み込んだだけでは確定せず、内容確認後に反映する手順が基本です。",
+    note: "4つは別々の入口です。上から順に全部実行する必要はありません。入れたいデータを選び、解析結果・未解決項目・反映先を確認してから確定します。",
     alternatives: true,
     nodes: [
       { step: "A", title: "人格データそのもの", body: "ビルド → 人格 → テキスト流し込み反映" },
@@ -61,7 +62,7 @@ const GUIDE_FLOWS = {
   },
   save: {
     title: "保存・共有・出力は目的が違います",
-    note: "「どこへ渡すか」「何を残すか」で使う機能を選びます。共有シートはバックアップではありません。",
+    note: "下の4つは別の目的に使う機能です。上から順に実行する手順ではありません。共有シートとCCFOLIA JSONは、バックアップの代わりにはなりません。",
     alternatives: true,
     nodes: [
       { step: "A", title: "自動保存", body: "同じ端末・同じブラウザーで続きを編集する" },
@@ -76,154 +77,228 @@ const GuideFlowDiagram = ({ kind }) => {
   const h = React.createElement;
   const flow = GUIDE_FLOWS[kind];
   if (!flow) return null;
-  const panelX = 26;
-  const panelW = 708;
-  const nodeH = 76;
-  const nodeGap = 18;
-  const positions = flow.nodes.map((node, index) => ({ node, y: 20 + index * (nodeH + nodeGap) }));
-  const height = 20 + flow.nodes.length * (nodeH + nodeGap) - nodeGap + 20;
-  const svgChildren = [
-    h("title", { key: "title", id: "guide-flow-title-" + kind }, flow.title),
-    h("desc", { key: "desc", id: "guide-flow-desc-" + kind }, flow.nodes.map((n) => n.title + "：" + n.body).join("。")),
-    h("defs", { key: "defs" },
-      h("marker", { id: "guide-arrow-" + kind, markerWidth: 8, markerHeight: 8, refX: 6, refY: 3, orient: "auto", markerUnits: "strokeWidth" },
-        h("path", { d: "M0,0 L6,3 L0,6 Z", fill: "#d7b76b" }))),
-    h("rect", { key: "bg", x: 0, y: 0, width: 760, height, rx: 14, fill: "#100f0e", stroke: "#4b4030", strokeWidth: 1 })
-  ];
-  positions.forEach((entry, index) => {
-    if (!flow.alternatives && index < positions.length - 1) {
-      svgChildren.push(h("path", {
-        key: "arrow-" + index,
-        d: "M 380 " + (entry.y + nodeH) + " L 380 " + (entry.y + nodeH + nodeGap - 3),
-        fill: "none", stroke: "#d7b76b", strokeWidth: 2, markerEnd: "url(#guide-arrow-" + kind + ")"
-      }));
+  const wrapText = (value, maxChars) => {
+    const lines = []; let line = "";
+    for (const char of String(value || "")) {
+      if (char === "\n") { lines.push(line); line = ""; continue; }
+      if (line.length >= maxChars && char !== " " && char !== "　") { lines.push(line); line = char; }
+      else line += char;
     }
-    svgChildren.push(h("g", { key: "node-" + index },
-      h("rect", {
-        x: panelX, y: entry.y, width: panelW, height: nodeH, rx: 9,
-        fill: index === 0 ? "#242016" : "#1a1917",
-        stroke: index === 0 ? "#c7a75b" : "#554a37", strokeWidth: 1.4
-      }),
-      h("rect", { x: panelX, y: entry.y, width: 7, height: nodeH, rx: 3.5, fill: "#d7b76b" }),
-      h("text", { x: 52, y: entry.y + 30, fontSize: 17, fontWeight: 700, fill: "#e4c579" }, entry.node.step),
-      h("text", { x: 92, y: entry.y + 30, fontSize: 21, fontWeight: 700, fill: "#f5efe4" }, entry.node.title),
-      h("text", { x: 92, y: entry.y + 56, fontSize: 16, fill: "#d2cabd" }, entry.node.body)
-    ));
+    if (line || !lines.length) lines.push(line);
+    return lines;
+  };
+  const svgText = (key,x,y,value,options={}) => {
+    const {maxChars=36,size=16,fill="#d2cabd",weight=400,lineHeight=20}=options;
+    return h("text",{key,x,y,fontSize:size,fontWeight:weight,fill,fontFamily:"Noto Sans JP, Yu Gothic, sans-serif"},
+      wrapText(value,maxChars).map((line,index)=>h("tspan",{key:key+"-"+index,x,dy:index===0?0:lineHeight},line)));
+  };
+  const isChoices=Boolean(flow.alternatives),panelX=26,panelW=isChoices?344:708,nodeH=isChoices?176:88,nodeGap=isChoices?16:14,top=58;
+  const positions=flow.nodes.map((node,index)=>({node,x:isChoices?panelX+(index%2)*(panelW+20):panelX,y:isChoices?top+Math.floor(index/2)*(nodeH+nodeGap):top+index*(nodeH+nodeGap)}));
+  const rows=isChoices?Math.ceil(flow.nodes.length/2):flow.nodes.length,height=top+rows*(nodeH+nodeGap)-nodeGap+24;
+  const titleId="guide-flow-title-"+kind,descId="guide-flow-desc-"+kind;
+  const svgChildren=[
+    h("title",{key:"title",id:titleId},flow.title),
+    h("desc",{key:"desc",id:descId},flow.nodes.map(n=>n.step+" "+n.title+"："+n.body).join("。")),
+    h("defs",{key:"defs"},h("marker",{id:"guide-arrow-"+kind,markerWidth:8,markerHeight:8,refX:6,refY:3,orient:"auto",markerUnits:"strokeWidth"},h("path",{d:"M0,0 L6,3 L0,6 Z",fill:"#d7b76b"}))),
+    h("rect",{key:"bg",x:0,y:0,width:760,height,rx:14,fill:"#100f0e",stroke:"#4b4030",strokeWidth:1}),
+    svgText("flow-heading",26,34,flow.title,{maxChars:48,size:21,fill:"#e4c579",weight:700})
+  ];
+  positions.forEach(({node,x,y},index)=>{
+    if(!isChoices&&index<positions.length-1)svgChildren.push(h("path",{key:"arrow-"+index,d:"M 380 "+(y+nodeH)+" L 380 "+(y+nodeH+nodeGap-3),fill:"none",stroke:"#d7b76b",strokeWidth:2,markerEnd:"url(#guide-arrow-"+kind+")"}));
+    if(isChoices){
+      svgChildren.push(h("g",{key:"node-"+index},
+        h("rect",{x,y,width:panelW,height:nodeH,rx:10,fill:index%2===0?"#201b14":"#1a1917",stroke:index%2===0?"#897143":"#554a37",strokeWidth:1.4}),
+        h("rect",{x,y,width:6,height:nodeH,rx:3,fill:"#d7b76b"}),
+        svgText("step-"+index,x+20,y+28,node.step,{maxChars:8,size:15,fill:"#e4c579",weight:700}),
+        svgText("heading-"+index,x+20,y+57,node.title,{maxChars:24,size:19,fill:"#f5efe4",weight:700}),
+        svgText("body-"+index,x+20,y+87,node.body,{maxChars:21,size:14,fill:"#d2cabd",lineHeight:19})
+      ));
+    }else{
+      svgChildren.push(h("g",{key:"node-"+index},
+        h("rect",{x,y,width:panelW,height:nodeH,rx:9,fill:index===0?"#242016":"#1a1917",stroke:index===0?"#c7a75b":"#554a37",strokeWidth:1.4}),
+        h("rect",{x,y,width:7,height:nodeH,rx:3.5,fill:"#d7b76b"}),
+        svgText("step-"+index,x+24,y+29,node.step,{maxChars:8,size:16,fill:"#e4c579",weight:700}),
+        svgText("heading-"+index,x+68,y+29,node.title,{maxChars:40,size:19,fill:"#f5efe4",weight:700}),
+        svgText("body-"+index,x+68,y+55,node.body,{maxChars:46,size:14,fill:"#d2cabd",lineHeight:17})
+      ));
+    }
   });
-  return h("figure", { className: "guide-flow-figure" },
-    h("figcaption", { className: "guide-flow-caption" }, flow.title),
-    h("svg", {
-      className: "guide-flow-svg", viewBox: "0 0 760 " + height,
-      role: "img", "aria-labelledby": "guide-flow-title-" + kind + " guide-flow-desc-" + kind,
-      xmlns: "http://www.w3.org/2000/svg"
-    }, svgChildren),
-    h("p", { className: "guide-flow-note" }, flow.note)
+  const mobile=h("div",{className:"guide-flow-mobile"+(isChoices?" is-choices":""),"aria-label":isChoices?flow.title+"：いずれかを選択":flow.title+"：順番に進む"},
+    isChoices?h("p",{className:"guide-flow-mobile-note"},"以下は別々の選択肢です。目的に合う入口を1つ選んでください。"):null,
+    positions.map(({node},index)=>h("div",{key:"mobile-"+index,className:"guide-flow-mobile-item"},
+      h("span",{className:"guide-flow-mobile-step"},node.step),
+      h("div",{className:"guide-flow-mobile-copy"},h("b",null,node.title),h("p",null,node.body))
+    ))
   );
-};
-
-const GuideRouteCard = ({ icon, title, body, button, onClick, tone }) => {
-  const h = React.createElement;
-  return h("article", { className: "guide-route-card" + (tone ? " " + tone : "") },
-    h("div", { className: "guide-route-card-icon", "aria-hidden": "true" }, h(Icon, { name: icon, size: 18 })),
-    h("h3", null, title),
-    h("p", null, body),
-    h("button", { type: "button", className: "guide-route-button", onClick }, button)
+  return h("figure",{className:"guide-flow-figure"},
+    h("figcaption",{className:"guide-flow-caption"},flow.title),
+    h("div",{className:"guide-flow-diagram"},
+      h("svg",{className:"guide-flow-svg",viewBox:"0 0 760 "+height,role:"img","aria-labelledby":titleId+" "+descId,xmlns:"http://www.w3.org/2000/svg"},svgChildren),
+      mobile
+    ),
+    h("p",{className:"guide-flow-note"},flow.note)
   );
 };
 
 const HelpSection = ({ onNavigate, onOpenUtilities }) => {
   const h = React.createElement;
-  const [opened, setOpened] = React.useState("imports");
+  const [query, setQuery] = React.useState("");
+  const [category, setCategory] = React.useState("frequent");
+  const [expandedKey, setExpandedKey] = React.useState("");
   const openAccounts = () => window.dispatchEvent(new Event("lbt:open-accounts"));
   const go = (section, ui) => onNavigate?.(section, ui || {});
-  const groups = [
-    { key: "prepare", label: "最初に使うところ", lead: "基本情報・人格・装備を設定します。" },
-    { key: "imports", label: "文章や共有URLを取り込む", lead: "人格、リザルト、所持一覧、硝子窓URLの入口を区別します。" },
-    { key: "accounts", label: "キャラクター（アカウント）を管理する", lead: "切替・作成・編集・共有URLの取り込み。" },
-    { key: "record", label: "記録と所持を管理する", lead: "リザルト、収支、消耗を確認します。" },
-    { key: "blocks", label: "必要な項目を確認・編集する", lead: "スキル、パッシブ、精神、強化、設定。" },
-    { key: "output", label: "セッション前に確認する", lead: "メモ、パレット、JSONを確認します。" },
-    { key: "operation", label: "操作を戻す・探す", lead: "戻す・やり直すと検索を使います。" },
-    { key: "save", label: "保存・共有・引き継ぎ", lead: "目的に合う方法を選びます。" }
+  const categories = [
+    { key: "frequent", label: "よく使う" },
+    { key: "imports", label: "取り込み" },
+    { key: "accounts", label: "アカウント" },
+    { key: "build", label: "ビルド" },
+    { key: "record", label: "記録" },
+    { key: "save", label: "保存・出力" },
+    { key: "operation", label: "検索・操作" },
+    { key: "all", label: "すべて" }
   ];
-  return h("div", { className: "guide stack-4" },
-    h("section", { className: "guide-intro" },
-      h("div", { className: "guide-kicker" }, "はじめての方へ / 操作ガイド"),
-      h("h2", null, "まず「何をしたいか」から選んでください"),
-      h("p", null, "ボタンを探し回らなくても済むよう、目的ごとの入口と、その後に押すものをまとめました。PCでは左側、スマートフォンでは画面下部のメニューから移動します。"),
-      h("div", { className: "guide-quick" },
-        [["1", "キャラクターを選ぶ", "SINNER SELECTで作業するキャラクターを選択します。"], ["2", "人格と装備を整える", "ビルド内の人格を装備し、必要な項目を確認します。"], ["3", "記録または文章を取り込む", "下の目的別カードから正しい取り込み口を選びます。"], ["4", "出力・保存を確認する", "プレビューを確認し、必要なら保存ファイルを作成します。"]].map(([n, t, d]) => h("div", { key: n, className: "guide-step" }, h("span", null, n), h("b", null, t), h("p", null, d)))
-      )
-    ),
-    h("section", { className: "guide-route-panel", "aria-labelledby": "guide-routes-title" },
-      h("div", { className: "guide-section-heading" },
-        h("h2", { id: "guide-routes-title" }, "やりたいことから、入口へ"),
-        h("p", null, "このボタンは目的の画面を開きます。開いた後はカード内の案内に沿って進みます。")),
-      h("div", { className: "guide-route-grid" },
-        h(GuideRouteCard, { icon: "persona", title: "人格データの文章がある", body: "「ビルド」→「人格」→「テキスト流し込み反映」へ進みます。", button: "ビルドを開く", onClick: () => go("persona"), tone: "is-primary" }),
-        h(GuideRouteCard, { icon: "copy", title: "リザルト／購入履歴の文章がある", body: "「記録」→「リザルトを記録」→「取り込む」→「テキスト流し込み」です。", button: "記録を開く", onClick: () => go("roster", { libraryTab: "ledger" }) }),
-        h(GuideRouteCard, { icon: "link", title: "硝子窓のキャラクターURLがある", body: "アカウントの編集画面にある「共有URLから取り込む」を使います。", button: "アカウント管理を開く", onClick: openAccounts }),
-        h(GuideRouteCard, { icon: "roster", title: "所持人格の名前一覧がある", body: "「記録」→「リザルトを記録」→「取り込む」→「所持人格リストを取り込む」です。", button: "記録を開く", onClick: () => go("roster", { libraryTab: "ledger" }) }),
-        h(GuideRouteCard, { icon: "item", title: "未所持アイテム・装備を探したい", body: "ショップで入手するか、ビルド側の「未所持も表示（全体から選ぶ）」を選びます。", button: "ショップを開く", onClick: () => go("shop") }),
-        h(GuideRouteCard, { icon: "archive", title: "保存・復元・共有をしたい", body: "作業状態、所持ライブラリ、共有シート、CCFOLIA JSONは用途が違います。", button: "操作・保存を開く", onClick: () => onOpenUtilities?.() })
-      )
-    ),
-    h(GuideFlowDiagram, { kind: "main" }),
-    h("section", { className: "guide-visual-section" },
-      h("h2", null, "文章の取り込み口を間違えないために"),
-      h("p", null, "人格の内容を作る入口と、セッションの報酬・支出を記録する入口は別です。取り込む前に、どの種類のデータなのかを確認してください。"),
-      h(GuideFlowDiagram, { kind: "imports" })
-    ),
-    h("section", { className: "guide-visual-section" },
-      h("h2", null, "硝子窓の共有URLからキャラクターを移す"),
-      h("p", null, "URLの取り込みは、どのキャラクターの保存領域へ入れるかを先に確認するのが重要です。"),
-      h(GuideFlowDiagram, { kind: "account" }),
-      h("div", { className: "guide-common-note" }, h(Icon, { name: "info", size: 15 }), h("span", null, "共有URLのキャラクター全体を取り込む操作は、アカウントを編集している時に表示されます。人格だけを取り込みたい場合は、「ビルド」→「人格」→「テキスト流し込み反映」→「硝子窓URLから移行」です。"))
-    ),
-    h("section", { className: "guide-visual-section" },
-      h("h2", null, "保存・共有・出力の違い"),
-      h("p", null, "同じ「保存」でも残る内容が異なります。バックアップや別端末への移行は、目的に合ったファイルを選んでください。"),
-      h(GuideFlowDiagram, { kind: "save" })
-    ),
-    h("section", { className: "guide-group guide-beginner is-open", "aria-label": "人格の基本操作" },
-      h("div", { className: "guide-group-head guide-beginner-head" },
-        h("span", { className: "guide-group-caret", "aria-hidden": true }, "◆"),
-        h("span", null,
-          h("b", null, "はじめに：人格を選ぶ・作る"),
-          h("small", null, "公式人格を卓用に調整するか、オリジナル人格を作るかを選びます。")
-        )
+  const frequentItems = new Set([
+    "人格データを文章から取り込む",
+    "リザルト／購入履歴を文章から取り込む",
+    "硝子窓のキャラクターURLから取り込む",
+    "キャラクター（アカウント）を選ぶ・作る",
+    "パッシブとサポートを確認・編集する",
+    "作業状態を保存・復元する"
+  ]);
+  const groupLabels = {
+    prepare: "ビルド", blocks: "ビルド", imports: "取り込み", accounts: "アカウント",
+    record: "記録", output: "保存・出力", save: "保存・出力", operation: "検索・操作"
+  };
+  const categoryGroups = {
+    imports: ["imports"], accounts: ["accounts"], build: ["prepare", "blocks"],
+    record: ["record"], save: ["save", "output"], operation: ["operation"]
+  };
+  const trimmedQuery = query.trim().toLocaleLowerCase("ja");
+  const queryTerms = trimmedQuery ? trimmedQuery.split(/\s+/).filter(Boolean) : [];
+  const effectiveCategory = category;
+  const filteredItems = HELP_ITEMS.filter((item) => {
+    const categoryMatch = effectiveCategory === "all"
+      || (effectiveCategory === "frequent" && frequentItems.has(item.title))
+      || (categoryGroups[effectiveCategory] || []).includes(item.group);
+    if (!categoryMatch) return false;
+    if (!queryTerms.length) return true;
+    const haystack = (item.title + " " + item.body + " " + (groupLabels[item.group] || "")).toLocaleLowerCase("ja");
+    return queryTerms.every((term) => haystack.includes(term));
+  }).sort((a, b) => {
+    if (!queryTerms.length) return 0;
+    const aRank = queryTerms.some((term) => a.title.toLocaleLowerCase("ja").includes(term)) ? 0 : 1;
+    const bRank = queryTerms.some((term) => b.title.toLocaleLowerCase("ja").includes(term)) ? 0 : 1;
+    return aRank - bRank;
+  });
+
+  const getPath = (item) => {
+    const title = item.title;
+    if (title.includes("人格データを文章")) return "ビルド › 人格 › テキスト流し込み反映";
+    if (title.includes("リザルト／購入履歴")) return "記録 › リザルトを記録 › 取り込む › テキスト流し込み";
+    if (title.includes("硝子窓のキャラクターURL")) return "SINNER SELECT › 対象アカウントの編集 › 共有URLから取り込む";
+    if (title.includes("所持人格の一覧")) return "記録 › リザルトを記録 › 取り込む › 所持人格リストを取り込む";
+    if (title.includes("アカウント")) return "上部のアカウント表示 / 設定 › アカウントを切替・管理";
+    if (title.includes("駒整形")) return "駒整形";
+    if (title.includes("ショップ") || title.includes("未所持")) return "ショップ / ビルドの候補フィルター";
+    if (title.includes("E.G.O")) return "ビルド › E.G.O";
+    if (title.includes("戦術スキル")) return "ビルド › スキル";
+    if (title.includes("パッシブとサポート")) return "ビルド › パッシブ / サポート";
+    if (title.includes("精神・強化")) return "ビルド › 精神 / 強化";
+    if (title.includes("ステータス・出力先")) return "設定";
+    if (title.includes("表示・出力順")) return "ビルド / 設定 / プレビュー";
+    if (title.includes("プレビュー")) return "プレビュー › メモ / チャットパレット / JSON";
+    if (title.includes("戻す") || title.includes("クイック検索")) return "画面上部の操作 / Ctrl+K";
+    if (item.group === "record") return "記録";
+    if (item.group === "save") return "操作・保存";
+    return "ビルド";
+  };
+  const getAction = (item) => {
+    const title = item.title;
+    if (title.includes("硝子窓のキャラクターURL") || item.group === "accounts") return { label: "アカウント管理を開く", run: openAccounts };
+    if (title.includes("人格データを文章")) return { label: "ビルドを開く", run: () => go("persona") };
+    if (title.includes("リザルト") || title.includes("所持人格の一覧") || item.group === "record") return { label: "記録を開く", run: () => go("roster", { libraryTab: "ledger" }) };
+    if (title.includes("駒整形")) return { label: "駒整形を開く", run: () => go("baseinfo") };
+    if (title.includes("未所持") || title.includes("ショップ")) return { label: "ショップを開く", run: () => go("shop") };
+    if (title.includes("ステータス・出力先")) return { label: "設定を開く", run: () => go("settings") };
+    if (item.group === "prepare" || item.group === "blocks") return { label: "ビルドを開く", run: () => go("persona") };
+    if (item.group === "output") return { label: "プレビューを開く", run: () => go("persona", { previewOpen: true }) };
+    if (item.group === "save") return { label: "保存・共有メニューを開く", run: () => onOpenUtilities?.() };
+    return null;
+  };
+  const getFlowKind = (item) => {
+    if (item.title.includes("硝子窓のキャラクターURL")) return "account";
+    if (item.group === "imports") return "imports";
+    if (item.group === "save" && item.title.includes("共有シート")) return "save";
+    return null;
+  };
+
+  return h("div", { className: "guide guide-compact" },
+    h("header", { className: "guide-compact-header" },
+      h("div", { className: "guide-compact-heading" },
+        h("h2", null, "使い方"),
+        h("p", null, "目的・操作名・ボタン名で探せます。")
       ),
-      h("div", { className: "guide-items" },
-        h("article", { className: "guide-item" },
-          h("div", { className: "guide-item-icon" }, h(Icon, { name: "persona", size: 16 })),
-          h("div", null,
-            h("h3", null, "公式人格を調整する"),
-            h("p", null, "人格を装備して「◈ 同期化して手動編集」を押します。これはステータス・パッシブ・スキル・固有バフを手動編集するモードで、ゲーム上の同期ランク（0・00・000）や同期MAXを設定する操作ではありません。終えるときは「✓ 編集を終了（内容は保持）」を押します。所持人格の保存ビルドとして変更を残すには、変更後に「装備解除」を押し、確認画面でOK（変更を所持人格へ保存して装備解除）を選びます。キャンセルすると装備を継続し、変更は現在の状態に残ります。同期ランクと同期MAXは別設定です。同期ランクは「記録」の所持人格詳細で設定でき、同期MAXはそこに加えて装備中の人格パネルからも切り替えられます。")
-          )
-        ),
-        h("article", { className: "guide-item" },
-          h("div", { className: "guide-item-icon" }, h(Icon, { name: "plus", size: 16 })),
-          h("div", null,
-            h("h3", null, "オリジナル人格を作る"),
-            h("p", null, "人格図鑑の「＋ カスタム人格」から名前を入力して作成し、編集後に「この人格を所持に保存」を押します。保存済みのカスタム人格を修正したら「所持人格の保存内容を更新」を押します。完成した人格データの文章がある場合は「テキスト流し込み反映」から解析し、内容を確認して反映できます。")
-          )
-        )
-      )
+      h("span", { className: "guide-compact-total" }, HELP_ITEMS.length + "項目")
     ),
-    h("div", { className: "guide-common-note" }, h(Icon, { name: "info", size: 15 }), h("span", null, "PCでは左側のナビゲーション、スマートフォンでは画面下部のタブで移動します。「操作・保存」から保存や復元を開けます。プレビューは開閉できます。")),
-    groups.map((g) => {
-      const items = HELP_ITEMS.filter((item) => item.group === g.key);
-      return h("section", { key: g.key, className: "guide-group" + (opened === g.key ? " is-open" : "") },
-        h("button", { className: "guide-group-head", onClick: () => setOpened(opened === g.key ? "" : g.key), "aria-expanded": opened === g.key },
-          h("span", { className: "guide-group-caret" }, opened === g.key ? "▼" : "▶"),
-          h("span", null, h("b", null, g.label), h("small", null, g.lead))
-        ),
-        opened === g.key && h("div", { className: "guide-items" }, items.map((item) => h("article", { key: item.title, className: "guide-item" },
-          h("div", { className: "guide-item-icon" }, h(Icon, { name: item.icon, size: 16 })),
-          h("div", null, h("h3", null, item.title), h("p", null, item.body))
-        )))
-      );
-    })
+    h("div", { className: "guide-search-field" },
+      h(Icon, { name: "search", size: 17 }),
+      h("input", {
+        type: "search", id: "guide-search-input", className: "guide-search-input",
+        value: query, onChange: (event) => { const value = event.target.value; setQuery(value); setExpandedKey(""); if (value.trim()) setCategory("all"); },
+        placeholder: "操作を検索（例：硝子窓、保存、サポート）",
+        "aria-label": "使い方を検索"
+      }),
+      query ? h("button", {
+        type: "button", className: "guide-search-clear",
+        onClick: () => { setQuery(""); setCategory("frequent"); setExpandedKey(""); },
+        "aria-label": "検索をクリア", title: "検索をクリア"
+      }, h(Icon, { name: "x", size: 15 })) : null
+    ),
+    h("nav", { className: "guide-filter-row", "aria-label": "操作の分類" },
+      categories.map((entry) => h("button", {
+        key: entry.key, type: "button",
+        className: "guide-filter" + (effectiveCategory === entry.key ? " is-active" : ""),
+        onClick: () => { setCategory(entry.key); setExpandedKey(""); },
+        "aria-pressed": effectiveCategory === entry.key
+      }, entry.label))
+    ),
+    h("div", { className: "guide-results-heading" },
+      h("h3", null, queryTerms.length ? "検索結果" : categories.find((entry) => entry.key === category)?.label || "操作一覧"),
+      h("span", { className: "guide-results-count", "aria-live": "polite" }, filteredItems.length + "件")
+    ),
+    filteredItems.length
+      ? h("div", { className: "guide-index-list" },
+          filteredItems.map((item, index) => {
+            const key = item.group + ":" + item.title;
+            const expanded = expandedKey === key;
+            const detailId = "guide-index-detail-" + index;
+            const action = getAction(item);
+            const flowKind = expanded ? getFlowKind(item) : null;
+            return h("article", { key, className: "guide-index-row" + (expanded ? " is-expanded" : "") },
+              h("button", {
+                type: "button", className: "guide-index-toggle",
+                onClick: () => setExpandedKey(expanded ? "" : key),
+                "aria-expanded": expanded, "aria-controls": detailId
+              },
+                h("span", { className: "guide-index-main" },
+                  h("span", { className: "guide-index-title" }, item.title),
+                  h("span", { className: "guide-index-category" }, groupLabels[item.group] || "操作")
+                ),
+                h(Icon, { name: expanded ? "chevron-up" : "chevron-down", size: 16 })
+              ),
+              expanded ? h("div", { id: detailId, className: "guide-index-detail" },
+                h("p", { className: "guide-index-path" }, getPath(item)),
+                h("p", { className: "guide-index-body" }, item.body),
+                action ? h("button", { type: "button", className: "guide-index-action", onClick: action.run }, action.label) : null,
+                flowKind ? h(GuideFlowDiagram, { kind: flowKind }) : null
+              ) : null
+            );
+          })
+        )
+      : h("div", { className: "guide-no-results" },
+          h("p", null, "一致する項目がありません。別の言葉でも検索してみてください。"),
+          h("button", { type: "button", className: "guide-index-action", onClick: () => { setQuery(""); setCategory("all"); } }, "すべての項目を表示")
+        )
   );
 };
 
