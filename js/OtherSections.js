@@ -5081,8 +5081,7 @@ h(Card, { className: "ledger-card" },
                 )
               )
             )
-          ),
-
+          )
         )
       })
     ),
