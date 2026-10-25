@@ -208,7 +208,7 @@ test("URL入力は複数行フォームで送信でき、進行状況・部分�
   assert.match(uiFlat, /className: "gara-loading", role: "status", "aria-live": "polite"/);
   assert.match(uiFlat, /urlReport\.failed\.slice\(0, 6\)/, "一部失敗のURLを確認できる");
   assert.match(uiFlat, /catch \(error\) \{ setError\(/, "通信・処理例外を画面内のエラーにする");
-  assert.match(uiFlat, /finally \{ setBusy\(false\); setProgress\(\"\); \}/, "失敗時も読込状態を解除する");
+  assert.match(uiFlat, /finally \{ setBusy\(false\); setProgress\(""\); \}/, "失敗時も読込状態を解除する");
 });
 
 test("取込後の確認画面は対象数・未決件数・追加予定を先に表示する", () => {
