@@ -495,6 +495,44 @@ test("古いCloudflare KV短縮URLキャッシュは再利用せず新規発行�
   assert.equal(JSON.parse(storage.getItem("lbt:last-published-share:v1")).url, freshUrl);
 });
 
+
+test("作成日時が欠落・破損したCloudflare KV短縮URLキャッシュは再利用せず新規発行する", async () => {
+  const storage = memoryStorage();
+  const origin = "https://lbt-ogp.lbtstudio-share.workers.dev";
+  const share = loadShareLink(null, {
+    localStorage: storage,
+    LBT_OGP_GATEWAY_ORIGIN: origin
+  });
+  const state = { charName: "日時破損の共有キャッシュ", roster: { personas: [] } };
+  const token = await share.encodeState(state);
+  const invalidUrl = origin + "/s/InvalidTimeId1234";
+  storage.setItem("lbt:last-published-share:v1", JSON.stringify({
+    token, url: invalidUrl, length: invalidUrl.length, strategy: "cloudflare-kv",
+    backups: [], preview: { personaName: "日時破損" }, savedAt: "not-a-timestamp"
+  }));
+
+  const freshUrl = origin + "/s/CorrectTimeId1234";
+  const calls = [];
+  const fetchMock = async (url, options = {}) => {
+    const target = String(url);
+    calls.push(target);
+    if (target === "https://rentry.co/api/new") return new Response(JSON.stringify({ url_short: "lbt-invalidtime-rentry" }), { status: 200 });
+    if (target === "https://api.telegra.ph/createAccount") return new Response(JSON.stringify({ ok: true, result: { access_token: "temporary" } }), { status: 200 });
+    if (target === "https://api.telegra.ph/createPage") return new Response(JSON.stringify({ ok: true, result: { path: "LBT-Invalid-Time-Reissue" } }), { status: 200 });
+    if (target === origin + "/api/r2-share/v1") {
+      assert.equal(JSON.parse(options.body).token, token);
+      return new Response(JSON.stringify({ ok: true, id: "CorrectTimeId1234", url: freshUrl }), { status: 201 });
+    }
+    throw new Error("unexpected URL: " + target);
+  };
+
+  const result = await share.createPublishedUrl(state, "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html", fetchMock);
+  assert.equal(result.url, freshUrl);
+  assert.equal(result.reused, undefined);
+  assert.notEqual(result.url, invalidUrl);
+  assert.equal(calls.filter((url) => url === origin + "/api/r2-share/v1").length, 1);
+});
+
 test("有効期間内のCloudflare KV短縮URLキャッシュは引き続き再利用する", async () => {
   const storage = memoryStorage();
   const origin = "https://lbt-ogp.lbtstudio-share.workers.dev";
