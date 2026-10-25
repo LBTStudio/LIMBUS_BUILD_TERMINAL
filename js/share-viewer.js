@@ -63,7 +63,7 @@
       window.LBT_shareLink.decodeToken(token),
       fetch("data/db.json?v=16b6df9e").then((response) => response.ok ? response.json() : {}).catch(() => ({})),
       fetch("data/items.json?v=b47b58ae").then((response) => response.ok ? response.json() : []).catch(() => []),
-      fetch("data/special-items.json?v=26970fb5").then((response) => response.ok ? response.json() : []).catch(() => [])
+      fetch("data/special-items.json?v=aaa21cfb").then((response) => response.ok ? response.json() : []).catch(() => [])
     ]);
     const sharedDB = {
       ...(db || {}),
