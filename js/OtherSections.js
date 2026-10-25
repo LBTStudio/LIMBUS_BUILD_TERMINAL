@@ -2720,7 +2720,7 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
       const acquire = () => {
         if (registerOnly) {
           dispatch({ type: "ADD_ITEM_INVENTORY", itemId: item.id });
-          toast(`「${item.name}」を特殊資源欄へ追加しました`, "assertive");
+          toast(`「${item.name}」を所持欄へ追加しました（価格未設定）`, "assertive");
           return;
         }
         dispatch({ type: "ADD_ITEM", itemId: item.id, purchase: true });
