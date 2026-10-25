@@ -148,7 +148,8 @@ test("死亡後サポートの手動編集は所持ライブラリへ同期し�
   assert.equal(row.uid, "custom-death");
   assert.equal(row.resultId, null);
 
-  const reprojected = reducer(edited, { type: "SET_ROSTER_SUPPORT_EQUIPPED", uid: "normal-support", equipped: true });
+  assert.equal(row.deathSlotManual, true, "カタログ外の手動割当であることを明示");
+  const reprojected = reducer(edited, { type: "ADD_SUPPORT", spp: { name: "通常サポート" } });
   assert.equal(reprojected.deathSupport?.name, "編集後サポート");
   assert.equal(reprojected.deathSupport?.cond, "新条件");
   assert.equal(reprojected.deathSupport?.effect, "新効果");
