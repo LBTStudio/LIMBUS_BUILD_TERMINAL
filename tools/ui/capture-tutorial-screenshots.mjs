@@ -309,9 +309,16 @@ async function captureCompactResultDetails(page, mode) {
   if (!text.includes("硝子の破片") || !text.includes("· 消費") || text.includes("硝子の破片 ×1 · 現象処理")) {
     throw new Error("Consumed item reason label is wrong in rendered result details: " + text);
   }
-  const filename = path.join(OUT, "result-details-compact-" + mode + ".png");
-  await page.screenshot({ path: filename, animations: "disabled", fullPage: false });
-  log("captured result detail preview " + path.relative(ROOT, filename));
+  const filename = "result-details-compact-" + mode + ".png";
+  const screenshot = await page.screenshot({ animations: "disabled", fullPage: false });
+  /* Review snapshots are embedded in a JSON artifact so the Action uploads them for inspection
+     without increasing the 12 tutorial screenshots or publishing review data into docs. */
+  fs.writeFileSync(path.join(OUT, filename.replace(/\\.png$/, ".json")), JSON.stringify({
+    filename,
+    contentType: "image/png",
+    base64: screenshot.toString("base64")
+  }) + "\\n", "utf8");
+  log("captured result detail preview " + filename + " (embedded in JSON artifact)");
 }
 
 async function captureViewport(browser, mode) {
