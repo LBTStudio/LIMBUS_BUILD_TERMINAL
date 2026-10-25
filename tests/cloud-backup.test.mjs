@@ -118,7 +118,7 @@ test("復旧キーの登録は既存クラウド内容を上書きせず、別�
   assert.doesNotMatch(createBlock, /updateVault\(vault, payload/);
   assert.match(createBlock, /vaultByUser && vaultByKey && vaultByUser\.id !== vaultByKey\.id/);
   assert.match(createBlock, /Registering a recovery key is an identity operation, not a backup write/);
-  assert.match(client, /この端末の復旧キーは、ログイン中のGoogle\/Xとは別の保全データを指しています/);
+  assert.match(client, /この端末の復旧キーは、ログイン中のGoogleとは別の保全データを指しています/);
   assert.match(client, /async function unlinkRecoveryKeyLocally\(\)/);
   assert.match(client, /async function syncAutomatically\(\)[\s\S]*?current\.recoveryKeyMatches === false[\s\S]*?自動同期を停止しました/);
 });
@@ -145,12 +145,18 @@ test("オンライン保管庫テーブルをブラウザーから直接アク�
 });
 
 
-test("Google/Xのログイン導線は未実装と明記され、押せない状態で表示される", () => {
-  assert.match(client, /button\("Googleと連携（未実装）", \(\) => \{\}, "", true\)/);
+test("Google OAuth only starts when Supabase reports the provider enabled; X remains disabled", () => {
+  assert.match(client, /async function fetchAuthProviderSettings\(\)/);
+  assert.match(client, /settings\.external\.google !== "boolean"/);
+  assert.match(client, /if \(provider !== "google"\)/);
+  assert.match(client, /url\.searchParams\.set\("scopes", "openid email profile"\)/);
+  assert.match(client, /await refreshProviderAvailability\(\)/);
+  assert.match(client, /const googleReady = view\.googleProviderStatus === "enabled"/);
+  assert.match(client, /button\(googleButtonLabel, \(\) => run\(\(\) => startOAuth\("google"\)\), "is-primary", !googleReady\)/);
   assert.match(client, /button\("Xと連携（未実装）", \(\) => \{\}, "", true\)/);
-  assert.match(client, /disabled: view\.busy \|\| disabled/);
-  assert.match(client, /Google \/ Xによるログイン連携はまだ使えません/);
+  assert.match(client, /Google連携のコードは実装済みですが、Supabase側のGoogleプロバイダー設定が未完了です/);
+  assert.doesNotMatch(client, /button\("Googleと連携（未実装）"/);
   assert.match(cloudCss, /\.lbt-cloud-btn:disabled \{ opacity: \.6; cursor: not-allowed; \}/);
   assert.match(doc, /Googleの基本的なOAuthログイン設定自体は無料で可能/);
   assert.match(doc, /X APIの利用料金/);
-});
+});;
