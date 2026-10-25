@@ -4702,7 +4702,12 @@ case "ADD_CUSTOM_ITEM": {
       // equipment state, result attribution, or slot classification directly.
       const safePatch = {};
       for (const key of ["name", "cond", "effect", "lp"]) {
-        if (Object.prototype.hasOwnProperty.call(patch, key)) safePatch[key] = String(patch[key] ?? "");
+        if (Object.prototype.hasOwnProperty.call(patch, key)) {
+          const value = patch[key];
+          // Older reducer callers may send numeric LP; preserve that contract.
+          safePatch[key] = key === "lp" && typeof value === "number" && Number.isFinite(value)
+            ? value : String(value ?? "");
+        }
       }
       if (!Object.keys(safePatch).length) return state;
 
