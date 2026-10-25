@@ -1058,6 +1058,7 @@ function formatPersonaDisplayName(state) {
 function getOwnedItemEntries(state) {
   const records = [
     ...(Array.isArray(window.DB?.items) ? window.DB.items : []),
+    ...(Array.isArray(window.DB?.specialItems) ? window.DB.specialItems : []),
     ...(Array.isArray(state?.customItems) ? state.customItems : [])
   ];
   const byId = new Map(records.map((item) => [String(item.id), item]));

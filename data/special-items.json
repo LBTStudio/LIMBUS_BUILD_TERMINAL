@@ -1,0 +1,13 @@
+[
+  {
+    "id": "resource-glass-shard",
+    "name": "硝子の破片",
+    "category": "特殊資源",
+    "tags": [
+      "特殊資源"
+    ],
+    "effect": "",
+    "palette": "",
+    "specialResource": true
+  }
+]

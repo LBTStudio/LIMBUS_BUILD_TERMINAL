@@ -1,8 +1,9 @@
 const ItemCodex = ({ state, dispatch }) => {
   const h = React.createElement;
   const officialItems = Array.isArray(window.DB?.items) ? window.DB.items : [];
+  const specialItems = Array.isArray(window.DB?.specialItems) ? window.DB.specialItems : [];
   const customItems = Array.isArray(state.customItems) ? state.customItems : [];
-  const items = React.useMemo(() => [...officialItems, ...customItems], [officialItems, customItems]);
+  const items = React.useMemo(() => [...officialItems, ...specialItems, ...customItems], [officialItems, specialItems, customItems]);
   const inventory = Array.isArray(state.inventory) ? state.inventory : [];
   const [query, setQuery] = React.useState("");
   const [category, setCategory] = React.useState("all");
@@ -57,8 +58,14 @@ const ItemCodex = ({ state, dispatch }) => {
   };
   const addItem = () => {
     if (!selected) return;
-    dispatch({ type: "ADD_ITEM", itemId: selected.id });
-    toast(canAddSelected ? (selectedEntry ? `「${selected.name}」の数量を追加` : `「${selected.name}」をアイテム一覧へ導入`) : `「${selected.name}」は所持上限（×${selectedMaxOwned}）です`);
+    dispatch(selected.specialResource
+      ? { type: "ADD_ITEM_INVENTORY", itemId: selected.id }
+      : { type: "ADD_ITEM", itemId: selected.id });
+    toast(!canAddSelected
+      ? `「${selected.name}」は所持上限（×${selectedMaxOwned}）です`
+      : selected.specialResource
+        ? (selectedEntry ? `「${selected.name}」の所持数を追加` : `「${selected.name}」を特殊資源欄へ追加`)
+        : (selectedEntry ? `「${selected.name}」の数量を追加` : `「${selected.name}」をアイテム一覧へ導入`));
   };
   const patchEntry = (patch) => selectedEntry && dispatch({ type: "PATCH_ITEM", uid: selectedEntry.uid, patch });
   const commitQuantity = () => {
@@ -105,7 +112,7 @@ const ItemCodex = ({ state, dispatch }) => {
         );
       }) : h("div", { className: "item-empty" }, "該当するアイテムはありません。")),
       selected && h("section", { className: "item-detail", "aria-label": `${selected.name}の詳細` },
-        h("div", { className: "item-detail-top" }, h("div", { className: "item-detail-index" }, selected.custom ? "ORIGINAL ITEM" : `ITEM / ${String(items.indexOf(selected) + 1).padStart(3, "0")}`), h("h3", null, selected.name || "名称未設定"), h("div", { className: "item-tag-row" }, h("span", null, selected.category), (selected.tags || []).map((tag) => h("span", { key: tag }, tag)), selectedHasCap && h("span", { className: "item-max-owned", title: "このアイテムの最大所持数" }, `上限 ×${selectedMaxOwned}`), h("span", { className: "item-price" }, selected.price))),
+        h("div", { className: "item-detail-top" }, h("div", { className: "item-detail-index" }, selected.specialResource ? "SPECIAL RESOURCE" : selected.custom ? "ORIGINAL ITEM" : `ITEM / ${String(items.indexOf(selected) + 1).padStart(3, "0")}`), h("h3", null, selected.name || "名称未設定"), h("div", { className: "item-tag-row" }, h("span", null, selected.category), (selected.tags || []).map((tag) => h("span", { key: tag }, tag)), selectedHasCap && h("span", { className: "item-max-owned", title: "このアイテムの最大所持数" }, `上限 ×${selectedMaxOwned}`), h("span", { className: "item-price" }, selected.price))),
         selected.custom ? h("div", { className: "item-custom-editor" },
           h("label", null, "名称", h("input", { value: selected.name, onChange: (event) => patchCustomItem({ name: event.target.value }) })),
           h("label", null, "区分", h("select", { value: selected.category, onChange: (event) => patchCustomItem({ category: event.target.value }) }, h("option", { value: "その他" }, "その他"), h("option", { value: "回復" }, "回復"), h("option", { value: "強化" }, "強化"))),

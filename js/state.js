@@ -705,8 +705,9 @@ function normalizeItemMaxOwned(value) {
 function getItemMaxOwned(state, itemId) {
   const id = String(itemId || "");
   const official = Array.isArray(window.DB?.items) ? window.DB.items.find((item) => item?.id === id) : null;
+  const special = Array.isArray(window.DB?.specialItems) ? window.DB.specialItems.find((item) => item?.id === id) : null;
   const custom = Array.isArray(state?.customItems) ? state.customItems.find((item) => item?.id === id) : null;
-  return normalizeItemMaxOwned((official || custom)?.maxOwned) || 99;
+  return normalizeItemMaxOwned((official || special || custom)?.maxOwned) || 99;
 }
 function clampItemQuantity(state, itemId, quantity) {
   /* セーブが壊れていても "12abc" を12個と読み替えない。正しい整数以外は既定の1個へ安全に正規化し、
@@ -2105,6 +2106,8 @@ function normalizeStateShape(raw) {
 function ownedName(state, itemId) {
   const official = (window.DB?.items || []).find((i) => i.id === itemId);
   if (official?.name) return String(official.name);
+  const special = (window.DB?.specialItems || []).find((i) => i?.id === itemId);
+  if (special?.name) return String(special.name);
   const custom = Array.isArray(state?.customItems) ? state.customItems.find((i) => i?.id === itemId) : null;
   return String(custom?.name || itemId || "");
 }
@@ -2158,6 +2161,7 @@ function parsePriceText(raw, defaultUnit) {
 window.LBT_parsePriceText = parsePriceText;
 function priceItemById(state, itemId) {
   const id = String(itemId || "");
+  if ((window.DB?.specialItems || []).some((item) => item?.id === id && item.specialResource)) return null;
   const official = (window.DB?.items || window.DB?.itemList || []).find((i) => i?.id === id);
   if (official) return parsePriceText(official.price);
   /* オリジナルアイテムも価格を持てる。state を参照しないと購入明細の
@@ -4255,6 +4259,11 @@ return appendLedgerEntry(next, {
     case "ADD_ITEM": {
       const itemId = String(action.itemId || "");
       if (!itemId) return state;
+      /* 特殊資源は買い物ではなく所持数だけを管理する。
+         通常の ADD_ITEM 経路で 0LP の購入明細を作らないため、所持専用経路へ委譲する。 */
+      if ((window.DB?.specialItems || []).some((item) => item?.id === itemId && item.specialResource)) {
+        return appReducer(state, { type: "ADD_ITEM_INVENTORY", itemId, quantity: 1 });
+      }
       const current = Array.isArray(state.inventory) ? state.inventory : [];
       const existing = current.find((entry) => entry.itemId === itemId);
       const inventory = existing

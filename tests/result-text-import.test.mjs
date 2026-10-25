@@ -89,6 +89,18 @@ test("報酬行は収入になる", () => {
   assert.equal(rec.income.shards, 70);
 });
 
+test("硝子の破片は欠片通貨へ混ぜず、未対応の報酬として理由つきで保留する", () => {
+  const parsed = T.parseText("【A】\n報酬｜硝子の破片x2");
+  assert.equal(parsed.records.length, 1);
+  assert.equal(parsed.records[0].income.shards, 0);
+  assert.equal(parsed.records[0].income.lp, 0);
+  assert.ok(parsed.skipped.some((entry) => entry.text.includes("硝子の破片")), "原文を消さずに保持する");
+  const planned = T.plan(parsed);
+  assert.equal(planned.actions[0].type, "ADD_RESULT");
+  assert.equal(planned.actions[0].income.shards, 0, "資源を欠片通貨の収入に誤計上しない");
+  assert.ok(planned.skipped.some((entry) => entry.text.includes("硝子の破片")));
+});
+
 test("括弧の中の増減 (±N) は収入に混ぜない（残高差であり獲得ではない）", () => {
   const rec = T.parseText(SAMPLE).records[0];
   assert.equal(rec.income.lp, 150, "+9 を足さない");

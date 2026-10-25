@@ -2046,7 +2046,7 @@ const AcquireBar = ({ state, kind, name, no, rank, how, setHow, onAcquire, disab
 const BuildItemsPanel = ({ state, dispatch }) => {
   const h = React.createElement;
   const inventory = Array.isArray(state.inventory) ? state.inventory : [];
-  const catalog = React.useMemo(() => [...(window.DB?.items || []), ...(Array.isArray(state.customItems) ? state.customItems : [])], [state.customItems]);
+  const catalog = React.useMemo(() => [...(window.DB?.items || []), ...(window.DB?.specialItems || []), ...(Array.isArray(state.customItems) ? state.customItems : [])], [state.customItems]);
   const metaOf = (itemId) => catalog.find((item) => item.id === itemId) || {};
   const nameOf = (itemId) => metaOf(itemId).name || String(itemId || "");
   const totalQty = inventory.reduce((sum, entry) => sum + (Number(entry.quantity) || 0), 0);
@@ -2064,8 +2064,12 @@ const BuildItemsPanel = ({ state, dispatch }) => {
       toast(`「${item.name}」は所持上限（×${maxOwned}）です`);
       return;
     }
-    dispatch({ type: "ADD_ITEM", itemId: item.id });
-    toast(owned ? `「${item.name}」の数量を追加` : `「${item.name}」を所持アイテムに追加`);
+    dispatch(item.specialResource
+      ? { type: "ADD_ITEM_INVENTORY", itemId: item.id }
+      : { type: "ADD_ITEM", itemId: item.id });
+    toast(item.specialResource
+      ? (owned ? `「${item.name}」の所持数を追加` : `「${item.name}」を特殊資源欄へ追加`)
+      : (owned ? `「${item.name}」の数量を追加` : `「${item.name}」を所持アイテムに追加`));
   };
 
   return h("div", { className: "build-items" },
@@ -2104,7 +2108,9 @@ const BuildItemsPanel = ({ state, dispatch }) => {
                 h("span", { className: "inv-qty" }, `×${entry.quantity}`),
                 entry.origin === "initial"
                   ? h("span", { className: "badge inv-origin is-initial" }, "初期枠")
-                  : h("span", { className: "badge inv-origin" }, "購入")
+                  : metaOf(entry.itemId).specialResource
+                    ? h("span", { className: "badge inv-origin" }, "資源")
+                    : h("span", { className: "badge inv-origin" }, "購入")
               ),
               h("div", { className: "build-item-controls" },
                 h("div", { className: "build-item-qty" },
@@ -3402,7 +3408,7 @@ const InventoryPanel = ({ state, dispatch }) => {
   const [pickOpen, setPickOpen] = React.useState(false);
   const inventory = Array.isArray(state.inventory) ? state.inventory : [];
   const initialItems = Array.isArray(state.initialItems) ? state.initialItems : [];
-  const catalog = [...(window.DB?.items || []), ...(Array.isArray(state.customItems) ? state.customItems : [])];
+  const catalog = [...(window.DB?.items || []), ...(window.DB?.specialItems || []), ...(Array.isArray(state.customItems) ? state.customItems : [])];
   const metaOf = (itemId) => catalog.find((item) => item.id === itemId) || {};
   const nameOf = (itemId) => metaOf(itemId).name || String(itemId || "");
 
@@ -3418,7 +3424,9 @@ const InventoryPanel = ({ state, dispatch }) => {
   const seeded = inventory.filter((entry) => entry.origin === "initial").length;
   const originBadge = (entry) => entry.origin === "initial"
     ? h("span", { className: "badge inv-origin is-initial" }, "初期枠")
-    : h("span", { className: "badge inv-origin" }, "購入");
+    : metaOf(entry.itemId).specialResource
+      ? h("span", { className: "badge inv-origin" }, "資源")
+      : h("span", { className: "badge inv-origin" }, "購入");
 
   return h("div", { className: "stack-3" },
     h(Card, null,
