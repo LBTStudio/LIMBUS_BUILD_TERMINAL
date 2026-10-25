@@ -244,7 +244,7 @@ async function captureCompactResultDetails(page, mode) {
   });
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForLoadState("networkidle", { timeout: 12000 }).catch(() => {});
-  await clickNav(page, "記録");
+  /* The isolated fixture was seeded while the Record section was active; keep that section after reload. */
   const card = page.locator(".ledger-card").filter({ hasText: "第12回 セッション" }).first();
   await card.waitFor({ state: "visible", timeout: 12000 });
   await card.locator(".ledger-result-details").first().locator("summary").click();
