@@ -357,6 +357,38 @@ test("旧ログ形式の『シナリオ名』・LP+欠片・チケット・硝�
   assert.ok(parsed.records[0].raw.includes("ノイズ"), "解釈しきれない獲得名はリザルト注記へ保持");
 });
 
+test("旧形式の負数通貨は収入へ反転せず、明示支出として帳簿に残す", () => {
+  const parsed = T.parseText([
+    "『A』",
+    "LP50+欠片30",
+    "【LP-100 人格ガチャ】",
+    "+11欠片 -22LP"
+  ].join("\\n"));
+  assert.equal(parsed.records.length, 1);
+  assert.deepEqual(
+    { lp: parsed.records[0].income.lp, shards: parsed.records[0].income.shards },
+    { lp: 50, shards: 41 },
+    "負数のLPは収入に足さないが、正数の欠片獲得は保持する"
+  );
+  assert.equal(parsed.records[0].spends.length, 2);
+  assert.deepEqual(
+    [...parsed.records[0].spends].map((spend) => ({ name: spend.name, cost: { ...spend.cost } })),
+    [
+      { name: "人格ガチャ", cost: { lp: 100, shards: 0 } },
+      { name: "旧形式の通貨支出", cost: { lp: 22, shards: 0 } }
+    ]
+  );
+  const plan = T.plan(parsed);
+  assert.deepEqual(
+    [...plan.actions.filter((action) => action.type === "ADD_ENTRY").map((action) => ({ name: action.name, cost: { ...action.cost } }))],
+    [
+      { name: "人格ガチャ", cost: { lp: 100, shards: 0 } },
+      { name: "旧形式の通貨支出", cost: { lp: 22, shards: 0 } }
+    ],
+    "支出明細のLP合計は122で、収入へ誤加算しない"
+  );
+});
+
 test("旧ログの消費はリザルト履歴へ移し、現在庫の二重減算は行わない", () => {
   const parsed = T.parseText("『A』\nLP50+欠片30\n【硝子の破片を2つ使用してCT解除】");
   const plan = T.plan(parsed);
