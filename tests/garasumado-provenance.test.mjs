@@ -242,3 +242,43 @@ test("候補が0件の名前は、推測で埋めずに理由を出す", () => {
   assert.equal(out.actions.filter((a) => a.type === "ADD_RESULT").length, 1, "リザルトは帰属先として入る");
   assert.match(out.skipped[0].reason, /DB番号/);
 });
+
+test("表記ゆれだけが違う同名の所持は1行に畳む", () => {
+  /* 実データの所持列は「薬指野獣派　スチューデントA」と「薬指野獣派 スチューデントA」、
+     「因子コード G-5」と「因子コードG-5」のように同じ品を別表記で持つ。
+     行が2つ残ると、サポパ・精神は同じ所持を2つ抱えることになる。 */
+  const doc = {
+    name: "テスト", ownerName: "自分",
+    owned: {
+      personas: [{ name: "薬指野獣派　スチューデントAの人格" }, { name: "薬指野獣派 スチューデントAの人格" }],
+      egos: [],
+      supportPassives: ["因子コード G-5", "因子コードG-5", "蒸気 ", "蒸気"],
+      spirits: []
+    },
+    supportPassives: [{ name: "因子コード G-5" }],
+    scenarioHistory: []
+  };
+  const index = {
+    resolve: (name) => ({ name: String(name).trim(), confidence: "exact", kinds: [{ kind: "support", name: String(name).trim() }] }),
+    candidates: (name) => [{ name: String(name).trim(), kinds: [{ kind: "support", name: String(name).trim() }] }]
+  };
+  const m = gara.buildManifest(doc, index);
+  assert.equal(m.counts.personas, 1);
+  assert.equal(m.counts.supportPassives, 2);
+  assert.deepEqual([...m.groups[0].items.map((i) => i.name)], ["薬指野獣派　スチューデントAの人格"]);
+  assert.deepEqual([...m.groups[2].items.map((i) => i.name)], ["因子コード G-5", "蒸気"]);
+  /* 所持の登録も、別表記ぶんだけ増えない。 */
+  const dispatched = gara.toDispatchActions(m, m.groups[2].items.map((i) => i.key), { purchases: {} });
+  assert.deepEqual([...dispatched.actions.filter((a) => a.type === "ADD_ROSTER_SUPPORT").map((a) => a.spp.name)], ["因子コード G-5", "蒸気"]);
+});
+
+test("表記ゆれの同名アイテムは個数を合算する", () => {
+  const doc = {
+    name: "テスト", ownerName: "自分",
+    items: [{ name: "包帯", count: "2" }, { name: "包帯 ", count: "1" }],
+    owned: {}, scenarioHistory: []
+  };
+  const m = gara.buildManifest(doc, null);
+  assert.equal(m.counts.items, 1);
+  assert.equal(m.groups[4].items[0].quantity, 3);
+});

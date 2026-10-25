@@ -616,15 +616,32 @@ function toIdentityChoices(hits) {
         : [];
       const knownNames = new Set(source.map(nameOf).map(nameKey));
       const sheetOnly = sheetSupports.filter((nm) => !knownNames.has(nameKey(nm)));
-      const names = [...new Set([...source.map(nameOf).filter(Boolean), ...sheetOnly])];
+      /* 表記ゆれ（空白・全角英数）だけが違う同名を2行にしない。
+         実データの所持列は「薬指野獣派　スチューデントA」と
+         「薬指野獣派 スチューデントA」、「因子コード G-5」と
+         「因子コードG-5」のように同じ品を別表記で持つ。行の重複は
+         取り込み画面の重複表示だけでなく、サポパ・精神の二重所持になる。 */
+      const listedKeys = new Set();
+      const names = [...source.map(nameOf).filter(Boolean), ...sheetOnly].filter((name) => {
+        const key = nameKey(name);
+        if (listedKeys.has(key)) return false;
+        listedKeys.add(key);
+        return true;
+      });
       /* 精神も計上する。DB の spirits 48件のうち無料は初期精神の3件
          （パニック/圧倒/萎縮）で、残り45件は 50〜1000 LP の有料品。
          以前は「48件すべて無料」と誤認して所持から落としていたが、
          そのせいで有料の精神まで購入記録ごと消えていた。 */
       const listed = names;
-      /* アイテムは個数を持つ（包帯x2 等）。取り込みで数を落とさない。 */
+      /* アイテムは個数を持つ（包帯x2 等）。取り込みで数を落とさない。
+         表記ゆれで同じ品が2行に分かれている場合は個数を合算する
+         （1行を選ぶと残りの個数が消える）。 */
       const itemQty = group.id === "items"
-        ? new Map(source.map((it) => [nameKey(nameOf(it)), Number(it && it.count) || 1]))
+        ? source.reduce((map, it) => {
+          const key = nameKey(nameOf(it));
+          map.set(key, (map.get(key) || 0) + (Number(it && it.count) || 1));
+          return map;
+        }, new Map())
         : null;
       return {
         id: group.id,

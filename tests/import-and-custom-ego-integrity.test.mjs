@@ -284,3 +284,70 @@ test('persona URL fetch gives up at the wall-clock budget instead of hanging the
   assert.ok(Date.now() - startedAt < 2000, '応答が無くても予算で打ち切る');
 });
 
+function fetchContext() {
+  const context = { window: {}, console, setTimeout, clearTimeout, AbortController };
+  vm.createContext(context);
+  vm.runInContext(readFileSync(new URL('../js/persona-draft-import.js', import.meta.url), 'utf8'), context);
+  return context.window;
+}
+
+test('403（非公開）は再試行を促さず、存在しないURLとは別の理由を返す', async () => {
+  const api = fetchContext();
+  const forbidden = await api.LBT_fetchGarasumadoPersona(publicUrl, async () => ({ ok: false, status: 403 }));
+  assert.equal(forbidden.ok, false);
+  assert.match(forbidden.errors[0], /非公開、またはアクセス権限がありません/);
+  assert.doesNotMatch(forbidden.errors[0], /時間を置いて/);
+  const missing = await api.LBT_fetchGarasumadoPersona(publicUrl, async () => ({ ok: false, status: 404 }));
+  assert.match(missing.errors[0], /見つかりません/);
+});
+
+test('人格が未設定のキャラクターシートは、その旨を返して取り込まない', () => {
+  /* 硝子窓自身も「人格不明」と表示する状態。名前だけでなく戦術も空なので、
+     取得の失敗ではなく未設定であることを利用者へ伝える。 */
+  const blank = {
+    isPublic: true,
+    name: 'ヴァンシュ',
+    status: { persona: '', hp: '0', san: '0', speed: '1d3', bullet: '0', slash: '普通', pierce: '普通', blunt: '普通' },
+    tactics: [0, 1].map((no) => ({ code: String(no), name: '', attr: '斬撃', sin: '憤怒', effect: '' })),
+    passives: [{ name: '', condition: '', effect: '' }],
+    uniques: []
+  };
+  /* /view/（キャラクターシート）は status.persona を人格名にする。
+     空のとき top-level の name（=PC名）を人格名へ流用しない。 */
+  const result = parser().LBT_parseGarasumadoPersonaDocument(blank, 'https://lbt-garasumado.vercel.app/view/gEp4XyLWFnFoSQhyNmiU');
+  assert.equal(result.ok, false);
+  assert.match(result.errors[0], /人格が未設定/);
+});
+
+test('空欄の枠は落とし、名称の空欄は名称未設定として取り込む（1行の欠落で人格全体を失わない）', () => {
+  const record = example();
+  record.tactics.push({ code: '5', name: '', attr: '斬撃', sin: '憤怒', effect: '' });
+  record.tactics.push({ code: '6', name: '', attr: '貫通', sin: '怠惰', effect: '6d2：的中時、次のRに出血1を付与' });
+  record.passives.push({ name: '', condition: '', effect: '', alwaysEffect: '' });
+  record.uniques.push({ name: '', effect: '', maxCount: '', type: 'その他' });
+  const result = parser().LBT_parseGarasumadoPersonaDocument(record, publicUrl);
+  assert.equal(result.ok, true, result.errors.join('\n'));
+  assert.equal(result.summary.skillCount, 2, '空欄の戦術は落とし、名称だけ欠けた戦術は残す');
+  assert.equal(result.summary.passiveCount, 1);
+  assert.equal(result.summary.buffCount, 1);
+  assert.equal(result.persona.skills[1].name, '名称未設定');
+  assert.equal(result.persona.skills[1].dice[0].roll, '6d2');
+  assert.ok(result.warnings.some((w) => /空欄/.test(w)), result.warnings.join('\n'));
+  assert.ok(result.warnings.some((w) => /名称未設定/.test(w)), result.warnings.join('\n'));
+  assert.equal(record.tactics[0].name, '三連-残', '原本は書き換えない');
+});
+
+test('括弧付きのダイス表記は主ダイスと括弧書きの効果として読む', () => {
+  /* 実データの「10d2(1d26)」は、パッシブ適用後の値を括弧へ併記したもの。
+     主ダイスを取りこぼすと取込全体が止まっていた。 */
+  const record = example();
+  record.tactics[0].effect = '戦闘開始時：バッカナーリア1を得る\n10d2(1d26)';
+  const result = parser().LBT_parseGarasumadoPersonaDocument(record, publicUrl);
+  assert.equal(result.ok, true, result.errors.join('\n'));
+  const skill = result.persona.skills[0];
+  assert.equal(skill.effect, '戦闘開始時：バッカナーリア1を得る');
+  assert.equal(skill.dice.length, 1);
+  assert.equal(skill.dice[0].roll, '10d2');
+  assert.equal(skill.dice[0].effect, '(1d26)', '括弧の中身は効果文として残す');
+});
+

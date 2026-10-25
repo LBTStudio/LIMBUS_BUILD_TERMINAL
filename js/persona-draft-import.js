@@ -11,7 +11,10 @@
   // Syntax is detected separately from prose; preserve effect punctuation.
   const detectDice = (raw) => {
     const line = clean(raw);
-    const match = toHalfWidth(line).match(/^((?:\d+\s*-\s*)?(?:\d+|\{[^{}]+\})\s*[dD]\s*(?:\d+|\{[^{}]+\})(?:\s*[+*/-]\s*(?:\d+|\{[^{}]+\}))*)(?=$|\s|:|\[)/);
+    /* 直後に括弧が続く表記も1つのダイスとして読む（実データの
+       「10d2(1d26)」は、パッシブ適用後の値を括弧へ併記したもの。
+       括弧の中身は効果文として残し、値を捏造しない）。 */
+    const match = toHalfWidth(line).match(/^((?:\d+\s*-\s*)?(?:\d+|\{[^{}]+\})\s*[dD]\s*(?:\d+|\{[^{}]+\})(?:\s*[+*/-]\s*(?:\d+|\{[^{}]+\}))*)(?=$|\s|:|\[|\()/);
     if (!match) return null;
     return { roll: match[1].replace(/\s+/g, ""), effect: line.slice(match[1].length).replace(/^\s*[:：]?\s*/, "") };
   };
@@ -325,20 +328,38 @@
     const displayName = cleanGarasumadoName(rawName);
     const rankMatch = forMatch(rawName).match(/(?:RANK|LANK|ランク|同期)\s*[:：]?\s*(0{1,3})/i) || rawName.match(/の人格\s+(0{1,3})(?:\s|$)/u);
     const syncMax = /同期\s*MAX/i.test(rawName);
+    /* シートの見出しが空のまま保存された文書（硝子窓自身も「人格不明」と
+       表示する）。名前が無いだけでなく戦術も空なので、取込むものが無い。 */
+    if (!displayName && !tactics.some((t) => isGarasumadoRecord(t) && (clean(t.name) || clean(t.effect)))) {
+      return garasumadoError("このキャラクターシートは人格が未設定のため、反映できる人格データがありません。", source);
+    }
     if (!displayName || !/^\d+$/.test(clean(status.hp)) || !/^\d+$/.test(clean(status.san)) || !isDiceFormula(status.speed)) return garasumadoError("硝子窓の人格名・HP・SAN・速度を確認できません。人格データは反映していません。", source);
     const passives = record.passives ?? (isGarasumadoRecord(record.passive) ? [record.passive] : []);
     const uniques = record.uniques ?? [];
-    if (!Array.isArray(passives) || !Array.isArray(uniques) || passives.length > 2
-      || tactics.some((t) => !isGarasumadoRecord(t) || !/^\d+(?:-\d+)?$/.test(forMatch(t.code)) || !clean(t.name) || !clean(t.attr) || !clean(t.sin))
-      || passives.some((p) => !isGarasumadoRecord(p) || !clean(p.name))
-      || uniques.some((u) => !isGarasumadoRecord(u) || !clean(u.name) || (clean(u.maxCount) && forMatch(u.maxCount) !== "-" && !/^\d+$/.test(toHalfWidth(clean(u.maxCount)))))) {
+    const warnings = [];
+    /* 空欄の枠は未入力であって所持データではない。1行の空欄で人格全体を
+       失うより、空欄行だけを落として残りを取り込む（落とした数は警告へ出す）。 */
+    const emptyRow = (row, keys) => !keys.some((key) => clean(row?.[key]));
+    const contentRows = (rows, keys) => (Array.isArray(rows) ? rows.filter((row) => isGarasumadoRecord(row) && !emptyRow(row, keys)) : rows);
+    const tacticRows = contentRows(tactics, ["name", "effect"]);
+    const passiveRows = contentRows(passives, ["name", "condition", "effect", "alwaysEffect"]);
+    const uniqueRows = contentRows(uniques, ["name", "effect", "maxCount"]);
+    if (!Array.isArray(passives) || !Array.isArray(uniques) || passiveRows.length > 2
+      || tacticRows.some((t) => !/^\d+(?:-\d+)?$/.test(forMatch(t.code)) || !clean(t.attr) || !clean(t.sin))
+      || passiveRows.some((p) => !clean(p.name))
+      || uniqueRows.some((u) => !clean(u.name) || (clean(u.maxCount) && forMatch(u.maxCount) !== "-" && !/^\d+$/.test(toHalfWidth(clean(u.maxCount)))))) {
       return garasumadoError("不完全な戦術・固有・パッシブ、または未対応の3件目以降のパッシブがあります。欠落を防ぐため反映を中止しました。", source);
     }
-    const skills = [], warnings = [];
-    for (const tactic of tactics) {
+    for (const [label, dropped] of [["戦術", tactics.length - tacticRows.length], ["パッシブ", passives.length - passiveRows.length], ["固有", uniques.length - uniqueRows.length]]) {
+      if (dropped > 0) warnings.push(`${label}の空欄${dropped}件は取り込みません。`);
+    }
+    const skills = [];
+    for (const tactic of tacticRows) {
       // The structured record already supplies cell boundaries. Do not flatten
       // names or passives and rediscover them with a prose regex.
-      const skill = { rank: normalizeRank(tactic.code, 0), name: clean(tactic.name), type: clean(tactic.attr), sin: clean(tactic.sin), aoe: "", aoeCount: "", effect: "", dice: [] };
+      const skillName = clean(tactic.name);
+      if (!skillName) warnings.push(`戦術${forMatch(tactic.code)}は名称が空欄です。名称未設定として取り込みます。`);
+      const skill = { rank: normalizeRank(tactic.code, 0), name: skillName || "名称未設定", type: clean(tactic.attr), sin: clean(tactic.sin), aoe: "", aoeCount: "", effect: "", dice: [] };
       for (const line of linesOf(tactic.effect)) {
         if (!line) continue;
         const die = detectDice(line);
@@ -350,22 +371,22 @@
           else appendLine(skill.dice.at(-1) || skill, "effect", line);
         }
       }
-    if (!skill.dice.length) warnings.push(`戦術${tactic.code}「${skill.name}」はダイス未検出です。効果のみのスキルか確認してください。`);
-    skills.push(skill);
-  }
-  if (new Set(skills.map((s) => s.rank)).size !== skills.length) return garasumadoError("戦術番号が重複しています。反映前に移行元を確認してください。", source);
+      if (!skill.dice.length) warnings.push(`戦術${tactic.code}「${skill.name}」はダイス未検出です。効果のみのスキルか確認してください。`);
+      skills.push(skill);
+    }
+    if (new Set(skills.map((s) => s.rank)).size !== skills.length) return garasumadoError("戦術番号が重複しています。反映前に移行元を確認してください。", source);
     const passive = (p) => ({ name: clean(p?.name), cond: clean(p?.condition), always: clean(p?.alwaysEffect), effect: clean(p?.effect) });
-    const first = passive(passives[0]);
+    const first = passive(passiveRows[0]);
     const result = { ok: true, errors: [], warnings,
       persona: { name: displayName, no: 999, hp: Number(status.hp), san: Number(status.san), speed: forMatch(status.speed), bullets: normalizedGarasumadoBullet(status.bullet),
         res_slash: clean(status.slash) || "普通", res_pierce: clean(status.pierce) || "普通", res_blunt: clean(status.blunt) || "普通",
         passive_name: first.name, passive_cond: first.cond, passive_always: first.always, passive_effect: first.effect,
-        skills, unique_buffs: uniques.map((u) => ({ name: clean(u.name), type: clean(u.type) || "バフ", initial: 0,
+        skills, unique_buffs: uniqueRows.map((u) => ({ name: clean(u.name), type: clean(u.type) || "バフ", initial: 0,
           max: /^\d+$/.test(toHalfWidth(clean(u.maxCount))) ? Number(toHalfWidth(clean(u.maxCount))) : null, desc: clean(u.effect), place: "status" })),
         keywords: [], __custom: true, __draftImported: true },
-      secondaryPassive: passives[1] ? passive(passives[1]) : null,
-      provided: { name: true, hp: true, san: true, speed: true, bullets: true, resistances: true, passives: passives.length > 0, skills: true, uniques: uniques.length > 0 },
-      summary: { skillCount: skills.length, buffCount: uniques.length, passiveCount: passives.length } };
+      secondaryPassive: passiveRows[1] ? passive(passiveRows[1]) : null,
+      provided: { name: true, hp: true, san: true, speed: true, bullets: true, resistances: true, passives: passiveRows.length > 0, skills: true, uniques: uniqueRows.length > 0 },
+      summary: { skillCount: skills.length, buffCount: uniqueRows.length, passiveCount: passiveRows.length } };
     result.persona.keywords = window.LBT_inferPersonaKeywords?.(result.persona, result.secondaryPassive) || [];
     if (source?.collection === "characters") result.warnings.push("キャラクターシートの人格名・能力・パッシブ・戦術・固有のみを取り込みます。PC名、PL名、精神、E.G.O、所持品は取り込みません。");
     return {
@@ -397,7 +418,13 @@
         budget,
         () => controller?.abort()
       );
-      if (!response?.ok) return garasumadoError(response?.status === 404 ? "この硝子窓URLの公開人格は見つかりません。" : "硝子窓の公開人格データを取得できませんでした。時間を置いて再度お試しください。", source);
+      /* 403 は硝子窓自身も「非公開、またはアクセス権限がありません」と表示する。
+         再試行で直る種類の失敗ではないので、待つ案内をしない。 */
+      if (!response?.ok) return garasumadoError(response?.status === 404
+        ? "この硝子窓URLの公開人格は見つかりません。"
+        : response?.status === 403
+          ? "この硝子窓の人格データは非公開、またはアクセス権限がありません。公開設定を確認してください。"
+          : "硝子窓の公開人格データを取得できませんでした。時間を置いて再度お試しください。", source);
       return parseGarasumadoPersonaDocument(await response.json(), source.url);
     } catch (error) {
       return garasumadoError(String(error?.message || "") === "timeout"
