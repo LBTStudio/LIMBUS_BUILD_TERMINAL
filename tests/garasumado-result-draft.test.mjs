@@ -601,3 +601,22 @@ test("支出節の現在残高・残り残高を支出額として誤記帳し�
   assert.ok(parsed.reasons.some((reason) => /支出金額が読み取れない/.test(reason.reason)),
     "購入動詞があっても残高しかなければ、支出額の確認理由を返す");
 });
+
+
+test("金額不明の硝子窓支出は0円明細にせず、理由を下書きとスキップ一覧へ残す", () => {
+  const memo = "・支出\n正義購入 現在87欠片";
+  const manifest = make(
+    { personas: [], egos: [], supportPassives: [], spirits: [] },
+    [{ name: "夜", memo }]
+  );
+  const planned = G.toDispatchActions(manifest, [], {});
+  assert.equal(planned.actions.filter((action) => action.type === "ADD_ENTRY").length, 0,
+    "未確定価格を0円購入として記帳しない");
+  assert.ok(planned.skipped.some((row) =>
+    String(row.key || row.text || "").includes("正義購入") && /金額/.test(row.reason)),
+    "取り込まなかった理由を確定結果へ返す");
+  const draft = G.buildResultDraft(manifest, { db, identity: {} });
+  const block = draft.blocks.find((row) => row.name === "夜");
+  assert.ok(block?.reasons?.some((row) => /支出金額が読み取れない/.test(row.reason)),
+    "取り込み前のリザルト下書きにも理由を渡す");
+});
