@@ -22,6 +22,9 @@ function makeServer() {
     let p;
     try { p = decodeURIComponent(new URL(req.url || "/", "http://" + HOST).pathname); }
     catch { res.writeHead(400).end("Bad request"); return; }
+    // Cloudflare injects a RUM beacon in deployed HTML; it is unrelated to this
+    // local UI test, so acknowledge it instead of reporting a false app 404.
+    if (p === "/cdn-cgi/rum") { res.writeHead(204).end(); return; }
     if (p === "/") p = "/index.html";
     const f = path.resolve(ROOT, "." + p);
     if (f !== ROOT && !f.startsWith(ROOT + path.sep)) { res.writeHead(403).end("Forbidden"); return; }
@@ -80,7 +83,17 @@ async function closeOverlay() {
 }
 async function readMetrics() {
   return page.evaluate(() => {
-    const isVisible = (e) => { const r=e.getBoundingClientRect(), s=getComputedStyle(e); return r.width>0 && r.height>0 && s.display!=="none" && s.visibility!=="hidden"; };
+    const isVisible = (e) => {
+      const r = e.getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) return false;
+      // An overlay with opacity:0 still has a large fixed bounding box. Check its
+      // ancestors too so closed portals are not reported as open dialogs.
+      for (let node = e; node && node !== document.documentElement; node = node.parentElement) {
+        const style = getComputedStyle(node);
+        if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) < 0.03) return false;
+      }
+      return true;
+    };
     const rect = (e) => { const r=e.getBoundingClientRect(); return {x:Math.round(r.x),y:Math.round(r.y),width:Math.round(r.width),height:Math.round(r.height)}; };
     const dialogs = [...document.querySelectorAll('[role="dialog"],[aria-modal="true"],.share-modal-backdrop,.acct-overlay,.utility-sheet-backdrop,.cp-overlay')].filter(isVisible).map(e=>({className:typeof e.className==="string"?e.className:"",label:e.getAttribute("aria-label")||e.getAttribute("aria-labelledby")||(e.innerText||"").trim().slice(0,55),rect:rect(e)}));
     const smallTargets=[...document.querySelectorAll("button,[role=button],input,select,textarea,a[href]")].filter(isVisible).map(e=>({label:(e.getAttribute("aria-label")||e.innerText||e.getAttribute("title")||e.getAttribute("placeholder")||"").trim().replace(/\s+/g," ").slice(0,32),rect:rect(e)})).filter(x=>x.rect.width<32||x.rect.height<32).slice(0,25);
@@ -280,25 +293,41 @@ async function captureProfile(browser, mode) {
       await snap("utility-sheet-open","操作・保存シート");
       const actions=page.locator(".utility-sheet-action"), n=Math.min(await actions.count(),8);
       for(let i=0;i<n;i++) { const a=actions.nth(i); if(await a.isVisible()) { await a.hover().catch(()=>{}); await snap("utility-hover-"+(await a.innerText()).trim(),"操作・保存シート内のホバー"); } }
+      let popupMissing = false;
       const share=page.locator(".utility-sheet-action").filter({hasText:"共有シートを開く"}).first();
       if(await visible(share)) {
-        const originalPage=page;
-        const popupPromise=context.waitForEvent("page",{timeout:6500}).catch(()=>null);
+        // This action opens a modal on the current page. The nested action inside
+        // that modal is what opens the self-preview in a separate tab.
         await click(share);
-        const popup=await popupPromise;
-        if(popup) {
-          await popup.waitForLoadState("domcontentloaded",{timeout:10000}).catch(()=>{});
-          await popup.waitForTimeout(700);
-          page=popup;
-          await snap("share-html-preview","共有シートを開き、新規タブに表示された共有HTML");
-          page=originalPage;
-          await popup.close().catch(()=>{});
+        const shareRoot = page.locator("#lbt-share-modal-root");
+        await shareRoot.waitFor({state:"visible",timeout:6500});
+        await snap("share-sheet-modal","共有方法を選ぶシートを開いた状態");
+        const previewAction = shareRoot.locator('.share-opt[data-act="tab"]').first();
+        if(await visible(previewAction)) {
+          await previewAction.hover().catch(()=>{});
+          await snap("share-sheet-preview-hover","共有シートの「新規タブで自分だけプレビュー」のホバー");
+          const originalPage=page;
+          const popupPromise=context.waitForEvent("page",{timeout:6500}).catch(()=>null);
+          await click(previewAction);
+          const popup=await popupPromise;
+          if(popup) {
+            await popup.waitForLoadState("domcontentloaded",{timeout:10000}).catch(()=>{});
+            await popup.waitForTimeout(700);
+            page=popup;
+            await snap("share-html-preview","共有HTMLの自己プレビューを新規タブで表示");
+            page=originalPage;
+            await popup.close().catch(()=>{});
+          } else {
+            page=originalPage;
+            await snap("share-html-preview-popup-blocked","共有HTMLの新規タブが検出されなかった状態");
+            popupMissing=true;
+          }
         } else {
-          page=originalPage;
-          audit.failures.push({name:"share-html-preview",error:"共有操作で新規タブが検出されませんでした"});
+          throw new Error("共有シート内の自己プレビューボタンが見つかりません");
         }
       }
       await closeOverlay();
+      if(popupMissing) throw new Error("共有HTMLの自己プレビューで新規タブが開きませんでした");
     });
     await attempt("other-navigation",async()=>{
       const more=page.locator(".rail-more").first();
@@ -354,6 +383,6 @@ async function main() {
   audit.coverage=["SINNER SELECT/new-account form","all eight build tabs","major navigation sections","shop tabs","record import menu and routes","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog","keyboard focus","viewport overflow and target-size diagnostics","320px compact mobile layout"];
   fs.writeFileSync(path.join(OUT,"manifest.json"),JSON.stringify(audit,null,2)+"\n");
   log("finished: "+audit.count+" screenshots; failures="+audit.failures.length+"; horizontal-overflow="+audit.layoutWarnings.length);
-  if(audit.count<14) process.exitCode=1;
+  if(audit.count < 150 || audit.failures.length > 0) process.exitCode = 1;
 }
 main().catch(e=>{console.error("[ui-audit] fatal: "+(e&&e.stack||String(e)));process.exitCode=1;});
