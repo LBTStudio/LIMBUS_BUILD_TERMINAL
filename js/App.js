@@ -76,32 +76,41 @@ const GUIDE_FLOWS = {
 const GUIDE_UI_LOCATORS = {
   "persona-import": {
     title: "「テキスト流し込み反映」はここ",
-    image: "docs/tutorial-persona-import-ui.svg",
-    alt: "ビルドのナビゲーション、人格タブ、人格一覧上部のテキスト流し込み反映ボタンを矢印と番号で示した配置図",
-    note: "「人格一覧」の上部操作列にあります。人格をまだ装備していなくても使えます。画像を押すと拡大できます。"
+    image: "docs/tutorial-captures/persona-import-desktop.webp",
+    mobileImage: "docs/tutorial-captures/persona-import-mobile.webp",
+    alt: "実際のビルド画面。橙色の枠と矢印で人格一覧上部の「テキスト流し込み反映」を示す",
+    note: "実画面に矢印と枠を重ねています。「人格一覧」の上部操作列にあり、人格をまだ装備していなくても使えます。"
   },
   "result-import": {
     title: "リザルト文章の入口はここ",
-    image: "docs/tutorial-result-import-ui.svg",
-    alt: "記録画面のリザルトを記録カードで取り込むを開き、テキスト流し込みを選ぶ場所を示す配置図",
+    image: "docs/tutorial-captures/result-text-import-desktop.webp",
+    mobileImage: "docs/tutorial-captures/result-text-import-mobile.webp",
+    alt: "実際の記録画面。開いた取り込みメニュー内の「テキスト流し込み」を橙色の枠と矢印で示す",
     note: "人格データではなく、報酬・購入履歴の文章を記録する入口です。"
   },
   "roster-import": {
     title: "所持人格の名前一覧はここ",
-    image: "docs/tutorial-roster-import-ui.svg",
-    alt: "記録画面の取り込むメニューから所持人格リストを取り込む場所を示す配置図",
+    image: "docs/tutorial-captures/roster-import-desktop.webp",
+    mobileImage: "docs/tutorial-captures/roster-import-mobile.webp",
+    alt: "実際の記録画面。取り込みメニューの「所持人格リストを取り込む」を橙色の枠と矢印で示す",
     note: "名前の一覧を所持データへ加える機能です。リザルトや購入履歴の記録とは別です。"
   },
   account: {
     title: "キャラクター全体の共有URLはここ",
-    image: "docs/tutorial-account-import-ui.svg",
-    alt: "対象キャラクターカードの編集ボタンと、硝子窓の共有データ内の共有URLから取り込むボタンを示す配置図",
+    image: "docs/tutorial-captures/account-share-import-desktop.webp",
+    mobileImage: "docs/tutorial-captures/account-share-import-mobile.webp",
+    alt: "実際のアカウント編集画面。「共有URLから取り込む」を橙色の枠と矢印で示す",
     note: "対象キャラクターの「編集」を開いた中にあります。先に反映先の名前を確認してください。"
   },
   "save-share": {
     title: "保存・共有のメニューはここ",
-    image: "docs/tutorial-save-share-ui.svg",
-    alt: "画面上部の操作・保存メニューと、作業状態保存、所持ライブラリ保存、共有シート、CCFOLIA JSONの項目を示す配置図",
+    image: "docs/tutorial-captures/save-work-state-desktop.webp",
+    mobileImage: "docs/tutorial-captures/save-work-state-mobile.webp",
+    alt: "実際の操作・保存メニュー。「現在の作業状態を保存」を橙色の枠と矢印で示す",
+    secondaryTitle: "共有用HTMLを作る「共有シートを開く」はここ",
+    secondaryImage: "docs/tutorial-captures/share-sheet-desktop.webp",
+    secondaryMobileImage: "docs/tutorial-captures/share-sheet-mobile.webp",
+    secondaryAlt: "実際の操作・保存メニュー。「共有シートを開く」を橙色の枠と矢印で示す",
     note: "共有シートは人に見せるHTML、保存ファイルはバックアップ用です。目的に合う項目を選んでください。"
   }
 };
@@ -110,16 +119,27 @@ const GuideUiLocator = ({ kind }) => {
   const h = React.createElement;
   const item = GUIDE_UI_LOCATORS[kind];
   if (!item) return null;
+  const narrow = typeof window !== "undefined" && typeof window.matchMedia === "function"
+    && window.matchMedia("(max-width: 640px)").matches;
+  const imageLink = (image, mobileImage, alt, title) => h("a", {
+    href: narrow && mobileImage ? mobileImage : image,
+    target: "_blank", rel: "noreferrer",
+    className: "guide-ui-locator-link",
+    "aria-label": title + "（別タブで拡大）"
+  }, h("picture", null,
+    mobileImage ? h("source", { media: "(max-width: 640px)", srcSet: mobileImage, type: "image/webp" }) : null,
+    h("img", {
+      className: "guide-ui-locator-image", src: image, alt,
+      loading: "lazy", decoding: "async"
+    })
+  ));
   return h("figure", { className: "guide-ui-locator" },
     h("figcaption", { className: "guide-ui-locator-caption" }, item.title),
-    h("a", {
-      href: item.image, target: "_blank", rel: "noreferrer",
-      className: "guide-ui-locator-link",
-      "aria-label": item.title + "（別タブで拡大）"
-    }, h("img", {
-      className: "guide-ui-locator-image", src: item.image, alt: item.alt,
-      loading: "lazy", decoding: "async"
-    })),
+    imageLink(item.image, item.mobileImage, item.alt, item.title),
+    item.secondaryImage ? h("div", { className: "guide-ui-locator-secondary" },
+      h("p", { className: "guide-ui-locator-secondary-title" }, item.secondaryTitle),
+      imageLink(item.secondaryImage, item.secondaryMobileImage, item.secondaryAlt || item.secondaryTitle, item.secondaryTitle)
+    ) : null,
     h("p", { className: "guide-ui-locator-note" }, item.note)
   );
 };

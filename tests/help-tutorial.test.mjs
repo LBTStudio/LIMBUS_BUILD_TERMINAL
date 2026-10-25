@@ -126,6 +126,26 @@ const tutorialDiagrams = [
   source: readFileSync(new URL("../docs/" + name, import.meta.url), "utf8")
 }));
 
+
+test("使い方ガイドはPCとスマートフォンの実画面キャプチャを同梱し、幅に応じて表示を切り替える", () => {
+  const captures = [
+    "persona-import-desktop.webp", "persona-import-mobile.webp",
+    "result-text-import-desktop.webp", "result-text-import-mobile.webp",
+    "roster-import-desktop.webp", "roster-import-mobile.webp",
+    "account-share-import-desktop.webp", "account-share-import-mobile.webp",
+    "save-work-state-desktop.webp", "save-work-state-mobile.webp",
+    "share-sheet-desktop.webp", "share-sheet-mobile.webp"
+  ];
+  for (const name of captures) {
+    const bytes = readFileSync(new URL("../docs/tutorial-captures/" + name, import.meta.url));
+    assert.ok(bytes.byteLength > 10000, name + " が同梱されている");
+  }
+  assert.ok(appSource.includes('h("source", { media: "(max-width: 640px)"'));
+  assert.ok(appSource.includes('secondaryImage: "docs/tutorial-captures/share-sheet-desktop.webp"'));
+  assert.match(beginnerTutorial, /スマートフォン版の実画面を見る/);
+  assert.match(beginnerTutorial, /tutorial-captures\/share-sheet-mobile\.webp/);
+});
+
 test("目的別の操作項目は検索結果から詳細と画面移動へつながる", () => {
   assert.match(appSource, /const HELP_ITEMS = /);
   assert.match(appSource, /const GuideFlowDiagram = /);
@@ -159,11 +179,11 @@ test("アカウント管理の入口とローカル保存・削除注意が案�
 test("初心者向けMarkdownには実際のSVGフローチャートを埋め込み、図の代替テキストを用意する", () => {
   assert.match(beginnerTutorial, /!\[基本の進め方\]\(tutorial-overview\.svg\)/);
   assert.match(beginnerTutorial, /!\[文章や共有URLの取り込み口の違い\]\(tutorial-text-import-routes\.svg\)/);
-  assert.match(beginnerTutorial, /!\[アカウント編集画面の共有URL取り込みボタンの位置\]\(tutorial-account-import-ui\.svg\)/);
-  assert.match(beginnerTutorial, /!\[操作・保存メニューと各保存・共有項目の位置\]\(tutorial-save-share-ui\.svg\)/);
-  assert.match(beginnerTutorial, /!\[ビルドの人格タブからテキスト流し込み反映を開く位置\]\(tutorial-persona-import-ui\.svg\)/);
-  assert.match(beginnerTutorial, /!\[記録画面のテキスト流し込みの位置\]\(tutorial-result-import-ui\.svg\)/);
-  assert.match(beginnerTutorial, /!\[記録画面から所持人格リストを取り込む位置\]\(tutorial-roster-import-ui\.svg\)/);
+  assert.ok(beginnerTutorial.includes("tutorial-captures/account-share-import-desktop.webp"));
+  assert.ok(beginnerTutorial.includes("tutorial-captures/save-work-state-desktop.webp"));
+  assert.ok(beginnerTutorial.includes("tutorial-captures/persona-import-desktop.webp"));
+  assert.ok(beginnerTutorial.includes("tutorial-captures/result-text-import-desktop.webp"));
+  assert.ok(beginnerTutorial.includes("tutorial-captures/roster-import-desktop.webp"));
   assert.match(beginnerTutorial, /!\[保存、バックアップ、所持ライブラリ、共有の違い\]\(tutorial-save-share\.svg\)/);
   for (const diagram of tutorialDiagrams) {
     assert.ok(diagram.source.includes("<svg "), diagram.name + " はSVG図である");

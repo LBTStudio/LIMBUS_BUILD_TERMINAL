@@ -49,7 +49,9 @@
 <details>
 <summary>ボタンの位置を図で確認する</summary>
 
-![ビルドの人格タブからテキスト流し込み反映を開く位置](tutorial-persona-import-ui.svg)
+![実画面：ビルドの人格タブからテキスト流し込み反映を開く位置](tutorial-captures/persona-import-desktop.webp)
+
+[スマートフォン版の実画面を見る](tutorial-captures/persona-import-mobile.webp)
 
 </details>
 
@@ -72,7 +74,9 @@
 <details>
 <summary>「取り込む」から選ぶ場所を図で確認する</summary>
 
-![記録画面のテキスト流し込みの位置](tutorial-result-import-ui.svg)
+![実画面：記録画面のテキスト流し込みの位置](tutorial-captures/result-text-import-desktop.webp)
+
+[スマートフォン版の実画面を見る](tutorial-captures/result-text-import-mobile.webp)
 
 </details>
 
@@ -99,7 +103,9 @@
 <details>
 <summary>「所持人格リストを取り込む」の位置を図で確認する</summary>
 
-![記録画面から所持人格リストを取り込む位置](tutorial-roster-import-ui.svg)
+![実画面：記録画面から所持人格リストを取り込む位置](tutorial-captures/roster-import-desktop.webp)
+
+[スマートフォン版の実画面を見る](tutorial-captures/roster-import-mobile.webp)
 
 </details>
 
@@ -116,7 +122,9 @@
 <details>
 <summary>「共有URLから取り込む」の位置を図で確認する</summary>
 
-![アカウント編集画面の共有URL取り込みボタンの位置](tutorial-account-import-ui.svg)
+![実画面：アカウント編集画面の共有URL取り込みボタンの位置](tutorial-captures/account-share-import-desktop.webp)
+
+[スマートフォン版の実画面を見る](tutorial-captures/account-share-import-mobile.webp)
 
 </details>
 
@@ -144,12 +152,23 @@
 <details>
 <summary>「操作・保存」メニューの位置を図で確認する</summary>
 
-![操作・保存メニューと各保存・共有項目の位置](tutorial-save-share-ui.svg)
+![実画面：操作・保存メニューの「現在の作業状態を保存」の位置](tutorial-captures/save-work-state-desktop.webp)
+
+[スマートフォン版の実画面を見る](tutorial-captures/save-work-state-mobile.webp)
 
 </details>
 
 <details>
 <summary>保存形式の違いを一覧で確認する</summary>
+
+<details>
+<summary>「共有シートを開く」ボタンの位置を実画面で確認する</summary>
+
+![実画面：操作・保存メニューの「共有シートを開く」の位置](tutorial-captures/share-sheet-desktop.webp)
+
+[スマートフォン版の実画面を見る](tutorial-captures/share-sheet-mobile.webp)
+
+</details>
 
 ![保存、バックアップ、所持ライブラリ、共有の違い](tutorial-save-share.svg)
 
