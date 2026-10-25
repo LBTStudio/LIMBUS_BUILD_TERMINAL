@@ -114,10 +114,10 @@ const ItemCodex = ({ state, dispatch }) => {
       type: "CONSUME_ITEM",
       itemId: selected.id,
       quantity: consumeQuantity,
-      reason: "phenomenon_processing",
+      reason: "consumption",
       operationId
     });
-    toast(`「${selected.name}」×${consumeQuantity} を現象処理で消費し、直近リザルトへ記録しました`);
+    toast(`「${selected.name}」×${consumeQuantity} を消費し、直近リザルトへ記録しました`);
   };
   const categoryLabel = (value) => value === "all" ? "全て" : value;
   return h("div", { className: "item-codex" },
@@ -175,18 +175,18 @@ const ItemCodex = ({ state, dispatch }) => {
           h("label", { className: "item-output-toggle" }, h("input", { type: "checkbox", checked: selectedEntry.memo !== false, onChange: (event) => patchEntry({ memo: event.target.checked }) }), h("span", null, "MEMOに表示")),
           h("label", { className: "item-output-toggle" }, h("input", { type: "checkbox", checked: selectedEntry.palette !== false, onChange: (event) => patchEntry({ palette: event.target.checked }) }), h("span", null, "PALETTEへ反映")),
           h("div", { className: "item-consume-controls" },
-            h("label", null, "現象処理で消費する数",
+            h("label", null, "消費する数",
               h("input", {
                 type: "number", min: 1, max: Number(selectedEntry.quantity) || 1, step: 1,
                 inputMode: "numeric", value: consumeQuantityDraft,
                 onChange: (event) => setConsumeQuantityDraft(event.target.value),
-                "aria-label": "現象処理で消費する数量"
+                "aria-label": "消費する数量"
               })),
             h(Button, {
               size: "sm", variant: "danger", icon: "check",
               disabled: !canConsumeSelected, onClick: consumeItem,
               title: "指定数を所持品から減らし、直近リザルトの消耗記録に追加"
-            }, "現象処理で消費")),
+            }, "消費する")),
           h("div", { className: "item-detail-actions" }, h(Button, { size: "sm", variant: "secondary", icon: "plus", disabled: !canAddSelected, onClick: addItem, title: canAddSelected ? "所持数を1増やす" : `最大所持数（×${selectedMaxOwned}）に到達` }, canAddSelected ? "数量を追加" : "上限に到達"), h(Button, { size: "sm", variant: "danger", icon: "trash", onClick: removeItem, title: "このアイテムを所持リストから削除" }, "所持品から削除"))
         ) : h(Button, { size: "md", variant: "primary", icon: "plus", className: "item-add-button", disabled: !canAddSelected, onClick: addItem, title: selected?.ledgerResource === "shards" ? (canAddSelected ? "2LPで自我の欠片を1個購入" : "LP残高が2LP未満です") : canAddSelected ? "アイテム一覧へ導入" : `最大所持数（×${selectedMaxOwned}）に到達` }, selected?.ledgerResource === "shards" ? (canAddSelected ? "1個購入（2LP）" : "LP不足（2LP必要）") : canAddSelected ? "アイテム一覧へ導入" : "上限に到達")
       )
