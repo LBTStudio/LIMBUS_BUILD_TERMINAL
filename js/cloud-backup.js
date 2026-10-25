@@ -295,61 +295,119 @@
     }
     return result;
   }
+  async function getProviderHead(provider, recoveryKey) {
+    const endpoint = provider === "supabase" ? RECOVERY_ENDPOINT : CLOUDFLARE_RECOVERY_ENDPOINT;
+    return await callProvider(endpoint, { action: "head", recoveryKey }, provider);
+  }
+  async function getProviderPayload(provider, recoveryKey) {
+    const endpoint = provider === "supabase" ? RECOVERY_ENDPOINT : CLOUDFLARE_RECOVERY_ENDPOINT;
+    const data = await callProvider(endpoint, { action: "get", recoveryKey }, provider);
+    if (!data.found || !data.payload) throw new Error("選択した保全先に復元可能なデータがありません。");
+    return data;
+  }
+  function historyHashForRevision(head, revision) {
+    const row = (Array.isArray(head && head.history) ? head.history : [])
+      .find((item) => Number(item.revision) === Number(revision));
+    return String(row && (row.payloadHash || row.payload_hash) || "");
+  }
   async function getRemote(options = {}) {
     const key = options.recoveryKey || readRecoveryKey();
     if (!key) return { found: false, revision: 0, payload: null, mode: "local" };
-    const providers = await Promise.all([
-      callProvider(RECOVERY_ENDPOINT, { action: "get", recoveryKey: key }, "supabase")
-        .then((data) => ({ ok: true, data })).catch((error) => ({ ok: false, error })),
-      callProvider(CLOUDFLARE_RECOVERY_ENDPOINT, { action: "get", recoveryKey: key }, "cloudflare")
-        .then((data) => ({ ok: true, data })).catch((error) => ({ ok: false, error }))
+
+    // Read metadata first. Payloads up to 12 MiB are transferred only after
+    // revisions and SHA-256 fingerprints tell us which provider is needed.
+    const results = await Promise.all([
+      getProviderHead("supabase", key).then((data) => ({ ok: true, data })).catch((error) => ({ ok: false, error })),
+      getProviderHead("cloudflare", key).then((data) => ({ ok: true, data })).catch((error) => ({ ok: false, error }))
     ]);
-    const [primary, fallback] = providers;
+    const [primary, fallback] = results;
     if (!primary.ok && !fallback.ok) {
-      const error = new Error("SupabaseとCloudflareのどちらからも保全データを取得できません。接続状態を確認してください。");
+      const error = new Error("SupabaseとCloudflareのどちらからも保全情報を取得できません。接続を確認して再試行してください。");
       error.cause = primary.error || fallback.error;
       throw error;
     }
     if (!primary.ok || !fallback.ok) {
       const available = primary.ok ? primary.data : fallback.data;
+      const availableProvider = primary.ok ? "supabase" : "cloudflare";
       const unavailable = primary.ok ? fallback.error : primary.error;
       if (!available.found) {
-        if (Number(unavailable && unavailable.status) === 404) {
-          return { ...available, mode: "recovery", provider: primary.ok ? "supabase" : "cloudflare", mirrorSynced: false, secondaryUnavailable: true };
-        }
-        throw new Error("一方の保全先に接続できず、データの有無を確定できません。別端末での復旧を試す前に再試行してください。");
+        throw new Error("一方の保全先に接続できず、もう一方にはデータが見つかりません。バックアップが存在しないとは判断できないため、再接続後に再試行してください。");
       }
-      return { ...available, mode: "recovery", provider: available._provider, mirrorSynced: false, secondaryUnavailable: true };
+      const payload = await getProviderPayload(availableProvider, key);
+      return {
+        ...payload, mode: "recovery", provider: availableProvider,
+        mirrorSynced: false, secondaryUnavailable: true,
+        providerError: unavailable && (unavailable.message || String(unavailable))
+      };
     }
-    const sData = primary.data;
-    const cData = fallback.data;
-    if (!sData.found && !cData.found) {
+
+    const sHead = primary.data;
+    const cHead = fallback.data;
+    if (!sHead.found && !cHead.found) {
       return { found: false, revision: 0, payload: null, mode: "recovery", mirrorSynced: true };
     }
-    if (sData.found && !cData.found) {
-      const mirror = await replicateTo("cloudflare", key, 0, Number(sData.revision), sData.payload)
+
+    // Only one provider has a vault: fetch the current payload once and seed
+    // the empty provider at exactly the existing revision.
+    if (sHead.found && !cHead.found) {
+      const latest = await getProviderPayload("supabase", key);
+      const mirrored = await replicateTo("cloudflare", key, 0, Number(sHead.revision), latest.payload)
         .then(() => true).catch(() => false);
-      return { ...sData, mode: "recovery", provider: "supabase", mirrorSynced: mirror };
+      return { ...latest, mode: "recovery", provider: "supabase", mirrorSynced: mirrored, repairPending: !mirrored };
     }
-    if (!sData.found && cData.found) {
-      const mirror = await replicateTo("supabase", key, 0, Number(cData.revision), cData.payload)
+    if (!sHead.found && cHead.found) {
+      const latest = await getProviderPayload("cloudflare", key);
+      const mirrored = await replicateTo("supabase", key, 0, Number(cHead.revision), latest.payload)
         .then(() => true).catch(() => false);
-      return { ...cData, mode: "recovery", provider: "cloudflare", mirrorSynced: mirror };
+      return { ...latest, mode: "recovery", provider: "cloudflare", mirrorSynced: mirrored, repairPending: !mirrored };
     }
-    const sRevision = Number(sData.revision) || 0;
-    const cRevision = Number(cData.revision) || 0;
+
+    const sRevision = Number(sHead.revision) || 0;
+    const cRevision = Number(cHead.revision) || 0;
+    const sHash = String(sHead.payloadHash || sHead.payload_hash || "");
+    const cHash = String(cHead.payloadHash || cHead.payload_hash || "");
+
     if (sRevision === cRevision) {
+      if (sHash && cHash && sHash !== cHash) {
+        throw new Error("SupabaseとCloudflareの同じ世代に異なるデータがあります。自動上書きを停止しました。復旧先を選ぶ前にバックアップを退避してください。");
+      }
+      if (sHash && cHash && sHash === cHash) {
+        const latest = await getProviderPayload("supabase", key);
+        return { ...latest, mode: "recovery", provider: "supabase", mirrorSynced: true };
+      }
+      // Legacy records without fingerprints require a one-time full comparison.
+      const [sData, cData] = await Promise.all([
+        getProviderPayload("supabase", key),
+        getProviderPayload("cloudflare", key)
+      ]);
       if (!sameData(sData.payload, cData.payload)) {
-        throw new Error("SupabaseとCloudflareに同じ世代番号の異なるデータがあります。安全のため自動同期を停止しました。");
+        throw new Error("SupabaseとCloudflareの同じ世代に異なるデータがあります。安全のため自動同期を停止しました。");
       }
       return { ...sData, mode: "recovery", provider: "supabase", mirrorSynced: true };
     }
-    const newer = sRevision > cRevision ? sData : cData;
-    const older = sRevision > cRevision ? cData : sData;
+
+    const newerProvider = sRevision > cRevision ? "supabase" : "cloudflare";
     const olderProvider = sRevision > cRevision ? "cloudflare" : "supabase";
-    const repaired = await replicateTo(olderProvider, key, Number(older.revision), Number(newer.revision), newer.payload)
-      .then(() => true).catch(() => false);
-    return { ...newer, mode: "recovery", provider: newer._provider, mirrorSynced: repaired, repairPending: !repaired };
+    const newerHead = sRevision > cRevision ? sHead : cHead;
+    const olderHead = sRevision > cRevision ? cHead : sHead;
+    const newerHash = sRevision > cRevision ? sHash : cHash;
+    const olderHash = sRevision > cRevision ? cHash : sHash;
+    const ancestorHash = historyHashForRevision(newerHead, Number(olderHead.revision));
+
+    // A revision number alone is not proof of ancestry: both stores may have
+    // accepted different writes during an outage. Repair only when the newer
+    // provider proves that its own history includes this exact older payload.
+    if (!newerHash || !olderHash || !ancestorHash || ancestorHash !== olderHash) {
+      throw new Error("SupabaseとCloudflareの世代が分岐しているか、古い世代との系譜を検証できません。データを自動上書きせず、JSONバックアップを退避してから手動で復旧先を選んでください。");
+    }
+    const latest = await getProviderPayload(newerProvider, key);
+    const repaired = await replicateTo(
+      olderProvider, key, Number(olderHead.revision), Number(newerHead.revision), latest.payload
+    ).then(() => true).catch(() => false);
+    return {
+      ...latest, mode: "recovery", provider: newerProvider,
+      mirrorSynced: repaired, repairPending: !repaired
+    };
   }
   function readRecoveryKey() {
     const key = readStorage(RECOVERY_KEY);
