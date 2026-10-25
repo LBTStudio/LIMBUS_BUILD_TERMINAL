@@ -25,6 +25,7 @@
     remoteExists: false,
     revision: 0,
     conflict: false,
+    history: [],
     hasSession: false,
     hasRecoveryKey: false,
     syncEnabled: false,
@@ -437,8 +438,16 @@
     const remote = await getRemote();
     if (!remote.found || !remote.payload) throw new Error("復元できるオンラインバックアップが見つかりません。");
     const key = readRecoveryKey();
-    await restorePayload(remote.payload, Number(remote.revision), key);
-    return true;
+    return await restorePayload(remote.payload, Number(remote.revision), key);
+  }
+  async function loadHistory() {
+    const session = await getSession();
+    const key = readRecoveryKey();
+    let result = await callRecovery({ action: "history", ...(key ? { recoveryKey: key } : {}) }, session?.access_token || null);
+    if (!result.found && session && key) result = await callRecovery({ action: "history", recoveryKey: key });
+    if (!result.found) throw new Error("過去のバックアップ世代を取得できませんでした。");
+    emit({ history: Array.isArray(result.history) ? result.history : [] });
+    return result.history || [];
   }
   async function restorePayload(payload, revision, recoveryKey = null) {
     const local = collectLocalSnapshot();
@@ -474,10 +483,14 @@
   async function restoreRevision(revision) {
     const session = await getSession();
     const key = readRecoveryKey();
-    const result = await callRecovery({ action: "restore_revision", revision: Number(revision), ...(key ? { recoveryKey: key } : {}) }, session?.access_token || null);
+    let authToken = session?.access_token || null;
+    if (authToken && key) {
+      const remote = await callRecovery({ action: "get" }, authToken);
+      if (!remote.found) authToken = null;
+    }
+    const result = await callRecovery({ action: "restore_revision", revision: Number(revision), ...(!authToken && key ? { recoveryKey: key } : {}) }, authToken);
     if (!result.found || !result.payload) throw new Error("指定した世代を復元できませんでした。");
-    await restorePayload(result.payload, Number(result.revision), key);
-    return true;
+    return await restorePayload(result.payload, Number(result.revision), key);
   }
   async function disableOnline() {
     if (!confirm("このブラウザーでのオンライン連携を停止します。オンラインに保存済みのデータは削除されず、ローカルデータも残ります。続けますか？")) return false;
@@ -596,9 +609,19 @@
           button("復元", () => run(() => restoreWithKey(recoveryDraft)))
         )
       ),
-      view.remoteExists ? h("div", { className: "lbt-cloud-actions" },
-        button("クラウドから復元", () => run(restoreCloud)),
-        button(view.conflict ? "この端末でクラウドを更新…" : "この端末をクラウドへ同期", () => run(() => backupLocalToCloud({ force: Boolean(view.conflict) })), view.conflict ? "is-primary" : "")
+      view.remoteExists ? h(React.Fragment, null,
+        h("div", { className: "lbt-cloud-actions" },
+          button("クラウドから復元", () => run(restoreCloud)),
+          button(view.conflict ? "この端末でクラウドを更新…" : "この端末をクラウドへ同期", () => run(() => backupLocalToCloud({ force: Boolean(view.conflict) })), view.conflict ? "is-primary" : ""),
+          button("過去の世代を確認", () => run(loadHistory))
+        ),
+        Array.isArray(view.history) && view.history.length ? h("div", { className: "lbt-cloud-history" },
+          h("strong", null, "復元できる過去の世代"),
+          view.history.map((item) => h("div", { className: "lbt-cloud-history-row", key: item.revision },
+            h("span", null, "世代 " + item.revision + "・" + new Date(item.saved_at).toLocaleString()),
+            button("この世代を復元", () => run(() => restoreRevision(item.revision)))
+          ))
+        ) : null
       ) : (view.hasSession || view.hasRecoveryKey) && view.localMeaningful ? button("この端末のデータを初回保存", () => run(() => backupLocalToCloud({ force: false })), "is-primary") : null,
       h("input", {
         ref: fileInput,
@@ -628,6 +651,7 @@
     restoreCloud,
     restoreFromFile,
     restoreRevision,
+    loadHistory,
     backupLocalToCloud,
     exportLocalBackup,
     disableOnline,
