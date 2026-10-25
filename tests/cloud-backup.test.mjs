@@ -142,3 +142,15 @@ test("オンライン保管庫テーブルをブラウザーから直接アク�
   assert.match(hardeningMigration, /drop policy if exists lbt_account_vault_versions_delete_own/i);
   assert.match(doc, /20261025212903_lbt_account_vault_access_hardening\.sql/);
 });
+
+
+test("OAuthボタンはSupabase Authで有効と確認されたプロバイダーだけを表示する", () => {
+  assert.match(client, /async function refreshProviderAvailability\(\)/);
+  assert.match(client, /\/auth\/v1\/settings/);
+  assert.match(client, /providers\.google = external\.google === true/);
+  assert.match(client, /providers\.x = external\.x === true/);
+  assert.match(client, /view\.providers\?\.google/);
+  assert.match(client, /view\.providers\?\.x/);
+  assert.match(client, /providerSettingsAvailable/);
+  assert.match(client, /料金条件を確認するまで有効化しないでください/);
+});
