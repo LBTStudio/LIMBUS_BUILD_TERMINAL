@@ -141,6 +141,18 @@ test("glossary unmount and cancelled touch gestures clear pending timers and cli
   assert.ok(source.includes("onPointerUp, onPointerCancel,"));
 });
 
+test("desktop glossary popover stays near the mouse cursor and flips at viewport edges", () => {
+  assert.ok(source.includes("const lastPointerPosition = React.useRef(null);"));
+  assert.ok(source.includes("lastPointerPosition.current = { x: event.clientX, y: event.clientY };"));
+  assert.ok(source.includes("onPointerMove: trackPointer"));
+  assert.ok(source.includes('const pointer = lastPointerType.current === "mouse" ? lastPointerPosition.current : null;'));
+  assert.ok(source.includes("let left = pointer.x + gap;"));
+  assert.ok(source.includes("left = pointer.x - width - gap;"));
+  assert.ok(source.includes("let top = pointer.y + gap;"));
+  assert.ok(source.includes("top = pointer.y - estimatedHeight - gap;"));
+  assert.ok(source.includes("Keyboard and touch users retain the predictable anchor-based placement."));
+});
+
 test("PC hover, keyboard access, tap and long press are available without adding unsafe HTML", () => {
   assert.match(source, /pointerType !== "mouse"/);
   assert.match(source, /pointerType !== "touch"/);
