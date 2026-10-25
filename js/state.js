@@ -1249,7 +1249,9 @@ function equipRosterSupport(state, uid) {
      通常枠へ装備され、出力へ流れてしまう。 */
   let normalizedSupports = (roster.supports || []).map((s) => ({
     ...s,
-    slot: isDeathSupportPassiveRecord(s) ? "death" : "normal"
+    // Canonical death-only records can never be demoted by a stale label, while
+    // custom records explicitly assigned to the death slot must retain that choice.
+    slot: isDeathSupportPassiveRecord(s) || (s.slot === "death" && s.deathSlotManual === true) ? "death" : "normal"
   }));
   const unlocked = deathSupportSlotUnlocked(state);
   if (!unlocked) {
@@ -4672,21 +4674,106 @@ case "ADD_CUSTOM_ITEM": {
       if (action.spp && !deathSupportSlotUnlocked(state)) return state;
       if (!action.spp) {
         const roster = state.roster || {};
-        const supports = (roster.supports || []).map((s) => (s.slot === "death" ? { ...s, equipped: false } : s));
+        const supports = (roster.supports || []).map((s) => (
+          s.slot === "death" || isDeathSupportPassiveRecord(s) ? { ...s, slot: "death", equipped: false } : s
+        ));
         const next = { ...state, roster: { ...roster, supports } };
         return { ...next, ...projectEquipmentFromRoster(next.roster) };
       }
-      const owned = findOwnedSupport(state, String(action.spp?.name || ""));
-      if (owned) return equipRosterSupport(state, owned.uid);
-      const added = addRosterSupport(state, action.spp);
+      const requestedName = String(action.spp?.name || "").trim();
+      if (!requestedName) {
+        // The UI's "manual add" starts with an empty edit form. Keep it as a
+        // transient death-slot draft; PATCH_DEATH_SUPPORT will create its roster
+        // row as soon as the user enters the first character.
+        return {
+          ...state,
+          deathSupport: {
+            id: makeOwnedUid("sppd"),
+            name: "",
+            cond: String(action.spp?.cond || ""),
+            effect: String(action.spp?.effect || ""),
+            lp: String(action.spp?.lp || "")
+          }
+        };
+      }
+      const owned = findOwnedSupport(state, requestedName);
+      if (owned) {
+        const roster = state.roster || {};
+        const supports = (roster.supports || []).map((entry) => entry.uid === owned.uid
+          ? { ...entry, slot: "death", deathSlotManual: !isDeathSupportPassiveRecord(entry) }
+          : entry);
+        return equipRosterSupport({ ...state, roster: { ...roster, supports } }, owned.uid);
+      }
+      const added = addRosterSupport(state, { ...action.spp, name: requestedName });
       if (!added) return state;
-      const entry = [...added.roster.supports].reverse().find((s) => s.name === action.spp?.name);
+      const entry = [...added.roster.supports].reverse().find((s) => s.name === requestedName);
       if (!entry) return state;
-      return equipRosterSupport(added, entry.uid);
+      // SET_DEATH_SUPPORT is called from the death-only list; custom names must
+      // never get classified into a regular slot merely because they are absent
+      // from the canonical death-passive catalogue.
+      const supports = added.roster.supports.map((s) => s.uid === entry.uid
+        ? { ...s, slot: "death", deathSlotManual: !isDeathSupportPassiveRecord(s) } : s);
+      return equipRosterSupport({ ...added, roster: { ...added.roster, supports } }, entry.uid);
     }
-    case "PATCH_DEATH_SUPPORT":
-      if (!state.deathSupport) return state;
-      return { ...state, deathSupport: { ...state.deathSupport, ...action.patch } };
+    case "PATCH_DEATH_SUPPORT": {
+      const current = state.deathSupport;
+      if (!current) return state;
+      const patch = action.patch && typeof action.patch === "object" && !Array.isArray(action.patch)
+        ? action.patch : {};
+      const safePatch = {};
+      for (const key of ["name", "cond", "effect", "lp"]) {
+        if (Object.prototype.hasOwnProperty.call(patch, key)) {
+          const value = patch[key];
+          safePatch[key] = key === "lp" && typeof value === "number" && Number.isFinite(value)
+            ? value : String(value ?? "");
+        }
+      }
+      if (!Object.keys(safePatch).length) return state;
+      const edited = { ...current, ...safePatch };
+      const roster = state.roster || {};
+      const list = Array.isArray(roster.supports) ? roster.supports : [];
+      let idx = list.findIndex((entry) => String(entry?.uid || "") === String(current.id || ""));
+      if (idx < 0 && current.name) {
+        idx = list.findIndex((entry) => entry?.slot === "death" && String(entry?.name || "") === String(current.name));
+      }
+
+      // A blank manual-add draft has no owned row until it acquires a name.
+      // The very first keystroke creates that row; subsequent keystrokes patch it.
+      if (idx < 0 && !String(edited.name || "").trim()) {
+        return { ...state, deathSupport: edited };
+      }
+
+      let uid;
+      let supports;
+      if (idx >= 0) {
+        uid = list[idx].uid;
+        supports = list.map((entry, i) => i === idx
+          ? { ...entry, ...safePatch, slot: "death", deathSlotManual: !isDeathSupportPassiveRecord({ ...entry, ...safePatch }), equipped: true }
+          : entry);
+      } else {
+        uid = String(current.id || makeOwnedUid("spt"));
+        supports = [...list, {
+          uid,
+          name: String(edited.name || "").trim(),
+          cond: String(edited.cond || ""),
+          effect: String(edited.effect || ""),
+          lp: String(edited.lp || ""),
+          slot: "death",
+          deathSlotManual: !isDeathSupportPassiveRecord({ name: String(edited.name || "").trim() }),
+          equipped: true,
+          resultId: null,
+          addedAt: Date.now(),
+          notes: "",
+          source: "manual"
+        }];
+      }
+      supports = trimSupportEquippedOverflow(supports, uid, "death", supportSlotLimit(state, "death"));
+      const nextRoster = { ...roster, supports };
+      const next = { ...state, roster: nextRoster, deathSupport: { ...edited, id: uid } };
+      // Always re-project from the roster so unrelated reducer actions cannot
+      // restore stale death-slot text over the user's edits.
+      return { ...next, ...projectEquipmentFromRoster(nextRoster) };
+    }
     /* 通常サポートの手動編集。
        装備枠（state.supports）は roster.supports からの投影なので、
        ここだけ直しても次の projectEquipmentFromRoster で消える。
@@ -4855,9 +4942,10 @@ case "ADD_CUSTOM_ITEM": {
       const target = (roster.supports || []).find((s) => s.uid === action.uid);
       if (!target) return state;
       const slot = action.slot === "death" ? "death" : "normal";
-      const deathOnly = target.slot === "death" || isDeathSupportPassiveRecord(target);
-      // A death-only passive cannot be demoted into a normal slot, even if a
-      // caller dispatches this action directly or the saved slot label is stale.
+      const deathOnly = isDeathSupportPassiveRecord(target)
+        || (target.slot === "death" && target.deathSlotManual !== true);
+      // Canonical death-only passives and untrusted legacy death labels cannot be
+      // demoted. A slot explicitly assigned by the user can still be moved back.
       if (deathOnly && slot !== "death") return state;
       if (target.slot === slot) return state;
       if (slot === "death" && !deathSupportSlotUnlocked(state)) return state;
@@ -4865,7 +4953,12 @@ case "ADD_CUSTOM_ITEM": {
       const others = (roster.supports || []).filter((s) => s.uid !== action.uid && s.slot === slot && s.equipped);
       const occupantUids = new Set(others.slice(0, Math.max(0, others.length + 1 - limit)).map((s) => s.uid));
       const supports = (roster.supports || []).map((s) => {
-        if (s.uid === action.uid) return { ...s, slot, equipped: true };
+        if (s.uid === action.uid) return {
+          ...s,
+          slot,
+          deathSlotManual: slot === "death" && !isDeathSupportPassiveRecord(s),
+          equipped: true
+        };
         if (occupantUids.has(s.uid)) return { ...s, equipped: false };
         return s;
       });

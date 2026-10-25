@@ -82,6 +82,105 @@ test("装備対象が所持一覧の先頭にあっても、通常スロット�
   assert.equal(next.supports.some((entry) => entry.name === target.name), true, "ビルドの投影にも対象が残る");
 });
 
+test("死亡後サポートの手動編集は所持ライブラリへ同期し、再投影後も保持する", () => {
+  const initial = {
+    ...base(),
+    enhancements: [{ id: "death-unlock", name: "死亡後パッシブ追加", group: "test", shards: 0 }],
+    deathSupport: {
+      id: "custom-death",
+      name: "手動追加サポート",
+      cond: "旧条件",
+      effect: "旧効果",
+      lp: "1"
+    },
+    roster: {
+      personas: [], egos: [],
+      supports: [
+        {
+          uid: "custom-death",
+          name: "手動追加サポート",
+          cond: "旧条件",
+          effect: "旧効果",
+          lp: "1",
+          slot: "death",
+          equipped: true,
+          resultId: null,
+          addedAt: 1,
+          notes: ""
+        },
+        {
+          uid: "normal-support",
+          name: "通常サポート",
+          cond: "",
+          effect: "",
+          lp: "3",
+          slot: "normal",
+          equipped: false,
+          resultId: null,
+          addedAt: 2,
+          notes: ""
+        }
+      ],
+      spirits: []
+    }
+  };
+
+  const edited = reducer(initial, {
+    type: "PATCH_DEATH_SUPPORT",
+    patch: {
+      name: "編集後サポート",
+      cond: "新条件",
+      effect: "新効果",
+      lp: "7",
+      slot: "normal",
+      equipped: false,
+      uid: "forged-uid",
+      resultId: "forged-result"
+    }
+  });
+  const row = edited.roster.supports.find((entry) => entry.uid === "custom-death");
+  assert.equal(row.name, "編集後サポート");
+  assert.equal(row.cond, "新条件");
+  assert.equal(row.effect, "新効果");
+  assert.equal(row.lp, "7");
+  assert.equal(row.slot, "death", "手動編集で通常枠へ降格できない");
+  assert.equal(row.equipped, true);
+  assert.equal(row.uid, "custom-death");
+  assert.equal(row.resultId, null);
+
+  assert.equal(row.deathSlotManual, true, "カタログ外の手動割当であることを明示");
+  const reprojected = reducer(edited, { type: "ADD_SUPPORT", spp: { name: "通常サポート" } });
+  assert.equal(reprojected.deathSupport?.name, "編集後サポート");
+  assert.equal(reprojected.deathSupport?.cond, "新条件");
+  assert.equal(reprojected.deathSupport?.effect, "新効果");
+  assert.equal(reprojected.deathSupport?.lp, "7");
+  assert.equal(reprojected.roster.supports.find((entry) => entry.uid === "custom-death").slot, "death");
+});
+
+test("死亡後サポートの手動追加は空の編集フォームから所持へ同期する", () => {
+  const initial = {
+    ...base(),
+    enhancements: [{ id: "death-unlock", name: "死亡後パッシブ追加", group: "test", shards: 0 }]
+  };
+  const draft = reducer(initial, {
+    type: "SET_DEATH_SUPPORT",
+    spp: { name: "", cond: "", effect: "", lp: "" }
+  });
+  assert.ok(draft.deathSupport, "手動追加から空の編集フォームを開始できる");
+  assert.equal(draft.deathSupport.name, "");
+  assert.equal(draft.roster.supports.length, 0);
+
+  const named = reducer(draft, {
+    type: "PATCH_DEATH_SUPPORT",
+    patch: { name: "任意の死亡後サポート" }
+  });
+  assert.equal(named.deathSupport.name, "任意の死亡後サポート");
+  assert.equal(named.roster.supports.length, 1);
+  assert.equal(named.roster.supports[0].slot, "death");
+  assert.equal(named.roster.supports[0].equipped, true);
+  assert.equal(named.roster.supports[0].uid, named.deathSupport.id);
+});
+
 test("死亡後専用スロットも配列順に関係なく操作対象を装備状態に残す", () => {
   const target = { uid: "death-target", name: "対象死亡後パッシブ", slot: "death", equipped: false, cond: "", effect: "", lp: "" };
   const old = { uid: "death-old", name: "既存死亡後パッシブ", slot: "death", equipped: true, cond: "", effect: "", lp: "" };
