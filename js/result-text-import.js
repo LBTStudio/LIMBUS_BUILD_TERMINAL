@@ -13,7 +13,7 @@
 (function () {
   const toHalf = (value) => String(value ?? "")
     .replace(/[０-９Ａ-Ｚａ-ｚ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
-    .replace(/[：]/g, ":").replace(/[（]/g, "(").replace(/[）]/g, ")")
+    .replace(/[：]/g, ":").replace(/[＝]/g, "=").replace(/[（]/g, "(").replace(/[）]/g, ")")
     .replace(/　/g, " ").replace(/[、]/g, ",");
 
   /* 深さ 0 の位置だけで切る。括弧と日本語の鉤括弧・山括弧の中の
