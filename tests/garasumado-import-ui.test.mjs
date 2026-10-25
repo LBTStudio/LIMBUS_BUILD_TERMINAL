@@ -201,3 +201,38 @@ test("GarasumadoGroup（1件ずつ並べる一覧）は画面から消えてい�
   /* 定義が残っていても、画面から描画されていないこと。 */
   assert.doesNotMatch(uiFlat, /h\(GarasumadoGroup, \{/);
 });
+test("URL入力は複数行フォームで送信でき、進行状況・部分失敗が分かる", () => {
+  assert.match(uiFlat, /h\("form", \{ className: "gara-url-form", onSubmit: load, "aria-busy": busy \}/);
+  assert.match(uiFlat, /className: "input gara-url-list"/, "複数行の共有URL入力を維持");
+  assert.match(uiFlat, /name: "shareUrls"/);
+  assert.match(uiFlat, /className: "gara-loading", role: "status", "aria-live": "polite"/);
+  assert.match(uiFlat, /urlReport\.failed\.slice\(0, 6\)/, "一部失敗のURLを確認できる");
+  assert.match(uiFlat, /catch \(\_\) \{ setError\(/, "想定外の例外を利用者向けエラーにする");
+  assert.match(uiFlat, /finally \{ setBusy\(false\); setProgress\(""\); \}/, "失敗時も読込状態を解除する");
+});
+
+test("取込後の確認画面は対象数・未決件数・追加予定を先に表示する", () => {
+  assert.match(uiFlat, /className: "gara gara-import-review"/);
+  assert.match(uiFlat, /className: "gara-import-overview"/);
+  assert.match(uiFlat, /counts\.included\} \/ \$\{counts\.total/);
+  assert.match(uiFlat, /pendingCount\}件/);
+  assert.match(uiFlat, /draft \? draft\.simulation\.results : 0/);
+  assert.match(uiFlat, /項目名を押すと候補や価格を確認できます/);
+  assert.match(uiFlat, /className: "gara-foot gara-import-actions"/);
+});
+
+test("確定後は manifest が残っていても確定結果画面を表示する", () => {
+  const panel = ui.slice(ui.indexOf("const GarasumadoImportPanel"));
+  const render = panel.slice(panel.indexOf("const pendingCount"));
+  assert.ok(render.indexOf("if (confirmed)") >= 0, "確定状態の分岐がある");
+  assert.ok(render.indexOf("if (confirmed)") < render.indexOf("if (!manifest)"), "確定結果を manifest の有無より先に描画する");
+});
+
+test("SINNER SELECTの取込はモーダル幅に合わせ、確定操作をスクロール中も追従させる", () => {
+  const css = readFileSync(new URL("../assets/v66-accounts.css", import.meta.url), "utf8");
+  assert.match(css, /\.acct-card--import-open \.gara\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s);
+  assert.match(css, /\.acct-card--import-open \.gara-rail\s*\{[^}]*position:\s*static/s);
+  assert.match(css, /\.gara-import-actions\s*\{[^}]*position:\s*sticky/s);
+  assert.match(css, /\.gara-row-hit \.gara-row-name\s*\{[^}]*white-space:\s*normal/s);
+  assert.match(css, /\.gara-row-hit \.gara-row-meta\s*\{[^}]*white-space:\s*normal/s);
+});
