@@ -277,5 +277,5 @@ test("人格URLの一括取込でも解析段階の不正URLを失敗レポー�
   const personaBranch = ui.slice(personaStart, characterStart);
   assert.ok(personaStart >= 0 && characterStart > personaStart);
   assert.match(personaBranch, /requested: parsedBatch\.urls\.length \+ \(parsedBatch\.invalid \|\| \[\]\)\.length/);
-  assert.match(personaBranch, /failed: \[\.\.\.failed,[\s\S]*?imported\.filter\(\(row\) => !row\.ok\)/);
+  assert.match(personaBranch, /failed:\s*\[\s*\.\.\.failed,[\s\S]*?imported\.filter\(\(row\) => !row\.ok\)/);
 });
