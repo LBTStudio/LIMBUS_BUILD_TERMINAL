@@ -58,23 +58,44 @@
      硝子窓の正式ホスト以外は読み込まず、同一ドキュメントは1回だけ取得する。 */
   function parseShareUrls(raw) {
     const text = String(raw || "");
-    const links = text.match(/https?:\/\/[^\s<>"'`]+/gi) || [];
-    const candidates = links.length ? links : text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    const links = text.match(/https?:\\/\\/[^\\s<>"'`]+/gi) || [];
+    const lines = text.split(/\\r?\\n/).map((line) => line.trim()).filter(Boolean);
+    const candidates = [];
+    const seenCandidates = new Set();
+    const addCandidate = (value) => {
+      const clean = String(value || "").trim().replace(/[)\\],.;]+$/g, "");
+      if (!clean || seenCandidates.has(clean)) return;
+      seenCandidates.add(clean);
+      candidates.push(clean);
+    };
+
+    /* 絶対URL・スキームなしURL・裸IDが混じっても、それぞれ独立して抽出する。 */
+    links.forEach(addCandidate);
+    for (const line of lines) {
+      const hostlessUrl = /(?:^|[\\s"'(<\\[:])((?:www\\.)?lbt-garasumado\\.vercel\\.app(?:\\/[^\\s]*)?)/gi;
+      let match;
+      while ((match = hostlessUrl.exec(line)) !== null) addCandidate(match[1]);
+    }
+    const bareId = /(?:^|[\\s"'(<\\[:])([A-Za-z0-9_-]{20})(?=$|[\\s"'(),.;!?<>])/g;
+    let idMatch;
+    while ((idMatch = bareId.exec(text)) !== null) addCandidate(idMatch[1]);
+
+    /* URLを一つも検出できない場合は、生入力も理由付きで返す。 */
+    if (!candidates.length) lines.forEach(addCandidate);
+
     const urls = [];
     const invalid = [];
     const seen = new Set();
     for (const candidate of candidates) {
-      const clean = String(candidate || "").trim().replace(/[)\],.;]+$/g, "");
-      if (!clean) continue;
-      const parsed = parseShareUrl(clean);
+      const parsed = parseShareUrl(candidate);
       if (!parsed.ok) {
-        if (!links.length) invalid.push({ text: clean, reason: parsed.error || "URL形式が不正です" });
+        invalid.push({ text: candidate, reason: parsed.error || "URL形式が不正です" });
         continue;
       }
       const key = parsed.collection + ":" + parsed.id;
       if (seen.has(key)) continue;
       seen.add(key);
-      urls.push({ url: clean, id: parsed.id, collection: parsed.collection });
+      urls.push({ url: candidate, id: parsed.id, collection: parsed.collection });
     }
     return { urls, invalid };
   }
