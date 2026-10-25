@@ -1932,6 +1932,24 @@ function normalizeStateShape(raw) {
       } : entry);
     }
   }
+  // A previous normalization may have already persisted multiple death-slot
+  // roster rows as equipped. The explicit active deathSupport is authoritative;
+  // otherwise keep the first equipped death-slot row and clear the overflow.
+  const deathSlotRows = next.roster.supports.filter((entry) => entry?.slot === "death" || isDeathSupportPassiveRecord(entry));
+  const equippedDeathRows = deathSlotRows.filter((entry) => entry.equipped === true);
+  if (equippedDeathRows.length > 1) {
+    const selectedName = String(next.deathSupport?.name || "").trim();
+    const selectedId = String(next.deathSupport?.id || "");
+    const preferred = selectedName
+      ? deathSlotRows.find((entry) => (selectedId && String(entry?.uid || "") === selectedId)
+        || String(entry?.name || "").trim() === selectedName)
+      : null;
+    const keepUid = String(preferred?.uid || equippedDeathRows[0]?.uid || "");
+    next.roster.supports = next.roster.supports.map((entry) => {
+      if (!(entry?.slot === "death" || isDeathSupportPassiveRecord(entry)) || entry.equipped !== true) return entry;
+      return { ...entry, equipped: String(entry.uid || "") === keepUid };
+    });
+  }
   const seenSpirit = new Set(next.roster.spirits.map((s) => s.name));
   if (typeof next.spirit === "string" && next.spirit && !seenSpirit.has(next.spirit)) {
     next.roster.spirits.push({
