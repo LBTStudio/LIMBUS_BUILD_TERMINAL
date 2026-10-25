@@ -198,6 +198,17 @@ async function captureProfile(browser, mode) {
             await snap("persona-card-hover","人格カードにマウスを合わせた状態");
             await click(cardHit);
             await snap("persona-card-selected","人格カードを選択し詳細を表示した状態");
+            // Close the real detail modal before continuing; it blocks following controls.
+            const detailDialog = page.locator(".detail-dialog").last();
+            if (await visible(detailDialog)) {
+              const closeButton = detailDialog.locator("button").first();
+              if (await visible(closeButton)) {
+                await click(closeButton);
+                await snap("persona-card-detail-closed","人格詳細を閉じて一覧へ戻った状態");
+              } else {
+                throw new Error("persona detail dialog has no visible close control");
+              }
+            }
           }
           const imp=page.locator(".pw-listbar-actions .persona-draft-import-trigger").first();
           if(await visible(imp)) {
