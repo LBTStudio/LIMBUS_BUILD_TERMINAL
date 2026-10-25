@@ -1078,7 +1078,7 @@ function appliedSummary(actions) {
                 h("span", { className: "gara-row-name" }, "データ内容"),
                 h("span", { className: "gara-row-meta" },
                   "スキル " + (persona.skills || []).length + "・パッシブ "
-                  + ((persona.passive_name ? 1 : 0) + (result.secondaryPassive?.name ? 1 : 0))
+                  + ((result.passives || []).length || ((persona.passive_name ? 1 : 0) + (result.secondaryPassive?.name ? 1 : 0)))
                   + "・固有 " + (persona.unique_buffs || []).length)
               ),
               result.source?.id
@@ -1104,6 +1104,7 @@ function appliedSummary(actions) {
               const actions = selectedRows.map((row) => ({
                 type: "ADD_GARASUMADO_PERSONA",
                 persona: row.result.persona,
+                extraPassives: row.result.extraPassives || null,
                 secondaryPassive: row.result.secondaryPassive || null,
                 syncRank: row.result.syncRank || null,
                 syncMax: row.result.suggestSyncMax === true,

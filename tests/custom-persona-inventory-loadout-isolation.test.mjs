@@ -12,6 +12,14 @@ function extractCase(startText, endText) {
 }
 const customEquipCase = extractCase('case "EQUIP_CUSTOM_PERSONA": {', 'case "IMPORT_PERSONA_DRAFT":');
 const draftImportCase = extractCase('case "IMPORT_PERSONA_DRAFT": {', 'case "SAVE_CUSTOM_PERSONA": {');
+/* 所持へ積む追加パッシブの正規化は reducer の外にある。スタブで書き写すと
+   本体と食い違うので、実装そのものを切り出して同じコンテキストへ入れる。 */
+const passiveHelpers = (() => {
+  const start = source.indexOf("function normalizeExtraPassive(");
+  const end = source.indexOf("// 人格切替・明示保存で共有する完全ビルドスナップショット。", start);
+  assert.ok(start >= 0 && end > start, "passive helpers exist in state.js");
+  return source.slice(start, end);
+})();
 
 function loadReducer(cases, db = { normal_personas: [], tokui_personas: [] }) {
   const context = {
@@ -50,6 +58,7 @@ function loadReducer(cases, db = { normal_personas: [], tokui_personas: [] }) {
       };
     }
     function chargeSyncOperation(state) { return state; }
+    ${passiveHelpers}
     function reduce(state, action) {
       switch (action.type) {
         ${cases}

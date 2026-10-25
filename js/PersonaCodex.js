@@ -1165,6 +1165,7 @@ const addRoster = (p) => {
     dispatch({
       type: "IMPORT_PERSONA_DRAFT",
       persona: draftResult.persona,
+      extraPassives: draftResult.extraPassives || null,
       secondaryPassive: draftResult.secondaryPassive,
       provided: draftResult.provided,
       syncRank: short ? existingRank : draftResult.syncRank,

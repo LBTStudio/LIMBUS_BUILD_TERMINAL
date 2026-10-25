@@ -344,11 +344,13 @@
     const tacticRows = contentRows(tactics, ["name", "effect"]);
     const passiveRows = contentRows(passives, ["name", "condition", "effect", "alwaysEffect"]);
     const uniqueRows = contentRows(uniques, ["name", "effect", "maxCount"]);
-    if (!Array.isArray(passives) || !Array.isArray(uniques) || passiveRows.length > 2
+    /* パッシブの件数は絞らない。所持側は1件目を pas、2件目以降を extraPassives へ
+       上限なく積むので、元データにある数だけ反映する。 */
+    if (!Array.isArray(passives) || !Array.isArray(uniques)
       || tacticRows.some((t) => !/^\d+(?:-\d+)?$/.test(forMatch(t.code)) || !clean(t.attr) || !clean(t.sin))
       || passiveRows.some((p) => !clean(p.name))
       || uniqueRows.some((u) => !clean(u.name) || (clean(u.maxCount) && forMatch(u.maxCount) !== "-" && !/^\d+$/.test(toHalfWidth(clean(u.maxCount)))))) {
-      return garasumadoError("不完全な戦術・固有・パッシブ、または未対応の3件目以降のパッシブがあります。欠落を防ぐため反映を中止しました。", source);
+      return garasumadoError("不完全な戦術・固有・パッシブがあります。欠落を防ぐため反映を中止しました。", source);
     }
     for (const [label, dropped] of [["戦術", tactics.length - tacticRows.length], ["パッシブ", passives.length - passiveRows.length], ["固有", uniques.length - uniqueRows.length]]) {
       if (dropped > 0) warnings.push(`${label}の空欄${dropped}件は取り込みません。`);
@@ -376,7 +378,8 @@
     }
     if (new Set(skills.map((s) => s.rank)).size !== skills.length) return garasumadoError("戦術番号が重複しています。反映前に移行元を確認してください。", source);
     const passive = (p) => ({ name: clean(p?.name), cond: clean(p?.condition), always: clean(p?.alwaysEffect), effect: clean(p?.effect) });
-    const first = passive(passiveRows[0]);
+    const allPassives = passiveRows.map(passive);
+    const first = allPassives[0] || passive(null);
     const result = { ok: true, errors: [], warnings,
       persona: { name: displayName, no: 999, hp: Number(status.hp), san: Number(status.san), speed: forMatch(status.speed), bullets: normalizedGarasumadoBullet(status.bullet),
         res_slash: clean(status.slash) || "普通", res_pierce: clean(status.pierce) || "普通", res_blunt: clean(status.blunt) || "普通",
@@ -384,10 +387,14 @@
         skills, unique_buffs: uniqueRows.map((u) => ({ name: clean(u.name), type: clean(u.type) || "バフ", initial: 0,
           max: /^\d+$/.test(toHalfWidth(clean(u.maxCount))) ? Number(toHalfWidth(clean(u.maxCount))) : null, desc: clean(u.effect), place: "status" })),
         keywords: [], __custom: true, __draftImported: true },
-      secondaryPassive: passiveRows[1] ? passive(passiveRows[1]) : null,
-      provided: { name: true, hp: true, san: true, speed: true, bullets: true, resistances: true, passives: passiveRows.length > 0, skills: true, uniques: uniqueRows.length > 0 },
-      summary: { skillCount: skills.length, buffCount: uniqueRows.length, passiveCount: passiveRows.length } };
-    result.persona.keywords = window.LBT_inferPersonaKeywords?.(result.persona, result.secondaryPassive) || [];
+      /* passives は表示・件数用の全件。所持へ入れる側は1件目を persona の
+         passive_* に、2件目以降を extraPassives に置く。 */
+      passives: allPassives,
+      extraPassives: allPassives.slice(1),
+      secondaryPassive: allPassives[1] || null,
+      provided: { name: true, hp: true, san: true, speed: true, bullets: true, resistances: true, passives: allPassives.length > 0, skills: true, uniques: uniqueRows.length > 0 },
+      summary: { skillCount: skills.length, buffCount: uniqueRows.length, passiveCount: allPassives.length } };
+    result.persona.keywords = window.LBT_inferPersonaKeywords?.(result.persona, allPassives.slice(1)) || [];
     if (source?.collection === "characters") result.warnings.push("キャラクターシートの人格名・能力・パッシブ・戦術・固有のみを取り込みます。PC名、PL名、精神、E.G.O、所持品は取り込みません。");
     return {
       ...result,
@@ -476,7 +483,7 @@
       if (!hp || !san || !isDiceFormula(speed)) errors.push("HP・SAN・速度を確認できません。HP・SANは数値、速度は『1d5+2』形式で記載してください。");
       if (!skills.length) errors.push("戦術スキルを確認できません。『【戦術スキルN】』または『1-1：スキル名』形式を含めてください。");
     }
-    if (passives.length > 2) errors.push("パッシブは2件まで対応しています。3件目以降があるため反映できません。");
+    /* パッシブは件数を絞らない（1件目が pas、2件目以降が extraPassives）。 */
     if (new Set(skills.map((s) => s.rank)).size !== skills.length) errors.push("戦術番号が重複しています。");
     for (const skill of skills) {
       if (!skill.dice.length) warnings.push(`「${skill.name}」はダイス未検出です。効果のみのスキルか確認してください。`);
@@ -505,12 +512,14 @@
       __custom: true,
       __draftImported: true
     };
-    persona.keywords = window.LBT_inferPersonaKeywords?.(persona, passives[1]) || [];
+    persona.keywords = window.LBT_inferPersonaKeywords?.(persona, passives.slice(1)) || [];
     return {
       ok: errors.length === 0,
       errors,
       warnings,
       persona,
+      passives,
+      extraPassives: passives.slice(1),
       secondaryPassive: passives[1] || null,
       provided,
       syncRank: ["0", "00", "000"].includes(rank) ? rank : null,

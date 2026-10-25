@@ -39,11 +39,12 @@ test('structured import retains exact fields, nested names and dice continuation
   assert.equal(skill.effect, '使用時：呼吸2を得る');
 });
 
-test('structured import cannot silently omit invalid entries or extra passives', () => {
+test('structured import cannot silently omit invalid entries', () => {
   for (const corrupt of [
     (r) => r.tactics.push({ name: '番号欠落' }),
     (r) => r.uniques.push({ effect: '名前欠落' }),
-    (r) => r.passives.push(r.passives[0], r.passives[0]),
+    /* パッシブは件数を絞らないが、名前の無い行は推測で埋めない。 */
+    (r) => r.passives.push({ effect: '名前欠落' }),
     (r) => r.tactics.push({ ...r.tactics[0] }),
     (r) => { r.tactics[0].effect = '2d??：不明'; },
     (r) => { r.status.hp = '不明'; }
@@ -335,6 +336,72 @@ test('空欄の枠は落とし、名称の空欄は名称未設定として取�
   assert.ok(result.warnings.some((w) => /空欄/.test(w)), result.warnings.join('\n'));
   assert.ok(result.warnings.some((w) => /名称未設定/.test(w)), result.warnings.join('\n'));
   assert.equal(record.tactics[0].name, '三連-残', '原本は書き換えない');
+});
+
+test('パッシブは件数を絞らず、2件目以降を extraPassives へ全部積む', () => {
+  const api = parser();
+  const rt = loadRuntime();
+  const record = example();
+  record.passives = [
+    { name: '本国剣術', condition: '傲慢3 共鳴', alwaysEffect: '斬撃スキル威力+2', effect: '剣契所属の味方に呼吸2を付与' },
+    { name: '編み込むように縛り付く', condition: '憤怒3 保有', effect: 'ダメージ量+1' },
+    { name: '人生一発', condition: '怠惰6 保有', effect: '最後のダイス的中時、麻痺2を付与' },
+    { name: '四卦', condition: 'なし', alwaysEffect: '戦闘開始時に四卦4を得る', effect: '' }
+  ];
+  const parsed = api.LBT_parseGarasumadoPersonaDocument(record, publicUrl);
+  assert.equal(parsed.ok, true, parsed.errors.join('\n'));
+  assert.equal(parsed.passives.length, 4);
+  assert.equal(parsed.summary.passiveCount, 4);
+  assert.equal(parsed.persona.passive_name, '本国剣術');
+  assert.equal(parsed.secondaryPassive.name, '編み込むように縛り付く');
+
+  /* 所持人格ライブラリへの一括取込（硝子窓のUIが送る形）でも4件そろう。 */
+  const imported = rt.reducer(rt.initialState, {
+    type: 'ADD_GARASUMADO_PERSONA',
+    persona: parsed.persona,
+    extraPassives: parsed.extraPassives,
+    secondaryPassive: parsed.secondaryPassive,
+    source: { kind: 'garasumado-persona', id: 'gEp4XyLWFnFoSQhyNmiU', url: publicUrl, label: parsed.persona.name }
+  });
+  const entry = imported.roster.personas.at(-1);
+  assert.equal(entry.build.pas.name, '本国剣術');
+  assert.deepEqual([...entry.build.extraPassives.map((p) => p.name)], ['編み込むように縛り付く', '人生一発', '四卦']);
+  assert.deepEqual([...entry.build.extraPassives.map((p) => p.cond)], ['憤怒3 保有', '怠惰6 保有', 'なし']);
+
+  /* 装備し直してもビルドから4件そろって戻る。 */
+  const equipped = rt.reducer(imported, { type: 'EQUIP_PERSONA', mode: entry.mode, no: entry.no, src: entry.src });
+  assert.equal(equipped.pas.name, '本国剣術');
+  assert.deepEqual([...equipped.extraPassives.map((p) => p.name)], ['編み込むように縛り付く', '人生一発', '四卦']);
+});
+
+test('貼り付け草案でもパッシブは2件で止めない', () => {
+  const api = parser();
+  const rt = loadRuntime();
+  const parsed = api.LBT_parsePersonaDraft(`人格名：三パッシブ
+HP：100 SAN：45 速度：1d5
+パッシブ名：第一
+条件：傲慢3 保有
+効果：ダメージ量+1
+パッシブ名：第二
+効果：出血1を付与
+パッシブ名：第三
+効果：呼吸2を得る
+【戦術スキル1】
+スキル名：試行
+斬撃：憤怒
+2d9：的中時、出血1を付与`);
+  assert.equal(parsed.ok, true, parsed.errors.join('\n'));
+  assert.equal(parsed.passives.length, 3);
+  const state = rt.reducer(rt.initialState, { type: 'IMPORT_PERSONA_DRAFT', ...parsed });
+  assert.equal(state.pas.name, '第一');
+  assert.deepEqual([...state.extraPassives.map((p) => p.name)], ['第二', '第三']);
+});
+
+test('取込UIはパッシブを件数で絞らずに reducer へ渡す', () => {
+  const ui = readFileSync(new URL('../js/garasumado-import-ui.js', import.meta.url), 'utf8');
+  const codex = readFileSync(new URL('../js/PersonaCodex.js', import.meta.url), 'utf8');
+  assert.match(ui, /extraPassives: row\.result\.extraPassives/);
+  assert.match(codex, /extraPassives: draftResult\.extraPassives/);
 });
 
 test('括弧付きのダイス表記は主ダイスと括弧書きの効果として読む', () => {

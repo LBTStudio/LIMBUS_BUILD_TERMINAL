@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-64e79369";
+const CACHE_NAME = "lbt-628a8ebd";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -55,7 +55,7 @@ const PRECACHE_URLS = [
   "js/ItemCodex.js?v=5d90af49",
   "js/LivePreview.js?v=1b6767e6",
   "js/OtherSections.js?v=cce93212",
-  "js/PersonaCodex.js?v=59018e19",
+  "js/PersonaCodex.js?v=b2d98177",
   "js/SkillDeck.js?v=a93f6cb8",
   "js/accounts-ui.js?v=44406446",
   "js/cloud-backup.js?v=8c54c88e",
@@ -65,7 +65,7 @@ const PRECACHE_URLS = [
   "js/gacha-proof.js?v=516f754a",
   "js/gacha-tickets.js?v=436892c0",
   "js/gacha.js?v=f58f8a3e",
-  "js/garasumado-import-ui.js?v=6aabd9e1",
+  "js/garasumado-import-ui.js?v=635291cb",
   "js/garasumado-memo-parse.js?v=c64bd1b6",
   "js/garasumado-roster-import.js?v=8e67a16f",
   "js/generator.js?v=abe48f39",
@@ -73,13 +73,13 @@ const PRECACHE_URLS = [
   "js/ledger-import-reconcile.js?v=69d57ed7",
   "js/ledger-provenance.js?v=fa9f519e",
   "js/name-fuzzy.js?v=d3eb29a1",
-  "js/persona-draft-import.js?v=00fecba8",
+  "js/persona-draft-import.js?v=7fc9148f",
   "js/result-log-parser.js?v=43c5aa47",
   "js/result-text-import.js?v=4c254e22",
   "js/roster-resolver.js?v=a854c332",
   "js/share-link.js?v=8b782d45",
   "js/share-viewer.js?v=71f2da96",
-  "js/state.js?v=e25d0e63",
+  "js/state.js?v=372140f1",
   "js/ui.js?v=91b5af29",
   "vendor/react-dom.min.js?v=35f4f974",
   "vendor/react.min.js?v=d949f1c3",

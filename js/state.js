@@ -88,8 +88,11 @@ const TICKET_KIND_LABEL = {
     if (kind !== "pack") return base;
     return pack ? `〈${pack}〉抽出チケット` : "特定抽出パック";
   };
-function inferPersonaKeywords(persona, secondaryPassive) {
-  const evidence = [personaKeywordEvidence(persona), secondaryPassive?.always, secondaryPassive?.effect].filter(Boolean).join("\n");
+/* 第2引数は2件目以降のパッシブ（1件でも配列でも受ける）。
+   上限が無いので、追加パッシブすべてを本文の根拠に数える。 */
+function inferPersonaKeywords(persona, extraPassives) {
+  const extras = Array.isArray(extraPassives) ? extraPassives : [extraPassives];
+  const evidence = [personaKeywordEvidence(persona), ...extras.flatMap((entry) => [entry?.always, entry?.effect])].filter(Boolean).join("\n");
   const existing = Array.isArray(persona?.keywords) ? persona.keywords.filter(Boolean) : [];
   return [...new Set([...existing, ...(window.LBT_PDF_KEYWORD_ORDER || []).filter((keyword) => evidence.includes(keyword))])];
 }
@@ -239,6 +242,22 @@ function mergeExtraPassives(list, legacy) {
     if (!dup) out.push({ ...passive, quick: passive.quick || "" });
   }
   return out.map(normalizeExtraPassive);
+}
+
+/* 取り込む2件目以降のパッシブ。人格パッシブは件数の上限を持たないので、
+   元データにある数だけ積む。旧経路の secondaryPassive（2件目まで）も
+   同じ列へ合流させ、片方しか来ない呼び出しでも取りこぼさない。 */
+function importedExtraPassives(list, legacy, idPrefix) {
+  const source = Array.isArray(list) && list.length ? list : (legacy?.name ? [legacy] : []);
+  return source
+    .filter((entry) => entry && typeof entry === "object" && String(entry.name || "").trim())
+    .map((entry, index) => normalizeExtraPassive({
+      id: `${idPrefix}-${index + 2}`,
+      name: entry.name,
+      cond: entry.cond,
+      always: entry.always,
+      effect: entry.effect
+    }, index));
 }
 
 // 人格切替・明示保存で共有する完全ビルドスナップショット。
@@ -5830,16 +5849,11 @@ case "ADD_ENTRY":
         place: buff?.place || "status",
         noST: buff?.noST === true
       }));
-      const secondary = action.secondaryPassive && typeof action.secondaryPassive === "object"
-        ? action.secondaryPassive : null;
-      const extraPassives = secondary && String(secondary.name || "").trim() ? [{
-        id: `pas-import-${uid}-2`,
-        name: String(secondary.name || ""),
-        cond: String(secondary.cond || ""),
-        always: String(secondary.always || ""),
-        effect: String(secondary.effect || ""),
-        quick: ""
-      }] : [];
+      const extraPassives = importedExtraPassives(
+        action.extraPassives,
+        action.secondaryPassive && typeof action.secondaryPassive === "object" ? action.secondaryPassive : null,
+        `pas-import-${uid}`
+      );
       const emptyEgoSlots = { ZAYIN: null, TETH: null, HE: null, WAW: null, ALEPH: null };
       const defaultStatuses = getFactoryDefaultStatuses() || [];
       const selfStatusEntries = collectSelfManagedStatusEntries(importedSource);
@@ -5964,7 +5978,7 @@ case "ADD_ENTRY":
         skills: provided.skills ? src.skills : (sourceBase.skills || src.skills),
         unique_buffs: provided.uniques ? src.unique_buffs : (sourceBase.unique_buffs || src.unique_buffs)
       };
-      effectiveSrc.keywords = inferPersonaKeywords(effectiveSrc, action.secondaryPassive);
+      effectiveSrc.keywords = inferPersonaKeywords(effectiveSrc, action.extraPassives || action.secondaryPassive);
       const uid = makeOwnedUid("custom");
       /* 硝子窓の派生番号は 1 始まり（0-1, 0-2）で届く。かつ LBT 準拠の
          2 始まり（0-2, 0-3）が混在しうる。どちらが正解かは受信データだけでは
@@ -6039,14 +6053,7 @@ case "ADD_ENTRY":
         customStatuses: cloneJSON(targetCustomStatuses || []),
         equipmentRefs: targetEquipmentRefs,
         pas: { name: effectiveSrc.passive_name || "", cond: effectiveSrc.passive_cond || "", always: effectiveSrc.passive_always || "", effect: effectiveSrc.passive_effect || "", quick: "" },
-        extraPassives: action.secondaryPassive?.name ? [{
-          id: "pas-import-1",
-          name: action.secondaryPassive?.name || "",
-          cond: action.secondaryPassive?.cond || "",
-          always: action.secondaryPassive?.always || "",
-          effect: action.secondaryPassive?.effect || "",
-          quick: ""
-        }] : [],
+        extraPassives: importedExtraPassives(action.extraPassives, action.secondaryPassive, "pas-import"),
         pas2Enabled: false,
         pas2: { name: "", cond: "", always: "", effect: "" },
         skills: cloneJSON(skills),
@@ -6131,14 +6138,7 @@ case "ADD_ENTRY":
         resP: effectiveSrc.res_pierce || "普通",
         resB: effectiveSrc.res_blunt || "普通",
         pas: { name: effectiveSrc.passive_name || "", cond: effectiveSrc.passive_cond || "", always: effectiveSrc.passive_always || "", effect: effectiveSrc.passive_effect || "", quick: "" },
-        extraPassives: action.secondaryPassive?.name ? [{
-          id: "pas-import-1",
-          name: action.secondaryPassive?.name || "",
-          cond: action.secondaryPassive?.cond || "",
-          always: action.secondaryPassive?.always || "",
-          effect: action.secondaryPassive?.effect || "",
-          quick: ""
-        }] : [],
+        extraPassives: importedExtraPassives(action.extraPassives, action.secondaryPassive, "pas-import"),
         pas2Enabled: false,
         pas2: { name: "", cond: "", always: "", effect: "" },
         skills,
