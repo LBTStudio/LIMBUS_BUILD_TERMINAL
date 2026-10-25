@@ -14,7 +14,8 @@ const SHARE_CACHE_TTL_SECONDS = 6 * 60 * 60;
 // Refresh at most once per six-hour window. The extra six-hour TTL is grace for the
 // cache/touch window, so a cached hit cannot make an active link expire too early.
 const SHARE_TOUCH_INTERVAL_MS = 6 * 60 * 60 * 1000;
-const SHARE_IDLE_TTL_SECONDS = 7 * 24 * 60 * 60 + 6 * 60 * 60;
+// Treat one month as 30 days, plus one six-hour touch/cache window of grace.
+const SHARE_IDLE_TTL_SECONDS = 30 * 24 * 60 * 60 + SHARE_TOUCH_INTERVAL_MS / 1000;
 const RESPONSE_CSP = "default-src 'none'; base-uri 'none'; form-action 'none'; frame-src https://lbtstudio.github.io; img-src https://lbtstudio.github.io data:; style-src 'unsafe-inline'";
 
 function jsonResponse(body, status, origin = "") {
