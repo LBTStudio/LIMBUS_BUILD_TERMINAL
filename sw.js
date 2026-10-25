@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-83e39958";
+const CACHE_NAME = "lbt-76a07a8c";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -29,7 +29,7 @@ const PRECACHE_URLS = [
   "assets/design-system.css?v=910f9485",
   "assets/fonts/corporate-logo-bold-subset.woff2?v=b56fa468",
   "assets/fonts/corporate-logo-medium-subset.woff2?v=dbbdb67e",
-  "assets/inline-effect-glossary.css?v=594970a3",
+  "assets/inline-effect-glossary.css?v=cf2426f5",
   "assets/items.css?v=2c2c655e",
   "assets/persona-codex.css?v=d88a1ab0",
   "assets/sections.css?v=d9966dcf",
@@ -50,10 +50,10 @@ const PRECACHE_URLS = [
   "data/special-items.json?v=aaa21cfb",
   "js/App.js?v=e009dffe",
   "js/DataQuality.js?v=a8365c72",
-  "js/InlineEffectGlossary.js?v=fd3a4408",
+  "js/InlineEffectGlossary.js?v=962b2692",
   "js/ItemCodex.js?v=5d90af49",
   "js/LivePreview.js?v=1b6767e6",
-  "js/OtherSections.js?v=292291f3",
+  "js/OtherSections.js?v=9cfea67b",
   "js/PersonaCodex.js?v=59018e19",
   "js/SkillDeck.js?v=a93f6cb8",
   "js/accounts-ui.js?v=04ce47b7",
