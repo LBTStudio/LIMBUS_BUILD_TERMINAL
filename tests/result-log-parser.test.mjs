@@ -46,6 +46,14 @@ test("通貨の識別: LP・欠片・両方の3値", () => {
   assert.equal(P.classifyCurrency("南部セブン協会5課フィクサー"), null, "通貨語は無い");
 });
 
+test("硝子の破片は LP・欠片通貨に誤分類せず、登録候補として残す", () => {
+  assert.equal(P.classifyCurrency("硝子の破片x2"), null);
+  const parsed = P.parseResultLog("【A】\n硝子の破片 x2");
+  const records = parsed.sessions[0].records;
+  assert.equal(records.some((record) => record.kind === "currency"), false);
+  assert.ok(records.some((record) => record.kind === "registration" && record.text.includes("硝子の破片")));
+});
+
 test("通貨の識別: 全実データで外さない（ゲート）", () => {
   let total = 0;
   let ok = 0;

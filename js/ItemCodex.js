@@ -1,9 +1,12 @@
 const ItemCodex = ({ state, dispatch }) => {
   const h = React.createElement;
   const officialItems = Array.isArray(window.DB?.items) ? window.DB.items : [];
+  const specialItems = Array.isArray(window.DB?.specialItems) ? window.DB.specialItems : [];
   const customItems = Array.isArray(state.customItems) ? state.customItems : [];
-  const items = React.useMemo(() => [...officialItems, ...customItems], [officialItems, customItems]);
+  const items = React.useMemo(() => [...officialItems, ...specialItems, ...customItems], [officialItems, specialItems, customItems]);
   const inventory = Array.isArray(state.inventory) ? state.inventory : [];
+  const ledgerBalance = window.LBT_computeLedgerBalance?.(state.results || [], state.entries || []) || { lp: 0, shards: 0 };
+  const resourceQuantity = (item) => item?.ledgerResource === "shards" ? Math.max(0, Number(ledgerBalance.shards) || 0) : null;
   const [query, setQuery] = React.useState("");
   const [category, setCategory] = React.useState("all");
   const [ownedOnly, setOwnedOnly] = React.useState(false);
@@ -27,17 +30,19 @@ const ItemCodex = ({ state, dispatch }) => {
     const q = query.trim().toLowerCase();
     return items.filter((item) => {
       if (category !== "all" && item.category !== category) return false;
-      if (ownedOnly && !entryById.has(item.id)) return false;
+      if (ownedOnly && !entryById.has(item.id) && !(item.ledgerResource && resourceQuantity(item) > 0)) return false;
       if (!q) return true;
       const haystack = `${item.name} ${item.category} ${(item.tags || []).join(" ")} ${item.effect}`.toLowerCase();
       return haystack.includes(q);
     });
-  }, [items, query, category, ownedOnly, entryById]);
+  }, [items, query, category, ownedOnly, entryById, ledgerBalance]);
   const selected = byId.get(selectedId) || visible[0] || items[0] || null;
   const selectedEntry = selected ? entryById.get(selected.id) : null;
   const selectedMaxOwned = selected ? (window.LBT_getItemMaxOwned?.(state, selected.id) || 99) : 99;
   const selectedHasCap = selectedMaxOwned < 99;
-  const canAddSelected = !selectedEntry || (Number(selectedEntry.quantity) || 1) < selectedMaxOwned;
+  const canAddSelected = selected?.ledgerResource === "shards"
+    ? Number(ledgerBalance.lp) >= 2
+    : !selectedEntry || (Number(selectedEntry.quantity) || 1) < selectedMaxOwned;
   const [quantityDraft, setQuantityDraft] = React.useState("");
   React.useEffect(() => {
     setQuantityDraft(selectedEntry ? String(selectedEntry.quantity) : "");
@@ -57,8 +62,21 @@ const ItemCodex = ({ state, dispatch }) => {
   };
   const addItem = () => {
     if (!selected) return;
-    dispatch({ type: "ADD_ITEM", itemId: selected.id });
-    toast(canAddSelected ? (selectedEntry ? `「${selected.name}」の数量を追加` : `「${selected.name}」をアイテム一覧へ導入`) : `「${selected.name}」は所持上限（×${selectedMaxOwned}）です`);
+    const ledgerLinked = selected.ledgerResource === "shards";
+    if (!canAddSelected) {
+      toast(ledgerLinked
+        ? "自我の欠片は1個2LPです。LP残高が不足しています"
+        : `「${selected.name}」は所持上限（×${selectedMaxOwned}）です`, "assertive");
+      return;
+    }
+    dispatch(selected.specialResource && !ledgerLinked
+      ? { type: "ADD_ITEM_INVENTORY", itemId: selected.id }
+      : { type: "ADD_ITEM", itemId: selected.id });
+    toast(ledgerLinked
+      ? "自我の欠片を1個購入しました（2LP）"
+      : selected.specialResource
+        ? (selectedEntry ? `「${selected.name}」の所持数を追加` : `「${selected.name}」を特殊資源欄へ追加`)
+        : (selectedEntry ? `「${selected.name}」の数量を追加` : `「${selected.name}」をアイテム一覧へ導入`));
   };
   const patchEntry = (patch) => selectedEntry && dispatch({ type: "PATCH_ITEM", uid: selectedEntry.uid, patch });
   const commitQuantity = () => {
@@ -100,12 +118,16 @@ const ItemCodex = ({ state, dispatch }) => {
           h("button", { type: "button", "aria-pressed": selected?.id === item.id, className: `item-row${selected?.id === item.id ? " is-selected" : ""}`, onClick: () => selectItem(item.id) },
             h("span", { className: "item-row-mark" }, h(Icon, { name: "item", size: 14 })),
             h("span", { className: "item-row-copy" }, h("b", null, item.name || "名称未設定", item.custom && h("em", { className: "item-custom-badge" }, "ORIGINAL")), h("small", null, `${item.category}　${(item.tags || []).join(" / ")}`)),
-            entry && h("span", { className: "item-quantity-badge" }, itemHasCap ? `×${entry.quantity} / ${itemMaxOwned}` : `×${entry.quantity}`)
+            entry
+              ? h("span", { className: "item-quantity-badge" }, itemHasCap ? `×${entry.quantity} / ${itemMaxOwned}` : `×${entry.quantity}`)
+              : item.ledgerResource
+                ? h("span", { className: "item-quantity-badge" }, `×${resourceQuantity(item)}`)
+                : null
           )
         );
       }) : h("div", { className: "item-empty" }, "該当するアイテムはありません。")),
       selected && h("section", { className: "item-detail", "aria-label": `${selected.name}の詳細` },
-        h("div", { className: "item-detail-top" }, h("div", { className: "item-detail-index" }, selected.custom ? "ORIGINAL ITEM" : `ITEM / ${String(items.indexOf(selected) + 1).padStart(3, "0")}`), h("h3", null, selected.name || "名称未設定"), h("div", { className: "item-tag-row" }, h("span", null, selected.category), (selected.tags || []).map((tag) => h("span", { key: tag }, tag)), selectedHasCap && h("span", { className: "item-max-owned", title: "このアイテムの最大所持数" }, `上限 ×${selectedMaxOwned}`), h("span", { className: "item-price" }, selected.price))),
+        h("div", { className: "item-detail-top" }, h("div", { className: "item-detail-index" }, selected.specialResource ? "SPECIAL RESOURCE" : selected.custom ? "ORIGINAL ITEM" : `ITEM / ${String(items.indexOf(selected) + 1).padStart(3, "0")}`), h("h3", null, selected.name || "名称未設定"), h("div", { className: "item-tag-row" }, h("span", null, selected.category), (selected.tags || []).map((tag) => h("span", { key: tag }, tag)), selectedHasCap && h("span", { className: "item-max-owned", title: "このアイテムの最大所持数" }, `上限 ×${selectedMaxOwned}`), h("span", { className: "item-price" }, selected.price))),
         selected.custom ? h("div", { className: "item-custom-editor" },
           h("label", null, "名称", h("input", { value: selected.name, onChange: (event) => patchCustomItem({ name: event.target.value }) })),
           h("label", null, "区分", h("select", { value: selected.category, onChange: (event) => patchCustomItem({ category: event.target.value }) }, h("option", { value: "その他" }, "その他"), h("option", { value: "回復" }, "回復"), h("option", { value: "強化" }, "強化"))),
@@ -124,7 +146,7 @@ const ItemCodex = ({ state, dispatch }) => {
           h("label", { className: "item-output-toggle" }, h("input", { type: "checkbox", checked: selectedEntry.memo !== false, onChange: (event) => patchEntry({ memo: event.target.checked }) }), h("span", null, "MEMOに表示")),
           h("label", { className: "item-output-toggle" }, h("input", { type: "checkbox", checked: selectedEntry.palette !== false, onChange: (event) => patchEntry({ palette: event.target.checked }) }), h("span", null, "PALETTEへ反映")),
           h("div", { className: "item-detail-actions" }, h(Button, { size: "sm", variant: "secondary", icon: "plus", disabled: !canAddSelected, onClick: addItem, title: canAddSelected ? "所持数を1増やす" : `最大所持数（×${selectedMaxOwned}）に到達` }, canAddSelected ? "数量を追加" : "上限に到達"), h(Button, { size: "sm", variant: "danger", icon: "trash", onClick: removeItem, title: "このアイテムを所持リストから削除" }, "所持品から削除"))
-        ) : h(Button, { size: "md", variant: "primary", icon: "plus", className: "item-add-button", disabled: !canAddSelected, onClick: addItem, title: canAddSelected ? "アイテム一覧へ導入" : `最大所持数（×${selectedMaxOwned}）に到達` }, canAddSelected ? "アイテム一覧へ導入" : "上限に到達")
+        ) : h(Button, { size: "md", variant: "primary", icon: "plus", className: "item-add-button", disabled: !canAddSelected, onClick: addItem, title: selected?.ledgerResource === "shards" ? (canAddSelected ? "2LPで自我の欠片を1個購入" : "LP残高が2LP未満です") : canAddSelected ? "アイテム一覧へ導入" : `最大所持数（×${selectedMaxOwned}）に到達` }, selected?.ledgerResource === "shards" ? (canAddSelected ? "1個購入（2LP）" : "LP不足（2LP必要）") : canAddSelected ? "アイテム一覧へ導入" : "上限に到達")
       )
     )
   );

@@ -1,0 +1,27 @@
+[
+  {
+    "id": "resource-ego-shard",
+    "name": "自我の欠片",
+    "category": "特殊資源",
+    "tags": [
+      "特殊資源",
+      "通帳連動"
+    ],
+    "effect": "通帳の「欠片」残高と連動します。獲得欠片と支出明細から残数を計算します。",
+    "palette": "",
+    "specialResource": true,
+    "ledgerResource": "shards",
+    "price": "2LP"
+  },
+  {
+    "id": "resource-glass-shard",
+    "name": "硝子の破片",
+    "category": "特殊資源",
+    "tags": [
+      "特殊資源"
+    ],
+    "effect": "",
+    "palette": "",
+    "specialResource": true
+  }
+]

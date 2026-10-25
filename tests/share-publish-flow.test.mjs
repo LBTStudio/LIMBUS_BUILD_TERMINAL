@@ -3,7 +3,13 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const generator = readFileSync(new URL("../js/generator.js", import.meta.url), "utf8");
+const shareViewer = readFileSync(new URL("../js/share-viewer.js", import.meta.url), "utf8");
 const mobileOverlay = readFileSync(new URL("../assets/v53-overlay.css", import.meta.url), "utf8");
+
+test("共有ビューアも特殊資源カタログを復元し、MEMO/PALETTEの資源名を解決する", () => {
+  assert.match(shareViewer, /fetch\("data\/special-items\.json\?v=[a-f0-9]+"\)/);
+  assert.match(shareViewer, /specialItems:\s*Array\.isArray\(specialItems\) \? specialItems : \[\]/);
+});
 
 test("共有URL発行はGitHub Pagesの完全ビューアを維持し、長文時はLBT直接復元URLを使う", () => {
   assert.match(generator, /const LBT_SHARE_VIEWER_URL = "https:\/\/lbtstudio\.github\.io\/LIMBUS_BUILD_TERMINAL\/share\.html"/);

@@ -19,12 +19,15 @@ function loadDB(){
         window.DB = db;
         return Promise.allSettled([
           readJSON("data/items.json?v=b47b58ae"),
-          readJSON("data/gacha-theme-packs.json?v=8d4dced2")
+          readJSON("data/gacha-theme-packs.json?v=8d4dced2"),
+          readJSON("data/special-items.json?v=26970fb5")
         ]).then(function(aux){
           window.DB.items = aux[0].status === "fulfilled" && Array.isArray(aux[0].value) ? aux[0].value : [];
           window.LBT_GACHA_PACKS = aux[1].status === "fulfilled" && aux[1].value && typeof aux[1].value === "object" ? aux[1].value : { packs: [] };
+          window.DB.specialItems = aux[2].status === "fulfilled" && Array.isArray(aux[2].value) ? aux[2].value : [];
           if(aux[0].status === "rejected" && window.console && console.warn) console.warn("items.json を読み込めません。空のアイテム一覧で起動します。", aux[0].reason);
           if(aux[1].status === "rejected" && window.console && console.warn) console.warn("gacha-theme-packs.json を読み込めません。既定のパック一覧で起動します。", aux[1].reason);
+          if(aux[2].status === "rejected" && window.console && console.warn) console.warn("special-items.json を読み込めません。特殊資源一覧は空で起動します。", aux[2].reason);
           resolve();
         });
       }).catch(reject);
@@ -32,7 +35,7 @@ function loadDB(){
     }
     var xhr = new XMLHttpRequest();
     xhr.open("GET", "data/db.json?v=16b6df9e", true);
-    xhr.onload = function(){ if(xhr.status===200 || xhr.status===0){ try{ window.DB = JSON.parse(xhr.responseText); window.DB.items = []; window.LBT_GACHA_PACKS = { packs: [] }; resolve(); }catch(e){ reject(e); } } else reject(new Error("http "+xhr.status)); };
+    xhr.onload = function(){ if(xhr.status===200 || xhr.status===0){ try{ window.DB = JSON.parse(xhr.responseText); window.DB.items = []; window.DB.specialItems = []; window.LBT_GACHA_PACKS = { packs: [] }; resolve(); }catch(e){ reject(e); } } else reject(new Error("http "+xhr.status)); };
     xhr.onerror = function(){ reject(new Error("xhr error")); };
     xhr.send();
   });
@@ -166,16 +169,16 @@ window.addEventListener("load", function(){
   <script src="vendor/react-dom.min.js?v=35f4f974"></script>
 <script src="js/core.js?v=d79b98be"></script>
 			<script src="js/ego-slot-forms.js?v=85aa4887"></script>
-				<script src="js/state.js?v=ea2bb17a"></script>
+				<script src="js/state.js?v=8bad4a2f"></script>
 				<script src="js/persona-draft-import.js?v=a4692646"></script>
 					<script src="js/share-link.js?v=8848209f"></script>
-					<script src="js/generator.js?v=c7d55a4f"></script>
+					<script src="js/generator.js?v=ff5f0a15"></script>
 <script src="js/ui.js?v=8943eab8"></script>
 				<script src="js/InlineEffectGlossary.js?v=b5c1a1e0"></script>
 				<script src="js/PersonaCodex.js?v=8f23dedc"></script>
-		<script src="js/ItemCodex.js?v=a3d19916"></script>
+		<script src="js/ItemCodex.js?v=f02559c2"></script>
 <script src="js/SkillDeck.js?v=a93f6cb8"></script>
-								<script src="js/OtherSections.js?v=928649ad"></script>
+								<script src="js/OtherSections.js?v=d9ab8452"></script>
 				<script src="js/LivePreview.js?v=1b6767e6"></script>
 <script src="js/DataQuality.js?v=a8365c72"></script>
 <script src="js/icon-cropper.js?v=20900dc8"></script>
@@ -183,7 +186,7 @@ window.addEventListener("load", function(){
 <script src="js/result-log-parser.js?v=43c5aa47"></script>
 <script src="js/garasumado-memo-parse.js?v=64e8547e"></script>
 <script src="js/result-text-import.js?v=258847e2"></script>
-<script src="js/ledger-provenance.js?v=53c12252"></script>
+<script src="js/ledger-provenance.js?v=564bc607"></script>
 <script src="js/ledger-import-reconcile.js?v=69d57ed7"></script>
 <script src="js/garasumado-roster-import.js?v=3064dc1e"></script>
 <script src="js/garasumado-import-ui.js?v=5e7676dc"></script>

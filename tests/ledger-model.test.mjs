@@ -60,6 +60,42 @@ function baseState() {
   };
 }
 
+test("旧LP換算記録は通常の支出明細と欠片収入へ一度だけ移行する", () => {
+  const legacy = {
+    ...baseState(),
+    results: [{
+      id: "legacy-exchange",
+      name: "旧リザルト",
+      date: "2026-10-01",
+      income: { lp: 100, shards: 5 },
+      exchange: { lp: 8, shards: 4 },
+      note: ""
+    }],
+    entries: []
+  };
+  const migrated = normalize(legacy);
+  const result = migrated.results.find((item) => item.id === "legacy-exchange");
+  assert.ok(result);
+  assert.equal(result.income.shards, 9, "旧換算で得た4欠片を収入へ移す");
+  assert.equal(Object.hasOwn(result, "exchange"), false, "移行後は旧交換フィールドを持たない");
+  const entry = migrated.entries.find((item) => item.name === "旧記録：LPから自我の欠片を交換");
+  assert.ok(entry, "LP支出を通常の明細として残す");
+  assert.equal(entry.cost.lp, 8);
+  assert.equal(entry.cost.shards, 0);
+  assert.equal(entry.resultId, "legacy-exchange");
+  const again = normalize(migrated);
+  assert.equal(again.results.find((item) => item.id === "legacy-exchange").income.shards, 9, "再読込で欠片収入を重複計上しない");
+  assert.equal(again.entries.filter((item) => item.name === "旧記録：LPから自我の欠片を交換").length, 1, "再読込で支出明細を重複生成しない");
+  assert.equal(balance(again.results, again.entries).spentLp, 8);
+});
+
+test("リザルト UI からLP→欠片の変換欄と変換ヘルパーを撤去する", () => {
+  const ui = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
+  const provenance = readFileSync(new URL("../js/ledger-provenance.js", import.meta.url), "utf8");
+  assert.doesNotMatch(ui, /ExchangeInputs|shardExchangeOf|LBT_shardExchange|LP→欠片/);
+  assert.doesNotMatch(provenance, /LP_TO_SHARD|LBT_shardExchange|shardExchange/);
+});
+
 test("リザルトを加えると収入が保存され、残高反映される", () => {
   let s = reducer(baseState(), { type: "ADD_RESULT", name: "第12回", date: "2026-10-11", income: { lp: 1200, shards: 400 } });
   assert.equal(s.results.length, 1);

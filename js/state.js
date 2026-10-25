@@ -705,8 +705,9 @@ function normalizeItemMaxOwned(value) {
 function getItemMaxOwned(state, itemId) {
   const id = String(itemId || "");
   const official = Array.isArray(window.DB?.items) ? window.DB.items.find((item) => item?.id === id) : null;
+  const special = Array.isArray(window.DB?.specialItems) ? window.DB.specialItems.find((item) => item?.id === id) : null;
   const custom = Array.isArray(state?.customItems) ? state.customItems.find((item) => item?.id === id) : null;
-  return normalizeItemMaxOwned((official || custom)?.maxOwned) || 99;
+  return normalizeItemMaxOwned((official || special || custom)?.maxOwned) || 99;
 }
 function clampItemQuantity(state, itemId, quantity) {
   /* セーブが壊れていても "12abc" を12個と読み替えない。正しい整数以外は既定の1個へ安全に正規化し、
@@ -1918,17 +1919,48 @@ function normalizeStateShape(raw) {
      不正な要素を落とす以外は触らない（検証はバッチ側の verifyBatch が行う）。 */
   if (!Array.isArray(next.draws)) next.draws = [];
   next.draws = next.draws.filter((batch) => batch && typeof batch === "object" && Array.isArray(batch.records));
-  next.results = next.results.map((result) => ({
-    ...result,
-    id: result.id || makeOwnedUid("res"),
-    name: String(result.name || "").slice(0, 80),
-    date: String(result.date || "").slice(0, 10),
-    income: { ...normalizeCurrency(result.income), tickets: normalizeTickets(result.income?.tickets) },
-    /* LP→欠片の換算。core:317「2LP → 自我の欠片1」で額が決まるが、
-       保存するのは利用者が入力したときの金額そのもの。導出は入力側に持たせる。 */
-    exchange: normalizeCurrency(result.exchange),
-    note: String(result.note || "")
-  }));
+  /* 旧版ではLP→自我の欠片の交換を result.exchange に保存していた。
+     UIから交換機能を削除する際に残高を変えないよう、旧交換を一度だけ
+     通常の「LP支出明細」と「獲得欠片」へ移行する。exchange を取り除けば
+     次回の hydrate で再移行されない。大きすぎて安全整数にならない旧記録だけは
+     原値を残し、computeLedgerBalance の後方互換経路で残高を保つ。 */
+  const migratedExchangeEntries = [];
+  next.results = next.results.map((result) => {
+    const id = result.id || makeOwnedUid("res");
+    const name = String(result.name || "").slice(0, 80);
+    const date = String(result.date || "").slice(0, 10);
+    const income = { ...normalizeCurrency(result.income), tickets: normalizeTickets(result.income?.tickets) };
+    const exchange = normalizeCurrency(result.exchange);
+    let note = String(result.note || "");
+    const hasExchange = exchange.lp > 0 || exchange.shards > 0;
+    if (hasExchange && Number.isSafeInteger(income.shards + exchange.shards)) {
+      income.shards += exchange.shards;
+      if (exchange.lp > 0) {
+        migratedExchangeEntries.push({
+          id: makeOwnedUid("ent"),
+          kind: "expense",
+          name: "旧記録：LPから自我の欠片を交換",
+          cost: { lp: exchange.lp, shards: 0 },
+          tickets: normalizeTickets(null),
+          resultId: id,
+          at: Date.now(),
+          note: "旧記録移行: " + exchange.lp + "LP → 自我の欠片 " + exchange.shards + "個",
+          ref: null
+        });
+      }
+      const migrationNote = "旧LP換算を移行済み（" + exchange.lp + "LP → 自我の欠片 " + exchange.shards + "個）";
+      note = [note, migrationNote].filter(Boolean).join("\n").slice(0, 2000);
+      const { exchange: _legacyExchange, ...withoutExchange } = result;
+      return { ...withoutExchange, id, name, date, income, note };
+    }
+    if (hasExchange) {
+      /* 安全整数を超える旧記録は計算値を変えず、旧フィールドを保全する。 */
+      return { ...result, id, name, date, income, exchange, note };
+    }
+    const { exchange: _legacyExchange, ...withoutExchange } = result;
+    return { ...withoutExchange, id, name, date, income, note };
+  });
+  next.entries.push(...migratedExchangeEntries);
   /* キャラ作成直後の所得は「初期作成」リザルトにまとめる。
      core 3章 P19-20「PCにはキャラ作成時に30LPが支給」（core:344）なので、
      その30LPをこのリザルトの収入に置き、最初に選んだ人格などの支出も
@@ -2105,6 +2137,8 @@ function normalizeStateShape(raw) {
 function ownedName(state, itemId) {
   const official = (window.DB?.items || []).find((i) => i.id === itemId);
   if (official?.name) return String(official.name);
+  const special = (window.DB?.specialItems || []).find((i) => i?.id === itemId);
+  if (special?.name) return String(special.name);
   const custom = Array.isArray(state?.customItems) ? state.customItems.find((i) => i?.id === itemId) : null;
   return String(custom?.name || itemId || "");
 }
@@ -2158,6 +2192,9 @@ function parsePriceText(raw, defaultUnit) {
 window.LBT_parsePriceText = parsePriceText;
 function priceItemById(state, itemId) {
   const id = String(itemId || "");
+  const special = (window.DB?.specialItems || []).find((item) => item?.id === id && item.specialResource);
+  if (special?.ledgerResource === "shards") return parsePriceText(special.price || "2LP");
+  if (special) return null;
   const official = (window.DB?.items || window.DB?.itemList || []).find((i) => i?.id === id);
   if (official) return parsePriceText(official.price);
   /* オリジナルアイテムも価格を持てる。state を参照しないと購入明細の
@@ -2290,16 +2327,16 @@ function dropLedgerEntriesForRefs(state, kind, uids) {
 function computeLedgerBalance(results, entries) {
   let incomeLp = 0;
   let incomeShards = 0;
-  let exchangeLp = 0;
-  let exchangeShards = 0;
+  /* 交換機能の撤去後は、通常のLP支出明細と獲得欠片だけを集計する。
+     exchange は安全整数を超えて移行できなかった旧保存データだけの互換用。 */
+  let legacyExchangeLp = 0;
+  let legacyExchangeShards = 0;
   for (const result of results || []) {
     incomeLp += normalizeCurrency(result?.income).lp;
     incomeShards += normalizeCurrency(result?.income).shards;
-    /* LP を欠片に換えた分は収入でも支出でもない。「払う LP」と「得る欠片」が
-       同時に起きる1つの取引なので、支出に混ぜると明細の表示が嘘になる。 */
-    const exchanged = normalizeCurrency(result?.exchange);
-    exchangeLp += exchanged.lp;
-    exchangeShards += exchanged.shards;
+    const legacyExchange = normalizeCurrency(result?.exchange);
+    legacyExchangeLp += legacyExchange.lp;
+    legacyExchangeShards += legacyExchange.shards;
   }
   let spentLp = 0;
   let spentShards = 0;
@@ -2311,14 +2348,14 @@ function computeLedgerBalance(results, entries) {
     if (!entry?.resultId) unclassified += 1;
   }
   return {
-    lp: incomeLp - spentLp - exchangeLp,
-    shards: incomeShards - spentShards + exchangeShards,
+    lp: incomeLp - spentLp - legacyExchangeLp,
+    shards: incomeShards - spentShards + legacyExchangeShards,
     incomeLp,
     incomeShards,
     spentLp,
     spentShards,
-    exchangeLp,
-    exchangeShards,
+    exchangeLp: legacyExchangeLp,
+    exchangeShards: legacyExchangeShards,
     /* 抽出チケットも同じ収支。卓報酬としてリザルトの収入に積まれる。 */
     tickets: computeTicketBalance(results, entries),
     unclassified
@@ -4255,6 +4292,33 @@ return appendLedgerEntry(next, {
     case "ADD_ITEM": {
       const itemId = String(action.itemId || "");
       if (!itemId) return state;
+      /* 特殊資源は買い物ではなく所持数だけを管理する。
+         通常の ADD_ITEM 経路で 0LP の購入明細を作らないため、所持専用経路へ委譲する。 */
+      const specialResource = (window.DB?.specialItems || []).find((item) => item?.id === itemId && item.specialResource);
+      /* 自我の欠片は所持数を別保存せず、通帳残高を唯一の情報源とする。
+         アイテム欄から購入したら LP 支出を記録し、同じリザルトの獲得欠片を増やす。 */
+      if (specialResource?.ledgerResource === "shards") {
+        const targetId = action.resultId || latestResultId(state);
+        const target = (state.results || []).find((result) => result.id === targetId);
+        if (!target) return state;
+        const purchaseCost = priceItemById(state, itemId);
+        const balanceBeforePurchase = computeLedgerBalance(state.results, state.entries);
+        if (!purchaseCost || purchaseCost.lp < 1 || balanceBeforePurchase.lp < purchaseCost.lp) return state;
+        const currentIncome = normalizeCurrency(target.income);
+        const nextShardIncome = currentIncome.shards + 1;
+        if (!Number.isSafeInteger(nextShardIncome)) return state;
+        const results = (state.results || []).map((result) => result.id === targetId
+          ? { ...result, income: { ...currentIncome, shards: nextShardIncome, tickets: normalizeTickets(target.income?.tickets) }, updatedAt: Date.now() }
+          : result);
+        return appendLedgerEntry({ ...state, results }, {
+          kind: "item",
+          name: String(specialResource.name || "自我の欠片"),
+          cost: purchaseCost,
+          resultId: targetId,
+          note: "2LPで自我の欠片1個を購入"
+        });
+      }
+      if (specialResource) return appReducer(state, { type: "ADD_ITEM_INVENTORY", itemId, quantity: 1 });
       const current = Array.isArray(state.inventory) ? state.inventory : [];
       const existing = current.find((entry) => entry.itemId === itemId);
       const inventory = existing
@@ -4279,6 +4343,8 @@ return appendLedgerEntry(next, {
     case "ADD_ITEM_INVENTORY": {
       const itemId = String(action.itemId || "");
       if (!itemId) return state;
+      /* 通帳連動資源は共有データから独立した所持数へ複製しない。 */
+      if ((window.DB?.specialItems || []).some((item) => item?.id === itemId && item?.ledgerResource)) return state;
       // 共有／移送で明示された数量は厳密に検証する。未指定だけを後方互換で1個とし、
       // "12abc" や小数を部分一致で数量へ変換しない。
       const qty = action.quantity === void 0 || action.quantity === null || action.quantity === ""
@@ -5129,7 +5195,6 @@ case "ADD_CUSTOM_ITEM": {
           income: action.income === undefined
             ? r.income
             : { ...normalizeCurrency(action.income), tickets: normalizeTickets(action.income?.tickets) },
-          exchange: action.exchange === undefined ? r.exchange : normalizeCurrency(action.exchange),
           updatedAt: now
         };
       });
@@ -5144,7 +5209,6 @@ case "ADD_CUSTOM_ITEM": {
           name: String(action.name || "").slice(0, 80) || "無題",
           date: String(action.date || localDateString()).slice(0, 10),
           income: { ...normalizeCurrency(action.income), tickets: normalizeTickets(action.income?.tickets) },
-          exchange: normalizeCurrency(action.exchange),
           note: String(action.note || "").slice(0, 2000),
           createdAt: now,
           updatedAt: now
@@ -5161,7 +5225,6 @@ case "ADD_CUSTOM_ITEM": {
               ...(action.patch?.date !== void 0 ? { date: String(action.patch.date).slice(0, 10) } : {}),
               ...(action.patch?.note !== void 0 ? { note: String(action.patch.note).slice(0, 2000) } : {}),
               ...(action.patch?.income !== void 0 ? { income: { ...normalizeCurrency(action.patch.income), tickets: normalizeTickets(action.patch.income?.tickets) } } : {}),
-              ...(action.patch?.exchange !== void 0 ? { exchange: normalizeCurrency(action.patch.exchange) } : {}),
               updatedAt: Date.now()
             }
           : r))

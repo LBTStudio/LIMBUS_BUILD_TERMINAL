@@ -152,34 +152,6 @@
     egoGachaTicket: { lp: 0, shards: 0, source: "local:卓配布の無料E.G.O抽出チケット" }
   };
 
-  /* --- LP → 自我の欠片 の換算 --------------------------------------------
-     core P317 特殊アイテム「自我の欠片　購入時、自我の欠片1を得る / 2LP」。
-     ショップは「LPで購入可能な要素」（アイテムとサポートパッシブ）と
-     「自我の欠片で購入可能な要素」（精神・身体強化など）を分けるが
-     （core:316）、このアイテムがその両者の唯一の架け橋になっている。
-     したがって「欠片が足りない」時の数値は規則で決まる。 */
-  const LP_TO_SHARD = {
-    item: "自我の欠片",
-    lp: 2,
-    shards: 1,
-    label: "LP→欠片換算",
-    source: "core:317 特殊アイテム 自我の欠片（購入時、自我の欠片1を得る 2LP）"
-  };
-
-  /* 換算した欠片の個数から、払う LP と得る欠片を決める。
-     換算していない（0・負・数値でない）なら null を返す。0/0 を作って
-     返す意味はない — それは「換えていない」であって「0 で換えた」ではない。 */
-  function shardExchange(shards) {
-    const count = Number.parseInt(shards, 10);
-    if (!Number.isFinite(count) || count <= 0) return null;
-    return {
-      lp: count * LP_TO_SHARD.lp,
-      shards: count * LP_TO_SHARD.shards,
-      label: LP_TO_SHARD.label,
-      source: LP_TO_SHARD.source
-    };
-  }
-
   /* 所持状況が価格を変える。人格は「既に1つでも持っていれば」 wikipedia FEEが跳ね上がる。
      入手方法は抽出/購入の2種類のみ（core:336）。所持0個=未所持は最初の状態。 */
   function acquireCost(kind, provenance, context) {
@@ -299,8 +271,7 @@
 
   const api = {
     PROVENANCE, inferProvenance, priceOf, acquireCost, annotateManifest,
-    PRICEABLE, CORE_RULES, OPERATION_COST, operationCost, annotateOperations, isOperation,
-    LP_TO_SHARD, shardExchange
+    PRICEABLE, CORE_RULES, OPERATION_COST, operationCost, annotateOperations, isOperation
   };
   if (typeof window !== "undefined") {
     window.LBT_provenance = api;
@@ -309,7 +280,6 @@
     window.LBT_annotateManifest = annotateManifest;
     window.LBT_operationCost = operationCost;
     window.LBT_annotateOperations = annotateOperations;
-    window.LBT_shardExchange = shardExchange;
   }
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })();

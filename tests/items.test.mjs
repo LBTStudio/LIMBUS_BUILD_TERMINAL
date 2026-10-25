@@ -4,6 +4,7 @@ import test from "node:test";
 import vm from "node:vm";
 
 const itemRecords = JSON.parse(readFileSync(new URL("../data/items.json", import.meta.url), "utf8"));
+const specialItemRecords = JSON.parse(readFileSync(new URL("../data/special-items.json", import.meta.url), "utf8"));
 
 test("アイテムDBはPDFの回復8種・強化27種のみを登録し、特殊資源を含めない", () => {
   assert.equal(itemRecords.length, 35);
@@ -13,8 +14,69 @@ test("アイテムDBはPDFの回復8種・強化27種のみを登録し、特殊
   assert.equal(new Set(itemRecords.map((item) => item.name)).size, 35);
 });
 
+test("硝子の破片は通常アイテムDBと分離して所持数だけを管理し、MEMO・PALETTEへ反映する", () => {
+  assert.equal(itemRecords.length, 35, "公式ショップの35件は維持する");
+  assert.equal(specialItemRecords.length, 2);
+  const shard = specialItemRecords.find((item) => item.id === "resource-glass-shard");
+  assert.equal(shard.id, "resource-glass-shard");
+  assert.equal(shard.name, "硝子の破片");
+  assert.equal(shard.specialResource, true);
+  assert.equal(itemRecords.some((item) => item.id === shard.id), false, "通常の購入カタログには入れない");
+
+  const { reducer, initState } = loadStateReducer();
+  const first = reducer(initState, { type: "ADD_ITEM", itemId: shard.id });
+  assert.equal(first.inventory.length, 1);
+  assert.equal(first.inventory[0].quantity, 1);
+  assert.equal(first.entries.length, 0, "特殊資源の追加で購入明細を作らない");
+  const second = reducer(first, { type: "ADD_ITEM", itemId: shard.id });
+  assert.equal(second.inventory[0].quantity, 2);
+  assert.equal(second.entries.length, 0, "数量追加でも購入明細を作らない");
+
+  const generator = loadGenerator();
+  const output = createOutputState(second.inventory);
+  assert.match(generator.buildMemo(output), /硝子の破片 ×2/);
+  assert.match(generator.buildPalette(output), /【所持品】硝子の破片 ×2/);
+});
+
+test("自我の欠片は所持インベントリではなく購入と同時に通帳へ反映する", () => {
+  const shard = specialItemRecords.find((item) => item.id === "resource-ego-shard");
+  assert.ok(shard);
+  assert.equal(shard.ledgerResource, "shards");
+  assert.equal(shard.price, "2LP");
+  const { reducer, initState, balance } = loadStateReducer();
+  const withResult = reducer(initState, {
+    type: "ADD_RESULT",
+    name: "特殊資源の購入テスト",
+    income: { lp: 100, shards: 0 }
+  });
+  const target = withResult.results.find((result) => result.name === "特殊資源の購入テスト");
+  assert.ok(target, "購入先となるリザルトが存在する");
+  const beforeBalance = balance(withResult.results, withResult.entries);
+  const purchased = reducer(withResult, { type: "ADD_ITEM", itemId: shard.id, resultId: target.id });
+  const updated = purchased.results.find((result) => result.id === target.id);
+  assert.equal(updated.income.shards, target.income.shards + 1);
+  assert.equal(purchased.inventory.some((entry) => entry.itemId === shard.id), false, "通帳連動資源を所持数に二重保存しない");
+  const expense = purchased.entries.find((entry) => entry.name === "自我の欠片" && entry.resultId === target.id);
+  assert.ok(expense, "購入明細を記録する");
+  assert.equal(expense.cost.lp, 2);
+  assert.equal(balance(purchased.results, purchased.entries).lp, beforeBalance.lp - 2, "LP残高は2だけ減る");
+  assert.equal(balance(purchased.results, purchased.entries).shards, beforeBalance.shards + 1, "欠片残高は1だけ増える");
+});
+
+test("自我の欠片はLP不足時に購入も残高加算もしない", () => {
+  const shard = specialItemRecords.find((item) => item.id === "resource-ego-shard");
+  const { reducer, initState } = loadStateReducer();
+  const poor = {
+    ...initState,
+    results: (initState.results || []).map((result) => ({ ...result, income: { ...(result.income || {}), lp: 1, shards: 0 } })),
+    entries: []
+  };
+  const blocked = reducer(poor, { type: "ADD_ITEM", itemId: shard.id });
+  assert.equal(blocked, poor, "LPが2未満なら状態を変えない");
+});
+
 function loadGenerator() {
-  const context = { window: { DB: { items: itemRecords } }, console, setTimeout, clearTimeout, Blob, URL };
+  const context = { window: { DB: { items: itemRecords, specialItems: specialItemRecords } }, console, setTimeout, clearTimeout, Blob, URL };
   context.globalThis = context;
   vm.createContext(context);
   vm.runInContext(readFileSync(new URL("../js/generator.js", import.meta.url), "utf8"), context);
@@ -22,14 +84,13 @@ function loadGenerator() {
 }
 
 function loadStateReducer() {
-  const context = { window: { DB: { items: itemRecords } }, console };
+  const context = { window: { DB: { items: itemRecords, specialItems: specialItemRecords } }, console };
   context.globalThis = context;
   vm.createContext(context);
   vm.runInContext(readFileSync(new URL("../js/core.js", import.meta.url), "utf8"), context);
   vm.runInContext(readFileSync(new URL("../js/state.js", import.meta.url), "utf8"), context);
-  return { reducer: context.window.appReducer, initState: context.window.INIT_STATE };
+  return { reducer: context.window.appReducer, initState: context.window.INIT_STATE, balance: context.window.LBT_computeLedgerBalance };
 }
-
 function createOutputState(inventory, customItems = []) {
   return {
     charName: "検証PC", plName: "", personaMode: null, personaNo: null, personaSrc: null,

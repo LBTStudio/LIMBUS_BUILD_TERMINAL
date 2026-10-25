@@ -59,12 +59,17 @@
       }
     }
     if (!token) throw new Error("外部の共有データにLBTトークンがありません");
-    const [state, db, items] = await Promise.all([
+    const [state, db, items, specialItems] = await Promise.all([
       window.LBT_shareLink.decodeToken(token),
       fetch("data/db.json?v=16b6df9e").then((response) => response.ok ? response.json() : {}).catch(() => ({})),
-      fetch("data/items.json?v=b47b58ae").then((response) => response.ok ? response.json() : []).catch(() => [])
+      fetch("data/items.json?v=b47b58ae").then((response) => response.ok ? response.json() : []).catch(() => []),
+      fetch("data/special-items.json?v=26970fb5").then((response) => response.ok ? response.json() : []).catch(() => [])
     ]);
-    const sharedDB = { ...(db || {}), items: Array.isArray(items) ? items : [] };
+    const sharedDB = {
+      ...(db || {}),
+      items: Array.isArray(items) ? items : [],
+      specialItems: Array.isArray(specialItems) ? specialItems : []
+    };
     const hydrated = window.LBT_shareLink.hydratePersonaReference(state, sharedDB);
     // 旧バージョンで発行された共有リンクは、カスタム人格の参照化バグにより
     // 人格データが全て欠落している場合がある。白紙クラッシュではなく、
