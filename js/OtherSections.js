@@ -4603,6 +4603,7 @@ const importHeldPersonas = () => {
                     )
               );
             })
+            )
           ),
           rec.spends.map((spend, si) => h("label", { key: `sp-${ri}-${si}`, className: "chip is-sm" },
             h("input", {
