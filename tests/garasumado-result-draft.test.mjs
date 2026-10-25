@@ -575,7 +575,7 @@ test("キャラクターURLと人格URLは取り込み前から別種として�
 test("混在する硝子窓URLは全件抽出し、不正URLも成功分と別に報告する", () => {
   const parsed = G.parseShareUrls([
     "https://lbt-garasumado.vercel.app/view/AbCdEF1234567890abcd",
-    "ZyXwVu1234567890abcd",
+    "AbCdEF1234567890abcd",
     "lbt-garasumado.vercel.app/persona/view/ZyXwVu1234567890abcd",
     "https://lbt-garasumado.vercel.app/not-a-share-link/BadId"
   ].join("\n"));
