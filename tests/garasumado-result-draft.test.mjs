@@ -111,7 +111,24 @@ test("複数の硝子窓URLは重複を除き、同じPLのシナリオ履歴だ
   assert.equal(merged.scenarioHistory[2].name, "最新");
 });
 
-test("別PLの硝子窓URLを誤って同じ所持へ統合しない", () => {
+test("同じPLの別キャラクターURLは履歴を統合し、最新スナップショットの現所持を使う", () => {
+  const merged = G.mergeGarasumadoDocuments([
+    {
+      updateTime: "2026-10-01T00:00:00Z",
+      doc: { name: "キャラクターA", plName: "同じPL", owned: { personas: [{ name: "旧所持" }] }, scenarioHistory: [{ name: "Aの履歴", memo: "50LP" }] }
+    },
+    {
+      updateTime: "2026-10-02T00:00:00Z",
+      doc: { name: "キャラクターB", plName: "同じPL", owned: { personas: [{ name: "新所持" }] }, scenarioHistory: [{ name: "Bの履歴", memo: "75LP" }] }
+    }
+  ]);
+  assert.equal(merged.error, undefined);
+  assert.equal(merged.name, "キャラクターB", "最新URLのキャラクター情報を保持");
+  assert.deepEqual([...merged.owned.personas].map((item) => item.name), ["新所持"]);
+  assert.deepEqual([...merged.scenarioHistory].map((item) => item.name), ["Aの履歴", "Bの履歴"]);
+});
+
+test("異なるPLの硝子窓URLを誤って同じ所持へ統合しない", () => {
   const merged = G.mergeGarasumadoDocuments([
     { doc: { name: "キャラクターA", plName: "PL A", scenarioHistory: [] } },
     { doc: { name: "キャラクターB", plName: "PL B", scenarioHistory: [] } }

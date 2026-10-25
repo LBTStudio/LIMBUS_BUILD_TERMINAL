@@ -97,13 +97,15 @@
       });
     if (!rows.length) return null;
 
-    /* キャラクター名またはPL名が異なる文書は混ぜない。PL名が同じでも別キャラの
-       URLを束ねると所持や履歴が混ざるため、両方の識別値を別々に確認する。 */
+    /* PL名が揃っていれば、同じPLが別キャラクターの共有URLを持つ場合も履歴を統合できる。
+       PL名が無い／一部欠ける場合は、キャラクター名が違うURLを誤って束ねないよう停止する。 */
     const plNames = new Set(rows.map((row) => nameKey(String(row.doc.plName || "").trim())).filter(Boolean));
     const characterNames = new Set(rows.map((row) => nameKey(String(row.doc.name || "").trim())).filter(Boolean));
-    if (plNames.size > 1 || characterNames.size > 1) {
+    const missingPlName = rows.some((row) => !String(row.doc.plName || "").trim());
+    const mixedIdentity = plNames.size > 1 || ((plNames.size === 0 || missingPlName) && characterNames.size > 1);
+    if (mixedIdentity) {
       return {
-        error: "異なるキャラクター／PL名の共有URLが混在しています。同じキャラクターの過去URLだけをまとめて取り込んでください。",
+        error: "異なるキャラクター／PL名の共有URLが混在しています。同じPLのURLだけをまとめて取り込んでください。",
         identities: { plNames: [...plNames], characterNames: [...characterNames] },
         count: rows.length
       };
