@@ -61,6 +61,7 @@ test("硝子の破片消費は通貨支出と分離して結果の consumedItems
   const result = actions.find((action) => action.type === "ADD_RESULT");
   assert.equal(result.consumedItems[0].itemName, "硝子の破片");
   assert.equal(result.consumedItems[0].detail, "硝子の破片を2つ使用して人差し指のCTを解除");
+  assert.match(result.consumedItems[0].detail, /CTを解除/);
 });
 
 test("複数の硝子窓URLは重複を除き、同じPLのシナリオ履歴だけを統合する", () => {
