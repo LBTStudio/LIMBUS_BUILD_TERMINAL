@@ -155,6 +155,53 @@ test("アイテムを導入すると数量を合算し、導入単位の表示�
   assert.equal(patched.inventory[0].palette, true);
 });
 
+
+test("ショップ購入は消耗品を毎回課金して在庫に加え、消費後も再購入できる", () => {
+  const { reducer, initState, balance } = loadStateReducer();
+  const itemId = "heal-hp-bullet";
+  let state = reducer(initState, {
+    type: "ADD_RESULT", name: "ショップ消耗品テスト", income: { lp: 100, shards: 0 }
+  });
+  const resultId = state.results[state.results.length - 1].id;
+
+  state = reducer(state, { type: "ADD_ITEM", itemId, purchase: true });
+  state = reducer(state, { type: "ADD_ITEM", itemId, purchase: true });
+  assert.equal(state.inventory.find((entry) => entry.itemId === itemId)?.quantity, 2, "購入2回で所持数が2個になる");
+  let purchases = state.entries.filter((entry) => entry.kind === "item" && entry.name === "HP弾");
+  assert.equal(purchases.length, 2, "同じ商品を2回購入すると購入履歴も2件になる");
+  assert.deepEqual(Array.from(purchases, (entry) => entry.cost.lp), [20, 20]);
+  assert.equal(balance(state.results, state.entries).lp, 60, "2回分のLPを差し引く");
+
+  state = reducer(state, {
+    type: "CONSUME_ITEM", itemId, quantity: 2,
+    reason: "phenomenon_processing", operationId: "shop-consume-two", resultId
+  });
+  assert.equal(state.inventory.some((entry) => entry.itemId === itemId), false, "全数消費で在庫だけがなくなる");
+  assert.equal(state.entries.filter((entry) => entry.kind === "item" && entry.name === "HP弾").length, 2, "消費後も購入履歴を保持");
+  assert.equal(balance(state.results, state.entries).lp, 60, "消費では購入時の支出を戻さない");
+
+  state = reducer(state, { type: "ADD_ITEM", itemId, purchase: true });
+  assert.equal(state.inventory.find((entry) => entry.itemId === itemId)?.quantity, 1, "在庫0から再購入できる");
+  purchases = state.entries.filter((entry) => entry.kind === "item" && entry.name === "HP弾");
+  assert.equal(purchases.length, 3, "再購入も新しい履歴として記録");
+  assert.equal(balance(state.results, state.entries).lp, 40, "再購入分の価格も正しく差し引く");
+
+  const cappedItemId = "enh-garden-sensory-blocker";
+  let capped = reducer(initState, {
+    type: "ADD_RESULT", name: "所持上限テスト", income: { lp: 100, shards: 0 }
+  });
+  for (let i = 0; i < 3; i += 1) capped = reducer(capped, { type: "ADD_ITEM", itemId: cappedItemId, purchase: true });
+  assert.equal(capped.inventory.find((entry) => entry.itemId === cappedItemId)?.quantity, 3);
+  assert.equal(reducer(capped, { type: "ADD_ITEM", itemId: cappedItemId, purchase: true }), capped, "所持上限後は購入状態を変えない");
+
+  const poor = {
+    ...initState,
+    results: [{ id: "poor-shop-result", name: "残高不足", income: { lp: 19, shards: 0 } }],
+    entries: []
+  };
+  assert.equal(reducer(poor, { type: "ADD_ITEM", itemId, purchase: true }), poor, "残高不足なら在庫と履歴を変えない");
+});
+
 test("現象処理で消費すると所持数と直近リザルトへ記録し、購入明細は残す", () => {
   const { reducer, initState, balance, normalize } = loadStateReducer();
   let state = reducer(initState, {
