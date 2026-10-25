@@ -52,6 +52,8 @@ test("クラウド復元・JSON復元はいずれも現在のデータを確認�
 
 test("同期競合では古いデータを自動上書きせず、更新履歴を復元できる", () => {
   assert.match(client, /const known = Number\(readStorage\(REVISION_KEY\) \|\| 0\)/);
+  assert.match(client, /getRemote\(\{ metadataOnly: true \}\)/);
+  assert.match(client, /async function hashSnapshot\(payload\)/);
   assert.match(client, /同期競合のため自動上書きを停止しました/);
   assert.match(client, /async function loadHistory\(\)/);
   assert.match(client, /async function restoreRevision\(revision\)/);
@@ -124,8 +126,8 @@ test("復旧キーはデータ更新・履歴復元で失効せず、同じキ�
   assert.match(updateBlock, /payload_hash: payloadHash/);
   assert.match(updateBlock, /revision: currentRevision \+ 1/);
   assert.match(updateBlock, /async function updateVault/);
-  assert.match(client, /復旧キーはデータ更新・同期・世代変更では変化しません/);
-  assert.match(client, /const result = await callRecovery\(\{ action: "backup", expectedRevision: Number\(current\.revision\), payload, recoveryKey: key \}\)/);
+  assert.match(client, /復旧キーはデータ更新・同期・世代変更・保存先切替で変化しません/);
+  assert.match(client, /const result = await callRecovery\(\{ action: "backup", expectedRevision, payload, recoveryKey: key \}\)/);
   assert.match(client, /async function restoreRevision\(revision\)[\s\S]*?recoveryKey: key/);
   assert.doesNotMatch(client, /startOAuth|handleOAuthCallback|access_token|Googleと連携|Xと連携/);
 });
