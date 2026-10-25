@@ -4838,7 +4838,7 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
     h(Card, { className: "ledger-queue" },
       h("div", { className: "card-header owned-library-bar" },
         h("span", { className: "t-label" }, "未分類"),
-        h("span", { className: "ledger-note" }, "リザルトカードへドラッグして帰属できます")
+        h("span", { className: "ledger-note" }, "明細をリザルトカードへドラッグして移動できます")
       ),
       h("div", { className: "card-body stack-2" },
         unclassified.length === 0
@@ -4938,7 +4938,8 @@ h(Card, { className: "ledger-card" },
           )
         : h("div", { className: "ledger-card-heading" },
             h("span", { className: "ledger-card-title" }, result.name),
-            h("span", { className: "ledger-card-date" }, result.date || "—")
+            h("span", { className: "ledger-card-date" }, result.date || "—"),
+            dragId && h("span", { className: `ledger-drop-hint${overId === result.id ? " is-over" : ""}`, "aria-live": "polite" }, overId === result.id ? "ここへドロップ" : "ドロップ先")
           ),
       h("div", { className: "ledger-card-actions" },
         isEditing
@@ -5084,8 +5085,7 @@ h(Card, { className: "ledger-card" },
                 )
               )
             )
-          ),
-
+          )
         )
       })
     ),
