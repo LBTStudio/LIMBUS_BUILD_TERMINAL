@@ -1684,6 +1684,6 @@ const App = () => {
         title: selectedImportGroups.length ? "表示中の適用範囲を現在の作業状態へ読み込みます" : "読み込む項目を一つ以上選択してください"
       }, "選択項目を読み込む")
     )
-  ))
+  )))
 };
 window.App = App;
