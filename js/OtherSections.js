@@ -3975,7 +3975,11 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   const closeHeld = () => setHeldOpen(false);
 
   const openResultEditor = (result) => {
-    switchResultTool(null);
+    setImportMenuOpen(false);
+    setImportPanel(false);
+    setTextPanel(false);
+    setHeldOpen(false);
+    setImportNote(null);
     const currentTickets = result.income && result.income.tickets || {};
     setTicketPackPick(Object.keys(currentTickets.pack || {})[0] || packs[0]?.name || "");
     setTicketPanel(result.id);
@@ -3994,6 +3998,16 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     });
   };
   const cancelResultEditor = () => { setTicketPanel(null); setTicketDraft(null); };
+  /* 編集フォームは押したカードの直後に一度だけ描画し、カード内部のレイアウトや
+     overflow に埋もれないようにする。開いたときはフォームを視界内へ寄せる。 */
+  React.useEffect(() => {
+    if (ticketPanel === null || !ticketDraft || typeof document === "undefined") return;
+    const editor = document.querySelector(".ledger-result-edit-panel");
+    if (!editor || typeof editor.scrollIntoView !== "function") return;
+    const reducedMotion = typeof window !== "undefined"
+      && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+    editor.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "nearest" });
+  }, [ticketPanel, ticketDraft?.id]);
   const updateResultDraftField = (field, value) => {
     setTicketDraft((draft) => draft ? { ...draft, [field]: value } : draft);
   };
@@ -4910,7 +4924,7 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
            しか受け取らないため、drag イベントを直接渡しても無視される。 */
         return h("div", {
           key: result.id,
-          className: `ledger-card-wrap${overId === result.id ? " is-over" : ""}`,
+          className: `ledger-card-wrap${overId === result.id ? " is-over" : ""}${ticketPanel === result.id && ticketDraft?.id === result.id ? " is-editing" : ""}`,
           ...dropTargetProps(result.id)
         },
 h(Card, { className: "ledger-card" },
@@ -4925,71 +4939,17 @@ h(Card, { className: "ledger-card" },
     className: "ledger-card-edit-btn",
     title: "このリザルトの登録情報（LP・欠片・抽出チケット）を編集します",
     "aria-label": `${result.name} の登録情報を編集`,
-    onClick: () => openResultEditor(result)
-    }, "編集")
+    "aria-expanded": ticketPanel === result.id && ticketDraft?.id === result.id,
+    "aria-pressed": ticketPanel === result.id && ticketDraft?.id === result.id,
+    onClick: (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openResultEditor(result);
+    }
+    }, ticketPanel === result.id && ticketDraft?.id === result.id ? "編集中" : "編集")
         ),
     ),
-    ticketPanel === result.id && ticketDraft && ticketDraft.id === result.id && h("div", {
-      className: "ledger-result-edit-panel", role: "group", "aria-label": "リザルトの登録情報を編集"
-    },
-      h("div", { className: "ledger-result-edit-heading" },
-        h("strong", null, "リザルトを編集"),
-        h(Button, { size: "sm", variant: "ghost", icon: "x", onClick: cancelResultEditor }, "閉じる")
-      ),
-      h("div", { className: "ledger-result-edit-fields" },
-        h("label", { className: "ledger-ticket-field" },
-          h("span", null, "リザルトの名称"),
-          h("input", { className: "ledger-input", "aria-label": "リザルトの名称", value: ticketDraft.name,
-            onChange: (event) => updateResultDraftField("name", event.target.value) })
-        ),
-        h("label", { className: "ledger-ticket-field" },
-          h("span", null, "プレイした日付"),
-          h("input", { className: "ledger-input", type: "date", "aria-label": "プレイした日付", value: ticketDraft.date,
-            onChange: (event) => updateResultDraftField("date", event.target.value) })
-        ),
-        h("label", { className: "ledger-ticket-field" },
-          h("span", null, "獲得LP"),
-          h("input", { className: "ledger-input ledger-input--num", type: "number", min: "0", "aria-label": "獲得LP", value: ticketDraft.lp,
-            onChange: (event) => updateResultDraftField("lp", event.target.value) })
-        ),
-        h("label", { className: "ledger-ticket-field" },
-          h("span", null, "獲得欠片"),
-          h("input", { className: "ledger-input ledger-input--num", type: "number", min: "0", "aria-label": "獲得欠片", value: ticketDraft.shards,
-            onChange: (event) => updateResultDraftField("shards", event.target.value) })
-        )
-      ),
-      h("div", { className: "ledger-result-edit-tickets" },
-        h("span", { className: "t-label" }, "抽出チケット（卓の報酬）"),
-        h("div", { className: "ledger-ticket-grid" },
-          ["persona", "ego", "choice"].map((kind) => h("label", { key: kind, className: "ledger-ticket-field" },
-            h("span", null, ticketLabel(kind)),
-            h("input", { className: "ledger-input ledger-input--num", type: "number", min: "0",
-              "aria-label": ticketLabel(kind) + " の枚数",
-              value: String(Number(ticketDraft.tickets?.[kind]) || 0),
-              onChange: (event) => updateResultDraftTicket(kind, event.target.value) })
-          )),
-          packs.length > 0 && h("label", { className: "ledger-ticket-field" },
-            h("span", null, "特定抽出パック"),
-            h("select", { className: "select", "aria-label": "特定抽出パックの選択",
-              value: ticketPackPick || packs[0]?.name || "",
-              onChange: (event) => setTicketPackPick(event.target.value) },
-              packs.map((pack) => h("option", { key: pack.name, value: pack.name }, pack.name))
-            )
-          ),
-          packs.length > 0 && h("label", { className: "ledger-ticket-field" },
-            h("span", null, ticketLabel("pack", ticketPackPick || packs[0]?.name || "")),
-            h("input", { className: "ledger-input ledger-input--num", type: "number", min: "0",
-              "aria-label": ticketLabel("pack", ticketPackPick || packs[0]?.name || "") + " の枚数",
-              value: String(Number(ticketDraft.tickets?.pack?.[ticketPackPick || packs[0]?.name || ""]) || 0),
-              onChange: (event) => updateResultDraftPack(ticketPackPick || packs[0]?.name || "", event.target.value) })
-          )
-        )
-      ),
-      h("div", { className: "ledger-result-edit-actions" },
-        h(Button, { size: "sm", variant: "ghost", onClick: cancelResultEditor }, "キャンセル"),
-        h(Button, { size: "sm", variant: "primary", icon: "check", onClick: () => saveResultEditor(result) }, "変更を保存")
-      )
-    ),
+
 
             h("div", { className: "card-body ledger-card-body" },
               h("div", { className: "ledger-card-income" },
@@ -5057,7 +5017,68 @@ h(Card, { className: "ledger-card" },
                 )
               )
             )
+          ),
+                ticketPanel === result.id && ticketDraft && ticketDraft.id === result.id && h("div", {
+      className: "ledger-result-edit-panel", role: "group", "aria-label": "リザルトの登録情報を編集"
+    },
+      h("div", { className: "ledger-result-edit-heading" },
+        h("strong", null, "リザルトを編集"),
+        h(Button, { size: "sm", variant: "ghost", icon: "x", onClick: cancelResultEditor }, "閉じる")
+      ),
+      h("div", { className: "ledger-result-edit-fields" },
+        h("label", { className: "ledger-ticket-field" },
+          h("span", null, "リザルトの名称"),
+          h("input", { className: "ledger-input", "aria-label": "リザルトの名称", value: ticketDraft.name,
+            onChange: (event) => updateResultDraftField("name", event.target.value) })
+        ),
+        h("label", { className: "ledger-ticket-field" },
+          h("span", null, "プレイした日付"),
+          h("input", { className: "ledger-input", type: "date", "aria-label": "プレイした日付", value: ticketDraft.date,
+            onChange: (event) => updateResultDraftField("date", event.target.value) })
+        ),
+        h("label", { className: "ledger-ticket-field" },
+          h("span", null, "獲得LP"),
+          h("input", { className: "ledger-input ledger-input--num", type: "number", min: "0", "aria-label": "獲得LP", value: ticketDraft.lp,
+            onChange: (event) => updateResultDraftField("lp", event.target.value) })
+        ),
+        h("label", { className: "ledger-ticket-field" },
+          h("span", null, "獲得欠片"),
+          h("input", { className: "ledger-input ledger-input--num", type: "number", min: "0", "aria-label": "獲得欠片", value: ticketDraft.shards,
+            onChange: (event) => updateResultDraftField("shards", event.target.value) })
+        )
+      ),
+      h("div", { className: "ledger-result-edit-tickets" },
+        h("span", { className: "t-label" }, "抽出チケット（卓の報酬）"),
+        h("div", { className: "ledger-ticket-grid" },
+          ["persona", "ego", "choice"].map((kind) => h("label", { key: kind, className: "ledger-ticket-field" },
+            h("span", null, ticketLabel(kind)),
+            h("input", { className: "ledger-input ledger-input--num", type: "number", min: "0",
+              "aria-label": ticketLabel(kind) + " の枚数",
+              value: String(Number(ticketDraft.tickets?.[kind]) || 0),
+              onChange: (event) => updateResultDraftTicket(kind, event.target.value) })
+          )),
+          packs.length > 0 && h("label", { className: "ledger-ticket-field" },
+            h("span", null, "特定抽出パック"),
+            h("select", { className: "select", "aria-label": "特定抽出パックの選択",
+              value: ticketPackPick || packs[0]?.name || "",
+              onChange: (event) => setTicketPackPick(event.target.value) },
+              packs.map((pack) => h("option", { key: pack.name, value: pack.name }, pack.name))
+            )
+          ),
+          packs.length > 0 && h("label", { className: "ledger-ticket-field" },
+            h("span", null, ticketLabel("pack", ticketPackPick || packs[0]?.name || "")),
+            h("input", { className: "ledger-input ledger-input--num", type: "number", min: "0",
+              "aria-label": ticketLabel("pack", ticketPackPick || packs[0]?.name || "") + " の枚数",
+              value: String(Number(ticketDraft.tickets?.pack?.[ticketPackPick || packs[0]?.name || ""]) || 0),
+              onChange: (event) => updateResultDraftPack(ticketPackPick || packs[0]?.name || "", event.target.value) })
           )
+        )
+      ),
+      h("div", { className: "ledger-result-edit-actions" },
+        h(Button, { size: "sm", variant: "ghost", onClick: cancelResultEditor }, "キャンセル"),
+        h(Button, { size: "sm", variant: "primary", icon: "check", onClick: () => saveResultEditor(result) }, "変更を保存")
+      )
+    )
         )
       })
     ),

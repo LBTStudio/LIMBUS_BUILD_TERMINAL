@@ -174,12 +174,20 @@ test("リザルトの取り込み画面は切り替え時に一つだけ表示�
   assert.match(sections, /onClick: \(\) => switchResultTool\("text"\)/);
 });
 
-test("リザルトの編集フォームは押したカード内で開き、UPDATE_RESULTで保存する", () => {
-  assert.match(sections, /onClick: \(\) => openResultEditor\(result\)/);
-  assert.match(sections, /ticketPanel === result\.id && ticketDraft && ticketDraft\.id === result\.id/);
+test("リザルト編集ボタンはクリックを受け取り、同じカードラッパ内に編集フォームを展開する", () => {
+  assert.match(sections, /onClick: \(event\) => \{\s*event\.preventDefault\(\);\s*event\.stopPropagation\(\);\s*openResultEditor\(result\);\s*\}/);
+  assert.match(sections, /const openResultEditor = \(result\) => \{\s*setImportMenuOpen\(false\);\s*setImportPanel\(false\);\s*setTextPanel\(false\);\s*setHeldOpen\(false\);\s*setImportNote\(null\);/);
+  assert.match(sections, /ticketPanel === result\.id && ticketDraft && ticketDraft\.id === result\.id && h\("div", \{\s*className: "ledger-result-edit-panel"/);
+  assert.match(sections, /React\.useEffect\(\(\) => \{\s*if \(ticketPanel === null \|\| !ticketDraft/);
+  assert.match(sections, /scrollIntoView\(\{ behavior: reducedMotion \? "auto" : "smooth", block: "nearest" \}\)/);
   assert.match(sections, /const saveResultEditor = \(result\) => \{/);
   assert.match(sections, /type: "UPDATE_RESULT"/);
   assert.doesNotMatch(sections, /ticketPanel && h\(TicketIncomePanel, \{\}\)/);
+  const cardStart = sections.indexOf('h(Card, { className: "ledger-card" }');
+  const bodyStart = sections.indexOf('className: "card-body ledger-card-body"', cardStart);
+  const editorStart = sections.indexOf('className: "ledger-result-edit-panel"', bodyStart);
+  assert.ok(cardStart > 0 && bodyStart > cardStart && editorStart > bodyStart,
+    "編集フォームは card-body の後、同じカードラッパ内に表示する");
 });
 
 test("大量リザルトは検索と24件ごとのページ分割で一覧できる", () => {
@@ -195,6 +203,6 @@ test("各リザルトの支出・チケット・消耗品詳細は折り畳み�
   const resultCss = read("../assets/sections.css");
   assert.match(sections, /h\("details", \{ className: "ledger-result-details" \}/);
   assert.match(sections, /className: "ledger-result-summary"/);
-  assert.match(resultCss, /\.ledger-cards\s*\{[^}]*min\(265px, 100%\)/s);
+  assert.match(resultCss, /\.ledger-cards\s*\{[^}]*min\(248px, 100%\)/s);
   assert.match(resultCss, /\.ledger-result-details\s*\{[^}]*border-top/s);
 });
