@@ -57,6 +57,7 @@ function validatePayload(payload: unknown): Record<string, unknown> {
       || entries.length > MAX_ENTRIES) {
     throw new Error("LBTのバックアップ形式が一致しません。");
   }
+  const seenKeys = new Set<string>();
   for (const item of entries) {
     if (!item || typeof item !== "object") throw new Error("バックアップ項目を確認できません。");
     const key = String((item as Record<string, unknown>).key ?? "");
@@ -70,6 +71,8 @@ function validatePayload(payload: unknown): Record<string, unknown> {
       || (key.startsWith("lbt_account_") && key !== "lbt_account_active" && !key.startsWith("lbt_cloud_"))
       || key.startsWith("lbt_epoch_account_");
     if (!allowed || typeof value !== "string") throw new Error("バックアップに許可されていない保存キーがあります。");
+    if (seenKeys.has(key)) throw new Error("バックアップ内で保存キーが重複しています。");
+    seenKeys.add(key);
   }
   return payload as Record<string, unknown>;
 }
