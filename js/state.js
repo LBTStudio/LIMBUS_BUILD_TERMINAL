@@ -2493,7 +2493,16 @@ window.LBT_operationAffordability = operationAffordability;
 
   /* 購入 action が計上する金額。null は「購入ではない操作」。 */
 function purchaseCostOf(state, action) {
-  if (action.type === "ADD_ROSTER") return action.purchase ? normalizeCurrency(action.cost) : null;
+  if (action.type === "ADD_ROSTER") {
+    if (!action.purchase) return null;
+    /* UI購入は cost を渡す。硝子窓取込は source="buy" だけを渡すので、
+       欠落額を0へ丸めず、現在の所持状態に応じたルール価格を解決する。 */
+    if (action.cost !== undefined && action.cost !== null) return normalizeCurrency(action.cost);
+    const ownsPersona = (state?.roster?.personas || []).length > 0;
+    const rule = window.LBT_acquireCost?.("persona", "purchase", { ownsPersona });
+    if (!rule || !(Number(rule.lp) > 0 || Number(rule.shards) > 0)) return null;
+    return normalizeCurrency(rule);
+  }
   if (action.type === "ADD_ROSTER_EGO") return action.purchase ? priceEgo(action.rank, action.no) : null;
   if (action.type === "ADD_ITEM") {
     const itemId = String(action.itemId || "");
@@ -3795,6 +3804,8 @@ function appReducer(state, action) {
     || action.type === "ADD_ITEM" || action.type === "ADD_ROSTER_SUPPORT"
     || action.type === "ADD_ROSTER_SPIRIT" || action.type === "ADD_ENHANCEMENT") {
     const cost = purchaseCostOf(state, action);
+    /* 購入扱いなのに価格が解決できない人格は、無料購入として通さず停止する。 */
+    if (action.type === "ADD_ROSTER" && action.purchase && !cost) return state;
     if (cost && !purchaseAffordability(state, cost).ok) return state;
   }
   switch (action.type) {
@@ -4160,10 +4171,12 @@ function appReducer(state, action) {
       /* resultId の明示指定は常に勝つ（appendLedgerEntry の契約）。未指定なら
          appendLedgerEntry が Support/EGO/Item/Spirit と同じ「直近のリザルト」へ
          倒すので、人格だけ帰属が違うことはない。 */
+      const purchaseCost = purchaseCostOf(state, action);
+      if (!purchaseCost) return state;
       return appendLedgerEntry(withTicket, {
         kind: "persona",
         name: persona?.name || `人格 ${mode.toUpperCase()} No.${no}`,
-        cost: normalizeCurrency(action.cost),
+        cost: normalizeCurrency(purchaseCost),
         resultId: action.resultId,
         ref: { kind: "rosterPersona", uid }
       });
