@@ -102,10 +102,16 @@
     const plNames = new Set(rows.map((row) => nameKey(String(row.doc.plName || "").trim())).filter(Boolean));
     const characterNames = new Set(rows.map((row) => nameKey(String(row.doc.name || "").trim())).filter(Boolean));
     const missingPlName = rows.some((row) => !String(row.doc.plName || "").trim());
-    const mixedIdentity = plNames.size > 1 || ((plNames.size === 0 || missingPlName) && characterNames.size > 1);
+    const missingCharacterName = rows.some((row) => !String(row.doc.name || "").trim());
+    /* 複数URLを履歴として統合できるのは、キャラクター名とPL名の両方が
+       全スナップショットで確認でき、同一である場合だけ。PLが同じでも別キャラは混ぜない。 */
+    const identityVerified = rows.length === 1 || (
+      !missingPlName && !missingCharacterName && plNames.size === 1 && characterNames.size === 1
+    );
+    const mixedIdentity = plNames.size > 1 || characterNames.size > 1 || (rows.length > 1 && !identityVerified);
     if (mixedIdentity) {
       return {
-        error: "異なるキャラクター／PL名の共有URLが混在しています。同じPLのURLだけをまとめて取り込んでください。",
+        error: "異なるキャラクター／PL名のURL、または同一キャラクターか確認できないURLが混在しています。同じキャラクターかつPL名を確認できる過去スナップショットだけをまとめてください。",
         identities: { plNames: [...plNames], characterNames: [...characterNames] },
         count: rows.length
       };
