@@ -28,6 +28,9 @@ jobs:
         run: node tools/ui/verify-short-works.mjs
       - name: Verify emitted short-link size and preview markers
         run: node tools/ui/verify-short-url.mjs
+      - name: Smoke-test deployed account recovery (main only, read-only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: node tools/ui/verify-account-recovery-live.mjs
       - name: Run the project test command
         # unified-provenance はローカルの PDF/Python 環境を前提にした検査なので除外する（AGENTS.md の記載どおり）。
         run: node --test $(find tests -maxdepth 1 -name '*.test.mjs' ! -name 'unified-provenance.test.mjs' | sort)
