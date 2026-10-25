@@ -2064,12 +2064,15 @@ const BuildItemsPanel = ({ state, dispatch }) => {
       toast(`「${item.name}」は所持上限（×${maxOwned}）です`);
       return;
     }
-    dispatch(item.specialResource
+    const ledgerLinked = item.ledgerResource === "shards";
+    dispatch(item.specialResource && !ledgerLinked
       ? { type: "ADD_ITEM_INVENTORY", itemId: item.id }
       : { type: "ADD_ITEM", itemId: item.id });
-    toast(item.specialResource
-      ? (owned ? `「${item.name}」の所持数を追加` : `「${item.name}」を特殊資源欄へ追加`)
-      : (owned ? `「${item.name}」の数量を追加` : `「${item.name}」を所持アイテムに追加`));
+    toast(ledgerLinked
+      ? `「${item.name}」を1個購入し、通帳へ記録`
+      : item.specialResource
+        ? (owned ? `「${item.name}」の所持数を追加` : `「${item.name}」を特殊資源欄へ追加`)
+        : (owned ? `「${item.name}」の数量を追加` : `「${item.name}」を所持アイテムに追加`));
   };
 
   return h("div", { className: "build-items" },
