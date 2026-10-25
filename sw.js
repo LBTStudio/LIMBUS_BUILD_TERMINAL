@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-15883476";
+const CACHE_NAME = "lbt-036abb7c";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -64,7 +64,7 @@ const PRECACHE_URLS = [
   "js/gacha-tickets.js?v=2ecc4e1b",
   "js/gacha.js?v=f58f8a3e",
   "js/garasumado-import-ui.js?v=8166e01f",
-  "js/garasumado-memo-parse.js?v=710d6446",
+  "js/garasumado-memo-parse.js?v=0b63e002",
   "js/garasumado-roster-import.js?v=26a10790",
   "js/generator.js?v=ff5f0a15",
   "js/icon-cropper.js?v=20900dc8",
@@ -73,7 +73,7 @@ const PRECACHE_URLS = [
   "js/name-fuzzy.js?v=d3eb29a1",
   "js/persona-draft-import.js?v=a4692646",
   "js/result-log-parser.js?v=43c5aa47",
-  "js/result-text-import.js?v=49cca4df",
+  "js/result-text-import.js?v=6edc295b",
   "js/roster-resolver.js?v=01dce5a2",
   "js/share-link.js?v=8848209f",
   "js/share-viewer.js?v=71f2da96",
