@@ -271,7 +271,7 @@ async function captureCompactResultDetails(page, mode) {
     log("result detail capture diagnostic: " + JSON.stringify(debug));
   }
   await card.waitFor({ state: "visible", timeout: 12000 });
-  await card.locator(".ledger-result-details").first().locator("summary").click();
+  await card.locator(".ledger-result-details > summary").first().click();
   await card.locator(".ledger-result-object-row").first().waitFor({ state: "visible", timeout: 12000 });
   const rows = await card.locator(".ledger-result-object-row").count();
   if (rows !== 3) throw new Error("Expected 3 compact result rows, got " + rows);
