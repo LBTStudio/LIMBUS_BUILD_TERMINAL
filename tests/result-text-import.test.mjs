@@ -583,5 +583,5 @@ test("欠けら表記の価格も欠片として取り込む", () => {
   const parsed = T.parseText("【シナリオA】\n購入｜道具(50欠けら)");
   const spend = parsed.records[0].spends[0];
   assert.equal(Boolean(spend.needsDecision), false);
-  assert.deepEqual(spend.cost, { lp: 0, shards: 50 });
+  assert.deepEqual(JSON.parse(JSON.stringify(spend.cost)), { lp: 0, shards: 50 });
 });
