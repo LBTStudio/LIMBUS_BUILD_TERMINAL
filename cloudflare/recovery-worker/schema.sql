@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS vaults (
   updated_at TEXT NOT NULL,
   payload_bytes INTEGER NOT NULL,
   chunk_count INTEGER NOT NULL,
+  payload_hash TEXT NOT NULL,
   write_token TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS vault_chunks (
