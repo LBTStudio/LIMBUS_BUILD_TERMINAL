@@ -156,7 +156,7 @@ test("オンライン保全UIはGoogle/Xではなく復旧キーだけに一本�
   assert.doesNotMatch(client, /startOAuth|handleOAuthCallback|Googleと連携|Xと連携|signInWithOAuth/);
   assert.match(client, /古いキーは無効化/);
   assert.match(client, /復旧キーはサーバーに平文保存せず/);
-  assert.match(doc, /Googleアカウントとの連携は実装しない方針/);
+  assert.match(doc, /GoogleアカウントやXアカウントとの連携は実装しません/);
   assert.match(doc, /バックアップ内容や更新回数が変わっても/);
 });
 
