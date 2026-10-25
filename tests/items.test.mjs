@@ -171,7 +171,7 @@ test("ショップ購入は消耗品を毎回課金して在庫に加え、消�
   assert.equal(state.inventory.find((entry) => entry.itemId === itemId)?.quantity, 2, "購入2回で所持数が2個になる");
   let purchases = state.entries.filter((entry) => entry.kind === "item" && entry.name === "HP弾");
   assert.equal(purchases.length, 2, "同じ商品を2回購入すると購入履歴も2件になる");
-  assert.deepEqual(purchases.map((entry) => entry.cost.lp), [20, 20]);
+  assert.deepEqual(Array.from(purchases, (entry) => entry.cost.lp), [20, 20]);
   assert.equal(balance(state.results, state.entries).lp, 60, "2回分のLPを差し引く");
 
   state = reducer(state, {
@@ -187,6 +187,14 @@ test("ショップ購入は消耗品を毎回課金して在庫に加え、消�
   purchases = state.entries.filter((entry) => entry.kind === "item" && entry.name === "HP弾");
   assert.equal(purchases.length, 3, "再購入も新しい履歴として記録");
   assert.equal(balance(state.results, state.entries).lp, 40, "再購入分の価格も正しく差し引く");
+
+  const cappedItemId = "enh-garden-sensory-blocker";
+  let capped = reducer(initState, {
+    type: "ADD_RESULT", name: "所持上限テスト", income: { lp: 100, shards: 0 }
+  });
+  for (let i = 0; i < 3; i += 1) capped = reducer(capped, { type: "ADD_ITEM", itemId: cappedItemId, purchase: true });
+  assert.equal(capped.inventory.find((entry) => entry.itemId === cappedItemId)?.quantity, 3);
+  assert.equal(reducer(capped, { type: "ADD_ITEM", itemId: cappedItemId, purchase: true }), capped, "所持上限後は購入状態を変えない");
 
   const poor = {
     ...initState,
