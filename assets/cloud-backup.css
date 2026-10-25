@@ -1,0 +1,103 @@
+/* Optional cloud backup/recovery panel. Keep styles on the shared design tokens. */
+.lbt-cloud-panel {
+  display: grid;
+  gap: var(--s-3);
+  margin: var(--s-5) 0;
+  padding: var(--s-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  background: var(--surface-1);
+  color: inherit;
+}
+.lbt-cloud-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+.lbt-cloud-heading strong { font-size: var(--fs-14); }
+.lbt-cloud-state {
+  font-size: var(--fs-12);
+  color: var(--gold);
+}
+.lbt-cloud-description,
+.lbt-cloud-message,
+.lbt-cloud-footnote,
+.lbt-cloud-account {
+  margin: 0;
+  font-size: var(--fs-12);
+  line-height: 1.65;
+  color: var(--text-muted);
+}
+.lbt-cloud-message {
+  padding: var(--s-3);
+  border-inline-start: 3px solid var(--gold);
+  border-radius: var(--r-md);
+  background: var(--surface-0);
+  color: inherit;
+  overflow-wrap: anywhere;
+}
+.lbt-cloud-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: var(--s-2);
+}
+.lbt-cloud-btn {
+  flex: 1 1 180px;
+  min-width: 0;
+  min-height: 42px;
+  white-space: normal;
+  text-align: center;
+}
+.lbt-cloud-btn.is-primary {
+  border-color: var(--gold);
+}
+.lbt-cloud-btn.is-danger {
+  border-color: var(--line-strong);
+}
+.lbt-cloud-recovery {
+  display: grid;
+  gap: var(--s-2);
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--line-strong);
+}
+.lbt-cloud-recovery label {
+  font-size: var(--fs-12);
+  font-weight: 600;
+}
+.lbt-cloud-recovery-row {
+  display: flex;
+  min-width: 0;
+  gap: var(--s-2);
+}
+.lbt-cloud-recovery-row input {
+  flex: 1 1 auto;
+  width: 1%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface-0);
+  color: inherit;
+  font: inherit;
+}
+.lbt-cloud-recovery-row .lbt-cloud-btn {
+  flex: 0 0 auto;
+}
+.lbt-cloud-footnote {
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--line-strong);
+}
+.lbt-cloud-btn:disabled { opacity: .6; cursor: wait; }
+.lbt-cloud-panel.is-compact { margin-block: var(--s-4); }
+@media (max-width: 560px) {
+  .lbt-cloud-panel { padding: var(--s-3); gap: var(--s-2); }
+  .lbt-cloud-heading { align-items: flex-start; flex-direction: column; }
+  .lbt-cloud-actions { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .lbt-cloud-btn { width: 100%; min-height: 44px; }
+  .lbt-cloud-recovery-row { flex-wrap: wrap; }
+  .lbt-cloud-recovery-row .lbt-cloud-btn { flex: 1 1 100%; }
+}
