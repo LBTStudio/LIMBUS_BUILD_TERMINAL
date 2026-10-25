@@ -36,7 +36,8 @@ test("人格に登録された特殊強化だけを直下へ表示し、効果�
   assert.match(sections, /className: "ledger-object-enhancements"/);
   assert.match(sections, /"特殊強化：" \+ name/);
   assert.match(sections, /className: "ledger-object-enhancement-details"/);
-  assert.match(sections, /onToggle: \(event\) => \{[\s\S]{0,260}scrollIntoView\(/);
+  assert.match(sections, /onToggle: \(event\) => \{/);
+  assert.match(sections, /details\.querySelector\("p"\)\?\.scrollIntoView/);
   assert.match(sections, /h\("summary", null, "効果を表示"\)/);
   assert.match(resultCss, /\.ledger-object-enhancements\s*\{[^}]*flex-direction:\s*column/s);
   assert.match(resultCss, /\.ledger-object-enhancement-details\[open\]\s*\{[^}]*flex:\s*1 1 100%/s);
