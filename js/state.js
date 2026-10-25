@@ -1121,7 +1121,7 @@ function parseStrictTicketInteger(value, options = {}) {
     parsed = value;
   } else if (typeof value === "string") {
     const text = value.trim();
-    if (!/^[+-]?\\d+$/.test(text)) return null;
+    if (!/^[+-]?\d+$/.test(text)) return null;
     parsed = Number(text);
   } else {
     return null;
