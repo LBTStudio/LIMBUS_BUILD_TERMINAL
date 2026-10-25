@@ -27,26 +27,166 @@ const HELP_ITEMS = [
   { group: "save", icon: "share", title: "共有シートと保存ファイルを使い分ける", body: "「共有シートを開く」は人に見せる共有用HTMLを作る機能、「CCFOLIA JSONをコピー」はセッション用データの出力、「現在の作業状態を保存」は広い作業データのバックアップ、「所持ライブラリを保存」は所持人格・E.G.O・保存済みビルドやお気に入り・履歴の引き継ぎです。互いに代用できるものではありません。保存データの読み込みでは、適用対象のチェックを確認してください。" }
 ];
 
-const HelpSection = () => {
+const GUIDE_FLOWS = {
+  main: {
+    title: "基本の進め方",
+    note: "普段の編集はこの端末のブラウザー内へ自動保存されます。別端末へ移すときは保存ファイルを使います。",
+    nodes: [
+      { step: "01", title: "SINNER SELECT", body: "作業するキャラクターを選ぶ／必要なら新規作成" },
+      { step: "02", title: "駒整形", body: "名前・PL名・立ち絵などを設定（必要な場合）" },
+      { step: "03", title: "ビルド", body: "人格を選び、スキル・パッシブ・E.G.O等を確認" },
+      { step: "04", title: "ショップ（必要な場合）", body: "未所持の候補を探して購入・入手する" },
+      { step: "05", title: "プレビュー → CCFOLIA JSON", body: "出力を確認し、必要な形式でコピー・保存" }
+    ]
+  },
+  imports: {
+    title: "取り込み口は、入れたいものによって違います",
+    note: "迷ったら「何のデータを入れたいか」で選んでください。読み込んだだけでは確定せず、内容確認後に反映する手順が基本です。",
+    alternatives: true,
+    nodes: [
+      { step: "A", title: "人格データそのもの", body: "ビルド → 人格 → テキスト流し込み反映" },
+      { step: "B", title: "セッション報酬・購入履歴", body: "記録 → リザルトを記録 → 取り込む → テキスト流し込み" },
+      { step: "C", title: "硝子窓のキャラクター全体", body: "SINNER SELECT → 対象アカウントの編集 → 共有URLから取り込む" },
+      { step: "D", title: "所持人格の名前一覧", body: "記録 → リザルトを記録 → 取り込む → 所持人格リストを取り込む" }
+    ]
+  },
+  account: {
+    title: "硝子窓のキャラクターURLを取り込む",
+    note: "人格URLだけを移す場合は、人格タブの「テキスト流し込み反映」→「硝子窓URLから移行」を使います。キャラクター全体の取り込みとは別の入口です。",
+    nodes: [
+      { step: "01", title: "SINNER SELECTを開く", body: "起動時／上部のアカウント表示／設定の管理ボタン" },
+      { step: "02", title: "対象キャラクターの「編集」", body: "違うアカウントを選ばないよう、名前を確認する" },
+      { step: "03", title: "「共有URLから取り込む」", body: "URLを貼り付けてデータを読み込む" },
+      { step: "04", title: "項目・候補・件数を確認", body: "反映したい内容を選んでから確定する" }
+    ]
+  },
+  save: {
+    title: "保存・共有・出力は目的が違います",
+    note: "「どこへ渡すか」「何を残すか」で使う機能を選びます。共有シートはバックアップではありません。",
+    alternatives: true,
+    nodes: [
+      { step: "A", title: "自動保存", body: "同じ端末・同じブラウザーで続きを編集する" },
+      { step: "B", title: "現在の作業状態を保存", body: "所持・設定・リザルト等を含む広い作業状態のJSON" },
+      { step: "C", title: "所持ライブラリを保存", body: "所持人格・E.G.O・保存ビルド + お気に入り・履歴" },
+      { step: "D", title: "共有シート／CCFOLIA JSON", body: "共有相手に見せる／セッションで使う出力を作る" }
+    ]
+  }
+};
+
+const GuideFlowDiagram = ({ kind }) => {
   const h = React.createElement;
-  const [opened, setOpened] = React.useState("prepare");
+  const flow = GUIDE_FLOWS[kind];
+  if (!flow) return null;
+  const panelX = 26;
+  const panelW = 708;
+  const nodeH = 76;
+  const nodeGap = 18;
+  const positions = flow.nodes.map((node, index) => ({ node, y: 20 + index * (nodeH + nodeGap) }));
+  const height = 20 + flow.nodes.length * (nodeH + nodeGap) - nodeGap + 20;
+  const svgChildren = [
+    h("title", { key: "title", id: "guide-flow-title-" + kind }, flow.title),
+    h("desc", { key: "desc", id: "guide-flow-desc-" + kind }, flow.nodes.map((n) => n.title + "：" + n.body).join("。")),
+    h("defs", { key: "defs" },
+      h("marker", { id: "guide-arrow-" + kind, markerWidth: 8, markerHeight: 8, refX: 6, refY: 3, orient: "auto", markerUnits: "strokeWidth" },
+        h("path", { d: "M0,0 L6,3 L0,6 Z", fill: "#d7b76b" }))),
+    h("rect", { key: "bg", x: 0, y: 0, width: 760, height, rx: 14, fill: "#100f0e", stroke: "#4b4030", strokeWidth: 1 })
+  ];
+  positions.forEach((entry, index) => {
+    if (!flow.alternatives && index < positions.length - 1) {
+      svgChildren.push(h("path", {
+        key: "arrow-" + index,
+        d: "M 380 " + (entry.y + nodeH) + " L 380 " + (entry.y + nodeH + nodeGap - 3),
+        fill: "none", stroke: "#d7b76b", strokeWidth: 2, markerEnd: "url(#guide-arrow-" + kind + ")"
+      }));
+    }
+    svgChildren.push(h("g", { key: "node-" + index },
+      h("rect", {
+        x: panelX, y: entry.y, width: panelW, height: nodeH, rx: 9,
+        fill: index === 0 ? "#242016" : "#1a1917",
+        stroke: index === 0 ? "#c7a75b" : "#554a37", strokeWidth: 1.4
+      }),
+      h("rect", { x: panelX, y: entry.y, width: 7, height: nodeH, rx: 3.5, fill: "#d7b76b" }),
+      h("text", { x: 52, y: entry.y + 30, fontSize: 17, fontWeight: 700, fill: "#e4c579" }, entry.node.step),
+      h("text", { x: 92, y: entry.y + 30, fontSize: 21, fontWeight: 700, fill: "#f5efe4" }, entry.node.title),
+      h("text", { x: 92, y: entry.y + 56, fontSize: 16, fill: "#d2cabd" }, entry.node.body)
+    ));
+  });
+  return h("figure", { className: "guide-flow-figure" },
+    h("figcaption", { className: "guide-flow-caption" }, flow.title),
+    h("svg", {
+      className: "guide-flow-svg", viewBox: "0 0 760 " + height,
+      role: "img", "aria-labelledby": "guide-flow-title-" + kind + " guide-flow-desc-" + kind,
+      xmlns: "http://www.w3.org/2000/svg"
+    }, svgChildren),
+    h("p", { className: "guide-flow-note" }, flow.note)
+  );
+};
+
+const GuideRouteCard = ({ icon, title, body, button, onClick, tone }) => {
+  const h = React.createElement;
+  return h("article", { className: "guide-route-card" + (tone ? " " + tone : "") },
+    h("div", { className: "guide-route-card-icon", "aria-hidden": "true" }, h(Icon, { name: icon, size: 18 })),
+    h("h3", null, title),
+    h("p", null, body),
+    h("button", { type: "button", className: "guide-route-button", onClick }, button)
+  );
+};
+
+const HelpSection = ({ onNavigate, onOpenUtilities }) => {
+  const h = React.createElement;
+  const [opened, setOpened] = React.useState("imports");
+  const openAccounts = () => window.dispatchEvent(new Event("lbt:open-accounts"));
+  const go = (section, ui) => onNavigate?.(section, ui || {});
   const groups = [
-    { key: "prepare", label: "最初に選ぶもの", lead: "基本情報・人格・E.G.Oを設定します。" },
+    { key: "prepare", label: "最初に使うところ", lead: "基本情報・人格・装備を設定します。" },
+    { key: "imports", label: "文章や共有URLを取り込む", lead: "人格、リザルト、所持一覧、硝子窓URLの入口を区別します。" },
+    { key: "accounts", label: "キャラクター（アカウント）を管理する", lead: "切替・作成・編集・共有URLの取り込み。" },
+    { key: "record", label: "記録と所持を管理する", lead: "リザルト、収支、消耗を確認します。" },
     { key: "blocks", label: "必要な項目を確認・編集する", lead: "スキル、パッシブ、精神、強化、設定。" },
     { key: "output", label: "セッション前に確認する", lead: "メモ、パレット、JSONを確認します。" },
     { key: "operation", label: "操作を戻す・探す", lead: "戻す・やり直すと検索を使います。" },
-    { key: "save", label: "作業を残す・引き継ぐ", lead: "作業状態と所持ライブラリを保存します。" }
+    { key: "save", label: "保存・共有・引き継ぎ", lead: "目的に合う方法を選びます。" }
   ];
   return h("div", { className: "guide stack-4" },
     h("section", { className: "guide-intro" },
-      h("div", { className: "guide-kicker" }, "使い方"),
-      h("h2", null, "キャラクターの準備"),
-      h("p", null, "まず「駒整形」で名前や立ち絵などを設定し、「ビルド」で人格・E.G.O・スキルを整えます。通常の編集内容はブラウザー内へ自動保存されます。別端末への移行やバックアップにはJSONファイルを保存します。"),
+      h("div", { className: "guide-kicker" }, "はじめての方へ / 操作ガイド"),
+      h("h2", null, "まず「何をしたいか」から選んでください"),
+      h("p", null, "ボタンを探し回らなくても済むよう、目的ごとの入口と、その後に押すものをまとめました。PCでは左側、スマートフォンでは画面下部のメニューから移動します。"),
       h("div", { className: "guide-quick" },
-        [["1", "基本情報を整える", "「駒整形」でキャラクター名・PL名・立ち絵などを設定します（必要な場合のみ）。"], ["2", "人格と装備を選ぶ", "「ビルド」内の「人格」タブでカードを選び、同じカードをもう一度押して装備します。"], ["3", "出力を確認する", "プレビューを確認します。通常編集は自動保存、バックアップや別端末への移行にはJSONファイルを使います。"]].map(([n, t, d]) => h("div", { key: n, className: "guide-step" }, h("span", null, n), h("b", null, t), h("p", null, d)))
+        [["1", "キャラクターを選ぶ", "SINNER SELECTで作業するキャラクターを選択します。"], ["2", "人格と装備を整える", "ビルド内の人格を装備し、必要な項目を確認します。"], ["3", "記録または文章を取り込む", "下の目的別カードから正しい取り込み口を選びます。"], ["4", "出力・保存を確認する", "プレビューを確認し、必要なら保存ファイルを作成します。"]].map(([n, t, d]) => h("div", { key: n, className: "guide-step" }, h("span", null, n), h("b", null, t), h("p", null, d)))
       )
     ),
-        h("section", { className: "guide-group guide-beginner is-open", "aria-label": "人格の基本操作" },
+    h("section", { className: "guide-route-panel", "aria-labelledby": "guide-routes-title" },
+      h("div", { className: "guide-section-heading" },
+        h("h2", { id: "guide-routes-title" }, "やりたいことから、入口へ"),
+        h("p", null, "このボタンは目的の画面を開きます。開いた後はカード内の案内に沿って進みます。")),
+      h("div", { className: "guide-route-grid" },
+        h(GuideRouteCard, { icon: "persona", title: "人格データの文章がある", body: "「ビルド」→「人格」→「テキスト流し込み反映」へ進みます。", button: "ビルドを開く", onClick: () => go("persona"), tone: "is-primary" }),
+        h(GuideRouteCard, { icon: "copy", title: "リザルト／購入履歴の文章がある", body: "「記録」→「リザルトを記録」→「取り込む」→「テキスト流し込み」です。", button: "記録を開く", onClick: () => go("roster", { libraryTab: "ledger" }) }),
+        h(GuideRouteCard, { icon: "link", title: "硝子窓のキャラクターURLがある", body: "アカウントの編集画面にある「共有URLから取り込む」を使います。", button: "アカウント管理を開く", onClick: openAccounts }),
+        h(GuideRouteCard, { icon: "roster", title: "所持人格の名前一覧がある", body: "「記録」→「リザルトを記録」→「取り込む」→「所持人格リストを取り込む」です。", button: "記録を開く", onClick: () => go("roster", { libraryTab: "ledger" }) }),
+        h(GuideRouteCard, { icon: "item", title: "未所持アイテム・装備を探したい", body: "ショップで入手するか、ビルド側の「未所持も表示（全体から選ぶ）」を選びます。", button: "ショップを開く", onClick: () => go("shop") }),
+        h(GuideRouteCard, { icon: "archive", title: "保存・復元・共有をしたい", body: "作業状態、所持ライブラリ、共有シート、CCFOLIA JSONは用途が違います。", button: "操作・保存を開く", onClick: () => onOpenUtilities?.() })
+      )
+    ),
+    h(GuideFlowDiagram, { kind: "main" }),
+    h("section", { className: "guide-visual-section" },
+      h("h2", null, "文章の取り込み口を間違えないために"),
+      h("p", null, "人格の内容を作る入口と、セッションの報酬・支出を記録する入口は別です。取り込む前に、どの種類のデータなのかを確認してください。"),
+      h(GuideFlowDiagram, { kind: "imports" })
+    ),
+    h("section", { className: "guide-visual-section" },
+      h("h2", null, "硝子窓の共有URLからキャラクターを移す"),
+      h("p", null, "URLの取り込みは、どのキャラクターの保存領域へ入れるかを先に確認するのが重要です。"),
+      h(GuideFlowDiagram, { kind: "account" }),
+      h("div", { className: "guide-common-note" }, h(Icon, { name: "info", size: 15 }), h("span", null, "共有URLのキャラクター全体を取り込む操作は、アカウントを編集している時に表示されます。人格だけを取り込みたい場合は、「ビルド」→「人格」→「テキスト流し込み反映」→「硝子窓URLから移行」です。"))
+    ),
+    h("section", { className: "guide-visual-section" },
+      h("h2", null, "保存・共有・出力の違い"),
+      h("p", null, "同じ「保存」でも残る内容が異なります。バックアップや別端末への移行は、目的に合ったファイルを選んでください。"),
+      h(GuideFlowDiagram, { kind: "save" })
+    ),
+    h("section", { className: "guide-group guide-beginner is-open", "aria-label": "人格の基本操作" },
       h("div", { className: "guide-group-head guide-beginner-head" },
         h("span", { className: "guide-group-caret", "aria-hidden": true }, "◆"),
         h("span", null,
@@ -71,10 +211,10 @@ const HelpSection = () => {
         )
       )
     ),
-    h("div", { className: "guide-common-note" }, h(Icon, { name: "info", size: 15 }), h("span", null, "PCでは画面左側のナビゲーション、スマートフォンでは画面下部のタブで画面を移動します。「ビルド」内に人格・スキル・パッシブ・サポート・E.G.Oなどのタブがあります。「操作・保存」から保存や復元を開けます。プレビューは開閉できます。")),
+    h("div", { className: "guide-common-note" }, h(Icon, { name: "info", size: 15 }), h("span", null, "PCでは左側のナビゲーション、スマートフォンでは画面下部のタブで移動します。「操作・保存」から保存や復元を開けます。プレビューは開閉できます。")),
     groups.map((g) => {
       const items = HELP_ITEMS.filter((item) => item.group === g.key);
-      return h("section", { key: g.key, className: `guide-group${opened === g.key ? " is-open" : ""}` },
+      return h("section", { key: g.key, className: "guide-group" + (opened === g.key ? " is-open" : "") },
         h("button", { className: "guide-group-head", onClick: () => setOpened(opened === g.key ? "" : g.key), "aria-expanded": opened === g.key },
           h("span", { className: "guide-group-caret" }, opened === g.key ? "▼" : "▶"),
           h("span", null, h("b", null, g.label), h("small", null, g.lead))
@@ -1210,7 +1350,7 @@ const App = () => {
         return /* @__PURE__ */ React.createElement(ShopSection, { state, dispatch });
 ;
       case "help":
-        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SectionTitle, { num: sec.num, title: sec.title, subtitle: sec.subtitle }), /* @__PURE__ */ React.createElement(HelpSection, null));
+        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SectionTitle, { num: sec.num, title: sec.title, subtitle: sec.subtitle }), /* @__PURE__ */ React.createElement(HelpSection, { onNavigate: (id, ui = {}) => dispatch({ type: "SET_UI", ui: { ...ui, currentSection: id } }), onOpenUtilities: openUtilities }));
       case "settings":
         return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SectionTitle, { num: sec.num, title: sec.title, subtitle: sec.subtitle }), /* @__PURE__ */ React.createElement(SettingsSection, { state, dispatch }));
       default:
