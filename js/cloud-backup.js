@@ -387,19 +387,23 @@
       const localRevision = Number(readStorage(REVISION_KEY) || 0);
       const same = sameData(local, remote.payload);
       const conflict = hasMeaningfulLocalData(local) && !same && localRevision > 0 && localRevision !== Number(remote.revision);
+      const dualProtected = remote.mirrorSynced !== false && !remote.secondaryUnavailable && !remote.repairPending;
       emit({
         mode: "recovery",
-        label: conflict ? "同期競合あり" : "オンラインバックアップあり",
+        label: conflict ? "同期競合あり" : dualProtected ? "二重保全を確認" : "保全先の一部が未確認",
         message: conflict
-          ? "別の端末または別タブでクラウド内容が更新されています。自動上書きは停止しました。復元する内容を選んでください。"
-          : same
-            ? "この端末とクラウドの内容は一致しています。復旧キーはデータ更新によって変更・失効しません。"
-            : "クラウドにバックアップがあります。端末にデータがある場合は、復元またはこの端末からの更新を選んでください。",
+          ? "別の端末または別タブで保全データが更新されています。自動上書きは停止しました。復元する内容を選んでください。"
+          : !dualProtected
+            ? "データは取得できましたが、Supabase・Cloudflareの両方への保存を確認できていません。利用は継続できますが、JSONバックアップも別途保管してください。"
+            : same
+              ? "この端末と保全先の内容は一致しています。SupabaseとCloudflareの双方で同じ世代を確認しました。復旧キーは変わりません。"
+              : "保全データがあります。端末に別のデータがある場合は、復元またはこの端末からの更新を選んでください。",
         remoteExists: true,
         revision: Number(remote.revision) || 0,
         conflict,
         hasRecoveryKey: true,
-        recoveryKeyEnabled: Boolean(remote.recoveryKeyEnabled)
+        recoveryKeyEnabled: Boolean(remote.recoveryKeyEnabled),
+        mirrorSynced: dualProtected
       });
       if (same) writeStorage(REVISION_KEY, String(remote.revision));
       return getStatus();
@@ -418,7 +422,13 @@
     if (exists && same) {
       writeStorage(REVISION_KEY, String(current.revision));
       setEnabled(true);
-      emit({ remoteExists: true, revision: Number(current.revision), conflict: false, label: "同期済み", message: "この端末とオンラインバックアップの内容は既に一致しています。復旧キーはそのまま有効です。" });
+      const dualProtected = current.mirrorSynced !== false && !current.secondaryUnavailable && !current.repairPending;
+      emit({ remoteExists: true, revision: Number(current.revision), conflict: false,
+        label: dualProtected ? "二重保全・同期済み" : "単一保全先で一致・要確認",
+        mirrorSynced: dualProtected,
+        message: dualProtected
+          ? "この端末とSupabase・Cloudflareの内容が一致しています。復旧キーは変わりません。"
+          : "この端末と取得できた保全データは一致していますが、もう一方の保全先は未確認です。JSONバックアップも保管してください。" });
       return true;
     }
     if (exists) {
@@ -435,7 +445,13 @@
     if (latest.found && sameData(payload, latest.payload)) {
       writeStorage(REVISION_KEY, String(latest.revision));
       setEnabled(true);
-      emit({ remoteExists: true, revision: Number(latest.revision), conflict: false, label: "オンライン保全済み", message: "全アカウントデータをオンラインへ保存しました。以降の変更は自動同期されます。復旧キーは変わりません。" });
+      const dualProtected = latest.mirrorSynced !== false && !latest.secondaryUnavailable && !latest.repairPending;
+      emit({ remoteExists: true, revision: Number(latest.revision), conflict: false,
+        label: dualProtected ? "二重保全済み" : "単一保全先で保全済み・要確認",
+        mirrorSynced: dualProtected,
+        message: dualProtected
+          ? "全アカウントデータはSupabase・Cloudflareの双方に保存済みです。復旧キーは変わりません。"
+          : "取得できた保全先には全アカウントデータが保存済みですが、もう一方への複製は確認できません。復旧キーは変わりません。" });
       return true;
     }
     const expectedRevision = latest.found ? Number(latest.revision) : 0;
@@ -459,7 +475,7 @@
       "このキーを知っている人は、オンライン保全データを復元・更新できます。",
       "安全な場所へ保管してください。LBTの画面共有や公開チャンネルには貼り付けないでください。",
       "データを保存・更新しても、このキーは変更・失効しません。",
-      "キーを再発行した場合のみ、以前のキーは無効になります。",
+      "このキーはデータ更新・端末追加・保存先切替で変化しません。LBT内に再発行操作はありません。",
       "ファイル保管日: " + new Date().toISOString(),
       ""
     ].join("\n");
@@ -496,13 +512,20 @@
     if (!/^LBT1-[A-Za-z0-9_-]{40,50}$/.test(key)) throw new Error("復旧キーを「LBT1-」から最後まで入力してください。");
     const remote = await getRemote({ recoveryKey: key });
     if (!remote.found || !remote.payload) throw new Error("この復旧キーに対応するバックアップが見つかりません。");
-    await restorePayload(remote.payload, Number(remote.revision), key);
-    return true;
+    const restored = await restorePayload(remote.payload, Number(remote.revision), key);
+    if (restored && (remote.mirrorSynced === false || remote.secondaryUnavailable || remote.repairPending)) {
+      emit({ label: "復元済み・二重保全は未確認", message: "データを復元しましたが、両方の保全先が同じ最新世代であることは確認できていません。JSONバックアップも保管してください。" });
+    }
+    return Boolean(restored);
   }
   async function restoreCloud() {
     const remote = await getRemote();
     if (!remote.found || !remote.payload) throw new Error("復元できるオンラインバックアップが見つかりません。復旧キーを確認してください。");
-    return await restorePayload(remote.payload, Number(remote.revision), readRecoveryKey());
+    const restored = await restorePayload(remote.payload, Number(remote.revision), readRecoveryKey());
+    if (restored && (remote.mirrorSynced === false || remote.secondaryUnavailable || remote.repairPending)) {
+      emit({ label: "復元済み・二重保全は未確認", message: "データを復元しましたが、両方の保全先が同じ最新世代であることは確認できていません。JSONバックアップも保管してください。" });
+    }
+    return Boolean(restored);
   }
   async function loadHistory() {
     const key = readRecoveryKey();
@@ -602,7 +625,13 @@
       }
       if (sameData(payload, current.payload)) {
         writeStorage(REVISION_KEY, String(current.revision));
-        emit({ conflict: false, remoteExists: true, revision: Number(current.revision), label: "同期済み", message: "この端末とオンラインバックアップの内容は一致しています。復旧キーは変わりません。" });
+        const dualProtected = current.mirrorSynced !== false && !current.secondaryUnavailable && !current.repairPending;
+        emit({ conflict: false, remoteExists: true, revision: Number(current.revision),
+          label: dualProtected ? "二重保全・同期済み" : "単一保全先で同期済み・要確認",
+          mirrorSynced: dualProtected,
+          message: dualProtected
+            ? "この端末とSupabase・Cloudflareの内容は一致しています。復旧キーは変わりません。"
+            : "ローカルと取得できた保全先の内容は一致していますが、もう一方の保全先は未確認です。復旧キーは変わりません。" });
         return;
       }
       const result = await callRecovery({ action: "backup", expectedRevision: Number(current.revision), payload, recoveryKey: key });
@@ -714,7 +743,7 @@
         button("JSONファイルから復元", () => fileInput.current?.click()),
         hasKey ? button("この端末の自動同期を停止", () => run(disableOnline), "is-danger") : null
       ),
-      h("p", { className: "lbt-cloud-footnote" }, "復旧キー自体は保存せずハッシュのみを保持します。クラウドへ保存されるJSON本体はエンドツーエンド暗号化されません。復旧キーはデータ更新・同期・世代変更では変更・失効せず、明示的に再発行した場合のみ古いキーが無効になります。復旧キーを公開チャンネルへ貼らず、別の安全な場所にもJSONバックアップを保管してください。")
+      h("p", { className: "lbt-cloud-footnote" }, "復旧キー自体は保存せずハッシュのみを保持します。クラウドへ保存されるJSON本体はエンドツーエンド暗号化されません。復旧キーはデータ更新・同期・世代変更・保存先切替で変化しません。LBT内に再発行操作はありません。復旧キーを公開チャンネルへ貼らず、別の安全な場所にもJSONバックアップを保管してください。")
     );
   }
 
