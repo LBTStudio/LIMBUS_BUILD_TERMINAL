@@ -505,13 +505,13 @@ test("作成日時が欠落・破損したCloudflare KV短縮URLキャッシュ�
   });
   const state = { charName: "日時破損の共有キャッシュ", roster: { personas: [] } };
   const token = await share.encodeState(state);
-  const invalidUrl = origin + "/s/InvalidTimeId1234";
+  const invalidUrl = origin + "/s/BadTimeId1234567";
   storage.setItem("lbt:last-published-share:v1", JSON.stringify({
     token, url: invalidUrl, length: invalidUrl.length, strategy: "cloudflare-kv",
     backups: [], preview: { personaName: "日時破損" }, savedAt: "not-a-timestamp"
   }));
 
-  const freshUrl = origin + "/s/CorrectTimeId1234";
+  const freshUrl = origin + "/s/GoodTimeId123456";
   const calls = [];
   const fetchMock = async (url, options = {}) => {
     const target = String(url);
@@ -521,7 +521,7 @@ test("作成日時が欠落・破損したCloudflare KV短縮URLキャッシュ�
     if (target === "https://api.telegra.ph/createPage") return new Response(JSON.stringify({ ok: true, result: { path: "LBT-Invalid-Time-Reissue" } }), { status: 200 });
     if (target === origin + "/api/r2-share/v1") {
       assert.equal(JSON.parse(options.body).token, token);
-      return new Response(JSON.stringify({ ok: true, id: "CorrectTimeId1234", url: freshUrl }), { status: 201 });
+      return new Response(JSON.stringify({ ok: true, id: "GoodTimeId123456", url: freshUrl }), { status: 201 });
     }
     throw new Error("unexpected URL: " + target);
   };
