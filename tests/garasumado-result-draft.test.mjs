@@ -571,3 +571,16 @@ test("キャラクターURLと人格URLは取り込み前から別種として�
   ].join("\n"));
   assert.deepEqual([...batch.urls].map((row) => row.collection), ["characters", "personas"]);
 });
+
+test("混在する硝子窓URLは全件抽出し、不正URLも成功分と別に報告する", () => {
+  const parsed = G.parseShareUrls([
+    "https://lbt-garasumado.vercel.app/view/AbCdEF1234567890abcd",
+    "AbCdEF1234567890abcd",
+    "lbt-garasumado.vercel.app/persona/view/ZyXwVu1234567890abcd",
+    "https://lbt-garasumado.vercel.app/not-a-share-link/BadId"
+  ].join("\n"));
+  assert.equal(parsed.urls.length, 2, "同じキャラクターIDの裸IDを重複登録しない");
+  assert.deepEqual([...parsed.urls].map((row) => row.collection), ["characters", "personas"]);
+  assert.ok(parsed.invalid.some((row) => row.text.includes("not-a-share-link")),
+    "不正URLを成功したURLの陰に隠して捨てない");
+});
