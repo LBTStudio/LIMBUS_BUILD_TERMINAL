@@ -284,6 +284,48 @@ test("見出しの無い本文だけの貼り付けは 1 件のリザルトと�
   assert.equal(out.records[0].income.lp, 10);
 });
 
+test("旧ログ形式の『シナリオ名』・LP+欠片・チケット・硝子破片消費を取り込める", () => {
+  const input = [
+    "マスカのシナリオ通過3",
+    "『幻想体戦闘力実験　夢見る濁流』",
+    "LP50+欠片30",
+    "ノイズ",
+    "『そうめんをくえ』",
+    "LP80+欠片40",
+    "人格チケ2枚",
+    "硝子のかけら×2",
+    "【硝子の破片を一つ使用して人差し指のctを解除】",
+    "『一服。』 合計：97LP+47欠片"
+  ].join("\n");
+  const parsed = T.parseText(input);
+  assert.equal(parsed.records.length, 3);
+  assert.deepEqual([...parsed.records].map((r) => r.title), [
+    "幻想体戦闘力実験　夢見る濁流", "そうめんをくえ", "一服。"
+  ]);
+  assert.deepEqual([...parsed.records].map((r) => [r.income.lp, r.income.shards]), [
+    [50, 30], [80, 40], [97, 47]
+  ]);
+  assert.equal(parsed.records[1].tickets[0].kind, "persona");
+  assert.equal(parsed.records[1].tickets[0].count, 2);
+  assert.equal(parsed.records[1].itemGains[0].itemId, "resource-glass-shard");
+  assert.equal(parsed.records[1].itemGains[0].quantity, 2);
+  assert.equal(parsed.records[1].consumedItems[0].quantity, 1, "漢数字「一つ」を読む");
+  assert.match(parsed.records[1].consumedItems[0].detail, /人差し指のctを解除/);
+  assert.ok(parsed.records[0].raw.includes("ノイズ"), "解釈しきれない獲得名はリザルト注記へ保持");
+});
+
+test("旧ログの消費はリザルト履歴へ移し、現在庫の二重減算は行わない", () => {
+  const parsed = T.parseText("『A』\nLP50+欠片30\n【硝子の破片を2つ使用してCT解除】");
+  const plan = T.plan(parsed);
+  assert.equal(plan.actions[0].type, "ADD_RESULT");
+  assert.equal(plan.actions[0].consumedItems[0].itemId, "resource-glass-shard");
+  assert.equal(plan.actions[0].consumedItems[0].quantity, 2);
+  assert.equal(plan.actions.some((action) => action.type === "CONSUME_ITEM"), false);
+  assert.equal(plan.actions.some((action) => action.type === "ADD_ITEM_INVENTORY"), false,
+    "旧ログは現所持のスナップショットと二重計上しない");
+  assert.match(plan.actions[0].consumedItems[0].detail, /CT解除/);
+});
+
 /* --- action 化 ---------------------------------------------------------- */
 
 test("ADD_RESULT と ADD_ENTRY の並びになる（明細は直前のリザルトに帰属）", () => {

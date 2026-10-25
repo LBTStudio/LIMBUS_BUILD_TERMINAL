@@ -43,6 +43,99 @@ const samples = JSON.parse(readFileSync(new URL("./fixtures/garasumado-samples.j
 const PASSIVE = db.support_passives[0].name;
 const OTHER_PERSONA = db.normal_personas[1].name;
 
+test("硝子の破片消費は通貨支出と分離して結果の consumedItems へ渡す", () => {
+  const memo = "LP50+欠片30\n硝子の破片を2つ使用して人差し指のCTを解除";
+  const parsed = w.LBT_garaMemo.parseMemo(memo);
+  assert.equal(parsed.income.lp, 50);
+  assert.equal(parsed.income.shards, 30);
+  assert.deepEqual([...parsed.consumedItems].map((item) => [item.itemId, item.quantity]), [
+    ["resource-glass-shard", 2]
+  ]);
+  assert.equal(parsed.spends.some((spend) => /硝子の破片/.test(spend.name || "")), false,
+    "購入明細へ二重に計上しない");
+
+  const manifest = make({ personas: [], egos: [], supportPassives: [], spirits: [] }, [
+    { name: "旧ログ", memo }
+  ]);
+  const actions = G.toDispatchActions(manifest, [], {}).actions;
+  const result = actions.find((action) => action.type === "ADD_RESULT");
+  assert.equal(result.consumedItems[0].itemName, "硝子の破片");
+  assert.equal(result.consumedItems[0].detail, "硝子の破片を2つ使用して人差し指のCTを解除");
+  assert.match(result.consumedItems[0].detail, /CTを解除/);
+});
+
+test("複数の硝子窓URLは重複を除き、同じPLのシナリオ履歴だけを統合する", () => {
+  const urls = [
+    "https://lbt-garasumado.vercel.app/view/6yXgGPzX1eSEboi2KSLM",
+    "https://lbt-garasumado.vercel.app/view/Eo19HoEJpsICZwLc7MN4",
+    "https://lbt-garasumado.vercel.app/view/6yXgGPzX1eSEboi2KSLM"
+  ].join("\n");
+  const parsed = G.parseShareUrls(urls);
+  assert.equal(parsed.urls.length, 2, "同じ共有文書を二重に取得しない");
+  assert.deepEqual([...parsed.urls].map((item) => item.id), [
+    "6yXgGPzX1eSEboi2KSLM", "Eo19HoEJpsICZwLc7MN4"
+  ]);
+
+  const merged = G.mergeGarasumadoDocuments([
+    {
+      id: "old",
+      updateTime: "2026-10-01T00:00:00Z",
+      doc: {
+        name: "キャラクターA", plName: "PL A",
+        owned: { personas: [{ name: "古い所持" }] },
+        items: [{ name: "硝子の破片", count: 3 }],
+        scenarioHistory: [
+          { name: "共通", memo: "50LP" },
+          { name: "共通", memo: "50LP" }
+        ]
+      }
+    },
+    {
+      id: "new",
+      updateTime: "2026-10-02T00:00:00Z",
+      doc: {
+        name: "キャラクターA", plName: "PL A",
+        owned: { personas: [{ name: "最新所持" }] },
+        items: [{ name: "硝子の破片", count: 1 }],
+        scenarioHistory: [
+          { name: "共通", memo: "50LP" },
+          { name: "最新", memo: "LP80" }
+        ]
+      }
+    }
+  ]);
+  assert.equal(merged.name, "キャラクターA");
+  assert.deepEqual([...merged.owned.personas].map((item) => item.name), ["最新所持"]);
+  assert.equal(merged.items[0].count, 1, "最新スナップショットの現所持を保つ");
+  assert.equal(merged.scenarioHistory.length, 3, "同じ本文の実通過回数は残し、スナップショット重複だけ除く");
+  assert.equal(merged.scenarioHistory[2].name, "最新");
+});
+
+test("同じPLの別キャラクターURLは履歴を統合し、最新スナップショットの現所持を使う", () => {
+  const merged = G.mergeGarasumadoDocuments([
+    {
+      updateTime: "2026-10-01T00:00:00Z",
+      doc: { name: "キャラクターA", plName: "同じPL", owned: { personas: [{ name: "旧所持" }] }, scenarioHistory: [{ name: "Aの履歴", memo: "50LP" }] }
+    },
+    {
+      updateTime: "2026-10-02T00:00:00Z",
+      doc: { name: "キャラクターB", plName: "同じPL", owned: { personas: [{ name: "新所持" }] }, scenarioHistory: [{ name: "Bの履歴", memo: "75LP" }] }
+    }
+  ]);
+  assert.equal(merged.error, undefined);
+  assert.equal(merged.name, "キャラクターB", "最新URLのキャラクター情報を保持");
+  assert.deepEqual([...merged.owned.personas].map((item) => item.name), ["新所持"]);
+  assert.deepEqual([...merged.scenarioHistory].map((item) => item.name), ["Aの履歴", "Bの履歴"]);
+});
+
+test("異なるPLの硝子窓URLを誤って同じ所持へ統合しない", () => {
+  const merged = G.mergeGarasumadoDocuments([
+    { doc: { name: "キャラクターA", plName: "PL A", scenarioHistory: [] } },
+    { doc: { name: "キャラクターB", plName: "PL B", scenarioHistory: [] } }
+  ]);
+  assert.match(merged.error, /異なるキャラクター／PL名/);
+});
+
 test("獲得行と完全一致した所持は Automaticでシナリオに入る（A）", () => {
   const m = make(
     { personas: [{ name: PERSONA }], egos: [], supportPassives: [], spirits: [] },
