@@ -58,7 +58,8 @@ test("バックアップテーブルは所有者単位のRLSで保護される",
   assert.match(migration, /using \(\(select auth\.uid\(\)\) = user_id\)/i);
   assert.match(migration, /with check \(\(select auth\.uid\(\)\) = user_id\)/i);
   assert.match(migration, /revoke all on table public\.lbt_account_vaults from public, anon, authenticated/i);
-  assert.match(migration, /grant select, insert, update, delete on table public\.lbt_account_vaults to authenticated/i);
+  assert.match(migration, /grant select, insert, update, delete on table public\.lbt_account_vaults to service_role/i);
+  assert.doesNotMatch(migration, /grant [^;]+ on table public\.lbt_account_vaults to authenticated/i);
 });
 
 test("復旧キーは十分な乱数を使い、サーバー側ではSHA-256だけを検索キーとして保存する", () => {
