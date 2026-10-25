@@ -558,3 +558,17 @@ test("実サンプル: 所持アイテムの行がどの文書でも捨てられ
   }
   assert.equal(rows, 131, "所持アイテムの総行数（実サンプル 50 文書）");
 });
+
+test("キャラクターURLと人格URLは取り込み前から別種として識別される", () => {
+  const character = G.parseShareUrl("https://lbt-garasumado.vercel.app/view/AbCdEF1234567890abcd");
+  const persona = G.parseShareUrl("https://lbt-garasumado.vercel.app/persona/view/ZyXwVu1234567890abcd");
+  assert.equal(character.ok, true);
+  assert.equal(character.collection, "characters");
+  assert.equal(persona.ok, true);
+  assert.equal(persona.collection, "personas");
+  const batch = G.parseShareUrls([
+    "https://lbt-garasumado.vercel.app/view/AbCdEF1234567890abcd",
+    "https://lbt-garasumado.vercel.app/persona/view/ZyXwVu1234567890abcd"
+  ].join("\\n"));
+  assert.deepEqual([...batch.urls].map((row) => row.collection), ["characters", "personas"]);
+});
