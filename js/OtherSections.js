@@ -2554,7 +2554,12 @@ const ShopSection = ({ state, dispatch }) => {
   const ownedEgoKeys = React.useMemo(() => new Set((state.roster?.egos || []).map((e) => `${e.rank}:${e.no}`)), [state.roster?.egos]);
   const ownedItemIds = React.useMemo(() => new Set(inventory.map((entry) => entry.itemId)), [inventory]);
   const ownedSpiritNames = React.useMemo(() => new Set((state.roster?.spirits || []).map((s) => s.name)), [state.roster?.spirits]);
-  const catalogItems = React.useMemo(() => [...(window.DB?.items || []), ...(window.DB?.specialItems || []).filter((item) => item?.ledgerResource === "shards"), ...(Array.isArray(state.customItems) ? state.customItems : [])], [state.customItems]);
+  const catalogItems = React.useMemo(() => [
+    ...(window.DB?.items || []),
+    /* 通帳連動の自我の欠片だけでなく、硝子の破片などの特殊資源もショップに表示する。 */
+    ...(window.DB?.specialItems || []),
+    ...(Array.isArray(state.customItems) ? state.customItems : [])
+  ], [state.customItems]);
   const itemCategories = React.useMemo(() => [...new Set(catalogItems.map((item) => String(item?.category || "その他")))], [catalogItems]);
 
   const maxOwnedOf = (itemId) => window.LBT_getItemMaxOwned?.(state, itemId) || 99;
@@ -2597,7 +2602,7 @@ const shopCardLines = (kind, entry) => {
 
 /* 全カテゴリ共通のカード構造。識別 → 条件 → 操作 の3層で走査速度を揃える。
    所有は識別行に載せる（種別バッジと同じ階層＝跨界しない属性）。 */
-const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned, headExtra, body, costText, topRow) => {
+const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned, headExtra, body, costText, topRow, actionLabel) => {
   /* アイテムは同名の公式・自作が共存できるので、価格は名前ではなく
      key（= item.id）で引く。state.js priceItemById と同じ参照。 */
   const price = resolveAcquireCost(kind, "purchase", { name, id: key, customItems: state.customItems });
@@ -2633,7 +2638,7 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
           icon: "plus",
           onClick: blocked ? () => toast(blockReason, "assertive") : onAcquire,
           title: blocked ? blockReason : (reason || "このカードから購入して所持にする")
-        }, "購入")));
+        }, actionLabel || "購入")));
 };
 
 
@@ -2700,9 +2705,26 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
       /* 精神の費用はビルドと同じ規則で表す。価格 0 は費用ではなく
          ルール情報なので、価格枠ではなく head のフラグ（所持バッジの隣）へ出す。 */
       hasExplicitSpiritPrice(sp) ? formatAcquireCost(0, sp.price) : "価格不明")),
-    item: () => items.map((item) => card(item.id, item.name, item.category || "その他", "item",
-      () => { dispatch({ type: "ADD_ITEM", itemId: item.id }); toast(`「${item.name}」を購入しました`, "assertive"); },
-      atCap(item), "所持上限に達しています", shopCardLines("item", item), ownedItemIds.has(item.id)))
+    item: () => items.map((item) => {
+      /* 価格が設定されていない特殊資源は「無料購入」に見せず、所持欄への登録として扱う。
+         自我の欠片は従来どおり2LPの購入処理（ADD_ITEM）で通帳へ反映する。 */
+      const registerOnly = item?.specialResource === true && !item?.ledgerResource;
+      const acquire = () => {
+        if (registerOnly) {
+          dispatch({ type: "ADD_ITEM_INVENTORY", itemId: item.id });
+          toast(`「${item.name}」を特殊資源欄へ追加しました`, "assertive");
+          return;
+        }
+        dispatch({ type: "ADD_ITEM", itemId: item.id });
+        toast(item?.ledgerResource === "shards"
+          ? "自我の欠片を1個購入しました（2LP）"
+          : `「${item.name}」を購入しました`, "assertive");
+      };
+      return card(item.id, item.name, item.category || "その他", "item",
+        acquire, atCap(item), "所持上限に達しています", shopCardLines("item", item), ownedItemIds.has(item.id),
+        null, null, registerOnly ? "価格未設定" : undefined, null,
+        registerOnly ? "所持欄へ追加" : "購入");
+    })
   };
   const totals = {
     support: (DB.support_passives || []).length + (DB.death_passives || []).length,
