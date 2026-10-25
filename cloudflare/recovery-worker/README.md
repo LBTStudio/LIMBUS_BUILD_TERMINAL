@@ -14,7 +14,7 @@ LBT's recovery key is immutable. It is generated once and must not be rotated or
 
 ## Cloudflare D1 Worker
 
-The independent worker lives in cloudflare/recovery-worker and exposes:
+The independent worker lives in `cloudflare/recovery-worker` and exposes:
 
 - GET /healthz — provider health/configuration.
 - POST /api/v1/recovery — recovery API.
@@ -22,13 +22,14 @@ The independent worker lives in cloudflare/recovery-worker and exposes:
 
 ### Setup
 
-1. Verify that the Cloudflare account stays on a zero-cost Workers Free plan. The connected API cannot always read account billing status; do not upgrade or enable paid products to complete this setup.
-2. Create a D1 database named lbt-recovery in the same account.
-3. Apply schema.sql to that database.
-4. Replace REPLACE_WITH_D1_DATABASE_ID in wrangler.toml with the actual D1 ID.
-5. Deploy worker.js as a new Worker named lbt-recovery. Do not overwrite the existing lbt-ogp Worker.
-6. Open /healthz; it must return an ok response for provider cloudflare-d1 with configured true.
-7. Test create, update, get, history, restore, replica sync, and the access counter with non-production test data before enabling Cloudflare failover for real users.
+The current LBT deployment already has a D1 database bound in `wrangler.toml` and an independent Worker named `lbt-recovery`. The live database name is `lbtstudio-account-datebase` (the spelling is intentional because it is the existing resource). Do not create another database or overwrite the existing `lbt-ogp` Worker.
+
+For a fresh installation:
+1. Verify that the Cloudflare account remains on a zero-cost Workers Free plan. The connected API cannot always read billing status; do not upgrade or enable paid products to complete setup.
+2. Create a D1 database, apply `schema.sql`, and set the exact database ID in `wrangler.toml`.
+3. Deploy `worker.js` as a new Worker named `lbt-recovery`, with the D1 binding and rate-limit bindings shown in the config.
+4. Open `/healthz`; it should return `{"ok":true,"provider":"cloudflare-d1","configured":true}`.
+5. Test create, update, get, history, restore, replica sync, and the access counter with disposable test data before enabling live failover.
 
 The Worker stores SHA-256 hashes of recovery keys, never the plaintext recovery key. The current payload format is stored as JSON, as with the existing Supabase API; this design does not provide end-to-end encryption against the storage providers. Do not store passwords, OAuth tokens, or unrelated sensitive personal data in these snapshots.
 
@@ -40,6 +41,6 @@ The page counter records aggregate page views; it does not attempt to count uniq
 
 ## Current communication model
 
-With both providers enabled, one page initialization reads the recovery vault from both providers to detect divergence (up to 2 HTTP requests). A changed snapshot then produces one primary write plus one best-effort mirror write. Recovery/history operations may query both providers. This favors recoverability over minimal request count. The feature is optional; with no recovery key, no recovery-provider traffic is sent. The separate access counter performs one request per page load.
+With a recovery key configured, status/sync checks start with two small `head` requests (one per provider). If both replicas have matching revision/hash, no full snapshot payload is downloaded for the status check. A normal changed snapshot then sends one write to the primary and one best-effort replica write, so a typical automatic sync is about four HTTP requests: two metadata reads and two writes. A restore fetches one payload after the metadata checks. Repair of a missing/outdated provider can require an extra payload read. Manual backup performs a second metadata check after the confirmation prompt, so expect about six requests when both writes succeed. Without a recovery key, the app sends no recovery API traffic. The separate access counter makes one request and one small D1 counter-row write per page load.
 
 Do not mark the product fully failover-ready until the Cloudflare Worker is actually deployed and the multi-provider tests pass. The fallback URL in js/cloud-backup.js must match the deployed Worker hostname.
