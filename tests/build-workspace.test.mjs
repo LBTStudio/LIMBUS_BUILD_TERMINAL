@@ -298,7 +298,7 @@ test("ビルドのアイテムタブは持っていく個数と出力先を選�
   assert.match(panel, /"MEMOに表示"/);
   assert.match(panel, /"PALETTEへ反映"/);
   /* 追加は購入扱い（明細が立つ）／外す。 */
-  assert.match(panel, /dispatch\(\{ type: "ADD_ITEM", itemId: item\.id \}\);/);
+  assert.match(panel, /dispatch\(item\.specialResource[\s\S]{0,150}type: "ADD_ITEM_INVENTORY"[\s\S]{0,100}type: "ADD_ITEM"/);
   assert.match(panel, /dispatch\(\{ type: "REMOVE_ITEM", uid: entry\.uid \}\)/);
   /* 所持行は記録と同じ .inv-row と由来バッジ。 */
   assert.match(panel, /className: "inv-row"/);
