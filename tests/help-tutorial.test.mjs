@@ -186,6 +186,7 @@ test("アカウント管理の入口とローカル保存・削除注意が案�
 
 test("初心者向けMarkdownには実際のSVGフローチャートを埋め込み、図の代替テキストを用意する", () => {
   assert.match(beginnerTutorial, /!\[基本の進め方\]\(tutorial-overview\.svg\)/);
+  assert.ok(beginnerTutorial.indexOf("<summary>初回の基本手順") < beginnerTutorial.indexOf("| したいこと | 操作経路 |"));
   assert.match(beginnerTutorial, /!\[文章や共有URLの取り込み口の違い\]\(tutorial-text-import-routes\.svg\)/);
   assert.ok(beginnerTutorial.includes("tutorial-captures/account-share-import-desktop.webp"));
   assert.ok(beginnerTutorial.includes("tutorial-captures/save-work-state-desktop.webp"));
