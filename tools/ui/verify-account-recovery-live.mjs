@@ -4,7 +4,7 @@
    action. It never creates, updates, or restores a vault. */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 
 const source = readFileSync(new URL("../../js/cloud-backup.js", import.meta.url), "utf8");
 const urlMatch = source.match(/const SUPABASE_URL = "([^"]+)";/);
@@ -23,7 +23,7 @@ const preflight = await fetch(apiUrl, {
   headers: {
     origin: appOrigin,
     "access-control-request-method": "POST",
-    "access-control-request-headers": "apikey,content-type"
+    "access-control-request-headers": "apikey,authorization,content-type"
   }
 });
 assert.equal(preflight.status, 200, `Recovery endpoint CORS preflight returned ${preflight.status}.`);
@@ -63,7 +63,39 @@ const external = settings && typeof settings.external === "object" ? settings.ex
 const providerState = (name) => typeof external[name] === "boolean"
   ? (external[name] ? "enabled" : "disabled")
   : "unknown";
-console.log(`OAuth configuration status reported by Supabase Auth: Google=${providerState("google")}, X=${providerState("x")}.`);
-if (providerState("google") === "disabled" || providerState("x") === "disabled") {
-  console.warn("WARNING: one or more OAuth providers are disabled; online recovery-key/JSON paths remain independent.");
+console.log(`OAuth configuration flags reported by Supabase Auth: Google=${providerState("google")}, X=${providerState("x")}.`);
+
+async function probeOAuthProvider(provider) {
+  /* Initiate an OAuth redirect only; do not follow it, exchange a code, or sign in. */
+  const verifier = randomBytes(32).toString("base64url");
+  const challenge = createHash("sha256").update(verifier).digest("base64url");
+  const authorizeUrl = new URL(`${supabaseUrl}/auth/v1/authorize`);
+  authorizeUrl.searchParams.set("provider", provider);
+  authorizeUrl.searchParams.set("redirect_to", `${appOrigin}/LIMBUS_BUILD_TERMINAL/`);
+  authorizeUrl.searchParams.set("code_challenge", challenge);
+  authorizeUrl.searchParams.set("code_challenge_method", "s256");
+  const response = await fetch(authorizeUrl, {
+    headers: { apikey: publishableKey, origin: appOrigin },
+    redirect: "manual"
+  });
+  const location = response.headers.get("location");
+  const bodyText = await response.text().catch(() => "");
+  if ([301, 302, 303, 307, 308].includes(response.status)) {
+    let destination = "redirect";
+    try { destination = new URL(location).hostname; } catch {}
+    return `ready (redirect offered to ${destination})`;
+  }
+  if (/unsupported provider|provider.+not enabled/i.test(bodyText)) return "disabled";
+  if (/redirect.+(not allowed|allowlist)|redirect_to.+not allowed/i.test(bodyText)) return `redirect URL not allowlisted (HTTP ${response.status})`;
+  if (response.status >= 500) return `server/provider configuration error (HTTP ${response.status})`;
+  return `not ready (HTTP ${response.status})`;
+}
+
+const [googleProbe, xProbe] = await Promise.all([
+  probeOAuthProvider("google"),
+  probeOAuthProvider("x")
+]);
+console.log(`OAuth authorization probes (no login completed): Google=${googleProbe}; X=${xProbe}.`);
+if (/disabled|not ready|error|not allowlisted/i.test(googleProbe) || /disabled|not ready|error|not allowlisted/i.test(xProbe)) {
+  console.warn("WARNING: one or more OAuth providers are not ready; online recovery-key/JSON paths remain independent.");
 }
