@@ -101,6 +101,18 @@ test("元に戻す・クイック検索の説明が現行ショートカット�
   assert.ok(appSource.includes("if (isTyping) return"));
 });
 
+test("初回表示は「はじめて」の短い順路を示し、よく使う項目も別タブで参照できる", () => {
+  assert.ok(appSource.includes('useState("start")'));
+  assert.ok(appSource.includes('{ key: "start", label: "はじめて" }'));
+  assert.ok(appSource.includes('const starterOrder = ['));
+  assert.ok(appSource.includes('"キャラクター（アカウント）を選ぶ・作る"'));
+  assert.ok(appSource.includes('"人格を装備する"'));
+  assert.ok(appSource.includes('effectiveCategory === "start" && starterItems.has(item.title)'));
+  assert.ok(appSource.includes('画像をクリック／タップすると拡大できます。'));
+  assert.ok(guideCss.includes("max-height: 560px"));
+  assert.ok(beginnerTutorial.includes('summary>「共有シートを開く」ボタンの位置を実画面で確認する</summary>'));
+});
+
 test("検索・分類・詳細展開が現行導線に沿っている", () => {
   assert.ok(appSource.includes("押す場所を図で確認"));
   assert.ok(appSource.includes("ビルド → 人格 → テキスト流し込み反映"));
