@@ -36,7 +36,7 @@ test("ショップは両方の特殊資源を表示し、硝子の破片は価�
 
   const shopItemBuilder = otherSectionsSource.match(/item: \(\) => items\.map\(\(item\) => \{([\s\S]*?)\n\s*\}\)/);
   assert.ok(shopItemBuilder, "ショップのアイテムカード生成部が存在する");
-  assert.match(shopItemBuilder[1], /item\.specialResource === true && !item\?\.ledgerResource/);
+  assert.match(shopItemBuilder[1], /item\?\.specialResource === true && !item\?\.ledgerResource/);
   assert.match(shopItemBuilder[1], /ADD_ITEM_INVENTORY/);
   assert.match(shopItemBuilder[1], /"価格未設定"/);
   assert.match(shopItemBuilder[1], /"所持欄へ追加"/);
