@@ -11,6 +11,7 @@ const storage = read("js/state.js");
 const ui = read("js/accounts-ui.js");
 const html = read("index.html");
 const migration = read("supabase/migrations/20261025211015_lbt_account_vaults.sql");
+const hardeningMigration = read("supabase/migrations/202610260002_reject_anonymous_vault_access.sql");
 const recovery = read("supabase/functions/lbt-account-recovery/index.ts");
 
 test("オンライン保全は任意で、初期化・ローカル保存のみではアップロードしない", () => {
@@ -127,4 +128,30 @@ test("DB移行SQLの関数・トリガーが完結しており、レート制限
   assert.match(migration, /revoke all on function public\.lbt_consume_recovery_rate_limit\(text, integer, integer\) from public, anon, authenticated/i);
   assert.match(migration, /grant execute on function public\.lbt_consume_recovery_rate_limit\(text, integer, integer\) to service_role/i);
   assert.match(migration, /create trigger lbt_prepare_vaults_before_auth_user_delete/i);
+});
+
+test("匿名AuthユーザーはEdge FunctionとRLSの両方で保全先へアクセスできない", () => {
+  assert.match(recovery, /if \(user\.is_anonymous === true\)/);
+  assert.match(recovery, /匿名セッションでは個人アカウントのオンライン保全を使えません/);
+  assert.match(hardeningMigration, /auth\.jwt\(\) ->> 'is_anonymous'/);
+  assert.equal((hardeningMigration.match(/coalesce\(\(select auth\.jwt\(\) ->> 'is_anonymous'\), 'false'\) <> 'true'/g) || []).length, 7);
+  assert.match(hardeningMigration, /lbt_account_recovery_rate_limits_service_role/);
+  assert.match(hardeningMigration, /for all to service_role/);
+});
+
+test("端末内JSONバックアップはクラウド12MB上限と分離し、100MBまで扱える", () => {
+  assert.match(client, /const MAX_LOCAL_BYTES = 12 \* 1024 \* 1024/);
+  assert.match(client, /const MAX_JSON_BACKUP_BYTES = 100 \* 1024 \* 1024/);
+  assert.match(client, /function collectLocalSnapshot\(\{ enforceCloudLimit = true \} = \{\}\)/);
+  assert.match(client, /function validateSnapshot\(payload, \{ enforceCloudLimit = true \} = \{\}\)/);
+  assert.match(client, /collectLocalSnapshot\(\{ enforceCloudLimit: false \}\)/);
+  assert.match(client, /validateSnapshot\(payload, \{ enforceCloudLimit: false \}\)/);
+  assert.match(client, /applySnapshot\(payload, \{ enableSync: false, enforceCloudLimit: false \}\)/);
+  assert.match(client, /file\.size\) > MAX_JSON_BACKUP_BYTES/);
+  assert.match(client, /downloadText\("LBT_" \+ suffix \+ "_" \+ date \+ "\.json", JSON\.stringify\(value\)\)/);
+});
+
+test("オンライン保全ガイドはクラウド本文の暗号化範囲を明示する", () => {
+  assert.match(client, /クラウドへ保存されるJSON本体はエンドツーエンド暗号化されません/);
+  assert.match(doc, /クラウド保全データのJSON本体は、アプリ独自のエンドツーエンド暗号化を行いません/);
 });
