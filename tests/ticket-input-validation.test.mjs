@@ -33,14 +33,16 @@ test("チケット設定は整数のみ受け入れ、不正値は状態を変�
   assert.equal(ticketBalance(set.results, set.entries).persona, 2);
 });
 
-test("チケット付与は正の整数を受け入れ、不正値や負数では変更しない", () => {
+test("チケット枚数の増減は整数差分を受け入れ、小数などの不正値は拒否する", () => {
   const { reducer, state, ticketBalance } = withTickets();
-  for (const count of [1.5, "1.5", "2abc", Number.MAX_SAFE_INTEGER + 1, -1, "-2"]) {
+  for (const count of [1.5, "1.5", "2abc", Number.MAX_SAFE_INTEGER + 1]) {
     const invalid = reducer(state, { type: "GRANT_TICKET", kind: "persona", count });
     assert.equal(invalid, state, `GRANT_TICKET は不正値 ${String(count)} で状態を変えない`);
   }
   const granted = reducer(state, { type: "GRANT_TICKET", kind: "persona", count: 2 });
   assert.equal(ticketBalance(granted.results, granted.entries).persona, 6);
+  const reduced = reducer(state, { type: "GRANT_TICKET", kind: "persona", count: -2 });
+  assert.equal(ticketBalance(reduced.results, reduced.entries).persona, 2, "負の整数差分で所持数を減らせる");
 });
 
 test("チケット消費は整数のみ受け入れ、負数表記と省略時1枚を維持する", () => {
