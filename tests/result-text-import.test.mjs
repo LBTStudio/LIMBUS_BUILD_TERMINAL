@@ -29,6 +29,29 @@ function load() {
 
 const T = load();
 
+function loadResolver() {
+  const source = readFileSync(new URL("../js/roster-resolver.js", import.meta.url), "utf8");
+  const ctx = { window: {}, console, module: { exports: {} } };
+  vm.createContext(ctx);
+  vm.runInContext(source, ctx, { filename: "roster-resolver.js" });
+  return ctx.module.exports;
+}
+const R = loadResolver();
+const DB = JSON.parse(readFileSync(new URL("../data/db.json", import.meta.url), "utf8"));
+const NAME_INDEX = R.buildNameIndex(DB, {});
+const resolvePersonaLine = (line) => R.resolveCandidates(NAME_INDEX, line)[0] || null;
+function loadFuzzy() {
+  const source = readFileSync(new URL("../js/name-fuzzy.js", import.meta.url), "utf8");
+  const ctx = { window: {}, console };
+  vm.createContext(ctx);
+  vm.runInContext(source, ctx, { filename: "name-fuzzy.js" });
+  return ctx.window.LBT_fuzzyNameCandidatesAcross;
+}
+const fuzzyAcross = loadFuzzy();
+const suggestPersonas = (line) => fuzzyAcross(DB, line, 6).filter((candidate) => candidate.kind === "persona");
+
+
+
 /* 例テキストに実在の投稿者のハンドル名を混ぜない。
    抽出機能の検証であって作者名の検証ではないため、値は誰でも書ける
    仮称でよい。実名が入ると、テンプレートとしてもサンプルとしても
@@ -324,6 +347,133 @@ test("旧ログの消費はリザルト履歴へ移し、現在庫の二重減�
   assert.equal(plan.actions.some((action) => action.type === "ADD_ITEM_INVENTORY"), false,
     "旧ログは現所持のスナップショットと二重計上しない");
   assert.match(plan.actions[0].consumedItems[0].detail, /CT解除/);
+});
+
+
+
+test("送付されたサブジェ履歴の全形式で人格行と操作行を区別する", () => {
+  const input = [
+    "サブジェの履歴",
+    "『人は15分でエネミーデータを作ってバランスのいい調整ができるのかPart4』",
+    "LP50+欠片25",
+    "ワザリングハイツバトラー",
+    "『ハイスピード残火』",
+    "LP35+欠片20",
+    "南シ6",
+    "【LP-100　人格ガチャ】",
+    "LCE提灯",
+    "『とっきめき！皆で遠洋鯨釣り！』",
+    "25LP+13欠片",
+    "ディアマン",
+    "【勤勉、爽快購入。LP-20】",
+    "『鎧武者』",
+    "LP50+欠片30",
+    "『おしぷりドラゴンと遊ぶ部屋(2陣)』",
+    "30LP+30欠片",
+    "ダイスバトルでファンブルしたので9LP",
+    "【LP-100　人格ガチャ】",
+    "針金",
+    "『人徳戦』",
+    "LP40+30欠片",
+    "『おしぷりドラゴンと遊ぶ部屋(4陣)』",
+    "30LP+30欠片",
+    "東部センク",
+    "指定裁判",
+    "『ぷるぷるなぷるる、つまりぷるだ』",
+    "78LP+39欠片",
+    "人差し指遂行者",
+    "『トロッコ問題』",
+    "LP65+欠片25",
+    "硝子の欠片1",
+    "【LP-100　人格ガチャ】",
+    "W社2級",
+    "【バラとスパナ工房の同期化依頼　-50欠片】",
+    "『怠惰大罪part3』",
+    "LP75+欠片50",
+    "硝子の破片1",
+    "【精神:正義購入。欠片-200】",
+    "【サポパ：圧縮購入。LP-9】",
+    "【サポパ：落雷購入。LP-30】",
+    "『未来鏡：笛吹男』",
+    "LP65+欠片30",
+    "K社",
+    "同期バラスパCT3",
+    "【LP-100　人格ガチャ】",
+    "シュエ家私兵"
+  ].join("\n");
+  const parsed = T.parseText(input);
+  assert.ok(parsed.records.length >= 10, "見出しごとの履歴がリザルトに分かれる");
+  const plan = T.plan(parsed, { resolve: resolvePersonaLine, suggestPersona: suggestPersonas });
+  const exact = plan.identities.map((entry) => entry.name).filter(Boolean);
+  assert.ok(exact.includes("ワザリングハイツバトラー"));
+  assert.ok(exact.includes("シュエ家私兵"));
+  assert.ok(plan.identities.some((entry) => entry.source === "東部センク" && entry.options.length >= 2), "曖昧な略称は複数候補に止める");
+  assert.ok(!plan.identities.some((entry) => entry.source === "指定裁判"), "E.G.O名は人格候補にしない");
+  assert.ok(!plan.identities.some((entry) => entry.source === "硝子の欠片1"), "硝子の欠片の個数表記を人格候補にしない");
+  assert.ok(!plan.identities.some((entry) => entry.source === "同期バラスパCT3"), "同期操作の注記を人格候補にしない");
+  assert.equal(plan.actions.some((action) => action.type === "ADD_ROSTER" && action.no === 40), true);
+  assert.equal(plan.actions.some((action) => action.type === "ADD_ROSTER" && action.no === 53), true);
+});
+
+test("旧ログの注記に混ざったDB上の人格名を照合し、所持済みを二重追加しない", () => {
+  const input = [
+    "『結果A』",
+    "LP50+欠片25",
+    "ワザリングハイツバトラー",
+    "『結果B』",
+    "LP35+欠片20",
+    "シュエ家私兵"
+  ].join("\n");
+  const parsed = T.parseText(input);
+  const owned = new Set(["n:40"]);
+  const plan = T.plan(parsed, { resolve: resolvePersonaLine, ownedPersonas: owned });
+  assert.deepEqual([...plan.identities.map((item) => item.name)], ["ワザリングハイツバトラー", "シュエ家私兵"]);
+  assert.equal(plan.identities[0].owned, true);
+  assert.equal(plan.identities[1].owned, false);
+  const additions = plan.actions.filter((action) => action.type === "ADD_ROSTER");
+  assert.equal(additions.length, 1, "未所持の人格だけを追加候補へ");
+  assert.equal(additions[0].mode, "n");
+  assert.equal(additions[0].no, 53);
+  assert.equal(additions[0].skipInitialTicketConsumption, true, "過去の履歴取込で現在の抽出チケットを消費しない");
+  assert.equal(plan.actions.filter((action) => action.type === "ADD_RESULT").length, 2);
+});
+
+test("略称などの曖昧な行は候補表示だけにして、選ばれるまで人格を追加しない", () => {
+  const parsed = T.parseText("『結果A』\nLP50+欠片25\n東部センク");
+  const suggestPersona = (line) => line === "東部センク" ? [
+    { kind: "persona", name: "東部センク協会3課フィクサー", mode: "n", no: 27, score: 80 },
+    { kind: "persona", name: "東部センク協会3課フィクサーB", mode: "n", no: 125, score: 75 }
+  ] : [];
+  const unresolved = T.plan(parsed, { resolve: resolvePersonaLine, suggestPersona });
+  assert.equal(unresolved.identities.length, 1);
+  assert.equal(unresolved.identities[0].name, null);
+  assert.equal(unresolved.identities[0].options.length, 2);
+  assert.equal(unresolved.actions.some((action) => action.type === "ADD_ROSTER"), false);
+
+  const resolved = T.plan(parsed, {
+    resolve: resolvePersonaLine,
+    suggestPersona,
+    identityResolved: { "0:0": "東部センク協会3課フィクサー" }
+  });
+  assert.equal(resolved.identities[0].name, "東部センク協会3課フィクサー");
+  assert.equal(resolved.actions.filter((action) => action.type === "ADD_ROSTER").length, 1);
+  assert.equal(resolved.actions.find((action) => action.type === "ADD_ROSTER").no, 27);
+});
+
+test("履歴の購入マーカー・同期メモ・E.G.O名を人格として誤追加しない", () => {
+  const parsed = T.parseText([
+    "『結果A』",
+    "LP50+欠片25",
+    "【LP-100 人格ガチャ】",
+    "同期バラスパCT3",
+    "指定裁判"
+  ].join("\n"));
+  const plan = T.plan(parsed, {
+    resolve: resolvePersonaLine,
+    suggestPersona: () => []
+  });
+  assert.equal(plan.identities.some((item) => item.name === "指定裁判"), false, "E.G.O名は人格として解決しない");
+  assert.equal(plan.actions.some((action) => action.type === "ADD_ROSTER"), false, "購入マーカーや同期メモを所持人格へ追加しない");
 });
 
 /* --- action 化 ---------------------------------------------------------- */

@@ -4044,6 +4044,10 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   const [textPanel, setTextPanel] = React.useState(false);
   const [textDraft, setTextDraft] = React.useState("");
   const [textExcluded, setTextExcluded] = React.useState(() => new Set());
+  /* 結果ログ内の人格候補。候補選択と除外は貼り付け中だけ保持する。 */
+  const [textIdentityExcluded, setTextIdentityExcluded] = React.useState(() => new Set());
+  const [textIdentityResolved, setTextIdentityResolved] = React.useState({});
+
   /* 取り込み（硝子窓）はリザルト個別ではなくアカウント全体の操作として
    アカウント選択画面で行う。ここでは扱わない。 */
   const [editing, setEditing] = React.useState(null);
@@ -4160,8 +4164,22 @@ const resolveSpendName = React.useCallback((name) => {
 const textPlan = React.useMemo(() => {
     const api = window.LBT_textImport;
     if (!api || !parsedText) return null;
-    return api.plan(parsedText, { resolve: resolveSpendName, excluded: textExcluded });
-  }, [parsedText, textExcluded, resolveSpendName]);
+    const ownedPersonas = new Set((state.roster?.personas || []).map((p) => `${p.mode}:${p.no}`));
+    const suggestPersona = (line) => {
+      try {
+        return (window.LBT_fuzzyNameCandidatesAcross?.(window.DB, line, 6) || [])
+          .filter((candidate) => candidate?.kind === "persona");
+      } catch (_) { return []; }
+    };
+    return api.plan(parsedText, {
+      resolve: resolveSpendName,
+      excluded: textExcluded,
+      excludedIdentities: textIdentityExcluded,
+      identityResolved: textIdentityResolved,
+      ownedPersonas,
+      suggestPersona
+    });
+  }, [parsedText, textExcluded, textIdentityExcluded, textIdentityResolved, resolveSpendName, state.roster?.personas]);
 
 /* テキストの取り込み。硝子窓 版と同じ取り込み口を使うので、
    APPLY_IMPORT_BATCH の紐付けと Undo 1 回がそのまま効く。 */
@@ -4177,8 +4195,10 @@ const applyTextImport = () => {
   const results = accepted.filter((action) => action.type === "ADD_RESULT").length;
   const entries = accepted.filter((action) => action.type === "ADD_ENTRY").length;
   const items = accepted.filter((action) => action.type === "ADD_ITEM_INVENTORY").length;
+  const personas = accepted.filter((action) => action.type === "ADD_ROSTER").length;
   setImportNote({
     summary: IMPORT_TYPE_LABEL.ADD_RESULT + " " + results + "件・" + IMPORT_TYPE_LABEL.ADD_ENTRY + " " + entries + "件"
+      + (personas ? "・人格 " + personas + "件" : "")
       + (items ? "・アイテム " + items + "件" : ""),
     skipped: skipped.slice(0, 12),
     skippedCount: skipped.length
@@ -4186,6 +4206,8 @@ const applyTextImport = () => {
   setTextPanel(false);
   setTextDraft("");
   setTextExcluded(new Set());
+  setTextIdentityExcluded(new Set());
+  setTextIdentityResolved({});
 };
 
 /* 手動支出・消耗の記録。帰属は未分類で入れる（後からドラッグで振る）。 */
@@ -4524,7 +4546,11 @@ const importHeldPersonas = () => {
             rows: 8,
             placeholder: "【シナリオA】(作：作者名)\n報酬｜LP:150/自我の欠片:70/人格抽出チケットx1\n購入｜人格抽出x2(100LP)/EGO購入-TETH[鬼退治](75欠片)\n追加購入｜壊し砕く打撃(150LP)",
             value: textDraft,
-            onChange: (e) => setTextDraft(e.target.value)
+            onChange: (e) => {
+              setTextDraft(e.target.value);
+              setTextIdentityExcluded(new Set());
+              setTextIdentityResolved({});
+            }
           })
         ),
         parsedText && parsedText.records.map((rec, ri) => h("div", { key: `rec-${ri}`, className: "stack-2" },
@@ -4540,6 +4566,45 @@ const importHeldPersonas = () => {
           rec.raw?.length > 0 && h("details", { className: "ledger-import-notes" },
             h("summary", null, `元ログの注記 ${rec.raw.length}行（同期CT・報酬名などを保存）`),
             h("p", { className: "ledger-note" }, rec.raw.join("\n"))),
+          textPlan?.identities?.some((candidate) => candidate.recordIndex === ri) && h("div", { className: "ledger-held-result", role: "group", "aria-label": "履歴内の人格候補" },
+            h("p", { className: "ledger-note" }, "履歴内の人格候補（取り込むものにチェック。曖昧な略称は候補を選んでください）"),
+            h("div", { className: "stack-2" }, textPlan.identities.filter((candidate) => candidate.recordIndex === ri).map((candidate) => {
+              const checked = Boolean(candidate.name) && !candidate.owned && !candidate.duplicate && !textIdentityExcluded.has(candidate.key);
+              return h("div", { key: candidate.key, className: "ledger-unknown-row" },
+                candidate.name
+                  ? h("label", { className: "chip is-sm" },
+                      h("input", {
+                        type: "checkbox",
+                        checked,
+                        disabled: candidate.owned || candidate.duplicate,
+                        onChange: (e) => setTextIdentityExcluded((previous) => {
+                          const next = new Set(previous);
+                          if (e.target.checked) next.delete(candidate.key); else next.add(candidate.key);
+                          return next;
+                        })
+                      }),
+                      h("span", null, candidate.name),
+                      h("span", { className: "ledger-note" }, candidate.owned ? "（所持済み）" : candidate.duplicate ? "（同じ取込内で重複）" : `（DB照合：${candidate.confidence}）`),
+                      h("span", { className: "ledger-note" }, ` 原文：${candidate.source}`)
+                    )
+                  : h("div", { className: "stack-2" },
+                      h("span", { className: "ledger-note" }, `未確定：${candidate.source}`),
+                      candidate.options?.length
+                        ? h("div", { className: "chips-group" }, candidate.options.map((option) => h("button", {
+                            key: option.name,
+                            type: "button",
+                            className: "chip chip-candidate",
+                            onClick: () => {
+                              setTextIdentityResolved((previous) => ({ ...previous, [candidate.key]: option.name }));
+                              setTextIdentityExcluded((previous) => { const next = new Set(previous); next.delete(candidate.key); return next; });
+                            }
+                          }, h("span", { className: "chip-candidate-kind" }, "人格"), option.name)))
+                        : h("span", { className: "ledger-note" }, "DB一致なし。自動追加はしません。")
+                    )
+              );
+            })
+            )
+          ),
           rec.spends.map((spend, si) => h("label", { key: `sp-${ri}-${si}`, className: "chip is-sm" },
             h("input", {
               type: "checkbox",

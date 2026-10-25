@@ -4154,7 +4154,7 @@ function appReducer(state, action) {
       const uid = makeOwnedUid("pr");
       const entry = { uid, no, mode, syncRank: null, syncMax: false, lcb: false, equipped: false, notes: "", via: normalizeVia(action.via) };
       const next = { ...state, roster: { ...state.roster, personas: [...state.roster.personas, entry] } };
-      const withTicket = consumeInitialPersonaTicket(next, action.resultId);
+      const withTicket = action.skipInitialTicketConsumption === true ? next : consumeInitialPersonaTicket(next, action.resultId);
       if (!action.purchase) return withTicket;
       const persona = (mode === "t" ? window.DB?.tokui_personas : window.DB?.normal_personas || []).find((p) => String(p.no) === String(no));
       /* resultId の明示指定は常に勝つ（appendLedgerEntry の契約）。未指定なら
