@@ -6,6 +6,7 @@
   const SUPABASE_URL = "https://hobntjcrzybqsiobrpsz.supabase.co";
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_oLFnTRhkTCxTrI6qxHN6HA_4tsP4eCa";
   const RECOVERY_ENDPOINT = SUPABASE_URL + "/functions/v1/lbt-account-recovery";
+  const CLOUDFLARE_RECOVERY_ENDPOINT = "https://lbt-recovery.lbtstudio-share.workers.dev/api/v1/recovery";
   const RECOVERY_KEY = "lbt_cloud_recovery_key_v1";
   const ENABLED_KEY = "lbt_cloud_sync_enabled";
   const REVISION_KEY = "lbt_cloud_last_revision_v1";
@@ -212,21 +213,143 @@
     bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
     return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
   }
-  async function callRecovery(payload) {
-    const response = await fetch(RECOVERY_ENDPOINT, {
-      method: "POST",
-      headers: { "apikey": SUPABASE_PUBLISHABLE_KEY, "content-type": "application/json" },
-      body: JSON.stringify(payload)
-    });
+  async function callProvider(endpoint, payload, provider) {
+    const headers = { "content-type": "application/json" };
+    if (provider === "supabase") headers.apikey = SUPABASE_PUBLISHABLE_KEY;
+    let response;
+    try {
+      response = await fetch(endpoint, { method: "POST", headers, body: JSON.stringify(payload) });
+    } catch (cause) {
+      const error = new Error("オンライン保全先へ接続できません。");
+      error.status = 0;
+      error.provider = provider;
+      error.cause = cause;
+      throw error;
+    }
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || data.message || "オンライン保全に失敗しました。");
-    return data;
+    if (!response.ok) {
+      const error = new Error(data.error || data.message || "オンライン保全に失敗しました。");
+      error.status = response.status;
+      error.provider = provider;
+      throw error;
+    }
+    return { ...data, _provider: provider };
+  }
+  function isServiceUnavailable(error) {
+    const status = Number(error && error.status || 0);
+    return status === 0 || status === 408 || status === 425 || status === 429 || status >= 500;
+  }
+  async function replicateTo(provider, recoveryKey, expectedRevision, targetRevision, payload) {
+    const endpoint = provider === "supabase" ? RECOVERY_ENDPOINT : CLOUDFLARE_RECOVERY_ENDPOINT;
+    return await callProvider(endpoint, {
+      action: "replicate", recoveryKey, expectedRevision: Number(expectedRevision) || 0,
+      targetRevision: Number(targetRevision), payload
+    }, provider);
+  }
+  async function mirrorMutation(action, source, payload, recoveryKey) {
+    const targetProvider = source._provider === "supabase" ? "cloudflare" : "supabase";
+    let expectedRevision;
+    let targetRevision;
+    let nextPayload = payload.payload;
+    if (action === "create_recovery") {
+      expectedRevision = 0;
+      targetRevision = Number(source.revision) || 1;
+    } else if (action === "backup") {
+      expectedRevision = Number(payload.expectedRevision) || 0;
+      targetRevision = Number(source.revision) || (expectedRevision + 1);
+    } else if (action === "restore_revision" && source.payload) {
+      targetRevision = Number(source.revision);
+      expectedRevision = targetRevision - 1;
+      nextPayload = source.payload;
+    } else {
+      return { ok: true, skipped: true };
+    }
+    try {
+      await replicateTo(targetProvider, recoveryKey, expectedRevision, targetRevision, nextPayload);
+      return { ok: true, provider: targetProvider };
+    } catch (error) {
+      return { ok: false, provider: targetProvider, error: error.message || "複製に失敗しました。" };
+    }
+  }
+  async function callRecovery(payload) {
+    const key = payload.recoveryKey || readRecoveryKey();
+    let result;
+    try {
+      result = await callProvider(RECOVERY_ENDPOINT, payload, "supabase");
+    } catch (primaryError) {
+      const canUseFallback = isServiceUnavailable(primaryError) ||
+        (payload.action === "restore_revision" && Number(primaryError.status) === 404);
+      if (!canUseFallback) throw primaryError;
+      result = await callProvider(CLOUDFLARE_RECOVERY_ENDPOINT, payload, "cloudflare");
+      result._failover = true;
+      /* Best-effort backfill after a failover write. If Supabase is still down,
+         the next dual-read will repair it when service returns. */
+      if (key && ["create_recovery", "backup", "restore_revision"].includes(payload.action)) {
+        result._mirror = await mirrorMutation(payload.action, result, payload, key);
+      }
+      return result;
+    }
+    if (key && ["create_recovery", "backup", "restore_revision"].includes(payload.action) &&
+        (result.ok || result.found)) {
+      result._mirror = await mirrorMutation(payload.action, result, payload, key);
+    }
+    return result;
   }
   async function getRemote(options = {}) {
     const key = options.recoveryKey || readRecoveryKey();
     if (!key) return { found: false, revision: 0, payload: null, mode: "local" };
-    const remote = await callRecovery({ action: "get", recoveryKey: key });
-    return { ...remote, mode: "recovery" };
+    const providers = await Promise.all([
+      callProvider(RECOVERY_ENDPOINT, { action: "get", recoveryKey: key }, "supabase")
+        .then((data) => ({ ok: true, data })).catch((error) => ({ ok: false, error })),
+      callProvider(CLOUDFLARE_RECOVERY_ENDPOINT, { action: "get", recoveryKey: key }, "cloudflare")
+        .then((data) => ({ ok: true, data })).catch((error) => ({ ok: false, error }))
+    ]);
+    const [primary, fallback] = providers;
+    if (!primary.ok && !fallback.ok) {
+      const error = new Error("SupabaseとCloudflareのどちらからも保全データを取得できません。接続状態を確認してください。");
+      error.cause = primary.error || fallback.error;
+      throw error;
+    }
+    if (!primary.ok || !fallback.ok) {
+      const available = primary.ok ? primary.data : fallback.data;
+      const unavailable = primary.ok ? fallback.error : primary.error;
+      if (!available.found) {
+        if (Number(unavailable && unavailable.status) === 404) {
+          return { ...available, mode: "recovery", provider: primary.ok ? "supabase" : "cloudflare", mirrorSynced: false, secondaryUnavailable: true };
+        }
+        throw new Error("一方の保全先に接続できず、データの有無を確定できません。別端末での復旧を試す前に再試行してください。");
+      }
+      return { ...available, mode: "recovery", provider: available._provider, mirrorSynced: false, secondaryUnavailable: true };
+    }
+    const sData = primary.data;
+    const cData = fallback.data;
+    if (!sData.found && !cData.found) {
+      return { found: false, revision: 0, payload: null, mode: "recovery", mirrorSynced: true };
+    }
+    if (sData.found && !cData.found) {
+      const mirror = await replicateTo("cloudflare", key, 0, Number(sData.revision), sData.payload)
+        .then(() => true).catch(() => false);
+      return { ...sData, mode: "recovery", provider: "supabase", mirrorSynced: mirror };
+    }
+    if (!sData.found && cData.found) {
+      const mirror = await replicateTo("supabase", key, 0, Number(cData.revision), cData.payload)
+        .then(() => true).catch(() => false);
+      return { ...cData, mode: "recovery", provider: "cloudflare", mirrorSynced: mirror };
+    }
+    const sRevision = Number(sData.revision) || 0;
+    const cRevision = Number(cData.revision) || 0;
+    if (sRevision === cRevision) {
+      if (!sameData(sData.payload, cData.payload)) {
+        throw new Error("SupabaseとCloudflareに同じ世代番号の異なるデータがあります。安全のため自動同期を停止しました。");
+      }
+      return { ...sData, mode: "recovery", provider: "supabase", mirrorSynced: true };
+    }
+    const newer = sRevision > cRevision ? sData : cData;
+    const older = sRevision > cRevision ? cData : sData;
+    const olderProvider = sRevision > cRevision ? "cloudflare" : "supabase";
+    const repaired = await replicateTo(olderProvider, key, Number(older.revision), Number(newer.revision), newer.payload)
+      .then(() => true).catch(() => false);
+    return { ...newer, mode: "recovery", provider: newer._provider, mirrorSynced: repaired, repairPending: !repaired };
   }
   function readRecoveryKey() {
     const key = readStorage(RECOVERY_KEY);
@@ -320,7 +443,11 @@
     if (!result.found) throw new Error("オンライン保存先を確認できませんでした。復旧キーを確認してもう一度お試しください。");
     writeStorage(REVISION_KEY, String(result.revision));
     setEnabled(true);
-    emit({ remoteExists: true, revision: Number(result.revision), conflict: false, label: "オンライン保全済み", message: "全アカウントデータをオンラインへ保存しました。以降の変更は自動同期されます。復旧キーは変わりません。" });
+    emit({ remoteExists: true, revision: Number(result.revision), conflict: false,
+      label: result._mirror && result._mirror.ok ? "二重保全済み" : "主系保全済み・代替系未確認",
+      message: result._mirror && result._mirror.ok
+        ? "全アカウントデータをSupabase・Cloudflareの両方へ保存しました。復旧キーは変わりません。"
+        : "主保全先への保存は完了しましたが、Cloudflareへの複製を確認できません。ローカル保存は維持されています。復旧キーは変わりません。" });
     return true;
   }
   function downloadRecoveryKeyFile(key, suffix = "recovery-key") {
@@ -357,42 +484,17 @@
       revision: Number(result.revision) || 1,
       recoveryKeyEnabled: true,
       conflict: false,
-      label: "復旧キーを発行しました",
-      message: "復旧キーをファイルへ保存しました。クラウドと端末の内容は一致しています。データを更新しても、このキーは変わらず使えます。"
-    });
-    return true;
-  }
-  async function rotateRecoveryKey() {
-    const currentKey = readRecoveryKey();
-    if (!currentKey) throw new Error("キーを再発行するには、最初に現在の復旧キーを入力して復元してください。");
-    const remote = await getRemote();
-    if (!remote.found) throw new Error("この復旧キーに対応するクラウドデータが見つかりません。");
-    const wasEnabled = readStorage(ENABLED_KEY) === "1";
-    const newKey = "LBT1-" + randomToken(32);
-    if (!confirm("復旧キーを明示的に再発行します。クラウド内のデータと履歴は維持されますが、再発行後は古いキーでの復元ができなくなります。新しいキーを安全な場所へ保存してください。続けますか？")) return false;
-    const result = await callRecovery({ action: "rotate_recovery", recoveryKey: currentKey, newRecoveryKey: newKey });
-    if (!writeStorage(RECOVERY_KEY, newKey)) {
-      downloadRecoveryKeyFile(newKey, "recovery-key-reissued");
-      throw new Error("新しい復旧キーを発行し、ファイルをダウンロードしましたが、端末には保存できませんでした。ファイルを保管し、復旧キー欄へ新しいキーを入力してください。");
-    }
-    writeStorage(REVISION_KEY, String(result.revision || remote.revision));
-    setEnabled(wasEnabled);
-    downloadRecoveryKeyFile(newKey, "recovery-key-reissued");
-    emit({
-      mode: "recovery",
-      remoteExists: true,
-      revision: Number(result.revision || remote.revision),
-      recoveryKeyEnabled: true,
-      conflict: false,
-      label: "復旧キーを再発行しました",
-      message: "新しい復旧キーをファイルへ保存しました。バックアップ本体は変更していません。以後のデータ更新では新しいキーがそのまま有効です。"
+      label: result._mirror && result._mirror.ok ? "二重保全済み" : "主系へ保全済み・代替系未確認",
+      message: result._mirror && result._mirror.ok
+        ? "復旧キーとデータをSupabase・Cloudflareの両方へ保存しました。同じキーを継続して使えます。"
+        : "復旧キーを発行し、主保全先への保存は完了しました。Cloudflareへの複製は確認できていません。復旧キーとJSONバックアップを別の安全な場所にも保管してください。"
     });
     return true;
   }
   async function restoreWithKey(rawKey) {
     const key = String(rawKey || "").trim();
     if (!/^LBT1-[A-Za-z0-9_-]{40,50}$/.test(key)) throw new Error("復旧キーを「LBT1-」から最後まで入力してください。");
-    const remote = await callRecovery({ action: "get", recoveryKey: key });
+    const remote = await getRemote({ recoveryKey: key });
     if (!remote.found || !remote.payload) throw new Error("この復旧キーに対応するバックアップが見つかりません。");
     await restorePayload(remote.payload, Number(remote.revision), key);
     return true;
@@ -405,10 +507,30 @@
   async function loadHistory() {
     const key = readRecoveryKey();
     if (!key) throw new Error("過去のバックアップ世代を取得するには復旧キーが必要です。");
-    const result = await callRecovery({ action: "history", recoveryKey: key });
-    if (!result.found) throw new Error("過去のバックアップ世代を取得できませんでした。");
-    emit({ history: Array.isArray(result.history) ? result.history : [] });
-    return result.history || [];
+    const results = await Promise.all([
+      callProvider(RECOVERY_ENDPOINT, { action: "history", recoveryKey: key }, "supabase")
+        .then((data) => ({ ok: true, data })).catch((error) => ({ ok: false, error })),
+      callProvider(CLOUDFLARE_RECOVERY_ENDPOINT, { action: "history", recoveryKey: key }, "cloudflare")
+        .then((data) => ({ ok: true, data })).catch((error) => ({ ok: false, error }))
+    ]);
+    const usable = results.filter((item) => item.ok && item.data.found).map((item) => item.data);
+    if (!usable.length) {
+      const present = results.some((item) => item.ok);
+      if (present) return [];
+      throw new Error("過去のバックアップ世代を取得できませんでした。");
+    }
+    const byRevision = new Map();
+    usable.forEach((data) => (data.history || []).forEach((item) => {
+      const revision = Number(item.revision);
+      if (Number.isSafeInteger(revision) && revision > 0) {
+        const previous = byRevision.get(revision);
+        const savedAt = String(item.saved_at || item.updated_at || "");
+        if (!previous || savedAt > String(previous.saved_at || "")) byRevision.set(revision, { ...item, revision });
+      }
+    }));
+    const history = [...byRevision.values()].sort((a, b) => b.revision - a.revision).slice(0, 10);
+    emit({ history });
+    return history;
   }
   async function restorePayload(payload, revision, recoveryKey = null) {
     const local = collectLocalSnapshot({ enforceCloudLimit: false });
@@ -452,12 +574,12 @@
     return await restorePayload(result.payload, Number(result.revision), key);
   }
   async function disableOnline() {
-    if (!confirm("この端末の自動同期を停止します。保存済みクラウドデータも復旧キーも削除・無効化されません。手動での復元や同期は引き続き利用できます。続けますか？")) return false;
+    if (!confirm("この端末の自動同期を停止します。保存済みクラウドデータも復旧キーも削除されません。手動での復元や同期は引き続き利用できます。続けますか？")) return false;
     setEnabled(false);
     emit({
       mode: readRecoveryKey() ? "recovery" : "local",
       label: "自動同期停止中",
-      message: "この端末の自動同期を停止しました。復旧キーとクラウドデータはそのまま有効です。復旧キーを明示的に再発行しない限り、データ更新でキーが変わることはありません。"
+      message: "この端末の自動同期を停止しました。復旧キーとクラウドデータはそのまま有効です。復旧キーは変更・再発行されません。データ更新でも同じキーを使い続けます。"
     });
     return true;
   }
@@ -486,7 +608,11 @@
       const result = await callRecovery({ action: "backup", expectedRevision: Number(current.revision), payload, recoveryKey: key });
       if (result.found) {
         writeStorage(REVISION_KEY, String(result.revision));
-        emit({ conflict: false, remoteExists: true, revision: Number(result.revision), label: "自動同期済み", message: "ローカル保存とオンライン保全を同期しました。復旧キーは変更されていません。" });
+        emit({ conflict: false, remoteExists: true, revision: Number(result.revision),
+          label: result._mirror && result._mirror.ok ? "二重自動同期済み" : "自動同期済み・代替系未確認",
+          message: result._mirror && result._mirror.ok
+            ? "ローカル保存・Supabase・Cloudflareの内容を同期しました。復旧キーは変わりません。"
+            : "主保全先へ自動同期しましたが、Cloudflareへの複製は確認できません。復旧キーは変わりません。" });
       }
     })().catch((error) => {
       emit({ label: "同期待ち", message: (error.message || "同期に失敗しました。") + " ローカルデータは保存済みです。再接続時に再試行します。復旧キーは変更されていません。" });
@@ -541,7 +667,6 @@
       ) : h("p", { className: "lbt-cloud-account" }, "復旧キーはこの端末に保存されています。バックアップ内容や更新回数が変わっても、同じキーで最新データを取得できます。"),
       h("div", { className: "lbt-cloud-actions" },
         !hasKey ? button("復旧キーを発行して保全", () => run(createRecoveryKey), "is-primary") : null,
-        hasKey ? button("復旧キーを再発行（古いキーは無効化）", () => run(rotateRecoveryKey), "is-danger") : null,
         button("全アカウントをJSON保存", () => run(async () => exportLocalBackup()))
       ),
       h("div", { className: "lbt-cloud-recovery" },
@@ -597,7 +722,6 @@
     getStatus,
     refresh,
     createRecoveryKey,
-    rotateRecoveryKey,
     restoreWithKey,
     restoreCloud,
     restoreFromFile,
@@ -613,6 +737,6 @@
   window.LBTCloudBackupPanel = CloudBackupPanel;
   window.addEventListener("lbt:backup-source-changed", scheduleSync);
   window.addEventListener("online", () => { if (readStorage(ENABLED_KEY) === "1") scheduleSync(); });
-  /* The boot is intentionally safe when no auth or recovery method exists: local-only mode is a no-op. */
+  /* Local-only mode remains available when both cloud providers are unavailable. */
   initialize().catch((error) => emit({ label: "オンライン保全を初期化できません", message: error.message || "ローカル保存は利用できます。" }));
 })();
