@@ -352,7 +352,7 @@ test("旧ログの注記に混ざったDB上の人格名を照合し、所持済
   const parsed = T.parseText(input);
   const owned = new Set(["n:40"]);
   const plan = T.plan(parsed, { resolve: resolvePersonaLine, ownedPersonas: owned });
-  assert.deepEqual(plan.identities.map((item) => item.name), ["ワザリングハイツバトラー", "シュエ家私兵"]);
+  assert.deepEqual([...plan.identities.map((item) => item.name)], ["ワザリングハイツバトラー", "シュエ家私兵"]);
   assert.equal(plan.identities[0].owned, true);
   assert.equal(plan.identities[1].owned, false);
   const additions = plan.actions.filter((action) => action.type === "ADD_ROSTER");
