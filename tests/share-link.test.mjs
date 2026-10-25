@@ -6,7 +6,9 @@ import vm from "node:vm";
 function loadShareLink(db = null, config = {}, environment = {}) {
   const source = readFileSync(new URL("../js/share-link.js", import.meta.url), "utf8");
   const window = { DB: db, ...config };
-  const globals = { window, TextEncoder, TextDecoder, Blob, Response, URL, URLSearchParams, btoa, atob };
+  if (typeof window.setTimeout !== "function") window.setTimeout = setTimeout;
+  if (typeof window.clearTimeout !== "function") window.clearTimeout = clearTimeout;
+  const globals = { window, TextEncoder, TextDecoder, Blob, Response, URL, URLSearchParams, btoa, atob, AbortController: globalThis.AbortController };
   if (environment.compression !== false) {
     globals.CompressionStream = CompressionStream;
     globals.DecompressionStream = DecompressionStream;
@@ -758,6 +760,80 @@ test("主保存先の取得失敗時は共有URL内の予備保存先から自�
   assert.equal(externalToken, token);
   assert.equal(calls.filter((url) => String(url).startsWith("https://api.telegra.ph/")).length, 2);
   assert.equal(calls.at(-1), "https://rentry.co/lbt-rentry-backup");
+});
+
+test("Rentry応答の本文が停止してもタイムアウトし、予備読み取りへ進む", async () => {
+  const fastTimeout = (callback) => setTimeout(callback, 8);
+  const share = loadShareLink(null, { setTimeout: fastTimeout });
+  const token = await share.encodeState({ charName: "本文タイムアウト予備復元" });
+  const calls = [];
+  const fetchMock = async (url) => {
+    calls.push(String(url));
+    if (String(url) === "https://rentry.co/lbt-rentry-stalled-body") {
+      return { ok: true, status: 200, text: () => new Promise(() => {}) };
+    }
+    if (String(url) === "https://r.jina.ai/http://rentry.co/lbt-rentry-stalled-body") {
+      return new Response(`LBT_SHARE_TOKEN=${token}`, { status: 200 });
+    }
+    throw new Error("unexpected URL: " + url);
+  };
+  const recovered = await share.tokenFromExternalSource({ search: "?s=r:lbt-rentry-stalled-body" }, fetchMock);
+  assert.equal(recovered, token);
+  assert.deepEqual(calls, [
+    "https://rentry.co/lbt-rentry-stalled-body",
+    "https://r.jina.ai/http://rentry.co/lbt-rentry-stalled-body"
+  ]);
+});
+
+test("Telegraph応答が停止してもタイムアウトし、次の共有先へ進む", async () => {
+  const fastTimeout = (callback) => setTimeout(callback, 8);
+  const share = loadShareLink(null, { setTimeout: fastTimeout });
+  const token = await share.encodeState({ charName: "Telegraphタイムアウト予備復元" });
+  const calls = [];
+  const fetchMock = async (url, options = {}) => {
+    const target = String(url);
+    calls.push(target);
+    if (target.startsWith("https://api.telegra.ph/getPage/")) {
+      return new Promise((resolve, reject) => {
+        const signal = options.signal;
+        if (!signal) return;
+        if (signal.aborted) return reject(new Error("aborted"));
+        signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+      });
+    }
+    if (target === "https://rentry.co/lbt-rentry-timeout-backup") {
+      return new Response(`LBT_SHARE_TOKEN=${token}`, { status: 200 });
+    }
+    throw new Error("unexpected URL: " + target);
+  };
+  const recovered = await share.tokenFromExternalSource({
+    search: "?s=t:LBT-stalled-primary,r:lbt-rentry-timeout-backup"
+  }, fetchMock);
+  assert.equal(recovered, token);
+  assert.equal(calls.filter((url) => url.startsWith("https://api.telegra.ph/getPage/")).length, 2);
+  assert.equal(calls.at(-1), "https://rentry.co/lbt-rentry-timeout-backup");
+});
+
+test("Cloudflare予備復元応答が停止した場合も有限時間で失敗を返す", async () => {
+  const fastTimeout = (callback) => setTimeout(callback, 8);
+  const share = loadShareLink(null, {
+    LBT_OGP_GATEWAY_ORIGIN: "https://lbt-ogp.lbtstudio-share.workers.dev",
+    setTimeout: fastTimeout
+  });
+  let calls = 0;
+  await assert.rejects(
+    share.tokenFromOgpGateway({ search: "?s=r:lbt-timeout-recovery" }, (url, options = {}) => {
+      calls += 1;
+      return new Promise((resolve, reject) => {
+        const signal = options.signal;
+        if (!signal) return;
+        if (signal.aborted) return reject(new Error("aborted"));
+        signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+      });
+    }),
+    /タイムアウト/
+  );
+  assert.equal(calls, 1);
 });
 
 test("主保存先のトークンが破損していても有効な予備保存先から共有データを復元する", async () => {

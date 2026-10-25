@@ -1209,21 +1209,38 @@
     return token;
   }
 
+  async function withExternalReadTimeout(read) {
+    const controller = typeof AbortController === "function" ? new AbortController() : null;
+    let timer = null;
+    const timeout = new Promise((_, reject) => {
+      timer = window.setTimeout(() => {
+        // Race the timeout even when AbortController is unavailable or a response body ignores abort.
+        reject(new Error("共有データの取得がタイムアウトしました"));
+        try { controller?.abort(); } catch (_) {}
+      }, EXTERNAL_READ_TIMEOUT_MS);
+    });
+    try {
+      return await Promise.race([
+        Promise.resolve().then(() => read(controller?.signal)),
+        timeout
+      ]);
+    } finally {
+      if (timer !== null) window.clearTimeout(timer);
+    }
+  }
+
   async function tokenFromExternalTarget(target, fetchImpl) {
     if (target.source === "rentry") {
       const id = encodeURIComponent(target.id);
       const directUrl = `https://rentry.co/${id}`;
       const readToken = async (url, context) => {
-        const controller = typeof AbortController === "function" ? new AbortController() : null;
-        const timer = controller ? window.setTimeout(() => controller.abort(), EXTERNAL_READ_TIMEOUT_MS) : null;
-        let response;
-        try {
-          response = await fetchImpl(url, controller ? { signal: controller.signal } : undefined);
-        } finally {
-          if (timer !== null) window.clearTimeout(timer);
-        }
-        if (!response.ok) throw new Error(`${context}（HTTP ${response.status || "?"}）`);
-        return verifiedExternalToken(await response.text(), "Rentry");
+        const text = await withExternalReadTimeout(async (signal) => {
+          const response = await fetchImpl(url, signal ? { signal } : undefined);
+          if (!response.ok) throw new Error(`${context}（HTTP ${response.status || "?"}）`);
+          // Keep the timeout active through body consumption; fetch may resolve before the body does.
+          return response.text();
+        });
+        return verifiedExternalToken(text, "Rentry");
       };
       try {
         return await readToken(directUrl, "Rentryの共有データを取得できませんでした");
@@ -1237,8 +1254,11 @@
         }
       }
     }
-    const response = await fetchImpl(`https://api.telegra.ph/getPage/${encodeURIComponent(target.id)}?return_content=true`);
-    const page = await responseJson(response, "Telegraphの共有データ取得");
+    const page = await withExternalReadTimeout(async (signal) => {
+      const options = signal ? { signal } : undefined;
+      const response = await fetchImpl(`https://api.telegra.ph/getPage/${encodeURIComponent(target.id)}?return_content=true`, options);
+      return responseJson(response, "Telegraphの共有データ取得");
+    });
     return verifiedExternalToken(JSON.stringify(page?.content || []), "Telegraph");
   }
 
@@ -1264,9 +1284,12 @@
     const sources = externalSourcesFromLocation(locationLike);
     if (!origin || !sources.length || typeof fetchImpl !== "function") return "";
     const compact = sources.map((source) => `${sourceCode(source.source)}:${source.id}`).join(",");
-    const response = await fetchImpl(`${origin}/d?s=${encodeURIComponent(compact)}`, { headers: { Accept: "text/plain" } });
-    if (!response.ok) throw new Error(`共有データの予備復元に失敗しました（HTTP ${response.status || "?"}）`);
-    const token = String(await response.text()).trim();
+    const token = await withExternalReadTimeout(async (signal) => {
+      const options = { headers: { Accept: "text/plain" }, ...(signal ? { signal } : {}) };
+      const response = await fetchImpl(`${origin}/d?s=${encodeURIComponent(compact)}`, options);
+      if (!response.ok) throw new Error(`共有データの予備復元に失敗しました（HTTP ${response.status || "?"}）`);
+      return String(await response.text()).trim();
+    });
     if (!/^(z|j)\.[A-Za-z0-9_-]+$/.test(token)) throw new Error("共有データの予備復元形式が不正です");
     return token;
   }
