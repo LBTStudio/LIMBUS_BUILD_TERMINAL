@@ -44,7 +44,7 @@ Supabase Freeの枠内で利用する前提ですが、無料枠には容量・�
 4. Supabase Dashboard → Authentication → URL Configurationで、アプリの本番URLと利用する開発用URLをRedirect URLsへ登録します。
 5. Google / Xログインを有効にする場合は、それぞれの開発者コンソールでOAuthアプリを作成し、コールバックに `https://hobntjcrzybqsiobrpsz.supabase.co/auth/v1/callback` を設定します。得られたClient ID / SecretはSupabase Dashboard → Authentication → Providersで設定してください。Client Secretをリポジトリやフロントエンドへ追加してはいけません。
 
-Google / Xのプロバイダー認証情報はこのリポジトリには含めていません。Supabase側の設定が未完了の場合、そのログイン方式は利用できませんが、ローカル保存、JSON保全、復旧キー方式を妨げません。
+Google / Xのプロバイダー認証情報はこのリポジトリには含めていません。Supabase側の設定が未完了の場合、そのログイン方式は利用できませんが、ローカル保存、JSON保全、復旧キー方式を妨げません。 画面のログインボタンはSupabase Authが有効と報告したプロバイダーだけを表示し、無効または状態不明のボタンは隠します。
 
 GoogleとXは別々の認証元です。片方で作成したオンライン保全が、もう片方のログインへ自動的に統合されるとは限りません。継続して使う認証元を一つ決め、別の認証元へ切り替える場合は、先に復旧キーを用意してデータを確認してください。
 
