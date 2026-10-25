@@ -482,7 +482,9 @@
         });
         return getStatus();
       }
-      const remote = await getRemote();
+      const local = collectLocalSnapshot({ enforceCloudLimit: false });
+      const localHash = await hashSnapshot(local);
+      const remote = await getRemote({ metadataOnly: true });
       if (!remote.found) {
         emit({
           mode: "recovery",
@@ -493,9 +495,9 @@
         });
         return getStatus();
       }
-      const local = collectLocalSnapshot({ enforceCloudLimit: false });
       const localRevision = Number(readStorage(REVISION_KEY) || 0);
-      const same = sameData(local, remote.payload);
+      const remoteHash = String(remote.payloadHash || remote.payload_hash || "");
+      const same = remoteHash ? localHash === remoteHash : sameData(local, remote.payload);
       const conflict = hasMeaningfulLocalData(local) && !same && localRevision > 0 && localRevision !== Number(remote.revision);
       const dualProtected = remote.mirrorSynced !== false && !remote.secondaryUnavailable && !remote.repairPending;
       emit({
@@ -524,11 +526,13 @@
   }
   async function backupLocalToCloud(options = {}) {
     const payload = collectLocalSnapshot();
+    const localHash = await hashSnapshot(payload);
     const key = readRecoveryKey();
     if (!key) throw new Error("先に復旧キーを発行するか、復旧キーを入力してクラウドから復元してください。");
-    const current = await getRemote();
+    const current = await getRemote({ metadataOnly: true });
     const exists = Boolean(current.found);
-    const same = exists && sameData(payload, current.payload);
+    const currentHash = String(current.payloadHash || current.payload_hash || "");
+    const same = exists && currentHash && currentHash === localHash;
     if (exists && same) {
       writeStorage(REVISION_KEY, String(current.revision));
       setEnabled(true);
@@ -551,8 +555,9 @@
     } else if (!confirm("この端末に保存された全アカウントデータを、復旧キーに紐づくオンライン保全先へ初回保存します。復旧キーは以後のデータ更新でも変わりません。続けますか？")) {
       return false;
     }
-    const latest = await getRemote();
-    if (latest.found && sameData(payload, latest.payload)) {
+    const latest = await getRemote({ metadataOnly: true });
+    const latestHash = String(latest.payloadHash || latest.payload_hash || "");
+    if (latest.found && latestHash && latestHash === localHash) {
       writeStorage(REVISION_KEY, String(latest.revision));
       setEnabled(true);
       const dualProtected = latest.mirrorSynced !== false && !latest.secondaryUnavailable && !latest.repairPending;
@@ -730,17 +735,20 @@
     if (!key) return;
     syncPromise = (async () => {
       const payload = collectLocalSnapshot();
-      const current = await getRemote();
+      const localHash = await hashSnapshot(payload);
+      const current = await getRemote({ metadataOnly: true });
       if (!current.found) {
         emit({ label: "同期待ち", message: "オンラインバックアップが見つかりません。手動で初回保存を行ってください。復旧キーは変更されていません。" });
         return;
       }
+      const remoteHash = String(current.payloadHash || current.payload_hash || "");
       const known = Number(readStorage(REVISION_KEY) || 0);
-      if (known && known !== Number(current.revision) && !sameData(payload, current.payload)) {
+      const same = remoteHash ? localHash === remoteHash : sameData(payload, current.payload);
+      if (known && known !== Number(current.revision) && !same) {
         emit({ conflict: true, remoteExists: true, revision: Number(current.revision), label: "同期競合あり", message: "クラウド側の更新を検出しました。ローカルデータは保存済みですが、上書きを停止しています。復旧キーは引き続き有効です。" });
         return;
       }
-      if (sameData(payload, current.payload)) {
+      if (same) {
         writeStorage(REVISION_KEY, String(current.revision));
         const dualProtected = current.mirrorSynced !== false && !current.secondaryUnavailable && !current.repairPending;
         emit({ conflict: false, remoteExists: true, revision: Number(current.revision),
