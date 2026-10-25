@@ -78,3 +78,23 @@ test("アカウント選択ゲートと管理画面の双方に保全UIを提供
   assert.ok(html.indexOf("js/state.js") < html.indexOf("js/cloud-backup.js"));
   assert.ok(html.indexOf("js/cloud-backup.js") < html.indexOf("js/accounts-ui.js"));
 });
+
+test("復旧キーの再発行は以前のキーを明示的に無効化し、保全データを上書きしない", () => {
+  assert.match(client, /async function rotateRecoveryKey\(\)/);
+  assert.match(client, /古いキーは無効になり/);
+  assert.match(client, /action: "rotate_recovery"/);
+  assert.match(client, /const payload = hasExistingCloud \? existing\.payload : localPayload/);
+  assert.match(recovery, /if \(action === "rotate_recovery"\)/);
+  assert.match(recovery, /const occupied = await getVaultByHash\(hash\)/);
+});
+
+test("復旧キーによる保全は匿名の新規保管庫作成をレート制限し、Auth削除時も復旧可能な保管庫を残す", () => {
+  assert.match(recovery, /async function enforceAnonymousCreateLimit\(req: Request\)/);
+  assert.match(recovery, /p_limit: 10/);
+  assert.match(recovery, /handle\(body, accessToken, req\)/);
+  assert.match(migration, /lbt_consume_recovery_rate_limit/);
+  assert.match(migration, /lbt_prepare_vaults_before_auth_user_delete/);
+  assert.match(migration, /recovery_hash is null/);
+  assert.match(migration, /recovery_hash is not null/);
+  assert.match(migration, /on delete set null/i);
+});
