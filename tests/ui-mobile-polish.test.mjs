@@ -34,6 +34,5 @@ test("mobile persona import keeps the heading balanced and action controls stick
 
 
 test("mobile account cards reserve space for their absolute edit/delete buttons", () => {
-  const mobile = accounts.slice(accounts.lastIndexOf("@media (max-width: 640px)"));
-  assert.match(mobile, /\.acct-card\s*\{[^}]*padding:\s*var\(--s-3\) var\(--s-2\) calc\(var\(--s-2\) \+ 32px\)/);
+  assert.match(accounts, /\.acct-card \{ min-height: 124px; padding: var\(--s-3\) var\(--s-2\) calc\(var\(--s-2\) \+ 32px\); \}/);
 });
