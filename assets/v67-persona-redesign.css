@@ -1377,6 +1377,7 @@ label:has(> input[type="checkbox"]) {
 .ledger-object-enhancement { display:flex; align-items:baseline; flex-wrap:wrap; gap:var(--s-2); min-width:0; max-width:100%; font-size:var(--fs-10); line-height:1.35; }
 .ledger-object-enhancement-label { min-width:0; max-width:100%; color:var(--gold); overflow-wrap:anywhere; }
 .ledger-object-enhancement-details { display:inline-block; min-width:0; max-width:100%; vertical-align:top; }
+.ledger-object-enhancement-details[open] { display:block; flex:1 1 100%; width:100%; min-width:0; }
 .ledger-object-enhancement-details > summary { display:inline; list-style:none; cursor:pointer; color:var(--tx-2); font-size:var(--fs-10); white-space:nowrap; }
 .ledger-object-enhancement-details > summary::-webkit-details-marker { display:none; }
 .ledger-object-enhancement-details > summary::after { content:"＋"; padding-inline-start:3px; color:var(--gold); }
