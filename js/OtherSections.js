@@ -2560,6 +2560,13 @@ const ShopSection = ({ state, dispatch }) => {
     ...(window.DB?.specialItems || []),
     ...(Array.isArray(state.customItems) ? state.customItems : [])
   ], [state.customItems]);
+  const hasConfiguredPrice = (item) => {
+    const cost = window.LBT_parsePriceText?.(item?.price) || { lp: 0, shards: 0 };
+    return Number(cost.lp) > 0 || Number(cost.shards) > 0;
+  };
+  /* 価格のある特殊アイテムは消耗品なので、未所持フィルター中でも再購入候補として残す。 */
+  const canRepurchaseSpecial = (item) => item?.specialResource === true
+    && !item?.ledgerResource && hasConfiguredPrice(item);
   const itemCategories = React.useMemo(() => [...new Set(catalogItems.map((item) => String(item?.category || "その他")))], [catalogItems]);
 
   const maxOwnedOf = (itemId) => window.LBT_getItemMaxOwned?.(state, itemId) || 99;
@@ -2666,7 +2673,7 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
     && (sourceFilter === "all" || catalogSource(sp) === sourceFilter)
     && hit(`${sp.name} ${sp.morale_effect || ""} ${sp.confuse_effect || ""}`));
 
-  const items = catalogItems.filter((item) => (!unownedOnly || !ownedItemIds.has(item.id))
+  const items = catalogItems.filter((item) => (!unownedOnly || !ownedItemIds.has(item.id) || canRepurchaseSpecial(item))
     && (categoryFilter === "all" || String(item?.category || "その他") === categoryFilter)
     && hit(`${item.name} ${item.category || ""} ${(item.tags || []).join(" ")} ${item.effect || ""}`));
 
@@ -2706,9 +2713,10 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
          ルール情報なので、価格枠ではなく head のフラグ（所持バッジの隣）へ出す。 */
       hasExplicitSpiritPrice(sp) ? formatAcquireCost(0, sp.price) : "価格不明")),
     item: () => items.map((item) => {
-      /* 価格が設定されていない特殊資源は「無料購入」に見せず、所持欄への登録として扱う。
-         自我の欠片は従来どおり2LPの購入処理（ADD_ITEM）で通帳へ反映する。 */
-      const registerOnly = item?.specialResource === true && !item?.ledgerResource;
+      /* 価格未設定の特殊資源だけ所持欄への登録とし、価格付き特殊アイテムは購入処理へ送る。 */
+      const registerOnly = item?.specialResource === true && !item?.ledgerResource && !hasConfiguredPrice(item);
+      const repeatPurchase = canRepurchaseSpecial(item);
+      const ownedEntry = inventory.find((entry) => entry.itemId === item.id);
       const acquire = () => {
         if (registerOnly) {
           dispatch({ type: "ADD_ITEM_INVENTORY", itemId: item.id });
@@ -2718,11 +2726,15 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
         dispatch({ type: "ADD_ITEM", itemId: item.id });
         toast(item?.ledgerResource === "shards"
           ? "自我の欠片を1個購入しました（2LP）"
-          : `「${item.name}」を購入しました`, "assertive");
+          : `「${item.name}」を購入しました（${resolveAcquireCost("item", "purchase", { id: item.id, name: item.name, customItems: state.customItems }).label}）`, "assertive");
       };
+      const ownedBadge = repeatPurchase && ownedEntry
+        ? [h("span", { className: "shop-card-flag is-owned", title: "所持数。購入すると1個増えます" }, `所持 ×${Number(ownedEntry.quantity) || 1}`)]
+        : null;
       return card(item.id, item.name, item.category || "その他", "item",
-        acquire, atCap(item), "所持上限に達しています", shopCardLines("item", item), ownedItemIds.has(item.id),
-        null, null, registerOnly ? "価格未設定" : undefined, null,
+        acquire, atCap(item), "所持上限に達しています", shopCardLines("item", item),
+        ownedItemIds.has(item.id) && !repeatPurchase,
+        ownedBadge, null, registerOnly ? "価格未設定" : undefined, null,
         registerOnly ? "所持欄へ追加" : "購入");
     })
   };

@@ -14,28 +14,69 @@ test("アイテムDBはPDFの回復8種・強化27種のみを登録し、特殊
   assert.equal(new Set(itemRecords.map((item) => item.name)).size, 35);
 });
 
-test("硝子の破片は通常アイテムDBと分離して所持数だけを管理し、MEMO・PALETTEへ反映する", () => {
+test("硝子の破片は通常アイテムDBと分離し、ルールブックどおり20LPで購入できる", () => {
   assert.equal(itemRecords.length, 35, "公式ショップの35件は維持する");
   assert.equal(specialItemRecords.length, 2);
   const shard = specialItemRecords.find((item) => item.id === "resource-glass-shard");
   assert.equal(shard.id, "resource-glass-shard");
   assert.equal(shard.name, "硝子の破片");
   assert.equal(shard.specialResource, true);
+  assert.equal(shard.price, "20LP");
+  assert.match(shard.effect, /CTを1減少/);
   assert.equal(itemRecords.some((item) => item.id === shard.id), false, "通常の購入カタログには入れない");
 
   const { reducer, initState } = loadStateReducer();
-  const first = reducer(initState, { type: "ADD_ITEM", itemId: shard.id });
+  /* 所持欄への移送経路は購入と区別し、価格を二重計上しない。 */
+  const first = reducer(initState, { type: "ADD_ITEM_INVENTORY", itemId: shard.id });
   assert.equal(first.inventory.length, 1);
   assert.equal(first.inventory[0].quantity, 1);
-  assert.equal(first.entries.length, 0, "特殊資源の追加で購入明細を作らない");
-  const second = reducer(first, { type: "ADD_ITEM", itemId: shard.id });
+  assert.equal(first.entries.length, 0, "所持欄への取り込みでは購入明細を作らない");
+  const second = reducer(first, { type: "ADD_ITEM_INVENTORY", itemId: shard.id });
   assert.equal(second.inventory[0].quantity, 2);
-  assert.equal(second.entries.length, 0, "数量追加でも購入明細を作らない");
+  assert.equal(second.entries.length, 0, "取り込み数量でも購入明細を作らない");
 
   const generator = loadGenerator();
   const output = createOutputState(second.inventory);
   assert.match(generator.buildMemo(output), /硝子の破片 ×2/);
   assert.match(generator.buildPalette(output), /【所持品】硝子の破片 ×2/);
+});
+
+test("硝子の破片は購入ごとに20LPを支払い、所持数と通帳の支出を更新する", () => {
+  const shard = specialItemRecords.find((item) => item.id === "resource-glass-shard");
+  assert.ok(shard);
+  assert.equal(shard.price, "20LP");
+  const { reducer, initState, balance } = loadStateReducer();
+  const withResult = reducer(initState, {
+    type: "ADD_RESULT",
+    name: "硝子の破片購入テスト",
+    income: { lp: 50, shards: 0 }
+  });
+  const target = withResult.results.find((result) => result.name === "硝子の破片購入テスト");
+  const before = balance(withResult.results, withResult.entries);
+  const first = reducer(withResult, { type: "ADD_ITEM", itemId: shard.id, resultId: target.id });
+  assert.equal(first.inventory.find((entry) => entry.itemId === shard.id)?.quantity, 1);
+  assert.equal(balance(first.results, first.entries).lp, before.lp - 20);
+  const firstExpense = first.entries.find((entry) => entry.name === "硝子の破片");
+  assert.ok(firstExpense);
+  assert.equal(firstExpense.cost.lp, 20);
+  assert.equal(firstExpense.resultId, target.id);
+
+  const second = reducer(first, { type: "ADD_ITEM", itemId: shard.id, resultId: target.id });
+  assert.equal(second.inventory.find((entry) => entry.itemId === shard.id)?.quantity, 2);
+  assert.equal(second.entries.filter((entry) => entry.name === "硝子の破片").length, 2, "再購入も別明細として記録");
+  assert.equal(balance(second.results, second.entries).lp, before.lp - 40);
+});
+
+test("硝子の破片は20LP未満の残高では購入できない", () => {
+  const shard = specialItemRecords.find((item) => item.id === "resource-glass-shard");
+  const { reducer, initState } = loadStateReducer();
+  const poor = {
+    ...initState,
+    results: [{ id: "poor-glass-result", name: "残高不足", date: "2026-01-01", income: { lp: 19, shards: 0 } }],
+    entries: []
+  };
+  const blocked = reducer(poor, { type: "ADD_ITEM", itemId: shard.id });
+  assert.equal(blocked, poor, "LPが20未満なら所持数も通帳も変えない");
 });
 
 test("自我の欠片は所持インベントリではなく購入と同時に通帳へ反映する", () => {

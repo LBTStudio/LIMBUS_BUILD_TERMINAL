@@ -20,8 +20,9 @@
     "tags": [
       "特殊資源"
     ],
-    "effect": "",
+    "effect": "使用時、該当する人格のCTを1減少（使用後消滅）",
     "palette": "",
-    "specialResource": true
+    "specialResource": true,
+    "price": "20LP"
   }
 ]

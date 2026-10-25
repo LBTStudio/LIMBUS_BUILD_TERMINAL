@@ -305,14 +305,16 @@ test("ビルドのアイテムタブは持っていく個数と出力先を選�
   assert.match(panel, /"badge inv-origin is-initial" \}, "初期枠"/);
 });
 
-test("ショップは未所持のみを既定で出し、導入は購入として支出明細を立てる", () => {
+test("ショップは未所持のみを既定で出し、価格付き特殊アイテムは再購入できる", () => {
   const shop = sections.slice(sections.indexOf("const ShopSection ="), sections.indexOf("const BuildWorkspace ="));
   assert.match(shop, /const ShopSection = \(\{ state, dispatch \}\) => \{/);
   /* 既定は未所持のみ。所持済み表示は明示トグル。 */
   assert.match(shop, /const \[unownedOnly, setUnownedOnly\] = React\.useState\(true\);/);
   assert.match(shop, /\(!unownedOnly \|\| !ownedSupportNames\.has\(entry\.name\)\)/);
   assert.match(shop, /\(!unownedOnly \|\| !ownedEgoKeys\.has\(`\$\{ego\.rank\}:\$\{ego\.no\}`\)\)/);
-  assert.match(shop, /\(!unownedOnly \|\| !ownedItemIds\.has\(item\.id\)\)/);
+  assert.match(shop, /\(!unownedOnly \|\| !ownedItemIds\.has\(item\.id\) \|\| canRepurchaseSpecial\(item\)\)/);
+  assert.match(shop, /const canRepurchaseSpecial = \(item\) => item\?\.specialResource === true/);
+  assert.match(shop, /const repeatPurchase = canRepurchaseSpecial\(item\)/);
   assert.match(shop, /unownedOnly \? "所持も表示" : "未所持のみ"/);
   /* トグルは状態を aria-pressed で公開し、フィルタに主ボタンを使わない。 */
   assert.match(shop, /"aria-pressed": unownedOnly/);

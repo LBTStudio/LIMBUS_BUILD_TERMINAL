@@ -2254,7 +2254,10 @@ function priceItemById(state, itemId) {
   const id = String(itemId || "");
   const special = (window.DB?.specialItems || []).find((item) => item?.id === id && item.specialResource);
   if (special?.ledgerResource === "shards") return parsePriceText(special.price || "2LP");
-  if (special) return null;
+  if (special) {
+    const configured = parsePriceText(special.price);
+    return configured.lp > 0 || configured.shards > 0 ? configured : null;
+  }
   const official = (window.DB?.items || window.DB?.itemList || []).find((i) => i?.id === id);
   if (official) return parsePriceText(official.price);
   /* オリジナルアイテムも価格を持てる。state を参照しないと購入明細の
@@ -2469,11 +2472,16 @@ function purchaseCostOf(state, action) {
   if (action.type === "ADD_ROSTER") return action.purchase ? normalizeCurrency(action.cost) : null;
   if (action.type === "ADD_ROSTER_EGO") return action.purchase ? priceEgo(action.rank, action.no) : null;
   if (action.type === "ADD_ITEM") {
-    /* ADD_ITEM は既存行なら所持数量だけを増やし、購入明細を追加しない契約。
-       その経路まで価格ゲートへ通すと、初回購入後に残高が0になった利用者は
-       2個目を足せず、reducer の「既存品は数量加算」仕様と矛盾する。 */
-    const alreadyOwned = (state?.inventory || []).some((entry) => entry?.itemId === String(action.itemId || ""));
-    return alreadyOwned ? null : priceItemById(state, action.itemId);
+    const itemId = String(action.itemId || "");
+    const special = (window.DB?.specialItems || []).find((item) => item?.id === itemId && item.specialResource);
+    /* 価格付き特殊アイテムは消耗品なので、所持済みでも購入ごとに価格ゲートへ通す。 */
+    if (special) {
+      const cost = priceItemById(state, itemId);
+      return cost && (cost.lp > 0 || cost.shards > 0) ? cost : null;
+    }
+    /* 通常アイテムの ADD_ITEM は既存行なら数量加算（購入ではない）という従来契約を維持する。 */
+    const alreadyOwned = (state?.inventory || []).some((entry) => entry?.itemId === itemId);
+    return alreadyOwned ? null : priceItemById(state, itemId);
   }
   if (action.type === "ADD_ROSTER_SUPPORT") {
     if (action.purchase === false) return null;
@@ -4387,7 +4395,33 @@ return appendLedgerEntry(next, {
           note: "2LPで自我の欠片1個を購入"
         });
       }
-      if (specialResource) return appReducer(state, { type: "ADD_ITEM_INVENTORY", itemId, quantity: 1 });
+      if (specialResource) {
+        const purchaseCost = priceItemById(state, itemId);
+        const hasPrice = purchaseCost && (purchaseCost.lp > 0 || purchaseCost.shards > 0);
+        /* 価格のない特殊アイテムは所持欄への登録として扱う。価格付き特殊アイテムは
+           ショップ購入として毎回残高を検証し、在庫追加と支出明細を同時に反映する。 */
+        if (!hasPrice) return appReducer(state, { type: "ADD_ITEM_INVENTORY", itemId, quantity: 1 });
+        if (!purchaseAffordability(state, purchaseCost).ok) return state;
+        const current = Array.isArray(state.inventory) ? state.inventory : [];
+        const existing = current.find((entry) => entry.itemId === itemId);
+        const maxOwned = window.LBT_getItemMaxOwned?.(state, itemId) || 99;
+        if (existing && (Number(existing.quantity) || 0) >= maxOwned) return state;
+        const inventory = existing
+          ? current.map((entry) => entry.itemId === itemId
+            ? { ...entry, quantity: clampItemQuantity(state, itemId, (Number(entry.quantity) || 1) + 1) }
+            : entry)
+          : [...current, { uid: makeOwnedUid("it"), itemId, quantity: 1, memo: true, palette: true, origin: "acquired" }];
+        const next = { ...state, inventory };
+        const owned = next.inventory.find((entry) => entry.itemId === itemId);
+        return appendLedgerEntry(next, {
+          kind: "item",
+          name: String(specialResource.name || itemId),
+          cost: purchaseCost,
+          resultId: action.resultId,
+          ref: { kind: "inventory", uid: owned?.uid || itemId },
+          note: `${String(specialResource.name || itemId)}を購入`
+        });
+      }
       const current = Array.isArray(state.inventory) ? state.inventory : [];
       const existing = current.find((entry) => entry.itemId === itemId);
       const inventory = existing
