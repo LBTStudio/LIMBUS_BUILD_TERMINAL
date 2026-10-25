@@ -291,3 +291,12 @@ test("キャラクター共有URLの確認後はアカウントカードから�
   assert.match(css, /\.gara-import-workspace\s*\{[^}]*position:\s*fixed/s);
   assert.match(css, /\.gara-import-workspace > \.gara-import-review\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\) minmax\(280px,\s*360px\)/s);
 });
+
+
+test("リザルトカードは価格未確定の理由を表示し、未確定支出でDB価格候補を隠さない", () => {
+  assert.match(uiFlat, /const importReasons = Array\.isArray\(block\.reasons\)/);
+  assert.match(uiFlat, /className: "gara-result-warning"/);
+  assert.match(uiFlat, /取込前に確認してください/);
+  assert.match(uiFlat, /importReasons\.slice\(0, 6\)\.map/);
+  assert.match(uiFlat, /\.filter\(\(spend\) => !spend\.needsDecision\)/);
+});
