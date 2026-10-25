@@ -48,7 +48,7 @@ test("同期競合では古いデータを自動上書きせず、更新履歴�
   assert.match(client, /async function loadHistory\(\)/);
   assert.match(client, /async function restoreRevision\(revision\)/);
   assert.match(recovery, /expectedRevision/);
-  assert.match(recovery, /async function addHistory\(vault\)/);
+  assert.match(recovery, /async function addHistory\(vault(?:: any)?\)/);
   assert.match(recovery, /const HISTORY_LIMIT = 10/);
 });
 
