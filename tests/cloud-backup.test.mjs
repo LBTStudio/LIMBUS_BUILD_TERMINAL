@@ -10,6 +10,7 @@ const client = read("js/cloud-backup.js");
 const storage = read("js/state.js");
 const ui = read("js/accounts-ui.js");
 const html = read("index.html");
+const cloudCss = read("assets/cloud-backup.css");
 const doc = read("docs/optional-account-cloud-backup.md");
 const migration = read("supabase/migrations/20261025211015_lbt_account_vaults.sql");
 const hardeningMigration = read("supabase/migrations/20261025212903_lbt_account_vault_access_hardening.sql");
@@ -144,13 +145,12 @@ test("オンライン保管庫テーブルをブラウザーから直接アク�
 });
 
 
-test("OAuthボタンはSupabase Authで有効と確認されたプロバイダーだけを表示する", () => {
-  assert.match(client, /async function refreshProviderAvailability\(\)/);
-  assert.match(client, /\/auth\/v1\/settings/);
-  assert.match(client, /providers\.google = external\.google === true/);
-  assert.match(client, /providers\.x = external\.x === true/);
-  assert.match(client, /view\.providers\?\.google/);
-  assert.match(client, /view\.providers\?\.x/);
-  assert.match(client, /providerSettingsAvailable/);
-  assert.match(client, /料金条件を確認するまで有効化しないでください/);
+test("Google/Xのログイン導線は未実装と明記され、押せない状態で表示される", () => {
+  assert.match(client, /button\("Googleと連携（未実装）", \(\) => \{\}, "", true\)/);
+  assert.match(client, /button\("Xと連携（未実装）", \(\) => \{\}, "", true\)/);
+  assert.match(client, /disabled: view\.busy \|\| disabled/);
+  assert.match(client, /Google \/ Xによるログイン連携はまだ使えません/);
+  assert.match(cloudCss, /\.lbt-cloud-btn:disabled \{ opacity: \.6; cursor: not-allowed; \}/);
+  assert.match(doc, /Googleの基本的なOAuthログイン設定自体は無料で可能/);
+  assert.match(doc, /X APIの利用料金/);
 });
