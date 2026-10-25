@@ -113,7 +113,7 @@ test("報酬行は収入になる", () => {
 });
 
 test("硝子の破片は欠片通貨へ混ぜず、未対応の報酬として理由つきで保留する", () => {
-  const parsed = T.parseText("【A】\n報酬｜硝子の破片x2");
+  const parsed = T.parseText("【A】\\n報酬｜硝子の破片x2");
   assert.equal(parsed.records.length, 1);
   assert.equal(parsed.records[0].income.shards, 0);
   assert.equal(parsed.records[0].income.lp, 0);
@@ -124,6 +124,25 @@ test("硝子の破片は欠片通貨へ混ぜず、未対応の報酬として�
   assert.ok(planned.skipped.some((entry) => entry.text.includes("硝子の破片")));
 });
 
+test("「硝子の欠片」も「硝子の破片」と同じ別資源として獲得・消費を保持する", () => {
+  const modern = T.parseText("【A】\\n報酬｜LP:10/硝子の欠片x2");
+  assert.equal(modern.records[0].income.lp, 10);
+  assert.equal(modern.records[0].income.shards, 0, "硝子の欠片2個を自我の欠片通貨に誤計上しない");
+  assert.equal(modern.records[0].itemGains[0]?.itemId, "resource-glass-shard");
+  assert.equal(modern.records[0].itemGains[0]?.quantity, 2);
+  assert.equal(modern.skipped.length, 0);
+
+  const legacy = T.parseText([
+    "『A』",
+    "LP10+欠片2",
+    "硝子の欠片x2",
+    "【硝子の欠片を一つ使用して人差し指のctを解除】"
+  ].join("\\n"));
+  assert.equal(legacy.records[0].itemGains[0]?.itemId, "resource-glass-shard");
+  assert.equal(legacy.records[0].itemGains[0]?.quantity, 2);
+  assert.equal(legacy.records[0].consumedItems[0]?.itemId, "resource-glass-shard");
+  assert.equal(legacy.records[0].consumedItems[0]?.quantity, 1);
+});
 test("括弧の中の増減 (±N) は収入に混ぜない（残高差であり獲得ではない）", () => {
   const rec = T.parseText(SAMPLE).records[0];
   assert.equal(rec.income.lp, 150, "+9 を足さない");
