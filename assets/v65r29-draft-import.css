@@ -128,5 +128,43 @@
   .persona-draft-affiliation-search, .persona-draft-affiliation-result { min-height: 42px; font-size: 12px; }
   .persona-draft-affiliation-current { align-items: flex-start; flex-direction: column; }
 }
+
+/* Mobile audit: keep bilingual labels readable and the next step reachable while scrolling. */
+@media (max-width: 640px) {
+  .persona-draft-dialog-head {
+    gap: 10px;
+  }
+  .persona-draft-dialog-head > div:first-child {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .persona-draft-dialog-head p {
+    max-width: none;
+    font-size: clamp(9px, 2.7vw, 10px);
+    letter-spacing: .01em;
+    line-height: 1.35;
+    text-wrap: balance;
+  }
+  .persona-draft-dialog-head h2 {
+    font-size: var(--fs-16);
+    line-height: 1.25;
+    letter-spacing: .025em;
+  }
+  .persona-draft-import-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    margin: var(--s-3) -14px -14px;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--line-dim);
+    background: color-mix(in oklab, var(--surface-1) 94%, var(--gold) 6%);
+    box-shadow: 0 -8px 18px color-mix(in oklab, #000 28%, transparent);
+  }
+  .persona-draft-import-actions > .btn {
+    min-width: 0;
+    min-height: 42px;
+  }
+}
+
 }
 /* end @layer v65r29-draft-import */
