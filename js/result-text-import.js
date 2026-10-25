@@ -342,6 +342,23 @@
     return { kind: "expense", dbName: spend.name };
   }
 
+
+  /* 旧ログの注記欄に入った人格名を、所持DBへ照合する。
+     自動で正体を断定せず、解決候補をプレビューに出して確認後に所持へ追加する。 */
+  function canBeIdentityLine(raw) {
+    const line = String(raw || "").trim();
+    if (line.length < 2 || line.length > 120) return false;
+    if (/^[【\[『「《]/.test(line)) return false;
+    if (/^(?:報酬|購入|追加購入|支出|支払い|消費|保管物|所持物)\s*[｜|：:]/.test(line)) return false;
+    if (/(?:\bLP\b|ＬＰ|欠片|カケラ|かけら|硝子の(?:破片|かけら)|人格ガチャ|抽出チケット|同期(?:化|MAX)?|CT\s*\d|サポ(?:パ|スロ)|精神\s*[:：]|購入|消費|支払|ファンブル|ダイスバトル|現在値?\s*\d)/i.test(line)) return false;
+    return !/^\d[\d,.\s]*$/.test(line);
+  }
+
+  function personaKindsOf(hit) {
+    return ((hit && hit.kinds) || []).filter((kind) =>
+      kind.kind === "persona" && kind.no !== undefined && (kind.mode === "n" || kind.mode === "t"));
+  }
+
   /* 提案済みリザルト + 明細を reducer の action 並びへ落とす。
      excluded: Set(添字) を渡すと、その明細は作らない。 */
   function plan(parsed, options) {
@@ -349,9 +366,13 @@
     const excluded = opts.excluded || new Set();
     const actions = [];
     const skipped = (parsed.skipped || []).slice();
+    const identities = [];
+    const excludedIdentities = opts.excludedIdentities instanceof Set ? opts.excludedIdentities : new Set();
+    const ownedPersonas = opts.ownedPersonas instanceof Set ? opts.ownedPersonas : new Set(opts.ownedPersonas || []);
+    const importedPersonaKeys = new Set();
     let legacyUseSequence = 0;
 
-    for (const record of parsed.records || []) {
+    for (const [recordIndex, record] of (parsed.records || []).entries()) {
       const title = record.title || "無題";
       const note = record.author ? `作：${record.author}` : "";
       const acceptedTickets = [];
@@ -391,6 +412,50 @@
           return { ...item, id: operationId, operationId, consumedAt: Date.now() };
         })
       });
+
+      /* legacy raw に残っている報酬名・ガチャ結果を DB と照合する。
+         不一致や複数候補は手動選択へ回し、推測で所持人格を増やさない。 */
+      (record.raw || []).forEach((rawLine, rawIndex) => {
+        const source = String(rawLine || "").trim();
+        if (!canBeIdentityLine(source) || typeof opts.resolve !== "function") return;
+        const key = `${recordIndex}:${rawIndex}`;
+        const overrideName = opts.identityResolved && opts.identityResolved[key];
+        const initialHit = opts.resolve(overrideName || source);
+        const kinds = personaKindsOf(initialHit);
+        if (kinds.length === 1) {
+          const kind = kinds[0];
+          const personaKey = `${kind.mode}:${kind.no}`;
+          const owned = ownedPersonas.has(personaKey);
+          const duplicate = importedPersonaKeys.has(personaKey);
+          const candidate = {
+            key, recordIndex, rawIndex, source, name: initialHit.name,
+            mode: kind.mode, no: kind.no, confidence: initialHit.confidence || "unknown",
+            owned, duplicate, options: [], unresolved: false
+          };
+          identities.push(candidate);
+          if (!owned && !duplicate && !excludedIdentities.has(key)) {
+            importedPersonaKeys.add(personaKey);
+            actions.push({ type: "ADD_ROSTER", mode: kind.mode, no: kind.no, purchase: false, via: title ? [title] : [] });
+          }
+          return;
+        }
+        /* 明確に別カテゴリと分かった行は、人格候補へ誤分類しない。 */
+        if (initialHit && Array.isArray(initialHit.kinds) && initialHit.kinds.length) return;
+        const suggested = typeof opts.suggestPersona === "function"
+          ? (opts.suggestPersona(source) || []).filter((item) => item && item.kind === "persona" && item.name)
+          : [];
+        const options = suggested.filter((item, index, all) => all.findIndex((other) => other.name === item.name) === index).slice(0, 6);
+        if (overrideName) {
+          skipped.push({ text: source, reason: "選択した人格をDBで一意に解決できませんでした" });
+          return;
+        }
+        if (options.length) {
+          identities.push({ key, recordIndex, rawIndex, source, name: null, mode: null, no: null, confidence: null, owned: false, duplicate: false, options, unresolved: true });
+        } else {
+          identities.push({ key, recordIndex, rawIndex, source, name: null, mode: null, no: null, confidence: null, owned: false, duplicate: false, options: [], unresolved: true });
+        }
+      });
+
       record.spends.forEach((spend, index) => {
         if (excluded.has(index)) return;
         if (spend.needsDecision) { skipped.push({ text: spend.raw || spend.name, reason: spend.reason || "要確認" }); return; }
@@ -398,7 +463,7 @@
         actions.push({ type: "ADD_ENTRY", kind, name: dbName, cost: { lp: spend.cost.lp, shards: spend.cost.shards } });
       });
     }
-    return { actions, skipped };
+    return { actions, skipped, identities };
   }
 
   /* 報酬のチケット数を受領の積に直す。種類が分からないものは choice ではなく
