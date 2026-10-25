@@ -465,7 +465,7 @@ test("抽出チケットはリザルト収入で管理し、ショップのガ�
      assert.match(reducer, /function computeTicketBalance\(results, entries\)/);
      assert.match(reducer, /function normalizeTickets\(value\)/);
      assert.match(reducer, /const out = \{ persona: toNumber\(raw\.persona\), ego: toNumber\(raw\.ego\), choice: toNumber\(raw\.choice\), pack: \{\} \};/);
-          assert.match(reducer, /const income = \\{ \\.\\.\\.normalizeCurrency\\(result\\.income\\), tickets: normalizeTickets\\(result\\.income\\?\\.tickets\\) \\};/);
+      assert.match(reducer, /const income = \{ \.\.\.normalizeCurrency\(result\.income\), tickets: normalizeTickets\(result\.income\?\.tickets\) \};/);
      assert.match(reducer, /tickets: normalizeTickets\(entry\.tickets\),/);
       /* 付与は直近リザルトの収入へ、消費は明細へ。
          消費は枚数を受け取る（一括抽選は引いた回数ぶんを一度に送る）。 */
