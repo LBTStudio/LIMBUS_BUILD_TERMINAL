@@ -4849,7 +4849,10 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
           className: "ledger-row",
           ...dragProps(entry)
         },
-          h("span", { className: "ledger-row-name" }, entry.name),
+          h("div", { className: "ledger-row-label" },
+                          h("span", { className: "ledger-row-drag-handle", title: "ドラッグして移動", "aria-hidden": "true" }, "⋮⋮"),
+                          h("span", { className: "ledger-row-name" }, entry.name)
+                        ),
           h("span", { className: "ledger-row-kind" }, kindLabel(entry.kind)),
           h("span", { className: "ledger-row-cost" }, entry.cost?.lp ? `${entry.cost.lp}LP` : entry.cost?.shards ? `${entry.cost.shards}SHARD` : "—"),
           h("button", {
@@ -5060,7 +5063,10 @@ h(Card, { className: "ledger-card" },
                     : h("div", { className: "stack-2" }, rows.map((entry) => h("div", {
                         key: entry.id, className: "ledger-row is-owned", ...dragProps(entry)
                       },
-                        h("span", { className: "ledger-row-name" }, entry.name),
+                        h("div", { className: "ledger-row-label" },
+                          h("span", { className: "ledger-row-drag-handle", title: "ドラッグして移動", "aria-hidden": "true" }, "⋮⋮"),
+                          h("span", { className: "ledger-row-name" }, entry.name)
+                        ),
                         h("span", { className: "ledger-row-kind" }, kindLabel(entry.kind)),
                         h("span", { className: "ledger-row-cost" },
                           entry.cost?.lp ? entry.cost.lp + "LP" : entry.cost?.shards ? entry.cost.shards + "SHARD" : "—"),
