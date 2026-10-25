@@ -1737,7 +1737,7 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
 @keyframes lbt-copy-pop{0%{transform:translateY(-8px);opacity:0}100%{transform:translateY(0);opacity:1}}
 /* prefers-reduced-motion: reduce — 生成される共有シートは独立ドキュメントで
    assets/*.css を継承しないため、ここで自前のガードを持つ必要がある。
-   折り畳み矢印の回転そのものは開閉状態的表达なので残し、補間だけを止める。 */
+   折り畳み矢印の回転そのものは開閉状態の表現なので残し、補間だけを止める。 */
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{transition-duration:.01ms !important;animation-duration:.01ms !important;animation-iteration-count:1 !important}
 }

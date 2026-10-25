@@ -1064,7 +1064,7 @@ function toIdentityChoices(hits) {
     for (const scenario of (manifest && manifest.scenarios) || []) {
       /* シナリオはそれ自体が 1 リザルト。帰属する所持が 1 件もなくても、
          記録があれば必ず作る（収入のあるシナリオが黙って消えると、
-         履歴としては「その日对美国记录が存在しなかった」ことになってしまう）。 */
+         履歴としてはその日の記録が存在しなかったことになってしまう）。 */
       if (excluded.has(scenario.key)) continue;
       const income = scenario.income || { lp: "", shards: "" };
       const tickets = scenario.tickets || {};

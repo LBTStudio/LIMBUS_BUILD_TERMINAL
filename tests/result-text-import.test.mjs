@@ -294,11 +294,11 @@ test("パック別収入で __proto__ などの名前を落とさない", () => 
 });
 
 test("見出しが分からない行は、捨てずに理由つきの skipped にする", () => {
-  const out = T.parseText("【A】\n報酬｜LP:10\n不时　｜ Lufthansa\n");
+  const out = T.parseText("【A】\n報酬｜LP:10\n不時　｜ Lufthansa\n");
   assert.equal(out.records.length, 1);
   assert.equal(out.skipped.length, 1);
   assert.equal(out.skipped[0].reason, "見出しが不明");
-  assert.equal(out.skipped[0].text, "不时　｜ Lufthansa");
+  assert.equal(out.skipped[0].text, "不時　｜ Lufthansa");
 });
 
 test("空行だけの行は空行として無視する（skipped に載せない）", () => {

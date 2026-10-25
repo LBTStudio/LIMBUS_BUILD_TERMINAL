@@ -284,7 +284,7 @@ function run() {
 
 /* 2巡目: js/share-viewer.js はデータ URL を内包しているため、1巡目で書くと
    自分のハッシュが変わる。その新しいハッシュで share.html を直す必要がある。
-   1巡目の「書き換えたアセット一覧」と 2巡目の「それ引发的追加分」を分けて集計する。 */
+   1巡目の「書き換えたアセット一覧」と 2巡目の「それによる追加分」を分けて集計する。 */
 const pass1 = run();
 let pass2 = null;
 if (pass1.wroteAny || CHECK) {

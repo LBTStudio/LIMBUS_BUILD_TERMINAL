@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
-import { LEAK_WORDS } from "../tools/text-leaks.mjs";
+import { LEAK_WORDS, SIMPLIFIED_LEAK_CHARS } from "../tools/text-leaks.mjs";
 
 /* ---------------------------------------------------------------------------
    文字化け（U+FFFD）と非日本語の混入を、全ソースで検査する。
@@ -13,7 +13,7 @@ import { LEAK_WORDS } from "../tools/text-leaks.mjs";
    本当はスクリプト自体が書けていなかった。検出側を先に固める。
    --------------------------------------------------------------------------- */
 
-const SCAN_DIRS = ["js", "tests", "tools", "data"];
+const SCAN_DIRS = ["js", "tests", "tools", "data", "assets"];
 const SCAN_EXT = [".js", ".mjs", ".json", ".html", ".css"];
 
 /* 正当な既存コード。混入ではなく正しい語なので検査から外す。 */
@@ -61,4 +61,17 @@ test("全ソースに非日本語の混入（実測で起きた語）が無い",
     }
   });
   assert.deepEqual(leaked, [], "混入のある行:\n" + leaked.join("\n"));
+});
+
+test("全ソースに簡体字（日本語の字体ではない字）が混ざっていない", () => {
+  /* 実測: 生成パッチが日本語コメントへ 种类・必须的・免费・价格・底线・选民・记载
+     などを混ぜた。語単位の LEAK_WORDS では拾えないため、字単位で見る。 */
+  const leaked = [];
+  eachSourceLine((line, at) => {
+    if (line.includes("\uFFFD")) return;
+    for (const ch of SIMPLIFIED_LEAK_CHARS) {
+      if (line.includes(ch)) { leaked.push(`${at}  [${ch}]  ${line.trim().slice(0, 100)}`); break; }
+    }
+  });
+  assert.deepEqual(leaked, [], "簡体字の混入:\n" + leaked.join("\n"));
 });

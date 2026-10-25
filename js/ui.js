@@ -156,7 +156,7 @@ const Segmented = ({ value, onChange, options }) => /* @__PURE__ */ React.create
 /* 詳細のポップオーバー。
    一覧の直下に詳細を差し込むと、詳細を読んだつもりがページの下端まで
    スクロールさせられ、閉じる導線が目線から外れる。詳細 Selected で開く
-   ダイアログにすれば、スクロールは发生せず閉じる操作は画面上部に残る。
+   ダイアログにすれば、スクロールは発生せず閉じる操作は画面上部に残る。
    UtilitySheet と同じ dialog 作法（Escape・背景クリック・Tab 循環・
    閉じたら起動元へフォーカス）を揃える。 */
 const DetailDialog = ({ open, onClose, label, children, actions }) => {

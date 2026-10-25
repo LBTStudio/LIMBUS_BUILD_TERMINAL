@@ -21,7 +21,7 @@ function computeCoverScale(imageWidth, imageHeight) {
   if (!imageWidth || !imageHeight) return 1;
   return Math.max(1 / imageWidth, 1 / imageHeight);
 }
-/* 画像が枠を常に覆う範囲へパンをクランプする（单位空間）。 */
+/* 画像が枠を常に覆う範囲へパンをクランプする（単位空間）。 */
 function clampPan(pan, extent) {
   if (!(extent < 0)) return 0;
   return Math.min(0, Math.max(extent, pan));

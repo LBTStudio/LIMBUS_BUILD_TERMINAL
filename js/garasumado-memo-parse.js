@@ -817,8 +817,8 @@
           wins.push({ name: explicitRewardName || line, via: "", kind: "" });
           continue;
         }
-        /* 「4 課」のように数字を含んでも通貨と数値の並びが
-           间断とそれである（「90LP」「29欠片」なら数値が通貨名に隣接）。 */
+        /* 「4 課」のように数字を含んでいても、通貨と数値が並んでいるときだけ
+           金額行である（「90LP」「29欠片」なら数値が通貨名に隣接）。 */
         if (!/\d\s*(LP|欠片|かけら|欠けら|カケラ)/i.test(line) && !/現在|残/.test(line)) continue;
         if (!/現在|残/.test(line)) {
           reasons.push({ line: line, reason: "通貨か金額が読み取れない" });

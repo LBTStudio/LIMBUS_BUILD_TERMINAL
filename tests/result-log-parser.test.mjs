@@ -121,7 +121,7 @@ test("DB 照合: 「ミートパイ 闘志」は特異の人格として決ま�
   assert.equal(hit.name, "○○のミートパイ厨房長", "DB の正名に寄せている");
 });
 
-test("DB 照合: 略称は利用者が結んだ时才決まる", () => {
+test("DB 照合: 略称は利用者が結んだ時だけ決まる", () => {
   const hit = R.resolveCandidates(idx, "涙剣 同期化 欠片134")[0];
   assert.ok(hit, "別名で解けている");
   assert.equal(hit.confidence, "alias");

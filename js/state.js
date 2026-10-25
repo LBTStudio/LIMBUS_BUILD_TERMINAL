@@ -2316,7 +2316,7 @@ function latestResultId(state) {
   const results = state?.results || [];
   return results.length ? results[results.length - 1].id : null;
 }
-/* 所持品の入手元シナリオ。共有データの owned にはこの列为無いので、
+/* 所持品の入手元シナリオ。共有データの owned にはこの列が無いので、
    シナリオ履歴との照合で求めた値をそのまま保持する。
    空なら「判別できなかった」を意味し、推測では埋めない。 */
 function normalizeConsumedItems(items) {
@@ -3818,7 +3818,7 @@ window.LBT_validateDrawBatchApplication = validateDrawBatchApplication;
 
 function appReducer(state, action) {
   /* 購入系は残高が足りなければ行わない。UI で無効化するだけでは、
-     他の入口（自動登録・取り込み）から通過する経路が残るため 这里で止める。 */
+     他の入口（自動登録・取り込み）から通過する経路が残るため ここで止める。 */
   if (action.type === "ADD_ROSTER" || action.type === "ADD_ROSTER_EGO"
     || action.type === "ADD_ITEM" || action.type === "ADD_ROSTER_SUPPORT"
     || action.type === "ADD_ROSTER_SPIRIT" || action.type === "ADD_ENHANCEMENT") {

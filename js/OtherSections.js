@@ -1989,7 +1989,7 @@ function resolveAcquireCost(kind, how, context) {
      30LPはキャラ作成時の支給額であって人格の価格ではないので、ここでは扱わない。 */
   if (kind === "persona" || kind === "ego") {
     const provenance = how === "purchase" ? "purchase" : how === "ticket" ? "gachaTicket" : "gachaPaid";
-    /* 価格は「E.G.O番号の横》记载値core:7536 なので、番号と危険度ランクで引く。
+    /* 価格は E.G.O 番号の横の記載値（core:7536）なので、番号と危険度ランクで引く。
        番号が無いと該当行が見つからず 無料 に落ちる。ショップのカードは
        key が "RANK:no" 形式（例 "ZAYIN:1"）なので、そこから復元する。 */
     let ctx = context || {};
@@ -4388,7 +4388,7 @@ const scanHeldPersonas = (text, resolved) => {
     /* どの切り方でも1件にならない。先頭の区切りで切って残りを回す。 */
     const first = bounds[0];
     const left = first === undefined ? rest : rest.slice(0, first);
-    /* 「候補が1つも無い」は異常なので、ここで底线を引く。
+    /* 「候補が1つも無い」は異常なので、ここで下限を定める。
        上記の index は完全一致のみ。名前が1文字違えば candidate は空になり、
        利用者が選べなくなる。そこで 1 文字でも一致する名前を出し、
        一致した文字数順に並べる（Hubi 側で選ぶ）。 */
@@ -5373,7 +5373,7 @@ const LabelParamsPanel = ({ state, onAddCustom, onPatchCustom, onRemoveCustom, o
   );
 };
 /* 駒整形の組み立て設定。ステータス一覧とラベル一覧はここが唯一の場所。
-   設定側に同じ面を残すと、どちらで直したかを选民が追えなくなる。 */
+   設定側に同じ面を残すと、どちらで直したかを利用者が追えなくなる。 */
 const BuildParamsPanel = ({ state, dispatch }) => {
   const h = React.createElement;
   const setF = (field, value) => dispatch({ type: "SET_FIELD", field, value });

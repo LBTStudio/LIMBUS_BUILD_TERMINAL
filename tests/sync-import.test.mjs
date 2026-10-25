@@ -26,7 +26,7 @@ function load(files) {
 
 /* --- 対象の抽出 ------------------------------------------------------- */
 
-test("操作的目标は名前として取り出される（以前は常に未定だった）", () => {
+test("操作の対象は名前として取り出される（以前は常に未定だった）", () => {
   const w = load(["js/ledger-provenance.js"]);
   const found = w.LBT_annotateOperations(["欠片50を消費して同期化「θ剣契殺手A」"], db);
   assert.equal(found.length, 1);

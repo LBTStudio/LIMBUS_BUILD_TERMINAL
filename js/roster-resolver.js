@@ -53,7 +53,7 @@
         entry.kinds.push({ kind, no: row.no, rank: row.rank, level: row.level, mode });
       }
       // 空白とハイフンの差も同じ物。DB 名の「因子コードG-5」とログの「因子コードG5」を
-      // 分别为引けるよう、空白を詰めた形でも登録する。
+      // 別々に引けるよう、空白を詰めた形でも登録する。
       const packed = squeezed(key);
       if (packed && packed !== key && !index.has(packed)) {
         index.set(packed, { ...entry, key: packed, packedFrom: entry.name });

@@ -51,7 +51,7 @@
         .filter((p) => !owned.special.has(String(p.no)))
         .map((p) => ({ type: "persona", mode: "t", no: p.no, name: p.name }));
     }
-    /* 通常人格の抽出は special を含めない。該当番号が無くた时应移る（core:348）。 */
+    /* 通常人格の抽出は special を含めない（該当番号が無ければ次へ移る。core:348）。 */
     return (db.normal_personas || [])
       .filter((p) => !owned.normal.has(String(p.no)))
       .map((p) => ({ type: "persona", mode: "n", no: p.no, name: p.name }));
@@ -74,7 +74,7 @@
   }
 
   /* --- セッション --------------------------------------------------------
-     gacha.js の commit-reveal セッションを使う。セッションの公开メソッドは
+     gacha.js の commit-reveal セッションを使う。セッションの公開メソッドは
      nextInt ではなく roll(max) で、返りは 1..max（1-indexed）。
      nextInt を呼ぶと常に undefined になり Math.random に落ちてしまう。
 

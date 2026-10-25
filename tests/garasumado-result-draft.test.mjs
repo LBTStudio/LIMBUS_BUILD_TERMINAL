@@ -199,7 +199,7 @@ test("利用者が帰属先を選んだ分は照合より優先される（M）"
   const e = draft.blocks.find((b) => b.name === "夜E");
   const f = draft.blocks.find((b) => b.name === "夜F");
   assert.equal(e.items.length, 1, "選んだ方へ入る");
-  assert.equal(f.items.length, 0, "照合结果是Discard");
+  assert.equal(f.items.length, 0, "照合の結果は破棄（Discard）");
   assert.equal(e.items[0].tier, "M", "利用者の選択");
 });
 

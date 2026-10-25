@@ -36,6 +36,14 @@ test("同じ E.G.O でも由来が違えば帳簿上の意味が変わる", () =
   assert.notEqual(grant.id, purchase.id);
 });
 
+test("付与・供与の表記も配布として読む", () => {
+  const granted = V.inferProvenance("サポートスロットを付与");
+  const supplied = V.inferProvenance("シナリオ報酬として供与");
+  assert.equal(granted.id, "grant");
+  assert.equal(granted.priced, false, "付与は支出ではない");
+  assert.equal(supplied.id, "grant");
+});
+
 test("推定には必ず根拠と確度が付く", () => {
   const hit = V.inferProvenance("ルサンチマン 購入");
   assert.ok(hit.id, "由来が分かる");
