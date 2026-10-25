@@ -45,7 +45,15 @@ jobs:
         run: npm install --no-save playwright@1.64.0
 
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        run: |
+          # apt dependency installation can stall independently of the browser download on hosted runners.
+          # Cap that path and retry the browser install without apt; the screenshot script will still fail
+          # clearly if the runner is genuinely missing a required shared library.
+          if timeout --signal=TERM --kill-after=10s 120s npx playwright install --with-deps chromium; then
+            exit 0
+          fi
+          echo "::warning::Playwright --with-deps timed out or failed; retrying Chromium install without apt."
+          npx playwright install chromium
 
       - name: Capture real UI and annotate target controls
         run: node tools/ui/capture-tutorial-screenshots.mjs
