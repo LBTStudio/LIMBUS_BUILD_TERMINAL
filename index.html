@@ -20,7 +20,7 @@ function loadDB(){
         return Promise.allSettled([
           readJSON("data/items.json?v=b47b58ae"),
           readJSON("data/gacha-theme-packs.json?v=8d4dced2"),
-          readJSON("data/special-items.json?v=bb5fbcbb")
+          readJSON("data/special-items.json?v=26970fb5")
         ]).then(function(aux){
           window.DB.items = aux[0].status === "fulfilled" && Array.isArray(aux[0].value) ? aux[0].value : [];
           window.LBT_GACHA_PACKS = aux[1].status === "fulfilled" && aux[1].value && typeof aux[1].value === "object" ? aux[1].value : { packs: [] };
@@ -169,7 +169,7 @@ window.addEventListener("load", function(){
   <script src="vendor/react-dom.min.js?v=35f4f974"></script>
 <script src="js/core.js?v=d79b98be"></script>
 			<script src="js/ego-slot-forms.js?v=85aa4887"></script>
-				<script src="js/state.js?v=62577062"></script>
+				<script src="js/state.js?v=819e8f77"></script>
 				<script src="js/persona-draft-import.js?v=a4692646"></script>
 					<script src="js/share-link.js?v=2a9892b5"></script>
 					<script src="js/generator.js?v=ff5f0a15"></script>
