@@ -584,3 +584,20 @@ test("混在する硝子窓URLは全件抽出し、不正URLも成功分と別�
   assert.ok(parsed.invalid.some((row) => row.text.includes("not-a-share-link")),
     "不正URLを成功したURLの陰に隠して捨てない");
 });
+
+
+test("支出節の現在残高・残り残高を支出額として誤記帳しない", () => {
+  const parsed = w.LBT_garaMemo.parseMemo([
+    "・支出",
+    "道具A 現在130LP",
+    "道具B 残り42欠片",
+    "道具C 130LP",
+    "正義購入 現在87欠片"
+  ].join("\n"));
+  assert.deepEqual(
+    [...parsed.spends].map((spend) => [spend.name, spend.lp, spend.shards]),
+    [["道具C 130LP", 130, 0], ["正義", 0, 0]]
+  );
+  assert.ok(parsed.reasons.some((reason) => /支出金額が読み取れない/.test(reason.reason)),
+    "購入動詞があっても残高しかなければ、支出額の確認理由を返す");
+});
