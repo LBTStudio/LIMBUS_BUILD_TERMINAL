@@ -21,7 +21,7 @@ function load() {
   context.globalThis = context;
   vm.createContext(context);
   vm.runInContext(source, context, { filename: "js/garasumado-roster-import.js" });
-  return { api: window.LBT_garasumado, window };
+  return { api: { toDispatchActions: window.LBT_toDispatchActions }, window };
 }
 
 function personaManifest({ mode = "t", no = 30, source = "buy", cost } = {}) {
