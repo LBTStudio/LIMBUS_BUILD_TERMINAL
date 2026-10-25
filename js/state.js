@@ -2596,11 +2596,29 @@ function makeAccountEpoch(previous) {
   if (next === previous) next += "-next";
   return next;
 }
+/* 保存イベントはオンライン保全が明示的に有効な場合だけ同期の契機となる。
+   cloud-backup.js は対象キーをスナップショット化し、認証情報そのものは除外する。 */
+function announceBackupSourceChanged(key, operation) {
+  const name = String(key || "");
+  const isBackupData = name === STORAGE_KEY
+    || name.startsWith(`${STORAGE_KEY}.backup.`)
+    || name.startsWith(`${STORAGE_KEY}.corrupt.`)
+    || name === "lbt_accounts_index"
+    || name === "lbt_account_active"
+    || name === "lbt_accounts_icons"
+    || name.startsWith("lbt_account_")
+    || name.startsWith("lbt_epoch_account_");
+  if (!isBackupData || typeof window.dispatchEvent !== "function" || typeof CustomEvent === "undefined") return;
+  try {
+    window.dispatchEvent(new CustomEvent("lbt:backup-source-changed", { detail: { key: name, operation } }));
+  } catch (_) {}
+}
 function writeStorageRaw(key, value) {
   const storage = lbtStorage();
   if (!storage) return false;
   try {
     storage.setItem(key, value);
+    announceBackupSourceChanged(key, "write");
     return true;
   } catch (_) {
     return false;
@@ -2611,6 +2629,7 @@ function removeStorageRaw(key) {
   if (!storage) return false;
   try {
     storage.removeItem(key);
+    announceBackupSourceChanged(key, "remove");
     return true;
   } catch (_) {
     return false;
