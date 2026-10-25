@@ -3861,6 +3861,7 @@ const LedgerPanel = ({ state, dispatch }) => {
   */
   const [dragId, setDragId] = React.useState(null);
   const [overId, setOverId] = React.useState(null);
+  const [movingEntryId, setMovingEntryId] = React.useState(null);
   const [newResult, setNewResult] = React.useState({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} } });
   /* 選択中のパックはフォーム側が持つ。TicketInputs 内で持つと、親が組み立てる
      income に選んだパック名が入らない（内部 state だから）。 */
@@ -4076,6 +4077,7 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
 /* 残額は全明細から求める。削除は Undo/Redo が効くので、
 /* 取り消し用の操作槽は置かない。 */
   const unclassified = entries.filter((e) => !e.resultId);
+  const movingEntry = movingEntryId ? entries.find((entry) => entry.id === movingEntryId) || null : null;
 
   /* リザルトごとの明細と支出合計。導出なので保存しない。 */
   const byResult = (id) => entries.filter((e) => e.resultId === id);
@@ -4096,19 +4098,33 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   const LEDGER_DRAG_MIME = "application/x-lbt-ledger-entry";
   const moveEntry = (id, resultId) => {
     if (!id) return;
-    dispatch({ type: "SET_ENTRY_RESULT", id, resultId: resultId || null });
+    const existing = (Array.isArray(state.entries) ? state.entries : []).find((entry) => entry.id === id);
+    const nextResultId = resultId || null;
+    if (!existing || (existing.resultId || null) !== nextResultId) {
+      dispatch({ type: "SET_ENTRY_RESULT", id, resultId: nextResultId });
+      toast(nextResultId ? "明細をリザルトへ移動しました" : "明細を未分類へ戻しました");
+    }
     setDragId(null);
     setOverId(null);
+    setMovingEntryId(null);
   };
+  /* ドラッグが難しいタッチ環境／キーボード向け。明細を選んでから移動先カードを押す。 */
+  const startMoveEntry = (entry) => {
+    setDragId(null);
+    setOverId(null);
+    setMovingEntryId((current) => current === entry.id ? null : entry.id);
+  };
+  const cancelMoveEntry = () => setMovingEntryId(null);
   /* 行のドラッグ属性。未分類とリザルトで同じものを使う。 */
 const dragProps = (entry) => ({
   draggable: true,
   onDragStart: (e) => {
+    setMovingEntryId(null);
     setDragId(entry.id);
     try { e.dataTransfer?.setData(LEDGER_DRAG_MIME, entry.id); } catch (_) { /* 旧Browserは無視 */ }
     try { e.dataTransfer && (e.dataTransfer.effectAllowed = "move"); } catch (_) {}
   },
-  onDragEnd: () => { setDragId(null); setOverId(null); }
+  onDragEnd: () => { setDragId(null); setOverId(null); setMovingEntryId(null); }
 });
 const readDragId = (event) => {
     try {
@@ -4839,7 +4855,13 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
     h(Card, { className: "ledger-queue" },
       h("div", { className: "card-header owned-library-bar" },
         h("span", { className: "t-label" }, "未分類"),
-        h("span", { className: "ledger-note" }, "明細をリザルトカードへドラッグして移動できます")
+        h("span", { className: "ledger-note" }, "ドラッグ、または「移動」から選択して帰属できます"),
+        movingEntry && h("button", {
+          type: "button", className: "ledger-queue-move-target",
+          disabled: !movingEntry.resultId,
+          title: !movingEntry.resultId ? "この明細はすでに未分類です" : "選択中の明細を未分類へ戻す",
+          onClick: () => moveEntry(movingEntry.id, null)
+        }, !movingEntry.resultId ? "未分類（現在地）" : "未分類へ移動")
       ),
       h("div", { className: "card-body stack-2" },
         unclassified.length === 0
@@ -4854,11 +4876,18 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
           h("span", { className: "ledger-row-kind" }, kindLabel(entry.kind)),
           h("span", { className: "ledger-row-cost" }, entry.cost?.lp ? `${entry.cost.lp}LP` : entry.cost?.shards ? `${entry.cost.shards}SHARD` : "—"),
           h("button", {
+            type: "button", className: "ledger-row-move-action",
+            "aria-pressed": movingEntryId === entry.id,
+            "aria-label": `${entry.name} の移動先を選択`,
+            title: "ドラッグできない場合は、移動先カードを選べます",
+            onClick: () => startMoveEntry(entry)
+          }, movingEntryId === entry.id ? "選択中" : "移動"),
+          h("button", {
             type: "button",
             className: "ledger-row-trash",
             title: "削除する（Ctrl+Z で取り消せます）",
             "aria-label": `${entry.name} を削除する`,
-            onClick: () => dispatch({ type: "PURGE_ENTRY", id: entry.id })
+            onClick: () => { if (movingEntryId === entry.id) setMovingEntryId(null); dispatch({ type: "PURGE_ENTRY", id: entry.id }); }
           }, "削除")
         ))
       )
@@ -4870,7 +4899,11 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
        ただしここでは計算しない。鎖は読み手側で再計算して確かめる。 */
     h(DrawLedgerPanel, { state }),
 
-    /* リザルトカード。ドロップ先。 */
+    /* リザルトカード。ドラッグ先とクリック移動先を同じカードへ統一。 */
+    movingEntry && h("div", { className: "ledger-move-mode", role: "status" },
+      h("span", null, `「${movingEntry.name}」の移動先を選択中です。対象カードの「ここへ移動」を押してください。`),
+      h(Button, { size: "sm", variant: "ghost", onClick: cancelMoveEntry }, "移動をやめる")
+    ),
     h("div", { className: "ledger-results-toolbar" },
       h("span", { className: "ledger-results-count" },
         "リザルト " + sortedResults.length + " / " + results.length + " 件"),
@@ -4933,12 +4966,12 @@ h(Card, { className: "ledger-card" },
                 onChange: (event) => updateResultDraftField("date", event.target.value)
               })
             ),
-            dragId && h("span", { className: `ledger-drop-hint${overId === result.id ? " is-over" : ""}`, "aria-live": "polite" }, overId === result.id ? "ここへドロップ" : "ドロップ先")
+            (dragId || movingEntryId) && h("span", { className: `ledger-drop-hint${overId === result.id ? " is-over" : ""}`, "aria-live": "polite" }, movingEntryId ? (overId === result.id ? "ここへ移動" : "移動先") : (overId === result.id ? "ここへドロップ" : "ドロップ先"))
           )
         : h("div", { className: "ledger-card-heading" },
             h("span", { className: "ledger-card-title" }, result.name),
             h("span", { className: "ledger-card-date" }, result.date || "—"),
-            dragId && h("span", { className: `ledger-drop-hint${overId === result.id ? " is-over" : ""}`, "aria-live": "polite" }, overId === result.id ? "ここへドロップ" : "ドロップ先")
+            (dragId || movingEntryId) && h("span", { className: `ledger-drop-hint${overId === result.id ? " is-over" : ""}`, "aria-live": "polite" }, movingEntryId ? (overId === result.id ? "ここへ移動" : "移動先") : (overId === result.id ? "ここへドロップ" : "ドロップ先"))
           ),
       h("div", { className: "ledger-card-actions" },
         isEditing
@@ -4954,20 +4987,28 @@ h(Card, { className: "ledger-card" },
                 onClick: (event) => { event.preventDefault(); event.stopPropagation(); cancelResultEditor(); }
               }, "取消")
             ]
-          : h("button", {
-              type: "button",
-              className: "ledger-card-edit-btn",
-              title: "このリザルトの登録情報（LP・欠片・抽出チケット）を編集します",
-              "aria-label": `${result.name} の登録情報を編集`,
-              "aria-expanded": false,
-              "aria-pressed": false,
-              disabled: ticketPanel !== null && !isEditing,
-              onClick: (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                openResultEditor(result);
-              }
-            }, "編集")
+          : movingEntry
+            ? h("button", {
+                type: "button", className: "ledger-card-move-target",
+                disabled: movingEntry.resultId === result.id,
+                title: movingEntry.resultId === result.id ? "この明細はすでにこのリザルトにあります" : "選択中の明細をこのリザルトへ移動",
+                "aria-label": `${movingEntry.name} を「${result.name}」へ移動`,
+                onClick: () => moveEntry(movingEntry.id, result.id)
+              }, movingEntry.resultId === result.id ? "ここが現在地" : "ここへ移動")
+            : h("button", {
+                type: "button",
+                className: "ledger-card-edit-btn",
+                title: "このリザルトの登録情報（LP・欠片・抽出チケット）を編集します",
+                "aria-label": `${result.name} の登録情報を編集`,
+                "aria-expanded": false,
+                "aria-pressed": false,
+                disabled: ticketPanel !== null && !isEditing,
+                onClick: (event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  openResultEditor(result);
+                }
+              }, "編集")
       )
     ),
             h("div", { className: "card-body ledger-card-body" },
@@ -5068,6 +5109,13 @@ h(Card, { className: "ledger-card" },
                         h("span", { className: "ledger-row-cost" },
                           entry.cost?.lp ? entry.cost.lp + "LP" : entry.cost?.shards ? entry.cost.shards + "SHARD" : "—"),
                         h("button", {
+                          type: "button", className: "ledger-row-move-action",
+                          "aria-pressed": movingEntryId === entry.id,
+                          "aria-label": entry.name + " の移動先を選択",
+                          title: "ドラッグできない場合は、移動先カードを選べます",
+                          onClick: () => startMoveEntry(entry)
+                        }, movingEntryId === entry.id ? "選択中" : "移動"),
+                        h("button", {
                           type: "button", className: "ledger-row-release",
                           title: "帰属を外して未分類へ戻す", "aria-label": entry.name + " の帰属を外す",
                           onClick: () => moveEntry(entry.id, null)
@@ -5075,7 +5123,7 @@ h(Card, { className: "ledger-card" },
                         h("button", {
                           type: "button", className: "ledger-row-trash",
                           title: "削除する（Ctrl+Z で取り消せます）", "aria-label": entry.name + " を削除する",
-                          onClick: () => dispatch({ type: "PURGE_ENTRY", id: entry.id })
+                          onClick: () => { if (movingEntryId === entry.id) setMovingEntryId(null); dispatch({ type: "PURGE_ENTRY", id: entry.id }); }
                         }, "削除")
                       )))
                 )
