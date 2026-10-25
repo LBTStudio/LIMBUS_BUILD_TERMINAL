@@ -89,6 +89,8 @@
   /* 報酬行の 1 項目。例: LP:150(+9) / 自我の欠片:70(+16) / 人格抽出チケットx1 */
   function readReward(item) {
     const text = toHalf(item);
+    /* 「硝子の欠片」は資源アイテムであり、自我の欠片通貨ではない。 */
+    if (/硝子の(?:破片|欠片|かけら|カケラ)/.test(text)) return null;
     /* 増減 (±N) は残高差なので、収入には足さない。原文は残す。 */
     const delta = text.match(/([+-])\s*(\d[\d,]*)/);
     const deltaAmount = delta ? safeAmount(delta[2]) : null;
@@ -139,7 +141,7 @@
   /* 旧シナリオ一覧（『シナリオ名』→報酬→獲得品/同期ログ）にも対応。
      数値と通貨の両方が明示されたペアだけ読む。硝子の破片は自我の欠片ではない。 */
   function parseLegacyIncome(line) {
-    const text = toHalf(line).replace(/硝子の(?:破片|かけら|カケラ)/g, " ");
+    const text = toHalf(line).replace(/硝子の(?:破片|欠片|かけら|カケラ)/g, " ");
     const lpMatches = [...text.matchAll(/(\d[\d,]*)\s*LP\b|\bLP\s*[:：]?\s*(\d[\d,]*)/gi)];
     const shardMatches = [...text.matchAll(/(\d[\d,]*)\s*(?:自我の)?(?:欠片|かけら|欠けら|カケラ)|(?:自我の)?(?:欠片|かけら|欠けら|カケラ)\s*[:：]?\s*(\d[\d,]*)/g)];
     if (!lpMatches.length && !shardMatches.length) return null;
@@ -169,7 +171,7 @@
 
   function parseLegacyGlassGain(line) {
     const text = toHalf(line);
-    if (!/硝子の(?:破片|かけら|カケラ)/.test(text) || /(?:使用|消費)/.test(text)) return null;
+    if (!/硝子の(?:破片|欠片|かけら|カケラ)/.test(text) || /(?:使用|消費)/.test(text)) return null;
     const countMatch = text.match(/[x×]\s*(\d[\d,]*)/i)
       || text.match(/(\d[\d,]*)\s*(?:個|つ)/)
       || text.match(/([一二三四五六七八九十]+)\s*(?:個|つ)?/);
@@ -182,8 +184,8 @@
 
   function parseLegacyGlassUse(line) {
     const text = toHalf(line);
-    if (!/硝子の(?:破片|かけら|カケラ)/.test(text) || !/(?:使用|消費)/.test(text)) return null;
-    const match = text.match(/硝子の(?:破片|かけら|カケラ)\s*(?:を\s*)?(?:(\d[\d,]*)\s*(?:個|つ)?|[x×]\s*(\d[\d,]*)|([一二三四五六七八九十]+)\s*(?:個|つ)?)\s*(?:を\s*)?(?:使用|消費)/);
+    if (!/硝子の(?:破片|欠片|かけら|カケラ)/.test(text) || !/(?:使用|消費)/.test(text)) return null;
+    const match = text.match(/硝子の(?:破片|欠片|かけら|カケラ)\s*(?:を\s*)?(?:(\d[\d,]*)\s*(?:個|つ)?|[x×]\s*(\d[\d,]*)|([一二三四五六七八九十]+)\s*(?:個|つ)?)\s*(?:を\s*)?(?:使用|消費)/);
     if (!match) return { error: "硝子の破片の消費個数を読み取れません" };
     const token = match[1] || match[2] || match[3] || "1";
     const kanji = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 };
@@ -294,6 +296,13 @@
         if (!current) open(null, null);
         for (const item of splitTop(section[2], (c) => c === "/")) {
           if (kind === "income") {
+            /* 硝子の破片／欠片の別表記は通貨収入へ混ぜず、アイテム獲得として保存する。 */
+            const glassGain = parseLegacyGlassGain(item);
+            if (glassGain) {
+              if (glassGain.error) skipped.push({ text: item, reason: glassGain.error });
+              else current.itemGains.push(glassGain);
+              continue;
+            }
             const got = readReward(item);
             if (!got) { skipped.push({ text: item, reason: "報酬の書式が読めない" }); continue; }
             if (got.invalidDelta) skipped.push({ text: item, reason: "増減欄の金額形式が不正です" });
