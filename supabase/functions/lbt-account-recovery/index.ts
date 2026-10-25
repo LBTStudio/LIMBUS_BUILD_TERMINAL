@@ -238,7 +238,12 @@ async function handle(body: any, accessToken: string) {
   }
 
   if (action === "get") {
-    return { found: true, revision: Number(vault.revision), payload: vault.payload, updatedAt: vault.updated_at, recoveryKeyEnabled: Boolean(vault.recovery_hash) };
+    let recoveryKeyMatches: boolean | null = null;
+    if (body.recoveryKey) {
+      const requestKeyHash = await hashRecoveryKey(normalizeRecoveryKey(body.recoveryKey));
+      recoveryKeyMatches = Boolean(vault.recovery_hash) && vault.recovery_hash === requestKeyHash;
+    }
+    return { found: true, revision: Number(vault.revision), payload: vault.payload, updatedAt: vault.updated_at, recoveryKeyEnabled: Boolean(vault.recovery_hash), recoveryKeyMatches };
   }
 
   if (action === "history") {
