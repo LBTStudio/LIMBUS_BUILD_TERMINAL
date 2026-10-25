@@ -10,7 +10,9 @@ const client = read("js/cloud-backup.js");
 const storage = read("js/state.js");
 const ui = read("js/accounts-ui.js");
 const html = read("index.html");
+const doc = read("docs/optional-account-cloud-backup.md");
 const migration = read("supabase/migrations/20261025211015_lbt_account_vaults.sql");
+const hardeningMigration = read("supabase/migrations/20261025212903_lbt_account_vault_access_hardening.sql");
 const recovery = read("supabase/functions/lbt-account-recovery/index.ts");
 
 test("オンライン保全は任意で、初期化・ローカル保存のみではアップロードしない", () => {
@@ -127,4 +129,16 @@ test("DB移行SQLの関数・トリガーが完結しており、レート制限
   assert.match(migration, /revoke all on function public\.lbt_consume_recovery_rate_limit\(text, integer, integer\) from public, anon, authenticated/i);
   assert.match(migration, /grant execute on function public\.lbt_consume_recovery_rate_limit\(text, integer, integer\) to service_role/i);
   assert.match(migration, /create trigger lbt_prepare_vaults_before_auth_user_delete/i);
+});
+
+
+test("オンライン保管庫テーブルをブラウザーから直接アクセスできず、Edge Function経由に限定する", () => {
+  assert.match(hardeningMigration, /drop policy if exists lbt_account_vaults_select_own/i);
+  assert.match(hardeningMigration, /drop policy if exists lbt_account_vaults_insert_own/i);
+  assert.match(hardeningMigration, /drop policy if exists lbt_account_vaults_update_own/i);
+  assert.match(hardeningMigration, /drop policy if exists lbt_account_vaults_delete_own/i);
+  assert.match(hardeningMigration, /drop policy if exists lbt_account_vault_versions_select_own/i);
+  assert.match(hardeningMigration, /drop policy if exists lbt_account_vault_versions_insert_own/i);
+  assert.match(hardeningMigration, /drop policy if exists lbt_account_vault_versions_delete_own/i);
+  assert.match(doc, /20261025212903_lbt_account_vault_access_hardening\.sql/);
 });
