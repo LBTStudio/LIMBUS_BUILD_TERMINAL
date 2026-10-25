@@ -15,6 +15,13 @@ const ui = readFileSync(new URL("../js/garasumado-import-ui.js", import.meta.url
 /* 整形（改行位置）は規約ではない。行をまたぐ検査は空白を潰してから照合する。 */
 const uiFlat = ui.replace(/\s+/g, " ");
 
+test("人格URLとキャラクターURLを同じ統合経路に流さない", () => {
+  assert.match(uiFlat, /const collectionKinds = new Set/);
+  assert.match(uiFlat, /collectionKinds\.size > 1/);
+  assert.match(uiFlat, /collectionKinds\.has\("personas"\)/);
+  assert.match(uiFlat, /各人格を個別に識別して登録する専用処理/);
+});
+
 test("取得中の busy は取得が例外でも必ず解除される（finally）", () => {
   /* fetch へ渡す以降の実装が throw に変わっても、busy が true のまま残ると
      画面が「取得中」のまま固まり、再試行の入口が分からなくなる。 */
