@@ -12,7 +12,7 @@ Supabase Freeの枠内で利用する前提ですが、無料枠には容量・�
 
 Googleの基本的なOAuthログイン設定自体は無料で可能です。Google Auth PlatformでWeb OAuthクライアントを作成し、SupabaseのコールバックURLとClient ID / Secretを設定します。LBTでは openid、メールアドレス、プロフィールの基本スコープに限定し、別途有料のGoogle APIは有効化しません。OAuth同意画面・アプリ公開時の要件は別途満たす必要があります。
 
-X APIの利用料金については、X Developer Platformの公式料金案内が従量課金方式を案内し、User: Readを1リソースあたり **US$0.010** と掲載しています。X OAuth2の設定にはDeveloper AppとClient ID / Secretが必要で、ユーザー情報を読み取るAPI呼び出しが課金対象になる可能性があるため、完全無料運用を保証できません。費用ゼロを最優先する間はXを有効化しません。
+X APIの利用料金については、2026-10-26時点のX Developer Platform公式料金案内が従量課金方式を案内し、User: Readを1リソースあたり **US$0.010** と掲載しています。X OAuth2の設定にはDeveloper AppとClient ID / Secretが必要で、ユーザー情報を読み取るAPI呼び出しが課金対象になる可能性があるため、完全無料運用を保証できません。この単価をそのまま「ログイン1回あたりの確定額」とはみなさず、実際の課金数はDeveloper Consoleで確認する必要があります。費用ゼロを最優先する間はXを有効化しません。
 
 これはOAuthプロバイダー自体の料金判断です。Supabaseの無料枠、利用上限、プロジェクト一時停止条件は別に適用されます。オンライン保全だけに依存せず、JSONバックアップを別の場所にも保管してください。
 
