@@ -21,11 +21,12 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-5279ed39";
+const CACHE_NAME = "lbt-92d21d16";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
   "mobile-preview.html",
+  "assets/cloud-backup.css?v=bc033be0",
   "assets/design-system.css?v=910f9485",
   "assets/fonts/corporate-logo-bold-subset.woff2?v=b56fa468",
   "assets/fonts/corporate-logo-medium-subset.woff2?v=dbbdb67e",
@@ -56,7 +57,8 @@ const PRECACHE_URLS = [
   "js/OtherSections.js?v=d0638f36",
   "js/PersonaCodex.js?v=59018e19",
   "js/SkillDeck.js?v=a93f6cb8",
-  "js/accounts-ui.js?v=04ce47b7",
+  "js/accounts-ui.js?v=9612dd66",
+  "js/cloud-backup.js?v=fc70b375",
   "js/core.js?v=d79b98be",
   "js/ego-slot-forms.js?v=85aa4887",
   "js/gacha-identity.js?v=25e8fdfa",
@@ -77,7 +79,7 @@ const PRECACHE_URLS = [
   "js/roster-resolver.js?v=01dce5a2",
   "js/share-link.js?v=c77e8999",
   "js/share-viewer.js?v=71f2da96",
-  "js/state.js?v=ecbb957a",
+  "js/state.js?v=cf22b702",
   "js/ui.js?v=8943eab8",
   "vendor/react-dom.min.js?v=35f4f974",
   "vendor/react.min.js?v=d949f1c3",
