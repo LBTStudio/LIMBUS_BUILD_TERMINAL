@@ -60,7 +60,7 @@
 
   function costFromParens(text) {
     const lp = [...text.matchAll(/(\d[\d,]*)\s*(?:lp|LP|Lp)/g)];
-    const shards = [...text.matchAll(/(\d[\d,]*)\s*(?:欠片|欠牁|カケラ|かけら|けっか)/g)];
+    const shards = [...text.matchAll(/(\d[\d,]*)\s*(?:欠片|欠けら|カケラ|かけら|けっか)/g)];
     const one = (list) => (list.length === 1 ? safeAmount(list[0][1]) : null);
     const l = one(lp);
     const s = one(shards);
@@ -83,7 +83,7 @@
     return name ? { name, parens: m[2] } : { name: String(text).trim(), parens: "" };
   }
 
-  const SHARD_WORD = /欠片|欠牁|カケラ|かけら|けっか/;
+  const SHARD_WORD = /欠片|欠けら|カケラ|かけら|けっか/;
   const LP_WORD = /\d\s*(?:lp|LP|Lp)$|lp\s*\d/i;
 
   /* 報酬行の 1 項目。例: LP:150(+9) / 自我の欠片:70(+16) / 人格抽出チケットx1 */
@@ -351,7 +351,7 @@
     const skipped = (parsed.skipped || []).slice();
     let legacyUseSequence = 0;
 
-    for (const record of parsed.records || []) {
+    for (const [recordIndex, record] of (parsed.records || []).entries()) {
       const title = record.title || "無題";
       const note = record.author ? `作：${record.author}` : "";
       const acceptedTickets = [];
@@ -392,7 +392,9 @@
         })
       });
       record.spends.forEach((spend, index) => {
-        if (excluded.has(index)) return;
+        const exclusionKey = `${recordIndex}:${index}`;
+        /* 従来の数値キーは最初のリザルトだけ後方互換で受け付ける。 */
+        if (excluded.has(exclusionKey) || (recordIndex === 0 && excluded.has(index))) return;
         if (spend.needsDecision) { skipped.push({ text: spend.raw || spend.name, reason: spend.reason || "要確認" }); return; }
         const { kind, dbName } = kindOf(spend, opts.resolve);
         actions.push({ type: "ADD_ENTRY", kind, name: dbName, cost: { lp: spend.cost.lp, shards: spend.cost.shards } });
