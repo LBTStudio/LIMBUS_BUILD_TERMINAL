@@ -109,6 +109,25 @@ async function verifiedUser(accessToken: string): Promise<string> {
   return String(user.id);
 }
 
+async function enforceAnonymousCreateLimit(req: Request) {
+  const forwarded = req.headers.get("cf-connecting-ip")
+    ?? req.headers.get("x-real-ip")
+    ?? req.headers.get("x-forwarded-for")?.split(",")[0]
+    ?? "unknown";
+  const ip = String(forwarded).trim().slice(0, 200) || "unknown";
+  const digest = await hashRecoveryKey("LBT-account-recovery-create:" + ip);
+  const allowed = await rest("rpc/lbt_consume_recovery_rate_limit", "POST", "", {
+    p_ip_digest: digest,
+    p_limit: 10,
+    p_window_seconds: 3600
+  });
+  if (allowed !== true) {
+    const error = new Error("この接続元からの復旧データ作成が多すぎます。1時間ほど空けてから再試行してください。");
+    (error as any).status = 429;
+    throw error;
+  }
+}
+
 async function getVaultByHash(hash: string) {
   const rows = await rest(VAULT, "GET", `select=id,user_id,recovery_hash,payload,revision,updated_at,created_at&recovery_hash=eq.${hash}&limit=1`);
   return Array.isArray(rows) ? rows[0] ?? null : null;
@@ -188,40 +207,67 @@ async function handle(body: any, accessToken: string) {
     const key = normalizeRecoveryKey(body.recoveryKey);
     const hash = await hashRecoveryKey(key);
     const userId = accessToken ? await verifiedUser(accessToken) : null;
-    let vault = userId ? await getVaultByUser(userId) : await getVaultByHash(hash);
-    if (userId && vault?.recovery_hash && vault.recovery_hash !== hash) {
-      throw new Error("このアカウントには既に復旧キーがあります。既存キーを保管したうえで利用してください。");
+
+    /* Read both possible identities before changing either one. Never silently
+       replace a key that points to a different vault belonging to another identity. */
+    const vaultByKey = await getVaultByHash(hash);
+    const vaultByUser = userId ? await getVaultByUser(userId) : null;
+    if (vaultByUser && vaultByKey && vaultByUser.id !== vaultByKey.id) {
+      throw new Error("この復旧キーは別の保全データに結びついています。既存データを自動統合しないため、どちらを使うか先に確認してください。");
     }
-    /* 復旧キーだけで先に保全した利用者が、後からGoogle/X連携を追加できる。
-       ユーザーIDの所有確認後、未連携の保管庫だけを結びつける。 */
-    if (!vault && userId) {
-      const occupied = await getVaultByHash(hash);
-      if (occupied) {
-        if (occupied.user_id && String(occupied.user_id) !== userId) {
-          throw new Error("この復旧キーは別のオンラインアカウントに結びついています。");
-        }
-        if (!occupied.user_id) {
-          const existingForUser = await getVaultByUser(userId);
-          if (existingForUser) throw new Error("このオンラインアカウントには別の保全データがあります。先にクラウドの内容を確認してください。");
-          const attached = await rest(VAULT, "PATCH",
-            `id=eq.${occupied.id}&user_id=is.null&select=id,user_id,recovery_hash,payload,revision,updated_at,created_at`,
-            { user_id: userId });
-          vault = Array.isArray(attached) && attached[0] ? attached[0] : await getVaultByHash(hash);
+
+    let vault: any = null;
+    if (userId && vaultByUser) {
+      vault = vaultByUser;
+      if (vault.recovery_hash && vault.recovery_hash !== hash) {
+        throw new Error("このオンラインアカウントには別の復旧キーが登録されています。");
+      }
+      if (!vault.recovery_hash) {
+        const rows = await rest(VAULT, "PATCH",
+          `id=eq.${vault.id}&recovery_hash=is.null&select=id,user_id,recovery_hash,payload,revision,updated_at,created_at`,
+          { recovery_hash: hash });
+        if (!Array.isArray(rows) || !rows[0]) {
+          const latest = await getVaultByUser(userId);
+          if (!latest || latest.recovery_hash !== hash) {
+            throw new Error("復旧キーを安全に結びつけられませんでした。既存データは変更していません。");
+          }
+          vault = latest;
         } else {
-          vault = occupied;
+          vault = rows[0];
         }
       }
-    }
-    if (!vault) {
+    } else if (vaultByKey) {
+      if (userId && vaultByKey.user_id && String(vaultByKey.user_id) !== userId) {
+        throw new Error("この復旧キーは別のオンラインアカウントに結びついています。");
+      }
+      if (userId && !vaultByKey.user_id) {
+        /* Explicit user action only: link a recovery-only vault to this OAuth user.
+           A concurrent claim is guarded by user_id IS NULL in the PATCH condition. */
+        const attached = await rest(VAULT, "PATCH",
+          `id=eq.${vaultByKey.id}&user_id=is.null&select=id,user_id,recovery_hash,payload,revision,updated_at,created_at`,
+          { user_id: userId });
+        if (!Array.isArray(attached) || !attached[0]) {
+          const latestByKey = await getVaultByHash(hash);
+          if (!latestByKey || String(latestByKey.user_id ?? "") !== userId) {
+            throw new Error("この復旧データをオンラインアカウントへ安全に結びつけられませんでした。");
+          }
+          vault = latestByKey;
+        } else {
+          vault = attached[0];
+        }
+      } else {
+        vault = vaultByKey;
+      }
+    } else {
+      if (!userId) await enforceAnonymousCreateLimit(req);
       vault = await createVault(userId, hash, payload);
-    } else if (!vault.recovery_hash && userId) {
-      const rows = await rest(VAULT, "PATCH", `id=eq.${vault.id}&select=id,user_id,recovery_hash,payload,revision,updated_at,created_at`,
-        { recovery_hash: hash });
-      vault = rows?.[0] ?? vault;
     }
+
     if (JSON.stringify(vault.payload) !== JSON.stringify(payload)) {
       const result = await updateVault(vault, payload, Number(vault.revision));
-      if (result.conflict) return { conflict: true, revision: result.vault?.revision, message: "オンラインデータが同時に更新されています。最新状態を読み直してください。" };
+      if (result.conflict) {
+        return { conflict: true, revision: result.vault?.revision, message: "オンラインデータが同時に更新されています。最新状態を読み直してください。" };
+      }
       vault = result.vault;
     }
     return { ok: true, revision: Number(vault.revision), updatedAt: vault.updated_at };
@@ -231,6 +277,7 @@ async function handle(body: any, accessToken: string) {
   if (!vault) {
     if (action === "backup" && Number(body.expectedRevision) === 0) {
       const payload = validatePayload(body.payload);
+      if (!userId) await enforceAnonymousCreateLimit(req);
       const created = await createVault(userId, hash, payload);
       return { found: true, revision: Number(created.revision), updatedAt: created.updated_at };
     }
