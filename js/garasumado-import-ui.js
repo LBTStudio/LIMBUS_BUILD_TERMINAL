@@ -513,7 +513,7 @@ const GarasumadoGroup = ({ group, onPick, onToggle, onToggleAll, onPickIdentity 
 };
 
 /* --- パネル本体 ----------------------------------------------------------- */
-const GarasumadoImportPanel = ({ onClose, onApply }) => {
+const GarasumadoImportPanel = ({ onClose, onApply, state }) => {
   const [url, setUrl] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState("");
@@ -856,7 +856,14 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
     const resolve = index && window.LBT_resolveCandidates
       ? (name) => window.LBT_resolveCandidates(index, name)?.[0] || null
       : () => null;
-    const result = window.LBT_toDispatchActions?.(merged, keys, { purchases, resolve }) || { actions: [], skipped: [] };
+    const purchaseCost = (kind, persona, context) => {
+      const details = { name: persona?.name || "", no: persona?.no, rank: persona?.rank, ownsPersona: Boolean(context?.ownsPersona) };
+      if (typeof window.LBT_resolveAcquireCost === "function") return window.LBT_resolveAcquireCost(kind, "purchase", details);
+      return window.LBT_provenance?.acquireCost?.(kind, "purchase", { ...details, db: window.DB }) || null;
+    };
+    const result = window.LBT_toDispatchActions?.(merged, keys, {
+      purchases, resolve, ownsPersona: (state?.roster?.personas || []).length > 0, purchaseCost
+    }) || { actions: [], skipped: [] };
   /* manifest と選択キーは「記録へ帰属する明細」を作るために必要。
      既存の利用側（アカウント編集）は読まないので、壊さず足すだけで済む。 */
   const applied = { actions: result.actions, skipped: result.skipped, rosterActions: result.actions, manifest, keys };
