@@ -434,7 +434,10 @@
   function registerPersonaModes(list, mode) {
     for (const one of list || []) PERSONA_MODE_OF.set(one, mode);
   }
-  function resolvePersonaMode(persona) {
+  function resolvePersonaMode(persona, preferredMode) {
+    /* カード表示用にコピーされた人格は WeakMap のキーと同じ参照ではない。
+       呼び出し元が一覧上の mode を知っている場合はそれを最優先し、No重複による誤登録を防ぐ。 */
+    if (preferredMode === "n" || preferredMode === "t") return preferredMode;
     /* 名前索引が返す候補は DB の実体ではなく、kinds に mode を持つ。 */
     const fromKinds = (persona?.kinds || []).find((k) => k && k.kind === "persona");
     if (fromKinds?.mode) return fromKinds.mode;
