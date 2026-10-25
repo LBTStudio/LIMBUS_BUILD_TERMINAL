@@ -16,6 +16,7 @@ test("使い方に人格テキスト取込と硝子窓移行の手順がある",
   assert.ok(app.includes("硝子窓URLから移行"));
   assert.ok(app.includes("同期人格として反映"));
   assert.ok(app.includes("画面の見取り図。番号は下の手順に対応します。"));
+  assert.ok(app.includes('diagram: "workspace"'));
   assert.ok(app.includes('diagram: "personaText"'));
   assert.ok(app.includes('diagram: "personaUrl"'));
 });
