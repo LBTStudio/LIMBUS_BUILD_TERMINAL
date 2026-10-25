@@ -34,19 +34,22 @@ function loadShareLink() {
   return window.LBT_shareLink;
 }
 
-test("補助JSONの404・通信失敗は起動を止めず、DB本体で準備を完了する", async () => {
+test("任意のガチャパックJSONの通信失敗は起動を止めず、アイテムカタログは完全に保つ", async () => {
+  const itemCatalog = JSON.parse(readFileSync(new URL("../data/items.json", import.meta.url), "utf8"));
+  const specialItemCatalog = JSON.parse(readFileSync(new URL("../data/special-items.json", import.meta.url), "utf8"));
   const fetchMock = async (url) => {
     if (url.includes("db.json")) return { ok: true, json: async () => ({ marker: "db-ready" }) };
-    if (url.includes("items.json")) return { ok: false, status: 404, json: async () => [] };
-    throw new Error("network offline");
+    if (url.includes("items.json")) return { ok: true, json: async () => itemCatalog };
+    if (url.includes("special-items.json")) return { ok: true, json: async () => specialItemCatalog };
+    throw new Error("optional gacha pack network offline");
   };
   const loaded = loadBootstrap(fetchMock);
   await loaded.ready;
   assert.equal(loaded.window.DB.marker, "db-ready");
-  assert.deepEqual(JSON.parse(JSON.stringify(loaded.window.DB.items)), []);
+  assert.equal(loaded.window.DB.items.length, 35, "必須のアイテム一覧は完全なまま");
+  assert.equal(loaded.window.DB.specialItems.length, 2, "特殊アイテム一覧も完全なまま");
   assert.deepEqual(JSON.parse(JSON.stringify(loaded.window.LBT_GACHA_PACKS)), { packs: [] });
-  assert.deepEqual(JSON.parse(JSON.stringify(loaded.window.DB.specialItems)), []);
-  assert.equal(loaded.warnings.length, 3);
+  assert.equal(loaded.warnings.length, 1, "任意のガチャパック失敗だけを警告する");
 });
 
 test("DB本体のHTTP失敗だけは起動エラーになる", async () => {
