@@ -367,6 +367,7 @@
     if (!currentKey) throw new Error("キーを再発行するには、最初に現在の復旧キーを入力して復元してください。");
     const remote = await getRemote();
     if (!remote.found) throw new Error("この復旧キーに対応するクラウドデータが見つかりません。");
+    const wasEnabled = readStorage(ENABLED_KEY) === "1";
     const newKey = "LBT1-" + randomToken(32);
     if (!confirm("復旧キーを明示的に再発行します。クラウド内のデータと履歴は維持されますが、再発行後は古いキーでの復元ができなくなります。新しいキーを安全な場所へ保存してください。続けますか？")) return false;
     const result = await callRecovery({ action: "rotate_recovery", recoveryKey: currentKey, newRecoveryKey: newKey });
@@ -375,7 +376,7 @@
       throw new Error("新しい復旧キーを発行し、ファイルをダウンロードしましたが、端末には保存できませんでした。ファイルを保管し、復旧キー欄へ新しいキーを入力してください。");
     }
     writeStorage(REVISION_KEY, String(result.revision || remote.revision));
-    setEnabled(false);
+    setEnabled(wasEnabled);
     downloadRecoveryKeyFile(newKey, "recovery-key-reissued");
     emit({
       mode: "recovery",
@@ -533,7 +534,7 @@
         h("strong", null, "オンライン保全（復旧キー方式）"),
         h("span", { className: "lbt-cloud-state" }, view.label || "ローカル保存")
       ),
-      h("p", { className: "lbt-cloud-description" }, "Google／Xログインは使用しません。復旧キーだけでクラウドへ保全・復元できます。ローカル保存は常に継続し、初回アップロードは明示的な操作が必要です。"),
+      h("p", { className: "lbt-cloud-description" }, "外部ログインは使用せず、復旧キーだけでクラウドへ保全・復元できます。ローカル保存は常に継続し、初回アップロードは明示的な操作が必要です。"),
       h("p", { className: "lbt-cloud-message", role: "status", "aria-live": "polite" }, view.message),
       !hasKey ? h(React.Fragment, null,
         h("p", { className: "lbt-cloud-provider-note" }, "まだ復旧キーがない場合は発行してください。すでにキーを持っている場合は、下の入力欄から復元できます。")
