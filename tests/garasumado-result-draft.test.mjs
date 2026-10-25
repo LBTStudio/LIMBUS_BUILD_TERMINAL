@@ -571,3 +571,35 @@ test("キャラクターURLと人格URLは取り込み前から別種として�
   ].join("\n"));
   assert.deepEqual([...batch.urls].map((row) => row.collection), ["characters", "personas"]);
 });
+
+
+test("支出節の現在残高・残り残高を購入額として誤計上しない", () => {
+  const parsed = w.LBT_garaMemo.parseMemo([
+    "・支出",
+    "道具A 現在130LP",
+    "道具B 残り42欠片",
+    "道具C 130LP",
+    "正義購入 現在87欠片"
+  ].join("\n"));
+  assert.deepEqual(
+    [...parsed.spends].map((spend) => [spend.name, spend.lp, spend.shards]),
+    [["道具C 130LP", 130, 0], ["正義", 0, 0]]
+  );
+  assert.ok(parsed.reasons.some((reason) => /支出金額が読み取れない/.test(reason.reason)),
+    "価格が本文に無ければ推測で確定せず、理由を返す");
+});
+
+test("硝子窓URLの一括貼り付けはURL・裸ID・スキームなしURLを混在処理し、不正URLも示す", () => {
+  const parsed = G.parseShareUrls([
+    "https://lbt-garasumado.vercel.app/view/6yXgGPzX1eSEboi2KSLM",
+    "Eo19HoEJpsICZwLc7MN4",
+    "lbt-garasumado.vercel.app/view/Eo19HoEJpsICZwLc7MN4",
+    "https://lbt-garasumado.vercel.app/not-a-share-link/BadId"
+  ].join("\n"));
+  assert.equal(parsed.urls.length, 2, "裸IDとスキームなしURLの重複は1件にまとめる");
+  assert.deepEqual([...parsed.urls].map((item) => item.id), [
+    "6yXgGPzX1eSEboi2KSLM", "Eo19HoEJpsICZwLc7MN4"
+  ]);
+  assert.ok(parsed.invalid.some((item) => item.text.includes("not-a-share-link")),
+    "有効URLが他にあっても不正URLを黙って無視しない");
+});
