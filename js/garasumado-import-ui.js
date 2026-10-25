@@ -845,7 +845,6 @@ function appliedSummary(actions) {
   if (confirmed) {
   /* 確定済みなら確定結果だけを出す。シミュレーションは「反映前の1手前」で、
      確定した内容をそのまま確認できるようにする。画面は自動で閉じない。 */
-  if (confirmed) {
     const sim = confirmed.simulation;
     const mismatched = Boolean(sim) && sim.held !== confirmed.counts.held;
     const typeRows = Object.entries(confirmed.counts.byType)
@@ -877,7 +876,6 @@ function appliedSummary(actions) {
         )
       )
     );
-  }
   }
 
   if (!manifest) {
