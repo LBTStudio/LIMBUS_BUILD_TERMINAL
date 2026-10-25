@@ -5109,7 +5109,7 @@ h(Card, { className: "ledger-card" },
                         const specialEnhancements = Array.isArray(owner?.build?.enhancements)
                           ? owner.build.enhancements.filter((enhancement) => {
                               const name = String(enhancement?.name || "").trim();
-                              return name && (enhancement.category === "common" || catalogSpecial.some((candidate) => candidate?.name === name));
+                              return name && catalogSpecial.some((candidate) => candidate?.name === name);
                             })
                           : [];
                         /* 購入明細は通常1明細=1購入。数量を持つ旧/移行データでは記録値を優先する。 */
