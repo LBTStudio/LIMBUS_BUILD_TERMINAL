@@ -289,7 +289,7 @@ async function captureCompactResultDetails(page, mode) {
   log("captured result card visual review " + filename);
   const effectDisclosure = card.locator(".ledger-object-enhancement-details").first();
   if (await effectDisclosure.count()) {
-    await effectDisclosure.locator("> summary").click();
+    await effectDisclosure.locator(":scope > summary").click();
     const effectText = await effectDisclosure.locator("p").innerText();
     if (!effectText.trim()) throw new Error("Special enhancement effect did not expand");
     const expandedFilename = "result-enhancement-expanded-" + mode + ".png";
