@@ -7,8 +7,8 @@ workers_dev = true
 # Verify account billing plan before deployment; use Workers Free only.
 [[d1_databases]]
 binding = "BACKUP_DB"
-database_name = "lbt-recovery"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_name = "lbtstudio-account-datebase"
+database_id = "bee441fa-f256-4e04-8149-f6971ae66452"
 
 [[ratelimits]]
 name = "RECOVERY_RATE_LIMIT"
