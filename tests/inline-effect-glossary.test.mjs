@@ -200,8 +200,11 @@ test("persona passive cards pass owner scope to the passive name and both effect
   assert.ok(sections.includes('scope: passiveGlossaryScope'));
 });
 
-test("support passive names and E.G.O quick effects use owner-scoped glossary rendering", () => {
+test("passive and support passive effect bodies use owner-scoped glossary rendering", () => {
   const sections = readFileSync(resolve(ROOT, "js/OtherSections.js"), "utf8");
+  assert.ok(sections.includes('LBT_GLOSSARY_TEXT(pas.effect, scope || "人格パッシブ")'));
+  assert.ok(sections.includes('LBT_GLOSSARY_TEXT(spp.effect, "サポートパッシブ:" + spp.name)'));
+  assert.ok(sections.includes('LBT_GLOSSARY_TEXT(selected.effect, (selectedIsDeath ? "死亡後サポートパッシブ:" : "サポートパッシブ:") + selected.name)'));
   assert.ok(!sections.includes('LBT_GLOSSARY_TEXT(spp.name, "サポートパッシブ:" + spp.name)'));
   assert.ok(!sections.includes('LBT_GLOSSARY_TEXT(selected.name, (selectedIsDeath ? "死亡後サポートパッシブ:" : "サポートパッシブ:") + selected.name)'));
   assert.ok(sections.includes('LBT_GLOSSARY_TEXT(formatPreview(skill.effect, 92), "E.G.O簡易詳細:" + ego.name)'));
