@@ -57,7 +57,7 @@ test("バックアップテーブルは所有者単位のRLSで保護される",
   assert.match(migration, /alter table public\.lbt_account_vault_versions enable row level security/i);
   assert.match(migration, /using \(\(select auth\.uid\(\)\) = user_id\)/i);
   assert.match(migration, /with check \(\(select auth\.uid\(\)\) = user_id\)/i);
-  assert.match(migration, /revoke all on table public\.lbt_account_vaults from anon, authenticated/i);
+  assert.match(migration, /revoke all on table public\.lbt_account_vaults from public, anon, authenticated/i);
   assert.match(migration, /grant select, insert, update, delete on table public\.lbt_account_vaults to authenticated/i);
 });
 
