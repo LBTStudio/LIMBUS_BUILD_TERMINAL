@@ -28,6 +28,7 @@ const h = React.createElement;
     ADD_ROSTER_EGO: "E.G.O",
     ADD_ROSTER_SUPPORT: "サポート",
     ADD_ROSTER_SPIRIT: "精神",
+    ADD_GARASUMADO_PERSONA: "人格シート",
     SPEND_TICKET: "チケット消費"
   };
 
@@ -525,6 +526,7 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [] }) => {
   /* 残高照合は元文書（doc）にも当てるので、manifest と並べて保持する。 */
   const [doc, setDoc] = React.useState(null);
   const [urlReport, setUrlReport] = React.useState(null);
+  const [bundleReport, setBundleReport] = React.useState(null);
   const [progress, setProgress] = React.useState("");
   /* 人格共有URLはキャラクター所持・履歴とは別パネルで、人格ごとに識別して取り込む。 */
   const [personaItems, setPersonaItems] = React.useState(null);
@@ -544,11 +546,42 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [] }) => {
       && personaNameKey(other.result?.persona?.name) === name);
     return existing || inBatch;
   };
+  const personaExtraSummary = (extra) => {
+    const value = extra || {};
+    const hasPalette = Boolean(String(value.chatPaletteAuto || "").trim() || String(value.chatPaletteManual || "").trim());
+    const count = Array.isArray(value.enhancements) ? value.enhancements.length : 0;
+    return "強化 " + count + "件・メモ " + (String(value.memo || "").trim() ? "あり" : "なし")
+      + "・チャットパレット " + (hasPalette ? "あり" : "なし") + "（元データを保持）";
+  };
+  const renderBundleReport = () => {
+    if (!bundleReport) return null;
+    return h("section", { className: "gara-url-report" },
+      h("strong", null,
+        "JSON取込：キャラクター " + bundleReport.characterFiles + "件・リザルト "
+        + bundleReport.resultCount + "件・人格シート " + bundleReport.validPersonas
+        + "/" + bundleReport.personaFiles + "件を解析"),
+      bundleReport.ignoredCount
+        ? h("p", { className: "gara-url-report-summary" }, "画像・PDF・TXTなど " + bundleReport.ignoredCount + "ファイルを除外しました。")
+        : h("p", { className: "gara-url-report-summary" }, "除外対象ファイルはありません。"),
+      (bundleReport.errors || []).length
+        ? h("div", { className: "gara-url-report-summary" },
+          h("span", { className: "gara-note-warn" }, "一部のデータを読み込めませんでした。"),
+          (bundleReport.errors || []).slice(0, 6).map((item, index) => h("div", {
+            className: "gara-url-report-item", key: (item.fileName || item.url || "file") + "-" + index
+          },
+            h("code", null, item.fileName || item.url || "ファイル名不明"),
+            h("span", null, item.message || item.reason || "読み込みに失敗しました")
+          ))
+        )
+        : null
+    );
+  };
 
   const load = async (event) => {
     if (event && typeof event.preventDefault === "function") event.preventDefault();
     setError("");
     setUrlReport(null);
+    setBundleReport(null);
     setProgress("");
     const parsedBatch = window.LBT_parseShareUrls?.(url);
     if (!parsedBatch || !Array.isArray(parsedBatch.urls) || !parsedBatch.urls.length) {
@@ -930,6 +963,165 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [] }) => {
     ? window.LBT_reconcileBalance(manifest, doc)
     : null;
 
+  const loadExportBundle = async (event) => {
+    const files = Array.from(event?.target?.files || []);
+    if (event?.target) event.target.value = "";
+    if (!files.length) return;
+    setBusy(true);
+    setError("");
+    setUrlReport(null);
+    setBundleReport(null);
+    setProgress("ZIP / JSON のデータを読み込んでいます…");
+    setManifest(null);
+    setDoc(null);
+    setPicked({});
+    setChoices({});
+    setDecided({});
+    setIdentity({});
+    setLines([]);
+    setConfirmed(null);
+    setPersonaItems(null);
+    setPersonaPicked({});
+    setPersonaConfirmed(null);
+    try {
+      const bundle = await window.LBT_readGarasumadoExportFiles?.(files);
+      if (!bundle) throw new Error("ZIP / JSON の読み込み機能を利用できません。ページを再読み込みしてください。");
+
+      const personaRows = (bundle.personas || []).map((entry, index) => {
+        const id = String(entry.id || "");
+        const sourceUrl = id ? "https://lbt-garasumado.vercel.app/persona/view/" + id : "";
+        const result = sourceUrl
+          ? window.LBT_parseGarasumadoPersonaDocument?.(entry.data, sourceUrl)
+          : null;
+        const valid = Boolean(result?.ok && result?.persona);
+        return {
+          id: id || "invalid-persona-" + index,
+          url: sourceUrl || entry.fileName,
+          fileName: entry.fileName || entry.path || "人格JSON",
+          ok: valid,
+          result: result || null,
+          reason: result?.errors?.[0] || (sourceUrl ? "人格データを解析できませんでした。" : "人格データIDを確認できません。")
+        };
+      });
+      setPersonaItems(personaRows.length ? personaRows : null);
+      setPersonaPicked(Object.fromEntries(personaRows
+        .filter((row) => row.ok && !personaAlreadyImported(row.id))
+        .map((row) => [row.id, true])));
+
+      const reportErrors = [...(bundle.errors || [])];
+      personaRows.filter((row) => !row.ok).forEach((row) => {
+        reportErrors.push({ fileName: row.fileName, message: row.reason || "人格データを解析できませんでした。" });
+      });
+      let sourceDoc = null;
+      let resultCount = 0;
+      const characterFiles = (bundle.characters || []).length;
+      let manifestReady = false;
+
+      if (characterFiles) {
+        const sources = bundle.characters.map((entry) => {
+          const doc = { ...entry.data };
+          delete doc.imageUrl;
+          return { doc, updateTime: doc.updatedAt || doc.createdAt || "" };
+        });
+        const mergedDoc = window.LBT_mergeGarasumadoDocuments?.(sources);
+        if (mergedDoc?.error) {
+          reportErrors.push({ fileName: "キャラクターJSONの統合", message: mergedDoc.error });
+        } else if (mergedDoc) {
+          sourceDoc = mergedDoc;
+          resultCount = Array.isArray(sourceDoc.scenarioHistory) ? sourceDoc.scenarioHistory.length : 0;
+          setDoc(sourceDoc);
+          const db = window.DB || {};
+          const index = window.LBT_buildNameIndex?.(db, {}) || null;
+          const resolve = index ? (name) => window.LBT_resolveCandidates?.(index, name)?.[0] || null : () => null;
+          const built = window.LBT_buildGarasumadoManifest?.(sourceDoc, {
+            resolve,
+            candidates: (name) => window.LBT_resolveCandidates?.(index, name) || []
+          }, db) || null;
+          if (!built) {
+            reportErrors.push({ fileName: "キャラクターJSON", message: "リザルトと所持データを組み立てられませんでした。" });
+          } else {
+            const annotated = window.LBT_annotateManifest?.(built, { db }) || built;
+            const scenarioOptionsForLoad = (annotated.scenarios || []).map((scenario) => scenario && scenario.name).filter(Boolean);
+            const sourceOptionsForLoad = window.LBT_garasumado?.SOURCES || [];
+            for (const group of annotated.groups || []) {
+              for (const item of group.items || []) {
+                item.identityCandidates = item.identityCandidates || item.candidates || [];
+                item.candidates = window.LBT_candidatesFor?.(item, index) || [];
+                const fromDb = item.candidates.filter((candidate) => candidate.acquisition === "db" && candidate.price);
+                const fromRule = item.candidates.filter((candidate) => candidate.acquisition !== "db" && candidate.price);
+                if (fromDb.length) {
+                  item.needsDecision = null;
+                  item.include = true;
+                } else if (fromRule.length) {
+                  item.needsDecision = "pick-mode";
+                  item.include = false;
+                } else if (!item.candidates.length) {
+                  item.needsDecision = "unknown-name";
+                  item.include = false;
+                }
+                if (item.provenance && item.provenance.priced === false
+                  && (item.provenance.id === "gachaTicket" || item.provenance.id === "grant")) {
+                  item.needsDecision = null;
+                  item.include = false;
+                }
+                item.scenarioOptions = scenarioOptionsForLoad;
+                item.sourceOptions = sourceOptionsForLoad;
+                const attributed = (item.via && item.via.length) || Boolean(item.pickedScenario);
+                item.decide = !(attributed && (item.source || item.provenance?.priced === false));
+              }
+            }
+            const ops = [];
+            for (const scenario of annotated.scenarios || []) {
+              const found = window.LBT_proposePurchases?.(scenario.memo, { resolve }, {}) || { proposals: [], unresolved: [] };
+              ops.push({
+                key: scenario.key || ("scenario:" + ops.length),
+                title: scenario.name,
+                memo: scenario.memo,
+                proposals: found.proposals,
+                unresolved: found.unresolved
+              });
+            }
+            const next = {};
+            for (const group of annotated.groups || []) {
+              for (const item of group.items || []) next[item.key] = item.include;
+            }
+            setManifest(annotated);
+            setLines(ops);
+            setPicked(next);
+            manifestReady = true;
+          }
+        } else {
+          reportErrors.push({ fileName: "キャラクターJSON", message: "キャラクターJSONが空でした。" });
+        }
+      }
+
+      const validPersonas = personaRows.filter((row) => row.ok).length;
+      const resultManifestCount = manifestReady && sourceDoc && Array.isArray(sourceDoc.scenarioHistory)
+        ? sourceDoc.scenarioHistory.filter((row) => row && (row.name || row.memo)).length
+        : resultCount;
+      setBundleReport({
+        characterFiles,
+        resultCount: resultManifestCount,
+        personaFiles: personaRows.length,
+        validPersonas,
+        ignoredCount: Number(bundle.ignoredCount || 0),
+        errors: reportErrors
+      });
+      setUrlReport(null);
+      if (!manifestReady && personaRows.length === 0) {
+        setError(reportErrors[0]?.message || "読み込めるキャラクター履歴または人格シートのJSONがありません。");
+        return;
+      }
+      setError("");
+      setProgress("ZIP / JSON の読込が完了しました。反映対象を確認してください。");
+    } catch (error) {
+      setError(error?.message || "ZIP / JSON の読み込みに失敗しました。ファイル形式を確認してください。");
+    } finally {
+      setBusy(false);
+      setProgress("");
+    }
+  };
+
   const findCandidate = (itemKey, candidateKey) => {
     const groups = manifest.groups.flatMap((g) => g.items.map((i) => ({ ...i, group: g.id })));
     const item = groups.find((i) => i.key === itemKey);
@@ -949,16 +1141,38 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [] }) => {
       ? (name) => window.LBT_resolveCandidates(index, name)?.[0] || null
       : () => null;
     const result = window.LBT_toDispatchActions?.(merged, keys, { purchases, resolve }) || { actions: [], skipped: [] };
-  /* manifest と選択キーは「記録へ帰属する明細」を作るために必要。
-     既存の利用側（アカウント編集）は読まないので、壊さず足すだけで済む。 */
-  const applied = { actions: result.actions, skipped: result.skipped, rosterActions: result.actions, manifest, keys };
-  onApply?.(applied);
-  /* ここでコンバート確定。画面は閉じずに確定結果を見せる。 */
-  setConfirmed({
-    counts: appliedSummary(result.actions),
-    skipped: applied.skipped || [],
-    simulation: draft ? draft.simulation : null
-  });
+    const personaActions = (personaItems || [])
+      .filter((row) => row.ok && personaPicked[row.id] && !personaAlreadyImported(row.id))
+      .map((row) => ({
+        type: "ADD_GARASUMADO_PERSONA",
+        persona: row.result.persona,
+        secondaryPassive: row.result.secondaryPassive || null,
+        syncRank: row.result.syncRank || null,
+        syncMax: row.result.suggestSyncMax === true,
+        source: {
+          kind: "garasumado-persona",
+          id: row.id,
+          url: row.url,
+          label: row.fileName || row.result.source?.label || row.result.persona.name,
+          extras: row.result.extraData || {}
+        }
+      }));
+    const failedPersonas = (personaItems || []).filter((row) => !row.ok)
+      .map((row) => ({ key: row.id, url: row.url, reason: row.reason || "人格データを解析できませんでした。" }));
+    const actions = [...(result.actions || []), ...personaActions];
+    const skipped = [...(result.skipped || []), ...failedPersonas];
+    /* 人格シートも同じ action batch に載せ、Ctrl+Z 1 回で全体を戻せるようにする。 */
+    const applied = { actions, skipped, rosterActions: actions, manifest, keys };
+    onApply?.(applied);
+    const simulation = draft ? {
+      ...draft.simulation,
+      held: (draft.simulation.held || 0) + personaActions.length
+    } : null;
+    setConfirmed({
+      counts: appliedSummary(actions),
+      skipped,
+      simulation
+    });
 };
 
 /* 実際に入る action の内訳。シミュレーションと同じ数のはずなので、
@@ -968,7 +1182,7 @@ function appliedSummary(actions) {
   let held = 0;
   for (const a of actions || []) {
     byType[a.type] = (byType[a.type] || 0) + 1;
-    if (String(a.type || "").startsWith("ADD_ROSTER")) held += 1;
+    if (String(a.type || "").startsWith("ADD_ROSTER") || a.type === "ADD_GARASUMADO_PERSONA") held += 1;
   }
   return { byType, held, total: (actions || []).length };
 }
@@ -989,11 +1203,12 @@ function appliedSummary(actions) {
     }
     : { total: 0, pickMode: 0, unknownName: 0, included: 0, ops: 0, unknownLine: 0, lineOn: 0 };
 
-  if (personaItems !== null) {
+  if (personaItems !== null && !manifest) {
     const selectedRows = personaItems.filter((row) => row.ok && personaPicked[row.id] && !personaAlreadyImported(row.id));
     const failedRows = personaItems.filter((row) => !row.ok);
     if (personaConfirmed) {
       return h("div", { className: "gara" },
+        renderBundleReport(),
         h("div", { className: "gara-out" },
           h("h3", { className: "gara-title" }, "人格の一括取り込みを確定しました"),
           h("p", { className: "gara-lead" }, personaConfirmed.count + "件の人格を所持ライブラリへ登録しました。既存の装備中人格やキャラクターの履歴は変更していません。")
@@ -1016,6 +1231,7 @@ function appliedSummary(actions) {
       );
     }
     return h("div", { className: "gara" },
+      renderBundleReport(),
       h("div", { className: "gara-out" },
         h("h3", { className: "gara-title" }, "硝子窓の人格を一括取り込む"),
         h("p", { className: "gara-lead" }, "URLごとに人格を識別しました。選択した人格だけを自作・派生人格として所持ライブラリに追加します。既存の人格や装備中のビルドは上書きしません。")
@@ -1056,6 +1272,13 @@ function appliedSummary(actions) {
                   + ((persona.passive_name ? 1 : 0) + (result.secondaryPassive?.name ? 1 : 0))
                   + "・固有 " + (persona.unique_buffs || []).length)
               ),
+              result.extraData
+                ? h("div", { className: "gara-row" },
+                  h("span", { className: "gara-row-name" }, "追加情報"),
+                  h("span", { className: "gara-row-meta" }, personaExtraSummary(result.extraData))
+                )
+                : null,
+              row.fileName ? h("p", { className: "gara-note" }, row.fileName) : null,
               result.source?.id
                 ? h("p", { className: "gara-note" }, "共有ID: " + result.source.id)
                 : null,
@@ -1086,7 +1309,8 @@ function appliedSummary(actions) {
                   kind: "garasumado-persona",
                   id: row.id,
                   url: row.url,
-                  label: row.result.source?.label || row.result.persona.name
+                  label: row.fileName || row.result.source?.label || row.result.persona.name,
+                  extras: row.result.extraData || {}
                 }
               }));
               const skipped = failedRows.map((row) => ({ key: row.id, url: row.url, reason: row.reason }));
@@ -1166,7 +1390,20 @@ function appliedSummary(actions) {
           h("code", null, entry.url || entry.text || "URL不明"),
           h("span", null, entry.reason || "取得できませんでした")))
       ) : null,
-      h("p", { className: "gara-field-help", id: "gara-url-help" }, "URLはこの読み込みにのみ使用し、アカウントへ保存しません。Enterキーでも読み込めます。最大150件まで一括処理できます。")
+      h("p", { className: "gara-field-help", id: "gara-url-help" }, "URLはこの読み込みにのみ使用し、アカウントへ保存しません。Enterキーでも読み込めます。最大150件まで一括処理できます。"),
+      h("section", { className: "gara-group", style: { marginTop: "18px" } },
+        h("h4", { className: "gara-group-title" }, "ZIP / JSON ファイルから一括読み込み"),
+        h("label", { className: "acct-field gara-field" },
+          h("span", { className: "gara-label" }, "硝子窓のエクスポート（ZIPまたはJSONを複数選択）"),
+          h("input", {
+            className: "input", type: "file", name: "garasumadoExport",
+            accept: ".zip,.json,application/zip,application/json", multiple: true,
+            disabled: busy, onChange: loadExportBundle
+          })
+        ),
+        h("p", { className: "gara-note" }, "ZIP内のキャラクターJSONからリザルト履歴・所持情報を、人格シートJSONから人格をまとめて読み込みます。画像・PDF・TXTは読み込まず、反映前に確認できます。")
+      ),
+      renderBundleReport()
     );
   }
 
@@ -1179,10 +1416,11 @@ function appliedSummary(actions) {
         h("p", { className: "gara-import-balance" }, `共有元の残高　LP ${manifest.currency.lp || "—"} ・ 欠片 ${manifest.currency.shards || "—"}`)
       ),
       h("div", { className: "gara-import-heading-actions" },
-        h("button", { type: "button", className: "gara-change-url", onClick: () => { setManifest(null); setConfirmed(null); setError(""); setUrlReport(null); setProgress(""); setPicked({}); setIdentity({}); setLines([]); setChoices({}); setDecided({}); setPast([]); setFuture([]); setDoc(null); } }, "URLを貼り直す"),
+        h("button", { type: "button", className: "gara-change-url", onClick: () => { setManifest(null); setConfirmed(null); setError(""); setUrlReport(null); setBundleReport(null); setPersonaItems(null); setPersonaPicked({}); setPersonaConfirmed(null); setProgress(""); setPicked({}); setIdentity({}); setLines([]); setChoices({}); setDecided({}); setPast([]); setFuture([]); setDoc(null); } }, "URLを貼り直す"),
         h("button", { type: "button", className: "gara-review-dismiss", onClick: onClose, title: "取り込み確認を閉じてアカウント編集へ戻る" }, "閉じて戻る")
       )
     ),
+    renderBundleReport(),
     urlReport && urlReport.failed.length ? h("section", { className: "gara-url-report has-errors", role: "status" },
       h("strong", null, `${urlReport.successful}/${urlReport.requested}件のURLを読み込みました`),
       h("p", { className: "gara-url-report-summary" }, "一部のURLを取得できませんでした。以下は読み込みに失敗したURLです。今回読み込めた内容は引き続き確認できます。"),
@@ -1209,6 +1447,55 @@ function appliedSummary(actions) {
     ),
     h("p", { className: "gara-import-instructions" }, "項目名を押すと候補や価格を確認できます。ON / OFFで反映対象を切り替えます。未決の項目は帰属先・入手方法を選んでください。"),
     h("p", { className: "gara-hint" }, "候補が一意でない場合は自動決定しません。入力内容に誤りがないことを確認してから確定してください。"),
+    personaItems !== null ? h("section", { className: "gara-group gara-result" },
+      h("div", { className: "gara-group-head" },
+        h("h4", { className: "gara-group-title" }, "人格シート（ZIP / JSON）"),
+        h("p", { className: "gara-group-note" },
+          "選択中 " + personaItems.filter((row) => row.ok && personaPicked[row.id] && !personaAlreadyImported(row.id)).length
+          + " / " + personaItems.filter((row) => row.ok).length + "件")
+      ),
+      personaItems.map((row) => {
+        const name = row.result?.persona?.name || row.fileName || "人格名不明";
+        const already = personaAlreadyImported(row.id);
+        const result = row.result || {};
+        const persona = result.persona || {};
+        const sameName = row.ok && personaNameExists(row, personaItems);
+        const notes = [...(result.warnings || []), ...(sameName ? ["同名の人格が既にあります。別バージョンの可能性があるため、内容を確認してください。"] : [])];
+        return h("div", { key: row.id, className: "gara-rows" },
+          h("div", { className: "gara-row" },
+            h("label", { className: "gara-row-name", style: { display: "flex", alignItems: "flex-start", gap: "8px" } },
+              h("input", {
+                type: "checkbox",
+                checked: Boolean(personaPicked[row.id]) && !already,
+                disabled: !row.ok || already,
+                onChange: (event) => setPersonaPicked((current) => ({ ...current, [row.id]: event.target.checked }))
+              }),
+              h("span", null, name)
+            ),
+            h("span", { className: "gara-row-meta" }, already ? "取込済み" : row.ok ? "登録予定" : "取込不可")
+          ),
+          row.ok ? h("div", { className: "gara-row" },
+            h("span", { className: "gara-row-name" }, "基本情報"),
+            h("span", { className: "gara-row-meta" }, "HP " + persona.hp + "・SAN " + persona.san + "・速度 " + persona.speed)
+          ) : null,
+          row.ok ? h("div", { className: "gara-row" },
+            h("span", { className: "gara-row-name" }, "データ内容"),
+            h("span", { className: "gara-row-meta" },
+              "スキル " + (persona.skills || []).length + "・パッシブ "
+              + ((persona.passive_name ? 1 : 0) + (result.secondaryPassive?.name ? 1 : 0))
+              + "・固有 " + (persona.unique_buffs || []).length)
+          ) : null,
+          result.extraData ? h("div", { className: "gara-row" },
+            h("span", { className: "gara-row-name" }, "追加情報"),
+            h("span", { className: "gara-row-meta" }, personaExtraSummary(result.extraData))
+          ) : null,
+          row.fileName ? h("p", { className: "gara-note" }, row.fileName) : null,
+          !row.ok ? h("p", { className: "gara-note gara-note-warn" }, row.reason || "人格データを解析できませんでした。") : null,
+          notes.length ? h("p", { className: "gara-note gara-note-warn" }, notes.join(" ")) : null
+        );
+      }),
+      h("p", { className: "gara-note" }, "選んだ人格も、リザルトや所持データと同じ一回の反映処理で登録します。追加情報は元データとして保存し、既存の人格や装備中のビルドは上書きしません。")
+    ) : null,
     (manifest.counts?.initialSpirits || 0) > 0
       ? h("p", { className: "gara-note" },
         `初期精神 ${manifest.counts.initialSpirits} 件（${(manifest.counts.initialSpiritsOwned || []).join("・")}）は最初から所持として数えます。`)
@@ -1300,7 +1587,9 @@ function appliedSummary(actions) {
         h(Button, { size: "sm", variant: "ghost", onClick: () => setManifest(null) }, "URLを貼り直す"),
         h(Button, {
           size: "sm", variant: "primary", icon: "check", onClick: apply,
-          disabled: pendingCount > 0 || (counts.included === 0 && counts.lineOn === 0),
+          disabled: pendingCount > 0
+            || (counts.included === 0 && counts.lineOn === 0
+              && !(personaItems || []).some((row) => row.ok && personaPicked[row.id] && !personaAlreadyImported(row.id))),
           title: pendingCount > 0 ? "帰属先と入手方法を決めてください" : ""
         }, "変換を確定する")
       )

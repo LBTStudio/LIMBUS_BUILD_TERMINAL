@@ -199,7 +199,7 @@ test("確定の瞬間がコンバート確定になる（確定前は反映さ�
 
 test("確定結果は実際に入った action の内訳", () => {
   assert.match(uiFlat, /function appliedSummary\(actions\)/);
-  assert.match(uiFlat, /setConfirmed\(\{[\s\S]{0,80}?counts: appliedSummary\(result\.actions\)/);
+  assert.match(uiFlat, /setConfirmed\(\{[\s\S]{0,80}?counts: appliedSummary\(actions\)/);
   /* シミュレーションと食い違ったら知らせる（表示と実体のずれを隠さない）。 */
   assert.match(uiFlat, /const mismatched = Boolean\(sim\) && sim\.held !== confirmed\.counts\.held;/);
   assert.match(uiFlat, /シミュレーション（所持/);
@@ -243,6 +243,17 @@ test("URL入力は複数行フォームで送信でき、進行状況・部分�
   assert.match(uiFlat, /urlReport\.failed\.slice\(0, 6\)/, "一部失敗のURLを確認できる");
   assert.match(uiFlat, /catch \(_\) \{ setError\(/, "想定外の例外を利用者向けエラーにする");
   assert.match(uiFlat, /finally \{ setBusy\(false\); setProgress\(""\); \}/, "失敗時も読込状態を解除する");
+});
+
+test("ZIP / JSON一括読込はリザルト履歴と人格シートを同じ確認画面で反映する", () => {
+  assert.match(uiFlat, /LBT_readGarasumadoExportFiles/);
+  assert.match(uiFlat, /type: "file"/);
+  assert.match(uiFlat, /accept: "\.zip,\.json,application\/zip,application\/json"/);
+  assert.match(uiFlat, /personaItems !== null && !manifest/);
+  assert.match(uiFlat, /const personaActions =/);
+  assert.match(uiFlat, /extras: row\.result\.extraData \|\| \{\}/);
+  assert.match(uiFlat, /renderBundleReport\(\)/);
+  assert.match(uiFlat, /画像・PDF・TXTは読み込まず/);
 });
 
 test("取込後の確認画面は対象数・未決件数・追加予定を先に表示する", () => {
