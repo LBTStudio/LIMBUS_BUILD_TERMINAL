@@ -153,7 +153,8 @@
   function downloadSnapshot(payload = null, suffix = "full-account-backup") {
     const value = validateSnapshot(payload || collectLocalSnapshot({ enforceCloudLimit: false }), { enforceCloudLimit: false });
     const date = new Date().toISOString().replace(/[:.]/g, "-");
-    downloadText("LBT_" + suffix + "_" + date + ".json", JSON.stringify(value, null, 2));
+    /* Compact JSON keeps exported files importable under the same 100MB limit. */
+    downloadText("LBT_" + suffix + "_" + date + ".json", JSON.stringify(value));
   }
   function exportLocalBackup() {
     const snap = collectLocalSnapshot({ enforceCloudLimit: false });
