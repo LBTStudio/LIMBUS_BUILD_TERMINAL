@@ -132,8 +132,8 @@ test("人格テキスト、リザルトテキスト、硝子窓キャラクタ�
   assert.match(appSource, /共有URLから取り込む/);
   assert.match(appSource, /所持人格リストを取り込む/);
   assert.match(appSource, /硝子窓URLから移行/);
-  assert.match(sectionsSource, /「テキスト流し込み」/);
-  assert.match(personaSource, /「テキスト流し込み反映」/);
+  assert.match(sectionsSource, /テキスト流し込み/);
+  assert.match(personaSource, /テキスト流し込み反映/);
 });
 
 test("アカウント管理の入口とローカル保存・削除注意が案内されている", () => {
