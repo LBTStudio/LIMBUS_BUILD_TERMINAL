@@ -196,7 +196,7 @@ async function updateVault(vault: any, payload: Record<string, unknown>, expecte
   return { conflict: false, vault: rows[0] };
 }
 
-async function handle(body: any, accessToken: string) {
+async function handle(body: any, accessToken: string, req: Request) {
   const action = String(body?.action ?? "");
   if (!["get", "backup", "create_recovery", "rotate_recovery", "history", "restore_revision"].includes(action)) {
     throw new Error("未対応の操作です。");
@@ -352,7 +352,7 @@ Deno.serve(async (req: Request) => {
     if (length > MAX_PAYLOAD_BYTES + 1024 * 100) return json({ error: "リクエストが大きすぎます。" }, 413, origin);
     const body = await req.json();
     const accessToken = String(req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
-    const result = await handle(body, accessToken);
+    const result = await handle(body, accessToken, req);
     if ((result as any).conflict) return json({ ...result, error: "同期先が別の内容に更新されています。データを比較してから再試行してください。" }, 409, origin);
     return json(result, 200, origin);
   } catch (error) {
