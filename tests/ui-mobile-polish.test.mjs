@@ -5,6 +5,7 @@ import test from "node:test";
 const workspace = readFileSync(new URL("../assets/workspace.css", import.meta.url), "utf8");
 const draftImport = readFileSync(new URL("../assets/v65r29-draft-import.css", import.meta.url), "utf8");
 const refinements = readFileSync(new URL("../assets/v56-refinements.css", import.meta.url), "utf8");
+const accounts = readFileSync(new URL("../assets/v66-accounts.css", import.meta.url), "utf8");
 
 test("mobile preview toggle is a compact horizontal pill above the fixed navigation", () => {
   const mobile = workspace.slice(workspace.lastIndexOf("/* Mobile UX audit:"));
@@ -29,4 +30,10 @@ test("mobile persona import keeps the heading balanced and action controls stick
   assert.match(mobile, /text-wrap:\s*balance/);
   assert.match(mobile, /\.persona-draft-import-actions\s*\{[\s\S]*?position:\s*sticky;[\s\S]*?bottom:\s*0/);
   assert.match(mobile, /\.persona-draft-import-actions > \.btn\s*\{[\s\S]*?min-height:\s*42px/);
+});
+
+
+test("mobile account cards reserve space for their absolute edit/delete buttons", () => {
+  const mobile = accounts.slice(accounts.lastIndexOf("@media (max-width: 640px)"));
+  assert.match(mobile, /\.acct-card\s*\{[^}]*padding:\s*var\(--s-3\) var\(--s-2\) calc\(var\(--s-2\) \+ 32px\)/);
 });
