@@ -405,6 +405,46 @@
     emit({ remoteExists: true, revision: Number(result.revision), conflict: false, label: "オンライン保全済み", message: "全アカウントデータをオンラインへ保存しました。以降の変更は自動同期されます。ローカル保存も引き続き使われます。" });
     return true;
   }
+  async function linkRecoveryKeyToOAuth() {
+    const session = await getSession();
+    const key = readRecoveryKey();
+    if (!session) throw new Error("先にGoogle/Xと連携してください。");
+    if (!key) throw new Error("先に復旧キーを発行するか、復旧キーを使って復元してください。");
+
+    const recoveryVault = await callRecovery({ action: "get", recoveryKey: key });
+    if (!recoveryVault.found || !recoveryVault.payload) {
+      throw new Error("この復旧キーのオンライン保全データが見つかりません。");
+    }
+    const authVault = await callRecovery({ action: "get" }, session.access_token);
+    if (authVault.found) {
+      throw new Error("このGoogle/Xアカウントには既に別のオンライン保全データがあります。安全のため、自動統合は行いません。先にどちらを残すか確認してください。");
+    }
+    if (!confirm("この復旧キーの保全データを、ログイン中のGoogle/Xアカウントにも結びつけます。クラウド側の保全データはそのまま維持し、今の端末データは変更しません。続けますか？")) return false;
+
+    /* Cloud snapshot is passed unchanged so linking an identity doesn't overwrite
+       the cloud with possibly stale local data. Local sync remains disabled unless equal. */
+    const local = collectLocalSnapshot();
+    const result = await callRecovery({ action: "create_recovery", recoveryKey: key, payload: recoveryVault.payload }, session.access_token);
+    const verified = await callRecovery({ action: "get", recoveryKey: key }, session.access_token);
+    if (!verified.found || verified.recoveryKeyMatches !== true) {
+      throw new Error("Google/Xと復旧キーの結びつきを確認できませんでした。既存データは削除していません。");
+    }
+    writeStorage(REVISION_KEY, String(verified.revision));
+    const matches = sameData(local, verified.payload);
+    setEnabled(matches);
+    emit({
+      mode: "oauth",
+      remoteExists: true,
+      revision: Number(verified.revision),
+      conflict: false,
+      label: "Google/Xと復旧キーを連携しました",
+      message: matches
+        ? "同じ内容の保全データをGoogle/Xと復旧キーの両方から復元できます。自動同期を有効にしました。"
+        : "クラウドデータを維持したまま連携しました。端末とクラウドの内容は異なるため、自動同期は停止中です。「クラウドから復元」か「この端末をクラウドへ同期」を選んでください。"
+    });
+    return result;
+  }
+
   async function createRecoveryKey() {
     const payload = collectLocalSnapshot();
     if (!confirm("復旧キーを発行し、この端末の全アカウントデータをオンラインへ保存します。キーはファイルにも保存されますが、別の安全な場所に保管してください。キーを失い、ログインもできない場合は復元できません。続けますか？")) return false;
@@ -596,6 +636,7 @@
         button("Googleと連携", () => run(() => startOAuth("google"))),
         button("Xと連携", () => run(() => startOAuth("x")))
       ) : h("p", { className: "lbt-cloud-account" }, "オンライン認証済み。このブラウザーからいつでも連携を停止できます。"),
+      view.hasSession && view.hasRecoveryKey && view.mode === "recovery" ? button("この復旧キーをGoogle/Xにも結びつける", () => run(linkRecoveryKeyToOAuth)) : null,
       h("div", { className: "lbt-cloud-actions" },
         !view.hasRecoveryKey ? button("復旧キーを発行して保全", () => run(createRecoveryKey), "is-primary") : null,
         button("全アカウントをJSON保存", () => run(async () => exportLocalBackup()))
@@ -654,6 +695,7 @@
     refresh,
     connect: startOAuth,
     createRecoveryKey,
+    linkRecoveryKeyToOAuth,
     restoreWithKey,
     restoreCloud,
     restoreFromFile,
