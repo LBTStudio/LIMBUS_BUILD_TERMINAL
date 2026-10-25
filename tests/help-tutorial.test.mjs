@@ -10,12 +10,16 @@ const coreSource = readFileSync(new URL("../js/core.js", import.meta.url), "utf8
 const liveSource = readFileSync(new URL("../js/LivePreview.js", import.meta.url), "utf8");
 const guideCss = readFileSync(new URL("../assets/v56-refinements.css", import.meta.url), "utf8");
 
-test("初回導線は駒整形からビルド・プレビューまでの順に案内する", () => {
-  assert.ok(appSource.includes("まず「何をしたいか」から選んでください"));
-  assert.ok(appSource.includes("キャラクターを選ぶ"));
-  assert.ok(appSource.includes("人格と装備を整える"));
-  assert.ok(appSource.includes("記録または文章を取り込む"));
-  assert.ok(appSource.includes("guide-quick"));
+test("使い方ページは検索と分類を先頭に置き、最初から巨大なカード群を表示しない", () => {
+  assert.ok(appSource.includes('id: "guide-search-input"'));
+  assert.ok(appSource.includes('className: "guide-filter-row"'));
+  assert.ok(appSource.includes('className: "guide-index-list"'));
+  assert.ok(appSource.includes("目的・操作名・ボタン名で探せます。"));
+  assert.ok(!appSource.includes("まず「何をしたいか」から選んでください"));
+  assert.ok(!appSource.includes('className: "guide-route-grid"'));
+  assert.ok(!appSource.includes('className: "guide-quick"'));
+  assert.ok(guideCss.includes(".guide-index-row"));
+  assert.ok(guideCss.includes(".guide-search-field"));
 });
 
 test("人格編集の実ボタン名と、変更を所持ビルドへ保存する操作が説明されている", () => {
@@ -96,12 +100,13 @@ test("元に戻す・クイック検索の説明が現行ショートカット�
   assert.ok(appSource.includes("if (isTyping) return"));
 });
 
-test("ナビゲーションとモバイル表示が現行レイアウトに沿って案内されている", () => {
-  assert.ok(appSource.includes("PCでは左側のナビゲーション、スマートフォンでは画面下部のタブで移動します。"));
-  assert.ok(appSource.includes("「操作・保存」から保存や復元を開けます。"));
+test("検索・分類・詳細展開が現行導線に沿っている", () => {
+  assert.ok(appSource.includes("目的・操作名・ボタン名で探せます。"));
   assert.ok(appSource.includes("ビルド → 人格 → テキスト流し込み反映"));
-  assert.ok(guideCss.includes(".guide-quick,.guide-items"));
-  assert.ok(guideCss.includes("grid-template-columns:1fr"));
+  assert.ok(appSource.includes("const getAction = (item) =>"));
+  assert.ok(appSource.includes('className: "guide-index-detail"'));
+  assert.ok(guideCss.includes(".guide-filter-row"));
+  assert.ok(guideCss.includes("overflow-x: auto"));
 });
 
 const beginnerTutorial = readFileSync(new URL("../docs/tutorial-guide.md", import.meta.url), "utf8");
@@ -115,16 +120,17 @@ const tutorialDiagrams = [
   source: readFileSync(new URL("../docs/" + name, import.meta.url), "utf8")
 }));
 
-test("初見向けガイドは目的ごとの操作経路を示し、画面へ直接移動できる", () => {
-  assert.match(appSource, /const GuideRouteCard = /);
-  assert.match(appSource, /const GUIDE_FLOWS = /);
-  assert.match(appSource, /onOpenUtilities: openUtilities/);
-  assert.match(appSource, /onNavigate: \(id, ui = \{\}\) => dispatch/);
+test("目的別の操作項目は検索結果から詳細と画面移動へつながる", () => {
+  assert.match(appSource, /const HELP_ITEMS = /);
+  assert.match(appSource, /const GuideFlowDiagram = /);
+  assert.match(appSource, /onOpenUtilities/);
+  assert.match(appSource, /onNavigate\?\.\(section, ui \|\| \{\}\)/);
   assert.match(appSource, /window\.dispatchEvent\(new Event\("lbt:open-accounts"\)\)/);
-  assert.match(appSource, /人格データの文章がある/);
-  assert.match(appSource, /リザルト／購入履歴の文章がある/);
-  assert.match(appSource, /硝子窓のキャラクターURLがある/);
-  assert.match(appSource, /所持人格の名前一覧がある/);
+  assert.match(appSource, /人格データを文章から取り込む/);
+  assert.match(appSource, /リザルト／購入履歴を文章から取り込む/);
+  assert.match(appSource, /硝子窓のキャラクターURLから取り込む/);
+  assert.match(appSource, /所持人格の一覧をまとめて取り込む/);
+  assert.match(appSource, /expanded \? h\("div", \{ id: detailId, className: "guide-index-detail" \}/);
 });
 
 test("人格テキスト、リザルトテキスト、硝子窓キャラクター取込、所持リストの入口が別々に説明される", () => {
@@ -162,4 +168,28 @@ test("取り込み後の確認、データ適用範囲、保存形式の違い�
   assert.match(beginnerTutorial, /バックアップファイルの代用ではありません/);
   assert.match(beginnerTutorial, /同じ端末・同じブラウザー/);
   assert.match(beginnerTutorial, /Ctrl\+K/);
+});
+
+
+test("複雑な図解は該当する項目を開いた時だけ表示される", () => {
+  assert.match(appSource, /const getFlowKind = \(item\) =>/);
+  assert.match(appSource, /flowKind \? h\(GuideFlowDiagram, \{ kind: flowKind \}\) : null/);
+  assert.doesNotMatch(appSource, /h\(GuideFlowDiagram, \{ kind: "main" \}\)/);
+  assert.match(guideCss, /\.guide-flow-svg\s*\{\s*display:\s*none;\s*\}/);
+  assert.match(guideCss, /\.guide-flow-mobile\s*\{\s*display:\s*grid/);
+});
+
+test("検索可能な索引からアカウント管理とサポート手順に到達できる", () => {
+  assert.match(appSource, /アカウントを編集・切替・削除する/);
+  assert.match(appSource, /パッシブとサポートを確認・編集する/);
+  assert.match(appSource, /選択中のカードをもう一度クリック／タップ/);
+  assert.ok(beginnerTutorial.includes("## 6. サポートパッシブを装備する"));
+  assert.match(beginnerTutorial, /通常スロットへ装備/);
+});
+
+
+test("検索欄の値はReactイベントから読み取り、検索語入力後も分類で絞り込める", () => {
+  assert.match(appSource, /onChange: \(event\) => \{ const value = event\.target\.value; setQuery\(value\); setExpandedKey\(""\); if \(value\.trim\(\)\) setCategory\("all"\); \}/);
+  assert.match(appSource, /const effectiveCategory = category;/);
+  assert.match(appSource, /onClick: \(\) => \{ setCategory\(entry\.key\); setExpandedKey\(""\); \}/);
 });
