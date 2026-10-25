@@ -34,7 +34,7 @@
 
 このリポジトリのオンライン保全は、既存のSupabaseプロジェクトを利用します。既存の共同セッションテーブルは変更せず、個人アカウント用に専用テーブルを追加します。
 
-1. `supabase/migrations/202610260001_lbt_account_vaults.sql` を既存プロジェクトに適用します。
+1. `supabase/migrations/20261025211015_lbt_account_vaults.sql` を既存プロジェクトに適用します。
 2. `supabase/functions/lbt-account-recovery/index.ts` を `lbt-account-recovery` としてデプロイし、`verify_jwt=false` を指定します。この関数は復旧キーだけでも利用できるため、SupabaseのユーザーJWT検証は自前で行い、復旧キーは256ビットのランダム値をSHA-256でハッシュして検索します。サービスキーはEdge Functionのサーバー環境にのみ置き、ブラウザーには出しません。
 3. Supabase Dashboard → Authentication → URL Configurationで、アプリの本番URLと利用する開発用URLをRedirect URLsへ登録します。
 4. Google / Xログインを有効にする場合は、それぞれの開発者コンソールでOAuthアプリを作成し、コールバックに `https://hobntjcrzybqsiobrpsz.supabase.co/auth/v1/callback` を設定します。得られたClient ID / SecretはSupabase Dashboard → Authentication → Providersで設定してください。Client Secretをリポジトリやフロントエンドへ追加してはいけません。
