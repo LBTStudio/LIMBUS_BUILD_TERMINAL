@@ -406,10 +406,9 @@
     return await restorePayload(remote.payload, Number(remote.revision), readRecoveryKey());
   }
   async function loadHistory() {
-    const session = await getSession();
     const key = readRecoveryKey();
-    let result = await callRecovery({ action: "history", ...(key ? { recoveryKey: key } : {}) }, session?.access_token || null);
-    if (!result.found && session && key) result = await callRecovery({ action: "history", recoveryKey: key });
+    if (!key) throw new Error("過去のバックアップ世代を取得するには復旧キーが必要です。");
+    const result = await callRecovery({ action: "history", recoveryKey: key });
     if (!result.found) throw new Error("過去のバックアップ世代を取得できませんでした。");
     emit({ history: Array.isArray(result.history) ? result.history : [] });
     return result.history || [];
