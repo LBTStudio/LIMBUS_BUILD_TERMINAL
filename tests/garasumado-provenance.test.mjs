@@ -136,7 +136,7 @@ test("チケット/購入は入手方法として保持し、費用不明では�
   const buy = gara.buildManifest(makeDoc(owned, hist), index);
   buy.groups[0].items[0].source = "buy";
   const b = gara.toDispatchActions(buy, [key], { purchases: {} }).actions[0];
-  assert.equal(b.purchase, false, "購入という分類だけでは金額が分からないため課帳しない");
+  assert.equal(b.purchase, true, "購入の分類はactionへ渡し、費用額はreducerがルールから解決する");
 });
 
 test("入手方法に未回答のチェック済み品目は配布として入る", () => {
