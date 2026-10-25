@@ -19,7 +19,7 @@ test("人格URLとキャラクターURLを同じ統合経路に流さない", ()
   assert.match(uiFlat, /const collectionKinds = new Set/);
   assert.match(uiFlat, /collectionKinds\.size > 1/);
   assert.match(uiFlat, /collectionKinds\.has\("personas"\)/);
-  assert.match(uiFlat, /window\\.LBT_fetchGarasumadoPersona/);
+  assert.match(uiFlat, /window\.LBT_fetchGarasumadoPersona/);
   assert.match(uiFlat, /type: "ADD_GARASUMADO_PERSONA"/);
 });
 
@@ -223,7 +223,8 @@ test("人格URLの一括取り込みは人格パーサーから個別に読み�
 });
 
 test("人格URLの取込確定を所持ライブラリへ渡し、集約・履歴マージ処理を使わない", () => {
-  assert.match(uiFlat, /onApply\?\.\(\{ actions, skipped: failedRows\.map/);
+  assert.match(uiFlat, /const skipped = failedRows\.map/);
+  assert.match(uiFlat, /onApply\?\.\(\{ actions, skipped \}\)/);
   assert.match(uiFlat, /kind: "garasumado-persona"/);
   assert.match(uiFlat, /url: row\.url/);
   assert.match(uiFlat, /setPersonaConfirmed\(\{ count: actions\.length/);
