@@ -2316,10 +2316,6 @@ body.has-detail-dialog main.preview { overflow: hidden; }
     box-shadow: 0 4px 14px rgba(0, 0, 0, .36);
   }
 
-  .focus {
-    padding-bottom: calc(var(--lbt-mobile-rail-h) + 60px);
-  }
-
   .section-title-row {
     padding-right: 0;
   }
