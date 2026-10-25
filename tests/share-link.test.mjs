@@ -920,3 +920,26 @@ test("CompressionStreamが無いブラウザでも、復元できない巨大な
     /復元側のサイズ上限/
   );
 });
+
+
+test("共有プレビューは最多資源属性を算出し、URL summaryに往復させる", () => {
+  const db = { normal_personas: [{ no: 1, name: "検証人格", hp: "100", san: "45", speed: "3-6", skills: [{ sin: "憤怒" }, { sin: "憤怒" }, { sin: "怠惰" }] }], tokui_personas: [] };
+  const share = loadShareLink(db);
+  const state = {
+    personaMode: "n", personaNo: 1, personaSrc: { name: "検証人格" },
+    skills: [{ sin: "憤怒" }, { sin: "憤怒" }, { sin: "怠惰" }],
+    hp: "120", san: "50", speed: "3-6",
+    roster: { personas: [{ mode: "n", no: 1, syncRank: "00", syncMax: true, equipped: true }] },
+  };
+  const preview = share.sharePreview(state);
+  assert.equal(preview.primarySin, "憤怒");
+  const url = share.shortViewerUrl("https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html", { source: "rentry", id: "AbCdEf" }, [], preview);
+  assert.equal(new URL(url).searchParams.get("lbt_sin"), "憤怒");
+  assert.equal(share.previewFromLocation({ search: new URL(url).search }).primarySin, "憤怒");
+});
+
+test("自動生成OGPカードはHP・SAN・SPDに加えて最多資源属性のパネルを描く", () => {
+  const source = readFileSync(new URL("../js/share-link.js", import.meta.url), "utf8");
+  assert.ok(source.includes('const cardValues = [["HP", preview.hp], ["SAN", preview.san], ["SPD", speed], ["最多資源属性", primarySin]]'));
+  assert.ok(source.includes('params.set("lbt_sin", preview.primarySin)'));
+});
