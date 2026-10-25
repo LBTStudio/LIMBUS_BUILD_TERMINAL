@@ -166,6 +166,7 @@ test("端末内JSONバックアップはクラウド12MB上限と分離し、100
   assert.match(client, /validateSnapshot\(payload, \{ enforceCloudLimit: false \}\)/);
   assert.match(client, /applySnapshot\(payload, \{ enableSync: false, enforceCloudLimit: false \}\)/);
   assert.match(client, /Number\(file\.size\) > MAX_JSON_BACKUP_BYTES/);
+  assert.match(client, /async function restorePayload\(payload, revision, recoveryKey = null\)[\s\S]*?collectLocalSnapshot\(\{ enforceCloudLimit: false \}\)/);
   assert.match(client, /downloadText\("LBT_" \+ suffix \+ "_" \+ date \+ "\.json", JSON\.stringify\(value\)\)/);
 });
 
