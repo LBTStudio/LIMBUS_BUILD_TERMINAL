@@ -184,6 +184,63 @@ test("表示元が不明な固有効果は別人格の説明を流用しない",
   assert.equal(piece.entries.length, 0, "所有元が分からない固有定義を他人格から流用しない");
 });
 
+
+test("desktop click does not toggle closed a glossary popover already opened by hover", () => {
+  assert.ok(source.includes('if (lastPointerType.current === "mouse") {'));
+  assert.ok(source.includes('setOpen(true);\n        return;'));
+  assert.ok(source.includes("Desktop hover may have opened the popover before the click lands"));
+});
+
+test("passive and support effects resolve a unique named effect from another owner", () => {
+  const fixture = {
+    normal_personas: [
+      { name: "定義元人格", passive_name: "", passive_effect: "", passive_always: "", unique_buffs: [
+        { name: "深吸変換", type: "特殊処理", desc: "呼吸を別の呼吸状態へ変換する。", max: 1 }
+      ], skills: [], keywords: [] }
+    ],
+    tokui_personas: [], egos: [],
+    support_passives: [{ name: "試験サポート", cond: "", effect: "自分の呼吸を[深吸変換]へ変更する。" }],
+    death_passives: [], normal_enhancements: [], special_enhancements: [], spirits: [], items: []
+  };
+  const api = loadGlossary();
+  const fromSupport = api.tokenize("深吸変換", fixture, "サポートパッシブ:試験サポート").find((piece) => piece.term === "深吸変換");
+  const fromPersona = api.tokenize("深吸変換", fixture, "人格パッシブ:利用中人格").find((piece) => piece.term === "深吸変換");
+  assert.equal(fromSupport.entries.length, 1);
+  assert.equal(fromSupport.entries[0].source, "人格：定義元人格");
+  assert.ok(fromSupport.entries[0].description.includes("呼吸を別の呼吸状態へ変換する"));
+  assert.equal(fromPersona.entries.length, 1);
+  assert.equal(fromPersona.entries[0].source, "人格：定義元人格");
+});
+
+test("ambiguous same-named effects keep the reference owner's text rather than guessing another definition", () => {
+  const fixture = {
+    normal_personas: [
+      { name: "定義元A", passive_name: "", passive_effect: "", passive_always: "", unique_buffs: [
+        { name: "同名効果", type: "特殊処理", desc: "Aの意味", max: 1 }
+      ], skills: [], keywords: [] },
+      { name: "定義元B", passive_name: "", passive_effect: "", passive_always: "", unique_buffs: [
+        { name: "同名効果", type: "特殊処理", desc: "Bの意味", max: 2 }
+      ], skills: [], keywords: [] }
+    ],
+    tokui_personas: [], egos: [],
+    support_passives: [{ name: "参照元サポート", cond: "", effect: "同名効果を[同名効果]として扱う。" }],
+    death_passives: [], normal_enhancements: [], special_enhancements: [], spirits: [], items: []
+  };
+  const result = loadGlossary().tokenize("同名効果", fixture, "サポートパッシブ:参照元サポート").find((piece) => piece.term === "同名効果");
+  assert.equal(result.entries.length, 1);
+  assert.equal(result.entries[0].source, "サポートパッシブ");
+  assert.ok(result.entries[0].description.includes("同名効果を[同名効果]として扱う"));
+  assert.ok(!result.entries[0].description.includes("Aの意味") && !result.entries[0].description.includes("Bの意味"));
+});
+
+test("glossary terms have a visible underline and warmer contrast in effect prose", () => {
+  const css = readFileSync(resolve(ROOT, "assets/inline-effect-glossary.css"), "utf8");
+  assert.match(css, /border-bottom: 1px dotted rgba\(244, 213, 138, \.98\)/);
+  assert.match(css, /text-underline-offset: 3px/);
+  assert.match(css, /background: rgba\(214, 173, 83, \.13\)/);
+  assert.match(css, /text-decoration-thickness: 2px/);
+});
+
 test("共通用語の出典はPDF抽出ページの実在内容に対応する", () => {
   const pageText = (n) => { const s = coreCorpus.indexOf("===== PAGE " + n + " ====="); if (s < 0) return ""; const e = coreCorpus.indexOf("===== PAGE ", s + 5); return coreCorpus.slice(s, e < 0 ? coreCorpus.length : e); };
   const p306 = pageText(306), p311 = pageText(311), glossary = loadGlossary().buildGlossary(db);
