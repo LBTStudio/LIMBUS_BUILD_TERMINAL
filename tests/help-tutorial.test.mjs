@@ -128,11 +128,6 @@ const tutorialDiagrams = [
   "tutorial-overview.svg",
   "tutorial-text-import-routes.svg",
   "tutorial-account-management.svg",
-  "tutorial-persona-import-ui.svg",
-  "tutorial-result-import-ui.svg",
-  "tutorial-roster-import-ui.svg",
-  "tutorial-account-import-ui.svg",
-  "tutorial-save-share-ui.svg",
   "tutorial-save-share.svg"
 ].map((name) => ({
   name,
@@ -250,13 +245,6 @@ test("主要な取り込み操作は、実際のUIラベルを示す個別配置
   assert.ok(sectionsSource.includes("リザルトを記録"));
   assert.ok(sectionsSource.includes("所持人格リストを取り込む"));
   assert.ok(guideCss.includes(".guide-ui-locator-image"));
-  for (const name of [
-    "tutorial-persona-import-ui.svg",
-    "tutorial-result-import-ui.svg",
-    "tutorial-roster-import-ui.svg",
-    "tutorial-account-import-ui.svg",
-    "tutorial-save-share-ui.svg"
-  ]) {
-    assert.ok(tutorialDiagrams.some((diagram) => diagram.name === name), name + " が図解テストに含まれる");
-  }
+  assert.ok(tutorialDiagrams.some((diagram) => diagram.name === "tutorial-save-share.svg"));
+  assert.ok(!appSource.includes('image: "docs/tutorial-persona-import-ui.svg"'));
 });
