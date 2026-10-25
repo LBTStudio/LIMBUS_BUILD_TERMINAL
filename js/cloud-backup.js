@@ -85,10 +85,13 @@
     }
     const size = new TextEncoder().encode(JSON.stringify(payload)).byteLength;
     if (size > MAX_LOCAL_BYTES) throw new Error("このバックアップは12MBを超えています。");
+    const seenKeys = new Set();
     for (const item of payload.entries) {
       if (!item || typeof item.key !== "string" || typeof item.value !== "string" || !isBackupStorageKey(item.key)) {
         throw new Error("バックアップ内に許可されていない項目があります。復元を中止しました。");
       }
+      if (seenKeys.has(item.key)) throw new Error("バックアップ内で保存キーが重複しています。復元を中止しました。");
+      seenKeys.add(item.key);
     }
     return payload;
   }
@@ -155,18 +158,33 @@
   function applySnapshot(payload, options = {}) {
     const valid = validateSnapshot(payload);
     restoring = true;
+    let previousEntries = [];
     try {
       const keysToRemove = [];
       for (let i = 0; i < localStorage.length; i += 1) {
         const key = localStorage.key(i);
-        if (key && isBackupStorageKey(key)) keysToRemove.push(key);
+        if (key && isBackupStorageKey(key)) {
+          keysToRemove.push(key);
+          previousEntries.push({ key, value: localStorage.getItem(key) });
+        }
       }
       keysToRemove.forEach((key) => localStorage.removeItem(key));
       for (const item of valid.entries) localStorage.setItem(item.key, item.value);
       writeStorage(ENABLED_KEY, options.enableSync === false ? "0" : "1");
       if (Number.isSafeInteger(options.revision) && options.revision > 0) writeStorage(REVISION_KEY, String(options.revision));
     } catch (error) {
-      throw new Error("端末への復元に失敗しました。保存容量またはブラウザーの設定を確認してください。");
+      /* Roll back to the pre-restore snapshot if quota/privacy restrictions interrupt
+         the write. This keeps the old account set coherent instead of half-restored. */
+      try {
+        const partialKeys = [];
+        for (let i = 0; i < localStorage.length; i += 1) {
+          const key = localStorage.key(i);
+          if (key && isBackupStorageKey(key)) partialKeys.push(key);
+        }
+        partialKeys.forEach((key) => localStorage.removeItem(key));
+        previousEntries.forEach((item) => localStorage.setItem(item.key, item.value));
+      } catch (_) {}
+      throw new Error("端末への復元に失敗しました。元のデータは可能な範囲で元に戻しました。保存容量またはブラウザーの設定を確認してください。");
     } finally {
       restoring = false;
     }
