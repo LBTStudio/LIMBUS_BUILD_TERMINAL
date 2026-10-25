@@ -228,7 +228,7 @@ all.forEach(({ p, m }) => {
           } });
         }
       });
-      [...(DB.items || []), ...(state.customItems || [])].forEach((item) => {
+      [...(DB.items || []), ...(DB.specialItems || []), ...(state.customItems || [])].forEach((item) => {
         const haystack = `${item.name || ""} ${item.category || ""} ${(item.tags || []).join(" ")} ${item.effect || ""}`.toLowerCase();
         if (haystack.includes(ql)) {
           itemHits.push({ type: "item", label: `アイテム：${item.name}`, kbd: "詳細", run: () => {
