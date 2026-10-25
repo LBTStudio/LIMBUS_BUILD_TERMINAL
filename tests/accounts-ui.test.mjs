@@ -86,10 +86,14 @@ test("選択領域は1ボタン=1カードで、aria-label に判断材料を全
   assert.doesNotMatch(ui, /<button[\s\S]*?<button/, "button の入れ子を作らない");
 });
 
-test("カード操作は hover 依存せず、タッチでも常に出る", () => {
-  assert.match(css, /\.acct-card:hover \.acct-card-actions/, "hover で表示");
-  assert.match(css, /\.acct-card:focus-within \.acct-card-actions/, "キーボードでも表示");
-  assert.match(css, /@media \(hover: none\) \{\s*\.acct-card-actions \{ opacity: 1; transform: none; \}/, "タッチは常時表示");
+test("編集ボタンはラベル付きで常時表示し、hover に依存しない", () => {
+  assert.match(ui, /className: "acct-icon-btn acct-edit-btn"/, "編集を操作列に置く");
+  assert.match(ui, /h\("span", null, "編集"\)/, "アイコンだけでなく編集ラベルを表示");
+  const actions = css.match(/\.acct-card-actions\s*\{([^}]*)\}/s)?.[1] || "";
+  assert.match(actions, /opacity:\s*1;/, "操作列は常時表示");
+  assert.match(actions, /transform:\s*none;/, "出現時の移動を行わない");
+  assert.doesNotMatch(css, /\.acct-card:hover \.acct-card-actions/, "hoverを表示条件にしない");
+  assert.doesNotMatch(css, /\.acct-card:focus-within \.acct-card-actions/, "focus時だけの表示にしない");
 });
 
 test("状態の所在は App に一元化し、設定からはイベントだけで開く", () => {
@@ -255,6 +259,17 @@ test("戦術スキルの行はマッチを揃えてからダメージを並べ�
   assert.match(rows[3], /2-2：ダメージ$/, "最後に 2-2 のダメージ");
 });
 
+
+test("共有URL取込は説明付きの主導線として見つけられ、既存の共通パネルを使う", () => {
+  assert.match(ui, /className: "acct-gara-row"/, "独立した取込セクション");
+  assert.match(ui, /className: "acct-gara-title"/, "目的が分かる見出し");
+  assert.ok(ui.includes('className: `acct-import-toggle${importOpen ? " is-open" : ""}`'), "目立つ開閉ボタン");
+  assert.ok(ui.includes('"aria-controls": `acct-import-panel-${entry.id}`'), "操作ボタンとパネルを関連付ける");
+  assert.match(ui, /role: "region", "aria-label": "共有URLの取り込み"/, "展開領域に名前を付ける");
+  assert.match(ui, /h\(window\.GarasumadoImportPanel,/, "リザルトと同じ取込パネルを再利用");
+  assert.match(css, /\.acct-import-toggle\s*\{/, "見つけやすい取込CTAのスタイル");
+  assert.match(css, /\.acct-import-toggle:focus-visible\s*\{/, "キーボードフォーカスが見える");
+});
 
 test("SINNER SELECT内の共有URL取込は全列を使い、本文が狭いカード幅に押し込まれない", () => {
   assert.ok(ui.includes('className: `acct-card acct-card--form${importOpen ? " acct-card--import-open" : ""}`, style: { "--i": index } },'), "展開状態のクラスを反映");

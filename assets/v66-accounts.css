@@ -200,8 +200,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
-  min-height: 138px;
-  padding: var(--s-4) var(--s-3) var(--s-3);
+  min-height: 156px;
+  padding: var(--s-4) var(--s-3) calc(var(--s-3) + 28px);
   text-align: center;
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
@@ -329,19 +329,8 @@
   right: var(--s-2);
   display: flex;
   gap: 4px;
-  opacity: 0;
-  transform: translateY(2px);
-  transition: opacity var(--t) var(--e-out), transform var(--t) var(--e-out);
-}
-.acct-card:hover .acct-card-actions,
-.acct-card:focus-within .acct-card-actions,
-.acct-card-actions.is-static {
   opacity: 1;
   transform: none;
-}
-/* タッチデバイスは hover が無いので常に見せる。 */
-@media (hover: none) {
-  .acct-card-actions { opacity: 1; transform: none; }
 }
 .acct-icon-btn {
   width: 28px;
@@ -364,6 +353,25 @@
 }
 .acct-icon-btn:active {
   transform: scale(.96);
+}
+.acct-edit-btn {
+  width: auto;
+  min-width: 60px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font: 700 var(--fs-10) var(--f-body);
+  color: var(--gold-hi);
+  background: var(--gold-tint);
+  border-color: var(--gold-line);
+  white-space: nowrap;
+}
+.acct-edit-btn:hover {
+  color: var(--gold-hi);
+  background: var(--gold-glow);
+  border-color: var(--gold);
 }
 
 /* ---- 追加カード / フォームカード ---- */
@@ -1346,20 +1354,66 @@ main.acct-gate {
 }
 
 
-/* アカウント編集カードの硝子窓取り込み導線。
-   アイコンの行と同じ形（ラベル + 動作）に合わせる。 */
+/* アカウント編集カードの共有URL取込導線。
+   小さな補助ボタンではなく、用途・説明・操作をひとまとまりにした主導線として表示する。 */
 .acct-gara-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-3);
+  min-width: 0;
+  padding: var(--s-3);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-lg);
+  background: color-mix(in srgb, var(--gold) 5%, var(--surface-1));
+}
+.acct-gara-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.acct-gara-title {
+  font: 700 var(--fs-12) var(--f-display);
+  letter-spacing: .06em;
+  color: var(--gold-hi);
+}
+.acct-gara-note {
+  margin: 0;
+  font-size: var(--fs-11);
+  line-height: var(--lh-loose);
+  color: var(--tx-mute);
+}
+.acct-import-toggle {
+  width: 100%;
+  min-height: 44px;
   display: flex;
   align-items: center;
-  gap: var(--s-3);
-  flex-wrap: wrap;
-  padding: var(--s-2) 0;
-  border-top: 1px solid var(--line);
+  justify-content: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  font: 700 var(--fs-12) var(--f-body);
+  color: var(--tx-inv);
+  background: var(--gold);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r);
+  transition: background-color var(--t-fast) var(--e-out), border-color var(--t-fast) var(--e-out), color var(--t-fast) var(--e-out);
 }
-.acct-gara-row .acct-icon-row-label { flex: 0 0 auto; }
-
+.acct-import-toggle:hover {
+  background: var(--gold-hi);
+  border-color: var(--gold-hi);
+}
+.acct-import-toggle.is-open {
+  color: var(--gold-hi);
+  background: var(--surface-2);
+  border-color: var(--gold);
+}
+.acct-import-toggle:focus-visible {
+  outline: 2px solid var(--gold-hi);
+  outline-offset: 3px;
+}
 .acct-gara-body {
-  padding: var(--s-2) 0 var(--s-1);
+  min-width: 0;
+  width: 100%;
+  padding: var(--s-3) 0 var(--s-1);
 }
 
 

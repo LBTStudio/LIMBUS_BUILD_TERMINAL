@@ -276,17 +276,24 @@ const AccountCard = ({ entry, index, active, editing, draft, setDraft, icon, onS
         ),
         h("p", { className: "acct-icon-row-note" }, "PNG・JPEG・WebPを自動で圧縮して端末内に保存します（最大24KB・正方形に中央切り抜き）。")
       ),
-      h("div", { className: "acct-gara-row" },
-        h("span", { className: "acct-icon-row-label" }, "硝子窓"),
-        h("div", { className: "acct-icon-row-actions" },
-          h("button", {
-            type: "button", className: "acct-upload-btn",
-            "aria-expanded": importOpen,
-            onClick: () => setImportOpen((v) => !v)
-          }, importOpen ? "取り込みを閉じる" : "共有URLから取り込む")
+      h("section", { className: "acct-gara-row", "aria-label": "硝子窓の共有URL取り込み" },
+        h("div", { className: "acct-gara-copy" },
+          h("span", { className: "acct-gara-title" }, "硝子窓の共有データ"),
+          h("p", { className: "acct-gara-note" }, "共有URLから所持品や購入履歴などを読み込み、反映前に内容を確認できます。")
+        ),
+        h("button", {
+          type: "button",
+          className: `acct-import-toggle${importOpen ? " is-open" : ""}`,
+          "aria-expanded": importOpen,
+          "aria-controls": `acct-import-panel-${entry.id}`,
+          onClick: () => setImportOpen((v) => !v)
+        },
+          h(Icon, { name: "link", size: 16 }),
+          h("span", null, importOpen ? "取り込みを閉じる" : "共有URLから取り込む"),
+          h(Icon, { name: importOpen ? "chevron-up" : "chevron-down", size: 14 })
         )
       ),
-      importOpen ? h("div", { className: "acct-gara-body" },
+      importOpen ? h("div", { className: "acct-gara-body", id: `acct-import-panel-${entry.id}`, role: "region", "aria-label": "共有URLの取り込み" },
         h(window.GarasumadoImportPanel, {
           onClose: () => setImportOpen(false),
           onApply: (result) => {
@@ -312,7 +319,7 @@ const AccountCard = ({ entry, index, active, editing, draft, setDraft, icon, onS
     ),
     active ? h("span", { className: "acct-badge" }, h(Icon, { name: "check", size: 10 }), "使用中") : null,
     h("div", { className: "acct-card-actions" },
-      h("button", { type: "button", className: "acct-icon-btn", onClick: onEdit, title: "名前と用途を編集", "aria-label": `${entry.name} の名前と用途を編集` }, h(Icon, { name: "edit", size: 12 })),
+      h("button", { type: "button", className: "acct-icon-btn acct-edit-btn", onClick: onEdit, title: "名前と用途を編集", "aria-label": `${entry.name} の名前と用途を編集` }, h(Icon, { name: "edit", size: 12 }), h("span", null, "編集")),
       canRemove ? h("button", { type: "button", className: "acct-icon-btn is-danger", onClick: onRemove, title: "このアカウントを削除", "aria-label": `${entry.name} を削除` }, h(Icon, { name: "trash", size: 12 })) : null
     )
   );
