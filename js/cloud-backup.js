@@ -212,10 +212,6 @@
     bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
     return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
   }
-  async function sha256(value) {
-    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-    return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
-  }
   async function callRecovery(payload) {
     const response = await fetch(RECOVERY_ENDPOINT, {
       method: "POST",
@@ -592,7 +588,7 @@
         button("JSONファイルから復元", () => fileInput.current?.click()),
         hasKey ? button("この端末の自動同期を停止", () => run(disableOnline), "is-danger") : null
       ),
-      h("p", { className: "lbt-cloud-footnote" }, "復旧キーはサーバーに平文保存せず、ハッシュだけで照合します。キーはデータ更新・同期・世代変更では変更・失効しません。明示的に再発行した場合のみ古いキーが無効になります。クラウドのJSON本体はエンドツーエンド暗号化されないため、復旧キーを公開チャンネルへ貼らず、別の安全な場所にもJSONバックアップを保管してください。")
+      h("p", { className: "lbt-cloud-footnote" }, "復旧キー自体は保存せずハッシュのみを保持します。クラウドへ保存されるJSON本体はエンドツーエンド暗号化されません。復旧キーはデータ更新・同期・世代変更では変更・失効せず、明示的に再発行した場合のみ古いキーが無効になります。復旧キーを公開チャンネルへ貼らず、別の安全な場所にもJSONバックアップを保管してください。")
     );
   }
 
