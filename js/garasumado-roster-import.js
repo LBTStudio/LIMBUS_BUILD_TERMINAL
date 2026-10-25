@@ -236,7 +236,6 @@
       ["サポートスロット", "サポートスロット追加"],
       ["サポートスロット解放", "サポートスロット追加"],
       ["サポートスロット拡張", "サポートスロット追加"],
-      ["サポパ", "サポートスロット追加"]
     ].map(([from, to]) => [keyOf(from), keyOf(to)]));
     const selected = [];
     const selectedKeys = new Set();
@@ -263,14 +262,6 @@
         if (exact) {
           add(exact);
           return true;
-        }
-        if (key === keyOf("肉体強化フル") || key === keyOf("精神強化フル")) {
-          const prefix = key.startsWith(keyOf("肉体強化")) ? keyOf("肉体強化") : keyOf("精神強化");
-          const matched = rows.filter((row) => keyOf(row.group || "").startsWith(prefix));
-          if (matched.length) {
-            matched.forEach(add);
-            return true;
-          }
         }
         for (const group of groups) {
           const groupKey = keyOf(group);
