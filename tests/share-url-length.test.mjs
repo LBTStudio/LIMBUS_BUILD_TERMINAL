@@ -30,7 +30,7 @@ test("短縮は外部保存 ID だけに依存し、圧縮 token を URL に戻�
 test("summary は 1900 文字を超えたら落到し、従来 URL に戻す", () => {
   // fallback 実装があること
   assert.match(shareLink, /if \(withSummary\.length > PRACTICAL_DISCORD_URL_LENGTH\)/);
-  assert.match(shareLink, /for \(const key of \["lbt_n", "lbt_hp", "lbt_san", "lbt_spd", "lbt_sync", "lbt_max", "lbt_img"\]\) url\.searchParams\.delete\(key\)/);
+  assert.match(shareLink, /for \(const key of \["lbt_n", "lbt_hp", "lbt_san", "lbt_spd", "lbt_sin", "lbt_sync", "lbt_max", "lbt_img"\]\) url\.searchParams\.delete\(key\)/);
   // 切り詰めてもなお長ければ、summary なしの base へ
   assert.match(shareLink, /return trimmed\.length <= PRACTICAL_DISCORD_URL_LENGTH \? trimmed : base;/);
 });
