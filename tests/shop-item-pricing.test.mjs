@@ -41,6 +41,7 @@ test("ショップは消耗品カタログを所持状態から独立させ、�
   assert.doesNotMatch(itemFilter[1], /unownedOnly|ownedItemIds/, "アイテム商品は所持中でも一覧から除外しない");
   assert.match(otherSectionsSource, /const canRepurchaseItem = \(item\) => item\?\.ledgerResource !== "shards" && hasConfiguredPrice\(item\)/);
   assert.match(otherSectionsSource, /購入済みでも商品は一覧に残ります/);
+  assert.match(otherSectionsSource, /disabled: capped/);
   assert.match(otherSectionsSource, /tab !== "item" \? h\(Button/);
 
   const shopItemBuilder = otherSectionsSource.match(/item: \(\) => items\.map\(\(item\) => \{([\s\S]*?)\n\s*\}\)/);
