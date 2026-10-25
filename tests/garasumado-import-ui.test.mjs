@@ -217,7 +217,7 @@ test("人格URLの一括取り込みは人格パーサーから個別に読み�
   assert.match(uiFlat, /personaAlreadyImported\(row\.id\)/);
   assert.match(uiFlat, /type: "ADD_GARASUMADO_PERSONA"/);
   assert.match(uiFlat, /existingPersonas/);
-  assert.match(uiFlat, /現在の装備中人格やキャラクターの履歴は変更していません/);
+  assert.match(uiFlat, /装備中人格やキャラクターの履歴は変更していません/);
   assert.doesNotMatch(uiFlat, /人格URLの一括登録は、各人格を個別に識別して登録する専用処理が必要なため、この画面では未対応です/);
 });
 
