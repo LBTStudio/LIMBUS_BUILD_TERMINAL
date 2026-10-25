@@ -559,3 +559,42 @@ test("旧形式のdeathSupportは、新規・既存の所持行どちらでも�
     assert.equal(normalized.deathSupport?.effect, deathSupport.effect);
   }
 });
+
+
+test("ロック中の旧形式deathSupportは枠分類を保全しても装備を復活させない", () => {
+  const legacy = {
+    id: "locked-legacy-death",
+    name: "旧形式の手動死亡後サポート",
+    cond: "条件",
+    effect: "効果",
+    lp: "2"
+  };
+  const staleRow = {
+    uid: legacy.id,
+    name: legacy.name,
+    cond: "古い条件",
+    effect: "古い効果",
+    lp: "1",
+    slot: "normal",
+    equipped: true,
+    resultId: null,
+    addedAt: 1,
+    notes: ""
+  };
+
+  for (const rows of [[], [staleRow]]) {
+    const normalized = w.LBT_normalizeStateShape({
+      ...base(),
+      enhancements: [],
+      supports: [],
+      deathSupport: { ...legacy },
+      roster: { personas: [], egos: [], supports: rows.map((row) => ({ ...row })), spirits: [] }
+    });
+    const row = normalized.roster.supports.find((entry) => entry.uid === legacy.id);
+    assert.ok(row, "旧データの所持行は削除しない");
+    assert.equal(row.slot, "death", "ロック中でも専用枠分類を保つ");
+    assert.equal(row.deathSlotManual, true);
+    assert.equal(row.equipped, false, "最後の解放を失った旧データを再装備しない");
+    assert.equal(normalized.deathSupport, null, "ロック中は選択投影を復活させない");
+  }
+});
