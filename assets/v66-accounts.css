@@ -786,7 +786,8 @@ main.acct-gate {
     gap: var(--s-2);
     padding: var(--s-3);
   }
-  .acct-card { min-height: 124px; padding: var(--s-3) var(--s-2) var(--s-2); }
+  /* Keep the absolute Edit/Delete action row from covering the last-updated label. */
+  .acct-card { min-height: 124px; padding: var(--s-3) var(--s-2) calc(var(--s-2) + 32px); }
   .acct-panel-foot { padding: var(--s-3); }
 }
 
