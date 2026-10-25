@@ -542,3 +542,102 @@ R開始時、対象を指定する。
   assert.equal(result.persona.unique_buffs[4].desc, "R開始時、対象を指定する。");
   assert.ok(result.persona.unique_buffs.every((b) => !/後続見出し確認/.test(b.desc)));
 });
+
+test("硝子窓人格の一括登録は所持ライブラリへ追加し、装備中ビルドを変更せずURL IDで重複排除する", () => {
+  const { reducer, initState } = loadStateReducer();
+  const activeSource = { name: "現在装備中の人格", no: 17, __custom: false };
+  const existingEntry = {
+    uid: "pr-active-17", no: 17, mode: "n", equipped: true,
+    src: activeSource, syncRank: "00", syncMax: false
+  };
+  const initial = {
+    ...initState,
+    personaMode: "n",
+    personaNo: 17,
+    personaSrc: activeSource,
+    hp: "123",
+    san: "48",
+    speed: "2d3",
+    skills: [{ id: "active-skill", rank: "スキル0", name: "装備中スキル", dice: [] }],
+    roster: { ...(initState.roster || {}), personas: [existingEntry], egos: [], supports: [], spirits: [] },
+    inventory: [{ itemId: "test-item", quantity: 2 }]
+  };
+  const persona = {
+    name: "硝子窓から取り込む人格",
+    no: 999,
+    hp: 152,
+    san: 63,
+    speed: "1d7",
+    bullets: "×",
+    res_slash: "普通",
+    res_pierce: "抵抗",
+    res_blunt: "弱点",
+    passive_name: "主パッシブ",
+    passive_cond: "傲慢×3 保有",
+    passive_always: "R開始時、保護1を得る",
+    passive_effect: "マッチ威力+1",
+    skills: [{
+      rank: "スキル0-2",
+      name: "共有された戦術",
+      type: "貫通反撃",
+      sin: "憂鬱",
+      aoe: "",
+      aoeCount: "",
+      effect: "",
+      dice: [{ roll: "2d10+1", effect: "呼吸1を得る" }]
+    }],
+    unique_buffs: [{ name: "共有固有", type: "バフ", initial: 0, max: 1, desc: "保護を得る", place: "status" }],
+    keywords: [],
+    __custom: true,
+    __draftImported: true
+  };
+  const action = {
+    type: "ADD_GARASUMADO_PERSONA",
+    persona,
+    secondaryPassive: { name: "副パッシブ", cond: "嫉妬×2", always: "", effect: "ダメージ量+1" },
+    syncRank: "000",
+    syncMax: true,
+    source: {
+      kind: "garasumado-persona",
+      id: "EPm6O9SU11aYYj0obEar",
+      url: "https://lbt-garasumado.vercel.app/persona/view/EPm6O9SU11aYYj0obEar",
+      label: persona.name
+    }
+  };
+
+  const next = reducer(initial, action);
+  assert.equal(next.roster.personas.length, 2);
+  assert.equal(next.roster.personas[0].uid, "pr-active-17");
+  assert.equal(next.roster.personas[0].equipped, true);
+  const imported = next.roster.personas[1];
+  assert.equal(imported.mode, "custom");
+  assert.equal(imported.src.name, persona.name);
+  assert.equal(imported.build.personaSrc.name, persona.name);
+  assert.equal(imported.build.skills[0].rank, "スキル0-2");
+  assert.equal(imported.build.skills[0].dice[0].roll, "2d10+1");
+  assert.equal(imported.build.extraPassives[0].name, "副パッシブ");
+  assert.equal(imported.build.uniqueBuffs[0].name, "共有固有");
+  assert.equal(imported.syncRank, "000");
+  assert.equal(imported.syncMax, true);
+  assert.equal(imported.equipped, false);
+  assert.equal(imported.importSource.id, action.source.id);
+
+  assert.equal(next.personaMode, initial.personaMode);
+  assert.equal(next.personaNo, initial.personaNo);
+  assert.equal(next.personaSrc, activeSource);
+  assert.equal(next.hp, initial.hp);
+  assert.equal(next.san, initial.san);
+  assert.equal(next.speed, initial.speed);
+  assert.equal(next.skills[0].name, "装備中スキル");
+  assert.deepEqual(next.inventory, initial.inventory);
+
+  const duplicate = reducer(next, action);
+  assert.equal(duplicate, next, "同じ共有IDは再取り込みしない");
+
+  const otherVersion = reducer(next, {
+    ...action,
+    source: { ...action.source, id: "AnotherPersonaShareID123" }
+  });
+  assert.equal(otherVersion.roster.personas.length, 3, "別URLの同名人格は既存行を上書きしない");
+  assert.notEqual(otherVersion.roster.personas[2].uid, imported.uid);
+});
