@@ -217,7 +217,7 @@ test("起動時のアカウント選択画面にも常時表示の編集ボタ�
   assert.ok(gateSource.includes('className: "acct-gate-edit-btn"'), "起動時カードに専用の編集ボタン");
   assert.ok(gateSource.includes("detail: { editId: entry.id }"), "クリックしたアカウントIDを渡す");
   assert.ok(gateSource.includes('"aria-haspopup": "dialog"'), "ダイアログを開く操作として明示");
-  assert.match(ui, /const AccountSwitcher = \(\{ open, onClose, initialEditId \}\) => \{/);
+  assert.match(ui, /const AccountSwitcher = \(\{ open, onClose, initialEditId, existingPersonas \}\) => \{/);
   assert.match(ui, /if \(!open \|\| !initialEditId\) return;[\s\S]*?setEditingId\(entry\.id\)/, "対象IDを受け取り編集フォームへ入る");
   assert.ok(app.includes("accountSwitcherInitialEditId"), "編集対象IDを App で管理");
   assert.ok(app.includes("event.detail?.editId || null"), "イベントから対象IDを受け取る");
@@ -292,6 +292,13 @@ test("共有URL取込は説明付きの主導線として見つけられ、既�
   assert.match(ui, /h\(window\.GarasumadoImportPanel,/, "リザルトと同じ取込パネルを再利用");
   assert.match(css, /\.acct-import-toggle\s*\{/, "見つけやすい取込CTAのスタイル");
   assert.match(css, /\.acct-import-toggle:focus-visible\s*\{/, "キーボードフォーカスが見える");
+});
+
+test("SINNER SELECTの取込も所持人格を受け取り、除外後の実数を返す", () => {
+  assert.match(ui, /const AccountSwitcher = \(\{ open, onClose, initialEditId, existingPersonas \}\)/);
+  assert.match(ui, /existingPersonas: Array\.isArray\(existingPersonas\) \? existingPersonas : \[\]/);
+  assert.match(app, /existingPersonas: state\.roster\?\.personas \|\| \[\]/, "App が所持人格を渡す");
+  assert.match(ui, /accepted: Array\.isArray\(detail\.actions\)/, "取り込み口は受理結果を返す");
 });
 
 test("SINNER SELECT内の共有URL取込は全列を使い、本文が狭いカード幅に押し込まれない", () => {

@@ -4157,7 +4157,7 @@ const readDragId = (event) => {
    APPLY_IMPORT_BATCH が ADD_RESULT と ADD_ENTRY の紐付けを解決し、Undo 1 回で戻る。 */
 const applyGarasumadoImport = (applied) => {
   const actions = applied?.actions || applied?.rosterActions || [];
-  if (!actions.length) { toast("取り込むものが選ばれていません"); return; }
+  if (!actions.length) { toast("取り込むものが選ばれていません"); return { accepted: [], skipped: [] }; }
   const detail = { actions, skipped: Array.isArray(applied.skipped) ? [...applied.skipped] : [] };
   window.dispatchEvent(new CustomEvent("lbt:apply-import", { detail }));
   const accepted = Array.isArray(detail.actions) ? detail.actions : [];
@@ -4169,6 +4169,8 @@ const applyGarasumadoImport = (applied) => {
     skipped: skipped.slice(0, 12),
     skippedCount: skipped.length
   });
+  /* 取込パネルの確定サマリが、除外後の実数を使えるように返す。 */
+  return { accepted, skipped };
 };
 const IMPORT_TYPE_LABEL = {
     ADD_GARASUMADO_PERSONA: "硝子窓人格", ADD_ROSTER: "人格", ADD_ROSTER_EGO: "E.G.O", ADD_ROSTER_SUPPORT: "パッシブ",

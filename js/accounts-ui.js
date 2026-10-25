@@ -238,13 +238,18 @@ const AccountSummary = () => {
    状態の所在は App なので、ここはイベントを投げるだけ。 */
 function applyGarasumadoImport(result) {
   const actions = (result && (result.actions || result.rosterActions)) || [];
-  if (!actions.length) { toast("取り込むものが選ばれていません"); return; }
-  window.dispatchEvent(new CustomEvent("lbt:apply-import", {
-    detail: { actions, skipped: (result && result.skipped) || [] }
-  }));
+  if (!actions.length) { toast("取り込むものが選ばれていません"); return { accepted: [], skipped: [] }; }
+  const detail = { actions, skipped: (result && result.skipped) || [] };
+  window.dispatchEvent(new CustomEvent("lbt:apply-import", { detail }));
+  /* App 側はアイテム上限や取込済みをここで除外し、受理した action を返す。
+     呼び出し元（取込パネル）が確定サマリに使えるよう、そのまま返す。 */
+  return {
+    accepted: Array.isArray(detail.actions) ? detail.actions : [],
+    skipped: Array.isArray(detail.skipped) ? detail.skipped : []
+  };
 }
 
-const AccountCard = ({ entry, index, active, editing, draft, setDraft, icon, onSelect, onEdit, onRemove, onSave, onCancel, onPickIcon, onClearIcon, canRemove, onImport }) => {
+const AccountCard = ({ entry, index, active, editing, draft, setDraft, icon, onSelect, onEdit, onRemove, onSave, onCancel, onPickIcon, onClearIcon, canRemove, onImport, existingPersonas }) => {
   const onDraftKeyDown = (save) => (event) => {
     if (event.key === "Enter") { event.preventDefault(); save(); }
     if (event.key === "Escape") { event.preventDefault(); onCancel(); }
@@ -295,10 +300,12 @@ const AccountCard = ({ entry, index, active, editing, draft, setDraft, icon, onS
       ),
       importOpen ? h("div", { className: "acct-gara-body", id: `acct-import-panel-${entry.id}`, role: "region", "aria-label": "共有URLの取り込み" },
         h(window.GarasumadoImportPanel, {
+          existingPersonas: Array.isArray(existingPersonas) ? existingPersonas : [],
           onClose: () => setImportOpen(false),
           onApply: (result) => {
-            onImport?.(result);
+            const outcome = onImport?.(result);
             setImportOpen(false);
+            return outcome;
           }
         })
       ) : null,
@@ -325,7 +332,7 @@ const AccountCard = ({ entry, index, active, editing, draft, setDraft, icon, onS
   );
 };
 
-const AccountSwitcher = ({ open, onClose, initialEditId }) => {
+const AccountSwitcher = ({ open, onClose, initialEditId, existingPersonas }) => {
   const panelRef = React.useRef(null);
 
   const [info, setInfo] = React.useState(readAccountInfo);
@@ -468,6 +475,7 @@ const AccountSwitcher = ({ open, onClose, initialEditId }) => {
           onPickIcon: () => iconEditor.startPick(entry.id),
           onClearIcon: () => iconEditor.clearIcon(entry.id),
           canRemove: total > 1,
+          existingPersonas: Array.isArray(existingPersonas) ? existingPersonas : [],
           onImport: (result) => applyGarasumadoImport(result)
         })),
         creating ? h("div", { className: "acct-card acct-card--form", style: { "--i": total } },

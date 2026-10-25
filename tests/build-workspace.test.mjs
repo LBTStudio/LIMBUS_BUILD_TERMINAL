@@ -640,8 +640,9 @@ test("硝子窓の取り込み画面は既存の利用側を壊さず足し物�
   /* manifest と選択キーは「記録へ帰属させる明細」を作るために必要。
      アカウント引き継ぎとして使うなら、画面側は中立なまま。 */
   assert.match(ui, /const applied = \{ actions: result\.actions, skipped: result\.skipped, rosterActions: result\.actions, manifest, keys \};/);
-  /* 確定がコンバート確定。押した瞬間に確定し、結果を見せる（自動で閉じない）。 */
-  assert.match(ui, /onApply\?\.\(applied\);/);
+  /* 確定がコンバート確定。押した瞬間に確定し、結果を見せる（自動で閉じない）。
+     親（取り込み口）が除外した結果を受け取れるよう、戻り値も読む。 */
+  assert.match(ui, /const outcome = onApply\?\.\(applied\) \|\| null;/);
   /* 購入明細は「どのシナリオの支出か」を保ったまま渡す。 */
   assert.match(ui, /const result = window\.LBT_toDispatchActions\?\.\(merged, keys, \{ purchases, resolve \}\)/);
   /* 同期・解析の対象名を DB へ引く解決器も渡す（渡さないと操作行が捨てられる）。 */

@@ -531,7 +531,7 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [] }) => {
   const [personaPicked, setPersonaPicked] = React.useState({});
   const [personaConfirmed, setPersonaConfirmed] = React.useState(null);
   const currentRosterPersonas = Array.isArray(existingPersonas) ? existingPersonas : [];
-  const personaNameKey = (value) => String(value || "").replace(/[\\s\\u3000]/g, "").toLowerCase();
+  const personaNameKey = (value) => String(value || "").replace(/[\s\u3000]/g, "").toLowerCase();
   const personaAlreadyImported = (id) => currentRosterPersonas.some((entry) =>
     entry?.importSource?.kind === "garasumado-persona"
       && String(entry.importSource.id || "") === String(id || ""));
@@ -634,6 +634,12 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [] }) => {
             const fetched = await window.LBT_fetchGarasumadoDocument?.(entry.url);
             if (!fetched || !fetched.ok || !fetched.doc) {
               return { ok: false, url: entry.url, reason: fetched?.error || "取得に失敗しました" };
+            }
+            /* 20字IDだけの貼り付けは characters として解析されるが、実体が
+               人格文書のことがある（fetch は personas コレクションも試す）。
+               人格はキャラクターの所持・履歴へ流さない。 */
+            if (fetched.collection === "personas") {
+              return { ok: false, url: entry.url, reason: "人格の共有URLです（/persona/view/ 付きで貼り直してください）" };
             }
             return { ok: true, ...fetched, url: entry.url };
           } catch (error) {
@@ -952,11 +958,13 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [] }) => {
   /* manifest と選択キーは「記録へ帰属する明細」を作るために必要。
      既存の利用側（アカウント編集）は読まないので、壊さず足すだけで済む。 */
   const applied = { actions: result.actions, skipped: result.skipped, rosterActions: result.actions, manifest, keys };
-  onApply?.(applied);
+  /* 親（取り込み口）はアイテム上限や重複で一部を除外し、その結果を返す。
+     受け取れたら確定サマリに使い、受け取れなければ手元の skipped を使う。 */
+  const outcome = onApply?.(applied) || null;
   /* ここでコンバート確定。画面は閉じずに確定結果を見せる。 */
   setConfirmed({
     counts: appliedSummary(result.actions),
-    skipped: applied.skipped || [],
+    skipped: Array.isArray(outcome?.skipped) ? outcome.skipped : (applied.skipped || []),
     simulation: draft ? draft.simulation : null
   });
 };
@@ -1090,8 +1098,10 @@ function appliedSummary(actions) {
                 }
               }));
               const skipped = failedRows.map((row) => ({ key: row.id, url: row.url, reason: row.reason }));
-              onApply?.({ actions, skipped });
-              setPersonaConfirmed({ count: actions.length, names: selectedRows.map((row) => row.result.persona.name) });
+              const outcome = onApply?.({ actions, skipped }) || null;
+              /* 親が除外した分（取込済みなど）を差し引いた件数で確定を報告する。 */
+              const accepted = Array.isArray(outcome?.accepted) ? outcome.accepted : actions;
+              setPersonaConfirmed({ count: accepted.length, names: accepted.map((action) => action?.persona?.name).filter(Boolean) });
             }
           }, "選択した人格を取り込む")
         )

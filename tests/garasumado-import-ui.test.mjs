@@ -189,7 +189,7 @@ test("選択状態は draft にも渡る（シミュレーションの取り込�
 test("確定の瞬間がコンバート確定になる（確定前は反映されない）", () => {
   /* シミュレーションは「反映前の1手前」。確定ボタンを押した瞬間に確定する。 */
   assert.match(uiFlat, /const \[confirmed, setConfirmed\] = React\.useState\(null\);/);
-  assert.match(uiFlat, /onApply\?\.\(applied\);/);
+  assert.match(uiFlat, /const outcome = onApply\?\.\(applied\) \|\| null;/);
   /* 確定したら自動で閉じず、結果を見せる（確認してから閉じる）。 */
   assert.doesNotMatch(uiFlat, /onApply\?\.\([\s\S]{0,160}?onClose\?\.\(\);/);
   assert.match(uiFlat, /\}, "変換を確定する"\)/);
@@ -224,10 +224,10 @@ test("人格URLの一括取り込みは人格パーサーから個別に読み�
 
 test("人格URLの取込確定を所持ライブラリへ渡し、集約・履歴マージ処理を使わない", () => {
   assert.match(uiFlat, /const skipped = failedRows\.map/);
-  assert.match(uiFlat, /onApply\?\.\(\{ actions, skipped \}\)/);
+  assert.match(uiFlat, /const outcome = onApply\?\.\(\{ actions, skipped \}\) \|\| null;/);
   assert.match(uiFlat, /kind: "garasumado-persona"/);
   assert.match(uiFlat, /url: row\.url/);
-  assert.match(uiFlat, /setPersonaConfirmed\(\{ count: actions\.length/);
+  assert.match(uiFlat, /setPersonaConfirmed\(\{ count: accepted\.length/);
   const personaBranch = ui.indexOf('if (collectionKinds.has("personas"))');
   const characterMerge = ui.indexOf("const mergedDoc = window.LBT_mergeGarasumadoDocuments");
   assert.ok(personaBranch >= 0 && characterMerge > personaBranch);
@@ -260,6 +260,24 @@ test("確定後は manifest が残っていても確定結果画面を表示す�
   const render = panel.slice(panel.indexOf("const pendingCount"));
   assert.ok(render.indexOf("if (confirmed)") >= 0, "確定状態の分岐がある");
   assert.ok(render.indexOf("if (confirmed)") < render.indexOf("if (!manifest)"), "確定結果を manifest の有無より先に描画する");
+});
+
+test("人格ドキュメントはキャラクター経路へ流さず、確定サマリは親の受理結果を使う", () => {
+  assert.match(uiFlat, /fetched\.collection === "personas"/, "20字IDの人格文書を所持・履歴へ流さない");
+  assert.match(uiFlat, /const outcome = onApply\?\.\(applied\) \|\| null;/);
+  assert.match(uiFlat, /Array\.isArray\(outcome\?\.skipped\) \? outcome\.skipped : \(applied\.skipped \|\| \[\]\)/);
+});
+
+test("人格名の照合キーは空白と全角スペースを落とす（二重エスケープしない）", () => {
+  const found = ui.match(/const personaNameKey = \(value\) => [^\n]+/);
+  assert.ok(found, "personaNameKey の定義がある");
+  const expr = found[0].slice("const personaNameKey = ".length).replace(/;\s*$/, "");
+  const key = new Function("return (" + expr + ");")();
+  assert.equal(key(" さくら さん "), "さくらさん");
+  assert.equal(key("A B"), "ab");
+  assert.equal(key("　全角　スペース　"), "全角スペース");
+  /* 壊れた文字クラスだと s / u / 3 / 0 まで消える。名前を変質させない。 */
+  assert.equal(key("Roses 人格"), "roses人格");
 });
 
 test("SINNER SELECTの取込はモーダル幅に合わせ、確定操作をスクロール中も追従させる", () => {
