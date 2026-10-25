@@ -16,7 +16,7 @@ const HELP_ITEMS = [
   { group: "operation", icon: "search", title: "クイック検索で画面や候補を探す", body: "クイック検索はPCではCtrl+K（Macでは⌘K）、スマートフォンでは検索ボタンから開きます。画面移動や操作、人格・E.G.O・アイテム候補を横断して探す機能です。通常の人格図鑑では名前・効果・キーワード、大罪・所属・耐性・所持条件など、E.G.O一覧では名前・効果・キーワード、ランク・必要資源／除外資源・所持条件などで絞り込めます。同期ランク／同期MAXは、通常の人格図鑑の共通フィルターではありません。一方、「記録」の所持人格一覧には同期・同期ランク／MAXの絞り込みがあり、設定変更は所持人格詳細から行います。" },
   { group: "save", icon: "archive", title: "所持ライブラリを保存する", body: "記録タブでは所持データと保存済みビルド、リザルトと収支を確認します。PCでは上部バーのアーカイブアイコン「所持ライブラリを保存」、スマートフォンや幅の狭い画面では「操作・保存」（または「その他」）からJSONファイルを書き出し、別端末へ引き継げます。この専用ファイルは登録済みの所持データ・保存済みビルドに加えて、お気に入り・履歴を含みます。現在の作業状態ファイルとは別です。読み込み時は「所持ライブラリ」および「お気に入り・最近の履歴」の適用範囲を確認してください。" },
   { group: "save", icon: "download", title: "作業状態を保存・復元する", body: "通常の編集内容はブラウザー内に自動保存されます。画面上部の保存状態が「端末内保存不可」と表示された場合は、作業を失わないようJSONファイルにも保存してください。「現在の作業状態を保存」は現在のキャラクターだけでなく、所持データ・導入アイテム・リザルト／収支明細・設定なども含む広い作業データを書き出します。読み込み時はファイルに存在するカテゴリが初期選択されます。適用すると選択したカテゴリを上書きするため、残したいものはチェックを外し、表示された適用範囲を確認してください。なお、抽選ログは現行のカテゴリ選択読み込みでは復元されません。" },
-  { group: "imports", icon: "persona", title: "人格データを文章から取り込む", body: "「ビルド」→「人格」→「テキスト流し込み反映」を開きます。入力方法は「完成データを分けて入力」「一括テキストを貼り付け」「硝子窓URLから移行」の3つ。解析結果とエラーを確認し、必要なら同期元を選んでから「この人格を作成」または「同期人格として反映」を押します。既存の公式人格データ自体を書き換える機能ではありません。" },
+  { group: "imports", icon: "persona", title: "人格データを文章から取り込む", body: "「ビルド」を開き、上の「人格」タブを選びます。人格一覧の上部操作列にある「テキスト流し込み反映」を押してください（人格未選択時は詳細欄にも同じボタンがあります）。入力方法は「完成データを分けて入力」「一括テキストを貼り付け」「硝子窓URLから移行」の3つ。解析結果とエラーを確認し、必要なら同期元を選んでから「この人格を作成」または「同期人格として反映」を押します。既存の公式人格データ自体を書き換える機能ではありません。" },
   { group: "imports", icon: "copy", title: "リザルト／購入履歴を文章から取り込む", body: "「記録」→「リザルトを記録」カードの「取り込む」→「テキスト流し込み」です。「【シナリオ名】」「報酬｜」「購入｜」「追加購入｜」などを貼り付けると、リザルトと支出の候補が表示されます。読み取れなかった行、金額が決められない支出、除外する行を確認してから「取り込む」を押します。" },
   { group: "imports", icon: "link", title: "硝子窓のキャラクターURLから取り込む", body: "キャラクター全体の所持・履歴を移す場合は「SINNER SELECT」で対象アカウントの「編集」を押し、「硝子窓の共有データ」内の「共有URLから取り込む」へ進みます。URLを読み込み、対象項目・入手方法・追加予定を確認してから確定します。人格1件だけの草案URLは、こちらではなく人格の「テキスト流し込み反映」内にある「硝子窓URLから移行」を使います。" },
   { group: "imports", icon: "roster", title: "所持人格の一覧をまとめて取り込む", body: "「記録」→「リザルトを記録」→「取り込む」→「所持人格リストを取り込む」です。名前を改行で貼り、「検出する」で一致候補を確認し、見つからない名称を必要に応じて解決してから「保存する」を押します。これは所持一覧の追加であり、リザルトや購入履歴の取り込みとは別機能です。" },
@@ -73,8 +73,80 @@ const GUIDE_FLOWS = {
   }
 };
 
+const GUIDE_UI_LOCATORS = {
+  "persona-import": {
+    title: "「テキスト流し込み反映」はここ",
+    image: "docs/tutorial-captures/persona-import-desktop.webp",
+    mobileImage: "docs/tutorial-captures/persona-import-mobile.webp",
+    alt: "実際のビルド画面。橙色の枠と矢印で人格一覧上部の「テキスト流し込み反映」を示す",
+    note: "実画面に矢印と枠を重ねています。「人格一覧」の上部操作列にあり、人格をまだ装備していなくても使えます。"
+  },
+  "result-import": {
+    title: "リザルト文章の入口はここ",
+    image: "docs/tutorial-captures/result-text-import-desktop.webp",
+    mobileImage: "docs/tutorial-captures/result-text-import-mobile.webp",
+    alt: "実際の記録画面。開いた取り込みメニュー内の「テキスト流し込み」を橙色の枠と矢印で示す",
+    note: "人格データではなく、報酬・購入履歴の文章を記録する入口です。"
+  },
+  "roster-import": {
+    title: "所持人格の名前一覧はここ",
+    image: "docs/tutorial-captures/roster-import-desktop.webp",
+    mobileImage: "docs/tutorial-captures/roster-import-mobile.webp",
+    alt: "実際の記録画面。取り込みメニューの「所持人格リストを取り込む」を橙色の枠と矢印で示す",
+    note: "名前の一覧を所持データへ加える機能です。リザルトや購入履歴の記録とは別です。"
+  },
+  account: {
+    title: "キャラクター全体の共有URLはここ",
+    image: "docs/tutorial-captures/account-share-import-desktop.webp",
+    mobileImage: "docs/tutorial-captures/account-share-import-mobile.webp",
+    alt: "実際のアカウント編集画面。「共有URLから取り込む」を橙色の枠と矢印で示す",
+    note: "対象キャラクターの「編集」を開いた中にあります。先に反映先の名前を確認してください。"
+  },
+  "save-share": {
+    title: "保存・共有のメニューはここ",
+    image: "docs/tutorial-captures/save-work-state-desktop.webp",
+    mobileImage: "docs/tutorial-captures/save-work-state-mobile.webp",
+    alt: "実際の操作・保存メニュー。「現在の作業状態を保存」を橙色の枠と矢印で示す",
+    secondaryTitle: "共有用HTMLを作る「共有シートを開く」はここ",
+    secondaryImage: "docs/tutorial-captures/share-sheet-desktop.webp",
+    secondaryMobileImage: "docs/tutorial-captures/share-sheet-mobile.webp",
+    secondaryAlt: "実際の操作・保存メニュー。「共有シートを開く」を橙色の枠と矢印で示す",
+    note: "共有シートは人に見せるHTML、保存ファイルはバックアップ用です。目的に合う項目を選んでください。"
+  }
+};
+
+const GuideUiLocator = ({ kind }) => {
+  const h = React.createElement;
+  const item = GUIDE_UI_LOCATORS[kind];
+  if (!item) return null;
+  const narrow = typeof window !== "undefined" && typeof window.matchMedia === "function"
+    && window.matchMedia("(max-width: 640px)").matches;
+  const imageLink = (image, mobileImage, alt, title) => h("a", {
+    href: narrow && mobileImage ? mobileImage : image,
+    target: "_blank", rel: "noreferrer",
+    className: "guide-ui-locator-link",
+    "aria-label": title + "（別タブで拡大）"
+  }, h("picture", null,
+    mobileImage ? h("source", { media: "(max-width: 640px)", srcSet: mobileImage, type: "image/webp" }) : null,
+    h("img", {
+      className: "guide-ui-locator-image", src: image, alt,
+      loading: "lazy", decoding: "async"
+    })
+  ));
+  return h("figure", { className: "guide-ui-locator" },
+    h("figcaption", { className: "guide-ui-locator-caption" }, item.title),
+    imageLink(item.image, item.mobileImage, item.alt, item.title),
+    item.secondaryImage ? h("div", { className: "guide-ui-locator-secondary" },
+      h("p", { className: "guide-ui-locator-secondary-title" }, item.secondaryTitle),
+      imageLink(item.secondaryImage, item.secondaryMobileImage, item.secondaryAlt || item.secondaryTitle, item.secondaryTitle)
+    ) : null,
+    h("p", { className: "guide-ui-locator-note" }, item.note + " 画像をクリック／タップすると拡大できます。")
+  );
+};
+
 const GuideFlowDiagram = ({ kind }) => {
   const h = React.createElement;
+  if (GUIDE_UI_LOCATORS[kind]) return h(GuideUiLocator, { kind });
   const flow = GUIDE_FLOWS[kind];
   if (!flow) return null;
   const wrapText = (value, maxChars) => {
@@ -143,11 +215,12 @@ const GuideFlowDiagram = ({ kind }) => {
 const HelpSection = ({ onNavigate, onOpenUtilities }) => {
   const h = React.createElement;
   const [query, setQuery] = React.useState("");
-  const [category, setCategory] = React.useState("frequent");
+  const [category, setCategory] = React.useState("start");
   const [expandedKey, setExpandedKey] = React.useState("");
   const openAccounts = () => window.dispatchEvent(new Event("lbt:open-accounts"));
   const go = (section, ui) => onNavigate?.(section, ui || {});
   const categories = [
+    { key: "start", label: "はじめて" },
     { key: "frequent", label: "よく使う" },
     { key: "imports", label: "取り込み" },
     { key: "accounts", label: "アカウント" },
@@ -157,6 +230,14 @@ const HelpSection = ({ onNavigate, onOpenUtilities }) => {
     { key: "operation", label: "検索・操作" },
     { key: "all", label: "すべて" }
   ];
+  const starterOrder = [
+    "キャラクター（アカウント）を選ぶ・作る",
+    "駒整形で基本情報を設定する",
+    "人格を装備する",
+    "プレビューとJSON出力を確認する",
+    "作業状態を保存・復元する"
+  ];
+  const starterItems = new Set(starterOrder);
   const frequentItems = new Set([
     "人格データを文章から取り込む",
     "リザルト／購入履歴を文章から取り込む",
@@ -178,6 +259,7 @@ const HelpSection = ({ onNavigate, onOpenUtilities }) => {
   const effectiveCategory = category;
   const filteredItems = HELP_ITEMS.filter((item) => {
     const categoryMatch = effectiveCategory === "all"
+      || (effectiveCategory === "start" && starterItems.has(item.title))
       || (effectiveCategory === "frequent" && frequentItems.has(item.title))
       || (categoryGroups[effectiveCategory] || []).includes(item.group);
     if (!categoryMatch) return false;
@@ -185,6 +267,9 @@ const HelpSection = ({ onNavigate, onOpenUtilities }) => {
     const haystack = (item.title + " " + item.body + " " + (groupLabels[item.group] || "")).toLocaleLowerCase("ja");
     return queryTerms.every((term) => haystack.includes(term));
   }).sort((a, b) => {
+    if (!queryTerms.length && effectiveCategory === "start") {
+      return starterOrder.indexOf(a.title) - starterOrder.indexOf(b.title);
+    }
     if (!queryTerms.length) return 0;
     const aRank = queryTerms.some((term) => a.title.toLocaleLowerCase("ja").includes(term)) ? 0 : 1;
     const bRank = queryTerms.some((term) => b.title.toLocaleLowerCase("ja").includes(term)) ? 0 : 1;
@@ -197,6 +282,7 @@ const HelpSection = ({ onNavigate, onOpenUtilities }) => {
     if (title.includes("リザルト／購入履歴")) return "記録 › リザルトを記録 › 取り込む › テキスト流し込み";
     if (title.includes("硝子窓のキャラクターURL")) return "SINNER SELECT › 対象アカウントの編集 › 共有URLから取り込む";
     if (title.includes("所持人格の一覧")) return "記録 › リザルトを記録 › 取り込む › 所持人格リストを取り込む";
+    if (title.includes("キャラクター（アカウント）を選ぶ・作る")) return "起動時の SINNER SELECT / 上部の現在アカウント表示 → アカウント管理";
     if (title.includes("アカウント")) return "上部のアカウント表示 / 設定 › アカウントを切替・管理";
     if (title.includes("駒整形")) return "駒整形";
     if (title.includes("ショップ") || title.includes("未所持")) return "ショップ / ビルドの候補フィルター";
@@ -215,7 +301,7 @@ const HelpSection = ({ onNavigate, onOpenUtilities }) => {
   const getAction = (item) => {
     const title = item.title;
     if (title.includes("硝子窓のキャラクターURL") || item.group === "accounts") return { label: "アカウント管理を開く", run: openAccounts };
-    if (title.includes("人格データを文章")) return { label: "ビルドを開く", run: () => go("persona") };
+    if (title.includes("人格データを文章")) return { label: "人格タブを開く", run: () => go("persona") };
     if (title.includes("リザルト") || title.includes("所持人格の一覧") || item.group === "record") return { label: "記録を開く", run: () => go("roster", { libraryTab: "ledger" }) };
     if (title.includes("駒整形")) return { label: "駒整形を開く", run: () => go("baseinfo") };
     if (title.includes("未所持") || title.includes("ショップ")) return { label: "ショップを開く", run: () => go("shop") };
@@ -226,20 +312,16 @@ const HelpSection = ({ onNavigate, onOpenUtilities }) => {
     return null;
   };
   const getFlowKind = (item) => {
-    if (item.title.includes("硝子窓のキャラクターURL")) return "account";
-    if (item.group === "imports") return "imports";
-    if (item.group === "save" && item.title.includes("共有シート")) return "save";
+    const title = item.title;
+    if (title.includes("人格データを文章")) return "persona-import";
+    if (title.includes("リザルト／購入履歴")) return "result-import";
+    if (title.includes("所持人格の一覧")) return "roster-import";
+    if (title.includes("硝子窓のキャラクターURL")) return "account";
+    if (item.group === "save" && title.includes("共有シート")) return "save-share";
     return null;
   };
 
   return h("div", { className: "guide guide-compact" },
-    h("header", { className: "guide-compact-header" },
-      h("div", { className: "guide-compact-heading" },
-        h("h2", null, "使い方"),
-        h("p", null, "目的・操作名・ボタン名で探せます。")
-      ),
-      h("span", { className: "guide-compact-total" }, HELP_ITEMS.length + "項目")
-    ),
     h("div", { className: "guide-search-field" },
       h(Icon, { name: "search", size: 17 }),
       h("input", {
@@ -250,7 +332,7 @@ const HelpSection = ({ onNavigate, onOpenUtilities }) => {
       }),
       query ? h("button", {
         type: "button", className: "guide-search-clear",
-        onClick: () => { setQuery(""); setCategory("frequent"); setExpandedKey(""); },
+        onClick: () => { setQuery(""); setCategory("start"); setExpandedKey(""); },
         "aria-label": "検索をクリア", title: "検索をクリア"
       }, h(Icon, { name: "x", size: 15 })) : null
     ),
@@ -315,7 +397,7 @@ const SECTIONS = [
   { id: "shop", label: "ショップ", icon: "item", title: "SHOP", subtitle: "人格・サポート・E.G.O・精神・アイテムを購入", num: "03", group: "utility" },
   { id: "roster", label: "記録", icon: "roster", title: "CHARACTER RECORD", subtitle: "所持品・リザルト・収支・取り込み", num: null, group: "utility" },
   { id: "settings", label: "設定", icon: "settings", title: "BUILD PARAMETERS", subtitle: "ステータス設計・計算・出力", num: null, group: "utility" },
-  { id: "help", label: "使い方", icon: "book", title: "操作ガイド", subtitle: "準備・確認・出力・保存", num: null, group: "utility" }
+  { id: "help", label: "使い方", icon: "book", title: "使い方", subtitle: "検索して、押す場所を図で確認", num: null, group: "utility" }
 ];
 
 function isComplete(section, s) {

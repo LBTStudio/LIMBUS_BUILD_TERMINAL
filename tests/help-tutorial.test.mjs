@@ -9,17 +9,20 @@ const stateSource = readFileSync(new URL("../js/state.js", import.meta.url), "ut
 const coreSource = readFileSync(new URL("../js/core.js", import.meta.url), "utf8");
 const liveSource = readFileSync(new URL("../js/LivePreview.js", import.meta.url), "utf8");
 const guideCss = readFileSync(new URL("../assets/v56-refinements.css", import.meta.url), "utf8");
+const captureScript = readFileSync(new URL("../tools/ui/capture-tutorial-screenshots.mjs", import.meta.url), "utf8");
+const captureWorkflow = readFileSync(new URL("../.github/workflows/tutorial-screenshot-capture.yml", import.meta.url), "utf8");
 
 test("使い方ページは検索と分類を先頭に置き、最初から巨大なカード群を表示しない", () => {
   assert.ok(appSource.includes('id: "guide-search-input"'));
   assert.ok(appSource.includes('className: "guide-filter-row"'));
   assert.ok(appSource.includes('className: "guide-index-list"'));
-  assert.ok(appSource.includes("目的・操作名・ボタン名で探せます。"));
+  assert.ok(appSource.includes("押す場所を図で確認"));
   assert.ok(!appSource.includes("まず「何をしたいか」から選んでください"));
   assert.ok(!appSource.includes('className: "guide-route-grid"'));
   assert.ok(!appSource.includes('className: "guide-quick"'));
   assert.ok(guideCss.includes(".guide-index-row"));
   assert.ok(guideCss.includes(".guide-search-field"));
+  assert.ok(guideCss.includes(".guide-ui-locator"));
 });
 
 test("人格編集の実ボタン名と、変更を所持ビルドへ保存する操作が説明されている", () => {
@@ -100,8 +103,21 @@ test("元に戻す・クイック検索の説明が現行ショートカット�
   assert.ok(appSource.includes("if (isTyping) return"));
 });
 
+test("初回表示は「はじめて」の短い順路を示し、よく使う項目も別タブで参照できる", () => {
+  assert.ok(appSource.includes('useState("start")'));
+  assert.ok(appSource.includes('{ key: "start", label: "はじめて" }'));
+  assert.ok(appSource.includes('起動時の SINNER SELECT / 上部の現在アカウント表示 → アカウント管理'));
+  assert.ok(appSource.includes('const starterOrder = ['));
+  assert.ok(appSource.includes('"キャラクター（アカウント）を選ぶ・作る"'));
+  assert.ok(appSource.includes('"人格を装備する"'));
+  assert.ok(appSource.includes('effectiveCategory === "start" && starterItems.has(item.title)'));
+  assert.ok(appSource.includes('画像をクリック／タップすると拡大できます。'));
+  assert.ok(guideCss.includes("max-height: 560px"));
+  assert.ok(beginnerTutorial.includes('summary>「共有シートを開く」ボタンの位置を実画面で確認する</summary>'));
+});
+
 test("検索・分類・詳細展開が現行導線に沿っている", () => {
-  assert.ok(appSource.includes("目的・操作名・ボタン名で探せます。"));
+  assert.ok(appSource.includes("押す場所を図で確認"));
   assert.ok(appSource.includes("ビルド → 人格 → テキスト流し込み反映"));
   assert.ok(appSource.includes("const getAction = (item) =>"));
   assert.ok(appSource.includes('className: "guide-index-detail"'));
@@ -119,6 +135,26 @@ const tutorialDiagrams = [
   name,
   source: readFileSync(new URL("../docs/" + name, import.meta.url), "utf8")
 }));
+
+
+test("使い方ガイドはPCとスマートフォンの実画面キャプチャを同梱し、幅に応じて表示を切り替える", () => {
+  const captures = [
+    "persona-import-desktop.webp", "persona-import-mobile.webp",
+    "result-text-import-desktop.webp", "result-text-import-mobile.webp",
+    "roster-import-desktop.webp", "roster-import-mobile.webp",
+    "account-share-import-desktop.webp", "account-share-import-mobile.webp",
+    "save-work-state-desktop.webp", "save-work-state-mobile.webp",
+    "share-sheet-desktop.webp", "share-sheet-mobile.webp"
+  ];
+  for (const name of captures) {
+    const bytes = readFileSync(new URL("../docs/tutorial-captures/" + name, import.meta.url));
+    assert.ok(bytes.byteLength > 10000, name + " が同梱されている");
+  }
+  assert.ok(appSource.includes('h("source", { media: "(max-width: 640px)"'));
+  assert.ok(appSource.includes('secondaryImage: "docs/tutorial-captures/share-sheet-desktop.webp"'));
+  assert.match(beginnerTutorial, /スマートフォン版の実画面を見る/);
+  assert.match(beginnerTutorial, /tutorial-captures\/share-sheet-mobile\.webp/);
+});
 
 test("目的別の操作項目は検索結果から詳細と画面移動へつながる", () => {
   assert.match(appSource, /const HELP_ITEMS = /);
@@ -152,8 +188,13 @@ test("アカウント管理の入口とローカル保存・削除注意が案�
 
 test("初心者向けMarkdownには実際のSVGフローチャートを埋め込み、図の代替テキストを用意する", () => {
   assert.match(beginnerTutorial, /!\[基本の進め方\]\(tutorial-overview\.svg\)/);
+  assert.ok(beginnerTutorial.indexOf("<summary>初回の基本手順") < beginnerTutorial.indexOf("| したいこと | 操作経路 |"));
   assert.match(beginnerTutorial, /!\[文章や共有URLの取り込み口の違い\]\(tutorial-text-import-routes\.svg\)/);
-  assert.match(beginnerTutorial, /!\[アカウント管理から共有URLを取り込む手順\]\(tutorial-account-management\.svg\)/);
+  assert.ok(beginnerTutorial.includes("tutorial-captures/account-share-import-desktop.webp"));
+  assert.ok(beginnerTutorial.includes("tutorial-captures/save-work-state-desktop.webp"));
+  assert.ok(beginnerTutorial.includes("tutorial-captures/persona-import-desktop.webp"));
+  assert.ok(beginnerTutorial.includes("tutorial-captures/result-text-import-desktop.webp"));
+  assert.ok(beginnerTutorial.includes("tutorial-captures/roster-import-desktop.webp"));
   assert.match(beginnerTutorial, /!\[保存、バックアップ、所持ライブラリ、共有の違い\]\(tutorial-save-share\.svg\)/);
   for (const diagram of tutorialDiagrams) {
     assert.ok(diagram.source.includes("<svg "), diagram.name + " はSVG図である");
@@ -170,6 +211,14 @@ test("取り込み後の確認、データ適用範囲、保存形式の違い�
   assert.match(beginnerTutorial, /Ctrl\+K/);
 });
 
+
+
+test("使い方画面の初期表示をPC／スマホで記録し、QA画像を一般向け画像に混ぜない", () => {
+  assert.ok(captureScript.includes('await clickNav(page, "使い方")'));
+  assert.ok(captureScript.includes('"help-index-" + mode + ".png"'));
+  assert.ok(captureWorkflow.includes('if png.stem.startswith("help-index-"):'));
+  assert.ok(captureWorkflow.includes('Expected 12 WebP screenshots'));
+});
 
 test("複雑な図解は該当する項目を開いた時だけ表示される", () => {
   assert.match(appSource, /const getFlowKind = \(item\) =>/);
@@ -192,4 +241,21 @@ test("検索欄の値はReactイベントから読み取り、検索語入力後
   assert.match(appSource, /onChange: \(event\) => \{ const value = event\.target\.value; setQuery\(value\); setExpandedKey\(""\); if \(value\.trim\(\)\) setCategory\("all"\); \}/);
   assert.match(appSource, /const effectiveCategory = category;/);
   assert.match(appSource, /onClick: \(\) => \{ setCategory\(entry\.key\); setExpandedKey\(""\); \}/);
+});
+
+
+test("主要な取り込み操作は、実際のUIラベルを示す個別配置図へつながる", () => {
+  assert.ok(appSource.includes('title.includes("人格データを文章")) return "persona-import"'));
+  assert.ok(appSource.includes('title.includes("リザルト／購入履歴")) return "result-import"'));
+  assert.ok(appSource.includes('title.includes("所持人格の一覧")) return "roster-import"'));
+  assert.ok(appSource.includes('title.includes("硝子窓のキャラクターURL")) return "account"'));
+  assert.ok(appSource.includes("const GUIDE_UI_LOCATORS = {"));
+  assert.ok(appSource.includes("const GuideUiLocator = ({ kind }) =>"));
+  assert.ok(personaSource.includes("pw-listbar-actions"));
+  assert.ok(personaSource.includes("テキスト流し込み反映"));
+  assert.ok(sectionsSource.includes("リザルトを記録"));
+  assert.ok(sectionsSource.includes("所持人格リストを取り込む"));
+  assert.ok(guideCss.includes(".guide-ui-locator-image"));
+  assert.ok(tutorialDiagrams.some((diagram) => diagram.name === "tutorial-save-share.svg"));
+  assert.ok(!appSource.includes('image: "docs/tutorial-persona-import-ui.svg"'));
 });

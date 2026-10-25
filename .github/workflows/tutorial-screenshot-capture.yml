@@ -67,6 +67,10 @@ jobs:
           target.mkdir(parents=True, exist_ok=True)
           pngs = sorted(source.glob("*.png"))
           for png in pngs:
+              # Keep the help-index screenshots in the expiring QA Artifact only.
+              # The public guide remains a focused set of 12 task screenshots.
+              if png.stem.startswith("help-index-"):
+                  continue
               with Image.open(png) as im:
                   im.convert("RGB").save(
                       target / (png.stem + ".webp"),
@@ -76,6 +80,7 @@ jobs:
                   )
           original = json.loads((source / "manifest.json").read_text(encoding="utf-8"))
           original["sourceFiles"] = original["files"]
+          original["qaOnlyFiles"] = [name for name in original["sourceFiles"] if name.startswith("help-index-")]
           original["files"] = [p.stem + ".webp" for p in sorted(target.glob("*.webp"))]
           original["format"] = "WebP, quality 86"
           original["count"] = len(original["files"])

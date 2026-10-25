@@ -273,6 +273,16 @@ async function captureViewport(browser, mode) {
     const shareButton = page.locator(".utility-sheet-action").filter({ hasText: "共有シートを開く" }).first();
     await annotateAndSave(page, shareButton, "share-sheet-" + mode,
       "共有シートを開く", "操作・保存 → 人に見せるHTML");
+
+    // Capture the help index itself for visual QA. These review-only images go to
+    // the expiring CI Artifact, not into the 12 screenshots shown to end users.
+    await page.keyboard.press("Escape").catch(() => {});
+    await clickNav(page, "使い方");
+    await page.locator("#guide-search-input").waitFor({ state: "visible", timeout: 12000 });
+    await page.waitForTimeout(WAIT_MS);
+    const helpIndexFilename = path.join(OUT, "help-index-" + mode + ".png");
+    await page.screenshot({ path: helpIndexFilename, animations: "disabled", fullPage: false });
+    log("captured visual-review screen " + path.relative(ROOT, helpIndexFilename));
   } finally {
     await context.close();
   }

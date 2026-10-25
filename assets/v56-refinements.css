@@ -2696,3 +2696,40 @@ details > summary {
   .guide-index-title { font-size: var(--fs-13); line-height: 1.45; }
   .guide-index-detail { padding: 0 9px 11px; }
 }
+
+
+/* 2026-10-26: 使い方ページの密度を下げ、押す場所の注釈図を中心にする。 */
+.guide-compact { gap: 9px; }
+.guide-search-field { min-height: 41px; }
+.guide-search-input { min-height: 37px; font-size: 13px; }
+.guide-filter-row { gap: 5px; padding-bottom: 2px; }
+.guide-filter { min-height: 28px; padding: 4px 8px; font-size: 10px; }
+.guide-results-heading { margin: 0; }
+.guide-results-heading h3 { font-size: 11px; }
+.guide-index-toggle { min-height: 39px; padding: 6px 8px; gap: 7px; }
+.guide-index-main { gap: 5px 8px; }
+.guide-index-title { font-size: var(--fs-12); line-height: 1.35; }
+.guide-index-category { font-size: 9px; }
+.guide-index-detail { padding: 0 10px 10px; }
+.guide-index-path { margin-bottom: 4px; font-size: 10px; line-height: 1.4; }
+.guide-index-body { max-width: 82ch; font-size: 11px; line-height: 1.55; }
+.guide-index-action { min-height: 29px; margin-top: 7px; padding: 4px 9px; font-size: 10px; }
+.guide-ui-locator { display: grid; gap: 5px; min-width: 0; margin: 9px 0 0; padding: 7px; border: 1px solid var(--line-dim); border-radius: var(--r-sm); background: var(--surface-inset); }
+.guide-ui-locator-caption { color: var(--tx); font: 650 var(--fs-12)/1.4 var(--f-display); }
+.guide-ui-locator-link { display: block; min-width: 0; color: inherit; text-decoration: none; }
+.guide-ui-locator-image { display: block; width: 100%; height: auto; max-height: 560px; object-fit: contain; object-position: top center; border: 1px solid var(--line); border-radius: 4px; background: #101010; }
+.guide-ui-locator-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+.guide-ui-locator-note { margin: 0; color: var(--tx-dim); font-size: 10px; line-height: 1.45; }
+@media (max-width: 640px) {
+  .guide-compact { gap: 8px; }
+  .guide-search-field { min-height: 42px; }
+  .guide-search-input { min-height: 38px; font-size: 16px; }
+  .guide-filter { min-height: 28px; padding: 4px 7px; font-size: 10px; }
+  .guide-index-toggle { min-height: 42px; padding: 7px 6px; }
+  .guide-index-title { font-size: 12px; line-height: 1.4; }
+  .guide-index-detail { padding: 0 7px 9px; }
+  .guide-index-body { font-size: 11px; line-height: 1.55; }
+  .guide-ui-locator { padding: 5px; gap: 4px; }
+  .guide-ui-locator-image { max-height: none; }
+  .guide-ui-locator-caption { font-size: 11px; }
+}
