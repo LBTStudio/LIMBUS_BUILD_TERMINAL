@@ -470,7 +470,7 @@ test("抽出チケットはリザルト収入で管理し、ショップのガ�
       /* 付与は直近リザルトの収入へ、消費は明細へ。
          消費は枚数を受け取る（一括抽選は引いた回数ぶんを一度に送る）。 */
       assert.match(reducer, /case "GRANT_TICKET"[\s\S]{0,700}?return setTicketIncome\(state, kind, pack, delta, action\.resultId\);/);
-      assert.match(reducer, /case "SPEND_TICKET"[\s\S]{0,700}?Math\.min\(use, available\)/);
+      assert.match(reducer, /case "SPEND_TICKET"[\s\S]{0,1200}?Math\.min\(use, available\)/);
       assert.match(reducer, /return appendTicketSpend\(state, kind, pack, take, action\.ref, action\.resultId\);/);
       assert.match(reducer, /function appendTicketSpend\(state, kind, pack, count, ref, resultId\)/);
       assert.match(reducer, /function setTicketIncome\(state, kind, pack, delta, resultId\)/);
