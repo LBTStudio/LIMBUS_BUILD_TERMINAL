@@ -17,13 +17,13 @@ const hardeningMigration = read("supabase/migrations/20261025212903_lbt_account_
 const anonymousMigration = read("supabase/migrations/202610260002_reject_anonymous_vault_access.sql");
 const recovery = read("supabase/functions/lbt-account-recovery/index.ts");
 
-test("オンライン保全は任意で、初期化・ローカル保存のみではアップロードしない", () => {
-  assert.match(client, /オンライン保全は未設定です/);
+test("復旧キーは任意で、初期化・ローカル保存だけではアップロードしない", () => {
+  assert.match(client, /復旧キーは未設定です/);
   assert.match(client, /function scheduleSync\(\)[\s\S]*?readStorage\(ENABLED_KEY\) !== "1"/);
   assert.match(client, /function setEnabled\(enabled\)/);
   assert.match(client, /window\.LBTCloudBackupPanel = CloudBackupPanel/);
   assert.match(ui, /window\.LBTCloudBackupPanel/);
-  assert.match(client, /連携は必須ではありません/);
+  assert.match(client, /初回アップロードは明示的な操作が必要です/);
 });
 
 test("クラウドへ送るスナップショットはアカウント保存キーに限定し、認証・復旧キーを含めない", () => {
@@ -93,37 +93,38 @@ test("アカウント選択ゲートと管理画面の双方に保全UIを提供
   assert.ok(html.indexOf("js/cloud-backup.js") < html.indexOf("js/accounts-ui.js"));
 });
 
-test("復旧キーの再発行は以前のキーを明示的に無効化し、保全データを上書きしない", () => {
+test("復旧キーの明示的な再発行のみ旧キーを無効化し、クラウドpayloadは維持する", () => {
   assert.match(client, /async function rotateRecoveryKey\(\)/);
-  assert.match(client, /以前の復旧キーは無効になり/);
-  assert.match(client, /action: "rotate_recovery"/);
-  assert.match(client, /const payload = hasExistingCloud \? existing\.payload : localPayload/);
+  assert.match(client, /古いキーは無効化/);
+  assert.match(client, /action: "rotate_recovery", recoveryKey: currentKey, newRecoveryKey: newKey/);
   assert.match(recovery, /if \(action === "rotate_recovery"\)/);
-  assert.match(recovery, /const occupied = await getVaultByHash\(hash\)/);
+  const rotateBlock = recovery.slice(recovery.indexOf('if (action === "rotate_recovery")'), recovery.indexOf('if (action === "create_recovery")'));
+  assert.match(rotateBlock, /recovery_hash=eq/);
+  assert.match(rotateBlock, /recovery_hash: newHash/);
+  assert.doesNotMatch(rotateBlock, /payload:/);
+  assert.doesNotMatch(rotateBlock, /revision:\s*currentRevision/);
 });
 
-test("復旧キーによる保全は匿名の新規保管庫作成をレート制限し、Auth削除時も復旧可能な保管庫を残す", () => {
-  assert.match(recovery, /async function enforceAnonymousCreateLimit\(req: Request\)/);
+test("復旧キーだけでの保管庫作成にはレート制限を設ける", () => {
+  assert.match(recovery, /async function enforceRecoveryCreateLimit\(req: Request\)/);
   assert.match(recovery, /p_limit: 10/);
-  assert.match(recovery, /handle\(body, accessToken, req\)/);
+  assert.match(recovery, /async function handle\(body: any, req: Request\)/);
   assert.match(migration, /lbt_consume_recovery_rate_limit/);
-  assert.match(migration, /lbt_prepare_vaults_before_auth_user_delete/);
-  assert.match(migration, /recovery_hash is null/);
-  assert.match(migration, /recovery_hash is not null/);
-  assert.match(migration, /on delete set null/i);
+  assert.match(anonymousMigration, /lbt_account_recovery_rate_limits_service_role/);
+  assert.match(anonymousMigration, /for all to service_role/);
 });
 
-test("復旧キーの登録は既存クラウド内容を上書きせず、別の保管庫との誤連結を拒否する", () => {
-  const createBlock = recovery.slice(
-    recovery.indexOf('if (action === "create_recovery")'),
-    recovery.indexOf('const { userId, vault, hash }')
-  );
-  assert.doesNotMatch(createBlock, /updateVault\(vault, payload/);
-  assert.match(createBlock, /vaultByUser && vaultByKey && vaultByUser\.id !== vaultByKey\.id/);
-  assert.match(createBlock, /Registering a recovery key is an identity operation, not a backup write/);
-  assert.match(client, /この端末の復旧キーは、ログイン中のGoogle\/Xとは別の保全データを指しています/);
-  assert.match(client, /async function unlinkRecoveryKeyLocally\(\)/);
-  assert.match(client, /async function syncAutomatically\(\)[\s\S]*?current\.recoveryKeyMatches === false[\s\S]*?自動同期を停止しました/);
+test("復旧キーはデータ更新・履歴復元で失効せず、同じキーから最新版を取得できる", () => {
+  const updateBlock = recovery.slice(recovery.indexOf("async function updateVault"), recovery.indexOf("async function handle"));
+  assert.match(recovery, /recovery_hash=eq/);
+  assert.match(recovery, /async function getVaultByHash\(hash: string\)/);
+  assert.doesNotMatch(updateBlock, /recovery_hash\s*:/);
+  assert.match(updateBlock, /\{ payload, revision: currentRevision \+ 1, updated_at: new Date\(\)\.toISOString\(\) \}/);
+  assert.match(updateBlock, /async function updateVault/);
+  assert.match(client, /データ更新・同期・世代変更では変更・失効しません/);
+  assert.match(client, /const result = await callRecovery\(\{ action: "backup", expectedRevision: Number\(current\.revision\), payload, recoveryKey: key \}\)/);
+  assert.match(client, /async function restoreRevision\(revision\)[\s\S]*?recoveryKey: key/);
+  assert.doesNotMatch(client, /startOAuth|handleOAuthCallback|access_token|Googleと連携|Xと連携/);
 });
 
 test("DB移行SQLの関数・トリガーが完結しており、レート制限関数の実行権限を制限する", () => {
@@ -148,14 +149,15 @@ test("オンライン保管庫テーブルをブラウザーから直接アク�
 });
 
 
-test("Google/Xのログイン導線は未実装と明記され、押せない状態で表示される", () => {
-  assert.match(client, /button\("Googleと連携（未実装）", \(\) => \{\}, "", true\)/);
-  assert.match(client, /button\("Xと連携（未実装）", \(\) => \{\}, "", true\)/);
-  assert.match(client, /disabled: view\.busy \|\| disabled/);
-  assert.match(client, /Google \/ Xによるログイン連携はまだ使えません/);
-  assert.match(cloudCss, /\.lbt-cloud-btn:disabled \{ opacity: \.6; cursor: not-allowed; \}/);
-  assert.match(doc, /Googleの基本的なOAuthログイン設定自体は無料で可能/);
-  assert.match(doc, /X APIの利用料金/);
+test("オンライン保全UIはGoogle/Xではなく復旧キーだけに一本化する", () => {
+  assert.match(client, /button\("復旧キーを発行して保全", \(\) => run\(createRecoveryKey\), "is-primary"\)/);
+  assert.match(client, /button\("復旧キーからクラウドを復元"/);
+  assert.match(client, /復旧キー方式/);
+  assert.doesNotMatch(client, /startOAuth|handleOAuthCallback|Googleと連携|Xと連携|signInWithOAuth/);
+  assert.match(client, /古いキーは無効化/);
+  assert.match(client, /復旧キーはサーバーに平文保存せず/);
+  assert.match(doc, /Googleアカウントとの連携は実装しない方針/);
+  assert.match(doc, /バックアップ内容や更新回数が変わっても/);
 });
 
 test("端末内JSONバックアップはクラウド12MB上限と分離し、100MBまで扱える", () => {
@@ -171,11 +173,13 @@ test("端末内JSONバックアップはクラウド12MB上限と分離し、100
   assert.match(client, /downloadText\("LBT_" \+ suffix \+ "_" \+ date \+ "\.json", JSON\.stringify\(value\)\)/);
 });
 
-test("匿名AuthユーザーはEdge FunctionとRLSの両方で保全先へアクセスできない", () => {
-  assert.match(recovery, /if \(user\.is_anonymous === true\)/);
-  assert.match(recovery, /匿名セッションでは個人アカウントのオンライン保全を使えません/);
+test("保全APIはOAuthセッションではなく復旧キーのみを受け付ける", () => {
+  assert.match(recovery, /async function getVaultForRequest\(body: any\)/);
+  assert.match(recovery, /const key = normalizeRecoveryKey\(body\.recoveryKey\)/);
+  assert.doesNotMatch(recovery, /verifiedUser|accessToken|authorization.*Bearer/);
   assert.match(anonymousMigration, /auth\.jwt\(\) ->> 'is_anonymous'/);
   assert.equal((anonymousMigration.match(/coalesce\(\(select auth\.jwt\(\) ->> 'is_anonymous'\), 'false'\) <> 'true'/g) || []).length, 8);
   assert.match(anonymousMigration, /lbt_account_recovery_rate_limits_service_role/);
   assert.match(anonymousMigration, /for all to service_role/);
 });
+
