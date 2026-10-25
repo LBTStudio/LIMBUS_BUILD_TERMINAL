@@ -254,20 +254,36 @@
       : scopeCategory.startsWith("死亡後") ? "deathSupport"
       : scopeCategory.startsWith("精神状態") ? "spirit" : null;
 
+    const directDefinitions = entries.filter((entry) => !entry.reference && entry.ownerName);
+    const semanticDefinitions = new Map();
+    directDefinitions.forEach((entry) => {
+      const semanticKey = [entry.category || "", entry.description || ""].join("|");
+      if (!semanticDefinitions.has(semanticKey)) semanticDefinitions.set(semanticKey, []);
+      semanticDefinitions.get(semanticKey).push(entry);
+    });
+    // Cross-owner references may point at an effect defined by another identity.
+    // Follow it only when the term has one unambiguous definition; never guess between
+    // identically named passives/buffs with different meanings.
+    const uniqueDefinition = semanticDefinitions.size === 1
+      ? directDefinitions.slice().sort(byPriority)[0]
+      : null;
+
     if (ownerName) {
       const owned = entries.filter((entry) => entry.ownerName === ownerName && (!ownerType || entry.ownerType === ownerType));
       const direct = owned.filter((entry) => !entry.reference).sort((a, b) =>
         (Number(b.scopeCategory === scopeCategory) - Number(a.scopeCategory === scopeCategory)) || byPriority(a, b));
       if (direct.length) return [direct[0]];
+      if (uniqueDefinition) return [uniqueDefinition];
       const references = owned.filter((entry) => entry.reference).sort((a, b) =>
         (Number(b.scopeCategory === scopeCategory) - Number(a.scopeCategory === scopeCategory)) || byPriority(a, b));
       if (references.length) return [references[0]];
       return [];
     }
 
-    const characterScope = /^(?:人格|E\.G\.O)/u.test(scopeCategory);
     const candidates = entries.filter((entry) => !entry.reference && !entry.ownerName).sort(byPriority);
     if (candidates.length) return [candidates[0]];
+    if (uniqueDefinition) return [uniqueDefinition];
+    const characterScope = /^(?:人格|E\.G\.O)/u.test(scopeCategory);
     if (characterScope) return [];
     const references = entries.filter((entry) => entry.reference && !entry.ownerName).sort(byPriority);
     return references.length ? [references[0]] : [];
@@ -389,6 +405,12 @@
         suppressClick.current = false;
         event.preventDefault();
         event.stopPropagation();
+        return;
+      }
+      // Desktop hover may have opened the popover before the click lands.
+      // Treat mouse clicks as "show details", not a toggle that immediately closes it.
+      if (lastPointerType.current === "mouse") {
+        setOpen(true);
         return;
       }
       setOpen((value) => !value);
