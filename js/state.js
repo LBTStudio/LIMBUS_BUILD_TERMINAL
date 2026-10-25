@@ -1992,6 +1992,7 @@ function normalizeStateShape(raw) {
     const income = { ...normalizeCurrency(result.income), tickets: normalizeTickets(result.income?.tickets) };
     const exchange = normalizeCurrency(result.exchange);
     let note = String(result.note || "");
+    const consumedItems = normalizeConsumedItems(result.consumedItems);
     const hasExchange = exchange.lp > 0 || exchange.shards > 0;
     if (hasExchange && Number.isSafeInteger(income.shards + exchange.shards)) {
       income.shards += exchange.shards;
@@ -2011,14 +2012,14 @@ function normalizeStateShape(raw) {
       const migrationNote = "旧LP換算を移行済み（" + exchange.lp + "LP → 自我の欠片 " + exchange.shards + "個）";
       note = [note, migrationNote].filter(Boolean).join("\n").slice(0, 2000);
       const { exchange: _legacyExchange, ...withoutExchange } = result;
-      return { ...withoutExchange, id, name, date, income, note };
+      return { ...withoutExchange, id, name, date, income, note, consumedItems };
     }
     if (hasExchange) {
       /* 安全整数を超える旧記録は計算値を変えず、旧フィールドを保全する。 */
-      return { ...result, id, name, date, income, exchange, note };
+      return { ...result, id, name, date, income, exchange, note, consumedItems };
     }
     const { exchange: _legacyExchange, ...withoutExchange } = result;
-    return { ...withoutExchange, id, name, date, income, note };
+    return { ...withoutExchange, id, name, date, income, note, consumedItems };
   });
   next.entries.push(...migratedExchangeEntries);
   /* キャラ作成直後の所得は「初期作成」リザルトにまとめる。
@@ -2314,6 +2315,24 @@ function latestResultId(state) {
 /* 所持品の入手元シナリオ。共有データの owned にはこの列为無いので、
    シナリオ履歴との照合で求めた値をそのまま保持する。
    空なら「判別できなかった」を意味し、推測では埋めない。 */
+function normalizeConsumedItems(items) {
+  if (!Array.isArray(items)) return [];
+  return items.filter((item) => item && typeof item === "object" && !Array.isArray(item)).map((item) => {
+    const itemId = String(item.itemId || "").trim().slice(0, 120);
+    const itemName = String(item.itemName || item.name || itemId).trim().slice(0, 120);
+    const parsedQuantity = parsePositiveIntegerStrict(item.quantity);
+    const rawAt = Number(item.consumedAt);
+    return {
+      id: String(item.id || makeOwnedUid("use")).slice(0, 120),
+      itemId, itemName,
+      quantity: parsedQuantity ?? 1,
+      reason: String(item.reason || "phenomenon_processing").slice(0, 80),
+      consumedAt: Number.isSafeInteger(rawAt) && rawAt > 0 ? rawAt : Date.now(),
+      operationId: String(item.operationId || "").trim().slice(0, 120)
+    };
+  }).filter((item) => item.itemId && item.itemName);
+}
+
 function normalizeVia(via) {
   if (!Array.isArray(via)) return [];
   const seen = new Set();
@@ -4463,6 +4482,44 @@ return appendLedgerEntry(next, {
         : [...current, { uid: makeOwnedUid("it"), itemId, quantity: clampItemQuantity(state, itemId, qty), memo: true, palette: true, origin: "acquired" }];
       return { ...state, inventory };
     }
+    case "CONSUME_ITEM": {
+      const itemId = String(action.itemId || "").trim();
+      const quantity = parsePositiveIntegerStrict(action.quantity);
+      if (!itemId || quantity === null) return state;
+      const current = Array.isArray(state.inventory) ? state.inventory : [];
+      const target = current.find((entry) => entry?.itemId === itemId);
+      if (!target) return state;
+      const ownedQuantity = parsePositiveIntegerStrict(target.quantity) ?? 1;
+      if (quantity > ownedQuantity) return state;
+      /* 通帳連動資源は所持在庫ではなく残高が唯一の情報源。 */
+      const ledgerResource = (window.DB?.specialItems || []).find((item) => item?.id === itemId && item?.ledgerResource);
+      if (ledgerResource) return state;
+      const results = Array.isArray(state.results) ? state.results : [];
+      const targetResultId = action.resultId === undefined ? latestResultId(state) : String(action.resultId || "");
+      const targetResult = results.find((result) => result.id === targetResultId);
+      if (!targetResult) return state;
+      const operationId = String(action.operationId || "").trim().slice(0, 120);
+      if (operationId && results.some((result) => Array.isArray(result.consumedItems)
+        && result.consumedItems.some((item) => item?.operationId === operationId))) return state;
+      const consumedAt = Date.now();
+      const consumedItem = {
+        id: makeOwnedUid("use"),
+        operationId: operationId || makeOwnedUid("op"),
+        itemId,
+        itemName: ownedName(state, itemId),
+        quantity,
+        reason: String(action.reason || "phenomenon_processing").slice(0, 80),
+        consumedAt
+      };
+      const inventory = ownedQuantity === quantity
+        ? current.filter((entry) => entry.uid !== target.uid)
+        : current.map((entry) => entry.uid === target.uid ? { ...entry, quantity: ownedQuantity - quantity } : entry);
+      const nextResults = results.map((result) => result.id === targetResultId
+        ? { ...result, consumedItems: [...normalizeConsumedItems(result.consumedItems), consumedItem], updatedAt: consumedAt }
+        : result);
+      /* 購入時の明細は購入の履歴。消費で所持が0になっても削除しない。 */
+      return { ...state, inventory, results: nextResults };
+    }
     case "PATCH_ITEM": {
       const inventory = (state.inventory || []).map((entry) => entry.uid === action.uid ? { ...entry, ...action.patch, quantity: clampItemQuantity(state, entry.itemId, action.patch?.quantity ?? entry.quantity) } : entry);
       return { ...state, inventory };
@@ -5313,6 +5370,7 @@ case "ADD_CUSTOM_ITEM": {
           date: String(action.date || localDateString()).slice(0, 10),
           income: { ...normalizeCurrency(action.income), tickets: normalizeTickets(action.income?.tickets) },
           note: String(action.note || "").slice(0, 2000),
+          consumedItems: [],
           createdAt: now,
           updatedAt: now
         }]
