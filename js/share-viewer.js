@@ -62,7 +62,7 @@
     const [state, db, items, specialItems] = await Promise.all([
       window.LBT_shareLink.decodeToken(token),
       fetch("data/db.json?v=16b6df9e").then((response) => response.ok ? response.json() : {}).catch(() => ({})),
-      fetch("data/items.json?v=b47b58ae").then((response) => response.ok ? response.json() : []).catch(() => []),
+      fetch("data/items.json?v=b185394a").then((response) => response.ok ? response.json() : []).catch(() => []),
       fetch("data/special-items.json?v=aaa21cfb").then((response) => response.ok ? response.json() : []).catch(() => [])
     ]);
     const sharedDB = {

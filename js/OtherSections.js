@@ -2675,7 +2675,7 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
 
   const items = catalogItems.filter((item) => (!unownedOnly || !ownedItemIds.has(item.id) || canRepurchaseSpecial(item))
     && (categoryFilter === "all" || String(item?.category || "その他") === categoryFilter)
-    && hit(`${item.name} ${item.category || ""} ${(item.tags || []).join(" ")} ${item.effect || ""}`));
+    && hit(`${item.name} ${(item.searchAliases || []).join(" ")} ${item.category || ""} ${(item.tags || []).join(" ")} ${item.effect || ""}`));
 
   /* カードはタブを開いたときだけ組む。全タブ分を毎描画で作ると
      300枚超×4タブの要素ツリーになり、切替・検索入力のたびにJSが数百msかかる。 */
