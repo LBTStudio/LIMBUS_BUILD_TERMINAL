@@ -1351,6 +1351,9 @@ label:has(> input[type="checkbox"]) {
 }
 
 
+
+}
+
 /* リザルト明細：通常は低い1行、特殊強化がある人格だけ直下に補助行を持つ。 */
 .ledger-result-object-list { display:flex; flex-direction:column; gap:0; width:100%; min-width:0; max-width:100%; }
 .ledger-result-object-group { width:100%; min-width:0; max-width:100%; padding:0 0 2px; border-bottom:1px solid var(--line-dim); box-sizing:border-box; }
@@ -1384,7 +1387,3 @@ label:has(> input[type="checkbox"]) {
   .ledger-card .ledger-result-object-row .ledger-row-kind { max-width:5.5em; font-size:var(--fs-9); }
   .ledger-result-object-quantity, .ledger-card .ledger-result-object-row .ledger-row-cost { font-size:var(--fs-10); }
 }
-
-
-}
-
