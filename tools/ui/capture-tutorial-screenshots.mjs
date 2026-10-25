@@ -244,7 +244,10 @@ async function captureCompactResultDetails(page, mode) {
   });
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForLoadState("networkidle", { timeout: 12000 }).catch(() => {});
-  /* The isolated fixture was seeded while the Record section was active; keep that section after reload. */
+  /* Re-wait for the app shell after reload, then explicitly open Record.
+     The screenshot workflow may have been on the help page before seeding the fixture. */
+  await waitForApp(page);
+  await clickNav(page, "記録");
   const card = page.locator(".ledger-card").filter({ hasText: "第12回 セッション" }).first();
   await card.waitFor({ state: "visible", timeout: 12000 });
   await card.locator(".ledger-result-details").first().locator("summary").click();
