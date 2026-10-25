@@ -2493,6 +2493,9 @@ window.LBT_operationAffordability = operationAffordability;
 
   /* 購入 action が計上する金額。null は「購入ではない操作」。 */
 function purchaseCostOf(state, action) {
+  /* 硝子窓などから過去の獲得を移す場合、現在の残高で過去の購入を拒否しない。
+     historicalImport は照合済みの履歴に限って使い、支出明細自体は通常どおり記録する。 */
+  if (action.historicalImport === true) return null;
   if (action.type === "ADD_ROSTER") return action.purchase ? normalizeCurrency(action.cost) : null;
   if (action.type === "ADD_ROSTER_EGO") return action.purchase ? priceEgo(action.rank, action.no) : null;
   if (action.type === "ADD_ITEM") {
@@ -4150,7 +4153,40 @@ function appReducer(state, action) {
     case "ADD_ROSTER": {
       const { mode, no } = action;
       const uniqKey = `${mode}:${no}`;
-      if (state.roster.personas.some((p) => `${p.mode}:${p.no}` === uniqKey)) return state;
+      const existing = (state.roster?.personas || []).find((p) => `${p.mode}:${p.no}` === uniqKey);
+      if (existing) {
+        if (!action.purchase) return state;
+        const persona = (mode === "t" ? window.DB?.tokui_personas : window.DB?.normal_personas || []).find((p) => String(p.no) === String(no));
+        const name = persona?.name || `人格 ${mode.toUpperCase()} No.${no}`;
+        const entries = Array.isArray(state.entries) ? state.entries : [];
+        const recorded = entries.find((entry) => entry?.kind === "persona" && (
+          (existing.uid && String(entry.ref?.uid || "") === String(existing.uid))
+          || (!entry.ref?.uid && String(entry.name || "") === name)
+        ));
+        const wanted = normalizeCurrency(action.cost);
+        if (recorded) {
+          const prior = normalizeCurrency(recorded.cost);
+          const hadPrice = prior.lp > 0 || prior.shards > 0;
+          const wantsPrice = wanted.lp > 0 || wanted.shards > 0;
+          /* 旧版の取り込みが購入明細を0円で残していた場合だけ、同じ行を修復する。
+             既に金額がある場合は再取り込みで二重計上しない。 */
+          if (hadPrice || !wantsPrice) return state;
+          return {
+            ...state,
+            entries: entries.map((entry) => entry.id === recorded.id
+              ? { ...entry, cost: wanted, resultId: recorded.resultId || action.resultId || null,
+                  ref: recorded.ref || { kind: "rosterPersona", uid: existing.uid },
+                  note: recorded.note || "旧形式の人格購入明細を補完" }
+              : entry)
+          };
+        }
+        if (!existing.uid) return state;
+        return appendLedgerEntry(state, {
+          kind: "persona", name, cost: wanted, resultId: action.resultId,
+          ref: { kind: "rosterPersona", uid: existing.uid },
+          note: action.historicalImport ? "履歴取り込みで不足していた人格購入明細を補完" : ""
+        });
+      }
       const uid = makeOwnedUid("pr");
       const entry = { uid, no, mode, syncRank: null, syncMax: false, lcb: false, equipped: false, notes: "", via: normalizeVia(action.via) };
       const next = { ...state, roster: { ...state.roster, personas: [...state.roster.personas, entry] } };
