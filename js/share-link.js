@@ -21,6 +21,9 @@
   // 共有内容は発行後に不変なので、Workerの実装更新とカード内容の世代を分ける。
   // Worker Cacheをバージョン横断で共有しても、この値を上げた時だけOGPカードを確実に再生成できる。
   const OGP_CARD_CACHE_VERSION = "3";
+  // localStorage tracks creation, not the Worker's last-access refresh. Refresh cached KV links
+  // conservatively before their 7-day idle expiry so a stale cache cannot return a dead URL.
+  const LOCAL_KV_SHARE_REUSE_MAX_AGE_MS = 6 * 24 * 60 * 60 * 1000;
   // 設定時だけ短縮共有を無状態OGPゲートウェイへ渡す。未設定または配備失敗時は、
   // 従来どおりGitHub Pagesのshare.htmlを直接使うため、共有機能を止めない。
   const OGP_GATEWAY_FALLBACK_ORIGIN = "";
@@ -69,8 +72,15 @@
       const cached = JSON.parse(storage.getItem(LAST_PUBLISHED_SHARE_KEY) || "null");
       if (!cached || cached.token !== token || !/^https:\/\//.test(String(cached.url || ""))) return null;
       const previousUrl = String(cached.url);
+      const isCurrentKvUrl = isCurrentCloudflareKvUrl(previousUrl);
+      if (isCurrentKvUrl) {
+        const savedAt = Number(cached.savedAt);
+        const ageMs = Date.now() - savedAt;
+        // Missing, corrupt, or future timestamps are not safe evidence that the short URL is alive.
+        if (!Number.isFinite(savedAt) || savedAt <= 0 || ageMs < 0 || ageMs >= LOCAL_KV_SHARE_REUSE_MAX_AGE_MS) return null;
+      }
       let url = previousUrl;
-      let strategy = isCurrentCloudflareKvUrl(previousUrl) ? "cloudflare-kv" : (cached.strategy || "self");
+      let strategy = isCurrentKvUrl ? "cloudflare-kv" : (cached.strategy || "self");
       let backups = Array.isArray(cached.backups) ? cached.backups : [];
       const preview = cached.preview || sharePreview(state);
       let warning = "共有内容に変更がないため、直近の共有リンクを再利用しています。";
@@ -78,7 +88,7 @@
 
       // 「発行済み」キャッシュが旧URL形式でも、保存済みトークンから現在のKV APIへ再発行する。
       // これで同じ内容を再共有した時にも /s/<ID> の最新形式になり、OGP HTMLも新規保存される。
-      if (ogpGatewayOrigin() && !isCurrentCloudflareKvUrl(previousUrl)) {
+      if (ogpGatewayOrigin() && !isCurrentKvUrl) {
         const published = await publishCloudflareKvShare(token, preview, [], fetchImpl);
         if (published.status === "published") {
           url = published.url;

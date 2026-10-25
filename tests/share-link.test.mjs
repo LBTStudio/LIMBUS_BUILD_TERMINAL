@@ -453,6 +453,70 @@ test("既発行の旧形式URLは保存済みトークンから最新のKV短縮
   assert.equal(cached.strategy, "cloudflare-kv");
   assert.equal(cached.length, result.url.length);
 });
+
+test("古いCloudflare KV短縮URLキャッシュは再利用せず新規発行する", async () => {
+  const storage = memoryStorage();
+  const origin = "https://lbt-ogp.lbtstudio-share.workers.dev";
+  const share = loadShareLink(null, {
+    localStorage: storage,
+    LBT_OGP_GATEWAY_ORIGIN: origin
+  });
+  const state = { charName: "期限切れ共有の再発行", roster: { personas: [] } };
+  const token = await share.encodeState(state);
+  const staleUrl = origin + "/s/ExpiredShort1234";
+  storage.setItem("lbt:last-published-share:v1", JSON.stringify({
+    token, url: staleUrl, length: staleUrl.length, strategy: "cloudflare-kv",
+    backups: [], preview: { personaName: "期限切れ共有" },
+    savedAt: Date.now() - 8 * 24 * 60 * 60 * 1000
+  }));
+
+  const calls = [];
+  const freshUrl = origin + "/s/FreshShareId1234";
+  const fetchMock = async (url, options = {}) => {
+    const target = String(url);
+    calls.push(target);
+    if (target === "https://rentry.co/api/new") return new Response(JSON.stringify({ url_short: "lbt-expiry-rentry" }), { status: 200 });
+    if (target === "https://api.telegra.ph/createAccount") return new Response(JSON.stringify({ ok: true, result: { access_token: "temporary" } }), { status: 200 });
+    if (target === "https://api.telegra.ph/createPage") return new Response(JSON.stringify({ ok: true, result: { path: "LBT-Expiry-Reissue" } }), { status: 200 });
+    if (target === origin + "/api/r2-share/v1") {
+      const payload = JSON.parse(options.body);
+      assert.equal(payload.token, token);
+      assert.equal(payload.fallbacks.length, 2);
+      return new Response(JSON.stringify({ ok: true, id: "FreshShareId1234", url: freshUrl }), { status: 201 });
+    }
+    throw new Error("unexpected URL: " + target);
+  };
+
+  const result = await share.createPublishedUrl(state, "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html", fetchMock);
+  assert.equal(result.url, freshUrl);
+  assert.equal(result.reused, undefined, "古いKV URLはキャッシュ再利用扱いにしない");
+  assert.equal(calls.filter((url) => url === origin + "/api/r2-share/v1").length, 1);
+  assert.notEqual(result.url, staleUrl);
+  assert.equal(JSON.parse(storage.getItem("lbt:last-published-share:v1")).url, freshUrl);
+});
+
+test("有効期間内のCloudflare KV短縮URLキャッシュは引き続き再利用する", async () => {
+  const storage = memoryStorage();
+  const origin = "https://lbt-ogp.lbtstudio-share.workers.dev";
+  const share = loadShareLink(null, {
+    localStorage: storage,
+    LBT_OGP_GATEWAY_ORIGIN: origin
+  });
+  const state = { charName: "有効な共有URL", roster: { personas: [] } };
+  const token = await share.encodeState(state);
+  const activeUrl = origin + "/s/ActiveShareId123";
+  storage.setItem("lbt:last-published-share:v1", JSON.stringify({
+    token, url: activeUrl, length: activeUrl.length, strategy: "cloudflare-kv",
+    backups: [], preview: { personaName: "有効な共有" },
+    savedAt: Date.now() - 60 * 60 * 1000
+  }));
+  const result = await share.createPublishedUrl(state, "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html", async () => {
+    throw new Error("有効なキャッシュの再利用時はネットワーク通信しない");
+  });
+  assert.equal(result.reused, true);
+  assert.equal(result.url, activeUrl);
+});
+
 test("同一の共有内容は直近URLを再利用し、外部保存を重複発行しない", async () => {
   const storage = memoryStorage();
   const share = loadShareLink(null, { localStorage: storage });
