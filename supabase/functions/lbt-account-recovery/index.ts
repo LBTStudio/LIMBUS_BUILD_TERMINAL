@@ -147,11 +147,13 @@ async function getVaultForRequest(body: any) {
 
 async function addHistory(vault: any) {
   if (!vault?.id || !vault?.payload || !vault?.revision) return;
+  const payloadHash = String(vault.payload_hash || await hashPayload(vault.payload));
   await rest(VERSIONS, "POST", "on_conflict=vault_id,revision", {
     vault_id: vault.id,
     user_id: vault.user_id,
     revision: Number(vault.revision),
-    payload: vault.payload
+    payload: vault.payload,
+    payload_hash: payloadHash
   }, "resolution=ignore-duplicates,return=minimal");
   const older = await rest(VERSIONS, "GET",
     `select=id,revision&vault_id=eq.${vault.id}&order=revision.desc&offset=${HISTORY_LIMIT}&limit=1000`);
@@ -218,17 +220,39 @@ async function handle(body: any, req: Request) {
     const key = normalizeRecoveryKey(body.recoveryKey);
     const hash = await hashRecoveryKey(key);
     const meta = await getVaultMetaByHash(hash);
-    if (!meta) return { found: false, revision: 0, payloadHash: null };
+    if (!meta) return { found: false, revision: 0, payloadHash: null, history: [] };
     let payloadHash = String(meta.payload_hash || "");
     if (!payloadHash) {
       const legacy = await getVaultByHash(hash);
       if (legacy?.payload) payloadHash = await hashPayload(legacy.payload);
     }
+    const historyRows = await rest(VERSIONS, "GET",
+      `select=revision,payload_hash&vault_id=eq.${meta.id}&order=revision.desc&limit=${HISTORY_LIMIT}`);
+    const lineage = Array.isArray(historyRows) ? historyRows : [];
+    const missingHashes = lineage.filter((item: any) => !String(item.payload_hash || ""));
+    if (missingHashes.length) {
+      const revisions = missingHashes.map((item: any) => Number(item.revision)).filter((n: number) => Number.isSafeInteger(n) && n > 0);
+      if (revisions.length) {
+        const rows = await rest(VERSIONS, "GET",
+          `select=revision,payload&vault_id=eq.${meta.id}&revision=in.(${revisions.join(",")})&limit=${revisions.length}`);
+        if (Array.isArray(rows)) {
+          const byRevision = new Map(rows.map((item: any) => [Number(item.revision), item]));
+          for (const item of missingHashes) {
+            const legacy = byRevision.get(Number(item.revision));
+            if (legacy?.payload) item.payload_hash = await hashPayload(legacy.payload);
+          }
+        }
+      }
+    }
     return {
       found: true,
       revision: Number(meta.revision),
       updatedAt: meta.updated_at,
-      payloadHash: payloadHash || null
+      payloadHash: payloadHash || null,
+      history: lineage.map((item: any) => ({
+        revision: Number(item.revision),
+        payloadHash: String(item.payload_hash || "")
+      }))
     };
   }
 
@@ -262,7 +286,7 @@ async function handle(body: any, req: Request) {
 
   if (action === "history") {
     const rows = await rest(VERSIONS, "GET",
-      `select=revision,payload,saved_at&vault_id=eq.${vault.id}&order=revision.desc&limit=${HISTORY_LIMIT}`);
+      `select=revision,payload_hash,saved_at&vault_id=eq.${vault.id}&order=revision.desc&limit=${HISTORY_LIMIT}`);
     return { found: true, revision: Number(vault.revision), updatedAt: vault.updated_at, history: rows ?? [] };
   }
 
