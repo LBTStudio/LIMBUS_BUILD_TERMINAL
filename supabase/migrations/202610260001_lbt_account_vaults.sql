@@ -2,7 +2,7 @@
 -- Online backup is opt-in; no data is uploaded until a user explicitly enables it.
 create table if not exists public.lbt_account_vaults (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid references auth.users(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete set null,
   recovery_hash text unique,
   payload jsonb not null,
   revision bigint not null default 1 check (revision > 0),
@@ -19,7 +19,7 @@ create unique index if not exists lbt_account_vaults_user_id_uidx
 create table if not exists public.lbt_account_vault_versions (
   id uuid primary key default gen_random_uuid(),
   vault_id uuid not null references public.lbt_account_vaults(id) on delete cascade,
-  user_id uuid references auth.users(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete set null,
   revision bigint not null check (revision > 0),
   payload jsonb not null,
   saved_at timestamptz not null default now(),
