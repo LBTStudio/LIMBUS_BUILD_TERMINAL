@@ -250,10 +250,14 @@
   }
   async function replicateTo(provider, recoveryKey, expectedRevision, targetRevision, payload) {
     const endpoint = provider === "supabase" ? RECOVERY_ENDPOINT : CLOUDFLARE_RECOVERY_ENDPOINT;
-    return await callProvider(endpoint, {
+    const result = await callProvider(endpoint, {
       action: "replicate", recoveryKey, expectedRevision: Number(expectedRevision) || 0,
       targetRevision: Number(targetRevision), payload
     }, provider);
+    if (result.conflict || result.found !== true) {
+      throw new Error(result.error || "保管先への複製結果を確認できませんでした。");
+    }
+    return result;
   }
   async function mirrorMutation(action, source, payload, recoveryKey) {
     const targetProvider = source._provider === "supabase" ? "cloudflare" : "supabase";
@@ -714,6 +718,9 @@
   async function restoreRevision(revision) {
     const key = readRecoveryKey();
     if (!key) throw new Error("過去の世代を復元するには復旧キーが必要です。");
+    // Reconcile replicas before issuing a history restore so an online-but-empty
+    // primary does not mask a valid history held by the fallback provider.
+    await getRemote({ metadataOnly: true });
     const result = await callRecovery({ action: "restore_revision", revision: Number(revision), recoveryKey: key });
     if (!result.found || !result.payload) throw new Error("指定した世代を復元できませんでした。");
     return await restorePayload(result.payload, Number(result.revision), key);
