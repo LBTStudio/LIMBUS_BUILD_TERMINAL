@@ -15,6 +15,12 @@ const ui = readFileSync(new URL("../js/garasumado-import-ui.js", import.meta.url
 /* 整形（改行位置）は規約ではない。行をまたぐ検査は空白を潰してから照合する。 */
 const uiFlat = ui.replace(/\s+/g, " ");
 
+test("人格の購入費用は現アカウントの所持数に応じて解決してから取り込む", () => {
+  assert.match(uiFlat, /GarasumadoImportPanel = \(\{ onClose, onApply, state \}\)/);
+  assert.match(uiFlat, /window\.LBT_resolveAcquireCost\(kind, "purchase", details\)/);
+  assert.match(uiFlat, /ownsPersona: \(state\?\.roster\?\.personas \|\| \[\]\)\.length > 0, purchaseCost/);
+});
+
 test("取得中の busy は取得が例外でも必ず解除される（finally）", () => {
   /* fetch へ渡す以降の実装が throw に変わっても、busy が true のまま残ると
      画面が「取得中」のまま固まり、再試行の入口が分からなくなる。 */
