@@ -2297,6 +2297,42 @@ body.has-detail-dialog main.preview { overflow: hidden; }
   .topbar-search-text { display: none; }
   .topbar-search { min-width: 0; padding: 6px; }
 }
+
+/* Mobile UX audit: keep the preview control discoverable without covering page headings. */
+@media (max-width: 640px) {
+  .preview-edge-toggle {
+    top: auto;
+    right: 10px;
+    bottom: calc(114px + env(safe-area-inset-bottom, 0px) + 8px);
+    width: auto;
+    height: 38px;
+    min-height: 38px;
+    padding: 0 12px;
+    border-right: 1px solid var(--line-strong);
+    border-radius: 999px;
+    writing-mode: horizontal-tb;
+    font-size: 10px;
+    letter-spacing: .06em;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .36);
+  }
+
+  .focus {
+    padding-bottom: calc(var(--lbt-mobile-rail-h) + 60px);
+  }
+
+  .section-title-row {
+    padding-right: 0;
+  }
+
+  .section-title {
+    min-width: 0;
+    font-size: clamp(16px, 4.4vw, 18px);
+    letter-spacing: .015em;
+    line-height: 1.15;
+    text-wrap: balance;
+  }
+}
+
 }
 /* end @layer workspace */
 
