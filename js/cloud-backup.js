@@ -106,7 +106,7 @@
   }
   function hasMeaningfulLocalData(payload = null) {
     let snap;
-    try { snap = payload || collectLocalSnapshot(); } catch (_) { return true; }
+    try { snap = payload || collectLocalSnapshot({ enforceCloudLimit: false }); } catch (_) { return true; }
     for (const entry of snap.entries || []) {
       if (!isBackupStorageKey(entry.key)) continue;
       let value;
