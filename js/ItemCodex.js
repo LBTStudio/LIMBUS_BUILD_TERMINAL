@@ -32,7 +32,7 @@ const ItemCodex = ({ state, dispatch }) => {
       if (category !== "all" && item.category !== category) return false;
       if (ownedOnly && !entryById.has(item.id) && !(item.ledgerResource && resourceQuantity(item) > 0)) return false;
       if (!q) return true;
-      const haystack = `${item.name} ${item.category} ${(item.tags || []).join(" ")} ${item.effect}`.toLowerCase();
+      const haystack = `${item.name} ${(item.searchAliases || []).join(" ")} ${item.category} ${(item.tags || []).join(" ")} ${item.effect}`.toLowerCase();
       return haystack.includes(q);
     });
   }, [items, query, category, ownedOnly, entryById, ledgerBalance]);
