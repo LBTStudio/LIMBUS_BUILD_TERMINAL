@@ -135,7 +135,10 @@ async function getPayload(db, hash, revision, history) {
   let payload;
   try { payload = JSON.parse(encoded); } catch (_) { throw jsonError("保存データが破損しています。", 500); }
   validatePayload(payload);
-  const expectedHash = String((await getManifest(db, hash))?.payload_hash || "");
+  const meta = history
+    ? await db.prepare("SELECT payload_hash FROM vault_versions WHERE recovery_hash = ? AND revision = ?").bind(hash, revision).first()
+    : await getManifest(db, hash);
+  const expectedHash = String(meta?.payload_hash || "");
   if (expectedHash && await hashPayload(payload) !== expectedHash) {
     throw jsonError("バックアップの整合性チェックに失敗しました。", 500);
   }
@@ -151,8 +154,8 @@ function buildCommitStatements(db, hash, current, payload, payloadHash, targetRe
   // Preserve the exact previous generation before mutating the current manifest.
   if (current && Number(current.revision) > 0) {
     statements.push(db.prepare(
-      "INSERT OR IGNORE INTO vault_versions (recovery_hash, revision, saved_at, payload_bytes, chunk_count) " +
-      "SELECT recovery_hash, revision, updated_at, payload_bytes, chunk_count FROM vaults " +
+      "INSERT OR IGNORE INTO vault_versions (recovery_hash, revision, saved_at, payload_bytes, chunk_count, payload_hash) " +
+      "SELECT recovery_hash, revision, updated_at, payload_bytes, chunk_count, payload_hash FROM vaults "+
       "WHERE recovery_hash = ? AND revision = ?"
     ).bind(hash, Number(current.revision)));
     statements.push(db.prepare(
@@ -263,11 +266,15 @@ async function handleRecovery(req, env) {
       const payload = await getPayload(db, hash, Number(vault.revision), false);
       payloadHash = await hashPayload(payload);
     }
+    const ancestors = await db.prepare(
+      "SELECT revision, payload_hash FROM vault_versions WHERE recovery_hash = ? ORDER BY revision DESC LIMIT ?"
+    ).bind(hash, HISTORY_LIMIT).all();
     return {
       found: true,
       revision: Number(vault.revision),
       updatedAt: vault.updated_at,
       payloadHash,
+      history: (ancestors.results || []).map((item) => ({ revision: Number(item.revision), payloadHash: String(item.payload_hash || "") })),
       payloadBytes: Number(vault.payload_bytes || 0)
     };
   }
@@ -282,17 +289,18 @@ async function handleRecovery(req, env) {
 
   if (action === "get") {
     if (!vault) return { found: false, revision: 0, payload: null };
+    const payload = await getPayload(db, hash, Number(vault.revision), false);
+    const payloadHash = String(vault.payload_hash || await hashPayload(payload));
     return {
-      found: true, revision: Number(vault.revision),
-      payload: await getPayload(db, hash, Number(vault.revision), false),
-      updatedAt: vault.updated_at, payloadHash: String(vault.payload_hash || await hashPayload(vault.payload)), recoveryKeyEnabled: true, recoveryKeyMatches: true
+      found: true, revision: Number(vault.revision), payload, updatedAt: vault.updated_at,
+      payloadHash, recoveryKeyEnabled: true, recoveryKeyMatches: true
     };
   }
 
   if (action === "history") {
     if (!vault) return { found: false, revision: 0, history: [] };
     const rows = await db.prepare(
-      "SELECT revision, saved_at FROM vault_versions WHERE recovery_hash = ? ORDER BY revision DESC LIMIT ?"
+      "SELECT revision, saved_at, payload_hash FROM vault_versions WHERE recovery_hash = ? ORDER BY revision DESC LIMIT ?"
     ).bind(hash, HISTORY_LIMIT).all();
     return { found: true, revision: Number(vault.revision), updatedAt: vault.updated_at, history: rows.results || [] };
   }
