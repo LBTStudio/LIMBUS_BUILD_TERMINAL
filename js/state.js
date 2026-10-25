@@ -4301,6 +4301,9 @@ return appendLedgerEntry(next, {
         const targetId = action.resultId || latestResultId(state);
         const target = (state.results || []).find((result) => result.id === targetId);
         if (!target) return state;
+        const purchaseCost = priceItemById(state, itemId);
+        const balanceBeforePurchase = computeLedgerBalance(state.results, state.entries);
+        if (!purchaseCost || purchaseCost.lp < 1 || balanceBeforePurchase.lp < purchaseCost.lp) return state;
         const currentIncome = normalizeCurrency(target.income);
         const nextShardIncome = currentIncome.shards + 1;
         if (!Number.isSafeInteger(nextShardIncome)) return state;
@@ -4310,7 +4313,7 @@ return appendLedgerEntry(next, {
         return appendLedgerEntry({ ...state, results }, {
           kind: "item",
           name: String(specialResource.name || "自我の欠片"),
-          cost: priceItemById(state, itemId),
+          cost: purchaseCost,
           resultId: targetId,
           note: "2LPで自我の欠片1個を購入"
         });
