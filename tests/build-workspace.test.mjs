@@ -1277,3 +1277,16 @@ test("この検査は影があると実際に落ちる（空振りしないこ�
   assert.ok(!shadowedModuleHelpers(withoutShadow).map((o) => o.name).includes("catalogSource"), "影がなければ検出しない");
   assert.deepEqual(shadowedModuleHelpers(localOnly), [], "コンポーネント内ローカルの重複は対象外");
 });
+
+
+test("リザルトの消耗表示は一般のアイテム減少を『消費』とし、旧ラベルを移行する", () => {
+  const itemCodex = read("../js/ItemCodex.js");
+  assert.match(sections, /item\.reason === "consumption" \? "消費"/);
+  assert.match(sections, /reasonLabel \? " · " \+ reasonLabel/);
+  assert.match(sections, /className: "ledger-result-object-row"/);
+  assert.match(itemCodex, /reason: "consumption"/);
+  assert.match(itemCodex, /を消費し、直近リザルトへ記録しました/);
+  assert.doesNotMatch(itemCodex, /phenomenon_processing|現象処理で消費/);
+  assert.match(reducer, /reason === "phenomenon_processing" \? "consumption"/);
+  assert.match(reducer, /reason: String\(action\.reason \|\| "consumption"\)/);
+});
