@@ -893,8 +893,12 @@ test("取得は種別と方法から金額を自動計算し、直近リザル�
   assert.match(addRoster, /const withTicket = (?:action\.skipInitialTicketConsumption === true \? next : )?consumeInitialPersonaTicket\(next, action\.resultId\);/);
   assert.match(addRoster, /if \(!action\.purchase\) return withTicket;/);
   assert.match(addRoster, /kind: "persona"/);
-  assert.match(addRoster, /cost: normalizeCurrency\(action\.cost\),/);
+  assert.match(addRoster, /const purchaseCost = purchaseCostOf\(state, action\);/);
+  assert.match(addRoster, /cost: normalizeCurrency\(purchaseCost\),/);
   assert.match(addRoster, /ref: \{ kind: "rosterPersona", uid \}/);
+  const purchaseCostOf = state.slice(state.indexOf("function purchaseCostOf"), state.indexOf("window.LBT_purchaseCostOf"));
+  assert.match(purchaseCostOf, /window\.LBT_acquireCost\?\.\("persona", "purchase", \{ ownsPersona \}\)/);
+  assert.match(purchaseCostOf, /if \(!rule \|\| !\(Number\(rule\.lp\) > 0 \|\| Number\(rule\.shards\) > 0\)\) return null;/);
 });
 
 test("人格詳細はポップオーバーで開き、自動スクロールしない", () => {
