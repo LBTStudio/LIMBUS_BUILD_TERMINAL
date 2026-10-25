@@ -1164,10 +1164,14 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [] }) => {
     /* 人格シートも同じ action batch に載せ、Ctrl+Z 1 回で全体を戻せるようにする。 */
     const applied = { actions, skipped, rosterActions: actions, manifest, keys };
     onApply?.(applied);
+    const simulation = draft ? {
+      ...draft.simulation,
+      held: (draft.simulation.held || 0) + personaActions.length
+    } : null;
     setConfirmed({
       counts: appliedSummary(actions),
       skipped,
-      simulation: draft ? draft.simulation : null
+      simulation
     });
 };
 
