@@ -1251,7 +1251,7 @@ function equipRosterSupport(state, uid) {
     ...s,
     // Canonical death-only records can never be demoted by a stale label, while
     // custom records explicitly assigned to the death slot must retain that choice.
-    slot: isDeathSupportPassiveRecord(s) || s.slot === "death" ? "death" : "normal"
+    slot: isDeathSupportPassiveRecord(s) || (s.slot === "death" && s.deathSlotManual === true) ? "death" : "normal"
   }));
   const unlocked = deathSupportSlotUnlocked(state);
   if (!unlocked) {
@@ -4697,7 +4697,13 @@ case "ADD_CUSTOM_ITEM": {
         };
       }
       const owned = findOwnedSupport(state, requestedName);
-      if (owned) return equipRosterSupport(state, owned.uid);
+      if (owned) {
+        const roster = state.roster || {};
+        const supports = (roster.supports || []).map((entry) => entry.uid === owned.uid
+          ? { ...entry, slot: "death", deathSlotManual: !isDeathSupportPassiveRecord(entry) }
+          : entry);
+        return equipRosterSupport({ ...state, roster: { ...roster, supports } }, owned.uid);
+      }
       const added = addRosterSupport(state, { ...action.spp, name: requestedName });
       if (!added) return state;
       const entry = [...added.roster.supports].reverse().find((s) => s.name === requestedName);
@@ -4706,7 +4712,7 @@ case "ADD_CUSTOM_ITEM": {
       // never get classified into a regular slot merely because they are absent
       // from the canonical death-passive catalogue.
       const supports = added.roster.supports.map((s) => s.uid === entry.uid
-        ? { ...s, slot: "death" } : s);
+        ? { ...s, slot: "death", deathSlotManual: !isDeathSupportPassiveRecord(s) } : s);
       return equipRosterSupport({ ...added, roster: { ...added.roster, supports } }, entry.uid);
     }
     case "PATCH_DEATH_SUPPORT": {
@@ -4742,7 +4748,7 @@ case "ADD_CUSTOM_ITEM": {
       if (idx >= 0) {
         uid = list[idx].uid;
         supports = list.map((entry, i) => i === idx
-          ? { ...entry, ...safePatch, slot: "death", equipped: true }
+          ? { ...entry, ...safePatch, slot: "death", deathSlotManual: !isDeathSupportPassiveRecord({ ...entry, ...safePatch }), equipped: true }
           : entry);
       } else {
         uid = String(current.id || makeOwnedUid("spt"));
@@ -4753,6 +4759,7 @@ case "ADD_CUSTOM_ITEM": {
           effect: String(edited.effect || ""),
           lp: String(edited.lp || ""),
           slot: "death",
+          deathSlotManual: !isDeathSupportPassiveRecord({ name: String(edited.name || "").trim() }),
           equipped: true,
           resultId: null,
           addedAt: Date.now(),
@@ -4935,9 +4942,10 @@ case "ADD_CUSTOM_ITEM": {
       const target = (roster.supports || []).find((s) => s.uid === action.uid);
       if (!target) return state;
       const slot = action.slot === "death" ? "death" : "normal";
-      const deathOnly = target.slot === "death" || isDeathSupportPassiveRecord(target);
-      // A death-only passive cannot be demoted into a normal slot, even if a
-      // caller dispatches this action directly or the saved slot label is stale.
+      const deathOnly = isDeathSupportPassiveRecord(target)
+        || (target.slot === "death" && target.deathSlotManual !== true);
+      // Canonical death-only passives and untrusted legacy death labels cannot be
+      // demoted. A slot explicitly assigned by the user can still be moved back.
       if (deathOnly && slot !== "death") return state;
       if (target.slot === slot) return state;
       if (slot === "death" && !deathSupportSlotUnlocked(state)) return state;
@@ -4945,7 +4953,12 @@ case "ADD_CUSTOM_ITEM": {
       const others = (roster.supports || []).filter((s) => s.uid !== action.uid && s.slot === slot && s.equipped);
       const occupantUids = new Set(others.slice(0, Math.max(0, others.length + 1 - limit)).map((s) => s.uid));
       const supports = (roster.supports || []).map((s) => {
-        if (s.uid === action.uid) return { ...s, slot, equipped: true };
+        if (s.uid === action.uid) return {
+          ...s,
+          slot,
+          deathSlotManual: slot === "death" && !isDeathSupportPassiveRecord(s),
+          equipped: true
+        };
         if (occupantUids.has(s.uid)) return { ...s, equipped: false };
         return s;
       });
