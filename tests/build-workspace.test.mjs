@@ -377,7 +377,7 @@ test("特異人格は指定購入できない（core P203 に購入が無い）"
 
 test("リザルト登録情報はカード内で直接編集し、移動先プルダウンを置かない", () => {
   assert.match(sections, /const TicketInputs = \(\{ current, onChange, idPrefix, packPick, setPackPick \}\) => \{/);
-  assert.match(sections, /const \[newResultPack, setNewResultPack\] = React\.useState\("\);/);
+  assert.match(sections, /const \[newResultPack, setNewResultPack\] = React\.useState\(""\);/);
   assert.match(sections, /idPrefix: "new-result",\s*current: newResult\.tickets,\s*packPick: newResultPack,\s*setPackPick: setNewResultPack,/);
   assert.match(sections, /tickets: newResult\.tickets \|\| \{ persona: 0, ego: 0, choice: 0, pack: \{\} \}/);
   assert.match(sections, /className: "ledger-card-edit-btn"/);
