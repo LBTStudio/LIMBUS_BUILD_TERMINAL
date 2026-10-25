@@ -615,7 +615,11 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [] }) => {
         setUrlReport({
           requested: parsedBatch.urls.length + (parsedBatch.invalid || []).length,
           successful: imported.filter((row) => row.ok).length,
-          failed: imported.filter((row) => !row.ok).map((row) => ({ url: row.url, reason: row.reason }))
+          /* URL解析時点で不正だった行と、取得・解析に失敗した人格URLの両方を表示する。 */
+          failed: [
+            ...failed,
+            ...imported.filter((row) => !row.ok).map((row) => ({ url: row.url, reason: row.reason }))
+          ]
         });
         setProgress("人格URLの確認が完了しました。取り込む人格を選んでください。");
         return;
