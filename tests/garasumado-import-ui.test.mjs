@@ -279,3 +279,12 @@ test("人格URLの一括取込でも解析段階の不正URLを失敗レポー�
   assert.match(personaBranch, /requested: parsedBatch\.urls\.length \+ \(parsedBatch\.invalid \|\| \[\]\)\.length/);
   assert.match(personaBranch, /failed:\s*\[\s*\.\.\.failed,[\s\S]*?imported\.filter\(\(row\) => !row\.ok\)/);
 });
+
+
+test("リザルトカードは価格未確定の理由を表示し、未確定支出でDB価格候補を隠さない", () => {
+  assert.match(uiFlat, /const importReasons = Array\.isArray\(block\.reasons\)/);
+  assert.match(uiFlat, /className: "gara-result-warning"/);
+  assert.match(uiFlat, /取込前に確認してください/);
+  assert.match(uiFlat, /importReasons\.slice\(0, 6\)\.map/);
+  assert.match(uiFlat, /\.filter\(\(spend\) => !spend\.needsDecision\)/);
+});
