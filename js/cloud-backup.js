@@ -28,6 +28,7 @@
     history: [],
     hasSession: false,
     hasRecoveryKey: false,
+    recoveryKeyEnabled: false,
     syncEnabled: false,
     localMeaningful: false
   };
@@ -321,7 +322,7 @@
           mode: "local",
           label: "ローカル保存",
           message: "オンライン保全は未設定です。データはこの端末内だけに保存され、連携やアップロードは行われていません。",
-          remoteExists: false, revision: 0, conflict: false
+          remoteExists: false, revision: 0, conflict: false, recoveryKeyEnabled: false
         });
         return getStatus();
       }
@@ -331,7 +332,8 @@
           mode: session ? "oauth" : "recovery",
           label: session ? "オンライン連携済み・未保存" : "復旧キー設定済み・未保存",
           message: "オンラインのバックアップはまだありません。端末データを送信するには「この端末のデータを初回保存」を選んでください。",
-          remoteExists: false, revision: 0, conflict: false
+          remoteExists: false, revision: 0, conflict: false,
+          recoveryKeyEnabled: false
         });
         return getStatus();
       }
@@ -353,7 +355,8 @@
         revision: Number(remote.revision) || 0,
         conflict,
         hasSession: Boolean(session),
-        hasRecoveryKey: Boolean(key)
+        hasRecoveryKey: Boolean(key),
+        recoveryKeyEnabled: Boolean(remote.recoveryKeyEnabled)
       });
       if (same) writeStorage(REVISION_KEY, String(remote.revision));
       return getStatus();
@@ -443,6 +446,46 @@
         : "クラウドデータを維持したまま連携しました。端末とクラウドの内容は異なるため、自動同期は停止中です。「クラウドから復元」か「この端末をクラウドへ同期」を選んでください。"
     });
     return result;
+  }
+
+  async function rotateRecoveryKey() {
+    const session = await getSession();
+    if (!session) throw new Error("復旧キーの再発行にはGoogle/X連携が必要です。");
+    if (!confirm("新しい復旧キーを発行します。発行すると以前の復旧キーは無効になり、古いキーだけでは復元できなくなります。今のクラウドバックアップ自体は維持されます。続けますか？")) return false;
+
+    const key = "LBT1-" + randomToken(32);
+    const result = await callRecovery({ action: "rotate_recovery", recoveryKey: key }, session.access_token);
+    const remote = await callRecovery({ action: "get" }, session.access_token);
+    if (!remote.found) throw new Error("クラウドバックアップを確認できませんでした。キーは再発行されていません。");
+    const local = collectLocalSnapshot();
+    const matches = sameData(local, remote.payload);
+    writeStorage(RECOVERY_KEY, key);
+    writeStorage(REVISION_KEY, String(result.revision || remote.revision));
+    setEnabled(matches);
+    const fileText = [
+      "LIMBUS BUILD TERMINAL — 再発行した復旧キー",
+      "",
+      "復旧キー: " + key,
+      "",
+      "このキーを知っている人は、オンライン保全データを復元・更新できます。",
+      "この再発行によって以前の復旧キーは無効になりました。",
+      "安全な場所へ保管してください。LBTの画面共有や公開チャンネルには貼り付けないでください。",
+      "ファイル保管日: " + new Date().toISOString(),
+      ""
+    ].join("\\n");
+    downloadText("LBT-recovery-key.txt", fileText, "text/plain;charset=utf-8");
+    emit({
+      mode: "oauth",
+      remoteExists: true,
+      revision: Number(remote.revision) || 1,
+      recoveryKeyEnabled: true,
+      conflict: false,
+      label: "復旧キーを再発行しました",
+      message: matches
+        ? "新しいキーを保存しました。古いキーは無効です。クラウドと端末の内容は一致しているため、自動同期を続けます。"
+        : "新しいキーを保存しました。クラウドバックアップは維持されています。端末とクラウドの内容が異なるため、自動同期は停止中です。まずクラウドからの復元または端末からの同期を選んでください。"
+    });
+    return true;
   }
 
   async function createRecoveryKey() {
@@ -637,8 +680,9 @@
         button("Xと連携", () => run(() => startOAuth("x")))
       ) : h("p", { className: "lbt-cloud-account" }, "オンライン認証済み。このブラウザーからいつでも連携を停止できます。"),
       view.hasSession && view.hasRecoveryKey && view.mode === "recovery" ? button("この復旧キーをGoogle/Xにも結びつける", () => run(linkRecoveryKeyToOAuth)) : null,
+      view.hasSession && view.remoteExists && view.recoveryKeyEnabled && !view.hasRecoveryKey ? button("復旧キーを再発行（古いキーは無効化）", () => run(rotateRecoveryKey), "is-primary") : null,
       h("div", { className: "lbt-cloud-actions" },
-        !view.hasRecoveryKey ? button("復旧キーを発行して保全", () => run(createRecoveryKey), "is-primary") : null,
+        !view.hasRecoveryKey && !view.recoveryKeyEnabled ? button("復旧キーを発行して保全", () => run(createRecoveryKey), "is-primary") : null,
         button("全アカウントをJSON保存", () => run(async () => exportLocalBackup()))
       ),
       h("div", { className: "lbt-cloud-recovery" },
@@ -695,6 +739,7 @@
     refresh,
     connect: startOAuth,
     createRecoveryKey,
+    rotateRecoveryKey,
     linkRecoveryKeyToOAuth,
     restoreWithKey,
     restoreCloud,
