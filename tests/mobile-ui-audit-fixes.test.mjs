@@ -22,7 +22,7 @@ test("mobile preview edge tab no longer overlays page content", () => {
 
 test("all eight build tabs are visible as a mobile grid, not a hidden horizontal strip", () => {
   assert.match(css, /\.build-workspace \.build-tabs \.segmented\s*\{[\s\S]*?display:\s*grid;[\s\S]*?grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/);
-  assert.match(css, /\.build-workspace \.build-tabs \.segmented > button\s*\{[\s\S]*?min-height:\s*42px;[\s\S]*?min-width:\s*0;/);
+  assert.match(css, /\.build-workspace \.build-tabs \.segmented > button\s*\{[\s\S]*?min-width:\s*0;[\s\S]*?min-height:\s*42px;/);
 });
 
 test("mobile help category chips wrap and remain reachable without a horizontal swipe", () => {
