@@ -14,12 +14,13 @@ test("使い方ページは検索と分類を先頭に置き、最初から巨�
   assert.ok(appSource.includes('id: "guide-search-input"'));
   assert.ok(appSource.includes('className: "guide-filter-row"'));
   assert.ok(appSource.includes('className: "guide-index-list"'));
-  assert.ok(appSource.includes("目的・操作名・ボタン名で探せます。"));
+  assert.ok(appSource.includes("押す場所を図で確認"));
   assert.ok(!appSource.includes("まず「何をしたいか」から選んでください"));
   assert.ok(!appSource.includes('className: "guide-route-grid"'));
   assert.ok(!appSource.includes('className: "guide-quick"'));
   assert.ok(guideCss.includes(".guide-index-row"));
   assert.ok(guideCss.includes(".guide-search-field"));
+  assert.ok(guideCss.includes(".guide-ui-locator"));
 });
 
 test("人格編集の実ボタン名と、変更を所持ビルドへ保存する操作が説明されている", () => {
@@ -101,7 +102,7 @@ test("元に戻す・クイック検索の説明が現行ショートカット�
 });
 
 test("検索・分類・詳細展開が現行導線に沿っている", () => {
-  assert.ok(appSource.includes("目的・操作名・ボタン名で探せます。"));
+  assert.ok(appSource.includes("押す場所を図で確認"));
   assert.ok(appSource.includes("ビルド → 人格 → テキスト流し込み反映"));
   assert.ok(appSource.includes("const getAction = (item) =>"));
   assert.ok(appSource.includes('className: "guide-index-detail"'));
@@ -114,6 +115,11 @@ const tutorialDiagrams = [
   "tutorial-overview.svg",
   "tutorial-text-import-routes.svg",
   "tutorial-account-management.svg",
+  "tutorial-persona-import-ui.svg",
+  "tutorial-result-import-ui.svg",
+  "tutorial-roster-import-ui.svg",
+  "tutorial-account-import-ui.svg",
+  "tutorial-save-share-ui.svg",
   "tutorial-save-share.svg"
 ].map((name) => ({
   name,
@@ -153,7 +159,11 @@ test("アカウント管理の入口とローカル保存・削除注意が案�
 test("初心者向けMarkdownには実際のSVGフローチャートを埋め込み、図の代替テキストを用意する", () => {
   assert.match(beginnerTutorial, /!\[基本の進め方\]\(tutorial-overview\.svg\)/);
   assert.match(beginnerTutorial, /!\[文章や共有URLの取り込み口の違い\]\(tutorial-text-import-routes\.svg\)/);
-  assert.match(beginnerTutorial, /!\[アカウント管理から共有URLを取り込む手順\]\(tutorial-account-management\.svg\)/);
+  assert.match(beginnerTutorial, /!\[アカウント編集画面の共有URL取り込みボタンの位置\]\(tutorial-account-import-ui\.svg\)/);
+  assert.match(beginnerTutorial, /!\[操作・保存メニューと各保存・共有項目の位置\]\(tutorial-save-share-ui\.svg\)/);
+  assert.match(beginnerTutorial, /!\[ビルドの人格タブからテキスト流し込み反映を開く位置\]\(tutorial-persona-import-ui\.svg\)/);
+  assert.match(beginnerTutorial, /!\[記録画面のテキスト流し込みの位置\]\(tutorial-result-import-ui\.svg\)/);
+  assert.match(beginnerTutorial, /!\[記録画面から所持人格リストを取り込む位置\]\(tutorial-roster-import-ui\.svg\)/);
   assert.match(beginnerTutorial, /!\[保存、バックアップ、所持ライブラリ、共有の違い\]\(tutorial-save-share\.svg\)/);
   for (const diagram of tutorialDiagrams) {
     assert.ok(diagram.source.includes("<svg "), diagram.name + " はSVG図である");
@@ -192,4 +202,28 @@ test("検索欄の値はReactイベントから読み取り、検索語入力後
   assert.match(appSource, /onChange: \(event\) => \{ const value = event\.target\.value; setQuery\(value\); setExpandedKey\(""\); if \(value\.trim\(\)\) setCategory\("all"\); \}/);
   assert.match(appSource, /const effectiveCategory = category;/);
   assert.match(appSource, /onClick: \(\) => \{ setCategory\(entry\.key\); setExpandedKey\(""\); \}/);
+});
+
+
+test("主要な取り込み操作は、実際のUIラベルを示す個別配置図へつながる", () => {
+  assert.ok(appSource.includes('title.includes("人格データを文章")) return "persona-import"'));
+  assert.ok(appSource.includes('title.includes("リザルト／購入履歴")) return "result-import"'));
+  assert.ok(appSource.includes('title.includes("所持人格の一覧")) return "roster-import"'));
+  assert.ok(appSource.includes('title.includes("硝子窓のキャラクターURL")) return "account"'));
+  assert.ok(appSource.includes("const GUIDE_UI_LOCATORS = {"));
+  assert.ok(appSource.includes("const GuideUiLocator = ({ kind }) =>"));
+  assert.ok(personaSource.includes("pw-listbar-actions"));
+  assert.ok(personaSource.includes("テキスト流し込み反映"));
+  assert.ok(sectionsSource.includes("リザルトを記録"));
+  assert.ok(sectionsSource.includes("所持人格リストを取り込む"));
+  assert.ok(guideCss.includes(".guide-ui-locator-image"));
+  for (const name of [
+    "tutorial-persona-import-ui.svg",
+    "tutorial-result-import-ui.svg",
+    "tutorial-roster-import-ui.svg",
+    "tutorial-account-import-ui.svg",
+    "tutorial-save-share-ui.svg"
+  ]) {
+    assert.ok(tutorialDiagrams.some((diagram) => diagram.name === name), name + " が図解テストに含まれる");
+  }
 });
