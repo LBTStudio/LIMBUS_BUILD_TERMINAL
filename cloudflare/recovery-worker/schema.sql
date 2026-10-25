@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS vault_versions (
   saved_at TEXT NOT NULL,
   payload_bytes INTEGER NOT NULL,
   chunk_count INTEGER NOT NULL,
+  payload_hash TEXT NOT NULL DEFAULT '',
   PRIMARY KEY (recovery_hash, revision)
 );
 CREATE INDEX IF NOT EXISTS idx_vault_versions_lookup ON vault_versions (recovery_hash, revision DESC);
