@@ -365,7 +365,7 @@
         });
         return getStatus();
       }
-      const local = collectLocalSnapshot();
+      const local = collectLocalSnapshot({ enforceCloudLimit: false });
       const localRevision = Number(readStorage(REVISION_KEY) || 0);
       const same = sameData(local, remote.payload);
       const conflict = hasMeaningfulLocalData(local) && !same && localRevision > 0 && localRevision !== Number(remote.revision);
@@ -457,7 +457,7 @@
 
     /* Cloud snapshot is passed unchanged so linking an identity doesn't overwrite
        the cloud with possibly stale local data. Local sync remains disabled unless equal. */
-    const local = collectLocalSnapshot();
+    const local = collectLocalSnapshot({ enforceCloudLimit: false });
     const result = await callRecovery({ action: "create_recovery", recoveryKey: key, payload: recoveryVault.payload }, session.access_token);
     const verified = await callRecovery({ action: "get", recoveryKey: key }, session.access_token);
     if (!verified.found || verified.recoveryKeyMatches !== true) {
@@ -488,7 +488,7 @@
     const result = await callRecovery({ action: "rotate_recovery", recoveryKey: key }, session.access_token);
     const remote = await callRecovery({ action: "get" }, session.access_token);
     if (!remote.found) throw new Error("クラウドバックアップを確認できませんでした。キーは再発行されていません。");
-    const local = collectLocalSnapshot();
+    const local = collectLocalSnapshot({ enforceCloudLimit: false });
     const matches = sameData(local, remote.payload);
     writeStorage(RECOVERY_KEY, key);
     writeStorage(REVISION_KEY, String(result.revision || remote.revision));
@@ -526,7 +526,7 @@
     if (hasExistingCloud && existing.recoveryKeyEnabled) {
       throw new Error("このオンライン保全には既に復旧キーが登録されています。「復旧キーを再発行」から古いキーを無効化して更新してください。");
     }
-    const localPayload = collectLocalSnapshot();
+    const localPayload = collectLocalSnapshot({ enforceCloudLimit: !hasExistingCloud });
     const payload = hasExistingCloud ? existing.payload : localPayload;
     const prompt = hasExistingCloud
       ? "復旧キーを発行し、既存のクラウドバックアップへ結びつけます。クラウドの保存内容は維持し、端末にある別の内容では上書きしません。続けますか？"
@@ -592,7 +592,7 @@
     return result.history || [];
   }
   async function restorePayload(payload, revision, recoveryKey = null) {
-    const local = collectLocalSnapshot();
+    const local = collectLocalSnapshot({ enforceCloudLimit: false });
     const hasLocal = hasMeaningfulLocalData(local);
     if (hasLocal && !confirm("現在の端末にもデータがあります。復元前に現在の全アカウントデータをJSONファイルとしてダウンロードし、その後クラウドの内容で端末データを置き換えます。続けますか？")) return false;
     if (hasLocal) downloadSnapshot(local, "before-cloud-restore");
