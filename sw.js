@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-2be2a237";
+const CACHE_NAME = "lbt-c34d4495";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -53,7 +53,7 @@ const PRECACHE_URLS = [
   "js/InlineEffectGlossary.js?v=b5c1a1e0",
   "js/ItemCodex.js?v=5d90af49",
   "js/LivePreview.js?v=1b6767e6",
-  "js/OtherSections.js?v=aed5dd8e",
+  "js/OtherSections.js?v=0bed7af1",
   "js/PersonaCodex.js?v=59018e19",
   "js/SkillDeck.js?v=a93f6cb8",
   "js/accounts-ui.js?v=04ce47b7",
@@ -65,7 +65,7 @@ const PRECACHE_URLS = [
   "js/gacha.js?v=f58f8a3e",
   "js/garasumado-import-ui.js?v=62596106",
   "js/garasumado-memo-parse.js?v=f09e59ae",
-  "js/garasumado-roster-import.js?v=59e030ec",
+  "js/garasumado-roster-import.js?v=4e86bafe",
   "js/generator.js?v=ff5f0a15",
   "js/icon-cropper.js?v=20900dc8",
   "js/ledger-import-reconcile.js?v=69d57ed7",
@@ -73,7 +73,7 @@ const PRECACHE_URLS = [
   "js/name-fuzzy.js?v=d3eb29a1",
   "js/persona-draft-import.js?v=a4692646",
   "js/result-log-parser.js?v=43c5aa47",
-  "js/result-text-import.js?v=8ca58009",
+  "js/result-text-import.js?v=49cca4df",
   "js/roster-resolver.js?v=01dce5a2",
   "js/share-link.js?v=8848209f",
   "js/share-viewer.js?v=71f2da96",
