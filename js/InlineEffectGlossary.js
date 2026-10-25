@@ -374,6 +374,7 @@
     const longPressTimer = React.useRef(null);
     const suppressClick = React.useRef(false);
     const lastPointerType = React.useRef(null);
+    const lastPointerPosition = React.useRef(null);
     const uid = React.useId().replace(/:/g, "");
     const panelId = "lbt-glossary-" + uid;
     const clearTimer = (ref) => { if (ref.current) global.clearTimeout(ref.current); ref.current = null; };
@@ -387,7 +388,22 @@
       const rect = node.getBoundingClientRect();
       const viewportWidth = Math.max(220, global.innerWidth - 24);
       const width = Math.min(370, viewportWidth);
-      const estimatedHeight = Math.min(330, Math.max(180, global.innerHeight * 0.48));
+      const estimatedHeight = Math.min(280, Math.max(150, global.innerHeight * 0.42));
+      const pointer = lastPointerType.current === "mouse" ? lastPointerPosition.current : null;
+      if (pointer) {
+        // Keep desktop reference text close to where the user is looking.
+        // Flip left/up near the viewport edges so the panel stays fully visible.
+        const gap = 14;
+        let left = pointer.x + gap;
+        if (left + width > global.innerWidth - 12) left = pointer.x - width - gap;
+        left = Math.max(12, Math.min(left, global.innerWidth - width - 12));
+        let top = pointer.y + gap;
+        if (top + estimatedHeight > global.innerHeight - 12) top = pointer.y - estimatedHeight - gap;
+        top = Math.max(12, Math.min(top, global.innerHeight - estimatedHeight - 12));
+        setPosition({ top, left, width });
+        return;
+      }
+      // Keyboard and touch users retain the predictable anchor-based placement.
       const left = Math.max(12, Math.min(rect.left, global.innerWidth - width - 12));
       let top = rect.bottom + 8;
       if (top + estimatedHeight > global.innerHeight - 12) top = Math.max(12, rect.top - estimatedHeight - 8);
@@ -417,8 +433,14 @@
       clearTimer(closeTimer);
       clearTimer(longPressTimer);
     }, []);
+    const trackPointer = (event) => {
+      if (event.pointerType !== "mouse") return;
+      lastPointerType.current = "mouse";
+      lastPointerPosition.current = { x: event.clientX, y: event.clientY };
+    };
     const startHover = (event) => {
       if (event.pointerType !== "mouse") return;
+      trackPointer(event);
       clearTimer(closeTimer);
       clearTimer(hoverTimer);
       hoverTimer.current = global.setTimeout(() => setOpen(true), 280);
@@ -430,6 +452,11 @@
     };
     const onPointerDown = (event) => {
       lastPointerType.current = event.pointerType || null;
+      if (event.pointerType === "mouse") {
+        lastPointerPosition.current = { x: event.clientX, y: event.clientY };
+      } else {
+        lastPointerPosition.current = null;
+      }
       if (event.pointerType !== "touch") {
         /* A new non-touch gesture also clears stale touch-click suppression. */
         suppressClick.current = false;
@@ -499,7 +526,7 @@
     const portal = panel && ReactDOM && ReactDOM.createPortal ? ReactDOM.createPortal(panel, global.document.body) : panel;
     return React.createElement("span", {
       className: "lbt-glossary-anchor", ref: anchorRef,
-      onPointerEnter: startHover, onPointerLeave: endHover, onPointerDown,
+      onPointerEnter: startHover, onPointerMove: trackPointer, onPointerLeave: endHover, onPointerDown,
       onPointerUp, onPointerCancel,
       onContextMenu,
       onKeyDown: (event) => { if (event.key === "Escape") setOpen(false); }
@@ -509,7 +536,13 @@
         "aria-label": "用語詳細：" + term, "aria-haspopup": "true",
         "aria-expanded": open, "aria-describedby": open ? panelId : undefined,
         title: "PCはホバー、スマホはタップ／長押しで詳細を表示",
-        onFocus: (event) => { if (event.currentTarget.matches(":focus-visible")) setOpen(true); }, onClick
+        onFocus: (event) => {
+          if (event.currentTarget.matches(":focus-visible")) {
+            lastPointerType.current = "keyboard";
+            lastPointerPosition.current = null;
+            setOpen(true);
+          }
+        }, onClick
       }, props.children || term),
       portal
     );
