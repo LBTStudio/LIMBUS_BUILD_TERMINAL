@@ -142,23 +142,53 @@
      数値と通貨の両方が明示されたペアだけ読む。硝子の破片は自我の欠片ではない。 */
   function parseLegacyIncome(line) {
     const text = toHalf(line).replace(/硝子の(?:破片|欠片|かけら|カケラ)/g, " ");
-    const lpMatches = [...text.matchAll(/(\d[\d,]*)\s*LP\b|\bLP\s*[:：]?\s*(\d[\d,]*)/gi)];
-    const shardMatches = [...text.matchAll(/(\d[\d,]*)\s*(?:自我の)?(?:欠片|かけら|欠けら|カケラ)|(?:自我の)?(?:欠片|かけら|欠けら|カケラ)\s*[:：]?\s*(\d[\d,]*)/g)];
+    /* Legacy logs include signed currency changes as well as reward totals.
+       Do not treat the magnitude of "-22LP" as +22LP income. Capture sign and
+       amount together so a mixed "+11欠片 -22LP" line yields both sides. */
+    const lpMatches = [...text.matchAll(/(?:\\bLP\\s*[:：]?\\s*([+-]?)\\s*(\\d[\\d,]*)|([+-]?)\\s*(\\d[\\d,]*)\\s*LP\\b)/gi)];
+    const shardMatches = [...text.matchAll(/(?:(?:自我の)?(?:欠片|かけら|欠けら|カケラ)\\s*[:：]?\\s*([+-]?)\\s*(\\d[\\d,]*)|([+-]?)\\s*(\\d[\\d,]*)\\s*(?:自我の)?(?:欠片|かけら|欠けら|カケラ))/g)];
     if (!lpMatches.length && !shardMatches.length) return null;
-    const values = (matches) => {
-      let total = 0;
+    const totals = (matches) => {
+      let income = 0;
+      let expense = 0;
       for (const match of matches) {
-        const token = match[1] || match[2];
-        const value = safeAmount(token);
-        if (value === null || !Number.isSafeInteger(total + value)) return null;
-        total += value;
+        const sign = match[1] || match[3] || "+";
+        const token = match[2] || match[4];
+        const amount = safeAmount(token);
+        if (amount === null) return null;
+        if (sign === "-") {
+          if (!Number.isSafeInteger(expense + amount)) return null;
+          expense += amount;
+        } else {
+          if (!Number.isSafeInteger(income + amount)) return null;
+          income += amount;
+        }
       }
-      return total;
+      return { income, expense };
     };
-    const lp = values(lpMatches);
-    const shards = values(shardMatches);
-    if (lp === null || shards === null) return { error: "通貨収入の合計が不正です" };
-    return { lp, shards };
+    const lp = totals(lpMatches);
+    const shards = totals(shardMatches);
+    if (!lp || !shards) return { error: "通貨収入・支出の合計が不正です" };
+
+    const spends = [];
+    if (lp.expense > 0 || shards.expense > 0) {
+      const name = text
+        .replace(/\\bLP\\s*[:：]?\\s*[+-]?\\s*\\d[\\d,]*/gi, " ")
+        .replace(/[+-]?\\s*\\d[\\d,]*\\s*LP\\b/gi, " ")
+        .replace(/(?:自我の)?(?:欠片|かけら|欠けら|カケラ)\\s*[:：]?\\s*[+-]?\\s*\\d[\\d,]*/g, " ")
+        .replace(/[+-]?\\s*\\d[\\d,]*\\s*(?:自我の)?(?:欠片|かけら|欠けら|カケラ)/g, " ")
+        .replace(/^[【\\[（(「『]+|[】\\]）)」』]+$/g, " ")
+        .replace(/[+＋,，\\s]+/g, " ")
+        .trim() || "旧形式の通貨支出";
+      spends.push({
+        name,
+        cost: { lp: lp.expense, shards: shards.expense },
+        needsDecision: false,
+        kindHint: hintOf(name),
+        raw: line
+      });
+    }
+    return { lp: lp.income, shards: shards.income, spends };
   }
 
   function parseLegacyTicket(line) {
@@ -253,6 +283,9 @@
             const shards = current.income.shards + legacyIncome.shards;
             if (Number.isSafeInteger(lp) && Number.isSafeInteger(shards)) current.income = { lp, shards };
             else skipped.push({ text: line, reason: "リザルト収入の合計が安全整数の範囲を超えています" });
+            if (Array.isArray(legacyIncome.spends) && legacyIncome.spends.length) {
+              current.spends.push(...legacyIncome.spends);
+            }
           }
           continue;
         }
