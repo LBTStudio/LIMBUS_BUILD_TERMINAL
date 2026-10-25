@@ -28,9 +28,9 @@ test("オンライン保全は任意で、初期化・ローカル保存のみ�
 test("クラウドへ送るスナップショットはアカウント保存キーに限定し、認証・復旧キーを含めない", () => {
   assert.match(client, /function isBackupStorageKey\(key\)/);
   assert.match(client, /!key\.startsWith\("lbt_cloud_"\)/);
-  assert.match(client, /function collectLocalSnapshot\(\)/);
+  assert.match(client, /function collectLocalSnapshot\(\{ enforceCloudLimit = true \} = \{\}\)/);
   assert.match(client, /format: "lbt-account-backup"/);
-  assert.match(client, /function validateSnapshot\(payload\)/);
+  assert.match(client, /function validateSnapshot\(payload, \{ enforceCloudLimit = true \} = \{\}\)/);
   assert.doesNotMatch(client, /localStorage\.clear\(/);
   assert.match(storage, /announceBackupSourceChanged\(key, "write"\)/);
   assert.match(storage, /announceBackupSourceChanged\(key, "remove"\)/);
