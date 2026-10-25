@@ -112,20 +112,21 @@ test("報酬行は収入になる", () => {
   assert.equal(rec.income.shards, 70);
 });
 
-test("硝子の破片は欠片通貨へ混ぜず、未対応の報酬として理由つきで保留する", () => {
-  const parsed = T.parseText("【A】\\n報酬｜硝子の破片x2");
+test("硝子の破片は欠片通貨に混ぜず、別資源の獲得記録として保持する", () => {
+  const parsed = T.parseText("【A】\n報酬｜硝子の破片x2");
   assert.equal(parsed.records.length, 1);
   assert.equal(parsed.records[0].income.shards, 0);
   assert.equal(parsed.records[0].income.lp, 0);
-  assert.ok(parsed.skipped.some((entry) => entry.text.includes("硝子の破片")), "原文を消さずに保持する");
+  assert.equal(parsed.records[0].itemGains[0]?.itemId, "resource-glass-shard");
+  assert.equal(parsed.records[0].itemGains[0]?.quantity, 2);
   const planned = T.plan(parsed);
   assert.equal(planned.actions[0].type, "ADD_RESULT");
   assert.equal(planned.actions[0].income.shards, 0, "資源を欠片通貨の収入に誤計上しない");
-  assert.ok(planned.skipped.some((entry) => entry.text.includes("硝子の破片")));
+  assert.match(planned.actions[0].note, /硝子の破片 ×2（獲得記録）/);
+  assert.equal(planned.skipped.length, 0);
 });
-
 test("「硝子の欠片」も「硝子の破片」と同じ別資源として獲得・消費を保持する", () => {
-  const modern = T.parseText("【A】\\n報酬｜LP:10/硝子の欠片x2");
+  const modern = T.parseText("【A】\n報酬｜LP:10/硝子の欠片x2");
   assert.equal(modern.records[0].income.lp, 10);
   assert.equal(modern.records[0].income.shards, 0, "硝子の欠片2個を自我の欠片通貨に誤計上しない");
   assert.equal(modern.records[0].itemGains[0]?.itemId, "resource-glass-shard");
@@ -137,7 +138,7 @@ test("「硝子の欠片」も「硝子の破片」と同じ別資源として�
     "LP10+欠片2",
     "硝子の欠片x2",
     "【硝子の欠片を一つ使用して人差し指のctを解除】"
-  ].join("\\n"));
+  ].join("\n"));
   assert.equal(legacy.records[0].itemGains[0]?.itemId, "resource-glass-shard");
   assert.equal(legacy.records[0].itemGains[0]?.quantity, 2);
   assert.equal(legacy.records[0].consumedItems[0]?.itemId, "resource-glass-shard");
