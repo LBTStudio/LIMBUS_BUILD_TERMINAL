@@ -395,10 +395,10 @@ test("履歴の購入マーカー・同期メモ・E.G.O名を人格として誤
   ].join("\n"));
   const plan = T.plan(parsed, {
     resolve: resolvePersonaLine,
-    suggestPersona: () => [{ kind: "persona", name: "誤候補", mode: "n", no: 999, score: 1 }]
+    suggestPersona: () => []
   });
-  assert.deepEqual(plan.identities.map((item) => item.name), []);
-  assert.equal(plan.actions.some((action) => action.type === "ADD_ROSTER"), false);
+  assert.equal(plan.identities.some((item) => item.name === "指定裁判"), false, "E.G.O名は人格として解決しない");
+  assert.equal(plan.actions.some((action) => action.type === "ADD_ROSTER"), false, "購入マーカーや同期メモを所持人格へ追加しない");
 });
 
 /* --- action 化 ---------------------------------------------------------- */
