@@ -241,6 +241,25 @@ test("glossary terms have a visible underline and warmer contrast in effect pros
   assert.match(css, /text-decoration-thickness: 2px/);
 });
 
+
+test("bracketed terms from synced/custom effect text are hoverable even when absent from the DB", () => {
+  const fixture = {
+    normal_personas: [], tokui_personas: [], egos: [], support_passives: [],
+    death_passives: [], normal_enhancements: [], special_enhancements: [], spirits: [], items: []
+  };
+  const api = loadGlossary();
+  const text = "自分の状態を[同期専用の固有名詞]へ変換する。";
+  const before = JSON.stringify(fixture);
+  const pieces = api.tokenize(text, fixture, "サポートパッシブ:同期専用パッシブ");
+  const termPiece = pieces.find((piece) => piece.term === "同期専用の固有名詞");
+  assert.ok(termPiece, "DB未登録の角括弧付き語が本文中で認識される");
+  assert.equal(termPiece.entries.length, 1);
+  assert.equal(termPiece.entries[0].source, "サポートパッシブ:同期専用パッシブ");
+  assert.ok(termPiece.entries[0].description.includes("自分の状態を[同期専用の固有名詞]へ変換する"));
+  assert.equal(api.buildGlossary(fixture).has("同期専用の固有名詞"), false, "一時的な参照でグローバル辞書を変更しない");
+  assert.equal(JSON.stringify(fixture), before, "DBデータを変更しない");
+});
+
 test("共通用語の出典はPDF抽出ページの実在内容に対応する", () => {
   const pageText = (n) => { const s = coreCorpus.indexOf("===== PAGE " + n + " ====="); if (s < 0) return ""; const e = coreCorpus.indexOf("===== PAGE ", s + 5); return coreCorpus.slice(s, e < 0 ? coreCorpus.length : e); };
   const p306 = pageText(306), p311 = pageText(311), glossary = loadGlossary().buildGlossary(db);
