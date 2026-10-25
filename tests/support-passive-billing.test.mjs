@@ -598,3 +598,49 @@ test("ロック中の旧形式deathSupportは枠分類を保全しても装備�
     assert.equal(normalized.deathSupport, null, "ロック中は選択投影を復活させない");
   }
 });
+
+
+test("ロック中は人格別保存ビルドとequipmentRefsから死亡後装備を復元しない", () => {
+  const personaNo = db.normal_personas[0].no;
+  const death = {
+    uid: "locked-active-death",
+    name: "旧形式の手動死亡後サポート",
+    cond: "条件",
+    effect: "効果",
+    lp: "2",
+    slot: "death",
+    deathSlotManual: true,
+    equipped: true,
+    resultId: null,
+    addedAt: 1,
+    notes: ""
+  };
+  const normalized = w.LBT_normalizeStateShape({
+    ...base(),
+    personaMode: "n",
+    personaNo,
+    enhancements: [],
+    supports: [],
+    deathSupport: { id: death.uid, name: death.name, cond: death.cond, effect: death.effect, lp: death.lp },
+    roster: {
+      personas: [{
+        uid: "active-persona",
+        mode: "n",
+        no: personaNo,
+        equipped: true,
+        build: {
+          supports: [],
+          deathSupport: { id: death.uid, name: death.name, cond: death.cond, effect: death.effect, lp: death.lp },
+          equipmentRefs: { supportUids: [death.uid], spiritUid: null }
+        }
+      }],
+      egos: [],
+      supports: [{ ...death }],
+      spirits: []
+    }
+  });
+
+  assert.equal(normalized.roster.supports.find((entry) => entry.uid === death.uid).equipped, false);
+  assert.equal(normalized.deathSupport, null, "保存ビルド由来の死亡後投影もロック時は解除する");
+  assert.equal(normalized.supports.some((entry) => entry.name === death.name), false, "通常枠出力へ混入させない");
+});
