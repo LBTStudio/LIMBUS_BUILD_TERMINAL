@@ -7,12 +7,17 @@ const app = read("../js/App.js");
 const index = read("../index.html");
 const sw = read("../sw.js");
 const css = read("../assets/v69-ui-review.css");
+const sections = read("../js/OtherSections.js");
 
 test("UI review CSS is loaded after the prior refinements and included in offline precache", () => {
   assert.match(index, /assets\/v69-ui-review\.css\?v=[0-9a-f]{8}/);
   assert.ok(index.indexOf("assets/v69-ui-review.css") > index.indexOf("assets/inline-effect-glossary.css"));
   assert.match(sw, /"assets\/v69-ui-review\.css\?v=[0-9a-f]{8}"/);
   assert.match(index, /js\/App\.js\?v=[0-9a-f]{8}/);
+});
+
+test("mobile persona section heading stays consistent with the other build tabs", () => {
+  assert.match(sections, /id: "persona", label: "人格", num: "01", title: "OWNED PERSONAS", subtitle: "所持人格を装備"/);
 });
 
 test("mobile preview edge tab no longer overlays page content", () => {
