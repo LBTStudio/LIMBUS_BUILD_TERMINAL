@@ -489,14 +489,24 @@
   }
 
   async function createRecoveryKey() {
-    const payload = collectLocalSnapshot();
-    if (!confirm("復旧キーを発行し、この端末の全アカウントデータをオンラインへ保存します。キーはファイルにも保存されますが、別の安全な場所に保管してください。キーを失い、ログインもできない場合は復元できません。続けますか？")) return false;
-    const key = "LBT1-" + randomToken(32);
     const session = await getSession();
+    const existing = session ? await callRecovery({ action: "get" }, session.access_token) : null;
+    const hasExistingCloud = Boolean(existing?.found && existing?.payload);
+    if (hasExistingCloud && existing.recoveryKeyEnabled) {
+      throw new Error("このオンライン保全には既に復旧キーが登録されています。「復旧キーを再発行」から古いキーを無効化して更新してください。");
+    }
+    const localPayload = collectLocalSnapshot();
+    const payload = hasExistingCloud ? existing.payload : localPayload;
+    const prompt = hasExistingCloud
+      ? "復旧キーを発行し、既存のクラウドバックアップへ結びつけます。クラウドの保存内容は維持し、端末にある別の内容では上書きしません。続けますか？"
+      : "復旧キーを発行し、この端末の全アカウントデータをオンラインへ保存します。キーはファイルにも保存されますが、別の安全な場所に保管してください。キーを失い、ログインもできない場合は復元できません。続けますか？";
+    if (!confirm(prompt)) return false;
+    const key = "LBT1-" + randomToken(32);
     const result = await callRecovery({ action: "create_recovery", recoveryKey: key, payload }, session?.access_token || null);
     writeStorage(RECOVERY_KEY, key);
     writeStorage(REVISION_KEY, String(result.revision || 1));
-    setEnabled(true);
+    const matches = sameData(localPayload, payload);
+    setEnabled(matches);
     const recoveryFile = [
       "LIMBUS BUILD TERMINAL — 復旧キー",
       "",
@@ -509,7 +519,17 @@
       ""
     ].join("\n");
     downloadText("LBT-recovery-key.txt", recoveryFile, "text/plain;charset=utf-8");
-    emit({ mode: session ? "oauth" : "recovery", remoteExists: true, revision: Number(result.revision) || 1, conflict: false, label: "復旧キーを発行しました", message: "復旧キーをファイルへ保存しました。自分だけがアクセスできる場所に保管してください。以降の変更は自動同期されます。" });
+    emit({
+      mode: session ? "oauth" : "recovery",
+      remoteExists: true,
+      revision: Number(result.revision) || 1,
+      recoveryKeyEnabled: true,
+      conflict: false,
+      label: "復旧キーを発行しました",
+      message: matches
+        ? "復旧キーをファイルへ保存しました。クラウドと端末の内容は一致しているため、自動同期を有効にしました。"
+        : "復旧キーをファイルへ保存しました。クラウドの既存データは維持されています。端末とクラウドの内容が異なるため、自動同期は停止中です。復元または端末からの同期を選んでください。"
+    });
     return true;
   }
   async function restoreWithKey(rawKey) {
