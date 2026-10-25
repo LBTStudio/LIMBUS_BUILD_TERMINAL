@@ -27,7 +27,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   capture:
@@ -36,6 +36,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          # PR runs must check out the source branch so the optional asset commit
+          # is a fast-forward to the PR head, not a commit on refs/pull/*/merge.
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
 
       - uses: actions/setup-node@v4
         with:
@@ -49,6 +53,54 @@ jobs:
 
       - name: Capture real UI and annotate target controls
         run: node tools/ui/capture-tutorial-screenshots.mjs
+
+      - name: Convert screenshots to compact WebP
+        run: |
+          python3 -m pip install --disable-pip-version-check pillow
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          from PIL import Image
+
+          source = Path("artifacts/tutorial-screenshots")
+          target = Path("docs/tutorial-captures")
+          target.mkdir(parents=True, exist_ok=True)
+          pngs = sorted(source.glob("*.png"))
+          for png in pngs:
+              with Image.open(png) as im:
+                  im.convert("RGB").save(
+                      target / (png.stem + ".webp"),
+                      format="WEBP",
+                      quality=86,
+                      method=6,
+                  )
+          original = json.loads((source / "manifest.json").read_text(encoding="utf-8"))
+          original["sourceFiles"] = original["files"]
+          original["files"] = [p.stem + ".webp" for p in sorted(target.glob("*.webp"))]
+          original["format"] = "WebP, quality 86"
+          original["count"] = len(original["files"])
+          (target / "manifest.json").write_text(
+              json.dumps(original, ensure_ascii=False, indent=2) + "\\n",
+              encoding="utf-8",
+          )
+          if len(original["files"]) != 12:
+              raise SystemExit("Expected 12 WebP screenshots, got " + str(len(original["files"])))
+          PY
+
+      - name: Commit screenshots to the source PR branch
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/tutorial-captures
+          if git diff --cached --quiet; then
+            echo "Tutorial screenshots are unchanged."
+            exit 0
+          fi
+          git commit -m "docs: add real UI tutorial screenshots"
+          git push origin "HEAD:${BRANCH}"
 
       - name: Upload screenshots and manifest
         if: always()
