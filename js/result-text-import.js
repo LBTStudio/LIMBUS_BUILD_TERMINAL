@@ -47,6 +47,82 @@
     "購入": "buy", "追加購入": "buy", "消費": "buy", "支出": "buy", "支払い": "buy"
   };
 
+  /* Google Docs/Word からコピーしたテーブルも、既存の正規フォーマットへ寄せる。
+     [Input] は共有ドキュメントの枠名であり、シナリオ見出しではない。
+     ラベルを認識できる行だけ変換し、不明な内容は後段の skipped に残す。 */
+  const fieldKey = (value) => String(value ?? "")
+    .replace(/[*_]/g, "")
+    .replace(/[\s・･]/g, "")
+    .trim();
+  const isSectionField = (value) => Object.prototype.hasOwnProperty.call(SECTIONS, fieldKey(value));
+  const isTitleField = (value) => /^(?:シナリオ名?|タイトル|scenario(?:name)?|title)$/i.test(fieldKey(value));
+  const cleanTableCell = (value) => String(value ?? "")
+    .replace(/^[\s|]+|[\s|]+$/g, "")
+    .replace(/[*_]/g, "")
+    .trim();
+
+  function normalizeInputText(rawText) {
+    const source = String(rawText ?? "").replace(/\r\n?/g, "\n").replace(/\u00a0/g, " ");
+    const wrapped = /^\s*(?:[-*+]\s*)?\[\s*(?:input|入力)\s*\]\s*$/im.test(source);
+    const lines = [];
+    for (const rawLine of source.split("\n")) {
+      let line = rawLine.trim();
+      if (!line) { lines.push(""); continue; }
+      if (/^(?:[-*+]\s*)?\[\s*(?:input|入力)\s*\]$/i.test(line)) continue;
+      if (/^\u0060{3}(?:[\w-]+)?\s*$/.test(line)) continue;
+      if (/^\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?$/.test(line)) continue;
+      line = line.replace(/^\s{0,3}(?:[-*+]|\d+[.)])\s+/, "");
+
+      /* Markdown 表をテキストとしてコピーした場合: | 報酬 | LP:100 | 欠片:20 | */
+      if (line.startsWith("|") && line.includes("|")) {
+        const cells = line.split("|").map(cleanTableCell);
+        while (cells.length && !cells[0]) cells.shift();
+        while (cells.length && !cells[cells.length - 1]) cells.pop();
+        const label = cells[0] || "";
+        if (isTitleField(label) && cells.length > 1 && cells[1]) {
+          lines.push("【" + cells[1] + "】");
+          continue;
+        }
+        if (isSectionField(label) && cells.length > 1) {
+          lines.push(fieldKey(label) + "｜" + cells.slice(1).filter(Boolean).join("/"));
+          continue;
+        }
+      }
+
+      /* Google Docs/Word の表コピーはセルがタブ区切りになる。 */
+      if (line.includes("\t")) {
+        const cells = line.split(/\t+/).map(cleanTableCell);
+        while (cells.length && !cells[0]) cells.shift();
+        while (cells.length && !cells[cells.length - 1]) cells.pop();
+        const label = cells[0] || "";
+        if (isTitleField(label) && cells.length > 1 && cells[1]) {
+          lines.push("【" + cells[1] + "】");
+          continue;
+        }
+        if (isSectionField(label) && cells.length > 1) {
+          lines.push(fieldKey(label) + "｜" + cells.slice(1).filter(Boolean).join("/"));
+          continue;
+        }
+      }
+
+      const fieldValue = line.match(/^([^:：｜|]{1,14})\s*[:：]\s*(.+)$/);
+      if (fieldValue) {
+        const field = fieldKey(fieldValue[1]);
+        if (isTitleField(field)) {
+          lines.push("【" + fieldValue[2].trim() + "】");
+          continue;
+        }
+        if (isSectionField(field)) {
+          lines.push(field + "｜" + fieldValue[2].trim());
+          continue;
+        }
+      }
+
+      lines.push(line);
+    }
+    return { text: lines.join("\n"), wrapped };
+  }
+
   /* (150LP) や (50欠片) の中の金額。取れなければ null（0 ではない）。
      数が合わないときは「読めない」のではなく「決まらない」として別扱いする
      （無料1/100LP は無料か 100LP かで意味が違う）。 */
@@ -201,6 +277,9 @@
   }
 
   function parseText(rawText) {
+    const normalizedInput = normalizeInputText(rawText);
+    const sourceText = normalizedInput.text;
+    const wrappedInput = normalizedInput.wrapped;
     const records = [];
     const skipped = [];
     let current = null;
@@ -222,10 +301,12 @@
 
     /* 入力内に旧形式の見出しがあるなら、先頭の「通過3」などの案内行は
        リザルト外のタイトルとして扱い、読み取りエラーへ積まない。 */
-    let legacyMode = /^\s*『[^』]+』(?:\s+.*)?\s*$/m.test(String(rawText ?? ""));
-    for (const rawLine of String(rawText ?? "").split(/\r?\n/)) {
+    let legacyMode = /^\s*『[^』]+』(?:\s+.*)?\s*$/m.test(sourceText);
+    for (const rawLine of sourceText.split(/\r?\n/)) {
       let line = rawLine.trim();
-      if (!line) { if (!legacyMode) flush(); continue; }
+      /* [Input] のある共有文書では、空行は段落・表の余白として扱う。
+         次の見出しが来た時点で open() が前のリザルトを確実に確定する。 */
+      if (!line) { if (!legacyMode && !wrappedInput) flush(); continue; }
 
       /* 旧記録の見出し。タイトルの右側に「合計：97LP+47欠片」が続く形も許可。 */
       const legacyHeader = line.match(/^『\s*(.+?)\s*』\s*(.*)$/);

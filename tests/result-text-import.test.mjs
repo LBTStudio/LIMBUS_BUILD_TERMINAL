@@ -98,6 +98,46 @@ test("【の前の装飾文字（絵文字等）は無視する", () => {
   assert.equal(out.records[0].title, "シナリオA");
 });
 
+
+test("Google Docs の [Input] とタブ区切り表をリザルトとして取り込む", () => {
+  const out = T.parseText([
+    "[Input]",
+    "",
+    "シナリオ名\tシナリオA",
+    "",
+    "報酬\tLP:150\t自我の欠片:70",
+    "購入\t人格抽出x2(100LP)"
+  ].join("\n"));
+
+  assert.equal(out.records.length, 1);
+  assert.equal(out.records[0].title, "シナリオA");
+  assert.equal(out.records[0].income.lp, 150);
+  assert.equal(out.records[0].income.shards, 70);
+  assert.equal(out.records[0].spends[0].name, "人格抽出x2");
+  assert.deepEqual({ ...out.records[0].spends[0].cost }, { lp: 100, shards: 0 });
+  assert.equal(out.skipped.length, 0);
+});
+
+test("共有文書の Markdown 表と全角コロン区切りを読み取る", () => {
+  const table = T.parseText([
+    "[Input]",
+    "| シナリオ名 | シナリオB |",
+    "| --- | --- |",
+    "| 報酬 | LP:25 | 自我の欠片:7 |",
+    "| 追加購入 | 乱打(50LP) |"
+  ].join("\n"));
+  assert.equal(table.records.length, 1);
+  assert.equal(table.records[0].title, "シナリオB");
+  assert.equal(table.records[0].income.lp, 25);
+  assert.equal(table.records[0].income.shards, 7);
+  assert.equal(table.records[0].spends[0].name, "乱打");
+  assert.equal(table.skipped.length, 0);
+
+  const colon = T.parseText("【シナリオC】\n報酬：LP:10");
+  assert.equal(colon.records[0].income.lp, 10);
+  assert.equal(colon.skipped.length, 0);
+});
+
 test("作者の書き方が違っても著者として読む", () => {
   assert.equal(T.parseText("【A】(作：X)").records[0].author, "X");
   assert.equal(T.parseText("【A】(作成者：X)").records[0].author, "X");
