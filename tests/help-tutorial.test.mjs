@@ -9,6 +9,8 @@ const stateSource = readFileSync(new URL("../js/state.js", import.meta.url), "ut
 const coreSource = readFileSync(new URL("../js/core.js", import.meta.url), "utf8");
 const liveSource = readFileSync(new URL("../js/LivePreview.js", import.meta.url), "utf8");
 const guideCss = readFileSync(new URL("../assets/v56-refinements.css", import.meta.url), "utf8");
+const captureScript = readFileSync(new URL("../tools/ui/capture-tutorial-screenshots.mjs", import.meta.url), "utf8");
+const captureWorkflow = readFileSync(new URL("../.github/workflows/tutorial-screenshot-capture.yml", import.meta.url), "utf8");
 
 test("使い方ページは検索と分類を先頭に置き、最初から巨大なカード群を表示しない", () => {
   assert.ok(appSource.includes('id: "guide-search-input"'));
@@ -209,6 +211,14 @@ test("取り込み後の確認、データ適用範囲、保存形式の違い�
   assert.match(beginnerTutorial, /Ctrl\+K/);
 });
 
+
+
+test("使い方画面の初期表示をPC／スマホで記録し、QA画像を一般向け画像に混ぜない", () => {
+  assert.ok(captureScript.includes('await clickNav(page, "使い方")'));
+  assert.ok(captureScript.includes('"help-index-" + mode + ".png"'));
+  assert.ok(captureWorkflow.includes('if png.stem.startswith("help-index-"):'));
+  assert.ok(captureWorkflow.includes('Expected 12 WebP screenshots'));
+});
 
 test("複雑な図解は該当する項目を開いた時だけ表示される", () => {
   assert.match(appSource, /const getFlowKind = \(item\) =>/);

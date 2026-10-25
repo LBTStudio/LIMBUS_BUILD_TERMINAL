@@ -20,7 +20,7 @@ npx playwright install --with-deps chromium
 node tools/ui/capture-tutorial-screenshots.mjs
 ```
 
-撮影結果は `artifacts/tutorial-screenshots/` に出ます。現在はデスクトップ（1440×1000）とスマートフォン幅（390×844）の両方を撮影します。撮影用に新しいブラウザーコンテキストを作成し、既存の個人用localStorageを読み込まず、初回画面でアカウント作成が必要なら「操作ガイド撮影用」を一時作成します。手動保存・購入・取り込みの確定ボタンは押さず、案内対象のUIを開いて撮影します。
+撮影結果は `artifacts/tutorial-screenshots/` に出ます。デスクトップ（1440×1000）とスマートフォン幅（390×844）の両方を撮影します。タスクの場所を示す注釈付き12枚に加え、使い方画面の初期表示を確認する `help-index-desktop.png`／`help-index-mobile.png` もArtifactへ保存します。この2枚は表示密度を確認するQA専用で、一般ユーザー向けの `docs/tutorial-captures/` には同梱しません。撮影用に新しいブラウザーコンテキストを作成し、既存の個人用localStorageを読み込まず、初回画面でアカウント作成が必要なら「操作ガイド撮影用」を一時作成します。手動保存・購入・取り込みの確定ボタンは押さず、案内対象のUIを開いて撮影します。
 
 ## GitHub Actions
 
