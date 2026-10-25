@@ -350,7 +350,7 @@
     if (line.length < 2 || line.length > 120) return false;
     if (/^[【\[『「《]/.test(line)) return false;
     if (/^(?:報酬|購入|追加購入|支出|支払い|消費|保管物|所持物)\s*[｜|：:]/.test(line)) return false;
-    if (/(?:\bLP\b|ＬＰ|欠片|カケラ|かけら|硝子の(?:破片|かけら)|人格ガチャ|抽出チケット|同期(?:化|MAX)?|CT\s*\d|サポ(?:パ|スロ)|精神\s*[:：]|購入|消費|支払|ファンブル|ダイスバトル|現在値?\s*\d)/i.test(line)) return false;
+    if (/(?:\bLP\b|ＬＰ|欠片|カケラ|かけら|硝子の(?:破片|欠片|かけら)|人格ガチャ|抽出チケット|同期(?:化|MAX)?|CT\s*\d|サポ(?:パ|スロ)|精神\s*[:：]|購入|消費|支払|ファンブル|ダイスバトル|現在値?\s*\d)/i.test(line)) return false;
     return !/^\d[\d,.\s]*$/.test(line);
   }
 
