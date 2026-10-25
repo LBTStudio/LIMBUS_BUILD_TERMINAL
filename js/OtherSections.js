@@ -5158,7 +5158,18 @@ h(Card, { className: "ledger-card" },
                                 className: "ledger-object-enhancement"
                               },
                                 h("span", { className: "ledger-object-enhancement-label" }, "特殊強化：" + name),
-                                effect && h("details", { className: "ledger-object-enhancement-details" },
+                                effect && h("details", {
+                                  className: "ledger-object-enhancement-details",
+                                  onToggle: (event) => {
+                                    const details = event.currentTarget;
+                                    if (!details.open) return;
+                                    /* 展開文が固定フッターに隠れないよう、開いたら効果文を表示域へ入れる。 */
+                                    requestAnimationFrame(() => details.querySelector("p")?.scrollIntoView({
+                                      block: "nearest",
+                                      behavior: "auto"
+                                    }));
+                                  }
+                                },
                                   h("summary", null, "効果を表示"),
                                   h("p", null, effect)
                                 )
