@@ -160,6 +160,37 @@ test("アイテムを導入すると数量を合算し、導入単位の表示�
   assert.equal(patched.inventory[0].palette, true);
 });
 
+
+test("ショップ購入は消耗品を毎回課金して在庫に加え、消費後も再購入できる", () => {
+ const { reducer, initState, balance } = loadStateReducer();
+ const itemId = "heal-hp-bullet";
+ let state = reducer(initState, { type: "ADD_RESULT", name: "ショップ消耗品テスト", income: { lp: 100, shards: 0 } });
+ const resultId = state.results[state.results.length - 1].id;
+ state = reducer(state, { type: "ADD_ITEM", itemId, purchase: true });
+ state = reducer(state, { type: "ADD_ITEM", itemId, purchase: true });
+ assert.equal(state.inventory.find((entry) => entry.itemId === itemId)?.quantity, 2);
+ let purchases = state.entries.filter((entry) => entry.kind === "item" && entry.name === "HP弾");
+ assert.equal(purchases.length, 2);
+ assert.deepEqual(Array.from(purchases, (entry) => entry.cost.lp), [20, 20]);
+ assert.equal(balance(state.results, state.entries).lp, 60);
+ state = reducer(state, { type: "CONSUME_ITEM", itemId, quantity: 2, reason: "phenomenon_processing", operationId: "shop-consume-two", resultId });
+ assert.equal(state.inventory.some((entry) => entry.itemId === itemId), false);
+ assert.equal(state.entries.filter((entry) => entry.kind === "item" && entry.name === "HP弾").length, 2);
+ assert.equal(balance(state.results, state.entries).lp, 60);
+ state = reducer(state, { type: "ADD_ITEM", itemId, purchase: true });
+ assert.equal(state.inventory.find((entry) => entry.itemId === itemId)?.quantity, 1);
+ purchases = state.entries.filter((entry) => entry.kind === "item" && entry.name === "HP弾");
+ assert.equal(purchases.length, 3);
+ assert.equal(balance(state.results, state.entries).lp, 40);
+ const cappedItemId = "enh-garden-sensory-blocker";
+ let capped = reducer(initState, { type: "ADD_RESULT", name: "所持上限テスト", income: { lp: 100, shards: 0 } });
+ for (let i = 0; i < 3; i += 1) capped = reducer(capped, { type: "ADD_ITEM", itemId: cappedItemId, purchase: true });
+ assert.equal(capped.inventory.find((entry) => entry.itemId === cappedItemId)?.quantity, 3);
+ assert.equal(reducer(capped, { type: "ADD_ITEM", itemId: cappedItemId, purchase: true }), capped);
+ const poor = { ...initState, results: [{ id: "poor-shop-result", name: "残高不足", income: { lp: 19, shards: 0 } }], entries: [] };
+ assert.equal(reducer(poor, { type: "ADD_ITEM", itemId, purchase: true }), poor);
+});
+
 test("現象処理で消費すると所持数と直近リザルトへ記録し、購入明細は残す", () => {
   const { reducer, initState, balance, normalize } = loadStateReducer();
   let state = reducer(initState, {
