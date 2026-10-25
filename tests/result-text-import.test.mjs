@@ -207,7 +207,9 @@ test("実記録にある全角イコールの計算結果を合計値として�
   assert.equal(parsed.records.length, 1);
   assert.equal(parsed.records[0].income.lp, 190);
   assert.equal(parsed.records[0].income.shards, 100);
-});\n\ntest("消費額と獲得品の個別価格が矛盾する実記録は要確認として残す", () => {
+});
+
+test("消費額と獲得品の個別価格が矛盾する実記録は要確認として残す", () => {
   const parsed = T.parseText([
     "▼E.G.O指定購入",
     "消費：LP450",
