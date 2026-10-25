@@ -4,6 +4,7 @@ import test from "node:test";
 
 const workspace = readFileSync(new URL("../assets/workspace.css", import.meta.url), "utf8");
 const draftImport = readFileSync(new URL("../assets/v65r29-draft-import.css", import.meta.url), "utf8");
+const refinements = readFileSync(new URL("../assets/v56-refinements.css", import.meta.url), "utf8");
 
 test("mobile preview toggle is a compact horizontal pill above the fixed navigation", () => {
   const mobile = workspace.slice(workspace.lastIndexOf("/* Mobile UX audit:"));
@@ -12,7 +13,7 @@ test("mobile preview toggle is a compact horizontal pill above the fixed navigat
   assert.match(mobile, /bottom:\s*calc\(114px \+ env\(safe-area-inset-bottom, 0px\) \+ 8px\)/);
   assert.match(mobile, /writing-mode:\s*horizontal-tb/);
   assert.match(mobile, /border-radius:\s*999px/);
-  assert.match(mobile, /\.focus\s*\{[\s\S]*?padding-bottom:\s*calc\(var\(--lbt-mobile-rail-h\) \+ 60px\)/);
+  assert.match(refinements, /\.focus \{ padding-bottom: calc\(var\(--lbt-mobile-rail-h\) \+ 60px\); \}/);
 });
 
 test("mobile section heading can use the full row and avoids one-character orphan wrapping", () => {
