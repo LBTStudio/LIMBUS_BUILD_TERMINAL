@@ -95,18 +95,32 @@ test("死亡後サポートの手動編集は所持ライブラリへ同期し�
     },
     roster: {
       personas: [], egos: [],
-      supports: [{
-        uid: "custom-death",
-        name: "手動追加サポート",
-        cond: "旧条件",
-        effect: "旧効果",
-        lp: "1",
-        slot: "death",
-        equipped: true,
-        resultId: null,
-        addedAt: 1,
-        notes: ""
-      }],
+      supports: [
+        {
+          uid: "custom-death",
+          name: "手動追加サポート",
+          cond: "旧条件",
+          effect: "旧効果",
+          lp: "1",
+          slot: "death",
+          equipped: true,
+          resultId: null,
+          addedAt: 1,
+          notes: ""
+        },
+        {
+          uid: "normal-support",
+          name: "通常サポート",
+          cond: "",
+          effect: "",
+          lp: "3",
+          slot: "normal",
+          equipped: false,
+          resultId: null,
+          addedAt: 2,
+          notes: ""
+        }
+      ],
       spirits: []
     }
   };
@@ -134,11 +148,12 @@ test("死亡後サポートの手動編集は所持ライブラリへ同期し�
   assert.equal(row.uid, "custom-death");
   assert.equal(row.resultId, null);
 
-  const reprojected = reducer(edited, { type: "SET_ROSTER_SUPPORT_RESULT", uid: "custom-death", resultId: "res-1" });
+  const reprojected = reducer(edited, { type: "SET_ROSTER_SUPPORT_EQUIPPED", uid: "normal-support", equipped: true });
   assert.equal(reprojected.deathSupport?.name, "編集後サポート");
   assert.equal(reprojected.deathSupport?.cond, "新条件");
   assert.equal(reprojected.deathSupport?.effect, "新効果");
   assert.equal(reprojected.deathSupport?.lp, "7");
+  assert.equal(reprojected.roster.supports.find((entry) => entry.uid === "custom-death").slot, "death");
 });
 
 test("死亡後サポートの手動追加は空の編集フォームから所持へ同期する", () => {
