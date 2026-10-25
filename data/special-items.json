@@ -10,7 +10,8 @@
     "effect": "通帳の「欠片」残高と連動します。獲得欠片と支出明細から残数を計算します。",
     "palette": "",
     "specialResource": true,
-    "ledgerResource": "shards"
+    "ledgerResource": "shards",
+    "price": "2LP"
   },
   {
     "id": "resource-glass-shard",
