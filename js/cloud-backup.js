@@ -292,7 +292,8 @@
   async function getRemote(options = {}) {
     const session = options.useRecoveryOnly ? null : await getSession();
     if (session) {
-      const remote = await callRecovery({ action: "get" }, session.access_token);
+      const recoveryKey = options.recoveryKey || readRecoveryKey();
+      const remote = await callRecovery({ action: "get", ...(recoveryKey ? { recoveryKey } : {}) }, session.access_token);
       if (remote.found || options.useAuthOnly) return { ...remote, session, mode: "oauth" };
     }
     const key = options.recoveryKey || readRecoveryKey();
@@ -343,9 +344,11 @@
         label: conflict ? "同期競合あり" : "オンラインバックアップあり",
         message: conflict
           ? "別の端末または別タブでクラウド内容が更新されています。自動上書きは停止しました。復元する内容を選んでください。"
-          : same
-            ? "この端末とクラウドの内容は一致しています。"
-            : "クラウドにバックアップがあります。端末にデータがある場合は、復元またはこの端末からの更新を選んでください。",
+          : remote.mode === "oauth" && key && remote.recoveryKeyMatches === false
+            ? "クラウドのGoogle/Xアカウントと、この端末の復旧キーは別の保全先です。自動同期はログイン中のアカウントだけを対象にし、復旧キーの保管庫は変更しません。"
+            : same
+              ? "この端末とクラウドの内容は一致しています。"
+              : "クラウドにバックアップがあります。端末にデータがある場合は、復元またはこの端末からの更新を選んでください。",
         remoteExists: true,
         revision: Number(remote.revision) || 0,
         conflict,
@@ -383,7 +386,7 @@
     } else if (!confirm("この端末に保存された全アカウントデータをオンラインへ初回保存します。これまでのローカル保存も残ります。続けますか？")) {
       return false;
     }
-    if (session && key) {
+    if (session && key && (current.mode === "recovery" || current.recoveryKeyMatches !== false)) {
       await callRecovery({ action: "create_recovery", recoveryKey: key, payload }, session.access_token);
     }
     const remote = await getRemote();
@@ -524,7 +527,11 @@
         emit({ conflict: false, remoteExists: true, revision: Number(current.revision), label: "同期済み", message: "この端末とオンラインバックアップの内容は一致しています。" });
         return;
       }
-      if (session && key) await callRecovery({ action: "create_recovery", recoveryKey: key, payload }, session.access_token);
+      /* 自動同期は既に結びついている復旧キーだけを使う。復旧専用保管庫と
+         別のOAuthアカウントを、本人の明示操作なしに結びつけない。 */
+      if (session && key && current.mode === "oauth" && current.recoveryKeyMatches !== false) {
+        await callRecovery({ action: "create_recovery", recoveryKey: key, payload }, session.access_token);
+      }
       const refreshed = await getRemote();
       if (refreshed.found && sameData(payload, refreshed.payload)) {
         writeStorage(REVISION_KEY, String(refreshed.revision));
