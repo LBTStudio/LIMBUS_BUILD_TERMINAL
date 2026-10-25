@@ -22,7 +22,7 @@ function loadAcquireCostResolver() {
   return { resolve: context.window.LBT_resolveAcquireCost, parse: context.window.LBT_parsePriceText };
 }
 
-test("ショップは両方の特殊資源を表示し、硝子の破片は価格未設定の登録動作にする", () => {
+test("ショップは特殊資源を表示し、硝子の破片の20LP価格と再購入処理を使う", () => {
   const catalog = otherSectionsSource.match(/const catalogItems = React\.useMemo\(\(\) => \[(.*?)\], \[state\.customItems\]\);/s);
   assert.ok(catalog, "ショップのアイテムカタログが存在する");
   assert.match(catalog[1], /window\.DB\?\.items/);
@@ -31,16 +31,19 @@ test("ショップは両方の特殊資源を表示し、硝子の破片は価�
   assert.match(catalog[1], /state\.customItems/);
   assert.equal(itemRecords.some((item) => ["自我の欠片", "硝子の破片"].includes(item.name)), false);
   assert.deepEqual(specialItemRecords.map((item) => item.id), ["resource-ego-shard", "resource-glass-shard"]);
-  assert.equal(specialItemRecords.find((item) => item.id === "resource-glass-shard")?.ledgerResource, undefined);
+  const glassShard = specialItemRecords.find((item) => item.id === "resource-glass-shard");
+  assert.equal(glassShard?.ledgerResource, undefined);
+  assert.equal(glassShard?.price, "20LP");
   assert.equal(specialItemRecords.find((item) => item.id === "resource-ego-shard")?.ledgerResource, "shards");
 
   const shopItemBuilder = otherSectionsSource.match(/item: \(\) => items\.map\(\(item\) => \{([\s\S]*?)\n\s*\}\)/);
   assert.ok(shopItemBuilder, "ショップのアイテムカード生成部が存在する");
-  assert.match(shopItemBuilder[1], /item\?\.specialResource === true && !item\?\.ledgerResource/);
-  assert.match(shopItemBuilder[1], /ADD_ITEM_INVENTORY/);
+  assert.match(shopItemBuilder[1], /!hasConfiguredPrice\(item\)/);
+  assert.match(shopItemBuilder[1], /dispatch\(\{ type: "ADD_ITEM", itemId: item\.id \}\)/);
+  assert.match(otherSectionsSource, /\|\| canRepurchaseSpecial\(item\)/);
+  assert.match(shopItemBuilder[1], /ownedItemIds\.has\(item\.id\) && !repeatPurchase/);
   assert.match(shopItemBuilder[1], /"価格未設定"/);
   assert.match(shopItemBuilder[1], /"所持欄へ追加"/);
-  assert.match(shopItemBuilder[1], /ADD_ITEM/);
 });
 
 test("ショップ価格は公式・特殊・ユーザー定義アイテムで共通パーサーを使う", () => {
@@ -50,6 +53,12 @@ test("ショップ価格は公式・特殊・ユーザー定義アイテムで�
   const officialParsed = parse(official.price);
   assert.equal(officialCost.lp, officialParsed.lp);
   assert.equal(officialCost.shards, officialParsed.shards);
+
+  const glassShard = specialItemRecords.find((item) => item.id === "resource-glass-shard");
+  const glassCost = resolve("item", "purchase", { id: glassShard.id, name: glassShard.name });
+  assert.equal(glassCost.lp, 20);
+  assert.equal(glassCost.shards, 0);
+  assert.equal(glassCost.label, "LP 20");
 
   const egoShard = specialItemRecords.find((item) => item.id === "resource-ego-shard");
   const specialCost = resolve("item", "purchase", { id: egoShard.id, name: egoShard.name });
