@@ -311,12 +311,13 @@
     const rankMatch = forMatch(rawName).match(/(?:RANK|LANK|ランク|同期)\s*[_:：]?\s*(0{1,3})/i) || rawName.match(/の人格\s+(0{1,3})(?:\s|$)/u);
     const syncMax = /同期\s*MAX/i.test(rawName);
     if (!displayName || !/^\d+$/.test(clean(status.hp)) || !/^\d+$/.test(clean(status.san)) || !isDiceFormula(status.speed)) return garasumadoError("硝子窓の人格名・HP・SAN・速度を確認できません。人格データは反映していません。", source);
-    const passives = Array.isArray(record.passives) && record.passives.length
+    const rawPassives = Array.isArray(record.passives) && record.passives.length
       ? record.passives
       : (isGarasumadoRecord(record.passive) ? [record.passive] : []);
+    /* 空のパッシブ欄はスキップし、originalSheet 側には元の値を保持する。 */
+    const passives = rawPassives.filter((p) => isGarasumadoRecord(p) && clean(p.name));
     const uniques = record.uniques ?? [];
-    if (!Array.isArray(passives) || !Array.isArray(uniques) || passives.length > 2
-      || passives.some((p) => !isGarasumadoRecord(p) || !clean(p.name))
+    if (!Array.isArray(rawPassives) || !Array.isArray(uniques) || passives.length > 2
       || uniques.some((u) => !isGarasumadoRecord(u) || !clean(u.name) || (clean(u.maxCount) && forMatch(u.maxCount) !== "-" && !/^\d+$/.test(toHalfWidth(clean(u.maxCount)))))) {
       return garasumadoError("不完全な戦術・固有・パッシブ、または未対応の3件目以降のパッシブがあります。欠落を防ぐため反映を中止しました。", source);
     }
@@ -324,6 +325,9 @@
     const warnings = [];
     if (tactics.length !== rawTactics.length) {
       warnings.push((rawTactics.length - tactics.length) + "件の空欄／不完全な戦術スロットは実装用戦術から外し、元の戦術データには保持しました。");
+    }
+    if (passives.length !== rawPassives.length) {
+      warnings.push((rawPassives.length - passives.length) + "件の空欄／不完全なパッシブ欄は実装用パッシブから外し、元データには保持しました。");
     }
     for (const tactic of tactics) {
       // The structured record already supplies cell boundaries. Do not flatten
@@ -361,6 +365,7 @@
         tactics: rawTactics,
         passive: isGarasumadoRecord(record.passive) ? record.passive : null,
         passives: Array.isArray(record.passives) ? record.passives : [],
+        rawPassives,
         uniques: Array.isArray(record.uniques) ? record.uniques : []
       }
     };

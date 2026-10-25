@@ -296,7 +296,7 @@ test("人格シートのメモ・強化一覧・チャットパレット・元�
       { code: "0", name: "試験戦術", attr: "斬撃", sin: "憤怒", effect: "1d5" },
       { code: "3", name: "", attr: "打撃", sin: "憤怒", effect: "" }
     ],
-    passive: { name: "試験パッシブ", condition: "", alwaysEffect: "", effect: "" },
+    passive: { name: "", condition: "", alwaysEffect: "", effect: "" },
     passives: [],
     uniques: [],
     enhancements: ["闘志", "サポートスロット解放"],
@@ -308,7 +308,7 @@ test("人格シートのメモ・強化一覧・チャットパレット・元�
   const result = api.LBT_parseGarasumadoPersonaDocument(record, "https://lbt-garasumado.vercel.app/persona/view/ABCDEF0123456789GHIJ");
   assert.equal(result.ok, true);
   assert.equal(result.syncRank, "000", "RANK_000 を同期ランクとして検出する");
-  assert.equal(result.persona.passive_name, "試験パッシブ", "空の passives 配列より passive を使う");
+  assert.equal(result.persona.passive_name, "", "空欄のパッシブは空欄のままスキップする");
   assert.equal(result.extraData.memo, "元シートのメモ");
   assert.deepEqual(JSON.parse(JSON.stringify(result.extraData.enhancements)), ["闘志", "サポートスロット解放"]);
   assert.equal(result.extraData.chatPaletteAuto, "自動パレットの原文");
@@ -318,6 +318,8 @@ test("人格シートのメモ・強化一覧・チャットパレット・元�
   assert.equal(result.extraData.originalSheet.tactics.length, 2, "空欄戦術も元データに残る");
   assert.equal(result.persona.skills.length, 1, "空欄戦術は実装用スキルに変換しない");
   assert.match(result.warnings.join(" "), /空欄／不完全な戦術スロット/);
+  assert.match(result.warnings.join(" "), /空欄／不完全なパッシブ欄/);
+  assert.equal(result.extraData.originalSheet.passive.name, "", "空欄のパッシブ原文を保持する");
   assert.deepEqual(JSON.parse(JSON.stringify(result.persona.garasumadoExtras.enhancements)), ["闘志", "サポートスロット解放"]);
 });
 
