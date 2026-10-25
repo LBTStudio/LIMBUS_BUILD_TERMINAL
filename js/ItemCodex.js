@@ -5,6 +5,8 @@ const ItemCodex = ({ state, dispatch }) => {
   const customItems = Array.isArray(state.customItems) ? state.customItems : [];
   const items = React.useMemo(() => [...officialItems, ...specialItems, ...customItems], [officialItems, specialItems, customItems]);
   const inventory = Array.isArray(state.inventory) ? state.inventory : [];
+  const ledgerBalance = window.LBT_computeLedgerBalance?.(state.results || [], state.entries || []) || { lp: 0, shards: 0 };
+  const resourceQuantity = (item) => item?.ledgerResource === "shards" ? Math.max(0, Number(ledgerBalance.shards) || 0) : null;
   const [query, setQuery] = React.useState("");
   const [category, setCategory] = React.useState("all");
   const [ownedOnly, setOwnedOnly] = React.useState(false);
@@ -28,17 +30,19 @@ const ItemCodex = ({ state, dispatch }) => {
     const q = query.trim().toLowerCase();
     return items.filter((item) => {
       if (category !== "all" && item.category !== category) return false;
-      if (ownedOnly && !entryById.has(item.id)) return false;
+      if (ownedOnly && !entryById.has(item.id) && !(item.ledgerResource && resourceQuantity(item) > 0)) return false;
       if (!q) return true;
       const haystack = `${item.name} ${item.category} ${(item.tags || []).join(" ")} ${item.effect}`.toLowerCase();
       return haystack.includes(q);
     });
-  }, [items, query, category, ownedOnly, entryById]);
+  }, [items, query, category, ownedOnly, entryById, ledgerBalance]);
   const selected = byId.get(selectedId) || visible[0] || items[0] || null;
   const selectedEntry = selected ? entryById.get(selected.id) : null;
   const selectedMaxOwned = selected ? (window.LBT_getItemMaxOwned?.(state, selected.id) || 99) : 99;
   const selectedHasCap = selectedMaxOwned < 99;
-  const canAddSelected = !selectedEntry || (Number(selectedEntry.quantity) || 1) < selectedMaxOwned;
+  const canAddSelected = selected?.ledgerResource === "shards"
+    ? Number(ledgerBalance.lp) >= 2
+    : !selectedEntry || (Number(selectedEntry.quantity) || 1) < selectedMaxOwned;
   const [quantityDraft, setQuantityDraft] = React.useState("");
   React.useEffect(() => {
     setQuantityDraft(selectedEntry ? String(selectedEntry.quantity) : "");
@@ -58,16 +62,18 @@ const ItemCodex = ({ state, dispatch }) => {
   };
   const addItem = () => {
     if (!selected) return;
+    const ledgerLinked = selected.ledgerResource === "shards";
     if (!canAddSelected) {
-      toast(`「${selected.name}」は所持上限（×${selectedMaxOwned}）です`);
+      toast(ledgerLinked
+        ? "自我の欠片は1個2LPです。LP残高が不足しています"
+        : `「${selected.name}」は所持上限（×${selectedMaxOwned}）です`, "assertive");
       return;
     }
-    const ledgerLinked = selected.ledgerResource === "shards";
     dispatch(selected.specialResource && !ledgerLinked
       ? { type: "ADD_ITEM_INVENTORY", itemId: selected.id }
       : { type: "ADD_ITEM", itemId: selected.id });
     toast(ledgerLinked
-      ? `「${selected.name}」を1個購入し、通帳へ記録`
+      ? "自我の欠片を1個購入しました（2LP）"
       : selected.specialResource
         ? (selectedEntry ? `「${selected.name}」の所持数を追加` : `「${selected.name}」を特殊資源欄へ追加`)
         : (selectedEntry ? `「${selected.name}」の数量を追加` : `「${selected.name}」をアイテム一覧へ導入`));
@@ -112,7 +118,11 @@ const ItemCodex = ({ state, dispatch }) => {
           h("button", { type: "button", "aria-pressed": selected?.id === item.id, className: `item-row${selected?.id === item.id ? " is-selected" : ""}`, onClick: () => selectItem(item.id) },
             h("span", { className: "item-row-mark" }, h(Icon, { name: "item", size: 14 })),
             h("span", { className: "item-row-copy" }, h("b", null, item.name || "名称未設定", item.custom && h("em", { className: "item-custom-badge" }, "ORIGINAL")), h("small", null, `${item.category}　${(item.tags || []).join(" / ")}`)),
-            entry && h("span", { className: "item-quantity-badge" }, itemHasCap ? `×${entry.quantity} / ${itemMaxOwned}` : `×${entry.quantity}`)
+            entry
+              ? h("span", { className: "item-quantity-badge" }, itemHasCap ? `×${entry.quantity} / ${itemMaxOwned}` : `×${entry.quantity}`)
+              : item.ledgerResource
+                ? h("span", { className: "item-quantity-badge" }, `×${resourceQuantity(item)}`)
+                : null
           )
         );
       }) : h("div", { className: "item-empty" }, "該当するアイテムはありません。")),
@@ -136,7 +146,7 @@ const ItemCodex = ({ state, dispatch }) => {
           h("label", { className: "item-output-toggle" }, h("input", { type: "checkbox", checked: selectedEntry.memo !== false, onChange: (event) => patchEntry({ memo: event.target.checked }) }), h("span", null, "MEMOに表示")),
           h("label", { className: "item-output-toggle" }, h("input", { type: "checkbox", checked: selectedEntry.palette !== false, onChange: (event) => patchEntry({ palette: event.target.checked }) }), h("span", null, "PALETTEへ反映")),
           h("div", { className: "item-detail-actions" }, h(Button, { size: "sm", variant: "secondary", icon: "plus", disabled: !canAddSelected, onClick: addItem, title: canAddSelected ? "所持数を1増やす" : `最大所持数（×${selectedMaxOwned}）に到達` }, canAddSelected ? "数量を追加" : "上限に到達"), h(Button, { size: "sm", variant: "danger", icon: "trash", onClick: removeItem, title: "このアイテムを所持リストから削除" }, "所持品から削除"))
-        ) : h(Button, { size: "md", variant: "primary", icon: "plus", className: "item-add-button", disabled: !canAddSelected, onClick: addItem, title: canAddSelected ? "アイテム一覧へ導入" : `最大所持数（×${selectedMaxOwned}）に到達` }, canAddSelected ? "アイテム一覧へ導入" : "上限に到達")
+        ) : h(Button, { size: "md", variant: "primary", icon: "plus", className: "item-add-button", disabled: !canAddSelected, onClick: addItem, title: selected?.ledgerResource === "shards" ? (canAddSelected ? "2LPで自我の欠片を1個購入" : "LP残高が2LP未満です") : canAddSelected ? "アイテム一覧へ導入" : `最大所持数（×${selectedMaxOwned}）に到達` }, selected?.ledgerResource === "shards" ? (canAddSelected ? "1個購入（2LP）" : "LP不足（2LP必要）") : canAddSelected ? "アイテム一覧へ導入" : "上限に到達")
       )
     )
   );
