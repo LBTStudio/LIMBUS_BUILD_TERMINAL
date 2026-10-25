@@ -98,3 +98,25 @@ test("復旧キーによる保全は匿名の新規保管庫作成をレート�
   assert.match(migration, /recovery_hash is not null/);
   assert.match(migration, /on delete set null/i);
 });
+
+test("復旧キーの登録は既存クラウド内容を上書きせず、別の保管庫との誤連結を拒否する", () => {
+  const createBlock = recovery.slice(
+    recovery.indexOf('if (action === "create_recovery")'),
+    recovery.indexOf('const { userId, vault, hash }')
+  );
+  assert.doesNotMatch(createBlock, /updateVault\(vault, payload/);
+  assert.match(createBlock, /vaultByUser && vaultByKey && vaultByUser\.id !== vaultByKey\.id/);
+  assert.match(createBlock, /Registering a recovery key is an identity operation, not a backup write/);
+  assert.match(client, /この端末の復旧キーは、ログイン中のGoogle\/Xとは別の保全データを指しています/);
+  assert.match(client, /async function unlinkRecoveryKeyLocally\(\)/);
+  assert.match(client, /async function syncAutomatically\(\)[\s\S]*?current\.recoveryKeyMatches === false[\s\S]*?自動同期を停止しました/);
+});
+
+test("DB移行SQLの関数・トリガーが完結しており、レート制限関数の実行権限を制限する", () => {
+  assert.equal((migration.match(/\$\$/g) || []).length % 2, 0);
+  assert.match(migration, /create or replace function public\.lbt_consume_recovery_rate_limit/i);
+  assert.match(migration, /security invoker/i);
+  assert.match(migration, /revoke all on function public\.lbt_consume_recovery_rate_limit\(text, integer, integer\) from public, anon, authenticated/i);
+  assert.match(migration, /grant execute on function public\.lbt_consume_recovery_rate_limit\(text, integer, integer\) to service_role/i);
+  assert.match(migration, /create trigger lbt_prepare_vaults_before_auth_user_delete/i);
+});
