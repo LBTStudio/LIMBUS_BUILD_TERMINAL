@@ -2192,7 +2192,9 @@ function parsePriceText(raw, defaultUnit) {
 window.LBT_parsePriceText = parsePriceText;
 function priceItemById(state, itemId) {
   const id = String(itemId || "");
-  if ((window.DB?.specialItems || []).some((item) => item?.id === id && item.specialResource)) return null;
+  const special = (window.DB?.specialItems || []).find((item) => item?.id === id && item.specialResource);
+  if (special?.ledgerResource === "shards") return parsePriceText(special.price || "2LP");
+  if (special) return null;
   const official = (window.DB?.items || window.DB?.itemList || []).find((i) => i?.id === id);
   if (official) return parsePriceText(official.price);
   /* オリジナルアイテムも価格を持てる。state を参照しないと購入明細の
@@ -4293,9 +4295,26 @@ return appendLedgerEntry(next, {
       /* 特殊資源は買い物ではなく所持数だけを管理する。
          通常の ADD_ITEM 経路で 0LP の購入明細を作らないため、所持専用経路へ委譲する。 */
       const specialResource = (window.DB?.specialItems || []).find((item) => item?.id === itemId && item.specialResource);
-      /* 自我の欠片は通帳残高を唯一の情報源とする。インベントリへ複製すると
-         通帳の支出後も古い所持数が残るため、普通のアイテム追加では登録させない。 */
-      if (specialResource?.ledgerResource) return state;
+      /* 自我の欠片は所持数を別保存せず、通帳残高を唯一の情報源とする。
+         アイテム欄から購入したら LP 支出を記録し、同じリザルトの獲得欠片を増やす。 */
+      if (specialResource?.ledgerResource === "shards") {
+        const targetId = action.resultId || latestResultId(state);
+        const target = (state.results || []).find((result) => result.id === targetId);
+        if (!target) return state;
+        const currentIncome = normalizeCurrency(target.income);
+        const nextShardIncome = currentIncome.shards + 1;
+        if (!Number.isSafeInteger(nextShardIncome)) return state;
+        const results = (state.results || []).map((result) => result.id === targetId
+          ? { ...result, income: { ...currentIncome, shards: nextShardIncome, tickets: normalizeTickets(target.income?.tickets) }, updatedAt: Date.now() }
+          : result);
+        return appendLedgerEntry({ ...state, results }, {
+          kind: "item",
+          name: String(specialResource.name || "自我の欠片"),
+          cost: priceItemById(state, itemId),
+          resultId: targetId,
+          note: "2LPで自我の欠片1個を購入"
+        });
+      }
       if (specialResource) return appReducer(state, { type: "ADD_ITEM_INVENTORY", itemId, quantity: 1 });
       const current = Array.isArray(state.inventory) ? state.inventory : [];
       const existing = current.find((entry) => entry.itemId === itemId);
@@ -4321,6 +4340,8 @@ return appendLedgerEntry(next, {
     case "ADD_ITEM_INVENTORY": {
       const itemId = String(action.itemId || "");
       if (!itemId) return state;
+      /* 通帳連動資源は共有データから独立した所持数へ複製しない。 */
+      if ((window.DB?.specialItems || []).some((item) => item?.id === itemId && item?.ledgerResource)) return state;
       // 共有／移送で明示された数量は厳密に検証する。未指定だけを後方互換で1個とし、
       // "12abc" や小数を部分一致で数量へ変換しない。
       const qty = action.quantity === void 0 || action.quantity === null || action.quantity === ""
