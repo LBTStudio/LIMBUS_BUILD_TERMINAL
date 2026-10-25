@@ -466,3 +466,96 @@ test("取り込みは source が buy のときだけ購入として課帳する"
   const source = readFileSync(new URL("../js/garasumado-roster-import.js", import.meta.url), "utf8");
   assert.match(source, /type: "ADD_ROSTER_SUPPORT",[\s\S]{0,200}?purchase: item\.source === "buy"/);
 });
+
+
+test("正規化後も手動指定の死亡後枠を保持し、通常装備の再投影で降格させない", () => {
+  const normal = db.support_passives[0];
+  const manualDeath = {
+    uid: "manual-death-roundtrip",
+    name: "手動登録の死亡後サポート",
+    cond: "条件",
+    effect: "効果",
+    lp: "2",
+    slot: "death",
+    deathSlotManual: true,
+    equipped: true,
+    resultId: null,
+    addedAt: 1,
+    notes: ""
+  };
+  const normalized = w.LBT_normalizeStateShape({
+    ...base(),
+    enhancements: [{ id: "death-unlock", name: "死亡後パッシブ追加", group: "test", shards: 0 }],
+    supports: [],
+    deathSupport: null,
+    roster: {
+      personas: [],
+      egos: [],
+      supports: [
+        manualDeath,
+        {
+          uid: "normal-after-roundtrip",
+          name: normal.name,
+          cond: normal.cond || "",
+          effect: normal.effect || "",
+          lp: String(normal.lp || ""),
+          slot: "normal",
+          equipped: false,
+          resultId: null,
+          addedAt: 2,
+          notes: ""
+        }
+      ],
+      spirits: []
+    }
+  });
+
+  const normalizedDeath = normalized.roster.supports.find((entry) => entry.uid === manualDeath.uid);
+  assert.equal(normalizedDeath.slot, "death");
+  assert.equal(normalizedDeath.deathSlotManual, true, "保存正規化で手動指定フラグを失わない");
+  assert.equal(normalized.deathSupport?.name, manualDeath.name);
+
+  const reprojected = reducer(normalized, { type: "ADD_SUPPORT", spp: { name: normal.name } });
+  const retainedDeath = reprojected.roster.supports.find((entry) => entry.uid === manualDeath.uid);
+  assert.equal(retainedDeath.slot, "death", "通常サポートの装備操作後も死亡後枠に留まる");
+  assert.equal(retainedDeath.deathSlotManual, true);
+  assert.equal(reprojected.deathSupport?.name, manualDeath.name);
+});
+
+test("旧形式のdeathSupportは、新規・既存の所持行どちらでもカスタム死亡後枠へ移行する", () => {
+  const deathSupport = {
+    id: "legacy-manual-death",
+    name: "旧形式の手動死亡後サポート",
+    cond: "旧条件",
+    effect: "旧効果",
+    lp: "4"
+  };
+  const staleNormalRow = {
+    uid: deathSupport.id,
+    name: deathSupport.name,
+    cond: "古い条件",
+    effect: "古い効果",
+    lp: "3",
+    slot: "normal",
+    equipped: true,
+    resultId: null,
+    addedAt: 1,
+    notes: ""
+  };
+  for (const rows of [[], [staleNormalRow]]) {
+    const normalized = w.LBT_normalizeStateShape({
+      ...base(),
+      enhancements: [{ id: "death-unlock", name: "死亡後パッシブ追加", group: "test", shards: 0 }],
+      supports: [],
+      deathSupport: { ...deathSupport },
+      roster: { personas: [], egos: [], supports: rows.map((row) => ({ ...row })), spirits: [] }
+    });
+    const row = normalized.roster.supports.find((entry) => entry.uid === deathSupport.id);
+    assert.ok(row, "手動死亡後サポートを所持一覧に残す");
+    assert.equal(row.slot, "death", "旧deathSupportを通常枠へ誤分類しない");
+    assert.equal(row.deathSlotManual, true, "カタログ外は明示的な手動割当として保存");
+    assert.equal(row.equipped, true);
+    assert.equal(normalized.deathSupport?.name, deathSupport.name);
+    assert.equal(normalized.deathSupport?.effect, deathSupport.effect);
+  }
+});
