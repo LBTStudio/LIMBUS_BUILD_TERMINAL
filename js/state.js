@@ -1801,6 +1801,8 @@ function normalizeStateShape(raw) {
           effect: String(entry.effect || ""),
           lp: String(entry.lp || ""),
           slot,
+          // A manually chosen custom death slot is persisted state, not a catalogue guess.
+          ...(entry.deathSlotManual === true ? { deathSlotManual: true } : {}),
           // Normalize the slot type without silently changing an existing build's equipment.
           // New equip/move actions still require the death-slot unlock below.
           equipped: entry.equipped === true,
@@ -1846,19 +1848,45 @@ function normalizeStateShape(raw) {
   }
   if (next.deathSupport?.name && !seenSupport.has(next.deathSupport.name)) {
     seenSupport.add(next.deathSupport.name);
-    const isDeath = deathPassiveNames.includes(next.deathSupport.name);
+    const isDeath = isDeathSupportPassiveRecord(next.deathSupport);
     next.roster.supports.push({
       uid: next.deathSupport.id || `spt-${Date.now()}-${next.roster.supports.length}`,
       name: String(next.deathSupport.name),
       cond: String(next.deathSupport.cond || ""),
       effect: String(next.deathSupport.effect || ""),
       lp: String(next.deathSupport.lp || ""),
-      slot: isDeath ? "death" : "normal",
+      slot: "death",
+      deathSlotManual: !isDeath,
       equipped: true,
       resultId: null,
       addedAt: Date.now(),
       notes: ""
     });
+  }
+  // In legacy saves, a selected deathSupport may already have a matching roster row
+  // under a stale normal slot. The explicit deathSupport selection is authoritative.
+  if (next.deathSupport?.name) {
+    const deathUid = String(next.deathSupport.id || "");
+    const deathName = String(next.deathSupport.name || "").trim();
+    const uidIndex = deathUid
+      ? next.roster.supports.findIndex((entry) => String(entry?.uid || "") === deathUid)
+      : -1;
+    const matchIndex = uidIndex >= 0
+      ? uidIndex
+      : next.roster.supports.findIndex((entry) => String(entry?.name || "").trim() === deathName);
+    if (matchIndex >= 0) {
+      const selected = next.deathSupport;
+      const isDeath = isDeathSupportPassiveRecord({ name: deathName });
+      next.roster.supports = next.roster.supports.map((entry, index) => index === matchIndex ? {
+        ...entry,
+        name: deathName,
+        cond: String(selected.cond ?? entry.cond ?? ""),
+        effect: String(selected.effect ?? entry.effect ?? ""),
+        lp: String(selected.lp ?? entry.lp ?? ""),
+        slot: "death",
+        deathSlotManual: !isDeath
+      } : entry);
+    }
   }
   const seenSpirit = new Set(next.roster.spirits.map((s) => s.name));
   if (typeof next.spirit === "string" && next.spirit && !seenSpirit.has(next.spirit)) {
