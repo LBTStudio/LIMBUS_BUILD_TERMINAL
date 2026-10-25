@@ -662,6 +662,19 @@
     return String((Number.isFinite(base) ? base : fallback) + bonus);
   }
 
+  const PRIMARY_RESOURCE_ATTRIBUTES = ["憤怒", "色欲", "怠惰", "暴食", "憂鬱", "傲慢", "嫉妬"];
+  function primaryResourceAttribute(skills) {
+    const counts = new Map();
+    (Array.isArray(skills) ? skills : []).forEach((skill) => {
+      const sin = String(skill?.sin || "").trim();
+      if (PRIMARY_RESOURCE_ATTRIBUTES.includes(sin)) counts.set(sin, (counts.get(sin) || 0) + 1);
+    });
+    let best = "", bestCount = 0;
+    // First-seen skill order is the deterministic tie-break, matching PersonaCodex.
+    for (const [sin, count] of counts) if (count > bestCount) { best = sin; bestCount = count; }
+    return best;
+  }
+
   function sharePreview(state) {
     const selected = selectedPersonaRecord(state);
     /* 公式人格は snapshot 側で personaSrc を削除して personaRef だけを残すため、
@@ -677,12 +690,16 @@
     const personaName = String(
       state?.personaSrc?.name || refName || official?.name || ""
     ).trim();
-    const speedValue = String(state?.speed || state?.personaSrc?.speed || "").trim();
+    const speedValue = String(state?.speed || state?.personaSrc?.speed || official?.speed || "").trim();
+    const primarySin = primaryResourceAttribute(state?.skills)
+      || primaryResourceAttribute(state?.personaSrc?.skills)
+      || primaryResourceAttribute(official?.skills);
     return {
       personaName,
       hp: displayStatus(state, "hp"),
       san: displayStatus(state, "san"),
       speed: speedValue ? clipOgpCardText(speedValue, 16) : "",
+      primarySin,
       hasShareImage: Boolean(state?.shareImageData),
       syncRank: selected?.syncRank || "",
       syncMax: selected?.syncMax === true
@@ -730,7 +747,8 @@
       if (!ctx) return "";
       const preview = sharePreview(state);
       const personaName = clipOgpCardText(preview.personaName || state?.charName || "キャラクターシート", 34);
-      const speed = clipOgpCardText(state?.speed || state?.personaSrc?.speed || "?", 12);
+      const speed = clipOgpCardText(preview.speed || "?", 12);
+      const primarySin = clipOgpCardText(preview.primarySin || "—", 12);
       const sync = [preview.syncRank ? `同期${preview.syncRank}` : "", preview.syncMax ? "MAX" : ""].filter(Boolean).join(" · ");
       const C = OGP_CARD_COLORS;
       const gradient = ctx.createLinearGradient(0, 0, 1200, 630);
@@ -833,19 +851,21 @@
         ctx.font = "600 24px sans-serif";
         ctx.fillText(sync, 86, 300);
       }
-      [["HP", preview.hp], ["SAN", preview.san], ["SPD", speed]].forEach(([label, value], index) => {
-        const x = 82 + index * 294;
+      const cardValues = [["HP", preview.hp], ["SAN", preview.san], ["SPD", speed], ["最多資源属性", primarySin]];
+      cardValues.forEach(([label, value], index) => {
+        const x = 82 + index * 260;
+        const cardWidth = 238;
         ctx.fillStyle = "rgba(13,11,9,.72)";
-        ctx.fillRect(x, 370, 258, 132);
+        ctx.fillRect(x, 370, cardWidth, 132);
         ctx.strokeStyle = "rgba(212,175,95,.38)";
         ctx.lineWidth = 2;
-        ctx.strokeRect(x, 370, 258, 132);
+        ctx.strokeRect(x, 370, cardWidth, 132);
         ctx.fillStyle = C.gold;
-        ctx.font = "600 20px sans-serif";
-        ctx.fillText(label, x + 24, 408);
+        ctx.font = label.length > 4 ? "600 18px sans-serif" : "600 20px sans-serif";
+        ctx.fillText(label, x + 18, 408, cardWidth - 30);
         ctx.fillStyle = C.body;
-        ctx.font = "700 52px sans-serif";
-        ctx.fillText(String(value || "?"), x + 22, 473);
+        ctx.font = "700 48px sans-serif";
+        ctx.fillText(String(value || "?"), x + 18, 473, cardWidth - 30);
       });
       const data = canvas.toDataURL("image/webp", .76);
       return shareImageBytes(data) > 0 && shareImageBytes(data) <= SHARE_IMAGE_TARGET_BYTES ? data : "";
@@ -860,6 +880,7 @@
     if (preview.hp) params.set("lbt_hp", preview.hp);
     if (preview.san) params.set("lbt_san", preview.san);
     if (preview.speed) params.set("lbt_spd", preview.speed);
+    if (preview.primarySin) params.set("lbt_sin", preview.primarySin);
     if (preview.syncRank) params.set("lbt_sync", preview.syncRank);
     if (preview.syncMax) params.set("lbt_max", "1");
     // 古いリンクとの互換性を守るため、画像なしも明示して軽量OGP経路の利用条件にする。
@@ -906,7 +927,7 @@
     const withSummary = `${base}&${params.toString()}`;
     if (withSummary.length > PRACTICAL_DISCORD_URL_LENGTH) {
       const url = new URL(withSummary);
-      for (const key of ["lbt_n", "lbt_hp", "lbt_san", "lbt_spd", "lbt_sync", "lbt_max", "lbt_img"]) url.searchParams.delete(key);
+      for (const key of ["lbt_n", "lbt_hp", "lbt_san", "lbt_spd", "lbt_sin", "lbt_sync", "lbt_max", "lbt_img"]) url.searchParams.delete(key);
       const trimmed = url.toString();
       return trimmed.length <= PRACTICAL_DISCORD_URL_LENGTH ? trimmed : base;
     }
@@ -1305,8 +1326,10 @@
     const hp = String(params.get("lbt_hp") || "").trim().replace(/[^0-9?—-]/g, "").slice(0, 8);
     const san = String(params.get("lbt_san") || "").trim().replace(/[^0-9?—-]/g, "").slice(0, 8);
     const speed = String(params.get("lbt_spd") || "").trim().replace(/[\u0000-\u001F\u007F]/g, "").slice(0, 16);
+    const sinCandidate = String(params.get("lbt_sin") || "");
+    const primarySin = PRIMARY_RESOURCE_ATTRIBUTES.includes(sinCandidate) ? sinCandidate : "";
     const syncRank = ["0", "00", "000"].includes(params.get("lbt_sync") || "") ? params.get("lbt_sync") : "";
-    return { personaName, hp, san, speed, syncRank, syncMax: params.get("lbt_max") === "1", hasShareImage: params.get("lbt_img") === "1" };
+    return { personaName, hp, san, speed, primarySin, syncRank, syncMax: params.get("lbt_max") === "1", hasShareImage: params.get("lbt_img") === "1" };
   }
 
   window.LBT_shareLink = {

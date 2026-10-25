@@ -9,7 +9,7 @@ import { handleRequest, previewFromQuery, parseSources } from "../ogp-gateway/wo
  * 公式DBの補完もしなくて済む。summary が無い既存共有は従来経路へ戻るため、
  * 共有リンクの互換性は失われない。 */
 
-const SUMMARY_QUERY = "s=t:LBT-Test&lbt_n=%E9%BB%92%E9%9B%B2%E4%BC%9A%E7%B5%84%E5%93%A1&lbt_hp=105&lbt_san=48&lbt_spd=3-6&lbt_sync=000&lbt_max=1&lbt_img=0";
+const SUMMARY_QUERY = "s=t:LBT-Test&lbt_n=%E9%BB%92%E9%9B%B2%E4%BC%9A%E7%B5%84%E5%93%A1&lbt_hp=105&lbt_san=48&lbt_spd=3-6&lbt_sin=%E6%86%A4%E6%80%92&lbt_sync=000&lbt_max=1&lbt_img=0";
 
 test("previewFromQuery は query から summary を組み立てる", () => {
   const preview = previewFromQuery(new URL(`https://lbt-ogp.example/s?${SUMMARY_QUERY}`));
@@ -18,6 +18,8 @@ test("previewFromQuery は query から summary を組み立てる", () => {
   assert.match(preview.description, /HP 105/);
   assert.match(preview.description, /SAN 48/);
   assert.match(preview.description, /SPD 3-6/);
+  assert.match(preview.description, /最多資源属性：憤怒/);
+  assert.equal(preview.primarySin, "憤怒");
   assert.match(preview.description, /同期000/);
   assert.match(preview.description, /MAX/);
 });
@@ -39,8 +41,8 @@ test("summary 経路の /s は外部保存先を一切読まず OGP HTML を返�
   assert.match(html, /<meta property="og:title" content="黒雲会組員/);
   assert.match(html, /HP 105/);
   assert.match(html, /SAN 48/);
-  // lbt_img=0 が明示された共有だけを軽量summary経路にし、静的な既定カードを使う
-  assert.match(html, /og:image" content="https:\/\/lbtstudio\.github\.io\/[^"]*lbt-share-card\.png/);
+  // Summary HTML stays small but points at the per-share image route.
+  assert.match(html, /og:image" content="https:\/\/lbt-ogp\.example\/i\?s=t%3ALBT-Test/);
   // 遷移先は従来どおり共有ページ
   assert.match(html, /share\.html\?s=t%3ALBT-Test/);
 });
