@@ -147,6 +147,70 @@ test("死亡後専用パッシブは通常枠へ降格できず、古いslotラ�
   assert.equal(equipped.deathSupport?.name, name);
 });
 
+test("サポート編集は装備・分類フィールドの偽装を拒否し、カタログ分類を保つ", () => {
+  const normal = db.support_passives[0];
+  const death = db.death_passives[0];
+  const lockedBase = {
+    ...base(),
+    roster: {
+      personas: [], egos: [],
+      supports: [{
+        uid: "editable-support",
+        name: normal.name, slot: "normal", equipped: true,
+        cond: "", effect: "normal", lp: "10"
+      }],
+      spirits: []
+    }
+  };
+
+  const lockedAttempt = reducer(lockedBase, {
+    type: "PATCH_SUPPORT",
+    id: "editable-support",
+    patch: { name: death.name, slot: "normal", equipped: true }
+  });
+  assert.equal(lockedAttempt.roster.supports[0].name, normal.name, "未開放の死亡後名称は通常枠へ持ち込めない");
+
+  const unlocked = {
+    ...lockedBase,
+    enhancements: [{ id: "death-unlock", name: "死亡後パッシブ追加", group: "test", shards: 0 }]
+  };
+  const converted = reducer(unlocked, {
+    type: "PATCH_SUPPORT",
+    id: "editable-support",
+    patch: {
+      name: death.name, slot: "normal", equipped: true,
+      uid: "forged-uid", resultId: "forged-result"
+    }
+  });
+  const convertedEntry = converted.roster.supports.find((entry) => entry.uid === "editable-support");
+  assert.equal(convertedEntry.slot, "death", "公式カタログを正にして死亡後枠へ再分類");
+  assert.equal(convertedEntry.equipped, true);
+  assert.equal(convertedEntry.uid, "editable-support", "所持IDはパッチで置き換えられない");
+  assert.equal(convertedEntry.resultId, undefined, "帰属先はパッチで注入できない");
+  assert.equal(converted.supports.some((entry) => entry.name === death.name), false, "通常枠の投影に漏れない");
+  assert.equal(converted.deathSupport?.name, death.name);
+
+  const deathAlreadyEquipped = {
+    ...unlocked,
+    roster: {
+      personas: [], egos: [],
+      supports: [{
+        uid: "owned-death", name: death.name, slot: "death", equipped: true,
+        cond: "", effect: "death", lp: ""
+      }],
+      spirits: []
+    }
+  };
+  const demoted = reducer(deathAlreadyEquipped, {
+    type: "PATCH_SUPPORT",
+    id: "owned-death",
+    patch: { name: normal.name, slot: "normal", equipped: true }
+  });
+  assert.equal(demoted.roster.supports[0].slot, "death", "死亡後枠にある所持は名称変更でも通常枠へ降格しない");
+  assert.equal(demoted.supports.some((entry) => entry.name === normal.name), false);
+  assert.equal(demoted.deathSupport?.name, normal.name);
+});
+
 test("旧セーブの死亡後パッシブはスロット分類だけ正規化し、装備状態は保持する", () => {
   const name = db.death_passives[0].name;
   for (const slot of ["normal", undefined]) {
