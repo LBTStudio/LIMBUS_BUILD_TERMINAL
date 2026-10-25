@@ -23,7 +23,7 @@ test("モバイルの下部ナビゲーションは横スクロールせず全�
   assert.match(v64r95, /\.topbar > \.utility-trigger \{[\s\S]*?min-width: 104px;/);
   assert.match(v64r94, /grid-template-rows: var\(--topbar-h\) minmax\(0, 1fr\);/);
   assert.match(v64r94, /--lbt-mobile-rail-h: calc\(114px \+ env\(safe-area-inset-bottom, 0px\)\);/);
-  assert.match(v64r94, /\.focus \{ padding-bottom: calc\(var\(--lbt-mobile-rail-h\) \+ 12px\); \}/);
+  assert.match(v64r94, /\.focus \{ padding-bottom: calc\(var\(--lbt-mobile-rail-h\) \+ 60px\); \}/);
   assert.match(v64r94, /padding: 4px 4px calc\(4px \+ env\(safe-area-inset-bottom, 0px\)\);/);
   assert.match(v64r94, /bottom: var\(--lbt-mobile-rail-h\);/);
   assert.match(v64r95, /\.focus,\s*\.rail \{\s*min-height: 0;/);
