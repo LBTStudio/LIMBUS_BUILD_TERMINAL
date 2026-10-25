@@ -18,6 +18,9 @@
   const RENTRY_TOKEN_PART_LENGTH = 180;
   const RENTRY_READ_PROXY = "https://r.jina.ai/http://rentry.co/";
   const EXTERNAL_READ_TIMEOUT_MS = 6000;
+  // Publishing must be bounded too: a hung upload must never prevent the local compressed fallback.
+  const EXTERNAL_PUBLISH_TIMEOUT_MS = 4000;
+  const CLOUDFLARE_PUBLISH_TIMEOUT_MS = 2500;
   // 共有内容は発行後に不変なので、Workerの実装更新とカード内容の世代を分ける。
   // Worker Cacheをバージョン横断で共有しても、この値を上げた時だけOGPカードを確実に再生成できる。
   const OGP_CARD_CACHE_VERSION = "3";
@@ -496,7 +499,7 @@
     return normalizeShareState(state);
   }
 
-  function snapshotState(state) {
+  function snapshotState(state, options = {}) {
     const source = state && typeof state === "object" ? state : {};
     const snapshot = { _lbtShare: SHARE_SCHEMA };
     Object.entries(source).forEach(([key, value]) => {
@@ -539,7 +542,7 @@
     }
     compactOfficialReferences(snapshot, window.DB);
     // 手動画像が未設定の場合だけ、無料・無状態で読める既定OGPカードを共有データへ同梱する。
-    if (!snapshot.shareImageData) {
+    if (options.includeOgpImage !== false && !snapshot.shareImageData) {
       const generatedOgpImage = createDefaultOgpImageData(source);
       if (generatedOgpImage) snapshot.ogpImageData = generatedOgpImage;
     }
@@ -590,13 +593,12 @@
     return output;
   }
 
-  async function encodeState(state) {
-    const bytes = new TextEncoder().encode(JSON.stringify(snapshotState(state)));
+  async function encodeSnapshot(snapshot) {
+    const bytes = new TextEncoder().encode(JSON.stringify(snapshot));
     if (bytes.byteLength > MAX_DECOMPRESSED_BYTES) throw new Error("共有データが上限（4 MiB）を超えています");
 
-    // decode側はbase64url本文を MAX_TOKEN_LENGTH で拒否するため、発行側も同じ
-    // 上限を強制する。圧縮非対応ブラウザや高エントロピーのカスタム本文で
-    // 上限超過を許すと、発行できたように見えるのに自分では復元できないリンクになる。
+    // Decode-side limit is enforced against the Base64URL payload, so validate the chosen
+    // representation only after comparing raw JSON bytes with the compressed bytes.
     const tokenFromBytes = (prefix, payload) => {
       const encoded = bytesToBase64Url(payload);
       if (encoded.length > MAX_TOKEN_LENGTH) {
@@ -605,11 +607,22 @@
       return `${prefix}.${encoded}`;
     };
 
-    if (typeof CompressionStream === "function") {
-      const compressed = await transform(bytes, new CompressionStream("deflate-raw"));
-      return tokenFromBytes("z", compressed);
+    // Compression is useful only when the final URL-safe payload becomes smaller.
+    // A few fields can be shorter as plain JSON once DEFLATE headers and Base64URL are counted.
+    // Require both APIs so we never emit a z-token that this browser cannot decode.
+    if (typeof CompressionStream === "function" && typeof DecompressionStream === "function") {
+      try {
+        const compressed = await transform(bytes, new CompressionStream("deflate-raw"));
+        if (compressed.byteLength < bytes.byteLength) return tokenFromBytes("z", compressed);
+      } catch (_) {
+        // Unsupported deflate-raw implementations must degrade to a self-contained j-token.
+      }
     }
     return tokenFromBytes("j", bytes);
+  }
+
+  async function encodeState(state, options = {}) {
+    return encodeSnapshot(snapshotState(state, options));
   }
 
   async function decodeToken(token) {
@@ -629,7 +642,8 @@
   }
 
   async function createUrl(state, baseUrl) {
-    const token = await encodeState(state);
+    // A direct URL has no dynamic OGP endpoint; do not bloat it with a generated preview image.
+    const token = await encodeState(state, { includeOgpImage: false });
     return createUrlFromToken(token, baseUrl);
   }
 
@@ -964,27 +978,31 @@
     const safeFallbacks = (fallbacks || [])
       .filter((entry) => entry && sourceCode(entry.source) && entry.id)
       .map((entry) => ({ source: entry.source, id: String(entry.id) }));
-    let response;
+    let payload;
     try {
-      response = await fetchImpl(origin + "/api/r2-share/v1", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, preview, fallbacks: safeFallbacks })
-      });
+      payload = await withPublishTimeout(async (signal) => {
+        const response = await fetchImpl(origin + "/api/r2-share/v1", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token, preview, fallbacks: safeFallbacks }),
+          ...(signal ? { signal } : {})
+        });
+        if (response.status === 404 || response.status === 405) return { status: "legacy-only" };
+        if (!response.ok) return { status: "unavailable" };
+        let result;
+        try {
+          // Keep the timeout active through body consumption; fetch alone may resolve before json().
+          result = await response.json();
+        } catch (_) {
+          return { status: "unavailable" };
+        }
+        return { status: "received", result };
+      }, CLOUDFLARE_PUBLISH_TIMEOUT_MS, "Cloudflare共有の発行がタイムアウトしました");
     } catch (_) {
       return { status: "unavailable" };
     }
-
-    // 旧版Workerには新APIがない。旧 /s /d ルートをそのまま使う。
-    if (response.status === 404 || response.status === 405) return { status: "legacy-only" };
-    if (!response.ok) return { status: "unavailable" };
-
-    let result;
-    try {
-      result = await response.json();
-    } catch (_) {
-      return { status: "unavailable" };
-    }
+    if (payload?.status !== "received") return payload || { status: "unavailable" };
+    const result = payload.result;
     if (result?.ok !== true || !/^[A-Za-z0-9_-]{16}$/.test(String(result.id || ""))) {
       return { status: "unavailable" };
     }
@@ -1018,7 +1036,26 @@
     return shortUrl;
   }
 
-  async function publishRentryToken(token, baseUrl, fetchImpl, preview) {
+  async function withPublishTimeout(operation, timeoutMs, message) {
+    const controller = typeof AbortController === "function" ? new AbortController() : null;
+    let timer = null;
+    const timeout = new Promise((_, reject) => {
+      timer = window.setTimeout(() => {
+        reject(new Error(message));
+        try { controller?.abort(); } catch (_) {}
+      }, timeoutMs);
+    });
+    try {
+      return await Promise.race([
+        Promise.resolve().then(() => operation(controller?.signal)),
+        timeout
+      ]);
+    } finally {
+      if (timer !== null) window.clearTimeout(timer);
+    }
+  }
+
+  async function publishRentryToken(token, baseUrl, fetchImpl, preview, signal = null) {
     const storedLines = [];
     if (token.length <= RENTRY_TOKEN_PART_LENGTH) {
       storedLines.push(`${EXTERNAL_TOKEN_MARKER}${token}`);
@@ -1040,7 +1077,8 @@
     const response = await fetchImpl("https://rentry.co/api/new", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
-      body: new URLSearchParams({ text: body }).toString()
+      body: new URLSearchParams({ text: body }).toString(),
+      ...(signal ? { signal } : {})
     });
     const result = await responseJson(response, "Rentryへの保存");
     const id = String(result?.url_short || new URL(String(result?.url || "")).pathname.replace(/^\//, ""));
@@ -1048,11 +1086,12 @@
     return { source: "rentry", id, url: externalViewerUrl(baseUrl, "rentry", id, [], preview) };
   }
 
-  async function publishTelegraphToken(token, baseUrl, fetchImpl, preview, includesShareImage = false) {
+  async function publishTelegraphToken(token, baseUrl, fetchImpl, preview, includesShareImage = false, signal = null) {
     const accountResponse = await fetchImpl("https://api.telegra.ph/createAccount", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
-      body: new URLSearchParams({ short_name: "LBTShare", author_name: "LIMBUS BUILD TERMINAL" }).toString()
+      body: new URLSearchParams({ short_name: "LBTShare", author_name: "LIMBUS BUILD TERMINAL" }).toString(),
+      ...(signal ? { signal } : {})
     });
     const account = await responseJson(accountResponse, "Telegraphアカウントの作成");
     const accessToken = String(account?.access_token || "");
@@ -1063,12 +1102,12 @@
       headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
       body: new URLSearchParams({
         access_token: accessToken,
-        // 人格名は最終LBTシートで表示する。保存先IDを短く安定させるため、
-        // Telegraph側のページタイトルは固定する。
+        // 人格名は最終LBTシートで表示する。保存先IDを短く安定させるため、Telegraph側のページタイトルは固定する。
         title: "LBT Share",
         author_name: "LIMBUS BUILD TERMINAL",
         content
-      }).toString()
+      }).toString(),
+      ...(signal ? { signal } : {})
     });
     const page = await responseJson(pageResponse, "Telegraphへの保存");
     const id = String(page?.path || new URL(String(page?.url || "")).pathname.replace(/^\//, ""));
@@ -1084,14 +1123,22 @@
   async function publishExternalTokens(token, baseUrl, fetchImpl = window.fetch?.bind(window), preview = null, telegraphToken = token) {
     if (typeof fetchImpl !== "function") return [];
     const results = await Promise.allSettled([
-      publishRentryToken(token, baseUrl, fetchImpl, preview),
-      publishTelegraphToken(telegraphToken, baseUrl, fetchImpl, preview, telegraphToken === token)
+      withPublishTimeout(
+        (signal) => publishRentryToken(token, baseUrl, fetchImpl, preview, signal),
+        EXTERNAL_PUBLISH_TIMEOUT_MS,
+        "Rentryへの保存がタイムアウトしました"
+      ),
+      withPublishTimeout(
+        (signal) => publishTelegraphToken(telegraphToken, baseUrl, fetchImpl, preview, telegraphToken === token, signal),
+        EXTERNAL_PUBLISH_TIMEOUT_MS,
+        "Telegraphへの保存がタイムアウトしました"
+      )
     ]);
     return results.filter((entry) => entry.status === "fulfilled").map((entry) => entry.value);
   }
 
   async function createPublishedUrl(state, baseUrl, fetchImpl = window.fetch?.bind(window)) {
-    const pendingKey = JSON.stringify(snapshotState(state));
+    const pendingKey = JSON.stringify(snapshotState(state, { includeOgpImage: false }));
     if (pendingPublishedStates.has(pendingKey)) return pendingPublishedStates.get(pendingKey);
     const task = createPublishedUrlOnce(state, baseUrl, fetchImpl);
     pendingPublishedStates.set(pendingKey, task);
@@ -1108,14 +1155,25 @@
     const token = await encodeState(state);
     const reused = await reuseLastPublishedUrl(token, state, fetchImpl);
     if (reused) return reused;
-    const direct = createUrlFromToken(token, baseUrl);
+
     const target = shareBaseUrl(baseUrl);
     const canKeepShareImageInTelegraph = !state?.shareImageData || token.length <= TELEGRAPH_SAFE_TOKEN_LENGTH;
-    const telegraphToken = canKeepShareImageInTelegraph ? token : await encodeState({ ...state, shareImageData: "" });
+    const telegraphToken = canKeepShareImageInTelegraph
+      ? token
+      : await encodeState({ ...state, shareImageData: "" }, { includeOgpImage: false });
     const preview = sharePreview(state);
     const published = await publishExternalTokens(token, target, fetchImpl, preview, telegraphToken);
     const cloudflare = await publishCloudflareKvShare(token, preview, published, fetchImpl);
     let result;
+
+    // A standalone URL is the last-resort artifact. It must contain the actual build data,
+    // but not an auto-generated OGP-only image that cannot be rendered from a URL fragment.
+    // Build it only when needed so successful short-link issuance does not compress twice.
+    const createDirectFallback = async () => {
+      const directToken = await encodeState(state, { includeOgpImage: false });
+      return createUrlFromToken(directToken, baseUrl);
+    };
+
     if (cloudflare.status === "published") {
       const primary = state?.shareImageData
         ? published.find((entry) => entry.source === "rentry")
@@ -1123,19 +1181,17 @@
           || published[0]
         : published.find((entry) => entry.source === "telegraph") || published[0];
       const backups = published.filter((entry) => entry !== primary);
-      const legacyUrl = published.length
+      const fallbackUrl = published.length
         ? shortViewerUrl(target, primary, backups, preview)
-        : direct.url;
+        : (await createDirectFallback()).url;
       // KVの短縮URLには予備保存先IDやキャッシュ世代を付けない。
       // OGPメタデータは保存済みHTMLに含まれ、予備URLは別リンクで提供する。
       // アイドル期限切れ後はこの短縮URLも失効するため、URL自体を最短に保てる。
-      const url = cloudflare.url;
       result = {
-        ...direct,
-        url,
-        length: url.length,
+        url: cloudflare.url,
+        length: cloudflare.url.length,
         strategy: "cloudflare-kv",
-        backups: [{ source: published.length ? "既存方式" : "自己完結", id: primary?.id || "", url: legacyUrl }],
+        backups: [{ source: published.length ? "既存方式" : "自己完結", id: primary?.id || "", url: fallbackUrl }],
         preview,
         warning: "Cloudflare KVの短縮URLです。予備URLは共有リンクと別に保存してください。7日間アクセスがないと短縮URLの保存データは失効します。"
       };
@@ -1151,17 +1207,25 @@
       // Workerへの通信そのものが失敗した場合は、障害中のWorkerをURLに含めない。
       const url = cloudflare.status === "legacy-only" ? (ogpGatewayUrl(staticUrl) || staticUrl) : staticUrl;
       result = {
-        ...direct, url, length: url.length, strategy: primary.source, backups, preview,
+        url,
+        length: url.length,
+        strategy: primary.source,
+        backups,
+        preview,
         warning: cloudflare.status === "legacy-only"
           ? "短いLBT共有URLです。外部保存先は内部で自動復元します。"
           : "Cloudflare共有を利用できなかったため、既存の共有保存先へ切り替えました。"
       };
     } else {
+      const direct = await createDirectFallback();
       result = {
-        ...direct, strategy: "self",
+        ...direct,
+        strategy: "self",
         backups: [{ source: "自己完結", id: "", url: direct.url }],
         preview,
-        warning: "分散保存を発行できなかったため、自己完結URLを表示しています。"
+        warning: direct.length > PRACTICAL_DISCORD_URL_LENGTH
+          ? "外部保存先が利用できないため自己完結URLへ切り替えましたが、URLが長くDiscord本文の上限を超える可能性があります。共有HTMLのダウンロードを併用してください。"
+          : "外部保存先が利用できないため、圧縮済みの自己完結URLへ切り替えました。"
       };
     }
     rememberPublishedUrl(token, result);
