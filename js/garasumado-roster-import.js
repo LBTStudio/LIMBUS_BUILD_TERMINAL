@@ -913,7 +913,7 @@ function toIdentityChoices(hits) {
           /* 人格はDB価格を持たない。source:"buy" は入手方法であって金額ではない。
              金額の根拠は scenario.spends / purchasePlan 側の ADD_ENTRY だけから記帳する。
              ここで purchase:true にすると action.cost 未指定のため 0LP の購入明細が増える。 */
-          actions.push({ type: "ADD_ROSTER", no: String(persona.no), mode: personaMode, via, source: item.source || "", purchase: false });
+          actions.push({ type: "ADD_ROSTER", no: String(persona.no), mode: personaMode, via, source: item.source || "", purchase: item.source === "buy" && !memoPaid(item) });
           if (Array.isArray(item.importedEnhancementNames)) {
             const imported = resolveImportedEnhancements(item.importedEnhancementNames, itemDb);
             if (imported.rows.length || item.importedEnhancementNames.length === 0) {
