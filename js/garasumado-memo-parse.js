@@ -515,6 +515,26 @@
     return Object.assign({ name: name, raw: t, reason: "名前付きの購入行" }, cost);
   }
 
+  /* 過去ログの「硝子の破片を一つ使用してCTを解除」のような記述。
+     これは通貨の欠片でも購入支出でもなく、アイテム消費履歴なので専用記録へ分ける。 */
+  function parseGlassConsumption(rawLine) {
+    var text = normalizeAmountText(rawLine);
+    if (!/硝子の(?:破片|かけら|カケラ)/.test(text) || !/(?:使用|消費)/.test(text)) return null;
+    var match = text.match(/硝子の(?:破片|かけら|カケラ)\s*(?:を\s*)?(?:(\d+)\s*(?:個|つ)?|[x×]\s*(\d+)|([一二三四五六七八九十]+)\s*(?:個|つ)?)\s*(?:を\s*)?(?:使用|消費)/);
+    if (!match) return null;
+    var kanji = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 };
+    var rawCount = match[1] || match[2] || match[3] || "1";
+    var quantity = match[3] ? kanji[match[3]] : Number(rawCount);
+    if (!Number.isSafeInteger(quantity) || quantity <= 0) return null;
+    return {
+      itemId: "resource-glass-shard",
+      itemName: "硝子の破片",
+      quantity: quantity,
+      reason: "phenomenon_processing",
+      detail: String(rawLine || "").trim().slice(0, 500)
+    };
+  }
+
   function parseMemo(memo) {
     var income = { lp: 0, shards: 0 };
     var tickets = { persona: 0, ego: 0, choice: 0 };
@@ -523,6 +543,7 @@
     var reasons = [];
     /* シナリオで直接払い出された人格/E.G.O の名前。 */
     var wins = [];
+    var consumedItems = [];
 
     var lines = String(memo || "").split(/\r?\n/);
     var mode = "income";
@@ -538,6 +559,12 @@
       if (!line) continue;
       var prev = prevLine;
       prevLine = line;
+
+      var glassConsumption = parseGlassConsumption(line);
+      if (glassConsumption) {
+        consumedItems.push(glassConsumption);
+        continue;
+      }
 
       var sec = sectionOf(line);
       /* 「・」見出しは節の切り替え。それ以外の箇条書きは報酬行として中身を読む
@@ -858,7 +885,7 @@
       }
     }
 
-    return { income: income, tickets: tickets, pack: pack, spends: spends, reasons: reasons, wins: wins };
+    return { income: income, tickets: tickets, pack: pack, spends: spends, reasons: reasons, wins: wins, consumedItems: consumedItems };
   }
 
   /* scenarioHistory 配列を分解する。 */

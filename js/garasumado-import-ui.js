@@ -524,34 +524,94 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
   const [decided, setDecided] = React.useState({});
   /* 残高照合は元文書（doc）にも当てるので、manifest と並べて保持する。 */
   const [doc, setDoc] = React.useState(null);
+  const [urlReport, setUrlReport] = React.useState(null);
+  const [progress, setProgress] = React.useState("");
 
   const load = async () => {
-    const parsed = window.LBT_parseShareUrl?.(url);
-    if (!parsed || !parsed.ok) { setError(parsed?.error || "URL を確認してください"); return; }
+    const parsedBatch = window.LBT_parseShareUrls?.(url);
+    if (!parsedBatch || !Array.isArray(parsedBatch.urls) || !parsedBatch.urls.length) {
+      const single = window.LBT_parseShareUrl?.(url);
+      setError(single?.error || "硝子窓の共有URLを1件以上貼り付けてください");
+      return;
+    }
+    if (parsedBatch.urls.length > 150) {
+      setError("一度に読み込めるのは150件までです。URLを分けて読み込んでください");
+      return;
+    }
+
     setBusy(true);
     setError("");
-    /* busy は await 自体が例外でも解除する。true のまま残ると画面が
-       「取得中」のまま固まり、再試行の入口が分からなくなる。 */
-    let result;
+    setManifest(null);
+    setDoc(null);
+    setUrlReport(null);
+    setPicked({});
+    setChoices({});
+    setDecided({});
+    setIdentity({});
+    setLines([]);
+    setConfirmed(null);
+    const failed = (parsedBatch.invalid || []).map((item) => ({ url: item.text, reason: item.reason }));
+    const successful = [];
+    let completed = 0;
     try {
-      result = await window.LBT_fetchGarasumadoDocument?.(url);
-    } finally {
-      setBusy(false);
-    }
-    if (!result || !result.ok) { setError(result?.error || "取得に失敗しました"); return; }
-    setDoc(result.doc);
+      /* 共有データは1ドキュメントずつしか読めない。4件ずつ並列取得し、
+         1件失敗しても残りを続け、最後に成功した文書だけ統合する。 */
+      for (let offset = 0; offset < parsedBatch.urls.length; offset += 4) {
+        const batch = parsedBatch.urls.slice(offset, offset + 4);
+        const settled = await Promise.all(batch.map(async (entry) => {
+          try {
+            const fetched = await window.LBT_fetchGarasumadoDocument?.(entry.url);
+            if (!fetched || !fetched.ok || !fetched.doc) {
+              return { ok: false, url: entry.url, reason: fetched?.error || "取得に失敗しました" };
+            }
+            return { ok: true, ...fetched, url: entry.url };
+          } catch (error) {
+            return { ok: false, url: entry.url, reason: error?.message || "通信に失敗しました" };
+          }
+        }));
+        for (const row of settled) {
+          if (row.ok) successful.push(row);
+          else failed.push(row);
+        }
+        completed += batch.length;
+        setProgress(`硝子窓URLを取得中：${completed}/${parsedBatch.urls.length}`);
+      }
+      if (!successful.length) {
+        setUrlReport({ requested: parsedBatch.urls.length + (parsedBatch.invalid || []).length, successful: 0, failed });
+        setError("共有データを取得できませんでした。公開設定とURLを確認してください");
+        return;
+      }
 
-    const db = window.DB || {};
-    const index = window.LBT_buildNameIndex?.(db, {}) || null;
-    const resolve = index ? (name) => window.LBT_resolveCandidates?.(index, name)?.[0] || null : () => null;
+      const mergedDoc = window.LBT_mergeGarasumadoDocuments?.(successful);
+      if (mergedDoc?.error) {
+        setUrlReport({
+          requested: parsedBatch.urls.length + (parsedBatch.invalid || []).length,
+          successful: 0,
+          failed: [...failed, { url: "一括統合", reason: mergedDoc.error }]
+        });
+        setError(mergedDoc.error);
+        return;
+      }
+      const sourceDoc = mergedDoc || successful[successful.length - 1].doc;
+      setDoc(sourceDoc);
+      setUrlReport({
+        requested: parsedBatch.urls.length + (parsedBatch.invalid || []).length,
+        successful: successful.length,
+        failed
+      });
 
-    const built = window.LBT_buildGarasumadoManifest?.(result.doc, {
-      resolve,
-      /* 候補を絞らない。1 件に-collapse せず同名すべてを utilisation に出させる。 */
-      candidates: (name) => window.LBT_resolveCandidates?.(index, name) || []
-    }, db) || null;
-    if (!built) { setError("取り込み内容を組み立てられませんでした"); return; }
+      const db = window.DB || {};
+      const index = window.LBT_buildNameIndex?.(db, {}) || null;
+      const resolve = index ? (name) => window.LBT_resolveCandidates?.(index, name)?.[0] || null : () => null;
+      const built = window.LBT_buildGarasumadoManifest?.(sourceDoc, {
+        resolve,
+        /* 候補を絞らない。1件に絞らず同名候補すべてを利用者に見せる。 */
+        candidates: (name) => window.LBT_resolveCandidates?.(index, name) || []
+      }, db) || null;
+      if (!built) { setError("取り込み内容を組み立てられませんでした"); return; }
     const annotated = window.LBT_annotateManifest?.(built, { db }) || built;
+    const scenarioOptionsForLoad = (annotated.scenarios || []).map((scenario) => scenario && scenario.name).filter(Boolean);
+    const sourceOptionsForLoad = window.LBT_garasumado?.SOURCES || [];
 
     /* 帰属先（どのシナリオ）と入手方法は利用者が決める。
        シナリオに載っていない所持品は、自動では紐付けず選ばせる。 */
@@ -588,8 +648,8 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
             item.include = false;
           }
           /* 帰属が決まっており、入手方法も決まっていれば選択画面は出さない。 */
-          item.scenarioOptions = scenarioOptions;
-          item.sourceOptions = sourceOptions;
+          item.scenarioOptions = scenarioOptionsForLoad;
+          item.sourceOptions = sourceOptionsForLoad;
           const attributed = (item.via && item.via.length) || Boolean(item.pickedScenario);
           item.decide = !(attributed && (item.source || item.provenance?.priced === false));
         }
@@ -607,6 +667,12 @@ const GarasumadoImportPanel = ({ onClose, onApply }) => {
     const next = {};
     for (const g of annotated.groups) for (const i of g.items) next[i.key] = i.include;
     setPicked(next);
+    } catch (error) {
+      setError(error?.message || "硝子窓URLの読み込み中にエラーが発生しました");
+    } finally {
+      setBusy(false);
+      setProgress("");
+    }
   };
 
   /* 候補を選んだとき。名前は変えずに、価格と入手手段だけを確定する。
@@ -873,18 +939,24 @@ function appliedSummary(actions) {
       h("p", { className: "gara-lead" }, "共有URLを貼り付けると、そのキャラクターの所持が読み込まれます。取り込むものは1件ずつ選べます。"),
       h("div", { className: "gara-input-row" },
         h("label", { className: "acct-field gara-field" },
-          h("span", { className: "gara-label" }, "硝子窓の共有URL"),
-          h("input", {
-            className: "input", value: url, autoFocus: true, inputMode: "url",
-            placeholder: "https://lbt-garasumado.vercel.app/view/…",
-            onChange: (event) => { setUrl(event.target.value); setError(""); }
+          h("span", { className: "gara-label" }, "硝子窓の共有URL（複数可）"),
+          h("textarea", {
+            className: "input gara-url-list", value: url, autoFocus: true, rows: 5,
+            style: { width: "100%", minHeight: "124px", resize: "vertical", fontFamily: "var(--f-mono)", fontSize: "12px" },
+            placeholder: "https://lbt-garasumado.vercel.app/view/…\nhttps://lbt-garasumado.vercel.app/view/…\nURLを複数行まとめて貼り付けられます",
+            onChange: (event) => { setUrl(event.target.value); setError(""); setUrlReport(null); }
           })
         ),
         h(Button, { size: "sm", variant: "primary", icon: "link", onClick: load, disabled: busy || !url.trim() },
-          busy ? "読み込み中…" : "読み込む")
+          busy ? "読み込み中…" : "URLを一括読み込み")
       ),
+      progress ? h("p", { className: "gara-note", role: "status" }, progress) : null,
       error ? h("p", { className: "gara-error", role: "alert" }, error) : null,
-      h("p", { className: "gara-note" }, "URLは保存しません。読み取りはその場だけです。")
+      urlReport && h("div", { className: urlReport.failed.length ? "gara-note gara-url-report" : "gara-note", role: "status" },
+        `URL ${urlReport.requested}件中 ${urlReport.successful}件を読み込みました。`,
+        urlReport.failed.length > 0 && h("span", null, ` 取得できなかったURL：${urlReport.failed.length}件（先頭6件を表示）`),
+        urlReport.failed.slice(0, 6).map((entry, index) => h("div", { key: `${entry.url}-${index}` }, `${entry.url || entry.text}：${entry.reason}`))),
+      h("p", { className: "gara-note" }, "URLは保存しません。複数URLの履歴は重複を抑えて統合し、所持数量はURL数ぶん加算しません。")
     );
   }
 
