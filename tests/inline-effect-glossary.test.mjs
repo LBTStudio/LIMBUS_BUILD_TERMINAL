@@ -157,7 +157,9 @@ test("PC hover, keyboard access, tap and long press are available without adding
   assert.match(source, /pointerType !== "mouse"/);
   assert.match(source, /pointerType !== "touch"/);
   assert.match(source, /480\)/);
-  assert.match(source, /onFocus: \(event\) => \{ if \(event\.currentTarget\.matches\(":focus-visible"\)\) setOpen\(true\); \}/);
+  assert.ok(source.includes('onFocus: (event) => {'));
+  assert.ok(source.includes('event.currentTarget.matches(":focus-visible")'));
+  assert.ok(source.includes('lastPointerType.current = "keyboard";'));
   assert.match(source, /React\.createElement\("p", null, entry\.description/);
   assert.doesNotMatch(source, /dangerouslySetInnerHTML/);
 });
