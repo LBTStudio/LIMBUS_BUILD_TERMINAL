@@ -16,7 +16,7 @@ test("UI review CSS is loaded after the prior refinements and included in offlin
 });
 
 test("mobile preview edge tab no longer overlays page content", () => {
-  assert.match(css, /@media \(max-width: 640px\)[\s\S]*?body > \.preview-edge-toggle\s*\{\s*display:\s*none\s*!important;/);
+  assert.match(css, /@media \\(max-width: 640px\\)[\\s\\S]*?body > \\.preview-edge-toggle,[\\s\\S]*?\\.app \\.preview-reopen,[\\s\\S]*?display:\\s*none\\s*!important;/);
   assert.match(app, /操作・保存.*プレビューを開く／閉じる/);
 });
 
