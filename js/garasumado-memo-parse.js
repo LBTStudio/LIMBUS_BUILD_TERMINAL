@@ -869,8 +869,8 @@
           .replace(/\d+\s*(LP|欠片|かけら|欠けら|カケラ)\s*へ\s*$/g, " ")
           .replace(/残り\s*-?\d+/gi, " ");
 
-        var lp = isRemainderOnly ? amountNear(cleanedSpend, "lp", false) : amountNear(line, "lp", true);
-        var sh = isRemainderOnly ? amountNear(cleanedSpend, "shards", false) : amountNear(line, "shards", true);
+        var lp = isRemainderOnly ? amountNear(cleanedSpend, "lp", false) : amountNear(line, "lp", false);
+        var sh = isRemainderOnly ? amountNear(cleanedSpend, "shards", false) : amountNear(line, "shards", false);
 
         if ((lp != null && !Number.isSafeInteger(lp)) || (sh != null && !Number.isSafeInteger(sh))) {
           reasons.push({ line: line, reason: "支出金額が安全整数の範囲を超えているため未計上" });
