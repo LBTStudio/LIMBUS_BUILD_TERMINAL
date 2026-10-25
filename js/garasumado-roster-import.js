@@ -1112,12 +1112,16 @@ function toIdentityChoices(hits) {
         }
       }
 
-      /* memo の「・支出」「・支払い」以下が支出明細。
-         「LPを欠片に変換：+11欠片 -22LP」のように両通貨が 1 行に並ぶことがある。
-         片方だけ取ると帳尻が合わなくなるので両方を拾う。
-         読み取れなかった金額は 0 のままにして名前だけ残す。
-         勝手に埋めれば、原本と食い違う数字が残る。 */
+      /* 明示価格が読めた支出だけ帳簿へ追加する。価格不明の購入を 0 として記録すると
+         無料購入に見えてしまい、残高も説明も食い違うため、理由付きで保留する。 */
       for (const spend of scenario.spends || []) {
+        if (spend.needsDecision) {
+          skipped.push({
+            key: spend.raw || spend.name || "支出",
+            reason: spend.reason || "支出金額が読み取れない（要確認）"
+          });
+          continue;
+        }
         actions.push({
           type: "ADD_ENTRY",
           kind: "other",
@@ -1323,6 +1327,7 @@ function toIdentityChoices(hits) {
       memo: String(scenario.memo || ""),
       income: scenario.income || { lp: 0, shards: 0 },
       tickets: scenario.tickets || {},
+      reasons: Array.isArray(scenario.reasons) ? scenario.reasons : [],
       items: []
     }));
     const blockOfName = new Map();
