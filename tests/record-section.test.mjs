@@ -160,7 +160,9 @@ test("リザルトの情報階層を整え、数値・抽出チケット・明�
   assert.match(resultCss, /\.ledger-card-income > \.ledger-pair\s*\{[^}]*background:\s*var\(--surface-2\)/s);
   assert.match(resultCss, /\.ledger-card-income \.ledger-card-spent\s*\{[^}]*grid-column:\s*1 \/ -1/s);
   assert.match(resultCss, /\.ledger-card-tickets\s*\{[^}]*border-top:\s*1px solid var\(--line-dim\)/s);
-  assert.doesNotMatch(resultCss, /\.ledger-card \.ledger-row-move\s*\{/);\n  assert.match(resultCss, /\.ledger-card-edit-inline\s*\{[^}]*display:\s*grid/s);\n  assert.match(resultCss, /\.ledger-card-edit-ticket-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2/s);
+  assert.doesNotMatch(resultCss, /\.ledger-card \.ledger-row-move\s*\{/);
+  assert.match(resultCss, /\.ledger-card-edit-inline\s*\{[^}]*display:\s*grid/s);
+  assert.match(resultCss, /\.ledger-card-edit-ticket-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2/s);
   assert.match(resultCss, /@media \(max-width: 560px\)[\s\S]*?\.ledger-card-income \.ledger-chip-num/);
 });
 
