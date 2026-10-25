@@ -1285,7 +1285,7 @@ test("リザルトの消耗表示は一般のアイテム減少を『消費』�
   const resultCss = read("../assets/v67-persona-redesign.css");
   assert.match(resultSections, /item\.reason === "consumption" \? "消費"/);
   assert.match(resultSections, /\+ " · " \+ reasonLabel/);
-  assert.match(resultSections, /className: "ledger-result-object-row"/);
+  assert.match(resultSections, /className: "ledger-row is-owned ledger-result-object-row"/);
   assert.match(itemCodex, /reason: "consumption"/);
   assert.match(itemCodex, /を消費し、直近リザルトへ記録しました/);
   assert.doesNotMatch(itemCodex, /phenomenon_processing|現象処理/);
