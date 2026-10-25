@@ -104,6 +104,7 @@ test("元に戻す・クイック検索の説明が現行ショートカット�
 test("初回表示は「はじめて」の短い順路を示し、よく使う項目も別タブで参照できる", () => {
   assert.ok(appSource.includes('useState("start")'));
   assert.ok(appSource.includes('{ key: "start", label: "はじめて" }'));
+  assert.ok(appSource.includes('起動時の SINNER SELECT / 上部の現在アカウント表示 → アカウント管理'));
   assert.ok(appSource.includes('const starterOrder = ['));
   assert.ok(appSource.includes('"キャラクター（アカウント）を選ぶ・作る"'));
   assert.ok(appSource.includes('"人格を装備する"'));
