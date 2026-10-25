@@ -28,7 +28,7 @@
   margin: 0;
   font-size: var(--fs-12);
   line-height: 1.65;
-  color: var(--text-muted);
+  color: var(--tx-mute);
 }
 .lbt-cloud-message {
   padding: var(--s-3);
@@ -112,6 +112,14 @@
 }
 .lbt-cloud-btn:disabled { opacity: .6; cursor: wait; }
 .lbt-cloud-panel.is-compact { margin-block: var(--s-4); }
+/* The account selector and overlay have bounded height; keep backup controls reachable on small screens. */
+.acct-gate-panel > .lbt-cloud-panel,
+.acct-panel > .lbt-cloud-panel {
+  flex: 0 1 auto;
+  max-height: min(36vh, 300px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 @media (max-width: 560px) {
   .lbt-cloud-panel { padding: var(--s-3); gap: var(--s-2); }
   .lbt-cloud-heading { align-items: flex-start; flex-direction: column; }
