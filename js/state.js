@@ -4046,7 +4046,7 @@ function appReducer(state, action) {
       if (kind === "pack" && !pack) return state;
       const delta = action.count === undefined || action.count === null || action.count === ""
         ? 0
-        : parseStrictTicketInteger(action.count, { allowZero: true });
+        : parseStrictTicketInteger(action.count, { allowZero: true, allowNegative: true });
       if (delta === null || delta === 0) return state;
       return setTicketIncome(state, kind, pack, delta, action.resultId);
     }
