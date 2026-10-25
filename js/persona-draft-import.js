@@ -300,10 +300,8 @@
     if (record.isPublic !== true) return garasumadoError("この硝子窓の人格は公開されていないため、反映できません。", source);
     const status = record.status;
     const rawTactics = Array.isArray(record.tactics) ? record.tactics : [];
-    /* 空欄スロットは実装用スキルへ変換しないが、originalSheet には原文のまま残す。 */
-    const tactics = rawTactics.filter((t) => isGarasumadoRecord(t)
-      && /^\d+(?:-\d+)?$/.test(forMatch(t.code))
-      && clean(t.name) && clean(t.attr) && clean(t.sin));
+    /* 名前も効果もない完全な空欄スロットのみ除外。その他の不完全行は既存の検証で拒否する。 */
+    const tactics = rawTactics.filter((t) => !(isGarasumadoRecord(t) && !clean(t.name) && !clean(t.effect)));
     if (!isGarasumadoRecord(status) || !rawTactics.length) return garasumadoError("硝子窓の人格データにステータスまたは戦術スキルを確認できません。人格データは反映していません。", source);
     if (!tactics.length) return garasumadoError("入力済みの戦術スキルがありません。元の戦術データは反映していません。", source);
     const rawName = clean(source?.collection === "characters" ? status.persona : record.name);
@@ -314,10 +312,13 @@
     const rawPassives = Array.isArray(record.passives) && record.passives.length
       ? record.passives
       : (isGarasumadoRecord(record.passive) ? [record.passive] : []);
-    /* 空のパッシブ欄はスキップし、originalSheet 側には元の値を保持する。 */
-    const passives = rawPassives.filter((p) => isGarasumadoRecord(p) && clean(p.name));
+    /* 完全な空欄パッシブのみ除外。名前が無くても効果が書かれていれば不完全データとして拒否する。 */
+    const passives = rawPassives.filter((p) => !(isGarasumadoRecord(p)
+      && !clean(p.name) && !clean(p.condition) && !clean(p.alwaysEffect) && !clean(p.effect)));
     const uniques = record.uniques ?? [];
     if (!Array.isArray(rawPassives) || !Array.isArray(uniques) || passives.length > 2
+      || tactics.some((t) => !isGarasumadoRecord(t) || !/^\d+(?:-\d+)?$/.test(forMatch(t.code)) || !clean(t.name) || !clean(t.attr) || !clean(t.sin))
+      || passives.some((p) => !isGarasumadoRecord(p) || !clean(p.name))
       || uniques.some((u) => !isGarasumadoRecord(u) || !clean(u.name) || (clean(u.maxCount) && forMatch(u.maxCount) !== "-" && !/^\d+$/.test(toHalfWidth(clean(u.maxCount)))))) {
       return garasumadoError("不完全な戦術・固有・パッシブ、または未対応の3件目以降のパッシブがあります。欠落を防ぐため反映を中止しました。", source);
     }
