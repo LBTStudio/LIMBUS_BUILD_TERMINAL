@@ -254,20 +254,36 @@
       : scopeCategory.startsWith("死亡後") ? "deathSupport"
       : scopeCategory.startsWith("精神状態") ? "spirit" : null;
 
+    const directDefinitions = entries.filter((entry) => !entry.reference && entry.ownerName);
+    const semanticDefinitions = new Map();
+    directDefinitions.forEach((entry) => {
+      const semanticKey = [entry.category || "", entry.description || ""].join("|");
+      if (!semanticDefinitions.has(semanticKey)) semanticDefinitions.set(semanticKey, []);
+      semanticDefinitions.get(semanticKey).push(entry);
+    });
+    // Cross-owner references may point at an effect defined by another identity.
+    // Follow it only when the term has one unambiguous definition; never guess between
+    // identically named passives/buffs with different meanings.
+    const uniqueDefinition = semanticDefinitions.size === 1
+      ? directDefinitions.slice().sort(byPriority)[0]
+      : null;
+
     if (ownerName) {
       const owned = entries.filter((entry) => entry.ownerName === ownerName && (!ownerType || entry.ownerType === ownerType));
       const direct = owned.filter((entry) => !entry.reference).sort((a, b) =>
         (Number(b.scopeCategory === scopeCategory) - Number(a.scopeCategory === scopeCategory)) || byPriority(a, b));
       if (direct.length) return [direct[0]];
+      if (uniqueDefinition) return [uniqueDefinition];
       const references = owned.filter((entry) => entry.reference).sort((a, b) =>
         (Number(b.scopeCategory === scopeCategory) - Number(a.scopeCategory === scopeCategory)) || byPriority(a, b));
       if (references.length) return [references[0]];
       return [];
     }
 
-    const characterScope = /^(?:人格|E\.G\.O)/u.test(scopeCategory);
     const candidates = entries.filter((entry) => !entry.reference && !entry.ownerName).sort(byPriority);
     if (candidates.length) return [candidates[0]];
+    if (uniqueDefinition) return [uniqueDefinition];
+    const characterScope = /^(?:人格|E\.G\.O)/u.test(scopeCategory);
     if (characterScope) return [];
     const references = entries.filter((entry) => entry.reference && !entry.ownerName).sort(byPriority);
     return references.length ? [references[0]] : [];
@@ -276,14 +292,68 @@
   function tokenize(text, db, scope) {
     const input = String(text == null ? "" : text);
     const glossary = buildGlossary(db || global.DB);
-    if (!input || !cachedPattern) return [{ text: input, term: null, entries: [] }];
-    cachedPattern.lastIndex = 0;
+    if (!input) return [{ text: input, term: null, entries: [] }];
+
+    const rawScope = String(scope || "");
+    const splitAt = rawScope.indexOf(":");
+    const scopeCategory = (splitAt < 0 ? rawScope : rawScope.slice(0, splitAt)).trim();
+    const ownerName = splitAt < 0 ? "" : rawScope.slice(splitAt + 1).trim();
+    const ownerType = scopeCategory.startsWith("E.G.O") ? "ego"
+      : scopeCategory.startsWith("人格") ? "persona"
+      : scopeCategory.startsWith("アイテム") ? "item"
+      : scopeCategory.startsWith("サポート") ? "support"
+      : scopeCategory.startsWith("死亡後") ? "deathSupport"
+      : scopeCategory.startsWith("精神状態") ? "spirit" : null;
+
+    // The currently displayed effect may come from a synced/customized record that
+    // is not part of data/db.json. Bracketed references in that live text must still
+    // be visible and explainable, without mutating the shared/global glossary.
+    const localReferences = new Map();
+    const localTerms = [];
+    const sourceLabel = ownerName
+      ? scopeCategory + ":" + ownerName
+      : (scopeCategory || "現在の効果文");
+    for (const match of input.matchAll(/\[([^\]\n]{2,64})\]/gu)) {
+      const term = cleanTerm(match[1]);
+      if (!term || /^\d+R$/u.test(term)) continue;
+      if (!localReferences.has(term)) {
+        localReferences.set(term, []);
+        localTerms.push(term);
+      }
+      const description = shortText(input);
+      const row = {
+        category: "本文中の参照",
+        source: sourceLabel,
+        description,
+        priority: 30,
+        reference: true,
+        scopeCategory: scopeCategory || "効果本文",
+        ownerType: ownerType || null,
+        ownerName: ownerName || null,
+        term,
+        _key: ["本文中の参照", sourceLabel, description, ownerType || "", ownerName, false].join("|")
+      };
+      const rows = localReferences.get(term);
+      if (!rows.some((entry) => entry._key === row._key)) rows.push(row);
+    }
+
+    const cachedTermSet = new Set(cachedTerms);
+    const additionalTerms = localTerms.filter((term) => !cachedTermSet.has(term));
+    const pattern = additionalTerms.length
+      ? new RegExp([...cachedTerms, ...additionalTerms].sort((a, b) => b.length - a.length || a.localeCompare(b, "ja")).map(escapeRegExp).join("|"), "gu")
+      : cachedPattern;
+    if (!pattern) return [{ text: input, term: null, entries: [] }];
+    pattern.lastIndex = 0;
+
+    const scopedGlossary = localReferences.size
+      ? { get: (term) => [...(glossary.get(term) || []), ...(localReferences.get(term) || [])] }
+      : glossary;
     const parts = [];
     let lastIndex = 0;
-    for (const match of input.matchAll(cachedPattern)) {
+    for (const match of input.matchAll(pattern)) {
       if (match.index > lastIndex) parts.push({ text: input.slice(lastIndex, match.index), term: null, entries: [] });
       const term = match[0];
-      parts.push({ text: term, term, entries: resolveEntries(term, glossary, scope) });
+      parts.push({ text: term, term, entries: resolveEntries(term, scopedGlossary, scope) });
       lastIndex = match.index + term.length;
     }
     if (lastIndex < input.length) parts.push({ text: input.slice(lastIndex), term: null, entries: [] });
@@ -389,6 +459,12 @@
         suppressClick.current = false;
         event.preventDefault();
         event.stopPropagation();
+        return;
+      }
+      // Desktop hover may have opened the popover before the click lands.
+      // Treat mouse clicks as "show details", not a toggle that immediately closes it.
+      if (lastPointerType.current === "mouse") {
+        setOpen(true);
         return;
       }
       setOpen((value) => !value);
