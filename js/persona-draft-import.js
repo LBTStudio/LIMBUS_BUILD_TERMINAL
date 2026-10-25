@@ -299,8 +299,13 @@
     if (!isGarasumadoRecord(record)) return garasumadoError("硝子窓の公開データ形式を確認できません。人格データは反映していません。", source);
     if (record.isPublic !== true) return garasumadoError("この硝子窓の人格は公開されていないため、反映できません。", source);
     const status = record.status;
-    const tactics = Array.isArray(record.tactics) ? record.tactics : [];
-    if (!isGarasumadoRecord(status) || !tactics.length) return garasumadoError("硝子窓の人格データにステータスまたは戦術スキルを確認できません。人格データは反映していません。", source);
+    const rawTactics = Array.isArray(record.tactics) ? record.tactics : [];
+    /* 空欄スロットは実装用スキルへ変換しないが、originalSheet には原文のまま残す。 */
+    const tactics = rawTactics.filter((t) => isGarasumadoRecord(t)
+      && /^\d+(?:-\d+)?$/.test(forMatch(t.code))
+      && clean(t.name) && clean(t.attr) && clean(t.sin));
+    if (!isGarasumadoRecord(status) || !rawTactics.length) return garasumadoError("硝子窓の人格データにステータスまたは戦術スキルを確認できません。人格データは反映していません。", source);
+    if (!tactics.length) return garasumadoError("入力済みの戦術スキルがありません。元の戦術データは反映していません。", source);
     const rawName = clean(source?.collection === "characters" ? status.persona : record.name);
     const displayName = cleanGarasumadoName(rawName);
     const rankMatch = forMatch(rawName).match(/(?:RANK|LANK|ランク|同期)\s*[_:：]?\s*(0{1,3})/i) || rawName.match(/の人格\s+(0{1,3})(?:\s|$)/u);
@@ -311,12 +316,15 @@
       : (isGarasumadoRecord(record.passive) ? [record.passive] : []);
     const uniques = record.uniques ?? [];
     if (!Array.isArray(passives) || !Array.isArray(uniques) || passives.length > 2
-      || tactics.some((t) => !isGarasumadoRecord(t) || !/^\d+(?:-\d+)?$/.test(forMatch(t.code)) || !clean(t.name) || !clean(t.attr) || !clean(t.sin))
       || passives.some((p) => !isGarasumadoRecord(p) || !clean(p.name))
       || uniques.some((u) => !isGarasumadoRecord(u) || !clean(u.name) || (clean(u.maxCount) && forMatch(u.maxCount) !== "-" && !/^\d+$/.test(toHalfWidth(clean(u.maxCount)))))) {
       return garasumadoError("不完全な戦術・固有・パッシブ、または未対応の3件目以降のパッシブがあります。欠落を防ぐため反映を中止しました。", source);
     }
-    const skills = [], warnings = [];
+    const skills = [];
+    const warnings = [];
+    if (tactics.length !== rawTactics.length) {
+      warnings.push((rawTactics.length - tactics.length) + "件の空欄／不完全な戦術スロットは実装用戦術から外し、元の戦術データには保持しました。");
+    }
     for (const tactic of tactics) {
       // The structured record already supplies cell boundaries. Do not flatten
       // names or passives and rediscover them with a prose regex.
@@ -350,7 +358,7 @@
       chatPaletteAutoPersonaTacticsSection: clean(record.chatPaletteAutoPersonaTacticsSection || "").slice(0, 30000),
       originalSheet: {
         status: isGarasumadoRecord(record.status) ? record.status : {},
-        tactics: Array.isArray(record.tactics) ? record.tactics : [],
+        tactics: rawTactics,
         passive: isGarasumadoRecord(record.passive) ? record.passive : null,
         passives: Array.isArray(record.passives) ? record.passives : [],
         uniques: Array.isArray(record.uniques) ? record.uniques : []

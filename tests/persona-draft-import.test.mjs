@@ -292,7 +292,10 @@ test("人格シートのメモ・強化一覧・チャットパレット・元�
     isPublic: true,
     name: "メタデータ保持テスト RANK_000",
     status: { hp: "100", san: "45", speed: "1d5", slash: "普通", pierce: "普通", blunt: "普通", bullet: 0 },
-    tactics: [{ code: "0", name: "試験戦術", attr: "斬撃", sin: "憤怒", effect: "1d5" }],
+    tactics: [
+      { code: "0", name: "試験戦術", attr: "斬撃", sin: "憤怒", effect: "1d5" },
+      { code: "3", name: "", attr: "打撃", sin: "憤怒", effect: "" }
+    ],
     passive: { name: "試験パッシブ", condition: "", alwaysEffect: "", effect: "" },
     passives: [],
     uniques: [],
@@ -312,6 +315,9 @@ test("人格シートのメモ・強化一覧・チャットパレット・元�
   assert.equal(result.extraData.chatPaletteManual, "手動パレットの原文");
   assert.equal(result.extraData.chatPaletteMode, "manual");
   assert.equal(result.extraData.originalSheet.tactics[0].effect, "1d5");
+  assert.equal(result.extraData.originalSheet.tactics.length, 2, "空欄戦術も元データに残る");
+  assert.equal(result.persona.skills.length, 1, "空欄戦術は実装用スキルに変換しない");
+  assert.match(result.warnings.join(" "), /空欄／不完全な戦術スロット/);
   assert.deepEqual(JSON.parse(JSON.stringify(result.persona.garasumadoExtras.enhancements)), ["闘志", "サポートスロット解放"]);
 });
 
