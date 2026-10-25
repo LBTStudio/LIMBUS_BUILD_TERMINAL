@@ -43,7 +43,7 @@ test("自我の欠片は所持インベントリではなく購入と同時に�
   assert.ok(shard);
   assert.equal(shard.ledgerResource, "shards");
   assert.equal(shard.price, "2LP");
-  const { reducer, initState } = loadStateReducer();
+  const { reducer, initState, balance } = loadStateReducer();
   const withResult = reducer(initState, {
     type: "ADD_RESULT",
     name: "特殊資源の購入テスト",
@@ -51,7 +51,7 @@ test("自我の欠片は所持インベントリではなく購入と同時に�
   });
   const target = withResult.results.find((result) => result.name === "特殊資源の購入テスト");
   assert.ok(target, "購入先となるリザルトが存在する");
-  const beforeBalance = contextForLedgerBalance(reducer, withResult);
+  const beforeBalance = balance(withResult.results, withResult.entries);
   const purchased = reducer(withResult, { type: "ADD_ITEM", itemId: shard.id, resultId: target.id });
   const updated = purchased.results.find((result) => result.id === target.id);
   assert.equal(updated.income.shards, target.income.shards + 1);
@@ -59,8 +59,8 @@ test("自我の欠片は所持インベントリではなく購入と同時に�
   const expense = purchased.entries.find((entry) => entry.name === "自我の欠片" && entry.resultId === target.id);
   assert.ok(expense, "購入明細を記録する");
   assert.equal(expense.cost.lp, 2);
-  assert.equal(windowBalance(purchased).lp, beforeBalance.lp - 2, "LP残高は2だけ減る");
-  assert.equal(windowBalance(purchased).shards, beforeBalance.shards + 1, "欠片残高は1だけ増える");
+  assert.equal(balance(purchased.results, purchased.entries).lp, beforeBalance.lp - 2, "LP残高は2だけ減る");
+  assert.equal(balance(purchased.results, purchased.entries).shards, beforeBalance.shards + 1, "欠片残高は1だけ増える");
 });
 
 test("自我の欠片はLP不足時に購入も残高加算もしない", () => {
@@ -91,13 +91,6 @@ function loadStateReducer() {
   vm.runInContext(readFileSync(new URL("../js/state.js", import.meta.url), "utf8"), context);
   return { reducer: context.window.appReducer, initState: context.window.INIT_STATE, balance: context.window.LBT_computeLedgerBalance };
 }
-function contextForLedgerBalance(reducer, state) {
-  return loadStateReducer().balance(state.results, state.entries);
-}
-function windowBalance(state) {
-  return loadStateReducer().balance(state.results, state.entries);
-}
-
 function createOutputState(inventory, customItems = []) {
   return {
     charName: "検証PC", plName: "", personaMode: null, personaNo: null, personaSrc: null,
