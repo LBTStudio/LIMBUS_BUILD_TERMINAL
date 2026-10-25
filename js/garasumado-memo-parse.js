@@ -354,12 +354,22 @@
     return /^[\s　0-9+\-　]*$/.test(stripped) && /\d/.test(stripped);
   }
 
+  /* 明示された「報酬：人格名」「基本報酬：人格名」を直接獲得として拾う。
+     普通の箇条書きに書かれた参加者名などを獲得扱いする条件は広げない。 */
+  function explicitRewardNameOf(line) {
+    var t = String(line || "").trim().replace(/^[・･]\s*/, "");
+    var match = t.match(/^(?:(?:シナリオ|基本|追加|クリア)?報酬)\s*[：:]\s*(.+)$/);
+    if (!match) return "";
+    return match[1].trim().replace(/^[「『「]/, "").replace(/[」』」]$/, "").trim();
+  }
+
   /* シナリオが「誰を倒したか」を書く行。収入セクションにあり、
      通貨も数値もないので、獲得した人格/E.G.O の名前である。
      DB 照合は呼び出し側（buildManifest）で行う。ここでは
      「名前候補である」と分かる行だけ，洗い出す。 */
   function isAcquisitionNameLine(line) {
-    var t = String(line).replace(/現在|残/g, "").trim();
+    /* 明示ラベルは剥がして本文の名前を検査する。 */
+    var t = String(explicitRewardNameOf(line) || line).replace(/現在|残/g, "").trim();
     if (!t) return false;
     /* 見出し・効果文・合計行は除く */
     if (/^【/.test(t)) return false;
@@ -807,8 +817,9 @@
         /* 数字も通貨も無い行は「どの機関に勝ったか」の名前行。
            シナリオが直接払った人格/E.G.O なので、獲得として記録する。
            DB 照合は呼び出し側で行う。ここでは名前候補として残す。 */
-        if (!isBullet && !/使用人格/.test(prev) && isAcquisitionNameLine(line)) {
-          wins.push({ name: line, via: "", kind: "" });
+        var explicitRewardName = explicitRewardNameOf(line);
+        if ((!isBullet || explicitRewardName) && !/使用人格/.test(prev) && isAcquisitionNameLine(line)) {
+          wins.push({ name: explicitRewardName || line, via: "", kind: "" });
           continue;
         }
         /* 「4 課」のように数字を含んでも通貨と数値の並びが

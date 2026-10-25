@@ -242,3 +242,42 @@ test("候補が0件の名前は、推測で埋めずに理由を出す", () => {
   assert.equal(out.actions.filter((a) => a.type === "ADD_RESULT").length, 1, "リザルトは帰属先として入る");
   assert.match(out.skipped[0].reason, /DB番号/);
 });
+
+test("報酬人格は所持一覧と照合し、報酬行と所持一覧から二重登録しない", () => {
+  const persona = { kind: "persona", no: 208, mode: "n" };
+  const index = {
+    resolve: (name) => name === "黒雲会若衆" ? { name, confidence: "exact", kinds: [persona] } : null,
+    candidates: (name) => name === "黒雲会若衆" ? [{ name, kinds: [persona] }] : []
+  };
+  const doc = makeDoc(
+    { personas: [{ name: "黒雲会若衆" }], egos: [], supportPassives: [], spirits: [] },
+    [{ name: "報酬獲得", memo: "報酬：黒雲会若衆" }]
+  );
+  const manifest = gara.buildManifest(doc, index);
+  const owned = manifest.groups[0].items[0];
+  assert.deepEqual([...owned.via], ["報酬獲得"], "報酬を所持人格の獲得元に帰属");
+  assert.equal(manifest.scenarios[0].wins[0].name, "黒雲会若衆", "照合用には装飾を除いた正式名を渡す");
+  const out = gara.toDispatchActions(manifest, ["personas:黒雲会若衆"], { purchases: {} });
+  const rosterAdds = out.actions.filter((a) => a.type === "ADD_ROSTER");
+  assert.equal(rosterAdds.length, 1, "所持一覧と報酬行の両方にあっても一件のみ");
+  assert.deepEqual([...rosterAdds[0].via], ["報酬獲得"]);
+  assert.equal(rosterAdds[0].purchase, false, "直接報酬を購入にしない");
+});
+
+test("未所持の報酬人格は既存DB照合を経て所持へ追加する", () => {
+  const persona = { kind: "persona", no: 208, mode: "n" };
+  const index = {
+    resolve: (name) => name === "黒雲会若衆" ? { name, confidence: "exact", kinds: [persona] } : null,
+    candidates: (name) => name === "黒雲会若衆" ? [{ name, kinds: [persona] }] : []
+  };
+  const doc = makeDoc(
+    { personas: [], egos: [], supportPassives: [], spirits: [] },
+    [{ name: "報酬獲得", memo: "報酬：黒雲会若衆" }]
+  );
+  const manifest = gara.buildManifest(doc, index);
+  const out = gara.toDispatchActions(manifest, [], { purchases: {} });
+  const rosterAdds = out.actions.filter((a) => a.type === "ADD_ROSTER");
+  assert.equal(rosterAdds.length, 1);
+  assert.equal(rosterAdds[0].mode, "n");
+  assert.equal(String(rosterAdds[0].no), "208");
+});
