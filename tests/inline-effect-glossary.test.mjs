@@ -194,7 +194,7 @@ test("desktop click does not toggle closed a glossary popover already opened by 
 test("persona passive cards pass owner scope to the passive name and both effect fields", () => {
   const sections = readFileSync(resolve(ROOT, "js/OtherSections.js"), "utf8");
   assert.ok(sections.includes('const passiveGlossaryScope = src?.name ? "人格パッシブ:" + src.name : "人格パッシブ";'));
-  assert.ok(sections.includes('LBT_GLOSSARY_TEXT(pas.name, scope || "人格パッシブ")'));
+  assert.ok(!sections.includes('LBT_GLOSSARY_TEXT(pas.name, scope || "人格パッシブ")'));
   assert.ok(sections.includes('LBT_GLOSSARY_TEXT(pas.always, scope || "人格パッシブ")'));
   assert.ok(sections.includes('LBT_GLOSSARY_TEXT(pas.effect, scope || "人格パッシブ")'));
   assert.ok(sections.includes('scope: passiveGlossaryScope'));
@@ -202,10 +202,63 @@ test("persona passive cards pass owner scope to the passive name and both effect
 
 test("support passive names and E.G.O quick effects use owner-scoped glossary rendering", () => {
   const sections = readFileSync(resolve(ROOT, "js/OtherSections.js"), "utf8");
-  assert.ok(sections.includes('LBT_GLOSSARY_TEXT(spp.name, "サポートパッシブ:" + spp.name)'));
-  assert.ok(sections.includes('LBT_GLOSSARY_TEXT(selected.name, (selectedIsDeath ? "死亡後サポートパッシブ:" : "サポートパッシブ:") + selected.name)'));
+  assert.ok(!sections.includes('LBT_GLOSSARY_TEXT(spp.name, "サポートパッシブ:" + spp.name)'));
+  assert.ok(!sections.includes('LBT_GLOSSARY_TEXT(selected.name, (selectedIsDeath ? "死亡後サポートパッシブ:" : "サポートパッシブ:") + selected.name)'));
   assert.ok(sections.includes('LBT_GLOSSARY_TEXT(formatPreview(skill.effect, 92), "E.G.O簡易詳細:" + ego.name)'));
   assert.ok(sections.includes('LBT_GLOSSARY_TEXT(formatPreview(die.effect, 120), "E.G.O簡易ダイス:" + ego.name)'));
+});
+
+
+test("passive and support effects resolve a unique named effect from another owner", () => {
+  const fixture = {
+    normal_personas: [
+      { name: "定義元人格", passive_name: "", passive_effect: "", passive_always: "", unique_buffs: [
+        { name: "深吸変換", type: "特殊処理", desc: "呼吸を別の呼吸状態へ変換する。", max: 1 }
+      ], skills: [], keywords: [] }
+    ],
+    tokui_personas: [], egos: [],
+    support_passives: [
+      { name: "試験サポート", cond: "", effect: "自分の呼吸を[深吸変換]へ変更する。" }
+    ],
+    death_passives: [], normal_enhancements: [], special_enhancements: [], spirits: [], items: []
+  };
+  const api = loadGlossary();
+  const fromSupport = api.tokenize("深吸変換", fixture, "サポートパッシブ:試験サポート").find((piece) => piece.term === "深吸変換");
+  const fromPersona = api.tokenize("深吸変換", fixture, "人格パッシブ:利用中人格").find((piece) => piece.term === "深吸変換");
+  assert.equal(fromSupport.entries.length, 1);
+  assert.equal(fromSupport.entries[0].source, "人格：定義元人格");
+  assert.ok(fromSupport.entries[0].description.includes("呼吸を別の呼吸状態へ変換する"));
+  assert.equal(fromPersona.entries.length, 1);
+  assert.equal(fromPersona.entries[0].source, "人格：定義元人格");
+});
+
+test("ambiguous same-named effects keep the reference owner's text rather than guessing another definition", () => {
+  const fixture = {
+    normal_personas: [
+      { name: "定義元A", passive_name: "", passive_effect: "", passive_always: "", unique_buffs: [
+        { name: "同名効果", type: "特殊処理", desc: "Aの意味", max: 1 }
+      ], skills: [], keywords: [] },
+      { name: "定義元B", passive_name: "", passive_effect: "", passive_always: "", unique_buffs: [
+        { name: "同名効果", type: "特殊処理", desc: "Bの意味", max: 2 }
+      ], skills: [], keywords: [] }
+    ],
+    tokui_personas: [], egos: [],
+    support_passives: [{ name: "参照元サポート", cond: "", effect: "同名効果を[同名効果]として扱う。" }],
+    death_passives: [], normal_enhancements: [], special_enhancements: [], spirits: [], items: []
+  };
+  const result = loadGlossary().tokenize("同名効果", fixture, "サポートパッシブ:参照元サポート").find((piece) => piece.term === "同名効果");
+  assert.equal(result.entries.length, 1);
+  assert.equal(result.entries[0].source, "サポートパッシブ");
+  assert.ok(result.entries[0].description.includes("同名効果を[同名効果]として扱う"));
+  assert.ok(!result.entries[0].description.includes("Aの意味") && !result.entries[0].description.includes("Bの意味"));
+});
+
+test("glossary terms have a visible underline and warmer contrast in effect prose", () => {
+  const css = readFileSync(resolve(ROOT, "assets/inline-effect-glossary.css"), "utf8");
+  assert.match(css, /border-bottom: 1px dotted rgba\(244, 213, 138, \.98\)/);
+  assert.match(css, /text-underline-offset: 3px/);
+  assert.match(css, /background: rgba\(214, 173, 83, \.13\)/);
+  assert.match(css, /text-decoration-thickness: 2px/);
 });
 
 test("共通用語の出典はPDF抽出ページの実在内容に対応する", () => {
