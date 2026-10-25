@@ -287,13 +287,9 @@ async function handle(body: any, accessToken: string, req: Request) {
       vault = await createVault(userId, hash, payload);
     }
 
-    if (JSON.stringify(vault.payload) !== JSON.stringify(payload)) {
-      const result = await updateVault(vault, payload, Number(vault.revision));
-      if (result.conflict) {
-        return { conflict: true, revision: result.vault?.revision, message: "オンラインデータが同時に更新されています。最新状態を読み直してください。" };
-      }
-      vault = result.vault;
-    }
+    /* Registering a recovery key is an identity operation, not a backup write.
+       Never replace an existing cloud payload here, even when the local payload differs.
+       Actual data replacement must go through the explicit revision-aware backup action. */
     return { ok: true, revision: Number(vault.revision), updatedAt: vault.updated_at };
   }
 
