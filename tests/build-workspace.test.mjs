@@ -375,34 +375,26 @@ test("特異人格は指定購入できない（core P203 に購入が無い）"
   assert.match(codex, /!isOwned && onQuickAcquire && !purchaseBlocked/);
 });
 
-test("リザルトの登録情報はカード右上の『編集』から直す（⋯ではなく名前で示す）", () => {
-  /* 記録は収入と同じ場所で受ける：「記録」フォームに同居させ、工程は 0。 */
+test("リザルト登録情報はカード内で直接編集し、移動先プルダウンを置かない", () => {
   assert.match(sections, /const TicketInputs = \(\{ current, onChange, idPrefix, packPick, setPackPick \}\) => \{/);
-  assert.match(sections, /const \[newResultPack, setNewResultPack\] = React\.useState\(""\);/);
+  assert.match(sections, /const \[newResultPack, setNewResultPack\] = React\.useState\("\);/);
   assert.match(sections, /idPrefix: "new-result",\s*current: newResult\.tickets,\s*packPick: newResultPack,\s*setPackPick: setNewResultPack,/);
   assert.match(sections, /tickets: newResult\.tickets \|\| \{ persona: 0, ego: 0, choice: 0, pack: \{\} \}/);
-  /* 編集フォームは押したリザルトカードの直後に展開し、一覧上部へ飛ばさない。 */
-  assert.doesNotMatch(sections, /h\(TicketInputs, \{\s*idPrefix: `result-/);
   assert.match(sections, /className: "ledger-card-edit-btn"/);
-  assert.match(sections, /"aria-label": `\$\{result\.name\} の登録情報を編集`/);
-  assert.match(sections, /"aria-expanded": ticketPanel === result\.id && ticketDraft\?\.id === result\.id/);
-  assert.match(sections, /"aria-pressed": ticketPanel === result\.id && ticketDraft\?\.id === result\.id/);
+  assert.match(sections, /className: "ledger-card-edit-head-fields"/);
+  assert.match(sections, /className: "ledger-card-edit-inline"/);
+  assert.match(sections, /className: "ledger-card-edit-save"/);
+  assert.match(sections, /className: "ledger-card-edit-cancel"/);
   assert.match(sections, /onClick: \(event\) => \{\s*event\.preventDefault\(\);\s*event\.stopPropagation\(\);\s*openResultEditor\(result\);\s*\}/);
-  assert.match(sections, /ticketPanel === result\.id && ticketDraft\?\.id === result\.id \? "編集中" : "編集"/);
-  assert.doesNotMatch(sections, /ledger-card-menu-btn/);
-  assert.doesNotMatch(sections, /exportFor/);
-  assert.doesNotMatch(sections, /"抽出チケットを記録"\)/);
   assert.match(sections, /const openResultEditor = \(result\) => \{/);
-  assert.match(sections, /ticketPanel === result\.id && ticketDraft && ticketDraft\.id === result\.id/);
-  assert.doesNotMatch(sections, /const TicketIncomePanel = \(\) => \{/);
-  assert.match(sections, /"aria-label": "リザルトの登録情報を編集"/);
+  assert.doesNotMatch(sections, /className: "ledger-result-edit-panel"/);
+  assert.doesNotMatch(sections, /className: "ledger-row-move"/);
   assert.match(sections, /const saveResultEditor = \(result\) => \{/);
   assert.match(sections, /type: "UPDATE_RESULT",[\s\S]{0,200}?id: result\.id,[\s\S]{0,400}?tickets: nextTickets/);
   assert.match(reducer, /case "UPDATE_RESULT"[\s\S]{0,900}?tickets: normalizeTickets\(action\.income\?\.tickets\)/);
-  /* メニューは硝子窓の取り込みだけ。 */
-  assert.doesNotMatch(sections, /"抽出チケットを記録"\)/);
+  assert.match(sections, /"変更を保存"/);
 });
-
+ 
 test("所持ライブラリはサポパ/精神も自分の中身を出す（EGOのまま開かない）", () => {
   /* 以前は人格/E.G.O の二分岐しか無く、サポパ/精神タブが E.G.O を出し続けた。 */
   assert.match(sections, /: libraryTab === "egos" \? \(roster\.egos \|\| \[\]\)\.map/);
