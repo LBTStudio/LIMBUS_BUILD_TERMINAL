@@ -1764,3 +1764,43 @@
   .ledger-card-edit-save,
   .ledger-card-edit-cancel { transition: none; }
 }
+
+/* No destination dropdown: cards offer a temporary target button for touch/keyboard use. */
+.ledger-move-mode {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-2);
+  flex-wrap: wrap; padding: var(--s-3); border: 1px solid var(--gold-line);
+  border-radius: var(--r); background: var(--gold-tint); color: var(--gold-hi);
+  font-size: var(--fs-11); line-height: 1.5;
+}
+.ledger-move-mode > span { flex: 1 1 18rem; min-width: 0; }
+.ledger-card-move-target,
+.ledger-queue-move-target {
+  min-height: 28px; padding: 0 var(--s-2); border: 1px solid var(--gold-line);
+  border-radius: var(--r); background: var(--gold-tint); color: var(--gold-hi);
+  font: 600 var(--fs-10) var(--f-body); white-space: nowrap; cursor: pointer;
+  touch-action: manipulation;
+}
+.ledger-card-move-target:disabled,
+.ledger-queue-move-target:disabled { opacity: .55; cursor: not-allowed; }
+.ledger-card-move-target:focus-visible,
+.ledger-queue-move-target:focus-visible,
+.ledger-row-move-action:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.ledger-queue .ledger-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--s-2);
+}
+.ledger-queue .ledger-row-name { grid-column: 1; grid-row: 1; }
+.ledger-queue .ledger-row-kind { grid-column: 2 / -1; grid-row: 1; justify-self: end; }
+.ledger-queue .ledger-row-cost { grid-column: 1; grid-row: 2; justify-self: start; }
+.ledger-queue .ledger-row-move-action { grid-column: 2; grid-row: 2; }
+.ledger-queue .ledger-row-trash { grid-column: 3; grid-row: 2; min-height: 26px; padding: 0 var(--s-2); font-size: var(--fs-10); }
+.ledger-card .ledger-row {
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+}
+.ledger-card .ledger-row-move-action { grid-column: 2; grid-row: 2; min-height: 28px; padding: 0 var(--s-2); font-size: var(--fs-10); }
+.ledger-card .ledger-row-release { grid-column: 3; }
+.ledger-card .ledger-row-trash { grid-column: 4; }
+.ledger-queue .card-header { flex-wrap: wrap; }
+@media (max-width: 560px) {
+  .ledger-move-mode { align-items: stretch; }
+  .ledger-queue-move-target { width: 100%; }
+}
