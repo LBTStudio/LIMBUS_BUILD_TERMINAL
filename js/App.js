@@ -282,6 +282,7 @@ const HelpSection = ({ onNavigate, onOpenUtilities }) => {
     if (title.includes("リザルト／購入履歴")) return "記録 › リザルトを記録 › 取り込む › テキスト流し込み";
     if (title.includes("硝子窓のキャラクターURL")) return "SINNER SELECT › 対象アカウントの編集 › 共有URLから取り込む";
     if (title.includes("所持人格の一覧")) return "記録 › リザルトを記録 › 取り込む › 所持人格リストを取り込む";
+    if (title.includes("キャラクター（アカウント）を選ぶ・作る")) return "起動時の SINNER SELECT / 上部の現在アカウント表示 → アカウント管理";
     if (title.includes("アカウント")) return "上部のアカウント表示 / 設定 › アカウントを切替・管理";
     if (title.includes("駒整形")) return "駒整形";
     if (title.includes("ショップ") || title.includes("未所持")) return "ショップ / ビルドの候補フィルター";
