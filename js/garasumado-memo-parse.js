@@ -817,7 +817,7 @@
            シナリオが直接払った人格/E.G.O なので、獲得として記録する。
            DB 照合は呼び出し側で行う。ここでは名前候補として残す。 */
         var explicitRewardName = explicitRewardNameOf(line);
-        if ((!isBullet || explicitRewardName) && !/使用人格/.test(prev) && isAcquisitionNameLine(line)) {
+        if ((!isBullet || explicitRewardName) && !/使用人格/.test(prev) && isAcquisitionNameLine(explicitRewardName || line)) {
           wins.push({ name: explicitRewardName || line, via: "", kind: "" });
           continue;
         }
