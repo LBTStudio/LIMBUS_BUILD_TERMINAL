@@ -159,6 +159,7 @@ test("「・支出」以降の現在残高は支出額として誤計上しな�
   assert.equal(r.income.lp, 60);
   assert.equal(r.spends.length, 1);
   assert.equal(r.spends[0].shards, 0, "現在87欠片は支払後残高なので支出額にしない");
+  assert.equal(r.spends[0].needsDecision, true, "価格未確定として保留する");
   assert.ok(r.reasons.some((reason) => /支出金額が読み取れない/.test(reason.reason)),
     "購入動詞があっても残高しか書かれていなければ要確認にする");
 });
@@ -190,10 +191,12 @@ test("動詞があっても「現在NN」しかなければ支出額を確定し
   const a = MEMO.parseMemo("・支出\n正義購入 現在87欠片");
   assert.equal(a.spends.length, 1, "購入行自体は履歴に残す");
   assert.equal(a.spends[0].shards, 0, "現在87欠片を支出として記帳しない");
+  assert.equal(a.spends[0].needsDecision, true);
   assert.ok(a.reasons.some((reason) => /支出金額が読み取れない/.test(reason.reason)));
   const b = MEMO.parseMemo("・支出\n刺し貫く貫通購入：現在130LP");
   assert.equal(b.spends.length, 1);
   assert.equal(b.spends[0].lp, 0, "現在130LPを支出として記帳しない");
+  assert.equal(b.spends[0].needsDecision, true);
   assert.ok(b.reasons.some((reason) => /支出金額が読み取れない/.test(reason.reason)));
 });
 
@@ -207,6 +210,7 @@ test("複数購入行は所持の証跡を保ち、現在残高を支出額に�
   const r = MEMO.parseMemo("・支出\nピークォド号航海士の人格、および呼吸熱購入 現在19LP");
   assert.equal(r.spends.length, 1, "金額の分割記帳はしない");
   assert.equal(r.spends[0].lp, 0, "現在19LPを支出として計上しない");
+  assert.equal(r.spends[0].needsDecision, true);
   assert.ok(r.reasons.some((reason) => /支出金額が読み取れない/.test(reason.reason)));
   assert.ok(r.wins.some((w) => w.name === "呼吸熱" && w.bought), "区切った名前の勝ち");
   assert.ok(r.wins.some((w) => w.name === "ピークォド号航海士の人格" && w.bought), "接続詞の前の名前も勝ち");
@@ -216,6 +220,7 @@ test("現在残高だけの購入行はどちらの通貨も支出として記�
   const a = MEMO.parseMemo("・支出\n正義購入 現在87欠片");
   assert.equal(a.spends[0].lp, 0, "LP を作らない");
   assert.equal(a.spends[0].shards, 0, "現在残高を支出にしない");
+  assert.equal(a.spends[0].needsDecision, true);
   assert.ok(a.reasons.some((reason) => /支出金額が読み取れない/.test(reason.reason)));
 });
 
