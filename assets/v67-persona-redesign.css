@@ -1311,5 +1311,44 @@ label:has(> input[type="checkbox"]) {
   color: var(--tx-main) !important;
   background: var(--surface-2) !important;
 }
+
+/* リザルトの折りたたみ詳細：長いアイテム名・備考をカードの内側で折り返す。
+   所持チケット用 .gacha-held-ticket の nowrap は、ここでは使わない。 */
+.ledger-card-body,
+.ledger-result-details,
+.ledger-result-summary,
+.ledger-result-detail-content,
+.ledger-detail-group {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.ledger-result-summary {
+  overflow-wrap: anywhere;
+}
+.ledger-result-summary::after {
+  flex: 0 0 auto;
+}
+.ledger-result-detail-content .gacha-held-ticket {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.ledger-result-detail-content .ledger-row {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.ledger-result-detail-content .ledger-row-name,
+.ledger-result-detail-content .ledger-row-kind,
+.ledger-result-detail-content .ledger-row-cost {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 }
 
