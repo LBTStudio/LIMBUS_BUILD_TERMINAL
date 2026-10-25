@@ -800,7 +800,7 @@
         button("JSONファイルから復元", () => fileInput.current?.click()),
         connected ? button("オンライン連携を停止", () => run(disableOnline), "is-danger") : null
       ),
-      h("p", { className: "lbt-cloud-footnote" }, "復旧キーはオンラインデータへアクセスできる秘密情報です。別の安全な場所に保管してください。サービス停止に備え、JSONバックアップも別途保存することを推奨します。")
+      h("p", { className: "lbt-cloud-footnote" }, "クラウドへ保存されるJSON本体はエンドツーエンド暗号化されません。復旧キー自体は保存せずハッシュのみを保持します。復旧キーはオンラインデータへアクセスできる秘密情報なので、安全な場所に保管し、サービス停止に備えてJSONバックアップも別途保存してください。")
     );
   }
 
