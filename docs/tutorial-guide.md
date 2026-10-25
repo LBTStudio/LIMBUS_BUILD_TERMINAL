@@ -161,16 +161,16 @@
 <details>
 <summary>保存形式の違いを一覧で確認する</summary>
 
+![保存、バックアップ、所持ライブラリ、共有の違い](tutorial-save-share.svg)
+
+</details>
+
 <details>
 <summary>「共有シートを開く」ボタンの位置を実画面で確認する</summary>
 
 ![実画面：操作・保存メニューの「共有シートを開く」の位置](tutorial-captures/share-sheet-desktop.webp)
 
 [スマートフォン版の実画面を見る](tutorial-captures/share-sheet-mobile.webp)
-
-</details>
-
-![保存、バックアップ、所持ライブラリ、共有の違い](tutorial-save-share.svg)
 
 </details>
 
