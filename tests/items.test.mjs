@@ -173,7 +173,7 @@ test("ショップ購入は消耗品を毎回課金して在庫に加え、消�
  assert.equal(purchases.length, 2);
  assert.deepEqual(Array.from(purchases, (entry) => entry.cost.lp), [20, 20]);
  assert.equal(balance(state.results, state.entries).lp, 60);
- state = reducer(state, { type: "CONSUME_ITEM", itemId, quantity: 2, reason: "phenomenon_processing", operationId: "shop-consume-two", resultId });
+ state = reducer(state, { type: "CONSUME_ITEM", itemId, quantity: 2, reason: "consumption", operationId: "shop-consume-two", resultId });
  assert.equal(state.inventory.some((entry) => entry.itemId === itemId), false);
  assert.equal(state.entries.filter((entry) => entry.kind === "item" && entry.name === "HP弾").length, 2);
  assert.equal(balance(state.results, state.entries).lp, 60);
@@ -191,11 +191,11 @@ test("ショップ購入は消耗品を毎回課金して在庫に加え、消�
  assert.equal(reducer(poor, { type: "ADD_ITEM", itemId, purchase: true }), poor);
 });
 
-test("現象処理で消費すると所持数と直近リザルトへ記録し、購入明細は残す", () => {
+test("アイテム消費は一般理由で所持数とリザルトへ記録し、購入明細は残す", () => {
   const { reducer, initState, balance, normalize } = loadStateReducer();
   let state = reducer(initState, {
     type: "ADD_RESULT",
-    name: "現象処理テスト",
+    name: "消費テスト",
     income: { lp: 100, shards: 0 }
   });
   const resultId = state.results[state.results.length - 1].id;
@@ -207,7 +207,7 @@ test("現象処理で消費すると所持数と直近リザルトへ記録し�
 
   const first = reducer(state, {
     type: "CONSUME_ITEM", itemId: "heal-hp-bullet", quantity: 2,
-    reason: "phenomenon_processing", operationId: "phenomenon-use-1"
+    reason: "consumption", operationId: "phenomenon-use-1"
   });
   assert.equal(first.inventory.find((entry) => entry.itemId === "heal-hp-bullet").quantity, 1);
   const firstResult = first.results.find((result) => result.id === resultId);
@@ -215,19 +215,19 @@ test("現象処理で消費すると所持数と直近リザルトへ記録し�
   assert.equal(firstResult.consumedItems[0].itemId, "heal-hp-bullet");
   assert.equal(firstResult.consumedItems[0].itemName, item.name);
   assert.equal(firstResult.consumedItems[0].quantity, 2);
-  assert.equal(firstResult.consumedItems[0].reason, "phenomenon_processing");
+  assert.equal(firstResult.consumedItems[0].reason, "consumption");
   assert.equal(first.entries.length, entryCount, "消費では購入明細を削除・追加しない");
   assert.equal(balance(first.results, first.entries).lp, beforeBalance.lp, "消費でLP残高は変わらない");
 
   const duplicate = reducer(first, {
     type: "CONSUME_ITEM", itemId: "heal-hp-bullet", quantity: 2,
-    reason: "phenomenon_processing", operationId: "phenomenon-use-1"
+    reason: "consumption", operationId: "phenomenon-use-1"
   });
   assert.equal(duplicate, first, "同じ操作IDの再送では二重消費しない");
 
   const last = reducer(first, {
     type: "CONSUME_ITEM", itemId: "heal-hp-bullet", quantity: 1,
-    reason: "phenomenon_processing", operationId: "phenomenon-use-2"
+    reason: "consumption", operationId: "phenomenon-use-2"
   });
   assert.equal(last.inventory.some((entry) => entry.itemId === "heal-hp-bullet"), false, "全数消費で所持行だけを取り除く");
   assert.equal(last.entries.length, entryCount, "全数消費後も購入履歴は保持する");
@@ -240,7 +240,30 @@ test("現象処理で消費すると所持数と直近リザルトへ記録し�
   assert.equal(reloadedResult.consumedItems[0].itemName, item.name);
 });
 
-test("現象処理は未所持・数量不正・所持数超過・リザルト無しでは状態を変えない", () => {
+test("保存済みの汎用アイテム消費を『現象処理』から『消費』へ補正する", () => {
+  const { reducer, initState, normalize } = loadStateReducer();
+  let state = reducer(initState, {
+    type: "ADD_RESULT",
+    name: "旧履歴の移行テスト",
+    income: { lp: 100, shards: 0 }
+  });
+  const resultId = state.results[state.results.length - 1].id;
+  state = {
+    ...state,
+    results: state.results.map((result) => result.id !== resultId ? result : ({
+      ...result,
+      consumedItems: [
+        { id: "legacy-explicit", itemId: "heal-hp-bullet", itemName: "HP弾", quantity: 1, reason: "phenomenon_processing" },
+        { id: "legacy-empty", itemId: "resource-glass-shard", itemName: "硝子の破片", quantity: 1 }
+      ]
+    }))
+  };
+  const migrated = normalize(JSON.parse(JSON.stringify(state)));
+  const consumed = migrated.results.find((result) => result.id === resultId).consumedItems;
+  assert.deepEqual(consumed.map((item) => item.reason), ["consumption", "consumption"]);
+});
+
+test("アイテム消費は未所持・数量不正・所持数超過・リザルト無しでは状態を変えない", () => {
   const { reducer, initState } = loadStateReducer();
   const owned = reducer(initState, { type: "ADD_ITEM_INVENTORY", itemId: "heal-hp-bullet", quantity: 1 });
   assert.equal(reducer(owned, {

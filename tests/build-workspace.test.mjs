@@ -863,7 +863,7 @@ test("削除は Undo/Redo が効く即時削除で、ごみ箱は置かない", 
   /* 帰属を外す（未分類へ戻す）と削除は別ボタン。 */
   assert.match(led, /className: "ledger-row-release"[\s\S]{0,320}?moveEntry\(entry\.id, null\)/);
   /* リザルトの行もドラッグで移せる。 */
-  assert.match(led, /className: "ledger-row is-owned", \.\.\.dragProps\(entry\)/);
+  assert.match(led, /className: "ledger-row is-owned ledger-result-object-row", \.\.\.dragProps\(entry\)/);
   assert.match(led, /const dragProps = \(entry\) => \(\{/);
   /* 未分類は空でも残る受け皿。 */
   assert.match(led, /dropTargetProps\("__queue"\)/);
@@ -1278,4 +1278,22 @@ test("この検査は影があると実際に落ちる（空振りしないこ�
   assert.ok(shadowedModuleHelpers(withShadow).map((o) => o.name).includes("catalogSource"), "影があれば検出できる");
   assert.ok(!shadowedModuleHelpers(withoutShadow).map((o) => o.name).includes("catalogSource"), "影がなければ検出しない");
   assert.deepEqual(shadowedModuleHelpers(localOnly), [], "コンポーネント内ローカルの重複は対象外");
+});
+
+
+test("リザルトの消耗表示は一般のアイテム減少を『消費』とし、旧ラベルを移行する", () => {
+  const resultSections = read("../js/OtherSections.js");
+  const itemCodex = read("../js/ItemCodex.js");
+  const resultCss = read("../assets/v67-persona-redesign.css");
+  assert.match(resultSections, /item\.reason === "consumption" \? "消費"/);
+  assert.match(resultSections, /\+ " · " \+ reasonLabel/);
+  assert.match(resultSections, /className: "ledger-row is-owned ledger-result-object-row"/);
+  assert.match(itemCodex, /reason: "consumption"/);
+  assert.match(itemCodex, /を消費し、直近リザルトへ記録しました/);
+  assert.doesNotMatch(itemCodex, /phenomenon_processing|現象処理/);
+  assert.match(reducer, /reason === "phenomenon_processing" \? "consumption"/);
+  assert.match(reducer, /reason: String\(action\.reason \|\| "consumption"\)/);
+  assert.match(resultCss, /\.ledger-card \.ledger-result-object-row\s*\{[^}]*grid-template-columns:[^}]*minmax/s);
+  assert.match(resultCss, /\.ledger-card \.ledger-result-object-row \.ledger-row-name\s*\{[^}]*overflow-wrap:anywhere/s);
+  assert.match(resultSections, /className: "ledger-object-enhancement-details"/);
 });

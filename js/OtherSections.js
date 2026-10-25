@@ -5089,43 +5089,95 @@ h(Card, { className: "ledger-card" },
                   ),
                   consumedItems.length > 0 && h("div", { className: "ledger-detail-group ledger-card-consumed" },
                     h("span", { className: "t-label" }, "消耗したアイテム"),
-                    consumedItems.map((item, index) => h("span", {
-                      key: item.id || String(item.itemId) + "-" + String(item.consumedAt) + "-" + index,
-                      className: "gacha-held-ticket",
-                      title: item.reason === "phenomenon_processing" ? "現象処理" : String(item.reason || "消費")
-                    },
-                      String(item.itemName || item.name || item.itemId) + " ×" + String(item.quantity || 1)
-                        + (item.reason === "phenomenon_processing" ? " · 現象処理" : "")
-                        + (item.detail ? "（" + String(item.detail).slice(0, 72) + "）" : "")
-                    ))
+                    consumedItems.map((item, index) => {
+                      const reasonLabel = item.reason === "consumption" ? "消費" : String(item.reason || "消費");
+                      return h("span", {
+                        key: item.id || String(item.itemId) + "-" + String(item.consumedAt) + "-" + index,
+                        className: "gacha-held-ticket",
+                        title: reasonLabel
+                      },
+                        String(item.itemName || item.name || item.itemId) + " ×" + String(item.quantity || 1)
+                          + " · " + reasonLabel
+                          + (item.detail ? "（" + String(item.detail).slice(0, 72) + "）" : "")
+                      );
+                    })
                   ),
                   rows.length === 0
                     ? h("p", { className: "ledger-empty-note" }, "支出明細はありません。未分類の明細をここへ移動できます。")
-                    : h("div", { className: "stack-2" }, rows.map((entry) => h("div", {
-                        key: entry.id, className: "ledger-row is-owned", ...dragProps(entry)
-                      },
-                        h("span", { className: "ledger-row-name" }, entry.name),
-                        h("span", { className: "ledger-row-kind" }, kindLabel(entry.kind)),
-                        h("span", { className: "ledger-row-cost" },
-                          entry.cost?.lp ? entry.cost.lp + "LP" : entry.cost?.shards ? entry.cost.shards + "SHARD" : "—"),
-                        h("button", {
-                          type: "button", className: "ledger-row-move-action",
-                          "aria-pressed": movingEntryId === entry.id,
-                          "aria-label": entry.name + " の移動先を選択",
-                          title: "ドラッグできない場合は、移動先カードを選べます",
-                          onClick: () => startMoveEntry(entry)
-                        }, movingEntryId === entry.id ? "選択中" : "移動"),
-                        h("button", {
-                          type: "button", className: "ledger-row-release",
-                          title: "帰属を外して未分類へ戻す", "aria-label": entry.name + " の帰属を外す",
-                          onClick: () => moveEntry(entry.id, null)
-                        }, "解除"),
-                        h("button", {
-                          type: "button", className: "ledger-row-trash",
-                          title: "削除する（Ctrl+Z で取り消せます）", "aria-label": entry.name + " を削除する",
-                          onClick: () => { if (movingEntryId === entry.id) setMovingEntryId(null); dispatch({ type: "PURGE_ENTRY", id: entry.id }); }
-                        }, "削除")
-                      )))
+                    : h("div", { className: "ledger-result-object-list" }, rows.map((entry) => {
+                        const owner = entry.ref?.kind === "rosterPersona"
+                          ? (state.roster?.personas || []).find((persona) => String(persona.uid) === String(entry.ref.uid))
+                          : null;
+                        const catalogSpecial = window.DB?.special_enhancements || [];
+                        const specialEnhancements = Array.isArray(owner?.build?.enhancements)
+                          ? owner.build.enhancements.filter((enhancement) => {
+                              const name = String(enhancement?.name || "").trim();
+                              return name && catalogSpecial.some((candidate) => candidate?.name === name);
+                            })
+                          : [];
+                        const storedQuantity = Number(entry.quantity);
+                        const quantity = Number.isSafeInteger(storedQuantity) && storedQuantity > 0 ? storedQuantity : 1;
+                        return h("div", { key: entry.id, className: "ledger-result-object-group" },
+                          h("div", { className: "ledger-row is-owned ledger-result-object-row", ...dragProps(entry) },
+                            h("span", { className: "ledger-result-object-marker", "aria-hidden": true }, "−"),
+                            h("span", { className: "ledger-row-name ledger-result-object-name" }, entry.name),
+                            h("span", { className: "ledger-row-kind" }, kindLabel(entry.kind)),
+                            h("span", { className: "ledger-result-object-quantity", "aria-label": "数量 " + quantity }, "×" + quantity),
+                            h("span", { className: "ledger-row-cost" },
+                              entry.cost?.lp ? entry.cost.lp + "LP" : entry.cost?.shards ? entry.cost.shards + "欠片" : "—"),
+                            h("details", { className: "ledger-result-object-actions" },
+                              h("summary", { "aria-label": entry.name + " の操作", title: "この明細の操作" }, "操作"),
+                              h("div", { className: "ledger-result-object-action-menu" },
+                                h("button", {
+                                  type: "button", className: "ledger-row-move-action",
+                                  "aria-pressed": movingEntryId === entry.id,
+                                  "aria-label": entry.name + " の移動先を選択",
+                                  title: "ドラッグできない場合は、移動先カードを選べます",
+                                  onClick: () => startMoveEntry(entry)
+                                }, movingEntryId === entry.id ? "選択中" : "移動"),
+                                h("button", {
+                                  type: "button", className: "ledger-row-release",
+                                  title: "帰属を外して未分類へ戻す", "aria-label": entry.name + " の帰属を外す",
+                                  onClick: () => moveEntry(entry.id, null)
+                                }, "解除"),
+                                h("button", {
+                                  type: "button", className: "ledger-row-trash",
+                                  title: "削除する（Ctrl+Z で取り消せます）", "aria-label": entry.name + " を削除する",
+                                  onClick: () => { if (movingEntryId === entry.id) setMovingEntryId(null); dispatch({ type: "PURGE_ENTRY", id: entry.id }); }
+                                }, "削除")
+                              )
+                            )
+                          ),
+                          specialEnhancements.length > 0 && h("div", { className: "ledger-object-enhancements" },
+                            specialEnhancements.map((enhancement, index) => {
+                              const name = String(enhancement.name || "").trim();
+                              const catalogEntry = catalogSpecial.find((candidate) => candidate?.name === name);
+                              const effect = String(enhancement.effect || catalogEntry?.effect || "").trim();
+                              return h("div", {
+                                key: entry.id + ":" + name + ":" + index,
+                                className: "ledger-object-enhancement"
+                              },
+                                h("span", { className: "ledger-object-enhancement-label" }, "特殊強化：" + name),
+                                effect && h("details", {
+                                  className: "ledger-object-enhancement-details",
+                                  onToggle: (event) => {
+                                    const details = event.currentTarget;
+                                    if (!details.open) return;
+                                    /* 展開文が固定フッターに隠れないよう、開いたら効果文を表示域へ入れる。 */
+                                    requestAnimationFrame(() => details.querySelector("p")?.scrollIntoView({
+                                      block: "center",
+                                      behavior: "auto"
+                                    }));
+                                  }
+                                },
+                                  h("summary", null, "効果を表示"),
+                                  h("p", null, effect)
+                                )
+                              );
+                            })
+                          )
+                        );
+                      }))
                 )
               )
             )
