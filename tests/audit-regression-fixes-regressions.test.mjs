@@ -39,8 +39,8 @@ test("任意のガチャパックJSONの通信失敗は起動を止めず、ア�
   const specialItemCatalog = JSON.parse(readFileSync(new URL("../data/special-items.json", import.meta.url), "utf8"));
   const fetchMock = async (url) => {
     if (url.includes("db.json")) return { ok: true, json: async () => ({ marker: "db-ready" }) };
-    if (url.includes("items.json")) return { ok: true, json: async () => itemCatalog };
     if (url.includes("special-items.json")) return { ok: true, json: async () => specialItemCatalog };
+    if (url.includes("items.json")) return { ok: true, json: async () => itemCatalog };
     throw new Error("optional gacha pack network offline");
   };
   const loaded = loadBootstrap(fetchMock);
