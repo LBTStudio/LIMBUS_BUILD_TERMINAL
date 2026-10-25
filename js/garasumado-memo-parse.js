@@ -346,12 +346,21 @@
      通貨名は漢字を含むので、判定前に取り除く。
      （さreon「欠片」だけの行を名前と誤判定して通過させない） */
   function isTotalOnlyLine(line) {
-    var t = String(line).replace(/現在|残/g, "").trim();
+    var t = String(explicitRewardNameOf(line) || line).replace(/現在|残/g, "").trim();
     /* 通貨名だけ刈り取ったあと、漢字/ラテンが残るか見る。 */
     var stripped = t.replace(/LP|欠片|かけら|欠けら|カケラ/gi, " ").trim();
     if (/[A-Za-zぁ-んァ-ヶ一-龠]/.test(stripped)) return false;
     /* 通貨名を落とした残りが「数値と空白だけ」なら合計行。 */
     return /^[\s　0-9+\-　]*$/.test(stripped) && /\d/.test(stripped);
+  }
+
+  /* 明示された「報酬：人格名」「基本報酬：人格名」を直接獲得として拾う。
+     普通の箇条書きに書かれた参加者名などを獲得扱いする条件は広げない。 */
+  function explicitRewardNameOf(line) {
+    var t = String(line || "").trim().replace(/^[・･]\s*/, "");
+    var match = t.match(/^(?:(?:シナリオ|基本|追加|クリア)?報酬)\s*[：:]\s*(.+)$/);
+    if (!match) return "";
+    return match[1].trim().replace(/^[「『「]/, "").replace(/[」』」]$/, "").trim();
   }
 
   /* シナリオが「誰を倒したか」を書く行。収入セクションにあり、
@@ -807,8 +816,9 @@
         /* 数字も通貨も無い行は「どの機関に勝ったか」の名前行。
            シナリオが直接払った人格/E.G.O なので、獲得として記録する。
            DB 照合は呼び出し側で行う。ここでは名前候補として残す。 */
-        if (!isBullet && !/使用人格/.test(prev) && isAcquisitionNameLine(line)) {
-          wins.push({ name: line, via: "", kind: "" });
+        var explicitRewardName = explicitRewardNameOf(line);
+        if ((!isBullet || explicitRewardName) && !/使用人格/.test(prev) && isAcquisitionNameLine(line)) {
+          wins.push({ name: explicitRewardName || line, via: "", kind: "" });
           continue;
         }
         /* 「4 課」のように数字を含んでも通貨と数値の並びが

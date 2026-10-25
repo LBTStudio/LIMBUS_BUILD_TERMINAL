@@ -1450,3 +1450,12 @@ test("使用人格・PC・人格の記録行は獲得にせず、の人格終わ
   const real = MEMO.parseMemo("美味しいですねカルボナーラ工房フィクサーの人格");
   assert.equal(real.wins.length, 1, "「の人格」終わりの実名は獲得名");
 });
+
+test("明示的な報酬ラベルから人格名を抽出し、参加者名の箇条書きは維持する", () => {
+  const plain = MEMO.parseMemo("報酬：黒雲会若衆");
+  const bullet = MEMO.parseMemo("・基本報酬：『黒雲会若衆』");
+  assert.deepEqual([...plain.wins.map((w) => w.name)], ["黒雲会若衆"]);
+  assert.deepEqual([...bullet.wins.map((w) => w.name)], ["黒雲会若衆"]);
+  assert.equal(MEMO.parseMemo("❚報酬").wins.length, 0, "見出しだけなら候補にしない");
+  assert.equal(MEMO.parseMemo("・ハコツムリ 様").wins.length, 0, "参加者を獲得扱いしない");
+});
