@@ -159,4 +159,4 @@ test("Google OAuth only starts when Supabase reports the provider enabled; X rem
   assert.match(cloudCss, /\.lbt-cloud-btn:disabled \{ opacity: \.6; cursor: not-allowed; \}/);
   assert.match(doc, /Googleの基本的なOAuthログイン設定自体は無料で可能/);
   assert.match(doc, /X APIの利用料金/);
-});;
+});
