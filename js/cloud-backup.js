@@ -371,6 +371,9 @@
     const key = readRecoveryKey();
     if (!session && !key) throw new Error("先にGoogle/Xと連携するか、復旧キーを発行してください。");
     const current = await getRemote();
+    if (session && key && current.mode === "oauth" && current.recoveryKeyMatches === false) {
+      throw new Error("この端末の復旧キーは、ログイン中のGoogle/Xとは別の保全データを指しています。安全のため同期を止めました。Google/X側を使う場合は「この端末の復旧キーだけ外す」を選んでください。復旧キーのファイルとオンライン保管庫は削除されません。");
+    }
     const exists = Boolean(current.found);
     const same = exists && sameData(payload, current.payload);
     if (exists && same) {
@@ -543,7 +546,12 @@
   async function restoreCloud() {
     const remote = await getRemote();
     if (!remote.found || !remote.payload) throw new Error("復元できるオンラインバックアップが見つかりません。");
-    const key = readRecoveryKey();
+    let key = readRecoveryKey();
+    if (key && remote.mode === "oauth" && remote.recoveryKeyMatches === false) {
+      if (!confirm("この端末に保存された復旧キーは別の保全データを指しています。Google/X側から復元し、このブラウザーの復旧キーだけを外します。ダウンロード済みの復旧キーとオンライン保管庫は削除されません。続けますか？")) return false;
+      removeStorage(RECOVERY_KEY);
+      key = null;
+    }
     return await restorePayload(remote.payload, Number(remote.revision), key);
   }
   async function loadHistory() {
@@ -598,6 +606,19 @@
     if (!result.found || !result.payload) throw new Error("指定した世代を復元できませんでした。");
     return await restorePayload(result.payload, Number(result.revision), key);
   }
+  async function unlinkRecoveryKeyLocally() {
+    if (!readRecoveryKey()) return false;
+    if (!confirm("このブラウザーに保存された復旧キーだけを外します。オンラインの復旧データと、ダウンロード済みの復旧キーは削除されません。このブラウザーではGoogle/X側の保全だけを使うようになります。続けますか？")) return false;
+    removeStorage(RECOVERY_KEY);
+    setEnabled(Boolean(await getSession()));
+    await refresh();
+    emit({
+      label: "このブラウザーから復旧キーを外しました",
+      message: "復旧キーのファイルとオンライン保管庫は維持されています。このブラウザーはGoogle/X側の保全を使います。"
+    });
+    return true;
+  }
+
   async function disableOnline() {
     if (!confirm("このブラウザーでのオンライン連携を停止します。オンラインに保存済みのデータは削除されず、ローカルデータも残ります。続けますか？")) return false;
     removeStorage(SESSION_KEY);
@@ -616,6 +637,16 @@
       if (!session && !key) return;
       const payload = collectLocalSnapshot();
       const current = await getRemote();
+      if (session && key && current.mode === "oauth" && current.recoveryKeyMatches === false) {
+        emit({
+          conflict: true,
+          remoteExists: Boolean(current.found),
+          revision: Number(current.revision) || 0,
+          label: "保全先が2つに分かれています",
+          message: "Google/Xの保全データと復旧キーの保全データが一致しないため、自動同期を停止しました。どちらかを選ぶまでローカル保存は続きます。"
+        });
+        return;
+      }
       if (!current.found) {
         emit({ label: "同期待ち", message: "オンラインバックアップが見つかりません。手動で初回保存を行ってください。" });
         return;
@@ -700,6 +731,7 @@
         button("Xと連携", () => run(() => startOAuth("x")))
       ) : h("p", { className: "lbt-cloud-account" }, "オンライン認証済み。このブラウザーからいつでも連携を停止できます。"),
       view.hasSession && view.hasRecoveryKey && view.mode === "recovery" ? button("この復旧キーをGoogle/Xにも結びつける", () => run(linkRecoveryKeyToOAuth)) : null,
+      view.hasSession && view.hasRecoveryKey && view.mode === "oauth" && view.recoveryKeyMatches === false ? button("この端末の復旧キーだけ外す", () => run(unlinkRecoveryKeyLocally)) : null,
       view.hasSession && view.remoteExists && view.recoveryKeyEnabled && !view.hasRecoveryKey ? button("復旧キーを再発行（古いキーは無効化）", () => run(rotateRecoveryKey), "is-primary") : null,
       h("div", { className: "lbt-cloud-actions" },
         !view.hasRecoveryKey && !view.recoveryKeyEnabled ? button("復旧キーを発行して保全", () => run(createRecoveryKey), "is-primary") : null,
@@ -766,6 +798,7 @@
     restoreFromFile,
     restoreRevision,
     loadHistory,
+    unlinkRecoveryKeyLocally,
     backupLocalToCloud,
     exportLocalBackup,
     disableOnline,
