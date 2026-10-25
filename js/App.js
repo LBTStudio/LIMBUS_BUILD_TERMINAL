@@ -237,7 +237,7 @@ const SECTIONS = [
      所持ゲートは各タブのフィルタで解除できる（既定は所持のみ）。 */
   { id: "persona", label: "ビルド", icon: "grid", title: "BUILD WORKSPACE", subtitle: "人格・スキル・パッシブ・強化・サポート・E.G.O・精神・アイテム", num: "02", group: "build" },
   /* ショップは所持の唯一の取得口。既定は未所持のみを出す。 */
-  { id: "shop", label: "ショップ", icon: "item", title: "SHOP", subtitle: "サポート・E.G.O・精神・アイテムを購入", num: "03", group: "utility" },
+  { id: "shop", label: "ショップ", icon: "item", title: "SHOP", subtitle: "人格・サポート・E.G.O・精神・アイテムを購入", num: "03", group: "utility" },
   { id: "roster", label: "記録", icon: "roster", title: "CHARACTER RECORD", subtitle: "所持品・リザルト・収支・取り込み", num: null, group: "utility" },
   { id: "settings", label: "設定", icon: "settings", title: "BUILD PARAMETERS", subtitle: "ステータス設計・計算・出力", num: null, group: "utility" },
   { id: "help", label: "使い方", icon: "book", title: "操作ガイド", subtitle: "準備・確認・出力・保存", num: null, group: "utility" }

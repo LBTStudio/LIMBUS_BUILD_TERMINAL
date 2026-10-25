@@ -2551,6 +2551,7 @@ const ShopSection = ({ state, dispatch }) => {
 
   const inventory = Array.isArray(state.inventory) ? state.inventory : [];
   const ownedSupportNames = React.useMemo(() => new Set((state.roster?.supports || []).map((s) => s.name)), [state.roster?.supports]);
+  const ownedPersonaKeys = React.useMemo(() => new Set((state.roster?.personas || []).map((p) => `${p.mode}:${p.no}`)), [state.roster?.personas]);
   const ownedEgoKeys = React.useMemo(() => new Set((state.roster?.egos || []).map((e) => `${e.rank}:${e.no}`)), [state.roster?.egos]);
   const ownedItemIds = React.useMemo(() => new Set(inventory.map((entry) => entry.itemId)), [inventory]);
   const ownedSpiritNames = React.useMemo(() => new Set((state.roster?.spirits || []).map((s) => s.name)), [state.roster?.spirits]);
@@ -2584,6 +2585,14 @@ const shopCardLines = (kind, entry) => {
   const line = (tag, body, tone) => h("div", { className: "spirit-item-line" },
     h("span", { className: "spirit-item-tag", "data-tag": tone || "morale" }, tag),
     h("span", null, body));
+  if (kind === "persona") {
+    return [
+      entry.hp != null || entry.san != null ? line("HP / SAN", `${entry.hp ?? "—"} / ${entry.san ?? "—"}`, "always") : null,
+      entry.speed ? line("速度", entry.speed, "morale") : null,
+      entry.passive_name ? line("パッシブ", entry.passive_name, "always") : null,
+      (entry.keywords || []).length ? line("特徴", entry.keywords.slice(0, 5).join(" / "), "always") : null
+    ].filter(Boolean);
+  }
   if (kind === "support" || kind === "deathSupport") {
     return [
       entry.cond ? line("条件", h(CondChips, { cond: entry.cond }), "always") : null,
@@ -2611,7 +2620,7 @@ const shopCardLines = (kind, entry) => {
 const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned, headExtra, body, costText, topRow, actionLabel) => {
   /* アイテムは同名の公式・自作が共存できるので、価格は名前ではなく
      key（= item.id）で引く。state.js priceItemById と同じ参照。 */
-  const price = resolveAcquireCost(kind, "purchase", { name, id: key, customItems: state.customItems });
+  const price = resolveAcquireCost(kind, "purchase", { name, id: key, customItems: state.customItems, ownsPersona: (state.roster?.personas || []).length > 0 });
   /* 残高が足りなければ購入しない。ただし黙って無効化するのではなく、
      押した瞬間に理由を伝える（購入の可否は利用者が判断する）。 */
   const afford = window.LBT_purchaseAffordability
@@ -2650,6 +2659,10 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
 };
 
 
+  /* 指定購入は通常人格のみ。特異人格はルール上、抽出のみなので商品一覧に混ぜない。 */
+  const personas = (DB.normal_personas || []).filter((persona) =>
+    (!unownedOnly || !ownedPersonaKeys.has(`n:${persona.no}`))
+    && hit(`${persona.name} ${persona.no} ${persona.affiliation || persona.aff || ""} ${(persona.keywords || []).join(" ")} ${(persona.skills || []).map((skill) => `${skill.name || ""} ${skill.effect || ""}`).join(" ")} ${persona.passive_name || ""} ${persona.passive_effect || ""}`));
   const supports = [
     ...(DB.support_passives || []).map((s) => ({ ...s, slot: "normal", kind: "support" })),
     ...(DB.death_passives || []).map((s) => ({ ...s, slot: "death", kind: "deathSupport" }))
@@ -2682,6 +2695,30 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
   /* カードはタブを開いたときだけ組む。全タブ分を毎描画で作ると
      300枚超×4タブの要素ツリーになり、切替・検索入力のたびにJSが数百msかかる。 */
   const lists = {
+    persona: () => personas.map((persona) => {
+      const cost = resolveAcquireCost("persona", "purchase", {
+        name: persona.name,
+        ownsPersona: (state.roster?.personas || []).length > 0
+      });
+      const owned = ownedPersonaKeys.has(`n:${persona.no}`);
+      return card(`n:${persona.no}`, persona.name, "通常人格", "persona", () => {
+        const afford = window.LBT_purchaseAffordability?.(state, cost) || { ok: true, reason: "" };
+        if (!afford.ok) {
+          toast(afford.reason || "購入に必要な残高が不足しています", "assertive");
+          return;
+        }
+        dispatch({
+          type: "ADD_ROSTER",
+          mode: "n",
+          no: persona.no,
+          purchase: true,
+          cost: { lp: cost.lp || 0, shards: cost.shards || 0 }
+        });
+        toast(`「${persona.name}」を指定購入しました（${cost.label}）`, "assertive");
+      }, false, null, shopCardLines("persona", persona), owned, null, null, cost.label,
+      [h("span", { className: "shop-card-num" }, "No.", String(persona.no).padStart(3, "0"))],
+      "指定購入");
+    }),
     support: () => supports.map((entry) => card(`${entry.slot}:${entry.name}`, entry.name, entry.slot === "death" ? "死亡後専用" : null, entry.kind,
       () => { dispatch({ type: "ADD_ROSTER_SUPPORT", spp: entry }); toast(`「${entry.name}」を所持に購入しました`, "assertive"); },
       false, null, shopCardLines(entry.kind, entry), ownedSupportNames.has(entry.name))),
@@ -2741,6 +2778,7 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
     })
   };
   const totals = {
+    persona: (DB.normal_personas || []).length,
     support: (DB.support_passives || []).length + (DB.death_passives || []).length,
     ego: (DB.egos || []).length,
     spirit: (DB.spirits || []).length,
@@ -2785,7 +2823,7 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
     };
   }, [shownList.length, list.length]);
   const total = totals[tab] || 0;
-  const emptyMessage = { support: "条件に合う未所持のサポートはありません。", ego: "条件に合う未所持のE.G.Oはありません。", spirit: "条件に合う未所持の精神はありません。", item: "条件に合う未所持のアイテムはありません。" }[tab];
+  const emptyMessage = { persona: "条件に合う未所持の通常人格はありません。", support: "条件に合う未所持のサポートはありません。", ego: "条件に合う未所持のE.G.Oはありません。", spirit: "条件に合う未所持の精神はありません。", item: "条件に合う未所持のアイテムはありません。" }[tab];
 
   /* 検索窓はビルド側と同じ並び：検索 → 件数 → 種別フィルタ。 */
   const filterRows = tab === "ego" ? h("div", { className: "codex-filter-row" },
@@ -2856,7 +2894,7 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
     : null;
   useSourceFilterControl(SOURCE_KINDS[tab] || "", sourceFilter, setSourceFilter, !!SOURCE_KINDS[tab]);
 
-  const searchLabel = { support: "サポート名・条件・効果で検索", ego: "E.G.O名・効果・ランクで検索", spirit: "精神名・効果で検索", item: "アイテム名・効果・タグ・カテゴリで検索" }[tab];
+  const searchLabel = { persona: "人格名・No.・スキル・パッシブで検索", support: "サポート名・条件・効果で検索", ego: "E.G.O名・効果・ランクで検索", spirit: "精神名・効果で検索", item: "アイテム名・効果・タグ・カテゴリで検索" }[tab];
 
   /* 一覧のスクロールコンテナ（main.focus）を先頭に戻す。
      カテゴリを切り替えたときに前カテゴリの中段が見えたままだと、
@@ -2867,7 +2905,7 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
   };
 
   return h("div", { className: "shop-workspace" },
-    h(SectionTitle, { title: "SHOP / ショップ", subtitle: "サポート・E.G.O・精神・アイテムを購入" }),
+    h(SectionTitle, { title: "SHOP / ショップ", subtitle: "人格・サポート・E.G.O・精神・アイテムを購入" }),
     /* カテゴリタブだけを独立要素にして追従させる。filter パネルの内側に置くと
        sticky は親の範囲を出られないため、親を抜けた瞬間にタブも消える。
        追従する面（ラッパー）は全幅にして、下を流れる内容を隠す。
@@ -2875,7 +2913,7 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
        另一位的天空に持ち越すと、「同じ列表の続き」に見えるため）。 */
     h("div", { className: "shop-tabs-sticky" },
       h("div", { className: "segmented shop-tabs", role: "tablist", "aria-label": "ショップの種別" },
-        [["support", "サポート"], ["ego", "E.G.O"], ["spirit", "精神"], ["item", "アイテム"], ["gacha", "ガチャ"]].map(([value, label]) => h("button", {
+        [["persona", "人格"], ["support", "サポート"], ["ego", "E.G.O"], ["spirit", "精神"], ["item", "アイテム"], ["gacha", "ガチャ"]].map(([value, label]) => h("button", {
           key: value, type: "button", role: "tab", "aria-selected": tab === value, className: tab === value ? "is-active" : "",
           onClick: () => { setTab(value); scrollWorkspaceToTop(); }
         }, label))
@@ -2885,6 +2923,11 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
        検索/カテゴリ/ソートは全部意味が無いので、このタブだけ専用パネルに分ける。 */
     tab === "gacha" ? h(GachaTicketsPanel, { state, dispatch }) :
     h("div", { className: `shop-filters codex-filters${tab === "ego" ? " ego-catalog-filters" : ""}` },
+      tab === "persona" ? h("p", {
+        className: "ledger-note shop-persona-catalog-note",
+        role: "note",
+        style: { gridColumn: "1 / -1", margin: "0 0 8px", width: "100%" }
+      }, "通常人格を選んで指定購入できます。未所持の最初の人格と、2体目以降では価格が異なるため、表示価格を確認して購入してください。特異人格はルール上、抽出のみです。") :
       tab === "item" ? h("p", {
         className: "ledger-note shop-item-catalog-note",
         role: "note",

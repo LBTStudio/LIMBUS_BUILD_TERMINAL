@@ -908,3 +908,15 @@ details.pw-subsec:not([open]) > summary:hover { border-radius: 6px; }
 }
 }
 /* end @layer persona-codex */
+
+
+/* 人格カード全面の選択ヒット領域より、購入ボタンを前面に置く。
+   z-index が無いと .p-card-hit がクリックを横取りして獲得できない。 */
+.p-card .p-card-quick-acquire {
+  position: relative;
+  z-index: 2;
+}
+.p-card .p-card-quick-acquire:hover,
+.p-card .p-card-quick-acquire:focus-visible {
+  z-index: 3;
+}

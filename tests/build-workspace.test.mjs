@@ -353,8 +353,8 @@ test("ショップの消耗品カタログは所持状況に依存せず、在�
   assert.match(shop, /dispatch\(\{ type: "ADD_ITEM", itemId: item\.id, purchase: true \}\);/);
   /* 所持上限に達したアイテムは購入できない。 */
   assert.match(shop, /card\(item\.id, item\.name, item\.category \|\| "その他", "item",[\s\S]{0,200}?atCap\(item\), "所持上限に達しています"/);
-/* 4種別のタブ + ガチャ（抽出チケット）。 */
-     assert.match(shop, /\[\["support", "サポート"\], \["ego", "E\.G\.O"\], \["spirit", "精神"\], \["item", "アイテム"\], \["gacha", "ガチャ"\]\]/);
+/* 人格・サポート・E.G.O・精神・アイテム + ガチャ（抽出チケット）。 */
+     assert.match(shop, /\[\["persona", "人格"\], \["support", "サポート"\], \["ego", "E\.G\.O"\], \["spirit", "精神"\], \["item", "アイテム"\], \["gacha", "ガチャ"\]\]/);
   /* 共通カードで描く。 */
   assert.match(shop, /className: "shop-card spirit-item"/);
   assert.match(shop, /className: "shop-grid"/);
@@ -987,7 +987,7 @@ test("ショップはビルドと同じ検索窓形式で絞り込む", () => {
   assert.match(shop, /className: "codex-search"/);
   assert.match(shop, /className: "codex-count"/);
   assert.match(shop, /"aria-label": searchLabel/);
-  assert.match(shop, /const searchLabel = \{ support:/);
+  assert.match(shop, /const searchLabel = \{ persona:/);
   /* 種別ごとのフィルタもビルド側と同じ部品（chip + aria-pressed）。 */
   assert.match(shop, /const filterRows = tab === "ego" \? h\("div", \{ className: "codex-filter-row" \}[\s\S]*?EGO_RANKS\.map/);
   assert.match(shop, /tab === "item" \? h\("div", \{ className: "codex-filter-row" \}[\s\S]*?\["all", \.\.\.itemCategories\]/);
