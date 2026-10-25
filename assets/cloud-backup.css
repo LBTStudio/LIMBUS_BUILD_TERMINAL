@@ -110,7 +110,7 @@
   border-top: 1px solid var(--line-strong);
   font-size: var(--fs-12);
 }
-.lbt-cloud-btn:disabled { opacity: .6; cursor: wait; }
+.lbt-cloud-btn:disabled { opacity: .6; cursor: not-allowed; }
 .lbt-cloud-panel.is-compact { margin-block: var(--s-4); }
 /* The account selector and overlay have bounded height; keep backup controls reachable on small screens. */
 .acct-gate-panel > .lbt-cloud-panel,
