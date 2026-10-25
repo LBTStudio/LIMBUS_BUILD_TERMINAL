@@ -198,8 +198,32 @@ async function updateVault(vault: any, payload: Record<string, unknown>, expecte
 
 async function handle(body: any, accessToken: string) {
   const action = String(body?.action ?? "");
-  if (!["get", "backup", "create_recovery", "history", "restore_revision"].includes(action)) {
+  if (!["get", "backup", "create_recovery", "rotate_recovery", "history", "restore_revision"].includes(action)) {
     throw new Error("未対応の操作です。");
+  }
+
+  if (action === "rotate_recovery") {
+    if (!accessToken) throw new Error("復旧キーの再発行にはGoogle/X連携が必要です。");
+    const userId = await verifiedUser(accessToken);
+    const key = normalizeRecoveryKey(body.recoveryKey);
+    const hash = await hashRecoveryKey(key);
+    const vault = await getVaultByUser(userId);
+    if (!vault) throw new Error("このオンラインアカウントに保全データが見つかりません。");
+    const occupied = await getVaultByHash(hash);
+    if (occupied && occupied.id !== vault.id) {
+      throw new Error("この復旧キーは既に別の保全データで使用されています。新しいキーを発行してください。");
+    }
+    const rows = await rest(VAULT, "PATCH",
+      `id=eq.${vault.id}&user_id=eq.${userId}&select=id,user_id,recovery_hash,revision,updated_at`,
+      { recovery_hash: hash });
+    if (!Array.isArray(rows) || !rows[0]) {
+      const latest = await getVaultByUser(userId);
+      if (!latest || latest.recovery_hash !== hash) {
+        throw new Error("復旧キーを再発行できませんでした。古いキーの登録状態は変更されていません。");
+      }
+      return { ok: true, revision: Number(latest.revision), updatedAt: latest.updated_at };
+    }
+    return { ok: true, revision: Number(rows[0].revision), updatedAt: rows[0].updated_at };
   }
 
   if (action === "create_recovery") {
