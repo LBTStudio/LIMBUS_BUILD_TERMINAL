@@ -365,23 +365,36 @@
     if (!session && !key) throw new Error("先にGoogle/Xと連携するか、復旧キーを発行してください。");
     const current = await getRemote();
     const exists = Boolean(current.found);
-    if (exists && !options.force) {
+    const same = exists && sameData(payload, current.payload);
+    if (exists && same) {
+      writeStorage(REVISION_KEY, String(current.revision));
+      setEnabled(true);
+      emit({ remoteExists: true, revision: Number(current.revision), conflict: false, label: "同期済み", message: "この端末とオンラインバックアップの内容は既に一致しています。" });
+      return true;
+    }
+    if (exists) {
       const known = Number(readStorage(REVISION_KEY) || 0);
-      if (known && known !== Number(current.revision) && !sameData(payload, current.payload)) {
+      if (!options.force && known && known !== Number(current.revision)) {
         emit({ conflict: true, remoteExists: true, revision: Number(current.revision), label: "同期競合あり", message: "クラウド側が別の内容に更新されています。先にクラウドを復元するか、上書きを明示してください。" });
         throw new Error("同期競合のため自動上書きを停止しました。");
       }
-      if (hasMeaningfulLocalData(payload) && !sameData(payload, current.payload) &&
-          !confirm("この端末の全アカウントデータをオンライン保全先へ保存します。既存のクラウド内容は履歴へ残して更新します。続けますか？")) return false;
-    } else if (!exists && !confirm("この端末に保存された全アカウントデータをオンラインへ初回保存します。これまでのローカル保存も残ります。続けますか？")) {
+      if (!confirm("この端末の全アカウントデータをオンライン保全先へ保存します。クラウドの現行内容は履歴へ残して更新します。続けますか？")) return false;
+    } else if (!confirm("この端末に保存された全アカウントデータをオンラインへ初回保存します。これまでのローカル保存も残ります。続けますか？")) {
       return false;
     }
     if (session && key) {
       await callRecovery({ action: "create_recovery", recoveryKey: key, payload }, session.access_token);
     }
     const remote = await getRemote();
+    if (remote.found && sameData(payload, remote.payload)) {
+      writeStorage(REVISION_KEY, String(remote.revision));
+      setEnabled(true);
+      emit({ remoteExists: true, revision: Number(remote.revision), conflict: false, label: "オンライン保全済み", message: "全アカウントデータをオンラインへ保存しました。以降の変更は自動同期されます。" });
+      return true;
+    }
     const expectedRevision = remote.found ? Number(remote.revision) : 0;
-    const result = await callRecovery({ action: "backup", expectedRevision, payload }, remote.session?.access_token || (session && !key ? session.access_token : null) || null);
+    const request = { action: "backup", expectedRevision, payload, ...(!remote.session && key ? { recoveryKey: key } : {}) };
+    const result = await callRecovery(request, remote.session?.access_token || (session && !key ? session.access_token : null) || null);
     if (!result.found) throw new Error("オンライン保存先を確認できませんでした。復旧キーを再入力するか、もう一度ログインしてください。");
     writeStorage(REVISION_KEY, String(result.revision));
     setEnabled(true);
@@ -500,7 +513,13 @@
       }
       if (session && key) await callRecovery({ action: "create_recovery", recoveryKey: key, payload }, session.access_token);
       const refreshed = await getRemote();
-      const result = await callRecovery({ action: "backup", expectedRevision: Number(refreshed.revision || 0), payload }, refreshed.session?.access_token || (session && !key ? session.access_token : null) || null);
+      if (refreshed.found && sameData(payload, refreshed.payload)) {
+        writeStorage(REVISION_KEY, String(refreshed.revision));
+        emit({ conflict: false, remoteExists: true, revision: Number(refreshed.revision), label: "自動同期済み", message: "ローカル保存とオンライン保全を同期しました。" });
+        return;
+      }
+      const request = { action: "backup", expectedRevision: Number(refreshed.revision || 0), payload, ...(!refreshed.session && key ? { recoveryKey: key } : {}) };
+      const result = await callRecovery(request, refreshed.session?.access_token || (session && !key ? session.access_token : null) || null);
       if (result.found) {
         writeStorage(REVISION_KEY, String(result.revision));
         emit({ conflict: false, remoteExists: true, revision: Number(result.revision), label: "自動同期済み", message: "ローカル保存とオンライン保全を同期しました。" });
@@ -558,7 +577,7 @@
         button("Xと連携", () => run(() => startOAuth("x")))
       ) : h("p", { className: "lbt-cloud-account" }, "オンライン認証済み。このブラウザーからいつでも連携を停止できます。"),
       h("div", { className: "lbt-cloud-actions" },
-        button("復旧キーを発行して保全", () => run(createRecoveryKey), "is-primary"),
+        !view.hasRecoveryKey ? button("復旧キーを発行して保全", () => run(createRecoveryKey), "is-primary") : null,
         button("全アカウントをJSON保存", () => run(async () => exportLocalBackup()))
       ),
       h("div", { className: "lbt-cloud-recovery" },
