@@ -1606,3 +1606,104 @@
   .ledger-card-wrap .ledger-card,
   .ledger-card-edit-btn { transition: none; }
 }
+
+
+/* リザルト大量件数向け：コンパクトカード、検索・ページ送り、カード内編集。 */
+.ledger-results-toolbar {
+  display: grid;
+  grid-template-columns: minmax(120px, auto) minmax(180px, 1fr) minmax(120px, 180px);
+  align-items: center; gap: var(--s-3); margin: var(--s-3) 0;
+}
+.ledger-results-count { min-width: 0; color: var(--tx-2); font-size: var(--fs-12); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ledger-results-search,
+.ledger-results-sort {
+  width: 100%; min-width: 0; min-height: 38px; padding: 0 var(--s-3);
+  border: 1px solid var(--line); border-radius: var(--r); background: var(--surface-2);
+  color: var(--tx); font: 500 var(--fs-12) var(--f-body);
+}
+.ledger-results-search:focus-visible,
+.ledger-results-sort:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.ledger-results-search:disabled,
+.ledger-results-sort:disabled { opacity: .65; }
+.ledger-cards { grid-template-columns: repeat(auto-fill, minmax(min(265px, 100%), 1fr)); align-items: start; gap: var(--s-3); }
+.ledger-card-wrap .ledger-card { height: auto; box-shadow: 0 3px 12px color-mix(in srgb, var(--surface-0) 68%, transparent); }
+.ledger-card-wrap:hover .ledger-card { box-shadow: 0 7px 18px color-mix(in srgb, var(--surface-0) 60%, transparent); }
+.ledger-card-wrap .ledger-card .card-header { padding: var(--s-3); gap: var(--s-1) var(--s-2); }
+.ledger-card-title {
+  font-size: var(--fs-13); line-height: 1.4; display: -webkit-box; -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere;
+}
+.ledger-card-date { font-size: var(--fs-10); line-height: 1.35; }
+.ledger-card-actions { gap: var(--s-1); }
+.ledger-card-edit-btn { min-height: 32px; padding: 0 var(--s-3); font-size: var(--fs-11); }
+.ledger-card-wrap .ledger-card .card-body { padding: var(--s-3); gap: var(--s-2); }
+.ledger-card-income { gap: var(--s-2); }
+.ledger-card-income > .ledger-pair { padding: var(--s-2) var(--s-3); align-items: center; }
+.ledger-card-income .ledger-chip-num { font-size: var(--fs-16); line-height: 1.15; }
+.ledger-card-income .ledger-pair-label { font-size: var(--fs-10); }
+.ledger-card-income .ledger-card-spent { padding: var(--s-2) var(--s-3); font-size: var(--fs-11); line-height: 1.45; }
+.ledger-result-details { min-width: 0; border-top: 1px solid var(--line-dim); padding-top: var(--s-2); }
+.ledger-result-summary {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-2);
+  min-height: 30px; color: var(--tx-2); font-size: var(--fs-11); line-height: 1.4;
+  cursor: pointer; list-style: none;
+}
+.ledger-result-summary::-webkit-details-marker { display: none; }
+.ledger-result-summary::after { content: "+"; color: var(--gold); font-size: var(--fs-14); font-weight: 700; }
+.ledger-result-details[open] > .ledger-result-summary::after { content: "−"; }
+.ledger-result-details[open] > .ledger-result-summary { margin-bottom: var(--s-2); }
+.ledger-result-detail-content { min-width: 0; }
+.ledger-detail-group { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-1); min-width: 0; }
+.ledger-detail-group > .t-label { flex-basis: 100%; font-size: var(--fs-10); line-height: 1.4; }
+.ledger-card .ledger-card-consumed { padding: var(--s-2); gap: var(--s-1); }
+.ledger-card .ledger-row {
+  grid-template-columns: minmax(0, 1fr) auto; padding: var(--s-2); gap: var(--s-1);
+  border: 1px solid var(--line-dim); background: var(--surface-2);
+}
+.ledger-card .ledger-row-name { grid-column: 1; font-size: var(--fs-11); }
+.ledger-card .ledger-row-kind { grid-column: 2; grid-row: 1; font-size: var(--fs-10); }
+.ledger-card .ledger-row-cost { grid-column: 1; justify-self: start; font-size: var(--fs-10); }
+.ledger-card .ledger-row-move { grid-column: 1; min-height: 30px; font-size: var(--fs-10); }
+.ledger-card .ledger-row-release,
+.ledger-card .ledger-row-trash { grid-column: 2; min-height: 30px; padding: 0 var(--s-2); font-size: var(--fs-10); }
+.ledger-results-pagination {
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--s-3);
+  margin: var(--s-4) 0; padding: var(--s-3); border: 1px solid var(--line-dim);
+  border-radius: var(--r); background: var(--surface-1);
+}
+.ledger-results-page-label,
+.ledger-results-page-number { color: var(--tx-2); font-size: var(--fs-12); font-variant-numeric: tabular-nums; }
+.ledger-results-page-actions { display: flex; align-items: center; gap: var(--s-2); }
+.ledger-result-edit-panel {
+  display: grid; gap: var(--s-3); padding: var(--s-3); border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--gold) 4%, var(--surface-1));
+}
+.ledger-result-edit-heading {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-2);
+  padding-bottom: var(--s-2); border-bottom: 1px solid var(--line-dim);
+  color: var(--gold-hi); font-size: var(--fs-12);
+}
+.ledger-result-edit-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-2); }
+.ledger-result-edit-tickets { display: grid; gap: var(--s-2); }
+.ledger-result-edit-tickets > .t-label { font-size: var(--fs-11); }
+.ledger-result-edit-panel .ledger-ticket-field { min-width: 0; gap: var(--s-1); }
+.ledger-result-edit-panel .ledger-ticket-field > span { font-size: var(--fs-10); }
+.ledger-result-edit-panel .ledger-input,
+.ledger-result-edit-panel .select { min-width: 0; min-height: 34px; padding: 0 var(--s-2); font-size: var(--fs-11); }
+.ledger-result-edit-panel .ledger-ticket-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-2); }
+.ledger-result-edit-actions {
+  display: flex; justify-content: flex-end; flex-wrap: wrap; gap: var(--s-2);
+  padding-top: var(--s-2); border-top: 1px solid var(--line-dim);
+}
+@media (max-width: 800px) {
+  .ledger-results-toolbar { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .ledger-results-count { grid-column: 1 / -1; }
+}
+@media (max-width: 560px) {
+  .ledger-results-toolbar { grid-template-columns: minmax(0, 1fr); }
+  .ledger-results-count { grid-column: auto; }
+  .ledger-results-pagination { align-items: stretch; }
+  .ledger-results-page-actions { justify-content: space-between; }
+  .ledger-result-edit-fields { grid-template-columns: minmax(0, 1fr); }
+  .ledger-result-edit-panel .ledger-ticket-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
