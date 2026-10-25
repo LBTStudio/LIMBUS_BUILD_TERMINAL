@@ -583,8 +583,12 @@ test("所持済みの人格は再獲得せず、嘘の『所持へ追加』ト�
   const codex = read("../js/PersonaCodex.js");
   /* カード獲得と詳細の所持追加の2経路。どちらも reducer と同じ mode:no で
      判定してから dispatch する。UI 側の !isOwned ガードは表示だけを守る。 */
-  assert.match(codex, /const acquirePersona = \(persona\) => \{[\s\S]{0,700}?roster\?\.personas \|\| \[\]\)\.some\([\s\S]{0,200}?既に所持しています[\s\S]{0,120}?return;/);
-  assert.match(codex, /const addRoster = \(p\) => \{[\s\S]{0,600}?roster\.personas \|\| \[\]\)\.some\([\s\S]{0,200}?既に所持しています[\s\S]{0,120}?return;/);
+  assert.match(codex, /const personaModeFor = \(persona, modeHint\) =>/);
+  assert.match(codex, /const acquirePersona = \(persona, modeHint\) => \{/);
+  assert.match(codex, /const addRoster = \(p\) => \{[\s\S]{0,500}?acquirePersona\(p, hintedMode\);/);
+  assert.match(codex, /onQuickAcquire: gated \|\|[\s\S]{0,180}?acquirePersona\(persona, m\)/);
+  assert.match(codex, /onAcquire: \(\) => acquirePersona\(selectedPersonaView, currentMode\)/);
+  assert.match(codex, /window\.LBT_purchaseAffordability\?\.\(state, cost\)/);
   /* reducer 側の一意キーも同じ mode:no。 */
   assert.match(reducer, /case "ADD_ROSTER"[\s\S]{0,200}?`\$\{mode\}:\$\{no\}`[\s\S]{0,160}?return state;/);
 });
@@ -597,6 +601,8 @@ test("購入は最新リザルトへ直接入り、残高が足りなければ�
   /* 購入系はリデューサ入口で残高判定する（UI 無効化だけに依存しない）。 */
   assert.match(reducer, /if \(action\.type === "ADD_ROSTER" \|\| action\.type === "ADD_ROSTER_EGO"/);
   assert.match(reducer, /if \(cost && !purchaseAffordability\(state, cost\)\.ok\) return state;/);
+  assert.match(reducer, /if \(action\.historicalImport === true\) return null;/);
+  assert.match(reducer, /旧版の取り込みが購入明細を0円で残していた/);
   assert.match(reducer, /function purchaseCostOf\(state, action\) \{/);
   assert.match(reducer, /window\.LBT_purchaseAffordability = purchaseAffordability;/);
   assert.match(shop, /const afford = window\.LBT_purchaseAffordability/);
