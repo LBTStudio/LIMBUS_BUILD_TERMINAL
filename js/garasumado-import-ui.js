@@ -1216,6 +1216,13 @@ function appliedSummary(actions) {
   if (balance && balance.checked && !balance.ok) {
     addDiscrepancy("balance", "残高が一致しません", `${balance.message}。計算値：LP ${balance.computedLp}・欠片 ${balance.computedShards}／共有元の記載：LP ${balance.shownLp}・欠片 ${balance.shownShards}`);
   }
+  (balance?.currencyDiscrepancies || []).forEach((row, index) => {
+    addDiscrepancy(
+      \`currency-\${row.code || index}-\${index}\`,
+      row.title || "E.G.O購入の通貨表記を要確認",
+      row.detail || row.message || row.line || "E.G.O購入の項目別価格と消費欄の通貨・金額が一致しません。"
+    );
+  });
   if (counts.unknownName) {
     const names = (manifest?.groups || []).flatMap((g) => g.items || [])
       .filter((item) => item.needsDecision === "unknown-name").map((item) => item.name);
