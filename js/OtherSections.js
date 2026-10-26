@@ -4193,10 +4193,35 @@ const resolveSpendName = React.useCallback((name) => {
     if (!spendNameIndex || typeof window.LBT_resolveCandidates !== "function") return null;
     try { return window.LBT_resolveCandidates(spendNameIndex, name)?.[0] || null; } catch (_) { return null; }
   }, [spendNameIndex]);
+/* テキスト記録にある取得品は、アイテム名・別名の完全一致だけで所持へ入れる。
+   部分一致で似た別アイテムを増やすことは避ける。 */
+const resolveTextItem = React.useCallback((name) => {
+    const keyOf = (value) => String(value || "").normalize("NFKC").replace(/[\s・･]/g, "").toLocaleLowerCase("ja");
+    const key = keyOf(name);
+    if (!key) return null;
+    const catalog = [
+      ...(window.DB?.items || []),
+      ...(window.DB?.specialItems || []).filter((item) => !item?.ledgerResource),
+      ...(Array.isArray(state.customItems) ? state.customItems : [])
+    ];
+    const hits = catalog.filter((item) => {
+      if (!item?.id || !item?.name || item.ledgerResource) return false;
+      return keyOf(item.name) === key
+        || keyOf(item.id) === key
+        || (Array.isArray(item.searchAliases) && item.searchAliases.some((alias) => keyOf(alias) === key));
+    });
+    const unique = [...new Map(hits.map((item) => [String(item.id), item])).values()];
+    if (unique.length !== 1) return null;
+    const hit = unique[0];
+    return { itemId: String(hit.id), itemName: String(hit.name), ledgerResource: hit.ledgerResource || null };
+  }, [state.customItems]);
 const textPlan = React.useMemo(() => {
     const api = window.LBT_textImport;
     if (!api || !parsedText) return null;
     const ownedPersonas = new Set((state.roster?.personas || []).map((p) => `${p.mode}:${p.no}`));
+    const ownedEgos = new Set((state.roster?.egos || []).map((e) => `${e.rank}:${e.no}`));
+    const ownedSupports = new Set((state.roster?.supports || []).map((s) => String(s.name || "")));
+    const ownedSpirits = new Set((state.roster?.spirits || []).map((s) => String(s.name || "")));
     const suggestPersona = (line) => {
       try {
         return (window.LBT_fuzzyNameCandidatesAcross?.(window.DB, line, 6) || [])
@@ -4209,9 +4234,14 @@ const textPlan = React.useMemo(() => {
       excludedIdentities: textIdentityExcluded,
       identityResolved: textIdentityResolved,
       ownedPersonas,
+      ownedEgos,
+      ownedSupports,
+      ownedSpirits,
+      resolveItem: resolveTextItem,
       suggestPersona
     });
-  }, [parsedText, textExcluded, textIdentityExcluded, textIdentityResolved, resolveSpendName, state.roster?.personas]);
+  }, [parsedText, textExcluded, textIdentityExcluded, textIdentityResolved, resolveSpendName, resolveTextItem,
+    state.roster?.personas, state.roster?.egos, state.roster?.supports, state.roster?.spirits]);
 
 /* テキストの取り込み。硝子窓 版と同じ取り込み口を使うので、
    APPLY_IMPORT_BATCH の紐付けと Undo 1 回がそのまま効く。 */
@@ -4228,9 +4258,15 @@ const applyTextImport = () => {
   const entries = accepted.filter((action) => action.type === "ADD_ENTRY").length;
   const items = accepted.filter((action) => action.type === "ADD_ITEM_INVENTORY").length;
   const personas = accepted.filter((action) => action.type === "ADD_ROSTER").length;
+  const egos = accepted.filter((action) => action.type === "ADD_ROSTER_EGO").length;
+  const supports = accepted.filter((action) => action.type === "ADD_ROSTER_SUPPORT").length;
+  const spirits = accepted.filter((action) => action.type === "ADD_ROSTER_SPIRIT").length;
   setImportNote({
     summary: IMPORT_TYPE_LABEL.ADD_RESULT + " " + results + "件・" + IMPORT_TYPE_LABEL.ADD_ENTRY + " " + entries + "件"
       + (personas ? "・人格 " + personas + "件" : "")
+      + (egos ? "・E.G.O " + egos + "件" : "")
+      + (supports ? "・サポートパッシブ " + supports + "件" : "")
+      + (spirits ? "・精神 " + spirits + "件" : "")
       + (items ? "・アイテム " + items + "件" : ""),
     skipped: skipped.slice(0, 12),
     skippedCount: skipped.length
