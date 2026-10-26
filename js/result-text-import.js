@@ -321,6 +321,12 @@
       const hasShards = /(?:(?:自我の)?(?:欠片|欠けら|カケラ|かけら)\s*\d|\d\s*(?:自我の)?(?:欠片|欠けら|カケラ|かけら))/i.test(part);
       if (hasLP && hasShards) { ambiguous = true; continue; }
       if (!hasLP && !hasShards) continue;
+      /* 通貨ラベルだけでは複数の数値を一意に解釈できない。
+         20+7=27 のように演算が明示されていない場合は末尾の数値を採用しない。 */
+      const numericText = part.replace(/\([^)]*\)|（[^）]*）/g, " ");
+      const numericTokens = [...numericText.matchAll(/\d[\d,]*/g)];
+      const explicitNumericOperation = /(?:\d[\d,]*\s*[+＋]\s*\d[\d,]*|\d[\d,]*\s*[=＝]\s*\d[\d,]*|\d[\d,]*\s*[→⇒➜]\s*\d[\d,]*)/.test(part);
+      if (!explicitNumericOperation && numericTokens.length > 1) { ambiguous = true; continue; }
       const amount = ledgerNumber(part);
       if (amount === null) { ambiguous = true; continue; }
       const key = hasLP ? "lp" : "shards";
