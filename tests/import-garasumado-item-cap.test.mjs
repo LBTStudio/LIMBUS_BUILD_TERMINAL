@@ -72,9 +72,13 @@ test("不正数量を明示的に除外し、数量未指定は互換性のた�
 });
 
 test("呼び出し元はフィルタ後の件数と除外理由を表示し、成功toastで上書きしない", () => {
-  assert.match(appSource, /detail\.actions = filtered\.actions/);
+  /* reducer が受理した action だけを返す（入らなかった分は理由つきで skipped へ）。 */
+  assert.match(appSource, /detail\.actions = accepted/);
   assert.match(appSource, /detail\.skipped = skipped/);
-  assert.match(appSource, /filtered\.actions\.length \+ "件を取り込みました/);
+  assert.match(appSource, /accepted\.length \+ "件を取り込みました/);
+  /* 無言で捨てられる action を数える（取り込み前の試し打ち）。 */
+  assert.match(appSource, /LBT_probeImportBatch/);
+  assert.match(appSource, /const accepted = filtered\.actions\.filter\(\(_, index\) => !ignoredIndexes\.has\(index\)\)/);
 
   const garaStart = otherSectionsSource.indexOf("const applyGarasumadoImport = (applied) => {");
   const garaEnd = otherSectionsSource.indexOf("const IMPORT_TYPE_LABEL = {", garaStart);

@@ -404,6 +404,67 @@ test('取込UIはパッシブを件数で絞らずに reducer へ渡す', () => 
   assert.match(codex, /extraPassives: draftResult\.extraPassives/);
 });
 
+test('SAN 0 の人格（敵・怪物の共有シート）も一括取込で受理される', () => {
+  /* 実データに HP 2000 / SAN 0 の敵シートがある。一括取込の受理条件が
+     SAN > 0 を要求していたため、この1件だけが無言で捨てられていた。 */
+  const api = parser();
+  const rt = loadRuntime();
+  const record = example();
+  record.status.persona = '怪物の人格';
+  record.status.hp = '2000';
+  record.status.san = '0';
+  const parsed = api.LBT_parseGarasumadoPersonaDocument(record, publicUrl);
+  assert.equal(parsed.ok, true, parsed.errors.join('\n'));
+  const action = {
+    type: 'ADD_GARASUMADO_PERSONA',
+    persona: parsed.persona,
+    extraPassives: parsed.extraPassives,
+    secondaryPassive: parsed.secondaryPassive,
+    source: { kind: 'garasumado-persona', id: 'gEp4XyLWFnFoSQhyNmiU', url: publicUrl, label: parsed.persona.name }
+  };
+  const probe = rt.context.window.LBT_probeImportBatch(rt.initialState, [action]);
+  assert.deepEqual([...probe.ignored], [], 'SAN 0 は未設定シートではない（HP 0 のときだけ弾く）');
+  const state = rt.reducer(rt.initialState, action);
+  assert.equal(state.roster.personas.length, 1);
+  assert.equal(state.roster.personas[0].build.san, '0');
+});
+
+test('reducer が受け付けない action は理由付きで数えられる（件数を偽らない）', () => {
+  const rt = loadRuntime();
+  const actions = [
+    { type: 'ADD_GARASUMADO_PERSONA', persona: { name: '出所不明' }, source: {} },
+    { type: 'ADD_ROSTER', mode: 'n', no: 208 },
+    { type: 'ADD_ROSTER', mode: 'n', no: 208 }
+  ];
+  const probe = rt.context.window.LBT_probeImportBatch(rt.initialState, actions);
+  assert.deepEqual([...probe.ignored.map((row) => [row.index, row.reason])], [[0, 'not-applied'], [2, 'already-held']]);
+  assert.equal(probe.applied, 1);
+  assert.equal(rt.reducer(rt.initialState, actions[1]).roster.personas.length, 1);
+});
+
+test('残高が足りない購入は insufficient-currency として報告される', () => {
+  const rt = loadRuntime();
+  const spirit = (rt.db.spirits || []).find((entry) => Number(entry.price) > 0);
+  assert.ok(spirit, 'DB に欠片価格付きの精神があること');
+  /* 記録済みのリザルトがある＝収入が計上済みのアカウント。
+     未記録の新規アカウントは「収入をまだ書いていないだけ」として購入を通す。 */
+  const started = rt.reducer(rt.initialState, { type: 'ADD_RESULT', name: '開始', income: { lp: 0, shards: 0 } });
+  const action = { type: 'ADD_ROSTER_SPIRIT', spirit: { name: spirit.name } };
+  const probe = rt.context.window.LBT_probeImportBatch(started, [action]);
+  assert.deepEqual([...probe.ignored].map((row) => row.reason), ['insufficient-currency']);
+  assert.equal(probe.applied, 0);
+  /* 費用を払える残高があれば通る（判定は残高だけが決める）。 */
+  const funded = rt.reducer(started, { type: 'ADD_RESULT', name: '報酬', income: { lp: 0, shards: 500 } });
+  assert.deepEqual([...rt.context.window.LBT_probeImportBatch(funded, [action]).ignored], []);
+});
+
+test('取り込みの件数は reducer が受理した数で報告される', () => {
+  const app = readFileSync(new URL('../js/App.js', import.meta.url), 'utf8');
+  assert.match(app, /LBT_probeImportBatch/);
+  assert.match(app, /detail\.actions = accepted/);
+  assert.match(app, /insufficient-currency/);
+});
+
 test('括弧付きのダイス表記は主ダイスと括弧書きの効果として読む', () => {
   /* 実データの「10d2(1d26)」は、パッシブ適用後の値を括弧へ併記したもの。
      主ダイスを取りこぼすと取込全体が止まっていた。 */

@@ -3835,6 +3835,118 @@ function validateDrawBatchApplication(state, action) {
 }
 window.LBT_validateDrawBatchApplication = validateDrawBatchApplication;
 
+/* 取り込みは 1 手で終わらせる。複数の action を順に適用し、明細をどの
+   リザルトへ帰属させるかをこの中で解決する。利用者からは UNDO 1 回で全部戻る。
+   所持の action はシナリオのリザルトより前に並ぶため、先に全リザルトを作って
+   シナリオ名 → リザルト id の索引を引き、via（どのシナリオの記載か）の名前で
+   引き当てる。引けない・同名が複数なら未分類(null)のまま、勝手に決めない。
+   ADD_ENTRY は従来どおり直前の ADD_RESULT に帰属する（位置契約）。
+
+   ignored は「reducer が受け付けず state が動かなかった action」。
+   呼び出し側が件数を偽らないよう、取り込み前にここで数えられる。
+   reason は、購入として止められたのか（insufficient-currency）、
+   それ以外（未対応・重複など）かを呼び出し側が区別できるようにする。 */
+function applyImportBatch(state, actions) {
+  const list = Array.isArray(actions) ? actions : [];
+  const purchaseTypes = new Set(["ADD_ROSTER", "ADD_ROSTER_EGO", "ADD_ITEM", "ADD_ROSTER_SUPPORT", "ADD_ROSTER_SPIRIT", "ADD_ENHANCEMENT"]);
+  /* すでに同じ所持がある場合は「二重登録しない」だけなので、
+     失敗として数えない（利用者に直しようがない理由を出しても混乱する）。 */
+  const alreadyHeld = (type, sub, at) => {
+    const roster = at.roster || {};
+    if (type === "ADD_ROSTER") return (roster.personas || []).some((p) => p.mode === (sub.mode || "n") && String(p.no) === String(sub.no));
+    if (type === "ADD_ROSTER_EGO") return (roster.egos || []).some((e) => e.rank === sub.rank && String(e.no) === String(sub.no));
+    if (type === "ADD_ROSTER_SUPPORT") return (roster.supports || []).some((s) => s.name === String(sub.spp?.name || ""));
+    if (type === "ADD_ROSTER_SPIRIT") return (roster.spirits || []).some((s) => s.name === String(sub.spirit?.name || ""));
+    return false;
+  };
+  const reasonFor = (type, sub, at) => {
+    const cost = purchaseTypes.has(type) ? purchaseCostOf(at, sub) : null;
+    if (cost && !purchaseAffordability(at, cost).ok) return "insufficient-currency";
+    if (alreadyHeld(type, sub, at)) return "already-held";
+    return "not-applied";
+  };
+  let next = state;
+  const ignored = [];
+  const resultIds = [];
+  const resultIdByName = new Map();
+  for (const [index, sub] of list.entries()) {
+    if (!sub || typeof sub !== "object" || sub.type !== "ADD_RESULT") continue;
+    const before = next;
+    next = appReducer(next, sub);
+    if (next === before) ignored.push({ index, type: String(sub.type || ""), reason: reasonFor(String(sub.type || ""), sub, next) });
+    const added = next.results[next.results.length - 1];
+    if (!added) continue;
+    resultIds.push(added.id);
+    const key = String(added.name || "");
+    resultIdByName.set(key, [...(resultIdByName.get(key) || []), added.id]);
+  }
+  let lastResultId = null;
+  let resultIndex = 0;
+  for (const [index, sub] of list.entries()) {
+    if (!sub || typeof sub !== "object") continue;
+    if (sub.type === "ADD_RESULT") {
+      lastResultId = resultIds[resultIndex] || null;
+      resultIndex += 1;
+      continue;
+    }
+    /* undefined だけが「直前に倒す」。null は明示的な未分類なので触らない。 */
+    if (sub.type === "ADD_ENTRY" && lastResultId && sub.resultId === undefined) {
+      const before = next;
+      next = appReducer(next, { ...sub, resultId: lastResultId });
+      if (next === before) ignored.push({ index, type: String(sub.type || ""), reason: reasonFor(String(sub.type || ""), sub, next) });
+      continue;
+    }
+    const rosterSub = sub.type === "ADD_ROSTER" || sub.type === "ADD_ROSTER_EGO"
+      || sub.type === "ADD_ROSTER_SUPPORT" || sub.type === "ADD_ROSTER_SPIRIT";
+    if (rosterSub && sub.resultId === undefined && resultIds.length > 0) {
+      /* 付随物の帰属先: via の名前が唯一のリザルトへ解決すればそこへ。
+         曖昧・不一致なら未分類。via 無し（シナリオの獲得一覧）は直前へ。 */
+      let target = null;
+      const viaNames = (Array.isArray(sub.via) ? sub.via : []).filter(Boolean);
+      if (viaNames.length) {
+        const ids = new Set();
+        for (const viaName of viaNames) {
+          for (const id of resultIdByName.get(String(viaName)) || []) ids.add(id);
+        }
+        target = ids.size === 1 ? [...ids][0] : null;
+      } else {
+        target = lastResultId;
+      }
+      const before = next;
+      next = appReducer(next, { ...sub, resultId: target });
+      if (next === before) ignored.push({ index, type: String(sub.type || ""), reason: reasonFor(String(sub.type || ""), sub, next) });
+      continue;
+    }
+    /* 同期化・解析は「名前」で指定できる。uid は reducer が生成する
+       ので、取り込み側からは (-> 名前) で解決する。解決できなかった
+       ものは黙って捨てる（推測で他的人格へ当てない）。 */
+    if (sub.type === "APPLY_PERSONA_SYNC" || sub.type === "APPLY_EGO_ANALYZE") {
+      const resolved = sub.type === "APPLY_PERSONA_SYNC"
+        ? (next.roster.personas || []).find((p) => personaDbName(p) === String(sub.personaName || ""))
+        : (next.roster.egos || []).find((e) => egoDbName(e) === String(sub.egoName || ""));
+      if (!resolved) {
+        ignored.push({ index, type: String(sub.type || ""), reason: reasonFor(String(sub.type || ""), sub, next) });
+        continue;
+      }
+      const before = next;
+      next = appReducer(next, { ...sub, uid: resolved.uid, resultId: sub.resultId === undefined ? lastResultId : sub.resultId });
+      if (next === before) ignored.push({ index, type: String(sub.type || ""), reason: reasonFor(String(sub.type || ""), sub, next) });
+      continue;
+    }
+    const before = next;
+    const applied = appReducer(next, sub);
+    /* 未知の action は state を返さない。その場合は取り込み前の値に戻す。 */
+    next = applied && applied.roster ? applied : next;
+    if (next === before) ignored.push({ index, type: String(sub.type || ""), reason: reasonFor(String(sub.type || ""), sub, next) });
+  }
+  return { state: next, ignored };
+}
+/* 取り込み前の試し打ち。実際に state が動く action だけを数える。 */
+window.LBT_probeImportBatch = (state, actions) => {
+  const outcome = applyImportBatch(state, actions);
+  return { ignored: outcome.ignored, applied: (Array.isArray(actions) ? actions.length : 0) - outcome.ignored.length };
+};
+
 function appReducer(state, action) {
   /* 購入系は残高が足りなければ行わない。UI で無効化するだけでは、
      他の入口（自動登録・取り込み）から通過する経路が残るため ここで止める。 */
@@ -5512,69 +5624,8 @@ case "ADD_CUSTOM_ITEM": {
      シナリオ名 → リザルト id の索引を引き、via（どのシナリオの記載か）の名前で
      引き当てる。引けない・同名が複数なら未分類(null)のまま、勝手に決めない。
      ADD_ENTRY は従来どおり直前の ADD_RESULT に帰属する（位置契約）。 */
-    case "APPLY_IMPORT_BATCH": {
-      let next = state;
-      const resultIds = [];
-      const resultIdByName = new Map();
-      for (const sub of action.actions || []) {
-        if (!sub || typeof sub !== "object" || sub.type !== "ADD_RESULT") continue;
-        next = appReducer(next, sub);
-        const added = next.results[next.results.length - 1];
-        if (!added) continue;
-        resultIds.push(added.id);
-        const key = String(added.name || "");
-        resultIdByName.set(key, [...(resultIdByName.get(key) || []), added.id]);
-      }
-      let lastResultId = null;
-      let resultIndex = 0;
-      for (const sub of action.actions || []) {
-        if (!sub || typeof sub !== "object") continue;
-        if (sub.type === "ADD_RESULT") {
-          lastResultId = resultIds[resultIndex] || null;
-          resultIndex += 1;
-          continue;
-        }
-        /* undefined だけが「直前に倒す」。null は明示的な未分類なので触らない。 */
-        if (sub.type === "ADD_ENTRY" && lastResultId && sub.resultId === undefined) {
-          next = appReducer(next, { ...sub, resultId: lastResultId });
-          continue;
-        }
-        const rosterSub = sub.type === "ADD_ROSTER" || sub.type === "ADD_ROSTER_EGO"
-          || sub.type === "ADD_ROSTER_SUPPORT" || sub.type === "ADD_ROSTER_SPIRIT";
-        if (rosterSub && sub.resultId === undefined && resultIds.length > 0) {
-          /* 付随物の帰属先: via の名前が唯一のリザルトへ解決すればそこへ。
-             曖昧・不一致なら未分類。via 無し（シナリオの獲得一覧）は直前へ。 */
-          let target = null;
-          const viaNames = (Array.isArray(sub.via) ? sub.via : []).filter(Boolean);
-          if (viaNames.length) {
-            const ids = new Set();
-            for (const viaName of viaNames) {
-              for (const id of resultIdByName.get(String(viaName)) || []) ids.add(id);
-            }
-            target = ids.size === 1 ? [...ids][0] : null;
-          } else {
-            target = lastResultId;
-          }
-          next = appReducer(next, { ...sub, resultId: target });
-          continue;
-        }
-        /* 同期化・解析は「名前」で指定できる。uid は reducer が生成する
-           ので、取り込み側からは (-> 名前) で解決する。解決できなかった
-           ものは黙って捨てる（推測で他的人格へ当てない）。 */
-        if (sub.type === "APPLY_PERSONA_SYNC" || sub.type === "APPLY_EGO_ANALYZE") {
-          const resolved = sub.type === "APPLY_PERSONA_SYNC"
-            ? (next.roster.personas || []).find((p) => personaDbName(p) === String(sub.personaName || ""))
-            : (next.roster.egos || []).find((e) => egoDbName(e) === String(sub.egoName || ""));
-          if (!resolved) continue;
-          next = appReducer(next, { ...sub, uid: resolved.uid, resultId: sub.resultId === undefined ? lastResultId : sub.resultId });
-          continue;
-        }
-        const applied = appReducer(next, sub);
-        /* 未知の action は state を返さない。その場合は取り込み前の値に戻す。 */
-        next = applied && applied.roster ? applied : next;
-      }
-      return next;
-    }
+    case "APPLY_IMPORT_BATCH":
+      return applyImportBatch(state, action.actions).state;
 
 case "ADD_ENTRY":
       return {
@@ -5793,7 +5844,8 @@ case "ADD_ENTRY":
         || persona.__custom !== true || !String(persona.name || "").trim()
         || !Array.isArray(persona.skills) || !persona.skills.length
         || !Number.isSafeInteger(Number(persona.hp)) || Number(persona.hp) <= 0
-        || !Number.isSafeInteger(Number(persona.san)) || Number(persona.san) <= 0
+        /* SANは0を取り込める（敵・怪物の共有シート）。未設定シートは HP 0 で弾く。 */
+        || !Number.isSafeInteger(Number(persona.san)) || Number(persona.san) < 0
         || !String(persona.speed || "").trim()) return state;
 
       const roster = state.roster || {};

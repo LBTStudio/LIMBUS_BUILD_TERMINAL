@@ -619,6 +619,16 @@ function validateImportedInventoryCaps(data, fields, currentState) {
   }
   return null;
 }
+/* reducer が受け付けなかった action を、利用者が次に何をすればよいか分かる
+   言葉へ直す。残高で止まったものと、それ以外（未対応・重複など）を区別する。 */
+function ignoreReasonText(reason, action) {
+  const type = String(action?.type || "");
+  if (reason === "insufficient-currency") {
+    return "残高（LP/欠片）が足りないため、購入として登録できません（" + type + "）";
+  }
+  if (reason === "already-held") return "すでに所持しているため重ねませんでした（" + type + "）";
+  return "この内容は反映できませんでした（" + type + "）";
+}
 function filterInventoryImportActions(actions, state) {
   const source = Array.isArray(actions) ? actions : [];
   const inventory = Array.isArray(state?.inventory) ? state.inventory : [];
@@ -1339,26 +1349,40 @@ const App = () => {
       const detail = event.detail && typeof event.detail === "object" ? event.detail : {};
       const requestedActions = Array.isArray(detail.actions) ? detail.actions : [];
       const filtered = filterInventoryImportActions(requestedActions, latestStateRef.current);
+      /* reducer が受け付けない action（前提を満たさない値・未対応の内容）は
+         state を動かさずに終わる。APPLY_IMPORT_BATCH はそれを握り潰すので、
+         同じ reducer で試し打ちし、入らない分を「除外」として数える。
+         数えないと、入っていない所持を「取り込みました」と報告してしまう。 */
+      const probe = typeof window.LBT_probeImportBatch === "function"
+        ? window.LBT_probeImportBatch(latestStateRef.current, filtered.actions)
+        : null;
+      const ignoredIndexes = new Set((probe?.ignored || []).map((row) => row.index));
+      const accepted = filtered.actions.filter((_, index) => !ignoredIndexes.has(index));
+      const ignored = (probe?.ignored || []).map((row) => ({
+        key: String(filtered.actions[row.index]?.type || ""),
+        reason: ignoreReasonText(row.reason, filtered.actions[row.index])
+      }));
       const skipped = [
         ...(Array.isArray(detail.skipped) ? detail.skipped : []),
-        ...filtered.skipped
+        ...filtered.skipped,
+        ...ignored
       ];
       /* CustomEvent.detail is shared with the synchronous caller, so return the accepted
          actions and skipped reasons for the source UI's result summary. */
-      detail.actions = filtered.actions;
+      detail.actions = accepted;
       detail.skipped = skipped;
 
-      if (!filtered.actions.length) {
+      if (!accepted.length) {
         toast(skipped.length
           ? "取り込める項目がありません（" + skipped.length + "件を除外しました。理由は取り込み結果を確認してください）"
           : "取り込む項目がありません", "assertive");
         return;
       }
 
-      dispatch({ type: "APPLY_IMPORT_BATCH", actions: filtered.actions });
+      dispatch({ type: "APPLY_IMPORT_BATCH", actions: accepted });
       toast(skipped.length
-        ? filtered.actions.length + "件を取り込みました（" + skipped.length + "件を除外しました。理由は取り込み結果を確認してください）"
-        : filtered.actions.length + "件を取り込みました（Ctrl+Z で戻せます）");
+        ? accepted.length + "件を取り込みました（" + skipped.length + "件を除外しました。理由は取り込み結果を確認してください）"
+        : accepted.length + "件を取り込みました（Ctrl+Z で戻せます）");
     };
     window.addEventListener("lbt:apply-import", onImport);
     return () => window.removeEventListener("lbt:apply-import", onImport);
