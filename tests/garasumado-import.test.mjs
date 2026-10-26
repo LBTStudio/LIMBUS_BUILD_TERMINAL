@@ -1047,7 +1047,7 @@ test("全49件の硝子窓サンプルを個別監査し、所持・金額イベ
   const index = context.window.LBT_buildNameIndex(db, {});
   const resolve = (name) => (context.window.LBT_resolveCandidates(index, name) || [])[0] || null;
   const candidates = (name) => context.window.LBT_resolveCandidates(index, name) || [];
-  const norm = (value) => String(value || "").normalize("NFKC").replace(/[\\s\\u3000]/g, "").toLocaleLowerCase("ja-JP");
+  const norm = (value) => String(value || "").normalize("NFKC").replace(/[\s\u3000]/g, "").toLocaleLowerCase("ja-JP");
   const readName = (value) => {
     if (typeof value === "string") return value.trim();
     if (!value || typeof value !== "object" || Array.isArray(value)) return "";
@@ -1105,7 +1105,7 @@ test("全49件の硝子窓サンプルを個別監査し、所持・金額イベ
       if (!scenario) continue;
       /* 金額と操作語が共存する履歴は、収入・支出・チケット・獲得のいずれか、
          または利用者に見せる要確認理由として残らなければならない。 */
-      const hasAmount = /(?:LP|ＬＰ)\\s*[：:]?\\s*[+＋\\-−]?\\s*[0-9０-９]|[0-9０-９][0-9０-９,，]*\\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ)|(?:欠片|かけら|欠けら|カケラ)\\s*[：:]?\\s*[+＋\\-−]?\\s*[0-9０-９]/i.test(memo);
+      const hasAmount = /(?:LP|ＬＰ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]|[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ)|(?:欠片|かけら|欠けら|カケラ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]/i.test(memo);
       const hasAction = /報酬|収入|消費|支出|支払|購入|買った|抽出|ガチャ|チケット|チケ|獲得|入手|取得/.test(memo);
       if (hasAmount && hasAction) {
         const ticketCount = Object.values(scenario.tickets || {}).reduce((sum, value) => sum + (Number(value) || 0), 0);
@@ -1119,12 +1119,12 @@ test("全49件の硝子窓サンプルを個別監査し、所持・金額イベ
           (scenario.reasons || []).length > 0 ||
           (scenario.ticketSpends || []).length > 0;
         if (!recognized) {
-          issues.push(sampleId + " / " + (row.name || ("履歴" + (i + 1))) + ": 金額と操作語を含む履歴が無言で未解析: " + memo.slice(0, 100).replace(/\\s+/g, " "));
+          issues.push(sampleId + " / " + (row.name || ("履歴" + (i + 1))) + ": 金額と操作語を含む履歴が無言で未解析: " + memo.slice(0, 100).replace(/\s+/g, " "));
         }
       }
 
       /* ランク付きで正式名を記録したE.G.Oは、種別を失ったり別名として扱ったりしない。 */
-      const explicitEgos = [...memo.matchAll(/(?:獲得|入手|取得)\\s*[：:]\\s*(ZAYIN|TETH|HE|WAW|ALEPH)\\s+([^\\r\\n]+)/gi)];
+      const explicitEgos = [...memo.matchAll(/(?:獲得|入手|取得)\s*[：:]\s*(ZAYIN|TETH|HE|WAW|ALEPH)\s+([^\r\n]+)/gi)];
       for (const match of explicitEgos) {
         const name = String(match[2] || "").trim().replace(/[。．]+$/g, "");
         const found = (scenario.wins || []).some((win) =>
@@ -1139,7 +1139,7 @@ test("全49件の硝子窓サンプルを個別監査し、所持・金額イベ
   assert.ok(auditedOwned > 1000, "所持フィールドをサンプル横断で検査した（" + auditedOwned + "件）");
   assert.ok(auditedHistory > 400, "履歴メモをサンプル横断で検査した（" + auditedHistory + "件）");
   assert.equal(issues.length, 0,
-    "サンプル単位の検出漏れ（先頭12件）:\\n" + issues.slice(0, 12).join("\\n") + (issues.length > 12 ? "\\n……残り" + (issues.length - 12) + "件" : ""));
+    "サンプル単位の検出漏れ（先頭12件）:\n" + issues.slice(0, 12).join("\n") + (issues.length > 12 ? "\n……残り" + (issues.length - 12) + "件" : ""));
 });
 
 test("取り込み: 実サンプル 49 文書から所持を列挙し、action を大量に出せる", () => {
