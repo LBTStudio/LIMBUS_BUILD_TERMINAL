@@ -148,15 +148,15 @@ const sumSpend = (rows, currency) => rows.reduce((sum, row) => sum + (Number(row
 function scanUnwarnedCurrencyLines(history, parsedRows, docId) {
   const out = [];
   const tokenPattern = {
-    lp: /(?:[+-]?[0-9][0-9,]*\\s*(?:LP|ＬＰ)|(?:LP|ＬＰ)\\s*[：:]?\\s*[+-]?[0-9][0-9,]*)/gi,
-    shards: /(?:[+-]?[0-9][0-9,]*\\s*(?:欠片|かけら|欠けら|カケラ|けっか)|(?:欠片|かけら|欠けら|カケラ|けっか)\\s*[：:]?\\s*[+-]?[0-9][0-9,]*)/g
+    lp: /(?:[+-]?[0-9][0-9,]*\s*(?:LP|ＬＰ)|(?:LP|ＬＰ)\s*[：:]?\s*[+-]?[0-9][0-9,]*)/gi,
+    shards: /(?:[+-]?[0-9][0-9,]*\s*(?:欠片|かけら|欠けら|カケラ|けっか)|(?:欠片|かけら|欠けら|カケラ|けっか)\s*[：:]?\s*[+-]?[0-9][0-9,]*)/g
   };
-  const altOrCondition = /又は|または|あるいは|いずれか|どちらか|\\bor\\b|以下|以上|以内|未満|まで|買える|価格|値段|費用|必要|購入|消費|支払/;
+  const altOrCondition = /又は|または|あるいは|いずれか|どちらか|\bor\b|以下|以上|以内|未満|まで|買える|価格|値段|費用|必要|購入|消費|支払/;
   const clearReward = /獲得|入手|報酬|補填|支給|受領|被り|重複|ガチャ結果|抽選結果|合計|合算|小計|総計/;
   history.forEach((row, index) => {
     const memo = String(row?.memo || "");
     const parsed = memoApi.parseMemo(memo);
-    for (const sourceLine of memo.split(/\\r?\\n/)) {
+    for (const sourceLine of memo.split(/\r?\n/)) {
       const line = sourceLine.trim();
       if (!line) continue;
       if (/[+＋=＝×*＊]/.test(line) || /現在|残高|所持|保有/.test(line)) continue;
