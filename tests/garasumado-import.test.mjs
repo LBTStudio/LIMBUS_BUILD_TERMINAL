@@ -53,6 +53,21 @@ test("欠片の表記ゆれを吸収する（欠片/かけら/欠けら/カケ�
   }
 });
 
+test("現在残高の誤記と同通貨の複数値を黙って収入へ合算しない", () => {
+  const r = MEMO.parseMemo("66LP 現座189LP\n30欠片 136欠片");
+  assert.equal(r.income.lp, 66, "現座189LP は現在残高と推定し、収入に足さない");
+  assert.equal(r.income.shards, 0, "収入と残高の可能性がある欠片値は合算しない");
+  assert.ok(r.reasons.some((entry) => /現座/.test(entry.reason)), "誤記を推定したことを警告する");
+  assert.ok(r.reasons.some((entry) => /欠片の数値が同じ行に複数/.test(entry.reason)), "複数値を保留した理由を示す");
+
+  const ambiguous = MEMO.parseMemo("欠片24 134欠片");
+  assert.equal(ambiguous.income.shards, 0, "現在の明示が無い同通貨の複数値は収入へ合算しない");
+  assert.ok(ambiguous.reasons.some((entry) => /現在残高/.test(entry.reason)), "原文修正の案内を残す");
+
+  const explicitSum = MEMO.parseMemo("40LP + 15LP");
+  assert.equal(explicitSum.income.lp, 55, "明示的な加算はこれまでどおり計上する");
+});
+
 test("「名前：名前 150欠片 現在184」は購入で収入に足さない", () => {
   const r = MEMO.parseMemo("欠片60　現在334\n涙剣：燃え上がる闘志 150欠片　現在184");
   assert.equal(r.income.shards, 60, "収入は 60 だけ（購入150は混ぜない）");
@@ -1469,6 +1484,23 @@ test("取り込み: 不正なアイテム個数は成功 action にせず、正�
       ["junk", "アイテムの個数が正の整数ではない"]
     ]
   );
+});
+
+test("リザルト下書きはパーサーの要確認理由を捨てず、カードへ渡す", () => {
+  const reasons = [{ line: "30欠片 136欠片", reason: "曖昧なので保留" }];
+  const draft = G.buildResultDraft({
+    groups: [],
+    scenarios: [{
+      key: "scenario:review",
+      name: "要確認",
+      memo: "30欠片 136欠片",
+      income: { lp: 0, shards: 0 },
+      tickets: {},
+      spends: [],
+      reasons
+    }]
+  }, {});
+  assert.deepEqual(draft.blocks[0].reasons, reasons);
 });
 
 test("取り込み: シナリオ1件ごとに ADD_RESULT が出て、ADD_ENTRY が直後に続く", () => {
