@@ -26,10 +26,8 @@ test("抽選確認は確定時の画面状態ではなく、申込時の条件�
   assert.doesNotMatch(commitBlock, /\n\s*route,\s*\n\s*times,/,
     "変更後のフォーム値を抽選ログのルート／回数へ流用しない");
   assert.match(commitBlock, /const currentState = stateRef\.current \|\| state/);
-  assert.match(commitBlock, /const latestResults = Array\.isArray\(currentState\.results\)/,
-    "確定直前の state からリザルト一覧を読み直す");
-  assert.match(commitBlock, /const resultId = latestResults\.length \? .* : null/,
-    "リザルトが無い場合は未分類、ある場合は最終行を明示的な帰属先にする");
+  assert.match(commitBlock, /const resultId = window\.LBT_latestResultId\?\.\(currentState\) \|\| null/,
+    "確定直前の状態から、画面上の最新リザルトを共通関数で取得する");
   assert.match(commitBlock, /commit: out\.commit \|\| null,\s*resultId\s*\n\s*\}/,
     "抽選ログにも同じリザルトIDを保存する");
   const validationStart = source.indexOf("const validation", transactionStart);
