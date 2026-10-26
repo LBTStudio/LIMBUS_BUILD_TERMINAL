@@ -53,6 +53,24 @@ test("欠片の表記ゆれを吸収する（欠片/かけら/欠けら/カケ�
   }
 });
 
+test("現在残高の誤記と同通貨の複数値を黙って収入へ合算しない", () => {
+  const r = MEMO.parseMemo("66LP 現座189LP\n30欠片 136欠片");
+  assert.equal(r.income.lp, 66);
+  assert.equal(r.income.shards, 0);
+  assert.ok(r.reasons.some((entry) => /現座/.test(entry.reason)));
+  assert.ok(r.reasons.some((entry) => /欠片の数値が同じ行に複数/.test(entry.reason)));
+  const ambiguous = MEMO.parseMemo("欠片24 134欠片");
+  assert.equal(ambiguous.income.shards, 0);
+  assert.ok(ambiguous.reasons.some((entry) => /現在残高/.test(entry.reason)));
+  assert.equal(MEMO.parseMemo("40LP + 15LP").income.lp, 55);
+  const reward = MEMO.parseMemo("LP70、自我の欠片40、人格抽出チケット1枚、ガバ補填LP30を獲得。");
+  assert.equal(reward.income.lp, 100);
+  assert.equal(reward.income.shards, 40);
+  const dupe = MEMO.parseMemo("120LP、50欠片、200LP以下のテーマパック×1を獲得。「眺めることしかできない」ガチャ結果→被りのため欠片50");
+  assert.equal(dupe.income.lp, 120);
+  assert.equal(dupe.income.shards, 100);
+});
+
 test("「名前：名前 150欠片 現在184」は購入で収入に足さない", () => {
   const r = MEMO.parseMemo("欠片60　現在334\n涙剣：燃え上がる闘志 150欠片　現在184");
   assert.equal(r.income.shards, 60, "収入は 60 だけ（購入150は混ぜない）");
@@ -1078,6 +1096,19 @@ test("手入力残高を正解扱いせず、開始残高不明の純増減だ�
   assert.match(result.message, /手入力/);
 });
 
+test("開始残高が負数になるときは履歴と申告残高の不整合を検出する", () => {
+  const M = loadImportWithMemo();
+  const doc = {
+    currency: { lp: "120", fragment: "100" },
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{ name: "履歴A", memo: "140LP、105欠片" }]
+  };
+  const result = M.reconcileBalance(M.buildManifest(doc, null), doc);
+  assert.equal(result.checked, false);
+  assert.equal(result.impliedOpeningLp, -20);
+  assert.equal(result.impliedOpeningShards, -5);
+});
+
 test("現在残高の行より前の収入を二重加算せず、通貨別に照合する", () => {
   const M = loadImportWithMemo();
   const doc = {
@@ -1146,6 +1177,18 @@ test("空欄・null の共有残高はゼロではなく未入力として扱う
   assert.equal(result.shownLp, null);
   assert.equal(result.shownShards, null);
   assert.equal(result.ok, true, "空欄の通貨に架空の残高不一致を出さない");
+});
+
+test("現座の誤記を残高アンカーとしても検出する", () => {
+  const M = loadImportWithMemo();
+  const doc = {
+    currency: { lp: "189", fragment: "" },
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{ name: "誤記残高", memo: "66LP 現座189LP" }]
+  };
+  const result = M.reconcileBalance(M.buildManifest(doc, null), doc);
+  assert.equal(result.checked, true);
+  assert.equal(result.computedLp, 189);
 });
 
 test("残高変動を記載していて計算値と表示残高が違う場合はエラーにする", () => {
@@ -1469,6 +1512,18 @@ test("取り込み: 不正なアイテム個数は成功 action にせず、正�
       ["junk", "アイテムの個数が正の整数ではない"]
     ]
   );
+});
+
+test("リザルト下書きはパーサーの要確認理由を捨てず、カードへ渡す", () => {
+  const reasons = [{ line: "30欠片 136欠片", reason: "曖昧なので保留" }];
+  const draft = G.buildResultDraft({
+    groups: [],
+    scenarios: [{
+      key: "scenario:review", name: "要確認", memo: "30欠片 136欠片",
+      income: { lp: 0, shards: 0 }, tickets: {}, spends: [], reasons
+    }]
+  }, {});
+  assert.deepEqual(draft.blocks[0].reasons, reasons);
 });
 
 test("取り込み: シナリオ1件ごとに ADD_RESULT が出て、ADD_ENTRY が直後に続く", () => {
