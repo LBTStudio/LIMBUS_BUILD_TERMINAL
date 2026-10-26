@@ -4284,6 +4284,16 @@ const textPlan = React.useMemo(() => {
   }, [parsedText, textExcluded, textIdentityExcluded, textIdentityResolved, resolveSpendName, resolveTextItem, resolveTextItemUse,
     state.roster?.personas, state.roster?.egos, state.roster?.supports, state.roster?.spirits, state.inventory]);
 
+const textTicketLabel = (ticket) => {
+  if (ticket?.kind === "persona") return "人格抽出チケット";
+  if (ticket?.kind === "ego") return "E.G.O抽出チケット";
+  if (ticket?.kind === "choice") return "選択抽出チケット";
+  if (ticket?.kind === "pack") return ticket.pack ? `テーマパック権「${ticket.pack}」` : "テーマパック権（パック未特定）";
+  return "種別未確定チケット";
+};
+const textTicketSummary = (tickets) => (tickets || [])
+  .map((ticket) => `${textTicketLabel(ticket)} ×${ticket.count}`).join("・");
+
 /* テキストの取り込み。硝子窓 版と同じ取り込み口を使うので、
    APPLY_IMPORT_BATCH の紐付けと Undo 1 回がそのまま効く。 */
 const applyTextImport = () => {
@@ -4664,14 +4674,15 @@ const importHeldPersonas = () => {
         ),
         parsedText && parsedText.records.map((rec, ri) => h("div", { key: `rec-${ri}`, className: "stack-2" },
           h("span", { className: "t-label" },
-            `${rec.title || "無題"}${rec.author ? `（作：${rec.author}）` : ""} — 収入 LP ${rec.income.lp} / 欠片 ${rec.income.shards}`
-            + (rec.tickets.length ? ` / チケット ${rec.tickets.map((t) => `${t.count}`).join("・")}` : "")),
+            `${rec.title || "無題"}${rec.author ? `（作：${rec.author}）` : ""} — ${rec.date ? `日時 ${rec.date}` : "日時未記載"} — 収入 LP ${rec.income.lp} / 欠片 ${rec.income.shards}`
+            + (rec.tickets.length ? ` / チケット獲得 ${textTicketSummary(rec.tickets)}` : "")
+            + (rec.ticketUses?.length ? ` / チケット消費 ${textTicketSummary(rec.ticketUses)}` : "")),
           rec.deltas.length > 0 && h("span", { className: "ledger-note" },
             `増減の注記 ${rec.deltas.map((d) => `${d.currency === "lp" ? "LP" : "欠片"} ${d.value > 0 ? "+" : ""}${d.value}`).join(" / ")} は残高差なので収入には入れていません`),
           rec.consumedItems?.length > 0 && h("span", { className: "ledger-note" },
             "過去の消費履歴：" + rec.consumedItems.map((item) => `${item.itemName} ×${item.quantity}（${item.detail}）`).join(" / ")),
           rec.itemGains?.length > 0 && h("span", { className: "ledger-note" },
-            "アイテム報酬の記載（注記として保存・現在庫は変更しません）：" + rec.itemGains.map((item) => `${item.itemName} ×${item.quantity}`).join(" / ")),
+            "アイテム報酬（取り込み時に所持アイテムへ追加）：" + rec.itemGains.map((item) => `${item.itemName} ×${item.quantity}`).join(" / ")),
           rec.raw?.length > 0 && h("details", { className: "ledger-import-notes" },
             h("summary", null, `元ログの注記 ${rec.raw.length}行（同期CT・報酬名などを保存）`),
             h("p", { className: "ledger-note" }, rec.raw.join("\n"))),
