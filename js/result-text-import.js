@@ -861,7 +861,17 @@
         }, { lp: 0, shards: 0 });
 
         let useExplicit = explicitAll;
-        if (explicitAll && hasCurrencyCost && !totalCostsEqual(explicitSum, aggregate)) {
+        /* 個別品が欠片建て、消費欄がLP建て（またはその逆）なら、異なる通貨の併存。
+           例：E.G.O 9品を各50欠片で購入し、別途LP450を消費。片方を上書きしない。 */
+        const hasMatchingShardSubtotal = record.raw.some((line) => {
+          const match = toHalf(line).match(/^欠片合計\s*[:：]\s*(?:.*[=＝]\s*)?(\d[\d,]*)\s*(?:欠片)?\s*$/i);
+          return Boolean(match && safeAmount(match[1]) === explicitSum.shards);
+        });
+        const complementaryCurrencyCosts = explicitAll && hasCurrencyCost && hasMatchingShardSubtotal && (
+          (explicitSum.lp === 0 && explicitSum.shards > 0 && aggregate.lp > 0 && aggregate.shards === 0) ||
+          (explicitSum.shards === 0 && explicitSum.lp > 0 && aggregate.shards > 0 && aggregate.lp === 0)
+        );
+        if (explicitAll && hasCurrencyCost && !totalCostsEqual(explicitSum, aggregate) && !complementaryCurrencyCosts) {
           skipped.push({
             text: "消費：" + consumeLines.join("、") + " / 獲得：" + descriptions.map((item) => item.raw).join("、"),
             reason: "消費欄の通貨・合計と獲得品の個別価格が一致しません。個別価格は保持しましたが、原文の確認が必要です"
@@ -874,6 +884,14 @@
               name: item.name,
               cost: { lp: item.cost.lp, shards: item.cost.shards },
               needsDecision: null, reason: null, kindHint: hintOf(item.name), raw: item.raw
+            });
+          }
+          if (complementaryCurrencyCosts) {
+            record.spends.push({
+              name: title,
+              cost: { lp: aggregate.lp, shards: aggregate.shards },
+              needsDecision: null, reason: null, kindHint: null,
+              raw: consumeLines.join("、")
             });
           }
         } else {
