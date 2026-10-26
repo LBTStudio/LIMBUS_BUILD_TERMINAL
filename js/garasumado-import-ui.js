@@ -1563,6 +1563,16 @@ function appliedSummary(actions) {
       },
         `履歴から確定できる純増減: LP ${balance.historyNetLp >= 0 ? "+" : ""}${balance.historyNetLp} / 欠片 ${balance.historyNetShards >= 0 ? "+" : ""}${balance.historyNetShards}。硝子窓の申告値（手入力・参考）: LP ${balance.shownLp ?? "未記載"} / 欠片 ${balance.shownShards ?? "未記載"}。差から逆算した開始前残高は LP ${balance.impliedOpeningLp ?? "不明"} / 欠片 ${balance.impliedOpeningShards ?? "不明"} です。${negativeImpliedOpening ? "【残高整合性の警告】逆算した開始前残高が負数です。支出の未記録、収入の重複計上、履歴不足、申告残高の誤入力を確認してください。原因を特定できるまでは確定値として扱わず、差額を帳簿へ自動計上しません。" : "これは照合用の参考推定です。履歴漏れ・開始残高・手入力ミスのいずれでも差が生じるため、帳簿へ自動加算しません。"}`)
       : null,
+    unclassified.length || (draft && draft.blocks.some((b) => (b.items || []).length))
+      ? h(UnclassifiedRail, {
+        items: unclassified,
+        scenarioOptions,
+        onPickIdentity,
+        onReturnItem: returnItem,
+        focusKey,
+        onFocusHandled: () => setFocusKey("")
+      })
+      : null,
     draft && draft.blocks.map((block) => {
       const scenario = (manifest.scenarios || []).find((row) => row && row.key === block.key);
       const importSourceKey = String(scenario?.importSourceKey || "");
@@ -1600,16 +1610,6 @@ function appliedSummary(actions) {
         sourceAlreadyImported
       });
     }),
-    unclassified.length || (draft && draft.blocks.some((b) => (b.items || []).length))
-      ? h(UnclassifiedRail, {
-        items: unclassified,
-        scenarioOptions,
-        onPickIdentity,
-        onReturnItem: returnItem,
-        focusKey,
-        onFocusHandled: () => setFocusKey("")
-      })
-      : null,
     /* 分類できた購入はリザルトの行として既に帰属しているので、ここには
        残らない。名前も価格も引けなかった購入行だけを別枠で見せる。 */
     counts.unknownLine ? h("section", { className: "gara-group gara-result" },
