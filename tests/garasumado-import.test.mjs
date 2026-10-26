@@ -437,6 +437,9 @@ test("チケットの個数と種別を読む（無修飾は保留し、明示�
   assert.equal(lowercaseEgo.tickets.ego, 1, "小文字egoも明示されたE.G.Oチケットとして分類する");
   assert.equal(lowercaseEgo.reasons.some((r) => /種別が不明/.test(r.reason)), false);
 
+  const lowercaseEgoNoCount = MEMO.parseMemo("ego抽出チケット");
+  assert.equal(lowercaseEgoNoCount.tickets.ego, 1, "枚数省略の小文字ego券も通常の1枚として読む");
+
   const lowercaseEgoShort = MEMO.parseMemo("egoチケット×1");
   assert.equal(lowercaseEgoShort.tickets.ego, 1, "小文字egoチケットも分類する");
 
