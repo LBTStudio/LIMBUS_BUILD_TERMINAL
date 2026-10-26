@@ -29,6 +29,8 @@ test("スマホのプレビュー操作は縦長の本文上ではなく下部�
 test("ビルド8タブは4×2に収まり、横スクロールと右端の重なりを避ける", () => {
   assert.match(css, /\.build-tabs \.segmented\s*\{[\s\S]*?display:\s*grid;[\s\S]*?grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\);[\s\S]*?overflow:\s*visible;/);
   assert.match(css, /\.build-tabs \.segmented > button\s*\{[\s\S]*?min-height:\s*44px;[\s\S]*?white-space:\s*normal;/);
+  assert.match(css, /\\.record-tabbar \\.segmented\\s*\\{[\\s\\S]*?grid-template-columns:\\s*repeat\\(4, minmax\\(0, 1fr\\)\\);[\\s\\S]*?overflow:\\s*visible;/);
+  assert.match(css, /\\.record-tabbar \\.segmented > button\\s*\\{[\\s\\S]*?white-space:\\s*normal;/);
 });
 
 
