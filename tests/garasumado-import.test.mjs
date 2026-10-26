@@ -1033,6 +1033,115 @@ function loadImportWithMemo() {
   return context.window.LBT_garasumado;
 }
 
+
+test("全49件の硝子窓サンプルを個別監査し、所持・金額イベントを黙って落とさない", () => {
+  /* 集計で「全部の検出が有意」だと誤魔化せないよう、サンプルごとに
+     所持項目の保持、履歴行の保持、金額イベントの解析結果を確認する。 */
+  const context = { window: { DB: db }, console, URL, TextEncoder, TextDecoder, setTimeout, clearTimeout, module: { exports: {} } };
+  context.globalThis = context;
+  vm.createContext(context);
+  for (const file of ["js/roster-resolver.js", "js/garasumado-memo-parse.js", "js/ledger-provenance.js", "js/garasumado-roster-import.js"]) {
+    vm.runInContext(readFileSync(new URL("../" + file, import.meta.url), "utf8"), context, { filename: file });
+  }
+  const api = context.window.LBT_garasumado;
+  const index = context.window.LBT_buildNameIndex(db, {});
+  const resolve = (name) => (context.window.LBT_resolveCandidates(index, name) || [])[0] || null;
+  const candidates = (name) => context.window.LBT_resolveCandidates(index, name) || [];
+  const norm = (value) => String(value || "").normalize("NFKC").replace(/[\s\u3000]/g, "").toLocaleLowerCase("ja-JP");
+  const readName = (value) => {
+    if (typeof value === "string") return value.trim();
+    if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+    return String(value.name || value.src?.name || value.build?.personaSrc?.name || "").trim();
+  };
+  const issues = [];
+  let auditedOwned = 0;
+  let auditedHistory = 0;
+  const samplesList = Object.entries(samples).filter(([, value]) => value && value.coll === "characters");
+
+  for (const [sampleId, entry] of samplesList) {
+    const doc = entry.doc || {};
+    const manifest = api.buildManifest(doc, { resolve, candidates }, db);
+    const owned = doc.owned && typeof doc.owned === "object" ? doc.owned : {};
+    const actualGroups = new Map((manifest.groups || []).map((group) => [
+      group.id,
+      new Set((group.items || []).map((item) => norm(item.name)))
+    ]));
+    const expected = {
+      personas: Array.isArray(owned.personas) ? owned.personas : [],
+      egos: Array.isArray(owned.egos) ? owned.egos : [],
+      supportPassives: [
+        ...(Array.isArray(owned.supportPassives) ? owned.supportPassives : []),
+        ...(Array.isArray(doc.supportPassives) ? doc.supportPassives : [])
+      ],
+      spirits: Array.isArray(owned.spirits) ? owned.spirits : [],
+      items: (Array.isArray(doc.items) ? doc.items : []).filter((item) => Number(item && item.count) > 0)
+    };
+
+    for (const [groupId, rows] of Object.entries(expected)) {
+      const seen = new Set();
+      const present = actualGroups.get(groupId) || new Set();
+      for (const row of rows) {
+        const name = readName(row);
+        const key = norm(name);
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        auditedOwned++;
+        if (!present.has(key)) issues.push(sampleId + " / " + groupId + ": 所持候補がmanifestから欠落: " + name);
+      }
+    }
+
+    const history = Array.isArray(doc.scenarioHistory)
+      ? doc.scenarioHistory.filter((row) => row && (row.name || row.memo))
+      : [];
+    if ((manifest.scenarios || []).length !== history.length) {
+      issues.push(sampleId + ": 履歴行数が不一致（原文 " + history.length + " / 解析 " + (manifest.scenarios || []).length + "）");
+    }
+    for (let i = 0; i < history.length; i++) {
+      const row = history[i] || {};
+      const memo = String(row.memo || "");
+      if (!memo.trim()) continue;
+      auditedHistory++;
+      const scenario = (manifest.scenarios || [])[i];
+      if (!scenario) continue;
+      /* 金額と操作語が共存する履歴は、収入・支出・チケット・獲得のいずれか、
+         または利用者に見せる要確認理由として残らなければならない。 */
+      const hasAmount = /(?:LP|ＬＰ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]|[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ)|(?:欠片|かけら|欠けら|カケラ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]/i.test(memo);
+      const hasAction = /報酬|収入|消費|支出|支払|購入|買った|抽出|ガチャ|チケット|チケ|獲得|入手|取得/.test(memo);
+      if (hasAmount && hasAction) {
+        const ticketCount = Object.values(scenario.tickets || {}).reduce((sum, value) => sum + (Number(value) || 0), 0);
+        const recognized =
+          (Number(scenario.income?.lp) || 0) !== 0 ||
+          (Number(scenario.income?.shards) || 0) !== 0 ||
+          (scenario.spends || []).length > 0 ||
+          ticketCount > 0 ||
+          Object.keys(scenario.pack || {}).length > 0 ||
+          (scenario.wins || []).length > 0 ||
+          (scenario.reasons || []).length > 0 ||
+          (scenario.ticketSpends || []).length > 0;
+        if (!recognized) {
+          issues.push(sampleId + " / " + (row.name || ("履歴" + (i + 1))) + ": 金額と操作語を含む履歴が無言で未解析: " + memo.slice(0, 100).replace(/\s+/g, " "));
+        }
+      }
+
+      /* ランク付きで正式名を記録したE.G.Oは、種別を失ったり別名として扱ったりしない。 */
+      const explicitEgos = [...memo.matchAll(/(?:獲得|入手|取得)\s*[：:]\s*(ZAYIN|TETH|HE|WAW|ALEPH)\s+([^\r\n]+)/gi)];
+      for (const match of explicitEgos) {
+        const name = String(match[2] || "").trim().replace(/[。．]+$/g, "");
+        const found = (scenario.wins || []).some((win) =>
+          norm(win.name) === norm(name) && (win.kinds || []).some((kind) => kind.kind === "ego" && String(kind.rank || "").toUpperCase() === match[1].toUpperCase())
+        );
+        if (!found) issues.push(sampleId + " / " + (row.name || ("履歴" + (i + 1))) + ": ランク付きE.G.O獲得が正式名・種別で照合されない: " + match[0]);
+      }
+    }
+  }
+
+  assert.equal(samplesList.length, 49, "個別監査対象は49キャラクターすべて");
+  assert.ok(auditedOwned > 1000, "所持フィールドをサンプル横断で検査した（" + auditedOwned + "件）");
+  assert.ok(auditedHistory > 400, "履歴メモをサンプル横断で検査した（" + auditedHistory + "件）");
+  assert.equal(issues.length, 0,
+    "サンプル単位の検出漏れ（先頭12件）:\n" + issues.slice(0, 12).join("\n") + (issues.length > 12 ? "\n……残り" + (issues.length - 12) + "件" : ""));
+});
+
 test("取り込み: 実サンプル 49 文書から所持を列挙し、action を大量に出せる", () => {
   assert.equal(charDocs.length, 49);
   let resolved = 0;
