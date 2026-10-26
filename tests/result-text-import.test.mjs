@@ -552,6 +552,29 @@ test("実記録にある全角イコールの計算結果を合計値として�
   assert.equal(parsed.records[0].income.shards, 100);
 });
 
+test("抽出チケット複数枚とLP合計の費用配分が不明でも合計支出を保持する", () => {
+  const parsed = T.parseText([
+    "▼人格抽出×5",
+    "日時：2026/06/06",
+    "消費：人格抽出チケット×2、抽出チケット×1、LP200",
+    "獲得：",
+    "ロボトミーE.G.O:たぷつきの人格",
+    "メメメメメ工房フィクサーの人格",
+    "黒獣-巳の人格",
+    "R社第四群ウサギチームの人格",
+    "ロジック・アトリエ所属フィクサーの人格",
+    "現在所持LP：229→29",
+    "現在所持欠片：355"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 1);
+  assert.deepEqual([...parsed.records[0].spends].map((item) => ({
+    name: item.name, cost: item.cost
+  })), [{ name: "人格抽出×5", cost: { lp: 200, shards: 0 } }]);
+  assert.ok(parsed.skipped.some((item) => /合計費用は1件の支出として記録しました/.test(item.reason)));
+  assert.ok(!parsed.skipped.some((item) => /消費合計が安全整数/.test(item.reason)));
+});
+
 test("消費額と獲得品の個別価格が矛盾する実記録は要確認として残す", () => {
   const parsed = T.parseText([
     "▼E.G.O指定購入",
