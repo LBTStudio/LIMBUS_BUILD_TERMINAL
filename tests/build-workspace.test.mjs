@@ -1302,3 +1302,12 @@ test("リザルトの消耗表示は一般のアイテム減少を『消費』�
   assert.match(resultCss, /\.ledger-card \.ledger-result-object-row \.ledger-row-name\s*\{[^}]*overflow-wrap:anywhere/s);
   assert.match(resultSections, /className: "ledger-object-enhancement-details"/);
 });
+
+test("右側プレビューは初期状態で折り畳み、保存した開閉選択は尊重する", () => {
+  const app = read("../js/App.js");
+  const state = read("../js/state.js");
+  assert.match(app, /const previewOpen = state\.ui\.previewOpen === true;/);
+  assert.match(state, /previewOpen: void 0,/);
+  assert.match(state, /未設定は初期折り畳み/);
+  assert.doesNotMatch(app, /previewOpen[^\n]*!isNarrow/);
+});
