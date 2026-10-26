@@ -1644,3 +1644,23 @@ test("消費欄に演算子のない複数数値がある場合、末尾値を�
     item.kind === "balance-mismatch" && item.text === "現在所持LP：91→41"
   ), "曖昧な支出を残高一致で勝手に確定せず、残高照合の警告も残す");
 });
+
+test("数字を含む括弧注記も曖昧な消費額の判定から除外しない", () => {
+  const parsed = T.parseText([
+    "▼サポートパッシブ購入",
+    "日時：2026/09/25",
+    "消費：LP35 (50)",
+    "獲得：剣撃",
+    "現在所持LP：91→41",
+    "現在所持欠片：105"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 1);
+  assert.equal(parsed.records[0].spends.length, 0, "括弧内数値も含めて曖昧なら自動支出にしない");
+  assert.ok(parsed.skipped.some((item) =>
+    item.text === "LP35 (50)" && /判定できない金額/.test(item.reason)
+  ));
+  assert.ok(parsed.skipped.some((item) =>
+    item.kind === "balance-mismatch" && item.text === "現在所持LP：91→41"
+  ));
+});
