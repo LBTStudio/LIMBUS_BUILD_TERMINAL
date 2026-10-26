@@ -941,6 +941,28 @@ test("残高変動を記載していないユーザーにはエラーも不一�
   assert.equal(r.computedLp, null);
 });
 
+test("開始残高の記載が無い場合、手入力残高を正解扱いせず純増減と推定開始額だけを示す", () => {
+  const M = loadImportWithMemo();
+  const doc = {
+    currency: { lp: "318", fragment: "91" },
+    freeNotes: { secret: "LP-20 サポートパッシブ「人生一発」購入" },
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{
+      name: "明示消費のある履歴",
+      memo: "165LP、75欠片\n100LP消費ガチャ:厳粛な哀悼獲得"
+    }]
+  };
+  const manifest = M.buildManifest(doc, null);
+  const result = M.reconcileBalance(manifest, doc);
+  assert.equal(result.checked, false, "履歴に開始残高がなければ一致判定しない");
+  assert.equal(result.ok, true, "手入力値だけでは誤りと断定しない");
+  assert.equal(result.historyNetLp, 45, "165収入 - 100支出 - 自由メモ購入20");
+  assert.equal(result.historyNetShards, 75);
+  assert.equal(result.impliedOpeningLp, 273, "手入力値から逆算した参考値を出すだけ");
+  assert.equal(result.impliedOpeningShards, 16);
+  assert.match(result.message, /手入力/);
+});
+
 test("現在残高の行より前の収入を二重加算せず、通貨別に照合する", () => {
   const M = loadImportWithMemo();
   const doc = {
