@@ -138,6 +138,206 @@ test("共有文書の Markdown 表と全角コロン区切りを読み取る", (
   assert.equal(colon.skipped.length, 0);
 });
 
+test("実記録に使われている▼/▽形式と複数行の報酬・消費・獲得を読み取る", () => {
+  const input = [
+    "▽初期作成時記録",
+    "消費：LP20+7=27",
+    "指定：仮人格Aの人格(初回指定20LP)",
+    "仮パッシブ(7LP)",
+    "現在所持LP：30→3",
+    "現在所持欠片：10",
+    "",
+    "▼採光シナリオ",
+    "日時：2026/05/28",
+    "GM：GMさん",
+    "報酬：",
+    "LP：40+5=45",
+    "欠片：25+5=30",
+    "人格抽出チケット×1→使用済(獲得：仮人格Bの人格)",
+    "現在所持LP：3→48",
+    "現在所持欠片：10→40",
+    "",
+    "▼サポートパッシブ購入",
+    "消費：LP20",
+    "獲得：肩慣らし",
+    "現在所持LP：78→58",
+    "現在所持欠片：65",
+    "",
+    "▼人格同期化依頼×2",
+    "該当人格：仮人格A、仮人格B",
+    "消費：欠片50×2=100",
+    "現在所持LP：58",
+    "現在所持欠片：200→100"
+  ].join("\n");
+
+  const parsed = T.parseText(input);
+  assert.equal(parsed.records.length, 4);
+  assert.equal(parsed.records[0].title, "初期作成時記録");
+  assert.deepEqual([...parsed.records[0].spends].map((s) => ({ name: s.name, cost: { ...s.cost } })), [
+    { name: "仮人格Aの人格", cost: { lp: 20, shards: 0 } },
+    { name: "仮パッシブ", cost: { lp: 7, shards: 0 } }
+  ]);
+
+  assert.equal(parsed.records[1].income.lp, 45);
+  assert.equal(parsed.records[1].income.shards, 30);
+  assert.deepEqual([...parsed.records[1].tickets].map((t) => ({ kind: t.kind, count: t.count })), [
+    { kind: "persona", count: 1 }
+  ]);
+
+  assert.equal(parsed.records[2].spends.length, 1);
+  assert.equal(parsed.records[2].spends[0].name, "肩慣らし");
+  assert.deepEqual({ ...parsed.records[2].spends[0].cost }, { lp: 20, shards: 0 });
+
+  assert.equal(parsed.records[3].spends.length, 2);
+  assert.deepEqual([...parsed.records[3].spends].map((s) => ({ name: s.name, cost: { ...s.cost } })), [
+    { name: "仮人格A", cost: { lp: 0, shards: 50 } },
+    { name: "仮人格B", cost: { lp: 0, shards: 50 } }
+  ]);
+});
+
+test("見出し記号のない日時付き記録も直前の記録へ結合しない", () => {
+  const parsed = T.parseText([
+    "▼精神購入",
+    "日時：2026/08/01",
+    "消費：1000欠片",
+    "獲得：分別できる理性",
+    "現在所持LP：27",
+    "現在所持欠片：1096→96",
+    "",
+    "囚人訓練　急　⬛︎⬛︎⬛",
+    "日時：2026/08/01",
+    "報酬：",
+    "LP：190",
+    "欠片：90+20(理性)=110",
+    "現在所持LP：27→217",
+    "現在所持欠片：96→206"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 2);
+  assert.equal(parsed.records[0].title, "精神購入");
+  assert.equal(parsed.records[0].income.lp, 0);
+  assert.equal(parsed.records[0].income.shards, 0);
+  assert.equal(parsed.records[1].title, "囚人訓練　急　⬛︎⬛⬛");
+  assert.equal(parsed.records[1].income.lp, 190);
+  assert.equal(parsed.records[1].income.shards, 110);
+});
+
+test("実記録の獲得アイテムは個数を保って所持アイテムへ登録する", () => {
+  const parsed = T.parseText([
+    "▼梅と言うには遅く、名も悪く",
+    "日時：2026/07/19",
+    "報酬：",
+    "LP：45",
+    "欠片：30",
+    "硝子の欠片×1",
+    "生命体切断システム装置×2",
+    "バラのスパナ工房の外付け強化義足×1",
+    "現在所持LP：64→109",
+    "現在所持欠片：713→743"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 1);
+  assert.equal(parsed.records[0].income.lp, 45);
+  assert.equal(parsed.records[0].income.shards, 30);
+  assert.equal(parsed.records[0].itemGains[0]?.itemId, "resource-glass-shard");
+  assert.equal(parsed.records[0].itemGains[0]?.quantity, 1);
+  assert.deepEqual([...parsed.records[0].rewardCandidates].map((item) => ({ name: item.name, quantity: item.quantity })), [
+    { name: "生命体切断システム装置", quantity: 2 },
+    { name: "バラのスパナ工房の外付け強化義足", quantity: 1 }
+  ]);
+
+  const planned = T.plan(parsed, {
+    resolveItem: (name) => ({
+      "生命体切断システム装置": { itemId: "enh-lifeform-cutting-system" },
+      "バラのスパナ工房の外付け強化義足": { itemId: "enh-rosa-prosthetic-leg" }
+    }[name] || null)
+  });
+  assert.deepEqual([...planned.actions].filter((action) => action.type === "ADD_ITEM_INVENTORY")
+    .map((action) => ({ itemId: action.itemId, quantity: action.quantity })), [
+      { itemId: "resource-glass-shard", quantity: 1 },
+      { itemId: "enh-lifeform-cutting-system", quantity: 2 },
+      { itemId: "enh-rosa-prosthetic-leg", quantity: 1 }
+    ]);
+});
+
+test("購入済みのサポートパッシブと精神を所持へ追加し、支出は二重計上しない", () => {
+  const parsed = T.parseText([
+    "▼サポートパッシブ購入",
+    "消費：LP20",
+    "獲得：肩慣らし",
+    "現在所持LP：78→58",
+    "現在所持欠片：65",
+    "",
+    "▼精神購入",
+    "消費：欠片50",
+    "獲得：哀しみ",
+    "現在所持LP：58",
+    "現在所持欠片：65→15"
+  ].join("\n"));
+
+  const plan = T.plan(parsed, {
+    resolve: (name) => ({
+      name,
+      kinds: name === "肩慣らし" ? [{ kind: "support" }] : [{ kind: "spirit" }]
+    })
+  });
+  assert.deepEqual([...plan.actions].filter((a) => a.type === "ADD_ROSTER_SUPPORT")
+    .map((a) => ({ name: a.spp.name, purchase: a.purchase })), [
+    { name: "肩慣らし", purchase: false }
+  ]);
+  assert.deepEqual([...plan.actions].filter((a) => a.type === "ADD_ROSTER_SPIRIT")
+    .map((a) => ({ name: a.spirit.name, purchase: a.purchase })), [
+    { name: "哀しみ", purchase: false }
+  ]);
+  assert.equal(plan.actions.filter((a) => a.type === "ADD_ENTRY").length, 2);
+  assert.equal(plan.skipped.length, 0);
+});
+
+test("実記録にある全角イコールの計算結果を合計値として読む", () => {
+  const parsed = T.parseText([
+    "▼黒炎の崩剣",
+    "報酬：",
+    "LP：110+80=190",
+    "欠片：80+20＝100",
+    "現在所持LP：137→327",
+    "現在所持欠片：996→1096"
+  ].join("\n"));
+  assert.equal(parsed.records.length, 1);
+  assert.equal(parsed.records[0].income.lp, 190);
+  assert.equal(parsed.records[0].income.shards, 100);
+});
+
+test("消費額と獲得品の個別価格が矛盾する実記録は要確認として残す", () => {
+  const parsed = T.parseText([
+    "▼E.G.O指定購入",
+    "消費：LP450",
+    "獲得：",
+    "仮EGO A 50欠片",
+    "仮EGO B 50欠片",
+    "現在所持LP：168",
+    "現在所持欠片：451→1"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 1);
+  assert.deepEqual([...parsed.records[0].spends].map((s) => ({ name: s.name, cost: { ...s.cost } })), [
+    { name: "仮EGO A", cost: { lp: 0, shards: 50 } },
+    { name: "仮EGO B", cost: { lp: 0, shards: 50 } }
+  ]);
+  assert.ok(parsed.skipped.some((item) => /個別価格が一致しません/.test(item.reason)));
+});
+
+test("[Input]付きの見出しなし記録も空行ごとに分割する", () => {
+  const parsed = T.parseText([
+    "[Input]",
+    "報酬\tLP:10",
+    "",
+    "報酬\tLP:20"
+  ].join("\n"));
+  assert.equal(parsed.records.length, 2);
+  assert.equal(parsed.records[0].income.lp, 10);
+  assert.equal(parsed.records[1].income.lp, 20);
+});
+
 test("作者の書き方が違っても著者として読む", () => {
   assert.equal(T.parseText("【A】(作：X)").records[0].author, "X");
   assert.equal(T.parseText("【A】(作成者：X)").records[0].author, "X");
