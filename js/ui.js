@@ -142,7 +142,8 @@ const Card = ({ children, className = "", frame = false }) => /* @__PURE__ */ Re
 /* 見出しは span ではなく h2 を使う。英日併記タイトルは日本語部分を分離し、
    狭い画面で最後の1文字だけが次行へ孤立する折り返しを防ぐ。 */
 const SectionTitle = ({ num, title, subtitle, children }) => {
-  const titleMatch = typeof title === "string" ? title.match(/^(.+?)\\s\\/\\s(.+)$/) : null;
+  const titleSeparator = typeof title === "string" ? title.indexOf(" / ") : -1;
+  const titleMatch = titleSeparator > 0 ? [null, title.slice(0, titleSeparator), title.slice(titleSeparator + 3)] : null;
   const titleContent = titleMatch
     ? React.createElement(React.Fragment, null,
         React.createElement("span", { className: "section-title-primary" }, titleMatch[1]),
