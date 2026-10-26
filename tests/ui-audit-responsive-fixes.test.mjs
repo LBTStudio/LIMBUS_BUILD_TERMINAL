@@ -10,7 +10,7 @@ const css = read("../assets/v69-ui-audit-fixes.css");
 test("監査修正CSSは実際のアプリにハッシュ付きで読み込まれ、UI後段に適用される", () => {
   assert.match(index, /assets\/v69-ui-audit-fixes\.css\?v=[0-9a-f]{8}/);
   assert.ok(index.indexOf("assets/v68-interaction-a11y.css") < index.indexOf("assets/v69-ui-audit-fixes.css"));
-  assert.match(index, /js\\/App\\.js\\?v=[0-9a-f]{8}/);
+  assert.match(index, /js\/App\.js\?v=[0-9a-f]{8}/);
 });
 
 test("プレビュー格納時に旧PREVIEWタブを表示せず、操作を1か所に統一する", () => {
