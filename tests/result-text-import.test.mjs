@@ -195,7 +195,7 @@ test("実記録に使われている▼/▽形式と複数行の報酬・消費�
   ]);
 });
 
-test("使用済みチケットは収入と消費を両方計上し、獲得人格を所持に加える", () => {
+test("使用済み表示の報酬チケットは収入として扱い、明示的な消費欄がなければ二重減算しない", () => {
   const parsed = T.parseText([
     "▼蒼天採光-憤怒",
     "日時：2026/05/28",
@@ -211,9 +211,7 @@ test("使用済みチケットは収入と消費を両方計上し、獲得人�
   assert.deepEqual([...parsed.records[0].tickets].map((x) => ({ kind: x.kind, count: x.count })), [
     { kind: "persona", count: 1 }
   ]);
-  assert.deepEqual([...parsed.records[0].ticketUses].map((x) => ({ kind: x.kind, count: x.count })), [
-    { kind: "persona", count: 1 }
-  ]);
+  assert.equal(parsed.records[0].ticketUses.length, 0, "報酬行の使用済み表記は消費明細の代用にしない");
   assert.ok(parsed.records[0].identityCandidates.includes("仮人格の人格"));
 
   const planned = T.plan(parsed, {
@@ -223,17 +221,19 @@ test("使用済みチケットは収入と消費を両方計上し、獲得人�
   });
   const result = planned.actions.find((action) => action.type === "ADD_RESULT");
   assert.equal(result.income.tickets.persona, 1);
-  assert.equal(planned.actions.filter((action) => action.type === "SPEND_TICKET").length, 1);
-  assert.equal(planned.actions.find((action) => action.type === "SPEND_TICKET").count, -1);
+  assert.equal(planned.actions.filter((action) => action.type === "SPEND_TICKET").length, 0);
   assert.ok(planned.actions.some((action) => action.type === "ADD_ROSTER" && action.no === "00999"));
 });
 
-test("異なるチケット種別を同一記録で獲得・消費した場合も別々に数える", () => {
+test("人格チケットとE.G.Oチケットの明示的な消費は種類別に数える", () => {
   const parsed = T.parseText([
     "▼出目報酬",
     "日時：2026/08/03",
     "報酬：",
-    "人格抽出チケット×1、E.G.O抽出チケット×1→両方使用済(獲得：仮人格の人格、仮EGO)",
+    "人格抽出チケット×1",
+    "E.G.O抽出チケット×1",
+    "消費：人格抽出チケット×1、E.G.O抽出チケット×1",
+    "獲得：仮人格の人格、仮EGO",
     "現在所持LP：10",
     "現在所持欠片：20"
   ].join("\n"));
@@ -250,6 +250,8 @@ test("異なるチケット種別を同一記録で獲得・消費した場合�
   assert.equal(income.ego, 1);
   assert.deepEqual([...planned.actions].filter((action) => action.type === "SPEND_TICKET")
     .map((action) => action.kind).sort(), ["ego", "persona"]);
+  assert.equal(planned.actions.filter((action) => action.type === "ADD_ENTRY").length, 0,
+    "チケット抽出を0LPの支出明細として二重計上しない");
   assert.ok(planned.actions.some((action) => action.type === "ADD_ROSTER" && action.no === "00997"));
   assert.ok(planned.actions.some((action) => action.type === "ADD_ROSTER_EGO" && action.no === "0096"));
 });
@@ -272,6 +274,83 @@ test("人格抽出の取得欄にある『の人格』表記も所持人格と�
   });
   assert.ok(planned.actions.some((action) => action.type === "ADD_ROSTER" && action.no === "00998"));
   assert.ok(planned.actions.some((action) => action.type === "SPEND_TICKET" && action.kind === "persona" && action.count === -1));
+});
+
+test("テーマパック権をパック別チケットとして認識し、指定欄のLP価格を支出にする", () => {
+  const parsed = T.parseText([
+    "▼人格抽出-テーマパック",
+    "日時：2026/09/23",
+    "消費：任意のテーマパック権+1",
+    "指定：断ち切れない(300LP)",
+    "獲得：仮人格の人格",
+    "現在所持LP：91",
+    "現在所持欠片：130"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 1);
+  assert.deepEqual([...parsed.records[0].ticketUses].map((ticket) => ({
+    kind: ticket.kind, pack: ticket.pack, count: ticket.count
+  })), [{ kind: "pack", pack: "断ち切れない", count: 1 }]);
+
+  const planned = T.plan(parsed, {
+    resolve: (name) => name === "仮人格の人格"
+      ? { name, kinds: [{ kind: "persona", mode: "n", no: "00996" }] }
+      : null
+  });
+  const ticketSpend = planned.actions.find((action) => action.type === "SPEND_TICKET");
+  assert.equal(ticketSpend?.kind, "pack");
+  assert.equal(ticketSpend?.pack, "断ち切れない");
+  assert.equal(ticketSpend?.count, -1);
+  assert.ok(planned.actions.some((action) => action.type === "ADD_ENTRY" && action.name === "断ち切れない"
+    && action.cost.lp === 300 && action.cost.shards === 0));
+});
+
+test("使用済みテーマパック報酬は選択されたパックの収入として残し、そこでは消費しない", () => {
+  const parsed = T.parseText([
+    "▼同期化ヒロム11連戦",
+    "日時：2026/10/04",
+    "報酬：",
+    "LP：170",
+    "欠片：65+16(理性)=81",
+    "任意テーマパックチケット×1→使用済(選択：断ち切れない/獲得：蜘蛛の巣 中指の子方の人格)",
+    "現在所持LP：132→302",
+    "現在所持欠片：194→275"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 1);
+  assert.deepEqual([...parsed.records[0].tickets].map((ticket) => ({
+    kind: ticket.kind, pack: ticket.pack, count: ticket.count
+  })), [{ kind: "pack", pack: "断ち切れない", count: 1 }]);
+  assert.equal(parsed.records[0].ticketUses.length, 0);
+  const planned = T.plan(parsed);
+  assert.equal(planned.actions.find((action) => action.type === "ADD_RESULT").income.tickets.pack["断ち切れない"], 1);
+  assert.equal(planned.actions.filter((action) => action.type === "SPEND_TICKET").length, 0);
+});
+
+test("既所持人格を欠片へ変換した獲得欄は人格として追加せず、欠片収入へ加える", () => {
+  const parsed = T.parseText([
+    "▼人格抽出-テーマパック",
+    "日時：2026/09/20",
+    "消費：【夢の終わる】パック抽出+1権",
+    "指定：夢の終わる(200LP)",
+    "獲得：ロボトミーE.G.O:後悔の人格(既所持)→50欠片",
+    "現在所持LP：131",
+    "現在所持欠片：87→137"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 1);
+  assert.equal(parsed.records[0].income.shards, 50);
+  assert.equal(parsed.records[0].acquisitions.length, 0);
+  assert.deepEqual([...parsed.records[0].ticketUses].map((ticket) => ({
+    kind: ticket.kind, pack: ticket.pack, count: ticket.count
+  })), [{ kind: "pack", pack: "夢の終わる", count: 1 }]);
+
+  const planned = T.plan(parsed);
+  assert.equal(planned.actions.find((action) => action.type === "ADD_RESULT").income.shards, 50);
+  assert.equal(planned.actions.filter((action) => action.type === "SPEND_TICKET").length, 1);
+  assert.ok(!planned.actions.some((action) => action.type === "ADD_ROSTER"));
+  assert.ok(planned.actions.some((action) => action.type === "ADD_ENTRY" && action.name === "夢の終わる"
+    && action.cost.lp === 200 && action.cost.shards === 0));
 });
 
 test("日時を結果の日付欄に保持する", () => {
