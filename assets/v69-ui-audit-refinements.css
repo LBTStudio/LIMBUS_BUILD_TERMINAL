@@ -1,0 +1,280 @@
+/*
+ * v69 UI audit refinements.
+ * Addresses concrete mobile captures from the interaction audit:
+ * - the fixed preview edge switch overlapped content at phone widths;
+ * - long tab strips clipped labels without making the remaining tabs apparent;
+ * - state-import choices pushed the primary buttons below the visible area.
+ */
+@layer v69-ui-audit {
+  .state-import-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: rgba(10, 8, 5, 0.68);
+    backdrop-filter: blur(4px);
+    padding: 20px;
+  }
+
+  @media (max-width: 640px) {
+    /* The floating tab is gone on phones, so section headings may use the full width. */
+    .section-title-row {
+      padding-right: 0;
+    }
+    /* Phone users already have a clear "プレビューを開く／閉じる" action in
+       操作・保存. Remove the floating edge tab so it cannot cover content. */
+    #lbt-preview-edge-toggle {
+      display: none;
+    }
+
+    /* Eight build tabs fit comfortably in a 4 x 2 grid at 320–430px.
+       Grid cells keep every tab visible, tappable, and discoverable. */
+    .build-tabs {
+      display: block;
+      width: 100%;
+      min-width: 0;
+    }
+    .build-tabs .segmented[aria-label="ビルドセクション"] {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      width: 100%;
+      min-width: 0;
+      gap: 4px;
+      padding: 4px;
+      box-sizing: border-box;
+      overflow: visible;
+    }
+    .build-tabs .segmented[aria-label="ビルドセクション"] > button {
+      min-width: 0;
+      min-height: 44px;
+      width: 100%;
+      padding-inline: 3px;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      text-align: center;
+      justify-content: center;
+    }
+
+    /* The record/library tab strip was also a few dozen pixels wider than its
+       viewport. Wrap it into two rows rather than hiding the final category. */
+    .segmented[aria-label="記録セクションの種別"] {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      min-width: 0;
+      width: 100%;
+      gap: 4px;
+      padding: 4px;
+      box-sizing: border-box;
+      overflow: visible;
+    }
+    .segmented[aria-label="記録セクションの種別"] > button {
+      min-width: 0;
+      min-height: 44px;
+      width: 100%;
+      padding-inline: 3px;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      text-align: center;
+      justify-content: center;
+    }
+
+    /* The state-import dialog is a viewport-bounded panel with its own scroll
+       region. The title, selected-scope summary, and actions stay visible. */
+    .state-import-backdrop {
+      padding: 12px;
+      align-items: center;
+      overflow: hidden;
+    }
+    .state-import-dialog {
+      display: flex;
+      flex-direction: column;
+      width: min(560px, 100%);
+      max-width: 100%;
+      max-height: calc(100dvh - 24px);
+      min-height: 0;
+      padding: 14px;
+      box-sizing: border-box;
+      overflow: hidden;
+      border: 1px solid var(--gold-line);
+      border-radius: var(--r-lg, 8px);
+      background: var(--surface-1, #1a1715);
+      color: var(--tx, #f2ece1);
+      box-shadow: 0 24px 64px rgba(0,0,0,.65);
+    }
+    .state-import-title {
+      flex: 0 0 auto;
+      margin: 0 0 4px;
+      color: var(--gold);
+      font-family: var(--f-display);
+      font-weight: 700;
+      font-size: var(--fs-16);
+      line-height: 1.35;
+    }
+    .state-import-desc {
+      flex: 0 0 auto;
+      margin: 0 0 10px;
+      color: var(--tx-2);
+      font-size: var(--fs-12);
+      line-height: 1.5;
+    }
+    .import-apply-summary {
+      flex: 0 0 auto;
+      margin: 0 0 8px;
+      padding: 7px 9px;
+      border: 1px solid var(--line-dim);
+      border-radius: var(--r-sm, 4px);
+      background: var(--surface-inset);
+      color: var(--gold);
+      font-size: var(--fs-11);
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+    .state-import-category-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 6px 10px;
+      margin: 0 0 8px;
+      color: var(--tx-2);
+      font-size: var(--fs-10);
+    }
+    .state-import-toggle-empty {
+      min-height: 36px;
+      padding: 5px 8px;
+      border: 1px solid var(--line-mid);
+      border-radius: var(--r-sm, 4px);
+      background: var(--surface-2);
+      color: var(--gold-hi);
+      font: inherit;
+      cursor: pointer;
+    }
+    .state-import-toggle-empty:hover,
+    .state-import-toggle-empty:focus-visible {
+      border-color: var(--gold);
+      background: var(--gold-tint);
+    }
+    .state-import-groups {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      padding: 1px 2px 8px;
+    }
+    .state-import-group {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      flex: 0 0 auto;
+      min-height: 44px;
+      padding: 8px 10px;
+      border: 1px solid var(--line-dim);
+      border-radius: var(--r-sm, 4px);
+      background: var(--surface-inset);
+      cursor: pointer;
+      font-size: var(--fs-12);
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+    .state-import-group.is-empty {
+      background: transparent;
+      cursor: default;
+      opacity: .52;
+    }
+    .state-import-group input[type="checkbox"] {
+      flex: 0 0 auto;
+      width: 20px;
+      height: 20px;
+      margin: 0;
+      accent-color: var(--gold);
+    }
+    .state-import-group-empty-note {
+      display: block;
+      margin-top: 2px;
+      color: var(--tx-mute);
+      font-size: var(--fs-10);
+    }
+    .state-import-actions {
+      flex: 0 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      padding-top: 10px;
+      border-top: 1px solid var(--line-dim);
+      background: var(--surface-1);
+    }
+    .state-import-actions .state-import-spacer {
+      flex: 1 1 8px;
+    }
+    .state-import-actions .btn {
+      min-height: 40px;
+    }
+    .state-import-actions .btn-primary {
+      flex: 1 1 100%;
+      min-height: 44px;
+    }
+  }
+
+  @media (min-width: 641px) {
+    /* Keep the desktop dialog centered and bounded too, while giving it the same
+       stable footer treatment as the mobile layout. */
+    .state-import-backdrop {
+      padding: 20px;
+    }
+    .state-import-dialog {
+      display: flex;
+      flex-direction: column;
+      width: min(560px, calc(100vw - 40px));
+      max-height: min(760px, calc(100dvh - 40px));
+      min-height: 0;
+      padding: 18px;
+      box-sizing: border-box;
+      overflow: hidden;
+      border: 1px solid var(--gold-line);
+      border-radius: var(--r-lg, 8px);
+      background: var(--surface-1, #1a1715);
+      color: var(--tx, #f2ece1);
+      box-shadow: 0 24px 64px rgba(0,0,0,.65);
+    }
+    .state-import-groups {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      padding: 1px 2px 8px;
+    }
+    .state-import-group {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      flex: 0 0 auto;
+      min-height: 40px;
+      padding: 8px 10px;
+      border: 1px solid var(--line-dim);
+      border-radius: var(--r-sm, 4px);
+      background: var(--surface-inset);
+      font-size: var(--fs-12);
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+    .state-import-group.is-empty { background: transparent; opacity: .52; }
+    .state-import-group input[type="checkbox"] { width: 18px; height: 18px; margin: 0; accent-color: var(--gold); }
+    .state-import-category-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; color: var(--tx-2); font-size: var(--fs-10); }
+    .state-import-toggle-empty { min-height: 34px; padding: 5px 8px; border: 1px solid var(--line-mid); border-radius: var(--r-sm, 4px); background: var(--surface-2); color: var(--gold-hi); font: inherit; cursor: pointer; }
+    .state-import-actions { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--line-dim); background: var(--surface-1); }
+    .state-import-actions .state-import-spacer { flex: 1 1 8px; }
+    .state-import-actions .btn { min-height: 40px; }
+    .state-import-actions .btn-primary { min-height: 44px; }
+  }
+}
