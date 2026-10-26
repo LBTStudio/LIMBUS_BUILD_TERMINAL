@@ -949,7 +949,7 @@ function toIdentityChoices(hits) {
               const key = `ego-custom:${rank}:${nameKey(rawName)}`;
               if (!taken.has(key)) {
                 taken.add(key);
-                actions.push({ type: "ADD_CUSTOM_ROSTER_EGO", name: rawName, rank, via, resultId: via.length ? undefined : null });
+                actions.push({ type: "ADD_CUSTOM_ROSTER_EGO", name: rawName, rank, via, resultId: via.length ? undefined : null, source: item.source || "" });
               }
               continue;
             }
@@ -1499,10 +1499,12 @@ function toIdentityChoices(hits) {
         shards -= Number(action.cost && action.cost.shards) || 0;
         continue;
       }
-      if (String(action.type || "").startsWith("ADD_ROSTER")) {
+      if (String(action.type || "").startsWith("ADD_ROSTER") || action.type === "ADD_CUSTOM_ROSTER_EGO") {
         held += 1;
-        const s = action.source || (action.purchase ? "buy" : "given");
-        bySource[s] = (bySource[s] || 0) + 1;
+        const source = action.source || (action.type === "ADD_CUSTOM_ROSTER_EGO"
+          ? "unclassified"
+          : action.purchase ? "buy" : "given");
+        bySource[source] = (bySource[source] || 0) + 1;
       }
     }
     return {
