@@ -1580,6 +1580,9 @@ function reconcileBalance(manifest, doc) {
     openingLp: null, openingShards: null,
     computedLp: null, computedShards: null,
     shownLp, shownShards: shownSh,
+    historyNetLp: 0, historyNetShards: 0,
+    impliedOpeningLp: null, impliedOpeningShards: null,
+    hasManualReference: shownLp !== null || shownSh !== null,
     message: ""
   };
   const scenarios = (manifest && manifest.scenarios) || [];
@@ -1627,8 +1630,18 @@ function reconcileBalance(manifest, doc) {
 
   out.openingLp = openingLp;
   out.openingShards = openingSh;
+  /* 自由メモ購入は時点が不明なので、明示された開始残高との照合には混ぜない。
+     開始残高が無いときの履歴純増減には含めるが、残高へ自動補正はしない。 */
+  const untimedPurchases = ((manifest && manifest.purchaseHistory) || []).reduce((sum, row) => ({
+    lp: sum.lp + (Number(row && row.lp) || 0),
+    shards: sum.shards + (Number(row && row.shards) || 0)
+  }), { lp: 0, shards: 0 });
+  out.historyNetLp = incLp - spLp - untimedPurchases.lp;
+  out.historyNetShards = incSh - spSh - untimedPurchases.shards;
   if (openingLp === null && openingSh === null) {
-    out.message = "残高変動の記載が無いので照合しません。";
+    out.impliedOpeningLp = shownLp === null ? null : shownLp - out.historyNetLp;
+    out.impliedOpeningShards = shownSh === null ? null : shownSh - out.historyNetShards;
+    out.message = "履歴に開始残高の基準が無いため、手入力の現在値との一致判定は保留しています。";
     return out;
   }
   out.checked = true;
