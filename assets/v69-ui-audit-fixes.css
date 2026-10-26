@@ -344,3 +344,18 @@
 .import-scope-empty-categories[open] > summary { color: var(--gold); }
 .import-scope-option.is-empty { background: transparent; opacity: .48; }
 .import-scope-option small { margin-left: 6px; color: var(--tx-mute); }
+
+
+@media (max-width: 640px) {
+  /* Reserve the account card's bottom action rail so metadata cannot sit behind Edit/Delete. */
+  .acct-card {
+    min-height: 148px;
+    padding: var(--s-3) var(--s-2) calc(var(--s-3) + 34px);
+  }
+  .acct-meta {
+    display: block;
+    max-width: 100%;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+}
