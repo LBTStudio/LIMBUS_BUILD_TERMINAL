@@ -60,6 +60,23 @@ function baseState() {
   };
 }
 
+test("硝子窓からDB未登録の独自E.G.Oを所持に保存し、費用を捏造しない", () => {
+  const before = baseState();
+  const after = reducer(before, {
+    type: "ADD_CUSTOM_ROSTER_EGO",
+    name: "海底墓標：プロト",
+    rank: "ZAYIN",
+    via: ["共有履歴"]
+  });
+  assert.equal(after.roster.egos.length, 1);
+  assert.equal(after.roster.egos[0].rank, "ZAYIN");
+  assert.equal(after.roster.egos[0].build.name, "海底墓標：プロト");
+  assert.equal(after.roster.egos[0].build.__importedFromShare, true);
+  assert.equal(balance(after.results, after.entries).lp, 0, "独自E.G.Oに架空の購入費を加えない");
+  const duplicate = reducer(after, { type: "ADD_CUSTOM_ROSTER_EGO", name: "海底墓標：プロト", rank: "ZAYIN" });
+  assert.equal(duplicate.roster.egos.length, 1, "同名は二重登録しない");
+});
+
 test("旧LP換算記録は通常の支出明細と欠片収入へ一度だけ移行する", () => {
   const legacy = {
     ...baseState(),
