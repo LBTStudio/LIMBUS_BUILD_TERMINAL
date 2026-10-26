@@ -693,6 +693,7 @@ function toIdentityChoices(hits) {
             (parsed.tickets.persona + parsed.tickets.ego + parsed.tickets.choice) > 0 ||
             Object.keys(parsed.pack || {}).length > 0 ||
             (parsed.spends || []).length > 0 ||
+            (parsed.ticketSpends || []).length > 0 ||
             wins.length > 0
         };
       });
