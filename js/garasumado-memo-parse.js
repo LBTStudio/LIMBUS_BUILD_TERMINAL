@@ -516,6 +516,10 @@
     var m = t.match(/^([^0-9\s：:].+)[：:]\s*([0-9０-９]+)\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ)([^0-9]*)$/i);
     if (!m) return null;
     var name = m[1].trim();
+    if (/サポートパッシブ|サポパ|サポート|パッシブ/.test(name)) {
+      const quotedName = name.match(/[「『｢]([^「『｢」』｣]+)[」』｣]/);
+      if (quotedName) name = quotedName[1].trim();
+    }
     if (!name) return null;
     if (/(LP|ＬＰ|欠片|かけら|欠けら|カケラ)\s*$/.test(name)) return null;
     var cost = { lp: 0, shards: 0 };
@@ -855,6 +859,9 @@
             var namedBuy = namedPurchaseOf(line);
             if (namedBuy) {
               spends.push(namedBuy);
+              if (!wins.some((w) => w.name === namedBuy.name)) {
+                wins.push({ name: namedBuy.name, via: "", kind: "", bought: true });
+              }
               continue;
             }
             /* 叙述体の精神・人格購入（「精神「正義」を購入したため
