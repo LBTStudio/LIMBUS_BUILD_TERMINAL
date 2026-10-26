@@ -293,7 +293,7 @@ test("テーマパック権をパック別チケットとして認識し、指�
   assert.equal(parsed.records.length, 1);
   assert.deepEqual([...parsed.records[0].ticketUses].map((ticket) => ({
     kind: ticket.kind, pack: ticket.pack, count: ticket.count
-  })), [{ kind: "pack", pack: "任意の200LP以下のテーマパック", count: 1 }]);
+  })), [{ kind: "pack", pack: "任意のテーマパック", count: 1 }]);
 
   const planned = T.plan(parsed, {
     resolve: (name) => name === "仮人格の人格"
