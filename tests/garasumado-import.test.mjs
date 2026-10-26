@@ -82,13 +82,14 @@ test("名前と金額が一行に収まった購入の短文は支出と勝ち�
   assert.equal(r.wins.every((w) => w.bought), true, "購入の勝ちには bought が付く");
 });
 
-test("購入の短文の形でない叙述は購入の記録にしない", () => {
+test("購入の短文では購入名を推測せず、明示金額のある消費だけを記録する", () => {
   const r = MEMO.parseMemo(
     "終了後サポートパッシブ「ルサンチマン」と「肩慣らし」を購入したためLP-27。\n" +
     "切り伏せる斬撃を購入、150LP消費　300LPへ\n" +
     "30LP、30欠片…を獲得。硝酸の欠片×1を消費して同期化"
   );
-  assert.equal(r.spends.length, 0, "金額が一行に収まらない叙述は支出にしない");
+  assert.equal(r.spends.length, 1, "明示された150LP消費だけを支出として残す");
+  assert.equal(r.spends[0].lp, 150);
   assert.ok(r.wins.some((w) => w.name === "ルサンチマン"), "サポパの名前は従来どおり勝ちに入る");
   assert.equal(r.income.lp, 30, "収入は 30LP の獲得行だけ（購入の叙述は混ぜない）");
   assert.equal(r.income.shards, 30, "欠片も同じ獲得行から 30");
@@ -577,11 +578,12 @@ test("名前付き購入行「蒼羽蝶：75LP消費」は支出として読ま�
   assert.equal(full.spends.length, 1);
   assert.equal(full.spends[0].name, "メラメラ燃えた羽：蒼羽蝶");
 
-  /* 叙述の「LP200を消費してガチャ」は名前付き購入にしない。
-     一方、リザルトへ書かれた負数の購入行（憎悪購入：-50欠片）は
-     実買として支出になる（残高差分の表記でも、記された購入は
-     記録する。ユーザー指定の契約）。 */
-  assert.equal(MEMO.parseMemo("LP200を消費してガチャ").spends.length, 0, "叙述は支出にしない");
+  /* 叙述でも「LP200を消費」と明示されていれば通貨支出は確定できる。
+     対象名が不明でも金額を落とさず、名前付き購入とは区別して残す。 */
+  const narrative = MEMO.parseMemo("LP200を消費してガチャ");
+  assert.equal(narrative.spends.length, 1, "明示された消費額は叙述形でも記録する");
+  assert.equal(narrative.spends[0].lp, 200);
+  assert.equal(narrative.spends[0].name, "LP200を消費してガチャ");
   const hate = MEMO.parseMemo("憎悪購入：-50欠片");
   assert.equal(hate.spends.length, 1, "負数でも購入行は支出になる");
   assert.equal(hate.spends[0].name, "憎悪");
