@@ -759,7 +759,15 @@
     addSafeAmount(income, "shards", slashPair.shards, memo, reasons, "欠片収入の合計");
 
     for (var i = 0; i < lines.length; i++) {
-      var line = String(lines[i]).trim();
+      var sourceLine = String(lines[i]).trim();
+      var typoCurrentMarker = /現座(?=\s*(?:(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|けっか)\s*)?[0-9０-９])/i.test(sourceLine);
+      var line = typoCurrentMarker ? sourceLine.replace(/現座/g, "現在") : sourceLine;
+      if (typoCurrentMarker) {
+        reasons.push({
+          line: sourceLine,
+          reason: "「現座」は「現在」の誤記と推定しました。残高として扱いましたが、原文の確認が必要です"
+        });
+      }
       if (!line) continue;
       var prev = prevLine;
       prevLine = line;
@@ -1028,11 +1036,31 @@
         if (unsafePairs.length) {
           unsafePairs.forEach(function (pair) {
             reasons.push({
-              line: line,
+              line: sourceLine,
               reason: (pair.currency === "lp" ? "LP" : "欠片") + "金額が安全整数の範囲を超えているため未計上"
             });
           });
           pairs = pairs.filter(function (pair) { return Number.isSafeInteger(pair.amount); });
+          if (!pairs.length) continue;
+        }
+        /* 同じ通貨の数値が複数あり、明示的な加算・計算記号もない場合、
+           収入＋現在残高なのか、複数の内訳なのかを自由記述だけでは決められない。
+           先頭の数値だけを採用することもしない。曖昧な通貨は全て保留し、警告する。 */
+        var pairCountByCurrency = { lp: 0, shards: 0 };
+        pairs.forEach(function (pair) { pairCountByCurrency[pair.currency] += 1; });
+        var explicitIncomeContext = /獲得|入手|報酬|補填|支給|受領|被り|重複|ガチャ結果|抽選結果|合計|合算|小計|総計/.test(line);
+        var ambiguousCurrencies = ["lp", "shards"].filter(function (currency) {
+          return pairCountByCurrency[currency] > 1 && !/[+＋=＝]/.test(line) && !explicitIncomeContext;
+        });
+        if (ambiguousCurrencies.length) {
+          ambiguousCurrencies.forEach(function (currency) {
+            reasons.push({
+              line: sourceLine,
+              reason: (currency === "lp" ? "LP" : "欠片") +
+                "の数値が同じ行に複数あります。収入・現在残高・内訳を区別できないため、この通貨の収入計上を保留しました。「欠片25：現在171欠片」のように役割を明記してください"
+            });
+          });
+          pairs = pairs.filter(function (pair) { return ambiguousCurrencies.indexOf(pair.currency) < 0; });
           if (!pairs.length) continue;
         }
         /* 「涙剣：燃え上がる闘志 150欠片　現在184」は購入額。収入の
