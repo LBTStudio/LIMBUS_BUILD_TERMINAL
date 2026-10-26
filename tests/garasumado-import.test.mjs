@@ -1666,3 +1666,94 @@ test("同じ共有元のシナリオキーはメモ修正後も安定し、同�
   assert.notEqual(before.scenarios[0].importSourceKey, before.scenarios[1].importSourceKey, "同名の複数回は別キー");
   assert.equal(before.scenarios[1].importSourceKey, after.scenarios[1].importSourceKey);
 });
+
+
+test("「現在所持LP：30→3」は残高であり収入にしない", () => {
+  const r = MEMO.parseMemo("現在所持LP：30→3\n現在所持欠片：10→35");
+  assert.equal(r.income.lp, 0, "残高は収入ではない");
+  assert.equal(r.income.shards, 0, "残高は収入ではない");
+});
+
+test("報酬の下に書いた残高は報酬だけを収入にする", () => {
+  const r = MEMO.parseMemo("報酬：\nLP：30\n欠片：25\n現在所持LP：3→33\n現在所持欠片：10→35");
+  assert.equal(r.income.lp, 30, "報酬 30 だけを読む");
+  assert.equal(r.income.shards, 25, "報酬 25 だけを読む");
+});
+
+test("コロン付きの「現在LP：33」も残高であり収入にしない", () => {
+  assert.equal(MEMO.parseMemo("現在LP：33").income.lp, 0);
+  assert.equal(MEMO.parseMemo("現在所持LP：78→58").income.lp, 0);
+});
+
+test("「消費：LP30」は支出として読む", () => {
+  const r = MEMO.parseMemo("消費：LP30\n消費：欠片100");
+  assert.equal(r.income.lp, 0, "支払額を収入にしない");
+  assert.equal(r.spends.length, 2, "2 件の支出");
+  assert.equal(r.spends[0].lp, 30);
+  assert.equal(r.spends[1].shards, 100);
+});
+
+test("消費の計算式は結果の額を読む（50×3=150 / 150+300→450）", () => {
+  assert.equal(MEMO.parseMemo("消費：欠片50×3=150").spends[0].shards, 150);
+  assert.equal(MEMO.parseMemo("消費：75×2=150欠片").spends[0].shards, 150);
+  assert.equal(MEMO.parseMemo("消費：150+300→欠片450").spends[0].shards, 450);
+  assert.equal(MEMO.parseMemo("消費：LP20+7=27").spends[0].lp, 27);
+});
+
+test("消費の行に並ぶチケットは獲得として数えず、支払額だけを支出にする", () => {
+  const r = MEMO.parseMemo("消費：人格抽出チケット×1、LP100");
+  assert.equal(r.spends.length, 1);
+  assert.equal(r.spends[0].lp, 100, "LP は支出");
+  assert.equal(r.tickets.persona, 0, "使ったチケットを獲得にしない");
+});
+
+test("硝子の欠片と数量条件は通貨の支出にしない", () => {
+  assert.equal(MEMO.parseMemo("消費：硝子の欠片×3").spends.length, 0, "アイテムの消費");
+  assert.equal(MEMO.parseMemo("消費：任意の200LP以下のテーマパック+1権").spends.length, 0, "条件の数値");
+});
+
+test("「現在所持LP：30→3」を錠として読み、消費の記帳と合わせて照合する", () => {
+  const M = loadImportWithMemo();
+  const doc = {
+    currency: { lp: "33", fragment: "35" },
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [
+      { name: "初期作成時記録", memo: "消費：LP27\n現在所持LP：30→3\n現在所持欠片：10" },
+      { name: "受領記録", memo: "報酬：\nLP：30\n欠片：25\n現在所持LP：3→33\n現在所持欠片：10→35" }
+    ]
+  };
+  const result = M.reconcileBalance(M.buildManifest(doc, null), doc);
+  assert.equal(result.checked, true, "所持つきの残高も錠として検出する");
+  assert.equal(result.openingLp, 3, "矢印の右辺（支出後）が現在の残高");
+  assert.equal(result.computedLp, 33, "開始 3 に報酬 30 を足した 33");
+  assert.equal(result.computedShards, 35);
+  assert.equal(result.ok, true, "帳尻が合う");
+});
+
+test("矢印つきの残高は左辺ではなく右辺を現在の残高として使う", () => {
+  const M = loadImportWithMemo();
+  const doc = {
+    currency: { lp: "3", fragment: "" },
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{ name: "購入の記録", memo: "現在所持LP：30→3" }]
+  };
+  const result = M.reconcileBalance(M.buildManifest(doc, null), doc);
+  assert.equal(result.openingLp, 3, "左辺の 30 はこの卓を始める前の額");
+  assert.equal(result.checked, true);
+  assert.equal(result.ok, true);
+});
+
+test("コロン付きの「現在LP：33」も錠として検出し、残高を収入に数えない", () => {
+  const M = loadImportWithMemo();
+  const doc = {
+    currency: { lp: "33", fragment: "" },
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{ name: "受領記録", memo: "LP：33\n現在LP：33" }]
+  };
+  const manifest = M.buildManifest(doc, null);
+  assert.equal(manifest.scenarios[0].income.lp, 33, "収入は 33 だけ");
+  const result = M.reconcileBalance(manifest, doc);
+  assert.equal(result.checked, true);
+  assert.equal(result.computedLp, 33);
+  assert.equal(result.ok, true);
+});
