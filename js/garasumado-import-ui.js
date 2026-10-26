@@ -1510,7 +1510,7 @@ function appliedSummary(actions) {
       : null,
     balance && !balance.checked && balance.hasManualReference
       ? h("p", { className: "gara-note" },
-        `履歴から確定できる純増減: LP ${balance.historyNetLp >= 0 ? "+" : ""}${balance.historyNetLp} / 欠片 ${balance.historyNetShards >= 0 ? "+" : ""}${balance.historyNetShards}。共有元の現在値（手入力・参考）: LP ${balance.shownLp ?? "未記載"} / 欠片 ${balance.shownShards ?? "未記載"}。履歴に開始残高の記録がないため、この差額は開始前残高・履歴漏れ・手入力ミスのいずれでも起こり得ます。現在値へ帳簿を自動補正することはありません。`)
+        `履歴から確定できる純増減: LP ${balance.historyNetLp >= 0 ? "+" : ""}${balance.historyNetLp} / 欠片 ${balance.historyNetShards >= 0 ? "+" : ""}${balance.historyNetShards}。共有元の現在値（手入力・参考）: LP ${balance.shownLp ?? "未記載"} / 欠片 ${balance.shownShards ?? "未記載"}。ここから逆算した開始前残高は LP ${balance.impliedOpeningLp ?? "不明"} / 欠片 ${balance.impliedOpeningShards ?? "不明"} ですが、これは照合用の参考推定値です。履歴漏れ・開始残高・手入力ミスのいずれでも差が生じるため、帳簿へ自動計上しません。`)
       : null,
     draft && draft.blocks.map((block) => h(ResultCard, {
       key: block.key || block.name,
