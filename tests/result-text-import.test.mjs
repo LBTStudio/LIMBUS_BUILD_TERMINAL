@@ -570,14 +570,14 @@ test("抽出チケット複数枚とLP合計の費用配分が不明でも合計
   assert.equal(parsed.records.length, 1);
   assert.deepEqual([...parsed.records[0].spends].map((item) => ({
     name: item.name, cost: { ...item.cost }
-  })), [{ name: "人格抽出×5", cost: { lp: 200, shards: 0 } }]);
+  })), [{ name: "抽出イベント×5", cost: { lp: 200, shards: 0 } }]);
   assert.ok(parsed.skipped.some((item) => /合計費用は1件の支出として記録しました/.test(item.reason)));
   assert.ok(!parsed.skipped.some((item) => /消費合計が安全整数/.test(item.reason)));
 
   const planned = T.plan(parsed);
   const expense = planned.actions.find((action) => action.type === "ADD_ENTRY");
   assert.deepEqual({ kind: expense.kind, name: expense.name, cost: { ...expense.cost } }, {
-    kind: "expense", name: "人格抽出×5", cost: { lp: 200, shards: 0 }
+    kind: "expense", name: "抽出イベント×5", cost: { lp: 200, shards: 0 }
   }, "合計支出は取得人格の購入扱いにしない");
 });
 
