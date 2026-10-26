@@ -80,6 +80,36 @@ test("▼/▽なしの日時付き複数記録も、別々のリザルトとし�
   assert.equal(parsed.records[1].income.shards, 10);
 });
 
+test("E.G.O指定購入の「指定」欄も取得品とし、9件すべて所持登録する", () => {
+  const egos = DB.egos.filter((ego) => Number(ego.shards) === 50).slice(0, 9);
+  const memo = [
+    "▼E.G.O指定購入",
+    "日時\t2026/08/10",
+    "消費欄\tLP450",
+    "指定\t",
+    ...egos.map((ego) => ego.name + " 50欠片"),
+    "現在所持LP\t100",
+    "現在所持欠片\t500→50"
+  ].join("\n");
+
+  const parsed = T.parseText(memo);
+  assert.equal(parsed.records.length, 1);
+  const record = parsed.records[0];
+  assert.equal(record.specifiedItems.length, 9);
+  assert.equal(record.spends.length, 9);
+  assert.equal(record.spends.reduce((sum, spend) => sum + spend.cost.shards, 0), 450);
+  assert.equal(record.spends.reduce((sum, spend) => sum + spend.cost.lp, 0), 0);
+  assert.ok(parsed.skipped.some((entry) => /消費欄の通貨・合計と獲得品の個別価格が一致しません/.test(entry.reason)));
+
+  const planned = T.plan(parsed, { resolve });
+  const egoAdds = planned.actions.filter((action) => action.type === "ADD_ROSTER_EGO");
+  assert.equal(egoAdds.length, 9, "指定欄のE.G.Oも所持へ追加");
+  const entries = planned.actions.filter((action) => action.type === "ADD_ENTRY");
+  assert.equal(entries.length, 9);
+  assert.equal(entries.reduce((sum, action) => sum + action.cost.shards, 0), 450);
+  assert.equal(entries.reduce((sum, action) => sum + action.cost.lp, 0), 0);
+});
+
 test("全角日付・タブ区切り・見出し記号なしの帳簿も専用パーサへ送る", () => {
   const parsed = T.parseText([
     "購入記録",
