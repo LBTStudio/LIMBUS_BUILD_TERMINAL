@@ -467,6 +467,90 @@ test("同一リザルト内で同じ収入・残高一式が重複したErrorブ
     ]);
 });
 
+test("記録された欠片残高の差分が報酬額と違う場合は自動修正せず警告する", () => {
+  const parsed = T.parseText([
+    "▼突発卓：砂浜の激闘",
+    "日時：2026/06/12",
+    "報酬：",
+    "LP：100",
+    "欠片：50",
+    "現在所持LP：41→141",
+    "現在所持欠片：397→437"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 1);
+  assert.equal(parsed.records[0].income.shards, 50);
+  assert.ok(parsed.skipped.some((item) =>
+    item.text === "現在所持欠片：397→437"
+      && /記録上 \\+40、取込計算上 \\+50/.test(item.reason)
+  ));
+});
+
+test("チケット使用で50欠片に変換した報酬は残高差分が一致しなければ要確認にする", () => {
+  const parsed = T.parseText([
+    "▼血を求める者は",
+    "日時：2026/09/23",
+    "報酬：",
+    "LP：60",
+    "欠片：35+8(理性)=43",
+    "【夢の終わる】パック+1→使用済(獲得：50欠片)",
+    "現在所持LP：31→91",
+    "現在所持欠片：87→130"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 1);
+  assert.equal(parsed.records[0].income.shards, 93);
+  assert.equal(parsed.records[0].ticketUses.length, 1);
+  assert.ok(parsed.skipped.some((item) =>
+    item.text === "現在所持欠片：87→130"
+      && /記録上 \\+43、取込計算上 \\+93/.test(item.reason)
+  ));
+});
+
+test("欠片変換を含むテーマパック報酬も現在所持の差分を監査する", () => {
+  const parsed = T.parseText([
+    "▼とある幻想:黒獣",
+    "日時：2026/10/06",
+    "報酬：",
+    "LP：80",
+    "欠片：50+12(理性)=62",
+    "眺めることしかできないテーマパックチケット×1→使用済(獲得：50欠片)",
+    "現在所持LP：182→262",
+    "現在所持欠片：275→337"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 1);
+  assert.equal(parsed.records[0].income.shards, 112);
+  assert.ok(parsed.skipped.some((item) =>
+    item.text === "現在所持欠片：275→337"
+      && /記録上 \\+62、取込計算上 \\+112/.test(item.reason)
+  ));
+});
+
+test("親リザルトの残高差分が日付なしの内訳ブロックにある場合は重複警告しない", () => {
+  const parsed = T.parseText([
+    "▼デス金木犀",
+    "日時：2026/10/04",
+    "報酬：",
+    "LP：150+26=176",
+    "欠片：84+20(理性)=104",
+    "テーマパック「時間殺人時間」+1→使用済(獲得：E.G.O 永続：時間アヒル)",
+    "▽テストプレイ報酬（以下のうちから2つを選択）",
+    "以下の2種を選択",
+    "①LP10d5→26",
+    "③好きなテーマパック+1(選択：断ち切れない→使用済(獲得：蜘蛛の巣 薬指の親方))",
+    "1d100でGMより低い出目なら選択抽出チケットx1→獲得、使用済(獲得：双鉤海賊団 組員Cの人格)",
+    "現在所持LP：156→332",
+    "現在所持欠片：90→194"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 2);
+  assert.equal(parsed.records[0].income.lp, 176);
+  assert.equal(parsed.records[0].income.shards, 104);
+  assert.ok(!parsed.skipped.some((item) => /現在所持.+一致しません/.test(item.reason)));
+  assert.ok(!parsed.skipped.some((item) => /親リザルト/.test(item.reason)));
+});
+
 test("日時を結果の日付欄に保持する", () => {
   const parsed = T.parseText([
     "▼梅と言うには遅く、名も悪く",
