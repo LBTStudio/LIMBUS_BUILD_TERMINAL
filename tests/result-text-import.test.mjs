@@ -393,6 +393,83 @@ test("テーマパック権の報酬直後に欠片へ変換した場合はチ�
     ]);
 });
 
+test("選ばれた後者のLP・欠片だけを収入へ加え、未選択のチケットを足さない", () => {
+  const parsed = T.parseText([
+    "▼黒炎の崩剣",
+    "日時：2026/09/13",
+    "報酬：",
+    "LP：100",
+    "欠片：60+15(理性)=75",
+    "EGO抽出チケットorLP80と自我の欠片20→後者獲得",
+    "現在所持LP：50→230",
+    "現在所持欠片：84→179"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 1);
+  assert.equal(parsed.records[0].income.lp, 180);
+  assert.equal(parsed.records[0].income.shards, 95);
+  assert.equal(parsed.records[0].tickets.length, 0);
+  assert.equal(parsed.records[0].ticketUses.length, 0);
+  assert.equal(parsed.skipped.length, 0);
+});
+
+test("LPのサイコロ結果は矢印の右側を収入へ採用し、残高の矛盾を警告する", () => {
+  const parsed = T.parseText([
+    "▼テストプレイ報酬",
+    "①LP10d5→26",
+    "現在所持LP：156→332",
+    "現在所持欠片：90→194"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 1);
+  assert.equal(parsed.records[0].income.lp, 26);
+  assert.ok(parsed.skipped.some((item) => /LP残高差は176ですが、読み取れた収入－支出は26/.test(item.reason)));
+  assert.ok(parsed.skipped.some((item) => /欠片残高差は104ですが、読み取れた収入－支出は0/.test(item.reason)));
+});
+
+test("同一リザルト内の重複した通貨行を二重計上せず、崩れた獲得行を警告する", () => {
+  const parsed = T.parseText([
+    "▼【Error】",
+    "日時：2026/10/07",
+    "LP：400",
+    "欠片：175+20→195",
+    "現在所持LP：234→634",
+    "現在所持欠片：71→266",
+    "任意抽出チケット×2→両方使用済(獲得：▼【Error】",
+    "日時：2026/10/07",
+    "LP：400",
+    "欠片：175+20→195",
+    "現在所持LP：234→634",
+    "現在所持欠片：71→266",
+    "任意抽出チケット×2→両方使用済(獲得：胸痛：過ぎ去りし日の寝袋、願掛け：吊られた祈願者)"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 1);
+  assert.equal(parsed.records[0].income.lp, 400);
+  assert.equal(parsed.records[0].income.shards, 195);
+  assert.equal(parsed.records[0].tickets.length, 1);
+  assert.equal(parsed.records[0].ticketUses.length, 1);
+  assert.equal(parsed.records[0].tickets[0].count, 2);
+  assert.ok(parsed.skipped.some((item) => /重複しています/.test(item.reason)));
+  assert.ok(parsed.skipped.some((item) => /別リザルトの見出し/.test(item.reason)));
+});
+
+test("現所持残高の変化と報酬額が違うときは自動補正せず確認警告を出す", () => {
+  const parsed = T.parseText([
+    "▼突発卓：砂浜の激闘",
+    "日時：2026/06/12",
+    "報酬：",
+    "LP：100",
+    "欠片：50",
+    "現在所持LP：41→141",
+    "現在所持欠片：397→437"
+  ].join("\n"));
+
+  assert.equal(parsed.records[0].income.lp, 100);
+  assert.equal(parsed.records[0].income.shards, 50);
+  assert.ok(parsed.skipped.some((item) => /欠片残高差は40ですが、読み取れた収入－支出は50/.test(item.reason)));
+});
+
 test("日時を結果の日付欄に保持する", () => {
   const parsed = T.parseText([
     "▼梅と言うには遅く、名も悪く",
