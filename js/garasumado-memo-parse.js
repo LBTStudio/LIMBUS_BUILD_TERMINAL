@@ -118,11 +118,13 @@
     var cm2 = text.match(/(?:チケ|チケット)\s*(\d+)\s*枚/);
     if (cm2) count = parseInt(cm2[1], 10);
 
+    /* チケット自体の名称で種別を優先し、抽出結果名にあるE.G.O等に引きずられない。 */
     var kind = "persona";
-    if (EGO_WORDS.some(function (w) { return text.indexOf(w) >= 0; })) kind = "ego";
+    var explicitPersona = /人格.{0,4}チケ|チケ.{0,4}人格/.test(text);
+    if (explicitPersona) kind = "persona";
     else if (/選択|zr|upgrade/i.test(text)) kind = "choice";
-    /* 「ガチャ」はE.G.O打ちのmixedword。LBTではガチャ=E.G.O相当。 */
-    if (/ガチャ/.test(text)) kind = "ego";
+    else if (/ガチャ\s*(?:チケ|チケット)/.test(text)
+      || EGO_WORDS.some(function (w) { return text.indexOf(w) >= 0; })) kind = "ego";
     return { kind: kind, count: count };
   }
 
@@ -131,6 +133,8 @@
      数字無し「人格抽出：南部〜」も 1 回として数える。 */
   function bareDrawOf(line) {
     var text = normalizeAmountText(line);
+    /* 「LP200を消費してガチャ」のような叙述から抽出回数を推測しない。 */
+    if (/(?:消費|使用済|使用し|支払|支出)/.test(text) && String(line).indexOf("→") < 0) return null;
     var m = text.match(/(?:抽出|ガチャ)\s*(\d+)?/);
     if (!m) return null;
     /* 「時間殺人時間テーマパック抽出」はパックの獲得であり、チケットの消費ではない。 */
@@ -470,12 +474,13 @@
     tail.split(/[、，,]/).forEach(function (frag) {
       /* 「→LP100消費ガチャ:厳粛な哀悼獲得」は最後の区切りの後ろが名前。
          「N社E.G.O:ねばつき」の 区切りは名前の一部なので切らない。 */
-      var cut = Math.max(frag.lastIndexOf("："), frag.lastIndexOf(":"));
+      /* 取引ラベルの最初のコロンだけを境界にする。後ろのコロンはE.G.O名の一部。 */
+      var cut = frag.search(/[：:]/);
       if (cut >= 0 && /(ガチャ|抽出|消費|使用|チケ|LP|ＬＰ|欠片)/.test(frag.slice(0, cut))) frag = frag.slice(cut + 1);
       var name = frag.trim()
         .replace(/^[「『]\s*/, "").replace(/[」』]\s*$/, "")
         .replace(/^抽出\s*\d*\s*/, "")
-        .replace(/(?:を)?(?:獲得|入手)(?:した)?$/, "")
+        .replace(/(?:を|の)?(?:獲得|入手)(?:した)?$/, "")
         .trim();
       if (name.length < 2) return;
       if (!/[A-Za-zぁ-んァ-ヶ一-龠]/.test(name)) return;
