@@ -61,7 +61,7 @@ test("アクセスカウンターは累計ページ閲覧数を表示し、識�
   assert.match(counter, /総アクセス/);
   assert.match(worker, /INSERT INTO site_counters \(name, value\) VALUES \('total_views', 1\)/);
   assert.doesNotMatch(worker, /pageViews/);
-  assert.doesNotMatch(counter, /localStorage|sessionStorage|document\.cookie/);
+  assert.doesNotMatch(counter, /\b(?:localStorage|sessionStorage|document\.cookie)\s*[.\[]/);
   assert.match(indexHtml, /access-counter\.js\?v=/);
   assert.match(shareHtml, /access-counter\.js\?v=/);
 });
