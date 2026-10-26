@@ -262,3 +262,64 @@
 .ledger-gara-wrap:has(.ledger-held-paste) {
   scroll-margin-top: calc(var(--topbar-h, 56px) + 12px);
 }
+
+
+/* Dialog root and type scale: actions stay outside the independently scrolling list. */
+.import-scope-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: rgba(0, 0, 0, .68);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.import-scope-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(520px, 100%);
+  max-height: min(88dvh, 820px);
+  min-height: 0;
+  overflow: hidden;
+  padding: 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md, 6px);
+  background: var(--surface-1);
+  color: var(--tx);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, .55);
+}
+.import-scope-title {
+  flex: 0 0 auto;
+  margin: 0 0 6px;
+  color: var(--gold);
+  font-family: var(--f-display);
+  font-size: var(--fs-15);
+  line-height: 1.35;
+}
+.import-scope-intro {
+  flex: 0 0 auto;
+  margin: 0 0 12px;
+  color: var(--tx-2);
+  font-size: var(--fs-11);
+  line-height: 1.6;
+}
+.import-apply-summary { flex: 0 0 auto; }
+.import-scope-empty-categories {
+  flex: 0 0 auto;
+  margin-top: 8px;
+  border-top: 1px solid var(--line-dim);
+}
+.import-scope-empty-categories > summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 6px 2px;
+  color: var(--tx-dim);
+  cursor: pointer;
+}
+.import-scope-empty-categories[open] > summary { color: var(--gold); }
+.import-scope-option.is-empty { background: transparent; opacity: .48; }
+.import-scope-option small { margin-left: 6px; color: var(--tx-mute); }
