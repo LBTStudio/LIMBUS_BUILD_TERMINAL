@@ -211,7 +211,9 @@ test("使用済み表示の報酬チケットは収入として扱い、明示�
   assert.deepEqual([...parsed.records[0].tickets].map((x) => ({ kind: x.kind, count: x.count })), [
     { kind: "persona", count: 1 }
   ]);
-  assert.equal(parsed.records[0].ticketUses.length, 0, "報酬行の使用済み表記は消費明細の代用にしない");
+  assert.deepEqual([...parsed.records[0].ticketUses].map((x) => ({ kind: x.kind, count: x.count })), [
+    { kind: "persona", count: 1 }
+  ], "「使用済」は同じリザルト内での明示的なチケット消費を示す");
   assert.ok(parsed.records[0].identityCandidates.includes("仮人格の人格"));
 
   const planned = T.plan(parsed, {
@@ -221,7 +223,8 @@ test("使用済み表示の報酬チケットは収入として扱い、明示�
   });
   const result = planned.actions.find((action) => action.type === "ADD_RESULT");
   assert.equal(result.income.tickets.persona, 1);
-  assert.equal(planned.actions.filter((action) => action.type === "SPEND_TICKET").length, 0);
+  assert.equal(planned.actions.filter((action) => action.type === "SPEND_TICKET").length, 1);
+  assert.equal(planned.actions.find((action) => action.type === "SPEND_TICKET").count, -1);
   assert.ok(planned.actions.some((action) => action.type === "ADD_ROSTER" && action.no === "00999"));
 });
 
@@ -290,7 +293,7 @@ test("テーマパック権をパック別チケットとして認識し、指�
   assert.equal(parsed.records.length, 1);
   assert.deepEqual([...parsed.records[0].ticketUses].map((ticket) => ({
     kind: ticket.kind, pack: ticket.pack, count: ticket.count
-  })), [{ kind: "pack", pack: "断ち切れない", count: 1 }]);
+  })), [{ kind: "pack", pack: "任意の200LP以下のテーマパック", count: 1 }]);
 
   const planned = T.plan(parsed, {
     resolve: (name) => name === "仮人格の人格"
@@ -320,11 +323,16 @@ test("使用済みテーマパック報酬は選択されたパックの収入�
   assert.equal(parsed.records.length, 1);
   assert.deepEqual([...parsed.records[0].tickets].map((ticket) => ({
     kind: ticket.kind, pack: ticket.pack, count: ticket.count
-  })), [{ kind: "pack", pack: "断ち切れない", count: 1 }]);
-  assert.equal(parsed.records[0].ticketUses.length, 0);
+  })), [{ kind: "pack", pack: "任意テーマパック", count: 1 }]);
+  assert.deepEqual([...parsed.records[0].ticketUses].map((ticket) => ({
+    kind: ticket.kind, pack: ticket.pack, count: ticket.count
+  })), [{ kind: "pack", pack: "任意テーマパック", count: 1 }]);
   const planned = T.plan(parsed);
-  assert.equal(planned.actions.find((action) => action.type === "ADD_RESULT").income.tickets.pack["断ち切れない"], 1);
-  assert.equal(planned.actions.filter((action) => action.type === "SPEND_TICKET").length, 0);
+  assert.equal(planned.actions.find((action) => action.type === "ADD_RESULT").income.tickets.pack["任意テーマパック"], 1);
+  assert.deepEqual([...planned.actions].filter((action) => action.type === "SPEND_TICKET")
+    .map((action) => ({ kind: action.kind, pack: action.pack, count: action.count })), [
+      { kind: "pack", pack: "任意テーマパック", count: -1 }
+    ]);
 });
 
 test("既所持人格を欠片へ変換した獲得欄は人格として追加せず、欠片収入へ加える", () => {
