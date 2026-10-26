@@ -3680,7 +3680,7 @@ const INIT_STATE = {
     currentSection: "persona",
     previewTab: "memo",
     previewOpen: void 0,
-    // v54: undefined=画面幅で自動決定（狭い画面では初期OFF）
+    // 未設定は初期折り畳み。利用者が明示的に開閉した場合だけ true/false を保存する。
     codexMode: "n",
     // 'n'|'t'|'roster'|'fav'|'history'
     filterSins: [],
