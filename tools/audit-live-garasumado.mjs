@@ -191,6 +191,11 @@ async function inspect(id) {
   });
   const manifest = api.buildManifest(fetched.doc, { resolve: () => null });
   const balance = api.reconcileBalance(manifest, fetched.doc);
+  const purchaseRows = Array.isArray(manifest.purchaseHistory) ? manifest.purchaseHistory : [];
+  const purchaseTotals = purchaseRows.reduce((sum, row) => ({
+    lp: sum.lp + (Number(row.lp) || 0),
+    shards: sum.shards + (Number(row.shards) || 0)
+  }), { lp: 0, shards: 0 });
   const reviewRows = rows.filter((row) => row.reviewCount > 0);
   const changedRows = rows.filter((row) => row.amountsChanged);
   const typeCounts = {};
@@ -218,10 +223,15 @@ async function inspect(id) {
     totals: {
       incomeLp: sumIncome(rows, "lp"),
       incomeShards: sumIncome(rows, "shards"),
-      spendLp: sumSpend(rows, "lp"),
-      spendShards: sumSpend(rows, "shards"),
-      netLp: total(rows, "lp"),
-      netShards: total(rows, "shards")
+      scenarioSpendLp: sumSpend(rows, "lp"),
+      scenarioSpendShards: sumSpend(rows, "shards"),
+      purchaseHistoryRows: purchaseRows.length,
+      purchaseHistorySpendLp: purchaseTotals.lp,
+      purchaseHistorySpendShards: purchaseTotals.shards,
+      spendLp: sumSpend(rows, "lp") + purchaseTotals.lp,
+      spendShards: sumSpend(rows, "shards") + purchaseTotals.shards,
+      netLp: sumIncome(rows, "lp") - sumSpend(rows, "lp") - purchaseTotals.lp,
+      netShards: sumIncome(rows, "shards") - sumSpend(rows, "shards") - purchaseTotals.shards
     },
     declaredBalance: {
       lp: balance.shownLp,
@@ -236,6 +246,8 @@ async function inspect(id) {
       computedShards: balance.computedShards,
       historyNetLp: balance.historyNetLp,
       historyNetShards: balance.historyNetShards,
+      impliedOpeningLp: balance.impliedOpeningLp,
+      impliedOpeningShards: balance.impliedOpeningShards,
       message: balance.message || ""
     },
     // Keep line-level results but deliberately omit record titles and raw memo text.
@@ -283,9 +295,9 @@ const summary = {
     uncheckedWithManualReference: successes.filter((x) => !x.balanceCheck.checked && x.balanceCheck && x.declaredBalance && (x.declaredBalance.lp !== null || x.declaredBalance.shards !== null)).length
   },
   totals: successes.reduce((t, x) => {
-    for (const k of Object.keys(t)) t[k] += x.totals[k];
+    for (const k of ["incomeLp","incomeShards","scenarioSpendLp","scenarioSpendShards","purchaseHistoryRows","purchaseHistorySpendLp","purchaseHistorySpendShards","spendLp","spendShards","netLp","netShards"]) t[k] += x.totals[k];
     return t;
-  }, {incomeLp:0,incomeShards:0,spendLp:0,spendShards:0,netLp:0,netShards:0}),
+  }, {incomeLp:0,incomeShards:0,scenarioSpendLp:0,scenarioSpendShards:0,purchaseHistoryRows:0,purchaseHistorySpendLp:0,purchaseHistorySpendShards:0,spendLp:0,spendShards:0,netLp:0,netShards:0}),
   failures,
   parserChanges: successes.filter(x=>x.rowsWithChangedAmounts>0).map(x=>({
     id:x.id,
