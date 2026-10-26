@@ -1510,7 +1510,7 @@ function appliedSummary(actions) {
       : null,
     balance && !balance.checked && balance.hasManualReference
       ? h("p", { className: "gara-note" },
-        `履歴から確定できる純増減: LP ${balance.historyNetLp >= 0 ? "+" : ""}${balance.historyNetLp} / 欠片 ${balance.historyNetShards >= 0 ? "+" : ""}${balance.historyNetShards}。硝子窓の申告値（手入力・参考）: LP ${balance.shownLp ?? "未記載"} / 欠片 ${balance.shownShards ?? "未記載"}。差から逆算した開始前残高は LP ${balance.impliedOpeningLp ?? "不明"} / 欠片 ${balance.impliedOpeningShards ?? "不明"} ですが、参考推定です。差額を帳簿へ自動追加しません。`)
+        `${balance.message} 履歴から確定できる純増減: LP ${balance.historyNetLp >= 0 ? "+" : ""}${balance.historyNetLp} / 欠片 ${balance.historyNetShards >= 0 ? "+" : ""}${balance.historyNetShards}。硝子窓の申告値（手入力・参考）: LP ${balance.shownLp ?? "未記載"} / 欠片 ${balance.shownShards ?? "未記載"}。開始前残高は LP ${balance.openingLp !== null ? "履歴記録 " + balance.openingLp : "参考推定 " + (balance.impliedOpeningLp ?? "不明")} / 欠片 ${balance.openingShards !== null ? "履歴記録 " + balance.openingShards : "参考推定 " + (balance.impliedOpeningShards ?? "不明")}。日時未特定の自由メモ購入: LP ${balance.untimedPurchaseLp} / 欠片 ${balance.untimedPurchaseShards}。いずれも推定や未分類のため、差額を帳簿へ自動追加しません。`)
       : null,
     draft && draft.blocks.map((block) => h(ResultCard, {
       key: block.key || block.name,
