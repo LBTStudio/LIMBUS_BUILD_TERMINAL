@@ -1174,8 +1174,8 @@ function toIdentityChoices(hits) {
     }
 
     /* 自由メモ由来の購入履歴は架空のリザルトを作らず、支出明細として一度だけ残す。
-       日時・元シナリオが不明なので、APPLY_IMPORT_BATCH が直近の取込リザルトへ帰属させる。
-       リザルトが無い場合も未分類の明細として残り、残高計算からは落とさない。 */
+       日時・元シナリオが不明なので、明示的に未分類へ置く。直近のリザルトに
+       偽の帰属を付けず、通帳全体の残高計算には確実に含める。 */
     for (const purchase of (manifest && manifest.purchaseHistory) || []) {
       const cost = { lp: Number(purchase.lp) || 0, shards: Number(purchase.shards) || 0 };
       if (!cost.lp && !cost.shards) {
@@ -1191,6 +1191,7 @@ function toIdentityChoices(hits) {
         kind,
         name: String(purchase.name || "自由メモの購入").slice(0, 120),
         cost,
+        resultId: null,
         note: "硝子窓の自由メモ由来。日時・シナリオ未特定"
       });
     }
