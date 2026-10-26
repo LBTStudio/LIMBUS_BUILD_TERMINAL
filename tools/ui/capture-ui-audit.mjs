@@ -271,7 +271,7 @@ async function captureProfile(browser, mode) {
             throw new Error("テキスト流し込みを開いた後も入力欄が画面内へ移動していません: "+JSON.stringify(textState));
           }
           await snap("record-result-text-import","テキスト流し込みを開き、自動スクロール後の入力欄が見える状態");
-          await textArea.fill("【シナリオA】\\n報酬｜LP:150/自我の欠片:70/人格抽出チケットx1\\n購入｜人格抽出x2(100LP)/EGO購入-TETH[鬼退治](75欠片)\\n追加購入｜壊し砕く打撃(150LP)");
+          await textArea.fill("【シナリオA】\n報酬｜LP:150/自我の欠片:70/人格抽出チケットx1\n購入｜人格抽出x2(100LP)/EGO購入-TETH[鬼退治](75欠片)\n追加購入｜壊し砕く打撃(150LP)");
           await page.waitForTimeout(250);
           await snap("record-result-text-import-preview","例文を入力し、解析結果・候補を確認する状態（確定しない）");
           const closeText= textPanel.getByRole("button",{name:"閉じる",exact:true}).first();
