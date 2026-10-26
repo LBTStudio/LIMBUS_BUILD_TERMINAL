@@ -391,7 +391,7 @@
     var text = normalizeAmountText(String(line || "")).trim();
     var labelled = /消費欄|消費額|消費合計|購入合計|合計消費|項目別価格合計|支出額|総額/.test(text);
     if (/現在|残高|残り/.test(text) && !labelled) return null;
-    var summary = text.replace(/消費欄|消費額|消費合計|購入合計|合計消費|項目別価格合計|支出額|総額|合計|消費|購入|支出|金額|欄|の/g, " ").trim();
+    var summary = text.replace(/消費欄|消費額|消費合計|購入合計|合計消費|項目別価格合計|支出額|総額|合計|消費|購入|支出|金額|欄|の/g, " ").replace(/[：:＝=]/g, " ").trim();
     if (!labelled && !isTotalOnlyLine(summary)) return null;
     if (!isTotalOnlyLine(summary)) return null;
     var currencies = egoCurrencyAmounts(summary);
@@ -656,6 +656,15 @@
       var egoHeader = isEgoPurchaseHeader(line);
       var sec = sectionOf(line);
       var isBullet = false;
+      var markedLine = line.match(/^\s*(?:[・･]|[▼▽▶▷■□◆◇★☆●○])\s*(.+?)\s*$/);
+      /* E.G.O指定購入中の箇条書きは、見出し語でなければ購入品の行。
+         ここを通常の「・」見出しとして解釈すると、品名が収入・獲得へ化ける。 */
+      if (egoPurchaseMode && markedLine && !egoHeader &&
+          !/^(?:支出|支払|現在|獲得|報酬|終了|備考|補足|結果|RESULT)(?:$|\\s|[:：])/.test(markedLine[1])) {
+        line = markedLine[1].trim();
+        sec = "";
+        isBullet = true;
+      }
       if (sec) {
         if (sec !== "other") {
           mode = sec;
