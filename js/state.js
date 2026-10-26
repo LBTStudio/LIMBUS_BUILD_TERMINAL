@@ -5737,6 +5737,8 @@ case "ADD_ENTRY":
           kind: String(action.kind || "other"),
           name: String(action.name || "").slice(0, 120),
           cost: normalizeCurrency(action.cost),
+          /* 抽出チケットの消費明細。残数は全リザルトの収入からこの明細を差し引く。 */
+          tickets: normalizeTickets(action.tickets),
           resultId: action.resultId || null,
           ref: action.ref && typeof action.ref === "object" ? { kind: String(action.ref.kind || ""), uid: String(action.ref.uid || "") } : null,
           at: Number(action.at) || Date.now(),
@@ -5751,6 +5753,7 @@ case "ADD_ENTRY":
               ...e,
               ...(action.patch?.name !== void 0 ? { name: String(action.patch.name).slice(0, 120) } : {}),
               ...(action.patch?.cost !== void 0 ? { cost: normalizeCurrency(action.patch.cost) } : {}),
+              ...(action.patch?.tickets !== void 0 ? { tickets: normalizeTickets(action.patch.tickets) } : {}),
               ...(action.patch?.resultId !== void 0 ? { resultId: action.patch.resultId || null } : {}),
               ...(action.patch?.note !== void 0 ? { note: String(action.patch.note).slice(0, 2000) } : {})
             }
