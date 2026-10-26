@@ -73,6 +73,79 @@ function baseState() {
   };
 }
 
+test("初期LP判定は配列末尾ではなく、画面上の最新リザルトを参照する", () => {
+  const normalizeWithResults = (results) => {
+    const context = loadContext();
+    const normalize = context.window.LBT_normalizeStateShape;
+    return normalize({ ...baseState(), results });
+  };
+
+  const latestAlreadyHasGrant = normalizeWithResults([
+    {
+      id: "visible-latest",
+      name: "画面上の最新リザルト",
+      date: "2026-10-26",
+      createdAt: 500,
+      income: { lp: 30, shards: 0 }
+    },
+    {
+      id: "array-tail-old",
+      name: "配列末尾にある古い記録",
+      date: "2026-10-25",
+      createdAt: 900,
+      income: { lp: 20, shards: 5 }
+    }
+  ]);
+  assert.equal(latestAlreadyHasGrant.results.some((result) => result.id === "res-initial"), false,
+    "画面上の最新に30LPが記録済みなら、初期作成を二重追加しない");
+  assert.equal(latestAlreadyHasGrant.results.length, 2);
+
+  const tailHasGrantButLatestDoesNot = normalizeWithResults([
+    {
+      id: "visible-latest-no-grant",
+      name: "画面上の最新リザルト",
+      date: "2026-10-26",
+      createdAt: 500,
+      income: { lp: 240, shards: 10 }
+    },
+    {
+      id: "array-tail-old-grant",
+      name: "配列末尾の古い記録",
+      date: "2026-10-25",
+      createdAt: 900,
+      income: { lp: 30, shards: 0 }
+    }
+  ]);
+  assert.ok(tailHasGrantButLatestDoesNot.results.some((result) => result.id === "res-initial"),
+    "古い記録の30LPを、最新リザルトの初期支給と誤認しない");
+});
+
+test("同じ日付では createdAt の表示順で初期LPを判定する", () => {
+  const context = loadContext();
+  const normalize = context.window.LBT_normalizeStateShape;
+  const state = normalize({
+    ...baseState(),
+    results: [
+      {
+        id: "created-later",
+        name: "同日で作成時刻が新しい",
+        date: "2026-10-26",
+        createdAt: 900,
+        income: { lp: 180, shards: 3 }
+      },
+      {
+        id: "created-earlier-tail",
+        name: "同日で作成時刻が古い",
+        date: "2026-10-26",
+        createdAt: 100,
+        income: { lp: 30, shards: 0 }
+      }
+    ]
+  });
+  assert.ok(state.results.some((result) => result.id === "res-initial"),
+    "画面上は作成時刻の新しい記録が最新なので、古い30LPでは支給済みとみなさない");
+});
+
 test("初期枠の定義を item id の集合として置ける", () => {
   const { reducer } = reducerOf();
   const s = reducer(baseState(), { type: "SET_INITIAL_ITEMS", ids: ["heal-bandage", "  ", "heal-bandage", "enh-whetstone"] });
