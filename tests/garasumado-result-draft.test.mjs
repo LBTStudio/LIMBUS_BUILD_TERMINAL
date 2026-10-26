@@ -300,7 +300,7 @@ test("シミュレーションは実際に入る action と一致する（実50�
     for (const g of manifest.groups) for (const i of g.items) if (i.via && i.via.length) picked.push(i.key);
     const draft = G.buildResultDraft(manifest, { db, identity: {}, selected: picked, resolve });
     const built = G.toDispatchActions(manifest, picked, {});
-    const held = built.actions.filter((a) => String(a.type || "").startsWith("ADD_ROSTER")).length;
+    const held = built.actions.filter((a) => String(a.type || "").startsWith("ADD_ROSTER") || a.type === "ADD_CUSTOM_ROSTER_EGO").length;
     checked += 1;
     if (draft.simulation.held !== held) mismatch += 1;
   }
