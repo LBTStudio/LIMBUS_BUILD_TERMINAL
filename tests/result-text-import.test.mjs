@@ -836,6 +836,39 @@ test("「人格チケとEGOチケ両方」の報酬は2種のチケットとし�
     ]);
 });
 
+test("E.G.O指定購入の個別欠片価格と合計LP費用を両方保持する", () => {
+  const parsed = T.parseText([
+    "▼E.G.O指定購入",
+    "日時：2026/08/10",
+    "消費：LP450",
+    "獲得：",
+    "魑魅魍魎：舌切り雀 50欠片",
+    "黄金の卵：ガチョウ 50欠片",
+    "Changer MK3：なんでも変えて差し上げます 50欠片",
+    "低いなきごえ：泣きヒキガエル 50欠片",
+    "まやかし：黄金色の林檎 50欠片",
+    "蝍蛆殺：百足の使徒 50欠片",
+    "喪失：欲張りなきこり 50欠片",
+    "響き：マンドレイクの棺 50欠片",
+    "赤く染まった羽：鶴の恩返し 50欠片",
+    "欠片合計：50×9=450",
+    "現在所持欠片：451→1"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 1);
+  const spends = parsed.records[0].spends;
+  assert.equal(spends.length, 10, "9つのE.G.O価格とLP合計を分けて保持する");
+  assert.equal(spends.reduce((sum, item) => sum + item.cost.lp, 0), 450);
+  assert.equal(spends.reduce((sum, item) => sum + item.cost.shards, 0), 450);
+  assert.equal(spends.filter((item) => item.raw === "消費：LP450").length, 1);
+  assert.equal(parsed.skipped.length, 0, "異なる通貨の明細は価格不一致として警告しない");
+
+  const planned = T.plan(parsed);
+  const entries = planned.actions.filter((action) => action.type === "ADD_ENTRY");
+  assert.equal(entries.reduce((sum, item) => sum + item.cost.lp, 0), 450);
+  assert.equal(entries.reduce((sum, item) => sum + item.cost.shards, 0), 450);
+});
+
 test("括弧の中の増減 (±N) は収入に混ぜない（残高差であり獲得ではない）", () => {
   const rec = T.parseText(SAMPLE).records[0];
   assert.equal(rec.income.lp, 150, "+9 を足さない");
