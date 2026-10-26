@@ -132,27 +132,187 @@ async function attempt(name, fn) {
 }
 async function seed() {
   return page.evaluate(() => {
-    const A=window.LBT_accounts, DB=window.DB||{};
-    if(!A||!A.getActiveId||!A.getActiveId()) return {ok:false,reason:"no active account"};
-    const normal=DB.normal_personas||[], special=DB.tokui_personas||[];
-    const p=normal.concat(special).find(x=>(x.unique_buffs||[]).length>0)||normal[0]||special[0];
-    if(!p) return {ok:false,reason:"no persona in DB"};
-    const mode=special.includes(p)?"t":"n";
-    const next={
-      schemaVersion:1,charName:"UI監査用キャラクター",plName:"Playwright QA",imgUrls:"",
-      shareImageData:"",shareImageBlockedReason:"",color:"#c8a84b",initiative:12,
-      personaMode:mode,personaNo:p.no,personaSrc:p,syncedManual:false,
-      hp:p.hp||100,san:p.san||50,speed:p.speed||"1d8",bullets:"4",
-      resS:"抵抗",resP:"普通",resB:"弱点",
-      pas:{name:"",cond:"",always:"",effect:"",quick:""},pas2Enabled:false,pas2:{name:"",cond:"",always:"",effect:""},
-      uniqueBuffs:(p.unique_buffs||[]).slice(0,4).map((b,i)=>({id:"ui-audit-"+i,name:b.name||"固有バフ"+(i+1),type:b.type||"バフ",initial:b.initial==null?1:b.initial,max:b.max==null?3:b.max,desc:b.desc||"UI監査用表示データ",place:b.place||"status"})),
-      skills:[],inventory:[],enhancements:[],
-      roster:{personas:[{mode,no:p.no,syncRank:"000",syncMax:true,skills:[],pas:null,pas2:null,pas2Enabled:false,support:null,spirit:null,enhancer:null,build:null}],supports:(DB.support_passives||[]).slice(0,8).map(s=>({name:s.name,slot:"normal"})),egos:(DB.egos||[]).slice(0,5).map(e=>({rank:e.rank,no:e.no,name:e.name})),spirits:(DB.spirits||[]).slice(0,3).map(s=>({name:s.name}))},
-      egoSlots:{},skillLibrary:[],favorites:[],historyRecent:[],ui:{codexMode:mode,currentSection:"persona"}
+    const A = window.LBT_accounts;
+    const DB = window.DB || {};
+    if (!A || !A.getActiveId || !A.getActiveId()) return { ok: false, reason: "no active account" };
+    const normal = Array.isArray(DB.normal_personas) ? DB.normal_personas : [];
+    const special = Array.isArray(DB.tokui_personas) ? DB.tokui_personas : [];
+    const all = [
+      ...normal.map((p) => ({ p, mode: "n" })),
+      ...special.map((p) => ({ p, mode: "t" }))
+    ];
+    const chosen = all.find(({ p }) => (p.unique_buffs || []).length > 0) || all[0];
+    if (!chosen) return { ok: false, reason: "no persona in DB" };
+    const p = chosen.p;
+    const mode = chosen.mode;
+    const now = Date.now();
+
+    const normalizedSkills = (source, prefix) => (Array.isArray(source) ? source : []).map((skill, i) => ({
+      ...skill,
+      id: skill.id || (prefix + "-skill-" + (i + 1)),
+      rank: skill.rank || ("スキル" + i),
+      dice: (Array.isArray(skill.dice) ? skill.dice : []).map((die) => ({
+        ...die, roll: die.roll || "", d: die.d ?? "", plus: !!die.plus, effect: die.effect || ""
+      }))
+    }));
+
+    // Use real DB personas as fixture data, not empty placeholder cards. Keep both
+    // normal and special identities so sync/original filters and long lists are visible.
+    const rosterCandidates = [chosen, ...all.filter(({ p: candidate, mode: candidateMode }) =>
+      candidateMode !== mode || String(candidate.no) !== String(p.no)
+    )];
+    const seenPersonas = new Set();
+    const rosterPersonas = rosterCandidates.filter(({ p: candidate, mode: candidateMode }) => {
+      const key = candidateMode + ":" + candidate.no;
+      if (seenPersonas.has(key)) return false;
+      seenPersonas.add(key);
+      return true;
+    }).slice(0, 8).map(({ p: candidate, mode: candidateMode }, index) => ({
+      uid: "ui-audit-persona-" + candidateMode + "-" + candidate.no,
+      mode: candidateMode,
+      no: candidate.no,
+      displayName: candidate.name,
+      syncRank: index === 0 ? "000" : index % 2 ? "00" : "0",
+      syncMax: index === 0,
+      skills: normalizedSkills(candidate.skills, "ui-audit-" + candidateMode + "-" + candidate.no),
+      pas: {
+        name: candidate.passive_name || "",
+        cond: candidate.passive_cond || "",
+        always: candidate.passive_always || "",
+        effect: candidate.passive_effect || "",
+        quick: ""
+      },
+      pas2: null,
+      pas2Enabled: false,
+      support: null,
+      spirit: null,
+      enhancer: null,
+      build: null
+    }));
+
+    const supports = (DB.support_passives || []).slice(0, 6).map((s, i) => ({
+      uid: "ui-audit-support-" + (i + 1), name: s.name, cond: s.cond || "", effect: s.effect || "",
+      lp: Number(s.lp) || 0, source: s.source || "core", slot: i < 2 ? "normal" : "library",
+      equipped: i < 2, resultId: null, addedAt: now, notes: "Playwright QA sample"
+    }));
+    const deathSupport = (DB.death_passives || [])[0] || null;
+    const egos = (DB.egos || []);
+    const egoRanks = ["ZAYIN", "TETH", "HE", "WAW", "ALEPH"];
+    const egoByRank = egoRanks.map((rank) => egos.find((e) => e.rank === rank)).filter(Boolean);
+    const spirits = (DB.spirits || []).slice(0, 4);
+    const enhancementCandidates = [
+      (DB.special_enhancements || [])[0],
+      (DB.normal_enhancements || [])[0],
+      (DB.normal_enhancements || [])[1]
+    ].filter(Boolean).map((e, i) => ({
+      id: "ui-audit-enh-" + (i + 1), name: e.name, group: e.group || e.category || "common",
+      category: e.category || "common", effect: e.effect || "", shards: Number(e.shards) || 0
+    }));
+    const itemCandidates = (DB.items || []).filter((item) =>
+      ["heal-bandage", "heal-hp-ampoule", "heal-hp-bullet"].includes(item.id)
+    );
+    const inventory = itemCandidates.map((item, i) => ({
+      uid: "ui-audit-item-" + (i + 1), itemId: item.id, quantity: i === 0 ? 2 : 1,
+      memo: i === 0, palette: true, origin: "ui-audit-sample"
+    }));
+
+    const next = {
+      schemaVersion: 1,
+      charName: "UI監査用キャラクター",
+      plName: "Playwright QA",
+      imgUrls: "",
+      shareImageData: "",
+      shareImageBlockedReason: "",
+      color: "#c8a84b",
+      initiative: 12,
+      personaMode: mode,
+      personaNo: p.no,
+      personaSrc: p,
+      syncedManual: true,
+      hp: p.hp || 100,
+      san: p.san || 50,
+      speed: p.speed || "1d8",
+      bullets: p.bullets || "4",
+      resS: p.res_slash || "抵抗",
+      resP: p.res_pierce || "普通",
+      resB: p.res_blunt || "弱点",
+      pas: {
+        name: p.passive_name || "",
+        cond: p.passive_cond || "",
+        always: p.passive_always || "",
+        effect: p.passive_effect || "",
+        quick: ""
+      },
+      pas2Enabled: true,
+      pas2: {
+        name: "UI監査用追加パッシブ",
+        cond: "色欲x1 保有",
+        always: "戦闘開始時、保護1を得る",
+        effect: "マッチ勝利時、出血1を付与"
+      },
+      uniqueBuffs: (p.unique_buffs || []).map((b, i) => ({
+        id: "ui-audit-buff-" + (i + 1),
+        name: b.name || ("固有バフ" + (i + 1)),
+        type: b.type || "固有バフ",
+        initial: b.initial == null ? 1 : b.initial,
+        max: b.max == null ? 3 : b.max,
+        desc: b.desc || "Playwright QA sample",
+        place: b.place || "status"
+      })),
+      skills: normalizedSkills(p.skills, "ui-audit-active-" + mode + "-" + p.no),
+      supports: supports.slice(0, 2).map((s) => ({ ...s, slot: "normal" })),
+      deathSupport,
+      inventory,
+      initialItems: [],
+      customItems: [],
+      enhancements: enhancementCandidates,
+      roster: {
+        personas: rosterPersonas,
+        supports,
+        egos: egoByRank.map((e, i) => ({
+          uid: "ui-audit-ego-" + (i + 1), rank: e.rank, no: e.no, name: e.name,
+          analyzed: true, analyzeMax: true, notes: "Playwright QA sample"
+        })),
+        spirits: spirits.map((s, i) => ({ uid: "ui-audit-spirit-" + (i + 1), name: s.name, source: s.source || "core" }))
+      },
+      egoSlots: Object.fromEntries(egoByRank.slice(0, 3).map((e) => [e.rank, e])),
+      spirit: spirits[0]?.name || "",
+      spiritMorale: spirits[0]?.morale_effect || "",
+      spiritConfuse: spirits[0]?.confuse_effect || "",
+      spiritAlways: spirits[0]?.always_effect || "",
+      skillLibrary: [],
+      favorites: [{ key: mode + ":" + p.no, kind: "persona", mode, no: p.no }],
+      historyRecent: [],
+      results: [{
+        id: "ui-audit-result-1", name: "UI監査用セッション", date: "2026-10-01",
+        income: { lp: 250, shards: 80 }, exchange: { lp: 0, shards: 0 },
+        note: "Playwright QA sample record", createdAt: now, updatedAt: now
+      }],
+      entries: [{
+        id: "ui-audit-entry-1", kind: "purchase", name: "包帯",
+        cost: { lp: 15, shards: 0 }, resultId: "ui-audit-result-1",
+        at: now, note: "Playwright QA sample expense"
+      }],
+      ui: { codexMode: mode, currentSection: "persona", previewOpen: false }
     };
-    const ego=(DB.egos||[])[0]; if(ego) next.egoSlots={[ego.rank]:ego};
-    const spirit=(DB.spirits||[])[0]; if(spirit) next.spirit=spirit.name;
-    return {ok:!!A.saveActive(Object.assign({},A.loadActive()||{},next)),persona:p.name,mode};
+    const merged = Object.assign({}, A.loadActive() || {}, next);
+    const saved = A.saveActive(merged);
+    return {
+      ok: !!saved,
+      persona: p.name,
+      mode,
+      sample: {
+        rosterPersonas: rosterPersonas.length,
+        skills: next.skills.length,
+        supports: supports.length,
+        egos: egoByRank.length,
+        spirits: spirits.length,
+        inventory: inventory.length,
+        enhancements: enhancementCandidates.length,
+        results: next.results.length,
+        entries: next.entries.length
+      }
+    };
   });
 }
 async function boot() {
