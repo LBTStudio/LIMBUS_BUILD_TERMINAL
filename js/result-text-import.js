@@ -533,7 +533,6 @@
             record.itemGains.push(glass);
             continue;
           }
-          addItem(record, bucket, item, role);
           if (role === "acquired") {
             const convertedShards = ledgerShardConversion(item.raw);
             if (convertedShards !== null) {
@@ -541,6 +540,7 @@
               continue;
             }
           }
+          addItem(record, bucket, item, role);
           if (role === "acquired" && /人格抽出|人格指定抽出/.test(title)) {
             record.identityCandidates.push(item.name);
           } else if (role === "specified" && /初期作成/.test(title)) {
@@ -657,7 +657,7 @@
           continue;
         }
 
-        if (/(?:チケ(?:ット)?|抽出🎫)/i.test(line)) {
+        if (/(?:チケ(?:ット)?|抽出🎫|テーマパック|テーマパーク|パック\s*[+＋]\s*\d|パック抽出)/i.test(line)) {
           const ticketRows = ledgerTickets(line);
           if (ticketRows.length) {
             for (const ticket of ticketRows) {
@@ -668,9 +668,11 @@
               record.tickets.push({ ...ticket, raw: line });
             }
             if (/(?:使用済|使用済み|両方使用済|全て使用済|消費済)/.test(line)) {
-              const gained = line.match(/獲得\s*[：:]\s*([^）)】]+)/);
-              if (gained && gained[1].trim()) {
-                const gainedText = gained[1].trim().replace(/[」』】]+$/g, "");
+              const gainedPrefix = line.match(/獲得\s*[：:]\s*/);
+              const gainedText = gainedPrefix
+                ? line.slice(gainedPrefix.index + gainedPrefix[0].length).replace(/[）)]+\s*$/, "").trim().replace(/[」』】]+$/g, "")
+                : "";
+              if (gainedText) {
                 const convertedShards = ledgerShardConversion(gainedText);
                 if (convertedShards !== null) {
                   addValue(record, "shards", convertedShards, line);
