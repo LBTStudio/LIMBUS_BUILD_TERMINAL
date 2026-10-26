@@ -32,7 +32,7 @@ function loadReducer() {
 const base = () => ({
   roster: { personas: [], egos: [], supports: [], spirits: [] },
   entries: [],
-  results: [{ id: "res-a", name: "Week0", income: { lp: 100, shards: 100 } }, { id: "res-b", name: "Week1", income: { lp: 100, shards: 100 } }],
+  results: [{ id: "res-a", name: "Week0", date: "2026-10-25", createdAt: 100, income: { lp: 100, shards: 100 } }, { id: "res-b", name: "Week1", date: "2026-10-26", createdAt: 200, income: { lp: 100, shards: 100 } }],
   ui: {}
 });
 
