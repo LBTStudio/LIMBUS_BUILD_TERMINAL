@@ -1,4 +1,23 @@
 /* Optional cloud backup/recovery panel. Keep styles on the shared design tokens. */
+
+/* When a share-URL import form is active, give it the full panel width and scrolling room.
+   Other account cards and the optional cloud panel must not sit beneath its long form. */
+.acct-panel:has(.acct-card--import-open) {
+  max-height: min(92dvh, 900px);
+}
+.acct-panel:has(.acct-card--import-open) > .lbt-cloud-panel {
+  display: none;
+}
+.acct-panel:has(.acct-card--import-open) > .acct-grid {
+  min-height: 0;
+  flex: 1 1 0%;
+  grid-template-columns: minmax(0, 1fr);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.acct-panel:has(.acct-card--import-open) > .acct-grid > .acct-card:not(.acct-card--import-open) {
+  display: none;
+}
 .lbt-cloud-panel {
   display: grid;
   gap: var(--s-3);
