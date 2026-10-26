@@ -2307,14 +2307,27 @@ function priceEgo(rank, no) {
   return parsePriceText(hit?.shards, "shards");
 }
 
-/* 明細の追記と除去。帰属は「直近のリザルト」で決める。
-   利用者が購入のたびにリザルトを選ばせるのは検算のたびに手续が増えるため、
-   最後に記録したリザルトへ倒し込む。リザルトが1件も無ければ分類できないので
-   未分類（resultId:null = 通帳の「未分類」欄＝待機項目）に置く。
-   明示的に resultId を渡せば常にそちらが勝つ（取り込み-batch は位置で渡す）。 */
+/* 明細の追記と除去。帰属はリザルト画面の「新しい順」と同じ規則で決める。
+   表示側は日付、同日なら createdAt の降順で並べる。共有データの取り込みなどで
+   results 配列の順番が変わっていても、配列末尾を最新と誤認しない。
+   リザルトが無ければ未分類（resultId:null）に置く。明示 resultId は呼び出し側を優先。 */
 function latestResultId(state) {
-  const results = state?.results || [];
-  return results.length ? results[results.length - 1].id : null;
+  const results = Array.isArray(state?.results) ? state.results : [];
+  if (!results.length) return null;
+  const stamp = (result) => {
+    const parsed = Date.parse(String(result?.date || "") + "T00:00:00Z");
+    return Number.isFinite(parsed) ? parsed : (Number(result?.createdAt) || 0);
+  };
+  let latest = results[0];
+  for (let index = 1; index < results.length; index += 1) {
+    const candidate = results[index];
+    const difference = stamp(candidate) - stamp(latest);
+    if (difference > 0 || (difference === 0
+      && (Number(candidate?.createdAt) || 0) > (Number(latest?.createdAt) || 0))) {
+      latest = candidate;
+    }
+  }
+  return latest?.id || null;
 }
 /* 所持品の入手元シナリオ。共有データの owned にはこの列为無いので、
    シナリオ履歴との照合で求めた値をそのまま保持する。
