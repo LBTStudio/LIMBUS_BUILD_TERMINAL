@@ -16,7 +16,7 @@ let page;
 let view = "unknown";
 
 function log(s) { console.log("[ui-audit] " + s); }
-function slug(s) { return String(s).toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "screen"; }
+function slug(s) { return String(s).trim().replace(/[^\p{L}\p{N}-]+/gu, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "screen"; }
 function makeServer() {
   return http.createServer((req, res) => {
     let p;
@@ -117,6 +117,17 @@ async function snap(name, note) {
   const m=await readMetrics();
   audit.screenshots.push({name:base,note:note||"",file:path.relative(ROOT,file),metrics:m});
   if(m.horizontalOverflow) audit.layoutWarnings.push({name:base,type:"document-horizontal-overflow",viewport:m.viewport,document:m.document});
+  if (m.viewport.width <= 640) {
+    const toggle = (m.layoutElements || []).find((item) => item.id === "lbt-preview-edge-toggle");
+    if (toggle) {
+      for (const target of (m.layoutElements || []).filter((item) => ["section-title-row","section-title","build-tabs","record-tabbar"].includes(item.className))) {
+        const a = toggle.rect, b = target.rect;
+        const overlapX = Math.max(0, Math.min(a.x+a.width,b.x+b.width)-Math.max(a.x,b.x));
+        const overlapY = Math.max(0, Math.min(a.y+a.height,b.y+b.height)-Math.max(a.y,b.y));
+        if (overlapX > 4 && overlapY > 4) audit.layoutWarnings.push({name:base,type:"preview-toggle-overlaps-header",target:target.className,overlap:{width:overlapX,height:overlapY},toggle:a,targetRect:b});
+      }
+    }
+  }
   if(view==="mobile") {
     const previewControls=(m.layoutElements||[]).filter(e=>e.id==="lbt-preview-edge-toggle" || e.className.split(/\s+/).includes("preview-reopen") || e.className.split(/\s+/).includes("preview-close"));
     if(previewControls.length>1) audit.layoutWarnings.push({name:base,type:"duplicate-preview-controls",controls:previewControls});
@@ -353,6 +364,9 @@ async function captureProfile(browser, mode) {
   const context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1440,height:1000},deviceScaleFactor:mobile?2:1,isMobile:mobile,hasTouch:mobile,serviceWorkers:"block",colorScheme:"dark",reducedMotion:"reduce"});
   page=await context.newPage();
   page.setDefaultTimeout(5000);
+  // Cloudflare Web Analytics points at /cdn-cgi/rum, which intentionally does not exist
+  // on this localhost-only screenshot server. Block it so the capture log only reports app errors.
+  await page.route("**/cdn-cgi/rum**", (route) => route.abort("blockedbyclient"));
   page.on("console",m=>{if(m.type()==="error")audit.consoleErrors.push({view:mode,message:m.text().slice(0,160)});});
   page.on("response",response=>{if(response.status()>=400 && !response.url().includes("/cdn-cgi/rum?"))audit.httpErrors.push({view:mode,status:response.status(),url:response.url().slice(0,240)});});
   page.on("pageerror",e=>audit.pageErrors.push({view:mode,message:e.message.slice(0,160)}));
@@ -632,6 +646,6 @@ async function main() {
   audit.criticalLayoutWarnings=audit.layoutWarnings.filter((item)=>["document-horizontal-overflow","duplicate-preview-controls","preview-toggle-overlaps-header"].includes(item.type));
   fs.writeFileSync(path.join(OUT,"manifest.json"),JSON.stringify(audit,null,2)+"\n");
   log("finished: "+audit.count+" screenshots; failures="+audit.failures.length+"; missing-required="+audit.missingRequiredCaptures.length+"; critical-layout-warnings="+audit.criticalLayoutWarnings.length);
-  if(audit.count<30 || audit.missingRequiredCaptures.length || audit.pageErrors.length || audit.criticalLayoutWarnings.length) process.exitCode=1;
+  if(audit.count<80 || audit.failures.length || audit.missingRequiredCaptures.length || audit.pageErrors.length || audit.httpErrors.length || audit.consoleErrors.length || audit.criticalLayoutWarnings.length) process.exitCode=1;
 }
 main().catch(e=>{console.error("[ui-audit] fatal: "+(e&&e.stack||String(e)));process.exitCode=1;});
