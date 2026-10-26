@@ -5530,6 +5530,12 @@ case "ADD_CUSTOM_ITEM": {
           next = appReducer(next, { ...sub, resultId: lastResultId });
           continue;
         }
+        /* Historical result text can explicitly say a ticket was used. Attribute
+           its spend row to that result, preserving the account-wide ticket balance. */
+        if (sub.type === "SPEND_TICKET" && lastResultId && sub.resultId === undefined) {
+          next = appReducer(next, { ...sub, resultId: lastResultId });
+          continue;
+        }
         const rosterSub = sub.type === "ADD_ROSTER" || sub.type === "ADD_ROSTER_EGO"
           || sub.type === "ADD_ROSTER_SUPPORT" || sub.type === "ADD_ROSTER_SPIRIT";
         if (rosterSub && sub.resultId === undefined && resultIds.length > 0) {
