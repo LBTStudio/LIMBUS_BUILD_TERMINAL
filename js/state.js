@@ -2391,7 +2391,20 @@ function repairGachaResultAttribution(state) {
       const batchCommit = String(batch.commit || batch.batchHash || "");
       /* 新形式は抽選固有commitで厳密に照合する。commitの無い旧形式だけ、
          既存互換として時刻窓を使う（複数候補ならsourceResultIdが一意にならず移動しない）。 */
-      return referencedCommit ? referencedCommit === batchCommit : true;
+      if (referencedCommit) return referencedCommit === batchCommit;
+      /* バッチIDが保存されていない旧明細は、時刻だけで複数抽選に一致する場合、
+         どれの支出か証明できないため移動しない。 */
+      const possibleLogs = logs.filter((candidateLog) => {
+        const candidateAt = Date.parse(String(candidateLog?.at || ""));
+        const candidateCommit = String(candidateLog?.commit || "");
+        if (!Number.isFinite(candidateAt) || !candidateCommit
+          || at < candidateAt - 2000 || at > candidateAt + 15000) return false;
+        return draws.some((candidateBatch) =>
+          String(candidateBatch?.commit || "") === candidateCommit
+          || String(candidateBatch?.batchHash || "") === candidateCommit);
+      });
+      return possibleLogs.length === 1
+        && String(possibleLogs[0]?.commit || "") === batchCommit;
     }
     if (entry.ref?.kind === "rosterPersona") {
       const persona = personas.find((row) => String(row?.uid || "") === String(entry.ref.uid || ""));
@@ -2580,7 +2593,22 @@ function repairGachaResultAttribution(state) {
         && String(entry.resultId || "") === String(targetResultId)
       );
     });
-    if (!allOwnedRecordsResolved) return log;
+    const ambiguousLegacyBatchRef = nextEntries.some((entry) => {
+      if (entry?.ref?.kind !== "gachaBatch" || entry.ref.commit) return false;
+      const entryAt = Number(entry.at);
+      if (!Number.isFinite(entryAt)) return false;
+      const possibleLogs = logs.filter((candidateLog) => {
+        const candidateAt = Date.parse(String(candidateLog?.at || ""));
+        const candidateCommit = String(candidateLog?.commit || "");
+        if (!Number.isFinite(candidateAt) || !candidateCommit
+          || entryAt < candidateAt - 2000 || entryAt > candidateAt + 15000) return false;
+        return draws.some((candidateBatch) =>
+          String(candidateBatch?.commit || "") === candidateCommit
+          || String(candidateBatch?.batchHash || "") === candidateCommit);
+      });
+      return possibleLogs.length > 1;
+    });
+    if (!allOwnedRecordsResolved || ambiguousLegacyBatchRef) return log;
     return {
       ...log,
       resultId: targetResultId,
