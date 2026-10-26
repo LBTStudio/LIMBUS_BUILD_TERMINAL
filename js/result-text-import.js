@@ -261,7 +261,10 @@
   function parseLegacyGlassUse(line) {
     const text = toHalf(line);
     if (!/硝子の(?:破片|欠片|かけら|カケラ)/.test(text) || !/(?:使用|消費)/.test(text)) return null;
-    const match = text.match(/硝子の(?:破片|欠片|かけら|カケラ)\s*(?:を\s*)?(?:(\d[\d,]*)\s*(?:個|つ)?|[x×]\s*(\d[\d,]*)|([一二三四五六七八九十]+)\s*(?:個|つ)?)\s*(?:を\s*)?(?:使用|消費)/);
+    const amount = "(?:\\d{1,3}(?:,\\d{3})+|\\d+)";
+    const match = text.match(new RegExp(
+      "硝子の(?:破片|欠片|かけら|カケラ)\\s*(?:を\\s*)?(?:(" + amount + ")\\s*(?:個|つ)?|[x×]\\s*(" + amount + ")|([一二三四五六七八九十]+)\\s*(?:個|つ)?)\\s*(?:を\\s*)?(?:使用|消費)"
+    ));
     if (!match) return { error: "硝子の破片の消費個数を読み取れません" };
     const token = match[1] || match[2] || match[3] || "1";
     const kanji = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 };
@@ -337,14 +340,16 @@
       ? bracketPack[1].replace(/\s*(?:チケット|パック|抽出)\s*$/i, "").trim()
       : "";
     const quotedPackName = quotedPack ? quotedPack[1].trim() : "";
-    const genericPackMatch = source.match(/(?:任意(?:の)?(?:\s*\d[\d,]*\s*LP\s*以下の)?|好きな)\s*テーマパック/i);
-    const genericPackName = genericPackMatch ? genericPackMatch[0].replace(/\s+/g, " ").trim() : "";
+    const genericPackMatch = source.match(/(?:任意(?:の)?(?:\s*\d[\d,]*\s*LP\s*以下の)?|好きな)\s*(?:テーマパック|テーマパーク)/i);
+    const genericPackName = genericPackMatch
+      ? genericPackMatch[0].replace(/\s+/g, " ").replace(/テーマパーク/ig, "テーマパック").trim()
+      : "";
     const packPrefixMatch = source.match(/([^:：]+?)\s*(?:テーマパック|テーマパーク)\s*(?:チケット|権)/i);
     const packPrefix = packPrefixMatch ? packPrefixMatch[1].split(/[:：]/).pop().trim() : "";
     const bracketPackRight = /[【〔〈<][^】〕〉>]+[】〕〉>]\s*パック\s*[+＋]\s*\d[\d,]*/i.test(source);
     const quotedPackRight = /(?:テーマパック|テーマパーク)\s*[「『"][^」』"]+[」』"]\s*[+＋]\s*\d[\d,]*/i.test(source);
-    const genericPackRight = /(?:任意(?:の)?(?:\s*\d[\d,]*\s*LP\s*以下の)?|好きな)\s*テーマパック\s*[+＋]\s*\d[\d,]*/i.test(source);
-    const unnamedPackRight = /テーマパック\s*[+＋]\s*\d[\d,]*/i.test(source);
+    const genericPackRight = /(?:任意(?:の)?(?:\s*\d[\d,]*\s*LP\s*以下の)?|好きな)\s*(?:テーマパック|テーマパーク)\s*[+＋]\s*\d[\d,]*/i.test(source);
+    const unnamedPackRight = /(?:テーマパック|テーマパーク)\s*[+＋]\s*\d[\d,]*/i.test(source);
     const packRight = /(?:テーマパック|テーマパーク)\s*(?:チケット|権)|パック抽出\s*[+＋]\s*\d[\d,]*\s*権|[+＋]\s*\d[\d,]*\s*権\s*$/i.test(source)
       || bracketPackRight || quotedPackRight || genericPackRight || unnamedPackRight;
     const hasTicketWord = /(?:チケ(?:ット)?|抽出🎫)/i.test(source);
@@ -381,8 +386,24 @@
     /* 「テーマパック+1」「名前+1権」の + は枚数であり、チケット同士の区切りではない。 */
     const protectedPlus = String(text ?? "").replace(/[+＋](?=\s*\d[\d,]*)/g, "\uE000");
     const terms = splitTop(protectedPlus, (c) =>
-      c === "、" || c === "," || c === "，" || c === ";" || c === "；" || c === "+" || c === "＋");
-    return terms.map((term) => ledgerTicket(term.replace(/\uE000/g, "+"))).filter(Boolean);
+      c === "、" || c === "," || c === "，" || c === ";" || c === "；" || c === "+" || c === "＋")
+      .map((term) => term.replace(/\uE000/g, "+"));
+    /* 特定の出目条件で「人格チケとEGOチケ両方」と明記された記録は、
+       1枚ずつ両種を獲得・使用した意味なので、1つの未知チケットにまとめない。 */
+    if (terms.length === 1 && /両方/.test(terms[0])) {
+      const source = toHalf(terms[0]);
+      const persona = source.match(/人格\s*(?:抽出)?\s*チケ(?:ット)?(?:\s*[x×]\s*(\d[\d,]*))?/i);
+      const ego = source.match(/(?:E\.?\s?G\.?\s?O|エゴ)\s*(?:抽出)?\s*チケ(?:ット)?(?:\s*[x×]\s*(\d[\d,]*))?/i);
+      if (persona && ego) {
+        const countOf = (match) => match[1] === undefined ? 1 : safeAmount(match[1]);
+        const personaCount = countOf(persona), egoCount = countOf(ego);
+        return [
+          personaCount === null ? { error: "人格チケットの枚数が不正です", raw: terms[0] } : { kind: "persona", count: personaCount, raw: terms[0] },
+          egoCount === null ? { error: "E.G.Oチケットの枚数が不正です", raw: terms[0] } : { kind: "ego", count: egoCount, raw: terms[0] }
+        ];
+      }
+    }
+    return terms.map((term) => ledgerTicket(term)).filter(Boolean);
   }
 
   function ledgerShardConversion(text) {
@@ -439,7 +460,11 @@
   function ledgerGlassConsumption(text) {
     const source = toHalf(text);
     if (!/硝子の(?:破片|欠片|かけら|カケラ)/.test(source) || !/(?:消費|使用)/.test(source)) return null;
-    const match = source.match(/硝子の(?:破片|欠片|かけら|カケラ)\s*(?:[x×]\s*(\d[\d,]*)|(\d[\d,]*)\s*(?:個|つ)?|([一二三四五六七八九十]+)\s*(?:個|つ)?)/i);
+    const amount = "(?:\\d{1,3}(?:,\\d{3})+|\\d+)";
+    const match = source.match(new RegExp(
+      "硝子の(?:破片|欠片|かけら|カケラ)\\s*(?:[x×]\\s*(" + amount + ")|(" + amount + ")\\s*(?:個|つ)?|([一二三四五六七八九十]+)\\s*(?:個|つ)?)",
+      "i"
+    ));
     const kanji = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 };
     const token = match ? (match[1] || match[2] || match[3]) : "";
     const quantity = !match ? 1 : (match[3] ? kanji[token] : safeAmount(token));
@@ -592,7 +617,12 @@
             } else {
               for (const ticket of ledgerTickets(value)) {
                 if (ticket.error) skipped.push({ text: line, reason: ticket.error });
-                else record.tickets.push({ ...ticket, raw: line });
+                else {
+                  record.tickets.push({ ...ticket, raw: line });
+                  if (/(?:使用済|使用済み|両方使用済|全て使用済|消費済)/.test(value)) {
+                    record.ticketUses.push({ ...ticket, raw: line });
+                  }
+                }
               }
             }
           }

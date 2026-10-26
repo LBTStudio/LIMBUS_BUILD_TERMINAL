@@ -629,6 +629,79 @@ test("「硝子の欠片」も「硝子の破片」と同じ別資源として�
   assert.equal(legacy.records[0].consumedItems[0]?.itemId, "resource-glass-shard");
   assert.equal(legacy.records[0].consumedItems[0]?.quantity, 1);
 });
+test("実記録の「硝子の欠片×2、LP20」は数量2の消費として認識する", () => {
+  const parsed = T.parseText([
+    "▼E.G.O指定購入",
+    "日時：2026/08/10",
+    "消費：硝子の欠片×2、LP20",
+    "現在所持LP：20",
+    "現在所持欠片：0"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 1);
+  assert.equal(parsed.records[0].consumedItems.length, 1);
+  assert.equal(parsed.records[0].consumedItems[0].itemId, "resource-glass-shard");
+  assert.equal(parsed.records[0].consumedItems[0].quantity, 2);
+  assert.ok(!parsed.skipped.some((item) => /硝子の破片の消費個数/.test(item.reason)));
+});
+
+test("実記録の「任意テーマパークチケット」は共通テーマパック券として正規化する", () => {
+  const parsed = T.parseText([
+    "▼人格抽出-テーマパック",
+    "日時：2026/10/04",
+    "消費：任意テーマパークチケット×1",
+    "指定：断ち切れない(300LP)",
+    "獲得：仮人格の人格",
+    "現在所持LP：621",
+    "現在所持欠片：406"
+  ].join("\n"));
+
+  assert.deepEqual([...parsed.records[0].ticketUses].map((ticket) => ({
+    kind: ticket.kind, pack: ticket.pack, count: ticket.count
+  })), [{ kind: "pack", pack: "任意テーマパック", count: 1 }]);
+
+  const planned = T.plan(parsed);
+  assert.deepEqual([...planned.actions].filter((action) => action.type === "SPEND_TICKET")
+    .map((action) => ({ kind: action.kind, pack: action.pack, count: action.count })), [
+      { kind: "pack", pack: "任意テーマパック", count: -1 }
+    ]);
+  assert.ok(planned.actions.some((action) => action.type === "ADD_ENTRY"
+    && action.name === "断ち切れない" && action.cost.lp === 300 && action.cost.shards === 0));
+});
+
+test("「人格チケとEGOチケ両方」の報酬は2種のチケットとして数える", () => {
+  const parsed = T.parseText([
+    "▼死卓　なんか　うみが　あれてるっぽいっすよ",
+    "日時：2026/08/09",
+    "報酬：",
+    "LP：80",
+    "欠片：60+15(理性)=75",
+    "10以下90以上で人格チケとEGOチケ両方→獲得・両方使用済",
+    "現在所持LP：233→313",
+    "現在所持欠片：391→466"
+  ].join("\n"));
+
+  assert.deepEqual([...parsed.records[0].tickets].map((ticket) => ({
+    kind: ticket.kind, count: ticket.count
+  })).sort((a, b) => a.kind.localeCompare(b.kind)), [
+    { kind: "ego", count: 1 },
+    { kind: "persona", count: 1 }
+  ]);
+  assert.deepEqual([...parsed.records[0].ticketUses].map((ticket) => ({
+    kind: ticket.kind, count: ticket.count
+  })).sort((a, b) => a.kind.localeCompare(b.kind)), [
+    { kind: "ego", count: 1 },
+    { kind: "persona", count: 1 }
+  ]);
+
+  const planned = T.plan(parsed);
+  assert.deepEqual([...planned.actions].filter((action) => action.type === "SPEND_TICKET")
+    .map((action) => ({ kind: action.kind, count: action.count })).sort((a, b) => a.kind.localeCompare(b.kind)), [
+      { kind: "ego", count: -1 },
+      { kind: "persona", count: -1 }
+    ]);
+});
+
 test("括弧の中の増減 (±N) は収入に混ぜない（残高差であり獲得ではない）", () => {
   const rec = T.parseText(SAMPLE).records[0];
   assert.equal(rec.income.lp, 150, "+9 を足さない");
