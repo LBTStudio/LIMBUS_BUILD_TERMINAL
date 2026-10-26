@@ -45,6 +45,14 @@
     return text;
   }
 
+  /* 残額の記載を伏せる。「現在100LP」「現在LP：33」「現在所持LP：30→3」は
+     どれも増減ではなく残高。所持・コロン・矢印の右辺まで一緒に落とさないと、
+     残高そのものが収入（または支出）として帳簿に乗る。 */
+  function stripBalances(value) {
+    return normalizeAmountText(value)
+      .replace(/現在\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ)?\s*[：:]?\s*-?\d+(?:\s*[+＋]\s*\d+)*(?:\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ))?(?:\s*[→⇒]\s*-?\d+(?:\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ))?)?/gi, " ");
+  }
+
   /* 金額／チケットの加算は、安全整数の範囲を超えた値を保存しない。
      黙って丸める代わりに reasons へ残し、入力元を確認できるようにする。 */
   function addSafeAmount(target, key, amount, line, reasons, label) {
@@ -90,8 +98,7 @@
      「因子コード G-5購入 7LP」のように識別子に数字が混ざっていても、
      通貨名に隣接する数値を採る（7 が金額、G-5 の 5 は識別子）。 */
   function amountOf(line) {
-    var cleaned = normalizeAmountText(line)
-      .replace(/現在[：:]?\s*(LP|欠片|かけら|欠けら|カケラ)?\s*-?\d+/gi, " ")
+    var cleaned = stripBalances(line)
       .replace(/残り\s*-?\d+/gi, " ")
       .replace(/へ\s*$/, " ");
     /* 通貨名に隣接する数値を優先（-22LP → 22、7LP → 7）。 */
@@ -175,8 +182,7 @@
      文脈継承で拾うと帳簿に幻の収入が乗る。実測 202 行 +32396）。
      現在/残の直後は残額なので先に伏せる。 */
   function incomePairs(line) {
-    var text = normalizeAmountText(line)
-      .replace(/現在[：:]?\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ)?\s*-?\d+(?:\s*[+＋]\s*\d+)*(?:\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ))?/gi, " ")
+    var text = stripBalances(line)
       .replace(/残り?\s*-?\d+(?:\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ))?/gi, " ")
       /* 「300LPへ」は支払後の残高に振り直す書き方。額ではなく結果。 */
       .replace(/-?\d+(?:\s*[+＋]\s*\d+)*\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ)\s*へ/gi, " ")
@@ -293,8 +299,7 @@
     /* 現在値・残り値は残高であり、支出額としては使わない。
        同じ行に「150LP消費」などの明示金額があればその金額を拾い、
        残高しかなければ金額未確定として理由を出す。 */
-    var text = normalizeAmountText(line)
-      .replace(/現在[：:]?\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ)?\s*-?\d+/gi, " ")
+    var text = stripBalances(line)
       .replace(/残り\s*-?\d+(?:\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ))?/gi, " ")
       .replace(/へ\s*$/, " ");
     if (currency === "lp") {
@@ -717,6 +722,14 @@
         continue;
       }
 
+      /* 「消費：LP30」の消費記帳。収入側の読みへ流すと支払額が収入に乗り、
+         行ごと捨てると支出が消える。金額が読めた行だけ支出として確定する。 */
+      var consumption = consumptionOf(line, reasons);
+      if (consumption) {
+        spends.push(consumption);
+        continue;
+      }
+
       var sec = sectionOf(line);
       /* 「・」見出しは節の切り替え。それ以外の箇条書きは報酬行として中身を読む
          （「・40LP」「・基本報酬 50LP/15欠片」「・人格抽出チケット1枚」）。
@@ -1126,6 +1139,34 @@
           parsed.wins.length > 0
       };
     });
+  }
+
+  /* 「消費：LP30」「消費：欠片50×3=150」「消費：150+300→欠片450」の消費記帳。
+     収入の読みへ流すと支払額が収入として乗るので、通貨に隣接する数値だけを
+     支出として読む。チケット1枚や「+1権」は金額ではないので数えない。
+     金額が一つも読めなければ null（消費以外の読みを妨げない）。 */
+  function consumptionOf(line, reasons) {
+    var m = String(line || "").match(/^\s*[・･]?\s*(?:消費|支出|支払い?)\s*[：:]\s*(.+?)\s*$/);
+    if (!m) return null;
+    var body = normalizeAmountText(m[1])
+      /* 「硝子の欠片」は通貨の欠片ではなくアイテムの消費。 */
+      .replace(/硝子の(?:欠片|かけら|欠けら|カケラ|破片)\s*(?:[×xｘ]\s*\d+)?/g, " ")
+      /* 「200LP以下」の数量条件は支払額ではない。 */
+      .replace(/(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ)?\s*\d+\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ)?\s*(?:以下|以上|以内|未満|まで)/g, " ")
+      /* 「欠片50×3=150」「75×2=150欠片」は合計額を読む。 */
+      .replace(/\d+\s*[×xｘ]\s*\d+\s*[=＝]\s*(\d+)/g, "$1")
+      /* 「150+300→欠片450」は矢印の右が支払額。 */
+      .replace(/\d+(?:\s*[+＋]\s*\d+)*\s*[→⇒]\s*/g, " ");
+    var pairs = incomePairs(body);
+    var cost = { lp: 0, shards: 0 };
+    for (var i = 0; i < pairs.length; i++) {
+      if (pairs[i].amount > 0) {
+        addSafeAmount(cost, pairs[i].currency, pairs[i].amount, line, reasons, "消費額");
+      }
+    }
+    if (!cost.lp && !cost.shards) return null;
+    var raw = String(line).trim();
+    return { name: raw, lp: cost.lp, shards: cost.shards, raw: raw, reason: "消費の記帳" };
   }
 
   /* 「購入：ルサンチマン-7LP」「ルサンチマン購入-7」「因子コード G-5購入 7LP」

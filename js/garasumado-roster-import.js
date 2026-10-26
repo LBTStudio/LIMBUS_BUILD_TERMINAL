@@ -1547,13 +1547,15 @@ function parseCurrencyBalance(value) {
 }
 
 /* 最初の「現在」はスナップショット。行頭に書かれた収入や支出はその残高へ
-   既に反映されているため、その位置より前の流れを合計から差し引く。 */
+   既に反映されているため、その位置より前の流れを合計から差し引く。
+   「現在所持LP：30→3」は所持とコロンが挟まり、矢印の右辺が現在の残高。
+   左辺はその卓を始める前の額なので、錠には右辺を使う。 */
 function findBalanceAnchor(memo, currency) {
   const normalized = String(memo || "").replace(/\r\n/g, "\n");
   const marker = currency === "lp" ? /(?:LP|ＬＰ)/i : /(?:欠片|かけら|欠けら|カケラ|けっか)/;
   const amountAfterCurrent = currency === "lp"
-    ? /現在\s*(?:LP|ＬＰ)?\s*([0-9][0-9,]*)\s*(?:LP|ＬＰ)?/i
-    : /現在\s*(?:(?:欠片|かけら|欠けら|カケラ|けっか)\s*)?([0-9][0-9,]*)\s*(?:欠片|かけら|欠けら|カケラ|けっか)?/;
+    ? /現在\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:LP|ＬＰ)?\s*[：:]?\s*([0-9][0-9,]*)\s*(?:LP|ＬＰ)?(?:\s*[→⇒]\s*([0-9][0-9,]*))?/i
+    : /現在\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:(?:欠片|かけら|欠けら|カケラ|けっか)\s*)?\s*[：:]?\s*([0-9][0-9,]*)\s*(?:欠片|かけら|欠けら|カケラ|けっか)?(?:\s*[→⇒]\s*([0-9][0-9,]*))?/;
   let offset = 0;
   for (const line of normalized.split("\n")) {
     const lineForParsing = normalizeCurrencyText(line);
@@ -1562,7 +1564,7 @@ function findBalanceAnchor(memo, currency) {
       /* 全角数字と英字は1コード単位で半角化されるので、現在の位置は変わらない。 */
       const match = lineForParsing.slice(currentAt).match(amountAfterCurrent);
       if (match) {
-        const value = parseCurrencyBalance(match[1]);
+        const value = parseCurrencyBalance(match[2] ?? match[1]);
         if (value !== null) {
           return { value, prefix: normalized.slice(0, offset + currentAt) };
         }
