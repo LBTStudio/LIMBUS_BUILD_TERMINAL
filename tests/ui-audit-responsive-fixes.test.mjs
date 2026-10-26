@@ -61,3 +61,14 @@ test("読み込み項目はデータのあるカテゴリを先に出し、空�
   assert.match(css, /\.import-scope-options\s*\{[\s\S]*?overflow-y:\s*auto;[\s\S]*?min-height:\s*0;/);
   assert.match(css, /\.import-scope-actions\s*\{[\s\S]*?flex:\s*0 0 auto;/);
 });
+
+
+test("スマホのアカウント編集と共有URL取り込みでカード操作列が重ならない", () => {
+  const accountCss = read("../assets/v66-accounts.css");
+  const cloudCss = read("../assets/cloud-backup.css");
+  assert.match(accountCss, /\.acct-grid \{[\s\S]*?min-height: 0;[\s\S]*?flex: 1 1 auto;[\s\S]*?overflow-y: auto;/);
+  assert.match(accountCss, /\.acct-card \{[\s\S]*?min-height: 148px;[\s\S]*?padding: var\(--s-3\) var\(--s-2\) calc\(var\(--s-3\) \+ 34px\);/);
+  assert.match(accountCss, /\.acct-meta \{[\s\S]*?overflow-wrap: anywhere;/);
+  assert.match(cloudCss, /\.acct-panel:has\(\.acct-card--import-open\) > \.lbt-cloud-panel \{\s*display: none;/);
+  assert.match(cloudCss, /\.acct-panel:has\(\.acct-card--import-open\) > \.acct-grid \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\);[\s\S]*?overflow-y: auto;/);
+});
