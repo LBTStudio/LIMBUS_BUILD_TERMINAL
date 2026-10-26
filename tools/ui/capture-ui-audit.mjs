@@ -118,9 +118,9 @@ async function snap(name, note) {
   audit.screenshots.push({name:base,note:note||"",file:path.relative(ROOT,file),metrics:m});
   if(m.horizontalOverflow) audit.layoutWarnings.push({name:base,type:"document-horizontal-overflow",viewport:m.viewport,document:m.document});
   if(view==="mobile") {
-    const previewControls=(m.layoutElements||[]).filter(e=>e.id==="lbt-preview-edge-toggle" || e.className.split(/\\s+/).includes("preview-reopen") || e.className.split(/\\s+/).includes("preview-close"));
+    const previewControls=(m.layoutElements||[]).filter(e=>e.id==="lbt-preview-edge-toggle" || e.className.split(/\s+/).includes("preview-reopen") || e.className.split(/\s+/).includes("preview-close"));
     if(previewControls.length>1) audit.layoutWarnings.push({name:base,type:"duplicate-preview-controls",controls:previewControls});
-    for(const element of (m.layoutElements||[]).filter(e=>e.id==="lbt-preview-edge-toggle" || e.className.split(/\\s+/).includes("preview-edge-toggle"))) {
+    for(const element of (m.layoutElements||[]).filter(e=>e.id==="lbt-preview-edge-toggle" || e.className.split(/\s+/).includes("preview-edge-toggle"))) {
       if(element.rect.y < 220) audit.layoutWarnings.push({name:base,type:"preview-toggle-overlaps-header",rect:element.rect,style:element.style});
     }
   }
