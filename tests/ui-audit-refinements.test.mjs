@@ -11,6 +11,8 @@ test("mobile preview toggle is moved into the unused bottom-nav cell instead of 
   assert.match(mobile, /\.preview-edge-toggle\s*\{[^}]*bottom:\s*calc\(env\(safe-area-inset-bottom, 0px\) \+ 4px\)/s);
   assert.match(mobile, /\.preview-edge-toggle\s*\{[^}]*writing-mode:\s*horizontal-tb/s);
   assert.match(mobile, /\.preview-edge-toggle\s*\{[^}]*height:\s*52px/s);
+  assert.match(mobile, /\.app\.preview-collapsed \.preview-reopen\s*\{\s*display:\s*none/s);
+  assert.match(mobile, /left:\s*calc\(\(100vw - 28px\) \/ 6 \+ 8px\)/);
 });
 
 test("mobile build tabs fit in an explicit grid and do not depend on horizontal swiping", () => {
