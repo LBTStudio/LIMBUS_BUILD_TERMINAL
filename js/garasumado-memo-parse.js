@@ -733,6 +733,26 @@
     var mode = "income";
     var prevLine = "";
 
+    /* 通貨支出と同じ行にチケット消費がある場合も、両方を1回ずつ保持する。 */
+    function recordExplicitTicketSpend(spend) {
+      if (!spend) return;
+      ticketSpends.push({
+        kind: spend.kind,
+        pack: spend.pack || "",
+        count: spend.count,
+        raw: spend.raw
+      });
+      if (spend.reward && !wins.some((w) => w.name === spend.reward)) {
+        wins.push({
+          name: spend.reward,
+          via: spend.kind === "pack"
+            ? "パックチケット" + (spend.pack ? "「" + spend.pack + "」" : "")
+            : (TICKET_LABEL[spend.kind] || "抽出チケット"),
+          kind: spend.kind
+        });
+      }
+    }
+
     /* 「LP/欠片」見出し＋「120/80」の対（合計優先）は行スキャンと別に一度だけ読む。 */
     var slashPair = parseSlashPairs(memo);
     addSafeAmount(income, "lp", slashPair.lp, memo, reasons, "LP収入の合計");
@@ -755,6 +775,9 @@
       var consumption = consumptionOf(line, reasons);
       if (consumption) {
         spends.push(consumption);
+        /* 消費の行を通貨支出として確定しても、併記された抽出チケット消費は落とさない。
+           ticketSpends は「収入」ではなく使用証拠の記録なので、通貨明細とは別に残す。 */
+        recordExplicitTicketSpend(explicitTicketSpendOf(line));
         continue;
       }
 
@@ -805,15 +828,7 @@
 
       var explicitTicketSpend = explicitTicketSpendOf(line);
       if (explicitTicketSpend) {
-        ticketSpends.push({ kind: explicitTicketSpend.kind, pack: explicitTicketSpend.pack || "",
-          count: explicitTicketSpend.count, raw: explicitTicketSpend.raw });
-        if (explicitTicketSpend.reward && !wins.some((w) => w.name === explicitTicketSpend.reward)) {
-          wins.push({ name: explicitTicketSpend.reward,
-            via: explicitTicketSpend.kind === "pack"
-              ? "パックチケット" + (explicitTicketSpend.pack ? "「" + explicitTicketSpend.pack + "」" : "")
-              : (TICKET_LABEL[explicitTicketSpend.kind] || "抽出チケット"),
-            kind: explicitTicketSpend.kind });
-        }
+        recordExplicitTicketSpend(explicitTicketSpend);
         continue;
       }
 
