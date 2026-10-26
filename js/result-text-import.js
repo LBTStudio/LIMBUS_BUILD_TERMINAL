@@ -327,27 +327,64 @@
   }
 
   function ledgerTicket(text) {
-    const source = toHalf(text);
-    if (!/(?:チケ(?:ット)?|抽出🎫)/i.test(source)) return null;
-    const countMatch = source.match(/[x×]\s*([+-]?\d[\d,]*)/i) || source.match(/([+-]?\d[\d,]*)\s*枚/);
+    const source = toHalf(text).trim();
+    const bracketPack = source.match(/[【〔〈<]([^】〕〉>]+)[】〕〉>]/);
+    const quotedPack = source.match(/(?:テーマパック|テーマパーク)\s*[「『"]([^」』"]+)[」』"]/);
+    const selectedPack = source.match(/選択\s*[:：]\s*([^→/、,，;；)）]+)/);
+    const bracketPackName = bracketPack
+      ? bracketPack[1].replace(/\s*(?:チケット|パック|抽出)\s*$/i, "").trim()
+      : "";
+    const selectedPackName = selectedPack ? selectedPack[1].trim() : "";
+    const packPrefixMatch = source.match(/([^:：]+?)\s*(?:テーマパック|テーマパーク)\s*(?:チケット|権)/i);
+    let packPrefix = packPrefixMatch ? packPrefixMatch[1].split(/[:：]/).pop().trim() : "";
+    if (/^(?:任意(?:の)?|好きな|(?:\d[\d,]*\s*LP\s*以下の)?任意(?:の)?)$/i.test(packPrefix)
+      || /(?:任意|好きな)$/.test(packPrefix)) packPrefix = "";
+    const bracketPackRight = /[【〔〈<][^】〕〉>]+[】〕〉>]\s*パック\s*[+＋]\s*\d[\d,]*/i.test(source);
+    const quotedPackRight = /(?:テーマパック|テーマパーク)\s*[「『"][^」』"]+[」』"]\s*[+＋]\s*\d[\d,]*/i.test(source);
+    const packRight = /(?:テーマパック|テーマパーク)\s*(?:チケット|権)|パック抽出\s*[+＋]\s*\d[\d,]*\s*権|[+＋]\s*\d[\d,]*\s*権\s*$/i.test(source)
+      || bracketPackRight || quotedPackRight;
+    const hasTicketWord = /(?:チケ(?:ット)?|抽出🎫)/i.test(source);
+    if (!hasTicketWord && !packRight) return null;
+
+    const countMatch = source.match(/[x×]\s*([+-]?\d[\d,]*)/i)
+      || source.match(/([+-]?\d[\d,]*)\s*枚/)
+      || (packRight ? source.match(/[+＋]\s*(\d[\d,]*)\s*(?:権)?/i) : null);
     const count = countMatch ? safeAmount(countMatch[1]) : 1;
     if (count === null) return { error: "チケット枚数が不正です", raw: text };
+
     let kind = null;
+    let pack = "";
     const hasPersonaTicket = /人格\s*(?:抽出)?\s*チケ(?:ット)?/i.test(source);
     const hasEgoTicket = /(?:E\.?\s?G\.?\s?O|エゴ)\s*(?:抽出)?\s*チケ(?:ット)?/i.test(source);
-    if (/テーマパックチケット/i.test(source)) kind = null;
-    else if (/(?:人格\s*(?:or|または)\s*E\.?G\.?O|E\.?G\.?O\s*(?:or|または)\s*人格|選択(?:式)?抽出|選択式チケット|人格orE\.?G\.?O|人格orEGO|EGOor人格)/i.test(source)) kind = "choice";
-    else if (/任意(?:の)?抽出チケット/i.test(source)) kind = "choice";
+    if (packRight) {
+      kind = "pack";
+      pack = selectedPackName || (quotedPack ? quotedPack[1].trim() : "") || packPrefix;
+      if (!pack && bracketPackName && /(?:パック|抽出\s*[+＋]\s*\d+\s*権|\+1\s*権)/i.test(source)) pack = bracketPackName;
+      if (!pack && /[+＋]\s*\d[\d,]*\s*権\s*$/i.test(source)) {
+        const prefix = source.replace(/[+＋]\s*\d[\d,]*\s*権\s*$/i, "").trim();
+        if (!/(?:テーマパック|テーマパーク)(?:チケット|権)/i.test(prefix)) pack = prefix;
+      }
+    } else if (/(?:人格\s*(?:or|または)\s*E\.?G\.?O|E\.?G\.?O\s*(?:or|または)\s*人格|選択(?:式|可能)?抽出|選択式チケット|人格orE\.?G\.?O|人格orEGO|EGOor人格|任意(?:の)?(?:選択)?抽出チケット|任意選択抽出チケット)/i.test(source)) kind = "choice";
     else if (hasPersonaTicket && hasEgoTicket) kind = null;
     else if (hasEgoTicket) kind = "ego";
     else if (hasPersonaTicket) kind = "persona";
-    return { kind, count, raw: text };
+    return { kind, ...(kind === "pack" && pack ? { pack } : {}), count, raw: text };
   }
 
   function ledgerTickets(text) {
-    const terms = splitTop(String(text ?? ""), (c) =>
+    /* 「テーマパック+1」「名前+1権」の + は枚数であり、チケット同士の区切りではない。 */
+    const protectedPlus = String(text ?? "").replace(/[+＋](?=\s*\d[\d,]*)/g, "\uE000");
+    const terms = splitTop(protectedPlus, (c) =>
       c === "、" || c === "," || c === "，" || c === ";" || c === "；" || c === "+" || c === "＋");
-    return terms.map((term) => ledgerTicket(term)).filter(Boolean);
+    return terms.map((term) => ledgerTicket(term.replace(/\uE000/g, "+"))).filter(Boolean);
+  }
+
+  function ledgerShardConversion(text) {
+    const source = toHalf(text).trim();
+    const converted = source.match(/[→⇒➜]\s*(\d[\d,]*)\s*(?:自我の)?(?:欠片|欠けら|かけら|カケラ)\s*$/i);
+    if (converted) return safeAmount(converted[1]);
+    const direct = source.match(/^(\d[\d,]*)\s*(?:自我の)?(?:欠片|欠けら|かけら|カケラ)\s*$/i);
+    return direct ? safeAmount(direct[1]) : null;
   }
 
   function ledgerItem(text) {
