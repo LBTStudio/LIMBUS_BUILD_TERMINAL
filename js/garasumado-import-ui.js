@@ -528,6 +528,8 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [] }) => {
   const [urlReport, setUrlReport] = React.useState(null);
   const [bundleReport, setBundleReport] = React.useState(null);
   const [progress, setProgress] = React.useState("");
+  /* 不一致・未解決項目を利用者が読んで確認したか。新しい読み込みごとに解除する。 */
+  const [discrepanciesReviewed, setDiscrepanciesReviewed] = React.useState(false);
   /* 人格共有URLはキャラクター所持・履歴とは別パネルで、人格ごとに識別して取り込む。 */
   const [personaItems, setPersonaItems] = React.useState(null);
   const [personaPicked, setPersonaPicked] = React.useState({});
@@ -582,6 +584,7 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [] }) => {
     setError("");
     setUrlReport(null);
     setBundleReport(null);
+    setDiscrepanciesReviewed(false);
     setProgress("");
     const parsedBatch = window.LBT_parseShareUrls?.(url);
     if (!parsedBatch || !Array.isArray(parsedBatch.urls) || !parsedBatch.urls.length) {
@@ -971,6 +974,7 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [] }) => {
     setError("");
     setUrlReport(null);
     setBundleReport(null);
+    setDiscrepanciesReviewed(false);
     setProgress("ZIP / JSON のデータを読み込んでいます…");
     setManifest(null);
     setDoc(null);
@@ -1202,6 +1206,39 @@ function appliedSummary(actions) {
       lineOn: Object.values(purchasePlan).reduce((n, picks) => n + picks.length, 0)
     }
     : { total: 0, pickMode: 0, unknownName: 0, included: 0, ops: 0, unknownLine: 0, lineOn: 0 };
+
+  /* 利用者が気づきにくい差分を、ファイル名・該当項目・理由つきで一か所に集約する。
+     未解決項目は勝手に補完せず、内容を見たうえで続行するか本人に決めてもらう。 */
+  const discrepancyRows = [];
+  const addDiscrepancy = (key, title, detail) => {
+    if (detail) discrepancyRows.push({ key, title, detail: String(detail) });
+  };
+  if (balance && balance.checked && !balance.ok) {
+    addDiscrepancy("balance", "残高が一致しません", `${balance.message}。計算値：LP ${balance.computedLp}・欠片 ${balance.computedShards}／共有元の記載：LP ${balance.shownLp}・欠片 ${balance.shownShards}`);
+  }
+  if (counts.unknownName) {
+    const names = (manifest?.groups || []).flatMap((g) => g.items || [])
+      .filter((item) => item.needsDecision === "unknown-name").map((item) => item.name);
+    addDiscrepancy("unknown-items", `名前を照合できない所持項目（${counts.unknownName}件）`, names.slice(0, 12).join("、") + (names.length > 12 ? `、ほか${names.length - 12}件` : "") + "。DBに一致する名前がないため、自動登録しません。");
+  }
+  if (counts.unknownLine) {
+    const unresolvedLines = lines.flatMap((op) => (op.unresolved || []).map((row) => `${op.title || "無題"}：${row.line}`));
+    addDiscrepancy("unknown-purchases", `購入履歴を分類できない行（${counts.unknownLine}件）`, unresolvedLines.slice(0, 12).join("／") + (unresolvedLines.length > 12 ? `／ほか${unresolvedLines.length - 12}件` : "") + "。明細の種別や品名を確定できていません。");
+  }
+  if (manifest?.counts?.initialSpiritOverflow) {
+    addDiscrepancy("spirit-overflow", "初期精神の件数が上限を超えています", `共有データでは初期精神が${manifest.counts.initialSpirits}件あります。上限3件と一致しないため、元の記載を確認してください。");
+  }
+  (bundleReport?.errors || []).forEach((row, index) => {
+    addDiscrepancy(`file-${index}`, `読み込みに失敗したデータ：${row.fileName || row.url || "ファイル名不明"}`, row.message || row.reason || "ファイルの一部を解析できませんでした。");
+  });
+  (personaItems || []).filter((row) => row.ok).forEach((row) => {
+    const name = row.result?.persona?.name || row.fileName || "人格名不明";
+    const warnings = row.result?.warnings || [];
+    warnings.forEach((warning, index) => addDiscrepancy(`persona-${row.id}-warning-${index}`, `人格「${name}」の確認事項`, warning));
+    if (personaNameExists(row, personaItems)) {
+      addDiscrepancy(`persona-${row.id}-same-name`, `人格「${name}」の名前が重複しています`, "既存データまたは今回のZIP内に同名人格があります。同一データとは限らないため、基本情報・スキル・強化を見比べてください。");
+    }
+  });
 
   if (personaItems !== null && !manifest) {
     const selectedRows = personaItems.filter((row) => row.ok && personaPicked[row.id] && !personaAlreadyImported(row.id));
@@ -1446,6 +1483,20 @@ function appliedSummary(actions) {
       )
     ),
     h("p", { className: "gara-import-instructions" }, "項目名を押すと候補や価格を確認できます。ON / OFFで反映対象を切り替えます。未決の項目は帰属先・入手方法を選んでください。"),
+    discrepancyRows.length ? h("section", { className: "gara-group gara-result gara-discrepancy-review", role: "alert", "aria-labelledby": "gara-discrepancy-title" },
+      h("div", { className: "gara-group-head" },
+        h("h4", { className: "gara-group-title", id: "gara-discrepancy-title" }, `不一致・要確認の項目（${discrepancyRows.length}件）`),
+        h("p", { className: "gara-group-note" }, "共有元の記載と照合結果が一致しない、または自動判定できなかった項目です。内容を確認してください。")
+      ),
+      h("div", { className: "gara-rows" }, discrepancyRows.map((row) => h("div", { className: "gara-row is-unsure", key: row.key },
+        h("span", { className: "gara-row-name" }, row.title),
+        h("span", { className: "gara-row-meta", style: { whiteSpace: "normal", textAlign: "left" } }, row.detail)
+      ))),
+      h("label", { className: "gara-discrepancy-confirm", style: { display: "flex", gap: "10px", alignItems: "flex-start", padding: "12px", cursor: "pointer" } },
+        h("input", { type: "checkbox", checked: discrepanciesReviewed, onChange: (event) => setDiscrepanciesReviewed(event.target.checked), style: { marginTop: "3px", flex: "0 0 auto" } }),
+        h("span", null, "上記の不一致・未解決項目を確認しました。自動補完されない項目や読み込みに失敗したデータがあることを理解したうえで、選択した内容を取り込みます。")
+      )
+    ) : null,
     h("p", { className: "gara-hint" }, "候補が一意でない場合は自動決定しません。入力内容に誤りがないことを確認してから確定してください。"),
     personaItems !== null ? h("section", { className: "gara-group gara-result" },
       h("div", { className: "gara-group-head" },
@@ -1588,9 +1639,10 @@ function appliedSummary(actions) {
         h(Button, {
           size: "sm", variant: "primary", icon: "check", onClick: apply,
           disabled: pendingCount > 0
+            || (discrepancyRows.length > 0 && !discrepanciesReviewed)
             || (counts.included === 0 && counts.lineOn === 0
               && !(personaItems || []).some((row) => row.ok && personaPicked[row.id] && !personaAlreadyImported(row.id))),
-          title: pendingCount > 0 ? "帰属先と入手方法を決めてください" : ""
+          title: pendingCount > 0 ? "帰属先と入手方法を決めてください" : discrepancyRows.length > 0 && !discrepanciesReviewed ? "不一致・要確認の項目を読み、確認欄にチェックしてください" : ""
         }, "変換を確定する")
       )
     ),
