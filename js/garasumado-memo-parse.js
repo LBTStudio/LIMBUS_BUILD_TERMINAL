@@ -1201,6 +1201,7 @@
           }
           continue;
         }
+        if (priceCondition.removed.length && !pairs.length) continue;
         /* 数字も通貨も無い行は「どの機関に勝ったか」の名前行。
            シナリオが直接払った人格/E.G.O なので、獲得として記録する。
            DB 照合は呼び出し側で行う。ここでは名前候補として残す。 */
