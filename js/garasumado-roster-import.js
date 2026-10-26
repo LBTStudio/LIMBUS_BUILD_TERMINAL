@@ -1584,6 +1584,9 @@ function reconcileBalance(manifest, doc) {
     historyNetLp: 0, historyNetShards: 0,
     impliedOpeningLp: null, impliedOpeningShards: null,
     hasManualReference: shownLp !== null || shownSh !== null,
+    hasUntimedPurchases: false,
+    untimedPurchaseLp: 0,
+    untimedPurchaseShards: 0,
     message: ""
   };
   const scenarios = (manifest && manifest.scenarios) || [];
@@ -1637,17 +1640,32 @@ function reconcileBalance(manifest, doc) {
     lp: sum.lp + (Number(row && row.lp) || 0),
     shards: sum.shards + (Number(row && row.shards) || 0)
   }), { lp: 0, shards: 0 });
+  out.untimedPurchaseLp = untimedPurchases.lp;
+  out.untimedPurchaseShards = untimedPurchases.shards;
+  out.hasUntimedPurchases = untimedPurchases.lp > 0 || untimedPurchases.shards > 0;
   out.historyNetLp = incLp - spLp - untimedPurchases.lp;
   out.historyNetShards = incSh - spSh - untimedPurchases.shards;
+  if (openingLp === null && shownLp !== null) {
+    out.impliedOpeningLp = shownLp - out.historyNetLp;
+  }
+  if (openingSh === null && shownSh !== null) {
+    out.impliedOpeningShards = shownSh - out.historyNetShards;
+  }
   if (openingLp === null && openingSh === null) {
-    out.impliedOpeningLp = shownLp === null ? null : shownLp - out.historyNetLp;
-    out.impliedOpeningShards = shownSh === null ? null : shownSh - out.historyNetShards;
     out.message = "履歴に開始残高の基準が無いため、手入力の現在値との一致判定は保留しています。";
     return out;
   }
-  out.checked = true;
   out.computedLp = openingLp === null ? null : openingLp + incLp - spLp - openingOffsetLp;
   out.computedShards = openingSh === null ? null : openingSh + incSh - spSh - openingOffsetSh;
+  /* 自由メモ購入はどのスナップショットの前後か分からない。これがある間は、
+     一部の履歴から計算値を出せても現在残高との厳密一致を断言しない。 */
+  if (out.hasUntimedPurchases || openingLp === null || openingSh === null) {
+    out.message = out.hasUntimedPurchases
+      ? "自由メモに日時未特定の購入があるため厳密な一致判定は保留しています。"
+      : "LPまたは欠片の開始残高の基準が無いため、完全な一致判定は保留しています。";
+    return out;
+  }
+  out.checked = true;
   const badLp = out.computedLp !== null && out.shownLp !== null && out.computedLp !== out.shownLp;
   const badSh = out.computedShards !== null && out.shownShards !== null && out.computedShards !== out.shownShards;
   out.ok = !(badLp || badSh);
