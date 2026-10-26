@@ -584,7 +584,12 @@
        名前内部の「E.G.O:紅炎殺」「羽ばたき：妖精の祭典」のコロンは分割しない。 */
     var arrow = tail.lastIndexOf("→");
     var rawTail = raw.slice(end).trim();
-    if (arrow >= 0) rawTail = rawTail.slice(arrow + 1);
+    if (arrow >= 0) {
+      rawTail = rawTail.slice(arrow + 1);
+    } else if (!/^\s*(?:(?:ガチャ|抽出ガチャ|ガチャ抽出|抽出|パックチケット|テーマパック|パック)\s*[：:]|[：:])/.test(tail)) {
+      /* 「LP200を消費してガチャ」の後半は叙述であって獲得名ではない。 */
+      return "";
+    }
     return cleanRewardName(rawTail);
   }
 
