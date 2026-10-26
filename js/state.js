@@ -5877,21 +5877,24 @@ case "ADD_CUSTOM_ITEM": {
         }
         const rosterSub = sub.type === "ADD_ROSTER" || sub.type === "ADD_ROSTER_EGO"
           || sub.type === "ADD_CUSTOM_ROSTER_EGO" || sub.type === "ADD_ROSTER_SUPPORT" || sub.type === "ADD_ROSTER_SPIRIT";
-        if (rosterSub && sub.resultId === undefined && resultIds.length > 0) {
-          /* 付随物の帰属先: via の名前が唯一のリザルトへ解決すればそこへ。
-             曖昧・不一致なら未分類。via 無し（シナリオの獲得一覧）は直前へ。 */
+        if (rosterSub && sub.resultId === undefined && (resultIds.length > 0 || sub.unclassified === true)) {
+          /* 取込アクションの公開契約では resultId を直接持たせない。
+             unclassified=true の項目は、既存の直近リザルトへ誤帰属させず、ここでのみ null に解決する。 */
           let target = null;
           const viaNames = (Array.isArray(sub.via) ? sub.via : []).filter(Boolean);
-          if (viaNames.length) {
-            const ids = new Set();
-            for (const viaName of viaNames) {
-              for (const id of resultIdByName.get(String(viaName)) || []) ids.add(id);
+          if (sub.unclassified !== true) {
+            if (viaNames.length) {
+              const ids = new Set();
+              for (const viaName of viaNames) {
+                for (const id of resultIdByName.get(String(viaName)) || []) ids.add(id);
+              }
+              target = ids.size === 1 ? [...ids][0] : null;
+            } else {
+              target = lastResultId;
             }
-            target = ids.size === 1 ? [...ids][0] : null;
-          } else {
-            target = lastResultId;
           }
-          next = appReducer(next, { ...sub, resultId: target });
+          const { unclassified: _unclassified, ...rosterAction } = sub;
+          next = appReducer(next, { ...rosterAction, resultId: target });
           continue;
         }
         /* 同期化・解析は「名前」で指定できる。uid は reducer が生成する
