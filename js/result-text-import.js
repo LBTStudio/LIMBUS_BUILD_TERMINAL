@@ -1192,7 +1192,10 @@
       /* 旧形式は raw 注記から、ジャーナル形式は指定された人格候補だけを照合する。 */
       identityRows.forEach((rawLine, rawIndex) => {
         const source = String(rawLine || "").trim();
-        if (!canBeIdentityLine(source) || typeof opts.resolve !== "function") return;
+        const validJournalIdentity = record.journalFormat === true
+          ? source.length >= 2 && source.length <= 180 && !/^\d[\d,.\s]*$/.test(source)
+          : canBeIdentityLine(source);
+        if (!validJournalIdentity || typeof opts.resolve !== "function") return;
         const key = `${recordIndex}:${rawIndex}`;
         const overrideName = opts.identityResolved && opts.identityResolved[key];
         const initialHit = opts.resolve(overrideName || source);
