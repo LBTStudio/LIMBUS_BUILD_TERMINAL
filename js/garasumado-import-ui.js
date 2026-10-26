@@ -374,6 +374,15 @@ item.decide ? h("div", { className: "gara-decide" },
           pair(income.lp, "lp", "LP"),
           pair(income.shards, "shard", "欠片")
         ),
+        Array.isArray(block.reasons) && block.reasons.length
+          ? h("div", { className: "gara-note gara-note-warn", role: "status" },
+            h("strong", null, "原文の読み取り要確認（" + block.reasons.length + "件）"),
+            block.reasons.map((entry, index) => h("p", { key: index },
+              String(entry.reason || "読み取りを確認してください")
+              + (entry.line ? "（原文：" + entry.line + "）" : "")
+            ))
+          )
+          : null,
         sourceAlreadyImported
           ? h("p", { className: "gara-note" }, "同じ共有元のリザルトを特定しました。確定時に既存記録を更新し、二重追加を防ぎます。")
           : legacyCandidates.length
