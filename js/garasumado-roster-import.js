@@ -1085,7 +1085,28 @@ function toIdentityChoices(hits) {
           skipped.push({ key: scenario.key, reason: "パックチケットの使用先が特定できないため消費記録を保留" });
           continue;
         }
-        actions.push({ type: "SPEND_TICKET", kind: spend.kind, pack: spend.pack || "", count: spend.count || 1 });
+        /* 履歴上の使用は残高不足でも監査明細に残す。SPEND_TICKET は所持残数0だと
+           action自体が無視されるので、履歴取込では明細に記録し残数計算に委ねる。 */
+        const count = spend.count || 1;
+        const ticketUse = { persona: 0, ego: 0, choice: 0, pack: {} };
+        let ticketName = "";
+        if (spend.kind === "pack") {
+          Object.defineProperty(ticketUse.pack, String(spend.pack), {
+            value: count, enumerable: true, configurable: true, writable: true
+          });
+          ticketName = "パックチケット「" + String(spend.pack) + "」";
+        } else {
+          ticketUse[spend.kind] = count;
+          ticketName = ({ persona: "人格抽出チケット", ego: "E.G.O抽出チケット", choice: "選択抽出チケット" })[spend.kind] || "抽出チケット";
+        }
+        actions.push({
+          type: "ADD_ENTRY",
+          kind: "other",
+          name: "履歴上の使用：" + ticketName + (count > 1 ? " ×" + count : ""),
+          cost: { lp: 0, shards: 0 },
+          tickets: ticketUse,
+          note: "硝子窓の履歴に使用と記載。取得元・残数が不明な場合も使用記録は保持"
+        });
       }
 
       /* シナリオで直接払い出された人格/E.G.O。所持へ足す。
