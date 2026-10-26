@@ -2043,3 +2043,39 @@ test("明示的なテーマパックチケットは既存のパック券警告�
   assert.equal(r.reasons.filter((row) => /LP上限付きのテーマパック表記/.test(row.reason)).length, 0);
   assert.ok(r.reasons.some((row) => row.ticketCategory === "pack"));
 });
+
+test("硝子窓の「獲得：HE 厳粛な哀悼」は正式E.G.O名へ照合され所持追加される", () => {
+  const fullEgoName = "厳粛な哀悼：死んだ蝶たちの葬儀";
+  const memo = "消費：欠片100\n獲得：HE " + fullEgoName;
+  const parsed = MEMO.parseMemo(memo);
+  assert.deepEqual([...parsed.wins.map((win) => ({ name: win.name, kind: win.kind }))], [
+    { name: fullEgoName, kind: "ego" }
+  ], "獲得ラベルとE.G.OランクをDBの表示名へ混ぜない");
+
+  const context = { window: { DB: db }, console, module: { exports: {} } };
+  vm.createContext(context);
+  for (const file of ["roster-resolver.js", "garasumado-memo-parse.js", "ledger-provenance.js", "garasumado-roster-import.js"]) {
+    vm.runInContext(readFileSync(new URL("../js/" + file, import.meta.url), "utf8"), context, { filename: file });
+  }
+  const index = context.window.LBT_buildNameIndex(db, {});
+  const resolve = (name) => (context.window.LBT_resolveCandidates(index, name) || [])[0] || null;
+  const manifest = context.window.LBT_garasumado.buildManifest({
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{ name: "E.G.O抽出", memo }]
+  }, {
+    resolve,
+    candidates: (name) => context.window.LBT_resolveCandidates(index, name) || []
+  }, db);
+
+  const win = manifest.scenarios[0].wins.find((row) => row.name === fullEgoName);
+  assert.ok(win?.resolved, "正式名が実DBへ解決される");
+  assert.equal(win.kinds.length, 1);
+  assert.equal(win.kinds[0].kind, "ego");
+  assert.equal(win.kinds[0].rank, "HE");
+
+  const applied = context.window.LBT_garasumado.toDispatchActions(manifest, [], { db });
+  assert.ok(applied.actions.some((action) => action.type === "ADD_ROSTER_EGO"
+    && action.rank === "HE" && String(action.no) === "59"),
+    "厳粛な哀悼：死んだ蝶たちの葬儀（HE / 59）が取り込みアクションまで到達する");
+  assert.deepEqual([...applied.skipped], [], "正規名とランクがあるE.G.Oを未解決扱いにしない");
+});
