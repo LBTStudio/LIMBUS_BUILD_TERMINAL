@@ -2186,9 +2186,9 @@ function normalizeStateShape(raw) {
       if (entry && !entry.source) entry.source = catalogSourceByName("spirit", entry.name);
     }
   }
-  return normalizeStatusCollections(next);
+  return repairGachaResultAttribution(normalizeStatusCollections(next));
 }
-/* 残高は保存しない。収入合計から支出合計を引くだけなので、
+/* 残高は保存しない。収入合計から支出合計を引くだけなので,
    帰属を直すとこの値が動く。明細の帰属を直せば連載ごとに収支を説明できる。 */
 /* ---- 価格の導出 ------------------------------------------------------
    通帳へ自動記録するのは「DB が価格を持つもの」だけ。
@@ -2328,6 +2328,108 @@ function latestResultId(state) {
     }
   }
   return latest?.id || null;
+}
+
+/* 前回の誤修正では results 配列末尾を最新とみなしたため、抽出時刻・封緘バッチ・
+   直後に作られた明細が揃っている保存データは、表示上の最新リザルトへ一度だけ直す。
+   証明バッチそのものは変更しない。日時・バッチ・同じ結果IDを持つ明細を照合できない
+   古い履歴には触れず、利用者が手で動かした明細も上書きしない。 */
+function repairGachaResultAttribution(state) {
+  const logs = Array.isArray(state?.gachaLog) ? state.gachaLog : [];
+  const draws = Array.isArray(state?.draws) ? state.draws : [];
+  const results = Array.isArray(state?.results) ? state.results : [];
+  const entries = Array.isArray(state?.entries) ? state.entries : [];
+  if (!logs.length || !draws.length || !results.length || !entries.length) return state;
+
+  const roster = state.roster || {};
+  const personas = Array.isArray(roster.personas) ? roster.personas : [];
+  const egos = Array.isArray(roster.egos) ? roster.egos : [];
+  let changedEntries = false;
+  let nextEntries = entries;
+
+  const hasRecordForPersona = (batch, persona) => (batch.records || []).some((record) => {
+    if (!record || record.duplicate) return false;
+    const item = record.item || {};
+    const kind = String(record.kind || item.kind || batch.kind || "");
+    if (kind === "specialPersona") return persona.mode === "t" && String(persona.no) === String(item.no);
+    if (kind === "persona") return persona.mode === "n" && String(persona.no) === String(item.no);
+    if (kind === "themePack") {
+      const found = personaNoByName(item.name);
+      return !!found && persona.mode === found.mode && String(persona.no) === String(found.no);
+    }
+    return false;
+  });
+  const hasRecordForEgo = (batch, ego) => (batch.records || []).some((record) => {
+    if (!record || record.duplicate) return false;
+    const item = record.item || {};
+    return String(record.kind || item.kind || batch.kind || "") === "ego"
+      && String(ego.rank || "") === String(item.rank || "")
+      && String(ego.no) === String(item.no);
+  });
+  const matchesTransaction = (entry, batch, logAt, wrongResultId) => {
+    if (String(entry?.resultId || "") !== wrongResultId) return false;
+    const at = Number(entry.at);
+    if (!Number.isFinite(at) || at < logAt - 2000 || at > logAt + 15000) return false;
+    if (entry.ref?.kind === "gachaBatch") return true;
+    if (entry.ref?.kind === "rosterPersona") {
+      const persona = personas.find((row) => String(row?.uid || "") === String(entry.ref.uid || ""));
+      return !!persona && hasRecordForPersona(batch, persona);
+    }
+    if (entry.ref?.kind === "rosterEgo") {
+      const ego = egos.find((row) => String(row?.uid || "") === String(entry.ref.uid || ""));
+      return !!ego && hasRecordForEgo(batch, ego);
+    }
+    if (entry.kind === "expense") {
+      const name = String(entry.name || "");
+      return (batch.records || []).some((record) => {
+        if (String(record?.kind || record?.item?.kind || batch.kind || "") !== "themePack") return false;
+        const pack = String(record.pack || "");
+        const itemName = String(record.item?.name || "");
+        return !!pack && !!itemName && name.includes(pack) && name.includes(itemName);
+      });
+    }
+    return false;
+  };
+
+  const repairedLogs = logs.map((log) => {
+    if (!log || typeof log !== "object" || Number(log.resultAttributionRepairVersion) >= 1) return log;
+    const wrongResultId = String(log.resultId || "");
+    const logAt = Date.parse(String(log.at || ""));
+    const commit = String(log.commit || "");
+    if (!wrongResultId || !Number.isFinite(logAt) || !commit) return log;
+
+    const batch = draws.find((candidate) => String(candidate?.commit || "") === commit
+      || String(candidate?.batchHash || "") === commit);
+    if (!batch || !Array.isArray(batch.records) || !batch.records.length) return log;
+
+    /* その抽出時刻に既に存在していたリザルトだけを対象にする。
+       後から作られたリザルトへ過去の抽出を移してしまわない。 */
+    const existingAtDraw = results.filter((result) => {
+      const createdAt = Number(result?.createdAt);
+      return Number.isFinite(createdAt) && createdAt > 0 && createdAt <= logAt;
+    });
+    const targetResultId = latestResultId({ results: existingAtDraw });
+    if (!targetResultId) return log;
+    if (targetResultId === wrongResultId) {
+      return { ...log, resultAttributionRepairVersion: 1 };
+    }
+
+    const moved = nextEntries.map((entry) => {
+      if (!matchesTransaction(entry, batch, logAt, wrongResultId)) return entry;
+      changedEntries = true;
+      return { ...entry, resultId: targetResultId };
+    });
+    if (!changedEntries || moved.every((entry, index) => entry === nextEntries[index])) return log;
+    nextEntries = moved;
+    return { ...log, resultId: targetResultId, resultAttributionRepairVersion: 1 };
+  });
+
+  if (!changedEntries && repairedLogs.every((log, index) => log === logs[index])) return state;
+  return {
+    ...state,
+    entries: changedEntries ? nextEntries : entries,
+    gachaLog: repairedLogs
+  };
 }
 /* 所持品の入手元シナリオ。共有データの owned にはこの列为無いので、
    シナリオ履歴との照合で求めた値をそのまま保持する。
