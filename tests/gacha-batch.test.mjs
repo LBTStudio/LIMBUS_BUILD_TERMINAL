@@ -337,6 +337,42 @@ test("ADD_DRAW_BATCH は封緘された records から所持へ足す", () => {
   assert.deepEqual(j(next.roster.personas.map((p) => p.no).sort((a, b) => a - b)), j(drawn.sort((a, b) => a - b)));
 });
 
+test("APPLY_DRAW_BATCH は抽出オブジェクトとログを最新リザルトへ結び付ける", () => {
+  const w = loadState(db);
+  const { batch } = finalizedBatch();
+  const before = {
+    ...base(),
+    results: [
+      { id: "older-result", name: "前のリザルト", income: { lp: 1000, shards: 100 } },
+      { id: "latest-result", name: "最新リザルト", income: { lp: 1000, shards: 100 } }
+    ]
+  };
+  const cost = batch.records.reduce((total, record) => ({
+    lp: total.lp + (Number(record.cost?.lp) || 0),
+    shards: total.shards + (Number(record.cost?.shards) || 0)
+  }), { lp: 0, shards: 0 });
+
+  const applied = w.appReducer(before, {
+    type: "APPLY_DRAW_BATCH",
+    batch,
+    cost,
+    resultId: "latest-result"
+  });
+  const objectEntries = applied.entries.filter((entry) => entry.ref?.kind === "rosterPersona" || entry.ref?.kind === "rosterEgo");
+  assert.equal(objectEntries.length, batch.records.length, "抽出した各オブジェクトに取得明細ができる");
+  assert.ok(objectEntries.every((entry) => entry.resultId === "latest-result"),
+    "全取得オブジェクトの明細が、前のリザルトではなく最新リザルトへ付く");
+
+  const logged = w.appReducer(applied, {
+    type: "ADD_DRAW_RECORD",
+    __sealed: true,
+    batch,
+    entry: { id: "draw-log-latest-result", resultId: "latest-result" }
+  });
+  assert.equal(logged.draws.length, 1, "抽出証明を保存する");
+  assert.equal(logged.gachaLog[0]?.resultId, "latest-result", "抽出ログも同じリザルトへの帰属を保持する");
+});
+
 test("所持への反映は 1件ごとに、その件が文書どおり払った額だけ引く", () => {
   const w = loadState(db);
   /* finalizedBatch は「1件は所持済み」で始まるので全件100LP。
