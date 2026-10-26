@@ -310,7 +310,10 @@
     let ambiguous = false;
     const parts = String(text ?? "").split(/[、,，;；]/);
     for (const rawPart of parts) {
-      const part = toHalf(rawPart).replace(/硝子の(?:破片|欠片|かけら|カケラ)(?:\s*[x×]\s*\d[\d,]*)?/gi, " ");
+      /* 「200LP以下」はパックの適用条件であり、消費LPではない。 */
+      const part = toHalf(rawPart)
+        .replace(/\d[\d,]*\s*LP\s*以下の?/gi, " ")
+        .replace(/硝子の(?:破片|欠片|かけら|カケラ)(?:\s*[x×]\s*\d[\d,]*)?/gi, " ");
       const hasLP = /(?:LP\s*\d|\d\s*LP|\bLP\b)/i.test(part);
       const hasShards = /(?:(?:自我の)?(?:欠片|欠けら|カケラ|かけら)\s*\d|\d\s*(?:自我の)?(?:欠片|欠けら|カケラ|かけら))/i.test(part);
       if (hasLP && hasShards) { ambiguous = true; continue; }
