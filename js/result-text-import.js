@@ -594,7 +594,30 @@
         }
       };
 
+      /* 貼り付け元でレコード全体が「獲得：▼【同じタイトル】」の中へ再貼付された場合、
+         コピーされた日時・報酬・残高を同じリザルトで二度集計しない。
+         壊れた入れ子行だけ除外し、後ろにある本来の獲得結果は残す。 */
+      const seenSummaryLines = new Set();
+      let suppressEmbeddedDuplicateFields = false;
+      const linesToParse = [];
       for (const rawLine of entry.lines) {
+        const line = rawLine.trim();
+        const embeddedHeader = line.match(/獲得\s*[：:]\s*[▼▽]\s*(.+?)\s*$/);
+        if (embeddedHeader && embeddedHeader[1].trim() === title) {
+          skipped.push({
+            text: line,
+            reason: "獲得欄に同じリザルト見出しが混入していたため、破損した重複行を除外しました"
+          });
+          suppressEmbeddedDuplicateFields = true;
+          continue;
+        }
+        const summaryField = /^(?:日時|GM|LP|欠片|自我の欠片|現在所持LP|現在所持欠片)\s*[：:]/.test(line);
+        if (suppressEmbeddedDuplicateFields && summaryField && seenSummaryLines.has(line)) continue;
+        linesToParse.push(rawLine);
+        if (summaryField) seenSummaryLines.add(line);
+      }
+
+      for (const rawLine of linesToParse) {
         const line = rawLine.trim();
         if (!line) continue;
 
