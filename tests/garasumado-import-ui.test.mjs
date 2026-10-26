@@ -30,7 +30,7 @@ test("取得中の busy は取得が例外でも必ず解除される（finally�
   assert.match(uiFlat, /finally \{ setBusy\(false\);/, "busy 解除は finally");
 });
 
-test("1シナリオ＝1リザルトのカードがある", () => {  assert.match(uiFlat, /function ResultCard\(\{ block, scenarioOptions, sourceOptions, onPickIdentity, onDropItem, onReturnItem \}\)/);
+test("1シナリオ＝1リザルトのカードがある", () => {  assert.match(uiFlat, /function ResultCard\(\{ block, scenarioOptions, sourceOptions, onPickIdentity, onDropItem, onReturnItem, existingResults = \[\], legacyCandidates = \[\], legacyTargetId = "", onPickLegacyTarget, sourceAlreadyImported = false \}\)/);
   assert.match(uiFlat, /"gara-group gara-result"/);
   /* 照合済みの所持は最初からカードの中に出る。 */
   assert.match(uiFlat, /block\.items\.map\(\(item\) => h\("div", \{/);
@@ -170,7 +170,8 @@ test("画面は draft（純関数）から描画する", () => {
   assert.match(uiFlat, /const draft = React\.useMemo\(\(\) => \{/);
   assert.match(uiFlat, /window\.LBT_buildResultDraft/);
   /* 集計を画面側でやり直さない。 */
-  assert.match(uiFlat, /draft && draft\.blocks\.map\(\(block\) => h\(ResultCard/);
+  assert.match(uiFlat, /draft && draft\.blocks\.map\(\(block\) => \{/);
+  assert.match(uiFlat, /return h\(ResultCard/);
   /* 未割当はレールに一本化（Util者指示）。 */
   assert.match(uiFlat, /h\(UnclassifiedRail, \{ items: unclassified,/);
 });
@@ -301,4 +302,14 @@ test("キャラクター共有URLの確認後はアカウントカードから�
   const css = readFileSync(new URL("../assets/v66-accounts.css", import.meta.url), "utf8");
   assert.match(css, /\.gara-import-workspace\s*\{[^}]*position:\s*fixed/s);
   assert.match(css, /\.gara-import-workspace > \.gara-import-review\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\) minmax\(280px,\s*360px\)/s);
+});
+
+
+test("同じ共有元のリザルトは更新し、旧形式候補は利用者が選んだ場合だけ置換する", () => {
+  assert.match(uiFlat, /existingResults = \[\]/);
+  assert.match(uiFlat, /legacyResultTargets: legacyTargets/);
+  assert.match(uiFlat, /sourceAlreadyImported/);
+  assert.match(uiFlat, /旧形式の既存リザルトを更新（任意）/);
+  assert.match(uiFlat, /手入力の明細が含まれていないか確認してください/);
+  assert.match(uiFlat, /importSourceKey/);
 });

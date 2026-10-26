@@ -5786,6 +5786,13 @@ case "ADD_CUSTOM_ITEM": {
           income: action.income === undefined
             ? r.income
             : { ...normalizeCurrency(action.income), tickets: normalizeTickets(action.income?.tickets) },
+          ...(action.note !== undefined ? { note: String(action.note || "").slice(0, 2000) } : {}),
+          ...(action.consumedItems !== undefined ? { consumedItems: normalizeConsumedItems(action.consumedItems) } : {}),
+          ...(action.importSourceKey !== undefined
+            ? (String(action.importSourceKey || "").trim()
+              ? { importSourceKey: String(action.importSourceKey).slice(0, 180) }
+              : {})
+            : {}),
           updatedAt: now
         };
       });
@@ -5802,6 +5809,9 @@ case "ADD_CUSTOM_ITEM": {
           income: { ...normalizeCurrency(action.income), tickets: normalizeTickets(action.income?.tickets) },
           note: String(action.note || "").slice(0, 2000),
           consumedItems: normalizeConsumedItems(action.consumedItems),
+          ...(String(action.importSourceKey || "").trim()
+            ? { importSourceKey: String(action.importSourceKey).slice(0, 180) }
+            : {}),
           createdAt: now,
           updatedAt: now
         }]
@@ -5839,29 +5849,83 @@ case "ADD_CUSTOM_ITEM": {
      ADD_ENTRY は従来どおり直前の ADD_RESULT に帰属する（位置契約）。 */
     case "APPLY_IMPORT_BATCH": {
       let next = state;
+      /* 配列位置と対応させるため、追加／更新の成否に関わらず ADD_RESULT ごとに枠を持つ。 */
       const resultIds = [];
+      const resultSourceKeys = [];
       const resultIdByName = new Map();
+      const claimedLegacyResultIds = new Set();
       for (const sub of action.actions || []) {
         if (!sub || typeof sub !== "object" || sub.type !== "ADD_RESULT") continue;
-        next = appReducer(next, sub);
-        const added = next.results[next.results.length - 1];
-        if (!added) continue;
-        resultIds.push(added.id);
-        const key = String(added.name || "");
-        resultIdByName.set(key, [...(resultIdByName.get(key) || []), added.id]);
+        const sourceKey = String(sub.importSourceKey || "").trim().slice(0, 180);
+        const matchingBySource = sourceKey
+          ? (next.results || []).filter((result) => result && result.importSourceKey === sourceKey)
+          : [];
+        /* 自動上書きは安定した共有元キーが1件だけ一致した場合に限る。重複キーは推測で選ばない。 */
+        if (matchingBySource.length > 1) {
+          resultIds.push(null);
+          resultSourceKeys.push(sourceKey);
+          continue;
+        }
+        let target = matchingBySource.length === 1 ? matchingBySource[0] : null;
+        const legacyId = String(sub.legacyResultId || "").trim();
+        if (!target && !matchingBySource.length && legacyId && !claimedLegacyResultIds.has(legacyId)) {
+          /* 旧形式には出典キーがない。UIで利用者が選んだ、かつ未タグの記録だけを移行できる。 */
+          target = (next.results || []).find((result) => result && result.id === legacyId
+            && !String(result.importSourceKey || "").trim()) || null;
+        }
+        let added = null;
+        if (target) {
+          const isExplicitLegacyReplace = Boolean(
+            legacyId && sub.replaceLegacyEntries === true && target.id === legacyId && !matchingBySource.length
+          );
+          const existingEntries = Array.isArray(next.entries) ? next.entries : [];
+          const entries = isExplicitLegacyReplace
+            ? existingEntries.filter((entry) => entry?.resultId !== target.id)
+            : (sourceKey
+              ? existingEntries.filter((entry) => entry?.importResultKey !== sourceKey)
+              : existingEntries);
+          if (entries !== existingEntries) next = { ...next, entries };
+          next = appReducer(next, {
+            type: "UPDATE_RESULT",
+            id: target.id,
+            name: sub.name,
+            date: sub.date,
+            income: sub.income,
+            note: sub.note,
+            consumedItems: sub.consumedItems,
+            ...(sourceKey ? { importSourceKey: sourceKey } : {})
+          });
+          added = (next.results || []).find((result) => result && result.id === target.id) || null;
+          if (legacyId && target.id === legacyId) claimedLegacyResultIds.add(legacyId);
+        } else {
+          next = appReducer(next, sub);
+          added = (next.results || [])[next.results.length - 1] || null;
+        }
+        resultIds.push(added?.id || null);
+        resultSourceKeys.push(sourceKey || String(added?.importSourceKey || ""));
+        if (added) {
+          const key = String(added.name || "");
+          resultIdByName.set(key, [...(resultIdByName.get(key) || []), added.id]);
+        }
       }
       let lastResultId = null;
+      let lastResultSourceKey = "";
       let resultIndex = 0;
       for (const sub of action.actions || []) {
         if (!sub || typeof sub !== "object") continue;
         if (sub.type === "ADD_RESULT") {
           lastResultId = resultIds[resultIndex] || null;
+          lastResultSourceKey = resultSourceKeys[resultIndex] || "";
           resultIndex += 1;
           continue;
         }
         /* undefined だけが「直前に倒す」。null は明示的な未分類なので触らない。 */
         if (sub.type === "ADD_ENTRY" && lastResultId && sub.resultId === undefined) {
-          next = appReducer(next, { ...sub, resultId: lastResultId });
+          next = appReducer(next, {
+            ...sub,
+            resultId: lastResultId,
+            ...(lastResultSourceKey ? { importResultKey: lastResultSourceKey } : {})
+          });
           continue;
         }
         /* 過去のテキスト記録から再生する消費は、その行が属するリザルトへ保存する。 */
@@ -5933,7 +5997,10 @@ case "ADD_ENTRY":
               ? { commit: String(action.ref.commit).slice(0, 160) } : {})
           } : null,
           at: Number(action.at) || Date.now(),
-          note: String(action.note || "").slice(0, 2000)
+          note: String(action.note || "").slice(0, 2000),
+          ...(String(action.importResultKey || "").trim()
+            ? { importResultKey: String(action.importResultKey).slice(0, 180) }
+            : {})
         }]
       };
     case "PATCH_ENTRY":

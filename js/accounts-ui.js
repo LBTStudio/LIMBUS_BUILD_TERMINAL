@@ -244,7 +244,7 @@ function applyGarasumadoImport(result) {
   }));
 }
 
-const AccountCard = ({ entry, index, active, editing, draft, setDraft, icon, onSelect, onEdit, onRemove, onSave, onCancel, onPickIcon, onClearIcon, canRemove, onImport }) => {
+const AccountCard = ({ entry, index, active, editing, draft, setDraft, icon, onSelect, onEdit, onRemove, onSave, onCancel, onPickIcon, onClearIcon, canRemove, onImport, existingResults = [] }) => {
   const onDraftKeyDown = (save) => (event) => {
     if (event.key === "Enter") { event.preventDefault(); save(); }
     if (event.key === "Escape") { event.preventDefault(); onCancel(); }
@@ -295,6 +295,7 @@ const AccountCard = ({ entry, index, active, editing, draft, setDraft, icon, onS
       ),
       importOpen ? h("div", { className: "acct-gara-body", id: `acct-import-panel-${entry.id}`, role: "region", "aria-label": "共有URLの取り込み" },
         h(window.GarasumadoImportPanel, {
+          existingResults,
           onClose: () => setImportOpen(false),
           onApply: (result) => {
             onImport?.(result);
@@ -325,7 +326,7 @@ const AccountCard = ({ entry, index, active, editing, draft, setDraft, icon, onS
   );
 };
 
-const AccountSwitcher = ({ open, onClose, initialEditId }) => {
+const AccountSwitcher = ({ open, onClose, initialEditId, existingResults = [] }) => {
   const panelRef = React.useRef(null);
 
   const [info, setInfo] = React.useState(readAccountInfo);
@@ -468,6 +469,7 @@ const AccountSwitcher = ({ open, onClose, initialEditId }) => {
           onPickIcon: () => iconEditor.startPick(entry.id),
           onClearIcon: () => iconEditor.clearIcon(entry.id),
           canRemove: total > 1,
+          existingResults,
           onImport: (result) => applyGarasumadoImport(result)
         })),
         creating ? h("div", { className: "acct-card acct-card--form", style: { "--i": total } },

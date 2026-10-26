@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-9439c8d6";
+const CACHE_NAME = "lbt-dccdd43e";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -49,7 +49,7 @@ const PRECACHE_URLS = [
   "data/gacha-theme-packs.json?v=8d4dced2",
   "data/items.json?v=b185394a",
   "data/special-items.json?v=aaa21cfb",
-  "js/App.js?v=e99d3576",
+  "js/App.js?v=66a0cf97",
   "js/DataQuality.js?v=a8365c72",
   "js/InlineEffectGlossary.js?v=81967fa2",
   "js/ItemCodex.js?v=7aafec02",
@@ -58,7 +58,7 @@ const PRECACHE_URLS = [
   "js/PersonaCodex.js?v=59018e19",
   "js/SkillDeck.js?v=a93f6cb8",
   "js/access-counter.js?v=304e4854",
-  "js/accounts-ui.js?v=6f8fb33c",
+  "js/accounts-ui.js?v=10026c99",
   "js/cloud-backup.js?v=12a534b2",
   "js/core.js?v=d79b98be",
   "js/ego-slot-forms.js?v=85aa4887",
@@ -67,9 +67,9 @@ const PRECACHE_URLS = [
   "js/gacha-tickets.js?v=2ecc4e1b",
   "js/gacha.js?v=f58f8a3e",
   "js/garasumado-export-import.js?v=66700d44",
-  "js/garasumado-import-ui.js?v=413c72d3",
+  "js/garasumado-import-ui.js?v=24b2d526",
   "js/garasumado-memo-parse.js?v=010ef287",
-  "js/garasumado-roster-import.js?v=3270ec31",
+  "js/garasumado-roster-import.js?v=d82cfe3c",
   "js/generator.js?v=ff5f0a15",
   "js/icon-cropper.js?v=20900dc8",
   "js/ledger-import-reconcile.js?v=69d57ed7",
@@ -81,7 +81,7 @@ const PRECACHE_URLS = [
   "js/roster-resolver.js?v=01dce5a2",
   "js/share-link.js?v=c77e8999",
   "js/share-viewer.js?v=71f2da96",
-  "js/state.js?v=0489bcd4",
+  "js/state.js?v=859c87b7",
   "js/ui.js?v=8943eab8",
   "vendor/react-dom.min.js?v=35f4f974",
   "vendor/react.min.js?v=d949f1c3",

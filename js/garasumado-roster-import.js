@@ -151,7 +151,9 @@
     for (const source of rows) {
       const localOccurrences = new Map();
       const sourceHistory = Array.isArray(source.doc.scenarioHistory) ? source.doc.scenarioHistory : [];
-      for (const scenario of sourceHistory) {
+      const sourceId = String(source.id || (source.url ? (parseShareUrl(source.url).id || "") : "")).trim();
+      for (let sourceIndex = 0; sourceIndex < sourceHistory.length; sourceIndex += 1) {
+        const scenario = sourceHistory[sourceIndex];
         if (!scenario || typeof scenario !== "object") continue;
         const signature = JSON.stringify([
           String(scenario.name || "").trim(),
@@ -161,7 +163,11 @@
         const occurrence = (localOccurrences.get(signature) || 0) + 1;
         localOccurrences.set(signature, occurrence);
         if (occurrence <= (previousOccurrences.get(signature) || 0)) continue;
-        history.push(scenario);
+        /* 取り込み元を文書内だけのメタデータとして残す。元の硝子窓文書は変更しない。
+           同一URLから再取込したとき、メモの誤記修正や再解析後も同じリザルトを特定できる。 */
+        history.push(sourceId
+          ? { ...scenario, __lbtShareSourceId: sourceId, __lbtShareSourceIndex: sourceIndex }
+          : scenario);
       }
       for (const [signature, count] of localOccurrences) {
         previousOccurrences.set(signature, Math.max(previousOccurrences.get(signature) || 0, count));
@@ -665,10 +671,27 @@ function toIdentityChoices(hits) {
     }).filter(Boolean);
 
     const history = Array.isArray(doc && doc.scenarioHistory) ? doc.scenarioHistory : [];
+    const scenarioOccurrences = new Map();
     const scenarios = history
       .filter((row) => row && (row.name || row.memo))
       .map((row, index) => {
-        const base = { key: "scenario:" + index, name: String(row.name || "").trim() || "無題", group: "scenarios" };
+        const name = String(row.name || "").trim() || "無題";
+        const sourceId = String(row.__lbtShareSourceId || "").trim();
+        const sourceDate = String(row.date || row.createdAt || row.at || "").trim().slice(0, 10);
+        const occurrenceScope = JSON.stringify([sourceId, sourceDate, nameKey(name)]);
+        const occurrence = (scenarioOccurrences.get(occurrenceScope) || 0) + 1;
+        scenarioOccurrences.set(occurrenceScope, occurrence);
+        /* memo は修正対象なのでキーに含めない。同名の反復記録は出現順で区別する。 */
+        const importSourceKey = sourceId
+          ? ("gara1:" + sourceId + ":" + (sourceDate || "undated") + ":" + nameKey(name).slice(0, 64) + ":" + occurrence)
+          : "";
+        const base = {
+          key: "scenario:" + index,
+          name,
+          group: "scenarios",
+          ...(row.date ? { date: String(row.date).slice(0, 10) } : {}),
+          ...(importSourceKey ? { importSourceKey } : {})
+        };
         if (!memoApi) return { ...base, memo: String(row.memo || ""), income: { lp: 0, shards: 0 }, tickets: {}, pack: {}, spends: [], wins: [], reasons: [{ reason: "メモパーサが読み込まれていない" }] };
         const parsed = memoApi.parseMemo(row.memo);
         const wins = resolveWins(parsed.wins);
@@ -1068,9 +1091,13 @@ function toIdentityChoices(hits) {
       const pack = scenario.pack || {};
       /* チケットは income.tickets に入る。reducer は action.income.tickets を読む
          （normalizeTickets）。incomeTickets という別キーは見てくれない。 */
+      const legacyResultId = String(opts.legacyResultTargets?.[scenario.key] || "").trim();
       actions.push({
         type: "ADD_RESULT",
         name: scenario.name || "無題",
+        ...(scenario.date ? { date: scenario.date } : {}),
+        ...(scenario.importSourceKey ? { importSourceKey: scenario.importSourceKey } : {}),
+        ...(legacyResultId ? { legacyResultId, replaceLegacyEntries: true } : {}),
         income: {
           lp: income.lp || 0,
           shards: income.shards || 0,
