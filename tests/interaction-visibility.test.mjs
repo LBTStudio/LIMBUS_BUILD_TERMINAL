@@ -63,3 +63,24 @@ test("固有効果テキストは2行で切らずに全文と改行を表示す�
   assert.match(rule[1], /white-space:\s*pre-wrap/);
   assert.match(rule[1], /overflow-wrap:\s*anywhere/);
 });
+
+
+test("スマートフォンのプレビュー操作は見出しの上に重ならず、狭幅時の代替経路も案内する", () => {
+  const refinement = css.slice(css.indexOf("/* UI audit refinements: mobile overlay, tabs, navigation and account cards. */"));
+  assert.match(refinement, /#lbt-preview-edge-toggle\\s*\\{[^}]*top:\\s*6px;[^}]*right:\\s*116px;/s);
+  assert.match(refinement, /@media \\(max-width: 360px\\)\\s*\\{[^}]*#lbt-preview-edge-toggle \\{ display: none; \\}/s);
+  assert.match(refinement, /\\.section-title-row \\{ padding-right: 0; \\}/);
+  assert.match(appSource, /幅が狭い端末では「操作・保存」内の「プレビューを開く／閉じる」を使います。/);
+});
+
+test("スマートフォンの8つのビルドタブは4列2行で同時に見え、メインナビは4+3配置", () => {
+  const refinement = css.slice(css.indexOf("/* UI audit refinements: mobile overlay, tabs, navigation and account cards. */"));
+  assert.match(refinement, /\\.build-tabs \\.segmented \\{[^}]*display: grid;[^}]*grid-template-columns: repeat\\(4, minmax\\(0, 1fr\\)\\);[^}]*overflow: visible;/s);
+  assert.match(refinement, /\\.rail \\{\\s*grid-template-columns: repeat\\(4, minmax\\(0, 1fr\\)\\);\\s*grid-template-rows: repeat\\(2, 52px\\);/s);
+});
+
+test("スマートフォンのアカウント編集操作は更新日時と重ならず、ガイド分類は一度に参照できる", () => {
+  const refinement = css.slice(css.indexOf("/* UI audit refinements: mobile overlay, tabs, navigation and account cards. */"));
+  assert.match(refinement, /\\.acct-card-actions \\{[^}]*position: relative;[^}]*margin-top: auto;[^}]*justify-content: center;/s);
+  assert.match(refinement, /\\.guide-filter-row \\{[^}]*grid-template-columns: repeat\\(5, minmax\\(0, 1fr\\)\\);[^}]*overflow: visible;/s);
+});
