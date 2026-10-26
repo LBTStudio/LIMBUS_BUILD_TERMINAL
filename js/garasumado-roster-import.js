@@ -1610,8 +1610,14 @@ function reconcileBalance(manifest, doc) {
 
   out.openingLp = openingLp;
   out.openingShards = openingSh;
-  out.historyNetLp = incLp - spLp;
-  out.historyNetShards = incSh - spSh;
+  /* 自由メモの購入履歴は収入ではない。基準残高の時点が分からないので、照合本体には
+     混ぜず、開始残高が無い場合の履歴純増減にだけ含めて見える化する。 */
+  const untimedPurchases = ((manifest && manifest.purchaseHistory) || []).reduce((sum, row) => ({
+    lp: sum.lp + (Number(row && row.lp) || 0),
+    shards: sum.shards + (Number(row && row.shards) || 0)
+  }), { lp: 0, shards: 0 });
+  out.historyNetLp = incLp - spLp - untimedPurchases.lp;
+  out.historyNetShards = incSh - spSh - untimedPurchases.shards;
   if (openingLp === null && openingSh === null) {
     /* doc.currency は手入力の現在値。履歴内に基準残高がなければこの値を正解扱いせず、
        履歴で確定できる純増減と、現在値から逆算した仮の開始残高だけを参考表示する。 */
