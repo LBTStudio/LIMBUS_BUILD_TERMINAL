@@ -4215,6 +4215,38 @@ const resolveTextItem = React.useCallback((name) => {
     const hit = unique[0];
     return { itemId: String(hit.id), itemName: String(hit.name), ledgerResource: hit.ledgerResource || null };
   }, [state.customItems]);
+/* 備考に書かれた「アイテム名×N 使用/消費」も正規カタログに完全一致した場合だけ拾う。 */
+const resolveTextItemUse = React.useCallback((rawLine) => {
+    const source = String(rawLine || "").normalize("NFKC").toLocaleLowerCase("ja");
+    const operationPositions = ["使用", "消費"].map((word) => source.indexOf(word)).filter((n) => n >= 0);
+    if (!operationPositions.length) return null;
+    const operationAt = Math.min(...operationPositions);
+    const catalog = [
+      ...(window.DB?.items || []),
+      ...(window.DB?.specialItems || []).filter((item) => !item?.ledgerResource),
+      ...(Array.isArray(state.customItems) ? state.customItems : [])
+    ].filter((item) => item?.id && item?.name && !item.ledgerResource);
+    const matches = [];
+    for (const item of catalog) {
+      const terms = [item.name, ...(Array.isArray(item.searchAliases) ? item.searchAliases : [])]
+        .filter(Boolean).map((term) => String(term).normalize("NFKC").toLocaleLowerCase("ja"));
+      for (const term of terms) {
+        const at = source.indexOf(term);
+        if (at >= 0 && at < operationAt) matches.push({ item, term, at });
+      }
+    }
+    if (!matches.length) return null;
+    matches.sort((a, b) => b.term.length - a.term.length);
+    const longest = matches[0].term.length;
+    const winners = [...new Map(matches.filter((m) => m.term.length === longest).map((m) => [String(m.item.id), m])).values()];
+    if (winners.length !== 1) return null;
+    const match = winners[0];
+    const suffix = source.slice(match.at + match.term.length, operationAt);
+    const countMatch = suffix.match(/[x×]\s*(\d[\d,]*)|(?:^|\s)(\d[\d,]*)\s*(?:個|つ)/i);
+    const quantity = countMatch ? Number((countMatch[1] || countMatch[2]).replace(/,/g, "")) : 1;
+    if (!Number.isSafeInteger(quantity) || quantity <= 0) return null;
+    return { itemId: String(match.item.id), itemName: String(match.item.name), quantity, reason: "consumption" };
+  }, [state.customItems]);
 const textPlan = React.useMemo(() => {
     const api = window.LBT_textImport;
     if (!api || !parsedText) return null;
@@ -4237,11 +4269,13 @@ const textPlan = React.useMemo(() => {
       ownedEgos,
       ownedSupports,
       ownedSpirits,
+      ownedItems: new Map((state.inventory || []).map((item) => [String(item.itemId || ""), Number(item.quantity) || 0])),
       resolveItem: resolveTextItem,
+      resolveItemUse: resolveTextItemUse,
       suggestPersona
     });
-  }, [parsedText, textExcluded, textIdentityExcluded, textIdentityResolved, resolveSpendName, resolveTextItem,
-    state.roster?.personas, state.roster?.egos, state.roster?.supports, state.roster?.spirits]);
+  }, [parsedText, textExcluded, textIdentityExcluded, textIdentityResolved, resolveSpendName, resolveTextItem, resolveTextItemUse,
+    state.roster?.personas, state.roster?.egos, state.roster?.supports, state.roster?.spirits, state.inventory]);
 
 /* テキストの取り込み。硝子窓 版と同じ取り込み口を使うので、
    APPLY_IMPORT_BATCH の紐付けと Undo 1 回がそのまま効く。 */
