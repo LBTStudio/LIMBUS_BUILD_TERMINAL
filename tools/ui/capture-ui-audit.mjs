@@ -347,10 +347,11 @@ async function boot() {
       const accounts = window.LBT_accounts;
       if (!accounts?.create || !accounts?.switch) return null;
       const name = "UI監査用キャラクター";
-      const found = accounts.list?.().find((entry) => entry?.name === name);
-      const entry = found || accounts.create(name, "Playwright QA");
+      // Each Playwright viewport uses a brand-new browser context, so no account
+      // exists yet; use the public account API without relying on an optional list API.
+      const entry = accounts.create(name, "Playwright QA");
       if (!entry?.id) return null;
-      if (!found) accounts.saveActive?.({});
+      accounts.saveActive?.({});
       accounts.switch(entry.id);
       return entry.id;
     }).catch(() => null);
