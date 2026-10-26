@@ -195,6 +195,23 @@ test("矢印の手前にある抽出チケットは使用記録で、チケッ�
   assert.equal(parsed.wins.length, 2);
 });
 
+test("報酬名が無いチケット消費もリザルトとして残り、残数から差し引く", () => {
+  const parsed = MEMO.parseMemo("・人格抽出チケット×1消費");
+  assert.deepEqual([...parsed.ticketSpends.map((row) => [row.kind, row.count])], [["persona", 1]]);
+  assert.equal(parsed.tickets.persona, 0, "消費だけの行を獲得枚数にしない");
+
+  const M = loadImportWithMemo();
+  const manifest = M.buildManifest({
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{ name: "チケットのみ", memo: "・人格抽出チケット×1消費" }]
+  }, null);
+  assert.equal(manifest.scenarios[0].hasData, true, "通貨収入がなくてもチケット使用履歴を消さない");
+  const actions = M.toDispatchActions(manifest, [], {}).actions;
+  const used = actions.find((action) => action.type === "ADD_ENTRY" && action.tickets?.persona === 1);
+  assert.ok(used, "チケット使用を収支明細へ渡す");
+  assert.equal(used.name, "履歴上の使用：人格抽出チケット");
+});
+
 test("E.G.O の読みは「エゴ」で読む", () => {
   /* 「イゴ」を E.G.O の別名にしていたため、実データに一度も出ない表記を
      信用していた。正しい読みは「エゴ」。 */
@@ -910,6 +927,35 @@ test("取り込み: 実サンプル 49 文書から所持を列挙し、action �
 /* 帰属先の選択が実際に機能するかを、UI と同じ手順で確認する。
    選ばせる項目は「帰属先を選んでください」で終わるだけの状態では
    機能にならない（選択肢が無い、空の候補のまま詰まる）。 */
+
+test("由来が決められない所持は最新リザルトへ誤帰属させず、独自E.G.Oもシミュレーション件数へ数える", () => {
+  const M = loadImportWithMemo();
+  const supportDb = { support_passives: [{ name: "人生一発", lp: 7 }], items: [], egos: [] };
+  const supportManifest = M.buildManifest({
+    currency: { lp: "100", fragment: "0" },
+    owned: { personas: [], egos: [], supportPassives: [{ name: "人生一発" }], spirits: [] },
+    scenarioHistory: [{ name: "履歴A", memo: "100LP" }]
+  }, {
+    resolve: (name) => name === "人生一発" ? { name, kinds: [{ kind: "support", name }] } : null,
+    candidates: () => []
+  }, supportDb);
+  const support = supportManifest.groups.find((group) => group.id === "supportPassives").items[0];
+  assert.equal(support.needsAttribution, true);
+  const supportAction = M.toDispatchActions(supportManifest, [support.key], { db: supportDb })
+    .actions.find((action) => action.type === "ADD_ROSTER_SUPPORT");
+  assert.ok(supportAction);
+  assert.equal(supportAction.resultId, null, "日時不明の所持を直近リザルトへ付けない");
+
+  const egoDb = { items: [], egos: [], support_passives: [] };
+  const egoManifest = M.buildManifest({
+    owned: { personas: [], egos: [{ rank: "ZAYIN", name: "海底墓標：プロト" }], supportPassives: [], spirits: [] },
+    scenarioHistory: [{ name: "履歴B", memo: "100LP" }]
+  }, null, egoDb);
+  const egoKey = egoManifest.groups.find((group) => group.id === "egos").items[0].key;
+  const draft = M.buildResultDraft(egoManifest, { selected: [egoKey], db: egoDb });
+  assert.equal(draft.simulation.held, 1, "ADD_CUSTOM_ROSTER_EGO も所持追加件数へ含める");
+  assert.equal(draft.simulation.bySource.unclassified, 1, "元記録に入手方法が無ければ配布とは断定しない");
+});
 
 test("精神は所持へ計上する（初期精神の未計上を許さない）", () => {
   const M = loadImportWithMemo();
