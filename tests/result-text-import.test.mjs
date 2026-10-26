@@ -393,6 +393,80 @@ test("テーマパック権の報酬直後に欠片へ変換した場合はチ�
     ]);
 });
 
+test("「後者獲得」を選んだチケットor通貨の報酬は通貨だけを計上する", () => {
+  const parsed = T.parseText([
+    "▼黒炎の崩剣",
+    "日時：2026/09/13",
+    "GM：茹でサメ店長さん",
+    "報酬：",
+    "LP：100",
+    "欠片：60+15(理性)=75",
+    "EGO抽出チケットorLP80と自我の欠片20→後者獲得",
+    "現在所持LP：50→230",
+    "現在所持欠片：84→179"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 1);
+  assert.equal(parsed.records[0].income.lp, 180);
+  assert.equal(parsed.records[0].income.shards, 95);
+  assert.equal(parsed.records[0].tickets.length, 0);
+  assert.equal(parsed.records[0].ticketUses.length, 0);
+
+  const planned = T.plan(parsed);
+  const result = planned.actions.find((action) => action.type === "ADD_RESULT");
+  assert.equal(result.income.lp, 180);
+  assert.equal(result.income.shards, 95);
+  assert.equal(result.income.tickets.ego, 0);
+  assert.equal(planned.actions.filter((action) => action.type === "SPEND_TICKET").length, 0);
+});
+
+test("同一リザルト内で同じ収入・残高一式が重複したErrorブロックは二重計上しない", () => {
+  const parsed = T.parseText([
+    "▼【Error】",
+    "日時：2026/10/07",
+    "GM：ささらんさん",
+    "LP：400",
+    "欠片：175+20→195",
+    "現在所持LP：234→634",
+    "現在所持欠片：71→266",
+    "任意抽出チケット×2→両方使用済(獲得：▼【Error】",
+    "日時：2026/10/07",
+    "GM：ささらんさん",
+    "LP：400",
+    "欠片：175+20→195",
+    "現在所持LP：234→634",
+    "現在所持欠片：71→266",
+    "任意抽出チケット×2→両方使用済(獲得：胸痛：過ぎ去りし日の寝袋、願掛け：吊られた祈願者)"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 1);
+  const record = parsed.records[0];
+  assert.equal(record.date, "2026-10-07");
+  assert.equal(record.income.lp, 400);
+  assert.equal(record.income.shards, 195);
+  assert.deepEqual(record.tickets.map((ticket) => ({ kind: ticket.kind, count: ticket.count })), [
+    { kind: "choice", count: 2 }
+  ]);
+  assert.deepEqual(record.ticketUses.map((ticket) => ({ kind: ticket.kind, count: ticket.count })), [
+    { kind: "choice", count: 2 }
+  ]);
+  assert.deepEqual(record.identityCandidates, [
+    "胸痛:過ぎ去りし日の寝袋",
+    "願掛け:吊られた祈願者"
+  ]);
+  assert.ok(parsed.skipped.some((item) => /重複数値は1回だけ計上/.test(item.reason)));
+  assert.ok(parsed.skipped.some((item) => /【Error】を指す不正な重複行/.test(item.reason)));
+
+  const planned = T.plan(parsed);
+  const result = planned.actions.find((action) => action.type === "ADD_RESULT");
+  assert.equal(result.income.lp, 400);
+  assert.equal(result.income.shards, 195);
+  assert.deepEqual(planned.actions.filter((action) => action.type === "SPEND_TICKET")
+    .map((action) => ({ kind: action.kind, count: action.count })), [
+      { kind: "choice", count: -2 }
+    ]);
+});
+
 test("日時を結果の日付欄に保持する", () => {
   const parsed = T.parseText([
     "▼梅と言うには遅く、名も悪く",
