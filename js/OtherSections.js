@@ -3963,6 +3963,9 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   const [textIdentityResolved, setTextIdentityResolved] = React.useState({});
   /* 種別が不明なチケットは自動推測しない。プレビューでユーザーが選んだ分類だけを取込案へ反映する。 */
   const [textTicketResolved, setTextTicketResolved] = React.useState({});
+  /* 残高差分・費用配分の警告は、原文を確認した利用者が警告単位で閉じられる。
+     入力が変わったら必ず解除して、古い確認状態が新しい内容へ流用されないようにする。 */
+  const [dismissedTextWarnings, setDismissedTextWarnings] = React.useState(() => new Set());
 
   /* 取り込み（硝子窓）はリザルト個別ではなくアカウント全体の操作として
    アカウント選択画面で行う。ここでは扱わない。 */
@@ -3981,6 +3984,7 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     setImportNote(null);
     setTicketPanel(null);
     setTicketDraft(null);
+    setDismissedTextWarnings(new Set());
   };
   const openHeld = () => switchResultTool("held");
   const closeHeld = () => setHeldOpen(false);
@@ -4287,6 +4291,19 @@ const textPlan = React.useMemo(() => {
   }, [parsedText, textExcluded, textIdentityExcluded, textIdentityResolved, textTicketResolved, resolveSpendName, resolveTextItem, resolveTextItemUse,
     state.roster?.personas, state.roster?.egos, state.roster?.supports, state.roster?.spirits, state.inventory]);
 
+const textWarningKey = (warning) => [
+  warning?.kind || "warning",
+  warning?.text || warning?.name || warning?.key || "",
+  warning?.reason || ""
+].join("::");
+const isReviewableTextWarning = (warning) => [
+  "balance-mismatch", "balance-mismatch-pack", "balance-ambiguous",
+  "expense-allocation-review", "expense-total-mismatch"
+].includes(warning?.kind);
+const visibleTextWarnings = (textPlan?.skipped || []).filter((warning) =>
+  !isReviewableTextWarning(warning) || !dismissedTextWarnings.has(textWarningKey(warning))
+);
+
 const textTicketResolutionKey = (recordIndex, ticket) =>
   window.LBT_textImport?.ticketResolutionKey?.(recordIndex, ticket)
   || `${recordIndex}:${String(ticket?.sourceLine || "").trim()}::${String(ticket?.raw || "").trim()}`;
@@ -4321,7 +4338,8 @@ const applyTextImport = () => {
   if (!textPlan || !textPlan.actions.length) { toast("取り込めるものがありません"); return; }
   const detail = {
     actions: textPlan.actions,
-    skipped: Array.isArray(textPlan.skipped) ? [...textPlan.skipped] : []
+    skipped: (Array.isArray(textPlan.skipped) ? textPlan.skipped : [])
+      .filter((warning) => !isReviewableTextWarning(warning) || !dismissedTextWarnings.has(textWarningKey(warning)))
   };
   window.dispatchEvent(new CustomEvent("lbt:apply-import", { detail }));
   const accepted = Array.isArray(detail.actions) ? detail.actions : [];
@@ -4349,6 +4367,7 @@ const applyTextImport = () => {
   setTextIdentityExcluded(new Set());
   setTextIdentityResolved({});
   setTextTicketResolved({});
+  setDismissedTextWarnings(new Set());
 };
 
 /* 手動支出・消耗の記録。帰属は未分類で入れる（後からドラッグで振る）。 */
@@ -4692,6 +4711,7 @@ const importHeldPersonas = () => {
               setTextIdentityExcluded(new Set());
               setTextIdentityResolved({});
               setTextTicketResolved({});
+              setDismissedTextWarnings(new Set());
             }
           })
         ),
@@ -4797,9 +4817,17 @@ const importHeldPersonas = () => {
             spend.needsDecision && h("span", { className: "ledger-note" }, `（${spend.reason}）`)
           ))
         )),
-        textPlan && textPlan.skipped.length > 0 && h("div", { className: "ledger-held-result", role: "status" },
-          h("p", { className: "ledger-note" }, `入れなかったものが ${textPlan.skipped.length} 件あります：`),
-          h("ul", { className: "ledger-warn-list" }, textPlan.skipped.map((s, i) => h("li", { key: i }, `${s.text || s.name || s.key}：${s.reason || "不明"}`)))
+        visibleTextWarnings.length > 0 && h("div", { className: "ledger-held-result", role: "status" },
+          h("p", { className: "ledger-note" }, `未確認の警告が ${visibleTextWarnings.length} 件あります。原文を確認してください。内容を確認して問題がなければ、各警告の「確認済みとして閉じる」で表示を消せます。`),
+          h("ul", { className: "ledger-warn-list" }, visibleTextWarnings.map((s) => h("li", { key: textWarningKey(s) },
+            h("div", null, `${s.text || s.name || s.key || "（行を特定できません）"}：${s.reason || "不明"}`),
+            s.guidance && h("p", { className: "ledger-note" }, `確認方法：${s.guidance}`),
+            isReviewableTextWarning(s) && h(Button, {
+              size: "sm", variant: "quiet",
+              "aria-label": `確認済みとして警告を閉じる：${s.text || s.name || s.key || "対象の行"}`,
+              onClick: () => setDismissedTextWarnings((previous) => new Set([...previous, textWarningKey(s)]))
+            }, "確認済みとして閉じる")
+          )))
         ),
         h(Button, {
           size: "sm", variant: "primary", icon: "check",

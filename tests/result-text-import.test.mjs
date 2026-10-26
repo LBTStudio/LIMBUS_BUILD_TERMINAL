@@ -480,10 +480,11 @@ test("記録された欠片残高の差分が報酬額と違う場合は自動�
 
   assert.equal(parsed.records.length, 1);
   assert.equal(parsed.records[0].income.shards, 50);
-  assert.ok(parsed.skipped.some((item) =>
-    item.text === "現在所持欠片：397→437"
-      && /記録上 \+40、取込計算上 \+50/.test(item.reason)
-  ));
+  const warning = parsed.skipped.find((item) => item.text === "現在所持欠片：397→437");
+  assert.ok(warning);
+  assert.equal(warning.kind, "balance-mismatch");
+  assert.match(warning.reason, /記録上 \+40、取込計算上 \+50/);
+  assert.match(warning.guidance, /447/, "報酬50が正しい場合の終了残高候補を示す");
 });
 
 test("チケット使用で50欠片に変換した報酬は残高差分が一致しなければ要確認にする", () => {
@@ -501,10 +502,12 @@ test("チケット使用で50欠片に変換した報酬は残高差分が一致
   assert.equal(parsed.records.length, 1);
   assert.equal(parsed.records[0].income.shards, 93);
   assert.equal(parsed.records[0].ticketUses.length, 1);
-  assert.ok(parsed.skipped.some((item) =>
-    item.text === "現在所持欠片：87→130"
-      && /記録上 \+43、取込計算上 \+93/.test(item.reason)
-  ));
+  const warning = parsed.skipped.find((item) => item.text === "現在所持欠片：87→130");
+  assert.ok(warning);
+  assert.equal(warning.kind, "balance-mismatch-pack");
+  assert.match(warning.reason, /記録上 \+43、取込計算上 \+93/);
+  assert.match(warning.guidance, /パック/);
+  assert.match(warning.guidance, /180/, "50欠片を含めた場合の終了残高候補を示す");
 });
 
 test("欠片変換を含むテーマパック報酬も現在所持の差分を監査する", () => {
@@ -729,7 +732,10 @@ test("抽出チケット複数枚とLP合計の費用配分が不明でも合計
   assert.deepEqual([...parsed.records[0].spends].map((item) => ({
     name: item.name, cost: { ...item.cost }
   })), [{ name: "抽出イベント×5", cost: { lp: 200, shards: 0 } }]);
-  assert.ok(parsed.skipped.some((item) => /合計費用は1件の支出として記録しました/.test(item.reason)));
+  const allocationWarning = parsed.skipped.find((item) => /合計費用は1件の支出として記録しました/.test(item.reason));
+  assert.ok(allocationWarning);
+  assert.equal(allocationWarning.kind, "expense-allocation-review");
+  assert.match(allocationWarning.guidance, /合計費用はすでに1件の支出として保持/);
   assert.ok(!parsed.skipped.some((item) => /消費合計が安全整数/.test(item.reason)));
 
   const planned = T.plan(parsed);
@@ -755,7 +761,10 @@ test("消費額と獲得品の個別価格が矛盾する実記録は要確認�
     { name: "仮EGO A", cost: { lp: 0, shards: 50 } },
     { name: "仮EGO B", cost: { lp: 0, shards: 50 } }
   ]);
-  assert.ok(parsed.skipped.some((item) => /個別価格が一致しません/.test(item.reason)));
+  const warning = parsed.skipped.find((item) => /個別価格が一致しません/.test(item.reason));
+  assert.ok(warning);
+  assert.equal(warning.kind, "expense-total-mismatch");
+  assert.match(warning.guidance, /消費欄の合計/);
 });
 
 test("[Input]付きの見出しなし記録も空行ごとに分割する", () => {
@@ -1603,4 +1612,14 @@ test("欠けら表記の価格も欠片として取り込む", () => {
   const spend = parsed.records[0].spends[0];
   assert.equal(Boolean(spend.needsDecision), false);
   assert.deepEqual(JSON.parse(JSON.stringify(spend.cost)), { lp: 0, shards: 50 });
+});
+
+
+test("取込プレビューの残高・費用監査警告は利用者が警告単位で確認済みにできる", () => {
+  const ui = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
+  assert.match(ui, /確認済みとして閉じる/);
+  assert.match(ui, /dismissedTextWarnings/);
+  assert.match(ui, /visibleTextWarnings/);
+  assert.match(ui, /setDismissedTextWarnings\(new Set\(\)\)/,
+    "入力を変更したら以前の確認状態をリセットする");
 });
