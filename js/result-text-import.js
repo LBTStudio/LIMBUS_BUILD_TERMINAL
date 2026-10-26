@@ -782,14 +782,23 @@
 
       const isSync = /人格同期化依頼|人格同期化|同期化依頼/.test(title) && !/クールタイム|強制.*(?:開|明)|強化/.test(title);
       const isOperation = /クールタイム|強制.*(?:開|明)|人格強化|身体強化|特殊強化/.test(title);
+      const isThemePackDraw = /テーマパック|テーマパーク/.test(title) && /抽出/.test(title);
+      const hasPricedSpecifiedItem = specified.some((item) => item.priced && item.cost);
       let spendItems = isSync ? targets.slice() : acquired.length ? acquired.slice() : [];
+      if (isThemePackDraw && !hasCurrencyCost && hasPricedSpecifiedItem) {
+        /* テーマパックの「指定」は、抽出対象名とLP価格を明示する購入指定。 */
+        spendItems = specified.filter((item) => item.priced && item.cost);
+      }
       if (!spendItems.length && specified.length && /初期作成|指定(?:抽出|購入)|指定依頼/.test(title)) spendItems = specified.slice();
       if (isOperation && consumeLines.length) spendItems = [ledgerItem(title)];
       if (consumeLines.length && !spendItems.length && hasCurrencyCost) {
         spendItems = [ledgerItem(title)];
       }
 
-      if (consumeLines.length && spendItems.length && !ambiguousCost) {
+      /* チケットだけの抽出を0LP/0欠片の支出明細に重複登録しない。 */
+      const hasPricedPackPurchase = isThemePackDraw && !hasCurrencyCost && hasPricedSpecifiedItem;
+      if (consumeLines.length && spendItems.length && !ambiguousCost
+        && (hasCurrencyCost || hasPricedPackPurchase)) {
         const descriptions = spendItems.map((item) => item.priced ? item : ledgerItem(item.raw || item.name));
         const explicitAll = descriptions.every((item) => item.priced && item.cost);
         const explicitSum = descriptions.reduce((sum, item) => {
