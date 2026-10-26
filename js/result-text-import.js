@@ -277,6 +277,16 @@
   }
 
   /* 縦書きの実記録（▼/▽見出し、複数行の報酬・消費・獲得）を安全に構造化する。 */
+  function ledgerDate(expression) {
+    const source = toHalf(expression).trim();
+    const match = source.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})/);
+    if (!match) return null;
+    const year = Number(match[1]), month = Number(match[2]), day = Number(match[3]);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+    return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+
   function ledgerNumber(expression) {
     const source = toHalf(expression).trim();
     if (!source) return null;
@@ -442,9 +452,9 @@
     for (const entry of blocks) {
       const title = entry.title.replace(/^『\s*(.+?)\s*』$/, "$1").trim();
       const record = {
-        title: title || null, author: null, income: { lp: 0, shards: 0 },
+        title: title || null, date: null, author: null, income: { lp: 0, shards: 0 },
         tickets: [], spends: [], deltas: [], consumedItems: [], itemGains: [], raw: [],
-        journalFormat: true, acquisitions: [], specifiedItems: [], identityCandidates: [], rewardCandidates: []
+        journalFormat: true, acquisitions: [], specifiedItems: [], identityCandidates: [], rewardCandidates: [], itemUseCandidates: []
       };
       const acquired = [];
       const specified = [];
@@ -455,7 +465,14 @@
 
       const keepNote = (line) => {
         const value = String(line ?? "").trim();
-        if (value) record.raw.push(value);
+        if (!value) return;
+        record.raw.push(value);
+        /* 注記欄のアイテム使用は、完全一致でDBへ引けた場合のみ在庫減少候補にする。
+           CT使用などアイテムでない記述は、後段の完全一致に失敗すれば注記のまま残る。 */
+        if (/(?:使用|消費)/.test(value) && !/硝子の(?:破片|欠片|かけら|カケラ)/.test(value)
+          && !/^消費\s*[：:]/.test(value)) {
+          record.itemUseCandidates.push(value);
+        }
       };
       const collectItems = (value, bucket, role) => {
         const items = ledgerItems(value);
@@ -560,10 +577,19 @@
           continue;
         }
 
-        if (label === "現在所持LP" || label === "現在所持欠片" || label === "日時" ||
+        if (label === "日時") {
+          record.date = ledgerDate(value);
+          if (!record.date && value) skipped.push({ text: line, reason: "日時の形式を YYYY/MM/DD として読めませんでした" });
+          rewardContext = false;
+          keepNote(line);
+          continuation = null;
+          continue;
+        }
+
+        if (label === "現在所持LP" || label === "現在所持欠片" ||
             label.toLowerCase() === "gm" || label === "備考" || label === "強化内容" ||
             label === "アイテム" || label === "欠片合計" || label === "合計") {
-          if (label !== "報酬") rewardContext = false;
+          rewardContext = false;
           keepNote(line);
           if (label === "アイテム" && value) {
             const glass = parseLegacyGlassGain(line);
@@ -935,6 +961,13 @@
     const importedEgoKeys = new Set();
     const importedSupportNames = new Set();
     const importedSpiritNames = new Set();
+    const itemBalances = opts.ownedItems instanceof Map
+      ? new Map(opts.ownedItems)
+      : new Map(Object.entries(opts.ownedItems || {}).map(([id, quantity]) => [String(id), Number(quantity) || 0]));
+    const addInventoryGain = (itemId, quantity) => {
+      actions.push({ type: "ADD_ITEM_INVENTORY", itemId, quantity });
+      itemBalances.set(String(itemId), (itemBalances.get(String(itemId)) || 0) + quantity);
+    };
     let legacyUseSequence = 0;
 
     for (const [recordIndex, record] of (parsed.records || []).entries()) {
@@ -969,16 +1002,18 @@
       const acquisitionNotes = [...(record.acquisitions || []), ...(record.specifiedItems || [])]
         .map((item) => `${item.name}${Number(item.quantity) > 1 ? ` ×${item.quantity}` : ""}（取得記録）`);
       const fullNote = [note, ...legacyNotes, ...itemGainNotes, ...acquisitionNotes].filter(Boolean).join("\n").slice(0, 2000);
-      actions.push({
+      const resultAction = {
         type: "ADD_RESULT",
         name: title,
+        date: record.date || "",
         income: { lp: record.income.lp, shards: record.income.shards, tickets: ticketIncome(acceptedTickets) },
         note: fullNote,
-        consumedItems: (record.consumedItems || []).map((item) => {
+        consumedItems: record.journalFormat === true ? [] : (record.consumedItems || []).map((item) => {
           const operationId = `legacy-use-${Date.now()}-${legacyUseSequence++}`;
           return { ...item, id: operationId, operationId, consumedAt: Date.now() };
         })
-      });
+      };
+      actions.push(resultAction);
 
       const identityRows = record.journalFormat === true
         ? (Array.isArray(record.identityCandidates) ? record.identityCandidates : [])
@@ -998,7 +1033,7 @@
         const itemHit = typeof opts.resolveItem === "function" ? opts.resolveItem(source) : null;
         const itemId = itemHit && String(itemHit.itemId || itemHit.id || "");
         if (itemId && itemHit.ledgerResource !== "shards") {
-          actions.push({ type: "ADD_ITEM_INVENTORY", itemId, quantity });
+          addInventoryGain(itemId, quantity);
           return true;
         }
 
@@ -1054,7 +1089,7 @@
         const itemId = String(item?.itemId || "");
         const quantity = Number(item?.quantity);
         if (itemId && Number.isSafeInteger(quantity) && quantity > 0) {
-          actions.push({ type: "ADD_ITEM_INVENTORY", itemId, quantity });
+          addInventoryGain(itemId, quantity);
         } else {
           skipped.push({ text: item?.detail || item?.itemName || "アイテム獲得", reason: "アイテムの個数または識別子が不正です" });
         }
@@ -1063,6 +1098,52 @@
       if (!acquisitions.length && /初期作成/.test(title)) acquisitions.push(...(record.specifiedItems || []));
       for (const item of acquisitions) addResolvedAsset(item, true);
       for (const item of record.rewardCandidates || []) addResolvedAsset(item, false);
+
+      if (record.journalFormat === true) {
+        const useRows = [...(record.consumedItems || [])].map((item) => ({
+          itemId: String(item?.itemId || ""),
+          itemName: String(item?.itemName || item?.name || item?.itemId || ""),
+          quantity: Number(item?.quantity),
+          reason: String(item?.reason || "consumption"),
+          detail: String(item?.detail || item?.raw || item?.itemName || "")
+        }));
+        if (typeof opts.resolveItemUse === "function") {
+          for (const line of record.itemUseCandidates || []) {
+            const use = opts.resolveItemUse(line);
+            if (use && use.itemId) useRows.push({
+              itemId: String(use.itemId),
+              itemName: String(use.itemName || use.name || use.itemId),
+              quantity: Number(use.quantity || 1),
+              reason: String(use.reason || "consumption"),
+              detail: String(line || "")
+            });
+          }
+        }
+        useRows.forEach((use, useIndex) => {
+          if (!use.itemId || !Number.isSafeInteger(use.quantity) || use.quantity <= 0) {
+            skipped.push({ text: use.detail || use.itemName, reason: "アイテム消費個数を正しく読めませんでした" });
+            return;
+          }
+          const available = itemBalances.get(use.itemId) || 0;
+          if (available >= use.quantity) {
+            const operationId = `text-use-${Date.now()}-${recordIndex}-${useIndex}`;
+            actions.push({
+              type: "CONSUME_ITEM", itemId: use.itemId, quantity: use.quantity,
+              reason: use.reason, operationId
+            });
+            itemBalances.set(use.itemId, available - use.quantity);
+          } else {
+            resultAction.consumedItems.push({
+              itemId: use.itemId, itemName: use.itemName, quantity: use.quantity,
+              reason: use.reason, detail: use.detail
+            });
+            skipped.push({
+              text: use.detail || use.itemName,
+              reason: "消費は記録しましたが、取込前からの所持数と今回の獲得数だけでは在庫が足りないため、在庫は減らしていません"
+            });
+          }
+        });
+      }
 
       /* 旧形式は raw 注記から、ジャーナル形式は指定された人格候補だけを照合する。 */
       identityRows.forEach((rawLine, rawIndex) => {
