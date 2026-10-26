@@ -118,11 +118,14 @@
     var cm2 = text.match(/(?:チケ|チケット)\s*(\d+)\s*枚/);
     if (cm2) count = parseInt(cm2[1], 10);
 
+    /* 名前の中の「E.G.O」や「ガチャ結果」を、チケット種別と誤認しない。
+       明示されたチケット名を優先し、ガチャチケだけをE.G.O抽出相当とする。 */
     var kind = "persona";
-    if (EGO_WORDS.some(function (w) { return text.indexOf(w) >= 0; })) kind = "ego";
+    var explicitPersona = /人格.{0,4}チケ|チケ.{0,4}人格/.test(text);
+    if (explicitPersona) kind = "persona";
     else if (/選択|zr|upgrade/i.test(text)) kind = "choice";
-    /* 「ガチャ」はE.G.O打ちのmixedword。LBTではガチャ=E.G.O相当。 */
-    if (/ガチャ/.test(text)) kind = "ego";
+    else if (/ガチャ\s*(?:チケ|チケット)/.test(text)
+      || EGO_WORDS.some(function (w) { return text.indexOf(w) >= 0; })) kind = "ego";
     return { kind: kind, count: count };
   }
 
@@ -131,6 +134,9 @@
      数字無し「人格抽出：南部〜」も 1 回として数える。 */
   function bareDrawOf(line) {
     var text = normalizeAmountText(line);
+    /* 「LP200を消費してガチャ」のような叙述は抽出回数の記録ではない。
+       明示的な「使用/消費」しかない自然文からチケットを作らない。 */
+    if (/(?:消費|使用済|使用し|支払|支出)/.test(text) && String(line).indexOf("→") < 0) return null;
     var m = text.match(/(?:抽出|ガチャ)\s*(\d+)?/);
     if (!m) return null;
     /* 「時間殺人時間テーマパック抽出」はパックの獲得であり、チケットの消費ではない。 */
@@ -470,12 +476,14 @@
     tail.split(/[、，,]/).forEach(function (frag) {
       /* 「→LP100消費ガチャ:厳粛な哀悼獲得」は最後の区切りの後ろが名前。
          「N社E.G.O:ねばつき」の 区切りは名前の一部なので切らない。 */
-      var cut = Math.max(frag.lastIndexOf("："), frag.lastIndexOf(":"));
+      /* 取引の区切りは最初のコロンまで。後ろのコロンは E.G.O 名や人格名の一部
+         かもしれない（「→100LP消費：LCE E.G.O:紅炎殺」）。 */
+      var cut = frag.search(/[：:]/);
       if (cut >= 0 && /(ガチャ|抽出|消費|使用|チケ|LP|ＬＰ|欠片)/.test(frag.slice(0, cut))) frag = frag.slice(cut + 1);
       var name = frag.trim()
         .replace(/^[「『]\s*/, "").replace(/[」』]\s*$/, "")
         .replace(/^抽出\s*\d*\s*/, "")
-        .replace(/(?:を)?(?:獲得|入手)(?:した)?$/, "")
+        .replace(/(?:を|の)?(?:獲得|入手)(?:した)?$/, "")
         .trim();
       if (name.length < 2) return;
       if (!/[A-Za-zぁ-んァ-ヶ一-龠]/.test(name)) return;
@@ -540,6 +548,92 @@
     };
   }
 
+
+  /* 明示された通貨消費を収入と分離して読む。正規化は1文字対1文字の範囲に
+     限り、獲得名の位置やE.G.O名のコロンを壊さない。 */
+  function currencySpendOf(rawLine) {
+    var text = normalizeNumericText(rawLine);
+    /* 矢印付きの取引行、または「100LP消費ガチャ:報酬」のような
+       明示ラベル行だけを対象にする。自然文「LP200を消費してガチャ」は
+       取引記録と断定できないので、従来どおりこの経路では拾わない。 */
+    var rawSource = String(rawLine || "");
+    var hasArrow = rawSource.indexOf("→") >= 0;
+    var hasExplicitSpendLabel = /(?:消費|使用|支払|支出)\s*(?:ガチャ|抽出|パック|テーマパック)\s*[：:]/.test(text);
+    if (!hasArrow && !hasExplicitSpendLabel) return null;
+    var lpMatch = text.match(/(?:LP|ＬＰ)\s*([0-9][0-9,]*)\s*(?:を\s*)?(?:消費|使用|支払|支出)/i);
+    if (!lpMatch) lpMatch = text.match(/([0-9][0-9,]*)\s*(?:LP|ＬＰ)\s*(?:を\s*)?(?:消費|使用|支払|支出)/i);
+    if (lpMatch) {
+      var lp = Number(String(lpMatch[1]).replace(/,/g, ""));
+      return { currency: "lp", amount: lp, start: lpMatch.index, end: lpMatch.index + lpMatch[0].length };
+    }
+    /* 「自我の破片100消費」は通貨。「硝酸の欠片×1」はアイテム名なので対象外。 */
+    var shardMatch = text.match(/(?:自我の(?:破片|欠片)|(?<!の)(?:欠片|かけら|欠けら|カケラ))\s*([0-9][0-9,]*)\s*(?:個|つ)?\s*(?:を\s*)?(?:消費|使用|支払|支出)/);
+    if (!shardMatch) shardMatch = text.match(/([0-9][0-9,]*)\s*(?:個|つ)?\s*自我の(?:破片|欠片)\s*(?:を\s*)?(?:消費|使用|支払|支出)/);
+    if (shardMatch) {
+      var shardAmount = Number(String(shardMatch[1]).replace(/,/g, ""));
+      return { currency: "shards", amount: shardAmount, start: shardMatch.index, end: shardMatch.index + shardMatch[0].length };
+    }
+    return null;
+  }
+
+  function cleanRewardName(value) {
+    var name = String(value || "").trim();
+    name = name.replace(/^(?:ガチャ|抽出ガチャ|ガチャ抽出|抽出|パックチケット|テーマパック|パック)\s*[：:]\s*/i, "");
+    name = name.replace(/^[：:→\s　]+/, "").trim();
+    name = name.replace(/^[「『]/, "").replace(/[」』]$/, "").trim();
+    name = name.replace(/(?:の)?(?:獲得|入手)(?:した)?[。．.]?$/, "").trim();
+    if (!name || /(?:被り|重複|補償|返還)/.test(name)) return "";
+    if (/^(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|自我の破片|自我の欠片)\s*\d*$/i.test(name)) return "";
+    /* 選択抽出チケット→ego などの汎用ラベルを実際の獲得名にしない。 */
+    if (/^[A-Za-z0-9\s.:_\/-]+$/.test(name)) return "";
+    if (!/[A-Za-zぁ-んァ-ヶ一-龠]/.test(name)) return "";
+    return name;
+  }
+
+  function rewardAfterCurrencySpend(rawLine, end) {
+    var raw = String(rawLine || "");
+    var text = normalizeNumericText(raw);
+    var tail = text.slice(end).trim();
+    if (!tail) return "";
+    var arrow = tail.lastIndexOf("→");
+    var rawTail = raw.slice(end).trim();
+    if (arrow >= 0) {
+      rawTail = rawTail.slice(arrow + 1);
+    } else if (!/^\s*(?:(?:ガチャ|抽出ガチャ|ガチャ抽出|抽出|パックチケット|テーマパック|パック)\s*[：:]|[：:])/.test(tail)) {
+      /* 「LP200を消費してガチャ」の後半は叙述であって獲得名ではない。 */
+      return "";
+    }
+    return cleanRewardName(rawTail);
+  }
+
+  /* 「チケット→獲得名」は、チケットの収入ではなく使用の証拠として読む。 */
+  function explicitTicketSpendOf(rawLine) {
+    var raw = String(rawLine || "");
+    var text = normalizeNumericText(raw);
+    var ticketAt = text.search(/チケット|チケ/);
+    if (ticketAt < 0) return null;
+    var arrowAt = text.indexOf("→", ticketAt);
+    if (arrowAt < 0) return null;
+    var source = text.slice(0, arrowAt);
+    /* チケット獲得と「ガチャ結果→…」が同じ行にある場合は使用ではない。
+       矢印より前に獲得・報酬・結果があればチケット消費として扱わない。 */
+    if (!/チケット|チケ/.test(source) || /(?:\bd\d{2,}|ダイス条件)/i.test(source)
+      || /獲得|入手|報酬|収入|ガチャ結果|抽出結果/.test(source)) return null;
+    var isPack = /パックチケット/.test(source);
+    var pack = "";
+    if (isPack) {
+      var pm = source.match(/パックチケット[^「『〈《]*[「『〈《]([^」』〉》]+)[」』〉》]/);
+      if (pm) pack = pm[1].trim();
+    }
+    var count = 1;
+    var cm = source.match(/[x×]\s*(\d+)/) || source.match(/(?:チケット|チケ)\s*(\d+)\s*枚/);
+    if (cm) count = Number(cm[1]);
+    var parsed = isPack ? { kind: "pack", count: count } : ticketOf(source);
+    if (!parsed || !Number.isSafeInteger(count) || count <= 0) return null;
+    return { kind: isPack ? "pack" : parsed.kind, count: count, pack: pack,
+      reward: cleanRewardName(raw.slice(arrowAt + 1)), raw: String(rawLine || "").trim() };
+  }
+
   function parseMemo(memo) {
     var income = { lp: 0, shards: 0 };
     var tickets = { persona: 0, ego: 0, choice: 0 };
@@ -549,6 +643,7 @@
     /* シナリオで直接払い出された人格/E.G.O の名前。 */
     var wins = [];
     var consumedItems = [];
+    var ticketSpends = [];
 
     var lines = String(memo || "").split(/\r?\n/);
     var mode = "income";
@@ -587,6 +682,41 @@
       }
       if (mode === "current") continue;  // 現在値の羅列は取り込まない
 
+      /* 明示された通貨消費をチケット収入・抽出回数と混同しない。 */
+      var currencySpend = currencySpendOf(line);
+      if (currencySpend) {
+        if (!Number.isSafeInteger(currencySpend.amount) || currencySpend.amount <= 0) {
+          reasons.push({ line: line, reason: "消費金額が正の安全整数ではないため未計上" });
+          continue;
+        }
+        var rewardName = rewardAfterCurrencySpend(line, currencySpend.end);
+        var spendRecord = { name: rewardName || line, lp: 0, shards: 0, raw: line, reason: "明示された通貨消費" };
+        spendRecord[currencySpend.currency] = currencySpend.amount;
+        spends.push(spendRecord);
+        /* 購入・抽出後の獲得名を保持。既存の同名候補があれば重複を増やさない。 */
+        var arrowRewardNames = arrowWinsOf(line);
+        if (!arrowRewardNames.length && rewardName) arrowRewardNames = [rewardName];
+        arrowRewardNames.forEach(function (name) {
+          if (!wins.some((w) => w.name === name)) wins.push({ name: name, via: "", kind: "" });
+        });
+        /* 続きに収入・チケット獲得が同居する書式があるため行全体を捨てない。
+           後段の既存解析は消費より前の収入だけを読む。 */
+      }
+
+      var explicitTicketSpend = explicitTicketSpendOf(line);
+      if (explicitTicketSpend) {
+        ticketSpends.push({ kind: explicitTicketSpend.kind, pack: explicitTicketSpend.pack || "",
+          count: explicitTicketSpend.count, raw: explicitTicketSpend.raw });
+        if (explicitTicketSpend.reward && !wins.some((w) => w.name === explicitTicketSpend.reward)) {
+          wins.push({ name: explicitTicketSpend.reward,
+            via: explicitTicketSpend.kind === "pack"
+              ? "パックチケット" + (explicitTicketSpend.pack ? "「" + explicitTicketSpend.pack + "」" : "")
+              : (TICKET_LABEL[explicitTicketSpend.kind] || "抽出チケット"),
+            kind: explicitTicketSpend.kind });
+        }
+        continue;
+      }
+
       /* 箇条書きの「・人格抽出チケット×1消費」は使った記録であって獲得ではない。
          ダイス条件（「・1d100を…出した人は…チケットを1枚」）も獲得扱いしない。 */
       if (isBullet && /消費|使用済|使用し|d\d{2,}/.test(line) && /チケ|チケット|抽出|ガチャ/.test(line)) continue;
@@ -610,7 +740,8 @@
         }
       }
 
-      var tk = packTicketMatch ? null : ticketOf(line);
+      var ticketScope = currencySpend ? line.slice(0, currencySpend.start).trim() : line;
+      var tk = packTicketMatch ? null : ticketOf(ticketScope);
       if (tk) {
         var ticketCountAdded = addSafeAmount(tickets, tk.kind, tk.count, line, reasons, "抽出チケット数");
         /* チケットからどの人格/E.G.Oを得たか。ソースの書式は
@@ -650,7 +781,7 @@
 
   /* 「抽出1：E.G.O:提灯」のような「抽出NN」だけの行。
            チケット行と二重に数えない（抽出の語を含むため）。 */
-        var bd = packTicketMatch ? null : bareDrawOf(line);
+        var bd = (packTicketMatch || currencySpend) ? null : bareDrawOf(line);
         if (bd) {
           var drawCountAdded = addSafeAmount(tickets, bd.kind, bd.count, line, reasons, "抽出回数");
           /* 抽出0 は回数も獲得候補もゼロ。名前があるだけで所持へ追加しない。 */
@@ -891,7 +1022,7 @@
       }
     }
 
-    return { income: income, tickets: tickets, pack: pack, spends: spends, reasons: reasons, wins: wins, consumedItems: consumedItems };
+    return { income: income, tickets: tickets, pack: pack, spends: spends, reasons: reasons, wins: wins, consumedItems: consumedItems, ticketSpends: ticketSpends };
   }
 
   /* scenarioHistory 配列を分解する。 */
@@ -911,6 +1042,7 @@
            チケットだけ記入されている場合も「どのチケット由来か」を
            持つので、ここに入る。 */
         wins: parsed.wins,
+        ticketSpends: parsed.ticketSpends || [],
         /* 支出だけがあるシナリオもある（「・支出」節に数行、
            収入が書かれていない、または 0 だった）。
            収入だけを条件にすると、それらは取りこぼされる。 */
