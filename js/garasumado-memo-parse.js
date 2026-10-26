@@ -122,7 +122,7 @@
        フレーバー文がある。枚数・券種・入手/消費の記述が一切ない説明文を
        チケット収入や抽出として誤認しない。 */
     var hasCount = /[x×]\s*\d+|(?:チケ|チケット)\s*\d+\s*枚/.test(text);
-    var hasType = /抽出|ガチャ|人格|E\.?G\.?O|エゴ|イゴ|選択|テーマパック/.test(text);
+    var hasType = /抽出|ガチャ|人格|E\.?G\.?O|エゴ|イゴ|選択|テーマパック/i.test(text);
     var hasAction = /報酬|獲得|入手|付与|支給|取得|所持|消費|使用|増加|減少/.test(text);
     /* 「140LP / 26カケラ / チケット」のように直前の行が通貨報酬なら、
        単独「チケット」も実際の報酬候補として要確認に残す。
@@ -149,6 +149,7 @@
       if (explicitPersona) kind = "persona";
       else if (/選択|zr|upgrade/i.test(text)) kind = "choice";
       else if (/ガチャ\s*(?:チケ|チケット)/.test(text)
+        || /E\.?G\.?O|エゴ|イゴ/i.test(text)
         || EGO_WORDS.some(function (w) { return text.indexOf(w) >= 0; })) kind = "ego";
     }
     /* 無修飾の「抽出チケット」は種別不明。種類を名前から推測しない。 */
