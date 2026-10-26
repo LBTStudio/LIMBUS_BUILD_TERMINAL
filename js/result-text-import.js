@@ -1180,6 +1180,45 @@
         ? (Array.isArray(record.identityCandidates) ? record.identityCandidates : [])
         : (record.raw || []);
       const identityNames = new Set(identityRows.map((line) => String(line || "").trim()));
+      /* 限定した表記揺れだけを試す。部分一致・類似名からの推測は行わない。 */
+      const resolveImportedName = (value) => {
+        if (typeof opts.resolve !== "function") return null;
+        const source = String(value || "").trim();
+        if (!source) return null;
+        const directHit = opts.resolve(source);
+        if (directHit) return directHit;
+
+        const toAsciiRoman = (text) => String(text || "").replace(/[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩⅪⅫ]/g, (letter) => ({
+          "Ⅰ": "I", "Ⅱ": "II", "Ⅲ": "III", "Ⅳ": "IV", "Ⅴ": "V", "Ⅵ": "VI",
+          "Ⅶ": "VII", "Ⅷ": "VIII", "Ⅸ": "IX", "Ⅹ": "X", "Ⅺ": "XI", "Ⅻ": "XII"
+        })[letter] || letter);
+        const variants = [];
+        const seen = new Set([source]);
+        const add = (candidate) => {
+          const name = String(candidate || "").trim();
+          if (name && !seen.has(name)) { seen.add(name); variants.push(name); }
+        };
+        const addKnownSpellingVariants = (candidate) => {
+          add(candidate.replace(/金鎚/g, "金槌"));
+          add(toAsciiRoman(candidate));
+          add(toAsciiRoman(candidate.replace(/金鎚/g, "金槌")));
+        };
+
+        const rankPrefixedEgo = source.match(/^(?:ZAYIN|TETH|HE|WAW|ALEPH)\s+(.+)$/i);
+        if (rankPrefixedEgo) {
+          add(rankPrefixedEgo[1]);
+          addKnownSpellingVariants(rankPrefixedEgo[1]);
+        }
+        addKnownSpellingVariants(source);
+        const withoutPersonaSuffix = source.replace(/の人格$/, "").trim();
+        if (withoutPersonaSuffix !== source) addKnownSpellingVariants(withoutPersonaSuffix);
+
+        for (const candidate of variants) {
+          const hit = opts.resolve(candidate);
+          if (hit) return hit;
+        }
+        return null;
+      };
       const addResolvedAsset = (item, warnIfUnknown) => {
         const source = String(item?.name || "").trim();
         if (!source) return false;
@@ -1198,14 +1237,7 @@
           return true;
         }
 
-        const directHit = typeof opts.resolve === "function" ? opts.resolve(source) : null;
-        /* 実記録のE.G.O名は「HE Laetitia：レティシア」のようにランクを先頭へ付けることがある。
-           DB側の正式名はランクを含まないため、ランクを安全に剥がした候補も照合する。
-           直接一致が曖昧だった場合はフォールバックせず、誤登録を避ける。 */
-        const rankPrefixedEgo = source.match(/^(?:ZAYIN|TETH|HE|WAW|ALEPH)\s+(.+)$/i);
-        const hit = directHit || (rankPrefixedEgo && typeof opts.resolve === "function"
-          ? opts.resolve(rankPrefixedEgo[1].trim())
-          : null);
+        const hit = resolveImportedName(source);
         const kinds = (hit && Array.isArray(hit.kinds)) ? hit.kinds : [];
         const personas = personaKindsOf(hit);
         if (personas.length === 1) {
@@ -1322,7 +1354,7 @@
         if (!validJournalIdentity || typeof opts.resolve !== "function") return;
         const key = `${recordIndex}:${rawIndex}`;
         const overrideName = opts.identityResolved && opts.identityResolved[key];
-        const initialHit = opts.resolve(overrideName || source);
+        const initialHit = overrideName ? opts.resolve(overrideName) : resolveImportedName(source);
         const kinds = personaKindsOf(initialHit);
         if (kinds.length === 1) {
           const kind = kinds[0];
