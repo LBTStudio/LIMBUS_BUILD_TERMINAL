@@ -163,6 +163,44 @@ test("「・支出」以降の現在残高は支出額として誤計上しな�
     "購入動詞があっても残高しか書かれていなければ要確認にする");
 });
 
+test("硝子窓の矢印付き消費は収入・チケット獲得と混ぜず、支出と獲得を分離する", () => {
+  const rows = [
+    "→LP100消費ガチャ:厳粛な哀悼獲得",
+    "→100LP消費：LCE E.G.O:紅炎殺獲得",
+    "→自我の破片100消費：羽ばたき：妖精の祭典獲得",
+    "LP200消費パック「心のすれ違う」→ワザリングハイツ・ワイルドハントの人格の獲得",
+    "自我の破片100消費→幸福：あなたは幸せでなければならない獲得"
+  ];
+  const parsed = MEMO.parseMemo(rows.join("\n"));
+  assert.equal(parsed.income.lp, 0, "LP消費額を収入として足さない");
+  assert.equal(parsed.income.shards, 0, "自我の破片消費額を収入として足さない");
+  assert.deepEqual([...parsed.spends.map((s) => [s.lp, s.shards])], [
+    [100, 0], [100, 0], [0, 100], [200, 0], [0, 100]
+  ]);
+  assert.deepEqual([...parsed.wins.map((w) => w.name)], [
+    "厳粛な哀悼",
+    "LCE E.G.O:紅炎殺",
+    "羽ばたき：妖精の祭典",
+    "ワザリングハイツ・ワイルドハントの人格",
+    "幸福：あなたは幸せでなければならない"
+  ], "E.G.O名に含まれるコロンも壊さない");
+  assert.deepEqual({ ...parsed.tickets }, { persona: 0, ego: 0, choice: 0 });
+});
+
+test("獲得矢印より前に書かれた抽出チケットとパックチケットは消費として記録する", () => {
+  const parsed = MEMO.parseMemo([
+    "人格抽出チケット1枚→薬指野獣派スチューデントA獲得",
+    "200LP以下パックチケット「本に成った者たちⅠ」→夜の錐カピターノの人格獲得"
+  ].join("\n"));
+  assert.deepEqual([...parsed.ticketSpends.map((s) => [s.kind, s.pack, s.count])], [
+    ["persona", "", 1],
+    ["pack", "本に成った者たちⅠ", 1]
+  ]);
+  assert.equal(parsed.tickets.persona, 0, "使ったチケットを収入にしない");
+  assert.equal(Object.keys(parsed.pack).length, 0, "使ったパックを獲得分にしない");
+  assert.equal(parsed.wins.length, 2);
+});
+
 test("E.G.O の読みは「エゴ」で読む", () => {
   /* 「イゴ」を E.G.O の別名にしていたため、実データに一度も出ない表記を
      信用していた。正しい読みは「エゴ」。 */
