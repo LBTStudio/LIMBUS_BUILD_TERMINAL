@@ -13,6 +13,16 @@ test("監査修正CSSは実際のアプリにハッシュ付きで読み込ま�
   assert.match(index, /js\/App\.js\?v=5890a6a8/);
 });
 
+test("SINNER SELECTの新規作成フォームは任意のクラウド保全パネルに隠されず、送信操作を表示する", () => {
+  assert.match(css, /\.acct-gate-panel:has\(\.acct-card--form\) > \.lbt-cloud-panel\s*\{\s*display:\s*none;\s*\}/);
+  assert.match(css, /\.acct-gate-panel:has\(\.acct-card--form\) > \.acct-grid\s*\{[\s\S]*?min-height:\s*0;[\s\S]*?overflow-y:\s*auto;[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/);
+  assert.match(css, /\.acct-gate-panel:has\(\.acct-card--form\) \.acct-form-actions\s*\{[\s\S]*?position:\s*sticky;[\s\S]*?bottom:\s*0;/);
+  const accountUI = read("../js/accounts-ui.js");
+  assert.match(accountUI, /className: "acct-card acct-card--form"/);
+  assert.match(accountUI, /className: "acct-form-actions"/);
+  assert.match(accountUI, /"作成して開く"/);
+});
+
 test("プレビュー格納時に旧PREVIEWタブを表示せず、操作を1か所に統一する", () => {
   assert.match(app, /className: "preview-reopen", onClick: togglePreview/);
   assert.match(css, /\.app\.preview-collapsed \.preview-reopen\s*\{\s*display:\s*none;\s*\}/);
