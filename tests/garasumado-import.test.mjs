@@ -163,6 +163,46 @@ test("「・支出」以降の現在残高は支出額として誤計上しな�
     "購入動詞があっても残高しか書かれていなければ要確認にする");
 });
 
+test("硝子窓の矢印付き通貨消費は収入に混ぜず、報酬名を保つ", () => {
+  const parsed = MEMO.parseMemo([
+    "→LP100消費ガチャ:厳粛な哀悼獲得",
+    "→100LP消費：LCE E.G.O:紅炎殺獲得",
+    "→自我の破片100消費：羽ばたき：妖精の祭典獲得",
+    "LP200消費パック「心のすれ違う」→ワザリングハイツ・ワイルドハントの人格の獲得",
+    "自我の破片100消費→幸福：あなたは幸せでなければならない獲得"
+  ].join("\n"));
+  assert.equal(parsed.income.lp, 0);
+  assert.equal(parsed.income.shards, 0);
+  assert.deepEqual([...parsed.spends.map((s) => [s.lp, s.shards])], [
+    [100, 0], [100, 0], [0, 100], [200, 0], [0, 100]
+  ]);
+  assert.deepEqual([...parsed.wins.map((w) => w.name)], [
+    "厳粛な哀悼",
+    "LCE E.G.O:紅炎殺",
+    "羽ばたき：妖精の祭典",
+    "ワザリングハイツ・ワイルドハントの人格",
+    "幸福：あなたは幸せでなければならない"
+  ]);
+});
+
+test("矢印形式の抽出チケットは使用明細で、獲得チケットと混同しない", () => {
+  const parsed = MEMO.parseMemo([
+    "人格抽出チケット1枚→薬指野獣派スチューデントA獲得",
+    "200LP以下パックチケット「本に成った者たちⅠ」→夜の錐カピターノの人格獲得"
+  ].join("\n"));
+  assert.deepEqual([...parsed.ticketSpends.map((s) => [s.kind, s.pack, s.count])], [
+    ["persona", "", 1],
+    ["pack", "本に成った者たちⅠ", 1]
+  ]);
+  assert.equal(parsed.tickets.persona, 0);
+  assert.equal(parsed.tickets.ego, 0);
+  assert.equal(Object.keys(parsed.pack).length, 0);
+  assert.deepEqual([...parsed.wins.map((w) => w.name)], [
+    "薬指野獣派スチューデントA",
+    "夜の錐カピターノの人格"
+  ]);
+});
+
 test("E.G.O の読みは「エゴ」で読む", () => {
   /* 「イゴ」を E.G.O の別名にしていたため、実データに一度も出ない表記を
      信用していた。正しい読みは「エゴ」。 */
@@ -788,6 +828,91 @@ test("リザルトの購入記述は所持の証跡になる（所持列が空�
     assert.ok(item, nm + " の項目が存在する");
     assert.ok(item.resolved, nm + " は DB に解けている");
   }
+});
+
+test("収支精度回帰: 共有データの通貨・自由メモ購入・チケット使用を分離する", () => {
+  const M = loadImportWithMemo();
+  const doc = {
+    currency: { lp: "318", fragment: "91" },
+    freeNotes: {
+      secret: "LP-20 サポートパッシブ「人生一発」購入\nLP-20 サポートパッシブ「肩慣らし」購入"
+    },
+    owned: {
+      personas: [],
+      egos: [{ rank: "ZAYIN", name: "海底墓標：プロト" }],
+      supportPassives: [],
+      spirits: []
+    },
+    items: [{ name: "包帯", count: 1 }],
+    scenarioHistory: [{
+      name: "履歴A",
+      memo: [
+        "165LP、75欠片",
+        "→LP100消費ガチャ:厳粛な哀悼獲得",
+        "→自我の破片100消費：羽ばたき：妖精の祭典獲得",
+        "人格抽出チケット1枚→薬指野獣派スチューデントA獲得"
+      ].join("\n")
+    }]
+  };
+  const resolve = (name) => ["人生一発", "肩慣らし"].includes(name)
+    ? { name, kinds: [{ kind: "support" }] }
+    : null;
+  const dbFixture = { items: [{ id: "heal-bandage", name: "包帯" }], egos: [], support_passives: [] };
+  const manifest = M.buildManifest(doc, { resolve, candidates: () => [] }, dbFixture);
+  const selected = manifest.groups.flatMap((group) => group.items.map((item) => item.key));
+  const { actions, skipped } = M.toDispatchActions(manifest, selected, { db: dbFixture, resolve });
+  const sums = actions.reduce((out, action) => {
+    if (action.type === "ADD_RESULT") {
+      out.results += 1;
+      out.incomeLp += action.income.lp || 0;
+      out.incomeShards += action.income.shards || 0;
+    }
+    if (action.type === "ADD_ENTRY") {
+      out.entries += 1;
+      out.spentLp += action.cost.lp || 0;
+      out.spentShards += action.cost.shards || 0;
+    }
+    out.types[action.type] = (out.types[action.type] || 0) + 1;
+    return out;
+  }, { results: 0, incomeLp: 0, incomeShards: 0, entries: 0, spentLp: 0, spentShards: 0, types: {} });
+  assert.equal(sums.results, 1);
+  assert.equal(sums.incomeLp, 165);
+  assert.equal(sums.incomeShards, 75);
+  assert.equal(sums.spentLp, 140, "抽出の100LP＋日時不明の自由メモ購入40LP");
+  assert.equal(sums.spentShards, 100);
+  const ticketUseEntries = actions.filter((action) => action.type === "ADD_ENTRY" && action.tickets
+    && ((action.tickets.persona || 0) + (action.tickets.ego || 0) + (action.tickets.choice || 0)
+      + Object.values(action.tickets.pack || {}).reduce((sum, n) => sum + n, 0)) > 0);
+  assert.equal(ticketUseEntries.length, 1);
+  assert.equal(ticketUseEntries[0].tickets.persona, 1);
+  assert.equal(actions.filter((action) => action.type === "ADD_CUSTOM_ROSTER_EGO").length, 1);
+  assert.equal(actions.filter((action) => action.type === "ADD_ITEM_INVENTORY").length, 1);
+  const notes = actions.filter((action) => action.note === "硝子窓の自由メモ由来。日時・シナリオ未特定");
+  assert.equal(notes.length, 2);
+  assert.ok(notes.every((action) => action.resultId === null), "時点不明購入を最新リザルトへ誤帰属しない");
+  assert.deepEqual([...skipped], []);
+});
+
+test("開始残高の根拠が無い場合、手入力残高は参照値として純増減と分ける", () => {
+  const M = loadImportWithMemo();
+  const doc = {
+    currency: { lp: "318", fragment: "91" },
+    freeNotes: { secret: "LP-20 サポートパッシブ「人生一発」購入" },
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{
+      name: "履歴A",
+      memo: "165LP、75欠片\n→100LP消費：LCE E.G.O:紅炎殺獲得"
+    }]
+  };
+  const manifest = M.buildManifest(doc, null);
+  const result = M.reconcileBalance(manifest, doc);
+  assert.equal(result.checked, false);
+  assert.equal(result.ok, true);
+  assert.equal(result.historyNetLp, 45);
+  assert.equal(result.historyNetShards, 75);
+  assert.equal(result.impliedOpeningLp, 273);
+  assert.equal(result.impliedOpeningShards, 16);
+  assert.match(result.message, /手入力/);
 });
 
 function resolvedManifest(doc) {
