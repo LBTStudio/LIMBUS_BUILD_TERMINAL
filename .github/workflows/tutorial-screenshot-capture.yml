@@ -11,6 +11,7 @@ on:
       - "assets/**"
       - "index.html"
       - "tools/ui/capture-tutorial-screenshots.mjs"
+      - "tools/ui/capture-ui-audit.mjs"
       - ".github/workflows/tutorial-screenshot-capture.yml"
       - "docs/tutorial-guide.md"
   pull_request:
@@ -22,6 +23,7 @@ on:
       - "assets/**"
       - "index.html"
       - "tools/ui/capture-tutorial-screenshots.mjs"
+      - "tools/ui/capture-ui-audit.mjs"
       - ".github/workflows/tutorial-screenshot-capture.yml"
       - "docs/tutorial-guide.md"
   workflow_dispatch:
@@ -49,6 +51,9 @@ jobs:
 
       - name: Capture real UI and annotate target controls
         run: node tools/ui/capture-tutorial-screenshots.mjs
+
+      - name: Capture full UI interaction audit
+        run: node tools/ui/capture-ui-audit.mjs
 
       - name: Convert screenshots to compact WebP
         run: |
@@ -96,6 +101,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lbt-tutorial-ui-captures-${{ github.sha }}
-          path: artifacts/tutorial-screenshots/
+          path: |
+            artifacts/tutorial-screenshots/
+            artifacts/ui-audit-screenshots/
           if-no-files-found: error
           retention-days: 30
