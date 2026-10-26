@@ -290,6 +290,28 @@
     return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
   }
 
+  /* 選択式の手書き報酬。選んだ側が明示されている値だけ計上する。
+     例: 「EGO抽出チケットorLP80と自我の欠片20→後者獲得」
+         「①LP10d5→26」。選択されなかった側は収入にしない。 */
+  function ledgerSelectedReward(expression) {
+    const source = toHalf(expression).trim();
+    if (!source) return null;
+    if (/(?:→|⇒|➜)\s*後者(?:を)?\s*(?:獲得|取得|選択)/.test(source)) {
+      const lpMatch = source.match(/LP\s*(\d[\d,]*)/i);
+      const shardMatch = source.match(/(?:自我の)?(?:欠片|欠けら|カケラ|かけら)\s*(\d[\d,]*)/i);
+      if (lpMatch && shardMatch) {
+        const lp = safeAmount(lpMatch[1]), shards = safeAmount(shardMatch[1]);
+        if (lp !== null && shards !== null) return { lp, shards };
+      }
+    }
+    const diceLp = source.match(/LP\s*\d+\s*d\s*\d+\s*(?:→|⇒|➜|=)\s*(\d[\d,]*)/i);
+    if (diceLp) {
+      const lp = safeAmount(diceLp[1]);
+      if (lp !== null) return { lp, shards: 0 };
+    }
+    return null;
+  }
+
   function ledgerNumber(expression) {
     const source = toHalf(expression).trim();
     if (!source) return null;
@@ -552,6 +574,7 @@
       const specified = [];
       const targets = [];
       const consumeLines = [];
+      const seenLedgerLines = new Set();
       let continuation = null;
       let rewardContext = false;
 
@@ -602,6 +625,22 @@
         const rawLabel = fieldValue ? fieldValue[1].trim() : "";
         const label = fieldValue ? fieldKey(rawLabel) : "";
         const value = fieldValue ? fieldValue[2].trim() : "";
+
+        /* 同一リザルト内に同じ通貨報酬／残高行が再掲されていると、
+           コピー重複を二重計上してしまう。原文注記は残し、2回目の数値反映だけ止める。 */
+        if (["LP", "欠片", "自我の欠片", "現在所持LP", "現在所持欠片"].includes(label)) {
+          const key = label + "|" + toHalf(value).replace(/\s+/g, "");
+          if (seenLedgerLines.has(key)) {
+            skipped.push({
+              text: line,
+              reason: "同じ通貨報酬／残高行が同一記録内で重複しています。二重計上を避け、2回目の数値反映を除外しました"
+            });
+            keepNote(line);
+            continuation = null;
+            continue;
+          }
+          seenLedgerLines.add(key);
+        }
 
         if (label === "消費") {
           rewardContext = false;
@@ -709,7 +748,24 @@
           continue;
         }
 
+        const selectedReward = ledgerSelectedReward(line);
+        if (selectedReward) {
+          addValue(record, "lp", selectedReward.lp, line);
+          addValue(record, "shards", selectedReward.shards, line);
+          keepNote(line);
+          continuation = null;
+          continue;
+        }
+
         if (/(?:チケ(?:ット)?|抽出🎫|テーマパック|テーマパーク|パック\s*[+＋]\s*\d|パック抽出)/i.test(line)) {
+          /* 獲得対象欄が別のリザルト見出しから始まる行は崩れた貼り付け。
+             チケットを消費／収入へ入れたり、見出しを人格名として追加しない。 */
+          if (/獲得\s*[：:]\s*[▼▽]/.test(line)) {
+            skipped.push({ text: line, reason: "獲得欄が別リザルトの見出しから始まっています。チケットと獲得物を自動登録せず原文確認へ回しました" });
+            keepNote(line);
+            continuation = null;
+            continue;
+          }
           const ticketRows = ledgerTickets(line).map((ticket) => ticketWithRecordContext(ticket, title, line));
           if (ticketRows.length) {
             for (const ticket of ticketRows) {
@@ -910,6 +966,43 @@
           name: title, cost: { lp: aggregate.lp, shards: aggregate.shards },
           needsDecision: null, reason: null, kindHint: hintOf(title), raw: consumeLines.join("、")
         });
+      }
+
+      /* 残高差が明示されている記録では「収入－把握できた支出」と一致するか確認する。
+         手書きの残高を上書きせず、矛盾は警告にしてユーザーへ残す。 */
+      if (!ambiguousCost) {
+        const balances = { lp: new Map(), shards: new Map() };
+        for (const raw of record.raw) {
+          const match = String(raw).match(/^([^:：]{1,36})\s*[:：]\s*(.*)$/);
+          if (!match) continue;
+          const label = fieldKey(match[1].trim());
+          const key = label === "現在所持LP" ? "lp"
+            : label === "現在所持欠片" ? "shards" : null;
+          if (!key) continue;
+          const value = toHalf(match[2]).trim();
+          const transition = value.match(/^\s*(\d[\d,]*)[^→⇒➜]*(?:→|⇒|➜)\s*(\d[\d,]*)/);
+          if (!transition) continue;
+          const before = safeAmount(transition[1]), after = safeAmount(transition[2]);
+          if (before === null || after === null) continue;
+          const signature = before + "→" + after;
+          balances[key].set(signature, { before, after, raw });
+        }
+        for (const key of ["lp", "shards"]) {
+          const transitions = [...balances[key].values()];
+          if (transitions.length !== 1) continue;
+          const transition = transitions[0];
+          const actualDelta = transition.after - transition.before;
+          const spend = record.spends.reduce((sum, item) => sum + (Number(item.cost?.[key]) || 0), 0);
+          const expectedDelta = (Number(record.income[key]) || 0) - spend;
+          if (actualDelta !== expectedDelta) {
+            const currency = key === "lp" ? "LP" : "欠片";
+            skipped.push({
+              text: transition.raw,
+              reason: currency + "残高差は" + actualDelta + "ですが、読み取れた収入－支出は" + expectedDelta
+                + "です。記載漏れ／手書き残高の不一致を確認してください（値は自動補正していません）"
+            });
+          }
+        }
       }
 
       /* 記録欄に残った明示的な獲得物は、通貨として二重計上せず注記として保持する。 */
