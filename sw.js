@@ -21,12 +21,12 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-1250ffff";
+const CACHE_NAME = "lbt-5bde21e9";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
   "mobile-preview.html",
-  "assets/cloud-backup.css?v=92bb356d",
+  "assets/cloud-backup.css?v=eace41ec",
   "assets/design-system.css?v=910f9485",
   "assets/fonts/corporate-logo-bold-subset.woff2?v=b56fa468",
   "assets/fonts/corporate-logo-medium-subset.woff2?v=dbbdb67e",
@@ -41,21 +41,21 @@ const PRECACHE_URLS = [
   "assets/v65r43-ego-readability.css?v=563284f8",
   "assets/v65r44-ego-quick-detail.css?v=1bb6dfa1",
   "assets/v65r47-ego-card-marks.css?v=aaf12533",
-  "assets/v66-accounts.css?v=ed8342e3",
+  "assets/v66-accounts.css?v=ac215c3f",
   "assets/v67-persona-redesign.css?v=4b89da4c",
   "assets/v68-interaction-a11y.css?v=0bbe4495",
-  "assets/v69-ui-audit-fixes.css?v=774471da",
+  "assets/v69-ui-audit-fixes.css?v=f29f86eb",
   "assets/workspace.css?v=741261c7",
   "data/db.json?v=16b6df9e",
   "data/gacha-theme-packs.json?v=8d4dced2",
   "data/items.json?v=b185394a",
   "data/special-items.json?v=aaa21cfb",
-  "js/App.js?v=323d7afa",
+  "js/App.js?v=6cedabee",
   "js/DataQuality.js?v=a8365c72",
   "js/InlineEffectGlossary.js?v=81967fa2",
   "js/ItemCodex.js?v=7aafec02",
   "js/LivePreview.js?v=1b6767e6",
-  "js/OtherSections.js?v=a1e5ddc1",
+  "js/OtherSections.js?v=46d77c03",
   "js/PersonaCodex.js?v=59018e19",
   "js/SkillDeck.js?v=a93f6cb8",
   "js/access-counter.js?v=304e4854",
@@ -69,7 +69,7 @@ const PRECACHE_URLS = [
   "js/gacha.js?v=f58f8a3e",
   "js/garasumado-export-import.js?v=66700d44",
   "js/garasumado-import-ui.js?v=f31c7a98",
-  "js/garasumado-memo-parse.js?v=adb9d74a",
+  "js/garasumado-memo-parse.js?v=8c52e4dd",
   "js/garasumado-roster-import.js?v=62f38432",
   "js/generator.js?v=ff5f0a15",
   "js/icon-cropper.js?v=20900dc8",
@@ -83,7 +83,7 @@ const PRECACHE_URLS = [
   "js/share-link.js?v=c77e8999",
   "js/share-viewer.js?v=71f2da96",
   "js/state.js?v=859c87b7",
-  "js/ui.js?v=b52a0264",
+  "js/ui.js?v=b1bebadc",
   "vendor/react-dom.min.js?v=35f4f974",
   "vendor/react.min.js?v=d949f1c3",
 ];
