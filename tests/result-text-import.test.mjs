@@ -228,6 +228,32 @@ test("使用済みチケットは収入と消費を両方計上し、獲得人�
   assert.ok(planned.actions.some((action) => action.type === "ADD_ROSTER" && action.no === "00999"));
 });
 
+test("異なるチケット種別を同一記録で獲得・消費した場合も別々に数える", () => {
+  const parsed = T.parseText([
+    "▼出目報酬",
+    "日時：2026/08/03",
+    "報酬：",
+    "人格抽出チケット×1、E.G.O抽出チケット×1→両方使用済(獲得：仮人格の人格、仮EGO)",
+    "現在所持LP：10",
+    "現在所持欠片：20"
+  ].join("\n"));
+  assert.equal(parsed.records.length, 1);
+  const planned = T.plan(parsed, {
+    resolve: (name) => {
+      if (name === "仮人格の人格") return { name, kinds: [{ kind: "persona", mode: "n", no: "00997" }] };
+      if (name === "仮EGO") return { name, kinds: [{ kind: "ego", rank: "TETH", no: "0096" }] };
+      return null;
+    }
+  });
+  const income = planned.actions.find((action) => action.type === "ADD_RESULT").income.tickets;
+  assert.equal(income.persona, 1);
+  assert.equal(income.ego, 1);
+  assert.deepEqual([...planned.actions].filter((action) => action.type === "SPEND_TICKET")
+    .map((action) => action.kind).sort(), ["ego", "persona"]);
+  assert.ok(planned.actions.some((action) => action.type === "ADD_ROSTER" && action.no === "00997"));
+  assert.ok(planned.actions.some((action) => action.type === "ADD_ROSTER_EGO" && action.no === "0096"));
+});
+
 test("人格抽出の取得欄にある『の人格』表記も所持人格として解決する", () => {
   const parsed = T.parseText([
     "▼人格抽出",
