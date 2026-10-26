@@ -304,11 +304,33 @@
     return match ? safeAmount(match[1]) : null;
   }
 
+  /* 金額中の「1,500」は桁区切り。項目区切りの ASCII カンマと区別する。
+     直前が数字で、カンマ後に3桁のまとまりが続く場合だけ桁区切りとして残す。 */
+  function splitCostParts(text) {
+    const source = String(text ?? "");
+    const parts = [];
+    let start = 0;
+    for (let i = 0; i < source.length; i += 1) {
+      const ch = source[i];
+      let separator = /[、，;；]/.test(ch);
+      if (ch === ",") {
+        const groupingComma = i > 0 && /\d/.test(source[i - 1]) &&
+          /^\d{3}(?:,|[^\d]|$)/.test(source.slice(i + 1));
+        separator = !groupingComma;
+      }
+      if (!separator) continue;
+      parts.push(source.slice(start, i));
+      start = i + 1;
+    }
+    parts.push(source.slice(start));
+    return parts.map((part) => part.trim()).filter(Boolean);
+  }
+
   function ledgerCost(text) {
     const cost = { lp: 0, shards: 0 };
     let found = false;
     let ambiguous = false;
-    const parts = String(text ?? "").split(/[、,，;；]/);
+    const parts = splitCostParts(text);
     for (const rawPart of parts) {
       const part = toHalf(rawPart).replace(/硝子の(?:破片|欠片|かけら|カケラ)(?:\s*[x×]\s*\d[\d,]*)?/gi, " ");
       const hasLP = /(?:LP\s*\d|\d\s*LP|\bLP\b)/i.test(part);
@@ -803,7 +825,12 @@
 
   function parseText(rawText) {
     const originalText = String(rawText ?? "");
-    if (/^\s*[▼▽]\s*\S/m.test(originalText) && /(?:日時|報酬|現在所持LP|現在所持欠片)/.test(originalText)) {
+    const hasLedgerFields = /(?:日時|報酬|現在所持LP|現在所持欠片)/.test(originalText);
+    const hasMarkedLedgerHeader = /^\s*[▼▽]\s*\S/m.test(originalText);
+    const hasDatedLedgerEntry = /^\s*日時\s*[：:]\s*\d{4}[/-]\d{1,2}[/-]\d{1,2}/m.test(originalText);
+    /* 見出しの ▼/▽ が省略されても、日時欄を持つ帳簿形式は専用パーサへ回す。
+       旧パーサへ落とすと、複数記録の境界と残高の読み取りを誤る。 */
+    if (hasLedgerFields && (hasMarkedLedgerHeader || hasDatedLedgerEntry)) {
       return parseLedgerJournal(originalText);
     }
     const normalizedInput = normalizeInputText(originalText);
