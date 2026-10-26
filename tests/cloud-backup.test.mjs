@@ -104,7 +104,7 @@ test("復旧キーは不変で、再発行APIを公開せず、保存先間の�
   assert.doesNotMatch(recovery, /rotate_recovery|newRecoveryKey/);
   assert.doesNotMatch(fallbackWorker, /rotate_recovery|newRecoveryKey/);
   assert.match(client, /async function getRemote\(options = \{\}\)/);
-  assert.match(client, /同じ世代番号の異なるデータがあります/);
+  assert.match(client, /同じ世代に異なるデータがあります/);
   assert.match(recovery, /action === "replicate"/);
   assert.match(fallbackWorker, /action === "replicate"/);
 });
