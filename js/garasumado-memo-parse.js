@@ -140,6 +140,19 @@
     var cm2 = text.match(/(?:チケ|チケット)\s*(\d+)\s*枚/);
     if (cm2) count = parseInt(cm2[1], 10);
 
+    /* 「任意のテーマパックチケット」は券種自体はパック系と分かる。
+       ただし対象パック名が無いので、パック別在庫へは自動加算しない。
+       人格/E.G.O/選択抽出券の曖昧さと同じ警告にはしない。 */
+    var genericPackTicket = /(?:任意|お好きな方|どちらか).{0,20}(?:テーマ)?パックチケット/i.test(text);
+    if (genericPackTicket) {
+      return {
+        kind: null,
+        category: "pack",
+        count: count,
+        reason: "対象パック名が指定されていない汎用テーマパックチケットのため、パック別残数への計上を保留しました"
+      };
+    }
+
     /* 「人格orE.G.O」「お好きな方へ」など、出典自体が選択式なら
        人格/E.G.Oの語が両方あっても一方へ決め打ちしない。 */
     var ambiguous = /(?:人格\s*(?:or|\/|または|又は|もしくは|＆|と)\s*(?:E\.?G\.?O|エゴ|イゴ)|(?:任意|お好きな方|どちらか).{0,18}(?:抽出|チケ)|(?:抽出チケット|抽出チケ)\s*[（(][^）)]*(?:任意|お好きな方|どちらか))/i.test(text);
@@ -891,14 +904,25 @@
       var tk = packTicketMatch ? null : ticketOf(ticketScope, { mode: mode, previousLine: prev });
       if (tk) {
         if (!tk.kind) {
-          reasons.push({ line: line, reason: "抽出チケットの種別が不明なため、人格/E.G.O/選択の残数への計上を保留しました" });
+          reasons.push({
+            line: line,
+            reason: tk.reason || "抽出チケットの種別が不明なため、人格/E.G.O/選択の残数への計上を保留しました",
+            ...(tk.category ? { ticketCategory: tk.category } : {})
+          });
           /* 獲得した品名自体は残し、後段のDB照合で人格/E.G.Oを確認できるようにする。
-             ただしチケットの種類だけは推測しない。 */
+             ただし券種や対象パック名を推測して在庫に加えない。 */
           if (tk.count > 0) {
             var unknownTicketNames = arrowWinsOf(line);
             if (!unknownTicketNames.length) { var unknownSrc = ticketSourceName(line); if (unknownSrc) unknownTicketNames = [unknownSrc]; }
+            var unresolvedTicketVia = tk.category === "pack"
+              ? "テーマパックチケット（対象パック未指定）"
+              : "抽出チケット（種別未確認）";
             unknownTicketNames.forEach(function (nm) {
-              if (!wins.some((w) => w.name === nm)) wins.push({ name: nm, via: "抽出チケット（種別未確認）", kind: "" });
+              if (!wins.some((w) => w.name === nm)) wins.push({
+                name: nm,
+                via: unresolvedTicketVia,
+                kind: tk.category || ""
+              });
             });
           }
         } else {
