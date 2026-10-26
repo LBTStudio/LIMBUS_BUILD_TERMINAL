@@ -5,6 +5,7 @@ import test from "node:test";
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const css = read("../assets/v68-interaction-a11y.css");
 const index = read("../index.html");
+const appSource = read("../js/App.js");
 
 function luminance(hex) {
   const value = hex.replace("#", "");
