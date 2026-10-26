@@ -333,7 +333,7 @@
       const expressionShapeIsValid = /^#(?:\s*[+＋=＝→⇒➜×xX*]\s*#)+$/.test(expressionText);
       const hasResultOperator = /[=＝→⇒➜]/.test(expressionText);
       const hasMultiplication = /[×xX*]/.test(expressionText);
-      const explicitNumericOperation = expressionShapeIsValid && (hasResultOperator || !hasMultiplication);
+      const explicitNumericOperation = expressionShapeIsValid && hasResultOperator;
       if (!explicitNumericOperation && numericTokens.length > 1) { ambiguous = true; continue; }
       const amount = ledgerNumber(part);
       if (amount === null) { ambiguous = true; continue; }
