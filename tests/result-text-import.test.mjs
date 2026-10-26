@@ -792,6 +792,32 @@ test("無修飾の抽出チケットは「人格抽出」記録のときだけ�
   assert.ok(!T.plan(ambiguous).actions.some((action) => action.type === "SPEND_TICKET"));
 });
 
+test("複数抽出の費用配分でもタイトル文脈で認識した無修飾チケットを数える", () => {
+  const parsed = T.parseText([
+    "▼人格抽出×5",
+    "日時：2026/06/06",
+    "消費：人格抽出チケット×2、抽出チケット×1、LP200",
+    "獲得：",
+    "メメメメメ工房フィクサーの人格",
+    "ロボトミーE.G.O:たぷつきの人格",
+    "黒獣-巳の人格",
+    "R社第四群ウサギチームの人格",
+    "ロジック・アトリエ所属フィクサーの人格",
+    "現在所持LP：229→29",
+    "現在所持欠片：355"
+  ].join("\n"));
+
+  assert.deepEqual([...parsed.records[0].ticketUses].map((ticket) => ({
+    kind: ticket.kind, count: ticket.count
+  })), [
+    { kind: "persona", count: 2 },
+    { kind: "persona", count: 1 }
+  ]);
+  assert.equal(parsed.records[0].spends.length, 5);
+  assert.deepEqual(parsed.records[0].spends.map((spend) => spend.cost.lp), [0, 0, 0, 100, 100]);
+  assert.ok(!parsed.skipped.some((item) => /費用配分が一意に決まらない/.test(item.reason)));
+});
+
 test("実記録の「硝子の欠片×2、LP20」は数量2の消費として認識する", () => {
   const parsed = T.parseText([
     "▼E.G.O指定購入",
