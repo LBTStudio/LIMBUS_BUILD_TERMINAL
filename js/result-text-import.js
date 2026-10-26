@@ -1198,7 +1198,14 @@
           return true;
         }
 
-        const hit = typeof opts.resolve === "function" ? opts.resolve(source) : null;
+        const directHit = typeof opts.resolve === "function" ? opts.resolve(source) : null;
+        /* 実記録のE.G.O名は「HE Laetitia：レティシア」のようにランクを先頭へ付けることがある。
+           DB側の正式名はランクを含まないため、ランクを安全に剥がした候補も照合する。
+           直接一致が曖昧だった場合はフォールバックせず、誤登録を避ける。 */
+        const rankPrefixedEgo = source.match(/^(?:ZAYIN|TETH|HE|WAW|ALEPH)\\s+(.+)$/i);
+        const hit = directHit || (rankPrefixedEgo && typeof opts.resolve === "function"
+          ? opts.resolve(rankPrefixedEgo[1].trim())
+          : null);
         const kinds = (hit && Array.isArray(hit.kinds)) ? hit.kinds : [];
         const personas = personaKindsOf(hit);
         if (personas.length === 1) {
