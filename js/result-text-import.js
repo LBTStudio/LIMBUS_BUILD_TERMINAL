@@ -534,6 +534,13 @@
             continue;
           }
           addItem(record, bucket, item, role);
+          if (role === "acquired") {
+            const convertedShards = ledgerShardConversion(item.raw);
+            if (convertedShards !== null) {
+              addValue(record, "shards", convertedShards, item.raw);
+              continue;
+            }
+          }
           if (role === "acquired" && /人格抽出|人格指定抽出/.test(title)) {
             record.identityCandidates.push(item.name);
           } else if (role === "specified" && /初期作成/.test(title)) {
@@ -579,10 +586,7 @@
             } else {
               for (const ticket of ledgerTickets(value)) {
                 if (ticket.error) skipped.push({ text: line, reason: ticket.error });
-                else {
-                  record.tickets.push({ ...ticket, raw: line });
-                  if (/(?:使用済|使用済み|両方使用済)/.test(value)) record.ticketUses.push({ ...ticket, raw: line });
-                }
+                else record.tickets.push({ ...ticket, raw: line });
               }
             }
           }
@@ -662,18 +666,21 @@
                 continue;
               }
               record.tickets.push({ ...ticket, raw: line });
-              if (/(?:使用済|使用済み|両方使用済|全て使用済)/.test(line)) {
-                record.ticketUses.push({ ...ticket, raw: line });
-              }
             }
-            if (/(?:使用済|使用済み|両方使用済|全て使用済)/.test(line)) {
+            if (/(?:使用済|使用済み|両方使用済|全て使用済|消費済)/.test(line)) {
               const gained = line.match(/獲得\s*[：:]\s*([^）)】]+)/);
               if (gained && gained[1].trim()) {
-                const targetLines = ledgerItems(gained[1].trim().replace(/[」』】]+$/g, ""));
-                for (const target of targetLines) {
-                  if (!target.name) continue;
-                  record.identityCandidates.push(target.name);
-                  record.rewardCandidates.push(target);
+                const gainedText = gained[1].trim().replace(/[」』】]+$/g, "");
+                const convertedShards = ledgerShardConversion(gainedText);
+                if (convertedShards !== null) {
+                  addValue(record, "shards", convertedShards, line);
+                } else {
+                  const targetLines = ledgerItems(gainedText);
+                  for (const target of targetLines) {
+                    if (!target.name) continue;
+                    record.identityCandidates.push(target.name);
+                    record.rewardCandidates.push(target);
+                  }
                 }
               }
             }
@@ -720,16 +727,32 @@
           keepNote(line);
           continue;
         }
-        if (rewardContext && /[x×]\s*\d[\d,]*\s*$/i.test(toHalf(line))) {
-          record.rewardCandidates.push(ledgerItem(line));
-          keepNote(line);
-          continuation = null;
-          continue;
+        if (rewardContext) {
+          const convertedShards = ledgerShardConversion(line);
+          if (convertedShards !== null) {
+            addValue(record, "shards", convertedShards, line);
+            keepNote(line);
+            continuation = null;
+            continue;
+          }
+          if (/[x×]\s*\d[\d,]*\s*$/i.test(toHalf(line))) {
+            record.rewardCandidates.push(ledgerItem(line));
+            keepNote(line);
+            continuation = null;
+            continue;
+          }
         }
         keepNote(line);
         continuation = null;
       }
 
+      /* 汎用テーマパック権は、同じ記録に指定パックが一つだけある場合に限って解決する。 */
+      const specifiedPackNames = [...new Set(specified.map((item) => String(item.name || "").trim()).filter(Boolean))];
+      for (const ticketUse of record.ticketUses) {
+        if (ticketUse.kind === "pack" && !ticketUse.pack && specifiedPackNames.length === 1) {
+          ticketUse.pack = specifiedPackNames[0];
+        }
+      }
       /* 過去ログの収入チケットは、種類が明示された場合だけチケット欄へ加算する。 */
       const consumedTicketCount = consumeLines.reduce((sum, line) => {
         const tickets = ledgerTickets(line);
