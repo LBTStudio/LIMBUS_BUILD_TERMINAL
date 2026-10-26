@@ -60,6 +60,23 @@ function baseState() {
   };
 }
 
+test("硝子窓からDB未登録の独自E.G.Oを所持に保存し、費用を捏造しない", () => {
+  const before = baseState();
+  const after = reducer(before, {
+    type: "ADD_CUSTOM_ROSTER_EGO",
+    name: "海底墓標：プロト",
+    rank: "ZAYIN",
+    via: ["共有履歴"]
+  });
+  assert.equal(after.roster.egos.length, 1);
+  assert.equal(after.roster.egos[0].rank, "ZAYIN");
+  assert.equal(after.roster.egos[0].build.name, "海底墓標：プロト");
+  assert.equal(after.roster.egos[0].build.__importedFromShare, true);
+  assert.equal(balance(after.results, after.entries).lp, 0, "独自E.G.Oに架空の購入費を加えない");
+  const duplicate = reducer(after, { type: "ADD_CUSTOM_ROSTER_EGO", name: "海底墓標：プロト", rank: "ZAYIN" });
+  assert.equal(duplicate.roster.egos.length, 1, "同名は二重登録しない");
+});
+
 test("旧LP換算記録は通常の支出明細と欠片収入へ一度だけ移行する", () => {
   const legacy = {
     ...baseState(),
@@ -102,6 +119,28 @@ test("リザルトを加えると収入が保存され、残高反映される",
   assert.equal(s.results[0].income.lp, 1200);
   assert.equal(balance(s.results, s.entries).lp, 1200, "収入そのままが残高");
   assert.equal(balance(s.results, s.entries).shards, 400);
+});
+
+test("チケット使用の明細は ADD_ENTRY に保存され、残数から一度だけ引かれる", () => {
+  let s = reducer(baseState(), {
+    type: "ADD_RESULT", name: "抽出記録",
+    income: { lp: 0, shards: 0, tickets: { persona: 2, pack: { "本に成った者たちⅠ": 1 } } }
+  });
+  s = reducer(s, {
+    type: "ADD_ENTRY", kind: "other", name: "履歴上の使用：人格抽出チケット",
+    cost: { lp: 0, shards: 0 }, tickets: { persona: 1 },
+    resultId: null, note: "硝子窓の履歴に使用と記載"
+  });
+  s = reducer(s, {
+    type: "ADD_ENTRY", kind: "other", name: "履歴上の使用：パックチケット",
+    cost: { lp: 0, shards: 0 }, tickets: { pack: { "本に成った者たちⅠ": 1 } },
+    resultId: null, note: "硝子窓の履歴に使用と記載"
+  });
+  assert.equal(s.entries[0].tickets.persona, 1, "通常チケットの使用を明細に保存");
+  assert.equal(s.entries[1].tickets.pack["本に成った者たちⅠ"], 1, "パック名も明細に保存");
+  const b = balance(s.results, s.entries);
+  assert.equal(b.tickets.persona, 1, "人格抽出チケット2枚 - 使用1枚");
+  assert.equal(b.tickets.pack["本に成った者たちⅠ"], 0, "パックチケット1枚 - 使用1枚");
 });
 
 test("支出明細は収入から差し引く（LP と 欠片を別口座で扱う）", () => {
