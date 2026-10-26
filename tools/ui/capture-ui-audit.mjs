@@ -395,16 +395,49 @@ async function boot() {
   const seeded=await seed().catch(e=>({ok:false,reason:String(e)}));
   audit.seed=seeded;
   if(seeded&&seeded.ok) {
-    // The account gate is an intentional per-visit workflow. Do not reload just to
-    // refresh the disposable seed: use the same account-entered event the app uses
-    // after selection, which reloads reducer state from the selected account store
-    // without reopening SINNER SELECT or touching any hosted/user data.
+    // Try the real reducer refresh path first. If the synthetic fixture is rejected
+    // by a future schema/UI constraint, preserve that evidence, wipe only the disposable
+    // account fixture, then continue the visual audit against an ordinary empty workspace.
     const activeId=await page.evaluate(()=>window.LBT_accounts?.getActiveId?.()||null);
     if(activeId) {
       await page.evaluate((id)=>window.dispatchEvent(new CustomEvent("lbt:accounts-entered",{detail:{id}})),activeId);
-      await page.waitForTimeout(500);
+      await page.waitForTimeout(450);
     }
-    await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
+    const refreshedRail=page.locator(".rail-item").first();
+    const refreshed=(await refreshedRail.count())>0 && await refreshedRail.isVisible().catch(()=>false);
+    audit.seedRefresh={refreshed,activeId,pageErrors:audit.pageErrors.filter(e=>e.view===view).slice(-8)};
+    if(!refreshed) {
+      const diagnostic=await page.evaluate(()=>({
+        gateVisible:!!document.querySelector(".acct-gate"),
+        appCount:document.querySelectorAll(".app").length,
+        railCount:document.querySelectorAll(".rail-item").length,
+        rootChildCount:document.querySelector("#root")?.children.length||0,
+        bodyText:(document.body.innerText||"").trim().slice(0,400),
+        rootClass:document.querySelector("#root")?.firstElementChild?.className||""
+      })).catch(error=>({error:String(error)}));
+      audit.seedRefresh.diagnostic=diagnostic;
+      await snap("seed-state-refresh-diagnostic","監査用データ反映後の画面診断："+JSON.stringify(diagnostic));
+      const cleaned=await page.evaluate((id)=>{
+        const api=window.LBT_accounts;
+        return !!api?.saveActive?.({schemaVersion:1},id);
+      },activeId).catch(()=>false);
+      audit.seedRecovery={cleaned};
+      await page.reload({waitUntil:"domcontentloaded",timeout:30000});
+      await page.waitForLoadState("networkidle",{timeout:12000}).catch(()=>{});
+      await page.waitForTimeout(500);
+      if(await visible(page.locator(".acct-gate"))) {
+        await snap("account-gate-after-seed-recovery","監査用データを隔離し、通常アカウント選択へ戻った状態");
+        const hit=page.locator(".acct-card--gate .acct-card-hit").first();
+        if((await hit.count())>0) await hit.click({force:true,timeout:3500}).catch(()=>{});
+        await page.waitForTimeout(500);
+      }
+    }
+  }
+  const readyRail=page.locator(".rail-item").first();
+  if(!((await readyRail.count())>0 && await readyRail.isVisible().catch(()=>false))) {
+    audit.failures.push({name:"workspace-ready",error:"SINNER SELECT後にメイン画面のナビゲーションが現れません"});
+    await snap("workspace-not-ready","メイン画面のナビゲーションが見つからない状態を証跡として保存");
+    return;
   }
   await page.waitForTimeout(350);
 }
