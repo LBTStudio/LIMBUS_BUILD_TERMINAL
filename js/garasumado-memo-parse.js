@@ -544,7 +544,8 @@
   /* 金額と「消費」が同じ行にあるガチャ／抽出ログを、収入やチケット獲得と
      混同しない。明示額だけを支出にし、矢印の後ろは獲得名として別に読む。 */
   function currencySpendOf(rawLine) {
-    var text = normalizeAmountText(rawLine);
+    /* Normalize digits and full-width punctuation one-to-one so end offsets still point into rawLine. */
+    var text = normalizeNumericText(rawLine);
     var lpMatch = text.match(/(?:LP|ＬＰ)\s*([0-9][0-9,]*)\s*(?:を\s*)?(?:消費|使用|支払|支出)/i);
     if (!lpMatch) lpMatch = text.match(/([0-9][0-9,]*)\s*(?:LP|ＬＰ)\s*(?:を\s*)?(?:消費|使用|支払|支出)/i);
     if (lpMatch) {
@@ -575,20 +576,23 @@
   }
 
   function rewardAfterCurrencySpend(rawLine, end) {
-    var text = normalizeAmountText(rawLine);
+    var raw = String(rawLine || "");
+    var text = normalizeNumericText(raw);
     var tail = text.slice(end).trim();
     if (!tail) return "";
     /* 消費前にある矢印（「→LP100消費…」）ではなく、消費後の矢印だけを見る。
        名前内部の「E.G.O:紅炎殺」「羽ばたき：妖精の祭典」のコロンは分割しない。 */
     var arrow = tail.lastIndexOf("→");
-    if (arrow >= 0) tail = tail.slice(arrow + 1);
-    return cleanRewardName(tail);
+    var rawTail = raw.slice(end).trim();
+    if (arrow >= 0) rawTail = rawTail.slice(arrow + 1);
+    return cleanRewardName(rawTail);
   }
 
   /* 「人格抽出チケット1枚→人格名」「パックチケット『パック名』→E.G.O」のように、
      チケットが報酬ではなく抽出元として書かれた明示的な矢印行だけ消費へ回す。 */
   function explicitTicketSpendOf(rawLine) {
-    var text = normalizeAmountText(rawLine);
+    var raw = String(rawLine || "");
+    var text = normalizeNumericText(raw);
     var ticketAt = text.search(/チケット|チケ/);
     if (ticketAt < 0) return null;
     var arrowAt = text.indexOf("→", ticketAt);
@@ -610,7 +614,7 @@
       kind: isPack ? "pack" : parsed.kind,
       count: count,
       pack: pack,
-      reward: cleanRewardName(text.slice(arrowAt + 1)),
+      reward: cleanRewardName(raw.slice(arrowAt + 1)),
       raw: String(rawLine || "").trim()
     };
   }
