@@ -274,10 +274,12 @@ async function captureProfile(browser, mode) {
           const textButton=page.locator(".ledger-import-menu button").filter({hasText:/^テキスト流し込み$/}).first();
           if(!(await visible(textButton))) throw new Error("リザルトのテキスト流し込みメニュー項目が表示されません");
           await click(textButton);
-          const textPanel=page.locator("#ledger-text-import-panel");
-          await textPanel.waitFor({state:"visible",timeout:5000});
-          const textArea=textPanel.locator("textarea.ledger-textarea").first();
-          await textArea.waitFor({state:"visible",timeout:5000});
+          // The panel is rendered as .ledger-gara-wrap, not a fixed DOM id.
+          // Locate it through the real textarea instead of an obsolete selector.
+          const textArea=page.locator("textarea.ledger-textarea").first();
+          await textArea.waitFor({state:"visible",timeout:8000});
+          const textPanel=page.locator(".ledger-gara-wrap").filter({has:page.locator("textarea.ledger-textarea")}).first();
+          await textPanel.waitFor({state:"visible",timeout:8000});
           const textState=await textPanel.evaluate((el)=> {
             const r=el.getBoundingClientRect();
             const input=el.querySelector("textarea.ledger-textarea");
@@ -299,8 +301,8 @@ async function captureProfile(browser, mode) {
           const glass=page.locator(".ledger-import-menu button").filter({hasText:"硝子窓から一括取り込む"}).first();
           if(!(await visible(glass))) throw new Error("硝子窓から一括取り込む入口が表示されません");
           await click(glass);
-          const glassPanel=page.locator("#ledger-glass-import-panel");
-          await glassPanel.waitFor({state:"visible",timeout:5000});
+          const glassPanel=page.locator(".ledger-gara-wrap").filter({hasText:"硝子窓から一括取り込む"}).first();
+          await glassPanel.waitFor({state:"visible",timeout:8000});
           const glassMetrics=await glassPanel.evaluate((el)=>({top:Math.round(el.getBoundingClientRect().top),height:Math.round(el.getBoundingClientRect().height),viewportHeight:innerHeight}));
           if(glassMetrics.top >= glassMetrics.viewportHeight - 40) throw new Error("硝子窓取り込みパネルが画面内へスクロールされません: "+JSON.stringify(glassMetrics));
           await snap("record-result-glass-import","硝子窓から一括取り込むパネルを開いた状態（適用しない）");
@@ -348,21 +350,32 @@ async function captureProfile(browser, mode) {
       for(let i=0;i<n;i++) { const a=actions.nth(i); if(await a.isVisible()) { await a.hover().catch(()=>{}); await snap("utility-hover-"+(await a.innerText()).trim(),"操作・保存シート内のホバー"); } }
       const share=page.locator(".utility-sheet-action").filter({hasText:"共有シートを開く"}).first();
       if(await visible(share)) {
-        const originalPage=page;
-        const popupPromise=context.waitForEvent("page",{timeout:6500}).catch(()=>null);
+        // First step opens an in-page share-options dialog, not a new tab.
         await click(share);
-        const popup=await popupPromise;
-        if(popup) {
-          await popup.waitForLoadState("domcontentloaded",{timeout:10000}).catch(()=>{});
-          await popup.waitForTimeout(700);
-          page=popup;
-          await snap("share-html-preview","共有シートを開き、新規タブに表示された共有HTML");
-          page=originalPage;
-          await popup.close().catch(()=>{});
-        } else {
-          page=originalPage;
-          audit.failures.push({name:"share-html-preview",error:"共有操作で新規タブが検出されませんでした"});
+        const shareDialog=page.locator("#lbt-share-modal-root .share-modal").first();
+        await shareDialog.waitFor({state:"visible",timeout:8000});
+        await snap("share-html-preview","共有シートの発行方法を選ぶダイアログ");
+        const tabAction=page.locator("#lbt-share-modal-root [data-act='tab']").first();
+        if(await visible(tabAction)) {
+          const originalPage=page;
+          const popupPromise=context.waitForEvent("page",{timeout:6500}).catch(()=>null);
+          // Direct click keeps popup creation inside the real browser user gesture.
+          await tabAction.click({timeout:5000});
+          const popup=await popupPromise;
+          if(popup) {
+            await popup.waitForLoadState("domcontentloaded",{timeout:10000}).catch(()=>{});
+            await popup.waitForTimeout(450);
+            page=popup;
+            await snap("share-html-self-preview","共有シート内の「新規タブで自分だけプレビュー」で開いたHTML");
+            page=originalPage;
+            await popup.close().catch(()=>{});
+          } else {
+            await page.waitForTimeout(180);
+            await snap("share-html-popup-blocked","ポップアップがブロックされた場合に表示される代替案内");
+          }
         }
+        const closeShare=page.locator("#lbt-share-modal-root .share-modal-close").first();
+        if(await visible(closeShare)) await closeShare.click({timeout:5000});
       }
       await closeOverlay();
     });
@@ -403,9 +416,9 @@ async function captureProfile(browser, mode) {
           await page.waitForTimeout(300);
           if(await visible(page.locator(".share-modal-backdrop"))) {
             await snap("state-import-scope-dialog","読み込むカテゴリを選ぶ確認画面。適用しない");
-            const emptyDetails=page.locator(".import-scope-empty-categories > summary").first();
-            if (await visible(emptyDetails)) {
-              await click(emptyDetails);
+            const expandEmpty=page.locator(".import-empty-groups-toggle").first();
+            if (await visible(expandEmpty)) {
+              await click(expandEmpty);
               await snap("state-import-empty-categories-expanded","確認ダイアログでデータのないカテゴリ一覧を任意に展開した状態。適用しない");
             }
           }
@@ -445,6 +458,6 @@ async function main() {
   }
   fs.writeFileSync(path.join(OUT,"manifest.json"),JSON.stringify(audit,null,2)+"\n");
   log("finished: "+audit.count+" screenshots; failures="+audit.failures.length+"; missing-required="+audit.missingRequiredCaptures.length+"; horizontal-overflow="+audit.layoutWarnings.length);
-  if(audit.count<30 || audit.missingRequiredCaptures.length || audit.pageErrors.length) process.exitCode=1;
+  if(audit.count<30 || audit.failures.length || audit.missingRequiredCaptures.length || audit.pageErrors.length) process.exitCode=1;
 }
 main().catch(e=>{console.error("[ui-audit] fatal: "+(e&&e.stack||String(e)));process.exitCode=1;});
