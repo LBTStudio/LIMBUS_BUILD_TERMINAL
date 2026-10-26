@@ -605,12 +605,15 @@
     var ticketAt = text.search(/チケット|チケ/);
     if (ticketAt < 0) return null;
     var arrowAt = text.indexOf("→", ticketAt);
-    if (arrowAt < 0) return null;
-    var source = text.slice(0, arrowAt);
+    const hasConsumption = /消費|使用済|使用し|支払|支出|消耗/.test(text);
+    /* 「チケット×1消費」のように報酬名が無い履歴も、消費枚数そのものは記録する。 */
+    if (arrowAt < 0 && !hasConsumption) return null;
+    var source = arrowAt < 0 ? text : text.slice(0, arrowAt);
     /* チケット獲得と「ガチャ結果→…」が同じ行にある場合は使用ではない。 */
     if (!/チケット|チケ/.test(source)
       || /(?:\bd\d{2,}|ダイス条件)/i.test(source)
-      || /獲得|入手|報酬|収入|ガチャ結果|抽出結果/.test(source)) return null;
+      || /獲得|入手|報酬|収入|ガチャ結果|抽出結果/.test(source)
+      || !hasConsumption) return null;
     var isPack = /パックチケット/.test(source);
     var pack = "";
     if (isPack) {
@@ -626,7 +629,7 @@
       kind: isPack ? "pack" : parsed.kind,
       count: count,
       pack: pack,
-      reward: cleanRewardName(raw.slice(arrowAt + 1)),
+      reward: arrowAt >= 0 ? cleanRewardName(raw.slice(raw.indexOf("→", ticketAt) + 1)) : "",
       raw: String(rawLine || "").trim()
     };
   }
