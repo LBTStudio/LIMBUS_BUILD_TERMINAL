@@ -195,6 +195,104 @@ test("実記録に使われている▼/▽形式と複数行の報酬・消費�
   ]);
 });
 
+test("見出し記号のない日時付き記録も直前の記録へ結合しない", () => {
+  const parsed = T.parseText([
+    "▼精神購入",
+    "日時：2026/08/01",
+    "消費：1000欠片",
+    "獲得：分別できる理性",
+    "現在所持LP：27",
+    "現在所持欠片：1096→96",
+    "",
+    "囚人訓練　急　⬛︎⬛︎⬛",
+    "日時：2026/08/01",
+    "報酬：",
+    "LP：190",
+    "欠片：90+20(理性)=110",
+    "現在所持LP：27→217",
+    "現在所持欠片：96→206"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 2);
+  assert.equal(parsed.records[0].title, "精神購入");
+  assert.equal(parsed.records[0].income.lp, 0);
+  assert.equal(parsed.records[0].income.shards, 0);
+  assert.equal(parsed.records[1].title, "囚人訓練　急　⬛︎⬛");
+  assert.equal(parsed.records[1].income.lp, 190);
+  assert.equal(parsed.records[1].income.shards, 110);
+});
+
+test("実記録の獲得アイテムは個数を保って所持アイテムへ登録する", () => {
+  const parsed = T.parseText([
+    "▼梅と言うには遅く、名も悪く",
+    "日時：2026/07/19",
+    "報酬：",
+    "LP：45",
+    "欠片：30",
+    "硝子の欠片×1",
+    "生命体切断システム装置×2",
+    "バラのスパナ工房の外付け強化義足×1",
+    "現在所持LP：64→109",
+    "現在所持欠片：713→743"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 1);
+  assert.equal(parsed.records[0].income.lp, 45);
+  assert.equal(parsed.records[0].income.shards, 30);
+  assert.equal(parsed.records[0].itemGains[0]?.itemId, "resource-glass-shard");
+  assert.equal(parsed.records[0].itemGains[0]?.quantity, 1);
+  assert.deepEqual([...parsed.records[0].rewardCandidates].map((item) => ({ name: item.name, quantity: item.quantity })), [
+    { name: "生命体切断システム装置", quantity: 2 },
+    { name: "バラのスパナ工房の外付け強化義足", quantity: 1 }
+  ]);
+
+  const planned = T.plan(parsed, {
+    resolveItem: (name) => ({
+      "生命体切断システム装置": { itemId: "enh-lifeform-cutting-system" },
+      "バラのスパナ工房の外付け強化義足": { itemId: "enh-rosa-prosthetic-leg" }
+    }[name] || null)
+  });
+  assert.deepEqual([...planned.actions].filter((action) => action.type === "ADD_ITEM_INVENTORY")
+    .map((action) => ({ itemId: action.itemId, quantity: action.quantity })), [
+      { itemId: "resource-glass-shard", quantity: 1 },
+      { itemId: "enh-lifeform-cutting-system", quantity: 2 },
+      { itemId: "enh-rosa-prosthetic-leg", quantity: 1 }
+    ]);
+});
+
+test("購入済みのサポートパッシブと精神を所持へ追加し、支出は二重計上しない", () => {
+  const parsed = T.parseText([
+    "▼サポートパッシブ購入",
+    "消費：LP20",
+    "獲得：肩慣らし",
+    "現在所持LP：78→58",
+    "現在所持欠片：65",
+    "",
+    "▼精神購入",
+    "消費：欠片50",
+    "獲得：哀しみ",
+    "現在所持LP：58",
+    "現在所持欠片：65→15"
+  ].join("\n"));
+
+  const plan = T.plan(parsed, {
+    resolve: (name) => ({
+      name,
+      kinds: name === "肩慣らし" ? [{ kind: "support" }] : [{ kind: "spirit" }]
+    })
+  });
+  assert.deepEqual([...plan.actions].filter((a) => a.type === "ADD_ROSTER_SUPPORT")
+    .map((a) => ({ name: a.spp.name, purchase: a.purchase })), [
+    { name: "肩慣らし", purchase: false }
+  ]);
+  assert.deepEqual([...plan.actions].filter((a) => a.type === "ADD_ROSTER_SPIRIT")
+    .map((a) => ({ name: a.spirit.name, purchase: a.purchase })), [
+    { name: "哀しみ", purchase: false }
+  ]);
+  assert.equal(plan.actions.filter((a) => a.type === "ADD_ENTRY").length, 2);
+  assert.equal(plan.skipped.length, 0);
+});
+
 test("実記録にある全角イコールの計算結果を合計値として読む", () => {
   const parsed = T.parseText([
     "▼黒炎の崩剣",
