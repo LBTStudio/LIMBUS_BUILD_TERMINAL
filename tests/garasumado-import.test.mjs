@@ -127,9 +127,8 @@ test("叙述文に個別の負額が明示された複数購入は支出をそ�
   assert.ok(r.wins.some((win) => win.name === "因子コードG-5" && win.bought), "購入したパッシブの所持証跡を保つ");
   assert.ok(r.wins.some((win) => win.name === "深呼吸" && win.bought), "2件目の所持証跡も保つ");
 
-  const shard = MEMO.parseMemo("終了後、「E.G.Oの解放」を購入したため欠片-50");
-  assert.equal(shard.spends.length, 1);
-  assert.equal(shard.spends[0].shards, 50, "欠片の負額も支出へ変換する");
+  const singleNarrativePurchase = MEMO.parseMemo("終了後、「E.G.Oの解放」を購入したため欠片-50");
+  assert.equal(singleNarrativePurchase.spends.length, 0, "単独の叙述購入は既存の扱いを変えない");
 });
 
 test("購入の短文の形でない叙述は購入の記録にしない", () => {
