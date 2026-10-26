@@ -645,7 +645,7 @@ test("rd.nan7.net で包まれた共有URLも、公式URLだけを抜き出し�
     wrapped,
     "https://lbt-garasumado.vercel.app/view/3JIdhCPatk2URoQZ2btx",
     "https://example.com/not-a-share-link/BadId"
-  ].join("\\n"));
+  ].join("\n"));
   assert.equal(batch.urls.length, 1, "包みURLと正規URLは同じIDへ重複登録しない");
   assert.equal(batch.urls[0].id, "3JIdhCPatk2URoQZ2btx");
   assert.ok(batch.invalid.some((row) => row.text.includes("example.com")), "別ホストのURLは成功扱いにしない");
