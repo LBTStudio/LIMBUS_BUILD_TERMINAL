@@ -118,6 +118,13 @@
        「ガチャチケ1枚　第四銀工房銃鎚派」がある。 */
     if (!/チケ|チケット/.test(line)) return null;
     var text = normalizeAmountText(line);
+    /* 人格/E.G.Oの説明文に「チケットは捨てられる日を待っている」のような
+       フレーバー文がある。枚数・券種・入手/消費の記述が一切ない説明文を
+       チケット収入や抽出として誤認しない。 */
+    var hasCount = /[x×]\s*\d+|(?:チケ|チケット)\s*\d+\s*枚/.test(text);
+    var hasType = /抽出|ガチャ|人格|E\.?G\.?O|エゴ|イゴ|選択|テーマパック/.test(text);
+    var hasAction = /報酬|獲得|入手|付与|支給|取得|所持|消費|使用|増加|減少/.test(text);
+    if (!hasCount && !hasType && !hasAction) return null;
     var count = 1;
     var cm = text.match(/[x×]\s*(\d+)/);
     if (cm) count = parseInt(cm[1], 10);
