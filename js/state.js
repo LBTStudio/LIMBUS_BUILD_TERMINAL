@@ -2393,10 +2393,10 @@ function repairGachaResultAttribution(state) {
 
   const repairedLogs = logs.map((log) => {
     if (!log || typeof log !== "object" || Number(log.resultAttributionRepairVersion) >= 1) return log;
-    const wrongResultId = String(log.resultId || "");
+    const recordedResultId = String(log.resultId || "");
     const logAt = Date.parse(String(log.at || ""));
     const commit = String(log.commit || "");
-    if (!wrongResultId || !Number.isFinite(logAt) || !commit) return log;
+    if (!Number.isFinite(logAt) || !commit) return log;
 
     const batch = draws.find((candidate) => String(candidate?.commit || "") === commit
       || String(candidate?.batchHash || "") === commit);
@@ -2410,16 +2410,36 @@ function repairGachaResultAttribution(state) {
     });
     const targetResultId = latestResultId({ results: existingAtDraw });
     if (!targetResultId) return log;
+
+    /* 旧版の gachaLog には resultId 自体が無い。封緘バッチと時間帯・所持UIDで
+       取得明細を照合し、誤帰属先が1つだけ特定できた場合に限って補正する。
+       手動で移動された行などで候補が複数なら、推測で動かさない。 */
+    const validResultIds = new Set(results.map((result) => String(result?.id || "")).filter(Boolean));
+    const candidateResultIds = new Set();
+    for (const entry of nextEntries) {
+      const entryResultId = String(entry?.resultId || "");
+      if (!entryResultId || !validResultIds.has(entryResultId)) continue;
+      if (matchesTransaction(entry, batch, logAt, entryResultId)) candidateResultIds.add(entryResultId);
+    }
+    const wrongResultId = recordedResultId
+      || (candidateResultIds.size === 1 ? [...candidateResultIds][0] : "");
+    if (!wrongResultId || !candidateResultIds.has(wrongResultId)) return log;
+
     if (targetResultId === wrongResultId) {
-      return { ...log, resultAttributionRepairVersion: 1 };
+      return {
+        ...log,
+        resultId: recordedResultId || targetResultId,
+        resultAttributionRepairVersion: 1
+      };
     }
 
     const moved = nextEntries.map((entry) => {
       if (!matchesTransaction(entry, batch, logAt, wrongResultId)) return entry;
-      changedEntries = true;
       return { ...entry, resultId: targetResultId };
     });
-    if (!changedEntries || moved.every((entry, index) => entry === nextEntries[index])) return log;
+    const didMove = moved.some((entry, index) => entry !== nextEntries[index]);
+    if (!didMove) return log;
+    changedEntries = true;
     nextEntries = moved;
     return { ...log, resultId: targetResultId, resultAttributionRepairVersion: 1 };
   });
