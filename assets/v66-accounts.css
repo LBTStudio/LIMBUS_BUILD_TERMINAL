@@ -193,7 +193,10 @@
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: var(--s-3);
   padding: var(--s-4);
+  min-height: 0;
+  flex: 1 1 auto;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .acct-card {
   position: relative;
@@ -786,7 +789,17 @@ main.acct-gate {
     gap: var(--s-2);
     padding: var(--s-3);
   }
-  .acct-card { min-height: 124px; padding: var(--s-3) var(--s-2) var(--s-2); }
+  .acct-card {
+    /* 下端の常時表示アクション列ぶんを確保し、更新日時と「編集」を重ねない。 */
+    min-height: 148px;
+    padding: var(--s-3) var(--s-2) calc(var(--s-3) + 34px);
+  }
+  .acct-meta {
+    display: block;
+    max-width: 100%;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
   .acct-panel-foot { padding: var(--s-3); }
 }
 
