@@ -203,6 +203,14 @@ test("矢印形式の抽出チケットは使用明細で、獲得チケット�
   ]);
 });
 
+test("略記サポパの名前を購入行から抽出し、金額と所持証跡を両方残す", () => {
+  const parsed = MEMO.parseMemo("★サポパ購入『遺伝コードG-5』：7LP消費（合計45LP/82欠片）");
+  assert.equal(parsed.spends.length, 1);
+  assert.equal(parsed.spends[0].name, "遺伝コードG-5");
+  assert.equal(parsed.spends[0].lp, 7);
+  assert.ok(parsed.wins.some((win) => win.name === "遺伝コードG-5" && win.bought));
+});
+
 test("E.G.O の読みは「エゴ」で読む", () => {
   /* 「イゴ」を E.G.O の別名にしていたため、実データに一度も出ない表記を
      信用していた。正しい読みは「エゴ」。 */
