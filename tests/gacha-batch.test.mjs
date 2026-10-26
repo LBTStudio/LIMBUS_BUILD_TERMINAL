@@ -509,7 +509,7 @@ test("旧抽出の誤帰属は、ログIDがある場合も無い場合も安全
       "抽出オブジェクトの明細を画面上の最新リザルトへ補正する");
     assert.equal(restored.gachaLog[0].resultId, "visible-latest",
       withResultId ? "既存の抽選ログの帰属を補正する" : "resultId のない旧ログにも帰属を補完する");
-    assert.equal(restored.gachaLog[0].resultAttributionRepairVersion, 1, "同じ履歴へ繰り返し適用しない");
+    assert.equal(restored.gachaLog[0].resultAttributionRepairVersion, 2, "同じ履歴へ繰り返し適用しない");
     assert.equal(G.verifyBatch(restored.draws[0]).ok, true, "封緘バッチのハッシュ鎖は変更しない");
   }
 });
