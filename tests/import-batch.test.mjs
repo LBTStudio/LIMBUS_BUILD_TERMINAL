@@ -165,6 +165,45 @@ test("via が同名複数のリザルトにまたがるなら勝手に決めな�
   assert.equal(after.entries[0].resultId, null, "明細も未分類");
 });
 
+test("取り込んだチケット消費は対応するリザルトに帰属する", () => {
+  const after = reducer(baseState(), {
+    type: "APPLY_IMPORT_BATCH",
+    actions: [
+      { type: "ADD_RESULT", name: "チケット獲得", income: { lp: 0, shards: 0, tickets: { persona: 1, ego: 0, choice: 0, pack: {} } } },
+      { type: "SPEND_TICKET", kind: "persona", count: -1, ref: { kind: "textImportTicketUse" } }
+    ]
+  });
+  assert.equal(after.results.length, 1);
+  assert.equal(after.entries.length, 1);
+  assert.equal(after.entries[0].kind, "ticket");
+  assert.equal(after.entries[0].resultId, after.results[0].id);
+  assert.equal(after.entries[0].tickets.persona, 1);
+});
+
+test("取り込んだアイテム消費は対応するリザルトに保存され、在庫を減らす", () => {
+  const before = {
+    ...baseState(),
+    inventory: [{ uid: "it-1", itemId: "enh-whetstone", quantity: 3, memo: true, palette: true }],
+    results: [],
+    entries: []
+  };
+  const after = reducer(before, {
+    type: "APPLY_IMPORT_BATCH",
+    actions: [
+      { type: "ADD_RESULT", name: "報酬記録", income: { lp: 0, shards: 0 } },
+      { type: "CONSUME_ITEM", itemId: "enh-whetstone", quantity: 1, reason: "consumption", operationId: "import-use-1" },
+      { type: "ADD_RESULT", name: "使用記録", income: { lp: 0, shards: 0 } },
+      { type: "CONSUME_ITEM", itemId: "enh-whetstone", quantity: 1, reason: "consumption", operationId: "import-use-2" }
+    ]
+  });
+  assert.equal(after.inventory[0].quantity, 1);
+  assert.equal(after.results.length, 2);
+  assert.equal(after.results[0].consumedItems.length, 1);
+  assert.equal(after.results[1].consumedItems.length, 1);
+  assert.equal(after.results[0].consumedItems[0].operationId, "import-use-1");
+  assert.equal(after.results[1].consumedItems[0].operationId, "import-use-2");
+});
+
 test("via がバッチ内のリザルトに一致しなければ未分類（直前へ倒さない）", () => {
   const sppName = db.support_passives.find((s) => s && s.name).name;
   const after = reducer(baseState(), {
