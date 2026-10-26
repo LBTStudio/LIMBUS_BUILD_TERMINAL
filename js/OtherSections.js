@@ -3961,6 +3961,8 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   /* 結果ログ内の人格候補。候補選択と除外は貼り付け中だけ保持する。 */
   const [textIdentityExcluded, setTextIdentityExcluded] = React.useState(() => new Set());
   const [textIdentityResolved, setTextIdentityResolved] = React.useState({});
+  /* 種別が不明なチケットは自動推測しない。プレビューでユーザーが選んだ分類だけを取込案へ反映する。 */
+  const [textTicketResolved, setTextTicketResolved] = React.useState({});
 
   /* 取り込み（硝子窓）はリザルト個別ではなくアカウント全体の操作として
    アカウント選択画面で行う。ここでは扱わない。 */
@@ -4272,6 +4274,7 @@ const textPlan = React.useMemo(() => {
       excluded: textExcluded,
       excludedIdentities: textIdentityExcluded,
       identityResolved: textIdentityResolved,
+      ticketResolved: textTicketResolved,
       ownedPersonas,
       ownedEgos,
       ownedSupports,
@@ -4281,9 +4284,12 @@ const textPlan = React.useMemo(() => {
       resolveItemUse: resolveTextItemUse,
       suggestPersona
     });
-  }, [parsedText, textExcluded, textIdentityExcluded, textIdentityResolved, resolveSpendName, resolveTextItem, resolveTextItemUse,
+  }, [parsedText, textExcluded, textIdentityExcluded, textIdentityResolved, textTicketResolved, resolveSpendName, resolveTextItem, resolveTextItemUse,
     state.roster?.personas, state.roster?.egos, state.roster?.supports, state.roster?.spirits, state.inventory]);
 
+const textTicketResolutionKey = (recordIndex, ticket) =>
+  window.LBT_textImport?.ticketResolutionKey?.(recordIndex, ticket)
+  || `${recordIndex}:${String(ticket?.sourceLine || "").trim()}::${String(ticket?.raw || "").trim()}`;
 const textTicketLabel = (ticket) => {
   if (ticket?.kind === "persona") return "人格抽出チケット";
   if (ticket?.kind === "ego") return "E.G.O抽出チケット";
@@ -4291,8 +4297,23 @@ const textTicketLabel = (ticket) => {
   if (ticket?.kind === "pack") return ticket.pack ? `テーマパック権「${ticket.pack}」` : "テーマパック権（パック未特定）";
   return "種別未確定チケット";
 };
-const textTicketSummary = (tickets) => (tickets || [])
-  .map((ticket) => `${textTicketLabel(ticket)} ×${ticket.count}`).join("・");
+const textTicketSummary = (tickets, recordIndex) => (tickets || [])
+  .map((ticket) => {
+    const override = textTicketResolved[textTicketResolutionKey(recordIndex, ticket)];
+    return `${textTicketLabel(override?.kind ? { ...ticket, ...override } : ticket)} ×${ticket.count}`;
+  }).join("・");
+const textUnknownTicketsForRecord = (record, recordIndex) => {
+  const seen = new Set();
+  const out = [];
+  for (const ticket of [...(record?.tickets || []), ...(record?.ticketUses || [])]) {
+    if (ticket?.kind && !(ticket.kind === "pack" && !String(ticket.pack || "").trim())) continue;
+    const key = textTicketResolutionKey(recordIndex, ticket);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ ticket, key });
+  }
+  return out;
+};
 
 /* テキストの取り込み。硝子窓 版と同じ取り込み口を使うので、
    APPLY_IMPORT_BATCH の紐付けと Undo 1 回がそのまま効く。 */
@@ -4327,6 +4348,7 @@ const applyTextImport = () => {
   setTextExcluded(new Set());
   setTextIdentityExcluded(new Set());
   setTextIdentityResolved({});
+  setTextTicketResolved({});
 };
 
 /* 手動支出・消耗の記録。帰属は未分類で入れる（後からドラッグで振る）。 */
@@ -4669,14 +4691,48 @@ const importHeldPersonas = () => {
               setTextExcluded(new Set());
               setTextIdentityExcluded(new Set());
               setTextIdentityResolved({});
+              setTextTicketResolved({});
             }
           })
         ),
         parsedText && parsedText.records.map((rec, ri) => h("div", { key: `rec-${ri}`, className: "stack-2" },
           h("span", { className: "t-label" },
             `${rec.title || "無題"}${rec.author ? `（作：${rec.author}）` : ""} — ${rec.date ? `日時 ${rec.date}` : "日時未記載"} — 収入 LP ${rec.income.lp} / 欠片 ${rec.income.shards}`
-            + (rec.tickets.length ? ` / チケット獲得 ${textTicketSummary(rec.tickets)}` : "")
-            + (rec.ticketUses?.length ? ` / チケット消費 ${textTicketSummary(rec.ticketUses)}` : "")),
+            + (rec.tickets.length ? ` / チケット獲得 ${textTicketSummary(rec.tickets, ri)}` : "")
+            + (rec.ticketUses?.length ? ` / チケット消費 ${textTicketSummary(rec.ticketUses, ri)}` : "")),
+          textUnknownTicketsForRecord(rec, ri).length > 0 && h("div", { className: "ledger-held-result", role: "group", "aria-label": "未確定チケットの分類" },
+            h("p", { className: "ledger-note" }, "チケット種別が原文だけでは確定できません。下で分類を選ぶまで、該当する収入・消費は残高へ反映しません。"),
+            h("div", { className: "stack-2" }, textUnknownTicketsForRecord(rec, ri).map(({ ticket, key }) => h("div", { key, className: "ledger-unknown-row" },
+              h("span", { className: "ledger-note" }, `${ticket.raw || ticket.sourceLine || "抽出チケット"} ×${ticket.count}`),
+              h("select", {
+                className: "select",
+                value: textTicketResolved[key]?.kind || "",
+                "aria-label": `チケット種別の手動指定：${ticket.raw || "抽出チケット"}`,
+                onChange: (event) => setTextTicketResolved((previous) => {
+                  const next = { ...previous };
+                  const kind = event.target.value;
+                  if (!kind) delete next[key];
+                  else next[key] = { kind, ...(kind === "pack" ? { pack: previous[key]?.pack || "" } : {}) };
+                  return next;
+                })
+              },
+                h("option", { value: "" }, "未確定のまま"),
+                h("option", { value: "persona" }, "人格抽出チケット"),
+                h("option", { value: "ego" }, "E.G.O抽出チケット"),
+                h("option", { value: "choice" }, "選択抽出チケット"),
+                h("option", { value: "pack" }, "テーマパック権")
+              ),
+              textTicketResolved[key]?.kind === "pack" && h("input", {
+                className: "input",
+                value: textTicketResolved[key]?.pack || "",
+                placeholder: "パック名を入力",
+                "aria-label": `テーマパック権の名前：${ticket.raw || "抽出チケット"}`,
+                onChange: (event) => setTextTicketResolved((previous) => ({
+                  ...previous, [key]: { kind: "pack", pack: event.target.value }
+                }))
+              })
+            )))
+          ),
           rec.deltas.length > 0 && h("span", { className: "ledger-note" },
             `増減の注記 ${rec.deltas.map((d) => `${d.currency === "lp" ? "LP" : "欠片"} ${d.value > 0 ? "+" : ""}${d.value}`).join(" / ")} は残高差なので収入には入れていません`),
           rec.consumedItems?.length > 0 && h("span", { className: "ledger-note" },

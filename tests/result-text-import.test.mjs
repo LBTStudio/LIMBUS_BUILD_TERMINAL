@@ -554,7 +554,7 @@ test("実記録にある全角イコールの計算結果を合計値として�
 
 test("抽出チケット複数枚とLP合計の費用配分が不明でも合計支出を保持する", () => {
   const parsed = T.parseText([
-    "▼人格抽出×5",
+    "▼抽出イベント×5",
     "日時：2026/06/06",
     "消費：人格抽出チケット×2、抽出チケット×1、LP200",
     "獲得：",
@@ -570,14 +570,14 @@ test("抽出チケット複数枚とLP合計の費用配分が不明でも合計
   assert.equal(parsed.records.length, 1);
   assert.deepEqual([...parsed.records[0].spends].map((item) => ({
     name: item.name, cost: { ...item.cost }
-  })), [{ name: "人格抽出×5", cost: { lp: 200, shards: 0 } }]);
+  })), [{ name: "抽出イベント×5", cost: { lp: 200, shards: 0 } }]);
   assert.ok(parsed.skipped.some((item) => /合計費用は1件の支出として記録しました/.test(item.reason)));
   assert.ok(!parsed.skipped.some((item) => /消費合計が安全整数/.test(item.reason)));
 
   const planned = T.plan(parsed);
   const expense = planned.actions.find((action) => action.type === "ADD_ENTRY");
   assert.deepEqual({ kind: expense.kind, name: expense.name, cost: { ...expense.cost } }, {
-    kind: "expense", name: "人格抽出×5", cost: { lp: 200, shards: 0 }
+    kind: "expense", name: "抽出イベント×5", cost: { lp: 200, shards: 0 }
   }, "合計支出は取得人格の購入扱いにしない");
 });
 
@@ -790,6 +790,32 @@ test("無修飾の抽出チケットは「人格抽出」記録のときだけ�
   assert.equal(ambiguous.records[0].tickets[0].kind, null);
   assert.equal(ambiguous.records[0].ticketUses[0].kind, null);
   assert.ok(!T.plan(ambiguous).actions.some((action) => action.type === "SPEND_TICKET"));
+});
+
+test("複数抽出の費用配分でもタイトル文脈で認識した無修飾チケットを数える", () => {
+  const parsed = T.parseText([
+    "▼人格抽出×5",
+    "日時：2026/06/06",
+    "消費：人格抽出チケット×2、抽出チケット×1、LP200",
+    "獲得：",
+    "メメメメメ工房フィクサーの人格",
+    "ロボトミーE.G.O:たぷつきの人格",
+    "黒獣-巳の人格",
+    "R社第四群ウサギチームの人格",
+    "ロジック・アトリエ所属フィクサーの人格",
+    "現在所持LP：229→29",
+    "現在所持欠片：355"
+  ].join("\n"));
+
+  assert.deepEqual([...parsed.records[0].ticketUses].map((ticket) => ({
+    kind: ticket.kind, count: ticket.count
+  })), [
+    { kind: "persona", count: 2 },
+    { kind: "persona", count: 1 }
+  ]);
+  assert.equal(parsed.records[0].spends.length, 5);
+  assert.deepEqual([...parsed.records[0].spends].map((spend) => spend.cost.lp), [0, 0, 0, 100, 100]);
+  assert.ok(!parsed.skipped.some((item) => /費用配分が一意に決まらない/.test(item.reason)));
 });
 
 test("実記録の「硝子の欠片×2、LP20」は数量2の消費として認識する", () => {
@@ -1026,6 +1052,67 @@ test("パック名の数字をチケット枚数と取り違えない", () => {
   const parsed = T.parseText("【A】\n報酬｜〈シーズン3〉抽出チケットx2\n");
   assert.equal(parsed.records[0].tickets[0].pack, "シーズン3");
   assert.equal(parsed.records[0].tickets[0].count, 2);
+});
+
+test("プレビューで曖昧なチケット種別を指定すると、同じ報酬行の収入と消費に反映する", () => {
+  const parsed = T.parseText([
+    "▼【夢を見続けた者共よ。】",
+    "日時：2026/06/26",
+    "報酬：",
+    "LP：113",
+    "欠片：61",
+    "テストプレイ報酬抽出チケット×1→使用済(獲得：ロボトミーE.G.O:後悔の人格)",
+    "現在所持LP：173→286",
+    "現在所持欠片：518→579"
+  ].join("\n"));
+
+  const record = parsed.records[0];
+  assert.equal(record.tickets[0].kind, null);
+  assert.equal(record.ticketUses[0].kind, null);
+  const key = T.ticketResolutionKey(0, record.tickets[0]);
+  assert.equal(key, T.ticketResolutionKey(0, record.ticketUses[0]));
+
+  const unresolved = T.plan(parsed);
+  assert.equal(unresolved.actions.find((action) => action.type === "ADD_RESULT").income.tickets.choice, 0);
+  assert.equal(unresolved.actions.filter((action) => action.type === "SPEND_TICKET").length, 0);
+  assert.equal(unresolved.skipped.length, 2);
+
+  const resolved = T.plan(parsed, {
+    ticketResolved: { [key]: { kind: "choice" } }
+  });
+  const result = resolved.actions.find((action) => action.type === "ADD_RESULT");
+  assert.equal(result.income.tickets.choice, 1);
+  assert.deepEqual([...resolved.actions].filter((action) => action.type === "SPEND_TICKET")
+    .map((action) => ({ kind: action.kind, count: action.count })), [
+      { kind: "choice", count: -1 }
+    ]);
+  assert.equal(resolved.skipped.length, 0);
+});
+
+test("曖昧なパック権は手動指定したパック名があるときだけ消費する", () => {
+  const parsed = T.parseText([
+    "▼人格抽出-テーマパック",
+    "日時：2026/10/04",
+    "消費：任意のチケット×1",
+    "指定：断ち切れない(300LP)",
+    "獲得：仮人格の人格",
+    "現在所持LP：621",
+    "現在所持欠片：406"
+  ].join("\n"));
+
+  const ticket = parsed.records[0].ticketUses[0];
+  assert.equal(ticket.kind, null);
+  const key = T.ticketResolutionKey(0, ticket);
+  const withoutPack = T.plan(parsed, { ticketResolved: { [key]: { kind: "pack", pack: "" } } });
+  assert.equal(withoutPack.actions.filter((action) => action.type === "SPEND_TICKET").length, 0);
+  assert.ok(withoutPack.skipped.some((item) => /チケット種類|チケットの種類/.test(item.reason)));
+
+  const withPack = T.plan(parsed, { ticketResolved: { [key]: { kind: "pack", pack: "断ち切れない" } } });
+  assert.deepEqual([...withPack.actions].filter((action) => action.type === "SPEND_TICKET")
+    .map((action) => ({ kind: action.kind, pack: action.pack, count: action.count })), [
+      { kind: "pack", pack: "断ち切れない", count: -1 }
+    ]);
+  assert.ok(!withPack.skipped.some((item) => /チケット種類|チケットの種類/.test(item.reason)));
 });
 
 test("種別不明の抽出チケットは黙って破棄せず、取り込み保留として表示する", () => {
