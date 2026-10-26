@@ -613,7 +613,7 @@
     if (!/チケット|チケ/.test(source)
       || /(?:\bd\d{2,}|ダイス条件)/i.test(source)
       || /獲得|入手|報酬|収入|ガチャ結果|抽出結果/.test(source)
-      || !hasConsumption) return null;
+      || (arrowAt < 0 && !hasConsumption)) return null;
     var isPack = /パックチケット/.test(source);
     var pack = "";
     if (isPack) {
