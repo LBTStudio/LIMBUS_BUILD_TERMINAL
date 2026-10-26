@@ -38,7 +38,7 @@ test("両保管先の世代を照合し、同一世代の異なる内容は自�
   assert.match(client, /historyHashForRevision/);
   assert.match(client, /const ancestorHash = historyHashForRevision/);
   assert.match(client, /olderProvider, key, Number\(olderHead\.revision\), Number\(newerHead\.revision\)/);
-  assert.match(client, /同じ世代番号の異なるデータがあります/);
+  assert.match(client, /同じ世代に異なるデータがあります/);
   assert.match(client, /olderProvider/);
   assert.match(worker, /currentRevision !== expectedRevision/);
   assert.match(worker, /write_token/);
