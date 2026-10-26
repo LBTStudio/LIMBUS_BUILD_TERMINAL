@@ -310,6 +310,7 @@ async function seed() {
     const saved = A.saveActive(merged);
     return {
       ok: !!saved,
+      accountId: A.getActiveId(),
       persona: p.name,
       mode,
       sample: {
@@ -377,15 +378,41 @@ async function boot() {
   const seeded = await seed().catch((error) => ({ ok: false, reason: String(error) }));
   audit.seed = seeded;
   if (seeded && seeded.ok) {
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await page.waitForLoadState("networkidle", { timeout: 12000 }).catch(() => {});
-    await page.waitForTimeout(600);
-    if (await visible(page.locator(".acct-gate"))) {
+    // Reload the selected account through the same app event used by SINNER SELECT.
+    // This avoids reopening the gate and prevents the harness from confusing a gate
+    // transition with an app render error.
+    await page.evaluate((id) => {
+      window.dispatchEvent(new CustomEvent("lbt:accounts-entered", { detail: { id } }));
+    }, seeded.accountId);
+    await page.waitForTimeout(800);
+    if (!(await visible(page.locator(".rail-item").first())) && await visible(page.locator(".acct-gate"))) {
       const card = page.locator(".acct-card-hit").filter({ hasText: "UI監査用キャラクター" }).first();
       if (await visible(card)) await click(card);
       else if (await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
     }
-    await page.locator(".rail-item").first().waitFor({ state: "visible", timeout: 25000 });
+    try {
+      await page.locator(".rail-item").first().waitFor({ state: "visible", timeout: 9000 });
+    } catch (error) {
+      await snap("seeded-state-bootstrap-failed", "監査データの読込後に作業画面へ入れなかった状態");
+      const diagnostics = await page.evaluate(() => ({
+        title: document.title,
+        body: (document.body?.innerText || "").slice(0, 1600),
+        accountGate: !!document.querySelector(".acct-gate"),
+        errors: window.__LBT_UI_ERRORS || []
+      })).catch(() => ({}));
+      audit.failures.push({ name: "seeded-state-bootstrap", error: String(error), diagnostics });
+      log("seeded state bootstrap failed: " + JSON.stringify(diagnostics));
+      // Clear only this disposable test account and continue the UI sweep in a
+      // clean state. The manifest still records that data-rich rendering failed.
+      await page.evaluate((id) => {
+        const A = window.LBT_accounts;
+        if (!A?.saveActive) return;
+        A.saveActive({}, id);
+        window.dispatchEvent(new CustomEvent("lbt:accounts-entered", { detail: { id } }));
+      }, seeded.accountId).catch(() => {});
+      await page.waitForTimeout(600);
+      if (!(await visible(page.locator(".rail-item").first()))) throw error;
+    }
   }
   await page.waitForTimeout(350);
 }
