@@ -554,7 +554,7 @@ test("実記録にある全角イコールの計算結果を合計値として�
 
 test("抽出チケット複数枚とLP合計の費用配分が不明でも合計支出を保持する", () => {
   const parsed = T.parseText([
-    "▼人格抽出×5",
+    "▼抽出イベント×5",
     "日時：2026/06/06",
     "消費：人格抽出チケット×2、抽出チケット×1、LP200",
     "獲得：",
@@ -814,7 +814,7 @@ test("複数抽出の費用配分でもタイトル文脈で認識した無修�
     { kind: "persona", count: 1 }
   ]);
   assert.equal(parsed.records[0].spends.length, 5);
-  assert.deepEqual(parsed.records[0].spends.map((spend) => spend.cost.lp), [0, 0, 0, 100, 100]);
+  assert.deepEqual([...parsed.records[0].spends].map((spend) => spend.cost.lp), [0, 0, 0, 100, 100]);
   assert.ok(!parsed.skipped.some((item) => /費用配分が一意に決まらない/.test(item.reason)));
 });
 
