@@ -682,6 +682,12 @@
         var spendRecord = { name: rewardName || line, lp: 0, shards: 0, raw: line, reason: "明示された通貨消費" };
         spendRecord[currencySpend.currency] = currencySpend.amount;
         spends.push(spendRecord);
+        /* 購入・抽出後の獲得名を保持。既存の同名候補があれば重複を増やさない。 */
+        var arrowRewardNames = arrowWinsOf(line);
+        if (!arrowRewardNames.length && rewardName) arrowRewardNames = [rewardName];
+        arrowRewardNames.forEach(function (name) {
+          if (!wins.some((w) => w.name === name)) wins.push({ name: name, via: "", kind: "" });
+        });
         /* 続きに収入・チケット獲得が同居する書式があるため行全体を捨てない。
            後段の既存解析は消費より前の収入だけを読む。 */
       }
