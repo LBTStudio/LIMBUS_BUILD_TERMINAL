@@ -149,6 +149,7 @@
       if (explicitPersona) kind = "persona";
       else if (/選択|zr|upgrade/i.test(text)) kind = "choice";
       else if (/ガチャ\s*(?:チケ|チケット)/.test(text)
+        || /E\.?G\.?O|エゴ|イゴ/i.test(text)
         || EGO_WORDS.some(function (w) { return text.indexOf(w) >= 0; })) kind = "ego";
     }
     /* 無修飾の「抽出チケット」は種別不明。種類を名前から推測しない。 */
