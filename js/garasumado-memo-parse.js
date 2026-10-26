@@ -417,6 +417,19 @@
     return match[1].trim().replace(/^[「『「]/, "").replace(/[」』」]$/, "").trim();
   }
 
+  /* 「獲得：HE 厳粛な哀悼：死んだ蝶たちの葬儀」のように、実記録では
+     獲得ラベルとE.G.Oランクが名前の前に付く。ラベルを名前から分離し、
+     ランク接頭辞は種別を確定できる証拠として保持する（DB名そのものには含めない）。 */
+  function explicitAcquisitionOf(line) {
+    var t = String(line || "").trim().replace(/^[・･]\s*/, "");
+    var match = t.match(/^(?:獲得|入手|取得)\s*[：:]\s*(.+)$/);
+    if (!match) return null;
+    var name = match[1].trim().replace(/^[「『「]/, "").replace(/[」』」]$/, "").trim();
+    if (!name) return null;
+    var rankedEgo = name.match(/^(?:ZAYIN|TETH|HE|WAW|ALEPH)\s+(.+)$/i);
+    return rankedEgo ? { name: rankedEgo[1].trim(), kind: "ego" } : { name, kind: "" };
+  }
+
   /* シナリオが「誰を倒したか」を書く行。収入セクションにあり、
      通貨も数値もないので、獲得した人格/E.G.O の名前である。
      DB 照合は呼び出し側（buildManifest）で行う。ここでは
@@ -1229,8 +1242,14 @@
            シナリオが直接払った人格/E.G.O なので、獲得として記録する。
            DB 照合は呼び出し側で行う。ここでは名前候補として残す。 */
         var explicitRewardName = explicitRewardNameOf(line);
-        if ((!isBullet || explicitRewardName) && !/使用人格/.test(prev) && isAcquisitionNameLine(explicitRewardName || line)) {
-          wins.push({ name: explicitRewardName || line, via: "", kind: "" });
+        var explicitAcquisition = explicitAcquisitionOf(line);
+        var acquisitionName = explicitAcquisition ? explicitAcquisition.name : (explicitRewardName || line);
+        if ((!isBullet || explicitRewardName || explicitAcquisition) && !/使用人格/.test(prev) && isAcquisitionNameLine(acquisitionName)) {
+          wins.push({
+            name: acquisitionName,
+            via: "",
+            kind: explicitAcquisition ? explicitAcquisition.kind : ""
+          });
           continue;
         }
         /* 「4 課」のように数字を含んでも通貨と数値の並びが
