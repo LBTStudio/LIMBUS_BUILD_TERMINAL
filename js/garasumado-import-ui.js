@@ -1218,7 +1218,7 @@ function appliedSummary(actions) {
   }
   (balance?.currencyDiscrepancies || []).forEach((row, index) => {
     addDiscrepancy(
-      \`currency-\${row.code || index}-\${index}\`,
+      ("currency-" + String(row.code || index) + "-" + String(index)),
       row.title || "E.G.O購入の通貨表記を要確認",
       row.detail || row.message || row.line || "E.G.O購入の項目別価格と消費欄の通貨・金額が一致しません。"
     );
