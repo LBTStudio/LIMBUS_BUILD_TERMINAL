@@ -118,11 +118,14 @@
     var cm2 = text.match(/(?:チケ|チケット)\s*(\d+)\s*枚/);
     if (cm2) count = parseInt(cm2[1], 10);
 
+    /* 名前の中の「E.G.O」や「ガチャ結果」を、チケット種別と誤認しない。
+       明示されたチケット名を優先し、ガチャチケだけをE.G.O抽出相当とする。 */
     var kind = "persona";
-    if (EGO_WORDS.some(function (w) { return text.indexOf(w) >= 0; })) kind = "ego";
+    var explicitPersona = /人格.{0,4}チケ|チケ.{0,4}人格/.test(text);
+    if (explicitPersona) kind = "persona";
     else if (/選択|zr|upgrade/i.test(text)) kind = "choice";
-    /* 「ガチャ」はE.G.O打ちのmixedword。LBTではガチャ=E.G.O相当。 */
-    if (/ガチャ/.test(text)) kind = "ego";
+    else if (/ガチャ\s*(?:チケ|チケット)/.test(text)
+      || EGO_WORDS.some(function (w) { return text.indexOf(w) >= 0; })) kind = "ego";
     return { kind: kind, count: count };
   }
 
@@ -849,6 +852,9 @@
             var namedBuy = namedPurchaseOf(line);
             if (namedBuy) {
               spends.push(namedBuy);
+              if (!wins.some((w) => w.name === namedBuy.name)) {
+                wins.push({ name: namedBuy.name, via: "", kind: "", bought: true });
+              }
               continue;
             }
             /* 叙述体の精神・人格購入（「精神「正義」を購入したため
