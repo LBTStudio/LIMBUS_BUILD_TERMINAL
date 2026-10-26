@@ -228,3 +228,64 @@ test("シナリオの獲得一覧（via 無し）の所持は直前のリザル�
   assert.equal(after.roster.spirits[0].resultId, after.results[0].id, "直前のリザルトへ");
   assert.equal(after.entries[0].resultId, after.results[0].id);
 });
+
+test("同じ硝子窓ソースの再取込は既存リザルトと取り込み明細だけを更新し、手入力明細を残す", () => {
+  const before = baseState();
+  const sourceKey = "gara1:share123:undated:夜の卓:1";
+  const first = reducer(before, {
+    type: "APPLY_IMPORT_BATCH",
+    actions: [
+      { type: "ADD_RESULT", name: "夜の卓", income: { lp: 100, shards: 20 }, consumedItems: [], importSourceKey: sourceKey },
+      { type: "ADD_ENTRY", kind: "other", name: "解析済み支出", cost: { lp: 25, shards: 0 } }
+    ]
+  });
+  const originalResult = first.results[0];
+  assert.equal(first.entries.length, 1);
+  assert.equal(first.entries[0].importResultKey, sourceKey);
+
+  const withManual = reducer(first, {
+    type: "ADD_ENTRY", kind: "other", name: "手入力の支出", cost: { lp: 5, shards: 0 }, resultId: originalResult.id
+  });
+  const updated = reducer(withManual, {
+    type: "APPLY_IMPORT_BATCH",
+    actions: [
+      { type: "ADD_RESULT", name: "夜の卓", income: { lp: 150, shards: 30 }, consumedItems: [{ itemId: "glass-shard", itemName: "硝子の破片", quantity: 1, reason: "consumption" }], importSourceKey: sourceKey },
+      { type: "ADD_ENTRY", kind: "other", name: "解析済み支出（修正）", cost: { lp: 40, shards: 0 } }
+    ]
+  });
+
+  assert.equal(updated.results.length, 1, "同じソースのリザルトを増殖させない");
+  assert.equal(updated.results[0].id, originalResult.id, "既存のIDを維持する");
+  assert.equal(updated.results[0].income.lp, 150, "再解析後の収入へ更新");
+  assert.equal(updated.results[0].income.shards, 30);
+  assert.equal(updated.results[0].consumedItems.length, 1, "消費記録も最新データへ更新");
+  assert.equal(updated.entries.length, 2, "古い取込明細だけ置換し、手入力明細を維持");
+  assert.ok(updated.entries.some((entry) => entry.name === "手入力の支出" && entry.cost.lp === 5));
+  assert.ok(updated.entries.some((entry) => entry.name === "解析済み支出（修正）" && entry.cost.lp === 40));
+  assert.ok(updated.entries.every((entry) => entry.resultId === originalResult.id));
+});
+
+test("旧形式リザルトは明示指定時だけ更新し、対象の紐づく明細を入れ替える", () => {
+  const added = reducer(baseState(), { type: "ADD_RESULT", name: "旧形式", income: { lp: 10, shards: 1 } });
+  const oldResult = added.results[0];
+  const oldEntryState = reducer(added, {
+    type: "ADD_ENTRY", name: "以前の取込明細", cost: { lp: 3, shards: 0 }, resultId: oldResult.id
+  });
+  const updated = reducer(oldEntryState, {
+    type: "APPLY_IMPORT_BATCH",
+    actions: [
+      {
+        type: "ADD_RESULT", name: "旧形式", income: { lp: 20, shards: 2 }, consumedItems: [],
+        importSourceKey: "gara1:share123:undated:旧形式:1", legacyResultId: oldResult.id, replaceLegacyEntries: true
+      },
+      { type: "ADD_ENTRY", name: "最新の取込明細", cost: { lp: 4, shards: 0 } }
+    ]
+  });
+  assert.equal(updated.results.length, 1);
+  assert.equal(updated.results[0].id, oldResult.id);
+  assert.equal(updated.results[0].importSourceKey, "gara1:share123:undated:旧形式:1");
+  assert.equal(updated.results[0].income.lp, 20);
+  assert.deepEqual([...updated.entries.map((entry) => entry.name)], ["最新の取込明細"]);
+  assert.equal(updated.entries[0].resultId, oldResult.id);
+  assert.equal(updated.entries[0].importResultKey, updated.results[0].importSourceKey);
+});

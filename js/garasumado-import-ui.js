@@ -348,7 +348,11 @@ item.decide ? h("div", { className: "gara-decide" },
      見せる: .cardの面、card-headerの罫線、収入の金色大数字ペア。
      行の中身（入手方法・DB候補）だけが取り込み独自。帰属先はカード所属が
      決める。選び直しは行を未割当リストへ戻す（ドラッグ、または「未割当へ」）。 */
-  function ResultCard({ block, scenarioOptions, sourceOptions, onPickIdentity, onDropItem, onReturnItem }) {
+  function ResultCard({
+    block, scenarioOptions, sourceOptions, onPickIdentity, onDropItem, onReturnItem,
+    existingResults = [], legacyCandidates = [], legacyTargetId = "", onPickLegacyTarget,
+    sourceAlreadyImported = false
+  }) {
     const income = block.income || { lp: 0, shards: 0 };
     /* 無題は名前が無いのでカード名として使えない。個数と合計で示す。 */
     const title = block.name && block.name !== "無題"
@@ -370,6 +374,34 @@ item.decide ? h("div", { className: "gara-decide" },
           pair(income.lp, "lp", "LP"),
           pair(income.shards, "shard", "欠片")
         ),
+        sourceAlreadyImported
+          ? h("p", { className: "gara-note" }, "同じ共有元のリザルトを特定しました。確定時に既存記録を更新し、二重追加を防ぎます。")
+          : legacyCandidates.length
+            ? h("div", { className: "gara-legacy-replace" },
+              h("label", { className: "gara-decide-field" },
+                h("span", { className: "gara-label" }, "旧形式の既存リザルトを更新（任意）"),
+                h("select", {
+                  className: "input",
+                  value: legacyTargetId || "",
+                  "aria-label": (block.name || "無題") + " の旧形式リザルト置換先",
+                  onChange: (event) => onPickLegacyTarget?.(block.key, event.target.value)
+                },
+                  h("option", { value: "" }, "新規として追加（既存記録を変更しない）"),
+                  legacyCandidates.map((result) => {
+                    const cur = result.income || {};
+                    return h("option", { key: result.id, value: result.id },
+                      String(result.date || "日付不明") + " · LP " + (Number(cur.lp) || 0)
+                      + " / 欠片 " + (Number(cur.shards) || 0) + " · ID " + String(result.id).slice(-6));
+                  })
+                )
+              ),
+              legacyTargetId
+                ? h("p", { className: "gara-note gara-note-warn" },
+                  "選択した旧形式リザルトの収入・消費記録を今回の解析結果で置き換えます。紐づく明細はすべて削除して再作成するため、手入力の明細が含まれていないか確認してください。")
+                : h("p", { className: "gara-note" },
+                  "共有元キーが残っていない旧記録は自動では上書きしません。ここで対象を明示した場合だけ置き換えます。")
+            )
+            : null,
         h("div", {
           className: "gara-rows",
           role: "group",
@@ -514,7 +546,7 @@ const GarasumadoGroup = ({ group, onPick, onToggle, onToggleAll, onPickIdentity 
 };
 
 /* --- パネル本体 ----------------------------------------------------------- */
-const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [] }) => {
+const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [], existingResults = [] }) => {
   const [url, setUrl] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState("");
@@ -608,6 +640,7 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [] }) => {
     setChoices({});
     setDecided({});
     setIdentity({});
+    setLegacyTargets({});
     setLines([]);
     setConfirmed(null);
     setPersonaItems(null);
@@ -794,6 +827,7 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [] }) => {
   /* 帰属先と入手方法の選択は UI 状態として持つ。manifest を直接書き直すと
      再描画で直前の選択が落ちるため、manifest は読み取り専用のままにする。 */
   const [identity, setIdentity] = React.useState({});
+  const [legacyTargets, setLegacyTargets] = React.useState({});
   /* 割当ミスは取り込み画面内で戻せる。履歴は identity と picked の対ごと積む。
      上限は 50 手前まで。入力欄での文字取り消しは横取りしない。
      取り込み確定前はアプリ側 state を触らないので、ここを奪わない。 */
@@ -1140,7 +1174,7 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [] }) => {
     const resolve = index && window.LBT_resolveCandidates
       ? (name) => window.LBT_resolveCandidates(index, name)?.[0] || null
       : () => null;
-    const result = window.LBT_toDispatchActions?.(merged, keys, { purchases, resolve }) || { actions: [], skipped: [] };
+    const result = window.LBT_toDispatchActions?.(merged, keys, { purchases, resolve, legacyResultTargets: legacyTargets }) || { actions: [], skipped: [] };
     const personaActions = (personaItems || [])
       .filter((row) => row.ok && personaPicked[row.id] && !personaAlreadyImported(row.id))
       .map((row) => ({
@@ -1416,7 +1450,7 @@ function appliedSummary(actions) {
         h("p", { className: "gara-import-balance" }, `硝子窓の申告残高（手入力・照合用）　LP ${manifest.currency.lp || "—"} ・ 欠片 ${manifest.currency.shards || "—"}`)
       ),
       h("div", { className: "gara-import-heading-actions" },
-        h("button", { type: "button", className: "gara-change-url", onClick: () => { setManifest(null); setConfirmed(null); setError(""); setUrlReport(null); setBundleReport(null); setPersonaItems(null); setPersonaPicked({}); setPersonaConfirmed(null); setProgress(""); setPicked({}); setIdentity({}); setLines([]); setChoices({}); setDecided({}); setPast([]); setFuture([]); setDoc(null); } }, "URLを貼り直す"),
+        h("button", { type: "button", className: "gara-change-url", onClick: () => { setManifest(null); setConfirmed(null); setError(""); setUrlReport(null); setBundleReport(null); setPersonaItems(null); setPersonaPicked({}); setPersonaConfirmed(null); setProgress(""); setPicked({}); setIdentity({}); setLegacyTargets({}); setLines([]); setChoices({}); setDecided({}); setPast([]); setFuture([]); setDoc(null); } }, "URLを貼り直す"),
         h("button", { type: "button", className: "gara-review-dismiss", onClick: onClose, title: "取り込み確認を閉じてアカウント編集へ戻る" }, "閉じて戻る")
       )
     ),
@@ -1512,15 +1546,43 @@ function appliedSummary(actions) {
       ? h("p", { className: "gara-note" },
         `履歴から確定できる純増減: LP ${balance.historyNetLp >= 0 ? "+" : ""}${balance.historyNetLp} / 欠片 ${balance.historyNetShards >= 0 ? "+" : ""}${balance.historyNetShards}。硝子窓の申告値（手入力・参考）: LP ${balance.shownLp ?? "未記載"} / 欠片 ${balance.shownShards ?? "未記載"}。差から逆算した開始前残高は LP ${balance.impliedOpeningLp ?? "不明"} / 欠片 ${balance.impliedOpeningShards ?? "不明"} ですが、照合用の参考推定です。履歴漏れ・開始残高・手入力ミスのいずれでも差が生じるため、帳簿へ自動加算しません。`)
       : null,
-    draft && draft.blocks.map((block) => h(ResultCard, {
-      key: block.key || block.name,
-      block,
-      scenarioOptions,
-      sourceOptions,
-      onPickIdentity,
-      onDropItem: dropToBlock,
-      onReturnItem: returnItem
-    })),
+    draft && draft.blocks.map((block) => {
+      const scenario = (manifest.scenarios || []).find((row) => row && row.key === block.key);
+      const importSourceKey = String(scenario?.importSourceKey || "");
+      const sourceAlreadyImported = Boolean(importSourceKey && (existingResults || []).some(
+        (result) => result && result.importSourceKey === importSourceKey
+      ));
+      const selectedLegacyId = String(legacyTargets[block.key] || "");
+      const reservedLegacyIds = new Set(Object.entries(legacyTargets)
+        .filter(([key, id]) => key !== block.key && id)
+        .map(([, id]) => String(id)));
+      const blockNameKey = String(block.name || "").normalize("NFKC").replace(/\s+/g, "").toLocaleLowerCase("ja-JP");
+      const legacyCandidates = sourceAlreadyImported ? [] : (existingResults || []).filter((result) => {
+        if (!result || !result.id || String(result.importSourceKey || "").trim()) return false;
+        const resultNameKey = String(result.name || "").normalize("NFKC").replace(/\s+/g, "").toLocaleLowerCase("ja-JP");
+        return resultNameKey === blockNameKey
+          && (!reservedLegacyIds.has(String(result.id)) || String(result.id) === selectedLegacyId);
+      });
+      return h(ResultCard, {
+        key: block.key || block.name,
+        block,
+        scenarioOptions,
+        sourceOptions,
+        onPickIdentity,
+        onDropItem: dropToBlock,
+        onReturnItem: returnItem,
+        existingResults,
+        legacyCandidates,
+        legacyTargetId: selectedLegacyId,
+        onPickLegacyTarget: (key, id) => setLegacyTargets((current) => {
+          const next = { ...current };
+          if (id) next[key] = id;
+          else delete next[key];
+          return next;
+        }),
+        sourceAlreadyImported
+      });
+    }),
     unclassified.length || (draft && draft.blocks.some((b) => (b.items || []).length))
       ? h(UnclassifiedRail, {
         items: unclassified,

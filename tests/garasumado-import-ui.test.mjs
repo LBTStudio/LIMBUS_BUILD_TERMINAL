@@ -302,3 +302,13 @@ test("キャラクター共有URLの確認後はアカウントカードから�
   assert.match(css, /\.gara-import-workspace\s*\{[^}]*position:\s*fixed/s);
   assert.match(css, /\.gara-import-workspace > \.gara-import-review\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\) minmax\(280px,\s*360px\)/s);
 });
+
+
+test("同じ共有元のリザルトは更新し、旧形式候補は利用者が選んだ場合だけ置換する", () => {
+  assert.match(uiFlat, /existingResults = \[\]/);
+  assert.match(uiFlat, /legacyResultTargets: legacyTargets/);
+  assert.match(uiFlat, /sourceAlreadyImported/);
+  assert.match(uiFlat, /旧形式の既存リザルトを更新（任意）/);
+  assert.match(uiFlat, /手入力の明細が含まれていないか確認してください/);
+  assert.match(uiFlat, /importSourceKey/);
+});

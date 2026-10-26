@@ -1642,3 +1642,27 @@ test("明示的な報酬ラベルから人格名を抽出し、参加者名の�
   assert.equal(MEMO.parseMemo("❚報酬").wins.length, 0, "見出しだけなら候補にしない");
   assert.equal(MEMO.parseMemo("・ハコツムリ 様").wins.length, 0, "参加者を獲得扱いしない");
 });
+
+
+test("同じ共有元のシナリオキーはメモ修正後も安定し、同名の反復記録は区別される", () => {
+  const doc = {
+    name: "テストキャラクター", plName: "テストPL",
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [
+      { name: "反復シナリオ", memo: "50LP", __lbtShareSourceId: "share123" },
+      { name: "反復シナリオ", memo: "50LP", __lbtShareSourceId: "share123" }
+    ]
+  };
+  const changed = {
+    ...doc,
+    scenarioHistory: [
+      { name: "反復シナリオ", memo: "100LP（修正）", __lbtShareSourceId: "share123" },
+      { name: "反復シナリオ", memo: "50LP", __lbtShareSourceId: "share123" }
+    ]
+  };
+  const before = G.buildManifest(doc, { resolve });
+  const after = G.buildManifest(changed, { resolve });
+  assert.equal(before.scenarios[0].importSourceKey, after.scenarios[0].importSourceKey, "メモ文面を識別子に含めない");
+  assert.notEqual(before.scenarios[0].importSourceKey, before.scenarios[1].importSourceKey, "同名の複数回は別キー");
+  assert.equal(before.scenarios[1].importSourceKey, after.scenarios[1].importSourceKey);
+});
