@@ -599,3 +599,116 @@
     }
   }
 }
+
+
+/* UI audit refinements: mobile overlay, tabs, navigation and account cards. */
+@layer v68-interaction-a11y {
+  @media (max-width: 640px) {
+    /* The fixed preview handle used to cover the section title and last tab.
+       Re-home it in the unused space of the top bar instead. */
+    #lbt-preview-edge-toggle {
+      top: 6px;
+      right: 116px;
+      bottom: auto;
+      width: 68px;
+      height: 36px;
+      min-height: 36px;
+      padding: 4px 6px;
+      writing-mode: horizontal-tb;
+      border-right: 1px solid var(--line-strong);
+      border-radius: var(--r);
+      font-size: 10px;
+      letter-spacing: .02em;
+      white-space: nowrap;
+      z-index: calc(var(--z-topbar) + 2);
+    }
+
+    /* Mobile headers should not leave one Japanese character dangling on line 2. */
+    .section-title-row { padding-right: 0; }
+    .section-title {
+      font-size: var(--fs-16);
+      letter-spacing: .02em;
+      line-height: 1.2;
+      text-wrap: balance;
+    }
+
+    /* All eight build destinations are visible without horizontal scrolling. */
+    .build-tabs .segmented {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-rows: repeat(2, minmax(42px, auto));
+      gap: 2px;
+      max-width: 100%;
+      overflow: visible;
+      scroll-snap-type: none;
+    }
+    .build-tabs .segmented > button {
+      width: 100%;
+      min-width: 0;
+      min-height: 42px;
+      padding: 6px 2px;
+      flex: initial;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    /* Seven main destinations become a balanced 4 + 3 grid, not 6 + 1. */
+    .rail {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-rows: repeat(2, 52px);
+    }
+    .rail .rail-item,
+    .rail .rail-item.is-utility,
+    .rail .rail-item.is-overflow,
+    .rail .rail-more {
+      width: 100%;
+      min-width: 0;
+      max-width: none;
+      justify-self: stretch;
+    }
+
+    /* Keep account actions in document flow so "最終更新" cannot sit under 編集. */
+    .acct-card {
+      min-height: 152px;
+      padding-bottom: var(--s-3);
+    }
+    .acct-card-actions {
+      position: relative;
+      top: auto;
+      right: auto;
+      bottom: auto;
+      left: auto;
+      z-index: 2;
+      width: 100%;
+      margin-top: auto;
+      align-self: stretch;
+      justify-content: center;
+    }
+    .acct-meta {
+      max-width: 100%;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+
+    /* Keep guide categories discoverable without requiring a horizontal swipe. */
+    .guide-filter-row {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 4px;
+      overflow: visible;
+    }
+    .guide-filter-row > button {
+      min-width: 0;
+      min-height: 30px;
+      padding-inline: 2px;
+      justify-content: center;
+      line-height: 1.2;
+      white-space: normal;
+    }
+  }
+
+  @media (max-width: 360px) {
+    /* For very narrow phones the top bar has no safe space for a third control. */
+    #lbt-preview-edge-toggle { display: none; }
+  }
+}
