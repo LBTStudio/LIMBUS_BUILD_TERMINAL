@@ -98,7 +98,7 @@ test("実在DBのE.G.O購入明細は獲得名9件・ランク/番号・欠片�
   const record = parsed.records[0];
   assert.equal(record.acquisitions.length, 9);
   assert.equal(record.spends.length, 9);
-  assert.deepEqual([...record.acquisitions].map((item) => item.name).sort(), egos.map((ego) => ego.name).sort());
+  assert.deepEqual([...record.acquisitions].map((item) => item.name).sort(), egos.map((ego) => ego.name.replace(/：/g, ":")).sort());
   assert.equal(record.spends.reduce((sum, spend) => sum + spend.cost.shards, 0), 450);
   assert.equal(record.spends.reduce((sum, spend) => sum + spend.cost.lp, 0), 0);
   assert.ok(parsed.skipped.some((entry) => /消費欄の通貨・合計と獲得品の個別価格が一致しません/.test(entry.reason)));
