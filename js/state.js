@@ -2338,15 +2338,26 @@ function repairGachaResultAttribution(state) {
   const logs = Array.isArray(state?.gachaLog) ? state.gachaLog : [];
   const draws = Array.isArray(state?.draws) ? state.draws : [];
   const results = Array.isArray(state?.results) ? state.results : [];
-  const entries = Array.isArray(state?.entries) ? state.entries : [];
-  if (!logs.length || !draws.length || !results.length || !entries.length) return state;
+  const originalEntries = Array.isArray(state?.entries) ? state.entries : [];
+  if (!logs.length || !draws.length || !results.length) return state;
 
   const roster = state.roster || {};
   const personas = Array.isArray(roster.personas) ? roster.personas : [];
   const egos = Array.isArray(roster.egos) ? roster.egos : [];
+  const validResultIds = new Set(results.map((result) => String(result?.id || "")).filter(Boolean));
   let changedEntries = false;
-  let nextEntries = entries;
+  let nextEntries = originalEntries;
 
+  const normalizedName = (value) => String(value || "").normalize("NFKC").replace(/\s+/g, "").toLocaleLowerCase("ja-JP");
+  const sameCost = (left, right) => {
+    const a = normalizeCurrency(left);
+    const b = normalizeCurrency(right);
+    return a.lp === b.lp && a.shards === b.shards;
+  };
+  const costIsPositive = (value) => {
+    const cost = normalizeCurrency(value);
+    return cost.lp > 0 || cost.shards > 0;
+  };
   const hasRecordForPersona = (batch, persona) => (batch.records || []).some((record) => {
     if (!record || record.duplicate) return false;
     const item = record.item || {};
@@ -2366,8 +2377,8 @@ function repairGachaResultAttribution(state) {
       && String(ego.rank || "") === String(item.rank || "")
       && String(ego.no) === String(item.no);
   });
-  const matchesTransaction = (entry, batch, logAt, wrongResultId) => {
-    if (String(entry?.resultId || "") !== wrongResultId) return false;
+  const matchesTransaction = (entry, batch, logAt, sourceResultId) => {
+    if (String(entry?.resultId || "") !== sourceResultId) return false;
     const at = Number(entry.at);
     if (!Number.isFinite(at) || at < logAt - 2000 || at > logAt + 15000) return false;
     if (entry.ref?.kind === "gachaBatch") return true;
@@ -2379,20 +2390,79 @@ function repairGachaResultAttribution(state) {
       const ego = egos.find((row) => String(row?.uid || "") === String(entry.ref.uid || ""));
       return !!ego && hasRecordForEgo(batch, ego);
     }
-    if (entry.kind === "expense") {
-      const name = String(entry.name || "");
-      return (batch.records || []).some((record) => {
-        if (String(record?.kind || record?.item?.kind || batch.kind || "") !== "themePack") return false;
-        const pack = String(record.pack || "");
-        const itemName = String(record.item?.name || "");
-        return !!pack && !!itemName && name.includes(pack) && name.includes(itemName);
-      });
-    }
+    /* 自由入力の支出は、名前・金額・時刻が似ていても抽選明細と断定できない。
+       resultId を自動で書き換えない。特にユーザーが登録した手動支出は保持する。 */
     return false;
+  };
+  const manualSpendMatches = (names, expectedCost, entries) => {
+    if (!costIsPositive(expectedCost)) return false;
+    const wanted = new Set(names.map(normalizedName).filter(Boolean));
+    return entries.some((entry) => {
+      const ref = entry?.ref;
+      if (ref && (String(ref.kind || "") || String(ref.uid || ""))) return false;
+      if (!entry || entry.kind === "ticket") return false;
+      if (!wanted.has(normalizedName(entry.name))) return false;
+      return sameCost(entry.cost, expectedCost);
+    });
+  };
+  const acquisitionForRecord = (record, batch) => {
+    if (!record || record.duplicate) return null;
+    const item = record.item || {};
+    const kind = String(record.kind || item.kind || batch.kind || "");
+    let row = null;
+    let entryKind = "";
+    let refKind = "";
+    let ledgerName = "";
+    let aliases = [String(item.name || "").trim()];
+    let identity = null;
+
+    if (kind === "persona" || kind === "specialPersona") {
+      const mode = kind === "specialPersona" || item.mode === "t" ? "t" : "n";
+      identity = { mode, no: String(item.no) };
+      row = personas.find((candidate) => candidate.mode === mode && String(candidate.no) === identity.no) || null;
+      const sourceList = mode === "t" ? (window.DB?.tokui_personas || []) : (window.DB?.normal_personas || []);
+      const source = sourceList.find((candidate) => String(candidate.no) === identity.no);
+      ledgerName = String(source?.name || row?.name || row?.displayName || item.name || ("人格 " + mode.toUpperCase() + " No." + identity.no));
+      aliases.push(ledgerName);
+      entryKind = "persona";
+      refKind = "rosterPersona";
+    } else if (kind === "ego") {
+      identity = { rank: String(item.rank || ""), no: String(item.no) };
+      row = egos.find((candidate) => String(candidate.rank || "") === identity.rank && String(candidate.no) === identity.no) || null;
+      const source = (window.DB?.egos || []).find((candidate) => String(candidate.rank || "") === identity.rank && String(candidate.no) === identity.no);
+      ledgerName = identity.rank + " No." + identity.no;
+      aliases.push(String(source?.name || ""));
+      aliases.push(ledgerName);
+      entryKind = "ego";
+      refKind = "rosterEgo";
+    } else if (kind === "themePack") {
+      const found = personaNoByName(item.name);
+      if (!found) return null;
+      identity = { mode: found.mode, no: String(found.no) };
+      row = personas.find((candidate) => candidate.mode === found.mode && String(candidate.no) === identity.no) || null;
+      const sourceList = found.mode === "t" ? (window.DB?.tokui_personas || []) : (window.DB?.normal_personas || []);
+      const source = sourceList.find((candidate) => String(candidate.no) === identity.no);
+      ledgerName = String(source?.name || row?.name || row?.displayName || item.name || "");
+      aliases.push(ledgerName);
+      entryKind = "persona";
+      refKind = "rosterPersona";
+    } else {
+      return null;
+    }
+    if (!row || !row.uid || !ledgerName) return null;
+    return {
+      row,
+      entryKind,
+      refKind,
+      ledgerName,
+      aliases: [...new Set(aliases.map((name) => String(name || "").trim()).filter(Boolean))],
+      cost: normalizeCurrency(record.cost),
+      uid: String(row.uid)
+    };
   };
 
   const repairedLogs = logs.map((log) => {
-    if (!log || typeof log !== "object" || Number(log.resultAttributionRepairVersion) >= 1) return log;
+    if (!log || typeof log !== "object" || Number(log.resultAttributionRepairVersion) >= 2) return log;
     const recordedResultId = String(log.resultId || "");
     const logAt = Date.parse(String(log.at || ""));
     const commit = String(log.commit || "");
@@ -2402,52 +2472,115 @@ function repairGachaResultAttribution(state) {
       || String(candidate?.batchHash || "") === commit);
     if (!batch || !Array.isArray(batch.records) || !batch.records.length) return log;
 
-    /* その抽出時刻に既に存在していたリザルトだけを対象にする。
-       後から作られたリザルトへ過去の抽出を移してしまわない。 */
+    /* 抽選時点で既に存在したリザルトだけを候補にする。後から作られた記録へ過去の
+       抽選を移動しない。作成時刻のないレコードは推測で対象にしない。 */
     const existingAtDraw = results.filter((result) => {
       const createdAt = Number(result?.createdAt);
       return Number.isFinite(createdAt) && createdAt > 0 && createdAt <= logAt;
     });
     const targetResultId = latestResultId({ results: existingAtDraw });
-    if (!targetResultId) return log;
+    if (!targetResultId || !validResultIds.has(String(targetResultId))) return log;
 
-    /* 旧版の gachaLog には resultId 自体が無い。封緘バッチと時間帯・所持UIDで
-       取得明細を照合し、誤帰属先が1つだけ特定できた場合に限って補正する。
-       手動で移動された行などで候補が複数なら、推測で動かさない。 */
-    const validResultIds = new Set(results.map((result) => String(result?.id || "")).filter(Boolean));
+    /* 旧ログの resultId が無い形式も、紐づく所持明細の候補が一意なら元の帰属を推定する。
+       手動支出（ref がない明細）は、この照合対象に入れない。 */
     const candidateResultIds = new Set();
     for (const entry of nextEntries) {
       const entryResultId = String(entry?.resultId || "");
       if (!entryResultId || !validResultIds.has(entryResultId)) continue;
       if (matchesTransaction(entry, batch, logAt, entryResultId)) candidateResultIds.add(entryResultId);
     }
-    const wrongResultId = recordedResultId
-      || (candidateResultIds.size === 1 ? [...candidateResultIds][0] : "");
-    if (!wrongResultId || !candidateResultIds.has(wrongResultId)) return log;
+    const sourceResultId = validResultIds.has(recordedResultId)
+      ? recordedResultId
+      : (candidateResultIds.size === 1 ? [...candidateResultIds][0] : "");
 
-    if (targetResultId === wrongResultId) {
-      return {
-        ...log,
-        resultId: recordedResultId || targetResultId,
-        resultAttributionRepairVersion: 1
-      };
+    if (sourceResultId && targetResultId !== sourceResultId) {
+      const moved = nextEntries.map((entry) => {
+        if (!matchesTransaction(entry, batch, logAt, sourceResultId)) return entry;
+        return { ...entry, resultId: targetResultId };
+      });
+      if (moved.some((entry, index) => entry !== nextEntries[index])) {
+        changedEntries = true;
+        nextEntries = moved;
+      }
     }
 
-    const moved = nextEntries.map((entry) => {
-      if (!matchesTransaction(entry, batch, logAt, wrongResultId)) return entry;
-      return { ...entry, resultId: targetResultId };
+    /* 抽選ログは残っているのに取得明細が欠けている場合の復元。
+       同じ所持UIDの取得明細が既にあれば二重作成しない。手動支出と同じ名前・額が
+       見つかったら、その手動行を移動・削除せず、復元する取得行は0円にして二重課金を防ぐ。 */
+    const transactionEntries = [...nextEntries];
+    const records = Array.isArray(batch.records) ? batch.records : [];
+    for (const record of records) {
+      const info = acquisitionForRecord(record, batch);
+      if (!info) continue;
+      const linked = nextEntries.filter((entry) =>
+        entry?.ref?.kind === info.refKind
+        && String(entry.ref.uid || "") === info.uid
+        && entry.kind === info.entryKind
+      );
+      const matchingManualSpend = manualSpendMatches(info.aliases, info.cost, transactionEntries);
+
+      if (linked.length) {
+        if (matchingManualSpend && costIsPositive(info.cost)) {
+          let adjusted = false;
+          nextEntries = nextEntries.map((entry) => {
+            if (!(entry?.ref?.kind === info.refKind
+              && String(entry.ref.uid || "") === info.uid
+              && entry.kind === info.entryKind)) return entry;
+            const currentCost = normalizeCurrency(entry.cost);
+            if (currentCost.lp === 0 && currentCost.shards === 0) return entry;
+            adjusted = true;
+            return {
+              ...entry,
+              cost: { lp: 0, shards: 0 },
+              note: (String(entry.note || "") + (entry.note ? "\n" : "")
+                + "抽出履歴補正：一致する手動支出を維持し、取得行の費用重複を回避").slice(0, 2000)
+            };
+          });
+          if (adjusted) changedEntries = true;
+        }
+        continue;
+      }
+
+      const entryCost = matchingManualSpend ? { lp: 0, shards: 0 } : info.cost;
+      nextEntries = [...nextEntries, {
+        id: makeOwnedUid("ent"),
+        kind: info.entryKind,
+        name: info.ledgerName.slice(0, 120),
+        cost: entryCost,
+        resultId: targetResultId,
+        ref: { kind: info.refKind, uid: info.uid },
+        at: logAt,
+        note: matchingManualSpend
+          ? "抽出リストから復元。既存の手動支出を維持するため取得行の費用は0円"
+          : "抽出リストから取得明細を復元"
+      }];
+      changedEntries = true;
+    }
+
+    /* 対象の所持オブジェクトが今も存在する分は、すべて最新の帰属先にあるときだけ
+       補正済み印を付ける。曖昧な手動移動が残る場合は次回も安全に再評価する。 */
+    const allOwnedRecordsResolved = records.every((record) => {
+      const info = acquisitionForRecord(record, batch);
+      if (!info) return true;
+      return nextEntries.some((entry) =>
+        entry?.ref?.kind === info.refKind
+        && String(entry.ref.uid || "") === info.uid
+        && entry.kind === info.entryKind
+        && String(entry.resultId || "") === String(targetResultId)
+      );
     });
-    const didMove = moved.some((entry, index) => entry !== nextEntries[index]);
-    if (!didMove) return log;
-    changedEntries = true;
-    nextEntries = moved;
-    return { ...log, resultId: targetResultId, resultAttributionRepairVersion: 1 };
+    if (!allOwnedRecordsResolved) return log;
+    return {
+      ...log,
+      resultId: targetResultId,
+      resultAttributionRepairVersion: 2
+    };
   });
 
   if (!changedEntries && repairedLogs.every((log, index) => log === logs[index])) return state;
   return {
     ...state,
-    entries: changedEntries ? nextEntries : entries,
+    entries: changedEntries ? nextEntries : originalEntries,
     gachaLog: repairedLogs
   };
 }
