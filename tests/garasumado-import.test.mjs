@@ -2019,10 +2019,10 @@ test("価格上限だけ書かれたテーマパックは収入・支出・チ�
 });
 
 test("LP200以下の任意テーマパックという価格条件は、別記の報酬額を維持しつつ要確認にする", () => {
-  const r = MEMO.parseMemo("報酬
+  const r = MEMO.parseMemo(`報酬
 LP120
 欠片60
-LP200以下の任意のテーマパック×1を獲得");
+LP200以下の任意のテーマパック×1を獲得`);
   assert.equal(r.income.lp, 120);
   assert.equal(r.income.shards, 60);
   assert.equal(r.reasons.filter((row) => /LP上限付きのテーマパック表記/.test(row.reason)).length, 1);
