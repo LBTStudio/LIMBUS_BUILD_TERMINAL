@@ -262,7 +262,7 @@ async function captureProfile(browser, mode) {
         await go(label);
         await snap("section-"+label,"主要セクション: "+label);
         if(label==="ショップ") {
-          const tabsShop=page.locator("[role='tab']");
+          const tabsShop=page.locator(".shop-tabs [role='tab']");
           const n=Math.min(await tabsShop.count(),8);
           for(let i=0;i<n;i++) {
             const t=tabsShop.nth(i), text=(await t.innerText().catch(()=>"")).trim();
@@ -350,22 +350,37 @@ async function captureProfile(browser, mode) {
       await snap("utility-sheet-open","操作・保存シート");
       const actions=page.locator(".utility-sheet-action"), n=Math.min(await actions.count(),8);
       for(let i=0;i<n;i++) { const a=actions.nth(i); if(await a.isVisible()) { await a.hover().catch(()=>{}); await snap("utility-hover-"+(await a.innerText()).trim(),"操作・保存シート内のホバー"); } }
+
+      // The share action opens an in-page chooser before any new tab is opened.
       const share=page.locator(".utility-sheet-action").filter({hasText:"共有シートを開く"}).first();
       if(await visible(share)) {
+        await click(share);
+        const shareDialog=page.locator("#lbt-share-modal-root .share-modal").first();
+        await shareDialog.waitFor({state:"visible",timeout:5000});
+        await snap("share-publish-methods","共有シートの方法選択ダイアログ");
+        const shareOptions=page.locator("#lbt-share-modal-root .share-opt");
+        const shareCount=Math.min(await shareOptions.count(),3);
+        for(let i=0;i<shareCount;i++) {
+          const opt=shareOptions.nth(i);
+          await opt.hover().catch(()=>{});
+          await snap("share-method-hover-"+(await opt.innerText()).trim().slice(0,24),"共有方法のホバー状態");
+        }
+        // “自分だけプレビュー” opens a blob: HTML tab without publishing or copying a URL.
         const originalPage=page;
         const popupPromise=context.waitForEvent("page",{timeout:6500}).catch(()=>null);
-        await click(share);
+        const localPreview=page.locator("#lbt-share-modal-root [data-act=tab]").first();
+        if(await visible(localPreview)) await click(localPreview);
         const popup=await popupPromise;
         if(popup) {
           await popup.waitForLoadState("domcontentloaded",{timeout:10000}).catch(()=>{});
-          await popup.waitForTimeout(700);
+          await popup.waitForTimeout(500);
           page=popup;
-          await snap("share-html-preview","共有シートを開き、新規タブに表示された共有HTML");
+          await snap("share-html-preview","共有方法から新規タブで開いた自己確認用HTML");
           page=originalPage;
           await popup.close().catch(()=>{});
         } else {
           page=originalPage;
-          audit.failures.push({name:"share-html-preview",error:"共有操作で新規タブが検出されませんでした"});
+          audit.failures.push({name:"share-html-preview",error:"共有方法の「新規タブで自分だけプレビュー」から別タブを検出できませんでした"});
         }
       }
       await closeOverlay();
