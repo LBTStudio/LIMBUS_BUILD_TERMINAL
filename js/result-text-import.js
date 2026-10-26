@@ -453,7 +453,7 @@
       const title = entry.title.replace(/^『\s*(.+?)\s*』$/, "$1").trim();
       const record = {
         title: title || null, date: null, author: null, income: { lp: 0, shards: 0 },
-        tickets: [], spends: [], deltas: [], consumedItems: [], itemGains: [], raw: [],
+        tickets: [], ticketUses: [], spends: [], deltas: [], consumedItems: [], itemGains: [], raw: [],
         journalFormat: true, acquisitions: [], specifiedItems: [], identityCandidates: [], rewardCandidates: [], itemUseCandidates: []
       };
       const acquired = [];
@@ -507,6 +507,11 @@
         if (label === "消費") {
           rewardContext = false;
           consumeLines.push(value);
+          const usedTicket = ledgerTicket(value);
+          if (usedTicket) {
+            if (usedTicket.error) skipped.push({ text: line, reason: usedTicket.error });
+            else record.ticketUses.push({ ...usedTicket, raw: line });
+          }
           keepNote(line);
           const glassUse = ledgerGlassConsumption(line) || parseLegacyGlassUse(line);
           if (glassUse) {
@@ -529,7 +534,10 @@
               const ticket = ledgerTicket(value);
               if (ticket) {
                 if (ticket.error) skipped.push({ text: line, reason: ticket.error });
-                else record.tickets.push(ticket);
+                else {
+                  record.tickets.push({ ...ticket, raw: line });
+                  if (/(?:使用済|使用済み|両方使用済)/.test(value)) record.ticketUses.push({ ...ticket, raw: line });
+                }
               }
             }
           }
@@ -604,7 +612,21 @@
           const ticket = ledgerTicket(line);
           if (ticket) {
             if (ticket.error) skipped.push({ text: line, reason: ticket.error });
-            else record.tickets.push(ticket);
+            else {
+              record.tickets.push({ ...ticket, raw: line });
+              if (/(?:使用済|使用済み|両方使用済)/.test(line)) {
+                record.ticketUses.push({ ...ticket, raw: line });
+                const gained = line.match(/獲得\s*[：:]\s*([^）)】]+)/);
+                if (gained && gained[1].trim()) {
+                  const targetLine = gained[1].trim().replace(/[」』】]+$/g, "");
+                  const target = ledgerItem(targetLine);
+                  if (target.name) {
+                    record.identityCandidates.push(target.name);
+                    record.rewardCandidates.push(target);
+                  }
+                }
+              }
+            }
             keepNote(line);
             continuation = null;
             continue;
@@ -690,7 +712,7 @@
       let spendItems = isSync ? targets.slice() : acquired.length ? acquired.slice() : [];
       if (!spendItems.length && specified.length && /初期作成|指定(?:抽出|購入)|指定依頼/.test(title)) spendItems = specified.slice();
       if (isOperation && consumeLines.length) spendItems = [ledgerItem(title)];
-      if (consumeLines.length && !spendItems.length && (hasCurrencyCost || consumedTicketCount > 0)) {
+      if (consumeLines.length && !spendItems.length && hasCurrencyCost) {
         spendItems = [ledgerItem(title)];
       }
 
@@ -750,7 +772,7 @@
             });
           }
         }
-      } else if (consumeLines.length && (hasCurrencyCost || consumedTicketCount > 0) && !spendItems.length && !ambiguousCost) {
+      } else if (consumeLines.length && hasCurrencyCost && !spendItems.length && !ambiguousCost) {
         record.spends.push({
           name: title, cost: { lp: aggregate.lp, shards: aggregate.shards },
           needsDecision: null, reason: null, kindHint: hintOf(title), raw: consumeLines.join("、")
@@ -759,7 +781,7 @@
 
       /* 記録欄に残った明示的な獲得物は、通貨として二重計上せず注記として保持する。 */
       const hasAnything = Boolean(record.title) || record.income.lp || record.income.shards ||
-        record.tickets.length || record.spends.length || record.consumedItems.length ||
+        record.tickets.length || (record.ticketUses || []).length || record.spends.length || record.consumedItems.length ||
         record.itemGains.length || record.raw.length;
       if (hasAnything) records.push(record);
     }
@@ -1014,6 +1036,28 @@
         })
       };
       actions.push(resultAction);
+
+      for (const ticketUse of record.ticketUses || []) {
+        const kind = ticketUse?.kind;
+        const pack = kind === "pack" ? String(ticketUse?.pack || "").trim() : "";
+        const knownKind = kind === "persona" || kind === "ego" || kind === "choice";
+        const count = Number(ticketUse?.count);
+        if ((!knownKind && !(kind === "pack" && pack)) ||
+            !Number.isSafeInteger(count) || count <= 0) {
+          skipped.push({
+            text: ticketUse?.raw || "抽出チケット",
+            reason: "使用したチケットの種類または枚数を一意に判定できず、所持残数からは差し引いていません"
+          });
+          continue;
+        }
+        actions.push({
+          type: "SPEND_TICKET",
+          kind,
+          ...(kind === "pack" ? { pack } : {}),
+          count: -count,
+          ref: { kind: "textImportTicketUse" }
+        });
+      }
 
       const identityRows = record.journalFormat === true
         ? (Array.isArray(record.identityCandidates) ? record.identityCandidates : [])
