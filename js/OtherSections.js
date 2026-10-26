@@ -2361,8 +2361,7 @@ const GachaTicketsPanel = ({ state, dispatch }) => {
        別経路になり、片方だけ未分類になる回帰を起こしやすい。
        リザルトが無い場合は null（未分類）を明示する。 */
     const currentState = stateRef.current || state;
-    const latestResults = Array.isArray(currentState.results) ? currentState.results : [];
-    const resultId = latestResults.length ? (latestResults[latestResults.length - 1]?.id || null) : null;
+    const resultId = window.LBT_latestResultId?.(currentState) || null;
     const drawLogEntry = {
       id: out.commit || `draw-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
       at: new Date().toISOString(),
