@@ -627,7 +627,7 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [], existi
     const parsedBatch = window.LBT_parseShareUrls?.(url);
     if (!parsedBatch || !Array.isArray(parsedBatch.urls) || !parsedBatch.urls.length) {
       const single = window.LBT_parseShareUrl?.(url);
-      setError(single?.error || "硝子窓の共有URLを1件以上貼り付けてください");
+      setError(parsedBatch?.invalid?.[0]?.reason || single?.error || "硝子窓の共有URLを1件以上貼り付けてください");
       return;
     }
     const collectionKinds = new Set(parsedBatch.urls.map((entry) => entry.collection || "characters"));
