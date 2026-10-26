@@ -7,7 +7,7 @@ name: verify
 
 on:
   push:
-    branches: [main]
+    branches: [main, audit/final-live-share-audit-v2-20261027]
   pull_request:
 
 permissions:
@@ -24,6 +24,9 @@ jobs:
           node-version: "24"
       - name: Verify asset version hashes and Service Worker precache
         run: node tools/sync-asset-versions.mjs --check
+      - name: Temporary read-only audit of supplied live shares
+        if: github.ref == 'refs/heads/audit/final-live-share-audit-v2-20261027'
+        run: node tools/audit-live-garasumado.mjs
       - name: Verify live account recovery smoke-test syntax
         run: node --check tools/ui/verify-account-recovery-live.mjs
       - name: Verify short-link publish and restore round-trip
