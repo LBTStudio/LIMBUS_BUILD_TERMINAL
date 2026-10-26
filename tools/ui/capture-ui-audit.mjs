@@ -216,6 +216,14 @@ async function captureProfile(browser, mode) {
             await snap("persona-card-hover","人格カードにマウスを合わせた状態");
             await click(cardHit);
             await snap("persona-card-selected","人格カードを選択し詳細を表示した状態");
+            /* 詳細ダイアログが開いたままだと後続タブを覆うため、撮影後は明示的に閉じる。 */
+            const closeDetail=page.locator(".detail-dialog-close").last();
+            if(await visible(closeDetail)) await click(closeDetail);
+            else if(await visible(page.locator(".detail-dialog-backdrop"))) {
+              await page.keyboard.press("Escape").catch(()=>{});
+              await page.waitForTimeout(250);
+            }
+            if(await visible(page.locator(".detail-dialog-backdrop"))) throw new Error("人格詳細の撮影後にダイアログを閉じられません");
           }
           const imp=page.locator(".pw-listbar-actions .persona-draft-import-trigger").first();
           if(await visible(imp)) {
@@ -401,8 +409,25 @@ async function main() {
   finally { await browser.close();await new Promise(resolve=>s.close(resolve)); }
   audit.count=audit.screenshots.length;
   audit.coverage=["SINNER SELECT/new-account form","all eight build tabs","major navigation sections","shop tabs","record import menu and routes","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog","keyboard focus","viewport overflow and target-size diagnostics"];
+  const requiredNotes=[
+    "ビルド内のスキルタブ","ショップ分類:","記録の取り込みメニュー（3つの入口）",
+    "テキスト流し込みを開き、自動スクロール後の入力欄が見える状態",
+    "例文を入力し、解析結果・候補を確認する状態（確定しない）",
+    "硝子窓から一括取り込むパネルを開いた状態（適用しない）",
+    "所持人格リストの入力欄が見える状態（保存しない）",
+    "クイック検索を開く","操作・保存シート",
+    "共有URLから取り込む入口","読み込むカテゴリを選ぶ確認画面。適用しない"
+  ];
+  audit.missingRequiredCaptures=[];
+  for (const mode of ["desktop","mobile"]) {
+    for (const note of requiredNotes) {
+      if (!audit.screenshots.some((shot)=>shot.name.startsWith(mode+"-") && shot.note.includes(note))) {
+        audit.missingRequiredCaptures.push({view:mode,note});
+      }
+    }
+  }
   fs.writeFileSync(path.join(OUT,"manifest.json"),JSON.stringify(audit,null,2)+"\n");
-  log("finished: "+audit.count+" screenshots; failures="+audit.failures.length+"; horizontal-overflow="+audit.layoutWarnings.length);
-  if(audit.count<14) process.exitCode=1;
+  log("finished: "+audit.count+" screenshots; failures="+audit.failures.length+"; missing-required="+audit.missingRequiredCaptures.length+"; horizontal-overflow="+audit.layoutWarnings.length);
+  if(audit.count<30 || audit.missingRequiredCaptures.length || audit.pageErrors.length) process.exitCode=1;
 }
 main().catch(e=>{console.error("[ui-audit] fatal: "+(e&&e.stack||String(e)));process.exitCode=1;});
