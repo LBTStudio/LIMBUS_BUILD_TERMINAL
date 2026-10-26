@@ -66,6 +66,14 @@ test("現在残高の誤記と同通貨の複数値を黙って収入へ合算�
 
   const explicitSum = MEMO.parseMemo("40LP + 15LP");
   assert.equal(explicitSum.income.lp, 55, "明示的な加算はこれまでどおり計上する");
+
+  const rewardCompensation = MEMO.parseMemo("LP70、自我の欠片40、人格抽出チケット1枚、ガバ補填LP30を獲得。");
+  assert.equal(rewardCompensation.income.lp, 100, "同じ行でも明示された報酬と補填は両方計上する");
+  assert.equal(rewardCompensation.income.shards, 40);
+
+  const dupeCompensation = MEMO.parseMemo("120LP、50欠片、200LP以下のテーマパック×1を獲得。「眺めることしかできない」ガチャ結果→被りのため欠片50");
+  assert.equal(dupeCompensation.income.lp, 120);
+  assert.equal(dupeCompensation.income.shards, 100, "被り補償の欠片を報酬欠片と合算する");
 });
 
 test("「名前：名前 150欠片 現在184」は購入で収入に足さない", () => {
@@ -1161,6 +1169,16 @@ test("空欄・null の共有残高はゼロではなく未入力として扱う
   assert.equal(result.shownLp, null);
   assert.equal(result.shownShards, null);
   assert.equal(result.ok, true, "空欄の通貨に架空の残高不一致を出さない");
+});
+
+test("現座の誤記を残高アンカーとしても検出する", () => {
+  const r = G.reconcileBalance({
+    scenarios: [{ memo: "66LP 現座189LP", income: { lp: 66, shards: 0 }, spends: [] }],
+    purchaseHistory: []
+  }, { currency: { lp: 189, fragment: null } });
+  assert.equal(r.checked, true);
+  assert.equal(r.openingLp, 189);
+  assert.equal(r.computedLp, 189, "アンカー前の66LPを二重加算しない");
 });
 
 test("残高変動を記載していて計算値と表示残高が違う場合はエラーにする", () => {
