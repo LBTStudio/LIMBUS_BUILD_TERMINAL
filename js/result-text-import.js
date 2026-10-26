@@ -559,17 +559,27 @@
           rewardContext = true;
           keepNote(line);
           if (value) {
-            const nested = value.match(/^\s*(LP|自我の欠片|欠片)\s*[:：]\s*(.+)$/i);
-            if (nested) {
-              const key = /^LP$/i.test(nested[1]) ? "lp" : "shards";
-              addValue(record, key, ledgerNumber(nested[2]), line);
-            } else {
-              for (const ticket of ledgerTickets(value)) {
-                if (ticket.error) skipped.push({ text: line, reason: ticket.error });
-                else {
-                  record.tickets.push({ ...ticket, raw: line });
-                  if (/(?:使用済|使用済み|両方使用済)/.test(value)) record.ticketUses.push({ ...ticket, raw: line });
+            /* 報酬の複合一行（LP:150/自我の欠片:70/人格抽出チケットx1）を
+               1通貨として誤読しない。区切りごとに通常の報酬解析へ通す。 */
+            const rewardParts = splitTop(value, (ch) => ch === "/" || ch === "／");
+            for (const rewardPart of rewardParts) {
+              const got = readReward(rewardPart);
+              if (!got) {
+                skipped.push({ text: rewardPart, reason: "報酬の書式が読めない" });
+                continue;
+              }
+              if (got.invalidDelta) skipped.push({ text: rewardPart, reason: "増減欄の金額形式が不正です" });
+              if (got.ticket) {
+                record.tickets.push({ ...got.ticket, raw: rewardPart });
+                record.deltas.push(...(got.deltas || []));
+                if (/(?:使用済|使用済み|両方使用済)/.test(rewardPart)) {
+                  record.ticketUses.push({ ...got.ticket, raw: rewardPart });
                 }
+                continue;
+              }
+              addValue(record, got.currency, got.value, rewardPart);
+              for (const delta of got.deltas || []) {
+                record.deltas.push({ currency: got.currency, value: delta.value * (delta.sign === "-" ? -1 : 1) });
               }
             }
           }
