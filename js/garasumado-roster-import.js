@@ -146,6 +146,9 @@
 
     const newestSource = rows[rows.length - 1];
     const newest = newestSource.doc;
+    const sourceIds = [...new Set(rows.map((source) => String(source.id
+      || (source.url ? (parseShareUrl(source.url).id || "") : "")).trim())
+      .filter((sourceId) => /^[A-Za-z0-9_-]{6,}$/.test(sourceId)))];
     const newestSourceId = String(newestSource.id
       || (newestSource.url ? (parseShareUrl(newestSource.url).id || "") : "")).trim();
     /* 人格・E.G.O・特殊資源の現所持は最新スナップショットが正。
@@ -153,7 +156,8 @@
        自由メモも最新スナップショットを正として、その共有元IDを内部メタデータに残す。 */
     const merged = {
       ...newest,
-      ...(newestSourceId ? { __lbtFreeNotesSourceId: newestSourceId } : {})
+      ...(newestSourceId ? { __lbtFreeNotesSourceId: newestSourceId } : {}),
+      ...(sourceIds.length ? { __lbtFreeNotesSourceIds: sourceIds } : {})
     };
 
     /* 同じ履歴が複数スナップショットにあるときは、重複する出現数だけ除く。
@@ -747,6 +751,10 @@ function toIdentityChoices(hits) {
       .filter((line) => memoApi && memoApi.purchaseRowOf && memoApi.purchaseRowOf(line))
       .join("\n");
     const freeNotesSourceId = String(doc && doc.__lbtFreeNotesSourceId || "").trim();
+    const freeNotesSourceIds = [...new Set((Array.isArray(doc && doc.__lbtFreeNotesSourceIds)
+      ? doc.__lbtFreeNotesSourceIds : [freeNotesSourceId])
+      .map((sourceId) => String(sourceId || "").trim())
+      .filter((sourceId) => /^[A-Za-z0-9_-]{6,}$/.test(sourceId)))];
     let purchaseScenario = null;
     if (purchaseMemo && memoApi) {
       const parsed = memoApi.parseMemo(purchaseMemo);
@@ -843,6 +851,7 @@ function toIdentityChoices(hits) {
       groups,
       scenarios,
       freeNotesSourceId: /^[A-Za-z0-9_-]{6,}$/.test(freeNotesSourceId) ? freeNotesSourceId : "",
+      freeNotesSourceIds,
       purchaseHistory: purchaseScenario ? (purchaseScenario.spends || []).map((row) => ({ ...row, source: "freeNotes" })) : [],
       /* 所持品の帰属照合結果。matched=どのシナリオか判明、unmatched=履歴に記載なし。 */
       attribution,
@@ -1260,10 +1269,10 @@ function toIdentityChoices(hits) {
     /* 自由メモは最新スナップショットを正として再構築する。
        先に同一共有元の旧インポート行を消すマーカーを送り、シナリオには紐付けない。
        購入行が削除／改名された場合も、古い明細だけが残るのを防ぐ。 */
-    if (manifest && manifest.freeNotesSourceId) {
+    for (const sourceId of (manifest && manifest.freeNotesSourceIds) || []) {
       actions.push({
         type: "REFRESH_GARASUMADO_FREE_NOTES",
-        sourceId: manifest.freeNotesSourceId
+        sourceId
       });
     }
 
