@@ -629,9 +629,9 @@ async function captureProfile(browser, mode) {
         if(await input.count()) {
           await input.setInputFiles({name:"ui-audit-import.json",mimeType:"application/json",buffer:Buffer.from(JSON.stringify({schemaVersion:5,charName:"読み込み確認用",plName:"UI QA"}),"utf8")});
           await page.waitForTimeout(300);
-          if(await visible(page.locator(".share-modal-backdrop"))) {
+          if(await visible(page.locator(".state-import-dialog"))) {
             await snap("state-import-scope-dialog","読み込むカテゴリを選ぶ確認画面。適用しない");
-            const emptyDetails=page.locator(".import-scope-empty-categories > summary").first();
+            const emptyDetails=page.locator(".state-import-toggle-empty").first();
             if (await visible(emptyDetails)) {
               await click(emptyDetails);
               await snap("state-import-empty-categories-expanded","確認ダイアログでデータのないカテゴリ一覧を任意に展開した状態。適用しない");
