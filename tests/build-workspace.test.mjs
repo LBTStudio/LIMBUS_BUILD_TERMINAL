@@ -588,12 +588,14 @@ test("所持済みの人格は再獲得せず、嘘の『所持へ追加』ト�
 
 test("購入は最新リザルトへ直接入り、残高が足りなければ行わない", () => {
   const shop = sections.slice(sections.indexOf("const ShopSection ="), sections.indexOf("const BuildWorkspace ="));
-  /* 明細 resultId の既定は「最後に記録したリザルト」。 */
+  /* 明細の既定帰属と初期LP判定は、画面の「新しい順」と同じ比較を使う。 */
   assert.match(reducer, /const resultId = detail\.resultId === undefined \? latestResultId\(state\) : detail\.resultId;/);
-  assert.match(reducer, /function latestResultId\(state\) \{[\s\S]{0,900}?return latest\?\.id \|\| null;/,
-    "直近リザルトの解決は配列末尾ではなく新しい順の比較を使う");
-  assert.match(reducer, /const stamp = \(result\) => \{[\s\S]{0,220}?Date\.parse\(String\(result\?\.date \|\| ""\) \+ "T00:00:00Z"\)/,
-    "直近リザルトは画面の並び替えと同じ日付規則を使う");
+  assert.match(reducer, /function latestResultId\(state\) \{\s*return latestResultByDisplayOrder\(state\?\.results\)\?\.id \|\| null;/,
+    "直近リザルトは共通の表示順判定を使う");
+  assert.match(reducer, /function latestResultByDisplayOrder\(results\) \{[\s\S]{0,1200}?Date\.parse\(String\(result\?\.date \|\| ""\) \+ "T00:00:00Z"\)/,
+    "画面と共通の判定は日付を比較する");
+  assert.match(reducer, /function hasInitialGrant\(results\) \{[\s\S]{0,500}?latestResultByDisplayOrder\(list\)/,
+    "初期30LP判定も画面上の最新リザルトを参照する");
   /* 購入系はリデューサ入口で残高判定する（UI 無効化だけに依存しない）。 */
   assert.match(reducer, /if \(action\.type === "ADD_ROSTER" \|\| action\.type === "ADD_ROSTER_EGO"/);
   assert.match(reducer, /if \(cost && !purchaseAffordability\(state, cost\)\.ok\) return state;/);
