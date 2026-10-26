@@ -684,7 +684,9 @@
           reasons.push({ line: line, reason: "消費金額が正の安全整数ではないため未計上" });
         } else {
           var rewardName = rewardAfterCurrencySpend(line, currencySpend.end);
-          var spendRecord = { name: rewardName || line, lp: 0, shards: 0, raw: line, reason: "明示された通貨消費" };
+          /* 消費・抽出と報酬名の関係が直書きされていても「購入」とは断定しない。
+             支出明細には原文を残し、報酬名は wins に別記録する。 */
+          var spendRecord = { name: line, lp: 0, shards: 0, raw: line, reason: "明示された通貨消費" };
           spendRecord[currencySpend.currency] = currencySpend.amount;
           spends.push(spendRecord);
           var arrowRewardNames = arrowWinsOf(line);
