@@ -1928,3 +1928,48 @@ test("人格orE.G.O抽出チケットは引き続き真の種別不明として�
   assert.equal(r.tickets.ego, 0);
   assert.equal(r.tickets.choice, 0);
 });
+
+
+test("自由メモ購入の共有元キーは金額修正後も安定する", () => {
+  const context = { window: {}, console, module: { exports: {} }, URL };
+  vm.createContext(context);
+  vm.runInContext(readFileSync(new URL("../js/garasumado-memo-parse.js", import.meta.url), "utf8"), context);
+  vm.runInContext(readFileSync(new URL("../js/garasumado-roster-import.js", import.meta.url), "utf8"), context);
+  const importApi = context.window.LBT_garasumado;
+  const makeDoc = (lp) => importApi.mergeGarasumadoDocuments([{
+    id: "share123",
+    url: "https://lbt-garasumado.vercel.app/view/share123",
+    updateTime: "2026-10-27T00:00:00Z",
+    doc: {
+      name: "テストキャラクター", plName: "テストPL",
+      owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+      scenarioHistory: [],
+      freeNotes: { secret: "LP-" + lp + " サポートパッシブ「人生一発」購入", history: "", memo: "", setting: "" }
+    }
+  }]);
+  const beforeDoc = makeDoc(20);
+  const afterDoc = makeDoc(30);
+  assert.equal(beforeDoc.__lbtFreeNotesSourceId, "share123");
+  assert.deepEqual([...beforeDoc.__lbtFreeNotesSourceIds], ["share123"]);
+  const before = importApi.buildManifest(beforeDoc, null);
+  const after = importApi.buildManifest(afterDoc, null);
+  assert.equal(before.freeNotesSourceId, "share123");
+  assert.deepEqual([...before.freeNotesSourceIds], ["share123"]);
+  assert.equal(before.purchaseHistory.length, 1);
+  assert.equal(before.purchaseHistory[0].importSourceKey, after.purchaseHistory[0].importSourceKey,
+    "金額が直っても購入元キーは変えない");
+  assert.equal(before.purchaseHistory[0].lp, 20);
+  assert.equal(after.purchaseHistory[0].lp, 30);
+
+  const multi = importApi.mergeGarasumadoDocuments([
+    { id: "older123", url: "https://lbt-garasumado.vercel.app/view/older123", updateTime: "2026-10-26T00:00:00Z",
+      doc: { name: "テストキャラクター", plName: "テストPL", scenarioHistory: [], freeNotes: { secret: "LP-10 人生一発購入" } } },
+    { id: "share123", url: "https://lbt-garasumado.vercel.app/view/share123", updateTime: "2026-10-27T00:00:00Z",
+      doc: { name: "テストキャラクター", plName: "テストPL", scenarioHistory: [], freeNotes: { secret: "LP-30 サポートパッシブ「人生一発」購入" } } }
+  ]);
+  const multiManifest = importApi.buildManifest(multi, null);
+  assert.deepEqual([...multiManifest.freeNotesSourceIds], ["older123", "share123"],
+    "同じキャラクターのスナップショット群から得た旧 free-note bucket も refresh できる");
+  assert.equal(multiManifest.purchaseHistory.length, 1, "最新スナップショットの購入だけを使う");
+  assert.equal(multiManifest.purchaseHistory[0].lp, 30);
+});

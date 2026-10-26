@@ -144,10 +144,21 @@
       };
     }
 
-    const newest = rows[rows.length - 1].doc;
+    const newestSource = rows[rows.length - 1];
+    const newest = newestSource.doc;
+    const sourceIds = [...new Set(rows.map((source) => String(source.id
+      || (source.url ? (parseShareUrl(source.url).id || "") : "")).trim())
+      .filter((sourceId) => /^[A-Za-z0-9_-]{6,}$/.test(sourceId)))];
+    const newestSourceId = String(newestSource.id
+      || (newestSource.url ? (parseShareUrl(newestSource.url).id || "") : "")).trim();
     /* 人格・E.G.O・特殊資源の現所持は最新スナップショットが正。
-       古い所持を和集合にしたり、アイテム数量を最大値にすると、消費済み在庫を復活させる。 */
-    const merged = { ...newest };
+       古い所持を和集合にしたり、アイテム数量を最大値にすると、消費済み在庫を復活させる。
+       自由メモも最新スナップショットを正として、その共有元IDを内部メタデータに残す。 */
+    const merged = {
+      ...newest,
+      ...(newestSourceId ? { __lbtFreeNotesSourceId: newestSourceId } : {}),
+      ...(sourceIds.length ? { __lbtFreeNotesSourceIds: sourceIds } : {})
+    };
 
     /* 同じ履歴が複数スナップショットにあるときは、重複する出現数だけ除く。
        同名・同本文のシナリオを実際に複数回通過したケースは、出現回数分を残す。 */
@@ -739,9 +750,26 @@ function toIdentityChoices(hits) {
       .filter(Boolean)
       .filter((line) => memoApi && memoApi.purchaseRowOf && memoApi.purchaseRowOf(line))
       .join("\n");
+    const freeNotesSourceId = String(doc && doc.__lbtFreeNotesSourceId || "").trim();
+    const freeNotesSourceIds = [...new Set((Array.isArray(doc && doc.__lbtFreeNotesSourceIds)
+      ? doc.__lbtFreeNotesSourceIds : [freeNotesSourceId])
+      .map((sourceId) => String(sourceId || "").trim())
+      .filter((sourceId) => /^[A-Za-z0-9_-]{6,}$/.test(sourceId)))];
     let purchaseScenario = null;
     if (purchaseMemo && memoApi) {
       const parsed = memoApi.parseMemo(purchaseMemo);
+      const purchaseOccurrences = new Map();
+      const purchaseSpends = (parsed.spends || []).map((row) => {
+        /* 金額は修正対象なのでキーに含めず、購入品名＋同名出現順で識別する。
+           source単位の置換を先に行うため、削除・改名された古い行も残らない。 */
+        const purchaseNameKey = nameKey(String(row.name || "購入")).slice(0, 64) || "purchase";
+        const occurrence = (purchaseOccurrences.get(purchaseNameKey) || 0) + 1;
+        purchaseOccurrences.set(purchaseNameKey, occurrence);
+        const importSourceKey = /^[A-Za-z0-9_-]{6,}$/.test(freeNotesSourceId)
+          ? ("gara-free:" + freeNotesSourceId + ":" + purchaseNameKey + ":" + occurrence).slice(0, 180)
+          : "";
+        return { ...row, ...(importSourceKey ? { importSourceKey } : {}) };
+      });
       purchaseScenario = {
         key: "scenario:purchases",
         name: "購入履歴",
@@ -750,7 +778,7 @@ function toIdentityChoices(hits) {
         income: { lp: 0, shards: 0 },
         tickets: { persona: 0, ego: 0, choice: 0 },
         pack: {},
-        spends: parsed.spends,
+        spends: purchaseSpends,
         wins: resolveWins(parsed.wins),
         reasons: []
       };
@@ -822,6 +850,8 @@ function toIdentityChoices(hits) {
       },
       groups,
       scenarios,
+      freeNotesSourceId: /^[A-Za-z0-9_-]{6,}$/.test(freeNotesSourceId) ? freeNotesSourceId : "",
+      freeNotesSourceIds,
       purchaseHistory: purchaseScenario ? (purchaseScenario.spends || []).map((row) => ({ ...row, source: "freeNotes" })) : [],
       /* 所持品の帰属照合結果。matched=どのシナリオか判明、unmatched=履歴に記載なし。 */
       attribution,
@@ -1236,6 +1266,16 @@ function toIdentityChoices(hits) {
       }
     }
 
+    /* 自由メモは最新スナップショットを正として再構築する。
+       先に同一共有元の旧インポート行を消すマーカーを送り、シナリオには紐付けない。
+       購入行が削除／改名された場合も、古い明細だけが残るのを防ぐ。 */
+    for (const sourceId of (manifest && manifest.freeNotesSourceIds) || []) {
+      actions.push({
+        type: "REFRESH_GARASUMADO_FREE_NOTES",
+        sourceId
+      });
+    }
+
     /* 自由メモの購入履歴は架空のリザルトを作らず、金額のある明細だけを残す。
        日時・元シナリオが不明なので明示的に未分類にし、残高計算には含める。 */
     for (const purchase of (manifest && manifest.purchaseHistory) || []) {
@@ -1254,6 +1294,7 @@ function toIdentityChoices(hits) {
         name: String(purchase.name || "自由メモの購入").slice(0, 120),
         cost,
         resultId: null,
+        ...(purchase.importSourceKey ? { importResultKey: purchase.importSourceKey } : {}),
         note: "硝子窓の自由メモ由来。日時・シナリオ未特定"
       });
     }
