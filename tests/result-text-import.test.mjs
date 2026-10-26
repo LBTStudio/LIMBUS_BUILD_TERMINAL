@@ -361,6 +361,38 @@ test("既所持人格を欠片へ変換した獲得欄は人格として追加�
     && action.cost.lp === 200 && action.cost.shards === 0));
 });
 
+test("テーマパック権の報酬直後に欠片へ変換した場合はチケット差引と欠片収入を両方記録する", () => {
+  const parsed = T.parseText([
+    "▼セッション報酬",
+    "日時：2026/09/18",
+    "報酬：",
+    "LP：60",
+    "欠片：45+11(理性)=56",
+    "任意の200LP以下のテーマパック+1→使用済(獲得：50欠片)",
+    "現在所持LP：30→90",
+    "現在所持欠片：293"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 1);
+  assert.equal(parsed.records[0].income.lp, 60);
+  assert.equal(parsed.records[0].income.shards, 106);
+  assert.deepEqual([...parsed.records[0].tickets].map((ticket) => ({
+    kind: ticket.kind, pack: ticket.pack, count: ticket.count
+  })), [{ kind: "pack", pack: "任意の200LP以下のテーマパック", count: 1 }]);
+  assert.deepEqual([...parsed.records[0].ticketUses].map((ticket) => ({
+    kind: ticket.kind, pack: ticket.pack, count: ticket.count
+  })), [{ kind: "pack", pack: "任意の200LP以下のテーマパック", count: 1 }]);
+
+  const planned = T.plan(parsed);
+  const result = planned.actions.find((action) => action.type === "ADD_RESULT");
+  assert.equal(result.income.shards, 106);
+  assert.equal(result.income.tickets.pack["任意の200LP以下のテーマパック"], 1);
+  assert.deepEqual([...planned.actions].filter((action) => action.type === "SPEND_TICKET")
+    .map((action) => ({ kind: action.kind, pack: action.pack, count: action.count })), [
+      { kind: "pack", pack: "任意の200LP以下のテーマパック", count: -1 }
+    ]);
+});
+
 test("日時を結果の日付欄に保持する", () => {
   const parsed = T.parseText([
     "▼梅と言うには遅く、名も悪く",
