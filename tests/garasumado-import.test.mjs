@@ -1101,6 +1101,19 @@ test("手入力残高を正解扱いせず、開始残高不明の純増減だ�
   assert.match(result.message, /手入力/);
 });
 
+test("開始残高が負数になるときは履歴と申告残高の不整合を検出する", () => {
+  const M = loadImportWithMemo();
+  const doc = {
+    currency: { lp: "120", fragment: "100" },
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{ name: "履歴A", memo: "140LP、105欠片" }]
+  };
+  const result = M.reconcileBalance(M.buildManifest(doc, null), doc);
+  assert.equal(result.checked, false, "開始残高のアンカーが無いことは明示する");
+  assert.equal(result.impliedOpeningLp, -20);
+  assert.equal(result.impliedOpeningShards, -5);
+});
+
 test("現在残高の行より前の収入を二重加算せず、通貨別に照合する", () => {
   const M = loadImportWithMemo();
   const doc = {
