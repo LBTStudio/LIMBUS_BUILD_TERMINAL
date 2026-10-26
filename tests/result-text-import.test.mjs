@@ -629,6 +629,51 @@ test("「硝子の欠片」も「硝子の破片」と同じ別資源として�
   assert.equal(legacy.records[0].consumedItems[0]?.itemId, "resource-glass-shard");
   assert.equal(legacy.records[0].consumedItems[0]?.quantity, 1);
 });
+test("ランク接頭辞つきのE.G.O獲得も正式名へ照合して所持へ追加する", () => {
+  const parsed = T.parseText([
+    "▼E.G.O抽出",
+    "日時：2026/06/01",
+    "消費：E.G.O抽出チケット×1",
+    "獲得：HE Laetitia:レティシア",
+    "現在所持LP：58",
+    "現在所持欠片：15"
+  ].join("\n"));
+
+  const seen = [];
+  const planned = T.plan(parsed, {
+    resolve: (name) => {
+      seen.push(name);
+      if (name === "Laetitia:レティシア") {
+        return { name: "Laetitia：レティシア", kinds: [{ kind: "ego", rank: "HE", no: "00555" }] };
+      }
+      return null;
+    }
+  });
+
+  assert.ok(seen.includes("HE Laetitia:レティシア"));
+  assert.ok(seen.includes("Laetitia:レティシア"));
+  assert.ok(planned.actions.some((action) => action.type === "ADD_ROSTER_EGO" && action.rank === "HE" && action.no === "00555"));
+  assert.ok(!planned.skipped.some((item) => item.text === "HE Laetitia:レティシア"
+    && /取得品をアイテムDB/.test(item.reason)));
+});
+
+test("ランクを剥がしてもE.G.Oを一意に解決できない場合は推測登録しない", () => {
+  const parsed = T.parseText([
+    "▼E.G.O抽出",
+    "日時：2026/10/09",
+    "獲得：WAW 悪への道:厄災の狸",
+    "現在所持LP：100",
+    "現在所持欠片：50"
+  ].join("\n"));
+
+  const planned = T.plan(parsed, {
+    resolve: () => null
+  });
+  assert.ok(!planned.actions.some((action) => action.type === "ADD_ROSTER_EGO"));
+  assert.ok(planned.skipped.some((item) => item.text === "WAW 悪への道:厄災の狸"
+    && /取得品をアイテムDB/.test(item.reason)));
+});
+
 test("実記録の「硝子の欠片×2、LP20」は数量2の消費として認識する", () => {
   const parsed = T.parseText([
     "▼E.G.O指定購入",
