@@ -944,7 +944,8 @@ test("由来が決められない所持は最新リザルトへ誤帰属させ�
   const supportAction = M.toDispatchActions(supportManifest, [support.key], { db: supportDb })
     .actions.find((action) => action.type === "ADD_ROSTER_SUPPORT");
   assert.ok(supportAction);
-  assert.equal(supportAction.resultId, null, "日時不明の所持を直近リザルトへ付けない");
+  assert.equal(supportAction.unclassified, true, "日時不明の所持はバッチ解決時に未分類へ回す");
+  assert.equal("resultId" in supportAction, false, "公開取込アクションには resultId を直接持たせない");
 
   const egoDb = { items: [], egos: [], support_passives: [] };
   const egoManifest = M.buildManifest({
