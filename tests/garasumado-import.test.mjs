@@ -1903,3 +1903,28 @@ test("通貨消費の後に「パック名:獲得人格」が続く場合、パ�
   assert.ok(r.wins.some((row) => row.name === "黒獣-巳の人格"), "獲得した人格名を抽出");
   assert.ok(!r.wins.some((row) => row.name.includes("パック:")), "パック名と人格名を混ぜない");
 });
+
+
+test("任意のテーマパックチケットは抽出券と混同せず、対象パック不明として保留する", () => {
+  const r = MEMO.parseMemo("報酬\n→LP65、欠片40\n→長くなってごめんね：200LP以下の任意のテーマパックチケット×1:終止符事務所代表の人格");
+  assert.equal(r.tickets.persona, 0);
+  assert.equal(r.tickets.ego, 0);
+  assert.equal(r.tickets.choice, 0);
+  const review = r.reasons.find((row) => String(row.line || "").includes("任意のテーマパックチケット"));
+  assert.ok(review, "対象パック名のない券を確認対象に残す");
+  assert.equal(review.ticketCategory, "pack", "通常の抽出券ではなくパック券として分類");
+  assert.match(review.reason, /対象パック名が指定されていない汎用テーマパックチケット/);
+  assert.ok(r.wins.some((row) => row.via === "テーマパックチケット（対象パック未指定）"),
+    "獲得品の由来もパック券として保持");
+});
+
+test("人格orE.G.O抽出チケットは引き続き真の種別不明として保留する", () => {
+  const r = MEMO.parseMemo("人格orE.G.O抽出チケット1：K社3級職員の人格獲得");
+  const review = r.reasons.find((row) => String(row.line || "").includes("人格orE.G.O"));
+  assert.ok(review);
+  assert.equal(review.ticketCategory, undefined, "パック券とは別分類");
+  assert.match(review.reason, /人格\/E\.G\.O\/選択の残数への計上を保留/);
+  assert.equal(r.tickets.persona, 0);
+  assert.equal(r.tickets.ego, 0);
+  assert.equal(r.tickets.choice, 0);
+});
