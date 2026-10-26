@@ -1311,6 +1311,8 @@ const App = () => {
   const [disclaimerOpen, setDisclaimerOpen] = React.useState(false);
   const [importData, setImportData] = React.useState(null);
   const [importSel, setImportSel] = React.useState({});
+  const [showEmptyImportGroups, setShowEmptyImportGroups] = React.useState(false);
+  const importDialogRef = React.useRef(null);
   const fileRef = React.useRef(null);
   const utilityReturnFocusRef = React.useRef(null);
   const openUtilities = (event) => {
@@ -1334,11 +1336,55 @@ const App = () => {
         sel[g.key] = g.fields.some((f) => f in data);
       });
       setImportSel(sel);
+      setShowEmptyImportGroups(false);
       setImportData(data);
     };
     return () => { delete window.LBT_openImportDialog; };
   }, []);
   
+
+  // 部分ロード確認は重要なモーダル。Esc・Tab循環・初期フォーカスと
+  // 閉じた後のフォーカス復帰を用意し、キーボード操作でも範囲確認が完結する。
+  React.useEffect(() => {
+    if (!importData) return;
+    const dialog = importDialogRef.current;
+    const previous = document.activeElement;
+    const focusables = () => Array.from(dialog?.querySelectorAll(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+    ) || []).filter((node) => node.getClientRects().length > 0);
+    requestAnimationFrame(() => (focusables()[0] || dialog)?.focus());
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        setImportData(null);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const list = focusables();
+      if (!list.length) {
+        event.preventDefault();
+        dialog?.focus();
+        return;
+      }
+      const first = list[0];
+      const last = list[list.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown, true);
+      requestAnimationFrame(() => {
+        if (previous && previous.focus && document.contains(previous)) previous.focus();
+      });
+    };
+  }, [importData]);
 
   /* 硝子窓からの取り込みは、このアカウントの state へ直接流す。
      UNDO は state の履歴機構に乗るので、取り込み後も差し戻せる。 */
@@ -1356,6 +1402,8 @@ const App = () => {
   };
   const selectedImportGroups = importData ? IMPORT_GROUPS.filter((g) => importSel[g.key] && g.fields.some((f) => f in importData)) : [];
   const selectedImportLabel = selectedImportGroups.length ? selectedImportGroups.map((g) => g.label).join("\u30FB") : "\u9078\u629E\u306A\u3057";
+  const importGroupsWithData = importData ? IMPORT_GROUPS.filter((g) => g.fields.some((f) => f in importData)) : [];
+  const emptyImportGroupCount = Math.max(0, IMPORT_GROUPS.length - importGroupsWithData.length);
   const saveStateLabel = saveStatus.phase === "error" ? "\u7AEF\u672B\u5185\u4FDD\u5B58\u4E0D\u53EF" : saveStatus.phase === "saved" ? "\u7AEF\u672B\u5185\u306B\u81EA\u52D5\u4FDD\u5B58\u6E08\u307F" : "\u7AEF\u672B\u5185\u3078\u81EA\u52D5\u4FDD\u5B58\u4E2D";
   React.useEffect(() => {
     const host = document.querySelector(".topbar");
@@ -1567,32 +1615,64 @@ const App = () => {
       toast("JSON\u3092\u30B3\u30D4\u30FC");
     } catch (e) {
     }
-  } }, "JSON\u51FA\u529B")), /* @__PURE__ */ React.createElement("button", { type: "button", className: "utility-trigger", onClick: openUtilities, "aria-haspopup": "dialog", "aria-expanded": utilityOpen }, /* @__PURE__ */ React.createElement(Icon, { name: "grid", size: 15 }), /* @__PURE__ */ React.createElement("span", null, "操作・保存"))), /* @__PURE__ */ React.createElement(RailNavigation, { sections: SECTIONS, current, dispatch, state, onOpenUtilities: openUtilities }), /* @__PURE__ */ React.createElement("main", { className: "focus", id: "main-content", tabIndex: -1 }, /* @__PURE__ */ React.createElement("div", { className: "focus-inner" }, renderSection())), /* @__PURE__ */ React.createElement(LivePreview, { state, dispatch }), !previewOpen && /* @__PURE__ */ React.createElement("button", { className: "preview-reopen", onClick: togglePreview, title: "\u30D7\u30EC\u30D3\u30E5\u30FC\u3092\u958B\u304F" }, "PREVIEW \u25C8"), /* R15 utility sheet */ utilityOpen && /* @__PURE__ */ React.createElement(UtilitySheet, { open: utilityOpen, onClose: closeUtilities, actions: utilityActions, sections: utilitySections, currentSection: current, onNavigate: (id) => dispatch({ type: "SET_UI", ui: { currentSection: id } }) }), /* @__PURE__ */ React.createElement(DisclaimerSheet, { open: disclaimerOpen, onClose: () => setDisclaimerOpen(false) }), /* @__PURE__ */ React.createElement(CommandPalette, { open: cpOpen, onClose: () => setCpOpen(false), state, dispatch }), /* @__PURE__ */ React.createElement(QualityInspector, { open: qiOpen, onClose: () => setQiOpen(false) }), /* @__PURE__ */ React.createElement(AccountSwitcher, { open: accountSwitcherOpen, initialEditId: accountSwitcherInitialEditId, onClose: () => { setAccountSwitcherOpen(false); setAccountSwitcherInitialEditId(null); } }), importData && /* @__PURE__ */ React.createElement("div", { className: "share-modal-backdrop", onClick: (e) => { if (e.target === e.currentTarget) setImportData(null); }, style: { position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 } }, /* @__PURE__ */ React.createElement("div", { className: "card", style: { maxWidth: 520, width: "100%", maxHeight: "85vh", overflow: "auto", background: "var(--surface-1, #1a1715)", border: "1px solid var(--line)", borderRadius: 6, padding: 16 } },
-    /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-display)", fontWeight: 700, fontSize: "var(--fs-15)", color: "var(--gold)", marginBottom: 4 } }, "\u30BB\u30FC\u30D6\u30C7\u30FC\u30BF\u306E\u8AAD\u307F\u8FBC\u307F"),
-    /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-11)", color: "var(--tx-2)", marginBottom: 12, lineHeight: 1.6 } }, "\u8AAD\u307F\u8FBC\u3080\u9805\u76EE\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044\u3002\u73FE\u5728\u306E\u72B6\u614B\u306F\u4E0A\u66F8\u304D\u3055\u308C\u307E\u3059\u304C\u3001Ctrl+Z\u3067\u5DEE\u3057\u623B\u305B\u307E\u3059\u3002"),
-    /* @__PURE__ */ React.createElement("div", { className: "import-apply-summary", role: "status", "aria-live": "polite", style: { fontSize: "var(--fs-11)", color: "var(--gold)", marginBottom: 10, padding: "7px 9px", background: "var(--surface-inset)", border: "1px solid var(--line-dim)", borderRadius: 4, lineHeight: 1.5 } }, "\u4ECA\u56DE\u306E\u9069\u7528\u7BC4\u56F2\uFF1A", selectedImportLabel),
-    /* @__PURE__ */ React.createElement("div", { className: "stack-2" }, IMPORT_GROUPS.map((g) => {
+  } }, "JSON\u51FA\u529B")), /* @__PURE__ */ React.createElement("button", { type: "button", className: "utility-trigger", onClick: openUtilities, "aria-haspopup": "dialog", "aria-expanded": utilityOpen }, /* @__PURE__ */ React.createElement(Icon, { name: "grid", size: 15 }), /* @__PURE__ */ React.createElement("span", null, "操作・保存"))), /* @__PURE__ */ React.createElement(RailNavigation, { sections: SECTIONS, current, dispatch, state, onOpenUtilities: openUtilities }), /* @__PURE__ */ React.createElement("main", { className: "focus", id: "main-content", tabIndex: -1 }, /* @__PURE__ */ React.createElement("div", { className: "focus-inner" }, renderSection())), /* @__PURE__ */ React.createElement(LivePreview, { state, dispatch }), !previewOpen && /* @__PURE__ */ React.createElement("button", { className: "preview-reopen", onClick: togglePreview, title: "\u30D7\u30EC\u30D3\u30E5\u30FC\u3092\u958B\u304F" }, "PREVIEW \u25C8"), /* R15 utility sheet */ utilityOpen && /* @__PURE__ */ React.createElement(UtilitySheet, { open: utilityOpen, onClose: closeUtilities, actions: utilityActions, sections: utilitySections, currentSection: current, onNavigate: (id) => dispatch({ type: "SET_UI", ui: { currentSection: id } }) }), /* @__PURE__ */ React.createElement(DisclaimerSheet, { open: disclaimerOpen, onClose: () => setDisclaimerOpen(false) }), /* @__PURE__ */ React.createElement(CommandPalette, { open: cpOpen, onClose: () => setCpOpen(false), state, dispatch }), /* @__PURE__ */ React.createElement(QualityInspector, { open: qiOpen, onClose: () => setQiOpen(false) }), /* @__PURE__ */ React.createElement(AccountSwitcher, { open: accountSwitcherOpen, initialEditId: accountSwitcherInitialEditId, onClose: () => { setAccountSwitcherOpen(false); setAccountSwitcherInitialEditId(null); } }), importData && /* @__PURE__ */ React.createElement("div", {
+    className: "share-modal-backdrop state-import-backdrop",
+    role: "presentation",
+    onClick: (e) => { if (e.target === e.currentTarget) setImportData(null); }
+  }, /* @__PURE__ */ React.createElement("section", {
+    ref: importDialogRef,
+    className: "card state-import-dialog",
+    role: "dialog",
+    "aria-modal": "true",
+    "aria-labelledby": "state-import-dialog-title",
+    tabIndex: -1
+  },
+    /* @__PURE__ */ React.createElement("h2", { className: "state-import-title", id: "state-import-dialog-title" }, "セーブデータの読み込み"),
+    /* @__PURE__ */ React.createElement("p", { className: "state-import-description" }, "読み込む項目を選択してください。現在の状態は上書きされますが、Ctrl+Zで差し戻せます。"),
+    /* @__PURE__ */ React.createElement("div", { className: "import-apply-summary state-import-summary", role: "status", "aria-live": "polite" }, "今回の適用範囲：", selectedImportLabel),
+    /* @__PURE__ */ React.createElement("div", { className: "state-import-list-controls" },
+      /* @__PURE__ */ React.createElement("span", { className: "state-import-list-count", role: "status", "aria-live": "polite" }, `データあり ${importGroupsWithData.length} / ${IMPORT_GROUPS.length} カテゴリ`),
+      emptyImportGroupCount > 0 ? /* @__PURE__ */ React.createElement("button", {
+        type: "button",
+        className: "btn btn-ghost btn-sm state-import-show-empty",
+        onClick: () => setShowEmptyImportGroups((shown) => !shown),
+        "aria-controls": "state-import-options",
+        "aria-expanded": showEmptyImportGroups
+      }, showEmptyImportGroups ? "データのない項目を隠す" : `データのない項目も表示（${emptyImportGroupCount}）`) : null
+    ),
+    /* @__PURE__ */ React.createElement("div", { className: "stack-2 state-import-list", id: "state-import-options" }, IMPORT_GROUPS.map((g) => {
       const has = g.fields.some((f) => f in importData);
-      return /* @__PURE__ */ React.createElement("label", { key: g.key, style: { display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: has ? "var(--surface-inset)" : "transparent", border: "1px solid var(--line-dim)", borderRadius: 4, cursor: has ? "pointer" : "default", opacity: has ? 1 : 0.4, fontSize: "var(--fs-12)" } },
-        /* @__PURE__ */ React.createElement("input", { type: "checkbox", disabled: !has, checked: !!importSel[g.key], onChange: (e) => setImportSel((s) => ({ ...s, [g.key]: e.target.checked })), style: { accentColor: "var(--gold)" } }),
-        /* @__PURE__ */ React.createElement("span", null, g.label, !has && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)", marginLeft: 6 } }, "\uFF08\u30C7\u30FC\u30BF\u306A\u3057\uFF09"))
+      if (!has && !showEmptyImportGroups) return null;
+      return /* @__PURE__ */ React.createElement("label", { key: g.key, className: `state-import-option${has ? " has-data" : " is-empty"}` },
+        /* @__PURE__ */ React.createElement("input", {
+          type: "checkbox",
+          disabled: !has,
+          checked: !!importSel[g.key],
+          onChange: (e) => setImportSel((stateSel) => ({ ...stateSel, [g.key]: e.target.checked }))
+        }),
+        /* @__PURE__ */ React.createElement("span", { className: "state-import-option-label" }, g.label),
+        !has ? /* @__PURE__ */ React.createElement("small", { className: "state-import-empty-note" }, "データなし") : null
       );
     })),
-    /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 14, justifyContent: "flex-end", flexWrap: "wrap" } },
-      /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost btn-sm", onClick: () => {
-        const sel = {};
-        IMPORT_GROUPS.forEach((g) => { sel[g.key] = false; });
-        setImportSel(sel);
-      }, title: "\u5168\u30AB\u30C6\u30B4\u30EA\u306E\u30C1\u30A7\u30C3\u30AF\u3092\u5916\u3059" }, "\u3059\u3079\u3066\u5916\u3059"),
-      /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost btn-sm", onClick: () => {
-        const sel = {};
-        IMPORT_GROUPS.forEach((g) => { sel[g.key] = g.fields.some((f) => f in importData); });
-        setImportSel(sel);
-      }, title: "\u30C7\u30FC\u30BF\u304C\u5B58\u5728\u3059\u308B\u30AB\u30C6\u30B4\u30EA\u306E\u307F\u9078\u629E\u3057\u305F\u521D\u671F\u72B6\u614B\u306B\u623B\u3059" }, "\u9078\u629E\u3092\u521D\u671F\u72B6\u614B\u306B\u623B\u3059"),
-      /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }),
-      /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost btn-sm", onClick: () => setImportData(null) }, "\u30AD\u30E3\u30F3\u30BB\u30EB"),
-      /* @__PURE__ */ React.createElement("button", { className: "btn btn-sm btn-primary", onClick: () => applyImport(false), disabled: selectedImportGroups.length === 0, title: selectedImportGroups.length ? "\u8868\u793A\u4E2D\u306E\u9069\u7528\u7BC4\u56F2\u3092\u73FE\u5728\u306E\u4F5C\u696D\u72B6\u614B\u3078\u8AAD\u307F\u8FBC\u307F\u307E\u3059" : "\u8AAD\u307F\u8FBC\u3080\u9805\u76EE\u3092\u4E00\u3064\u4EE5\u4E0A\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044" }, "\u9078\u629E\u9805\u76EE\u3092\u8AAD\u307F\u8FBC\u3080")
+    /* @__PURE__ */ React.createElement("div", { className: "state-import-footer" },
+      /* @__PURE__ */ React.createElement("div", { className: "state-import-footer-tools" },
+        /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-ghost btn-sm", onClick: () => {
+          const sel = {};
+          IMPORT_GROUPS.forEach((g) => { sel[g.key] = false; });
+          setImportSel(sel);
+        }, title: "全カテゴリのチェックを外す" }, "すべて外す"),
+        /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-ghost btn-sm", onClick: () => {
+          const sel = {};
+          IMPORT_GROUPS.forEach((g) => { sel[g.key] = g.fields.some((f) => f in importData); });
+          setImportSel(sel);
+        }, title: "データが存在するカテゴリのみ選択した初期状態に戻す" }, "選択を初期状態に戻す")
+      ),
+      /* @__PURE__ */ React.createElement("div", { className: "state-import-footer-confirm" },
+        /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-ghost btn-sm", onClick: () => setImportData(null) }, "キャンセル"),
+        /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-sm btn-primary", onClick: () => applyImport(false), disabled: selectedImportGroups.length === 0, title: selectedImportGroups.length ? "表示中の適用範囲を現在の作業状態へ読み込みます" : "読み込む項目を一つ以上選択してください" }, "選択項目を読み込む")
+      )
     )
+  )
   )));
 };
 window.App = App;
