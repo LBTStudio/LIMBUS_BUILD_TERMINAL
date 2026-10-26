@@ -80,6 +80,22 @@ test("▼/▽なしの日時付き複数記録も、別々のリザルトとし�
   assert.equal(parsed.records[1].income.shards, 10);
 });
 
+test("全角日付・タブ区切り・見出し記号なしの帳簿も専用パーサへ送る", () => {
+  const parsed = T.parseText([
+    "購入記録",
+    "日時\t２０２６/０８/１０",
+    "報酬\t",
+    "LP\t２０",
+    "欠片\t１０"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 1);
+  assert.equal(parsed.records[0].title, "購入記録");
+  assert.equal(parsed.records[0].date, "2026-08-10");
+  assert.equal(parsed.records[0].income.lp, 20);
+  assert.equal(parsed.records[0].income.shards, 10);
+});
+
 test("実在DBのE.G.O購入明細は獲得名9件・ランク/番号・欠片価格を保ち、LP450との通貨不一致を警告する", () => {
   const egos = DB.egos.filter((ego) => Number(ego.shards) === 50).slice(0, 9);
   assert.equal(egos.length, 9, "50欠片の実在E.G.Oを9件用意できる");
