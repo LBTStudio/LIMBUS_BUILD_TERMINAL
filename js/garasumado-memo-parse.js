@@ -391,7 +391,7 @@
     var text = normalizeAmountText(String(line || "")).trim();
     var labelled = /消費欄|消費額|消費合計|購入合計|合計消費|項目別価格合計|支出額|総額/.test(text);
     if (/現在|残高|残り/.test(text) && !labelled) return null;
-    var summary = text.replace(/消費欄|消費額|消費合計|購入合計|合計消費|項目別価格合計|支出額|総額|合計|消費|購入|支出|金額|欄/g, " ").trim();
+    var summary = text.replace(/消費欄|消費額|消費合計|購入合計|合計消費|項目別価格合計|支出額|総額|合計|消費|購入|支出|金額|欄|の/g, " ").trim();
     if (!labelled && !isTotalOnlyLine(summary)) return null;
     if (!isTotalOnlyLine(summary)) return null;
     var currencies = egoCurrencyAmounts(summary);
