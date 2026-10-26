@@ -27,7 +27,7 @@ test("セーブデータ読み込みはデータがあるカテゴリを先に�
   assert.match(app, /const visibleImportGroups = showEmptyImportGroups \? IMPORT_GROUPS : availableImportGroups/);
   assert.match(app, /className: "state-import-toggle-empty"/);
   assert.match(app, /"aria-expanded": showEmptyImportGroups/);
-  assert.match(app, /className: "state-import-groups"\\s*\\},\\s*visibleImportGroups\\.map/);
+  assert.ok(app.includes('className: "state-import-groups" }, visibleImportGroups.map'));
   assert.match(css, /\.state-import-dialog\s*\{[\s\S]*?max-height: calc\(100dvh - 24px\);[\s\S]*?overflow: hidden;/);
   assert.match(css, /\.state-import-groups\s*\{[\s\S]*?overflow-y: auto;/);
   assert.match(css, /\.state-import-actions\s*\{[\s\S]*?flex: 0 0 auto;[\s\S]*?border-top/);
