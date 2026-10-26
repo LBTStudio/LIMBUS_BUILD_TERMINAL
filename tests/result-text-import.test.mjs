@@ -483,6 +483,7 @@ test("記録された欠片残高の差分が報酬額と違う場合は自動�
   const warning = parsed.skipped.find((item) => item.text === "現在所持欠片：397→437");
   assert.ok(warning);
   assert.equal(warning.kind, "balance-mismatch");
+  assert.equal(warning.recordTitle, "突発卓：砂浜の激闘");
   assert.match(warning.reason, /記録上 \+40、取込計算上 \+50/);
   assert.match(warning.guidance, /447/, "報酬50が正しい場合の終了残高候補を示す");
 });

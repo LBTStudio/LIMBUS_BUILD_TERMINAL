@@ -4292,6 +4292,7 @@ const textPlan = React.useMemo(() => {
     state.roster?.personas, state.roster?.egos, state.roster?.supports, state.roster?.spirits, state.inventory]);
 
 const textWarningKey = (warning) => [
+  warning?.recordTitle || "",
   warning?.kind || "warning",
   warning?.text || warning?.name || warning?.key || "",
   warning?.reason || ""
@@ -4820,6 +4821,7 @@ const importHeldPersonas = () => {
         visibleTextWarnings.length > 0 && h("div", { className: "ledger-held-result", role: "status" },
           h("p", { className: "ledger-note" }, `未確認の警告が ${visibleTextWarnings.length} 件あります。原文を確認してください。内容を確認して問題がなければ、各警告の「確認済みとして閉じる」で表示を消せます。`),
           h("ul", { className: "ledger-warn-list" }, visibleTextWarnings.map((s) => h("li", { key: textWarningKey(s) },
+            s.recordTitle && h("p", { className: "t-label" }, `対象リザルト：${s.recordTitle}`),
             h("div", null, `${s.text || s.name || s.key || "（行を特定できません）"}：${s.reason || "不明"}`),
             s.guidance && h("p", { className: "ledger-note" }, `確認方法：${s.guidance}`),
             isReviewableTextWarning(s) && h(Button, {
