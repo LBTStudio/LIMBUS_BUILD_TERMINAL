@@ -1816,6 +1816,10 @@ test("券種や枚数のない説明文中の「チケット」は抽出チケ�
   const actualGenericTicket = MEMO.parseMemo("チケット入手");
   assert.ok(actualGenericTicket.reasons.some((entry) => /抽出チケットの種別が不明/.test(entry.reason)));
 
+  const ticketAfterCurrencyReward = MEMO.parseMemo("報酬\n140LP\n26カケラ\nチケット");
+  assert.ok(ticketAfterCurrencyReward.reasons.some((entry) => /抽出チケットの種別が不明/.test(entry.reason)),
+    "収入・通貨の直後に単独で書かれたチケットは取りこぼさず要確認に残す");
+
   const explicitDrawTicket = MEMO.parseMemo("抽出チケット");
   assert.ok(explicitDrawTicket.reasons.some((entry) => /抽出チケットの種別が不明/.test(entry.reason)));
 });
