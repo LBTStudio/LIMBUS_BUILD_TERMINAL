@@ -545,6 +545,10 @@
      限り、獲得名の位置やE.G.O名のコロンを壊さない。 */
   function currencySpendOf(rawLine) {
     var text = normalizeNumericText(rawLine);
+    /* このヘルパーは矢印を使う明示的な取引行だけに使う。
+       自然文の「LP200を消費してガチャ」や購入文を横取りすると、
+       既存の購入名抽出・収入抽出を壊すため。 */
+    if (String(rawLine || "").indexOf("→") < 0) return null;
     var lpMatch = text.match(/(?:LP|ＬＰ)\s*([0-9][0-9,]*)\s*(?:を\s*)?(?:消費|使用|支払|支出)/i);
     if (!lpMatch) lpMatch = text.match(/([0-9][0-9,]*)\s*(?:LP|ＬＰ)\s*(?:を\s*)?(?:消費|使用|支払|支出)/i);
     if (lpMatch) {
@@ -598,7 +602,10 @@
     var arrowAt = text.indexOf("→", ticketAt);
     if (arrowAt < 0) return null;
     var source = text.slice(0, arrowAt);
-    if (!/チケット|チケ/.test(source) || /(?:\bd\d{2,}|ダイス条件)/i.test(source)) return null;
+    /* チケット獲得と「ガチャ結果→…」が同じ行にある場合は使用ではない。
+       矢印より前に獲得・報酬・結果があればチケット消費として扱わない。 */
+    if (!/チケット|チケ/.test(source) || /(?:\bd\d{2,}|ダイス条件)/i.test(source)
+      || /獲得|入手|報酬|収入|ガチャ結果|抽出結果/.test(source)) return null;
     var isPack = /パックチケット/.test(source);
     var pack = "";
     if (isPack) {
@@ -670,11 +677,16 @@
           continue;
         }
         var rewardName = rewardAfterCurrencySpend(line, currencySpend.end);
-        var spendRecord = { name: rewardName || line, lp: 0, shards: 0, raw: line, reason: "明示された通貨消費" };
+        var arrowRewardNames = arrowWinsOf(line);
+        if (!arrowRewardNames.length && rewardName) arrowRewardNames = [rewardName];
+        var spendRecord = { name: arrowRewardNames.join("、") || rewardName || line, lp: 0, shards: 0, raw: line, reason: "明示された通貨消費" };
         spendRecord[currencySpend.currency] = currencySpend.amount;
         spends.push(spendRecord);
-        if (rewardName && !wins.some((w) => w.name === rewardName)) wins.push({ name: rewardName, via: "", kind: "" });
-        continue;
+        arrowRewardNames.forEach(function (name) {
+          if (!wins.some((w) => w.name === name)) wins.push({ name: name, via: "", kind: "" });
+        });
+        /* 続きに収入・チケット獲得が同居する書式があるため行全体を捨てない。
+           後段の既存解析は消費より前の収入だけを読む。 */
       }
 
       var explicitTicketSpend = explicitTicketSpendOf(line);
