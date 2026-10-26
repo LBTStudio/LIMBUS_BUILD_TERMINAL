@@ -72,6 +72,63 @@ test("硝子の破片は購入ごとに20LPを支払い、所持数と通帳の�
   assert.equal(balance(second.results, second.entries).lp, before.lp - 40);
 });
 
+test("硝子の破片の数量入力と最新リザルトへの消費記録を回帰検証する", () => {
+  assert.ok(
+    itemCodexSource.includes(String.raw`/^\d+$/.test(consumeQuantityDraft)`),
+    "消費数の入力検証は通常の整数入力を受け付ける"
+  );
+
+  const shard = specialItemRecords.find((item) => item.id === "resource-glass-shard");
+  const { reducer, initState, balance, normalize } = loadStateReducer();
+  let state = reducer(initState, {
+    type: "ADD_RESULT",
+    name: "硝子の破片の購入元",
+    date: "2026-10-20",
+    income: { lp: 50, shards: 0 }
+  });
+  const purchaseResultId = state.results.find((result) => result.name === "硝子の破片の購入元").id;
+  state = reducer(state, {
+    type: "ADD_RESULT",
+    name: "硝子の破片の消費先",
+    date: "2026-10-26",
+    income: { lp: 0, shards: 0 }
+  });
+  const latestResultId = state.results.find((result) => result.name === "硝子の破片の消費先").id;
+  state = reducer(state, { type: "ADD_ITEM", itemId: shard.id, resultId: purchaseResultId });
+  const purchaseEntry = state.entries.find((entry) => entry.name === "硝子の破片" && entry.resultId === purchaseResultId);
+  assert.ok(purchaseEntry, "購入時の支出明細を記録する");
+  const beforeConsumeBalance = balance(state.results, state.entries);
+
+  state = reducer(state, {
+    type: "CONSUME_ITEM",
+    itemId: shard.id,
+    quantity: 1,
+    reason: "consumption",
+    operationId: "glass-shard-consume-regression"
+  });
+  assert.equal(state.inventory.some((entry) => entry.itemId === shard.id), false, "消費した破片を所持品から減らす");
+  const latestResult = state.results.find((result) => result.id === latestResultId);
+  assert.equal(latestResult.consumedItems.length, 1, "最新リザルトに消費オブジェクトを残す");
+  assert.deepEqual(
+    {
+      itemId: latestResult.consumedItems[0].itemId,
+      itemName: latestResult.consumedItems[0].itemName,
+      quantity: latestResult.consumedItems[0].quantity,
+      reason: latestResult.consumedItems[0].reason
+    },
+    { itemId: shard.id, itemName: shard.name, quantity: 1, reason: "consumption" }
+  );
+  assert.equal(state.entries.some((entry) => entry.id === purchaseEntry.id), true, "消費しても購入履歴を保持する");
+  assert.deepEqual(balance(state.results, state.entries), beforeConsumeBalance, "消費ではLP・欠片の残高を変えない");
+
+  const reloaded = normalize(JSON.parse(JSON.stringify(state)));
+  assert.equal(
+    reloaded.results.find((result) => result.id === latestResultId).consumedItems[0].itemId,
+    shard.id,
+    "保存状態を正規化しても消費記録を保持する"
+  );
+});
+
 test("硝子の破片は20LP未満の残高では購入できない", () => {
   const shard = specialItemRecords.find((item) => item.id === "resource-glass-shard");
   const { reducer, initState } = loadStateReducer();

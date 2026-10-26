@@ -50,7 +50,7 @@ const ItemCodex = ({ state, dispatch }) => {
     selectedEntry
     && Array.isArray(state.results)
     && state.results.length > 0
-    && /^\\d+$/.test(consumeQuantityDraft)
+    && /^\d+$/.test(consumeQuantityDraft)
     && Number.isSafeInteger(consumeQuantity)
     && consumeQuantity > 0
     && consumeQuantity <= (Number(selectedEntry.quantity) || 1)
