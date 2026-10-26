@@ -1172,7 +1172,8 @@ test("空欄・null の共有残高はゼロではなく未入力として扱う
 });
 
 test("現座の誤記を残高アンカーとしても検出する", () => {
-  const r = G.reconcileBalance({
+  const M = loadImportWithMemo();
+  const r = M.reconcileBalance({
     scenarios: [{ memo: "66LP 現座189LP", income: { lp: 66, shards: 0 }, spends: [] }],
     purchaseHistory: []
   }, { currency: { lp: 189, fragment: null } });
