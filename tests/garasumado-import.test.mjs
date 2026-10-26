@@ -134,16 +134,35 @@ test("叙述文に個別の負額が明示された複数購入は支出をそ�
   assert.equal(singleNarrativePurchase.spends.length, 0, "単独の叙述購入は既存の扱いを変えない");
 });
 
-test("購入の短文の形でない叙述は購入の記録にしない", () => {
+test("購入の叙述に明記されたLP・欠片の消費を支出として記録する", () => {
   const r = MEMO.parseMemo(
     "終了後サポートパッシブ「ルサンチマン」と「肩慣らし」を購入したためLP-27。\n" +
     "切り伏せる斬撃を購入、150LP消費　300LPへ\n" +
     "30LP、30欠片…を獲得。硝酸の欠片×1を消費して同期化"
   );
-  assert.equal(r.spends.length, 0, "金額が一行に収まらない叙述は支出にしない");
-  assert.ok(r.wins.some((w) => w.name === "ルサンチマン"), "サポパの名前は従来どおり勝ちに入る");
-  assert.equal(r.income.lp, 30, "収入は 30LP の獲得行だけ（購入の叙述は混ぜない）");
-  assert.equal(r.income.shards, 30, "欠片も同じ獲得行から 30");
+  assert.equal(r.spends.length, 2, "明示されたLP支出2件を残す。アイテム欠片の使用は通貨支出にしない");
+  assert.equal(r.spends.reduce((n, spend) => n + spend.lp, 0), 177, "LP27 + LP150 を一度ずつ計上する");
+  assert.equal(r.spends.reduce((n, spend) => n + spend.shards, 0), 0);
+  assert.ok(r.wins.some((w) => w.name === "ルサンチマン"), "サポパの名前を所持証跡として保持する");
+  assert.equal(r.income.lp, 30, "収入は30LPの獲得行だけ");
+  assert.equal(r.income.shards, 30, "欠片も獲得行から30");
+});
+
+test("別々に記録された叙述体の購入費用はそれぞれ一度ずつ計上する", () => {
+  const r = MEMO.parseMemo(
+    "終了後、サポートパッシブ「因子コードG-5」を購入したのでLP-7、「深呼吸」を購入したのでLP-15"
+  );
+  assert.equal(r.spends.length, 2);
+  assert.equal(r.spends.reduce((n, spend) => n + spend.lp, 0), 22, "LP7 + LP15 を二重計上せず合計22");
+});
+
+test("精神購入の叙述で欠片支出も通貨を取り違えず記録する", () => {
+  const r = MEMO.parseMemo("終了後、精神「正義」を購入したため欠片-200");
+  assert.equal(r.income.shards, 0);
+  assert.equal(r.spends.length, 1);
+  assert.equal(r.spends[0].shards, 200);
+  assert.equal(r.spends[0].lp, 0);
+  assert.ok(r.wins.some((w) => w.name === "正義" && w.bought), "購入された対象の証跡も保持する");
 });
 
 test("掉落値の内訳が括弧に入っても外側の額を読む", () => {
