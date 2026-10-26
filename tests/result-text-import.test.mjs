@@ -482,7 +482,7 @@ test("記録された欠片残高の差分が報酬額と違う場合は自動�
   assert.equal(parsed.records[0].income.shards, 50);
   assert.ok(parsed.skipped.some((item) =>
     item.text === "現在所持欠片：397→437"
-      && /記録上 \\+40、取込計算上 \\+50/.test(item.reason)
+      && /記録上 \+40、取込計算上 \+50/.test(item.reason)
   ));
 });
 
@@ -503,7 +503,7 @@ test("チケット使用で50欠片に変換した報酬は残高差分が一致
   assert.equal(parsed.records[0].ticketUses.length, 1);
   assert.ok(parsed.skipped.some((item) =>
     item.text === "現在所持欠片：87→130"
-      && /記録上 \\+43、取込計算上 \\+93/.test(item.reason)
+      && /記録上 \+43、取込計算上 \+93/.test(item.reason)
   ));
 });
 
@@ -523,7 +523,7 @@ test("欠片変換を含むテーマパック報酬も現在所持の差分を�
   assert.equal(parsed.records[0].income.shards, 112);
   assert.ok(parsed.skipped.some((item) =>
     item.text === "現在所持欠片：275→337"
-      && /記録上 \\+62、取込計算上 \\+112/.test(item.reason)
+      && /記録上 \+62、取込計算上 \+112/.test(item.reason)
   ));
 });
 
