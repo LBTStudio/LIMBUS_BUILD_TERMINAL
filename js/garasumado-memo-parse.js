@@ -547,10 +547,13 @@
      限り、獲得名の位置やE.G.O名のコロンを壊さない。 */
   function currencySpendOf(rawLine) {
     var text = normalizeNumericText(rawLine);
-    /* このヘルパーは矢印を使う明示的な取引行だけに使う。
-       自然文の「LP200を消費してガチャ」や購入文を横取りすると、
-       既存の購入名抽出・収入抽出を壊すため。 */
-    if (String(rawLine || "").indexOf("→") < 0) return null;
+    /* 矢印付きの取引行、または「100LP消費ガチャ:報酬」のような
+       明示ラベル行だけを対象にする。自然文「LP200を消費してガチャ」は
+       取引記録と断定できないので、従来どおりこの経路では拾わない。 */
+    var rawSource = String(rawLine || "");
+    var hasArrow = rawSource.indexOf("→") >= 0;
+    var hasExplicitSpendLabel = /(?:消費|使用|支払|支出)\s*(?:ガチャ|抽出|パック|テーマパック)\s*[：:]/.test(text);
+    if (!hasArrow && !hasExplicitSpendLabel) return null;
     var lpMatch = text.match(/(?:LP|ＬＰ)\s*([0-9][0-9,]*)\s*(?:を\s*)?(?:消費|使用|支払|支出)/i);
     if (!lpMatch) lpMatch = text.match(/([0-9][0-9,]*)\s*(?:LP|ＬＰ)\s*(?:を\s*)?(?:消費|使用|支払|支出)/i);
     if (lpMatch) {
@@ -575,6 +578,8 @@
     name = name.replace(/(?:の)?(?:獲得|入手)(?:した)?[。．.]?$/, "").trim();
     if (!name || /(?:被り|重複|補償|返還)/.test(name)) return "";
     if (/^(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|自我の破片|自我の欠片)\s*\d*$/i.test(name)) return "";
+    /* 選択抽出チケット→ego などの汎用ラベルを実際の獲得名にしない。 */
+    if (/^[A-Za-z0-9\s.:_\/-]+$/.test(name)) return "";
     if (!/[A-Za-zぁ-んァ-ヶ一-龠]/.test(name)) return "";
     return name;
   }
