@@ -439,7 +439,7 @@
     const blocks = [];
     let block = null;
     const sourceLines = source.split("\n");
-    const isDateLine = (value) => /^日時\s*[：:]\s*\d{4}[/-]\d{1,2}[/-]\d{1,2}/.test(String(value || "").trim());
+    const isDateLine = (value) => /^日時\s*(?:[：:]|\t)\s*\d{4}[/-]\d{1,2}[/-]\d{1,2}/.test(String(value || "").trim());
     for (let lineIndex = 0; lineIndex < sourceLines.length; lineIndex += 1) {
       const rawLine = sourceLines[lineIndex];
       const line = rawLine.trim();
@@ -531,12 +531,12 @@
         const line = rawLine.trim();
         if (!line) continue;
 
-        const fieldValue = line.match(/^([^:：]{1,36})\s*[:：]\s*(.*)$/);
+        const fieldValue = line.match(/^([^:：\t]{1,36})\s*(?:[:：]|\t+)\s*(.*)$/);
         const rawLabel = fieldValue ? fieldValue[1].trim() : "";
         const label = fieldValue ? fieldKey(rawLabel) : "";
         const value = fieldValue ? fieldValue[2].trim() : "";
 
-        if (label === "消費") {
+        if (label === "消費" || label === "消費欄" || label === "消費額" || label === "消費合計") {
           rewardContext = false;
           consumeLines.push(value);
           for (const usedTicket of ledgerTickets(value)) {
@@ -827,7 +827,7 @@
     const originalText = String(rawText ?? "");
     const hasLedgerFields = /(?:日時|報酬|現在所持LP|現在所持欠片)/.test(originalText);
     const hasMarkedLedgerHeader = /^\s*[▼▽]\s*\S/m.test(originalText);
-    const hasDatedLedgerEntry = /^\s*日時\s*[：:]\s*\d{4}[/-]\d{1,2}[/-]\d{1,2}/m.test(originalText);
+    const hasDatedLedgerEntry = /^\s*日時\s*(?:[：:]|\t)\s*\d{4}[/-]\d{1,2}[/-]\d{1,2}/m.test(originalText);
     /* 見出しの ▼/▽ が省略されても、日時欄を持つ帳簿形式は専用パーサへ回す。
        旧パーサへ落とすと、複数記録の境界と残高の読み取りを誤る。 */
     if (hasLedgerFields && (hasMarkedLedgerHeader || hasDatedLedgerEntry)) {
