@@ -903,11 +903,11 @@
           if ((aggregate.lp || aggregate.shards) && (!divisible("lp") || !divisible("shards"))) {
             skipped.push({
               text: "消費：" + consumeLines.join("、"),
-              reason: "複数の獲得品へ消費額を均等配分できないため、明細の自動作成を保留しました"
+              reason: "獲得品ごとの費用配分が一意に決まらないため、合計費用は1件の支出として記録しました。品目別の配分は原文確認が必要です"
             });
             record.spends.push({
               name: title, cost: { lp: aggregate.lp, shards: aggregate.shards },
-              needsDecision: null, reason: null, kindHint: hintOf(title), raw: consumeLines.join("、")
+              needsDecision: null, reason: null, kindHint: null, raw: consumeLines.join("、")
             });
           } else {
             descriptions.forEach((item, index) => {
