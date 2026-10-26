@@ -44,3 +44,8 @@ The page counter records aggregate page views; it does not attempt to count uniq
 With a recovery key configured, status/sync checks start with two small `head` requests (one per provider). If both replicas have matching revision/hash, no full snapshot payload is downloaded for the status check. A normal changed snapshot then sends one write to the primary and one best-effort replica write, so a typical automatic sync is about four HTTP requests: two metadata reads and two writes. A restore fetches one payload after the metadata checks. Repair of a missing/outdated provider can require an extra payload read. Manual backup performs a second metadata check after the confirmation prompt, so expect about six requests when both writes succeed. Without a recovery key, the app sends no recovery API traffic. The separate access counter makes one request and one small D1 counter-row write per page load.
 
 Do not mark the product fully failover-ready until the Cloudflare Worker is actually deployed and the multi-provider tests pass. The fallback URL in js/cloud-backup.js must match the deployed Worker hostname.
+
+
+## Replica conflict rule
+
+A larger revision number is not by itself proof that one copy descends from the other. The client repairs an older provider only when the newer provider's retained history contains the exact SHA-256 payload fingerprint of the older revision. If this lineage proof is missing or differs, it stops and asks for manual recovery rather than overwriting either copy. Legacy revisions that predate fingerprint columns are checked by reading their historical payload once on the metadata path; keep this in mind when assessing first-use traffic.
