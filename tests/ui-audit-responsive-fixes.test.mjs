@@ -13,6 +13,12 @@ test("監査修正CSSは実際のアプリにハッシュ付きで読み込ま�
   assert.match(index, /js\/App\.js\?v=5890a6a8/);
 });
 
+test("プレビュー格納時に旧PREVIEWタブを表示せず、操作を1か所に統一する", () => {
+  assert.match(app, /className: "preview-reopen", onClick: togglePreview/);
+  assert.match(css, /\.app\.preview-collapsed \.preview-reopen\s*\{\s*display:\s*none;\s*\}/);
+  assert.match(css, /\.preview-edge-toggle\s*\{[\s\S]*?z-index:/);
+});
+
 test("スマホのプレビュー操作は縦長の本文上ではなく下部の安全領域に横長で表示する", () => {
   const block = css.slice(css.indexOf("@media (max-width: 640px)"), css.indexOf("/* Desktop keeps"));
   assert.match(block, /\.preview-edge-toggle\s*\{[\s\S]*?top:\s*auto;[\s\S]*?bottom:\s*calc\(122px \+ env\(safe-area-inset-bottom, 0px\)\);[\s\S]*?writing-mode:\s*horizontal-tb;/);
