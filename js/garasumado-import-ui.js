@@ -1413,7 +1413,7 @@ function appliedSummary(actions) {
         h("span", { className: "gara-step-kicker" }, "STEP 2 / 3 · 取込内容の確認"),
         h("h3", { className: "gara-title" }, "取り込み内容を確認"),
         h("p", { className: "gara-lead" }, `共有元：${manifest.character.name || "名称未設定"}。反映する項目を選び、未決の内容を確認してから確定してください。`),
-        h("p", { className: "gara-import-balance" }, `共有元の残高　LP ${manifest.currency.lp || "—"} ・ 欠片 ${manifest.currency.shards || "—"}`)
+        h("p", { className: "gara-import-balance" }, `硝子窓の申告残高（手入力・照合用）　LP ${manifest.currency.lp || "—"} ・ 欠片 ${manifest.currency.shards || "—"}`)
       ),
       h("div", { className: "gara-import-heading-actions" },
         h("button", { type: "button", className: "gara-change-url", onClick: () => { setManifest(null); setConfirmed(null); setError(""); setUrlReport(null); setBundleReport(null); setPersonaItems(null); setPersonaPicked({}); setPersonaConfirmed(null); setProgress(""); setPicked({}); setIdentity({}); setLines([]); setChoices({}); setDecided({}); setPast([]); setFuture([]); setDoc(null); } }, "URLを貼り直す"),
@@ -1506,7 +1506,11 @@ function appliedSummary(actions) {
       : null,
     balance && balance.checked && !balance.ok
       ? h("p", { className: "gara-note gara-note-warn" },
-        `残高照合: ${balance.message}（LP ${balance.computedLp} 欠片 ${balance.computedShards} に対し、記載は LP ${balance.shownLp} 欠片 ${balance.shownShards}）`)
+        `残高照合: ${balance.message}（最初の「現在」記録を開始基準と仮定。計算 LP ${balance.computedLp} / 欠片 ${balance.computedShards}、硝子窓の申告値 LP ${balance.shownLp} / 欠片 ${balance.shownShards}）。申告値は手入力のため、差額を自動計上しません。`)
+      : null,
+    balance && !balance.checked && balance.hasManualReference
+      ? h("p", { className: "gara-note" },
+        `履歴から確定できる純増減: LP ${balance.historyNetLp >= 0 ? "+" : ""}${balance.historyNetLp} / 欠片 ${balance.historyNetShards >= 0 ? "+" : ""}${balance.historyNetShards}。硝子窓の申告値（手入力・参考）: LP ${balance.shownLp ?? "未記載"} / 欠片 ${balance.shownShards ?? "未記載"}。差から逆算した開始前残高は LP ${balance.impliedOpeningLp ?? "不明"} / 欠片 ${balance.impliedOpeningShards ?? "不明"} ですが、照合用の参考推定です。履歴漏れ・開始残高・手入力ミスのいずれでも差が生じるため、帳簿へ自動加算しません。`)
       : null,
     draft && draft.blocks.map((block) => h(ResultCard, {
       key: block.key || block.name,
