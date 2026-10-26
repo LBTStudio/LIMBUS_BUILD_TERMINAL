@@ -205,6 +205,10 @@ async function captureProfile(browser, mode) {
     for(let i=0;i<count;i++) {
       const tab=tabs.nth(i), label=(await tab.innerText()).trim();
       await attempt("build-tab-"+label,async()=>{
+        if (!mobile) {
+          await tab.hover().catch(()=>{});
+          await snap("build-tab-hover-"+label,"デスクトップ：ビルド内"+label+"タブのホバー状態");
+        }
         await click(tab);
         await snap("build-tab-"+label,"ビルド内の"+label+"タブ");
         if(label==="人格") {
@@ -246,6 +250,11 @@ async function captureProfile(browser, mode) {
     }
     for(const label of ["駒整形","ショップ","記録","設定","使い方"]) {
       await attempt("section-"+label,async()=>{
+        const navHover = page.locator(".rail-item").filter({hasText:label}).first();
+        if (!mobile && await visible(navHover)) {
+          await navHover.hover().catch(()=>{});
+          await snap("navigation-hover-"+label,"デスクトップ：主ナビゲーション「"+label+"」のホバー状態");
+        }
         await go(label);
         await snap("section-"+label,"主要セクション: "+label);
         if(label==="ショップ") {
@@ -392,7 +401,14 @@ async function captureProfile(browser, mode) {
         if(await input.count()) {
           await input.setInputFiles({name:"ui-audit-import.json",mimeType:"application/json",buffer:Buffer.from(JSON.stringify({schemaVersion:5,charName:"読み込み確認用",plName:"UI QA"}),"utf8")});
           await page.waitForTimeout(300);
-          if(await visible(page.locator(".share-modal-backdrop"))) await snap("state-import-scope-dialog","読み込むカテゴリを選ぶ確認画面。適用しない");
+          if(await visible(page.locator(".share-modal-backdrop"))) {
+            await snap("state-import-scope-dialog","読み込むカテゴリを選ぶ確認画面。適用しない");
+            const emptyDetails=page.locator(".import-scope-empty-categories > summary").first();
+            if (await visible(emptyDetails)) {
+              await click(emptyDetails);
+              await snap("state-import-empty-categories-expanded","確認ダイアログでデータのないカテゴリ一覧を任意に展開した状態。適用しない");
+            }
+          }
         }
       }
       await closeOverlay();
@@ -408,13 +424,14 @@ async function main() {
   try { for(const mode of ["desktop","mobile"]) {log("begin "+mode);await captureProfile(browser,mode);} }
   finally { await browser.close();await new Promise(resolve=>s.close(resolve)); }
   audit.count=audit.screenshots.length;
-  audit.coverage=["SINNER SELECT/new-account form","all eight build tabs","major navigation sections","shop tabs","record import menu and routes","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog","keyboard focus","viewport overflow and target-size diagnostics"];
+  audit.coverage=["SINNER SELECT/new-account form","all eight build tabs and desktop tab-hover states","major navigation sections and desktop navigation-hover states","shop tabs","record import menu and routes with result parsing preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow and target-size diagnostics"];
   const requiredNotes=[
     "ビルド内のスキルタブ","ショップ分類:","記録の取り込みメニュー（3つの入口）",
     "テキスト流し込みを開き、自動スクロール後の入力欄が見える状態",
     "例文を入力し、解析結果・候補を確認する状態（確定しない）",
     "硝子窓から一括取り込むパネルを開いた状態（適用しない）",
     "所持人格リストの入力欄が見える状態（保存しない）",
+    "確認ダイアログでデータのないカテゴリ一覧を任意に展開した状態。適用しない",
     "クイック検索を開く","操作・保存シート",
     "共有URLから取り込む入口","読み込むカテゴリを選ぶ確認画面。適用しない"
   ];
