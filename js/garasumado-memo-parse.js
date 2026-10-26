@@ -1411,7 +1411,7 @@
         continue;
       }
       var prefix = text.slice(0, event.index);
-      var named = prefix.match(/[「『]([^「『」』]{1,60})[」』]\\s*を?\\s*$/);
+      var named = prefix.match(/[「『]([^「『」』]{1,60})[」』]\s*を?\s*$/);
       var currency = /^(?:LP|ＬＰ)$/i.test(currencyText) ? "lp" : "shards";
       out.push({
         name: named ? named[1].trim() : "叙述体の購入",
