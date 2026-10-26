@@ -181,6 +181,37 @@ function scanUnwarnedCurrencyLines(history, parsedRows, docId) {
   return out;
 }
 
+/* Independent check: explicit named purchases with a negative currency amount must
+   produce a spend row. This catches single purchases separately from the multiple-purchase
+   case already covered by scanUnwarnedCurrencyLines. */
+function scanUntrackedNarrativePurchases(history, docId) {
+  const out = [];
+  const pattern = /[「『]([^「『」』]+)[」』]\s*(?:を\s*)?(?:購入した(?:ので|ため)|買った(?:ので|ため))\s*(LP|ＬＰ|自我の(?:破片|欠片)|欠片|かけら|欠けら|カケラ)\s*-\s*([0-9][0-9,]*)/g;
+  history.forEach((row, index) => {
+    const memo = String(row?.memo || "");
+    const parsed = memoApi.parseMemo(memo);
+    for (const sourceLine of memo.split(/\r?\n/)) {
+      for (const match of sourceLine.matchAll(pattern)) {
+        const name = String(match[1]).trim();
+        const amount = Number(String(match[3]).replace(/,/g, ""));
+        const currency = /LP|ＬＰ/i.test(match[2]) ? "lp" : "shards";
+        const recorded = (parsed.spends || []).some((spend) =>
+          String(spend.name || "").trim() === name &&
+          Number(spend[currency]) === amount &&
+          String(spend.raw || "").includes(match[0])
+        );
+        if (!recorded) {
+          out.push({
+            id: docId, row: index + 1, title: String(row?.name || "無題"),
+            name, currency, amount, line: sourceLine.trim(), matchedText: match[0]
+          });
+        }
+      }
+    }
+  });
+  return out;
+}
+
 async function inspect(id) {
   const url = "https://lbt-garasumado.vercel.app/view/" + id;
   let fetched;
@@ -194,6 +225,7 @@ async function inspect(id) {
   }
 
   const history = Array.isArray(fetched.doc.scenarioHistory) ? fetched.doc.scenarioHistory : [];
+  const untrackedNarrativePurchases = scanUntrackedNarrativePurchases(history, id);
   const rows = history.map((row, index) => {
     const memo = String(row?.memo || "");
     const parsed = memoApi.parseMemo(memo);
@@ -259,6 +291,8 @@ async function inspect(id) {
     rowsWithChangedAmounts: changedRows.length,
     unwarnedCurrencyLineCount: unwarnedCurrencyLines.length,
     unwarnedCurrencyLines,
+    untrackedNarrativePurchaseCount: untrackedNarrativePurchases.length,
+    untrackedNarrativePurchases,
     fieldShapes,
     totals: {
       incomeLp: sumIncome(rows, "lp"),
@@ -308,7 +342,10 @@ for (const item of successes) {
   }
 }
 const allUnwarnedCurrencyLines = successes.flatMap((doc) => doc.unwarnedCurrencyLines || []);
+const allUntrackedNarrativePurchases = successes.flatMap((doc) => doc.untrackedNarrativePurchases || []);
 const summary = {
+  untrackedNarrativePurchaseCount: allUntrackedNarrativePurchases.length,
+  untrackedNarrativePurchases: allUntrackedNarrativePurchases,
   unwarnedCurrencyLineCount: allUnwarnedCurrencyLines.length,
   unwarnedCurrencyCounts: allUnwarnedCurrencyLines.reduce((out, row) => {
     out[row.currency] = (out[row.currency] || 0) + 1;
