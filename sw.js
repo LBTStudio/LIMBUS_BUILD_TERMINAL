@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-70e77e5a";
+const CACHE_NAME = "lbt-99d6eed5";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -69,7 +69,7 @@ const PRECACHE_URLS = [
   "js/garasumado-export-import.js?v=66700d44",
   "js/garasumado-import-ui.js?v=0729a448",
   "js/garasumado-memo-parse.js?v=6391aad2",
-  "js/garasumado-roster-import.js?v=596aebcf",
+  "js/garasumado-roster-import.js?v=4f056379",
   "js/generator.js?v=ff5f0a15",
   "js/icon-cropper.js?v=20900dc8",
   "js/ledger-import-reconcile.js?v=69d57ed7",
