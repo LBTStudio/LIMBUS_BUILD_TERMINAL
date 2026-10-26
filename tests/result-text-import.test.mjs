@@ -217,7 +217,7 @@ test("見出し記号のない日時付き記録も直前の記録へ結合し�
   assert.equal(parsed.records[0].title, "精神購入");
   assert.equal(parsed.records[0].income.lp, 0);
   assert.equal(parsed.records[0].income.shards, 0);
-  assert.equal(parsed.records[1].title, "囚人訓練　急　⬛︎⬛");
+  assert.equal(parsed.records[1].title, "囚人訓練　急　⬛︎⬛⬛");
   assert.equal(parsed.records[1].income.lp, 190);
   assert.equal(parsed.records[1].income.shards, 110);
 });
