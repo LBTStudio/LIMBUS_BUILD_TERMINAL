@@ -156,6 +156,16 @@ test("未作成アカウントのアイコンは保留して作成後に適用�
   assert.match(ui, /onClick: \(\) => iconEditor\.startPick\(PENDING_ACCOUNT_ID\)/, "保留もエディタ経由");
 });
 
+test("モバイルのアカウント操作と共有URL取り込みが重ならない", () => {
+  const mobileRules = css.slice(css.indexOf("@media (max-width: 640px)"));
+  assert.match(css, /\.acct-grid \{[\s\S]*?min-height: 0;[\s\S]*?flex: 1 1 auto;/, "カード一覧を縮めて中でスクロールできるようにする");
+  assert.match(mobileRules, /\.acct-card \{[\s\S]*?min-height: 148px;[\s\S]*?padding: var\(--s-3\) var\(--s-2\) calc\(var\(--s-3\) \+ 34px\);/, "下部アクション列の領域を確保する");
+  assert.match(mobileRules, /\.acct-meta \{[\s\S]*?overflow-wrap: anywhere;/, "更新日時を狭いカード幅でも折り返す");
+  const cloudCss = readFileSync(new URL("../assets/cloud-backup.css", import.meta.url), "utf8");
+  assert.match(cloudCss, /\.acct-panel:has\(\.acct-card--import-open\) > \.lbt-cloud-panel \{\s*display: none;/, "取り込み中は任意のクラウド保全パネルを退避する");
+  assert.match(cloudCss, /\.acct-panel:has\(\.acct-card--import-open\) > \.acct-grid \{[\s\S]*?flex: 1 1 0%;[\s\S]*?overflow-y: auto;/, "取り込みフォームにスクロール領域を渡す");
+});
+
 test("アクセス時のアカウント選択ゲートは毎回出て、選んだらそのアカウントで開く", () => {
   assert.match(ui, /const AccountGate = \(\) => \{/);
   assert.match(ui, /h\("main", \{ className: "acct-gate" \}/, "ゲート表示中は本体が出ないので main ランドマークになる");
