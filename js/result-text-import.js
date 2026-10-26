@@ -940,8 +940,11 @@
         );
         if (explicitAll && hasCurrencyCost && !totalCostsEqual(explicitSum, aggregate) && !complementaryCurrencyCosts) {
           skipped.push({
+            kind: "expense-total-mismatch",
+            recordTitle: title,
             text: "消費：" + consumeLines.join("、") + " / 獲得：" + descriptions.map((item) => item.raw).join("、"),
-            reason: "消費欄の通貨・合計と獲得品の個別価格が一致しません。個別価格は保持しましたが、原文の確認が必要です"
+            reason: "消費欄の通貨・合計と獲得品の個別価格が一致しません。個別価格は保持しましたが、原文の確認が必要です",
+            guidance: "消費欄の合計と、取得品ごとの価格・通貨を原文で照合してください。価格の誤記や別通貨の支払いがないか確認し、個別価格を残したままで問題ないと判断できた場合は「確認済みとして閉じる」を押せます。"
           });
         }
 
@@ -969,8 +972,11 @@
             : aggregate[key] === 0;
           if ((aggregate.lp || aggregate.shards) && (!divisible("lp") || !divisible("shards"))) {
             skipped.push({
+              kind: "expense-allocation-review",
+              recordTitle: title,
               text: "消費：" + consumeLines.join("、"),
-              reason: "獲得品ごとの費用配分が一意に決まらないため、合計費用は1件の支出として記録しました。品目別の配分は原文確認が必要です"
+              reason: "獲得品ごとの費用配分が一意に決まらないため、合計費用は1件の支出として記録しました。品目別の配分は原文確認が必要です",
+              guidance: "合計費用はすでに1件の支出として保持されています。チケット枚数・取得品数・消費合計を原文で確認してください。品目ごとの配分が記録されていなくても合計支出だけで問題なければ「確認済みとして閉じる」を押せます。"
             });
             record.spends.push({
               name: title, cost: { lp: aggregate.lp, shards: aggregate.shards },
@@ -1045,8 +1051,11 @@
           const pairs = currentPairs[key];
           if (pairs.length > 1) {
             skipped.push({
+              kind: "balance-ambiguous",
+              recordTitle: title,
               text: pairs.map((pair) => pair.raw).join(" / "),
-              reason: "同一リザルト内に異なる「現在所持" + label + "」の前後差分が複数あるため、収支照合を保留しました。原文確認が必要です"
+              reason: "同一リザルト内に異なる「現在所持" + label + "」の前後差分が複数あるため、収支照合を保留しました。原文確認が必要です",
+              guidance: "このリザルトに複数の残高ペアが含まれています。どのペアが今回の報酬・支出に対応するのか原文を確認してください。別の記録に属する残高行なら、貼り付け範囲を分けることも検討してください。"
             });
             continue;
           }
@@ -1056,9 +1065,26 @@
           const expected = (Number(record.income?.[key]) || 0) - resourceCosts(record, key);
           if (actual === expected) continue;
           const fmt = (amount) => (amount > 0 ? "+" : "") + String(amount);
+          const has50ShardPackReward = key === "shards" && [
+            ...(record.raw || []),
+            ...(record.ticketUses || []).map((ticket) => ticket.raw || ticket.sourceLine || "")
+          ].some((raw) => /パック/.test(String(raw || ""))
+            && /使用済(?:み)?/.test(String(raw || ""))
+            && /50\s*欠片/.test(toHalf(String(raw || ""))));
+          const packRewardMismatch = has50ShardPackReward && expected > actual;
+          const expectedBalance = pair.before + expected;
+          const kind = packRewardMismatch ? "balance-mismatch-pack" : "balance-mismatch";
+          const guidance = packRewardMismatch
+            ? (expected - actual === 50
+              ? "使用済みパックの獲得欄にある50欠片が、現在所持欄の差分に反映されていない可能性があります。使用済み記録と残高欄を照合してください。今回の記録だけで計算すると終了残高は " + (Number.isSafeInteger(expectedBalance) ? expectedBalance : "安全整数範囲外") + " になる見込みです。別の記録で既に加算済みなど、理由が確認できて問題がなければ「確認済みとして閉じる」を押せます。"
+              : "使用済みパックの獲得欄に50欠片が記録されていますが、残高の差分が計算と一致しません。パックの消費・獲得記録と現在所持欄を照合してください。今回の記録だけで計算した終了残高候補は " + (Number.isSafeInteger(expectedBalance) ? expectedBalance : "安全整数範囲外") + " です。別記録で反映済みなど、理由が確認できて問題がなければ「確認済みとして閉じる」を押せます。")
+            : "報酬欄・消費欄・現在所持欄を原文と照合してください。計算上の終了残高候補は " + (Number.isSafeInteger(expectedBalance) ? expectedBalance : "安全整数範囲外") + " ですが、別の取引・別記録がある場合は異なることがあります。原文を修正すると警告は再計算されます。確認できて問題がなければ「確認済みとして閉じる」を押せます。";
           skipped.push({
+            kind,
+            recordTitle: title,
             text: pair.raw,
-            reason: "現在所持" + label + "の差分が計算上の収支と一致しません（記録上 " + fmt(actual) + "、取込計算上 " + fmt(expected) + "）。収入・支出は自動修正していません。報酬欄・消費欄・残高欄の原文確認が必要です"
+            reason: "現在所持" + label + "の差分が計算上の収支と一致しません（記録上 " + fmt(actual) + "、取込計算上 " + fmt(expected) + "）。収入・支出は自動修正していません。原文確認が必要です",
+            guidance
           });
         }
       }
