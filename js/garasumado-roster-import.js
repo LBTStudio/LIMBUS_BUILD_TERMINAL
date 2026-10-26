@@ -590,6 +590,7 @@ function toIdentityChoices(hits) {
          以前は「48件すべて無料」と誤認して所持から落としていたが、
          そのせいで有料の精神まで購入記録ごと消えていた。 */
       const listed = names;
+      const sourceByName = new Map(source.map((row) => [nameKey(nameOf(row)), row]));
       /* アイテムは個数を持つ（包帯x2 等）。取り込みで数を落とさない。 */
       const itemQty = group.id === "items"
         ? new Map(source.map((it) => [nameKey(nameOf(it)), Number(it && it.count) || 1]))
@@ -598,6 +599,7 @@ function toIdentityChoices(hits) {
         id: group.id,
         label: group.label,
         items: listed.map((name) => {
+          const sourceEntry = sourceByName.get(nameKey(name));
           const hit = resolve ? resolve(name) : null;
           const candidates = toIdentityChoices(resolveMany ? resolveMany(name) : null);
           const sharedEnhancements = group.id === "personas" ? personaEnhancementsByName.get(nameKey(name)) : null;
@@ -606,6 +608,7 @@ function toIdentityChoices(hits) {
             ...(sharedEnhancements ? { importedEnhancementNames: sharedEnhancements.names } : {}),
             group: group.id,
             name,
+            ...(group.id === "egos" && sourceEntry && sourceEntry.rank ? { sourceRank: String(sourceEntry.rank) } : {}),
             quantity: itemQty ? (itemQty.get(nameKey(name)) || 1) : undefined,
             resolved: Boolean(hit),
             dbName: hit ? hit.name : "",
@@ -677,6 +680,7 @@ function toIdentityChoices(hits) {
           pack: parsed.pack,
           spends: parsed.spends,
           consumedItems: parsed.consumedItems || [],
+          ticketSpends: parsed.ticketSpends || [],
           reasons: parsed.reasons,
           /* シナリオで直接払い出された人格/E.G.O。 */
           wins,
@@ -788,6 +792,7 @@ function toIdentityChoices(hits) {
       },
       groups,
       scenarios,
+      purchaseHistory: purchaseScenario ? (purchaseScenario.spends || []).map((row) => ({ ...row, source: "freeNotes" })) : [],
       /* 所持品の帰属照合結果。matched=どのシナリオか判明、unmatched=履歴に記載なし。 */
       attribution,
       counts: {
@@ -925,7 +930,25 @@ function toIdentityChoices(hits) {
           }
         } else if (group.id === "egos") {
           if (!ego || !ego.no || !ego.rank) {
-            skipped.push({ key: item.key, reason: "DB番号かランクが引けない" });
+            const rank = String(item.sourceRank || "").toUpperCase();
+            const validRanks = new Set(["ZAYIN", "TETH", "HE", "WAW", "ALEPH"]);
+            const rawName = String((item.picked && item.picked.name) || item.name || "").trim();
+            const knownExact = (itemDb.egos || []).find((row) =>
+              validRanks.has(rank) && row && String(row.rank || "").toUpperCase() === rank
+              && nameKey(row.name) === nameKey(rawName));
+            if (knownExact) {
+              const key = `ego:${knownExact.rank}:${knownExact.no}`;
+              if (!taken.has(key)) {
+                taken.add(key);
+                actions.push({ type: "ADD_ROSTER_EGO", no: String(knownExact.no), rank: knownExact.rank, via });
+              }
+              continue;
+            }
+            if (validRanks.has(rank) && !(item.identityCandidates || []).length && !(item.candidates || []).length) {
+              actions.push({ type: "ADD_CUSTOM_ROSTER_EGO", name: rawName, rank, via });
+              continue;
+            }
+            skipped.push({ key: item.key, reason: "DB番号かランクが引けない（独自E.G.Oは元データのランクが必要）" });
             continue;
           }
           taken.add(`ego:${ego.rank}:${ego.no}`);
@@ -1055,6 +1078,37 @@ function toIdentityChoices(hits) {
         consumedItems: Array.isArray(scenario.consumedItems) ? scenario.consumedItems : []
       });
 
+      /* チケット消費は収入に加算しない。履歴に使用と明記された分だけ消費アクションにする。 */
+      for (const spend of scenario.ticketSpends || []) {
+        if (!spend || !["persona", "ego", "choice", "pack"].includes(spend.kind)) continue;
+        if (spend.kind === "pack" && !String(spend.pack || "").trim()) {
+          skipped.push({ key: scenario.key, reason: "パックチケットの使用先が特定できないため消費記録を保留" });
+          continue;
+        }
+        /* 履歴上の使用は残高不足でも監査明細に残す。SPEND_TICKET は所持残数0だと
+           action自体が無視されるので、履歴取込では明細に記録し残数計算に委ねる。 */
+        const count = spend.count || 1;
+        const ticketUse = { persona: 0, ego: 0, choice: 0, pack: {} };
+        let ticketName = "";
+        if (spend.kind === "pack") {
+          Object.defineProperty(ticketUse.pack, String(spend.pack), {
+            value: count, enumerable: true, configurable: true, writable: true
+          });
+          ticketName = "パックチケット「" + String(spend.pack) + "」";
+        } else {
+          ticketUse[spend.kind] = count;
+          ticketName = ({ persona: "人格抽出チケット", ego: "E.G.O抽出チケット", choice: "選択抽出チケット" })[spend.kind] || "抽出チケット";
+        }
+        actions.push({
+          type: "ADD_ENTRY",
+          kind: "other",
+          name: "履歴上の使用：" + ticketName + (count > 1 ? " ×" + count : ""),
+          cost: { lp: 0, shards: 0 },
+          tickets: ticketUse,
+          note: "硝子窓の履歴に使用と記載。取得元・残数が不明な場合も使用記録は保持"
+        });
+      }
+
       /* シナリオで直接払い出された人格/E.G.O。所持へ足す。
          チケット由来なら「どのチケット由来か」を使って
          消費記録を 1 件残し、直近のリザルトに帰属させる。
@@ -1138,6 +1192,28 @@ function toIdentityChoices(hits) {
           cost: pick.cost
         });
       }
+    }
+
+    /* 自由メモの購入履歴は架空のリザルトを作らず、金額のある明細だけを残す。
+       日時・元シナリオが不明なので明示的に未分類にし、残高計算には含める。 */
+    for (const purchase of (manifest && manifest.purchaseHistory) || []) {
+      const cost = { lp: Number(purchase.lp) || 0, shards: Number(purchase.shards) || 0 };
+      if (!cost.lp && !cost.shards) {
+        skipped.push({ key: "purchase-history:" + String(purchase.name || ""), reason: "自由メモの購入額が確定できないため支出に計上しない" });
+        continue;
+      }
+      const hit = typeof opts.resolve === "function" ? opts.resolve(purchase.name) : null;
+      const sourceKind = (hit?.kinds || []).find((k) => ["support", "deathSupport", "spirit", "enhancement"].includes(k.kind))?.kind;
+      const kind = sourceKind === "deathSupport" ? "deathSupport"
+        : ["support", "spirit", "enhancement"].includes(sourceKind) ? sourceKind : "other";
+      actions.push({
+        type: "ADD_ENTRY",
+        kind,
+        name: String(purchase.name || "自由メモの購入").slice(0, 120),
+        cost,
+        resultId: null,
+        note: "硝子窓の自由メモ由来。日時・シナリオ未特定"
+      });
     }
 
     return { actions, skipped };
@@ -1505,6 +1581,9 @@ function reconcileBalance(manifest, doc) {
     openingLp: null, openingShards: null,
     computedLp: null, computedShards: null,
     shownLp, shownShards: shownSh,
+    historyNetLp: 0, historyNetShards: 0,
+    impliedOpeningLp: null, impliedOpeningShards: null,
+    hasManualReference: shownLp !== null || shownSh !== null,
     message: ""
   };
   const scenarios = (manifest && manifest.scenarios) || [];
@@ -1552,8 +1631,18 @@ function reconcileBalance(manifest, doc) {
 
   out.openingLp = openingLp;
   out.openingShards = openingSh;
+  /* 自由メモ購入は取引時点が不明なため、開始アンカーとの照合計算には混ぜない。
+     アンカーが無い場合の「履歴純増減」には含め、手入力残高を自動補正しない。 */
+  const untimedPurchases = ((manifest && manifest.purchaseHistory) || []).reduce((sum, row) => ({
+    lp: sum.lp + (Number(row && row.lp) || 0),
+    shards: sum.shards + (Number(row && row.shards) || 0)
+  }), { lp: 0, shards: 0 });
+  out.historyNetLp = incLp - spLp - untimedPurchases.lp;
+  out.historyNetShards = incSh - spSh - untimedPurchases.shards;
   if (openingLp === null && openingSh === null) {
-    out.message = "残高変動の記載が無いので照合しません。";
+    out.impliedOpeningLp = shownLp === null ? null : shownLp - out.historyNetLp;
+    out.impliedOpeningShards = shownSh === null ? null : shownSh - out.historyNetShards;
+    out.message = "履歴に開始残高の基準が無いため、手入力の現在値との一致判定は保留しています。";
     return out;
   }
   out.checked = true;
