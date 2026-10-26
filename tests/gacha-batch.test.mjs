@@ -343,8 +343,9 @@ test("APPLY_DRAW_BATCH は抽出オブジェクトとログを最新リザルト
   const before = {
     ...base(),
     results: [
-      { id: "older-result", name: "前のリザルト", income: { lp: 1000, shards: 100 } },
-      { id: "latest-result", name: "最新リザルト", income: { lp: 1000, shards: 100 } }
+      { id: "latest-result", name: "最新リザルト", date: "2026-10-26", createdAt: 200, income: { lp: 1000, shards: 100 } },
+      /* セッション日付が古いレコードが配列末尾にあっても、作成時刻だけで最新扱いしない。 */
+      { id: "older-result", name: "前のリザルト", date: "2026-10-25", createdAt: 900, income: { lp: 1000, shards: 100 } }
     ]
   };
   const cost = batch.records.reduce((total, record) => ({
@@ -352,11 +353,13 @@ test("APPLY_DRAW_BATCH は抽出オブジェクトとログを最新リザルト
     shards: total.shards + (Number(record.cost?.shards) || 0)
   }), { lp: 0, shards: 0 });
 
+  const resultId = w.LBT_latestResultId(before);
+  assert.equal(resultId, "latest-result", "表示の「新しい順」で先頭になるリザルトを選ぶ（配列末尾とは限らない）");
   const applied = w.appReducer(before, {
     type: "APPLY_DRAW_BATCH",
     batch,
     cost,
-    resultId: "latest-result"
+    resultId
   });
   const objectEntries = applied.entries.filter((entry) => entry.ref?.kind === "rosterPersona" || entry.ref?.kind === "rosterEgo");
   assert.equal(objectEntries.length, batch.records.length, "抽出した各オブジェクトに取得明細ができる");
@@ -367,7 +370,7 @@ test("APPLY_DRAW_BATCH は抽出オブジェクトとログを最新リザルト
     type: "ADD_DRAW_RECORD",
     __sealed: true,
     batch,
-    entry: { id: "draw-log-latest-result", resultId: "latest-result" }
+    entry: { id: "draw-log-latest-result", resultId }
   });
   assert.equal(logged.draws.length, 1, "抽出証明を保存する");
   assert.equal(logged.gachaLog[0]?.resultId, "latest-result", "抽出ログも同じリザルトへの帰属を保持する");
