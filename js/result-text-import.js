@@ -1068,7 +1068,7 @@
           const has50ShardPackReward = key === "shards" && [
             ...(record.raw || []),
             ...(record.ticketUses || []).map((ticket) => ticket.raw || ticket.sourceLine || "")
-          ].some((raw) => /(?:パック|チケット)/.test(String(raw || ""))
+          ].some((raw) => /パック/.test(String(raw || ""))
             && /使用済(?:み)?/.test(String(raw || ""))
             && /50\s*欠片/.test(toHalf(String(raw || ""))));
           const packRewardMismatch = has50ShardPackReward && expected > actual;
