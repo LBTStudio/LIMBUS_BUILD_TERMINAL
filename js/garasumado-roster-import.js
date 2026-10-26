@@ -1436,6 +1436,7 @@ function toIdentityChoices(hits) {
       memo: String(scenario.memo || ""),
       income: scenario.income || { lp: 0, shards: 0 },
       tickets: scenario.tickets || {},
+      reasons: Array.isArray(scenario.reasons) ? scenario.reasons : [],
       items: []
     }));
     const blockOfName = new Map();
@@ -1584,12 +1585,13 @@ function findBalanceAnchor(memo, currency) {
   const normalized = String(memo || "").replace(/\r\n/g, "\n");
   const marker = currency === "lp" ? /(?:LP|ＬＰ)/i : /(?:欠片|かけら|欠けら|カケラ|けっか)/;
   const amountAfterCurrent = currency === "lp"
-    ? /現在\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:LP|ＬＰ)?\s*[：:]?\s*([0-9][0-9,]*)\s*(?:LP|ＬＰ)?(?:\s*[→⇒]\s*([0-9][0-9,]*))?/i
-    : /現在\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:(?:欠片|かけら|欠けら|カケラ|けっか)\s*)?\s*[：:]?\s*([0-9][0-9,]*)\s*(?:欠片|かけら|欠けら|カケラ|けっか)?(?:\s*[→⇒]\s*([0-9][0-9,]*))?/;
+    ? /(?:現在|現座)\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:LP|ＬＰ)?\s*[：:]?\s*([0-9][0-9,]*)\s*(?:LP|ＬＰ)?(?:\s*[→⇒]\s*([0-9][0-9,]*))?/i
+    : /(?:現在|現座)\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:(?:欠片|かけら|欠けら|カケラ|けっか)\s*)?\s*[：:]?\s*([0-9][0-9,]*)\s*(?:欠片|かけら|欠けら|カケラ|けっか)?(?:\s*[→⇒]\s*([0-9][0-9,]*))?/;
   let offset = 0;
   for (const line of normalized.split("\n")) {
     const lineForParsing = normalizeCurrencyText(line);
-    const currentAt = line.indexOf("現在");
+    const currentMatch = line.match(/現在|現座/);
+    const currentAt = currentMatch ? currentMatch.index : -1;
     if (currentAt >= 0 && marker.test(lineForParsing)) {
       /* 全角数字と英字は1コード単位で半角化されるので、現在の位置は変わらない。 */
       const match = lineForParsing.slice(currentAt).match(amountAfterCurrent);
