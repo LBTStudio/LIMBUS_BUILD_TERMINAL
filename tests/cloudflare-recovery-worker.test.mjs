@@ -17,7 +17,7 @@ const recovery = read("supabase/functions/lbt-account-recovery/index.ts");
 test("復旧キーは不変で、クライアントに再発行導線がない", () => {
   assert.match(client, /CLOUDFLARE_RECOVERY_ENDPOINT/);
   assert.match(client, /async function getRemote\(options = \{\}\)/);
-  assert.match(client, /同じ世代番号の異なるデータ/);
+  assert.match(client, /同じ世代に異なるデータがあります/);
   assert.doesNotMatch(client, /rotateRecoveryKey|rotate_recovery|復旧キーを再発行/);
   assert.doesNotMatch(recovery, /rotate_recovery|newRecoveryKey/);
   assert.doesNotMatch(worker, /rotate_recovery|newRecoveryKey/);
@@ -40,7 +40,7 @@ test("両保管先の世代を照合し、同一世代の異なる内容は自�
   assert.match(client, /olderProvider, key, Number\(olderHead\.revision\), Number\(newerHead\.revision\)/);
   assert.match(client, /同じ世代に異なるデータがあります/);
   assert.match(client, /olderProvider/);
-  assert.match(worker, /currentRevision !== expectedRevision/);
+  assert.match(worker, /actualRevision !== expectedRevision/);
   assert.match(worker, /write_token/);
   assert.match(recovery, /currentRevision !== expectedRevision/);
 });
