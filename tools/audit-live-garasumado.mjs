@@ -166,6 +166,10 @@ async function inspect(id) {
     const baseReviewKinds = [...new Set((baseline.reasons || []).map((r) => classifyReason(r.reason)))];
     const rowResult = {
       index: index + 1,
+      sourceTitle: String(row?.name || "無題"),
+      sourceMemo: memo,
+      parsedReasons: parsed.reasons || [],
+      baselineReasons: baseline.reasons || [],
       hasMemo: Boolean(memo.trim()),
       currentMarkerCount: (memo.match(/現在|現座/g) || []).length,
       incomeLp: parsed.income.lp,
@@ -238,8 +242,13 @@ async function inspect(id) {
       historyNetShards: balance.historyNetShards,
       message: balance.message || ""
     },
-    // Keep line-level results but deliberately omit record titles and raw memo text.
-    rows
+    // Expose raw source only for rows that need review or whose extracted amounts changed.
+    rows: rows.map((row) => {
+      const { sourceTitle, sourceMemo, parsedReasons, baselineReasons, ...summaryRow } = row;
+      return row.reviewCount > 0 || row.amountsChanged || row.currentMarkerCount > 0
+        ? { ...summaryRow, title: sourceTitle, memo: sourceMemo, reasons: parsedReasons, baselineReasons }
+        : summaryRow;
+    })
   };
 }
 
@@ -291,9 +300,12 @@ const summary = {
     id:x.id,
     changedRows:x.rows.filter(r=>r.amountsChanged).map(r=>({
       row:r.index,
+      title:r.sourceTitle,
+      memo:r.sourceMemo,
       before:{incomeLp:r.baselineIncomeLp,incomeShards:r.baselineIncomeShards,spendLp:r.baselineSpendLp,spendShards:r.baselineSpendShards},
       after:{incomeLp:r.incomeLp,incomeShards:r.incomeShards,spendLp:r.spendLp,spendShards:r.spendShards},
       reasons:r.reviewKinds,
+      reasonDetails:r.parsedReasons,
       baselineReviewKinds:r.baselineReviewKinds
     }))
   })),
