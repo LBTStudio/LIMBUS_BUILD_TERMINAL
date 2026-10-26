@@ -399,9 +399,31 @@ async function boot() {
     await page.waitForLoadState("networkidle",{timeout:12000}).catch(()=>{});
     await page.waitForTimeout(600);
     if(await visible(page.locator(".acct-gate"))) {
-      const card=page.locator(".acct-card--gate").filter({hasText:"UI監査用キャラクター"}).first();
-      if(await visible(card)) await click(card);
-      else if(await visible(page.locator(".acct-card--gate").first())) await click(page.locator(".acct-card--gate").first());
+      await snap("account-gate-after-reload","監査用データ保存後、再読込した際のSINNER SELECT");
+      // The whole-card hit button is intentionally transparent (opacity: 0) and sits
+      // above the visible card body. Use that actual hit target, not the card body.
+      const hit=page.locator(".acct-card--gate .acct-card-hit").first();
+      if((await hit.count())>0) await hit.click({force:true,timeout:3500}).catch(()=>{});
+      await page.waitForTimeout(500);
+      const currentRail=page.locator(".rail-item").first();
+      const opened=(await currentRail.count())>0 && await currentRail.isVisible().catch(()=>false);
+      audit.accountSelectAfterReload={opened,gateStillVisible:await visible(page.locator(".acct-gate"))};
+      if(!opened) {
+        // If the pointer layer cannot dispatch in headless Chromium, use the same
+        // selection event after recording the failed user path. This only touches
+        // the disposable CI browser; no user storage or hosted state is involved.
+        const fallback=await page.evaluate(() => {
+          const api=window.LBT_accounts;
+          const raw=api?.list?.();
+          const accounts=Array.isArray(raw)?raw:(Array.isArray(raw?.accounts)?raw.accounts:[]);
+          const id=api?.getActiveId?.() || accounts[0]?.id;
+          if(!id || !api?.switch?.(id)) return {ok:false,reason:"no selectable account"};
+          window.dispatchEvent(new CustomEvent("lbt:accounts-entered",{detail:{id}}));
+          return {ok:true,id};
+        });
+        audit.accountSelectFallback=fallback;
+        await page.waitForTimeout(500);
+      }
     }
     await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
   }
