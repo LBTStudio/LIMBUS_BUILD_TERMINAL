@@ -2377,3 +2377,116 @@ body.has-detail-dialog main.preview { overflow: hidden; }
   animation: salmon-swim 4.2s cubic-bezier(0.45, 0, 0.55, 1) infinite;
   transform-origin: 50% 50%;
 }
+
+/* ============================================================
+   UI audit refinements (2026-10): mobile reachability + import dialog
+   ============================================================ */
+@media (max-width: 640px) {
+  /* The preview control lives in the unused sixth cell of the second
+     bottom-navigation row instead of covering section headings and tabs. */
+  .preview-edge-toggle {
+    top: auto;
+    right: 4px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 4px);
+    width: calc((100vw - 28px) / 6);
+    height: 52px;
+    min-height: 52px;
+    padding: 4px 2px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r);
+    writing-mode: horizontal-tb;
+    font-size: 10px;
+    line-height: 1.1;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+  }
+  .preview-edge-toggle:focus-visible {
+    outline: 2px solid var(--gold-hi);
+    outline-offset: 2px;
+  }
+
+  /* The preview control no longer needs reserved title space on narrow screens.
+     Slightly smaller, tighter headings prevent a single Japanese character
+     being stranded on its own line after an English title. */
+  .section-title-row {
+    padding-right: 0;
+    column-gap: var(--s-2);
+  }
+  .section-title {
+    min-width: 0;
+    font-size: clamp(15px, 4vw, 17px);
+    line-height: 1.15;
+    letter-spacing: 0.01em;
+  }
+
+  /* Eight build tabs become an explicit 4x2 grid; no hidden tabs or swipe-only
+     discovery. Every tab keeps a predictable >=40px touch height. */
+  .build-tabs {
+    width: 100%;
+    min-width: 0;
+  }
+  .build-tabs > .segmented {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    width: 100%;
+    max-width: 100%;
+    overflow: visible;
+  }
+  .build-tabs > .segmented > button {
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    padding: 7px 3px;
+    font-size: 12px;
+    line-height: 1.2;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  /* The import scope dialog keeps its actions visible while only the category
+     list scrolls. This avoids forcing users to scroll past every checkbox just
+     to reach Cancel / Apply on a phone. */
+  .share-modal-backdrop > .card {
+    min-height: 0;
+    padding: 12px;
+  }
+  .share-modal-backdrop > .card > .stack-2 {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-bottom: 4px;
+  }
+  .share-modal-backdrop > .card > div:last-child {
+    flex: 0 0 auto;
+    padding-top: 10px;
+    border-top: 1px solid var(--line-dim);
+    background: var(--surface-1);
+  }
+  .share-modal-backdrop > .card > div:last-child .btn {
+    min-height: 40px;
+  }
+}
+.import-empty-groups-toggle {
+  align-self: flex-start;
+  min-height: 36px;
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--tx-dim);
+  font-size: var(--fs-11);
+  line-height: 1.35;
+  cursor: pointer;
+}
+.import-empty-groups-toggle:hover,
+.import-empty-groups-toggle:focus-visible {
+  color: var(--tx);
+  border-color: var(--gold-line);
+}
+.import-empty-groups-toggle:focus-visible {
+  outline: 2px solid var(--gold-hi);
+  outline-offset: 2px;
+}
