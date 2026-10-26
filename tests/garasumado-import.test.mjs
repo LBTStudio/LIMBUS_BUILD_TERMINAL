@@ -900,6 +900,9 @@ test("収支精度回帰: 実際の共有書式から収入・支出・チケッ
   assert.equal(sums.types.SPEND_TICKET, 1, "抽出元チケットの使用を収入へ混ぜない");
   assert.equal(sums.types.ADD_CUSTOM_ROSTER_EGO, 1, "DB未登録E.G.Oも記載ランクを保って所持に残す");
   assert.equal(sums.types.ADD_ITEM_INVENTORY, 1, "所持アイテムも正しいDB IDへ変換する");
+  const freeNotePurchases = actions.filter((action) => action.note === "硝子窓の自由メモ由来。日時・シナリオ未特定");
+  assert.equal(freeNotePurchases.length, 2, "自由メモ購入2件を独立して記録");
+  assert.ok(freeNotePurchases.every((action) => action.resultId === null), "時期不明の取引に偽のリザルト帰属を付けない");
   assert.deepEqual([...skipped], [], "対象を不明なまま黙って落とさない");
 });
 
