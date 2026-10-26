@@ -1,4 +1,13 @@
 /* Optional cloud backup/recovery panel. Keep styles on the shared design tokens. */
+
+/* Optional cloud backup/recovery panel. Keep styles on the shared design tokens. */
+
+/* 共有URL取り込みを開いている間は、任意のオンライン保全パネルを一時退避し、
+   取り込みフォームとカード一覧の表示・スクロール領域を優先する。 */
+.acct-panel:has(.acct-card--import-open) {
+  max-height: min(92dvh, 900px);
+}
+.acct-panel:has(.acct-card--import-open) >
 .lbt-cloud-panel {
   display: grid;
   gap: var(--s-3);

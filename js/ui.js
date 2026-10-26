@@ -140,7 +140,21 @@ const Button = ({ variant = "default", size = "md", icon, iconRight, children, c
 };
 const Card = ({ children, className = "", frame = false }) => /* @__PURE__ */ React.createElement("div", { className: `${frame ? "frame" : "card"} ${className}`.trim() }, children);
 /* 見出しは span ではなく h2 を使う。見出し階層が皆無で h1 も 0 だったため。 */
-const SectionTitle = ({ num, title, subtitle, children }) => /* @__PURE__ */ React.createElement("div", { className: "section-title-row" }, num && /* @__PURE__ */ React.createElement("span", { className: "section-title-num" }, num), /* @__PURE__ */ React.createElement("h2", { className: "section-title" }, title), subtitle && /* @__PURE__ */ React.createElement("span", { className: "section-subtitle" }, subtitle), children);
+const SectionTitle = ({ num, title, subtitle, children }) => {
+  const titleSeparator = typeof title === "string" ? title.indexOf(" / ") : -1;
+  const titleMatch = titleSeparator > 0 ? [null, title.slice(0, titleSeparator), title.slice(titleSeparator + 3)] : null;
+  const titleContent = titleMatch
+    ? React.createElement(React.Fragment, null,
+        React.createElement("span", { className: "section-title-primary" }, titleMatch[1]),
+        " / ",
+        React.createElement("span", { className: "section-title-secondary" }, titleMatch[2]))
+    : title;
+  return React.createElement("div", { className: "section-title-row" },
+    num && React.createElement("span", { className: "section-title-num" }, num),
+    React.createElement("h2", { className: "section-title" }, titleContent),
+    subtitle && React.createElement("span", { className: "section-subtitle" }, subtitle),
+    children);
+};
 const Segmented = ({ value, onChange, options }) => /* @__PURE__ */ React.createElement("div", { className: "segmented", role: "tablist" }, options.map((opt) => /* @__PURE__ */ React.createElement(
   "button",
   {
