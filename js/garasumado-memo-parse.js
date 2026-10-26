@@ -1033,8 +1033,9 @@
            先頭の数値だけを採用することもしない。曖昧な通貨は全て保留し、警告する。 */
         var pairCountByCurrency = { lp: 0, shards: 0 };
         pairs.forEach(function (pair) { pairCountByCurrency[pair.currency] += 1; });
+        var explicitIncomeContext = /獲得|入手|報酬|補填|支給|受領|被り|重複|ガチャ結果|抽選結果|合計|合算|小計|総計/.test(line);
         var ambiguousCurrencies = ["lp", "shards"].filter(function (currency) {
-          return pairCountByCurrency[currency] > 1 && !/[+＋=＝]/.test(line);
+          return pairCountByCurrency[currency] > 1 && !/[+＋=＝]/.test(line) && !explicitIncomeContext;
         });
         if (ambiguousCurrencies.length) {
           ambiguousCurrencies.forEach(function (currency) {
