@@ -283,7 +283,7 @@ test("テーマパック権をパック別チケットとして認識し、指�
   const parsed = T.parseText([
     "▼人格抽出-テーマパック",
     "日時：2026/09/23",
-    "消費：任意のテーマパック権+1",
+    "消費：任意の200LP以下のテーマパック+1権",
     "指定：断ち切れない(300LP)",
     "獲得：仮人格の人格",
     "現在所持LP：91",
@@ -293,7 +293,7 @@ test("テーマパック権をパック別チケットとして認識し、指�
   assert.equal(parsed.records.length, 1);
   assert.deepEqual([...parsed.records[0].ticketUses].map((ticket) => ({
     kind: ticket.kind, pack: ticket.pack, count: ticket.count
-  })), [{ kind: "pack", pack: "任意のテーマパック", count: 1 }]);
+  })), [{ kind: "pack", pack: "任意の200LP以下のテーマパック", count: 1 }]);
 
   const planned = T.plan(parsed, {
     resolve: (name) => name === "仮人格の人格"
@@ -302,7 +302,7 @@ test("テーマパック権をパック別チケットとして認識し、指�
   });
   const ticketSpend = planned.actions.find((action) => action.type === "SPEND_TICKET");
   assert.equal(ticketSpend?.kind, "pack");
-  assert.equal(ticketSpend?.pack, "任意のテーマパック");
+  assert.equal(ticketSpend?.pack, "任意の200LP以下のテーマパック");
   assert.equal(ticketSpend?.count, -1);
   assert.ok(planned.actions.some((action) => action.type === "ADD_ENTRY" && action.name === "断ち切れない"
     && action.cost.lp === 300 && action.cost.shards === 0));
