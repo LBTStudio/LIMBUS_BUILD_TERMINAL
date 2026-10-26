@@ -68,7 +68,7 @@ async function closeOverlay() {
     let target = await visible(byLabel) ? byLabel : (await visible(byGlyph) ? byGlyph : null);
     if (!target) {
       // Fallback for icon-only close controls inside the currently visible modal shell.
-      const shell = page.locator('[role="dialog"]:visible, [aria-modal="true"]:visible, .share-modal-backdrop:visible, .acct-overlay:visible, .utility-sheet-backdrop:visible, .cp-overlay:visible').last();
+      const shell = page.locator('[role="dialog"]:visible, [aria-modal="true"]:visible, .share-modal-backdrop:visible, .state-import-backdrop:visible, .acct-overlay:visible, .utility-sheet-backdrop:visible, .cp-overlay:visible').last();
       if (await visible(shell)) {
         const buttons = shell.locator("button:visible");
         const n = await buttons.count();
