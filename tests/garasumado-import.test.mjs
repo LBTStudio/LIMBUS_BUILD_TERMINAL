@@ -1928,3 +1928,29 @@ test("人格orE.G.O抽出チケットは引き続き真の種別不明として�
   assert.equal(r.tickets.ego, 0);
   assert.equal(r.tickets.choice, 0);
 });
+
+
+test("自由メモ購入の共有元キーは金額修正後も安定する", () => {
+  const makeDoc = (lp) => G.mergeGarasumadoDocuments([{
+    id: "share123",
+    url: "https://lbt-garasumado.vercel.app/view/share123",
+    updateTime: "2026-10-27T00:00:00Z",
+    doc: {
+      name: "テストキャラクター", plName: "テストPL",
+      owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+      scenarioHistory: [],
+      freeNotes: { secret: "LP-" + lp + " サポートパッシブ「人生一発」購入", history: "", memo: "", setting: "" }
+    }
+  }]);
+  const beforeDoc = makeDoc(20);
+  const afterDoc = makeDoc(30);
+  assert.equal(beforeDoc.__lbtFreeNotesSourceId, "share123");
+  const before = G.buildManifest(beforeDoc, null);
+  const after = G.buildManifest(afterDoc, null);
+  assert.equal(before.freeNotesSourceId, "share123");
+  assert.equal(before.purchaseHistory.length, 1);
+  assert.equal(before.purchaseHistory[0].importSourceKey, after.purchaseHistory[0].importSourceKey,
+    "金額が直っても購入元キーは変えない");
+  assert.equal(before.purchaseHistory[0].lp, 20);
+  assert.equal(after.purchaseHistory[0].lp, 30);
+});
