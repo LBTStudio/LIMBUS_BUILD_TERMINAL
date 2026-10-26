@@ -531,7 +531,9 @@
         const line = rawLine.trim();
         if (!line) continue;
 
-        const fieldValue = line.match(/^([^:：\t]{1,36})\s*(?:[:：]|\t+)\s*(.*)$/);
+        const fieldValue = line.match(/^([^:：\t]{1,36})\s*(?:[:：]|\t+)\s*(.*)$/)
+          || (/^(?:消費|消費欄|消費額|消費合計|報酬|獲得|指定|該当人格|対象|強化対象人格|日時|現在所持LP|現在所持欠片|LP|欠片|自我の欠片|GM|備考|強化内容|アイテム|欠片合計|合計)$/.test(line)
+            ? [line, line, ""] : null);
         const rawLabel = fieldValue ? fieldValue[1].trim() : "";
         const label = fieldValue ? fieldKey(rawLabel) : "";
         const value = fieldValue ? fieldValue[2].trim() : "";
