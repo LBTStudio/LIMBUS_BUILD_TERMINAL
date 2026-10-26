@@ -117,8 +117,12 @@ async function snap(name, note) {
   const m=await readMetrics();
   audit.screenshots.push({name:base,note:note||"",file:path.relative(ROOT,file),metrics:m});
   if(m.horizontalOverflow) audit.layoutWarnings.push({name:base,type:"document-horizontal-overflow",viewport:m.viewport,document:m.document});
-  if(view==="mobile") for(const element of (m.layoutElements||[]).filter(e=>e.id==="lbt-preview-edge-toggle" || e.className.split(" ").includes("preview-edge-toggle"))) {
-    if(element.rect.y < 220) audit.layoutWarnings.push({name:base,type:"preview-toggle-overlaps-header",rect:element.rect,style:element.style});
+  if(view==="mobile") {
+    const previewControls=(m.layoutElements||[]).filter(e=>e.id==="lbt-preview-edge-toggle" || e.className.split(/\\s+/).includes("preview-reopen") || e.className.split(/\\s+/).includes("preview-close"));
+    if(previewControls.length>1) audit.layoutWarnings.push({name:base,type:"duplicate-preview-controls",controls:previewControls});
+    for(const element of (m.layoutElements||[]).filter(e=>e.id==="lbt-preview-edge-toggle" || e.className.split(/\\s+/).includes("preview-edge-toggle"))) {
+      if(element.rect.y < 220) audit.layoutWarnings.push({name:base,type:"preview-toggle-overlaps-header",rect:element.rect,style:element.style});
+    }
   }
   log("captured "+base);
 }
@@ -445,13 +449,16 @@ async function main() {
   audit.count=audit.screenshots.length;
   audit.coverage=["SINNER SELECT/new-account form","all eight build tabs and desktop tab-hover states","major navigation sections and desktop navigation-hover states","shop tabs","record import menu and routes with result parsing preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow and target-size diagnostics"];
   const requiredNotes=[
-    "ビルド内のスキルタブ","ショップ分類:","記録の取り込みメニュー（3つの入口）",
+    "ビルド内の人格タブ","ビルド内のスキルタブ","ビルド内のパッシブタブ","ビルド内の強化タブ","ビルド内のサポートタブ","ビルド内のE.G.Oタブ","ビルド内の精神タブ","ビルド内のアイテムタブ",
+    "ショップ分類: 人格","ショップ分類: サポート","ショップ分類: E.G.O","ショップ分類: 精神","ショップ分類: アイテム","ショップ分類: ガチャ",
+    "記録の取り込みメニュー（3つの入口）",
     "テキスト流し込みを開き、自動スクロール後の入力欄が見える状態",
     "例文を入力し、解析結果・候補を確認する状態（確定しない）",
     "硝子窓から一括取り込むパネルを開いた状態（適用しない）",
     "所持人格リストの入力欄が見える状態（保存しない）",
     "確認ダイアログでデータのないカテゴリ一覧を任意に展開した状態。適用しない",
     "クイック検索を開く","操作・保存シート",
+    "共有シートの方法選択ダイアログ","共有方法から新規タブで開いた自己確認用HTML",
     "共有URLから取り込む入口","読み込むカテゴリを選ぶ確認画面。適用しない"
   ];
   audit.missingRequiredCaptures=[];
@@ -462,8 +469,9 @@ async function main() {
       }
     }
   }
-  fs.writeFileSync(path.join(OUT,"manifest.json"),JSON.stringify(audit,null,2)+"\n");
-  log("finished: "+audit.count+" screenshots; failures="+audit.failures.length+"; missing-required="+audit.missingRequiredCaptures.length+"; horizontal-overflow="+audit.layoutWarnings.length);
-  if(audit.count<30 || audit.missingRequiredCaptures.length || audit.pageErrors.length) process.exitCode=1;
+  audit.criticalLayoutWarnings=audit.layoutWarnings.filter((item)=>["document-horizontal-overflow","duplicate-preview-controls","preview-toggle-overlaps-header"].includes(item.type));
+  fs.writeFileSync(path.join(OUT,"manifest.json"),JSON.stringify(audit,null,2)+"\\n");
+  log("finished: "+audit.count+" screenshots; failures="+audit.failures.length+"; missing-required="+audit.missingRequiredCaptures.length+"; critical-layout-warnings="+audit.criticalLayoutWarnings.length);
+  if(audit.count<30 || audit.missingRequiredCaptures.length || audit.pageErrors.length || audit.criticalLayoutWarnings.length) process.exitCode=1;
 }
 main().catch(e=>{console.error("[ui-audit] fatal: "+(e&&e.stack||String(e)));process.exitCode=1;});
