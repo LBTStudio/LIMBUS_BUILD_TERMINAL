@@ -471,6 +471,23 @@ test("実サンプル: 購入した精神 憎悪 がシナリオカードの DB 
   assert.ok(row.candidates.some((c) => c.name === "憎悪" && c.kind === "spirit"), "DB 候補に本人（精神）が入る");
 });
 
+/* 確認画面の DB 候補セレクトは行の picked を見て値を決める。行（record）が
+   picked を写していないと、選んでも表示が「選んでください」へ戻り、
+   選べないように見える（2026-10-27 実機・ブラウザで再現）。 */
+test("シナリオカードの行は選ばれた DB 候補（picked）を保持する", () => {
+  const mmib = samples.mMIbGr32lGZix60RDmoN.doc;
+  const m = G.buildManifest(mmib, { resolve, candidates: (n) => w.LBT_resolveCandidates(index, n) || [] }, db);
+  const before = G.buildResultDraft(m, { db, identity: {} }).blocks.flatMap((b) => b.items).find((i) => i.name === "憎悪");
+  assert.ok(before, "憎悪 の行がシナリオカードにある");
+  const pick = before.candidates.find((c) => c.name === "憎悪" && c.kind === "spirit");
+  assert.ok(pick, "選べる候補に本人（精神）が入る");
+  const identity = { [before.key]: { picked: pick, pickedCandidate: pick.kind + ":" + pick.name } };
+  const row = G.buildResultDraft(m, { db, identity }).blocks.flatMap((b) => b.items).find((i) => i.name === "憎悪");
+  assert.ok(row, "選んだ後も行はカードに残る");
+  assert.equal(row.picked?.name, "憎悪", "選んだ候補の名前が行に残る");
+  assert.equal(row.picked?.kind, "spirit", "選んだ候補の種別が行に残る");
+});
+
 /* --- 所持アイテム（包帯・鎮静剤…） ----------------------------------------
    toDispatchActions は items グループを知らず、全部「未知のグループ」として
    捨てていた（45/50 文書・131 行）。アイテムは items.json にしか無いので、

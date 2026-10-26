@@ -1467,6 +1467,11 @@ function toIdentityChoices(hits) {
           group: group.id,
           tier,
           source,
+          /* 選んだ DB 候補を行にも写す。画面のセレクトは行の picked を見て値を
+             決めるので、写さないと選んだ直後に「選んでください」へ戻り、
+             選択できないように見える（2026-10-27 実機で再現）。 */
+          picked: item.picked || null,
+          pickedCandidate: item.pickedCandidate || "",
           automatic: AUTO_GROUPS.has(group.id),
           candidates: cands,
           auto: Boolean(!item.pickedScenario && cands.length === 1 && AUTO_GROUPS.has(group.id))
