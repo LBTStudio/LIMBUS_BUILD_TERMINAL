@@ -167,6 +167,22 @@ test("強化の購入は残高が足りなければ所持にも明細にも入�
   assert.equal(s.entries.length, 0, "明細も増えない");
 });
 
+test("直近リザルトの解決は画面の新しい順に一致し、配列末尾を最新と誤認しない", () => {
+  const state = {
+    ...baseState(),
+    results: [
+      { id: "visible-newest", date: "2026-10-26", createdAt: 100, income: { lp: 1000, shards: 100 } },
+      { id: "visible-same-day-newer", date: "2026-10-26", createdAt: 200, income: { lp: 1000, shards: 100 } },
+      { id: "array-tail-older-date", date: "2026-10-25", createdAt: 9000, income: { lp: 1000, shards: 100 } }
+    ]
+  };
+  assert.equal(context.window.LBT_latestResultId(state), "visible-same-day-newer",
+    "日付を優先し、同日は createdAt の降順で選ぶ");
+  const next = reducer(state, { type: "ADD_ITEM", itemId: "heal-bandage" });
+  assert.equal(next.entries.at(-1).resultId, "visible-same-day-newer",
+    "自動作成する明細も画面上の最新リザルトへ帰属する");
+});
+
 test("強化の購入は残高が足りれば通り、直近リザルトへ帰属する", () => {
   const before = { ...baseState(), results: [{ id: "res-1", income: { lp: 0, shards: 5 } }] };
   const s = reducer(before, { type: "ADD_ENHANCEMENT", group: "肉体強化0", name: "肉体強化0-1", category: "persona" });
