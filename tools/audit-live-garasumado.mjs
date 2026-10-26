@@ -103,22 +103,24 @@ const IDS = [
 ];
 const parserSource = readFileSync(new URL("../js/garasumado-memo-parse.js", import.meta.url), "utf8");
 const rosterSource = readFileSync(new URL("../js/garasumado-roster-import.js", import.meta.url), "utf8");
+const baseParserResponse = await fetch("https://raw.githubusercontent.com/LBTStudio/LIMBUS_BUILD_TERMINAL/main/js/garasumado-memo-parse.js");
+if (!baseParserResponse.ok) throw new Error("Unable to fetch baseline parser: " + baseParserResponse.status);
+const baselineParserSource = await baseParserResponse.text();
 
-const context = {
-  window: {},
-  console,
-  URL,
-  fetch,
-  setTimeout,
-  clearTimeout,
-  module: { exports: {} }
+const makeContext = () => {
+  const value = { window: {}, console, URL, fetch, setTimeout, clearTimeout, module: { exports: {} } };
+  value.globalThis = value;
+  vm.createContext(value);
+  return value;
 };
-context.globalThis = context;
-vm.createContext(context);
+const context = makeContext();
+const baselineContext = makeContext();
 vm.runInContext(parserSource, context, { filename: "garasumado-memo-parse.js" });
+vm.runInContext(baselineParserSource, baselineContext, { filename: "baseline-garasumado-memo-parse.js" });
 vm.runInContext(rosterSource, context, { filename: "garasumado-roster-import.js" });
 
 const memoApi = context.window.LBT_garaMemo;
+const baselineMemoApi = baselineContext.window.LBT_garaMemo;
 const api = context.window.LBT_garasumado;
 if (!memoApi?.parseMemo || !api?.fetchGarasumadoDocument || !api?.buildManifest || !api?.reconcileBalance) {
   throw new Error("硝子窓の読み取り・解析APIが初期化できません");
@@ -155,27 +157,49 @@ async function inspect(id) {
 
   const history = Array.isArray(fetched.doc.scenarioHistory) ? fetched.doc.scenarioHistory : [];
   const rows = history.map((row, index) => {
-    const parsed = memoApi.parseMemo(row?.memo || "");
+    const memo = String(row?.memo || "");
+    const parsed = memoApi.parseMemo(memo);
+    const baseline = baselineMemoApi.parseMemo(memo);
+    const sumSpendLp = (value) => value.spends.reduce((n, spend) => n + (Number(spend.lp) || 0), 0);
+    const sumSpendShards = (value) => value.spends.reduce((n, spend) => n + (Number(spend.shards) || 0), 0);
     const kinds = [...new Set((parsed.reasons || []).map((r) => classifyReason(r.reason)))];
-    return {
+    const baseReviewKinds = [...new Set((baseline.reasons || []).map((r) => classifyReason(r.reason)))];
+    const rowResult = {
       index: index + 1,
-      hasMemo: Boolean(String(row?.memo || "").trim()),
-      currentMarkerCount: (String(row?.memo || "").match(/現在|現座/g) || []).length,
+      hasMemo: Boolean(memo.trim()),
+      currentMarkerCount: (memo.match(/現在|現座/g) || []).length,
       incomeLp: parsed.income.lp,
       incomeShards: parsed.income.shards,
-      spendLp: parsed.spends.reduce((n, spend) => n + (Number(spend.lp) || 0), 0),
-      spendShards: parsed.spends.reduce((n, spend) => n + (Number(spend.shards) || 0), 0),
-      netLp: parsed.income.lp - parsed.spends.reduce((n, spend) => n + (Number(spend.lp) || 0), 0),
-      netShards: parsed.income.shards - parsed.spends.reduce((n, spend) => n + (Number(spend.shards) || 0), 0),
+      spendLp: sumSpendLp(parsed),
+      spendShards: sumSpendShards(parsed),
+      netLp: parsed.income.lp - sumSpendLp(parsed),
+      netShards: parsed.income.shards - sumSpendShards(parsed),
       reviewCount: (parsed.reasons || []).length,
-      reviewKinds: kinds
+      reviewKinds: kinds,
+      baselineIncomeLp: baseline.income.lp,
+      baselineIncomeShards: baseline.income.shards,
+      baselineSpendLp: sumSpendLp(baseline),
+      baselineSpendShards: sumSpendShards(baseline),
+      baselineReviewCount: (baseline.reasons || []).length,
+      baselineReviewKinds: baseReviewKinds
     };
+    rowResult.amountsChanged = rowResult.incomeLp !== rowResult.baselineIncomeLp
+      || rowResult.incomeShards !== rowResult.baselineIncomeShards
+      || rowResult.spendLp !== rowResult.baselineSpendLp
+      || rowResult.spendShards !== rowResult.baselineSpendShards;
+    return rowResult;
   });
   const manifest = api.buildManifest(fetched.doc, { resolve: () => null });
   const balance = api.reconcileBalance(manifest, fetched.doc);
   const reviewRows = rows.filter((row) => row.reviewCount > 0);
+  const changedRows = rows.filter((row) => row.amountsChanged);
   const typeCounts = {};
   for (const row of rows) for (const kind of row.reviewKinds) typeCounts[kind] = (typeCounts[kind] || 0) + 1;
+  const fieldShapes = {};
+  for (const row of history) {
+    const shape = Object.keys(row || {}).sort().join(",");
+    fieldShapes[shape] = (fieldShapes[shape] || 0) + 1;
+  }
 
   return {
     id,
@@ -189,6 +213,8 @@ async function inspect(id) {
     rowsWithCurrentMarker: rows.filter((row) => row.currentMarkerCount > 0).length,
     rowsNeedingReview: reviewRows.length,
     reviewTypeCounts: typeCounts,
+    rowsWithChangedAmounts: changedRows.length,
+    fieldShapes,
     totals: {
       incomeLp: sumIncome(rows, "lp"),
       incomeShards: sumIncome(rows, "shards"),
@@ -240,6 +266,16 @@ const summary = {
   scenarioRows: allRows.length,
   rowsWithMemo: allRows.filter((x) => x.hasMemo).length,
   rowsNeedingReview: allRows.filter((x) => x.reviewCount > 0).length,
+  parserAmountsChangedRows: allRows.filter((x) => x.amountsChanged).length,
+  documentsWithParserAmountChanges: successes.filter((x) => x.rowsWithChangedAmounts > 0).length,
+  baselineTotals: {
+    incomeLp: successes.reduce((t,x)=>t+x.rows.reduce((n,r)=>n+r.baselineIncomeLp,0),0),
+    incomeShards: successes.reduce((t,x)=>t+x.rows.reduce((n,r)=>n+r.baselineIncomeShards,0),0),
+    spendLp: successes.reduce((t,x)=>t+x.rows.reduce((n,r)=>n+r.baselineSpendLp,0),0),
+    spendShards: successes.reduce((t,x)=>t+x.rows.reduce((n,r)=>n+r.baselineSpendShards,0),0),
+    netLp: successes.reduce((t,x)=>t+x.rows.reduce((n,r)=>n+r.baselineIncomeLp-r.baselineSpendLp,0),0),
+    netShards: successes.reduce((t,x)=>t+x.rows.reduce((n,r)=>n+r.baselineIncomeShards-r.baselineSpendShards,0),0)
+  },
   reviewKinds,
   balanceChecks: {
     checked: successes.filter((x) => x.balanceCheck.checked).length,
@@ -251,6 +287,16 @@ const summary = {
     return t;
   }, {incomeLp:0,incomeShards:0,spendLp:0,spendShards:0,netLp:0,netShards:0}),
   failures,
+  parserChanges: successes.filter(x=>x.rowsWithChangedAmounts>0).map(x=>({
+    id:x.id,
+    changedRows:x.rows.filter(r=>r.amountsChanged).map(r=>({
+      row:r.index,
+      before:{incomeLp:r.baselineIncomeLp,incomeShards:r.baselineIncomeShards,spendLp:r.baselineSpendLp,spendShards:r.baselineSpendShards},
+      after:{incomeLp:r.incomeLp,incomeShards:r.incomeShards,spendLp:r.spendLp,spendShards:r.spendShards},
+      reasons:r.reviewKinds,
+      baselineReviewKinds:r.baselineReviewKinds
+    }))
+  })),
   documents: results
 };
 console.log("GARASUMADO_LIVE_AUDIT_BEGIN");
