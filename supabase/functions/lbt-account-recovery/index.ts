@@ -1,11 +1,10 @@
 // LBT optional account backup/recovery endpoint.
 // This function is intentionally public at the transport level (verify_jwt=false) so
-// recovery-key-only users can restore data. Every request is authorized by either a
-// verified Supabase access token or a 256-bit user-held recovery key.
+// recovery-key-only users can restore data. Every request is authorized only by a
+// high-entropy user-held recovery key; OAuth sessions are not accepted.
 // Never return or accept a Supabase service key from the client.
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SECRET_KEY") ?? "";
-const PUBLIC_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? "";
 
 const VAULT = "lbt_account_vaults";
 const VERSIONS = "lbt_account_vault_versions";
@@ -22,7 +21,7 @@ function json(data: unknown, status = 200, origin = "*") {
       "cache-control": "no-store",
       "access-control-allow-origin": origin,
       "access-control-allow-methods": "POST, OPTIONS",
-      "access-control-allow-headers": "authorization, apikey, content-type",
+      "access-control-allow-headers": "apikey, content-type",
       "vary": "Origin"
     }
   });
@@ -39,6 +38,16 @@ function normalizeRecoveryKey(value: unknown): string {
 async function hashRecoveryKey(key: string): Promise<string> {
   const bytes = new TextEncoder().encode(key);
   const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function hashPayload(payload: Record<string, unknown>): Promise<string> {
+  const entries = Array.isArray(payload.entries)
+    ? (payload.entries as Array<Record<string, unknown>>).slice()
+      .sort((a, b) => String(a.key).localeCompare(String(b.key)))
+      .map((item) => [item.key, item.value])
+    : [];
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(entries)));
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
@@ -101,21 +110,7 @@ async function rest(table: string, method: string, query = "", body?: unknown, p
   return value;
 }
 
-async function verifiedUser(accessToken: string): Promise<string> {
-  if (!accessToken || !PUBLIC_KEY) throw new Error("ログインセッションを確認できません。もう一度ログインしてください。");
-  const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-    headers: { "apikey": PUBLIC_KEY, "authorization": `Bearer ${accessToken}` }
-  });
-  if (!response.ok) throw new Error("ログインの有効期限が切れています。もう一度ログインしてください。");
-  const user = await response.json();
-  if (!user?.id) throw new Error("ログインユーザーを確認できません。");
-  if (user.is_anonymous === true) {
-    throw new Error("匿名セッションでは個人アカウントのオンライン保全を使えません。Google/X連携または復旧キーを利用してください。");
-  }
-  return String(user.id);
-}
-
-async function enforceAnonymousCreateLimit(req: Request) {
+async function enforceRecoveryCreateLimit(req: Request) {
   const forwarded = req.headers.get("cf-connecting-ip")
     ?? req.headers.get("x-real-ip")
     ?? req.headers.get("x-forwarded-for")?.split(",")[0]
@@ -135,32 +130,30 @@ async function enforceAnonymousCreateLimit(req: Request) {
 }
 
 async function getVaultByHash(hash: string) {
-  const rows = await rest(VAULT, "GET", `select=id,user_id,recovery_hash,payload,revision,updated_at,created_at&recovery_hash=eq.${hash}&limit=1`);
+  const rows = await rest(VAULT, "GET", `select=id,user_id,recovery_hash,payload,payload_hash,revision,updated_at,created_at&recovery_hash=eq.${hash}&limit=1`);
   return Array.isArray(rows) ? rows[0] ?? null : null;
 }
 
-async function getVaultByUser(userId: string) {
-  const rows = await rest(VAULT, "GET", `select=id,user_id,recovery_hash,payload,revision,updated_at,created_at&user_id=eq.${userId}&limit=1`);
+async function getVaultMetaByHash(hash: string) {
+  const rows = await rest(VAULT, "GET", `select=id,user_id,recovery_hash,payload_hash,revision,updated_at,created_at&recovery_hash=eq.${hash}&limit=1`);
   return Array.isArray(rows) ? rows[0] ?? null : null;
 }
 
-async function getVaultForRequest(body: any, accessToken: string) {
-  if (accessToken) {
-    const userId = await verifiedUser(accessToken);
-    return { userId, vault: await getVaultByUser(userId), hash: null };
-  }
+async function getVaultForRequest(body: any) {
   const key = normalizeRecoveryKey(body.recoveryKey);
   const hash = await hashRecoveryKey(key);
-  return { userId: null, vault: await getVaultByHash(hash), hash };
+  return { vault: await getVaultByHash(hash), hash };
 }
 
 async function addHistory(vault: any) {
   if (!vault?.id || !vault?.payload || !vault?.revision) return;
+  const payloadHash = String(vault.payload_hash || await hashPayload(vault.payload));
   await rest(VERSIONS, "POST", "on_conflict=vault_id,revision", {
     vault_id: vault.id,
     user_id: vault.user_id,
     revision: Number(vault.revision),
-    payload: vault.payload
+    payload: vault.payload,
+    payload_hash: payloadHash
   }, "resolution=ignore-duplicates,return=minimal");
   const older = await rest(VERSIONS, "GET",
     `select=id,revision&vault_id=eq.${vault.id}&order=revision.desc&offset=${HISTORY_LIMIT}&limit=1000`);
@@ -173,12 +166,14 @@ async function addHistory(vault: any) {
   }
 }
 
-async function createVault(userId: string | null, recoveryHash: string | null, payload: Record<string, unknown>) {
-  const rows = await rest(VAULT, "POST", "select=id,user_id,recovery_hash,payload,revision,updated_at,created_at", {
+async function createVault(userId: string | null, recoveryHash: string | null, payload: Record<string, unknown>, revision = 1) {
+  const payloadHash = await hashPayload(payload);
+  const rows = await rest(VAULT, "POST", "select=id,user_id,recovery_hash,payload,payload_hash,revision,updated_at,created_at", {
     user_id: userId,
     recovery_hash: recoveryHash,
     payload,
-    revision: 1,
+    payload_hash: payloadHash,
+    revision,
     updated_at: new Date().toISOString()
   });
   if (!Array.isArray(rows) || !rows[0]) throw new Error("バックアップ領域を作成できませんでした。");
@@ -191,120 +186,90 @@ async function updateVault(vault: any, payload: Record<string, unknown>, expecte
     return { conflict: true, vault };
   }
   await addHistory(vault);
+  const payloadHash = await hashPayload(payload);
   const rows = await rest(VAULT, "PATCH",
-    `id=eq.${vault.id}&revision=eq.${currentRevision}&select=id,user_id,recovery_hash,payload,revision,updated_at,created_at`,
-    { payload, revision: currentRevision + 1, updated_at: new Date().toISOString() });
+    `id=eq.${vault.id}&revision=eq.${currentRevision}&select=id,user_id,recovery_hash,payload,payload_hash,revision,updated_at,created_at`,
+    { payload, payload_hash: payloadHash, revision: currentRevision + 1, updated_at: new Date().toISOString() });
   if (!Array.isArray(rows) || !rows[0]) {
-    const latest = vault.user_id ? await getVaultByUser(String(vault.user_id)) :
-      (vault.recovery_hash ? await getVaultByHash(String(vault.recovery_hash)) : null);
+    const latest = vault.recovery_hash ? await getVaultByHash(String(vault.recovery_hash)) : null;
     return { conflict: true, vault: latest };
   }
   return { conflict: false, vault: rows[0] };
 }
 
-async function handle(body: any, accessToken: string, req: Request) {
+async function handle(body: any, req: Request) {
   const action = String(body?.action ?? "");
-  if (!["get", "backup", "create_recovery", "rotate_recovery", "history", "restore_revision"].includes(action)) {
-    throw new Error("未対応の操作です。");
-  }
-
-  if (action === "rotate_recovery") {
-    if (!accessToken) throw new Error("復旧キーの再発行にはGoogle/X連携が必要です。");
-    const userId = await verifiedUser(accessToken);
-    const key = normalizeRecoveryKey(body.recoveryKey);
-    const hash = await hashRecoveryKey(key);
-    const vault = await getVaultByUser(userId);
-    if (!vault) throw new Error("このオンラインアカウントに保全データが見つかりません。");
-    const occupied = await getVaultByHash(hash);
-    if (occupied && occupied.id !== vault.id) {
-      throw new Error("この復旧キーは既に別の保全データで使用されています。新しいキーを発行してください。");
-    }
-    const rows = await rest(VAULT, "PATCH",
-      `id=eq.${vault.id}&user_id=eq.${userId}&select=id,user_id,recovery_hash,revision,updated_at`,
-      { recovery_hash: hash });
-    if (!Array.isArray(rows) || !rows[0]) {
-      const latest = await getVaultByUser(userId);
-      if (!latest || latest.recovery_hash !== hash) {
-        throw new Error("復旧キーを再発行できませんでした。古いキーの登録状態は変更されていません。");
-      }
-      return { ok: true, revision: Number(latest.revision), updatedAt: latest.updated_at };
-    }
-    return { ok: true, revision: Number(rows[0].revision), updatedAt: rows[0].updated_at };
+  if (!["head", "get", "backup", "create_recovery", "replicate", "history", "restore_revision"].includes(action)) {
+    throw new Error("未対応の操作です。復旧キーは固定されており、サーバー側から変更する操作はありません。");
   }
 
   if (action === "create_recovery") {
     const payload = validatePayload(body.payload);
     const key = normalizeRecoveryKey(body.recoveryKey);
     const hash = await hashRecoveryKey(key);
-    const userId = accessToken ? await verifiedUser(accessToken) : null;
-
-    /* Read both possible identities before changing either one. Never silently
-       replace a key that points to a different vault belonging to another identity. */
-    const vaultByKey = await getVaultByHash(hash);
-    const vaultByUser = userId ? await getVaultByUser(userId) : null;
-    if (vaultByUser && vaultByKey && vaultByUser.id !== vaultByKey.id) {
-      throw new Error("この復旧キーは別の保全データに結びついています。既存データを自動統合しないため、どちらを使うか先に確認してください。");
+    const existing = await getVaultByHash(hash);
+    if (existing) {
+      throw new Error("この復旧キーは既に保全データに使われています。既存データを上書きせず、復旧キー欄から復元してください。");
     }
-
-    let vault: any = null;
-    if (userId && vaultByUser) {
-      vault = vaultByUser;
-      if (vault.recovery_hash && vault.recovery_hash !== hash) {
-        throw new Error("このオンラインアカウントには別の復旧キーが登録されています。");
-      }
-      if (!vault.recovery_hash) {
-        const rows = await rest(VAULT, "PATCH",
-          `id=eq.${vault.id}&recovery_hash=is.null&select=id,user_id,recovery_hash,payload,revision,updated_at,created_at`,
-          { recovery_hash: hash });
-        if (!Array.isArray(rows) || !rows[0]) {
-          const latest = await getVaultByUser(userId);
-          if (!latest || latest.recovery_hash !== hash) {
-            throw new Error("復旧キーを安全に結びつけられませんでした。既存データは変更していません。");
-          }
-          vault = latest;
-        } else {
-          vault = rows[0];
-        }
-      }
-    } else if (vaultByKey) {
-      if (userId && vaultByKey.user_id && String(vaultByKey.user_id) !== userId) {
-        throw new Error("この復旧キーは別のオンラインアカウントに結びついています。");
-      }
-      if (userId && !vaultByKey.user_id) {
-        /* Explicit user action only: link a recovery-only vault to this OAuth user.
-           A concurrent claim is guarded by user_id IS NULL in the PATCH condition. */
-        const attached = await rest(VAULT, "PATCH",
-          `id=eq.${vaultByKey.id}&user_id=is.null&select=id,user_id,recovery_hash,payload,revision,updated_at,created_at`,
-          { user_id: userId });
-        if (!Array.isArray(attached) || !attached[0]) {
-          const latestByKey = await getVaultByHash(hash);
-          if (!latestByKey || String(latestByKey.user_id ?? "") !== userId) {
-            throw new Error("この復旧データをオンラインアカウントへ安全に結びつけられませんでした。");
-          }
-          vault = latestByKey;
-        } else {
-          vault = attached[0];
-        }
-      } else {
-        vault = vaultByKey;
-      }
-    } else {
-      if (!userId) await enforceAnonymousCreateLimit(req);
-      vault = await createVault(userId, hash, payload);
-    }
-
-    /* Registering a recovery key is an identity operation, not a backup write.
-       Never replace an existing cloud payload here, even when the local payload differs.
-       Actual data replacement must go through the explicit revision-aware backup action. */
+    await enforceRecoveryCreateLimit(req);
+    const vault = await createVault(null, hash, payload);
     return { ok: true, revision: Number(vault.revision), updatedAt: vault.updated_at };
   }
 
-  const { userId, vault, hash } = await getVaultForRequest(body, accessToken);
+  if (action === "head") {
+    const key = normalizeRecoveryKey(body.recoveryKey);
+    const hash = await hashRecoveryKey(key);
+    const meta = await getVaultMetaByHash(hash);
+    if (!meta) return { found: false, revision: 0, payloadHash: null, history: [] };
+    let payloadHash = String(meta.payload_hash || "");
+    if (!payloadHash) {
+      const legacy = await getVaultByHash(hash);
+      if (legacy?.payload) payloadHash = await hashPayload(legacy.payload);
+    }
+    const historyRows = await rest(VERSIONS, "GET",
+      `select=revision,payload_hash&vault_id=eq.${meta.id}&order=revision.desc&limit=${HISTORY_LIMIT}`);
+    const lineage = Array.isArray(historyRows) ? historyRows : [];
+    const missingHashes = lineage.filter((item: any) => !String(item.payload_hash || ""));
+    if (missingHashes.length) {
+      const revisions = missingHashes.map((item: any) => Number(item.revision)).filter((n: number) => Number.isSafeInteger(n) && n > 0);
+      if (revisions.length) {
+        const rows = await rest(VERSIONS, "GET",
+          `select=revision,payload&vault_id=eq.${meta.id}&revision=in.(${revisions.join(",")})&limit=${revisions.length}`);
+        if (Array.isArray(rows)) {
+          const byRevision = new Map(rows.map((item: any) => [Number(item.revision), item]));
+          for (const item of missingHashes) {
+            const legacy = byRevision.get(Number(item.revision));
+            if (legacy?.payload) item.payload_hash = await hashPayload(legacy.payload);
+          }
+        }
+      }
+    }
+    return {
+      found: true,
+      revision: Number(meta.revision),
+      updatedAt: meta.updated_at,
+      payloadHash: payloadHash || null,
+      history: lineage.map((item: any) => ({
+        revision: Number(item.revision),
+        payloadHash: String(item.payload_hash || "")
+      }))
+    };
+  }
+
+  const { vault, hash } = await getVaultForRequest(body);
   if (!vault) {
     if (action === "backup" && Number(body.expectedRevision) === 0) {
       const payload = validatePayload(body.payload);
-      if (!userId) await enforceAnonymousCreateLimit(req);
-      const created = await createVault(userId, hash, payload);
+      await enforceRecoveryCreateLimit(req);
+      const created = await createVault(null, hash, payload);
+      return { found: true, revision: Number(created.revision), updatedAt: created.updated_at };
+    }
+    if (action === "replicate" && Number(body.expectedRevision) === 0) {
+      const payload = validatePayload(body.payload);
+      const targetRevision = Number(body.targetRevision);
+      if (!Number.isSafeInteger(targetRevision) || targetRevision < 1) throw new Error("複製先の世代番号が不正です。");
+      await enforceRecoveryCreateLimit(req);
+      const created = await createVault(null, hash, payload, targetRevision);
       return { found: true, revision: Number(created.revision), updatedAt: created.updated_at };
     }
     return { found: false, revision: 0, payload: null };
@@ -316,12 +281,12 @@ async function handle(body: any, accessToken: string, req: Request) {
       const requestKeyHash = await hashRecoveryKey(normalizeRecoveryKey(body.recoveryKey));
       recoveryKeyMatches = Boolean(vault.recovery_hash) && vault.recovery_hash === requestKeyHash;
     }
-    return { found: true, revision: Number(vault.revision), payload: vault.payload, updatedAt: vault.updated_at, recoveryKeyEnabled: Boolean(vault.recovery_hash), recoveryKeyMatches };
+    return { found: true, revision: Number(vault.revision), payload: vault.payload, payloadHash: String(vault.payload_hash || await hashPayload(vault.payload)), updatedAt: vault.updated_at, recoveryKeyEnabled: Boolean(vault.recovery_hash), recoveryKeyMatches };
   }
 
   if (action === "history") {
     const rows = await rest(VERSIONS, "GET",
-      `select=revision,payload,saved_at&vault_id=eq.${vault.id}&order=revision.desc&limit=${HISTORY_LIMIT}`);
+      `select=revision,payload_hash,saved_at&vault_id=eq.${vault.id}&order=revision.desc&limit=${HISTORY_LIMIT}`);
     return { found: true, revision: Number(vault.revision), updatedAt: vault.updated_at, history: rows ?? [] };
   }
 
@@ -337,24 +302,52 @@ async function handle(body: any, accessToken: string, req: Request) {
     return { found: true, revision: Number(result.vault.revision), payload: result.vault.payload, updatedAt: result.vault.updated_at };
   }
 
+  if (action === "replicate") {
+    const payload = validatePayload(body.payload);
+    const expectedRevision = Number(body.expectedRevision);
+    const targetRevision = Number(body.targetRevision);
+    const currentRevision = Number(vault.revision);
+    if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0 ||
+        !Number.isSafeInteger(targetRevision) || targetRevision < 1) {
+      throw new Error("複製する世代番号が不正です。");
+    }
+    if (currentRevision === targetRevision) {
+      if (String(vault.payload_hash || await hashPayload(vault.payload)) === await hashPayload(payload)) {
+        return { found: true, revision: currentRevision, updatedAt: vault.updated_at, payloadHash: await hashPayload(payload), unchanged: true };
+      }
+      return { conflict: true, revision: currentRevision, payload: vault.payload, updatedAt: vault.updated_at };
+    }
+    if (currentRevision !== expectedRevision || targetRevision <= expectedRevision) {
+      return { conflict: true, revision: currentRevision, payload: vault.payload, updatedAt: vault.updated_at };
+    }
+    await addHistory(vault);
+    const rows = await rest(VAULT, "PATCH",
+      `id=eq.${vault.id}&revision=eq.${expectedRevision}&recovery_hash=eq.${hash}&select=id,revision,updated_at,payload`,
+      { payload, payload_hash: await hashPayload(payload), revision: targetRevision, updated_at: new Date().toISOString() });
+    if (!Array.isArray(rows) || !rows[0]) {
+      const latest = await getVaultByHash(hash);
+      return { conflict: true, revision: Number(latest?.revision ?? 0), payload: latest?.payload ?? null, updatedAt: latest?.updated_at ?? null };
+    }
+    return { found: true, revision: Number(rows[0].revision), payloadHash: await hashPayload(payload), updatedAt: rows[0].updated_at };
+  }
+
   const payload = validatePayload(body.payload);
   const expectedRevision = Number(body.expectedRevision);
   const result = await updateVault(vault, payload, expectedRevision);
   if (result.conflict) return { conflict: true, revision: Number(result.vault?.revision ?? 0), payload: result.vault?.payload ?? null, updatedAt: result.vault?.updated_at ?? null };
-  return { found: true, revision: Number(result.vault.revision), updatedAt: result.vault.updated_at };
+  return { found: true, revision: Number(result.vault.revision), payloadHash: String(result.vault.payload_hash || await hashPayload(payload)), updatedAt: result.vault.updated_at };
 }
 
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get("origin") ?? "*";
   if (req.method === "OPTIONS") return json({ ok: true }, 200, origin);
   if (req.method !== "POST") return json({ error: "POST only" }, 405, origin);
-  if (!SUPABASE_URL || !SERVICE_KEY || !PUBLIC_KEY) return json({ error: "バックアップサービスの設定が不足しています。" }, 503, origin);
+  if (!SUPABASE_URL || !SERVICE_KEY) return json({ error: "バックアップサービスの設定が不足しています。" }, 503, origin);
   try {
     const length = Number(req.headers.get("content-length") ?? "0");
     if (length > MAX_PAYLOAD_BYTES + 1024 * 100) return json({ error: "リクエストが大きすぎます。" }, 413, origin);
     const body = await req.json();
-    const accessToken = String(req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
-    const result = await handle(body, accessToken, req);
+    const result = await handle(body, req);
     if ((result as any).conflict) return json({ ...result, error: "同期先が別の内容に更新されています。データを比較してから再試行してください。" }, 409, origin);
     return json(result, 200, origin);
   } catch (error) {
