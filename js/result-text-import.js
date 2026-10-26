@@ -321,6 +321,20 @@
       const hasShards = /(?:(?:自我の)?(?:欠片|欠けら|カケラ|かけら)\s*\d|\d\s*(?:自我の)?(?:欠片|欠けら|カケラ|かけら))/i.test(part);
       if (hasLP && hasShards) { ambiguous = true; continue; }
       if (!hasLP && !hasShards) continue;
+      /* 通貨ラベルだけでは複数の数値を一意に解釈できない。
+         20+7=27 のように数値列全体が演算式の場合だけ許可し、括弧内の数字も検査する。 */
+      const numericTokens = [...part.matchAll(/\d[\d,]*/g)];
+      const expressionText = part
+        .replace(/\([^()\d]*\)|（[^（）\d]*）/g, " ")
+        .replace(/(?:自我の欠片|欠片|欠けら|カケラ|かけら|LP)/gi, " ")
+        .replace(/[：:]/g, " ")
+        .replace(/\d[\d,]*/g, "#")
+        .trim();
+      const expressionShapeIsValid = /^#(?:\s*[+＋=＝→⇒➜×xX*]\s*#)+$/.test(expressionText);
+      const hasResultOperator = /[=＝→⇒➜]/.test(expressionText);
+      const hasMultiplication = /[×xX*]/.test(expressionText);
+      const explicitNumericOperation = expressionShapeIsValid && hasResultOperator;
+      if (!explicitNumericOperation && numericTokens.length > 1) { ambiguous = true; continue; }
       const amount = ledgerNumber(part);
       if (amount === null) { ambiguous = true; continue; }
       const key = hasLP ? "lp" : "shards";
