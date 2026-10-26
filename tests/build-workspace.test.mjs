@@ -1144,7 +1144,7 @@ test("ガチャ: 確定済みの抽出は Undo で消えない（記録・所持
   const sections = read("../js/OtherSections.js");
   /* 経済効果（所持・支出・チケット消費）と証明の保存は分かれている。
      確定前の再検証を通った transaction だけが経済効果を適用する。 */
-  assert.match(sections, /const transaction = \{ type: "APPLY_DRAW_BATCH", batch, ticketSpend, cost: paidCost \};/,
+  assert.match(sections, /const transaction = \{ type: "APPLY_DRAW_BATCH", batch, ticketSpend, cost: paidCost, resultId \};/,
     "経済効果は APPLY_DRAW_BATCH。確定前検証を通ったものだけ適用する");
   assert.match(sections, /dispatch\(\{ type: "ADD_DRAW_RECORD", __sealed: true, batch, entry: drawLogEntry \}\);/,
     "ADD_DRAW_RECORD は __sealed 付き。無いと reseal が効かず Ctrl+Z で記録が消える");
