@@ -116,6 +116,21 @@ test("名前と金額が一行に収まった購入の短文は支出と勝ち�
   assert.equal(r.wins.every((w) => w.bought), true, "購入の勝ちには bought が付く");
 });
 
+test("叙述文に個別の負額が明示された複数購入は支出をそれぞれ記録する", () => {
+  const r = MEMO.parseMemo("終了後、サポートパッシブ「因子コードG-5」を購入したのでLP-7、「深呼吸」を購入したのでLP-15");
+  assert.equal(r.income.lp, 0, "購入額を収入にしない");
+  assert.deepEqual(
+    [...r.spends.map((spend) => [spend.name, spend.lp, spend.shards])],
+    [["因子コードG-5", 7, 0], ["深呼吸", 15, 0]],
+    "名前に対応する各支出を落とさず記録する"
+  );
+  assert.ok(r.wins.some((win) => win.name === "因子コードG-5" && win.bought), "購入したパッシブの所持証跡を保つ");
+  assert.ok(r.wins.some((win) => win.name === "深呼吸" && win.bought), "2件目の所持証跡も保つ");
+
+  const singleNarrativePurchase = MEMO.parseMemo("終了後、「E.G.Oの解放」を購入したため欠片-50");
+  assert.equal(singleNarrativePurchase.spends.length, 0, "単独の叙述購入は既存の扱いを変えない");
+});
+
 test("購入の短文の形でない叙述は購入の記録にしない", () => {
   const r = MEMO.parseMemo(
     "終了後サポートパッシブ「ルサンチマン」と「肩慣らし」を購入したためLP-27。\n" +
