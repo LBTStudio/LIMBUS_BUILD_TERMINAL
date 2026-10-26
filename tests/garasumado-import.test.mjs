@@ -60,9 +60,20 @@ test("現在残高の誤記と同通貨の複数値を黙って収入へ合算�
   assert.ok(r.reasons.some((entry) => /現座/.test(entry.reason)), "誤記を推定したことを警告する");
   assert.ok(r.reasons.some((entry) => /欠片の数値が同じ行に複数/.test(entry.reason)), "複数値を保留した理由を示す");
 
+  const lpAmbiguous = MEMO.parseMemo("50LP又は100LPで買える分の強化アイテム");
+  assert.equal(lpAmbiguous.income.lp, 0, "価格候補をLP収入へ加算しない");
+  assert.ok(lpAmbiguous.reasons.some((entry) => /LP収入50、現在100LP/.test(entry.reason)), "LPの警告例はLPの書き方を案内する");
+
   const ambiguous = MEMO.parseMemo("欠片24 134欠片");
   assert.equal(ambiguous.income.shards, 0, "現在の明示が無い同通貨の複数値は収入へ合算しない");
-  assert.ok(ambiguous.reasons.some((entry) => /現在残高/.test(entry.reason)), "原文修正の案内を残す");
+  assert.ok(ambiguous.reasons.some((entry) => /欠片収入25、現在171欠片/.test(entry.reason)), "欠片の警告例は欠片の書き方を案内する");
+
+  const conditionalConversion = MEMO.parseMemo("報酬\nLP50\n欠片30\n人格抽出チケット(人格全コンプしてるなら欠片20に変換)");
+  assert.equal(conditionalConversion.income.lp, 50);
+  assert.equal(conditionalConversion.income.shards, 30, "条件付きの欠片20は自動加算しない");
+  assert.equal(conditionalConversion.tickets.persona, 1, "現時点では通常チケット1枚として計上し、条件付き変換を警告する");
+  assert.ok(conditionalConversion.reasons.some((entry) => /条件付きチケット換算/.test(entry.reason)), "条件付き変換を具体的に警告する");
+  assert.ok(!conditionalConversion.reasons.some((entry) => /LP⇄欠片/.test(entry.reason)), "チケット変換をLP⇄欠片の換算と誤表示しない");
 
   const explicitSum = MEMO.parseMemo("40LP + 15LP");
   assert.equal(explicitSum.income.lp, 55, "明示的な加算はこれまでどおり計上する");

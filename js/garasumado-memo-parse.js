@@ -1023,7 +1023,13 @@
         /* 「LPを欠片に変換」は収入ではなく明細。 */
         if (/変換|換算/.test(line)) {
           spends.push({ name: line, lp: 0, shards: 0, raw: line, reason: "換算行のため金額は未確定" });
-          reasons.push({ line: line, reason: "LP⇄欠片の換算行。増減の両方があって単一金額にならない" });
+          var conditionalTicketToShard = /チケット/.test(line) && /(?:全コンプ|全人格)/.test(line) && /欠片/.test(line);
+          reasons.push({
+            line: sourceLine,
+            reason: conditionalTicketToShard
+              ? "条件付きチケット換算：この行では抽出チケットを通常の種別別残数に1枚として計上し、欠片20への変換は反映していません。全人格所持などの条件を満たす場合は、チケット1枚ではなく欠片20として扱う必要があるか確認してください"
+              : "変換・換算の記録です。変換元と変換先、適用レート、実際に増減した数値を確認してください"
+          });
           continue;
         }
         /* 「90LP」「LP：71」「LP60」「40LP 20欠片」「+154LP +41欠片」——
@@ -1054,10 +1060,13 @@
         });
         if (ambiguousCurrencies.length) {
           ambiguousCurrencies.forEach(function (currency) {
+            var clarificationExample = currency === "lp"
+              ? "「LP収入50、現在100LP」のように役割を明記してください"
+              : "「欠片収入25、現在171欠片」のように役割を明記してください";
             reasons.push({
               line: sourceLine,
               reason: (currency === "lp" ? "LP" : "欠片") +
-                "の数値が同じ行に複数あります。収入・現在残高・内訳を区別できないため、この通貨の収入計上を保留しました。「欠片25：現在171欠片」のように役割を明記してください"
+                "の数値が同じ行に複数あります。収入・現在残高・内訳を区別できないため、この通貨の収入計上を保留しました。" + clarificationExample
             });
           });
           pairs = pairs.filter(function (pair) { return ambiguousCurrencies.indexOf(pair.currency) < 0; });
