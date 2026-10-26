@@ -345,26 +345,23 @@ async function boot() {
     }
     const createFormAccount = await page.evaluate(() => {
       const accounts = window.LBT_accounts;
-      if (!accounts?.create || !accounts?.switch) return null;
+      if (!accounts?.create || !accounts?.switch) return { ok: false, reason: "account API unavailable" };
       const name = "UI監査用キャラクター";
-      // Each Playwright viewport uses a brand-new browser context, so no account
-      // exists yet; use the public account API without relying on an optional list API.
-      const entry = accounts.create(name, "Playwright QA");
-      if (!entry?.id) return null;
+      const listed = accounts.list?.();
+      const found = listed?.accounts?.find((entry) => entry?.name === name);
+      const entry = found || accounts.create(name, "Playwright QA");
+      if (!entry?.id) return { ok: false, reason: "account create failed", accountCount: listed?.accounts?.length ?? null };
       accounts.saveActive?.({});
-      accounts.switch(entry.id);
-      return entry.id;
-    }).catch(() => null);
-    if (createFormAccount) {
-      await page.reload({ waitUntil: "domcontentloaded" });
-      await page.waitForLoadState("networkidle", { timeout: 12000 }).catch(() => {});
-      await page.waitForTimeout(500);
-      if (await visible(page.locator(".acct-gate"))) {
-        const target = page.locator(".acct-card-hit").filter({ hasText: "UI監査用キャラクター" }).first();
-        if (await visible(target)) await click(target);
-        else if (await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
-      }
-    } else if (await visible(page.locator(".acct-card-hit").first())) {
+      const switched = accounts.switch(entry.id);
+      if (!switched) return { ok: false, reason: "account switch failed", id: entry.id };
+      // Use the same entry event as the visible AccountGate action. This replaces
+      // App state for the selected account without a reload/gate race.
+      window.dispatchEvent(new CustomEvent("lbt:accounts-entered", { detail: { id: entry.id } }));
+      return { ok: true, id: entry.id, accountCount: accounts.list?.()?.accounts?.length ?? null };
+    }).catch((error) => ({ ok: false, reason: String(error) }));
+    audit.bootstrap = createFormAccount;
+    log("account bootstrap: " + JSON.stringify(createFormAccount));
+    if (!createFormAccount?.ok && await visible(page.locator(".acct-card-hit").first())) {
       await click(page.locator(".acct-card-hit").first());
     }
   }
