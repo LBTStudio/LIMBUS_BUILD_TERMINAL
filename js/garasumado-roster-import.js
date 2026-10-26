@@ -93,6 +93,15 @@
     const invalid = [];
     const seen = new Set();
     for (const candidate of candidates) {
+      /* 裸IDは抽出APIの互換性のため parseShareUrl では引き続き受理するが、
+         複数URL取込では /view/ と /persona/view/ の種別が失われるため選択候補にしない。 */
+      if (/^[A-Za-z0-9_-]{20}$/.test(candidate)) {
+        invalid.push({
+          text: candidate,
+          reason: "共有IDだけではキャラクター共有か人格共有か判別できません。/view/ または /persona/view/ を含む共有URLを貼り付けてください"
+        });
+        continue;
+      }
       const parsed = parseShareUrl(candidate);
       if (!parsed.ok) {
         invalid.push({ text: candidate, reason: parsed.error || "URL形式が不正です" });
