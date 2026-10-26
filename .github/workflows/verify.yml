@@ -22,6 +22,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
+      - name: Sync asset hashes for temporary parser validation
+        run: node tools/sync-asset-versions.mjs
+      - name: Print temporary generated cache name
+        run: grep -m1 'const CACHE_NAME' sw.js
       - name: Verify asset version hashes and Service Worker precache
         run: node tools/sync-asset-versions.mjs --check
       - name: Verify live account recovery smoke-test syntax

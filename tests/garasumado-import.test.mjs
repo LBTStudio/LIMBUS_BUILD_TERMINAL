@@ -1861,3 +1861,11 @@ test("コロン付きの「現在LP：33」も錠として検出し、残高を�
   assert.equal(result.computedLp, 33);
   assert.equal(result.ok, true);
 });
+
+test("通貨消費の後に「パック名:獲得人格」が続く場合、パック名を人格名へ混ぜない", () => {
+  const r = MEMO.parseMemo("→200LP消費、眺めることのできないパック:黒獣-巳の人格獲得");
+  assert.equal(r.income.lp, 0);
+  assert.equal(r.spends.reduce((sum, row) => sum + row.lp, 0), 200, "LP200 は支出");
+  assert.ok(r.wins.some((row) => row.name === "黒獣-巳の人格"), "獲得した人格名を抽出");
+  assert.ok(!r.wins.some((row) => row.name.includes("パック:")), "パック名と人格名を混ぜない");
+});
