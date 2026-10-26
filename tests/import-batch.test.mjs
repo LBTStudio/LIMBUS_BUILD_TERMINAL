@@ -168,7 +168,7 @@ test("via が同名複数のリザルトにまたがるなら勝手に決めな�
 test("取り込んだアイテム消費は対応するリザルトに保存され、在庫を減らす", () => {
   const before = {
     ...baseState(),
-    inventory: [{ uid: "it-1", itemId: "enh-whetstone", quantity: 2, memo: true, palette: true }],
+    inventory: [{ uid: "it-1", itemId: "enh-whetstone", quantity: 3, memo: true, palette: true }],
     results: [],
     entries: []
   };
@@ -181,7 +181,7 @@ test("取り込んだアイテム消費は対応するリザルトに保存さ�
       { type: "CONSUME_ITEM", itemId: "enh-whetstone", quantity: 1, reason: "consumption", operationId: "import-use-2" }
     ]
   });
-  assert.equal(after.inventory[0].quantity, 0);
+  assert.equal(after.inventory[0].quantity, 1);
   assert.equal(after.results.length, 2);
   assert.equal(after.results[0].consumedItems.length, 1);
   assert.equal(after.results[1].consumedItems.length, 1);
