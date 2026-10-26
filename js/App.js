@@ -11,7 +11,7 @@ const HELP_ITEMS = [
   { group: "blocks", icon: "spirit", title: "精神・強化を確認・編集する", body: "精神タブでは混乱時の挙動を、強化タブでは身体強化と特殊強化を確認・編集します。該当する項目がない場合は空欄のままにします。" },
   { group: "blocks", icon: "settings", title: "ステータス・出力先・代入式を設定する", body: "設定タブでは、既定・人格固有ステータスの初期値と上限、ステータスの出力順、固有バフなどの出力先（ステータス側／パラメータ側／登録先なし）、代入式、同期ランクの表示設定などを調整します。メモ／チャットパレットの段落順は設定タブではなく、プレビューの各タブで並べ替えます。" },
   { group: "output", icon: "drag", title: "表示・出力順を変更する", body: "スキル順はビルド内のスキル一覧、ステータス順は設定タブの「ステータス一覧・編集・出力順」、メモ／チャットパレットの段落順はプレビューの各タブで変更します。各一覧の「⋮⋮」グリップをドラッグし、スマートフォンではグリップを押し続けてから動かします。対応する一覧では矢印／▲▼ボタンも使えます。" },
-  { group: "output", icon: "eye", title: "プレビューとJSON出力を確認する", body: "プレビューではメモ、チャットパレット、CCFOLIA用JSONの出力結果を確認します。PCでは通常右側に表示され、必要に応じて開閉できます。スマートフォンでは「PREVIEW」操作から開閉します。JSONをコピー／出力する前に、除外設定も含めてプレビューを確認してください。" },
+  { group: "output", icon: "eye", title: "プレビューとJSON出力を確認する", body: "プレビューではメモ、チャットパレット、CCFOLIA用JSONの出力結果を確認します。PCでは通常右側に表示され、必要に応じて開閉できます。スマートフォンでは「操作・保存」→「プレビューを開く／閉じる」から操作します。JSONをコピー／出力する前に、除外設定も含めてプレビューを確認してください。" },
   { group: "operation", icon: "undo", title: "変更を戻す・やり直す", body: "入力や並べ替えを間違えた場合は、画面上部の矢印で元に戻す・やり直すことができます。PCでは入力欄の外でCtrl+Zを押すとアプリ全体の直前の変更を戻し、Ctrl+Shift+ZまたはCtrl+Yでやり直せます。入力欄にカーソルがある間は、Ctrl+Zは文字入力の取り消しを優先します。" },
   { group: "operation", icon: "search", title: "クイック検索で画面や候補を探す", body: "クイック検索はPCではCtrl+K（Macでは⌘K）、スマートフォンでは検索ボタンから開きます。画面移動や操作、人格・E.G.O・アイテム候補を横断して探す機能です。通常の人格図鑑では名前・効果・キーワード、大罪・所属・耐性・所持条件など、E.G.O一覧では名前・効果・キーワード、ランク・必要資源／除外資源・所持条件などで絞り込めます。同期ランク／同期MAXは、通常の人格図鑑の共通フィルターではありません。一方、「記録」の所持人格一覧には同期・同期ランク／MAXの絞り込みがあり、設定変更は所持人格詳細から行います。" },
   { group: "save", icon: "archive", title: "所持ライブラリを保存する", body: "記録タブでは所持データと保存済みビルド、リザルトと収支を確認します。PCでは上部バーのアーカイブアイコン「所持ライブラリを保存」、スマートフォンや幅の狭い画面では「操作・保存」（または「その他」）からJSONファイルを書き出し、別端末へ引き継げます。この専用ファイルは登録済みの所持データ・保存済みビルドに加えて、お気に入り・履歴を含みます。現在の作業状態ファイルとは別です。読み込み時は「所持ライブラリ」および「お気に入り・最近の履歴」の適用範囲を確認してください。" },
@@ -1311,6 +1311,8 @@ const App = () => {
   const [disclaimerOpen, setDisclaimerOpen] = React.useState(false);
   const [importData, setImportData] = React.useState(null);
   const [importSel, setImportSel] = React.useState({});
+  const [showEmptyImportGroups, setShowEmptyImportGroups] = React.useState(false);
+  const importDialogRef = React.useRef(null);
   const fileRef = React.useRef(null);
   const utilityReturnFocusRef = React.useRef(null);
   const openUtilities = (event) => {
@@ -1334,10 +1336,50 @@ const App = () => {
         sel[g.key] = g.fields.some((f) => f in data);
       });
       setImportSel(sel);
+      setShowEmptyImportGroups(false);
       setImportData(data);
     };
     return () => { delete window.LBT_openImportDialog; };
   }, []);
+  
+  /* Keep the partial-import dialog keyboard-operable and return focus to the
+     control that launched it. Escape closes; Tab/Shift+Tab stay in the dialog. */
+  React.useEffect(() => {
+    if (!importData) return;
+    const dialog = importDialogRef.current;
+    const previousFocus = document.activeElement;
+    const focusable = () => Array.from(dialog?.querySelectorAll(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+    ) || []).filter((node) => node.getClientRects().length > 0);
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        setImportData(null);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const list = focusable();
+      if (!list.length) return;
+      const first = list[0];
+      const last = list[list.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+    requestAnimationFrame(() => focusable()[0]?.focus());
+    return () => {
+      document.removeEventListener("keydown", onKeyDown, true);
+      if (previousFocus && previousFocus instanceof HTMLElement && document.contains(previousFocus)) {
+        requestAnimationFrame(() => previousFocus.focus());
+      }
+    };
+  }, [!!importData]);
   
 
   /* 硝子窓からの取り込みは、このアカウントの state へ直接流す。
@@ -1354,6 +1396,9 @@ const App = () => {
     setImportData(null);
     toast(all ? "\u5168\u9805\u76EE\u3092\u30A4\u30F3\u30DD\u30FC\u30C8\u3057\u307E\u3057\u305F\uFF08Ctrl+Z\u3067\u5DEE\u3057\u623B\u3057\u53EF\uFF09" : "\u9078\u629E\u9805\u76EE\u3092\u30A4\u30F3\u30DD\u30FC\u30C8\u3057\u307E\u3057\u305F\uFF08Ctrl+Z\u3067\u5DEE\u3057\u623B\u3057\u53EF\uFF09");
   };
+  const availableImportGroups = importData ? IMPORT_GROUPS.filter((g) => g.fields.some((f) => f in importData)) : [];
+  const emptyImportGroups = importData ? IMPORT_GROUPS.filter((g) => !g.fields.some((f) => f in importData)) : [];
+  const visibleImportGroups = showEmptyImportGroups ? IMPORT_GROUPS : availableImportGroups;
   const selectedImportGroups = importData ? IMPORT_GROUPS.filter((g) => importSel[g.key] && g.fields.some((f) => f in importData)) : [];
   const selectedImportLabel = selectedImportGroups.length ? selectedImportGroups.map((g) => g.label).join("\u30FB") : "\u9078\u629E\u306A\u3057";
   const saveStateLabel = saveStatus.phase === "error" ? "\u7AEF\u672B\u5185\u4FDD\u5B58\u4E0D\u53EF" : saveStatus.phase === "saved" ? "\u7AEF\u672B\u5185\u306B\u81EA\u52D5\u4FDD\u5B58\u6E08\u307F" : "\u7AEF\u672B\u5185\u3078\u81EA\u52D5\u4FDD\u5B58\u4E2D";
@@ -1568,18 +1613,22 @@ const App = () => {
       toast("JSON\u3092\u30B3\u30D4\u30FC");
     } catch (e) {
     }
-  } }, "JSON\u51FA\u529B")), /* @__PURE__ */ React.createElement("button", { type: "button", className: "utility-trigger", onClick: openUtilities, "aria-haspopup": "dialog", "aria-expanded": utilityOpen }, /* @__PURE__ */ React.createElement(Icon, { name: "grid", size: 15 }), /* @__PURE__ */ React.createElement("span", null, "操作・保存"))), /* @__PURE__ */ React.createElement(RailNavigation, { sections: SECTIONS, current, dispatch, state, onOpenUtilities: openUtilities }), /* @__PURE__ */ React.createElement("main", { className: "focus", id: "main-content", tabIndex: -1 }, /* @__PURE__ */ React.createElement("div", { className: "focus-inner" }, renderSection())), /* @__PURE__ */ React.createElement(LivePreview, { state, dispatch }), !previewOpen && /* @__PURE__ */ React.createElement("button", { className: "preview-reopen", onClick: togglePreview, title: "\u30D7\u30EC\u30D3\u30E5\u30FC\u3092\u958B\u304F" }, "PREVIEW \u25C8"), /* R15 utility sheet */ utilityOpen && /* @__PURE__ */ React.createElement(UtilitySheet, { open: utilityOpen, onClose: closeUtilities, actions: utilityActions, sections: utilitySections, currentSection: current, onNavigate: (id) => dispatch({ type: "SET_UI", ui: { currentSection: id } }) }), /* @__PURE__ */ React.createElement(DisclaimerSheet, { open: disclaimerOpen, onClose: () => setDisclaimerOpen(false) }), /* @__PURE__ */ React.createElement(CommandPalette, { open: cpOpen, onClose: () => setCpOpen(false), state, dispatch }), /* @__PURE__ */ React.createElement(QualityInspector, { open: qiOpen, onClose: () => setQiOpen(false) }), /* @__PURE__ */ React.createElement(AccountSwitcher, { open: accountSwitcherOpen, initialEditId: accountSwitcherInitialEditId, existingResults: state.results || [], onClose: () => { setAccountSwitcherOpen(false); setAccountSwitcherInitialEditId(null); } }), importData && /* @__PURE__ */ React.createElement("div", { className: "share-modal-backdrop", onClick: (e) => { if (e.target === e.currentTarget) setImportData(null); }, style: { position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 } }, /* @__PURE__ */ React.createElement("div", { className: "card", style: { maxWidth: 520, width: "100%", maxHeight: "85vh", overflow: "auto", background: "var(--surface-1, #1a1715)", border: "1px solid var(--line)", borderRadius: 6, padding: 16 } },
-    /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-display)", fontWeight: 700, fontSize: "var(--fs-15)", color: "var(--gold)", marginBottom: 4 } }, "\u30BB\u30FC\u30D6\u30C7\u30FC\u30BF\u306E\u8AAD\u307F\u8FBC\u307F"),
-    /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-11)", color: "var(--tx-2)", marginBottom: 12, lineHeight: 1.6 } }, "\u8AAD\u307F\u8FBC\u3080\u9805\u76EE\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044\u3002\u73FE\u5728\u306E\u72B6\u614B\u306F\u4E0A\u66F8\u304D\u3055\u308C\u307E\u3059\u304C\u3001Ctrl+Z\u3067\u5DEE\u3057\u623B\u305B\u307E\u3059\u3002"),
-    /* @__PURE__ */ React.createElement("div", { className: "import-apply-summary", role: "status", "aria-live": "polite", style: { fontSize: "var(--fs-11)", color: "var(--gold)", marginBottom: 10, padding: "7px 9px", background: "var(--surface-inset)", border: "1px solid var(--line-dim)", borderRadius: 4, lineHeight: 1.5 } }, "\u4ECA\u56DE\u306E\u9069\u7528\u7BC4\u56F2\uFF1A", selectedImportLabel),
-    /* @__PURE__ */ React.createElement("div", { className: "stack-2" }, IMPORT_GROUPS.map((g) => {
+  } }, "JSON\u51FA\u529B")), /* @__PURE__ */ React.createElement("button", { type: "button", className: "utility-trigger", onClick: openUtilities, "aria-haspopup": "dialog", "aria-expanded": utilityOpen }, /* @__PURE__ */ React.createElement(Icon, { name: "grid", size: 15 }), /* @__PURE__ */ React.createElement("span", null, "操作・保存"))), /* @__PURE__ */ React.createElement(RailNavigation, { sections: SECTIONS, current, dispatch, state, onOpenUtilities: openUtilities }), /* @__PURE__ */ React.createElement("main", { className: "focus", id: "main-content", tabIndex: -1 }, /* @__PURE__ */ React.createElement("div", { className: "focus-inner" }, renderSection())), /* @__PURE__ */ React.createElement(LivePreview, { state, dispatch }), !previewOpen && /* @__PURE__ */ React.createElement("button", { className: "preview-reopen", onClick: togglePreview, title: "\u30D7\u30EC\u30D3\u30E5\u30FC\u3092\u958B\u304F" }, "PREVIEW \u25C8"), /* R15 utility sheet */ utilityOpen && /* @__PURE__ */ React.createElement(UtilitySheet, { open: utilityOpen, onClose: closeUtilities, actions: utilityActions, sections: utilitySections, currentSection: current, onNavigate: (id) => dispatch({ type: "SET_UI", ui: { currentSection: id } }) }), /* @__PURE__ */ React.createElement(DisclaimerSheet, { open: disclaimerOpen, onClose: () => setDisclaimerOpen(false) }), /* @__PURE__ */ React.createElement(CommandPalette, { open: cpOpen, onClose: () => setCpOpen(false), state, dispatch }), /* @__PURE__ */ React.createElement(QualityInspector, { open: qiOpen, onClose: () => setQiOpen(false) }), /* @__PURE__ */ React.createElement(AccountSwitcher, { open: accountSwitcherOpen, initialEditId: accountSwitcherInitialEditId, existingResults: state.results || [], onClose: () => { setAccountSwitcherOpen(false); setAccountSwitcherInitialEditId(null); } }), importData && /* @__PURE__ */ React.createElement("div", { className: "state-import-backdrop", onClick: (e) => { if (e.target === e.currentTarget) setImportData(null); } }, /* @__PURE__ */ React.createElement("div", { ref: importDialogRef, className: "state-import-dialog", role: "dialog", "aria-modal": "true", "aria-labelledby": "state-import-title", tabIndex: -1 },
+    /* @__PURE__ */ React.createElement("h2", { id: "state-import-title", className: "state-import-title" }, "\u30BB\u30FC\u30D6\u30C7\u30FC\u30BF\u306E\u8AAD\u307F\u8FBC\u307F"),
+    /* @__PURE__ */ React.createElement("p", { className: "state-import-desc" }, "\u8AAD\u307F\u8FBC\u3080\u9805\u76EE\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044\u3002\u73FE\u5728\u306E\u72B6\u614B\u306F\u4E0A\u66F8\u304D\u3055\u308C\u307E\u3059\u304C\u3001Ctrl+Z\u3067\u5DEE\u3057\u623B\u305B\u307E\u3059\u3002"),
+    /* @__PURE__ */ React.createElement("div", { className: "import-apply-summary", role: "status", "aria-live": "polite" }, "\u4ECA\u56DE\u306E\u9069\u7528\u7BC4\u56F2\uFF1A", selectedImportLabel),
+    /* @__PURE__ */ React.createElement("div", { className: "state-import-category-heading" },
+      /* @__PURE__ */ React.createElement("span", null, `${availableImportGroups.length} / ${IMPORT_GROUPS.length}\u30AB\u30C6\u30B4\u30EA\u306B\u30C7\u30FC\u30BF\u304C\u3042\u308A\u307E\u3059`),
+      emptyImportGroups.length ? /* @__PURE__ */ React.createElement("button", { type: "button", className: "state-import-toggle-empty", onClick: () => setShowEmptyImportGroups((value) => !value), "aria-expanded": showEmptyImportGroups }, showEmptyImportGroups ? "\u30C7\u30FC\u30BF\u306E\u306A\u3044\u9805\u76EE\u3092\u96A0\u3059" : `\u30C7\u30FC\u30BF\u306E\u306A\u3044\u9805\u76EE\u3082\u8868\u793A（${emptyImportGroups.length}\u4EF6）`) : null
+    ),
+    /* @__PURE__ */ React.createElement("div", { className: "state-import-groups" }, visibleImportGroups.map((g) => {
       const has = g.fields.some((f) => f in importData);
-      return /* @__PURE__ */ React.createElement("label", { key: g.key, style: { display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: has ? "var(--surface-inset)" : "transparent", border: "1px solid var(--line-dim)", borderRadius: 4, cursor: has ? "pointer" : "default", opacity: has ? 1 : 0.4, fontSize: "var(--fs-12)" } },
-        /* @__PURE__ */ React.createElement("input", { type: "checkbox", disabled: !has, checked: !!importSel[g.key], onChange: (e) => setImportSel((s) => ({ ...s, [g.key]: e.target.checked })), style: { accentColor: "var(--gold)" } }),
-        /* @__PURE__ */ React.createElement("span", null, g.label, !has && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)", marginLeft: 6 } }, "\uFF08\u30C7\u30FC\u30BF\u306A\u3057\uFF09"))
+      return /* @__PURE__ */ React.createElement("label", { key: g.key, className: `state-import-group${has ? "" : " is-empty"}` },
+        /* @__PURE__ */ React.createElement("input", { type: "checkbox", disabled: !has, checked: !!importSel[g.key], onChange: (e) => setImportSel((s) => ({ ...s, [g.key]: e.target.checked })) }),
+        /* @__PURE__ */ React.createElement("span", null, g.label, !has && /* @__PURE__ */ React.createElement("span", { className: "state-import-group-empty-note" }, "\uFF08\u30C7\u30FC\u30BF\u306A\u3057\uFF09"))
       );
     })),
-    /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 14, justifyContent: "flex-end", flexWrap: "wrap" } },
+    /* @__PURE__ */ React.createElement("div", { className: "state-import-actions" },
       /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost btn-sm", onClick: () => {
         const sel = {};
         IMPORT_GROUPS.forEach((g) => { sel[g.key] = false; });
@@ -1590,8 +1639,8 @@ const App = () => {
         IMPORT_GROUPS.forEach((g) => { sel[g.key] = g.fields.some((f) => f in importData); });
         setImportSel(sel);
       }, title: "\u30C7\u30FC\u30BF\u304C\u5B58\u5728\u3059\u308B\u30AB\u30C6\u30B4\u30EA\u306E\u307F\u9078\u629E\u3057\u305F\u521D\u671F\u72B6\u614B\u306B\u623B\u3059" }, "\u9078\u629E\u3092\u521D\u671F\u72B6\u614B\u306B\u623B\u3059"),
-      /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }),
-      /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost btn-sm", onClick: () => setImportData(null) }, "\u30AD\u30E3\u30F3\u30BB\u30EB"),
+      /* @__PURE__ */ React.createElement("div", { className: "state-import-spacer", "aria-hidden": "true" }),
+      /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-ghost btn-sm", onClick: () => setImportData(null) }, "\u30AD\u30E3\u30F3\u30BB\u30EB"),
       /* @__PURE__ */ React.createElement("button", { className: "btn btn-sm btn-primary", onClick: () => applyImport(false), disabled: selectedImportGroups.length === 0, title: selectedImportGroups.length ? "\u8868\u793A\u4E2D\u306E\u9069\u7528\u7BC4\u56F2\u3092\u73FE\u5728\u306E\u4F5C\u696D\u72B6\u614B\u3078\u8AAD\u307F\u8FBC\u307F\u307E\u3059" : "\u8AAD\u307F\u8FBC\u3080\u9805\u76EE\u3092\u4E00\u3064\u4EE5\u4E0A\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044" }, "\u9078\u629E\u9805\u76EE\u3092\u8AAD\u307F\u8FBC\u3080")
     )
   )));
