@@ -313,3 +313,11 @@ test("同じ共有元のリザルトは更新し、旧形式候補は利用者�
   assert.match(uiFlat, /手入力の明細が含まれていないか確認してください/);
   assert.match(uiFlat, /importSourceKey/);
 });
+
+test("未割当レールは編集カードより前に描画し、モバイルで割当元を先に見せる", () => {
+  const rail = uiFlat.indexOf("unclassified.length ||");
+  const firstCard = uiFlat.indexOf("draft && draft.blocks.map((block) => {");
+  assert.ok(rail >= 0 && firstCard >= 0, "未割当レールとリザルトカードの描画箇所がある");
+  assert.ok(rail < firstCard, "単一列になるスマートフォンでも未割当がカード列より前に出る");
+  assert.match(uiFlat, /className: "gara-rail"/, "デスクトップの右側レールは維持する");
+});
