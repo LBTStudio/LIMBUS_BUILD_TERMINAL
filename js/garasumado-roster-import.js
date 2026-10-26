@@ -584,6 +584,7 @@ function toIdentityChoices(hits) {
         : [];
       const knownNames = new Set(source.map(nameOf).map(nameKey));
       const sheetOnly = sheetSupports.filter((nm) => !knownNames.has(nameKey(nm)));
+      const sourceByName = new Map(source.map((row) => [nameKey(nameOf(row)), row]));
       const names = [...new Set([...source.map(nameOf).filter(Boolean), ...sheetOnly])];
       /* 精神も計上する。DB の spirits 48件のうち無料は初期精神の3件
          （パニック/圧倒/萎縮）で、残り45件は 50〜1000 LP の有料品。
@@ -598,6 +599,7 @@ function toIdentityChoices(hits) {
         id: group.id,
         label: group.label,
         items: listed.map((name) => {
+          const sourceEntry = sourceByName.get(nameKey(name));
           const hit = resolve ? resolve(name) : null;
           const candidates = toIdentityChoices(resolveMany ? resolveMany(name) : null);
           const sharedEnhancements = group.id === "personas" ? personaEnhancementsByName.get(nameKey(name)) : null;
@@ -606,6 +608,7 @@ function toIdentityChoices(hits) {
             ...(sharedEnhancements ? { importedEnhancementNames: sharedEnhancements.names } : {}),
             group: group.id,
             name,
+            ...(group.id === "egos" && sourceEntry && sourceEntry.rank ? { sourceRank: String(sourceEntry.rank) } : {}),
             quantity: itemQty ? (itemQty.get(nameKey(name)) || 1) : undefined,
             resolved: Boolean(hit),
             dbName: hit ? hit.name : "",
@@ -666,7 +669,7 @@ function toIdentityChoices(hits) {
       .filter((row) => row && (row.name || row.memo))
       .map((row, index) => {
         const base = { key: "scenario:" + index, name: String(row.name || "").trim() || "無題", group: "scenarios" };
-        if (!memoApi) return { ...base, memo: String(row.memo || ""), income: { lp: 0, shards: 0 }, tickets: {}, pack: {}, spends: [], wins: [], reasons: [{ reason: "メモパーサが読み込まれていない" }] };
+        if (!memoApi) return { ...base, memo: String(row.memo || ""), income: { lp: 0, shards: 0 }, tickets: {}, pack: {}, spends: [], ticketSpends: [], wins: [], reasons: [{ reason: "メモパーサが読み込まれていない" }] };
         const parsed = memoApi.parseMemo(row.memo);
         const wins = resolveWins(parsed.wins);
         return {
@@ -676,6 +679,7 @@ function toIdentityChoices(hits) {
           tickets: parsed.tickets,
           pack: parsed.pack,
           spends: parsed.spends,
+          ticketSpends: parsed.ticketSpends || [],
           consumedItems: parsed.consumedItems || [],
           reasons: parsed.reasons,
           /* シナリオで直接払い出された人格/E.G.O。 */
@@ -788,6 +792,7 @@ function toIdentityChoices(hits) {
       },
       groups,
       scenarios,
+      purchaseHistory: purchaseScenario ? (purchaseScenario.spends || []).map((row) => ({ ...row, source: "freeNotes" })) : [],
       /* 所持品の帰属照合結果。matched=どのシナリオか判明、unmatched=履歴に記載なし。 */
       attribution,
       counts: {
@@ -925,7 +930,29 @@ function toIdentityChoices(hits) {
           }
         } else if (group.id === "egos") {
           if (!ego || !ego.no || !ego.rank) {
-            skipped.push({ key: item.key, reason: "DB番号かランクが引けない" });
+            const rank = String(item.sourceRank || "").toUpperCase();
+            const validRanks = new Set(["ZAYIN", "TETH", "HE", "WAW", "ALEPH"]);
+            const rawName = String((item.picked && item.picked.name) || item.name || "").trim();
+            const exactDbEgo = (itemDb.egos || []).find((row) =>
+              validRanks.has(rank) && row && String(row.rank || "").toUpperCase() === rank
+              && nameKey(row.name) === nameKey(rawName) && row.no != null);
+            if (exactDbEgo) {
+              const key = `ego:${exactDbEgo.rank}:${exactDbEgo.no}`;
+              if (!taken.has(key)) {
+                taken.add(key);
+                actions.push({ type: "ADD_ROSTER_EGO", no: String(exactDbEgo.no), rank: exactDbEgo.rank, via });
+              }
+              continue;
+            }
+            if (validRanks.has(rank) && !(item.identityCandidates || []).length && !(item.candidates || []).length) {
+              const key = `ego-custom:${rank}:${nameKey(rawName)}`;
+              if (!taken.has(key)) {
+                taken.add(key);
+                actions.push({ type: "ADD_CUSTOM_ROSTER_EGO", name: rawName, rank, via });
+              }
+              continue;
+            }
+            skipped.push({ key: item.key, reason: "DB番号かランクが引けない（独自E.G.Oは元データのランクが必要）" });
             continue;
           }
           taken.add(`ego:${ego.rank}:${ego.no}`);
@@ -1126,6 +1153,36 @@ function toIdentityChoices(hits) {
         });
       }
 
+      /* 使用したチケットは収入ではなく明細で残す。チケット残数が0でも履歴上の使用は保持し、
+         残数は負にせず（computeTicketBalance）、不足は所持数と使用履歴の差として見せる。 */
+      for (const spend of scenario.ticketSpends || []) {
+        if (!spend || !["persona", "ego", "choice", "pack"].includes(spend.kind)) continue;
+        if (spend.kind === "pack" && !String(spend.pack || "").trim()) {
+          skipped.push({ key: scenario.key, reason: "パックチケットの使用先が特定できないため消費明細を保留" });
+          continue;
+        }
+        const count = Number.isSafeInteger(spend.count) && spend.count > 0 ? spend.count : 1;
+        const ticketUse = { persona: 0, ego: 0, choice: 0, pack: {} };
+        let ticketName = "";
+        if (spend.kind === "pack") {
+          Object.defineProperty(ticketUse.pack, String(spend.pack), {
+            value: count, enumerable: true, configurable: true, writable: true
+          });
+          ticketName = "パックチケット「" + String(spend.pack) + "」";
+        } else {
+          ticketUse[spend.kind] = count;
+          ticketName = ({ persona: "人格抽出チケット", ego: "E.G.O抽出チケット", choice: "選択抽出チケット" })[spend.kind];
+        }
+        actions.push({
+          type: "ADD_ENTRY",
+          kind: "other",
+          name: "履歴上の使用：" + ticketName + (count > 1 ? " ×" + count : ""),
+          cost: { lp: 0, shards: 0 },
+          tickets: ticketUse,
+          note: "硝子窓の履歴に使用と記載。取得元・残数が不明な場合も使用記録は保持"
+        });
+      }
+
       /* 利用者が選んだ購入分。memo の支出と二重にならないよう、
          それは選択されたものだけ足す。 */
       for (const pick of purchases[scenario.key] || []) {
@@ -1138,6 +1195,24 @@ function toIdentityChoices(hits) {
           cost: pick.cost
         });
       }
+    }
+
+    /* 自由メモ購入は日時・元シナリオが分からないため、架空のリザルトに紐付けず未分類明細へ。
+       手入力の現在残高との照合には使うが、取得元・費用を推測で補正しない。 */
+    for (const purchase of (manifest && manifest.purchaseHistory) || []) {
+      const cost = { lp: Number(purchase && purchase.lp) || 0, shards: Number(purchase && purchase.shards) || 0 };
+      if (!cost.lp && !cost.shards) {
+        skipped.push({ key: "purchase-history:" + String(purchase && purchase.name || ""), reason: "自由メモ購入額を読み取れないため自動計上しない" });
+        continue;
+      }
+      actions.push({
+        type: "ADD_ENTRY",
+        kind: "other",
+        name: String(purchase.name || "自由メモの購入").slice(0, 120),
+        cost,
+        resultId: null,
+        note: "硝子窓の自由メモ由来。日時・シナリオ未特定"
+      });
     }
 
     return { actions, skipped };
