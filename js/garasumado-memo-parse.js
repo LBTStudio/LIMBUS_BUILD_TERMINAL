@@ -512,8 +512,11 @@
      隣接しないので読まない（落としたまま）。 */
   function namedPurchaseOf(line) {
     var t = String(line || "").trim();
-    if (!/(消費|購入)[。．.」』]*$/.test(t)) return null;
-    var m = t.match(/^([^0-9\s：:].+)[：:]\s*([0-9０-９]+)\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ)([^0-9]*)$/i);
+    /* 「7LP消費（合計45LP/82欠片）」の括弧は残高の参考記載。
+       購入額そのものとは分け、主取引の直後に付いた括弧だけを解析から外す。 */
+    var primary = t.replace(/[（(][^）)]*[）)]\s*$/, "").trim();
+    if (!/(消費|購入)[。．.」』]*$/.test(primary)) return null;
+    var m = primary.match(/^([^0-9\s：:].+)[：:]\s*([0-9０-９]+)\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ)([^0-9]*)$/i);
     if (!m) return null;
     var name = m[1].trim();
     if (/サポートパッシブ|サポパ|サポート|パッシブ/.test(name)) {
