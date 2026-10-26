@@ -866,7 +866,7 @@ test("収支精度回帰: 共有書式から収入・支出・チケット・独
   assert.deepEqual([...skipped], []);
 });
 
-function resolvedManifest(doc) {function resolvedManifest(doc) {
+function resolvedManifest(doc) {
   const w = loadResolver();
   const index = w.LBT_buildNameIndex(db, {});
   return G.buildManifest(doc, { resolve: (name) => w.LBT_resolveCandidates(index, name)?.[0] || null });
