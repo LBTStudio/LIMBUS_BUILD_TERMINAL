@@ -860,7 +860,7 @@ test("E.G.O指定購入の個別欠片価格と合計LP費用を両方保持す�
   assert.equal(spends.length, 10, "9つのE.G.O価格とLP合計を分けて保持する");
   assert.equal(spends.reduce((sum, item) => sum + item.cost.lp, 0), 450);
   assert.equal(spends.reduce((sum, item) => sum + item.cost.shards, 0), 450);
-  assert.equal(spends.filter((item) => item.raw === "消費：LP450").length, 1);
+  assert.equal(spends.filter((item) => item.raw === "LP450").length, 1);
   assert.equal(parsed.skipped.length, 0, "異なる通貨の明細は価格不一致として警告しない");
 
   const planned = T.plan(parsed);
