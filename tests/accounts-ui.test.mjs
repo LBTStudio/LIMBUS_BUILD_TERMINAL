@@ -164,6 +164,8 @@ test("モバイルのアカウント操作と共有URL取り込みが重なら�
   const cloudCss = readFileSync(new URL("../assets/cloud-backup.css", import.meta.url), "utf8");
   assert.match(cloudCss, /\.acct-panel:has\(\.acct-card--import-open\) > \.lbt-cloud-panel \{\s*display: none;/, "取り込み中は任意のクラウド保全パネルを退避する");
   assert.match(cloudCss, /\.acct-panel:has\(\.acct-card--import-open\) > \.acct-grid \{[\s\S]*?flex: 1 1 0%;[\s\S]*?overflow-y: auto;/, "取り込みフォームにスクロール領域を渡す");
+  assert.match(cloudCss, /\.acct-panel:has\(\.acct-card--import-open\) > \.acct-grid \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\);/, "取り込み中はフォームを1列で全幅表示する");
+  assert.match(cloudCss, /\.acct-panel:has\(\.acct-card--import-open\) > \.acct-grid > \.acct-card:not\(\.acct-card--import-open\) \{\s*\/\*[\s\S]*?display: none;/, "対象外のアカウントカードがフォームの背後に重ならない");
 });
 
 test("アクセス時のアカウント選択ゲートは毎回出て、選んだらそのアカウントで開く", () => {
