@@ -121,6 +121,28 @@ test("リザルトを加えると収入が保存され、残高反映される",
   assert.equal(balance(s.results, s.entries).shards, 400);
 });
 
+test("チケット使用の明細は ADD_ENTRY に保存され、残数から一度だけ引かれる", () => {
+  let s = reducer(baseState(), {
+    type: "ADD_RESULT", name: "抽出記録",
+    income: { lp: 0, shards: 0, tickets: { persona: 2, pack: { "本に成った者たちⅠ": 1 } } }
+  });
+  s = reducer(s, {
+    type: "ADD_ENTRY", kind: "other", name: "履歴上の使用：人格抽出チケット",
+    cost: { lp: 0, shards: 0 }, tickets: { persona: 1 },
+    resultId: null, note: "硝子窓の履歴に使用と記載"
+  });
+  s = reducer(s, {
+    type: "ADD_ENTRY", kind: "other", name: "履歴上の使用：パックチケット",
+    cost: { lp: 0, shards: 0 }, tickets: { pack: { "本に成った者たちⅠ": 1 } },
+    resultId: null, note: "硝子窓の履歴に使用と記載"
+  });
+  assert.equal(s.entries[0].tickets.persona, 1, "通常チケットの使用を明細に保存");
+  assert.equal(s.entries[1].tickets.pack["本に成った者たちⅠ"], 1, "パック名も明細に保存");
+  const b = balance(s.results, s.entries);
+  assert.equal(b.tickets.persona, 1, "人格抽出チケット2枚 - 使用1枚");
+  assert.equal(b.tickets.pack["本に成った者たちⅠ"], 0, "パックチケット1枚 - 使用1枚");
+});
+
 test("支出明細は収入から差し引く（LP と 欠片を別口座で扱う）", () => {
   let s = reducer(baseState(), { type: "ADD_RESULT", name: "第12回", income: { lp: 1200, shards: 400 } });
   s = reducer(s, { type: "ADD_ENTRY", kind: "support", name: "ルサンチマン", cost: { lp: 7 } });
