@@ -817,6 +817,12 @@ test("共有URL からドキュメント ID とコレクションを抜く", () 
 
   const b = G.parseShareUrl("https://lbt-garasumado.vercel.app/persona/view/EPm6O9SU11aYYj0obEar");
   assert.equal(b.collection, "personas");
+  const bareId = G.parseShareUrl("mMIbGr32lGZix60RDmoN");
+  assert.equal(bareId.ok, false, "IDだけからコレクションを決め打ちしない");
+  assert.match(bareId.error, /IDだけでは.*判別できません/);
+  const bareBatch = G.parseShareUrls("mMIbGr32lGZix60RDmoN");
+  assert.equal(bareBatch.urls.length, 0);
+  assert.equal(bareBatch.invalid[0]?.reason, bareId.error);
   const schemeless = G.parseShareUrl("lbt-garasumado.vercel.app/view/mMIbGr32lGZix60RDmoN?share=1#preview");
   assert.equal(schemeless.ok, true, "公式ホストはスキーム省略とquery/hashを許可");
   assert.equal(schemeless.id, "mMIbGr32lGZix60RDmoN");
