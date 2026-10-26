@@ -1629,7 +1629,7 @@ const App = () => {
   },
     /* @__PURE__ */ React.createElement("h2", { className: "state-import-title", id: "state-import-dialog-title" }, "セーブデータの読み込み"),
     /* @__PURE__ */ React.createElement("p", { className: "state-import-description" }, "読み込む項目を選択してください。現在の状態は上書きされますが、Ctrl+Zで差し戻せます。"),
-    /* @__PURE__ */ React.createElement("div", { className: "import-apply-summary state-import-summary", role: "status", "aria-live": "polite" }, "今回の適用範囲：", selectedImportLabel),
+    /* @__PURE__ */ React.createElement("div", { className: "import-apply-summary", role: "status", "aria-live": "polite" }, "今回の適用範囲：", selectedImportLabel),
     /* @__PURE__ */ React.createElement("div", { className: "state-import-list-controls" },
       /* @__PURE__ */ React.createElement("span", { className: "state-import-list-count", role: "status", "aria-live": "polite" }, `データあり ${importGroupsWithData.length} / ${IMPORT_GROUPS.length} カテゴリ`),
       emptyImportGroupCount > 0 ? /* @__PURE__ */ React.createElement("button", {
