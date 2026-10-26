@@ -475,6 +475,114 @@ test("復元対象と一致する手動支出があれば、その行を保護�
   assert.equal(balanceTwice.spentShards, balanceOnce.spentShards, "再読み込みで欠片支出合計が増えない");
 });
 
+test("新しいチケット抽選の支出参照は抽選commitを保持する", () => {
+  const w = loadState(db);
+  const batch = {
+    schemaVersion: 1,
+    ruleset: "core",
+    kind: "persona",
+    count: 1,
+    commit: "ticket-expense-commit-1",
+    batchHash: "ticket-expense-batch-hash-1",
+    records: [{
+      index: 0,
+      kind: "persona",
+      method: "ticket",
+      item: { no: 2, mode: "n", kind: "persona", name: db.normal_personas.find((p) => String(p.no) === "2")?.name || "テスト人格" },
+      cost: { lp: 0, shards: 0 },
+      duplicate: false,
+      grantedShards: 0
+    }]
+  };
+  const before = {
+    ...base(),
+    results: [{
+      id: "ticket-result",
+      name: "チケット抽選",
+      date: new Date().toISOString().slice(0, 10),
+      createdAt: Date.now() - 1000,
+      income: { lp: 0, shards: 0, tickets: { persona: 1 } }
+    }]
+  };
+  const applied = w.appReducer(before, {
+    type: "ADD_DRAW_BATCH",
+    batch,
+    ticketSpend: { kind: "persona", count: 1 },
+    resultId: "ticket-result"
+  });
+  const spend = applied.entries.find((entry) => entry.kind === "ticket");
+  assert.ok(spend, "抽選時のチケット消費明細ができる");
+  assert.equal(spend.ref.kind, "gachaBatch");
+  assert.equal(spend.ref.commit, batch.commit, "どの抽選バッチかを明細へ保存する");
+  const reloaded = w.LBT_normalizeStateShape(applied);
+  const persisted = reloaded.entries.find((entry) => entry.kind === "ticket");
+  assert.equal(persisted.ref.commit, batch.commit, "保存・再読み込みでもcommitを保持する");
+});
+
+test("近接した抽選はcommitごとに支出を分離し、IDのない旧明細は曖昧なら移動しない", () => {
+  const w = loadState(db);
+  const makeBatch = (serverSeed, clientSeed) => {
+    const session = G.createSession({ serverSeed, clientSeed });
+    const out = gacha.drawBatch({
+      session, kind: "persona",
+      owned: { personas: [1], specialPersonas: [], egos: [] },
+      lp: 300, count: 3
+    });
+    return G.finalizeBatch(out, session, { rulesetHash: gacha.rulesetHash, ruleset: "core" });
+  };
+  const batchOne = makeBatch("close-draw-seed-one", "player-one");
+  const batchTwo = makeBatch("close-draw-seed-two", "player-two");
+  assert.notEqual(batchOne.commit, batchTwo.commit, "2回の抽選は別commit");
+  const atOne = Date.parse("2026-10-26T10:00:00.000Z");
+  const atTwo = atOne + 1000;
+  const commonResults = [
+    { id: "result-new", name: "後から作られた新リザルト", date: "2026-10-26", createdAt: atOne + 500, income: { lp: 1000, shards: 100 } },
+    { id: "result-old", name: "旧リザルト", date: "2026-10-25", createdAt: atOne - 5000, income: { lp: 1000, shards: 100 } }
+  ];
+  const logOne = { id: batchOne.commit, commit: batchOne.commit, at: new Date(atOne).toISOString(), resultId: "result-old" };
+  const logTwo = { id: batchTwo.commit, commit: batchTwo.commit, at: new Date(atTwo).toISOString(), resultId: "result-old" };
+  const ticketEntry = (id, at, commit) => ({
+    id, kind: "ticket", name: "人格抽出チケット を使用",
+    cost: { lp: 0, shards: 0 }, tickets: { persona: 1 },
+    resultId: "result-old", ref: { kind: "gachaBatch", ...(commit ? { commit } : {}) },
+    at, note: ""
+  });
+
+  const identified = w.LBT_normalizeStateShape({
+    ...base(),
+    results: commonResults,
+    draws: [batchOne, batchTwo],
+    gachaLog: [logOne, logTwo],
+    entries: [
+      ticketEntry("ticket-one", atOne + 200, batchOne.commit),
+      ticketEntry("ticket-two", atTwo + 200, batchTwo.commit)
+    ]
+  });
+  assert.equal(identified.entries.find((entry) => entry.id === "ticket-one").resultId, "result-old",
+    "1回目のチケット支出は1回目のリザルトに残る");
+  assert.equal(identified.entries.find((entry) => entry.id === "ticket-two").resultId, "result-new",
+    "2回目のチケット支出だけ2回目の抽選時点の最新へ移す");
+  assert.equal(identified.entries.find((entry) => entry.id === "ticket-one").ref.commit, batchOne.commit);
+  assert.equal(identified.entries.find((entry) => entry.id === "ticket-two").ref.commit, batchTwo.commit);
+
+  const ambiguousLegacy = w.LBT_normalizeStateShape({
+    ...base(),
+    results: commonResults,
+    draws: [batchOne, batchTwo],
+    gachaLog: [logOne, logTwo],
+    entries: [
+      ticketEntry("legacy-ticket-one", atOne + 200, ""),
+      ticketEntry("legacy-ticket-two", atTwo + 200, "")
+    ]
+  });
+  assert.equal(ambiguousLegacy.entries.find((entry) => entry.id === "legacy-ticket-one").resultId, "result-old",
+    "commitの無い古い明細を推測で移さない");
+  assert.equal(ambiguousLegacy.entries.find((entry) => entry.id === "legacy-ticket-two").resultId, "result-old",
+    "どちらの抽選か一意に判別できない履歴は保留する");
+  assert.ok(ambiguousLegacy.gachaLog.every((log) => Number(log.resultAttributionRepairVersion || 0) < 2),
+    "未解決の旧履歴を補正済みとして封じない");
+});
+
 test("旧抽出の誤帰属は、ログIDがある場合も無い場合も安全に補正する", () => {
   const w = loadState(db);
   const { batch } = finalizedBatch();

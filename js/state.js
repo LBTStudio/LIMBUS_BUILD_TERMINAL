@@ -2058,7 +2058,12 @@ function normalizeStateShape(raw) {
     /* 抽出チケットの消費も明細に持つ（残数 = 収入 − 消費）。 */
     tickets: normalizeTickets(entry.tickets),
     resultId: knownResultIds.has(entry.resultId) ? entry.resultId : null,
-    ref: entry.ref && typeof entry.ref === "object" ? { kind: String(entry.ref.kind || ""), uid: String(entry.ref.uid || "") } : null
+    ref: entry.ref && typeof entry.ref === "object" ? {
+      kind: String(entry.ref.kind || ""),
+      uid: String(entry.ref.uid || ""),
+      ...(String(entry.ref.kind || "") === "gachaBatch" && entry.ref.commit
+        ? { commit: String(entry.ref.commit).slice(0, 160) } : {})
+    } : null
   }));
   /* サポート/精神の装備は人格ごとに違う。装備中の人格に保存ビルドがあるなら
      それが正で、roster の投影（最後に開いた人格の装備）を当ててはいけない。
@@ -2381,7 +2386,26 @@ function repairGachaResultAttribution(state) {
     if (String(entry?.resultId || "") !== sourceResultId) return false;
     const at = Number(entry.at);
     if (!Number.isFinite(at) || at < logAt - 2000 || at > logAt + 15000) return false;
-    if (entry.ref?.kind === "gachaBatch") return true;
+    if (entry.ref?.kind === "gachaBatch") {
+      const referencedCommit = String(entry.ref.commit || "");
+      const batchCommit = String(batch.commit || batch.batchHash || "");
+      /* 新形式は抽選固有commitで厳密に照合する。commitの無い旧形式だけ、
+         既存互換として時刻窓を使う（複数候補ならsourceResultIdが一意にならず移動しない）。 */
+      if (referencedCommit) return referencedCommit === batchCommit;
+      /* バッチIDが保存されていない旧明細は、時刻だけで複数抽選に一致する場合、
+         どれの支出か証明できないため移動しない。 */
+      const possibleLogs = logs.filter((candidateLog) => {
+        const candidateAt = Date.parse(String(candidateLog?.at || ""));
+        const candidateCommit = String(candidateLog?.commit || "");
+        if (!Number.isFinite(candidateAt) || !candidateCommit
+          || at < candidateAt - 2000 || at > candidateAt + 15000) return false;
+        return draws.some((candidateBatch) =>
+          String(candidateBatch?.commit || "") === candidateCommit
+          || String(candidateBatch?.batchHash || "") === candidateCommit);
+      });
+      return possibleLogs.length === 1
+        && String(possibleLogs[0]?.commit || "") === batchCommit;
+    }
     if (entry.ref?.kind === "rosterPersona") {
       const persona = personas.find((row) => String(row?.uid || "") === String(entry.ref.uid || ""));
       return !!persona && hasRecordForPersona(batch, persona);
@@ -2569,7 +2593,22 @@ function repairGachaResultAttribution(state) {
         && String(entry.resultId || "") === String(targetResultId)
       );
     });
-    if (!allOwnedRecordsResolved) return log;
+    const ambiguousLegacyBatchRef = nextEntries.some((entry) => {
+      if (entry?.ref?.kind !== "gachaBatch" || entry.ref.commit) return false;
+      const entryAt = Number(entry.at);
+      if (!Number.isFinite(entryAt)) return false;
+      const possibleLogs = logs.filter((candidateLog) => {
+        const candidateAt = Date.parse(String(candidateLog?.at || ""));
+        const candidateCommit = String(candidateLog?.commit || "");
+        if (!Number.isFinite(candidateAt) || !candidateCommit
+          || entryAt < candidateAt - 2000 || entryAt > candidateAt + 15000) return false;
+        return draws.some((candidateBatch) =>
+          String(candidateBatch?.commit || "") === candidateCommit
+          || String(candidateBatch?.batchHash || "") === candidateCommit);
+      });
+      return possibleLogs.length > 1;
+    });
+    if (!allOwnedRecordsResolved || ambiguousLegacyBatchRef) return log;
     return {
       ...log,
       resultId: targetResultId,
@@ -3780,7 +3819,8 @@ function applyDrawBatchEffects(state, batch, resultId) {
           kind: "expense",
           name: `特定抽出パック ${record.pack || ""}${record.item?.name ? `：${record.item.name}` : ""}（重複）`.trim(),
           cost: { lp, shards: 0 },
-          resultId
+          resultId,
+          ref: { kind: "gachaBatch", commit: String(batch.commit || batch.batchHash || "") }
         });
       }
       next = addShardIncome(next, Number(record.grantedShards) || 0, resultId);
@@ -3793,7 +3833,8 @@ function applyDrawBatchEffects(state, batch, resultId) {
       kind: "expense",
       name: `特定抽出パック ${record.pack || ""}${record.item?.name ? `：${record.item.name}` : ""}`.trim(),
       cost: { lp, shards: 0 },
-      resultId
+      resultId,
+      ref: { kind: "gachaBatch", commit: String(batch.commit || batch.batchHash || "") }
     });
   }
   return next;
@@ -5235,7 +5276,9 @@ case "ADD_CUSTOM_ITEM": {
         const kind = ticketSpend.kind;
         const pack = kind === "pack" ? String(ticketSpend.pack || "") : null;
         const count = Math.max(0, Math.trunc(Number(ticketSpend.count) || 0));
-        next = appendTicketSpend(next, kind, pack, count, { kind: "gachaBatch" }, action.resultId);
+        next = appendTicketSpend(next, kind, pack, count, {
+          kind: "gachaBatch", commit: String(batch.commit || batch.batchHash || "")
+        }, action.resultId);
       }
       next = applyDrawBatchEffects(next, batch, action.resultId);
       const proofKey = String(batch.batchHash || batch.commit || "");
@@ -5256,7 +5299,7 @@ case "ADD_CUSTOM_ITEM": {
       if (ticketSpend) {
         const pack = ticketSpend.kind === "pack" ? String(ticketSpend.pack || "") : null;
         next = appendTicketSpend(next, ticketSpend.kind, pack, ticketSpend.count,
-          { kind: "gachaBatch" }, action.resultId);
+          { kind: "gachaBatch", commit: String(batch.commit || batch.batchHash || "") }, action.resultId);
       }
       next = applyDrawBatchEffects(next, batch, action.resultId);
       const proofKey = String(batch.batchHash || batch.commit || "");
@@ -5850,7 +5893,12 @@ case "ADD_ENTRY":
           name: String(action.name || "").slice(0, 120),
           cost: normalizeCurrency(action.cost),
           resultId: action.resultId || null,
-          ref: action.ref && typeof action.ref === "object" ? { kind: String(action.ref.kind || ""), uid: String(action.ref.uid || "") } : null,
+          ref: action.ref && typeof action.ref === "object" ? {
+            kind: String(action.ref.kind || ""),
+            uid: String(action.ref.uid || ""),
+            ...(String(action.ref.kind || "") === "gachaBatch" && action.ref.commit
+              ? { commit: String(action.ref.commit).slice(0, 160) } : {})
+          } : null,
           at: Number(action.at) || Date.now(),
           note: String(action.note || "").slice(0, 2000)
         }]
