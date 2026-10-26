@@ -3986,6 +3986,22 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     setTicketDraft(null);
     setDismissedTextWarnings(new Set());
   };
+  const activeResultTool = importPanel ? "glass" : textPanel ? "text" : heldOpen ? "held" : null;
+  React.useEffect(() => {
+    if (!activeResultTool) return;
+    const raf = requestAnimationFrame(() => {
+      let panel = null;
+      if (activeResultTool === "glass") panel = document.getElementById("ledger-glass-import-panel");
+      else if (activeResultTool === "text") panel = document.getElementById("ledger-text-import-panel");
+      else panel = document.querySelector(".ledger-gara-wrap .ledger-held-paste")?.closest(".ledger-gara-wrap") || null;
+      if (!panel) return;
+      const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+      panel.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+      const firstField = panel.querySelector("textarea, input:not([type='hidden']), select, [role='combobox']");
+      firstField?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [activeResultTool]);
   const openHeld = () => switchResultTool("held");
   const closeHeld = () => setHeldOpen(false);
 
