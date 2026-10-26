@@ -2292,11 +2292,11 @@ function personaDbName(entry) {
   return hit ? String(hit.name || "") : "";
 }
 
-/* E.G.O エントリから DB の正式名を引く。 */
+/* E.G.O エントリから DB の正式名を引く。独自E.G.Oは保存ビルドの名前を使う。 */
 function egoDbName(entry) {
   if (!entry) return "";
   const hit = (window.DB?.egos || []).find((e) => e.rank === entry.rank && String(e.no) === String(entry.no));
-  return hit ? String(hit.name || "") : "";
+  return hit ? String(hit.name || "") : String(entry.build?.name || entry.name || "");
 }
 
 function priceSupport(name, slot) {
@@ -4657,6 +4657,25 @@ function appReducer(state, action) {
       }
       return next;
     }
+    case "ADD_CUSTOM_ROSTER_EGO": {
+      const name = String(action.name || "").trim().slice(0, 120);
+      const rank = String(action.rank || "").toUpperCase();
+      if (!name || !["ZAYIN", "TETH", "HE", "WAW", "ALEPH"].includes(rank)) return state;
+      const duplicate = (state.roster.egos || []).some((entry) =>
+        entry.rank === rank && String(entry.build?.name || entry.name || "") === name);
+      if (duplicate) return state;
+      const no = "custom-import-" + (window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+      const form = () => ({ attr: "", sin: "", aoe: "", effect: "", dice: [] });
+      const build = {
+        __custom: true, __manual: true, __importedFromShare: true, no, rank, name,
+        resources: "", san_cost: 0, shards: 0, passive_name: "", passive_cond: "",
+        passive_effect: "", unique_buff: "", kakusei: form(), shinshoku: form(), sub_skills: []
+      };
+      const entry = { uid: makeOwnedUid("er"), no, rank, name, analyzed: false, analyzeMax: false,
+        notes: "硝子窓共有データから取り込んだ独自E.G.O。詳細は必要に応じて編集してください。",
+        build, via: normalizeVia(action.via) };
+      return { ...state, roster: { ...state.roster, egos: [...(state.roster.egos || []), entry] } };
+    }
     /* V23: 所持EGO一覧への追加・削除（人格の ADD_ROSTER / REMOVE_ROSTER に相当）
        purchase=true はショップ経由の購入。装备（SET_EGO_SLOT）からの
        自動登録では明細を立てない（購入と二重請求になるため）。 */
@@ -4678,7 +4697,9 @@ return appendLedgerEntry(next, {
     }
     case "REMOVE_ROSTER_EGO": {
       const entry = (state.roster.egos || []).find((e) => e.uid === action.uid);
-      if (entry?.build?.__custom && (!action.deleteCustomConfirmed || String(state.egoSlots?.[entry.rank]?.no) === String(entry.no))) return state;
+      if (entry?.build?.__custom && entry.build.__importedFromShare) {
+        if (String(state.egoSlots?.[entry.rank]?.no) === String(entry.no)) return state;
+      } else if (entry?.build?.__custom && (!action.deleteCustomConfirmed || String(state.egoSlots?.[entry.rank]?.no) === String(entry.no))) return state;
       const egos = (state.roster.egos || []).filter((e) => e.uid !== action.uid);
       /* ショップで購入したものは所持から外すと同額の支出を戻す。 */
       return dropLedgerEntriesForRef({ ...state, roster: { ...state.roster, egos } }, { kind: "rosterEgo", uid: action.uid });
@@ -5848,7 +5869,7 @@ case "ADD_CUSTOM_ITEM": {
           continue;
         }
         const rosterSub = sub.type === "ADD_ROSTER" || sub.type === "ADD_ROSTER_EGO"
-          || sub.type === "ADD_ROSTER_SUPPORT" || sub.type === "ADD_ROSTER_SPIRIT";
+          || sub.type === "ADD_CUSTOM_ROSTER_EGO" || sub.type === "ADD_ROSTER_SUPPORT" || sub.type === "ADD_ROSTER_SPIRIT";
         if (rosterSub && sub.resultId === undefined && resultIds.length > 0) {
           /* 付随物の帰属先: via の名前が唯一のリザルトへ解決すればそこへ。
              曖昧・不一致なら未分類。via 無し（シナリオの獲得一覧）は直前へ。 */
@@ -5892,6 +5913,8 @@ case "ADD_ENTRY":
           kind: String(action.kind || "other"),
           name: String(action.name || "").slice(0, 120),
           cost: normalizeCurrency(action.cost),
+          /* チケット使用も同じ通帳明細に保存し、残数 = 収入 - 使用数を再計算する。 */
+          tickets: normalizeTickets(action.tickets),
           resultId: action.resultId || null,
           ref: action.ref && typeof action.ref === "object" ? {
             kind: String(action.ref.kind || ""),
@@ -5911,6 +5934,7 @@ case "ADD_ENTRY":
               ...e,
               ...(action.patch?.name !== void 0 ? { name: String(action.patch.name).slice(0, 120) } : {}),
               ...(action.patch?.cost !== void 0 ? { cost: normalizeCurrency(action.patch.cost) } : {}),
+              ...(action.patch?.tickets !== void 0 ? { tickets: normalizeTickets(action.patch.tickets) } : {}),
               ...(action.patch?.resultId !== void 0 ? { resultId: action.patch.resultId || null } : {}),
               ...(action.patch?.note !== void 0 ? { note: String(action.patch.note).slice(0, 2000) } : {})
             }
