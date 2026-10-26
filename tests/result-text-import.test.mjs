@@ -1028,6 +1028,67 @@ test("パック名の数字をチケット枚数と取り違えない", () => {
   assert.equal(parsed.records[0].tickets[0].count, 2);
 });
 
+test("プレビューで曖昧なチケット種別を指定すると、同じ報酬行の収入と消費に反映する", () => {
+  const parsed = T.parseText([
+    "▼【夢を見続けた者共よ。】",
+    "日時：2026/06/26",
+    "報酬：",
+    "LP：113",
+    "欠片：61",
+    "テストプレイ報酬抽出チケット×1→使用済(獲得：ロボトミーE.G.O:後悔の人格)",
+    "現在所持LP：173→286",
+    "現在所持欠片：518→579"
+  ].join("\n"));
+
+  const record = parsed.records[0];
+  assert.equal(record.tickets[0].kind, null);
+  assert.equal(record.ticketUses[0].kind, null);
+  const key = T.ticketResolutionKey(0, record.tickets[0]);
+  assert.equal(key, T.ticketResolutionKey(0, record.ticketUses[0]));
+
+  const unresolved = T.plan(parsed);
+  assert.equal(unresolved.actions.find((action) => action.type === "ADD_RESULT").income.tickets.choice, 0);
+  assert.equal(unresolved.actions.filter((action) => action.type === "SPEND_TICKET").length, 0);
+  assert.equal(unresolved.skipped.length, 2);
+
+  const resolved = T.plan(parsed, {
+    ticketResolved: { [key]: { kind: "choice" } }
+  });
+  const result = resolved.actions.find((action) => action.type === "ADD_RESULT");
+  assert.equal(result.income.tickets.choice, 1);
+  assert.deepEqual([...resolved.actions].filter((action) => action.type === "SPEND_TICKET")
+    .map((action) => ({ kind: action.kind, count: action.count })), [
+      { kind: "choice", count: -1 }
+    ]);
+  assert.equal(resolved.skipped.length, 0);
+});
+
+test("曖昧なパック権は手動指定したパック名があるときだけ消費する", () => {
+  const parsed = T.parseText([
+    "▼人格抽出-テーマパック",
+    "日時：2026/10/04",
+    "消費：任意のチケット×1",
+    "指定：断ち切れない(300LP)",
+    "獲得：仮人格の人格",
+    "現在所持LP：621",
+    "現在所持欠片：406"
+  ].join("\n"));
+
+  const ticket = parsed.records[0].ticketUses[0];
+  assert.equal(ticket.kind, null);
+  const key = T.ticketResolutionKey(0, ticket);
+  const withoutPack = T.plan(parsed, { ticketResolved: { [key]: { kind: "pack", pack: "" } } });
+  assert.equal(withoutPack.actions.filter((action) => action.type === "SPEND_TICKET").length, 0);
+  assert.ok(withoutPack.skipped.some((item) => /チケット種類|チケットの種類/.test(item.reason)));
+
+  const withPack = T.plan(parsed, { ticketResolved: { [key]: { kind: "pack", pack: "断ち切れない" } } });
+  assert.deepEqual([...withPack.actions].filter((action) => action.type === "SPEND_TICKET")
+    .map((action) => ({ kind: action.kind, pack: action.pack, count: action.count })), [
+      { kind: "pack", pack: "断ち切れない", count: -1 }
+    ]);
+  assert.ok(!withPack.skipped.some((item) => /チケット種類|チケットの種類/.test(item.reason)));
+});
+
 test("種別不明の抽出チケットは黙って破棄せず、取り込み保留として表示する", () => {
   const parsed = T.parseText("【A】\n報酬｜抽出チケットx2\n");
   const planned = T.plan(parsed);
