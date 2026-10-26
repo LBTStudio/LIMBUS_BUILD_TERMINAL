@@ -651,13 +651,13 @@
       max(10px, env(safe-area-inset-bottom, 0px));
   }
   .share-modal-backdrop:has(.import-apply-summary) > .card {
-    display: flex;
-    flex-direction: column;
+    display: flex !important;
+    flex-direction: column !important;
     box-sizing: border-box;
-    max-height: min(82dvh, 700px);
-    overflow: hidden;
-    padding: 12px;
-    border-radius: var(--r-lg);
+    max-height: min(82dvh, 700px) !important;
+    overflow: hidden !important;
+    padding: 12px !important;
+    border-radius: var(--r-lg) !important;
   }
   .share-modal-backdrop:has(.import-apply-summary) .stack-2 {
     flex: 1 1 auto;
