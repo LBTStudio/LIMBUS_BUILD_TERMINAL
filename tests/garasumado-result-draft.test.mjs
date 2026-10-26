@@ -618,3 +618,18 @@ test("共有URLの取り込み元IDを履歴に保持し、再読込の識別に
   assert.equal(merged.scenarioHistory[0].__lbtShareSourceId, "share-stable-id");
   assert.equal(merged.scenarioHistory[0].__lbtShareSourceIndex, 0);
 });
+
+
+test("シナリオカードの行は選ばれた DB 候補（picked）を保持する", () => {
+  const mmib = samples.mMIbGr32lGZix60RDmoN.doc;
+  const m = G.buildManifest(mmib, { resolve, candidates: (n) => w.LBT_resolveCandidates(index, n) || [] }, db);
+  const before = G.buildResultDraft(m, { db, identity: {} }).blocks.flatMap((b) => b.items).find((i) => i.name === "憎悪");
+  assert.ok(before, "憎悪 の行がシナリオカードにある");
+  const pick = before.candidates.find((c) => c.name === "憎悪" && c.kind === "spirit");
+  assert.ok(pick, "選べる候補に本人（精神）が入る");
+  const identity = { [before.key]: { picked: pick, pickedCandidate: pick.kind + ":" + pick.name } };
+  const row = G.buildResultDraft(m, { db, identity }).blocks.flatMap((b) => b.items).find((i) => i.name === "憎悪");
+  assert.ok(row, "選んだ後も行はカードに残る");
+  assert.equal(row.picked?.name, "憎悪", "選んだ候補の名前が行に残る");
+  assert.equal(row.picked?.kind, "spirit", "選んだ候補の種別が行に残る");
+});
