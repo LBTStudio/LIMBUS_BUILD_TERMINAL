@@ -444,13 +444,13 @@ test("同一リザルト内で同じ収入・残高一式が重複したErrorブ
   assert.equal(record.date, "2026-10-07");
   assert.equal(record.income.lp, 400);
   assert.equal(record.income.shards, 195);
-  assert.deepEqual(record.tickets.map((ticket) => ({ kind: ticket.kind, count: ticket.count })), [
+  assert.deepEqual([...record.tickets].map((ticket) => ({ kind: ticket.kind, count: ticket.count })), [
     { kind: "choice", count: 2 }
   ]);
-  assert.deepEqual(record.ticketUses.map((ticket) => ({ kind: ticket.kind, count: ticket.count })), [
+  assert.deepEqual([...record.ticketUses].map((ticket) => ({ kind: ticket.kind, count: ticket.count })), [
     { kind: "choice", count: 2 }
   ]);
-  assert.deepEqual(record.identityCandidates, [
+  assert.deepEqual([...record.identityCandidates], [
     "胸痛:過ぎ去りし日の寝袋",
     "願掛け:吊られた祈願者"
   ]);
@@ -461,7 +461,7 @@ test("同一リザルト内で同じ収入・残高一式が重複したErrorブ
   const result = planned.actions.find((action) => action.type === "ADD_RESULT");
   assert.equal(result.income.lp, 400);
   assert.equal(result.income.shards, 195);
-  assert.deepEqual(planned.actions.filter((action) => action.type === "SPEND_TICKET")
+  assert.deepEqual([...planned.actions.filter((action) => action.type === "SPEND_TICKET")]
     .map((action) => ({ kind: action.kind, count: action.count })), [
       { kind: "choice", count: -2 }
     ]);
