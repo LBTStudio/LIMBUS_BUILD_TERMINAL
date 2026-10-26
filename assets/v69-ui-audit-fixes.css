@@ -203,3 +203,8 @@
   background: var(--surface-1);
 }
 .import-scope-actions-spacer { flex: 1 1 auto; }
+
+/* There are two historical reopen controls in the render tree. The old .preview-reopen
+   tab competes with the LivePreview edge toggle and overlaps mobile content. Keep the
+   current #lbt-preview-edge-toggle as the single source of preview open/close controls. */
+.app.preview-collapsed .preview-reopen { display: none; }
