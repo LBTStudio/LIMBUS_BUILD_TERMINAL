@@ -163,6 +163,38 @@ test("「・支出」以降の現在残高は支出額として誤計上しな�
     "購入動詞があっても残高しか書かれていなければ要確認にする");
 });
 
+test("硝子窓の矢印付き消費は収入に混ぜず、支出と獲得を分離する", () => {
+  const parsed = MEMO.parseMemo([
+    "→LP100消費ガチャ:厳粛な哀悼獲得",
+    "→100LP消費：LCE E.G.O:紅炎殺獲得",
+    "→自我の破片100消費：羽ばたき：妖精の祭典獲得",
+    "LP200消費パック「心のすれ違う」→ワザリングハイツ・ワイルドハントの人格の獲得",
+    "自我の破片100消費→幸福：あなたは幸せでなければならない獲得"
+  ].join("\n"));
+  assert.equal(parsed.income.lp, 0);
+  assert.equal(parsed.income.shards, 0);
+  assert.deepEqual([...parsed.spends.map((s) => [s.lp, s.shards])], [
+    [100, 0], [100, 0], [0, 100], [200, 0], [0, 100]
+  ]);
+  assert.deepEqual([...parsed.wins.map((w) => w.name)], [
+    "厳粛な哀悼", "LCE E.G.O:紅炎殺", "羽ばたき：妖精の祭典",
+    "ワザリングハイツ・ワイルドハントの人格", "幸福：あなたは幸せでなければならない"
+  ]);
+});
+
+test("矢印の手前にある抽出チケットは使用記録で、チケット報酬にしない", () => {
+  const parsed = MEMO.parseMemo([
+    "人格抽出チケット1枚→薬指野獣派スチューデントA獲得",
+    "200LP以下パックチケット「本に成った者たちⅠ」→夜の錐カピターノの人格獲得"
+  ].join("\n"));
+  assert.deepEqual([...parsed.ticketSpends.map((s) => [s.kind, s.pack, s.count])], [
+    ["persona", "", 1], ["pack", "本に成った者たちⅠ", 1]
+  ]);
+  assert.equal(parsed.tickets.persona, 0);
+  assert.equal(Object.keys(parsed.pack).length, 0);
+  assert.equal(parsed.wins.length, 2);
+});
+
 test("E.G.O の読みは「エゴ」で読む", () => {
   /* 「イゴ」を E.G.O の別名にしていたため、実データに一度も出ない表記を
      信用していた。正しい読みは「エゴ」。 */
@@ -543,7 +575,10 @@ test("名前付き購入行「蒼羽蝶：75LP消費」は支出として読ま�
      一方、リザルトへ書かれた負数の購入行（憎悪購入：-50欠片）は
      実買として支出になる（残高差分の表記でも、記された購入は
      記録する。ユーザー指定の契約）。 */
-  assert.equal(MEMO.parseMemo("LP200を消費してガチャ").spends.length, 0, "叙述は支出にしない");
+  const narrative = MEMO.parseMemo("LP200を消費してガチャ");
+  assert.equal(narrative.spends.length, 1, "明示された消費額は叙述形でも記録する");
+  assert.equal(narrative.spends[0].lp, 200);
+  assert.equal(narrative.spends[0].name, "LP200を消費してガチャ");
   const hate = MEMO.parseMemo("憎悪購入：-50欠片");
   assert.equal(hate.spends.length, 1, "負数でも購入行は支出になる");
   assert.equal(hate.spends[0].name, "憎悪");
@@ -790,7 +825,44 @@ test("リザルトの購入記述は所持の証跡になる（所持列が空�
   }
 });
 
-function resolvedManifest(doc) {
+test("収支精度回帰: 共有書式から収入・支出・チケット・独自E.G.Oを分離して生成する", () => {
+  const M = loadImportWithMemo();
+  const doc = {
+    currency: { lp: "318", fragment: "91" },
+    freeNotes: { secret: "LP-20 サポートパッシブ「人生一発」購入\nLP-20 サポートパッシブ「肩慣らし」購入" },
+    owned: { personas: [], egos: [{ rank: "ZAYIN", name: "海底墓標：プロト" }], supportPassives: [], spirits: [] },
+    items: [{ name: "包帯", count: 1 }],
+    scenarioHistory: [{ name: "履歴A", memo: [
+      "165LP、75欠片", "→LP100消費ガチャ:厳粛な哀悼獲得",
+      "→自我の破片100消費：羽ばたき：妖精の祭典獲得",
+      "人格抽出チケット1枚→薬指野獣派スチューデントA獲得"
+    ].join("\n") }]
+  };
+  const resolve = (name) => ["人生一発", "肩慣らし"].includes(name) ? { name, kinds: [{ kind: "support" }] } : null;
+  const db = { items: [{ id: "heal-bandage", name: "包帯" }], egos: [], support_passives: [] };
+  const manifest = M.buildManifest(doc, { resolve, candidates: () => [] }, db);
+  const selected = manifest.groups.flatMap((g) => g.items.map((item) => item.key));
+  const { actions, skipped } = M.toDispatchActions(manifest, selected, { db, resolve });
+  const totals = actions.reduce((out, action) => {
+    if (action.type === "ADD_RESULT") { out.incomeLp += action.income.lp || 0; out.incomeShards += action.income.shards || 0; }
+    if (action.type === "ADD_ENTRY") { out.entries += 1; out.spentLp += action.cost.lp || 0; out.spentShards += action.cost.shards || 0; }
+    out.types[action.type] = (out.types[action.type] || 0) + 1;
+    return out;
+  }, { incomeLp: 0, incomeShards: 0, entries: 0, spentLp: 0, spentShards: 0, types: {} });
+  assert.equal(totals.incomeLp, 165);
+  assert.equal(totals.incomeShards, 75);
+  assert.equal(totals.spentLp, 140, "LP消費100 + 自由メモ購入40");
+  assert.equal(totals.spentShards, 100);
+  assert.equal(totals.types.SPEND_TICKET, 1);
+  assert.equal(totals.types.ADD_CUSTOM_ROSTER_EGO, 1);
+  assert.equal(totals.types.ADD_ITEM_INVENTORY, 1);
+  const notes = actions.filter((a) => a.note === "硝子窓の自由メモ由来。日時・シナリオ未特定");
+  assert.equal(notes.length, 2);
+  assert.ok(notes.every((a) => a.resultId === null), "日時不明購入は未分類に置く");
+  assert.deepEqual([...skipped], []);
+});
+
+function resolvedManifest(doc) {function resolvedManifest(doc) {
   const w = loadResolver();
   const index = w.LBT_buildNameIndex(db, {});
   return G.buildManifest(doc, { resolve: (name) => w.LBT_resolveCandidates(index, name)?.[0] || null });
@@ -901,7 +973,26 @@ test("残高変動を記載していないユーザーにはエラーも不一�
   assert.equal(r.computedLp, null);
 });
 
-test("現在残高の行より前の収入を二重加算せず、通貨別に照合する", () => {
+test("手入力残高を正解扱いせず、開始残高不明の純増減だけを示す", () => {
+  const M = loadImportWithMemo();
+  const doc = {
+    currency: { lp: "318", fragment: "91" },
+    freeNotes: { secret: "LP-20 サポートパッシブ「人生一発」購入" },
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{ name: "履歴A", memo: "165LP、75欠片\n100LP消費ガチャ:厳粛な哀悼獲得" }]
+  };
+  const manifest = M.buildManifest(doc, null);
+  const result = M.reconcileBalance(manifest, doc);
+  assert.equal(result.checked, false);
+  assert.equal(result.ok, true);
+  assert.equal(result.historyNetLp, 45);
+  assert.equal(result.historyNetShards, 75);
+  assert.equal(result.impliedOpeningLp, 273);
+  assert.equal(result.impliedOpeningShards, 16);
+  assert.match(result.message, /手入力/);
+});
+
+test("現在残高の行より前の収入を二重加算せず、通貨別に照合する", () => {test("現在残高の行より前の収入を二重加算せず、通貨別に照合する", () => {
   const M = loadImportWithMemo();
   const doc = {
     currency: { lp: "100", fragment: "39" },
