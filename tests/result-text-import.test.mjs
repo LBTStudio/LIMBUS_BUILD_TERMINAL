@@ -629,6 +629,44 @@ test("「硝子の欠片」も「硝子の破片」と同じ別資源として�
   assert.equal(legacy.records[0].consumedItems[0]?.itemId, "resource-glass-shard");
   assert.equal(legacy.records[0].consumedItems[0]?.quantity, 1);
 });
+test("金鎚／金槌の既知表記差は一意一致する所持サポートへ反映する", () => {
+  const parsed = T.parseText([
+    "▼サポートパッシブ購入",
+    "日時：2026/09/20",
+    "消費：LP20",
+    "獲得：釘と金鎚",
+    "現在所持LP：126→106"
+  ].join("\n"));
+  const planned = T.plan(parsed, {
+    resolve: (name) => name === "釘と金槌"
+      ? { name: "釘と金槌", kinds: [{ kind: "support" }] }
+      : null
+  });
+  assert.ok(planned.actions.some((action) => action.type === "ADD_ROSTER_SUPPORT"
+    && action.spp?.name === "釘と金槌"));
+  assert.ok(!planned.skipped.some((item) => item.text === "釘と金鎚"
+    && /取得品をアイテムDB/.test(item.reason)));
+});
+
+test("ローマ数字・末尾「の人格」の既知表記差は一意一致する人格へ反映する", () => {
+  const parsed = T.parseText([
+    "▼人格抽出",
+    "日時：2026/08/21",
+    "獲得：南部親指ソルダートⅡの人格",
+    "現在所持LP：170",
+    "現在所持欠片：99"
+  ].join("\n"));
+  const planned = T.plan(parsed, {
+    resolve: (name) => name === "南部親指ソルダートII"
+      ? { name: "南部親指ソルダートII", kinds: [{ kind: "persona", mode: "n", no: "00991" }] }
+      : null
+  });
+  assert.equal(planned.actions.filter((action) => action.type === "ADD_ROSTER" && action.no === "00991").length, 1);
+  assert.ok(planned.identities.some((identity) => identity.source === "南部親指ソルダートⅡの人格" && !identity.unresolved));
+  assert.ok(!planned.skipped.some((item) => item.text === "南部親指ソルダートⅡの人格"
+    && /取得品をアイテムDB/.test(item.reason)));
+});
+
 test("ランク接頭辞つきのE.G.O獲得も正式名へ照合して所持へ追加する", () => {
   const parsed = T.parseText([
     "▼E.G.O抽出",
