@@ -1800,6 +1800,26 @@ test("消費の行にチケットと通貨が併記されても、両方の使�
   assert.equal(r.ticketSpends[0].count, 1);
 });
 
+test("券種や枚数のない説明文中の「チケット」は抽出チケットと誤認しない", () => {
+  const flavor = MEMO.parseMemo(
+    "【覚悟の残骸】\\n[最大所持数1]\\n使用時、対象のダイスを破壊する。\\n終末点をなくしたチケットは捨てられる日を待っている。"
+  );
+  assert.equal(flavor.tickets.persona, 0);
+  assert.equal(flavor.tickets.ego, 0);
+  assert.equal(flavor.ticketSpends.length, 0);
+  assert.equal(flavor.reasons.some((entry) => /抽出チケットの種別が不明/.test(entry.reason)), false);
+
+  const namedTicket = MEMO.parseMemo("眺めるチケット");
+  assert.equal(namedTicket.tickets.persona, 0);
+  assert.equal(namedTicket.reasons.some((entry) => /抽出チケットの種別が不明/.test(entry.reason)), false);
+
+  const actualGenericTicket = MEMO.parseMemo("チケット入手");
+  assert.ok(actualGenericTicket.reasons.some((entry) => /抽出チケットの種別が不明/.test(entry.reason)));
+
+  const explicitDrawTicket = MEMO.parseMemo("抽出チケット");
+  assert.ok(explicitDrawTicket.reasons.some((entry) => /抽出チケットの種別が不明/.test(entry.reason)));
+});
+
 test("通貨と併記された曖昧なチケットも、推測せず未確定消費として残す", () => {
   const r = MEMO.parseMemo("消費：人格orE.G.O抽出チケット×1、LP100");
   assert.equal(r.spends.length, 1);
