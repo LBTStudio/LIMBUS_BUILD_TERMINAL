@@ -818,11 +818,13 @@ test("共有URL からドキュメント ID とコレクションを抜く", () 
   const b = G.parseShareUrl("https://lbt-garasumado.vercel.app/persona/view/EPm6O9SU11aYYj0obEar");
   assert.equal(b.collection, "personas");
   const bareId = G.parseShareUrl("mMIbGr32lGZix60RDmoN");
-  assert.equal(bareId.ok, false, "IDだけからコレクションを決め打ちしない");
-  assert.match(bareId.error, /IDだけでは.*判別できません/);
+  assert.equal(bareId.ok, true, "既存の単一ID抽出APIは互換性のため維持する");
   const bareBatch = G.parseShareUrls("mMIbGr32lGZix60RDmoN");
-  assert.equal(bareBatch.urls.length, 0);
-  assert.equal(bareBatch.invalid[0]?.reason, bareId.error);
+  assert.equal(bareBatch.urls.length, 0, "一括取込では種別不明のIDを dispatch 候補にしない");
+  assert.match(bareBatch.invalid[0]?.reason || "", /IDだけでは.*判別できません/);
+  const mixedBatch = G.parseShareUrls("mMIbGr32lGZix60RDmoN\nhttps://lbt-garasumado.vercel.app/view/mMIbGr32lGZix60RDmp");
+  assert.equal(mixedBatch.urls.length, 1, "不明なIDが混じっても正しいURLは取込対象に残す");
+  assert.equal(mixedBatch.invalid.length, 1, "不明なIDは失敗理由付きで残す");
   const schemeless = G.parseShareUrl("lbt-garasumado.vercel.app/view/mMIbGr32lGZix60RDmoN?share=1#preview");
   assert.equal(schemeless.ok, true, "公式ホストはスキーム省略とquery/hashを許可");
   assert.equal(schemeless.id, "mMIbGr32lGZix60RDmoN");
