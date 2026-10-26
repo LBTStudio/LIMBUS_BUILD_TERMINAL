@@ -470,7 +470,9 @@
     tail.split(/[、，,]/).forEach(function (frag) {
       /* 「→LP100消費ガチャ:厳粛な哀悼獲得」は最後の区切りの後ろが名前。
          「N社E.G.O:ねばつき」の 区切りは名前の一部なので切らない。 */
-      var cut = Math.max(frag.lastIndexOf("："), frag.lastIndexOf(":"));
+      /* 取引の区切りは最初のコロンまで。後ろのコロンは E.G.O 名や人格名の一部
+         かもしれない（「→100LP消費：LCE E.G.O:紅炎殺」）。 */
+      var cut = frag.search(/[：:]/);
       if (cut >= 0 && /(ガチャ|抽出|消費|使用|チケ|LP|ＬＰ|欠片)/.test(frag.slice(0, cut))) frag = frag.slice(cut + 1);
       var name = frag.trim()
         .replace(/^[「『]\s*/, "").replace(/[」』]\s*$/, "")
@@ -553,14 +555,14 @@
     if (!lpMatch) lpMatch = text.match(/([0-9][0-9,]*)\s*(?:LP|ＬＰ)\s*(?:を\s*)?(?:消費|使用|支払|支出)/i);
     if (lpMatch) {
       var lp = Number(String(lpMatch[1]).replace(/,/g, ""));
-      return { currency: "lp", amount: lp, end: lpMatch.index + lpMatch[0].length };
+      return { currency: "lp", amount: lp, start: lpMatch.index, end: lpMatch.index + lpMatch[0].length };
     }
     /* 「自我の破片100消費」は通貨。「硝酸の欠片×1」はアイテム名なので対象外。 */
     var shardMatch = text.match(/(?:自我の(?:破片|欠片)|(?<!の)(?:欠片|かけら|欠けら|カケラ))\s*([0-9][0-9,]*)\s*(?:個|つ)?\s*(?:を\s*)?(?:消費|使用|支払|支出)/);
     if (!shardMatch) shardMatch = text.match(/([0-9][0-9,]*)\s*(?:個|つ)?\s*自我の(?:破片|欠片)\s*(?:を\s*)?(?:消費|使用|支払|支出)/);
     if (shardMatch) {
       var shardAmount = Number(String(shardMatch[1]).replace(/,/g, ""));
-      return { currency: "shards", amount: shardAmount, end: shardMatch.index + shardMatch[0].length };
+      return { currency: "shards", amount: shardAmount, start: shardMatch.index, end: shardMatch.index + shardMatch[0].length };
     }
     return null;
   }
@@ -677,14 +679,9 @@
           continue;
         }
         var rewardName = rewardAfterCurrencySpend(line, currencySpend.end);
-        var arrowRewardNames = arrowWinsOf(line);
-        if (!arrowRewardNames.length && rewardName) arrowRewardNames = [rewardName];
-        var spendRecord = { name: arrowRewardNames.join("、") || rewardName || line, lp: 0, shards: 0, raw: line, reason: "明示された通貨消費" };
+        var spendRecord = { name: rewardName || line, lp: 0, shards: 0, raw: line, reason: "明示された通貨消費" };
         spendRecord[currencySpend.currency] = currencySpend.amount;
         spends.push(spendRecord);
-        arrowRewardNames.forEach(function (name) {
-          if (!wins.some((w) => w.name === name)) wins.push({ name: name, via: "", kind: "" });
-        });
         /* 続きに収入・チケット獲得が同居する書式があるため行全体を捨てない。
            後段の既存解析は消費より前の収入だけを読む。 */
       }
@@ -726,7 +723,8 @@
         }
       }
 
-      var tk = packTicketMatch ? null : ticketOf(line);
+      var ticketScope = currencySpend ? line.slice(0, currencySpend.start).trim() : line;
+      var tk = packTicketMatch ? null : ticketOf(ticketScope);
       if (tk) {
         var ticketCountAdded = addSafeAmount(tickets, tk.kind, tk.count, line, reasons, "抽出チケット数");
         /* チケットからどの人格/E.G.Oを得たか。ソースの書式は
@@ -766,7 +764,7 @@
 
   /* 「抽出1：E.G.O:提灯」のような「抽出NN」だけの行。
            チケット行と二重に数えない（抽出の語を含むため）。 */
-        var bd = packTicketMatch ? null : bareDrawOf(line);
+        var bd = (packTicketMatch || currencySpend) ? null : bareDrawOf(line);
         if (bd) {
           var drawCountAdded = addSafeAmount(tickets, bd.kind, bd.count, line, reasons, "抽出回数");
           /* 抽出0 は回数も獲得候補もゼロ。名前があるだけで所持へ追加しない。 */
