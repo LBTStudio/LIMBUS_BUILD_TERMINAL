@@ -8,7 +8,7 @@ const app = read("../js/App.js");
 const css = read("../assets/v69-ui-audit-fixes.css");
 
 test("監査修正CSSは実際のアプリにハッシュ付きで読み込まれ、UI後段に適用される", () => {
-  assert.match(index, /assets\/v69-ui-audit-fixes\.css\?v=9a1fa113/);
+  assert.match(index, /assets\/v69-ui-audit-fixes\.css\?v=[0-9a-f]{8}/);
   assert.ok(index.indexOf("assets/v68-interaction-a11y.css") < index.indexOf("assets/v69-ui-audit-fixes.css"));
   assert.match(index, /js\/App\.js\?v=5890a6a8/);
 });
@@ -22,6 +22,12 @@ test("スマホのプレビュー操作は縦長の本文上ではなく下部�
 test("ビルド8タブは4×2に収まり、横スクロールと右端の重なりを避ける", () => {
   assert.match(css, /\.build-tabs \.segmented\s*\{[\s\S]*?display:\s*grid;[\s\S]*?grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\);[\s\S]*?overflow:\s*visible;/);
   assert.match(css, /\.build-tabs \.segmented > button\s*\{[\s\S]*?min-height:\s*44px;[\s\S]*?white-space:\s*normal;/);
+});
+
+
+test("スマホのショップ6分類は3×2に収まり、ガチャを右端に隠さない", () => {
+  assert.match(css, /\.shop-tabs\s*\{[\s\S]*?display:\s*grid;[\s\S]*?grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);[\s\S]*?overflow:\s*visible;/);
+  assert.match(css, /\.shop-tabs\s*>\s*button\s*\{[\s\S]*?min-height:\s*44px;[\s\S]*?white-space:\s*normal;/);
 });
 
 test("スマホ下部ナビは7項目を4列×2段に並べ、その他だけの孤立段をなくす", () => {
