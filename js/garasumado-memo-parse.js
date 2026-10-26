@@ -113,7 +113,7 @@
   }
 
   /* チケットの種類。複数形・表記ゆれを吸収。 */
-  function ticketOf(line) {
+  function ticketOf(line, context) {
     /* 「チケット」だけでなく略字の「チケ」も受ける。実データに
        「ガチャチケ1枚　第四銀工房銃鎚派」がある。 */
     if (!/チケ|チケット/.test(line)) return null;
@@ -124,7 +124,16 @@
     var hasCount = /[x×]\s*\d+|(?:チケ|チケット)\s*\d+\s*枚/.test(text);
     var hasType = /抽出|ガチャ|人格|E\.?G\.?O|エゴ|イゴ|選択|テーマパック/.test(text);
     var hasAction = /報酬|獲得|入手|付与|支給|取得|所持|消費|使用|増加|減少/.test(text);
-    if (!hasCount && !hasType && !hasAction) return null;
+    /* 「140LP / 26カケラ / チケット」のように直前の行が通貨報酬なら、
+       単独「チケット」も実際の報酬候補として要確認に残す。
+       説明文中の単なる「チケット」とは前後の文脈で分ける。 */
+    var hasAdjacentCurrencyReward = Boolean(
+      context && context.mode === "income" &&
+      /^(?:チケ|チケット)$/.test(text.trim()) &&
+      /\d/.test(String(context.previousLine || "")) &&
+      /(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|けっか)/i.test(String(context.previousLine || ""))
+    );
+    if (!hasCount && !hasType && !hasAction && !hasAdjacentCurrencyReward) return null;
     var count = 1;
     var cm = text.match(/[x×]\s*(\d+)/);
     if (cm) count = parseInt(cm[1], 10);
@@ -878,7 +887,7 @@
       }
 
       var ticketScope = currencySpend ? line.slice(0, currencySpend.start).trim() : line;
-      var tk = packTicketMatch ? null : ticketOf(ticketScope);
+      var tk = packTicketMatch ? null : ticketOf(ticketScope, { mode: mode, previousLine: prev });
       if (tk) {
         if (!tk.kind) {
           reasons.push({ line: line, reason: "抽出チケットの種別が不明なため、人格/E.G.O/選択の残数への計上を保留しました" });
