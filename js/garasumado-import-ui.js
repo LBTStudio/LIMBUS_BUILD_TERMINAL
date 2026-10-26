@@ -1413,7 +1413,7 @@ function appliedSummary(actions) {
         h("span", { className: "gara-step-kicker" }, "STEP 2 / 3 · 取込内容の確認"),
         h("h3", { className: "gara-title" }, "取り込み内容を確認"),
         h("p", { className: "gara-lead" }, `共有元：${manifest.character.name || "名称未設定"}。反映する項目を選び、未決の内容を確認してから確定してください。`),
-        h("p", { className: "gara-import-balance" }, `共有元の残高　LP ${manifest.currency.lp || "—"} ・ 欠片 ${manifest.currency.shards || "—"}`)
+        h("p", { className: "gara-import-balance" }, `硝子窓の申告残高（手入力・照合用）　LP ${manifest.currency.lp || "—"} ・ 欠片 ${manifest.currency.shards || "—"}`)
       ),
       h("div", { className: "gara-import-heading-actions" },
         h("button", { type: "button", className: "gara-change-url", onClick: () => { setManifest(null); setConfirmed(null); setError(""); setUrlReport(null); setBundleReport(null); setPersonaItems(null); setPersonaPicked({}); setPersonaConfirmed(null); setProgress(""); setPicked({}); setIdentity({}); setLines([]); setChoices({}); setDecided({}); setPast([]); setFuture([]); setDoc(null); } }, "URLを貼り直す"),
