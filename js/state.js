@@ -60,11 +60,31 @@ function consumeInitialPersonaTicket(state, resultId) {
 /* 継承アカウントの判定。直近リザルトの収入が初期支給（30LP）と一致するなら、
    その支給は既に記録済みなので「初期作成」を重ねない。
    一致の判定は「リザルト名が初期作成」または「収入がちょうど30LP」で見る。 */
+/* リザルト画面の「新しい順」と同じ並び基準を共有する。
+   日付が同じ場合は createdAt の新しい方を先頭にする。配列順には依存しない。 */
+function latestResultByDisplayOrder(results) {
+  const list = Array.isArray(results) ? results : [];
+  if (!list.length) return null;
+  const stamp = (result) => {
+    const parsed = Date.parse(String(result?.date || "") + "T00:00:00Z");
+    return Number.isFinite(parsed) ? parsed : (Number(result?.createdAt) || 0);
+  };
+  let latest = list[0];
+  for (let index = 1; index < list.length; index += 1) {
+    const candidate = list[index];
+    const difference = stamp(candidate) - stamp(latest);
+    if (difference > 0 || (difference === 0
+      && (Number(candidate?.createdAt) || 0) > (Number(latest?.createdAt) || 0))) {
+      latest = candidate;
+    }
+  }
+  return latest;
+}
 function hasInitialGrant(results) {
   const list = Array.isArray(results) ? results : [];
   if (!list.length) return false;
   if (list.some((r) => r?.id === "res-initial" || r?.name === "初期作成")) return true;
-  const latest = list[list.length - 1];
+  const latest = latestResultByDisplayOrder(list);
   const income = normalizeCurrency(latest?.income);
   return income.lp === INITIAL_LP && income.shards === 0;
 }
@@ -2317,22 +2337,7 @@ function priceEgo(rank, no) {
    results 配列の順番が変わっていても、配列末尾を最新と誤認しない。
    リザルトが無ければ未分類（resultId:null）に置く。明示 resultId は呼び出し側を優先。 */
 function latestResultId(state) {
-  const results = Array.isArray(state?.results) ? state.results : [];
-  if (!results.length) return null;
-  const stamp = (result) => {
-    const parsed = Date.parse(String(result?.date || "") + "T00:00:00Z");
-    return Number.isFinite(parsed) ? parsed : (Number(result?.createdAt) || 0);
-  };
-  let latest = results[0];
-  for (let index = 1; index < results.length; index += 1) {
-    const candidate = results[index];
-    const difference = stamp(candidate) - stamp(latest);
-    if (difference > 0 || (difference === 0
-      && (Number(candidate?.createdAt) || 0) > (Number(latest?.createdAt) || 0))) {
-      latest = candidate;
-    }
-  }
-  return latest?.id || null;
+  return latestResultByDisplayOrder(state?.results)?.id || null;
 }
 
 /* 前回の誤修正では results 配列末尾を最新とみなしたため、抽出時刻・封緘バッチ・
