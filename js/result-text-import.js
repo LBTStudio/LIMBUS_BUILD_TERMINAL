@@ -928,7 +928,13 @@
     const identities = [];
     const excludedIdentities = opts.excludedIdentities instanceof Set ? opts.excludedIdentities : new Set();
     const ownedPersonas = opts.ownedPersonas instanceof Set ? opts.ownedPersonas : new Set(opts.ownedPersonas || []);
+    const ownedEgos = opts.ownedEgos instanceof Set ? opts.ownedEgos : new Set(opts.ownedEgos || []);
+    const ownedSupports = opts.ownedSupports instanceof Set ? opts.ownedSupports : new Set(opts.ownedSupports || []);
+    const ownedSpirits = opts.ownedSpirits instanceof Set ? opts.ownedSpirits : new Set(opts.ownedSpirits || []);
     const importedPersonaKeys = new Set();
+    const importedEgoKeys = new Set();
+    const importedSupportNames = new Set();
+    const importedSpiritNames = new Set();
     let legacyUseSequence = 0;
 
     for (const [recordIndex, record] of (parsed.records || []).entries()) {
@@ -960,7 +966,9 @@
       }
       const legacyNotes = (record.raw || []).map((line) => String(line || "").trim()).filter(Boolean);
       const itemGainNotes = (record.itemGains || []).map((item) => `${item.itemName} ×${item.quantity}（獲得記録）`);
-      const fullNote = [note, ...legacyNotes, ...itemGainNotes].filter(Boolean).join("\n").slice(0, 2000);
+      const acquisitionNotes = [...(record.acquisitions || []), ...(record.specifiedItems || [])]
+        .map((item) => `${item.name}${Number(item.quantity) > 1 ? ` ×${item.quantity}` : ""}（取得記録）`);
+      const fullNote = [note, ...legacyNotes, ...itemGainNotes, ...acquisitionNotes].filter(Boolean).join("\n").slice(0, 2000);
       actions.push({
         type: "ADD_RESULT",
         name: title,
@@ -972,9 +980,92 @@
         })
       });
 
-      /* legacy raw に残っている報酬名・ガチャ結果を DB と照合する。
-         不一致や複数候補は手動選択へ回し、推測で所持人格を増やさない。 */
-      (record.raw || []).forEach((rawLine, rawIndex) => {
+      const identityRows = record.journalFormat === true
+        ? (Array.isArray(record.identityCandidates) ? record.identityCandidates : [])
+        : (record.raw || []);
+      const identityNames = new Set(identityRows.map((line) => String(line || "").trim()));
+      const addResolvedAsset = (item, warnIfUnknown) => {
+        const source = String(item?.name || "").trim();
+        if (!source) return false;
+        const quantity = Number(item?.quantity ?? 1);
+        if (!Number.isSafeInteger(quantity) || quantity <= 0 || item?.quantityInvalid) {
+          skipped.push({ text: item?.raw || source, reason: "取得品の個数が不正なため登録を保留しました" });
+          return true;
+        }
+
+        /* 物品カタログとの完全一致だけを自動採用する。略称・部分一致から
+           別アイテムを勝手に増やさない。 */
+        const itemHit = typeof opts.resolveItem === "function" ? opts.resolveItem(source) : null;
+        const itemId = itemHit && String(itemHit.itemId || itemHit.id || "");
+        if (itemId && itemHit.ledgerResource !== "shards") {
+          actions.push({ type: "ADD_ITEM_INVENTORY", itemId, quantity });
+          return true;
+        }
+
+        const hit = typeof opts.resolve === "function" ? opts.resolve(source) : null;
+        const kinds = (hit && Array.isArray(hit.kinds)) ? hit.kinds : [];
+        const personas = personaKindsOf(hit);
+        if (personas.length === 1) {
+          const kind = personas[0];
+          const personaKey = `${kind.mode}:${kind.no}`;
+          if (!identityNames.has(source) && !ownedPersonas.has(personaKey) && !importedPersonaKeys.has(personaKey)) {
+            importedPersonaKeys.add(personaKey);
+            actions.push({ type: "ADD_ROSTER", mode: kind.mode, no: kind.no, purchase: false, skipInitialTicketConsumption: true, via: title ? [title] : [] });
+          }
+          return true;
+        }
+
+        if (kinds.length === 1) {
+          const kind = kinds[0];
+          if (kind.kind === "ego" && kind.rank && kind.no !== undefined) {
+            const egoKey = `${kind.rank}:${kind.no}`;
+            if (!ownedEgos.has(egoKey) && !importedEgoKeys.has(egoKey)) {
+              importedEgoKeys.add(egoKey);
+              actions.push({ type: "ADD_ROSTER_EGO", rank: kind.rank, no: kind.no, purchase: false, via: title ? [title] : [] });
+            }
+            return true;
+          }
+          if (kind.kind === "support" || kind.kind === "deathSupport") {
+            const name = String(hit.name || source);
+            if (!ownedSupports.has(name) && !importedSupportNames.has(name)) {
+              importedSupportNames.add(name);
+              actions.push({ type: "ADD_ROSTER_SUPPORT", spp: { name }, purchase: false, via: title ? [title] : [] });
+            }
+            return true;
+          }
+          if (kind.kind === "spirit") {
+            const name = String(hit.name || source);
+            if (!ownedSpirits.has(name) && !importedSpiritNames.has(name)) {
+              importedSpiritNames.add(name);
+              actions.push({ type: "ADD_ROSTER_SPIRIT", spirit: { name }, purchase: false, via: title ? [title] : [] });
+            }
+            return true;
+          }
+          /* DB上で別カテゴリと明確に解決した行は人格候補に回さない。 */
+          return true;
+        }
+        if (warnIfUnknown && !identityNames.has(source)) {
+          skipped.push({ text: item?.raw || source, reason: "取得品をアイテムDBまたは所持データへ一意に照合できず、原文注記のみ保持しました" });
+        }
+        return false;
+      };
+
+      for (const item of record.itemGains || []) {
+        const itemId = String(item?.itemId || "");
+        const quantity = Number(item?.quantity);
+        if (itemId && Number.isSafeInteger(quantity) && quantity > 0) {
+          actions.push({ type: "ADD_ITEM_INVENTORY", itemId, quantity });
+        } else {
+          skipped.push({ text: item?.detail || item?.itemName || "アイテム獲得", reason: "アイテムの個数または識別子が不正です" });
+        }
+      }
+      const acquisitions = [...(record.acquisitions || [])];
+      if (!acquisitions.length && /初期作成/.test(title)) acquisitions.push(...(record.specifiedItems || []));
+      for (const item of acquisitions) addResolvedAsset(item, true);
+      for (const item of record.rewardCandidates || []) addResolvedAsset(item, false);
+
+      /* 旧形式は raw 注記から、ジャーナル形式は指定された人格候補だけを照合する。 */
+      identityRows.forEach((rawLine, rawIndex) => {
         const source = String(rawLine || "").trim();
         if (!canBeIdentityLine(source) || typeof opts.resolve !== "function") return;
         const key = `${recordIndex}:${rawIndex}`;
