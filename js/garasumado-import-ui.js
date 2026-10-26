@@ -1233,7 +1233,7 @@ function appliedSummary(actions) {
     addDiscrepancy("unknown-purchases", `購入履歴を分類できない行（${counts.unknownLine}件）`, unresolvedLines.slice(0, 12).join("／") + (unresolvedLines.length > 12 ? `／ほか${unresolvedLines.length - 12}件` : "") + "。明細の種別や品名を確定できていません。");
   }
   if (manifest?.counts?.initialSpiritOverflow) {
-    addDiscrepancy("spirit-overflow", "初期精神の件数が上限を超えています", `共有データでは初期精神が${manifest.counts.initialSpirits}件あります。上限3件と一致しないため、元の記載を確認してください。");
+    addDiscrepancy("spirit-overflow", "初期精神の件数が上限を超えています", `共有データでは初期精神が${manifest.counts.initialSpirits}件あります。上限3件と一致しないため、元の記載を確認してください。`);
   }
   (bundleReport?.errors || []).forEach((row, index) => {
     addDiscrepancy(`file-${index}`, `読み込みに失敗したデータ：${row.fileName || row.url || "ファイル名不明"}`, row.message || row.reason || "ファイルの一部を解析できませんでした。");
