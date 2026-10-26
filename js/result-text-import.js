@@ -997,6 +997,72 @@
         });
       }
 
+      /* 「現在所持」の前後差分をこのリザルトの収支と照合する。
+         不一致は自動補正せず、取込前プレビューの skipped 警告として残す。 */
+      const readBalancePair = (lines, label) => {
+        const re = new RegExp("^現在所持" + label + "\\s*[：:]\\s*(\\d[\\d,]*)\\s*(?:→|->|⇒)\\s*(\\d[\\d,]*)\\s*$");
+        const found = [];
+        for (const raw of lines || []) {
+          const normalized = toHalf(String(raw || "").trim()).replace(/\s+/g, " ");
+          const match = normalized.match(re);
+          if (!match) continue;
+          const before = safeAmount(match[1]);
+          const after = safeAmount(match[2]);
+          if (before === null || after === null) continue;
+          found.push({ before, after, raw: String(raw || "").trim() });
+        }
+        return [...new Map(found.map((pair) => [String(pair.before) + ":" + String(pair.after), pair])).values()];
+      };
+      const resourceCosts = (oneRecord, key) => (oneRecord?.spends || []).reduce((sum, item) => {
+        const value = Number(item?.cost?.[key]) || 0;
+        return Number.isSafeInteger(sum + value) ? sum + value : sum;
+      }, 0);
+      const currentPairs = {
+        lp: readBalancePair(record.raw, "LP"),
+        shards: readBalancePair(record.raw, "欠片")
+      };
+      const previousRecord = records.length ? records[records.length - 1] : null;
+      const previousPairs = {
+        lp: readBalancePair(previousRecord?.raw, "LP"),
+        shards: readBalancePair(previousRecord?.raw, "欠片")
+      };
+      const noCurrencyFlow = record.income.lp === 0 && record.income.shards === 0
+        && resourceCosts(record, "lp") === 0 && resourceCosts(record, "shards") === 0;
+      const balanceResources = ["lp", "shards"].filter((key) => currentPairs[key].length === 1);
+      /* 一部の貼り付けでは親リザルトとその内訳見出しが分かれ、
+         残高差分だけが内訳側に置かれる。LP・欠片の両方が直前の親リザルトの
+         計算収支と完全一致し、親側に残高行がない場合だけ、重複警告を避ける。 */
+      const inheritedParentBalance = Boolean(previousRecord && noCurrencyFlow && balanceResources.length === 2)
+        && balanceResources.every((key) => {
+          if (previousPairs[key].length) return false;
+          const pair = currentPairs[key][0];
+          const previousNet = (Number(previousRecord.income?.[key]) || 0) - resourceCosts(previousRecord, key);
+          return pair.after - pair.before === previousNet;
+        });
+      if (!inheritedParentBalance) {
+        for (const key of ["lp", "shards"]) {
+          const label = key === "lp" ? "LP" : "欠片";
+          const pairs = currentPairs[key];
+          if (pairs.length > 1) {
+            skipped.push({
+              text: pairs.map((pair) => pair.raw).join(" / "),
+              reason: "同一リザルト内に異なる「現在所持" + label + "」の前後差分が複数あるため、収支照合を保留しました。原文確認が必要です"
+            });
+            continue;
+          }
+          if (pairs.length !== 1) continue;
+          const pair = pairs[0];
+          const actual = pair.after - pair.before;
+          const expected = (Number(record.income?.[key]) || 0) - resourceCosts(record, key);
+          if (actual === expected) continue;
+          const fmt = (amount) => (amount > 0 ? "+" : "") + String(amount);
+          skipped.push({
+            text: pair.raw,
+            reason: "現在所持" + label + "の差分が計算上の収支と一致しません（記録上 " + fmt(actual) + "、取込計算上 " + fmt(expected) + "）。収入・支出は自動修正していません。報酬欄・消費欄・残高欄の原文確認が必要です"
+          });
+        }
+      }
+
       /* 記録欄に残った明示的な獲得物は、通貨として二重計上せず注記として保持する。 */
       const hasAnything = Boolean(record.title) || record.income.lp || record.income.shards ||
         record.tickets.length || (record.ticketUses || []).length || record.spends.length || record.consumedItems.length ||
