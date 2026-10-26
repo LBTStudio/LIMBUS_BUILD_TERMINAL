@@ -134,6 +134,9 @@
      数字無し「人格抽出：南部〜」も 1 回として数える。 */
   function bareDrawOf(line) {
     var text = normalizeAmountText(line);
+    /* 「LP200を消費してガチャ」のような叙述は抽出回数の記録ではない。
+       明示的な「使用/消費」しかない自然文からチケットを作らない。 */
+    if (/(?:消費|使用済|使用し|支払|支出)/.test(text) && String(line).indexOf("→") < 0) return null;
     var m = text.match(/(?:抽出|ガチャ)\s*(\d+)?/);
     if (!m) return null;
     /* 「時間殺人時間テーマパック抽出」はパックの獲得であり、チケットの消費ではない。 */
