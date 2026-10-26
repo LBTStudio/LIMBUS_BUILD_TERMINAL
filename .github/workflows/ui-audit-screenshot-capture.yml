@@ -1,0 +1,43 @@
+name: UI interaction audit screenshots
+
+on:
+  pull_request:
+    paths:
+      - "tools/ui/capture-ui-audit.mjs"
+      - ".github/workflows/ui-audit-screenshot-capture.yml"
+      - "js/**"
+      - "assets/**"
+      - "index.html"
+      - "sw.js"
+      - "js/**"
+      - "assets/**"
+      - "index.html"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ui-audit-capture:
+    name: Capture interactive UI states (desktop and mobile)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install Playwright
+        run: npm install --no-save playwright@1.64.0
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Capture screens, dialogs, menus, hover and focus states
+        run: node tools/ui/capture-ui-audit.mjs
+      - name: Upload UI audit screenshots and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lbt-ui-interaction-audit
+          path: artifacts/ui-audit-screenshots/
+          if-no-files-found: warn
+          retention-days: 30
