@@ -332,14 +332,23 @@
 
   function ledgerItem(text) {
     const original = String(text ?? "").trim().replace(/^[*+-]\s+/, "");
-    const normalized = toHalf(original);
+    let normalized = toHalf(original);
+    let quantity = 1;
+    let quantityInvalid = false;
+    const quantitySuffix = normalized.match(/\s*[x×]\s*([+-]?\d[\d,]*)\s*$/i);
+    if (quantitySuffix) {
+      const parsedQuantity = safeAmount(quantitySuffix[1]);
+      if (parsedQuantity === null || parsedQuantity <= 0) quantityInvalid = true;
+      else quantity = parsedQuantity;
+      normalized = normalized.slice(0, quantitySuffix.index).trim();
+    }
     const trailing = normalized.match(/^(.*?)(?:\s+)(\d[\d,]*)\s*(LP|自我の欠片|欠片|欠けら|カケラ|かけら)\s*$/i);
     if (trailing && trailing[1].trim()) {
       const amount = safeAmount(trailing[2]);
       if (amount !== null) {
         const isLP = /^LP$/i.test(trailing[3]);
         return {
-          name: trailing[1].trim(),
+          name: trailing[1].trim(), quantity, quantityInvalid,
           cost: isLP ? { lp: amount, shards: 0 } : { lp: 0, shards: amount },
           priced: true,
           raw: original
@@ -350,13 +359,13 @@
     const parenCost = split.parens ? costFromParens(split.parens) : null;
     if (split.name && parenCost && !parenCost.ambiguous) {
       return {
-        name: split.name,
+        name: split.name, quantity, quantityInvalid,
         cost: { lp: parenCost.lp, shards: parenCost.shards },
         priced: true,
         raw: original
       };
     }
-    return { name: original, cost: null, priced: false, raw: original };
+    return { name: normalized || original, quantity, quantityInvalid, cost: null, priced: false, raw: original };
   }
 
   function ledgerItems(text) {
@@ -387,12 +396,21 @@
     const skipped = [];
     const blocks = [];
     let block = null;
-    for (const rawLine of source.split("\n")) {
+    const sourceLines = source.split("\n");
+    const isDateLine = (value) => /^日時\s*[：:]\s*\d{4}[/-]\d{1,2}[/-]\d{1,2}/.test(String(value || "").trim());
+    for (let lineIndex = 0; lineIndex < sourceLines.length; lineIndex += 1) {
+      const rawLine = sourceLines[lineIndex];
       const line = rawLine.trim();
-      const header = line.match(/^[▼▽]\s*(.+?)\s*$/);
-      if (header) {
+      const markedHeader = line.match(/^[▼▽]\s*(.+?)\s*$/);
+      let inferredHeader = false;
+      if (!markedHeader && line && !/[:：]/.test(line) && !sourceLines[lineIndex - 1]?.trim()) {
+        let next = lineIndex + 1;
+        while (next < sourceLines.length && !sourceLines[next].trim()) next += 1;
+        inferredHeader = isDateLine(sourceLines[next]);
+      }
+      if (markedHeader || inferredHeader) {
         if (block) blocks.push(block);
-        block = { title: header[1].trim(), lines: [] };
+        block = { title: (markedHeader ? markedHeader[1] : line).trim(), lines: [], inferredHeader };
       } else if (block) {
         block.lines.push(rawLine);
       } else if (line) {
@@ -413,10 +431,11 @@
       }
       record.income[key] = next;
     };
-    const addItem = (record, bucket, item) => {
+    const addItem = (record, bucket, item, role) => {
       bucket.push(item);
-      /* 人格名は既存の解決器へ渡す。非人格は plan 側でカテゴリを確認する。 */
-      record.raw.push(item.name);
+      if (role === "acquired") record.acquisitions.push(item);
+      else if (role === "specified") record.specifiedItems.push(item);
+      else if (role === "targets") record.identityCandidates.push(item.name);
     };
     const totalCostsEqual = (a, b) => a.lp === b.lp && a.shards === b.shards;
 
@@ -424,27 +443,38 @@
       const title = entry.title.replace(/^『\s*(.+?)\s*』$/, "$1").trim();
       const record = {
         title: title || null, author: null, income: { lp: 0, shards: 0 },
-        tickets: [], spends: [], deltas: [], consumedItems: [], itemGains: [], raw: []
+        tickets: [], spends: [], deltas: [], consumedItems: [], itemGains: [], raw: [],
+        journalFormat: true, acquisitions: [], specifiedItems: [], identityCandidates: [], rewardCandidates: []
       };
       const acquired = [];
       const specified = [];
       const targets = [];
       const consumeLines = [];
       let continuation = null;
+      let rewardContext = false;
 
       const keepNote = (line) => {
         const value = String(line ?? "").trim();
         if (value) record.raw.push(value);
       };
-      const collectItems = (value, bucket) => {
+      const collectItems = (value, bucket, role) => {
         const items = ledgerItems(value);
         for (const item of items) {
+          if (item.quantityInvalid) {
+            skipped.push({ text: item.raw, reason: "取得品の個数が不正なため登録を保留しました" });
+            continue;
+          }
           const glass = parseLegacyGlassGain(item.raw);
           if (glass && !glass.error) {
             record.itemGains.push(glass);
             continue;
           }
-          addItem(record, bucket, item);
+          addItem(record, bucket, item, role);
+          if (role === "acquired" && /人格抽出|人格指定抽出/.test(title)) {
+            record.identityCandidates.push(item.name);
+          } else if (role === "specified" && /初期作成/.test(title)) {
+            record.identityCandidates.push(item.name);
+          }
         }
       };
 
@@ -458,6 +488,7 @@
         const value = fieldValue ? fieldValue[2].trim() : "";
 
         if (label === "消費") {
+          rewardContext = false;
           consumeLines.push(value);
           keepNote(line);
           const glassUse = ledgerGlassConsumption(line) || parseLegacyGlassUse(line);
@@ -470,6 +501,7 @@
         }
 
         if (label === "報酬") {
+          rewardContext = true;
           keepNote(line);
           if (value) {
             const nested = value.match(/^\s*(LP|自我の欠片|欠片)\s*[:：]\s*(.+)$/i);
@@ -497,28 +529,32 @@
         }
 
         if (label === "獲得") {
-          if (value) collectItems(value, acquired);
+          rewardContext = false;
+          if (value) collectItems(value, acquired, "acquired");
           continuation = "acquired";
           keepNote(line);
           continue;
         }
 
         if (label === "指定") {
-          if (value) collectItems(value, specified);
+          rewardContext = false;
+          if (value) collectItems(value, specified, "specified");
           continuation = "specified";
           keepNote(line);
           continue;
         }
 
         if (label === "該当人格" || label === "対象") {
-          if (value) collectItems(value, targets);
+          rewardContext = false;
+          if (value) collectItems(value, targets, "targets");
           continuation = "targets";
           keepNote(line);
           continue;
         }
 
         if (label === "強化対象人格") {
-          if (value) collectItems(value, targets);
+          rewardContext = false;
+          if (value) collectItems(value, targets, "targets");
           continuation = null;
           keepNote(line);
           continue;
@@ -527,10 +563,12 @@
         if (label === "現在所持LP" || label === "現在所持欠片" || label === "日時" ||
             label.toLowerCase() === "gm" || label === "備考" || label === "強化内容" ||
             label === "アイテム" || label === "欠片合計" || label === "合計") {
+          if (label !== "報酬") rewardContext = false;
           keepNote(line);
           if (label === "アイテム" && value) {
             const glass = parseLegacyGlassGain(line);
             if (glass && !glass.error) record.itemGains.push(glass);
+            else collectItems(value, acquired, "acquired");
           }
           continuation = label === "アイテム" ? "items" : null;
           continue;
@@ -555,10 +593,16 @@
             continue;
           }
           const item = ledgerItem(line);
-          if (continuation === "acquired") addItem(record, acquired, item);
-          else if (continuation === "specified") addItem(record, specified, item);
-          else if (continuation === "targets") targets.push(item);
-          else keepNote(line);
+          if (item.quantityInvalid) {
+            skipped.push({ text: item.raw, reason: "取得品の個数が不正なため登録を保留しました" });
+            continue;
+          }
+          if (continuation === "acquired") addItem(record, acquired, item, "acquired");
+          else if (continuation === "specified") {
+            addItem(record, specified, item, "specified");
+            if (/初期作成/.test(title)) record.identityCandidates.push(item.name);
+          } else if (continuation === "targets") addItem(record, targets, item, "targets");
+          else if (continuation === "items") addItem(record, acquired, item, "acquired");
           continue;
         }
 
@@ -574,6 +618,12 @@
           if (glassGain.error) skipped.push({ text: line, reason: glassGain.error });
           else record.itemGains.push(glassGain);
           keepNote(line);
+          continue;
+        }
+        if (rewardContext && /[x×]\s*\d[\d,]*\s*$/i.test(toHalf(line))) {
+          record.rewardCandidates.push(ledgerItem(line));
+          keepNote(line);
+          continuation = null;
           continue;
         }
         keepNote(line);
