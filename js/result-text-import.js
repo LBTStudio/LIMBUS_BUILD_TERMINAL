@@ -907,7 +907,7 @@
             });
             record.spends.push({
               name: title, cost: { lp: aggregate.lp, shards: aggregate.shards },
-              needsDecision: null, reason: null, kindHint: hintOf(title), raw: consumeLines.join("、")
+              needsDecision: null, reason: null, kindHint: null, raw: consumeLines.join("、")
             });
           } else {
             descriptions.forEach((item, index) => {
