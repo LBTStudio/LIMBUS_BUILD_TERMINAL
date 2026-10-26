@@ -853,7 +853,11 @@ test("収支精度回帰: 共有書式から収入・支出・チケット・独
   assert.equal(totals.incomeShards, 75);
   assert.equal(totals.spentLp, 140, "LP消費100 + 自由メモ購入40");
   assert.equal(totals.spentShards, 100);
-  assert.equal(totals.types.SPEND_TICKET, 1);
+  const ticketUseEntries = actions.filter((a) => a.type === "ADD_ENTRY" && a.tickets
+    && ((a.tickets.persona || 0) + (a.tickets.ego || 0) + (a.tickets.choice || 0)
+      + Object.values(a.tickets.pack || {}).reduce((sum, n) => sum + n, 0)) > 0);
+  assert.equal(ticketUseEntries.length, 1, "チケット所持数が不明でも使用履歴を消費明細として残す");
+  assert.equal(ticketUseEntries[0].tickets.persona, 1);
   assert.equal(totals.types.ADD_CUSTOM_ROSTER_EGO, 1);
   assert.equal(totals.types.ADD_ITEM_INVENTORY, 1);
   const notes = actions.filter((a) => a.note === "硝子窓の自由メモ由来。日時・シナリオ未特定");
