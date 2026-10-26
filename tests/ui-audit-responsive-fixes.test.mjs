@@ -63,6 +63,12 @@ test("記録の取り込みメニューを開くと該当パネルへスクロ�
   assert.doesNotMatch(other.slice(other.indexOf("const switchResultTool"), other.indexOf("const openResultEditor")), /APPLY_IMPORT_BATCH/);
 });
 
+test("モバイルのアカウントカードは最下段の操作列とメタ情報を重ねない", () => {
+  const mobile = css.slice(css.lastIndexOf("@media (max-width: 640px)"));
+  assert.match(mobile, /\.acct-card\s*\{[\s\S]*?min-height:\s*148px;[\s\S]*?padding:[^;]*34px/);
+  assert.match(mobile, /\.acct-meta\s*\{[\s\S]*?display:\s*block;[\s\S]*?overflow-wrap:\s*anywhere;/);
+});
+
 test("共有URL取り込み中は選択中のアカウントフォームに集中できる", () => {
   assert.match(css, /\.acct-panel:has\(\.acct-card--import-open\) > \.lbt-cloud-panel\s*\{\s*display:\s*none;/);
   assert.match(css, /\.acct-panel:has\(\.acct-card--import-open\) > \.acct-grid\s*\{[\s\S]*?min-height:\s*0;[\s\S]*?overflow-y:\s*auto;/);
