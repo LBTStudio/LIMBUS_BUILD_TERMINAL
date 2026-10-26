@@ -439,7 +439,7 @@
     const blocks = [];
     let block = null;
     const sourceLines = source.split("\n");
-    const isDateLine = (value) => /^日時\s*(?:[：:]|\t)\s*\d{4}[/-]\d{1,2}[/-]\d{1,2}/.test(String(value || "").trim());
+    const isDateLine = (value) => /^日時\s*(?:[：:]|\t)\s*\d{4}[/-]\d{1,2}[/-]\d{1,2}/.test(toHalf(value || "").trim());
     for (let lineIndex = 0; lineIndex < sourceLines.length; lineIndex += 1) {
       const rawLine = sourceLines[lineIndex];
       const line = rawLine.trim();
@@ -829,7 +829,7 @@
     const originalText = String(rawText ?? "");
     const hasLedgerFields = /(?:日時|報酬|現在所持LP|現在所持欠片)/.test(originalText);
     const hasMarkedLedgerHeader = /^\s*[▼▽]\s*\S/m.test(originalText);
-    const hasDatedLedgerEntry = /^\s*日時\s*(?:[：:]|\t)\s*\d{4}[/-]\d{1,2}[/-]\d{1,2}/m.test(originalText);
+    const hasDatedLedgerEntry = /^\s*日時\s*(?:[：:]|\t)\s*\d{4}[/-]\d{1,2}[/-]\d{1,2}/m.test(toHalf(originalText));
     /* 見出しの ▼/▽ が省略されても、日時欄を持つ帳簿形式は専用パーサへ回す。
        旧パーサへ落とすと、複数記録の境界と残高の読み取りを誤る。 */
     if (hasLedgerFields && (hasMarkedLedgerHeader || hasDatedLedgerEntry)) {
