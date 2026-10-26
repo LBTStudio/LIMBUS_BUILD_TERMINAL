@@ -100,7 +100,7 @@
   line-height: 1.6;
 }
 
-.state-import-summary {
+.state-import-dialog .import-apply-summary {
   flex: 0 0 auto;
   margin: 0;
   padding: 7px 9px;
