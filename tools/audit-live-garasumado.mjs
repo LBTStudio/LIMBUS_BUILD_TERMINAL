@@ -103,7 +103,7 @@ const IDS = [
 ];
 const parserSource = readFileSync(new URL("../js/garasumado-memo-parse.js", import.meta.url), "utf8");
 const rosterSource = readFileSync(new URL("../js/garasumado-roster-import.js", import.meta.url), "utf8");
-const baseParserResponse = await fetch("https://raw.githubusercontent.com/LBTStudio/LIMBUS_BUILD_TERMINAL/main/js/garasumado-memo-parse.js");
+const baseParserResponse = await fetch("https://raw.githubusercontent.com/LBTStudio/LIMBUS_BUILD_TERMINAL/3f326475c3aed31da08a73852c3c371207c2c8e0/js/garasumado-memo-parse.js");
 if (!baseParserResponse.ok) throw new Error("Unable to fetch baseline parser: " + baseParserResponse.status);
 const baselineParserSource = await baseParserResponse.text();
 
