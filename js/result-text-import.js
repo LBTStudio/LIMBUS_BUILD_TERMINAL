@@ -420,6 +420,10 @@
     return { ...ticket, kind: "persona" };
   }
 
+  function ticketResolutionKey(recordIndex, ticket) {
+    return `${recordIndex}:${String(ticket?.sourceLine || "").trim()}::${String(ticket?.raw || "").trim()}`;
+  }
+
   function ledgerShardConversion(text) {
     const source = toHalf(text).trim();
     const converted = source.match(/[→⇒➜]\s*(\d[\d,]*)\s*(?:自我の)?(?:欠片|欠けら|かけら|カケラ)\s*$/i);
@@ -609,7 +613,7 @@
           for (const parsedTicket of ledgerTickets(value)) {
             const usedTicket = ticketWithRecordContext(parsedTicket, title, value);
             if (usedTicket.error) skipped.push({ text: line, reason: usedTicket.error });
-            else record.ticketUses.push({ ...usedTicket, raw: line });
+            else record.ticketUses.push({ ...usedTicket, raw: usedTicket.raw || line, sourceLine: line });
           }
           keepNote(line);
           const glassUse = ledgerGlassConsumption(line) || parseLegacyGlassUse(line);
@@ -634,9 +638,9 @@
                 const ticket = ticketWithRecordContext(parsedTicket, title, value);
                 if (ticket.error) skipped.push({ text: line, reason: ticket.error });
                 else {
-                  record.tickets.push({ ...ticket, raw: line });
+                  record.tickets.push({ ...ticket, raw: ticket.raw || line, sourceLine: line });
                   if (/(?:使用済|使用済み|両方使用済|全て使用済|消費済)/.test(value)) {
-                    record.ticketUses.push({ ...ticket, raw: line });
+                    record.ticketUses.push({ ...ticket, raw: ticket.raw || line, sourceLine: line });
                   }
                 }
               }
@@ -717,9 +721,9 @@
                 skipped.push({ text: line, reason: ticket.error });
                 continue;
               }
-              record.tickets.push({ ...ticket, raw: line });
+              record.tickets.push({ ...ticket, raw: ticket.raw || line, sourceLine: line });
               if (/(?:使用済|使用済み|両方使用済|全て使用済|消費済)/.test(line)) {
-                record.ticketUses.push({ ...ticket, raw: line });
+                record.ticketUses.push({ ...ticket, raw: ticket.raw || line, sourceLine: line });
               }
             }
             if (/(?:使用済|使用済み|両方使用済|全て使用済|消費済)/.test(line)) {
@@ -1141,6 +1145,20 @@
       actions.push({ type: "ADD_ITEM_INVENTORY", itemId, quantity });
       itemBalances.set(String(itemId), (itemBalances.get(String(itemId)) || 0) + quantity);
     };
+    const applyTicketResolution = (ticket, recordIndex) => {
+      const override = opts.ticketResolved?.[ticketResolutionKey(recordIndex, ticket)];
+      if (!override || typeof override !== "object") return ticket;
+      const kind = String(override.kind || "");
+      if (kind === "persona" || kind === "ego" || kind === "choice") {
+        const { pack: _ignoredPack, ...base } = ticket;
+        return { ...base, kind };
+      }
+      if (kind === "pack") {
+        const pack = String(override.pack || ticket.pack || "").trim();
+        return { ...ticket, kind, ...(pack ? { pack } : { pack: "" }) };
+      }
+      return ticket;
+    };
     let legacyUseSequence = 0;
 
     for (const [recordIndex, record] of (parsed.records || []).entries()) {
@@ -1148,23 +1166,24 @@
       const note = record.author ? `作：${record.author}` : "";
       const acceptedTickets = [];
       const ticketTotals = new Map();
-      for (const ticket of record.tickets || []) {
+      for (const rawTicket of record.tickets || []) {
+        const ticket = applyTicketResolution(rawTicket, recordIndex);
         const kind = ticket?.kind;
         const pack = kind === "pack" ? String(ticket?.pack || "").trim() : "";
         const knownKind = kind === "persona" || kind === "ego" || kind === "choice";
         if (!knownKind && !(kind === "pack" && pack)) {
-          skipped.push({ text: ticket?.raw || "抽出チケット", reason: "チケット種別が不明なため、収入へ確定できません" });
+          skipped.push({ text: ticket?.sourceLine || ticket?.raw || "抽出チケット", reason: "チケット種別が不明なため、収入へ確定できません" });
           continue;
         }
         const count = Number(ticket?.count);
         if (!Number.isSafeInteger(count) || count < 0) {
-          skipped.push({ text: ticket?.raw || "抽出チケット", reason: "チケット枚数が不正です" });
+          skipped.push({ text: ticket?.sourceLine || ticket?.raw || "抽出チケット", reason: "チケット枚数が不正です" });
           continue;
         }
         const totalKey = kind === "pack" ? "pack:" + pack : kind;
         const nextCount = (ticketTotals.get(totalKey) || 0) + count;
         if (!Number.isSafeInteger(nextCount)) {
-          skipped.push({ text: ticket?.raw || "抽出チケット", reason: "同種チケットの合計が安全整数の範囲を超えています" });
+          skipped.push({ text: ticket?.sourceLine || ticket?.raw || "抽出チケット", reason: "同種チケットの合計が安全整数の範囲を超えています" });
           continue;
         }
         ticketTotals.set(totalKey, nextCount);
@@ -1188,7 +1207,8 @@
       };
       actions.push(resultAction);
 
-      for (const ticketUse of record.ticketUses || []) {
+      for (const rawTicketUse of record.ticketUses || []) {
+        const ticketUse = applyTicketResolution(rawTicketUse, recordIndex);
         const kind = ticketUse?.kind;
         const pack = kind === "pack" ? String(ticketUse?.pack || "").trim() : "";
         const knownKind = kind === "persona" || kind === "ego" || kind === "choice";
@@ -1196,7 +1216,7 @@
         if ((!knownKind && !(kind === "pack" && pack)) ||
             !Number.isSafeInteger(count) || count <= 0) {
           skipped.push({
-            text: ticketUse?.raw || "抽出チケット",
+            text: ticketUse?.sourceLine || ticketUse?.raw || "抽出チケット",
             reason: "使用したチケットの種類または枚数を一意に判定できず、所持残数からは差し引いていません"
           });
           continue;
@@ -1458,6 +1478,6 @@
     return out;
   }
 
-  const api = { parseText, plan };
+  const api = { parseText, plan, ticketResolutionKey };
   if (typeof window !== "undefined") window.LBT_textImport = api;
 })();
