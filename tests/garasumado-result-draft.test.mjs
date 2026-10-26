@@ -633,3 +633,20 @@ test("シナリオカードの行は選ばれた DB 候補（picked）を保持�
   assert.equal(row.picked?.name, "憎悪", "選んだ候補の名前が行に残る");
   assert.equal(row.picked?.kind, "spirit", "選んだ候補の種別が行に残る");
 });
+
+test("rd.nan7.net で包まれた共有URLも、公式URLだけを抜き出して認識する", () => {
+  const wrapped = "https://rd.nan7.net/https://lbt-garasumado.vercel.app/view/3JIdhCPatk2URoQZ2btx";
+  const parsed = G.parseShareUrl(wrapped);
+  assert.equal(parsed.ok, true);
+  assert.equal(parsed.id, "3JIdhCPatk2URoQZ2btx");
+  assert.equal(parsed.collection, "characters");
+
+  const batch = G.parseShareUrls([
+    wrapped,
+    "https://lbt-garasumado.vercel.app/view/3JIdhCPatk2URoQZ2btx",
+    "https://example.com/not-a-share-link/BadId"
+  ].join("\n"));
+  assert.equal(batch.urls.length, 1, "包みURLと正規URLは同じIDへ重複登録しない");
+  assert.equal(batch.urls[0].id, "3JIdhCPatk2URoQZ2btx");
+  assert.ok(batch.invalid.some((row) => row.text.includes("example.com")), "別ホストのURLは成功扱いにしない");
+});
