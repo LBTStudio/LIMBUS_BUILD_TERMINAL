@@ -4,6 +4,7 @@ import test from "node:test";
 
 const app = readFileSync(new URL("../js/App.js", import.meta.url), "utf8");
 const workspace = readFileSync(new URL("../assets/workspace.css", import.meta.url), "utf8");
+const captureScript = readFileSync(new URL("../tools/ui/capture-ui-audit.mjs", import.meta.url), "utf8");
 
 test("mobile preview toggle is moved into the unused bottom-nav cell instead of overlaying section content", () => {
   const mobile = workspace.slice(workspace.indexOf("UI audit refinements"));
@@ -44,4 +45,14 @@ test("import scope actions stay visible while the category list scrolls on a pho
   assert.match(mobile, /\.share-modal-backdrop > \.card > \.stack-2\s*\{[^}]*overflow-y:\s*auto/s);
   assert.match(mobile, /\.share-modal-backdrop > \.card > div:last-child\s*\{[^}]*flex:\s*0 0 auto/s);
   assert.match(mobile, /\.share-modal-backdrop > \.card > div:last-child \.btn\s*\{[^}]*min-height:\s*40px/s);
+});
+
+
+test("UI audit selectors track the current import panels and share modal instead of stale DOM IDs", () => {
+  assert.match(captureScript, /\\.ledger-gara-wrap/);
+  assert.doesNotMatch(captureScript, /#ledger-text-import-panel|#ledger-glass-import-panel|import-scope-empty-categories/);
+  assert.match(captureScript, /#lbt-share-modal-root \\.share-modal/);
+  assert.match(captureScript, /#lbt-share-modal-root \[data-act='tab'\]/);
+  assert.match(captureScript, /\\.import-empty-groups-toggle/);
+  assert.match(captureScript, /share-html-self-preview/);
 });
