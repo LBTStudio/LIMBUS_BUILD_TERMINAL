@@ -2005,3 +2005,33 @@ test("自由メモ購入の共有元キーは金額修正後も安定する", ()
   assert.equal(multiManifest.purchaseHistory.length, 1, "最新スナップショットの購入だけを使う");
   assert.equal(multiManifest.purchaseHistory[0].lp, 30);
 });
+
+
+test("価格上限だけ書かれたテーマパックは収入・支出・チケットに推測計上せず警告する", () => {
+  const a = MEMO.parseMemo("報酬：60LP / 自我の欠片 45 / 200LP以下のテーマパックx1");
+  assert.equal(a.income.lp, 60, "明示されたLP報酬だけ計上");
+  assert.equal(a.income.shards, 45, "明示された欠片報酬だけ計上");
+  assert.equal(a.spends.reduce((n, row) => n + row.lp, 0), 0, "200LPは実支出ではない");
+  assert.equal(a.pack["任意"] || 0, 0, "対象パックや券種を推測しない");
+  assert.equal(a.tickets.persona + a.tickets.ego + a.tickets.choice, 0);
+  assert.ok(a.reasons.some((row) => /LP上限付きのテーマパック表記/.test(row.reason)),
+    "金額を二重計上しない理由を表示");
+});
+
+test("LP200以下の任意テーマパックという価格条件は、別記の報酬額を維持しつつ要確認にする", () => {
+  const r = MEMO.parseMemo(`報酬
+LP120
+欠片60
+LP200以下の任意のテーマパック×1を獲得`);
+  assert.equal(r.income.lp, 120);
+  assert.equal(r.income.shards, 60);
+  assert.equal(r.reasons.filter((row) => /LP上限付きのテーマパック表記/.test(row.reason)).length, 1);
+});
+
+test("明示的なテーマパックチケットは既存のパック券警告だけを使う", () => {
+  const r = MEMO.parseMemo("報酬：60LP / 欠片45 / 200LP以下の任意のテーマパックチケット×1");
+  assert.equal(r.income.lp, 60);
+  assert.equal(r.income.shards, 45);
+  assert.equal(r.reasons.filter((row) => /LP上限付きのテーマパック表記/.test(row.reason)).length, 0);
+  assert.ok(r.reasons.some((row) => row.ticketCategory === "pack"));
+});
