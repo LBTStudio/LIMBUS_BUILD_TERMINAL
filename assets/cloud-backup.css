@@ -11,8 +11,14 @@
 .acct-panel:has(.acct-card--import-open) > .acct-grid {
   min-height: 0;
   flex: 1 1 0%;
+  grid-template-columns: minmax(0, 1fr);
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+.acct-panel:has(.acct-card--import-open) > .acct-grid > .acct-card:not(.acct-card--import-open) {
+  /* URL取り込みの長いフォームと背後の他カードが重ならないよう、
+     完了／キャンセルするまで編集対象だけを見せる。 */
+  display: none;
 }
 
 .lbt-cloud-panel {
