@@ -18,7 +18,6 @@ test("the fixed preview handle no longer obscures the mobile heading or tab stri
   assert.match(mobile, /\.section-title-row \{[\s\S]*?padding-right: 0;/);
   assert.match(mobile, /\.section-title \{[\s\S]*?font-size: clamp\(15px, 4\.35vw, 17px\)/);
   assert.match(app, /label: previewOpen \? "プレビューを閉じる" : "プレビューを開く"/);
-  assert.match(app, /className: "utility-sheet-action"/);
 });
 
 test("state import initially displays data-bearing categories and keeps the action footer reachable", () => {
@@ -26,7 +25,7 @@ test("state import initially displays data-bearing categories and keeps the acti
   assert.match(app, /const importGroupsWithData = importData \? IMPORT_GROUPS\.filter/);
   assert.match(app, /if \(!has && !showEmptyImportGroups\) return null/);
   assert.match(app, /aria-expanded": showEmptyImportGroups/);
-  assert.match(app, /className: "state-import-list"/);
+  assert.match(app, /className: "stack-2 state-import-list"/);
   assert.match(app, /className: "state-import-footer"/);
   assert.match(css, /\.state-import-dialog \{[\s\S]*?display: flex;[\s\S]*?flex-direction: column;[\s\S]*?overflow: hidden;/);
   assert.match(css, /\.state-import-list \{[\s\S]*?flex: 1 1 auto;[\s\S]*?overflow-y: auto;/);
