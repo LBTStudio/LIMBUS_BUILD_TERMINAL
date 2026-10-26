@@ -946,7 +946,7 @@
          以前は後段の「叙述体の購入は名前だけ残す」経路で金額がすべて消えていた。 */
       var narrativeSpendRe = /[「『]([^「『」』]+)[」』]\s*(?:を\s*)?(?:購入した(?:ので|ため)|買った(?:ので|ため))\s*(LP|ＬＰ|自我の(?:破片|欠片)|欠片|かけら|欠けら|カケラ)\s*-\s*([0-9][0-9,]*)/g;
       var narrativeSpendMatches = Array.from(line.matchAll(narrativeSpendRe));
-      if (narrativeSpendMatches.length) {
+      if (narrativeSpendMatches.length >= 2) {
         narrativeSpendMatches.forEach(function (match) {
           var cost = Number(String(match[3]).replace(/,/g, ""));
           if (!Number.isSafeInteger(cost) || cost <= 0) {
