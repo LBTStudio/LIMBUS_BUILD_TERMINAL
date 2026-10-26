@@ -376,6 +376,105 @@ test("APPLY_DRAW_BATCH は抽出オブジェクトとログを最新リザルト
   assert.equal(logged.gachaLog[0]?.resultId, "latest-result", "抽出ログも同じリザルトへの帰属を保持する");
 });
 
+test("抽出リストに残るのに取得明細が欠落した旧抽選を、抽選時点の最新リザルトへ復元する", () => {
+  const w = loadState(db);
+  const { batch } = finalizedBatch();
+  const record = batch.records.find((item) => item.kind === "persona" && !item.duplicate);
+  assert.ok(record, "復元する未重複の人格抽選がある");
+  const persona = db.normal_personas.find((item) => String(item.no) === String(record.item.no));
+  assert.ok(persona, "DBから正規名を引ける");
+  const logAt = Date.now();
+  const drawDate = new Date(logAt).toISOString().slice(0, 10);
+  const oldDate = new Date(logAt - 86400000).toISOString().slice(0, 10);
+  const before = {
+    ...base(),
+    results: [
+      { id: "result-at-draw", name: "抽選時点の最新リザルト", date: drawDate, createdAt: logAt - 2000, income: { lp: 500, shards: 0 } },
+      { id: "res-initial", name: "初期作成", date: oldDate, createdAt: logAt - 60000, income: { lp: 30, shards: 0 } }
+    ],
+    roster: {
+      personas: [{ uid: "restored-persona-uid", mode: "n", no: record.item.no }],
+      egos: [], supports: [], spirits: []
+    },
+    draws: [batch],
+    gachaLog: [{ id: batch.commit, commit: batch.commit, at: new Date(logAt).toISOString(), resultId: "res-initial" }]
+  };
+
+  const restored = w.LBT_normalizeStateShape(before);
+  const linked = restored.entries.filter((entry) =>
+    entry.ref?.kind === "rosterPersona" && entry.ref.uid === "restored-persona-uid" && entry.kind === "persona");
+  assert.equal(linked.length, 1, "封緘済み抽選リストから欠落した取得明細を1件だけ復元");
+  assert.equal(linked[0].resultId, "result-at-draw", "今の最新ではなく抽選時点に存在した最新へ結ぶ");
+  assert.equal(linked[0].name, persona.name, "DBの正規名で復元");
+  assert.equal(linked[0].cost.lp, Number(record.cost.lp) || 0);
+  assert.equal(linked[0].cost.shards, Number(record.cost.shards) || 0);
+  assert.equal(restored.gachaLog[0].resultAttributionRepairVersion, 2);
+  assert.equal(G.verifyBatch(restored.draws[0]).ok, true, "抽選証明本体を変更しない");
+
+  const reloaded = w.LBT_normalizeStateShape(restored);
+  assert.equal(reloaded.entries.filter((entry) =>
+    entry.ref?.kind === "rosterPersona" && entry.ref.uid === "restored-persona-uid" && entry.kind === "persona").length, 1,
+  "再読み込みしても明細を増殖させない");
+});
+
+test("復元対象と一致する手動支出があれば、その行を保護して二重計上を防ぐ", () => {
+  const w = loadState(db);
+  const { batch } = finalizedBatch();
+  const record = batch.records.find((item) => item.kind === "persona" && !item.duplicate);
+  assert.ok(record, "復元する未重複の人格抽選がある");
+  const persona = db.normal_personas.find((item) => String(item.no) === String(record.item.no));
+  assert.ok(persona, "DBから正規名を引ける");
+  const logAt = Date.now();
+  const drawDate = new Date(logAt).toISOString().slice(0, 10);
+  const oldDate = new Date(logAt - 86400000).toISOString().slice(0, 10);
+  const manualCost = { lp: Number(record.cost.lp) || 0, shards: Number(record.cost.shards) || 0 };
+  const manual = {
+    id: "manual-expense-preserve",
+    kind: "expense",
+    name: persona.name,
+    cost: manualCost,
+    resultId: null,
+    ref: null,
+    at: logAt + 60000,
+    note: "ユーザーが手入力した支出"
+  };
+  const before = {
+    ...base(),
+    entries: [manual],
+    results: [
+      { id: "result-at-draw", name: "抽選時点の最新リザルト", date: drawDate, createdAt: logAt - 2000, income: { lp: 500, shards: 0 } },
+      { id: "res-initial", name: "初期作成", date: oldDate, createdAt: logAt - 60000, income: { lp: 30, shards: 0 } }
+    ],
+    roster: {
+      personas: [{ uid: "manual-match-persona-uid", mode: "n", no: record.item.no }],
+      egos: [], supports: [], spirits: []
+    },
+    draws: [batch],
+    gachaLog: [{ id: batch.commit, commit: batch.commit, at: new Date(logAt).toISOString(), resultId: "res-initial" }]
+  };
+
+  const restored = w.LBT_normalizeStateShape(before);
+  const keptManual = restored.entries.find((entry) => entry.id === "manual-expense-preserve");
+  const linked = restored.entries.find((entry) =>
+    entry.ref?.kind === "rosterPersona" && entry.ref.uid === "manual-match-persona-uid" && entry.kind === "persona");
+  assert.ok(keptManual, "手動支出を消さない");
+  assert.equal(keptManual.resultId, null, "手動明細の帰属を勝手に変更しない");
+  assert.equal(keptManual.note, "ユーザーが手入力した支出", "ユーザーの説明を保護");
+  assert.equal(keptManual.cost.lp, manualCost.lp);
+  assert.equal(keptManual.cost.shards, manualCost.shards);
+  assert.ok(linked, "獲得オブジェクトそのものは最新リザルトに復元する");
+  assert.equal(linked.resultId, "result-at-draw");
+  assert.equal(linked.cost.lp, 0, "一致する手動支出がある場合はLPを再計上しない");
+  assert.equal(linked.cost.shards, 0, "一致する手動支出がある場合は欠片を再計上しない");
+
+  const balanceOnce = w.LBT_computeLedgerBalance(restored.results, restored.entries);
+  const reloaded = w.LBT_normalizeStateShape(restored);
+  const balanceTwice = w.LBT_computeLedgerBalance(reloaded.results, reloaded.entries);
+  assert.equal(reloaded.entries.length, restored.entries.length, "繰り返し読み込みで明細が増えない");
+  assert.equal(balanceTwice.spentLp, balanceOnce.spentLp, "再読み込みで支出合計が増えない");
+  assert.equal(balanceTwice.spentShards, balanceOnce.spentShards, "再読み込みで欠片支出合計が増えない");
+});
+
 test("旧抽出の誤帰属は、ログIDがある場合も無い場合も安全に補正する", () => {
   const w = loadState(db);
   const { batch } = finalizedBatch();
