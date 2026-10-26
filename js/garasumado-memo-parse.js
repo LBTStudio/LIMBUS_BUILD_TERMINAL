@@ -480,6 +480,13 @@
     if (at < 0) return [];
     var tail = t.slice(at + 1).replace(/[。．\s]+$/g, "").trim();
     if (!tail) return [];
+    /* 「→200LP消費、テーマパック名:獲得人格獲得」形式では、最初のコロンは
+       パック名と獲得品の区切り。パック名を獲得人格名へ混ぜない。
+       通貨消費が明示されている場合に限って扱い、一般の人格名内のコロンは維持する。 */
+    if (currencySpendOf(t)) {
+      var packReward = tail.match(/(?:^|[、，,]\s*)[^：:、，,]*パック\s*[：:]\s*(.+)$/);
+      if (packReward) tail = packReward[1].trim();
+    }
     var out = [];
     tail.split(/[、，,]/).forEach(function (frag) {
       /* 「→LP100消費ガチャ:厳粛な哀悼獲得」は最後の区切りの後ろが名前。
