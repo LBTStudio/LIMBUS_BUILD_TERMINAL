@@ -695,7 +695,7 @@ test("ランク接頭辞つきのE.G.O獲得も正式名へ照合して所持へ
     && /取得品をアイテムDB/.test(item.reason)));
 });
 
-test("ランクを剥がしてもE.G.Oを一意に解決できない場合は推測登録しない", () => {
+test("実記録の「悪への道：厄災の狸」はDB正式名「悪道：厄災の狸」へ限定照合する", () => {
   const parsed = T.parseText([
     "▼E.G.O抽出",
     "日時：2026/10/09",
@@ -704,12 +704,63 @@ test("ランクを剥がしてもE.G.Oを一意に解決できない場合は推
     "現在所持欠片：50"
   ].join("\n"));
 
+  const seen = [];
   const planned = T.plan(parsed, {
-    resolve: () => null
+    resolve: (name) => {
+      seen.push(name);
+      return name === "悪道：厄災の狸"
+        ? { name, kinds: [{ kind: "ego", rank: "WAW", no: 82 }] }
+        : null;
+    }
   });
-  assert.ok(!planned.actions.some((action) => action.type === "ADD_ROSTER_EGO"));
-  assert.ok(planned.skipped.some((item) => item.text === "WAW 悪への道:厄災の狸"
+  assert.ok(seen.includes("悪道：厄災の狸"));
+  assert.ok(planned.actions.some((action) => action.type === "ADD_ROSTER_EGO"
+    && action.rank === "WAW" && action.no === 82));
+  assert.ok(!planned.skipped.some((item) => item.text === "WAW 悪への道:厄災の狸"
     && /取得品をアイテムDB/.test(item.reason)));
+});
+
+test("「人格抽出チケット2」は2枚として読み、チケット残数から2枚消費する", () => {
+  const parsed = T.parseText([
+    "▼人格抽出×4",
+    "日時：2026/06/01",
+    "消費：人格抽出チケット2,LP200",
+    "現在所持LP：500",
+    "現在所持欠片：0"
+  ].join("\n"));
+
+  assert.deepEqual([...parsed.records[0].ticketUses].map((ticket) => ({
+    kind: ticket.kind, count: ticket.count
+  })), [{ kind: "persona", count: 2 }]);
+  const planned = T.plan(parsed);
+  assert.ok(planned.actions.some((action) => action.type === "SPEND_TICKET"
+    && action.kind === "persona" && action.count === -2));
+});
+
+test("無修飾の抽出チケットは「人格抽出」記録のときだけ人格券と解釈する", () => {
+  const personaDraw = T.parseText([
+    "▼人格抽出",
+    "日時：2026/07/12",
+    "消費：抽出チケット×1",
+    "現在所持LP：58",
+    "現在所持欠片：15"
+  ].join("\n"));
+  assert.deepEqual([...personaDraw.records[0].ticketUses].map((ticket) => ({
+    kind: ticket.kind, count: ticket.count
+  })), [{ kind: "persona", count: 1 }]);
+  assert.ok(T.plan(personaDraw).actions.some((action) => action.type === "SPEND_TICKET"
+    && action.kind === "persona" && action.count === -1));
+
+  const ambiguous = T.parseText([
+    "▼逆夢は未だ明けず",
+    "日時：2026/08/26",
+    "報酬：任意のチケット×1→使用済(獲得：旧G社兵士の人格)",
+    "現在所持LP：0",
+    "現在所持欠片：0"
+  ].join("\n"));
+  assert.equal(ambiguous.records[0].tickets[0].kind, null);
+  assert.equal(ambiguous.records[0].ticketUses[0].kind, null);
+  assert.ok(!T.plan(ambiguous).actions.some((action) => action.type === "SPEND_TICKET"));
 });
 
 test("実記録の「硝子の欠片×2、LP20」は数量2の消費として認識する", () => {
