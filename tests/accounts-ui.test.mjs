@@ -217,7 +217,7 @@ test("起動時のアカウント選択画面にも常時表示の編集ボタ�
   assert.ok(gateSource.includes('className: "acct-gate-edit-btn"'), "起動時カードに専用の編集ボタン");
   assert.ok(gateSource.includes("detail: { editId: entry.id }"), "クリックしたアカウントIDを渡す");
   assert.ok(gateSource.includes('"aria-haspopup": "dialog"'), "ダイアログを開く操作として明示");
-  assert.match(ui, /const AccountSwitcher = \(\{ open, onClose, initialEditId \}\) => \{/);
+  assert.match(ui, /const AccountSwitcher = \(\{ open, onClose, initialEditId, existingResults = \[\] \}\) => \{/);
   assert.match(ui, /if \(!open \|\| !initialEditId\) return;[\s\S]*?setEditingId\(entry\.id\)/, "対象IDを受け取り編集フォームへ入る");
   assert.ok(app.includes("accountSwitcherInitialEditId"), "編集対象IDを App で管理");
   assert.ok(app.includes("event.detail?.editId || null"), "イベントから対象IDを受け取る");

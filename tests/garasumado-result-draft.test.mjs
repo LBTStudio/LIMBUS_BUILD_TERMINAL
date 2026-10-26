@@ -601,3 +601,20 @@ test("支出節の現在残高・残り残高を支出額として誤記帳し�
   assert.ok(parsed.reasons.some((reason) => /支出金額が読み取れない/.test(reason.reason)),
     "購入動詞があっても残高しかなければ、支出額の確認理由を返す");
 });
+
+
+test("共有URLの取り込み元IDを履歴に保持し、再読込の識別に利用できる", () => {
+  const merged = G.mergeGarasumadoDocuments([{
+    id: "share-stable-id",
+    url: "https://lbt-garasumado.vercel.app/view/share-stable-id",
+    updateTime: "2026-10-26T00:00:00Z",
+    doc: {
+      name: "テストキャラクター",
+      plName: "テストPL",
+      scenarioHistory: [{ name: "テストシナリオ", memo: "50LP" }]
+    }
+  }]);
+  assert.ok(merged && !merged.error);
+  assert.equal(merged.scenarioHistory[0].__lbtShareSourceId, "share-stable-id");
+  assert.equal(merged.scenarioHistory[0].__lbtShareSourceIndex, 0);
+});

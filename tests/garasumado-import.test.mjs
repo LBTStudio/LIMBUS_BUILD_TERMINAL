@@ -1660,8 +1660,8 @@ test("同じ共有元のシナリオキーはメモ修正後も安定し、同�
       { name: "反復シナリオ", memo: "50LP", __lbtShareSourceId: "share123" }
     ]
   };
-  const before = G.buildManifest(doc, { resolve });
-  const after = G.buildManifest(changed, { resolve });
+  const before = G.buildManifest(doc, null);
+  const after = G.buildManifest(changed, null);
   assert.equal(before.scenarios[0].importSourceKey, after.scenarios[0].importSourceKey, "メモ文面を識別子に含めない");
   assert.notEqual(before.scenarios[0].importSourceKey, before.scenarios[1].importSourceKey, "同名の複数回は別キー");
   assert.equal(before.scenarios[1].importSourceKey, after.scenarios[1].importSourceKey);

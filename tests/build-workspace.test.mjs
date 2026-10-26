@@ -650,7 +650,7 @@ test("硝子窓の取り込み画面は既存の利用側を壊さず足し物�
   /* 確定がコンバート確定。押した瞬間に確定し、結果を見せる（自動で閉じない）。 */
   assert.match(ui, /onApply\?\.\(applied\);/);
   /* 購入明細は「どのシナリオの支出か」を保ったまま渡す。 */
-  assert.match(ui, /const result = window\.LBT_toDispatchActions\?\.\(merged, keys, \{ purchases, resolve \}\)/);
+  assert.match(ui, /const result = window\.LBT_toDispatchActions\?\.\(merged, keys, \{ purchases, resolve, legacyResultTargets: legacyTargets \}\)/);
   /* 同期・解析の対象名を DB へ引く解決器も渡す（渡さないと操作行が捨てられる）。 */
   assert.match(ui, /LBT_buildNameIndex/);
   assert.match(ui, /LBT_resolveCandidates\(index, name\)/);
