@@ -357,6 +357,7 @@
 
     const countMatch = source.match(/[x×]\s*([+-]?\d[\d,]*)/i)
       || source.match(/([+-]?\d[\d,]*)\s*枚/)
+      || source.match(/(?:チケット|チケ)\s*([+-]?\d{1,3}(?:,\d{3})+|[+-]?\d+)\s*(?=$|[\s,，、;；()（）])/i)
       || (packRight ? source.match(/[+＋]\s*(\d[\d,]*)\s*(?:権)?/i) : null);
     const count = countMatch ? safeAmount(countMatch[1]) : 1;
     if (count === null) return { error: "チケット枚数が不正です", raw: text };
@@ -404,6 +405,19 @@
       }
     }
     return terms.map((term) => ledgerTicket(term)).filter(Boolean);
+  }
+
+  /* 一般的な「抽出チケット」は単独では種別不明。
+     ただし、明細名自体が「人格抽出」と明記されている場合だけ、消費欄の
+     無修飾チケットを人格抽出券と解釈する。テストプレイ報酬・任意券・テーマパックは推測しない。 */
+  function ticketWithRecordContext(ticket, title, rawText) {
+    if (!ticket || ticket.error || ticket.kind) return ticket;
+    const normalizedTitle = toHalf(title).replace(/\s+/g, " ").trim();
+    if (!/^人格抽出(?:\s*[x×]\s*\d+)?$/i.test(normalizedTitle)) return ticket;
+    const raw = toHalf(rawText);
+    if (!/(?:^|[^任意選択])抽出チケット(?:\s*[x×]?\s*\d+)?/i.test(raw)) return ticket;
+    if (/(?:任意|選択|テーマパック|テーマパーク|テストプレイ|報酬)/i.test(raw)) return ticket;
+    return { ...ticket, kind: "persona" };
   }
 
   function ledgerShardConversion(text) {
@@ -592,7 +606,8 @@
         if (label === "消費") {
           rewardContext = false;
           consumeLines.push(value);
-          for (const usedTicket of ledgerTickets(value)) {
+          for (const parsedTicket of ledgerTickets(value)) {
+            const usedTicket = ticketWithRecordContext(parsedTicket, title, value);
             if (usedTicket.error) skipped.push({ text: line, reason: usedTicket.error });
             else record.ticketUses.push({ ...usedTicket, raw: line });
           }
@@ -615,7 +630,8 @@
               const key = /^LP$/i.test(nested[1]) ? "lp" : "shards";
               addValue(record, key, ledgerNumber(nested[2]), line);
             } else {
-              for (const ticket of ledgerTickets(value)) {
+              for (const parsedTicket of ledgerTickets(value)) {
+                const ticket = ticketWithRecordContext(parsedTicket, title, value);
                 if (ticket.error) skipped.push({ text: line, reason: ticket.error });
                 else {
                   record.tickets.push({ ...ticket, raw: line });
@@ -694,7 +710,7 @@
         }
 
         if (/(?:チケ(?:ット)?|抽出🎫|テーマパック|テーマパーク|パック\s*[+＋]\s*\d|パック抽出)/i.test(line)) {
-          const ticketRows = ledgerTickets(line);
+          const ticketRows = ledgerTickets(line).map((ticket) => ticketWithRecordContext(ticket, title, line));
           if (ticketRows.length) {
             for (const ticket of ticketRows) {
               if (ticket.error) {
@@ -1209,6 +1225,9 @@
           add(rankPrefixedEgo[1]);
           addKnownSpellingVariants(rankPrefixedEgo[1]);
         }
+        /* 実記録では「WAW 悪への道：厄災の狸」となっていたが、
+           DB の正式名は「悪道：厄災の狸」。この完全一致の表記揺れだけを橋渡しする。 */
+        if (/^WAW\s+悪への道[:：]厄災の狸$/i.test(source)) add("悪道：厄災の狸");
         addKnownSpellingVariants(source);
         const withoutPersonaSuffix = source.replace(/の人格$/, "").trim();
         if (withoutPersonaSuffix !== source) addKnownSpellingVariants(withoutPersonaSuffix);
