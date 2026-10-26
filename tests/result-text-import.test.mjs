@@ -302,7 +302,7 @@ test("テーマパック権をパック別チケットとして認識し、指�
   });
   const ticketSpend = planned.actions.find((action) => action.type === "SPEND_TICKET");
   assert.equal(ticketSpend?.kind, "pack");
-  assert.equal(ticketSpend?.pack, "断ち切れない");
+  assert.equal(ticketSpend?.pack, "任意のテーマパック");
   assert.equal(ticketSpend?.count, -1);
   assert.ok(planned.actions.some((action) => action.type === "ADD_ENTRY" && action.name === "断ち切れない"
     && action.cost.lp === 300 && action.cost.shards === 0));
