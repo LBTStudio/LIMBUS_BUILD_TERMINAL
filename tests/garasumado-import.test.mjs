@@ -996,7 +996,7 @@ test("手入力残高を正解扱いせず、開始残高不明の純増減だ�
   assert.match(result.message, /手入力/);
 });
 
-test("現在残高の行より前の収入を二重加算せず、通貨別に照合する", () => {test("現在残高の行より前の収入を二重加算せず、通貨別に照合する", () => {
+test("現在残高の行より前の収入を二重加算せず、通貨別に照合する", () => {
   const M = loadImportWithMemo();
   const doc = {
     currency: { lp: "100", fragment: "39" },
