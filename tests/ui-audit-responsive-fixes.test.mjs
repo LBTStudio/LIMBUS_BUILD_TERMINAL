@@ -72,3 +72,10 @@ test("スマホのアカウント編集と共有URL取り込みでカード操�
   assert.match(cloudCss, /\.acct-panel:has\(\.acct-card--import-open\) > \.lbt-cloud-panel \{\s*display: none;/);
   assert.match(cloudCss, /\.acct-panel:has\(\.acct-card--import-open\) > \.acct-grid \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\);[\s\S]*?overflow-y: auto;/);
 });
+
+
+test("監査用ローカルサーバーは本番のRUMビーコンを404誤検知しない", () => {
+  const captureScript = read("../tools/ui/capture-ui-audit.mjs");
+  assert.match(captureScript, /p === "\/cdn-cgi\/rum"[\s\S]{0,100}res\.writeHead\(204/);
+  assert.match(captureScript, /audit\.missingRequiredCaptures\.length \|\| audit\.pageErrors\.length \|\| audit\.httpErrors\.length/);
+});
