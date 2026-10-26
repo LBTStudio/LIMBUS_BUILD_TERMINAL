@@ -376,39 +376,43 @@ test("APPLY_DRAW_BATCH は抽出オブジェクトとログを最新リザルト
   assert.equal(logged.gachaLog[0]?.resultId, "latest-result", "抽出ログも同じリザルトへの帰属を保持する");
 });
 
-test("旧抽出の誤帰属は、封緘バッチと時刻が一致するときだけ補正する", () => {
+test("旧抽出の誤帰属は、ログIDがある場合も無い場合も安全に補正する", () => {
   const w = loadState(db);
   const { batch } = finalizedBatch();
   const logAt = Date.now();
-  const before = {
-    ...base(),
-    results: [
-      { id: "visible-latest", name: "画面上の最新", date: "2026-10-26", createdAt: logAt - 5000, income: { lp: 1000, shards: 100 } },
-      { id: "array-tail-old", name: "配列末尾の古い記録", date: "2026-10-25", createdAt: logAt - 10000, income: { lp: 1000, shards: 100 } }
-    ]
-  };
   const cost = batch.records.reduce((total, record) => ({
     lp: total.lp + (Number(record.cost?.lp) || 0),
     shards: total.shards + (Number(record.cost?.shards) || 0)
   }), { lp: 0, shards: 0 });
-  const log = {
-    id: batch.commit, commit: batch.commit, at: new Date(logAt).toISOString(),
-    resultId: "array-tail-old"
-  };
-  const applied = w.appReducer(before, {
-    type: "ADD_DRAW_BATCH", batch, cost, resultId: "array-tail-old", entry: log
-  });
-  assert.ok(applied.entries.some((entry) => entry.resultId === "array-tail-old" && entry.ref?.kind === "rosterPersona"),
-    "補正前は、旧ロジックと同じ誤ったリザルトに明細が付いている");
 
-  const restored = w.LBT_normalizeStateShape({ ...applied, ui: {} });
-  const objectEntries = restored.entries.filter((entry) => entry.ref?.kind === "rosterPersona" || entry.ref?.kind === "rosterEgo");
-  assert.equal(objectEntries.length, batch.records.length);
-  assert.ok(objectEntries.every((entry) => entry.resultId === "visible-latest"),
-    "抽出オブジェクトの明細を画面上の最新リザルトへ補正する");
-  assert.equal(restored.gachaLog[0].resultId, "visible-latest", "抽選ログの帰属も補正する");
-  assert.equal(restored.gachaLog[0].resultAttributionRepairVersion, 1, "同じ履歴へ繰り返し適用しない");
-  assert.equal(G.verifyBatch(restored.draws[0]).ok, true, "封緘バッチのハッシュ鎖は変更しない");
+  for (const withResultId of [true, false]) {
+    const before = {
+      ...base(),
+      results: [
+        { id: "visible-latest", name: "画面上の最新", date: "2026-10-26", createdAt: logAt - 5000, income: { lp: 1000, shards: 100 } },
+        { id: "array-tail-old", name: "配列末尾の古い記録", date: "2026-10-25", createdAt: logAt - 10000, income: { lp: 1000, shards: 100 } }
+      ]
+    };
+    const log = {
+      id: batch.commit, commit: batch.commit, at: new Date(logAt).toISOString(),
+      ...(withResultId ? { resultId: "array-tail-old" } : {})
+    };
+    const applied = w.appReducer(before, {
+      type: "ADD_DRAW_BATCH", batch, cost, resultId: "array-tail-old", entry: log
+    });
+    assert.ok(applied.entries.some((entry) => entry.resultId === "array-tail-old" && entry.ref?.kind === "rosterPersona"),
+      "補正前は、旧ロジックと同じ誤ったリザルトに明細が付いている");
+
+    const restored = w.LBT_normalizeStateShape({ ...applied, ui: {} });
+    const objectEntries = restored.entries.filter((entry) => entry.ref?.kind === "rosterPersona" || entry.ref?.kind === "rosterEgo");
+    assert.equal(objectEntries.length, batch.records.length);
+    assert.ok(objectEntries.every((entry) => entry.resultId === "visible-latest"),
+      "抽出オブジェクトの明細を画面上の最新リザルトへ補正する");
+    assert.equal(restored.gachaLog[0].resultId, "visible-latest",
+      withResultId ? "既存の抽選ログの帰属を補正する" : "resultId のない旧ログにも帰属を補完する");
+    assert.equal(restored.gachaLog[0].resultAttributionRepairVersion, 1, "同じ履歴へ繰り返し適用しない");
+    assert.equal(G.verifyBatch(restored.draws[0]).ok, true, "封緘バッチのハッシュ鎖は変更しない");
+  }
 });
 
 test("所持への反映は 1件ごとに、その件が文書どおり払った額だけ引く", () => {
