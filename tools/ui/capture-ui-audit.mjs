@@ -447,7 +447,7 @@ async function main() {
   try { for(const mode of ["desktop","mobile"]) {log("begin "+mode);await captureProfile(browser,mode);} }
   finally { await browser.close();await new Promise(resolve=>s.close(resolve)); }
   audit.count=audit.screenshots.length;
-  audit.coverage=["SINNER SELECT/new-account form","all eight build tabs and desktop tab-hover states","major navigation sections and desktop navigation-hover states","shop tabs","record import menu and routes with result parsing preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow and target-size diagnostics"];
+  audit.coverage=["SINNER SELECT/new-account form","all eight build tabs and desktop tab-hover states","major navigation sections and desktop navigation-hover states","all six shop category tabs","record import menu and routes with result parsing preview","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, duplicate preview controls, and target-size diagnostics"];
   const requiredNotes=[
     "ビルド内の人格タブ","ビルド内のスキルタブ","ビルド内のパッシブタブ","ビルド内の強化タブ","ビルド内のサポートタブ","ビルド内のE.G.Oタブ","ビルド内の精神タブ","ビルド内のアイテムタブ",
     "ショップ分類: 人格","ショップ分類: サポート","ショップ分類: E.G.O","ショップ分類: 精神","ショップ分類: アイテム","ショップ分類: ガチャ",
@@ -470,7 +470,7 @@ async function main() {
     }
   }
   audit.criticalLayoutWarnings=audit.layoutWarnings.filter((item)=>["document-horizontal-overflow","duplicate-preview-controls","preview-toggle-overlaps-header"].includes(item.type));
-  fs.writeFileSync(path.join(OUT,"manifest.json"),JSON.stringify(audit,null,2)+"\\n");
+  fs.writeFileSync(path.join(OUT,"manifest.json"),JSON.stringify(audit,null,2)+"\n");
   log("finished: "+audit.count+" screenshots; failures="+audit.failures.length+"; missing-required="+audit.missingRequiredCaptures.length+"; critical-layout-warnings="+audit.criticalLayoutWarnings.length);
   if(audit.count<30 || audit.missingRequiredCaptures.length || audit.pageErrors.length || audit.criticalLayoutWarnings.length) process.exitCode=1;
 }
