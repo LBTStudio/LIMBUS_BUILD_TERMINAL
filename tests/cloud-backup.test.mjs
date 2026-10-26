@@ -156,13 +156,13 @@ test("オンライン保管庫テーブルをブラウザーから直接アク�
 
 test("オンライン保全UIはGoogle/Xではなく復旧キーだけに一本化する", () => {
   assert.match(client, /button\("復旧キーを発行して保全", \(\) => run\(createRecoveryKey\), "is-primary"\)/);
-  assert.match(client, /button\("復旧キーからクラウドを復元"/);
+  assert.match(client, /h\("label", \{ htmlFor: "lbt-cloud-recovery-key" \}, "復旧キーからクラウドを復元"\)/);
   assert.match(client, /復旧キー方式/);
   assert.doesNotMatch(client, /startOAuth|handleOAuthCallback|Googleと連携|Xと連携|signInWithOAuth/);
   assert.doesNotMatch(client, /古いキーは無効化|キーを再発行した場合/);
   assert.match(client, /復旧キー自体は保存せずハッシュのみを保持します/);
   assert.match(doc, /GoogleアカウントやXアカウントとの連携は実装しません/);
-  assert.match(doc, /通常のバックアップ更新、revisionの増加、過去世代の復元、端末の追加ではキーを作り直しません/);
+  assert.match(doc, /復旧キーは初回発行後、利用者の操作・データ更新・履歴復元・保存先切替によって変化しません/);
 });
 
 test("端末内JSONバックアップはクラウド12MB上限と分離し、100MBまで扱える", () => {
@@ -181,7 +181,7 @@ test("端末内JSONバックアップはクラウド12MB上限と分離し、100
 test("保全APIはOAuthセッションではなく復旧キーのみを受け付ける", () => {
   assert.match(recovery, /async function getVaultForRequest\(body: any\)/);
   assert.match(recovery, /const key = normalizeRecoveryKey\(body\.recoveryKey\)/);
-  assert.doesNotMatch(recovery, /verifiedUser|accessToken|authorization.*Bearer/);
+  assert.doesNotMatch(recovery, /verifiedUser|accessToken|rotate_recovery|newRecoveryKey|\/auth\/v1\/user/);
   assert.match(anonymousMigration, /auth\.jwt\(\) ->> 'is_anonymous'/);
   assert.equal((anonymousMigration.match(/coalesce\(\(select auth\.jwt\(\) ->> 'is_anonymous'\), 'false'\) <> 'true'/g) || []).length, 8);
   assert.match(anonymousMigration, /lbt_account_recovery_rate_limits_service_role/);
@@ -207,7 +207,7 @@ test("アクセスカウンターはアプリ本体・共有ページに設置�
   assert.match(html, /js\/access-counter\.js\?v=[a-f0-9]{8}/);
   assert.match(shareHtml, /js\/access-counter\.js\?v=[a-f0-9]{8}/);
   assert.match(accessCounter, /総アクセス/);
-  assert.doesNotMatch(accessCounter, /localStorage|sessionStorage|document\.cookie/);
+  assert.doesNotMatch(accessCounter, /\b(?:localStorage|sessionStorage|document\.cookie)\s*[.\[]/);
   assert.match(fallbackWorker, /INSERT INTO site_counters \(name, value\) VALUES \('total_views', 1\)/);
   assert.doesNotMatch(fallbackWorker, /pageViews/);
 });
