@@ -337,10 +337,56 @@ async function boot() {
       await click(add);
       await snap("account-create-form","新規キャラクター作成フォーム");
       const name=page.locator(".acct-gate input[placeholder='キャラクター名など']").first();
+      const purpose=page.locator(".acct-gate input[placeholder='本番 / 検証 / 配布']").first();
       if(await visible(name)) await name.fill("UI監査用キャラクター");
+      if(await visible(purpose)) await purpose.fill("Playwright QA");
       const create=page.getByRole("button",{name:"作成して開く",exact:true});
       if(await visible(create)) await click(create);
-    } else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
+      await page.waitForTimeout(800);
+      const railsNow=await visible(page.locator(".rail-item").first());
+      const createState=await page.evaluate(() => {
+        const api=window.LBT_accounts;
+        const info=api?.list?.();
+        const accounts=Array.isArray(info)?info:(Array.isArray(info?.accounts)?info.accounts:[]);
+        return {
+          storageAvailable:api?.storageAvailable?.(),
+          activeId:api?.getActiveId?.()||null,
+          accounts:accounts.map(a=>({id:a.id,name:a.name})),
+          gateVisible:!!document.querySelector(".acct-gate"),
+          toast:(document.querySelector(".toast")?.innerText||"").trim().slice(0,160)
+        };
+      });
+      audit.accountCreateAttempt={railsVisible:railsNow, ...createState};
+      await snap("account-create-result", "作成ボタンの実行結果："+JSON.stringify(audit.accountCreateAttempt));
+      if(!railsNow) {
+        // Prefer the ordinary user path first if an account was persisted but the
+        // account-entered event did not finish rendering the main workspace.
+        const card=page.locator(".acct-card-hit").first();
+        if(await visible(card)) {
+          await click(card);
+          await page.waitForTimeout(500);
+        }
+      }
+      if(!(await visible(page.locator(".rail-item").first()))) {
+        // Continue the rest of the visual audit without hiding the failed UI path:
+        // the failed create/select attempt above remains in the manifest, while a
+        // synthetic account is created only inside this disposable CI browser.
+        const fallback=await page.evaluate(() => {
+          const api=window.LBT_accounts;
+          if(!api?.create||!api?.switch) return {ok:false,reason:"account API unavailable"};
+          const raw=api.list?.();
+          const entries=Array.isArray(raw)?raw:(Array.isArray(raw?.accounts)?raw.accounts:[]);
+          const account=entries[0] || api.create("UI監査用キャラクター","Playwright QA");
+          if(!account?.id || !api.switch(account.id)) return {ok:false,reason:"could not switch to a disposable account"};
+          window.dispatchEvent(new CustomEvent("lbt:accounts-entered",{detail:{id:account.id}}));
+          return {ok:true,id:account.id,name:account.name};
+        });
+        audit.accountGateFallback=fallback;
+        await page.waitForTimeout(500);
+      }
+    } else if(await visible(page.locator(".acct-card-hit").first())) {
+      await click(page.locator(".acct-card-hit").first());
+    }
   }
   await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
   const seeded=await seed().catch(e=>({ok:false,reason:String(e)}));
