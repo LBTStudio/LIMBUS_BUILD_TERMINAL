@@ -343,7 +343,8 @@ async function boot() {
       const create=page.getByRole("button",{name:"作成して開く",exact:true});
       if(await visible(create)) await click(create);
       await page.waitForTimeout(800);
-      const railsNow=await visible(page.locator(".rail-item").first());
+      const firstRail=page.locator(".rail-item").first();
+      const railsNow=(await firstRail.count())>0 && await firstRail.isVisible().catch(()=>false);
       const createState=await page.evaluate(() => {
         const api=window.LBT_accounts;
         const info=api?.list?.();
@@ -359,15 +360,17 @@ async function boot() {
       audit.accountCreateAttempt={railsVisible:railsNow, ...createState};
       await snap("account-create-result", "作成ボタンの実行結果："+JSON.stringify(audit.accountCreateAttempt));
       if(!railsNow) {
-        // Prefer the ordinary user path first if an account was persisted but the
-        // account-entered event did not finish rendering the main workspace.
-        const card=page.locator(".acct-card-hit").first();
+        // Prefer the ordinary user path if an account persisted but the main workspace
+        // has not appeared. The full-card hit target is intentionally opacity:0, so
+        // click its visible parent card rather than filtering the hit target as invisible.
+        const card=page.locator(".acct-card--gate").first();
         if(await visible(card)) {
           await click(card);
           await page.waitForTimeout(500);
         }
       }
-      if(!(await visible(page.locator(".rail-item").first()))) {
+      const railAfterCreate=page.locator(".rail-item").first();
+      if(!((await railAfterCreate.count())>0 && await railAfterCreate.isVisible().catch(()=>false))) {
         // Continue the rest of the visual audit without hiding the failed UI path:
         // the failed create/select attempt above remains in the manifest, while a
         // synthetic account is created only inside this disposable CI browser.
@@ -384,8 +387,8 @@ async function boot() {
         audit.accountGateFallback=fallback;
         await page.waitForTimeout(500);
       }
-    } else if(await visible(page.locator(".acct-card-hit").first())) {
-      await click(page.locator(".acct-card-hit").first());
+    } else if(await visible(page.locator(".acct-card--gate").first())) {
+      await click(page.locator(".acct-card--gate").first());
     }
   }
   await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
@@ -396,9 +399,9 @@ async function boot() {
     await page.waitForLoadState("networkidle",{timeout:12000}).catch(()=>{});
     await page.waitForTimeout(600);
     if(await visible(page.locator(".acct-gate"))) {
-      const card=page.locator(".acct-card-hit").filter({hasText:"UI監査用キャラクター"}).first();
+      const card=page.locator(".acct-card--gate").filter({hasText:"UI監査用キャラクター"}).first();
       if(await visible(card)) await click(card);
-      else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
+      else if(await visible(page.locator(".acct-card--gate").first())) await click(page.locator(".acct-card--gate").first());
     }
     await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
   }
