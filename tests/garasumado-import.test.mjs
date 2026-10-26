@@ -142,6 +142,7 @@ test("購入の叙述に明記されたLP・欠片の消費を支出として記
   );
   assert.equal(r.spends.length, 2, "明示されたLP支出2件を残す。アイテム欠片の使用は通貨支出にしない");
   assert.equal(r.spends.reduce((n, spend) => n + spend.lp, 0), 177, "LP27 + LP150 を一度ずつ計上する");
+  assert.equal(r.spends[0].name, "肩慣らし", "共有購入行の対象名を明細へ残す");
   assert.equal(r.spends.reduce((n, spend) => n + spend.shards, 0), 0);
   assert.ok(r.wins.some((w) => w.name === "ルサンチマン"), "サポパの名前を所持証跡として保持する");
   assert.equal(r.income.lp, 30, "収入は30LPの獲得行だけ");
@@ -161,6 +162,7 @@ test("精神購入の叙述で欠片支出も通貨を取り違えず記録す�
   assert.equal(r.income.shards, 0);
   assert.equal(r.spends.length, 1);
   assert.equal(r.spends[0].shards, 200);
+  assert.equal(r.spends[0].name, "正義", "精神購入の対象名を支出へ保持する");
   assert.equal(r.spends[0].lp, 0);
   assert.ok(r.wins.some((w) => w.name === "正義" && w.bought), "購入された対象の証跡も保持する");
 });
