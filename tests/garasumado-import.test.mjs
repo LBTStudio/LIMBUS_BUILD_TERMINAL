@@ -2046,7 +2046,7 @@ test("明示的なテーマパックチケットは既存のパック券警告�
 
 test("硝子窓の「獲得：HE 厳粛な哀悼」は正式E.G.O名へ照合され所持追加される", () => {
   const fullEgoName = "厳粛な哀悼：死んだ蝶たちの葬儀";
-  const memo = "消費：欠片100\\n獲得：HE " + fullEgoName;
+  const memo = "消費：欠片100\n獲得：HE " + fullEgoName;
   const parsed = MEMO.parseMemo(memo);
   assert.deepEqual([...parsed.wins.map((win) => ({ name: win.name, kind: win.kind }))], [
     { name: fullEgoName, kind: "ego" }
