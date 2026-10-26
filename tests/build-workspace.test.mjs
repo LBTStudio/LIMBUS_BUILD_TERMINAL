@@ -590,7 +590,10 @@ test("購入は最新リザルトへ直接入り、残高が足りなければ�
   const shop = sections.slice(sections.indexOf("const ShopSection ="), sections.indexOf("const BuildWorkspace ="));
   /* 明細 resultId の既定は「最後に記録したリザルト」。 */
   assert.match(reducer, /const resultId = detail\.resultId === undefined \? latestResultId\(state\) : detail\.resultId;/);
-  assert.match(reducer, /function latestResultId\(state\) \{\s*const results = state\?\.results \|\| \[\];\s*return results\.length \? results\[results\.length - 1\]\.id : null;/);
+  assert.match(reducer, /function latestResultId\(state\) \{[\s\S]{0,900}?return latest\?\.id \|\| null;/,
+    "直近リザルトの解決は配列末尾ではなく新しい順の比較を使う");
+  assert.match(reducer, /const stamp = \(result\) => \{[\s\S]{0,220}?Date\.parse\(String\(result\?\.date \|\| ""\) \+ "T00:00:00Z"\)/,
+    "直近リザルトは画面の並び替えと同じ日付規則を使う");
   /* 購入系はリデューサ入口で残高判定する（UI 無効化だけに依存しない）。 */
   assert.match(reducer, /if \(action\.type === "ADD_ROSTER" \|\| action\.type === "ADD_ROSTER_EGO"/);
   assert.match(reducer, /if \(cost && !purchaseAffordability\(state, cost\)\.ok\) return state;/);
