@@ -24,6 +24,9 @@ test("mobile build navigation exposes all eight tabs in a two-row grid", () => {
 
 test("mobile save-import dialog scrolls its category list and keeps footer actions visible", () => {
   assert.match(css, /\.share-modal-backdrop:has\(\.import-apply-summary\) > \.card\s*\{[^}]*display:\s*flex/s);
+  assert.match(css, /display:\s*flex !important/);
+  assert.match(css, /max-height:\s*min\(82dvh, 700px\) !important/);
+  assert.match(css, /overflow:\s*hidden !important/);
   assert.match(css, /\.share-modal-backdrop:has\(\.import-apply-summary\) \.stack-2\s*\{[^}]*overflow-y:\s*auto/s);
   assert.match(css, /\.share-modal-backdrop:has\(\.import-apply-summary\) > \.card > div:last-child\s*\{[^}]*display:\s*grid !important/s);
   assert.match(css, /label\[style\*="opacity: 0\.4"\]\s*\{\s*display:\s*none/);
