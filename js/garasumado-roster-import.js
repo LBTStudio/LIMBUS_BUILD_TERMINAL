@@ -694,6 +694,7 @@ function toIdentityChoices(hits) {
             Object.keys(parsed.pack || {}).length > 0 ||
             (parsed.spends || []).length > 0 ||
             (parsed.ticketSpends || []).length > 0 ||
+            (parsed.reasons || []).length > 0 ||
             wins.length > 0
         };
       });
@@ -1085,7 +1086,11 @@ function toIdentityChoices(hits) {
 
       /* チケット消費は収入に加算しない。履歴に使用と明記された分だけ消費アクションにする。 */
       for (const spend of scenario.ticketSpends || []) {
-        if (!spend || !["persona", "ego", "choice", "pack"].includes(spend.kind)) continue;
+        if (!spend) continue;
+        if (!["persona", "ego", "choice", "pack"].includes(spend.kind)) {
+          skipped.push({ key: scenario.key, reason: "チケットの種別が曖昧なため消費記録を確定できません: " + String(spend.raw || "") });
+          continue;
+        }
         if (spend.kind === "pack" && !String(spend.pack || "").trim()) {
           skipped.push({ key: scenario.key, reason: "パックチケットの使用先が特定できないため消費記録を保留" });
           continue;
