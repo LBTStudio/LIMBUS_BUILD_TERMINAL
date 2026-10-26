@@ -31,8 +31,14 @@
 
     const officialHost = "lbt-garasumado.vercel.app";
     let candidate = "";
+    /* rd.nan7.net 等のリンクラッパーは「https://外側/https://公式URL」の形になる。
+       外側のホストを許可するのではなく、文字列内に埋め込まれた公式ホストの
+       /view/ID だけを抜き出してから、下の hostname 検証を通常どおり行う。 */
+    const embeddedOfficial = text.match(/https?:\/\/(?:www\.)?lbt-garasumado\.vercel\.app\/(?:persona\/)?view\/[A-Za-z0-9_-]{6,}\/?(?:[?#][^\s]*)?/i);
     const absolute = text.match(/https?:\/\/[^\s]+/i);
-    if (absolute) {
+    if (embeddedOfficial) {
+      candidate = embeddedOfficial[0].replace(/[)\],.;]+$/g, "");
+    } else if (absolute) {
       candidate = absolute[0].replace(/[)\],.;]+$/g, "");
     } else {
       const hostless = text.match(/(?:^|[\s"\'(<\[:])((?:www\.)?lbt-garasumado\.vercel\.app(?:\/[^\s]*)?)/i);
