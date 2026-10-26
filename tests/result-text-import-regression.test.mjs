@@ -80,6 +80,23 @@ test("▼/▽なしの日時付き複数記録も、別々のリザルトとし�
   assert.equal(parsed.records[1].income.shards, 10);
 });
 
+test("複合報酬行のLP・欠片・抽出チケットをそれぞれ正しく解析する", () => {
+  const parsed = T.parseText([
+    "▼複合報酬テスト",
+    "日時\t2026/08/12",
+    "報酬\tLP:150/自我の欠片:70/人格抽出チケットx1"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 1);
+  const record = parsed.records[0];
+  assert.equal(record.income.lp, 150);
+  assert.equal(record.income.shards, 70);
+  assert.equal(record.tickets.length, 1);
+  assert.equal(record.tickets[0].kind, "persona");
+  assert.equal(record.tickets[0].count, 1);
+  assert.equal(parsed.skipped.length, 0);
+});
+
 test("E.G.O指定購入の「指定」欄も取得品とし、9件すべて所持登録する", () => {
   const egos = DB.egos.filter((ego) => Number(ego.shards) === 50).slice(0, 9);
   const memo = [
