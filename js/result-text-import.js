@@ -1181,7 +1181,18 @@
         }
       }
       const acquisitions = [...(record.acquisitions || [])];
-      if (!acquisitions.length && /初期作成/.test(title)) acquisitions.push(...(record.specifiedItems || []));
+      /* 「指定」欄は初期作成の人格だけでなく、指定購入／指定抽出の取得品でも使われる。
+         E.G.O指定購入が指定Itemsのみを持つと、支出は入るのにE.G.O所持だけ欠落する。 */
+      if (/初期作成|指定(?:抽出|購入|依頼)/.test(title)) {
+        const already = new Set(acquisitions.map((item) => String(item && item.name || "").normalize("NFKC").replace(/\s+/g, "").toLowerCase()));
+        for (const item of record.specifiedItems || []) {
+          const key = String(item && item.name || "").normalize("NFKC").replace(/\s+/g, "").toLowerCase();
+          if (key && !already.has(key)) {
+            acquisitions.push(item);
+            already.add(key);
+          }
+        }
+      }
       for (const item of acquisitions) addResolvedAsset(item, true);
       for (const item of record.rewardCandidates || []) addResolvedAsset(item, false);
 
