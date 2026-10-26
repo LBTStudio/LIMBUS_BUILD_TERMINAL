@@ -6,7 +6,24 @@
  * - state-import choices pushed the primary buttons below the visible area.
  */
 @layer v69-ui-audit {
+  .state-import-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: rgba(10, 8, 5, 0.68);
+    backdrop-filter: blur(4px);
+    padding: 20px;
+  }
+
   @media (max-width: 640px) {
+    /* The floating tab is gone on phones, so section headings may use the full width. */
+    .section-title-row {
+      padding-right: 0;
+    }
     /* Phone users already have a clear "プレビューを開く／閉じる" action in
        操作・保存. Remove the floating edge tab so it cannot cover content. */
     #lbt-preview-edge-toggle {
