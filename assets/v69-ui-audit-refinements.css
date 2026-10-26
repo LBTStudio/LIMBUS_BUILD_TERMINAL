@@ -120,7 +120,7 @@
       font-size: var(--fs-12);
       line-height: 1.5;
     }
-    .state-import-summary {
+    .import-apply-summary {
       flex: 0 0 auto;
       margin: 0 0 8px;
       padding: 7px 9px;
