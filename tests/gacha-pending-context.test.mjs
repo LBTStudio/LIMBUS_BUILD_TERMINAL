@@ -25,6 +25,18 @@ test("抽選確認は確定時の画面状態ではなく、申込時の条件�
   assert.match(commitBlock, /times:\s*request\.times/);
   assert.doesNotMatch(commitBlock, /\n\s*route,\s*\n\s*times,/,
     "変更後のフォーム値を抽選ログのルート／回数へ流用しない");
+  assert.match(commitBlock, /const currentState = stateRef\.current \|\| state/);
+  assert.match(commitBlock, /const latestResults = Array\.isArray\(currentState\.results\)/,
+    "確定直前の state からリザルト一覧を読み直す");
+  assert.match(commitBlock, /const resultId = latestResults\.length \? .* : null/,
+    "リザルトが無い場合は未分類、ある場合は最終行を明示的な帰属先にする");
+  assert.match(commitBlock, /commit: out\.commit \|\| null,\s*resultId\s*\n\s*\}/,
+    "抽選ログにも同じリザルトIDを保存する");
+  const validationStart = source.indexOf("const validation", transactionStart);
+  assert.ok(validationStart > transactionStart);
+  const transactionBlock = source.slice(transactionStart, validationStart);
+  assert.match(transactionBlock, /type: "APPLY_DRAW_BATCH"[\s\S]*resultId/,
+    "取得オブジェクトとチケット消費に同じリザルトIDを渡す");
 });
 
 test("抽選確認中は条件の操作をロックし、キャンセル後に変更させる", () => {
