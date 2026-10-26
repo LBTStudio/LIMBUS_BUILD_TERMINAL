@@ -22,6 +22,9 @@ function makeServer() {
     let p;
     try { p = decodeURIComponent(new URL(req.url || "/", "http://" + HOST).pathname); }
     catch { res.writeHead(400).end("Bad request"); return; }
+    /* index.html enables Cloudflare RUM in production; the local audit server has no RUM
+       endpoint, so answer the telemetry beacon without generating a false 404. */
+    if (p === "/cdn-cgi/rum") { res.writeHead(204, { "cache-control": "no-store" }).end(); return; }
     if (p === "/") p = "/index.html";
     const f = path.resolve(ROOT, "." + p);
     if (f !== ROOT && !f.startsWith(ROOT + path.sep)) { res.writeHead(403).end("Forbidden"); return; }
