@@ -941,6 +941,33 @@
         }
       }
 
+      /* 「サポートパッシブ『A』を購入したのでLP-7、『B』を購入したのでLP-15」のように、
+         名前と負額が1対1で明記された叙述は、それぞれ独立した支出として残す。
+         以前は後段の「叙述体の購入は名前だけ残す」経路で金額がすべて消えていた。 */
+      var narrativeSpendRe = /[「『]([^「『」』]+)[」』]\s*(?:を\s*)?(?:購入した(?:ので|ため)|買った(?:ので|ため))\s*(LP|ＬＰ|自我の(?:破片|欠片)|欠片|かけら|欠けら|カケラ)\s*-\s*([0-9][0-9,]*)/g;
+      var narrativeSpendMatches = Array.from(line.matchAll(narrativeSpendRe));
+      if (narrativeSpendMatches.length) {
+        narrativeSpendMatches.forEach(function (match) {
+          var cost = Number(String(match[3]).replace(/,/g, ""));
+          if (!Number.isSafeInteger(cost) || cost <= 0) {
+            reasons.push({ line: sourceLine, reason: "叙述中の個別購入額が正の安全整数ではないため未計上：" + match[0] });
+            return;
+          }
+          var currency = /LP|ＬＰ/i.test(match[2]) ? "lp" : "shards";
+          var spend = {
+            name: String(match[1]).trim(),
+            lp: 0,
+            shards: 0,
+            raw: match[0],
+            reason: "叙述中の個別購入支出"
+          };
+          spend[currency] = cost;
+          spends.push(spend);
+        });
+        /* 既に支出へ抜き出した金額だけを後段の収入解析から外す。上記で所持名は記録済み。 */
+        line = line.replace(narrativeSpendRe, " ");
+      }
+
       /* アイテムの効果説明。「▶︎〜」や「〜を得る」は金額行ではない。 */
       if (isNarrativeLine(line)) continue;
 
