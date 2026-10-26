@@ -469,7 +469,7 @@
         record.raw.push(value);
         /* 注記欄のアイテム使用は、完全一致でDBへ引けた場合のみ在庫減少候補にする。
            CT使用などアイテムでない記述は、後段の完全一致に失敗すれば注記のまま残る。 */
-        if (/(?:使用|消費)/.test(value) && !/硝子の(?:破片|欠片|かけら|カケラ)/.test(value)
+        if (/(?:使用(?!可能|可)|消費)/.test(value) && !/硝子の(?:破片|欠片|かけら|カケラ)/.test(value)
           && !/^消費\s*[：:]/.test(value)) {
           record.itemUseCandidates.push(value);
         }
