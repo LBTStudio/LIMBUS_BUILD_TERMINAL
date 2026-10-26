@@ -846,6 +846,63 @@ function loadImportWithMemo() {
   return context.window.LBT_garasumado;
 }
 
+test("収支精度回帰: 実際の共有書式から収入・支出・チケット消費・独自E.G.Oを別々に生成する", () => {
+  const M = loadImportWithMemo();
+  const doc = {
+    name: "回帰用",
+    currency: { lp: "318", fragment: "91" },
+    freeNotes: {
+      secret: "LP-20 サポートパッシブ「人生一発」購入\nLP-20 サポートパッシブ「肩慣らし」購入"
+    },
+    owned: {
+      personas: [],
+      egos: [{ rank: "ZAYIN", name: "海底墓標：プロト" }],
+      supportPassives: [],
+      spirits: []
+    },
+    items: [{ name: "包帯", count: 1 }],
+    scenarioHistory: [{
+      name: "履歴A",
+      memo: [
+        "165LP、75欠片",
+        "→LP100消費ガチャ:厳粛な哀悼獲得",
+        "→自我の破片100消費：羽ばたき：妖精の祭典獲得",
+        "人格抽出チケット1枚→薬指野獣派スチューデントA獲得"
+      ].join("\n")
+    }]
+  };
+  const resolve = (name) => ["人生一発", "肩慣らし"].includes(name)
+    ? { name, kinds: [{ kind: "support" }] }
+    : null;
+  const db = { items: [{ id: "heal-bandage", name: "包帯" }], egos: [], support_passives: [] };
+  const manifest = M.buildManifest(doc, { resolve, candidates: () => [] }, db);
+  const selected = manifest.groups.flatMap((group) => group.items.map((item) => item.key));
+  const { actions, skipped } = M.toDispatchActions(manifest, selected, { db, resolve });
+  const sums = actions.reduce((out, action) => {
+    if (action.type === "ADD_RESULT") {
+      out.results += 1;
+      out.incomeLp += action.income.lp || 0;
+      out.incomeShards += action.income.shards || 0;
+    }
+    if (action.type === "ADD_ENTRY") {
+      out.entries += 1;
+      out.spentLp += action.cost.lp || 0;
+      out.spentShards += action.cost.shards || 0;
+    }
+    out.types[action.type] = (out.types[action.type] || 0) + 1;
+    return out;
+  }, { results: 0, incomeLp: 0, incomeShards: 0, entries: 0, spentLp: 0, spentShards: 0, types: {} });
+  assert.equal(sums.results, 1);
+  assert.equal(sums.incomeLp, 165);
+  assert.equal(sums.incomeShards, 75);
+  assert.equal(sums.spentLp, 140, "ガチャ100LP + 自由メモ購入40LP");
+  assert.equal(sums.spentShards, 100, "自我の破片100の消費");
+  assert.equal(sums.types.SPEND_TICKET, 1, "抽出元チケットの使用を収入へ混ぜない");
+  assert.equal(sums.types.ADD_CUSTOM_ROSTER_EGO, 1, "DB未登録E.G.Oも記載ランクを保って所持に残す");
+  assert.equal(sums.types.ADD_ITEM_INVENTORY, 1, "所持アイテムも正しいDB IDへ変換する");
+  assert.deepEqual([...skipped], [], "対象を不明なまま黙って落とさない");
+});
+
 test("取り込み: 実サンプル 49 文書から所持を列挙し、action を大量に出せる", () => {
   assert.equal(charDocs.length, 49);
   let resolved = 0;
