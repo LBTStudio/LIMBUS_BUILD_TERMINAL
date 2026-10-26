@@ -919,7 +919,7 @@ function toIdentityChoices(hits) {
           /* 人格はDB価格を持たない。source:"buy" は入手方法であって金額ではない。
              金額の根拠は scenario.spends / purchasePlan 側の ADD_ENTRY だけから記帳する。
              ここで purchase:true にすると action.cost 未指定のため 0LP の購入明細が増える。 */
-          actions.push({ type: "ADD_ROSTER", no: String(persona.no), mode: personaMode, via, source: item.source || "", purchase: item.source === "buy" && !memoPaid(item) });
+          actions.push({ type: "ADD_ROSTER", no: String(persona.no), mode: personaMode, via, resultId: via.length ? undefined : null, source: item.source || "", purchase: item.source === "buy" && !memoPaid(item) });
           if (Array.isArray(item.importedEnhancementNames)) {
             const imported = resolveImportedEnhancements(item.importedEnhancementNames, itemDb);
             if (imported.rows.length || item.importedEnhancementNames.length === 0) {
@@ -941,7 +941,7 @@ function toIdentityChoices(hits) {
               const key = `ego:${exactDbEgo.rank}:${exactDbEgo.no}`;
               if (!taken.has(key)) {
                 taken.add(key);
-                actions.push({ type: "ADD_ROSTER_EGO", no: String(exactDbEgo.no), rank: exactDbEgo.rank, via });
+                actions.push({ type: "ADD_ROSTER_EGO", no: String(exactDbEgo.no), rank: exactDbEgo.rank, via, resultId: via.length ? undefined : null });
               }
               continue;
             }
@@ -949,7 +949,7 @@ function toIdentityChoices(hits) {
               const key = `ego-custom:${rank}:${nameKey(rawName)}`;
               if (!taken.has(key)) {
                 taken.add(key);
-                actions.push({ type: "ADD_CUSTOM_ROSTER_EGO", name: rawName, rank, via });
+                actions.push({ type: "ADD_CUSTOM_ROSTER_EGO", name: rawName, rank, via, resultId: via.length ? undefined : null });
               }
               continue;
             }
@@ -957,7 +957,7 @@ function toIdentityChoices(hits) {
             continue;
           }
           taken.add(`ego:${ego.rank}:${ego.no}`);
-          actions.push({ type: "ADD_ROSTER_EGO", no: String(ego.no), rank: ego.rank, via, source: item.source || "", purchase: item.source === "buy" && !memoPaid(item) });
+          actions.push({ type: "ADD_ROSTER_EGO", no: String(ego.no), rank: ego.rank, via, resultId: via.length ? undefined : null, source: item.source || "", purchase: item.source === "buy" && !memoPaid(item) });
         } else if (group.id === "supportPassives") {
           if (!support) {
             /* メモの章立てと実体の種別が違うことがある（同一品目が
@@ -970,6 +970,7 @@ function toIdentityChoices(hits) {
                 type: "ADD_ROSTER_SPIRIT",
                 spirit: { name: spirit.name || item.dbName || item.name },
                 via,
+                resultId: via.length ? undefined : null,
                 purchase: item.source === "buy" && !memoPaid(item)
               });
               continue;
@@ -985,6 +986,7 @@ function toIdentityChoices(hits) {
             type: "ADD_ROSTER_SUPPORT",
             spp: { name: support.name || item.dbName || item.name },
             via,
+            resultId: via.length ? undefined : null,
             purchase: item.source === "buy" && !memoPaid(item)
           });
         } else if (group.id === "spirits") {
@@ -995,6 +997,7 @@ function toIdentityChoices(hits) {
                 type: "ADD_ROSTER_SUPPORT",
                 spp: { name: support.name || item.dbName || item.name },
                 via,
+                resultId: via.length ? undefined : null,
                 purchase: item.source === "buy" && !memoPaid(item)
               });
               continue;
@@ -1006,6 +1009,7 @@ function toIdentityChoices(hits) {
             type: "ADD_ROSTER_SPIRIT",
             spirit: { name: spirit.name || item.dbName || item.name },
             via,
+            resultId: via.length ? undefined : null,
             purchase: item.source === "buy" && !memoPaid(item)
           });
         } else if (group.id === "items") {
