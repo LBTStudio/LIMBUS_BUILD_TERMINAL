@@ -201,6 +201,10 @@ test("矢印形式の抽出チケットは使用明細で、獲得チケット�
     "薬指野獣派スチューデントA",
     "夜の錐カピターノの人格"
   ]);
+
+  const spentOnly = MEMO.parseMemo("・人格抽出チケット×1消費");
+  assert.deepEqual([...spentOnly.ticketSpends.map((row) => [row.kind, row.count])], [["persona", 1]]);
+  assert.equal(spentOnly.tickets.persona, 0, "チケット使用だけの行を収入にしない");
 });
 
 test("略記サポパの名前を購入行から抽出し、金額と所持証跡を両方残す", () => {
