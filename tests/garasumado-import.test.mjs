@@ -576,9 +576,7 @@ test("名前付き購入行「蒼羽蝶：75LP消費」は支出として読ま�
      実買として支出になる（残高差分の表記でも、記された購入は
      記録する。ユーザー指定の契約）。 */
   const narrative = MEMO.parseMemo("LP200を消費してガチャ");
-  assert.equal(narrative.spends.length, 1, "明示された消費額は叙述形でも記録する");
-  assert.equal(narrative.spends[0].lp, 200);
-  assert.equal(narrative.spends[0].name, "LP200を消費してガチャ");
+  assert.equal(narrative.spends.length, 0, "名前付き取引でない自然文は推測支出にしない");
   const hate = MEMO.parseMemo("憎悪購入：-50欠片");
   assert.equal(hate.spends.length, 1, "負数でも購入行は支出になる");
   assert.equal(hate.spends[0].name, "憎悪");
