@@ -65,6 +65,7 @@ test("現在残高の誤記と同通貨の複数値を黙って収入へ合算�
   assert.equal(lpAmbiguous.income.shards, 30, "価格条件以外の報酬は維持する");
   assert.ok(lpAmbiguous.reasons.some((entry) => /価格条件の説明に含まれるため/.test(entry.reason)), "価格条件であることを具体的に知らせる");
   assert.ok(!lpAmbiguous.reasons.some((entry) => /現在100LP/.test(entry.reason)), "残高表記の修正案を誤案内しない");
+  assert.ok(!lpAmbiguous.reasons.some((entry) => /通貨か金額が読み取れない/.test(entry.reason)), "価格条件の専用警告に一般警告を重ねない");
 
   const ambiguous = MEMO.parseMemo("欠片24 134欠片");
   assert.equal(ambiguous.income.shards, 0, "現在の明示が無い同通貨の複数値は収入へ合算しない");
