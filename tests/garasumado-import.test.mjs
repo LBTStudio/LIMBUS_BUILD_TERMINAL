@@ -1700,11 +1700,25 @@ test("消費の計算式は結果の額を読む（50×3=150 / 150+300→450）"
   assert.equal(MEMO.parseMemo("消費：LP20+7=27").spends[0].lp, 27);
 });
 
-test("消費の行に並ぶチケットは獲得として数えず、支払額だけを支出にする", () => {
+test("消費の行にチケットと通貨が併記されても、両方の使用記録を残す", () => {
   const r = MEMO.parseMemo("消費：人格抽出チケット×1、LP100");
   assert.equal(r.spends.length, 1);
   assert.equal(r.spends[0].lp, 100, "LP は支出");
   assert.equal(r.tickets.persona, 0, "使ったチケットを獲得にしない");
+  assert.equal(r.ticketSpends.length, 1, "チケット消費を落とさない");
+  assert.equal(r.ticketSpends[0].kind, "persona");
+  assert.equal(r.ticketSpends[0].count, 1);
+});
+
+test("通貨と併記された曖昧なチケットも、推測せず未確定消費として残す", () => {
+  const r = MEMO.parseMemo("消費：人格orE.G.O抽出チケット×1、LP100");
+  assert.equal(r.spends.length, 1);
+  assert.equal(r.spends[0].lp, 100);
+  assert.equal(r.tickets.persona, 0);
+  assert.equal(r.tickets.ego, 0);
+  assert.equal(r.tickets.choice, 0);
+  assert.equal(r.ticketSpends.length, 1);
+  assert.equal(r.ticketSpends[0].kind, "unknown");
 });
 
 test("硝子の欠片と数量条件は通貨の支出にしない", () => {
