@@ -432,6 +432,22 @@
     return direct ? safeAmount(direct[1]) : null;
   }
 
+  /* 「抽出チケット or LP80と自我の欠片20 → 後者獲得」は
+     チケットを得た記録ではなく、後半に書かれた通貨報酬を選んだ記録。 */
+  function ledgerChosenAlternativeCurrency(text) {
+    const source = toHalf(text).trim();
+    const choice = source.match(/^(.+?)(?:or|または)(.+?)[→⇒➜]\s*後者獲得\s*$/i);
+    if (!choice || !/(?:チケ(?:ット)?|抽出🎫)/i.test(choice[1])) return null;
+    const option = choice[2];
+    const lpMatch = option.match(/\bLP\s*([+-]?\d[\d,]*)/i);
+    const shardMatch = option.match(/(?:自我の)?(?:欠片|欠けら|かけら|カケラ)\s*([+-]?\d[\d,]*)|([+-]?\d[\d,]*)\s*(?:自我の)?(?:欠片|欠けら|かけら|カケラ)/i);
+    if (!lpMatch || !shardMatch) return null;
+    const lp = safeAmount(lpMatch[1]);
+    const shards = safeAmount(shardMatch[1] || shardMatch[2]);
+    if (lp === null || shards === null) return null;
+    return { lp, shards };
+  }
+
   function ledgerItem(text) {
     const original = String(text ?? "").trim().replace(/^[*+-]\s+/, "");
     let normalized = toHalf(original);
@@ -547,6 +563,25 @@
 
     for (const entry of blocks) {
       const title = entry.title.replace(/^『\s*(.+?)\s*』$/, "$1").trim();
+      const repeatedSummaryField = (pattern) => {
+        const values = entry.lines
+          .map((rawLine) => toHalf(String(rawLine || "").trim()).replace(/\s+/g, " ").trim())
+          .filter((line) => pattern.test(line));
+        return values.length >= 2 && new Set(values).size === 1;
+      };
+      /* Error出力を含む貼り付けでは、同じ日時・GM・収入・残高一式が
+         一つのリザルト中に二重に混入することがある。全6項目が完全一致する場合だけ重複分を除外する。 */
+      const hasDuplicatedAccountingSummary = [
+        /^日時\s*[：:]/i, /^GM\s*[：:]/i, /^LP\s*[：:]/i, /^欠片\s*[：:]/i,
+        /^現在所持LP\s*[：:]/i, /^現在所持欠片\s*[：:]/i
+      ].every(repeatedSummaryField);
+      if (hasDuplicatedAccountingSummary) {
+        skipped.push({
+          text: title,
+          reason: "同じ日時・GM・収入・残高の一式が重複しています。重複数値は1回だけ計上しました。原文の確認が必要です"
+        });
+      }
+      const seenDuplicatedSummaryLines = new Set();
       const record = {
         title: title || null, date: null, author: null, income: { lp: 0, shards: 0 },
         tickets: [], ticketUses: [], spends: [], deltas: [], consumedItems: [], itemGains: [], raw: [],
@@ -601,6 +636,22 @@
       for (const rawLine of entry.lines) {
         const line = rawLine.trim();
         if (!line) continue;
+
+        if (hasDuplicatedAccountingSummary) {
+          const normalizedLine = toHalf(line).replace(/\s+/g, " ").trim();
+          if (/^(?:日時|GM|LP|欠片|現在所持LP|現在所持欠片)\s*[：:]/i.test(normalizedLine)) {
+            if (seenDuplicatedSummaryLines.has(normalizedLine)) {
+              record.raw.push(line);
+              continue;
+            }
+            seenDuplicatedSummaryLines.add(normalizedLine);
+          }
+          if (/獲得\s*[：:]\s*[▼▽]?\s*【Error】?\s*\)?$/i.test(line)) {
+            record.raw.push(line);
+            skipped.push({ text: line, reason: "取得結果が【Error】を指す不正な重複行のため、取得・チケット消費として計上していません" });
+            continue;
+          }
+        }
 
         const fieldValue = line.match(/^([^:：]{1,36})\s*[:：]\s*(.*)$/);
         const rawLabel = fieldValue ? fieldValue[1].trim() : "";
@@ -710,6 +761,15 @@
             else collectItems(value, acquired, "acquired");
           }
           continuation = label === "アイテム" ? "items" : null;
+          continue;
+        }
+
+        const selectedCurrency = ledgerChosenAlternativeCurrency(line);
+        if (selectedCurrency) {
+          addValue(record, "lp", selectedCurrency.lp, line);
+          addValue(record, "shards", selectedCurrency.shards, line);
+          keepNote(line);
+          continuation = null;
           continue;
         }
 
