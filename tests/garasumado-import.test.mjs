@@ -195,6 +195,19 @@ test("矢印の手前にある抽出チケットは使用記録で、チケッ�
   assert.equal(parsed.wins.length, 2);
 });
 
+test("種別不明のチケット消費は黙って人格券として確定せず、要確認に残す", () => {
+  const M = loadImportWithMemo();
+  const manifest = M.buildManifest({
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{ name: "種別不明", memo: "・抽出チケット×1消費" }]
+  }, null);
+  assert.equal(manifest.scenarios[0].hasData, true, "要確認行を取り込み対象から落とさない");
+  const result = M.toDispatchActions(manifest, [], {});
+  assert.ok(result.skipped.some((item) => /チケットの種別が曖昧/.test(item.reason)), "保留理由を画面へ返す");
+  assert.ok(!result.actions.some((action) => action.type === "ADD_ENTRY" && action.tickets?.persona === 1),
+    "推測した人格チケット消費を作らない");
+});
+
 test("報酬名が無いチケット消費もリザルトとして残り、残数から差し引く", () => {
   const parsed = MEMO.parseMemo("・人格抽出チケット×1消費");
   assert.deepEqual([...parsed.ticketSpends.map((row) => [row.kind, row.count])], [["persona", 1]]);
@@ -360,13 +373,37 @@ test("安全整数の上限を超える金額や回数は黙って丸めず未�
   assert.ok(unsafeTickets.reasons.some((r) => /抽出チケット数が安全整数/.test(r.reason)));
 });
 
-test("チケットの個数と種別を読む", () => {
+test("チケットの個数と種別を読む（無修飾は保留し、明示種別だけ計上）", () => {
   const a = MEMO.parseMemo("抽出チケットx1：シュエ家私兵の人格");
-  assert.equal(a.tickets.persona, 1);
+  assert.equal(a.tickets.persona, 0, "無修飾の抽出チケットを人格券と推測しない");
+  assert.ok(a.reasons.some((r) => /種別が不明/.test(r.reason)), "未確定理由を残す");
+  assert.ok(a.wins.some((w) => w.name === "シュエ家私兵"), "取得品名は失わない");
+
   const b = MEMO.parseMemo("人格抽出チケットx2：某某");
   assert.equal(b.tickets.persona, 2);
   const c = MEMO.parseMemo("E.G.O抽出チケット：某某");
   assert.equal(c.tickets.ego, 1);
+
+  const d = MEMO.parseMemo("人格orE.G.O抽出チケット×1：K社職員の人格");
+  assert.equal(d.tickets.persona, 0);
+  assert.equal(d.tickets.ego, 0, "人格orE.G.OをE.G.O券へ誤分類しない");
+  assert.ok(d.reasons.some((r) => /種別が不明/.test(r.reason)));
+});
+
+test("実記録のパック2回購入はLP支出を2倍し、重複補償の欠片を収入に戻す", () => {
+  const parsed = MEMO.parseMemo("LP200消費　パック「本に成った者たちⅠ」2回→夜の錐カピターノの人格（ダブったため欠片50）、剣契殺手A");
+  assert.equal(parsed.spends.length, 1);
+  assert.equal(parsed.spends[0].lp, 400, "200LP × 2回を計上");
+  assert.equal(parsed.income.shards, 50, "括弧内の重複補償を計上");
+  assert.equal(parsed.reasons.length, 0);
+});
+
+test("一般的な括弧内金額は収入にせず、明示された重複補償だけ計上する", () => {
+  const regular = MEMO.parseMemo("75欠片（理性60+15）");
+  assert.equal(regular.income.shards, 75, "外側の合計値だけ計上");
+  const duplicate = MEMO.parseMemo("報酬50LP（ダブったため欠片50）");
+  assert.equal(duplicate.income.lp, 50);
+  assert.equal(duplicate.income.shards, 50);
 });
 
 test("明示されたゼロ枚・ゼロ回の抽出は1枚に化けず、獲得候補も作らない", () => {

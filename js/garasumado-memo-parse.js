@@ -114,18 +114,21 @@
     var count = 1;
     var cm = text.match(/[x×]\s*(\d+)/);
     if (cm) count = parseInt(cm[1], 10);
-    /* 「ガチャチケ1枚」 */
     var cm2 = text.match(/(?:チケ|チケット)\s*(\d+)\s*枚/);
     if (cm2) count = parseInt(cm2[1], 10);
 
-    /* 名前の中の「E.G.O」や「ガチャ結果」を、チケット種別と誤認しない。
-       明示されたチケット名を優先し、ガチャチケだけをE.G.O抽出相当とする。 */
-    var kind = "persona";
-    var explicitPersona = /人格.{0,4}チケ|チケ.{0,4}人格/.test(text);
-    if (explicitPersona) kind = "persona";
-    else if (/選択|zr|upgrade/i.test(text)) kind = "choice";
-    else if (/ガチャ\s*(?:チケ|チケット)/.test(text)
-      || EGO_WORDS.some(function (w) { return text.indexOf(w) >= 0; })) kind = "ego";
+    /* 「人格orE.G.O」「お好きな方へ」など、出典自体が選択式なら
+       人格/E.G.Oの語が両方あっても一方へ決め打ちしない。 */
+    var ambiguous = /(?:人格\s*(?:or|\/|または|又は|もしくは|＆|と)\s*(?:E\.?G\.?O|エゴ|イゴ)|(?:任意|お好きな方|どちらか).{0,18}(?:抽出|チケ)|(?:抽出チケット|抽出チケ)\s*[（(][^）)]*(?:任意|お好きな方|どちらか))/i.test(text);
+    var kind = null;
+    if (!ambiguous) {
+      var explicitPersona = /人格.{0,4}チケ|チケ.{0,4}人格/.test(text);
+      if (explicitPersona) kind = "persona";
+      else if (/選択|zr|upgrade/i.test(text)) kind = "choice";
+      else if (/ガチャ\s*(?:チケ|チケット)/.test(text)
+        || EGO_WORDS.some(function (w) { return text.indexOf(w) >= 0; })) kind = "ego";
+    }
+    /* 無修飾の「抽出チケット」は種別不明。種類を名前から推測しない。 */
     return { kind: kind, count: count };
   }
 
@@ -549,6 +552,21 @@
   }
 
 
+  /* 明示された「パックをN回」は、1パックあたりの消費額をN倍する。
+     例:「LP200消費 パック『A』2回→…」は200LPではなく400LPの支出。
+     一般のスキル回数や数量には触れず、同じ支出行内のパックと回数だけに適用。 */
+  function applyExplicitPackCount(amount, text, amountMatch) {
+    const from = amountMatch.index + amountMatch[0].length;
+    const arrow = text.indexOf("→", from);
+    const region = text.slice(from, arrow >= 0 ? arrow : text.length);
+    const repetition = region.match(/(?:パック|テーマパック)[^→\n]{0,100}?(?:[x×]\s*(\d+)\s*(?:回|個)?|(\d+)\s*回)/i);
+    if (!repetition) return amount;
+    const count = Number(repetition[1] || repetition[2]);
+    const scaled = amount * count;
+    if (!Number.isSafeInteger(count) || count <= 0 || !Number.isSafeInteger(scaled)) return null;
+    return scaled;
+  }
+
   /* 明示された通貨消費を収入と分離して読む。正規化は1文字対1文字の範囲に
      限り、獲得名の位置やE.G.O名のコロンを壊さない。 */
   function currencySpendOf(rawLine) {
@@ -564,14 +582,14 @@
     if (!lpMatch) lpMatch = text.match(/([0-9][0-9,]*)\s*(?:LP|ＬＰ)\s*(?:を\s*)?(?:消費|使用|支払|支出)/i);
     if (lpMatch) {
       var lp = Number(String(lpMatch[1]).replace(/,/g, ""));
-      return { currency: "lp", amount: lp, start: lpMatch.index, end: lpMatch.index + lpMatch[0].length };
+      return { currency: "lp", amount: applyExplicitPackCount(lp, text, lpMatch), start: lpMatch.index, end: lpMatch.index + lpMatch[0].length };
     }
     /* 「自我の破片100消費」は通貨。「硝酸の欠片×1」はアイテム名なので対象外。 */
     var shardMatch = text.match(/(?:自我の(?:破片|欠片)|(?<!の)(?:欠片|かけら|欠けら|カケラ))\s*([0-9][0-9,]*)\s*(?:個|つ)?\s*(?:を\s*)?(?:消費|使用|支払|支出)/);
     if (!shardMatch) shardMatch = text.match(/([0-9][0-9,]*)\s*(?:個|つ)?\s*自我の(?:破片|欠片)\s*(?:を\s*)?(?:消費|使用|支払|支出)/);
     if (shardMatch) {
       var shardAmount = Number(String(shardMatch[1]).replace(/,/g, ""));
-      return { currency: "shards", amount: shardAmount, start: shardMatch.index, end: shardMatch.index + shardMatch[0].length };
+      return { currency: "shards", amount: applyExplicitPackCount(shardAmount, text, shardMatch), start: shardMatch.index, end: shardMatch.index + shardMatch[0].length };
     }
     return null;
   }
@@ -633,9 +651,38 @@
     if (cm) count = Number(cm[1]);
     var parsed = isPack ? { kind: "pack", count: count } : ticketOf(source);
     if (!parsed || !Number.isSafeInteger(count) || count <= 0) return null;
-    return { kind: isPack ? "pack" : parsed.kind, count: count, pack: pack,
+    return { kind: isPack ? "pack" : (parsed.kind || "unknown"), count: count, pack: pack,
       reward: arrowAt >= 0 ? cleanRewardName(raw.slice(raw.indexOf("→", ticketAt) + 1)) : "",
       raw: String(rawLine || "").trim() };
+  }
+
+  /* 重複で支給された欠片は履歴本文の括弧注記に記録されることがある。
+     通常の金額解析は括弧内を誤認防止のため除外するので、重複/被りを明示する
+     括弧注記に限って補償額を別途読む（一般的な括弧内数字は収入にしない）。 */
+  function duplicateShardCompensationOf(rawLine) {
+    const text = normalizeNumericText(rawLine);
+    const notes = [...text.matchAll(/[（(]([^（）()]*)[）)]/g)];
+    let total = 0;
+    let found = false;
+    for (const noteMatch of notes) {
+      const note = noteMatch[1];
+      if (!/(?:ダブ|被り|かぶり|重複)/.test(note)) continue;
+      const amounts = [...note.matchAll(/(?:自我の)?(?:破片|欠片|かけら|欠けら|カケラ)\s*([+]?\d[\d,]*)|([+]?\d[\d,]*)\s*(?:自我の)?(?:破片|欠片|かけら|欠けら|カケラ)/g)];
+      if (!amounts.length) continue;
+      found = true;
+      for (const amountMatch of amounts) {
+        const rawAmount = amountMatch[1] || amountMatch[2] || "";
+        if (!/^\+?(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(rawAmount)) {
+          return { error: "重複補償の欠片額を読み取れません" };
+        }
+        const amount = Number(rawAmount.replace(/,/g, ""));
+        if (!Number.isSafeInteger(amount) || amount < 0 || !Number.isSafeInteger(total + amount)) {
+          return { error: "重複補償の欠片額が安全整数の範囲外です" };
+        }
+        total += amount;
+      }
+    }
+    return found ? { amount: total } : null;
   }
 
   function parseMemo(memo) {
@@ -685,6 +732,14 @@
         if (/[（(][^）)]*[x×][^）)]*[）)]/.test(line)) continue;
       }
       if (mode === "current") continue;  // 現在値の羅列は取り込まない
+
+      /* 括弧内に明記された重複補償は、通常の収入解析で括弧ごと除外される。
+         重複/被りを伴う注記だけを収入に戻し、一般的な括弧内数字は無視する。 */
+      var duplicateCompensation = duplicateShardCompensationOf(line);
+      if (duplicateCompensation) {
+        if (duplicateCompensation.error) reasons.push({ line: line, reason: duplicateCompensation.error });
+        else addSafeAmount(income, "shards", duplicateCompensation.amount, line, reasons, "重複補償の欠片収入");
+      }
 
       /* 明示された通貨消費をチケット収入・抽出回数と混同しない。 */
       var currencySpend = currencySpendOf(line);
@@ -747,15 +802,28 @@
       var ticketScope = currencySpend ? line.slice(0, currencySpend.start).trim() : line;
       var tk = packTicketMatch ? null : ticketOf(ticketScope);
       if (tk) {
-        var ticketCountAdded = addSafeAmount(tickets, tk.kind, tk.count, line, reasons, "抽出チケット数");
-        /* チケットからどの人格/E.G.Oを得たか。ソースの書式は
-           「人格抽出チケット：N 社小鎚の人格」「抽出1：LCE E.G.O:ねばつき」*/
-        /* 明示された x0 / 0枚は獲得抽出ではない。チケット収入を増やさないだけでなく、
-           結果名から所持まで推定すると「0枚で獲得」になるため候補も作らない。 */
-        if (ticketCountAdded && tk.count > 0) {
-          var srcNames = arrowWinsOf(line);
-          if (!srcNames.length) { var src = ticketSourceName(line); if (src) srcNames = [src]; }
-          srcNames.forEach(function (nm) { wins.push({ name: nm, via: TICKET_LABEL[tk.kind], kind: tk.kind }); });
+        if (!tk.kind) {
+          reasons.push({ line: line, reason: "抽出チケットの種別が不明なため、人格/E.G.O/選択の残数への計上を保留しました" });
+          /* 獲得した品名自体は残し、後段のDB照合で人格/E.G.Oを確認できるようにする。
+             ただしチケットの種類だけは推測しない。 */
+          if (tk.count > 0) {
+            var unknownTicketNames = arrowWinsOf(line);
+            if (!unknownTicketNames.length) { var unknownSrc = ticketSourceName(line); if (unknownSrc) unknownTicketNames = [unknownSrc]; }
+            unknownTicketNames.forEach(function (nm) {
+              if (!wins.some((w) => w.name === nm)) wins.push({ name: nm, via: "抽出チケット（種別未確認）", kind: "" });
+            });
+          }
+        } else {
+          var ticketCountAdded = addSafeAmount(tickets, tk.kind, tk.count, line, reasons, "抽出チケット数");
+          /* チケットからどの人格/E.G.Oを得たか。ソースの書式は
+             「人格抽出チケット：N 社小鎚の人格」「抽出1：LCE E.G.O:ねばつき」*/
+          /* 明示された x0 / 0枚は獲得抽出ではない。チケット収入を増やさないだけでなく、
+             結果名から所持まで推定すると「0枚で獲得」になるため候補も作らない。 */
+          if (ticketCountAdded && tk.count > 0) {
+            var srcNames = arrowWinsOf(line);
+            if (!srcNames.length) { var src = ticketSourceName(line); if (src) srcNames = [src]; }
+            srcNames.forEach(function (nm) { wins.push({ name: nm, via: TICKET_LABEL[tk.kind], kind: tk.kind }); });
+          }
         }
         /* チケット行に報酬額が並ぶ書式がある（「140LP 90欠片　EGOチケット」）。
            収入節では金額も読む。支出節では従来どおり金額を取らない。 */
@@ -1054,6 +1122,7 @@
           parsed.tickets.persona + parsed.tickets.ego + parsed.tickets.choice > 0 ||
           Object.keys(parsed.pack).length > 0 ||
           parsed.spends.length > 0 ||
+          parsed.reasons.length > 0 ||
           parsed.wins.length > 0
       };
     });
