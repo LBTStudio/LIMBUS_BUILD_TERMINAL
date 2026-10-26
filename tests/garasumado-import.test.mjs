@@ -131,19 +131,42 @@ test("叙述文に個別の負額が明示された複数購入は支出をそ�
   assert.ok(r.wins.some((win) => win.name === "深呼吸" && win.bought), "2件目の所持証跡も保つ");
 
   const singleNarrativePurchase = MEMO.parseMemo("終了後、「E.G.Oの解放」を購入したため欠片-50");
-  assert.equal(singleNarrativePurchase.spends.length, 0, "単独の叙述購入は既存の扱いを変えない");
+  assert.equal(singleNarrativePurchase.spends.length, 1, "単独でも明示された欠片支出を記録する");
+  assert.equal(singleNarrativePurchase.spends[0].shards, 50);
+  assert.equal(singleNarrativePurchase.income.shards, 0);
 });
 
-test("購入の短文の形でない叙述は購入の記録にしない", () => {
+test("購入の叙述に明記されたLP・欠片の消費を支出として記録する", () => {
   const r = MEMO.parseMemo(
     "終了後サポートパッシブ「ルサンチマン」と「肩慣らし」を購入したためLP-27。\n" +
     "切り伏せる斬撃を購入、150LP消費　300LPへ\n" +
     "30LP、30欠片…を獲得。硝酸の欠片×1を消費して同期化"
   );
-  assert.equal(r.spends.length, 0, "金額が一行に収まらない叙述は支出にしない");
-  assert.ok(r.wins.some((w) => w.name === "ルサンチマン"), "サポパの名前は従来どおり勝ちに入る");
-  assert.equal(r.income.lp, 30, "収入は 30LP の獲得行だけ（購入の叙述は混ぜない）");
-  assert.equal(r.income.shards, 30, "欠片も同じ獲得行から 30");
+  assert.equal(r.spends.length, 2, "明示されたLP支出2件を残す。アイテム欠片の使用は通貨支出にしない");
+  assert.equal(r.spends.reduce((n, spend) => n + spend.lp, 0), 177, "LP27 + LP150 を一度ずつ計上する");
+  assert.equal(r.spends[0].name, "肩慣らし", "共有購入行の対象名を明細へ残す");
+  assert.equal(r.spends.reduce((n, spend) => n + spend.shards, 0), 0);
+  assert.ok(r.wins.some((w) => w.name === "ルサンチマン"), "サポパの名前を所持証跡として保持する");
+  assert.equal(r.income.lp, 30, "収入は30LPの獲得行だけ");
+  assert.equal(r.income.shards, 30, "欠片も獲得行から30");
+});
+
+test("別々に記録された叙述体の購入費用はそれぞれ一度ずつ計上する", () => {
+  const r = MEMO.parseMemo(
+    "終了後、サポートパッシブ「因子コードG-5」を購入したのでLP-7、「深呼吸」を購入したのでLP-15"
+  );
+  assert.equal(r.spends.length, 2);
+  assert.equal(r.spends.reduce((n, spend) => n + spend.lp, 0), 22, "LP7 + LP15 を二重計上せず合計22");
+});
+
+test("精神購入の叙述で欠片支出も通貨を取り違えず記録する", () => {
+  const r = MEMO.parseMemo("終了後、精神「正義」を購入したため欠片-200");
+  assert.equal(r.income.shards, 0);
+  assert.equal(r.spends.length, 1);
+  assert.equal(r.spends[0].shards, 200);
+  assert.equal(r.spends[0].name, "正義", "精神購入の対象名を支出へ保持する");
+  assert.equal(r.spends[0].lp, 0);
+  assert.ok(r.wins.some((w) => w.name === "正義" && w.bought), "購入された対象の証跡も保持する");
 });
 
 test("掉落値の内訳が括弧に入っても外側の額を読む", () => {
@@ -345,15 +368,19 @@ test("叙述体の精神購入は括弧の名前を所持の証跡にする", ()
   assert.ok(b.wins.some((w) => w.name === "優越" && w.bought), "買ったも購入語");
 });
 
-test("収入節に書かれた叙述体の購入も所持の証跡になり、金額は帳に入れ直さない", () => {
+test("収入行と混在する叙述購入も明示的な負額だけを支出に記録し、所持証跡を残す", () => {
   const a = MEMO.parseMemo("LP60、欠片30、人格抽出チケット*1を獲得。ガチャ結果→ピークォド号船長\n精神「正義」を購入したため欠片-200");
-  assert.ok(a.wins.some((w) => w.name === "正義" && w.bought), "括弧の名前の勝ち");
-  assert.equal(a.spends.length, 0, "購入の金額は叙述から帳に数えない");
-  assert.equal(a.income.lp, 60, "獲得行だけが収入");
+  assert.ok(a.wins.some((w) => w.name === "正義" && w.bought), "購入した精神の所持証跡を残す");
+  assert.equal(a.spends.length, 1, "明示された購入額は支出へ計上する");
+  assert.equal(a.spends[0].shards, 200);
+  assert.equal(a.income.lp, 60, "獲得行だけをLP収入にする");
+  assert.equal(a.income.shards, 30, "購入した欠片を獲得に混ぜない");
   const b = MEMO.parseMemo("85LP、47カケラ、EGO抽出ガチャチケ＆人格抽出チケットを獲得\nサポパ「嚥下」を購入したのでLP-25\n精神「分別できる理性」を購入したので欠片-1000");
   assert.ok(b.wins.some((w) => w.name === "嚥下" && w.bought));
   assert.ok(b.wins.some((w) => w.name === "分別できる理性" && w.bought));
-  assert.equal(b.spends.length, 0, "購入語が頭にない行は負額支出に回さない（既存の読み）");
+  assert.equal(b.spends.length, 2);
+  assert.equal(b.spends.reduce((n, spend) => n + spend.lp, 0), 25);
+  assert.equal(b.spends.reduce((n, spend) => n + spend.shards, 0), 1000);
 });
 test("全角の収入額・支出額・抽出回数も取り込む", () => {
   const reward = MEMO.parseMemo("９０ＬＰ：現在１００ＬＰ\n２９欠片：現在３９欠片");
@@ -654,15 +681,17 @@ test("サポートパッシブの購入行は括弧内の名前を獲得とし�
   const a = MEMO.parseMemo("終了後サポートパッシブ「ルサンチマン」と「肩慣らし」を購入したためLP-27。");
   assert.deepEqual(wins(a), ["ルサンチマン", "肩慣らし"], "1行に2つの購入でも両方積む");
   assert.deepEqual(kinds(a), ["support", "support"]);
-  /* 金額は既存の支出読みに任せる。購入語が頭にない行の LP-27 は
-     従来どおり負額支出に回る。 */
+  /* 負額が明示された購入は、所持証跡と支出の両方を保持する。 */
   const b = MEMO.parseMemo("終了後、サポートパッシブ「幻想狩り」を購入したのでLP-50");
   assert.deepEqual(wins(b), ["幻想狩り"]);
+  assert.equal(b.spends.reduce((s, x) => s + x.lp, 0), 50);
   assert.equal(a.income.lp, 0, "購入行は収入にしない");
-  assert.equal(a.spends.reduce((s, x) => s + x.lp, 0), 0, "既存の読み（頭が購入語の行は落とす）を変えない");
+  assert.equal(a.spends.reduce((s, x) => s + x.lp, 0), 27, "明示されたLP-27を支出へ記録する");
 
   const c = MEMO.parseMemo("サポートパッシブ「因子コードG-5」を購入したのでLP-7、「深呼吸」を購入したのでLP-15");
   assert.deepEqual(wins(c), ["因子コードG-5", "深呼吸"]);
+  assert.equal(c.spends.length, 2);
+  assert.equal(c.spends.reduce((s, x) => s + x.lp, 0), 22);
 
   const d = MEMO.parseMemo("★サポパ購入『遺伝コードG-5』：7LP消費（合計45LP/82欠片）");
   assert.deepEqual(wins(d), ["遺伝コードG-5"], "全角括弧『』の略記サポパも読む");

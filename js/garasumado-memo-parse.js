@@ -1076,6 +1076,15 @@
            ただし「30LP、30欠片…を獲得。硝酸の欠片×1を消費して…」のように
            獲得が先に書かれた行は、消費の手前までを金額として読む。
            「G-5購入 7LP」の購入額も残高から引かれる支出（実データで確認）。 */
+        var narrativePurchaseSpends = narrativePurchaseSpendsOf(line, reasons);
+        narrativePurchaseSpends.forEach(function (spend) {
+          var duplicateSpend = spends.some(function (existing) {
+            return existing && existing.reason === spend.reason &&
+              existing.raw === spend.raw && existing.lp === spend.lp &&
+              existing.shards === spend.shards && existing.name === spend.name;
+          });
+          if (!duplicateSpend) spends.push(spend);
+        });
         var spendAt = line.search(/消費|購入|買った|使用し/);
         if (spendAt >= 0) {
           var head = line.slice(0, spendAt);
@@ -1366,6 +1375,53 @@
     var m = String(line || "").match(/[「『]([^「『」』]{1,24})[」』]\s*を?\s*(?:購入|買っ|消費)/);
     if (m) return m[1].trim();
     return null;
+  }
+
+  /* 「購入したためLP-27」「精神『正義』を購入したため欠片-200」
+     「切り伏せる斬撃を購入、150LP消費」のような文章中の明示支出を拾う。
+     購入記録を所持の証跡として残す既存経路より前に、通貨支出を独立して抽出する。 */
+  function narrativePurchaseSpendsOf(rawLine, reasons) {
+    var text = normalizeNumericText(rawLine);
+    var events = Array.from(text.matchAll(/購入した|購入|買った/g));
+    if (!events.length) return [];
+    var out = [];
+    var currencyPattern = "(?:LP|ＬＰ|自我の(?:破片|欠片)|欠片|かけら|欠けら|カケラ)";
+    var costPattern = new RegExp(
+      "^\\s*(?:(?:ので|ため)\\s*)?[、,，:：\\s　]*(?:(" + currencyPattern +
+      ")\\s*[-−]\\s*([0-9][0-9,]*)|[-−]\\s*([0-9][0-9,]*)\\s*(" +
+      currencyPattern + ")|([0-9][0-9,]*)\\s*(" + currencyPattern +
+      ")\\s*(?:を\\s*)?(?:消費|支払|使用))",
+      "i"
+    );
+    for (var i = 0; i < events.length; i++) {
+      var event = events[i];
+      var start = event.index + event[0].length;
+      var end = i + 1 < events.length ? events[i + 1].index : text.length;
+      var tail = text.slice(start, end);
+      var match = tail.match(costPattern);
+      if (!match) continue;
+      var currencyText = match[1] || match[4] || match[6];
+      var amountText = match[2] || match[3] || match[5];
+      var amount = Number(String(amountText).replace(/,/g, ""));
+      if (!Number.isSafeInteger(amount) || amount <= 0) {
+        reasons.push({
+          line: String(rawLine || "").trim(),
+          reason: "叙述体の購入額が正の安全整数ではないため、通貨支出を未計上にしました"
+        });
+        continue;
+      }
+      var prefix = text.slice(0, event.index);
+      var named = prefix.match(/[「『]([^「『」』]{1,60})[」』]\s*を?\s*$/);
+      var currency = /^(?:LP|ＬＰ)$/i.test(currencyText) ? "lp" : "shards";
+      out.push({
+        name: named ? named[1].trim() : "叙述体の購入",
+        lp: currency === "lp" ? amount : 0,
+        shards: currency === "shards" ? amount : 0,
+        raw: String(rawLine || "").trim(),
+        reason: "叙述体に明示された購入額"
+      });
+    }
+    return out;
   }
 
   /* 一行で複数を買った購入行（「ピークォド号航海士の人格、および
