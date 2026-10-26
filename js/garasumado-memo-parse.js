@@ -211,6 +211,20 @@
      隣に通貨が無い数値は行内では持ち主無しにする（choice[...]・CT3・消費額を
      文脈継承で拾うと帳簿に幻の収入が乗る。実測 202 行 +32396）。
      現在/残の直後は残額なので先に伏せる。 */
+  /* 代替価格の説明（例「50LP又は100LPで買える分の強化アイテム」）を
+     報酬通貨と誤認しない。価格候補だけを除去し、別途記載された報酬は残す。 */
+  function stripAlternativePriceCondition(line) {
+    var removed = [];
+    var text = String(line || "").replace(
+      /[0-9０-９,，]+\s*(?:LP|ＬＰ)\s*(?:又は|または|あるいは|or)\s*[0-9０-９,，]+\s*(?:LP|ＬＰ)?\s*(?:で)?(?:買える|購入できる|交換できる|選べる)[^、，。;；\n]*/gi,
+      function (clause) {
+        removed.push(clause);
+        return " ";
+      }
+    );
+    return { text: text, removed: removed };
+  }
+
   function incomePairs(line) {
     var text = stripBalances(line)
       .replace(/残り?\s*-?\d+(?:\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ))?/gi, " ")
@@ -1112,7 +1126,14 @@
            並ぶ書式で片方だけ・誤った通貨に割り当てていたのを、対ごとに読む。
            現在/残の直後は incomePairs 内で先に伏せている。
            「LP 45+5」は 45+5=50、「-15LP」は -15 と符号を保つ。 */
-        var pairs = incomePairs(line);
+        var priceCondition = stripAlternativePriceCondition(line);
+        if (priceCondition.removed.length) {
+          reasons.push({
+            line: sourceLine,
+            reason: "「又は」で結ばれたLP額が「買える」という価格条件の説明に含まれるため、アイテム価格の候補として収入計上から除外しました。実際のLP獲得額がある場合は、報酬の金額を別記してください"
+          });
+        }
+        var pairs = incomePairs(priceCondition.text);
         var unsafePairs = pairs.filter(function (pair) { return !Number.isSafeInteger(pair.amount); });
         if (unsafePairs.length) {
           unsafePairs.forEach(function (pair) {
@@ -1180,6 +1201,7 @@
           }
           continue;
         }
+        if (priceCondition.removed.length && !pairs.length) continue;
         /* 数字も通貨も無い行は「どの機関に勝ったか」の名前行。
            シナリオが直接払った人格/E.G.O なので、獲得として記録する。
            DB 照合は呼び出し側で行う。ここでは名前候補として残す。 */
