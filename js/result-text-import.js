@@ -597,8 +597,10 @@
             skipped.push({ text: item.raw, reason: "取得品の個数が不正なため登録を保留しました" });
             continue;
           }
-          if (continuation === "acquired") addItem(record, acquired, item, "acquired");
-          else if (continuation === "specified") {
+          if (continuation === "acquired") {
+            addItem(record, acquired, item, "acquired");
+            if (/人格抽出|人格指定抽出/.test(title)) record.identityCandidates.push(item.name);
+          } else if (continuation === "specified") {
             addItem(record, specified, item, "specified");
             if (/初期作成/.test(title)) record.identityCandidates.push(item.name);
           } else if (continuation === "targets") addItem(record, targets, item, "targets");
