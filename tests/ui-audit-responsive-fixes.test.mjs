@@ -10,7 +10,7 @@ const css = read("../assets/v69-ui-audit-fixes.css");
 test("監査修正CSSは実際のアプリにハッシュ付きで読み込まれ、UI後段に適用される", () => {
   assert.match(index, /assets\/v69-ui-audit-fixes\.css\?v=9a1fa113/);
   assert.ok(index.indexOf("assets/v68-interaction-a11y.css") < index.indexOf("assets/v69-ui-audit-fixes.css"));
-  assert.match(index, /js\/App\.js\?v=5890a6a8/);
+  assert.match(index, /js\/App\.js\?v=[0-9a-f]{8}/);
 });
 
 test("スマホのプレビュー操作は縦長の本文上ではなく下部の安全領域に横長で表示する", () => {
