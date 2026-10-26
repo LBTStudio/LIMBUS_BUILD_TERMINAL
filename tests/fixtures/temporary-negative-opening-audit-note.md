@@ -1,0 +1,1 @@
+Temporary CI trigger for verifying PR #311's negative implied opening balance warning and asset-version synchronization. This file is removed by closing the temporary audit branch; do not merge this audit PR.
