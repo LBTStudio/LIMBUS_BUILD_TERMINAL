@@ -1105,8 +1105,8 @@ test("ショップとビルドの体裁がある", () => {
   assert.match(css, /\.inv-pick-button \{[\s\S]*?border-radius: var\(--r-pill\);/);
   assert.match(css, /\.inv-pick-button:disabled \{ opacity: \.45; cursor: not-allowed; \}/);
   /* モバイルではタブを横スクロールに隠さず、4列の2段グリッドで表示する。 */
-  assert.match(css, /@media \(max-width: 640px\) \{[\\s\\S]*?\.build-tabs \.segmented,\s*\.record-tabbar \.segmented \{[\\s\\S]*?grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);[\\s\\S]*?overflow: visible;/);
-  assert.match(css, /\.build-tabs \.segmented > button,\s*\.record-tabbar \.segmented > button \{[\\s\\S]*?white-space: normal;/);
+  assert.match(css, /@media \(max-width: 640px\) \{[\s\S]*?\.build-tabs \.segmented,\s*\.record-tabbar \.segmented \{[\s\S]*?grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);[\s\S]*?overflow: visible;/);
+  assert.match(css, /\.build-tabs \.segmented > button,\s*\.record-tabbar \.segmented > button \{[\s\S]*?white-space: normal;/);
 });
 
 /* ---------------------------------------------------------------------------
