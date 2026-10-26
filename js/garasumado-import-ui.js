@@ -1276,6 +1276,18 @@ function appliedSummary(actions) {
       h("p", { className: "gara-note" },
         "有効な人格 " + personaItems.filter((row) => row.ok).length + "件・選択中 " + selectedRows.length + "件"
         + (failedRows.length ? "・取得／解析失敗 " + failedRows.length + "件" : "")),
+      discrepancyRows.length ? h("section", { className: "gara-group gara-result gara-discrepancy-review", role: "alert", "aria-labelledby": "gara-persona-discrepancy-title" },
+        h("h4", { className: "gara-group-title", id: "gara-persona-discrepancy-title" }, `不一致・要確認の項目（${discrepancyRows.length}件）`),
+        h("p", { className: "gara-group-note" }, "同名人格・解析時の警告・読み込みに失敗したファイルがあります。該当箇所を確認してください。"),
+        h("div", { className: "gara-rows" }, discrepancyRows.map((row) => h("div", { className: "gara-row is-unsure", key: row.key },
+          h("span", { className: "gara-row-name" }, row.title),
+          h("span", { className: "gara-row-meta", style: { whiteSpace: "normal", textAlign: "left" } }, row.detail)
+        ))),
+        h("label", { className: "gara-discrepancy-confirm", style: { display: "flex", gap: "10px", alignItems: "flex-start", padding: "12px", cursor: "pointer" } },
+          h("input", { type: "checkbox", checked: discrepanciesReviewed, onChange: (event) => setDiscrepanciesReviewed(event.target.checked), style: { marginTop: "3px", flex: "0 0 auto" } }),
+          h("span", null, "上記の不一致・要確認項目を確認しました。内容を理解したうえで、選択した人格を取り込みます。")
+        )
+      ) : null,
       personaItems.map((row) => {
         const name = row.result?.persona?.name || "名前を確認できません";
         const already = personaAlreadyImported(row.id);
@@ -1334,7 +1346,8 @@ function appliedSummary(actions) {
           h(Button, { size: "sm", variant: "quiet", onClick: () => { setPersonaItems(null); setPersonaPicked({}); setPersonaConfirmed(null); setError(""); setUrlReport(null); setProgress(""); } }, "URLを修正"),
           h(Button, {
             size: "sm", variant: "primary", icon: "check",
-            disabled: busy || selectedRows.length === 0,
+            disabled: busy || selectedRows.length === 0 || (discrepancyRows.length > 0 && !discrepanciesReviewed),
+            title: discrepancyRows.length > 0 && !discrepanciesReviewed ? "不一致・要確認の項目を読み、確認欄にチェックしてください" : "",
             onClick: () => {
               const actions = selectedRows.map((row) => ({
                 type: "ADD_GARASUMADO_PERSONA",
