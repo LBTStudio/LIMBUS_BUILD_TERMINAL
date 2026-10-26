@@ -31,8 +31,13 @@
 
     const officialHost = "lbt-garasumado.vercel.app";
     let candidate = "";
+    /* URL wrappers such as rd.nan7.net may have the official URL embedded in their path.
+       Extract only a URL on the official host, then still run the normal hostname validation. */
+    const embeddedOfficial = text.match(/https?:\/\/(?:www\.)?lbt-garasumado\.vercel\.app\/(?:persona\/)?view\/[A-Za-z0-9_-]{6,}\/?(?:[?#][^\s]*)?/i);
     const absolute = text.match(/https?:\/\/[^\s]+/i);
-    if (absolute) {
+    if (embeddedOfficial) {
+      candidate = embeddedOfficial[0].replace(/[)\],.;]+$/g, "");
+    } else if (absolute) {
       candidate = absolute[0].replace(/[)\],.;]+$/g, "");
     } else {
       const hostless = text.match(/(?:^|[\s"\'(<\[:])((?:www\.)?lbt-garasumado\.vercel\.app(?:\/[^\s]*)?)/i);
