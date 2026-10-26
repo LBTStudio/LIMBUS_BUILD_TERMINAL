@@ -333,11 +333,21 @@
     const count = countMatch ? safeAmount(countMatch[1]) : 1;
     if (count === null) return { error: "チケット枚数が不正です", raw: text };
     let kind = null;
+    const hasPersonaTicket = /人格\s*(?:抽出)?\s*チケ(?:ット)?/i.test(source);
+    const hasEgoTicket = /(?:E\.?\s?G\.?\s?O|エゴ)\s*(?:抽出)?\s*チケ(?:ット)?/i.test(source);
     if (/テーマパックチケット/i.test(source)) kind = null;
     else if (/(?:人格\s*(?:or|または)\s*E\.?G\.?O|E\.?G\.?O\s*(?:or|または)\s*人格|選択(?:式)?抽出|選択式チケット|人格orE\.?G\.?O|人格orEGO|EGOor人格)/i.test(source)) kind = "choice";
-    else if (/E\.?G\.?O.*抽出チケット|E\.?G\.?Oチケット/i.test(source)) kind = "ego";
-    else if (/人格(?:抽出)?チケット|人格チケ/i.test(source)) kind = "persona";
+    else if (/任意(?:の)?抽出チケット/i.test(source)) kind = "choice";
+    else if (hasPersonaTicket && hasEgoTicket) kind = null;
+    else if (hasEgoTicket) kind = "ego";
+    else if (hasPersonaTicket) kind = "persona";
     return { kind, count, raw: text };
+  }
+
+  function ledgerTickets(text) {
+    const terms = splitTop(String(text ?? ""), (c) =>
+      c === "、" || c === "," || c === "，" || c === ";" || c === "；" || c === "+" || c === "＋");
+    return terms.map((term) => ledgerTicket(term)).filter(Boolean);
   }
 
   function ledgerItem(text) {
@@ -507,8 +517,7 @@
         if (label === "消費") {
           rewardContext = false;
           consumeLines.push(value);
-          const usedTicket = ledgerTicket(value);
-          if (usedTicket) {
+          for (const usedTicket of ledgerTickets(value)) {
             if (usedTicket.error) skipped.push({ text: line, reason: usedTicket.error });
             else record.ticketUses.push({ ...usedTicket, raw: line });
           }
@@ -531,8 +540,7 @@
               const key = /^LP$/i.test(nested[1]) ? "lp" : "shards";
               addValue(record, key, ledgerNumber(nested[2]), line);
             } else {
-              const ticket = ledgerTicket(value);
-              if (ticket) {
+              for (const ticket of ledgerTickets(value)) {
                 if (ticket.error) skipped.push({ text: line, reason: ticket.error });
                 else {
                   record.tickets.push({ ...ticket, raw: line });
@@ -609,21 +617,26 @@
         }
 
         if (/(?:チケ(?:ット)?|抽出🎫)/i.test(line)) {
-          const ticket = ledgerTicket(line);
-          if (ticket) {
-            if (ticket.error) skipped.push({ text: line, reason: ticket.error });
-            else {
+          const ticketRows = ledgerTickets(line);
+          if (ticketRows.length) {
+            for (const ticket of ticketRows) {
+              if (ticket.error) {
+                skipped.push({ text: line, reason: ticket.error });
+                continue;
+              }
               record.tickets.push({ ...ticket, raw: line });
-              if (/(?:使用済|使用済み|両方使用済)/.test(line)) {
+              if (/(?:使用済|使用済み|両方使用済|全て使用済)/.test(line)) {
                 record.ticketUses.push({ ...ticket, raw: line });
-                const gained = line.match(/獲得\s*[：:]\s*([^）)】]+)/);
-                if (gained && gained[1].trim()) {
-                  const targetLine = gained[1].trim().replace(/[」』】]+$/g, "");
-                  const target = ledgerItem(targetLine);
-                  if (target.name) {
-                    record.identityCandidates.push(target.name);
-                    record.rewardCandidates.push(target);
-                  }
+              }
+            }
+            if (/(?:使用済|使用済み|両方使用済|全て使用済)/.test(line)) {
+              const gained = line.match(/獲得\s*[：:]\s*([^）)】]+)/);
+              if (gained && gained[1].trim()) {
+                const targetLines = ledgerItems(gained[1].trim().replace(/[」』】]+$/g, ""));
+                for (const target of targetLines) {
+                  if (!target.name) continue;
+                  record.identityCandidates.push(target.name);
+                  record.rewardCandidates.push(target);
                 }
               }
             }
@@ -682,8 +695,8 @@
 
       /* 過去ログの収入チケットは、種類が明示された場合だけチケット欄へ加算する。 */
       const consumedTicketCount = consumeLines.reduce((sum, line) => {
-        const ticket = ledgerTicket(line);
-        return sum + (ticket && !ticket.error ? ticket.count : 0);
+        const tickets = ledgerTickets(line);
+        return sum + tickets.reduce((count, ticket) => count + (!ticket.error && ticket.kind ? ticket.count : 0), 0);
       }, 0);
       const aggregate = { lp: 0, shards: 0 };
       let hasCurrencyCost = false;
