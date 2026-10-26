@@ -2382,11 +2382,15 @@ body.has-detail-dialog main.preview { overflow: hidden; }
    UI audit refinements (2026-10): mobile reachability + import dialog
    ============================================================ */
 @media (max-width: 640px) {
-  /* The preview control lives in the unused sixth cell of the second
-     bottom-navigation row instead of covering section headings and tabs. */
+  /* The preview control lives in the unused second cell of the second
+     bottom-navigation row. The last cell can be covered by the access-status toast. */
+  .app.preview-collapsed .preview-reopen {
+    display: none;
+  }
   .preview-edge-toggle {
     top: auto;
-    right: 4px;
+    left: calc((100vw - 28px) / 6 + 8px);
+    right: auto;
     bottom: calc(env(safe-area-inset-bottom, 0px) + 4px);
     width: calc((100vw - 28px) / 6);
     height: 52px;
