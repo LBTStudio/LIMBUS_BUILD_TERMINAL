@@ -810,7 +810,10 @@
       /* 使用チケットの残高キーは報酬品の名前ではなく、消費欄に記載されたチケット種別で維持する。 */
       /* 過去ログの収入チケットは、種類が明示された場合だけチケット欄へ加算する。 */
       const consumedTicketCount = consumeLines.reduce((sum, line) => {
-        const tickets = ledgerTickets(line);
+        /* 支出明細の配分も、行そのものの解析と同じタイトル文脈でチケット種別を解決する。
+           これを揃えないと「人格抽出×5」内の無修飾「抽出チケット」が、
+           残高処理では人格券なのに無料抽出の枚数では数え落とされる。 */
+        const tickets = ledgerTickets(line).map((ticket) => ticketWithRecordContext(ticket, title, line));
         return sum + tickets.reduce((count, ticket) => count + (!ticket.error && ticket.kind ? ticket.count : 0), 0);
       }, 0);
       const aggregate = { lp: 0, shards: 0 };
