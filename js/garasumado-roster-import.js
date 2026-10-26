@@ -27,7 +27,12 @@
     if (!text) return { ok: false, error: "URL を入力してください" };
 
     const bare = text.match(/^[A-Za-z0-9_-]{20}$/);
-    if (bare) return { ok: true, id: text, collection: "characters" };
+    if (bare) {
+      return {
+        ok: false,
+        error: "共有IDだけではキャラクター共有か人格共有か判別できません。/view/ または /persona/view/ を含む共有URLを貼り付けてください"
+      };
+    }
 
     const officialHost = "lbt-garasumado.vercel.app";
     let candidate = "";
