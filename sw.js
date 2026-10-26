@@ -21,12 +21,12 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-d798cd59";
+const CACHE_NAME = "lbt-4b80f2cb";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
   "mobile-preview.html",
-  "assets/cloud-backup.css?v=82bfeda8",
+  "assets/cloud-backup.css?v=095e0590",
   "assets/design-system.css?v=910f9485",
   "assets/fonts/corporate-logo-bold-subset.woff2?v=b56fa468",
   "assets/fonts/corporate-logo-medium-subset.woff2?v=dbbdb67e",
@@ -41,20 +41,21 @@ const PRECACHE_URLS = [
   "assets/v65r43-ego-readability.css?v=563284f8",
   "assets/v65r44-ego-quick-detail.css?v=1bb6dfa1",
   "assets/v65r47-ego-card-marks.css?v=aaf12533",
-  "assets/v66-accounts.css?v=16c0d40d",
+  "assets/v66-accounts.css?v=65087445",
   "assets/v67-persona-redesign.css?v=4b89da4c",
   "assets/v68-interaction-a11y.css?v=0bbe4495",
-  "assets/workspace.css?v=741261c7",
+  "assets/v69-ui-audit-fixes.css?v=583e0950",
+  "assets/workspace.css?v=7eeef480",
   "data/db.json?v=16b6df9e",
   "data/gacha-theme-packs.json?v=8d4dced2",
   "data/items.json?v=b185394a",
   "data/special-items.json?v=aaa21cfb",
-  "js/App.js?v=e99d3576",
+  "js/App.js?v=5890a6a8",
   "js/DataQuality.js?v=a8365c72",
   "js/InlineEffectGlossary.js?v=81967fa2",
   "js/ItemCodex.js?v=7aafec02",
   "js/LivePreview.js?v=1b6767e6",
-  "js/OtherSections.js?v=58aeea75",
+  "js/OtherSections.js?v=d20d3991",
   "js/PersonaCodex.js?v=59018e19",
   "js/SkillDeck.js?v=a93f6cb8",
   "js/access-counter.js?v=304e4854",
@@ -82,7 +83,7 @@ const PRECACHE_URLS = [
   "js/share-link.js?v=c77e8999",
   "js/share-viewer.js?v=71f2da96",
   "js/state.js?v=0489bcd4",
-  "js/ui.js?v=8943eab8",
+  "js/ui.js?v=04f28021",
   "vendor/react-dom.min.js?v=35f4f974",
   "vendor/react.min.js?v=d949f1c3",
 ];
