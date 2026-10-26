@@ -291,6 +291,37 @@ test("見出し記号のない日時付き記録も直前の記録へ結合し�
   assert.equal(parsed.records[1].income.shards, 110);
 });
 
+test("獲得後に備考で使用されたアイテムは所持数を増やしてから消費する", () => {
+  const parsed = T.parseText([
+    "▼血袋連戦",
+    "日時：2026/08/03",
+    "報酬：",
+    "LP：55",
+    "欠片：33",
+    "アイテム：",
+    "砥石×1",
+    "備考：砥石×1 使用",
+    "現在所持LP：8→63",
+    "現在所持欠片：206→239"
+  ].join("\n"));
+
+  const planned = T.plan(parsed, {
+    resolveItem: (name) => name === "砥石" ? { itemId: "enh-whetstone" } : null,
+    resolveItemUse: (line) => /砥石×1 使用/.test(line)
+      ? { itemId: "enh-whetstone", itemName: "砥石", quantity: 1 }
+      : null
+  });
+  assert.deepEqual([...planned.actions].filter((action) => action.type === "ADD_ITEM_INVENTORY")
+    .map((action) => ({ itemId: action.itemId, quantity: action.quantity })), [
+      { itemId: "enh-whetstone", quantity: 1 }
+    ]);
+  assert.deepEqual([...planned.actions].filter((action) => action.type === "CONSUME_ITEM")
+    .map((action) => ({ itemId: action.itemId, quantity: action.quantity })), [
+      { itemId: "enh-whetstone", quantity: 1 }
+    ]);
+  assert.equal(planned.actions.find((action) => action.type === "ADD_RESULT").consumedItems.length, 0);
+});
+
 test("実記録の獲得アイテムは個数を保って所持アイテムへ登録する", () => {
   const parsed = T.parseText([
     "▼梅と言うには遅く、名も悪く",
