@@ -134,12 +134,12 @@ const classifyReason = (reason) => {
   if (/変換行|換算行/.test(text)) return "conversion-review";
   return "other-review";
 };
-const total = (rows, currency) => rows.reduce((sum, row) =>
-  sum + (row.parsed.income[currency] || 0) -
-    row.parsed.spends.reduce((spendSum, spend) => spendSum + (Number(spend[currency]) || 0), 0), 0);
-const sumIncome = (rows, currency) => rows.reduce((n, row) => n + (Number(row.parsed.income[currency]) || 0), 0);
-const sumSpend = (rows, currency) => rows.reduce((n, row) => n +
-  row.parsed.spends.reduce((p, spend) => p + (Number(spend[currency]) || 0), 0), 0);
+const fieldOf = (currency, kind) => (kind === "income" ? (currency === "lp" ? "incomeLp" : "incomeShards")
+  : kind === "spend" ? (currency === "lp" ? "spendLp" : "spendShards")
+    : (currency === "lp" ? "netLp" : "netShards"));
+const total = (rows, currency) => rows.reduce((sum, row) => sum + (Number(row[fieldOf(currency, "net")]) || 0), 0);
+const sumIncome = (rows, currency) => rows.reduce((sum, row) => sum + (Number(row[fieldOf(currency, "income")]) || 0), 0);
+const sumSpend = (rows, currency) => rows.reduce((sum, row) => sum + (Number(row[fieldOf(currency, "spend")]) || 0), 0);
 
 async function inspect(id) {
   const url = "https://lbt-garasumado.vercel.app/view/" + id;
