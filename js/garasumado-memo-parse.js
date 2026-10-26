@@ -477,7 +477,7 @@
       var name = frag.trim()
         .replace(/^[「『]\s*/, "").replace(/[」』]\s*$/, "")
         .replace(/^抽出\s*\d*\s*/, "")
-        .replace(/(?:を)?(?:獲得|入手)(?:した)?$/, "")
+        .replace(/(?:を|の)?(?:獲得|入手)(?:した)?$/, "")
         .trim();
       if (name.length < 2) return;
       if (!/[A-Za-zぁ-んァ-ヶ一-龠]/.test(name)) return;
