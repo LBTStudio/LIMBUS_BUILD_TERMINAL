@@ -195,6 +195,22 @@ test("実記録に使われている▼/▽形式と複数行の報酬・消費�
   ]);
 });
 
+test("日時を結果の日付欄に保持する", () => {
+  const parsed = T.parseText([
+    "▼梅と言うには遅く、名も悪く",
+    "日時：2026/07/19",
+    "報酬：",
+    "LP：45",
+    "欠片：30"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 1);
+  assert.equal(parsed.records[0].date, "2026-07-19");
+  const planned = T.plan(parsed);
+  assert.equal(planned.actions[0].type, "ADD_RESULT");
+  assert.equal(planned.actions[0].date, "2026-07-19");
+});
+
 test("見出し記号のない日時付き記録も直前の記録へ結合しない", () => {
   const parsed = T.parseText([
     "▼精神購入",
