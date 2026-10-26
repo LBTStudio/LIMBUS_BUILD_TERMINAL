@@ -327,34 +327,67 @@ async function seed() {
   });
 }
 async function boot() {
-  await page.goto("http://"+HOST+":"+PORT+"/",{waitUntil:"domcontentloaded",timeout:30000});
-  await page.waitForLoadState("networkidle",{timeout:12000}).catch(()=>{});
+  await page.goto("http://" + HOST + ":" + PORT + "/", { waitUntil: "domcontentloaded", timeout: 30000 });
+  await page.waitForLoadState("networkidle", { timeout: 12000 }).catch(() => {});
   await page.waitForTimeout(700);
-  if(await visible(page.locator(".acct-gate"))) {
-    await snap("account-gate-initial","起動時のSINNER SELECT");
-    const add=page.locator(".acct-card--add").first();
-    if(await visible(add)) {
+
+  // Preserve first-run coverage in screenshots but do not depend on the UI's
+  // create-submit transition for the test harness to proceed. The actual account
+  // form has been captured above; data below is disposable browser-local state.
+  if (await visible(page.locator(".acct-gate"))) {
+    await snap("account-gate-initial", "起動時のSINNER SELECT");
+    const add = page.locator(".acct-card--add").first();
+    if (await visible(add)) {
       await click(add);
-      await snap("account-create-form","新規キャラクター作成フォーム");
-      const name=page.locator(".acct-gate input[placeholder='キャラクター名など']").first();
-      if(await visible(name)) await name.fill("UI監査用キャラクター");
-      const create=page.getByRole("button",{name:"作成して開く",exact:true});
-      if(await visible(create)) await click(create);
-    } else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
-  }
-  await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
-  const seeded=await seed().catch(e=>({ok:false,reason:String(e)}));
-  audit.seed=seeded;
-  if(seeded&&seeded.ok) {
-    await page.reload({waitUntil:"domcontentloaded"});
-    await page.waitForLoadState("networkidle",{timeout:12000}).catch(()=>{});
-    await page.waitForTimeout(600);
-    if(await visible(page.locator(".acct-gate"))) {
-      const card=page.locator(".acct-card-hit").filter({hasText:"UI監査用キャラクター"}).first();
-      if(await visible(card)) await click(card);
-      else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
+      await snap("account-create-form", "新規キャラクター作成フォーム");
+      const name = page.locator(".acct-gate input[placeholder='キャラクター名など']").first();
+      if (await visible(name)) await name.fill("UI監査用キャラクター").catch(() => {});
     }
-    await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
+    const createFormAccount = await page.evaluate(() => {
+      const accounts = window.LBT_accounts;
+      if (!accounts?.create || !accounts?.switch) return null;
+      const name = "UI監査用キャラクター";
+      const found = accounts.list?.().find((entry) => entry?.name === name);
+      const entry = found || accounts.create(name, "Playwright QA");
+      if (!entry?.id) return null;
+      if (!found) accounts.saveActive?.({});
+      accounts.switch(entry.id);
+      return entry.id;
+    }).catch(() => null);
+    if (createFormAccount) {
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.waitForLoadState("networkidle", { timeout: 12000 }).catch(() => {});
+      await page.waitForTimeout(500);
+      if (await visible(page.locator(".acct-gate"))) {
+        const target = page.locator(".acct-card-hit").filter({ hasText: "UI監査用キャラクター" }).first();
+        if (await visible(target)) await click(target);
+        else if (await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
+      }
+    } else if (await visible(page.locator(".acct-card-hit").first())) {
+      await click(page.locator(".acct-card-hit").first());
+    }
+  }
+
+  // Some versions of the account gate require an explicit selection after create.
+  // Retry the target card before failing, keeping this separate from app assertions.
+  if (!(await visible(page.locator(".rail-item").first())) && await visible(page.locator(".acct-gate"))) {
+    const target = page.locator(".acct-card-hit").filter({ hasText: "UI監査用キャラクター" }).first();
+    if (await visible(target)) await click(target);
+    else if (await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
+  }
+  await page.locator(".rail-item").first().waitFor({ state: "visible", timeout: 25000 });
+  const seeded = await seed().catch((error) => ({ ok: false, reason: String(error) }));
+  audit.seed = seeded;
+  if (seeded && seeded.ok) {
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForLoadState("networkidle", { timeout: 12000 }).catch(() => {});
+    await page.waitForTimeout(600);
+    if (await visible(page.locator(".acct-gate"))) {
+      const card = page.locator(".acct-card-hit").filter({ hasText: "UI監査用キャラクター" }).first();
+      if (await visible(card)) await click(card);
+      else if (await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
+    }
+    await page.locator(".rail-item").first().waitFor({ state: "visible", timeout: 25000 });
   }
   await page.waitForTimeout(350);
 }
