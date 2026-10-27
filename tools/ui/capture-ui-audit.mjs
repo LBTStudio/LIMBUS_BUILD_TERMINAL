@@ -381,30 +381,19 @@ async function boot() {
   const seeded=await seed().catch(e=>({ok:false,reason:String(e)}));
   audit.seed=seeded;
   if(seeded&&seeded.ok) {
-    await page.reload({waitUntil:"domcontentloaded"});
-    await page.waitForLoadState("networkidle",{timeout:12000}).catch(()=>{});
+    // Do not reload the page: this app intentionally shows SINNER SELECT on every
+    // reload. Refresh the reducer from the saved disposable account through the same
+    // public event used when the user chooses an account, avoiding a second gate.
+    const refreshed=await page.evaluate((id)=>{
+      const A=window.LBT_accounts;
+      if(!A?.switch||!id) return {ok:false,reason:"active account ID unavailable"};
+      const switched=A.switch(id);
+      if(switched) window.dispatchEvent(new CustomEvent("lbt:accounts-entered",{detail:{id}}));
+      return {ok:!!switched,id};
+    },seeded.accountId).catch(error=>({ok:false,reason:String(error)}));
+    audit.seedRefresh=refreshed;
+    log("seed refresh: "+JSON.stringify(refreshed));
     await page.waitForTimeout(600);
-    if(await visible(page.locator(".acct-gate"))) {
-      const card=page.locator(".acct-card--gate").filter({hasText:"UI監査用キャラクター"}).locator(".acct-card-hit").first();
-      if(await visible(card)) await click(card).catch(()=>{});
-      else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first()).catch(()=>{});
-    }
-    await page.waitForTimeout(600);
-    if(!(await visible(page.locator(".rail-item")))) {
-      // The gate is photographed and attempted through the UI above. Some headless
-      // loads retain the boot overlay after reload, so recover the same disposable
-      // account via the public account API instead of failing the whole screenshot tour.
-      const fallback=await page.evaluate((id)=>{
-        const A=window.LBT_accounts;
-        if(!A?.switch||!id) return {ok:false,reason:"active account ID unavailable"};
-        const switched=A.switch(id);
-        if(switched) window.dispatchEvent(new CustomEvent("lbt:accounts-entered",{detail:{id}}));
-        return {ok:!!switched,id};
-      },seeded.accountId).catch(error=>({ok:false,reason:String(error)}));
-      audit.reloadGateFallback=fallback;
-      log("post-seed gate fallback: "+JSON.stringify(fallback));
-      await page.waitForTimeout(700);
-    }
     await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
   }
   await page.waitForTimeout(350);
