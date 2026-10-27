@@ -163,7 +163,7 @@ test("全リザルトログを行単位監査し、収入・残高・支出節�
     }
   }
 
-  assert.ok(auditedCurrencyRows > 400, "通貨候補行を十分に監査（実際 " + auditedCurrencyRows + " 行）");
+  assert.ok(auditedCurrencyRows > 300, "セッション分割後の通貨候補行を十分に監査（実際 " + auditedCurrencyRows + " 行）");
   assert.ok(rewardBalanceRows > 100, "報酬額＋残高形式の大量サンプルを監査（実際 " + rewardBalanceRows + " 行）");
   assert.ok(explicitBalanceRows > 0, "残高アンカーも取引額と分離する");
   assert.ok(spendSectionRows > 0, "支出節の明細を支出として残す");
