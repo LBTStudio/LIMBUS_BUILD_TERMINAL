@@ -309,6 +309,13 @@ async function seed() {
     };
     const merged = Object.assign({}, A.loadActive() || {}, next);
     const saved = A.saveActive(merged);
+    if (saved) {
+      // Refresh the app's in-memory state without a full reload. A reload reopens
+      // SINNER SELECT when more than one account exists and races the gate animation.
+      window.dispatchEvent(new CustomEvent("lbt:accounts-entered", {
+        detail: { id: A.getActiveId() }
+      }));
+    }
     return {
       ok: !!saved,
       persona: p.name,
@@ -347,15 +354,13 @@ async function boot() {
   const seeded=await seed().catch(e=>({ok:false,reason:String(e)}));
   audit.seed=seeded;
   if(seeded&&seeded.ok) {
-    await page.reload({waitUntil:"domcontentloaded"});
-    await page.waitForLoadState("networkidle",{timeout:12000}).catch(()=>{});
-    await page.waitForTimeout(600);
+    // seed() dispatches the same account-entered event as SINNER SELECT, allowing
+    // React to load the fixture while keeping the gate closed and avoiding reloads.
+    await page.locator(".rail-item").first().waitFor({state:"visible",timeout:10000});
+    await page.waitForTimeout(550);
     if(await visible(page.locator(".acct-gate"))) {
-      const card=page.locator(".acct-card-hit").filter({hasText:"UI監査用キャラクター"}).first();
-      if(await visible(card)) await click(card);
-      else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
+      throw new Error("SINNER SELECT remained open after seeding the disposable account");
     }
-    await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
   }
   await page.waitForTimeout(350);
 }
@@ -597,15 +602,68 @@ async function captureProfile(browser, mode) {
         await click(importAction);
         const input=page.locator('input[type="file"][accept="application/json"]').first();
         if(await input.count()) {
-          await input.setInputFiles({name:"ui-audit-import.json",mimeType:"application/json",buffer:Buffer.from(JSON.stringify({schemaVersion:5,charName:"読み込み確認用",plName:"UI QA"}),"utf8")});
-          await page.waitForTimeout(300);
-          if(await visible(page.locator(".share-modal-backdrop"))) {
-            await snap("state-import-scope-dialog","読み込むカテゴリを選ぶ確認画面。適用しない");
-            const emptyDetails=page.locator(".import-scope-empty-categories > summary").first();
-            if (await visible(emptyDetails)) {
-              await click(emptyDetails);
-              await snap("state-import-empty-categories-expanded","確認ダイアログでデータのないカテゴリ一覧を任意に展開した状態。適用しない");
+          // Use the disposable, populated UI-audit state as a valid backup fixture.
+          // Fill only fields omitted by the current normalizer so all 14 import
+          // categories appear. This exercises the worst-case dialog without applying
+          // the data or touching any real user's browser storage.
+          const fixture = await page.evaluate(() => {
+            const stored = window.LBT_accounts?.loadActive?.();
+            if (!stored || typeof stored !== "object") return null;
+            const data = { ...stored, schemaVersion: 5 };
+            const defaults = {
+              charName: "読み込み確認用", plName: "UI QA", imgUrls: "", shareImageData: "",
+              color: "#c8a84b", initiative: 12, personaMode: "n", personaNo: 0, personaSrc: null,
+              syncedManual: false, hp: 100, san: 50, speed: "1d8", bullets: "4",
+              resS: "普通", resP: "普通", resB: "普通",
+              skills: [], pas: { name: "", cond: "", always: "", effect: "", quick: "" },
+              pas2Enabled: false, pas2: null, extraPassives: [],
+              supports: [], deathSupport: null, egoSlots: {},
+              spirit: "", spiritMorale: "", spiritConfuse: "", spiritAlways: "",
+              roster: { personas: [], supports: [], egos: [], spirits: [] },
+              results: [], entries: [], gachaLog: [], draws: [], tickets: {},
+              favorites: [], historyRecent: [], uniqueBuffs: [], customStatuses: [],
+              defaultStatuses: [], outputExclude: { memo: {}, palette: {} },
+              shareOptions: {}, paletteOptions: {}, enhancements: [], inventory: [],
+              initialItems: [], customItems: [], formulas: [], builtinFormulasOverride: {},
+              autoFml: [], moraleLine: "", extraCmd: ""
+            };
+            for (const [key, value] of Object.entries(defaults)) {
+              if (!(key in data)) data[key] = value;
             }
+            return data;
+          });
+          if (!fixture) throw new Error("could not read the disposable backup fixture");
+          const categoryFields = [
+            ["charName","plName","imgUrls","shareImageData","color","initiative","personaMode","personaNo","personaSrc","syncedManual","hp","san","speed","bullets","resS","resP","resB"],
+            ["skills"],["pas","pas2Enabled","pas2","extraPassives"],["supports","deathSupport"],
+            ["egoSlots"],["spirit","spiritMorale","spiritConfuse","spiritAlways"],["roster"],
+            ["results","entries"],["gachaLog","draws","tickets"],["favorites","historyRecent"],
+            ["uniqueBuffs","customStatuses","defaultStatuses","outputExclude","shareOptions","paletteOptions"],
+            ["enhancements"],["inventory","initialItems","customItems"],["formulas","builtinFormulasOverride","autoFml","moraleLine","extraCmd"]
+          ];
+          const categoryCount = categoryFields.filter((fields) => fields.some((key) => key in fixture)).length;
+          audit.importFixture = { topLevelKeys: Object.keys(fixture).length, categoryCount, expectedCategories: categoryFields.length };
+          await input.setInputFiles({name:"ui-audit-import-all-categories.json",mimeType:"application/json",buffer:Buffer.from(JSON.stringify(fixture),"utf8")});
+          await page.waitForTimeout(300);
+          const dialog = page.locator(".share-modal-backdrop").filter({ has: page.locator(".import-apply-summary") }).first();
+          if (await visible(dialog)) {
+            await snap("state-import-scope-all-categories","全カテゴリにデータがあるバックアップの読み込み確認。適用はしない");
+            const list = dialog.locator(".stack-2").first();
+            const footer = dialog.locator("> .card > div:last-child");
+            audit.importDialogGeometry = await page.evaluate(() => {
+              const shell = document.querySelector(".share-modal-backdrop > .card");
+              const list = shell?.querySelector(".stack-2");
+              const footer = shell?.lastElementChild;
+              const rect = (el) => { if(!el) return null; const r=el.getBoundingClientRect(); return {top:Math.round(r.top),bottom:Math.round(r.bottom),height:Math.round(r.height),scrollHeight:el.scrollHeight,clientHeight:el.clientHeight}; };
+              return { viewportHeight: innerHeight, shell: rect(shell), list: rect(list), footer: rect(footer), footerBottomWithinViewport: !!footer && footer.getBoundingClientRect().bottom <= innerHeight + 1, listScrollable: !!list && list.scrollHeight > list.clientHeight + 2 };
+            });
+            const before = await list.evaluate((el) => el.scrollTop).catch(() => 0);
+            await list.evaluate((el) => { el.scrollTop = el.scrollHeight; }).catch(() => {});
+            await page.waitForTimeout(100);
+            await snap("state-import-scope-all-categories-scrolled","全カテゴリの確認一覧を末尾までスクロール。下部操作が表示されるかを確認。適用しない");
+            await list.evaluate((el, top) => { el.scrollTop = top; }, before).catch(() => {});
+          } else {
+            throw new Error("all-category import scope dialog did not open");
           }
         }
       }
