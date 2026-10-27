@@ -902,10 +902,10 @@
     if (!text || /現在|残高|現座|残り/.test(text)) return null;
     let match = null;
     if (currency === "lp") {
-      match = text.match(/^(?:LP|ＬＰ)\s*[+＋\-−]?\s*(\d[\d,]*(?:\s*[+＋]\s*\d[\d,]*)*)\s*(?:LP|ＬＰ)?[。．.]?$/i)
+      match = text.match(/^(?:LP|ＬＰ)\s*[：:]?\s*[+＋\-−]?\s*(\d[\d,]*(?:\s*[+＋]\s*\d[\d,]*)*)\s*(?:LP|ＬＰ)?[。．.]?$/i)
         || text.match(/^[+＋\-−]?\s*(\d[\d,]*(?:\s*[+＋]\s*\d[\d,]*)*)\s*(?:LP|ＬＰ)[。．.]?$/i);
     } else {
-      match = text.match(/^(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片)\s*[+＋\-−]?\s*(\d[\d,]*(?:\s*[+＋]\s*\d[\d,]*)*)\s*(?:(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片))?[。．.]?$/)
+      match = text.match(/^(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片)\s*[：:]?\s*[+＋\-−]?\s*(\d[\d,]*(?:\s*[+＋]\s*\d[\d,]*)*)\s*(?:(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片))?[。．.]?$/)
         || text.match(/^[+＋\-−]?\s*(\d[\d,]*(?:\s*[+＋]\s*\d[\d,]*)*)\s*(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片)[。．.]?$/);
     }
     if (!match) return null;
@@ -994,6 +994,19 @@
       totals[/^(?:LP|ＬＰ)$/i.test(match[1]) ? "lp" : "shards"] += amount;
     }
     return totals;
+  }
+
+  function auditLineCoverage(rawLine, expected, detected, hasMoneyReviewReason, section, lineIndex) {
+    if (hasMoneyReviewReason || (expected.lp === detected.lp && expected.shards === detected.shards)) return null;
+    return {
+      side: "parser", code: "possible-result-detection-omission", severity: "warning",
+      lineIndex: lineIndex, line: String(rawLine || ""), section: section,
+      expected: { lp: expected.lp, shards: expected.shards },
+      detected: { lp: detected.lp, shards: detected.shards },
+      message: "原文の通貨額候補は LP " + expected.lp + " / 欠片 " + expected.shards +
+        " ですが、この行から生成された記録は LP " + detected.lp + " / 欠片 " + detected.shards +
+        " です。リザルト側の検出漏れ・金額の取り違え候補として原文を確認してください。"
+    };
   }
 
   function analyzeSourceMemo(lines) {
@@ -1760,17 +1773,8 @@
             const moneyReviewReason = addedReasons.some(function (entry) {
               return /LP|欠片|通貨|金額|支出|収入|残高|計算|計上|価格/.test(String(entry.reason || ""));
             });
-            if ((expected.lp !== got.lp || expected.shards !== got.shards) && !moneyReviewReason) {
-              sourceAudits.push({
-                side: "parser", code: "possible-result-detection-omission", severity: "warning",
-                lineIndex: i + 1, line: sourceLine, section: auditModeBefore,
-                expected: { lp: expected.lp, shards: expected.shards },
-                detected: { lp: got.lp, shards: got.shards },
-                message: "原文の通貨額候補は LP " + expected.lp + " / 欠片 " + expected.shards +
-                  " ですが、この行から生成された記録は LP " + got.lp + " / 欠片 " + got.shards +
-                  " です。リザルト側の検出漏れ・金額の取り違え候補として原文を確認してください。"
-              });
-            }
+            const coverageFinding = auditLineCoverage(sourceLine, expected, got, moneyReviewReason, auditModeBefore, i + 1);
+            if (coverageFinding) sourceAudits.push(coverageFinding);
           }
         }
       }
@@ -1955,7 +1959,7 @@
       .filter(Boolean);
   }
 
-  var api = { parseMemo: parseMemo, parseScenarioHistory: parseScenarioHistory, currencyOf: currencyOf, amountOf: amountOf, sectionOf: sectionOf, ticketOf: ticketOf, purchaseRowOf: purchaseRowOf };
+  var api = { parseMemo: parseMemo, parseScenarioHistory: parseScenarioHistory, currencyOf: currencyOf, amountOf: amountOf, sectionOf: sectionOf, ticketOf: ticketOf, purchaseRowOf: purchaseRowOf, auditLineCoverage: auditLineCoverage };
   if (typeof window !== "undefined") window.LBT_garaMemo = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
