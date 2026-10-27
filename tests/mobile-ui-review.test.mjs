@@ -36,7 +36,8 @@ test("mobile save-import dialog scrolls its category list and keeps footer actio
 });
 
 test("mobile section headings reclaim space now that preview toggle moved to bottom navigation", () => {
-  assert.match(css, /@media \\(max-width: 640px\\)/);\n  assert.match(css, /\\.section-title-row\\s*\\{\\s*padding-right: 0;/);
+  assert.match(css, /@media \(max-width: 640px\)/);
+  assert.match(css, /\.section-title-row\s*\{\s*padding-right: 0;/);
 });
 
 test("UI screenshot audit enters the seeded account without reloading into the account gate", () => {
