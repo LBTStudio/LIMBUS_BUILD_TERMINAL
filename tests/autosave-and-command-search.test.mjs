@@ -26,9 +26,10 @@ test("保存導線の用語を統一し、部分復元前に適用範囲を要�
   assert.match(app, /label: "\\u73FE\\u5728\\u306E\\u4F5C\\u696D\\u72B6\\u614B\\u3092\\u4FDD\\u5B58"/);
   assert.match(app, /keywords: \["\\u72B6\\u614B\\u3092\\u30A8\\u30AF\\u30B9\\u30DD\\u30FC\\u30C8"/);
   assert.match(app, /\(c\.keywords \|\| \[\]\)\.some\(\(keyword\) => keyword\.toLowerCase\(\)\.includes\(ql\)\)/);
-  assert.match(app, /const selectedImportGroups = importData/);
+  assert.match(app, /const availableImportGroups = importData/);
+  assert.match(app, /const selectedImportGroups = importData \? availableImportGroups/);
   assert.match(app, /const selectedImportLabel = selectedImportGroups\.length/);
-  assert.match(app, /className: "import-apply-summary"/);
+  assert.match(app, /className: "import-apply-summary(?: state-import-summary)?"/);
   assert.match(app, /\\u4ECA\\u56DE\\u306E\\u9069\\u7528\\u7BC4\\u56F2\\uFF1A", selectedImportLabel/);
   assert.match(app, /disabled: selectedImportGroups\.length === 0/);
 });
