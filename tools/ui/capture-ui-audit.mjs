@@ -356,7 +356,8 @@ async function boot() {
         const fallback=await page.evaluate(()=>{
           const A=window.LBT_accounts;
           if(!A?.create||!A?.switch)return {ok:false,reason:"account API unavailable"};
-          const existing=A.list?.()||[];
+          const listing=A.list?.()||{};
+          const existing=Array.isArray(listing)?listing:(listing.accounts||[]);
           let entry=existing.find(x=>x.name==="UI監査用キャラクター");
           if(!entry)entry=A.create("UI監査用キャラクター","Playwright UI audit");
           if(!entry)return {ok:false,reason:"account create API returned null",existing:A.list?.()||[]};
@@ -373,15 +374,39 @@ async function boot() {
   const seeded=await seed().catch(e=>({ok:false,reason:String(e)}));
   audit.seed=seeded;
   if(seeded&&seeded.ok) {
+    // Reload to prove the fixture survives persistence. AccountGate is shown on
+    // every visit, so wait for it explicitly before selecting the fixture account.
     await page.reload({waitUntil:"domcontentloaded"});
     await page.waitForLoadState("networkidle",{timeout:12000}).catch(()=>{});
-    await page.waitForTimeout(600);
-    if(await visible(page.locator(".acct-gate"))) {
-      const card=page.locator(".acct-card-hit").filter({hasText:"UI監査用キャラクター"}).first();
-      if(await visible(card)) await click(card);
-      else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
+    const gate=page.locator(".acct-gate").first();
+    await gate.waitFor({state:"visible",timeout:15000}).catch(()=>{});
+    if(await visible(gate)) {
+      // Match the card (which contains the account name), then click its transparent hit area.
+      // Filtering .acct-card-hit itself by text is unreliable because that button is intentionally blank.
+      const card=page.locator(".acct-card--gate").filter({hasText:"UI監査用キャラクター"}).first();
+      const hit=card.locator(".acct-card-hit").first();
+      if(await visible(hit)) await click(hit).catch(()=>{});
+      await page.waitForTimeout(350);
+      // Fallback is scoped to the current active account and only affects this disposable context.
+      if(await visible(gate)) {
+        const activeId=await page.evaluate(()=>window.LBT_accounts?.getActiveId?.()||null);
+        if(activeId) await page.evaluate((id)=>window.dispatchEvent(new CustomEvent("lbt:accounts-entered",{detail:{id}})),activeId);
+      }
     }
-    await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
+    try {
+      await page.locator(".rail-item").first().waitFor({state:"visible",timeout:15000});
+    } catch(error) {
+      await snap("account-gate-reload-diagnostic","保存済みの監査用キャラクターを選び直した後の起動診断");
+      audit.accountGateReloadDiagnostic=await page.evaluate(()=>({
+        gateVisible:!!document.querySelector(".acct-gate"),
+        gateText:document.querySelector(".acct-gate")?.innerText?.slice(0,800)||"",
+        activeId:window.LBT_accounts?.getActiveId?.()||null,
+        accounts:window.LBT_accounts?.list?.()||null,
+        railCount:document.querySelectorAll(".rail-item").length,
+        appText:(document.querySelector("#root")?.innerText||"").slice(0,1200)
+      }));
+      throw new Error("保存済みアカウント選択後に本体ナビゲーションが表示されません: "+String(error?.message||error));
+    }
   }
   await page.waitForTimeout(350);
 }
