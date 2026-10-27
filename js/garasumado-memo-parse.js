@@ -1245,6 +1245,38 @@
         continue;
       }
 
+      /* 「LPを欠片に変換：+11欠片 -22LP」のような両替は、通貨ごとの符号を守る。
+         正の通貨は収入、負の通貨は支出に分ける。両方を spends に入れると、
+         欠片+11まで減算され、残高監査の帳尻が反転してしまう。 */
+      if (/(?:変換|換算)/.test(line) && hasLp(line) && hasShard(line)) {
+        var conversionPairs = incomePairs(line);
+        var conversionCost = { lp: 0, shards: 0 };
+        var conversionHasSignedAmount = false;
+        for (var conversionIndex = 0; conversionIndex < conversionPairs.length; conversionIndex++) {
+          var conversionPair = conversionPairs[conversionIndex];
+          if (!Number.isSafeInteger(conversionPair.amount)) {
+            reasons.push({ line: sourceLine, reason: "通貨変換の金額が安全整数の範囲外です。収支を未計上にしました" });
+            continue;
+          }
+          if (conversionPair.amount > 0) {
+            conversionHasSignedAmount = true;
+            addSafeAmount(income, conversionPair.currency, conversionPair.amount, sourceLine, reasons, "通貨変換の収入");
+          } else if (conversionPair.amount < 0) {
+            conversionHasSignedAmount = true;
+            addSafeAmount(conversionCost, conversionPair.currency, -conversionPair.amount, sourceLine, reasons, "通貨変換の支出");
+          }
+        }
+        if (!conversionHasSignedAmount) {
+          reasons.push({ line: sourceLine, reason: "通貨変換の正負の金額を区別できないため、LP・欠片の増減を要確認にしました" });
+        } else if (conversionCost.lp || conversionCost.shards) {
+          spends.push({
+            name: line, lp: conversionCost.lp, shards: conversionCost.shards,
+            raw: line, reason: "通貨変換の支出"
+          });
+        }
+        continue;
+      }
+
       /* 「消費：LP30」「消費：欠片50×3=150」などの消費記帳。
          報酬・チケット行として読み直すと消費を収入へ加えてしまう。 */
       var consumption = consumptionOf(line, reasons);
