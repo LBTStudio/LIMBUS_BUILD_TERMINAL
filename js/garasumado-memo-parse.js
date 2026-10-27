@@ -1886,9 +1886,13 @@
         const expectedFlows = auditMoneyFlowsOfLine(sourceLine, auditModeBefore);
         const hasTicketEvent = /(?:チケット|チケ|抽出🎫)/.test(sourceLine) &&
           (/\d/.test(sourceLine) || /獲得|入手|取得|付与|支給|消費|使用|抽出|ガチャ|結果|消費済/.test(sourceLine));
-        const hasRosterGainEvent = /(?:人格|E\.?G\.?O|エゴ).*(?:獲得|入手|取得)|(?:獲得|入手|取得).*(?:人格|E\.?G\.?O|エゴ)/i.test(sourceLine);
-        const hasGachaResult = /ガチャ.*(?:結果|→|⇒)|(?:人格|E\.?G\.?O|エゴ)獲得\s*[→⇒:：]/i.test(sourceLine);
-        const hasFinancialAction = hasTicketEvent || hasRosterGainEvent || hasGachaResult ||
+        const hasRosterGainEvent = /(?:人格|E\\.?G\\.?O|エゴ).*(?:獲得|入手|取得)|(?:獲得|入手|取得).*(?:人格|E\\.?G\\.?O|エゴ)/i.test(sourceLine);
+        const hasGachaResult = /ガチャ.*(?:結果|→|⇒)|(?:人格|E\\.?G\\.?O|エゴ)獲得\\s*[→⇒:：]/i.test(sourceLine);
+        /* 現在残高だけが記載された購入・抽出行も監査する。金額は推測せず、
+           本体処理で作られた「支出額が読み取れない」等の理由へ紐付ける。 */
+        const hasCurrentBalanceAction = /(?:現在|現座|残り|残高)/.test(sourceLine) &&
+          /消費|支出|支払|購入|買っ|使用|行使|抽出|ガチャ|獲得|入手|取得/.test(sourceLine);
+        const hasFinancialAction = hasTicketEvent || hasRosterGainEvent || hasGachaResult || hasCurrentBalanceAction ||
           ((expected.lp || expected.shards || directMoneyRow) &&
             /報酬|収入|獲得|入手|取得|付与|支給|補填|受領|被り|重複|消費|使用|支払|支出|購入|買っ|抽出|ガチャ|変換|換算/.test(sourceLine));
         if (auditModeBefore !== "current" && (directMoneyRow || hasFinancialAction || hasSourceFinding) &&
