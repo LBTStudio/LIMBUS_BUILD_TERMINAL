@@ -667,7 +667,8 @@
       throw new Error("比較後にクラウド側が更新されています。再照合してください。");
     }
     const result = await restorePayload(selected.payload, selected.revision, selected.key, {
-      expectedRemoteRevision: selected.revision, expectedRemoteHash: selected.remoteHash
+      expectedRemoteRevision: selected.revision, expectedRemoteHash: selected.remoteHash,
+      expectedLocalHash: selected.localHash
     });
     if (result) { pendingComparison = null; emit({ comparison: null }); }
     return result;
@@ -922,10 +923,19 @@
     return history;
   }
   async function restorePayload(payload, revision, recoveryKey = null, guard = null) {
-    const local = collectLocalSnapshot({ enforceCloudLimit: false });
-    const hasLocal = hasMeaningfulLocalData(local);
+    let local = collectLocalSnapshot({ enforceCloudLimit: false });
+    let hasLocal = hasMeaningfulLocalData(local);
     if (hasLocal && !confirm("現在の端末にもデータがあります。復元前に現在の全アカウントデータをJSONファイルとしてダウンロードし、その後クラウドの内容で端末データを置き換えます。続けますか？")) return false;
     const valid = validateSnapshot(payload);
+    if (guard && recoveryKey && guard.expectedLocalHash) {
+      local = collectLocalSnapshot({ enforceCloudLimit: false });
+      hasLocal = hasMeaningfulLocalData(local);
+      if (await hashSnapshot(local) !== guard.expectedLocalHash) {
+        pendingComparison = null;
+        emit({ comparison: null, label: "ローカルデータが変更されました", message: "確認ダイアログを開いている間に端末内データが変わりました。復元を中止しました。再照合してください。" });
+        throw new Error("確認後にローカルデータが変更されています。再照合してください。");
+      }
+    }
     if (guard && recoveryKey) {
       const latest = await getRemote({ recoveryKey, metadataOnly: true });
       const latestHash = String(latest.payloadHash || latest.payload_hash || "");
@@ -1149,7 +1159,9 @@
           )
         ) : button("比較結果を閉じる", () => run(async () => {
           pendingComparison = null;
-          emit({ comparison: null, label: "照合結果を閉じました", message: "ローカルデータは変更していません。復旧キーを確認して再照合できます。" });
+          setRecoveryDraft("");
+          await refresh();
+          emit({ comparison: null, label: "照合結果を閉じました", message: "ローカルデータは変更していません。保存先の状態を再確認しました。" });
         }))
       ) : null,
       view.remoteExists ? h(React.Fragment, null,
