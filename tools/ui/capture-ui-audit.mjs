@@ -310,6 +310,7 @@ async function seed() {
     const saved = A.saveActive(merged);
     return {
       ok: !!saved,
+      accountId: A.getActiveId?.(),
       persona: p.name,
       mode,
       sample: {
@@ -385,8 +386,24 @@ async function boot() {
     await page.waitForTimeout(600);
     if(await visible(page.locator(".acct-gate"))) {
       const card=page.locator(".acct-card--gate").filter({hasText:"UI監査用キャラクター"}).locator(".acct-card-hit").first();
-      if(await visible(card)) await click(card);
-      else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
+      if(await visible(card)) await click(card).catch(()=>{});
+      else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first()).catch(()=>{});
+    }
+    await page.waitForTimeout(600);
+    if(!(await visible(page.locator(".rail-item")))) {
+      // The gate is photographed and attempted through the UI above. Some headless
+      // loads retain the boot overlay after reload, so recover the same disposable
+      // account via the public account API instead of failing the whole screenshot tour.
+      const fallback=await page.evaluate((id)=>{
+        const A=window.LBT_accounts;
+        if(!A?.switch||!id) return {ok:false,reason:"active account ID unavailable"};
+        const switched=A.switch(id);
+        if(switched) window.dispatchEvent(new CustomEvent("lbt:accounts-entered",{detail:{id}}));
+        return {ok:!!switched,id};
+      },seeded.accountId).catch(error=>({ok:false,reason:String(error)}));
+      audit.reloadGateFallback=fallback;
+      log("post-seed gate fallback: "+JSON.stringify(fallback));
+      await page.waitForTimeout(700);
     }
     await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
   }
