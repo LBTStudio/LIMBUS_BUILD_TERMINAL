@@ -348,6 +348,25 @@ async function boot() {
       if(await visible(create)) await click(create);
     } else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
   }
+  if (!(await visible(page.locator(".rail-item").first()))) {
+    /* AccountGate creation uses the same persistence API as the UI. In some headless
+       runs, the final click can be swallowed while the form animates; recover only in
+       this disposable context and still send the app's normal entered event. */
+    const recovered = await page.evaluate(() => {
+      const accounts = window.LBT_accounts;
+      if (!accounts?.create || !accounts?.switch) return { ok: false, reason: "account persistence API missing" };
+      let id = accounts.getActiveId?.() || null;
+      if (!id) {
+        const created = accounts.create("UI監査用キャラクター", "Playwright QA");
+        id = created?.id || null;
+      }
+      if (!id || !accounts.switch(id)) return { ok: false, reason: "could not create or activate disposable account" };
+      window.dispatchEvent(new CustomEvent("lbt:accounts-entered", { detail: { id } }));
+      return { ok: true, id, activeId: accounts.getActiveId?.() || null };
+    });
+    audit.bootstrapRecovery = recovered;
+    if (!recovered.ok) throw new Error("SINNER SELECT bootstrap failed: " + recovered.reason);
+  }
   await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
   const seeded=await seed().catch(e=>({ok:false,reason:String(e)}));
   audit.seed=seeded;
