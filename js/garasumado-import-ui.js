@@ -374,6 +374,16 @@ item.decide ? h("div", { className: "gara-decide" },
           pair(income.lp, "lp", "LP"),
           pair(income.shards, "shard", "欠片")
         ),
+        Array.isArray(block.sourceAudits) && block.sourceAudits.some((entry) => entry && entry.severity !== "info")
+          ? h("div", { className: "gara-note gara-note-warn", role: "status" },
+            h("strong", null, "金額・検出監査（硝子窓側／ターミナル側）"),
+            block.sourceAudits.filter((entry) => entry && entry.severity !== "info").map((entry, index) => h("p", { key: "audit-" + index },
+              "[" + (entry.side === "source-data" ? "硝子窓側の元記録" : "ターミナル側の検出") + "] "
+              + String(entry.message || "確認してください")
+              + (entry.lineIndex ? "（原文 " + entry.lineIndex + "行目" + (entry.line ? "：" + entry.line : "") + "）" : "")
+            ))
+          )
+          : null,
         Array.isArray(block.reasons) && block.reasons.length
           ? h("div", { className: "gara-note gara-note-warn", role: "status" },
             h("strong", null, "原文の読み取り要確認（" + block.reasons.length + "件）"),
