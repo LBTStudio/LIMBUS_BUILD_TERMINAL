@@ -169,6 +169,28 @@
       ...(sourceIds.length ? { __lbtFreeNotesSourceIds: sourceIds } : {})
     };
 
+    /* 同名・同日なのに別スナップショット間で本文だけが変わった履歴は、
+       修正か別の反復かを自動断定せず、双方を保持して確認対象にする。 */
+    const historyVariants = new Map();
+    for (const source of rows) {
+      const sourceHistory = Array.isArray(source.doc.scenarioHistory) ? source.doc.scenarioHistory : [];
+      for (const scenario of sourceHistory) {
+        if (!scenario || typeof scenario !== "object") continue;
+        const identity = JSON.stringify([
+          nameKey(String(scenario.name || "").trim()),
+          String(scenario.date || scenario.createdAt || scenario.at || "").trim().slice(0, 10)
+        ]);
+        if (!historyVariants.has(identity)) historyVariants.set(identity, { sources: new Set(), memos: new Set() });
+        historyVariants.get(identity).sources.add(source._order);
+        historyVariants.get(identity).memos.add(String(scenario.memo || "").trim());
+      }
+    }
+    const conflictingHistoryIdentities = new Set(
+      [...historyVariants.entries()]
+        .filter(([, value]) => value.sources.size > 1 && value.memos.size > 1)
+        .map(([identity]) => identity)
+    );
+
     /* 同じ履歴が複数スナップショットにあるときは、重複する出現数だけ除く。
        同名・同本文のシナリオを実際に複数回通過したケースは、出現回数分を残す。 */
     const previousOccurrences = new Map();
@@ -190,9 +212,15 @@
         if (occurrence <= (previousOccurrences.get(signature) || 0)) continue;
         /* 取り込み元を文書内だけのメタデータとして残す。元の硝子窓文書は変更しない。
            同一URLから再取込したとき、メモの誤記修正や再解析後も同じリザルトを特定できる。 */
-        history.push(sourceId
-          ? { ...scenario, __lbtShareSourceId: sourceId, __lbtShareSourceIndex: sourceIndex }
-          : scenario);
+        const identity = JSON.stringify([
+          nameKey(String(scenario.name || "").trim()),
+          String(scenario.date || scenario.createdAt || scenario.at || "").trim().slice(0, 10)
+        ]);
+        history.push({
+          ...scenario,
+          ...(sourceId ? { __lbtShareSourceId: sourceId, __lbtShareSourceIndex: sourceIndex } : {}),
+          ...(conflictingHistoryIdentities.has(identity) ? { __lbtShareHistoryConflict: true } : {})
+        });
       }
       for (const [signature, count] of localOccurrences) {
         previousOccurrences.set(signature, Math.max(previousOccurrences.get(signature) || 0, count));
@@ -727,7 +755,10 @@ function toIdentityChoices(hits) {
       .filter((row) => row && (row.name || row.memo))
       .map((row, index) => {
         const name = String(row.name || "").trim() || "無題";
-        const sourceId = String(row.__lbtShareSourceId || "").trim();
+        const sourceUrl = String(row.__lbtShareSourceUrl || row.url || row.sourceUrl || "").trim();
+        const sourceUrlRef = sourceUrl ? parseShareUrl(sourceUrl) : null;
+        const sourceId = String(row.__lbtShareSourceId || row.sourceId || row.source?.id
+          || (sourceUrlRef && sourceUrlRef.ok ? sourceUrlRef.id : "") || "").trim();
         const sourceDate = String(row.date || row.createdAt || row.at || "").trim().slice(0, 10);
         const occurrenceScope = JSON.stringify([sourceId, sourceDate, nameKey(name)]);
         const occurrence = (scenarioOccurrences.get(occurrenceScope) || 0) + 1;
@@ -746,6 +777,19 @@ function toIdentityChoices(hits) {
         if (!memoApi) return { ...base, memo: String(row.memo || ""), income: { lp: 0, shards: 0 }, tickets: {}, pack: {}, spends: [], wins: [], reasons: [{ reason: "メモパーサが読み込まれていない" }], currencyDiscrepancies: [] };
         const parsed = memoApi.parseMemo(row.memo);
         const wins = resolveWins(parsed.wins);
+        const scenarioReasons = [...(parsed.reasons || [])];
+        if (!importSourceKey) {
+          scenarioReasons.push({
+            line: name,
+            reason: "この履歴には共有元ID/URLから作れる安定キーがありません。再取込時の更新・重複判定を自動化せず、出典を確認してください"
+          });
+        }
+        if (row.__lbtShareHistoryConflict) {
+          scenarioReasons.push({
+            line: name,
+            reason: "別スナップショットに同名・同日の履歴があり本文が異なります。修正か別の反復かを自動断定せず、双方を残して確認してください"
+          });
+        }
         return {
           ...base,
           memo: String(row.memo || ""),
@@ -755,7 +799,7 @@ function toIdentityChoices(hits) {
           spends: parsed.spends,
           consumedItems: parsed.consumedItems || [],
           ticketSpends: parsed.ticketSpends || [],
-          reasons: parsed.reasons,
+          reasons: scenarioReasons,
           currencyDiscrepancies: parsed.currencyDiscrepancies || [],
           sourceAudits: parsed.sourceAudits || [],
           financialCoverage: parsed.financialCoverage || [],
@@ -771,7 +815,7 @@ function toIdentityChoices(hits) {
             Object.keys(parsed.pack || {}).length > 0 ||
             (parsed.spends || []).length > 0 ||
             (parsed.ticketSpends || []).length > 0 ||
-            (parsed.reasons || []).length > 0 ||
+            scenarioReasons.length > 0 ||
             wins.length > 0 ||
             (parsed.sourceAudits || []).some((entry) => entry && entry.severity !== "info")
         };
@@ -1733,19 +1777,39 @@ function reconcileBalance(manifest, doc) {
   let openingOffsetLp = 0, openingOffsetSh = 0;
   let incLp = 0, incSh = 0, spLp = 0, spSh = 0;
   const cumulativeBefore = { lp: 0, shards: 0 };
+  let unsafeTotalArithmetic = false;
+  const safeAddTotal = (left, right) => {
+    const value = left + right;
+    if (!Number.isSafeInteger(left) || !Number.isSafeInteger(right) || !Number.isSafeInteger(value)) unsafeTotalArithmetic = true;
+    return value;
+  };
+  const safeSubtractTotal = (left, right) => {
+    const value = left - right;
+    if (!Number.isSafeInteger(left) || !Number.isSafeInteger(right) || !Number.isSafeInteger(value)) unsafeTotalArithmetic = true;
+    return value;
+  };
+  const safeValue = (value) => {
+    const number = Number(value) || 0;
+    if (!Number.isSafeInteger(number)) unsafeTotalArithmetic = true;
+    return number;
+  };
 
   for (const s of scenarios) {
     const memo = String(s.memo || "");
     const income = s.income || {};
     const scenarioSpends = Array.isArray(s.spends) ? s.spends : parseSpends(memo);
+    const incomeLp = safeValue(income.lp);
+    const incomeShards = safeValue(income.shards);
+    const scenarioSpendLp = scenarioSpends.reduce((sum, item) => safeAddTotal(sum, safeValue(item && item.lp)), 0);
+    const scenarioSpendShards = scenarioSpends.reduce((sum, item) => safeAddTotal(sum, safeValue(item && item.shards)), 0);
     const scenarioFlow = {
-      lp: (Number(income.lp) || 0) - scenarioSpends.reduce((sum, item) => sum + (Number(item && item.lp) || 0), 0),
-      shards: (Number(income.shards) || 0) - scenarioSpends.reduce((sum, item) => sum + (Number(item && item.shards) || 0), 0)
+      lp: safeSubtractTotal(incomeLp, scenarioSpendLp),
+      shards: safeSubtractTotal(incomeShards, scenarioSpendShards)
     };
-    incLp += Number(income.lp) || 0;
-    incSh += Number(income.shards) || 0;
-    spLp += scenarioSpends.reduce((sum, item) => sum + (Number(item && item.lp) || 0), 0);
-    spSh += scenarioSpends.reduce((sum, item) => sum + (Number(item && item.shards) || 0), 0);
+    incLp = safeAddTotal(incLp, incomeLp);
+    incSh = safeAddTotal(incSh, incomeShards);
+    spLp = safeAddTotal(spLp, scenarioSpendLp);
+    spSh = safeAddTotal(spSh, scenarioSpendShards);
 
     for (const currency of ["lp", "shards"]) {
       const hasOpening = currency === "lp" ? openingLp !== null : openingSh !== null;
@@ -1758,16 +1822,26 @@ function reconcileBalance(manifest, doc) {
           const prefixFlow = flowOf(prefix, currency);
           if (currency === "lp") {
             openingLp = anchor.value;
-            openingOffsetLp = cumulativeBefore.lp + prefixFlow;
+            openingOffsetLp = safeAddTotal(cumulativeBefore.lp, prefixFlow);
           } else {
             openingSh = anchor.value;
-            openingOffsetSh = cumulativeBefore.shards + prefixFlow;
+            openingOffsetSh = safeAddTotal(cumulativeBefore.shards, prefixFlow);
           }
         }
       }
     }
-    cumulativeBefore.lp += scenarioFlow.lp;
-    cumulativeBefore.shards += scenarioFlow.shards;
+    cumulativeBefore.lp = safeAddTotal(cumulativeBefore.lp, scenarioFlow.lp);
+    cumulativeBefore.shards = safeAddTotal(cumulativeBefore.shards, scenarioFlow.shards);
+  }
+
+  if (unsafeTotalArithmetic) {
+    out.checked = true;
+    out.ok = false;
+    out.computedLp = null;
+    out.computedShards = null;
+    out.unsafeArithmetic = true;
+    out.message = "複数シナリオの合計が安全整数の範囲を超えたため、残高照合を保留しました。入力を確認してください。";
+    return out;
   }
 
   out.openingLp = openingLp;
