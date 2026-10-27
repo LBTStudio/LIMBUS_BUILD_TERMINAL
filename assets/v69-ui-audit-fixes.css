@@ -71,6 +71,10 @@
     text-align: center;
   }
 
+  /* Seven destinations should make two balanced rows instead of leaving only 「その他」
+     on the second row. Larger cells also keep touch labels legible. */
+  .rail { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
   /* Give search a more dependable touch target without taking space from ACTIONS. */
   .topbar { grid-template-columns: 22px 40px minmax(0, 1fr); }
   .topbar .topbar-search {
