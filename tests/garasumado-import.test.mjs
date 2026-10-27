@@ -2719,14 +2719,13 @@ test("サポートスロット解放で現在残高しかない行は、支出�
 
 
 test("全サンプルの支出欄にある残高のみの明細を保持し、残高を収支へ誤計上しない", () => {
-  const amountPattern = /(?:LP|ＬＰ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]|[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片)|(?:欠片|かけら|欠けら|カケラ|欠け片)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]/i;
+  const amountPattern = /(?:(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片)\s*(?:(?:報酬|収入|獲得|入手|支出|支払|消費|購入|変換|補填)\s*)?[：:]?\s*[+＋\-−]?\s*[0-9０-９]|[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片))/i;
   const balanceMarker = /(?:現在|現座|残り|残高)/;
   const currencyMarker = /(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片)/i;
   const explicitAction = /消費|支出|支払|購入|買っ|使用|行使|抽出|ガチャ|獲得|入手|取得|解放|変換|換算|交換/;
   const removeBalances = (raw) => String(raw || "").normalize("NFKC")
-    .replace(/(?:現在|現座)\s*(?:所持|残高|保有)?\s*[:：]?\s*(?:LP|欠片|かけら|欠けら|カケラ|欠け片)?\s*[:：]?\s*-?\d+(?:\s*\+\s*\d+)*(?:\s*(?:LP|欠片|かけら|欠けら|カケラ|欠け片))?(?:\s*[→⇒]\s*-?\d+(?:\s*(?:LP|欠片|かけら|欠けら|カケラ|欠け片))?)?/gi, " ")
-    .replace(/残り\s*(?:LP|欠片|かけら|欠けら|カケラ|欠け片)?\s*[:：]?\s*-?\d+(?:\s*(?:LP|欠片|かけら|欠けら|カケラ|欠け片))?/gi, " ")
-    .replace(/残高\s*(?:LP|欠片|かけら|欠けら|カケラ|欠け片)?\s*[:：]?\s*-?\d+(?:\s*(?:LP|欠片|かけら|欠けら|カケラ|欠け片))?/gi, " ");
+    .replace(/(?:現在|現座|残高|残り)\s*(?:所持|保有)?\s*[:：]?\s*(?:LP|欠片|かけら|欠けら|カケラ|欠け片)?\s*[:：]?\s*-?\d+(?:\s*\+\s*\d+)*(?:\s*(?:LP|欠片|かけら|欠けら|カケラ|欠け片))?(?:\s*[→⇒]\s*-?\d+(?:\s*(?:LP|欠片|かけら|欠けら|カケラ|欠け片))?)?/gi, " ")
+    .replace(/(?:LP|欠片|かけら|欠けら|カケラ|欠け片)\s*(?:現在|現座|残高|残り)\s*[:：]?\s*-?\d+(?:\s*\+\s*\d+)*(?:\s*(?:LP|欠片|かけら|欠けら|カケラ|欠け片))?/gi, " ");
   const isBalanceOnlyLine = (line) => balanceMarker.test(line) && currencyMarker.test(line) &&
     !amountPattern.test(removeBalances(line));
   const splitScenarios = (content) => {
@@ -2813,4 +2812,35 @@ test("全サンプルの支出欄にある残高のみの明細を保持し、�
     "残高行の誤計上・監査漏れ（先頭20件）:\n" +
     issues.slice(0, 20).join("\n") +
     (issues.length > 20 ? "\n……残り" + (issues.length - 20) + "件" : ""));
+});
+
+
+test("残高表記の順序違いと品名中の数字から支出額を捏造しない", () => {
+  const balanceOnlyRows = [
+    "南部センク協会5課フィクサー　現在52LP",
+    "包帯2個、異常震域、空回りの怠惰　現在1077LP",
+    "涙剣CT3介助　現在1524LP",
+    "20区ユロージヴィ団員 LP現在8",
+    "鬼門同期化　残り欠片81"
+  ];
+  for (const line of balanceOnlyRows) {
+    const parsed = MEMO.parseMemo("・支出\n" + line);
+    assert.equal(Number(parsed.income?.lp) || 0, 0, "LP残高を収入にしない: " + line);
+    assert.equal(Number(parsed.income?.shards) || 0, 0, "欠片残高を収入にしない: " + line);
+    assert.equal((parsed.spends || []).reduce((sum, row) => sum + (Number(row.lp) || 0) + (Number(row.shards) || 0), 0),
+      0, "品名の5課・2個・CT3などを費用にしない: " + line);
+    const coverage = (parsed.financialCoverage || []).find((row) => row && row.line === line);
+    assert.ok(coverage, "支出欄の残高行にcoverageを残す: " + line);
+    assert.equal(coverage.status, "reviewed-by-parser-reason", "金額不明は要確認状態: " + line);
+    assert.ok((parsed.reasons || []).some((row) => String(row.line || "").trim() === line.trim()),
+      "要確認理由を原文へ紐付ける: " + line);
+  }
+
+  const purchase = MEMO.parseMemo("・支出\n南部ディエーチ協会4課フィクサーの人格+知識探求購入：現在123LP");
+  assert.equal(purchase.spends[0]?.lp || 0, 0, "購入語があっても現在123LPを費用にしない");
+  assert.ok(purchase.reasons.some((row) => /支出金額が読み取れない/.test(row.reason)),
+    "購入品名にある4課を支出額として採らず要確認にする");
+
+  const mixed = MEMO.parseMemo("LP報酬 49　現在93LP");
+  assert.equal(mixed.income.lp, 49, "現在残高を除外して明示されたLP報酬49は保持する");
 });
