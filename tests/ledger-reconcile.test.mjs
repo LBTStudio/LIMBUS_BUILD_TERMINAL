@@ -113,6 +113,19 @@ test("非数値の収入は支出導出に使わず、有効な現在残高は�
 
 
 
+test("全角の通貨金額・全角カンマを台帳照合へ正規化する", () => {
+  const parsed = C.reconcileResults([
+    { title: "全角入力", income: { lp: "１，２００", shards: "４０" }, current: { lp: "１，２５０", shards: "５０" } }
+  ]);
+  assert.equal(parsed[0].income.lp, 1200);
+  assert.equal(parsed[0].income.shards, 40);
+  assert.equal(parsed[0].current.lp, 1250);
+  assert.equal(parsed[0].current.shards, 50);
+  assert.equal(parsed[0].current.lp - parsed[0].income.lp, 50, "LPの差分は50として扱う");
+  assert.equal(parsed[0].current.shards - parsed[0].income.shards, 10, "欠片の差分も正確に保持");
+  assert.ok(!parsed[0].flags.some((flag) => flag.code === "no-current" && flag.currency === "lp"));
+});
+
 test("金額の安全整数上限を超える収入・残高は不正として扱う", () => {
   const safe = C.reconcileResults([
     { title: "安全上限", income: { lp: "9,007,199,254,740,991" }, current: { lp: "9,007,199,254,740,991" } }
