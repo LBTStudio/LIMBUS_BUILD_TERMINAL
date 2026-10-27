@@ -2547,3 +2547,9 @@ body.has-detail-dialog main.preview { overflow: hidden; }
 }
 .import-scope-close:hover { color: var(--gold); border-color: var(--gold-line); background: var(--surface-3); }
 .import-scope-close:focus-visible { outline: 2px solid var(--gold-hi); outline-offset: 2px; }
+
+
+/* Legacy app-level PREVIEW tab duplicates LivePreview's edge toggle on phones. */
+@media (max-width: 640px) {
+  .app.preview-collapsed .preview-reopen { display: none; }
+}
