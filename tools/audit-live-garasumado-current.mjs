@@ -215,6 +215,18 @@ async function inspect(id) {
       sourceAuditSeverityCounts[severity] = (sourceAuditSeverityCounts[severity] || 0) + 1;
     }
     const currencyDiscrepancyCount = Array.isArray(parsed.currencyDiscrepancies) ? parsed.currencyDiscrepancies.length : 0;
+    const coverageFindings = coverage.filter((item) => ["mismatch", "direction-review", "unresolved"].includes(String(item?.status || ""))).map((item) => ({
+      lineIndex: item.lineIndex,
+      status: item.status,
+      section: item.section,
+      expected: item.expected,
+      detected: item.detected,
+      expectedFlows: item.expectedFlows,
+      detectedFlows: item.detectedFlows,
+      parserReasonCount: item.parserReasonCount,
+      sourceFinding: Boolean(item.sourceFinding),
+      sourceAuditCodes: sourceAudits.filter((entry) => entry && (entry.lineIndex === item.lineIndex || entry.relatedLineIndex === item.lineIndex)).map((entry) => String(entry.code || "unknown"))
+    }));
     const rowResult = {
       index: index + 1,
       sourceTitle: String(row?.name || "無題"),
@@ -241,7 +253,8 @@ async function inspect(id) {
       financialCoverageStatusCounts: coverageStatusCounts,
       sourceAuditCount: sourceAudits.length,
       sourceAuditSeverityCounts,
-      currencyDiscrepancyCount
+      currencyDiscrepancyCount,
+      coverageFindings
     };
     rowResult.amountsChanged = rowResult.incomeLp !== rowResult.baselineIncomeLp
       || rowResult.incomeShards !== rowResult.baselineIncomeShards
@@ -420,6 +433,7 @@ const safeDocumentSummaries = successes.map((doc) => ({
     reasons: row.reviewKinds,
     baselineReasons: row.baselineReviewKinds
   })),
+  coverageFindings: doc.rows.flatMap((row) => (row.coverageFindings || []).map((finding) => ({ scenarioRow: row.index, ...finding }))),
   reviewRows: doc.rows.filter((row) => row.reviewCount > 0).map((row) => ({
     row: row.index,
     reviewKinds: row.reviewKinds,
