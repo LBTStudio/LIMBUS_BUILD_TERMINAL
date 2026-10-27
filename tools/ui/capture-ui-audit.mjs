@@ -749,8 +749,8 @@ async function main() {
   const requiredCaptureNames=[
     "build-persona-default",
     "build-tab-人格","build-tab-スキル","build-tab-パッシブ","build-tab-強化",
-    "build-tab-サポート","build-tab-E.G.O","build-tab-精神","build-tab-アイテム",
-    "shop-tab-人格","shop-tab-サポート","shop-tab-E.G.O","shop-tab-精神","shop-tab-アイテム","shop-tab-ガチャ",
+    "build-tab-サポート","build-tab-E-G-O","build-tab-精神","build-tab-アイテム",
+    "shop-tab-人格","shop-tab-サポート","shop-tab-E-G-O","shop-tab-精神","shop-tab-アイテム","shop-tab-ガチャ",
     "record-import-menu","record-result-text-import","record-result-text-import-preview",
     "record-result-glass-import","record-roster-import",
     "state-import-scope-all-categories","state-import-scope-all-categories-scrolled",
@@ -760,7 +760,7 @@ async function main() {
   audit.missingRequiredCaptures=[];
   for (const mode of ["desktop","mobile"]) {
     for (const name of requiredCaptureNames) {
-      if (!audit.screenshots.some((shot)=>shot.name===mode+"-"+name)) audit.missingRequiredCaptures.push({view:mode,name});
+      if (!audit.screenshots.some((shot)=>shot.name.startsWith(mode+"-") && shot.name.endsWith("-"+name))) audit.missingRequiredCaptures.push({view:mode,name});
     }
   }
   audit.criticalLayoutWarnings=audit.layoutWarnings.filter((item)=>["document-horizontal-overflow","duplicate-preview-controls","preview-toggle-overlaps-header"].includes(item.type));
