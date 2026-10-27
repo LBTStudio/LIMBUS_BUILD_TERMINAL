@@ -140,3 +140,27 @@
     white-space: normal;
   }
 }
+
+
+/* Keep account creation as a focused, fully operable step. The optional cloud
+   recovery panel should not compete with the create/save actions while a form
+   is open; it returns when the form is cancelled or submitted. */
+.acct-gate-panel:has(.acct-card--form) > .lbt-cloud-panel {
+  display: none;
+}
+
+/* The form content must keep its intrinsic height instead of collapsing inside
+   the gate's bounded grid row. On very short screens the grid can scroll, but
+   the primary actions remain part of the form rather than being clipped. */
+.acct-gate-panel:has(.acct-card--form) > .acct-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  align-content: start;
+}
+
+.acct-gate-panel:has(.acct-card--form) .acct-card--form {
+  min-height: max-content;
+  align-self: start;
+}
