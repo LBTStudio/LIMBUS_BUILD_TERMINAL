@@ -602,6 +602,10 @@
 
 /* 2026-10-27: responsive review fixes from real 390px UI captures. */
 @media (max-width: 640px) {
+  /* Preview is now in the bottom navigation, so reclaim the 48px reserved for
+     the old floating tab. This prevents a single trailing Japanese glyph. */
+  .section-title-row { padding-right: 0; }
+
   /* The fixed vertical preview tab used to cover the section heading and tabs.
      Reuse the empty right side of the second bottom-navigation row instead. */
   #lbt-preview-edge-toggle.preview-edge-toggle {
