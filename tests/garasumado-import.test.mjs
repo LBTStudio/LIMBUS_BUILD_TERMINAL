@@ -98,6 +98,37 @@ test("検出漏れ監査は元記録側と別の parser-side 判定を返し、�
 });
 
 
+
+test("結果カード用 draft は元記録の監査結果を引き継ぐ", () => {
+  const manifest = {
+    scenarios: [{
+      key: "scenario:0",
+      name: "計算矛盾のみ",
+      memo: "欠片50×3=149欠片",
+      income: { lp: 0, shards: 0 },
+      tickets: { persona: 0, ego: 0, choice: 0 },
+      reasons: [],
+      currencyDiscrepancies: [],
+      sourceAudits: [{
+        side: "source-data",
+        code: "source-arithmetic-mismatch",
+        severity: "warning",
+        lineIndex: 1,
+        line: "欠片50×3=149欠片",
+        message: "計算矛盾を確認してください"
+      }]
+    }],
+    groups: []
+  };
+  const draft = G.buildResultDraft(manifest, {});
+  assert.equal(draft.blocks.length, 1, "警告だけのシナリオもカード候補として残す");
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(draft.blocks[0].sourceAudits)),
+    JSON.parse(JSON.stringify(manifest.scenarios[0].sourceAudits)),
+    "監査警告は manifest → draft block で欠落・改変しない"
+  );
+});
+
 test("警告だけがあるシナリオも監査カードに残す", () => {
   const M = loadImportWithMemo();
   const doc = {
