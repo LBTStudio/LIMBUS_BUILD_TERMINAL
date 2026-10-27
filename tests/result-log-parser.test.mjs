@@ -84,12 +84,93 @@ test("通貨の識別: 全実データで外さない（ゲート）", () => {
   assert.equal(ok, total, "通貨識別 " + ok + "/" + total);
 });
 
-test("収支の識別: 「現在」は支払後なので支出", () => {
-  assert.equal(P.classifyFlow("南部センク協会5課フィクサー　現在52LP", false).flow, "spend");
-  assert.equal(P.classifyFlow("LP：153　現在187", false).flow, "spend", "現在があれば支出扱い");
+test("収支の識別: 報酬額・支出明細・残高アンカーを区別する", () => {
+  assert.equal(P.classifyFlow("南部センク協会5課フィクサー　現在52LP", false).flow, "spend",
+    "購入・獲得額ではなく所持品名の後ろにある現在残高は支出候補");
+  assert.equal(P.classifyFlow("LP：153　現在187", false).flow, "gain",
+    "報酬額から現在残高を記した行は収入");
+  assert.equal(P.classifyFlow("80LP　現在127", false).flow, "gain");
+  assert.equal(P.classifyFlow("刺し貫く貫通購入：現在130LP", false).flow, "spend");
+  assert.equal(P.classifyFlow("現在230LP", false).flow, "balance", "残高だけの行は支出にしない");
   assert.equal(P.classifyFlow("・支出", false).flow, "spend-head");
+  assert.equal(P.classifyFlow("・現在", false).flow, "balance-head");
   assert.equal(P.classifyFlow("人格抽出チケット", true).flow, "spend", "支出節の中は支出");
   assert.equal(P.classifyFlow("80LP", false).flow, "gain");
+  assert.equal(P.classifyFlow("LPを欠片に変換：+11欠片 -22LP", false).flow, "review",
+    "複数通貨に正負が混在する行を一方向に断定しない");
+});
+
+test("全リザルトログを行単位監査し、収入・残高・支出節を取り違えない", () => {
+  const sourceSessions = P.splitSessions(corpus.log);
+  const parsedSessions = P.parseResultLog(corpus.log).sessions;
+  assert.ok(sourceSessions.length >= 125, "少なくとも125区分の実ログを分割できる（実際 " + sourceSessions.length + "）");
+  assert.equal(parsedSessions.length, sourceSessions.length, "分割した全区分の出力が保持される");
+
+  let auditedCurrencyRows = 0;
+  let rewardBalanceRows = 0;
+  let explicitBalanceRows = 0;
+  let spendSectionRows = 0;
+  let mixedDirectionRows = 0;
+  const failures = [];
+
+  for (let sessionIndex = 0; sessionIndex < sourceSessions.length; sessionIndex++) {
+    const source = sourceSessions[sessionIndex];
+    const parsed = parsedSessions[sessionIndex];
+    let inSpend = false;
+    let inBalance = false;
+    for (const rawLine of source.lines) {
+      const line = P.canonical(rawLine);
+      if (!line) continue;
+      const wasInSpend = inSpend;
+      const expected = P.classifyFlow(rawLine, inSpend, inBalance);
+      inSpend = expected.inSpend;
+      inBalance = expected.inBalance;
+
+      if (["spend-head", "balance-head", "gain-head"].includes(expected.flow)) {
+        if ((parsed.records || []).some((record) => record.kind === "registration" && record.text === line)) {
+          failures.push(source.title + ": 節見出しが登録候補として出力: " + line);
+        }
+        continue;
+      }
+
+      const detected = P.detectAmount(line);
+      if (!detected.currency) continue;
+      auditedCurrencyRows++;
+      const found = (parsed.records || []).find((record) =>
+        record.text === line && (record.kind === "currency" || record.kind === "balance")
+      );
+      if (!found) {
+        failures.push(source.title + ": 通貨行が出力から欠落: " + line);
+        continue;
+      }
+      if (found.flow !== expected.flow) {
+        failures.push(source.title + ": 収支方向不一致 (" + expected.flow + "/" + found.flow + "): " + line);
+      }
+      if (expected.flow === "balance") {
+        explicitBalanceRows++;
+        if (found.kind !== "balance" || found.needsAmount !== false) {
+          failures.push(source.title + ": 残高アンカーが取引額として出力: " + line);
+        }
+      }
+      if (wasInSpend && expected.flow === "spend") spendSectionRows++;
+      if (!wasInSpend && /現在/.test(line) &&
+          /^(?:(?:LP|ＬＰ|(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片))\s*[:：]?\s*[+＋-−]?\s*\d|[+＋-−]?\s*\d[\d,]*(?:\s*[+＋]\s*\d[\d,]*)*\s*(?:LP|ＬＰ|(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片)))/i.test(line.split("現在")[0].trim())) {
+        rewardBalanceRows++;
+        if (expected.flow !== "gain") failures.push(source.title + ": 報酬額＋現在残高行を収入として保持できない: " + line);
+      }
+      if (expected.flow === "review") {
+        mixedDirectionRows++;
+        if (!found.needsReview) failures.push(source.title + ": 混合方向行に要確認フラグが無い: " + line);
+      }
+    }
+  }
+
+  assert.ok(auditedCurrencyRows > 400, "通貨候補行を十分に監査（実際 " + auditedCurrencyRows + " 行）");
+  assert.ok(rewardBalanceRows > 100, "報酬額＋残高形式の大量サンプルを監査（実際 " + rewardBalanceRows + " 行）");
+  assert.ok(explicitBalanceRows > 0, "残高アンカーも取引額と分離する");
+  assert.ok(spendSectionRows > 0, "支出節の明細を支出として残す");
+  assert.ok(mixedDirectionRows > 0, "正負混在の通貨変換を要確認にする");
+  assert.deepEqual(failures.slice(0, 12), [], "コーパスの監査不一致（先頭12件）:\\n" + failures.slice(0, 12).join("\\n"));
 });
 
 /* --- 表記ゆらぎ ------------------------------------------------------- */
