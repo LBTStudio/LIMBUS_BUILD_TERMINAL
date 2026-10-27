@@ -3460,7 +3460,7 @@ if (typeof window !== "undefined") window.LBT_libraryTabLabel = libraryTabLabel;
   const onLibrary = !["ledger", "inventory"].includes(libraryTab);
   return h("div", { className: "stack-3" },
     h(Card, { className: "record-tabbar" + (onLibrary ? "" : " is-bodyless") },
-      h("div", { className: "card-header owned-library-bar", style: { alignItems: "center", flexWrap: "wrap", gap: "var(--s-2)" } }, h("span", { className: "t-label" }, "CHARACTER RECORD / 記録"),       h("div", { className: "segmented", role: "tablist", "aria-label": "記録セクションの種別", style: { marginLeft: "auto" } },
+      h("div", { className: "card-header owned-library-bar", style: { alignItems: "center", flexWrap: "wrap", gap: "var(--s-2)" } }, h("span", { className: "t-label" }, "CHARACTER RECORD / 記録"),       h("div", { className: "segmented record-section-tabs", role: "tablist", "aria-label": "記録セクションの種別" },
         h("button", { type: "button", role: "tab", "aria-selected": libraryTab === "ledger", className: libraryTab === "ledger" ? "is-active" : "", onClick: () => setLibraryTab("ledger") }, "リザルト"),
         h("button", { type: "button", role: "tab", "aria-selected": libraryTab === "personas", className: libraryTab === "personas" ? "is-active" : "", onClick: () => { setSortBy((prev) => reconcileRosterSortWithTab(prev, "personas")); setLibraryTab("personas"); } }, "人格"),
         h("button", { type: "button", role: "tab", "aria-selected": libraryTab === "egos", className: libraryTab === "egos" ? "is-active" : "", onClick: () => { setSortBy((prev) => reconcileRosterSortWithTab(prev, "egos")); setLibraryTab("egos"); } }, "E.G.O"),
