@@ -651,3 +651,20 @@
     gap: 4px;
   }
 }
+
+
+/* First-run account creation: expand the inline form across the available grid.
+   At desktop widths the default multi-column card grid made the form unnecessarily
+   narrow, pushing the primary "create" action below its visible scroll area. */
+.acct-gate-panel .acct-grid:has(.acct-card--form) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.acct-gate-panel .acct-grid:has(.acct-card--form) > .acct-card--form {
+  width: 100%;
+  min-width: 0;
+}
+
+.acct-gate-panel .acct-grid:has(.acct-card--form) .acct-form-actions {
+  margin-top: var(--s-2);
+}
