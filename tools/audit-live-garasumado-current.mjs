@@ -136,6 +136,11 @@ const classifyReason = (reason) => {
   if (/変換行|換算行/.test(text)) return "conversion-review";
   return "other-review";
 };
+
+// A privacy-preserving lexical view used only to diagnose unflagged money-token rows.
+// It deliberately omits item, character, player, and scenario names.
+const safeFinancialShapeTokens = /(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ|けっか|E\\.?G\\.?O|エゴ|人格|チケット|チケ|抽出|ガチャ|報酬|収入|獲得|入手|取得|付与|支給|補填|受領|被り|重複|消費|支出|支払|購入|買っ|使用|行使|変換|換算|現在|現座|残高|所持|保有|残り|以下|以上|以内|未満|条件|達成|未達|使用済|消費済|購入済|クリア|撤退|の|を|が|は|で|に|と|又は|または|あるいは|結果|：|:|→|⇒|=|＝|\\d[\\d,]*(?:\\.\\d+)?|[+＋\\-−])/gi;
+const safeFinancialShape = (line) => (String(line || "").match(safeFinancialShapeTokens) || []).join(" ").slice(0, 240);
 const fieldOf = (currency, kind) => (kind === "income" ? (currency === "lp" ? "incomeLp" : "incomeShards")
   : kind === "spend" ? (currency === "lp" ? "spendLp" : "spendShards")
     : (currency === "lp" ? "netLp" : "netShards"));
@@ -172,7 +177,7 @@ function scanUnwarnedCurrencyLines(history, parsedRows, docId) {
         if (altOrCondition.test(line) || !clearReward.test(line)) {
           out.push({
             id: docId, row: index + 1, title: String(row?.name || "無題"),
-            currency, amounts: matches, line
+            currency, amounts: matches, line, shape: safeFinancialShape(line)
           });
         }
       }
@@ -478,7 +483,7 @@ const safeAudit = {
     currencyDiscrepancyCount: successes.reduce((n, doc) => n + doc.financialCoverage.currencyDiscrepancyCount, 0)
   },
   unwarnedCurrencyLineCount: allUnwarnedCurrencyLines.length,
-  unwarnedCurrencyRefs: allUnwarnedCurrencyLines.map((row) => ({ id: row.id, scenarioRow: row.row, currency: row.currency, tokenCount: row.amounts.length })),
+  unwarnedCurrencyRefs: allUnwarnedCurrencyLines.map((row) => ({ id: row.id, scenarioRow: row.row, currency: row.currency, tokenCount: row.amounts.length, shape: row.shape })),
   documents: safeDocumentSummaries
 };
 console.log("GARASUMADO_LIVE_AUDIT_BEGIN");
