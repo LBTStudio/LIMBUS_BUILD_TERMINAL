@@ -104,7 +104,7 @@ test("警告だけがあるシナリオも監査カードに残す", () => {
     owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
     scenarioHistory: [{ name: "計算矛盾だけの記録", memo: "欠片50×3=149欠片" }]
   };
-  const parsedHistory = M.parseScenarioHistory(doc.scenarioHistory);
+  const parsedHistory = MEMO.parseScenarioHistory(doc.scenarioHistory);
   assert.equal(parsedHistory[0].hasData, true, "通常の収入が0でも重大な元記録監査があれば表示対象");
   assert.ok(parsedHistory[0].sourceAudits.some((entry) => entry.code === "source-arithmetic-mismatch"));
   const manifest = M.buildManifest(doc, null);
