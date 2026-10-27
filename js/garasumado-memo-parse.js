@@ -1892,7 +1892,28 @@
            本体処理で作られた「支出額が読み取れない」等の理由へ紐付ける。 */
         const hasCurrentBalanceAction = /(?:現在|現座|残り|残高)/.test(sourceLine) &&
           /消費|支出|支払|購入|買っ|使用|行使|抽出|ガチャ|獲得|入手|取得/.test(sourceLine);
-        const hasFinancialAction = hasTicketEvent || hasRosterGainEvent || hasGachaResult || hasCurrentBalanceAction ||
+        /* 支出欄の金額らしい末尾数値に通貨単位が無い場合、LP と決め打ちしない。
+           result-log-corpus の「東部親指ソルダードII 87」等は支出項目なのは明らかでも、
+           元記録から通貨を確定できない。帳簿には加算せず、要確認として結果へ残す。 */
+        const hasUnqualifiedSpendAmount = auditModeBefore === "spend" &&
+          !(expected.lp || expected.shards) &&
+          /(?:^|\\s)[+\\-−]?\\d[\\d,]*\\s*$/.test(normalizeAmountText(sourceLine)) &&
+          !/(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|けっか|欠け片|チケット|d\\d)/i.test(sourceLine) &&
+          /[^\\d\\s]+/.test(normalizeAmountText(sourceLine));
+        if (hasUnqualifiedSpendAmount) {
+          reasons.push({
+            line: sourceLine,
+            reason: "支出欄の行末に金額らしい数値がありますが、通貨単位が省略されているため自動計上せず要確認"
+          });
+          sourceAudits.push({
+            side: "parser", code: "unqualified-spend-currency", severity: "review",
+            lineIndex: i + 1, line: sourceLine, section: auditModeBefore,
+            expected: { lp: 0, shards: 0 }, detected: { lp: 0, shards: 0 },
+            message: "支出欄の行末に金額らしい数値がありますが、LP/欠片などの単位がないため通貨を推測せず計上を保留しました。"
+          });
+        }
+        const hasFinancialAction = hasTicketEvent || hasRosterGainEvent || hasGachaResult ||
+          hasCurrentBalanceAction || hasUnqualifiedSpendAmount ||
           ((expected.lp || expected.shards || directMoneyRow) &&
             /報酬|収入|獲得|入手|取得|付与|支給|補填|受領|被り|重複|消費|使用|支払|支出|購入|買っ|抽出|ガチャ|変換|換算/.test(sourceLine));
         if (auditModeBefore !== "current" && (directMoneyRow || hasFinancialAction || hasSourceFinding) &&
@@ -1918,7 +1939,7 @@
           let status = "matched";
           let coverageFinding = null;
           const moneyBearing = expected.lp > 0 || expected.shards > 0;
-          if (skippedForSourceAudit || hasSourceFinding) {
+          if (skippedForSourceAudit || hasSourceFinding || hasUnqualifiedSpendAmount) {
             status = "source-reviewed";
           } else if (moneyBearing) {
             if (moneyReviewReason) {
