@@ -1522,6 +1522,10 @@ function toIdentityChoices(hits) {
       income: scenario.income || { lp: 0, shards: 0 },
       tickets: scenario.tickets || {},
       reasons: Array.isArray(scenario.reasons) ? scenario.reasons : [],
+      /* 監査結果を画面の ResultCard まで必ず引き継ぐ。
+         manifest に存在するだけでは、利用者が警告を見られる保証にならない。 */
+      sourceAudits: Array.isArray(scenario.sourceAudits) ? scenario.sourceAudits : [],
+      currencyDiscrepancies: Array.isArray(scenario.currencyDiscrepancies) ? scenario.currencyDiscrepancies : [],
       items: []
     }));
     const blockOfName = new Map();
