@@ -1225,7 +1225,7 @@
         ticketSpends: ticketSpends.length
       };
       var auditModeBefore = mode;
-      var supportSlotUnlockReviewed = false;
+      var preReviewedBalanceRow = false;
       try {
       var typoCurrentMarker = /現座(?=\s*(?:(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|けっか)\s*)?[0-9０-９])/i.test(sourceLine);
       var line = typoCurrentMarker ? sourceLine.replace(/現座/g, "現在") : sourceLine;
@@ -1256,7 +1256,30 @@
           detectedFlows: { lpIncome: 0, lpSpend: 0, lpUnknown: 0, shardsIncome: 0, shardsSpend: 0, shardsUnknown: 0 },
           parserReasonCount: 1, sourceFinding: false
         });
-        supportSlotUnlockReviewed = true;
+        preReviewedBalanceRow = true;
+      }
+      /* 支出見出し配下で品名＋現在残高だけが書かれた行を、静かに捨てない。
+         「現在52LP」の52は残額であり、支出額に転用しない。動詞つきの行は
+         下の通常パーサーが費用未確定の明細を作るため、ここでは重複させない。 */
+      var balanceOnlySpendRow = auditModeBefore === "spend" &&
+        /(?:現在|現座|残り|残高)/.test(line) &&
+        /(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片)/i.test(line) &&
+        amountNear(line, "lp", false) == null && amountNear(line, "shards", false) == null &&
+        !/(?:消費|支出|支払|購入|買っ|使用|行使|抽出|ガチャ|獲得|入手|取得|解放|変換|換算)/.test(line);
+      if (balanceOnlySpendRow && !preReviewedBalanceRow) {
+        reasons.push({
+          line: sourceLine,
+          reason: "支出欄に通貨の現在残高だけが記録されており、支出額を特定できないため未計上です。支出額または支払前後の残高を確認してください"
+        });
+        financialCoverage.push({
+          lineIndex: i + 1, line: sourceLine, section: auditModeBefore,
+          status: "reviewed-by-parser-reason",
+          expected: { lp: 0, shards: 0 }, detected: { lp: 0, shards: 0 },
+          expectedFlows: auditMoneyFlowsOfLine(sourceLine, auditModeBefore),
+          detectedFlows: { lpIncome: 0, lpSpend: 0, lpUnknown: 0, shardsIncome: 0, shardsSpend: 0, shardsUnknown: 0 },
+          parserReasonCount: 1, sourceFinding: false
+        });
+        preReviewedBalanceRow = true;
       }
       var prev = prevLine;
       prevLine = line;
@@ -1864,10 +1887,10 @@
         var isRemainderOnly = !hasVerb && !endsToHe;
 
         if (isRemainderOnly) {
-          /* 残額だけの行。通貨名が無ければ純粋な残WRITE。
-             通貨名があれば「130LP を使った」という読みできるので、
-             金額として拾う（Foobar　現在130LP → LP 130）。 */
-          if (!/(LP|欠片|かけら|欠けら|カケラ)/i.test(normalizeAmountText(line))) continue;
+          /* 残額だけの行は支出額ではない。通貨名が無い行は完全に無関係なので
+             ここで抜ける。通貨名がある行も後段で金額なしとしてスキップし、
+             支出見出し内ならループ冒頭で要確認coverageを保持している。 */
+          if (!/(LP|欠片|かけら|欠けら|カケラ|欠け片)/i.test(normalizeAmountText(line))) continue;
         }
 
         /* 両通貨が 1 行に並ぶことがある:
@@ -1918,7 +1941,7 @@
         const hasFinancialAction = hasTicketEvent || hasRosterGainEvent || hasGachaResult || hasCurrentBalanceAction ||
           ((expected.lp || expected.shards || directMoneyRow) &&
             /報酬|収入|獲得|入手|取得|付与|支給|補填|受領|被り|重複|消費|使用|支払|支出|購入|買っ|抽出|ガチャ|変換|換算|解放/.test(sourceLine));
-        if (!supportSlotUnlockReviewed && auditModeBefore !== "current" && (directMoneyRow || hasFinancialAction || hasSourceFinding) &&
+        if (!preReviewedBalanceRow && auditModeBefore !== "current" && (directMoneyRow || hasFinancialAction || hasSourceFinding) &&
             (expected.lp || expected.shards || hasFinancialAction || hasSourceFinding)) {
           const newSpends = spends.slice(auditBefore.spends);
           const detectedFlows = {
