@@ -770,7 +770,8 @@ function toIdentityChoices(hits) {
             (parsed.spends || []).length > 0 ||
             (parsed.ticketSpends || []).length > 0 ||
             (parsed.reasons || []).length > 0 ||
-            wins.length > 0
+            wins.length > 0 ||
+            (parsed.sourceAudits || []).some((entry) => entry && entry.severity !== "info")
         };
       });
 
