@@ -19,7 +19,7 @@ test("初回アカウント作成フォームは細いカードに潰れず、�
   assert.match(css, /\.acct-gate-panel:has\(> \.acct-grid > \.acct-card--form\) > \.lbt-cloud-panel\s*\{\s*display:\s*none;/);
   const audit = read("../tools/ui/capture-ui-audit.mjs");
   assert.match(audit, /\.acct-gate \.acct-form-actions button/);
-  assert.match(audit, /state:\s*"hidden",\s*timeout:\s*10000/);
+  assert.match(audit, /state:\s*"hidden",\s*timeout:\s*12000/);
 });
 
 test("プレビュー格納時に旧PREVIEWタブを表示せず、操作を1か所に統一する", () => {
