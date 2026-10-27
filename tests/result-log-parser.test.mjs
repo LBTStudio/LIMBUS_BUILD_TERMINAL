@@ -54,6 +54,13 @@ test("硝子の破片は LP・欠片通貨に誤分類せず、登録候補と�
   assert.ok(records.some((record) => record.kind === "registration" && record.text.includes("硝子の破片")));
 });
 
+test("欠け片の表記ゆれを通貨として読み、硝子・硝酸のアイテム名は除外する", () => {
+  assert.equal(P.classifyCurrency("欠け片25 現在40"), "shards");
+  assert.equal(P.classifyCurrency("25欠け片 現在40欠け片"), "shards");
+  assert.equal(P.classifyCurrency("硝子の欠け片 x2"), null);
+  assert.equal(P.classifyCurrency("硝酸の欠片 x1"), null);
+});
+
 test("通貨の識別: 全実データで外さない（ゲート）", () => {
   let total = 0;
   let ok = 0;
