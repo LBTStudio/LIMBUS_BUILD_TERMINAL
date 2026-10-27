@@ -26,7 +26,7 @@ jobs:
       - name: Install Playwright
         run: npm install --no-save playwright@1.64.0
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
       - name: Capture screens, dialogs, menus, hover and focus states
         run: node tools/ui/capture-ui-audit.mjs
       - name: Upload UI audit screenshots and diagnostics
