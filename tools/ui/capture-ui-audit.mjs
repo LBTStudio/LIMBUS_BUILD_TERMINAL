@@ -385,10 +385,22 @@ async function boot() {
     await page.reload({waitUntil:"domcontentloaded"});
     await page.waitForLoadState("networkidle",{timeout:12000}).catch(()=>{});
     await page.waitForTimeout(600);
+    await page.waitForFunction(() => document.querySelector(".acct-gate") || document.querySelector(".rail-item"), null, { timeout: 12000 });
     if(await visible(page.locator(".acct-gate"))) {
-      const card=page.locator(".acct-card-hit").filter({hasText:"UI監査用キャラクター"}).first();
+      // The account name belongs to the card container, not the transparent hit button.
+      // Filtering the button by text silently misses the exact target and can leave
+      // the gate up after reloading the seeded account.
+      const card=page.locator(".acct-card--gate").filter({hasText:"UI監査用キャラクター"}).first().locator(".acct-card-hit").first();
       if(await visible(card)) await click(card);
-      else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
+      else if(await visible(page.locator(".acct-card--gate .acct-card-hit").first())) await click(page.locator(".acct-card--gate .acct-card-hit").first());
+      await page.waitForFunction(() => !document.querySelector(".acct-gate") && document.querySelector(".rail-item"), null, { timeout: 12000 }).catch(async () => {
+        const diagnostic = await page.evaluate(() => ({
+          gate: !!document.querySelector(".acct-gate"),
+          accountId: window.LBT_accounts?.getActiveId?.() || null,
+          bodyText: (document.body.innerText || "").replace(/\\s+/g," ").slice(0,700)
+        }));
+        throw new Error("seed後のアカウント選択を完了できません: " + JSON.stringify(diagnostic));
+      });
     }
     await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
   }
