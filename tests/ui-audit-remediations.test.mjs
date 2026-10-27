@@ -11,6 +11,10 @@ test("保存データ読み込みダイアログは利用可能カテゴリを�
   assert.match(app, /IMPORT_GROUPS\.filter\(\(g\) => g\.fields\.some\(\(f\) => f in importData\)\)\.map/);
   assert.match(app, /import-scope-empty-details/);
   assert.match(app, /aria-modal": "true", "aria-labelledby": "import-scope-title"/);
+  assert.match(app, /className: "import-scope-close"[\s\S]*?onClick: \(\) => setImportData\(null\)/);
+  assert.match(app, /if \(event.key === "Escape"\)[\s\S]*?setImportData\(null\)/);
+  assert.match(app, /if \(event.shiftKey && \(document.activeElement === first \|\| document.activeElement === dialog\)\)/);
+  assert.match(app, /document.addEventListener\("keydown", onKeyDown, true\)/);
 });
 
 test("保存データ読み込みダイアログは選択リストのみスクロールし、操作ボタンを常に表示する", () => {
