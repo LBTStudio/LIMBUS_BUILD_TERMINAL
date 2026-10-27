@@ -292,7 +292,7 @@ async function seed() {
       spiritConfuse: spirits[0]?.confuse_effect || "",
       spiritAlways: spirits[0]?.always_effect || "",
       skillLibrary: [],
-      favorites: [{ key: mode + ":" + p.no, kind: "persona", mode, no: p.no }],
+      favorites: [mode + ":" + p.no],
       historyRecent: [],
       results: [{
         id: "ui-audit-result-1", name: "UI監査用セッション", date: "2026-10-01",
@@ -381,11 +381,13 @@ async function boot() {
   const seeded=await seed().catch(e=>({ok:false,reason:String(e)}));
   audit.seed=seeded;
   if(seeded&&seeded.ok) {
-    // The sample is saved only inside this disposable Playwright context. Keep the
-    // already-mounted UI state for capture; reloading/reducing the full fixture would
-    // intentionally reopen SINNER SELECT and can make this UI tour state-dependent.
-    audit.seedRefresh={ok:true,mode:"stored-in-disposable-context-only"};
-    log("seed stored in disposable context; continuing with mounted UI state");
+    // Hydrate React from the saved fixture without a page reload. The normal app event
+    // keeps the disposable account active and makes the populated UI available to captures.
+    const activeId=seeded.accountId||await page.evaluate(()=>window.LBT_accounts?.getActiveId?.()||null);
+    if(activeId) await page.evaluate((id)=>window.dispatchEvent(new CustomEvent("lbt:accounts-entered",{detail:{id}})),activeId);
+    await page.waitForTimeout(350);
+    audit.seedRefresh={ok:true,mode:"react-state-reload-without-page-reload",accountId:activeId};
+    log("seed rehydrated through app event; current UI is populated for capture");
   }
   await page.waitForTimeout(350);
 }
