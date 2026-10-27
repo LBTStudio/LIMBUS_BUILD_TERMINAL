@@ -357,6 +357,25 @@ async function boot() {
       }
     } else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
   }
+  // Allow the normal UI transition to settle. If a headless-browser click leaves
+  // the startup gate mounted (the captured gate/create screens are still valid),
+  // use the app's own account API and entered event to unlock this disposable profile.
+  await page.waitForTimeout(500);
+  if (!(await visible(page.locator(".rail-item").first()))) {
+    const entered = await page.evaluate(() => {
+      const A = window.LBT_accounts;
+      if (!A?.list || !A?.switch) return { ok: false, reason: "account API unavailable" };
+      const listed = A.list();
+      const accounts = Array.isArray(listed) ? listed : (Array.isArray(listed?.accounts) ? listed.accounts : []);
+      let entry = accounts.find((item) => item && item.name === "UI監査用キャラクター");
+      if (!entry) entry = A.create?.("UI監査用キャラクター", "Playwright QA");
+      if (!entry?.id || !A.switch(entry.id)) return { ok: false, reason: "could not activate disposable audit account" };
+      window.dispatchEvent(new CustomEvent("lbt:accounts-entered", { detail: { id: entry.id } }));
+      return { ok: true, id: entry.id };
+    }).catch((error) => ({ ok: false, reason: String(error) }));
+    audit.accountEntryFallback = entered;
+    if (!entered.ok) throw new Error("Could not enter UI audit account: " + entered.reason);
+  }
   await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
   const seeded=await seed().catch(e=>({ok:false,reason:String(e)}));
   audit.seed=seeded;
