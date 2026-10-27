@@ -208,3 +208,59 @@
    tab competes with the LivePreview edge toggle and overlaps mobile content. Keep the
    current #lbt-preview-edge-toggle as the single source of preview open/close controls. */
 .app.preview-collapsed .preview-reopen { display: none; }
+
+/* Shared base geometry for the save-state scope dialog. Keep these properties out of
+   inline styles so the narrow-screen overrides below can actually win. */
+.import-scope-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, .6);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.import-scope-dialog {
+  width: min(520px, 100%);
+  max-height: min(88dvh, 820px);
+  padding: 16px;
+  background: var(--surface-1, #1a1715);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.import-scope-title {
+  margin: 0 0 4px;
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: var(--fs-15);
+  color: var(--gold);
+}
+.import-scope-intro {
+  margin-bottom: 12px;
+  font-size: var(--fs-11);
+  color: var(--tx-2);
+  line-height: 1.6;
+}
+.import-scope-options {
+  display: grid;
+  gap: 6px;
+}
+.import-scope-actions .btn { flex: 0 0 auto; }
+@media (max-width: 640px) {
+  .import-scope-backdrop {
+    align-items: center;
+    padding: 12px;
+  }
+  .import-scope-dialog {
+    width: min(520px, 100%);
+    max-height: min(88dvh, 820px);
+    padding: 14px;
+  }
+  .import-scope-options {
+    display: grid;
+    gap: 6px;
+  }
+}
