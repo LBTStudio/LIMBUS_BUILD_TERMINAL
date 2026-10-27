@@ -20,6 +20,7 @@ test("mobile build tabs use a visible 4-by-2 grid, not a clipped horizontal stri
 test("mobile preview control is moved below the heading and uses a horizontal, accessible target", () => {
   assert.match(polish, /\.preview-edge-toggle\s*\{[^}]*bottom:\s*calc\(var\(--lbt-mobile-rail-h,\s*114px\)\s*\+\s*8px\)/s);
   assert.match(polish, /writing-mode:\s*horizontal-tb/);
+  assert.match(polish, /\.app\.preview-collapsed \.preview-reopen\s*\{\s*display:\s*none;\s*\}/);
   assert.match(polish, /min-height:\s*44px/);
   assert.match(polish, /\.section-title-row\s*\{[^}]*padding-right:\s*0/s);
   assert.match(polish, /\.section-title\s*\{[^}]*word-break:\s*keep-all/s);
