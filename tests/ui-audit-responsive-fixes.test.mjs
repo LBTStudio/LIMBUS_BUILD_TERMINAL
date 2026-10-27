@@ -55,7 +55,7 @@ test("読み込み項目はデータのあるカテゴリを先に出し、空�
   assert.match(app, /importGroupsWithData\.map\(\(g\) => renderImportGroup\(g, true\)\)/);
   assert.match(app, /className: "import-scope-empty-categories"/);
   assert.match(app, /データのないカテゴリも表示/);
-  assert.match(app, /className: "import-scope-option is-empty"/);
+  assert.match(app, /className: \`import-scope-option\$\{hasData \? "" : " is-empty"\}\`/);
   assert.match(app, /className: "import-scope-actions"/);
   assert.match(css, /\.import-scope-dialog\s*\{[\s\S]*?overflow:\s*hidden;[\s\S]*?max-height:\s*min\(88dvh, 820px\)/);
   assert.match(css, /\.import-scope-options\s*\{[\s\S]*?overflow-y:\s*auto;[\s\S]*?min-height:\s*0;/);
