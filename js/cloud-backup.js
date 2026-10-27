@@ -205,12 +205,14 @@
   function normalizeAccountLabel(value) {
     return String(value || "").normalize("NFKC").trim().replace(/\\s+/gu, " ").toLocaleLowerCase();
   }
-  async function compareSnapshotVersions(local, remote) {
+  async function compareSnapshotVersions(local, remote, recoveryKey) {
     const localHash = await hashSnapshot(local);
     const remoteHash = String(remote.payloadHash || remote.payload_hash || "")
       || await hashSnapshot(remote.payload);
-    const baselineHash = String(readStorage(BASELINE_HASH_KEY) || "").toLowerCase();
-    const baselineRevision = Number(readStorage(REVISION_KEY) || 0);
+    const hasMatchingVaultBaseline = readRecoveryKey() === recoveryKey;
+    const baselineHash = hasMatchingVaultBaseline
+      ? String(readStorage(BASELINE_HASH_KEY) || "").toLowerCase() : "";
+    const baselineRevision = baselineHash ? Number(readStorage(REVISION_KEY) || 0) : 0;
     const remoteRevision = Number(remote.revision) || 0;
     const localMeaningful = hasMeaningfulLocalData(local);
     const cloudMeaningful = hasMeaningfulLocalData(remote.payload);
@@ -638,7 +640,7 @@
       label: "保管庫を確認できません", message: "復旧キーを確認してください。ローカルデータは変更していません。" });
       return false;
     }
-    const report = await compareSnapshotVersions(local, remote);
+    const report = await compareSnapshotVersions(local, remote, key);
     pendingComparison = { key, payload: remote.payload, revision: Number(remote.revision) || 0,
       remoteHash: report.remoteHash, localHash, localMeaningful: report.localMeaningful };
     const { localHash: _localHash, remoteHash: _remoteHash, ...visibleReport } = report;
