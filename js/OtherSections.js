@@ -3986,6 +3986,24 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     setTicketDraft(null);
     setDismissedTextWarnings(new Set());
   };
+  /* 選んだ取り込みパネルは下方に展開される。表示位置を移し、入力にすぐ着手できるようにする。
+     取り込み確定は行わず、操作への反応が見えない状態だけを解消する。 */
+  const activeResultTool = importPanel ? "glass" : textPanel ? "text" : heldOpen ? "held" : null;
+  React.useEffect(() => {
+    if (!activeResultTool) return;
+    const raf = requestAnimationFrame(() => {
+      let panel = null;
+      if (activeResultTool === "glass") panel = document.getElementById("ledger-glass-import-panel");
+      else if (activeResultTool === "text") panel = document.getElementById("ledger-text-import-panel");
+      else panel = document.querySelector(".ledger-gara-wrap .ledger-held-paste")?.closest(".ledger-gara-wrap") || null;
+      if (!panel) return;
+      const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+      panel.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+      const field = panel.querySelector("textarea, input:not([type='hidden']), select, [role='combobox']");
+      field?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [activeResultTool]);
   const openHeld = () => switchResultTool("held");
   const closeHeld = () => setHeldOpen(false);
 
@@ -4671,7 +4689,7 @@ const importHeldPersonas = () => {
 )
     ),
 
-    importPanel && h("div", { className: "ledger-gara-wrap" },
+    importPanel && h("div", { id: "ledger-glass-import-panel", className: "ledger-gara-wrap" },
     h("div", { className: "card-header owned-library-bar" },
     h("span", { className: "t-label" }, "硝子窓から一括取り込む"),
     h("span", { className: "ledger-note" }, "共有URLからシナリオをまとめて読み取り、リザルトを複数一括で作ります。1件ごとではなく全体へ反映します"),
@@ -4691,7 +4709,7 @@ const importHeldPersonas = () => {
     /* テキスト流し込み。貼り付けた直後に「何ことになるか」を見せる。
        読めなかった行は黙って落とさず、理由ごと一覧に出す。
        決定できない金額は既定で入れず、外す判断は利用者に返す。 */
-    textPanel && h("div", { className: "ledger-gara-wrap" },
+    textPanel && h("div", { id: "ledger-text-import-panel", className: "ledger-gara-wrap" },
       h("div", { className: "card-header owned-library-bar" },
         h("span", { className: "t-label" }, "テキスト流し込み"),
         h("span", { className: "ledger-note" }, "【シナリオ名】と 報酬｜購入｜追加購入｜ の行を貼り付けると、リザルトと支出の提案になります。入れる前に内容を確認できます"),
