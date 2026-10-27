@@ -343,7 +343,18 @@ async function boot() {
       if(await visible(create)) {
         await create.scrollIntoViewIfNeeded();
         await click(create);
-        await page.locator(".acct-gate").waitFor({state:"hidden",timeout:10000});
+        // AccountGate's create action intentionally reloads after switching accounts.
+        // With first-run selection enabled, the reload can show SINNER SELECT again
+        // before the main application renders. Select the disposable account rather
+        // than assuming that the gate closes itself on creation.
+        await page.waitForTimeout(850);
+        if (await visible(page.locator(".acct-gate"))) {
+          const createdCard = page.locator(".acct-card-hit").filter({ hasText: "UI監査用キャラクター" }).first();
+          const fallbackCard = page.locator(".acct-card-hit").first();
+          const targetCard = await visible(createdCard) ? createdCard : fallbackCard;
+          if (await visible(targetCard)) await click(targetCard);
+        }
+        await page.locator(".acct-gate").waitFor({state:"hidden",timeout:12000});
         await page.waitForTimeout(650);
         const postCreate = await page.evaluate(() => ({
           title: document.title,
