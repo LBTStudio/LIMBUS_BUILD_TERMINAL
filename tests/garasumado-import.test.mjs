@@ -335,12 +335,16 @@ test("数字がCircle区切りや文字列に混ざった行はスタックに�
   assert.equal(r.income.lp, 0, "数値に語尾が付く行は数量として読まない");
 });
 
-test("1行に両通貨があれば両方を取る（片方だけだと帳尻が合わない）", () => {
+test("LPから欠片への変換は正の欠片を収入、負のLPを支出に分離する", () => {
   const r = MEMO.parseMemo("・支払い\nLPを欠片に変換：+11欠片 -22LP");
+  assert.equal(r.income.lp, 0, "変換対象のLPを収入にしない");
+  assert.equal(r.income.shards, 11, "+11欠片は収入として記録する");
   assert.equal(r.spends.length, 1);
-  assert.equal(r.spends[0].lp, 22, "LP 側は 22");
-  assert.equal(r.spends[0].shards, 11, "欠片側は 11");
-  assert.notEqual(r.spends[0].lp, r.spends[0].shards, "両通貨が同じ値にならない");
+  assert.equal(r.spends[0].lp, 22, "-22LPは支出として記録する");
+  assert.equal(r.spends[0].shards, 0, "+11欠片を支出として二重計上しない");
+  const coverage = r.financialCoverage.find((entry) => /LPを欠片に変換/.test(entry.line));
+  assert.ok(coverage, "変換行は行単位監査に含まれる");
+  assert.equal(coverage.status, "matched", "原文の収支符号と実際の収入・支出が一致する");
 });
 
 test("「・支出」以降の現在残高は支出額として誤計上しない", () => {
@@ -1169,6 +1173,31 @@ function loadImportWithMemo() {
   return context.window.LBT_garasumado;
 }
 
+
+test("実サンプル『鏡屈折鉄道1号線』の変換・購入・残高が一貫して合う", () => {
+  const sample = samples.mMIbGr32lGZix60RDmoN?.doc;
+  assert.ok(sample, "実サンプル mMIb を読み込める");
+  const row = (sample.scenarioHistory || []).find((entry) => entry && entry.name === "鏡屈折鉄道1号線『Orientation』");
+  assert.ok(row, "対象の硝子窓履歴がある");
+  const parsed = MEMO.parseMemo(row.memo);
+  assert.equal(parsed.income.lp, 90, "最初の残高アンカー前のLP報酬は90");
+  assert.equal(parsed.income.shards, 40, "欠片報酬29と変換収入11を区別して合算する");
+  assert.equal(parsed.spends.reduce((sum, entry) => sum + (Number(entry.lp) || 0), 0), 60,
+    "LP支出は変換22＋購入18＋購入20");
+  assert.equal(parsed.spends.reduce((sum, entry) => sum + (Number(entry.shards) || 0), 0), 50,
+    "欠片支出は憎悪購入50のみ");
+  const conversion = parsed.financialCoverage.find((entry) => /LPを欠片に変換/.test(entry.line));
+  assert.ok(conversion && conversion.status === "matched", "通貨変換は収支方向まで一致する");
+
+  const M = loadImportWithMemo();
+  const doc = { ...sample, currency: { lp: "40", fragment: "0" }, scenarioHistory: [row] };
+  const manifest = M.buildManifest(doc, null);
+  const balance = M.reconcileBalance(manifest, doc);
+  assert.equal(balance.checked, true, "元メモの途中残高を用いて照合できる");
+  assert.equal(balance.computedLp, 40, "LPは100から60支出して40");
+  assert.equal(balance.computedShards, 0, "欠片は39から11獲得し50支出して0");
+  assert.equal(balance.ok, true, "硝子窓の記録された最終残高と一致する");
+});
 
 test("全49件の硝子窓サンプルを個別監査し、所持・金額イベントを黙って落とさない", () => {
   /* 集計で「全部の検出が有意」だと誤魔化せないよう、サンプルごとに
