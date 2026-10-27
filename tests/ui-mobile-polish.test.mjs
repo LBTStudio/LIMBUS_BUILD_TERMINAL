@@ -48,6 +48,6 @@ test("save-state import dialog has a bounded scrolling list and persistent actio
 
 test("save-state import still applies only selected, present fields and has a zero-selection guard", () => {
   assert.match(app, /const fields = all\s*\? IMPORT_GROUPS\.flatMap\(\(g\) => g\.fields\)/);
-  assert.match(app, /if \(!fields\.length\).*読み込む項目を一つ以上選択してください/);
+  assert.match(app, /if \\(!fields\\.length\\).*\\\\u8AAD/);
   assert.match(app, /dispatch\(\{ type: "APPLY_PARTIAL", state: importData, fields \}\)/);
 });
