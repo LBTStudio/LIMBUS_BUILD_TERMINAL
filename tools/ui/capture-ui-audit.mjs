@@ -338,11 +338,16 @@ async function boot() {
       await snap("account-create-form","新規キャラクター作成フォーム");
       const name=page.locator(".acct-gate input[placeholder='キャラクター名など']").first();
       if(await visible(name)) await name.fill("UI監査用キャラクター");
-      const create=page.getByRole("button",{name:"作成して開く",exact:true});
-      if(await visible(create)) await click(create);
+      const create=page.locator(".acct-gate .acct-form-actions button").filter({hasText:"作成して開く"}).first();
+      if(!(await visible(create))) throw new Error("create-and-open button is not visible in account gate");
+      await click(create);
     } else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
   }
-  await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
+  try { await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000}); }
+  catch (error) {
+    if (await visible(page.locator(".acct-gate"))) await snap("account-create-after-submit-still-gated","作成操作後にもアカウント選択画面が残っている状態");
+    throw error;
+  }
   const seeded=await seed().catch(e=>({ok:false,reason:String(e)}));
   audit.seed=seeded;
   if(seeded&&seeded.ok) {
