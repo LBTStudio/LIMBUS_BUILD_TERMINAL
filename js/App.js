@@ -1633,7 +1633,7 @@ const App = () => {
         importGroupsWithoutData.map((g) => renderImportGroup(g, false))
       ) : null
     ),
-    /* @__PURE__ */ React.createElement("div", { className: "import-scope-actions", style: { display: "flex", gap: 8, marginTop: 14, justifyContent: "flex-end", flexWrap: "wrap" } },
+    /* @__PURE__ */ React.createElement("div", { className: "import-scope-actions", style: { marginTop: 14 } },
       /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost btn-sm", onClick: () => {
         const sel = {};
         IMPORT_GROUPS.forEach((g) => { sel[g.key] = false; });
