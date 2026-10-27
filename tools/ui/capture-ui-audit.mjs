@@ -336,11 +336,45 @@ async function boot() {
     if(await visible(add)) {
       await click(add);
       await snap("account-create-form","新規キャラクター作成フォーム");
-      const name=page.locator(".acct-gate input[placeholder='キャラクター名など']").first();
+      const name=page.locator(".acct-card--form input[placeholder='キャラクター名など']").first();
       if(await visible(name)) await name.fill("UI監査用キャラクター");
-      const create=page.getByRole("button",{name:"作成して開く",exact:true});
-      if(await visible(create)) await click(create);
-    } else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
+      const purpose=page.locator(".acct-card--form input[placeholder='本番 / 検証 / 配布']").first();
+      if(await visible(purpose)) await purpose.fill("自動UI監査");
+      // The account grid is an internal scroller; make the lower action row reachable before clicking.
+      const create=page.locator(".acct-card--form button").filter({hasText:"作成して開く"}).first();
+      if(await create.count()) {
+        await create.scrollIntoViewIfNeeded().catch(()=>{});
+        await create.click({timeout:4000}).catch(async()=>{
+          await create.evaluate((el)=>el.click()).catch(()=>{});
+        });
+        await page.waitForTimeout(650);
+      }
+    } else if(await visible(page.locator(".acct-card-hit").first())) {
+      await click(page.locator(".acct-card-hit").first());
+    }
+  }
+  let entered=await visible(page.locator(".rail-item"));
+  if(!entered && await visible(page.locator(".acct-gate"))) {
+    // Fail-safe for flaky UI-only boot in headless Chromium. We still captured the
+    // visible gate/form; prepare the disposable account through the same public account API.
+    const fallback=await page.evaluate(()=>{
+      const A=window.LBT_accounts;
+      if(!A?.create||!A?.switch) return {ok:false,reason:"account API unavailable"};
+      let id=A.getActiveId?.();
+      if(!id) {
+        const info=A.getInfo?.()||A.getAll?.()||null;
+        const accounts=Array.isArray(info)?info:(info?.accounts||[]);
+        const existing=accounts.find((entry)=>entry.name==="UI監査用キャラクター");
+        const created=existing||A.create("UI監査用キャラクター","自動UI監査");
+        id=created?.id||A.getActiveId?.();
+      }
+      if(!id||!A.switch(id)) return {ok:false,reason:"could not activate disposable account"};
+      window.dispatchEvent(new CustomEvent("lbt:accounts-entered",{detail:{id}}));
+      return {ok:true,id};
+    }).catch(error=>({ok:false,reason:String(error)}));
+    audit.accountGateFallback=fallback;
+    log("account-gate fallback: "+JSON.stringify(fallback));
+    await page.waitForTimeout(800);
   }
   await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
   const seeded=await seed().catch(e=>({ok:false,reason:String(e)}));
@@ -358,6 +392,7 @@ async function boot() {
   }
   await page.waitForTimeout(350);
 }
+
 async function captureProfile(browser, mode) {
   view=mode;
   const mobile=mode==="mobile";
