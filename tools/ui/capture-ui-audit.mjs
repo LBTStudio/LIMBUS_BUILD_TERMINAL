@@ -378,10 +378,43 @@ async function boot() {
   const seeded=await seed().catch(e=>({ok:false,reason:String(e)}));
   audit.seed=seeded;
   if(seeded&&seeded.ok) {
-    await page.locator(".rail-item").first().waitFor({state:"visible",timeout:15000});
+    try {
+      await page.locator(".rail-item").first().waitFor({state:"visible",timeout:15000});
+    } catch (waitError) {
+      const diagnostic = await page.evaluate(() => {
+        const visible = (el) => {
+          if (!el) return false;
+          const r = el.getBoundingClientRect(), s = getComputedStyle(el);
+          return r.width > 0 && r.height > 0 && s.display !== "none" && s.visibility !== "hidden";
+        };
+        const root = document.querySelector("#root") || document.querySelector("#app") || document.body;
+        return {
+          title: document.title,
+          url: location.href,
+          gateVisible: visible(document.querySelector(".acct-gate")),
+          gateText: (document.querySelector(".acct-gate")?.innerText || "").slice(0, 900),
+          activeId: window.LBT_accounts?.getActiveId?.() || null,
+          accountCount: window.LBT_accounts?.list?.()?.accounts?.length || 0,
+          accountGateCreateButton: visible(document.querySelector(".acct-gate .acct-form-actions button")),
+          rootTag: root.tagName,
+          rootClass: typeof root.className === "string" ? root.className : "",
+          rootText: (root.innerText || "").slice(0, 1800),
+          rootHtml: (root.innerHTML || "").slice(0, 1400),
+          railCount: document.querySelectorAll(".rail-item").length,
+          appErrors: Array.from(document.querySelectorAll('[role="alert"],[aria-live="assertive"],.toast')).map((el) => (el.innerText || "").trim()).filter(Boolean).slice(-10)
+        };
+      }).catch((e) => ({ evaluationError: String(e) }));
+      throw new Error("ナビゲーションが表示されません。診断=" + JSON.stringify({
+        seeded, accountGateCreate: audit.accountGateCreate, waitError: String(waitError),
+        pageErrors: audit.pageErrors.filter((x) => x.view === view).slice(-10),
+        consoleErrors: audit.consoleErrors.filter((x) => x.view === view).slice(-10),
+        httpErrors: audit.httpErrors.filter((x) => x.view === view).slice(-10),
+        diagnostic
+      }));
+    }
     await page.waitForTimeout(550);
     if(await visible(page.locator(".acct-gate"))) {
-      throw new Error("SINNER SELECT remained open after seeding: "+JSON.stringify({accountGateCreate:audit.accountGateCreate,seeded}));
+      throw new Error("SINNER SELECT remained open after seeding: "+JSON.stringify({accountGateCreate:audit.accountGateCreate,seeded,pageErrors:audit.pageErrors.filter((x)=>x.view===view).slice(-10)}));
     }
   } else {
     await page.locator(".rail-item").first().waitFor({state:"visible",timeout:10000});
