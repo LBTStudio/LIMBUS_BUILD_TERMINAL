@@ -86,7 +86,7 @@
   /* E.G.O指定購入の見出しは「▼」などで始まっても、支出節として認識する。 */
   function isEgoPurchaseHeader(line) {
     var head = String(line || "").trim().replace(/^\s*(?:[・･▼▽▶▷■□◆◇★☆●○])\s*/, "");
-    return /(?:E\.?\s*G\.?\s*O|エゴ)/i.test(head) && /指定購入|購入/.test(head);
+    return /(?:E\.?\s*G\.?\s*O|エゴ)/i.test(head) && /指定購入/.test(head);
   }
 
   /* セクション見出し「・支出」「・支払い」「・現在」とE.G.O指定購入を読み分ける。 */
