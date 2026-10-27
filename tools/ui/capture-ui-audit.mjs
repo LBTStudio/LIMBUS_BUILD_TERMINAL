@@ -340,6 +340,33 @@ async function boot() {
       if(await visible(name)) await name.fill("UI監査用キャラクター");
       const create=page.getByRole("button",{name:"作成して開く",exact:true});
       if(await visible(create)) await click(create);
+      await page.waitForTimeout(900);
+      if(!(await visible(page.locator(".rail-item").first()))) {
+        await snap("account-create-submit-result","作成ボタン押下後、通常画面へ遷移しない場合の診断状態");
+        audit.accountCreateDiagnostic=await page.evaluate(()=>{
+          const A=window.LBT_accounts;
+          return {
+            storageAvailable:A?.storageAvailable?.(), accounts:A?.list?.(), activeId:A?.getActiveId?.(),
+            gateText:document.querySelector(".acct-gate")?.innerText?.slice(0,1400)||"",
+            visibleNotices:[...document.querySelectorAll('[role="alert"],[aria-live="assertive"],.toast,.toast-message')].filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0;}).map(e=>(e.innerText||"").trim()).filter(Boolean).slice(0,10),
+            nameInput:document.querySelector(".acct-gate input[placeholder='キャラクター名など']")?.value||"",
+            buttonState:[...document.querySelectorAll(".acct-gate button")].map(b=>({text:(b.innerText||"").trim(),disabled:b.disabled,cls:b.className})).slice(-8)
+          };
+        });
+        const fallback=await page.evaluate(()=>{
+          const A=window.LBT_accounts;
+          if(!A?.create||!A?.switch)return {ok:false,reason:"account API unavailable"};
+          const existing=A.list?.()||[];
+          let entry=existing.find(x=>x.name==="UI監査用キャラクター");
+          if(!entry)entry=A.create("UI監査用キャラクター","Playwright UI audit");
+          if(!entry)return {ok:false,reason:"account create API returned null",existing:A.list?.()||[]};
+          const switched=A.switch(entry.id);
+          if(switched)window.dispatchEvent(new CustomEvent("lbt:accounts-entered",{detail:{id:entry.id}}));
+          return {ok:!!switched,id:entry.id,switched,accounts:A.list?.()||[]};
+        });
+        audit.accountCreateFallback=fallback;
+        await page.waitForTimeout(500);
+      }
     } else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
   }
   await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
