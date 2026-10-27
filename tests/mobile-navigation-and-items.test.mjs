@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const refinements = readFileSync(new URL("../assets/v56-refinements.css", import.meta.url), "utf8");
+const workspace = readFileSync(new URL("../assets/workspace.css", import.meta.url), "utf8");
 const appSource = readFileSync(new URL("../js/App.js", import.meta.url), "utf8");
 const itemSource = readFileSync(new URL("../js/ItemCodex.js", import.meta.url), "utf8");
 const sectionsSource = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
@@ -35,9 +36,9 @@ test("モバイルの下部ナビゲーションは横スクロールせず全�
 });
 
 test("スマホのビルド8タブは4列×2段に収まり横スクロールを要求しない", () => {
-  assert.match(refinements, /grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
-  assert.match(refinements, /All eight build tabs fit in two rows/);
-  assert.match(refinements, /\.build-tabs \.segmented > button \{[\s\S]*?min-height: 40px;[\s\S]*?white-space: normal;/);
+  assert.match(workspace, /grid-template-columns: repeat\\(4, minmax\\(0, 1fr\\)\\)/);
+  assert.match(workspace, /All eight build tabs fit in two rows/);
+  assert.match(workspace, /\\.build-tabs \\.segmented > button \\{[\\s\\S]*?min-height: 40px;[\\s\\S]*?white-space: normal;/);
 });
 
 test("アイテムは独立セクションを持たない（ショップで開く・ビルドのタブで持ち込む）", () => {
