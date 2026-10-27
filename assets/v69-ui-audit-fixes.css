@@ -270,3 +270,38 @@
     line-height: 1.45;
   }
 }
+
+
+/* The first-run account form contains several fields and two actions. In the old
+   auto-fill grid it was squeezed into a single narrow card and the actions fell
+   below the clipped grid row; the optional cloud panel then stole the remaining
+   vertical space. Give the creation form a full-width, scrollable row. */
+.acct-gate-panel:has(> .acct-grid > .acct-card--form) > .lbt-cloud-panel {
+  display: none;
+}
+.acct-gate-panel:has(> .acct-grid > .acct-card--form) > .acct-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  align-content: start;
+  grid-template-columns: minmax(0, 1fr);
+}
+.acct-gate-panel:has(> .acct-grid > .acct-card--form) > .acct-grid > .acct-card--form {
+  grid-column: 1 / -1;
+  min-height: 0;
+  height: auto;
+  padding: var(--s-4);
+  overflow: visible;
+}
+.acct-gate-panel:has(> .acct-grid > .acct-card--form) .acct-form-actions {
+  margin-top: var(--s-3);
+}
+@media (max-width: 640px) {
+  .acct-gate-panel:has(> .acct-grid > .acct-card--form) > .acct-grid {
+    padding: var(--s-3);
+  }
+  .acct-gate-panel:has(> .acct-grid > .acct-card--form) > .acct-grid > .acct-card--form {
+    padding: var(--s-3);
+  }
+}
