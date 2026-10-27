@@ -2587,3 +2587,110 @@ test("硝子窓の「獲得：HE 厳粛な哀悼」は正式E.G.O名へ照合さ
     "厳粛な哀悼：死んだ蝶たちの葬儀（HE / 59）が取り込みアクションまで到達する");
   assert.deepEqual([...applied.skipped], [], "正規名とランクがあるE.G.Oを未解決扱いにしない");
 });
+
+
+test("メモ原文・リザルトログの全コーパスをシナリオ単位で個別監査する", () => {
+  const corpora = [
+    {
+      name: "garasumado-memo-corpus",
+      path: "./fixtures/garasumado-memo-corpus.txt",
+      expectedScenarios: 71
+    },
+    {
+      name: "result-log-corpus",
+      path: "./fixtures/result-log-corpus.txt",
+      expectedScenarios: 125
+    }
+  ];
+  const amountPattern = /(?:LP|ＬＰ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]|[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片)|(?:欠片|かけら|欠けら|カケラ|欠け片)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]/i;
+  const actionPattern = /報酬|収入|消費|支出|支払|購入|買った|変換|交換|補填|抽出|ガチャ|チケット|チケ|獲得|入手|取得|解放|使用|使った|換算|還元/;
+  const issues = [];
+  let auditedScenarios = 0;
+  let auditedActionRows = 0;
+  let withFinancialSignals = 0;
+  const splitScenarios = (content) => {
+    const blocks = [];
+    let current = [];
+    for (const line of String(content || "").split(/\r?\n/)) {
+      if (/^\s*【/.test(line) && current.some((part) => part.trim())) {
+        blocks.push(current.join("\n").trim());
+        current = [];
+      }
+      current.push(line);
+    }
+    if (current.some((part) => part.trim())) blocks.push(current.join("\n").trim());
+    return blocks.filter(Boolean);
+  };
+
+  for (const corpus of corpora) {
+    const raw = readFileSync(new URL(corpus.path, import.meta.url), "utf8");
+    const scenarios = splitScenarios(raw);
+    assert.equal(scenarios.length, corpus.expectedScenarios,
+      corpus.name + ": 原文シナリオ数を固定（コーパスの消失・分割ずれを検出）");
+    for (let scenarioIndex = 0; scenarioIndex < scenarios.length; scenarioIndex++) {
+      const memo = scenarios[scenarioIndex];
+      const label = corpus.name + "#" + (scenarioIndex + 1) + " " +
+        (memo.split(/\r?\n/).find((line) => line.trim()) || "").slice(0, 80);
+      const parsed = MEMO.parseMemo(memo);
+      const coverage = Array.isArray(parsed.financialCoverage) ? parsed.financialCoverage : [];
+      const audits = Array.isArray(parsed.sourceAudits) ? parsed.sourceAudits : [];
+      const reasons = Array.isArray(parsed.reasons) ? parsed.reasons : [];
+      const lines = memo.split(/\r?\n/);
+      let scenarioHasFinancialSignals = false;
+      auditedScenarios++;
+
+      for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+        const line = lines[lineIndex];
+        if (!amountPattern.test(line) || !actionPattern.test(line)) continue;
+        scenarioHasFinancialSignals = true;
+        auditedActionRows++;
+        const relatedAudit = audits.some((entry) => entry &&
+          (entry.lineIndex === lineIndex + 1 ||
+           entry.relatedLineIndex === lineIndex + 1 ||
+           (Array.isArray(entry.relatedLines) &&
+             entry.relatedLines.some((row) => row.lineIndex === lineIndex + 1))));
+        const relatedReason = reasons.some((entry) => String(entry.line || "").trim() === line.trim());
+        const rowCoverage = coverage.find((entry) => entry && entry.lineIndex === lineIndex + 1);
+
+        if (!rowCoverage && !relatedAudit && !relatedReason) {
+          issues.push(label + ": 金額・操作行にcoverage/audit/reasonなし (" +
+            (lineIndex + 1) + "行目): " + line.trim().slice(0, 100));
+          continue;
+        }
+        if (rowCoverage?.status === "unresolved") {
+          issues.push(label + ": 未解決状態で黙って通過 (" +
+            (lineIndex + 1) + "行目): " + line.trim().slice(0, 100));
+        }
+        if (["mismatch", "direction-review", "reviewed-by-parser-reason"].includes(rowCoverage?.status) &&
+            !relatedAudit && !relatedReason) {
+          issues.push(label + ": 要確認の状態を利用者に説明する監査根拠がない (" +
+            (lineIndex + 1) + "行目): " + line.trim().slice(0, 100));
+        }
+      }
+
+      if (scenarioHasFinancialSignals) {
+        withFinancialSignals++;
+        const hasOutput =
+          (Number(parsed.income?.lp) || 0) !== 0 ||
+          (Number(parsed.income?.shards) || 0) !== 0 ||
+          (parsed.spends || []).length > 0 ||
+          Object.values(parsed.tickets || {}).some((value) => (Number(value) || 0) > 0) ||
+          Object.keys(parsed.pack || {}).length > 0 ||
+          (parsed.wins || []).length > 0 ||
+          (parsed.reasons || []).length > 0 ||
+          (parsed.sourceAudits || []).some((entry) => entry && entry.severity !== "info");
+        if (!hasOutput) {
+          issues.push(label + ": 金額・操作の記述を含むのに出力も警告もない");
+        }
+      }
+    }
+  }
+
+  assert.equal(auditedScenarios, 196, "2種類の原文コーパス全196シナリオを個別に処理");
+  assert.ok(auditedActionRows > 20, "金額・操作行も行単位で照合（実際 " + auditedActionRows + "行）");
+  assert.ok(withFinancialSignals > 20, "取引候補を含むシナリオを実際に検証（実際 " + withFinancialSignals + "件）");
+  assert.equal(issues.length, 0,
+    "原文コーパスの無言の検出漏れ（先頭20件）:\n" +
+    issues.slice(0, 20).join("\n") +
+    (issues.length > 20 ? "\n……残り" + (issues.length - 20) + "件" : ""));
+});
