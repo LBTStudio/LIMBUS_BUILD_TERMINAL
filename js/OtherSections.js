@@ -3956,6 +3956,26 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   /* 手打ちの記録をテキストで流し込む画面。硝子窓 版と同じく、
      貼っただけでは確定せず、作れる内容を確認してから入れる。 */
   const [textPanel, setTextPanel] = React.useState(false);
+  const textPanelRef = React.useRef(null);
+  /* テキスト流し込みは記録フォームの下側に展開されるため、モバイルでは
+     開いただけだと入力欄が画面外に残る。表示後のレイアウト確定時にパネルへ移動する。 */
+  React.useEffect(() => {
+    if (!textPanel) return undefined;
+    let secondFrame = 0;
+    const firstFrame = window.requestAnimationFrame(() => {
+      const panel = textPanelRef.current;
+      if (!panel) return;
+      panel.scrollIntoView({ block: "start", behavior: "auto" });
+      secondFrame = window.requestAnimationFrame(() => {
+        const input = panel.querySelector("textarea.ledger-textarea");
+        if (input) input.scrollIntoView({ block: "nearest", behavior: "auto" });
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      if (secondFrame) window.cancelAnimationFrame(secondFrame);
+    };
+  }, [textPanel]);
   const [textDraft, setTextDraft] = React.useState("");
   const [textExcluded, setTextExcluded] = React.useState(() => new Set());
   /* 結果ログ内の人格候補。候補選択と除外は貼り付け中だけ保持する。 */
@@ -4691,7 +4711,7 @@ const importHeldPersonas = () => {
     /* テキスト流し込み。貼り付けた直後に「何ことになるか」を見せる。
        読めなかった行は黙って落とさず、理由ごと一覧に出す。
        決定できない金額は既定で入れず、外す判断は利用者に返す。 */
-    textPanel && h("div", { className: "ledger-gara-wrap" },
+    textPanel && h("div", { className: "ledger-gara-wrap", ref: textPanelRef },
       h("div", { className: "card-header owned-library-bar" },
         h("span", { className: "t-label" }, "テキスト流し込み"),
         h("span", { className: "ledger-note" }, "【シナリオ名】と 報酬｜購入｜追加購入｜ の行を貼り付けると、リザルトと支出の提案になります。入れる前に内容を確認できます"),
