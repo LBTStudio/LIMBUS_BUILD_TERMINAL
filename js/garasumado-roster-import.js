@@ -672,14 +672,40 @@ function toIdentityChoices(hits) {
     /* wins の照合は、既存の nameIndex.resolve と同じ形の索引を使う。
        resolve が無ければ名前だけで種別を見分ける（番号は取れない）。 */
     const indexForWins = resolve ? { resolve } : (nameIndex || null);
+    /* 明示された取引種別と、DB内での一意な同種別部分一致が両方成立するときだけ
+       短縮名を補う。一般の名前解決へ別名を登録しないため、他の場面では推測しない。 */
+    const resolveWinByContext = (raw, kindHint) => {
+      if (kindHint !== "persona" || !db || typeof db !== "object") return null;
+      const query = nameKey(raw);
+      if (query.length < 4) return null;
+      const rows = [
+        ...(Array.isArray(db.normal_personas) ? db.normal_personas.map((row) => ({ row, mode: "n" })) : []),
+        ...(Array.isArray(db.tokui_personas) ? db.tokui_personas.map((row) => ({ row, mode: "t" })) : [])
+      ].filter(({ row }) => {
+        const full = nameKey(row && row.name);
+        return full.length > query.length && full.includes(query);
+      });
+      const unique = new Map(rows.map((entry) => [
+        String(entry.mode) + ":" + String(entry.row && entry.row.no),
+        entry
+      ]));
+      if (unique.size !== 1) return null;
+      const [{ row, mode }] = [...unique.values()];
+      if (!row || row.no == null || !String(row.name || "").trim()) return null;
+      return {
+        name: String(row.name).trim(),
+        confidence: "context-kind-unique-substring",
+        kinds: [{ kind: "persona", no: row.no, mode }]
+      };
+    };
     const resolveWins = (list) => (list || []).map((w) => {
       const raw = String(w.name || "").trim();
       if (!raw) return null;
-      let kinds = [];
-      const hit = indexForWins && typeof indexForWins.resolve === "function"
+      const contextualHit = resolveWinByContext(raw, w.entityKindHint);
+      const hit = contextualHit || (indexForWins && typeof indexForWins.resolve === "function"
         ? indexForWins.resolve(raw)
-        : null;
-      if (hit) kinds = hit.kinds || [];
+        : null);
+      const kinds = hit ? hit.kinds || [] : [];
       /* 引けなかった wins に種別を捏造しない。以前は「人格」を既定で
          埋めていたため、ラベルや叙述の断片が獲得として記録に入った。
          番号が無ければ所持には入らない（原本と食い違う記録を作らない）。 */
@@ -687,10 +713,10 @@ function toIdentityChoices(hits) {
         raw,
         name: raw,
         kinds,
-        /* チケット由来なら via に入っている（例: 人格抽出チケット） */
         via: w.via || "",
-        /* 購入の短文（「ルサンチマン購入-7」等）で読めた勝ちは購入 */
         bought: Boolean(w.bought),
+        ...(w.entityKindHint ? { entityKindHint: w.entityKindHint } : {}),
+        ...(contextualHit ? { resolution: contextualHit.confidence } : {}),
         resolved: Boolean(hit)
       };
     }).filter(Boolean);

@@ -2153,6 +2153,71 @@ test("明示的なテーマパックチケットは既存のパック券警告�
   assert.ok(r.reasons.some((row) => row.ticketCategory === "pack"));
 });
 
+test("プロトの100LP消費ガチャは短縮名を人格として一意に解決し、E.G.Oへ誤分類しない", () => {
+  const proto = samples["3JIdhCPatk2URoQZ2btx"]?.doc;
+  assert.ok(proto, "プロトの実サンプルがある");
+  const sourceScenario = (proto.scenarioHistory || []).find((row) =>
+    String(row.memo || "").includes("→LP100消費ガチャ:厳粛な哀悼獲得")
+  );
+  assert.ok(sourceScenario, "元の100LP消費ガチャ記録がある");
+
+  const parsed = MEMO.parseMemo(sourceScenario.memo);
+  const parsedWin = parsed.wins.find((win) => win.name === "厳粛な哀悼");
+  assert.equal(parsedWin?.entityKindHint, "persona", "100LP消費ガチャの形式から人格ヒントを保持する");
+  assert.equal(parsed.spends.find((spend) => spend.lp === 100)?.lp, 100, "100LP支出は金額側にも残る");
+
+  /* 既存の所持人格行を外し、リザルトの獲得行だけから所持補充できるかを検査。 */
+  const personaName = "ロボトミーE.G.O:厳粛な哀悼";
+  const doc = {
+    ...proto,
+    owned: {
+      ...(proto.owned || {}),
+      personas: (proto.owned?.personas || []).filter((row) => {
+        const name = typeof row === "string" ? row : row?.name;
+        return !String(name || "").trim().startsWith(personaName);
+      })
+    },
+    scenarioHistory: [sourceScenario]
+  };
+  const context = { window: { DB: db }, console, URL, TextEncoder, TextDecoder, setTimeout, clearTimeout, module: { exports: {} } };
+  context.globalThis = context;
+  vm.createContext(context);
+  for (const file of ["js/roster-resolver.js", "js/garasumado-memo-parse.js", "js/ledger-provenance.js", "js/garasumado-roster-import.js"]) {
+    vm.runInContext(readFileSync(new URL("../" + file, import.meta.url), "utf8"), context, { filename: file });
+  }
+  const index = context.window.LBT_buildNameIndex(db, {});
+  const resolve = (name) => (context.window.LBT_resolveCandidates(index, name) || [])[0] || null;
+  const candidates = (name) => context.window.LBT_resolveCandidates(index, name) || [];
+  const manifest = context.window.LBT_garasumado.buildManifest(doc, { resolve, candidates }, db);
+  const scenario = manifest.scenarios.find((row) => row.name === sourceScenario.name);
+  const win = scenario?.wins.find((row) => row.raw === "厳粛な哀悼");
+  assert.ok(win?.resolved, "文脈付き解決で所持候補へ補える");
+  assert.equal(win.resolution, "context-kind-unique-substring");
+  assert.equal(win.kinds.length, 1);
+  assert.equal(win.kinds[0].kind, "persona");
+  assert.equal(String(win.kinds[0].no), "75");
+  assert.equal(win.kinds[0].mode, "n");
+  assert.ok(!win.kinds.some((kind) => kind.kind === "ego"), "E.G.O No.59には結び付けない");
+
+  const applied = context.window.LBT_garasumado.toDispatchActions(manifest, [], { db });
+  assert.ok(applied.actions.some((action) => action.type === "ADD_ROSTER" && String(action.no) === "75" && action.mode === "n"),
+    "獲得記録から人格 No.75 のADD_ROSTERを作る");
+  assert.ok(!applied.actions.some((action) => action.type === "ADD_ROSTER_EGO" && String(action.no) === "59"),
+    "厳粛な哀悼の短縮名からE.G.O No.59を誤追加しない");
+  assert.equal(applied.skipped.some((item) => String(item.key).includes("厳粛な哀悼") && /E.G.O/.test(item.reason)), false);
+
+  /* 価格・ガチャ文脈のヒントを持たない短縮名はグローバルに人格へ寄せない。 */
+  const neutral = context.window.LBT_garasumado.buildManifest({
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{ name: "別額のガチャ", memo: "→LP50消費ガチャ:厳粛な哀悼獲得" }]
+  }, { resolve, candidates }, db);
+  const neutralWin = neutral.scenarios[0].wins.find((row) => row.raw === "厳粛な哀悼");
+  assert.ok(neutralWin, "獲得の記録自体は失わない");
+  assert.equal(neutralWin.entityKindHint, undefined, "100LPでない取引から人格ヒントを作らない");
+  assert.equal(neutralWin.resolved, false, "種別の根拠がない短縮名を推測解決しない");
+  assert.equal(neutralWin.kinds.length, 0, "未解決のまま明示して残す");
+});
+
 test("硝子窓の「獲得：HE 厳粛な哀悼」は正式E.G.O名へ照合され所持追加される", () => {
   const fullEgoName = "厳粛な哀悼：死んだ蝶たちの葬儀";
   const memo = "消費：欠片100\n獲得：HE " + fullEgoName;
