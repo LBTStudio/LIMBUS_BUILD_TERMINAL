@@ -339,8 +339,14 @@ async function boot() {
       await snap("account-create-form","新規キャラクター作成フォーム");
       const name=page.locator(".acct-gate input[placeholder='キャラクター名など']").first();
       if(await visible(name)) await name.fill("UI監査用キャラクター");
-      const create=page.getByRole("button",{name:"作成して開く",exact:true});
-      if(await visible(create)) await click(create);
+      const create=page.locator(".acct-gate .acct-form-actions button").filter({hasText:"作成して開く"}).first();
+      if(await visible(create)) {
+        await create.scrollIntoViewIfNeeded();
+        await click(create);
+        await page.locator(".acct-gate").waitFor({state:"hidden",timeout:10000});
+      } else {
+        throw new Error("初回作成フォームの「作成して開く」ボタンが表示されていません");
+      }
     } else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
   }
   await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
