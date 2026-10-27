@@ -31,8 +31,13 @@
 
     const officialHost = "lbt-garasumado.vercel.app";
     let candidate = "";
+    /* URL wrappers such as rd.nan7.net may have the official URL embedded in their path.
+       Extract only a URL on the official host, then still run the normal hostname validation. */
+    const embeddedOfficial = text.match(/https?:\/\/(?:www\.)?lbt-garasumado\.vercel\.app\/(?:persona\/)?view\/[A-Za-z0-9_-]{6,}\/?(?:[?#][^\s]*)?/i);
     const absolute = text.match(/https?:\/\/[^\s]+/i);
-    if (absolute) {
+    if (embeddedOfficial) {
+      candidate = embeddedOfficial[0].replace(/[)\],.;]+$/g, "");
+    } else if (absolute) {
       candidate = absolute[0].replace(/[)\],.;]+$/g, "");
     } else {
       const hostless = text.match(/(?:^|[\s"\'(<\[:])((?:www\.)?lbt-garasumado\.vercel\.app(?:\/[^\s]*)?)/i);
@@ -88,6 +93,15 @@
     const invalid = [];
     const seen = new Set();
     for (const candidate of candidates) {
+      /* 裸IDは抽出APIの互換性のため parseShareUrl では引き続き受理するが、
+         複数URL取込では /view/ と /persona/view/ の種別が失われるため選択候補にしない。 */
+      if (/^[A-Za-z0-9_-]{20}$/.test(candidate)) {
+        invalid.push({
+          text: candidate,
+          reason: "共有IDだけではキャラクター共有か人格共有か判別できません。/view/ または /persona/view/ を含む共有URLを貼り付けてください"
+        });
+        continue;
+      }
       const parsed = parseShareUrl(candidate);
       if (!parsed.ok) {
         invalid.push({ text: candidate, reason: parsed.error || "URL形式が不正です" });
@@ -139,10 +153,21 @@
       };
     }
 
-    const newest = rows[rows.length - 1].doc;
+    const newestSource = rows[rows.length - 1];
+    const newest = newestSource.doc;
+    const sourceIds = [...new Set(rows.map((source) => String(source.id
+      || (source.url ? (parseShareUrl(source.url).id || "") : "")).trim())
+      .filter((sourceId) => /^[A-Za-z0-9_-]{6,}$/.test(sourceId)))];
+    const newestSourceId = String(newestSource.id
+      || (newestSource.url ? (parseShareUrl(newestSource.url).id || "") : "")).trim();
     /* 人格・E.G.O・特殊資源の現所持は最新スナップショットが正。
-       古い所持を和集合にしたり、アイテム数量を最大値にすると、消費済み在庫を復活させる。 */
-    const merged = { ...newest };
+       古い所持を和集合にしたり、アイテム数量を最大値にすると、消費済み在庫を復活させる。
+       自由メモも最新スナップショットを正として、その共有元IDを内部メタデータに残す。 */
+    const merged = {
+      ...newest,
+      ...(newestSourceId ? { __lbtFreeNotesSourceId: newestSourceId } : {}),
+      ...(sourceIds.length ? { __lbtFreeNotesSourceIds: sourceIds } : {})
+    };
 
     /* 同じ履歴が複数スナップショットにあるときは、重複する出現数だけ除く。
        同名・同本文のシナリオを実際に複数回通過したケースは、出現回数分を残す。 */
@@ -647,14 +672,40 @@ function toIdentityChoices(hits) {
     /* wins の照合は、既存の nameIndex.resolve と同じ形の索引を使う。
        resolve が無ければ名前だけで種別を見分ける（番号は取れない）。 */
     const indexForWins = resolve ? { resolve } : (nameIndex || null);
+    /* 明示された取引種別と、DB内での一意な同種別部分一致が両方成立するときだけ
+       短縮名を補う。一般の名前解決へ別名を登録しないため、他の場面では推測しない。 */
+    const resolveWinByContext = (raw, kindHint) => {
+      if (kindHint !== "persona" || !db || typeof db !== "object") return null;
+      const query = nameKey(raw);
+      if (query.length < 4) return null;
+      const rows = [
+        ...(Array.isArray(db.normal_personas) ? db.normal_personas.map((row) => ({ row, mode: "n" })) : []),
+        ...(Array.isArray(db.tokui_personas) ? db.tokui_personas.map((row) => ({ row, mode: "t" })) : [])
+      ].filter(({ row }) => {
+        const full = nameKey(row && row.name);
+        return full.length > query.length && full.includes(query);
+      });
+      const unique = new Map(rows.map((entry) => [
+        String(entry.mode) + ":" + String(entry.row && entry.row.no),
+        entry
+      ]));
+      if (unique.size !== 1) return null;
+      const [{ row, mode }] = [...unique.values()];
+      if (!row || row.no == null || !String(row.name || "").trim()) return null;
+      return {
+        name: String(row.name).trim(),
+        confidence: "context-kind-unique-substring",
+        kinds: [{ kind: "persona", no: row.no, mode }]
+      };
+    };
     const resolveWins = (list) => (list || []).map((w) => {
       const raw = String(w.name || "").trim();
       if (!raw) return null;
-      let kinds = [];
-      const hit = indexForWins && typeof indexForWins.resolve === "function"
+      const contextualHit = resolveWinByContext(raw, w.entityKindHint);
+      const hit = contextualHit || (indexForWins && typeof indexForWins.resolve === "function"
         ? indexForWins.resolve(raw)
-        : null;
-      if (hit) kinds = hit.kinds || [];
+        : null);
+      const kinds = hit ? hit.kinds || [] : [];
       /* 引けなかった wins に種別を捏造しない。以前は「人格」を既定で
          埋めていたため、ラベルや叙述の断片が獲得として記録に入った。
          番号が無ければ所持には入らない（原本と食い違う記録を作らない）。 */
@@ -662,10 +713,10 @@ function toIdentityChoices(hits) {
         raw,
         name: raw,
         kinds,
-        /* チケット由来なら via に入っている（例: 人格抽出チケット） */
         via: w.via || "",
-        /* 購入の短文（「ルサンチマン購入-7」等）で読めた勝ちは購入 */
         bought: Boolean(w.bought),
+        ...(w.entityKindHint ? { entityKindHint: w.entityKindHint } : {}),
+        ...(contextualHit ? { resolution: contextualHit.confidence } : {}),
         resolved: Boolean(hit)
       };
     }).filter(Boolean);
@@ -692,7 +743,7 @@ function toIdentityChoices(hits) {
           ...(row.date ? { date: String(row.date).slice(0, 10) } : {}),
           ...(importSourceKey ? { importSourceKey } : {})
         };
-        if (!memoApi) return { ...base, memo: String(row.memo || ""), income: { lp: 0, shards: 0 }, tickets: {}, pack: {}, spends: [], wins: [], reasons: [{ reason: "メモパーサが読み込まれていない" }] };
+        if (!memoApi) return { ...base, memo: String(row.memo || ""), income: { lp: 0, shards: 0 }, tickets: {}, pack: {}, spends: [], wins: [], reasons: [{ reason: "メモパーサが読み込まれていない" }], currencyDiscrepancies: [] };
         const parsed = memoApi.parseMemo(row.memo);
         const wins = resolveWins(parsed.wins);
         return {
@@ -705,6 +756,7 @@ function toIdentityChoices(hits) {
           consumedItems: parsed.consumedItems || [],
           ticketSpends: parsed.ticketSpends || [],
           reasons: parsed.reasons,
+          currencyDiscrepancies: parsed.currencyDiscrepancies || [],
           /* シナリオで直接払い出された人格/E.G.O。 */
           wins,
           /* 金額が入らなかったシナリオも一覧には出す。利用者が
@@ -734,9 +786,26 @@ function toIdentityChoices(hits) {
       .filter(Boolean)
       .filter((line) => memoApi && memoApi.purchaseRowOf && memoApi.purchaseRowOf(line))
       .join("\n");
+    const freeNotesSourceId = String(doc && doc.__lbtFreeNotesSourceId || "").trim();
+    const freeNotesSourceIds = [...new Set((Array.isArray(doc && doc.__lbtFreeNotesSourceIds)
+      ? doc.__lbtFreeNotesSourceIds : [freeNotesSourceId])
+      .map((sourceId) => String(sourceId || "").trim())
+      .filter((sourceId) => /^[A-Za-z0-9_-]{6,}$/.test(sourceId)))];
     let purchaseScenario = null;
     if (purchaseMemo && memoApi) {
       const parsed = memoApi.parseMemo(purchaseMemo);
+      const purchaseOccurrences = new Map();
+      const purchaseSpends = (parsed.spends || []).map((row) => {
+        /* 金額は修正対象なのでキーに含めず、購入品名＋同名出現順で識別する。
+           source単位の置換を先に行うため、削除・改名された古い行も残らない。 */
+        const purchaseNameKey = nameKey(String(row.name || "購入")).slice(0, 64) || "purchase";
+        const occurrence = (purchaseOccurrences.get(purchaseNameKey) || 0) + 1;
+        purchaseOccurrences.set(purchaseNameKey, occurrence);
+        const importSourceKey = /^[A-Za-z0-9_-]{6,}$/.test(freeNotesSourceId)
+          ? ("gara-free:" + freeNotesSourceId + ":" + purchaseNameKey + ":" + occurrence).slice(0, 180)
+          : "";
+        return { ...row, ...(importSourceKey ? { importSourceKey } : {}) };
+      });
       purchaseScenario = {
         key: "scenario:purchases",
         name: "購入履歴",
@@ -745,9 +814,10 @@ function toIdentityChoices(hits) {
         income: { lp: 0, shards: 0 },
         tickets: { persona: 0, ego: 0, choice: 0 },
         pack: {},
-        spends: parsed.spends,
+        spends: purchaseSpends,
         wins: resolveWins(parsed.wins),
-        reasons: []
+        reasons: [],
+        currencyDiscrepancies: parsed.currencyDiscrepancies || []
       };
     }
 
@@ -817,6 +887,8 @@ function toIdentityChoices(hits) {
       },
       groups,
       scenarios,
+      freeNotesSourceId: /^[A-Za-z0-9_-]{6,}$/.test(freeNotesSourceId) ? freeNotesSourceId : "",
+      freeNotesSourceIds,
       purchaseHistory: purchaseScenario ? (purchaseScenario.spends || []).map((row) => ({ ...row, source: "freeNotes" })) : [],
       /* 所持品の帰属照合結果。matched=どのシナリオか判明、unmatched=履歴に記載なし。 */
       attribution,
@@ -1231,6 +1303,16 @@ function toIdentityChoices(hits) {
       }
     }
 
+    /* 自由メモは最新スナップショットを正として再構築する。
+       先に同一共有元の旧インポート行を消すマーカーを送り、シナリオには紐付けない。
+       購入行が削除／改名された場合も、古い明細だけが残るのを防ぐ。 */
+    for (const sourceId of (manifest && manifest.freeNotesSourceIds) || []) {
+      actions.push({
+        type: "REFRESH_GARASUMADO_FREE_NOTES",
+        sourceId
+      });
+    }
+
     /* 自由メモの購入履歴は架空のリザルトを作らず、金額のある明細だけを残す。
        日時・元シナリオが不明なので明示的に未分類にし、残高計算には含める。 */
     for (const purchase of (manifest && manifest.purchaseHistory) || []) {
@@ -1249,6 +1331,7 @@ function toIdentityChoices(hits) {
         name: String(purchase.name || "自由メモの購入").slice(0, 120),
         cost,
         resultId: null,
+        ...(purchase.importSourceKey ? { importResultKey: purchase.importSourceKey } : {}),
         note: "硝子窓の自由メモ由来。日時・シナリオ未特定"
       });
     }
@@ -1436,6 +1519,7 @@ function toIdentityChoices(hits) {
       memo: String(scenario.memo || ""),
       income: scenario.income || { lp: 0, shards: 0 },
       tickets: scenario.tickets || {},
+      reasons: Array.isArray(scenario.reasons) ? scenario.reasons : [],
       items: []
     }));
     const blockOfName = new Map();
@@ -1584,12 +1668,13 @@ function findBalanceAnchor(memo, currency) {
   const normalized = String(memo || "").replace(/\r\n/g, "\n");
   const marker = currency === "lp" ? /(?:LP|ＬＰ)/i : /(?:欠片|かけら|欠けら|カケラ|けっか)/;
   const amountAfterCurrent = currency === "lp"
-    ? /現在\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:LP|ＬＰ)?\s*[：:]?\s*([0-9][0-9,]*)\s*(?:LP|ＬＰ)?(?:\s*[→⇒]\s*([0-9][0-9,]*))?/i
-    : /現在\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:(?:欠片|かけら|欠けら|カケラ|けっか)\s*)?\s*[：:]?\s*([0-9][0-9,]*)\s*(?:欠片|かけら|欠けら|カケラ|けっか)?(?:\s*[→⇒]\s*([0-9][0-9,]*))?/;
+    ? /(?:現在|現座)\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:LP|ＬＰ)?\s*[：:]?\s*([0-9][0-9,]*)\s*(?:LP|ＬＰ)?(?:\s*[→⇒]\s*([0-9][0-9,]*))?/i
+    : /(?:現在|現座)\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:(?:欠片|かけら|欠けら|カケラ|けっか)\s*)?\s*[：:]?\s*([0-9][0-9,]*)\s*(?:欠片|かけら|欠けら|カケラ|けっか)?(?:\s*[→⇒]\s*([0-9][0-9,]*))?/;
   let offset = 0;
   for (const line of normalized.split("\n")) {
     const lineForParsing = normalizeCurrencyText(line);
-    const currentAt = line.indexOf("現在");
+    const currentMatch = line.match(/現在|現座/);
+    const currentAt = currentMatch ? currentMatch.index : -1;
     if (currentAt >= 0 && marker.test(lineForParsing)) {
       /* 全角数字と英字は1コード単位で半角化されるので、現在の位置は変わらない。 */
       const match = lineForParsing.slice(currentAt).match(amountAfterCurrent);
@@ -1631,6 +1716,10 @@ function reconcileBalance(manifest, doc) {
     message: ""
   };
   const scenarios = (manifest && manifest.scenarios) || [];
+  /* 残高が一致していても、E.G.O購入品の価格合計と通貨ラベルが違えば別の警告として残す。 */
+  out.currencyDiscrepancies = scenarios.flatMap((scenario) =>
+    Array.isArray(scenario && scenario.currencyDiscrepancies) ? scenario.currencyDiscrepancies : []
+  );
   const memoApi = (typeof window !== "undefined" && window.LBT_garaMemo) || null;
   let openingLp = null, openingSh = null;
   let openingOffsetLp = 0, openingOffsetSh = 0;

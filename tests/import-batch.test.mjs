@@ -289,3 +289,49 @@ test("旧形式リザルトは明示指定時だけ更新し、対象の紐づ�
   assert.equal(updated.entries[0].resultId, oldResult.id);
   assert.equal(updated.entries[0].importResultKey, updated.results[0].importSourceKey);
 });
+
+
+test("自由メモ購入の再取込は未分類のまま同一共有元だけを置換し、削除行も残さない", () => {
+  const sourceId = "share123";
+  const firstKey = "gara-free:share123:人生一発:1";
+  const otherKey = "gara-free:other456:人生一発:1";
+  const sourceNote = "硝子窓の自由メモ由来。日時・シナリオ未特定";
+  const first = reducer(baseState(), {
+    type: "APPLY_IMPORT_BATCH",
+    actions: [
+      { type: "REFRESH_GARASUMADO_FREE_NOTES", sourceId },
+      { type: "ADD_ENTRY", kind: "support", name: "人生一発", cost: { lp: 20, shards: 0 },
+        resultId: null, importResultKey: firstKey, note: sourceNote },
+      { type: "ADD_ENTRY", kind: "support", name: "別URLの人生一発", cost: { lp: 12, shards: 0 },
+        resultId: null, importResultKey: otherKey, note: sourceNote },
+      { type: "ADD_ENTRY", kind: "other", name: "ユーザー手入力", cost: { lp: 3, shards: 0 },
+        resultId: null, note: "manual" }
+    ]
+  });
+  assert.equal(first.results.length, 0, "自由メモ購入のための架空リザルトを作らない");
+  assert.equal(first.entries.length, 3);
+  assert.equal(first.entries.find((entry) => entry.importResultKey === firstKey).resultId, null);
+
+  const updated = reducer(first, {
+    type: "APPLY_IMPORT_BATCH",
+    actions: [
+      { type: "REFRESH_GARASUMADO_FREE_NOTES", sourceId },
+      { type: "ADD_ENTRY", kind: "support", name: "人生一発", cost: { lp: 30, shards: 0 },
+        resultId: null, importResultKey: firstKey, note: sourceNote }
+    ]
+  });
+  assert.equal(updated.entries.length, 3, "同じURLの行だけ1件置換される");
+  assert.equal(updated.entries.find((entry) => entry.importResultKey === firstKey).cost.lp, 30);
+  assert.equal(updated.entries.find((entry) => entry.importResultKey === firstKey).resultId, null);
+  assert.ok(updated.entries.some((entry) => entry.importResultKey === otherKey), "別URLの購入記録は保持");
+  assert.ok(updated.entries.some((entry) => entry.note === "manual"), "手入力記録は保持");
+
+  const removed = reducer(updated, {
+    type: "APPLY_IMPORT_BATCH",
+    actions: [{ type: "REFRESH_GARASUMADO_FREE_NOTES", sourceId }]
+  });
+  assert.equal(removed.entries.length, 2, "自由メモから購入が削除されたら旧取込行も消える");
+  assert.ok(!removed.entries.some((entry) => entry.importResultKey === firstKey));
+  assert.ok(removed.entries.some((entry) => entry.importResultKey === otherKey));
+  assert.ok(removed.entries.some((entry) => entry.note === "manual"));
+});

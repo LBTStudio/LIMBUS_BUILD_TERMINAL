@@ -374,6 +374,15 @@ item.decide ? h("div", { className: "gara-decide" },
           pair(income.lp, "lp", "LP"),
           pair(income.shards, "shard", "欠片")
         ),
+        Array.isArray(block.reasons) && block.reasons.length
+          ? h("div", { className: "gara-note gara-note-warn", role: "status" },
+            h("strong", null, "原文の読み取り要確認（" + block.reasons.length + "件）"),
+            block.reasons.map((entry, index) => h("p", { key: index },
+              String(entry.reason || "読み取りを確認してください")
+              + (entry.line ? "（原文：" + entry.line + "）" : "")
+            ))
+          )
+          : null,
         sourceAlreadyImported
           ? h("p", { className: "gara-note" }, "同じ共有元のリザルトを特定しました。確定時に既存記録を更新し、二重追加を防ぎます。")
           : legacyCandidates.length
@@ -618,7 +627,7 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [], existi
     const parsedBatch = window.LBT_parseShareUrls?.(url);
     if (!parsedBatch || !Array.isArray(parsedBatch.urls) || !parsedBatch.urls.length) {
       const single = window.LBT_parseShareUrl?.(url);
-      setError(single?.error || "硝子窓の共有URLを1件以上貼り付けてください");
+      setError(parsedBatch?.invalid?.[0]?.reason || single?.error || "硝子窓の共有URLを1件以上貼り付けてください");
       return;
     }
     const collectionKinds = new Set(parsedBatch.urls.map((entry) => entry.collection || "characters"));
@@ -996,6 +1005,11 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [], existi
   const balance = manifest && doc && window.LBT_reconcileBalance
     ? window.LBT_reconcileBalance(manifest, doc)
     : null;
+  const negativeImpliedOpening = Boolean(
+    balance && !balance.checked && balance.hasManualReference &&
+    ((Number.isFinite(balance.impliedOpeningLp) && balance.impliedOpeningLp < 0) ||
+      (Number.isFinite(balance.impliedOpeningShards) && balance.impliedOpeningShards < 0))
+  );
 
   const loadExportBundle = async (event) => {
     const files = Array.from(event?.target?.files || []);
@@ -1543,8 +1557,21 @@ function appliedSummary(actions) {
         `残高照合: ${balance.message}（最初の「現在」記録を開始基準と仮定。計算 LP ${balance.computedLp} / 欠片 ${balance.computedShards}、硝子窓の申告値 LP ${balance.shownLp} / 欠片 ${balance.shownShards}）。申告値は手入力のため、差額を自動計上しません。`)
       : null,
     balance && !balance.checked && balance.hasManualReference
-      ? h("p", { className: "gara-note" },
-        `履歴から確定できる純増減: LP ${balance.historyNetLp >= 0 ? "+" : ""}${balance.historyNetLp} / 欠片 ${balance.historyNetShards >= 0 ? "+" : ""}${balance.historyNetShards}。硝子窓の申告値（手入力・参考）: LP ${balance.shownLp ?? "未記載"} / 欠片 ${balance.shownShards ?? "未記載"}。差から逆算した開始前残高は LP ${balance.impliedOpeningLp ?? "不明"} / 欠片 ${balance.impliedOpeningShards ?? "不明"} ですが、照合用の参考推定です。履歴漏れ・開始残高・手入力ミスのいずれでも差が生じるため、帳簿へ自動加算しません。`)
+      ? h("p", {
+        className: negativeImpliedOpening ? "gara-note gara-note-warn" : "gara-note",
+        ...(negativeImpliedOpening ? { role: "alert" } : {})
+      },
+        `履歴から確定できる純増減: LP ${balance.historyNetLp >= 0 ? "+" : ""}${balance.historyNetLp} / 欠片 ${balance.historyNetShards >= 0 ? "+" : ""}${balance.historyNetShards}。硝子窓の申告値（手入力・参考）: LP ${balance.shownLp ?? "未記載"} / 欠片 ${balance.shownShards ?? "未記載"}。差から逆算した開始前残高は LP ${balance.impliedOpeningLp ?? "不明"} / 欠片 ${balance.impliedOpeningShards ?? "不明"} です。${negativeImpliedOpening ? "【残高整合性の警告】逆算した開始前残高が負数です。支出の未記録、収入の重複計上、履歴不足、申告残高の誤入力を確認してください。原因を特定できるまでは確定値として扱わず、差額を帳簿へ自動計上しません。" : "これは照合用の参考推定です。履歴漏れ・開始残高・手入力ミスのいずれでも差が生じるため、帳簿へ自動加算しません。"}`)
+      : null,
+    unclassified.length || (draft && draft.blocks.some((b) => (b.items || []).length))
+      ? h(UnclassifiedRail, {
+        items: unclassified,
+        scenarioOptions,
+        onPickIdentity,
+        onReturnItem: returnItem,
+        focusKey,
+        onFocusHandled: () => setFocusKey("")
+      })
       : null,
     draft && draft.blocks.map((block) => {
       const scenario = (manifest.scenarios || []).find((row) => row && row.key === block.key);
@@ -1583,16 +1610,6 @@ function appliedSummary(actions) {
         sourceAlreadyImported
       });
     }),
-    unclassified.length || (draft && draft.blocks.some((b) => (b.items || []).length))
-      ? h(UnclassifiedRail, {
-        items: unclassified,
-        scenarioOptions,
-        onPickIdentity,
-        onReturnItem: returnItem,
-        focusKey,
-        onFocusHandled: () => setFocusKey("")
-      })
-      : null,
     /* 分類できた購入はリザルトの行として既に帰属しているので、ここには
        残らない。名前も価格も引けなかった購入行だけを別枠で見せる。 */
     counts.unknownLine ? h("section", { className: "gara-group gara-result" },

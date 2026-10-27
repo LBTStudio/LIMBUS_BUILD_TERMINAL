@@ -53,6 +53,43 @@ test("欠片の表記ゆれを吸収する（欠片/かけら/欠けら/カケ�
   }
 });
 
+test("現在残高の誤記と同通貨の複数値を黙って収入へ合算しない", () => {
+  const r = MEMO.parseMemo("66LP 現座189LP\n30欠片 136欠片");
+  assert.equal(r.income.lp, 66, "現座189LP は現在残高と推定し、収入に足さない");
+  assert.equal(r.income.shards, 0, "収入と残高の可能性がある欠片値は合算しない");
+  assert.ok(r.reasons.some((entry) => /現座/.test(entry.reason)), "誤記を推定したことを警告する");
+  assert.ok(r.reasons.some((entry) => /欠片の数値が同じ行に複数/.test(entry.reason)), "複数値を保留した理由を示す");
+
+  const lpAmbiguous = MEMO.parseMemo("報酬\n50LP又は100LPで買える分の強化アイテム\n30欠片");
+  assert.equal(lpAmbiguous.income.lp, 0, "購入可能価格候補をLP収入へ加算しない");
+  assert.equal(lpAmbiguous.income.shards, 30, "価格条件以外の報酬は維持する");
+  assert.ok(lpAmbiguous.reasons.some((entry) => /価格条件の説明に含まれるため/.test(entry.reason)), "価格条件であることを具体的に知らせる");
+  assert.ok(!lpAmbiguous.reasons.some((entry) => /現在100LP/.test(entry.reason)), "残高表記の修正案を誤案内しない");
+  assert.ok(!lpAmbiguous.reasons.some((entry) => /通貨か金額が読み取れない/.test(entry.reason)), "価格条件の専用警告に一般警告を重ねない");
+
+  const ambiguous = MEMO.parseMemo("欠片24 134欠片");
+  assert.equal(ambiguous.income.shards, 0, "現在の明示が無い同通貨の複数値は収入へ合算しない");
+  assert.ok(ambiguous.reasons.some((entry) => /欠片収入25、現在171欠片/.test(entry.reason)), "欠片の警告例は欠片の書き方を案内する");
+
+  const conditionalConversion = MEMO.parseMemo("報酬\nLP50\n欠片30\n人格抽出チケット(人格全コンプしてるなら欠片20に変換)");
+  assert.equal(conditionalConversion.income.lp, 50);
+  assert.equal(conditionalConversion.income.shards, 30, "条件付きの欠片20は自動加算しない");
+  assert.equal(conditionalConversion.tickets.persona, 1, "現時点では通常チケット1枚として計上し、条件付き変換を警告する");
+  assert.ok(conditionalConversion.reasons.some((entry) => /条件付きチケット換算/.test(entry.reason)), "条件付き変換を具体的に警告する");
+  assert.ok(!conditionalConversion.reasons.some((entry) => /LP⇄欠片/.test(entry.reason)), "チケット変換をLP⇄欠片の換算と誤表示しない");
+
+  const explicitSum = MEMO.parseMemo("40LP + 15LP");
+  assert.equal(explicitSum.income.lp, 55, "明示的な加算はこれまでどおり計上する");
+
+  const rewardCompensation = MEMO.parseMemo("LP70、自我の欠片40、人格抽出チケット1枚、ガバ補填LP30を獲得。");
+  assert.equal(rewardCompensation.income.lp, 100, "同じ行でも明示された報酬と補填は両方計上する");
+  assert.equal(rewardCompensation.income.shards, 40);
+
+  const dupeCompensation = MEMO.parseMemo("120LP、50欠片、200LP以下のテーマパック×1を獲得。「眺めることしかできない」ガチャ結果→被りのため欠片50");
+  assert.equal(dupeCompensation.income.lp, 120);
+  assert.equal(dupeCompensation.income.shards, 100, "被り補償の欠片を報酬欠片と合算する");
+});
+
 test("「名前：名前 150欠片 現在184」は購入で収入に足さない", () => {
   const r = MEMO.parseMemo("欠片60　現在334\n涙剣：燃え上がる闘志 150欠片　現在184");
   assert.equal(r.income.shards, 60, "収入は 60 だけ（購入150は混ぜない）");
@@ -82,16 +119,54 @@ test("名前と金額が一行に収まった購入の短文は支出と勝ち�
   assert.equal(r.wins.every((w) => w.bought), true, "購入の勝ちには bought が付く");
 });
 
-test("購入の短文の形でない叙述は購入の記録にしない", () => {
+test("叙述文に個別の負額が明示された複数購入は支出をそれぞれ記録する", () => {
+  const r = MEMO.parseMemo("終了後、サポートパッシブ「因子コードG-5」を購入したのでLP-7、「深呼吸」を購入したのでLP-15");
+  assert.equal(r.income.lp, 0, "購入額を収入にしない");
+  assert.deepEqual(
+    [...r.spends.map((spend) => [spend.name, spend.lp, spend.shards])],
+    [["因子コードG-5", 7, 0], ["深呼吸", 15, 0]],
+    "名前に対応する各支出を落とさず記録する"
+  );
+  assert.ok(r.wins.some((win) => win.name === "因子コードG-5" && win.bought), "購入したパッシブの所持証跡を保つ");
+  assert.ok(r.wins.some((win) => win.name === "深呼吸" && win.bought), "2件目の所持証跡も保つ");
+
+  const singleNarrativePurchase = MEMO.parseMemo("終了後、「E.G.Oの解放」を購入したため欠片-50");
+  assert.equal(singleNarrativePurchase.spends.length, 1, "単独でも明示された欠片支出を記録する");
+  assert.equal(singleNarrativePurchase.spends[0].shards, 50);
+  assert.equal(singleNarrativePurchase.income.shards, 0);
+});
+
+test("購入の叙述に明記されたLP・欠片の消費を支出として記録する", () => {
   const r = MEMO.parseMemo(
     "終了後サポートパッシブ「ルサンチマン」と「肩慣らし」を購入したためLP-27。\n" +
     "切り伏せる斬撃を購入、150LP消費　300LPへ\n" +
     "30LP、30欠片…を獲得。硝酸の欠片×1を消費して同期化"
   );
-  assert.equal(r.spends.length, 0, "金額が一行に収まらない叙述は支出にしない");
-  assert.ok(r.wins.some((w) => w.name === "ルサンチマン"), "サポパの名前は従来どおり勝ちに入る");
-  assert.equal(r.income.lp, 30, "収入は 30LP の獲得行だけ（購入の叙述は混ぜない）");
-  assert.equal(r.income.shards, 30, "欠片も同じ獲得行から 30");
+  assert.equal(r.spends.length, 2, "明示されたLP支出2件を残す。アイテム欠片の使用は通貨支出にしない");
+  assert.equal(r.spends.reduce((n, spend) => n + spend.lp, 0), 177, "LP27 + LP150 を一度ずつ計上する");
+  assert.equal(r.spends[0].name, "肩慣らし", "共有購入行の対象名を明細へ残す");
+  assert.equal(r.spends.reduce((n, spend) => n + spend.shards, 0), 0);
+  assert.ok(r.wins.some((w) => w.name === "ルサンチマン"), "サポパの名前を所持証跡として保持する");
+  assert.equal(r.income.lp, 30, "収入は30LPの獲得行だけ");
+  assert.equal(r.income.shards, 30, "欠片も獲得行から30");
+});
+
+test("別々に記録された叙述体の購入費用はそれぞれ一度ずつ計上する", () => {
+  const r = MEMO.parseMemo(
+    "終了後、サポートパッシブ「因子コードG-5」を購入したのでLP-7、「深呼吸」を購入したのでLP-15"
+  );
+  assert.equal(r.spends.length, 2);
+  assert.equal(r.spends.reduce((n, spend) => n + spend.lp, 0), 22, "LP7 + LP15 を二重計上せず合計22");
+});
+
+test("精神購入の叙述で欠片支出も通貨を取り違えず記録する", () => {
+  const r = MEMO.parseMemo("終了後、精神「正義」を購入したため欠片-200");
+  assert.equal(r.income.shards, 0);
+  assert.equal(r.spends.length, 1);
+  assert.equal(r.spends[0].shards, 200);
+  assert.equal(r.spends[0].name, "正義", "精神購入の対象名を支出へ保持する");
+  assert.equal(r.spends[0].lp, 0);
+  assert.ok(r.wins.some((w) => w.name === "正義" && w.bought), "購入された対象の証跡も保持する");
 });
 
 test("掉落値の内訳が括弧に入っても外側の額を読む", () => {
@@ -293,15 +368,19 @@ test("叙述体の精神購入は括弧の名前を所持の証跡にする", ()
   assert.ok(b.wins.some((w) => w.name === "優越" && w.bought), "買ったも購入語");
 });
 
-test("収入節に書かれた叙述体の購入も所持の証跡になり、金額は帳に入れ直さない", () => {
+test("収入行と混在する叙述購入も明示的な負額だけを支出に記録し、所持証跡を残す", () => {
   const a = MEMO.parseMemo("LP60、欠片30、人格抽出チケット*1を獲得。ガチャ結果→ピークォド号船長\n精神「正義」を購入したため欠片-200");
-  assert.ok(a.wins.some((w) => w.name === "正義" && w.bought), "括弧の名前の勝ち");
-  assert.equal(a.spends.length, 0, "購入の金額は叙述から帳に数えない");
-  assert.equal(a.income.lp, 60, "獲得行だけが収入");
+  assert.ok(a.wins.some((w) => w.name === "正義" && w.bought), "購入した精神の所持証跡を残す");
+  assert.equal(a.spends.length, 1, "明示された購入額は支出へ計上する");
+  assert.equal(a.spends[0].shards, 200);
+  assert.equal(a.income.lp, 60, "獲得行だけをLP収入にする");
+  assert.equal(a.income.shards, 30, "購入した欠片を獲得に混ぜない");
   const b = MEMO.parseMemo("85LP、47カケラ、EGO抽出ガチャチケ＆人格抽出チケットを獲得\nサポパ「嚥下」を購入したのでLP-25\n精神「分別できる理性」を購入したので欠片-1000");
   assert.ok(b.wins.some((w) => w.name === "嚥下" && w.bought));
   assert.ok(b.wins.some((w) => w.name === "分別できる理性" && w.bought));
-  assert.equal(b.spends.length, 0, "購入語が頭にない行は負額支出に回さない（既存の読み）");
+  assert.equal(b.spends.length, 2);
+  assert.equal(b.spends.reduce((n, spend) => n + spend.lp, 0), 25);
+  assert.equal(b.spends.reduce((n, spend) => n + spend.shards, 0), 1000);
 });
 test("全角の収入額・支出額・抽出回数も取り込む", () => {
   const reward = MEMO.parseMemo("９０ＬＰ：現在１００ＬＰ\n２９欠片：現在３９欠片");
@@ -383,6 +462,16 @@ test("チケットの個数と種別を読む（無修飾は保留し、明示�
   assert.equal(b.tickets.persona, 2);
   const c = MEMO.parseMemo("E.G.O抽出チケット：某某");
   assert.equal(c.tickets.ego, 1);
+
+  const lowercaseEgo = MEMO.parseMemo("ego抽出チケット×1");
+  assert.equal(lowercaseEgo.tickets.ego, 1, "小文字egoも明示されたE.G.Oチケットとして分類する");
+  assert.equal(lowercaseEgo.reasons.some((r) => /種別が不明/.test(r.reason)), false);
+
+  const lowercaseEgoNoCount = MEMO.parseMemo("ego抽出チケット");
+  assert.equal(lowercaseEgoNoCount.tickets.ego, 1, "枚数省略の小文字ego券も通常の1枚として読む");
+
+  const lowercaseEgoShort = MEMO.parseMemo("egoチケット×1");
+  assert.equal(lowercaseEgoShort.tickets.ego, 1, "小文字egoチケットも分類する");
 
   const d = MEMO.parseMemo("人格orE.G.O抽出チケット×1：K社職員の人格");
   assert.equal(d.tickets.persona, 0);
@@ -592,15 +681,17 @@ test("サポートパッシブの購入行は括弧内の名前を獲得とし�
   const a = MEMO.parseMemo("終了後サポートパッシブ「ルサンチマン」と「肩慣らし」を購入したためLP-27。");
   assert.deepEqual(wins(a), ["ルサンチマン", "肩慣らし"], "1行に2つの購入でも両方積む");
   assert.deepEqual(kinds(a), ["support", "support"]);
-  /* 金額は既存の支出読みに任せる。購入語が頭にない行の LP-27 は
-     従来どおり負額支出に回る。 */
+  /* 負額が明示された購入は、所持証跡と支出の両方を保持する。 */
   const b = MEMO.parseMemo("終了後、サポートパッシブ「幻想狩り」を購入したのでLP-50");
   assert.deepEqual(wins(b), ["幻想狩り"]);
+  assert.equal(b.spends.reduce((s, x) => s + x.lp, 0), 50);
   assert.equal(a.income.lp, 0, "購入行は収入にしない");
-  assert.equal(a.spends.reduce((s, x) => s + x.lp, 0), 0, "既存の読み（頭が購入語の行は落とす）を変えない");
+  assert.equal(a.spends.reduce((s, x) => s + x.lp, 0), 27, "明示されたLP-27を支出へ記録する");
 
   const c = MEMO.parseMemo("サポートパッシブ「因子コードG-5」を購入したのでLP-7、「深呼吸」を購入したのでLP-15");
   assert.deepEqual(wins(c), ["因子コードG-5", "深呼吸"]);
+  assert.equal(c.spends.length, 2);
+  assert.equal(c.spends.reduce((s, x) => s + x.lp, 0), 22);
 
   const d = MEMO.parseMemo("★サポパ購入『遺伝コードG-5』：7LP消費（合計45LP/82欠片）");
   assert.deepEqual(wins(d), ["遺伝コードG-5"], "全角括弧『』の略記サポパも読む");
@@ -728,6 +819,14 @@ test("共有URL からドキュメント ID とコレクションを抜く", () 
 
   const b = G.parseShareUrl("https://lbt-garasumado.vercel.app/persona/view/EPm6O9SU11aYYj0obEar");
   assert.equal(b.collection, "personas");
+  const bareId = G.parseShareUrl("mMIbGr32lGZix60RDmoN");
+  assert.equal(bareId.ok, true, "既存の単一ID抽出APIは互換性のため維持する");
+  const bareBatch = G.parseShareUrls("mMIbGr32lGZix60RDmoN");
+  assert.equal(bareBatch.urls.length, 0, "一括取込では種別不明のIDを dispatch 候補にしない");
+  assert.match(bareBatch.invalid[0]?.reason || "", /IDだけでは.*判別できません/);
+  const mixedBatch = G.parseShareUrls("mMIbGr32lGZix60RDmoN\nhttps://lbt-garasumado.vercel.app/view/mMIbGr32lGZix60RDmp");
+  assert.equal(mixedBatch.urls.length, 1, "不明なIDが混じっても正しいURLは取込対象に残す");
+  assert.equal(mixedBatch.invalid.length, 1, "不明なIDは失敗理由付きで残す");
   const schemeless = G.parseShareUrl("lbt-garasumado.vercel.app/view/mMIbGr32lGZix60RDmoN?share=1#preview");
   assert.equal(schemeless.ok, true, "公式ホストはスキーム省略とquery/hashを許可");
   assert.equal(schemeless.id, "mMIbGr32lGZix60RDmoN");
@@ -936,6 +1035,115 @@ function loadImportWithMemo() {
   return context.window.LBT_garasumado;
 }
 
+
+test("全49件の硝子窓サンプルを個別監査し、所持・金額イベントを黙って落とさない", () => {
+  /* 集計で「全部の検出が有意」だと誤魔化せないよう、サンプルごとに
+     所持項目の保持、履歴行の保持、金額イベントの解析結果を確認する。 */
+  const context = { window: { DB: db }, console, URL, TextEncoder, TextDecoder, setTimeout, clearTimeout, module: { exports: {} } };
+  context.globalThis = context;
+  vm.createContext(context);
+  for (const file of ["js/roster-resolver.js", "js/garasumado-memo-parse.js", "js/ledger-provenance.js", "js/garasumado-roster-import.js"]) {
+    vm.runInContext(readFileSync(new URL("../" + file, import.meta.url), "utf8"), context, { filename: file });
+  }
+  const api = context.window.LBT_garasumado;
+  const index = context.window.LBT_buildNameIndex(db, {});
+  const resolve = (name) => (context.window.LBT_resolveCandidates(index, name) || [])[0] || null;
+  const candidates = (name) => context.window.LBT_resolveCandidates(index, name) || [];
+  const norm = (value) => String(value || "").normalize("NFKC").replace(/[\s\u3000]/g, "").toLocaleLowerCase("ja-JP");
+  const readName = (value) => {
+    if (typeof value === "string") return value.trim();
+    if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+    return String(value.name || value.src?.name || value.build?.personaSrc?.name || "").trim();
+  };
+  const issues = [];
+  let auditedOwned = 0;
+  let auditedHistory = 0;
+  const samplesList = Object.entries(samples).filter(([, value]) => value && value.coll === "characters");
+
+  for (const [sampleId, entry] of samplesList) {
+    const doc = entry.doc || {};
+    const manifest = api.buildManifest(doc, { resolve, candidates }, db);
+    const owned = doc.owned && typeof doc.owned === "object" ? doc.owned : {};
+    const actualGroups = new Map((manifest.groups || []).map((group) => [
+      group.id,
+      new Set((group.items || []).map((item) => norm(item.name)))
+    ]));
+    const expected = {
+      personas: Array.isArray(owned.personas) ? owned.personas : [],
+      egos: Array.isArray(owned.egos) ? owned.egos : [],
+      supportPassives: [
+        ...(Array.isArray(owned.supportPassives) ? owned.supportPassives : []),
+        ...(Array.isArray(doc.supportPassives) ? doc.supportPassives : [])
+      ],
+      spirits: Array.isArray(owned.spirits) ? owned.spirits : [],
+      items: (Array.isArray(doc.items) ? doc.items : []).filter((item) => Number(item && item.count) > 0)
+    };
+
+    for (const [groupId, rows] of Object.entries(expected)) {
+      const seen = new Set();
+      const present = actualGroups.get(groupId) || new Set();
+      for (const row of rows) {
+        const name = readName(row);
+        const key = norm(name);
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        auditedOwned++;
+        if (!present.has(key)) issues.push(sampleId + " / " + groupId + ": 所持候補がmanifestから欠落: " + name);
+      }
+    }
+
+    const history = Array.isArray(doc.scenarioHistory)
+      ? doc.scenarioHistory.filter((row) => row && (row.name || row.memo))
+      : [];
+    if ((manifest.scenarios || []).length !== history.length) {
+      issues.push(sampleId + ": 履歴行数が不一致（原文 " + history.length + " / 解析 " + (manifest.scenarios || []).length + "）");
+    }
+    for (let i = 0; i < history.length; i++) {
+      const row = history[i] || {};
+      const memo = String(row.memo || "");
+      if (!memo.trim()) continue;
+      auditedHistory++;
+      const scenario = (manifest.scenarios || [])[i];
+      if (!scenario) continue;
+      /* 金額と操作語が共存する履歴は、収入・支出・チケット・獲得のいずれか、
+         または利用者に見せる要確認理由として残らなければならない。 */
+      const hasAmount = /(?:LP|ＬＰ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]|[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ)|(?:欠片|かけら|欠けら|カケラ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]/i.test(memo);
+      const hasAction = /報酬|収入|消費|支出|支払|購入|買った|抽出|ガチャ|チケット|チケ|獲得|入手|取得/.test(memo);
+      if (hasAmount && hasAction) {
+        const ticketCount = Object.values(scenario.tickets || {}).reduce((sum, value) => sum + (Number(value) || 0), 0);
+        const recognized =
+          (Number(scenario.income?.lp) || 0) !== 0 ||
+          (Number(scenario.income?.shards) || 0) !== 0 ||
+          (scenario.spends || []).length > 0 ||
+          ticketCount > 0 ||
+          Object.keys(scenario.pack || {}).length > 0 ||
+          (scenario.wins || []).length > 0 ||
+          (scenario.reasons || []).length > 0 ||
+          (scenario.ticketSpends || []).length > 0;
+        if (!recognized) {
+          issues.push(sampleId + " / " + (row.name || ("履歴" + (i + 1))) + ": 金額と操作語を含む履歴が無言で未解析: " + memo.slice(0, 100).replace(/\s+/g, " "));
+        }
+      }
+
+      /* ランク付きで正式名を記録したE.G.Oは、種別を失ったり別名として扱ったりしない。 */
+      const explicitEgos = [...memo.matchAll(/(?:獲得|入手|取得)\s*[：:]\s*(ZAYIN|TETH|HE|WAW|ALEPH)\s+([^\r\n]+)/gi)];
+      for (const match of explicitEgos) {
+        const name = String(match[2] || "").trim().replace(/[。．]+$/g, "");
+        const found = (scenario.wins || []).some((win) =>
+          norm(win.name) === norm(name) && (win.kinds || []).some((kind) => kind.kind === "ego" && String(kind.rank || "").toUpperCase() === match[1].toUpperCase())
+        );
+        if (!found) issues.push(sampleId + " / " + (row.name || ("履歴" + (i + 1))) + ": ランク付きE.G.O獲得が正式名・種別で照合されない: " + match[0]);
+      }
+    }
+  }
+
+  assert.equal(samplesList.length, 49, "個別監査対象は49キャラクターすべて");
+  assert.ok(auditedOwned > 1000, "所持フィールドをサンプル横断で検査した（" + auditedOwned + "件）");
+  assert.ok(auditedHistory > 400, "履歴メモをサンプル横断で検査した（" + auditedHistory + "件）");
+  assert.equal(issues.length, 0,
+    "サンプル単位の検出漏れ（先頭12件）:\n" + issues.slice(0, 12).join("\n") + (issues.length > 12 ? "\n……残り" + (issues.length - 12) + "件" : ""));
+});
+
 test("取り込み: 実サンプル 49 文書から所持を列挙し、action を大量に出せる", () => {
   assert.equal(charDocs.length, 49);
   let resolved = 0;
@@ -1080,6 +1288,19 @@ test("手入力残高を正解扱いせず、開始残高不明の純増減だ�
   assert.match(result.message, /手入力/);
 });
 
+test("開始残高が負数になるときは履歴と申告残高の不整合を検出する", () => {
+  const M = loadImportWithMemo();
+  const doc = {
+    currency: { lp: "120", fragment: "100" },
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{ name: "履歴A", memo: "140LP、105欠片" }]
+  };
+  const result = M.reconcileBalance(M.buildManifest(doc, null), doc);
+  assert.equal(result.checked, false, "開始残高のアンカーが無いことは明示する");
+  assert.equal(result.impliedOpeningLp, -20);
+  assert.equal(result.impliedOpeningShards, -5);
+});
+
 test("現在残高の行より前の収入を二重加算せず、通貨別に照合する", () => {
   const M = loadImportWithMemo();
   const doc = {
@@ -1148,6 +1369,17 @@ test("空欄・null の共有残高はゼロではなく未入力として扱う
   assert.equal(result.shownLp, null);
   assert.equal(result.shownShards, null);
   assert.equal(result.ok, true, "空欄の通貨に架空の残高不一致を出さない");
+});
+
+test("現座の誤記を残高アンカーとしても検出する", () => {
+  const M = loadImportWithMemo();
+  const r = M.reconcileBalance({
+    scenarios: [{ memo: "66LP 現座189LP", income: { lp: 66, shards: 0 }, spends: [] }],
+    purchaseHistory: []
+  }, { currency: { lp: 189, fragment: null } });
+  assert.equal(r.checked, true);
+  assert.equal(r.openingLp, 189);
+  assert.equal(r.computedLp, 189, "アンカー前の66LPを二重加算しない");
 });
 
 test("残高変動を記載していて計算値と表示残高が違う場合はエラーにする", () => {
@@ -1473,6 +1705,23 @@ test("取り込み: 不正なアイテム個数は成功 action にせず、正�
   );
 });
 
+test("リザルト下書きはパーサーの要確認理由を捨てず、カードへ渡す", () => {
+  const reasons = [{ line: "30欠片 136欠片", reason: "曖昧なので保留" }];
+  const draft = G.buildResultDraft({
+    groups: [],
+    scenarios: [{
+      key: "scenario:review",
+      name: "要確認",
+      memo: "30欠片 136欠片",
+      income: { lp: 0, shards: 0 },
+      tickets: {},
+      spends: [],
+      reasons
+    }]
+  }, {});
+  assert.deepEqual(draft.blocks[0].reasons, reasons);
+});
+
 test("取り込み: シナリオ1件ごとに ADD_RESULT が出て、ADD_ENTRY が直後に続く", () => {
   const manifest = {
     groups: [],
@@ -1606,7 +1855,7 @@ test("消費・使用の叙述は収入に数えない（「消費し」「消�
 test("自然文の明示支出・括弧内のマイナス額を通貨別に読む", () => {
   const cases = [
     ["終了後、LP200を消費し人格特定抽出「対象」", "lp", 200],
-    ["欠片75消費してEGO指定購入「対象」", "shards", 75],
+    ["欠片75消費して抽出「対象」", "shards", 75],
     ["サポートパッシブ[破撃]を35LPを消費して購入", "lp", 35],
     ["シ協会同期使用（硝子の破片x2購入し使用：-40LP）", "lp", 40]
   ];
@@ -1760,6 +2009,30 @@ test("消費の行にチケットと通貨が併記されても、両方の使�
   assert.equal(r.ticketSpends[0].count, 1);
 });
 
+test("券種や枚数のない説明文中の「チケット」は抽出チケットと誤認しない", () => {
+  const flavor = MEMO.parseMemo(
+    "【覚悟の残骸】\n[最大所持数1]\n使用時、対象のダイスを破壊する。\n終末点をなくしたチケットは捨てられる日を待っている。"
+  );
+  assert.equal(flavor.tickets.persona, 0);
+  assert.equal(flavor.tickets.ego, 0);
+  assert.equal(flavor.ticketSpends.length, 0);
+  assert.equal(flavor.reasons.some((entry) => /抽出チケットの種別が不明/.test(entry.reason)), false);
+
+  const namedTicket = MEMO.parseMemo("眺めるチケット");
+  assert.equal(namedTicket.tickets.persona, 0);
+  assert.equal(namedTicket.reasons.some((entry) => /抽出チケットの種別が不明/.test(entry.reason)), false);
+
+  const actualGenericTicket = MEMO.parseMemo("チケット入手");
+  assert.ok(actualGenericTicket.reasons.some((entry) => /抽出チケットの種別が不明/.test(entry.reason)));
+
+  const ticketAfterCurrencyReward = MEMO.parseMemo("報酬\n140LP\n26カケラ\nチケット");
+  assert.ok(ticketAfterCurrencyReward.reasons.some((entry) => /抽出チケットの種別が不明/.test(entry.reason)),
+    "収入・通貨の直後に単独で書かれたチケットは取りこぼさず要確認に残す");
+
+  const explicitDrawTicket = MEMO.parseMemo("抽出チケット");
+  assert.ok(explicitDrawTicket.reasons.some((entry) => /抽出チケットの種別が不明/.test(entry.reason)));
+});
+
 test("通貨と併記された曖昧なチケットも、推測せず未確定消費として残す", () => {
   const r = MEMO.parseMemo("消費：人格orE.G.O抽出チケット×1、LP100");
   assert.equal(r.spends.length, 1);
@@ -1820,4 +2093,213 @@ test("コロン付きの「現在LP：33」も錠として検出し、残高を�
   assert.equal(result.checked, true);
   assert.equal(result.computedLp, 33);
   assert.equal(result.ok, true);
+});
+
+test("通貨消費の後に「パック名:獲得人格」が続く場合、パック名を人格名へ混ぜない", () => {
+  const r = MEMO.parseMemo("→200LP消費、眺めることのできないパック:黒獣-巳の人格獲得");
+  assert.equal(r.income.lp, 0);
+  assert.equal(r.spends.reduce((sum, row) => sum + row.lp, 0), 200, "LP200 は支出");
+  assert.ok(r.wins.some((row) => row.name === "黒獣-巳の人格"), "獲得した人格名を抽出");
+  assert.ok(!r.wins.some((row) => row.name.includes("パック:")), "パック名と人格名を混ぜない");
+});
+
+
+test("任意のテーマパックチケットは抽出券と混同せず、対象パック不明として保留する", () => {
+  const r = MEMO.parseMemo("報酬\n→LP65、欠片40\n→長くなってごめんね：200LP以下の任意のテーマパックチケット×1:終止符事務所代表の人格");
+  assert.equal(r.tickets.persona, 0);
+  assert.equal(r.tickets.ego, 0);
+  assert.equal(r.tickets.choice, 0);
+  const review = r.reasons.find((row) => String(row.line || "").includes("任意のテーマパックチケット"));
+  assert.ok(review, "対象パック名のない券を確認対象に残す");
+  assert.equal(review.ticketCategory, "pack", "通常の抽出券ではなくパック券として分類");
+  assert.match(review.reason, /対象パック名が指定されていない汎用テーマパックチケット/);
+  assert.ok(r.wins.some((row) => row.via === "テーマパックチケット（対象パック未指定）"),
+    "獲得品の由来もパック券として保持");
+});
+
+test("人格orE.G.O抽出チケットは引き続き真の種別不明として保留する", () => {
+  const r = MEMO.parseMemo("人格orE.G.O抽出チケット1：K社3級職員の人格獲得");
+  const review = r.reasons.find((row) => String(row.line || "").includes("人格orE.G.O"));
+  assert.ok(review);
+  assert.equal(review.ticketCategory, undefined, "パック券とは別分類");
+  assert.match(review.reason, /人格\/E\.G\.O\/選択の残数への計上を保留/);
+  assert.equal(r.tickets.persona, 0);
+  assert.equal(r.tickets.ego, 0);
+  assert.equal(r.tickets.choice, 0);
+});
+
+
+test("自由メモ購入の共有元キーは金額修正後も安定する", () => {
+  const context = { window: {}, console, module: { exports: {} }, URL };
+  vm.createContext(context);
+  vm.runInContext(readFileSync(new URL("../js/garasumado-memo-parse.js", import.meta.url), "utf8"), context);
+  vm.runInContext(readFileSync(new URL("../js/garasumado-roster-import.js", import.meta.url), "utf8"), context);
+  const importApi = context.window.LBT_garasumado;
+  const makeDoc = (lp) => importApi.mergeGarasumadoDocuments([{
+    id: "share123",
+    url: "https://lbt-garasumado.vercel.app/view/share123",
+    updateTime: "2026-10-27T00:00:00Z",
+    doc: {
+      name: "テストキャラクター", plName: "テストPL",
+      owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+      scenarioHistory: [],
+      freeNotes: { secret: "LP-" + lp + " サポートパッシブ「人生一発」購入", history: "", memo: "", setting: "" }
+    }
+  }]);
+  const beforeDoc = makeDoc(20);
+  const afterDoc = makeDoc(30);
+  assert.equal(beforeDoc.__lbtFreeNotesSourceId, "share123");
+  assert.deepEqual([...beforeDoc.__lbtFreeNotesSourceIds], ["share123"]);
+  const before = importApi.buildManifest(beforeDoc, null);
+  const after = importApi.buildManifest(afterDoc, null);
+  assert.equal(before.freeNotesSourceId, "share123");
+  assert.deepEqual([...before.freeNotesSourceIds], ["share123"]);
+  assert.equal(before.purchaseHistory.length, 1);
+  assert.equal(before.purchaseHistory[0].importSourceKey, after.purchaseHistory[0].importSourceKey,
+    "金額が直っても購入元キーは変えない");
+  assert.equal(before.purchaseHistory[0].lp, 20);
+  assert.equal(after.purchaseHistory[0].lp, 30);
+
+  const multi = importApi.mergeGarasumadoDocuments([
+    { id: "older123", url: "https://lbt-garasumado.vercel.app/view/older123", updateTime: "2026-10-26T00:00:00Z",
+      doc: { name: "テストキャラクター", plName: "テストPL", scenarioHistory: [], freeNotes: { secret: "LP-10 人生一発購入" } } },
+    { id: "share123", url: "https://lbt-garasumado.vercel.app/view/share123", updateTime: "2026-10-27T00:00:00Z",
+      doc: { name: "テストキャラクター", plName: "テストPL", scenarioHistory: [], freeNotes: { secret: "LP-30 サポートパッシブ「人生一発」購入" } } }
+  ]);
+  const multiManifest = importApi.buildManifest(multi, null);
+  assert.deepEqual([...multiManifest.freeNotesSourceIds], ["older123", "share123"],
+    "同じキャラクターのスナップショット群から得た旧 free-note bucket も refresh できる");
+  assert.equal(multiManifest.purchaseHistory.length, 1, "最新スナップショットの購入だけを使う");
+  assert.equal(multiManifest.purchaseHistory[0].lp, 30);
+});
+
+
+test("価格上限だけ書かれたテーマパックは収入・支出・チケットに推測計上せず警告する", () => {
+  const a = MEMO.parseMemo("報酬：60LP / 自我の欠片 45 / 200LP以下のテーマパックx1");
+  assert.equal(a.income.lp, 60, "明示されたLP報酬だけ計上");
+  assert.equal(a.income.shards, 45, "明示された欠片報酬だけ計上");
+  assert.equal(a.spends.reduce((n, row) => n + row.lp, 0), 0, "200LPは実支出ではない");
+  assert.equal(a.pack["任意"] || 0, 0, "対象パックや券種を推測しない");
+  assert.equal(a.tickets.persona + a.tickets.ego + a.tickets.choice, 0);
+  assert.ok(a.reasons.some((row) => /LP上限付きのテーマパック表記/.test(row.reason)),
+    "金額を二重計上しない理由を表示");
+});
+
+test("LP200以下の任意テーマパックという価格条件は、別記の報酬額を維持しつつ要確認にする", () => {
+  const r = MEMO.parseMemo(`報酬
+LP120
+欠片60
+LP200以下の任意のテーマパック×1を獲得`);
+  assert.equal(r.income.lp, 120);
+  assert.equal(r.income.shards, 60);
+  assert.equal(r.reasons.filter((row) => /LP上限付きのテーマパック表記/.test(row.reason)).length, 1);
+});
+
+test("明示的なテーマパックチケットは既存のパック券警告だけを使う", () => {
+  const r = MEMO.parseMemo("報酬：60LP / 欠片45 / 200LP以下の任意のテーマパックチケット×1");
+  assert.equal(r.income.lp, 60);
+  assert.equal(r.income.shards, 45);
+  assert.equal(r.reasons.filter((row) => /LP上限付きのテーマパック表記/.test(row.reason)).length, 0);
+  assert.ok(r.reasons.some((row) => row.ticketCategory === "pack"));
+});
+
+test("プロトの100LP消費ガチャは短縮名を人格として一意に解決し、E.G.Oへ誤分類しない", () => {
+  const proto = samples["3JIdhCPatk2URoQZ2btx"]?.doc;
+  assert.ok(proto, "プロトの実サンプルがある");
+  const sourceScenario = (proto.scenarioHistory || []).find((row) =>
+    String(row.memo || "").includes("→LP100消費ガチャ:厳粛な哀悼獲得")
+  );
+  assert.ok(sourceScenario, "元の100LP消費ガチャ記録がある");
+
+  const parsed = MEMO.parseMemo(sourceScenario.memo);
+  const parsedWin = parsed.wins.find((win) => win.name === "厳粛な哀悼");
+  assert.equal(parsedWin?.entityKindHint, "persona", "100LP消費ガチャの形式から人格ヒントを保持する");
+  assert.equal(parsed.spends.find((spend) => spend.lp === 100)?.lp, 100, "100LP支出は金額側にも残る");
+
+  /* 既存の所持人格行を外し、リザルトの獲得行だけから所持補充できるかを検査。 */
+  const personaName = "ロボトミーE.G.O:厳粛な哀悼";
+  const doc = {
+    ...proto,
+    owned: {
+      ...(proto.owned || {}),
+      personas: (proto.owned?.personas || []).filter((row) => {
+        const name = typeof row === "string" ? row : row?.name;
+        return !String(name || "").trim().startsWith(personaName);
+      })
+    },
+    scenarioHistory: [sourceScenario]
+  };
+  const context = { window: { DB: db }, console, URL, TextEncoder, TextDecoder, setTimeout, clearTimeout, module: { exports: {} } };
+  context.globalThis = context;
+  vm.createContext(context);
+  for (const file of ["js/roster-resolver.js", "js/garasumado-memo-parse.js", "js/ledger-provenance.js", "js/garasumado-roster-import.js"]) {
+    vm.runInContext(readFileSync(new URL("../" + file, import.meta.url), "utf8"), context, { filename: file });
+  }
+  const index = context.window.LBT_buildNameIndex(db, {});
+  const resolve = (name) => (context.window.LBT_resolveCandidates(index, name) || [])[0] || null;
+  const candidates = (name) => context.window.LBT_resolveCandidates(index, name) || [];
+  const manifest = context.window.LBT_garasumado.buildManifest(doc, { resolve, candidates }, db);
+  const scenario = manifest.scenarios.find((row) => row.name === sourceScenario.name);
+  const win = scenario?.wins.find((row) => row.raw === "厳粛な哀悼");
+  assert.ok(win?.resolved, "文脈付き解決で所持候補へ補える");
+  assert.equal(win.resolution, "context-kind-unique-substring");
+  assert.equal(win.kinds.length, 1);
+  assert.equal(win.kinds[0].kind, "persona");
+  assert.equal(String(win.kinds[0].no), "75");
+  assert.equal(win.kinds[0].mode, "n");
+  assert.ok(!win.kinds.some((kind) => kind.kind === "ego"), "E.G.O No.59には結び付けない");
+
+  const applied = context.window.LBT_garasumado.toDispatchActions(manifest, [], { db });
+  assert.ok(applied.actions.some((action) => action.type === "ADD_ROSTER" && String(action.no) === "75" && action.mode === "n"),
+    "獲得記録から人格 No.75 のADD_ROSTERを作る");
+  assert.ok(!applied.actions.some((action) => action.type === "ADD_ROSTER_EGO" && String(action.no) === "59"),
+    "厳粛な哀悼の短縮名からE.G.O No.59を誤追加しない");
+  assert.equal(applied.skipped.some((item) => String(item.key).includes("厳粛な哀悼") && /E.G.O/.test(item.reason)), false);
+
+  /* 価格・ガチャ文脈のヒントを持たない短縮名はグローバルに人格へ寄せない。 */
+  const neutral = context.window.LBT_garasumado.buildManifest({
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{ name: "別額のガチャ", memo: "→LP50消費ガチャ:厳粛な哀悼獲得" }]
+  }, { resolve, candidates }, db);
+  const neutralWin = neutral.scenarios[0].wins.find((row) => row.raw === "厳粛な哀悼");
+  assert.ok(neutralWin, "獲得の記録自体は失わない");
+  assert.equal(neutralWin.entityKindHint, undefined, "100LPでない取引から人格ヒントを作らない");
+  assert.equal(neutralWin.resolved, false, "種別の根拠がない短縮名を推測解決しない");
+  assert.equal(neutralWin.kinds.length, 0, "未解決のまま明示して残す");
+});
+
+test("硝子窓の「獲得：HE 厳粛な哀悼」は正式E.G.O名へ照合され所持追加される", () => {
+  const fullEgoName = "厳粛な哀悼：死んだ蝶たちの葬儀";
+  const memo = "消費：欠片100\n獲得：HE " + fullEgoName;
+  const parsed = MEMO.parseMemo(memo);
+  assert.deepEqual([...parsed.wins.map((win) => ({ name: win.name, kind: win.kind }))], [
+    { name: fullEgoName, kind: "ego" }
+  ], "獲得ラベルとE.G.OランクをDBの表示名へ混ぜない");
+
+  const context = { window: { DB: db }, console, module: { exports: {} } };
+  vm.createContext(context);
+  for (const file of ["roster-resolver.js", "garasumado-memo-parse.js", "ledger-provenance.js", "garasumado-roster-import.js"]) {
+    vm.runInContext(readFileSync(new URL("../js/" + file, import.meta.url), "utf8"), context, { filename: file });
+  }
+  const index = context.window.LBT_buildNameIndex(db, {});
+  const resolve = (name) => (context.window.LBT_resolveCandidates(index, name) || [])[0] || null;
+  const manifest = context.window.LBT_garasumado.buildManifest({
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{ name: "E.G.O抽出", memo }]
+  }, {
+    resolve,
+    candidates: (name) => context.window.LBT_resolveCandidates(index, name) || []
+  }, db);
+
+  const win = manifest.scenarios[0].wins.find((row) => row.name === fullEgoName);
+  assert.ok(win?.resolved, "正式名が実DBへ解決される");
+  assert.equal(win.kinds.length, 1);
+  assert.equal(win.kinds[0].kind, "ego");
+  assert.equal(win.kinds[0].rank, "HE");
+
+  const applied = context.window.LBT_garasumado.toDispatchActions(manifest, [], { db });
+  assert.ok(applied.actions.some((action) => action.type === "ADD_ROSTER_EGO"
+    && action.rank === "HE" && String(action.no) === "59"),
+    "厳粛な哀悼：死んだ蝶たちの葬儀（HE / 59）が取り込みアクションまで到達する");
+  assert.deepEqual([...applied.skipped], [], "正規名とランクがあるE.G.Oを未解決扱いにしない");
 });

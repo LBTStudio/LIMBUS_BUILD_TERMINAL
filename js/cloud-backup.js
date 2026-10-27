@@ -10,6 +10,7 @@
   const RECOVERY_KEY = "lbt_cloud_recovery_key_v1";
   const ENABLED_KEY = "lbt_cloud_sync_enabled";
   const REVISION_KEY = "lbt_cloud_last_revision_v1";
+  const BASELINE_HASH_KEY = "lbt_cloud_last_synced_hash_v1";
   const MAX_LOCAL_BYTES = 12 * 1024 * 1024;
   const MAX_JSON_BACKUP_BYTES = 100 * 1024 * 1024;
   const h = (...args) => React.createElement(...args);
@@ -17,6 +18,8 @@
   let syncTimer = null;
   let syncPromise = null;
   let initialized = false;
+  // The recovery secret and remote payload stay in this closure, never in UI state/events.
+  let pendingComparison = null;
   let state = {
     mode: "local",
     label: "ローカル保存",
@@ -29,7 +32,8 @@
     hasRecoveryKey: false,
     recoveryKeyEnabled: false,
     syncEnabled: false,
-    localMeaningful: false
+    localMeaningful: false,
+    comparison: null
   };
 
   function emit(patch = {}) {
@@ -144,6 +148,153 @@
     const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(entries)));
     return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
   }
+
+  function writeSyncBaseline(payloadHash, revision) {
+    const hash = String(payloadHash || "").toLowerCase();
+    if (/^[a-f0-9]{64}$/.test(hash)) writeStorage(BASELINE_HASH_KEY, hash);
+    const version = Number(revision);
+    if (Number.isSafeInteger(version) && version > 0) writeStorage(REVISION_KEY, String(version));
+  }
+  function stableValue(value) {
+    if (Array.isArray(value)) return value.map(stableValue);
+    if (!value || typeof value !== "object") return value;
+    return Object.keys(value).sort().reduce((result, key) => {
+      result[key] = stableValue(value[key]);
+      return result;
+    }, {});
+  }
+  function stableJson(value) {
+    try { return JSON.stringify(stableValue(JSON.parse(String(value)))); }
+    catch (_) { return String(value ?? ""); }
+  }
+  function accountRowsFromSnapshot(payload) {
+    const values = new Map((Array.isArray(payload?.entries) ? payload.entries : [])
+      .filter((item) => item && typeof item.key === "string" && typeof item.value === "string")
+      .map((item) => [item.key, item.value]));
+    const indexed = new Map();
+    try {
+      const parsed = JSON.parse(values.get("lbt_accounts_index") || "null");
+      const list = Array.isArray(parsed?.accounts) ? parsed.accounts : Array.isArray(parsed) ? parsed : [];
+      for (const entry of list) {
+        const id = String(entry?.id || "");
+        if (!id || indexed.has(id)) continue;
+        indexed.set(id, { id, name: String(entry?.name || "").trim() || id });
+      }
+    } catch (_) {}
+    const prefix = "lbt_account_";
+    for (const key of values.keys()) {
+      if (!key.startsWith(prefix) || key === "lbt_account_active"
+        || key === "lbt_accounts_icons" || key.startsWith("lbt_cloud_")) continue;
+      const id = key.slice(prefix.length);
+      if (!id || id.includes(".corrupt.") || id.includes(".backup.")) continue;
+      if (!indexed.has(id)) indexed.set(id, { id, name: id });
+    }
+    return [...indexed.values()].map((row) => {
+      const raw = values.get(prefix + row.id) ?? "";
+      let parsed = null;
+      try { parsed = JSON.parse(raw); } catch (_) {}
+      return {
+        ...row,
+        name: row.name === row.id
+          ? (String(parsed?.charName || parsed?.personaSrc?.name || row.id).trim() || row.id)
+          : row.name,
+        normalized: stableJson(raw)
+      };
+    }).sort((a, b) => a.id.localeCompare(b.id));
+  }
+  function normalizeAccountLabel(value) {
+    return String(value || "").normalize("NFKC").trim().replace(/\\s+/gu, " ").toLocaleLowerCase();
+  }
+  async function compareSnapshotVersions(local, remote, recoveryKey) {
+    const localHash = await hashSnapshot(local);
+    const remoteHash = String(remote.payloadHash || remote.payload_hash || "")
+      || await hashSnapshot(remote.payload);
+    const hasMatchingVaultBaseline = readRecoveryKey() === recoveryKey;
+    const baselineHash = hasMatchingVaultBaseline
+      ? String(readStorage(BASELINE_HASH_KEY) || "").toLowerCase() : "";
+    const baselineRevision = baselineHash ? Number(readStorage(REVISION_KEY) || 0) : 0;
+    const remoteRevision = Number(remote.revision) || 0;
+    const localMeaningful = hasMeaningfulLocalData(local);
+    const cloudMeaningful = hasMeaningfulLocalData(remote.payload);
+    let relation = "unknown";
+    let title = "新旧を確定できません";
+    let explanation = "前回同期した内容の比較基準がありません。世代番号だけでは端末側とクラウド側のどちらが新しいか証明できないため、アカウント単位の一致状況を見て選択してください。";
+    if (localHash === remoteHash) {
+      relation = "identical";
+      title = "ローカルとクラウドは一致しています";
+      explanation = "保存対象の全データが一致しています。復元・上書きは不要です。";
+    } else if (!localMeaningful && cloudMeaningful) {
+      relation = "cloud-only";
+      title = "クラウド側に復元対象があります";
+      explanation = "この端末に有効なアカウントデータは見つからず、クラウド側にはデータがあります。クラウドからの復元が安全な選択です。";
+    } else if (localMeaningful && !cloudMeaningful) {
+      relation = "local-only";
+      title = "この端末側にのみ有効なデータがあります";
+      explanation = "クラウド側には有効なアカウントデータが見つかりません。この端末の内容をクラウドに保存する場合は、明示的に更新を選択してください。";
+    } else if (baselineHash && localHash === baselineHash && remoteHash !== baselineHash) {
+      relation = "cloud-newer";
+      title = "クラウド側が前回同期後に更新されています";
+      explanation = "この端末の内容は最後に同期した時点から変わっておらず、クラウド側だけに新しい変更があります。クラウドからの復元を推奨します。";
+    } else if (baselineHash && remoteHash === baselineHash && localHash !== baselineHash) {
+      relation = "local-newer";
+      title = "この端末側に未同期の変更があります";
+      explanation = "クラウドは最後に同期した内容のままで、この端末側だけに変更があります。この端末の内容をクラウドに保存するのが自然ですが、変更内容を確認して選択してください。";
+    } else if (baselineHash) {
+      relation = "diverged";
+      title = "双方に別々の変更があります";
+      explanation = "この端末とクラウドの両方が最後に同期した内容から変わっています。どちらも自動統合せず、アカウント単位の差分を確認してから復元先を選んでください。";
+    } else if (baselineRevision > 0 && remoteRevision > baselineRevision) {
+      relation = "cloud-ahead-unverified";
+      title = "クラウドに新しい世代がありますが、端末側の変更は未確定です";
+      explanation = "クラウド世代はこの端末が最後に確認した世代より進んでいます。ただし前回同期した内容の指紋がないため、端末側にも変更がないとは断定できません。比較結果を確認して選択してください。";
+    }
+    const localRows = accountRowsFromSnapshot(local);
+    const cloudRows = accountRowsFromSnapshot(remote.payload);
+    const localById = new Map(localRows.map((row) => [row.id, row]));
+    const cloudById = new Map(cloudRows.map((row) => [row.id, row]));
+    const localOnly = localRows.filter((row) => !cloudById.has(row.id));
+    const cloudOnly = cloudRows.filter((row) => !localById.has(row.id));
+    const changed = localRows.filter((row) => cloudById.has(row.id)
+      && row.normalized !== cloudById.get(row.id).normalized);
+    const exact = localRows.filter((row) => cloudById.has(row.id)
+      && row.normalized === cloudById.get(row.id).normalized);
+    const unionCount = new Set([...localById.keys(), ...cloudById.keys()]).size;
+    const commonCount = localRows.filter((row) => cloudById.has(row.id)).length;
+    const identityOverlapPercent = unionCount ? Math.round(commonCount / unionCount * 100) : 100;
+    const contentMatchPercent = unionCount ? Math.round(exact.length / unionCount * 100) : 100;
+    const cloudNames = new Map();
+    for (const row of cloudOnly) {
+      const name = normalizeAccountLabel(row.name);
+      if (name) cloudNames.set(name, [...(cloudNames.get(name) || []), row]);
+    }
+    const localNames = new Map();
+    for (const row of localOnly) {
+      const name = normalizeAccountLabel(row.name);
+      if (name) localNames.set(name, [...(localNames.get(name) || []), row]);
+    }
+    const sameNameDifferentId = [];
+    for (const [name, rows] of localNames) {
+      const other = cloudNames.get(name) || [];
+      if (rows.length === 1 && other.length === 1) {
+        sameNameDifferentId.push({ localName: rows[0].name, cloudName: other[0].name });
+      }
+    }
+    return {
+      found: true, relation, title, explanation, localMeaningful, cloudMeaningful,
+      localHash, remoteHash, localKnownRevision: baselineRevision, remoteRevision,
+      remoteUpdatedAt: String(remote.updatedAt || remote.updated_at || ""),
+      hasBaseline: Boolean(baselineHash),
+      localAccountCount: localRows.length, cloudAccountCount: cloudRows.length,
+      sameIdCount: commonCount, sameContentCount: exact.length, changedCount: changed.length,
+      localOnlyCount: localOnly.length, cloudOnlyCount: cloudOnly.length,
+      identityOverlapPercent, contentMatchPercent,
+      localOnlyAccounts: localOnly.slice(0, 5).map((row) => row.name),
+      cloudOnlyAccounts: cloudOnly.slice(0, 5).map((row) => row.name),
+      changedAccounts: changed.slice(0, 5).map((row) => row.name),
+      sameNameDifferentId: sameNameDifferentId.slice(0, 5)
+    };
+  }
+
   function downloadText(name, text, type = "application/json") {
     const blob = new Blob([text], { type });
     const url = URL.createObjectURL(blob);
@@ -465,6 +616,80 @@
     const key = readStorage(RECOVERY_KEY);
     return key && /^LBT1-[A-Za-z0-9_-]{40,50}$/.test(key) ? key : null;
   }
+  function validRecoveryKey(value) {
+    const key = String(value || "").trim();
+    if (!/^LBT1-[A-Za-z0-9_-]{40,50}$/.test(key)) throw new Error("復旧キーを「LBT1-」から最後まで入力してください。");
+    return key;
+  }
+  function rememberRecoveryKey(key) {
+    if (writeStorage(RECOVERY_KEY, key)) return true;
+    downloadRecoveryKeyFile(key);
+    return false;
+  }
+  async function compareLocalAndCloud(rawKey = null) {
+    const key = validRecoveryKey(rawKey || readRecoveryKey());
+    const local = collectLocalSnapshot({ enforceCloudLimit: false });
+    const localHash = await hashSnapshot(local);
+    const remote = await getRemote({ recoveryKey: key });
+    if (!remote.found || !remote.payload) {
+      pendingComparison = null;
+      emit({ comparison: { found: false,
+        title: "この復旧キーに対応する保管庫が見つかりません",
+        explanation: "入力ミスか、まだクラウド保全が作成されていない可能性があります。既存データを自動で作成・上書きしません。復旧キーを確認してください。"
+      }, remoteExists: false, conflict: false, revision: 0,
+      label: "保管庫を確認できません", message: "復旧キーを確認してください。ローカルデータは変更していません。" });
+      return false;
+    }
+    const report = await compareSnapshotVersions(local, remote, key);
+    pendingComparison = { key, payload: remote.payload, revision: Number(remote.revision) || 0,
+      remoteHash: report.remoteHash, localHash, localMeaningful: report.localMeaningful };
+    const { localHash: _localHash, remoteHash: _remoteHash, ...visibleReport } = report;
+    emit({ comparison: visibleReport, remoteExists: true, revision: Number(remote.revision) || 0,
+      conflict: !["identical", "cloud-only", "local-only", "cloud-newer", "local-newer"].includes(report.relation),
+      label: report.title, message: report.explanation });
+    return visibleReport;
+  }
+  async function restoreComparedCloud() {
+    const selected = pendingComparison;
+    if (!selected) throw new Error("先にローカルとクラウドを照合してください。");
+    const local = collectLocalSnapshot({ enforceCloudLimit: false });
+    if (await hashSnapshot(local) !== selected.localHash) {
+      pendingComparison = null;
+      emit({ comparison: null, label: "ローカルデータが変更されました", message: "比較後に端末内データが変わりました。再照合してください。" });
+      throw new Error("ローカルデータが比較後に変更されています。再照合してください。");
+    }
+    const current = await getRemote({ recoveryKey: selected.key, metadataOnly: true });
+    const currentHash = String(current.payloadHash || current.payload_hash || "");
+    if (!current.found || Number(current.revision) !== selected.revision
+      || (currentHash && currentHash !== selected.remoteHash)) {
+      pendingComparison = null;
+      emit({ comparison: null, label: "クラウドが更新されました", message: "比較後にクラウド側が更新されました。再照合してください。" });
+      throw new Error("比較後にクラウド側が更新されています。再照合してください。");
+    }
+    const result = await restorePayload(selected.payload, selected.revision, selected.key, {
+      expectedRemoteRevision: selected.revision, expectedRemoteHash: selected.remoteHash,
+      expectedLocalHash: selected.localHash
+    });
+    if (result) { pendingComparison = null; emit({ comparison: null }); }
+    return result;
+  }
+  async function updateCloudFromComparedLocal() {
+    const selected = pendingComparison;
+    if (!selected) throw new Error("先にローカルとクラウドを照合してください。");
+    const local = collectLocalSnapshot({ enforceCloudLimit: false });
+    if (await hashSnapshot(local) !== selected.localHash) {
+      pendingComparison = null;
+      emit({ comparison: null, label: "ローカルデータが変更されました", message: "比較後に端末内データが変わりました。再照合してください。" });
+      throw new Error("ローカルデータが比較後に変更されています。再照合してください。");
+    }
+    if (!selected.localMeaningful && !hasMeaningfulLocalData(local)) {
+      throw new Error("この端末に有効なアカウントデータがないため、空の内容でクラウドを更新できません。");
+    }
+    const result = await backupLocalToCloud({ force: true, recoveryKey: selected.key,
+      comparedRevision: selected.revision, comparedHash: selected.remoteHash, comparedLocalHash: selected.localHash });
+    if (result) { pendingComparison = null; emit({ comparison: null }); }
+    return result;
+  }
   function setEnabled(enabled) {
     writeStorage(ENABLED_KEY, enabled ? "1" : "0");
     if (!enabled) clearTimeout(syncTimer);
@@ -517,7 +742,7 @@
         recoveryKeyEnabled: Boolean(remote.recoveryKeyEnabled),
         mirrorSynced: dualProtected
       });
-      if (same) writeStorage(REVISION_KEY, String(remote.revision));
+      if (same) writeSyncBaseline(remoteHash || localHash, remote.revision);
       return getStatus();
     } catch (error) {
       emit({ label: "オンライン保全に接続できません", message: (error.message || "接続に失敗しました。") + " ローカル保存は引き続き利用できます。復旧キー自体は変更されていません。" });
@@ -527,14 +752,24 @@
   async function backupLocalToCloud(options = {}) {
     const payload = collectLocalSnapshot();
     const localHash = await hashSnapshot(payload);
-    const key = readRecoveryKey();
-    if (!key) throw new Error("先に復旧キーを発行するか、復旧キーを入力してクラウドから復元してください。");
-    const current = await getRemote({ metadataOnly: true });
+    const key = validRecoveryKey(options.recoveryKey || readRecoveryKey());
+    if (options.comparedLocalHash && options.comparedLocalHash !== localHash) {
+      throw new Error("照合後にローカルデータが変更されています。再照合してください。");
+    }
+    const current = await getRemote({ metadataOnly: true, recoveryKey: key });
     const exists = Boolean(current.found);
     const currentHash = String(current.payloadHash || current.payload_hash || "");
+    if (Number.isSafeInteger(options.comparedRevision)
+      && (!exists || Number(current.revision) !== options.comparedRevision
+        || (options.comparedHash && currentHash !== options.comparedHash))) {
+      pendingComparison = null;
+      emit({ comparison: null, label: "クラウドが更新されました", message: "照合後にクラウド側が更新されました。再照合してください。" });
+      throw new Error("照合後にクラウド側が更新されています。再照合してください。");
+    }
     const same = exists && currentHash && currentHash === localHash;
     if (exists && same) {
-      writeStorage(REVISION_KEY, String(current.revision));
+      writeSyncBaseline(currentHash || localHash, current.revision);
+      if (options.recoveryKey) rememberRecoveryKey(key);
       setEnabled(true);
       const dualProtected = current.mirrorSynced !== false && !current.secondaryUnavailable && !current.repairPending;
       emit({ remoteExists: true, revision: Number(current.revision), conflict: false,
@@ -555,10 +790,18 @@
     } else if (!confirm("この端末に保存された全アカウントデータを、復旧キーに紐づくオンライン保全先へ初回保存します。復旧キーは以後のデータ更新でも変わりません。続けますか？")) {
       return false;
     }
-    const latest = await getRemote({ metadataOnly: true });
+    const latest = await getRemote({ metadataOnly: true, recoveryKey: key });
     const latestHash = String(latest.payloadHash || latest.payload_hash || "");
+    if (Number.isSafeInteger(options.comparedRevision)
+      && (!latest.found || Number(latest.revision) !== options.comparedRevision
+        || (options.comparedHash && latestHash !== options.comparedHash))) {
+      pendingComparison = null;
+      emit({ comparison: null, label: "クラウドが更新されました", message: "保存確認中にクラウド側が変わりました。再照合してください。" });
+      throw new Error("照合後にクラウド側が更新されています。再照合してください。");
+    }
     if (latest.found && latestHash && latestHash === localHash) {
-      writeStorage(REVISION_KEY, String(latest.revision));
+      writeSyncBaseline(latestHash || localHash, latest.revision);
+      if (options.recoveryKey) rememberRecoveryKey(key);
       setEnabled(true);
       const dualProtected = latest.mirrorSynced !== false && !latest.secondaryUnavailable && !latest.repairPending;
       emit({ remoteExists: true, revision: Number(latest.revision), conflict: false,
@@ -572,7 +815,8 @@
     const expectedRevision = latest.found ? Number(latest.revision) : 0;
     const result = await callRecovery({ action: "backup", expectedRevision, payload, recoveryKey: key });
     if (!result.found) throw new Error("オンライン保存先を確認できませんでした。復旧キーを確認してもう一度お試しください。");
-    writeStorage(REVISION_KEY, String(result.revision));
+    writeSyncBaseline(localHash, result.revision);
+    if (options.recoveryKey) rememberRecoveryKey(key);
     setEnabled(true);
     emit({ remoteExists: true, revision: Number(result.revision), conflict: false,
       label: result._mirror && result._mirror.ok ? "二重保全済み" : "主系保全済み・代替系未確認",
@@ -599,6 +843,7 @@
   async function createRecoveryKey() {
     if (readRecoveryKey()) throw new Error("この端末には復旧キーが設定済みです。既存キーを使ってください。");
     const payload = collectLocalSnapshot();
+    const localHash = await hashSnapshot(payload);
     if (!confirm("復旧キーを発行し、この端末の全アカウントデータをオンラインへ初回保存します。復旧キーのファイルは別の安全な場所に保管してください。データ更新でキーは変わりませんが、キーを紛失すると復元できません。続けますか？")) return false;
     const key = "LBT1-" + randomToken(32);
     const result = await callRecovery({ action: "create_recovery", recoveryKey: key, payload });
@@ -606,7 +851,7 @@
       downloadRecoveryKeyFile(key);
       throw new Error("復旧キーのファイルをダウンロードしましたが、この端末の保存領域には保存できませんでした。ファイルを安全に保管し、次回もキーを入力してください。");
     }
-    writeStorage(REVISION_KEY, String(result.revision || 1));
+    writeSyncBaseline(localHash, result.revision || 1);
     setEnabled(true);
     downloadRecoveryKeyFile(key);
     emit({
@@ -677,17 +922,42 @@
     emit({ history });
     return history;
   }
-  async function restorePayload(payload, revision, recoveryKey = null) {
-    const local = collectLocalSnapshot({ enforceCloudLimit: false });
-    const hasLocal = hasMeaningfulLocalData(local);
+  async function restorePayload(payload, revision, recoveryKey = null, guard = null) {
+    let local = collectLocalSnapshot({ enforceCloudLimit: false });
+    let hasLocal = hasMeaningfulLocalData(local);
     if (hasLocal && !confirm("現在の端末にもデータがあります。復元前に現在の全アカウントデータをJSONファイルとしてダウンロードし、その後クラウドの内容で端末データを置き換えます。続けますか？")) return false;
-    if (hasLocal) downloadSnapshot(local, "before-cloud-restore");
     const valid = validateSnapshot(payload);
+    if (guard && recoveryKey && guard.expectedLocalHash) {
+      local = collectLocalSnapshot({ enforceCloudLimit: false });
+      hasLocal = hasMeaningfulLocalData(local);
+      if (await hashSnapshot(local) !== guard.expectedLocalHash) {
+        pendingComparison = null;
+        emit({ comparison: null, label: "ローカルデータが変更されました", message: "確認ダイアログを開いている間に端末内データが変わりました。復元を中止しました。再照合してください。" });
+        throw new Error("確認後にローカルデータが変更されています。再照合してください。");
+      }
+    }
+    if (guard && recoveryKey) {
+      const latest = await getRemote({ recoveryKey, metadataOnly: true });
+      const latestHash = String(latest.payloadHash || latest.payload_hash || "");
+      if (!latest.found || Number(latest.revision) !== Number(guard.expectedRemoteRevision)
+        || (guard.expectedRemoteHash && latestHash !== guard.expectedRemoteHash)) {
+        pendingComparison = null;
+        emit({ comparison: null, label: "クラウドが更新されました", message: "確認中にクラウド側が更新されました。端末データは置き換えていません。再照合してください。" });
+        throw new Error("クラウド側の世代が変わりました。再照合してください。");
+      }
+    }
+    if (hasLocal) downloadSnapshot(local, "before-cloud-restore");
     applySnapshot(valid, { revision, enableSync: true });
-    if (recoveryKey) writeStorage(RECOVERY_KEY, recoveryKey);
-    writeStorage(REVISION_KEY, String(revision));
+    const recoveryKeySaved = recoveryKey ? rememberRecoveryKey(recoveryKey) : true;
+    writeSyncBaseline(await hashSnapshot(valid), revision);
     setEnabled(true);
-    emit({ remoteExists: true, revision, conflict: false, label: "バックアップを復元しました", message: "バックアップを端末へ復元しました。アカウント選択画面から作業を再開できます。" });
+    emit({
+      remoteExists: true, revision, conflict: false,
+      label: recoveryKey && !recoveryKeySaved ? "復元済み・キーを別途保管してください" : "バックアップを復元しました",
+      message: recoveryKey && !recoveryKeySaved
+        ? "データを復元しましたが、この端末には復旧キーを保存できませんでした。ダウンロードしたキーのファイルを安全に保管してください。"
+        : "バックアップを端末へ復元しました。アカウント選択画面から作業を再開できます。"
+    });
     announceRestored();
     return true;
   }
@@ -707,7 +977,9 @@
     applySnapshot(payload, { enableSync: false, enforceCloudLimit: false });
     removeStorage(ENABLED_KEY);
     removeStorage(REVISION_KEY);
-    emit({ mode: "local", label: "JSONから復元しました", message: "ローカルJSONから復元しました。オンラインへは送信していません。", remoteExists: false, revision: 0, conflict: false });
+    removeStorage(BASELINE_HASH_KEY);
+    pendingComparison = null;
+    emit({ mode: "local", label: "JSONから復元しました", message: "ローカルJSONから復元しました。オンラインへは送信していません。", remoteExists: false, revision: 0, conflict: false, comparison: null });
     announceRestored();
     return true;
   }
@@ -749,7 +1021,7 @@
         return;
       }
       if (same) {
-        writeStorage(REVISION_KEY, String(current.revision));
+        writeSyncBaseline(remoteHash || localHash, current.revision);
         const dualProtected = current.mirrorSynced !== false && !current.secondaryUnavailable && !current.repairPending;
         emit({ conflict: false, remoteExists: true, revision: Number(current.revision),
           label: dualProtected ? "二重保全・同期済み" : "単一保全先で同期済み・要確認",
@@ -761,7 +1033,7 @@
       }
       const result = await callRecovery({ action: "backup", expectedRevision: Number(current.revision), payload, recoveryKey: key });
       if (result.found) {
-        writeStorage(REVISION_KEY, String(result.revision));
+        writeSyncBaseline(localHash, result.revision);
         emit({ conflict: false, remoteExists: true, revision: Number(result.revision),
           label: result._mirror && result._mirror.ok ? "二重自動同期済み" : "自動同期済み・代替系未確認",
           message: result._mirror && result._mirror.ok
@@ -809,6 +1081,11 @@
       onClick,
     }, label);
     const hasKey = Boolean(view.hasRecoveryKey);
+    const comparison = view.comparison;
+    const comparisonTime = (value) => {
+      const date = new Date(value || "");
+      return Number.isNaN(date.getTime()) ? "不明" : date.toLocaleString();
+    };
     return h("section", { className: "lbt-cloud-panel" + (compact ? " is-compact" : ""), "aria-label": "オンライン保全（復旧キー方式）" },
       h("div", { className: "lbt-cloud-heading" },
         h("strong", null, "オンライン保全（復旧キー方式）"),
@@ -820,11 +1097,11 @@
         h("p", { className: "lbt-cloud-provider-note" }, "まだ復旧キーがない場合は発行してください。すでにキーを持っている場合は、下の入力欄から復元できます。")
       ) : h("p", { className: "lbt-cloud-account" }, "復旧キーはこの端末に保存されています。バックアップ内容や更新回数が変わっても、同じキーで最新データを取得できます。"),
       h("div", { className: "lbt-cloud-actions" },
-        !hasKey ? button("復旧キーを発行して保全", () => run(createRecoveryKey), "is-primary") : null,
+        !hasKey && !comparison ? button("復旧キーを発行して保全", () => run(createRecoveryKey), "is-primary") : null,
         button("全アカウントをJSON保存", () => run(async () => exportLocalBackup()))
       ),
       h("div", { className: "lbt-cloud-recovery" },
-        h("label", { htmlFor: "lbt-cloud-recovery-key" }, "復旧キーからクラウドを復元"),
+        h("label", { htmlFor: "lbt-cloud-recovery-key" }, "復旧キーを入力してデータを照合（ログイン不要）"),
         h("div", { className: "lbt-cloud-recovery-row" },
           h("input", {
             id: "lbt-cloud-recovery-key",
@@ -836,14 +1113,60 @@
             placeholder: "LBT1-…",
             onChange: (event) => setRecoveryDraft(event.target.value)
           }),
-          button("復元", () => run(() => restoreWithKey(recoveryDraft)))
+          button(recoveryDraft.trim() ? "このキーを照合" : hasKey ? "ローカル・クラウドを比較" : "このキーを照合",
+            () => run(() => compareLocalAndCloud(recoveryDraft.trim() || null)), "is-primary")
         )
       ),
+      comparison ? h("section", { className: "lbt-cloud-compare", "aria-label": "ローカルとクラウドの比較結果", role: "region" },
+        h("div", { className: "lbt-cloud-compare-heading" },
+          h("strong", null, comparison.title || "比較結果"),
+          h("span", null, comparison.found ? "比較済み" : "未検出")
+        ),
+        h("p", null, comparison.explanation || ""),
+        comparison.found ? h(React.Fragment, null,
+          h("div", { className: "lbt-cloud-compare-grid" },
+            h("div", { className: "lbt-cloud-compare-side" },
+              h("strong", null, "この端末"),
+              h("span", null, "アカウント数: " + comparison.localAccountCount),
+              h("span", null, "最終同期世代: " + (comparison.localKnownRevision || "不明")),
+              h("span", null, comparison.localMeaningful ? "有効なアカウントデータあり" : "有効なアカウントデータなし")
+            ),
+            h("div", { className: "lbt-cloud-compare-side" },
+              h("strong", null, "クラウド"),
+              h("span", null, "アカウント数: " + comparison.cloudAccountCount),
+              h("span", null, "保全世代: " + comparison.remoteRevision),
+              h("span", null, "最終更新: " + comparisonTime(comparison.remoteUpdatedAt))
+            )
+          ),
+          h("p", { className: "lbt-cloud-compare-metrics" },
+            "アカウントID一致率 ", comparison.identityOverlapPercent, "% ・ 内容一致率 ", comparison.contentMatchPercent, "% ・ 同一ID ", comparison.sameIdCount, "件 / 内容一致 ", comparison.sameContentCount, "件 / 内容変更 ", comparison.changedCount, "件"
+          ),
+          comparison.localOnlyCount ? h("p", null, "端末側だけのアカウント（最大5件）: " + comparison.localOnlyAccounts.join("、") + (comparison.localOnlyCount > 5 ? " ほか" : "")) : null,
+          comparison.cloudOnlyCount ? h("p", null, "クラウド側だけのアカウント（最大5件）: " + comparison.cloudOnlyAccounts.join("、") + (comparison.cloudOnlyCount > 5 ? " ほか" : "")) : null,
+          comparison.changedCount ? h("p", null, "内容が異なる同一IDのアカウント: " + comparison.changedAccounts.join("、") + (comparison.changedCount > 5 ? " ほか" : "")) : null,
+          comparison.sameNameDifferentId?.length ? h("p", { className: "lbt-cloud-compare-warning" },
+            "同名ですがIDが異なるアカウント候補があります（自動統合はしません）: ",
+            comparison.sameNameDifferentId.map((item) => item.localName).join("、")
+          ) : null,
+          h("div", { className: "lbt-cloud-actions lbt-cloud-compare-actions" },
+            comparison.relation === "identical" ? h("p", { className: "lbt-cloud-compare-equal" }, "すでに一致しているため、更新操作は不要です。") : null,
+            button("クラウドの内容でこの端末を復元", () => run(restoreComparedCloud), "is-primary",
+              comparison.relation === "identical" || (!comparison.cloudMeaningful && comparison.localMeaningful)),
+            comparison.localMeaningful
+              ? button("この端末の内容でクラウドを更新", () => run(updateCloudFromComparedLocal), "",
+                comparison.relation === "identical")
+              : h("p", { className: "lbt-cloud-compare-warning" }, "この端末に有効なデータがないため、空の内容でクラウドを上書きする操作は表示しません。")
+          )
+        ) : button("比較結果を閉じる", () => run(async () => {
+          pendingComparison = null;
+          setRecoveryDraft("");
+          await refresh();
+          emit({ comparison: null, label: "照合結果を閉じました", message: "ローカルデータは変更していません。保存先の状態を再確認しました。" });
+        }))
+      ) : null,
       view.remoteExists ? h(React.Fragment, null,
         h("div", { className: "lbt-cloud-actions" },
-          button("クラウドから復元", () => run(restoreCloud)),
-          button(view.conflict ? "この端末でクラウドを更新…" : "この端末をクラウドへ同期", () => run(() => backupLocalToCloud({ force: Boolean(view.conflict) })), view.conflict ? "is-primary" : ""),
-          button("過去の世代を確認", () => run(loadHistory))
+          hasKey ? button("過去の世代を確認", () => run(loadHistory)) : null
         ),
         Array.isArray(view.history) && view.history.length ? h("div", { className: "lbt-cloud-history" },
           h("strong", null, "復元できる過去の世代"),
@@ -852,7 +1175,7 @@
             button("この世代を復元", () => run(() => restoreRevision(item.revision)))
           ))
         ) : null
-      ) : (hasKey && view.localMeaningful) ? button("この端末のデータを初回保存", () => run(() => backupLocalToCloud({ force: false })), "is-primary") : null,
+      ) : (hasKey && view.localMeaningful && !comparison) ? button("この端末のデータを初回保存", () => run(() => backupLocalToCloud({ force: false })), "is-primary") : null,
       h("input", {
         ref: fileInput,
         type: "file",
@@ -877,6 +1200,9 @@
     refresh,
     createRecoveryKey,
     restoreWithKey,
+    compareLocalAndCloud,
+    restoreComparedCloud,
+    updateCloudFromComparedLocal,
     restoreCloud,
     restoreFromFile,
     restoreRevision,
@@ -889,7 +1215,13 @@
     initialize
   };
   window.LBTCloudBackupPanel = CloudBackupPanel;
-  window.addEventListener("lbt:backup-source-changed", scheduleSync);
+  window.addEventListener("lbt:backup-source-changed", () => {
+    if (pendingComparison) {
+      pendingComparison = null;
+      emit({ comparison: null, label: "ローカルデータが変更されました", message: "端末内データが変更されたため、以前の比較結果を破棄しました。再照合してください。" });
+    }
+    scheduleSync();
+  });
   window.addEventListener("online", () => { if (readStorage(ENABLED_KEY) === "1") scheduleSync(); });
   /* Local-only mode remains available when both cloud providers are unavailable. */
   initialize().catch((error) => emit({ label: "オンライン保全を初期化できません", message: error.message || "ローカル保存は利用できます。" }));

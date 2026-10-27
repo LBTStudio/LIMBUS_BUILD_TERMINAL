@@ -3680,7 +3680,7 @@ const INIT_STATE = {
     currentSection: "persona",
     previewTab: "memo",
     previewOpen: void 0,
-    // v54: undefined=画面幅で自動決定（狭い画面では初期OFF）
+    // 未設定は初期折り畳み。利用者が明示的に開閉した場合だけ true/false を保存する。
     codexMode: "n",
     // 'n'|'t'|'roster'|'fav'|'history'
     filterSins: [],
@@ -5849,6 +5849,23 @@ case "ADD_CUSTOM_ITEM": {
      ADD_ENTRY は従来どおり直前の ADD_RESULT に帰属する（位置契約）。 */
     case "APPLY_IMPORT_BATCH": {
       let next = state;
+      /* 自由メモの購入は resultId:null の未分類明細だが、共有元単位で再構築する。
+         専用の provenance prefix が付いた行だけを消し、手入力や別URLの行には触れない。 */
+      const refreshFreeNoteSourceIds = new Set((action.actions || [])
+        .filter((sub) => sub && sub.type === "REFRESH_GARASUMADO_FREE_NOTES")
+        .map((sub) => String(sub.sourceId || "").trim())
+        .filter((sourceId) => /^[A-Za-z0-9_-]{6,}$/.test(sourceId)));
+      if (refreshFreeNoteSourceIds.size) {
+        const existingEntries = Array.isArray(next.entries) ? next.entries : [];
+        const entries = existingEntries.filter((entry) => {
+          const key = String(entry && entry.importResultKey || "");
+          for (const sourceId of refreshFreeNoteSourceIds) {
+            if (key.startsWith("gara-free:" + sourceId + ":")) return false;
+          }
+          return true;
+        });
+        if (entries.length !== existingEntries.length) next = { ...next, entries };
+      }
       /* 配列位置と対応させるため、追加／更新の成否に関わらず ADD_RESULT ごとに枠を持つ。 */
       const resultIds = [];
       const resultSourceKeys = [];
@@ -5913,6 +5930,7 @@ case "ADD_CUSTOM_ITEM": {
       let resultIndex = 0;
       for (const sub of action.actions || []) {
         if (!sub || typeof sub !== "object") continue;
+        if (sub.type === "REFRESH_GARASUMADO_FREE_NOTES") continue;
         if (sub.type === "ADD_RESULT") {
           lastResultId = resultIds[resultIndex] || null;
           lastResultSourceKey = resultSourceKeys[resultIndex] || "";
