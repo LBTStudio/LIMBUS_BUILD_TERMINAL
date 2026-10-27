@@ -1087,7 +1087,7 @@
         h("p", { className: "lbt-cloud-provider-note" }, "まだ復旧キーがない場合は発行してください。すでにキーを持っている場合は、下の入力欄から復元できます。")
       ) : h("p", { className: "lbt-cloud-account" }, "復旧キーはこの端末に保存されています。バックアップ内容や更新回数が変わっても、同じキーで最新データを取得できます。"),
       h("div", { className: "lbt-cloud-actions" },
-        !hasKey ? button("復旧キーを発行して保全", () => run(createRecoveryKey), "is-primary") : null,
+        !hasKey && !comparison ? button("復旧キーを発行して保全", () => run(createRecoveryKey), "is-primary") : null,
         button("全アカウントをJSON保存", () => run(async () => exportLocalBackup()))
       ),
       h("div", { className: "lbt-cloud-recovery" },
@@ -1147,7 +1147,10 @@
                 comparison.relation === "identical")
               : h("p", { className: "lbt-cloud-compare-warning" }, "この端末に有効なデータがないため、空の内容でクラウドを上書きする操作は表示しません。")
           )
-        ) : null
+        ) : button("比較結果を閉じる", () => run(async () => {
+          pendingComparison = null;
+          emit({ comparison: null, label: "照合結果を閉じました", message: "ローカルデータは変更していません。復旧キーを確認して再照合できます。" });
+        }))
       ) : null,
       view.remoteExists ? h(React.Fragment, null,
         h("div", { className: "lbt-cloud-actions" },
@@ -1160,7 +1163,7 @@
             button("この世代を復元", () => run(() => restoreRevision(item.revision)))
           ))
         ) : null
-      ) : (hasKey && view.localMeaningful) ? button("この端末のデータを初回保存", () => run(() => backupLocalToCloud({ force: false })), "is-primary") : null,
+      ) : (hasKey && view.localMeaningful && !comparison) ? button("この端末のデータを初回保存", () => run(() => backupLocalToCloud({ force: false })), "is-primary") : null,
       h("input", {
         ref: fileInput,
         type: "file",
