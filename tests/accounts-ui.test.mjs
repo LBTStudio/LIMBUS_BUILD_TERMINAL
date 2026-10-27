@@ -23,6 +23,7 @@ const stateSource = readFileSync(new URL("../js/state.js", import.meta.url), "ut
 const app = readFileSync(new URL("../js/App.js", import.meta.url), "utf8");
 const sections = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
 const css = readFileSync(new URL("../assets/v66-accounts.css", import.meta.url), "utf8");
+const cloudCss = readFileSync(new URL("../assets/cloud-backup.css", import.meta.url), "utf8");
 const indexHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 
 test("作成・名前変更はインラインフォームで行い prompt に依存しない", () => {
@@ -302,4 +303,14 @@ test("SINNER SELECT内の共有URL取込は全列を使い、本文が狭いカ�
   assert.match(css, /\.acct-card--import-open \.gara-rail\s*\{[^}]*position:\s*static/s);
   assert.match(css, /\.acct-card--import-open:hover,[\s\S]*?\.acct-card--import-open:focus-within\s*\{\s*transform:\s*none;\s*box-shadow:\s*none;/);
   assert.match(css, /\.gara\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(240px,\s*320px\)/);
+});
+
+
+test("モバイルのアカウント操作列と共有URL取り込みフォームが重ならない", () => {
+  assert.match(css, /\.acct-grid \{[\s\S]*?min-height: 0;[\s\S]*?flex: 1 1 auto;[\s\S]*?overscroll-behavior: contain;/);
+  const mobileRules = css.slice(css.indexOf("@media (max-width: 640px)"));
+  assert.match(mobileRules, /\.acct-card \{[\s\S]*?min-height: 148px;[\s\S]*?padding: var\(--s-3\) var\(--s-2\) calc\(var\(--s-3\) \+ 34px\);/);
+  assert.match(mobileRules, /\.acct-meta \{[\s\S]*?overflow-wrap: anywhere;/);
+  assert.match(cloudCss, /\.acct-panel:has\(\.acct-card--import-open\) > \.lbt-cloud-panel \{\s*display: none;/);
+  assert.match(cloudCss, /\.acct-panel:has\(\.acct-card--import-open\) > \.acct-grid > \.acct-card:not\(\.acct-card--import-open\) \{\s*display: none;/);
 });
