@@ -25,7 +25,9 @@ test("保存データ読み込みダイアログは選択リストのみスク�
 });
 
 test("旧いアプリ側PREVIEW縦タブはスマホで隠し、開閉操作を重複させない", () => {
-  assert.match(workspace, /@media \\(max-width: 640px\\) \\{[\\s\\S]*?\\.app\\.preview-collapsed \\.preview-reopen \\{ display: none; \\}/);
+  const legacyPreviewRule = workspace.lastIndexOf(".app.preview-collapsed .preview-reopen { display: none; }");
+  assert.ok(legacyPreviewRule >= 0, "古いPREVIEWタブはスマホで非表示にする");
+  assert.ok(workspace.lastIndexOf("@media (max-width: 640px)") < legacyPreviewRule, "モバイル専用ルールの中で非表示にする");
 });
 
 test("モバイルのコンテンツは固定プレビュー操作の背後に隠れないよう下部余白を確保する", () => {
