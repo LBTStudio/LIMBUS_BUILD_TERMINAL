@@ -599,3 +599,55 @@
     }
   }
 }
+
+
+
+/* UI audit refinement: mobile controls need finger-sized targets.
+   Keep icon-only actions reachable without relying on hover or precision tapping. */
+@media (max-width: 640px) {
+  .topbar .topbar-search {
+    flex: 0 0 40px;
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .guide-filter-row .guide-filter,
+  .guide-search-clear {
+    min-height: 40px;
+  }
+
+  .acct-panel-head .acct-close {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .acct-card-actions .acct-icon-btn {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .acct-card-actions .acct-edit-btn {
+    min-height: 40px;
+    padding-inline: 9px;
+  }
+}
+
+@media (max-width: 359px) {
+  .topbar .topbar-search {
+    flex-basis: 36px;
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    min-height: 36px;
+  }
+
+  .acct-card-actions {
+    gap: 4px;
+  }
+}
