@@ -1,0 +1,142 @@
+/* UI audit refinements: preserve readable controls on narrow screens and long dialogs. */
+
+.preview-mobile-toggle {
+  display: none;
+}
+
+/* The import-category list may be long, but its decision controls must stay reachable. */
+.import-scope-dialog {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
+  overflow: hidden;
+}
+.import-scope-options {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2px 2px 4px 0;
+}
+.import-scope-options > label {
+  min-height: 40px;
+  flex-shrink: 0;
+}
+.import-scope-options > label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+.import-scope-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: 0 0 auto;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-dim);
+  background: var(--surface-1);
+}
+.import-scope-actions .btn {
+  min-height: 40px;
+}
+
+/* At phone width, move the preview action into the top bar rather than on top of content. */
+@media (max-width: 640px) {
+  .preview-edge-toggle,
+  .preview-reopen {
+    display: none !important;
+  }
+
+  .preview-mobile-toggle {
+    display: inline-flex;
+    flex: 0 0 34px;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    min-width: 34px;
+    height: 36px;
+    min-height: 36px;
+    padding: 0;
+    color: var(--gold);
+    background: var(--surface-2);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-sm);
+    cursor: pointer;
+  }
+
+  .preview-mobile-toggle:hover {
+    color: var(--gold-hi);
+    background: var(--surface-3);
+  }
+
+  .preview-mobile-toggle:focus-visible {
+    outline: 2px solid var(--gold-hi);
+    outline-offset: 2px;
+  }
+
+  .section-title-row {
+    padding-right: 0;
+  }
+
+  .build-tabs .segmented[role="tablist"][aria-label="ビルドセクション"] {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    overflow: visible;
+  }
+
+  .build-tabs .segmented[role="tablist"][aria-label="ビルドセクション"] > button {
+    min-width: 0;
+    max-width: none;
+    width: auto;
+    min-height: 40px;
+    padding: 7px 2px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: center;
+    justify-content: center;
+    font-size: var(--fs-11);
+    line-height: 1.25;
+    letter-spacing: .02em;
+  }
+
+  .import-scope-dialog {
+    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
+    padding: 12px;
+    border-radius: 10px;
+  }
+
+  .import-scope-options {
+    padding-right: 2px;
+  }
+
+  .import-scope-options > label {
+    min-height: 44px;
+  }
+
+  .import-scope-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding-top: 10px;
+  }
+
+  .import-scope-actions > div {
+    display: none;
+  }
+
+  .import-scope-actions .btn {
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    padding-inline: 6px;
+    white-space: normal;
+  }
+}
