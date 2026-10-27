@@ -380,14 +380,15 @@ async function boot() {
   const seeded=await seed().catch(e=>({ok:false,reason:String(e)}));
   audit.seed=seeded;
   if(seeded&&seeded.ok) {
-    await page.reload({waitUntil:"domcontentloaded"});
-    await page.waitForLoadState("networkidle",{timeout:12000}).catch(()=>{});
-    await page.waitForTimeout(600);
-    if(await visible(page.locator(".acct-gate"))) {
-      const card=page.locator(".acct-card-hit").filter({hasText:"UI監査用キャラクター"}).first();
-      if(await visible(card)) await click(card);
-      else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
-    }
+    // The seed writes a disposable state into the active account storage.
+    // Ask App to reload that account in-place rather than reloading the page
+    // and re-entering SINNER SELECT; this avoids depending on transparent card
+    // hit-target text or an unnecessary second startup flow.
+    await page.evaluate(() => {
+      const id = window.LBT_accounts?.getActiveId?.();
+      if (!id) throw new Error("active account disappeared after seeding");
+      window.dispatchEvent(new CustomEvent("lbt:accounts-entered", { detail: { id } }));
+    });
     await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
   }
   await page.waitForTimeout(350);
