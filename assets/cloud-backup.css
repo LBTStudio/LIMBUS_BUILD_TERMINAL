@@ -4,17 +4,17 @@
 .acct-panel:has(.acct-card--import-open) {
   max-height: min(92dvh, 900px);
 }
-.acct-panel:has(.acct-card--import-open) > .lbt-cloud-panel {
+.acct-panel:has(.acct-card--import-open) .lbt-cloud-panel {
   display: none;
 }
-.acct-panel:has(.acct-card--import-open) > .acct-grid {
+.acct-panel:has(.acct-card--import-open) .acct-grid {
   min-height: 0;
   flex: 1 1 0%;
   grid-template-columns: minmax(0, 1fr);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
-.acct-panel:has(.acct-card--import-open) > .acct-grid > .acct-card:not(.acct-card--import-open) {
+.acct-panel:has(.acct-card--import-open) .acct-grid > .acct-card:not(.acct-card--import-open) {
   /* 長い取り込みフォームと背後のカードを同時に見せて、誤った対象を編集させない。 */
   display: none;
 }
