@@ -352,19 +352,39 @@ async function boot() {
       const create=page.getByRole("button",{name:"作成して開く",exact:true});
       if(!(await visible(create))) throw new Error("新規キャラクターの作成ボタンが見つかりません");
       await click(create);
+      await page.waitForTimeout(300);
+      const accountResult=await page.evaluate(()=>({
+        gateVisible:!!document.querySelector(".acct-gate"),
+        activeId:window.LBT_accounts?.getActiveId?.()||null,
+        storageAvailable:window.LBT_accounts?.storageAvailable?.()??null,
+        accounts:(window.LBT_accounts?.list?.()?.accounts||[]).map((x)=>({id:x.id,name:x.name})),
+        nameValue:document.querySelector(".acct-gate .acct-card--form .acct-field input")?.value||"",
+        alerts:Array.from(document.querySelectorAll('[role="alert"], .toast, [aria-live="assertive"]')).map((x)=>(x.innerText||"").trim()).filter(Boolean).slice(-5)
+      }));
+      audit.accountGateCreate=accountResult;
+      if(!accountResult.activeId||!accountResult.accounts.length) {
+        throw new Error("SINNER SELECTの作成操作後にアカウントが有効化されませんでした: "+JSON.stringify(accountResult));
+      }
+      if(accountResult.gateVisible) {
+        const detail="作成後もSINNER SELECTが閉じませんでした: "+JSON.stringify(accountResult);
+        audit.failures.push({name:"SINNER SELECT account-create transition",error:detail});
+        audit.interactions.push({name:"SINNER SELECT account-create transition",status:"failed",error:detail});
+        log("failure: "+detail);
+      }
     } else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
   }
-  await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
+  /* 注入するテスト状態は、ナビゲーションが先に描画されることへ依存させない。
+     seed() はアクティブアカウントを確認して保存後、同じ accounts-entered 通知を送る。 */
   const seeded=await seed().catch(e=>({ok:false,reason:String(e)}));
   audit.seed=seeded;
   if(seeded&&seeded.ok) {
-    // seed() dispatches the same account-entered event as SINNER SELECT, allowing
-    // React to load the fixture while keeping the gate closed and avoiding reloads.
-    await page.locator(".rail-item").first().waitFor({state:"visible",timeout:10000});
+    await page.locator(".rail-item").first().waitFor({state:"visible",timeout:15000});
     await page.waitForTimeout(550);
     if(await visible(page.locator(".acct-gate"))) {
-      throw new Error("SINNER SELECT remained open after seeding the disposable account");
+      throw new Error("SINNER SELECT remained open after seeding: "+JSON.stringify({accountGateCreate:audit.accountGateCreate,seeded}));
     }
+  } else {
+    await page.locator(".rail-item").first().waitFor({state:"visible",timeout:10000});
   }
   await page.waitForTimeout(350);
 }
