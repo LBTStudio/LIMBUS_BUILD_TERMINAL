@@ -98,6 +98,46 @@ test("検出漏れ監査は元記録側と別の parser-side 判定を返し、�
 });
 
 
+
+test("結果カード用 draft は元記録の監査結果を引き継ぐ", () => {
+  const manifest = {
+    scenarios: [{
+      key: "scenario:0",
+      name: "計算矛盾のみ",
+      memo: "欠片50×3=149欠片",
+      income: { lp: 0, shards: 0 },
+      tickets: { persona: 0, ego: 0, choice: 0 },
+      reasons: [],
+      currencyDiscrepancies: [],
+      sourceAudits: [{
+        side: "source-data",
+        code: "source-arithmetic-mismatch",
+        severity: "warning",
+        lineIndex: 1,
+        line: "欠片50×3=149欠片",
+        message: "計算矛盾を確認してください"
+      }]
+    }],
+    groups: []
+  };
+  manifest.scenarios[0].financialCoverage = [{
+    lineIndex: 1, line: "欠片50×3=149欠片", status: "source-reviewed",
+    expected: { lp: 0, shards: 149 }, detected: { lp: 0, shards: 0 }
+  }];
+  const draft = G.buildResultDraft(manifest, {});
+  assert.equal(draft.blocks.length, 1, "警告だけのシナリオもカード候補として残す");
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(draft.blocks[0].sourceAudits)),
+    JSON.parse(JSON.stringify(manifest.scenarios[0].sourceAudits)),
+    "監査警告は manifest → draft block で欠落・改変しない"
+  );
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(draft.blocks[0].financialCoverage)),
+    JSON.parse(JSON.stringify(manifest.scenarios[0].financialCoverage)),
+    "行単位の監査経路も manifest → draft block で保持する"
+  );
+});
+
 test("警告だけがあるシナリオも監査カードに残す", () => {
   const M = loadImportWithMemo();
   const doc = {
@@ -295,12 +335,16 @@ test("数字がCircle区切りや文字列に混ざった行はスタックに�
   assert.equal(r.income.lp, 0, "数値に語尾が付く行は数量として読まない");
 });
 
-test("1行に両通貨があれば両方を取る（片方だけだと帳尻が合わない）", () => {
+test("LPから欠片への変換は正の欠片を収入、負のLPを支出に分離する", () => {
   const r = MEMO.parseMemo("・支払い\nLPを欠片に変換：+11欠片 -22LP");
+  assert.equal(r.income.lp, 0, "変換対象のLPを収入にしない");
+  assert.equal(r.income.shards, 11, "+11欠片は収入として記録する");
   assert.equal(r.spends.length, 1);
-  assert.equal(r.spends[0].lp, 22, "LP 側は 22");
-  assert.equal(r.spends[0].shards, 11, "欠片側は 11");
-  assert.notEqual(r.spends[0].lp, r.spends[0].shards, "両通貨が同じ値にならない");
+  assert.equal(r.spends[0].lp, 22, "-22LPは支出として記録する");
+  assert.equal(r.spends[0].shards, 0, "+11欠片を支出として二重計上しない");
+  const coverage = r.financialCoverage.find((entry) => /LPを欠片に変換/.test(entry.line));
+  assert.ok(coverage, "変換行は行単位監査に含まれる");
+  assert.equal(coverage.status, "matched", "原文の収支符号と実際の収入・支出が一致する");
 });
 
 test("「・支出」以降の現在残高は支出額として誤計上しない", () => {
@@ -1130,6 +1174,31 @@ function loadImportWithMemo() {
 }
 
 
+test("実サンプル『鏡屈折鉄道1号線』の変換・購入・残高が一貫して合う", () => {
+  const sample = samples.mMIbGr32lGZix60RDmoN?.doc;
+  assert.ok(sample, "実サンプル mMIb を読み込める");
+  const row = (sample.scenarioHistory || []).find((entry) => entry && entry.name === "鏡屈折鉄道1号線『Orientation』");
+  assert.ok(row, "対象の硝子窓履歴がある");
+  const parsed = MEMO.parseMemo(row.memo);
+  assert.equal(parsed.income.lp, 90, "最初の残高アンカー前のLP報酬は90");
+  assert.equal(parsed.income.shards, 40, "欠片報酬29と変換収入11を区別して合算する");
+  assert.equal(parsed.spends.reduce((sum, entry) => sum + (Number(entry.lp) || 0), 0), 60,
+    "LP支出は変換22＋購入18＋購入20");
+  assert.equal(parsed.spends.reduce((sum, entry) => sum + (Number(entry.shards) || 0), 0), 50,
+    "欠片支出は憎悪購入50のみ");
+  const conversion = parsed.financialCoverage.find((entry) => /LPを欠片に変換/.test(entry.line));
+  assert.ok(conversion && conversion.status === "matched", "通貨変換は収支方向まで一致する");
+
+  const M = loadImportWithMemo();
+  const doc = { ...sample, currency: { lp: "40", fragment: "0" }, scenarioHistory: [row] };
+  const manifest = M.buildManifest(doc, null);
+  const balance = M.reconcileBalance(manifest, doc);
+  assert.equal(balance.checked, true, "元メモの途中残高を用いて照合できる");
+  assert.equal(balance.computedLp, 40, "LPは100から60支出して40");
+  assert.equal(balance.computedShards, 0, "欠片は39から11獲得し50支出して0");
+  assert.equal(balance.ok, true, "硝子窓の記録された最終残高と一致する");
+});
+
 test("全49件の硝子窓サンプルを個別監査し、所持・金額イベントを黙って落とさない", () => {
   /* 集計で「全部の検出が有意」だと誤魔化せないよう、サンプルごとに
      所持項目の保持、履歴行の保持、金額イベントの解析結果を確認する。 */
@@ -1199,6 +1268,37 @@ test("全49件の硝子窓サンプルを個別監査し、所持・金額イベ
       auditedHistory++;
       const scenario = (manifest.scenarios || [])[i];
       if (!scenario) continue;
+      const coverageRows = Array.isArray(scenario.financialCoverage) ? scenario.financialCoverage : [];
+      const scenarioReasons = Array.isArray(scenario.reasons) ? scenario.reasons : [];
+      const scenarioAudits = Array.isArray(scenario.sourceAudits) ? scenario.sourceAudits : [];
+      const memoLines = memo.split(/\r?\n/);
+      for (let lineIndex = 0; lineIndex < memoLines.length; lineIndex++) {
+        const sourceLine = memoLines[lineIndex];
+        if (!sourceLine.trim()) continue;
+        const lineHasAmount = /(?:LP|ＬＰ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]|[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ)|(?:欠片|かけら|欠けら|カケラ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]/i.test(sourceLine);
+        const lineHasAction = /報酬|収入|消費|支出|支払|購入|買った|抽出|ガチャ|チケット|チケ|獲得|入手|取得/.test(sourceLine);
+        const relatedAudit = scenarioAudits.some((entry) => entry &&
+          (entry.lineIndex === lineIndex + 1 || entry.relatedLineIndex === lineIndex + 1 ||
+           (Array.isArray(entry.relatedLines) && entry.relatedLines.some((row) => row.lineIndex === lineIndex + 1))));
+        const relatedReason = scenarioReasons.some((entry) =>
+          String(entry.line || "").trim() === sourceLine.trim());
+        if (!lineHasAmount || !lineHasAction) continue;
+        const coverage = coverageRows.find((entry) => entry && entry.lineIndex === lineIndex + 1);
+        if (!coverage) {
+          issues.push(sampleId + " / " + (row.name || ("履歴" + (i + 1))) +
+            ": 金額・操作行の行単位監査がありません（" + (lineIndex + 1) + "行目）: " + sourceLine.slice(0, 100));
+          continue;
+        }
+        if (coverage.status === "unresolved" ||
+            (["mismatch", "direction-review"].includes(coverage.status) && !relatedAudit && !relatedReason)) {
+          issues.push(sampleId + " / " + (row.name || ("履歴" + (i + 1))) +
+            ": 行単位監査が未解決です（" + (lineIndex + 1) + "行目）: " + sourceLine.slice(0, 100));
+        }
+        if (coverage.status === "reviewed-by-parser-reason" && !relatedAudit && !relatedReason) {
+          issues.push(sampleId + " / " + (row.name || ("履歴" + (i + 1))) +
+            ": 監査状態は要確認ですが、対応する理由が表示対象にありません（" + (lineIndex + 1) + "行目）");
+        }
+      }
       /* 金額と操作語が共存する履歴は、収入・支出・チケット・獲得のいずれか、
          または利用者に見せる要確認理由として残らなければならない。 */
       const hasAmount = /(?:LP|ＬＰ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]|[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ)|(?:欠片|かけら|欠けら|カケラ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]/i.test(memo);
@@ -1213,7 +1313,8 @@ test("全49件の硝子窓サンプルを個別監査し、所持・金額イベ
           Object.keys(scenario.pack || {}).length > 0 ||
           (scenario.wins || []).length > 0 ||
           (scenario.reasons || []).length > 0 ||
-          (scenario.ticketSpends || []).length > 0;
+          (scenario.ticketSpends || []).length > 0 ||
+          (scenario.sourceAudits || []).some((entry) => entry && entry.severity !== "info");
         if (!recognized) {
           issues.push(sampleId + " / " + (row.name || ("履歴" + (i + 1))) + ": 金額と操作語を含む履歴が無言で未解析: " + memo.slice(0, 100).replace(/\s+/g, " "));
         }

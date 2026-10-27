@@ -758,6 +758,7 @@ function toIdentityChoices(hits) {
           reasons: parsed.reasons,
           currencyDiscrepancies: parsed.currencyDiscrepancies || [],
           sourceAudits: parsed.sourceAudits || [],
+          financialCoverage: parsed.financialCoverage || [],
           /* シナリオで直接払い出された人格/E.G.O。 */
           wins,
           /* 金額が入らなかったシナリオも一覧には出す。利用者が
@@ -1522,6 +1523,11 @@ function toIdentityChoices(hits) {
       income: scenario.income || { lp: 0, shards: 0 },
       tickets: scenario.tickets || {},
       reasons: Array.isArray(scenario.reasons) ? scenario.reasons : [],
+      /* 監査結果を画面の ResultCard まで必ず引き継ぐ。
+         manifest に存在するだけでは、利用者が警告を見られる保証にならない。 */
+      sourceAudits: Array.isArray(scenario.sourceAudits) ? scenario.sourceAudits : [],
+      financialCoverage: Array.isArray(scenario.financialCoverage) ? scenario.financialCoverage : [],
+      currencyDiscrepancies: Array.isArray(scenario.currencyDiscrepancies) ? scenario.currencyDiscrepancies : [],
       items: []
     }));
     const blockOfName = new Map();
