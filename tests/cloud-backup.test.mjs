@@ -240,6 +240,8 @@ test("比較後にローカルまたはクラウドが変わったら古い比�
   assert.ok(client.includes("照合後にクラウド側が更新されています"));
   assert.ok(client.includes("expectedRemoteRevision: selected.revision"));
   assert.ok(client.includes("expectedRemoteHash: selected.remoteHash"));
+  assert.ok(client.includes("expectedLocalHash: selected.localHash"));
+  assert.ok(client.includes("確認後にローカルデータが変更されています"));
   assert.ok(client.includes("options.comparedRevision"));
   assert.ok(client.includes("options.comparedHash"));
 });
