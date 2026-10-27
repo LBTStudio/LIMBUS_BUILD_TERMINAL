@@ -139,8 +139,22 @@ const Button = ({ variant = "default", size = "md", icon, iconRight, children, c
   );
 };
 const Card = ({ children, className = "", frame = false }) => /* @__PURE__ */ React.createElement("div", { className: `${frame ? "frame" : "card"} ${className}`.trim() }, children);
-/* 見出しは span ではなく h2 を使う。見出し階層が皆無で h1 も 0 だったため。 */
-const SectionTitle = ({ num, title, subtitle, children }) => /* @__PURE__ */ React.createElement("div", { className: "section-title-row" }, num && /* @__PURE__ */ React.createElement("span", { className: "section-title-num" }, num), /* @__PURE__ */ React.createElement("h2", { className: "section-title" }, title), subtitle && /* @__PURE__ */ React.createElement("span", { className: "section-subtitle" }, subtitle), children);
+/* 見出しは span ではなく h2 を使う。英日併記タイトルは日本語部分を分離し、
+   狭い画面で最後の1文字だけが次行へ孤立する折り返しを防ぐ。 */
+const SectionTitle = ({ num, title, subtitle, children }) => {
+  const titleSeparator = typeof title === "string" ? title.indexOf(" / ") : -1;
+  const titleContent = titleSeparator > 0
+    ? React.createElement(React.Fragment, null,
+        React.createElement("span", { className: "section-title-primary" }, title.slice(0, titleSeparator)),
+        " / ",
+        React.createElement("span", { className: "section-title-secondary" }, title.slice(titleSeparator + 3)))
+    : title;
+  return React.createElement("div", { className: "section-title-row" },
+    num && React.createElement("span", { className: "section-title-num" }, num),
+    React.createElement("h2", { className: "section-title" }, titleContent),
+    subtitle && React.createElement("span", { className: "section-subtitle" }, subtitle),
+    children);
+};
 const Segmented = ({ value, onChange, options }) => /* @__PURE__ */ React.createElement("div", { className: "segmented", role: "tablist" }, options.map((opt) => /* @__PURE__ */ React.createElement(
   "button",
   {
