@@ -2252,6 +2252,16 @@ test("P2: SHARD_WORDSの欠け片表記は収入と購入支出で同じ通貨�
   assert.equal(spend.spends.reduce((sum, row) => sum + (Number(row.shards) || 0), 0), 10);
   assert.equal(spend.income.shards, 0);
 });
+  
+test("自我の欠片の複合表記は収入・支出の両方で欠片通貨として認識する", () => {
+  const reward = MEMO.parseMemo("報酬：30 自我の欠片\\n+5 自我の欠片");
+  assert.equal(reward.income.shards, 35, "「自我の欠片」を一つの通貨名として30+5を計上する");
+
+  const spend = MEMO.parseMemo("・支出\\n自我の欠片10を消費");
+  assert.equal(spend.income.shards, 0);
+  assert.equal(spend.spends.reduce((sum, row) => sum + (Number(row.shards) || 0), 0), 10,
+    "同じ複合通貨名を明示支出にも適用する");
+});
 
 test("同じ行のチケット消費とLP消費を両方記録し、未対応額は警告する", () => {
   const r = MEMO.parseMemo("人格チケット×7、300LP消費。");
