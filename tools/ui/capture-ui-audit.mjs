@@ -337,7 +337,7 @@ async function boot() {
     if(await visible(add)) {
       await click(add);
       await snap("account-create-form","新規キャラクター作成フォーム");
-      const name=page.locator(".acct-gate input[placeholder='キャラクター名など']").first();
+      const name=page.locator(".acct-gate .acct-card--form input.input").first();
       if(await visible(name)) await name.fill("UI監査用キャラクター");
       const create=page.getByRole("button",{name:"作成して開く",exact:true});
       if(await visible(create)) await click(create);
