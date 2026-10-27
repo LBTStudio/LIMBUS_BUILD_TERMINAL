@@ -11,7 +11,13 @@ const OUT = path.resolve(ROOT, "artifacts/ui-audit-screenshots");
 const HOST = "127.0.0.1";
 const PORT = 4174;
 const MIME = { ".html":"text/html; charset=utf-8", ".js":"text/javascript; charset=utf-8", ".mjs":"text/javascript; charset=utf-8", ".css":"text/css; charset=utf-8", ".json":"application/json; charset=utf-8", ".svg":"image/svg+xml", ".png":"image/png", ".webp":"image/webp", ".txt":"text/plain; charset=utf-8", ".woff2":"font/woff2" };
-const audit = { generatedAt: new Date().toISOString(), screenshots: [], failures: [], consoleErrors: [], httpErrors: [], pageErrors: [], layoutWarnings: [], interactions: [] };
+const VIEWPORTS = [
+  { name: "desktop", width: 1440, height: 1000, deviceScaleFactor: 1, isMobile: false, hasTouch: false },
+  { name: "tablet", width: 768, height: 1024, deviceScaleFactor: 1, isMobile: false, hasTouch: true },
+  { name: "mobile", width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
+  { name: "mobile-narrow", width: 320, height: 640, deviceScaleFactor: 2, isMobile: true, hasTouch: true }
+];
+const audit = { generatedAt: new Date().toISOString(), viewports: VIEWPORTS, screenshots: [], failures: [], consoleErrors: [], httpErrors: [], pageErrors: [], layoutWarnings: [], interactions: [] };
 let page;
 let view = "unknown";
 
@@ -358,10 +364,16 @@ async function boot() {
   }
   await page.waitForTimeout(350);
 }
-async function captureProfile(browser, mode) {
-  view=mode;
-  const mobile=mode==="mobile";
-  const context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1440,height:1000},deviceScaleFactor:mobile?2:1,isMobile:mobile,hasTouch:mobile,serviceWorkers:"block",colorScheme:"dark",reducedMotion:"reduce"});
+async function captureProfile(browser, profile) {
+  const mode = profile.name;
+  view = mode;
+  const context = await browser.newContext({
+    viewport: { width: profile.width, height: profile.height },
+    deviceScaleFactor: profile.deviceScaleFactor,
+    isMobile: profile.isMobile,
+    hasTouch: profile.hasTouch,
+    serviceWorkers: "block", colorScheme: "dark", reducedMotion: "reduce"
+  });
   page=await context.newPage();
   page.setDefaultTimeout(5000);
   // Cloudflare Web Analytics points at /cdn-cgi/rum, which intentionally does not exist
@@ -618,10 +630,10 @@ async function main() {
   const s=makeServer();
   await new Promise((resolve,reject)=>{s.once("error",reject);s.listen(PORT,HOST,resolve);});
   const browser=await chromium.launch({headless:true});
-  try { for(const mode of ["desktop","mobile"]) {log("begin "+mode);await captureProfile(browser,mode);} }
+  try { for (const profile of VIEWPORTS) { log("begin " + profile.name + " " + profile.width + "x" + profile.height); await captureProfile(browser, profile); } }
   finally { await browser.close();await new Promise(resolve=>s.close(resolve)); }
   audit.count=audit.screenshots.length;
-  audit.coverage=["SINNER SELECT/new-account form","all eight build tabs and desktop tab-hover states","major navigation sections and desktop navigation-hover states","all six shop category tabs","record import menu and routes with result parsing preview","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, duplicate preview controls, and target-size diagnostics"];
+  audit.coverage=["desktop 1440x1000","tablet 768x1024","mobile 390x844","narrow mobile 320x640","SINNER SELECT/new-account form","all eight build tabs and desktop tab-hover states","major navigation sections and desktop navigation-hover states","all six shop category tabs","record import menu and routes with result parsing preview","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, duplicate preview controls, and target-size diagnostics"];
   const requiredNotes=[
     "ビルド内の人格タブ","ビルド内のスキルタブ","ビルド内のパッシブタブ","ビルド内の強化タブ","ビルド内のサポートタブ","ビルド内のE.G.Oタブ","ビルド内の精神タブ","ビルド内のアイテムタブ",
     "ショップ分類: 人格","ショップ分類: サポート","ショップ分類: E.G.O","ショップ分類: 精神","ショップ分類: アイテム","ショップ分類: ガチャ",
@@ -636,7 +648,7 @@ async function main() {
     "共有URLから取り込む入口","読み込むカテゴリを選ぶ確認画面。適用しない"
   ];
   audit.missingRequiredCaptures=[];
-  for (const mode of ["desktop","mobile"]) {
+  for (const mode of ["desktop","mobile","tablet","mobile-narrow"]) {
     for (const note of requiredNotes) {
       if (!audit.screenshots.some((shot)=>shot.name.startsWith(mode+"-") && shot.note.includes(note))) {
         audit.missingRequiredCaptures.push({view:mode,note});
