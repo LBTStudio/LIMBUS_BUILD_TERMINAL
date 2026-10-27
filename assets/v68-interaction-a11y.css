@@ -599,3 +599,11 @@
     }
   }
 }
+
+
+/* Reserve room above the fixed mobile preview pill so it never obscures the last controls. */
+@media (max-width: 640px) {
+  .app .focus {
+    padding-bottom: calc(var(--lbt-mobile-rail-h, 114px) + 70px);
+  }
+}
