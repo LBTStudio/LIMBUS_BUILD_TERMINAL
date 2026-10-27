@@ -2157,6 +2157,83 @@ test("自然文の明示支出・括弧内のマイナス額を通貨別に読�
   }
 });
 
+test("P0: 自由文支出の不正な桁区切りを記帳せず理由を残す", () => {
+  const parsed = MEMO.parseMemo("終了後、LP1,20を消費して人格抽出「対象」");
+  assert.equal(parsed.income.lp, 0);
+  assert.equal(parsed.income.shards, 0);
+  assert.equal(parsed.spends.reduce((sum, row) => sum + (Number(row.lp) || 0) + (Number(row.shards) || 0), 0), 0);
+  assert.equal(parsed.wins.length, 0, "不正な支出行から獲得名も作らない");
+  assert.ok(parsed.reasons.some((row) => /桁区切りが不正/.test(row.reason)));
+});
+
+test("P0: 乗算結果が安全整数上限を超えた報酬は基数も記帳しない", () => {
+  const parsed = MEMO.parseMemo("報酬：欠片9,007,199,254,740,991×2=18,014,398,509,481,982欠片");
+  assert.equal(parsed.income.shards, 0);
+  const audit = parsed.sourceAudits.find((row) => row.code === "source-arithmetic-mismatch");
+  assert.ok(audit, "オーバーフローした算術行を元記録の監査に残す");
+  assert.equal(audit.expectedAmount, null, "安全整数外の結果は正確値として扱わない");
+});
+
+test("P0: 支出後の矢印先にある残り残高を取引・獲得名へしない", () => {
+  const parsed = MEMO.parseMemo("150LP消費→残り300LP");
+  assert.equal(parsed.income.lp, 0);
+  assert.equal(parsed.income.shards, 0);
+  assert.equal(parsed.spends.reduce((sum, row) => sum + (Number(row.lp) || 0), 0), 150);
+  assert.equal(parsed.wins.length, 0, "残り300LPを獲得名にしない");
+  assert.ok(!parsed.financialCoverage.some((row) => row.expected?.lp === 300 || row.detected?.lp === 300),
+    "監査も残り300LPを第2の通貨イベントにしない");
+});
+
+test("P0: ▶効果説明にある「欠片を消費する」は実支出にしない", () => {
+  const parsed = MEMO.parseMemo("▶効果：使用時、欠片10を消費する。");
+  assert.equal(parsed.income.shards, 0);
+  assert.equal(parsed.spends.length, 0);
+  assert.equal(parsed.wins.length, 0);
+  assert.ok(!parsed.financialCoverage.some((row) => row.expected?.shards === 10 || row.detected?.shards === 10),
+    "効果説明の数値を台帳監査上の取引にも混ぜない");
+});
+
+test("P0: 上限200LPのテーマパックは収入・支出・チケットとして推測計上しない", () => {
+  const parsed = MEMO.parseMemo("報酬：上限200LPのテーマパック×1");
+  assert.equal(parsed.income.lp, 0);
+  assert.equal(parsed.income.shards, 0);
+  assert.equal(parsed.spends.length, 0);
+  assert.equal(parsed.tickets.persona + parsed.tickets.ego + parsed.tickets.choice, 0);
+  assert.deepEqual(Object.keys(parsed.pack), []);
+  assert.ok(parsed.reasons.some((row) => /LP上限付きのテーマパック/.test(row.reason)));
+});
+
+test("P1: 支出節の後で報酬節へ戻ると、収入と支出のモードが切り替わる", () => {
+  const parsed = MEMO.parseMemo("・支払い\n人生一発購入 7LP\n・報酬\nLP：30\n欠片：12");
+  assert.equal(parsed.spends.reduce((sum, row) => sum + (Number(row.lp) || 0), 0), 7);
+  assert.equal(parsed.income.lp, 30);
+  assert.equal(parsed.income.shards, 12);
+});
+
+test("P1: 符号のない通貨変換はどちらも収支に載せず方向未確定の警告を残す", () => {
+  const parsed = MEMO.parseMemo("LPを欠片に変換：22LP 11欠片");
+  assert.equal(parsed.income.lp, 0);
+  assert.equal(parsed.income.shards, 0);
+  assert.equal(parsed.spends.length, 0);
+  assert.ok(parsed.reasons.some((row) => /増減符号がなく/.test(row.reason)));
+});
+
+test("P1: 欠片からLPへの符号付き変換は、各通貨の符号どおりに記帳する", () => {
+  const parsed = MEMO.parseMemo("欠片をLPに変換：+22LP -11欠片");
+  assert.equal(parsed.income.lp, 22);
+  assert.equal(parsed.income.shards, 0);
+  assert.equal(parsed.spends.reduce((sum, row) => sum + (Number(row.shards) || 0), 0), 11);
+  assert.equal(parsed.spends.reduce((sum, row) => sum + (Number(row.lp) || 0), 0), 0);
+});
+
+test("P2: SHARD_WORDSの欠け片表記は収入と購入支出で同じ通貨として扱う", () => {
+  const income = MEMO.parseMemo("報酬：40欠け片");
+  assert.equal(income.income.shards, 40);
+  const spend = MEMO.parseMemo("・支出\n黒獣卯購入 10欠け片");
+  assert.equal(spend.spends.reduce((sum, row) => sum + (Number(row.shards) || 0), 0), 10);
+  assert.equal(spend.income.shards, 0);
+});
+
 test("同じ行のチケット消費とLP消費を両方記録し、未対応額は警告する", () => {
   const r = MEMO.parseMemo("人格チケット×7、300LP消費。");
   assert.equal(r.ticketSpends.length, 1);
