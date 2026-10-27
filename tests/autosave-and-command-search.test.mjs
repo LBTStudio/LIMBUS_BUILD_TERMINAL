@@ -30,7 +30,7 @@ test("保存導線の用語を統一し、部分復元前に適用範囲を要�
   assert.match(app, /const selectedImportGroups = importData \? availableImportGroups/);
   assert.match(app, /const selectedImportLabel = selectedImportGroups\.length/);
   assert.match(app, /className: "import-apply-summary(?: state-import-summary)?"/);
-  assert.match(app, /\\u4ECA\\u56DE\\u306E\\u9069\\u7528\\u7BC4\\u56F2\\uFF1A", selectedImportLabel/);
+  assert.match(app, /今回の適用範囲：", selectedImportLabel/);
   assert.match(app, /disabled: selectedImportGroups\.length === 0/);
 });
 
