@@ -178,7 +178,7 @@ test("端末内JSONバックアップはクラウド12MB上限と分離し、100
   assert.match(client, /validateSnapshot\(payload, \{ enforceCloudLimit: false \}\)/);
   assert.match(client, /applySnapshot\(payload, \{ enableSync: false, enforceCloudLimit: false \}\)/);
   assert.match(client, /Number\(file\.size\) > MAX_JSON_BACKUP_BYTES/);
-  assert.match(client, /async function restorePayload\(payload, revision, recoveryKey = null\)[\s\S]*?collectLocalSnapshot\(\{ enforceCloudLimit: false \}\)/);
+  assert.match(client, /async function restorePayload\(payload, revision, recoveryKey = null(?:, guard = null)?\)[\s\S]*?collectLocalSnapshot\(\{ enforceCloudLimit: false \}\)/);
   assert.match(client, /downloadText\("LBT_" \+ suffix \+ "_" \+ date \+ "\.json", JSON\.stringify\(value\)\)/);
 });
 
@@ -230,6 +230,9 @@ test("端末間復元はログイン不要の復旧キーで照合してから�
   assert.ok(client.includes("identityOverlapPercent"));
   assert.ok(client.includes("contentMatchPercent"));
   assert.ok(client.includes("同名ですがIDが異なるアカウント候補があります（自動統合はしません）"));
+  assert.ok(client.includes('!hasKey && !comparison ? button("復旧キーを発行して保全"'));
+  assert.ok(client.includes('hasKey && view.localMeaningful && !comparison'));
+  assert.ok(client.includes('button("比較結果を閉じる"'));
 });
 
 test("比較後にローカルまたはクラウドが変わったら古い比較結果では上書きしない", () => {
