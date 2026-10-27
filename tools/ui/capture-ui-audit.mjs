@@ -365,7 +365,25 @@ async function boot() {
       if(await visible(existing)) await click(existing);
     }
   }
-  await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
+  try {
+    await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
+  } catch (error) {
+    await snap("account-gate-transition-failed","SINNER SELECTの終了後、アプリ本体が表示されない状態").catch(()=>{});
+    audit.bootFailure = await page.evaluate(() => ({
+      gatePresent: !!document.querySelector(".acct-gate"),
+      rootText: (document.querySelector("#root")?.innerText || "").slice(0, 1400),
+      rootMarkup: (document.querySelector("#root")?.innerHTML || "").slice(0, 1400),
+      accounts: window.LBT_accounts?.list?.() || null,
+      activeId: window.LBT_accounts?.getActiveId?.() || null,
+      activeState: window.LBT_accounts?.loadActive?.() || null,
+      reactLoaded: !!window.React,
+      appLoaded: !!window.App
+    })).catch(e=>({ diagnosticError:String(e) }));
+    audit.bootFailure.pageErrors = audit.pageErrors;
+    audit.bootFailure.consoleErrors = audit.consoleErrors.slice(-20);
+    fs.writeFileSync(path.join(OUT,"manifest.json"),JSON.stringify(audit,null,2)+"\\n");
+    throw new Error("App rail did not appear after account gate: "+JSON.stringify(audit.bootFailure));
+  }
   const seeded=await seed().catch(e=>({ok:false,reason:String(e)}));
   audit.seed=seeded;
   if(seeded&&seeded.ok) {
