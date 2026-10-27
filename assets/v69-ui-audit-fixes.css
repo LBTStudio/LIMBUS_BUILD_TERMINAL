@@ -271,3 +271,12 @@
   min-width: 0;
   min-height: max-content;
 }
+
+/* When creating the first character, temporarily prioritize its form. The backup panel
+   remains available again on Cancel; it should not compete with the required Save action. */
+.acct-gate-panel:has(.acct-card--form) > .lbt-cloud-panel {
+  display: none;
+}
+.acct-gate-panel:has(.acct-card--form) > .acct-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
