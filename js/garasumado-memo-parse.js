@@ -1841,7 +1841,8 @@
           Object.keys(parsed.pack).length > 0 ||
           parsed.spends.length > 0 ||
           parsed.reasons.length > 0 ||
-          parsed.wins.length > 0
+          parsed.wins.length > 0 ||
+          (parsed.sourceAudits || []).some(function (entry) { return entry && entry.severity !== "info"; })
       };
     });
   }

@@ -757,6 +757,7 @@ function toIdentityChoices(hits) {
           ticketSpends: parsed.ticketSpends || [],
           reasons: parsed.reasons,
           currencyDiscrepancies: parsed.currencyDiscrepancies || [],
+          sourceAudits: parsed.sourceAudits || [],
           /* シナリオで直接払い出された人格/E.G.O。 */
           wins,
           /* 金額が入らなかったシナリオも一覧には出す。利用者が
@@ -770,7 +771,8 @@ function toIdentityChoices(hits) {
             (parsed.spends || []).length > 0 ||
             (parsed.ticketSpends || []).length > 0 ||
             (parsed.reasons || []).length > 0 ||
-            wins.length > 0
+            wins.length > 0 ||
+            (parsed.sourceAudits || []).some((entry) => entry && entry.severity !== "info")
         };
       });
 
