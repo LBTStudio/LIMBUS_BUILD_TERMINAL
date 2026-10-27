@@ -574,15 +574,19 @@
 
   /* 明示された通貨消費を収入と分離して読む。正規化は1文字対1文字の範囲に
      限り、獲得名の位置やE.G.O名のコロンを壊さない。 */
-  function currencySpendOf(rawLine) {
+  function currencySpendOf(rawLine, allowNaturalExpense) {
     var text = normalizeNumericText(rawLine);
-    /* 矢印付きの取引行、または「100LP消費ガチャ:報酬」のような
-       明示ラベル行だけを対象にする。自然文「LP200を消費してガチャ」は
-       取引記録と断定できないので、従来どおりこの経路では拾わない。 */
+    /* 矢印・明示ラベル、または収入節で通貨額と支出語が近接する自然文を読む。
+       支出節は専用パーサーがあるため、自然文の追加判定を適用しない。 */
     var rawSource = String(rawLine || "");
     var hasArrow = rawSource.indexOf("→") >= 0;
     var hasExplicitSpendLabel = /(?:消費|使用|支払|支出)\s*(?:ガチャ|抽出|パック|テーマパック)\s*[：:]/.test(text);
-    if (!hasArrow && !hasExplicitSpendLabel) return null;
+    var hasNaturalExpenseCue = /(?:消費|使用|支払|支出|購入)/.test(text);
+    if (!hasArrow && !hasExplicitSpendLabel && !(allowNaturalExpense && hasNaturalExpenseCue)) return null;
+    if (!hasArrow && !hasExplicitSpendLabel && allowNaturalExpense) {
+      var currencyAmounts = text.match(/(?:LP|ＬＰ)\s*[0-9][0-9,]*|[0-9][0-9,]*\s*(?:LP|ＬＰ)|(?:自我の(?:破片|欠片)|欠片|かけら|欠けら|カケラ)\s*[0-9][0-9,]*|[0-9][0-9,]*\s*(?:自我の(?:破片|欠片)|欠片|かけら|欠けら|カケラ)/gi) || [];
+      if (currencyAmounts.length > 1) return null;
+    }
     var lpMatch = text.match(/(?:LP|ＬＰ)\s*([0-9][0-9,]*)\s*(?:を\s*)?(?:消費|使用|支払|支出)/i);
     if (!lpMatch) lpMatch = text.match(/([0-9][0-9,]*)\s*(?:LP|ＬＰ)\s*(?:を\s*)?(?:消費|使用|支払|支出)/i);
     if (lpMatch) {
@@ -596,7 +600,31 @@
       var shardAmount = Number(String(shardMatch[1]).replace(/,/g, ""));
       return { currency: "shards", amount: applyExplicitPackCount(shardAmount, text, shardMatch), start: shardMatch.index, end: shardMatch.index + shardMatch[0].length };
     }
+    /* 「購入し使用：-40LP」のように、明示された購入・使用語の後ろへ
+       マイナス額を書く旧書式も、費用として正の値に直して記録する。 */
+    var negativeMatch = text.match(/(?:購入し使用|消費|使用|支払|支出)\s*[：:（(]?\s*[-−]\s*([0-9][0-9,]*)\s*(LP|ＬＰ|自我の(?:破片|欠片)|欠片|かけら|欠けら|カケラ)/i);
+    if (negativeMatch) {
+      var negativeAmount = Number(String(negativeMatch[1]).replace(/,/g, ""));
+      return {
+        currency: /LP/i.test(negativeMatch[2]) ? "lp" : "shards",
+        amount: negativeAmount,
+        start: negativeMatch.index,
+        end: negativeMatch.index + negativeMatch[0].length
+      };
+    }
     return null;
+  }
+
+  function hasUnparsedExplicitExpense(rawLine) {
+    var text = normalizeNumericText(rawLine);
+    if (!/(?:消費|使用|支払|支出|購入|買った)/.test(text)) return false;
+    /* 価格上限・選択券の条件値は支出額ではない。 */
+    if (/(?:以下|以上|以内|未満|まで)/.test(text)) return false;
+    var money = "(?:(?:LP|ＬＰ|自我の(?:破片|欠片)|欠片|かけら|欠けら|カケラ)\\s*[-−]?\\s*\\d[\\d,]*|\\d[\\d,]*\\s*(?:LP|ＬＰ|自我の(?:破片|欠片)|欠片|かけら|欠けら|カケラ))";
+    var action = "(?:消費|使用|支払|支出)";
+    return new RegExp(money + "[^,、。\\n]{0,4}(?:を)?" + action, "i").test(text)
+      || new RegExp(action + "[^,、。\\n]{0,12}" + money, "i").test(text)
+      || /購入[^,、。\n]{0,12}(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ)\s*[-−]\s*\d[\d,]*/i.test(text);
   }
 
   function cleanRewardName(value) {
@@ -806,7 +834,7 @@
       }
 
       /* 明示された通貨消費をチケット収入・抽出回数と混同しない。 */
-      var currencySpend = currencySpendOf(line);
+      var currencySpend = currencySpendOf(line, mode === "income");
       if (currencySpend) {
         if (!Number.isSafeInteger(currencySpend.amount) || currencySpend.amount <= 0) {
           reasons.push({ line: line, reason: "消費金額が正の安全整数ではないため未計上" });
@@ -829,6 +857,9 @@
       var explicitTicketSpend = explicitTicketSpendOf(line);
       if (explicitTicketSpend) {
         recordExplicitTicketSpend(explicitTicketSpend);
+        if (!currencySpend && hasUnparsedExplicitExpense(line)) {
+          reasons.push({ line: line, reason: "通貨額を含む支出表記を安全に解析できないため未計上" });
+        }
         continue;
       }
 
@@ -968,7 +999,7 @@
         var buyRow = purchaseRowOf(line);
         if (buyRow) {
           if (buyRow.lp || buyRow.shards) {
-            spends.push({ name: buyRow.name, lp: buyRow.lp, shards: buyRow.shards, raw: line, reason: "購入の短文" });
+            if (!currencySpend) spends.push({ name: buyRow.name, lp: buyRow.lp, shards: buyRow.shards, raw: line, reason: "購入の短文" });
           }
           if (!wins.some((w) => w.name === buyRow.name)) {
             wins.push({ name: buyRow.name, via: "", kind: "", bought: true });
@@ -981,13 +1012,28 @@
            「G-5購入 7LP」の購入額も残高から引かれる支出（実データで確認）。 */
         var spendAt = line.search(/消費|購入|買った|使用し/);
         if (spendAt >= 0) {
+          if (!currencySpend && hasUnparsedExplicitExpense(line)) {
+            reasons.push({ line: line, reason: "通貨額を含む支出表記を安全に解析できないため未計上" });
+          }
           var head = line.slice(0, spendAt);
           if (!/獲得|入手|報酬/.test(head)) {
             /* 「蒼羽蝶：75LP消費」の名前付き購入は残高から差し引く支出。
                この形を落とすと購入の記録が名前・金額とも消える。 */
             var namedBuy = namedPurchaseOf(line);
             if (namedBuy) {
-              spends.push(namedBuy);
+              var existingSpend = currencySpend ? spends.find((item) => item.raw === line) : null;
+              if (existingSpend) {
+                existingSpend.name = namedBuy.name;
+                existingSpend.reason = namedBuy.reason;
+                ["lp", "shards"].forEach(function (currency) {
+                  if (existingSpend[currency] && namedBuy[currency] && existingSpend[currency] !== namedBuy[currency]) {
+                    existingSpend[currency] = 0;
+                    reasons.push({ line: line, reason: "同じ行の支出額が一致しないため金額を保留しました" });
+                  } else if (namedBuy[currency]) {
+                    existingSpend[currency] = namedBuy[currency];
+                  }
+                });
+              } else spends.push(namedBuy);
               continue;
             }
             /* 叙述体の精神・人格購入（「精神「正義」を購入したため
