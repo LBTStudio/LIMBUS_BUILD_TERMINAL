@@ -1268,6 +1268,25 @@ test("71区分の硝子窓メモコーパスを全行監査し、金額・操作
     (issues.length > 15 ? "\n……残り" + (issues.length - 15) + "件" : ""));
 });
 
+test("複数シナリオの収支合計が安全整数を超えたら残高照合を保留する", () => {
+  const max = Number.MAX_SAFE_INTEGER;
+  const M = loadImportWithMemo();
+  const doc = { currency: { lp: "10", fragment: "0" }, scenarioHistory: [] };
+  const manifest = {
+    scenarios: [
+      { key: "one", name: "one", memo: "", income: { lp: max, shards: 0 }, spends: [] },
+      { key: "two", name: "two", memo: "", income: { lp: max, shards: 0 }, spends: [] }
+    ]
+  };
+  const out = M.reconcileBalance(manifest, doc);
+  assert.equal(out.checked, true);
+  assert.equal(out.ok, false);
+  assert.equal(out.errorCode, "unsafe-history-total");
+  assert.equal(out.computedLp, null, "オーバーフロー後の値を最終残高として出さない");
+  assert.equal(out.historyNetLp, null, "履歴純増減も確定させない");
+  assert.match(out.message, /安全整数の範囲を超えたため/);
+});
+
 test("実サンプル『鏡屈折鉄道1号線』の変換・購入・残高が一貫して合う", () => {
   const sample = samples.mMIbGr32lGZix60RDmoN?.doc;
   assert.ok(sample, "実サンプル mMIb を読み込める");
