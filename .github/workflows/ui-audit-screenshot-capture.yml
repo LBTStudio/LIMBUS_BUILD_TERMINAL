@@ -1,6 +1,14 @@
 name: UI interaction audit screenshots
 
 on:
+  push:
+    branches: [fix/ui-mobile-audit-findings-20261028]
+    paths:
+      - "tools/ui/capture-ui-audit.mjs"
+      - ".github/workflows/ui-audit-screenshot-capture.yml"
+      - "js/**"
+      - "assets/**"
+      - "index.html"
   pull_request:
     paths:
       - "tools/ui/capture-ui-audit.mjs"
