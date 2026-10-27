@@ -2520,3 +2520,30 @@ body.has-detail-dialog main.preview { overflow: hidden; }
     max-height: 22dvh;
   }
 }
+
+
+.import-scope-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: 0 0 auto;
+}
+.import-scope-title { flex: 1 1 auto; min-width: 0; }
+.import-scope-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--tx-2);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.import-scope-close:hover { color: var(--gold); border-color: var(--gold-line); background: var(--surface-3); }
+.import-scope-close:focus-visible { outline: 2px solid var(--gold-hi); outline-offset: 2px; }
