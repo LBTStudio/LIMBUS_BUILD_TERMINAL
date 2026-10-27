@@ -14,7 +14,9 @@
 
   /* 金額欄は不正な文字列を 0 と誤認しない。入力が空なら未入力として扱う。 */
   function parseNumber(value) {
-    const raw = String(value ?? "").trim().replace(/\s/g, "");
+    /* 硝子窓のメモ入力と同様、全角数値・全角カンマも半角へ正規化してから
+       桁区切りを検証する。不正なカンマや安全整数外は引き続き拒否する。 */
+    const raw = String(value ?? "").normalize("NFKC").trim().replace(/\s/g, "");
     if (!raw) return null;
     if (!/^\+?(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(raw)) return null;
     const number = Number(raw.replace(/,/g, ""));
