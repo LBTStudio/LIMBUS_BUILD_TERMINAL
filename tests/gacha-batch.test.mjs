@@ -586,7 +586,10 @@ test("近接した抽選はcommitごとに支出を分離し、IDのない旧明
 test("旧抽出の誤帰属は、ログIDがある場合も無い場合も安全に補正する", () => {
   const w = loadState(db);
   const { batch } = finalizedBatch();
-  const logAt = Date.now();
+  const baseAt = Date.now();
+  // The transaction rows are created during ADD_DRAW_BATCH; keep the legacy log timestamp
+  // after those rows so the repair matcher does not depend on millisecond scheduling.
+  const logAt = baseAt + 10000;
   const cost = batch.records.reduce((total, record) => ({
     lp: total.lp + (Number(record.cost?.lp) || 0),
     shards: total.shards + (Number(record.cost?.shards) || 0)
@@ -596,8 +599,8 @@ test("旧抽出の誤帰属は、ログIDがある場合も無い場合も安全
     const before = {
       ...base(),
       results: [
-        { id: "visible-latest", name: "画面上の最新", date: "2026-10-26", createdAt: logAt - 5000, income: { lp: 1000, shards: 100 } },
-        { id: "array-tail-old", name: "配列末尾の古い記録", date: "2026-10-25", createdAt: logAt - 10000, income: { lp: 1000, shards: 100 } }
+        { id: "visible-latest", name: "画面上の最新", date: "2026-10-26", createdAt: baseAt - 5000, income: { lp: 1000, shards: 100 } },
+        { id: "array-tail-old", name: "配列末尾の古い記録", date: "2026-10-25", createdAt: baseAt - 10000, income: { lp: 1000, shards: 100 } }
       ]
     };
     const log = {
