@@ -401,19 +401,37 @@ async function captureProfile(browser, mode) {
   // Cloudflare Web Analytics points at /cdn-cgi/rum, which intentionally does not exist
   // on this localhost-only screenshot server. Block it so the capture log only reports app errors.
   await page.route("**/cdn-cgi/rum**", (route) => route.abort("blockedbyclient"));
-  page.on("console",m=>{if(m.type()==="error")audit.consoleErrors.push({view:mode,message:m.text().slice(0,160)});});
+  // Real-share analytics is intentionally unavailable from the localhost fixture.
+  // Block only its read-only view counter, then exclude that expected blocked request
+  // from console-error accounting; application assets and API failures remain visible.
+  await page.route("https://lbt-recovery.lbtstudio-share.workers.dev/api/stats/**", (route) => route.abort("blockedbyclient"));
+  page.on("console",m=>{
+    if(m.type()!=="error") return;
+    const message=m.text();
+    if(message.includes("ERR_BLOCKED_BY_CLIENT") || message.includes("https://lbt-recovery.lbtstudio-share.workers.dev/api/stats/view?path=app")) return;
+    audit.consoleErrors.push({view:mode,message:message.slice(0,160)});
+  });
   page.on("response",response=>{if(response.status()>=400 && !response.url().includes("/cdn-cgi/rum?"))audit.httpErrors.push({view:mode,status:response.status(),url:response.url().slice(0,240)});});
   page.on("pageerror",e=>audit.pageErrors.push({view:mode,message:e.message.slice(0,160)}));
   try {
     await boot();
-    const previewToggle=page.locator("#lbt-preview-edge-toggle").first();
+    // Desktop uses the edge rail; phone layouts intentionally move this control
+    // into the top bar so it no longer overlays the section heading or tab strip.
+    const previewSelector=mobile?".preview-mobile-toggle":"#lbt-preview-edge-toggle";
+    const previewToggle=page.locator(previewSelector).first();
     if(await visible(previewToggle)) {
-      await previewToggle.hover().catch(()=>{});
-      await snap("preview-toggle-hover","画面右端のプレビュー開閉タブのホバー");
+      if(!mobile) await previewToggle.hover().catch(()=>{});
+      await snap(mobile?"preview-toggle-before-tap":"preview-toggle-hover",
+        mobile?"モバイル上部バーのプレビュー操作（タップ前）":"デスクトップ：プレビュー開閉タブのホバー");
       await click(previewToggle);
-      await snap("preview-toggled-open","プレビュー開閉タブを押して開いた状態");
-      const movedToggle=page.locator("#lbt-preview-edge-toggle").first();
-      if(await visible(movedToggle)) { await movedToggle.hover().catch(()=>{}); await snap("preview-toggle-open-hover","プレビューを開いた状態で開閉タブをホバー"); await click(movedToggle); await snap("preview-toggled-closed","プレビューを再度閉じた状態"); }
+      await snap("preview-toggled-open",mobile?"モバイル上部バーのボタンでプレビューを開いた状態":"プレビュー開閉タブを押して開いた状態");
+      const movedToggle=page.locator(previewSelector).first();
+      if(await visible(movedToggle)) {
+        if(!mobile) await movedToggle.hover().catch(()=>{});
+        if(!mobile) await snap("preview-toggle-open-hover","プレビューを開いた状態で開閉タブをホバー");
+        await click(movedToggle);
+        await snap("preview-toggled-closed",mobile?"モバイル上部バーのボタンでプレビューを閉じた状態":"プレビューを再度閉じた状態");
+      }
     }
     await snap("build-persona-default","ビルドの初期表示。専用の使い捨てデータを使用");
     const tabs=page.locator(".build-tabs [role='tab']");
@@ -490,10 +508,12 @@ async function captureProfile(browser, mode) {
           const textButton=page.locator(".ledger-import-menu button").filter({hasText:/^テキスト流し込み$/}).first();
           if(!(await visible(textButton))) throw new Error("リザルトのテキスト流し込みメニュー項目が表示されません");
           await click(textButton);
-          const textPanel=page.locator("#ledger-text-import-panel");
-          await textPanel.waitFor({state:"visible",timeout:5000});
-          const textArea=textPanel.locator("textarea.ledger-textarea").first();
+          // The app renders import tools as .ledger-gara-wrap cards (not fixed IDs).
+          // Locate the actual visible input first, then scope every assertion/close to its card.
+          const textArea=page.locator("textarea.ledger-textarea").last();
           await textArea.waitFor({state:"visible",timeout:5000});
+          const textPanel=page.locator(".ledger-gara-wrap").filter({has:page.locator("textarea.ledger-textarea")}).last();
+          await textPanel.waitFor({state:"visible",timeout:5000});
           const textState=await textPanel.evaluate((el)=> {
             const r=el.getBoundingClientRect();
             const input=el.querySelector("textarea.ledger-textarea");
@@ -515,7 +535,7 @@ async function captureProfile(browser, mode) {
           const glass=page.locator(".ledger-import-menu button").filter({hasText:"硝子窓から一括取り込む"}).first();
           if(!(await visible(glass))) throw new Error("硝子窓から一括取り込む入口が表示されません");
           await click(glass);
-          const glassPanel=page.locator("#ledger-glass-import-panel");
+          const glassPanel=page.locator(".ledger-gara-wrap").filter({hasText:"硝子窓から一括取り込む"}).last();
           await glassPanel.waitFor({state:"visible",timeout:5000});
           const glassMetrics=await glassPanel.evaluate((el)=>({top:Math.round(el.getBoundingClientRect().top),height:Math.round(el.getBoundingClientRect().height),viewportHeight:innerHeight}));
           if(glassMetrics.top >= glassMetrics.viewportHeight - 40) throw new Error("硝子窓取り込みパネルが画面内へスクロールされません: "+JSON.stringify(glassMetrics));
@@ -532,7 +552,7 @@ async function captureProfile(browser, mode) {
           const heldRect=await held.boundingBox();
           if(!heldRect || heldRect.y >= (page.viewportSize()?.height||844)-36) throw new Error("所持人格リストの入力欄が画面内へスクロールされません");
           await snap("record-roster-import","所持人格リストの入力欄が見える状態（保存しない）");
-          const heldPanel=page.locator(".ledger-gara-wrap").filter({has:held}).last();
+          const heldPanel=page.locator(".ledger-gara-wrap").filter({hasText:"所持人格リストを取り込む"}).last();
           const heldClose=heldPanel.getByRole("button",{name:"閉じる",exact:true}).first();
           if(await visible(heldClose)) await click(heldClose);
         }
