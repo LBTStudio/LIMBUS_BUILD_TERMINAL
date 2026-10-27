@@ -724,6 +724,26 @@ test("名前付き購入行「蒼羽蝶：75LP消費」は支出として読ま�
   assert.equal(narrative.spends.length, 1, "明示された自然文の支出は金額だけ記録する");
   assert.equal(narrative.spends[0].lp, 200);
   assert.equal(narrative.spends[0].name, "LP200を消費してガチャ", "獲得名は推測しない");
+
+  /* 「現在へ」の残高は2件目の支出候補に含めず、既知の金額を保つ。 */
+  const withBalance = MEMO.parseMemo("切り伏せる斬撃を購入、150LP消費　300LPへ");
+  assert.equal(withBalance.spends.reduce((sum, row) => sum + row.lp, 0), 150);
+  assert.equal(withBalance.spends.length, 1, "支出を重ねて作らない");
+  assert.ok(!withBalance.reasons.some((item) => /安全に解析できない/.test(item.reason)),
+    "既に別経路で正しく読めた支出に誤警告を出さない");
+
+  /* 複数の明示支出は一方だけを勝手に選ばない。全て読めるか、確認へ回す。 */
+  const multi = MEMO.parseMemo("LP100を消費、欠片50を消費して交換");
+  const spendAmounts = multi.spends.flatMap((row) => [
+    ...(row.lp ? [["lp", row.lp]] : []),
+    ...(row.shards ? [["shards", row.shards]] : [])
+  ]);
+  const fullyRead = spendAmounts.some(([currency, amount]) => currency === "lp" && amount === 100)
+    && spendAmounts.some(([currency, amount]) => currency === "shards" && amount === 50);
+  const heldForReview = spendAmounts.length === 0
+    && multi.reasons.some((item) => /安全に解析できない/.test(item.reason));
+  assert.ok(fullyRead || heldForReview, "複数支出を過少計上せず、全件記録か確認対象にする");
+
   const hate = MEMO.parseMemo("憎悪購入：-50欠片");
   assert.equal(hate.spends.length, 1, "負数でも購入行は支出になる");
   assert.equal(hate.spends[0].name, "憎悪");

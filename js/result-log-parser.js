@@ -10,7 +10,7 @@
 */
 (function () {
   // 欠片の言い方はゆらぐ。字面が違っても全部 欠片 として扱う。
-  const SHARD_WORDS = /欠片|欠牁|カケラ|かけら|けっか|欠けら/;
+  const SHARD_WORDS = /欠片|欠牁|カケラ|かけら|けっか|欠けら|欠け片/;
   const LP_WORDS = /LP|Lp|lp|ＬＰ/;
 
   const halfWidth = (value) => String(value ?? "")
@@ -30,7 +30,10 @@
   function classifyCurrency(raw) {
     const line = String(raw ?? "");
     const hasLp = LP_WORDS.test(line);
-    const hasShard = SHARD_WORDS.test(line);
+    /* 所持アイテム「硝子の破片／欠け片」「硝酸の欠片」は
+       通貨の自我の欠片とは別物として識別する。 */
+    const currencyText = line.replace(/(?:硝子の(?:破片|欠け片)|硝酸の(?:欠片|欠け片))/g, " ");
+    const hasShard = SHARD_WORDS.test(currencyText);
     if (hasLp && hasShard) return "both";
     if (hasLp) return "lp";
     if (hasShard) return "shards";

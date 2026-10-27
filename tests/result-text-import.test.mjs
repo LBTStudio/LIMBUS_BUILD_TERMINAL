@@ -1155,6 +1155,11 @@ test("E.G.O と人格は明細の種別を名前から推測する", () => {
   assert.equal(s[2].kindHint, "ego", "EGO購入");
   assert.equal(s[3].kindHint, "ego", "EGO解析");
   assert.equal(s[0].kindHint, "persona", "人格抽出");
+
+  const spaced = T.parseText("【A】\n購入｜E. G. O購入-TETH[鬼退治](75欠片)\n").records[0].spends[0];
+  assert.equal(spaced.kindHint, "ego", "E.G.O の間に空白がある書式");
+  const japanese = T.parseText("【A】\n購入｜エゴ購入-TETH[鬼退治](75欠片)\n").records[0].spends[0];
+  assert.equal(japanese.kindHint, "ego", "日本語読みのエゴ表記");
 });
 
 /* --- 分からないもの ----------------------------------------------------- */
