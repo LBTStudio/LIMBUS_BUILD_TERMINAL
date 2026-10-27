@@ -1640,7 +1640,7 @@ const App = () => {
               )))
           )
         : null
-    )),
+    ),
     /* @__PURE__ */ React.createElement("div", { className: "import-scope-actions", style: { display: "flex", gap: 8, marginTop: 14, justifyContent: "flex-end", flexWrap: "wrap" } },
       /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost btn-sm", onClick: () => {
         const sel = {};
