@@ -1197,7 +1197,6 @@ test("71区分の硝子窓メモコーパスを全行監査し、金額・操作
   let auditedActionRows = 0;
   let auditedAmountRows = 0;
   let unresolvedRows = 0;
-  let reviewedRows = 0;
   const amountPattern = /(?:LP|ＬＰ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]|[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ)|(?:欠片|かけら|欠けら|カケラ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]/i;
   const actionPattern = /報酬|収入|消費|支出|支払|購入|買った|抽出|ガチャ|チケット|チケ|獲得|入手|取得|補填|変換|使用/;
 
@@ -1237,7 +1236,6 @@ test("71区分の硝子窓メモコーパスを全行監査し、金額・操作
         if (coverage.status === "reviewed-by-parser-reason" && !relatedAudit && !relatedReason) {
           issues.push(session.title + ": 要確認理由が監査出力に存在しない (" + (lineIndex + 1) + "行目): " + sourceLine.trim().slice(0, 100));
         }
-        if (/review|mismatch|unresolved/.test(String(coverage.status || ""))) reviewedRows++;
       }
     }
     if (amountPattern.test(memo) && actionPattern.test(memo)) {
@@ -1259,7 +1257,7 @@ test("71区分の硝子窓メモコーパスを全行監査し、金額・操作
   assert.equal(auditedSessions, 71);
   assert.ok(auditedAmountRows > 100, "金額候補行を横断監査（実際 " + auditedAmountRows + " 行）");
   assert.ok(auditedActionRows > 20, "金額と操作を含む行を横断監査（実際 " + auditedActionRows + " 行）");
-  assert.ok(reviewedRows >= 0 && unresolvedRows >= 0, "監査件数を収集できる");
+  assert.equal(unresolvedRows, 0, "金額・操作行に未解決ステータスを残さない");
   assert.deepEqual(issues.slice(0, 15), [],
     "メモコーパスの監査不一致（先頭15件）:\n" + issues.slice(0, 15).join("\n") +
     (issues.length > 15 ? "\n……残り" + (issues.length - 15) + "件" : ""));
