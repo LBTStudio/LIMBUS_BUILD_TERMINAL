@@ -1225,6 +1225,7 @@
         ticketSpends: ticketSpends.length
       };
       var auditModeBefore = mode;
+      var supportSlotUnlockReviewed = false;
       try {
       var typoCurrentMarker = /現座(?=\s*(?:(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|けっか)\s*)?[0-9０-９])/i.test(sourceLine);
       var line = typoCurrentMarker ? sourceLine.replace(/現座/g, "現在") : sourceLine;
@@ -1235,6 +1236,28 @@
         });
       }
       if (!line) continue;
+      /* サポートスロット解放は所持アイテム購入とは別の操作。
+         「現在99欠片」のように残高だけが残る例から費用を逆算せず、
+         操作と未確定額を監査へ残す。明示費用があれば通常の金額解析に任せる。 */
+      var supportSlotUnlockWithoutCost =
+        /(?:サポートスロット|サポスロ|サポートパッシブ|サポパ).*(?:解放)|(?:解放).*(?:サポートスロット|サポスロ|サポートパッシブ|サポパ)/.test(line) &&
+        /(?:現在|現座|残り|残高)/.test(line) &&
+        amountNear(line, "lp", false) == null && amountNear(line, "shards", false) == null;
+      if (supportSlotUnlockWithoutCost) {
+        reasons.push({
+          line: sourceLine,
+          reason: "サポートスロット解放の記録に現在残高しかないため、支出額を残高から逆算せず未計上にしています。解放に使った欠片数または解放前後の残高を確認してください"
+        });
+        financialCoverage.push({
+          lineIndex: i + 1, line: sourceLine, section: auditModeBefore,
+          status: "reviewed-by-parser-reason",
+          expected: { lp: 0, shards: 0 }, detected: { lp: 0, shards: 0 },
+          expectedFlows: auditMoneyFlowsOfLine(sourceLine, auditModeBefore),
+          detectedFlows: { lpIncome: 0, lpSpend: 0, lpUnknown: 0, shardsIncome: 0, shardsSpend: 0, shardsUnknown: 0 },
+          parserReasonCount: 1, sourceFinding: false
+        });
+        supportSlotUnlockReviewed = true;
+      }
       var prev = prevLine;
       prevLine = line;
       if (sourceAuditAnalysis.skipLines.has(i)) continue;
@@ -1891,11 +1914,11 @@
         /* 現在残高だけが記載された購入・抽出行も監査する。金額は推測せず、
            本体処理で作られた「支出額が読み取れない」等の理由へ紐付ける。 */
         const hasCurrentBalanceAction = /(?:現在|現座|残り|残高)/.test(sourceLine) &&
-          /消費|支出|支払|購入|買っ|使用|行使|抽出|ガチャ|獲得|入手|取得/.test(sourceLine);
+          /消費|支出|支払|購入|買っ|使用|行使|抽出|ガチャ|獲得|入手|取得|解放/.test(sourceLine);
         const hasFinancialAction = hasTicketEvent || hasRosterGainEvent || hasGachaResult || hasCurrentBalanceAction ||
           ((expected.lp || expected.shards || directMoneyRow) &&
-            /報酬|収入|獲得|入手|取得|付与|支給|補填|受領|被り|重複|消費|使用|支払|支出|購入|買っ|抽出|ガチャ|変換|換算/.test(sourceLine));
-        if (auditModeBefore !== "current" && (directMoneyRow || hasFinancialAction || hasSourceFinding) &&
+            /報酬|収入|獲得|入手|取得|付与|支給|補填|受領|被り|重複|消費|使用|支払|支出|購入|買っ|抽出|ガチャ|変換|換算|解放/.test(sourceLine));
+        if (!supportSlotUnlockReviewed && auditModeBefore !== "current" && (directMoneyRow || hasFinancialAction || hasSourceFinding) &&
             (expected.lp || expected.shards || hasFinancialAction || hasSourceFinding)) {
           const newSpends = spends.slice(auditBefore.spends);
           const detectedFlows = {

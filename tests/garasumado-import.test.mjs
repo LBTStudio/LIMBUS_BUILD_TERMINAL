@@ -2694,3 +2694,25 @@ test("メモ原文・リザルトログの全コーパスをシナリオ単位�
     issues.slice(0, 20).join("\n") +
     (issues.length > 20 ? "\n……残り" + (issues.length - 20) + "件" : ""));
 });
+
+
+test("サポートスロット解放で現在残高しかない行は、支出額を推測せず監査理由を残す", () => {
+  const examples = [
+    "サポートスロット解放　現在99欠片",
+    "・支出\nサポスロ解放　現在21欠片",
+    "人差し指紙片のサポートスロット解放　現在99欠片"
+  ];
+  for (const memo of examples) {
+    const parsed = MEMO.parseMemo(memo);
+    const line = memo.split(/\r?\n/).find((row) => /解放/.test(row));
+    const coverage = (parsed.financialCoverage || []).find((row) => row && row.line === line);
+    assert.ok(coverage, "行単位のcoverageを保持: " + memo);
+    assert.equal(coverage.status, "reviewed-by-parser-reason", "費用不明は要確認として保持: " + memo);
+    assert.ok((parsed.reasons || []).some((row) =>
+      String(row.line || "").trim() === line.trim() && /支出額を残高から逆算せず/.test(row.reason)),
+      "残高だけから費用を捏造しない理由を表示: " + memo);
+    assert.equal(Number(parsed.income?.shards) || 0, 0, "残高99欠片などを収入扱いしない: " + memo);
+    assert.equal((parsed.spends || []).reduce((sum, row) => sum + (Number(row.shards) || 0), 0), 0,
+      "費用不明の行に欠片支出を捏造しない: " + memo);
+  }
+});
