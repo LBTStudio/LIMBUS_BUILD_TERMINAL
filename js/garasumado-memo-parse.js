@@ -1841,10 +1841,27 @@
         var isRemainderOnly = !hasVerb && !endsToHe;
 
         if (isRemainderOnly) {
-          /* 残額だけの行。通貨名が無ければ純粋な残WRITE。
-             通貨名があれば「130LP を使った」という読みできるので、
-             金額として拾う（Foobar　現在130LP → LP 130）。 */
-          if (!/(LP|欠片|かけら|欠けら|カケラ)/i.test(normalizeAmountText(line))) continue;
+          /* 残額だけの行は支出額ではない。単位が抜けた残高も、LP/欠片を推測して
+             支出に変換しない。行を落とさず要確認理由へ残し、後から原文を確認できるようにする。 */
+          const normalizedRemainder = normalizeAmountText(line);
+          const hasExplicitCurrencyUnit = /(LP|ＬＰ|欠片|かけら|欠けら|カケラ)/i.test(normalizedRemainder);
+          const hasBalanceMarker = /(?:現在|現座|残り|残高)/.test(line);
+          const hasBareTrailingAmount = /(?:^|[^0-9０-９])([0-9０-９][0-9０-９,，]*)\\s*[)）】」』、，。]?\\s*$/.test(line);
+          if (!hasExplicitCurrencyUnit) {
+            if (hasBalanceMarker) {
+              reasons.push({
+                line: sourceLine,
+                reason: "支出欄の残高候補にLP/欠片の単位がありません。通貨も支出額も推測せず、元記録を要確認にしました"
+              });
+            } else if (hasBareTrailingAmount && !/(?:チケット|チケ|抽出|ガチャ|枚|回目|レベル|Lv\\.?|CT\\s*\\d|HP|SAN)/i.test(line)
+                && !/硝子の(?:破片|欠片|かけら|欠けら|カケラ)/.test(line)) {
+              reasons.push({
+                line: sourceLine,
+                reason: "支出欄に単位のない金額候補があります。LP/欠片を推測せず、元記録で通貨を確認してください"
+              });
+            }
+            continue;
+          }
         }
 
         /* 両通貨が 1 行に並ぶことがある:
@@ -1861,7 +1878,15 @@
           continue;
         }
         if (lp == null && sh == null) {
-          if (isRemainderOnly) continue;
+          if (isRemainderOnly) {
+            if (/(?:現在|現座|残り|残高)/.test(line)) {
+              reasons.push({
+                line: sourceLine,
+                reason: "支出欄は現在残高だけの記載です。残高を支出額として扱わず、実際の支払額は要確認にしました"
+              });
+            }
+            continue;
+          }
           spends.push({ name: pnm || bnm || line, lp: 0, shards: 0, raw: line });
           reasons.push({ line: line, reason: "支出金額が読み取れない（要確認）" });
           continue;
