@@ -75,3 +75,12 @@ test("初回アカウント作成フォームは高さ制限に隠れず、送�
   const accountUi = read("../js/accounts-ui.js");
   assert.match(accountUi, /className: "acct-form-actions"[\s\S]*?"作成して開く"/);
 });
+
+test("UI監査は初回アカウント作成ボタンを実DOMで押し、前後の値と遷移結果を記録する", () => {
+  const auditScript = read("../tools/ui/capture-ui-audit.mjs");
+  assert.match(auditScript, /\.acct-gate \.acct-form-actions \.btn-primary/);
+  assert.match(auditScript, /account-create-form-filled/);
+  assert.match(auditScript, /account-create-after-submit/);
+  assert.match(auditScript, /window\.LBT_accounts\?\.list\?\.\(\)/);
+  assert.doesNotMatch(auditScript, /getByRole\("button",\{name:"作成して開く",exact:true\}\)/);
+});
