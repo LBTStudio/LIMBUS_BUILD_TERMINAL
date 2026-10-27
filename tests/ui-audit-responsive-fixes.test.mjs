@@ -73,3 +73,9 @@ test("初回キャラクター作成中はクラウド保全パネルを退避�
   assert.match(css, /\.acct-gate-panel:has\(\.acct-card--form\) > \.lbt-cloud-panel\s*\{\s*display:\s*none;/);
   assert.match(css, /\.acct-gate-panel:has\(\.acct-card--form\) > \.acct-grid\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\);/);
 });
+
+
+test("スマホの使い方カテゴリは8項目すべて同時に表示する", () => {
+  assert.match(css, /\.guide-filter-row\s*\{[\s\S]*?display:\s*grid;[\s\S]*?grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\);[\s\S]*?overflow:\s*visible;/);
+  assert.match(css, /\.guide-filter\s*\{[\s\S]*?min-height:\s*40px;[\s\S]*?white-space:\s*normal;/);
+});
