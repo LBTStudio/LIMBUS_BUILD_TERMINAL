@@ -643,20 +643,25 @@ async function captureProfile(browser, mode) {
           ];
           const categoryCount = categoryFields.filter((fields) => fields.some((key) => key in fixture)).length;
           audit.importFixture = { topLevelKeys: Object.keys(fixture).length, categoryCount, expectedCategories: categoryFields.length };
+          if (categoryCount !== categoryFields.length) {
+            throw new Error("full import fixture only covers " + categoryCount + "/" + categoryFields.length + " categories");
+          }
           await input.setInputFiles({name:"ui-audit-import-all-categories.json",mimeType:"application/json",buffer:Buffer.from(JSON.stringify(fixture),"utf8")});
           await page.waitForTimeout(300);
           const dialog = page.locator(".share-modal-backdrop").filter({ has: page.locator(".import-apply-summary") }).first();
           if (await visible(dialog)) {
             await snap("state-import-scope-all-categories","全カテゴリにデータがあるバックアップの読み込み確認。適用はしない");
             const list = dialog.locator(".stack-2").first();
-            const footer = dialog.locator("> .card > div:last-child");
             audit.importDialogGeometry = await page.evaluate(() => {
               const shell = document.querySelector(".share-modal-backdrop > .card");
-              const list = shell?.querySelector(".stack-2");
+              const list = shell?.querySelector(":scope > .stack-2");
               const footer = shell?.lastElementChild;
               const rect = (el) => { if(!el) return null; const r=el.getBoundingClientRect(); return {top:Math.round(r.top),bottom:Math.round(r.bottom),height:Math.round(r.height),scrollHeight:el.scrollHeight,clientHeight:el.clientHeight}; };
               return { viewportHeight: innerHeight, shell: rect(shell), list: rect(list), footer: rect(footer), footerBottomWithinViewport: !!footer && footer.getBoundingClientRect().bottom <= innerHeight + 1, listScrollable: !!list && list.scrollHeight > list.clientHeight + 2 };
             });
+            if (!audit.importDialogGeometry.footerBottomWithinViewport || !audit.importDialogGeometry.listScrollable) {
+              throw new Error("mobile import scope layout failed: " + JSON.stringify(audit.importDialogGeometry));
+            }
             const before = await list.evaluate((el) => el.scrollTop).catch(() => 0);
             await list.evaluate((el) => { el.scrollTop = el.scrollHeight; }).catch(() => {});
             await page.waitForTimeout(100);
