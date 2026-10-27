@@ -716,12 +716,14 @@ test("名前付き購入行「蒼羽蝶：75LP消費」は支出として読ま�
   assert.equal(full.spends.length, 1);
   assert.equal(full.spends[0].name, "メラメラ燃えた羽：蒼羽蝶");
 
-  /* 叙述の「LP200を消費してガチャ」は名前付き購入にしない。
+  /* 叙述の「LP200を消費してガチャ」は対象名を推測せず、明記額だけを記録する。
      一方、リザルトへ書かれた負数の購入行（憎悪購入：-50欠片）は
      実買として支出になる（残高差分の表記でも、記された購入は
      記録する。ユーザー指定の契約）。 */
   const narrative = MEMO.parseMemo("LP200を消費してガチャ");
-  assert.equal(narrative.spends.length, 0, "名前付き取引でない自然文は推測支出にしない");
+  assert.equal(narrative.spends.length, 1, "明示された自然文の支出は金額だけ記録する");
+  assert.equal(narrative.spends[0].lp, 200);
+  assert.equal(narrative.spends[0].name, "LP200を消費してガチャ", "獲得名は推測しない");
   const hate = MEMO.parseMemo("憎悪購入：-50欠片");
   assert.equal(hate.spends.length, 1, "負数でも購入行は支出になる");
   assert.equal(hate.spends[0].name, "憎悪");
@@ -1848,6 +1850,54 @@ test("消費・使用の叙述は収入に数えない（「消費し」「消�
   const c = MEMO.parseMemo("LP300、欠片116、人格チケット2枚獲得。ガチャ結果→W社2級整理要員\n終了後、LP300使用して人格抽出→LCE E.G.O：提灯\n欠片100を消費してEGO抽出→一生シチュー");
   assert.equal(c.income.lp, 300);
   assert.equal(c.income.shards, 116);
+});
+
+test("自然文の明示支出・括弧内のマイナス額を通貨別に読む", () => {
+  const cases = [
+    ["終了後、LP200を消費し人格特定抽出「対象」", "lp", 200],
+    ["欠片75消費して抽出「対象」", "shards", 75],
+    ["サポートパッシブ[破撃]を35LPを消費して購入", "lp", 35],
+    ["シ協会同期使用（硝子の破片x2購入し使用：-40LP）", "lp", 40]
+  ];
+  for (const [line, currency, amount] of cases) {
+    const result = MEMO.parseMemo(line);
+    assert.equal(result.income.lp, 0, "明示支出を収入へ混ぜない: " + line);
+    assert.equal(result.spends.length, 1, "支出を1件記録: " + line);
+    assert.equal(result.spends[0][currency], amount, "通貨額を保持: " + line);
+    assert.equal(result.reasons.length, 0, "読める支出に警告を付けない: " + line);
+  }
+});
+
+test("同じ行のチケット消費とLP消費を両方記録し、未対応額は警告する", () => {
+  const r = MEMO.parseMemo("人格チケット×7、300LP消費。");
+  assert.equal(r.ticketSpends.length, 1);
+  assert.equal(r.ticketSpends[0].count, 7);
+  assert.equal(r.spends.length, 1);
+  assert.equal(r.spends[0].lp, 300);
+
+  const unresolved = MEMO.parseMemo("消費40LP");
+  assert.equal(unresolved.spends.length, 0, "書式を推測して誤計上しない");
+  assert.ok(unresolved.reasons.some((item) => /安全に解析できない/.test(item.reason)), "未解析額を無警告で捨てない");
+});
+
+test("自然文支出は取込アクションと残高照合にも反映する", () => {
+  const M = loadImportWithMemo();
+  const doc = {
+    currency: { lp: "300", fragment: "" },
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [
+      { name: "開始残高", memo: "現在所持LP：500" },
+      { name: "自然文支出", memo: "LP200を消費して人格抽出「対象」" }
+    ]
+  };
+  const manifest = M.buildManifest(doc, null);
+  assert.equal(manifest.scenarios[1].spends[0].lp, 200);
+  const actions = M.toDispatchActions(manifest, [], {});
+  const costEntries = actions.actions.filter((item) => item.type === "ADD_ENTRY" && item.cost?.lp === 200);
+  assert.equal(costEntries.length, 1, "LP支出を一度だけ明細化する");
+  const balance = M.reconcileBalance(manifest, doc);
+  assert.equal(balance.computedLp, 300);
+  assert.equal(balance.ok, true);
 });
 
 test("報酬を挟んだ通貨・計算式の結果・数量条件のマスク", () => {
