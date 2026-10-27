@@ -53,7 +53,7 @@ test("共有URL取り込み中は保全パネル／他カードを隠し、ア�
 test("監査用スクリプトはPC／スマホ、ホバー、フォーカス、取り込み画面を撮影する", () => {
   const capture = read("../tools/ui/capture-ui-audit.mjs");
   const workflow = read("../.github/workflows/ui-audit-screenshot-capture.yml");
-  assert.match(capture, /for\s*\(const mode of \["desktop", "mobile"\]\)/);
+  assert.match(capture, /for\s*\(const\s+mode\s+of\s+\["desktop",\s*"mobile"\]\)/);
   assert.match(capture, /\.hover\(\)/);
   assert.match(capture, /keyboard\.press\("Tab"\)/);
   assert.match(capture, /state-import-scope-dialog/);
