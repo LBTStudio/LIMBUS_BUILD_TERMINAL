@@ -1311,6 +1311,38 @@ const App = () => {
   const [disclaimerOpen, setDisclaimerOpen] = React.useState(false);
   const [importData, setImportData] = React.useState(null);
   const [importSel, setImportSel] = React.useState({});
+  React.useEffect(() => {
+    if (!importData) return;
+    const previous = document.activeElement;
+    const focusable = () => Array.from(document.querySelectorAll(
+      ".state-import-dialog button:not([disabled]), .state-import-dialog input:not([disabled]), .state-import-dialog summary"
+    )).filter((node) => node.getClientRects().length > 0);
+    requestAnimationFrame(() => document.querySelector(".state-import-close")?.focus());
+    const onKey = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        setImportData(null);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const nodes = focusable();
+      if (!nodes.length) return;
+      const first = nodes[0], last = nodes[nodes.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("keydown", onKey, true);
+      if (previous instanceof HTMLElement && previous !== document.body && document.contains(previous)) previous.focus();
+    };
+  }, [Boolean(importData)]);
   const fileRef = React.useRef(null);
   const utilityReturnFocusRef = React.useRef(null);
   const openUtilities = (event) => {
