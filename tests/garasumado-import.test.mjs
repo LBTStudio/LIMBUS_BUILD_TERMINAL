@@ -2209,9 +2209,13 @@ test("プロトの100LP消費ガチャは短縮名を人格として一意に解
   /* 価格・ガチャ文脈のヒントを持たない短縮名はグローバルに人格へ寄せない。 */
   const neutral = context.window.LBT_garasumado.buildManifest({
     owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
-    scenarioHistory: [{ name: "単独の短縮名", memo: "厳粛な哀悼" }]
+    scenarioHistory: [{ name: "別額のガチャ", memo: "→LP50消費ガチャ:厳粛な哀悼獲得" }]
   }, { resolve, candidates }, db);
-  assert.equal(neutral.scenarios[0].wins.length, 0, "文脈のない短縮語を獲得として新規作成しない");
+  const neutralWin = neutral.scenarios[0].wins.find((row) => row.raw === "厳粛な哀悼");
+  assert.ok(neutralWin, "獲得の記録自体は失わない");
+  assert.equal(neutralWin.entityKindHint, undefined, "100LPでない取引から人格ヒントを作らない");
+  assert.equal(neutralWin.resolved, false, "種別の根拠がない短縮名を推測解決しない");
+  assert.equal(neutralWin.kinds.length, 0, "未解決のまま明示して残す");
 });
 
 test("硝子窓の「獲得：HE 厳粛な哀悼」は正式E.G.O名へ照合され所持追加される", () => {
