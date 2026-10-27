@@ -1279,7 +1279,7 @@ test("全49件の硝子窓サンプルを個別監査し、所持・金額イベ
         const lineHasAction = /報酬|収入|消費|支出|支払|購入|買った|抽出|ガチャ|チケット|チケ|獲得|入手|取得/.test(sourceLine);
         const relatedAudit = scenarioAudits.some((entry) => entry &&
           (entry.lineIndex === lineIndex + 1 || entry.relatedLineIndex === lineIndex + 1 ||
-           (Array.isArray(entry.relatedLines) && entry.relatedLines.some((row) => row.lineIndex === lineIndex + 1)));
+           (Array.isArray(entry.relatedLines) && entry.relatedLines.some((row) => row.lineIndex === lineIndex + 1))));
         const relatedReason = scenarioReasons.some((entry) =>
           String(entry.line || "").trim() === sourceLine.trim());
         if (!lineHasAmount || !lineHasAction) continue;
