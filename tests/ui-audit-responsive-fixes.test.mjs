@@ -67,3 +67,9 @@ test("初回SINNER SELECTの作成フォームはアクションまで表示で�
   assert.match(css, /\.acct-gate-panel\s*>\s*\.acct-grid\s*\{[\s\S]*?align-content:\s*start;[\s\S]*?grid-auto-rows:\s*max-content;/);
   assert.match(css, /\.acct-gate-panel\s*>\s*\.acct-grid\s*>\s*\.acct-card--form\s*\{[\s\S]*?grid-column:\s*1\s*\/\s*-1;[\s\S]*?min-height:\s*max-content;/);
 });
+
+
+test("初回キャラクター作成中はクラウド保全パネルを退避してフォーム操作を優先する", () => {
+  assert.match(css, /\.acct-gate-panel:has\(\.acct-card--form\) > \.lbt-cloud-panel\s*\{\s*display:\s*none;/);
+  assert.match(css, /\.acct-gate-panel:has\(\.acct-card--form\) > \.acct-grid\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\);/);
+});
