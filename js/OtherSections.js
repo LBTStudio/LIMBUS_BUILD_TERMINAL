@@ -3887,6 +3887,16 @@ const LedgerPanel = ({ state, dispatch }) => {
   /* 所持人格リストのパネル。記録フォームの「取り込む」から開く。
      単独フラグで、開閉はここで行う。 */
   const [heldOpen, setHeldOpen] = React.useState(false);
+  const heldPasteRef = React.useRef(null);
+  /* 所持人格リストも記録フォームの末尾に出るため、開いた直後に入力欄を画面内へ移す。 */
+  React.useEffect(() => {
+    if (!heldOpen) return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      const input = heldPasteRef.current;
+      if (input) input.scrollIntoView({ block: "center", behavior: "auto" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [heldOpen]);
   const [importMenuOpen, setImportMenuOpen] = React.useState(false);
   /* 判定できなかった文字列 -> 利用者が選んだ正しい名前。検出時に先に差し込む。 */
   const [heldResolved, setHeldResolved] = React.useState({});
@@ -4938,6 +4948,7 @@ const importHeldPersonas = () => {
       h("div", { className: "card-body stack-2" },
         h("textarea", {
           className: "ledger-input ledger-held-paste",
+          ref: heldPasteRef,
           rows: 4,
           placeholder: "例：黒雲会組員\n剣契殺手A",
           "aria-label": "所持人格リスト",
