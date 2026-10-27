@@ -717,46 +717,89 @@
      限り、獲得名の位置やE.G.O名のコロンを壊さない。 */
   function currencySpendOf(rawLine, allowNaturalExpense) {
     var text = normalizeNumericText(rawLine);
-    /* 矢印・明示ラベル、または収入節で通貨額と支出語が近接する自然文を読む。
-       支出節は専用パーサーがあるため、自然文の追加判定を適用しない。 */
     var rawSource = String(rawLine || "");
     var hasArrow = rawSource.indexOf("→") >= 0;
     var hasExplicitSpendLabel = /(?:消費|使用|支払|支出)\s*(?:ガチャ|抽出|パック|テーマパック)\s*[：:]/.test(text);
     var hasNaturalExpenseCue = /(?:消費|使用|支払|支出|購入)/.test(text);
     if (!hasArrow && !hasExplicitSpendLabel && !(allowNaturalExpense && hasNaturalExpenseCue)) return null;
-    /* 金額候補の数ではなく、支出動詞に結び付いた金額だけを数える。
-       「150LP消費 300LPへ」の300LPは支払後残高であり、2件目の支出ではない。
-       逆に「LP100を消費、欠片50を消費」のような複数支出は、
-       先頭だけを自動確定して過少計上しない。 */
-    var spendAmountPattern = /(?:LP|ＬＰ)\s*[-−]?\s*[0-9][0-9,]*\s*(?:を\s*)?(?:消費|使用|支払|支出)|[0-9][0-9,]*\s*(?:LP|ＬＰ)\s*(?:を\s*)?(?:消費|使用|支払|支出)|(?:自我の(?:破片|欠片)|(?<!の)(?:欠片|かけら|欠けら|カケラ))\s*[-−]?\s*[0-9][0-9,]*\s*(?:個|つ)?\s*(?:を\s*)?(?:消費|使用|支払|支出)|[0-9][0-9,]*\s*(?:個|つ)?\s*(?:自我の(?:破片|欠片)|(?<!の)(?:欠片|かけら|欠けら|カケラ))\s*(?:を\s*)?(?:消費|使用|支払|支出)|(?:購入し使用|消費|使用|支払|支出)\s*[：:（(]?\s*[-−]\s*[0-9][0-9,]*\s*(?:LP|ＬＰ|自我の(?:破片|欠片)|欠片|かけら|欠けら|カケラ)/gi;
-    var explicitSpendAmounts = text.match(spendAmountPattern) || [];
-    if (explicitSpendAmounts.length > 1) return null;
-    var lpMatch = text.match(/(?:LP|ＬＰ)\s*([0-9][0-9,]*)\s*(?:を\s*)?(?:消費|使用|支払|支出)/i);
-    if (!lpMatch) lpMatch = text.match(/([0-9][0-9,]*)\s*(?:LP|ＬＰ)\s*(?:を\s*)?(?:消費|使用|支払|支出)/i);
-    if (lpMatch) {
-      var lp = Number(String(lpMatch[1]).replace(/,/g, ""));
-      return { currency: "lp", amount: applyExplicitPackCount(lp, text, lpMatch), start: lpMatch.index, end: lpMatch.index + lpMatch[0].length };
-    }
-    /* 「自我の破片100消費」は通貨。「硝酸の欠片×1」はアイテム名なので対象外。 */
-    var shardMatch = text.match(/(?:自我の(?:破片|欠片)|(?<!の)(?:欠片|かけら|欠けら|カケラ))\s*([0-9][0-9,]*)\s*(?:個|つ)?\s*(?:を\s*)?(?:消費|使用|支払|支出)/);
-    if (!shardMatch) shardMatch = text.match(/([0-9][0-9,]*)\s*(?:個|つ)?\s*自我の(?:破片|欠片)\s*(?:を\s*)?(?:消費|使用|支払|支出)/);
-    if (shardMatch) {
-      var shardAmount = Number(String(shardMatch[1]).replace(/,/g, ""));
-      return { currency: "shards", amount: applyExplicitPackCount(shardAmount, text, shardMatch), start: shardMatch.index, end: shardMatch.index + shardMatch[0].length };
-    }
-    /* 「購入し使用：-40LP」のように、明示された購入・使用語の後ろへ
-       マイナス額を書く旧書式も、費用として正の値に直して記録する。 */
-    var negativeMatch = text.match(/(?:購入し使用|消費|使用|支払|支出)\s*[：:（(]?\s*[-−]\s*([0-9][0-9,]*)\s*(LP|ＬＰ|自我の(?:破片|欠片)|欠片|かけら|欠けら|カケラ)/i);
-    if (negativeMatch) {
-      var negativeAmount = Number(String(negativeMatch[1]).replace(/,/g, ""));
-      return {
-        currency: /LP/i.test(negativeMatch[2]) ? "lp" : "shards",
-        amount: negativeAmount,
-        start: negativeMatch.index,
-        end: negativeMatch.index + negativeMatch[0].length
+
+    /* 明示された通貨支出を通貨ごとに抽出する。LP100と欠片100を消費のように
+       1つの消費動詞が複数通貨へ掛かる形式も対応し、支出候補を丸ごと棄却しない。 */
+    var candidates = [];
+    function addCandidate(currency, amountText, amountStart, start, end, amountMatch) {
+      var amount = Number(String(amountText || "").replace(/,/g, ""));
+      if (!Number.isFinite(amount) || !Number.isSafeInteger(amount)) amount = null;
+      var candidate = {
+        currency: currency, amount: amount, amountStart: amountStart,
+        amountEnd: amountStart + String(amountText || "").length, start: start, end: end
       };
+      if (amount !== null && amountMatch) candidate.amount = applyExplicitPackCount(amount, text, amountMatch);
+      var existing = candidates.find((item) =>
+        item.currency === candidate.currency && item.amountStart === candidate.amountStart && item.amountEnd === candidate.amountEnd
+      );
+      if (existing) {
+        existing.start = Math.min(existing.start, candidate.start);
+        existing.end = Math.max(existing.end, candidate.end);
+        return;
+      }
+      candidates.push(candidate);
     }
-    return null;
+
+    var match;
+    var lpPattern = /(?:LP|ＬＰ)\s*[-−]?\s*([0-9][0-9,]*)\s*(?:を\s*)?(?:消費|使用|支払|支出)|([0-9][0-9,]*)\s*(LP|ＬＰ)\s*(?:を\s*)?(?:消費|使用|支払|支出)/gi;
+    while ((match = lpPattern.exec(text)) !== null) {
+      var lpText = match[1] || match[2];
+      var lpOffset = match[1] ? match[0].indexOf(match[1]) : match[0].indexOf(match[2]);
+      addCandidate("lp", lpText, match.index + lpOffset, match.index,
+        match.index + match[0].length, { index: match.index, 0: match[0], length: match[0].length });
+    }
+
+    var shardPattern = /(?:自我の(?:破片|欠片)|(?<!の)(?:欠片|かけら|欠けら|カケラ))\s*[-−]?\s*([0-9][0-9,]*)\s*(?:個|つ)?\s*(?:を\s*)?(?:消費|使用|支払|支出)|([0-9][0-9,]*)\s*(?:個|つ)?\s*(?:自我の(?:破片|欠片)|(?<!の)(?:欠片|かけら|欠けら|カケラ))\s*(?:を\s*)?(?:消費|使用|支払|支出)/gi;
+    while ((match = shardPattern.exec(text)) !== null) {
+      var shardText = match[1] || match[2];
+      var shardOffset = match[1] ? match[0].indexOf(match[1]) : match[0].indexOf(match[2]);
+      addCandidate("shards", shardText, match.index + shardOffset, match.index,
+        match.index + match[0].length, { index: match.index, 0: match[0], length: match[0].length });
+    }
+
+    var moneyTokenPattern = /(?:LP|ＬＰ)\s*[-−]?\s*[0-9][0-9,]*|(?:自我の(?:破片|欠片)|(?<!の)(?:欠片|かけら|欠けら|カケラ))\s*[-−]?\s*[0-9][0-9,]*|[0-9][0-9,]*\s*(?:LP|ＬＰ|自我の(?:破片|欠片)|(?<!の)(?:欠片|かけら|欠けら|カケラ))/gi;
+    var spendCuePattern = /(?:消費|使用|支払|支出)/gi;
+    while ((match = spendCuePattern.exec(text)) !== null) {
+      var segmentStart = 0;
+      var delimiters = /[、，,。．;；→⇒\n]/g;
+      var delimiter;
+      while ((delimiter = delimiters.exec(text)) !== null && delimiter.index < match.index) {
+        segmentStart = delimiter.index + delimiter[0].length;
+      }
+      var segment = text.slice(segmentStart, match.index);
+      var tokens = [...segment.matchAll(moneyTokenPattern)];
+      if (tokens.length < 2) continue;
+      var residue = segment.replace(moneyTokenPattern, " ").replace(/[\s　と、および＆&をはの：:()（）]/g, "").trim();
+      if (residue) continue;
+      for (var ti = 0; ti < tokens.length; ti++) {
+        var token = tokens[ti], tokenText = token[0];
+        var amountMatch = tokenText.match(/[0-9][0-9,]*/);
+        if (!amountMatch) continue;
+        var currency = /LP|ＬＰ/i.test(tokenText) ? "lp" : "shards";
+        var amountStart = segmentStart + token.index + tokenText.indexOf(amountMatch[0]);
+        var tokenStart = segmentStart + token.index;
+        addCandidate(currency, amountMatch[0], amountStart, tokenStart,
+          match.index + match[0].length, { index: tokenStart, 0: tokenText, length: tokenText.length });
+      }
+    }
+
+    var negativePattern = /(?:購入し使用|消費|使用|支払|支出)\s*[：:（(]?\s*[-−]\s*([0-9][0-9,]*)\s*(LP|ＬＰ|自我の(?:破片|欠片)|欠片|かけら|欠けら|カケラ)/gi;
+    while ((match = negativePattern.exec(text)) !== null) {
+      var negativeText = match[1];
+      var negativeOffset = match[0].indexOf(negativeText);
+      addCandidate(/LP/i.test(match[2]) ? "lp" : "shards", negativeText,
+        match.index + negativeOffset, match.index, match.index + match[0].length, null);
+    }
+    if (!candidates.length) return null;
+    candidates.sort((a, b) => a.start - b.start || a.amountStart - b.amountStart);
+    var primary = candidates[0];
+    primary.additionalSpends = candidates.slice(1);
+    return primary;
   }
 
   function hasUnparsedExplicitExpense(rawLine) {
@@ -969,6 +1012,7 @@
     let text = normalizeAmountText(rawLine);
     text = stripAlternativePriceCondition(text).text;
     return stripBalances(text)
+      .replace(/(?:LP|ＬＰ)\s*\d[\d,]*\s*(?:以下|以上|以内|未満|まで)|\d[\d,]*\s*(?:LP|ＬＰ)\s*(?:以下|以上|以内|未満|まで)/gi, " ")
       .replace(/(?:硝子|硝酸)の(?:破片|欠片|かけら|欠けら|カケラ|欠け片)/g, " ")
       .replace(/-?\d+(?:\s*[+＋]\s*\d+)*\s*(LP|ＬＰ|(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片))\s*へ/gi, " ")
       .replace(/\d+\s*[×xｘ]\s*\d+\s*[=＝]\s*(\d+)/g, "$1")
@@ -981,78 +1025,58 @@
   function auditMoneyRowsOfLine(rawLine, mode) {
     const text = normalizeAuditMoneyLine(rawLine);
     const rows = [];
+    const usedAmounts = new Set();
     const currencyPattern = /(LP|ＬＰ|(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片))/gi;
-    const cues = [
-      { kind: "spend", regex: /(?:消費|支出|支払|購入|買っ|使用)/g },
-      { kind: "income", regex: /(?:報酬|収入|獲得|入手|取得|受領|付与|支給|補填|もら)/g }
-    ];
+    const detectedExpense = currencySpendOf(text, true);
+    const explicitExpenseRanges = detectedExpense
+      ? [detectedExpense].concat(detectedExpense.additionalSpends || []).map((item) => ({
+          currency: item.currency, amountStart: item.amountStart, amountEnd: item.amountEnd
+        }))
+      : [];
+    const incomeCue = /報酬|収入|獲得|入手|取得|受領|付与|支給|補填|もら/;
     let match;
     while ((match = currencyPattern.exec(text)) !== null) {
+      const candidates = [];
       const prefix = text.slice(0, match.index);
-      const before = prefix.match(/([+\-−]?\d[\d,]*(?:\s*[+＋]\s*\d[\d,]*)*)\s*(?:[：:]?\s*)$/);
-      let rawAmount = before ? before[1] : null;
-      let amountStart = before ? before.index + before[0].indexOf(before[1]) : -1;
-      let amountEnd = before ? amountStart + before[1].length : -1;
-      if (rawAmount === null) {
-        const after = text.slice(currencyPattern.lastIndex).match(/^\s*[：:]?\s*([+\-−]?\d[\d,]*(?:\s*[+＋]\s*\d[\d,]*)*)/);
-        if (after) {
-          rawAmount = after[1];
-          amountStart = currencyPattern.lastIndex + after[0].indexOf(after[1]);
-          amountEnd = amountStart + after[1].length;
-        }
+      const before = prefix.match(/([+＋\-−]?\d[\d,]*(?:\s*[+＋]\s*\d[\d,]*)*)\s*(?:[：:]?\s*)$/);
+      if (before) {
+        const start = before.index + before[0].indexOf(before[1]);
+        const end = start + before[1].length;
+        candidates.push({ rawAmount: before[1], amountStart: start, amountEnd: end, gap: match.index - end, position: "before" });
       }
-      if (rawAmount === null) continue;
-      const compact = rawAmount.replace(/\s/g, "");
+      const suffix = text.slice(currencyPattern.lastIndex);
+      const after = suffix.match(/^\s*[：:]?\s*([+＋\-−]?\d[\d,]*(?:\s*[+＋]\s*\d[\d,]*)*)/);
+      if (after) {
+        const start = currencyPattern.lastIndex + after[0].indexOf(after[1]);
+        const end = start + after[1].length;
+        candidates.push({ rawAmount: after[1], amountStart: start, amountEnd: end, gap: start - currencyPattern.lastIndex, position: "after" });
+      }
+      const freshCandidates = candidates.filter((candidate) => {
+        for (let i = candidate.amountStart; i < candidate.amountEnd; i++) if (usedAmounts.has(i)) return false;
+        return true;
+      });
+      freshCandidates.sort((a, b) => a.gap - b.gap || (a.position === "after" ? -1 : 1));
+      const chosen = freshCandidates[0];
+      if (!chosen) continue;
+      const compact = chosen.rawAmount.replace(/\s/g, "");
       const sign = compact.charAt(0);
-      const parts = compact.replace(/^[+\-−]/, "").split(/[+＋]/);
+      const parts = compact.replace(/^[+＋\-−]/, "").split(/[+＋]/);
       const amount = parts.reduce((sum, part) => sum + Number(part.replace(/,/g, "")), 0);
       if (!Number.isSafeInteger(amount) || amount < 0) continue;
+      for (let i = chosen.amountStart; i < chosen.amountEnd; i++) usedAmounts.add(i);
       const currency = /^(?:LP|ＬＰ)$/i.test(match[1]) ? "lp" : "shards";
       let direction = sign === "-" || sign === "−" ? "spend" : sign === "+" || sign === "＋" ? "income" : "";
-      let closest = null;
-      let tiedKinds = false;
-      if (!direction && amountStart >= 0) {
-        for (const cue of cues) {
-          cue.regex.lastIndex = 0;
-          let cueMatch;
-          while ((cueMatch = cue.regex.exec(text)) !== null) {
-            const cueStart = cueMatch.index;
-            const cueEnd = cueStart + cueMatch[0].length;
-            const distance = cueEnd < amountStart ? amountStart - cueEnd
-              : cueStart > amountEnd ? cueStart - amountEnd : 0;
-            if (!closest || distance < closest.distance) {
-              closest = { kind: cue.kind, distance };
-              tiedKinds = false;
-            } else if (distance === closest.distance && cue.kind !== closest.kind) {
-              tiedKinds = true;
-            }
-          }
-        }
-        if (closest && !tiedKinds) direction = closest.kind;
+      if (!direction) {
+        const explicitExpenseForToken = explicitExpenseRanges.some((item) =>
+          item.currency === currency && item.amountStart === chosen.amountStart && item.amountEnd === chosen.amountEnd
+        );
+        if (explicitExpenseForToken) direction = "spend";
+        else if (mode === "income" || mode === "spend") direction = mode;
+        else direction = incomeCue.test(text.slice(0, chosen.amountStart)) ? "income" : "unknown";
       }
-      if (!direction && (mode === "income" || mode === "spend")) direction = mode;
-      rows.push({ currency, amount, direction: direction || "unknown", rawAmount });
+      rows.push({ currency, amount, direction: direction || "unknown", rawAmount: chosen.rawAmount, amountStart: chosen.amountStart, amountEnd: chosen.amountEnd });
     }
     return rows;
-  }
-
-  function auditMoneyTotalsOfLine(rawLine) {
-    const totals = { lp: 0, shards: 0 };
-    for (const row of auditMoneyRowsOfLine(rawLine, "")) totals[row.currency] += row.amount;
-    return totals;
-  }
-
-  function auditMoneyFlowsOfLine(rawLine, mode) {
-    const flows = {
-      lpIncome: 0, lpSpend: 0, lpUnknown: 0,
-      shardsIncome: 0, shardsSpend: 0, shardsUnknown: 0
-    };
-    for (const row of auditMoneyRowsOfLine(rawLine, mode)) {
-      const key = row.currency === "lp" ? "lp" : "shards";
-      const suffix = row.direction === "income" ? "Income" : row.direction === "spend" ? "Spend" : "Unknown";
-      flows[key + suffix] += row.amount;
-    }
-    return flows;
   }
 
   function auditLineCoverage(rawLine, expected, detected, hasMoneyReviewReason, section, lineIndex, expectedFlows, detectedFlows) {
@@ -1393,39 +1417,34 @@
       /* 明示された通貨消費をチケット収入・抽出回数と混同しない。 */
       var currencySpend = currencySpendOf(line, mode === "income");
       if (currencySpend) {
-        if (!Number.isSafeInteger(currencySpend.amount) || currencySpend.amount <= 0) {
-          reasons.push({ line: line, reason: "消費金額が正の安全整数ではないため未計上" });
-          continue;
-        }
-        var rewardName = rewardAfterCurrencySpend(line, currencySpend.end);
-        var spendRecord = { name: rewardName || line, lp: 0, shards: 0, raw: line, reason: "明示された通貨消費" };
-        spendRecord[currencySpend.currency] = currencySpend.amount;
-        spends.push(spendRecord);
-        /* 購入・抽出後の獲得名を保持。既存の同名候補があれば重複を増やさない。 */
+        var allCurrencySpends = [currencySpend].concat(currencySpend.additionalSpends || []);
+        var lastCurrencySpend = allCurrencySpends[allCurrencySpends.length - 1];
+        var rewardName = rewardAfterCurrencySpend(line, lastCurrencySpend.end);
+        allCurrencySpends.forEach(function (currencySpendItem) {
+          if (!Number.isSafeInteger(currencySpendItem.amount) || currencySpendItem.amount <= 0) {
+            reasons.push({ line: line, reason: "消費金額が正の安全整数ではないため未計上：" + currencySpendItem.currency });
+            return;
+          }
+          var spendRecord = { name: rewardName || line, lp: 0, shards: 0, raw: line, reason: "明示された通貨消費" };
+          spendRecord[currencySpendItem.currency] = currencySpendItem.amount;
+          spends.push(spendRecord);
+        });
         var arrowRewardNames = arrowWinsOf(line);
         if (!arrowRewardNames.length && rewardName) arrowRewardNames = [rewardName];
-        /* この形式の100LP消費ガチャは人格抽出。短縮名がE.G.O名にも含まれる
-           場合、金額・操作文脈を明示的な種別ヒントとして渡す。
-           名前単体へグローバルな別名を登録して誤分類させない。 */
-        var entityKindHint = currencySpend.currency === "lp"
-          && currencySpend.amount === 100
-          && /ガチャ/.test(line)
-          ? "persona" : "";
+        var entityKindHint = allCurrencySpends.some((item) =>
+          item.currency === "lp" && item.amount === 100 && /ガチャ/.test(line)
+        ) ? "persona" : "";
         arrowRewardNames.forEach(function (name) {
           var existing = wins.find((w) => w.name === name);
           if (existing) {
             if (entityKindHint) existing.entityKindHint = entityKindHint;
           } else {
             wins.push({
-              name: name,
-              via: "",
-              kind: "",
+              name: name, via: "", kind: "",
               ...(entityKindHint ? { entityKindHint: entityKindHint } : {})
             });
           }
         });
-        /* 続きに収入・チケット獲得が同居する書式があるため行全体を捨てない。
-           後段の既存解析は消費より前の収入だけを読む。 */
       }
 
       var explicitTicketSpend = explicitTicketSpendOf(line);
@@ -1890,9 +1909,10 @@
         const hasGachaResult = /ガチャ.*(?:結果|→|⇒)|(?:人格|E\\.?G\\.?O|エゴ)獲得\\s*[→⇒:：]/i.test(sourceLine);
         /* 現在残高だけが記載された購入・抽出行も監査する。金額は推測せず、
            本体処理で作られた「支出額が読み取れない」等の理由へ紐付ける。 */
-        const hasCurrentBalanceAction = /(?:現在|現座|残り|残高)/.test(sourceLine) &&
-          /消費|支出|支払|購入|買っ|使用|行使|抽出|ガチャ|獲得|入手|取得/.test(sourceLine);
-        const hasFinancialAction = hasTicketEvent || hasRosterGainEvent || hasGachaResult || hasCurrentBalanceAction ||
+         const hasCurrentBalanceAction = /(?:現在|現座|残高)/.test(sourceLine) &&
+           /(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|けっか)/.test(sourceLine) &&
+           /消費|支出|支払|購入|買っ|使用|行使|抽出|ガチャ|獲得|入手|取得/.test(sourceLine);
+         const hasFinancialAction = hasTicketEvent || hasRosterGainEvent || hasGachaResult || hasCurrentBalanceAction ||
           ((expected.lp || expected.shards || directMoneyRow) &&
             /報酬|収入|獲得|入手|取得|付与|支給|補填|受領|被り|重複|消費|使用|支払|支出|購入|買っ|抽出|ガチャ|変換|換算/.test(sourceLine));
         if (auditModeBefore !== "current" && (directMoneyRow || hasFinancialAction || hasSourceFinding) &&
