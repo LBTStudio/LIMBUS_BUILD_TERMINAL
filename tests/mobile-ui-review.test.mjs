@@ -33,3 +33,7 @@ test("mobile save-import dialog scrolls its category list and keeps footer actio
   assert.match(index, /assets\/v68-interaction-a11y\.css\?v=[0-9a-f]{8}/);
   assert.match(sw, /assets\/v68-interaction-a11y\.css\?v=[0-9a-f]{8}/);
 });
+
+test("mobile section headings reclaim space now that preview toggle moved to bottom navigation", () => {
+  assert.match(css, /@media \\(max-width: 640px\\) \\{[\\s\\S]{0,220}\\.section-title-row \\{ padding-right: 0; \\}/);
+});
