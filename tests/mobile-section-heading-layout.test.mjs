@@ -25,3 +25,11 @@ test("スマートフォンではプレビューの操作を本文に重ねず�
 test("スマートフォンの見出しに旧プレビュータブ用の余白を残さない", () => {
   assert.match(auditCss, /\.section-title-row \{\s*padding-right: 0;/);
 });
+
+
+test("スマートフォンの記録・ショップ・使い方分類タブは選択肢全体を表示する", () => {
+  const source = readFileSync(new URL("../assets/v69-mobile-ui-audit.css", import.meta.url), "utf8");
+  assert.match(source, /\.guide-filter-row\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/s);
+  assert.match(source, /\.shop-tabs-sticky \.shop-tabs\[role="tablist"\]\[aria-label="ショップの種別"\]\s*\{[^}]*display:\s*grid/s);
+  assert.match(source, /\.record-tabbar \.card-header > \.segmented\[role="tablist"\]\[aria-label="記録セクションの種別"\]\s*\{[^}]*display:\s*grid/s);
+});
