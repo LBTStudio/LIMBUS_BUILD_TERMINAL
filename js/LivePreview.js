@@ -190,7 +190,7 @@ const LivePreview = ({ state, dispatch }) => {
       document.body.appendChild(edgeToggle);
     }
     edgeToggle.className = `preview-edge-toggle${previewOpen ? " is-open" : " is-collapsed"}`;
-    edgeToggle.textContent = previewOpen ? "◀ 格納" : "▶ 展開";
+    edgeToggle.textContent = previewOpen ? "◀ 格納" : "▶ プレビュー";
     edgeToggle.title = previewOpen ? "プレビューを格納" : "プレビューを展開";
     edgeToggle.setAttribute("aria-label", edgeToggle.title);
     edgeToggle.onclick = () => dispatch({ type: "SET_UI", ui: { previewOpen: !previewOpen } });
