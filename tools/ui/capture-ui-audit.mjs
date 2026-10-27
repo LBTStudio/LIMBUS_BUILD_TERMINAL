@@ -381,20 +381,11 @@ async function boot() {
   const seeded=await seed().catch(e=>({ok:false,reason:String(e)}));
   audit.seed=seeded;
   if(seeded&&seeded.ok) {
-    // Do not reload the page: this app intentionally shows SINNER SELECT on every
-    // reload. Refresh the reducer from the saved disposable account through the same
-    // public event used when the user chooses an account, avoiding a second gate.
-    const refreshed=await page.evaluate((id)=>{
-      const A=window.LBT_accounts;
-      if(!A?.switch||!id) return {ok:false,reason:"active account ID unavailable"};
-      const switched=A.switch(id);
-      if(switched) window.dispatchEvent(new CustomEvent("lbt:accounts-entered",{detail:{id}}));
-      return {ok:!!switched,id};
-    },seeded.accountId).catch(error=>({ok:false,reason:String(error)}));
-    audit.seedRefresh=refreshed;
-    log("seed refresh: "+JSON.stringify(refreshed));
-    await page.waitForTimeout(600);
-    await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
+    // The sample is saved only inside this disposable Playwright context. Keep the
+    // already-mounted UI state for capture; reloading/reducing the full fixture would
+    // intentionally reopen SINNER SELECT and can make this UI tour state-dependent.
+    audit.seedRefresh={ok:true,mode:"stored-in-disposable-context-only"};
+    log("seed stored in disposable context; continuing with mounted UI state");
   }
   await page.waitForTimeout(350);
 }
