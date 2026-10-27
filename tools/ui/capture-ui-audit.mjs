@@ -344,6 +344,24 @@ async function boot() {
         await create.scrollIntoViewIfNeeded();
         await click(create);
         await page.locator(".acct-gate").waitFor({state:"hidden",timeout:10000});
+        await page.waitForTimeout(650);
+        const postCreate = await page.evaluate(() => ({
+          title: document.title,
+          activeAccountId: window.LBT_accounts?.getActiveId?.() || null,
+          accounts: window.LBT_accounts?.list?.()?.map?.((x) => ({id:x.id,name:x.name})) || null,
+          root: [...document.querySelectorAll("#root,#app,#__next,[data-reactroot],.app,.rail-item")].slice(0,12).map((el) => ({
+            tag: el.tagName, id: el.id || "", className: typeof el.className === "string" ? el.className : "",
+            text: (el.innerText || "").trim().replace(/\s+/g," ").slice(0,70),
+            display: getComputedStyle(el).display
+          })),
+          bodyText: (document.body.innerText || "").trim().replace(/\s+/g," ").slice(0,900)
+        })).catch((error) => ({diagnosticError:String(error)}));
+        audit.bootDiagnostics = audit.bootDiagnostics || [];
+        audit.bootDiagnostics.push({view,stage:"after-first-run-create",...postCreate,consoleErrors:audit.consoleErrors.slice(-8),pageErrors:audit.pageErrors.slice(-8)});
+        if (!(await visible(page.locator(".rail-item").first()))) {
+          await snap("post-account-create-main-missing","初回アカウント作成後に本体ナビが表示されない診断");
+          throw new Error("初回作成後に本体ナビが表示されません: " + JSON.stringify(postCreate) + " console=" + JSON.stringify(audit.consoleErrors.slice(-8)) + " page=" + JSON.stringify(audit.pageErrors.slice(-8)));
+        }
       } else {
         throw new Error("初回作成フォームの「作成して開く」ボタンが表示されていません");
       }
@@ -655,4 +673,10 @@ async function main() {
   log("finished: "+audit.count+" screenshots; failures="+audit.failures.length+"; missing-required="+audit.missingRequiredCaptures.length+"; critical-layout-warnings="+audit.criticalLayoutWarnings.length);
   if(audit.count<80 || audit.failures.length || audit.missingRequiredCaptures.length || audit.pageErrors.length || audit.httpErrors.length || audit.consoleErrors.length || audit.criticalLayoutWarnings.length) process.exitCode=1;
 }
-main().catch(e=>{console.error("[ui-audit] fatal: "+(e&&e.stack||String(e)));process.exitCode=1;});
+main().catch(e=>{
+  audit.fatal={message:String(e&&e.message||e),stack:String(e&&e.stack||"").slice(0,5000)};
+  fs.mkdirSync(OUT,{recursive:true});
+  fs.writeFileSync(path.join(OUT,"manifest.json"),JSON.stringify(audit,null,2)+"\n");
+  console.error("[ui-audit] fatal: "+(e&&e.stack||String(e)));
+  process.exitCode=1;
+});
