@@ -268,3 +268,37 @@
 /* Keep bilingual section-title halves together instead of stranding one kana at line end. */
 .section-title-primary { overflow-wrap: normal; }
 .section-title-secondary { white-space: nowrap; }
+
+/* First-run account creation must expose its submit/cancel actions.
+   The account gate is height-limited; its grid is normally an inner scroll area.
+   While creating, let the form grow to intrinsic height and move scrolling to the
+   dialog itself. Hide optional cloud recovery controls until account creation ends. */
+.acct-gate-panel:has(.acct-card--form) {
+  max-height: min(92dvh, 900px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.acct-gate-panel:has(.acct-card--form) > .acct-grid {
+  flex: 0 0 auto;
+  min-height: max-content;
+  grid-auto-rows: max-content;
+  align-content: start;
+  overflow: visible;
+}
+.acct-gate-panel:has(.acct-card--form) .acct-card--form {
+  min-height: max-content;
+  height: auto;
+  overflow: visible;
+}
+.acct-gate-panel:has(.acct-card--form) > .lbt-cloud-panel {
+  display: none;
+}
+@media (max-width: 640px) {
+  .acct-gate-panel:has(.acct-card--form) {
+    max-height: calc(100dvh - 16px);
+  }
+  .acct-gate-panel:has(.acct-card--form) > .acct-grid {
+    padding-bottom: var(--s-3);
+  }
+}
