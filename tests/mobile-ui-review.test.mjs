@@ -7,8 +7,10 @@ const index = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const sw = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
 
 test("mobile preview edge toggle replaces legacy open and close controls", () => {
-  const responsive = css.slice(css.lastIndexOf("@media (max-width: 640px)"));
-  assert.ok(responsive.includes("#lbt-preview-edge-toggle.preview-edge-toggle {"));
+  const responsive = css.slice(css.indexOf("/* 2026-10-27: responsive review fixes from real 390px UI captures. */"));
+  const toggleRule = responsive.match(/#lbt-preview-edge-toggle\.preview-edge-toggle\s*\{[^}]*\}/s);
+  assert.ok(toggleRule, "one responsive rule positions the external preview toggle");
+  assert.match(toggleRule[0], /bottom:\s*calc\(env\(safe-area-inset-bottom, 0px\) \+ 4px\)/);
   assert.ok(responsive.includes(".preview-reopen,\n  .preview-close { display: none !important; }"));
 });
 
