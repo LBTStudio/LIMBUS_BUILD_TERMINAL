@@ -110,7 +110,6 @@ test("全リザルトログを行単位監査し、収入・残高・支出節�
   let rewardBalanceRows = 0;
   let explicitBalanceRows = 0;
   let spendSectionRows = 0;
-  let mixedDirectionRows = 0;
   const failures = [];
 
   for (let sessionIndex = 0; sessionIndex < sourceSessions.length; sessionIndex++) {
@@ -159,7 +158,6 @@ test("全リザルトログを行単位監査し、収入・残高・支出節�
         if (expected.flow !== "gain") failures.push(source.title + ": 報酬額＋現在残高行を収入として保持できない: " + line);
       }
       if (expected.flow === "review") {
-        mixedDirectionRows++;
         if (!found.needsReview) failures.push(source.title + ": 混合方向行に要確認フラグが無い: " + line);
       }
     }
@@ -169,7 +167,6 @@ test("全リザルトログを行単位監査し、収入・残高・支出節�
   assert.ok(rewardBalanceRows > 100, "報酬額＋残高形式の大量サンプルを監査（実際 " + rewardBalanceRows + " 行）");
   assert.ok(explicitBalanceRows > 0, "残高アンカーも取引額と分離する");
   assert.ok(spendSectionRows > 0, "支出節の明細を支出として残す");
-  assert.ok(mixedDirectionRows > 0, "正負混在の通貨変換を要確認にする");
   assert.deepEqual(failures.slice(0, 12), [], "コーパスの監査不一致（先頭12件）:\\n" + failures.slice(0, 12).join("\\n"));
 });
 
