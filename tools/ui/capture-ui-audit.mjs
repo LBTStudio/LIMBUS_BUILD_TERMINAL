@@ -337,9 +337,30 @@ async function boot() {
       await click(add);
       await snap("account-create-form","新規キャラクター作成フォーム");
       const name=page.locator(".acct-gate input[placeholder='キャラクター名など']").first();
-      if(await visible(name)) await name.fill("UI監査用キャラクター");
-      const create=page.getByRole("button",{name:"作成して開く",exact:true});
-      if(await visible(create)) await click(create);
+      if(await visible(name)) {
+        await name.fill("UI監査用キャラクター");
+        const actualName=await name.inputValue();
+        audit.interactions.push({name:"account-create-name",status:actualName==="UI監査用キャラクター"?"filled":"failed",actualValue:actualName});
+        await snap("account-create-form-filled","アカウント名を入力後、作成を押す直前の状態");
+      } else {
+        audit.failures.push({name:"account-create-name",error:"Account name field not visible"});
+      }
+      /* Button includes a decorative icon, so accessible-name exact matching can fail
+         even while the visible action is present. Target the real primary form action. */
+      const create=page.locator(".acct-gate .acct-form-actions .btn-primary").first();
+      if(await visible(create)) {
+        await click(create);
+        await page.waitForTimeout(700);
+        audit.interactions.push({name:"account-create-submit",status:await visible(page.locator(".rail-item"))?"entered":"gate-remains",diagnostics:await page.evaluate(()=>({
+          accountList:window.LBT_accounts?.list?.(),
+          activeId:window.LBT_accounts?.getActiveId?.(),
+          storageAvailable:window.LBT_accounts?.storageAvailable?.(),
+          visibleToasts:[...document.querySelectorAll('[role="alert"],[role="status"],.toast,.toast-item')].filter(e=>e.getClientRects().length).map(e=>(e.innerText||"").trim()).filter(Boolean).slice(-5)
+        }))});
+        await snap("account-create-after-submit","作成ボタン押下後の結果。遷移またはエラー表示を確認");
+      } else {
+        audit.failures.push({name:"account-create-submit",error:"Primary create action not visible"});
+      }
     } else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
   }
   await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
