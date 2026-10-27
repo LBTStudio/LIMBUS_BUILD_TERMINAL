@@ -31,7 +31,7 @@ test("監査ブラウザーのお気に入りデータは実アプリと同じ�
 test("プレビュー格納時に旧PREVIEWタブを表示せず、操作を1か所に統一する", () => {
   assert.match(app, /className: "preview-reopen", onClick: togglePreview/);
   assert.match(css, /\.app\.preview-collapsed \.preview-reopen\s*\{\s*display:\s*none;\s*\}/);
-  assert.match(css, /\.preview-edge-toggle\s*\{[\s\S]*?z-index:/);
+  assert.match(css, /\.preview-edge-toggle\s*\{[\s\S]*?z-index:\s*calc\(var\(--z-drawer, 200\) \+ 1\);/);
 });
 
 test("スマホのプレビュー操作は縦長の本文上ではなく下部の安全領域に横長で表示する", () => {
