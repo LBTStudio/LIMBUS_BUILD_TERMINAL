@@ -215,6 +215,8 @@ async function inspect(id) {
       sourceAuditSeverityCounts[severity] = (sourceAuditSeverityCounts[severity] || 0) + 1;
     }
     const currencyDiscrepancyCount = Array.isArray(parsed.currencyDiscrepancies) ? parsed.currencyDiscrepancies.length : 0;
+    const safeTokens = /(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|けっか|欠け片|E\.?G\.?O|エゴ|人格|チケット|チケ|抽出|ガチャ|報酬|収入|獲得|入手|取得|付与|支給|補填|受領|被り|重複|消費|支出|支払|購入|買っ|使用|行使|変換|換算|現在|現座|残高|所持|保有|残り|以下|以上|以内|未満|条件|達成|未達|使用済|消費済|購入済|クリア|撤退|入手|破片|自我|の|を|が|は|で|に|と|又は|または|あるいは|結果|報酬|：|:|→|⇒|=|＝|\d[\d,]*(?:\.\d+)?|[+＋\-−])/gi;
+    const safeShape = (value) => (String(value || "").match(safeTokens) || []).join(" ").slice(0, 320);
     const coverageFindings = coverage.filter((item) => ["mismatch", "direction-review", "unresolved"].includes(String(item?.status || ""))).map((item) => ({
       lineIndex: item.lineIndex,
       status: item.status,
@@ -225,7 +227,8 @@ async function inspect(id) {
       detectedFlows: item.detectedFlows,
       parserReasonCount: item.parserReasonCount,
       sourceFinding: Boolean(item.sourceFinding),
-      sourceAuditCodes: sourceAudits.filter((entry) => entry && (entry.lineIndex === item.lineIndex || entry.relatedLineIndex === item.lineIndex)).map((entry) => String(entry.code || "unknown"))
+      sourceAuditCodes: sourceAudits.filter((entry) => entry && (entry.lineIndex === item.lineIndex || entry.relatedLineIndex === item.lineIndex)).map((entry) => String(entry.code || "unknown")),
+      sourceShape: safeShape(item.line)
     }));
     const rowResult = {
       index: index + 1,
