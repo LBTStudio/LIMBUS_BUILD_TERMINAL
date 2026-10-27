@@ -218,27 +218,31 @@ test("アクセスカウンターはアプリ本体・共有ページに設置�
 
 
 test("端末間復元はログイン不要の復旧キーで照合してから選択式で実行する", () => {
-  assert.match(client, /async function compareLocalAndCloud\\(rawKey = null\\)/);
-  assert.match(client, /const remote = await getRemote\\(\\{ recoveryKey: key \\}\\)/);
-  assert.match(client, /pendingComparison = \\{[\\s\\S]*?payload: remote\\.payload[\\s\\S]*?localHash/);
-  assert.match(client, /復旧キーを入力してデータを照合（ログイン不要）/);
-  assert.match(client, /クラウドの内容でこの端末を復元/);
-  assert.match(client, /この端末の内容でクラウドを更新/);
-  assert.match(client, /comparison\\.relation === "identical"/);
-  assert.match(client, /同名ですがIDが異なるアカウント候補があります（自動統合はしません）/);
+  assert.ok(client.includes("async function compareLocalAndCloud(rawKey = null)"));
+  assert.ok(client.includes("const remote = await getRemote({ recoveryKey: key })"));
+  assert.ok(client.includes("pendingComparison = { key, payload: remote.payload"));
+  assert.ok(client.includes("復旧キーを入力してデータを照合（ログイン不要）"));
+  assert.ok(client.includes('button("クラウドの内容でこの端末を復元"'));
+  assert.ok(client.includes('button("この端末の内容でクラウドを更新"'));
+  assert.ok(client.includes('const BASELINE_HASH_KEY = "lbt_cloud_last_synced_hash_v1"'));
+  assert.ok(client.includes("localHash === baselineHash"));
+  assert.ok(client.includes("remoteHash === baselineHash"));
+  assert.ok(client.includes("identityOverlapPercent"));
+  assert.ok(client.includes("contentMatchPercent"));
+  assert.ok(client.includes("同名ですがIDが異なるアカウント候補があります（自動統合はしません）"));
 });
 
 test("比較後にローカルまたはクラウドが変わったら古い比較結果では上書きしない", () => {
-  assert.match(client, /照合後にローカルデータが変更されています/);
-  assert.match(client, /照合後にクラウド側が更新されています/);
-  assert.match(client, /expectedRemoteRevision: selected\\.revision/);
-  assert.match(client, /expectedRemoteHash: selected\\.remoteHash/);
-  assert.match(client, /options\\.comparedRevision/);
-  assert.match(client, /options\\.comparedHash/);
+  assert.ok(client.includes("照合後にローカルデータが変更されています"));
+  assert.ok(client.includes("照合後にクラウド側が更新されています"));
+  assert.ok(client.includes("expectedRemoteRevision: selected.revision"));
+  assert.ok(client.includes("expectedRemoteHash: selected.remoteHash"));
+  assert.ok(client.includes("options.comparedRevision"));
+  assert.ok(client.includes("options.comparedHash"));
 });
 
 test("復元前にJSONを退避し、復元・同期後に基準ハッシュを更新する", () => {
-  assert.match(client, /downloadSnapshot\\(local, "before-cloud-restore"\\)/);
-  assert.match(client, /writeSyncBaseline\\(await hashSnapshot\\(valid\\), revision\\)/);
-  assert.match(client, /removeStorage\\(BASELINE_HASH_KEY\\)/);
+  assert.ok(client.includes('downloadSnapshot(local, "before-cloud-restore")'));
+  assert.ok(client.includes("writeSyncBaseline(await hashSnapshot(valid), revision)"));
+  assert.ok(client.includes("removeStorage(BASELINE_HASH_KEY)"));
 });
