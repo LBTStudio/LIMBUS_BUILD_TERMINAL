@@ -257,3 +257,17 @@
 
 /* Do not leave a second, older "PREVIEW" button alongside LivePreview's edge control. */
 .app.preview-collapsed .preview-reopen { display: none; }
+
+
+/* First-run account creation must remain fully operable above the optional backup panel.
+   Let the form use the complete grid row and its intrinsic height instead of squeezing
+   the Save/Cancel row into one narrow card column. */
+.acct-gate-panel > .acct-grid {
+  align-content: start;
+  grid-auto-rows: max-content;
+}
+.acct-gate-panel > .acct-grid > .acct-card--form {
+  grid-column: 1 / -1;
+  min-width: 0;
+  min-height: max-content;
+}
