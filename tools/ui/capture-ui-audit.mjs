@@ -397,7 +397,7 @@ async function boot() {
         const diagnostic = await page.evaluate(() => ({
           gate: !!document.querySelector(".acct-gate"),
           accountId: window.LBT_accounts?.getActiveId?.() || null,
-          bodyText: (document.body.innerText || "").replace(/\\s+/g," ").slice(0,700)
+          bodyText: (document.body.innerText || "").replace(/\s+/g," ").slice(0,700)
         }));
         throw new Error("seed後のアカウント選択を完了できません: " + JSON.stringify(diagnostic));
       });
