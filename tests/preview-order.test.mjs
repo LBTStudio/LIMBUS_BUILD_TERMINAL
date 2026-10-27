@@ -40,7 +40,7 @@ test("プレビューの開閉は出力データを再生成せず、格納中�
 
 test("プレビューの右端タブは展開・格納のどちらでも同一操作で切り替える", () => {
   assert.match(livePreviewSource, /lbt-preview-edge-toggle/);
-  assert.match(livePreviewSource, /previewOpen \? "◀ 格納" : "▶ 展開"/);
+  assert.match(livePreviewSource, /previewOpen \? "◀ 格納" : "▶ プレビュー"/);
   assert.match(livePreviewSource, /previewOpen: !previewOpen/);
   assert.match(workspaceCss, /\.preview-edge-toggle \{/);
   assert.match(workspaceCss, /\.preview-edge-toggle\.is-collapsed \{ right: 0; \}/);
