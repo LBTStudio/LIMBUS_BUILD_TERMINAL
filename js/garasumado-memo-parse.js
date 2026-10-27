@@ -724,10 +724,13 @@
     var hasExplicitSpendLabel = /(?:消費|使用|支払|支出)\s*(?:ガチャ|抽出|パック|テーマパック)\s*[：:]/.test(text);
     var hasNaturalExpenseCue = /(?:消費|使用|支払|支出|購入)/.test(text);
     if (!hasArrow && !hasExplicitSpendLabel && !(allowNaturalExpense && hasNaturalExpenseCue)) return null;
-    if (!hasArrow && !hasExplicitSpendLabel && allowNaturalExpense) {
-      var currencyAmounts = text.match(/(?:LP|ＬＰ)\s*[0-9][0-9,]*|[0-9][0-9,]*\s*(?:LP|ＬＰ)|(?:自我の(?:破片|欠片)|欠片|かけら|欠けら|カケラ)\s*[0-9][0-9,]*|[0-9][0-9,]*\s*(?:自我の(?:破片|欠片)|欠片|かけら|欠けら|カケラ)/gi) || [];
-      if (currencyAmounts.length > 1) return null;
-    }
+    /* 金額候補の数ではなく、支出動詞に結び付いた金額だけを数える。
+       「150LP消費 300LPへ」の300LPは支払後残高であり、2件目の支出ではない。
+       逆に「LP100を消費、欠片50を消費」のような複数支出は、
+       先頭だけを自動確定して過少計上しない。 */
+    var spendAmountPattern = /(?:LP|ＬＰ)\s*[-−]?\s*[0-9][0-9,]*\s*(?:を\s*)?(?:消費|使用|支払|支出)|[0-9][0-9,]*\s*(?:LP|ＬＰ)\s*(?:を\s*)?(?:消費|使用|支払|支出)|(?:自我の(?:破片|欠片)|(?<!の)(?:欠片|かけら|欠けら|カケラ))\s*[-−]?\s*[0-9][0-9,]*\s*(?:個|つ)?\s*(?:を\s*)?(?:消費|使用|支払|支出)|[0-9][0-9,]*\s*(?:個|つ)?\s*(?:自我の(?:破片|欠片)|(?<!の)(?:欠片|かけら|欠けら|カケラ))\s*(?:を\s*)?(?:消費|使用|支払|支出)|(?:購入し使用|消費|使用|支払|支出)\s*[：:（(]?\s*[-−]\s*[0-9][0-9,]*\s*(?:LP|ＬＰ|自我の(?:破片|欠片)|欠片|かけら|欠けら|カケラ)/gi;
+    var explicitSpendAmounts = text.match(spendAmountPattern) || [];
+    if (explicitSpendAmounts.length > 1) return null;
     var lpMatch = text.match(/(?:LP|ＬＰ)\s*([0-9][0-9,]*)\s*(?:を\s*)?(?:消費|使用|支払|支出)/i);
     if (!lpMatch) lpMatch = text.match(/([0-9][0-9,]*)\s*(?:LP|ＬＰ)\s*(?:を\s*)?(?:消費|使用|支払|支出)/i);
     if (lpMatch) {
@@ -1296,7 +1299,9 @@
            ただし「30LP、30欠片…を獲得。硝酸の欠片×1を消費して…」のように
            獲得が先に書かれた行は、消費の手前までを金額として読む。
            「G-5購入 7LP」の購入額も残高から引かれる支出（実データで確認）。 */
+        var narrativeReasonCount = reasons.length;
         var narrativePurchaseSpends = narrativePurchaseSpendsOf(line, reasons);
+        var narrativeParserReported = reasons.length > narrativeReasonCount;
         narrativePurchaseSpends.forEach(function (spend) {
           var duplicateSpend = spends.some(function (existing) {
             return existing && existing.reason === spend.reason &&
@@ -1307,7 +1312,8 @@
         });
         var spendAt = line.search(/消費|購入|買った|使用し/);
         if (spendAt >= 0) {
-          if (!currencySpend && hasUnparsedExplicitExpense(line)) {
+          if (!currencySpend && hasUnparsedExplicitExpense(line)
+              && !narrativePurchaseSpends.length && !narrativeParserReported) {
             reasons.push({ line: line, reason: "通貨額を含む支出表記を安全に解析できないため未計上" });
           }
           var head = line.slice(0, spendAt);
