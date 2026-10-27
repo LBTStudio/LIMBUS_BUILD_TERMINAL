@@ -14,7 +14,11 @@
 
   /* 金額欄は不正な文字列を 0 と誤認しない。入力が空なら未入力として扱う。 */
   function parseNumber(value) {
-    const raw = String(value ?? "").trim().replace(/\s/g, "");
+    const raw = String(value ?? "").trim()
+      .replace(/[\uFF01-\uFF5E]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xFEE0))
+      .replace(/[，]/g, ",")
+      .replace(/　/g, " ")
+      .replace(/\s/g, "");
     if (!raw) return null;
     if (!/^\+?(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(raw)) return null;
     const number = Number(raw.replace(/,/g, ""));
@@ -72,14 +76,17 @@
           // 最初の記録では収入を基準にし、架空の支出・不足を推定しない。
           implied[key] = income[key];
         } else {
-          const spend = running[key] + income[key] - current[key];
-          if (!Number.isSafeInteger(spend)) {
+          const available = running[key] + income[key];
+          const spend = Number.isSafeInteger(available) ? available - current[key] : null;
+          if (!Number.isSafeInteger(available) || !Number.isSafeInteger(spend)) {
             implied[key] = null;
             flags.push({
               level: "error",
               code: "unsafe-derived-spend",
               currency: key,
-              text: "収入と残高から導いた支出額が安全整数の範囲外です。入力を見直してください"
+              text: Number.isSafeInteger(available)
+                ? "収入と残高から導いた支出額が安全整数の範囲外です。入力を見直してください"
+                : "開始残高と収入の合計が安全整数の範囲外です。差額計算を保留しました"
             });
           } else {
             implied[key] = spend;
