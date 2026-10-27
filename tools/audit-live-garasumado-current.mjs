@@ -173,7 +173,18 @@ function scanUnwarnedCurrencyLines(history, parsedRows, docId) {
         if (matches.length < 2) continue;
         const hasSpendRecord = (parsed.spends || []).some((spend) => String(spend.raw || spend.name || "").trim() === line
           && (Number(spend.lp) > 0 || Number(spend.shards) > 0));
-        if (hasSpendRecord) continue;
+        const lineCoverage = (parsed.financialCoverage || [])
+          .filter((entry) => String(entry?.line || "").trim() === line);
+        const hasAccountedCoverage = lineCoverage.some((entry) =>
+          ["matched", "reviewed-by-parser-reason", "source-reviewed", "noncurrency-effect-recorded"].includes(entry.status));
+        const hasLineReason = (parsed.reasons || []).some((entry) => String(entry?.line || "").trim() === line);
+        const hasLineAudit = (parsed.sourceAudits || []).some((entry) => entry && (
+          String(entry.line || "").trim() === line ||
+          (Array.isArray(entry.relatedLines) && entry.relatedLines.some((item) => String(item?.line || "").trim() === line))
+        ));
+        // Do not call a row "unwarned" when per-line coverage or an explicit review reason already exists.
+        // Multi-purchase rows may store one spend per item, so raw-line equality alone is insufficient.
+        if (hasSpendRecord || hasAccountedCoverage || hasLineReason || hasLineAudit) continue;
         if (altOrCondition.test(line) || !clearReward.test(line)) {
           const matchingCoverage = (parsed.financialCoverage || [])
             .filter((item) => String(item?.line || "").trim() === line)
