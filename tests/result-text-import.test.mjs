@@ -1624,3 +1624,60 @@ test("取込プレビューの残高・費用監査警告は利用者が警告�
   assert.match(ui, /setDismissedTextWarnings\(new Set\(\)\)/,
     "入力を変更したら以前の確認状態をリセットする");
 });
+
+test("消費欄に演算子のない複数数値がある場合、末尾値を支出として推測しない", () => {
+  const parsed = T.parseText([
+    "▼サポートパッシブ購入",
+    "日時：2026/09/25",
+    "消費：LP35 50",
+    "獲得：剣撃",
+    "現在所持LP：91→41",
+    "現在所持欠片：105"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 1);
+  assert.equal(parsed.records[0].spends.length, 0, "一意に読めない金額を自動支出にしない");
+  assert.ok(parsed.skipped.some((item) =>
+    item.text === "LP35 50" && /判定できない金額/.test(item.reason)
+  ), "金額の曖昧さを原文付きで警告する");
+  assert.ok(parsed.skipped.some((item) =>
+    item.kind === "balance-mismatch" && item.text === "現在所持LP：91→41"
+  ), "曖昧な支出を残高一致で勝手に確定せず、残高照合の警告も残す");
+});
+
+test("数字を含む括弧注記も曖昧な消費額の判定から除外しない", () => {
+  const parsed = T.parseText([
+    "▼サポートパッシブ購入",
+    "日時：2026/09/25",
+    "消費：LP35 (50)",
+    "獲得：剣撃",
+    "現在所持LP：91→41",
+    "現在所持欠片：105"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 1);
+  assert.equal(parsed.records[0].spends.length, 0, "括弧内数値も含めて曖昧なら自動支出にしない");
+  assert.ok(parsed.skipped.some((item) =>
+    item.text === "LP35 (50)" && /判定できない金額/.test(item.reason)
+  ));
+  assert.ok(parsed.skipped.some((item) =>
+    item.kind === "balance-mismatch" && item.text === "現在所持LP：91→41"
+  ));
+});
+
+test("数値の加算記号だけで計算結果が書かれていない消費額は確定しない", () => {
+  const parsed = T.parseText([
+    "▼サポートパッシブ購入",
+    "日時：2026/09/25",
+    "消費：LP20+7",
+    "獲得：剣撃",
+    "現在所持LP：91→64",
+    "現在所持欠片：105"
+  ].join("\n"));
+
+  assert.equal(parsed.records.length, 1);
+  assert.equal(parsed.records[0].spends.length, 0, "結果がない加算式の末尾 7 を消費額にしない");
+  assert.ok(parsed.skipped.some((item) =>
+    item.text === "LP20+7" && /判定できない金額/.test(item.reason)
+  ));
+});
