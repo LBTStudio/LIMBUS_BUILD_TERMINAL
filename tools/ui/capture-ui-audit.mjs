@@ -340,6 +340,21 @@ async function boot() {
       if(await visible(name)) await name.fill("UI監査用キャラクター");
       const create=page.getByRole("button",{name:"作成して開く",exact:true});
       if(await visible(create)) await click(create);
+      // Creating an account reloads the app. If the gate is shown again (for
+      // example, because there is now more than one account), explicitly enter
+      // the disposable audit account before waiting for the main navigation.
+      await page.waitForFunction(() =>
+        !!document.querySelector(".rail-item") ||
+        !!document.querySelector(".acct-gate .acct-card-hit"),
+        null,
+        { timeout: 25000 }
+      );
+      if(await visible(page.locator(".acct-gate"))) {
+        const auditCard=page.locator(".acct-gate .acct-card-hit").filter({hasText:"UI監査用キャラクター"}).first();
+        const firstCard=page.locator(".acct-gate .acct-card-hit").first();
+        if(await visible(auditCard)) await click(auditCard);
+        else if(await visible(firstCard)) await click(firstCard);
+      }
     } else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
   }
   await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
