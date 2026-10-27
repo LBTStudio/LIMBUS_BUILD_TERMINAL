@@ -43,6 +43,6 @@ test("mobile save-import dialog scrolls its category list and keeps footer actio
 });
 
 test("mobile section headings reclaim space now that preview toggle moved to bottom navigation", () => {
-  const responsive = css.slice(css.lastIndexOf("@media (max-width: 640px)"));
-  assert.match(responsive, /\.section-title-row\s*\{\s*padding-right:\s*0;\s*\}/);
+  const responsive = css.slice(css.indexOf("/* 2026-10-27: responsive review fixes from real 390px UI captures. */"));
+  assert.ok(responsive.includes(".section-title-row { padding-right: 0; }"));
 });
