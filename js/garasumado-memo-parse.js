@@ -97,7 +97,7 @@
     var head = m[1];
     if (/支出|支払/.test(head)) return "spend";
     if (/現在/.test(head)) return "current";
-    if (/報酬|収入/.test(head)) return "income";
+    if (/^(?:報酬|収入)\s*[：:]?$/.test(head.trim())) return "income";
     return "other";
   }
 
@@ -1413,7 +1413,10 @@
           line: sourceLine,
           reason: "LP上限付きのテーマパック表記ですが、チケットか実購入かが明示されていないため、パック券の所持数・LP支出のどちらにも自動計上していません。券なら「テーマパックチケット×1」、購入なら「LP200消費」のように明記してください"
         });
-        continue;
+        var explicitMoneyOutsideCap = normalizeNumericText(line)
+          .replace(/(?:[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ)|(?:LP|ＬＰ)\s*[0-9０-９][0-9０-９,，]*)\s*(?:以下|以内|未満|まで)[^。\n]*テーマパック/gi, " ")
+          .replace(/上限\s*[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ)?[^。\n]*テーマパック/gi, " ");
+        if (!/(?:LP|ＬＰ)\s*[+-]?\s*\d|[+-]?\s*\d\s*(?:LP|ＬＰ|(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片))/i.test(explicitMoneyOutsideCap)) continue;
       }
 
       /* 括弧内に明記された重複補償は、通常の収入解析で括弧ごと除外される。
@@ -1470,7 +1473,12 @@
         }
         continue;
       }
-      if (!currencySpend && hasUnparsedExplicitExpense(line)) {
+      var commaCheckText = normalizeNumericText(line).replace(
+        /(^|[^\d,])([+-]?\d{1,3}(?:,\d{3})+)(?![\d,])/g,
+        function (_all, prefix, amount) { return prefix + amount.replace(/,/g, ""); }
+      );
+      var malformedCurrencyComma = /(?:LP|ＬＰ|(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片))\s*[：:]?\s*[+-]?\s*\d[\d,]*,\d+|[+-]?\s*\d[\d,]*,\d+\s*(?:LP|ＬＰ|(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片))/i.test(commaCheckText);
+      if (!currencySpend && malformedCurrencyComma && hasUnparsedExplicitExpense(line)) {
         reasons.push({ line: line, reason: "通貨額を含む支出表記を安全に解析できないため未計上。金額の桁区切り・表記を確認してください" });
         continue;
       }
