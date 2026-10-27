@@ -2716,3 +2716,101 @@ test("サポートスロット解放で現在残高しかない行は、支出�
       "費用不明の行に欠片支出を捏造しない: " + memo);
   }
 });
+
+
+test("全サンプルの支出欄にある残高のみの明細を保持し、残高を収支へ誤計上しない", () => {
+  const amountPattern = /(?:LP|ＬＰ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]|[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片)|(?:欠片|かけら|欠けら|カケラ|欠け片)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]/i;
+  const balanceMarker = /(?:現在|現座|残り|残高)/;
+  const currencyMarker = /(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片)/i;
+  const explicitAction = /消費|支出|支払|購入|買っ|使用|行使|抽出|ガチャ|獲得|入手|取得|解放|変換|換算|交換/;
+  const removeBalances = (raw) => String(raw || "").normalize("NFKC")
+    .replace(/(?:現在|現座)\s*(?:所持|残高|保有)?\s*[:：]?\s*(?:LP|欠片|かけら|欠けら|カケラ|欠け片)?\s*[:：]?\s*-?\d+(?:\s*\+\s*\d+)*(?:\s*(?:LP|欠片|かけら|欠けら|カケラ|欠け片))?(?:\s*[→⇒]\s*-?\d+(?:\s*(?:LP|欠片|かけら|欠けら|カケラ|欠け片))?)?/gi, " ")
+    .replace(/残り\s*(?:LP|欠片|かけら|欠けら|カケラ|欠け片)?\s*[:：]?\s*-?\d+(?:\s*(?:LP|欠片|かけら|欠けら|カケラ|欠け片))?/gi, " ")
+    .replace(/残高\s*(?:LP|欠片|かけら|欠けら|カケラ|欠け片)?\s*[:：]?\s*-?\d+(?:\s*(?:LP|欠片|かけら|欠けら|カケラ|欠け片))?/gi, " ");
+  const isBalanceOnlyLine = (line) => balanceMarker.test(line) && currencyMarker.test(line) &&
+    !amountPattern.test(removeBalances(line));
+  const splitScenarios = (content) => {
+    const blocks = [];
+    let current = [];
+    for (const line of String(content || "").split(/\r?\n/)) {
+      if (/^\s*【/.test(line) && current.some((part) => part.trim())) {
+        blocks.push(current.join("\n").trim());
+        current = [];
+      }
+      current.push(line);
+    }
+    if (current.some((part) => part.trim())) blocks.push(current.join("\n").trim());
+    return blocks.filter(Boolean);
+  };
+  const units = [];
+  for (const path of ["./fixtures/garasumado-memo-corpus.txt", "./fixtures/result-log-corpus.txt"]) {
+    const raw = readFileSync(new URL(path, import.meta.url), "utf8");
+    for (const [index, memo] of splitScenarios(raw).entries()) {
+      units.push({ label: path + "#" + (index + 1), memo });
+    }
+  }
+  for (const [sampleId, sample] of Object.entries(samples)) {
+    if (!sample || sample.coll !== "characters") continue;
+    const doc = sample.doc || {};
+    for (const [index, row] of (doc.scenarioHistory || []).entries()) {
+      if (row && String(row.memo || "").trim()) {
+        units.push({ label: sampleId + "/" + (row.name || ("履歴" + (index + 1))), memo: String(row.memo) });
+      }
+    }
+  }
+
+  const issues = [];
+  let auditedBalanceOnlyRows = 0;
+  let auditedSpendSectionRows = 0;
+  for (const unit of units) {
+    const parsed = MEMO.parseMemo(unit.memo);
+    const lines = unit.memo.split(/\r?\n/);
+    let mode = "income";
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+      const line = lines[lineIndex].trim();
+      const section = MEMO.sectionOf(line);
+      if (section === "spend" || section === "current") mode = section;
+      if (!line || !isBalanceOnlyLine(line)) continue;
+      auditedBalanceOnlyRows++;
+
+      /* 純粋な現在残高を単独で解析しても収入・支出にしてはいけない。 */
+      const isolated = MEMO.parseMemo(line);
+      const isolatedIncome = (Number(isolated.income?.lp) || 0) + (Number(isolated.income?.shards) || 0);
+      const isolatedSpend = (isolated.spends || []).reduce((sum, row) =>
+        sum + (Number(row.lp) || 0) + (Number(row.shards) || 0), 0);
+      if (isolatedIncome !== 0 || isolatedSpend !== 0) {
+        issues.push(unit.label + ": 残高のみの行を単独解析で収支へ計上 (" + (lineIndex + 1) + "行目): " + line);
+      }
+
+      if (mode !== "spend") continue;
+      auditedSpendSectionRows++;
+      const rowCoverage = (parsed.financialCoverage || []).find((row) => row && row.lineIndex === lineIndex + 1);
+      const relatedAudit = (parsed.sourceAudits || []).some((entry) => entry &&
+        (entry.lineIndex === lineIndex + 1 || entry.relatedLineIndex === lineIndex + 1 ||
+         (Array.isArray(entry.relatedLines) && entry.relatedLines.some((row) => row.lineIndex === lineIndex + 1))));
+      const relatedReason = (parsed.reasons || []).some((entry) =>
+        String(entry.line || "").trim() === line.trim());
+      if (!rowCoverage && !relatedAudit && !relatedReason) {
+        issues.push(unit.label + ": 支出欄の残高のみの行に監査状態・理由なし (" + (lineIndex + 1) + "行目): " + line);
+        continue;
+      }
+      if (rowCoverage && rowCoverage.status === "unresolved") {
+        issues.push(unit.label + ": 支出欄の残高のみの行が未解決で無言通過 (" + (lineIndex + 1) + "行目): " + line);
+      }
+      if (rowCoverage && rowCoverage.detected &&
+          ((Number(rowCoverage.detected.lp) || 0) !== 0 || (Number(rowCoverage.detected.shards) || 0) !== 0)) {
+        issues.push(unit.label + ": 残高のみの行に金額が検出された (" + (lineIndex + 1) + "行目): " + line);
+      }
+      if (!relatedAudit && !relatedReason) {
+        issues.push(unit.label + ": 支出欄の残高のみの行に要確認根拠が届かない (" + (lineIndex + 1) + "行目): " + line);
+      }
+    }
+  }
+
+  assert.ok(auditedBalanceOnlyRows > 250, "全サンプルを横断して現在残高だけの行を検証（実際 " + auditedBalanceOnlyRows + "行）");
+  assert.ok(auditedSpendSectionRows > 10, "支出セクション内の残高のみの行を検証（実際 " + auditedSpendSectionRows + "行）");
+  assert.equal(issues.length, 0,
+    "残高行の誤計上・監査漏れ（先頭20件）:\n" +
+    issues.slice(0, 20).join("\n") +
+    (issues.length > 20 ? "\n……残り" + (issues.length - 20) + "件" : ""));
+});
