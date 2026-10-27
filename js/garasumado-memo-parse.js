@@ -952,12 +952,17 @@
 
   function conditionalRewardRuleOf(line) {
     const text = normalizeNumericText(line);
-    const hasConditionalCue = /(?:達成してたら|達成したら|してたら|していたら|できたら|できなかった場合|(?:以下|以上)の場合|(?:以下|以上)なら|同じ出目なら|クリティカルかファンブルなら|条件を満たすと|条件を満たした場合|なら\s*(?:人格|E\\.?G\\.?O|エゴ|抽出|LP|ＬＰ|欠片|かけら|欠けら|カケラ|チケ|チケット))/i.test(text);
+    /* チケットから欠片への条件付き変換には専用の既存処理がある。ここで行全体を止めない。 */
+    if (/(?:変換|換算)/.test(text)) return null;
+    const hasConditionalCue = /(?:達成してたら|達成したら|してたら|していたら|できたら|できなかった場合|出来なかった場合|(?:以下|以上)の場合|(?:以下|以上)なら|同じ出目なら|クリティカルかファンブルなら|条件を満たすと|条件を満たした場合|なら\s*(?:人格|E\\.?G\\.?O|エゴ|抽出|LP|ＬＰ|欠片|かけら|欠けら|カケラ|チケ|チケット))/i.test(text);
     if (!hasConditionalCue || !/(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|けっか|欠け片|チケ|チケット|抽出🎫)/i.test(text) || !/\d/.test(text)) return null;
     if (/(?:条件不成立|未達成|条件を満たさなかった|同じ出目ではなかった|条件未達|失敗が確定)/.test(text)) {
-      return { status: "condition-not-met", raw: String(line || "").trim() };
+      return { status: "condition-not-met", raw: String(line || "").trim(), skipLine: true };
     }
-    return { status: "condition-unconfirmed", raw: String(line || "").trim() };
+    /* 使用済みは条件付き付与の成立を示す記録なので、既存のチケット読取を妨げない。 */
+    if (/(?:使用済み?|消費済み?|獲得済み?|取得済み?)/.test(text)) return null;
+    const hasTicket = /チケ|チケット|抽出🎫/.test(text);
+    return { status: "condition-unconfirmed", raw: String(line || "").trim(), skipLine: !hasTicket };
   }
 
   function auditMoneyTotalsOfLine(rawLine) {
@@ -1011,7 +1016,7 @@
       if (later.length === 1) {
         const actual = later[0], inRange = actual.amount >= formula.min && actual.amount <= formula.max;
         findings.push({
-          side: "source-data", code: inRange ? "formula-result-in-range" : "formula-result-out-of-range",
+          side: "source-data", code: inRange ? "formula-result-in-range" : "formula-result-range-mismatch",
           severity: inRange ? "info" : "warning", lineIndex: formula.index + 1, line: formula.raw,
           relatedLineIndex: actual.index + 1, relatedLine: actual.raw, currency: formula.currency,
           expectedRange: { min: formula.min, max: formula.max }, reportedAmount: actual.amount,
@@ -1056,7 +1061,7 @@
       if (skipLines.has(i)) continue;
       const conditional = conditionalRewardRuleOf(lines[i]);
       if (!conditional) continue;
-      skipLines.add(i);
+      if (conditional.skipLine) skipLines.add(i);
       findings.push({
         side: "source-data", code: conditional.status, severity: "review", lineIndex: i + 1, line: conditional.raw,
         message: conditional.status === "condition-not-met"
