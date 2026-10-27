@@ -46,6 +46,15 @@ test("save-state import dialog has a bounded scrolling list and persistent actio
   assert.match(index, /assets\/v69-ui-mobile-polish\.css\?v=[0-9a-f]{8}/);
 });
 
+test("save-state import dialog supports focus entry, focus trap, Escape, and focus return", () => {
+  assert.match(app, /requestAnimationFrame\(\(\) => document\.querySelector\("\.state-import-close"\)\?\.focus\(\)\)/);
+  assert.match(app, /event\.key === "Escape"/);
+  assert.match(app, /document\.addEventListener\("keydown", onKey, true\)/);
+  assert.match(app, /event\.shiftKey && document\.activeElement === first/);
+  assert.match(app, /document\.removeEventListener\("keydown", onKey, true\)/);
+  assert.match(app, /previous\.focus\(\)/);
+});
+
 test("save-state import still applies only selected, present fields and has a zero-selection guard", () => {
   assert.match(app, /const fields = all\s*\? IMPORT_GROUPS\.flatMap\(\(g\) => g\.fields\)/);
   assert.match(app, /if \(!fields\.length\).*\\u8AAD/);
