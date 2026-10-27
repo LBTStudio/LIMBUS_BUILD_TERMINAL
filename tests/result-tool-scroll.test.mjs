@@ -12,7 +12,7 @@ test("リザルト取り込みの入口を押したら、追加パネルへ移�
   assert.match(block, /const activeResultTool = importPanel \? "glass" : textPanel \? "text" : heldOpen \? "held" : null;/);
   assert.match(block, /React\.useEffect\(\(\) => \{/);
   assert.match(block, /panel\.scrollIntoView\(\{ behavior: reduceMotion \? "auto" : "smooth", block: "start" \}\)/);
-  assert.match(block, /firstField\?\.focus\(\{ preventScroll: true \}\)/);
+  assert.ok(block.includes("firstField?.focus?.({ preventScroll: true })"), "最初の入力欄へスクロールなしでフォーカスする");
   assert.match(block, /prefers-reduced-motion/);
   assert.doesNotMatch(block, /dispatch\(\{ type: "APPLY_IMPORT_BATCH"/, "パネルを開くだけでインポートを確定しない");
 });
