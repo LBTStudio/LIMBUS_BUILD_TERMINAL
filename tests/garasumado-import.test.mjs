@@ -97,6 +97,21 @@ test("検出漏れ監査は元記録側と別の parser-side 判定を返し、�
     "すでに金額確認理由がある行へ重複警告を出さない");
 });
 
+
+test("警告だけがあるシナリオも監査カードに残す", () => {
+  const M = loadImportWithMemo();
+  const doc = {
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{ name: "計算矛盾だけの記録", memo: "欠片50×3=149欠片" }]
+  };
+  const parsedHistory = M.parseScenarioHistory(doc.scenarioHistory);
+  assert.equal(parsedHistory[0].hasData, true, "通常の収入が0でも重大な元記録監査があれば表示対象");
+  assert.ok(parsedHistory[0].sourceAudits.some((entry) => entry.code === "source-arithmetic-mismatch"));
+  const manifest = M.buildManifest(doc, null);
+  assert.equal(manifest.scenarios[0].hasData, true, "取り込み画面へ渡すmanifestでも警告のみのシナリオを保持");
+  assert.ok(manifest.scenarios[0].sourceAudits.some((entry) => entry.side === "source-data"));
+});
+
 test("memo の収入は「現在NN」ではなく行頭の金額を読む", () => {
   const r = MEMO.parseMemo("90LP：現在100LP\n29欠片：現在39欠片");
   assert.equal(r.income.lp, 90, "収入 LP は 90（現在 100 は残額）");
