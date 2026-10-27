@@ -90,16 +90,18 @@
     return /(?:E\.?\s*G\.?\s*O|エゴ)/i.test(head) && /指定購入/.test(head);
   }
 
-  /* セクション見出し「・支出」「・支払い」「・現在」とE.G.O指定購入を読み分ける。 */
+  /* セクション見出しだけを認識する。本文付きの「・基本報酬 50LP」や
+     「・基本報酬：人格名」を見出しと誤認すると、金額・獲得名そのものを
+     continue で捨ててしまう。見出しは語句全体が一致する場合に限る。 */
   function sectionOf(line) {
     if (isEgoPurchaseHeader(line)) return "spend";
-    var m = String(line).match(/^\s*(?:[・･]|[▼▽▶▷■□◆◇★☆●○])\s*(.+?)\s*$/);
+    var m = String(line).trim().match(/^[・･▼▽▶▷■□◆◇★☆●○❚❙▌]\s*(.+?)\s*$/);
     if (!m) return "";
-    var head = m[1];
-    if (/支出|支払/.test(head)) return "spend";
-    if (/現在|残高|所持通貨/.test(head)) return "current";
-    /* 支出節から「報酬」「収入」等へ移動したら、必ず収入モードへ戻す。 */
-    if (/報酬|収入|獲得|入手|取得|RESULT|リザルト/i.test(head)) return "income";
+    var head = m[1].trim().replace(/[：:]\s*$/, "").trim();
+    if (/^(?:支出|支払|支払い|支払額|購入|消費|消費額)$/.test(head)) return "spend";
+    if (/^(?:現在|残高|所持通貨)$/.test(head)) return "current";
+    /* 支出節から報酬節へ戻るときも、見出しだけを厳密に判定する。 */
+    if (/^(?:シナリオ報酬|基本報酬|追加報酬|クリア報酬|報酬|収入|獲得|入手|取得|RESULT|リザルト)$/i.test(head)) return "income";
     return "other";
   }
 
