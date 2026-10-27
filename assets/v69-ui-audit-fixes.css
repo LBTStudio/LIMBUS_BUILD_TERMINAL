@@ -24,8 +24,18 @@
     z-index: calc(var(--z-rail, 25) + 1);
   }
 
-  /* No longer reserve title space for the old vertical tab. */
   .section-title-row { padding-right: 0; }
+  .section-title {
+    flex: 1 1 0;
+    min-width: 0;
+    font-size: clamp(13px, 3.7vw, 15px);
+    letter-spacing: .02em;
+    line-height: 1.2;
+    word-break: keep-all;
+    overflow-wrap: normal;
+  }
+  .section-title-primary { overflow-wrap: normal; }
+  .section-title-secondary { white-space: nowrap; }
 
   /* Eight build tabs fit as a balanced 4×2 grid; no hidden ninth-width scroll. */
   .build-tabs, .record-tabbar { width: 100%; min-width: 0; }
