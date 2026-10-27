@@ -890,6 +890,187 @@
     return { name: raw, lp: cost.lp, shards: cost.shards, raw: raw, reason: "消費の記帳" };
   }
 
+
+  /* 硝子窓側の記載整合性と、パーサ側の検出範囲を別々に監査する。 */
+  function auditSafeInteger(raw) {
+    const value = Number(String(raw || "").replace(/,/g, ""));
+    return Number.isSafeInteger(value) && value >= 0 ? value : null;
+  }
+
+  function standaloneCurrencyAmount(line, currency) {
+    const text = normalizeNumericText(line).trim().replace(/[：:]+$/, "").trim();
+    if (!text || /現在|残高|現座|残り/.test(text)) return null;
+    let match = null;
+    if (currency === "lp") {
+      match = text.match(/^(?:LP|ＬＰ)\s*[+＋\-−]?\s*(\d[\d,]*(?:\s*[+＋]\s*\d[\d,]*)*)\s*(?:LP|ＬＰ)?[。．.]?$/i)
+        || text.match(/^[+＋\-−]?\s*(\d[\d,]*(?:\s*[+＋]\s*\d[\d,]*)*)\s*(?:LP|ＬＰ)[。．.]?$/i);
+    } else {
+      match = text.match(/^(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片)\s*[+＋\-−]?\s*(\d[\d,]*(?:\s*[+＋]\s*\d[\d,]*)*)\s*(?:(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片))?[。．.]?$/)
+        || text.match(/^[+＋\-−]?\s*(\d[\d,]*(?:\s*[+＋]\s*\d[\d,]*)*)\s*(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片)[。．.]?$/);
+    }
+    if (!match) return null;
+    const value = match[1].split(/[+＋]/).reduce((sum, part) => sum + Number(part.replace(/[,\s]/g, "")), 0);
+    return Number.isSafeInteger(value) ? { currency: currency, amount: value, raw: String(line || "").trim() } : null;
+  }
+
+  function boundedRewardFormulaOf(line) {
+    const text = normalizeNumericText(line);
+    const definitions = [
+      { currency: "lp", regex: /(?:LP|ＬＰ)\s*[：:]?\s*(\d[\d,]*)\s*[+＋]\s*[（(]([^）)]*)[）)]/i },
+      { currency: "shards", regex: /(?:自我の)?(?:欠片|かけら|欠けら|カケラ|欠け片)\s*[：:]?\s*(\d[\d,]*)\s*[+＋]\s*[（(]([^）)]*)[）)]/ }
+    ];
+    for (const definition of definitions) {
+      const match = text.match(definition.regex);
+      if (!match) continue;
+      const base = auditSafeInteger(match[1]);
+      const multiplierMatch = match[2].match(/[x×]\s*(\d[\d,]*)/i);
+      const capMatch = match[2].match(/(?:最大|上限|max)\s*[_：:\s]*\s*(\d[\d,]*)/i);
+      const multiplier = multiplierMatch ? auditSafeInteger(multiplierMatch[1]) : null;
+      const cap = capMatch ? auditSafeInteger(capMatch[1]) : null;
+      if (base === null || multiplier === null || cap === null || !Number.isSafeInteger(base + cap)) continue;
+      return { currency: definition.currency, base: base, multiplier: multiplier, cap: cap,
+        min: base, max: base + cap, raw: String(line || "").trim() };
+    }
+    return null;
+  }
+
+  function explicitArithmeticMismatch(line) {
+    const text = normalizeNumericText(line);
+    if (!/(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|けっか|欠け片)/i.test(text)) return null;
+    const multiply = text.match(/(\d[\d,]*)\s*[×xｘ]\s*(\d[\d,]*)\s*[=＝]\s*(\d[\d,]*)/);
+    const sum = text.match(/(\d[\d,]*)\s*[+＋]\s*(\d[\d,]*)\s*[=＝]\s*(\d[\d,]*)/);
+    const arrowSum = text.match(/(\d[\d,]*)\s*[+＋]\s*(\d[\d,]*)\s*[→⇒]\s*(?:(?:LP|ＬＰ|(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片))\s*)?(\d[\d,]*)/i);
+    const match = multiply || sum || arrowSum;
+    if (!match) return null;
+    const left = auditSafeInteger(match[1]), right = auditSafeInteger(match[2]), written = auditSafeInteger(match[3]);
+    if (left === null || right === null || written === null) return null;
+    const expected = multiply ? left * right : left + right;
+    if (!Number.isSafeInteger(expected)) return { expression: match[0], expected: null, written: written };
+    if (expected === written) return null;
+    return { expression: match[0], expected: expected, written: written };
+  }
+
+  function conditionalRewardRuleOf(line) {
+    const text = normalizeNumericText(line);
+    const hasConditionalCue = /(?:達成してたら|達成したら|してたら|していたら|できたら|できなかった場合|(?:以下|以上)の場合|(?:以下|以上)なら|同じ出目なら|クリティカルかファンブルなら|条件を満たすと|条件を満たした場合|なら\s*(?:人格|E\\.?G\\.?O|エゴ|抽出|LP|ＬＰ|欠片|かけら|欠けら|カケラ|チケ|チケット))/i.test(text);
+    if (!hasConditionalCue || !/(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|けっか|欠け片|チケ|チケット|抽出🎫)/i.test(text) || !/\d/.test(text)) return null;
+    if (/(?:条件不成立|未達成|条件を満たさなかった|同じ出目ではなかった|条件未達|失敗が確定)/.test(text)) {
+      return { status: "condition-not-met", raw: String(line || "").trim() };
+    }
+    return { status: "condition-unconfirmed", raw: String(line || "").trim() };
+  }
+
+  function auditMoneyTotalsOfLine(rawLine) {
+    let text = normalizeAmountText(rawLine);
+    text = stripAlternativePriceCondition(text).text;
+    text = stripBalances(text)
+      .replace(/(?:硝子|硝酸)の(?:破片|欠片|かけら|欠けら|カケラ|欠け片)/g, " ")
+      .replace(/-?\d+(?:\s*[+＋]\s*\d+)*\s*(LP|ＬＰ|(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片))\s*へ/gi, " ")
+      .replace(/\d+\s*[×xｘ]\s*\d+\s*[=＝]\s*(\d+)/g, "$1")
+      .replace(/\d+\s*[+＋]\s*\d+\s*[=＝]\s*(\d+)/g, "$1")
+      .replace(/\d+\s*[+＋]\s*[^\s\d]+\s*[=＝]\s*(\d+)/g, "$1")
+      .replace(/\d+(?:\s*[+＋]\s*\d+)*\s*[→⇒]\s*/g, " ")
+      .replace(/(LP|ＬＰ)\s*報酬/gi, "$1");
+    const totals = { lp: 0, shards: 0 };
+    const currencyPattern = /(LP|ＬＰ|(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片))/gi;
+    let match;
+    while ((match = currencyPattern.exec(text)) !== null) {
+      const prefix = text.slice(0, match.index);
+      const before = prefix.match(/([+\-−]?\d[\d,]*(?:\s*[+＋]\s*\d[\d,]*)*)\s*(?:[：:]?\s*)$/);
+      let rawAmount = before ? before[1] : null;
+      if (rawAmount === null) {
+        const after = text.slice(currencyPattern.lastIndex).match(/^\s*[：:]?\s*([+\-−]?\d[\d,]*(?:\s*[+＋]\s*\d[\d,]*)*)/);
+        if (after) rawAmount = after[1];
+      }
+      if (rawAmount === null) continue;
+      const parts = rawAmount.replace(/\s/g, "").replace(/^[+\-−]/, "").split(/[+＋]/);
+      const amount = parts.reduce((sum, part) => sum + Number(part.replace(/,/g, "")), 0);
+      if (!Number.isSafeInteger(amount)) continue;
+      totals[/^(?:LP|ＬＰ)$/i.test(match[1]) ? "lp" : "shards"] += amount;
+    }
+    return totals;
+  }
+
+  function analyzeSourceMemo(lines) {
+    const skipLines = new Set();
+    const findings = [];
+    const formulas = [];
+    for (let i = 0; i < lines.length; i++) {
+      const formula = boundedRewardFormulaOf(lines[i]);
+      if (!formula) continue;
+      skipLines.add(i);
+      formulas.push({ index: i, ...formula });
+    }
+    for (const formula of formulas) {
+      const later = [];
+      for (let j = formula.index + 1; j < lines.length; j++) {
+        if (skipLines.has(j) || conditionalRewardRuleOf(lines[j])) continue;
+        const amount = standaloneCurrencyAmount(lines[j], formula.currency);
+        if (amount) later.push({ index: j, ...amount });
+      }
+      if (later.length === 1) {
+        const actual = later[0], inRange = actual.amount >= formula.min && actual.amount <= formula.max;
+        findings.push({
+          side: "source-data", code: inRange ? "formula-result-in-range" : "formula-result-out-of-range",
+          severity: inRange ? "info" : "warning", lineIndex: formula.index + 1, line: formula.raw,
+          relatedLineIndex: actual.index + 1, relatedLine: actual.raw, currency: formula.currency,
+          expectedRange: { min: formula.min, max: formula.max }, reportedAmount: actual.amount,
+          message: inRange
+            ? "報酬の規則は " + formula.min + "～" + formula.max + "。記載された実績 " + actual.amount + " は範囲内です。規則の基準値は収入へ加算していません。"
+            : "報酬の規則は " + formula.min + "～" + formula.max + " ですが、実績の記載値は " + actual.amount + " です。硝子窓側の計算・条件設定を確認してください。実績値は自動修正していません。"
+        });
+        if (!inRange) skipLines.add(actual.index);
+      } else if (later.length === 0) {
+        findings.push({
+          side: "source-data", code: "formula-without-realized-amount", severity: "review",
+          lineIndex: formula.index + 1, line: formula.raw, currency: formula.currency,
+          expectedRange: { min: formula.min, max: formula.max },
+          message: "これは報酬計算の規則ですが、実績額が見当たりません。基準値 " + formula.base + " を収入扱いせず、実績値の記載を確認してください。"
+        });
+      } else {
+        for (const row of later) skipLines.add(row.index);
+        findings.push({
+          side: "source-data", code: "formula-realized-amount-ambiguous", severity: "review",
+          lineIndex: formula.index + 1, line: formula.raw, currency: formula.currency,
+          relatedLines: later.map((row) => ({ lineIndex: row.index + 1, line: row.raw, amount: row.amount })),
+          message: "計算規則の後に同じ通貨の実績候補が複数あります。どの値が今回の実績か一意に決められないため、該当額を自動計上せず確認対象にしました。"
+        });
+      }
+    }
+    for (let i = 0; i < lines.length; i++) {
+      if (skipLines.has(i)) continue;
+      const mismatch = explicitArithmeticMismatch(lines[i]);
+      if (mismatch) {
+        skipLines.add(i);
+        findings.push({
+          side: "source-data", code: "source-arithmetic-mismatch", severity: "warning",
+          lineIndex: i + 1, line: String(lines[i] || "").trim(), expression: mismatch.expression,
+          expectedAmount: mismatch.expected, writtenAmount: mismatch.written,
+          message: mismatch.expected === null
+            ? "元メモの計算結果が安全整数の範囲外です。この金額は自動計上せず、硝子窓側の計算を確認してください。"
+            : "元メモの計算式 " + mismatch.expression + " は " + mismatch.expected + " が正しい結果ですが、記載値は " + mismatch.written + " です。硝子窓側の計算ミスの可能性があるため、自動計上を止めています。"
+        });
+      }
+    }
+    for (let i = 0; i < lines.length; i++) {
+      if (skipLines.has(i)) continue;
+      const conditional = conditionalRewardRuleOf(lines[i]);
+      if (!conditional) continue;
+      skipLines.add(i);
+      findings.push({
+        side: "source-data", code: conditional.status, severity: "review", lineIndex: i + 1, line: conditional.raw,
+        message: conditional.status === "condition-not-met"
+          ? "条件付き報酬ですが、原文に条件不成立の記録があります。該当額・チケットは実績として計上していません。"
+          : "条件付き報酬・調整の規則です。条件成立を原文から確認できないため、自動計上せず確認対象にしました。"
+      });
+    }
+    return { skipLines: skipLines, findings: findings };
+  }
+
+  function auditSpendTotal(rows, currency) {
+    return (rows || []).reduce((sum, row) => sum + Math.abs(Number(row && row[currency]) || 0), 0);
+  }
+
   function parseMemo(memo) {
     var income = { lp: 0, shards: 0 };
     var tickets = { persona: 0, ego: 0, choice: 0 };
@@ -902,6 +1083,8 @@
     var ticketSpends = [];
 
     var lines = String(memo || "").split(/\r?\n/);
+    var sourceAuditAnalysis = analyzeSourceMemo(lines);
+    var sourceAudits = sourceAuditAnalysis.findings.slice();
     var mode = "income";
     var egoPurchaseMode = false;
     var egoPurchaseItems = [];
@@ -936,6 +1119,9 @@
 
     for (var i = 0; i < lines.length; i++) {
       var sourceLine = String(lines[i]).trim();
+      var auditBefore = { lp: income.lp, shards: income.shards, spends: spends.length, reasons: reasons.length };
+      var auditModeBefore = mode;
+      try {
       var typoCurrentMarker = /現座(?=\s*(?:(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|けっか)\s*)?[0-9０-９])/i.test(sourceLine);
       var line = typoCurrentMarker ? sourceLine.replace(/現座/g, "現在") : sourceLine;
       if (typoCurrentMarker) {
@@ -947,6 +1133,7 @@
       if (!line) continue;
       var prev = prevLine;
       prevLine = line;
+      if (sourceAuditAnalysis.skipLines.has(i)) continue;
 
       var glassConsumption = parseGlassConsumption(line);
       if (glassConsumption) {
@@ -1550,6 +1737,38 @@
           raw: line
         });
       }
+      } finally {
+        /* 1行ごとに原文の通貨額候補と、その行が生んだ収入・支出を比較する。 */
+        const cleanedAuditLine = stripBalances(normalizeAmountText(sourceLine)).replace(/[：:]+$/, "").trim();
+        const directMoneyRow = standaloneCurrencyAmount(cleanedAuditLine, "lp") ||
+          standaloneCurrencyAmount(cleanedAuditLine, "shards");
+        const hasFinancialAction = /報酬|収入|獲得|入手|取得|付与|支給|補填|受領|被り|重複|消費|使用|支払|支出|購入|買っ|抽出|ガチャ|変換|換算/.test(sourceLine);
+        if (auditModeBefore !== "current" && !sourceAuditAnalysis.skipLines.has(i) && (directMoneyRow || hasFinancialAction)) {
+          const expected = auditMoneyTotalsOfLine(sourceLine);
+          if (expected.lp || expected.shards) {
+            const newSpends = spends.slice(auditBefore.spends);
+            const got = {
+              lp: Math.abs(income.lp - auditBefore.lp) + auditSpendTotal(newSpends, "lp"),
+              shards: Math.abs(income.shards - auditBefore.shards) + auditSpendTotal(newSpends, "shards")
+            };
+            const addedReasons = reasons.slice(auditBefore.reasons);
+            const moneyReviewReason = addedReasons.some(function (entry) {
+              return /LP|欠片|通貨|金額|支出|収入|残高|計算|計上|価格/.test(String(entry.reason || ""));
+            });
+            if ((expected.lp !== got.lp || expected.shards !== got.shards) && !moneyReviewReason) {
+              sourceAudits.push({
+                side: "parser", code: "possible-result-detection-omission", severity: "warning",
+                lineIndex: i + 1, line: sourceLine, section: auditModeBefore,
+                expected: { lp: expected.lp, shards: expected.shards },
+                detected: { lp: got.lp, shards: got.shards },
+                message: "原文の通貨額候補は LP " + expected.lp + " / 欠片 " + expected.shards +
+                  " ですが、この行から生成された記録は LP " + got.lp + " / 欠片 " + got.shards +
+                  " です。リザルト側の検出漏れ・金額の取り違え候補として原文を確認してください。"
+              });
+            }
+          }
+        }
+      }
     }
 
     if (egoPurchaseItems.length && egoPurchaseSummaries.length) {
@@ -1581,7 +1800,7 @@
     return {
       income: income, tickets: tickets, pack: pack, spends: spends, reasons: reasons,
       wins: wins, consumedItems: consumedItems, ticketSpends: ticketSpends,
-      currencyDiscrepancies: currencyDiscrepancies
+      currencyDiscrepancies: currencyDiscrepancies, sourceAudits: sourceAudits
     };
   }
 
@@ -1599,6 +1818,7 @@
         spends: parsed.spends,
         reasons: parsed.reasons,
         currencyDiscrepancies: parsed.currencyDiscrepancies || [],
+        sourceAudits: parsed.sourceAudits || [],
         /* シナリオで直接払い出された人格/E.G.O。
            チケットだけ記入されている場合も「どのチケット由来か」を
            持つので、ここに入る。 */
