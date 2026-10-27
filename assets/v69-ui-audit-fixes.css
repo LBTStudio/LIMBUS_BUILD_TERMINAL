@@ -302,3 +302,9 @@
     padding-bottom: var(--s-3);
   }
 }
+
+/* During first-run account creation, use the dialog width for the form rather than
+   pinning a narrow 168px card to the left and leaving most of the panel empty. */
+.acct-gate-panel:has(.acct-card--form) > .acct-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
