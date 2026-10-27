@@ -7,6 +7,7 @@ const app = read("../js/App.js");
 const workspace = read("../assets/workspace.css");
 const polish = read("../assets/v69-ui-mobile-polish.css");
 const index = read("../index.html");
+const capture = read("../tools/ui/capture-ui-audit.mjs");
 
 test("mobile build tabs use a visible 4-by-2 grid, not a clipped horizontal strip", () => {
   assert.match(polish, /\.build-tabs > \.segmented\s*\{[^}]*display:\s*grid/s);
@@ -59,4 +60,10 @@ test("save-state import still applies only selected, present fields and has a ze
   assert.match(app, /const fields = all\s*\? IMPORT_GROUPS\.flatMap\(\(g\) => g\.fields\)/);
   assert.match(app, /if \(!fields\.length\).*\\u8AAD/);
   assert.match(app, /dispatch\(\{ type: "APPLY_PARTIAL", state: importData, fields \}\)/);
+});
+
+
+test("UI audit fixture stores favorites in the same string-key format consumed by PersonaCodex", () => {
+  assert.match(capture, /favorites:\\s*\\[mode \\+ \":\" \\+ p\\.no\\]/);
+  assert.doesNotMatch(capture, /favorites:\\s*\\[\\{\\s*key:/);
 });
