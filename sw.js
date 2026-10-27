@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-917aac7a";
+const CACHE_NAME = "lbt-75547f2a";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -44,7 +44,7 @@ const PRECACHE_URLS = [
   "assets/v66-accounts.css?v=16c0d40d",
   "assets/v67-persona-redesign.css?v=4b89da4c",
   "assets/v68-interaction-a11y.css?v=0bbe4495",
-  "assets/v69-mobile-ui-audit.css?v=c0b1d535",
+  "assets/v69-mobile-ui-audit.css?v=4c47f739",
   "assets/workspace.css?v=741261c7",
   "data/db.json?v=16b6df9e",
   "data/gacha-theme-packs.json?v=8d4dced2",
@@ -55,7 +55,7 @@ const PRECACHE_URLS = [
   "js/InlineEffectGlossary.js?v=81967fa2",
   "js/ItemCodex.js?v=7aafec02",
   "js/LivePreview.js?v=1b6767e6",
-  "js/OtherSections.js?v=1f367db6",
+  "js/OtherSections.js?v=1b957d3e",
   "js/PersonaCodex.js?v=59018e19",
   "js/SkillDeck.js?v=a93f6cb8",
   "js/access-counter.js?v=304e4854",
