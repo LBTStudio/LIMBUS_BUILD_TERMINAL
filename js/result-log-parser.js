@@ -32,7 +32,7 @@
     const hasLp = LP_WORDS.test(line);
     /* 所持アイテム「硝子の破片／欠け片」「硝酸の欠片」は
        通貨の自我の欠片とは別物として識別する。 */
-    const currencyText = line.replace(/(?:硝子|硝酸)の(?:破片|欠片|かけら|欠けら|カケラ|欠け片)/g, " ");
+    const currencyText = line.replace(/(?:硝子の(?:破片|欠け片)|硝酸の(?:欠片|欠け片))/g, " ");
     const hasShard = SHARD_WORDS.test(currencyText);
     if (hasLp && hasShard) return "both";
     if (hasLp) return "lp";
