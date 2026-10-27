@@ -38,7 +38,7 @@ test("long state-import lists scroll independently while decision controls remai
   assert.match(app, /if \(event\.key === "Escape"\)[\s\S]{0,100}setImportData\(null\)/);
   assert.match(app, /event\.shiftKey && document\.activeElement === first[\s\S]{0,120}last\.focus\(\)/);
   assert.match(css, /\.import-scope-dialog \{[\s\S]*?display: flex;[\s\S]*?max-height: calc\(100dvh - 48px\);[\s\S]*?overflow: hidden;/);
-  assert.match(css, /\.import-scope-options \{[\s\S]*?overflow-y: auto;[\s\S]*?min-height: 0;/);
+  assert.match(css, /\.import-scope-options \{[\s\S]*?min-height: 0;[\s\S]*?overflow-y: auto;/);
   assert.match(css, /\.import-scope-actions \{[\s\S]*?flex: 0 0 auto;/);
 });
 
