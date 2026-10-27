@@ -1626,7 +1626,8 @@ const App = () => {
           )
         ))
       ) : null
-    )React.createElement("div", { className: "import-scope-actions" },
+    ),
+    React.createElement("div", { className: "import-scope-actions" },
       /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost btn-sm", onClick: () => {
         const sel = {};
         IMPORT_GROUPS.forEach((g) => { sel[g.key] = false; });
