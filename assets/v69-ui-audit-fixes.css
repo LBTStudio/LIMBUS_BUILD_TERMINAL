@@ -264,3 +264,7 @@
     gap: 6px;
   }
 }
+
+/* Keep bilingual section-title halves together instead of stranding one kana at line end. */
+.section-title-primary { overflow-wrap: normal; }
+.section-title-secondary { white-space: nowrap; }
