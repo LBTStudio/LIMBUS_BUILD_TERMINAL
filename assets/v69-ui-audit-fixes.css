@@ -1,0 +1,209 @@
+/* UI audit follow-ups: mobile navigation, preview control, import scope dialog, and touch targets. */
+
+@media (max-width: 640px) {
+  .build-tabs {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .build-tabs .segmented[role="tablist"] {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-auto-rows: minmax(40px, auto);
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    gap: 4px;
+    overflow: visible;
+  }
+
+  .build-tabs .segmented[role="tablist"] > button {
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    padding: 6px 3px;
+    font-size: 11px;
+    letter-spacing: .02em;
+    line-height: 1.25;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: center;
+  }
+
+  #lbt-preview-edge-toggle.preview-edge-toggle {
+    top: auto;
+    right: 10px;
+    bottom: calc(var(--lbt-mobile-rail-h, 114px) + 10px);
+    width: auto;
+    min-width: 64px;
+    height: 40px;
+    min-height: 40px;
+    padding: 7px 10px;
+    writing-mode: horizontal-tb;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-pill, 999px);
+    font-size: 10px;
+    letter-spacing: .04em;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .topbar-search {
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  .guide-filter-row button,
+  .guide-filter-row [role="button"] {
+    min-height: 36px;
+  }
+
+  button[aria-label="検索をクリア"] {
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  .share-modal-backdrop > .import-scope-dialog {
+    width: 100%;
+    max-width: 520px;
+    max-height: min(85dvh, 760px) !important;
+    min-height: 0;
+    display: flex !important;
+    flex-direction: column;
+    overflow: hidden !important;
+    box-sizing: border-box;
+    padding: 14px !important;
+  }
+
+  .import-scope-dialog > .import-scope-groups {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 2px 4px 4px 0;
+    scrollbar-gutter: stable;
+  }
+
+  .import-scope-dialog .import-scope-row {
+    min-height: 42px;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    gap: 10px;
+  }
+
+  .import-scope-dialog .import-scope-row input {
+    flex: 0 0 20px;
+    width: 20px;
+    height: 20px;
+    margin: 0;
+  }
+
+  .import-scope-dialog > .import-scope-actions {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+    flex: 0 0 auto;
+    margin-top: 10px !important;
+    padding-top: 10px;
+    border-top: 1px solid var(--line-dim);
+    background: var(--surface-1);
+  }
+
+  .import-scope-dialog > .import-scope-actions > div {
+    display: none;
+  }
+
+  .import-scope-dialog > .import-scope-actions > button {
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    padding: 7px 6px;
+    white-space: normal;
+    line-height: 1.25;
+  }
+
+  .import-scope-dialog .import-scope-empty-groups > summary {
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    padding: 7px 8px;
+  }
+}
+
+@media (min-width: 641px) {
+  .share-modal-backdrop > .import-scope-dialog {
+    max-height: min(85vh, 760px) !important;
+    display: flex !important;
+    flex-direction: column;
+    overflow: hidden !important;
+    box-sizing: border-box;
+  }
+
+  .import-scope-dialog > .import-scope-groups {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 2px 4px 4px 0;
+    scrollbar-gutter: stable;
+  }
+
+  .import-scope-dialog > .import-scope-actions {
+    flex: 0 0 auto;
+    padding-top: 10px;
+    border-top: 1px solid var(--line-dim);
+    background: var(--surface-1);
+  }
+}
+
+.import-scope-dialog .import-scope-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-dim);
+  border-radius: 4px;
+  background: var(--surface-inset);
+  font-size: var(--fs-12);
+  cursor: pointer;
+}
+
+.import-scope-dialog .import-scope-row input {
+  accent-color: var(--gold);
+}
+
+.import-scope-dialog .import-scope-empty-groups {
+  margin-top: 8px;
+  border: 1px solid var(--line-dim);
+  border-radius: 4px;
+  background: color-mix(in oklab, var(--surface-2) 55%, transparent);
+}
+
+.import-scope-dialog .import-scope-empty-groups > summary {
+  padding: 8px 10px;
+  color: var(--tx-dim);
+  font-size: var(--fs-11);
+  cursor: pointer;
+}
+
+.import-scope-dialog .import-scope-empty-list {
+  display: grid;
+  gap: 4px;
+  padding: 4px 8px 8px;
+}
+
+.import-scope-dialog .import-scope-row.is-empty {
+  min-height: 34px;
+  justify-content: space-between;
+  background: transparent;
+  color: var(--tx-mute);
+  opacity: .78;
+  cursor: default;
+}
+
+.import-scope-dialog .import-scope-empty-badge {
+  flex: 0 0 auto;
+  font-size: var(--fs-10);
+  color: var(--tx-mute);
+}
