@@ -6,6 +6,7 @@ const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 const app = read("../js/App.js");
 const preview = read("../js/LivePreview.js");
 const css = read("../assets/workspace.css");
+const a11yCss = read("../assets/v68-interaction-a11y.css");
 
 test("モバイルのプレビュー操作は見出しやビルドタブを避け、下部ナビの上に表示する", () => {
   const mobile = css.slice(css.lastIndexOf("UI AUDIT REFINEMENTS"));
@@ -46,4 +47,13 @@ test("読み込み選択画面は狭い画面でも一覧だけをスクロー�
   assert.match(modalCss, /\.import-scope-actions\s*\{[^}]*flex:\s*0 0 auto;[^}]*border-top/s);
   assert.match(modalCss, /@media \(max-width: 640px\)[\s\S]*?\.import-scope-actions\s*\{[^}]*display:\s*grid !important;[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
   assert.match(modalCss, /\.import-scope-actions \.btn\s*\{[^}]*min-height:\s*44px/s);
+});
+
+
+test("モバイルの検索・フィルタ・アカウント操作は指で押せる最小寸法を持つ", () => {
+  const mobile = a11yCss.slice(a11yCss.lastIndexOf("UI audit refinement: mobile controls"));
+  assert.match(mobile, /\.topbar \.topbar-search\s*\{[^}]*width:\s*40px;[^}]*min-width:\s*40px;[^}]*height:\s*40px;[^}]*min-height:\s*40px;/s);
+  assert.match(mobile, /\.guide-filter-row \.guide-filter,\s*\.guide-search-clear\s*\{\s*min-height:\s*40px;/);
+  assert.match(mobile, /\.acct-panel-head \.acct-close\s*\{[^}]*width:\s*40px;[^}]*height:\s*40px;[^}]*min-width:\s*40px;[^}]*min-height:\s*40px;/s);
+  assert.match(mobile, /\.acct-card-actions \.acct-icon-btn\s*\{[^}]*min-width:\s*40px;[^}]*min-height:\s*40px;/s);
 });
