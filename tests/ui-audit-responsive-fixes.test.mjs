@@ -22,6 +22,12 @@ test("初回アカウント作成フォームは細いカードに潰れず、�
   assert.match(audit, /state:\s*"hidden",\s*timeout:\s*12000/);
 });
 
+test("監査ブラウザーのお気に入りデータは実アプリと同じ文字列キー形式を使う", () => {
+  const audit = read("../tools/ui/capture-ui-audit.mjs");
+  assert.match(audit, /favorites:\s*\[mode \+ ":" \+ p\.no\]/);
+  assert.doesNotMatch(audit, /favorites:\s*\[\s*\{\s*key:/);
+});
+
 test("プレビュー格納時に旧PREVIEWタブを表示せず、操作を1か所に統一する", () => {
   assert.match(app, /className: "preview-reopen", onClick: togglePreview/);
   assert.match(css, /\.app\.preview-collapsed \.preview-reopen\s*\{\s*display:\s*none;\s*\}/);
