@@ -1004,6 +1004,7 @@ test("Firestore の値表現を素の値へ戻す", () => {
 /* --- 実サンプル 29 件（提示された URL から取得した実物） --------------- */
 /* 実データは公開リポジトリに載せられないので personal 語のみ除いた匿名版を使う。 */
 const samples = JSON.parse(readFileSync(new URL("./fixtures/garasumado-samples.json", import.meta.url), "utf8"));
+const memoCorpus = readFileSync(new URL("./fixtures/garasumado-memo-corpus.txt", import.meta.url), "utf8");
 const chars = Object.entries(samples).filter(([, v]) => v.coll === "characters");
 const personas = Object.entries(samples).filter(([, v]) => v.coll === "personas");
 
@@ -1173,6 +1174,94 @@ function loadImportWithMemo() {
   return context.window.LBT_garasumado;
 }
 
+
+test("71区分の硝子窓メモコーパスを全行監査し、金額・操作行の未解析を許さない", () => {
+  const sessions = [];
+  let current = null;
+  for (const rawLine of memoCorpus.split(/\r?\n/)) {
+    const heading = rawLine.trim().match(/^【(.+)】$/);
+    if (heading) {
+      if (current) sessions.push(current);
+      current = { title: heading[1], lines: [] };
+    } else if (current) {
+      current.lines.push(rawLine);
+    } else if (rawLine.trim()) {
+      throw new Error("見出しより前に所属先のないサンプル行があります: " + rawLine);
+    }
+  }
+  if (current) sessions.push(current);
+  assert.equal(sessions.length, 71, "コーパスにある全71区分を対象にする");
+
+  const issues = [];
+  let auditedSessions = 0;
+  let auditedActionRows = 0;
+  let auditedAmountRows = 0;
+  let unresolvedRows = 0;
+  const amountPattern = /(?:LP|ＬＰ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]|[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ)|(?:欠片|かけら|欠けら|カケラ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]/i;
+  const actionPattern = /報酬|収入|消費|支出|支払|購入|買った|抽出|ガチャ|チケット|チケ|獲得|入手|取得|補填|変換|使用/;
+
+  for (const session of sessions) {
+    auditedSessions++;
+    const memo = session.lines.join("\n");
+    const parsed = MEMO.parseMemo(memo);
+    const coverageRows = Array.isArray(parsed.financialCoverage) ? parsed.financialCoverage : [];
+    const reasons = Array.isArray(parsed.reasons) ? parsed.reasons : [];
+    const audits = Array.isArray(parsed.sourceAudits) ? parsed.sourceAudits : [];
+    for (let lineIndex = 0; lineIndex < session.lines.length; lineIndex++) {
+      const sourceLine = session.lines[lineIndex];
+      if (!sourceLine.trim()) continue;
+      const hasAmount = amountPattern.test(sourceLine);
+      const hasAction = actionPattern.test(sourceLine);
+      const relatedAudit = audits.some((entry) => entry &&
+        (entry.lineIndex === lineIndex + 1 || entry.relatedLineIndex === lineIndex + 1 ||
+         (Array.isArray(entry.relatedLines) && entry.relatedLines.some((row) => row.lineIndex === lineIndex + 1))));
+      const relatedReason = reasons.some((entry) => String(entry.line || "").trim() === sourceLine.trim());
+      if (hasAmount) auditedAmountRows++;
+      if (hasAmount && hasAction) {
+        auditedActionRows++;
+        const coverage = coverageRows.find((entry) => entry && entry.lineIndex === lineIndex + 1);
+        if (!coverage) {
+          if (!relatedAudit && !relatedReason) {
+            issues.push(session.title + ": 金額・操作行のcoverage/audit/reasonなし (" + (lineIndex + 1) + "行目): " + sourceLine.trim().slice(0, 100));
+          }
+          continue;
+        }
+        if (coverage.status === "unresolved") {
+          unresolvedRows++;
+          issues.push(session.title + ": 未解決状態のまま出力 (" + (lineIndex + 1) + "行目): " + sourceLine.trim().slice(0, 100));
+        }
+        if (["mismatch", "direction-review"].includes(coverage.status) && !relatedAudit && !relatedReason) {
+          issues.push(session.title + ": 不一致/方向要確認の理由が利用者に届かない (" + (lineIndex + 1) + "行目): " + sourceLine.trim().slice(0, 100));
+        }
+        if (coverage.status === "reviewed-by-parser-reason" && !relatedAudit && !relatedReason) {
+          issues.push(session.title + ": 要確認理由が監査出力に存在しない (" + (lineIndex + 1) + "行目): " + sourceLine.trim().slice(0, 100));
+        }
+      }
+    }
+    if (amountPattern.test(memo) && actionPattern.test(memo)) {
+      const hasRecordedEffect =
+        (Number(parsed.income?.lp) || 0) !== 0 ||
+        (Number(parsed.income?.shards) || 0) !== 0 ||
+        (parsed.spends || []).length > 0 ||
+        Object.values(parsed.tickets || {}).some((value) => (Number(value) || 0) > 0) ||
+        Object.keys(parsed.pack || {}).length > 0 ||
+        (parsed.wins || []).length > 0 ||
+        (parsed.reasons || []).length > 0 ||
+        (parsed.sourceAudits || []).some((entry) => entry && entry.severity !== "info");
+      if (!hasRecordedEffect) {
+        issues.push(session.title + ": 金額・操作語を含むのに収入・支出・獲得・要確認のどれも出力されない");
+      }
+    }
+  }
+
+  assert.equal(auditedSessions, 71);
+  assert.ok(auditedAmountRows > 100, "金額候補行を横断監査（実際 " + auditedAmountRows + " 行）");
+  assert.ok(auditedActionRows > 20, "金額と操作を含む行を横断監査（実際 " + auditedActionRows + " 行）");
+  assert.equal(unresolvedRows, 0, "金額・操作行に未解決ステータスを残さない");
+  assert.deepEqual(issues.slice(0, 15), [],
+    "メモコーパスの監査不一致（先頭15件）:\n" + issues.slice(0, 15).join("\n") +
+    (issues.length > 15 ? "\n……残り" + (issues.length - 15) + "件" : ""));
+});
 
 test("実サンプル『鏡屈折鉄道1号線』の変換・購入・残高が一貫して合う", () => {
   const sample = samples.mMIbGr32lGZix60RDmoN?.doc;
