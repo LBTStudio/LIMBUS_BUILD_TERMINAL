@@ -389,7 +389,24 @@ async function boot() {
       if (!id) throw new Error("active account disappeared after seeding");
       window.dispatchEvent(new CustomEvent("lbt:accounts-entered", { detail: { id } }));
     });
-    await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
+    try {
+      await page.locator(".rail-item").first().waitFor({state:"visible",timeout:12000});
+    } catch (error) {
+      const diagnostics = await page.evaluate(() => ({
+        title: document.title,
+        bodyText: (document.body?.innerText || "").slice(0, 1400),
+        gateVisible: Boolean(document.querySelector(".acct-gate")),
+        railCount: document.querySelectorAll(".rail-item").length,
+        activeId: window.LBT_accounts?.getActiveId?.() || null,
+        accountList: window.LBT_accounts?.list?.() || null,
+        stateKeys: Object.keys(window.LBT_accounts?.loadActive?.() || {}).slice(0, 60)
+      })).catch((innerError) => ({ error: String(innerError) }));
+      log("main UI failed after seed; diagnostics=" + JSON.stringify(diagnostics));
+      log("page errors=" + JSON.stringify(audit.pageErrors.filter((x) => x.view === view)));
+      log("console errors=" + JSON.stringify(audit.consoleErrors.filter((x) => x.view === view)));
+      await snap("seeded-main-ui-failure", "診断用：テスト状態投入後にUIが開かなかった画面");
+      throw error;
+    }
   }
   await page.waitForTimeout(350);
 }
