@@ -1846,13 +1846,19 @@
         const cleanedAuditLine = stripBalances(normalizeAmountText(sourceLine)).replace(/[：:]+$/, "").trim();
         const directMoneyRow = standaloneCurrencyAmount(cleanedAuditLine, "lp") ||
           standaloneCurrencyAmount(cleanedAuditLine, "shards");
-        const hasFinancialAction = /報酬|収入|獲得|入手|取得|付与|支給|補填|受領|被り|重複|消費|使用|支払|支出|購入|買っ|抽出|ガチャ|変換|換算|チケット|チケ/.test(sourceLine);
         const hasSourceFinding = sourceAuditAnalysis.findings.some(function (entry) {
           return entry && (entry.lineIndex === i + 1 || entry.relatedLineIndex === i + 1 ||
             (Array.isArray(entry.relatedLines) && entry.relatedLines.some((row) => row.lineIndex === i + 1)));
         });
         const expected = auditMoneyTotalsOfLine(sourceLine);
         const expectedFlows = auditMoneyFlowsOfLine(sourceLine, auditModeBefore);
+        const hasTicketEvent = /(?:チケット|チケ|抽出🎫)/.test(sourceLine) &&
+          (/\d/.test(sourceLine) || /獲得|入手|取得|付与|支給|消費|使用|抽出|ガチャ|結果|消費済/.test(sourceLine));
+        const hasRosterGainEvent = /(?:人格|E\\.?G\\.?O|エゴ).*(?:獲得|入手|取得)|(?:獲得|入手|取得).*(?:人格|E\\.?G\\.?O|エゴ)/i.test(sourceLine);
+        const hasGachaResult = /ガチャ.*(?:結果|→|⇒)|(?:人格|E\\.?G\\.?O|エゴ)獲得\s*[→⇒:：]/i.test(sourceLine);
+        const hasFinancialAction = hasTicketEvent || hasRosterGainEvent || hasGachaResult ||
+          ((expected.lp || expected.shards || directMoneyRow) &&
+            /報酬|収入|獲得|入手|取得|付与|支給|補填|受領|被り|重複|消費|使用|支払|支出|購入|買っ|抽出|ガチャ|変換|換算/.test(sourceLine));
         if (auditModeBefore !== "current" && (directMoneyRow || hasFinancialAction || hasSourceFinding) &&
             (expected.lp || expected.shards || hasFinancialAction || hasSourceFinding)) {
           const newSpends = spends.slice(auditBefore.spends);
@@ -1879,11 +1885,14 @@
           if (skippedForSourceAudit || hasSourceFinding) {
             status = "source-reviewed";
           } else if (moneyBearing) {
-            coverageFinding = auditLineCoverage(sourceLine, expected, got, moneyReviewReason, auditModeBefore, i + 1, expectedFlows, detectedFlows);
-            if (coverageFinding) {
-              if (!moneyReviewReason) sourceAudits.push(coverageFinding);
-              status = moneyReviewReason ? "reviewed-by-parser-reason" :
-                coverageFinding.severity === "review" ? "direction-review" : "mismatch";
+            if (moneyReviewReason) {
+              status = "reviewed-by-parser-reason";
+            } else {
+              coverageFinding = auditLineCoverage(sourceLine, expected, got, false, auditModeBefore, i + 1, expectedFlows, detectedFlows);
+              if (coverageFinding) {
+                sourceAudits.push(coverageFinding);
+                status = coverageFinding.severity === "review" ? "direction-review" : "mismatch";
+              }
             }
           } else if (hasFinancialAction) {
             const ticketDelta = (tickets.persona - auditBefore.ticketPersona) +
