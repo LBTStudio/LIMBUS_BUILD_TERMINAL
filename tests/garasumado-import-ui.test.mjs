@@ -321,3 +321,10 @@ test("未割当レールは編集カードより前に描画し、モバイル�
   assert.ok(rail < firstCard, "単一列になるスマートフォンでも未割当がカード列より前に出る");
   assert.match(uiFlat, /className: "gara-rail"/, "デスクトップの右側レールは維持する");
 });
+
+
+test("価格と元記録の差異は硝子窓取込の確認カードで警告する", () => {
+  assert.match(uiFlat, /block\.currencyDiscrepancies/);
+  assert.match(uiFlat, /記録額とDB価格の差異/);
+  assert.match(uiFlat, /entry\.detail \|\| entry\.message/);
+});

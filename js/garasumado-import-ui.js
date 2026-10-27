@@ -384,6 +384,17 @@ item.decide ? h("div", { className: "gara-decide" },
             ))
           )
           : null,
+        Array.isArray(block.currencyDiscrepancies) && block.currencyDiscrepancies.length
+          ? h("div", { className: "gara-note gara-note-warn", role: "status" },
+            h("strong", null, "記録額とDB価格の差異（" + block.currencyDiscrepancies.length + "件）"),
+            block.currencyDiscrepancies.map((entry, index) => h("p", { key: "price-" + index },
+              String(entry.title || "価格・金額差異")
+              + "："
+              + String(entry.detail || entry.message || "記録額とDB価格を確認してください")
+              + (entry.line ? "（原文：" + entry.line + "）" : "")
+            ))
+          )
+          : null,
         Array.isArray(block.reasons) && block.reasons.length
           ? h("div", { className: "gara-note gara-note-warn", role: "status" },
             h("strong", null, "原文の読み取り要確認（" + block.reasons.length + "件）"),
