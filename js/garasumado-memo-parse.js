@@ -1303,6 +1303,18 @@
         var narrativePurchaseSpends = narrativePurchaseSpendsOf(line, reasons);
         var narrativeParserReported = reasons.length > narrativeReasonCount;
         narrativePurchaseSpends.forEach(function (spend) {
+          /* 同じ行・同じ金額を currencySpendOf と叙述パーサーが読んだ場合は
+             1件へ統合し、叙述パーサーが特定した対象名を優先する。
+             同額の別購入（別name）は、明示支出レコードがない限り別件として残す。 */
+          var explicitSpend = spends.find(function (existing) {
+            return existing && existing.reason === "明示された通貨消費"
+              && existing.raw === line && existing.lp === spend.lp && existing.shards === spend.shards;
+          });
+          if (explicitSpend) {
+            explicitSpend.name = spend.name;
+            explicitSpend.reason = spend.reason;
+            return;
+          }
           var duplicateSpend = spends.some(function (existing) {
             return existing && existing.reason === spend.reason &&
               existing.raw === spend.raw && existing.lp === spend.lp &&
