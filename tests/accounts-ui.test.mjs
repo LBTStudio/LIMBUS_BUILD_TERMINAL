@@ -303,3 +303,11 @@ test("SINNER SELECT内の共有URL取込は全列を使い、本文が狭いカ�
   assert.match(css, /\.acct-card--import-open:hover,[\s\S]*?\.acct-card--import-open:focus-within\s*\{\s*transform:\s*none;\s*box-shadow:\s*none;/);
   assert.match(css, /\.gara\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(240px,\s*320px\)/);
 });
+
+
+test("初回キャラクター作成中は保存操作を優先し、作成ボタンをフォーム内に保つ", () => {
+  const mobileUiCss = readFileSync(new URL("../assets/v69-mobile-ui-audit.css", import.meta.url), "utf8");
+  assert.match(mobileUiCss, /\.acct-gate-panel:has\(\.acct-card--form\)\s*>\s*\.lbt-cloud-panel\s*\{[^}]*display:\s*none;/s);
+  assert.match(mobileUiCss, /\.acct-gate-panel:has\(\.acct-card--form\)\s*>\s*\.acct-grid\s*\{[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto;/s);
+  assert.match(mobileUiCss, /\.acct-gate-panel:has\(\.acct-card--form\)\s+\.acct-card--form\s*\{[^}]*min-height:\s*max-content;/s);
+});
