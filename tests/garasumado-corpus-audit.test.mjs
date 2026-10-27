@@ -60,6 +60,7 @@ function auditCandidateLines(memo) {
     const line = lines[index];
     const normalized = line.normalize("NFKC");
     const trimmed = normalized.trim();
+    if (!trimmed) continue;
 
     if (/^[・•]?\s*(?:支出|支払い|支払)(?:\s|[:：]|$)/.test(trimmed)) {
       section = "spend";
@@ -85,8 +86,9 @@ function auditCandidateLines(memo) {
 
     if (hasUnitlessSpendAmount ||
         hasTicketCount ||
-        (hasCurrencyAmount && (hasTransactionWord(line) || hasBalancePair ||
-          (section !== "current" && !(section === "spend" && isCurrencyOnlyTotalLine(trimmed)))))) {
+        (hasCurrencyAmount && (hasTransactionWord(line) ||
+          (section !== "current" && (hasBalancePair ||
+            !(section === "spend" && isCurrencyOnlyTotalLine(trimmed))))))) {
       candidates.push({ lineIndex: index + 1, line, section, hasUnitlessSpendAmount });
     }
   }
