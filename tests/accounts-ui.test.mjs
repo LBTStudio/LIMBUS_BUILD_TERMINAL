@@ -303,3 +303,11 @@ test("SINNER SELECT内の共有URL取込は全列を使い、本文が狭いカ�
   assert.match(css, /\.acct-card--import-open:hover,[\s\S]*?\.acct-card--import-open:focus-within\s*\{\s*transform:\s*none;\s*box-shadow:\s*none;/);
   assert.match(css, /\.gara\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(240px,\s*320px\)/);
 });
+
+
+test("初回のSINNER SELECTで新規作成フォームは幅を確保し、主ボタンが狭いカード列に押し込まれない", () => {
+  assert.match(css, /\.acct-gate-panel \.acct-grid:has\(\.acct-card--form\)\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/);
+  assert.match(css, /\.acct-gate-panel \.acct-grid:has\(\.acct-card--form\) > \.acct-card--form\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/);
+  assert.match(ui, /h\("div", \{ className: "acct-form-actions" \}/);
+  assert.match(ui, /h\(Button, \{ size: "sm", variant: "primary", icon: "check", onClick: create \}, "作成して開く"\)/);
+});
