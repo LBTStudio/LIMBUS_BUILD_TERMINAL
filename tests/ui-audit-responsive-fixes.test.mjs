@@ -13,6 +13,15 @@ test("監査修正CSSは実際のアプリにハッシュ付きで読み込ま�
   assert.match(index, /js\/App\.js\?v=[0-9a-f]{8}/);
 });
 
+test("初回アカウント作成フォームは細いカードに潰れず、ボタンがスクロール領域内に残る", () => {
+  assert.match(css, /\.acct-gate-panel:has\(> \.acct-grid > \.acct-card--form\) > \.acct-grid\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)/);
+  assert.match(css, /\.acct-gate-panel:has\(> \.acct-grid > \.acct-card--form\) > \.acct-grid > \.acct-card--form\s*\{[\s\S]*?grid-column:\s*1 \/ -1;[\s\S]*?overflow:\s*visible;/);
+  assert.match(css, /\.acct-gate-panel:has\(> \.acct-grid > \.acct-card--form\) > \.lbt-cloud-panel\s*\{\s*display:\s*none;/);
+  const audit = read("../tools/ui/capture-ui-audit.mjs");
+  assert.match(audit, /\.acct-gate \.acct-form-actions button/);
+  assert.match(audit, /state:\s*"hidden",\s*timeout:\s*10000/);
+});
+
 test("プレビュー格納時に旧PREVIEWタブを表示せず、操作を1か所に統一する", () => {
   assert.match(app, /className: "preview-reopen", onClick: togglePreview/);
   assert.match(css, /\.app\.preview-collapsed \.preview-reopen\s*\{\s*display:\s*none;\s*\}/);
