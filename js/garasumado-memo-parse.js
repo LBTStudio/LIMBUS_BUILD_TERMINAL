@@ -50,7 +50,7 @@
      残高そのものが収入（または支出）として帳簿に乗る。 */
   function stripBalances(value) {
     return normalizeAmountText(value)
-      .replace(/現在\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ)?\s*[：:]?\s*-?\d+(?:\s*[+＋]\s*\d+)*(?:\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ))?(?:\s*[→⇒]\s*-?\d+(?:\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ))?)?/gi, " ");
+      .replace(/現在\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片)?\s*[：:]?\s*-?\d+(?:\s*[+＋]\s*\d+)*(?:\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片))?(?:\s*[→⇒]\s*-?\d+(?:\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片))?)?/gi, " ");
   }
 
   /* 金額／チケットの加算は、安全整数の範囲を超えた値を保存しない。
@@ -97,6 +97,7 @@
     var head = m[1];
     if (/支出|支払/.test(head)) return "spend";
     if (/現在/.test(head)) return "current";
+    if (/報酬|収入/.test(head)) return "income";
     return "other";
   }
 
@@ -109,7 +110,7 @@
       .replace(/残り\s*-?\d+/gi, " ")
       .replace(/へ\s*$/, " ");
     /* 通貨名に隣接する数値を優先（-22LP → 22、7LP → 7）。 */
-    var near = cleaned.match(/(-?\d+)\s*(LP|欠片|かけら|欠けら|カケラ)/i);
+    var near = cleaned.match(/(-?\d+)\s*(LP|欠片|かけら|欠けら|カケラ|欠け片)/i);
     if (near) return parseInt(near[1], 10);
     /* 通貨名が無ければ先頭の数字。識別子のハイフンは符号ではない。 */
     var rest = cleaned.replace(/([A-Za-z0-9])-(?=\d)/g, "$1 ");
@@ -234,16 +235,16 @@
 
   function incomePairs(line) {
     var text = stripBalances(line)
-      .replace(/残り?\s*-?\d+(?:\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ))?/gi, " ")
+      .replace(/残り?\s*-?\d+(?:\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片))?/gi, " ")
       /* 「300LPへ」は支払後の残高に振り直す書き方。額ではなく結果。 */
-      .replace(/-?\d+(?:\s*[+＋]\s*\d+)*\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ)\s*へ/gi, " ")
+      .replace(/-?\d+(?:\s*[+＋]\s*\d+)*\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片)\s*へ/gi, " ")
       /* 「G-5」のような識別子のハイフンを負号と混同しない。 */
       .replace(/([A-Za-z0-9])-(?=\d)/g, "$1 ")
       /* 括弧注釈は掉落値。「75(理性60+15)欠片」の内訳を外すと
          75 が欠片の直前に残るので 75 として読める。 */
       .replace(/[（(][^）)]*[）)]/g, " ");
     var tokens = [];
-    var re = /(LP|ＬＰ|欠片|かけら|欠けら|カケラ)|([+-]?\d+(?:\s*[+＋]\s*\d+)*)/gi;
+    var re = /(LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片)|([+-]?\d+(?:\s*[+＋]\s*\d+)*)/gi;
     var m;
     var lastEnd = 0;
     while ((m = re.exec(text)) !== null) {
@@ -281,7 +282,7 @@
   function parseBareStack(lines) {
     var res = { lp: 0, shards: 0 };
     var joined = normalizeAmountText(lines.join("\n"));
-    if (/(LP|ＬＰ|欠片|かけら|欠けら|カケラ)/i.test(joined)) return res;
+    if (/(LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片)/i.test(joined)) return res;
     var runs = [];
     var cur = [];
     for (var i = 0; i < lines.length; i++) {
@@ -307,8 +308,8 @@
     var headerAt = -1;
     for (var i = 0; i < lines.length; i++) {
       var h = lines[i].trim();
-      if (/^(LP|ＬＰ)\s*\/\s*(欠片|かけら|欠けら|カケラ)$/i.test(h)) { order = ["lp", "shards"]; headerAt = i; break; }
-      if (/^(欠片|かけら|欠けら|カケラ)\s*\/\s*(LP|ＬＰ)$/i.test(h)) { order = ["shards", "lp"]; headerAt = i; break; }
+      if (/^(LP|ＬＰ)\s*\/\s*(欠片|かけら|欠けら|カケラ|欠け片)$/i.test(h)) { order = ["lp", "shards"]; headerAt = i; break; }
+      if (/^(欠片|かけら|欠けら|カケラ|欠け片)\s*\/\s*(LP|ＬＰ)$/i.test(h)) { order = ["shards", "lp"]; headerAt = i; break; }
     }
     if (!order) return parseBareStack(lines);
     var cands = [];
@@ -338,7 +339,7 @@
   function isNarrativeLine(line) {
     var t = normalizeAmountText(line);
     if (/^\s*[▶►▷]\s*/.test(t)) return true;
-    if (/(得る|獲得する|消費する|半減し|発動する)/.test(t) && !/\d\s*(LP|欠片|かけら|欠けら|カケラ)/.test(t)) return true;
+    if (/(得る|獲得する|消費する|半減し|発動する)/.test(t) && !/\d\s*(LP|欠片|かけら|欠けら|カケラ|欠け片)/.test(t)) return true;
     return false;
   }
 
@@ -351,7 +352,7 @@
        同じ行に「150LP消費」などの明示金額があればその金額を拾い、
        残高しかなければ金額未確定として理由を出す。 */
     var text = stripBalances(line)
-      .replace(/残り\s*-?\d+(?:\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ))?/gi, " ")
+      .replace(/残り\s*-?\d+(?:\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片))?/gi, " ")
       .replace(/へ\s*$/, " ");
     if (currency === "lp") {
       /* LP は「LP」という語で締める。「+11欠片 -22LP」なら -22 を取りたい。
@@ -381,14 +382,14 @@
       }
       if (bestLp != null) return bestLp;
       /* LP 語が無くても、欠片語が無ければ先頭の数字が LP。 */
-      if (!/欠片|かけら|欠けら|カケラ/.test(text)) {
+      if (!/欠片|かけら|欠けら|カケラ|欠け片/.test(text)) {
         var only = text.match(/-?\d+/);
         return only ? parseInt(only[0], 10) : null;
       }
       return null;
     }
 
-    var re = /欠片|かけら|欠けら|カケラ/g;
+    var re = /欠片|かけら|欠けら|カケラ|欠け片/g;
     var mm;
     while ((mm = re.exec(text)) !== null) {
       var tail = text.slice(mm.index + mm[0].length);
@@ -409,7 +410,7 @@
   function isTotalOnlyLine(line) {
     var t = String(explicitRewardNameOf(line) || line).replace(/現在|残/g, "").trim();
     /* 通貨名だけ刈り取ったあと、漢字/ラテンが残るか見る。 */
-    var stripped = t.replace(/LP|欠片|かけら|欠けら|カケラ/gi, " ").trim();
+    var stripped = t.replace(/LP|欠片|かけら|欠けら|カケラ|欠け片/gi, " ").trim();
     if (/[A-Za-zぁ-んァ-ヶ一-龠]/.test(stripped)) return false;
     /* 通貨名を落とした残りが「数値と空白だけ」なら合計行。 */
     return /^[\s　0-9+\-　]*$/.test(stripped) && /\d/.test(stripped);
@@ -470,8 +471,8 @@
     if (!raw || /消費欄|消費額|消費合計|購入合計|合計消費|項目別価格合計|支出額|総額/.test(raw)) return "";
     if (/(?:現在|残高|残り)/.test(raw) || isTotalOnlyLine(raw)) return "";
     var name = normalizeAmountText(raw)
-      .replace(/現在[：:]?\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ)?\s*-?\d+/gi, " ")
-      .replace(/残り\s*-?\d+(?:\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ))?/gi, " ")
+      .replace(/現在[：:]?\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片)?\s*-?\d+/gi, " ")
+      .replace(/残り\s*-?\d+(?:\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片))?/gi, " ")
       .replace(/(?:LP|ＬＰ)\s*[:：]?\s*[+-]?\s*\d+/gi, " ")
       .replace(/[+-]?\s*\d[\d,]*(?:\s*[+＋]\s*\d+)*\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片)/gi, " ")
       .replace(/^\s*(?:No\.?\s*\d+|#\s*\d+|\d+[.)．、])\s*/i, "")
@@ -521,7 +522,7 @@
     /* チケット行は別に数えるので、ここでは扱わない */
     if (/チケ|チケット|ガチャ|抽出/.test(t)) return false;
     /* 通貨が数値と隣接していれば金額行 */
-    if (/\d\s*(LP|欠片|かけら|欠けら|カケラ)/i.test(t)) return false;
+    if (/\d\s*(LP|欠片|かけら|欠けら|カケラ|欠け片)/i.test(t)) return false;
     /* 英語名だけの行は対象外（人名ではない）。日付（2026/10/6）もここで落とす。 */
     if (/^[A-Za-z0-9\s.:_\-/]+$/.test(t)) return false;
     /* 「第四銀弓使用」「エドガー継承者使用会」= 使った記録。獲得名ではない。 */
@@ -613,7 +614,7 @@
     var at = t.lastIndexOf("→");
     if (at < 0) return [];
     var tail = t.slice(at + 1).replace(/[。．\s]+$/g, "").trim();
-    if (!tail) return [];
+    if (!tail || /^(?:残り|現在|現座|残高)\s*(?:(?:所持|残高)\s*)?(?:LP|ＬＰ|自我の)?\s*\d/i.test(tail)) return [];
     /* 「→200LP消費、テーマパック名:獲得人格獲得」形式では、最初のコロンは
        パック名と獲得品の区切り。パック名を獲得人格名へ混ぜない。
        通貨消費が明示されている場合に限って扱い、一般の人格名内のコロンは維持する。 */
@@ -638,7 +639,7 @@
       if (!/[A-Za-zぁ-んァ-ヶ一-龠]/.test(name)) return;
       /* 「選択抽出チケット→ego」のプレースホルダ。英語だけの断片は名前ではない。 */
       if (/^[A-Za-z0-9\s.:_\-/]+$/.test(name)) return;
-      if (/LP|ＬＰ|欠片|かけら|欠けら|カケラ|消費|使用|解除|被り|チケット|チケ|枚/.test(name)) return;
+      if (/LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片|消費|使用|解除|被り|チケット|チケ|枚/.test(name)) return;
       out.push(name);
     });
     return out;
@@ -654,8 +655,8 @@
     if (!/(現在|残)/.test(t)) return false;
     var label = t.match(/([^0-9\s：:][^：:]{0,24})[：:]/);
     if (!label) return false;
-    if (/(LP|ＬＰ|欠片|かけら|欠けら|カケラ)\s*$/.test(label[1].trim())) return false;
-    return /\d+\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ)/.test(t.slice(label[0].length));
+    if (/(LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片)\s*$/.test(label[1].trim())) return false;
+    return /\d+\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片)/.test(t.slice(label[0].length));
   }
   /* 「蒼羽蝶：75LP消費」のような名前前置・消費語後置の購入行。
      ラベル（通貨でない語）の直後に金額が置かれ、行が消費の語で終わる
@@ -665,11 +666,11 @@
   function namedPurchaseOf(line) {
     var t = String(line || "").trim();
     if (!/(消費|購入)[。．.」』]*$/.test(t)) return null;
-    var m = t.match(/^([^0-9\s：:].+)[：:]\s*([0-9０-９]+)\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ)([^0-9]*)$/i);
+    var m = t.match(/^([^0-9\s：:].+)[：:]\s*([0-9０-９]+)\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片)([^0-9]*)$/i);
     if (!m) return null;
     var name = m[1].trim();
     if (!name) return null;
-    if (/(LP|ＬＰ|欠片|かけら|欠けら|カケラ)\s*$/.test(name)) return null;
+    if (/(LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片)\s*$/.test(name)) return null;
     var cost = { lp: 0, shards: 0 };
     cost[/LP/i.test(m[3]) ? "lp" : "shards"] = Number(String(m[2]).replace(/[０-９]/g, function (c) {
       return String.fromCharCode(c.charCodeAt(0) - 0xFEE0);
@@ -716,7 +717,7 @@
   /* 明示された通貨消費を収入と分離して読む。正規化は1文字対1文字の範囲に
      限り、獲得名の位置やE.G.O名のコロンを壊さない。 */
   function currencySpendOf(rawLine, allowNaturalExpense) {
-    var text = normalizeNumericText(rawLine);
+    var text = normalizeAmountText(rawLine);
     /* 矢印・明示ラベル、または収入節で通貨額と支出語が近接する自然文を読む。
        支出節は専用パーサーがあるため、自然文の追加判定を適用しない。 */
     var rawSource = String(rawLine || "");
@@ -728,7 +729,7 @@
        「150LP消費 300LPへ」の300LPは支払後残高であり、2件目の支出ではない。
        逆に「LP100を消費、欠片50を消費」のような複数支出は、
        先頭だけを自動確定して過少計上しない。 */
-    var spendAmountPattern = /(?:LP|ＬＰ)\s*[-−]?\s*[0-9][0-9,]*\s*(?:を\s*)?(?:消費|使用|支払|支出)|[0-9][0-9,]*\s*(?:LP|ＬＰ)\s*(?:を\s*)?(?:消費|使用|支払|支出)|(?:自我の(?:破片|欠片)|(?<!の)(?:欠片|かけら|欠けら|カケラ))\s*[-−]?\s*[0-9][0-9,]*\s*(?:個|つ)?\s*(?:を\s*)?(?:消費|使用|支払|支出)|[0-9][0-9,]*\s*(?:個|つ)?\s*(?:自我の(?:破片|欠片)|(?<!の)(?:欠片|かけら|欠けら|カケラ))\s*(?:を\s*)?(?:消費|使用|支払|支出)|(?:購入し使用|消費|使用|支払|支出)\s*[：:（(]?\s*[-−]\s*[0-9][0-9,]*\s*(?:LP|ＬＰ|自我の(?:破片|欠片)|欠片|かけら|欠けら|カケラ)/gi;
+    var spendAmountPattern = /(?:LP|ＬＰ)\s*[-−]?\s*[0-9][0-9,]*\s*(?:を\s*)?(?:消費|使用|支払|支出)|[0-9][0-9,]*\s*(?:LP|ＬＰ)\s*(?:を\s*)?(?:消費|使用|支払|支出)|(?:自我の(?:破片|欠片)|(?<!の)(?:欠片|かけら|欠けら|カケラ|欠け片))\s*[-−]?\s*[0-9][0-9,]*\s*(?:個|つ)?\s*(?:を\s*)?(?:消費|使用|支払|支出)|[0-9][0-9,]*\s*(?:個|つ)?\s*(?:自我の(?:破片|欠片)|(?<!の)(?:欠片|かけら|欠けら|カケラ|欠け片))\s*(?:を\s*)?(?:消費|使用|支払|支出)|(?:購入し使用|消費|使用|支払|支出)\s*[：:（(]?\s*[-−]\s*[0-9][0-9,]*\s*(?:LP|ＬＰ|自我の(?:破片|欠片)|欠片|かけら|欠けら|カケラ|欠け片)/gi;
     var explicitSpendAmounts = text.match(spendAmountPattern) || [];
     if (explicitSpendAmounts.length > 1) return null;
     var lpMatch = text.match(/(?:LP|ＬＰ)\s*([0-9][0-9,]*)\s*(?:を\s*)?(?:消費|使用|支払|支出)/i);
@@ -738,7 +739,7 @@
       return { currency: "lp", amount: applyExplicitPackCount(lp, text, lpMatch), start: lpMatch.index, end: lpMatch.index + lpMatch[0].length };
     }
     /* 「自我の破片100消費」は通貨。「硝酸の欠片×1」はアイテム名なので対象外。 */
-    var shardMatch = text.match(/(?:自我の(?:破片|欠片)|(?<!の)(?:欠片|かけら|欠けら|カケラ))\s*([0-9][0-9,]*)\s*(?:個|つ)?\s*(?:を\s*)?(?:消費|使用|支払|支出)/);
+    var shardMatch = text.match(/(?:自我の(?:破片|欠片)|(?<!の)(?:欠片|かけら|欠けら|カケラ|欠け片))\s*([0-9][0-9,]*)\s*(?:個|つ)?\s*(?:を\s*)?(?:消費|使用|支払|支出)/);
     if (!shardMatch) shardMatch = text.match(/([0-9][0-9,]*)\s*(?:個|つ)?\s*自我の(?:破片|欠片)\s*(?:を\s*)?(?:消費|使用|支払|支出)/);
     if (shardMatch) {
       var shardAmount = Number(String(shardMatch[1]).replace(/,/g, ""));
@@ -746,7 +747,7 @@
     }
     /* 「購入し使用：-40LP」のように、明示された購入・使用語の後ろへ
        マイナス額を書く旧書式も、費用として正の値に直して記録する。 */
-    var negativeMatch = text.match(/(?:購入し使用|消費|使用|支払|支出)\s*[：:（(]?\s*[-−]\s*([0-9][0-9,]*)\s*(LP|ＬＰ|自我の(?:破片|欠片)|欠片|かけら|欠けら|カケラ)/i);
+    var negativeMatch = text.match(/(?:購入し使用|消費|使用|支払|支出)\s*[：:（(]?\s*[-−]\s*([0-9][0-9,]*)\s*(LP|ＬＰ|自我の(?:破片|欠片)|欠片|かけら|欠けら|カケラ|欠け片)/i);
     if (negativeMatch) {
       var negativeAmount = Number(String(negativeMatch[1]).replace(/,/g, ""));
       return {
@@ -764,11 +765,11 @@
     if (!/(?:消費|使用|支払|支出|購入|買った)/.test(text)) return false;
     /* 価格上限・選択券の条件値は支出額ではない。 */
     if (/(?:以下|以上|以内|未満|まで)/.test(text)) return false;
-    var money = "(?:(?:LP|ＬＰ|自我の(?:破片|欠片)|欠片|かけら|欠けら|カケラ)\\s*[-−]?\\s*\\d[\\d,]*|\\d[\\d,]*\\s*(?:LP|ＬＰ|自我の(?:破片|欠片)|欠片|かけら|欠けら|カケラ))";
+    var money = "(?:(?:LP|ＬＰ|自我の(?:破片|欠片)|欠片|かけら|欠けら|カケラ|欠け片)\\s*[-−]?\\s*\\d[\\d,]*|\\d[\\d,]*\\s*(?:LP|ＬＰ|自我の(?:破片|欠片)|欠片|かけら|欠けら|カケラ|欠け片))";
     var action = "(?:消費|使用|支払|支出)";
     return new RegExp(money + "[^,、。\\n]{0,4}(?:を)?" + action, "i").test(text)
       || new RegExp(action + "[^,、。\\n]{0,12}" + money, "i").test(text)
-      || /購入[^,、。\n]{0,12}(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ)\s*[-−]\s*\d[\d,]*/i.test(text);
+      || /購入[^,、。\n]{0,12}(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片)\s*[-−]\s*\d[\d,]*/i.test(text);
   }
 
   function cleanRewardName(value) {
@@ -778,7 +779,7 @@
     name = name.replace(/^[「『]/, "").replace(/[」』]$/, "").trim();
     name = name.replace(/(?:の)?(?:獲得|入手)(?:した)?[。．.]?$/, "").trim();
     if (!name || /(?:被り|重複|補償|返還)/.test(name)) return "";
-    if (/^(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|自我の破片|自我の欠片)\s*\d*$/i.test(name)) return "";
+    if (/^(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片|自我の破片|自我の欠片)\s*\d*$/i.test(name)) return "";
     /* 選択抽出チケット→ego などの汎用ラベルを実際の獲得名にしない。 */
     if (/^[A-Za-z0-9\s.:_\/-]+$/.test(name)) return "";
     if (!/[A-Za-zぁ-んァ-ヶ一-龠]/.test(name)) return "";
@@ -794,6 +795,7 @@
     var rawTail = raw.slice(end).trim();
     if (arrow >= 0) {
       rawTail = rawTail.slice(arrow + 1);
+      if (/^\s*(?:残り|現在|現座|残高)\s*(?:(?:所持|残高)\s*)?(?:LP|ＬＰ|自我の)?\s*\d/i.test(rawTail)) return "";
     } else if (!/^\s*(?:(?:ガチャ|抽出ガチャ|ガチャ抽出|抽出|パックチケット|テーマパック|パック)\s*[：:]|[：:])/.test(tail)) {
       /* 「LP200を消費してガチャ」の後半は叙述であって獲得名ではない。 */
       return "";
@@ -844,7 +846,7 @@
     for (const noteMatch of notes) {
       const note = noteMatch[1];
       if (!/(?:ダブ|被り|かぶり|重複)/.test(note)) continue;
-      const amounts = [...note.matchAll(/(?:自我の)?(?:破片|欠片|かけら|欠けら|カケラ)\s*([+]?\d[\d,]*)|([+]?\d[\d,]*)\s*(?:自我の)?(?:破片|欠片|かけら|欠けら|カケラ)/g)];
+      const amounts = [...note.matchAll(/(?:自我の)?(?:破片|欠片|かけら|欠けら|カケラ|欠け片)\s*([+]?\d[\d,]*)|([+]?\d[\d,]*)\s*(?:自我の)?(?:破片|欠片|かけら|欠けら|カケラ|欠け片)/g)];
       if (!amounts.length) continue;
       found = true;
       for (const amountMatch of amounts) {
@@ -871,9 +873,9 @@
     if (!m) return null;
     var body = normalizeAmountText(m[1])
       /* 「硝子の欠片」は通貨の欠片ではなくアイテムの消費。 */
-      .replace(/硝子の(?:欠片|かけら|欠けら|カケラ|破片)\s*(?:[×xｘ]\s*\d+)?/g, " ")
+      .replace(/硝子の(?:欠片|かけら|欠けら|カケラ|欠け片|破片)\s*(?:[×xｘ]\s*\d+)?/g, " ")
       /* 「200LP以下」の数量条件は支払額ではない。 */
-      .replace(/(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ)?\s*\d+\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ)?\s*(?:以下|以上|以内|未満|まで)/g, " ")
+      .replace(/(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片)?\s*\d+\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片)?\s*(?:以下|以上|以内|未満|まで)/g, " ")
       /* 「欠片50×3=150」「75×2=150欠片」は合計額を読む。 */
       .replace(/\d+\s*[×xｘ]\s*\d+\s*[=＝]\s*(\d+)/g, "$1")
       /* 「150+300→欠片450」は矢印の右が支払額。 */
@@ -943,7 +945,9 @@
     const match = multiply || sum || arrowSum;
     if (!match) return null;
     const left = auditSafeInteger(match[1]), right = auditSafeInteger(match[2]), written = auditSafeInteger(match[3]);
-    if (left === null || right === null || written === null) return null;
+    if (left === null || right === null || written === null) {
+      return { expression: match[0], expected: null, written: written };
+    }
     const expected = multiply ? left * right : left + right;
     if (!Number.isSafeInteger(expected)) return { expression: match[0], expected: null, written: written };
     if (expected === written) return null;
@@ -954,7 +958,7 @@
     const text = normalizeNumericText(line);
     /* チケットから欠片への条件付き変換には専用の既存処理がある。ここで行全体を止めない。 */
     if (/(?:変換|換算)/.test(text)) return null;
-    const hasConditionalCue = /(?:達成してたら|達成したら|してたら|していたら|できたら|できなかった場合|出来なかった場合|(?:以下|以上)の場合|(?:以下|以上)なら|同じ出目なら|クリティカルかファンブルなら|条件を満たすと|条件を満たした場合|なら\s*(?:人格|E\.?G\.?O|エゴ|抽出|LP|ＬＰ|欠片|かけら|欠けら|カケラ|チケ|チケット))/i.test(text);
+    const hasConditionalCue = /(?:達成してたら|達成したら|してたら|していたら|できたら|できなかった場合|出来なかった場合|(?:以下|以上)の場合|(?:以下|以上)なら|同じ出目なら|クリティカルかファンブルなら|条件を満たすと|条件を満たした場合|なら\s*(?:人格|E\.?G\.?O|エゴ|抽出|LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片|チケ|チケット))/i.test(text);
     if (!hasConditionalCue || !/(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|けっか|欠け片|チケ|チケット|抽出🎫)/i.test(text) || !/\d/.test(text)) return null;
     if (/(?:条件不成立|未達成|条件を満たさなかった|同じ出目ではなかった|条件未達|失敗が確定)/.test(text)) {
       return { status: "condition-not-met", raw: String(line || "").trim(), skipLine: true };
@@ -969,6 +973,7 @@
     let text = normalizeAmountText(rawLine);
     text = stripAlternativePriceCondition(text).text;
     return stripBalances(text)
+      .replace(/残り\s*-?\d+(?:\s*(?:LP|ＬＰ|(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片)))?/gi, " ")
       .replace(/(?:硝子|硝酸)の(?:破片|欠片|かけら|欠けら|カケラ|欠け片)/g, " ")
       .replace(/-?\d+(?:\s*[+＋]\s*\d+)*\s*(LP|ＬＰ|(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片))\s*へ/gi, " ")
       .replace(/\d+\s*[×xｘ]\s*\d+\s*[=＝]\s*(\d+)/g, "$1")
@@ -1200,6 +1205,12 @@
         count: spend.count,
         raw: spend.raw
       });
+      if (!spend.kind || spend.kind === "unknown") {
+        reasons.push({
+          line: spend.raw || "",
+          reason: "チケットの種別が曖昧なため、券種・チケット残数への反映を保留しました。人格/E.G.Oのどちらかを確認してください"
+        });
+      }
       if (spend.reward && !wins.some((w) => w.name === spend.reward)) {
         wins.push({
           name: spend.reward,
@@ -1239,6 +1250,13 @@
       prevLine = line;
       if (sourceAuditAnalysis.skipLines.has(i)) continue;
 
+      if (/^(?:[▶►▷]\s*)?(?:効果|効果説明|パッシブ効果)\s*[：:]?/.test(normalizeNumericText(line).trim())
+          && /(?:使用時|発動時|消費する|使用する|発動する)/.test(normalizeNumericText(line))
+          && /(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片)\s*\d|\d\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片)/i.test(normalizeNumericText(line))) {
+        reasons.push({ line: sourceLine, reason: "効果説明文にある消費・使用の記述を実際の取引と区別できないため、金額は台帳へ計上せず要確認にしました" });
+        continue;
+      }
+
       var glassConsumption = parseGlassConsumption(line);
       if (glassConsumption) {
         consumedItems.push(glassConsumption);
@@ -1250,8 +1268,20 @@
          欠片+11まで減算され、残高監査の帳尻が反転してしまう。 */
       if (/(?:変換|換算)/.test(line) && hasLp(line) && hasShard(line)) {
         var conversionPairs = incomePairs(line);
+        var signedConversionText = normalizeNumericText(line);
+        var signedLpAmounts = signedConversionText.match(/(?:[+＋\-−]\s*\d[\d,]*\s*(?:LP|ＬＰ)|(?:LP|ＬＰ)\s*[：:]?\s*[+＋\-−]\s*\d[\d,]*)/gi) || [];
+        var signedShardAmounts = signedConversionText.match(/(?:[+＋\-−]\s*\d[\d,]*\s*(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片)|(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片)\s*[：:]?\s*[+＋\-−]\s*\d[\d,]*)/gi) || [];
+        var requiredLpSigns = conversionPairs.filter(function (pair) { return pair.currency === "lp"; }).length;
+        var requiredShardSigns = conversionPairs.filter(function (pair) { return pair.currency === "shards"; }).length;
+        var allConversionAmountsSigned = conversionPairs.length > 0
+          && signedLpAmounts.length >= requiredLpSigns
+          && signedShardAmounts.length >= requiredShardSigns;
         var conversionCost = { lp: 0, shards: 0 };
         var conversionHasSignedAmount = false;
+        if (!allConversionAmountsSigned) {
+          reasons.push({ line: sourceLine, reason: "通貨変換の金額に通貨ごとの正負の符号がありません。収入・支出を推測せず、両通貨の増減を要確認にしました" });
+          continue;
+        }
         for (var conversionIndex = 0; conversionIndex < conversionPairs.length; conversionIndex++) {
           var conversionPair = conversionPairs[conversionIndex];
           if (!Number.isSafeInteger(conversionPair.amount)) {
@@ -1373,13 +1403,17 @@
          操作種別だけを確認対象にする。明示的な「テーマパックチケット」は後段の
          pack-ticket 判定が扱うため、ここでは二重警告を避ける。 */
       var cappedPackWithoutTicket = mode === "income"
-        && /(?:[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ)|(?:LP|ＬＰ)\s*[0-9０-９][0-9０-９,，]*)\s*(?:以下|以内|未満|まで)[^。\n]*テーマパック/i.test(line)
+        && (
+          /(?:[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ)|(?:LP|ＬＰ)\s*[0-9０-９][0-9０-９,，]*)\s*(?:以下|以内|未満|まで)[^。\n]*テーマパック/i.test(line)
+          || /上限\s*[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ)?[^。\n]*テーマパック/i.test(line)
+        )
         && !/チケ|チケット/.test(line);
       if (cappedPackWithoutTicket) {
         reasons.push({
           line: sourceLine,
           reason: "LP上限付きのテーマパック表記ですが、チケットか実購入かが明示されていないため、パック券の所持数・LP支出のどちらにも自動計上していません。券なら「テーマパックチケット×1」、購入なら「LP200消費」のように明記してください"
         });
+        continue;
       }
 
       /* 括弧内に明記された重複補償は、通常の収入解析で括弧ごと除外される。
@@ -1434,6 +1468,10 @@
         if (!currencySpend && hasUnparsedExplicitExpense(line)) {
           reasons.push({ line: line, reason: "通貨額を含む支出表記を安全に解析できないため未計上" });
         }
+        continue;
+      }
+      if (!currencySpend && hasUnparsedExplicitExpense(line)) {
+        reasons.push({ line: line, reason: "通貨額を含む支出表記を安全に解析できないため未計上。金額の桁区切り・表記を確認してください" });
         continue;
       }
 
@@ -1552,7 +1590,7 @@
       /* 「サポートパッシブ『A』を購入したのでLP-7、『B』を購入したのでLP-15」のように、
          名前と負額が1対1で明記された叙述は、それぞれ独立した支出として残す。
          以前は後段の「叙述体の購入は名前だけ残す」経路で金額がすべて消えていた。 */
-      var narrativeSpendRe = /[「『]([^「『」』]+)[」』]\s*(?:を\s*)?(?:購入した(?:ので|ため)|買った(?:ので|ため))\s*(LP|ＬＰ|自我の(?:破片|欠片)|欠片|かけら|欠けら|カケラ)\s*-\s*([0-9][0-9,]*)/g;
+      var narrativeSpendRe = /[「『]([^「『」』]+)[」』]\s*(?:を\s*)?(?:購入した(?:ので|ため)|買った(?:ので|ため))\s*(LP|ＬＰ|自我の(?:破片|欠片)|欠片|かけら|欠けら|カケラ|欠け片)\s*-\s*([0-9][0-9,]*)/g;
       var narrativeSpendMatches = Array.from(line.matchAll(narrativeSpendRe));
       if (narrativeSpendMatches.length >= 2) {
         narrativeSpendMatches.forEach(function (match) {
@@ -1585,7 +1623,7 @@
          報酬額として読む（「140LP 90欠片」形式を旧実装は無言で落としていた）。 */
       if (isTotalOnlyLine(line)) {
         if (mode === "spend") continue;
-        if (/(^|[\s　:：])0\s*(LP|欠片|かけら|欠けら|カケラ)/i.test(line)) continue;
+        if (/(^|[\s　:：])0\s*(LP|欠片|かけら|欠けら|カケラ|欠け片)/i.test(line)) continue;
       }
 
       if (mode !== "income") {
@@ -1693,7 +1731,7 @@
         /* 「LP:35+GABA=40」のような計算式は結果の 40 だけを読む。 */
         line = line.replace(/\d+\s*\+\s*[^\s\d]+\s*=\s*(\d+)/g, "$1");
         /* 「LP200以下」「200LPまで」の数量条件は金額ではない。 */
-        line = line.replace(/(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|パック)?\s*\d+\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|パック)?\s*(?:以下|以上|以内|未満|まで)/g, " ");
+        line = line.replace(/(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片|パック)?\s*\d+\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片|パック)?\s*(?:以下|以上|以内|未満|まで)/g, " ");
         /* 「LPを欠片に変換」は収入ではなく明細。 */
         if (/変換|換算/.test(line)) {
           spends.push({ name: line, lp: 0, shards: 0, raw: line, reason: "換算行のため金額は未確定" });
@@ -1803,7 +1841,7 @@
         }
         /* 「4 課」のように数字を含んでも通貨と数値の並びが
            间断とそれである（「90LP」「29欠片」なら数値が通貨名に隣接）。 */
-        if (!/\d\s*(LP|欠片|かけら|欠けら|カケラ)/i.test(line) && !/現在|残/.test(line)) continue;
+        if (!/\d\s*(LP|欠片|かけら|欠けら|カケラ|欠け片)/i.test(line) && !/現在|残/.test(line)) continue;
         if (!/現在|残/.test(line)) {
           reasons.push({ line: line, reason: "通貨か金額が読み取れない" });
         }
@@ -1812,6 +1850,8 @@
 
       /* 支出 */
       if (mode === "spend") {
+        /* 明示通貨消費が既に追加された行を支出節で再解析すると二重計上になる。 */
+        if (currencySpend) continue;
         /* 支出節に書かれた購入行は所持の証跡。名前だけはいつでも勝ちに積む
            （「刺し貫く貫通購入：現在130LP」「正義購入 現在87欠片」など）。
            金額の記帳は支出読みに任せる。 */
@@ -1844,13 +1884,13 @@
           /* 残額だけの行。通貨名が無ければ純粋な残WRITE。
              通貨名があれば「130LP を使った」という読みできるので、
              金額として拾う（Foobar　現在130LP → LP 130）。 */
-          if (!/(LP|欠片|かけら|欠けら|カケラ)/i.test(normalizeAmountText(line))) continue;
+          if (!/(LP|欠片|かけら|欠けら|カケラ|欠け片)/i.test(normalizeAmountText(line))) continue;
         }
 
         /* 両通貨が 1 行に並ぶことがある:
            「LPを欠片に変換：+11欠片 -22LP」「150LP消費　300LPへ」。 */
         var cleanedSpend = normalizeAmountText(line)
-          .replace(/\d+\s*(LP|欠片|かけら|欠けら|カケラ)\s*へ\s*$/g, " ")
+          .replace(/\d+\s*(LP|欠片|かけら|欠けら|カケラ|欠け片)\s*へ\s*$/g, " ")
           .replace(/残り\s*-?\d+/gi, " ");
 
         var lp = isRemainderOnly ? amountNear(cleanedSpend, "lp", false) : amountNear(line, "lp", false);
@@ -1892,7 +1932,8 @@
            本体処理で作られた「支出額が読み取れない」等の理由へ紐付ける。 */
         const hasCurrentBalanceAction = /(?:現在|現座|残り|残高)/.test(sourceLine) &&
           /消費|支出|支払|購入|買っ|使用|行使|抽出|ガチャ|獲得|入手|取得/.test(sourceLine);
-        const hasFinancialAction = hasTicketEvent || hasRosterGainEvent || hasGachaResult || hasCurrentBalanceAction ||
+        const hasUnparsedExpense = hasUnparsedExplicitExpense(sourceLine);
+        const hasFinancialAction = hasTicketEvent || hasRosterGainEvent || hasGachaResult || hasCurrentBalanceAction || hasUnparsedExpense ||
           ((expected.lp || expected.shards || directMoneyRow) &&
             /報酬|収入|獲得|入手|取得|付与|支給|補填|受領|被り|重複|消費|使用|支払|支出|購入|買っ|抽出|ガチャ|変換|換算/.test(sourceLine));
         if (auditModeBefore !== "current" && (directMoneyRow || hasFinancialAction || hasSourceFinding) &&
@@ -2047,13 +2088,13 @@
       cost[/^(LP|ＬＰ)$/i.test(String(cur || "LP")) ? "lp" : "shards"] = Math.abs(n);
       return { name: String(name).trim(), lp: cost.lp, shards: cost.shards };
     }
-    var m = t.match(/^購入[：:]\s*([^0-9\s：:][^：:]{0,24}?)\s*[-−]?\s*([0-9０-９]+)\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ)?\s*[。．.」』]*$/);
+    var m = t.match(/^購入[：:]\s*([^0-9\s：:][^：:]{0,24}?)\s*[-−]?\s*([0-9０-９]+)\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片)?\s*[。．.」』]*$/);
     if (m) return mk(m[1], m[2], m[3]);
-    m = t.match(/^([^0-9\s：:][^：:]{0,24}?)\s*(?:購入|消費)\s*[-−]?\s*([0-9０-９]+)\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ)?\s*[。．.」』]*$/);
+    m = t.match(/^([^0-9\s：:][^：:]{0,24}?)\s*(?:購入|消費)\s*[-−]?\s*([0-9０-９]+)\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片)?\s*[。．.」』]*$/);
     if (m) return mk(m[1], m[2], m[3]);
-    m = t.match(/^(LP|ＬＰ|欠片|かけら|欠けら|カケラ)?\s*[-−]?\s*([0-9０-９]+)\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ)?[^「『]*[「『]([^「『」』]+)[」』].*?(?:購入|消費)\s*[。．.」』]*$/);
+    m = t.match(/^(LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片)?\s*[-−]?\s*([0-9０-９]+)\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片)?[^「『]*[「『]([^「『」』]+)[」』].*?(?:購入|消費)\s*[。．.」』]*$/);
     if (m) return mk(m[4], m[2], m[3] || m[1]);
-    m = t.match(/^([^0-9\s：:][^：:]{0,24}?)\s*(?:購入|消費)[：:]\s*[-−]\s*([0-9０-９]+)\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ)?\s*[。．.」』]*$/);
+    m = t.match(/^([^0-9\s：:][^：:]{0,24}?)\s*(?:購入|消費)[：:]\s*[-−]\s*([0-9０-９]+)\s*(LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片)?\s*[。．.」』]*$/);
     if (m) return mk(m[1], m[2], m[3]);
     return null;
   }
@@ -2088,7 +2129,7 @@
     var events = Array.from(text.matchAll(/購入した|購入|買った/g));
     if (!events.length) return [];
     var out = [];
-    var currencyPattern = "(?:LP|ＬＰ|自我の(?:破片|欠片)|欠片|かけら|欠けら|カケラ)";
+    var currencyPattern = "(?:LP|ＬＰ|自我の(?:破片|欠片)|欠片|かけら|欠けら|カケラ|欠け片)";
     var costPattern = new RegExp(
       "^\\s*(?:(?:ので|ため)\\s*)?[、,，:：\\s　]*(?:(" + currencyPattern +
       ")\\s*[-−]\\s*([0-9][0-9,]*)|[-−]\\s*([0-9][0-9,]*)\\s*(" +
