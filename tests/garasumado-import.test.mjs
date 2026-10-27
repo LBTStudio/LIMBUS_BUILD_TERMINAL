@@ -1290,7 +1290,7 @@ test("全49件の硝子窓サンプルを個別監査し、所持・金額イベ
           continue;
         }
         if (coverage.status === "unresolved" ||
-            (coverage.status === "mismatch" && !relatedAudit && !relatedReason)) {
+            (["mismatch", "direction-review"].includes(coverage.status) && !relatedAudit && !relatedReason)) {
           issues.push(sampleId + " / " + (row.name || ("履歴" + (i + 1))) +
             ": 行単位監査が未解決です（" + (lineIndex + 1) + "行目）: " + sourceLine.slice(0, 100));
         }
