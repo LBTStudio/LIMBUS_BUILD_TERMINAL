@@ -46,6 +46,8 @@ test("クラウド復元・JSON復元はいずれも現在のデータを確認�
   assert.match(client, /downloadSnapshot\(local, "before-cloud-restore"\)/);
   assert.match(client, /downloadSnapshot\(local, "before-json-restore"\)/);
   assert.match(client, /async function restoreWithKey/);
+  assert.match(client, /async function compareLocalAndCloud/);
+  assert.match(client, /async function restoreComparedCloud/);
   assert.match(client, /async function restoreCloud/);
   assert.match(client, /async function restoreFromFile/);
 });
@@ -156,7 +158,9 @@ test("オンライン保管庫テーブルをブラウザーから直接アク�
 
 test("オンライン保全UIはGoogle/Xではなく復旧キーだけに一本化する", () => {
   assert.match(client, /button\("復旧キーを発行して保全", \(\) => run\(createRecoveryKey\), "is-primary"\)/);
-  assert.match(client, /h\("label", \{ htmlFor: "lbt-cloud-recovery-key" \}, "復旧キーからクラウドを復元"\)/);
+  assert.match(client, /h\("label", \{ htmlFor: "lbt-cloud-recovery-key" \}, "復旧キーを入力してデータを照合（ログイン不要）"\)/);
+  assert.match(client, /クラウドの内容でこの端末を復元/);
+  assert.match(client, /この端末の内容でクラウドを更新/);
   assert.match(client, /復旧キー方式/);
   assert.doesNotMatch(client, /startOAuth|handleOAuthCallback|Googleと連携|Xと連携|signInWithOAuth/);
   assert.doesNotMatch(client, /古いキーは無効化|キーを再発行した場合/);
@@ -210,4 +214,31 @@ test("アクセスカウンターはアプリ本体・共有ページに設置�
   assert.doesNotMatch(accessCounter, /\b(?:localStorage|sessionStorage|document\.cookie)\s*[.\[]/);
   assert.match(fallbackWorker, /INSERT INTO site_counters \(name, value\) VALUES \('total_views', 1\)/);
   assert.doesNotMatch(fallbackWorker, /pageViews/);
+});
+
+
+test("端末間復元はログイン不要の復旧キーで照合してから選択式で実行する", () => {
+  assert.match(client, /async function compareLocalAndCloud\\(rawKey = null\\)/);
+  assert.match(client, /const remote = await getRemote\\(\\{ recoveryKey: key \\}\\)/);
+  assert.match(client, /pendingComparison = \\{[\\s\\S]*?payload: remote\\.payload[\\s\\S]*?localHash/);
+  assert.match(client, /復旧キーを入力してデータを照合（ログイン不要）/);
+  assert.match(client, /クラウドの内容でこの端末を復元/);
+  assert.match(client, /この端末の内容でクラウドを更新/);
+  assert.match(client, /comparison\\.relation === "identical"/);
+  assert.match(client, /同名ですがIDが異なるアカウント候補があります（自動統合はしません）/);
+});
+
+test("比較後にローカルまたはクラウドが変わったら古い比較結果では上書きしない", () => {
+  assert.match(client, /照合後にローカルデータが変更されています/);
+  assert.match(client, /照合後にクラウド側が更新されています/);
+  assert.match(client, /expectedRemoteRevision: selected\\.revision/);
+  assert.match(client, /expectedRemoteHash: selected\\.remoteHash/);
+  assert.match(client, /options\\.comparedRevision/);
+  assert.match(client, /options\\.comparedHash/);
+});
+
+test("復元前にJSONを退避し、復元・同期後に基準ハッシュを更新する", () => {
+  assert.match(client, /downloadSnapshot\\(local, "before-cloud-restore"\\)/);
+  assert.match(client, /writeSyncBaseline\\(await hashSnapshot\\(valid\\), revision\\)/);
+  assert.match(client, /removeStorage\\(BASELINE_HASH_KEY\\)/);
 });
