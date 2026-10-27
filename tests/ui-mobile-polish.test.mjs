@@ -64,6 +64,6 @@ test("save-state import still applies only selected, present fields and has a ze
 
 
 test("UI audit fixture stores favorites in the same string-key format consumed by PersonaCodex", () => {
-  assert.match(capture, /favorites:\\s*\\[mode \\+ \":\" \\+ p\\.no\\]/);
-  assert.doesNotMatch(capture, /favorites:\\s*\\[\\{\\s*key:/);
+  assert.match(capture, /favorites:\s*\[mode \+ ":" \+ p\.no\]/);
+  assert.doesNotMatch(capture, /favorites:\s*\[\{\s*key:/);
 });
