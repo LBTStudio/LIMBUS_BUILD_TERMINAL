@@ -208,3 +208,52 @@
    tab competes with the LivePreview edge toggle and overlaps mobile content. Keep the
    current #lbt-preview-edge-toggle as the single source of preview open/close controls. */
 .app.preview-collapsed .preview-reopen { display: none; }
+
+
+/* Narrow-screen refinements after the first real-page screenshot review. */
+.section-title-primary { overflow-wrap: normal; }
+.section-title-secondary { white-space: nowrap; }
+
+@media (max-width: 640px) {
+  .section-title-row { padding-right: 0; }
+  .section-title {
+    flex: 1 1 0;
+    min-width: 0;
+    font-size: clamp(13px, 3.7vw, 15px);
+    letter-spacing: .02em;
+    line-height: 1.2;
+    word-break: keep-all;
+    overflow-wrap: normal;
+  }
+  .section-subtitle {
+    flex: 1 0 100%;
+    margin-left: 0;
+    padding-right: 0;
+    line-height: 1.45;
+  }
+
+  /* Record has six destinations as well; show all of them in two rows. */
+  .record-tabbar { width: 100%; min-width: 0; }
+  .record-tabbar .segmented {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-auto-rows: minmax(42px, auto);
+    gap: 4px;
+    width: 100%;
+    max-width: 100%;
+    overflow: visible;
+  }
+  .record-tabbar .segmented > button {
+    min-width: 0;
+    min-height: 42px;
+    padding: 8px 3px;
+    flex: initial;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: center;
+    line-height: 1.3;
+  }
+}
+
+/* Do not leave a second, older "PREVIEW" button alongside LivePreview's edge control. */
+.app.preview-collapsed .preview-reopen { display: none; }
