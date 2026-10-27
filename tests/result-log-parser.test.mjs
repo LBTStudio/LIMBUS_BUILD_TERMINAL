@@ -46,13 +46,43 @@ test("通貨の識別: LP・欠片・両方の3値", () => {
   assert.equal(P.classifyCurrency("南部セブン協会5課フィクサー"), null, "通貨語は無い");
 });
 
-test("硝子の破片は LP・欠片通貨に誤分類せず、登録候補として残す", () => {
-  assert.equal(P.classifyCurrency("硝子の破片x2"), null);
-  const parsed = P.parseResultLog("【A】\n硝子の破片 x2");
-  const records = parsed.sessions[0].records;
-  assert.equal(records.some((record) => record.kind === "currency"), false);
-  assert.ok(records.some((record) => record.kind === "registration" && record.text.includes("硝子の破片")));
+test("硝子の破片・欠片・かけらは LP・欠片通貨に誤分類せず、登録候補として残す", () => {
+  const itemRows = [
+    "硝子の破片x2",
+    "硝子の欠片2",
+    "硝子の欠片×2",
+    "硝子のかけら×3",
+    "硝子の破片2使用（残1）",
+    "ガラスの欠片1",
+    "硝酸の欠片x1"
+  ];
+  for (const raw of itemRows) {
+    assert.equal(P.classifyCurrency(raw), null, raw + " を通貨と誤認しない");
+    const parsed = P.parseResultLog("【A】\n" + raw);
+    const records = parsed.sessions[0].records;
+    assert.equal(records.some((record) => record.kind === "currency" || record.kind === "balance"), false,
+      raw + " は通貨・残高レコードにしない");
+    const itemName = raw.replace(/x2|×2|×3|x1|2使用（残1）/g, "");
+    assert.ok(records.some((record) => record.kind === "registration" && record.text.includes(itemName)),
+      raw + " は登録候補として残す");
+  }
+  assert.equal(P.classifyCurrency("自我の欠片20"), "shards", "自我の欠片は通貨として保つ");
+  assert.equal(P.classifyCurrency("LP20 硝子の欠片2"), "lp", "アイテム名を除いたLPだけを読む");
 });
+
+test("実ログ123区分に含まれる硝子系アイテムを通貨に誤分類しない", () => {
+  const sourceLines = [...new Set((corpus.log + "\n" + corpus.garasumado).split(/\r?\n/)
+    .filter((line) => /(?:硝子|ガラス|硝酸)の(?:破片|欠片|欠け片|かけら|欠けら|カケラ)/.test(line)))];
+  assert.ok(sourceLines.length >= 6, "複数の実例で硝子系アイテム表記を監査する");
+  for (const sourceLine of sourceLines) {
+    const cleaned = sourceLine.replace(/(?:硝子|ガラス|硝酸)の(?:破片|欠片|欠け片|かけら|欠けら|カケラ)/g, " ");
+    const hasLp = /LP|Lp|lp|ＬＰ/.test(cleaned);
+    const hasShard = /欠片|欠牁|カケラ|かけら|けっか|欠けら|欠け片/.test(cleaned);
+    const expected = hasLp && hasShard ? "both" : hasLp ? "lp" : hasShard ? "shards" : null;
+    assert.equal(P.classifyCurrency(sourceLine), expected, "実データ: " + sourceLine);
+  }
+});
+
 
 test("欠け片の表記ゆれを通貨として読み、硝子・硝酸のアイテム名は除外する", () => {
   assert.equal(P.classifyCurrency("欠け片25 現在40"), "shards");
@@ -69,8 +99,9 @@ test("通貨の識別: 全実データで外さない（ゲート）", () => {
     for (const raw of text.split("\n")) {
       const line = raw.trim();
       if (!line) continue;
-      const hasShard = /欠片|欠牁|カケラ|かけら/.test(line);
-      const hasLp = /LP|Lp|lp/.test(line);
+      const currencyText = line.replace(/(?:硝子|ガラス|硝酸)の(?:破片|欠片|欠け片|かけら|欠けら|カケラ)/g, " ");
+      const hasShard = /欠片|欠牁|カケラ|かけら|けっか|欠けら|欠け片/.test(currencyText);
+      const hasLp = /LP|Lp|lp|ＬＰ/.test(line);
       const truth = hasShard && hasLp ? "both" : hasShard ? "shards" : hasLp ? "lp" : null;
       if (!truth) continue;
       total += 1;
@@ -103,7 +134,9 @@ test("収支の識別: 報酬額・支出明細・残高アンカーを区別す
 test("全リザルトログを行単位監査し、収入・残高・支出節を取り違えない", () => {
   const sourceSessions = P.splitSessions(corpus.log);
   const parsedSessions = P.parseResultLog(corpus.log).sessions;
-  assert.ok(sourceSessions.length >= 125, "少なくとも125区分の実ログを分割できる（実際 " + sourceSessions.length + "）");
+  const singleLineHeadings = (corpus.log.match(/^【[^\r\n]*】\s*$/gm) || []).length;
+  assert.equal(singleLineHeadings, 123, "原文コーパスの一行見出し123区分を固定サンプルとして保持");
+  assert.ok(sourceSessions.length >= 125, "折り返し見出しを含む実ログの全区分を分割できる（実際 " + sourceSessions.length + "）");
   assert.equal(parsedSessions.length, sourceSessions.length, "分割した全区分の出力が保持される");
 
   let auditedCurrencyRows = 0;
