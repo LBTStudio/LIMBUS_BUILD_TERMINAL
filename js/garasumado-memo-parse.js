@@ -965,10 +965,10 @@
     return { status: "condition-unconfirmed", raw: String(line || "").trim(), skipLine: !hasTicket };
   }
 
-  function auditMoneyTotalsOfLine(rawLine) {
+  function normalizeAuditMoneyLine(rawLine) {
     let text = normalizeAmountText(rawLine);
     text = stripAlternativePriceCondition(text).text;
-    text = stripBalances(text)
+    return stripBalances(text)
       .replace(/(?:硝子|硝酸)の(?:破片|欠片|かけら|欠けら|カケラ|欠け片)/g, " ")
       .replace(/-?\d+(?:\s*[+＋]\s*\d+)*\s*(LP|ＬＰ|(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片))\s*へ/gi, " ")
       .replace(/\d+\s*[×xｘ]\s*\d+\s*[=＝]\s*(\d+)/g, "$1")
@@ -976,36 +976,116 @@
       .replace(/\d+\s*[+＋]\s*[^\s\d]+\s*[=＝]\s*(\d+)/g, "$1")
       .replace(/\d+(?:\s*[+＋]\s*\d+)*\s*[→⇒]\s*/g, " ")
       .replace(/(LP|ＬＰ)\s*報酬/gi, "$1");
-    const totals = { lp: 0, shards: 0 };
+  }
+
+  function auditMoneyRowsOfLine(rawLine, mode) {
+    const text = normalizeAuditMoneyLine(rawLine);
+    const rows = [];
     const currencyPattern = /(LP|ＬＰ|(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片))/gi;
+    const cues = [
+      { kind: "spend", regex: /(?:消費|支出|支払|購入|買っ|使用)/g },
+      { kind: "income", regex: /(?:報酬|収入|獲得|入手|取得|受領|付与|支給|補填|もら)/g }
+    ];
     let match;
     while ((match = currencyPattern.exec(text)) !== null) {
       const prefix = text.slice(0, match.index);
       const before = prefix.match(/([+\-−]?\d[\d,]*(?:\s*[+＋]\s*\d[\d,]*)*)\s*(?:[：:]?\s*)$/);
       let rawAmount = before ? before[1] : null;
+      let amountStart = before ? before.index + before[0].indexOf(before[1]) : -1;
+      let amountEnd = before ? amountStart + before[1].length : -1;
       if (rawAmount === null) {
         const after = text.slice(currencyPattern.lastIndex).match(/^\s*[：:]?\s*([+\-−]?\d[\d,]*(?:\s*[+＋]\s*\d[\d,]*)*)/);
-        if (after) rawAmount = after[1];
+        if (after) {
+          rawAmount = after[1];
+          amountStart = currencyPattern.lastIndex + after[0].indexOf(after[1]);
+          amountEnd = amountStart + after[1].length;
+        }
       }
       if (rawAmount === null) continue;
-      const parts = rawAmount.replace(/\s/g, "").replace(/^[+\-−]/, "").split(/[+＋]/);
+      const compact = rawAmount.replace(/\s/g, "");
+      const sign = compact.charAt(0);
+      const parts = compact.replace(/^[+\-−]/, "").split(/[+＋]/);
       const amount = parts.reduce((sum, part) => sum + Number(part.replace(/,/g, "")), 0);
-      if (!Number.isSafeInteger(amount)) continue;
-      totals[/^(?:LP|ＬＰ)$/i.test(match[1]) ? "lp" : "shards"] += amount;
+      if (!Number.isSafeInteger(amount) || amount < 0) continue;
+      const currency = /^(?:LP|ＬＰ)$/i.test(match[1]) ? "lp" : "shards";
+      let direction = sign === "-" || sign === "−" ? "spend" : sign === "+" || sign === "＋" ? "income" : "";
+      let closest = null;
+      let tiedKinds = false;
+      if (!direction && amountStart >= 0) {
+        for (const cue of cues) {
+          cue.regex.lastIndex = 0;
+          let cueMatch;
+          while ((cueMatch = cue.regex.exec(text)) !== null) {
+            const cueStart = cueMatch.index;
+            const cueEnd = cueStart + cueMatch[0].length;
+            const distance = cueEnd < amountStart ? amountStart - cueEnd
+              : cueStart > amountEnd ? cueStart - amountEnd : 0;
+            if (!closest || distance < closest.distance) {
+              closest = { kind: cue.kind, distance };
+              tiedKinds = false;
+            } else if (distance === closest.distance && cue.kind !== closest.kind) {
+              tiedKinds = true;
+            }
+          }
+        }
+        if (closest && !tiedKinds) direction = closest.kind;
+      }
+      if (!direction && (mode === "income" || mode === "spend")) direction = mode;
+      rows.push({ currency, amount, direction: direction || "unknown", rawAmount });
     }
+    return rows;
+  }
+
+  function auditMoneyTotalsOfLine(rawLine) {
+    const totals = { lp: 0, shards: 0 };
+    for (const row of auditMoneyRowsOfLine(rawLine, "")) totals[row.currency] += row.amount;
     return totals;
   }
 
-  function auditLineCoverage(rawLine, expected, detected, hasMoneyReviewReason, section, lineIndex) {
-    if (hasMoneyReviewReason || (expected.lp === detected.lp && expected.shards === detected.shards)) return null;
+  function auditMoneyFlowsOfLine(rawLine, mode) {
+    const flows = {
+      lpIncome: 0, lpSpend: 0, lpUnknown: 0,
+      shardsIncome: 0, shardsSpend: 0, shardsUnknown: 0
+    };
+    for (const row of auditMoneyRowsOfLine(rawLine, mode)) {
+      const key = row.currency === "lp" ? "lp" : "shards";
+      const suffix = row.direction === "income" ? "Income" : row.direction === "spend" ? "Spend" : "Unknown";
+      flows[key + suffix] += row.amount;
+    }
+    return flows;
+  }
+
+  function auditLineCoverage(rawLine, expected, detected, hasMoneyReviewReason, section, lineIndex, expectedFlows, detectedFlows) {
+    const totalsMatch = expected.lp === detected.lp && expected.shards === detected.shards;
+    let flowMatch = null;
+    if (expectedFlows && detectedFlows &&
+        !(expectedFlows.lpUnknown || expectedFlows.shardsUnknown)) {
+      flowMatch = ["lpIncome", "lpSpend", "shardsIncome", "shardsSpend"].every(
+        (key) => Number(expectedFlows[key] || 0) === Number(detectedFlows[key] || 0)
+      );
+    }
+    const directionMismatch = flowMatch === false;
+    if (hasMoneyReviewReason || (totalsMatch && !directionMismatch && (flowMatch === true || !expectedFlows))) return null;
+    if (totalsMatch && !directionMismatch && flowMatch === null) {
+      return {
+        side: "parser", code: "financial-line-direction-review", severity: "review",
+        lineIndex: lineIndex, line: String(rawLine || ""), section: section,
+        expected: { lp: expected.lp, shards: expected.shards },
+        detected: { lp: detected.lp, shards: detected.shards },
+        message: "金額候補の合計は一致していますが、原文から収支方向を一意に確定できません。収入・支出の向きを確認してください。"
+      };
+    }
     return {
-      side: "parser", code: "possible-result-detection-omission", severity: "warning",
-      lineIndex: lineIndex, line: String(rawLine || ""), section: section,
+      side: "parser", code: directionMismatch ? "possible-result-direction-misclassification" : "possible-result-detection-omission",
+      severity: "warning", lineIndex: lineIndex, line: String(rawLine || ""), section: section,
       expected: { lp: expected.lp, shards: expected.shards },
       detected: { lp: detected.lp, shards: detected.shards },
-      message: "原文の通貨額候補は LP " + expected.lp + " / 欠片 " + expected.shards +
-        " ですが、この行から生成された記録は LP " + detected.lp + " / 欠片 " + detected.shards +
-        " です。リザルト側の検出漏れ・金額の取り違え候補として原文を確認してください。"
+      expectedFlows: expectedFlows || null, detectedFlows: detectedFlows || null,
+      message: directionMismatch
+        ? "原文の金額合計は一致していても、収入・支出の向きが解析結果と一致しません。取引方向の誤分類候補として原文を確認してください。"
+        : "原文の通貨額候補は LP " + expected.lp + " / 欠片 " + expected.shards +
+          " ですが、この行から生成された記録は LP " + detected.lp + " / 欠片 " + detected.shards +
+          " です。リザルト側の検出漏れ・金額の取り違え候補として原文を確認してください。"
     };
   }
 
@@ -1103,6 +1183,7 @@
     var lines = String(memo || "").split(/\r?\n/);
     var sourceAuditAnalysis = analyzeSourceMemo(lines);
     var sourceAudits = sourceAuditAnalysis.findings.slice();
+    var financialCoverage = [];
     var mode = "income";
     var egoPurchaseMode = false;
     var egoPurchaseItems = [];
@@ -1137,7 +1218,12 @@
 
     for (var i = 0; i < lines.length; i++) {
       var sourceLine = String(lines[i]).trim();
-      var auditBefore = { lp: income.lp, shards: income.shards, spends: spends.length, reasons: reasons.length };
+      var auditBefore = {
+        lp: income.lp, shards: income.shards, spends: spends.length, reasons: reasons.length,
+        ticketPersona: tickets.persona, ticketEgo: tickets.ego, ticketChoice: tickets.choice,
+        pack: JSON.stringify(pack), wins: wins.length, consumedItems: consumedItems.length,
+        ticketSpends: ticketSpends.length
+      };
       var auditModeBefore = mode;
       try {
       var typoCurrentMarker = /現座(?=\s*(?:(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|けっか)\s*)?[0-9０-９])/i.test(sourceLine);
@@ -1760,22 +1846,72 @@
         const cleanedAuditLine = stripBalances(normalizeAmountText(sourceLine)).replace(/[：:]+$/, "").trim();
         const directMoneyRow = standaloneCurrencyAmount(cleanedAuditLine, "lp") ||
           standaloneCurrencyAmount(cleanedAuditLine, "shards");
-        const hasFinancialAction = /報酬|収入|獲得|入手|取得|付与|支給|補填|受領|被り|重複|消費|使用|支払|支出|購入|買っ|抽出|ガチャ|変換|換算/.test(sourceLine);
-        if (auditModeBefore !== "current" && !sourceAuditAnalysis.skipLines.has(i) && (directMoneyRow || hasFinancialAction)) {
-          const expected = auditMoneyTotalsOfLine(sourceLine);
-          if (expected.lp || expected.shards) {
-            const newSpends = spends.slice(auditBefore.spends);
-            const got = {
-              lp: Math.abs(income.lp - auditBefore.lp) + auditSpendTotal(newSpends, "lp"),
-              shards: Math.abs(income.shards - auditBefore.shards) + auditSpendTotal(newSpends, "shards")
-            };
-            const addedReasons = reasons.slice(auditBefore.reasons);
-            const moneyReviewReason = addedReasons.some(function (entry) {
-              return /LP|欠片|通貨|金額|支出|収入|残高|計算|計上|価格/.test(String(entry.reason || ""));
-            });
-            const coverageFinding = auditLineCoverage(sourceLine, expected, got, moneyReviewReason, auditModeBefore, i + 1);
-            if (coverageFinding) sourceAudits.push(coverageFinding);
+        const hasFinancialAction = /報酬|収入|獲得|入手|取得|付与|支給|補填|受領|被り|重複|消費|使用|支払|支出|購入|買っ|抽出|ガチャ|変換|換算|チケット|チケ/.test(sourceLine);
+        const hasSourceFinding = sourceAuditAnalysis.findings.some(function (entry) {
+          return entry && (entry.lineIndex === i + 1 || entry.relatedLineIndex === i + 1 ||
+            (Array.isArray(entry.relatedLines) && entry.relatedLines.some((row) => row.lineIndex === i + 1)));
+        });
+        const expected = auditMoneyTotalsOfLine(sourceLine);
+        const expectedFlows = auditMoneyFlowsOfLine(sourceLine, auditModeBefore);
+        if (auditModeBefore !== "current" && (directMoneyRow || hasFinancialAction || hasSourceFinding) &&
+            (expected.lp || expected.shards || hasFinancialAction || hasSourceFinding)) {
+          const newSpends = spends.slice(auditBefore.spends);
+          const detectedFlows = {
+            lpIncome: Math.max(0, income.lp - auditBefore.lp),
+            lpSpend: auditSpendTotal(newSpends, "lp"),
+            lpUnknown: 0,
+            shardsIncome: Math.max(0, income.shards - auditBefore.shards),
+            shardsSpend: auditSpendTotal(newSpends, "shards"),
+            shardsUnknown: 0
+          };
+          const got = {
+            lp: detectedFlows.lpIncome + detectedFlows.lpSpend,
+            shards: detectedFlows.shardsIncome + detectedFlows.shardsSpend
+          };
+          const addedReasons = reasons.slice(auditBefore.reasons);
+          const moneyReviewReason = addedReasons.some(function (entry) {
+            return /LP|欠片|通貨|金額|支出|収入|残高|計算|計上|価格|チケット|抽出/.test(String(entry.reason || ""));
+          });
+          const skippedForSourceAudit = sourceAuditAnalysis.skipLines.has(i);
+          let status = "matched";
+          let coverageFinding = null;
+          const moneyBearing = expected.lp > 0 || expected.shards > 0;
+          if (skippedForSourceAudit || hasSourceFinding) {
+            status = "source-reviewed";
+          } else if (moneyBearing) {
+            coverageFinding = auditLineCoverage(sourceLine, expected, got, moneyReviewReason, auditModeBefore, i + 1, expectedFlows, detectedFlows);
+            if (coverageFinding) {
+              if (!moneyReviewReason) sourceAudits.push(coverageFinding);
+              status = moneyReviewReason ? "reviewed-by-parser-reason" :
+                coverageFinding.severity === "review" ? "direction-review" : "mismatch";
+            }
+          } else if (hasFinancialAction) {
+            const ticketDelta = (tickets.persona - auditBefore.ticketPersona) +
+              (tickets.ego - auditBefore.ticketEgo) + (tickets.choice - auditBefore.ticketChoice);
+            const outputDelta = ticketDelta !== 0 || JSON.stringify(pack) !== auditBefore.pack ||
+              wins.length > auditBefore.wins || consumedItems.length > auditBefore.consumedItems ||
+              ticketSpends.length > auditBefore.ticketSpends || spends.length > auditBefore.spends;
+            if (!outputDelta && !addedReasons.length && !hasSourceFinding) {
+              status = "unresolved";
+              sourceAudits.push({
+                side: "parser", code: "financial-action-unaccounted", severity: "warning",
+                lineIndex: i + 1, line: sourceLine, section: auditModeBefore,
+                expected: { lp: expected.lp, shards: expected.shards },
+                detected: got,
+                message: "金額・報酬・チケット等の操作を示す行ですが、この行から対応する記録も要確認理由も生成されていません。原文を確認してください。"
+              });
+            } else if (addedReasons.length) {
+              status = "reviewed-by-parser-reason";
+            } else {
+              status = "noncurrency-effect-recorded";
+            }
           }
+          financialCoverage.push({
+            lineIndex: i + 1, line: sourceLine, section: auditModeBefore, status: status,
+            expected: { lp: expected.lp, shards: expected.shards },
+            detected: got, expectedFlows: expectedFlows, detectedFlows: detectedFlows,
+            parserReasonCount: addedReasons.length, sourceFinding: hasSourceFinding
+          });
         }
       }
     }
@@ -1809,7 +1945,8 @@
     return {
       income: income, tickets: tickets, pack: pack, spends: spends, reasons: reasons,
       wins: wins, consumedItems: consumedItems, ticketSpends: ticketSpends,
-      currencyDiscrepancies: currencyDiscrepancies, sourceAudits: sourceAudits
+      currencyDiscrepancies: currencyDiscrepancies, sourceAudits: sourceAudits,
+      financialCoverage: financialCoverage
     };
   }
 
@@ -1828,6 +1965,7 @@
         reasons: parsed.reasons,
         currencyDiscrepancies: parsed.currencyDiscrepancies || [],
         sourceAudits: parsed.sourceAudits || [],
+        financialCoverage: parsed.financialCoverage || [],
         /* シナリオで直接払い出された人格/E.G.O。
            チケットだけ記入されている場合も「どのチケット由来か」を
            持つので、ここに入る。 */
