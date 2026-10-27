@@ -23,6 +23,8 @@
     border-radius: var(--r); writing-mode: horizontal-tb; letter-spacing: .04em;
     font-size: var(--fs-11); box-shadow: 0 4px 14px rgba(0, 0, 0, .32);
   }
+  /* Keep only the body-level edge toggle; the legacy in-app PREVIEW tab duplicates it. */
+  .app.preview-collapsed .preview-reopen { display: none; }
   .section-title-row { padding-right: 0; }
   .section-title {
     min-width: 0; word-break: keep-all; overflow-wrap: normal; line-height: 1.18;
