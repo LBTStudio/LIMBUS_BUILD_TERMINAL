@@ -52,15 +52,57 @@
     return { currency: null, assumed: false };
   }
 
-  /* --- 収支の識別 -------------------------------------------------------
-     「現在」= 支払後の残高なので支出。「・支出」節の中-advantageも支出。 */
-  const SPEND_HEAD = /^・\s*(?:支出|支払い|支付)\s*$/;
-  function classifyFlow(raw, inSpend) {
+  /* --- 収支と残高の識別 -------------------------------------------------
+     「現在」だけでは支出と断定できない。
+     「LP153 現在187」のような報酬額→残高は収入候補、
+     「品名 現在52LP」は支払い後の残高候補、
+     「・現在」の節と「現在230LP」の単独行は残高アンカーとして扱う。
+     プラス/マイナスの両方が同じ行にある変換などは方向を決めず review にする。 */
+  const SPEND_HEAD = /^・\s*(?:支出|支払い|支払|支付)\s*$/;
+  const BALANCE_HEAD = /^・\s*(?:現在|所持|残高)\s*$/;
+  const INCOME_HEAD = /^・\s*(?:報酬|収入|獲得)\s*$/;
+  const CURRENCY_WORDS = "(?:LP|ＬＰ|(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片))";
+
+  function hasMixedCurrencyDirections(line) {
+    const positive = new RegExp("(?:\\+\\s*\\d[\\d,]*\\s*" + CURRENCY_WORDS + "|" + CURRENCY_WORDS + "\\s*[:：]?\\s*\\+\\s*\\d)", "i").test(line);
+    const negative = new RegExp("(?:-\\s*\\d[\\d,]*\\s*" + CURRENCY_WORDS + "|" + CURRENCY_WORDS + "\\s*[:：]?\\s*-\\s*\\d)", "i").test(line);
+    return positive && negative;
+  }
+
+  function hasRewardAmountBeforeBalance(line) {
+    const before = canonical(line).split("現在")[0].trim();
+    if (!before || /(?:購入|消費|支出|支払|使用|買っ)/.test(before)) return false;
+    const patterns = [
+      /^(?:LP|ＬＰ)\s*(?:報酬)?\s*[:：]?\s*[+＋-−]?\s*\d/i,
+      /^(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片)\s*[:：]?\s*[+＋-−]?\s*\d/i,
+      /^[+＋-−]?\s*\d[\d,]*(?:\s*[+＋]\s*\d[\d,]*)*\s*(?:LP|ＬＰ|(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片))/i,
+      /報酬\s*(?:LP|ＬＰ|(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片))\s*[:：]?\s*[+＋-−]?\s*\d/i
+    ];
+    return patterns.some((pattern) => pattern.test(before));
+  }
+
+  function classifyFlow(raw, inSpend, inBalance) {
     const line = canonical(raw);
-    if (SPEND_HEAD.test(line)) return { flow: "spend-head", inSpend: true };
-    if (/現在/.test(line)) return { flow: "spend", inSpend: false };
-    if (inSpend) return { flow: "spend", inSpend: true };
-    return { flow: "gain", inSpend: false };
+    if (SPEND_HEAD.test(line)) return { flow: "spend-head", inSpend: true, inBalance: false };
+    if (BALANCE_HEAD.test(line)) return { flow: "balance-head", inSpend: false, inBalance: true };
+    if (INCOME_HEAD.test(line)) return { flow: "gain-head", inSpend: false, inBalance: false };
+    if (hasMixedCurrencyDirections(line)) return { flow: "review", inSpend: false, inBalance: false };
+    if (inSpend) return { flow: "spend", inSpend: true, inBalance: false };
+    if (inBalance || /^現在\s*(?:(?:LP|ＬＰ)\s*)?\d/i.test(line)) {
+      return { flow: "balance", inSpend: false, inBalance: Boolean(inBalance) };
+    }
+    if (/(?:消費|支出|支払|購入|買っ|使用|不足分.{0,8}補填)/.test(line) ||
+        new RegExp("(?:^|[\\s:：])[-−]\\s*\\d[\\d,]*\\s*" + CURRENCY_WORDS + "|" + CURRENCY_WORDS + "\\s*[:：]?\\s*[-−]\\s*\\d", "i").test(line)) {
+      return { flow: "spend", inSpend: false, inBalance: false };
+    }
+    if (/現在/.test(line)) {
+      return {
+        flow: hasRewardAmountBeforeBalance(line) ? "gain" : "spend",
+        inSpend: false,
+        inBalance: false
+      };
+    }
+    return { flow: "gain", inSpend: false, inBalance: false };
   }
 
   /* --- セッション分割 --------------------------------------------------- */
@@ -123,26 +165,44 @@
         registrationLines: 0
       };
       let inSpend = false;
+      let inBalance = false;
 
       for (const raw of session.lines) {
         const line = canonical(raw);
         if (!line) continue;
 
-        const classified = classifyFlow(raw, inSpend);
+        const classified = classifyFlow(raw, inSpend, inBalance);
         inSpend = classified.inSpend;
+        inBalance = classified.inBalance;
+        if (classified.flow === "spend-head" || classified.flow === "balance-head" || classified.flow === "gain-head") {
+          continue;
+        }
 
         const detected = detectAmount(line);
         if (detected.currency) {
-          record.currencyLines += 1;
-          record.records.push({
-            kind: "currency",
-            currency: detected.currency,
-            flow: classified.flow,
-            text: line,
-            needsAmount: true,
-            /* 通貨語が無く「現在 + 数字」だけだった行。LP として扱ったが推測である。 */
-            assumed: detected.assumed
-          });
+          if (classified.flow === "balance") {
+            record.balanceLines = (record.balanceLines || 0) + 1;
+            record.records.push({
+              kind: "balance",
+              currency: detected.currency,
+              flow: "balance",
+              text: line,
+              needsAmount: false,
+              assumed: detected.assumed
+            });
+          } else {
+            record.currencyLines += 1;
+            record.records.push({
+              kind: "currency",
+              currency: detected.currency,
+              flow: classified.flow,
+              text: line,
+              needsAmount: true,
+              needsReview: classified.flow === "review",
+              /* 通貨語が無く「現在 + 数字」だけだった行。LP として扱ったが推測である。 */
+              assumed: detected.assumed
+            });
+          }
         } else if (classified.flow !== "gain" || !/^[\s\d.,:()（）-]*$/.test(line)) {
           /* 通貨語が無い行でも名前らしきものは登録候補として残す。 */
           if (/[^\s\d.,:()（）-]/.test(line) && line.length >= 2) {
