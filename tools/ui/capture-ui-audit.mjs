@@ -344,10 +344,14 @@ async function boot() {
     if(await visible(add)) {
       await click(add);
       await snap("account-create-form","新規キャラクター作成フォーム");
-      const name=page.locator(".acct-gate input[placeholder='キャラクター名など']").first();
-      if(await visible(name)) await name.fill("UI監査用キャラクター");
+      /* アカウント名欄はラベルで識別する。実UIではこの入力欄にplaceholderが
+         無いため、placeholder依存だと空欄のまま作成を押してゲート内で停止する。 */
+      const name=page.locator(".acct-gate .acct-card--form .acct-field input").first();
+      if(!(await visible(name))) throw new Error("新規キャラクターのアカウント名入力欄が見つかりません");
+      await name.fill("UI監査用キャラクター");
       const create=page.getByRole("button",{name:"作成して開く",exact:true});
-      if(await visible(create)) await click(create);
+      if(!(await visible(create))) throw new Error("新規キャラクターの作成ボタンが見つかりません");
+      await click(create);
     } else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
   }
   await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
