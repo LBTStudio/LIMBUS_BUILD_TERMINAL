@@ -1912,8 +1912,11 @@
             message: "支出欄の行末に金額らしい数値がありますが、LP/欠片などの単位がないため通貨を推測せず計上を保留しました。"
           });
         }
+        const hasSpendBalanceRow = auditModeBefore === "spend" &&
+          (expected.lp || expected.shards) &&
+          /(?:現在|現座|残り|残高)/.test(sourceLine);
         const hasFinancialAction = hasTicketEvent || hasRosterGainEvent || hasGachaResult ||
-          hasCurrentBalanceAction || hasUnqualifiedSpendAmount ||
+          hasCurrentBalanceAction || hasSpendBalanceRow || hasUnqualifiedSpendAmount ||
           ((expected.lp || expected.shards || directMoneyRow) &&
             /報酬|収入|獲得|入手|取得|付与|支給|補填|受領|被り|重複|消費|使用|支払|支出|購入|買っ|抽出|ガチャ|変換|換算/.test(sourceLine));
         if (auditModeBefore !== "current" && (directMoneyRow || hasFinancialAction || hasSourceFinding) &&
