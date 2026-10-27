@@ -248,7 +248,7 @@
          75 が欠片の直前に残るので 75 として読める。 */
       .replace(/[（(][^）)]*[）)]/g, " ");
     var tokens = [];
-    var re = /(LP|ＬＰ|(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ))|([+-]?\d+(?:\s*[+＋]\s*\d+)*)/gi;
+    var re = /(LP|ＬＰ|(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ))|([+-]?\s*\d+(?:\s*[+＋]\s*\d+)*)/gi;
     var m;
     var lastEnd = 0;
     while ((m = re.exec(text)) !== null) {
@@ -914,7 +914,19 @@
         total += amount;
       }
     }
-    return found ? { amount: total } : null;
+    if (found) return { amount: total };
+    /* 実ログの「被りに欠片50獲得」は括弧を使わない補償表記。
+       「被りで50欠片獲得」は通常解析が扱うので、別形の「被りに通貨名・額・獲得」
+       だけを対象にし、同じ補償を二重加算しない。 */
+    const unparenthesized = text.match(/(?:被り|かぶり|重複|ダブり)\s*に\s*(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ)\s*([+]?\d[\d,]*)\s*(?:を\s*)?(?:獲得|入手|付与|補償|支給)/);
+    if (unparenthesized) {
+      const rawAmount = unparenthesized[1];
+      if (!/^\+?(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(rawAmount)) return { error: "重複補償の欠片額を読み取れません" };
+      const amount = Number(rawAmount.replace(/,/g, ""));
+      if (!Number.isSafeInteger(amount) || amount < 0) return { error: "重複補償の欠片額が安全整数の範囲外です" };
+      return { amount };
+    }
+    return null;
   }
 
   /* 「消費：LP30」「消費：欠片50×3=150」「消費：150+300→欠片450」の消費記帳。
@@ -1859,13 +1871,9 @@
             無い負額は、受け取り同士の差として従来どおり合算する。 */
             if (pairs[pi].amount > 0) addSafeAmount(income, pairs[pi].currency, pairs[pi].amount, line, reasons, "通貨収入合計");
             else if (pairs[pi].amount < 0) {
-              if (/(消費|購入|解放|支払)/.test(line)) {
-                var loss = { lp: 0, shards: 0 };
-                loss[pairs[pi].currency] = -pairs[pi].amount;
-                spends.push(loss);
-              } else {
-                addSafeAmount(income, pairs[pi].currency, pairs[pi].amount, line, reasons, "通貨収入合計");
-              }
+              var loss = { lp: 0, shards: 0, raw: line, reason: "符号付き通貨減少" };
+              loss[pairs[pi].currency] = -pairs[pi].amount;
+              spends.push(loss);
             }
           }
           continue;
