@@ -332,15 +332,38 @@ async function boot() {
   await page.waitForTimeout(700);
   if(await visible(page.locator(".acct-gate"))) {
     await snap("account-gate-initial","起動時のSINNER SELECT");
-    const add=page.locator(".acct-card--add").first();
+    const add=page.locator(".acct-gate .acct-card--add").first();
     if(await visible(add)) {
       await click(add);
       await snap("account-create-form","新規キャラクター作成フォーム");
       const name=page.locator(".acct-gate input[placeholder='キャラクター名など']").first();
-      if(await visible(name)) await name.fill("UI監査用キャラクター");
-      const create=page.getByRole("button",{name:"作成して開く",exact:true});
-      if(await visible(create)) await click(create);
-    } else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
+      if(await name.count()) {
+        await name.fill("UI監査用キャラクター");
+        // Enter invokes the same create handler as the primary button. It remains a
+        // reliable test path even when a narrow/clipped form puts the action row below
+        // the scrollport; a separate screenshot records whether that row is visible.
+        const create=page.getByRole("button",{name:"作成して開く",exact:true});
+        if(await visible(create)) {
+          await create.scrollIntoViewIfNeeded().catch(()=>{});
+          await snap("account-create-form-actions","作成フォームのアクションを表示した状態");
+          await click(create).catch(async()=>{await name.press("Enter");});
+        } else {
+          await name.press("Enter");
+        }
+      }
+      await page.waitForFunction(() => !document.querySelector(".acct-gate"), null, {timeout:12000}).catch(async()=>{
+        await snap("account-create-did-not-enter","作成後も起動ゲートが残った状態");
+        const state=await page.evaluate(()=>({
+          visibleText:(document.querySelector(".acct-gate")?.innerText||"").trim().slice(0,800),
+          accountCount:window.LBT_accounts?.list?.()?.length ?? null,
+          activeId:window.LBT_accounts?.getActiveId?.() || null
+        })).catch(e=>({diagnosticError:String(e)}));
+        throw new Error("Account creation did not dismiss SINNER SELECT: "+JSON.stringify(state));
+      });
+    } else {
+      const existing=page.locator(".acct-gate .acct-card-hit").first();
+      if(await visible(existing)) await click(existing);
+    }
   }
   await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
   const seeded=await seed().catch(e=>({ok:false,reason:String(e)}));
