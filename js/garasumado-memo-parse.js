@@ -954,7 +954,7 @@
     const text = normalizeNumericText(line);
     /* チケットから欠片への条件付き変換には専用の既存処理がある。ここで行全体を止めない。 */
     if (/(?:変換|換算)/.test(text)) return null;
-    const hasConditionalCue = /(?:達成してたら|達成したら|してたら|していたら|できたら|できなかった場合|出来なかった場合|(?:以下|以上)の場合|(?:以下|以上)なら|同じ出目なら|クリティカルかファンブルなら|条件を満たすと|条件を満たした場合|なら\s*(?:人格|E\\.?G\\.?O|エゴ|抽出|LP|ＬＰ|欠片|かけら|欠けら|カケラ|チケ|チケット))/i.test(text);
+    const hasConditionalCue = /(?:達成してたら|達成したら|してたら|していたら|できたら|できなかった場合|出来なかった場合|(?:以下|以上)の場合|(?:以下|以上)なら|同じ出目なら|クリティカルかファンブルなら|条件を満たすと|条件を満たした場合|なら\s*(?:人格|E\.?G\.?O|エゴ|抽出|LP|ＬＰ|欠片|かけら|欠けら|カケラ|チケ|チケット))/i.test(text);
     if (!hasConditionalCue || !/(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|けっか|欠け片|チケ|チケット|抽出🎫)/i.test(text) || !/\d/.test(text)) return null;
     if (/(?:条件不成立|未達成|条件を満たさなかった|同じ出目ではなかった|条件未達|失敗が確定)/.test(text)) {
       return { status: "condition-not-met", raw: String(line || "").trim(), skipLine: true };
@@ -1854,8 +1854,8 @@
         const expectedFlows = auditMoneyFlowsOfLine(sourceLine, auditModeBefore);
         const hasTicketEvent = /(?:チケット|チケ|抽出🎫)/.test(sourceLine) &&
           (/\d/.test(sourceLine) || /獲得|入手|取得|付与|支給|消費|使用|抽出|ガチャ|結果|消費済/.test(sourceLine));
-        const hasRosterGainEvent = /(?:人格|E\\.?G\\.?O|エゴ).*(?:獲得|入手|取得)|(?:獲得|入手|取得).*(?:人格|E\\.?G\\.?O|エゴ)/i.test(sourceLine);
-        const hasGachaResult = /ガチャ.*(?:結果|→|⇒)|(?:人格|E\\.?G\\.?O|エゴ)獲得\s*[→⇒:：]/i.test(sourceLine);
+        const hasRosterGainEvent = /(?:人格|E\.?G\.?O|エゴ).*(?:獲得|入手|取得)|(?:獲得|入手|取得).*(?:人格|E\.?G\.?O|エゴ)/i.test(sourceLine);
+        const hasGachaResult = /ガチャ.*(?:結果|→|⇒)|(?:人格|E\.?G\.?O|エゴ)獲得\s*[→⇒:：]/i.test(sourceLine);
         const hasFinancialAction = hasTicketEvent || hasRosterGainEvent || hasGachaResult ||
           ((expected.lp || expected.shards || directMoneyRow) &&
             /報酬|収入|獲得|入手|取得|付与|支給|補填|受領|被り|重複|消費|使用|支払|支出|購入|買っ|抽出|ガチャ|変換|換算/.test(sourceLine));
