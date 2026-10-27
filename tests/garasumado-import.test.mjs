@@ -120,11 +120,11 @@ test("結果カード用 draft は元記録の監査結果を引き継ぐ", () =
     }],
     groups: []
   };
-  const draft = G.buildResultDraft(manifest, {});
   manifest.scenarios[0].financialCoverage = [{
     lineIndex: 1, line: "欠片50×3=149欠片", status: "source-reviewed",
     expected: { lp: 0, shards: 149 }, detected: { lp: 0, shards: 0 }
   }];
+  const draft = G.buildResultDraft(manifest, {});
   assert.equal(draft.blocks.length, 1, "警告だけのシナリオもカード候補として残す");
   assert.deepEqual(
     JSON.parse(JSON.stringify(draft.blocks[0].sourceAudits)),
@@ -1284,7 +1284,8 @@ test("全49件の硝子窓サンプルを個別監査し、所持・金額イベ
           Object.keys(scenario.pack || {}).length > 0 ||
           (scenario.wins || []).length > 0 ||
           (scenario.reasons || []).length > 0 ||
-          (scenario.ticketSpends || []).length > 0;
+          (scenario.ticketSpends || []).length > 0 ||
+          (scenario.sourceAudits || []).some((entry) => entry && entry.severity !== "info");
         if (!recognized) {
           issues.push(sampleId + " / " + (row.name || ("履歴" + (i + 1))) + ": 金額と操作語を含む履歴が無言で未解析: " + memo.slice(0, 100).replace(/\s+/g, " "));
         }
