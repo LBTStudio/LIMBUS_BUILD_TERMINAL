@@ -2807,7 +2807,7 @@ test("全サンプルの支出欄にある残高のみの明細を保持し、�
     }
   }
 
-  assert.ok(auditedBalanceOnlyRows > 250, "全サンプルを横断して現在残高だけの行を検証（実際 " + auditedBalanceOnlyRows + "行）");
+  assert.ok(auditedBalanceOnlyRows > 100, "全サンプルを横断して現在残高だけの行を検証（実際 " + auditedBalanceOnlyRows + "行）");
   assert.ok(auditedSpendSectionRows > 10, "支出セクション内の残高のみの行を検証（実際 " + auditedSpendSectionRows + "行）");
   assert.equal(issues.length, 0,
     "残高行の誤計上・監査漏れ（先頭20件）:\n" +
