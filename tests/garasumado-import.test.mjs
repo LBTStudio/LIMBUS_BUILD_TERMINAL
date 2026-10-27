@@ -77,6 +77,26 @@ test("リザルト側の通貨検出差分を行単位で記録する", () => {
   assert.ok(!audit.sourceAudits.some((entry) => entry.side === "parser"), "正しく読めた金額に検出漏れ警告を付けない");
 });
 
+
+test("検出漏れ監査は元記録側と別の parser-side 判定を返し、差分の行を保持する", () => {
+  const finding = MEMO.auditLineCoverage(
+    "報酬：LP+40 / 欠片+25",
+    { lp: 40, shards: 25 },
+    { lp: 0, shards: 25 },
+    false,
+    "income",
+    1
+  );
+  assert.ok(finding, "原文40LPに対して解析記録0LPなら警告を生成する");
+  assert.equal(finding.side, "parser");
+  assert.equal(finding.code, "possible-result-detection-omission");
+  assert.deepEqual({ ...finding.expected }, { lp: 40, shards: 25 });
+  assert.deepEqual({ ...finding.detected }, { lp: 0, shards: 25 });
+  assert.match(finding.message, /リザルト側の検出漏れ/);
+  assert.equal(MEMO.auditLineCoverage("曖昧な金額行", { lp: 40, shards: 0 }, { lp: 0, shards: 0 }, true, "income", 1), null,
+    "すでに金額確認理由がある行へ重複警告を出さない");
+});
+
 test("memo の収入は「現在NN」ではなく行頭の金額を読む", () => {
   const r = MEMO.parseMemo("90LP：現在100LP\n29欠片：現在39欠片");
   assert.equal(r.income.lp, 90, "収入 LP は 90（現在 100 は残額）");
