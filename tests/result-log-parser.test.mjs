@@ -153,7 +153,7 @@ test("全リザルトログを行単位監査し、収入・残高・支出節�
       }
       if (wasInSpend && expected.flow === "spend") spendSectionRows++;
       if (!wasInSpend && /現在/.test(line) &&
-          /^(?:(?:LP|ＬＰ|(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片))\s*[:：]?\s*[+＋-−]?\s*\d|[+＋-−]?\s*\d[\d,]*(?:\s*[+＋]\s*\d[\d,]*)*\s*(?:LP|ＬＰ|(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片)))/i.test(line.split("現在")[0].trim())) {
+          /^(?:(?:LP|ＬＰ|(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片))\s*[:：]?\s*[+＋−-]?\s*\d|[+＋−-]?\s*\d[\d,]*(?:\s*[+＋]\s*\d[\d,]*)*\s*(?:LP|ＬＰ|(?:自我の)?(?:欠片|かけら|欠けら|カケラ|けっか|欠け片)))/i.test(line.split("現在")[0].trim())) {
         rewardBalanceRows++;
         if (expected.flow !== "gain") failures.push(source.title + ": 報酬額＋現在残高行を収入として保持できない: " + line);
       }
@@ -167,7 +167,7 @@ test("全リザルトログを行単位監査し、収入・残高・支出節�
   assert.ok(rewardBalanceRows > 100, "報酬額＋残高形式の大量サンプルを監査（実際 " + rewardBalanceRows + " 行）");
   assert.ok(explicitBalanceRows > 0, "残高アンカーも取引額と分離する");
   assert.ok(spendSectionRows > 0, "支出節の明細を支出として残す");
-  assert.deepEqual(failures.slice(0, 12), [], "コーパスの監査不一致（先頭12件）:\\n" + failures.slice(0, 12).join("\\n"));
+  assert.deepEqual(failures.slice(0, 12), [], "コーパスの監査不一致（先頭12件）:\n" + failures.slice(0, 12).join("\n"));
 });
 
 /* --- 表記ゆらぎ ------------------------------------------------------- */
