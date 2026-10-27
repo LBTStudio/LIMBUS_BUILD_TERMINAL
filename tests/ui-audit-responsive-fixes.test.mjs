@@ -36,11 +36,10 @@ test("スマホのショップ6分類は3×2に収まり、ガチャを右端に
   assert.match(css, /\.shop-tabs\s*>\s*button\s*\{[\s\S]*?min-height:\s*44px;[\s\S]*?white-space:\s*normal;/);
 });
 
-test("スマホ下部ナビは既存の6列×2段を維持し、監査修正がナビ配置を上書きしない", () => {
+test("スマホ下部ナビは7つの入口を4列×2段に分け、「その他」だけが孤立しない", () => {
   const refinements = read("../assets/v56-refinements.css");
-  assert.match(refinements, /grid-template-columns:\s*repeat\(6, minmax\(0, 1fr\)\)/);
   assert.match(refinements, /grid-template-rows:\s*repeat\(2, 52px\)/);
-  assert.doesNotMatch(css, /\.rail\s*\{\s*grid-template-columns:\s*repeat\(4/);
+  assert.match(css, /\.rail\s*\{\s*grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\);\s*\}/);
 });
 
 test("セーブデータ読み込み確認はダイアログ意味付け・フォーカストラップ・Esc終了を持つ", () => {
