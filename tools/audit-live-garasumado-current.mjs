@@ -181,13 +181,23 @@ function scanUnwarnedCurrencyLines(history, parsedRows, docId) {
               status: String(item.status || "missing-status"),
               section: String(item.section || "unknown"),
               code: String(item.code || ""),
-              parserReasonCount: Number(item.parserReasonCount) || 0
+              parserReasonCount: Number(item.parserReasonCount) || 0,
+              expected: item.expected || null,
+              detected: item.detected || null,
+              expectedFlows: item.expectedFlows || null,
+              detectedFlows: item.detectedFlows || null
             }));
           const parsedSpendFacts = (parsed.spends || []).map((spend) => ({
             lp: Number(spend.lp) || 0,
             shards: Number(spend.shards) || 0,
             rawShape: safeFinancialShape(spend.raw || spend.name || "")
           }));
+          const parsedTicketFacts = (parsed.ticketSpends || []).map((ticket) => ({
+            kind: String(ticket.kind || "unknown"),
+            count: Number(ticket.count) || 0,
+            rawShape: safeFinancialShape(ticket.raw || "")
+          }));
+          const parsedIncome = { lp: Number(parsed.income?.lp) || 0, shards: Number(parsed.income?.shards) || 0 };
           const relatedReasons = (parsed.reasons || [])
             .filter((reason) => String(reason.line || "").trim() === line)
             .map((reason) => ({
@@ -203,7 +213,8 @@ function scanUnwarnedCurrencyLines(history, parsedRows, docId) {
           out.push({
             id: docId, row: index + 1, title: String(row?.name || "無題"),
             currency, amounts: matches, line, shape: safeFinancialShape(line),
-            matchingCoverage, parsedSpendFacts, relatedReasons, relatedAuditCodes
+            matchingCoverage, parsedSpendFacts, parsedTicketFacts, parsedIncome,
+            relatedReasons, relatedAuditCodes
           });
         }
       }
@@ -512,6 +523,7 @@ const safeAudit = {
   unwarnedCurrencyRefs: allUnwarnedCurrencyLines.map((row) => ({
     id: row.id, scenarioRow: row.row, currency: row.currency, tokenCount: row.amounts.length,
     shape: row.shape, matchingCoverage: row.matchingCoverage, parsedSpendFacts: row.parsedSpendFacts,
+    parsedTicketFacts: row.parsedTicketFacts, parsedIncome: row.parsedIncome,
     relatedReasons: row.relatedReasons, relatedAuditCodes: row.relatedAuditCodes
   })),
   documents: safeDocumentSummaries
