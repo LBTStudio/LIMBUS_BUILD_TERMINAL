@@ -175,9 +175,35 @@ function scanUnwarnedCurrencyLines(history, parsedRows, docId) {
           && (Number(spend.lp) > 0 || Number(spend.shards) > 0));
         if (hasSpendRecord) continue;
         if (altOrCondition.test(line) || !clearReward.test(line)) {
+          const matchingCoverage = (parsed.financialCoverage || [])
+            .filter((item) => String(item?.line || "").trim() === line)
+            .map((item) => ({
+              status: String(item.status || "missing-status"),
+              section: String(item.section || "unknown"),
+              code: String(item.code || ""),
+              parserReasonCount: Number(item.parserReasonCount) || 0
+            }));
+          const parsedSpendFacts = (parsed.spends || []).map((spend) => ({
+            lp: Number(spend.lp) || 0,
+            shards: Number(spend.shards) || 0,
+            rawShape: safeFinancialShape(spend.raw || spend.name || "")
+          }));
+          const relatedReasons = (parsed.reasons || [])
+            .filter((reason) => String(reason.line || "").trim() === line)
+            .map((reason) => ({
+              kind: classifyReason(reason.reason),
+              reasonShape: safeFinancialShape(reason.reason)
+            }));
+          const relatedAuditCodes = (parsed.sourceAudits || [])
+            .filter((entry) => entry && (
+              String(entry.line || "").trim() === line ||
+              (Array.isArray(entry.relatedLines) && entry.relatedLines.some((item) => String(item?.line || "").trim() === line))
+            ))
+            .map((entry) => ({ code: String(entry.code || "unknown"), severity: String(entry.severity || "unknown") }));
           out.push({
             id: docId, row: index + 1, title: String(row?.name || "無題"),
-            currency, amounts: matches, line, shape: safeFinancialShape(line)
+            currency, amounts: matches, line, shape: safeFinancialShape(line),
+            matchingCoverage, parsedSpendFacts, relatedReasons, relatedAuditCodes
           });
         }
       }
@@ -483,7 +509,11 @@ const safeAudit = {
     currencyDiscrepancyCount: successes.reduce((n, doc) => n + doc.financialCoverage.currencyDiscrepancyCount, 0)
   },
   unwarnedCurrencyLineCount: allUnwarnedCurrencyLines.length,
-  unwarnedCurrencyRefs: allUnwarnedCurrencyLines.map((row) => ({ id: row.id, scenarioRow: row.row, currency: row.currency, tokenCount: row.amounts.length, shape: row.shape })),
+  unwarnedCurrencyRefs: allUnwarnedCurrencyLines.map((row) => ({
+    id: row.id, scenarioRow: row.row, currency: row.currency, tokenCount: row.amounts.length,
+    shape: row.shape, matchingCoverage: row.matchingCoverage, parsedSpendFacts: row.parsedSpendFacts,
+    relatedReasons: row.relatedReasons, relatedAuditCodes: row.relatedAuditCodes
+  })),
   documents: safeDocumentSummaries
 };
 console.log("GARASUMADO_LIVE_AUDIT_BEGIN");
