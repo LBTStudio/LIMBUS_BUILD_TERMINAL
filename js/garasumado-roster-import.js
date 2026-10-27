@@ -1699,10 +1699,19 @@ function findBalanceAnchor(memo, currency) {
 }
 
 function flowOf(record, currency) {
-  const income = Number(record && record.income && record.income[currency]) || 0;
+  const income = Number(record && record.income && record.income[currency]);
+  if (!Number.isSafeInteger(income) || income < 0) return null;
   const spends = Array.isArray(record && record.spends) ? record.spends : [];
-  const spent = spends.reduce((sum, item) => sum + (Number(item && item[currency]) || 0), 0);
-  return income - spent;
+  let spent = 0;
+  for (const item of spends) {
+    const amount = Number(item && item[currency]) || 0;
+    if (!Number.isSafeInteger(amount) || amount < 0) return null;
+    const next = spent + amount;
+    if (!Number.isSafeInteger(next)) return null;
+    spent = next;
+  }
+  const flow = income - spent;
+  return Number.isSafeInteger(flow) ? flow : null;
 }
 
 /* 残高照合。表示残高（doc.currency）とリザルト計算（開始残高＋収入−消費）を
@@ -1724,7 +1733,6 @@ function reconcileBalance(manifest, doc) {
     message: ""
   };
   const scenarios = (manifest && manifest.scenarios) || [];
-  /* 残高が一致していても、E.G.O購入品の価格合計と通貨ラベルが違えば別の警告として残す。 */
   out.currencyDiscrepancies = scenarios.flatMap((scenario) =>
     Array.isArray(scenario && scenario.currencyDiscrepancies) ? scenario.currencyDiscrepancies : []
   );
@@ -1733,62 +1741,141 @@ function reconcileBalance(manifest, doc) {
   let openingOffsetLp = 0, openingOffsetSh = 0;
   let incLp = 0, incSh = 0, spLp = 0, spSh = 0;
   const cumulativeBefore = { lp: 0, shards: 0 };
+  let unsafeCurrency = "";
+
+  const safeAdd = (left, right, currency) => {
+    if (!Number.isSafeInteger(left) || !Number.isSafeInteger(right)) {
+      unsafeCurrency ||= currency;
+      return null;
+    }
+    const result = left + right;
+    if (!Number.isSafeInteger(result)) {
+      unsafeCurrency ||= currency;
+      return null;
+    }
+    return result;
+  };
+  const safeSubtract = (left, right, currency) => {
+    if (!Number.isSafeInteger(left) || !Number.isSafeInteger(right)) {
+      unsafeCurrency ||= currency;
+      return null;
+    }
+    const result = left - right;
+    if (!Number.isSafeInteger(result)) {
+      unsafeCurrency ||= currency;
+      return null;
+    }
+    return result;
+  };
+  const safeSpendSum = (spends, currency) => {
+    let sum = 0;
+    for (const item of spends || []) {
+      const amount = Number(item && item[currency]) || 0;
+      if (!Number.isSafeInteger(amount) || amount < 0) {
+        unsafeCurrency ||= currency;
+        return null;
+      }
+      sum = safeAdd(sum, amount, currency);
+      if (sum === null) return null;
+    }
+    return sum;
+  };
+  const holdUnsafe = () => {
+    out.checked = true;
+    out.ok = false;
+    out.errorCode = "unsafe-history-total";
+    out.unsafeCurrency = unsafeCurrency || "unknown";
+    out.computedLp = null;
+    out.computedShards = null;
+    out.historyNetLp = null;
+    out.historyNetShards = null;
+    out.impliedOpeningLp = null;
+    out.impliedOpeningShards = null;
+    out.message = "複数シナリオの収支合計が安全整数の範囲を超えたため、残高照合を保留しました。金額は丸めず、自動修正していません。";
+    return out;
+  };
 
   for (const s of scenarios) {
     const memo = String(s.memo || "");
     const income = s.income || {};
     const scenarioSpends = Array.isArray(s.spends) ? s.spends : parseSpends(memo);
-    const scenarioFlow = {
-      lp: (Number(income.lp) || 0) - scenarioSpends.reduce((sum, item) => sum + (Number(item && item.lp) || 0), 0),
-      shards: (Number(income.shards) || 0) - scenarioSpends.reduce((sum, item) => sum + (Number(item && item.shards) || 0), 0)
-    };
-    incLp += Number(income.lp) || 0;
-    incSh += Number(income.shards) || 0;
-    spLp += scenarioSpends.reduce((sum, item) => sum + (Number(item && item.lp) || 0), 0);
-    spSh += scenarioSpends.reduce((sum, item) => sum + (Number(item && item.shards) || 0), 0);
+    const incomeLp = Number(income.lp ?? 0);
+    const incomeSh = Number(income.shards ?? 0);
+    if (!Number.isSafeInteger(incomeLp) || incomeLp < 0) unsafeCurrency ||= "lp";
+    if (!Number.isSafeInteger(incomeSh) || incomeSh < 0) unsafeCurrency ||= "shards";
+    const spendLp = safeSpendSum(scenarioSpends, "lp");
+    const spendSh = safeSpendSum(scenarioSpends, "shards");
+    if (unsafeCurrency || spendLp === null || spendSh === null) return holdUnsafe();
+    const scenarioFlowLp = safeSubtract(incomeLp, spendLp, "lp");
+    const scenarioFlowSh = safeSubtract(incomeSh, spendSh, "shards");
+    if (scenarioFlowLp === null || scenarioFlowSh === null) return holdUnsafe();
+
+    incLp = safeAdd(incLp, incomeLp, "lp");
+    incSh = safeAdd(incSh, incomeSh, "shards");
+    spLp = safeAdd(spLp, spendLp, "lp");
+    spSh = safeAdd(spSh, spendSh, "shards");
+    if (unsafeCurrency || incLp === null || incSh === null || spLp === null || spSh === null) return holdUnsafe();
 
     for (const currency of ["lp", "shards"]) {
       const hasOpening = currency === "lp" ? openingLp !== null : openingSh !== null;
-      if (!hasOpening) {
-        const anchor = findBalanceAnchor(memo, currency);
-        if (anchor) {
-          const prefix = memoApi && typeof memoApi.parseMemo === "function"
-            ? memoApi.parseMemo(anchor.prefix)
-            : { income: {}, spends: [] };
-          const prefixFlow = flowOf(prefix, currency);
-          if (currency === "lp") {
-            openingLp = anchor.value;
-            openingOffsetLp = cumulativeBefore.lp + prefixFlow;
-          } else {
-            openingSh = anchor.value;
-            openingOffsetSh = cumulativeBefore.shards + prefixFlow;
-          }
-        }
+      if (hasOpening) continue;
+      const anchor = findBalanceAnchor(memo, currency);
+      if (!anchor) continue;
+      const prefix = memoApi && typeof memoApi.parseMemo === "function"
+        ? memoApi.parseMemo(anchor.prefix)
+        : { income: {}, spends: [] };
+      const prefixFlow = flowOf(prefix, currency);
+      if (prefixFlow === null) {
+        unsafeCurrency ||= currency;
+        return holdUnsafe();
+      }
+      if (currency === "lp") {
+        openingLp = anchor.value;
+        openingOffsetLp = safeAdd(cumulativeBefore.lp, prefixFlow, "lp");
+        if (openingOffsetLp === null) return holdUnsafe();
+      } else {
+        openingSh = anchor.value;
+        openingOffsetSh = safeAdd(cumulativeBefore.shards, prefixFlow, "shards");
+        if (openingOffsetSh === null) return holdUnsafe();
       }
     }
-    cumulativeBefore.lp += scenarioFlow.lp;
-    cumulativeBefore.shards += scenarioFlow.shards;
+    cumulativeBefore.lp = safeAdd(cumulativeBefore.lp, scenarioFlowLp, "lp");
+    cumulativeBefore.shards = safeAdd(cumulativeBefore.shards, scenarioFlowSh, "shards");
+    if (unsafeCurrency || cumulativeBefore.lp === null || cumulativeBefore.shards === null) return holdUnsafe();
   }
 
   out.openingLp = openingLp;
   out.openingShards = openingSh;
-  /* 自由メモ購入は取引時点が不明なため、開始アンカーとの照合計算には混ぜない。
-     アンカーが無い場合の「履歴純増減」には含め、手入力残高を自動補正しない。 */
-  const untimedPurchases = ((manifest && manifest.purchaseHistory) || []).reduce((sum, row) => ({
-    lp: sum.lp + (Number(row && row.lp) || 0),
-    shards: sum.shards + (Number(row && row.shards) || 0)
-  }), { lp: 0, shards: 0 });
-  out.historyNetLp = incLp - spLp - untimedPurchases.lp;
-  out.historyNetShards = incSh - spSh - untimedPurchases.shards;
+  const untimedPurchases = { lp: 0, shards: 0 };
+  for (const row of (manifest && manifest.purchaseHistory) || []) {
+    const lp = Number(row && row.lp) || 0;
+    const shards = Number(row && row.shards) || 0;
+    if (!Number.isSafeInteger(lp) || lp < 0) unsafeCurrency ||= "lp";
+    if (!Number.isSafeInteger(shards) || shards < 0) unsafeCurrency ||= "shards";
+    if (unsafeCurrency) return holdUnsafe();
+    untimedPurchases.lp = safeAdd(untimedPurchases.lp, lp, "lp");
+    untimedPurchases.shards = safeAdd(untimedPurchases.shards, shards, "shards");
+    if (unsafeCurrency || untimedPurchases.lp === null || untimedPurchases.shards === null) return holdUnsafe();
+  }
+  out.historyNetLp = safeSubtract(safeSubtract(incLp, spLp, "lp"), untimedPurchases.lp, "lp");
+  out.historyNetShards = safeSubtract(safeSubtract(incSh, spSh, "shards"), untimedPurchases.shards, "shards");
+  if (unsafeCurrency || out.historyNetLp === null || out.historyNetShards === null) return holdUnsafe();
+
   if (openingLp === null && openingSh === null) {
-    out.impliedOpeningLp = shownLp === null ? null : shownLp - out.historyNetLp;
-    out.impliedOpeningShards = shownSh === null ? null : shownSh - out.historyNetShards;
+    out.impliedOpeningLp = shownLp === null ? null : safeSubtract(shownLp, out.historyNetLp, "lp");
+    out.impliedOpeningShards = shownSh === null ? null : safeSubtract(shownSh, out.historyNetShards, "shards");
+    if (unsafeCurrency) return holdUnsafe();
     out.message = "履歴に開始残高の基準が無いため、手入力の現在値との一致判定は保留しています。";
     return out;
   }
   out.checked = true;
-  out.computedLp = openingLp === null ? null : openingLp + incLp - spLp - openingOffsetLp;
-  out.computedShards = openingSh === null ? null : openingSh + incSh - spSh - openingOffsetSh;
+  if (openingLp !== null) {
+    out.computedLp = safeSubtract(safeSubtract(safeAdd(openingLp, incLp, "lp"), spLp, "lp"), openingOffsetLp, "lp");
+  }
+  if (openingSh !== null) {
+    out.computedShards = safeSubtract(safeSubtract(safeAdd(openingSh, incSh, "shards"), spSh, "shards"), openingOffsetSh, "shards");
+  }
+  if (unsafeCurrency || (openingLp !== null && out.computedLp === null) || (openingSh !== null && out.computedShards === null)) return holdUnsafe();
   const badLp = out.computedLp !== null && out.shownLp !== null && out.computedLp !== out.shownLp;
   const badSh = out.computedShards !== null && out.shownShards !== null && out.computedShards !== out.shownShards;
   out.ok = !(badLp || badSh);
