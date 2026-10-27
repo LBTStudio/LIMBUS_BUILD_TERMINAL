@@ -384,7 +384,7 @@ async function boot() {
     await page.waitForLoadState("networkidle",{timeout:12000}).catch(()=>{});
     await page.waitForTimeout(600);
     if(await visible(page.locator(".acct-gate"))) {
-      const card=page.locator(".acct-card-hit").filter({hasText:"UI監査用キャラクター"}).first();
+      const card=page.locator(".acct-card--gate").filter({hasText:"UI監査用キャラクター"}).locator(".acct-card-hit").first();
       if(await visible(card)) await click(card);
       else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
     }
