@@ -363,7 +363,7 @@ async function boot() {
       }
     } else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
   }
-  await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
+  await page.locator(".rail-item:visible").first().waitFor({state:"visible",timeout:25000});
   const seeded=await seed().catch(e=>({ok:false,reason:String(e)}));
   audit.seed=seeded;
   if(seeded&&seeded.ok) {
@@ -375,7 +375,7 @@ async function boot() {
       if(await visible(card)) await click(card);
       else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
     }
-    await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
+    await page.locator(".rail-item:visible").first().waitFor({state:"visible",timeout:25000});
   }
   await page.waitForTimeout(350);
 }
