@@ -24,6 +24,10 @@ test("保存データ読み込みダイアログは選択リストのみスク�
   assert.match(workspace, /\.import-scope-actions > \.btn \{ min-height: 38px; \}/);
 });
 
+test("旧いアプリ側PREVIEW縦タブはスマホで隠し、開閉操作を重複させない", () => {
+  assert.match(workspace, /@media \\(max-width: 640px\\) \\{[\\s\\S]*?\\.app\\.preview-collapsed \\.preview-reopen \\{ display: none; \\}/);
+});
+
 test("モバイルのコンテンツは固定プレビュー操作の背後に隠れないよう下部余白を確保する", () => {
   assert.match(a11y, /\.app \.focus \{[\s\S]*?padding-bottom: calc\(var\(--lbt-mobile-rail-h, 114px\) \+ 70px\);/);
 });
