@@ -208,7 +208,9 @@
   /* 明細の候補。種別のヒントは名前から読む（DB 解決は呼び出し側）。 */
   function hintOf(name) {
     const text = toHalf(name);
-    if (/e\.?g\.?o/i.test(text) || /ＥＧＯ/.test(text)) return "ego";
+    /* 記録本文は E.G.O / E. G. O / EGO / エゴ が混在する。
+       種別判定だけを表記正規化し、表示名そのものは変更しない。 */
+    if (/e\s*\.?\s*g\s*\.?\s*o/i.test(text) || /エゴ/.test(text)) return "ego";
     if (/同期化|解析|max|ＭＡＸ/i.test(text)) return "persona";
     if (/人格|抽出/.test(text)) return "persona";
     return null;
