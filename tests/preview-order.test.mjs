@@ -32,10 +32,10 @@ test("プレビューの開閉は出力データを再生成せず、格納中�
   assert.match(livePreviewSource, /const previewDataChanged = Object\.keys\(state\)\.some/);
   assert.match(livePreviewSource, /LBT_gen\.buildMemo\(previewData\)/);
   assert.match(appSource, /previewOpen: !previewOpen/);
-  assert.match(appSource, /className: "preview-reopen"/);
-  assert.match(workspaceCss, /width: 40px;/);
-  assert.match(workspaceCss, /height: 118px;/);
-  assert.match(workspaceCss, /\.app\.preview-collapsed \.preview-reopen \{ display: flex; \}/);
+  /* 開閉タブは .preview-edge-toggle に一本化。旧 .preview-reopen を
+     再描画すると同じ位置に2つの操作が重なるため、存在を禁止する。 */
+  assert.doesNotMatch(appSource, /className: "preview-reopen"/);
+  assert.match(workspaceCss, /\.preview-edge-toggle\.is-collapsed \{ right: 0; \}/);
 });
 
 test("プレビューの右端タブは展開・格納のどちらでも同一操作で切り替える", () => {

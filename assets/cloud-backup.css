@@ -191,3 +191,33 @@
 @media (max-width: 560px) {
   .lbt-cloud-compare-grid { grid-template-columns: minmax(0, 1fr); }
 }
+/* 初回画面では復元の入力とボタンがパネル内スクロールの外へ出て見つけられなかった。
+   狭幅では外側のパネルを 1 本のスクロールに統一し、入れ子スクロールを作らない。 */
+@media (max-width: 640px) {
+  .acct-gate-panel,
+  .acct-panel { overflow-y: auto; }
+  .acct-gate-panel > .lbt-cloud-panel,
+  .acct-panel > .lbt-cloud-panel {
+    max-height: none;
+    overflow: visible;
+    overscroll-behavior: auto;
+  }
+  .acct-gate-panel .acct-grid,
+  .acct-panel .acct-grid { overflow-y: visible; }
+}
+LBTEOF && echo "--- tail check ---" && tail -6 assets/cloud-backup.css && echo "--- sync asset versions ---" && node tools/sync-asset-versions.mjs 2>&1 | tail -20 && echo "--- check ---" && node tools/sync-asset-versions.mjs --check 2>&1 | tail -3 && echo "--- diffstat ---" && git --no-pager diff --stat
+
+/* 初回画面では復元の入力とボタンがパネル内スクロールの外へ出て見つけられなかった。
+   狭幅では外側のパネルを 1 本のスクロールに統一し、入れ子スクロールを作らない。 */
+@media (max-width: 640px) {
+  .acct-gate-panel,
+  .acct-panel { overflow-y: auto; }
+  .acct-gate-panel > .lbt-cloud-panel,
+  .acct-panel > .lbt-cloud-panel {
+    max-height: none;
+    overflow: visible;
+    overscroll-behavior: auto;
+  }
+  .acct-gate-panel .acct-grid,
+  .acct-panel .acct-grid { overflow-y: visible; }
+}

@@ -63,43 +63,14 @@
   transform: translateX(100%);
   border-left: none;
 }
-/* Floating reopen tab */
-.preview-reopen {
-  position: fixed;
-  top: calc(var(--topbar-h) + 14px);
-  right: 0;
-  transform: none;
-  width: 40px;
-  height: 118px;
-  background: linear-gradient(180deg, var(--surface-3), var(--surface-2));
-  border: 1px solid var(--line-strong);
-  border-right: none;
-  border-radius: var(--r) 0 0 var(--r);
-  color: var(--gold);
-  cursor: pointer;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  z-index: var(--z-drawer);
-  writing-mode: vertical-rl;
-  font-family: var(--f-display);
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  font-weight: 700;
-  padding: 8px 0;
-  box-shadow: -2px 0 8px rgba(0,0,0,0.3);
-}
-.app.preview-collapsed .preview-reopen { display: flex; }
-.preview-reopen:hover { background: var(--surface-4); color: var(--gold-hi); }
-
 /* 常時表示のプレビュー開閉タブ。格納時と展開時で同じ操作を使う。
-   実際に表示されるのは .preview-edge-toggle の方（下の定義）。
-   .preview-reopen と .preview-close は 640px 未満のブレークポイントで
-   使われる想定だが、現状いずれも JS から描画されないため隠したままにする。
+   旧 .preview-reopen（Floating reopen tab）は App.js が閉状態で別途描画し、
+   .preview-edge-toggle と同じ位置に2つの操作が重なっていたため削除した。
+   開閉操作は .preview-edge-toggle に一本化する。
+   .preview-close は全ブレークポイントで edge toggle を優先するため隠す。
    ここでは !important を使わず、:.not(.app) で全プロジェクト共通の
    display:none ルールより後にあることを利用している（このファイルは
    workspace.css で、base より後の layer にある）。 */
-.preview-reopen,
 .preview-close { display: none; }
 .preview-edge-toggle {
   position: fixed;

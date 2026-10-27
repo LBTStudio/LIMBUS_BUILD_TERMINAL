@@ -179,8 +179,10 @@ const LivePreview = ({ state, dispatch }) => {
   const closePreview = () => dispatch({ type: "SET_UI", ui: { previewOpen: false } });
   // プレビュー自身の内側にある閉鎖ボタンとは別に、画面外周へ一つだけ常設する。
   // 格納・展開のどちらでも同じタブを押せるため、格納後の復帰地点が明確になる。
-  const isNarrow = typeof window !== "undefined" && window.innerWidth <= 1024;
-  const previewOpen = state.ui.previewOpen !== void 0 ? state.ui.previewOpen !== false : !isNarrow;
+  /* 開閉状態の唯一の情報源は state.ui.previewOpen（App.js と同じ読み方）。
+     旧実装は未保存時に画面幅で既定を切り替えていたため、閉じているはずの
+     広い画面で「◀ 格納」タブが本文中に浮き、App 側の折り畳み状態と矛盾した。 */
+  const previewOpen = state.ui.previewOpen === true;
   React.useEffect(() => {
     let edgeToggle = document.getElementById("lbt-preview-edge-toggle");
     if (!edgeToggle) {
@@ -195,6 +197,19 @@ const LivePreview = ({ state, dispatch }) => {
     edgeToggle.setAttribute("aria-label", edgeToggle.title);
     edgeToggle.onclick = () => dispatch({ type: "SET_UI", ui: { previewOpen: !previewOpen } });
   }, [previewOpen, dispatch]);
+  /* 格納中は transform で画面外へ逃がすだけなので、DOM 上はフォーカス可能なまま残る。
+     見えないボタンへ Tab が入らないよう inert と aria-hidden を付ける。 */
+  React.useEffect(() => {
+    const panel = document.getElementById("lbt-preview-panel");
+    if (!panel) return;
+    if (previewOpen) {
+      panel.removeAttribute("inert");
+      panel.removeAttribute("aria-hidden");
+    } else {
+      panel.setAttribute("inert", "");
+      panel.setAttribute("aria-hidden", "true");
+    }
+  }, [previewOpen]);
   React.useEffect(() => {
     const existing = document.getElementById("lbt-preview-readiness");
     if (!readiness.length) {
@@ -262,6 +277,6 @@ const LivePreview = ({ state, dispatch }) => {
       }
     )));
   };
-  return /* @__PURE__ */ React.createElement("aside", { className: `preview${state.ui.previewOpen ? " is-open" : ""}` }, /* @__PURE__ */ React.createElement("button", { className: "preview-close", onClick: closePreview, title: "\u30D7\u30EC\u30D3\u30E5\u30FC\u3092\u683C\u7D0D", "aria-label": "\u30D7\u30EC\u30D3\u30E5\u30FC\u3092\u683C\u7D0D" }, /* @__PURE__ */ React.createElement(Icon, { name: "x", size: 14 })), /* @__PURE__ */ React.createElement("div", { className: "preview-tabs" }, /* @__PURE__ */ React.createElement("button", { className: `preview-tab${tab === "memo" ? " is-active" : ""}`, onClick: () => setTab("memo") }, "MEMO"), /* @__PURE__ */ React.createElement("button", { className: `preview-tab${tab === "palette" ? " is-active" : ""}`, onClick: () => setTab("palette") }, "PALETTE"), /* @__PURE__ */ React.createElement("button", { className: `preview-tab${tab === "json" ? " is-active" : ""}`, onClick: () => setTab("json") }, "JSON")), /* @__PURE__ */ React.createElement("div", { className: "preview-body", ...(tab === "memo" ? memoDnd.scrollContainerProps : tab === "palette" ? paletteDnd.scrollContainerProps : {}) }, tab === "memo" && renderSectioned(memoSections, "memo", memoDnd), tab === "palette" && renderSectioned(paletteSections, "palette", paletteDnd), tab === "json" && /* @__PURE__ */ React.createElement("div", { style: { whiteSpace: "pre-wrap" } }, json)), /* @__PURE__ */ React.createElement("div", { className: "preview-hint" }, tab === "memo" && "\u8AAD\u307F\u7269\u5F62\u5F0F\u306E\u8981\u7D04 \u2014 \u6298\u308A\u7573\u307F\u306F\u5404\u898B\u51FA\u3057\u30FB\u4E26\u3079\u66FF\u3048\u306F \u22EE\u22EE / \u2191\u2193", tab === "palette" && "\u30C1\u30E3\u30C3\u30C8\u30D1\u30EC\u30C3\u30C8\u5F62\u5F0F \u2014 \u6298\u308A\u7573\u307F\u306F\u8868\u793A\u306E\u307F\u30FB\u4E26\u3079\u66FF\u3048\u306F \u22EE\u22EE / \u2191\u2193", tab === "json" && "ccfolia \u30AD\u30E3\u30E9\u30AF\u30BF\u30FCJSON \u2014 \u300C\u30AF\u30EA\u30C3\u30D7\u30DC\u30FC\u30C9\u304B\u3089\u8FFD\u52A0\u300D\u3067\u8CBC\u4ED8"), /* @__PURE__ */ React.createElement("div", { className: "preview-actions" }, /* @__PURE__ */ React.createElement(Button, { size: "sm", icon: "copy", onClick: copyCurrent, className: "grow" }, "\u73FE\u5728\u306E\u30BF\u30D6\u3092\u30B3\u30D4\u30FC"), /* @__PURE__ */ React.createElement(Button, { size: "sm", variant: "primary", icon: "check", onClick: copyJson }, "JSON")));
+  return /* @__PURE__ */ React.createElement("aside", { id: "lbt-preview-panel", className: `preview${state.ui.previewOpen ? " is-open" : ""}` }, /* @__PURE__ */ React.createElement("button", { className: "preview-close", onClick: closePreview, title: "\u30D7\u30EC\u30D3\u30E5\u30FC\u3092\u683C\u7D0D", "aria-label": "\u30D7\u30EC\u30D3\u30E5\u30FC\u3092\u683C\u7D0D" }, /* @__PURE__ */ React.createElement(Icon, { name: "x", size: 14 })), /* @__PURE__ */ React.createElement("div", { className: "preview-tabs" }, /* @__PURE__ */ React.createElement("button", { className: `preview-tab${tab === "memo" ? " is-active" : ""}`, onClick: () => setTab("memo") }, "MEMO"), /* @__PURE__ */ React.createElement("button", { className: `preview-tab${tab === "palette" ? " is-active" : ""}`, onClick: () => setTab("palette") }, "PALETTE"), /* @__PURE__ */ React.createElement("button", { className: `preview-tab${tab === "json" ? " is-active" : ""}`, onClick: () => setTab("json") }, "JSON")), /* @__PURE__ */ React.createElement("div", { className: "preview-body", ...(tab === "memo" ? memoDnd.scrollContainerProps : tab === "palette" ? paletteDnd.scrollContainerProps : {}) }, tab === "memo" && renderSectioned(memoSections, "memo", memoDnd), tab === "palette" && renderSectioned(paletteSections, "palette", paletteDnd), tab === "json" && /* @__PURE__ */ React.createElement("div", { style: { whiteSpace: "pre-wrap" } }, json)), /* @__PURE__ */ React.createElement("div", { className: "preview-hint" }, tab === "memo" && "\u8AAD\u307F\u7269\u5F62\u5F0F\u306E\u8981\u7D04 \u2014 \u6298\u308A\u7573\u307F\u306F\u5404\u898B\u51FA\u3057\u30FB\u4E26\u3079\u66FF\u3048\u306F \u22EE\u22EE / \u2191\u2193", tab === "palette" && "\u30C1\u30E3\u30C3\u30C8\u30D1\u30EC\u30C3\u30C8\u5F62\u5F0F \u2014 \u6298\u308A\u7573\u307F\u306F\u8868\u793A\u306E\u307F\u30FB\u4E26\u3079\u66FF\u3048\u306F \u22EE\u22EE / \u2191\u2193", tab === "json" && "ccfolia \u30AD\u30E3\u30E9\u30AF\u30BF\u30FCJSON \u2014 \u300C\u30AF\u30EA\u30C3\u30D7\u30DC\u30FC\u30C9\u304B\u3089\u8FFD\u52A0\u300D\u3067\u8CBC\u4ED8"), /* @__PURE__ */ React.createElement("div", { className: "preview-actions" }, /* @__PURE__ */ React.createElement(Button, { size: "sm", icon: "copy", onClick: copyCurrent, className: "grow" }, "\u73FE\u5728\u306E\u30BF\u30D6\u3092\u30B3\u30D4\u30FC"), /* @__PURE__ */ React.createElement(Button, { size: "sm", variant: "primary", icon: "check", onClick: copyJson }, "JSON")));
 };
 window.LivePreview = LivePreview;

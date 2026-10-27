@@ -21,13 +21,13 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-cf9de41b";
+const CACHE_NAME = "lbt-e32a6309";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
   "mobile-preview.html",
-  "assets/cloud-backup.css?v=61399e91",
-  "assets/design-system.css?v=910f9485",
+  "assets/cloud-backup.css?v=50adcc98",
+  "assets/design-system.css?v=95c7ce46",
   "assets/fonts/corporate-logo-bold-subset.woff2?v=b56fa468",
   "assets/fonts/corporate-logo-medium-subset.woff2?v=dbbdb67e",
   "assets/inline-effect-glossary.css?v=f14d3776",
@@ -36,7 +36,7 @@ const PRECACHE_URLS = [
   "assets/sections.css?v=0cadeb2c",
   "assets/v52-overlay.css?v=785971b6",
   "assets/v53-overlay.css?v=1b57bfe6",
-  "assets/v56-refinements.css?v=860ce81e",
+  "assets/v56-refinements.css?v=6ec8946e",
   "assets/v65r29-draft-import.css?v=ab5c4fe7",
   "assets/v65r43-ego-readability.css?v=563284f8",
   "assets/v65r44-ego-quick-detail.css?v=1bb6dfa1",
@@ -44,18 +44,18 @@ const PRECACHE_URLS = [
   "assets/v66-accounts.css?v=16c0d40d",
   "assets/v67-persona-redesign.css?v=4b89da4c",
   "assets/v68-interaction-a11y.css?v=0bbe4495",
-  "assets/workspace.css?v=741261c7",
+  "assets/workspace.css?v=57fa762e",
   "data/db.json?v=16b6df9e",
   "data/gacha-theme-packs.json?v=8d4dced2",
   "data/items.json?v=b185394a",
   "data/special-items.json?v=aaa21cfb",
-  "js/App.js?v=f16ad3ec",
+  "js/App.js?v=e6621c3b",
   "js/DataQuality.js?v=a8365c72",
   "js/InlineEffectGlossary.js?v=81967fa2",
   "js/ItemCodex.js?v=7aafec02",
-  "js/LivePreview.js?v=1b6767e6",
+  "js/LivePreview.js?v=0d0e6306",
   "js/OtherSections.js?v=1f367db6",
-  "js/PersonaCodex.js?v=59018e19",
+  "js/PersonaCodex.js?v=18af7a3e",
   "js/SkillDeck.js?v=a93f6cb8",
   "js/access-counter.js?v=304e4854",
   "js/accounts-ui.js?v=10026c99",

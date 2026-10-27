@@ -652,7 +652,7 @@ details > summary {
   .rail { justify-content: flex-start; overflow-x: auto; overflow-y: hidden; padding-inline: 4px; gap: 3px; scrollbar-width: thin; scroll-snap-type: x proximity; }
   .rail-item { width: 64px; min-height: 56px; flex: 0 0 64px; padding: 6px 2px; scroll-snap-align: start; }
   .rail-item.is-utility, .rail-item.is-overflow, .rail-more { display: flex; }
-  .rail-more .rail-label { font-size: 8px; }
+  .rail-more .rail-label { font-size: 9px; }
   .utility-sheet-backdrop { padding: var(--s-2); }
   .utility-sheet { max-height: calc(100svh - 76px); padding: var(--s-3); border-radius: var(--r) var(--r) 0 0; }
   .utility-sheet-grid { grid-template-columns: 1fr; }
@@ -2246,11 +2246,56 @@ details > summary {
   .ego-discovery-empty strong { color: var(--gold-hi); font-family: var(--f-display); }
 }
 
+/* 中間幅（641〜1440px）は上部バーに 9 個の操作を並べると必ず溢れ、
+   右端の「共有シート」「プレビュー切替」が画面外へ出ていた。
+   .utility-trigger「操作・保存」が同じ操作を常時提供しているため、
+   副次操作はそこへ集約し、バーにはアカウントと JSON 出力だけを残す。 */
+@media (max-width: 1440px) {
+  .topbar-actions .topbar-secondary { display: none; }
+}
+/* 副題（CCFOLIA CHARACTER BUILDER）から先に隠し、アプリ名の表示幅を残す。 */
+@media (max-width: 1280px) {
+  .brand-sub { display: none; }
+}
+/* 8 タブは 390px で 3 つが画面外に出る。端をフェードさせ、続きがあることを示す。 */
+@media (max-width: 640px) {
+  .build-tabs .segmented,
+  .record-tabbar .segmented {
+    scroll-snap-type: x proximity;
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 26px), transparent);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 26px), transparent);
+  }
+  .build-tabs .segmented > button,
+  .record-tabbar .segmented > button { scroll-snap-align: start; }
+}
+/* 人格未装備の初回は絞り込みが 30 個近く並び、空状態と CTA を押し下げていた。
+   狭幅では詳細行を畳み、見出しをタップしたときだけ開く。 */
+.codex-adv-toggle { display: none; }
+@media (max-width: 640px) {
+  .codex-adv-toggle {
+    display: inline-flex;
+    min-block-size: 36px;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    background: var(--surface-2);
+    color: var(--tx-dim);
+    font-size: var(--fs-11);
+    cursor: pointer;
+  }
+  .codex-filters:not(.is-adv-open) > .codex-filter-row + .codex-filter-row { display: none; }
+}
+
 /* v64r94: 実機モバイルでは横スクロール式レールを使わない。
-   主要画面を2段グリッドで常時見せ、上部の操作入口も切らない。 */
+   主要画面をグリッドで常時見せ、上部の操作入口も切らない。
+   レールの子は6セクション+その他の7項目なので1段7列にする。
+   旧2段×6列グリッドでは7項目目だけ2行目に落ち、レールが2行分の
+   高さ(114px)を常に消費していた。 */
 @media (max-width: 640px) {
   .app {
-    --lbt-mobile-rail-h: calc(114px + env(safe-area-inset-bottom, 0px));
+    --lbt-mobile-rail-h: calc(60px + env(safe-area-inset-bottom, 0px));
     width: 100%;
     max-width: 100%;
     grid-template-rows: var(--topbar-h) minmax(0, 1fr);
@@ -2303,8 +2348,8 @@ details > summary {
     bottom: 0;
     left: 0;
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    grid-template-rows: repeat(2, 52px);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-rows: 52px;
     width: 100%;
     height: var(--lbt-mobile-rail-h);
     max-width: 100%;
@@ -2335,7 +2380,7 @@ details > summary {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 8px;
+    font-size: 9px;
     letter-spacing: 0;
   }
   .app:not(.preview-collapsed) .preview {
@@ -2447,7 +2492,7 @@ details > summary {
     padding: 2px 1px;
     flex: none;
   }
-  .rail-label { font-size: 8px; letter-spacing: 0; }
+  .rail-label { font-size: 9px; letter-spacing: 0; }
   .app:not(.preview-collapsed) .preview {
     bottom: var(--lbt-landscape-rail-h);
     max-height: calc(100vh - var(--topbar-h) - var(--lbt-landscape-rail-h));
