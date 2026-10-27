@@ -51,7 +51,7 @@ test("セーブデータ読み込み確認はダイアログ意味付け・フ�
 });
 
 test("読み込み項目はデータのあるカテゴリを先に出し、空カテゴリは開いたときだけ見せる", () => {
-  assert.match(app, /IMPORT_GROUPS\.filter\(\(g\) => g\.fields\.some\(\(f\) => f in importData\)\)\.map/);
+  assert.match(app, /const importGroupsWithData = importData \? IMPORT_GROUPS\.filter\(\(g\) => g\.fields\.some\(\(f\) => f in importData\)\) : \[\];[\s\S]{0,100}importGroupsWithData\.map/);
   assert.match(app, /className: "import-scope-empty-categories"/);
   assert.match(app, /データのないカテゴリも表示/);
   assert.match(app, /className: "import-scope-option is-empty"/);
