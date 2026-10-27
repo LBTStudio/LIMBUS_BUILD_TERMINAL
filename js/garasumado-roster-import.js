@@ -743,7 +743,7 @@ function toIdentityChoices(hits) {
           ...(row.date ? { date: String(row.date).slice(0, 10) } : {}),
           ...(importSourceKey ? { importSourceKey } : {})
         };
-        if (!memoApi) return { ...base, memo: String(row.memo || ""), income: { lp: 0, shards: 0 }, tickets: {}, pack: {}, spends: [], wins: [], reasons: [{ reason: "メモパーサが読み込まれていない" }] };
+        if (!memoApi) return { ...base, memo: String(row.memo || ""), income: { lp: 0, shards: 0 }, tickets: {}, pack: {}, spends: [], wins: [], reasons: [{ reason: "メモパーサが読み込まれていない" }], currencyDiscrepancies: [] };
         const parsed = memoApi.parseMemo(row.memo);
         const wins = resolveWins(parsed.wins);
         return {
@@ -756,6 +756,7 @@ function toIdentityChoices(hits) {
           consumedItems: parsed.consumedItems || [],
           ticketSpends: parsed.ticketSpends || [],
           reasons: parsed.reasons,
+          currencyDiscrepancies: parsed.currencyDiscrepancies || [],
           /* シナリオで直接払い出された人格/E.G.O。 */
           wins,
           /* 金額が入らなかったシナリオも一覧には出す。利用者が
@@ -815,7 +816,8 @@ function toIdentityChoices(hits) {
         pack: {},
         spends: purchaseSpends,
         wins: resolveWins(parsed.wins),
-        reasons: []
+        reasons: [],
+        currencyDiscrepancies: parsed.currencyDiscrepancies || []
       };
     }
 
@@ -1714,6 +1716,10 @@ function reconcileBalance(manifest, doc) {
     message: ""
   };
   const scenarios = (manifest && manifest.scenarios) || [];
+  /* 残高が一致していても、E.G.O購入品の価格合計と通貨ラベルが違えば別の警告として残す。 */
+  out.currencyDiscrepancies = scenarios.flatMap((scenario) =>
+    Array.isArray(scenario && scenario.currencyDiscrepancies) ? scenario.currencyDiscrepancies : []
+  );
   const memoApi = (typeof window !== "undefined" && window.LBT_garaMemo) || null;
   let openingLp = null, openingSh = null;
   let openingOffsetLp = 0, openingOffsetSh = 0;

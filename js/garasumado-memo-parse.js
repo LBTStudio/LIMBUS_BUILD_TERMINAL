@@ -83,9 +83,16 @@
     return "";
   }
 
-  /* セクション見出し「・支出」「・支払い」「・現在」を読み分ける。 */
+  /* E.G.O指定購入の見出しは「▼」などで始まっても、支出節として認識する。 */
+  function isEgoPurchaseHeader(line) {
+    var head = String(line || "").trim().replace(/^\s*(?:[・･▼▽▶▷■□◆◇★☆●○])\s*/, "");
+    return /(?:E\.?\s*G\.?\s*O|エゴ)/i.test(head) && /指定購入/.test(head);
+  }
+
+  /* セクション見出し「・支出」「・支払い」「・現在」とE.G.O指定購入を読み分ける。 */
   function sectionOf(line) {
-    var m = String(line).match(/^\s*[・･]\s*(.+?)\s*$/);
+    if (isEgoPurchaseHeader(line)) return "spend";
+    var m = String(line).match(/^\s*(?:[・･]|[▼▽▶▷■□◆◇★☆●○])\s*(.+?)\s*$/);
     if (!m) return "";
     var head = m[1];
     if (/支出|支払/.test(head)) return "spend";
@@ -406,6 +413,76 @@
     if (/[A-Za-zぁ-んァ-ヶ一-龠]/.test(stripped)) return false;
     /* 通貨名を落とした残りが「数値と空白だけ」なら合計行。 */
     return /^[\s　0-9+\-　]*$/.test(stripped) && /\d/.test(stripped);
+  }
+
+  function egoCompactName(value) {
+    return normalizeNumericText(String(value || "")).toLowerCase()
+      .replace(/[\s　【】《》「」『』()（）:：・,，、\/\\|｜\-–—*＊#＃~〜?？!！.。]/g, "");
+  }
+
+  /* 明示された購入欄内で、候補名がDBのE.G.Oに一意に当たる場合だけ正規名にする。 */
+  function findEgoPurchaseDbRow(rawLine, cleanedName) {
+    var egos = global.DB && Array.isArray(global.DB.egos) ? global.DB.egos : [];
+    var rawKey = egoCompactName(rawLine);
+    var cleanKey = egoCompactName(cleanedName);
+    var matches = egos.filter(function (ego) {
+      var key = egoCompactName(ego && ego.name);
+      return key && ((rawKey && rawKey.indexOf(key) >= 0) || (cleanKey && (cleanKey === key || cleanKey.indexOf(key) >= 0)));
+    }).sort(function (a, b) {
+      return egoCompactName(b && b.name).length - egoCompactName(a && a.name).length;
+    });
+    if (!matches.length) return null;
+    var longest = egoCompactName(matches[0].name).length;
+    var best = matches.filter(function (ego) { return egoCompactName(ego.name).length === longest; });
+    return best.length === 1 ? best[0] : null;
+  }
+
+  function egoCurrencyAmounts(line) {
+    var text = normalizeAmountText(String(line || ""));
+    var lp = /(?:LP|ＬＰ)\s*[:：]?\s*[+-]?\s*\d|[+-]?\s*\d[\d,]*(?:\s*[+＋]\s*\d+)*\s*(?:LP|ＬＰ)/i.test(text);
+    var shards = /(?:欠片|かけら|欠けら|カケラ|欠け片)\s*[:：]?\s*[+-]?\s*\d|[+-]?\s*\d[\d,]*(?:\s*[+＋]\s*\d+)*\s*(?:欠片|かけら|欠けら|カケラ|欠け片)/i.test(text);
+    return { lp: lp, shards: shards };
+  }
+
+  /* E.G.O指定購入の合計欄は、項目別支出と別に比較する。総額を再計上しない。 */
+  function egoPurchaseSummaryOf(line) {
+    var text = normalizeAmountText(String(line || "")).trim();
+    var labelled = /消費欄|消費額|消費合計|購入合計|合計消費|項目別価格合計|支出額|総額/.test(text);
+    if (/現在|残高|残り/.test(text) && !labelled) return null;
+    var summary = text
+      .replace(/消費欄|消費額|消費合計|購入合計|合計消費|項目別価格合計|支出額|総額|合計|消費|購入|支出|金額|欄|の/g, " ")
+      .replace(/[：:＝=]/g, " ").trim();
+    if (!labelled && !isTotalOnlyLine(summary)) return null;
+    if (!isTotalOnlyLine(summary)) return null;
+    var currencies = egoCurrencyAmounts(summary);
+    if (!currencies.lp && !currencies.shards) return null;
+    return {
+      raw: String(line || "").trim(),
+      lp: currencies.lp ? Math.abs(amountNear(summary, "lp", false) || 0) : 0,
+      shards: currencies.shards ? Math.abs(amountNear(summary, "shards", false) || 0) : 0
+    };
+  }
+
+  /* E.G.O指定購入節の項目名を抽出する。通貨・価格・ランク注記を外し、
+     DB名が一意に一致する場合は表示名へ正規化する。 */
+  function egoPurchaseItemNameOf(line) {
+    var raw = String(line || "").trim();
+    if (!raw || /消費欄|消費額|消費合計|購入合計|合計消費|項目別価格合計|支出額|総額/.test(raw)) return "";
+    if (/(?:現在|残高|残り)/.test(raw) || isTotalOnlyLine(raw)) return "";
+    var name = normalizeAmountText(raw)
+      .replace(/現在[：:]?\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ)?\s*-?\d+/gi, " ")
+      .replace(/残り\s*-?\d+(?:\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ))?/gi, " ")
+      .replace(/(?:LP|ＬＰ)\s*[:：]?\s*[+-]?\s*\d+/gi, " ")
+      .replace(/[+-]?\s*\d[\d,]*(?:\s*[+＋]\s*\d+)*\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ|欠け片)/gi, " ")
+      .replace(/^\s*(?:No\.?\s*\d+|#\s*\d+|\d+[.)．、])\s*/i, "")
+      .replace(/\s*[（(]\s*(?:ZAYIN|TETH|HE|WAW|ALEPH)\s*[）)]/gi, " ")
+      .replace(/(?:価格|単価|購入価格|消費欄|消費合計|購入合計|支出額|総額)/g, " ")
+      .replace(/^[\s*・･•●○\-—–]+|[\s,，;；]+$/g, "")
+      .replace(/\s+/g, " ").trim();
+    var ego = findEgoPurchaseDbRow(raw, name);
+    if (ego && ego.name) return String(ego.name).trim();
+    if (!/[A-Za-zぁ-んァ-ヶ一-龠]/.test(name)) return "";
+    return name;
   }
 
   /* 明示された「報酬：人格名」「基本報酬：人格名」を直接獲得として拾う。
@@ -795,6 +872,10 @@
 
     var lines = String(memo || "").split(/\r?\n/);
     var mode = "income";
+    var egoPurchaseMode = false;
+    var egoPurchaseItems = [];
+    var egoPurchaseSummaries = [];
+    var currencyDiscrepancies = [];
     var prevLine = "";
 
     /* 通貨支出と同じ行にチケット消費がある場合も、両方を1回ずつ保持する。 */
@@ -853,21 +934,85 @@
         continue;
       }
 
+      /* E.G.O指定購入の見出し・項目行は通常の報酬箇条書きとして処理しない。 */
+      var egoHeader = isEgoPurchaseHeader(line);
       var sec = sectionOf(line);
-      /* 「・」見出しは節の切り替え。それ以外の箇条書きは報酬行として中身を読む
-         （「・40LP」「・基本報酬 50LP/15欠片」「・人格抽出チケット1枚」）。
-         チャットの名前列（「・◯◯ 様」）を獲得名にしないため、
-         箇条書き由来の名前は win にしない（金額とチケットだけを取る）。 */
       var isBullet = false;
-      var sec = sectionOf(line);
-      if (sec) {
-        if (sec !== "other") { mode = sec; continue; }
+      var markedLine = line.match(/^\s*([・･▼▽▶▷■□◆◇★☆●○])\s*(.+?)\s*$/);
+      if (egoPurchaseMode && markedLine && !egoHeader && /^[・･]$/.test(markedLine[1]) &&
+          !/^(?:支出|支払|現在|獲得|報酬|終了|備考|補足|結果|RESULT)(?:$|\s|[:：])/.test(markedLine[2])) {
+        line = markedLine[2].trim();
+        sec = "";
         isBullet = true;
-        line = line.replace(/^\s*[・･]\s*/, "");
+      }
+      if (egoPurchaseMode && markedLine && !egoHeader && !/^[・･]$/.test(markedLine[1])) {
+        /* 「▼別シナリオ」等の次の見出しで購入モードを解除する。 */
+        egoPurchaseMode = false;
+      }
+      if (sec) {
+        if (sec !== "other") {
+          mode = sec;
+          egoPurchaseMode = egoHeader;
+          continue;
+        }
+        egoPurchaseMode = false;
+        isBullet = true;
+        line = line.replace(/^\s*(?:[・･]|[▼▽▶▷■□◆◇★☆●○])\s*/, "");
         /* 「・(願いの数x10)LP - 20LP」のような記号の計算は金額にしない。 */
         if (/[（(][^）)]*[x×][^）)]*[）)]/.test(line)) continue;
       }
       if (mode === "current") continue;  // 現在値の羅列は取り込まない
+
+      if (egoPurchaseMode && mode === "spend") {
+        var egoSummary = egoPurchaseSummaryOf(line);
+        if (egoSummary) {
+          egoPurchaseSummaries.push(egoSummary);
+          continue;
+        }
+        if (/(?:現在|残高|残り)/.test(line)) continue;
+        var egoName = egoPurchaseItemNameOf(line);
+        if (egoName) {
+          var egoAmounts = egoCurrencyAmounts(line);
+          var listedLp = egoAmounts.lp ? amountNear(line, "lp", false) : null;
+          var listedShards = egoAmounts.shards ? amountNear(line, "shards", false) : null;
+          var explicitEgoPrice = listedLp !== null || listedShards !== null;
+          var egoDbRow = findEgoPurchaseDbRow(line, egoName);
+          var egoDbPrice = Number.parseInt(egoDbRow && egoDbRow.shards, 10) || 0;
+          var egoLpCost = explicitEgoPrice && listedLp !== null ? Math.abs(listedLp) : 0;
+          var egoShardCost = explicitEgoPrice && listedShards !== null ? Math.abs(listedShards)
+            : (!explicitEgoPrice && egoDbPrice > 0 ? egoDbPrice : 0);
+          egoPurchaseItems.push({
+            name: egoName, lp: egoLpCost, shards: egoShardCost, raw: line,
+            explicitPrice: explicitEgoPrice, dbPrice: egoDbPrice
+          });
+          spends.push({
+            name: egoName, lp: egoLpCost, shards: egoShardCost, raw: line,
+            reason: explicitEgoPrice ? "E.G.O指定購入（項目別価格）"
+              : (egoDbPrice > 0 ? "E.G.O指定購入（DB価格補完）" : "E.G.O指定購入（価格未確定）")
+          });
+          wins.push({ name: egoName, raw: line, via: "E.G.O指定購入", kind: "ego", bought: true });
+          if (egoDbPrice > 0 && explicitEgoPrice && (egoLpCost !== 0 || egoShardCost !== egoDbPrice)) {
+            currencyDiscrepancies.push({
+              code: "ego-item-price-mismatch",
+              title: "E.G.Oの項目別価格がDB価格と一致しません",
+              line: line,
+              detail: "「" + egoName + "」の記録価格は " +
+                (egoLpCost ? egoLpCost + " LP" : "") +
+                (egoLpCost && egoShardCost ? " + " : "") +
+                (egoShardCost ? egoShardCost + "欠片" : "") +
+                "、DB価格は " + egoDbPrice + "欠片です。元の記録価格は保持し、自動修正していません。"
+            });
+          }
+          if (egoLpCost === 0 && egoShardCost === 0) {
+            reasons.push({ line: line, reason: "E.G.O指定購入の項目別価格を読み取れず、DBにも価格がありません" });
+          }
+          continue;
+        }
+        if (/消費欄|消費額|消費合計|購入合計|合計消費|項目別価格合計|支出額|総額/.test(line)) {
+          reasons.push({ line: line, reason: "E.G.O指定購入の合計欄を数値として読み取れません" });
+          continue;
+        }
+      }
 
       /* 「200LP以下のテーマパック×1」のように価格上限とテーマパックだけが書かれ、
          「チケット」か実支出かが不明な行を黙って通過させない。金額は控除・計上せず、
@@ -1343,7 +1488,37 @@
       }
     }
 
-    return { income: income, tickets: tickets, pack: pack, spends: spends, reasons: reasons, wins: wins, consumedItems: consumedItems, ticketSpends: ticketSpends };
+    if (egoPurchaseItems.length && egoPurchaseSummaries.length) {
+      var itemTotal = egoPurchaseItems.reduce(function (sum, item) {
+        sum.lp += Number(item.lp) || 0;
+        sum.shards += Number(item.shards) || 0;
+        return sum;
+      }, { lp: 0, shards: 0 });
+      var formatCurrencyTotal = function (value) {
+        var parts = [];
+        if (value.lp) parts.push(value.lp + " LP");
+        if (value.shards) parts.push(value.shards + "欠片");
+        return parts.length ? parts.join(" + ") : "0";
+      };
+      egoPurchaseSummaries.forEach(function (summary) {
+        if (summary.lp !== itemTotal.lp || summary.shards !== itemTotal.shards) {
+          currencyDiscrepancies.push({
+            code: "ego-purchase-summary-mismatch",
+            title: "E.G.O指定購入の項目別価格と消費欄が一致しません",
+            line: summary.raw,
+            detail: "項目別価格合計は " + formatCurrencyTotal(itemTotal) +
+              " ですが、消費欄の記録は " + formatCurrencyTotal(summary) +
+              " です。項目別価格だけを支出として記録し、総額の二重計上はしていません。"
+          });
+        }
+      });
+    }
+
+    return {
+      income: income, tickets: tickets, pack: pack, spends: spends, reasons: reasons,
+      wins: wins, consumedItems: consumedItems, ticketSpends: ticketSpends,
+      currencyDiscrepancies: currencyDiscrepancies
+    };
   }
 
   /* scenarioHistory 配列を分解する。 */
@@ -1359,6 +1534,7 @@
         pack: parsed.pack,
         spends: parsed.spends,
         reasons: parsed.reasons,
+        currencyDiscrepancies: parsed.currencyDiscrepancies || [],
         /* シナリオで直接払い出された人格/E.G.O。
            チケットだけ記入されている場合も「どのチケット由来か」を
            持つので、ここに入る。 */
