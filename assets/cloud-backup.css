@@ -1,4 +1,24 @@
 /* Optional cloud backup/recovery panel. Keep styles on the shared design tokens. */
+
+/* 共有URL取り込み中は、任意のクラウド保全パネルを退避してフォームへ領域を配分する。 */
+.acct-panel:has(.acct-card--import-open) {
+  max-height: min(92dvh, 900px);
+}
+.acct-panel:has(.acct-card--import-open) > .lbt-cloud-panel {
+  display: none;
+}
+.acct-panel:has(.acct-card--import-open) > .acct-grid {
+  min-height: 0;
+  flex: 1 1 0%;
+  grid-template-columns: minmax(0, 1fr);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.acct-panel:has(.acct-card--import-open) > .acct-grid > .acct-card:not(.acct-card--import-open) {
+  /* 長い取り込みフォームと背後のカードを同時に見せて、誤った対象を編集させない。 */
+  display: none;
+}
+
 .lbt-cloud-panel {
   display: grid;
   gap: var(--s-3);
