@@ -36,9 +36,9 @@ test("モバイルの下部ナビゲーションは横スクロールせず全�
 });
 
 test("スマホのビルド8タブは4列×2段に収まり横スクロールを要求しない", () => {
-  assert.match(workspace, /grid-template-columns: repeat\\(4, minmax\\(0, 1fr\\)\\)/);
+  assert.match(workspace, /grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
   assert.match(workspace, /All eight build tabs fit in two rows/);
-  assert.match(workspace, /\\.build-tabs \\.segmented > button \\{[\\s\\S]*?min-height: 40px;[\\s\\S]*?white-space: normal;/);
+  assert.match(workspace, /\.build-tabs \.segmented > button \{[\s\S]*?min-height: 40px;[\s\S]*?white-space: normal;/);
 });
 
 test("アイテムは独立セクションを持たない（ショップで開く・ビルドのタブで持ち込む）", () => {
