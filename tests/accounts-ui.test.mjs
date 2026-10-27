@@ -23,6 +23,7 @@ const stateSource = readFileSync(new URL("../js/state.js", import.meta.url), "ut
 const app = readFileSync(new URL("../js/App.js", import.meta.url), "utf8");
 const sections = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
 const css = readFileSync(new URL("../assets/v66-accounts.css", import.meta.url), "utf8");
+const interactionCss = readFileSync(new URL("../assets/v68-interaction-a11y.css", import.meta.url), "utf8");
 const indexHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 
 test("作成・名前変更はインラインフォームで行い prompt に依存しない", () => {
@@ -306,8 +307,8 @@ test("SINNER SELECT内の共有URL取込は全列を使い、本文が狭いカ�
 
 
 test("初回のSINNER SELECTで新規作成フォームは幅を確保し、主ボタンが狭いカード列に押し込まれない", () => {
-  assert.match(css, /\.acct-gate-panel \.acct-grid:has\(\.acct-card--form\)\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/);
-  assert.match(css, /\.acct-gate-panel \.acct-grid:has\(\.acct-card--form\) > \.acct-card--form\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/);
+  assert.match(interactionCss, /\.acct-gate-panel \.acct-grid:has\(\.acct-card--form\)\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/);
+  assert.match(interactionCss, /\.acct-gate-panel \.acct-grid:has\(\.acct-card--form\) > \.acct-card--form\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/);
   assert.match(ui, /h\("div", \{ className: "acct-form-actions" \}/);
   assert.match(ui, /h\(Button, \{ size: "sm", variant: "primary", icon: "check", onClick: create \}, "作成して開く"\)/);
 });
