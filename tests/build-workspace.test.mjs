@@ -1104,7 +1104,9 @@ test("ショップとビルドの体裁がある", () => {
   assert.match(css, /\.build-items-add \{ display: grid; gap: var\(--s-2\); \}/);
   assert.match(css, /\.inv-pick-button \{[\s\S]*?border-radius: var\(--r-pill\);/);
   assert.match(css, /\.inv-pick-button:disabled \{ opacity: \.45; cursor: not-allowed; \}/);
-  assert.match(css, /@media \(max-width: 640px\) \{\s*\/\* 狭幅でタブ帯の文字を押し潰さず横スクロールで到達可能にする。 \*\/\s*\.build-tabs \.segmented,\s*\.record-tabbar \.segmented \{ overflow-x: auto;/);
+  const auditCss = readFileSync(new URL("../assets/v69-ui-audit-fixes.css", import.meta.url), "utf8");
+  assert.match(auditCss, /\.build-tabs \.segmented\s*\{[\s\S]*?grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\);[\s\S]*?overflow:\s*visible;/);
+  assert.match(auditCss, /\.record-tabbar \.segmented\s*\{[\s\S]*?grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\);[\s\S]*?overflow:\s*visible;/);
 });
 
 /* ---------------------------------------------------------------------------
