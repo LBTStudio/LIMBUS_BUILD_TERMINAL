@@ -1079,6 +1079,25 @@
     return rows;
   }
 
+  function auditMoneyTotalsOfLine(rawLine) {
+    const totals = { lp: 0, shards: 0 };
+    for (const row of auditMoneyRowsOfLine(rawLine, "")) totals[row.currency] += row.amount;
+    return totals;
+  }
+
+  function auditMoneyFlowsOfLine(rawLine, mode) {
+    const flows = {
+      lpIncome: 0, lpSpend: 0, lpUnknown: 0,
+      shardsIncome: 0, shardsSpend: 0, shardsUnknown: 0
+    };
+    for (const row of auditMoneyRowsOfLine(rawLine, mode)) {
+      const key = row.currency === "lp" ? "lp" : "shards";
+      const suffix = row.direction === "income" ? "Income" : row.direction === "spend" ? "Spend" : "Unknown";
+      flows[key + suffix] += row.amount;
+    }
+    return flows;
+  }
+
   function auditLineCoverage(rawLine, expected, detected, hasMoneyReviewReason, section, lineIndex, expectedFlows, detectedFlows) {
     const totalsMatch = expected.lp === detected.lp && expected.shards === detected.shards;
     let flowMatch = null;
