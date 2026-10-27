@@ -22,6 +22,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
+      - name: Regenerate asset hashes in CI for audit (temporary)
+        run: node tools/sync-asset-versions.mjs
       - name: Verify asset version hashes and Service Worker precache
         run: node tools/sync-asset-versions.mjs --check
       - name: Verify live account recovery smoke-test syntax
