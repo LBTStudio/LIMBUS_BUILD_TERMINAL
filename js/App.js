@@ -1625,7 +1625,7 @@ const App = () => {
   },
     React.createElement("div", { className: "import-scope-title", id: "import-scope-title" }, "セーブデータの読み込み"),
     React.createElement("div", { className: "import-scope-intro", id: "import-scope-intro" }, "読み込む項目を選択してください。現在の状態は上書きされますが、Ctrl+Zで差し戻せます。"),
-    React.createElement("div", { className: "import-apply-summary", role: "status", "aria-live": "polite" }, "今回の適用範囲：", selectedImportLabel),
+    React.createElement("div", { className: "import-apply-summary", role: "status", "aria-live": "polite" }, "\u4ECA\u56DE\u306E\u9069\u7528\u7BC4\u56F2\uFF1A", selectedImportLabel),
     React.createElement("div", { className: "import-scope-options" },
       importGroupsWithData.map((g) => React.createElement("label", { key: g.key, className: "import-scope-option" },
         React.createElement("input", {
