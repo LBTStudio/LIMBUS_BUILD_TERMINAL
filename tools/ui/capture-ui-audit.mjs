@@ -292,7 +292,7 @@ async function seed() {
       spiritConfuse: spirits[0]?.confuse_effect || "",
       spiritAlways: spirits[0]?.always_effect || "",
       skillLibrary: [],
-      favorites: [{ key: mode + ":" + p.no, kind: "persona", mode, no: p.no }],
+      favorites: [mode + ":" + p.no],
       historyRecent: [],
       results: [{
         id: "ui-audit-result-1", name: "UI監査用セッション", date: "2026-10-01",
