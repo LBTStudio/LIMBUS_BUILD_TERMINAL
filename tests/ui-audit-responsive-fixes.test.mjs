@@ -69,8 +69,8 @@ test("読み込み項目はデータのあるカテゴリを先に出し、空�
 test("アカウント編集のアクション列はカード内の更新日時と重ならず、共有URLフォームが領域を確保する", () => {
   assert.match(accountCss, /\.acct-card\s*\{[\s\S]*?min-height:\s*148px;[\s\S]*?padding:[^}]*34px/);
   assert.match(accountCss, /\.acct-meta\s*\{[\s\S]*?overflow-wrap:\s*anywhere;/);
-  assert.match(cloudCss, /\.acct-panel:has\(\.acct-card--import-open\) > \.lbt-cloud-panel\s*\{\s*display:\s*none;/);
-  assert.match(cloudCss, /\.acct-panel:has\(\.acct-card--import-open\) > \.acct-grid\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/);
+  assert.match(cloudCss, /\.acct-panel:has\(\.acct-card--import-open\) \.lbt-cloud-panel\s*\{\s*display:\s*none;/);
+  assert.match(cloudCss, /\.acct-panel:has\(\.acct-card--import-open\) \.acct-grid\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/);
 });
 
 test("取り込みパネルを開くと表示位置へ移動し、最初の入力欄へフォーカスする", () => {
