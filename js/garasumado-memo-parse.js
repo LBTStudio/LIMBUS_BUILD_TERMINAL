@@ -905,8 +905,25 @@
         /* 購入・抽出後の獲得名を保持。既存の同名候補があれば重複を増やさない。 */
         var arrowRewardNames = arrowWinsOf(line);
         if (!arrowRewardNames.length && rewardName) arrowRewardNames = [rewardName];
+        /* この形式の100LP消費ガチャは人格抽出。短縮名がE.G.O名にも含まれる
+           場合、金額・操作文脈を明示的な種別ヒントとして渡す。
+           名前単体へグローバルな別名を登録して誤分類させない。 */
+        var entityKindHint = currencySpend.currency === "lp"
+          && currencySpend.amount === 100
+          && /ガチャ/.test(line)
+          ? "persona" : "";
         arrowRewardNames.forEach(function (name) {
-          if (!wins.some((w) => w.name === name)) wins.push({ name: name, via: "", kind: "" });
+          var existing = wins.find((w) => w.name === name);
+          if (existing) {
+            if (entityKindHint) existing.entityKindHint = entityKindHint;
+          } else {
+            wins.push({
+              name: name,
+              via: "",
+              kind: "",
+              ...(entityKindHint ? { entityKindHint: entityKindHint } : {})
+            });
+          }
         });
         /* 続きに収入・チケット獲得が同居する書式があるため行全体を捨てない。
            後段の既存解析は消費より前の収入だけを読む。 */
