@@ -850,17 +850,22 @@ test("名前付き購入行「蒼羽蝶：75LP消費」は支出として読ま�
   assert.ok(!withBalance.reasons.some((item) => /安全に解析できない/.test(item.reason)),
     "既に別経路で正しく読めた支出に誤警告を出さない");
 
-  /* 複数の明示支出は一方だけを勝手に選ばない。全て読めるか、確認へ回す。 */
+  /* 複数通貨の同時消費も、通貨ごとの独立した支出として記録する。 */
   const multi = MEMO.parseMemo("LP100を消費、欠片50を消費して交換");
-  const spendAmounts = multi.spends.flatMap((row) => [
-    ...(row.lp ? [["lp", row.lp]] : []),
-    ...(row.shards ? [["shards", row.shards]] : [])
-  ]);
-  const fullyRead = spendAmounts.some(([currency, amount]) => currency === "lp" && amount === 100)
-    && spendAmounts.some(([currency, amount]) => currency === "shards" && amount === 50);
-  const heldForReview = spendAmounts.length === 0
-    && multi.reasons.some((item) => /安全に解析できない/.test(item.reason));
-  assert.ok(fullyRead || heldForReview, "複数支出を過少計上せず、全件記録か確認対象にする");
+  assert.equal(multi.spends.reduce((sum, row) => sum + (Number(row.lp) || 0), 0), 100,
+    "LP支出を独立して記録する");
+  assert.equal(multi.spends.reduce((sum, row) => sum + (Number(row.shards) || 0), 0), 50,
+    "欠片支出を独立して記録する");
+  assert.equal(multi.income.lp, 0, "同じ支出額をLP収入に重ねない");
+  assert.equal(multi.income.shards, 0, "同じ支出額を欠片収入に重ねない");
+
+  const sharedCue = MEMO.parseMemo("LP100と欠片100を消費ガチャ→厳粛な哀悼");
+  assert.equal(sharedCue.spends.reduce((sum, row) => sum + (Number(row.lp) || 0), 0), 100,
+    "1つの消費動詞が掛かるLPを記録する");
+  assert.equal(sharedCue.spends.reduce((sum, row) => sum + (Number(row.shards) || 0), 0), 100,
+    "1つの消費動詞が掛かる欠片も記録する");
+  assert.equal(sharedCue.income.lp, 0, "共有動詞のLPを収入へ二重計上しない");
+  assert.equal(sharedCue.income.shards, 0, "共有動詞の欠片を収入へ二重計上しない");
 
   const hate = MEMO.parseMemo("憎悪購入：-50欠片");
   assert.equal(hate.spends.length, 1, "負数でも購入行は支出になる");
