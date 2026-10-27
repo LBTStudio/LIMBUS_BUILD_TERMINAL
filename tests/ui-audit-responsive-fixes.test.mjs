@@ -61,3 +61,9 @@ test("読み込み項目はデータのあるカテゴリを先に出し、空�
   assert.match(css, /\.import-scope-options\s*\{[\s\S]*?overflow-y:\s*auto;[\s\S]*?min-height:\s*0;/);
   assert.match(css, /\.import-scope-actions\s*\{[\s\S]*?flex:\s*0 0 auto;/);
 });
+
+
+test("初回SINNER SELECTの作成フォームはアクションまで表示できる幅を確保する", () => {
+  assert.match(css, /\.acct-gate-panel\s*>\s*\.acct-grid\s*\{[\s\S]*?align-content:\s*start;[\s\S]*?grid-auto-rows:\s*max-content;/);
+  assert.match(css, /\.acct-gate-panel\s*>\s*\.acct-grid\s*>\s*\.acct-card--form\s*\{[\s\S]*?grid-column:\s*1\s*\/\s*-1;[\s\S]*?min-height:\s*max-content;/);
+});
