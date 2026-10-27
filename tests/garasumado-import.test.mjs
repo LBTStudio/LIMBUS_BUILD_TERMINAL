@@ -38,6 +38,45 @@ const MEMO = (() => {
    memo は自由記述。「現在NN」は収入ではなく残額、
    「・支出」以降は支出明細。この二つを取り違えると帳尻が全部ズレる。 */
 
+
+
+test("硝子窓側の報酬計算規則と実績値を分離し、基礎額を二重計上しない", () => {
+  const raw = [
+    "LP：40＋(PLが討伐日乞い子の数x5_最大30)",
+    "欠片：30＋(PLが討伐した日乞い子の数x2_最大12)",
+    "※戦闘終了までに「しとしとさま」を討伐出来なかった場合、LP/欠片-15",
+    "LP：55",
+    "欠片：36"
+  ].join("\n");
+  const parsed = MEMO.parseMemo(raw);
+  assert.equal(parsed.income.lp, 55, "LPの基礎値40と上限ボーナスを実収入へ加算しない");
+  assert.equal(parsed.income.shards, 36, "欠片の基礎値30と上限ボーナスを実収入へ加算しない");
+  assert.ok(parsed.sourceAudits.some((entry) => entry.code === "formula-result-in-range" && entry.currency === "lp"));
+  assert.ok(parsed.sourceAudits.some((entry) => entry.code === "formula-result-in-range" && entry.currency === "shards"));
+  assert.ok(parsed.sourceAudits.some((entry) => entry.code === "condition-unconfirmed" && /討伐出来なかった場合/.test(entry.line)));
+});
+
+test("硝子窓側の明示計算ミスは自動計上を止め、元記録側と識別する", () => {
+  const parsed = MEMO.parseMemo("報酬\n欠片50×3=149欠片\nLP+30");
+  assert.equal(parsed.income.shards, 0, "不一致の計算行を欠片収入へ自動計上しない");
+  assert.equal(parsed.income.lp, 30, "別行の正常なLP報酬は保持する");
+  const finding = parsed.sourceAudits.find((entry) => entry.code === "source-arithmetic-mismatch");
+  assert.ok(finding, "硝子窓側の計算不整合を検出する");
+  assert.equal(finding.side, "source-data");
+  assert.equal(finding.expectedAmount, 150);
+  assert.equal(finding.writtenAmount, 149);
+});
+
+test("リザルト側の通貨検出差分を行単位で記録する", () => {
+  const parsed = MEMO.parseMemo("報酬：LP+40 / 欠片+25");
+  assert.equal(parsed.income.lp, 40);
+  assert.equal(parsed.income.shards, 25);
+  assert.ok(Array.isArray(parsed.sourceAudits), "監査情報を解析結果に保持する");
+  /* 元記録に明示額がありパーサ結果との差があるときだけ parser-side の警告を出す。 */
+  const audit = MEMO.parseMemo("報酬：LP+40 / 欠片+25");
+  assert.ok(!audit.sourceAudits.some((entry) => entry.side === "parser"), "正しく読めた金額に検出漏れ警告を付けない");
+});
+
 test("memo の収入は「現在NN」ではなく行頭の金額を読む", () => {
   const r = MEMO.parseMemo("90LP：現在100LP\n29欠片：現在39欠片");
   assert.equal(r.income.lp, 90, "収入 LP は 90（現在 100 は残額）");
