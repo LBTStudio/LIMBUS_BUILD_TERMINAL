@@ -1312,6 +1312,7 @@ const App = () => {
   const [importData, setImportData] = React.useState(null);
   const [importSel, setImportSel] = React.useState({});
   const fileRef = React.useRef(null);
+  const importDialogRef = React.useRef(null);
   const utilityReturnFocusRef = React.useRef(null);
   const openUtilities = (event) => {
     const trigger = event?.currentTarget || document.activeElement;
@@ -1339,6 +1340,43 @@ const App = () => {
     return () => { delete window.LBT_openImportDialog; };
   }, []);
   
+
+  /* セーブデータ選択ダイアログ: 開いたら内部へフォーカスを移し、Esc/Tabで迷子にしない。 */
+  React.useEffect(() => {
+    if (!importData) return;
+    const dialog = importDialogRef.current;
+    if (!dialog) return;
+    const focusable = () => Array.from(dialog.querySelectorAll(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [href], [tabindex]:not([tabindex="-1"])'
+    )).filter((node) => node.getClientRects().length > 0);
+    const previous = document.activeElement;
+    requestAnimationFrame(() => focusable()[0]?.focus());
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        setImportData(null);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const nodes = focusable();
+      if (!nodes.length) return;
+      const first = nodes[0];
+      const last = nodes[nodes.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    dialog.addEventListener("keydown", onKeyDown);
+    return () => {
+      dialog.removeEventListener("keydown", onKeyDown);
+      if (previous && typeof previous.focus === "function" && document.contains(previous)) previous.focus();
+    };
+  }, [Boolean(importData)]);
 
   /* 硝子窓からの取り込みは、このアカウントの state へ直接流す。
      UNDO は state の履歴機構に乗るので、取り込み後も差し戻せる。 */
