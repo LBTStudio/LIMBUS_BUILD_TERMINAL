@@ -280,3 +280,28 @@
 .acct-gate-panel:has(.acct-card--form) > .acct-grid {
   grid-template-columns: minmax(0, 1fr);
 }
+
+/* The help index has eight categories. On touch screens, expose all categories as
+   a 4x2 grid instead of hiding later categories behind an unlabeled horizontal scroll. */
+@media (max-width: 640px) {
+  .guide-filter-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+    overflow: visible;
+    padding: 1px 0 4px;
+  }
+  .guide-filter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 40px;
+    width: 100%;
+    padding: 6px 2px;
+    text-align: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.25;
+  }
+}
