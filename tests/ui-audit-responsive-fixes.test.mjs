@@ -67,3 +67,11 @@ test("記録の取り込みパネルを開くと自動で移動し、最初の�
   assert.match(sections, /id: "ledger-glass-import-panel"/);
   assert.match(sections, /id: "ledger-text-import-panel"/);
 });
+
+test("初回アカウント作成フォームは高さ制限に隠れず、送信操作を読める", () => {
+  assert.match(css, /\.acct-gate-panel:has\(\.acct-card--form\)[\s\S]*?overflow-y:\s*auto;/);
+  assert.match(css, /\.acct-gate-panel:has\(\.acct-card--form\) > \.acct-grid\s*\{[\s\S]*?flex:\s*0 0 auto;[\s\S]*?grid-auto-rows:\s*max-content;[\s\S]*?overflow:\s*visible;/);
+  assert.match(css, /\.acct-gate-panel:has\(\.acct-card--form\) > \.lbt-cloud-panel\s*\{\s*display:\s*none;\s*\}/);
+  const accountUi = read("../js/accounts-ui.js");
+  assert.match(accountUi, /className: "acct-form-actions"[\s\S]*?"作成して開く"/);
+});
