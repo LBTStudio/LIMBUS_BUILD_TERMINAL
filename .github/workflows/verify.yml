@@ -24,6 +24,8 @@ jobs:
           node-version: "24"
       - name: Verify asset version hashes and Service Worker precache
         run: node tools/sync-asset-versions.mjs --check
+      - name: Audit supplied live Garasumado shares against current parser (temporary, sanitized)
+        run: node tools/audit-live-garasumado-current.mjs
       - name: Verify live account recovery smoke-test syntax
         run: node --check tools/ui/verify-account-recovery-live.mjs
       - name: Verify short-link publish and restore round-trip
