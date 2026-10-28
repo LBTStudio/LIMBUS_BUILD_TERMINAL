@@ -58,7 +58,17 @@ async function metrics(page) {
   const tabs=await rect(page.locator(".preview-tabs"));
   const rail=await rect(page.locator(".rail"));
   const title=await rect(page.locator(".section-title-row"));
+  const heading=await rect(page.locator(".section-title"));
+  const headingLayout=await page.locator(".section-title").evaluate(el=>{
+    const style=getComputedStyle(el);
+    const range=document.createRange();
+    range.selectNodeContents(el);
+    const rects=[...range.getClientRects()].filter(r=>r.width>0&&r.height>0);
+    const lines=[...new Set(rects.map(r=>Math.round(r.y)))];
+    return {fontSize:Number.parseFloat(style.fontSize)||0,lineCount:lines.length,lineYs:lines};
+  }).catch(()=>({fontSize:0,lineCount:0,lineYs:[]}));
   const focus=await rect(page.locator(".focus"));
+  const focusPaddingBottom=await page.locator(".focus").evaluate(el=>Number.parseFloat(getComputedStyle(el).paddingBottom)||0).catch(()=>0);
   return {
     viewport:page.viewportSize(),
     toggleCount:await toggle.count(),
@@ -68,7 +78,7 @@ async function metrics(page) {
     legacyReopenCount:await page.locator(".preview-reopen").count(),
     legacyCloseCount:await page.locator(".preview-close").count(),
     panelOpen:await panel.evaluate(el=>el.classList.contains("is-open")).catch(()=>false),
-    toggle:t,panel:p,actions,hint,tabs,rail,title,focus,
+    toggle:t,panel:p,actions,hint,tabs,rail,title,heading,headingLayout,focus,focusPaddingBottom,
     overlaps:{
       footer:intersects(t,actions),
       hint:intersects(t,hint),
@@ -127,6 +137,18 @@ async function runProfile(browser,profile) {
     recordCheck(profile.name+": closed state is synchronized",
       closed.expanded==="false"&&!closed.panelOpen,
       {metrics:closed});
+    const closedCollisions=Object.entries(closed.overlaps).filter(([key,value])=>["footer","hint","tabs","rail","sectionTitle"].includes(key)&&value.hit);
+    recordCheck(profile.name+": closed toggle avoids preview actions, tabs, hints, headings and navigation",
+      closedCollisions.length===0,
+      {collisions:closedCollisions,metrics:closed});
+    if(profile.width>=641&&profile.width<=1024) {
+      const expectedDock=profile.height<=500?48:60;
+      const inReservedDock=!!closed.focus&&!!closed.toggle&&closed.toggle.y>=closed.focus.bottom-expectedDock-2&&closed.toggle.bottom<=closed.focus.bottom-4;
+      const navSeparated=!closed.rail||!closed.toggle||!intersects(closed.toggle,closed.rail).hit;
+      recordCheck(profile.name+": collapsed tablet/landscape control uses a reserved dock",
+        closed.focusPaddingBottom>=expectedDock&&inReservedDock&&navSeparated,
+        {requiredPadding:expectedDock,focusPaddingBottom:closed.focusPaddingBottom,focusBottom:closed.focus?.bottom,toggle:closed.toggle,rail:closed.rail});
+    }
     if(profile.mobile&&profile.height>profile.width) {
       const focusSeparated=!!closed.focus&&!!closed.toggle&&closed.focus.bottom<=closed.toggle.y-4;
       const navSeparated=!!closed.rail&&!!closed.toggle&&closed.toggle.bottom<=closed.rail.y-4;
@@ -147,13 +169,25 @@ async function runProfile(browser,profile) {
     recordCheck(profile.name+": toggle does not overlap preview actions, tabs, hints, headings or navigation",
       controlCollisions.length===0,
       {collisions:controlCollisions,metrics:opened});
+    if(profile.width>=641&&profile.width<=1024) {
+      const expectedDock=profile.height<=500?48:60;
+      const inReservedDock=!!opened.focus&&!!opened.toggle&&opened.toggle.y>=opened.focus.bottom-expectedDock-2&&opened.toggle.bottom<=opened.focus.bottom-4;
+      const navSeparated=!opened.rail||!opened.toggle||!intersects(opened.toggle,opened.rail).hit;
+      recordCheck(profile.name+": open tablet/landscape control uses a reserved dock",
+        opened.focusPaddingBottom>=expectedDock&&inReservedDock&&navSeparated,
+        {requiredPadding:expectedDock,focusPaddingBottom:opened.focusPaddingBottom,focusBottom:opened.focus?.bottom,toggle:opened.toggle,rail:opened.rail});
+    }
     if(profile.mobile&&profile.height>profile.width) {
       const panelSeparated=!!opened.panel&&!!opened.toggle&&opened.panel.bottom<=opened.toggle.y-4;
       const navSeparated=!!opened.rail&&!!opened.toggle&&opened.toggle.bottom<=opened.rail.y-4;
       recordCheck(profile.name+": open preview footer and toggle have a separate dock",panelSeparated&&navSeparated,
         {panelBottom:opened.panel?.bottom,toggleTop:opened.toggle?.y,toggleBottom:opened.toggle?.bottom,railTop:opened.rail?.y,gapFromPanel:opened.toggle&&opened.panel?opened.toggle.y-opened.panel.bottom:null});
     }
-    recordCheck(profile.name+": no horizontal document overflow",!opened.horizontalOverflow,{viewport:opened.viewport});
+    if(profile.mobile&&profile.height>profile.width) {
+      recordCheck(profile.name+": mobile section title has no orphaned line",!!opened.headingLayout&&opened.headingLayout.lineCount<=1,
+        {heading:opened.heading,headingLayout:opened.headingLayout});
+    }
+        recordCheck(profile.name+": no horizontal document overflow",!opened.horizontalOverflow,{viewport:opened.viewport});
     const openPath=path.join(OUT,profile.name+"-open.png");
     await page.screenshot({path:openPath,animations:"disabled"});
     results.screenshots.push({file:path.relative(ROOT,openPath),profile:profile.name,state:"open",metrics:opened});
