@@ -441,7 +441,7 @@ function toMarkdownReport(report) {
     ["全アンカーで開始残高推定が一致（LP / 欠片）", report.balance.ruleBasedOpening.summary.lpOpeningStableAcrossAnchors + " / " + report.balance.ruleBasedOpening.summary.shardsOpeningStableAcrossAnchors],
     ["最新アンカーから保存残高を再現（LP / 欠片）", report.balance.ruleBasedOpening.summary.lpLatestAnchorMatchesCurrent + " / " + report.balance.ruleBasedOpening.summary.shardsLatestAnchorMatchesCurrent],
     ["明示的な初期作成ラベルあり", report.balance.ruleBasedOpening.summary.explicitInitialGrantRecorded],
-    ["ラベルなしを含む初期30LP・欠片10の一致候補", report.balance.ruleBasedOpening.summary.exactInitialAmountCandidates + " 文書 / " + report.balance.ruleBasedOpening.summary.exactInitialAmountRows + " 行],
+    ["ラベルなしを含む初期30LP・欠片10の一致候補", report.balance.ruleBasedOpening.summary.exactInitialAmountCandidates + " 文書 / " + report.balance.ruleBasedOpening.summary.exactInitialAmountRows + " 行"],
     ["LPの残差が負（収支純額が所持LPを上回る）", report.balance.summary.lpResidualNegative],
     ["欠片の残差が負（収支純額が所持欠片を上回る）", report.balance.summary.shardResidualNegative],
     ["旧ベースラインとの履歴件数差", report.source.snapshotDrift.length],
