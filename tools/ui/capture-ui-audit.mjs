@@ -523,7 +523,9 @@ async function captureProfile(browser, mode) {
           const textButton=page.locator(".ledger-import-menu button").filter({hasText:/^テキスト流し込み$/}).first();
           if(!(await visible(textButton))) throw new Error("リザルトのテキスト流し込みメニュー項目が表示されません");
           await click(textButton);
-          const textPanel=page.locator("#ledger-text-import-panel");
+          // The current UI renders import tools as .ledger-gara-wrap blocks;
+          // it does not assign the former #ledger-text-import-panel id.
+          const textPanel=page.locator(".ledger-gara-wrap").filter({hasText:"テキスト流し込み"}).last();
           await textPanel.waitFor({state:"visible",timeout:5000});
           const textArea=textPanel.locator("textarea.ledger-textarea").first();
           await textArea.waitFor({state:"visible",timeout:5000});
