@@ -351,7 +351,7 @@ item.decide ? h("div", { className: "gara-decide" },
   function ResultCard({
     block, scenarioOptions, sourceOptions, onPickIdentity, onDropItem, onReturnItem,
     existingResults = [], legacyCandidates = [], legacyTargetId = "", onPickLegacyTarget,
-    sourceAlreadyImported = false
+    sourceAlreadyImported = false, purchaseCandidates = [], onTogglePurchaseCandidate
   }) {
     const income = block.income || { lp: 0, shards: 0 };
     /* 無題は名前が無いのでカード名として使えない。個数と合計で示す。 */
@@ -374,6 +374,35 @@ item.decide ? h("div", { className: "gara-decide" },
           pair(income.lp, "lp", "LP"),
           pair(income.shards, "shard", "欠片")
         ),
+        Array.isArray(purchaseCandidates) && purchaseCandidates.length
+          ? h("div", { className: "gara-note gara-purchase-review", role: "group", "aria-label": title + " の購入候補" },
+            h("strong", null, "購入候補（初期状態は未承認）"),
+            h("p", null, "候補名だけの言及は支出に計上しません。チェックした項目だけを購入明細・シミュレーションへ反映します。"),
+            purchaseCandidates.map((proposal) => h("label", {
+              key: proposal.approvalKey,
+              className: "gara-purchase-candidate"
+            },
+              h("input", {
+                type: "checkbox",
+                checked: Boolean(proposal.approved),
+                onChange: (event) => onTogglePurchaseCandidate?.(proposal.approvalKey, event.target.checked)
+              }),
+              h("span", { className: "gara-row-name" }, String(proposal.name || "名前不明")),
+              h("span", { className: "gara-row-meta" }, moneyText(proposal.cost)),
+              h("small", null, "原文 " + String(proposal.lineNo || "?") + "行目：" + String(proposal.line || ""))
+            ))
+          )
+          : null,
+        Array.isArray(block.currencyDiscrepancies) && block.currencyDiscrepancies.length
+          ? h("div", { className: "gara-note gara-note-warn", role: "status" },
+            h("strong", null, "価格差の確認（元記録額は自動修正していません）"),
+            block.currencyDiscrepancies.map((entry, index) => h("p", { key: "currency-" + index },
+              String(entry.title || "記録価格とDB価格の差")
+              + "：" + String(entry.detail || "価格を確認してください")
+              + (entry.line ? "（原文：" + String(entry.line) + "）" : "")
+            ))
+          )
+          : null,
         Array.isArray(block.sourceAudits) && block.sourceAudits.some((entry) => entry && entry.severity !== "info")
           ? h("div", { className: "gara-note gara-note-warn", role: "status" },
             h("strong", null, "金額・検出監査（硝子窓側／ターミナル側）"),
@@ -572,6 +601,8 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [], existi
   const [manifest, setManifest] = React.useState(null);
   const [picked, setPicked] = React.useState({});
   const [lines, setLines] = React.useState([]);
+  /* 購入候補は表示だけでは課金しない。明示的なチェックを承認として扱う。 */
+  const [purchaseApprovals, setPurchaseApprovals] = React.useState({});
   const [choices, setChoices] = React.useState({});
   const [decided, setDecided] = React.useState({});
   /* 残高照合は元文書（doc）にも当てるので、manifest と並べて保持する。 */
@@ -660,7 +691,7 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [], existi
     setDecided({});
     setIdentity({});
     setLegacyTargets({});
-    setLines([]);
+    setLines([]); setPurchaseApprovals({});
     setConfirmed(null);
     setPersonaItems(null);
     setPersonaPicked({});
@@ -819,7 +850,7 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [], existi
     }
 
     setManifest(annotated);
-    setLines(ops);
+    setLines(ops); setPurchaseApprovals({});
     const next = {};
     for (const g of annotated.groups) for (const i of g.items) next[i.key] = i.include;
     setPicked(next);
@@ -970,10 +1001,10 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [], existi
     setFocusKey(itemKey);
   };
 
-  /* 購入明細の予定。分類できた購入のうち、リザルトの支出として既に計上済みの
-     行（scenario.spends）は除く。同じ行を二重計上しないため、名前を解決して
-     突き合わせる。分類できた購入はカード内の行として既に帰属している。 */
-  const purchasePlan = React.useMemo(() => {
+  /* 候補表示と課金承認を分離する。DB名に解決しただけでは購入確定にしない。 */
+  const purchaseCandidateKey = (op, proposal) =>
+    String(op.key || "") + "::" + String(proposal.key || ("line:" + proposal.lineNo + ":" + proposal.kind + ":" + proposal.name));
+  const purchaseReviewPlan = React.useMemo(() => {
     if (!manifest) return {};
     const idx = window.LBT_buildNameIndex ? window.LBT_buildNameIndex(window.DB || {}, {}) : null;
     const resolveName = (n) => (idx && window.LBT_resolveCandidates
@@ -983,13 +1014,33 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [], existi
     for (const op of lines) {
       const scenario = byKey.get(op.key);
       const booked = new Set((scenario?.spends || []).map((s) => resolveName(s.name)).filter(Boolean));
-      const picks = op.proposals
-        .filter((p) => !booked.has(p.name))
-        .map((p) => ({ name: p.name, kind: p.kind, cost: p.cost }));
-      if (picks.length) out[op.key] = picks;
+      const candidates = (op.proposals || [])
+        .filter((proposal) => !booked.has(proposal.name))
+        .map((proposal) => ({
+          ...proposal,
+          approvalKey: purchaseCandidateKey(op, proposal),
+          approved: purchaseApprovals[purchaseCandidateKey(op, proposal)] === true
+        }));
+      if (candidates.length) out[op.key] = candidates;
     }
     return out;
-  }, [manifest, lines]);
+  }, [manifest, lines, purchaseApprovals]);
+
+  /* 確定 action・残高シミュレーションに入れるのは、利用者が承認した候補だけ。 */
+  const purchasePlan = React.useMemo(() => {
+    const out = {};
+    for (const [scenarioKey, candidates] of Object.entries(purchaseReviewPlan)) {
+      const approved = candidates
+        .filter((proposal) => proposal.approved)
+        .map((proposal) => ({ name: proposal.name, kind: proposal.kind, cost: proposal.cost }));
+      if (approved.length) out[scenarioKey] = approved;
+    }
+    return out;
+  }, [purchaseReviewPlan]);
+
+  const togglePurchaseApproval = (approvalKey, approved) => {
+    setPurchaseApprovals((current) => ({ ...current, [approvalKey]: approved === true }));
+  };
 
   const draft = React.useMemo(() => {
     if (!manifest) return null;
@@ -1036,7 +1087,7 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [], existi
     setChoices({});
     setDecided({});
     setIdentity({});
-    setLines([]);
+    setLines([]); setPurchaseApprovals({});
     setConfirmed(null);
     setPersonaItems(null);
     setPersonaPicked({});
@@ -1144,7 +1195,7 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [], existi
               for (const item of group.items || []) next[item.key] = item.include;
             }
             setManifest(annotated);
-            setLines(ops);
+            setLines(ops); setPurchaseApprovals({});
             setPicked(next);
             manifestReady = true;
           }
@@ -1257,7 +1308,8 @@ function appliedSummary(actions) {
       included: Object.values(picked).filter(Boolean).length,
       ops: 0,
       unknownLine: lines.reduce((n, o) => n + o.unresolved.length, 0),
-      lineOn: Object.values(purchasePlan).reduce((n, picks) => n + picks.length, 0)
+      lineOn: Object.values(purchasePlan).reduce((n, picks) => n + picks.length, 0),
+      lineCandidates: Object.values(purchaseReviewPlan).reduce((n, proposals) => n + proposals.length, 0)
     }
     : { total: 0, pickMode: 0, unknownName: 0, included: 0, ops: 0, unknownLine: 0, lineOn: 0 };
 
@@ -1474,7 +1526,7 @@ function appliedSummary(actions) {
         h("p", { className: "gara-import-balance" }, `硝子窓の申告残高（手入力・照合用）　LP ${manifest.currency.lp || "—"} ・ 欠片 ${manifest.currency.shards || "—"}`)
       ),
       h("div", { className: "gara-import-heading-actions" },
-        h("button", { type: "button", className: "gara-change-url", onClick: () => { setManifest(null); setConfirmed(null); setError(""); setUrlReport(null); setBundleReport(null); setPersonaItems(null); setPersonaPicked({}); setPersonaConfirmed(null); setProgress(""); setPicked({}); setIdentity({}); setLegacyTargets({}); setLines([]); setChoices({}); setDecided({}); setPast([]); setFuture([]); setDoc(null); } }, "URLを貼り直す"),
+        h("button", { type: "button", className: "gara-change-url", onClick: () => { setManifest(null); setConfirmed(null); setError(""); setUrlReport(null); setBundleReport(null); setPersonaItems(null); setPersonaPicked({}); setPersonaConfirmed(null); setProgress(""); setPicked({}); setIdentity({}); setLegacyTargets({}); setLines([]); setPurchaseApprovals({}); setChoices({}); setDecided({}); setPast([]); setFuture([]); setDoc(null); } }, "URLを貼り直す"),
         h("button", { type: "button", className: "gara-review-dismiss", onClick: onClose, title: "取り込み確認を閉じてアカウント編集へ戻る" }, "閉じて戻る")
       )
     ),
@@ -1605,6 +1657,8 @@ function appliedSummary(actions) {
         block,
         scenarioOptions,
         sourceOptions,
+        purchaseCandidates: purchaseReviewPlan[block.key] || [],
+        onTogglePurchaseCandidate: togglePurchaseApproval,
         onPickIdentity,
         onDropItem: dropToBlock,
         onReturnItem: returnItem,
@@ -1657,7 +1711,7 @@ function appliedSummary(actions) {
     ) : null,
     h("div", { className: "gara-foot gara-import-actions" },
       h("div", { className: "gara-foot-meta" },
-        `${counts.included}件を所持へ・購入の明細 ${counts.lineOn}件を追加（メモの支出はそのまま明細）`,
+        `${counts.included}件を所持へ・購入候補 ${counts.lineCandidates}件（明示承認済み ${counts.lineOn}件）を明細へ計上（メモに明記された支出は別途そのまま明細）`,
         [
           counts.pickMode ? h("span", { key: "pm", className: "gara-foot-warn" }, `${counts.pickMode}件は入手手段の選択が必要`) : null,
           counts.unknownName ? h("span", { key: "un", className: "gara-foot-warn" }, `${counts.unknownName}件は名前が解けていません`) : null,

@@ -2737,3 +2737,108 @@ test("硝子窓の「獲得：HE 厳粛な哀悼」は正式E.G.O名へ照合さ
     "厳粛な哀悼：死んだ蝶たちの葬儀（HE / 59）が取り込みアクションまで到達する");
   assert.deepEqual([...applied.skipped], [], "正規名とランクがあるE.G.Oを未解決扱いにしない");
 });
+
+
+test("DB購入候補は候補生成だけではADD_ENTRYも残高シミュレーションも変えず、承認後にだけ計上する", () => {
+  const M = loadImportWithMemo();
+  const resolverWindow = loadResolver();
+  const index = resolverWindow.LBT_buildNameIndex(db, {});
+  const ledgerContext = { window: { DB: db }, console, module: { exports: {} } };
+  vm.createContext(ledgerContext);
+  vm.runInContext(readFileSync(new URL("../js/ledger-import-reconcile.js", import.meta.url), "utf8"), ledgerContext);
+  const ledger = ledgerContext.window.LBT_ledgerReconcile;
+  const found = ledger.proposePurchases("報酬" + String.fromCharCode(10) + "ルサンチマン", {
+    resolve: (name) => resolverWindow.LBT_resolveCandidates(index, name)?.[0] || null
+  });
+  const candidate = found.proposals.find((row) => row.name === "ルサンチマン");
+  assert.ok(candidate, "DBにある候補を提示できる");
+  assert.equal(candidate.cost.lp, 7);
+
+  const memo = "報酬" + String.fromCharCode(10) + "ルサンチマン";
+  const manifest = M.buildManifest({
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{ name: "名前だけの記録", memo }]
+  }, null);
+  const unapproved = M.toDispatchActions(manifest, [], {});
+  assert.equal(unapproved.actions.filter((action) => action.type === "ADD_ENTRY" && action.cost?.lp === 7).length, 0,
+    "候補生成だけでは確定支出を作らない");
+  const unapprovedDraft = M.buildResultDraft(manifest, { purchases: {} });
+  assert.equal(unapprovedDraft.simulation.lp, 0, "未承認の候補価格をシミュレーションに入れない");
+
+  const purchase = [{ name: candidate.name, kind: candidate.kind, cost: candidate.cost }];
+  const approved = M.toDispatchActions(manifest, [], { purchases: { [manifest.scenarios[0].key]: purchase } });
+  assert.equal(approved.actions.filter((action) => action.type === "ADD_ENTRY" && action.cost?.lp === 7).length, 1,
+    "明示承認後は購入明細として1件だけ計上");
+  const approvedDraft = M.buildResultDraft(manifest, { purchases: { [manifest.scenarios[0].key]: purchase } });
+  assert.equal(approvedDraft.simulation.lp, -7, "明示承認された購入だけがシミュレーションを変える");
+});
+
+test("未解析支出の理由をmanifestと照合へ残し、推測費用を計上せず残高差を出す", () => {
+  const M = loadImportWithMemo();
+  const doc = {
+    currency: { lp: "60", fragment: "0" },
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [
+      { name: "開始残高", memo: "現在所持LP：100" },
+      { name: "未解析支出", memo: "消費40LP" }
+    ]
+  };
+  const manifest = M.buildManifest(doc, null);
+  const unresolved = manifest.scenarios[1];
+  assert.equal(unresolved.spends.length, 0, "40LPを推測計上しない");
+  assert.ok(unresolved.reasons.some((entry) => /安全に解析できない/.test(entry.reason)), "未解析理由を残す");
+  const draft = M.buildResultDraft(manifest, {});
+  assert.ok(draft.blocks[1].reasons.some((entry) => /安全に解析できない/.test(entry.reason)),
+    "確認カードにも理由を渡す");
+  const dispatched = M.toDispatchActions(manifest, [], {});
+  assert.equal(dispatched.actions.filter((action) => action.type === "ADD_ENTRY" && action.cost?.lp === 40).length, 0);
+  const balance = M.reconcileBalance(manifest, doc);
+  assert.equal(balance.checked, true);
+  assert.equal(balance.shownLp, 60);
+  assert.equal(balance.computedLp, 100, "未解析支出は勝手に差し引かれない");
+  assert.equal(balance.ok, false, "表示残高との不一致を検出する");
+});
+
+test("曖昧なチケット消費はLP支出を残し、券種・残数を推測せず確定actionで保留する", () => {
+  const M = loadImportWithMemo();
+  const doc = {
+    currency: { lp: "0", fragment: "0" },
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [
+      { name: "開始残高", memo: "現在所持LP：100" },
+      { name: "曖昧なチケット", memo: "消費：人格orE.G.O抽出チケット×1、LP100" }
+    ]
+  };
+  const manifest = M.buildManifest(doc, null);
+  const scenario = manifest.scenarios[1];
+  assert.equal(scenario.spends.length, 1);
+  assert.equal(scenario.spends[0].lp, 100);
+  assert.equal(scenario.ticketSpends.length, 1);
+  assert.equal(scenario.ticketSpends[0].kind, "unknown");
+  const result = M.toDispatchActions(manifest, [], {});
+  assert.equal(result.actions.filter((action) => action.type === "ADD_ENTRY" && action.cost?.lp === 100).length, 1);
+  assert.equal(result.actions.filter((action) => action.type === "ADD_ENTRY" && (
+    (Number(action.tickets?.persona) || 0) > 0 || (Number(action.tickets?.ego) || 0) > 0 || (Number(action.tickets?.choice) || 0) > 0
+  )).length, 0, "不明な券種を勝手なチケット消費明細にしない");
+  assert.ok(result.skipped.some((entry) => /チケットの種別が曖昧/.test(entry.reason)),
+    "確定アクションが理由付きで保留される");
+});
+
+test("複合実データの数字・通貨表記・改行を変えても収支結果は一致する", () => {
+  const base = ["報酬：LP50", "欠片：40", "・支出", "黒獣卯購入 10欠片"].join(String.fromCharCode(10));
+  const signature = (text) => {
+    const parsed = MEMO.parseMemo(text);
+    return {
+      income: { lp: parsed.income.lp, shards: parsed.income.shards },
+      spends: parsed.spends.map((row) => [Number(row.lp) || 0, Number(row.shards) || 0]),
+      tickets: parsed.tickets,
+      packs: parsed.pack,
+      unresolvedCount: parsed.reasons.length
+    };
+  };
+  const fullWidth = base
+    .replace(/[0-9]/g, (digit) => String.fromCharCode(digit.charCodeAt(0) + 0xFEE0))
+    .replace(/LP/g, "ＬＰ")
+    .replaceAll(String.fromCharCode(10), String.fromCharCode(13) + String.fromCharCode(10));
+  assert.deepEqual(signature(fullWidth), signature(base));
+});

@@ -651,3 +651,76 @@ test("rd.nan7.net で包まれた共有URLも、公式URLだけを抜き出し�
   assert.equal(batch.urls[0].id, "3JIdhCPatk2URoQZ2btx");
   assert.ok(batch.invalid.some((row) => row.text.includes("example.com")), "別ホストのURLは成功扱いにしない");
 });
+
+
+test("共有URLは入力順に依存せず最新スナップショットと履歴由来を再構築する", () => {
+  const older = {
+    url: "https://lbt-garasumado.vercel.app/view/share-old-123456",
+    updateTime: "2026-10-25T00:00:00Z",
+    doc: {
+      name: "順序テスト用キャラクター", plName: "順序テストPL",
+      currency: { lp: 20, fragment: 10 },
+      owned: { personas: [{ name: "旧所持" }] },
+      scenarioHistory: [{ name: "共通履歴", memo: "LP50" }]
+    }
+  };
+  const newer = {
+    url: "https://lbt-garasumado.vercel.app/view/share-new-123456",
+    updateTime: "2026-10-27T00:00:00Z",
+    doc: {
+      name: "順序テスト用キャラクター", plName: "順序テストPL",
+      currency: { lp: 70, fragment: 12 },
+      owned: { personas: [{ name: "最新所持" }] },
+      scenarioHistory: [
+        { name: "共通履歴", memo: "LP50" },
+        { name: "最新履歴", memo: "LP70" }
+      ]
+    }
+  };
+  const forward = G.mergeGarasumadoDocuments([older, newer]);
+  const reverse = G.mergeGarasumadoDocuments([newer, older]);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(reverse.scenarioHistory.map((row) => [row.name, row.memo, row.__lbtShareSourceId, row.__lbtShareSourceIndex]))),
+    JSON.parse(JSON.stringify(forward.scenarioHistory.map((row) => [row.name, row.memo, row.__lbtShareSourceId, row.__lbtShareSourceIndex]))),
+    "履歴順と由来は入力配列ではなく更新日時で決まる"
+  );
+  assert.deepEqual([...reverse.owned.personas].map((row) => row.name), ["最新所持"]);
+  assert.equal(reverse.currency.lp, 70, "最新の所持情報を採る");
+  assert.equal(reverse.scenarioHistory[0].__lbtShareSourceId, "share-old-123456", "IDが無くてもURLから出典IDを補完");
+});
+
+test("URLも共有元IDもない文書には再取込用importSourceKeyを捏造しない", () => {
+  const merged = G.mergeGarasumadoDocuments([{
+    updateTime: "2026-10-27T00:00:00Z",
+    doc: {
+      name: "由来なしキャラクター", plName: "由来なしPL",
+      scenarioHistory: [{ name: "由来なし履歴", memo: "LP50" }]
+    }
+  }]);
+  assert.ok(merged && !merged.error);
+  assert.equal("__lbtShareSourceId" in merged.scenarioHistory[0], false);
+  const manifest = G.buildManifest(merged, { resolve });
+  assert.equal(manifest.scenarios[0].importSourceKey || "", "",
+    "同一性の根拠がない履歴にリザルト更新キーを作らない");
+});
+
+test("同一共有元の修正再取込は金額を再計算し、stable keyのADD_RESULTを一つだけ出す", () => {
+  const M = w.LBT_garasumado;
+  const makeDoc = (memo) => ({
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{
+      name: "同一共有元の履歴", memo,
+      __lbtShareSourceId: "share-reimport-123456",
+      __lbtShareSourceIndex: 0
+    }]
+  });
+  const before = M.buildManifest(makeDoc("報酬：LP50"), { resolve });
+  const after = M.buildManifest(makeDoc("報酬：LP70"), { resolve });
+  assert.equal(before.scenarios[0].importSourceKey, after.scenarios[0].importSourceKey);
+  assert.equal(before.scenarios[0].income.lp, 50);
+  assert.equal(after.scenarios[0].income.lp, 70);
+  const actions = M.toDispatchActions(after, [], {}).actions;
+  const matches = actions.filter((action) => action.type === "ADD_RESULT" && action.importSourceKey === after.scenarios[0].importSourceKey);
+  assert.equal(matches.length, 1, "修正後も二つ目のリザルトではなく同じstable keyを使う");
+  assert.equal(matches[0].income.lp, 70, "確定actionは修正後の額を使う");
+});

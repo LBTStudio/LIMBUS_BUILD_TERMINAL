@@ -321,3 +321,19 @@ test("未割当レールは編集カードより前に描画し、モバイル�
   assert.ok(rail < firstCard, "単一列になるスマートフォンでも未割当がカード列より前に出る");
   assert.match(uiFlat, /className: "gara-rail"/, "デスクトップの右側レールは維持する");
 });
+
+
+test("購入候補は初期状態で未承認とし、明示チェックしたものだけを課金計画に含める", () => {
+  assert.match(uiFlat, /const \\[purchaseApprovals, setPurchaseApprovals\\] = React\\.useState\\(\\{\\}\\);/);
+  assert.match(uiFlat, /approved: purchaseApprovals\\[purchaseCandidateKey\\(op, proposal\\)\\] === true/);
+  assert.match(uiFlat, /filter\\(\\(proposal\\) => proposal\\.approved\\)/);
+  assert.match(uiFlat, /checked: Boolean\\(proposal\\.approved\\)/);
+  assert.match(uiFlat, /購入候補（初期状態は未承認）/);
+  assert.match(uiFlat, /明示承認済み/);
+});
+
+test("currencyDiscrepanciesを取り込み確認カードへ表示し、記録価格を自動修正しない", () => {
+  assert.match(uiFlat, /Array\\.isArray\\(block\\.currencyDiscrepancies\\) && block\\.currencyDiscrepancies\\.length/);
+  assert.match(uiFlat, /価格差の確認（元記録額は自動修正していません）/);
+  assert.match(uiFlat, /entry\\.detail/);
+});

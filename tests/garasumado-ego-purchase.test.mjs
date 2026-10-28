@@ -71,6 +71,12 @@ test("E.G.O指定購入の項目価格・獲得品・消費総額を別々に検
   const manifest = G.buildManifest(doc, { resolve });
   const scenario = manifest.scenarios.find((row) => row.name === "E.G.O指定購入テスト");
   assert.equal(scenario.spends.reduce((sum, row) => sum + Number(row.shards || 0), 0), 450);
+  assert.equal(scenario.currencyDiscrepancies.length, 1,
+    "項目別価格合計とLP消費欄の差分をmanifestに保つ");
+  assert.equal(scenario.currencyDiscrepancies[0].code, "ego-purchase-summary-mismatch");
+  const draft = G.buildResultDraft(manifest, { db: dbWithItems });
+  assert.equal(draft.blocks[0].currencyDiscrepancies[0].code, "ego-purchase-summary-mismatch",
+    "確認カード用draftまで価格差を保つ");
   assert.equal(
     scenario.wins.filter((win) => win.kinds.some((kind) => kind.kind === "ego" && kind.no != null && kind.rank)).length,
     9,
