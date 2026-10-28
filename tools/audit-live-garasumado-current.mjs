@@ -575,6 +575,7 @@ const allFindings = successes.flatMap((doc, documentIndex) => doc.rows.flatMap((
       parserReasonCount: finding.parserReasonCount,
       sourceFinding: finding.sourceFinding,
       sourceAuditCodes: finding.sourceAuditCodes,
+      sourcePattern: String(finding.sourceShape || ""),
       patternFeatures: {
         lpMention: /(?:LP|ＬＰ)/i.test(shape),
         shardMention: /欠片|欠け片|かけら|欠けら|カケラ|自我/.test(shape),
