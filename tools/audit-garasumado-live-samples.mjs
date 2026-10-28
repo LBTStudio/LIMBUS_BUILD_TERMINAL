@@ -555,6 +555,11 @@ function toMarkdownReport(report) {
     ["監査coverage欠落・未解決等", report.parser.issues.length],
     ["通貨不一致／残高関連警告", report.parser.currencyDiscrepancies],
     ["残高ブリッジの対象文書（履歴メモ・通貨値あり）", report.balance.summary.eligibleDocuments],
+    ["ルール上の初期資源（LP / 欠片）", report.balance.ruleBasedOpening.summary.ruleInitialLp + " / " + report.balance.ruleBasedOpening.summary.ruleInitialShards],
+    ["残高アンカーが読めた文書（LP / 欠片）", report.balance.ruleBasedOpening.summary.lpWithAnchors + " / " + report.balance.ruleBasedOpening.summary.shardsWithAnchors],
+    ["推定開始残高が初期資源の範囲内（LP / 欠片）", report.balance.ruleBasedOpening.summary.lpOpeningWithinRuleRange + " / " + report.balance.ruleBasedOpening.summary.shardsOpeningWithinRuleRange],
+    ["全アンカーで開始残高推定が一致（LP / 欠片）", report.balance.ruleBasedOpening.summary.lpOpeningStableAcrossAnchors + " / " + report.balance.ruleBasedOpening.summary.shardsOpeningStableAcrossAnchors],
+    ["最新アンカーから保存残高を再現（LP / 欠片）", report.balance.ruleBasedOpening.summary.lpLatestAnchorMatchesCurrent + " / " + report.balance.ruleBasedOpening.summary.shardsLatestAnchorMatchesCurrent],
     ["LPの残差が負（収支純額が所持LPを上回る）", report.balance.summary.lpResidualNegative],
     ["欠片の残差が負（収支純額が所持欠片を上回る）", report.balance.summary.shardResidualNegative],
     ["旧ベースラインとの履歴件数差", report.source.snapshotDrift.length],
@@ -580,6 +585,16 @@ function toMarkdownReport(report) {
       .slice()
       .sort((a, b) => (Math.min(a.impliedOpeningLp, a.impliedOpeningShards) - Math.min(b.impliedOpeningLp, b.impliedOpeningShards)))
       .map((row) => "| " + row.id + " | " + row.historyRows + " | " + row.memoRows + " | " + row.currentLp + " | " + row.netLp + " | " + row.impliedOpeningLp + " | " + row.currentShards + " | " + row.netShards + " | " + row.impliedOpeningShards + " | " + row.reviewRows + " |"),
+    "",
+    "## ルール上の初期資源に基づく残高アンカー診断",
+    "",
+    "ルールブック p.14 はキャラクター作成時に30 LP・自我の欠片10個を付与します。記録開始前の購入で開始残高が減ることがあるため、推定開始残高の範囲はLP 0～30・欠片0～10を「初期資源のみで説明可能」の目安としています。各「現在／現座」アンカーで逆算した開始残高が揃わない場合、アンカー間の記録漏れ・過大計上・値の解釈違いが疑われます。",
+    "",
+    "| URL ID | 履歴行 | LPアンカー数 | LP開始推定（最初→最後） | LP推定幅 | LP最新アンカー→保存残高の差 | 欠片アンカー数 | 欠片開始推定（最初→最後） | 欠片推定幅 | 欠片最新アンカー→保存残高の差 |",
+    "|---|---:|---:|---|---:|---:|---:|---|---:|---:|",
+    ...report.balance.ruleBasedOpening.documents.map((row) =>
+      "| " + row.id + " | " + row.historyRows + " | " + row.lp.anchorCount + " | " + (row.lp.firstOpening ?? "—") + " → " + (row.lp.latestOpening ?? "—") + " | " + (row.lp.openingSpread ?? "—") + " | " + (row.lp.latestAnchorToCurrentGap ?? "—") + " | " + row.shards.anchorCount + " | " + (row.shards.firstOpening ?? "—") + " → " + (row.shards.latestOpening ?? "—") + " | " + (row.shards.openingSpread ?? "—") + " | " + (row.shards.latestAnchorToCurrentGap ?? "—") + " |"
+    ),
     "",
     "### 要確認行の数値診断（本文・名称は非出力）",
     "",
