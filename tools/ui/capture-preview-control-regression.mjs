@@ -58,6 +58,7 @@ async function metrics(page) {
   const tabs=await rect(page.locator(".preview-tabs"));
   const rail=await rect(page.locator(".rail"));
   const title=await rect(page.locator(".section-title-row"));
+  const focus=await rect(page.locator(".focus"));
   return {
     viewport:page.viewportSize(),
     toggleCount:await toggle.count(),
@@ -67,7 +68,7 @@ async function metrics(page) {
     legacyReopenCount:await page.locator(".preview-reopen").count(),
     legacyCloseCount:await page.locator(".preview-close").count(),
     panelOpen:await panel.evaluate(el=>el.classList.contains("is-open")).catch(()=>false),
-    toggle:t,panel:p,actions,hint,tabs,rail,title,
+    toggle:t,panel:p,actions,hint,tabs,rail,title,focus,
     overlaps:{
       footer:intersects(t,actions),
       hint:intersects(t,hint),
@@ -126,6 +127,13 @@ async function runProfile(browser,profile) {
     recordCheck(profile.name+": closed state is synchronized",
       closed.expanded==="false"&&!closed.panelOpen,
       {metrics:closed});
+    if(profile.mobile&&profile.height>profile.width) {
+      const focusSeparated=!!closed.focus&&!!closed.toggle&&closed.focus.bottom<=closed.toggle.y-4;
+      const navSeparated=!!closed.rail&&!!closed.toggle&&closed.toggle.bottom<=closed.rail.y-4;
+      recordCheck(profile.name+": collapsed content viewport reserves the toggle dock",
+        focusSeparated&&navSeparated,
+        {focusBottom:closed.focus?.bottom,toggleTop:closed.toggle?.y,toggleBottom:closed.toggle?.bottom,railTop:closed.rail?.y});
+    }
     const closedPath=path.join(OUT,profile.name+"-closed.png");
     await page.screenshot({path:closedPath,animations:"disabled"});
     results.screenshots.push({file:path.relative(ROOT,closedPath),profile:profile.name,state:"closed",metrics:closed});
