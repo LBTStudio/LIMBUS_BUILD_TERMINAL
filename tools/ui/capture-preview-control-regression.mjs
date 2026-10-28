@@ -144,10 +144,11 @@ async function runProfile(browser,profile) {
     if(profile.width>=641&&profile.width<=1024) {
       const expectedDock=profile.height<=500?48:60;
       const dockBottom=closed.rail&&closed.viewport&&closed.rail.width>=closed.viewport.width-8?closed.rail.y:closed.focus?.bottom;
-      const toggleAboveNavigation=!!closed.rail&&!!closed.toggle&&closed.toggle.bottom<=closed.rail.y-4;
+      const horizontalRail=!!closed.rail&&!!closed.viewport&&closed.rail.width>=closed.viewport.width-8;
+      const toggleAboveNavigation=!horizontalRail||(!!closed.toggle&&closed.toggle.bottom<=closed.rail.y-4);
       recordCheck(profile.name+": collapsed tablet/landscape control uses a reserved dock",
         closed.focusPaddingBottom>=expectedDock&&toggleAboveNavigation,
-        {requiredPadding:expectedDock,focusPaddingBottom:closed.focusPaddingBottom,focusBottom:closed.focus?.bottom,dockBottom,toggleAboveNavigation,toggle:closed.toggle,rail:closed.rail});
+        {requiredPadding:expectedDock,focusPaddingBottom:closed.focusPaddingBottom,focusBottom:closed.focus?.bottom,dockBottom,horizontalRail,toggleAboveNavigation,toggle:closed.toggle,rail:closed.rail});
     }
     if(profile.mobile&&profile.height>profile.width) {
       const focusSeparated=!!closed.focus&&!!closed.toggle&&closed.focus.bottom<=closed.toggle.y-4;
@@ -172,10 +173,11 @@ async function runProfile(browser,profile) {
     if(profile.width>=641&&profile.width<=1024) {
       const expectedDock=profile.height<=500?48:60;
       const dockBottom=opened.rail&&opened.viewport&&opened.rail.width>=opened.viewport.width-8?opened.rail.y:opened.focus?.bottom;
-      const toggleAboveNavigation=!!opened.rail&&!!opened.toggle&&opened.toggle.bottom<=opened.rail.y-4;
+      const horizontalRail=!!opened.rail&&!!opened.viewport&&opened.rail.width>=opened.viewport.width-8;
+      const toggleAboveNavigation=!horizontalRail||(!!opened.toggle&&opened.toggle.bottom<=opened.rail.y-4);
       recordCheck(profile.name+": open tablet/landscape control uses a reserved dock",
         opened.focusPaddingBottom>=expectedDock&&toggleAboveNavigation,
-        {requiredPadding:expectedDock,focusPaddingBottom:opened.focusPaddingBottom,focusBottom:opened.focus?.bottom,dockBottom,toggleAboveNavigation,toggle:opened.toggle,rail:opened.rail});
+        {requiredPadding:expectedDock,focusPaddingBottom:opened.focusPaddingBottom,focusBottom:opened.focus?.bottom,dockBottom,horizontalRail,toggleAboveNavigation,toggle:opened.toggle,rail:opened.rail});
     }
     if(profile.mobile&&profile.height>profile.width) {
       const panelSeparated=!!opened.panel&&!!opened.toggle&&opened.panel.bottom<=opened.toggle.y-4;
