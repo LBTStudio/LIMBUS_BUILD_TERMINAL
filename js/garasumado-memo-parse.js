@@ -916,16 +916,24 @@
       }
     }
     if (found) return { amount: total };
-    /* 実ログの「被りに欠片50獲得」は括弧を使わない補償表記。
-       「被りで50欠片獲得」は通常解析が扱うので、別形の「被りに通貨名・額・獲得」
-       だけを対象にし、同じ補償を二重加算しない。 */
-    const unparenthesized = text.match(/(?:被り|かぶり|重複|ダブり)\s*に\s*(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ)\s*([+]?\d[\d,]*)\s*(?:を\s*)?(?:獲得|入手|付与|補償|支給)/);
-    if (unparenthesized) {
-      const rawAmount = unparenthesized[1];
-      if (!/^\+?(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(rawAmount)) return { error: "重複補償の欠片額を読み取れません" };
-      const amount = Number(rawAmount.replace(/,/g, ""));
-      if (!Number.isSafeInteger(amount) || amount < 0) return { error: "重複補償の欠片額が安全整数の範囲外です" };
-      return { amount };
+    /* 支出と同じ行の後半に書かれた重複補償は、支出節への切り詰めで
+       通常の収入解析から消えることがある。支出の明示通貨額が補償より前にある
+       場合だけ別途抽出し、補償単独の行は incomePairs に任せて二重加算を防ぐ。 */
+    const duplicateAt = text.search(/(?:被り|かぶり|重複|ダブり)/);
+    if (duplicateAt >= 0) {
+      const prefix = text.slice(0, duplicateAt);
+      const hasPriorCurrencyExpense = /(?:(?:LP|ＬＰ|自我の(?:破片|欠片)|欠片|欠け片|かけら|欠けら|カケラ)\s*[-+＋−]?\s*\d[\d,]*[^、。，;；\n]{0,16}(?:消費|使用|支払|支出|購入|買った)|(?:消費|使用|支払|支出|購入|買った)[^、。，;；\n]{0,16}(?:LP|ＬＰ|自我の(?:破片|欠片)|欠片|欠け片|かけら|欠けら|カケラ)\s*[-+＋−]?\s*\d[\d,]*)/i.test(prefix);
+      if (hasPriorCurrencyExpense) {
+        const tail = text.slice(duplicateAt);
+        const unparenthesized = tail.match(/(?:被り|かぶり|重複|ダブり)\s*(?:に|で)\s*(?:(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ)\s*([+]?\d[\d,]*)|([+]?\d[\d,]*)\s*(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ))\s*(?:を\s*)?(?:獲得|入手|付与|補償|支給)/);
+        if (unparenthesized) {
+          const rawAmount = unparenthesized[1] || unparenthesized[2];
+          if (!/^\+?(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(rawAmount)) return { error: "重複補償の欠片額を読み取れません" };
+          const amount = Number(rawAmount.replace(/,/g, ""));
+          if (!Number.isSafeInteger(amount) || amount < 0) return { error: "重複補償の欠片額が安全整数の範囲外です" };
+          return { amount };
+        }
+      }
     }
     return null;
   }
