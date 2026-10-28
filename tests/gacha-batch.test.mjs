@@ -614,7 +614,11 @@ test("旧抽出の誤帰属は、ログIDがある場合も無い場合も安全
     const objectEntries = restored.entries.filter((entry) => entry.ref?.kind === "rosterPersona" || entry.ref?.kind === "rosterEgo");
     assert.equal(objectEntries.length, batch.records.length);
     assert.ok(objectEntries.every((entry) => entry.resultId === "visible-latest"),
-      "抽出オブジェクトの明細を画面上の最新リザルトへ補正する");
+      "抽出オブジェクトの明細を画面上の最新リザルトへ補正する: "
+        + JSON.stringify(objectEntries.map(({ id, kind, resultId, at, ref }) => ({ id, kind, resultId, at, ref })))
+        + " / gachaLog=" + JSON.stringify(restored.gachaLog.map(({ resultId, at, commit, resultAttributionRepairVersion }) =>
+          ({ resultId, at, hasCommit: Boolean(commit), resultAttributionRepairVersion })))
+        + " / draws=" + restored.draws.length);
     assert.equal(restored.gachaLog[0].resultId, "visible-latest",
       withResultId ? "既存の抽選ログの帰属を補正する" : "resultId のない旧ログにも帰属を補完する");
     assert.equal(restored.gachaLog[0].resultAttributionRepairVersion, 2, "同じ履歴へ繰り返し適用しない");
