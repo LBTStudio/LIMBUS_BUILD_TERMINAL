@@ -2289,6 +2289,19 @@ test("抽出購入と同一行の「被りに欠片50獲得」を補償収入と
   assert.equal(parsed.spends.reduce((sum, row) => sum + (Number(row.lp) || 0), 0), 200);
 });
 
+test("支出後の重複補償は語順が違っても一度だけ収入へ記録する", () => {
+  const currencyFirst = MEMO.parseMemo("LP200消費とで抽出→被りに欠片50獲得");
+  assert.equal(currencyFirst.income.shards, 50);
+  assert.equal(currencyFirst.spends.reduce((sum, row) => sum + (Number(row.lp) || 0), 0), 200);
+
+  const amountFirst = MEMO.parseMemo("LP300消費抽出→被りで50欠片獲得");
+  assert.equal(amountFirst.income.shards, 50);
+  assert.equal(amountFirst.spends.reduce((sum, row) => sum + (Number(row.lp) || 0), 0), 300);
+
+  const standalone = MEMO.parseMemo("被りで50欠片獲得");
+  assert.equal(standalone.income.shards, 50, "補償単独行を二重計上しない");
+});
+
 test("同じ行のチケット消費とLP消費を両方記録し、未対応額は警告する", () => {
   const r = MEMO.parseMemo("人格チケット×7、300LP消費。");
   assert.equal(r.ticketSpends.length, 1);
