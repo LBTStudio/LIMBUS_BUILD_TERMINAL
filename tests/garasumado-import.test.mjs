@@ -2091,13 +2091,18 @@ test("1行2通貨・順序反転・前置きラベル・通貨先・全角をま
   assert.equal(e.income.lp, 60, "全角の通貨名も読む");
 });
 
-test("+連結（45+5）と負の中間集計を合算する", () => {
+test("+連結（45+5）と負符号の支出明細を分ける", () => {
   assert.equal(MEMO.parseMemo("LP 45+5").income.lp, 50);
   assert.equal(MEMO.parseMemo("かけら 30+4").income.shards, 34);
-  /* 実データ（汝の名は？）: 消費の後に受け取りが続く書き方。符号付きで合算。 */
   const net = MEMO.parseMemo("-15LP\n+154LP +41欠片");
-  assert.equal(net.income.lp, 139);
+  assert.equal(net.income.lp, 154, "正の収入だけを収入合計へ");
   assert.equal(net.income.shards, 41);
+  assert.equal(net.spends.reduce((sum, row) => sum + (Number(row.lp) || 0), 0), 15,
+    "負符号は支出明細へ分離");
+  const spaced = MEMO.parseMemo("- 15 LP");
+  assert.equal(spaced.income.lp, 0);
+  assert.equal(spaced.spends.reduce((sum, row) => sum + (Number(row.lp) || 0), 0), 15,
+    "負符号と金額の間に空白があっても支出明細へ");
 });
 
 test("「NNLPへ」は残高の書き直しであり受け取りではない", () => {
@@ -2251,6 +2256,23 @@ test("P2: SHARD_WORDSの欠け片表記は収入と購入支出で同じ通貨�
   const spend = MEMO.parseMemo("・支出\n黒獣卯購入 10欠け片");
   assert.equal(spend.spends.reduce((sum, row) => sum + (Number(row.shards) || 0), 0), 10);
   assert.equal(spend.income.shards, 0);
+});
+  
+test("自我の欠片の複合表記は収入・支出の両方で欠片通貨として認識する", () => {
+  const reward = MEMO.parseMemo("報酬：30 自我の欠片\\n+5 自我の欠片");
+  assert.equal(reward.income.shards, 35, "「自我の欠片」を一つの通貨名として30+5を計上する");
+
+  const spend = MEMO.parseMemo("・支出\\n自我の欠片10を消費");
+  assert.equal(spend.income.shards, 0);
+  assert.equal(spend.spends.reduce((sum, row) => sum + (Number(row.shards) || 0), 0), 10,
+    "同じ複合通貨名を明示支出にも適用する");
+});
+
+test("抽出購入と同一行の「被りに欠片50獲得」を補償収入として記録する", () => {
+  const parsed = MEMO.parseMemo("LP200消費で抽出→被りに欠片50獲得");
+  assert.equal(parsed.income.shards, 50);
+  assert.equal(parsed.income.lp, 0);
+  assert.equal(parsed.spends.reduce((sum, row) => sum + (Number(row.lp) || 0), 0), 200);
 });
 
 test("同じ行のチケット消費とLP消費を両方記録し、未対応額は警告する", () => {
