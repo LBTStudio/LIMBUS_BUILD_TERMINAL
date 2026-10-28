@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
-import { auditRuleBasedOpening } from "../tools/rule-based-opening-audit.mjs";
+import { auditRuleBasedOpening, summarizeBalanceCuePatterns } from "../tools/rule-based-opening-audit.mjs";
 const context = { window: {}, console, module: { exports: {} } };
 vm.createContext(context);
 vm.runInContext(readFileSync(new URL("../js/garasumado-memo-parse.js", import.meta.url), "utf8"), context);
@@ -28,4 +28,18 @@ test("inconsistent checkpoints are not treated as a stable opening", () => {
   const audit = auditRuleBasedOpening(history, { lp: 150, shards: 0 }, memo);
   assert.equal(audit.ruleAnalysis.lp.openingAnchors.historyArrayOrder.stableAcrossAnchors, false);
   assert.equal(audit.ruleAnalysis.lp.openingAnchors.historyArrayOrder.distinctOpeningEstimates, 2);
+});
+
+test("balance cue inventory separates current words from arrow transitions without outputting note text", () => {
+  const summary = summarizeBalanceCuePatterns([
+    { memo: "90LP：現在100LP\n消費100LP→残り0LP" }
+  ]);
+  assert.equal(summary.memoRows, 1);
+  assert.equal(summary.cueLines, 2);
+  assert.equal(summary.currentWordLines, 1);
+  assert.equal(summary.otherBalanceWordLines, 1);
+  assert.equal(summary.arrowLines, 1);
+  assert.equal(summary.lpLines, 2);
+  assert.ok(summary.patternCounts["current-word+lp+amount-before+amount-after"]);
+  assert.ok(summary.patternCounts["balance-word+arrow+lp+amount-before+amount-after+action"]);
 });
