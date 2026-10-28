@@ -37,8 +37,13 @@ const MEMO = parserContext.window.LBT_garaMemo || parserContext.module.exports;
 if (typeof MEMO?.parseMemo !== "function") throw new Error("収支メモパーサーを初期化できません。");
 
 const DOC_ROOT = "https://firestore.googleapis.com/v1/projects/lbt-garasumado/databases/(default)/documents";
-const CANDIDATE_AMOUNT = /(?:LP|ＬＰ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]|[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ)|(?:欠片|かけら|欠けら|カケラ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]/i;
-const CANDIDATE_ACTION = /報酬|収入|消費|支出|支払|購入|買った|抽出|ガチャ|チケット|チケ|獲得|入手|取得/;
+const CANDIDATE_AMOUNT = /(?:LP|ＬＰ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]+(?:[,，][0-9０-９]{3})*(?![0-9０-９])|[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)|(?:欠片|欠け片|かけら|欠けら|カケラ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]+(?![0-9０-９])/i;
+/* 名詞だけでは操作語に数えない。チケットは枚数・動詞を確認して別判定する。 */
+const CANDIDATE_ACTION = /報酬|収入|消費|支出|支払|購入|買っ|獲得|入手|取得|付与|支給|補填|受領|被り|重複|変換|換算/;
+const CANDIDATE_DRAW_ACTION = /(?:抽出|ガチャ)(?:結果|を回|を引|で獲得|で入手|で取得|を実行|を実施|を行|した|する|済)|(?:ガチャ|抽出)[：:]?\s*(?:獲得|入手|取得|購入|消費|使用)/;
+const CANDIDATE_TICKET_MARKER = /(?:チケット|チケ|抽出🎫)/i;
+const CANDIDATE_TICKET_COUNT = /(?:チケット|チケ|抽出🎫)\s*(?:[x×ｘ＊*]\s*[0-9０-９]+|[0-9０-９]+\s*(?:枚|個|回))|(?:[x×ｘ＊*]\s*[0-9０-９]+|[0-9０-９]+\s*(?:枚|個|回))\s*(?:人格|E\.?G\.?O|エゴ|選択|抽出|ガチャ)?チケ(?:ット)?/i;
+const CANDIDATE_TICKET_ACTION = /(?:獲得|入手|取得|付与|支給|消費|使用|購入|買っ|支払|支出|報酬|収入|受領|補填|抽出(?:した|する|結果|後|済|を行う|を実施)|ガチャ(?:結果|で獲得|を回|を引)|消費済)/i;
 const delay = (ms) => new Promise((resolveDelay) => setTimeout(resolveDelay, ms));
 
 function unwrapFirestore(value) {
@@ -121,49 +126,87 @@ function stripBalanceAnchors(line) {
 function isFinancialCandidateLine(line) {
   if (/^\s*[▶►▷]/.test(String(line || ""))) return false;
   const withoutBalances = stripBalanceAnchors(line);
-  return CANDIDATE_AMOUNT.test(withoutBalances) && CANDIDATE_ACTION.test(withoutBalances);
+  if (!CANDIDATE_AMOUNT.test(withoutBalances)) return false;
+  const hasCountedTicketOperation = CANDIDATE_TICKET_MARKER.test(withoutBalances) &&
+    (CANDIDATE_TICKET_COUNT.test(withoutBalances) || CANDIDATE_TICKET_ACTION.test(withoutBalances));
+  return CANDIDATE_ACTION.test(withoutBalances) ||
+    CANDIDATE_DRAW_ACTION.test(withoutBalances) ||
+    hasCountedTicketOperation;
+}
+
+/* 金額の近くにチケットという語があるだけの価格・説明ラベルを、取引候補から
+   明示的に分離する。監査対象から黙って消すのではなく、別カウンターに残す。 */
+function isNonTransactionalTicketLabel(line) {
+  const withoutBalances = stripBalanceAnchors(line);
+  return CANDIDATE_AMOUNT.test(withoutBalances) &&
+    CANDIDATE_TICKET_MARKER.test(withoutBalances) &&
+    !CANDIDATE_TICKET_COUNT.test(withoutBalances) &&
+    !CANDIDATE_TICKET_ACTION.test(withoutBalances) &&
+    !CANDIDATE_ACTION.test(withoutBalances) &&
+    !CANDIDATE_DRAW_ACTION.test(withoutBalances);
 }
 
 function describeCandidateLine(line, coverage) {
   const textLine = String(line || "");
   const amountMatch = CANDIDATE_AMOUNT.exec(textLine);
   const amountTokens = [...textLine.matchAll(/(?:[+＋\-−]?\s*\d[\d,，]*\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)|(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)\s*[：:]?\s*[+＋\-−]?\s*\d[\d,，]*)/gi)]
-    .map((match) => String(match[0]).replace(/\s+/g, " ").trim()).slice(0, 8);
+    .slice(0, 8)
+    .map((match) => ({
+      index: match.index,
+      currency: /LP|ＬＰ/i.test(match[0]) ? "lp" : "shards",
+      digitWidth: (match[0].match(/[0-9０-９]/g) || []).length
+    }));
   const markers = [
     { type: "amount", re: /(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)\s*[：:]?\s*[+＋\-−]?\s*\d[\d,，]*|[+＋\-−]?\s*\d[\d,，]*\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)/gi },
-    { type: "action", re: /報酬|収入|消費|支出|支払|購入|買った|抽出|ガチャ|チケット|チケ|獲得|入手|取得/g },
-    { type: "balance", re: /現在|残高|所持|残り|保有|→|⇒/g }
+    { type: "reward-cue", re: /報酬|収入/g },
+    { type: "spend-cue", re: /消費|支出|支払|購入|買っ/g },
+    { type: "acquisition-cue", re: /獲得|入手|取得|付与|支給|補填|受領|被り|重複/g },
+    { type: "draw-cue", re: /(?:抽出|ガチャ)(?:結果|を回|を引|で獲得|で入手|で取得|を実行|を実施|を行|した|する|済)/g },
+    { type: "ticket-label", re: /チケット|チケ|抽出🎫/g },
+    { type: "balance-cue", re: /現在|残高|所持|残り|保有|→|⇒/g },
+    { type: "conversion-cue", re: /変換|換算/g }
   ];
   const tokenShape = [];
   for (const marker of markers) {
     for (const match of textLine.matchAll(marker.re)) {
-      const token = marker.type === "amount" ? match[0].replace(/\s+/g, " ").trim() : match[0];
-      tokenShape.push({ index: match.index, type: marker.type, token: token });
+      tokenShape.push({ index: match.index, type: marker.type });
     }
   }
   tokenShape.sort((a, b) => a.index - b.index);
-  const actionKinds = ["報酬", "収入", "消費", "支出", "支払", "購入", "買った", "抽出", "ガチャ", "チケット", "チケ", "獲得", "入手", "取得"]
-    .filter((word) => textLine.includes(word));
+  const actionKinds = [];
+  if (/報酬|収入/.test(textLine)) actionKinds.push("reward");
+  if (/消費|支出|支払|購入|買っ/.test(textLine)) actionKinds.push("spend");
+  if (/獲得|入手|取得|付与|支給|補填|受領|被り|重複/.test(textLine)) actionKinds.push("acquisition");
+  if (CANDIDATE_DRAW_ACTION.test(textLine)) actionKinds.push("draw-operation");
+  if (CANDIDATE_TICKET_MARKER.test(textLine)) actionKinds.push("ticket-label");
+  if (/現在|残高|所持|残り|保有|→|⇒/.test(textLine)) actionKinds.push("balance-transition");
+  if (/変換|換算/.test(textLine)) actionKinds.push("conversion");
   const ticket = MEMO.ticketOf(textLine, { mode: coverage?.section || "income", previousLine: "" });
+  const currencyKinds = (value) => value
+    ? Object.entries(value).filter(([, amount]) => Number(amount) !== 0).map(([currency]) => currency)
+    : [];
   return {
-    length: textLine.length,
-    amountTokens,
-    candidateMatch: amountMatch?.[0] || null,
-    amountMatchAfterBalanceStrip: CANDIDATE_AMOUNT.exec(stripBalanceAnchors(textLine))?.[0] || null,
-    numericTokens: [...textLine.matchAll(/[0-9０-９]+/g)].map((match) => match[0]).slice(0, 8),
+    lineLength: textLine.length,
+    amountTokenCount: amountTokens.length,
+    amountTokenShape: amountTokens,
+    candidateMatchLength: amountMatch?.[0]?.length || 0,
+    candidateMatchDigitWidth: amountMatch ? (amountMatch[0].match(/[0-9０-９]/g) || []).length : 0,
+    numericTokenWidths: [...textLine.matchAll(/[0-9０-９]+/g)].map((match) => match[0].length).slice(0, 8),
     tokenShape,
-    ticketClassification: ticket ? { kind: ticket.kind || null, category: ticket.category || null, count: Number(ticket.count) || null, reasonPresent: Boolean(ticket.reason) } : null,
+    ticketClassified: Boolean(ticket),
+    ticketReviewReasonPresent: Boolean(ticket?.reason),
     actionKinds,
     startsWithEffectMarker: /^\s*[▶►▷]/.test(textLine),
-    hasBalanceCue: /現在|残高|所持|残り|→|⇒/.test(textLine),
+    hasBalanceCue: /現在|残高|所持|残り|保有|→|⇒/.test(textLine),
     section: coverage?.section || null,
     status: coverage?.status || null,
-    expected: coverage?.expected || null,
-    detected: coverage?.detected || null,
+    expectedCurrencyKinds: currencyKinds(coverage?.expected),
+    detectedCurrencyKinds: currencyKinds(coverage?.detected),
     parserReasonCount: Number(coverage?.parserReasonCount) || 0,
     sourceFinding: Boolean(coverage?.sourceFinding)
   };
 }
+
 function auditMemo(id, historyIndex, memo) {
   const parsed = MEMO.parseMemo(memo);
   const lines = String(memo || "").split(/\r?\n/);
@@ -174,11 +217,16 @@ function auditMemo(id, historyIndex, memo) {
   let candidates = 0;
   let covered = 0;
 
+  let nonTransactionalTicketLabels = 0;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     // Effect descriptions beginning with ▶/►/▷ are intentionally excluded by
     // the parser's auditLineCoverage and must not be counted as ledger transactions.
-    if (!line.trim() || !isFinancialCandidateLine(line)) continue;
+    if (!line.trim()) continue;
+    if (!isFinancialCandidateLine(line)) {
+      if (isNonTransactionalTicketLabel(line)) nonTransactionalTicketLabels++;
+      continue;
+    }
     candidates++;
     const lineNumber = i + 1;
     const coverage = coverages.find((entry) => entry && entry.lineIndex === lineNumber);
@@ -216,7 +264,7 @@ function auditMemo(id, historyIndex, memo) {
     if (!recognized) issues.push({ id, historyIndex, lineIndex: null, code: "silent-unparsed-history" });
   }
 
-  return { candidates, covered, issues, coverageStatuses: coverages.reduce((counts, entry) => {
+  return { candidates, covered, nonTransactionalTicketLabels, issues, coverageStatuses: coverages.reduce((counts, entry) => {
     const status = String(entry?.status || "missing-status");
     counts[status] = (counts[status] || 0) + 1;
     return counts;
@@ -237,6 +285,8 @@ function toMarkdownReport(report) {
     ["メモ付き履歴", report.source.memoRows],
     ["金額＋操作語の候補行", report.parser.candidateRows],
     ["候補行の監査coverage", report.parser.coveredCandidateRows],
+    ["実操作を確認できないチケットラベル（候補から分離）", report.parser.nonTransactionalTicketLabelRows],
+    ["現在残高セクションの人手確認候補", report.parser.currentBalanceReviewRows],
     ["監査coverage欠落・未解決等", report.parser.issues.length],
     ["通貨不一致／残高関連警告", report.parser.currencyDiscrepancies],
     ["旧ベースラインとの履歴件数差", report.source.snapshotDrift.length]
@@ -325,6 +375,8 @@ const report = {
   parser: {
     candidateRows: allParsedRows.reduce((sum, row) => sum + row.candidates, 0),
     coveredCandidateRows: allParsedRows.reduce((sum, row) => sum + row.covered, 0),
+    nonTransactionalTicketLabelRows: allParsedRows.reduce((sum, row) => sum + row.nonTransactionalTicketLabels, 0),
+    currentBalanceReviewRows: coverageStatuses["current-balance-review"] || 0,
     currencyDiscrepancies: allParsedRows.reduce((sum, row) => sum + row.currencyDiscrepancies, 0),
     coverageStatuses,
     issues: issueRows
@@ -343,6 +395,8 @@ console.log(JSON.stringify({
     memoRows: report.source.memoRows,
     candidateRows: report.parser.candidateRows,
     coveredCandidateRows: report.parser.coveredCandidateRows,
+    nonTransactionalTicketLabelRows: report.parser.nonTransactionalTicketLabelRows,
+    currentBalanceReviewRows: report.parser.currentBalanceReviewRows,
     issueCount: report.parser.issues.length,
     currencyDiscrepancies: report.parser.currencyDiscrepancies,
     snapshotDriftRows: report.source.snapshotDrift.length
