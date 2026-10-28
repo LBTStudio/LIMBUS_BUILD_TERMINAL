@@ -247,6 +247,19 @@ function describeCandidateLine(line, coverage) {
   };
 }
 
+function numericShape(value) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "boolean") return value;
+  if (Array.isArray(value)) return value.map(numericShape).filter((entry) => entry !== undefined);
+  if (!value || typeof value !== "object") return undefined;
+  const out = {};
+  for (const [key, nested] of Object.entries(value)) {
+    const safe = numericShape(nested);
+    if (safe !== undefined) out[key] = safe;
+  }
+  return out;
+}
+
 function auditMemo(id, historyIndex, memo) {
   const parsed = MEMO.parseMemo(memo);
   const lines = String(memo || "").split(/\r?\n/);
@@ -334,8 +347,31 @@ function auditMemo(id, historyIndex, memo) {
     reasonCount: reasons.length,
     reviewRows: coverages.filter((entry) => reviewStatuses.has(String(entry?.status || ""))).length
   };
+  /* Reviewの診断は本文や理由文を出さず、行位置・section・status・数値方向だけを記録する。 */
+  const reviewDetails = coverages
+    .filter((entry) => reviewStatuses.has(String(entry?.status || "")))
+    .map((entry) => {
+      const line = String(entry?.line || "");
+      const related = audits.filter((audit) => isRelated([audit], entry.lineIndex));
+      return {
+        lineIndex: Number(entry.lineIndex) || null,
+        section: String(entry.section || ""),
+        status: String(entry.status || ""),
+        expected: numericShape(entry.expected) ?? null,
+        detected: numericShape(entry.detected) ?? null,
+        expectedFlows: numericShape(entry.expectedFlows) ?? null,
+        detectedFlows: numericShape(entry.detectedFlows) ?? null,
+        parserReasonCount: Number(entry.parserReasonCount) || 0,
+        sourceFinding: Boolean(entry.sourceFinding),
+        hasParserReason: reasons.some((reason) => String(reason.line || "").trim() === line.trim()),
+        auditCodes: related.map((audit) => ({
+          code: String(audit.code || ""),
+          severity: String(audit.severity || "")
+        }))
+      };
+    });
 
-  return { candidates, covered, legacyCandidates, legacyTransactionCandidates, nonTransactionalTicketLabels, nonTransactionalDrawLabels, unclassifiedLegacyCues, unclassifiedLegacyCueExamples, issues, financial, coverageStatuses: coverages.reduce((counts, entry) => {
+  return { historyIndex, candidates, covered, legacyCandidates, legacyTransactionCandidates, nonTransactionalTicketLabels, nonTransactionalDrawLabels, unclassifiedLegacyCues, unclassifiedLegacyCueExamples, issues, financial, reviewDetails, coverageStatuses: coverages.reduce((counts, entry) => {
     const status = String(entry?.status || "missing-status");
     counts[status] = (counts[status] || 0) + 1;
     return counts;
@@ -418,6 +454,14 @@ function toMarkdownReport(report) {
       .slice()
       .sort((a, b) => (Math.min(a.impliedOpeningLp, a.impliedOpeningShards) - Math.min(b.impliedOpeningLp, b.impliedOpeningShards)))
       .map((row) => "| " + row.id + " | " + row.historyRows + " | " + row.memoRows + " | " + row.currentLp + " | " + row.netLp + " | " + row.impliedOpeningLp + " | " + row.currentShards + " | " + row.netShards + " | " + row.impliedOpeningShards + " | " + row.reviewRows + " |"),
+    "",
+    "### 要確認行の数値診断（本文・名称は非出力）",
+    "",
+    "| URL ID | 履歴行 | メモ内行 | section | status | expected | detected | parser reason | source finding | audit codes |",
+    "|---|---:|---:|---|---|---|---|---:|---|---|",
+    ...report.balance.bridges.flatMap((row) => row.reviewDetails.map((detail) =>
+      "| " + row.id + " | " + detail.historyRow + " | " + (detail.lineIndex ?? "—") + " | " + detail.section + " | " + detail.status + " | " + JSON.stringify(detail.expected) + " | " + JSON.stringify(detail.detected) + " | " + Number(detail.hasParserReason) + " | " + Number(detail.sourceFinding) + " | " + detail.auditCodes.map((audit) => audit.code + ":" + audit.severity).join(",") + " |"
+    )),
     "",
     "## 監査coverageの状態別件数",
     "",
@@ -530,7 +574,13 @@ const balanceBridges = successful
       currentShards: entry.currentBalance.shards,
       ...totals,
       impliedOpeningLp: entry.currentBalance.lp - totals.netLp,
-      impliedOpeningShards: entry.currentBalance.shards - totals.netShards
+      impliedOpeningShards: entry.currentBalance.shards - totals.netShards,
+      reviewDetails: (entry.parsedRows || []).flatMap((memo) =>
+        (memo.reviewDetails || []).map((detail) => ({
+          historyRow: (Number(memo.historyIndex) || 0) + 1,
+          ...detail
+        }))
+      )
     };
   });
 const balanceBridgeSummary = {
@@ -621,6 +671,8 @@ console.log(JSON.stringify({
   }, {}),
   balanceBridgeSummary: report.balance.summary,
   balanceBridges: report.balance.bridges,
+  reviewDetailsCount: report.balance.bridges.reduce((sum, row) => sum + row.reviewDetails.length, 0),
+  reviewDetails: report.balance.bridges.flatMap((row) => row.reviewDetails.map((detail) => ({ id: row.id, ...detail }))),
   issues: report.parser.issues.slice(0, 100),
   unclassifiedLegacyCueExamples: report.parser.unclassifiedLegacyCueExamples
 }, null, 2));
