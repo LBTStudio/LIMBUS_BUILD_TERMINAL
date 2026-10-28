@@ -126,17 +126,32 @@ function isFinancialCandidateLine(line) {
 
 function describeCandidateLine(line, coverage) {
   const textLine = String(line || "");
+  const amountMatch = CANDIDATE_AMOUNT.exec(textLine);
   const amountTokens = [...textLine.matchAll(/(?:[+＋\-−]?\s*\d[\d,，]*\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)|(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)\s*[：:]?\s*[+＋\-−]?\s*\d[\d,，]*)/gi)]
     .map((match) => String(match[0]).replace(/\s+/g, " ").trim()).slice(0, 8);
+  const markers = [
+    { type: "amount", re: /(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)\s*[：:]?\s*[+＋\-−]?\s*\d[\d,，]*|[+＋\-−]?\s*\d[\d,，]*\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)/gi },
+    { type: "action", re: /報酬|収入|消費|支出|支払|購入|買った|抽出|ガチャ|チケット|チケ|獲得|入手|取得/g },
+    { type: "balance", re: /現在|残高|所持|残り|保有|→|⇒/g }
+  ];
+  const tokenShape = [];
+  for (const marker of markers) {
+    for (const match of textLine.matchAll(marker.re)) {
+      const token = marker.type === "amount" ? match[0].replace(/\s+/g, " ").trim() : match[0];
+      tokenShape.push({ index: match.index, type: marker.type, token: token });
+    }
+  }
+  tokenShape.sort((a, b) => a.index - b.index);
   const actionKinds = ["報酬", "収入", "消費", "支出", "支払", "購入", "買った", "抽出", "ガチャ", "チケット", "チケ", "獲得", "入手", "取得"]
     .filter((word) => textLine.includes(word));
   const ticket = MEMO.ticketOf(textLine, { mode: coverage?.section || "income", previousLine: "" });
   return {
     length: textLine.length,
     amountTokens,
-    candidateMatch: CANDIDATE_AMOUNT.exec(textLine)?.[0] || null,
+    candidateMatch: amountMatch?.[0] || null,
     amountMatchAfterBalanceStrip: CANDIDATE_AMOUNT.exec(stripBalanceAnchors(textLine))?.[0] || null,
     numericTokens: [...textLine.matchAll(/[0-9０-９]+/g)].map((match) => match[0]).slice(0, 8),
+    tokenShape,
     ticketClassification: ticket ? { kind: ticket.kind || null, category: ticket.category || null, count: Number(ticket.count) || null, reasonPresent: Boolean(ticket.reason) } : null,
     actionKinds,
     startsWithEffectMarker: /^\s*[▶►▷]/.test(textLine),
