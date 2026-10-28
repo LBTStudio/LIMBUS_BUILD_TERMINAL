@@ -11,7 +11,7 @@ const livePreview = read("../js/LivePreview.js");
 test("the mobile preview control is in the top bar and remains keyboard-accessible", () => {
   assert.match(app, /className: "preview-mobile-toggle"/);
   assert.match(app, /onClick: togglePreview[\s\S]{0,200}"aria-expanded": previewOpen/);
-  assert.match(app, /name: previewOpen \? "eye-off" : "eye"/);
+  assert.match(app, /name: "eye"/);
   assert.match(css, /\.preview-mobile-toggle:focus-visible[\s\S]*?outline: 2px solid var\(--gold-hi\)/);
   assert.match(css, /\.preview-edge-toggle,[\s\S]*?\.preview-reopen \{\s*display: none !important;/);
   assert.match(livePreview, /id = "lbt-preview-edge-toggle"/);
