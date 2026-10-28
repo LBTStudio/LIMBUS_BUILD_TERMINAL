@@ -2119,6 +2119,15 @@ test("ガチャ支出と同じ行に続く重複補償を記録する", () => {
     "ガチャ支出は一度だけ計上");
 });
 
+test("複数のUnicodeダッシュを通貨の負号として正規化する", () => {
+  for (const minus of ["\\u2010", "\\u2011", "\\u2012", "\\u2013", "\\u2014", "\\u2015", "\\u2212", "\\uFE63", "\\uFF0D"]) {
+    const parsed = MEMO.parseMemo("ガチャのでLP " + minus + " 100");
+    assert.equal(parsed.income.lp, 0, "負額を収入にしない: U+" + minus.codePointAt(0).toString(16));
+    assert.equal(parsed.spends.reduce((sum, row) => sum + (Number(row.lp) || 0), 0), 100,
+      "負額をLP支出へ記録する: U+" + minus.codePointAt(0).toString(16));
+  }
+});
+
 test("「NNLPへ」は残高の書き直しであり受け取りではない", () => {
   const r = MEMO.parseMemo("300LPへ");
   assert.equal(r.income.lp, 0, "支払後の残高を収入に数えない");
