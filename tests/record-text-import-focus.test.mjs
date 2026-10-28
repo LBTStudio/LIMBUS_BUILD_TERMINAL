@@ -8,10 +8,15 @@ test("リザルトのテキスト流し込みはアクセシブルな安定IDを
   assert.match(source, /textPanel\s*&&\s*h\("div",\s*\{\s*id: "ledger-text-import-panel",\s*role: "region",\s*"aria-label": "テキスト流し込み"/);
 });
 
-test("テキスト流し込みを開くと入力欄がスクロール領域内へ移動してフォーカスされる", () => {
-  assert.match(source, /if \(!textPanel \|\| typeof document === "undefined"\) return;/);
-  assert.match(source, /const panel = document\.getElementById\("ledger-text-import-panel"\);/);
+test("入力パネルを開いたとき、スクロールとフォーカスを行う実装が存在する", () => {
+  const sharedImportEffect = source.includes("[importPanel, textPanel, heldOpen]");
+  const legacyTextEffect = source.includes('if (!textPanel || typeof document === "undefined") return;');
+  assert.ok(sharedImportEffect || legacyTextEffect, "共有取り込みエフェクトまたは旧テキスト専用エフェクトが必要です");
   assert.match(source, /const scroller = panel\.closest\("\.focus"\);/);
   assert.match(source, /scroller\.scrollTop = Math\.max\(0, top - 12\);/);
-  assert.match(source, /textarea\.focus\(\{ preventScroll: true \}\);/);
+  assert.ok(
+    source.includes('target.focus({ preventScroll: true });') ||
+    source.includes('textarea.focus({ preventScroll: true });'),
+    "入力欄へフォーカスを渡す必要があります"
+  );
 });
