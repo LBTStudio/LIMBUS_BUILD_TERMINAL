@@ -522,14 +522,14 @@ function toMarkdownReport(report) {
       .sort((a, b) => (Math.min(a.impliedOpeningLp, a.impliedOpeningShards) - Math.min(b.impliedOpeningLp, b.impliedOpeningShards)))
       .map((row) => "| " + row.id + " | " + row.historyRows + " | " + row.memoRows + " | " + row.currentLp + " | " + row.netLp + " | " + row.impliedOpeningLp + " | " + row.currentShards + " | " + row.netShards + " | " + row.impliedOpeningShards + " | " + row.reviewRows + " |"),
     "",
-    "## ルール上の初期資源に基づく残高アンカー診断",
+    "## ルールブック初期資源との残差分類",
     "",
-    "ルールブック p.14 はキャラクター作成時に30 LP・自我の欠片10個を付与します。記録開始前の購入で開始残高が減ることがあるため、推定開始残高の範囲はLP 0～30・欠片0～10を「初期資源のみで説明可能」の目安としています。各「現在／現座」アンカーで逆算した開始残高が揃わない場合、アンカー間の記録漏れ・過大計上・値の解釈違いが疑われます。",
+    "ルールブック PDF p.14 は初期作成時に30 LP・自我の欠片10個を付与します（PDF抽出テキスト data/provenance/core.txt の PAGE 14）。リザルト履歴が初期作成後の全収支を網羅し、初期作成時の購入だけが履歴開始前に行われたと仮定すれば、保存残高 − 履歴純収支は LP 0～30、欠片0～10の範囲に収まるはずです。範囲外は即座に単一原因を意味しませんが、開始前収入・履歴欠落・未記録支出・パーサーの過大/過小計上・古い保存残高を区別する優先調査対象になります。",
     "",
-    "| URL ID | 履歴行 | LPアンカー数 | LP開始推定（最初→最後） | LP推定幅 | LP最新アンカー→保存残高の差 | 欠片アンカー数 | 欠片開始推定（最初→最後） | 欠片推定幅 | 欠片最新アンカー→保存残高の差 |",
-    "|---|---:|---:|---|---:|---:|---:|---|---:|---:|",
+    "| URL ID | 履歴行 | 保存LP | 純収支LP | 推定開始LP | LP分類 | 保存欠片 | 純収支欠片 | 推定開始欠片 | 欠片分類 | 要確認行 |",
+    "|---|---:|---:|---:|---:|---|---:|---:|---:|---|---:|",
     ...report.balance.ruleBasedOpening.documents.map((row) =>
-      "| " + row.id + " | " + row.historyRows + " | " + row.lp.anchorCount + " | " + (row.lp.firstOpening ?? "—") + " → " + (row.lp.latestOpening ?? "—") + " | " + (row.lp.openingSpread ?? "—") + " | " + (row.lp.latestAnchorToCurrentGap ?? "—") + " | " + row.shards.anchorCount + " | " + (row.shards.firstOpening ?? "—") + " → " + (row.shards.latestOpening ?? "—") + " | " + (row.shards.openingSpread ?? "—") + " | " + (row.shards.latestAnchorToCurrentGap ?? "—") + " |"
+      "| " + row.id + " | " + row.historyRows + " | " + row.currentLp + " | " + row.netLp + " | " + row.impliedOpeningLp + " | " + row.lpClass + " | " + row.currentShards + " | " + row.netShards + " | " + row.impliedOpeningShards + " | " + row.shardsClass + " | " + row.reviewRows + " |"
     ),
     "",
     "### 要確認行の数値診断（本文・名称は非出力）",
@@ -661,37 +661,42 @@ const balanceBridges = successful
       )
     };
   });
-const ruleBasedOpeningAudits = successful
-  .filter((entry) => entry.actualMemoRows > 0 &&
-    Number.isSafeInteger(entry.currentBalance?.lp) &&
-    Number.isSafeInteger(entry.currentBalance?.shards))
-  .map((entry) => ({
-    id: entry.baseline.id,
-    historyRows: entry.actualHistoryRows,
-    memoRows: entry.actualMemoRows,
-    currentLp: entry.currentBalance.lp,
-    currentShards: entry.currentBalance.shards,
-    lp: entry.ruleBasedOpeningAudit?.lp || null,
-    shards: entry.ruleBasedOpeningAudit?.shards || null
-  }));
+const ruleBasedOpeningAudits = balanceBridges.map((row) => {
+  const audit = successful.find((entry) => entry.baseline.id === row.id)?.ruleBasedOpeningAudit || {};
+  return {
+    id: row.id,
+    historyRows: row.historyRows,
+    memoRows: row.memoRows,
+    currentLp: row.currentLp,
+    currentShards: row.currentShards,
+    netLp: row.netLp,
+    netShards: row.netShards,
+    impliedOpeningLp: row.impliedOpeningLp,
+    impliedOpeningShards: row.impliedOpeningShards,
+    lpClass: audit.lpClass || "not-comparable",
+    shardsClass: audit.shardsClass || "not-comparable",
+    lpCompatible: Boolean(audit.lpCompatible),
+    shardsCompatible: Boolean(audit.shardsCompatible),
+    bothCompatible: Boolean(audit.bothCompatible),
+    lpNegative: Boolean(audit.lpNegative),
+    shardsNegative: Boolean(audit.shardsNegative),
+    lpAboveCeiling: Boolean(audit.lpAboveCeiling),
+    shardsAboveCeiling: Boolean(audit.shardsAboveCeiling),
+    reviewRows: row.reviewRows,
+    reasonCount: row.reasonCount
+  };
+});
 const ruleBasedOpeningSummary = {
   ruleInitialLp: RULE_INITIAL_RESOURCES.lp,
   ruleInitialShards: RULE_INITIAL_RESOURCES.shards,
   eligibleDocuments: ruleBasedOpeningAudits.length,
-  lpWithAnchors: ruleBasedOpeningAudits.filter((row) => row.lp?.anchorCount > 0).length,
-  shardsWithAnchors: ruleBasedOpeningAudits.filter((row) => row.shards?.anchorCount > 0).length,
-  lpOpeningWithinRuleRange: ruleBasedOpeningAudits.filter((row) => row.lp?.openingWithinRuleRange).length,
-  shardsOpeningWithinRuleRange: ruleBasedOpeningAudits.filter((row) => row.shards?.openingWithinRuleRange).length,
-  bothOpeningWithinRuleRange: ruleBasedOpeningAudits.filter((row) => row.lp?.openingWithinRuleRange && row.shards?.openingWithinRuleRange).length,
-  lpOpeningStableAcrossAnchors: ruleBasedOpeningAudits.filter((row) => row.lp?.openingExactlyStable).length,
-  shardsOpeningStableAcrossAnchors: ruleBasedOpeningAudits.filter((row) => row.shards?.openingExactlyStable).length,
-  lpLatestAnchorMatchesCurrent: ruleBasedOpeningAudits.filter((row) => row.lp?.latestAnchorToCurrentGap === 0).length,
-  shardsLatestAnchorMatchesCurrent: ruleBasedOpeningAudits.filter((row) => row.shards?.latestAnchorToCurrentGap === 0).length,
-  bothLatestAnchorMatchCurrent: ruleBasedOpeningAudits.filter((row) => row.lp?.latestAnchorToCurrentGap === 0 && row.shards?.latestAnchorToCurrentGap === 0).length,
-  lpNonzeroLatestAnchorGap: ruleBasedOpeningAudits.filter((row) => row.lp?.latestAnchorToCurrentGap != null && row.lp.latestAnchorToCurrentGap !== 0).length,
-  shardsNonzeroLatestAnchorGap: ruleBasedOpeningAudits.filter((row) => row.shards?.latestAnchorToCurrentGap != null && row.shards.latestAnchorToCurrentGap !== 0).length,
-  lpOpeningSpreadPositive: ruleBasedOpeningAudits.filter((row) => (row.lp?.openingSpread || 0) > 0).length,
-  shardsOpeningSpreadPositive: ruleBasedOpeningAudits.filter((row) => (row.shards?.openingSpread || 0) > 0).length
+  lpCompatibleAfterSetupSpend: ruleBasedOpeningAudits.filter((row) => row.lpCompatible).length,
+  shardsCompatibleAfterSetupSpend: ruleBasedOpeningAudits.filter((row) => row.shardsCompatible).length,
+  bothCompatibleAfterSetupSpend: ruleBasedOpeningAudits.filter((row) => row.bothCompatible).length,
+  lpBelowZero: ruleBasedOpeningAudits.filter((row) => row.lpNegative).length,
+  shardsBelowZero: ruleBasedOpeningAudits.filter((row) => row.shardsNegative).length,
+  lpAboveInitialCeiling: ruleBasedOpeningAudits.filter((row) => row.lpAboveCeiling).length,
+  shardsAboveInitialCeiling: ruleBasedOpeningAudits.filter((row) => row.shardsAboveCeiling).length
 };
 
 const balanceBridgeSummary = {
@@ -772,12 +777,13 @@ console.log(JSON.stringify({
     currencyDiscrepancies: report.parser.currencyDiscrepancies,
     balanceBridgeDocuments: report.balance.summary.eligibleDocuments,
     ruleBasedOpeningDocuments: report.balance.ruleBasedOpening.summary.eligibleDocuments,
-    ruleBasedLpOpeningWithinRange: report.balance.ruleBasedOpening.summary.lpOpeningWithinRuleRange,
-    ruleBasedShardOpeningWithinRange: report.balance.ruleBasedOpening.summary.shardsOpeningWithinRuleRange,
-    ruleBasedBothOpeningWithinRange: report.balance.ruleBasedOpening.summary.bothOpeningWithinRuleRange,
-    ruleBasedLpOpeningStable: report.balance.ruleBasedOpening.summary.lpOpeningStableAcrossAnchors,
-    ruleBasedShardOpeningStable: report.balance.ruleBasedOpening.summary.shardsOpeningStableAcrossAnchors,
-    ruleBasedBothLatestAnchorsMatchCurrent: report.balance.ruleBasedOpening.summary.bothLatestAnchorMatchCurrent,
+    ruleBasedLpCompatibleAfterSetupSpend: report.balance.ruleBasedOpening.summary.lpCompatibleAfterSetupSpend,
+    ruleBasedShardCompatibleAfterSetupSpend: report.balance.ruleBasedOpening.summary.shardsCompatibleAfterSetupSpend,
+    ruleBasedBothCompatibleAfterSetupSpend: report.balance.ruleBasedOpening.summary.bothCompatibleAfterSetupSpend,
+    ruleBasedLpBelowZero: report.balance.ruleBasedOpening.summary.lpBelowZero,
+    ruleBasedShardBelowZero: report.balance.ruleBasedOpening.summary.shardsBelowZero,
+    ruleBasedLpAboveInitialCeiling: report.balance.ruleBasedOpening.summary.lpAboveInitialCeiling,
+    ruleBasedShardAboveInitialCeiling: report.balance.ruleBasedOpening.summary.shardsAboveInitialCeiling,
     negativeLpResidualDocuments: report.balance.summary.lpResidualNegative,
     negativeShardResidualDocuments: report.balance.summary.shardResidualNegative,
     snapshotDriftRows: report.source.snapshotDrift.length,
