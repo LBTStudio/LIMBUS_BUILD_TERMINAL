@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 /* UI interaction audit: real rendered screens, panels, menus, dialogs, hover/focus states. */
+/* Import panel checks follow the shared scroll/focus behavior in OtherSections.js. */
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
