@@ -432,9 +432,18 @@ async function captureProfile(browser, mode) {
   const context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1440,height:1000},deviceScaleFactor:mobile?2:1,isMobile:mobile,hasTouch:mobile,serviceWorkers:"block",colorScheme:"dark",reducedMotion:"reduce"});
   page=await context.newPage();
   page.setDefaultTimeout(5000);
-  // Cloudflare Web Analytics points at /cdn-cgi/rum, which intentionally does not exist
-  // on this localhost-only screenshot server. Block it so the capture log only reports app errors.
-  await page.route("**/cdn-cgi/rum**", (route) => route.abort("blockedbyclient"));
+  // Keep external counters deterministic in localhost screenshots. Aborting these requests
+  // creates browser console errors (and a CORS failure) unrelated to the UI under test.
+  await page.route("**/cdn-cgi/rum**", (route) => route.fulfill({
+    status: 204,
+    headers: { "cache-control": "no-store", "access-control-allow-origin": "*" },
+    body: ""
+  }));
+  await page.route("**/api/stats/view*", (route) => route.fulfill({
+    status: 200,
+    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "access-control-allow-origin": "*" },
+    body: JSON.stringify({ ok: true, totalViews: 0 })
+  }));
   page.on("console",m=>{if(m.type()==="error")audit.consoleErrors.push({view:mode,message:m.text().slice(0,160)});});
   page.on("response",response=>{if(response.status()>=400 && !response.url().includes("/cdn-cgi/rum?"))audit.httpErrors.push({view:mode,status:response.status(),url:response.url().slice(0,240)});});
   page.on("pageerror",e=>audit.pageErrors.push({view:mode,message:e.message.slice(0,160)}));
