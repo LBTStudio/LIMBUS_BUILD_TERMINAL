@@ -2120,11 +2120,12 @@ test("ガチャ支出と同じ行に続く重複補償を記録する", () => {
 });
 
 test("複数のUnicodeダッシュを通貨の負号として正規化する", () => {
-  for (const minus of ["\\u2010", "\\u2011", "\\u2012", "\\u2013", "\\u2014", "\\u2015", "\\u2212", "\\uFE63", "\\uFF0D"]) {
+  for (const codePoint of [0x2010, 0x2011, 0x2012, 0x2013, 0x2014, 0x2015, 0x2212, 0xFE63, 0xFF0D]) {
+    const minus = String.fromCharCode(codePoint);
     const parsed = MEMO.parseMemo("ガチャのでLP " + minus + " 100");
-    assert.equal(parsed.income.lp, 0, "負額を収入にしない: U+" + minus.codePointAt(0).toString(16));
+    assert.equal(parsed.income.lp, 0, "負額を収入にしない: U+" + codePoint.toString(16));
     assert.equal(parsed.spends.reduce((sum, row) => sum + (Number(row.lp) || 0), 0), 100,
-      "負額をLP支出へ記録する: U+" + minus.codePointAt(0).toString(16));
+      "負額をLP支出へ記録する: U+" + codePoint.toString(16));
   }
 });
 
