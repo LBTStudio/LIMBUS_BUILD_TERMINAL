@@ -36,6 +36,8 @@ test("開閉コントロールは最終のCSSレイヤーでPC・タブレット
   assert.match(css, /@media \(max-width: 640px\) and \(orientation: portrait\)/);
   assert.match(css, /bottom: calc\(var\(--lbt-mobile-rail-h, 114px\) \+ 56px\)/);
   assert.match(css, /height: min\(calc\(62vh - 56px\), 504px\)/);
+  assert.match(css, /margin-bottom: calc\(var\(--lbt-mobile-rail-h, 114px\) \+ 56px\)/);
+  assert.match(css, /padding-bottom: 12px/);
   assert.match(css, /bottom:\s*calc\(122px \+ env\(safe-area-inset-bottom, 0px\)\)/);
   assert.match(css, /writing-mode:\s*horizontal-tb/);
   assert.match(css, /\.preview-edge-toggle:focus-visible/);
