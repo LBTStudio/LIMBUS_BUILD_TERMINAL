@@ -2105,6 +2105,20 @@ test("+連結（45+5）と負符号の支出明細を分ける", () => {
     "負符号と金額の間に空白があっても支出明細へ");
 });
 
+test("Unicode minus（−）の通貨減少も負額として支出へ記録する", () => {
+  const parsed = MEMO.parseMemo("ガチャのでLP − 100");
+  assert.equal(parsed.income.lp, 0, "マイナス額を収入へ計上しない");
+  assert.equal(parsed.spends.reduce((sum, row) => sum + (Number(row.lp) || 0), 0), 100,
+    "Unicode minus で書かれた支出を保持する");
+});
+
+test("ガチャ支出と同じ行に続く重複補償を記録する", () => {
+  const parsed = MEMO.parseMemo("LP200消費とで抽出→被りに欠片50獲得");
+  assert.equal(parsed.income.shards, 50, "支出後に書かれた被り補償も収入として保持");
+  assert.equal(parsed.spends.reduce((sum, row) => sum + (Number(row.lp) || 0), 0), 200,
+    "ガチャ支出は一度だけ計上");
+});
+
 test("「NNLPへ」は残高の書き直しであり受け取りではない", () => {
   const r = MEMO.parseMemo("300LPへ");
   assert.equal(r.income.lp, 0, "支払後の残高を収入に数えない");
