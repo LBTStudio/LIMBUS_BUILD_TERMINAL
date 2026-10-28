@@ -22,16 +22,17 @@ function personaKeywordEvidence(persona) {
     ])
   ].filter(Boolean).join("\n");
 }
-/* キャラ作成時の支給額。core 3章 P19-20「PCにはキャラ作成時に30LPが支給」
-   （core:344）。人格出家/購入の値段ではなく初期資金で、「初期作成」リザルトの
-   収入として計上する。 */
+/* キャラ作成時の初期資源（ルールブックPDF p.14）。
+   30 LP と自我の欠片10個を得る。人格購入・サポパ・アイテムの初期作成支出は
+   その後の費用として別明細に記録する。 */
 const INITIAL_LP = 30;
+const INITIAL_SHARDS = 10;
 window.LBT_INITIAL_LP = INITIAL_LP;
+window.LBT_INITIAL_SHARDS = INITIAL_SHARDS;
 
-/* 「初期作成」リザルトを作る。キャラ作成時の支給（core:344）を収入に置く。
-   人格を1つも持たないこの段階では、最初の1人格は「指定購入（20LP）」でも
-   「初期作成用人格チケットでの抽出」でも決められる。どちらを選んでも
-   初期作成に1枚だけ与えておく。 */
+/* 「初期作成」リザルトを作る。PDF p.14 の初期通貨を両方とも収入に記録する。
+   人格を1つも持たない段階では、最初の1人格は指定購入（20LP）でも
+   初期作成用人格チケットでの抽出でも決められる。 */
 function makeInitialResult(options) {
   const withPersonaTicket = options?.withPersonaTicket === true;
   return {
@@ -39,10 +40,10 @@ function makeInitialResult(options) {
     name: "初期作成",
     date: localDateString(),
     income: {
-      ...normalizeCurrency({ lp: INITIAL_LP, shards: 0 }),
+      ...normalizeCurrency({ lp: INITIAL_LP, shards: INITIAL_SHARDS }),
       tickets: normalizeTickets(withPersonaTicket ? { persona: 1 } : {})
     },
-    note: "キャラ作成時の支給（core:344）。この直後の獲得はここに帰属します。",
+    note: "ルールブックPDF p.14 の初期資源（30LP・自我の欠片10個）。この直後の獲得はここに帰属します。",
     createdAt: Date.now()
   };
 }
@@ -86,7 +87,9 @@ function hasInitialGrant(results) {
   if (list.some((r) => r?.id === "res-initial" || r?.name === "初期作成")) return true;
   const latest = latestResultByDisplayOrder(list);
   const income = normalizeCurrency(latest?.income);
-  return income.lp === INITIAL_LP && income.shards === 0;
+  /* 旧版は30LPのみを記録し、欠片10個が欠落している。0も旧初期支給として
+     認識して二重の30LPを追加しない。既存データへの欠片補正は別途確認が必要。 */
+  return income.lp === INITIAL_LP && (income.shards === 0 || income.shards === INITIAL_SHARDS);
 }
 /* 抽出チケットの分類。ローカルルール（ルールブックには無いが卓で配られる）。
    kind=persona 人格抽出チケット … 人格からランダム1つ
