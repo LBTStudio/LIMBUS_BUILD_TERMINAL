@@ -32,18 +32,21 @@ test("プレビューの開閉は出力データを再生成せず、格納中�
   assert.match(livePreviewSource, /const previewDataChanged = Object\.keys\(state\)\.some/);
   assert.match(livePreviewSource, /LBT_gen\.buildMemo\(previewData\)/);
   assert.match(appSource, /previewOpen: !previewOpen/);
-  assert.match(appSource, /className: "preview-reopen"/);
-  assert.match(workspaceCss, /width: 40px;/);
-  assert.match(workspaceCss, /height: 118px;/);
-  assert.match(workspaceCss, /\.app\.preview-collapsed \.preview-reopen \{ display: flex; \}/);
+  assert.match(appSource, /id: "lbt-preview-edge-toggle"/);
+  assert.doesNotMatch(appSource, /className: "preview-reopen"/);
+  assert.match(readFileSync(new URL("../assets/v70-preview-controls.css", import.meta.url), "utf8"), /width: 40px;/);
+  assert.match(readFileSync(new URL("../assets/v70-preview-controls.css", import.meta.url), "utf8"), /min-height: 118px;/);
+
 });
 
 test("プレビューの右端タブは展開・格納のどちらでも同一操作で切り替える", () => {
-  assert.match(livePreviewSource, /lbt-preview-edge-toggle/);
-  assert.match(livePreviewSource, /previewOpen \? "◀ 格納" : "▶ 展開"/);
-  assert.match(livePreviewSource, /previewOpen: !previewOpen/);
-  assert.match(workspaceCss, /\.preview-edge-toggle \{/);
-  assert.match(workspaceCss, /\.preview-edge-toggle\.is-collapsed \{ right: 0; \}/);
+  assert.match(appSource, /id: "lbt-preview-edge-toggle"/);
+  assert.doesNotMatch(livePreviewSource, /lbt-preview-edge-toggle/);
+  assert.match(appSource, /previewOpen \? "◀ 格納" : "▶ 展開"/);
+  assert.match(appSource, /previewOpen \? "◀ 格納" : "▶ 展開"/);
+  const previewControlCss = readFileSync(new URL("../assets/v70-preview-controls.css", import.meta.url), "utf8");
+  assert.match(previewControlCss, /\.preview-edge-toggle \{/);
+  assert.match(previewControlCss, /\.preview-edge-toggle\.is-collapsed\s*\{\s*right: 0;/);
 });
 
 test("人格図鑑の補助見出しは右側プレビュー格納タブの操作領域を避ける", () => {

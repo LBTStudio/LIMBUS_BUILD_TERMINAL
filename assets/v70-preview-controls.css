@@ -1,0 +1,161 @@
+/* v70: one React-owned preview toggle with breakpoint-specific placement. */
+@layer v70-preview-controls {
+
+  /* Mobile preview controls no longer occupy the heading's right edge. Keep
+     Japanese terms intact instead of orphaning their final character. */
+  .section-title {
+    word-break: keep-all;
+    overflow-wrap: normal;
+  }
+
+  @media (max-width: 640px) {
+    .section-title-row {
+      padding-right: 0;
+    }
+
+    .section-title {
+      font-size: clamp(13px, 4vw, 16px);
+      letter-spacing: .015em;
+      line-height: 1.25;
+    }
+  }
+
+  .preview-edge-toggle {
+    position: fixed;
+    top: calc(var(--topbar-h) + 14px);
+    right: var(--preview-w);
+    z-index: calc(var(--z-drawer, 40) + 1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 40px;
+    min-height: 118px;
+    padding: 8px 0;
+    border: 1px solid var(--line-strong);
+    border-right: 0;
+    border-radius: var(--r) 0 0 var(--r);
+    background: linear-gradient(180deg, var(--surface-3), var(--surface-2));
+    box-shadow: -2px 0 8px rgba(0, 0, 0, .3);
+    color: var(--gold);
+    cursor: pointer;
+    font-family: var(--f-display);
+    font-size: var(--fs-12);
+    font-weight: 700;
+    letter-spacing: .14em;
+    writing-mode: vertical-rl;
+    transition: right var(--t) var(--e-io), bottom var(--t) var(--e-io), background var(--t-fast), color var(--t-fast);
+  }
+
+  .preview-edge-toggle.is-collapsed {
+    right: 0;
+  }
+
+  .preview-edge-toggle:hover {
+    background: var(--surface-4);
+    color: var(--gold-hi);
+  }
+
+  .preview-edge-toggle:focus-visible {
+    outline: 2px solid var(--gold-hi);
+    outline-offset: 3px;
+  }
+
+  /* At tablet widths the preview is an overlay drawer. Move the toggle to the
+     lower edge instead of covering section headings or sitting on the drawer's tabs. */
+  @media (min-width: 641px) and (max-width: 1024px) {
+    .preview-edge-toggle {
+      top: auto;
+      right: 16px;
+      bottom: 20px;
+      width: auto;
+      min-width: 96px;
+      height: 40px;
+      min-height: 40px;
+      padding: 0 14px;
+      border: 1px solid var(--line-strong);
+      border-radius: 999px;
+      letter-spacing: .04em;
+      writing-mode: horizontal-tb;
+    }
+
+    .preview-edge-toggle.is-collapsed {
+      right: 16px;
+      bottom: 20px;
+    }
+
+    .preview-edge-toggle.is-open {
+      right: min(436px, calc(100vw - 112px));
+      bottom: 20px;
+    }
+
+    /* Reserve a real dock in the scrolling workspace for both states. */
+    .focus {
+      padding-bottom: 60px;
+    }
+  }
+
+  /* Landscape phones have a horizontal navigation rail across the bottom.
+     Keep the pill above it and place it in a reserved 48px workspace dock. */
+  @media (min-width: 641px) and (max-width: 1024px) and (max-height: 500px) {
+    .preview-edge-toggle,
+    .preview-edge-toggle.is-open,
+    .preview-edge-toggle.is-collapsed {
+      bottom: calc(98px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .focus {
+      padding-bottom: 48px;
+    }
+  }
+
+  /* Phones: keep the pill above the bottom navigation and safe-area inset. */
+  @media (max-width: 640px) {
+    .preview-edge-toggle {
+      top: auto;
+      right: 10px;
+      bottom: calc(122px + env(safe-area-inset-bottom, 0px));
+      width: auto;
+      min-width: 92px;
+      height: 40px;
+      min-height: 40px;
+      padding: 0 12px;
+      border: 1px solid var(--line-strong);
+      border-radius: 999px;
+      letter-spacing: .04em;
+      writing-mode: horizontal-tb;
+      z-index: calc(var(--z-drawer, 40) + 1);
+    }
+
+    .preview-edge-toggle.is-open,
+    .preview-edge-toggle.is-collapsed {
+      right: 10px;
+    }
+  }
+
+  /* Portrait phones: reserve the same 48px dock for the persistent toggle.
+     The preview loses that height as well, so its top edge stays in place and
+     the toggle never sits over the bottom copy/JSON actions. */
+  @media (max-width: 640px) and (orientation: portrait) {
+    .app:not(.preview-collapsed) .preview {
+      bottom: calc(var(--lbt-mobile-rail-h, 114px) + 56px);
+      height: min(calc(62vh - 56px), 504px);
+      max-height: calc(100vh - var(--topbar-h) - var(--lbt-mobile-rail-h, 114px) - 56px);
+      max-height: calc(100svh - var(--topbar-h) - var(--lbt-mobile-rail-h, 114px) - 56px);
+      max-height: calc(100dvh - var(--topbar-h) - var(--lbt-mobile-rail-h, 114px) - 56px);
+    }
+
+    /* Reserve the dock in the main scrolling viewport while closed.
+       The persistent button must not float over card controls or text. */
+    .focus {
+      margin-bottom: calc(var(--lbt-mobile-rail-h, 114px) + 56px);
+      padding-bottom: 12px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .preview-edge-toggle {
+      transition: none;
+    }
+  }
+}

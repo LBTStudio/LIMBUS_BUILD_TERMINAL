@@ -63,74 +63,9 @@
   transform: translateX(100%);
   border-left: none;
 }
-/* Floating reopen tab */
-.preview-reopen {
-  position: fixed;
-  top: calc(var(--topbar-h) + 14px);
-  right: 0;
-  transform: none;
-  width: 40px;
-  height: 118px;
-  background: linear-gradient(180deg, var(--surface-3), var(--surface-2));
-  border: 1px solid var(--line-strong);
-  border-right: none;
-  border-radius: var(--r) 0 0 var(--r);
-  color: var(--gold);
-  cursor: pointer;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  z-index: var(--z-drawer);
-  writing-mode: vertical-rl;
-  font-family: var(--f-display);
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  font-weight: 700;
-  padding: 8px 0;
-  box-shadow: -2px 0 8px rgba(0,0,0,0.3);
-}
-.app.preview-collapsed .preview-reopen { display: flex; }
-.preview-reopen:hover { background: var(--surface-4); color: var(--gold-hi); }
-
-/* 常時表示のプレビュー開閉タブ。格納時と展開時で同じ操作を使う。
-   実際に表示されるのは .preview-edge-toggle の方（下の定義）。
-   .preview-reopen と .preview-close は 640px 未満のブレークポイントで
-   使われる想定だが、現状いずれも JS から描画されないため隠したままにする。
-   ここでは !important を使わず、:.not(.app) で全プロジェクト共通の
-   display:none ルールより後にあることを利用している（このファイルは
-   workspace.css で、base より後の layer にある）。 */
-.preview-reopen,
-.preview-close { display: none; }
-.preview-edge-toggle {
-  position: fixed;
-  top: calc(var(--topbar-h) + 14px);
-  right: var(--preview-w);
-  z-index: calc(var(--z-drawer) + 1);
-  width: 40px;
-  min-height: 118px;
-  padding: 8px 0;
-  border: 1px solid var(--line-strong);
-  border-right: 0;
-  border-radius: var(--r) 0 0 var(--r);
-  background: linear-gradient(180deg, var(--surface-3), var(--surface-2));
-  box-shadow: -2px 0 8px rgba(0, 0, 0, .3);
-  color: var(--gold);
-  cursor: pointer;
-  font-family: var(--f-display);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: .14em;
-  writing-mode: vertical-rl;
-  transition: right var(--t) var(--e-io), background var(--t-fast), color var(--t-fast);
-}
-.preview-edge-toggle.is-collapsed { right: 0; }
-.preview-edge-toggle:hover { background: var(--surface-4); color: var(--gold-hi); }
-/* .spp-list[style*=...] の折り返し幅指定は sections.css 側へ移した。
-   ここは workspace.css（層の並びで sections より弱い）にあるため、
-   @layer 導入後は sections の .spp-list に負けてしまう。 */
-@media (max-width: 1024px) {
-  .preview-edge-toggle { right: 0; min-height: 104px; }
-}
+/* Preview open/close control styles live in v70-preview-controls.css. */
+/* .spp-list[style*=...] wrapping is deliberately owned by sections.css.
+   workspace.css is in an earlier cascade layer and would lose if the rule moved here. */
 
 /* ============================================================
    TOPBAR
@@ -409,42 +344,6 @@
   overflow: hidden;
   transition: transform var(--t) var(--e-io);
 }
-/* 折り畳みタブ — プレビューの左端に貼り付き、常時視認可能 */
-.preview-close {
-  position: absolute;
-  top: 50%;
-  left: -1px;
-  transform: translate(-100%, -50%);
-  width: 24px;
-  height: 76px;
-  background: linear-gradient(180deg, var(--surface-3), var(--surface-2));
-  color: var(--gold);
-  border: 1px solid var(--line-strong);
-  border-right: none;
-  cursor: pointer;
-  z-index: 11;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--r) 0 0 var(--r);
-  box-shadow: -2px 0 8px rgba(0,0,0,0.28);
-  writing-mode: vertical-rl;
-  font-family: var(--f-display);
-  font-size: 9px;
-  letter-spacing: 0.24em;
-  font-weight: 700;
-  padding: 6px 0;
-}
-.preview-close::before {
-  content: '▶ 格納';
-  color: var(--gold);
-}
-.preview-close svg { display: none; }
-.preview-close:hover {
-  background: var(--surface-4);
-  color: var(--gold-hi);
-}
-.preview-close:hover::before { color: var(--gold-hi); }
 .preview-tabs {
   display: flex;
   border-bottom: 1px solid var(--line);

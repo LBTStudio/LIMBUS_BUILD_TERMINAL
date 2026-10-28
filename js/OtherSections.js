@@ -3956,6 +3956,32 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   /* 手打ちの記録をテキストで流し込む画面。硝子窓 版と同じく、
      貼っただけでは確定せず、作れる内容を確認してから入れる。 */
   const [textPanel, setTextPanel] = React.useState(false);
+  /* 3つの取り込みパネルは画面下へ追加されるため、入口を開いた時点で
+     パネルをスクロール領域の先頭へ移動し、最初の入力欄へフォーカスを渡す。 */
+  React.useEffect(() => {
+    if (typeof document === "undefined") return;
+    let panel = null;
+    let target = null;
+    if (importPanel) {
+      panel = document.getElementById("ledger-glass-import-panel");
+      target = panel?.querySelector("textarea.gara-url-list");
+    } else if (textPanel) {
+      panel = document.getElementById("ledger-text-import-panel");
+      target = panel?.querySelector("textarea.ledger-textarea");
+    } else if (heldOpen) {
+      target = document.querySelector("textarea.ledger-held-paste");
+      panel = target?.closest(".ledger-gara-wrap");
+    }
+    if (!panel || !target) return;
+    const scroller = panel.closest(".focus");
+    if (scroller) {
+      const top = panel.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+      scroller.scrollTop = Math.max(0, top - 12);
+    } else {
+      panel.scrollIntoView({ block: "start", behavior: "auto" });
+    }
+    target.focus({ preventScroll: true });
+  }, [importPanel, textPanel, heldOpen]);
   const [textDraft, setTextDraft] = React.useState("");
   const [textExcluded, setTextExcluded] = React.useState(() => new Set());
   /* 結果ログ内の人格候補。候補選択と除外は貼り付け中だけ保持する。 */
@@ -3966,23 +3992,6 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   /* 残高差分・費用配分の警告は、原文を確認した利用者が警告単位で閉じられる。
      入力が変わったら必ず解除して、古い確認状態が新しい内容へ流用されないようにする。 */
   const [dismissedTextWarnings, setDismissedTextWarnings] = React.useState(() => new Set());
-
-  /* テキスト流し込みを開いたら入力欄へ移動し、スクロール領域内で確実に編集できるようにする。 */
-  React.useEffect(() => {
-    if (!textPanel || typeof document === "undefined") return;
-    const panel = document.getElementById("ledger-text-import-panel");
-    if (!panel) return;
-    const textarea = panel.querySelector("textarea.ledger-textarea");
-    if (!textarea) return;
-    const scroller = panel.closest(".focus");
-    if (scroller) {
-      const panelRect = panel.getBoundingClientRect();
-      const scrollerRect = scroller.getBoundingClientRect();
-      const top = panelRect.top - scrollerRect.top + scroller.scrollTop;
-      scroller.scrollTop = Math.max(0, top - 12);
-    }
-    textarea.focus({ preventScroll: true });
-  }, [textPanel]);
 
   /* 取り込み（硝子窓）はリザルト個別ではなくアカウント全体の操作として
    アカウント選択画面で行う。ここでは扱わない。 */
@@ -4688,7 +4697,7 @@ const importHeldPersonas = () => {
 )
     ),
 
-    importPanel && h("div", { className: "ledger-gara-wrap" },
+    importPanel && h("div", { id: "ledger-glass-import-panel", role: "region", "aria-label": "硝子窓から一括取り込む", className: "ledger-gara-wrap" },
     h("div", { className: "card-header owned-library-bar" },
     h("span", { className: "t-label" }, "硝子窓から一括取り込む"),
     h("span", { className: "ledger-note" }, "共有URLからシナリオをまとめて読み取り、リザルトを複数一括で作ります。1件ごとではなく全体へ反映します"),
