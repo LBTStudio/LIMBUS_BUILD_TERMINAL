@@ -1,5 +1,19 @@
 /* v70: one React-owned preview toggle with breakpoint-specific placement. */
 @layer v70-preview-controls {
+
+  /* Mobile preview controls no longer occupy the heading's right edge. Keep
+     Japanese terms intact instead of orphaning their final character. */
+  .section-title {
+    word-break: keep-all;
+    overflow-wrap: normal;
+  }
+
+  @media (max-width: 640px) {
+    .section-title-row {
+      padding-right: 0;
+    }
+  }
+
   .preview-edge-toggle {
     position: fixed;
     top: calc(var(--topbar-h) + 14px);
