@@ -392,6 +392,67 @@ function countNonemptyMemos(history) {
   return history.filter((row) => String(row?.memo || "").trim()).length;
 }
 
+/* Primary source: the rulebook PDF (source/新リンバスTRPG.pdf), p.14.
+   At character creation a PC receives 30 LP and 10 Ego Shards.
+   The inferred opening balance of the available history is compatible with
+   those resources after setup spending only when it lies in 0..30 LP / 0..10 shards.
+   This is a compatibility test, not proof the history contains every transaction. */
+const RULE_INITIAL_RESOURCES = Object.freeze({ lp: 30, shards: 10 });
+
+function parsedNet(parsed, currency) {
+  const income = Number(parsed?.income?.[currency]) || 0;
+  const spends = (parsed?.spends || []).reduce((sum, row) => sum + Math.abs(Number(row?.[currency]) || 0), 0);
+  return income - spends;
+}
+
+function auditRuleBasedOpening(history, currentBalance) {
+  const rows = (Array.isArray(history) ? history : []).map((row) => {
+    const memo = String(row?.memo || "");
+    const parsed = MEMO.parseMemo(memo);
+    return {
+      netLp: parsedNet(parsed, "lp"),
+      netShards: parsedNet(parsed, "shards"),
+      reviewRows: (parsed.financialCoverage || []).filter((entry) =>
+        ["mismatch", "direction-review", "reviewed-by-parser-reason", "candidate-review", "unresolved", "balance-transition-review"].includes(String(entry?.status || ""))
+      ).length,
+      parserReasons: (parsed.reasons || []).length,
+      currencyDiscrepancies: (parsed.currencyDiscrepancies || []).length
+    };
+  });
+  const historyNetLp = rows.reduce((sum, row) => sum + row.netLp, 0);
+  const historyNetShards = rows.reduce((sum, row) => sum + row.netShards, 0);
+  const impliedOpeningLp = Number.isSafeInteger(currentBalance?.lp) ? currentBalance.lp - historyNetLp : null;
+  const impliedOpeningShards = Number.isSafeInteger(currentBalance?.shards) ? currentBalance.shards - historyNetShards : null;
+  const classify = (value, ceiling) => {
+    if (!Number.isSafeInteger(value)) return "not-comparable";
+    if (value < 0) return "below-zero: parsed net exceeds current balance";
+    if (value > ceiling) return "above-initial-ceiling: missing earlier income/history or parser undercount";
+    return "compatible-with-initial-resources-after-setup-spend";
+  };
+  const lpClass = classify(impliedOpeningLp, RULE_INITIAL_RESOURCES.lp);
+  const shardsClass = classify(impliedOpeningShards, RULE_INITIAL_RESOURCES.shards);
+  return {
+    initialResources: { ...RULE_INITIAL_RESOURCES },
+    historyNetLp, historyNetShards,
+    currentLp: currentBalance?.lp ?? null,
+    currentShards: currentBalance?.shards ?? null,
+    impliedOpeningLp, impliedOpeningShards,
+    lpClass, shardsClass,
+    lpCompatible: lpClass === "compatible-with-initial-resources-after-setup-spend",
+    shardsCompatible: shardsClass === "compatible-with-initial-resources-after-setup-spend",
+    bothCompatible: lpClass === "compatible-with-initial-resources-after-setup-spend" && shardsClass === "compatible-with-initial-resources-after-setup-spend",
+    lpNegative: lpClass === "below-zero: parsed net exceeds current balance",
+    shardsNegative: shardsClass === "below-zero: parsed net exceeds current balance",
+    lpAboveCeiling: lpClass === "above-initial-ceiling: missing earlier income/history or parser undercount",
+    shardsAboveCeiling: shardsClass === "above-initial-ceiling: missing earlier income/history or parser undercount",
+    historyRows: (Array.isArray(history) ? history : []).length,
+    memoRows: (Array.isArray(history) ? history : []).filter((row) => String(row?.memo || "").trim()).length,
+    reviewRows: rows.reduce((sum, row) => sum + row.reviewRows, 0),
+    parserReasons: rows.reduce((sum, row) => sum + row.parserReasons, 0),
+    currencyDiscrepancies: rows.reduce((sum, row) => sum + row.currencyDiscrepancies, 0)
+  };
+}
+
 function parseStoredCurrencyAmount(value) {
   if (value === null || value === undefined || String(value).trim() === "") return null;
   const normalized = String(value)
@@ -430,6 +491,11 @@ function toMarkdownReport(report) {
     ["監査coverage欠落・未解決等", report.parser.issues.length],
     ["通貨不一致／残高関連警告", report.parser.currencyDiscrepancies],
     ["残高ブリッジの対象文書（履歴メモ・通貨値あり）", report.balance.summary.eligibleDocuments],
+    ["ルール上の初期資源（LP / 欠片）", report.balance.ruleBasedOpening.summary.ruleInitialLp + " / " + report.balance.ruleBasedOpening.summary.ruleInitialShards],
+    ["残高アンカーが読めた文書（LP / 欠片）", report.balance.ruleBasedOpening.summary.lpWithAnchors + " / " + report.balance.ruleBasedOpening.summary.shardsWithAnchors],
+    ["推定開始残高が初期資源の範囲内（LP / 欠片）", report.balance.ruleBasedOpening.summary.lpOpeningWithinRuleRange + " / " + report.balance.ruleBasedOpening.summary.shardsOpeningWithinRuleRange],
+    ["全アンカーで開始残高推定が一致（LP / 欠片）", report.balance.ruleBasedOpening.summary.lpOpeningStableAcrossAnchors + " / " + report.balance.ruleBasedOpening.summary.shardsOpeningStableAcrossAnchors],
+    ["最新アンカーから保存残高を再現（LP / 欠片）", report.balance.ruleBasedOpening.summary.lpLatestAnchorMatchesCurrent + " / " + report.balance.ruleBasedOpening.summary.shardsLatestAnchorMatchesCurrent],
     ["LPの残差が負（収支純額が所持LPを上回る）", report.balance.summary.lpResidualNegative],
     ["欠片の残差が負（収支純額が所持欠片を上回る）", report.balance.summary.shardResidualNegative],
     ["旧ベースラインとの履歴件数差", report.source.snapshotDrift.length],
@@ -455,6 +521,16 @@ function toMarkdownReport(report) {
       .slice()
       .sort((a, b) => (Math.min(a.impliedOpeningLp, a.impliedOpeningShards) - Math.min(b.impliedOpeningLp, b.impliedOpeningShards)))
       .map((row) => "| " + row.id + " | " + row.historyRows + " | " + row.memoRows + " | " + row.currentLp + " | " + row.netLp + " | " + row.impliedOpeningLp + " | " + row.currentShards + " | " + row.netShards + " | " + row.impliedOpeningShards + " | " + row.reviewRows + " |"),
+    "",
+    "## ルールブック初期資源との残差分類",
+    "",
+    "ルールブック PDF p.14 は初期作成時に30 LP・自我の欠片10個を付与します（PDF抽出テキスト data/provenance/core.txt の PAGE 14）。リザルト履歴が初期作成後の全収支を網羅し、初期作成時の購入だけが履歴開始前に行われたと仮定すれば、保存残高 − 履歴純収支は LP 0～30、欠片0～10の範囲に収まるはずです。範囲外は即座に単一原因を意味しませんが、開始前収入・履歴欠落・未記録支出・パーサーの過大/過小計上・古い保存残高を区別する優先調査対象になります。",
+    "",
+    "| URL ID | 履歴行 | 保存LP | 純収支LP | 推定開始LP | LP分類 | 保存欠片 | 純収支欠片 | 推定開始欠片 | 欠片分類 | 要確認行 |",
+    "|---|---:|---:|---:|---:|---|---:|---:|---:|---|---:|",
+    ...report.balance.ruleBasedOpening.documents.map((row) =>
+      "| " + row.id + " | " + row.historyRows + " | " + row.currentLp + " | " + row.netLp + " | " + row.impliedOpeningLp + " | " + row.lpClass + " | " + row.currentShards + " | " + row.netShards + " | " + row.impliedOpeningShards + " | " + row.shardsClass + " | " + row.reviewRows + " |"
+    ),
     "",
     "### 要確認行の数値診断（本文・名称は非出力）",
     "",
@@ -516,6 +592,7 @@ const fetched = await mapLimit(baseline.documents, 5, async (entry) => {
     actualHistoryRows: history.length,
     actualMemoRows: memoRows,
     currentBalance: storedCurrencyOf(result.doc),
+    ruleBasedOpeningAudit: auditRuleBasedOpening(history, storedCurrencyOf(result.doc)),
     historyInputSha256: historyInputSha256(history),
     parsedRows
   };
@@ -584,6 +661,44 @@ const balanceBridges = successful
       )
     };
   });
+const ruleBasedOpeningAudits = balanceBridges.map((row) => {
+  const audit = successful.find((entry) => entry.baseline.id === row.id)?.ruleBasedOpeningAudit || {};
+  return {
+    id: row.id,
+    historyRows: row.historyRows,
+    memoRows: row.memoRows,
+    currentLp: row.currentLp,
+    currentShards: row.currentShards,
+    netLp: row.netLp,
+    netShards: row.netShards,
+    impliedOpeningLp: row.impliedOpeningLp,
+    impliedOpeningShards: row.impliedOpeningShards,
+    lpClass: audit.lpClass || "not-comparable",
+    shardsClass: audit.shardsClass || "not-comparable",
+    lpCompatible: Boolean(audit.lpCompatible),
+    shardsCompatible: Boolean(audit.shardsCompatible),
+    bothCompatible: Boolean(audit.bothCompatible),
+    lpNegative: Boolean(audit.lpNegative),
+    shardsNegative: Boolean(audit.shardsNegative),
+    lpAboveCeiling: Boolean(audit.lpAboveCeiling),
+    shardsAboveCeiling: Boolean(audit.shardsAboveCeiling),
+    reviewRows: row.reviewRows,
+    reasonCount: row.reasonCount
+  };
+});
+const ruleBasedOpeningSummary = {
+  ruleInitialLp: RULE_INITIAL_RESOURCES.lp,
+  ruleInitialShards: RULE_INITIAL_RESOURCES.shards,
+  eligibleDocuments: ruleBasedOpeningAudits.length,
+  lpCompatibleAfterSetupSpend: ruleBasedOpeningAudits.filter((row) => row.lpCompatible).length,
+  shardsCompatibleAfterSetupSpend: ruleBasedOpeningAudits.filter((row) => row.shardsCompatible).length,
+  bothCompatibleAfterSetupSpend: ruleBasedOpeningAudits.filter((row) => row.bothCompatible).length,
+  lpBelowZero: ruleBasedOpeningAudits.filter((row) => row.lpNegative).length,
+  shardsBelowZero: ruleBasedOpeningAudits.filter((row) => row.shardsNegative).length,
+  lpAboveInitialCeiling: ruleBasedOpeningAudits.filter((row) => row.lpAboveCeiling).length,
+  shardsAboveInitialCeiling: ruleBasedOpeningAudits.filter((row) => row.shardsAboveCeiling).length
+};
+
 const balanceBridgeSummary = {
   eligibleDocuments: balanceBridges.length,
   excludedNoMemoOrUnreadableBalance: successful.length - balanceBridges.length,
@@ -630,9 +745,13 @@ const report = {
     issues: issueRows
   },
   balance: {
-    interpretation: "保存残高 − (メモから抽出した収入 − 明示支出)。開始残高や履歴外調整が不明なため、ゼロでない残差だけでは不整合と断定しない。負の残差は別途要確認。",
+    interpretation: "ルールブック初期資源は30 LP / 自我の欠片10。シナリオ開始時点の推定残高は、開始前の人格・アイテム購入などにより低くなり得る。現在/現座の残高アンカーと、それ以前にパーサが認識した収支から開始残高を各チェックポイントごとに逆算し、値が安定するか・0～初期資源上限内か・最新アンカーから保存残高へ再現できるかを確認する。",
     summary: balanceBridgeSummary,
-    bridges: balanceBridges
+    bridges: balanceBridges,
+    ruleBasedOpening: {
+      summary: ruleBasedOpeningSummary,
+      documents: ruleBasedOpeningAudits
+    }
   }
 };
 
@@ -657,6 +776,14 @@ console.log(JSON.stringify({
     issueCount: report.parser.issues.length,
     currencyDiscrepancies: report.parser.currencyDiscrepancies,
     balanceBridgeDocuments: report.balance.summary.eligibleDocuments,
+    ruleBasedOpeningDocuments: report.balance.ruleBasedOpening.summary.eligibleDocuments,
+    ruleBasedLpCompatibleAfterSetupSpend: report.balance.ruleBasedOpening.summary.lpCompatibleAfterSetupSpend,
+    ruleBasedShardCompatibleAfterSetupSpend: report.balance.ruleBasedOpening.summary.shardsCompatibleAfterSetupSpend,
+    ruleBasedBothCompatibleAfterSetupSpend: report.balance.ruleBasedOpening.summary.bothCompatibleAfterSetupSpend,
+    ruleBasedLpBelowZero: report.balance.ruleBasedOpening.summary.lpBelowZero,
+    ruleBasedShardBelowZero: report.balance.ruleBasedOpening.summary.shardsBelowZero,
+    ruleBasedLpAboveInitialCeiling: report.balance.ruleBasedOpening.summary.lpAboveInitialCeiling,
+    ruleBasedShardAboveInitialCeiling: report.balance.ruleBasedOpening.summary.shardsAboveInitialCeiling,
     negativeLpResidualDocuments: report.balance.summary.lpResidualNegative,
     negativeShardResidualDocuments: report.balance.summary.shardResidualNegative,
     snapshotDriftRows: report.source.snapshotDrift.length,
@@ -672,6 +799,8 @@ console.log(JSON.stringify({
   }, {}),
   balanceBridgeSummary: report.balance.summary,
   balanceBridges: report.balance.bridges,
+  ruleBasedOpeningSummary: report.balance.ruleBasedOpening.summary,
+  ruleBasedOpeningDocuments: report.balance.ruleBasedOpening.documents,
   reviewDetailsCount: report.balance.bridges.reduce((sum, row) => sum + row.reviewDetails.length, 0),
   reviewDetails: report.balance.bridges.flatMap((row) => row.reviewDetails.map((detail) => ({ id: row.id, ...detail }))),
   issues: report.parser.issues.slice(0, 100),
