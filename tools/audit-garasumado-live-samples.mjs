@@ -321,6 +321,19 @@ function numericShape(value) {
   return out;
 }
 
+function categorizeParserReason(reason) {
+  const text = String(reason?.reason || "");
+  if (/残高から逆算|残高表記しかない|現在の残高/.test(text)) return "balance-only-no-spend-amount";
+  if (/テーマパック|パックチケット|パック抽出/.test(text)) return "theme-pack-or-ticket-ambiguity";
+  if (/チケット|抽出券|抽出チケ/.test(text)) return "ticket-amount-or-classification";
+  if (/通貨変換|変換方向|換算/.test(text)) return "currency-conversion-ambiguity";
+  if (/E\\.?G\\.?O|価格|価格欄/.test(text)) return "item-price-missing-or-mismatch";
+  if (/支出金額|購入額|消費金額|通貨額|支出表記|金額を読み取れない/.test(text)) return "spend-amount-or-format-unreadable";
+  if (/安全整数|桁区切り|範囲外|負の安全整数/.test(text)) return "numeric-format-or-range";
+  if (/不一致|一致しない|矛盾|計算結果|計算式/.test(text)) return "arithmetic-or-amount-mismatch";
+  return "other-review";
+}
+
 function auditMemo(id, historyIndex, memo) {
   parserContext.window.__lbtAuditIncomeEvents.length = 0;
   parserContext.window.__lbtAuditIncomePairEvents.length = 0;
@@ -460,7 +473,14 @@ function auditMemo(id, historyIndex, memo) {
       };
     });
 
-  return { historyIndex, candidates, covered, legacyCandidates, legacyTransactionCandidates, nonTransactionalTicketLabels, nonTransactionalDrawLabels, unclassifiedLegacyCues, unclassifiedLegacyCueExamples, issues, financial, incomeTrace, incomePairTrace, spendTrace, reviewDetails, coverageStatuses: coverages.reduce((counts, entry) => {
+  const spendSignatures = (parsed.spends || []).map(spendSignature).filter(Boolean);
+  const reasonCategories = {};
+  for (const reason of reasons) {
+    const category = categorizeParserReason(reason);
+    reasonCategories[category] = (reasonCategories[category] || 0) + 1;
+  }
+
+  return { historyIndex, candidates, covered, legacyCandidates, legacyTransactionCandidates, nonTransactionalTicketLabels, nonTransactionalDrawLabels, unclassifiedLegacyCues, unclassifiedLegacyCueExamples, issues, financial, incomeTrace, incomePairTrace, spendTrace, reviewDetails, spendSignatures, reasonCategories, coverageStatuses: coverages.reduce((counts, entry) => {
     const status = String(entry?.status || "missing-status");
     counts[status] = (counts[status] || 0) + 1;
     return counts;
@@ -583,6 +603,132 @@ function auditFreeNotePurchases(doc, history, memoApi) {
   };
 }
 
+function normalizeExpenseName(value) {
+  return String(value || "")
+    .normalize("NFKC")
+    .replace(/[「」『』\"'：:]/g, "")
+    .replace(/\s+/g, "")
+    .toLocaleLowerCase("ja-JP");
+}
+
+/* Signatures are used only for overlap analysis; raw names and free-note text are never emitted. */
+function spendSignature(row) {
+  const lp = Math.abs(Number(row?.lp) || 0);
+  const shards = Math.abs(Number(row?.shards) || 0);
+  if (!Number.isSafeInteger(lp) || !Number.isSafeInteger(shards)) return null;
+  const normalizedName = normalizeExpenseName(row?.name);
+  return {
+    exact: createHash("sha256").update(normalizedName + "\\0" + lp + "\\0" + shards).digest("hex"),
+    amount: lp + "/" + shards,
+    lp,
+    shards
+  };
+}
+
+/* Mirror the importer's freeNotes rule: only rows accepted by purchaseRowOf() in the
+   secret/history/memo/setting fields become an untimed purchase scenario. */
+function auditFreeNotes(doc) {
+  const notes = doc?.freeNotes && typeof doc.freeNotes === "object" ? doc.freeNotes : {};
+  const fields = ["secret", "history", "memo", "setting"];
+  const allLines = fields.flatMap((field) =>
+    String(notes[field] || "").split(/\r?\n/).map((line) => String(line || "").trim()).filter(Boolean)
+  );
+  const expenseCues = allLines.filter((line) => /購入|消費|支出|支払|買っ/.test(line));
+  const acceptedLines = allLines.filter((line) =>
+    typeof MEMO.purchaseRowOf === "function" && Boolean(MEMO.purchaseRowOf(line))
+  );
+  const acceptedSet = new Set(acceptedLines);
+  const unrecognizedCues = expenseCues.filter((line) => !acceptedSet.has(line));
+  const parsed = MEMO.parseMemo(acceptedLines.join("\n"));
+  const signatures = (parsed.spends || []).map(spendSignature).filter(Boolean)
+    .filter((spend) => spend.lp > 0 || spend.shards > 0);
+  let unrecognizedCueRowsWithGenericSpend = 0;
+  let unrecognizedCueGenericSpendLp = 0;
+  let unrecognizedCueGenericSpendShards = 0;
+  let unrecognizedCueRowsWithCurrencyAmount = 0;
+  let unrecognizedCueRowsWithParserReason = 0;
+  const unrecognizedCueSpendSignatures = [];
+  for (const line of unrecognizedCues) {
+    if (/(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)\s*[：:]?\s*[+＋\-−]?\s*\d|[+＋\-−]?\s*\d[\d,，]*\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)/i.test(line)) {
+      unrecognizedCueRowsWithCurrencyAmount++;
+    }
+    const one = MEMO.parseMemo(line);
+    const spends = (one.spends || []).map(spendSignature).filter(Boolean);
+    const actual = spends.filter((spend) => spend.lp > 0 || spend.shards > 0);
+    if (actual.length) unrecognizedCueRowsWithGenericSpend++;
+    unrecognizedCueSpendSignatures.push(...actual);
+    unrecognizedCueGenericSpendLp += actual.reduce((sum, spend) => sum + spend.lp, 0);
+    unrecognizedCueGenericSpendShards += actual.reduce((sum, spend) => sum + spend.shards, 0);
+    if ((one.reasons || []).length > 0) unrecognizedCueRowsWithParserReason++;
+  }
+  return {
+    lineCount: allLines.length,
+    expenseCueRows: expenseCues.length,
+    recognizedPurchaseLines: acceptedLines.length,
+    parsedSpendRows: signatures.length,
+    cueRowsWithoutPurchaseRow: Math.max(0, expenseCues.length - acceptedLines.length),
+    unrecognizedCueRowsWithGenericSpend,
+    unrecognizedCueGenericSpendLp,
+    unrecognizedCueGenericSpendShards,
+    unrecognizedCueRowsWithCurrencyAmount,
+    unrecognizedCueRowsWithParserReason,
+    unrecognizedCueSpendSignatures,
+    acceptedRowsWithoutParsedSpend: Math.max(0, acceptedLines.length - signatures.length),
+    spendLp: signatures.reduce((sum, spend) => sum + spend.lp, 0),
+    spendShards: signatures.reduce((sum, spend) => sum + spend.shards, 0),
+    spendSignatures: signatures
+  };
+}
+
+function reconcileFreeNotesSpend(historySpendSignatures, freeNotesAudit, residualLp, residualShards) {
+  const exactCounts = new Map();
+  const amountCounts = new Map();
+  for (const spend of historySpendSignatures || []) {
+    exactCounts.set(spend.exact, (exactCounts.get(spend.exact) || 0) + 1);
+    amountCounts.set(spend.amount, (amountCounts.get(spend.amount) || 0) + 1);
+  }
+  let exactDuplicateRows = 0;
+  let possibleAmountOnlyDuplicateRows = 0;
+  let uniqueSpendLpLower = 0;
+  let uniqueSpendShardsLower = 0;
+  let uniqueSpendLpUpper = 0;
+  let uniqueSpendShardsUpper = 0;
+  for (const spend of freeNotesAudit?.spendSignatures || []) {
+    const exactCount = exactCounts.get(spend.exact) || 0;
+    if (exactCount > 0) {
+      exactCounts.set(spend.exact, exactCount - 1);
+      const amountCount = amountCounts.get(spend.amount) || 0;
+      if (amountCount > 0) amountCounts.set(spend.amount, amountCount - 1);
+      exactDuplicateRows++;
+      continue;
+    }
+    /* Names can differ between a free-note shorthand and a scenario memo. An amount-only
+       match is ambiguous: calculate a lower and upper balance range instead of guessing. */
+    const amountCount = amountCounts.get(spend.amount) || 0;
+    if (amountCount > 0) {
+      amountCounts.set(spend.amount, amountCount - 1);
+      possibleAmountOnlyDuplicateRows++;
+    } else {
+      uniqueSpendLpLower += spend.lp;
+      uniqueSpendShardsLower += spend.shards;
+    }
+    uniqueSpendLpUpper += spend.lp;
+    uniqueSpendShardsUpper += spend.shards;
+  }
+  return {
+    exactDuplicateRows,
+    possibleAmountOnlyDuplicateRows,
+    uniqueSpendLpLower,
+    uniqueSpendShardsLower,
+    uniqueSpendLpUpper,
+    uniqueSpendShardsUpper,
+    residualLpAfterFreeNotesLower: Number.isSafeInteger(residualLp) ? residualLp + uniqueSpendLpLower : null,
+    residualShardsAfterFreeNotesLower: Number.isSafeInteger(residualShards) ? residualShards + uniqueSpendShardsLower : null,
+    residualLpAfterFreeNotesUpper: Number.isSafeInteger(residualLp) ? residualLp + uniqueSpendLpUpper : null,
+    residualShardsAfterFreeNotesUpper: Number.isSafeInteger(residualShards) ? residualShards + uniqueSpendShardsUpper : null
+  };
+}
+
 function toMarkdownReport(report) {
   const summaryRows = [
     ["URL ID", report.inventory.urlCount],
@@ -612,6 +758,12 @@ function toMarkdownReport(report) {
     ["自由メモの認識済み購入行", report.balance.freeNotePurchase.summary.recognizedPurchaseRows],
     ["自由メモのLP / 欠片支出候補", report.balance.freeNotePurchase.summary.purchaseLp + " / " + report.balance.freeNotePurchase.summary.purchaseShards],
     ["リザルト履歴と重複する可能性のある自由メモ行", report.balance.freeNotePurchase.summary.possibleOverlapRows],
+    ["自由メモの未認識購入語句行", report.balance.freeNotesSource.summary.expenseCueRowsNotRecognized],
+    ["未認識行のうち通常パーサーが支出額を抽出できた行", report.balance.freeNotesSource.summary.unrecognizedCueRowsWithGenericSpend],
+    ["未認識行から抽出されたLP / 欠片支出候補", report.balance.freeNotesSource.summary.unrecognizedCueGenericSpendLp + " / " + report.balance.freeNotesSource.summary.unrecognizedCueGenericSpendShards],
+    ["自由メモと履歴の完全一致重複行", report.balance.freeNotesBridge.summary.rowsExactlyDuplicatedWithScenarioSpend],
+    ["金額だけ一致する重複候補行", report.balance.freeNotesBridge.summary.rowsPotentiallyDuplicatedByAmountOnly],
+    ["パーサー保留理由の分類数", Object.keys(report.parser.reasonCategories).length],
     ["自由メモの支出候補を追加して両通貨が初期範囲内になるデータ", report.balance.freeNotePurchase.summary.bothFitCountIfNonOverlapAdded],
     ["全アンカーで開始残高推定が一致（LP / 欠片）", report.balance.ruleBasedOpening.summary.lpOpeningStableAcrossAnchors + " / " + report.balance.ruleBasedOpening.summary.shardsOpeningStableAcrossAnchors],
     ["最新アンカーから保存残高を再現（LP / 欠片）", report.balance.ruleBasedOpening.summary.lpLatestAnchorMatchesCurrent + " / " + report.balance.ruleBasedOpening.summary.shardsLatestAnchorMatchesCurrent],
@@ -670,6 +822,22 @@ function toMarkdownReport(report) {
     ...report.balance.freeNotePurchase.documents
       .filter((row) => row.recognizedPurchaseRows > 0 || row.unrecognizedActionAmountLines > 0)
       .map((row) => "| " + row.id + " | " + row.recognizedPurchaseRows + " | " + row.unrecognizedActionAmountLines + " | " + row.purchaseLp + " | " + row.purchaseShards + " | " + row.possibleOverlapRows + " | " + row.nonOverlapPurchaseLp + " | " + row.nonOverlapPurchaseShards + " | " + row.residualLpIfOnlyNonOverlapPurchasesAdded + " | " + row.residualShardsIfOnlyNonOverlapPurchasesAdded + " | " + Number(row.bothFitRuleRangeIfNonOverlapAdded) + " |"),
+    "",
+    "## 自由メモの未認識支出候補（原文・名称は非出力）",
+    "",
+    "購入行として認識されなかった自由メモのうち、通常の収支パーサーが支出候補を抽出した場合も追加で照合します。これは候補の分析であって、実支出と確定して残高へ反映するものではありません。名前・本文は出力せず、同名＋金額のSHA-256指紋と金額のみで重複候補を扱います。金額だけ一致する場合は別取引の可能性を残して範囲表示します。",
+    "",
+    "| URL ID | 履歴行 | 購入語句行 | 購入認識行 | 未認識の通常パーサー支出行 | 未認識LP候補 | 未認識欠片候補 | 履歴残差LP | LP残差範囲 | 履歴残差欠片 | 欠片残差範囲 | 完全重複 | 金額のみ重複候補 |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---|---:|---|---:|---:|",
+    ...report.balance.freeNotesBridge.documents
+      .filter((row) => row.expenseCueRows > 0 || row.parsedSpendRows > 0 || row.unrecognizedCueRowsWithGenericSpend > 0)
+      .map((row) => "| " + row.id + " | " + row.historyRows + " | " + row.expenseCueRows + " | " + row.parsedSpendRows + " | " + row.unrecognizedCueRowsWithGenericSpend + " | " + row.unrecognizedCueGenericSpendLp + " | " + row.unrecognizedCueGenericSpendShards + " | " + row.residualLpBeforeFreeNotes + " | " + row.genericCueResidualLpLower + "…" + row.genericCueResidualLpUpper + " | " + row.residualShardsBeforeFreeNotes + " | " + row.genericCueResidualShardsLower + "…" + row.genericCueResidualShardsUpper + " | " + row.genericCueExactDuplicateRows + " | " + row.genericCuePossibleAmountOnlyDuplicateRows + " |"),
+    "",
+    "### パーサー保留理由の分類（本文・購入品名は非出力）",
+    "",
+    "| 理由分類 | 件数 |",
+    "|---|---:|",
+    ...Object.entries(report.parser.reasonCategories).sort(([a],[b]) => a.localeCompare(b)).map(([name, count]) => "| " + name + " | " + count + " |"),
     "",
     "## 残高を示す記述パターン（本文非出力）",
     "",
@@ -734,6 +902,7 @@ const fetched = await mapLimit(baseline.documents, 5, async (entry) => {
     actualMemoRows: memoRows,
     currentBalance,
     freeNotePurchaseAudit,
+    freeNotesAudit: auditFreeNotes(result.doc),
     ruleBasedOpeningAudit: auditRuleBasedOpening(history, currentBalance, MEMO),
     historyInputSha256: historyInputSha256(history),
     parsedRows
@@ -770,6 +939,10 @@ const allParsedRows = successful.flatMap((entry) => entry.parsedRows || []);
 const issueRows = allParsedRows.flatMap((entry) => entry.issues);
 const coverageStatuses = {};
 for (const row of allParsedRows) for (const [status, count] of Object.entries(row.coverageStatuses)) coverageStatuses[status] = (coverageStatuses[status] || 0) + count;
+const parserReasonCategories = {};
+for (const row of allParsedRows) for (const [name, count] of Object.entries(row.reasonCategories || {})) {
+  parserReasonCategories[name] = (parserReasonCategories[name] || 0) + count;
+}
 
 /* 現在のcurrencyと履歴収支を橋渡しする。差額は「既知の開始残高」と同義ではなく、
    履歴開始前からの残高・未記録の調整・パーサーの見落としをまとめた残差として扱う。
@@ -945,6 +1118,122 @@ const freeNotePurchaseSummary = {
   shardsFitCountIfNonOverlapAdded: count(freeNotePurchaseAudits, (row) => row.shardsFitRuleRangeIfNonOverlapAdded),
   bothFitCountIfNonOverlapAdded: count(freeNotePurchaseAudits, (row) => row.bothFitRuleRangeIfNonOverlapAdded)
 };
+const freeNotesBridgeRows = balanceBridges.map((row) => {
+  const entry = successful.find((candidate) => candidate.baseline.id === row.id);
+  const freeNotesAudit = entry?.freeNotesAudit || {
+    lineCount: 0, expenseCueRows: 0, recognizedPurchaseLines: 0, parsedSpendRows: 0,
+    cueRowsWithoutPurchaseRow: 0, acceptedRowsWithoutParsedSpend: 0,
+    unrecognizedCueRowsWithGenericSpend: 0, unrecognizedCueGenericSpendLp: 0, unrecognizedCueGenericSpendShards: 0,
+    unrecognizedCueRowsWithCurrencyAmount: 0, unrecognizedCueRowsWithParserReason: 0,
+    spendLp: 0, spendShards: 0, spendSignatures: []
+  };
+  const scenarioSpendSignatures = (entry?.parsedRows || []).flatMap((memo) => memo.spendSignatures || []);
+  const unrecognizedCueReconciliation = reconcileFreeNotesSpend(
+    scenarioSpendSignatures,
+    { spendSignatures: freeNotesAudit.unrecognizedCueSpendSignatures || [] },
+    row.impliedOpeningLp,
+    row.impliedOpeningShards
+  );
+  return {
+    id: row.id,
+    historyRows: row.historyRows,
+    currentLp: row.currentLp,
+    currentShards: row.currentShards,
+    residualLpBeforeFreeNotes: row.impliedOpeningLp,
+    residualShardsBeforeFreeNotes: row.impliedOpeningShards,
+    ...{
+      lineCount: freeNotesAudit.lineCount,
+      expenseCueRows: freeNotesAudit.expenseCueRows,
+      recognizedPurchaseLines: freeNotesAudit.recognizedPurchaseLines,
+      parsedSpendRows: freeNotesAudit.parsedSpendRows,
+      cueRowsWithoutPurchaseRow: freeNotesAudit.cueRowsWithoutPurchaseRow,
+      acceptedRowsWithoutParsedSpend: freeNotesAudit.acceptedRowsWithoutParsedSpend,
+      unrecognizedCueRowsWithGenericSpend: freeNotesAudit.unrecognizedCueRowsWithGenericSpend,
+      unrecognizedCueGenericSpendLp: freeNotesAudit.unrecognizedCueGenericSpendLp,
+      unrecognizedCueGenericSpendShards: freeNotesAudit.unrecognizedCueGenericSpendShards,
+      unrecognizedCueRowsWithCurrencyAmount: freeNotesAudit.unrecognizedCueRowsWithCurrencyAmount,
+      unrecognizedCueRowsWithParserReason: freeNotesAudit.unrecognizedCueRowsWithParserReason,
+      freeNotesSpendLp: freeNotesAudit.spendLp,
+      freeNotesSpendShards: freeNotesAudit.spendShards
+    },
+    ...reconcileFreeNotesSpend(
+      scenarioSpendSignatures,
+      freeNotesAudit,
+      row.impliedOpeningLp,
+      row.impliedOpeningShards
+    ),
+    genericCueExactDuplicateRows: unrecognizedCueReconciliation.exactDuplicateRows,
+    genericCuePossibleAmountOnlyDuplicateRows: unrecognizedCueReconciliation.possibleAmountOnlyDuplicateRows,
+    genericCueCandidateLp: freeNotesAudit.unrecognizedCueGenericSpendLp,
+    genericCueCandidateShards: freeNotesAudit.unrecognizedCueGenericSpendShards,
+    genericCueResidualLpLower: unrecognizedCueReconciliation.residualLpAfterFreeNotesLower,
+    genericCueResidualLpUpper: unrecognizedCueReconciliation.residualLpAfterFreeNotesUpper,
+    genericCueResidualShardsLower: unrecognizedCueReconciliation.residualShardsAfterFreeNotesLower,
+    genericCueResidualShardsUpper: unrecognizedCueReconciliation.residualShardsAfterFreeNotesUpper
+  };
+});
+const freeNotesBridgeSummary = {
+  eligibleDocuments: freeNotesBridgeRows.length,
+  documentsWithAnyFreeNotes: freeNotesBridgeRows.filter((row) => row.lineCount > 0).length,
+  documentsWithExpenseCues: freeNotesBridgeRows.filter((row) => row.expenseCueRows > 0).length,
+  documentsWithRecognizedFreeNotesPurchases: freeNotesBridgeRows.filter((row) => row.parsedSpendRows > 0).length,
+  recognizedFreeNotesPurchaseRows: freeNotesBridgeRows.reduce((sum, row) => sum + row.parsedSpendRows, 0),
+  recognizedFreeNotesSpendLp: freeNotesBridgeRows.reduce((sum, row) => sum + row.freeNotesSpendLp, 0),
+  recognizedFreeNotesSpendShards: freeNotesBridgeRows.reduce((sum, row) => sum + row.freeNotesSpendShards, 0),
+  documentsWithExpenseCueRowsNotRecognizedAsPurchase: freeNotesBridgeRows.filter((row) => row.cueRowsWithoutPurchaseRow > 0).length,
+  expenseCueRowsNotRecognizedAsPurchase: freeNotesBridgeRows.reduce((sum, row) => sum + row.cueRowsWithoutPurchaseRow, 0),
+  unrecognizedCueRowsWithGenericSpend: freeNotesBridgeRows.reduce((sum, row) => sum + row.unrecognizedCueRowsWithGenericSpend, 0),
+  unrecognizedCueGenericSpendLp: freeNotesBridgeRows.reduce((sum, row) => sum + row.unrecognizedCueGenericSpendLp, 0),
+  unrecognizedCueGenericSpendShards: freeNotesBridgeRows.reduce((sum, row) => sum + row.unrecognizedCueGenericSpendShards, 0),
+  unrecognizedCueRowsWithCurrencyAmount: freeNotesBridgeRows.reduce((sum, row) => sum + row.unrecognizedCueRowsWithCurrencyAmount, 0),
+  unrecognizedCueRowsWithParserReason: freeNotesBridgeRows.reduce((sum, row) => sum + row.unrecognizedCueRowsWithParserReason, 0),
+  rowsAcceptedAsPurchaseButNotParsedAsSpend: freeNotesBridgeRows.reduce((sum, row) => sum + row.acceptedRowsWithoutParsedSpend, 0),
+  rowsExactlyDuplicatedWithScenarioSpend: freeNotesBridgeRows.reduce((sum, row) => sum + row.exactDuplicateRows, 0),
+  rowsPotentiallyDuplicatedByAmountOnly: freeNotesBridgeRows.reduce((sum, row) => sum + row.possibleAmountOnlyDuplicateRows, 0),
+  lpNegativeBefore: freeNotesBridgeRows.filter((row) => row.residualLpBeforeFreeNotes < 0).length,
+  lpNegativeAfterPossibleUniqueFreeNotesLower: freeNotesBridgeRows.filter((row) => row.residualLpAfterFreeNotesLower < 0).length,
+  lpNegativeAfterPossibleUniqueFreeNotesUpper: freeNotesBridgeRows.filter((row) => row.residualLpAfterFreeNotesUpper < 0).length,
+  shardsNegativeBefore: freeNotesBridgeRows.filter((row) => row.residualShardsBeforeFreeNotes < 0).length,
+  shardsNegativeAfterPossibleUniqueFreeNotesLower: freeNotesBridgeRows.filter((row) => row.residualShardsAfterFreeNotesLower < 0).length,
+  shardsNegativeAfterPossibleUniqueFreeNotesUpper: freeNotesBridgeRows.filter((row) => row.residualShardsAfterFreeNotesUpper < 0).length,
+  documentsWithGenericCueSpends: freeNotesBridgeRows.filter((row) => row.unrecognizedCueRowsWithGenericSpend > 0).length,
+  genericCueSpendRows: freeNotesBridgeRows.reduce((sum, row) => sum + row.unrecognizedCueRowsWithGenericSpend, 0),
+  genericCueSpendLp: freeNotesBridgeRows.reduce((sum, row) => sum + row.unrecognizedCueGenericSpendLp, 0),
+  genericCueSpendShards: freeNotesBridgeRows.reduce((sum, row) => sum + row.unrecognizedCueGenericSpendShards, 0),
+  lpNegativeAfterGenericCueLower: freeNotesBridgeRows.filter((row) => row.genericCueResidualLpLower < 0).length,
+  lpNegativeAfterGenericCueUpper: freeNotesBridgeRows.filter((row) => row.genericCueResidualLpUpper < 0).length,
+  shardsNegativeAfterGenericCueLower: freeNotesBridgeRows.filter((row) => row.genericCueResidualShardsLower < 0).length,
+  shardsNegativeAfterGenericCueUpper: freeNotesBridgeRows.filter((row) => row.genericCueResidualShardsUpper < 0).length
+};
+
+const freeNotesSourceSummary = {
+  documentsAnalyzed: successful.length,
+  documentsWithAnyFreeNotes: successful.filter((entry) => (entry.freeNotesAudit?.lineCount || 0) > 0).length,
+  documentsWithExpenseCues: successful.filter((entry) => (entry.freeNotesAudit?.expenseCueRows || 0) > 0).length,
+  documentsWithRecognizedPurchases: successful.filter((entry) => (entry.freeNotesAudit?.parsedSpendRows || 0) > 0).length,
+  recognizedPurchaseRows: successful.reduce((sum, entry) => sum + (entry.freeNotesAudit?.parsedSpendRows || 0), 0),
+  recognizedSpendLp: successful.reduce((sum, entry) => sum + (entry.freeNotesAudit?.spendLp || 0), 0),
+  recognizedSpendShards: successful.reduce((sum, entry) => sum + (entry.freeNotesAudit?.spendShards || 0), 0),
+  documentsWithExpenseCuesNotRecognized: successful.filter((entry) => (entry.freeNotesAudit?.cueRowsWithoutPurchaseRow || 0) > 0).length,
+  expenseCueRowsNotRecognized: successful.reduce((sum, entry) => sum + (entry.freeNotesAudit?.cueRowsWithoutPurchaseRow || 0), 0),
+  unrecognizedCueRowsWithGenericSpend: successful.reduce((sum, entry) => sum + (entry.freeNotesAudit?.unrecognizedCueRowsWithGenericSpend || 0), 0),
+  unrecognizedCueGenericSpendLp: successful.reduce((sum, entry) => sum + (entry.freeNotesAudit?.unrecognizedCueGenericSpendLp || 0), 0),
+  unrecognizedCueGenericSpendShards: successful.reduce((sum, entry) => sum + (entry.freeNotesAudit?.unrecognizedCueGenericSpendShards || 0), 0),
+  unrecognizedCueRowsWithCurrencyAmount: successful.reduce((sum, entry) => sum + (entry.freeNotesAudit?.unrecognizedCueRowsWithCurrencyAmount || 0), 0),
+  unrecognizedCueRowsWithParserReason: successful.reduce((sum, entry) => sum + (entry.freeNotesAudit?.unrecognizedCueRowsWithParserReason || 0), 0),
+  acceptedRowsWithoutParsedSpend: successful.reduce((sum, entry) => sum + (entry.freeNotesAudit?.acceptedRowsWithoutParsedSpend || 0), 0),
+  documentsWithPurchasesButNoScenarioMemo: successful
+    .filter((entry) => entry.actualMemoRows === 0 && (entry.freeNotesAudit?.parsedSpendRows || 0) > 0)
+    .map((entry) => ({
+      id: entry.baseline.id,
+      historyRows: entry.actualHistoryRows,
+      currentLp: entry.currentBalance?.lp ?? null,
+      currentShards: entry.currentBalance?.shards ?? null,
+      purchaseRows: entry.freeNotesAudit.parsedSpendRows,
+      spendLp: entry.freeNotesAudit.spendLp,
+      spendShards: entry.freeNotesAudit.spendShards
+    }))
+};
 const balanceBridgeSummary = {
   eligibleDocuments: balanceBridges.length,
   excludedNoMemoOrUnreadableBalance: successful.length - balanceBridges.length,
@@ -988,6 +1277,7 @@ const report = {
     currentBalanceReviewRows: coverageStatuses["current-balance-review"] || 0,
     currencyDiscrepancies: allParsedRows.reduce((sum, row) => sum + row.currencyDiscrepancies, 0),
     coverageStatuses,
+    reasonCategories: parserReasonCategories,
     issues: issueRows
   },
   balance: {
@@ -999,6 +1289,13 @@ const report = {
       documents: ruleBasedOpeningAudits
     },
     balanceCuePatterns: balanceCueSummary,
+    freeNotesBridge: {
+      summary: freeNotesBridgeSummary,
+      documents: freeNotesBridgeRows
+    },
+    freeNotesSource: {
+      summary: freeNotesSourceSummary
+    },
     freeNotePurchase: {
       interpretation: "自由メモの狭い購入短文だけを検出。リザルト履歴との一致は重複の可能性であって確定ではない。支出を足した場合の残差は説明力診断であり、データへ適用しない。",
       summary: freeNotePurchaseSummary,
@@ -1070,6 +1367,10 @@ console.log(JSON.stringify({
   balanceCuePatterns: report.balance.balanceCuePatterns,
   freeNotePurchaseSummary: report.balance.freeNotePurchase.summary,
   freeNotePurchaseAudits: report.balance.freeNotePurchase.documents,
+  parserReasonCategories: report.parser.reasonCategories,
+  freeNotesSourceSummary: report.balance.freeNotesSource.summary,
+  freeNotesBridgeSummary: report.balance.freeNotesBridge.summary,
+  freeNotesBridgeDocuments: report.balance.freeNotesBridge.documents,
   balanceCuePatternDocuments: successful.map((entry) => ({
     id: entry.baseline.id,
     historyRows: entry.actualHistoryRows,
