@@ -110,6 +110,20 @@ function isRelated(auditRows, lineNumber) {
   ));
 }
 
+function stripBalanceAnchors(line) {
+  return String(line || "")
+    .replace(/[\uFF01-\uFF5E]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+    .replace(/\u2212/g, "-")
+    .replace(/\u3000/g, " ")
+    .replace(/現在\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)?\s*[：:]?\s*-?\d+(?:\s*[+＋]\s*\d+)*(?:\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?(?:\s*[→⇒]\s*-?\d+(?:\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?)?/gi, " ")
+    .replace(/残り\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)?\s*[：:]?\s*-?\d+(?:\s*[+＋]\s*\d+)*(?:\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?(?:\s*[→⇒]\s*-?\d+(?:\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?)?/gi, " ");
+}
+function isFinancialCandidateLine(line) {
+  if (/^\s*[▶►▷]/.test(String(line || ""))) return false;
+  const withoutBalances = stripBalanceAnchors(line);
+  return CANDIDATE_AMOUNT.test(withoutBalances) && CANDIDATE_ACTION.test(withoutBalances);
+}
+
 function describeCandidateLine(line, coverage) {
   const amountTokens = [...String(line).matchAll(/(?:[+＋\\-−]?\\s*\\d[\\d,，]*\\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)|(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)\\s*[：:]?\\s*[+＋\\-−]?\\s*\\d[\\d,，]*)/gi)]
     .map((match) => String(match[0]).replace(/\\s+/g, " ").trim()).slice(0, 8);
@@ -165,8 +179,9 @@ function auditMemo(id, historyIndex, memo) {
     }
   }
 
-  const hasAmount = CANDIDATE_AMOUNT.test(String(memo || ""));
-  const hasAction = CANDIDATE_ACTION.test(String(memo || ""));
+  const hasFinancialCandidate = lines.some((line) => isFinancialCandidateLine(line));
+  const hasAmount = hasFinancialCandidate;
+  const hasAction = hasFinancialCandidate;
   if (hasAmount && hasAction) {
     const recognized =
       (Number(parsed.income?.lp) || 0) !== 0 ||
