@@ -1084,7 +1084,8 @@
     const detectedExpense = currencySpendOf(text, true);
     const explicitExpenseRanges = detectedExpense
       ? [detectedExpense].concat(detectedExpense.additionalSpends || []).map((item) => ({
-          currency: item.currency, amountStart: item.amountStart, amountEnd: item.amountEnd
+          currency: item.currency, amountStart: item.amountStart, amountEnd: item.amountEnd,
+          amount: item.amount
         }))
       : [];
     const incomeCue = /報酬|収入|獲得|入手|取得|受領|付与|支給|補填|もら/;
@@ -1115,16 +1116,24 @@
       const compact = chosen.rawAmount.replace(/\s/g, "");
       const sign = compact.charAt(0);
       const parts = compact.replace(/^[+＋\-−]/, "").split(/[+＋]/);
-      const amount = parts.reduce((sum, part) => sum + Number(part.replace(/,/g, "")), 0);
+      let amount = parts.reduce((sum, part) => sum + Number(part.replace(/,/g, "")), 0);
       if (!Number.isSafeInteger(amount) || amount < 0) continue;
       for (let i = chosen.amountStart; i < chosen.amountEnd; i++) usedAmounts.add(i);
       const currency = /^(?:LP|ＬＰ)$/i.test(match[1]) ? "lp" : "shards";
+      const explicitExpenseForToken = explicitExpenseRanges.find((item) =>
+        item.currency === currency && item.amountStart === chosen.amountStart && item.amountEnd === chosen.amountEnd
+      );
+      /* The expense parser already applies an explicit pack-count multiplier. Mirror that
+         amount on the audit side so "LP200 ... theme pack x2" is compared as 400, not 200. */
+      if (explicitExpenseForToken && Number.isSafeInteger(explicitExpenseForToken.amount) && explicitExpenseForToken.amount >= 0) {
+        amount = explicitExpenseForToken.amount;
+      }
       let direction = sign === "-" || sign === "−" ? "spend" : sign === "+" || sign === "＋" ? "income" : "";
       if (!direction) {
-        const explicitExpenseForToken = explicitExpenseRanges.some((item) =>
-          item.currency === currency && item.amountStart === chosen.amountStart && item.amountEnd === chosen.amountEnd
-        );
         if (explicitExpenseForToken) direction = "spend";
+        /* Conversion without explicit signs does not establish which currency increased.
+           Do not inherit the surrounding income section as a guessed direction. */
+        else if (/(?:変換|換算)/.test(text)) direction = "unknown";
         else if (mode === "income" || mode === "spend") direction = mode;
         else direction = incomeCue.test(text.slice(0, chosen.amountStart)) ? "income" : "unknown";
       }
