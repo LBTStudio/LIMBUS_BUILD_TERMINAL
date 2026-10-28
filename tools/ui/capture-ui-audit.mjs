@@ -552,8 +552,8 @@ async function captureProfile(browser, mode) {
           await click(glass);
           const glassPanel=page.locator("#ledger-glass-import-panel");
           await glassPanel.waitFor({state:"visible",timeout:5000});
-          const glassMetrics=await glassPanel.evaluate((el)=>({top:Math.round(el.getBoundingClientRect().top),height:Math.round(el.getBoundingClientRect().height),viewportHeight:innerHeight}));
-          if(glassMetrics.top >= glassMetrics.viewportHeight - 40) throw new Error("硝子窓取り込みパネルが画面内へスクロールされません: "+JSON.stringify(glassMetrics));
+          const glassMetrics=await glassPanel.evaluate((el)=>{const r=el.getBoundingClientRect(),input=el.querySelector("textarea.gara-url-list"),ir=input?.getBoundingClientRect();return {top:Math.round(r.top),height:Math.round(r.height),inputTop:ir?Math.round(ir.top):null,inputFocused:!!input&&document.activeElement===input,viewportHeight:innerHeight};});
+          if(glassMetrics.top >= glassMetrics.viewportHeight - 40 || glassMetrics.inputTop === null || glassMetrics.inputTop >= glassMetrics.viewportHeight - 36 || !glassMetrics.inputFocused) throw new Error("硝子窓取り込みパネルが画面内へ移動・フォーカスされません: "+JSON.stringify(glassMetrics));
           await snap("record-result-glass-import","硝子窓から一括取り込むパネルを開いた状態（適用しない）");
           const closeGlass=glassPanel.getByRole("button",{name:"閉じる",exact:true}).first();
           if(await visible(closeGlass)) await click(closeGlass);
@@ -565,7 +565,8 @@ async function captureProfile(browser, mode) {
           const held=page.locator(".ledger-held-paste").first();
           await held.waitFor({state:"visible",timeout:5000});
           const heldRect=await held.boundingBox();
-          if(!heldRect || heldRect.y >= (page.viewportSize()?.height||844)-36) throw new Error("所持人格リストの入力欄が画面内へスクロールされません");
+          const heldFocused=await held.evaluate(el=>document.activeElement===el);
+          if(!heldRect || heldRect.y >= (page.viewportSize()?.height||844)-36 || !heldFocused) throw new Error("所持人格リストの入力欄が画面内へスクロール・フォーカスされません: "+JSON.stringify({rect:heldRect,heldFocused}));
           await snap("record-roster-import","所持人格リストの入力欄が見える状態（保存しない）");
           const heldPanel=page.locator(".ledger-gara-wrap").filter({has:held}).last();
           const heldClose=heldPanel.getByRole("button",{name:"閉じる",exact:true}).first();
