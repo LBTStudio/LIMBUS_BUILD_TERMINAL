@@ -177,8 +177,23 @@ function describeCandidateLine(line, coverage) {
       currency: /LP|ＬＰ/i.test(match[0]) ? "lp" : "shards",
       digitWidth: (match[0].match(/[0-9０-９]/g) || []).length
     }));
+  /* 「破片」は duplicateShardCompensationOf が通貨欠片として認識する別表記だが、
+     現行の generic candidate/line coverage regex では通貨候補に入っていない。 */
+  const alternateShardAmounts = [...textLine.matchAll(/(?:自我の)?破片\s*[：:]?\s*[+＋\-−]?\s*\d[\d,，]*|[+＋\-−]?\s*\d[\d,，]*\s*(?:自我の)?破片/gi)]
+    .slice(0, 8)
+    .map((match) => ({
+      index: match.index,
+      digitWidth: (match[0].match(/[0-9０-９]/g) || []).length
+    }));
+  const duplicateParenthetical = [...textLine.matchAll(/[（(]([^）)]*)[）)]/g)]
+    .filter((match) => /ダブ|被り|かぶり|重複/.test(match[1]));
+  const duplicateShardAmounts = duplicateParenthetical.flatMap((note) =>
+    [...note[1].matchAll(/(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ)\s*[+＋]?\s*\d[\d,，]*|\d[\d,，]*\s*(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ)/g)]
+      .map((match) => ({ digitWidth: (match[0].match(/[0-9０-９]/g) || []).length }))
+  );
   const markers = [
     { type: "amount", re: /(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)\s*[：:]?\s*[+＋\-−]?\s*\d[\d,，]*|[+＋\-−]?\s*\d[\d,，]*\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)/gi },
+    { type: "alternate-shard-amount", re: /(?:自我の)?破片\s*[：:]?\s*[+＋\-−]?\s*\d[\d,，]*|[+＋\-−]?\s*\d[\d,，]*\s*(?:自我の)?破片/gi },
     { type: "reward-cue", re: /報酬|収入/g },
     { type: "spend-cue", re: /消費|支出|支払|購入|買っ/g },
     { type: "acquisition-cue", re: /獲得|入手|取得|付与|支給|補填|受領|被り|重複/g },
@@ -228,6 +243,12 @@ function describeCandidateLine(line, coverage) {
     lineLength: textLine.length,
     amountTokenCount: amountTokens.length,
     amountTokenShape: amountTokens,
+    alternateShardAmountCount: alternateShardAmounts.length,
+    alternateShardAmountShape: alternateShardAmounts,
+    hasDuplicateCue: /ダブ|被り|かぶり|重複/.test(textLine),
+    duplicateParentheticalCount: duplicateParenthetical.length,
+    duplicateShardCompensationAmountCount: duplicateShardAmounts.length,
+    duplicateShardCompensationAmountWidths: duplicateShardAmounts.map((row) => row.digitWidth),
     candidateMatchLength: amountMatch?.[0]?.length || 0,
     candidateMatchDigitWidth: amountMatch ? (amountMatch[0].match(/[0-9０-９]/g) || []).length : 0,
     numericTokenWidths: [...textLine.matchAll(/[0-9０-９]+/g)].map((match) => match[0].length).slice(0, 8),
