@@ -232,3 +232,11 @@
     line-height: 1.25;
   }
 }
+
+
+/* There is one authoritative preview control: the desktop edge toggle, or the
+   mobile top-bar button. Do not expose the older inner/outer tabs at the same time. */
+.preview-reopen,
+.preview-close {
+  display: none !important;
+}
