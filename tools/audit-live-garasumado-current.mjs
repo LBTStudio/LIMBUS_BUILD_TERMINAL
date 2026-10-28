@@ -281,7 +281,27 @@ async function inspect(id) {
       parserReasonCount: item.parserReasonCount,
       sourceFinding: Boolean(item.sourceFinding),
       sourceAuditCodes: sourceAudits.filter((entry) => entry && (entry.lineIndex === item.lineIndex || entry.relatedLineIndex === item.lineIndex)).map((entry) => String(entry.code || "unknown")),
-      sourceShape: safeShape(item.line)
+      sourceShape: safeShape(item.line),
+      lineRecords: {
+        spendRecords: parsed.spends.filter((spend) => String(spend.raw || spend.name || "").trim() === String(item.line || "").trim()).map((spend) => ({
+          lp: Number(spend.lp) || 0,
+          shards: Number(spend.shards) || 0,
+          reasonCategory: /符号付き通貨減少/.test(String(spend.reason || "")) ? "signed-currency-decrease"
+            : /明示された通貨消費/.test(String(spend.reason || "")) ? "explicit-currency-spend"
+              : /購入/.test(String(spend.reason || "")) ? "purchase"
+                : /変換|換算/.test(String(spend.reason || "")) ? "conversion"
+                  : /E\\.G\\.O/.test(String(spend.reason || "")) ? "ego-purchase" : "other"
+        })),
+        ticketRecords: parsed.ticketSpends.filter((ticket) => String(ticket.raw || "").trim() === String(item.line || "").trim()).map((ticket) => ({
+          kind: String(ticket.kind || "unknown"),
+          count: Number(ticket.count) || 0
+        })),
+        reasonCategories: (parsed.reasons || []).filter((reason) => String(reason.line || "").trim() === String(item.line || "").trim())
+          .map((reason) => /安全整数/.test(String(reason.reason || "")) ? "unsafe-integer"
+            : /チケット/.test(String(reason.reason || "")) ? "ticket"
+              : /変換|換算/.test(String(reason.reason || "")) ? "conversion"
+                : /金額が読み取れない|通貨額/.test(String(reason.reason || "")) ? "amount-unreadable" : "other")
+      }
     }));
     const rowResult = {
       index: index + 1,
