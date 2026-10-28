@@ -773,7 +773,9 @@ function toMarkdownReport(report) {
     ["欠片の残差が負（収支純額が所持欠片を上回る）", report.balance.summary.shardResidualNegative],
     ["旧ベースラインとの履歴件数差", report.source.snapshotDrift.length],
     ["履歴入力指紋未登録", report.source.historyInputFingerprintMissingRows],
-    ["履歴入力指紋の内容差", report.source.historyInputFingerprintDrift.length]
+    ["履歴入力指紋の内容差", report.source.historyInputFingerprintDrift.length],
+    ["要確認行のうち期待収支とパーサー検出値に数値差がある候補", report.parser.flowDifferenceSummary.rowsWithNumericDifference],
+    ["数値差がある候補：mismatch / 理由確認済み", (report.parser.flowDifferenceSummary.byStatus.mismatch || 0) + " / " + (report.parser.flowDifferenceSummary.byStatus["reviewed-by-parser-reason"] || 0)]
   ];
   const lines = [
     "# 硝子窓共有サンプル・ライブ再監査",
@@ -838,6 +840,14 @@ function toMarkdownReport(report) {
     "| 理由分類 | 件数 |",
     "|---|---:|",
     ...Object.entries(report.parser.reasonCategories).sort(([a],[b]) => a.localeCompare(b)).map(([name, count]) => "| " + name + " | " + count + " |"),
+    "",
+    "## 収支方向の期待値とパーサー検出値の差（推定・非確定）",
+    "",
+    "expectedFlows は語句・数値関係から作った監査側の推定値であり、取引の正解と確定した値ではありません。以下は原因候補の優先順位付け用です。自動補正には使用しません。",
+    "",
+    "| URL ID | 履歴番号 | 行 | status | expected - detected | 期待値 | 検出値 | 理由数 | source finding |",
+    "|---|---:|---:|---|---|---|---|---:|---|",
+    ...report.parser.flowDifferenceDetails.map((row) => "| " + row.id + " | " + (row.historyRow ?? "—") + " | " + (row.lineIndex ?? "—") + " | " + row.status + " | " + JSON.stringify(row.difference) + " | " + JSON.stringify(row.expectedFlows) + " | " + JSON.stringify(row.detectedFlows) + " | " + row.parserReasonCount + " | " + Number(row.sourceFinding) + " |"),
     "",
     "## 残高を示す記述パターン（本文非出力）",
     "",
@@ -976,6 +986,55 @@ const balanceBridges = successful
       )
     };
   });
+
+const FLOW_FIELDS = ["lpIncome", "lpSpend", "lpUnknown", "shardsIncome", "shardsSpend", "shardsUnknown"];
+const flowValue = (record, field) => {
+  const value = Number(record && record[field]);
+  return Number.isFinite(value) ? value : 0;
+};
+/* The expected side is a heuristic text-shape estimate, not a ground-truth ledger. These
+   differences rank rows for manual review; they never authorize an automatic balance fix. */
+const flowDifferenceDetails = balanceBridges.flatMap((row) => (row.reviewDetails || [])
+  .map((detail) => {
+    const expected = detail.expectedFlows || {};
+    const detected = detail.detectedFlows || {};
+    const difference = {};
+    for (const field of FLOW_FIELDS) {
+      const delta = flowValue(expected, field) - flowValue(detected, field);
+      if (delta !== 0) difference[field] = delta;
+    }
+    return {
+      id: row.id,
+      historyRow: detail.historyRow,
+      lineIndex: detail.lineIndex,
+      status: detail.status,
+      parserReasonCount: detail.parserReasonCount,
+      sourceFinding: detail.sourceFinding,
+      expectedFlows: expected,
+      detectedFlows: detected,
+      difference
+    };
+  })
+  .filter((detail) => Object.keys(detail.difference).length > 0));
+const flowDifferenceSummary = {
+  reviewRows: balanceBridges.reduce((sum, row) => sum + (row.reviewDetails || []).length, 0),
+  rowsWithNumericDifference: flowDifferenceDetails.length,
+  byStatus: flowDifferenceDetails.reduce((counts, row) => {
+    counts[row.status] = (counts[row.status] || 0) + 1;
+    return counts;
+  }, {}),
+  byField: FLOW_FIELDS.reduce((out, field) => {
+    const rows = flowDifferenceDetails.filter((row) => Object.hasOwn(row.difference, field));
+    out[field] = {
+      rows: rows.length,
+      expectedTotal: flowDifferenceDetails.reduce((sum, row) => sum + flowValue(row.expectedFlows, field), 0),
+      detectedTotal: flowDifferenceDetails.reduce((sum, row) => sum + flowValue(row.detectedFlows, field), 0),
+      expectedMinusDetectedTotal: rows.reduce((sum, row) => sum + row.difference[field], 0)
+    };
+    return out;
+  }, {})
+};
+
 function openingOrderOf(row) {
   const preferred = row?.ruleAnalysis?.preferredHistoryOrder;
   if (preferred === "history-array-order") return "historyArrayOrder";
@@ -1278,6 +1337,8 @@ const report = {
     currencyDiscrepancies: allParsedRows.reduce((sum, row) => sum + row.currencyDiscrepancies, 0),
     coverageStatuses,
     reasonCategories: parserReasonCategories,
+    flowDifferenceSummary,
+    flowDifferenceDetails,
     issues: issueRows
   },
   balance: {
@@ -1351,7 +1412,9 @@ console.log(JSON.stringify({
     negativeShardResidualDocuments: report.balance.summary.shardResidualNegative,
     snapshotDriftRows: report.source.snapshotDrift.length,
     historyInputFingerprintMissingRows: report.source.historyInputFingerprintMissingRows,
-    historyInputFingerprintDriftRows: report.source.historyInputFingerprintDrift.length
+    historyInputFingerprintDriftRows: report.source.historyInputFingerprintDrift.length,
+    flowDifferenceRows: report.parser.flowDifferenceSummary.rowsWithNumericDifference,
+    flowDifferenceRowsByStatus: report.parser.flowDifferenceSummary.byStatus
   },
   snapshotDrift: report.source.snapshotDrift,
   historyInputFingerprintDrift: report.source.historyInputFingerprintDrift,
@@ -1368,6 +1431,8 @@ console.log(JSON.stringify({
   freeNotePurchaseSummary: report.balance.freeNotePurchase.summary,
   freeNotePurchaseAudits: report.balance.freeNotePurchase.documents,
   parserReasonCategories: report.parser.reasonCategories,
+  flowDifferenceSummary: report.parser.flowDifferenceSummary,
+  flowDifferenceDetails: report.parser.flowDifferenceDetails,
   freeNotesSourceSummary: report.balance.freeNotesSource.summary,
   freeNotesBridgeSummary: report.balance.freeNotesBridge.summary,
   freeNotesBridgeDocuments: report.balance.freeNotesBridge.documents,
