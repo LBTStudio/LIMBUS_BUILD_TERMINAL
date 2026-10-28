@@ -1845,11 +1845,19 @@ function reconcileBalance(manifest, doc, options) {
       }
       /* 「現在残高」より前の候補購入は、そのスナップショットへ既に反映済み。
          行番号が分かる承認候補だけ prefixFlow 側にも反映し、二重控除を避ける。 */
-      const anchorLineNo = (String(anchor.prefix).match(/\n/g) || []).length + 1;
+      const anchorPrefixText = String(anchor.prefix);
+      const anchorLineNo = (anchorPrefixText.match(/\n/g) || []).length + 1;
+      const anchorPrefixLineKey = anchorPrefixText.slice(anchorPrefixText.lastIndexOf("\n") + 1)
+        .normalize("NFKC").replace(/\s+/g, "").toLocaleLowerCase("ja-JP");
       let preAnchorPurchase = 0;
       for (const purchase of scenarioPurchases) {
         const lineNo = Number(purchase && purchase.lineNo);
-        if (!Number.isSafeInteger(lineNo) || lineNo < 1 || lineNo >= anchorLineNo) continue;
+        const nameKey = String(purchase && purchase.name || "")
+          .normalize("NFKC").replace(/\s+/g, "").toLocaleLowerCase("ja-JP");
+        const appearsBeforeAnchorOnSameLine = lineNo === anchorLineNo
+          && nameKey && anchorPrefixLineKey.includes(nameKey);
+        if (!Number.isSafeInteger(lineNo) || lineNo < 1
+          || !(lineNo < anchorLineNo || appearsBeforeAnchorOnSameLine)) continue;
         const cost = purchase && purchase.cost || {};
         const amount = Number(cost[currency] ?? 0);
         if (!Number.isSafeInteger(amount) || amount < 0) {

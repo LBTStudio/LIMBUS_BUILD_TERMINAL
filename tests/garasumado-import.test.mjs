@@ -2896,3 +2896,26 @@ test("現在残高より前の同一シナリオにある承認購入は、残�
     "購入はスナップショットより前なので、開始基準へ二重に反映しない");
   assert.equal(balance.ok, true);
 });
+
+
+test("現在残高と同じ行にある購入候補も、残高表記より前なら二重控除しない", () => {
+  const M = loadImportWithMemo();
+  const doc = {
+    currency: { lp: "100", fragment: "0" },
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{
+      name: "同一行の残高基準",
+      memo: "ルサンチマン購入、現在所持LP：100"
+    }]
+  };
+  const manifest = M.buildManifest(doc, null);
+  const scenarioKey = manifest.scenarios[0].key;
+  const balance = M.reconcileBalance(manifest, doc, {
+    purchases: {
+      [scenarioKey]: [{ name: "ルサンチマン", cost: { lp: 7, shards: 0 }, lineNo: 1 }]
+    }
+  });
+  assert.equal(balance.computedLp, 100,
+    "候補名が現在残高より前にある同一行は、残高基準に既反映と解釈する");
+  assert.equal(balance.ok, true);
+});
