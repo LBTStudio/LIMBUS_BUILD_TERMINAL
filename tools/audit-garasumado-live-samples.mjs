@@ -508,15 +508,39 @@ function auditFreeNotes(doc) {
   const acceptedLines = allLines.filter((line) =>
     typeof MEMO.purchaseRowOf === "function" && Boolean(MEMO.purchaseRowOf(line))
   );
+  const acceptedSet = new Set(acceptedLines);
+  const unrecognizedCues = expenseCues.filter((line) => !acceptedSet.has(line));
   const parsed = MEMO.parseMemo(acceptedLines.join("\n"));
   const signatures = (parsed.spends || []).map(spendSignature).filter(Boolean)
     .filter((spend) => spend.lp > 0 || spend.shards > 0);
+  let unrecognizedCueRowsWithGenericSpend = 0;
+  let unrecognizedCueGenericSpendLp = 0;
+  let unrecognizedCueGenericSpendShards = 0;
+  let unrecognizedCueRowsWithCurrencyAmount = 0;
+  let unrecognizedCueRowsWithParserReason = 0;
+  for (const line of unrecognizedCues) {
+    if (/(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)\s*[：:]?\s*[+＋\-−]?\s*\d|[+＋\-−]?\s*\d[\d,，]*\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)/i.test(line)) {
+      unrecognizedCueRowsWithCurrencyAmount++;
+    }
+    const one = MEMO.parseMemo(line);
+    const spends = (one.spends || []).map(spendSignature).filter(Boolean);
+    const actual = spends.filter((spend) => spend.lp > 0 || spend.shards > 0);
+    if (actual.length) unrecognizedCueRowsWithGenericSpend++;
+    unrecognizedCueGenericSpendLp += actual.reduce((sum, spend) => sum + spend.lp, 0);
+    unrecognizedCueGenericSpendShards += actual.reduce((sum, spend) => sum + spend.shards, 0);
+    if ((one.reasons || []).length > 0) unrecognizedCueRowsWithParserReason++;
+  }
   return {
     lineCount: allLines.length,
     expenseCueRows: expenseCues.length,
     recognizedPurchaseLines: acceptedLines.length,
     parsedSpendRows: signatures.length,
     cueRowsWithoutPurchaseRow: Math.max(0, expenseCues.length - acceptedLines.length),
+    unrecognizedCueRowsWithGenericSpend,
+    unrecognizedCueGenericSpendLp,
+    unrecognizedCueGenericSpendShards,
+    unrecognizedCueRowsWithCurrencyAmount,
+    unrecognizedCueRowsWithParserReason,
     acceptedRowsWithoutParsedSpend: Math.max(0, acceptedLines.length - signatures.length),
     spendLp: signatures.reduce((sum, spend) => sum + spend.lp, 0),
     spendShards: signatures.reduce((sum, spend) => sum + spend.shards, 0),
