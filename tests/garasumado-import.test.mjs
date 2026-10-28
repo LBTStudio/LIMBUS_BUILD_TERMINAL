@@ -3047,3 +3047,14 @@ test("E.G.O指定購入の前に明記された欠片75消費は支出に残す"
   assert.equal(parsed.spends.reduce((sum, row) => sum + (Number(row.shards) || 0), 0), 75);
   assert.equal(parsed.income.shards, 0);
 });
+
+
+test("E.G.O指定購入という語を含む支出文を見出しとして捨てず、単独見出しの経路は維持する", () => {
+  const mixed = MEMO.parseMemo("欠片75消費してE.G.O指定購入「呪いの釘：痛がるテディ(TETH)」");
+  assert.equal(mixed.spends.reduce((sum, row) => sum + (Number(row.shards) || 0), 0), 75,
+    "購入語句を含む取引文の明示支出を記録する");
+  assert.equal(mixed.income.shards, 0, "支出額を欠片収入へ混ぜない");
+
+  const heading = MEMO.parseMemo("▼E.G.O指定購入\n呪いの釘：痛がるテディ(TETH) 欠片75");
+  assert.equal(heading.income.shards, 0, "単独見出しは収入にならない");
+});
