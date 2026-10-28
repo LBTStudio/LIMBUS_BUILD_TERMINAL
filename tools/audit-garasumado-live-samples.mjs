@@ -125,16 +125,22 @@ function isFinancialCandidateLine(line) {
 }
 
 function describeCandidateLine(line, coverage) {
-  const amountTokens = [...String(line).matchAll(/(?:[+＋\\-−]?\\s*\\d[\\d,，]*\\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)|(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)\\s*[：:]?\\s*[+＋\\-−]?\\s*\\d[\\d,，]*)/gi)]
-    .map((match) => String(match[0]).replace(/\\s+/g, " ").trim()).slice(0, 8);
+  const textLine = String(line || "");
+  const amountTokens = [...textLine.matchAll(/(?:[+＋\-−]?\s*\d[\d,，]*\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)|(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)\s*[：:]?\s*[+＋\-−]?\s*\d[\d,，]*)/gi)]
+    .map((match) => String(match[0]).replace(/\s+/g, " ").trim()).slice(0, 8);
   const actionKinds = ["報酬", "収入", "消費", "支出", "支払", "購入", "買った", "抽出", "ガチャ", "チケット", "チケ", "獲得", "入手", "取得"]
-    .filter((word) => String(line).includes(word));
+    .filter((word) => textLine.includes(word));
+  const ticket = MEMO.ticketOf(textLine, { mode: coverage?.section || "income", previousLine: "" });
   return {
-    length: String(line).length,
+    length: textLine.length,
     amountTokens,
+    candidateMatch: CANDIDATE_AMOUNT.exec(textLine)?.[0] || null,
+    amountMatchAfterBalanceStrip: CANDIDATE_AMOUNT.exec(stripBalanceAnchors(textLine))?.[0] || null,
+    numericTokens: [...textLine.matchAll(/[0-9０-９]+/g)].map((match) => match[0]).slice(0, 8),
+    ticketClassification: ticket ? { kind: ticket.kind || null, category: ticket.category || null, count: Number(ticket.count) || null, reasonPresent: Boolean(ticket.reason) } : null,
     actionKinds,
-    startsWithEffectMarker: /^\\s*[▶►▷]/.test(String(line)),
-    hasBalanceCue: /現在|残高|所持|残り|→|⇒/.test(String(line)),
+    startsWithEffectMarker: /^\s*[▶►▷]/.test(textLine),
+    hasBalanceCue: /現在|残高|所持|残り|→|⇒/.test(textLine),
     section: coverage?.section || null,
     status: coverage?.status || null,
     expected: coverage?.expected || null,
@@ -143,7 +149,6 @@ function describeCandidateLine(line, coverage) {
     sourceFinding: Boolean(coverage?.sourceFinding)
   };
 }
-
 function auditMemo(id, historyIndex, memo) {
   const parsed = MEMO.parseMemo(memo);
   const lines = String(memo || "").split(/\r?\n/);
@@ -158,7 +163,7 @@ function auditMemo(id, historyIndex, memo) {
     const line = lines[i];
     // Effect descriptions beginning with ▶/►/▷ are intentionally excluded by
     // the parser's auditLineCoverage and must not be counted as ledger transactions.
-    if (!line.trim() || /^\\s*[▶►▷]/.test(line) || !CANDIDATE_AMOUNT.test(line) || !CANDIDATE_ACTION.test(line)) continue;
+    if (!line.trim() || !isFinancialCandidateLine(line)) continue;
     candidates++;
     const lineNumber = i + 1;
     const coverage = coverages.find((entry) => entry && entry.lineIndex === lineNumber);
