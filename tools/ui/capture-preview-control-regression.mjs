@@ -49,8 +49,9 @@ function intersects(a,b) {
   const height=Math.max(0,Math.min(a.bottom,b.bottom)-Math.max(a.y,b.y));
   return {hit:width>4&&height>4,width:+width.toFixed(1),height:+height.toFixed(1)};
 }
-async function metrics(page) {
-  const toggle=page.locator("#lbt-preview-edge-toggle");
+async function metrics(page,profile) {
+  const toggleSelector=profile.mobile?".preview-mobile-toggle":"#lbt-preview-edge-toggle";
+  const toggle=page.locator(toggleSelector);
   const panel=page.locator("#preview-panel");
   const t=await rect(toggle), p=await rect(panel);
   const actions=await rect(page.locator(".preview-actions"));
@@ -89,7 +90,8 @@ async function metrics(page) {
     horizontalOverflow:await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+2)
   };
 }
-async function createDisposableAccount(page,profileName) {
+async function createDisposableAccount(page,profile) {
+  const profileName=profile.name;
   await page.goto("http://"+HOST+":"+PORT+"/",{waitUntil:"domcontentloaded",timeout:30000});
   await page.waitForLoadState("networkidle",{timeout:12000}).catch(()=>{});
   const gate=page.locator(".acct-gate").first();
@@ -107,7 +109,7 @@ async function createDisposableAccount(page,profileName) {
     }
   }
   await page.locator(".rail-item").first().waitFor({state:"visible",timeout:20000});
-  await page.locator("#lbt-preview-edge-toggle").waitFor({state:"visible",timeout:10000});
+  await page.locator(profile.mobile?".preview-mobile-toggle":"#lbt-preview-edge-toggle").waitFor({state:"visible",timeout:10000});
 }
 async function runProfile(browser,profile) {
   const context=await browser.newContext({
@@ -125,15 +127,15 @@ async function runProfile(browser,profile) {
   const pageErrors=[];
   page.on("pageerror",e=>pageErrors.push(e.message));
   try {
-    await createDisposableAccount(page,profile.name);
-    const toggle=page.locator("#lbt-preview-edge-toggle");
-    const initial=await metrics(page);
+    await createDisposableAccount(page,profile);
+    const toggle=page.locator(profile.mobile?".preview-mobile-toggle":"#lbt-preview-edge-toggle");
+    const initial=await metrics(page,profile);
     recordCheck(profile.name+": one React toggle, no legacy controls",
       initial.toggleCount===1&&initial.legacyReopenCount===0&&initial.legacyCloseCount===0&&initial.controls==="preview-panel",
       {metrics:initial});
     if(initial.expanded==="true") await toggle.click();
     await page.waitForTimeout(220);
-    const closed=await metrics(page);
+    const closed=await metrics(page,profile);
     recordCheck(profile.name+": closed state is synchronized",
       closed.expanded==="false"&&!closed.panelOpen,
       {metrics:closed});
@@ -151,7 +153,7 @@ async function runProfile(browser,profile) {
         {requiredPadding:expectedDock,focusPaddingBottom:closed.focusPaddingBottom,focusBottom:closed.focus?.bottom,dockBottom,horizontalRail,toggleAboveNavigation,toggle:closed.toggle,rail:closed.rail});
     }
     if(profile.mobile&&profile.height>profile.width) {
-      const focusSeparated=!!closed.focus&&!!closed.toggle&&closed.focus.bottom<=closed.toggle.y-4;
+      const focusSeparated=!!closed.focus&&!!closed.toggle&&closed.toggle.bottom<=closed.focus.y+4;
       const navSeparated=!!closed.rail&&!!closed.toggle&&closed.toggle.bottom<=closed.rail.y-4;
       recordCheck(profile.name+": collapsed content viewport reserves the toggle dock",
         focusSeparated&&navSeparated,
@@ -163,7 +165,7 @@ async function runProfile(browser,profile) {
 
     await toggle.click();
     await page.waitForTimeout(300);
-    const opened=await metrics(page);
+    const opened=await metrics(page,profile);
     const commonOk=opened.expanded==="true"&&opened.panelOpen;
     recordCheck(profile.name+": open state is synchronized",commonOk,{metrics:opened});
     const controlCollisions=Object.entries(opened.overlaps).filter(([key,value])=>["footer","hint","tabs","rail","sectionTitle"].includes(key)&&value.hit);
@@ -180,7 +182,7 @@ async function runProfile(browser,profile) {
         {requiredPadding:expectedDock,focusPaddingBottom:opened.focusPaddingBottom,focusBottom:opened.focus?.bottom,dockBottom,horizontalRail,toggleAboveNavigation,toggle:opened.toggle,rail:opened.rail});
     }
     if(profile.mobile&&profile.height>profile.width) {
-      const panelSeparated=!!opened.panel&&!!opened.toggle&&opened.panel.bottom<=opened.toggle.y-4;
+      const panelSeparated=!!opened.panel&&!!opened.toggle&&opened.toggle.bottom<=opened.panel.y+4;
       const navSeparated=!!opened.rail&&!!opened.toggle&&opened.toggle.bottom<=opened.rail.y-4;
       recordCheck(profile.name+": open preview footer and toggle have a separate dock",panelSeparated&&navSeparated,
         {panelBottom:opened.panel?.bottom,toggleTop:opened.toggle?.y,toggleBottom:opened.toggle?.bottom,railTop:opened.rail?.y,gapFromPanel:opened.toggle&&opened.panel?opened.toggle.y-opened.panel.bottom:null});
@@ -195,7 +197,7 @@ async function runProfile(browser,profile) {
     results.screenshots.push({file:path.relative(ROOT,openPath),profile:profile.name,state:"open",metrics:opened});
     await toggle.click();
     await page.waitForTimeout(220);
-    const closedAgain=await metrics(page);
+    const closedAgain=await metrics(page,profile);
     recordCheck(profile.name+": second click closes the same control",
       closedAgain.expanded==="false"&&!closedAgain.panelOpen,
       {expanded:closedAgain.expanded,panelOpen:closedAgain.panelOpen});

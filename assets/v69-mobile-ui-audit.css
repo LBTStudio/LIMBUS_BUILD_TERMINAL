@@ -140,3 +140,94 @@
     white-space: normal;
   }
 }
+
+/* Keep account creation as a focused, fully operable step. The optional cloud
+   recovery panel should not compete with the create/save actions while a form
+   is open; it returns when the form is cancelled or submitted. */
+.acct-gate-panel:has(.acct-card--form) > .lbt-cloud-panel {
+  display: none;
+}
+
+/* The form content must keep its intrinsic height instead of collapsing inside
+   the gate's bounded grid row. On very short screens the grid can scroll, but
+   the primary actions remain part of the form rather than being clipped. */
+.acct-gate-panel:has(.acct-card--form) > .acct-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  align-content: start;
+}
+
+.acct-gate-panel:has(.acct-card--form) .acct-card--form {
+  min-height: max-content;
+  align-self: start;
+}
+
+
+/* On phones, expose the entire category/tab set instead of cropping the trailing
+   choices under the old preview rail or relying on undiscoverable horizontal scroll. */
+@media (max-width: 640px) {
+  .guide-filter-row {
+    display: grid;
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    overflow: visible;
+  }
+  .guide-filter-row .guide-filter {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+    min-height: 40px;
+    padding: 6px 4px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    justify-content: center;
+    text-align: center;
+    line-height: 1.25;
+  }
+
+  .shop-tabs-sticky .shop-tabs[role="tablist"][aria-label="ショップの種別"] {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    overflow: visible;
+  }
+  .shop-tabs-sticky .shop-tabs[role="tablist"][aria-label="ショップの種別"] > button {
+    min-width: 0;
+    max-width: none;
+    width: auto;
+    min-height: 40px;
+    padding: 7px 4px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    justify-content: center;
+    text-align: center;
+    line-height: 1.25;
+  }
+
+  .record-tabbar .card-header > .segmented[role="tablist"][aria-label="記録セクションの種別"] {
+    display: grid;
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    margin-left: 0 !important;
+    overflow: visible;
+  }
+  .record-tabbar .card-header > .segmented[role="tablist"][aria-label="記録セクションの種別"] > button {
+    min-width: 0;
+    max-width: none;
+    width: auto;
+    min-height: 40px;
+    padding: 7px 4px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    justify-content: center;
+    text-align: center;
+    line-height: 1.25;
+  }
+}
