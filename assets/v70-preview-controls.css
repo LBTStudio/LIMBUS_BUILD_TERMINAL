@@ -59,6 +59,11 @@
       writing-mode: horizontal-tb;
     }
 
+    .preview-edge-toggle.is-collapsed {
+      right: 16px;
+      bottom: 20px;
+    }
+
     .preview-edge-toggle.is-open {
       right: min(436px, calc(100vw - 112px));
       bottom: 92px;
