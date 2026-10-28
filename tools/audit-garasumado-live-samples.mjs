@@ -820,6 +820,11 @@ console.log(JSON.stringify({
   ruleBasedOpeningSummary: report.balance.ruleBasedOpening.summary,
   ruleBasedOpeningDocuments: report.balance.ruleBasedOpening.documents,
   balanceCuePatterns: report.balance.balanceCuePatterns,
+  balanceCuePatternDocuments: successful.map((entry) => ({
+    id: entry.baseline.id,
+    historyRows: entry.actualHistoryRows,
+    ...entry.ruleBasedOpeningAudit.balanceCuePatterns
+  })),
   reviewDetailsCount: report.balance.bridges.reduce((sum, row) => sum + row.reviewDetails.length, 0),
   reviewDetails: report.balance.bridges.flatMap((row) => row.reviewDetails.map((detail) => ({ id: row.id, ...detail }))),
   issues: report.parser.issues.slice(0, 100),
