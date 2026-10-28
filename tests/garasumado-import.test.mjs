@@ -97,6 +97,23 @@ test("検出漏れ監査は元記録側と別の parser-side 判定を返し、�
     "すでに金額確認理由がある行へ重複警告を出さない");
 });
 
+test("金額と収支方向が同時に不一致の場合、方向不一致だけに分類しない", () => {
+  const finding = MEMO.auditLineCoverage(
+    "200LP消費・現在注記・欠片50",
+    { lp: 200, shards: 50 },
+    { lp: 400, shards: 50 },
+    false,
+    "income",
+    4,
+    { lpIncome: 0, lpSpend: 200, lpUnknown: 0, shardsIncome: 50, shardsSpend: 0, shardsUnknown: 0 },
+    { lpIncome: 0, lpSpend: 400, lpUnknown: 0, shardsIncome: 50, shardsSpend: 0, shardsUnknown: 0 }
+  );
+  assert.equal(finding.code, "possible-result-amount-and-direction-mismatch");
+  assert.deepEqual({ ...finding.expected }, { lp: 200, shards: 50 });
+  assert.deepEqual({ ...finding.detected }, { lp: 400, shards: 50 });
+  assert.match(finding.message, /金額合計と収支方向の両方/);
+});
+
 
 
 test("結果カード用 draft は元記録の監査結果を引き継ぐ", () => {
