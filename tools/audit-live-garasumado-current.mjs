@@ -550,8 +550,46 @@ const rowDeltas = successes.flatMap((doc, documentIndex) => doc.rows
       sourceAuditCodes: finding.sourceAuditCodes
     }))
   })));
-const allFindings = perDocument.flatMap((doc) => doc.changedRows.flatMap((row) =>
-  (row.findings || []).map((finding) => ({ documentOrdinal: doc.documentOrdinal, scenarioRow: row.scenarioRow, ...finding }))));
+const allFindings = successes.flatMap((doc, documentIndex) => doc.rows.flatMap((row) =>
+  (row.coverageFindings || []).map((finding) => {
+    const expectedFlows = finding.expectedFlows || {};
+    const detectedFlows = finding.detectedFlows || {};
+    const flowDelta = {};
+    for (const key of new Set([...Object.keys(expectedFlows), ...Object.keys(detectedFlows)])) {
+      const expected = Number(expectedFlows[key]) || 0;
+      const detected = Number(detectedFlows[key]) || 0;
+      if (expected !== detected) flowDelta[key] = { expected, detected, delta: detected - expected };
+    }
+    const shape = String(finding.sourceShape || "");
+    return {
+      documentOrdinal: documentIndex + 1,
+      scenarioRow: row.index,
+      lineIndex: finding.lineIndex,
+      status: finding.status,
+      section: finding.section,
+      expected: finding.expected,
+      detected: finding.detected,
+      expectedFlows,
+      detectedFlows,
+      flowDelta,
+      parserReasonCount: finding.parserReasonCount,
+      sourceFinding: finding.sourceFinding,
+      sourceAuditCodes: finding.sourceAuditCodes,
+      patternFeatures: {
+        lpMention: /(?:LP|ＬＰ)/i.test(shape),
+        shardMention: /欠片|欠け片|かけら|欠けら|カケラ|自我/.test(shape),
+        spendVerb: /消費|支出|支払|購入|買っ|使用|行使/.test(shape),
+        rewardVerb: /報酬|収入|獲得|入手|取得|付与|支給|補填|受領/.test(shape),
+        gachaVerb: /抽出|ガチャ/.test(shape),
+        ticketVerb: /チケット|チケ/.test(shape),
+        signedAmount: /[+＋\\-−]/.test(shape),
+        currentBalance: /現在|現座|残高|所持|保有|残り/.test(shape),
+        conversionVerb: /変換|換算|交換|還元/.test(shape),
+        hasMultipleNumbers: (shape.match(/\\d[\\d,]*/g) || []).length > 1
+      }
+    };
+  })));
+
 const failureStatusCounts = failures.reduce((out, item) => {
   const match = String(item.error || "").match(/(?:characters|personas):\s*(\d{3})/);
   const status = match ? match[1] : "unknown";
