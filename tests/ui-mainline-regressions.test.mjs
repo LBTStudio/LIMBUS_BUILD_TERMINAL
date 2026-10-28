@@ -12,9 +12,11 @@ const index = read("../index.html");
 test("mobile preview can be opened from the top bar and collapsed preview remains reachable", () => {
   assert.match(app, /className: "preview-mobile-toggle"/);
   assert.match(app, /onClick: togglePreview[\s\S]{0,250}"aria-expanded": previewOpen/);
-  assert.match(livePreview, /edgeToggle\.id = "lbt-preview-edge-toggle"/);
-  assert.match(livePreview, /edgeToggle\.textContent = previewOpen \? "◀ 格納" : "▶ 展開"/);
-  assert.match(livePreview, /const previewOpen = state\.ui\.previewOpen === true;/);
+  assert.match(app, /id: "lbt-preview-edge-toggle"/);
+  assert.match(app, /"aria-controls": "preview-panel"/);
+  assert.match(app, /"aria-expanded": previewOpen/);
+  assert.doesNotMatch(livePreview, /lbt-preview-edge-toggle/);
+  assert.match(livePreview, /className: `preview\$\{state\.ui\.previewOpen \? " is-open" : ""\}`/);
   assert.match(css, /\.preview-mobile-toggle:focus-visible[\s\S]*?outline: 2px solid var\(--gold-hi\)/);
   assert.match(css, /\.preview-edge-toggle,[\s\S]*?\.preview-reopen \{\s*display: none !important;/);
 });
