@@ -520,9 +520,9 @@ function parseHistoryTimestamp(value) {
   const raw = String(value).normalize("NFKC").trim();
   if (!raw) return null;
   let normalized = raw
-    .replace(/(\\d{4})年\\s*(\\d{1,2})月\\s*(\\d{1,2})日?/g, "$1-$2-$3")
-    .replace(/\\//g, "-");
-  if (/^\\d{8}$/.test(normalized)) normalized = normalized.slice(0,4)+"-"+normalized.slice(4,6)+"-"+normalized.slice(6,8);
+    .replace(/(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日?/g, "$1-$2-$3")
+    .replace(/\//g, "-");
+  if (/^\d{8}$/.test(normalized)) normalized = normalized.slice(0,4)+"-"+normalized.slice(4,6)+"-"+normalized.slice(6,8);
   const time = Date.parse(normalized);
   return Number.isFinite(time) ? time : null;
 }
