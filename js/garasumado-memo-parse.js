@@ -2098,12 +2098,17 @@
         const hasGachaResult = /ガチャ.*(?:結果|→|⇒)|(?:人格|E\\.?G\\.?O|エゴ)獲得\\s*[→⇒:：]/i.test(sourceLine);
         /* 現在残高だけが記載された購入・抽出行も監査する。金額は推測せず、
            本体処理で作られた「支出額が読み取れない」等の理由へ紐付ける。 */
-        const hasBalanceOnlySpendCandidate = auditModeBefore === "spend" &&
+        const hasBalanceMarkerAndCurrency =
           /(?:現在|現座|残り|残高)/.test(sourceLine) &&
           /(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ|けっか)/.test(sourceLine);
-        const hasCurrentBalanceAction = /(?:現在|現座|残り|残高)/.test(sourceLine) &&
-           /(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ|けっか)/.test(sourceLine) &&
-           /消費|支出|支払|購入|買っ|使用|行使|解放|抽出|ガチャ|獲得|入手|取得/.test(sourceLine);
+        const amountOutsideBalance = stripBalances(normalizeAmountText(sourceLine));
+        const hasExplicitAmountOutsideBalance =
+          /(?:LP|ＬＰ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]|[+＋\-−]?\s*[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ|けっか)/i
+            .test(amountOutsideBalance);
+        const hasBalanceOnlySpendCandidate = auditModeBefore === "spend" &&
+          hasBalanceMarkerAndCurrency && !hasExplicitAmountOutsideBalance;
+        const hasCurrentBalanceAction = hasBalanceMarkerAndCurrency &&
+          /消費|支出|支払|購入|買っ|使用|行使|解放|抽出|ガチャ|獲得|入手|取得/.test(sourceLine);
          const hasFinancialAction = hasTicketEvent || hasRosterGainEvent || hasGachaResult || hasCurrentBalanceAction ||
           ((expected.lp || expected.shards || directMoneyRow) &&
             /報酬|収入|獲得|入手|取得|付与|支給|補填|受領|被り|重複|消費|使用|支払|支出|購入|買っ|抽出|ガチャ|変換|換算/.test(sourceLine));
@@ -2146,7 +2151,20 @@
             shards: detectedFlows.shardsIncome + detectedFlows.shardsSpend
           };
           const addedReasons = reasons.slice(auditBefore.reasons);
-          const moneyReviewReason = addedReasons.some(function (entry) {
+          /* 残高注記しか残っていない操作候補は、金額を逆算せず明示理由を残す。
+           これにより要確認の行が unresolved のまま無言で埋もれない。 */
+        if ((hasBalanceOnlySpendCandidate || hasCurrentBalanceAction) &&
+            !hasExplicitAmountOutsideBalance &&
+            !reasons.slice(auditBefore.reasons).some((entry) =>
+              String(entry.line || "").trim() === sourceLine.trim() &&
+              /残高から逆算せず/.test(String(entry.reason || "")))) {
+          reasons.push({
+            line: sourceLine,
+            reason: "支出額を残高から逆算せず、残高表記しかないため要確認にしました"
+          });
+        }
+        const addedReasons = reasons.slice(auditBefore.reasons);
+        const moneyReviewReason = addedReasons.some(function (entry) {
             return /LP|欠片|通貨|金額|支出|収入|残高|計算|計上|価格|チケット|抽出/.test(String(entry.reason || ""));
           });
           const skippedForSourceAudit = sourceAuditAnalysis.skipLines.has(i);
