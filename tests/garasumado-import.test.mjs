@@ -2842,3 +2842,57 @@ test("複合実データの数字・通貨表記・改行を変えても収支�
     .replaceAll(String.fromCharCode(10), String.fromCharCode(13) + String.fromCharCode(10));
   assert.deepEqual(signature(fullWidth), signature(base));
 });
+
+
+test("明示承認済み購入候補は残高照合へ反映し、未承認時との偽差異をなくす", () => {
+  const M = loadImportWithMemo();
+  const doc = {
+    currency: { lp: "93", fragment: "0" },
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [
+      { name: "開始残高", memo: "現在所持LP：100" },
+      { name: "候補購入", memo: "報酬\\nルサンチマン" }
+    ]
+  };
+  const manifest = M.buildManifest(doc, null);
+  const scenarioKey = manifest.scenarios[1].key;
+  const purchase = {
+    name: "ルサンチマン",
+    kind: "support",
+    cost: { lp: 7, shards: 0 },
+    lineNo: 2
+  };
+
+  const unapproved = M.reconcileBalance(manifest, doc);
+  assert.equal(unapproved.computedLp, 100);
+  assert.equal(unapproved.ok, false, "候補を承認していない状態では未確定費用を含めない");
+
+  const approved = M.reconcileBalance(manifest, doc, {
+    purchases: { [scenarioKey]: [purchase] }
+  });
+  assert.equal(approved.computedLp, 93, "同じ7LPを台帳・シミュレーションと照合へ反映する");
+  assert.equal(approved.shownLp, 93);
+  assert.equal(approved.ok, true, "承認済みの候補を理由のない差異として残さない");
+});
+
+test("現在残高より前の同一シナリオにある承認購入は、残高基準へ二重控除しない", () => {
+  const M = loadImportWithMemo();
+  const doc = {
+    currency: { lp: "100", fragment: "0" },
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{
+      name: "購入後の残高",
+      memo: "報酬\\nルサンチマン\\n現在所持LP：100"
+    }]
+  };
+  const manifest = M.buildManifest(doc, null);
+  const scenarioKey = manifest.scenarios[0].key;
+  const balance = M.reconcileBalance(manifest, doc, {
+    purchases: {
+      [scenarioKey]: [{ name: "ルサンチマン", cost: { lp: 7, shards: 0 }, lineNo: 2 }]
+    }
+  });
+  assert.equal(balance.computedLp, 100,
+    "購入はスナップショットより前なので、開始基準へ二重に反映しない");
+  assert.equal(balance.ok, true);
+});

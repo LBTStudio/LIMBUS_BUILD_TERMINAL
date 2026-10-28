@@ -1873,4 +1873,89 @@ main.acct-gate {
   .gara-import-workspace .gara-import-stat { min-height: auto; }
 }
 
+
+/* 購入候補は収支の確定に関わるため、本文の言及・価格・承認操作を一まとまりにする。 */
+.gara-purchase-review {
+  display: grid;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+  padding: var(--s-3);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--gold-line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--tx);
+  line-height: 1.5;
+}
+.gara-purchase-review > strong {
+  color: var(--gold-hi);
+  font-size: var(--fs-13);
+}
+.gara-purchase-review > p {
+  margin: 0;
+  color: var(--tx-2);
+  font-size: var(--fs-11);
+}
+.gara-purchase-candidate {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px var(--s-2);
+  min-width: 0;
+  min-height: 44px;
+  padding: var(--s-2);
+  border: 1px solid var(--line-dim);
+  border-radius: var(--r-sm);
+  background: var(--surface-inset);
+  cursor: pointer;
+}
+.gara-purchase-candidate:hover {
+  border-color: var(--gold-line);
+  background: var(--gold-tint);
+}
+.gara-purchase-candidate:focus-within {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+.gara-purchase-candidate input {
+  grid-row: 1 / span 2;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--gold);
+}
+.gara-purchase-candidate .gara-row-name {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.gara-purchase-candidate .gara-row-meta {
+  justify-self: end;
+  white-space: normal;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.gara-purchase-candidate small {
+  grid-column: 2 / -1;
+  min-width: 0;
+  color: var(--tx-2);
+  font-size: var(--fs-11);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 560px) {
+  .gara-purchase-candidate {
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 5px var(--s-2);
+    padding: var(--s-2);
+  }
+  .gara-purchase-candidate .gara-row-meta {
+    grid-column: 2;
+    justify-self: start;
+    text-align: left;
+  }
+  .gara-purchase-candidate small {
+    grid-column: 2;
+  }
+}
+
 }

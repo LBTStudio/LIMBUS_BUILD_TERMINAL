@@ -1718,7 +1718,9 @@ function flowOf(record, currency) {
    突き合わせる。ただし「残高変動を1件も記載していないユーザー」には
    エラーを返さない。最初の残高が履歴内の収入後に書かれている場合、
    その収入を再加算しないよう、スナップショット以前の純変動を控除する。 */
-function reconcileBalance(manifest, doc) {
+function reconcileBalance(manifest, doc, options) {
+  const reconcileOptions = options || {};
+  const approvedPurchases = reconcileOptions.purchases || {};
   const cur = (doc && doc.currency) || {};
   const shownLp = parseCurrencyBalance(cur.lp);
   const shownSh = parseCurrencyBalance(cur.fragment);
@@ -1798,7 +1800,19 @@ function reconcileBalance(manifest, doc) {
   for (const s of scenarios) {
     const memo = String(s.memo || "");
     const income = s.income || {};
-    const scenarioSpends = Array.isArray(s.spends) ? s.spends : parseSpends(memo);
+    const scenarioPurchases = Array.isArray(approvedPurchases[s.key]) ? approvedPurchases[s.key] : [];
+    const scenarioSpends = (Array.isArray(s.spends) ? s.spends : parseSpends(memo)).slice();
+    /* 同じシナリオに確定 action として入る、明示承認済み購入だけを照合にも加える。
+       費用の不正値を 0 に丸めず、残高照合そのものを保留する。 */
+    for (const purchase of scenarioPurchases) {
+      const cost = purchase && purchase.cost || {};
+      const lp = Number(cost.lp ?? 0);
+      const shards = Number(cost.shards ?? 0);
+      if (!Number.isSafeInteger(lp) || lp < 0) unsafeCurrency ||= "lp";
+      if (!Number.isSafeInteger(shards) || shards < 0) unsafeCurrency ||= "shards";
+      scenarioSpends.push({ lp, shards });
+    }
+    if (unsafeCurrency) return holdUnsafe();
     const incomeLp = Number(income.lp ?? 0);
     const incomeSh = Number(income.shards ?? 0);
     if (!Number.isSafeInteger(incomeLp) || incomeLp < 0) unsafeCurrency ||= "lp";
@@ -1824,11 +1838,29 @@ function reconcileBalance(manifest, doc) {
       const prefix = memoApi && typeof memoApi.parseMemo === "function"
         ? memoApi.parseMemo(anchor.prefix)
         : { income: {}, spends: [] };
-      const prefixFlow = flowOf(prefix, currency);
+      let prefixFlow = flowOf(prefix, currency);
       if (prefixFlow === null) {
         unsafeCurrency ||= currency;
         return holdUnsafe();
       }
+      /* 「現在残高」より前の候補購入は、そのスナップショットへ既に反映済み。
+         行番号が分かる承認候補だけ prefixFlow 側にも反映し、二重控除を避ける。 */
+      const anchorLineNo = (String(anchor.prefix).match(/\n/g) || []).length + 1;
+      let preAnchorPurchase = 0;
+      for (const purchase of scenarioPurchases) {
+        const lineNo = Number(purchase && purchase.lineNo);
+        if (!Number.isSafeInteger(lineNo) || lineNo < 1 || lineNo >= anchorLineNo) continue;
+        const cost = purchase && purchase.cost || {};
+        const amount = Number(cost[currency] ?? 0);
+        if (!Number.isSafeInteger(amount) || amount < 0) {
+          unsafeCurrency ||= currency;
+          return holdUnsafe();
+        }
+        preAnchorPurchase = safeAdd(preAnchorPurchase, amount, currency);
+        if (preAnchorPurchase === null) return holdUnsafe();
+      }
+      prefixFlow = safeSubtract(prefixFlow, preAnchorPurchase, currency);
+      if (prefixFlow === null) return holdUnsafe();
       if (currency === "lp") {
         openingLp = anchor.value;
         openingOffsetLp = safeAdd(cumulativeBefore.lp, prefixFlow, "lp");

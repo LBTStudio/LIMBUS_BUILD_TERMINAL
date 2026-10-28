@@ -337,3 +337,19 @@ test("currencyDiscrepanciesを取り込み確認カードへ表示し、記録�
   assert.ok(uiFlat.includes("価格差の確認（元記録額は自動修正していません）"));
   assert.ok(uiFlat.includes("entry.detail"));
 });
+
+
+test("承認済み購入の費用は残高照合へ渡し、未承認候補だけで確定を強制しない", () => {
+  assert.ok(uiFlat.includes('window.LBT_reconcileBalance(manifest, doc, { purchases: purchasePlan })'));
+  assert.ok(uiFlat.includes("!(draft && draft.simulation.results > 0)"));
+  assert.ok(uiFlat.includes("lineCandidates: 0"));
+  assert.ok(uiFlat.includes('flatMap((spend) => [spend?.name, resolveName(spend?.name)])'));
+});
+
+test("購入候補はモバイルでも識別・価格・チェックを操作できるスタイルを持つ", () => {
+  const css = readFileSync(new URL("../assets/v66-accounts.css", import.meta.url), "utf8");
+  assert.match(css, /\.gara-purchase-review\s*\{/);
+  assert.match(css, /\.gara-purchase-candidate\s*\{[^}]*min-height:\s*44px/s);
+  assert.match(css, /\.gara-purchase-candidate input\s*\{[^}]*accent-color:\s*var\(--gold\)/s);
+  assert.match(css, /@media \(max-width:\s*560px\)[\s\S]*?\.gara-purchase-candidate\s*\{[^}]*grid-template-columns:\s*22px minmax\(0, 1fr\)/s);
+});

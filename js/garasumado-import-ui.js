@@ -1004,6 +1004,8 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [], existi
   /* 候補表示と課金承認を分離する。DB名に解決しただけでは購入確定にしない。 */
   const purchaseCandidateKey = (op, proposal) =>
     String(op.key || "") + "::" + String(proposal.key || ("line:" + proposal.lineNo + ":" + proposal.kind + ":" + proposal.name));
+  const purchaseNameKey = (value) =>
+    String(value || "").normalize("NFKC").replace(/[\s・･]/g, "").toLocaleLowerCase("ja-JP");
   const purchaseReviewPlan = React.useMemo(() => {
     if (!manifest) return {};
     const idx = window.LBT_buildNameIndex ? window.LBT_buildNameIndex(window.DB || {}, {}) : null;
@@ -1013,9 +1015,12 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [], existi
     const out = {};
     for (const op of lines) {
       const scenario = byKey.get(op.key);
-      const booked = new Set((scenario?.spends || []).map((s) => resolveName(s.name)).filter(Boolean));
+      const booked = new Set((scenario?.spends || [])
+        .flatMap((spend) => [spend?.name, resolveName(spend?.name)])
+        .map(purchaseNameKey)
+        .filter(Boolean));
       const candidates = (op.proposals || [])
-        .filter((proposal) => !booked.has(proposal.name))
+        .filter((proposal) => !booked.has(purchaseNameKey(proposal.name)))
         .map((proposal) => ({
           ...proposal,
           approvalKey: purchaseCandidateKey(op, proposal),
@@ -1032,7 +1037,7 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [], existi
     for (const [scenarioKey, candidates] of Object.entries(purchaseReviewPlan)) {
       const approved = candidates
         .filter((proposal) => proposal.approved)
-        .map((proposal) => ({ name: proposal.name, kind: proposal.kind, cost: proposal.cost }));
+        .map((proposal) => ({ name: proposal.name, kind: proposal.kind, cost: proposal.cost, lineNo: proposal.lineNo }));
       if (approved.length) out[scenarioKey] = approved;
     }
     return out;
@@ -1064,7 +1069,7 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [], existi
 
   /* 残高照合。変動記載の無いユーザー（checked=false）には何も言わない。 */
   const balance = manifest && doc && window.LBT_reconcileBalance
-    ? window.LBT_reconcileBalance(manifest, doc)
+    ? window.LBT_reconcileBalance(manifest, doc, { purchases: purchasePlan })
     : null;
   const negativeImpliedOpening = Boolean(
     balance && !balance.checked && balance.hasManualReference &&
@@ -1311,7 +1316,7 @@ function appliedSummary(actions) {
       lineOn: Object.values(purchasePlan).reduce((n, picks) => n + picks.length, 0),
       lineCandidates: Object.values(purchaseReviewPlan).reduce((n, proposals) => n + proposals.length, 0)
     }
-    : { total: 0, pickMode: 0, unknownName: 0, included: 0, ops: 0, unknownLine: 0, lineOn: 0 };
+    : { total: 0, pickMode: 0, unknownName: 0, included: 0, ops: 0, unknownLine: 0, lineOn: 0, lineCandidates: 0 };
 
   if (personaItems !== null && !manifest) {
     const selectedRows = personaItems.filter((row) => row.ok && personaPicked[row.id] && !personaAlreadyImported(row.id));
@@ -1736,6 +1741,7 @@ function appliedSummary(actions) {
           size: "sm", variant: "primary", icon: "check", onClick: apply,
           disabled: pendingCount > 0
             || (counts.included === 0 && counts.lineOn === 0
+              && !(draft && draft.simulation.results > 0)
               && !(personaItems || []).some((row) => row.ok && personaPicked[row.id] && !personaAlreadyImported(row.id))),
           title: pendingCount > 0 ? "帰属先と入手方法を決めてください" : ""
         }, "変換を確定する")
