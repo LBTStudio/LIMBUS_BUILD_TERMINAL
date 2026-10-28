@@ -160,7 +160,7 @@ function isNonTransactionalDrawLabel(line) {
   return LEGACY_CANDIDATE_AMOUNT.test(withoutBalances) &&
     /抽出|ガチャ/.test(withoutBalances) &&
     !CANDIDATE_TICKET_COUNT.test(withoutBalances) &&
-    !CANDIDATE_TICKET_ACTION.test(withoutBalances) &&
+    !(CANDIDATE_TICKET_MARKER.test(withoutBalances) && CANDIDATE_TICKET_ACTION.test(withoutBalances)) &&
     !CANDIDATE_ACTION.test(withoutBalances) &&
     !CANDIDATE_DRAW_ACTION.test(withoutBalances);
 }
