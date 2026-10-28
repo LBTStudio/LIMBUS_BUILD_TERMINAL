@@ -23,3 +23,11 @@ test("localhost screenshot audit isolates expected external analytics noise with
   assert.match(script, /lbt-recovery\.lbtstudio-share\.workers\.dev\/api\/stats\/\*\*/);
   assert.match(script, /message\.includes\("ERR_BLOCKED_BY_CLIENT"\)/);
 });
+
+
+test("preview-control metrics include the mobile top-bar button and check duplicates on both viewports", () => {
+  assert.match(script, /querySelectorAll\("#lbt-preview-edge-toggle,\.preview-mobile-toggle/);
+  assert.match(script, /const previewControls=\(m\.layoutElements\|\|\[\]\)\.filter/);
+  assert.match(script, /if\(previewControls\.length>1\) audit\.layoutWarnings\.push\(\{name:base,type:"duplicate-preview-controls"/);
+  assert.doesNotMatch(script, /if\(view==="mobile"\)\s*\{\s*const previewControls/);
+});
