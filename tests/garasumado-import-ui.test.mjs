@@ -30,8 +30,8 @@ test("取得中の busy は取得が例外でも必ず解除される（finally�
   assert.match(uiFlat, /finally \{ setBusy\(false\);/, "busy 解除は finally");
 });
 
-test("1シナリオ＝1リザルトのカードがある", () => {  assert.match(uiFlat, /function ResultCard\\(\\{[\\s\\S]*?sourceAlreadyImported = false, purchaseCandidates = \\[\\], onTogglePurchaseCandidate \\}\\)/);
-  assert.match(uiFlat, /"gara-group gara-result"/);
+test("1シナリオ＝1リザルトのカードがある", () => {  assert.ok(uiFlat.includes("function ResultCard({"), "result card declaration exists");
+  assert.ok(uiFlat.includes("sourceAlreadyImported = false, purchaseCandidates = [], onTogglePurchaseCandidate"), "review props are part of the card");  assert.match(uiFlat, /"gara-group gara-result"/);
   /* 照合済みの所持は最初からカードの中に出る。 */
   assert.match(uiFlat, /block\.items\.map\(\(item\) => h\("div", \{/);
   assert.match(uiFlat, /gara-row-assigned/);
