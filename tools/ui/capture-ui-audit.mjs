@@ -525,7 +525,7 @@ async function captureProfile(browser, mode) {
           await click(textButton);
           // The current UI renders import tools as .ledger-gara-wrap blocks;
           // it does not assign the former #ledger-text-import-panel id.
-          const textPanel=page.locator(".ledger-gara-wrap").filter({hasText:"テキスト流し込み"}).last();
+          const textPanel=page.locator("#ledger-text-import-panel");
           await textPanel.waitFor({state:"visible",timeout:5000});
           const textArea=textPanel.locator("textarea.ledger-textarea").first();
           await textArea.waitFor({state:"visible",timeout:5000});
@@ -535,8 +535,8 @@ async function captureProfile(browser, mode) {
             const ir=input?.getBoundingClientRect();
             return {panelTop:Math.round(r.top),panelBottom:Math.round(r.bottom),inputTop:ir?Math.round(ir.top):null,inputFocused:document.activeElement===input,viewportHeight:innerHeight};
           });
-          if(textState.panelTop >= textState.viewportHeight - 24 || textState.inputTop === null || textState.inputTop >= textState.viewportHeight - 36) {
-            throw new Error("テキスト流し込みを開いた後も入力欄が画面内へ移動していません: "+JSON.stringify(textState));
+          if(textState.panelTop >= textState.viewportHeight - 24 || textState.inputTop === null || textState.inputTop >= textState.viewportHeight - 36 || !textState.inputFocused) {
+            throw new Error("テキスト流し込みを開いた後も入力欄が画面内へ移動・フォーカスされていません: "+JSON.stringify(textState));
           }
           await snap("record-result-text-import","テキスト流し込みを開き、自動スクロール後の入力欄が見える状態");
           await textArea.fill("【シナリオA】\n報酬｜LP:150/自我の欠片:70/人格抽出チケットx1\n購入｜人格抽出x2(100LP)/EGO購入-TETH[鬼退治](75欠片)\n追加購入｜壊し砕く打撃(150LP)");
