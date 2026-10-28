@@ -1,0 +1,28 @@
+name: live-garasumado-sample-audit
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/live-sample-audit.yml"
+      - "tools/audit-garasumado-live-samples.mjs"
+      - "js/garasumado-memo-parse.js"
+      - "tests/garasumado-import.test.mjs"
+      - "tests/fixtures/garasumado-share-url-baseline.json"
+      - "tests/garasumado-share-baseline.test.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit-live-shares:
+    name: Audit shared sample corpus (read-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Run live parser audit over the 98 known shared URLs
+        run: node tools/audit-garasumado-live-samples.mjs
