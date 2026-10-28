@@ -13,7 +13,7 @@ test("プレビューの開閉ボタンはReact管理の単一コントロール
   assert.equal((app.match(/id: "lbt-preview-edge-toggle"/g) || []).length, 1);
   assert.match(app, /"aria-controls": "preview-panel"/);
   assert.match(app, /"aria-expanded": previewOpen/);
-  assert.match(app, /className: `preview-edge-toggle\$\{previewOpen ? " is-open" : " is-collapsed"\}`/);
+  assert.ok(app.includes('className: `preview-edge-toggle${previewOpen ? " is-open" : " is-collapsed"}`'));
   assert.doesNotMatch(app, /className: "preview-reopen"/);
   assert.doesNotMatch(preview, /lbt-preview-edge-toggle/);
   assert.doesNotMatch(preview, /className: "preview-close"/);
@@ -21,7 +21,7 @@ test("プレビューの開閉ボタンはReact管理の単一コントロール
 });
 
 test("プレビュー領域自身は開閉ボタンを生成せず、状態に応じた表示だけを担当する", () => {
-  assert.match(preview, /className: `preview\$\{state\.ui\.previewOpen ? " is-open" : ""\}`/);
+  assert.ok(preview.includes('className: `preview${state.ui.previewOpen ? " is-open" : ""}`'));
   assert.doesNotMatch(workspace, /\.preview-reopen\s*\{/);
   assert.doesNotMatch(workspace, /\.preview-close\s*\{/);
   assert.doesNotMatch(workspace, /\.preview-edge-toggle\s*\{/);
