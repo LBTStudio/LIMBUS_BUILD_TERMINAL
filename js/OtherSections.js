@@ -3956,13 +3956,23 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   /* 手打ちの記録をテキストで流し込む画面。硝子窓 版と同じく、
      貼っただけでは確定せず、作れる内容を確認してから入れる。 */
   const [textPanel, setTextPanel] = React.useState(false);
-  /* テキスト取り込みを開いた直後に、入力欄が見える位置までスクロールしてフォーカスする。
-     モバイルでは画面下に追加されるため、パネルだけ表示しても操作できるとは限らない。 */
+  /* 3つの取り込みパネルは画面下へ追加されるため、入口を開いた時点で
+     パネルをスクロール領域の先頭へ移動し、最初の入力欄へフォーカスを渡す。 */
   React.useEffect(() => {
-    if (!textPanel || typeof document === "undefined") return;
-    const panel = document.getElementById("ledger-text-import-panel");
-    const textarea = panel?.querySelector("textarea.ledger-textarea");
-    if (!panel || !textarea) return;
+    if (typeof document === "undefined") return;
+    let panel = null;
+    let target = null;
+    if (importPanel) {
+      panel = document.getElementById("ledger-glass-import-panel");
+      target = panel?.querySelector("textarea.gara-url-list");
+    } else if (textPanel) {
+      panel = document.getElementById("ledger-text-import-panel");
+      target = panel?.querySelector("textarea.ledger-textarea");
+    } else if (heldOpen) {
+      target = document.querySelector("textarea.ledger-held-paste");
+      panel = target?.closest(".ledger-gara-wrap");
+    }
+    if (!panel || !target) return;
     const scroller = panel.closest(".focus");
     if (scroller) {
       const top = panel.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
@@ -3970,8 +3980,8 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     } else {
       panel.scrollIntoView({ block: "start", behavior: "auto" });
     }
-    textarea.focus({ preventScroll: true });
-  }, [textPanel]);
+    target.focus({ preventScroll: true });
+  }, [importPanel, textPanel, heldOpen]);
   const [textDraft, setTextDraft] = React.useState("");
   const [textExcluded, setTextExcluded] = React.useState(() => new Set());
   /* 結果ログ内の人格候補。候補選択と除外は貼り付け中だけ保持する。 */
@@ -4687,7 +4697,7 @@ const importHeldPersonas = () => {
 )
     ),
 
-    importPanel && h("div", { className: "ledger-gara-wrap" },
+    importPanel && h("div", { id: "ledger-glass-import-panel", role: "region", "aria-label": "硝子窓から一括取り込む", className: "ledger-gara-wrap" },
     h("div", { className: "card-header owned-library-bar" },
     h("span", { className: "t-label" }, "硝子窓から一括取り込む"),
     h("span", { className: "ledger-note" }, "共有URLからシナリオをまとめて読み取り、リザルトを複数一括で作ります。1件ごとではなく全体へ反映します"),
