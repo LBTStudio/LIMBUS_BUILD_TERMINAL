@@ -193,6 +193,13 @@ function describeCandidateLine(line, coverage) {
     }
   }
   tokenShape.sort((a, b) => a.index - b.index);
+  const withoutBalances = stripBalanceAnchors(textLine);
+  const legacyCueKinds = [];
+  if (/報酬|収入/.test(withoutBalances)) legacyCueKinds.push("reward-term");
+  if (/消費|支出|支払|購入|買った/.test(withoutBalances)) legacyCueKinds.push("spend-term");
+  if (/獲得|入手|取得/.test(withoutBalances)) legacyCueKinds.push("acquisition-term");
+  if (/抽出|ガチャ/.test(withoutBalances)) legacyCueKinds.push("draw-term");
+  if (/チケット|チケ/.test(withoutBalances)) legacyCueKinds.push("ticket-term");
   const actionKinds = [];
   if (/報酬|収入/.test(textLine)) actionKinds.push("reward");
   if (/消費|支出|支払|購入|買っ/.test(textLine)) actionKinds.push("spend");
@@ -213,6 +220,7 @@ function describeCandidateLine(line, coverage) {
     candidateMatchDigitWidth: amountMatch ? (amountMatch[0].match(/[0-9０-９]/g) || []).length : 0,
     numericTokenWidths: [...textLine.matchAll(/[0-9０-９]+/g)].map((match) => match[0].length).slice(0, 8),
     tokenShape,
+    legacyCueKinds,
     ticketClassified: Boolean(ticket),
     ticketReviewReasonPresent: Boolean(ticket?.reason),
     actionKinds,
