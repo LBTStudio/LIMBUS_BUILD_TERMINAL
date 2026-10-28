@@ -2764,3 +2764,17 @@ test("金額のあるチケット名だけでは、チケット操作の未解�
     "実操作の根拠がないチケット名を未解決取引として数えない"
   );
 });
+
+
+test("矢印に挟まれた金額＋操作語は帳簿に計上せずレビューcoverageを残す", () => {
+  const memo = "→LP200" + "　".repeat(26) + "→　　獲得";
+  const parsed = MEMO.parseMemo(memo);
+  const coverage = parsed.financialCoverage.find((row) => row.lineIndex === 1);
+  assert.ok(coverage, "通常セクションでも矢印遷移の候補をcoverageに残す");
+  assert.equal(coverage.status, "balance-transition-review");
+  assert.equal(parsed.income.lp, 0, "曖昧な残高遷移を収入にしない");
+  assert.equal(parsed.spends.length, 0, "曖昧な残高遷移を支出にしない");
+  assert.ok(parsed.sourceAudits.some((row) =>
+    row.code === "financial-action-in-balance-transition" && row.severity === "review"
+  ));
+});

@@ -1322,6 +1322,51 @@
       if (!line) continue;
       /* ▶で始まる効果説明は記述であり、通貨支出ではない。 */
       if (/^\s*[▶►▷]/.test(sourceLine)) continue;
+
+      /* 金額が矢印に挟まれ、次の列に操作語がある行は、残高遷移か
+         実取引かをこの文字列だけでは確定できない。帳簿には計上せず、
+         通常の parser flow に入る前に専用のレビューcoverageとして保持する。 */
+      const balanceArrowTokens = [...sourceLine.matchAll(/[→⇒]/g)];
+      if (auditModeBefore !== "current" && balanceArrowTokens.length >= 2) {
+        const amountBetweenBalanceArrows = sourceLine.slice(
+          balanceArrowTokens[0].index + 1,
+          balanceArrowTokens[1].index
+        );
+        const hasCurrencyAmountBetweenBalanceArrows =
+          /(?:LP|ＬＰ|(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ|けっか))\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]+(?:[,，][0-9０-９]{3})*|[+＋\-−]?\s*[0-9０-９]+(?:[,，][0-9０-９]{3})*\s*(?:LP|ＬＰ|(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ|けっか))/i
+            .test(amountBetweenBalanceArrows);
+        const actionAfterBalanceArrow =
+          /報酬|収入|消費|支出|支払|購入|買っ|使用|行使|抽出|ガチャ|獲得|入手|取得|付与|支給|補填|受領|被り|重複|変換|換算/.test(
+            sourceLine.slice(balanceArrowTokens[1].index + 1)
+          );
+        if (hasCurrencyAmountBetweenBalanceArrows && actionAfterBalanceArrow) {
+          const expectedTransition = auditMoneyTotalsOfLine(sourceLine);
+          const detectedTransition = { lp: 0, shards: 0 };
+          const zeroTransitionFlows = {
+            lpIncome: 0, lpSpend: 0, lpUnknown: 0,
+            shardsIncome: 0, shardsSpend: 0, shardsUnknown: 0
+          };
+          financialCoverage.push({
+            lineIndex: i + 1, line: sourceLine, section: auditModeBefore || null,
+            status: "balance-transition-review",
+            expected: { lp: expectedTransition.lp, shards: expectedTransition.shards },
+            detected: detectedTransition,
+            expectedFlows: auditMoneyFlowsOfLine(sourceLine, auditModeBefore),
+            detectedFlows: zeroTransitionFlows,
+            parserReasonCount: 0, sourceFinding: false
+          });
+          sourceAudits.push({
+            side: "parser", code: "financial-action-in-balance-transition", severity: "review",
+            lineIndex: i + 1, line: sourceLine, section: auditModeBefore || null,
+            expected: { lp: expectedTransition.lp, shards: expectedTransition.shards },
+            detected: detectedTransition,
+            message: "矢印間の通貨額と後続の操作語を検出しました。残高注記か実取引か確認するまで、自動計上していません。"
+          });
+          currentModeCoverageRecorded = true;
+          continue;
+        }
+      }
+
       var prev = prevLine;
       prevLine = line;
       if (sourceAuditAnalysis.skipLines.has(i)) continue;
