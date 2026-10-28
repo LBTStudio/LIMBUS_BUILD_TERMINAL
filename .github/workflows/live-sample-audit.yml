@@ -5,6 +5,8 @@ on:
     paths:
       - ".github/workflows/live-sample-audit.yml"
       - "tools/audit-garasumado-live-samples.mjs"
+      - "tools/rule-based-opening-audit.mjs"
+      - "tests/rule-based-opening-audit.test.mjs"
       - "js/garasumado-memo-parse.js"
       - "tests/garasumado-import.test.mjs"
       - "tests/fixtures/garasumado-share-url-baseline.json"
