@@ -51,6 +51,9 @@
      残高そのものが収入（または支出）として帳簿に乗る。 */
   function stripBalances(value) {
     return normalizeAmountText(value)
+      /* 一部のメモは通貨名が先に来る（「LP現在8」「欠片残り81」）。
+         金額の右隣にある残高マーカーも消し、数値を支出へ流用しない。 */
+      .replace(/(LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)\s*(現在|現座|残高|残り)\s*[：:]?\s*-?\d+(?:\s*[+＋]\s*\d+)*(?:\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?/gi, function (_match, currency, _marker, offset, source) { const prefix = source.slice(0, offset); return /(?:^|[^A-Za-z0-9])[+-]?\d[\d,]*\s*$/.test(prefix) ? currency : " "; })
       .replace(/現在\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)?\s*[：:]?\s*-?\d+(?:\s*[+＋]\s*\d+)*(?:\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?(?:\s*[→⇒]\s*-?\d+(?:\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?)?/gi, " ")
       .replace(/残り\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)?\s*[：:]?\s*-?\d+(?:\s*[+＋]\s*\d+)*(?:\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?(?:\s*[→⇒]\s*-?\d+(?:\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?)?/gi, " ");
   }
@@ -388,6 +391,7 @@
       if (bestLp != null) return bestLp;
       /* LP 語が無くても、欠片語が無ければ先頭の数字が LP。 */
       if (!/欠片|欠け片|かけら|欠けら|カケラ/.test(text)) {
+        if (/(?:現在|現座|残高|残り)/.test(String(line || ""))) return null;
         var only = text.match(/-?\d+/);
         return only ? parseInt(only[0], 10) : null;
       }
@@ -413,7 +417,7 @@
      通貨名は漢字を含むので、判定前に取り除く。
      （さreon「欠片」だけの行を名前と誤判定して通過させない） */
   function isTotalOnlyLine(line) {
-    var t = String(explicitRewardNameOf(line) || line).replace(/現在|残/g, "").trim();
+    var t = normalizeAmountText(String(explicitRewardNameOf(line) || line)).replace(/現在|残/g, "").trim();
     /* 通貨名だけ刈り取ったあと、漢字/ラテンが残るか見る。 */
     var stripped = t.replace(/LP|欠片|欠け片|かけら|欠けら|カケラ/gi, " ").trim();
     if (/[A-Za-zぁ-んァ-ヶ一-龠]/.test(stripped)) return false;
@@ -2013,15 +2017,27 @@
               「Foobar　現在130LP」        → 130 は支払後の残WRITE
            区別は「支出を示す動詞（消費/購入/使用/行使/買った…）があるか、
            もしくは「〜へ」で終わっているか」で行う。 */
-        var hasVerb = /(消費|購入|使用|行使|心疼|費やす|払う|使う|買った|引|要した|支出|支払|補充|回復|切替|升值)/.test(line);
+        var hasVerb = /(消費|購入|使用|行使|解放|心疼|費やす|払う|使う|買った|引|要した|支出|支払|補充|回復|切替|升值)/.test(line);
         var endsToHe = /へ\s*$/.test(line);
         var isRemainderOnly = !hasVerb && !endsToHe;
 
         if (isRemainderOnly) {
-          /* 残額だけの行。通貨名が無ければ純粋な残WRITE。
-             通貨名があれば「130LP を使った」という読みできるので、
-             金額として拾う（Foobar　現在130LP → LP 130）。 */
-          if (!/(LP|欠片|欠け片|かけら|欠けら|カケラ)/i.test(normalizeAmountText(line))) continue;
+          /* 動詞も支払額も無い「名前 現在130LP」「名前 残り81欠片」は残高。
+             通貨名の存在だけで現在残高を支出へ転用しない。明示金額が残高語より
+             前にある書式（「150欠片 現在184」）だけは、その金額を保持する。 */
+          const hasBalanceMarker = /(?:現在|現座|残高|残り)/.test(line);
+          if (hasBalanceMarker) {
+            const withoutBalance = stripBalances(line);
+            const hasExplicitAmount = /(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)\s*[：:]?\s*[+-]?\s*\d|\d[\d,]*\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)/i.test(withoutBalance);
+            if (!hasExplicitAmount) {
+              if (/(LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)/i.test(line)) {
+                reasons.push({ line: sourceLine, reason: "支出額を残高から逆算せず、支出セクションに残高表記しかないため要確認にしました" });
+              }
+              continue;
+            }
+          } else if (!/(LP|欠片|欠け片|かけら|欠けら|カケラ)/i.test(normalizeAmountText(line))) {
+            continue;
+          }
         }
 
         /* 両通貨が 1 行に並ぶことがある:
@@ -2040,7 +2056,12 @@
         if (lp == null && sh == null) {
           if (isRemainderOnly) continue;
           spends.push({ name: pnm || bnm || line, lp: 0, shards: 0, raw: line });
-          reasons.push({ line: line, reason: "支出金額が読み取れない（要確認）" });
+          reasons.push({
+            line: sourceLine,
+            reason: /(?:現在|現座|残高|残り)/.test(sourceLine) && /(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ|けっか)/.test(sourceLine)
+              ? "支出金額が読み取れないため、支出額を残高から逆算せず要確認にしました"
+              : "支出金額が読み取れない（要確認）"
+          });
           continue;
         }
         spends.push({
@@ -2077,9 +2098,17 @@
         const hasGachaResult = /ガチャ.*(?:結果|→|⇒)|(?:人格|E\\.?G\\.?O|エゴ)獲得\\s*[→⇒:：]/i.test(sourceLine);
         /* 現在残高だけが記載された購入・抽出行も監査する。金額は推測せず、
            本体処理で作られた「支出額が読み取れない」等の理由へ紐付ける。 */
-        const hasCurrentBalanceAction = /(?:現在|現座|残り|残高)/.test(sourceLine) &&
-           /(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ|けっか)/.test(sourceLine) &&
-           /消費|支出|支払|購入|買っ|使用|行使|抽出|ガチャ|獲得|入手|取得/.test(sourceLine);
+        const hasBalanceMarkerAndCurrency =
+          /(?:現在|現座|残り|残高)/.test(sourceLine) &&
+          /(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ|けっか)/.test(sourceLine);
+        const amountOutsideBalance = stripBalances(normalizeAmountText(sourceLine));
+        const hasExplicitAmountOutsideBalance =
+          /(?:LP|ＬＰ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]|[+＋\-−]?\s*[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ|けっか)/i
+            .test(amountOutsideBalance);
+        const hasBalanceOnlySpendCandidate = auditModeBefore === "spend" &&
+          hasBalanceMarkerAndCurrency && !hasExplicitAmountOutsideBalance;
+        const hasCurrentBalanceAction = hasBalanceMarkerAndCurrency &&
+          /消費|支出|支払|購入|買っ|使用|行使|解放|抽出|ガチャ|獲得|入手|取得/.test(sourceLine);
          const hasFinancialAction = hasTicketEvent || hasRosterGainEvent || hasGachaResult || hasCurrentBalanceAction ||
           ((expected.lp || expected.shards || directMoneyRow) &&
             /報酬|収入|獲得|入手|取得|付与|支給|補填|受領|被り|重複|消費|使用|支払|支出|購入|買っ|抽出|ガチャ|変換|換算/.test(sourceLine));
@@ -2101,12 +2130,12 @@
         const currentModeActionCue = auditModeBefore === "current" &&
           /報酬|収入|消費|支出|支払|購入|買っ|使用|行使|抽出|ガチャ|獲得|入手|取得|付与|支給|補填|受領|被り|重複|変換|換算|チケット|チケ/.test(sourceLine);
         const hasFinancialCoverageTarget = (directMoneyRow || hasFinancialAction || hasSourceFinding ||
-          hasUnaccountedArrowBalanceCandidate || currentModeCurrencyCandidate) &&
+          hasUnaccountedArrowBalanceCandidate || currentModeCurrencyCandidate || hasBalanceOnlySpendCandidate) &&
           (expected.lp || expected.shards || hasFinancialAction || hasSourceFinding ||
-            hasUnaccountedArrowBalanceCandidate || currentModeCurrencyCandidate);
+            hasUnaccountedArrowBalanceCandidate || currentModeCurrencyCandidate || hasBalanceOnlySpendCandidate);
         const currentBalanceActionReview =
           (auditModeBefore === "current" && (hasFinancialAction || hasSourceFinding || currentModeActionCue)) ||
-          hasUnaccountedArrowBalanceCandidate;
+          hasUnaccountedArrowBalanceCandidate || hasBalanceOnlySpendCandidate;
         if (hasFinancialCoverageTarget && (auditModeBefore !== "current" || currentBalanceActionReview)) {
           const newSpends = spends.slice(auditBefore.spends);
           const detectedFlows = {
@@ -2121,8 +2150,20 @@
             lp: detectedFlows.lpIncome + detectedFlows.lpSpend,
             shards: detectedFlows.shardsIncome + detectedFlows.shardsSpend
           };
+          /* 残高注記しか残っていない操作候補は、金額を逆算せず明示理由を残す。
+           これにより要確認の行が unresolved のまま無言で埋もれない。 */
+        if ((hasBalanceOnlySpendCandidate || hasCurrentBalanceAction) &&
+            !hasExplicitAmountOutsideBalance &&
+            !reasons.slice(auditBefore.reasons).some((entry) =>
+              String(entry.line || "").trim() === sourceLine.trim() &&
+              /残高から逆算せず/.test(String(entry.reason || "")))) {
+          reasons.push({
+            line: sourceLine,
+            reason: "支出額を残高から逆算せず、残高表記しかないため要確認にしました"
+          });
+        }
           const addedReasons = reasons.slice(auditBefore.reasons);
-          const moneyReviewReason = addedReasons.some(function (entry) {
+        const moneyReviewReason = addedReasons.some(function (entry) {
             return /LP|欠片|通貨|金額|支出|収入|残高|計算|計上|価格|チケット|抽出/.test(String(entry.reason || ""));
           });
           const skippedForSourceAudit = sourceAuditAnalysis.skipLines.has(i);
