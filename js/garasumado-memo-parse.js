@@ -2015,12 +2015,20 @@
         const hasUnaccountedArrowBalanceCandidate = hasArrowDelimitedMoneyAction &&
           (auditModeBefore === "current" ||
             (income.lp === auditBefore.lp && income.shards === auditBefore.shards && spends.length === auditBefore.spends));
-        const hasFinancialCoverageTarget = (directMoneyRow || hasFinancialAction || hasSourceFinding || hasUnaccountedArrowBalanceCandidate) &&
-          (expected.lp || expected.shards || hasFinancialAction || hasSourceFinding || hasUnaccountedArrowBalanceCandidate);
-        /* 現在残高セクションでも操作語・監査根拠を伴う候補行はcoverageに残す。
-           ただし残高の数字を収入・支出として自動計上せず、人手確認状態に固定する。 */
+        /* 「現在」節は通常パーサー本体が意図的に読み飛ばすので、そこで止まる金額行も
+           行単位coverageに残す。金額のみは残高注記、操作語・矢印間の金額は要確認とし、
+           収入・支出へは自動計上しない。 */
+        const currentModeCurrencyCandidate = auditModeBefore === "current" &&
+          (expected.lp || expected.shards || directMoneyRow ||
+            /(?:LP|ＬＰ|(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ|けっか))\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]|[+＋\-−]?\s*[0-9０-９]+\s*(?:LP|ＬＰ|(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ|けっか))/i.test(sourceLine));
+        const currentModeActionCue = auditModeBefore === "current" &&
+          /報酬|収入|消費|支出|支払|購入|買っ|使用|行使|抽出|ガチャ|獲得|入手|取得|付与|支給|補填|受領|被り|重複|変換|換算|チケット|チケ/.test(sourceLine);
+        const hasFinancialCoverageTarget = (directMoneyRow || hasFinancialAction || hasSourceFinding ||
+          hasUnaccountedArrowBalanceCandidate || currentModeCurrencyCandidate) &&
+          (expected.lp || expected.shards || hasFinancialAction || hasSourceFinding ||
+            hasUnaccountedArrowBalanceCandidate || currentModeCurrencyCandidate);
         const currentBalanceActionReview =
-          (auditModeBefore === "current" && (hasFinancialAction || hasSourceFinding)) ||
+          (auditModeBefore === "current" && (hasFinancialAction || hasSourceFinding || currentModeActionCue)) ||
           hasUnaccountedArrowBalanceCandidate;
         if (hasFinancialCoverageTarget && (auditModeBefore !== "current" || currentBalanceActionReview)) {
           const newSpends = spends.slice(auditBefore.spends);
@@ -2055,6 +2063,8 @@
               detected: got,
               message: "残高・矢印式の金額と操作候補が同居しています。残高注記か実取引かを確認するまで、自動計上していません。"
             });
+          } else if (auditModeBefore === "current") {
+            status = "current-balance-note";
           } else if (skippedForSourceAudit || hasSourceFinding) {
             status = "source-reviewed";
           } else if (moneyBearing) {
