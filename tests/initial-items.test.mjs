@@ -146,6 +146,29 @@ test("同じ日付では createdAt の表示順で初期LPを判定する", () =
     "画面上は作成時刻の新しい記録が最新なので、古い30LPでは支給済みとみなさない");
 });
 
+test("初期作成はルールブックPDF p.14の30LP・自我の欠片10個を台帳へ記録する", () => {
+  const context = loadContext();
+  const normalize = context.window.LBT_normalizeStateShape;
+  const balance = context.window.LBT_computeLedgerBalance;
+  assert.equal(typeof balance, "function", "台帳残高計算を読み出せる");
+
+  const first = normalize(baseState());
+  const initialResults = first.results.filter((result) => result.id === "res-initial");
+  assert.equal(initialResults.length, 1, "初期作成リザルトは1件だけ");
+  assert.equal(initialResults[0].income.lp, 30, "初期LPは30");
+  assert.equal(initialResults[0].income.shards, 10, "初期欠片は10");
+
+  const initialBalance = balance(first.results, first.entries);
+  assert.equal(initialBalance.lp, 30, "初期LPが残高計算へ反映される");
+  assert.equal(initialBalance.shards, 10, "初期欠片が残高計算へ反映される");
+
+  const reopened = normalize(first);
+  assert.equal(reopened.results.filter((result) => result.id === "res-initial").length, 1,
+    "再正規化でも初期資源を重複付与しない");
+  assert.equal(balance(reopened.results, reopened.entries).shards, 10,
+    "再正規化後も欠片は10のまま");
+});
+
 test("初期枠の定義を item id の集合として置ける", () => {
   const { reducer } = reducerOf();
   const s = reducer(baseState(), { type: "SET_INITIAL_ITEMS", ids: ["heal-bandage", "  ", "heal-bandage", "enh-whetstone"] });
