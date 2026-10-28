@@ -7,6 +7,7 @@
  * metadata only; parser checks run against current Firestore documents.
  */
 import { readFileSync, appendFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import vm from "node:vm";
 
@@ -328,6 +329,15 @@ function auditMemo(id, historyIndex, memo) {
   }, {}), currencyDiscrepancies: (parsed.currencyDiscrepancies || []).length };
 }
 
+
+function historyInputSha256(history) {
+  const parserInputs = (Array.isArray(history) ? history : []).map((row) => ({
+    name: String(row?.name ?? ""),
+    memo: String(row?.memo ?? "")
+  }));
+  return createHash("sha256").update(JSON.stringify(parserInputs)).digest("hex");
+}
+
 function countNonemptyMemos(history) {
   return history.filter((row) => String(row?.memo || "").trim()).length;
 }
@@ -406,6 +416,7 @@ const fetched = await mapLimit(baseline.documents, 5, async (entry) => {
     result,
     actualHistoryRows: history.length,
     actualMemoRows: memoRows,
+    historyInputSha256: historyInputSha256(history),
     parsedRows
   };
 });
@@ -438,6 +449,10 @@ const report = {
   source: {
     historyRows: successful.reduce((sum, entry) => sum + entry.actualHistoryRows, 0),
     memoRows: successful.reduce((sum, entry) => sum + entry.actualMemoRows, 0),
+    /* Bootstrap inventory: emit IDs plus opaque digests only; never memo/name text. */
+    historyInputFingerprints: successful
+      .filter((entry) => entry.baseline.previousFetchStatus === "OK")
+      .map((entry) => ({ id: entry.baseline.id, sha256: entry.historyInputSha256 })),
     snapshotDrift
   },
   parser: {
@@ -479,6 +494,7 @@ console.log(JSON.stringify({
     snapshotDriftRows: report.source.snapshotDrift.length
   },
   snapshotDrift: report.source.snapshotDrift,
+  historyInputFingerprints: report.source.historyInputFingerprints,
   issueCodes: report.parser.issues.reduce((counts, issue) => {
     counts[issue.code] = (counts[issue.code] || 0) + 1;
     return counts;

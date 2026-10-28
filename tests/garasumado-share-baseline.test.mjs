@@ -1,9 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 
 const baseline = JSON.parse(readFileSync(new URL("./fixtures/garasumado-share-url-baseline.json", import.meta.url), "utf8"));
 const fixture = JSON.parse(readFileSync(new URL("./fixtures/garasumado-samples.json", import.meta.url), "utf8"));
+
+function historyInputFingerprint(doc) {
+  const history = Array.isArray(doc?.scenarioHistory) ? doc.scenarioHistory : [];
+  const parserInputs = history.map((row) => ({
+    name: String(row?.name ?? ""),
+    memo: String(row?.memo ?? "")
+  }));
+  return createHash("sha256").update(JSON.stringify(parserInputs)).digest("hex");
+}
+
 
 test("98件の硝子窓共有URL監査ベースラインを重複なく保持する", () => {
   const rows = baseline.documents;
@@ -61,4 +72,23 @@ test("固定fixtureと過去のライブ監査の差分を隠さず列挙する"
     "既知の古いスナップショット8件を明示し、差分を黙って無視しない"
   );
   assert.equal(actualDrift.length, 8);
+});
+
+test("50件の固定fixtureは履歴の行数だけでなく名前・メモ内容の指紋も固定する", () => {
+  const fingerprints = baseline.fixtureComparison.fixtureSnapshotFingerprints;
+  assert.equal(fingerprints.length, baseline.fixtureComparison.fixtureDocumentCount);
+  assert.equal(baseline.fixtureComparison.historyInputFingerprintSchema, "scenarioHistory-name-memo-v1");
+  assert.deepEqual(
+    fingerprints.map((row) => row.id).slice().sort(),
+    Object.keys(fixture).sort(),
+    "全50 fixture IDに履歴入力の指紋がある"
+  );
+  for (const row of fingerprints) {
+    assert.match(row.sha256, /^[0-9a-f]{64}$/);
+    assert.equal(
+      row.sha256,
+      historyInputFingerprint(fixture[row.id]?.doc),
+      row.id + " のfixtureが同じ行数のまま内容だけ変わっても検出する"
+    );
+  }
 });
