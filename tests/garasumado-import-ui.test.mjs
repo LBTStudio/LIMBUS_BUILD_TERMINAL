@@ -30,7 +30,7 @@ test("取得中の busy は取得が例外でも必ず解除される（finally�
   assert.match(uiFlat, /finally \{ setBusy\(false\);/, "busy 解除は finally");
 });
 
-test("1シナリオ＝1リザルトのカードがある", () => {  assert.match(uiFlat, /function ResultCard\(\{ block, scenarioOptions, sourceOptions, onPickIdentity, onDropItem, onReturnItem, existingResults = \[\], legacyCandidates = \[\], legacyTargetId = "", onPickLegacyTarget, sourceAlreadyImported = false \}\)/);
+test("1シナリオ＝1リザルトのカードがある", () => {  assert.match(uiFlat, /function ResultCard\\(\\{[\\s\\S]*?sourceAlreadyImported = false, purchaseCandidates = \\[\\], onTogglePurchaseCandidate \\}\\)/);
   assert.match(uiFlat, /"gara-group gara-result"/);
   /* 照合済みの所持は最初からカードの中に出る。 */
   assert.match(uiFlat, /block\.items\.map\(\(item\) => h\("div", \{/);
@@ -324,16 +324,16 @@ test("未割当レールは編集カードより前に描画し、モバイル�
 
 
 test("購入候補は初期状態で未承認とし、明示チェックしたものだけを課金計画に含める", () => {
-  assert.match(uiFlat, /const \\[purchaseApprovals, setPurchaseApprovals\\] = React\\.useState\\(\\{\\}\\);/);
-  assert.match(uiFlat, /approved: purchaseApprovals\\[purchaseCandidateKey\\(op, proposal\\)\\] === true/);
-  assert.match(uiFlat, /filter\\(\\(proposal\\) => proposal\\.approved\\)/);
-  assert.match(uiFlat, /checked: Boolean\\(proposal\\.approved\\)/);
-  assert.match(uiFlat, /購入候補（初期状態は未承認）/);
-  assert.match(uiFlat, /明示承認済み/);
+  assert.ok(uiFlat.includes("const [purchaseApprovals, setPurchaseApprovals] = React.useState({});"));
+  assert.ok(uiFlat.includes("approved: purchaseApprovals[purchaseCandidateKey(op, proposal)] === true"));
+  assert.ok(uiFlat.includes(".filter((proposal) => proposal.approved)"));
+  assert.ok(uiFlat.includes("checked: Boolean(proposal.approved)"));
+  assert.ok(uiFlat.includes("購入候補（初期状態は未承認）"));
+  assert.ok(uiFlat.includes("明示承認済み"));
 });
 
 test("currencyDiscrepanciesを取り込み確認カードへ表示し、記録価格を自動修正しない", () => {
-  assert.match(uiFlat, /Array\\.isArray\\(block\\.currencyDiscrepancies\\) && block\\.currencyDiscrepancies\\.length/);
-  assert.match(uiFlat, /価格差の確認（元記録額は自動修正していません）/);
-  assert.match(uiFlat, /entry\\.detail/);
+  assert.ok(uiFlat.includes("Array.isArray(block.currencyDiscrepancies) && block.currencyDiscrepancies.length"));
+  assert.ok(uiFlat.includes("価格差の確認（元記録額は自動修正していません）"));
+  assert.ok(uiFlat.includes("entry.detail"));
 });
