@@ -143,7 +143,8 @@ async function runProfile(browser,profile) {
       {collisions:closedCollisions,metrics:closed});
     if(profile.width>=641&&profile.width<=1024) {
       const expectedDock=profile.height<=500?48:60;
-      const inReservedDock=!!closed.focus&&!!closed.toggle&&closed.toggle.y>=closed.focus.bottom-expectedDock-2&&closed.toggle.bottom<=closed.focus.bottom-4;
+      const dockBottom=closed.rail&&closed.viewport&&closed.rail.width>=closed.viewport.width-8?closed.rail.y:closed.focus?.bottom;
+      const inReservedDock=!!closed.focus&&!!closed.toggle&&Number.isFinite(dockBottom)&&closed.toggle.y>=dockBottom-expectedDock-2&&closed.toggle.bottom<=dockBottom-4;
       const navSeparated=!closed.rail||!closed.toggle||!intersects(closed.toggle,closed.rail).hit;
       recordCheck(profile.name+": collapsed tablet/landscape control uses a reserved dock",
         closed.focusPaddingBottom>=expectedDock&&inReservedDock&&navSeparated,
@@ -171,7 +172,8 @@ async function runProfile(browser,profile) {
       {collisions:controlCollisions,metrics:opened});
     if(profile.width>=641&&profile.width<=1024) {
       const expectedDock=profile.height<=500?48:60;
-      const inReservedDock=!!opened.focus&&!!opened.toggle&&opened.toggle.y>=opened.focus.bottom-expectedDock-2&&opened.toggle.bottom<=opened.focus.bottom-4;
+      const dockBottom=opened.rail&&opened.viewport&&opened.rail.width>=opened.viewport.width-8?opened.rail.y:opened.focus?.bottom;
+      const inReservedDock=!!opened.focus&&!!opened.toggle&&Number.isFinite(dockBottom)&&opened.toggle.y>=dockBottom-expectedDock-2&&opened.toggle.bottom<=dockBottom-4;
       const navSeparated=!opened.rail||!opened.toggle||!intersects(opened.toggle,opened.rail).hit;
       recordCheck(profile.name+": open tablet/landscape control uses a reserved dock",
         opened.focusPaddingBottom>=expectedDock&&inReservedDock&&navSeparated,
