@@ -10,6 +10,7 @@ import { readFileSync, appendFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import vm from "node:vm";
+import { auditRuleBasedOpening, RULE_INITIAL_RESOURCES } from "./rule-based-opening-audit.mjs";
 
 const root = process.cwd();
 const baseline = JSON.parse(readFileSync(resolve(root, "tests/fixtures/garasumado-share-url-baseline.json"), "utf8"));
@@ -392,67 +393,6 @@ function countNonemptyMemos(history) {
   return history.filter((row) => String(row?.memo || "").trim()).length;
 }
 
-/* Primary source: the rulebook PDF (source/新リンバスTRPG.pdf), p.14.
-   At character creation a PC receives 30 LP and 10 Ego Shards.
-   The inferred opening balance of the available history is compatible with
-   those resources after setup spending only when it lies in 0..30 LP / 0..10 shards.
-   This is a compatibility test, not proof the history contains every transaction. */
-const RULE_INITIAL_RESOURCES = Object.freeze({ lp: 30, shards: 10 });
-
-function parsedNet(parsed, currency) {
-  const income = Number(parsed?.income?.[currency]) || 0;
-  const spends = (parsed?.spends || []).reduce((sum, row) => sum + Math.abs(Number(row?.[currency]) || 0), 0);
-  return income - spends;
-}
-
-function auditRuleBasedOpening(history, currentBalance) {
-  const rows = (Array.isArray(history) ? history : []).map((row) => {
-    const memo = String(row?.memo || "");
-    const parsed = MEMO.parseMemo(memo);
-    return {
-      netLp: parsedNet(parsed, "lp"),
-      netShards: parsedNet(parsed, "shards"),
-      reviewRows: (parsed.financialCoverage || []).filter((entry) =>
-        ["mismatch", "direction-review", "reviewed-by-parser-reason", "candidate-review", "unresolved", "balance-transition-review"].includes(String(entry?.status || ""))
-      ).length,
-      parserReasons: (parsed.reasons || []).length,
-      currencyDiscrepancies: (parsed.currencyDiscrepancies || []).length
-    };
-  });
-  const historyNetLp = rows.reduce((sum, row) => sum + row.netLp, 0);
-  const historyNetShards = rows.reduce((sum, row) => sum + row.netShards, 0);
-  const impliedOpeningLp = Number.isSafeInteger(currentBalance?.lp) ? currentBalance.lp - historyNetLp : null;
-  const impliedOpeningShards = Number.isSafeInteger(currentBalance?.shards) ? currentBalance.shards - historyNetShards : null;
-  const classify = (value, ceiling) => {
-    if (!Number.isSafeInteger(value)) return "not-comparable";
-    if (value < 0) return "below-zero: parsed net exceeds current balance";
-    if (value > ceiling) return "above-initial-ceiling: missing earlier income/history or parser undercount";
-    return "compatible-with-initial-resources-after-setup-spend";
-  };
-  const lpClass = classify(impliedOpeningLp, RULE_INITIAL_RESOURCES.lp);
-  const shardsClass = classify(impliedOpeningShards, RULE_INITIAL_RESOURCES.shards);
-  return {
-    initialResources: { ...RULE_INITIAL_RESOURCES },
-    historyNetLp, historyNetShards,
-    currentLp: currentBalance?.lp ?? null,
-    currentShards: currentBalance?.shards ?? null,
-    impliedOpeningLp, impliedOpeningShards,
-    lpClass, shardsClass,
-    lpCompatible: lpClass === "compatible-with-initial-resources-after-setup-spend",
-    shardsCompatible: shardsClass === "compatible-with-initial-resources-after-setup-spend",
-    bothCompatible: lpClass === "compatible-with-initial-resources-after-setup-spend" && shardsClass === "compatible-with-initial-resources-after-setup-spend",
-    lpNegative: lpClass === "below-zero: parsed net exceeds current balance",
-    shardsNegative: shardsClass === "below-zero: parsed net exceeds current balance",
-    lpAboveCeiling: lpClass === "above-initial-ceiling: missing earlier income/history or parser undercount",
-    shardsAboveCeiling: shardsClass === "above-initial-ceiling: missing earlier income/history or parser undercount",
-    historyRows: (Array.isArray(history) ? history : []).length,
-    memoRows: (Array.isArray(history) ? history : []).filter((row) => String(row?.memo || "").trim()).length,
-    reviewRows: rows.reduce((sum, row) => sum + row.reviewRows, 0),
-    parserReasons: rows.reduce((sum, row) => sum + row.parserReasons, 0),
-    currencyDiscrepancies: rows.reduce((sum, row) => sum + row.currencyDiscrepancies, 0)
-  };
-}
-
 function parseStoredCurrencyAmount(value) {
   if (value === null || value === undefined || String(value).trim() === "") return null;
   const normalized = String(value)
@@ -524,12 +464,12 @@ function toMarkdownReport(report) {
     "",
     "## ルールブック初期資源との残差分類",
     "",
-    "ルールブック PDF p.14 は初期作成時に30 LP・自我の欠片10個を付与します（PDF抽出テキスト data/provenance/core.txt の PAGE 14）。リザルト履歴が初期作成後の全収支を網羅し、初期作成時の購入だけが履歴開始前に行われたと仮定すれば、保存残高 − 履歴純収支は LP 0～30、欠片0～10の範囲に収まるはずです。範囲外は即座に単一原因を意味しませんが、開始前収入・履歴欠落・未記録支出・パーサーの過大/過小計上・古い保存残高を区別する優先調査対象になります。",
+    "ルールブック PDF p.14 は初期作成時に30 LP・自我の欠片10個を付与します（PDF抽出テキスト data/provenance/core.txt の PAGE 14）。単純な保存残高−純収支に加え、メモ中の現在／現座アンカーから各チェックポイントの開始残高を逆算しています。履歴配列順と逆順の両方を試し、アンカー間の推定が安定するか、初期資源0～30 LP／0～10欠片の範囲に入るか、最後のアンカーから保存残高を再現できるかを判定します。順序推定は強い手掛かりですが、メモ自体の誤記や未記録取引があれば推定も崩れるため、単独の証明とは扱いません。",
     "",
-    "| URL ID | 履歴行 | 保存LP | 純収支LP | 推定開始LP | LP分類 | 保存欠片 | 純収支欠片 | 推定開始欠片 | 欠片分類 | 要確認行 |",
-    "|---|---:|---:|---:|---:|---|---:|---:|---:|---|---:|",
+    "| URL ID | 履歴行 | 保存LP | 純収支LP | 推定開始LP | LP分類 | LPアンカー数 | アンカー推定LP | LP開始推定安定 | 最新値一致 | 保存欠片 | 純収支欠片 | 推定開始欠片 | 欠片分類 | 欠片アンカー数 | アンカー推定欠片 | 欠片開始推定安定 | 最新値一致 | 推定順序 | 要確認行 |",
+    "|---|---:|---:|---:|---:|---|---:|---:|---:|---|---:|---:|---:|---|---:|---:|---:|---|---|---:|",
     ...report.balance.ruleBasedOpening.documents.map((row) =>
-      "| " + row.id + " | " + row.historyRows + " | " + row.currentLp + " | " + row.netLp + " | " + row.impliedOpeningLp + " | " + row.lpClass + " | " + row.currentShards + " | " + row.netShards + " | " + row.impliedOpeningShards + " | " + row.shardsClass + " | " + row.reviewRows + " |"
+      "| " + row.id + " | " + row.historyRows + " | " + row.currentLp + " | " + row.netLp + " | " + row.impliedOpeningLp + " | " + row.lpClass + " | " + (row.lpPreferredAnchorAnalysis?.anchorCount ?? 0) + " | " + (row.lpPreferredAnchorAnalysis?.inferredOpening ?? "—") + " | " + Number(Boolean(row.lpPreferredAnchorAnalysis?.stableAcrossAnchors)) + " | " + (row.lpPreferredAnchorAnalysis?.latestAnchor?.matchesSavedCurrent ?? "—") + " | " + row.currentShards + " | " + row.netShards + " | " + row.impliedOpeningShards + " | " + row.shardsClass + " | " + (row.shardsPreferredAnchorAnalysis?.anchorCount ?? 0) + " | " + (row.shardsPreferredAnchorAnalysis?.inferredOpening ?? "—") + " | " + Number(Boolean(row.shardsPreferredAnchorAnalysis?.stableAcrossAnchors)) + " | " + (row.shardsPreferredAnchorAnalysis?.latestAnchor?.matchesSavedCurrent ?? "—") + " | " + row.preferredHistoryOrder + " | " + row.reviewRows + " |"
     ),
     "",
     "### 要確認行の数値診断（本文・名称は非出力）",
@@ -592,7 +532,7 @@ const fetched = await mapLimit(baseline.documents, 5, async (entry) => {
     actualHistoryRows: history.length,
     actualMemoRows: memoRows,
     currentBalance: storedCurrencyOf(result.doc),
-    ruleBasedOpeningAudit: auditRuleBasedOpening(history, storedCurrencyOf(result.doc)),
+    ruleBasedOpeningAudit: auditRuleBasedOpening(history, storedCurrencyOf(result.doc), MEMO),
     historyInputSha256: historyInputSha256(history),
     parsedRows
   };
@@ -661,6 +601,16 @@ const balanceBridges = successful
       )
     };
   });
+function openingOrderOf(row) {
+  const preferred = row?.ruleAnalysis?.preferredHistoryOrder;
+  if (preferred === "history-array-order") return "historyArrayOrder";
+  if (preferred === "reverse-history-array") return "reverseHistoryArray";
+  return null;
+}
+function openingAnalysisFor(row, currency) {
+  const order = openingOrderOf(row);
+  return order ? row?.ruleAnalysis?.[currency]?.openingAnchors?.[order] || null : null;
+}
 const ruleBasedOpeningAudits = balanceBridges.map((row) => {
   const audit = successful.find((entry) => entry.baseline.id === row.id)?.ruleBasedOpeningAudit || {};
   return {
@@ -682,23 +632,45 @@ const ruleBasedOpeningAudits = balanceBridges.map((row) => {
     shardsNegative: Boolean(audit.shardsNegative),
     lpAboveCeiling: Boolean(audit.lpAboveCeiling),
     shardsAboveCeiling: Boolean(audit.shardsAboveCeiling),
+    explicitInitialGrantRecorded: Boolean(audit.explicitInitialGrantRecorded),
+    explicitInitialGrantRows: audit.explicitInitialGrantRows || [],
+    preferredHistoryOrder: audit.ruleAnalysis?.preferredHistoryOrder || "not-comparable",
+    orderScores: audit.ruleAnalysis?.orderScores || null,
+    lpRuleAnalysis: audit.ruleAnalysis?.lp || null,
+    shardsRuleAnalysis: audit.ruleAnalysis?.shards || null,
+    lpPreferredAnchorAnalysis: openingAnalysisFor(audit, "lp"),
+    shardsPreferredAnchorAnalysis: openingAnalysisFor(audit, "shards"),
     reviewRows: row.reviewRows,
-    reasonCount: row.reasonCount
+    reasonCount: row.reasonCount,
+    parserReasons: audit.totals?.parserReasons ?? null,
+    currencyDiscrepancies: audit.totals?.currencyDiscrepancies ?? null
   };
 });
+const count = (rows, predicate) => rows.filter(predicate).length;
 const ruleBasedOpeningSummary = {
   ruleInitialLp: RULE_INITIAL_RESOURCES.lp,
   ruleInitialShards: RULE_INITIAL_RESOURCES.shards,
   eligibleDocuments: ruleBasedOpeningAudits.length,
-  lpCompatibleAfterSetupSpend: ruleBasedOpeningAudits.filter((row) => row.lpCompatible).length,
-  shardsCompatibleAfterSetupSpend: ruleBasedOpeningAudits.filter((row) => row.shardsCompatible).length,
-  bothCompatibleAfterSetupSpend: ruleBasedOpeningAudits.filter((row) => row.bothCompatible).length,
-  lpBelowZero: ruleBasedOpeningAudits.filter((row) => row.lpNegative).length,
-  shardsBelowZero: ruleBasedOpeningAudits.filter((row) => row.shardsNegative).length,
-  lpAboveInitialCeiling: ruleBasedOpeningAudits.filter((row) => row.lpAboveCeiling).length,
-  shardsAboveInitialCeiling: ruleBasedOpeningAudits.filter((row) => row.shardsAboveCeiling).length
+  lpCompatibleAfterSetupSpend: count(ruleBasedOpeningAudits, (row) => row.lpCompatible),
+  shardsCompatibleAfterSetupSpend: count(ruleBasedOpeningAudits, (row) => row.shardsCompatible),
+  bothCompatibleAfterSetupSpend: count(ruleBasedOpeningAudits, (row) => row.bothCompatible),
+  lpBelowZero: count(ruleBasedOpeningAudits, (row) => row.lpNegative),
+  shardsBelowZero: count(ruleBasedOpeningAudits, (row) => row.shardsNegative),
+  lpAboveInitialCeiling: count(ruleBasedOpeningAudits, (row) => row.lpAboveCeiling),
+  shardsAboveInitialCeiling: count(ruleBasedOpeningAudits, (row) => row.shardsAboveCeiling),
+  lpWithAnchors: count(ruleBasedOpeningAudits, (row) => Math.max(row.lpRuleAnalysis?.openingAnchors?.historyArrayOrder?.anchorCount || 0, row.lpRuleAnalysis?.openingAnchors?.reverseHistoryArray?.anchorCount || 0) > 0),
+  shardsWithAnchors: count(ruleBasedOpeningAudits, (row) => Math.max(row.shardsRuleAnalysis?.openingAnchors?.historyArrayOrder?.anchorCount || 0, row.shardsRuleAnalysis?.openingAnchors?.reverseHistoryArray?.anchorCount || 0) > 0),
+  lpOpeningWithinRuleRange: count(ruleBasedOpeningAudits, (row) => Boolean(row.lpPreferredAnchorAnalysis?.stableAcrossAnchors && row.lpPreferredAnchorAnalysis?.withinRuleInitialRange)),
+  shardsOpeningWithinRuleRange: count(ruleBasedOpeningAudits, (row) => Boolean(row.shardsPreferredAnchorAnalysis?.stableAcrossAnchors && row.shardsPreferredAnchorAnalysis?.withinRuleInitialRange)),
+  lpOpeningStableAcrossAnchors: count(ruleBasedOpeningAudits, (row) => Boolean(row.lpPreferredAnchorAnalysis?.stableAcrossAnchors)),
+  shardsOpeningStableAcrossAnchors: count(ruleBasedOpeningAudits, (row) => Boolean(row.shardsPreferredAnchorAnalysis?.stableAcrossAnchors)),
+  lpLatestAnchorMatchesCurrent: count(ruleBasedOpeningAudits, (row) => row.lpPreferredAnchorAnalysis?.latestAnchor?.matchesSavedCurrent === true),
+  shardsLatestAnchorMatchesCurrent: count(ruleBasedOpeningAudits, (row) => row.shardsPreferredAnchorAnalysis?.latestAnchor?.matchesSavedCurrent === true),
+  historyOrderForwardPreferred: count(ruleBasedOpeningAudits, (row) => row.preferredHistoryOrder === "history-array-order"),
+  historyOrderReversePreferred: count(ruleBasedOpeningAudits, (row) => row.preferredHistoryOrder === "reverse-history-array"),
+  historyOrderAmbiguous: count(ruleBasedOpeningAudits, (row) => row.preferredHistoryOrder === "ambiguous"),
+  explicitInitialGrantRecorded: count(ruleBasedOpeningAudits, (row) => row.explicitInitialGrantRecorded)
 };
-
 const balanceBridgeSummary = {
   eligibleDocuments: balanceBridges.length,
   excludedNoMemoOrUnreadableBalance: successful.length - balanceBridges.length,
@@ -784,6 +756,18 @@ console.log(JSON.stringify({
     ruleBasedShardBelowZero: report.balance.ruleBasedOpening.summary.shardsBelowZero,
     ruleBasedLpAboveInitialCeiling: report.balance.ruleBasedOpening.summary.lpAboveInitialCeiling,
     ruleBasedShardAboveInitialCeiling: report.balance.ruleBasedOpening.summary.shardsAboveInitialCeiling,
+    ruleBasedLpWithAnchors: report.balance.ruleBasedOpening.summary.lpWithAnchors,
+    ruleBasedShardWithAnchors: report.balance.ruleBasedOpening.summary.shardsWithAnchors,
+    ruleBasedLpOpeningStableAcrossAnchors: report.balance.ruleBasedOpening.summary.lpOpeningStableAcrossAnchors,
+    ruleBasedShardOpeningStableAcrossAnchors: report.balance.ruleBasedOpening.summary.shardsOpeningStableAcrossAnchors,
+    ruleBasedLpLatestAnchorMatchesCurrent: report.balance.ruleBasedOpening.summary.lpLatestAnchorMatchesCurrent,
+    ruleBasedShardLatestAnchorMatchesCurrent: report.balance.ruleBasedOpening.summary.shardsLatestAnchorMatchesCurrent,
+    preferredHistoryOrder: {
+      forward: report.balance.ruleBasedOpening.summary.historyOrderForwardPreferred,
+      reverse: report.balance.ruleBasedOpening.summary.historyOrderReversePreferred,
+      ambiguous: report.balance.ruleBasedOpening.summary.historyOrderAmbiguous
+    },
+    explicitInitialGrantRecorded: report.balance.ruleBasedOpening.summary.explicitInitialGrantRecorded,
     negativeLpResidualDocuments: report.balance.summary.lpResidualNegative,
     negativeShardResidualDocuments: report.balance.summary.shardResidualNegative,
     snapshotDriftRows: report.source.snapshotDrift.length,
