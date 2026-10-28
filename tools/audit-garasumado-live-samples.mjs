@@ -840,7 +840,9 @@ function toMarkdownReport(report) {
     ["日時を抽出できた文書（全体 / 残高照合対象）", report.source.historyChronologySummary.documentsWithAnyParsableTime + " / " + report.source.historyChronologySummary.balanceEligibleWithParsableTime],
     ["配列順（昇順相当 / 降順相当 / 混在）", (report.source.historyChronologySummary.balanceEligibleOrderCounts["ascending-or-tied"] || 0) + " / " + (report.source.historyChronologySummary.balanceEligibleOrderCounts["descending-or-tied"] || 0) + " / " + (report.source.historyChronologySummary.balanceEligibleOrderCounts.mixed || 0)],
     ["要確認行のうち期待収支とパーサー検出値に数値差がある候補", report.parser.flowDifferenceSummary.rowsWithNumericDifference],
-    ["数値差がある候補：mismatch / 理由確認済み", (report.parser.flowDifferenceSummary.byStatus.mismatch || 0) + " / " + (report.parser.flowDifferenceSummary.byStatus["reviewed-by-parser-reason"] || 0)]
+    ["数値差がある候補：mismatch / 理由確認済み", (report.parser.flowDifferenceSummary.byStatus.mismatch || 0) + " / " + (report.parser.flowDifferenceSummary.byStatus["reviewed-by-parser-reason"] || 0)],
+    ["方向未確定のため数値比較から分けた候補行", report.parser.flowDifferenceSummary.unknownDirectionRows],
+    ["方向未確定のLP / 欠片金額", report.parser.flowDifferenceSummary.unknownDirectionAmounts.lp + " / " + report.parser.flowDifferenceSummary.unknownDirectionAmounts.shards]
   ];
   const lines = [
     "# 硝子窓共有サンプル・ライブ再監査",
@@ -913,6 +915,14 @@ function toMarkdownReport(report) {
     "| URL ID | 履歴番号 | 行 | status | expected - detected | 期待値 | 検出値 | 理由数 | source finding |",
     "|---|---:|---:|---|---|---|---|---:|---|",
     ...report.parser.flowDifferenceDetails.map((row) => "| " + row.id + " | " + (row.historyRow ?? "—") + " | " + (row.lineIndex ?? "—") + " | " + row.status + " | " + JSON.stringify(row.difference) + " | " + JSON.stringify(row.expectedFlows) + " | " + JSON.stringify(row.detectedFlows) + " | " + row.parserReasonCount + " | " + Number(row.sourceFinding) + " |"),
+    "",
+    "## 収支方向が未確定の通貨変換（数値差異とは分離）",
+    "",
+    "変換・換算行に金額があっても、増減符号が明記されていない場合は収入／支出のどちらかへ推定計上しません。以下は方向未確定の金額候補であり、既知方向の数値不一致とは別に集計しています。",
+    "",
+    "| URL ID | 履歴番号 | 行 | status | 未確定LP | 未確定欠片 | parser reason |",
+    "|---|---:|---:|---|---:|---:|---:|",
+    ...report.parser.flowUnknownDirectionDetails.map((row) => "| " + row.id + " | " + (row.historyRow ?? "—") + " | " + (row.lineIndex ?? "—") + " | " + row.status + " | " + row.unknownDirectionExpected.lp + " | " + row.unknownDirectionExpected.shards + " | " + row.parserReasonCount + " |"),
     "",
     "## 履歴配列と日時メタデータ（残高スナップショットの時刻ではない）",
     "",
@@ -1063,19 +1073,27 @@ const balanceBridges = successful
     };
   });
 
-const FLOW_FIELDS = ["lpIncome", "lpSpend", "lpUnknown", "shardsIncome", "shardsSpend", "shardsUnknown"];
+const FLOW_FIELDS = ["lpIncome", "lpSpend", "shardsIncome", "shardsSpend"];
+const FLOW_UNKNOWN_FIELDS = ["lpUnknown", "shardsUnknown"];
 const flowValue = (record, field) => {
   const value = Number(record && record[field]);
   return Number.isFinite(value) ? value : 0;
 };
 /* The expected side is a heuristic text-shape estimate, not a ground-truth ledger. These
-   differences rank rows for manual review; they never authorize an automatic balance fix. */
+   differences rank rows for manual review; they never authorize an automatic balance fix.
+   An unknown conversion direction is kept separate instead of guessed from the income section. */
 const flowDifferenceDetails = balanceBridges.flatMap((row) => (row.reviewDetails || [])
   .map((detail) => {
     const expected = detail.expectedFlows || {};
     const detected = detail.detectedFlows || {};
+    const unknownCurrency = {
+      lp: flowValue(expected, "lpUnknown") > 0,
+      shards: flowValue(expected, "shardsUnknown") > 0
+    };
     const difference = {};
     for (const field of FLOW_FIELDS) {
+      const currency = field.startsWith("lp") ? "lp" : "shards";
+      if (unknownCurrency[currency]) continue;
       const delta = flowValue(expected, field) - flowValue(detected, field);
       if (delta !== 0) difference[field] = delta;
     }
@@ -1092,6 +1110,23 @@ const flowDifferenceDetails = balanceBridges.flatMap((row) => (row.reviewDetails
     };
   })
   .filter((detail) => Object.keys(detail.difference).length > 0));
+const flowUnknownDirectionDetails = balanceBridges.flatMap((row) => (row.reviewDetails || [])
+  .map((detail) => {
+    const expected = detail.expectedFlows || {};
+    const unknown = {
+      lp: flowValue(expected, "lpUnknown"),
+      shards: flowValue(expected, "shardsUnknown")
+    };
+    return {
+      id: row.id,
+      historyRow: detail.historyRow,
+      lineIndex: detail.lineIndex,
+      status: detail.status,
+      parserReasonCount: detail.parserReasonCount,
+      unknownDirectionExpected: unknown
+    };
+  })
+  .filter((detail) => detail.unknownDirectionExpected.lp > 0 || detail.unknownDirectionExpected.shards > 0));
 const flowDifferenceSummary = {
   reviewRows: balanceBridges.reduce((sum, row) => sum + (row.reviewDetails || []).length, 0),
   rowsWithNumericDifference: flowDifferenceDetails.length,
@@ -1099,6 +1134,15 @@ const flowDifferenceSummary = {
     counts[row.status] = (counts[row.status] || 0) + 1;
     return counts;
   }, {}),
+  unknownDirectionRows: flowUnknownDirectionDetails.length,
+  unknownDirectionRowsByStatus: flowUnknownDirectionDetails.reduce((counts, row) => {
+    counts[row.status] = (counts[row.status] || 0) + 1;
+    return counts;
+  }, {}),
+  unknownDirectionAmounts: {
+    lp: flowUnknownDirectionDetails.reduce((sum, row) => sum + row.unknownDirectionExpected.lp, 0),
+    shards: flowUnknownDirectionDetails.reduce((sum, row) => sum + row.unknownDirectionExpected.shards, 0)
+  },
   byField: FLOW_FIELDS.reduce((out, field) => {
     const rows = flowDifferenceDetails.filter((row) => Object.hasOwn(row.difference, field));
     out[field] = {
@@ -1452,6 +1496,7 @@ const report = {
     reasonCategories: parserReasonCategories,
     flowDifferenceSummary,
     flowDifferenceDetails,
+    flowUnknownDirectionDetails,
     issues: issueRows
   },
   balance: {
@@ -1531,7 +1576,10 @@ console.log(JSON.stringify({
     historyArrayOrderCounts: report.source.historyChronologySummary.orderCounts,
     balanceEligibleHistoryArrayOrderCounts: report.source.historyChronologySummary.balanceEligibleOrderCounts,
     flowDifferenceRows: report.parser.flowDifferenceSummary.rowsWithNumericDifference,
-    flowDifferenceRowsByStatus: report.parser.flowDifferenceSummary.byStatus
+    flowDifferenceRowsByStatus: report.parser.flowDifferenceSummary.byStatus,
+    flowUnknownDirectionRows: report.parser.flowDifferenceSummary.unknownDirectionRows,
+    flowUnknownDirectionRowsByStatus: report.parser.flowDifferenceSummary.unknownDirectionRowsByStatus,
+    flowUnknownDirectionAmounts: report.parser.flowDifferenceSummary.unknownDirectionAmounts
   },
   snapshotDrift: report.source.snapshotDrift,
   historyInputFingerprintDrift: report.source.historyInputFingerprintDrift,
@@ -1550,6 +1598,7 @@ console.log(JSON.stringify({
   parserReasonCategories: report.parser.reasonCategories,
   flowDifferenceSummary: report.parser.flowDifferenceSummary,
   flowDifferenceDetails: report.parser.flowDifferenceDetails,
+  flowUnknownDirectionDetails: report.parser.flowUnknownDirectionDetails,
   historyChronologySummary: report.source.historyChronologySummary,
   historyChronologyDocuments: report.source.historyChronologyDocuments,
   freeNotesSourceSummary: report.balance.freeNotesSource.summary,

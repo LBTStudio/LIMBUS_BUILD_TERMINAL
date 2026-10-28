@@ -3070,3 +3070,35 @@ test("共有実サンプルのE.G.O指定購入は、複数行リザルトの文
   assert.equal(shard50.spends.reduce((sum, row) => sum + (Number(row.shards) || 0), 0), 50,
     "「欠片50を消費してEGO指定購入」も実データ形式で50支出");
 });
+
+
+test("明示パック回数の倍率を期待収支監査も反映し、LP200×2をLP400として比較する", () => {
+  const parsed = MEMO.parseMemo("LP200消費してテーマパック「眺めることしかできない」×2抽出→被りにより欠片50獲得");
+  const coverage = parsed.financialCoverage.find((row) => row.lineIndex === 1);
+  assert.equal(parsed.spends.reduce((sum, row) => sum + (Number(row.lp) || 0), 0), 400,
+    "実パーサーは明示回数を掛けた400LPを記帳する");
+  assert.equal(parsed.income.shards, 50, "重複補償の欠片50を別収入として保持する");
+  assert.equal(coverage?.expectedFlows?.lpSpend, 400,
+    "独立検算も基数200ではなく倍率適用後の400LPを期待する");
+  assert.equal(coverage?.detectedFlows?.lpSpend, 400,
+    "検出値と期待値が一致する");
+  assert.ok(!parsed.sourceAudits.some((row) =>
+    row.side === "parser" && /possible-result-(?:amount-and-direction-)?mismatch/.test(row.code || "") && row.lineIndex === 1
+  ), "明示回数の倍率を誤差として警告しない");
+});
+
+test("符号のない通貨変換額は収入と断定せず、方向未確定として監査に残す", () => {
+  const parsed = MEMO.parseMemo("LP100と欠片20をチケットに変換");
+  const coverage = parsed.financialCoverage.find((row) => row.lineIndex === 1);
+  assert.ok(coverage, "変換行をfinancial coverageへ残す");
+  assert.equal(parsed.income.lp, 0, "LPを収入へ推測計上しない");
+  assert.equal(parsed.income.shards, 0, "欠片を収入へ推測計上しない");
+  assert.equal(coverage.expectedFlows.lpIncome, 0);
+  assert.equal(coverage.expectedFlows.lpSpend, 0);
+  assert.equal(coverage.expectedFlows.lpUnknown, 100, "LP100の方向は未確定");
+  assert.equal(coverage.expectedFlows.shardsIncome, 0);
+  assert.equal(coverage.expectedFlows.shardsSpend, 0);
+  assert.equal(coverage.expectedFlows.shardsUnknown, 20, "欠片20の方向も未確定");
+  assert.ok(parsed.reasons.some((row) => /通貨変換/.test(row.reason)),
+    "方向未確定の理由を保持する");
+});
