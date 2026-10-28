@@ -32,10 +32,21 @@ test("プレビューの開閉は出力データを再生成せず、格納中�
   assert.match(livePreviewSource, /const previewDataChanged = Object\.keys\(state\)\.some/);
   assert.match(livePreviewSource, /LBT_gen\.buildMemo\(previewData\)/);
   assert.match(appSource, /previewOpen: !previewOpen/);
-  assert.match(appSource, /className: "preview-reopen"/);
+  assert.doesNotMatch(appSource, /className: "preview-reopen"/);
+  assert.match(appSource, /className: "preview-mobile-toggle"/);
+  assert.match(livePreviewSource, /id = "lbt-preview-edge-toggle"/);
+  const auditCss = readFileSync(new URL("../assets/v69-mobile-ui-audit.css", import.meta.url), "utf8");
+  assert.match(auditCss, /\.preview-reopen,[\s\S]*?\.preview-close\s*\{\s*display: none !important;/);
   assert.match(workspaceCss, /width: 40px;/);
   assert.match(workspaceCss, /height: 118px;/);
-  assert.match(workspaceCss, /\.app\.preview-collapsed \.preview-reopen \{ display: flex; \}/);
+  assert.match(workspaceCss, /\.preview-edge-toggle \{/);
+});
+
+test("プレビュー未設定時はアプリ本体・プレビュー面・右端操作がすべて閉じ状態になる", () => {
+  assert.match(appSource, /const previewOpen = state\.ui\.previewOpen === true;/);
+  assert.match(livePreviewSource, /const previewOpen = state\.ui\.previewOpen === true;/);
+  assert.match(livePreviewSource, /className: `preview\$\{previewOpen \? " is-open" : ""\}`/);
+  assert.match(livePreviewSource, /edgeToggle\.textContent = previewOpen \? "◀ 格納" : "▶ 展開"/);
 });
 
 test("プレビューの右端タブは展開・格納のどちらでも同一操作で切り替える", () => {
