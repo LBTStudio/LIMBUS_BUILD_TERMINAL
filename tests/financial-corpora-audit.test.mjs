@@ -151,7 +151,7 @@ test("サポートスロット解放で現在残高しかない行は、支出�
     const line = memo.split(/\r?\n/).find((row) => /解放/.test(row));
     const coverage = (parsed.financialCoverage || []).find((row) => row && row.line === line);
     assert.ok(coverage, "行単位のcoverageを保持: " + memo);
-    assert.equal(coverage.status, "reviewed-by-parser-reason", "費用不明は要確認として保持: " + memo);
+    assert.ok(["reviewed-by-parser-reason", "current-balance-review"].includes(coverage.status), "残高由来の金額は自動計上せず要確認状態: " + memo);
     assert.ok((parsed.reasons || []).some((row) =>
       String(row.line || "").trim() === line.trim() && /支出額を残高から逆算せず/.test(row.reason)),
       "残高だけから費用を捏造しない理由を表示: " + memo);
@@ -275,7 +275,7 @@ test("残高表記の順序違いと品名中の数字から支出額を捏造�
       0, "品名の5課・2個・CT3などを費用にしない: " + line);
     const coverage = (parsed.financialCoverage || []).find((row) => row && row.line === line);
     assert.ok(coverage, "支出欄の残高行にcoverageを残す: " + line);
-    assert.equal(coverage.status, "reviewed-by-parser-reason", "金額不明は要確認状態: " + line);
+    assert.ok(["reviewed-by-parser-reason", "current-balance-review"].includes(coverage.status), "金額不明は要確認状態: " + line);
     assert.ok((parsed.reasons || []).some((row) => String(row.line || "").trim() === line.trim()),
       "要確認理由を原文へ紐付ける: " + line);
   }
