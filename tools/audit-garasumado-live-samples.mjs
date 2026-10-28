@@ -242,6 +242,7 @@ function auditMemo(id, historyIndex, memo) {
   let nonTransactionalTicketLabels = 0;
   let nonTransactionalDrawLabels = 0;
   let unclassifiedLegacyCues = 0;
+  const unclassifiedLegacyCueExamples = [];
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     // Effect descriptions beginning with ▶/►/▷ are intentionally excluded by
@@ -252,7 +253,15 @@ function auditMemo(id, historyIndex, memo) {
     if (!isFinancialCandidateLine(line)) {
       if (legacyCandidate && isNonTransactionalTicketLabel(line)) nonTransactionalTicketLabels++;
       else if (legacyCandidate && isNonTransactionalDrawLabel(line)) nonTransactionalDrawLabels++;
-      else if (legacyCandidate) unclassifiedLegacyCues++;
+      else if (legacyCandidate) {
+        unclassifiedLegacyCues++;
+        if (unclassifiedLegacyCueExamples.length < 10) {
+          unclassifiedLegacyCueExamples.push({
+            id, historyIndex, lineIndex: i + 1,
+            details: describeCandidateLine(line, null)
+          });
+        }
+      }
       continue;
     }
     candidates++;
@@ -293,7 +302,7 @@ function auditMemo(id, historyIndex, memo) {
     if (!recognized) issues.push({ id, historyIndex, lineIndex: null, code: "silent-unparsed-history" });
   }
 
-  return { candidates, covered, legacyCandidates, legacyTransactionCandidates, nonTransactionalTicketLabels, nonTransactionalDrawLabels, unclassifiedLegacyCues, issues, coverageStatuses: coverages.reduce((counts, entry) => {
+  return { candidates, covered, legacyCandidates, legacyTransactionCandidates, nonTransactionalTicketLabels, nonTransactionalDrawLabels, unclassifiedLegacyCues, unclassifiedLegacyCueExamples, issues, coverageStatuses: coverages.reduce((counts, entry) => {
     const status = String(entry?.status || "missing-status");
     counts[status] = (counts[status] || 0) + 1;
     return counts;
@@ -350,6 +359,13 @@ function toMarkdownReport(report) {
     report.parser.issues.length
       ? "| ID | 履歴番号 | 行番号 | コード | 状態 |\n|---|---:|---:|---|---|\n" + report.parser.issues.slice(0, 100).map((r) => `| ${r.id} | ${r.historyIndex + 1} | ${r.lineIndex ?? "—"} | ${r.code} | ${r.status || "—"} |`).join("\n")
       : "未解決のcoverage問題は検出されませんでした。",
+    "",
+    "## 旧候補の未分類構造診断（原文・金額は非表示）",
+    "",
+    report.parser.unclassifiedLegacyCueExamples.length
+      ? "| ID | 履歴番号 | 行番号 | 文字数 | 金額候補数 | 数字幅 | 検出cue |\n|---|---:|---:|---:|---:|---|---|\n" +
+        report.parser.unclassifiedLegacyCueExamples.map((r) => `| ${r.id} | ${r.historyIndex + 1} | ${r.lineIndex} | ${r.details.lineLength} | ${r.details.amountTokenCount} | ${r.details.numericTokenWidths.join(",")} | ${r.details.actionKinds.join(",")} |`).join("\\n")
+      : "未分類の旧候補はありません。",
     "",
     "`status` が既知の要確認理由にひも付くケースは、原文から断定できない取引として数値を推測せずに残します。"
   ];
@@ -413,6 +429,7 @@ const report = {
     nonTransactionalTicketLabelRows: allParsedRows.reduce((sum, row) => sum + row.nonTransactionalTicketLabels, 0),
     nonTransactionalDrawLabelRows: allParsedRows.reduce((sum, row) => sum + row.nonTransactionalDrawLabels, 0),
     unclassifiedLegacyCueRows: allParsedRows.reduce((sum, row) => sum + row.unclassifiedLegacyCues, 0),
+    unclassifiedLegacyCueExamples: allParsedRows.flatMap((row) => row.unclassifiedLegacyCueExamples || []).slice(0, 20),
     currentBalanceReviewRows: coverageStatuses["current-balance-review"] || 0,
     currencyDiscrepancies: allParsedRows.reduce((sum, row) => sum + row.currencyDiscrepancies, 0),
     coverageStatuses,
@@ -447,7 +464,8 @@ console.log(JSON.stringify({
     counts[issue.code] = (counts[issue.code] || 0) + 1;
     return counts;
   }, {}),
-  issues: report.parser.issues.slice(0, 100)
+  issues: report.parser.issues.slice(0, 100),
+  unclassifiedLegacyCueExamples: report.parser.unclassifiedLegacyCueExamples
 }, null, 2));
 
 if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, markdown);
