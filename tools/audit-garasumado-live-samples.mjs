@@ -360,7 +360,9 @@ function toMarkdownReport(report) {
     ["現在残高セクションの人手確認候補", report.parser.currentBalanceReviewRows],
     ["監査coverage欠落・未解決等", report.parser.issues.length],
     ["通貨不一致／残高関連警告", report.parser.currencyDiscrepancies],
-    ["旧ベースラインとの履歴件数差", report.source.snapshotDrift.length]
+    ["旧ベースラインとの履歴件数差", report.source.snapshotDrift.length],
+    ["履歴入力指紋未登録", report.source.historyInputFingerprintMissingRows],
+    ["履歴入力指紋の内容差", report.source.historyInputFingerprintDrift.length]
   ];
   const lines = [
     "# 硝子窓共有サンプル・ライブ再監査",
@@ -381,6 +383,12 @@ function toMarkdownReport(report) {
     "",
     report.source.snapshotDrift.length
       ? "| ID | 旧履歴数 | 現行履歴数 | 旧メモ数 | 現行メモ数 |\n|---|---:|---:|---:|---:|\n" + report.source.snapshotDrift.map((r) => `| ${r.id} | ${r.expectedHistoryRows} | ${r.actualHistoryRows} | ${r.expectedMemoRows} | ${r.actualMemoRows} |`).join("\n")
+      : "差分なし。",
+    "",
+    "## 履歴入力指紋の内容差（原文は非表示）",
+    "",
+    report.source.historyInputFingerprintDrift.length
+      ? "| ID | 旧SHA-256 | 現行SHA-256 |\n|---|---|---|\n" + report.source.historyInputFingerprintDrift.map((r) => `| ${r.id} | ${r.expectedSha256} | ${r.actualSha256} |`).join("\\n")
       : "差分なし。",
     "",
     "## 監査上の問題（原文は非表示）",
@@ -435,6 +443,18 @@ const snapshotDrift = successful.filter((entry) => entry.baseline.previousFetchS
   expectedMemoRows: entry.baseline.memoRows,
   actualMemoRows: entry.actualMemoRows
 }));
+const historyInputFingerprintMissing = knownSuccessful.filter((entry) =>
+  !/^[0-9a-f]{64}$/.test(String(entry.historyInputSha256 || ""))
+);
+const historyInputFingerprintDrift = successful.filter((entry) =>
+  entry.baseline.previousFetchStatus === "OK" &&
+  /^[0-9a-f]{64}$/.test(String(entry.baseline.historyInputSha256 || "")) &&
+  entry.historyInputSha256 !== entry.baseline.historyInputSha256
+).map((entry) => ({
+  id: entry.baseline.id,
+  expectedSha256: entry.baseline.historyInputSha256,
+  actualSha256: entry.historyInputSha256
+}));
 const allParsedRows = successful.flatMap((entry) => entry.parsedRows || []);
 const issueRows = allParsedRows.flatMap((entry) => entry.issues);
 const coverageStatuses = {};
@@ -449,10 +469,13 @@ const report = {
   source: {
     historyRows: successful.reduce((sum, entry) => sum + entry.actualHistoryRows, 0),
     memoRows: successful.reduce((sum, entry) => sum + entry.actualMemoRows, 0),
-    /* Bootstrap inventory: emit IDs plus opaque digests only; never memo/name text. */
-    historyInputFingerprints: successful
-      .filter((entry) => entry.baseline.previousFetchStatus === "OK")
-      .map((entry) => ({ id: entry.baseline.id, sha256: entry.historyInputSha256 })),
+    /* Emit all live IDs and hashes only while bootstrapping missing baselines. */
+    historyInputFingerprintMissingRows: historyInputFingerprintMissing.length,
+    historyInputFingerprintDrift,
+    historyInputFingerprints: historyInputFingerprintMissing.length
+      ? successful.filter((entry) => entry.baseline.previousFetchStatus === "OK")
+          .map((entry) => ({ id: entry.baseline.id, sha256: entry.historyInputSha256 }))
+      : [],
     snapshotDrift
   },
   parser: {
@@ -491,9 +514,12 @@ console.log(JSON.stringify({
     currentBalanceReviewRows: report.parser.currentBalanceReviewRows,
     issueCount: report.parser.issues.length,
     currencyDiscrepancies: report.parser.currencyDiscrepancies,
-    snapshotDriftRows: report.source.snapshotDrift.length
+    snapshotDriftRows: report.source.snapshotDrift.length,
+    historyInputFingerprintMissingRows: report.source.historyInputFingerprintMissingRows,
+    historyInputFingerprintDriftRows: report.source.historyInputFingerprintDrift.length
   },
   snapshotDrift: report.source.snapshotDrift,
+  historyInputFingerprintDrift: report.source.historyInputFingerprintDrift,
   historyInputFingerprints: report.source.historyInputFingerprints,
   issueCodes: report.parser.issues.reduce((counts, issue) => {
     counts[issue.code] = (counts[issue.code] || 0) + 1;
@@ -504,6 +530,9 @@ console.log(JSON.stringify({
 }, null, 2));
 
 if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, markdown);
-if (successful.length < knownSuccessful.length || accessRegressions.length > 0 || report.parser.issues.length > 0 || report.parser.unclassifiedLegacyCueRows > 0) {
+if (successful.length < knownSuccessful.length || accessRegressions.length > 0 ||
+    report.parser.issues.length > 0 || report.parser.unclassifiedLegacyCueRows > 0 ||
+    report.source.historyInputFingerprintMissingRows > 0 ||
+    report.source.historyInputFingerprintDrift.length > 0) {
   process.exitCode = 1;
 }

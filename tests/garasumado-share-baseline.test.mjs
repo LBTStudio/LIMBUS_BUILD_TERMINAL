@@ -92,3 +92,17 @@ test("50件の固定fixtureは履歴の行数だけでなく名前・メモ内�
     );
   }
 });
+
+test("95件のライブ履歴入力はメタデータSHA-256で版を固定し、取得不可3件とは区別する", () => {
+  const rows = baseline.documents;
+  const available = rows.filter((row) => row.previousFetchStatus === "OK");
+  const unavailable = rows.filter((row) => row.previousFetchStatus === "403");
+  assert.equal(baseline.historyInputFingerprintSchema, "scenarioHistory-name-memo-v1");
+  assert.equal(baseline.historyInputFingerprintDate, "2026-10-28");
+  assert.equal(available.length, 95);
+  assert.equal(unavailable.length, 3);
+  assert.ok(available.every((row) => /^[0-9a-f]{64}$/.test(row.historyInputSha256)),
+    "取得成功95文書すべてに履歴入力指紋を保存する");
+  assert.ok(unavailable.every((row) => row.historyInputSha256 === null),
+    "未取得3文書を空履歴のハッシュと混同しない");
+});

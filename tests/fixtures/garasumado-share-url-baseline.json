@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 1,
-  "description": "Metadata-only baseline from the 2026-10-27 live Firestore audit. The script fetches current documents at test time and never commits their raw contents.",
+  "schemaVersion": 2,
+  "description": "Metadata-only baseline from the 2026-10-27 live Firestore audit. SHA-256 fingerprints of live scenarioHistory name/memo parser inputs were captured on 2026-10-28; no raw shared-document contents are committed.",
   "baselineDate": "2026-10-27",
   "sourceReport": "garasumado-share-audit-2026-10-27.md",
   "historicalSummary": {
@@ -306,7 +306,8 @@
         "shards": 55
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "ff826ecd96f8211007680b5128d54461eb2dc07aaea0c2e343264d3ae3593da8"
     },
     {
       "id": "Eo19HoEJpsICZwLc7MN4",
@@ -323,7 +324,8 @@
         "shards": 10
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "JKvpdFc9XX1zyFlSNGhS",
@@ -340,7 +342,8 @@
         "shards": 40
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "VghtW6xXdiUVcwj9tJWA",
@@ -357,7 +360,8 @@
         "shards": 10
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "3WrnruHep4uHAsjEC45K",
@@ -374,7 +378,8 @@
         "shards": 100
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "fae91538691960c66101edbc58fb9ae1f35a16113332d91b93dee3cc8a6f9282"
     },
     {
       "id": "Vm1wGHXzOR1EUg7K6MTo",
@@ -391,7 +396,8 @@
         "shards": 80
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4ee660367c87f885ec601011dc0b490052fab3bedfbc711dd1ba6aa49f941b86"
     },
     {
       "id": "0ZTzjsRRGzrefPfYW6XH",
@@ -408,7 +414,8 @@
         "shards": 90
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "abf352d86aa5982f5aa54d85506560855075288ad790cd3b620c977622a65d39"
     },
     {
       "id": "SgJBeS4Eh9Dg33oh1PO9",
@@ -425,7 +432,8 @@
         "shards": 10
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "QLEsIJ6kpsla5anP1BNf",
@@ -442,7 +450,8 @@
         "shards": 37
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "96aa0b32b222fb0ee79384aebd3b223a2c2dcb8409e3a28c3a4c4a3ddcc9dfdb"
     },
     {
       "id": "3NeApkrHegd1aPcksZ9o",
@@ -459,7 +468,8 @@
         "shards": 230
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "b3a671bb8249e0facad314677f7b49fbabb6f599c5c49447726783e7cd595028"
     },
     {
       "id": "Gt1worbqMMl5rntFiMOt",
@@ -478,7 +488,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 0,
       "fixtureMemoRows": 0,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "YTTFJyLsOyk8OBoPCP3R",
@@ -497,7 +508,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 0,
       "fixtureMemoRows": 0,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "3JIdhCPatk2URoQZ2btx",
@@ -516,7 +528,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 5,
       "fixtureMemoRows": 5,
-      "fixtureSnapshotDrift": true
+      "fixtureSnapshotDrift": true,
+      "historyInputSha256": "da9ae4772c1653c417f416865a89e4956a7bd393b26ffba49c374c8b968ec84e"
     },
     {
       "id": "Qqu7wAwYUQ708c3ZeV80",
@@ -535,7 +548,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 0,
       "fixtureMemoRows": 0,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "K63ITKrY1mOv0LvnwPL7",
@@ -554,7 +568,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 0,
       "fixtureMemoRows": 0,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "tgH3jvde0uADt4uN20hG",
@@ -573,7 +588,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 0,
       "fixtureMemoRows": 0,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "sYGCnxe0huoNs7cTB7o2",
@@ -592,7 +608,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 0,
       "fixtureMemoRows": 0,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "BDIebwAJetQ0voXwg4VW",
@@ -603,7 +620,8 @@
       "parsedNet": null,
       "declaredBalance": null,
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": null
     },
     {
       "id": "0YChzrC5bLzlQlTrpgWd",
@@ -622,7 +640,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 11,
       "fixtureMemoRows": 11,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "76ff12de7af64053f9657a067aad335b253b0110fc4310f7e4a684877c141270"
     },
     {
       "id": "5Jk7ua60nxSzAgPI0Cku",
@@ -641,7 +660,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 0,
       "fixtureMemoRows": 0,
-      "fixtureSnapshotDrift": true
+      "fixtureSnapshotDrift": true,
+      "historyInputSha256": "a684ad64b289f489757f90d8e320fccd006450e8809d2db771f9c49d04715d56"
     },
     {
       "id": "WCJipGMyHoD0BBHWQ6Ai",
@@ -660,7 +680,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 21,
       "fixtureMemoRows": 1,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "e884101a57431832a4602cafaf478aaaeb95ea49de7edffd5226861c03ed14d6"
     },
     {
       "id": "2OpH8W37Dz9yZKBJwWZ0",
@@ -679,7 +700,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 0,
       "fixtureMemoRows": 0,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "ZCoCHtzL5Z5dlF4mviHO",
@@ -698,7 +720,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 27,
       "fixtureMemoRows": 27,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "3696b6ab327d1dbbdee3774611d73ff6568b578822f104f095931f4dde07310a"
     },
     {
       "id": "lVB4Upekw3cqmxV91MbJ",
@@ -717,7 +740,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 0,
       "fixtureMemoRows": 0,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "l0BTIu7Fo6nTvsjXI7ce",
@@ -736,7 +760,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 0,
       "fixtureMemoRows": 0,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "yCvLAwYKJzGGVBJm0mV3",
@@ -755,7 +780,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 2,
       "fixtureMemoRows": 2,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "dbeccce71a2b63c51b422f21f0838b00f8034ce4c5e621f498fa588c0de52546"
     },
     {
       "id": "NLNxSeQBDv7838Wpp8HV",
@@ -774,7 +800,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 0,
       "fixtureMemoRows": 0,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "7Tuvb2uFodd2m9NS5DsZ",
@@ -793,7 +820,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 1,
       "fixtureMemoRows": 1,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "c755baa6b3c062d26e397f00f2465887a5fc1399436997f7cc93ed460f02e631"
     },
     {
       "id": "j9mMpTHv3urenH3SlXyg",
@@ -812,7 +840,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 0,
       "fixtureMemoRows": 0,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "hUVIkdP3KkmsT0rohd2I",
@@ -831,7 +860,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 1,
       "fixtureMemoRows": 1,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "8e93420314bfed0233c734827ed5c9096b058f070ee19ddeac7183207c6e9ad5"
     },
     {
       "id": "BiWGPzoTbVlS1l7Fjv11",
@@ -850,7 +880,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 7,
       "fixtureMemoRows": 7,
-      "fixtureSnapshotDrift": true
+      "fixtureSnapshotDrift": true,
+      "historyInputSha256": "b0a80aeaf1b239fd11b659d606f7e862a565532b9b32be7593f9515e44026e08"
     },
     {
       "id": "MZYCULddZmTt4dFPxTY5",
@@ -869,7 +900,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 4,
       "fixtureMemoRows": 4,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "716ca79b70d1e2388f44aacaa49014209ce5518446db78bc3e4d7d3da4aec5dc"
     },
     {
       "id": "CoNmGysMDUdTP6d4DRti",
@@ -888,7 +920,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 6,
       "fixtureMemoRows": 6,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "3d23a309839e0866ec92a49dbaa00d66b071390b79ca3168192dc926bffa8898"
     },
     {
       "id": "dH6KJ6w47pf6m4PyDO6a",
@@ -907,7 +940,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 9,
       "fixtureMemoRows": 9,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "c5020a54f0186813e9dbab648efedaf9c128945d24a4c2d89db040c218c8b20a"
     },
     {
       "id": "A8DyKMSCbfuzw50EFcXd",
@@ -924,7 +958,8 @@
         "shards": 755
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "CBEZgzRztoUfSYj7XRMv",
@@ -941,7 +976,8 @@
         "shards": 0
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "2eq3S2TIWJGcxdHqiqOv",
@@ -960,7 +996,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 0,
       "fixtureMemoRows": 0,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "T1C4zZCrvwRfQBllBBO6",
@@ -979,7 +1016,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 36,
       "fixtureMemoRows": 36,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "075a6ba25a4cea2bffb4222e6a52197ca84e16de468553924b864f08e2e6db34"
     },
     {
       "id": "hLXvnYX7gCME0YnmShVM",
@@ -998,7 +1036,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 17,
       "fixtureMemoRows": 17,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "69a49342ee670470c57b5fbc7aee03409fa6ef850b05a965eb8082f5d89058d4"
     },
     {
       "id": "WZDvzq8VWzkNdA3T2D81",
@@ -1017,7 +1056,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 25,
       "fixtureMemoRows": 25,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "c417971b6e7066bd81764ca6e5709bd3b5d104851ce75f20b18dff6f24ba2cb1"
     },
     {
       "id": "W4z5OJMTZVHkGopWBVMu",
@@ -1036,7 +1076,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 0,
       "fixtureMemoRows": 0,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "oF2Sgd24p3Puz65eF8t0",
@@ -1047,7 +1088,8 @@
       "parsedNet": null,
       "declaredBalance": null,
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": null
     },
     {
       "id": "Zyq6Upx3oN5bTsAodlsK",
@@ -1064,7 +1106,8 @@
         "shards": 0
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "Y074n3mIbLSW7QecJCCU",
@@ -1083,7 +1126,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 1,
       "fixtureMemoRows": 1,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "5d372fd3da4e0a96d84e5a9f085784c688f80b1e8ca41ded63e642fb8920a6b0"
     },
     {
       "id": "QW0yeyooSsj68EWBEALs",
@@ -1102,7 +1146,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 0,
       "fixtureMemoRows": 0,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "y2yV6dZsWQut2Eg8z83s",
@@ -1121,7 +1166,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 0,
       "fixtureMemoRows": 0,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "2gbYWOr0UuRDqN5eoEGi",
@@ -1140,7 +1186,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 0,
       "fixtureMemoRows": 0,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "46dxXF5Rf12NOL0Ghs0u",
@@ -1159,7 +1206,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 11,
       "fixtureMemoRows": 11,
-      "fixtureSnapshotDrift": true
+      "fixtureSnapshotDrift": true,
+      "historyInputSha256": "72be5a0b4d36d6b1b8e229ed31892f5e89c1270240501d97d6d022e1f00854d2"
     },
     {
       "id": "P0vi78CNraB3mjfnFN8g",
@@ -1178,7 +1226,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 0,
       "fixtureMemoRows": 0,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "6sqzAInx2oZv3istnkG3",
@@ -1197,7 +1246,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 40,
       "fixtureMemoRows": 40,
-      "fixtureSnapshotDrift": true
+      "fixtureSnapshotDrift": true,
+      "historyInputSha256": "73110e355c265317208c28641352b46e82292e4f4bee55fa845a1dd3ed63b7c7"
     },
     {
       "id": "UQ0ey5rwjSbqrQXkxJMS",
@@ -1216,7 +1266,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 1,
       "fixtureMemoRows": 1,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "53b9aa0412be1f9a25b35b761f09829550625d900feb96a1d81d548759d9de42"
     },
     {
       "id": "dQzD5vreZx24MJQvZkHJ",
@@ -1235,7 +1286,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 1,
       "fixtureMemoRows": 1,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "df982374990031c2fbd19a43b97fd3a71215f2e8b1acf934587c019a2bde57c4"
     },
     {
       "id": "mxe72kbOHnhM11zzqLgo",
@@ -1254,7 +1306,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 0,
       "fixtureMemoRows": 0,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "pJxz8aNlya8WXzv7HXeb",
@@ -1273,7 +1326,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 113,
       "fixtureMemoRows": 113,
-      "fixtureSnapshotDrift": true
+      "fixtureSnapshotDrift": true,
+      "historyInputSha256": "df223f2b242f3e0d4cbafbd91314ea9564cff5a304d35ee59d83abdd66d7e4f5"
     },
     {
       "id": "ylakQo9mHZqZEaUwrSAs",
@@ -1292,7 +1346,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 3,
       "fixtureMemoRows": 3,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "8c185ea6ba00171acf33ec8214fc5ceb48530752a99a59a53fce61bcc81f64e0"
     },
     {
       "id": "awpYr2DKuai45MO4JhJQ",
@@ -1311,7 +1366,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 74,
       "fixtureMemoRows": 74,
-      "fixtureSnapshotDrift": true
+      "fixtureSnapshotDrift": true,
+      "historyInputSha256": "faba06347dbb6166f490af181e43bce206c3087c7039e2347f89c48c7785e943"
     },
     {
       "id": "TYKf9PdpE3fD8AySnwhL",
@@ -1330,7 +1386,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 100,
       "fixtureMemoRows": 100,
-      "fixtureSnapshotDrift": true
+      "fixtureSnapshotDrift": true,
+      "historyInputSha256": "3b5294150e9b92193d3db20ca86c1d86e842e80c1935305a9f8383cf5c0d0729"
     },
     {
       "id": "LXZtUMN1jxL9UPkeTVU4",
@@ -1349,7 +1406,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 3,
       "fixtureMemoRows": 3,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "456705eb5ba26b747f17df3627f52b1671160eb21caa4d09754e7356f25307ee"
     },
     {
       "id": "ei7JLzPKwi5CAOvjCjNf",
@@ -1368,7 +1426,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 32,
       "fixtureMemoRows": 32,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "ac14e0486c44f5f6ea5efc668b9dde5a93906349b1ce2a771f8c2f13e3d0dcea"
     },
     {
       "id": "LBFbOr1CsUUmOAMWfwFH",
@@ -1387,7 +1446,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 0,
       "fixtureMemoRows": 0,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "yvks9nyfnWYvyNzxYsmR",
@@ -1406,7 +1466,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 0,
       "fixtureMemoRows": 0,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "G9VHrQKqvrS0Qpfa0zFi",
@@ -1425,7 +1486,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 0,
       "fixtureMemoRows": 0,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "LJxW0NjFZrKbojMygAIo",
@@ -1444,7 +1506,8 @@
       "inExistingFixture": true,
       "fixtureHistoryRows": 18,
       "fixtureMemoRows": 18,
-      "fixtureSnapshotDrift": false
+      "fixtureSnapshotDrift": false,
+      "historyInputSha256": "020b206e17cfdf4ed5846bdd3ea95f5e74f89b416c1ac8dbe197f681ee16c191"
     },
     {
       "id": "SOZk9o51iFTrD2JFkb4R",
@@ -1461,7 +1524,8 @@
         "shards": 10
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "t07aok44HjPIwb1KFzMD",
@@ -1478,7 +1542,8 @@
         "shards": 10
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "w3pcF8D8W04PqjzTY4gQ",
@@ -1495,7 +1560,8 @@
         "shards": 120
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "f87fc36a02f3d771a7ea81d5033e9559511b25ae99347e917b55ecad8b7ad15a"
     },
     {
       "id": "MDgyeCqXyFvMQ0yq86Eb",
@@ -1512,7 +1578,8 @@
         "shards": 67
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "995dcfe70acde8065cc344810618865923394a5fe5b77e35ddbf390d0fcd7c28"
     },
     {
       "id": "QC1EyGtLMJRiONByKjUh",
@@ -1529,7 +1596,8 @@
         "shards": 52
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "06188f2eaff4192db916c6e2f0a0f6eed283b1744f1b870c63d00954423b7fca"
     },
     {
       "id": "TWVv3gftDRrBtKuZNNyU",
@@ -1546,7 +1614,8 @@
         "shards": 56
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "9jkD3DzUK4RSYLhlT7W4",
@@ -1563,7 +1632,8 @@
         "shards": 10
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "FQafcwfhbIuBRrH8dzis",
@@ -1580,7 +1650,8 @@
         "shards": 0
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "Z3GFDCOt0wgXCoKBt9QS",
@@ -1597,7 +1668,8 @@
         "shards": 0
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "2he5tT5AtV9VndIK6wpA",
@@ -1614,7 +1686,8 @@
         "shards": 0
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "P337HtDK2XnuAKSz4bOY",
@@ -1631,7 +1704,8 @@
         "shards": 545
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "324e38936b5f5ec91addbeef1130c5e42c2cb3901748dd28ae7631aeefc46dcf"
     },
     {
       "id": "z6RLDj3XRG6Ph1Y8h1KL",
@@ -1648,7 +1722,8 @@
         "shards": 0
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "0XJBv6pv07L36RiS81Sf",
@@ -1665,7 +1740,8 @@
         "shards": 0
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "XYMwOihLlr3SR0H9I8QR",
@@ -1682,7 +1758,8 @@
         "shards": 0
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "s90Yj5WOKVwI8lMv3dsH",
@@ -1699,7 +1776,8 @@
         "shards": 0
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "wTAr3BcMY3fdvOtXq1hO",
@@ -1716,7 +1794,8 @@
         "shards": 0
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "1ogAT2wiVCogaLyDJqNV",
@@ -1733,7 +1812,8 @@
         "shards": 0
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "aKFdGC4qa2zw2mTzs2iz",
@@ -1750,7 +1830,8 @@
         "shards": 0
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "k7rxQ2RpEpUpCFae1Q2q",
@@ -1767,7 +1848,8 @@
         "shards": 0
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "XfzopdmCDs5YgBcwPwhQ",
@@ -1784,7 +1866,8 @@
         "shards": 0
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "aNXkpi8vHzz3YP6PHMfo",
@@ -1801,7 +1884,8 @@
         "shards": 0
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "2TCj9uyg3m8AL4vRZW0E",
@@ -1818,7 +1902,8 @@
         "shards": 0
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "UK1PfFRia5CsSBpPBClx",
@@ -1835,7 +1920,8 @@
         "shards": 0
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "VqGLXVWoIhp0atfOXdfp",
@@ -1846,7 +1932,8 @@
       "parsedNet": null,
       "declaredBalance": null,
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": null
     },
     {
       "id": "hbnGsigZQiUDIp6GOk5V",
@@ -1863,7 +1950,8 @@
         "shards": 10
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "nE9Gn08QcCfFjJludti5",
@@ -1880,7 +1968,8 @@
         "shards": 845
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "7589714a8bda48dc5620fd713653163925e6bad8b779a5a4fb345bc44e56642a"
     },
     {
       "id": "JMCjtaYflOLXC4IW08VN",
@@ -1897,7 +1986,8 @@
         "shards": 35
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "NE7JQ9XzR4T4JZqtHRDM",
@@ -1914,7 +2004,8 @@
         "shards": 887
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4317817bbd0681149ab0e67f78acb95e7e6b329490fce0a1a67a83645d78658c"
     },
     {
       "id": "x17fC3LJPIYCOAN0L1TH",
@@ -1931,7 +2022,8 @@
         "shards": 1976
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "Fwh5YvXjqswWRRE2cGiB",
@@ -1948,7 +2040,8 @@
         "shards": 113
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "VS0OFzHXHR3LoA7GPNSm",
@@ -1965,7 +2058,8 @@
         "shards": 56
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "6ec319a2d752ecb9943b1593159ac83ba3bc00c0036944eddf3228000a719f01"
     },
     {
       "id": "UgG5zxvnNZTAu4jPNLn7",
@@ -1982,7 +2076,8 @@
         "shards": 10
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {
       "id": "28e2XMEgs6kbTvidxsOQ",
@@ -1999,7 +2094,8 @@
         "shards": 50
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "57d1fa25989dd05b1ae0e087b4e93128158a5472bbd5303f6d381085a10cf114"
     },
     {
       "id": "2ysoaJ21scYYNpjgstzZ",
@@ -2016,7 +2112,8 @@
         "shards": 453
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "86661db3c6fcbc75091db42411c9018a26b2d17ab8ebfbb5e2245156c17116a6"
     },
     {
       "id": "DPacJEJvCc7wNOnHZXyC",
@@ -2033,7 +2130,10 @@
         "shards": 199
       },
       "inExistingFixture": false,
-      "fixtureSnapshotDrift": null
+      "fixtureSnapshotDrift": null,
+      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
-  ]
+  ],
+  "historyInputFingerprintSchema": "scenarioHistory-name-memo-v1",
+  "historyInputFingerprintDate": "2026-10-28"
 }
