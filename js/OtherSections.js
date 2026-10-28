@@ -3989,6 +3989,26 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   const openHeld = () => switchResultTool("held");
   const closeHeld = () => setHeldOpen(false);
 
+  /* Opening an import route must move its actual panel into the viewport.
+     The record section can be much taller than a phone screen; without this,
+     the compact import menu closes but the selected form remains below the fold. */
+  React.useEffect(() => {
+    const activeType = textPanel ? "text" : importPanel ? "glass" : heldOpen ? "held" : null;
+    if (!activeType) return;
+    const frame = requestAnimationFrame(() => {
+      const panels = Array.from(document.querySelectorAll(".ledger-gara-wrap"))
+        .filter((panel) => panel.getClientRects().length > 0);
+      const target = activeType === "text"
+        ? panels.find((panel) => panel.querySelector("textarea.ledger-textarea"))
+        : activeType === "glass"
+          ? panels.find((panel) => (panel.textContent || "").includes("硝子窓から一括取り込む"))
+          : panels.find((panel) => (panel.textContent || "").includes("所持人格リストを取り込む"));
+      target?.scrollIntoView?.({ behavior: "auto", block: "start" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [textPanel, importPanel, heldOpen]);
+
+
   const openResultEditor = (result) => {
     setImportMenuOpen(false);
     setImportPanel(false);
