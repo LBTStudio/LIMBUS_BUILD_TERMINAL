@@ -104,7 +104,7 @@ async function readMetrics() {
     const dialogs = [...document.querySelectorAll('[role="dialog"],[aria-modal="true"],.share-modal-backdrop,.acct-overlay,.utility-sheet-backdrop,.cp-overlay')].filter(isVisible).map(e=>({className:typeof e.className==="string"?e.className:"",label:e.getAttribute("aria-label")||e.getAttribute("aria-labelledby")||(e.innerText||"").trim().slice(0,55),rect:rect(e)}));
     const smallTargets=[...document.querySelectorAll("button,[role=button],input,select,textarea,a[href]")].filter(isVisible).map(e=>({label:(e.getAttribute("aria-label")||e.innerText||e.getAttribute("title")||e.getAttribute("placeholder")||"").trim().replace(/\s+/g," ").slice(0,32),rect:rect(e)})).filter(x=>x.rect.width<32||x.rect.height<32).slice(0,25);
     const horizontalScrollers=[...document.querySelectorAll("body *")].filter(e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);return r.width>80&&r.height>20&&e.scrollWidth>e.clientWidth+12&&["auto","scroll","hidden"].includes(s.overflowX);}).slice(0,24).map(e=>({tag:e.tagName,className:typeof e.className==="string"?e.className:"",label:(e.getAttribute("aria-label")||e.innerText||"").trim().replace(/\s+/g," ").slice(0,42),clientWidth:e.clientWidth,scrollWidth:e.scrollWidth,overflowX:getComputedStyle(e).overflowX,rect:rect(e)}));
-    const layoutElements=[...document.querySelectorAll("#lbt-preview-edge-toggle,.preview,.preview-reopen,.preview-close,.preview-edge-toggle,.section-title-row,.section-title,.build-tabs,.record-tabbar")].filter(isVisible).map(e=>{const s=getComputedStyle(e);return {tag:e.tagName,id:e.id||"",className:typeof e.className==="string"?e.className:"",text:(e.innerText||"").trim().replace(/\s+/g," ").slice(0,48),rect:rect(e),style:{position:s.position,display:s.display,top:s.top,right:s.right,bottom:s.bottom,width:s.width,height:s.height,writingMode:s.writingMode,opacity:s.opacity,zIndex:s.zIndex,pointerEvents:s.pointerEvents}};});
+    const layoutElements=[...document.querySelectorAll("#lbt-preview-edge-toggle,.preview,.preview-reopen,.preview-close,.preview-edge-toggle,.preview-actions,.preview-hint,.preview-tabs,.rail,.section-title-row,.section-title,.build-tabs,.record-tabbar")].filter(isVisible).map(e=>{const s=getComputedStyle(e);return {tag:e.tagName,id:e.id||"",className:typeof e.className==="string"?e.className:"",text:(e.innerText||"").trim().replace(/\s+/g," ").slice(0,48),rect:rect(e),style:{position:s.position,display:s.display,top:s.top,right:s.right,bottom:s.bottom,width:s.width,height:s.height,writingMode:s.writingMode,opacity:s.opacity,zIndex:s.zIndex,pointerEvents:s.pointerEvents}};});
     return {viewport:{width:innerWidth,height:innerHeight},document:{width:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight},horizontalOverflow:document.documentElement.scrollWidth>innerWidth+2,horizontalScrollers,layoutElements,dialogs,smallTargets,activeElement:document.activeElement?{tag:document.activeElement.tagName,aria:document.activeElement.getAttribute("aria-label"),text:(document.activeElement.innerText||"").trim().slice(0,40)}:null};
   });
 }
@@ -133,6 +133,14 @@ async function snap(name, note) {
     if(previewControls.length>1) audit.layoutWarnings.push({name:base,type:"duplicate-preview-controls",controls:previewControls});
     for(const element of (m.layoutElements||[]).filter(e=>e.id==="lbt-preview-edge-toggle" || e.className.split(/\s+/).includes("preview-edge-toggle"))) {
       if(element.rect.y < 220) audit.layoutWarnings.push({name:base,type:"preview-toggle-overlaps-header",rect:element.rect,style:element.style});
+      if(element.className.split(/\s+/).includes("is-open")) {
+        for(const target of (m.layoutElements||[]).filter(e=>["preview-actions","preview-hint","preview-tabs"].includes(e.className))) {
+          const a=element.rect,b=target.rect;
+          const overlapX=Math.max(0,Math.min(a.x+a.width,b.x+b.width)-Math.max(a.x,b.x));
+          const overlapY=Math.max(0,Math.min(a.y+a.height,b.y+b.height)-Math.max(a.y,b.y));
+          if(overlapX>4 && overlapY>4) audit.layoutWarnings.push({name:base,type:"preview-toggle-overlaps-panel-controls",target:target.className,overlap:{width:overlapX,height:overlapY},toggle:a,targetRect:b});
+        }
+      }
     }
   }
   log("captured "+base);
@@ -695,7 +703,7 @@ async function main() {
       }
     }
   }
-  audit.criticalLayoutWarnings=audit.layoutWarnings.filter((item)=>["document-horizontal-overflow","duplicate-preview-controls","preview-toggle-overlaps-header"].includes(item.type));
+  audit.criticalLayoutWarnings=audit.layoutWarnings.filter((item)=>["document-horizontal-overflow","duplicate-preview-controls","preview-toggle-overlaps-header","preview-toggle-overlaps-panel-controls"].includes(item.type));
   fs.writeFileSync(path.join(OUT,"manifest.json"),JSON.stringify(audit,null,2)+"\n");
   log("finished: "+audit.count+" screenshots; failures="+audit.failures.length+"; missing-required="+audit.missingRequiredCaptures.length+"; critical-layout-warnings="+audit.criticalLayoutWarnings.length);
   if(audit.count<80 || audit.failures.length || audit.missingRequiredCaptures.length || audit.pageErrors.length || audit.httpErrors.length || audit.consoleErrors.length || audit.criticalLayoutWarnings.length) process.exitCode=1;
