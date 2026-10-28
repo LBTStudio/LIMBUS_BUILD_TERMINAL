@@ -38,6 +38,9 @@ if (typeof MEMO?.parseMemo !== "function") throw new Error("収支メモパー�
 
 const DOC_ROOT = "https://firestore.googleapis.com/v1/projects/lbt-garasumado/databases/(default)/documents";
 const CANDIDATE_AMOUNT = /(?:LP|ＬＰ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]+(?:[,，][0-9０-９]{3})*(?![0-9０-９])|[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)|(?:欠片|欠け片|かけら|欠けら|カケラ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]+(?![0-9０-９])/i;
+/* 旧監査の候補総数と比較するため、従来の語句条件も別に保持する。 */
+const LEGACY_CANDIDATE_AMOUNT = /(?:LP|ＬＰ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]|[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ)|(?:欠片|かけら|欠けら|カケラ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]/i;
+const LEGACY_CANDIDATE_ACTION = /報酬|収入|消費|支出|支払|購入|買った|抽出|ガチャ|チケット|チケ|獲得|入手|取得/;
 /* 名詞だけでは操作語に数えない。チケットは枚数・動詞を確認して別判定する。 */
 const CANDIDATE_ACTION = /報酬|収入|消費|支出|支払|購入|買っ|獲得|入手|取得|付与|支給|補填|受領|被り|重複|変換|換算/;
 const CANDIDATE_DRAW_ACTION = /(?:抽出|ガチャ)(?:結果|を回|を引|で獲得|で入手|で取得|を実行|を実施|を行|した|する|済)|(?:ガチャ|抽出)[：:]?\s*(?:獲得|入手|取得|購入|消費|使用)/;
@@ -123,6 +126,12 @@ function stripBalanceAnchors(line) {
     .replace(/現在\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)?\s*[：:]?\s*-?\d+(?:\s*[+＋]\s*\d+)*(?:\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?(?:\s*[→⇒]\s*-?\d+(?:\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?)?/gi, " ")
     .replace(/残り\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)?\s*[：:]?\s*-?\d+(?:\s*[+＋]\s*\d+)*(?:\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?(?:\s*[→⇒]\s*-?\d+(?:\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?)?/gi, " ");
 }
+function isLegacyFinancialCandidateLine(line) {
+  if (/^\s*[▶►▷]/.test(String(line || ""))) return false;
+  const withoutBalances = stripBalanceAnchors(line);
+  return LEGACY_CANDIDATE_AMOUNT.test(withoutBalances) && LEGACY_CANDIDATE_ACTION.test(withoutBalances);
+}
+
 function isFinancialCandidateLine(line) {
   if (/^\s*[▶►▷]/.test(String(line || ""))) return false;
   const withoutBalances = stripBalanceAnchors(line);
@@ -140,6 +149,17 @@ function isNonTransactionalTicketLabel(line) {
   const withoutBalances = stripBalanceAnchors(line);
   return CANDIDATE_AMOUNT.test(withoutBalances) &&
     CANDIDATE_TICKET_MARKER.test(withoutBalances) &&
+    !CANDIDATE_TICKET_COUNT.test(withoutBalances) &&
+    !CANDIDATE_TICKET_ACTION.test(withoutBalances) &&
+    !CANDIDATE_ACTION.test(withoutBalances) &&
+    !CANDIDATE_DRAW_ACTION.test(withoutBalances);
+}
+
+function isNonTransactionalDrawLabel(line) {
+  const withoutBalances = stripBalanceAnchors(line);
+  return CANDIDATE_AMOUNT.test(withoutBalances) &&
+    /抽出|ガチャ/.test(withoutBalances) &&
+    !CANDIDATE_TICKET_MARKER.test(withoutBalances) &&
     !CANDIDATE_TICKET_COUNT.test(withoutBalances) &&
     !CANDIDATE_TICKET_ACTION.test(withoutBalances) &&
     !CANDIDATE_ACTION.test(withoutBalances) &&
@@ -217,17 +237,26 @@ function auditMemo(id, historyIndex, memo) {
   let candidates = 0;
   let covered = 0;
 
+  let legacyCandidates = 0;
+  let legacyTransactionCandidates = 0;
   let nonTransactionalTicketLabels = 0;
+  let nonTransactionalDrawLabels = 0;
+  let unclassifiedLegacyCues = 0;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     // Effect descriptions beginning with ▶/►/▷ are intentionally excluded by
     // the parser's auditLineCoverage and must not be counted as ledger transactions.
     if (!line.trim()) continue;
+    const legacyCandidate = isLegacyFinancialCandidateLine(line);
+    if (legacyCandidate) legacyCandidates++;
     if (!isFinancialCandidateLine(line)) {
-      if (isNonTransactionalTicketLabel(line)) nonTransactionalTicketLabels++;
+      if (legacyCandidate && isNonTransactionalTicketLabel(line)) nonTransactionalTicketLabels++;
+      else if (legacyCandidate && isNonTransactionalDrawLabel(line)) nonTransactionalDrawLabels++;
+      else if (legacyCandidate) unclassifiedLegacyCues++;
       continue;
     }
     candidates++;
+    if (legacyCandidate) legacyTransactionCandidates++;
     const lineNumber = i + 1;
     const coverage = coverages.find((entry) => entry && entry.lineIndex === lineNumber);
     const relatedAudit = isRelated(audits, lineNumber);
@@ -264,7 +293,7 @@ function auditMemo(id, historyIndex, memo) {
     if (!recognized) issues.push({ id, historyIndex, lineIndex: null, code: "silent-unparsed-history" });
   }
 
-  return { candidates, covered, nonTransactionalTicketLabels, issues, coverageStatuses: coverages.reduce((counts, entry) => {
+  return { candidates, covered, legacyCandidates, legacyTransactionCandidates, nonTransactionalTicketLabels, nonTransactionalDrawLabels, unclassifiedLegacyCues, issues, coverageStatuses: coverages.reduce((counts, entry) => {
     const status = String(entry?.status || "missing-status");
     counts[status] = (counts[status] || 0) + 1;
     return counts;
@@ -283,9 +312,13 @@ function toMarkdownReport(report) {
     ["取得不可のまま（以前から既知）", report.inventory.stillUnavailable],
     ["履歴行", report.source.historyRows],
     ["メモ付き履歴", report.source.memoRows],
-    ["金額＋操作語の候補行", report.parser.candidateRows],
+    ["旧条件の金額＋語句候補（比較基準）", report.parser.legacyCandidateRows],
+    ["実操作条件を満たす候補行", report.parser.candidateRows],
+    ["旧候補のうち実操作条件も満たす行", report.parser.legacyTransactionCandidateRows],
+    ["実操作を確認できないチケットラベル（別集計）", report.parser.nonTransactionalTicketLabelRows],
+    ["実操作を確認できない抽出／ガチャラベル（別集計）", report.parser.nonTransactionalDrawLabelRows],
+    ["旧候補のうち分類できなかった行", report.parser.unclassifiedLegacyCueRows],
     ["候補行の監査coverage", report.parser.coveredCandidateRows],
-    ["実操作を確認できないチケットラベル（候補から分離）", report.parser.nonTransactionalTicketLabelRows],
     ["現在残高セクションの人手確認候補", report.parser.currentBalanceReviewRows],
     ["監査coverage欠落・未解決等", report.parser.issues.length],
     ["通貨不一致／残高関連警告", report.parser.currencyDiscrepancies],
@@ -373,9 +406,13 @@ const report = {
     snapshotDrift
   },
   parser: {
+    legacyCandidateRows: allParsedRows.reduce((sum, row) => sum + row.legacyCandidates, 0),
+    legacyTransactionCandidateRows: allParsedRows.reduce((sum, row) => sum + row.legacyTransactionCandidates, 0),
     candidateRows: allParsedRows.reduce((sum, row) => sum + row.candidates, 0),
     coveredCandidateRows: allParsedRows.reduce((sum, row) => sum + row.covered, 0),
     nonTransactionalTicketLabelRows: allParsedRows.reduce((sum, row) => sum + row.nonTransactionalTicketLabels, 0),
+    nonTransactionalDrawLabelRows: allParsedRows.reduce((sum, row) => sum + row.nonTransactionalDrawLabels, 0),
+    unclassifiedLegacyCueRows: allParsedRows.reduce((sum, row) => sum + row.unclassifiedLegacyCues, 0),
     currentBalanceReviewRows: coverageStatuses["current-balance-review"] || 0,
     currencyDiscrepancies: allParsedRows.reduce((sum, row) => sum + row.currencyDiscrepancies, 0),
     coverageStatuses,
@@ -393,9 +430,13 @@ console.log(JSON.stringify({
     stillUnavailable: report.inventory.stillUnavailable,
     historyRows: report.source.historyRows,
     memoRows: report.source.memoRows,
+    legacyCandidateRows: report.parser.legacyCandidateRows,
+    legacyTransactionCandidateRows: report.parser.legacyTransactionCandidateRows,
     candidateRows: report.parser.candidateRows,
     coveredCandidateRows: report.parser.coveredCandidateRows,
     nonTransactionalTicketLabelRows: report.parser.nonTransactionalTicketLabelRows,
+    nonTransactionalDrawLabelRows: report.parser.nonTransactionalDrawLabelRows,
+    unclassifiedLegacyCueRows: report.parser.unclassifiedLegacyCueRows,
     currentBalanceReviewRows: report.parser.currentBalanceReviewRows,
     issueCount: report.parser.issues.length,
     currencyDiscrepancies: report.parser.currencyDiscrepancies,
@@ -410,6 +451,6 @@ console.log(JSON.stringify({
 }, null, 2));
 
 if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, markdown);
-if (successful.length < knownSuccessful.length || accessRegressions.length > 0 || report.parser.issues.length > 0) {
+if (successful.length < knownSuccessful.length || accessRegressions.length > 0 || report.parser.issues.length > 0 || report.parser.unclassifiedLegacyCueRows > 0) {
   process.exitCode = 1;
 }
