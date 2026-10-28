@@ -392,18 +392,12 @@ function countNonemptyMemos(history) {
   return history.filter((row) => String(row?.memo || "").trim()).length;
 }
 
-/* Core rulebook p.14: creation resources are 30 LP and 10 Ego Shards.
-   LP may already be lower by the time the recorded scenario history begins
-   because character-creation purchases happened before the first memo. */
+/* Primary source: the rulebook PDF (source/新リンバスTRPG.pdf), p.14.
+   At character creation a PC receives 30 LP and 10 Ego Shards.
+   The inferred opening balance of the available history is compatible with
+   those resources after setup spending only when it lies in 0..30 LP / 0..10 shards.
+   This is a compatibility test, not proof the history contains every transaction. */
 const RULE_INITIAL_RESOURCES = Object.freeze({ lp: 30, shards: 10 });
-
-function normalizeAnchorText(value) {
-  return String(value || "")
-    .replace(/[０-９Ａ-Ｚａ-ｚ]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
-    .replace(/[，]/g, ",")
-    .replace(/\u3000/g, " ")
-    .replace(/\u2212/g, "-");
-}
 
 function parsedNet(parsed, currency) {
   const income = Number(parsed?.income?.[currency]) || 0;
@@ -411,110 +405,52 @@ function parsedNet(parsed, currency) {
   return income - spends;
 }
 
-function parseAnchorAmount(value) {
-  if (value == null) return null;
-  const n = Number(String(value).replace(/,/g, ""));
-  return Number.isSafeInteger(n) && n >= 0 ? n : null;
-}
-
-/* Return numeric locations only. Never copy the user's memo into the audit report.
-   A checkpoint implies the opening balance = checkpoint - all parsed flows before it. */
-function balanceAnchorsInMemo(memo, currency) {
-  const normalized = String(memo || "").replace(/\r\n?/g, "\n");
-  const lines = normalized.split("\n");
-  const anchors = [];
-  let offset = 0;
-  for (let i = 0; i < lines.length; i++) {
-    const line = normalizeAnchorText(lines[i]);
-    const currentCue = /現在|現座/g;
-    let cue;
-    while ((cue = currentCue.exec(line)) !== null) {
-      const hasCurrency = currency === "lp"
-        ? /LP/i.test(line)
-        : /(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ|けっか)/.test(line);
-      if (!hasCurrency) continue;
-      const suffix = line.slice(cue.index);
-      const match = currency === "lp"
-        ? suffix.match(/(?:現在|現座)\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:LP|ＬＰ)?\s*[：:]?\s*([0-9][0-9,]*)(?:\s*(?:LP|ＬＰ))?(?:\s*[→⇒]\s*([0-9][0-9,]*))?/i)
-        : suffix.match(/(?:現在|現座)\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ|けっか)\s*)?[：:]?\s*([0-9][0-9,]*)(?:\s*(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ|けっか))?(?:\s*[→⇒]\s*([0-9][0-9,]*))?/);
-      if (!match) continue;
-      const value = parseAnchorAmount(match[2] ?? match[1]);
-      if (value === null) continue;
-      const prefix = normalized.slice(0, offset + cue.index);
-      const prefixParsed = MEMO.parseMemo(prefix);
-      anchors.push({
-        historyRow: i + 1,
-        lineIndex: i + 1,
-        value,
-        prefixNet: parsedNet(prefixParsed, currency),
-        prefixHasReview: (prefixParsed.reasons || []).length > 0 ||
-          (prefixParsed.sourceAudits || []).some((audit) => audit && audit.severity === "warning")
-      });
-    }
-    offset += lines[i].length + 1;
-  }
-  return anchors;
-}
-
 function auditRuleBasedOpening(history, currentBalance) {
   const rows = (Array.isArray(history) ? history : []).map((row) => {
     const memo = String(row?.memo || "");
     const parsed = MEMO.parseMemo(memo);
     return {
-      memo,
-      net: { lp: parsedNet(parsed, "lp"), shards: parsedNet(parsed, "shards") },
-      anchors: {
-        lp: balanceAnchorsInMemo(memo, "lp"),
-        shards: balanceAnchorsInMemo(memo, "shards")
-      }
+      netLp: parsedNet(parsed, "lp"),
+      netShards: parsedNet(parsed, "shards"),
+      reviewRows: (parsed.financialCoverage || []).filter((entry) =>
+        ["mismatch", "direction-review", "reviewed-by-parser-reason", "candidate-review", "unresolved", "balance-transition-review"].includes(String(entry?.status || ""))
+      ).length,
+      parserReasons: (parsed.reasons || []).length,
+      currencyDiscrepancies: (parsed.currencyDiscrepancies || []).length
     };
   });
-  const totalNet = {
-    lp: rows.reduce((sum, row) => sum + row.net.lp, 0),
-    shards: rows.reduce((sum, row) => sum + row.net.shards, 0)
+  const historyNetLp = rows.reduce((sum, row) => sum + row.netLp, 0);
+  const historyNetShards = rows.reduce((sum, row) => sum + row.netShards, 0);
+  const impliedOpeningLp = Number.isSafeInteger(currentBalance?.lp) ? currentBalance.lp - historyNetLp : null;
+  const impliedOpeningShards = Number.isSafeInteger(currentBalance?.shards) ? currentBalance.shards - historyNetShards : null;
+  const classify = (value, ceiling) => {
+    if (!Number.isSafeInteger(value)) return "not-comparable";
+    if (value < 0) return "below-zero: parsed net exceeds current balance";
+    if (value > ceiling) return "above-initial-ceiling: missing earlier income/history or parser undercount";
+    return "compatible-with-initial-resources-after-setup-spend";
   };
-  const results = {};
-  for (const currency of ["lp", "shards"]) {
-    let priorNet = 0;
-    const checkpoints = [];
-    for (let i = 0; i < rows.length; i++) {
-      for (const anchor of rows[i].anchors[currency]) {
-        const opening = anchor.value - priorNet - anchor.prefixNet;
-        const expectedFinal = anchor.value + totalNet[currency] - priorNet - anchor.prefixNet;
-        const actualFinal = currentBalance?.[currency];
-        checkpoints.push({
-          historyRow: anchor.historyRow,
-          lineIndex: anchor.lineIndex,
-          anchorValue: anchor.value,
-          inferredOpening: opening,
-          anchorToCurrentGap: Number.isSafeInteger(actualFinal) ? actualFinal - expectedFinal : null,
-          prefixHasReview: anchor.prefixHasReview
-        });
-      }
-      priorNet += rows[i].net[currency];
-    }
-    const openings = checkpoints.map((checkpoint) => checkpoint.inferredOpening);
-    const minOpening = openings.length ? Math.min(...openings) : null;
-    const maxOpening = openings.length ? Math.max(...openings) : null;
-    const firstOpening = openings.length ? openings[0] : null;
-    const latest = checkpoints.at(-1) || null;
-    const rangeMax = RULE_INITIAL_RESOURCES[currency];
-    results[currency] = {
-      anchorCount: checkpoints.length,
-      firstOpening,
-      latestOpening: latest?.inferredOpening ?? null,
-      minOpening,
-      maxOpening,
-      openingSpread: openings.length ? maxOpening - minOpening : null,
-      openingWithinRuleRange: openings.length > 0 && openings.every((value) => value >= 0 && value <= rangeMax),
-      openingExactlyStable: openings.length > 0 && minOpening === maxOpening,
-      latestAnchorToCurrentGap: latest?.anchorToCurrentGap ?? null,
-      latestAnchorHistoryRow: latest?.historyRow ?? null,
-      nonzeroAnchorToCurrentGaps: checkpoints.filter((checkpoint) => checkpoint.anchorToCurrentGap !== 0).length,
-      checkpoints
-    };
-  }
-  return { totalNet, ...results };
+  const lpClass = classify(impliedOpeningLp, RULE_INITIAL_RESOURCES.lp);
+  const shardsClass = classify(impliedOpeningShards, RULE_INITIAL_RESOURCES.shards);
+  return {
+    initialResources: { ...RULE_INITIAL_RESOURCES },
+    historyNetLp, historyNetShards,
+    currentLp: currentBalance?.lp ?? null,
+    currentShards: currentBalance?.shards ?? null,
+    impliedOpeningLp, impliedOpeningShards,
+    lpClass, shardsClass,
+    lpCompatible: lpClass === "compatible-with-initial-resources-after-setup-spend",
+    shardsCompatible: shardsClass === "compatible-with-initial-resources-after-setup-spend",
+    bothCompatible: lpClass === "compatible-with-initial-resources-after-setup-spend" && shardsClass === "compatible-with-initial-resources-after-setup-spend",
+    lpNegative: lpClass === "below-zero: parsed net exceeds current balance",
+    shardsNegative: shardsClass === "below-zero: parsed net exceeds current balance",
+    lpAboveCeiling: lpClass === "above-initial-ceiling: missing earlier income/history or parser undercount",
+    shardsAboveCeiling: shardsClass === "above-initial-ceiling: missing earlier income/history or parser undercount",
+    historyRows: (Array.isArray(history) ? history : []).length,
+    memoRows: (Array.isArray(history) ? history : []).filter((row) => String(row?.memo || "").trim()).length,
+    reviewRows: rows.reduce((sum, row) => sum + row.reviewRows, 0),
+    parserReasons: rows.reduce((sum, row) => sum + row.parserReasons, 0),
+    currencyDiscrepancies: rows.reduce((sum, row) => sum + row.currencyDiscrepancies, 0)
+  };
 }
 
 function parseStoredCurrencyAmount(value) {
