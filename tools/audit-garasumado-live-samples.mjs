@@ -478,7 +478,7 @@ function normalizeExpenseName(value) {
   return String(value || "")
     .normalize("NFKC")
     .replace(/[「」『』\"'：:]/g, "")
-    .replace(/\\s+/g, "")
+    .replace(/\s+/g, "")
     .toLocaleLowerCase("ja-JP");
 }
 
@@ -502,13 +502,13 @@ function auditFreeNotes(doc) {
   const notes = doc?.freeNotes && typeof doc.freeNotes === "object" ? doc.freeNotes : {};
   const fields = ["secret", "history", "memo", "setting"];
   const allLines = fields.flatMap((field) =>
-    String(notes[field] || "").split(/\\r?\\n/).map((line) => String(line || "").trim()).filter(Boolean)
+    String(notes[field] || "").split(/\r?\n/).map((line) => String(line || "").trim()).filter(Boolean)
   );
   const expenseCues = allLines.filter((line) => /購入|消費|支出|支払|買っ/.test(line));
   const acceptedLines = allLines.filter((line) =>
     typeof MEMO.purchaseRowOf === "function" && Boolean(MEMO.purchaseRowOf(line))
   );
-  const parsed = MEMO.parseMemo(acceptedLines.join("\\n"));
+  const parsed = MEMO.parseMemo(acceptedLines.join("\n"));
   const signatures = (parsed.spends || []).map(spendSignature).filter(Boolean)
     .filter((spend) => spend.lp > 0 || spend.shards > 0);
   return {
