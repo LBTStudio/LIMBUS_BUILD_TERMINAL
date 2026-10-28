@@ -518,6 +518,7 @@ function auditFreeNotes(doc) {
   let unrecognizedCueGenericSpendShards = 0;
   let unrecognizedCueRowsWithCurrencyAmount = 0;
   let unrecognizedCueRowsWithParserReason = 0;
+  const unrecognizedCueSpendSignatures = [];
   for (const line of unrecognizedCues) {
     if (/(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)\s*[：:]?\s*[+＋\-−]?\s*\d|[+＋\-−]?\s*\d[\d,，]*\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)/i.test(line)) {
       unrecognizedCueRowsWithCurrencyAmount++;
@@ -526,6 +527,7 @@ function auditFreeNotes(doc) {
     const spends = (one.spends || []).map(spendSignature).filter(Boolean);
     const actual = spends.filter((spend) => spend.lp > 0 || spend.shards > 0);
     if (actual.length) unrecognizedCueRowsWithGenericSpend++;
+    unrecognizedCueSpendSignatures.push(...actual);
     unrecognizedCueGenericSpendLp += actual.reduce((sum, spend) => sum + spend.lp, 0);
     unrecognizedCueGenericSpendShards += actual.reduce((sum, spend) => sum + spend.shards, 0);
     if ((one.reasons || []).length > 0) unrecognizedCueRowsWithParserReason++;
@@ -541,6 +543,7 @@ function auditFreeNotes(doc) {
     unrecognizedCueGenericSpendShards,
     unrecognizedCueRowsWithCurrencyAmount,
     unrecognizedCueRowsWithParserReason,
+    unrecognizedCueSpendSignatures,
     acceptedRowsWithoutParsedSpend: Math.max(0, acceptedLines.length - signatures.length),
     spendLp: signatures.reduce((sum, spend) => sum + spend.lp, 0),
     spendShards: signatures.reduce((sum, spend) => sum + spend.shards, 0),
@@ -659,11 +662,11 @@ function toMarkdownReport(report) {
     "",
     "硝子窓の取込実装は freeNotes の secret/history/memo/setting にある購入短文を、シナリオ履歴とは別の未帰属購入として扱います。シナリオ履歴の支出と自由メモの支出が同じ名前・金額なら重複として除外し、金額だけが同じ場合は重複か別取引かを決めつけず、残差を範囲で示します。",
     "",
-    "| URL ID | 履歴行 | 自由メモ購入行 | LP支出 | 欠片支出 | 未認識cue支出行 | 同行LP支出 | 同行欠片支出 | 履歴のみ残差LP | 自由メモ考慮後LP範囲 | 履歴のみ残差欠片 | 自由メモ考慮後欠片範囲 | 完全一致重複 | 金額一致のみ |",
-    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|---|---:|---:|",
+    "| URL ID | 履歴行 | 自由メモ購入行 | LP支出 | 欠片支出 | 未認識cue支出行 | 同行LP支出 | 同行欠片支出 | 履歴のみ残差LP | 自由メモ考慮後LP範囲 | 履歴のみ残差欠片 | 自由メモ考慮後欠片範囲 | cueを追加した場合LP範囲 | cueを追加した場合欠片範囲 | 完全一致重複 | 金額一致のみ |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|---|---|---|---:|---:|",
     ...report.balance.freeNotesBridge.documents
       .filter((row) => row.expenseCueRows > 0 || row.parsedSpendRows > 0 || row.possibleAmountOnlyDuplicateRows > 0)
-      .map((row) => "| " + row.id + " | " + row.historyRows + " | " + row.parsedSpendRows + " | " + row.freeNotesSpendLp + " | " + row.freeNotesSpendShards + " | " + row.unrecognizedCueRowsWithGenericSpend + "/" + row.cueRowsWithoutPurchaseRow + " | " + row.unrecognizedCueGenericSpendLp + " | " + row.unrecognizedCueGenericSpendShards + " | " + row.residualLpBeforeFreeNotes + " | " + row.residualLpAfterFreeNotesLower + "…" + row.residualLpAfterFreeNotesUpper + " | " + row.residualShardsBeforeFreeNotes + " | " + row.residualShardsAfterFreeNotesLower + "…" + row.residualShardsAfterFreeNotesUpper + " | " + row.exactDuplicateRows + " | " + row.possibleAmountOnlyDuplicateRows + " |"),
+      .map((row) => "| " + row.id + " | " + row.historyRows + " | " + row.parsedSpendRows + " | " + row.freeNotesSpendLp + " | " + row.freeNotesSpendShards + " | " + row.unrecognizedCueRowsWithGenericSpend + "/" + row.cueRowsWithoutPurchaseRow + " | " + row.unrecognizedCueGenericSpendLp + " | " + row.unrecognizedCueGenericSpendShards + " | " + row.residualLpBeforeFreeNotes + " | " + row.residualLpAfterFreeNotesLower + "…" + row.residualLpAfterFreeNotesUpper + " | " + row.residualShardsBeforeFreeNotes + " | " + row.residualShardsAfterFreeNotesLower + "…" + row.residualShardsAfterFreeNotesUpper + " | " + row.genericCueResidualLpLower + "…" + row.genericCueResidualLpUpper + " | " + row.genericCueResidualShardsLower + "…" + row.genericCueResidualShardsUpper + " | " + row.genericCueExactDuplicateRows + " | " + row.genericCuePossibleAmountOnlyDuplicateRows + " |"),
     "",
     "### 自由メモ購入あり・シナリオ履歴メモなし",
     "",
@@ -859,6 +862,12 @@ const freeNotesBridgeRows = balanceBridges.map((row) => {
     spendLp: 0, spendShards: 0, spendSignatures: []
   };
   const scenarioSpendSignatures = (entry?.parsedRows || []).flatMap((memo) => memo.spendSignatures || []);
+  const unrecognizedCueReconciliation = reconcileFreeNotesSpend(
+    scenarioSpendSignatures,
+    { spendSignatures: freeNotesAudit.unrecognizedCueSpendSignatures || [] },
+    row.impliedOpeningLp,
+    row.impliedOpeningShards
+  );
   return {
     id: row.id,
     historyRows: row.historyRows,
@@ -886,7 +895,15 @@ const freeNotesBridgeRows = balanceBridges.map((row) => {
       freeNotesAudit,
       row.impliedOpeningLp,
       row.impliedOpeningShards
-    )
+    ),
+    genericCueExactDuplicateRows: unrecognizedCueReconciliation.exactDuplicateRows,
+    genericCuePossibleAmountOnlyDuplicateRows: unrecognizedCueReconciliation.possibleAmountOnlyDuplicateRows,
+    genericCueCandidateLp: freeNotesAudit.unrecognizedCueGenericSpendLp,
+    genericCueCandidateShards: freeNotesAudit.unrecognizedCueGenericSpendShards,
+    genericCueResidualLpLower: unrecognizedCueReconciliation.residualLpAfterFreeNotesLower,
+    genericCueResidualLpUpper: unrecognizedCueReconciliation.residualLpAfterFreeNotesUpper,
+    genericCueResidualShardsLower: unrecognizedCueReconciliation.residualShardsAfterFreeNotesLower,
+    genericCueResidualShardsUpper: unrecognizedCueReconciliation.residualShardsAfterFreeNotesUpper
   };
 });
 const freeNotesBridgeSummary = {
@@ -912,7 +929,15 @@ const freeNotesBridgeSummary = {
   lpNegativeAfterPossibleUniqueFreeNotesUpper: freeNotesBridgeRows.filter((row) => row.residualLpAfterFreeNotesUpper < 0).length,
   shardsNegativeBefore: freeNotesBridgeRows.filter((row) => row.residualShardsBeforeFreeNotes < 0).length,
   shardsNegativeAfterPossibleUniqueFreeNotesLower: freeNotesBridgeRows.filter((row) => row.residualShardsAfterFreeNotesLower < 0).length,
-  shardsNegativeAfterPossibleUniqueFreeNotesUpper: freeNotesBridgeRows.filter((row) => row.residualShardsAfterFreeNotesUpper < 0).length
+  shardsNegativeAfterPossibleUniqueFreeNotesUpper: freeNotesBridgeRows.filter((row) => row.residualShardsAfterFreeNotesUpper < 0).length,
+  documentsWithGenericCueSpends: freeNotesBridgeRows.filter((row) => row.unrecognizedCueRowsWithGenericSpend > 0).length,
+  genericCueSpendRows: freeNotesBridgeRows.reduce((sum, row) => sum + row.unrecognizedCueRowsWithGenericSpend, 0),
+  genericCueSpendLp: freeNotesBridgeRows.reduce((sum, row) => sum + row.unrecognizedCueGenericSpendLp, 0),
+  genericCueSpendShards: freeNotesBridgeRows.reduce((sum, row) => sum + row.unrecognizedCueGenericSpendShards, 0),
+  lpNegativeAfterGenericCueLower: freeNotesBridgeRows.filter((row) => row.genericCueResidualLpLower < 0).length,
+  lpNegativeAfterGenericCueUpper: freeNotesBridgeRows.filter((row) => row.genericCueResidualLpUpper < 0).length,
+  shardsNegativeAfterGenericCueLower: freeNotesBridgeRows.filter((row) => row.genericCueResidualShardsLower < 0).length,
+  shardsNegativeAfterGenericCueUpper: freeNotesBridgeRows.filter((row) => row.genericCueResidualShardsUpper < 0).length
 };
 
 const freeNotesSourceSummary = {
@@ -1050,6 +1075,13 @@ console.log(JSON.stringify({
     freeNotesCueRowsUnrecognized: report.balance.freeNotesBridge.summary.expenseCueRowsNotRecognizedAsPurchase,
     freeNotesExactDuplicatePurchaseRows: report.balance.freeNotesBridge.summary.rowsExactlyDuplicatedWithScenarioSpend,
     freeNotesPossibleDuplicateByAmountRows: report.balance.freeNotesBridge.summary.rowsPotentiallyDuplicatedByAmountOnly,
+    freeNotesGenericCueSpendRows: report.balance.freeNotesBridge.summary.genericCueSpendRows,
+    freeNotesGenericCueSpendLp: report.balance.freeNotesBridge.summary.genericCueSpendLp,
+    freeNotesGenericCueSpendShards: report.balance.freeNotesBridge.summary.genericCueSpendShards,
+    lpNegativeAfterGenericCueLower: report.balance.freeNotesBridge.summary.lpNegativeAfterGenericCueLower,
+    lpNegativeAfterGenericCueUpper: report.balance.freeNotesBridge.summary.lpNegativeAfterGenericCueUpper,
+    shardsNegativeAfterGenericCueLower: report.balance.freeNotesBridge.summary.shardsNegativeAfterGenericCueLower,
+    shardsNegativeAfterGenericCueUpper: report.balance.freeNotesBridge.summary.shardsNegativeAfterGenericCueUpper,
     lpNegativeAfterFreeNotesLower: report.balance.freeNotesBridge.summary.lpNegativeAfterPossibleUniqueFreeNotesLower,
     lpNegativeAfterFreeNotesUpper: report.balance.freeNotesBridge.summary.lpNegativeAfterPossibleUniqueFreeNotesUpper,
     shardsNegativeAfterFreeNotesLower: report.balance.freeNotesBridge.summary.shardsNegativeAfterPossibleUniqueFreeNotesLower,
