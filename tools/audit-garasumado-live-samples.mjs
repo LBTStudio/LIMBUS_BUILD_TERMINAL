@@ -322,7 +322,20 @@ function auditMemo(id, historyIndex, memo) {
     if (!recognized) issues.push({ id, historyIndex, lineIndex: null, code: "silent-unparsed-history" });
   }
 
-  return { candidates, covered, legacyCandidates, legacyTransactionCandidates, nonTransactionalTicketLabels, nonTransactionalDrawLabels, unclassifiedLegacyCues, unclassifiedLegacyCueExamples, issues, coverageStatuses: coverages.reduce((counts, entry) => {
+  const incomeLp = Number(parsed.income?.lp) || 0;
+  const incomeShards = Number(parsed.income?.shards) || 0;
+  const spentLp = (parsed.spends || []).reduce((sum, row) => sum + Math.abs(Number(row?.lp) || 0), 0);
+  const spentShards = (parsed.spends || []).reduce((sum, row) => sum + Math.abs(Number(row?.shards) || 0), 0);
+  const reviewStatuses = new Set(["mismatch", "direction-review", "reviewed-by-parser-reason", "candidate-review", "unresolved", "balance-transition-review"]);
+  const financial = {
+    incomeLp, incomeShards, spentLp, spentShards,
+    netLp: incomeLp - spentLp,
+    netShards: incomeShards - spentShards,
+    reasonCount: reasons.length,
+    reviewRows: coverages.filter((entry) => reviewStatuses.has(String(entry?.status || ""))).length
+  };
+
+  return { candidates, covered, legacyCandidates, legacyTransactionCandidates, nonTransactionalTicketLabels, nonTransactionalDrawLabels, unclassifiedLegacyCues, unclassifiedLegacyCueExamples, issues, financial, coverageStatuses: coverages.reduce((counts, entry) => {
     const status = String(entry?.status || "missing-status");
     counts[status] = (counts[status] || 0) + 1;
     return counts;
@@ -340,6 +353,25 @@ function historyInputSha256(history) {
 
 function countNonemptyMemos(history) {
   return history.filter((row) => String(row?.memo || "").trim()).length;
+}
+
+function parseStoredCurrencyAmount(value) {
+  if (value === null || value === undefined || String(value).trim() === "") return null;
+  const normalized = String(value)
+    .replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+    .replace(/[，,]/g, "")
+    .trim();
+  if (!/^\\+?\\d+$/.test(normalized)) return null;
+  const amount = Number(normalized);
+  return Number.isSafeInteger(amount) && amount >= 0 ? amount : null;
+}
+
+function storedCurrencyOf(doc) {
+  const currency = doc?.currency && typeof doc.currency === "object" ? doc.currency : {};
+  return {
+    lp: parseStoredCurrencyAmount(currency.lp),
+    shards: parseStoredCurrencyAmount(currency.fragment ?? currency.shards ?? currency.fragments)
+  };
 }
 
 function toMarkdownReport(report) {
@@ -360,6 +392,9 @@ function toMarkdownReport(report) {
     ["現在残高セクションの人手確認候補", report.parser.currentBalanceReviewRows],
     ["監査coverage欠落・未解決等", report.parser.issues.length],
     ["通貨不一致／残高関連警告", report.parser.currencyDiscrepancies],
+    ["残高ブリッジの対象文書（履歴メモ・通貨値あり）", report.balance.summary.eligibleDocuments],
+    ["LPの残差が負（収支純額が所持LPを上回る）", report.balance.summary.lpResidualNegative],
+    ["欠片の残差が負（収支純額が所持欠片を上回る）", report.balance.summary.shardResidualNegative],
     ["旧ベースラインとの履歴件数差", report.source.snapshotDrift.length],
     ["履歴入力指紋未登録", report.source.historyInputFingerprintMissingRows],
     ["履歴入力指紋の内容差", report.source.historyInputFingerprintDrift.length]
@@ -372,6 +407,17 @@ function toMarkdownReport(report) {
     "| 指標 | 件数 |",
     "|---|---:|",
     ...summaryRows.map(([label, value]) => `| ${label} | ${value} |`),
+    "",
+    "## 所持通貨と履歴収支の橋渡し",
+    "",
+    "ここでいう残差は保存残高からメモ内の収入−明示支出を引いた値です。開始残高・履歴開始前の調整が不明なため、正の残差は開始残高や未記録収入で説明できる可能性があります。負の残差は、非負の開始残高だけでは説明できず、未記録支出・収入の過大計上・解析対象外の履歴を確認する必要があります。",
+    "",
+    "| URL ID | 履歴行 | メモ行 | 保存LP | 収支純額LP | 残差LP | 保存欠片 | 収支純額欠片 | 残差欠片 | 要確認行 |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+    ...report.balance.bridges
+      .slice()
+      .sort((a, b) => (Math.min(a.impliedOpeningLp, a.impliedOpeningShards) - Math.min(b.impliedOpeningLp, b.impliedOpeningShards)))
+      .map((row) => "| " + row.id + " | " + row.historyRows + " | " + row.memoRows + " | " + row.currentLp + " | " + row.netLp + " | " + row.impliedOpeningLp + " | " + row.currentShards + " | " + row.netShards + " | " + row.impliedOpeningShards + " | " + row.reviewRows + " |"),
     "",
     "## 監査coverageの状態別件数",
     "",
@@ -424,6 +470,7 @@ const fetched = await mapLimit(baseline.documents, 5, async (entry) => {
     result,
     actualHistoryRows: history.length,
     actualMemoRows: memoRows,
+    currentBalance: storedCurrencyOf(result.doc),
     historyInputSha256: historyInputSha256(history),
     parsedRows
   };
@@ -459,6 +506,45 @@ const allParsedRows = successful.flatMap((entry) => entry.parsedRows || []);
 const issueRows = allParsedRows.flatMap((entry) => entry.issues);
 const coverageStatuses = {};
 for (const row of allParsedRows) for (const [status, count] of Object.entries(row.coverageStatuses)) coverageStatuses[status] = (coverageStatuses[status] || 0) + count;
+
+/* 現在のcurrencyと履歴収支を橋渡しする。差額は「既知の開始残高」と同義ではなく、
+   履歴開始前からの残高・未記録の調整・パーサーの見落としをまとめた残差として扱う。
+   特に負の残差は、開始残高が非負である限り、履歴外の支出または収支の過大計上を要確認。 */
+const balanceBridges = successful
+  .filter((entry) => entry.actualMemoRows > 0 &&
+    Number.isSafeInteger(entry.currentBalance?.lp) &&
+    Number.isSafeInteger(entry.currentBalance?.shards))
+  .map((entry) => {
+    const totals = (entry.parsedRows || []).reduce((sum, row) => {
+      const money = row.financial || {};
+      for (const key of ["incomeLp", "incomeShards", "spentLp", "spentShards", "netLp", "netShards", "reviewRows", "reasonCount"]) {
+        sum[key] += Number(money[key]) || 0;
+      }
+      return sum;
+    }, { incomeLp: 0, incomeShards: 0, spentLp: 0, spentShards: 0, netLp: 0, netShards: 0, reviewRows: 0, reasonCount: 0 });
+    return {
+      id: entry.baseline.id,
+      historyRows: entry.actualHistoryRows,
+      memoRows: entry.actualMemoRows,
+      currentLp: entry.currentBalance.lp,
+      currentShards: entry.currentBalance.shards,
+      ...totals,
+      impliedOpeningLp: entry.currentBalance.lp - totals.netLp,
+      impliedOpeningShards: entry.currentBalance.shards - totals.netShards
+    };
+  });
+const balanceBridgeSummary = {
+  eligibleDocuments: balanceBridges.length,
+  excludedNoMemoOrUnreadableBalance: successful.length - balanceBridges.length,
+  lpResidualNegative: balanceBridges.filter((row) => row.impliedOpeningLp < 0).length,
+  lpResidualZero: balanceBridges.filter((row) => row.impliedOpeningLp === 0).length,
+  lpResidualPositive: balanceBridges.filter((row) => row.impliedOpeningLp > 0).length,
+  shardResidualNegative: balanceBridges.filter((row) => row.impliedOpeningShards < 0).length,
+  shardResidualZero: balanceBridges.filter((row) => row.impliedOpeningShards === 0).length,
+  shardResidualPositive: balanceBridges.filter((row) => row.impliedOpeningShards > 0).length,
+  negativeLpIds: balanceBridges.filter((row) => row.impliedOpeningLp < 0).map((row) => row.id),
+  negativeShardIds: balanceBridges.filter((row) => row.impliedOpeningShards < 0).map((row) => row.id)
+};
 const report = {
   inventory: {
     urlCount: baseline.documents.length,
@@ -491,6 +577,11 @@ const report = {
     currencyDiscrepancies: allParsedRows.reduce((sum, row) => sum + row.currencyDiscrepancies, 0),
     coverageStatuses,
     issues: issueRows
+  },
+  balance: {
+    interpretation: "保存残高 − (メモから抽出した収入 − 明示支出)。開始残高や履歴外調整が不明なため、ゼロでない残差だけでは不整合と断定しない。負の残差は別途要確認。",
+    summary: balanceBridgeSummary,
+    bridges: balanceBridges
   }
 };
 
@@ -514,6 +605,9 @@ console.log(JSON.stringify({
     currentBalanceReviewRows: report.parser.currentBalanceReviewRows,
     issueCount: report.parser.issues.length,
     currencyDiscrepancies: report.parser.currencyDiscrepancies,
+    balanceBridgeDocuments: report.balance.summary.eligibleDocuments,
+    negativeLpResidualDocuments: report.balance.summary.lpResidualNegative,
+    negativeShardResidualDocuments: report.balance.summary.shardResidualNegative,
     snapshotDriftRows: report.source.snapshotDrift.length,
     historyInputFingerprintMissingRows: report.source.historyInputFingerprintMissingRows,
     historyInputFingerprintDriftRows: report.source.historyInputFingerprintDrift.length
@@ -525,6 +619,8 @@ console.log(JSON.stringify({
     counts[issue.code] = (counts[issue.code] || 0) + 1;
     return counts;
   }, {}),
+  balanceBridgeSummary: report.balance.summary,
+  balanceBridges: report.balance.bridges,
   issues: report.parser.issues.slice(0, 100),
   unclassifiedLegacyCueExamples: report.parser.unclassifiedLegacyCueExamples
 }, null, 2));
