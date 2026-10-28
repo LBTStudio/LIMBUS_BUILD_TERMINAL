@@ -3967,6 +3967,23 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
      入力が変わったら必ず解除して、古い確認状態が新しい内容へ流用されないようにする。 */
   const [dismissedTextWarnings, setDismissedTextWarnings] = React.useState(() => new Set());
 
+  /* テキスト流し込みを開いたら入力欄へ移動し、スクロール領域内で確実に編集できるようにする。 */
+  React.useEffect(() => {
+    if (!textPanel || typeof document === "undefined") return;
+    const panel = document.getElementById("ledger-text-import-panel");
+    if (!panel) return;
+    const textarea = panel.querySelector("textarea.ledger-textarea");
+    if (!textarea) return;
+    const scroller = panel.closest(".focus");
+    if (scroller) {
+      const panelRect = panel.getBoundingClientRect();
+      const scrollerRect = scroller.getBoundingClientRect();
+      const top = panelRect.top - scrollerRect.top + scroller.scrollTop;
+      scroller.scrollTop = Math.max(0, top - 12);
+    }
+    textarea.focus({ preventScroll: true });
+  }, [textPanel]);
+
   /* 取り込み（硝子窓）はリザルト個別ではなくアカウント全体の操作として
    アカウント選択画面で行う。ここでは扱わない。 */
   const [editing, setEditing] = React.useState(null);
@@ -4691,7 +4708,7 @@ const importHeldPersonas = () => {
     /* テキスト流し込み。貼り付けた直後に「何ことになるか」を見せる。
        読めなかった行は黙って落とさず、理由ごと一覧に出す。
        決定できない金額は既定で入れず、外す判断は利用者に返す。 */
-    textPanel && h("div", { className: "ledger-gara-wrap" },
+    textPanel && h("div", { id: "ledger-text-import-panel", role: "region", "aria-label": "テキスト流し込み", className: "ledger-gara-wrap" },
       h("div", { className: "card-header owned-library-bar" },
         h("span", { className: "t-label" }, "テキスト流し込み"),
         h("span", { className: "ledger-note" }, "【シナリオ名】と 報酬｜購入｜追加購入｜ の行を貼り付けると、リザルトと支出の提案になります。入れる前に内容を確認できます"),
