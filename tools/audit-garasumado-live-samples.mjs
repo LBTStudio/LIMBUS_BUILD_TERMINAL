@@ -19,7 +19,7 @@ const key = importSource.match(/const PUBLIC_API_KEY\s*=\s*["']([^"']+)["']/)?.[
 if (!key) throw new Error("公開Firestore読み取りキーをソースから検出できません。");
 
 const parserContext = {
-  window: { __lbtAuditIncomeEvents: [], __lbtAuditIncomePairEvents: [], __lbtAuditSpendEvents: [], __lbtAuditCurrentMemoLine: 0 },
+  window: { __lbtAuditIncomeEvents: [], __lbtAuditIncomePairEvents: [], __lbtAuditSpendEvents: [], __lbtAuditPackCountEvents: [], __lbtAuditCurrentMemoLine: 0 },
   console,
   URL,
   TextEncoder,
@@ -49,6 +49,14 @@ parserSource = traceIncomeRoute(parserSource,
   '    var spends = [];',
   '    var spends = new Proxy([], { get(target, property) { if (property === "push") return (...rows) => { rows.forEach((row) => global.__lbtAuditSpendEvents.push({ lineIndex: Number(global.__lbtAuditCurrentMemoLine) || 0, lp: Number(row && row.lp) || 0, shards: Number(row && row.shards) || 0, reason: String(row && row.reason || "unknown"), rawLength: String(row && row.raw || "").length, hasRaw: typeof (row && row.raw) === "string" })); return Array.prototype.push.apply(target, rows); }; return Reflect.get(target, property); } });',
   "trace spend records");
+parserSource = traceIncomeRoute(parserSource,
+  '  function applyExplicitPackCount(amount, text, amountMatch) {',
+  '  function applyExplicitPackCount(amount, text, amountMatch) {\\n    /* Test-only sanitized measurement of the quantity multiplier decision. */',
+  "trace explicit pack count entry");
+parserSource = traceIncomeRoute(parserSource,
+  '    const scaled = amount * count;\\n    if (!Number.isSafeInteger(count) || count <= 0 || !Number.isSafeInteger(scaled)) return null;',
+  '    const scaled = amount * count;\\n    if (Array.isArray(global.__lbtAuditPackCountEvents) && Number(global.__lbtAuditCurrentMemoLine) > 0) global.__lbtAuditPackCountEvents.push({ lineIndex: Number(global.__lbtAuditCurrentMemoLine), baseAmount: amount, count, scaledAmount: scaled, amountStart: amountMatch.index, regionLength: region.length, packCueCount: (region.match(/(?:パック|テーマパック)/gi) || []).length, repeatCueCount: (region.match(/(?:[x×]\\\\s*\\\\d+|\\\\d+\\\\s*回)/gi) || []).length, arrowBounded: arrow >= 0, numericWidths: [...region.matchAll(/\\\\d+/g)].map((match) => match[0].length).slice(0, 10) });\\n    if (!Number.isSafeInteger(count) || count <= 0 || !Number.isSafeInteger(scaled)) return null;',
+  "trace explicit pack multiplier");
 parserSource = traceIncomeRoute(parserSource,
   '  function parseMemo(memo) {',
   '  function parseMemo(memo) {\n    global.__lbtAuditCurrentMemoLine = 0;',
@@ -325,7 +333,20 @@ function auditMemo(id, historyIndex, memo) {
   parserContext.window.__lbtAuditIncomeEvents.length = 0;
   parserContext.window.__lbtAuditIncomePairEvents.length = 0;
   parserContext.window.__lbtAuditSpendEvents.length = 0;
+  parserContext.window.__lbtAuditPackCountEvents.length = 0;
   const parsed = MEMO.parseMemo(memo);
+  const packCountTrace = parserContext.window.__lbtAuditPackCountEvents.map((event) => ({
+    lineIndex: Number(event.lineIndex) || 0,
+    baseAmount: Number(event.baseAmount) || 0,
+    count: Number(event.count) || 0,
+    scaledAmount: Number(event.scaledAmount) || 0,
+    amountStart: Number(event.amountStart) || 0,
+    regionLength: Number(event.regionLength) || 0,
+    packCueCount: Number(event.packCueCount) || 0,
+    repeatCueCount: Number(event.repeatCueCount) || 0,
+    arrowBounded: Boolean(event.arrowBounded),
+    numericWidths: Array.isArray(event.numericWidths) ? event.numericWidths : []
+  }));
   const spendTrace = parserContext.window.__lbtAuditSpendEvents.map((event) => ({
     lineIndex: Number(event.lineIndex) || 0,
     lp: Number(event.lp) || 0,
@@ -453,6 +474,7 @@ function auditMemo(id, historyIndex, memo) {
         incomeEvents: incomeTrace.filter((event) => event.lineIndex === Number(entry.lineIndex) && event.lineIndex > 0),
         incomePairEvents: incomePairTrace.filter((event) => event.lineIndex === Number(entry.lineIndex) && event.lineIndex > 0),
         spendEvents: spendTrace.filter((event) => event.lineIndex === Number(entry.lineIndex) && event.lineIndex > 0),
+        packCountEvents: packCountTrace.filter((event) => event.lineIndex === Number(entry.lineIndex) && event.lineIndex > 0),
         auditCodes: related.map((audit) => ({
           code: String(audit.code || ""),
           severity: String(audit.severity || "")
@@ -460,7 +482,7 @@ function auditMemo(id, historyIndex, memo) {
       };
     });
 
-  return { historyIndex, candidates, covered, legacyCandidates, legacyTransactionCandidates, nonTransactionalTicketLabels, nonTransactionalDrawLabels, unclassifiedLegacyCues, unclassifiedLegacyCueExamples, issues, financial, incomeTrace, incomePairTrace, spendTrace, reviewDetails, coverageStatuses: coverages.reduce((counts, entry) => {
+  return { historyIndex, candidates, covered, legacyCandidates, legacyTransactionCandidates, nonTransactionalTicketLabels, nonTransactionalDrawLabels, unclassifiedLegacyCues, unclassifiedLegacyCueExamples, issues, financial, incomeTrace, incomePairTrace, spendTrace, packCountTrace, reviewDetails, coverageStatuses: coverages.reduce((counts, entry) => {
     const status = String(entry?.status || "missing-status");
     counts[status] = (counts[status] || 0) + 1;
     return counts;
