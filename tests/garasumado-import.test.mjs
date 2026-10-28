@@ -2929,3 +2929,44 @@ test("現在残高と同じ行にある購入候補も、残高表記より前�
     "候補名が現在残高より前にある同一行は、残高基準に既反映と解釈する");
   assert.equal(balance.ok, true);
 });
+
+
+// Live-share audit regressions: preserve ambiguity in balances and transitions.
+test("現在残高モードの金額＋操作候補は自動計上せず、人手確認coverageに残す", () => {
+  const parsed = MEMO.parseMemo("・現在\n→LP200　　　　　　　　　　　　　　　→獲得");
+  const coverage = parsed.financialCoverage.find((row) => row.lineIndex === 2);
+  assert.ok(coverage, "現在残高モードでも操作候補のcoverageを欠落させない");
+  assert.equal(coverage.status, "current-balance-review", "残高中の候補は専用レビュー状態にする");
+  assert.equal(parsed.income.lp, 0, "現在残高のLPを収入として計上しない");
+  assert.equal(parsed.spends.length, 0, "現在残高のLPを支出として計上しない");
+  assert.ok(parsed.sourceAudits.some((row) =>
+    row.code === "financial-action-in-current-balance-section" && row.severity === "review"
+  ), "人手確認が必要な根拠を残す");
+});
+
+test("金額のあるチケット名だけでは、チケット操作の未解決監査を作らない", () => {
+  const parsed = MEMO.parseMemo("200LP以下の任意のテーマパックチケット");
+  assert.equal(
+    parsed.sourceAudits.some((row) => row.code === "financial-action-unaccounted"),
+    false,
+    "価格条件の数字とチケットという名詞だけを実操作として扱わない"
+  );
+  assert.equal(
+    parsed.financialCoverage.some((row) => row.status === "unresolved"),
+    false,
+    "実操作の根拠がないチケット名を未解決取引として数えない"
+  );
+});
+
+test("矢印に挟まれた金額＋操作語は帳簿に計上せずレビューcoverageを残す", () => {
+  const memo = "→LP200" + "　".repeat(26) + "→　　獲得";
+  const parsed = MEMO.parseMemo(memo);
+  const coverage = parsed.financialCoverage.find((row) => row.lineIndex === 1);
+  assert.ok(coverage, "通常セクションでも矢印遷移の候補をcoverageに残す");
+  assert.equal(coverage.status, "balance-transition-review");
+  assert.equal(parsed.income.lp, 0, "曖昧な残高遷移を収入にしない");
+  assert.equal(parsed.spends.length, 0, "曖昧な残高遷移を支出にしない");
+  assert.ok(parsed.sourceAudits.some((row) =>
+    row.code === "financial-action-in-balance-transition" && row.severity === "review"
+  ));
+});
