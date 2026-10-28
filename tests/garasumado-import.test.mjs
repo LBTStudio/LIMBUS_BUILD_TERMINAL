@@ -2987,3 +2987,30 @@ test("矢印に挟まれた金額＋操作語は帳簿に計上せずレビュ�
     row.code === "financial-action-in-balance-transition" && row.severity === "review"
   ));
 });
+
+
+test("通貨名直後の詰まったUnicode負号「LP−100」を収入ではなく支出として扱う", () => {
+  const parsed = MEMO.parseMemo([
+    "報酬",
+    "LP 125",
+    "欠片 125",
+    "GMの1d100より大きな数字を出せれば選択抽出チケット",
+    "",
+    "二連ガチャ回したのでLP−100"
+  ].join("\n"));
+  assert.equal(parsed.income.lp, 125, "LP−100の100を収入へ加算しない");
+  assert.equal(parsed.income.shards, 125, "独立した欠片報酬は維持する");
+  assert.equal(parsed.spends.reduce((sum, row) => sum + (Number(row.lp) || 0), 0), 100,
+    "ガチャの負額を100LP支出として残す");
+});
+
+test("「硝子の欠片+1」はアイテム数量であり、自我の欠片の収入に混ぜない", () => {
+  const parsed = MEMO.parseMemo([
+    "55LP、28かけら、硝子の欠片+1を獲得",
+    "硝子の欠片×1を獲得",
+    "ガラスの破片×2を獲得"
+  ].join("\n"));
+  assert.equal(parsed.income.lp, 55);
+  assert.equal(parsed.income.shards, 28,
+    "硝子の欠片・破片の数量を自我の欠片として加算しない");
+});
