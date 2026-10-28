@@ -499,6 +499,90 @@ function storedCurrencyOf(doc) {
   };
 }
 
+/* 自由メモはキャラ設定・秘密等も含む。ここでは既存取込器と同じ購入短文判定だけを行い、
+   原文・アイテム名・秘密の内容はレポートへ一切出さない。 */
+function normalizedPurchaseKey(row) {
+  return [
+    String(row?.name || "").normalize("NFKC").toLocaleLowerCase("ja-JP").replace(/[\s\u3000"'「」『』【】《》・:：,，.。]/g, ""),
+    Number(row?.lp) || 0,
+    Number(row?.shards) || 0
+  ].join("|");
+}
+
+function auditFreeNotePurchases(doc, history, memoApi) {
+  const notes = doc?.freeNotes && typeof doc.freeNotes === "object" && !Array.isArray(doc.freeNotes)
+    ? doc.freeNotes : {};
+  const fields = ["secret", "history", "memo", "setting"];
+  const noteLines = fields.flatMap((field) =>
+    String(notes[field] || "").split(/\r?\n/).map((line, index) => ({
+      field, lineIndex: index + 1, line: String(line || "").trim()
+    })).filter((row) => row.line)
+  );
+  const detected = [];
+  let candidateActionAmountLines = 0;
+  let unrecognizedActionAmountLines = 0;
+  const hasMoney = /(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ|けっか)\s*[:：]?\s*[-−+＋]?\s*\d[\d,]*|[-−+＋]?\s*\d[\d,]*\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ|けっか)/i;
+  const hasPurchaseAction = /購入|消費|支出|支払|買っ|交換|変換|換算/;
+  for (const row of noteLines) {
+    if (hasMoney.test(row.line) && hasPurchaseAction.test(row.line)) candidateActionAmountLines += 1;
+    const purchase = memoApi?.purchaseRowOf?.(row.line);
+    if (purchase && ((Number(purchase.lp) || 0) > 0 || (Number(purchase.shards) || 0) > 0)) {
+      detected.push({
+        field: row.field,
+        lineIndex: row.lineIndex,
+        lp: Number(purchase.lp) || 0,
+        shards: Number(purchase.shards) || 0,
+        key: normalizedPurchaseKey(purchase)
+      });
+    } else if (hasMoney.test(row.line) && hasPurchaseAction.test(row.line)) {
+      unrecognizedActionAmountLines += 1;
+    }
+  }
+
+  /* 同名・同価格の短文がリザルト本文にも存在する場合は「重複の可能性」とだけ扱う。
+     同額・同名の購入を別日に複数回した可能性もあるため、自動的には差し引かない。 */
+  const historyOccurrences = new Map();
+  for (const historyRow of Array.isArray(history) ? history : []) {
+    for (const line of String(historyRow?.memo || "").split(/\r?\n/)) {
+      const purchase = memoApi?.purchaseRowOf?.(String(line || "").trim());
+      if (!purchase || (!(Number(purchase.lp) || 0) && !(Number(purchase.shards) || 0))) continue;
+      const key = normalizedPurchaseKey(purchase);
+      historyOccurrences.set(key, (historyOccurrences.get(key) || 0) + 1);
+    }
+  }
+  let possibleOverlapRows = 0;
+  let possibleOverlapLp = 0;
+  let possibleOverlapShards = 0;
+  let lp = 0, shards = 0, nonOverlapLp = 0, nonOverlapShards = 0;
+  for (const row of detected) {
+    lp += row.lp; shards += row.shards;
+    const occurrences = historyOccurrences.get(row.key) || 0;
+    if (occurrences > 0) {
+      historyOccurrences.set(row.key, occurrences - 1);
+      possibleOverlapRows += 1;
+      possibleOverlapLp += row.lp;
+      possibleOverlapShards += row.shards;
+    } else {
+      nonOverlapLp += row.lp;
+      nonOverlapShards += row.shards;
+    }
+  }
+  return {
+    fieldsWithContent: new Set(noteLines.map((row) => row.field)).size,
+    nonemptyLines: noteLines.length,
+    candidateActionAmountLines,
+    recognizedPurchaseRows: detected.length,
+    unrecognizedActionAmountLines,
+    purchaseLp: lp,
+    purchaseShards: shards,
+    possibleOverlapRows,
+    possibleOverlapLp,
+    possibleOverlapShards,
+    nonOverlapPurchaseLp: nonOverlapLp,
+    nonOverlapPurchaseShards: nonOverlapShards
+  };
+}
+
 function toMarkdownReport(report) {
   const summaryRows = [
     ["URL ID", report.inventory.urlCount],
@@ -525,6 +609,10 @@ function toMarkdownReport(report) {
     ["矢印を含むメモ行", report.balance.balanceCuePatterns.arrowLines],
     ["残高語句がある文書 / 現在語がある文書", report.balance.balanceCuePatterns.documentsWithAnyBalanceCue + " / " + report.balance.balanceCuePatterns.documentsWithExplicitCurrentWord],
     ["推定開始残高が初期資源の範囲内（LP / 欠片）", report.balance.ruleBasedOpening.summary.lpOpeningWithinRuleRange + " / " + report.balance.ruleBasedOpening.summary.shardsOpeningWithinRuleRange],
+    ["自由メモの認識済み購入行", report.balance.freeNotePurchase.summary.recognizedPurchaseRows],
+    ["自由メモのLP / 欠片支出候補", report.balance.freeNotePurchase.summary.purchaseLp + " / " + report.balance.freeNotePurchase.summary.purchaseShards],
+    ["リザルト履歴と重複する可能性のある自由メモ行", report.balance.freeNotePurchase.summary.possibleOverlapRows],
+    ["自由メモの支出候補を追加して両通貨が初期範囲内になるデータ", report.balance.freeNotePurchase.summary.bothFitCountIfNonOverlapAdded],
     ["全アンカーで開始残高推定が一致（LP / 欠片）", report.balance.ruleBasedOpening.summary.lpOpeningStableAcrossAnchors + " / " + report.balance.ruleBasedOpening.summary.shardsOpeningStableAcrossAnchors],
     ["最新アンカーから保存残高を再現（LP / 欠片）", report.balance.ruleBasedOpening.summary.lpLatestAnchorMatchesCurrent + " / " + report.balance.ruleBasedOpening.summary.shardsLatestAnchorMatchesCurrent],
     ["明示的な初期作成ラベルあり", report.balance.ruleBasedOpening.summary.explicitInitialGrantRecorded],
@@ -572,6 +660,16 @@ function toMarkdownReport(report) {
     ...report.balance.bridges.flatMap((row) => row.reviewDetails.map((detail) =>
       "| " + row.id + " | " + detail.historyRow + " | " + (detail.lineIndex ?? "—") + " | " + detail.section + " | " + detail.status + " | " + JSON.stringify(detail.expected) + " | " + JSON.stringify(detail.detected) + " | " + Number(detail.hasParserReason) + " | " + Number(detail.sourceFinding) + " | " + detail.auditCodes.map((audit) => audit.code + ":" + audit.severity).join(",") + " |"
     )),
+    "",
+    "## 自由メモの購入記述と残高差（本文・アイテム名は非出力）",
+    "",
+    "購入短文の判定はアプリ取込器と同じ purchaseRowOf を使用。リザルト履歴にも同名・同額の認識可能な購入短文がある場合は重複の可能性として印を付けますが、同じ購入を複数回した可能性もあるため自動的に除外しません。",
+    "",
+    "| URL ID | 認識購入行 | 未認識の金額＋購入語行 | LP支出候補 | 欠片支出候補 | 重複可能行 | 重複以外LP | 重複以外欠片 | 開始LP（重複以外候補を加算） | 開始欠片（重複以外候補を加算） | 両方範囲内 |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|",
+    ...report.balance.freeNotePurchase.documents
+      .filter((row) => row.recognizedPurchaseRows > 0 || row.unrecognizedActionAmountLines > 0)
+      .map((row) => "| " + row.id + " | " + row.recognizedPurchaseRows + " | " + row.unrecognizedActionAmountLines + " | " + row.purchaseLp + " | " + row.purchaseShards + " | " + row.possibleOverlapRows + " | " + row.nonOverlapPurchaseLp + " | " + row.nonOverlapPurchaseShards + " | " + row.residualLpIfOnlyNonOverlapPurchasesAdded + " | " + row.residualShardsIfOnlyNonOverlapPurchasesAdded + " | " + Number(row.bothFitRuleRangeIfNonOverlapAdded) + " |"),
     "",
     "## 残高を示す記述パターン（本文非出力）",
     "",
@@ -622,6 +720,8 @@ const fetched = await mapLimit(baseline.documents, 5, async (entry) => {
   if (!result.ok) return { baseline: entry, result };
   const history = Array.isArray(result.doc?.scenarioHistory) ? result.doc.scenarioHistory : [];
   const memoRows = countNonemptyMemos(history);
+  const currentBalance = storedCurrencyOf(result.doc);
+  const freeNotePurchaseAudit = auditFreeNotePurchases(result.doc, history, MEMO);
   const parsedRows = history.map((row, index) => {
     const memo = String(row?.memo || "");
     if (!memo.trim()) return null;
@@ -632,8 +732,9 @@ const fetched = await mapLimit(baseline.documents, 5, async (entry) => {
     result,
     actualHistoryRows: history.length,
     actualMemoRows: memoRows,
-    currentBalance: storedCurrencyOf(result.doc),
-    ruleBasedOpeningAudit: auditRuleBasedOpening(history, storedCurrencyOf(result.doc), MEMO),
+    currentBalance,
+    freeNotePurchaseAudit,
+    ruleBasedOpeningAudit: auditRuleBasedOpening(history, currentBalance, MEMO),
     historyInputSha256: historyInputSha256(history),
     parsedRows
   };
@@ -796,6 +897,54 @@ const balanceCueSummary = {
   documentsWithExplicitCurrentWord: successful.filter((entry) => (entry.ruleBasedOpeningAudit?.balanceCuePatterns?.currentWordLines || 0) > 0).length,
   documentsWithArrow: successful.filter((entry) => (entry.ruleBasedOpeningAudit?.balanceCuePatterns?.arrowLines || 0) > 0).length
 };
+const freeNotePurchaseAudits = balanceBridges.map((row) => {
+  const entry = successful.find((candidate) => candidate.baseline.id === row.id);
+  const note = entry?.freeNotePurchaseAudit || {};
+  const lpResidualWithAll = row.impliedOpeningLp + (Number(note.purchaseLp) || 0);
+  const shardsResidualWithAll = row.impliedOpeningShards + (Number(note.purchaseShards) || 0);
+  const lpResidualWithNonOverlap = row.impliedOpeningLp + (Number(note.nonOverlapPurchaseLp) || 0);
+  const shardsResidualWithNonOverlap = row.impliedOpeningShards + (Number(note.nonOverlapPurchaseShards) || 0);
+  const inRange = (value, ceiling) => Number.isSafeInteger(value) && value >= 0 && value <= ceiling;
+  return {
+    id: row.id,
+    historyRows: row.historyRows,
+    currentLp: row.currentLp,
+    currentShards: row.currentShards,
+    historyNetLp: row.netLp,
+    historyNetShards: row.netShards,
+    impliedOpeningLp: row.impliedOpeningLp,
+    impliedOpeningShards: row.impliedOpeningShards,
+    ...note,
+    residualLpIfAllNotePurchasesAdded: lpResidualWithAll,
+    residualShardsIfAllNotePurchasesAdded: shardsResidualWithAll,
+    residualLpIfOnlyNonOverlapPurchasesAdded: lpResidualWithNonOverlap,
+    residualShardsIfOnlyNonOverlapPurchasesAdded: shardsResidualWithNonOverlap,
+    lpFitsRuleRangeIfAllNotesAdded: inRange(lpResidualWithAll, RULE_INITIAL_RESOURCES.lp),
+    shardsFitRuleRangeIfAllNotesAdded: inRange(shardsResidualWithAll, RULE_INITIAL_RESOURCES.shards),
+    bothFitRuleRangeIfAllNotesAdded: inRange(lpResidualWithAll, RULE_INITIAL_RESOURCES.lp) && inRange(shardsResidualWithAll, RULE_INITIAL_RESOURCES.shards),
+    lpFitsRuleRangeIfNonOverlapAdded: inRange(lpResidualWithNonOverlap, RULE_INITIAL_RESOURCES.lp),
+    shardsFitRuleRangeIfNonOverlapAdded: inRange(shardsResidualWithNonOverlap, RULE_INITIAL_RESOURCES.shards),
+    bothFitRuleRangeIfNonOverlapAdded: inRange(lpResidualWithNonOverlap, RULE_INITIAL_RESOURCES.lp) && inRange(shardsResidualWithNonOverlap, RULE_INITIAL_RESOURCES.shards)
+  };
+});
+const freeNotePurchaseSummary = {
+  eligibleDocuments: freeNotePurchaseAudits.length,
+  documentsWithRecognizedPurchaseRows: count(freeNotePurchaseAudits, (row) => row.recognizedPurchaseRows > 0),
+  recognizedPurchaseRows: freeNotePurchaseAudits.reduce((sum, row) => sum + row.recognizedPurchaseRows, 0),
+  candidateActionAmountLines: freeNotePurchaseAudits.reduce((sum, row) => sum + row.candidateActionAmountLines, 0),
+  unrecognizedActionAmountLines: freeNotePurchaseAudits.reduce((sum, row) => sum + row.unrecognizedActionAmountLines, 0),
+  possibleOverlapRows: freeNotePurchaseAudits.reduce((sum, row) => sum + row.possibleOverlapRows, 0),
+  purchaseLp: freeNotePurchaseAudits.reduce((sum, row) => sum + row.purchaseLp, 0),
+  purchaseShards: freeNotePurchaseAudits.reduce((sum, row) => sum + row.purchaseShards, 0),
+  nonOverlapPurchaseLp: freeNotePurchaseAudits.reduce((sum, row) => sum + row.nonOverlapPurchaseLp, 0),
+  nonOverlapPurchaseShards: freeNotePurchaseAudits.reduce((sum, row) => sum + row.nonOverlapPurchaseShards, 0),
+  lpFitCountIfAllNotesAdded: count(freeNotePurchaseAudits, (row) => row.lpFitsRuleRangeIfAllNotesAdded),
+  shardsFitCountIfAllNotesAdded: count(freeNotePurchaseAudits, (row) => row.shardsFitRuleRangeIfAllNotesAdded),
+  bothFitCountIfAllNotesAdded: count(freeNotePurchaseAudits, (row) => row.bothFitRuleRangeIfAllNotesAdded),
+  lpFitCountIfNonOverlapAdded: count(freeNotePurchaseAudits, (row) => row.lpFitsRuleRangeIfNonOverlapAdded),
+  shardsFitCountIfNonOverlapAdded: count(freeNotePurchaseAudits, (row) => row.shardsFitRuleRangeIfNonOverlapAdded),
+  bothFitCountIfNonOverlapAdded: count(freeNotePurchaseAudits, (row) => row.bothFitRuleRangeIfNonOverlapAdded)
+};
 const balanceBridgeSummary = {
   eligibleDocuments: balanceBridges.length,
   excludedNoMemoOrUnreadableBalance: successful.length - balanceBridges.length,
@@ -849,7 +998,12 @@ const report = {
       summary: ruleBasedOpeningSummary,
       documents: ruleBasedOpeningAudits
     },
-    balanceCuePatterns: balanceCueSummary
+    balanceCuePatterns: balanceCueSummary,
+    freeNotePurchase: {
+      interpretation: "自由メモの狭い購入短文だけを検出。リザルト履歴との一致は重複の可能性であって確定ではない。支出を足した場合の残差は説明力診断であり、データへ適用しない。",
+      summary: freeNotePurchaseSummary,
+      documents: freeNotePurchaseAudits
+    }
   }
 };
 
@@ -914,6 +1068,8 @@ console.log(JSON.stringify({
   ruleBasedOpeningSummary: report.balance.ruleBasedOpening.summary,
   ruleBasedOpeningDocuments: report.balance.ruleBasedOpening.documents,
   balanceCuePatterns: report.balance.balanceCuePatterns,
+  freeNotePurchaseSummary: report.balance.freeNotePurchase.summary,
+  freeNotePurchaseAudits: report.balance.freeNotePurchase.documents,
   balanceCuePatternDocuments: successful.map((entry) => ({
     id: entry.baseline.id,
     historyRows: entry.actualHistoryRows,
