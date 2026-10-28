@@ -147,7 +147,7 @@ function isFinancialCandidateLine(line) {
    明示的に分離する。監査対象から黙って消すのではなく、別カウンターに残す。 */
 function isNonTransactionalTicketLabel(line) {
   const withoutBalances = stripBalanceAnchors(line);
-  return CANDIDATE_AMOUNT.test(withoutBalances) &&
+  return LEGACY_CANDIDATE_AMOUNT.test(withoutBalances) &&
     CANDIDATE_TICKET_MARKER.test(withoutBalances) &&
     !CANDIDATE_TICKET_COUNT.test(withoutBalances) &&
     !CANDIDATE_TICKET_ACTION.test(withoutBalances) &&
@@ -157,7 +157,7 @@ function isNonTransactionalTicketLabel(line) {
 
 function isNonTransactionalDrawLabel(line) {
   const withoutBalances = stripBalanceAnchors(line);
-  return CANDIDATE_AMOUNT.test(withoutBalances) &&
+  return LEGACY_CANDIDATE_AMOUNT.test(withoutBalances) &&
     /抽出|ガチャ/.test(withoutBalances) &&
     !CANDIDATE_TICKET_MARKER.test(withoutBalances) &&
     !CANDIDATE_TICKET_COUNT.test(withoutBalances) &&
