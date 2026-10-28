@@ -211,6 +211,17 @@ function describeCandidateLine(line, coverage) {
   const currencyKinds = (value) => value
     ? Object.entries(value).filter(([, amount]) => Number(amount) !== 0).map(([currency]) => currency)
     : [];
+  const cleanedLine = stripBalanceAnchors(textLine);
+  const classificationFlags = {
+    legacyAmount: LEGACY_CANDIDATE_AMOUNT.test(cleanedLine),
+    strictAmount: CANDIDATE_AMOUNT.test(cleanedLine),
+    transactionAction: CANDIDATE_ACTION.test(cleanedLine),
+    drawOperation: CANDIDATE_DRAW_ACTION.test(cleanedLine),
+    ticketMarker: CANDIDATE_TICKET_MARKER.test(cleanedLine),
+    ticketCount: CANDIDATE_TICKET_COUNT.test(cleanedLine),
+    ticketAction: CANDIDATE_TICKET_ACTION.test(cleanedLine),
+    hasArrow: /[→⇒]/.test(cleanedLine)
+  };
   return {
     lineLength: textLine.length,
     amountTokenCount: amountTokens.length,
@@ -220,6 +231,7 @@ function describeCandidateLine(line, coverage) {
     numericTokenWidths: [...textLine.matchAll(/[0-9０-９]+/g)].map((match) => match[0].length).slice(0, 8),
     tokenShape,
     legacyCueKinds,
+    classificationFlags,
     ticketClassified: Boolean(ticket),
     ticketReviewReasonPresent: Boolean(ticket?.reason),
     actionKinds,
