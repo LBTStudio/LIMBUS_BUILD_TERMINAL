@@ -1153,6 +1153,7 @@
       );
     }
     const directionMismatch = flowMatch === false;
+    const amountMismatch = !totalsMatch;
     if (hasMoneyReviewReason || (totalsMatch && !directionMismatch && (flowMatch === true || !expectedFlows))) return null;
     if (totalsMatch && !directionMismatch && flowMatch === null) {
       return {
@@ -1163,17 +1164,25 @@
         message: "金額候補の合計は一致していますが、原文から収支方向を一意に確定できません。収入・支出の向きを確認してください。"
       };
     }
-    return {
-      side: "parser", code: directionMismatch ? "possible-result-direction-misclassification" : "possible-result-detection-omission",
-      severity: "warning", lineIndex: lineIndex, line: String(rawLine || ""), section: section,
-      expected: { lp: expected.lp, shards: expected.shards },
-      detected: { lp: detected.lp, shards: detected.shards },
-      expectedFlows: expectedFlows || null, detectedFlows: detectedFlows || null,
-      message: directionMismatch
+    const code = amountMismatch && directionMismatch
+      ? "possible-result-amount-and-direction-mismatch"
+      : directionMismatch
+        ? "possible-result-direction-misclassification"
+        : "possible-result-detection-omission";
+    const message = amountMismatch && directionMismatch
+      ? "原文から抽出した金額合計と収支方向の両方が解析結果と一致しません。金額の二重計上・倍率・残高注記の混入を含め、原文を確認してください。"
+      : directionMismatch
         ? "原文の金額合計は一致していても、収入・支出の向きが解析結果と一致しません。取引方向の誤分類候補として原文を確認してください。"
         : "原文の通貨額候補は LP " + expected.lp + " / 欠片 " + expected.shards +
           " ですが、この行から生成された記録は LP " + detected.lp + " / 欠片 " + detected.shards +
-          " です。リザルト側の検出漏れ・金額の取り違え候補として原文を確認してください。"
+          " です。リザルト側の検出漏れ・金額の取り違え候補として原文を確認してください。";
+    return {
+      side: "parser", code, severity: "warning",
+      lineIndex: lineIndex, line: String(rawLine || ""), section: section,
+      expected: { lp: expected.lp, shards: expected.shards },
+      detected: { lp: detected.lp, shards: detected.shards },
+      expectedFlows: expectedFlows || null, detectedFlows: detectedFlows || null,
+      message
     };
   }
 
