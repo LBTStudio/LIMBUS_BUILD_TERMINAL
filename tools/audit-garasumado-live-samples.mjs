@@ -511,6 +511,68 @@ function parseStoredCurrencyAmount(value) {
   return Number.isSafeInteger(amount) && amount >= 0 ? amount : null;
 }
 
+function parseHistoryTimestamp(value) {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const ms = Math.abs(value) < 1e12 ? value * 1000 : value;
+    return Number.isFinite(new Date(ms).getTime()) ? new Date(ms).getTime() : null;
+  }
+  const raw = String(value).normalize("NFKC").trim();
+  if (!raw) return null;
+  let normalized = raw
+    .replace(/(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日?/g, "$1-$2-$3")
+    .replace(/\//g, "-");
+  if (/^\d{8}$/.test(normalized)) normalized = normalized.slice(0,4)+"-"+normalized.slice(4,6)+"-"+normalized.slice(6,8);
+  const time = Date.parse(normalized);
+  return Number.isFinite(time) ? time : null;
+}
+
+/* Scenario event dates help assess array order, but cannot prove when the saved currency
+   snapshot was last edited because the source has no per-field timestamp for currency. */
+function auditHistoryChronology(history) {
+  const fields = ["date", "createdAt", "at", "timestamp", "time", "updatedAt"];
+  const fieldPresence = Object.fromEntries(fields.map((field) => [field, 0]));
+  const fieldParsable = Object.fromEntries(fields.map((field) => [field, 0]));
+  const rows = (Array.isArray(history) ? history : []).map((row, index) => {
+    const source = row && typeof row === "object" ? row : {};
+    for (const field of fields) {
+      const value = source[field];
+      if (value !== null && value !== undefined && String(value).trim() !== "") {
+        fieldPresence[field] += 1;
+        if (parseHistoryTimestamp(value) !== null) fieldParsable[field] += 1;
+      }
+    }
+    for (const field of fields) {
+      const time = parseHistoryTimestamp(source[field]);
+      if (time !== null) return { index, time, field };
+    }
+    return { index, time: null, field: "" };
+  });
+  const valid = rows.filter((row) => row.time !== null);
+  let ascendingBreaks = 0, descendingBreaks = 0, tiedPairs = 0, gapsBetweenComparableRows = 0;
+  for (let i = 1; i < valid.length; i++) {
+    const previous = valid[i - 1], current = valid[i];
+    if (current.index - previous.index > 1) gapsBetweenComparableRows += 1;
+    if (current.time < previous.time) ascendingBreaks += 1;
+    else if (current.time > previous.time) descendingBreaks += 1;
+    else tiedPairs += 1;
+  }
+  let arrayOrder = "insufficient";
+  if (valid.length >= 2) {
+    if (ascendingBreaks === 0 && descendingBreaks === 0) arrayOrder = "all-equal";
+    else if (ascendingBreaks === 0) arrayOrder = "ascending-or-tied";
+    else if (descendingBreaks === 0) arrayOrder = "descending-or-tied";
+    else arrayOrder = "mixed";
+  }
+  const primaryFieldCounts = {};
+  for (const row of valid) primaryFieldCounts[row.field] = (primaryFieldCounts[row.field] || 0) + 1;
+  return {
+    totalRows: rows.length, rowsWithParsableTime: valid.length, rowsWithoutParsableTime: rows.length - valid.length,
+    fieldPresence, fieldParsable, primaryFieldCounts, comparablePairs: Math.max(0, valid.length - 1),
+    ascendingBreaks, descendingBreaks, tiedPairs, gapsBetweenComparableRows, arrayOrder
+  };
+}
+
 function storedCurrencyOf(doc) {
   const currency = doc?.currency && typeof doc.currency === "object" ? doc.currency : {};
   return {
@@ -774,6 +836,9 @@ function toMarkdownReport(report) {
     ["旧ベースラインとの履歴件数差", report.source.snapshotDrift.length],
     ["履歴入力指紋未登録", report.source.historyInputFingerprintMissingRows],
     ["履歴入力指紋の内容差", report.source.historyInputFingerprintDrift.length],
+    ["日時を抽出できた履歴行", report.source.historyChronologySummary.rowsWithParsableTime + " / " + report.source.historyChronologySummary.rows],
+    ["日時を抽出できた文書（全体 / 残高照合対象）", report.source.historyChronologySummary.documentsWithAnyParsableTime + " / " + report.source.historyChronologySummary.balanceEligibleWithParsableTime],
+    ["配列順（昇順相当 / 降順相当 / 混在）", (report.source.historyChronologySummary.balanceEligibleOrderCounts["ascending-or-tied"] || 0) + " / " + (report.source.historyChronologySummary.balanceEligibleOrderCounts["descending-or-tied"] || 0) + " / " + (report.source.historyChronologySummary.balanceEligibleOrderCounts.mixed || 0)],
     ["要確認行のうち期待収支とパーサー検出値に数値差がある候補", report.parser.flowDifferenceSummary.rowsWithNumericDifference],
     ["数値差がある候補：mismatch / 理由確認済み", (report.parser.flowDifferenceSummary.byStatus.mismatch || 0) + " / " + (report.parser.flowDifferenceSummary.byStatus["reviewed-by-parser-reason"] || 0)]
   ];
@@ -849,6 +914,16 @@ function toMarkdownReport(report) {
     "|---|---:|---:|---|---|---|---|---:|---|",
     ...report.parser.flowDifferenceDetails.map((row) => "| " + row.id + " | " + (row.historyRow ?? "—") + " | " + (row.lineIndex ?? "—") + " | " + row.status + " | " + JSON.stringify(row.difference) + " | " + JSON.stringify(row.expectedFlows) + " | " + JSON.stringify(row.detectedFlows) + " | " + row.parserReasonCount + " | " + Number(row.sourceFinding) + " |"),
     "",
+    "## 履歴配列と日時メタデータ（残高スナップショットの時刻ではない）",
+    "",
+    "scenarioHistory の日時候補だけを読み、実際の日付・時刻の値はレポートに出さずに配列順を分類します。時系列の配列順が推定できても、保存通貨残高にフィールド単位の更新時刻はないため、残高スナップショットの時点まで証明できるわけではありません。",
+    "",
+    "| URL ID | 履歴行 | 時刻あり | 時刻なし | 配列順 | 昇順違反 | 降順違反 | 同時刻ペア | date欄 | createdAt欄 | at欄 | timestamp欄 |",
+    "|---|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|",
+    ...report.source.historyChronologyDocuments.filter((row) => row.balanceEligible).map((row) =>
+      "| " + row.id + " | " + row.historyRows + " | " + row.rowsWithParsableTime + " | " + row.rowsWithoutParsableTime + " | " + row.arrayOrder + " | " + row.ascendingBreaks + " | " + row.descendingBreaks + " | " + row.tiedPairs + " | " + (row.fieldPresence.date || 0) + " | " + (row.fieldPresence.createdAt || 0) + " | " + (row.fieldPresence.at || 0) + " | " + (row.fieldPresence.timestamp || 0) + " |"
+    ),
+    "",
     "## 残高を示す記述パターン（本文非出力）",
     "",
     "| パターン | 行数 |",
@@ -913,6 +988,7 @@ const fetched = await mapLimit(baseline.documents, 5, async (entry) => {
     currentBalance,
     freeNotePurchaseAudit,
     freeNotesAudit: auditFreeNotes(result.doc),
+    historyChronologyAudit: auditHistoryChronology(history),
     ruleBasedOpeningAudit: auditRuleBasedOpening(history, currentBalance, MEMO),
     historyInputSha256: historyInputSha256(history),
     parsedRows
@@ -1033,6 +1109,41 @@ const flowDifferenceSummary = {
     };
     return out;
   }, {})
+};
+
+const chronologyEligibleIds = new Set(balanceBridges.map((row) => row.id));
+const historyChronologyDocuments = successful.map((entry) => ({
+  id: entry.baseline.id, historyRows: entry.actualHistoryRows,
+  balanceEligible: chronologyEligibleIds.has(entry.baseline.id),
+  ...(entry.historyChronologyAudit || auditHistoryChronology([]))
+}));
+const historyChronologySummary = {
+  documentsAnalyzed: historyChronologyDocuments.length,
+  balanceEligibleDocuments: historyChronologyDocuments.filter((row) => row.balanceEligible).length,
+  documentsWithAnyParsableTime: historyChronologyDocuments.filter((row) => row.rowsWithParsableTime > 0).length,
+  documentsWithCompleteParsableTime: historyChronologyDocuments.filter((row) => row.historyRows > 0 && row.rowsWithParsableTime === row.historyRows).length,
+  documentsWithNoParsableTime: historyChronologyDocuments.filter((row) => row.historyRows > 0 && row.rowsWithParsableTime === 0).length,
+  orderCounts: historyChronologyDocuments.reduce((counts, row) => {
+    counts[row.arrayOrder] = (counts[row.arrayOrder] || 0) + 1;
+    return counts;
+  }, {}),
+  balanceEligibleOrderCounts: historyChronologyDocuments.filter((row) => row.balanceEligible).reduce((counts, row) => {
+    counts[row.arrayOrder] = (counts[row.arrayOrder] || 0) + 1;
+    return counts;
+  }, {}),
+  rows: historyChronologyDocuments.reduce((sum, row) => sum + row.historyRows, 0),
+  rowsWithParsableTime: historyChronologyDocuments.reduce((sum, row) => sum + row.rowsWithParsableTime, 0),
+  rowsWithoutParsableTime: historyChronologyDocuments.reduce((sum, row) => sum + row.rowsWithoutParsableTime, 0),
+  fieldPresence: historyChronologyDocuments.reduce((totals, row) => {
+    for (const [field, value] of Object.entries(row.fieldPresence || {})) totals[field] = (totals[field] || 0) + Number(value || 0);
+    return totals;
+  }, {}),
+  fieldParsable: historyChronologyDocuments.reduce((totals, row) => {
+    for (const [field, value] of Object.entries(row.fieldParsable || {})) totals[field] = (totals[field] || 0) + Number(value || 0);
+    return totals;
+  }, {}),
+  balanceEligibleWithParsableTime: historyChronologyDocuments.filter((row) => row.balanceEligible && row.rowsWithParsableTime > 0).length,
+  balanceEligibleWithNoParsableTime: historyChronologyDocuments.filter((row) => row.balanceEligible && row.historyRows > 0 && row.rowsWithParsableTime === 0).length
 };
 
 function openingOrderOf(row) {
@@ -1322,7 +1433,9 @@ const report = {
       ? successful.filter((entry) => entry.baseline.previousFetchStatus === "OK")
           .map((entry) => ({ id: entry.baseline.id, sha256: entry.historyInputSha256 }))
       : [],
-    snapshotDrift
+    snapshotDrift,
+    historyChronologySummary,
+    historyChronologyDocuments
   },
   parser: {
     legacyCandidateRows: allParsedRows.reduce((sum, row) => sum + row.legacyCandidates, 0),
@@ -1413,6 +1526,10 @@ console.log(JSON.stringify({
     snapshotDriftRows: report.source.snapshotDrift.length,
     historyInputFingerprintMissingRows: report.source.historyInputFingerprintMissingRows,
     historyInputFingerprintDriftRows: report.source.historyInputFingerprintDrift.length,
+    historyRowsWithParsableTime: report.source.historyChronologySummary.rowsWithParsableTime,
+    historyRowsWithoutParsableTime: report.source.historyChronologySummary.rowsWithoutParsableTime,
+    historyArrayOrderCounts: report.source.historyChronologySummary.orderCounts,
+    balanceEligibleHistoryArrayOrderCounts: report.source.historyChronologySummary.balanceEligibleOrderCounts,
     flowDifferenceRows: report.parser.flowDifferenceSummary.rowsWithNumericDifference,
     flowDifferenceRowsByStatus: report.parser.flowDifferenceSummary.byStatus
   },
@@ -1433,6 +1550,8 @@ console.log(JSON.stringify({
   parserReasonCategories: report.parser.reasonCategories,
   flowDifferenceSummary: report.parser.flowDifferenceSummary,
   flowDifferenceDetails: report.parser.flowDifferenceDetails,
+  historyChronologySummary: report.source.historyChronologySummary,
+  historyChronologyDocuments: report.source.historyChronologyDocuments,
   freeNotesSourceSummary: report.balance.freeNotesSource.summary,
   freeNotesBridgeSummary: report.balance.freeNotesBridge.summary,
   freeNotesBridgeDocuments: report.balance.freeNotesBridge.documents,
