@@ -2000,19 +2000,26 @@
         const hasGachaResult = /ガチャ.*(?:結果|→|⇒)|(?:人格|E\\.?G\\.?O|エゴ)獲得\\s*[→⇒:：]/i.test(sourceLine);
         /* 現在残高だけが記載された購入・抽出行も監査する。金額は推測せず、
            本体処理で作られた「支出額が読み取れない」等の理由へ紐付ける。 */
-         const hasCurrentBalanceAction = /(?:現在|現座|残り|残高|→|⇒)/.test(sourceLine) &&
+        const hasCurrentBalanceAction = /(?:現在|現座|残り|残高)/.test(sourceLine) &&
            /(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ|けっか)/.test(sourceLine) &&
            /消費|支出|支払|購入|買っ|使用|行使|抽出|ガチャ|獲得|入手|取得/.test(sourceLine);
          const hasFinancialAction = hasTicketEvent || hasRosterGainEvent || hasGachaResult || hasCurrentBalanceAction ||
           ((expected.lp || expected.shards || directMoneyRow) &&
             /報酬|収入|獲得|入手|取得|付与|支給|補填|受領|被り|重複|消費|使用|支払|支出|購入|買っ|抽出|ガチャ|変換|換算/.test(sourceLine));
-        const hasFinancialCoverageTarget = (directMoneyRow || hasFinancialAction || hasSourceFinding) &&
-          (expected.lp || expected.shards || hasFinancialAction || hasSourceFinding);
+        /* 矢印で残高・操作語が挟まれ、金額が前後の記録へ結び付かず
+           通常の額面検出にも残らない行だけを人手確認へ送る。矢印の存在だけでは
+           取引を保留しない（通常の購入・抽出結果にも矢印は使われる）。 */
+        const hasArrowDelimitedMoneyAction =
+          /(?:^|[→⇒])\s*(?:(?:LP|ＬＰ|(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ|けっか))\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]+|[+＋\-−]?\s*[0-9０-９]+\s*(?:LP|ＬＰ|(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ|けっか)))\s*(?=[→⇒])/i.test(sourceLine) &&
+          /報酬|収入|消費|支出|支払|購入|買っ|獲得|入手|取得|付与|支給|補填|受領|被り|重複|変換|換算|抽出|ガチャ/.test(sourceLine);
+        const hasUnaccountedArrowBalanceCandidate = auditModeBefore === "current" && hasArrowDelimitedMoneyAction;
+        const hasFinancialCoverageTarget = (directMoneyRow || hasFinancialAction || hasSourceFinding || hasUnaccountedArrowBalanceCandidate) &&
+          (expected.lp || expected.shards || hasFinancialAction || hasSourceFinding || hasUnaccountedArrowBalanceCandidate);
         /* 現在残高セクションでも操作語・監査根拠を伴う候補行はcoverageに残す。
            ただし残高の数字を収入・支出として自動計上せず、人手確認状態に固定する。 */
         const currentBalanceActionReview =
-          (auditModeBefore === "current" || /[→⇒]/.test(sourceLine)) &&
-          hasCurrentBalanceAction && (hasFinancialAction || hasSourceFinding);
+          auditModeBefore === "current" &&
+          (hasFinancialAction || hasSourceFinding || hasUnaccountedArrowBalanceCandidate);
         if (hasFinancialCoverageTarget && (auditModeBefore !== "current" || currentBalanceActionReview)) {
           const newSpends = spends.slice(auditBefore.spends);
           const detectedFlows = {
@@ -2039,7 +2046,7 @@
             status = "current-balance-review";
             sourceAudits.push({
               side: "parser",
-              code: auditModeBefore === "current" ? "financial-action-in-current-balance-section" : "financial-action-in-balance-transition",
+              code: "financial-action-in-current-balance-section",
               severity: "review",
               lineIndex: i + 1, line: sourceLine, section: auditModeBefore,
               expected: { lp: expected.lp, shards: expected.shards },
