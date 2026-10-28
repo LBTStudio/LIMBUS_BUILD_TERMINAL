@@ -64,6 +64,8 @@
   border-left: none;
 }
 /* Preview open/close control styles live in v70-preview-controls.css. */
+/* .spp-list[style*=...] wrapping is deliberately owned by sections.css.
+   workspace.css is in an earlier cascade layer and would lose if the rule moved here. */
 
 /* ============================================================
    TOPBAR
