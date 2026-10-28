@@ -30,8 +30,8 @@ test("取得中の busy は取得が例外でも必ず解除される（finally�
   assert.match(uiFlat, /finally \{ setBusy\(false\);/, "busy 解除は finally");
 });
 
-test("1シナリオ＝1リザルトのカードがある", () => {  assert.match(uiFlat, /function ResultCard\(\{ block, scenarioOptions, sourceOptions, onPickIdentity, onDropItem, onReturnItem, existingResults = \[\], legacyCandidates = \[\], legacyTargetId = "", onPickLegacyTarget, sourceAlreadyImported = false \}\)/);
-  assert.match(uiFlat, /"gara-group gara-result"/);
+test("1シナリオ＝1リザルトのカードがある", () => {  assert.ok(uiFlat.includes("function ResultCard({"), "result card declaration exists");
+  assert.ok(uiFlat.includes("sourceAlreadyImported = false, purchaseCandidates = [], onTogglePurchaseCandidate"), "review props are part of the card");  assert.match(uiFlat, /"gara-group gara-result"/);
   /* 照合済みの所持は最初からカードの中に出る。 */
   assert.match(uiFlat, /block\.items\.map\(\(item\) => h\("div", \{/);
   assert.match(uiFlat, /gara-row-assigned/);
@@ -88,7 +88,7 @@ test("初期精神は未計上にならず、上限を超えたら画面が警�
 });
 
 test("残高照合は記録が無いユーザーには言わず、不一致だけエラーとして出す", () => {
-  assert.match(uiFlat, /window\.LBT_reconcileBalance\(manifest, doc\)/);
+  assert.ok(uiFlat.includes("window.LBT_reconcileBalance(manifest, doc, { purchases: purchasePlan })"));
   assert.match(uiFlat, /balance && balance\.checked && !balance\.ok/);
   /* 照合していないユーザー（残高変動の記載0件）には何も出さない。 */
   assert.doesNotMatch(uiFlat, /!balance\.checked\s*&&\s*balance\.message/);
@@ -320,4 +320,36 @@ test("未割当レールは編集カードより前に描画し、モバイル�
   assert.ok(rail >= 0 && firstCard >= 0, "未割当レールとリザルトカードの描画箇所がある");
   assert.ok(rail < firstCard, "単一列になるスマートフォンでも未割当がカード列より前に出る");
   assert.match(uiFlat, /className: "gara-rail"/, "デスクトップの右側レールは維持する");
+});
+
+
+test("購入候補は初期状態で未承認とし、明示チェックしたものだけを課金計画に含める", () => {
+  assert.ok(uiFlat.includes("const [purchaseApprovals, setPurchaseApprovals] = React.useState({});"));
+  assert.ok(uiFlat.includes("approved: purchaseApprovals[purchaseCandidateKey(op, proposal)] === true"));
+  assert.ok(uiFlat.includes(".filter((proposal) => proposal.approved)"));
+  assert.ok(uiFlat.includes("checked: Boolean(proposal.approved)"));
+  assert.ok(uiFlat.includes("購入候補（初期状態は未承認）"));
+  assert.ok(uiFlat.includes("明示承認済み"));
+});
+
+test("currencyDiscrepanciesを取り込み確認カードへ表示し、記録価格を自動修正しない", () => {
+  assert.ok(uiFlat.includes("Array.isArray(block.currencyDiscrepancies) && block.currencyDiscrepancies.length"));
+  assert.ok(uiFlat.includes("価格差の確認（元記録額は自動修正していません）"));
+  assert.ok(uiFlat.includes("entry.detail"));
+});
+
+
+test("承認済み購入の費用は残高照合へ渡し、未承認候補だけで確定を強制しない", () => {
+  assert.ok(uiFlat.includes('window.LBT_reconcileBalance(manifest, doc, { purchases: purchasePlan })'));
+  assert.ok(uiFlat.includes("!(draft && draft.simulation.results > 0)"));
+  assert.ok(uiFlat.includes("lineCandidates: 0"));
+  assert.ok(uiFlat.includes('flatMap((spend) => [spend?.name, resolveName(spend?.name)])'));
+});
+
+test("購入候補はモバイルでも識別・価格・チェックを操作できるスタイルを持つ", () => {
+  const css = readFileSync(new URL("../assets/v66-accounts.css", import.meta.url), "utf8");
+  assert.match(css, /\.gara-purchase-review\s*\{/);
+  assert.match(css, /\.gara-purchase-candidate\s*\{[^}]*min-height:\s*44px/s);
+  assert.match(css, /\.gara-purchase-candidate input\s*\{[^}]*accent-color:\s*var\(--gold\)/s);
+  assert.match(css, /@media \(max-width:\s*560px\)[\s\S]*?\.gara-purchase-candidate\s*\{[^}]*grid-template-columns:\s*22px minmax\(0, 1fr\)/s);
 });
