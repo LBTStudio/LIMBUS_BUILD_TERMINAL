@@ -2163,7 +2163,6 @@
             reason: "支出額を残高から逆算せず、残高表記しかないため要確認にしました"
           });
         }
-        const addedReasons = reasons.slice(auditBefore.reasons);
         const moneyReviewReason = addedReasons.some(function (entry) {
             return /LP|欠片|通貨|金額|支出|収入|残高|計算|計上|価格|チケット|抽出/.test(String(entry.reason || ""));
           });
