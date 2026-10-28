@@ -224,6 +224,12 @@ export function auditRuleBasedOpening(history, currentBalance, memoApi) {
     Number(row.parsed?.income?.lp || 0) >= RULE_INITIAL_RESOURCES.lp &&
     Number(row.parsed?.income?.shards || 0) >= RULE_INITIAL_RESOURCES.shards
   ).map((row) => row.index + 1);
+  /* The source may omit an "initial creation" label. Report exact 30/10 pairs
+     separately as candidates rather than treating them as confirmed grants. */
+  const exactInitialAmountRows = rows.filter((row) =>
+    Number(row.parsed?.income?.lp || 0) === RULE_INITIAL_RESOURCES.lp &&
+    Number(row.parsed?.income?.shards || 0) === RULE_INITIAL_RESOURCES.shards
+  ).map((row) => row.index + 1);
   const orders = {
     historyArrayOrder: {
       lp: analyzeOrder(rows, "lp", currentBalance, memoApi, false),
@@ -264,6 +270,7 @@ export function auditRuleBasedOpening(history, currentBalance, memoApi) {
     initialResources: { ...RULE_INITIAL_RESOURCES },
     explicitInitialGrantRecorded: hasInitialNamedRow,
     explicitInitialGrantRows,
+    exactInitialAmountRows,
     historyRows: rows.length,
     memoRows: rows.filter((row) => row.memo.trim()).length,
     historyNetLp, historyNetShards,
