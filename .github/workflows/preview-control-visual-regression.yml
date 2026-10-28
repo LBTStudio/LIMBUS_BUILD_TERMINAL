@@ -1,0 +1,41 @@
+name: Preview control visual regression
+
+on:
+  pull_request:
+    paths:
+      - "assets/v70-preview-controls.css"
+      - "assets/workspace.css"
+      - "js/App.js"
+      - "js/LivePreview.js"
+      - "tools/ui/capture-preview-control-regression.mjs"
+      - ".github/workflows/preview-control-visual-regression.yml"
+      - "index.html"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preview-control:
+    name: Verify preview control geometry (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install Playwright
+        run: npm install --no-save playwright@1.64.0
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Capture desktop, tablet, phone and landscape states
+        run: node tools/ui/capture-preview-control-regression.mjs
+      - name: Upload focused preview screenshots and geometry
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lbt-preview-control-regression
+          path: artifacts/preview-control-regression/
+          if-no-files-found: warn
+          retention-days: 30
