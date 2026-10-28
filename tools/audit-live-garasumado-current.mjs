@@ -553,7 +553,7 @@ const rowDeltas = successes.flatMap((doc, documentIndex) => doc.rows
 const allFindings = perDocument.flatMap((doc) => doc.changedRows.flatMap((row) =>
   (row.findings || []).map((finding) => ({ documentOrdinal: doc.documentOrdinal, scenarioRow: row.scenarioRow, ...finding }))));
 const failureStatusCounts = failures.reduce((out, item) => {
-  const match = String(item.error || "").match(/(?:characters|personas):\\s*(\\d{3})/);
+  const match = String(item.error || "").match(/(?:characters|personas):\s*(\d{3})/);
   const status = match ? match[1] : "unknown";
   out[status] = (out[status] || 0) + 1;
   return out;
@@ -611,7 +611,7 @@ const safeAudit = {
   coverageFindings: allFindings
 };
 const safeJson = JSON.stringify(safeAudit);
-if (/"(?:id|title|memo|sourceTitle|sourceMemo|line|shape|rawShape|reasonDetails)"\\s*:/.test(safeJson)) {
+if (/"(?:id|title|memo|sourceTitle|sourceMemo|line|shape|rawShape|reasonDetails)"\s*:/.test(safeJson)) {
   throw new Error("Sanitized audit output contains a forbidden source field");
 }
 console.log("GARASUMADO_LIVE_AUDIT_BEGIN");
