@@ -372,7 +372,9 @@ function auditMemo(id, historyIndex, memo) {
       };
     });
 
-  return { historyIndex, candidates, covered, legacyCandidates, legacyTransactionCandidates, nonTransactionalTicketLabels, nonTransactionalDrawLabels, unclassifiedLegacyCues, unclassifiedLegacyCueExamples, issues, financial, reviewDetails, coverageStatuses: coverages.reduce((counts, entry) => {
+  const spendSignatures = (parsed.spends || []).map(spendSignature).filter(Boolean);
+
+  return { historyIndex, candidates, covered, legacyCandidates, legacyTransactionCandidates, nonTransactionalTicketLabels, nonTransactionalDrawLabels, unclassifiedLegacyCues, unclassifiedLegacyCueExamples, issues, financial, reviewDetails, spendSignatures, coverageStatuses: coverages.reduce((counts, entry) => {
     const status = String(entry?.status || "missing-status");
     counts[status] = (counts[status] || 0) + 1;
     return counts;
@@ -469,6 +471,105 @@ function storedCurrencyOf(doc) {
   return {
     lp: parseStoredCurrencyAmount(currency.lp),
     shards: parseStoredCurrencyAmount(currency.fragment ?? currency.shards ?? currency.fragments)
+  };
+}
+
+function normalizeExpenseName(value) {
+  return String(value || "")
+    .normalize("NFKC")
+    .replace(/[「」『』\"'：:]/g, "")
+    .replace(/\\s+/g, "")
+    .toLocaleLowerCase("ja-JP");
+}
+
+/* Signatures are used only for overlap analysis; raw names and free-note text are never emitted. */
+function spendSignature(row) {
+  const lp = Math.abs(Number(row?.lp) || 0);
+  const shards = Math.abs(Number(row?.shards) || 0);
+  if (!Number.isSafeInteger(lp) || !Number.isSafeInteger(shards)) return null;
+  const normalizedName = normalizeExpenseName(row?.name);
+  return {
+    exact: createHash("sha256").update(normalizedName + "\\0" + lp + "\\0" + shards).digest("hex"),
+    amount: lp + "/" + shards,
+    lp,
+    shards
+  };
+}
+
+/* Mirror the importer's freeNotes rule: only rows accepted by purchaseRowOf() in the
+   secret/history/memo/setting fields become an untimed purchase scenario. */
+function auditFreeNotes(doc) {
+  const notes = doc?.freeNotes && typeof doc.freeNotes === "object" ? doc.freeNotes : {};
+  const fields = ["secret", "history", "memo", "setting"];
+  const allLines = fields.flatMap((field) =>
+    String(notes[field] || "").split(/\\r?\\n/).map((line) => String(line || "").trim()).filter(Boolean)
+  );
+  const expenseCues = allLines.filter((line) => /購入|消費|支出|支払|買っ/.test(line));
+  const acceptedLines = allLines.filter((line) =>
+    typeof MEMO.purchaseRowOf === "function" && Boolean(MEMO.purchaseRowOf(line))
+  );
+  const parsed = MEMO.parseMemo(acceptedLines.join("\\n"));
+  const signatures = (parsed.spends || []).map(spendSignature).filter(Boolean)
+    .filter((spend) => spend.lp > 0 || spend.shards > 0);
+  return {
+    lineCount: allLines.length,
+    expenseCueRows: expenseCues.length,
+    recognizedPurchaseLines: acceptedLines.length,
+    parsedSpendRows: signatures.length,
+    cueRowsWithoutPurchaseRow: Math.max(0, expenseCues.length - acceptedLines.length),
+    acceptedRowsWithoutParsedSpend: Math.max(0, acceptedLines.length - signatures.length),
+    spendLp: signatures.reduce((sum, spend) => sum + spend.lp, 0),
+    spendShards: signatures.reduce((sum, spend) => sum + spend.shards, 0),
+    spendSignatures: signatures
+  };
+}
+
+function reconcileFreeNotesSpend(historySpendSignatures, freeNotesAudit, residualLp, residualShards) {
+  const exactCounts = new Map();
+  const amountCounts = new Map();
+  for (const spend of historySpendSignatures || []) {
+    exactCounts.set(spend.exact, (exactCounts.get(spend.exact) || 0) + 1);
+    amountCounts.set(spend.amount, (amountCounts.get(spend.amount) || 0) + 1);
+  }
+  let exactDuplicateRows = 0;
+  let possibleAmountOnlyDuplicateRows = 0;
+  let uniqueSpendLpLower = 0;
+  let uniqueSpendShardsLower = 0;
+  let uniqueSpendLpUpper = 0;
+  let uniqueSpendShardsUpper = 0;
+  for (const spend of freeNotesAudit?.spendSignatures || []) {
+    const exactCount = exactCounts.get(spend.exact) || 0;
+    if (exactCount > 0) {
+      exactCounts.set(spend.exact, exactCount - 1);
+      const amountCount = amountCounts.get(spend.amount) || 0;
+      if (amountCount > 0) amountCounts.set(spend.amount, amountCount - 1);
+      exactDuplicateRows++;
+      continue;
+    }
+    /* Names can differ between a free-note shorthand and a scenario memo. An amount-only
+       match is ambiguous: calculate a lower and upper balance range instead of guessing. */
+    const amountCount = amountCounts.get(spend.amount) || 0;
+    if (amountCount > 0) {
+      amountCounts.set(spend.amount, amountCount - 1);
+      possibleAmountOnlyDuplicateRows++;
+    } else {
+      uniqueSpendLpLower += spend.lp;
+      uniqueSpendShardsLower += spend.shards;
+    }
+    uniqueSpendLpUpper += spend.lp;
+    uniqueSpendShardsUpper += spend.shards;
+  }
+  return {
+    exactDuplicateRows,
+    possibleAmountOnlyDuplicateRows,
+    uniqueSpendLpLower,
+    uniqueSpendShardsLower,
+    uniqueSpendLpUpper,
+    uniqueSpendShardsUpper,
+    residualLpAfterFreeNotesLower: Number.isSafeInteger(residualLp) ? residualLp + uniqueSpendLpLower : null,
+    residualShardsAfterFreeNotesLower: Number.isSafeInteger(residualShards) ? residualShards + uniqueSpendShardsLower : null,
+    residualLpAfterFreeNotesUpper: Number.isSafeInteger(residualLp) ? residualLp + uniqueSpendLpUpper : null,
+    residualShardsAfterFreeNotesUpper: Number.isSafeInteger(residualShards) ? residualShards + uniqueSpendShardsUpper : null
   };
 }
 
@@ -593,6 +694,7 @@ const fetched = await mapLimit(baseline.documents, 5, async (entry) => {
     actualMemoRows: memoRows,
     currentBalance: storedCurrencyOf(result.doc),
     ruleBasedOpeningAudit: auditRuleBasedOpening(history, storedCurrencyOf(result.doc)),
+    freeNotesAudit: auditFreeNotes(result.doc),
     historyInputSha256: historyInputSha256(history),
     parsedRows
   };
@@ -699,6 +801,60 @@ const ruleBasedOpeningSummary = {
   shardsAboveInitialCeiling: ruleBasedOpeningAudits.filter((row) => row.shardsAboveCeiling).length
 };
 
+const freeNotesBridgeRows = balanceBridges.map((row) => {
+  const entry = successful.find((candidate) => candidate.baseline.id === row.id);
+  const freeNotesAudit = entry?.freeNotesAudit || {
+    lineCount: 0, expenseCueRows: 0, recognizedPurchaseLines: 0, parsedSpendRows: 0,
+    cueRowsWithoutPurchaseRow: 0, acceptedRowsWithoutParsedSpend: 0,
+    spendLp: 0, spendShards: 0, spendSignatures: []
+  };
+  const scenarioSpendSignatures = (entry?.parsedRows || []).flatMap((memo) => memo.spendSignatures || []);
+  return {
+    id: row.id,
+    historyRows: row.historyRows,
+    currentLp: row.currentLp,
+    currentShards: row.currentShards,
+    residualLpBeforeFreeNotes: row.impliedOpeningLp,
+    residualShardsBeforeFreeNotes: row.impliedOpeningShards,
+    ...{
+      lineCount: freeNotesAudit.lineCount,
+      expenseCueRows: freeNotesAudit.expenseCueRows,
+      recognizedPurchaseLines: freeNotesAudit.recognizedPurchaseLines,
+      parsedSpendRows: freeNotesAudit.parsedSpendRows,
+      cueRowsWithoutPurchaseRow: freeNotesAudit.cueRowsWithoutPurchaseRow,
+      acceptedRowsWithoutParsedSpend: freeNotesAudit.acceptedRowsWithoutParsedSpend,
+      freeNotesSpendLp: freeNotesAudit.spendLp,
+      freeNotesSpendShards: freeNotesAudit.spendShards
+    },
+    ...reconcileFreeNotesSpend(
+      scenarioSpendSignatures,
+      freeNotesAudit,
+      row.impliedOpeningLp,
+      row.impliedOpeningShards
+    )
+  };
+});
+const freeNotesBridgeSummary = {
+  eligibleDocuments: freeNotesBridgeRows.length,
+  documentsWithAnyFreeNotes: freeNotesBridgeRows.filter((row) => row.lineCount > 0).length,
+  documentsWithExpenseCues: freeNotesBridgeRows.filter((row) => row.expenseCueRows > 0).length,
+  documentsWithRecognizedFreeNotesPurchases: freeNotesBridgeRows.filter((row) => row.parsedSpendRows > 0).length,
+  recognizedFreeNotesPurchaseRows: freeNotesBridgeRows.reduce((sum, row) => sum + row.parsedSpendRows, 0),
+  recognizedFreeNotesSpendLp: freeNotesBridgeRows.reduce((sum, row) => sum + row.freeNotesSpendLp, 0),
+  recognizedFreeNotesSpendShards: freeNotesBridgeRows.reduce((sum, row) => sum + row.freeNotesSpendShards, 0),
+  documentsWithExpenseCueRowsNotRecognizedAsPurchase: freeNotesBridgeRows.filter((row) => row.cueRowsWithoutPurchaseRow > 0).length,
+  expenseCueRowsNotRecognizedAsPurchase: freeNotesBridgeRows.reduce((sum, row) => sum + row.cueRowsWithoutPurchaseRow, 0),
+  rowsAcceptedAsPurchaseButNotParsedAsSpend: freeNotesBridgeRows.reduce((sum, row) => sum + row.acceptedRowsWithoutParsedSpend, 0),
+  rowsExactlyDuplicatedWithScenarioSpend: freeNotesBridgeRows.reduce((sum, row) => sum + row.exactDuplicateRows, 0),
+  rowsPotentiallyDuplicatedByAmountOnly: freeNotesBridgeRows.reduce((sum, row) => sum + row.possibleAmountOnlyDuplicateRows, 0),
+  lpNegativeBefore: freeNotesBridgeRows.filter((row) => row.residualLpBeforeFreeNotes < 0).length,
+  lpNegativeAfterPossibleUniqueFreeNotesLower: freeNotesBridgeRows.filter((row) => row.residualLpAfterFreeNotesLower < 0).length,
+  lpNegativeAfterPossibleUniqueFreeNotesUpper: freeNotesBridgeRows.filter((row) => row.residualLpAfterFreeNotesUpper < 0).length,
+  shardsNegativeBefore: freeNotesBridgeRows.filter((row) => row.residualShardsBeforeFreeNotes < 0).length,
+  shardsNegativeAfterPossibleUniqueFreeNotesLower: freeNotesBridgeRows.filter((row) => row.residualShardsAfterFreeNotesLower < 0).length,
+  shardsNegativeAfterPossibleUniqueFreeNotesUpper: freeNotesBridgeRows.filter((row) => row.residualShardsAfterFreeNotesUpper < 0).length
+};
+
 const balanceBridgeSummary = {
   eligibleDocuments: balanceBridges.length,
   excludedNoMemoOrUnreadableBalance: successful.length - balanceBridges.length,
@@ -748,6 +904,10 @@ const report = {
     interpretation: "ルールブック初期資源は30 LP / 自我の欠片10。シナリオ開始時点の推定残高は、開始前の人格・アイテム購入などにより低くなり得る。現在/現座の残高アンカーと、それ以前にパーサが認識した収支から開始残高を各チェックポイントごとに逆算し、値が安定するか・0～初期資源上限内か・最新アンカーから保存残高へ再現できるかを確認する。",
     summary: balanceBridgeSummary,
     bridges: balanceBridges,
+    freeNotesBridge: {
+      summary: freeNotesBridgeSummary,
+      documents: freeNotesBridgeRows
+    },
     ruleBasedOpening: {
       summary: ruleBasedOpeningSummary,
       documents: ruleBasedOpeningAudits
@@ -776,6 +936,18 @@ console.log(JSON.stringify({
     issueCount: report.parser.issues.length,
     currencyDiscrepancies: report.parser.currencyDiscrepancies,
     balanceBridgeDocuments: report.balance.summary.eligibleDocuments,
+    freeNotesDocumentsWithExpenseCues: report.balance.freeNotesBridge.summary.documentsWithExpenseCues,
+    freeNotesDocumentsWithRecognizedPurchases: report.balance.freeNotesBridge.summary.documentsWithRecognizedFreeNotesPurchases,
+    freeNotesRecognizedPurchaseRows: report.balance.freeNotesBridge.summary.recognizedFreeNotesPurchaseRows,
+    freeNotesSpendLp: report.balance.freeNotesBridge.summary.recognizedFreeNotesSpendLp,
+    freeNotesSpendShards: report.balance.freeNotesBridge.summary.recognizedFreeNotesSpendShards,
+    freeNotesCueRowsUnrecognized: report.balance.freeNotesBridge.summary.expenseCueRowsNotRecognizedAsPurchase,
+    freeNotesExactDuplicatePurchaseRows: report.balance.freeNotesBridge.summary.rowsExactlyDuplicatedWithScenarioSpend,
+    freeNotesPossibleDuplicateByAmountRows: report.balance.freeNotesBridge.summary.rowsPotentiallyDuplicatedByAmountOnly,
+    lpNegativeAfterFreeNotesLower: report.balance.freeNotesBridge.summary.lpNegativeAfterPossibleUniqueFreeNotesLower,
+    lpNegativeAfterFreeNotesUpper: report.balance.freeNotesBridge.summary.lpNegativeAfterPossibleUniqueFreeNotesUpper,
+    shardsNegativeAfterFreeNotesLower: report.balance.freeNotesBridge.summary.shardsNegativeAfterPossibleUniqueFreeNotesLower,
+    shardsNegativeAfterFreeNotesUpper: report.balance.freeNotesBridge.summary.shardsNegativeAfterPossibleUniqueFreeNotesUpper,
     ruleBasedOpeningDocuments: report.balance.ruleBasedOpening.summary.eligibleDocuments,
     ruleBasedLpCompatibleAfterSetupSpend: report.balance.ruleBasedOpening.summary.lpCompatibleAfterSetupSpend,
     ruleBasedShardCompatibleAfterSetupSpend: report.balance.ruleBasedOpening.summary.shardsCompatibleAfterSetupSpend,
@@ -799,6 +971,8 @@ console.log(JSON.stringify({
   }, {}),
   balanceBridgeSummary: report.balance.summary,
   balanceBridges: report.balance.bridges,
+  freeNotesBridgeSummary: report.balance.freeNotesBridge.summary,
+  freeNotesBridgeDocuments: report.balance.freeNotesBridge.documents,
   ruleBasedOpeningSummary: report.balance.ruleBasedOpening.summary,
   ruleBasedOpeningDocuments: report.balance.ruleBasedOpening.documents,
   reviewDetailsCount: report.balance.bridges.reduce((sum, row) => sum + row.reviewDetails.length, 0),
