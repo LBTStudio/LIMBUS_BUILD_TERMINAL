@@ -433,6 +433,10 @@ function toMarkdownReport(report) {
     ["残高ブリッジの対象文書（履歴メモ・通貨値あり）", report.balance.summary.eligibleDocuments],
     ["ルール上の初期資源（LP / 欠片）", report.balance.ruleBasedOpening.summary.ruleInitialLp + " / " + report.balance.ruleBasedOpening.summary.ruleInitialShards],
     ["残高アンカーが読めた文書（LP / 欠片）", report.balance.ruleBasedOpening.summary.lpWithAnchors + " / " + report.balance.ruleBasedOpening.summary.shardsWithAnchors],
+    ["残高語句／矢印を含むメモ行", report.balance.balanceCuePatterns.cueLines],
+    ["「現在／現座」を含むメモ行", report.balance.balanceCuePatterns.currentWordLines],
+    ["矢印を含むメモ行", report.balance.balanceCuePatterns.arrowLines],
+    ["残高語句がある文書 / 現在語がある文書", report.balance.balanceCuePatterns.documentsWithAnyBalanceCue + " / " + report.balance.balanceCuePatterns.documentsWithExplicitCurrentWord],
     ["推定開始残高が初期資源の範囲内（LP / 欠片）", report.balance.ruleBasedOpening.summary.lpOpeningWithinRuleRange + " / " + report.balance.ruleBasedOpening.summary.shardsOpeningWithinRuleRange],
     ["全アンカーで開始残高推定が一致（LP / 欠片）", report.balance.ruleBasedOpening.summary.lpOpeningStableAcrossAnchors + " / " + report.balance.ruleBasedOpening.summary.shardsOpeningStableAcrossAnchors],
     ["最新アンカーから保存残高を再現（LP / 欠片）", report.balance.ruleBasedOpening.summary.lpLatestAnchorMatchesCurrent + " / " + report.balance.ruleBasedOpening.summary.shardsLatestAnchorMatchesCurrent],
@@ -479,6 +483,14 @@ function toMarkdownReport(report) {
     ...report.balance.bridges.flatMap((row) => row.reviewDetails.map((detail) =>
       "| " + row.id + " | " + detail.historyRow + " | " + (detail.lineIndex ?? "—") + " | " + detail.section + " | " + detail.status + " | " + JSON.stringify(detail.expected) + " | " + JSON.stringify(detail.detected) + " | " + Number(detail.hasParserReason) + " | " + Number(detail.sourceFinding) + " | " + detail.auditCodes.map((audit) => audit.code + ":" + audit.severity).join(",") + " |"
     )),
+    "",
+    "## 残高を示す記述パターン（本文非出力）",
+    "",
+    "| パターン | 行数 |",
+    "|---|---:|",
+    ...Object.entries(report.balance.balanceCuePatterns.patternCounts).sort((a, b) => b[1] - a[1]).map(([pattern, amount]) => "| " + pattern + " | " + amount + " |"),
+    "",
+    "この表は語句の組み合わせ・通貨単位・数字の前後関係だけを集計し、メモ本文を出力しません。明示的な「現在／現座」が無く矢印だけの行は、残高アンカーと断定せず候補パターンとして別評価します。",
     "",
     "## 監査coverageの状態別件数",
     "",
@@ -671,6 +683,27 @@ const ruleBasedOpeningSummary = {
   historyOrderAmbiguous: count(ruleBasedOpeningAudits, (row) => row.preferredHistoryOrder === "ambiguous"),
   explicitInitialGrantRecorded: count(ruleBasedOpeningAudits, (row) => row.explicitInitialGrantRecorded)
 };
+const balanceCueTotals = {
+  memoRows: 0, cueLines: 0, currentWordLines: 0, otherBalanceWordLines: 0,
+  arrowLines: 0, lpLines: 0, shardLines: 0, bothCurrencyLines: 0,
+  numericBeforeCueLines: 0, numericAfterCueLines: 0, actionCueLines: 0,
+  conversionCueLines: 0, patternCounts: {}
+};
+for (const entry of successful) {
+  const cue = entry.ruleBasedOpeningAudit?.balanceCuePatterns || {};
+  for (const key of ["memoRows", "cueLines", "currentWordLines", "otherBalanceWordLines", "arrowLines", "lpLines", "shardLines", "bothCurrencyLines", "numericBeforeCueLines", "numericAfterCueLines", "actionCueLines", "conversionCueLines"]) {
+    balanceCueTotals[key] += Number(cue[key]) || 0;
+  }
+  for (const [key, value] of Object.entries(cue.patternCounts || {})) {
+    balanceCueTotals.patternCounts[key] = (balanceCueTotals.patternCounts[key] || 0) + Number(value || 0);
+  }
+}
+const balanceCueSummary = {
+  ...balanceCueTotals,
+  documentsWithAnyBalanceCue: successful.filter((entry) => (entry.ruleBasedOpeningAudit?.balanceCuePatterns?.cueLines || 0) > 0).length,
+  documentsWithExplicitCurrentWord: successful.filter((entry) => (entry.ruleBasedOpeningAudit?.balanceCuePatterns?.currentWordLines || 0) > 0).length,
+  documentsWithArrow: successful.filter((entry) => (entry.ruleBasedOpeningAudit?.balanceCuePatterns?.arrowLines || 0) > 0).length
+};
 const balanceBridgeSummary = {
   eligibleDocuments: balanceBridges.length,
   excludedNoMemoOrUnreadableBalance: successful.length - balanceBridges.length,
@@ -723,7 +756,8 @@ const report = {
     ruleBasedOpening: {
       summary: ruleBasedOpeningSummary,
       documents: ruleBasedOpeningAudits
-    }
+    },
+    balanceCuePatterns: balanceCueSummary
   }
 };
 
@@ -785,6 +819,7 @@ console.log(JSON.stringify({
   balanceBridges: report.balance.bridges,
   ruleBasedOpeningSummary: report.balance.ruleBasedOpening.summary,
   ruleBasedOpeningDocuments: report.balance.ruleBasedOpening.documents,
+  balanceCuePatterns: report.balance.balanceCuePatterns,
   reviewDetailsCount: report.balance.bridges.reduce((sum, row) => sum + row.reviewDetails.length, 0),
   reviewDetails: report.balance.bridges.flatMap((row) => row.reviewDetails.map((detail) => ({ id: row.id, ...detail }))),
   issues: report.parser.issues.slice(0, 100),
