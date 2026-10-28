@@ -31,7 +31,7 @@
       .replace(/[\uFF01-\uFF5E]/g, function (ch) {
         return String.fromCharCode(ch.charCodeAt(0) - 0xFEE0);
       })
-      .replace(/\u2212/g, "-")
+      .replace(/[\u2010-\u2015\u2212\uFE63]/g, "-")
       .replace(/\u3000/g, " ");
   }
 
