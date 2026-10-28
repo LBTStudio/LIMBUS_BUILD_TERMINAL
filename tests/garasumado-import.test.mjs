@@ -3058,3 +3058,15 @@ test("E.G.O指定購入という語を含む支出文を見出しとして捨て
   const heading = MEMO.parseMemo("▼E.G.O指定購入\n呪いの釘：痛がるテディ(TETH) 欠片75");
   assert.equal(heading.income.shards, 0, "単独見出しは収入にならない");
 });
+
+
+test("共有実サンプルのE.G.O指定購入は、複数行リザルトの文脈でも欠片支出を保持する", () => {
+  const doc = samples["pJxz8aNlya8WXzv7HXeb"]?.doc;
+  assert.ok(doc?.scenarioHistory?.length >= 51, "対象の共有サンプルがある");
+  const shard75 = MEMO.parseMemo(doc.scenarioHistory[47].memo);
+  const shard50 = MEMO.parseMemo(doc.scenarioHistory[50].memo);
+  assert.equal(shard75.spends.reduce((sum, row) => sum + (Number(row.shards) || 0), 0), 75,
+    "「欠片75消費してEGO指定購入」は実データの複数行文脈でも75支出");
+  assert.equal(shard50.spends.reduce((sum, row) => sum + (Number(row.shards) || 0), 0), 50,
+    "「欠片50を消費してEGO指定購入」も実データ形式で50支出");
+});
