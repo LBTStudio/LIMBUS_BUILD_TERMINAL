@@ -42,6 +42,13 @@ test("プレビューの開閉は出力データを再生成せず、格納中�
   assert.match(workspaceCss, /\.preview-edge-toggle \{/);
 });
 
+test("プレビュー未設定時はアプリ本体・プレビュー面・右端操作がすべて閉じ状態になる", () => {
+  assert.match(appSource, /const previewOpen = state\.ui\.previewOpen === true;/);
+  assert.match(livePreviewSource, /const previewOpen = state\.ui\.previewOpen === true;/);
+  assert.match(livePreviewSource, /className: `preview\$\{previewOpen \? " is-open" : ""\}`/);
+  assert.match(livePreviewSource, /edgeToggle\.textContent = previewOpen \? "◀ 格納" : "▶ 展開"/);
+});
+
 test("プレビューの右端タブは展開・格納のどちらでも同一操作で切り替える", () => {
   assert.match(livePreviewSource, /lbt-preview-edge-toggle/);
   assert.match(livePreviewSource, /previewOpen \? "◀ 格納" : "▶ 展開"/);
