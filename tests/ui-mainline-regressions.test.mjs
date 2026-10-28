@@ -34,6 +34,14 @@ test("phone widths keep account creation controls and category tabs usable", () 
   assert.match(css, /\.record-tabbar \.card-header > \.segmented\[role="tablist"\]\[aria-label="記録セクションの種別"\]\s*\{[^}]*display:\s*grid/s);
 });
 
+test("Playwright preview audit follows the visible control at each viewport width", () => {
+  const capture = read("../tools/ui/capture-preview-control-regression.mjs");
+  assert.match(capture, /profile\.mobile\?"\.preview-mobile-toggle":"#lbt-preview-edge-toggle"/);
+  assert.match(capture, /async function metrics\(page,profile\)/);
+  assert.match(capture, /await page\.locator\(profile\.mobile\?"\.preview-mobile-toggle":"#lbt-preview-edge-toggle"\)\.waitFor\(\{state:"visible",timeout:10000\}\)/);
+  assert.match(app, /"aria-controls": "preview-panel", "aria-expanded": previewOpen/);
+});
+
 test("result import routes scroll their selected panel into view", () => {
   assert.match(otherSections, /const activeType = textPanel \? "text" : importPanel \? "glass" : heldOpen \? "held" : null;/);
   assert.match(otherSections, /panels\.find\(\(panel\) => panel\.querySelector\("textarea\.ledger-textarea"\)\)/);
