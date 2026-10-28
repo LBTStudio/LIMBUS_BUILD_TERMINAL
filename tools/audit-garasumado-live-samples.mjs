@@ -591,6 +591,12 @@ function toMarkdownReport(report) {
     ["現在残高セクションの人手確認候補", report.parser.currentBalanceReviewRows],
     ["監査coverage欠落・未解決等", report.parser.issues.length],
     ["通貨不一致／残高関連警告", report.parser.currencyDiscrepancies],
+    ["自由メモを監査した全共有データ", report.balance.freeNotesSource.summary.documentsAnalyzed],
+    ["自由メモに購入・消費語がある文書", report.balance.freeNotesSource.summary.documentsWithExpenseCues],
+    ["自由メモから購入として認識された行", report.balance.freeNotesSource.summary.recognizedPurchaseRows],
+    ["購入語はあるが購入行として認識されない行", report.balance.freeNotesSource.summary.expenseCueRowsNotRecognized],
+    ["購入行だが支出としてパースされない行", report.balance.freeNotesSource.summary.acceptedRowsWithoutParsedSpend],
+    ["購入行があるのにシナリオメモが無い文書", report.balance.freeNotesSource.summary.documentsWithPurchasesButNoScenarioMemo.length],
     ["残高ブリッジの対象文書（履歴メモ・通貨値あり）", report.balance.summary.eligibleDocuments],
     ["ルール上の初期資源（LP / 欠片）", report.balance.ruleBasedOpening.summary.ruleInitialLp + " / " + report.balance.ruleBasedOpening.summary.ruleInitialShards],
     ["残高アンカーが読めた文書（LP / 欠片）", report.balance.ruleBasedOpening.summary.lpWithAnchors + " / " + report.balance.ruleBasedOpening.summary.shardsWithAnchors],
@@ -622,6 +628,22 @@ function toMarkdownReport(report) {
       .slice()
       .sort((a, b) => (Math.min(a.impliedOpeningLp, a.impliedOpeningShards) - Math.min(b.impliedOpeningLp, b.impliedOpeningShards)))
       .map((row) => "| " + row.id + " | " + row.historyRows + " | " + row.memoRows + " | " + row.currentLp + " | " + row.netLp + " | " + row.impliedOpeningLp + " | " + row.currentShards + " | " + row.netShards + " | " + row.impliedOpeningShards + " | " + row.reviewRows + " |"),
+    "",
+    "## 自由メモの購入記録を加味した再照合",
+    "",
+    "硝子窓の取込実装は freeNotes の secret/history/memo/setting にある購入短文を、シナリオ履歴とは別の未帰属購入として扱います。シナリオ履歴の支出と自由メモの支出が同じ名前・金額なら重複として除外し、金額だけが同じ場合は重複か別取引かを決めつけず、残差を範囲で示します。",
+    "",
+    "| URL ID | 履歴行 | 自由メモ購入行 | LP支出 | 欠片支出 | 履歴のみ残差LP | 自由メモ考慮後LP範囲 | 履歴のみ残差欠片 | 自由メモ考慮後欠片範囲 | 完全一致重複 | 金額一致のみ | 未認識購入cue |",
+    "|---|---:|---:|---:|---:|---:|---|---:|---|---:|---:|---:|",
+    ...report.balance.freeNotesBridge.documents
+      .filter((row) => row.expenseCueRows > 0 || row.parsedSpendRows > 0 || row.possibleAmountOnlyDuplicateRows > 0)
+      .map((row) => "| " + row.id + " | " + row.historyRows + " | " + row.parsedSpendRows + " | " + row.freeNotesSpendLp + " | " + row.freeNotesSpendShards + " | " + row.residualLpBeforeFreeNotes + " | " + row.residualLpAfterFreeNotesLower + "…"+ row.residualLpAfterFreeNotesUpper + " | " + row.residualShardsBeforeFreeNotes + " | " + row.residualShardsAfterFreeNotesLower + "…" + row.residualShardsAfterFreeNotesUpper + " | " + row.exactDuplicateRows + " | " + row.possibleAmountOnlyDuplicateRows + " | " + row.cueRowsWithoutPurchaseRow + " |"),
+    "",
+    "### 自由メモ購入あり・シナリオ履歴メモなし",
+    "",
+    ...report.balance.freeNotesSource.summary.documentsWithPurchasesButNoScenarioMemo.map((row) =>
+      "| " + row.id + " | 履歴行 " + row.historyRows + " | 現在LP " + (row.currentLp ?? "—") + " | 現在欠片 " + (row.currentShards ?? "—") + " | 自由メモ購入 " + row.purchaseRows + "行（LP " + row.spendLp + " / 欠片 " + row.spendShards + "） |"
+    ),
     "",
     "## ルールブック初期資源との残差分類",
     "",
@@ -855,6 +877,30 @@ const freeNotesBridgeSummary = {
   shardsNegativeAfterPossibleUniqueFreeNotesUpper: freeNotesBridgeRows.filter((row) => row.residualShardsAfterFreeNotesUpper < 0).length
 };
 
+const freeNotesSourceSummary = {
+  documentsAnalyzed: successful.length,
+  documentsWithAnyFreeNotes: successful.filter((entry) => (entry.freeNotesAudit?.lineCount || 0) > 0).length,
+  documentsWithExpenseCues: successful.filter((entry) => (entry.freeNotesAudit?.expenseCueRows || 0) > 0).length,
+  documentsWithRecognizedPurchases: successful.filter((entry) => (entry.freeNotesAudit?.parsedSpendRows || 0) > 0).length,
+  recognizedPurchaseRows: successful.reduce((sum, entry) => sum + (entry.freeNotesAudit?.parsedSpendRows || 0), 0),
+  recognizedSpendLp: successful.reduce((sum, entry) => sum + (entry.freeNotesAudit?.spendLp || 0), 0),
+  recognizedSpendShards: successful.reduce((sum, entry) => sum + (entry.freeNotesAudit?.spendShards || 0), 0),
+  documentsWithExpenseCuesNotRecognized: successful.filter((entry) => (entry.freeNotesAudit?.cueRowsWithoutPurchaseRow || 0) > 0).length,
+  expenseCueRowsNotRecognized: successful.reduce((sum, entry) => sum + (entry.freeNotesAudit?.cueRowsWithoutPurchaseRow || 0), 0),
+  acceptedRowsWithoutParsedSpend: successful.reduce((sum, entry) => sum + (entry.freeNotesAudit?.acceptedRowsWithoutParsedSpend || 0), 0),
+  documentsWithPurchasesButNoScenarioMemo: successful
+    .filter((entry) => entry.actualMemoRows === 0 && (entry.freeNotesAudit?.parsedSpendRows || 0) > 0)
+    .map((entry) => ({
+      id: entry.baseline.id,
+      historyRows: entry.actualHistoryRows,
+      currentLp: entry.currentBalance?.lp ?? null,
+      currentShards: entry.currentBalance?.shards ?? null,
+      purchaseRows: entry.freeNotesAudit.parsedSpendRows,
+      spendLp: entry.freeNotesAudit.spendLp,
+      spendShards: entry.freeNotesAudit.spendShards
+    }))
+};
+
 const balanceBridgeSummary = {
   eligibleDocuments: balanceBridges.length,
   excludedNoMemoOrUnreadableBalance: successful.length - balanceBridges.length,
@@ -908,6 +954,9 @@ const report = {
       summary: freeNotesBridgeSummary,
       documents: freeNotesBridgeRows
     },
+    freeNotesSource: {
+      summary: freeNotesSourceSummary
+    },
     ruleBasedOpening: {
       summary: ruleBasedOpeningSummary,
       documents: ruleBasedOpeningAudits
@@ -936,6 +985,15 @@ console.log(JSON.stringify({
     issueCount: report.parser.issues.length,
     currencyDiscrepancies: report.parser.currencyDiscrepancies,
     balanceBridgeDocuments: report.balance.summary.eligibleDocuments,
+    freeNotesSourceDocumentsAnalyzed: report.balance.freeNotesSource.summary.documentsAnalyzed,
+    freeNotesSourceDocumentsWithExpenseCues: report.balance.freeNotesSource.summary.documentsWithExpenseCues,
+    freeNotesSourceDocumentsWithRecognizedPurchases: report.balance.freeNotesSource.summary.documentsWithRecognizedPurchases,
+    freeNotesSourceRecognizedPurchaseRows: report.balance.freeNotesSource.summary.recognizedPurchaseRows,
+    freeNotesSourceSpendLp: report.balance.freeNotesSource.summary.recognizedSpendLp,
+    freeNotesSourceSpendShards: report.balance.freeNotesSource.summary.recognizedSpendShards,
+    freeNotesSourceUnrecognizedExpenseCues: report.balance.freeNotesSource.summary.expenseCueRowsNotRecognized,
+    freeNotesSourcePurchasesWithoutScenarioMemo: report.balance.freeNotesSource.summary.documentsWithPurchasesButNoScenarioMemo.length,
+    freeNotesSourceUnparsedAcceptedRows: report.balance.freeNotesSource.summary.acceptedRowsWithoutParsedSpend,
     freeNotesDocumentsWithExpenseCues: report.balance.freeNotesBridge.summary.documentsWithExpenseCues,
     freeNotesDocumentsWithRecognizedPurchases: report.balance.freeNotesBridge.summary.documentsWithRecognizedFreeNotesPurchases,
     freeNotesRecognizedPurchaseRows: report.balance.freeNotesBridge.summary.recognizedFreeNotesPurchaseRows,
@@ -971,6 +1029,7 @@ console.log(JSON.stringify({
   }, {}),
   balanceBridgeSummary: report.balance.summary,
   balanceBridges: report.balance.bridges,
+  freeNotesSourceSummary: report.balance.freeNotesSource.summary,
   freeNotesBridgeSummary: report.balance.freeNotesBridge.summary,
   freeNotesBridgeDocuments: report.balance.freeNotesBridge.documents,
   ruleBasedOpeningSummary: report.balance.ruleBasedOpening.summary,
