@@ -619,6 +619,8 @@ function toMarkdownReport(report) {
     ["自由メモに購入・消費語がある文書", report.balance.freeNotesSource.summary.documentsWithExpenseCues],
     ["自由メモから購入として認識された行", report.balance.freeNotesSource.summary.recognizedPurchaseRows],
     ["購入語はあるが購入行として認識されない行", report.balance.freeNotesSource.summary.expenseCueRowsNotRecognized],
+    ["自由メモの未認識購入行を通常パーサーが支出として読めた行", report.balance.freeNotesSource.summary.unrecognizedCueRowsWithGenericSpend],
+    ["その未認識行から通常パーサーが読んだLP／欠片支出", report.balance.freeNotesSource.summary.unrecognizedCueGenericSpendLp + " / " + report.balance.freeNotesSource.summary.unrecognizedCueGenericSpendShards],
     ["購入行だが支出としてパースされない行", report.balance.freeNotesSource.summary.acceptedRowsWithoutParsedSpend],
     ["購入行があるのにシナリオメモが無い文書", report.balance.freeNotesSource.summary.documentsWithPurchasesButNoScenarioMemo.length],
     ["残高ブリッジの対象文書（履歴メモ・通貨値あり）", report.balance.summary.eligibleDocuments],
@@ -657,11 +659,11 @@ function toMarkdownReport(report) {
     "",
     "硝子窓の取込実装は freeNotes の secret/history/memo/setting にある購入短文を、シナリオ履歴とは別の未帰属購入として扱います。シナリオ履歴の支出と自由メモの支出が同じ名前・金額なら重複として除外し、金額だけが同じ場合は重複か別取引かを決めつけず、残差を範囲で示します。",
     "",
-    "| URL ID | 履歴行 | 自由メモ購入行 | LP支出 | 欠片支出 | 履歴のみ残差LP | 自由メモ考慮後LP範囲 | 履歴のみ残差欠片 | 自由メモ考慮後欠片範囲 | 完全一致重複 | 金額一致のみ | 未認識購入cue |",
-    "|---|---:|---:|---:|---:|---:|---|---:|---|---:|---:|---:|",
+    "| URL ID | 履歴行 | 自由メモ購入行 | LP支出 | 欠片支出 | 未認識cue支出行 | 同行LP支出 | 同行欠片支出 | 履歴のみ残差LP | 自由メモ考慮後LP範囲 | 履歴のみ残差欠片 | 自由メモ考慮後欠片範囲 | 完全一致重複 | 金額一致のみ |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|---|---:|---:|",
     ...report.balance.freeNotesBridge.documents
       .filter((row) => row.expenseCueRows > 0 || row.parsedSpendRows > 0 || row.possibleAmountOnlyDuplicateRows > 0)
-      .map((row) => "| " + row.id + " | " + row.historyRows + " | " + row.parsedSpendRows + " | " + row.freeNotesSpendLp + " | " + row.freeNotesSpendShards + " | " + row.residualLpBeforeFreeNotes + " | " + row.residualLpAfterFreeNotesLower + "…"+ row.residualLpAfterFreeNotesUpper + " | " + row.residualShardsBeforeFreeNotes + " | " + row.residualShardsAfterFreeNotesLower + "…" + row.residualShardsAfterFreeNotesUpper + " | " + row.exactDuplicateRows + " | " + row.possibleAmountOnlyDuplicateRows + " | " + row.cueRowsWithoutPurchaseRow + " |"),
+      .map((row) => "| " + row.id + " | " + row.historyRows + " | " + row.parsedSpendRows + " | " + row.freeNotesSpendLp + " | " + row.freeNotesSpendShards + " | " + row.unrecognizedCueRowsWithGenericSpend + "/" + row.cueRowsWithoutPurchaseRow + " | " + row.unrecognizedCueGenericSpendLp + " | " + row.unrecognizedCueGenericSpendShards + " | " + row.residualLpBeforeFreeNotes + " | " + row.residualLpAfterFreeNotesLower + "…" + row.residualLpAfterFreeNotesUpper + " | " + row.residualShardsBeforeFreeNotes + " | " + row.residualShardsAfterFreeNotesLower + "…" + row.residualShardsAfterFreeNotesUpper + " | " + row.exactDuplicateRows + " | " + row.possibleAmountOnlyDuplicateRows + " |"),
     "",
     "### 自由メモ購入あり・シナリオ履歴メモなし",
     "",
@@ -852,6 +854,8 @@ const freeNotesBridgeRows = balanceBridges.map((row) => {
   const freeNotesAudit = entry?.freeNotesAudit || {
     lineCount: 0, expenseCueRows: 0, recognizedPurchaseLines: 0, parsedSpendRows: 0,
     cueRowsWithoutPurchaseRow: 0, acceptedRowsWithoutParsedSpend: 0,
+    unrecognizedCueRowsWithGenericSpend: 0, unrecognizedCueGenericSpendLp: 0, unrecognizedCueGenericSpendShards: 0,
+    unrecognizedCueRowsWithCurrencyAmount: 0, unrecognizedCueRowsWithParserReason: 0,
     spendLp: 0, spendShards: 0, spendSignatures: []
   };
   const scenarioSpendSignatures = (entry?.parsedRows || []).flatMap((memo) => memo.spendSignatures || []);
@@ -869,6 +873,11 @@ const freeNotesBridgeRows = balanceBridges.map((row) => {
       parsedSpendRows: freeNotesAudit.parsedSpendRows,
       cueRowsWithoutPurchaseRow: freeNotesAudit.cueRowsWithoutPurchaseRow,
       acceptedRowsWithoutParsedSpend: freeNotesAudit.acceptedRowsWithoutParsedSpend,
+      unrecognizedCueRowsWithGenericSpend: freeNotesAudit.unrecognizedCueRowsWithGenericSpend,
+      unrecognizedCueGenericSpendLp: freeNotesAudit.unrecognizedCueGenericSpendLp,
+      unrecognizedCueGenericSpendShards: freeNotesAudit.unrecognizedCueGenericSpendShards,
+      unrecognizedCueRowsWithCurrencyAmount: freeNotesAudit.unrecognizedCueRowsWithCurrencyAmount,
+      unrecognizedCueRowsWithParserReason: freeNotesAudit.unrecognizedCueRowsWithParserReason,
       freeNotesSpendLp: freeNotesAudit.spendLp,
       freeNotesSpendShards: freeNotesAudit.spendShards
     },
@@ -890,6 +899,11 @@ const freeNotesBridgeSummary = {
   recognizedFreeNotesSpendShards: freeNotesBridgeRows.reduce((sum, row) => sum + row.freeNotesSpendShards, 0),
   documentsWithExpenseCueRowsNotRecognizedAsPurchase: freeNotesBridgeRows.filter((row) => row.cueRowsWithoutPurchaseRow > 0).length,
   expenseCueRowsNotRecognizedAsPurchase: freeNotesBridgeRows.reduce((sum, row) => sum + row.cueRowsWithoutPurchaseRow, 0),
+  unrecognizedCueRowsWithGenericSpend: freeNotesBridgeRows.reduce((sum, row) => sum + row.unrecognizedCueRowsWithGenericSpend, 0),
+  unrecognizedCueGenericSpendLp: freeNotesBridgeRows.reduce((sum, row) => sum + row.unrecognizedCueGenericSpendLp, 0),
+  unrecognizedCueGenericSpendShards: freeNotesBridgeRows.reduce((sum, row) => sum + row.unrecognizedCueGenericSpendShards, 0),
+  unrecognizedCueRowsWithCurrencyAmount: freeNotesBridgeRows.reduce((sum, row) => sum + row.unrecognizedCueRowsWithCurrencyAmount, 0),
+  unrecognizedCueRowsWithParserReason: freeNotesBridgeRows.reduce((sum, row) => sum + row.unrecognizedCueRowsWithParserReason, 0),
   rowsAcceptedAsPurchaseButNotParsedAsSpend: freeNotesBridgeRows.reduce((sum, row) => sum + row.acceptedRowsWithoutParsedSpend, 0),
   rowsExactlyDuplicatedWithScenarioSpend: freeNotesBridgeRows.reduce((sum, row) => sum + row.exactDuplicateRows, 0),
   rowsPotentiallyDuplicatedByAmountOnly: freeNotesBridgeRows.reduce((sum, row) => sum + row.possibleAmountOnlyDuplicateRows, 0),
@@ -911,6 +925,11 @@ const freeNotesSourceSummary = {
   recognizedSpendShards: successful.reduce((sum, entry) => sum + (entry.freeNotesAudit?.spendShards || 0), 0),
   documentsWithExpenseCuesNotRecognized: successful.filter((entry) => (entry.freeNotesAudit?.cueRowsWithoutPurchaseRow || 0) > 0).length,
   expenseCueRowsNotRecognized: successful.reduce((sum, entry) => sum + (entry.freeNotesAudit?.cueRowsWithoutPurchaseRow || 0), 0),
+  unrecognizedCueRowsWithGenericSpend: successful.reduce((sum, entry) => sum + (entry.freeNotesAudit?.unrecognizedCueRowsWithGenericSpend || 0), 0),
+  unrecognizedCueGenericSpendLp: successful.reduce((sum, entry) => sum + (entry.freeNotesAudit?.unrecognizedCueGenericSpendLp || 0), 0),
+  unrecognizedCueGenericSpendShards: successful.reduce((sum, entry) => sum + (entry.freeNotesAudit?.unrecognizedCueGenericSpendShards || 0), 0),
+  unrecognizedCueRowsWithCurrencyAmount: successful.reduce((sum, entry) => sum + (entry.freeNotesAudit?.unrecognizedCueRowsWithCurrencyAmount || 0), 0),
+  unrecognizedCueRowsWithParserReason: successful.reduce((sum, entry) => sum + (entry.freeNotesAudit?.unrecognizedCueRowsWithParserReason || 0), 0),
   acceptedRowsWithoutParsedSpend: successful.reduce((sum, entry) => sum + (entry.freeNotesAudit?.acceptedRowsWithoutParsedSpend || 0), 0),
   documentsWithPurchasesButNoScenarioMemo: successful
     .filter((entry) => entry.actualMemoRows === 0 && (entry.freeNotesAudit?.parsedSpendRows || 0) > 0)
@@ -1016,6 +1035,11 @@ console.log(JSON.stringify({
     freeNotesSourceSpendLp: report.balance.freeNotesSource.summary.recognizedSpendLp,
     freeNotesSourceSpendShards: report.balance.freeNotesSource.summary.recognizedSpendShards,
     freeNotesSourceUnrecognizedExpenseCues: report.balance.freeNotesSource.summary.expenseCueRowsNotRecognized,
+    freeNotesSourceUnrecognizedCueGenericSpendRows: report.balance.freeNotesSource.summary.unrecognizedCueRowsWithGenericSpend,
+    freeNotesSourceUnrecognizedCueGenericSpendLp: report.balance.freeNotesSource.summary.unrecognizedCueGenericSpendLp,
+    freeNotesSourceUnrecognizedCueGenericSpendShards: report.balance.freeNotesSource.summary.unrecognizedCueGenericSpendShards,
+    freeNotesSourceUnrecognizedCueCurrencyAmountRows: report.balance.freeNotesSource.summary.unrecognizedCueRowsWithCurrencyAmount,
+    freeNotesSourceUnrecognizedCueRowsWithParserReason: report.balance.freeNotesSource.summary.unrecognizedCueRowsWithParserReason,
     freeNotesSourcePurchasesWithoutScenarioMemo: report.balance.freeNotesSource.summary.documentsWithPurchasesButNoScenarioMemo.length,
     freeNotesSourceUnparsedAcceptedRows: report.balance.freeNotesSource.summary.acceptedRowsWithoutParsedSpend,
     freeNotesDocumentsWithExpenseCues: report.balance.freeNotesBridge.summary.documentsWithExpenseCues,
