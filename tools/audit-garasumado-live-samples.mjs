@@ -440,6 +440,8 @@ function toMarkdownReport(report) {
     ["推定開始残高が初期資源の範囲内（LP / 欠片）", report.balance.ruleBasedOpening.summary.lpOpeningWithinRuleRange + " / " + report.balance.ruleBasedOpening.summary.shardsOpeningWithinRuleRange],
     ["全アンカーで開始残高推定が一致（LP / 欠片）", report.balance.ruleBasedOpening.summary.lpOpeningStableAcrossAnchors + " / " + report.balance.ruleBasedOpening.summary.shardsOpeningStableAcrossAnchors],
     ["最新アンカーから保存残高を再現（LP / 欠片）", report.balance.ruleBasedOpening.summary.lpLatestAnchorMatchesCurrent + " / " + report.balance.ruleBasedOpening.summary.shardsLatestAnchorMatchesCurrent],
+    ["明示的な初期作成ラベルあり", report.balance.ruleBasedOpening.summary.explicitInitialGrantRecorded],
+    ["ラベルなしを含む初期30LP・欠片10の一致候補", report.balance.ruleBasedOpening.summary.exactInitialAmountCandidates + " 文書 / " + report.balance.ruleBasedOpening.summary.exactInitialAmountRows + " 行],
     ["LPの残差が負（収支純額が所持LPを上回る）", report.balance.summary.lpResidualNegative],
     ["欠片の残差が負（収支純額が所持欠片を上回る）", report.balance.summary.shardResidualNegative],
     ["旧ベースラインとの履歴件数差", report.source.snapshotDrift.length],
@@ -646,6 +648,7 @@ const ruleBasedOpeningAudits = balanceBridges.map((row) => {
     shardsAboveCeiling: Boolean(audit.shardsAboveCeiling),
     explicitInitialGrantRecorded: Boolean(audit.explicitInitialGrantRecorded),
     explicitInitialGrantRows: audit.explicitInitialGrantRows || [],
+    exactInitialAmountRows: audit.exactInitialAmountRows || [],
     preferredHistoryOrder: audit.ruleAnalysis?.preferredHistoryOrder || "not-comparable",
     orderScores: audit.ruleAnalysis?.orderScores || null,
     lpRuleAnalysis: audit.ruleAnalysis?.lp || null,
@@ -681,7 +684,9 @@ const ruleBasedOpeningSummary = {
   historyOrderForwardPreferred: count(ruleBasedOpeningAudits, (row) => row.preferredHistoryOrder === "history-array-order"),
   historyOrderReversePreferred: count(ruleBasedOpeningAudits, (row) => row.preferredHistoryOrder === "reverse-history-array"),
   historyOrderAmbiguous: count(ruleBasedOpeningAudits, (row) => row.preferredHistoryOrder === "ambiguous"),
-  explicitInitialGrantRecorded: count(ruleBasedOpeningAudits, (row) => row.explicitInitialGrantRecorded)
+  explicitInitialGrantRecorded: count(ruleBasedOpeningAudits, (row) => row.explicitInitialGrantRecorded),
+  exactInitialAmountCandidates: count(ruleBasedOpeningAudits, (row) => row.exactInitialAmountRows.length > 0),
+  exactInitialAmountRows: ruleBasedOpeningAudits.reduce((sum, row) => sum + row.exactInitialAmountRows.length, 0)
 };
 const balanceCueTotals = {
   memoRows: 0, cueLines: 0, currentWordLines: 0, otherBalanceWordLines: 0,
@@ -802,6 +807,8 @@ console.log(JSON.stringify({
       ambiguous: report.balance.ruleBasedOpening.summary.historyOrderAmbiguous
     },
     explicitInitialGrantRecorded: report.balance.ruleBasedOpening.summary.explicitInitialGrantRecorded,
+    exactInitialAmountCandidates: report.balance.ruleBasedOpening.summary.exactInitialAmountCandidates,
+    exactInitialAmountRows: report.balance.ruleBasedOpening.summary.exactInitialAmountRows,
     negativeLpResidualDocuments: report.balance.summary.lpResidualNegative,
     negativeShardResidualDocuments: report.balance.summary.shardResidualNegative,
     snapshotDriftRows: report.source.snapshotDrift.length,
