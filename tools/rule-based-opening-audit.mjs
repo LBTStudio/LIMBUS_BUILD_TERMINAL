@@ -11,7 +11,6 @@ const CURRENCY_MARKERS = {
   lp: /(?:LP|ＬＰ)/i,
   shards: /(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ|けっか)/
 };
-const BALANCE_CUE = /(?:現在|現座)/g;
 
 function normalizeNoteText(value) {
   return String(value ?? "")
@@ -52,7 +51,7 @@ function parseRows(history, memoApi) {
   });
 }
 function balanceAnchorsInMemo(memo, currency) {
-  const original = String(memo || "");
+  const original = String(memo || "").replace(/\r\n?/g, "\n");
   const normalized = normalizeNoteText(original);
   const amountAfterCue = currency === "lp"
     ? /(?:現在|現座)\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:LP|ＬＰ)?\s*[：:]?\s*([0-9][0-9,]*)\s*(?:LP|ＬＰ)?(?:\s*[→⇒]\s*([0-9][0-9,]*))?/i
@@ -64,7 +63,7 @@ function balanceAnchorsInMemo(memo, currency) {
     lineIndex += 1;
     const line = normalizeNoteText(rawLine);
     if (CURRENCY_MARKERS[currency].test(line)) {
-      for (const cue of line.matchAll(BALANCE_CUE)) {
+      for (const cue of line.matchAll(/(?:現在|現座)/g)) {
         const match = line.slice(cue.index).match(amountAfterCue);
         if (!match) continue;
         const value = parseBalanceAmount(match[2] ?? match[1]);
@@ -216,7 +215,7 @@ export function auditRuleBasedOpening(history, currentBalance, memoApi) {
     lpAboveCeiling: impliedOpeningLp !== null && impliedOpeningLp > RULE_INITIAL_RESOURCES.lp,
     shardsAboveCeiling: impliedOpeningShards !== null && impliedOpeningShards > RULE_INITIAL_RESOURCES.shards,
     ruleAnalysis: {
-      ...openingResult("lp"),
+      lp: openingResult("lp"),
       shards: openingResult("shards"),
       preferredHistoryOrder,
       orderScores: { historyArrayOrder: forwardScore, reverseHistoryArray: reverseScore }
