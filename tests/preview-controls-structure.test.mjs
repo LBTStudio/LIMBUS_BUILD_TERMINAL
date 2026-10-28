@@ -34,6 +34,11 @@ test("開閉コントロールは最終のCSSレイヤーでPC・タブレット
   assert.match(css, /@media \(min-width: 641px\) and \(max-width: 1024px\)/);
   assert.match(css, /@media \(max-width: 640px\)/);
   assert.match(css, /@media \(max-width: 640px\) and \(orientation: portrait\)/);
+  assert.match(css, /@media \(min-width: 641px\) and \(max-width: 1024px\) and \(max-height: 500px\)/);
+  assert.match(css, /\.preview-edge-toggle\.is-open\s*\{[\s\S]*?bottom: 20px;/);
+  assert.match(css, /\.focus\s*\{\s*padding-bottom: 60px;/);
+  assert.match(css, /\.focus\s*\{\s*padding-bottom: 48px;/);
+  assert.match(css, /bottom: calc\(98px \+ env\(safe-area-inset-bottom, 0px\)\)/);
   assert.match(css, /bottom: calc\(var\(--lbt-mobile-rail-h, 114px\) \+ 56px\)/);
   assert.match(css, /height: min\(calc\(62vh - 56px\), 504px\)/);
   assert.match(css, /margin-bottom: calc\(var\(--lbt-mobile-rail-h, 114px\) \+ 56px\)/);
@@ -42,6 +47,7 @@ test("開閉コントロールは最終のCSSレイヤーでPC・タブレット
   assert.match(css, /writing-mode:\s*horizontal-tb/);
   assert.match(css, /\.preview-edge-toggle:focus-visible/);
   assert.match(css, /\.section-title\s*\{\s*word-break:\s*keep-all;\s*overflow-wrap:\s*normal;/);
+  assert.match(css, /font-size: clamp\(13px, 4vw, 16px\)/);
   assert.match(css, /@media \(max-width: 640px\)\s*\{\s*\.section-title-row\s*\{\s*padding-right: 0;/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
 });
