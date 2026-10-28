@@ -1,0 +1,1836 @@
+{
+  "schemaVersion": 1,
+  "description": "Metadata-only baseline from the 2026-10-27 live Firestore audit. The script fetches current documents at test time and never commits their raw contents.",
+  "baselineDate": "2026-10-27",
+  "sourceReport": "garasumado-share-audit-2026-10-27.md",
+  "historicalSummary": {
+    "submittedUrls": 98,
+    "uniqueUrlIds": 98,
+    "fetchedDocuments": 95,
+    "unavailableDocuments": 3,
+    "historyRows": 1149,
+    "memoRows": 1090,
+    "rowsNeedingReview": 108,
+    "parserExtractionDifferences": 1,
+    "balanceAnchorsReconciled": 0
+  },
+  "unavailableIds": [
+    "BDIebwAJetQ0voXwg4VW",
+    "oF2Sgd24p3Puz65eF8t0",
+    "VqGLXVWoIhp0atfOXdfp"
+  ],
+  "fixtureComparison": {
+    "fixtureDocumentCount": 50,
+    "fixtureCharacterCount": 49,
+    "fixturePersonaCount": 1,
+    "urlIdsAlsoInFixture": 48,
+    "fixtureIdsNotInUrlBaseline": [
+      "mMIbGr32lGZix60RDmoN",
+      "EPm6O9SU11aYYj0obEar"
+    ],
+    "knownStaleSnapshots": [
+      {
+        "id": "3JIdhCPatk2URoQZ2btx",
+        "reportHistoryRows": 15,
+        "fixtureHistoryRows": 5,
+        "reportMemoRows": 15,
+        "fixtureMemoRows": 5
+      },
+      {
+        "id": "5Jk7ua60nxSzAgPI0Cku",
+        "reportHistoryRows": 1,
+        "fixtureHistoryRows": 0,
+        "reportMemoRows": 1,
+        "fixtureMemoRows": 0
+      },
+      {
+        "id": "BiWGPzoTbVlS1l7Fjv11",
+        "reportHistoryRows": 8,
+        "fixtureHistoryRows": 7,
+        "reportMemoRows": 8,
+        "fixtureMemoRows": 7
+      },
+      {
+        "id": "46dxXF5Rf12NOL0Ghs0u",
+        "reportHistoryRows": 13,
+        "fixtureHistoryRows": 11,
+        "reportMemoRows": 13,
+        "fixtureMemoRows": 11
+      },
+      {
+        "id": "6sqzAInx2oZv3istnkG3",
+        "reportHistoryRows": 41,
+        "fixtureHistoryRows": 40,
+        "reportMemoRows": 41,
+        "fixtureMemoRows": 40
+      },
+      {
+        "id": "pJxz8aNlya8WXzv7HXeb",
+        "reportHistoryRows": 117,
+        "fixtureHistoryRows": 113,
+        "reportMemoRows": 117,
+        "fixtureMemoRows": 113
+      },
+      {
+        "id": "awpYr2DKuai45MO4JhJQ",
+        "reportHistoryRows": 75,
+        "fixtureHistoryRows": 74,
+        "reportMemoRows": 75,
+        "fixtureMemoRows": 74
+      },
+      {
+        "id": "TYKf9PdpE3fD8AySnwhL",
+        "reportHistoryRows": 106,
+        "fixtureHistoryRows": 100,
+        "reportMemoRows": 106,
+        "fixtureMemoRows": 100
+      }
+    ]
+  },
+  "documents": [
+    {
+      "id": "6yXgGPzX1eSEboi2KSLM",
+      "previousFetchStatus": "OK",
+      "historyRows": 1,
+      "memoRows": 1,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 175,
+        "shards": 55
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "Eo19HoEJpsICZwLc7MN4",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 30,
+        "shards": 10
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "JKvpdFc9XX1zyFlSNGhS",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 83,
+        "shards": 40
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "VghtW6xXdiUVcwj9tJWA",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 30,
+        "shards": 10
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "3WrnruHep4uHAsjEC45K",
+      "previousFetchStatus": "OK",
+      "historyRows": 2,
+      "memoRows": 2,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 140,
+        "shards": 105
+      },
+      "declaredBalance": {
+        "lp": 120,
+        "shards": 100
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "Vm1wGHXzOR1EUg7K6MTo",
+      "previousFetchStatus": "OK",
+      "historyRows": 2,
+      "memoRows": 2,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 60,
+        "shards": 30
+      },
+      "declaredBalance": {
+        "lp": 110,
+        "shards": 80
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "0ZTzjsRRGzrefPfYW6XH",
+      "previousFetchStatus": "OK",
+      "historyRows": 2,
+      "memoRows": 2,
+      "reviewRows": 1,
+      "parsedNet": {
+        "lp": 70,
+        "shards": 80
+      },
+      "declaredBalance": {
+        "lp": 0,
+        "shards": 90
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "SgJBeS4Eh9Dg33oh1PO9",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 10,
+        "shards": 10
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "QLEsIJ6kpsla5anP1BNf",
+      "previousFetchStatus": "OK",
+      "historyRows": 1,
+      "memoRows": 1,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 55,
+        "shards": 37
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "3NeApkrHegd1aPcksZ9o",
+      "previousFetchStatus": "OK",
+      "historyRows": 1,
+      "memoRows": 1,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 40,
+        "shards": 20
+      },
+      "declaredBalance": {
+        "lp": 250,
+        "shards": 230
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "Gt1worbqMMl5rntFiMOt",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 140,
+        "shards": 60
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 0,
+      "fixtureMemoRows": 0,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "YTTFJyLsOyk8OBoPCP3R",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 12,
+        "shards": 10
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 0,
+      "fixtureMemoRows": 0,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "3JIdhCPatk2URoQZ2btx",
+      "previousFetchStatus": "OK",
+      "historyRows": 15,
+      "memoRows": 15,
+      "reviewRows": 2,
+      "parsedNet": {
+        "lp": 63,
+        "shards": 60
+      },
+      "declaredBalance": {
+        "lp": 124,
+        "shards": 65
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 5,
+      "fixtureMemoRows": 5,
+      "fixtureSnapshotDrift": true
+    },
+    {
+      "id": "Qqu7wAwYUQ708c3ZeV80",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 50,
+        "shards": 115
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 0,
+      "fixtureMemoRows": 0,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "K63ITKrY1mOv0LvnwPL7",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 30,
+        "shards": 10
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 0,
+      "fixtureMemoRows": 0,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "tgH3jvde0uADt4uN20hG",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 60,
+        "shards": 40
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 0,
+      "fixtureMemoRows": 0,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "sYGCnxe0huoNs7cTB7o2",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 70,
+        "shards": 50
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 0,
+      "fixtureMemoRows": 0,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "BDIebwAJetQ0voXwg4VW",
+      "previousFetchStatus": "403",
+      "historyRows": null,
+      "memoRows": null,
+      "reviewRows": null,
+      "parsedNet": null,
+      "declaredBalance": null,
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "0YChzrC5bLzlQlTrpgWd",
+      "previousFetchStatus": "OK",
+      "historyRows": 11,
+      "memoRows": 11,
+      "reviewRows": 1,
+      "parsedNet": {
+        "lp": 1039,
+        "shards": 623
+      },
+      "declaredBalance": {
+        "lp": 311,
+        "shards": 383
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 11,
+      "fixtureMemoRows": 11,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "5Jk7ua60nxSzAgPI0Cku",
+      "previousFetchStatus": "OK",
+      "historyRows": 1,
+      "memoRows": 1,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 150,
+        "shards": 75
+      },
+      "declaredBalance": {
+        "lp": 160,
+        "shards": 85
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 0,
+      "fixtureMemoRows": 0,
+      "fixtureSnapshotDrift": true
+    },
+    {
+      "id": "WCJipGMyHoD0BBHWQ6Ai",
+      "previousFetchStatus": "OK",
+      "historyRows": 21,
+      "memoRows": 1,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 251,
+        "shards": 252
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 21,
+      "fixtureMemoRows": 1,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "2OpH8W37Dz9yZKBJwWZ0",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 39,
+        "shards": 639
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 0,
+      "fixtureMemoRows": 0,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "ZCoCHtzL5Z5dlF4mviHO",
+      "previousFetchStatus": "OK",
+      "historyRows": 27,
+      "memoRows": 27,
+      "reviewRows": 2,
+      "parsedNet": {
+        "lp": 2914,
+        "shards": 1333
+      },
+      "declaredBalance": {
+        "lp": 125,
+        "shards": 415
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 27,
+      "fixtureMemoRows": 27,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "lVB4Upekw3cqmxV91MbJ",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 73,
+        "shards": 276
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 0,
+      "fixtureMemoRows": 0,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "l0BTIu7Fo6nTvsjXI7ce",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 5,
+        "shards": 15
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 0,
+      "fixtureMemoRows": 0,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "yCvLAwYKJzGGVBJm0mV3",
+      "previousFetchStatus": "OK",
+      "historyRows": 2,
+      "memoRows": 2,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 90,
+        "shards": 65
+      },
+      "declaredBalance": {
+        "lp": 66,
+        "shards": 87
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 2,
+      "fixtureMemoRows": 2,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "NLNxSeQBDv7838Wpp8HV",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 30,
+        "shards": 10
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 0,
+      "fixtureMemoRows": 0,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "7Tuvb2uFodd2m9NS5DsZ",
+      "previousFetchStatus": "OK",
+      "historyRows": 1,
+      "memoRows": 1,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 25,
+        "shards": 10
+      },
+      "declaredBalance": {
+        "lp": 35,
+        "shards": 20
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 1,
+      "fixtureMemoRows": 1,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "j9mMpTHv3urenH3SlXyg",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 3,
+        "shards": 10
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 0,
+      "fixtureMemoRows": 0,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "hUVIkdP3KkmsT0rohd2I",
+      "previousFetchStatus": "OK",
+      "historyRows": 1,
+      "memoRows": 1,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 40,
+        "shards": 20
+      },
+      "declaredBalance": {
+        "lp": 40,
+        "shards": 30
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 1,
+      "fixtureMemoRows": 1,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "BiWGPzoTbVlS1l7Fjv11",
+      "previousFetchStatus": "OK",
+      "historyRows": 8,
+      "memoRows": 8,
+      "reviewRows": 1,
+      "parsedNet": {
+        "lp": 777,
+        "shards": 462
+      },
+      "declaredBalance": {
+        "lp": 71,
+        "shards": 70
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 7,
+      "fixtureMemoRows": 7,
+      "fixtureSnapshotDrift": true
+    },
+    {
+      "id": "MZYCULddZmTt4dFPxTY5",
+      "previousFetchStatus": "OK",
+      "historyRows": 4,
+      "memoRows": 4,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 302,
+        "shards": 155
+      },
+      "declaredBalance": {
+        "lp": 43,
+        "shards": 35
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 4,
+      "fixtureMemoRows": 4,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "CoNmGysMDUdTP6d4DRti",
+      "previousFetchStatus": "OK",
+      "historyRows": 6,
+      "memoRows": 6,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 996,
+        "shards": 444
+      },
+      "declaredBalance": {
+        "lp": 166,
+        "shards": 184
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 6,
+      "fixtureMemoRows": 6,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "dH6KJ6w47pf6m4PyDO6a",
+      "previousFetchStatus": "OK",
+      "historyRows": 9,
+      "memoRows": 9,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 775,
+        "shards": 367
+      },
+      "declaredBalance": {
+        "lp": 3,
+        "shards": 157
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 9,
+      "fixtureMemoRows": 9,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "A8DyKMSCbfuzw50EFcXd",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 1452,
+        "shards": 755
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "CBEZgzRztoUfSYj7XRMv",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 0,
+        "shards": 0
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "2eq3S2TIWJGcxdHqiqOv",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 106,
+        "shards": 554
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 0,
+      "fixtureMemoRows": 0,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "T1C4zZCrvwRfQBllBBO6",
+      "previousFetchStatus": "OK",
+      "historyRows": 36,
+      "memoRows": 36,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 2617,
+        "shards": 1477
+      },
+      "declaredBalance": {
+        "lp": 4,
+        "shards": 460
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 36,
+      "fixtureMemoRows": 36,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "hLXvnYX7gCME0YnmShVM",
+      "previousFetchStatus": "OK",
+      "historyRows": 17,
+      "memoRows": 17,
+      "reviewRows": 1,
+      "parsedNet": {
+        "lp": 828,
+        "shards": 514
+      },
+      "declaredBalance": {
+        "lp": 524,
+        "shards": 562
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 17,
+      "fixtureMemoRows": 17,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "WZDvzq8VWzkNdA3T2D81",
+      "previousFetchStatus": "OK",
+      "historyRows": 25,
+      "memoRows": 25,
+      "reviewRows": 6,
+      "parsedNet": {
+        "lp": 1831,
+        "shards": 950
+      },
+      "declaredBalance": {
+        "lp": 0,
+        "shards": 138
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 25,
+      "fixtureMemoRows": 25,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "W4z5OJMTZVHkGopWBVMu",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 55,
+        "shards": 61
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 0,
+      "fixtureMemoRows": 0,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "oF2Sgd24p3Puz65eF8t0",
+      "previousFetchStatus": "403",
+      "historyRows": null,
+      "memoRows": null,
+      "reviewRows": null,
+      "parsedNet": null,
+      "declaredBalance": null,
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "Zyq6Upx3oN5bTsAodlsK",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 0,
+        "shards": 0
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "Y074n3mIbLSW7QecJCCU",
+      "previousFetchStatus": "OK",
+      "historyRows": 1,
+      "memoRows": 1,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 65,
+        "shards": 45
+      },
+      "declaredBalance": {
+        "lp": 148,
+        "shards": 130
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 1,
+      "fixtureMemoRows": 1,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "QW0yeyooSsj68EWBEALs",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 60,
+        "shards": 35
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 0,
+      "fixtureMemoRows": 0,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "y2yV6dZsWQut2Eg8z83s",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 40,
+        "shards": 30
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 0,
+      "fixtureMemoRows": 0,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "2gbYWOr0UuRDqN5eoEGi",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 0,
+        "shards": 10
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 0,
+      "fixtureMemoRows": 0,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "46dxXF5Rf12NOL0Ghs0u",
+      "previousFetchStatus": "OK",
+      "historyRows": 13,
+      "memoRows": 13,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 1051,
+        "shards": 588
+      },
+      "declaredBalance": {
+        "lp": 7,
+        "shards": 235
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 11,
+      "fixtureMemoRows": 11,
+      "fixtureSnapshotDrift": true
+    },
+    {
+      "id": "P0vi78CNraB3mjfnFN8g",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 138,
+        "shards": 206
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 0,
+      "fixtureMemoRows": 0,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "6sqzAInx2oZv3istnkG3",
+      "previousFetchStatus": "OK",
+      "historyRows": 41,
+      "memoRows": 41,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 4616,
+        "shards": 2419
+      },
+      "declaredBalance": {
+        "lp": 25,
+        "shards": 529
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 40,
+      "fixtureMemoRows": 40,
+      "fixtureSnapshotDrift": true
+    },
+    {
+      "id": "UQ0ey5rwjSbqrQXkxJMS",
+      "previousFetchStatus": "OK",
+      "historyRows": 1,
+      "memoRows": 1,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 493,
+        "shards": 356
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 1,
+      "fixtureMemoRows": 1,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "dQzD5vreZx24MJQvZkHJ",
+      "previousFetchStatus": "OK",
+      "historyRows": 1,
+      "memoRows": 1,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 60,
+        "shards": 350
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 1,
+      "fixtureMemoRows": 1,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "mxe72kbOHnhM11zzqLgo",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 1,
+        "shards": 10
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 0,
+      "fixtureMemoRows": 0,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "pJxz8aNlya8WXzv7HXeb",
+      "previousFetchStatus": "OK",
+      "historyRows": 117,
+      "memoRows": 117,
+      "reviewRows": 13,
+      "parsedNet": {
+        "lp": 2502,
+        "shards": 3220
+      },
+      "declaredBalance": {
+        "lp": 46,
+        "shards": 933
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 113,
+      "fixtureMemoRows": 113,
+      "fixtureSnapshotDrift": true
+    },
+    {
+      "id": "ylakQo9mHZqZEaUwrSAs",
+      "previousFetchStatus": "OK",
+      "historyRows": 3,
+      "memoRows": 3,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 290,
+        "shards": 160
+      },
+      "declaredBalance": {
+        "lp": 212,
+        "shards": 125
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 3,
+      "fixtureMemoRows": 3,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "awpYr2DKuai45MO4JhJQ",
+      "previousFetchStatus": "OK",
+      "historyRows": 75,
+      "memoRows": 75,
+      "reviewRows": 16,
+      "parsedNet": {
+        "lp": 7360,
+        "shards": 3910
+      },
+      "declaredBalance": {
+        "lp": 70,
+        "shards": 35
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 74,
+      "fixtureMemoRows": 74,
+      "fixtureSnapshotDrift": true
+    },
+    {
+      "id": "TYKf9PdpE3fD8AySnwhL",
+      "previousFetchStatus": "OK",
+      "historyRows": 106,
+      "memoRows": 106,
+      "reviewRows": 3,
+      "parsedNet": {
+        "lp": 10500,
+        "shards": 6148
+      },
+      "declaredBalance": {
+        "lp": 927,
+        "shards": 798
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 100,
+      "fixtureMemoRows": 100,
+      "fixtureSnapshotDrift": true
+    },
+    {
+      "id": "LXZtUMN1jxL9UPkeTVU4",
+      "previousFetchStatus": "OK",
+      "historyRows": 3,
+      "memoRows": 3,
+      "reviewRows": 1,
+      "parsedNet": {
+        "lp": 165,
+        "shards": 81
+      },
+      "declaredBalance": {
+        "lp": 38,
+        "shards": 41
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 3,
+      "fixtureMemoRows": 3,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "ei7JLzPKwi5CAOvjCjNf",
+      "previousFetchStatus": "OK",
+      "historyRows": 32,
+      "memoRows": 32,
+      "reviewRows": 4,
+      "parsedNet": {
+        "lp": 2866,
+        "shards": 1639
+      },
+      "declaredBalance": {
+        "lp": 223,
+        "shards": 259
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 32,
+      "fixtureMemoRows": 32,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "LBFbOr1CsUUmOAMWfwFH",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 10,
+        "shards": 10
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 0,
+      "fixtureMemoRows": 0,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "yvks9nyfnWYvyNzxYsmR",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 269,
+        "shards": 107
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 0,
+      "fixtureMemoRows": 0,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "G9VHrQKqvrS0Qpfa0zFi",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 421,
+        "shards": 12
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 0,
+      "fixtureMemoRows": 0,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "LJxW0NjFZrKbojMygAIo",
+      "previousFetchStatus": "OK",
+      "historyRows": 18,
+      "memoRows": 18,
+      "reviewRows": 2,
+      "parsedNet": {
+        "lp": 1387,
+        "shards": 761
+      },
+      "declaredBalance": {
+        "lp": 103,
+        "shards": 10
+      },
+      "inExistingFixture": true,
+      "fixtureHistoryRows": 18,
+      "fixtureMemoRows": 18,
+      "fixtureSnapshotDrift": false
+    },
+    {
+      "id": "SOZk9o51iFTrD2JFkb4R",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 80,
+        "shards": 10
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "t07aok44HjPIwb1KFzMD",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 1,
+        "shards": 10
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "w3pcF8D8W04PqjzTY4gQ",
+      "previousFetchStatus": "OK",
+      "historyRows": 50,
+      "memoRows": 50,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 4046,
+        "shards": 2400
+      },
+      "declaredBalance": {
+        "lp": 520,
+        "shards": 120
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "MDgyeCqXyFvMQ0yq86Eb",
+      "previousFetchStatus": "OK",
+      "historyRows": 6,
+      "memoRows": 6,
+      "reviewRows": 2,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 237
+      },
+      "declaredBalance": {
+        "lp": 133,
+        "shards": 67
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "QC1EyGtLMJRiONByKjUh",
+      "previousFetchStatus": "OK",
+      "historyRows": 1,
+      "memoRows": 1,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 77,
+        "shards": 42
+      },
+      "declaredBalance": {
+        "lp": 93,
+        "shards": 52
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "TWVv3gftDRrBtKuZNNyU",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 96,
+        "shards": 56
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "9jkD3DzUK4RSYLhlT7W4",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 3,
+        "shards": 10
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "FQafcwfhbIuBRrH8dzis",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 0,
+        "shards": 0
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "Z3GFDCOt0wgXCoKBt9QS",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 0,
+        "shards": 0
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "2he5tT5AtV9VndIK6wpA",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 0,
+        "shards": 0
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "P337HtDK2XnuAKSz4bOY",
+      "previousFetchStatus": "OK",
+      "historyRows": 171,
+      "memoRows": 157,
+      "reviewRows": 23,
+      "parsedNet": {
+        "lp": 14528,
+        "shards": 7465
+      },
+      "declaredBalance": {
+        "lp": 1155,
+        "shards": 545
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "z6RLDj3XRG6Ph1Y8h1KL",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 0,
+        "shards": 0
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "0XJBv6pv07L36RiS81Sf",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 0,
+        "shards": 0
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "XYMwOihLlr3SR0H9I8QR",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 0,
+        "shards": 0
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "s90Yj5WOKVwI8lMv3dsH",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 0,
+        "shards": 0
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "wTAr3BcMY3fdvOtXq1hO",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 0,
+        "shards": 0
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "1ogAT2wiVCogaLyDJqNV",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 0,
+        "shards": 0
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "aKFdGC4qa2zw2mTzs2iz",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 0,
+        "shards": 0
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "k7rxQ2RpEpUpCFae1Q2q",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 0,
+        "shards": 0
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "XfzopdmCDs5YgBcwPwhQ",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 0,
+        "shards": 0
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "aNXkpi8vHzz3YP6PHMfo",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 0,
+        "shards": 0
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "2TCj9uyg3m8AL4vRZW0E",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 0,
+        "shards": 0
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "UK1PfFRia5CsSBpPBClx",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 0,
+        "shards": 0
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "VqGLXVWoIhp0atfOXdfp",
+      "previousFetchStatus": "403",
+      "historyRows": null,
+      "memoRows": null,
+      "reviewRows": null,
+      "parsedNet": null,
+      "declaredBalance": null,
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "hbnGsigZQiUDIp6GOk5V",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 30,
+        "shards": 10
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "nE9Gn08QcCfFjJludti5",
+      "previousFetchStatus": "OK",
+      "historyRows": 156,
+      "memoRows": 155,
+      "reviewRows": 13,
+      "parsedNet": {
+        "lp": 13871,
+        "shards": 8205
+      },
+      "declaredBalance": {
+        "lp": 1177,
+        "shards": 845
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "JMCjtaYflOLXC4IW08VN",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 63,
+        "shards": 35
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "NE7JQ9XzR4T4JZqtHRDM",
+      "previousFetchStatus": "OK",
+      "historyRows": 89,
+      "memoRows": 89,
+      "reviewRows": 9,
+      "parsedNet": {
+        "lp": 7102,
+        "shards": 3831
+      },
+      "declaredBalance": {
+        "lp": 390,
+        "shards": 887
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "x17fC3LJPIYCOAN0L1TH",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 3908,
+        "shards": 1976
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "Fwh5YvXjqswWRRE2cGiB",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 93,
+        "shards": 113
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "VS0OFzHXHR3LoA7GPNSm",
+      "previousFetchStatus": "OK",
+      "historyRows": 5,
+      "memoRows": 5,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 334,
+        "shards": 199
+      },
+      "declaredBalance": {
+        "lp": 57,
+        "shards": 56
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "UgG5zxvnNZTAu4jPNLn7",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 11,
+        "shards": 10
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "28e2XMEgs6kbTvidxsOQ",
+      "previousFetchStatus": "OK",
+      "historyRows": 2,
+      "memoRows": 2,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 70,
+        "shards": 40
+      },
+      "declaredBalance": {
+        "lp": 64,
+        "shards": 50
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "2ysoaJ21scYYNpjgstzZ",
+      "previousFetchStatus": "OK",
+      "historyRows": 65,
+      "memoRows": 41,
+      "reviewRows": 8,
+      "parsedNet": {
+        "lp": 3181,
+        "shards": 1850
+      },
+      "declaredBalance": {
+        "lp": 471,
+        "shards": 453
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    },
+    {
+      "id": "DPacJEJvCc7wNOnHZXyC",
+      "previousFetchStatus": "OK",
+      "historyRows": 0,
+      "memoRows": 0,
+      "reviewRows": 0,
+      "parsedNet": {
+        "lp": 0,
+        "shards": 0
+      },
+      "declaredBalance": {
+        "lp": 68,
+        "shards": 199
+      },
+      "inExistingFixture": false,
+      "fixtureSnapshotDrift": null
+    }
+  ]
+}
