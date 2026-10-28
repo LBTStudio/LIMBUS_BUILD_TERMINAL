@@ -361,7 +361,7 @@ function parseStoredCurrencyAmount(value) {
     .replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
     .replace(/[，,]/g, "")
     .trim();
-  if (!/^\\+?\\d+$/.test(normalized)) return null;
+  if (!/^\+?\d+$/.test(normalized)) return null;
   const amount = Number(normalized);
   return Number.isSafeInteger(amount) && amount >= 0 ? amount : null;
 }
