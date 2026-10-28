@@ -4,7 +4,7 @@ import test from "node:test";
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 const app = read("../js/App.js");
-const css = read("../assets/v69-mobile-ui-audit.css");
+const css = read("../assets/v70-preview-controls.css");
 const index = read("../index.html");
 
 test("state-import modal has labelled dialog semantics and only relevant categories", () => {
@@ -13,7 +13,7 @@ test("state-import modal has labelled dialog semantics and only relevant categor
   assert.match(app, /IMPORT_GROUPS\.filter\(\(g\) => g\.fields\.some\(\(f\) => f in importData\)\)\.map/);
   assert.match(css, /\.import-scope-dialog/);
   assert.match(css, /\.import-scope-options/);
-  assert.match(index, /assets\/v69-mobile-ui-audit\.css\?v=[0-9a-f]{8}/);
+  assert.match(index, /assets\/v70-preview-controls\.css\?v=[0-9a-f]{8}/);
 });
 
 test("state-import modal traps Tab and Shift+Tab and redirects escaped focus", () => {
