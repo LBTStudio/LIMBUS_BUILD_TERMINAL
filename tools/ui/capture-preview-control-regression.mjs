@@ -165,7 +165,7 @@ async function runProfile(browser,profile) {
 
     await toggle.click();
     await page.waitForTimeout(300);
-    const opened=await metrics(page);
+    const opened=await metrics(page,profile);
     const commonOk=opened.expanded==="true"&&opened.panelOpen;
     recordCheck(profile.name+": open state is synchronized",commonOk,{metrics:opened});
     const controlCollisions=Object.entries(opened.overlaps).filter(([key,value])=>["footer","hint","tabs","rail","sectionTitle"].includes(key)&&value.hit);
@@ -197,7 +197,7 @@ async function runProfile(browser,profile) {
     results.screenshots.push({file:path.relative(ROOT,openPath),profile:profile.name,state:"open",metrics:opened});
     await toggle.click();
     await page.waitForTimeout(220);
-    const closedAgain=await metrics(page);
+    const closedAgain=await metrics(page,profile);
     recordCheck(profile.name+": second click closes the same control",
       closedAgain.expanded==="false"&&!closedAgain.panelOpen,
       {expanded:closedAgain.expanded,panelOpen:closedAgain.panelOpen});
