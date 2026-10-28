@@ -1309,6 +1309,7 @@
         ticketSpends: ticketSpends.length
       };
       var auditModeBefore = mode;
+      var currentModeCoverageRecorded = false;
       try {
       var typoCurrentMarker = /現座(?=\s*(?:(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ|けっか)\s*)?[0-9０-９])/i.test(sourceLine);
       var line = typoCurrentMarker ? sourceLine.replace(/現座/g, "現在") : sourceLine;
@@ -1414,7 +1415,36 @@
         /* 「・(願いの数x10)LP - 20LP」のような記号の計算は金額にしない。 */
         if (/[（(][^）)]*[x×][^）)]*[）)]/.test(line)) continue;
       }
-      if (mode === "current") continue;  // 現在値の羅列は取り込まない
+      if (mode === "current") {
+        /* 現在値の羅列は収支へ取り込まない。ただし行監査から消えると、共有URL実データで
+           金額＋操作語の候補行にcoverage欠落が出るため、残高注記／要確認として保存する。 */
+        const currentExpected = auditMoneyTotalsOfLine(sourceLine);
+        const currentAmountShape = /(?:LP|ＬＰ|(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ|けっか))\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]|[+＋\-−]?\s*[0-9０-９]+\s*(?:LP|ＬＰ|(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ|けっか))/i.test(sourceLine);
+        if (currentExpected.lp || currentExpected.shards || currentAmountShape) {
+          const currentActionCue = /報酬|収入|消費|支出|支払|購入|買っ|使用|行使|抽出|ガチャ|獲得|入手|取得|付与|支給|補填|受領|被り|重複|変換|換算|チケット|チケ/.test(sourceLine);
+          const currentDetectedFlows = { lpIncome: 0, lpSpend: 0, lpUnknown: 0, shardsIncome: 0, shardsSpend: 0, shardsUnknown: 0 };
+          const currentDetected = { lp: 0, shards: 0 };
+          const currentStatus = currentActionCue ? "current-balance-review" : "current-balance-note";
+          financialCoverage.push({
+            lineIndex: i + 1, line: sourceLine, section: "current", status: currentStatus,
+            expected: { lp: currentExpected.lp, shards: currentExpected.shards },
+            detected: currentDetected,
+            expectedFlows: auditMoneyFlowsOfLine(sourceLine, "current"),
+            detectedFlows: currentDetectedFlows,
+            parserReasonCount: 0, sourceFinding: false
+          });
+          if (currentActionCue) {
+            sourceAudits.push({
+              side: "parser", code: "financial-action-in-current-balance-section", severity: "review",
+              lineIndex: i + 1, line: sourceLine, section: "current",
+              expected: { lp: currentExpected.lp, shards: currentExpected.shards },
+              detected: currentDetected,
+              message: "現在残高モードの金額＋操作候補です。残高注記か実取引か確認するまで、自動計上していません。"
+            });
+          }
+          currentModeCoverageRecorded = true;
+        }
+        continue;  // 現在値を収入・支出として取り込まない
 
       if (egoPurchaseMode && mode === "spend") {
         var egoSummary = egoPurchaseSummaryOf(line);
@@ -1975,6 +2005,7 @@
         });
       }
       } finally {
+        if (!currentModeCoverageRecorded) {
         /* 1行ごとに原文の通貨額候補と、その行が生んだ収入・支出を比較する。 */
         const cleanedAuditLine = stripBalances(normalizeAmountText(sourceLine)).replace(/[：:]+$/, "").trim();
         const directMoneyRow = standaloneCurrencyAmount(cleanedAuditLine, "lp") ||
@@ -2104,6 +2135,7 @@
             detected: got, expectedFlows: expectedFlows, detectedFlows: detectedFlows,
             parserReasonCount: addedReasons.length, sourceFinding: hasSourceFinding
           });
+        }
         }
       }
     }
