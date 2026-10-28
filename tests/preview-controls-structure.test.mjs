@@ -55,6 +55,10 @@ test("開閉コントロールは最終のCSSレイヤーでPC・タブレット
 
 test("Playwright geometry audit protects both toggle states and the landscape navigation dock", () => {
   const capture = read("../tools/ui/capture-preview-control-regression.mjs");
+  const broadAudit = read("../tools/ui/capture-ui-audit.mjs");
+  assert.ok(broadAudit.includes('route("**/cdn-cgi/rum**", (route) => route.fulfill('));
+  assert.ok(broadAudit.includes('route("**/api/stats/view*", (route) => route.fulfill('));
+  assert.ok(broadAudit.includes('"access-control-allow-origin": "*"'));
   assert.match(capture, /closed toggle avoids preview actions, tabs, hints, headings and navigation/);
   assert.ok(capture.includes("open tablet/landscape control uses a reserved dock"));
   assert.ok(capture.includes("collapsed tablet/landscape control uses a reserved dock"));
