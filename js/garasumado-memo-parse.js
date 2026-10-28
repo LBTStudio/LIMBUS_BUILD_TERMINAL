@@ -91,7 +91,10 @@
   /* E.G.O指定購入の見出しは「▼」などで始まっても、支出節として認識する。 */
   function isEgoPurchaseHeader(line) {
     var head = String(line || "").trim().replace(/^\s*(?:[・･▼▽▶▷■□◆◇★☆●○])\s*/, "");
-    return /(?:E\.?\s*G\.?\s*O|エゴ)/i.test(head) && /指定購入/.test(head);
+    /* 見出しは行全体が「E.G.O指定購入」の場合だけ。
+       「欠片75消費してE.G.O指定購入…」のような取引文に語句が含まれるだけなら、
+       見出し扱いで continue せず、金額の解析経路へ渡す。 */
+    return /^(?:E\.?\s*G\.?\s*O|エゴ)\s*指定購入\s*[：:]?$/i.test(head);
   }
 
   /* セクション見出しだけを認識する。本文付きの「・基本報酬 50LP」や
