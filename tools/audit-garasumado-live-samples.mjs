@@ -110,6 +110,26 @@ function isRelated(auditRows, lineNumber) {
   ));
 }
 
+function describeCandidateLine(line, coverage) {
+  const amountTokens = [...String(line).matchAll(/(?:[+＋\\-−]?\\s*\\d[\\d,，]*\\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)|(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)\\s*[：:]?\\s*[+＋\\-−]?\\s*\\d[\\d,，]*)/gi)]
+    .map((match) => String(match[0]).replace(/\\s+/g, " ").trim()).slice(0, 8);
+  const actionKinds = ["報酬", "収入", "消費", "支出", "支払", "購入", "買った", "抽出", "ガチャ", "チケット", "チケ", "獲得", "入手", "取得"]
+    .filter((word) => String(line).includes(word));
+  return {
+    length: String(line).length,
+    amountTokens,
+    actionKinds,
+    startsWithEffectMarker: /^\\s*[▶►▷]/.test(String(line)),
+    hasBalanceCue: /現在|残高|所持|残り|→|⇒/.test(String(line)),
+    section: coverage?.section || null,
+    status: coverage?.status || null,
+    expected: coverage?.expected || null,
+    detected: coverage?.detected || null,
+    parserReasonCount: Number(coverage?.parserReasonCount) || 0,
+    sourceFinding: Boolean(coverage?.sourceFinding)
+  };
+}
+
 function auditMemo(id, historyIndex, memo) {
   const parsed = MEMO.parseMemo(memo);
   const lines = String(memo || "").split(/\r?\n/);
@@ -122,7 +142,9 @@ function auditMemo(id, historyIndex, memo) {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    if (!line.trim() || !CANDIDATE_AMOUNT.test(line) || !CANDIDATE_ACTION.test(line)) continue;
+    // Effect descriptions beginning with ▶/►/▷ are intentionally excluded by
+    // the parser's auditLineCoverage and must not be counted as ledger transactions.
+    if (!line.trim() || /^\\s*[▶►▷]/.test(line) || !CANDIDATE_AMOUNT.test(line) || !CANDIDATE_ACTION.test(line)) continue;
     candidates++;
     const lineNumber = i + 1;
     const coverage = coverages.find((entry) => entry && entry.lineIndex === lineNumber);
@@ -130,16 +152,16 @@ function auditMemo(id, historyIndex, memo) {
     const relatedReason = reasons.some((entry) => String(entry.line || "").trim() === line.trim());
 
     if (!coverage) {
-      issues.push({ id, historyIndex, lineIndex: lineNumber, code: "missing-line-coverage" });
+      issues.push({ id, historyIndex, lineIndex: lineNumber, code: "missing-line-coverage", details: describeCandidateLine(line, null) });
       continue;
     }
     covered++;
     if (coverage.status === "unresolved") {
-      issues.push({ id, historyIndex, lineIndex: lineNumber, code: "unresolved-line" });
+      issues.push({ id, historyIndex, lineIndex: lineNumber, code: "unresolved-line", details: describeCandidateLine(line, coverage) });
     } else if (["mismatch", "direction-review"].includes(coverage.status) && !relatedAudit && !relatedReason) {
-      issues.push({ id, historyIndex, lineIndex: lineNumber, code: "unexplained-mismatch", status: coverage.status });
+      issues.push({ id, historyIndex, lineIndex: lineNumber, code: "unexplained-mismatch", status: coverage.status, details: describeCandidateLine(line, coverage) });
     } else if (coverage.status === "reviewed-by-parser-reason" && !relatedAudit && !relatedReason) {
-      issues.push({ id, historyIndex, lineIndex: lineNumber, code: "unshown-parser-reason" });
+      issues.push({ id, historyIndex, lineIndex: lineNumber, code: "unshown-parser-reason", details: describeCandidateLine(line, coverage) });
     }
   }
 
