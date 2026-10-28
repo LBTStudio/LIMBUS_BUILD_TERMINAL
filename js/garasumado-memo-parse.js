@@ -1309,6 +1309,7 @@
         ticketSpends: ticketSpends.length
       };
       var auditModeBefore = mode;
+      var currentModeCoverageRecorded = false;
       try {
       var typoCurrentMarker = /現座(?=\s*(?:(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ|けっか)\s*)?[0-9０-９])/i.test(sourceLine);
       var line = typoCurrentMarker ? sourceLine.replace(/現座/g, "現在") : sourceLine;
@@ -1321,6 +1322,51 @@
       if (!line) continue;
       /* ▶で始まる効果説明は記述であり、通貨支出ではない。 */
       if (/^\s*[▶►▷]/.test(sourceLine)) continue;
+
+      /* 金額が矢印に挟まれ、次の列に操作語がある行は、残高遷移か
+         実取引かをこの文字列だけでは確定できない。帳簿には計上せず、
+         通常の parser flow に入る前に専用のレビューcoverageとして保持する。 */
+      const balanceArrowTokens = [...sourceLine.matchAll(/[→⇒]/g)];
+      if (auditModeBefore !== "current" && balanceArrowTokens.length >= 2) {
+        const amountBetweenBalanceArrows = sourceLine.slice(
+          balanceArrowTokens[0].index + 1,
+          balanceArrowTokens[1].index
+        );
+        const hasCurrencyAmountBetweenBalanceArrows =
+          /(?:LP|ＬＰ|(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ|けっか))\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]+(?:[,，][0-9０-９]{3})*|[+＋\-−]?\s*[0-9０-９]+(?:[,，][0-9０-９]{3})*\s*(?:LP|ＬＰ|(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ|けっか))/i
+            .test(amountBetweenBalanceArrows);
+        const actionAfterBalanceArrow =
+          /報酬|収入|消費|支出|支払|購入|買っ|使用|行使|抽出|ガチャ|獲得|入手|取得|付与|支給|補填|受領|被り|重複|変換|換算/.test(
+            sourceLine.slice(balanceArrowTokens[1].index + 1)
+          );
+        if (hasCurrencyAmountBetweenBalanceArrows && actionAfterBalanceArrow) {
+          const expectedTransition = auditMoneyTotalsOfLine(sourceLine);
+          const detectedTransition = { lp: 0, shards: 0 };
+          const zeroTransitionFlows = {
+            lpIncome: 0, lpSpend: 0, lpUnknown: 0,
+            shardsIncome: 0, shardsSpend: 0, shardsUnknown: 0
+          };
+          financialCoverage.push({
+            lineIndex: i + 1, line: sourceLine, section: auditModeBefore || null,
+            status: "balance-transition-review",
+            expected: { lp: expectedTransition.lp, shards: expectedTransition.shards },
+            detected: detectedTransition,
+            expectedFlows: auditMoneyFlowsOfLine(sourceLine, auditModeBefore),
+            detectedFlows: zeroTransitionFlows,
+            parserReasonCount: 0, sourceFinding: false
+          });
+          sourceAudits.push({
+            side: "parser", code: "financial-action-in-balance-transition", severity: "review",
+            lineIndex: i + 1, line: sourceLine, section: auditModeBefore || null,
+            expected: { lp: expectedTransition.lp, shards: expectedTransition.shards },
+            detected: detectedTransition,
+            message: "矢印間の通貨額と後続の操作語を検出しました。残高注記か実取引か確認するまで、自動計上していません。"
+          });
+          currentModeCoverageRecorded = true;
+          continue;
+        }
+      }
+
       var prev = prevLine;
       prevLine = line;
       if (sourceAuditAnalysis.skipLines.has(i)) continue;
@@ -1414,7 +1460,37 @@
         /* 「・(願いの数x10)LP - 20LP」のような記号の計算は金額にしない。 */
         if (/[（(][^）)]*[x×][^）)]*[）)]/.test(line)) continue;
       }
-      if (mode === "current") continue;  // 現在値の羅列は取り込まない
+      if (mode === "current") {
+        /* 現在値の羅列は収支へ取り込まない。ただし行監査から消えると、共有URL実データで
+           金額＋操作語の候補行にcoverage欠落が出るため、残高注記／要確認として保存する。 */
+        const currentExpected = auditMoneyTotalsOfLine(sourceLine);
+        const currentAmountShape = /(?:LP|ＬＰ|(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ|けっか))\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]|[+＋\-−]?\s*[0-9０-９]+\s*(?:LP|ＬＰ|(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ|けっか))/i.test(sourceLine);
+        if (currentExpected.lp || currentExpected.shards || currentAmountShape) {
+          const currentActionCue = /報酬|収入|消費|支出|支払|購入|買っ|使用|行使|抽出|ガチャ|獲得|入手|取得|付与|支給|補填|受領|被り|重複|変換|換算|チケット|チケ/.test(sourceLine);
+          const currentDetectedFlows = { lpIncome: 0, lpSpend: 0, lpUnknown: 0, shardsIncome: 0, shardsSpend: 0, shardsUnknown: 0 };
+          const currentDetected = { lp: 0, shards: 0 };
+          const currentStatus = currentActionCue ? "current-balance-review" : "current-balance-note";
+          financialCoverage.push({
+            lineIndex: i + 1, line: sourceLine, section: "current", status: currentStatus,
+            expected: { lp: currentExpected.lp, shards: currentExpected.shards },
+            detected: currentDetected,
+            expectedFlows: auditMoneyFlowsOfLine(sourceLine, "current"),
+            detectedFlows: currentDetectedFlows,
+            parserReasonCount: 0, sourceFinding: false
+          });
+          if (currentActionCue) {
+            sourceAudits.push({
+              side: "parser", code: "financial-action-in-current-balance-section", severity: "review",
+              lineIndex: i + 1, line: sourceLine, section: "current",
+              expected: { lp: currentExpected.lp, shards: currentExpected.shards },
+              detected: currentDetected,
+              message: "現在残高モードの金額＋操作候補です。残高注記か実取引か確認するまで、自動計上していません。"
+            });
+          }
+          currentModeCoverageRecorded = true;
+        }
+        continue;  // 現在値を収入・支出として取り込まない
+      }
 
       if (egoPurchaseMode && mode === "spend") {
         var egoSummary = egoPurchaseSummaryOf(line);
@@ -1975,6 +2051,7 @@
         });
       }
       } finally {
+        if (!currentModeCoverageRecorded) {
         /* 1行ごとに原文の通貨額候補と、その行が生んだ収入・支出を比較する。 */
         const cleanedAuditLine = stripBalances(normalizeAmountText(sourceLine)).replace(/[：:]+$/, "").trim();
         const directMoneyRow = standaloneCurrencyAmount(cleanedAuditLine, "lp") ||
@@ -1985,20 +2062,52 @@
         });
         const expected = auditMoneyTotalsOfLine(sourceLine);
         const expectedFlows = auditMoneyFlowsOfLine(sourceLine, auditModeBefore);
-        const hasTicketEvent = /(?:チケット|チケ|抽出🎫)/.test(sourceLine) &&
-          (/\d/.test(sourceLine) || /獲得|入手|取得|付与|支給|消費|使用|抽出|ガチャ|結果|消費済/.test(sourceLine));
+        const hasTicketMarker = /(?:チケット|チケ|抽出🎫)/.test(sourceLine);
+        /* 数字が行のどこかにあるだけではチケット操作と見なさない。
+           「200LP以下の任意のテーマパックチケット」のように価格条件の数字を
+           チケット枚数として誤認すると、実際には何も操作されていない行を
+           financial-action-unaccounted にしてしまう。 */
+        const hasExplicitTicketCount =
+          /(?:チケット|チケ|抽出🎫)\s*(?:[x×ｘ＊*]\s*[0-9０-９]+|[0-9０-９]+\s*(?:枚|個|回))/i.test(sourceLine) ||
+          /(?:[x×ｘ＊*]\s*[0-9０-９]+|[0-9０-９]+\s*(?:枚|個|回))\s*(?:人格|E\.?G\.?O|エゴ|選択|抽出|ガチャ)?チケ(?:ット)?/i.test(sourceLine);
+        const hasTicketActionVerb =
+          /(?:獲得|入手|取得|付与|支給|消費|使用|購入|買っ|支払|支出|報酬|収入|受領|補填|抽出(?:した|する|結果|後|済|を行う|を実施)|ガチャ(?:結果|で獲得|を回|を引)|消費済)/i.test(sourceLine);
+        const hasTicketEvent = hasTicketMarker && (hasExplicitTicketCount || hasTicketActionVerb);
         const hasRosterGainEvent = /(?:人格|E\\.?G\\.?O|エゴ).*(?:獲得|入手|取得)|(?:獲得|入手|取得).*(?:人格|E\\.?G\\.?O|エゴ)/i.test(sourceLine);
         const hasGachaResult = /ガチャ.*(?:結果|→|⇒)|(?:人格|E\\.?G\\.?O|エゴ)獲得\\s*[→⇒:：]/i.test(sourceLine);
         /* 現在残高だけが記載された購入・抽出行も監査する。金額は推測せず、
            本体処理で作られた「支出額が読み取れない」等の理由へ紐付ける。 */
-         const hasCurrentBalanceAction = /(?:現在|現座|残り|残高)/.test(sourceLine) &&
+        const hasCurrentBalanceAction = /(?:現在|現座|残り|残高)/.test(sourceLine) &&
            /(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ|けっか)/.test(sourceLine) &&
            /消費|支出|支払|購入|買っ|使用|行使|抽出|ガチャ|獲得|入手|取得/.test(sourceLine);
          const hasFinancialAction = hasTicketEvent || hasRosterGainEvent || hasGachaResult || hasCurrentBalanceAction ||
           ((expected.lp || expected.shards || directMoneyRow) &&
             /報酬|収入|獲得|入手|取得|付与|支給|補填|受領|被り|重複|消費|使用|支払|支出|購入|買っ|抽出|ガチャ|変換|換算/.test(sourceLine));
-        if (auditModeBefore !== "current" && (directMoneyRow || hasFinancialAction || hasSourceFinding) &&
-            (expected.lp || expected.shards || hasFinancialAction || hasSourceFinding)) {
+        /* 矢印で残高・操作語が挟まれ、金額が前後の記録へ結び付かず
+           通常の額面検出にも残らない行だけを人手確認へ送る。矢印の存在だけでは
+           取引を保留しない（通常の購入・抽出結果にも矢印は使われる）。 */
+        const hasArrowDelimitedMoneyAction =
+          /(?:^|[→⇒])\s*(?:(?:LP|ＬＰ|(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ|けっか))\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]+|[+＋\-−]?\s*[0-9０-９]+\s*(?:LP|ＬＰ|(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ|けっか)))\s*(?=[→⇒])/i.test(sourceLine) &&
+          /報酬|収入|消費|支出|支払|購入|買っ|獲得|入手|取得|付与|支給|補填|受領|被り|重複|変換|換算|抽出|ガチャ/.test(sourceLine);
+        const hasUnaccountedArrowBalanceCandidate = hasArrowDelimitedMoneyAction &&
+          (auditModeBefore === "current" ||
+            (income.lp === auditBefore.lp && income.shards === auditBefore.shards && spends.length === auditBefore.spends));
+        /* 「現在」節は通常パーサー本体が意図的に読み飛ばすので、そこで止まる金額行も
+           行単位coverageに残す。金額のみは残高注記、操作語・矢印間の金額は要確認とし、
+           収入・支出へは自動計上しない。 */
+        const currentModeCurrencyCandidate = auditModeBefore === "current" &&
+          (expected.lp || expected.shards || directMoneyRow ||
+            /(?:LP|ＬＰ|(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ|けっか))\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]|[+＋\-−]?\s*[0-9０-９]+\s*(?:LP|ＬＰ|(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ|けっか))/i.test(sourceLine));
+        const currentModeActionCue = auditModeBefore === "current" &&
+          /報酬|収入|消費|支出|支払|購入|買っ|使用|行使|抽出|ガチャ|獲得|入手|取得|付与|支給|補填|受領|被り|重複|変換|換算|チケット|チケ/.test(sourceLine);
+        const hasFinancialCoverageTarget = (directMoneyRow || hasFinancialAction || hasSourceFinding ||
+          hasUnaccountedArrowBalanceCandidate || currentModeCurrencyCandidate) &&
+          (expected.lp || expected.shards || hasFinancialAction || hasSourceFinding ||
+            hasUnaccountedArrowBalanceCandidate || currentModeCurrencyCandidate);
+        const currentBalanceActionReview =
+          (auditModeBefore === "current" && (hasFinancialAction || hasSourceFinding || currentModeActionCue)) ||
+          hasUnaccountedArrowBalanceCandidate;
+        if (hasFinancialCoverageTarget && (auditModeBefore !== "current" || currentBalanceActionReview)) {
           const newSpends = spends.slice(auditBefore.spends);
           const detectedFlows = {
             lpIncome: Math.max(0, income.lp - auditBefore.lp),
@@ -2020,7 +2129,20 @@
           let status = "matched";
           let coverageFinding = null;
           const moneyBearing = expected.lp > 0 || expected.shards > 0;
-          if (skippedForSourceAudit || hasSourceFinding) {
+          if (currentBalanceActionReview) {
+            status = "current-balance-review";
+            sourceAudits.push({
+              side: "parser",
+              code: auditModeBefore === "current" ? "financial-action-in-current-balance-section" : "financial-action-in-balance-transition",
+              severity: "review",
+              lineIndex: i + 1, line: sourceLine, section: auditModeBefore,
+              expected: { lp: expected.lp, shards: expected.shards },
+              detected: got,
+              message: "残高・矢印式の金額と操作候補が同居しています。残高注記か実取引かを確認するまで、自動計上していません。"
+            });
+          } else if (auditModeBefore === "current") {
+            status = "current-balance-note";
+          } else if (skippedForSourceAudit || hasSourceFinding) {
             status = "source-reviewed";
           } else if (moneyBearing) {
             if (moneyReviewReason) {
@@ -2059,6 +2181,66 @@
             detected: got, expectedFlows: expectedFlows, detectedFlows: detectedFlows,
             parserReasonCount: addedReasons.length, sourceFinding: hasSourceFinding
           });
+        }
+
+        /* 既存49サンプルの回帰検査も金額＋操作語を候補とする。
+           通常経路でcoverageが作られなかった場合は、残高や価格条件を推測計上せず
+           監査行を明示的に残す。金額と方向が一致した場合だけ matched とする。 */
+        const hasLegacyAuditAmount =
+          /(?:LP|ＬＰ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]|[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ)|(?:欠片|かけら|欠けら|カケラ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]/i.test(sourceLine);
+        const hasLegacyAuditAction =
+          /報酬|収入|消費|支出|支払|購入|買った|抽出|ガチャ|チケット|チケ|獲得|入手|取得/.test(sourceLine);
+        const alreadyHasLineCoverage = financialCoverage.some((entry) => entry && entry.lineIndex === i + 1);
+        if (!alreadyHasLineCoverage &&
+            !/^\s*[▶►▷]/.test(sourceLine) &&
+            hasLegacyAuditAmount && hasLegacyAuditAction) {
+          const fallbackSpends = spends.slice(auditBefore.spends);
+          const fallbackExpected = auditMoneyTotalsOfLine(sourceLine);
+          const fallbackExpectedFlows = auditMoneyFlowsOfLine(sourceLine, auditModeBefore);
+          const fallbackDetectedFlows = {
+            lpIncome: Math.max(0, income.lp - auditBefore.lp),
+            lpSpend: auditSpendTotal(fallbackSpends, "lp"),
+            lpUnknown: 0,
+            shardsIncome: Math.max(0, income.shards - auditBefore.shards),
+            shardsSpend: auditSpendTotal(fallbackSpends, "shards"),
+            shardsUnknown: 0
+          };
+          const fallbackDetected = {
+            lp: fallbackDetectedFlows.lpIncome + fallbackDetectedFlows.lpSpend,
+            shards: fallbackDetectedFlows.shardsIncome + fallbackDetectedFlows.shardsSpend
+          };
+          const totalsMatch = fallbackExpected.lp === fallbackDetected.lp &&
+            fallbackExpected.shards === fallbackDetected.shards;
+          const directionsKnown = !(fallbackExpectedFlows.lpUnknown || fallbackExpectedFlows.shardsUnknown);
+          const flowsMatch = directionsKnown &&
+            ["lpIncome", "lpSpend", "shardsIncome", "shardsSpend"].every((key) =>
+              Number(fallbackExpectedFlows[key] || 0) === Number(fallbackDetectedFlows[key] || 0));
+          const hasParsedCurrency = Boolean(
+            fallbackExpected.lp || fallbackExpected.shards || fallbackDetected.lp || fallbackDetected.shards
+          );
+          const fallbackStatus = totalsMatch && flowsMatch && hasParsedCurrency
+            ? "matched"
+            : "candidate-review";
+          financialCoverage.push({
+            lineIndex: i + 1, line: sourceLine, section: auditModeBefore || null,
+            status: fallbackStatus,
+            expected: { lp: fallbackExpected.lp, shards: fallbackExpected.shards },
+            detected: fallbackDetected,
+            expectedFlows: fallbackExpectedFlows,
+            detectedFlows: fallbackDetectedFlows,
+            parserReasonCount: reasons.slice(auditBefore.reasons).length,
+            sourceFinding: hasSourceFinding
+          });
+          if (fallbackStatus === "candidate-review") {
+            sourceAudits.push({
+              side: "parser", code: "financial-candidate-without-coverage", severity: "review",
+              lineIndex: i + 1, line: sourceLine, section: auditModeBefore || null,
+              expected: { lp: fallbackExpected.lp, shards: fallbackExpected.shards },
+              detected: fallbackDetected,
+              message: "既存サンプル監査で金額＋操作語の候補行を検出しましたが、金額または方向を確定できません。残高や価格条件を取引として自動計上せず、原文と解析結果を確認してください。"
+            });
+          }
+        }
         }
       }
     }
