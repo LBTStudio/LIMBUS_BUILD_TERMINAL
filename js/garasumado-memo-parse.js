@@ -1445,6 +1445,7 @@
           currentModeCoverageRecorded = true;
         }
         continue;  // 現在値を収入・支出として取り込まない
+      }
 
       if (egoPurchaseMode && mode === "spend") {
         var egoSummary = egoPurchaseSummaryOf(line);
