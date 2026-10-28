@@ -57,7 +57,7 @@ test("Playwright geometry audit protects both toggle states and the landscape na
   const capture = read("../tools/ui/capture-preview-control-regression.mjs");
   assert.match(capture, /closed toggle avoids preview actions, tabs, hints, headings and navigation/);
   assert.match(capture, /open tablet\/landscape control uses a reserved dock/);
-  assert.match(capture, /closed tablet\/landscape control uses a reserved dock/);
+  assert.match(capture, /collapsed tablet\\/landscape control uses a reserved dock/);
   assert.match(capture, /rail\.width>=closed\.viewport\.width-8/);
   assert.match(capture, /headingLayout\.lineCount<=1/);
 });
