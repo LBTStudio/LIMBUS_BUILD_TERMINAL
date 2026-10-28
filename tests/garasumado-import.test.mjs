@@ -2737,3 +2737,30 @@ test("硝子窓の「獲得：HE 厳粛な哀悼」は正式E.G.O名へ照合さ
     "厳粛な哀悼：死んだ蝶たちの葬儀（HE / 59）が取り込みアクションまで到達する");
   assert.deepEqual([...applied.skipped], [], "正規名とランクがあるE.G.Oを未解決扱いにしない");
 });
+
+
+test("現在残高モードの金額＋操作候補は自動計上せず、人手確認coverageに残す", () => {
+  const parsed = MEMO.parseMemo("現在\n→LP200　　　　　　　　　　　　　　　→獲得");
+  const coverage = parsed.financialCoverage.find((row) => row.lineIndex === 2);
+  assert.ok(coverage, "現在残高モードでも操作候補のcoverageを欠落させない");
+  assert.equal(coverage.status, "current-balance-review", "残高中の候補は専用レビュー状態にする");
+  assert.equal(parsed.income.lp, 0, "現在残高のLPを収入として計上しない");
+  assert.equal(parsed.spends.length, 0, "現在残高のLPを支出として計上しない");
+  assert.ok(parsed.sourceAudits.some((row) =>
+    row.code === "financial-action-in-current-balance-section" && row.severity === "review"
+  ), "人手確認が必要な根拠を残す");
+});
+
+test("金額のあるチケット名だけでは、チケット操作の未解決監査を作らない", () => {
+  const parsed = MEMO.parseMemo("200LP以下の任意のテーマパックチケット");
+  assert.equal(
+    parsed.sourceAudits.some((row) => row.code === "financial-action-unaccounted"),
+    false,
+    "価格条件の数字とチケットという名詞だけを実操作として扱わない"
+  );
+  assert.equal(
+    parsed.financialCoverage.some((row) => row.status === "unresolved"),
+    false,
+    "実操作の根拠がないチケット名を未解決取引として数えない"
+  );
+});
