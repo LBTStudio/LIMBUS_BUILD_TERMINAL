@@ -392,6 +392,131 @@ function countNonemptyMemos(history) {
   return history.filter((row) => String(row?.memo || "").trim()).length;
 }
 
+/* Core rulebook p.14: creation resources are 30 LP and 10 Ego Shards.
+   LP may already be lower by the time the recorded scenario history begins
+   because character-creation purchases happened before the first memo. */
+const RULE_INITIAL_RESOURCES = Object.freeze({ lp: 30, shards: 10 });
+
+function normalizeAnchorText(value) {
+  return String(value || "")
+    .replace(/[０-９Ａ-Ｚａ-ｚ]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+    .replace(/[，]/g, ",")
+    .replace(/\u3000/g, " ")
+    .replace(/\u2212/g, "-");
+}
+
+function parsedNet(parsed, currency) {
+  const income = Number(parsed?.income?.[currency]) || 0;
+  const spends = (parsed?.spends || []).reduce((sum, row) => sum + Math.abs(Number(row?.[currency]) || 0), 0);
+  return income - spends;
+}
+
+function parseAnchorAmount(value) {
+  if (value == null) return null;
+  const n = Number(String(value).replace(/,/g, ""));
+  return Number.isSafeInteger(n) && n >= 0 ? n : null;
+}
+
+/* Return numeric locations only. Never copy the user's memo into the audit report.
+   A checkpoint implies the opening balance = checkpoint - all parsed flows before it. */
+function balanceAnchorsInMemo(memo, currency) {
+  const normalized = String(memo || "").replace(/\r\n?/g, "\n");
+  const lines = normalized.split("\n");
+  const anchors = [];
+  let offset = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const line = normalizeAnchorText(lines[i]);
+    const currentCue = /現在|現座/g;
+    let cue;
+    while ((cue = currentCue.exec(line)) !== null) {
+      const hasCurrency = currency === "lp"
+        ? /LP/i.test(line)
+        : /(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ|けっか)/.test(line);
+      if (!hasCurrency) continue;
+      const suffix = line.slice(cue.index);
+      const match = currency === "lp"
+        ? suffix.match(/(?:現在|現座)\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:LP|ＬＰ)?\s*[：:]?\s*([0-9][0-9,]*)(?:\s*(?:LP|ＬＰ))?(?:\s*[→⇒]\s*([0-9][0-9,]*))?/i)
+        : suffix.match(/(?:現在|現座)\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ|けっか)\s*)?[：:]?\s*([0-9][0-9,]*)(?:\s*(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ|けっか))?(?:\s*[→⇒]\s*([0-9][0-9,]*))?/);
+      if (!match) continue;
+      const value = parseAnchorAmount(match[2] ?? match[1]);
+      if (value === null) continue;
+      const prefix = normalized.slice(0, offset + cue.index);
+      const prefixParsed = MEMO.parseMemo(prefix);
+      anchors.push({
+        historyRow: i + 1,
+        lineIndex: i + 1,
+        value,
+        prefixNet: parsedNet(prefixParsed, currency),
+        prefixHasReview: (prefixParsed.reasons || []).length > 0 ||
+          (prefixParsed.sourceAudits || []).some((audit) => audit && audit.severity === "warning")
+      });
+    }
+    offset += lines[i].length + 1;
+  }
+  return anchors;
+}
+
+function auditRuleBasedOpening(history, currentBalance) {
+  const rows = (Array.isArray(history) ? history : []).map((row) => {
+    const memo = String(row?.memo || "");
+    const parsed = MEMO.parseMemo(memo);
+    return {
+      memo,
+      net: { lp: parsedNet(parsed, "lp"), shards: parsedNet(parsed, "shards") },
+      anchors: {
+        lp: balanceAnchorsInMemo(memo, "lp"),
+        shards: balanceAnchorsInMemo(memo, "shards")
+      }
+    };
+  });
+  const totalNet = {
+    lp: rows.reduce((sum, row) => sum + row.net.lp, 0),
+    shards: rows.reduce((sum, row) => sum + row.net.shards, 0)
+  };
+  const results = {};
+  for (const currency of ["lp", "shards"]) {
+    let priorNet = 0;
+    const checkpoints = [];
+    for (let i = 0; i < rows.length; i++) {
+      for (const anchor of rows[i].anchors[currency]) {
+        const opening = anchor.value - priorNet - anchor.prefixNet;
+        const expectedFinal = anchor.value + totalNet[currency] - priorNet - anchor.prefixNet;
+        const actualFinal = currentBalance?.[currency];
+        checkpoints.push({
+          historyRow: anchor.historyRow,
+          lineIndex: anchor.lineIndex,
+          anchorValue: anchor.value,
+          inferredOpening: opening,
+          anchorToCurrentGap: Number.isSafeInteger(actualFinal) ? actualFinal - expectedFinal : null,
+          prefixHasReview: anchor.prefixHasReview
+        });
+      }
+      priorNet += rows[i].net[currency];
+    }
+    const openings = checkpoints.map((checkpoint) => checkpoint.inferredOpening);
+    const minOpening = openings.length ? Math.min(...openings) : null;
+    const maxOpening = openings.length ? Math.max(...openings) : null;
+    const firstOpening = openings.length ? openings[0] : null;
+    const latest = checkpoints.at(-1) || null;
+    const rangeMax = RULE_INITIAL_RESOURCES[currency];
+    results[currency] = {
+      anchorCount: checkpoints.length,
+      firstOpening,
+      latestOpening: latest?.inferredOpening ?? null,
+      minOpening,
+      maxOpening,
+      openingSpread: openings.length ? maxOpening - minOpening : null,
+      openingWithinRuleRange: openings.length > 0 && openings.every((value) => value >= 0 && value <= rangeMax),
+      openingExactlyStable: openings.length > 0 && minOpening === maxOpening,
+      latestAnchorToCurrentGap: latest?.anchorToCurrentGap ?? null,
+      latestAnchorHistoryRow: latest?.historyRow ?? null,
+      nonzeroAnchorToCurrentGaps: checkpoints.filter((checkpoint) => checkpoint.anchorToCurrentGap !== 0).length,
+      checkpoints
+    };
+  }
+  return { totalNet, ...results };
+}
+
 function parseStoredCurrencyAmount(value) {
   if (value === null || value === undefined || String(value).trim() === "") return null;
   const normalized = String(value)
@@ -516,6 +641,7 @@ const fetched = await mapLimit(baseline.documents, 5, async (entry) => {
     actualHistoryRows: history.length,
     actualMemoRows: memoRows,
     currentBalance: storedCurrencyOf(result.doc),
+    ruleBasedOpeningAudit: auditRuleBasedOpening(history, storedCurrencyOf(result.doc)),
     historyInputSha256: historyInputSha256(history),
     parsedRows
   };
@@ -584,6 +710,39 @@ const balanceBridges = successful
       )
     };
   });
+const ruleBasedOpeningAudits = successful
+  .filter((entry) => entry.actualMemoRows > 0 &&
+    Number.isSafeInteger(entry.currentBalance?.lp) &&
+    Number.isSafeInteger(entry.currentBalance?.shards))
+  .map((entry) => ({
+    id: entry.baseline.id,
+    historyRows: entry.actualHistoryRows,
+    memoRows: entry.actualMemoRows,
+    currentLp: entry.currentBalance.lp,
+    currentShards: entry.currentBalance.shards,
+    lp: entry.ruleBasedOpeningAudit?.lp || null,
+    shards: entry.ruleBasedOpeningAudit?.shards || null
+  }));
+const ruleBasedOpeningSummary = {
+  ruleInitialLp: RULE_INITIAL_RESOURCES.lp,
+  ruleInitialShards: RULE_INITIAL_RESOURCES.shards,
+  eligibleDocuments: ruleBasedOpeningAudits.length,
+  lpWithAnchors: ruleBasedOpeningAudits.filter((row) => row.lp?.anchorCount > 0).length,
+  shardsWithAnchors: ruleBasedOpeningAudits.filter((row) => row.shards?.anchorCount > 0).length,
+  lpOpeningWithinRuleRange: ruleBasedOpeningAudits.filter((row) => row.lp?.openingWithinRuleRange).length,
+  shardsOpeningWithinRuleRange: ruleBasedOpeningAudits.filter((row) => row.shards?.openingWithinRuleRange).length,
+  bothOpeningWithinRuleRange: ruleBasedOpeningAudits.filter((row) => row.lp?.openingWithinRuleRange && row.shards?.openingWithinRuleRange).length,
+  lpOpeningStableAcrossAnchors: ruleBasedOpeningAudits.filter((row) => row.lp?.openingExactlyStable).length,
+  shardsOpeningStableAcrossAnchors: ruleBasedOpeningAudits.filter((row) => row.shards?.openingExactlyStable).length,
+  lpLatestAnchorMatchesCurrent: ruleBasedOpeningAudits.filter((row) => row.lp?.latestAnchorToCurrentGap === 0).length,
+  shardsLatestAnchorMatchesCurrent: ruleBasedOpeningAudits.filter((row) => row.shards?.latestAnchorToCurrentGap === 0).length,
+  bothLatestAnchorMatchCurrent: ruleBasedOpeningAudits.filter((row) => row.lp?.latestAnchorToCurrentGap === 0 && row.shards?.latestAnchorToCurrentGap === 0).length,
+  lpNonzeroLatestAnchorGap: ruleBasedOpeningAudits.filter((row) => row.lp?.latestAnchorToCurrentGap != null && row.lp.latestAnchorToCurrentGap !== 0).length,
+  shardsNonzeroLatestAnchorGap: ruleBasedOpeningAudits.filter((row) => row.shards?.latestAnchorToCurrentGap != null && row.shards.latestAnchorToCurrentGap !== 0).length,
+  lpOpeningSpreadPositive: ruleBasedOpeningAudits.filter((row) => (row.lp?.openingSpread || 0) > 0).length,
+  shardsOpeningSpreadPositive: ruleBasedOpeningAudits.filter((row) => (row.shards?.openingSpread || 0) > 0).length
+};
+
 const balanceBridgeSummary = {
   eligibleDocuments: balanceBridges.length,
   excludedNoMemoOrUnreadableBalance: successful.length - balanceBridges.length,
@@ -630,9 +789,13 @@ const report = {
     issues: issueRows
   },
   balance: {
-    interpretation: "保存残高 − (メモから抽出した収入 − 明示支出)。開始残高や履歴外調整が不明なため、ゼロでない残差だけでは不整合と断定しない。負の残差は別途要確認。",
+    interpretation: "ルールブック初期資源は30 LP / 自我の欠片10。シナリオ開始時点の推定残高は、開始前の人格・アイテム購入などにより低くなり得る。現在/現座の残高アンカーと、それ以前にパーサが認識した収支から開始残高を各チェックポイントごとに逆算し、値が安定するか・0～初期資源上限内か・最新アンカーから保存残高へ再現できるかを確認する。",
     summary: balanceBridgeSummary,
-    bridges: balanceBridges
+    bridges: balanceBridges,
+    ruleBasedOpening: {
+      summary: ruleBasedOpeningSummary,
+      documents: ruleBasedOpeningAudits
+    }
   }
 };
 
@@ -657,6 +820,13 @@ console.log(JSON.stringify({
     issueCount: report.parser.issues.length,
     currencyDiscrepancies: report.parser.currencyDiscrepancies,
     balanceBridgeDocuments: report.balance.summary.eligibleDocuments,
+    ruleBasedOpeningDocuments: report.balance.ruleBasedOpening.summary.eligibleDocuments,
+    ruleBasedLpOpeningWithinRange: report.balance.ruleBasedOpening.summary.lpOpeningWithinRuleRange,
+    ruleBasedShardOpeningWithinRange: report.balance.ruleBasedOpening.summary.shardsOpeningWithinRuleRange,
+    ruleBasedBothOpeningWithinRange: report.balance.ruleBasedOpening.summary.bothOpeningWithinRuleRange,
+    ruleBasedLpOpeningStable: report.balance.ruleBasedOpening.summary.lpOpeningStableAcrossAnchors,
+    ruleBasedShardOpeningStable: report.balance.ruleBasedOpening.summary.shardsOpeningStableAcrossAnchors,
+    ruleBasedBothLatestAnchorsMatchCurrent: report.balance.ruleBasedOpening.summary.bothLatestAnchorMatchCurrent,
     negativeLpResidualDocuments: report.balance.summary.lpResidualNegative,
     negativeShardResidualDocuments: report.balance.summary.shardResidualNegative,
     snapshotDriftRows: report.source.snapshotDrift.length,
@@ -672,6 +842,8 @@ console.log(JSON.stringify({
   }, {}),
   balanceBridgeSummary: report.balance.summary,
   balanceBridges: report.balance.bridges,
+  ruleBasedOpeningSummary: report.balance.ruleBasedOpening.summary,
+  ruleBasedOpeningDocuments: report.balance.ruleBasedOpening.documents,
   reviewDetailsCount: report.balance.bridges.reduce((sum, row) => sum + row.reviewDetails.length, 0),
   reviewDetails: report.balance.bridges.flatMap((row) => row.reviewDetails.map((detail) => ({ id: row.id, ...detail }))),
   issues: report.parser.issues.slice(0, 100),
