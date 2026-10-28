@@ -2150,7 +2150,6 @@
             lp: detectedFlows.lpIncome + detectedFlows.lpSpend,
             shards: detectedFlows.shardsIncome + detectedFlows.shardsSpend
           };
-          const addedReasons = reasons.slice(auditBefore.reasons);
           /* 残高注記しか残っていない操作候補は、金額を逆算せず明示理由を残す。
            これにより要確認の行が unresolved のまま無言で埋もれない。 */
         if ((hasBalanceOnlySpendCandidate || hasCurrentBalanceAction) &&
@@ -2163,6 +2162,7 @@
             reason: "支出額を残高から逆算せず、残高表記しかないため要確認にしました"
           });
         }
+          const addedReasons = reasons.slice(auditBefore.reasons);
         const moneyReviewReason = addedReasons.some(function (entry) {
             return /LP|欠片|通貨|金額|支出|収入|残高|計算|計上|価格|チケット|抽出/.test(String(entry.reason || ""));
           });
