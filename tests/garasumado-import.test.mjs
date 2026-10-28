@@ -2740,7 +2740,7 @@ test("硝子窓の「獲得：HE 厳粛な哀悼」は正式E.G.O名へ照合さ
 
 
 test("現在残高モードの金額＋操作候補は自動計上せず、人手確認coverageに残す", () => {
-  const parsed = MEMO.parseMemo("現在\n→LP200　　　　　　　　　　　　　　　→獲得");
+  const parsed = MEMO.parseMemo("・現在\n→LP200　　　　　　　　　　　　　　　→獲得");
   const coverage = parsed.financialCoverage.find((row) => row.lineIndex === 2);
   assert.ok(coverage, "現在残高モードでも操作候補のcoverageを欠落させない");
   assert.equal(coverage.status, "current-balance-review", "残高中の候補は専用レビュー状態にする");

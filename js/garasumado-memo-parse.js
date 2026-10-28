@@ -2182,6 +2182,65 @@
             parserReasonCount: addedReasons.length, sourceFinding: hasSourceFinding
           });
         }
+
+        /* 既存49サンプルの回帰検査も金額＋操作語を候補とする。
+           通常経路でcoverageが作られなかった場合は、残高や価格条件を推測計上せず
+           監査行を明示的に残す。金額と方向が一致した場合だけ matched とする。 */
+        const hasLegacyAuditAmount =
+          /(?:LP|ＬＰ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]|[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ|欠片|かけら|欠けら|カケラ)|(?:欠片|かけら|欠けら|カケラ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]/i.test(sourceLine);
+        const hasLegacyAuditAction =
+          /報酬|収入|消費|支出|支払|購入|買った|抽出|ガチャ|チケット|チケ|獲得|入手|取得/.test(sourceLine);
+        const alreadyHasLineCoverage = financialCoverage.some((entry) => entry && entry.lineIndex === i + 1);
+        if (!alreadyHasLineCoverage &&
+            !/^\s*[▶►▷]/.test(sourceLine) &&
+            hasLegacyAuditAmount && hasLegacyAuditAction) {
+          const fallbackSpends = spends.slice(auditBefore.spends);
+          const fallbackExpected = auditMoneyTotalsOfLine(sourceLine);
+          const fallbackExpectedFlows = auditMoneyFlowsOfLine(sourceLine, auditModeBefore);
+          const fallbackDetectedFlows = {
+            lpIncome: Math.max(0, income.lp - auditBefore.lp),
+            lpSpend: auditSpendTotal(fallbackSpends, "lp"),
+            lpUnknown: 0,
+            shardsIncome: Math.max(0, income.shards - auditBefore.shards),
+            shardsSpend: auditSpendTotal(fallbackSpends, "shards"),
+            shardsUnknown: 0
+          };
+          const fallbackDetected = {
+            lp: fallbackDetectedFlows.lpIncome + fallbackDetectedFlows.lpSpend,
+            shards: fallbackDetectedFlows.shardsIncome + fallbackDetectedFlows.shardsSpend
+          };
+          const totalsMatch = fallbackExpected.lp === fallbackDetected.lp &&
+            fallbackExpected.shards === fallbackDetected.shards;
+          const directionsKnown = !(fallbackExpectedFlows.lpUnknown || fallbackExpectedFlows.shardsUnknown);
+          const flowsMatch = directionsKnown &&
+            ["lpIncome", "lpSpend", "shardsIncome", "shardsSpend"].every((key) =>
+              Number(fallbackExpectedFlows[key] || 0) === Number(fallbackDetectedFlows[key] || 0));
+          const hasParsedCurrency = Boolean(
+            fallbackExpected.lp || fallbackExpected.shards || fallbackDetected.lp || fallbackDetected.shards
+          );
+          const fallbackStatus = totalsMatch && flowsMatch && hasParsedCurrency
+            ? "matched"
+            : "candidate-review";
+          financialCoverage.push({
+            lineIndex: i + 1, line: sourceLine, section: auditModeBefore || null,
+            status: fallbackStatus,
+            expected: { lp: fallbackExpected.lp, shards: fallbackExpected.shards },
+            detected: fallbackDetected,
+            expectedFlows: fallbackExpectedFlows,
+            detectedFlows: fallbackDetectedFlows,
+            parserReasonCount: reasons.slice(auditBefore.reasons).length,
+            sourceFinding: hasSourceFinding
+          });
+          if (fallbackStatus === "candidate-review") {
+            sourceAudits.push({
+              side: "parser", code: "financial-candidate-without-coverage", severity: "review",
+              lineIndex: i + 1, line: sourceLine, section: auditModeBefore || null,
+              expected: { lp: fallbackExpected.lp, shards: fallbackExpected.shards },
+              detected: fallbackDetected,
+              message: "既存サンプル監査で金額＋操作語の候補行を検出しましたが、金額または方向を確定できません。残高や価格条件を取引として自動計上せず、原文と解析結果を確認してください。"
+            });
+          }
+        }
         }
       }
     }
