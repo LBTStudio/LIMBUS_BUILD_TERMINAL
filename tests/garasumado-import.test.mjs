@@ -2851,7 +2851,7 @@ test("明示承認済み購入候補は残高照合へ反映し、未承認時�
     owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
     scenarioHistory: [
       { name: "開始残高", memo: "現在所持LP：100" },
-      { name: "候補購入", memo: "報酬\\nルサンチマン" }
+      { name: "候補購入", memo: "報酬\nルサンチマン" }
     ]
   };
   const manifest = M.buildManifest(doc, null);
@@ -2882,7 +2882,7 @@ test("現在残高より前の同一シナリオにある承認購入は、残�
     owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
     scenarioHistory: [{
       name: "購入後の残高",
-      memo: "報酬\\nルサンチマン\\n現在所持LP：100"
+      memo: "報酬\nルサンチマン\n現在所持LP：100"
     }]
   };
   const manifest = M.buildManifest(doc, null);

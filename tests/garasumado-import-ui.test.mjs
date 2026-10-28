@@ -88,7 +88,7 @@ test("初期精神は未計上にならず、上限を超えたら画面が警�
 });
 
 test("残高照合は記録が無いユーザーには言わず、不一致だけエラーとして出す", () => {
-  assert.match(uiFlat, /window\.LBT_reconcileBalance\(manifest, doc\)/);
+  assert.ok(uiFlat.includes("window.LBT_reconcileBalance(manifest, doc, { purchases: purchasePlan })"));
   assert.match(uiFlat, /balance && balance\.checked && !balance\.ok/);
   /* 照合していないユーザー（残高変動の記載0件）には何も出さない。 */
   assert.doesNotMatch(uiFlat, /!balance\.checked\s*&&\s*balance\.message/);
