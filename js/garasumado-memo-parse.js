@@ -2012,14 +2012,15 @@
         const hasArrowDelimitedMoneyAction =
           /(?:^|[→⇒])\s*(?:(?:LP|ＬＰ|(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ|けっか))\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]+|[+＋\-−]?\s*[0-9０-９]+\s*(?:LP|ＬＰ|(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ|けっか)))\s*(?=[→⇒])/i.test(sourceLine) &&
           /報酬|収入|消費|支出|支払|購入|買っ|獲得|入手|取得|付与|支給|補填|受領|被り|重複|変換|換算|抽出|ガチャ/.test(sourceLine);
-        const hasUnaccountedArrowBalanceCandidate = auditModeBefore === "current" && hasArrowDelimitedMoneyAction;
+        const hasUnaccountedArrowBalanceCandidate = hasArrowDelimitedMoneyAction &&
+          !(expected.lp || expected.shards) && !directMoneyRow;
         const hasFinancialCoverageTarget = (directMoneyRow || hasFinancialAction || hasSourceFinding || hasUnaccountedArrowBalanceCandidate) &&
           (expected.lp || expected.shards || hasFinancialAction || hasSourceFinding || hasUnaccountedArrowBalanceCandidate);
         /* 現在残高セクションでも操作語・監査根拠を伴う候補行はcoverageに残す。
            ただし残高の数字を収入・支出として自動計上せず、人手確認状態に固定する。 */
         const currentBalanceActionReview =
-          auditModeBefore === "current" &&
-          (hasFinancialAction || hasSourceFinding || hasUnaccountedArrowBalanceCandidate);
+          (auditModeBefore === "current" && (hasFinancialAction || hasSourceFinding)) ||
+          hasUnaccountedArrowBalanceCandidate;
         if (hasFinancialCoverageTarget && (auditModeBefore !== "current" || currentBalanceActionReview)) {
           const newSpends = spends.slice(auditBefore.spends);
           const detectedFlows = {
@@ -2046,7 +2047,7 @@
             status = "current-balance-review";
             sourceAudits.push({
               side: "parser",
-              code: "financial-action-in-current-balance-section",
+              code: auditModeBefore === "current" ? "financial-action-in-current-balance-section" : "financial-action-in-balance-transition",
               severity: "review",
               lineIndex: i + 1, line: sourceLine, section: auditModeBefore,
               expected: { lp: expected.lp, shards: expected.shards },
