@@ -19,7 +19,7 @@ const key = importSource.match(/const PUBLIC_API_KEY\s*=\s*["']([^"']+)["']/)?.[
 if (!key) throw new Error("公開Firestore読み取りキーをソースから検出できません。");
 
 const parserContext = {
-  window: { __lbtAuditIncomeEvents: [], __lbtAuditCurrentMemoLine: 0 },
+  window: { __lbtAuditIncomeEvents: [], __lbtAuditIncomePairEvents: [], __lbtAuditCurrentMemoLine: 0 },
   console,
   URL,
   TextEncoder,
@@ -37,6 +37,14 @@ function traceIncomeRoute(source, anchor, replacement, label) {
   if (!source.includes(anchor)) throw new Error("parser trace anchor missing: " + label);
   return source.replace(anchor, replacement);
 }
+parserSource = traceIncomeRoute(parserSource,
+  "      tokens.push({\n        cur: m[1] ? currencyOfPair(m[1]) : null,\n        num: m[1] ? null : chainSum(m[2]),\n        gap: text.slice(lastEnd, m.index)\n      });",
+  "      tokens.push({\n        index: m.index,\n        cur: m[1] ? currencyOfPair(m[1]) : null,\n        num: m[1] ? null : chainSum(m[2]),\n        gap: text.slice(lastEnd, m.index)\n      });",
+  "trace token offsets");
+parserSource = traceIncomeRoute(parserSource,
+  "      if (owner) out.push({ amount: tk.num, currency: owner });\n    }\n    return out;\n  }",
+  "      if (owner) out.push({ amount: tk.num, currency: owner });\n    }\n    if (Array.isArray(global.__lbtAuditIncomePairEvents) && Number(global.__lbtAuditCurrentMemoLine) > 0) {\n      global.__lbtAuditIncomePairEvents.push({\n        lineIndex: Number(global.__lbtAuditCurrentMemoLine),\n        inputLength: String(line || \"\").length,\n        cleanedLength: text.length,\n        tokenShape: tokens.map((token) => ({\n          index: token.index, kind: token.cur ? \"currency\" : \"number\",\n          currency: token.cur, amount: token.num, gapLength: token.gap.length,\n          gapHasLetters: /[A-Za-zぁ-んァ-ヶ一-龠]/.test(token.gap),\n          gapHasBalanceCue: /現在|現座|残高|残り|所持|保有/.test(token.gap),\n          gapHasActionCue: /報酬|収入|消費|支出|支払|購入|買っ|獲得|入手|取得|抽出|ガチャ|チケ|チケット/.test(token.gap)\n        })),\n        pairs: out.map((pair) => ({ currency: pair.currency, amount: pair.amount }))\n      });\n    }\n    return out;\n  }",
+  "trace normalized token pairs");
 parserSource = traceIncomeRoute(parserSource,
   '  function parseMemo(memo) {',
   '  function parseMemo(memo) {\n    global.__lbtAuditCurrentMemoLine = 0;',
@@ -311,7 +319,15 @@ function numericShape(value) {
 
 function auditMemo(id, historyIndex, memo) {
   parserContext.window.__lbtAuditIncomeEvents.length = 0;
+  parserContext.window.__lbtAuditIncomePairEvents.length = 0;
   const parsed = MEMO.parseMemo(memo);
+  const incomePairTrace = parserContext.window.__lbtAuditIncomePairEvents.map((event) => ({
+    lineIndex: Number(event.lineIndex) || 0,
+    inputLength: Number(event.inputLength) || 0,
+    cleanedLength: Number(event.cleanedLength) || 0,
+    tokenShape: Array.isArray(event.tokenShape) ? event.tokenShape : [],
+    pairs: Array.isArray(event.pairs) ? event.pairs : []
+  }));
   const incomeTrace = parserContext.window.__lbtAuditIncomeEvents.map((event) => ({
     lineIndex: Number(event.lineIndex) || 0,
     currency: event.currency === "lp" ? "lp" : "shards",
@@ -422,6 +438,7 @@ function auditMemo(id, historyIndex, memo) {
         hasParserReason: reasons.some((reason) => String(reason.line || "").trim() === line.trim()),
         lineShape: describeCandidateLine(line, entry),
         incomeEvents: incomeTrace.filter((event) => event.lineIndex === Number(entry.lineIndex) && event.lineIndex > 0),
+        incomePairEvents: incomePairTrace.filter((event) => event.lineIndex === Number(entry.lineIndex) && event.lineIndex > 0),
         auditCodes: related.map((audit) => ({
           code: String(audit.code || ""),
           severity: String(audit.severity || "")
@@ -429,7 +446,7 @@ function auditMemo(id, historyIndex, memo) {
       };
     });
 
-  return { historyIndex, candidates, covered, legacyCandidates, legacyTransactionCandidates, nonTransactionalTicketLabels, nonTransactionalDrawLabels, unclassifiedLegacyCues, unclassifiedLegacyCueExamples, issues, financial, incomeTrace, reviewDetails, coverageStatuses: coverages.reduce((counts, entry) => {
+  return { historyIndex, candidates, covered, legacyCandidates, legacyTransactionCandidates, nonTransactionalTicketLabels, nonTransactionalDrawLabels, unclassifiedLegacyCues, unclassifiedLegacyCueExamples, issues, financial, incomeTrace, incomePairTrace, reviewDetails, coverageStatuses: coverages.reduce((counts, entry) => {
     const status = String(entry?.status || "missing-status");
     counts[status] = (counts[status] || 0) + 1;
     return counts;
