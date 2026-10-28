@@ -51,6 +51,9 @@
      残高そのものが収入（または支出）として帳簿に乗る。 */
   function stripBalances(value) {
     return normalizeAmountText(value)
+      /* 一部のメモは通貨名が先に来る（「LP現在8」「欠片残り81」）。
+         金額の右隣にある残高マーカーも消し、数値を支出へ流用しない。 */
+      .replace(/(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)\s*(?:現在|現座|残高|残り)\s*[：:]?\s*-?\d+(?:\s*[+＋]\s*\d+)*(?:\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?/gi, " ")
       .replace(/現在\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)?\s*[：:]?\s*-?\d+(?:\s*[+＋]\s*\d+)*(?:\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?(?:\s*[→⇒]\s*-?\d+(?:\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?)?/gi, " ")
       .replace(/残り\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)?\s*[：:]?\s*-?\d+(?:\s*[+＋]\s*\d+)*(?:\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?(?:\s*[→⇒]\s*-?\d+(?:\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?)?/gi, " ");
   }
@@ -413,7 +416,7 @@
      通貨名は漢字を含むので、判定前に取り除く。
      （さreon「欠片」だけの行を名前と誤判定して通過させない） */
   function isTotalOnlyLine(line) {
-    var t = String(explicitRewardNameOf(line) || line).replace(/現在|残/g, "").trim();
+    var t = normalizeAmountText(String(explicitRewardNameOf(line) || line)).replace(/現在|残/g, "").trim();
     /* 通貨名だけ刈り取ったあと、漢字/ラテンが残るか見る。 */
     var stripped = t.replace(/LP|欠片|欠け片|かけら|欠けら|カケラ/gi, " ").trim();
     if (/[A-Za-zぁ-んァ-ヶ一-龠]/.test(stripped)) return false;
