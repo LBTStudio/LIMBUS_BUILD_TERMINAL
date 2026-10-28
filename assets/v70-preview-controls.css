@@ -94,6 +94,23 @@
     }
   }
 
+  /* Portrait phones: reserve the same 48px dock for the persistent toggle.
+     The preview loses that height as well, so its top edge stays in place and
+     the toggle never sits over the bottom copy/JSON actions. */
+  @media (max-width: 640px) and (orientation: portrait) {
+    .app:not(.preview-collapsed) .preview {
+      bottom: calc(var(--lbt-mobile-rail-h, 114px) + 56px);
+      height: min(calc(62vh - 56px), 504px);
+      max-height: calc(100vh - var(--topbar-h) - var(--lbt-mobile-rail-h, 114px) - 56px);
+      max-height: calc(100svh - var(--topbar-h) - var(--lbt-mobile-rail-h, 114px) - 56px);
+      max-height: calc(100dvh - var(--topbar-h) - var(--lbt-mobile-rail-h, 114px) - 56px);
+    }
+
+    .focus {
+      padding-bottom: calc(var(--lbt-mobile-rail-h, 114px) + 60px);
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .preview-edge-toggle {
       transition: none;
