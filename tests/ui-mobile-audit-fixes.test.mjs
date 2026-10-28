@@ -47,3 +47,11 @@ test("the new stylesheet loads after the existing UI styles", () => {
   const v69 = index.indexOf("assets/v69-mobile-ui-audit.css");
   assert.ok(v68 >= 0 && v69 > v68);
 });
+
+
+test("only the primary preview toggle is exposed; legacy overlay tabs stay hidden", () => {
+  assert.doesNotMatch(app, /className: "preview-reopen"/);
+  assert.match(css, /\.preview-reopen,[\s\S]*?\.preview-close\s*\{\s*display: none !important;/);
+  assert.match(app, /className: "preview-mobile-toggle"[\s\S]{0,300}name: "eye"/);
+  assert.doesNotMatch(app, /name: previewOpen \? "eye-off" : "eye"/);
+});
