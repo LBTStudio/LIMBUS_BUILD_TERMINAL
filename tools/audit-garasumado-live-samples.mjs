@@ -364,6 +364,7 @@ function auditMemo(id, historyIndex, memo) {
         parserReasonCount: Number(entry.parserReasonCount) || 0,
         sourceFinding: Boolean(entry.sourceFinding),
         hasParserReason: reasons.some((reason) => String(reason.line || "").trim() === line.trim()),
+        lineShape: describeCandidateLine(line, entry),
         auditCodes: related.map((audit) => ({
           code: String(audit.code || ""),
           severity: String(audit.severity || "")
