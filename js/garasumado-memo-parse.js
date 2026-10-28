@@ -2010,7 +2010,9 @@
           (expected.lp || expected.shards || hasFinancialAction || hasSourceFinding);
         /* 現在残高セクションでも操作語・監査根拠を伴う候補行はcoverageに残す。
            ただし残高の数字を収入・支出として自動計上せず、人手確認状態に固定する。 */
-        const currentBalanceActionReview = auditModeBefore === "current" && (hasFinancialAction || hasSourceFinding);
+        const currentBalanceActionReview =
+          (auditModeBefore === "current" || /[→⇒]/.test(sourceLine)) &&
+          hasCurrentBalanceAction && (hasFinancialAction || hasSourceFinding);
         if (hasFinancialCoverageTarget && (auditModeBefore !== "current" || currentBalanceActionReview)) {
           const newSpends = spends.slice(auditBefore.spends);
           const detectedFlows = {
@@ -2033,14 +2035,16 @@
           let status = "matched";
           let coverageFinding = null;
           const moneyBearing = expected.lp > 0 || expected.shards > 0;
-          if (auditModeBefore === "current") {
+          if (currentBalanceActionReview) {
             status = "current-balance-review";
             sourceAudits.push({
-              side: "parser", code: "financial-action-in-current-balance-section", severity: "review",
+              side: "parser",
+              code: auditModeBefore === "current" ? "financial-action-in-current-balance-section" : "financial-action-in-balance-transition",
+              severity: "review",
               lineIndex: i + 1, line: sourceLine, section: auditModeBefore,
               expected: { lp: expected.lp, shards: expected.shards },
               detected: got,
-              message: "現在残高セクション内に金額と操作候補があります。残高注記か実取引かを確認するまで、自動計上していません。"
+              message: "残高・矢印式の金額と操作候補が同居しています。残高注記か実取引かを確認するまで、自動計上していません。"
             });
           } else if (skippedForSourceAudit || hasSourceFinding) {
             status = "source-reviewed";
