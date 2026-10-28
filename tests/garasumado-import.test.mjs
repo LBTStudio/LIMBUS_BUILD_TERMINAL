@@ -3014,3 +3014,36 @@ test("「硝子の欠片+1」はアイテム数量であり、自我の欠片の
   assert.equal(parsed.income.shards, 28,
     "硝子の欠片・破片の数量を自我の欠片として加算しない");
 });
+
+
+test("括弧内の理性ボーナス注釈を独立検算で落とさず、正しい通貨額を差異扱いしない", () => {
+  const parsed = MEMO.parseMemo("報酬：90LP、56(理性で45+11)欠片、人格抽出チケット×1を獲得");
+  assert.equal(parsed.income.lp, 90);
+  assert.equal(parsed.income.shards, 56, "外側の56が実収入");
+  assert.equal(parsed.sourceAudits.some((row) =>
+    row.side === "parser" && row.code === "possible-result-detection-omission" && row.lineIndex === 1
+  ), false, "独立検算もLP90・欠片56として一致する");
+});
+
+test("硝子／ガラスの欠片アイテム数量は独立検算でも通貨扱いしない", () => {
+  const parsed = MEMO.parseMemo("報酬：55LP、28かけら、ガラスの欠片+1を獲得");
+  assert.equal(parsed.income.lp, 55);
+  assert.equal(parsed.income.shards, 28);
+  assert.equal(parsed.sourceAudits.some((row) =>
+    row.side === "parser" && row.code === "possible-result-detection-omission" && row.lineIndex === 1
+  ), false);
+});
+
+test("支出後の『被りにより欠片50獲得』を別の欠片収入として保持する", () => {
+  const parsed = MEMO.parseMemo("終了後、LP200消費してテーマパック「眺めることしかできない」抽出→被りにより欠片50獲得");
+  assert.equal(parsed.spends.reduce((sum, row) => sum + (Number(row.lp) || 0), 0), 200,
+    "テーマパック抽出のLP支出は維持する");
+  assert.equal(parsed.income.shards, 50,
+    "重複補償の欠片50を支出後の文面から別計上する");
+});
+
+test("E.G.O指定購入の前に明記された欠片75消費は支出に残す", () => {
+  const parsed = MEMO.parseMemo("欠片75消費してE.G.O指定購入「呪いの釘：痛がるテディ(TETH)」");
+  assert.equal(parsed.spends.reduce((sum, row) => sum + (Number(row.shards) || 0), 0), 75);
+  assert.equal(parsed.income.shards, 0);
+});
