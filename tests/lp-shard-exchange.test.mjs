@@ -61,7 +61,7 @@ test("旧LP→自我の欠片変換は読み込み時に収入とLP支出明細�
   assert.equal(expense.resultId, legacyExchange.id);
   const total = balance(migrated.results, migrated.entries);
   assert.equal(total.lp, 120, "初期支給30 + 収入100 − 旧変換支出10");
-  assert.equal(total.shards, 7);
+  assert.equal(total.shards, 17, "初期作成の欠片10 + 元の収入2 + 旧変換5");
 });
 
 test("再読込しても旧変換の獲得欠片・支出明細を二重に計上しない", () => {
