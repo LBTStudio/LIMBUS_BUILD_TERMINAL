@@ -141,6 +141,72 @@ function analyzeOrder(rows, currency, currentBalance, memoApi, reverse) {
   };
 }
 
+export function summarizeBalanceCuePatterns(history) {
+  const summary = {
+    memoRows: 0,
+    cueLines: 0,
+    currentWordLines: 0,
+    otherBalanceWordLines: 0,
+    arrowLines: 0,
+    lpLines: 0,
+    shardLines: 0,
+    bothCurrencyLines: 0,
+    numericBeforeCueLines: 0,
+    numericAfterCueLines: 0,
+    actionCueLines: 0,
+    conversionCueLines: 0,
+    patternCounts: {}
+  };
+  const amountPattern = /(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ|けっか)\s*[：:]?\s*[+＋\-−]?\s*\d[\d,]*|[+＋\-−]?\s*\d[\d,]*\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ|けっか)/ig;
+  for (const row of Array.isArray(history) ? history : []) {
+    const memo = String(row?.memo || "").replace(/\r\n?/g, "\n");
+    if (!memo.trim()) continue;
+    summary.memoRows += 1;
+    for (const rawLine of memo.split("\n")) {
+      const line = normalizeNoteText(rawLine);
+      const currentWord = /現在|現座/.test(line);
+      const otherBalanceWord = /残高|残り|所持|保有/.test(line);
+      const arrow = /[→⇒]/.test(line);
+      if (!currentWord && !otherBalanceWord && !arrow) continue;
+      summary.cueLines += 1;
+      if (currentWord) summary.currentWordLines += 1;
+      if (otherBalanceWord) summary.otherBalanceWordLines += 1;
+      if (arrow) summary.arrowLines += 1;
+      const hasLp = CURRENCY_MARKERS.lp.test(line);
+      const hasShards = CURRENCY_MARKERS.shards.test(line);
+      if (hasLp) summary.lpLines += 1;
+      if (hasShards) summary.shardLines += 1;
+      if (hasLp && hasShards) summary.bothCurrencyLines += 1;
+      if (/報酬|収入|消費|支出|支払|購入|買っ|獲得|入手|取得|付与|支給|補填|受領|被り|重複/.test(line)) summary.actionCueLines += 1;
+      if (/変換|換算/.test(line)) summary.conversionCueLines += 1;
+      const cues = [...line.matchAll(/現在|現座|残高|残り|所持|保有|[→⇒]/g)];
+      const cueIndex = cues[0]?.index ?? -1;
+      const before = cueIndex >= 0 ? line.slice(0, cueIndex) : "";
+      const after = cueIndex >= 0 ? line.slice(cueIndex + (line[cueIndex] === "→" || line[cueIndex] === "⇒" ? 1 : (line.startsWith("現座", cueIndex) ? 2 : line.startsWith("現在", cueIndex) ? 2 : line.startsWith("残高", cueIndex) ? 2 : line.startsWith("残り", cueIndex) ? 2 : line.startsWith("所持", cueIndex) ? 2 : line.startsWith("保有", cueIndex) ? 2 : 0))) : "";
+      amountPattern.lastIndex = 0;
+      const beforeAmount = amountPattern.test(before);
+      amountPattern.lastIndex = 0;
+      const afterAmount = amountPattern.test(after);
+      if (beforeAmount) summary.numericBeforeCueLines += 1;
+      if (afterAmount) summary.numericAfterCueLines += 1;
+      const parts = [
+        currentWord ? "current-word" : "",
+        otherBalanceWord ? "balance-word" : "",
+        arrow ? "arrow" : "",
+        hasLp ? "lp" : "",
+        hasShards ? "shards" : "",
+        beforeAmount ? "amount-before" : "",
+        afterAmount ? "amount-after" : "",
+        /報酬|収入|消費|支出|支払|購入|買っ|獲得|入手|取得|付与|支給|補填|受領|被り|重複/.test(line) ? "action" : "",
+        /変換|換算/.test(line) ? "conversion" : ""
+      ].filter(Boolean);
+      const key = parts.join("+") || "cue-only";
+      summary.patternCounts[key] = (summary.patternCounts[key] || 0) + 1;
+    }
+  }
+  return summary;
+}
+
 export function auditRuleBasedOpening(history, currentBalance, memoApi) {
   if (typeof memoApi?.parseMemo !== "function") throw new TypeError("memoApi.parseMemo is required");
   const rows = parseRows(history, memoApi);
@@ -220,6 +286,7 @@ export function auditRuleBasedOpening(history, currentBalance, memoApi) {
       preferredHistoryOrder,
       orderScores: { historyArrayOrder: forwardScore, reverseHistoryArray: reverseScore }
     },
+    balanceCuePatterns: summarizeBalanceCuePatterns(history),
     totals: {
       reviewRows: rows.reduce((sum, row) => sum + row.reviewRows, 0),
       parserReasons: rows.reduce((sum, row) => sum + row.parserReasons, 0),
