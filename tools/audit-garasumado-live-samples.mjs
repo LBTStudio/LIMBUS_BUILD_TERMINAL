@@ -260,6 +260,19 @@ function numericShape(value) {
   return out;
 }
 
+function categorizeParserReason(reason) {
+  const text = String(reason?.reason || "");
+  if (/残高から逆算|残高表記しかない|現在の残高/.test(text)) return "balance-only-no-spend-amount";
+  if (/テーマパック|パックチケット|パック抽出/.test(text)) return "theme-pack-or-ticket-ambiguity";
+  if (/チケット|抽出券|抽出チケ/.test(text)) return "ticket-amount-or-classification";
+  if (/通貨変換|変換方向|換算/.test(text)) return "currency-conversion-ambiguity";
+  if (/E\\.?G\\.?O|価格|価格欄/.test(text)) return "item-price-missing-or-mismatch";
+  if (/支出金額|購入額|消費金額|通貨額|支出表記|金額を読み取れない/.test(text)) return "spend-amount-or-format-unreadable";
+  if (/安全整数|桁区切り|範囲外|負の安全整数/.test(text)) return "numeric-format-or-range";
+  if (/不一致|一致しない|矛盾|計算結果|計算式/.test(text)) return "arithmetic-or-amount-mismatch";
+  return "other-review";
+}
+
 function auditMemo(id, historyIndex, memo) {
   const parsed = MEMO.parseMemo(memo);
   const lines = String(memo || "").split(/\r?\n/);
@@ -373,8 +386,13 @@ function auditMemo(id, historyIndex, memo) {
     });
 
   const spendSignatures = (parsed.spends || []).map(spendSignature).filter(Boolean);
+  const reasonCategories = {};
+  for (const reason of reasons) {
+    const category = categorizeParserReason(reason);
+    reasonCategories[category] = (reasonCategories[category] || 0) + 1;
+  }
 
-  return { historyIndex, candidates, covered, legacyCandidates, legacyTransactionCandidates, nonTransactionalTicketLabels, nonTransactionalDrawLabels, unclassifiedLegacyCues, unclassifiedLegacyCueExamples, issues, financial, reviewDetails, spendSignatures, coverageStatuses: coverages.reduce((counts, entry) => {
+  return { historyIndex, candidates, covered, legacyCandidates, legacyTransactionCandidates, nonTransactionalTicketLabels, nonTransactionalDrawLabels, unclassifiedLegacyCues, unclassifiedLegacyCueExamples, issues, financial, reviewDetails, spendSignatures, reasonCategories, coverageStatuses: coverages.reduce((counts, entry) => {
     const status = String(entry?.status || "missing-status");
     counts[status] = (counts[status] || 0) + 1;
     return counts;
@@ -696,7 +714,13 @@ function toMarkdownReport(report) {
     "",
     "| 状態 | 件数 |",
     "|---|---:|",
-    ...Object.entries(report.parser.coverageStatuses).sort(([a],[b]) => a.localeCompare(b)).map(([name, count]) => `| ${name} | ${count} |`),
+    ...Object.entries(report.parser.coverageStatuses).sort(([a],[b]) => a.localeCompare(b)).map(([name, count]) => "| " + name + " | " + count + " |"),
+    "",
+    "## パーサー保留理由の分類（原文・商品名は非出力）",
+    "",
+    "| 理由分類 | 件数 |",
+    "|---|---:|",
+    ...Object.entries(report.parser.reasonCategories).sort(([a],[b]) => a.localeCompare(b)).map(([name, count]) => "| " + name + " | " + count + " |"),
     "",
     "## ソーススナップショットの件数差",
     "",
@@ -781,6 +805,10 @@ const allParsedRows = successful.flatMap((entry) => entry.parsedRows || []);
 const issueRows = allParsedRows.flatMap((entry) => entry.issues);
 const coverageStatuses = {};
 for (const row of allParsedRows) for (const [status, count] of Object.entries(row.coverageStatuses)) coverageStatuses[status] = (coverageStatuses[status] || 0) + count;
+const parserReasonCategories = {};
+for (const row of allParsedRows) for (const [category, count] of Object.entries(row.reasonCategories || {})) {
+  parserReasonCategories[category] = (parserReasonCategories[category] || 0) + count;
+}
 
 /* 現在のcurrencyと履歴収支を橋渡しする。差額は「既知の開始残高」と同義ではなく、
    履歴開始前からの残高・未記録の調整・パーサーの見落としをまとめた残差として扱う。
@@ -1012,6 +1040,7 @@ const report = {
     currentBalanceReviewRows: coverageStatuses["current-balance-review"] || 0,
     currencyDiscrepancies: allParsedRows.reduce((sum, row) => sum + row.currencyDiscrepancies, 0),
     coverageStatuses,
+    reasonCategories: parserReasonCategories,
     issues: issueRows
   },
   balance: {
@@ -1107,6 +1136,7 @@ console.log(JSON.stringify({
     counts[issue.code] = (counts[issue.code] || 0) + 1;
     return counts;
   }, {}),
+  parserReasonCategories: report.parser.reasonCategories,
   balanceBridgeSummary: report.balance.summary,
   balanceBridges: report.balance.bridges,
   freeNotesSourceSummary: report.balance.freeNotesSource.summary,
