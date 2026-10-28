@@ -19,7 +19,7 @@ const key = importSource.match(/const PUBLIC_API_KEY\s*=\s*["']([^"']+)["']/)?.[
 if (!key) throw new Error("公開Firestore読み取りキーをソースから検出できません。");
 
 const parserContext = {
-  window: {},
+  window: { __lbtAuditIncomeEvents: [], __lbtAuditCurrentMemoLine: 0 },
   console,
   URL,
   TextEncoder,
@@ -30,11 +30,38 @@ const parserContext = {
 };
 parserContext.globalThis = parserContext;
 vm.createContext(parserContext);
-vm.runInContext(
-  readFileSync(resolve(root, "js/garasumado-memo-parse.js"), "utf8"),
-  parserContext,
-  { filename: "js/garasumado-memo-parse.js" }
-);
+let parserSource = readFileSync(resolve(root, "js/garasumado-memo-parse.js"), "utf8");
+/* Instrument the in-memory copy only; emit route, currency, amount and one-based
+   memo line, never raw notes or names. Production parser and Firestore stay untouched. */
+function traceIncomeRoute(source, anchor, replacement, label) {
+  if (!source.includes(anchor)) throw new Error("parser trace anchor missing: " + label);
+  return source.replace(anchor, replacement);
+}
+parserSource = traceIncomeRoute(parserSource,
+  '  function parseMemo(memo) {',
+  '  function parseMemo(memo) {\n    global.__lbtAuditCurrentMemoLine = 0;',
+  "reset trace line");
+parserSource = traceIncomeRoute(parserSource,
+  '      var sourceLine = String(lines[i]).trim();',
+  '      global.__lbtAuditCurrentMemoLine = i + 1;\n      var sourceLine = String(lines[i]).trim();',
+  "set trace line");
+parserSource = traceIncomeRoute(parserSource,
+  '    addSafeAmount(income, "lp", slashPair.lp, memo, reasons, "LP収入の合計");\n    addSafeAmount(income, "shards", slashPair.shards, memo, reasons, "欠片収入の合計");',
+  '    global.__lbtAuditIncomeEvents.push({ lineIndex: 0, currency: "lp", amount: slashPair.lp, route: "slash-pair-total" });\n    global.__lbtAuditIncomeEvents.push({ lineIndex: 0, currency: "shards", amount: slashPair.shards, route: "slash-pair-total" });\n    addSafeAmount(income, "lp", slashPair.lp, memo, reasons, "LP収入の合計");\n    addSafeAmount(income, "shards", slashPair.shards, memo, reasons, "欠片収入の合計");',
+  "trace slash pair");
+parserSource = traceIncomeRoute(parserSource,
+  '        else addSafeAmount(income, "shards", duplicateCompensation.amount, line, reasons, "重複補償の欠片収入");',
+  '        else {\n          global.__lbtAuditIncomeEvents.push({ lineIndex: global.__lbtAuditCurrentMemoLine, currency: "shards", amount: duplicateCompensation.amount, route: "duplicate-shard-compensation" });\n          addSafeAmount(income, "shards", duplicateCompensation.amount, line, reasons, "重複補償の欠片収入");\n        }',
+  "trace duplicate compensation");
+parserSource = traceIncomeRoute(parserSource,
+  '            addSafeAmount(income, conversionPair.currency, conversionPair.amount, sourceLine, reasons, "通貨変換の収入");',
+  '            global.__lbtAuditIncomeEvents.push({ lineIndex: global.__lbtAuditCurrentMemoLine, currency: conversionPair.currency, amount: conversionPair.amount, route: "conversion-income" });\n            addSafeAmount(income, conversionPair.currency, conversionPair.amount, sourceLine, reasons, "通貨変換の収入");',
+  "trace conversion");
+parserSource = traceIncomeRoute(parserSource,
+  '            if (pairs[pi].amount > 0) addSafeAmount(income, pairs[pi].currency, pairs[pi].amount, line, reasons, "通貨収入合計");',
+  '            if (pairs[pi].amount > 0) {\n              global.__lbtAuditIncomeEvents.push({ lineIndex: global.__lbtAuditCurrentMemoLine, currency: pairs[pi].currency, amount: pairs[pi].amount, route: "currency-pair-income" });\n              addSafeAmount(income, pairs[pi].currency, pairs[pi].amount, line, reasons, "通貨収入合計");\n            }',
+  "trace currency-pair income");
+vm.runInContext(parserSource, parserContext, { filename: "js/garasumado-memo-parse.js (audit-only instrumentation)" });
 const MEMO = parserContext.window.LBT_garaMemo || parserContext.module.exports;
 if (typeof MEMO?.parseMemo !== "function") throw new Error("収支メモパーサーを初期化できません。");
 
@@ -283,7 +310,14 @@ function numericShape(value) {
 }
 
 function auditMemo(id, historyIndex, memo) {
+  parserContext.window.__lbtAuditIncomeEvents.length = 0;
   const parsed = MEMO.parseMemo(memo);
+  const incomeTrace = parserContext.window.__lbtAuditIncomeEvents.map((event) => ({
+    lineIndex: Number(event.lineIndex) || 0,
+    currency: event.currency === "lp" ? "lp" : "shards",
+    amount: Number(event.amount) || 0,
+    route: String(event.route || "unknown")
+  }));
   const lines = String(memo || "").split(/\r?\n/);
   const coverages = Array.isArray(parsed.financialCoverage) ? parsed.financialCoverage : [];
   const reasons = Array.isArray(parsed.reasons) ? parsed.reasons : [];
@@ -387,6 +421,7 @@ function auditMemo(id, historyIndex, memo) {
         sourceFinding: Boolean(entry.sourceFinding),
         hasParserReason: reasons.some((reason) => String(reason.line || "").trim() === line.trim()),
         lineShape: describeCandidateLine(line, entry),
+        incomeEvents: incomeTrace.filter((event) => event.lineIndex === Number(entry.lineIndex) && event.lineIndex > 0),
         auditCodes: related.map((audit) => ({
           code: String(audit.code || ""),
           severity: String(audit.severity || "")
@@ -394,7 +429,7 @@ function auditMemo(id, historyIndex, memo) {
       };
     });
 
-  return { historyIndex, candidates, covered, legacyCandidates, legacyTransactionCandidates, nonTransactionalTicketLabels, nonTransactionalDrawLabels, unclassifiedLegacyCues, unclassifiedLegacyCueExamples, issues, financial, reviewDetails, coverageStatuses: coverages.reduce((counts, entry) => {
+  return { historyIndex, candidates, covered, legacyCandidates, legacyTransactionCandidates, nonTransactionalTicketLabels, nonTransactionalDrawLabels, unclassifiedLegacyCues, unclassifiedLegacyCueExamples, issues, financial, incomeTrace, reviewDetails, coverageStatuses: coverages.reduce((counts, entry) => {
     const status = String(entry?.status || "missing-status");
     counts[status] = (counts[status] || 0) + 1;
     return counts;
@@ -854,6 +889,11 @@ console.log(JSON.stringify({
     ...entry.ruleBasedOpeningAudit.balanceCuePatterns
   })),
   reviewDetailsCount: report.balance.bridges.reduce((sum, row) => sum + row.reviewDetails.length, 0),
+  incomeTraceRouteCounts: successful.flatMap((entry) => (entry.parsedRows || []).flatMap((memo) => memo.incomeTrace || [])).reduce((counts, event) => {
+    const key = event.route + ":" + event.currency;
+    counts[key] = (counts[key] || 0) + 1;
+    return counts;
+  }, {}),
   reviewDetails: report.balance.bridges.flatMap((row) => row.reviewDetails.map((detail) => ({ id: row.id, ...detail }))),
   issues: report.parser.issues.slice(0, 100),
   unclassifiedLegacyCueExamples: report.parser.unclassifiedLegacyCueExamples
