@@ -41,5 +41,7 @@ test("開閉コントロールは最終のCSSレイヤーでPC・タブレット
   assert.match(css, /bottom:\s*calc\(122px \+ env\(safe-area-inset-bottom, 0px\)\)/);
   assert.match(css, /writing-mode:\s*horizontal-tb/);
   assert.match(css, /\.preview-edge-toggle:focus-visible/);
+  assert.match(css, /\.section-title\s*\{\s*word-break:\s*keep-all;\s*overflow-wrap:\s*normal;/);
+  assert.match(css, /@media \(max-width: 640px\)\s*\{\s*\.section-title-row\s*\{\s*padding-right: 0;/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
 });
