@@ -1476,8 +1476,9 @@
         if (personas.length === 1) {
           const kind = personas[0];
           const personaKey = `${kind.mode}:${kind.no}`;
-          /* 所持へ追加する必要性とは独立して取得証跡を保存する。既に所持済みでも記録する。 */
-          notePersonaAcquisition(kind, hit.name || source);
+          /* 現在装備中の人格・基本情報行を取得履歴と誤認しない。
+             それ以外は既所持であっても履歴上の取得証跡として記録する。 */
+          if (!identityNames.has(source)) notePersonaAcquisition(kind, hit.name || source);
           if (!identityNames.has(source) && !ownedPersonas.has(personaKey) && !importedPersonaKeys.has(personaKey)) {
             importedPersonaKeys.add(personaKey);
             actions.push({ type: "ADD_ROSTER", mode: kind.mode, no: kind.no, purchase: false, skipInitialTicketConsumption: true, via: title ? [title] : [] });
