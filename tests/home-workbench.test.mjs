@@ -106,7 +106,8 @@ test("プレビュー用キャプチャーは現行の「ビルド」表示を�
   assert.match(capture, /\.rail-item\[title='ビルド'\]/);
   assert.match(capture, /\.rail-item\[title='ワークベンチ'\]/);
   assert.match(capture, /build-overview\.png/);
-  assert.match(capture, /profiles\.length\*5/);
+  assert.match(capture, /build-status-editor\.png/);
+  assert.match(capture, /profiles\.length\*6/);
 });
 
 test("ステータス一覧・編集・出力順はBタイプのビルド画面に一体化している", () => {
@@ -123,5 +124,5 @@ test("ステータス一覧・編集・出力順はBタイプのビルド画面�
   assert.match(sections, /ステータス一覧・編集・出力順/);
   const capture = read("../tools/ui/capture-preview-control-regression.mjs");
   assert.match(capture, /Build status list exposes editing and emitted-order controls/);
-  assert.match(capture, /build-status-editor\\.png/);
+  assert.match(capture, /build-status-editor\.png/);
 });
