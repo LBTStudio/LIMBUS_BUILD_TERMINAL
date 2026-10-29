@@ -174,7 +174,8 @@ test("未所持のカードからその場で買える", () => {
 test("レールのビルド項目は旧IDでもアクティブになり、必須3項目の合成でドットを出す", () => {
   const block = app.slice(app.indexOf("const RailNavigation ="), app.indexOf("const App = ()"));
   assert.match(block, /const isBuild = s\.id === "persona";/);
-  assert.match(block, /const active = isBuild \? \["baseinfo", "persona", "skill", "passive", "enh", "support", "ego", "spirit", "items-build"\]\.includes\(current\) : current === s\.id;/);
+  assert.match(block, /const buildIds = \["baseinfo", "persona", "skill", "passive", "enh", "support", "ego", "spirit", "items-build"\];/);
+  assert.match(block, /const active = isBuild \? buildIds\.includes\(current\) : current === s\.id;/);
   assert.match(block, /isComplete\("persona", state\) && isComplete\("skill", state\) && isComplete\("passive", state\)/);
   /* 強化はビルドのタブになったので、専用の溢れ指定は要らない。 */
   assert.doesNotMatch(block, /is-overflow/);
