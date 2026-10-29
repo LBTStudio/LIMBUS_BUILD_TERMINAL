@@ -353,27 +353,28 @@ function auditExplicitSpendCues(lines, spendTrace, reasons, coverages, audits) {
     const hasCurrencyAmount =
       /(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか))\s*[:：]?\s*[+＋-]?\s*\d[\d,]*|[+＋-]?\s*\d[\d,]*\s*(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか))/i.test(normalized);
     if (!hasCurrencyAmount) continue;
-    /* 「チケットを使用」「同期化に使用」のような消費動詞は通貨支出とは限らない。
-       使用・使いの場合は金額の近傍にあるときだけ支出候補とし、チケット／技能／同期化の
-       語句が間にある場合は通貨消費へ短絡しない。 */
+    /* 支出動詞が同じ行のどこかにあるだけでは不十分。額との近接と間の語句を
+       見て、報酬額＋チケット消費のような混在行を「通貨支出」と誤分類しない。 */
     const currencyAmountPattern = /(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか))\s*[:：]?\s*[+＋-]?\s*\d[\d,]*|[+＋-]?\s*\d[\d,]*\s*(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか))/gi;
     const currencyAmountMatches = [...normalized.matchAll(currencyAmountPattern)];
+    const spendVerbs = [...normalized.matchAll(/消費|支払|支払い|支出|購入(?!できる|可能|条件)|買った|買っ|使った|使用|使い/g)];
     const usageMatches = [...normalized.matchAll(/使用|使い/g)];
-    const usageNearCurrency = usageMatches.some((usage) => currencyAmountMatches.some((amount) => {
+    const actionNearCurrency = (action) => currencyAmountMatches.some((amount) => {
       const amountEnd = amount.index + amount[0].length;
-      const distance = usage.index >= amountEnd
-        ? usage.index - amountEnd
-        : amount.index >= usage.index + usage[0].length
-          ? amount.index - (usage.index + usage[0].length)
+      const distance = action.index >= amountEnd
+        ? action.index - amountEnd
+        : amount.index >= action.index + action[0].length
+          ? amount.index - (action.index + action[0].length)
           : 0;
       if (distance > 12) return false;
-      const gapStart = Math.min(amountEnd, usage.index + usage[0].length);
-      const gapEnd = Math.max(amount.index, usage.index);
+      const gapStart = Math.min(amountEnd, action.index + action[0].length);
+      const gapEnd = Math.max(amount.index, action.index);
       const gap = normalized.slice(gapStart, gapEnd);
       return !/(?:チケット|チケ|同期|CT\s*\d|スキル|人格|E\.?G\.?O|エゴ|抽出|ガチャ)/i.test(gap);
-    }));
+    });
     const hasUsageCue = usageMatches.length > 0;
-    const hasExplicitSpendAction = /消費|支払|支払い|支出|購入(?!できる|可能|条件)|買った|買っ|使った/.test(normalized) || usageNearCurrency;
+    const usageNearCurrency = usageMatches.some(actionNearCurrency);
+    const hasExplicitSpendAction = spendVerbs.some(actionNearCurrency);
     const hasNegativeCurrency = /(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか))\s*[-]\s*\d|[-]\s*\d[\d,]*\s*(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか))/i.test(normalized)
       && !/(?:現在|現座|残高|残り|所持|保有)/.test(normalized);
     if (!hasExplicitSpendAction && !hasNegativeCurrency) continue;
