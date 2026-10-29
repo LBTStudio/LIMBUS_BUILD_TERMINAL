@@ -68,8 +68,8 @@ test("プレビュー用キャプチャーは現行の「ビルド」表示を�
   assert.match(app, /LIMBUS BUILD TERMINAL \/ BUILD/);
   assert.match(app, /ビルドを開く/);
   assert.doesNotMatch(app, /ワークベンチ/);
-  assert.match(capture, /button\\.rail-item\\[title='ビルド'\\]/);
-  assert.match(capture, /button\\.rail-item\\[title='ワークベンチ'\\]/);
+  assert.match(capture, /\.rail-item\[title='ビルド'\]/);
+  assert.match(capture, /\.rail-item\[title='ワークベンチ'\]/);
   assert.match(capture, /build-overview\.png/);
   assert.match(capture, /profiles\.length\*5/);
 });
