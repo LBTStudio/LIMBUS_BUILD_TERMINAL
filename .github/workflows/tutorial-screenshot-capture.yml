@@ -35,9 +35,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
         with:
           node-version: "24"
 
@@ -93,7 +93,7 @@ jobs:
       # under the bot identity and can require manual workflow approval.
       - name: Upload screenshots and manifest
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: lbt-tutorial-ui-captures-${{ github.sha }}
           path: artifacts/tutorial-screenshots/
