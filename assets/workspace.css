@@ -2550,7 +2550,7 @@ body.has-detail-dialog main.preview { overflow: hidden; }
   background-image:
     linear-gradient(#ffffff0d 1px, transparent 1px),
     linear-gradient(90deg, #ffffff0d 1px, transparent 1px);
-  background-size: 36px 36px;
+  background-size: 48px 48px;
   pointer-events: none;
 }
 .pv-ccfolia-map-token {
@@ -2567,8 +2567,8 @@ body.has-detail-dialog main.preview { overflow: hidden; }
 .pv-ccfolia-map-avatar {
   display: grid;
   place-items: center;
-  width: 94px;
-  height: 94px;
+  width: 48px;
+  height: 48px;
   min-width: 0;
   min-height: 0;
   overflow: visible;
@@ -2578,8 +2578,8 @@ body.has-detail-dialog main.preview { overflow: hidden; }
 }
 .pv-ccfolia-map-avatar img {
   display: block;
-  max-width: 94px;
-  max-height: 94px;
+  max-width: 48px;
+  max-height: 48px;
   width: auto;
   height: auto;
   object-fit: contain;
@@ -2653,28 +2653,11 @@ body.has-detail-dialog main.preview { overflow: hidden; }
   object-fit: contain;
 }
 .pv-ccfolia-roster-main { min-width: 0; }
-.pv-ccfolia-roster-name-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 5px;
-}
 .pv-ccfolia-roster-name {
   min-width: 0;
   color: #f0f2f4;
   font-size: 11px;
   line-height: 1.35;
-  overflow-wrap: anywhere;
-}
-.pv-ccfolia-roster-init {
-  flex: none;
-  color: #b6bec7;
-  font: 10px/1.35 var(--f-mono);
-}
-.pv-ccfolia-roster-player {
-  margin-top: 3px;
-  color: #aeb6bf;
-  font-size: 10px;
   overflow-wrap: anywhere;
 }
 .pv-ccfolia-roster-statuses {
