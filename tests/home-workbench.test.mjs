@@ -15,7 +15,7 @@ test("Bタイプはビルドを主作業面にし、ホームを補助入口と�
   const nav = app.slice(app.indexOf("const SECTIONS = ["), app.indexOf("function isComplete"));
   assert.match(nav, /id: "home", label: "ホーム", icon: "home"/);
   assert.match(ui, /const ICON_PATHS = \{[\s\S]*?\bhome:/);
-  assert.match(nav, /id: "persona", label: "ビルド"/);
+  assert.match(nav, /id: "persona", label: "ワークベンチ"/);
   assert.doesNotMatch(nav, /id: "baseinfo"/);
   assert.match(app, /s\.id === "persona" \? "baseinfo" : s\.id/);
   assert.match(app, /const current = state\.ui\.currentSection \|\| "baseinfo"/);
@@ -35,7 +35,7 @@ test("基本タブは既存の駒整形コンポーネントを再利用し、�
 });
 
 test("ホーム検索は目的語と関連語を探し、既存画面へ移動する", () => {
-  assert.match(app, /const visibleGroups = groups\.map/);
+  assert.match(app, /const visibleActions = actions\.filter/);
   assert.match(app, /\[item\.title, item\.desc, item\.terms\]/);
   for (const target of ["baseinfo", "persona", "skill", "ego", "shop", "roster", "settings", "help"]) {
     assert.ok(app.includes(`navigate("${target}"`), `ホームから ${target} へ移動できる`);
@@ -59,13 +59,13 @@ test("ホームの取り込みショートカットは既存の取込フォー�
 });
 
 test("ホームランチャーは狭幅では1列になり、キーボードでも移動できる", () => {
-  assert.match(css, /\.home-task-grid \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
-  assert.match(css, /@media \(max-width: 640px\)[\s\S]*?\.home-task-grid \{ grid-template-columns: minmax\(0, 1fr\); \}/);
-  assert.match(css, /\.home-task:focus-visible/);
+  assert.match(css, /\.btype-launcher-grid \{ display: grid; grid-template-columns: repeat\(3, minmax\(0,1fr\)\)/);
+  assert.match(css, /@media \(max-width: 600px\)[\s\S]*?\.btype-launcher-grid \{ grid-template-columns: repeat\(2,minmax\(0,1fr\)\);/);
+  assert.match(css, /\.btype-launcher-card:focus-visible/);
 });
 
 test("Bタイプのナビは制作・データ管理・補助を区別し、取り込み先を選べる", () => {
-  for (const label of ["制作", "データ管理", "補助"]) assert.ok(app.includes(`label: "${label}"`));
+  for (const label of ["ワークスペース", "データ管理", "補助"]) assert.ok(app.includes(`label: "${label}"`));
   assert.match(app, /className: `rail-group rail-group-\$\{group\.id\}`/);
   assert.match(app, /const ImportRouterDialog =/);
   for (const route of ['"persona"', '"result"', '"garasumado"', '"owned"']) assert.ok(app.includes(`id: ${route}`), `取り込み経路 ${route}`);
@@ -99,10 +99,10 @@ test("ビルドは作業対象と保存状態を常時表示し、タブ列を�
 test("プレビュー用キャプチャーは現行の「ビルド」表示を使う", () => {
   const capture = read("../tools/ui/capture-preview-control-regression.mjs");
   const nav = app.slice(app.indexOf("const SECTIONS = ["), app.indexOf("function isComplete"));
-  assert.match(nav, /id: "persona", label: "ビルド"/);
-  assert.match(app, /LIMBUS BUILD TERMINAL \/ BUILD/);
-  assert.match(app, /ビルドを開く/);
-  assert.doesNotMatch(app, /ワークベンチ/);
+  assert.match(nav, /id: "persona", label: "ワークベンチ"/);
+  assert.match(app, /HOME \/ MULTI-PURPOSE LAUNCHER/);
+  assert.match(app, /ワークベンチを開く/);
+  assert.match(app, /ワークベンチ/);
   assert.match(capture, /\.rail-item\[title='ビルド'\]/);
   assert.match(capture, /\.rail-item\[title='ワークベンチ'\]/);
   assert.match(capture, /build-overview\.png/);
