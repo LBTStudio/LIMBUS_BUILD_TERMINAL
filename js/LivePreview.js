@@ -265,7 +265,7 @@ const LivePreview = ({ state, dispatch }) => {
         : JSON.stringify(LBT_gen.buildCcfoliaJSON(state));
     try {
       await navigator.clipboard.writeText(t);
-      toast((tab === "token" ? "駒データのJSON" : tab.toUpperCase()) + "\u3092\u30B3\u30D4\u30FC");
+      toast(tab.toUpperCase() + "\u3092\u30B3\u30D4\u30FC");
     } catch (e) {
       toast("\u30B3\u30D4\u30FC\u5931\u6557");
     }
