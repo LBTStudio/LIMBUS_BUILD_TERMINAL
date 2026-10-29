@@ -1272,13 +1272,13 @@ const DisclaimerSheet = ({ open, onClose }) => {
         h("span", null, "作者：しゃけ"))));
 };
 
-const RailNavigation = ({ sections, current, dispatch, onOpenUtilities, state }) => {
+const RailNavigation = ({ sections, current, dispatch, onOpenUtilities, onOpenImportRouter, state }) => {
   const h = React.createElement;
+  const buildIds = ["baseinfo", "persona", "skill", "passive", "enh", "support", "ego", "spirit", "items-build"];
   const buildRailItem = (s) => {
-    /* ビルド（persona）は旧 currentSection 値と基本タブを含めて
-       アクティブ表示し、必須3項目の合成完了でドットを出す。 */
+    /* ビルドは旧 currentSection 値と基本タブを含めてアクティブ表示する。 */
     const isBuild = s.id === "persona";
-    const active = isBuild ? ["baseinfo", "persona", "skill", "passive", "enh", "support", "ego", "spirit", "items-build"].includes(current) : current === s.id;
+    const active = isBuild ? buildIds.includes(current) : current === s.id;
     const done = isBuild
       ? isComplete("persona", state) && isComplete("skill", state) && isComplete("passive", state)
       : isComplete(s.id, state);
@@ -1291,8 +1291,34 @@ const RailNavigation = ({ sections, current, dispatch, onOpenUtilities, state })
       title: s.label
     }, h("span", { className: "rail-icon" }, h(Icon, { name: s.icon, size: 18 })), h("span", { className: "rail-label" }, s.label), isBuild && !done && h("span", { className: "dot is-warn" }), done && h("span", { className: "dot" }));
   };
-  return h("nav", { className: "rail", "aria-label": "画面移動" }, sections.map(buildRailItem),
-    h("button", { type: "button", className: "rail-item rail-more", onClick: onOpenUtilities, "aria-haspopup": "dialog", title: "その他の操作と画面" }, h("span", { className: "rail-icon" }, h(Icon, { name: "grid", size: 18 })), h("span", { className: "rail-label" }, "その他"))
+  const groups = [
+    { id: "create", label: "制作", ids: ["home", "persona"] },
+    { id: "manage", label: "データ管理", ids: ["roster", "shop"], importAction: true },
+    { id: "support", label: "補助", ids: ["settings", "help"] }
+  ];
+  return h("nav", { className: "rail", "aria-label": "画面移動" },
+    groups.map((group) => h("div", { key: group.id, className: `rail-group rail-group-${group.id}` },
+      h("div", { className: "rail-group-label", "aria-hidden": true }, group.label),
+      group.ids.map((id) => {
+        const section = sections.find((item) => item.id === id);
+        return section ? buildRailItem(section) : null;
+      }),
+      group.importAction ? h("button", {
+        key: "data-import",
+        type: "button",
+        className: "rail-item rail-import-item",
+        onClick: onOpenImportRouter,
+        title: "データ取り込み",
+        "aria-haspopup": "dialog"
+      }, h("span", { className: "rail-icon" }, h(Icon, { name: "upload", size: 18 })), h("span", { className: "rail-label" }, "データ取り込み")) : null
+    )),
+    h("button", {
+      type: "button",
+      className: "rail-item rail-more",
+      onClick: onOpenUtilities,
+      "aria-haspopup": "dialog",
+      title: "その他の操作と画面"
+    }, h("span", { className: "rail-icon" }, h(Icon, { name: "grid", size: 18 })), h("span", { className: "rail-label" }, "その他"))
   );
 };
 
@@ -1401,6 +1427,7 @@ const HomeLauncher = ({
 };
 
 const App = () => {
+  const [importRouterOpen, setImportRouterOpen] = React.useState(false);
   const [state, dispatch, { undo, redo, canUndo, canRedo, saveStatus }] = useAppState();
   const latestStateRef = React.useRef(state);
   latestStateRef.current = state;
@@ -1412,6 +1439,7 @@ const App = () => {
   const [importSel, setImportSel] = React.useState({});
   const fileRef = React.useRef(null);
   const utilityReturnFocusRef = React.useRef(null);
+  const importRouterTriggerRef = React.useRef(null);
   const importDialogRef = React.useRef(null);
   const importReturnFocusRef = React.useRef(null);
   const openUtilities = (event) => {
@@ -1426,6 +1454,30 @@ const App = () => {
       if (trigger && document.contains(trigger)) trigger.focus();
     });
   }, []);
+  const openImportRouter = React.useCallback((event) => {
+    const trigger = event?.currentTarget || document.activeElement;
+    importRouterTriggerRef.current = trigger instanceof HTMLElement ? trigger : null;
+    setImportRouterOpen(true);
+  }, []);
+  const closeImportRouter = React.useCallback(() => {
+    setImportRouterOpen(false);
+    const trigger = importRouterTriggerRef.current;
+    requestAnimationFrame(() => {
+      if (trigger && document.contains(trigger)) trigger.focus();
+    });
+  }, []);
+  const selectImportRoute = React.useCallback((route) => {
+    closeImportRouter();
+    if (route === "persona") {
+      dispatch({ type: "SET_UI", ui: { currentSection: "persona", openPersonaDraftImport: true } });
+    } else if (route === "result") {
+      dispatch({ type: "SET_UI", ui: { currentSection: "roster", libraryTab: "ledger", recordImportTarget: "text" } });
+    } else if (route === "owned") {
+      dispatch({ type: "SET_UI", ui: { currentSection: "roster", libraryTab: "ledger", recordImportTarget: "held" } });
+    } else if (route === "garasumado") {
+      window.dispatchEvent(new CustomEvent("lbt:open-accounts"));
+    }
+  }, [dispatch, closeImportRouter]);
   // Keep keyboard focus inside the import decision and restore the original trigger on close.
   React.useEffect(() => {
     if (!importData) return;
@@ -1635,7 +1687,7 @@ const App = () => {
     document.addEventListener("focusin", onFocusIn, true);
     return () => document.removeEventListener("focusin", onFocusIn, true);
   }, []);
-  const current = state.ui.currentSection || "home";
+  const current = state.ui.currentSection || "baseinfo";
   const sec = SECTIONS.find((s) => s.id === current) || SECTIONS[0];
   const renderSection = () => {
     switch (current) {
@@ -1659,7 +1711,7 @@ const App = () => {
       case "ego":
       case "spirit":
       case "items-build":
-        return /* @__PURE__ */ React.createElement(BuildWorkspace, { state, dispatch });
+        return /* @__PURE__ */ React.createElement(BuildWorkspace, { state, dispatch, saveStatus });
       case "roster":
         return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SectionTitle, { num: sec.num, title: sec.title, subtitle: sec.subtitle }), /* @__PURE__ */ React.createElement(RosterSection, { state, dispatch }));
       case "shop":
@@ -1724,7 +1776,7 @@ const App = () => {
       toast("JSON\u3092\u30B3\u30D4\u30FC");
     } catch (e) {
     }
-  } }, "JSON\u51FA\u529B")), /* @__PURE__ */ React.createElement("button", { type: "button", className: "utility-trigger", onClick: openUtilities, "aria-haspopup": "dialog", "aria-expanded": utilityOpen }, /* @__PURE__ */ React.createElement(Icon, { name: "grid", size: 15 }), /* @__PURE__ */ React.createElement("span", null, "操作・保存"))), /* @__PURE__ */ React.createElement(RailNavigation, { sections: SECTIONS, current, dispatch, state, onOpenUtilities: openUtilities }), /* @__PURE__ */ React.createElement("main", { className: "focus", id: "main-content", tabIndex: -1 }, /* @__PURE__ */ React.createElement("div", { className: "focus-inner" }, renderSection())), /* @__PURE__ */ React.createElement(LivePreview, { state, dispatch }), /* The preview toggle is a single React-owned control tied to the same state as the panel. */ React.createElement("button", { type: "button", id: "lbt-preview-edge-toggle", className: `preview-edge-toggle${previewOpen ? " is-open" : " is-collapsed"}`, onClick: togglePreview, title: previewOpen ? "プレビューを格納" : "プレビューを展開", "aria-label": previewOpen ? "プレビューを格納" : "プレビューを展開", "aria-controls": "preview-panel", "aria-expanded": previewOpen }, previewOpen ? "◀ 格納" : "▶ 展開"), /* R15 utility sheet */ utilityOpen && /* @__PURE__ */ React.createElement(UtilitySheet, { open: utilityOpen, onClose: closeUtilities, actions: utilityActions, sections: utilitySections, currentSection: current, onNavigate: (id) => dispatch({ type: "SET_UI", ui: { currentSection: id } }) }), /* @__PURE__ */ React.createElement(DisclaimerSheet, { open: disclaimerOpen, onClose: () => setDisclaimerOpen(false) }), /* @__PURE__ */ React.createElement(CommandPalette, { open: cpOpen, onClose: () => setCpOpen(false), state, dispatch }), /* @__PURE__ */ React.createElement(QualityInspector, { open: qiOpen, onClose: () => setQiOpen(false) }), /* @__PURE__ */ React.createElement(AccountSwitcher, { open: accountSwitcherOpen, initialEditId: accountSwitcherInitialEditId, existingResults: state.results || [], onClose: () => { setAccountSwitcherOpen(false); setAccountSwitcherInitialEditId(null); } }), importData && /* @__PURE__ */ React.createElement("div", { className: "share-modal-backdrop", onClick: (e) => { if (e.target === e.currentTarget) setImportData(null); }, style: { position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 } }, /* @__PURE__ */ React.createElement("div", { ref: importDialogRef, className: "card import-scope-dialog", role: "dialog", "aria-modal": "true", "aria-labelledby": "import-scope-title", "aria-describedby": "import-scope-description", tabIndex: -1, style: { maxWidth: 520, width: "100%", background: "var(--surface-1, #1a1715)", border: "1px solid var(--line)", borderRadius: 6, padding: 16 } },
+  } }, "JSON\u51FA\u529B")), /* @__PURE__ */ React.createElement("button", { type: "button", className: "utility-trigger", onClick: openUtilities, "aria-haspopup": "dialog", "aria-expanded": utilityOpen }, /* @__PURE__ */ React.createElement(Icon, { name: "grid", size: 15 }), /* @__PURE__ */ React.createElement("span", null, "操作・保存"))), /* @__PURE__ */ React.createElement(RailNavigation, { sections: SECTIONS, current, dispatch, state, onOpenUtilities: openUtilities, onOpenImportRouter: openImportRouter }), /* @__PURE__ */ React.createElement("main", { className: "focus", id: "main-content", tabIndex: -1 }, /* @__PURE__ */ React.createElement("div", { className: "focus-inner" }, renderSection())), /* @__PURE__ */ React.createElement(LivePreview, { state, dispatch }), /* The preview toggle is a single React-owned control tied to the same state as the panel. */ React.createElement("button", { type: "button", id: "lbt-preview-edge-toggle", className: `preview-edge-toggle${previewOpen ? " is-open" : " is-collapsed"}`, onClick: togglePreview, title: previewOpen ? "プレビューを格納" : "プレビューを展開", "aria-label": previewOpen ? "プレビューを格納" : "プレビューを展開", "aria-controls": "preview-panel", "aria-expanded": previewOpen }, previewOpen ? "◀ 格納" : "▶ 展開"), /* R15 utility sheet */ utilityOpen && /* @__PURE__ */ React.createElement(UtilitySheet, { open: utilityOpen, onClose: closeUtilities, actions: utilityActions, sections: utilitySections, currentSection: current, onNavigate: (id) => dispatch({ type: "SET_UI", ui: { currentSection: id } }) }), importRouterOpen && React.createElement(ImportRouterDialog, { onClose: closeImportRouter, onSelect: selectImportRoute }), /* @__PURE__ */ React.createElement(DisclaimerSheet, { open: disclaimerOpen, onClose: () => setDisclaimerOpen(false) }), /* @__PURE__ */ React.createElement(CommandPalette, { open: cpOpen, onClose: () => setCpOpen(false), state, dispatch }), /* @__PURE__ */ React.createElement(QualityInspector, { open: qiOpen, onClose: () => setQiOpen(false) }), /* @__PURE__ */ React.createElement(AccountSwitcher, { open: accountSwitcherOpen, initialEditId: accountSwitcherInitialEditId, existingResults: state.results || [], onClose: () => { setAccountSwitcherOpen(false); setAccountSwitcherInitialEditId(null); } }), importData && /* @__PURE__ */ React.createElement("div", { className: "share-modal-backdrop", onClick: (e) => { if (e.target === e.currentTarget) setImportData(null); }, style: { position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 } }, /* @__PURE__ */ React.createElement("div", { ref: importDialogRef, className: "card import-scope-dialog", role: "dialog", "aria-modal": "true", "aria-labelledby": "import-scope-title", "aria-describedby": "import-scope-description", tabIndex: -1, style: { maxWidth: 520, width: "100%", background: "var(--surface-1, #1a1715)", border: "1px solid var(--line)", borderRadius: 6, padding: 16 } },
     /* @__PURE__ */ React.createElement("div", { id: "import-scope-title", style: { fontFamily: "var(--f-display)", fontWeight: 700, fontSize: "var(--fs-15)", color: "var(--gold)", marginBottom: 4 } }, "\u30BB\u30FC\u30D6\u30C7\u30FC\u30BF\u306E\u8AAD\u307F\u8FBC\u307F"),
     /* @__PURE__ */ React.createElement("div", { id: "import-scope-description", style: { fontSize: "var(--fs-11)", color: "var(--tx-2)", marginBottom: 12, lineHeight: 1.6 } }, "\u8AAD\u307F\u8FBC\u3080\u9805\u76EE\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044\u3002\u73FE\u5728\u306E\u72B6\u614B\u306F\u4E0A\u66F8\u304D\u3055\u308C\u307E\u3059\u304C\u3001Ctrl+Z\u3067\u5DEE\u3057\u623B\u305B\u307E\u3059\u3002"),
     /* @__PURE__ */ React.createElement("div", { className: "import-apply-summary", role: "status", "aria-live": "polite", style: { fontSize: "var(--fs-11)", color: "var(--gold)", marginBottom: 10, padding: "7px 9px", background: "var(--surface-inset)", border: "1px solid var(--line-dim)", borderRadius: 4, lineHeight: 1.5 } }, "\u4ECA\u56DE\u306E\u9069\u7528\u7BC4\u56F2\uFF1A", selectedImportLabel),
