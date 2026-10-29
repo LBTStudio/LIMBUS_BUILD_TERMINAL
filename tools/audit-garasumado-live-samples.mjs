@@ -345,16 +345,16 @@ function auditExplicitSpendCues(lines, spendTrace, reasons, coverages, audits) {
   const candidates = [];
   for (let i = 0; i < (lines || []).length; i++) {
     const original = String(lines[i] || "").trim();
-    if (!original || /^\\s*[▶►▷]/.test(original)) continue;
+    if (!original || /^\s*[▶►▷]/.test(original)) continue;
     let normalized = stripBalanceAnchors(original)
       .normalize("NFKC")
       .replace(/[−–—]/g, "-")
-      .replace(/(?:硝子|ガラス|硝酸)の(?:破片|欠片|欠け片|かけら|欠けら|カケラ)\\s*(?:[+＋-]\\s*\\d+|[x×ｘ]\\s*\\d+)?/gi, " ");
+      .replace(/(?:硝子|ガラス|硝酸)の(?:破片|欠片|欠け片|かけら|欠けら|カケラ)\s*(?:[+＋-]\s*\d+|[x×ｘ]\s*\d+)?/gi, " ");
     const hasCurrencyAmount =
-      /(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか))\\s*[:：]?\\s*[+＋-]?\\s*\\d[\\d,]*|[+＋-]?\\s*\\d[\\d,]*\\s*(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか))/i.test(normalized);
+      /(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか))\s*[:：]?\s*[+＋-]?\s*\d[\d,]*|[+＋-]?\s*\d[\d,]*\s*(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか))/i.test(normalized);
     if (!hasCurrencyAmount) continue;
     const hasExplicitSpendAction = /消費|使用|支払|支払い|支出|購入(?!できる|可能|条件)|買った|買っ|使った|使い/.test(normalized);
-    const hasNegativeCurrency = /(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか))\\s*[-]\\s*\\d|[-]\\s*\\d[\\d,]*\\s*(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか))/i.test(normalized)
+    const hasNegativeCurrency = /(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか))\s*[-]\s*\d|[-]\s*\d[\d,]*\s*(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか))/i.test(normalized)
       && !/(?:現在|現座|残高|残り|所持|保有)/.test(normalized);
     if (!hasExplicitSpendAction && !hasNegativeCurrency) continue;
     const lineIndex = i + 1;
