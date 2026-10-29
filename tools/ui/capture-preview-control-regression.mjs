@@ -108,7 +108,16 @@ async function createDisposableAccount(page,profile) {
       await existing.click({timeout:5000});
     }
   }
-  await page.locator(".rail-item").first().waitFor({state:"visible",timeout:20000});
+  await page.locator("button[title='ビルド']").waitFor({state:"visible",timeout:10000});
+  await page.locator("button[title='ビルド']").click();
+  await page.getByLabel("キャラクター名").fill("サンプル・フィクサー");
+  await page.getByLabel("プレイヤー名").fill("テスト卓");
+  await page.getByLabel("駒の行動順").fill("12");
+  await page.getByLabel("駒の色（16進数）").fill("#697887");
+  const imageDetails = page.locator("details.pc-edit");
+  await imageDetails.locator("summary").click();
+  await imageDetails.locator("textarea").fill("http://"+HOST+":"+PORT+"/tests/fixtures/ccfolia-preview-sample.svg");
+  await page.waitForTimeout(200);
   await page.locator(profile.mobile?".preview-mobile-toggle":"#lbt-preview-edge-toggle").waitFor({state:"visible",timeout:10000});
 }
 async function runProfile(browser,profile) {
@@ -201,44 +210,44 @@ async function runProfile(browser,profile) {
     const tokenTab=page.locator(".preview-tabs button[aria-label='ココフォリア駒プレビュー']");
     await tokenTab.waitFor({state:"visible",timeout:5000});
     await tokenTab.click();
-    await page.locator(".pv-token-board").waitFor({state:"visible",timeout:5000});
+    await page.locator(".pv-ccfolia-map").waitFor({state:"visible",timeout:5000});
     const tokenActions=await page.locator(".preview-actions button").count();
     const tokenOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+2);
-    recordCheck(profile.name+": token preview opens with one JSON action and no horizontal overflow",
+    recordCheck(profile.name+": CCFOLIA board preview opens with one JSON action and no horizontal overflow",
       await page.locator(".pv-token-preview").isVisible()&&tokenActions===1&&!tokenOverflow,
       {tokenActions,horizontalOverflow:tokenOverflow,viewport:page.viewportSize()});
-    const tokenLookPath=path.join(OUT,profile.name+"-token-look.png");
+    const tokenLookPath=path.join(OUT,profile.name+"-token-board.png");
     await page.screenshot({path:tokenLookPath,animations:"disabled"});
-    results.screenshots.push({file:path.relative(ROOT,tokenLookPath),profile:profile.name,state:"token-look"});
+    results.screenshots.push({file:path.relative(ROOT,tokenLookPath),profile:profile.name,state:"token-board"});
 
-    const boardStatus=page.locator(".pv-token-board-details .pv-token-status").first();
+    const boardStatus=page.locator(".pv-ccfolia-roster .pv-ccfolia-status").first();
     await boardStatus.scrollIntoViewIfNeeded({timeout:5000});
     const boardStatusBounds=await boardStatus.evaluate(el=>{
       const r=el.getBoundingClientRect(), body=el.closest(".preview-body"), b=body.getBoundingClientRect();
       return {top:r.top,bottom:r.bottom,bodyTop:b.top,bodyBottom:b.bottom,scrollTop:body.scrollTop,within:r.top>=b.top-2&&r.bottom<=b.bottom+2};
     }).catch(()=>({within:false,error:"board status was not reachable"}));
-    recordCheck(profile.name+": visual mode can scroll to HP/SAN below the token image",
+    recordCheck(profile.name+": board roster can scroll to status values below the token image",
       boardStatusBounds.within,{bounds:boardStatusBounds});
     await page.locator(".preview-body").evaluate(el=>{el.scrollTop=0;});
 
-    await page.getByRole("button",{name:"項目一覧",exact:true}).click();
-    await page.locator(".pv-token-sheet-view").waitFor({state:"visible",timeout:5000});
+    await page.getByRole("button",{name:"編集画面",exact:true}).click();
+    await page.locator(".pv-ccfolia-editor").waitFor({state:"visible",timeout:5000});
     const itemActions=await page.locator(".preview-actions button").count();
     const itemOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+2);
-    recordCheck(profile.name+": item list view keeps one JSON action and fits the viewport",
-      await page.locator(".pv-token-sheet-view").isVisible()&&itemActions===1&&!itemOverflow,
+    recordCheck(profile.name+": editor view keeps one JSON action and fits the viewport",
+      await page.locator(".pv-ccfolia-editor").isVisible()&&itemActions===1&&!itemOverflow,
       {itemActions,horizontalOverflow:itemOverflow,viewport:page.viewportSize()});
-    const tokenFieldsPath=path.join(OUT,profile.name+"-token-fields.png");
+    const tokenFieldsPath=path.join(OUT,profile.name+"-token-editor.png");
     await page.screenshot({path:tokenFieldsPath,animations:"disabled"});
-    results.screenshots.push({file:path.relative(ROOT,tokenFieldsPath),profile:profile.name,state:"token-fields"});
+    results.screenshots.push({file:path.relative(ROOT,tokenFieldsPath),profile:profile.name,state:"token-editor"});
 
-    const sheetStatus=page.locator(".pv-token-sheet-view .pv-token-status").first();
+    const sheetStatus=page.locator(".pv-ccfolia-editor .pv-ccfolia-edit-status-row").first();
     await sheetStatus.scrollIntoViewIfNeeded({timeout:5000});
     const sheetStatusBounds=await sheetStatus.evaluate(el=>{
       const r=el.getBoundingClientRect(), body=el.closest(".preview-body"), b=body.getBoundingClientRect();
       return {top:r.top,bottom:r.bottom,bodyTop:b.top,bodyBottom:b.bottom,scrollTop:body.scrollTop,within:r.top>=b.top-2&&r.bottom<=b.bottom+2};
     }).catch(()=>({within:false,error:"sheet status was not reachable"}));
-    recordCheck(profile.name+": item list can scroll to status values above the fixed footer",
+    recordCheck(profile.name+": editor view can scroll to status values above the fixed footer",
       sheetStatusBounds.within,{bounds:sheetStatusBounds});
 
     await toggle.click();
