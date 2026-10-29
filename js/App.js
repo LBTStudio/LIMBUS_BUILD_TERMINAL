@@ -1358,8 +1358,8 @@ const HomeLauncher = ({
       h("div", { className: "btype-context-chips" },
         chip("対象：" + String(state.charName || "名称未設定")),
         chip("自動保存：" + (saveStatus?.phase === "saved" ? "有効" : "処理中")),
-        chip("作業場所：ワークベンチ"))
-    h("div", { className: "btype-command-search" },
+        chip("作業場所：ワークベンチ")),
+      h("div", { className: "btype-command-search" },
       h(Icon, { name: "search", size: 17 }),
       h("input", {
         type: "search", value: query, onChange: (event) => setQuery(event.target.value),
