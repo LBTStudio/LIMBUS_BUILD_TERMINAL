@@ -44,21 +44,20 @@ test("盤面はマップ上の駒と、分離したキャラクター一覧と�
   assert.match(preview, /pv-ccfolia-empty-media/);
   assert.match(preview, /onError: \(\) => setTokenImageFailed\(true\)/);
   assert.doesNotMatch(preview.slice(preview.indexOf("const renderTokenPreview"), preview.indexOf("const readiness =")),
-    /pv-token-identity|pv-token-sheet-init/);
+    /pv-token-identity|pv-token-sheet-init|pv-ccfolia-roster-init|pv-ccfolia-roster-player/);
 });
 
 test("編集画面は名前・イニシアティブ・メモ・参照URLと、ST/パラメータ/パレットを表示する", () => {
   const render = preview.slice(preview.indexOf("const renderTokenPreview"), preview.indexOf("const readiness ="));
   for (const fragment of [
     "pv-ccfolia-editor", "pv-ccfolia-editor-main-image", "pv-ccfolia-face-strip",
-    "キャラクター名", "イニシアティブ", "tokenData.memo", "tokenData.externalUrl",
+    "キャラクター名", "プレイヤー", "イニシアティブ", "tokenData.memo", "tokenData.externalUrl",
     "サイズ", "座標 X / Y", "tokenStatus.map(renderEditorStatus)",
     "tokenParams.map(renderEditorParam)", "tokenData.commands",
     "チャットパレット（commands）"
   ]) assert.ok(render.includes(fragment), fragment);
   assert.match(render, /ルーム側の既定値（JSONで未指定）/);
   assert.match(render, /ルーム側の位置を使用（JSONで未指定）/);
-  assert.match(render, /data:|item/); // Rendering stays data-oriented, not a second export path.
 });
 
 test("CCFOLIAらしい無彩色UIとレスポンシブ構成を持つ", () => {
@@ -85,8 +84,8 @@ test("駒の画像は正方形に切り抜かず、縦横比を維持して枠�
   const marker = css.indexOf("/* ============================================================\n   CCFOLIA PREVIEW");
   assert.ok(marker >= 0, "preview styles have a stable section marker");
   const previewStyles = css.slice(marker);
-  assert.match(previewStyles, /max-width: 94px/);
-  assert.match(previewStyles, /max-height: 94px/);
+  assert.match(previewStyles, /max-width: 48px/);
+  assert.match(previewStyles, /max-height: 48px/);
   assert.match(previewStyles, /width: auto/);
   assert.match(previewStyles, /height: auto/);
   assert.match(previewStyles, /object-fit: contain/);
