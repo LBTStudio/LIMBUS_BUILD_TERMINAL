@@ -196,7 +196,7 @@ test("検索とフィルタは追従しない（詳細パネルとタブ帯だ�
   assert.match(shopCss, /\.shop-workspace \.shop-filters \{\s*position: static !important;\s*\}/);
 
   /* 追従してよいのはタブ帯と詳細パネルのみ。 */
-  const allowed = /tabs-sticky|shop-tabs|\.codex-detail\b|sticky footer/;
+  const allowed = /tabs-sticky|shop-tabs|\.build-tabs\.is-b-workbench\b|\.codex-detail\b|sticky footer/;
   const offenders = [];
   for (const file of ["assets/workspace.css", "assets/v67-persona-redesign.css", "assets/persona-codex.css"]) {
     const lines = readFileSync(new URL("../" + file, import.meta.url), "utf8").split(/\r?\n/);
