@@ -717,6 +717,40 @@ async function captureProfile(browser, mode) {
         }
       });
     }
+    await attempt("home-launcher-review",async()=>{
+      await go("ホーム");
+      await snap("home-command-hero","ホームのコマンドヒーローと目的別ランチャー");
+      const launcher=page.locator(".btype-launcher-grid");
+      if(!(await visible(launcher))) throw new Error("ホームの目的別ランチャーが表示されません");
+      const actions=launcher.locator("button");
+      const count=await actions.count();
+      if(count<6) throw new Error("ホームの主要アクションが不足しています: "+count);
+      await snap("home-launcher-grid","ホームの主要アクション一覧");
+      const continuePanel=page.locator(".btype-continue-panel").first();
+      if(await visible(continuePanel)) await snap("home-continue-panel","前回作業の再開パネル");
+    });
+    await attempt("build-editor-operation-paths",async()=>{
+      await go("ビルド");
+      const skillTab=page.locator(".build-tabs [role='tab']").filter({hasText:"スキル"}).first();
+      if(await visible(skillTab)){
+        await click(skillTab);
+        await snap("build-skill-editor","スキル編集画面の初期状態");
+        const addSkill=page.getByRole("button",{name:/スキル.*追加|追加.*スキル/}).first();
+        if(await visible(addSkill)){await click(addSkill);await snap("build-skill-add","スキル追加操作後の編集状態");}
+      }
+      const egoTab=page.locator(".build-tabs [role='tab']").filter({hasText:"E.G.O"}).first();
+      if(await visible(egoTab)){
+        await click(egoTab);
+        const create=page.getByRole("button",{name:/E.G.Oを新規作成/}).first();
+        if(await visible(create)){
+          await click(create);
+          await snap("build-ego-create-dialog","オリジナルE.G.O作成ダイアログ");
+          await closeOverlay();
+        }
+      }
+      const basicTab=page.locator(".build-tabs [role='tab']").filter({hasText:"基本"}).first();
+      if(await visible(basicTab)) await click(basicTab);
+    });
     await attempt("quick-search",async()=>{
       const b=page.locator(".topbar-search").first(); if(await visible(b)) await click(b);
       const input=page.locator(".cp-input").first();
