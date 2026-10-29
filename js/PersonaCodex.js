@@ -830,6 +830,12 @@ const PersonaCodex = ({ state, dispatch, ownedOnly = false }) => {
   const [draftText, setDraftText] = React.useState("");
   const [draftSections, setDraftSections] = React.useState({ name: "", status: "", skills: "", uniques: "" });
   const [draftInputMode, setDraftInputMode] = React.useState("sections");
+  /* ホームから人格取込を直接開いても、既存の解析・反映UIを使う。 */
+  React.useEffect(() => {
+    if (ui.openPersonaDraftImport !== true) return;
+    setDraftImportOpen(true);
+    dispatch({ type: "SET_UI", ui: { openPersonaDraftImport: false } });
+  }, [ui.openPersonaDraftImport, dispatch]);
   const [draftResult, setDraftResult] = React.useState(null);
   const [draftSyncMax, setDraftSyncMax] = React.useState(false);
   const [draftAffiliationKey, setDraftAffiliationKey] = React.useState("");
@@ -1382,6 +1388,7 @@ const addRoster = (p) => {
 };
 window.PersonaCodex = PersonaCodex;
 window.PersonaDetail = PersonaDetail;
+window.LBT_BaseInfoWorkspace = BaseInfoWorkspace;
 window.LBT_buildRosterDetailPersona = buildRosterDetailPersona;
 window.LBT_findCurrentRosterPersona = findCurrentRosterPersona;
 window.getPrimarySin = getPrimarySin;
