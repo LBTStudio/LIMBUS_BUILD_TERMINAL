@@ -320,7 +320,7 @@ async function seed() {
         cost: { lp: 15, shards: 0 }, resultId: "ui-audit-result-1",
         at: now, note: "Playwright QA sample expense"
       }],
-      ui: { codexMode: mode, currentSection: "persona", previewOpen: false }
+      ui: { codexMode: mode, currentSection: "persona", previewOpen: false, layoutVersion: "b-workbench-v2" }
     };
     const merged = Object.assign({}, A.loadActive() || {}, next);
     const saved = A.saveActive(merged);
