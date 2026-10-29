@@ -374,7 +374,8 @@ function auditExplicitSpendCues(lines, spendTrace, reasons, coverages, audits) {
       hasParserReason,
       hasRelatedAudit,
       status: String(coverage?.status || "no-coverage"),
-      needsReview: reviewStatuses.has(String(coverage?.status || "")) || hasParserReason || hasRelatedAudit
+      needsReview: reviewStatuses.has(String(coverage?.status || "")) || hasParserReason || hasRelatedAudit,
+      lineShape: describeCandidateLine(original, coverage)
     });
   }
   const missing = candidates.filter((row) => !row.hasSpendRecord);
@@ -392,7 +393,8 @@ function auditExplicitSpendCues(lines, spendTrace, reasons, coverages, audits) {
     rowsWithoutSpendRecordWithReason: missing.filter((row) => row.hasParserReason || row.hasRelatedAudit || row.needsReview).length,
     rowsWithoutSpendRecordUnexplained: missing.filter((row) => !row.needsReview).length,
     negativeCurrencyRowsWithoutSpendRecord: missing.filter((row) => row.hasNegativeCurrency).length,
-    missingRowsByStatus: summarizeBy(missing, (row) => row.status)
+    missingRowsByStatus: summarizeBy(missing, (row) => row.status),
+    missingRows: missing
   };
 }
 
@@ -987,6 +989,16 @@ function toMarkdownReport(report) {
       .filter((row) => row.rowsWithoutSpendRecord > 0 || row.negativeCurrencyRowsWithoutSpendRecord > 0)
       .map((row) => "| " + row.id + " | " + row.historyRows + " | " + row.memoRows + " | " + row.candidateRows + " | " + row.explicitSpendActionRows + " | " + row.negativeCurrencyRows + " | " + row.rowsWithSpendRecord + " | " + row.rowsWithoutSpendRecord + " | " + row.rowsWithoutSpendRecordWithReason + " | " + row.rowsWithoutSpendRecordUnexplained + " | " + row.negativeCurrencyRowsWithoutSpendRecord + " |"),
     "",
+    "### 支出明細がない候補行の形状（本文・名称・金額は非出力）",
+    "",
+    "この一覧は支出と断定したものではありません。原文に戻らずとも、数値トークンの数、通貨種別、記述内の操作語・残高語・チケット語、パーサーのcoverage状態を比較し、未解析の実支出か、アイテム数や状態注記などの誤候補かを切り分けるための構造情報です。具体的な数値・原文・アイテム名は出力しません。",
+    "",
+    "| URL ID | 履歴行 | メモ行 | 支出語句 | 負額 | coverage | 理由 | 監査関連 | 行長 | 金額候補数 | 通貨/桁幅 | 操作分類 | 残高語 | チケット分類 |",
+    "|---|---:|---:|---|---|---|---|---|---:|---:|---|---|---|---|",
+    ...report.parser.explicitSpendCueAuditDocuments.flatMap((document) =>
+      document.missingRows.map((row) => "| " + document.id + " | " + row.historyRow + " | " + row.lineIndex + " | " + Number(row.hasExplicitSpendAction) + " | " + Number(row.hasNegativeCurrency) + " | " + row.status + " | " + Number(row.hasParserReason) + " | " + Number(row.hasRelatedAudit) + " | " + row.lineShape.lineLength + " | " + row.lineShape.amountTokenCount + " | " + row.lineShape.amountTokenShape.map((token) => token.currency + ":" + token.digitWidth).join(",") + " | " + row.lineShape.actionKinds.join("+") + " | " + Number(row.lineShape.hasBalanceCue) + " | " + Number(row.lineShape.ticketClassified) + " |")
+    ),
+    "",
     "## 収支方向の期待値とパーサー検出値の差（推定・非確定）",
     "",
     "expectedFlows は語句・数値関係から作った監査側の推定値であり、取引の正解と確定した値ではありません。以下は原因候補の優先順位付け用です。自動補正には使用しません。",
@@ -1558,7 +1570,13 @@ const explicitSpendCueAuditDocuments = successful.map((entry) => {
     rowsWithoutSpendRecordWithReason: sum("rowsWithoutSpendRecordWithReason"),
     rowsWithoutSpendRecordUnexplained: sum("rowsWithoutSpendRecordUnexplained"),
     negativeCurrencyRowsWithoutSpendRecord: sum("negativeCurrencyRowsWithoutSpendRecord"),
-    missingRowsByStatus: statuses
+    missingRowsByStatus: statuses,
+    missingRows: (entry.parsedRows || []).flatMap((memo) =>
+      (memo.explicitSpendCueAudit?.missingRows || []).map((row) => ({
+        historyRow: (Number(memo.historyIndex) || 0) + 1,
+        ...row
+      }))
+    )
   };
 });
 const explicitSpendCueAuditSummary = {
