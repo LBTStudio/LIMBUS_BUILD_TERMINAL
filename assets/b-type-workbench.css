@@ -85,7 +85,12 @@
   .topbar { gap: 7px; padding-inline: 12px; }
   .brand-sub { display: none; }
 }
-@media (max-height: 500px) and (orientation: landscape) { .focus { padding-bottom: 48px; } }
+@media (max-height: 500px) and (orientation: landscape) {
+  .focus { padding-bottom: 48px; }
+  .app.has-preview .preview { height: 62dvh; }
+  .app.has-preview .preview-edge-toggle { top: 50px; bottom: auto; }
+  .app.has-preview .section-title-row { display: none; }
+}
 @media (max-width: 600px) {
   .focus { padding: 16px 12px 60px; }
   .topbar { min-height: 54px; padding: 8px 10px; }
