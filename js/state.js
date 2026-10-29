@@ -1716,6 +1716,7 @@ function findActiveRosterPersona(state) {
 function normalizeStateShape(raw) {
   const rawPersonaRows = Array.isArray(raw?.roster?.personas) ? raw.roster.personas : [];
   const next = refreshDBReferencedData(refreshEquippedPersonaFromDB(sanitizeStateCollections(raw)));
+  let synthesizedInitialResult = false;
   next.schemaVersion = next.schemaVersion || SAVE_SCHEMA_VERSION;
   // パッシブ2は追加パッシブ列の1件目へ移行する。以後は上限なしの extraPassives が正準。
   next.extraPassives = mergeExtraPassives(next.extraPassives, { enabled: next.pas2Enabled, passive: next.pas2 });
@@ -2090,11 +2091,13 @@ function normalizeStateShape(raw) {
     /* 新規キャラクター作成。人格を1つも持たないなら、最初の1人格を
        指定購入でも初期作成用人格チケットでの抽出でも決められるようにする。 */
     next.results = [makeInitialResult({ withPersonaTicket: !(next.roster?.personas || []).length })];
+    synthesizedInitialResult = true;
   } else if (!hasInitialGrant(next.results)) {
     /* 既存アカウントへの後付けは支給だけ足す。初期作成用人格チケットは
        新規キャラクター作成のときの1枚だけで、継承アカウントに配ると
        既に都市参加済みのキャラでも無料抽出が1回湧くことになる。 */
     next.results = [makeInitialResult(), ...next.results];
+    synthesizedInitialResult = true;
   }
   const knownResultIds = new Set(next.results.map((r) => r.id));
   next.entries = next.entries.map((entry) => ({
@@ -2239,7 +2242,8 @@ function normalizeStateShape(raw) {
       if (entry && !entry.source) entry.source = catalogSourceByName("spirit", entry.name);
     }
   }
-  return repairGachaResultAttribution(normalizeStatusCollections(next));
+  const normalized = normalizeStatusCollections(next);
+  return repairGachaResultAttribution(normalized, synthesizedInitialResult ? new Set(["res-initial"]) : null);
 }
 /* 残高は保存しない。収入合計から支出合計を引くだけなので,
    帰属を直すとこの値が動く。明細の帰属を直せば連載ごとに収支を説明できる。 */
@@ -2372,7 +2376,7 @@ function latestResultId(state) {
    直後に作られた明細が揃っている保存データは、表示上の最新リザルトへ一度だけ直す。
    証明バッチそのものは変更しない。日時・バッチ・同じ結果IDを持つ明細を照合できない
    古い履歴には触れず、利用者が手で動かした明細も上書きしない。 */
-function repairGachaResultAttribution(state) {
+function repairGachaResultAttribution(state, options = {}) {
   const logs = Array.isArray(state?.gachaLog) ? state.gachaLog : [];
   const draws = Array.isArray(state?.draws) ? state.draws : [];
   const results = Array.isArray(state?.results) ? state.results : [];
@@ -2383,6 +2387,7 @@ function repairGachaResultAttribution(state) {
   const personas = Array.isArray(roster.personas) ? roster.personas : [];
   const egos = Array.isArray(roster.egos) ? roster.egos : [];
   const validResultIds = new Set(results.map((result) => String(result?.id || "")).filter(Boolean));
+  const excludedTargetIds = options?.excludeResultIds instanceof Set ? options.excludeResultIds : new Set();
   let changedEntries = false;
   let nextEntries = originalEntries;
 
@@ -2533,7 +2538,8 @@ function repairGachaResultAttribution(state) {
        抽選を移動しない。作成時刻のないレコードは推測で対象にしない。 */
     const existingAtDraw = results.filter((result) => {
       const createdAt = Number(result?.createdAt);
-      return Number.isFinite(createdAt) && createdAt > 0 && createdAt <= logAt;
+      return Number.isFinite(createdAt) && createdAt > 0 && createdAt <= logAt
+        && !excludedTargetIds.has(String(result?.id || ""));
     });
     const targetResultId = latestResultId({ results: existingAtDraw });
     if (!targetResultId || !validResultIds.has(String(targetResultId))) return log;
@@ -4264,9 +4270,9 @@ function appReducer(state, action) {
         "pas","pas2Enabled","pas2","extraPassives","uniqueBuffs","skills","egoSlots","supports","deathSupport","roster",
         "enhancements","initialItems","draws","customStatuses","defaultStatuses","formulas","builtinFormulasOverride","autoFml",
         "moraleLine","extraCmd","outputExclude","shareOptions","paletteOptions","results","entries","inventory","customItems",
-        "favorites","historyRecent","gachaLog","tickets"];
+        "favorites","historyRecent","gachaLog","appliedDrawBatchIds","tickets"];
       // 別端末移行（exportState/importStateFromFile）には initiative、initialItems、
-      // draws、favorites、historyRecent、gachaLog、tickets（未解決の旧チケット移行行）が含まれる。許可リスト／カテゴリから
+      // draws、appliedDrawBatchIds、favorites、historyRecent、gachaLog、tickets（未解決の旧チケット移行行）が含まれる。許可リスト／カテゴリから
       // 漏れると設定や検証履歴が黙って失われる。
       const isSafePartialValue = (v) => {
         if (v === null || v === void 0) return true;

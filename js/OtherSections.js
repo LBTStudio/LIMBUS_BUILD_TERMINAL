@@ -4684,7 +4684,7 @@ const importHeldPersonas = () => {
           ? h("div", { className: "ledger-held-result", role: "alert" },
               h("p", { className: "ledger-note" }, "取得記録にはあるのに現在所持にない人格が " + personaAudit.missing.length + " 件あります。所持削除・登録漏れ・取得記録の誤りを確認してください。"),
               h("ul", { className: "ledger-warn-list" }, personaAudit.missing.map((entry) => h("li", { key: entry.mode + ":" + entry.no }, entry.name + "（" + entry.mode.toUpperCase() + " No." + entry.no + "） — 記録：" + entry.sources.join(" / ")))
-            )
+            ))
           : personaAudit.initialConfigured ? h("p", { className: "ledger-note" }, "記録済みの取得人格は、現在所持の範囲で欠落していません。") : null,
         personaAudit.unrecorded.length > 0 && h("details", { className: "ledger-held-result" },
           h("summary", null, "取得記録に紐づかない現在所持 " + personaAudit.unrecorded.length + " 件"),
