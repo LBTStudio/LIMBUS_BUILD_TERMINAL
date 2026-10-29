@@ -110,8 +110,7 @@ async function createDisposableAccount(page,profile) {
   }
   // B-type opens on its command launcher; explicitly selecting Home keeps the capture deterministic.
   const homeNav = page.locator(".rail-item[title='ホーム']");
-  await homeNav.waitFor({ state: "visible", timeout: 10000 });
-  await homeNav.click();
+  if (await visible(homeNav)) await homeNav.click();
   await page.locator(".btype-command-hero").waitFor({ state: "visible", timeout: 10000 });
   const homePath = path.join(OUT, profile.name + "-btype-home.png");
   await page.screenshot({ path: homePath, animations: "disabled" });
@@ -239,8 +238,20 @@ async function runProfile(browser,profile) {
     await page.screenshot({ path: jsonModePath, animations: "disabled" });
     results.screenshots.push({ file: path.relative(ROOT, jsonModePath), profile: profile.name, state: "basic-preview-json" });
 
-    // Home's preview shortcut must deep-link into Basic's preview tab without opening the separate global side panel.
-    await page.locator(".rail-item[title='ホーム']").click();
+    // On phones, exercise the approved four-item bottom navigation; Home is reachable from Other.
+    if (profile.width <= 640) {
+      const mobileNav = page.locator(".btype-mobile-bottom-nav");
+      const mobileLabels = (await mobileNav.locator("button").allTextContents()).map(text => text.trim());
+      recordCheck(profile.name + ": phone navigation matches the approved four destinations",
+        JSON.stringify(mobileLabels) === JSON.stringify(["ビルド", "記録", "取込", "その他"]),
+        { mobileLabels });
+      await mobileNav.getByRole("button", { name: "その他", exact: true }).click();
+      const utilityHome = page.locator(".utility-section-grid").getByRole("button", { name: "ホーム", exact: true });
+      await utilityHome.waitFor({ state: "visible", timeout: 5000 });
+      await utilityHome.click();
+    } else {
+      await page.locator(".rail-item[title='ホーム']").click();
+    }
     await page.locator(".btype-command-hero").waitFor({ state: "visible", timeout: 5000 });
     await page.locator(".btype-launcher-card[data-task='preview']").click();
     await page.locator("#build-params-panel-preview").waitFor({ state: "visible", timeout: 5000 });
