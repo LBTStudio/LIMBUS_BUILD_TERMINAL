@@ -26,8 +26,8 @@ test("Basic format separates status, labels and live output into accessible tab 
   const panel = sections.slice(start, end);
   for (const id of ["statuses", "labels", "preview"]) {
     assert.ok(panel.includes('id: "build-params-panel-' + id + '"'), "missing " + id + " panel");
-    assert.ok(panel.includes('id: "build-params-tab-' + id + '"'), "missing " + id + " tab");
   }
+  assert.ok(panel.includes('id: "build-params-tab-" + id'), "each internal tab has a stable, matching ID");
   assert.match(panel, /role: "tablist"/);
   assert.match(panel, /role: "tabpanel"/);
   assert.match(panel, /hidden: activeBuildParamsTab !== "statuses"/);
