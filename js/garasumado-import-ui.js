@@ -478,7 +478,7 @@ item.decide ? h("div", { className: "gara-decide" },
             if (!onDropItem) return;
             event.preventDefault();
             const key = event.dataTransfer.getData("text/plain");
-            if (key) onDropItem(key, block.name || "");
+            if (key) onDropItem(key, block.key || "");
           }
         },
         block.items.map((item) => h("div", {
@@ -1001,9 +1001,9 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [], existi
 
   /* カードへ落とした未割当は、そのシナリオの帰属先として確定させる。
      ドラッグ済みのものも undo で戻せるよう、拾われ口は onPickIdentity 1 本にする。 */
-  const dropToBlock = (itemKey, blockName) => {
-    if (!itemKey || !blockName) return;
-    onPickIdentity(itemKey, { pickedScenario: blockName, returned: false });
+  const dropToBlock = (itemKey, scenarioKey) => {
+    if (!itemKey || !scenarioKey) return;
+    onPickIdentity(itemKey, { pickedScenarioKey: scenarioKey, pickedScenario: "", returned: false });
   };
 
   /* カードから戻された行は未割当へ返し、帰属先を選び直せるようにする。
