@@ -36,13 +36,14 @@ test("盤面はマップ上の駒と、分離したキャラクター一覧と�
   assert.match(preview, /className: "pv-ccfolia-map"/);
   assert.match(preview, /className: "pv-ccfolia-map-token"/);
   assert.match(preview, /className: "pv-ccfolia-roster"/);
-  assert.match(preview, /className: "pv-ccfolia-roster-avatar"/);
+  assert.match(preview, /renderPreviewImage\(tokenImage, "pv-ccfolia-roster-avatar"/);
   assert.match(preview, /className: "pv-ccfolia-roster-statuses"/);
   assert.match(preview, /tokenStatus\.slice\(0, 8\)\.map\(renderRosterStatus\)/);
   assert.match(preview, /tokenData\.initiative \?\? 0/);
   assert.match(preview, /背景・配置・拡大率は、実際のルーム設定によって変わります/);
   assert.match(preview, /pv-ccfolia-empty-media/);
-  assert.match(preview, /onError: \(\) => setTokenImageFailed\(true\)/);
+  assert.match(preview, /onError: markFailed/);
+  assert.match(preview, /if \(src === tokenImage\) setTokenImageFailed\(true\)/);
   assert.doesNotMatch(preview.slice(preview.indexOf("const renderTokenPreview"), preview.indexOf("const readiness =")),
     /pv-token-identity|pv-token-sheet-init|pv-ccfolia-roster-init|pv-ccfolia-roster-player/);
 });
