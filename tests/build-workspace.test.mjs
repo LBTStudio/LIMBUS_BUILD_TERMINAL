@@ -24,7 +24,7 @@ test("ビルドを主とし、コードクスは廃止済み", () => {
   assert.doesNotMatch(block, /id: "egocodex"/);
   /* アイテムも独立セクションを持たない（ショップとビルドのアイテムタブへ統合）。 */
   assert.doesNotMatch(block, /id: "items"/);
-  /* ホーム → ワークベンチ → ショップ → 記録。基本はワークベンチ内タブへ統合。 */
+  /* ホーム → ビルド → ショップ → 記録。基本はビルド内タブへ統合。 */
   const order = ["home", "persona", "shop", "roster", "settings", "help"]
     .map((id) => block.indexOf(`id: "${id}"`));
   assert.ok(order.every((i) => i >= 0), "6つの主要セクションが揃っている");
@@ -32,7 +32,7 @@ test("ビルドを主とし、コードクスは廃止済み", () => {
     assert.ok(order[i - 1] < order[i], `並び順が崩れている（${i}）`);
   }
   assert.match(block, /\{ id: "home", label: "ホーム"/);
-  assert.match(block, /\{ id: "persona", label: "ワークベンチ"/);
+  assert.match(block, /\{ id: "persona", label: "ビルド"/);
   assert.doesNotMatch(block, /id: "baseinfo"/);
   assert.match(block, /\{ id: "shop", label: "ショップ"/);
   /* 精神は独立セクションを持たずビルドのタブへ入る。 */
@@ -62,7 +62,7 @@ test("リザルトを削除したらその明細も消える（未分類へ戻�
   assert.doesNotMatch(removeResult, /resultId: null/);
 });
 
-test("renderSection は基本を含む9タブのワークベンチへ振り分ける", () => {
+test("renderSection は基本を含む9タブのビルドへ振り分ける", () => {
   const start = app.indexOf("const renderSection = ()");
   const block = app.slice(start, app.indexOf("const previewOpen =", start));
   for (const id of ["baseinfo", "persona", "skill", "passive", "enh", "support", "ego", "spirit", "items-build"]) {
