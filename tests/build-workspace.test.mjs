@@ -182,7 +182,7 @@ test("レールのビルド項目は旧IDでもアクティブになり、必須
 });
 
 test("その他シートの所属判定は強化の特例を持たない", () => {
-  assert.match(app, /const utilitySections = SECTIONS\.filter\(\(s\) => s\.group === "utility"\);/);
+  assert.match(app, /const utilitySections = SECTIONS\.filter\(\(s\) => s\.group === "utility" \|\| s\.id === "home"\);/);
   assert.doesNotMatch(app, /s\.group === "utility" \|\| s\.id === "enh"/);
 });
 
