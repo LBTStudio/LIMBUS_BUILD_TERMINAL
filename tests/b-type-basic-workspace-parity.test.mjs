@@ -44,7 +44,8 @@ test("Basic output preview contains board, sheet and generated JSON views from L
   for (const mode of ["board", "sheet", "json"]) assert.ok(component.includes('id: "' + "basic-ccfolia-panel-" + mode + '"'), "missing mode panel " + mode);
   assert.match(component, /generator\.buildCcfoliaJSON\(state, \{ palette, memo \}\)/);
   assert.match(component, /JSON\.stringify\(object, null, 2\)/);
-  assert.match(component, /navigator\.clipboard\?\.writeText\(built\.json\)/);
+  assert.match(component, /navigator\.clipboard\?\.writeText/);
+  assert.match(component, /await navigator\.clipboard\.writeText\(built\.json\)/);
   assert.doesNotMatch(component, /const sample|mockData|サンプル・フィクサー/);
   assert.match(generator, /function buildCcfoliaJSON\(state, opts\)/);
 });
