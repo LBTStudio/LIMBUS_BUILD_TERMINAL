@@ -1937,22 +1937,20 @@ const EnhancementSection = ({ state, dispatch }) => {
   );
 };
 
-/* 人格・スキル・パッシブ・強化・サポート・E.G.O・精神 を1画面にまとめるタブ定義。
-   id は旧セクションIDのままにして、保存済み currentSection（skill 等）を
-   移行なしで受ける。App.js の palette/レールのメタと同期させる。
-   人格/サポート/E.G.O/精神 の4タブは roster（＝所持済み）だけを出す。 */
+/* 基本設定・人格・戦闘データを同じ作業面で扱うワークベンチのタブ定義。
+   旧 currentSection の ID はそのまま維持し、既存保存データを移し替えずに受ける。
+   基本は独立状態を作らず、既存 BaseInfoWorkspace と BuildParamsPanel を再利用する。 */
 const BUILD_TABS = [
-  { id: "persona", label: "人格", num: "01", title: "OWNED PERSONAS / 所持人格", subtitle: "所持の人格を装備", icon: "persona", owned: true },
-  { id: "skill", label: "スキル", num: "02", title: "TACTICAL SKILLS", subtitle: "戦術スキル 0〜4 の編集", icon: "skill", owned: false },
-  { id: "passive", label: "パッシブ", num: "03", title: "PASSIVE / 人格パッシブ", subtitle: "人格パッシブと固有効果", icon: "passive", owned: false },
-  { id: "enh", label: "強化", num: "04", title: "ENHANCEMENTS", subtitle: "身体強化・特殊強化", icon: "enh", owned: false },
-  { id: "support", label: "サポート", num: "05", title: "SUPPORT PASSIVES", subtitle: "所持サポートを装備枠へ", icon: "support", owned: true },
-  { id: "ego", label: "E.G.O", num: "06", title: "E.G.O EQUIPMENT", subtitle: "所持E.G.Oをランク枠へ", icon: "ego", owned: true },
-  { id: "spirit", label: "精神", num: "07", title: "SPIRIT", subtitle: "所持精神から1体選んで適用", icon: "spirit", owned: true },
-  /* アイテムだけは人格を跨いで共有する。人格を替えても所持は消えず、
-   「持っていく個数」と「MEMO/PALETTE へ出すか」だけをここで決める。
-   タブ ID は rail の「アイテム」詳細画面（items）と衝突しないよう別にする。 */
-  { id: "items-build", label: "アイテム", num: "08", title: "OWNED ITEMS / 所持アイテム", subtitle: "持っていく個数と出力先を選ぶ", icon: "item", owned: false }
+  { id: "baseinfo", label: "基本", num: "01", title: "CHARACTER / 駒の整形", subtitle: "立ち絵・名前・行動順・駒色・ステータス・ラベル", icon: "persona", owned: false },
+  { id: "persona", label: "人格", num: "02", title: "OWNED PERSONAS / 所持人格", subtitle: "所持の人格を装備", icon: "persona", owned: true },
+  { id: "skill", label: "スキル", num: "03", title: "TACTICAL SKILLS", subtitle: "戦術スキル 0〜4 の編集", icon: "skill", owned: false },
+  { id: "passive", label: "パッシブ", num: "04", title: "PASSIVE / 人格パッシブ", subtitle: "人格パッシブと固有効果", icon: "passive", owned: false },
+  { id: "enh", label: "強化", num: "05", title: "ENHANCEMENTS", subtitle: "身体強化・特殊強化", icon: "enh", owned: false },
+  { id: "support", label: "サポート", num: "06", title: "SUPPORT PASSIVES", subtitle: "所持サポートを装備枠へ", icon: "support", owned: true },
+  { id: "ego", label: "E.G.O", num: "07", title: "E.G.O EQUIPMENT", subtitle: "所持E.G.Oをランク枠へ", icon: "ego", owned: true },
+  { id: "spirit", label: "精神", num: "08", title: "SPIRIT", subtitle: "所持精神から1体選んで適用", icon: "spirit", owned: true },
+  /* アイテムは人格を跨いで共有する。所持品の個数と出力先だけをここで決める。 */
+  { id: "items-build", label: "アイテム", num: "09", title: "OWNED ITEMS / 所持アイテム", subtitle: "持っていく個数と出力先を選ぶ", icon: "item", owned: false }
 ];
 if (typeof window !== "undefined") window.LBT_BUILD_TABS = BUILD_TABS;
 
@@ -2967,21 +2965,23 @@ const BuildWorkspace = ({ state, dispatch }) => {
   /* 各タブの中身は既存コンポーネントをそのまま使う。owned は roster（＝所持済み）
      で絞るかどうか。所持を持たないもの（スキル/パッシブ/強化）は絞り込まない。 */
   const owned = !!active.owned;
-  const Component = active.id === "persona"
-    ? window.PersonaCodex
-    : active.id === "skill"
-      ? window.SkillDeck
-      : active.id === "passive"
-        ? PassiveSection
-        : active.id === "support"
-          ? SupportSection
-          : active.id === "ego"
-            ? EgoSection
-            : active.id === "spirit"
-              ? SpiritSection
-              : active.id === "items-build"
-                ? BuildItemsPanel
-                : EnhancementSection;
+  const Component = active.id === "baseinfo"
+    ? window.LBT_BaseInfoWorkspace
+    : active.id === "persona"
+      ? window.PersonaCodex
+      : active.id === "skill"
+        ? window.SkillDeck
+        : active.id === "passive"
+          ? PassiveSection
+          : active.id === "support"
+            ? SupportSection
+            : active.id === "ego"
+              ? EgoSection
+              : active.id === "spirit"
+                ? SpiritSection
+                : active.id === "items-build"
+                  ? BuildItemsPanel
+                  : EnhancementSection;
   /* 所持ゲートを、roster を唯一の基準とするタブ（人格/サポート/E.G.O/精神）へ渡す。 */
   const panelProps = ["persona", "support", "ego", "spirit"].includes(active.id) ? { ownedOnly: owned } : {};
   /* 一度表示したタブはツリーを保持し、切替は hidden のみにする（再マウントと画像再デコードを毎回払わない）。 */
@@ -4014,6 +4014,14 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   };
   const openHeld = () => switchResultTool("held");
   const closeHeld = () => setHeldOpen(false);
+
+  /* ホームのランチャーから来た場合も、通常操作と同じ取込フォーム・フォーカス制御を使う。 */
+  React.useEffect(() => {
+    const requested = state.ui?.recordImportTarget;
+    if (requested !== "text" && requested !== "held") return;
+    switchResultTool(requested);
+    dispatch({ type: "SET_UI", ui: { recordImportTarget: null } });
+  }, [state.ui?.recordImportTarget, dispatch]);
 
   /* Opening an import route must move its actual panel into the viewport.
      The record section can be much taller than a phone screen; without this,

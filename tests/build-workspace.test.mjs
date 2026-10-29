@@ -24,15 +24,16 @@ test("ビルドを主とし、コードクスは廃止済み", () => {
   assert.doesNotMatch(block, /id: "egocodex"/);
   /* アイテムも独立セクションを持たない（ショップとビルドのアイテムタブへ統合）。 */
   assert.doesNotMatch(block, /id: "items"/);
-  /* 並びは 駒整形 → ビルド → ショップ → 記録。 */
-  const order = ["baseinfo", "persona", "shop", "roster", "settings", "help"]
+  /* ホーム → ビルド → ショップ → 記録。基本はビルド内タブへ統合。 */
+  const order = ["home", "persona", "shop", "roster", "settings", "help"]
     .map((id) => block.indexOf(`id: "${id}"`));
-  assert.ok(order.every((i) => i >= 0), "6セクションが揃っている");
+  assert.ok(order.every((i) => i >= 0), "6つの主要セクションが揃っている");
   for (let i = 1; i < order.length; i += 1) {
     assert.ok(order[i - 1] < order[i], `並び順が崩れている（${i}）`);
   }
-  assert.match(block, /\{ id: "baseinfo", label: "駒整形"/);
+  assert.match(block, /\{ id: "home", label: "ホーム"/);
   assert.match(block, /\{ id: "persona", label: "ビルド"/);
+  assert.doesNotMatch(block, /id: "baseinfo"/);
   assert.match(block, /\{ id: "shop", label: "ショップ"/);
   /* 精神は独立セクションを持たずビルドのタブへ入る。 */
   assert.doesNotMatch(block, /id: "spirit"/);
@@ -61,10 +62,10 @@ test("リザルトを削除したらその明細も消える（未分類へ戻�
   assert.doesNotMatch(removeResult, /resultId: null/);
 });
 
-test("renderSection は8タブのビルドへ振り分ける", () => {
+test("renderSection は基本を含む9タブのビルドへ振り分ける", () => {
   const start = app.indexOf("const renderSection = ()");
-  const block = app.slice(start, app.indexOf('case "help":', start));
-  for (const id of ["persona", "skill", "passive", "enh", "support", "ego", "spirit", "items-build"]) {
+  const block = app.slice(start, app.indexOf("const previewOpen =", start));
+  for (const id of ["baseinfo", "persona", "skill", "passive", "enh", "support", "ego", "spirit", "items-build"]) {
     assert.match(block, new RegExp(`case "${id}":`), `${id} の case が無い`);
   }
   assert.match(block, /React\.createElement\(BuildWorkspace, \{ state, dispatch \}\)/);
@@ -173,7 +174,7 @@ test("未所持のカードからその場で買える", () => {
 test("レールのビルド項目は旧IDでもアクティブになり、必須3項目の合成でドットを出す", () => {
   const block = app.slice(app.indexOf("const RailNavigation ="), app.indexOf("const App = ()"));
   assert.match(block, /const isBuild = s\.id === "persona";/);
-  assert.match(block, /const active = isBuild \? \["persona", "skill", "passive", "enh", "support", "ego", "spirit", "items-build"\]\.includes\(current\) : current === s\.id;/);
+  assert.match(block, /const active = isBuild \? \["baseinfo", "persona", "skill", "passive", "enh", "support", "ego", "spirit", "items-build"\]\.includes\(current\) : current === s\.id;/);
   assert.match(block, /isComplete\("persona", state\) && isComplete\("skill", state\) && isComplete\("passive", state\)/);
   /* 強化はビルドのタブになったので、専用の溢れ指定は要らない。 */
   assert.doesNotMatch(block, /is-overflow/);
@@ -184,18 +185,20 @@ test("その他シートの所属判定は強化の特例を持たない", () =>
   assert.doesNotMatch(app, /s\.group === "utility" \|\| s\.id === "enh"/);
 });
 
-test("BuildWorkspace は6タブをもち、所持タブだけ roster で絞る", () => {
+test("BuildWorkspace は基本を含む9タブをもち、所持タブだけ roster で絞る", () => {
   assert.match(sections, /window\.LBT_BUILD_TABS = BUILD_TABS/);
   const tabs = sections.slice(sections.indexOf("const BUILD_TABS = ["), sections.indexOf("const OwnedItemsPanel"));
   /* 旧セクションIDをタブIDとして保つ。 */
-  for (const id of ["persona", "skill", "passive", "enh", "support", "ego", "spirit"]) {
+  for (const id of ["baseinfo", "persona", "skill", "passive", "enh", "support", "ego", "spirit"]) {
     assert.match(tabs, new RegExp(`\\{ id: "${id}", label: "`), `${id} がタブとして定義されている`);
   }
-  assert.match(tabs, /id: "enh", label: "強化", num: "04"/);
-  assert.match(tabs, /id: "ego", label: "E\.G\.O", num: "06"/);
-  assert.match(tabs, /id: "spirit", label: "精神", num: "07"/);
+  assert.match(tabs, /id: "baseinfo", label: "基本", num: "01"/);
+  assert.match(tabs, /id: "persona", label: "人格", num: "02"/);
+  assert.match(tabs, /id: "enh", label: "強化", num: "05"/);
+  assert.match(tabs, /id: "ego", label: "E\.G\.O", num: "07"/);
+  assert.match(tabs, /id: "spirit", label: "精神", num: "08"/);
   /* アイテムのタブ ID はレール「アイテム」詳細画面（items）と衝突させない。 */
-  assert.match(tabs, /id: "items-build", label: "アイテム", num: "08"/);
+  assert.match(tabs, /id: "items-build", label: "アイテム", num: "09"/);
   /* 所持ゲートは人格/サポート/E.G.O/精神 の4タブだけ。 */
   assert.match(tabs, /id: "persona".*owned: true/);
   assert.match(tabs, /id: "support".*owned: true/);
@@ -210,7 +213,7 @@ test("BuildWorkspace は6タブをもち、所持タブだけ roster で絞る",
   const tabIds = [...tabs.matchAll(/\{ id: "([a-z-]+)", label: "[^"]+"/g)]
     .map((m) => m[1])
     /* tabs スライスは後続の定義も含むので、ビルドタブの並びだけを残す。 */
-    .filter((id) => ["persona", "skill", "passive", "enh", "support", "ego", "spirit", "items-build"].includes(id));
+    .filter((id) => ["baseinfo", "persona", "skill", "passive", "enh", "support", "ego", "spirit", "items-build"].includes(id));
   const start = app.indexOf("const renderSection = ()");
   const switchBlock = app.slice(start, app.indexOf('case "help":', start));
   for (const id of tabIds) {
@@ -220,7 +223,7 @@ test("BuildWorkspace は6タブをもち、所持タブだけ roster で絞る",
   assert.match(sections, /className: "segmented", role: "tablist", "aria-label": "ビルドセクション"/);
   assert.match(sections, /role: "tab",\s*"aria-selected": active\.id === tab\.id/);
   /* 各タブの中身は既存コンポーネントのうちどれかを出す。 */
-  assert.match(sections, /const Component = active\.id === "persona"/);
+  assert.match(sections, /const Component = active\.id === "baseinfo"[\s\S]*?window\.LBT_BaseInfoWorkspace[\s\S]*?active\.id === "persona"/);
   assert.match(sections, /\? window\.PersonaCodex/);
   assert.match(sections, /\? window\.SkillDeck/);
   assert.match(sections, /\? PassiveSection/);
@@ -229,6 +232,7 @@ test("BuildWorkspace は6タブをもち、所持タブだけ roster で絞る",
   assert.match(sections, /\? SpiritSection/);
   assert.match(sections, /\? BuildItemsPanel/);
   assert.match(sections, /: EnhancementSection;/);
+  assert.match(read("../js/PersonaCodex.js"), /window\.LBT_BaseInfoWorkspace = BaseInfoWorkspace/);
   /* 所持ゲートは ownedOnly プロパティで既存コンポーネントに渡す（描画は変えない）。 */
   assert.match(sections, /const owned = !!active\.owned;/);
   assert.match(sections, /const panelProps = \["persona", "support", "ego", "spirit"\]\.includes\(active\.id\) \? \{ ownedOnly: owned \} : \{\};/);

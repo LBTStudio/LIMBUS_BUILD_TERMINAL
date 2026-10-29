@@ -507,7 +507,7 @@ async function captureProfile(browser, mode) {
         }
       });
     }
-    for(const label of ["駒整形","ショップ","記録","設定","使い方"]) {
+    for(const label of ["ホーム","ショップ","記録","設定","使い方"]) {
       await attempt("section-"+label,async()=>{
         const navHover = page.locator(".rail-item").filter({hasText:label}).first();
         if (!mobile && await visible(navHover)) {
