@@ -195,23 +195,62 @@ async function runProfile(browser,profile) {
 
     await previewFormatTab.click();
     const previewFormatText = (await previewFormatPanel.innerText()).replace(/\s+/g, " ");
-    recordCheck(profile.name + ": Basic output tab reflects the current character and real preview action",
-      await previewFormatPanel.isVisible() && previewFormatText.includes("サンプル・フィクサー") && previewFormatText.includes("テスト卓") &&
-      await page.getByRole("button", { name: "右側の実プレビューを切り替える", exact: true }).isVisible(),
+    recordCheck(profile.name + ": Basic output tab reflects the current character before selecting a view",
+      await previewFormatPanel.isVisible() && previewFormatText.includes("サンプル・フィクサー") && previewFormatText.includes("テスト卓"),
       { previewFormatText });
-    const previewFormatPath = path.join(OUT, profile.name + "-build-params-preview-tab.png");
-    await page.screenshot({ path: previewFormatPath, animations: "disabled" });
-    results.screenshots.push({ file: path.relative(ROOT, previewFormatPath), profile: profile.name, state: "build-params-preview-tab" });
 
-    const realPreviewPanel = page.locator("#preview-panel");
-    const previewToggle = page.locator(profile.mobile ? ".preview-mobile-toggle" : "#lbt-preview-edge-toggle");
-    if (await realPreviewPanel.isVisible()) await previewToggle.click();
-    await page.getByRole("button", { name: "右側の実プレビューを切り替える", exact: true }).click();
-    await realPreviewPanel.waitFor({ state: "visible", timeout: 5000 });
-    recordCheck(profile.name + ": Basic output tab opens the actual shared CCFOLIA preview panel",
-      await realPreviewPanel.isVisible());
-    await previewToggle.click();
-    await realPreviewPanel.waitFor({ state: "hidden", timeout: 5000 });
+    const boardModeTab = page.getByRole("tab", { name: "盤面上の駒", exact: true });
+    const sheetModeTab = page.getByRole("tab", { name: "キャラクターシート", exact: true });
+    const jsonModeTab = page.getByRole("tab", { name: "出力データ", exact: true });
+    const boardModePanel = page.locator("#basic-ccfolia-panel-board");
+    const sheetModePanel = page.locator("#basic-ccfolia-panel-sheet");
+    const jsonModePanel = page.locator("#basic-ccfolia-panel-json");
+
+    await boardModeTab.click();
+    await boardModePanel.waitFor({ state: "visible", timeout: 5000 });
+    const boardModeText = (await boardModePanel.innerText()).replace(/\s+/g, " ");
+    recordCheck(profile.name + ": board mode shows real token name, PL, initiative and inspector",
+      boardModeText.includes("サンプル・フィクサー") && boardModeText.includes("テスト卓")
+      && boardModeText.includes("INIT 12") && boardModeText.includes("選択中の駒"),
+      { boardModeText });
+    const boardModePath = path.join(OUT, profile.name + "-basic-preview-board.png");
+    await page.screenshot({ path: boardModePath, animations: "disabled" });
+    results.screenshots.push({ file: path.relative(ROOT, boardModePath), profile: profile.name, state: "basic-preview-board" });
+
+    await sheetModeTab.click();
+    await sheetModePanel.waitFor({ state: "visible", timeout: 5000 });
+    const sheetModeText = (await sheetModePanel.innerText()).replace(/\s+/g, " ");
+    recordCheck(profile.name + ": character-sheet mode includes the real sheet fields and ST/parameters",
+      sheetModeText.includes("サンプル・フィクサー") && sheetModeText.includes("テスト卓")
+      && sheetModeText.includes("ステータス") && sheetModeText.includes("パラメータ"),
+      { sheetModeText });
+    const sheetModePath = path.join(OUT, profile.name + "-basic-preview-sheet.png");
+    await page.screenshot({ path: sheetModePath, animations: "disabled" });
+    results.screenshots.push({ file: path.relative(ROOT, sheetModePath), profile: profile.name, state: "basic-preview-sheet" });
+
+    await jsonModeTab.click();
+    await jsonModePanel.waitFor({ state: "visible", timeout: 5000 });
+    const generatedJson = await jsonModePanel.locator("pre").innerText();
+    recordCheck(profile.name + ": output mode renders JSON generated from the current character state",
+      generatedJson.includes('"name": "サンプル・フィクサー"') && generatedJson.includes('"initiative": 12')
+      && generatedJson.includes('"status"') && generatedJson.includes('"params"'),
+      { jsonLength: generatedJson.length, hasCharacterName: generatedJson.includes('"name": "サンプル・フィクサー"') });
+    const jsonModePath = path.join(OUT, profile.name + "-basic-preview-json.png");
+    await page.screenshot({ path: jsonModePath, animations: "disabled" });
+    results.screenshots.push({ file: path.relative(ROOT, jsonModePath), profile: profile.name, state: "basic-preview-json" });
+
+    // Home's preview shortcut must deep-link into Basic's preview tab without opening the separate global side panel.
+    await page.locator(".rail-item[title='ホーム']").click();
+    await page.locator(".btype-command-hero").waitFor({ state: "visible", timeout: 5000 });
+    await page.locator(".btype-launcher-card[data-task='preview']").click();
+    await page.locator("#build-params-panel-preview").waitFor({ state: "visible", timeout: 5000 });
+    await page.locator("#basic-ccfolia-panel-board").waitFor({ state: "visible", timeout: 5000 });
+    const globalPreviewOpen = await page.locator("#preview-panel").isVisible().catch(() => false);
+    recordCheck(profile.name + ": Home preview shortcut opens the Basic board view, not the global output drawer",
+      !globalPreviewOpen && await page.locator("#build-params-panel-preview").isVisible()
+      && await page.locator("#basic-ccfolia-panel-board").isVisible(),
+      { globalPreviewOpen });
+
     await statusFormatTab.click();
 
     /* Capture the actual Build > Basic status editor, not a separate or mocked sample. */
@@ -388,6 +427,6 @@ async function main() {
   results.checkCount=results.checks.length;
   fs.writeFileSync(path.join(OUT,"manifest.json"),JSON.stringify(results,null,2)+"\n");
   console.log("[preview-control-regression] "+JSON.stringify({screenshots:results.count,checks:results.checkCount,failures:results.failures.length,summary:results.failures.map(f=>({name:f.name,error:f.error,collisions:f.collisions,gapFromPanel:f.gapFromPanel}))}));
-  if(results.failures.length||results.count!==profiles.length*11) process.exitCode=1;
+  if(results.failures.length||results.count!==profiles.length*13) process.exitCode=1;
 }
 main().catch(error=>{console.error("[preview-control-regression] fatal: "+(error?.stack||String(error)));process.exitCode=1;});
