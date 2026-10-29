@@ -1321,6 +1321,25 @@ const RailNavigation = ({ sections, current, dispatch, onOpenUtilities, onOpenIm
 
 /* ホーム：既存機能への入口を目的別にまとめたランチャー。
    処理やデータ更新を複製せず、既存画面と既存アクションへ接続する。 */
+const MobileBottomNavigation = ({ current, isBuildWorkspace, dispatch, onOpenImportRouter, onOpenUtilities }) => {
+  const h = React.createElement;
+  const items = [
+    { id: "build", label: "ビルド", icon: "grid", active: isBuildWorkspace,
+      run: () => dispatch({ type: "SET_UI", ui: { currentSection: "baseinfo", previewOpen: false } }) },
+    { id: "record", label: "記録", icon: "roster", active: current === "roster",
+      run: () => dispatch({ type: "SET_UI", ui: { currentSection: "roster", libraryTab: "ledger", previewOpen: false } }) },
+    { id: "import", label: "取込", icon: "upload", active: false, run: onOpenImportRouter },
+    { id: "other", label: "その他", icon: "grid", active: false, run: onOpenUtilities }
+  ];
+  return h("nav", { className: "btype-mobile-bottom-nav", "aria-label": "モバイル画面移動" },
+    items.map((item) => h("button", {
+      key: item.id, type: "button", className: item.active ? "is-active" : "",
+      onClick: item.run, "aria-current": item.active ? "page" : void 0,
+      "aria-haspopup": item.id === "import" || item.id === "other" ? "dialog" : void 0
+    }, h(Icon, { name: item.icon, size: 18 }), h("span", null, item.label)))
+  );
+};
+
 const HomeLauncher = ({
   state, dispatch, saveStatus, onOpenAccounts, onOpenImportFile,
   onExportState, onExportRoster, onTogglePreview, onCopyJson, onOpenUtilities, onOpenImportRouter
@@ -1337,7 +1356,7 @@ const HomeLauncher = ({
     { id: "import", title: "データを取り込む", desc: "人格本文・リザルト・硝子窓・所持一覧", icon: "upload", terms: "取り込み テキスト URL 硝子窓 所持一覧 リザルト 報酬 購入履歴 人格", run: onOpenImportRouter },
     { id: "records", title: "記録・所持品", desc: "所持ライブラリ、リザルト、収支", icon: "roster", terms: "記録 所持ライブラリ 所持品 人格 EGO E.G.O リザルト 報酬 収支", run: () => navigate("roster", { libraryTab: "ledger" }) },
     { id: "shop", title: "ショップ", desc: "未所持の人格・E.G.O・サポート等を探す", icon: "item", terms: "未所持 購入 人格 EGO E.G.O サポート 精神 アイテム", run: () => navigate("shop") },
-    { id: "preview", title: "駒のプレビュー", desc: "メモ・チャットパレット・CCFOLIA出力を確認", icon: "eye", terms: "駒 プレビュー JSON 出力 ココフォリア チャットパレット メモ", run: onTogglePreview },
+    { id: "preview", title: "CCFOLIA駒プレビュー", desc: "盤面・キャラクターシート・実際の出力JSONを確認", icon: "eye", terms: "駒 プレビュー 盤面 キャラクターシート JSON 出力 ココフォリア", run: () => navigate("baseinfo", { basicFormatTab: "preview", basicPreviewMode: "board", previewOpen: false }) },
     { id: "utilities", title: "保存・復元・共有", desc: "作業データ、所持ライブラリ、共有シート", icon: "archive", terms: "保存 復元 バックアップ JSON 共有 ライブラリ 作業状態", run: onOpenUtilities },
     { id: "settings", title: "詳細設定", desc: "ステータス、ラベル、出力順、計算式", icon: "settings", terms: "ステータス ラベル 出力順 計算式 詳細設定", run: () => navigate("settings") },
     { id: "help", title: "使い方を探す", desc: "目的や画面名から操作ガイドを検索", icon: "book", terms: "使い方 ヘルプ 操作 ガイド 検索", run: () => navigate("help") }
@@ -1783,7 +1802,7 @@ const App = () => {
     }
   };
   /* 右側の出力プレビューは初期状態で閉じ、開く操作をした利用者だけ展開する。 */
-  const previewOpen = state.ui.previewOpen === true || (state.ui.previewOpen == null && typeof window !== "undefined" && window.matchMedia("(min-width: 1100px)").matches);
+  const previewOpen = state.ui.previewOpen === true;
   // 初期値が未保存でも、画面に実際に表示されている状態を基準に即時反転する。
   const togglePreview = () => dispatch({ type: "SET_UI", ui: { previewOpen: !previewOpen } });
   const copyJson = async () => {
@@ -1804,7 +1823,7 @@ const App = () => {
     { key: "share", icon: "share", label: "共有シートを開く", note: "整形されたHTMLの共有用プレビューを新規タブで開きます。", onClick: () => LBT_gen.openShareSheet(state) },
     { key: "json", icon: "copy", scope: "出力", label: "CCFOLIA JSONをコピー", note: "現在の出力対象をJSONとしてクリップボードへコピーします。", tone: "is-primary", onClick: copyJson }
   ];
-  const utilitySections = SECTIONS.filter((s) => s.group === "utility");
+  const utilitySections = SECTIONS.filter((s) => s.group === "utility" || s.id === "home" || s.id === "shop");
 
   /* アカウント未選択なら本体を出さず、選択ゲートだけを描画する。
      「どのキャラクターのデータか」が決まるまで編集画面へ入れないことで、
@@ -1833,7 +1852,7 @@ const App = () => {
     if (f) importStateFromFile(f, dispatch);
     e.target.value = "";
   } })
-), /* @__PURE__ */ React.createElement("button", { type: "button", className: "utility-trigger", onClick: openUtilities, "aria-haspopup": "dialog", "aria-expanded": utilityOpen }, /* @__PURE__ */ React.createElement(Icon, { name: "grid", size: 15 }), /* @__PURE__ */ React.createElement("span", null, "操作・保存"))), /* @__PURE__ */ React.createElement(RailNavigation, { sections: SECTIONS, current, dispatch, state, saveStatus, onOpenUtilities: openUtilities, onOpenImportRouter: openImportRouter }), /* @__PURE__ */ React.createElement("main", { className: "focus", id: "main-content", tabIndex: -1 }, React.createElement("div", { className: "focus-inner" }, renderSection())), isBuildWorkspace && previewOpen ? React.createElement(LivePreview, { state, dispatch }) : null, /* プレビューはワークベンチ内でのみ表示する。ホームや記録画面の横幅を奪わない。 */ isBuildWorkspace ? React.createElement("button", { type: "button", id: "lbt-preview-edge-toggle", className: `preview-edge-toggle${previewOpen ? " is-open" : " is-collapsed"}`, onClick: togglePreview, title: previewOpen ? "プレビューを格納" : "プレビューを展開", "aria-label": previewOpen ? "プレビューを格納" : "プレビューを展開", "aria-controls": "preview-panel", "aria-expanded": previewOpen }, previewOpen ? "◀ 格納" : "▶ 展開") : null, /* R15 utility sheet */ utilityOpen && /* @__PURE__ */ React.createElement(UtilitySheet, { open: utilityOpen, onClose: closeUtilities, actions: utilityActions, sections: utilitySections, currentSection: current, onNavigate: (id) => dispatch({ type: "SET_UI", ui: { currentSection: id } }) }), importRouterOpen && React.createElement(ImportRouterDialog, { onClose: closeImportRouter, onSelect: selectImportRoute }), /* @__PURE__ */ React.createElement(DisclaimerSheet, { open: disclaimerOpen, onClose: () => setDisclaimerOpen(false) }), /* @__PURE__ */ React.createElement(CommandPalette, { open: cpOpen, onClose: () => setCpOpen(false), state, dispatch }), /* @__PURE__ */ React.createElement(QualityInspector, { open: qiOpen, onClose: () => setQiOpen(false) }), /* @__PURE__ */ React.createElement(AccountSwitcher, { open: accountSwitcherOpen, initialEditId: accountSwitcherInitialEditId, existingResults: state.results || [], onClose: () => { setAccountSwitcherOpen(false); setAccountSwitcherInitialEditId(null); } }), importData && /* @__PURE__ */ React.createElement("div", { className: "share-modal-backdrop", onClick: (e) => { if (e.target === e.currentTarget) setImportData(null); }, style: { position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 } }, /* @__PURE__ */ React.createElement("div", { ref: importDialogRef, className: "card import-scope-dialog", role: "dialog", "aria-modal": "true", "aria-labelledby": "import-scope-title", "aria-describedby": "import-scope-description", tabIndex: -1, style: { maxWidth: 520, width: "100%", background: "var(--surface-1, #1a1715)", border: "1px solid var(--line)", borderRadius: 6, padding: 16 } },
+), /* @__PURE__ */ React.createElement("button", { type: "button", className: "utility-trigger", onClick: openUtilities, "aria-haspopup": "dialog", "aria-expanded": utilityOpen }, /* @__PURE__ */ React.createElement(Icon, { name: "grid", size: 15 }), /* @__PURE__ */ React.createElement("span", null, "操作・保存"))), /* @__PURE__ */ React.createElement(RailNavigation, { sections: SECTIONS, current, dispatch, state, saveStatus, onOpenUtilities: openUtilities, onOpenImportRouter: openImportRouter }), /* @__PURE__ */ React.createElement("main", { className: "focus", id: "main-content", tabIndex: -1 }, React.createElement("div", { className: "focus-inner" }, renderSection())), React.createElement(MobileBottomNavigation, { current, isBuildWorkspace, dispatch, onOpenImportRouter: openImportRouter, onOpenUtilities: openUtilities }), isBuildWorkspace && previewOpen ? React.createElement(LivePreview, { state, dispatch }) : null, /* プレビューはワークベンチ内でのみ表示する。ホームや記録画面の横幅を奪わない。 */ isBuildWorkspace ? React.createElement("button", { type: "button", id: "lbt-preview-edge-toggle", className: `preview-edge-toggle${previewOpen ? " is-open" : " is-collapsed"}`, onClick: togglePreview, title: previewOpen ? "プレビューを格納" : "プレビューを展開", "aria-label": previewOpen ? "プレビューを格納" : "プレビューを展開", "aria-controls": "preview-panel", "aria-expanded": previewOpen }, previewOpen ? "◀ 格納" : "▶ 展開") : null, /* R15 utility sheet */ utilityOpen && /* @__PURE__ */ React.createElement(UtilitySheet, { open: utilityOpen, onClose: closeUtilities, actions: utilityActions, sections: utilitySections, currentSection: current, onNavigate: (id) => dispatch({ type: "SET_UI", ui: { currentSection: id } }) }), importRouterOpen && React.createElement(ImportRouterDialog, { onClose: closeImportRouter, onSelect: selectImportRoute }), /* @__PURE__ */ React.createElement(DisclaimerSheet, { open: disclaimerOpen, onClose: () => setDisclaimerOpen(false) }), /* @__PURE__ */ React.createElement(CommandPalette, { open: cpOpen, onClose: () => setCpOpen(false), state, dispatch }), /* @__PURE__ */ React.createElement(QualityInspector, { open: qiOpen, onClose: () => setQiOpen(false) }), /* @__PURE__ */ React.createElement(AccountSwitcher, { open: accountSwitcherOpen, initialEditId: accountSwitcherInitialEditId, existingResults: state.results || [], onClose: () => { setAccountSwitcherOpen(false); setAccountSwitcherInitialEditId(null); } }), importData && /* @__PURE__ */ React.createElement("div", { className: "share-modal-backdrop", onClick: (e) => { if (e.target === e.currentTarget) setImportData(null); }, style: { position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 } }, /* @__PURE__ */ React.createElement("div", { ref: importDialogRef, className: "card import-scope-dialog", role: "dialog", "aria-modal": "true", "aria-labelledby": "import-scope-title", "aria-describedby": "import-scope-description", tabIndex: -1, style: { maxWidth: 520, width: "100%", background: "var(--surface-1, #1a1715)", border: "1px solid var(--line)", borderRadius: 6, padding: 16 } },
     /* @__PURE__ */ React.createElement("div", { id: "import-scope-title", style: { fontFamily: "var(--f-display)", fontWeight: 700, fontSize: "var(--fs-15)", color: "var(--gold)", marginBottom: 4 } }, "\u30BB\u30FC\u30D6\u30C7\u30FC\u30BF\u306E\u8AAD\u307F\u8FBC\u307F"),
     /* @__PURE__ */ React.createElement("div", { id: "import-scope-description", style: { fontSize: "var(--fs-11)", color: "var(--tx-2)", marginBottom: 12, lineHeight: 1.6 } }, "\u8AAD\u307F\u8FBC\u3080\u9805\u76EE\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044\u3002\u73FE\u5728\u306E\u72B6\u614B\u306F\u4E0A\u66F8\u304D\u3055\u308C\u307E\u3059\u304C\u3001Ctrl+Z\u3067\u5DEE\u3057\u623B\u305B\u307E\u3059\u3002"),
     /* @__PURE__ */ React.createElement("div", { className: "import-apply-summary", role: "status", "aria-live": "polite", style: { fontSize: "var(--fs-11)", color: "var(--gold)", marginBottom: 10, padding: "7px 9px", background: "var(--surface-inset)", border: "1px solid var(--line-dim)", borderRadius: 4, lineHeight: 1.5 } }, "\u4ECA\u56DE\u306E\u9069\u7528\u7BC4\u56F2\uFF1A", selectedImportLabel),

@@ -10,8 +10,14 @@
   badge.setAttribute("role", "status");
   badge.setAttribute("aria-live", "polite");
   badge.setAttribute("aria-label", "LIMBUS BUILD TERMINALの総ページ閲覧数");
+  const isShortLandscape = window.matchMedia("(max-height: 500px) and (orientation: landscape)").matches;
+  const hasBottomNavigation = window.matchMedia("(max-width: 640px), (max-height: 500px) and (orientation: landscape)").matches;
   Object.assign(badge.style, {
-    position: "fixed", right: "10px", bottom: "10px", zIndex: "900",
+    position: "fixed", right: "10px",
+    /* The short-landscape navigation is two rows tall; keep the passive badge above it. */
+    bottom: isShortLandscape ? "calc(122px + env(safe-area-inset-bottom, 0px))"
+      : hasBottomNavigation ? "calc(74px + env(safe-area-inset-bottom, 0px))" : "10px",
+    zIndex: "900",
     maxWidth: "calc(100vw - 20px)", padding: "5px 9px",
     border: "1px solid rgba(212,175,95,.45)", borderRadius: "999px",
     background: "rgba(15,12,9,.88)", color: "#d8c18b",
