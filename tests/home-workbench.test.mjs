@@ -23,7 +23,7 @@ test("Bタイプはビルドを主作業面にし、ホームを補助入口と�
   assert.match(state, /layoutVersion: ui\.layoutVersion/);
 });
 
-test("基本タブは既存の駒整形コンポーネントを再利用し、保存状態を移行しない", () => {
+test("基本タブは既存の駒整形コンポーネントを再利用し、キャラクター状態を二重管理しない", () => {
   assert.match(sections, /id: "baseinfo", label: "基本"/);
   assert.match(sections, /active\.id === "baseinfo"[\s\S]*?window\.LBT_BaseInfoWorkspace/);
   assert.match(persona, /window\.LBT_BaseInfoWorkspace = BaseInfoWorkspace/);
