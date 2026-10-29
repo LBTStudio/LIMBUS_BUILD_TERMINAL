@@ -50,7 +50,7 @@ test("Basic output preview contains board, sheet and generated JSON views from L
 });
 
 test("Home preview shortcut opens the Basic integrated preview rather than the separate global preview", () => {
-  assert.match(app, /id: "preview", title: "CCFOLIA駒プレビュー"[\s\S]*?run: \(\) => navigate\("baseinfo", \{ basicFormatTab: "preview", basicPreviewMode: "board" \}\)/);
+  assert.match(app, /id: "preview", title: "CCFOLIA駒プレビュー"[\s\S]*?run: \(\) => navigate\("baseinfo", \{ basicFormatTab: "preview", basicPreviewMode: "board", previewOpen: false \}\)/);
   assert.match(persona, /window\.LBT_BuildParamsPanel\(\{ state, dispatch \}\)/);
   assert.match(sections, /const BuildWorkspace = \(\{ state, dispatch, saveStatus \}\)/);
   assert.match(sections, /const panelProps = \["persona", "support", "ego", "spirit"\]/);
