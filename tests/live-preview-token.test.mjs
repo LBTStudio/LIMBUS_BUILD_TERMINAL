@@ -32,7 +32,7 @@ test("プレビューは盤面・シート表示を切り替え、出力JSONタ�
 
 test("盤面表示は名前・色・行動順・HP/SANを表示し、画像がない場合にも破綻しない", () => {
   assert.match(preview, /className: "pv-token-board"/);
-  assert.match(preview, /className: "pv-token-board-avatar"/);
+  assert.match(preview, /renderTokenImage\("pv-token-board-avatar"/);
   assert.match(preview, /className: "pv-token-initiative"/);
   assert.match(preview, /tokenStatus\.filter\(\(entry\) => \["HP", "SAN"\]/);
   assert.match(preview, /pv-token-image-empty/);
