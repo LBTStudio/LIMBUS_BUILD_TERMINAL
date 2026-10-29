@@ -307,8 +307,10 @@ test("既存人格へ帰属した同期草案は共有時も公式参照を維�
   assert.deepEqual(JSON.parse(JSON.stringify(snapshot.extraPassives[0])), extraPassive);
   assert.equal(snapshot.pas2Enabled, true);
   assert.deepEqual(JSON.parse(JSON.stringify(snapshot.pas2)), legacyPassive);
-  assert.equal(snapshot.supports[0].effect, "編集済み支援効果");
-  assert.equal(snapshot.deathSupport.effect, "編集済み死亡後効果");
+  assert.equal(snapshot.supports, undefined, "サポートパッシブは参照圧縮領域へ移される");
+  assert.equal(snapshot.deathSupport, undefined, "死亡後パッシブは参照圧縮領域へ移される");
+  assert.equal(snapshot._r.s[0].effect, "編集済み支援効果");
+  assert.equal(snapshot._r.d.effect, "編集済み死亡後効果");
 
   const token = await share.encodeState(state, { includeOgpImage: false });
   const restored = share.hydratePersonaReference(await share.decodeToken(token), db);
