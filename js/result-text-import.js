@@ -1370,6 +1370,7 @@
         name: title,
         date: record.date || "",
         income: { lp: record.income.lp, shards: record.income.shards, tickets: ticketIncome(acceptedTickets) },
+        personaAcquisitions: [],
         note: fullNote,
         consumedItems: record.journalFormat === true ? [] : (record.consumedItems || []).map((item) => {
           const operationId = `legacy-use-${Date.now()}-${legacyUseSequence++}`;
@@ -1447,6 +1448,10 @@
         }
         return null;
       };
+      const notePersonaAcquisition = (kind, name) => {
+        if (!kind || !(kind.mode === "n" || kind.mode === "t") || kind.no === undefined || kind.no === null) return;
+        resultAction.personaAcquisitions.push({ mode: kind.mode, no: String(kind.no), name: String(name || ""), source: "text-import" });
+      };
       const addResolvedAsset = (item, warnIfUnknown) => {
         const source = String(item?.name || "").trim();
         if (!source) return false;
@@ -1471,6 +1476,8 @@
         if (personas.length === 1) {
           const kind = personas[0];
           const personaKey = `${kind.mode}:${kind.no}`;
+          /* 所持へ追加する必要性とは独立して取得証跡を保存する。既に所持済みでも記録する。 */
+          notePersonaAcquisition(kind, hit.name || source);
           if (!identityNames.has(source) && !ownedPersonas.has(personaKey) && !importedPersonaKeys.has(personaKey)) {
             importedPersonaKeys.add(personaKey);
             actions.push({ type: "ADD_ROSTER", mode: kind.mode, no: kind.no, purchase: false, skipInitialTicketConsumption: true, via: title ? [title] : [] });

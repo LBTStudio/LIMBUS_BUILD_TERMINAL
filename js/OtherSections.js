@@ -3873,6 +3873,10 @@ const LedgerPanel = ({ state, dispatch }) => {
   /* 選択中のパックはフォーム側が持つ。TicketInputs 内で持つと、親が組み立てる
      income に選んだパック名が入らない（内部 state だから）。 */
   const [newResultPack, setNewResultPack] = React.useState("");
+  const initialPersonaOptions = [
+    ...(window.DB?.normal_personas || []).map((row) => ({ mode: "n", no: String(row.no ?? ""), name: String(row.name || "") })),
+    ...(window.DB?.tokui_personas || []).map((row) => ({ mode: "t", no: String(row.no ?? ""), name: String(row.name || "") }))
+  ].filter((row) => row.no && row.name).map((row) => ({ ...row, value: row.mode + ":" + row.no, label: row.name + "（" + (row.mode === "t" ? "特異" : "通常") + "）" }));
   /* 既存カードで「記録 / 修正」を押した対象。カード上へ直接並べるのは
      17パックの項目が毎回開くことになるため、記録は専用画面で行う。 */
   const [ticketPanel, setTicketPanel] = React.useState(null);
@@ -4062,7 +4066,8 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
         ego: String(Number(currentTickets.ego) || 0),
         choice: String(Number(currentTickets.choice) || 0),
         pack: { ...(currentTickets.pack || {}) }
-      }
+      },
+      initialPersona: { method: ["selected", "random"].includes(result.initialPersona?.method) ? result.initialPersona.method : "unknown", mode: result.initialPersona?.mode === "t" || result.initialPersona?.mode === "n" ? result.initialPersona.mode : "", no: String(result.initialPersona?.no ?? ""), name: String(result.initialPersona?.name || "") }
     });
   };
   const cancelResultEditor = () => { setTicketPanel(null); setTicketDraft(null); };
@@ -4077,6 +4082,7 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
       ...draft, tickets: { ...draft.tickets, pack: { ...(draft.tickets.pack || {}), [pack]: value } }
     } : draft);
   };
+  const updateResultDraftInitialPersona = (patch) => setTicketDraft((draft) => draft ? { ...draft, initialPersona: { ...(draft.initialPersona || {}), ...patch } } : draft);
   const saveResultEditor = (result) => {
     const draft = ticketDraft;
     if (!draft || draft.id !== result.id) return;
@@ -4103,7 +4109,8 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
         lp: Math.max(0, Number(draft.lp) || 0),
         shards: Math.max(0, Number(draft.shards) || 0),
         tickets: nextTickets
-      }
+      },
+      ...((result.id === "res-initial" || result.name === "初期作成") ? { initialPersona: { method: ["selected", "random"].includes(draft.initialPersona?.method) ? draft.initialPersona.method : "unknown", mode: draft.initialPersona?.mode === "n" || draft.initialPersona?.mode === "t" ? draft.initialPersona.mode : "", no: String(draft.initialPersona?.no ?? ""), name: String(draft.initialPersona?.name || "") } } : {})
     });
     toast("「" + name + "」のリザルトを更新しました");
     cancelResultEditor();
@@ -4139,6 +4146,7 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   const balance = window.LBT_computeLedgerBalance
     ? window.LBT_computeLedgerBalance(results, entries)
     : { lp: 0, shards: 0, unclassified: 0 };
+  const personaAudit = typeof window.LBT_auditPersonaInventory === "function" ? window.LBT_auditPersonaInventory(state) : null;
 
 /* 残額は全明細から求める。削除は Undo/Redo が効くので、
 /* 取り消し用の操作槽は置かない。 */
@@ -4652,6 +4660,43 @@ const importHeldPersonas = () => {
       )
     ),
 
+    personaAudit && h(Card, { className: "ledger-persona-audit-card" },
+      h("div", { className: "card-header owned-library-bar" },
+        h("span", { className: "t-label" }, "PERSONA AUDIT / 人格照合"),
+        h("span", { className: "ledger-note" }, "取得記録と現在所持を比較。所持・収支は自動変更しません。")
+      ),
+      h("div", { className: "card-body stack-2" },
+        h("div", { className: "ledger-balance-sub" },
+          "取得記録の人格 ", h("b", { className: "ledger-stat" }, String(personaAudit.expectedCount)),
+          " 件 / 現在所持 ", h("b", { className: "ledger-stat" }, String(personaAudit.actualCount)),
+          " 件 / 一致 ", h("b", { className: "ledger-stat" }, String(personaAudit.matchedCount)), " 件"
+        ),
+        !personaAudit.initialConfigured && h("div", { className: "ledger-held-result", role: "status" },
+          h("p", { className: "ledger-note" }, personaAudit.initialNeedsPersona
+            ? "初期作成の入手方法は記録されていますが、最初に得た人格が未選択です。初期作成リザルトの「編集」から選択してください。"
+            : "初期作成で「指定購入」か「ランダム抽出」か、最初に得た人格がまだ確定していません。初期作成リザルトの「編集」から記録できます。")
+        ),
+        personaAudit.initialConfigured && h("p", { className: "ledger-note" },
+          "初期人格：", personaAudit.initialPersona?.name || ("No." + personaAudit.initialPersona?.no),
+          "（", personaAudit.initialMethod === "selected" ? "指定購入（選択）" : "ランダム抽出", "）"
+        ),
+        personaAudit.missing.length > 0
+          ? h("div", { className: "ledger-held-result", role: "alert" },
+              h("p", { className: "ledger-note" }, "取得記録にはあるのに現在所持にない人格が " + personaAudit.missing.length + " 件あります。所持削除・登録漏れ・取得記録の誤りを確認してください。"),
+              h("ul", { className: "ledger-warn-list" }, personaAudit.missing.map((entry) => h("li", { key: entry.mode + ":" + entry.no }, entry.name + "（" + entry.mode.toUpperCase() + " No." + entry.no + "） — 記録：" + entry.sources.join(" / ")))
+            )
+          : personaAudit.initialConfigured ? h("p", { className: "ledger-note" }, "記録済みの取得人格は、現在所持の範囲で欠落していません。") : null,
+        personaAudit.unrecorded.length > 0 && h("details", { className: "ledger-held-result" },
+          h("summary", null, "取得記録に紐づかない現在所持 " + personaAudit.unrecorded.length + " 件"),
+          h("p", { className: "ledger-note" }, "過去の取得履歴が未記録、旧データ由来、または別経路の入手である可能性があります。これだけで所持ミスとは断定しません。"),
+          h("ul", { className: "ledger-warn-list" }, personaAudit.unrecorded.map((entry) => h("li", { key: entry.mode + ":" + entry.no }, entry.name + "（" + entry.mode.toUpperCase() + " No." + entry.no + "）")))
+        ),
+        (personaAudit.unresolvedEvidence > 0 || personaAudit.unresolvedDraws > 0) && h("p", { className: "ledger-note", role: "status" },
+          "未照合の取得証跡 " + personaAudit.unresolvedEvidence + " 件 / 抽選の適用状態または取得品を確定できない記録 " + personaAudit.unresolvedDraws + " 件があります。自動で人格を推測していません。"
+        )
+      )
+    ),
+
     /* リザルトの追加。
        取り込みは3つとも低頻度なので、1つの「取り込む」ボタンに畳む。
        開くと3つ並ぶ。 pessoaリストはさらに個別に畳む（三段構造は要らない）。 */
@@ -5160,6 +5205,10 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
           "検索に一致するリザルトがありません。検索条件を変更してください。")
       ),
       pageResults.map((result) => {
+        const isInitialResult = result.id === "res-initial" || result.name === "初期作成";
+        const initialPersonaDraft = ticketDraft?.initialPersona || { method: "unknown", mode: "", no: "", name: "" };
+        const initialPersonaValue = initialPersonaDraft.mode && initialPersonaDraft.no ? initialPersonaDraft.mode + ":" + initialPersonaDraft.no : "";
+        const initialPersonaOptionExists = initialPersonaOptions.some((option) => option.value === initialPersonaValue);
         const rows = byResult(result.id);
         const spent = sumOf(rows);
         const consumedItems = Array.isArray(result.consumedItems) ? result.consumedItems : [];
@@ -5290,6 +5339,35 @@ h(Card, { className: "ledger-card" },
                     )
                   )
                 )
+              ),
+              isEditing && isInitialResult && h("div", { className: "ledger-initial-persona-fields stack-2", "aria-label": "初期人格の取得確認" },
+                h("span", { className: "t-label" }, "初期作成 / 最初に得た人格"),
+                h("p", { className: "ledger-note" }, "当時の入手方法と人格を記録します。ここで選んでも所持へ自動追加したり、LP・チケットを増減したりはしません。"),
+                h("div", { className: "ledger-ticket-grid" },
+                  h("label", { className: "ledger-ticket-field" },
+                    h("span", null, "入手方法"),
+                    h("select", { className: "select", value: initialPersonaDraft.method || "unknown", "aria-label": "初期人格の入手方法", onChange: (event) => updateResultDraftInitialPersona({ method: event.target.value }) },
+                      h("option", { value: "unknown" }, "未記録"),
+                      h("option", { value: "selected" }, "指定購入（選択）"),
+                      h("option", { value: "random" }, "ランダム抽出")
+                    )
+                  ),
+                  h("label", { className: "ledger-ticket-field" },
+                    h("span", null, "最初に得た人格"),
+                    h("select", { className: "select", value: initialPersonaValue, "aria-label": "最初に得た人格", "aria-invalid": initialPersonaDraft.method !== "unknown" && !initialPersonaValue,
+                      onChange: (event) => {
+                        const option = initialPersonaOptions.find((candidate) => candidate.value === event.target.value);
+                        updateResultDraftInitialPersona(option ? { mode: option.mode, no: option.no, name: option.name } : { mode: "", no: "", name: "" });
+                      } },
+                      h("option", { value: "" }, "人格を選択…"),
+                      initialPersonaValue && !initialPersonaOptionExists && h("option", { value: initialPersonaValue }, (initialPersonaDraft.name || ("No." + initialPersonaDraft.no)) + "（DB未一致）"),
+                      initialPersonaOptions.map((option) => h("option", { key: option.value, value: option.value }, option.label))
+                    )
+                  )
+                ),
+                initialPersonaDraft.method !== "unknown" && !initialPersonaValue
+                  ? h("p", { className: "ledger-note", role: "alert" }, "入手方法を指定した場合は、最初に得た人格も選択してください。")
+                  : null
               ),
               !isEditing && h("div", { className: "ledger-card-income" },
                 h("span", { className: "ledger-pair" },

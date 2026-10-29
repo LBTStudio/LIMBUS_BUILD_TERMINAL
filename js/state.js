@@ -44,8 +44,29 @@ function makeInitialResult(options) {
       tickets: normalizeTickets(withPersonaTicket ? { persona: 1 } : {})
     },
     note: "ルールブックPDF p.14 の初期資源（30LP・自我の欠片10個）。この直後の獲得はここに帰属します。",
+    initialPersona: { method: "unknown", mode: "", no: "", name: "" },
+    personaAcquisitions: [],
     createdAt: Date.now()
   };
+}
+
+/* 保存された初期人格と、リザルト単位の取得証跡を正規化する。 */
+function normalizeInitialPersona(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return { method: "unknown", mode: "", no: "", name: "" };
+  const method = ["selected", "random", "unknown"].includes(String(value.method || "")) ? String(value.method) : "unknown";
+  const mode = value.mode === "n" || value.mode === "t" ? value.mode : "";
+  const no = mode ? String(value.no ?? "").trim().slice(0, 64) : "";
+  return { method, mode: no ? mode : "", no, name: String(value.name || "").trim().slice(0, 160) };
+}
+function normalizePersonaAcquisitions(value) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 1000).flatMap((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+    const mode = entry.mode === "n" || entry.mode === "t" ? entry.mode : "";
+    const no = String(entry.no ?? "").trim().slice(0, 64);
+    if (!mode || !no || !/^[A-Za-z0-9_-]+$/.test(no)) return [];
+    return [{ mode, no, name: String(entry.name || "").trim().slice(0, 160), source: String(entry.source || "").trim().slice(0, 80) }];
+  });
 }
 
 /* 初期作成用人格チケットの消費。最初の1人格が所持になった時点で1枚消す。
@@ -1467,6 +1488,8 @@ function sanitizeStateCollections(raw) {
     // 封緘済み証明のrecordsの形状は改変せず、バッチ自体を保持して検証器で不合格にできるようにする。
     next.draws = next.draws.filter((batch) => isRecord(batch) && Array.isArray(batch.records));
   }
+  const rawAppliedDrawBatchIds = Array.isArray(source.appliedDrawBatchIds) ? source.appliedDrawBatchIds : [];
+  next.appliedDrawBatchIds = [...new Set(rawAppliedDrawBatchIds.filter((id) => typeof id === "string" && id.trim()).map((id) => id.trim().slice(0, 160)))].slice(-2000);
   if (next.deathSupport != null && !isRecord(next.deathSupport)) next.deathSupport = null;
   if (!isRecord(next.roster)) {
     next.roster = { personas: [], egos: [], supports: [], spirits: [] };
@@ -2020,6 +2043,8 @@ function normalizeStateShape(raw) {
     const exchange = normalizeCurrency(result.exchange);
     let note = String(result.note || "");
     const consumedItems = normalizeConsumedItems(result.consumedItems);
+    const initialPersona = normalizeInitialPersona(result.initialPersona);
+    const personaAcquisitions = normalizePersonaAcquisitions(result.personaAcquisitions);
     const hasExchange = exchange.lp > 0 || exchange.shards > 0;
     if (hasExchange && Number.isSafeInteger(income.shards + exchange.shards)) {
       income.shards += exchange.shards;
@@ -2039,14 +2064,14 @@ function normalizeStateShape(raw) {
       const migrationNote = "旧LP換算を移行済み（" + exchange.lp + "LP → 自我の欠片 " + exchange.shards + "個）";
       note = [note, migrationNote].filter(Boolean).join("\n").slice(0, 2000);
       const { exchange: _legacyExchange, ...withoutExchange } = result;
-      return { ...withoutExchange, id, name, date, income, note, consumedItems };
+      return { ...withoutExchange, id, name, date, income, note, consumedItems, initialPersona, personaAcquisitions };
     }
     if (hasExchange) {
       /* 安全整数を超える旧記録は計算値を変えず、旧フィールドを保全する。 */
-      return { ...result, id, name, date, income, exchange, note, consumedItems };
+      return { ...result, id, name, date, income, exchange, note, consumedItems, initialPersona, personaAcquisitions };
     }
     const { exchange: _legacyExchange, ...withoutExchange } = result;
-    return { ...withoutExchange, id, name, date, income, note, consumedItems };
+    return { ...withoutExchange, id, name, date, income, note, consumedItems, initialPersona, personaAcquisitions };
   });
   next.entries.push(...migratedExchangeEntries);
   /* キャラ作成直後の所得は「初期作成」リザルトにまとめる。
@@ -3636,6 +3661,8 @@ const INIT_STATE = {
      改ざん検出の鎖はバッチ側（gacha.js）が持ち、ここは追記のみ行う。
      旧保存データには無いので hydrate で空配列を補完する。 */
   draws: [],
+  // 抽選の所持・経済効果が現在の状態へ適用済みの証明キー。Undoでは証明と分離して巻き戻す。
+  appliedDrawBatchIds: [],
   // [{batchId, kind, count, commit, serverSeed, clientSeed, rolls, records, batchHash, beacon, rulesetHash, signature?}]
   // DB由来のアイテムをビルドへ導入した一覧。{uid,itemId,quantity,memo,palette,origin}
   inventory: [],
@@ -3844,6 +3871,11 @@ function applyDrawBatchEffects(state, batch, resultId) {
       resultId,
       ref: { kind: "gachaBatch", commit: String(batch.commit || batch.batchHash || "") }
     });
+  }
+  const appliedKey = String(batch?.batchHash || batch?.commit || "");
+  if (appliedKey) {
+    const applied = Array.isArray(next.appliedDrawBatchIds) ? next.appliedDrawBatchIds : [];
+    if (!applied.includes(appliedKey)) next = { ...next, appliedDrawBatchIds: [...applied, appliedKey].slice(-2000) };
   }
   return next;
 }
@@ -5791,6 +5823,8 @@ case "ADD_CUSTOM_ITEM": {
             : { ...normalizeCurrency(action.income), tickets: normalizeTickets(action.income?.tickets) },
           ...(action.note !== undefined ? { note: String(action.note || "").slice(0, 2000) } : {}),
           ...(action.consumedItems !== undefined ? { consumedItems: normalizeConsumedItems(action.consumedItems) } : {}),
+          ...(action.initialPersona !== undefined ? { initialPersona: normalizeInitialPersona(action.initialPersona) } : {}),
+          ...(action.personaAcquisitions !== undefined ? { personaAcquisitions: normalizePersonaAcquisitions(action.personaAcquisitions) } : {}),
           ...(action.importSourceKey !== undefined
             ? (String(action.importSourceKey || "").trim()
               ? { importSourceKey: String(action.importSourceKey).slice(0, 180) }
@@ -5812,6 +5846,8 @@ case "ADD_CUSTOM_ITEM": {
           income: { ...normalizeCurrency(action.income), tickets: normalizeTickets(action.income?.tickets) },
           note: String(action.note || "").slice(0, 2000),
           consumedItems: normalizeConsumedItems(action.consumedItems),
+          initialPersona: normalizeInitialPersona(action.initialPersona),
+          personaAcquisitions: normalizePersonaAcquisitions(action.personaAcquisitions),
           ...(String(action.importSourceKey || "").trim()
             ? { importSourceKey: String(action.importSourceKey).slice(0, 180) }
             : {}),
@@ -5830,6 +5866,8 @@ case "ADD_CUSTOM_ITEM": {
               ...(action.patch?.date !== void 0 ? { date: String(action.patch.date).slice(0, 10) } : {}),
               ...(action.patch?.note !== void 0 ? { note: String(action.patch.note).slice(0, 2000) } : {}),
               ...(action.patch?.income !== void 0 ? { income: { ...normalizeCurrency(action.patch.income), tickets: normalizeTickets(action.patch.income?.tickets) } } : {}),
+              ...(action.patch?.initialPersona !== void 0 ? { initialPersona: normalizeInitialPersona(action.patch.initialPersona) } : {}),
+              ...(action.patch?.personaAcquisitions !== void 0 ? { personaAcquisitions: normalizePersonaAcquisitions(action.patch.personaAcquisitions) } : {}),
               updatedAt: Date.now()
             }
           : r))
