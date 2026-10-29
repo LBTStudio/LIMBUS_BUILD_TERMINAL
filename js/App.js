@@ -1,7 +1,7 @@
 /* V13: 基本機能の説明書（ヘルプ）セクション */
 const HELP_ITEMS = [
-  { group: "prepare", icon: "settings", title: "駒整形で基本情報を設定する", body: "左側の「ワークベンチ」を開き、「基本」タブでキャラクター名・PL名・立ち絵URL・イニシアチブ・駒の色を設定します。人格を装備する前でも入力でき、ステータス一覧とラベル設定も同じタブの下部で扱えます。立ち絵URLは画像URLを1行に1つ入力し、複数行なら差分として扱われます。" },
-  { group: "prepare", icon: "persona", title: "人格を装備する", body: "左側の「ワークベンチ」を開き、「人格」タブでカードを一度押すと詳細が表示され、同じカードをもう一度押すと装備します。装備後にHP、SAN、耐性、パッシブ、スキルを確認します。手動編集は上の「はじめに：人格を選ぶ・作る」を参照してください。" },
+  { group: "prepare", icon: "settings", title: "駒整形で基本情報を設定する", body: "左側の「ビルド」を開き、「基本」タブでキャラクター名・PL名・立ち絵URL・イニシアチブ・駒の色を設定します。人格を装備する前でも入力でき、ステータス一覧とラベル設定も同じタブの下部で扱えます。立ち絵URLは画像URLを1行に1つ入力し、複数行なら差分として扱われます。" },
+  { group: "prepare", icon: "persona", title: "人格を装備する", body: "左側の「ビルド」を開き、「人格」タブでカードを一度押すと詳細が表示され、同じカードをもう一度押すと装備します。装備後にHP、SAN、耐性、パッシブ、スキルを確認します。手動編集は上の「はじめに：人格を選ぶ・作る」を参照してください。" },
   { group: "prepare", icon: "persona", title: "公式人格を手動編集して所持ビルドに保存する", body: "人格を装備して「◈ 同期化して手動編集」を押します。これはステータス・パッシブ・スキル・固有バフの編集モードで、ゲーム上の同期ランク（0・00・000）や同期MAXの設定とは別です。編集を終えるときは「✓ 編集を終了（内容は保持）」を押します。所持人格の保存ビルドとして変更を残すには、変更後に「装備解除」を押し、確認画面でOK（変更を所持人格へ保存して装備解除）を選びます。キャンセルすると装備を継続し、変更は現在の状態に残ります。同期ランクと同期MAXは別設定です。同期ランクは「記録」の所持人格詳細で設定でき、同期MAXはそこに加えて装備中の人格パネルからも切り替えられます。" },
   { group: "prepare", icon: "ego", title: "E.G.Oをランク枠に装備・解析する", body: "ビルド内の「E.G.O」タブでZAYINからALEPHまでの各ランク枠に装備します。装備済み枠を押すと右側に簡易詳細が表示されます。全文の確認・編集は、その詳細で「解析を開始」を押します。終えるときは「解析を終了」を押すと内容を保持して終了します。未解析のE.G.Oは、必要な自我の欠片が不足していると解析を開始できません。" },
   { group: "prepare", icon: "plus", title: "オリジナルE.G.Oを作成する", body: "ビルド内の「E.G.O」タブで「E.G.Oを新規作成」を押し、名前と作成ランクを入力して作成します。選んだランク枠が埋まっている場合は確認が表示されます。作成後は対象の枠を選び、「解析を開始」して効果・ダイスなどを編集します。" },
@@ -16,7 +16,7 @@ const HELP_ITEMS = [
   { group: "operation", icon: "search", title: "クイック検索で画面や候補を探す", body: "クイック検索はPCではCtrl+K（Macでは⌘K）、スマートフォンでは検索ボタンから開きます。画面移動や操作、人格・E.G.O・アイテム候補を横断して探す機能です。通常の人格図鑑では名前・効果・キーワード、大罪・所属・耐性・所持条件など、E.G.O一覧では名前・効果・キーワード、ランク・必要資源／除外資源・所持条件などで絞り込めます。同期ランク／同期MAXは、通常の人格図鑑の共通フィルターではありません。一方、「記録」の所持人格一覧には同期・同期ランク／MAXの絞り込みがあり、設定変更は所持人格詳細から行います。" },
   { group: "save", icon: "archive", title: "所持ライブラリを保存する", body: "記録タブでは所持データと保存済みビルド、リザルトと収支を確認します。PCでは上部バーのアーカイブアイコン「所持ライブラリを保存」、スマートフォンや幅の狭い画面では「操作・保存」（または「その他」）からJSONファイルを書き出し、別端末へ引き継げます。この専用ファイルは登録済みの所持データ・保存済みビルドに加えて、お気に入り・履歴を含みます。現在の作業状態ファイルとは別です。読み込み時は「所持ライブラリ」および「お気に入り・最近の履歴」の適用範囲を確認してください。" },
   { group: "save", icon: "download", title: "作業状態を保存・復元する", body: "通常の編集内容はブラウザー内に自動保存されます。画面上部の保存状態が「端末内保存不可」と表示された場合は、作業を失わないようJSONファイルにも保存してください。「現在の作業状態を保存」は現在のキャラクターだけでなく、所持データ・導入アイテム・リザルト／収支明細・設定なども含む広い作業データを書き出します。読み込み時はファイルに存在するカテゴリが初期選択されます。適用すると選択したカテゴリを上書きするため、残したいものはチェックを外し、表示された適用範囲を確認してください。なお、抽選ログは現行のカテゴリ選択読み込みでは復元されません。" },
-  { group: "imports", icon: "persona", title: "人格データを文章から取り込む", body: "「ワークベンチ」を開き、「人格」タブを選びます。人格一覧の上部操作列にある「テキスト流し込み反映」を押してください（人格未選択時は詳細欄にも同じボタンがあります）。入力方法は「完成データを分けて入力」「一括テキストを貼り付け」「硝子窓URLから移行」の3つ。解析結果とエラーを確認し、必要なら同期元を選んでから「この人格を作成」または「同期人格として反映」を押します。既存の公式人格データ自体を書き換える機能ではありません。" },
+  { group: "imports", icon: "persona", title: "人格データを文章から取り込む", body: "「ビルド」を開き、「人格」タブを選びます。人格一覧の上部操作列にある「テキスト流し込み反映」を押してください（人格未選択時は詳細欄にも同じボタンがあります）。入力方法は「完成データを分けて入力」「一括テキストを貼り付け」「硝子窓URLから移行」の3つ。解析結果とエラーを確認し、必要なら同期元を選んでから「この人格を作成」または「同期人格として反映」を押します。既存の公式人格データ自体を書き換える機能ではありません。" },
   { group: "imports", icon: "copy", title: "リザルト／購入履歴を文章から取り込む", body: "「記録」→「リザルトを記録」カードの「取り込む」→「テキスト流し込み」です。「【シナリオ名】」「報酬｜」「購入｜」「追加購入｜」などを貼り付けると、リザルトと支出の候補が表示されます。読み取れなかった行、金額が決められない支出、除外する行を確認してから「取り込む」を押します。" },
   { group: "imports", icon: "link", title: "硝子窓のキャラクターURLから取り込む", body: "キャラクター全体の所持・履歴を移す場合は「SINNER SELECT」で対象アカウントの「編集」を押し、「硝子窓の共有データ」内の「共有URLから取り込む」へ進みます。URLを読み込み、対象項目・入手方法・追加予定を確認してから確定します。人格1件だけの草案URLは、こちらではなく人格の「テキスト流し込み反映」内にある「硝子窓URLから移行」を使います。" },
   { group: "imports", icon: "roster", title: "所持人格の一覧をまとめて取り込む", body: "「記録」→「リザルトを記録」→「取り込む」→「所持人格リストを取り込む」です。名前を改行で貼り、「検出する」で一致候補を確認し、見つからない名称を必要に応じて解決してから「保存する」を押します。これは所持一覧の追加であり、リザルトや購入履歴の取り込みとは別機能です。" },
@@ -33,8 +33,8 @@ const GUIDE_FLOWS = {
     note: "普段の編集はこの端末のブラウザー内へ自動保存されます。別端末へ移すときは保存ファイルを使います。",
     nodes: [
       { step: "01", title: "SINNER SELECT", body: "作業するキャラクターを選ぶ／必要なら新規作成" },
-      { step: "02", title: "ワークベンチ（基本）", body: "立ち絵・名前・行動順・駒色・ST・ラベルを整える" },
-      { step: "03", title: "ワークベンチ", body: "基本・人格・スキル・パッシブ・E.G.O等を整える" },
+      { step: "02", title: "ビルド（基本）", body: "立ち絵・名前・行動順・駒色・ST・ラベルを整える" },
+      { step: "03", title: "ビルド", body: "基本・人格・スキル・パッシブ・E.G.O等を整える" },
       { step: "04", title: "ショップ（必要な場合）", body: "未所持の候補を探して購入・入手する" },
       { step: "05", title: "プレビュー → CCFOLIA JSON", body: "出力を確認し、必要な形式でコピー・保存" }
     ]
@@ -44,7 +44,7 @@ const GUIDE_FLOWS = {
     note: "4つは別々の入口です。上から順に全部実行する必要はありません。入れたいデータを選び、解析結果・未解決項目・反映先を確認してから確定します。",
     alternatives: true,
     nodes: [
-      { step: "A", title: "人格データそのもの", body: "ワークベンチ → 人格 → テキスト流し込み反映" },
+      { step: "A", title: "人格データそのもの", body: "ビルド → 人格 → テキスト流し込み反映" },
       { step: "B", title: "セッション報酬・購入履歴", body: "記録 → リザルトを記録 → 取り込む → テキスト流し込み" },
       { step: "C", title: "硝子窓のキャラクター全体", body: "SINNER SELECT → 対象アカウントの編集 → 共有URLから取り込む" },
       { step: "D", title: "所持人格の名前一覧", body: "記録 → リザルトを記録 → 取り込む → 所持人格リストを取り込む" }
@@ -284,12 +284,12 @@ const HelpSection = ({ onNavigate, onOpenUtilities }) => {
     if (title.includes("所持人格の一覧")) return "記録 › リザルトを記録 › 取り込む › 所持人格リストを取り込む";
     if (title.includes("キャラクター（アカウント）を選ぶ・作る")) return "起動時の SINNER SELECT / 上部の現在アカウント表示 → アカウント管理";
     if (title.includes("アカウント")) return "上部のアカウント表示 / 設定 › アカウントを切替・管理";
-    if (title.includes("駒整形")) return "ワークベンチ › 基本";
-    if (title.includes("ショップ") || title.includes("未所持")) return "ショップ / ワークベンチの候補フィルター";
-    if (title.includes("E.G.O")) return "ワークベンチ › E.G.O";
-    if (title.includes("戦術スキル")) return "ワークベンチ › スキル";
-    if (title.includes("パッシブとサポート")) return "ワークベンチ › パッシブ / サポート";
-    if (title.includes("精神・強化")) return "ワークベンチ › 精神 / 強化";
+    if (title.includes("駒整形")) return "ビルド › 基本";
+    if (title.includes("ショップ") || title.includes("未所持")) return "ショップ / ビルドの候補フィルター";
+    if (title.includes("E.G.O")) return "ビルド › E.G.O";
+    if (title.includes("戦術スキル")) return "ビルド › スキル";
+    if (title.includes("パッシブとサポート")) return "ビルド › パッシブ / サポート";
+    if (title.includes("精神・強化")) return "ビルド › 精神 / 強化";
     if (title.includes("ステータス・出力先")) return "設定";
     if (title.includes("表示・出力順")) return "ビルド / 設定 / プレビュー";
     if (title.includes("プレビュー")) return "プレビュー › メモ / チャットパレット / JSON";
@@ -303,10 +303,10 @@ const HelpSection = ({ onNavigate, onOpenUtilities }) => {
     if (title.includes("硝子窓のキャラクターURL") || item.group === "accounts") return { label: "アカウント管理を開く", run: openAccounts };
     if (title.includes("人格データを文章")) return { label: "人格タブを開く", run: () => go("persona") };
     if (title.includes("リザルト") || title.includes("所持人格の一覧") || item.group === "record") return { label: "記録を開く", run: () => go("roster", { libraryTab: "ledger" }) };
-    if (title.includes("駒整形")) return { label: "ワークベンチの基本を開く", run: () => go("baseinfo") };
+    if (title.includes("駒整形")) return { label: "ビルドの基本を開く", run: () => go("baseinfo") };
     if (title.includes("未所持") || title.includes("ショップ")) return { label: "ショップを開く", run: () => go("shop") };
     if (title.includes("ステータス・出力先")) return { label: "設定を開く", run: () => go("settings") };
-    if (item.group === "prepare" || item.group === "blocks") return { label: "ワークベンチを開く", run: () => go("persona") };
+    if (item.group === "prepare" || item.group === "blocks") return { label: "ビルドを開く", run: () => go("persona") };
     if (item.group === "output") return { label: "プレビューを開く", run: () => go("persona", { previewOpen: true }) };
     if (item.group === "save") return { label: "保存・共有メニューを開く", run: () => onOpenUtilities?.() };
     return null;
@@ -385,10 +385,10 @@ const HelpSection = ({ onNavigate, onOpenUtilities }) => {
 };
 
 const SECTIONS = [
-  /* ホームは目的別ランチャー。実際の編集画面はワークベンチに集約する。 */
+  /* ホームは目的別ランチャー。実際の編集画面はビルドに集約する。 */
   { id: "home", label: "ホーム", icon: "grid", title: "HOME / LAUNCHER", subtitle: "目的から作業を始める", num: null, group: "home" },
   /* 基本設定・人格・戦術データを同じ作業面にまとめる。 */
-  { id: "persona", label: "ワークベンチ", icon: "grid", title: "BUILD WORKSPACE", subtitle: "基本設定・人格・スキル・パッシブ・強化・サポート・E.G.O・精神・アイテム", num: "01", group: "build" },
+  { id: "persona", label: "ビルド", icon: "grid", title: "BUILD", subtitle: "基本設定・人格・スキル・パッシブ・強化・サポート・E.G.O・精神・アイテム", num: "01", group: "build" },
   { id: "shop", label: "ショップ", icon: "item", title: "SHOP", subtitle: "人格・サポート・E.G.O・精神・アイテムを購入", num: "02", group: "utility" },
   { id: "roster", label: "記録", icon: "roster", title: "CHARACTER RECORD", subtitle: "所持品・リザルト・収支・取り込み", num: null, group: "utility" },
   { id: "settings", label: "設定", icon: "settings", title: "BUILD PARAMETERS", subtitle: "ステータス設計・計算・出力", num: null, group: "utility" },
@@ -492,7 +492,7 @@ const acquirePicked = () => {
     const cmds = [
       ...SECTIONS.map((s) => ({ type: "nav", label: `${s.label} \u30BB\u30AF\u30B7\u30E7\u30F3\u3078\u79FB\u52D5`, kbd: s.num, run: () => dispatch({ type: "SET_UI", ui: { currentSection: s.id === "persona" ? "baseinfo" : s.id } }) })),
       /* ビルドは1画面タブ統合。タブへの直接ジャンプをパレットにも出す。 */
-      ...(window.LBT_BUILD_TABS || []).map((t) => ({ type: "nav", label: `ワークベンチ：${t.label}`, kbd: t.num, run: () => dispatch({ type: "SET_UI", ui: { currentSection: t.id } }) })),
+      ...(window.LBT_BUILD_TABS || []).map((t) => ({ type: "nav", label: `ビルド：${t.label}`, kbd: t.num, run: () => dispatch({ type: "SET_UI", ui: { currentSection: t.id } }) })),
       { type: "act", label: "JSON\u3092\u30B3\u30D4\u30FC", kbd: "JSON", run: async () => {
         try {
           await navigator.clipboard.writeText(JSON.stringify(LBT_gen.buildCcfoliaJSON(state)));
@@ -1275,7 +1275,7 @@ const DisclaimerSheet = ({ open, onClose }) => {
 const RailNavigation = ({ sections, current, dispatch, onOpenUtilities, state }) => {
   const h = React.createElement;
   const buildRailItem = (s) => {
-    /* ワークベンチ（persona）は旧 currentSection 値と基本タブを含めて
+    /* ビルド（persona）は旧 currentSection 値と基本タブを含めて
        アクティブ表示し、必須3項目の合成完了でドットを出す。 */
     const isBuild = s.id === "persona";
     const active = isBuild ? ["baseinfo", "persona", "skill", "passive", "enh", "support", "ego", "spirit", "items-build"].includes(current) : current === s.id;
@@ -1309,7 +1309,7 @@ const HomeLauncher = ({
 
   const groups = [
     {
-      id: "edit", title: "作成・編集", note: "基本設定から戦闘データまで、同じワークベンチで作業します。", items: [
+      id: "edit", title: "作成・編集", note: "基本設定から戦闘データまで、同じビルドで作業します。", items: [
         { id: "base", title: "駒の基本設定", desc: "立ち絵・名前・行動順・駒色・ST・ラベル", icon: "persona", terms: "駒整形 ココフォリア 立ち絵 画像 キャラクター 基本情報", run: () => navigate("baseinfo") },
         { id: "persona", title: "人格を選ぶ・装備する", desc: "所持人格の選択、同期・手動編集", icon: "persona", terms: "人格 所持 装備 同期 手動編集", run: () => navigate("persona") },
         { id: "skills", title: "スキルを編集する", desc: "戦術スキル・ダイス・効果", icon: "skill", terms: "戦術 スキル ダイス 効果", run: () => navigate("skill") },
@@ -1364,9 +1364,9 @@ const HomeLauncher = ({
   return h("section", { className: "home-launcher", "aria-labelledby": "home-launcher-title" },
     h("header", { className: "home-hero" },
       h("div", { className: "home-hero-copy" },
-        h("span", { className: "home-eyebrow" }, "LIMBUS BUILD TERMINAL / WORKSPACE"),
+        h("span", { className: "home-eyebrow" }, "LIMBUS BUILD TERMINAL / BUILD"),
         h("h2", { id: "home-launcher-title" }, "何から始めますか？"),
-        h("p", null, "目的から入口を選べます。細かな編集はワークベンチにまとまっています。"),
+        h("p", null, "目的から入口を選べます。細かな編集はビルドにまとまっています。"),
         h("div", { className: "home-context" },
           h("span", null, "作業対象"),
           h("strong", null, String(state.charName || "名称未設定")),
@@ -1377,7 +1377,7 @@ const HomeLauncher = ({
       h("button", {
         type: "button", className: "home-primary-action",
         onClick: () => navigate("baseinfo")
-      }, h(Icon, { name: "grid", size: 17 }), h("span", null, "ワークベンチを開く"))
+      }, h(Icon, { name: "grid", size: 17 }), h("span", null, "ビルドを開く"))
     ),
     h("label", { className: "home-search" },
       h(Icon, { name: "search", size: 17 }),
@@ -1649,7 +1649,7 @@ const App = () => {
           onTogglePreview: togglePreview,
           onCopyJson: copyJson
         });
-      /* 基本設定・人格・戦闘データを同じワークベンチ内で扱う。 */
+      /* 基本設定・人格・戦闘データを同じビルド内で扱う。 */
       case "baseinfo":
       case "persona":
       case "skill":
