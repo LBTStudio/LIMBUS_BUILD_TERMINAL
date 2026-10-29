@@ -238,6 +238,8 @@ window.addEventListener("load", function(){
   .app.preview-collapsed { grid-template-columns: var(--rail-w) minmax(0, 1fr) 0; }
   /* Keep the fixed edge toggle out of the main workspace hit targets when the preview is closed. */
   .app.preview-collapsed .focus { padding-right: 64px; }
+  /* Narrow the desktop edge tab so it does not touch the center-column heading row. */
+  .preview-edge-toggle { width: 32px; }
   .rail {
     padding: 18px 10px 14px;
     gap: 12px;
