@@ -64,7 +64,7 @@ test("リザルトを削除したらその明細も消える（未分類へ戻�
 
 test("renderSection は基本を含む9タブのワークベンチへ振り分ける", () => {
   const start = app.indexOf("const renderSection = ()");
-  const block = app.slice(start, app.indexOf('case "roster":', start));
+  const block = app.slice(start, app.indexOf("const previewOpen =", start));
   for (const id of ["baseinfo", "persona", "skill", "passive", "enh", "support", "ego", "spirit", "items-build"]) {
     assert.match(block, new RegExp(`case "${id}":`), `${id} の case が無い`);
   }
