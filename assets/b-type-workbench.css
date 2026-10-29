@@ -44,8 +44,9 @@
   .rail-item.is-active .rail-icon { color: #e5c47e; }
   .rail-label { min-width: 0; font-size: 12px; font-weight: 550; }
   .topbar { min-height: 48px; padding-inline: 16px; gap: 10px; background: rgba(18,16,12,.97); border-bottom-color: rgba(220,179,97,.22); }
-  .brand { flex: 0 1 auto; min-width: 185px; gap: 9px; }
-  .brand-name { white-space: nowrap; font-size: 12px; letter-spacing: .06em; }
+  .brand { flex: 0 0 auto; min-width: 210px; gap: 9px; }
+  .brand-name { flex: 0 0 auto; white-space: nowrap; font-size: 11px; letter-spacing: .03em; }
+  .brand-sub { display: none; }
   .brand-author-name { display: none; }
   .topbar-search { flex: 0 1 180px; min-width: 120px; }
   .brand-sub { white-space: nowrap; font-size: 9px; }
@@ -73,6 +74,7 @@
   .rail-group-label { display: none; }
   .focus { min-width: 0; padding: 18px 16px; }
   .focus-inner { min-width: 0; width: 100%; }
+  .rail-foot { display: none; }
   .app.has-preview .preview {
     display: flex; position: fixed; z-index: 90; inset-inline: 0; top: auto; bottom: 58px;
     width: auto; height: min(52dvh, 520px); max-height: calc(100dvh - 100px);
@@ -139,9 +141,6 @@
 .btype-task-copy strong { display: block; font-size: 12px; }
 .btype-task-copy small { display: block; margin-top: 3px; color: #9e9586; font-size: 10px; line-height: 1.5; }
 .btype-task-chevron { color: #d6b56b; font-size: 22px; }
-@media (min-width: 1100px) {
-  .btype-launcher-grid { grid-template-columns: repeat(4,minmax(0,1fr)); }
-}
 @media (max-width: 850px) {
   .btype-command-hero { padding: 18px; }
   .btype-command-hero h2 { font-size: 22px; }
