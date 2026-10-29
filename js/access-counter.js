@@ -10,10 +10,10 @@
   badge.setAttribute("role", "status");
   badge.setAttribute("aria-live", "polite");
   badge.setAttribute("aria-label", "LIMBUS BUILD TERMINALの総ページ閲覧数");
-  const hasMobileBottomNavigation = window.matchMedia("(max-width: 640px)").matches;
+  const hasBottomNavigation = window.matchMedia("(max-width: 640px), (max-height: 500px) and (orientation: landscape)").matches;
   Object.assign(badge.style, {
     position: "fixed", right: "10px",
-    bottom: hasMobileBottomNavigation ? "calc(74px + env(safe-area-inset-bottom, 0px))" : "10px",
+    bottom: hasBottomNavigation ? "calc(74px + env(safe-area-inset-bottom, 0px))" : "10px",
     zIndex: "900",
     maxWidth: "calc(100vw - 20px)", padding: "5px 9px",
     border: "1px solid rgba(212,175,95,.45)", borderRadius: "999px",
