@@ -2566,16 +2566,6 @@ body.has-detail-dialog main.preview { overflow: hidden; }
   background: color-mix(in srgb, var(--pv-token-color) 9%, #101416);
   box-shadow: 0 9px 24px rgb(0 0 0 / 28%);
 }
-.pv-token-initiative {
-  align-self: stretch;
-  text-align: center;
-  padding: 3px 6px;
-  color: var(--tx);
-  background: color-mix(in srgb, var(--pv-token-color) 25%, #151819);
-  border: 1px solid color-mix(in srgb, var(--pv-token-color) 54%, transparent);
-  border-radius: var(--r-sm);
-  font: 600 var(--fs-10)/1.4 var(--f-mono);
-}
 .pv-token-board-avatar {
   display: grid;
   place-items: center;
@@ -2632,10 +2622,11 @@ body.has-detail-dialog main.preview { overflow: hidden; }
 }
 .pv-token-board-details {
   display: grid;
-  grid-template-columns: minmax(76px, .55fr) minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--s-2);
   min-width: 0;
 }
+.pv-token-board-status-grid { grid-column: 1 / -1; }
 .pv-token-identity {
   display: flex;
   flex-direction: column;
