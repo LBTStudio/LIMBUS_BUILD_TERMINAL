@@ -75,7 +75,7 @@ test("B-type phone navigation matches the approved four routes and preserves acc
   }
   assert.match(nav, /onOpenImportRouter/);
   assert.match(nav, /onOpenUtilities/);
-  assert.match(app, /SECTIONS\.filter\(\(s\) => s\.group === "utility" \|\| s\.id === "home"\)/);
+  assert.match(app, /SECTIONS\.filter\(\(s\) => s\.group === "utility" \|\| s\.id === "home" \|\| s\.id === "shop"\)/);
   assert.match(workbench, /\.btype-mobile-bottom-nav\s*\{\s*display:\s*none/);
   assert.match(workbench, /@media \(max-width: 640px\)[\s\S]*?\.app > \.rail \{ display: none !important; \}[\s\S]*?\.btype-mobile-bottom-nav/);
   assert.match(workbench, /grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)/);
