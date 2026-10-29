@@ -116,6 +116,8 @@ test("未分類所持は右側の追従リストへ出し、カードへドラ�
   assert.match(uiFlat, /onDropItem\(key, block\.key \|\| ""\)/);
   assert.match(uiFlat, /const dropToBlock = \(itemKey, scenarioKey\) =>/);
   assert.match(uiFlat, /pickedScenarioKey: scenarioKey, pickedScenario: ""/);
+  assert.match(uiFlat, /displayName: scenarioOptions\.find\(\(option\) => option\.key === String\(block\.key\)\)\?\.label \|\| block\.name/);
+  assert.match(uiFlat, /const title = displayName && displayName !== "無題"/);
   /* ドラッグが使えない環境用のフォールバック。 */
   assert.match(uiFlat, /の帰属先シナリオ（未分類）/);
   assert.match(uiFlat, /onPickIdentity\(item\.key, \{ pickedScenarioKey: event\.target\.value, pickedScenario: "" \}\)/);
