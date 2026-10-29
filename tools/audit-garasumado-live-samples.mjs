@@ -353,7 +353,27 @@ function auditExplicitSpendCues(lines, spendTrace, reasons, coverages, audits) {
     const hasCurrencyAmount =
       /(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか))\s*[:：]?\s*[+＋-]?\s*\d[\d,]*|[+＋-]?\s*\d[\d,]*\s*(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか))/i.test(normalized);
     if (!hasCurrencyAmount) continue;
-    const hasExplicitSpendAction = /消費|使用|支払|支払い|支出|購入(?!できる|可能|条件)|買った|買っ|使った|使い/.test(normalized);
+    /* 「チケットを使用」「同期化に使用」のような消費動詞は通貨支出とは限らない。
+       使用・使いの場合は金額の近傍にあるときだけ支出候補とし、チケット／技能／同期化の
+       語句が間にある場合は通貨消費へ短絡しない。 */
+    const currencyAmountPattern = /(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか))\s*[:：]?\s*[+＋-]?\s*\d[\d,]*|[+＋-]?\s*\d[\d,]*\s*(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか))/gi;
+    const currencyAmountMatches = [...normalized.matchAll(currencyAmountPattern)];
+    const usageMatches = [...normalized.matchAll(/使用|使い/g)];
+    const usageNearCurrency = usageMatches.some((usage) => currencyAmountMatches.some((amount) => {
+      const amountEnd = amount.index + amount[0].length;
+      const distance = usage.index >= amountEnd
+        ? usage.index - amountEnd
+        : amount.index >= usage.index + usage[0].length
+          ? amount.index - (usage.index + usage[0].length)
+          : 0;
+      if (distance > 12) return false;
+      const gapStart = Math.min(amountEnd, usage.index + usage[0].length);
+      const gapEnd = Math.max(amount.index, usage.index);
+      const gap = normalized.slice(gapStart, gapEnd);
+      return !/(?:チケット|チケ|同期|CT\s*\d|スキル|人格|E\.?G\.?O|エゴ|抽出|ガチャ)/i.test(gap);
+    }));
+    const hasUsageCue = usageMatches.length > 0;
+    const hasExplicitSpendAction = /消費|支払|支払い|支出|購入(?!できる|可能|条件)|買った|買っ|使った/.test(normalized) || usageNearCurrency;
     const hasNegativeCurrency = /(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか))\s*[-]\s*\d|[-]\s*\d[\d,]*\s*(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか))/i.test(normalized)
       && !/(?:現在|現座|残高|残り|所持|保有)/.test(normalized);
     if (!hasExplicitSpendAction && !hasNegativeCurrency) continue;
@@ -368,6 +388,8 @@ function auditExplicitSpendCues(lines, spendTrace, reasons, coverages, audits) {
     candidates.push({
       lineIndex,
       hasExplicitSpendAction,
+      hasUsageCue,
+      usageNearCurrency,
       hasNegativeCurrency,
       spendRecords: sameLineSpends.length,
       hasSpendRecord: sameLineSpends.length > 0,
@@ -387,6 +409,8 @@ function auditExplicitSpendCues(lines, spendTrace, reasons, coverages, audits) {
   return {
     candidateRows: candidates.length,
     explicitSpendActionRows: candidates.filter((row) => row.hasExplicitSpendAction).length,
+    usageCueRows: candidates.filter((row) => row.hasUsageCue).length,
+    usageNearCurrencyRows: candidates.filter((row) => row.usageNearCurrency).length,
     negativeCurrencyRows: candidates.filter((row) => row.hasNegativeCurrency).length,
     rowsWithSpendRecord: candidates.filter((row) => row.hasSpendRecord).length,
     rowsWithoutSpendRecord: missing.length,
@@ -905,6 +929,8 @@ function toMarkdownReport(report) {
     ["日時を抽出できた文書（全体 / 残高照合対象）", report.source.historyChronologySummary.documentsWithAnyParsableTime + " / " + report.source.historyChronologySummary.balanceEligibleWithParsableTime],
     ["配列順（昇順相当 / 降順相当 / 混在）", (report.source.historyChronologySummary.balanceEligibleOrderCounts["ascending-or-tied"] || 0) + " / " + (report.source.historyChronologySummary.balanceEligibleOrderCounts["descending-or-tied"] || 0) + " / " + (report.source.historyChronologySummary.balanceEligibleOrderCounts.mixed || 0)],
     ["通貨額＋支出語句／負額の支出候補行", report.parser.explicitSpendCueAuditSummary.candidateRows],
+    ["支出候補内の「使用／使い」表記", report.parser.explicitSpendCueAuditSummary.usageCueRows],
+    ["うち通貨額の近くに「使用／使い」がある", report.parser.explicitSpendCueAuditSummary.usageNearCurrencyRows],
     ["うち支出明細が同じ行にある", report.parser.explicitSpendCueAuditSummary.rowsWithSpendRecord],
     ["支出明細がない候補（理由・要確認あり）", report.parser.explicitSpendCueAuditSummary.rowsWithoutSpendRecordWithReason],
     ["支出明細も理由もない候補", report.parser.explicitSpendCueAuditSummary.rowsWithoutSpendRecordUnexplained],
@@ -1564,6 +1590,8 @@ const explicitSpendCueAuditDocuments = successful.map((entry) => {
     memoRows: entry.actualMemoRows,
     candidateRows: sum("candidateRows"),
     explicitSpendActionRows: sum("explicitSpendActionRows"),
+    usageCueRows: sum("usageCueRows"),
+    usageNearCurrencyRows: sum("usageNearCurrencyRows"),
     negativeCurrencyRows: sum("negativeCurrencyRows"),
     rowsWithSpendRecord: sum("rowsWithSpendRecord"),
     rowsWithoutSpendRecord: sum("rowsWithoutSpendRecord"),
