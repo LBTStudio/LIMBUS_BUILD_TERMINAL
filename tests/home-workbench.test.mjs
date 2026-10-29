@@ -113,6 +113,8 @@ test("プレビュー用キャプチャーは現行の「ビルド」表示を�
 test("ステータス一覧・編集・出力順はBタイプのビルド画面に一体化している", () => {
   assert.match(index, /id="b-type-production-rollout"/);
   assert.match(index, /B-type parity: status list, direct editing and emitted order/);
+  assert.match(index, /\.settings-order-embedded \.status-order-scroll \{[\s\S]*?display: block/);
+  assert.match(index, /\.settings-order-embedded \.status-order-row \+ \.status-order-row \{ margin-top: 6px; \}/);
   for (const selector of [
     ".settings-order-embedded",
     ".status-order-row:hover",
