@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import vm from "node:vm";
+import { loadRuntime, equipPersona } from "../tools/provenance/pipeline-harness.mjs";
 
 function loadShareLink(db = null, config = {}, environment = {}) {
   const source = readFileSync(new URL("../js/share-link.js", import.meta.url), "utf8");
@@ -253,19 +254,40 @@ test("実データの長文人格ではURL長を明示し、Discord本文上限�
   assert.equal(restored.skills.length, persona.skills.length);
 });
 
-test("既存人格へ帰属した同期草案は共有時も公式参照を維持し、草案名と編集内容を復元する", async () => {
+test("既存人格へ帰属した同期草案は共有時も公式参照を維持し、同期・カスタムのパッシブ内容を復元する", async () => {
   const db = JSON.parse(readFileSync(new URL("../data/db.json", import.meta.url), "utf8"));
   const share = loadShareLink(db);
   const persona = db.normal_personas[0];
   const importedName = "草案から反映した同期人格";
   const importedSkill = { rank: "スキル1", name: "草案スキル", type: "斬撃", sin: "傲慢", dice: [{ roll: "2d9", effect: "草案効果" }] };
+  const importedPassive = {
+    name: "草案パッシブ",
+    cond: "憤怒×3",
+    always: "草案の常時効果",
+    effect: "草案の効果本文"
+  };
+  const extraPassive = {
+    name: "カスタム追加パッシブ",
+    cond: "傲慢×2",
+    always: "追加パッシブの常時効果",
+    effect: "追加パッシブの効果本文"
+  };
+  const legacyPassive = {
+    name: "旧形式の追加パッシブ",
+    cond: "嫉妬×1",
+    always: "旧形式の常時効果",
+    effect: "旧形式の効果本文"
+  };
   const state = {
     personaMode: "n",
     personaNo: persona.no,
     personaSrc: { ...persona, name: importedName, __custom: false, __affiliation: { mode: "n", no: persona.no } },
     hp: "160", san: "55", speed: "1d5+2", bullets: "10",
     resS: "普通", resP: "抵抗", resB: "弱点",
-    pas: { name: "草案パッシブ", cond: "憤怒×3", always: "", effect: "草案効果" },
+    pas: importedPassive,
+    extraPassives: [extraPassive],
+    pas2Enabled: true,
+    pas2: legacyPassive,
     skills: [importedSkill],
     uniqueBuffs: [],
     roster: { personas: [{ uid: "affiliated", mode: "n", no: persona.no, syncRank: "000", syncMax: true, equipped: true }] }
@@ -275,11 +297,75 @@ test("既存人格へ帰属した同期草案は共有時も公式参照を維�
   assert.deepEqual(JSON.parse(JSON.stringify(snapshot.personaRef)), { mode: "n", no: persona.no });
   assert.equal(snapshot.personaSrc.name, importedName);
   assert.equal(snapshot.skills[0].name, "草案スキル");
-  const restored = share.hydratePersonaReference(await share.decodeToken(await share.encodeState(state)), db);
+  assert.deepEqual(JSON.parse(JSON.stringify(snapshot.pas)), importedPassive);
+  assert.deepEqual(JSON.parse(JSON.stringify(snapshot.extraPassives[0])), extraPassive);
+  assert.equal(snapshot.pas2Enabled, true);
+  assert.deepEqual(JSON.parse(JSON.stringify(snapshot.pas2)), legacyPassive);
+
+  const token = await share.encodeState(state, { includeOgpImage: false });
+  const restored = share.hydratePersonaReference(await share.decodeToken(token), db);
   assert.equal(restored.personaMode, "n");
   assert.equal(restored.personaNo, persona.no);
   assert.equal(restored.personaSrc.name, importedName);
   assert.equal(restored.skills[0].name, "草案スキル");
+  assert.deepEqual(JSON.parse(JSON.stringify(restored.pas)), importedPassive);
+  assert.deepEqual(JSON.parse(JSON.stringify(restored.extraPassives[0])), extraPassive);
+  assert.equal(restored.pas2Enabled, true);
+  assert.deepEqual(JSON.parse(JSON.stringify(restored.pas2)), legacyPassive);
+});
+
+test("同期・カスタムのパッシブは共有HTMLを生成する段階まで保持され、実際の表示本文に出力される", async () => {
+  const runtime = loadRuntime();
+  const db = runtime.db;
+  const persona = db.normal_personas[0];
+  const share = loadShareLink(db);
+  const baseState = equipPersona(runtime, "n", persona);
+  const state = {
+    ...baseState,
+    personaSrc: {
+      ...(baseState.personaSrc || persona),
+      name: "共有HTML用の同期表示名",
+      __custom: false,
+      __affiliation: { mode: "n", no: persona.no }
+    },
+    pas: {
+      name: "共有HTML同期パッシブ",
+      cond: "憤怒×3",
+      always: "共有HTML常時効果",
+      effect: "共有HTML効果本文"
+    },
+    extraPassives: [{
+      name: "共有HTMLカスタム追加",
+      cond: "傲慢×2",
+      always: "共有HTML追加常時効果",
+      effect: "共有HTML追加効果本文"
+    }],
+    pas2Enabled: true,
+    pas2: {
+      name: "共有HTML旧形式追加",
+      cond: "嫉妬×1",
+      always: "共有HTML旧形式常時効果",
+      effect: "共有HTML旧形式効果本文"
+    }
+  };
+  const token = await share.encodeState(state, { includeOgpImage: false });
+  const hydrated = share.hydratePersonaReference(await share.decodeToken(token), db);
+  const html = runtime.gen.buildShareSheetHTML(hydrated);
+
+  for (const expected of [
+    "共有HTML同期パッシブ",
+    "憤怒×3",
+    "共有HTML常時効果",
+    "共有HTML効果本文",
+    "共有HTMLカスタム追加",
+    "共有HTML追加常時効果",
+    "共有HTML追加効果本文",
+    "共有HTML旧形式追加",
+    "共有HTML旧形式常時効果",
+    "共有HTML旧形式効果本文"
+  ]) {
+    assert.ok(html.includes(expected), `共有HTMLに「${expected}」が出力される`);
+  }
 });
 
 test("公式データ参照はE.G.O・サポート・強化・精神・公式複製アイテムを欠損なく復元する", async () => {
