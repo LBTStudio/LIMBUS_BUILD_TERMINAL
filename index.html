@@ -370,6 +370,129 @@ window.addEventListener("load", function(){
   .rail-item { transition: none; }
 }
 
+
+/* B-type parity: status list, direct editing and emitted order belong to the Build surface. */
+.settings-order-embedded {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  background: linear-gradient(145deg, rgba(198,154,69,.055), rgba(13,11,9,.72) 48%);
+  border: 1px solid rgba(220,179,97,.23);
+  border-radius: 11px;
+  box-shadow: inset 0 1px rgba(255,255,255,.025);
+}
+.settings-order-embedded > .settings-status-workspace-head {
+  align-items: center;
+  gap: 14px;
+  margin: 0;
+  padding: 0 0 12px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(220,179,97,.17);
+}
+.settings-order-embedded .settings-status-workspace-head .t-label {
+  display: block;
+  color: #f0d69b;
+  font: 700 11px/1.4 var(--f-display);
+  letter-spacing: .12em;
+}
+.settings-order-embedded .settings-section-note { max-width: 78ch; color: #bdb19b; line-height: 1.6; }
+.settings-order-embedded .settings-status-workspace-actions { gap: 7px; }
+.settings-order-embedded .settings-status-workspace-actions .btn { min-height: 36px; border-radius: 7px; }
+.settings-order-embedded .settings-status-workspace-actions .btn:first-child {
+  color: #f2d99f;
+  background: rgba(202,162,82,.11);
+  border-color: rgba(220,179,97,.32);
+}
+.settings-order-embedded .status-order-instruction {
+  padding: 10px 12px;
+  border-left-color: #d6ad5c;
+  border-radius: 0 7px 7px 0;
+  color: #c7b99f;
+  background: rgba(202,162,82,.055);
+}
+.settings-order-embedded .status-order-instruction strong { color: #e9ca84; }
+.settings-order-embedded .status-order-scroll {
+  display: grid;
+  gap: 6px;
+  padding: 6px;
+  background: #110f0c;
+  border: 1px solid rgba(220,179,97,.20);
+  border-radius: 9px;
+}
+.settings-order-embedded .status-order-row {
+  min-height: 54px;
+  padding: 7px 9px;
+  background: linear-gradient(100deg, rgba(39,32,22,.96), rgba(25,21,16,.98));
+  border-color: rgba(220,179,97,.16);
+  border-radius: 7px;
+  transition: background .14s ease, border-color .14s ease, box-shadow .14s ease;
+}
+.settings-order-embedded .status-order-row:hover {
+  background: linear-gradient(100deg, rgba(49,39,25,.98), rgba(29,24,17,.98));
+  border-color: rgba(220,179,97,.34);
+}
+.settings-order-embedded .status-order-row:focus-within {
+  border-color: rgba(220,179,97,.52);
+  box-shadow: 0 0 0 2px rgba(202,162,82,.08);
+}
+.settings-order-embedded .status-order-handle {
+  display: inline-grid;
+  place-items: center;
+  color: #e1c17a;
+  background: rgba(202,162,82,.075);
+  border: 1px solid rgba(220,179,97,.18);
+  border-radius: 6px;
+}
+.settings-order-embedded .status-order-index { color: #b4a17b; }
+.settings-order-embedded .status-order-name .input,
+.settings-order-embedded .status-order-number .input {
+  min-height: 32px;
+  color: #f0e7d5;
+  background: rgba(12,10,8,.78);
+  border-color: rgba(220,179,97,.20);
+  border-radius: 6px;
+}
+.settings-order-embedded .status-order-name .input:focus,
+.settings-order-embedded .status-order-number .input:focus {
+  border-color: rgba(220,179,97,.6);
+  box-shadow: 0 0 0 2px rgba(202,162,82,.1);
+}
+.settings-order-embedded .status-order-name .input:disabled {
+  color: #e5d3a9;
+  background: rgba(202,162,82,.06);
+  opacity: 1;
+}
+.settings-order-embedded .status-order-source {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(10,9,7,.32);
+}
+.settings-order-embedded .status-order-linked-value { background: rgba(202,162,82,.055); }
+.settings-order-embedded .status-order-row .reorder-btn {
+  color: #d8c49c;
+  background: rgba(255,255,255,.025);
+  border: 1px solid rgba(220,179,97,.18);
+  border-radius: 6px;
+}
+.settings-order-embedded .status-order-row .reorder-btn:hover:not(:disabled) {
+  color: #fff0cc;
+  background: rgba(202,162,82,.11);
+  border-color: rgba(220,179,97,.4);
+}
+.settings-order-embedded .status-order-row .reorder-btn:disabled { opacity: .32; }
+.settings-order-embedded .status-order-row > .btn-icon { background: rgba(179,77,77,.08); border-radius: 6px; }
+.settings-order-embedded :is(button,input):focus-visible,
+.settings-order-embedded .status-order-handle:focus-visible { outline: 2px solid #e0bd6e; outline-offset: 2px; }
+@media (max-width: 640px) {
+  .settings-order-embedded { gap: 10px; padding: 10px; border-radius: 9px; }
+  .settings-order-embedded > .settings-status-workspace-head { padding-bottom: 10px; }
+  .settings-order-embedded .settings-status-workspace-actions .btn { min-height: 40px; }
+  .settings-order-embedded .status-order-scroll { gap: 6px; padding: 5px; }
+  .settings-order-embedded .status-order-row { padding: 8px; }
+}
+@media (prefers-reduced-motion: reduce) { .settings-order-embedded .status-order-row { transition: none; } }
+
 </style>
 </head>
 <body style="background-color:#14110d">
