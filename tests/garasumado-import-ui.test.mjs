@@ -116,7 +116,9 @@ test("未分類所持は右側の追従リストへ出し、カードへドラ�
   assert.match(uiFlat, /onDropItem\(key, block\.name \|\| ""\)/);
   /* ドラッグが使えない環境用のフォールバック。 */
   assert.match(uiFlat, /の帰属先シナリオ（未分類）/);
-  assert.match(uiFlat, /onPickIdentity\(item\.key, \{ pickedScenario: event\.target\.value \}\)/);
+  assert.match(uiFlat, /onPickIdentity\(item\.key, \{ pickedScenarioKey: event\.target\.value, pickedScenario: "" \}\)/);
+  assert.match(uiFlat, /option\.key, value: option\.key/);
+  assert.match(uiFlat, /scenarioOptionsOf\(manifest\.scenarios \|\| \[\]\)/);
 });
 
 test("カードの行を未割当リストへ戻して再分類できる（ドラッグ・バック）", () => {
