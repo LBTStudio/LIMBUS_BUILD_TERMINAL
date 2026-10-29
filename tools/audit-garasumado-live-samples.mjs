@@ -1016,9 +1016,13 @@ function auditFreeNotes(doc) {
       looksArithmetic: numberTokens.length >= 2 && /[×x＝=+＋()（）]/.test(line),
       hasTicketOrDrawCue: /チケット|チケ|抽出|ガチャ/i.test(line)
     };
+    /* Arithmetic-like notation remains a separate caution flag, but two amounts or a
+       quantity marker alone do not erase an otherwise explicit expense cue. Require a
+       currency amount, spend verb, parser-produced expense, no parser reason and no balance
+       or arrow context; reviewers can then inspect the independent arithmetic flag. */
     const explicitAmountExpenseCandidate = flags.hasCurrencyAmount &&
       flags.hasExplicitSpendVerb && actual.length > 0 && reasonCount === 0 &&
-      !flags.hasBalanceCue && !flags.hasArrow && !flags.looksArithmetic;
+      !flags.hasBalanceCue && !flags.hasArrow;
     unrecognizedCueRows.push({
       lineIndex: i + 1,
       lineLength: line.length,
