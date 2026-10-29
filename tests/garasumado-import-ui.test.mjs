@@ -113,7 +113,9 @@ test("未分類所持は右側の追従リストへ出し、カードへドラ�
   assert.match(uiFlat, /draggable: true,/);
   assert.match(uiFlat, /event\.dataTransfer\.setData\("text\/plain", item\.key\)/);
   assert.match(uiFlat, /onDropItem: dropToBlock/);
-  assert.match(uiFlat, /onDropItem\(key, block\.name \|\| ""\)/);
+  assert.match(uiFlat, /onDropItem\(key, block\.key \|\| ""\)/);
+  assert.match(uiFlat, /const dropToBlock = \(itemKey, scenarioKey\) =>/);
+  assert.match(uiFlat, /pickedScenarioKey: scenarioKey, pickedScenario: ""/);
   /* ドラッグが使えない環境用のフォールバック。 */
   assert.match(uiFlat, /の帰属先シナリオ（未分類）/);
   assert.match(uiFlat, /onPickIdentity\(item\.key, \{ pickedScenarioKey: event\.target\.value, pickedScenario: "" \}\)/);
