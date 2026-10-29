@@ -195,6 +195,33 @@ async function runProfile(browser,profile) {
     const openPath=path.join(OUT,profile.name+"-open.png");
     await page.screenshot({path:openPath,animations:"disabled"});
     results.screenshots.push({file:path.relative(ROOT,openPath),profile:profile.name,state:"open",metrics:opened});
+
+    /* The token preview must work within the same panel on desktop and mobile,
+       and must not duplicate the JSON-copy action when the user is already viewing output data. */
+    const tokenTab=page.locator(".preview-tabs button[aria-label='ココフォリア駒プレビュー']");
+    await tokenTab.waitFor({state:"visible",timeout:5000});
+    await tokenTab.click();
+    await page.locator(".pv-token-board").waitFor({state:"visible",timeout:5000});
+    const tokenActions=await page.locator(".preview-actions button").count();
+    const tokenOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+2);
+    recordCheck(profile.name+": token preview opens with one JSON action and no horizontal overflow",
+      await page.locator(".pv-token-preview").isVisible()&&tokenActions===1&&!tokenOverflow,
+      {tokenActions,horizontalOverflow:tokenOverflow,viewport:page.viewportSize()});
+    const tokenLookPath=path.join(OUT,profile.name+"-token-look.png");
+    await page.screenshot({path:tokenLookPath,animations:"disabled"});
+    results.screenshots.push({file:path.relative(ROOT,tokenLookPath),profile:profile.name,state:"token-look"});
+
+    await page.getByRole("button",{name:"項目一覧",exact:true}).click();
+    await page.locator(".pv-token-sheet-view").waitFor({state:"visible",timeout:5000});
+    const itemActions=await page.locator(".preview-actions button").count();
+    const itemOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+2);
+    recordCheck(profile.name+": item list view keeps one JSON action and fits the viewport",
+      await page.locator(".pv-token-sheet-view").isVisible()&&itemActions===1&&!itemOverflow,
+      {itemActions,horizontalOverflow:itemOverflow,viewport:page.viewportSize()});
+    const tokenFieldsPath=path.join(OUT,profile.name+"-token-fields.png");
+    await page.screenshot({path:tokenFieldsPath,animations:"disabled"});
+    results.screenshots.push({file:path.relative(ROOT,tokenFieldsPath),profile:profile.name,state:"token-fields"});
+
     await toggle.click();
     await page.waitForTimeout(220);
     const closedAgain=await metrics(page,profile);
@@ -219,6 +246,6 @@ async function main() {
   results.checkCount=results.checks.length;
   fs.writeFileSync(path.join(OUT,"manifest.json"),JSON.stringify(results,null,2)+"\n");
   console.log("[preview-control-regression] "+JSON.stringify({screenshots:results.count,checks:results.checkCount,failures:results.failures.length,summary:results.failures.map(f=>({name:f.name,error:f.error,collisions:f.collisions,gapFromPanel:f.gapFromPanel}))}));
-  if(results.failures.length||results.count!==profiles.length*2) process.exitCode=1;
+  if(results.failures.length||results.count!==profiles.length*4) process.exitCode=1;
 }
 main().catch(error=>{console.error("[preview-control-regression] fatal: "+(error?.stack||String(error)));process.exitCode=1;});
