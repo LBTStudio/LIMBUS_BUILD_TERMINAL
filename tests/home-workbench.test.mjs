@@ -9,10 +9,10 @@ const persona = read("../js/PersonaCodex.js");
 const state = read("../js/state.js");
 const css = read("../assets/workspace.css");
 
-test("ホームが左レールの入口になり、ワークベンチ内に基本タブを置く", () => {
+test("ホームが左レールの入口になり、ビルド内に基本タブを置く", () => {
   const nav = app.slice(app.indexOf("const SECTIONS = ["), app.indexOf("function isComplete"));
   assert.match(nav, /id: "home", label: "ホーム"/);
-  assert.match(nav, /id: "persona", label: "ワークベンチ"/);
+  assert.match(nav, /id: "persona", label: "ビルド"/);
   assert.doesNotMatch(nav, /id: "baseinfo"/);
   assert.match(app, /s\.id === "persona" \? "baseinfo" : s\.id/);
   assert.match(app, /const current = state\.ui\.currentSection \|\| "home"/);
