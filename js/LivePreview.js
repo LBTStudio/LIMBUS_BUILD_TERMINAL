@@ -138,88 +138,164 @@ const LivePreview = ({ state, dispatch }) => {
   const tokenColor = /^#[0-9a-f]{6}$/i.test(String(tokenData.color || "")) ? tokenData.color : "#c8a84b";
   const tokenStatus = Array.isArray(tokenData.status) ? tokenData.status : [];
   const tokenParams = Array.isArray(tokenData.params) ? tokenData.params : [];
-  const renderTokenImage = (className, alt) => h("div", { className },
-    tokenImage && !tokenImageFailed
-      ? h("img", { src: tokenImage, alt, onError: () => setTokenImageFailed(true) })
-      : h("span", { className: "pv-token-image-empty", role: "img", "aria-label": alt + "：画像なし" }, "◈")
+  const renderPreviewImage = (src, className, alt) => h("div", { className },
+    src && !tokenImageFailed
+      ? h("img", { src, alt, onError: () => setTokenImageFailed(true) })
+      : h("span", { className: "pv-ccfolia-empty-media", role: "img", "aria-label": alt + "：画像なし" }, "画像なし")
   );
-  const renderTokenStatus = (entry) => {
+  const previewField = (label, value, extraClass = "") => h("div", { className: "pv-ccfolia-field " + extraClass },
+    h("div", { className: "pv-ccfolia-field-label" }, label),
+    h("div", { className: "pv-ccfolia-field-value" }, value == null || value === "" ? "（未設定）" : String(value))
+  );
+  const renderRosterStatus = (entry) => {
     const value = Number(entry.value);
     const max = Number(entry.max);
     const hasRatio = Number.isFinite(value) && Number.isFinite(max) && max > 0;
     const ratio = hasRatio ? Math.max(0, Math.min(100, value / max * 100)) : 0;
-    return h("div", { key: String(entry.label || ""), className: "pv-token-status" },
-      h("div", { className: "pv-token-status-top" },
-        h("span", { className: "pv-token-status-label" }, String(entry.label || "状態")),
-        h("span", { className: "pv-token-status-value" }, String(entry.value ?? "—") + (entry.max == null ? "" : " / " + entry.max))
+    return h("div", { key: String(entry.label || "状態"), className: "pv-ccfolia-status" },
+      h("div", { className: "pv-ccfolia-status-heading" },
+        h("span", { className: "pv-ccfolia-status-label" }, String(entry.label || "状態")),
+        h("span", { className: "pv-ccfolia-status-value" },
+          String(entry.value ?? "—") + (entry.max == null ? "" : " / " + entry.max))
       ),
-      h("div", { className: "pv-token-status-track", "aria-hidden": "true" },
+      h("div", { className: "pv-ccfolia-status-track", "aria-hidden": "true" },
         h("span", { style: { width: String(ratio) + "%", backgroundColor: tokenColor } })
       )
     );
   };
-  const renderTokenPreview = () => h("section", { className: "pv-token-preview", "aria-label": "ココフォリア駒プレビュー" },
-    h("header", { className: "pv-token-preview-head" },
+  const renderEditorStatus = (entry) => h("div", {
+    key: String(entry.label || "状態"),
+    className: "pv-ccfolia-edit-status-row"
+  },
+    h("span", { className: "pv-ccfolia-edit-status-label" }, String(entry.label || "状態")),
+    h("span", { className: "pv-ccfolia-edit-status-value" }, String(entry.value ?? "—")),
+    h("span", { className: "pv-ccfolia-edit-status-max" }, entry.max == null ? "—" : String(entry.max))
+  );
+  const renderEditorParam = (entry) => h("div", {
+    key: String(entry.label || "ラベル"),
+    className: "pv-ccfolia-edit-param-row"
+  },
+    h("span", null, String(entry.label || "ラベル")),
+    h("span", null, String(entry.value ?? "—"))
+  );
+  const faces = Array.isArray(tokenData.faces)
+    ? tokenData.faces.filter((face) => face && typeof face === "object" && face.iconUrl)
+    : [];
+  const renderTokenPreview = () => h("section", {
+    className: "pv-token-preview pv-ccfolia-preview",
+    "aria-label": "CCFOLIA表示プレビュー"
+  },
+    h("header", { className: "pv-ccfolia-preview-head" },
       h("div", null,
-        h("h3", null, "駒プレビュー"),
-        h("p", null, "画像・名前・行動順と、出力項目を確認します")
+        h("h3", null, "CCFOLIA プレビュー"),
+        h("p", null, "盤面とキャラクター編集画面に合わせた表示例です。")
       ),
-      h("div", { className: "pv-token-mode-switch", role: "group", "aria-label": "駒プレビューの表示" },
-        h("button", { type: "button", "aria-pressed": tokenMode === "board", className: tokenMode === "board" ? "is-active" : "", onClick: () => setTokenMode("board") }, "見た目"),
-        h("button", { type: "button", "aria-pressed": tokenMode === "sheet", className: tokenMode === "sheet" ? "is-active" : "", onClick: () => setTokenMode("sheet") }, "項目一覧")
+      h("div", { className: "pv-token-mode-switch", role: "group", "aria-label": "CCFOLIAプレビュー表示" },
+        h("button", {
+          type: "button",
+          "aria-pressed": tokenMode === "board",
+          className: tokenMode === "board" ? "is-active" : "",
+          onClick: () => setTokenMode("board")
+        }, "盤面"),
+        h("button", {
+          type: "button",
+          "aria-pressed": tokenMode === "sheet",
+          className: tokenMode === "sheet" ? "is-active" : "",
+          onClick: () => setTokenMode("sheet")
+        }, "編集画面")
       )
     ),
     tokenMode === "board"
-      ? h("div", { className: "pv-token-board-view" },
-          h("div", { className: "pv-token-board", "aria-label": "駒画像と名前の表示イメージ" },
-            h("div", { className: "pv-token-board-grid", "aria-hidden": "true" }),
-            h("div", { className: "pv-token-board-token", style: { "--pv-token-color": tokenColor } },
-              renderTokenImage("pv-token-board-avatar", tokenName + "の駒画像"),
-              h("strong", { className: "pv-token-board-name" }, tokenName)
+      ? h("div", { className: "pv-ccfolia-board-layout" },
+          h("section", { className: "pv-ccfolia-map-wrap", "aria-label": "盤面の表示例" },
+            h("div", { className: "pv-ccfolia-map" },
+              h("div", { className: "pv-ccfolia-map-grid", "aria-hidden": "true" }),
+              h("div", { className: "pv-ccfolia-map-token", style: { "--pv-ccfolia-color": tokenColor } },
+                renderPreviewImage(tokenImage, "pv-ccfolia-map-avatar", tokenName + "の駒画像"),
+                h("span", { className: "pv-ccfolia-map-name" }, tokenName)
+              )
+            ),
+            h("p", { className: "pv-ccfolia-map-note" },
+              "背景・配置・拡大率は、実際のルーム設定によって変わります。")
+          ),
+          h("section", { className: "pv-ccfolia-roster", "aria-label": "キャラクター一覧の表示例" },
+            h("header", { className: "pv-ccfolia-roster-head" },
+              h("strong", null, "キャラクター一覧"),
+              h("span", null, "ステータス")
+            ),
+            h("article", { className: "pv-ccfolia-roster-character" },
+              renderPreviewImage(tokenImage, "pv-ccfolia-roster-avatar", tokenName + "のアイコン"),
+              h("div", { className: "pv-ccfolia-roster-main" },
+                h("div", { className: "pv-ccfolia-roster-name-row" },
+                  h("strong", { className: "pv-ccfolia-roster-name" }, tokenName),
+                  h("span", { className: "pv-ccfolia-roster-init" }, String(tokenData.initiative ?? 0))
+                ),
+                h("div", { className: "pv-ccfolia-roster-player" },
+                  "PL：", String(tokenData.playerName || "未設定"))
+              )
+            ),
+            h("div", { className: "pv-ccfolia-roster-statuses" },
+              tokenStatus.slice(0, 8).map(renderRosterStatus)
+            ),
+            tokenStatus.length > 8
+              ? h("p", { className: "pv-ccfolia-roster-note" },
+                  "一覧に表示するステータスは先頭8件です。出力JSONには " + tokenStatus.length + " 件あります。")
+              : null
+          )
+        )
+      : h("div", { className: "pv-ccfolia-editor", "aria-label": "キャラクター編集画面の表示例" },
+          h("div", { className: "pv-ccfolia-editor-top" },
+            h("div", { className: "pv-ccfolia-editor-images" },
+              renderPreviewImage(tokenImage, "pv-ccfolia-editor-main-image", tokenName + "の立ち絵"),
+              faces.length > 1
+                ? h("div", { className: "pv-ccfolia-face-strip", "aria-label": "差分画像" },
+                    faces.map((face, index) => h("div", {
+                      key: String(face.iconUrl) + ":" + index,
+                      className: "pv-ccfolia-face-thumb"
+                    },
+                      renderPreviewImage(face.iconUrl, "pv-ccfolia-face-image", String(face.label || tokenName + "の差分画像")),
+                      h("span", null, String(face.label || "差分" + (index + 1)))
+                    ))
+                  )
+                : null
+            ),
+            h("div", { className: "pv-ccfolia-editor-fields" },
+              previewField("キャラクター名", tokenName),
+              previewField("イニシアティブ", tokenData.initiative ?? 0),
+              previewField("メモ", tokenData.memo, "is-memo"),
+              previewField("サイズ", "ルーム側の既定値（JSONで未指定）"),
+              previewField("座標 X / Y", "ルーム側の位置を使用（JSONで未指定）"),
+              previewField("参照URL", tokenData.externalUrl, "is-url")
             )
           ),
-          h("div", { className: "pv-token-board-details" },
-            h("div", { className: "pv-token-identity" },
-              h("span", null, "PL"),
-              h("strong", null, String(tokenData.playerName || "未設定"))
+          h("section", { className: "pv-ccfolia-editor-section" },
+            h("header", { className: "pv-ccfolia-editor-section-head" },
+              h("h4", null, "ステータス"),
+              h("span", null, "ラベル　現在値　最大値")
             ),
-            h("div", { className: "pv-token-identity" },
-              h("span", null, "行動順"),
-              h("strong", null, String(tokenData.initiative ?? 0))
-            ),
-            h("div", { className: "pv-token-status-grid pv-token-board-status-grid" },
-              tokenStatus.filter((entry) => ["HP", "SAN"].includes(String(entry.label || "").toUpperCase())).map(renderTokenStatus)
+            h("div", { className: "pv-ccfolia-edit-status-table" },
+              tokenStatus.map(renderEditorStatus)
             )
-          )
-        )
-      : h("div", { className: "pv-token-sheet-view" },
-          h("div", { className: "pv-token-sheet-layout" },
-            h("div", { className: "pv-token-sheet-portrait", style: { "--pv-token-color": tokenColor } },
-              renderTokenImage("pv-token-sheet-image", tokenName + "の立ち絵")
+          ),
+          h("section", { className: "pv-ccfolia-editor-section" },
+            h("header", { className: "pv-ccfolia-editor-section-head" },
+              h("h4", null, "パラメータ"),
+              h("span", null, "ラベル　値")
             ),
-            h("div", { className: "pv-token-sheet-main" },
-              h("div", { className: "pv-token-sheet-overline" }, "出力項目"),
-              h("div", { className: "pv-token-sheet-title-row" },
-                h("h3", null, tokenName),
-                h("span", { className: "pv-token-sheet-init", style: { borderColor: tokenColor } }, "行動順 " + String(tokenData.initiative ?? 0))
-              ),
-              h("p", { className: "pv-token-sheet-player" }, "PL　" + String(tokenData.playerName || "未設定")),
-              h("div", { className: "pv-token-sheet-section-title" }, "ステータス"),
-              h("div", { className: "pv-token-status-grid" }, tokenStatus.slice(0, 8).map(renderTokenStatus)),
-              tokenParams.length ? h(React.Fragment, null,
-                h("div", { className: "pv-token-sheet-section-title" }, "パラメータ"),
-                h("div", { className: "pv-token-param-grid" },
-                  tokenParams.slice(0, 8).map((entry) => h("div", { key: String(entry.label || ""), className: "pv-token-param" },
-                    h("span", null, String(entry.label || "ラベル")),
-                    h("strong", null, String(entry.value ?? "—"))
-                  ))
-                )
-              ) : null
-            )
-          )
+            tokenParams.length
+              ? h("div", { className: "pv-ccfolia-edit-param-table" }, tokenParams.map(renderEditorParam))
+              : h("p", { className: "pv-ccfolia-no-rows" }, "出力するパラメータはありません。")
+          ),
+          h("details", { className: "pv-ccfolia-editor-section pv-ccfolia-commands" },
+            h("summary", null, "チャットパレット（commands）"),
+            tokenData.commands
+              ? h("pre", { className: "pv-ccfolia-commands-text" }, String(tokenData.commands))
+              : h("p", { className: "pv-ccfolia-no-rows" }, "チャットパレットは空です。")
+          ),
+          h("p", { className: "pv-ccfolia-editor-note" },
+            "ここでは出力データをCCFOLIA風に並べています。サイズ・座標、実際のボタン配置やルーム内の見え方は、CCFOLIA側の設定で変わります。")
         )
   );
-
   const readiness = window.LBT_getSessionReadiness?.(state) || [];
   const readinessKey = readiness.map((entry) => entry.id).join(",");
   const readinessLabel = readiness.map((entry) => entry.label).join("・");
