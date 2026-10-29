@@ -68,7 +68,7 @@ test("renderSection は基本を含む9タブのビルドへ振り分ける", ()
   for (const id of ["baseinfo", "persona", "skill", "passive", "enh", "support", "ego", "spirit", "items-build"]) {
     assert.match(block, new RegExp(`case "${id}":`), `${id} の case が無い`);
   }
-  assert.match(block, /React\.createElement\(BuildWorkspace, \{ state, dispatch, saveStatus \}\)/);
+  assert.match(block, /React\.createElement\(BuildWorkspace, \{ state, dispatch, saveStatus, onTogglePreview: togglePreview \}\)/);
   assert.match(block, /React\.createElement\(ShopSection, \{ state, dispatch \}\)/);
   assert.doesNotMatch(block, /React\.createElement\(PersonaCodex/);
   assert.doesNotMatch(block, /React\.createElement\(EgoSection/);
@@ -236,7 +236,7 @@ test("BuildWorkspace は基本を含む9タブをもち、所持タブだけ ros
   assert.match(read("../js/PersonaCodex.js"), /window\.LBT_BaseInfoWorkspace = BaseInfoWorkspace/);
   /* 所持ゲートは ownedOnly プロパティで既存コンポーネントに渡す（描画は変えない）。 */
   assert.match(sections, /const owned = !!active\.owned;/);
-  assert.match(sections, /const panelProps = \["persona", "support", "ego", "spirit"\]\.includes\(active\.id\) \? \{ ownedOnly: owned \} : \{\};/);
+  assert.match(sections, /const panelProps = active\.id === "baseinfo" \? \{ onTogglePreview \} : \["persona", "support", "ego", "spirit"\]\.includes\(active\.id\) \? \{ ownedOnly: owned \} : \{\};/);
   assert.match(sections, /const setTab = \(id\) => dispatch\(\{ type: "SET_UI", ui: \{ currentSection: id \} \}\);/);
   assert.match(sections, /h\(SectionTitle, \{ num: "01", title: "ビルド", subtitle: "基本設定・人格・スキル・パッシブ・強化・サポート・E\.G\.O・精神・アイテム" \}\)/);
   assert.match(sections, /className: "build-context-strip"/);
@@ -742,7 +742,7 @@ test("ステータス一覧とラベル一覧は駒整形へ移設する（設�
   const settings = sections.slice(sections.indexOf("const SettingsSection = "));
   /* 移設なので、最終的に1か所。設定に同じ面を残すと
      「どちらで直したか」が分からなくなる。 */
-  assert.match(sections, /const BuildParamsPanel = \(\{ state, dispatch \}\) => \{/);
+  assert.match(sections, /const BuildParamsPanel = \(\{ state, dispatch, onTogglePreview \}\) => \{/);
   assert.match(sections, /data-settings-category": "statuses"/);
   assert.match(sections, /data-settings-category": "labels"/);
   assert.doesNotMatch(settings, /data-settings-category": "statuses"/);
@@ -750,8 +750,8 @@ test("ステータス一覧とラベル一覧は駒整形へ移設する（設�
   assert.doesNotMatch(settings, /h\(StatusOrderPanel/);
   assert.doesNotMatch(settings, /h\(LabelParamsPanel/);
   /* 描画先は駒整形。BaseInfoWorkspace が実宿主（BaseSection ではない）。 */
-  assert.match(codex, /const BaseInfoWorkspace = \(\{ state, dispatch \}\) => \{/);
-  assert.match(codex, /typeof window\.LBT_BuildParamsPanel === "function" \? window\.LBT_BuildParamsPanel\(\{ state, dispatch \}\) : null/);
+  assert.match(codex, /const BaseInfoWorkspace = \(\{ state, dispatch, onTogglePreview \}\) => \{/);
+  assert.match(codex, /typeof window\.LBT_BuildParamsPanel === "function" \? window\.LBT_BuildParamsPanel\(\{ state, dispatch, onTogglePreview \}\) : null/);
   assert.match(sections, /window\.LBT_BuildParamsPanel = \(props\) => h\(BuildParamsPanel, props\);/);
   /* 描画は 1 か所だけ。BaseSection にも残すと 2 回並ぶ（実測で出た）。 */
   assert.equal((sections.match(/h\(BuildParamsPanel, \{ state, dispatch \}\)/g) || []).length, 0);
