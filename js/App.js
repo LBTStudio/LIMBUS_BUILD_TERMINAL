@@ -1292,7 +1292,7 @@ const RailNavigation = ({ sections, current, dispatch, onOpenUtilities, onOpenIm
     }, h("span", { className: "rail-icon" }, h(Icon, { name: s.icon, size: 18 })), h("span", { className: "rail-label" }, s.label), isBuild && !done && h("span", { className: "dot is-warn" }), done && h("span", { className: "dot" }));
   };
   const groups = [
-    { id: "create", label: "制作", ids: ["home", "persona"] },
+    { id: "create", label: "ワークスペース", ids: ["home", "persona"] },
     { id: "manage", label: "データ管理", ids: ["roster", "shop"], importAction: true },
     { id: "support", label: "補助", ids: ["settings", "help"] }
   ];
