@@ -1744,11 +1744,11 @@ function normalizeStateShape(raw) {
     next.supports = next.supports.filter((s) => !isDeathSupportPassiveRecord(s));
   }
   if (!next.ui) next.ui = {};
-  /* B-workbench rollout: migrate a previous launcher landing only once.
-     After this marker is saved, choosing Home remains the user's own choice. */
-  if (next.ui.layoutVersion !== "b-workbench-v1") {
-    if (!next.ui.currentSection || next.ui.currentSection === "home") next.ui.currentSection = "baseinfo";
-    next.ui.layoutVersion = "b-workbench-v1";
+  /* B-type v2 rollout: show the supplied B-type command launcher once after the structural redesign.
+     This only migrates the current view; character data and saved builds remain untouched. */
+  if (next.ui.layoutVersion !== "b-workbench-v2") {
+    next.ui.currentSection = "home";
+    next.ui.layoutVersion = "b-workbench-v2";
   }
   if (!next.ui.previewCollapsed) next.ui.previewCollapsed = {};
   if (!next.roster || typeof next.roster !== "object") next.roster = { personas: [], egos: [], supports: [], spirits: [] };
@@ -3719,7 +3719,7 @@ const INIT_STATE = {
   // same format, LRU 20
   // UI state (not part of undo)
   ui: {
-    currentSection: "baseinfo",
+    currentSection: "home",
     previewTab: "memo",
     previewOpen: void 0,
     // 未設定時はデスクトップで表示、小画面では折り畳み。明示的な開閉選択を優先する。
