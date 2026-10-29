@@ -278,6 +278,10 @@ test("既存人格へ帰属した同期草案は共有時も公式参照を維�
     always: "旧形式の常時効果",
     effect: "旧形式の効果本文"
   };
+  const supportRecord = db.support_passives[0];
+  const customizedSupport = { ...supportRecord, cond: "編集済み支援条件", effect: "編集済み支援効果", lp: "77" };
+  const deathRecord = db.death_passives[0];
+  const customizedDeathSupport = { ...deathRecord, cond: "編集済み死亡後条件", effect: "編集済み死亡後効果", lp: "88" };
   const state = {
     personaMode: "n",
     personaNo: persona.no,
@@ -288,6 +292,8 @@ test("既存人格へ帰属した同期草案は共有時も公式参照を維�
     extraPassives: [extraPassive],
     pas2Enabled: true,
     pas2: legacyPassive,
+    supports: [customizedSupport],
+    deathSupport: customizedDeathSupport,
     skills: [importedSkill],
     uniqueBuffs: [],
     roster: { personas: [{ uid: "affiliated", mode: "n", no: persona.no, syncRank: "000", syncMax: true, equipped: true }] }
@@ -301,6 +307,8 @@ test("既存人格へ帰属した同期草案は共有時も公式参照を維�
   assert.deepEqual(JSON.parse(JSON.stringify(snapshot.extraPassives[0])), extraPassive);
   assert.equal(snapshot.pas2Enabled, true);
   assert.deepEqual(JSON.parse(JSON.stringify(snapshot.pas2)), legacyPassive);
+  assert.equal(snapshot.supports[0].effect, "編集済み支援効果");
+  assert.equal(snapshot.deathSupport.effect, "編集済み死亡後効果");
 
   const token = await share.encodeState(state, { includeOgpImage: false });
   const restored = share.hydratePersonaReference(await share.decodeToken(token), db);
@@ -312,9 +320,15 @@ test("既存人格へ帰属した同期草案は共有時も公式参照を維�
   assert.deepEqual(JSON.parse(JSON.stringify(restored.extraPassives[0])), extraPassive);
   assert.equal(restored.pas2Enabled, true);
   assert.deepEqual(JSON.parse(JSON.stringify(restored.pas2)), legacyPassive);
+  assert.equal(restored.supports[0].cond, "編集済み支援条件");
+  assert.equal(restored.supports[0].effect, "編集済み支援効果");
+  assert.equal(restored.supports[0].lp, "77");
+  assert.equal(restored.deathSupport.cond, "編集済み死亡後条件");
+  assert.equal(restored.deathSupport.effect, "編集済み死亡後効果");
+  assert.equal(restored.deathSupport.lp, "88");
 });
 
-test("同期・カスタムのパッシブは共有HTMLを生成する段階まで保持され、実際の表示本文に出力される", async () => {
+test("同期・カスタムのパッシブを生成する段階まで保持され、実際の表示本文に出力される", async () => {
   const runtime = loadRuntime();
   const db = runtime.db;
   const persona = db.normal_personas[0];
@@ -346,7 +360,13 @@ test("同期・カスタムのパッシブは共有HTMLを生成する段階ま�
       cond: "嫉妬×1",
       always: "共有HTML旧形式常時効果",
       effect: "共有HTML旧形式効果本文"
-    }
+    },
+    supports: [{
+      ...db.support_passives[0],
+      cond: "共有HTML支援条件",
+      effect: "共有HTML支援効果",
+      lp: "77"
+    }]
   };
   const token = await share.encodeState(state, { includeOgpImage: false });
   const hydrated = share.hydratePersonaReference(await share.decodeToken(token), db);
@@ -362,7 +382,9 @@ test("同期・カスタムのパッシブは共有HTMLを生成する段階ま�
     "共有HTML追加効果本文",
     "共有HTML旧形式追加",
     "共有HTML旧形式常時効果",
-    "共有HTML旧形式効果本文"
+    "共有HTML旧形式効果本文",
+    "共有HTML支援条件",
+    "共有HTML支援効果"
   ]) {
     assert.ok(html.includes(expected), `共有HTMLに「${expected}」が出力される`);
   }
