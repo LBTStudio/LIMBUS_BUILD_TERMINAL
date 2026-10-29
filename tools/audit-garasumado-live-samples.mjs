@@ -465,6 +465,7 @@ function auditExplicitSpendCues(lines, spendTrace, reasons, coverages, audits) {
    This is a review queue only: it never guesses costs or adjusts the ledger. */
 function auditUnpricedActionCues(lines, spendTrace, coverages, reasons, audits) {
   const candidates = [];
+  const genericSpendCueRows = [];
   const moneyAmount = (text) =>
     CANDIDATE_AMOUNT.test(text) || LEGACY_CANDIDATE_AMOUNT.test(text);
   const moneyWord = /LP|ＬＰ|自我の(?:破片|欠片)|(?<!の)(?:欠片|欠け片|かけら|欠けら|カケラ|けっか)/i;
@@ -476,6 +477,7 @@ function auditUnpricedActionCues(lines, spendTrace, coverages, reasons, audits) 
   const itemOrSkillWord = /硝子の(?:破片|欠片)|ガラスの(?:破片|欠片)|同期化|同期CT|CT解除|スキル|使用人格|ボーナス|チケット/i;
   const drawWord = /(?:抽出|ガチャ)(?:結果|を回|を引|で獲得|で入手|で取得|を実行|を実施|を行|した|する|済)|(?:ガチャ|抽出)[：:]?\s*(?:獲得|入手|取得|購入|消費|使用)/i;
   const conversionWord = /変換|換算/;
+  const sectionHeader = /^(?:[・･▼▽▶▷■□◆◇★☆●○❚❙▌]\s*)?(?:支出|支払|支払い|支払額|購入|消費|消費額|買い物)\s*[：:]?$/i;
   for (let i = 0; i < (lines || []).length; i++) {
     const original = String(lines[i] || "").trim();
     if (!original || /^\s*[▶►▷]/.test(original)) continue;
@@ -485,32 +487,46 @@ function auditUnpricedActionCues(lines, spendTrace, coverages, reasons, audits) 
     /* If a monetary amount remains after balance anchors are removed, the priced-line
        auditors already cover it. This queue is specifically for actions without a price. */
     if (moneyAmount(normalized)) continue;
+    const coverage = (coverages || []).find((entry) => entry && Number(entry.lineIndex) === i + 1);
+    const previous = String(lines[i - 1] || "");
+    const next = String(lines[i + 1] || "");
     const hasMoneyWord = moneyWord.test(normalized);
     const hasSpendWord = spendWord.test(normalized);
     const hasPurchaseWord = purchaseWord.test(normalized) && !/購入できる|購入可能|購入条件|買える|買える分/.test(normalized);
     const hasDrawAction = drawWord.test(normalized);
     const hasConversionWord = conversionWord.test(normalized);
     const hasTicketCue = ticketWord.test(normalized);
+    const nearbyTicketCue = ticketWord.test(previous) || ticketWord.test(next) || hasTicketCue;
+    const nearbyRewardCue = rewardWord.test(previous) || rewardWord.test(next) || rewardWord.test(normalized);
+    const hasBalanceCue = balanceWord.test(original);
     const isItemOrSkillUse = itemOrSkillWord.test(normalized) && /使用|消費|使っ|解除|同期化/.test(normalized);
     const kinds = [];
     if (hasMoneyWord && hasSpendWord) kinds.push("currency-spend-without-amount");
-    if (hasPurchaseWord) kinds.push("purchase-without-price");
-    if (hasDrawAction) kinds.push(hasTicketCue ? "draw-with-ticket-context" : "draw-without-price-or-ticket");
+    if (hasPurchaseWord && !sectionHeader.test(normalized)) kinds.push("purchase-without-price");
+    if (hasDrawAction) kinds.push(nearbyTicketCue ? "draw-with-ticket-context" : "draw-without-price-or-ticket");
     if (hasConversionWord && hasMoneyWord) kinds.push("conversion-without-amount");
-    if (!kinds.length && hasSpendWord && !isItemOrSkillUse && !hasTicketCue) kinds.push("generic-spend-without-currency");
+
+    /* A generic "consumption" word without a currency, purchase, draw or conversion cue
+       is too ambiguous to count as a likely financial omission. Keep a separate counter. */
+    if (!kinds.length && hasSpendWord && !isItemOrSkillUse && !hasTicketCue && !sectionHeader.test(normalized)) {
+      const lineShape = describeCandidateLine(original, coverage);
+      genericSpendCueRows.push({
+        lineIndex: i + 1,
+        nearbyTicketCue,
+        nearbyRewardCue,
+        hasBalanceCue,
+        status: String(coverage?.status || "no-coverage"),
+        lineShape
+      });
+      continue;
+    }
     if (!kinds.length) continue;
 
     const lineIndex = i + 1;
-    const coverage = (coverages || []).find((entry) => entry && Number(entry.lineIndex) === lineIndex);
     const sameLineSpends = (spendTrace || []).filter((event) =>
       Number(event.lineIndex) === lineIndex &&
       ((Number(event.lp) || 0) !== 0 || (Number(event.shards) || 0) !== 0)
     );
-    const previous = String(lines[i - 1] || "");
-    const next = String(lines[i + 1] || "");
-    const nearbyTicketCue = ticketWord.test(previous) || ticketWord.test(next) || hasTicketCue;
-    const nearbyRewardCue = rewardWord.test(previous) || rewardWord.test(next) || rewardWord.test(normalized);
-    const hasBalanceCue = balanceWord.test(original);
     const hasParserReason = (reasons || []).some((entry) => String(entry?.line || "").trim() === original);
     const hasRelatedAudit = isRelated(audits || [], lineIndex);
     const lineShape = describeCandidateLine(original, coverage);
@@ -546,7 +562,8 @@ function auditUnpricedActionCues(lines, spendTrace, coverages, reasons, audits) 
     drawWithoutPriceOrTicketRows: countKind("draw-without-price-or-ticket"),
     drawWithTicketContextRows: countKind("draw-with-ticket-context"),
     conversionWithoutAmountRows: countKind("conversion-without-amount"),
-    genericSpendWithoutCurrencyRows: countKind("generic-spend-without-currency"),
+    genericSpendWithoutCurrencyRows: genericSpendCueRows.length,
+    genericSpendCueRows,
     rowsWithoutSpendRecordWithTicketContext: missing.filter((row) => row.nearbyTicketCue).length,
     rowsWithoutSpendRecordWithRewardContext: missing.filter((row) => row.nearbyRewardCue).length,
     rowsWithoutSpendRecordWithBalanceCue: missing.filter((row) => row.hasBalanceCue).length,
