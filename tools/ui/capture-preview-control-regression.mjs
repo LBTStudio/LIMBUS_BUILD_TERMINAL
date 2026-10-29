@@ -58,6 +58,7 @@ async function metrics(page,profile) {
   const hint=await rect(page.locator(".preview-hint"));
   const tabs=await rect(page.locator(".preview-tabs"));
   const rail=await rect(page.locator(profile.width <= 640 ? ".btype-mobile-bottom-nav" : ".rail"));
+  const accessBadge=await rect(page.locator("#lbt-access-counter"));
   const title=await rect(page.locator(".section-title-row"));
   const heading=await rect(page.locator(".section-title"));
   const headingLayout=await page.locator(".section-title").evaluate(el=>{
@@ -85,7 +86,8 @@ async function metrics(page,profile) {
       hint:intersects(t,hint),
       tabs:intersects(t,tabs),
       rail:intersects(t,rail),
-      sectionTitle:intersects(t,title)
+      sectionTitle:intersects(t,title),
+      accessCounterVsNav:intersects(accessBadge,rail)
     },
     horizontalOverflow:await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+2)
   };
@@ -314,7 +316,7 @@ async function runProfile(browser,profile) {
     recordCheck(profile.name+": closed state is synchronized",
       closed.expanded==="false"&&!closed.panelOpen,
       {metrics:closed});
-    const closedCollisions=Object.entries(closed.overlaps).filter(([key,value])=>["footer","hint","tabs","rail","sectionTitle"].includes(key)&&value.hit);
+    const closedCollisions=Object.entries(closed.overlaps).filter(([key,value])=>["footer","hint","tabs","rail","sectionTitle","accessCounterVsNav"].includes(key)&&value.hit);
     recordCheck(profile.name+": closed toggle avoids preview actions, tabs, hints, headings and navigation",
       closedCollisions.length===0,
       {collisions:closedCollisions,metrics:closed});
@@ -343,7 +345,7 @@ async function runProfile(browser,profile) {
     const opened=await metrics(page,profile);
     const commonOk=opened.expanded==="true"&&opened.panelOpen;
     recordCheck(profile.name+": open state is synchronized",commonOk,{metrics:opened});
-    const controlCollisions=Object.entries(opened.overlaps).filter(([key,value])=>["footer","hint","tabs","rail","sectionTitle"].includes(key)&&value.hit);
+    const controlCollisions=Object.entries(opened.overlaps).filter(([key,value])=>["footer","hint","tabs","rail","sectionTitle","accessCounterVsNav"].includes(key)&&value.hit);
     recordCheck(profile.name+": toggle does not overlap preview actions, tabs, hints, headings or navigation",
       controlCollisions.length===0,
       {collisions:controlCollisions,metrics:opened});
