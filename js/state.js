@@ -5917,6 +5917,7 @@ case "ADD_CUSTOM_ITEM": {
       const resultIds = [];
       const resultSourceKeys = [];
       const resultIdByName = new Map();
+      const resultIdByBatchKey = new Map();
       const claimedLegacyResultIds = new Set();
       for (const sub of action.actions || []) {
         if (!sub || typeof sub !== "object" || sub.type !== "ADD_RESULT") continue;
@@ -5970,6 +5971,8 @@ case "ADD_CUSTOM_ITEM": {
         if (added) {
           const key = String(added.name || "");
           resultIdByName.set(key, [...(resultIdByName.get(key) || []), added.id]);
+          const batchKey = String(sub.batchKey || "").trim().slice(0, 180);
+          if (batchKey) resultIdByBatchKey.set(batchKey, [...(resultIdByBatchKey.get(batchKey) || []), added.id]);
         }
       }
       let lastResultId = null;
@@ -6010,9 +6013,16 @@ case "ADD_CUSTOM_ITEM": {
           /* 取込アクションの公開契約では resultId を直接持たせない。
              unclassified=true の項目は、既存の直近リザルトへ誤帰属させず、ここでのみ null に解決する。 */
           let target = null;
+          const viaKeys = [...new Set((Array.isArray(sub.viaKeys) ? sub.viaKeys : []).map((key) => String(key || "").trim()).filter(Boolean))];
           const viaNames = (Array.isArray(sub.via) ? sub.via : []).filter(Boolean);
           if (sub.unclassified !== true) {
-            if (viaNames.length) {
+            if (viaKeys.length) {
+              const ids = new Set();
+              for (const viaKey of viaKeys) {
+                for (const id of resultIdByBatchKey.get(viaKey) || []) ids.add(id);
+              }
+              target = ids.size === 1 ? [...ids][0] : null;
+            } else if (viaNames.length) {
               const ids = new Set();
               for (const viaName of viaNames) {
                 for (const id of resultIdByName.get(String(viaName)) || []) ids.add(id);
