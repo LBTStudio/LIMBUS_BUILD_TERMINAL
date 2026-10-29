@@ -159,6 +159,29 @@ const BaseSection = ({ state, dispatch }) => {
             })
           )
         )
+      ),
+      React.createElement("section", { className: "pc-token-preview", "aria-label": "ココフォリア駒プレビュー" },
+        React.createElement("div", { className: "pc-token-preview-head" },
+          React.createElement("span", null, "CCFOLIA / TOKEN PREVIEW"),
+          React.createElement("span", null, "入力内容に連動")
+        ),
+        React.createElement("div", { className: "pc-token-preview-card", style: { "--pc-token-color": state.color || "#d6b56b" } },
+          React.createElement("div", { className: "pc-token-preview-avatar" },
+            activeImg && !imgBroken
+              ? React.createElement("img", { src: activeImg, alt: "", loading: "lazy" })
+              : React.createElement("span", { "aria-hidden": "true" }, "◈")
+          ),
+          React.createElement("div", { className: "pc-token-preview-main" },
+            React.createElement("strong", null, String(state.charName || "名称未設定")),
+            React.createElement("span", null, "PL " + String(state.plName || "未設定")),
+            React.createElement("div", { className: "pc-token-preview-meta" },
+              React.createElement("span", null, "行動順 " + String(state.initiative ?? 0)),
+              React.createElement("span", null, "HP " + String(state.hp ?? state.personaSrc?.hp ?? "—")),
+              React.createElement("span", null, "SAN " + String(state.san ?? state.personaSrc?.san ?? "—"))
+            )
+          ),
+          React.createElement("span", { className: "pc-token-preview-color", style: { background: state.color || "#d6b56b" }, "aria-label": "駒の色" })
+        )
       )
     ),
     /* 立ち絵の差し替えは頻度が低いので、既定は閉じてカードだけを見せる。 */
@@ -2957,7 +2980,7 @@ tab !== "item" ? h(Button, {
       shownList)
   );
 };
-const BuildWorkspace = ({ state, dispatch, saveStatus }) => {
+const BuildWorkspace = ({ state, dispatch, saveStatus, onTogglePreview }) => {
   const h = React.createElement;
   const current = state.ui?.currentSection || "persona";
   const active = BUILD_TABS.find((tab) => tab.id === current) || BUILD_TABS[0];
@@ -2983,7 +3006,7 @@ const BuildWorkspace = ({ state, dispatch, saveStatus }) => {
                   ? BuildItemsPanel
                   : EnhancementSection;
   /* 所持ゲートを、roster を唯一の基準とするタブ（人格/サポート/E.G.O/精神）へ渡す。 */
-  const panelProps = ["persona", "support", "ego", "spirit"].includes(active.id) ? { ownedOnly: owned } : {};
+  const panelProps = active.id === "baseinfo" ? { onTogglePreview } : ["persona", "support", "ego", "spirit"].includes(active.id) ? { ownedOnly: owned } : {};
   /* 一度表示したタブはツリーを保持し、切替は hidden のみにする（再マウントと画像再デコードを毎回払わない）。 */
   const visitedRef = React.useRef([]);
   const paneCacheRef = React.useRef({});
@@ -5732,8 +5755,9 @@ const LabelParamsPanel = ({ state, onAddCustom, onPatchCustom, onRemoveCustom, o
 };
 /* 駒整形の組み立て設定。ステータス一覧とラベル一覧はここが唯一の場所。
    設定側に同じ面を残すと、どちらで直したかを选民が追えなくなる。 */
-const BuildParamsPanel = ({ state, dispatch }) => {
+const BuildParamsPanel = ({ state, dispatch, onTogglePreview }) => {
   const h = React.createElement;
+  const [activeBuildParamsTab, setActiveBuildParamsTab] = React.useState("statuses");
   const setF = (field, value) => dispatch({ type: "SET_FIELD", field, value });
   const addCs = (place = "status") => setF("customStatuses", [...(state.customStatuses || []), { id: `cs-${Date.now()}`, label: "", initial: 0, max: 99, place }]);
   const patchCs = (id, patch) => setF("customStatuses", (state.customStatuses || []).map((c) => c.id === id ? { ...c, ...patch } : c));
@@ -5806,11 +5830,28 @@ const BuildParamsPanel = ({ state, dispatch }) => {
   );
 
   return h(React.Fragment, null,
+    h("section", { className: "build-params-shell", "aria-label": "ココフォリア駒の整形" },
     h("div", { className: "build-params-head" },
     h("span", { className: "t-label" }, "組み立て / BUILD PARAMETERS"),
     h("span", { className: "ledger-note" }, "出力順と既定値を決める場所")
     ),
-          h("section", { className: "settings-major settings-major--static", "data-settings-category": "statuses" },
+    h("div", { className: "build-params-tabs", role: "tablist", "aria-label": "ココフォリア駒の整形項目" },
+      [
+        ["statuses", "ステータス（ST）"],
+        ["labels", "ラベル（パラメータ）"],
+        ["preview", "駒・出力プレビュー"]
+      ].map(([id, label]) => h("button", {
+        key: id,
+        type: "button",
+        id: "build-params-tab-" + id,
+        role: "tab",
+        "aria-selected": activeBuildParamsTab === id,
+        "aria-controls": "build-params-panel-" + id,
+        className: activeBuildParamsTab === id ? "is-active" : "",
+        onClick: () => setActiveBuildParamsTab(id)
+      }, label))
+    ),
+          h("section", { className: "settings-major settings-major--static build-params-pane", id: "build-params-panel-statuses", role: "tabpanel", "aria-labelledby": "build-params-tab-statuses", "data-settings-category": "statuses", hidden: activeBuildParamsTab !== "statuses" },
             h("div", { className: "settings-major-body stack-3" },
               h(StatusOrderPanel, { state, dispatch, embedded: true, onPatchDefault: patchDst, onPatchUnique: patchUb, onRemoveDefault: rmDst, onAddDefault: addDst, onResetDefaults: resetDst }),
               h("details", { className: "settings-disclosure" }, h("summary", null, "カスタムST項目を編集"), h("div", { className: "settings-disclosure-body stack-2" },
@@ -5820,7 +5861,7 @@ const BuildParamsPanel = ({ state, dispatch }) => {
               ))
             )
           ),
-          h("section", { className: "settings-major settings-major--static", "data-settings-category": "labels" },
+          h("section", { className: "settings-major settings-major--static build-params-pane", id: "build-params-panel-labels", role: "tabpanel", "aria-labelledby": "build-params-tab-labels", "data-settings-category": "labels", hidden: activeBuildParamsTab !== "labels" },
             h("div", { className: "settings-major-body stack-3" },
               h(LabelParamsPanel, { state, onAddCustom: addCs, onPatchCustom: patchCs, onRemoveCustom: rmCs, onPatchMorale: (value) => setF("moraleLine", value) }),
               h("details", { className: "settings-disclosure" }, h("summary", null, "出力しないカスタム項目"), h("div", { className: "settings-disclosure-body stack-2" },
@@ -5830,6 +5871,33 @@ const BuildParamsPanel = ({ state, dispatch }) => {
               ))
             )
           ),
+          h("section", { className: "build-params-pane build-params-preview", id: "build-params-panel-preview", role: "tabpanel", "aria-labelledby": "build-params-tab-preview", hidden: activeBuildParamsTab !== "preview" },
+            h("div", { className: "build-params-preview-grid" },
+              h("div", { className: "build-params-preview-card", style: { "--pc-token-color": state.color || "#d6b56b" } },
+                h("span", { className: "build-params-preview-eyebrow" }, "CCFOLIA / CHARACTER"),
+                h("strong", { className: "build-params-preview-title" }, String(state.charName || "名称未設定")),
+                h("span", { className: "build-params-preview-player" }, "PL " + String(state.plName || "未設定")),
+                h("div", { className: "build-params-preview-metrics" },
+                  h("span", null, "行動順 " + String(state.initiative ?? 0)),
+                  h("span", null, "ST項目 " + String(effectiveStatuses.length)),
+                  h("span", null, "出力色 " + String(state.color || "#d6b56b"))
+                )
+              ),
+              h("div", { className: "build-params-preview-copy" },
+                h("span", { className: "t-label" }, "LIVE OUTPUT / 実データ"),
+                h("h3", null, "現在の駒データを確認する"),
+                h("p", { className: "settings-section-note" }, "この操作は別のプレビュー用データを作らず、現在のキャラクターから生成される右側のCCFOLIAプレビューを開閉します。"),
+                h("button", {
+                  type: "button",
+                  className: "btn btn-primary",
+                  onClick: () => { if (typeof onTogglePreview === "function") onTogglePreview(); },
+                  disabled: typeof onTogglePreview !== "function",
+                  "aria-label": "右側の実プレビューを切り替える"
+                }, "右側の実プレビューを切り替える")
+              )
+            )
+          ),
+        )
   );
 };
 
