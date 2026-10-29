@@ -41,6 +41,8 @@ test("盤面はマップ上の駒と、分離したキャラクター一覧と�
   assert.match(preview, /tokenStatus\.slice\(0, 8\)\.map\(renderRosterStatus\)/);
   assert.match(preview, /tokenData\.initiative \?\? 0/);
   assert.match(preview, /背景・配置・拡大率は、実際のルーム設定によって変わります/);
+  assert.match(preview, /出力データから組み立てた表示例です。ルームの背景・座標・倍率は反映しません。/);
+  assert.doesNotMatch(preview, /基本タブの画像・名前・行動順と、現在のステータス/);
   assert.match(preview, /pv-ccfolia-empty-media/);
   assert.match(preview, /onError: markFailed/);
   assert.match(preview, /if \(src === tokenImage\) setTokenImageFailed\(true\)/);
