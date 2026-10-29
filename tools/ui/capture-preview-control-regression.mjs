@@ -141,7 +141,7 @@ async function createDisposableAccount(page,profile) {
   await page.locator(profile.mobile?".preview-mobile-toggle":"#lbt-preview-edge-toggle").waitFor({state:"visible",timeout:10000});
   const tokenPreview = page.locator(".pc-token-preview");
   await tokenPreview.waitFor({ state: "visible", timeout: 5000 });
-  const tokenPreviewText = (await tokenPreview.innerText()).replace(/\\s+/g, " ");
+  const tokenPreviewText = (await tokenPreview.innerText()).replace(/\s+/g, " ");
   recordCheck(profile.name + ": Basic token preview reflects edited character data",
     tokenPreviewText.includes("サンプル・フィクサー") && tokenPreviewText.includes("テスト卓") && tokenPreviewText.includes("行動順 12"),
     { tokenPreviewText });
@@ -194,7 +194,7 @@ async function runProfile(browser,profile) {
     results.screenshots.push({ file: path.relative(ROOT, labelFormatPath), profile: profile.name, state: "build-params-label-tab" });
 
     await previewFormatTab.click();
-    const previewFormatText = (await previewFormatPanel.innerText()).replace(/\\s+/g, " ");
+    const previewFormatText = (await previewFormatPanel.innerText()).replace(/\s+/g, " ");
     recordCheck(profile.name + ": Basic output tab reflects the current character and real preview action",
       await previewFormatPanel.isVisible() && previewFormatText.includes("サンプル・フィクサー") && previewFormatText.includes("テスト卓") &&
       await page.getByRole("button", { name: "右側の実プレビューを切り替える", exact: true }).isVisible(),
