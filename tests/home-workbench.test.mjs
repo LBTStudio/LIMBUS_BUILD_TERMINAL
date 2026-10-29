@@ -100,7 +100,7 @@ test("ビルドは作業対象と保存状態を常時表示し、タブ列を�
 test("プレビュー用キャプチャーは現行の「ビルド」表示を使う", () => {
   const capture = read("../tools/ui/capture-preview-control-regression.mjs");
   const nav = app.slice(app.indexOf("const SECTIONS = ["), app.indexOf("function isComplete"));
-  assert.match(nav, /id: "persona", label: "ワークベンチ"/);
+  assert.match(nav, /id: "persona", label: "ビルド"/);
   assert.match(app, /HOME \/ MULTI-PURPOSE LAUNCHER/);
   assert.match(app, /ビルドを開く/);
   assert.match(app, /ワークベンチ/);
