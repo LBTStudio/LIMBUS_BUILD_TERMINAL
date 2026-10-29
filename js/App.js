@@ -388,7 +388,7 @@ const SECTIONS = [
   /* ホームは目的別ランチャー。実際の編集画面はビルドに集約する。 */
   { id: "home", label: "ホーム", icon: "home", title: "HOME / LAUNCHER", subtitle: "目的から作業を始める", num: null, group: "home" },
   /* 基本設定・人格・戦術データを同じ作業面にまとめる。 */
-  { id: "persona", label: "ワークベンチ", icon: "grid", title: "BUILD WORKSPACE", subtitle: "基本設定・人格・スキル・パッシブ・強化・サポート・E.G.O・精神・アイテム", num: "01", group: "build" },
+  { id: "persona", label: "ビルド", icon: "grid", title: "BUILD WORKSPACE", subtitle: "基本設定・人格・スキル・パッシブ・強化・サポート・E.G.O・精神・アイテム", num: "01", group: "build" },
   { id: "shop", label: "ショップ", icon: "item", title: "SHOP", subtitle: "人格・サポート・E.G.O・精神・アイテムを購入", num: "02", group: "utility" },
   { id: "roster", label: "記録・所持品", icon: "roster", title: "CHARACTER RECORD", subtitle: "所持品・リザルト・収支・取り込み", num: null, group: "utility" },
   { id: "settings", label: "詳細設定", icon: "settings", title: "BUILD PARAMETERS", subtitle: "ステータス設計・計算・出力", num: null, group: "utility" },
@@ -1355,7 +1355,7 @@ const HomeLauncher = ({
       h("div", { className: "btype-context-chips" },
         chip("対象：" + String(state.charName || "名称未設定")),
         chip("自動保存：" + (saveStatus?.phase === "saved" ? "有効" : "処理中")),
-        chip("作業場所：ワークベンチ")),
+        chip("作業場所：ビルド")),
       h("div", { className: "btype-command-search" },
       h(Icon, { name: "search", size: 17 }),
       h("input", {
@@ -1386,7 +1386,7 @@ const HomeLauncher = ({
       h("button", { type: "button", className: "btype-task-row", onClick: () => navigate("baseinfo") },
         h("span", { className: "btype-task-glyph", "aria-hidden": "true" }, h(Icon, { name: "grid", size: 18 })),
         h("span", { className: "btype-task-copy" },
-          h("strong", null, "ワークベンチを開く"),
+          h("strong", null, "ビルドを開く"),
           h("small", null, "基本設定・ビルド・プレビューを一つの作業領域で編集")),
         h("span", { className: "btype-task-chevron", "aria-hidden": "true" }, "›"))
     )
