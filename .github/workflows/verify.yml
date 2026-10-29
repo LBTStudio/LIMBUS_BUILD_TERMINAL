@@ -32,6 +32,8 @@ jobs:
         run: node tools/sync-asset-versions.mjs --check
       - name: Verify deployed Pages smoke-test syntax
         run: node --check tools/ui/verify-production-pages.mjs
+      - name: Smoke-test the currently published production Pages site
+        run: node tools/ui/verify-production-pages.mjs https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/
       - name: Verify live account recovery smoke-test syntax
         run: node --check tools/ui/verify-account-recovery-live.mjs
       - name: Verify short-link publish and restore round-trip
