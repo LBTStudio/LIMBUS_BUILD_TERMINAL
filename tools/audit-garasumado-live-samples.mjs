@@ -1105,6 +1105,9 @@ function toMarkdownReport(report) {
     ["価格・チケット表記なしの抽出行", report.parser.unpricedActionCueAuditSummary.drawWithoutPriceOrTicketRows],
     ["近傍にチケット文脈がある抽出行", report.parser.unpricedActionCueAuditSummary.drawWithTicketContextRows],
     ["費用金額がなく負の残差もある文書", report.parser.unpricedActionCueAuditSummary.negativeResidualAndNoParsedSpendDocuments],
+    ["収入トレースとパーサー合計の不一致文書", report.parser.incomeRouteCompositionSummary.all.traceIncomeMismatchDocuments],
+    ["負の残差文書の解析収入（LP / 欠片）", report.parser.incomeRouteCompositionSummary.negativeResidual.totalParserIncomeLp + " / " + report.parser.incomeRouteCompositionSummary.negativeResidual.totalParserIncomeShards],
+    ["負の残差・支出ゼロ文書の解析収入（LP / 欠片）", report.parser.incomeRouteCompositionSummary.negativeResidualNoSpend.totalParserIncomeLp + " / " + report.parser.incomeRouteCompositionSummary.negativeResidualNoSpend.totalParserIncomeShards],
     ["方向未確定のLP / 欠片金額", report.parser.flowDifferenceSummary.unknownDirectionAmounts.lp + " / " + report.parser.flowDifferenceSummary.unknownDirectionAmounts.shards]
   ];
   const lines = [
@@ -1190,6 +1193,23 @@ function toMarkdownReport(report) {
     ...report.parser.explicitSpendCueAuditDocuments.flatMap((document) =>
       document.missingRows.map((row) => "| " + document.id + " | " + row.historyRow + " | " + row.lineIndex + " | " + Number(row.hasExplicitSpendAction) + " | " + Number(row.hasNegativeCurrency) + " | " + Number(row.looksLikeArithmeticExpression) + " | " + Number(row.looksLikeBalanceTransition) + " | " + row.status + " | " + Number(row.hasParserReason) + " | " + Number(row.hasRelatedAudit) + " | " + row.lineShape.lineLength + " | " + row.lineShape.amountTokenCount + " | " + row.lineShape.amountTokenShape.map((token) => token.currency + ":" + token.digitWidth).join(",") + " | " + row.lineShape.actionKinds.join("+") + " | " + Number(row.lineShape.hasBalanceCue) + " | " + Number(row.lineShape.ticketClassified) + " | " + Number(row.isolatedParseWouldSpend) + " | " + row.isolatedSpendRows + " | " + row.isolatedReasonCount + " |")
     ),
+    "",
+    "## 収入計上経路の構成（原文・名称なし）",
+    "",
+    "パーサーが実際に収入へ加算した内部経路を、経路別・通貨別に集計します。これは経路の説明であって、正しい収入だったことを証明するものではありません。すべての収入トレース合計とパーサー収入合計が一致するかも確認し、経路集計そのものの欠落を分けます。",
+    "",
+    "| 集計母集団 | 文書数 | トレース不一致 | トレースLP | パーサーLP | トレース欠片 | パーサー欠片 |",
+    "|---|---:|---:|---:|---:|---:|---:|",
+    ...[
+      ["全体", report.parser.incomeRouteCompositionSummary.all],
+      ["負の残差がある文書", report.parser.incomeRouteCompositionSummary.negativeResidual],
+      ["負の残差かつ支出明細ゼロ", report.parser.incomeRouteCompositionSummary.negativeResidualNoSpend]
+    ].map(([label, row]) => "| " + label + " | " + row.documents + " | " + row.traceIncomeMismatchDocuments + " | " + row.totalTracedIncomeLp + " | " + row.totalParserIncomeLp + " | " + row.totalTracedIncomeShards + " | " + row.totalParserIncomeShards + " |"),
+    "",
+    "| 経路:通貨 | 行数 | 文書数 | 合計額 |",
+    "|---|---:|---:|---:|",
+    ...Object.entries(report.parser.incomeRouteCompositionSummary.negativeResidualNoSpend.routes)
+      .map(([route, values]) => "| " + route + " | " + values.rows + " | " + values.documents + " | " + values.amount + " |"),
     "",
     "## 取引・抽出・消費の記述はあるが費用額がない行（候補・非確定）",
     "",
@@ -1373,6 +1393,84 @@ const balanceBridges = successful
       )
     };
   });
+
+
+/* Aggregate only route identifiers, currencies and amounts from the parser's in-memory trace.
+   This checks whether parser income traces reconcile to the parser totals and where income is
+   sourced, without exposing memo text or acquired-item names. */
+const incomeRouteCompositionDocuments = successful.map((entry) => {
+  const events = (entry.parsedRows || []).flatMap((row) => row.incomeTrace || []);
+  const routeTotals = {};
+  const tracedIncome = { lp: 0, shards: 0 };
+  for (const event of events) {
+    const currency = event.currency === "lp" ? "lp" : "shards";
+    const route = String(event.route || "unknown");
+    const key = route + ":" + currency;
+    if (!routeTotals[key]) routeTotals[key] = { rows: 0, amount: 0 };
+    routeTotals[key].rows += 1;
+    routeTotals[key].amount += Number(event.amount) || 0;
+    tracedIncome[currency] += Number(event.amount) || 0;
+  }
+  const bridge = balanceBridges.find((row) => row.id === entry.baseline.id) || null;
+  const spendRows = (entry.parsedRows || []).reduce((sum, row) => sum + (row.spendTrace || []).filter((event) =>
+    (Number(event.lp) || 0) !== 0 || (Number(event.shards) || 0) !== 0
+  ).length, 0);
+  return {
+    id: entry.baseline.id,
+    historyRows: entry.actualHistoryRows,
+    memoRows: entry.actualMemoRows,
+    routeTotals,
+    tracedIncomeLp: tracedIncome.lp,
+    tracedIncomeShards: tracedIncome.shards,
+    parserIncomeLp: bridge?.incomeLp ?? null,
+    parserIncomeShards: bridge?.incomeShards ?? null,
+    traceIncomeMatchesParser: Boolean(bridge && tracedIncome.lp === bridge.incomeLp && tracedIncome.shards === bridge.incomeShards),
+    spendRows,
+    parsedSpendLp: bridge?.spentLp ?? null,
+    parsedSpendShards: bridge?.spentShards ?? null,
+    currentLp: bridge?.currentLp ?? null,
+    currentShards: bridge?.currentShards ?? null,
+    residualLp: bridge?.impliedOpeningLp ?? null,
+    residualShards: bridge?.impliedOpeningShards ?? null
+  };
+});
+function summarizeIncomeRouteComposition(rows) {
+  const routes = {};
+  for (const doc of rows) for (const [key, value] of Object.entries(doc.routeTotals || {})) {
+    if (!routes[key]) routes[key] = { rows: 0, amount: 0, documents: 0 };
+    routes[key].rows += Number(value.rows) || 0;
+    routes[key].amount += Number(value.amount) || 0;
+    routes[key].documents += 1;
+  }
+  return {
+    documents: rows.length,
+    traceIncomeMismatchDocuments: rows.filter((row) => !row.traceIncomeMatchesParser && row.parserIncomeLp !== null).length,
+    totalTracedIncomeLp: rows.reduce((sum, row) => sum + (Number(row.tracedIncomeLp) || 0), 0),
+    totalTracedIncomeShards: rows.reduce((sum, row) => sum + (Number(row.tracedIncomeShards) || 0), 0),
+    totalParserIncomeLp: rows.reduce((sum, row) => sum + (Number(row.parserIncomeLp) || 0), 0),
+    totalParserIncomeShards: rows.reduce((sum, row) => sum + (Number(row.parserIncomeShards) || 0), 0),
+    routes: Object.fromEntries(Object.entries(routes).sort(([a], [b]) => a.localeCompare(b)))
+  };
+}
+const negativeResidualIncomeRouteDocs = incomeRouteCompositionDocuments.filter((row) =>
+  row.residualLp < 0 || row.residualShards < 0
+);
+const negativeResidualNoSpendIncomeRouteDocs = negativeResidualIncomeRouteDocs.filter((row) => row.spendRows === 0);
+const incomeRouteCompositionSummary = {
+  all: summarizeIncomeRouteComposition(incomeRouteCompositionDocuments.filter((row) => row.parserIncomeLp !== null)),
+  negativeResidual: summarizeIncomeRouteComposition(negativeResidualIncomeRouteDocs.filter((row) => row.parserIncomeLp !== null)),
+  negativeResidualNoSpend: summarizeIncomeRouteComposition(negativeResidualNoSpendIncomeRouteDocs.filter((row) => row.parserIncomeLp !== null)),
+  traceMismatchDocuments: incomeRouteCompositionDocuments
+    .filter((row) => row.parserIncomeLp !== null && !row.traceIncomeMatchesParser)
+    .map((row) => ({
+      id: row.id,
+      tracedIncomeLp: row.tracedIncomeLp,
+      parserIncomeLp: row.parserIncomeLp,
+      tracedIncomeShards: row.tracedIncomeShards,
+      parserIncomeShards: row.parserIncomeShards
+    })),
+  documents: incomeRouteCompositionDocuments.filter((row) => row.parserIncomeLp !== null)
+};
 
 const FLOW_FIELDS = ["lpIncome", "lpSpend", "shardsIncome", "shardsSpend"];
 const FLOW_UNKNOWN_FIELDS = ["lpUnknown", "shardsUnknown"];
@@ -1915,6 +2013,8 @@ const report = {
     explicitSpendCueAuditDocuments,
     unpricedActionCueAuditSummary,
     unpricedActionCueAuditDocuments,
+    incomeRouteCompositionSummary,
+    incomeRouteCompositionDocuments,
     flowDifferenceSummary,
     flowDifferenceDetails,
     flowUnknownDirectionDetails,
@@ -2001,6 +2101,8 @@ console.log(JSON.stringify({
     explicitSpendCueAuditDocuments: report.parser.explicitSpendCueAuditDocuments,
     unpricedActionCueAuditSummary: report.parser.unpricedActionCueAuditSummary,
     unpricedActionCueAuditDocuments: report.parser.unpricedActionCueAuditDocuments,
+    incomeRouteCompositionSummary: report.parser.incomeRouteCompositionSummary,
+    incomeRouteCompositionDocuments: report.parser.incomeRouteCompositionDocuments,
     flowDifferenceRowsByStatus: report.parser.flowDifferenceSummary.byStatus,
     flowUnknownDirectionRows: report.parser.flowDifferenceSummary.unknownDirectionRows,
     flowUnknownDirectionRowsByStatus: report.parser.flowDifferenceSummary.unknownDirectionRowsByStatus,
