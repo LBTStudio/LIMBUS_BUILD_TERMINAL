@@ -16,7 +16,7 @@ test("Bタイプはビルドを主作業面にし、ホームを補助入口と�
   const nav = app.slice(app.indexOf("const SECTIONS = ["), app.indexOf("function isComplete"));
   assert.match(nav, /id: "home", label: "ホーム", icon: "home"/);
   assert.match(ui, /const ICON_PATHS = \{[\s\S]*?\bhome:/);
-  assert.match(nav, /id: "persona", label: "ワークベンチ"/);
+  assert.match(nav, /id: "persona", label: "ビルド"/);
   assert.doesNotMatch(nav, /id: "baseinfo"/);
   assert.match(app, /s\.id === "persona" \? "baseinfo" : s\.id/);
   assert.match(app, /const current = state\.ui\.currentSection \|\| "home"/);
@@ -102,7 +102,7 @@ test("プレビュー用キャプチャーは現行の「ビルド」表示を�
   const nav = app.slice(app.indexOf("const SECTIONS = ["), app.indexOf("function isComplete"));
   assert.match(nav, /id: "persona", label: "ワークベンチ"/);
   assert.match(app, /HOME \/ MULTI-PURPOSE LAUNCHER/);
-  assert.match(app, /ワークベンチを開く/);
+  assert.match(app, /ビルドを開く/);
   assert.match(app, /ワークベンチ/);
   assert.match(capture, /\.rail-item\[title='ビルド'\]/);
   assert.match(capture, /\.rail-item\[title='ワークベンチ'\]/);
