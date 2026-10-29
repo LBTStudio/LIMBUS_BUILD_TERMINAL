@@ -174,7 +174,6 @@ const LivePreview = ({ state, dispatch }) => {
           h("div", { className: "pv-token-board", "aria-label": "駒画像と名前の表示イメージ" },
             h("div", { className: "pv-token-board-grid", "aria-hidden": "true" }),
             h("div", { className: "pv-token-board-token", style: { "--pv-token-color": tokenColor } },
-              h("span", { className: "pv-token-initiative" }, "行動順 " + String(tokenData.initiative ?? 0)),
               renderTokenImage("pv-token-board-avatar", tokenName + "の駒画像"),
               h("strong", { className: "pv-token-board-name" }, tokenName)
             )
@@ -184,7 +183,11 @@ const LivePreview = ({ state, dispatch }) => {
               h("span", null, "PL"),
               h("strong", null, String(tokenData.playerName || "未設定"))
             ),
-            h("div", { className: "pv-token-status-grid" },
+            h("div", { className: "pv-token-identity" },
+              h("span", null, "行動順"),
+              h("strong", null, String(tokenData.initiative ?? 0))
+            ),
+            h("div", { className: "pv-token-status-grid pv-token-board-status-grid" },
               tokenStatus.filter((entry) => ["HP", "SAN"].includes(String(entry.label || "").toUpperCase())).map(renderTokenStatus)
             )
           )
