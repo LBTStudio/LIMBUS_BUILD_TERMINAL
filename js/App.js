@@ -1337,7 +1337,7 @@ const HomeLauncher = ({
     { id: "import", title: "データを取り込む", desc: "人格本文・リザルト・硝子窓・所持一覧", icon: "upload", terms: "取り込み テキスト URL 硝子窓 所持一覧 リザルト 報酬 購入履歴 人格", run: onOpenImportRouter },
     { id: "records", title: "記録・所持品", desc: "所持ライブラリ、リザルト、収支", icon: "roster", terms: "記録 所持ライブラリ 所持品 人格 EGO E.G.O リザルト 報酬 収支", run: () => navigate("roster", { libraryTab: "ledger" }) },
     { id: "shop", title: "ショップ", desc: "未所持の人格・E.G.O・サポート等を探す", icon: "item", terms: "未所持 購入 人格 EGO E.G.O サポート 精神 アイテム", run: () => navigate("shop") },
-    { id: "preview", title: "駒のプレビュー", desc: "メモ・チャットパレット・CCFOLIA出力を確認", icon: "eye", terms: "駒 プレビュー JSON 出力 ココフォリア チャットパレット メモ", run: onTogglePreview },
+    { id: "preview", title: "CCFOLIA駒プレビュー", desc: "盤面・キャラクターシート・実際の出力JSONを確認", icon: "eye", terms: "駒 プレビュー 盤面 キャラクターシート JSON 出力 ココフォリア", run: () => navigate("baseinfo", { basicFormatTab: "preview", basicPreviewMode: "board" }) },
     { id: "utilities", title: "保存・復元・共有", desc: "作業データ、所持ライブラリ、共有シート", icon: "archive", terms: "保存 復元 バックアップ JSON 共有 ライブラリ 作業状態", run: onOpenUtilities },
     { id: "settings", title: "詳細設定", desc: "ステータス、ラベル、出力順、計算式", icon: "settings", terms: "ステータス ラベル 出力順 計算式 詳細設定", run: () => navigate("settings") },
     { id: "help", title: "使い方を探す", desc: "目的や画面名から操作ガイドを検索", icon: "book", terms: "使い方 ヘルプ 操作 ガイド 検索", run: () => navigate("help") }
@@ -1768,7 +1768,7 @@ const App = () => {
       case "ego":
       case "spirit":
       case "items-build":
-        return /* @__PURE__ */ React.createElement(BuildWorkspace, { state, dispatch, saveStatus, onTogglePreview: togglePreview });
+        return /* @__PURE__ */ React.createElement(BuildWorkspace, { state, dispatch, saveStatus });
       case "roster":
         return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SectionTitle, { num: sec.num, title: sec.title, subtitle: sec.subtitle }), /* @__PURE__ */ React.createElement(RosterSection, { state, dispatch }));
       case "shop":
