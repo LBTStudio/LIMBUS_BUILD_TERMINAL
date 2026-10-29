@@ -388,11 +388,11 @@ const SECTIONS = [
   /* ホームは目的別ランチャー。実際の編集画面はビルドに集約する。 */
   { id: "home", label: "ホーム", icon: "home", title: "HOME / LAUNCHER", subtitle: "目的から作業を始める", num: null, group: "home" },
   /* 基本設定・人格・戦術データを同じ作業面にまとめる。 */
-  { id: "persona", label: "ビルド", icon: "grid", title: "BUILD", subtitle: "基本設定・人格・スキル・パッシブ・強化・サポート・E.G.O・精神・アイテム", num: "01", group: "build" },
+  { id: "persona", label: "ワークベンチ", icon: "grid", title: "BUILD WORKSPACE", subtitle: "基本設定・人格・スキル・パッシブ・強化・サポート・E.G.O・精神・アイテム", num: "01", group: "build" },
   { id: "shop", label: "ショップ", icon: "item", title: "SHOP", subtitle: "人格・サポート・E.G.O・精神・アイテムを購入", num: "02", group: "utility" },
-  { id: "roster", label: "記録", icon: "roster", title: "CHARACTER RECORD", subtitle: "所持品・リザルト・収支・取り込み", num: null, group: "utility" },
-  { id: "settings", label: "設定", icon: "settings", title: "BUILD PARAMETERS", subtitle: "ステータス設計・計算・出力", num: null, group: "utility" },
-  { id: "help", label: "使い方", icon: "book", title: "使い方", subtitle: "検索して、押す場所を図で確認", num: null, group: "utility" }
+  { id: "roster", label: "記録・所持品", icon: "roster", title: "CHARACTER RECORD", subtitle: "所持品・リザルト・収支・取り込み", num: null, group: "utility" },
+  { id: "settings", label: "詳細設定", icon: "settings", title: "BUILD PARAMETERS", subtitle: "ステータス設計・計算・出力", num: null, group: "utility" },
+  { id: "help", label: "使い方", icon: "book", title: "使い方を探す", subtitle: "検索して、押す場所を図で確認", num: null, group: "utility" }
 ];
 
 function isComplete(section, s) {
@@ -1326,102 +1326,72 @@ const RailNavigation = ({ sections, current, dispatch, onOpenUtilities, onOpenIm
    処理やデータ更新を複製せず、既存画面と既存アクションへ接続する。 */
 const HomeLauncher = ({
   state, dispatch, saveStatus, onOpenAccounts, onOpenImportFile,
-  onExportState, onExportRoster, onTogglePreview, onCopyJson
+  onExportState, onExportRoster, onTogglePreview, onCopyJson, onOpenUtilities
 }) => {
   const h = React.createElement;
   const [query, setQuery] = React.useState("");
   const navigate = (currentSection, extraUI = {}) =>
     dispatch({ type: "SET_UI", ui: { currentSection, ...extraUI } });
 
-  const groups = [
-    {
-      id: "edit", title: "作成・編集", note: "基本設定から戦闘データまで、同じビルドで作業します。", items: [
-        { id: "base", title: "駒の基本設定", desc: "立ち絵・名前・行動順・駒色・ST・ラベル", icon: "persona", terms: "駒整形 ココフォリア 立ち絵 画像 キャラクター 基本情報", run: () => navigate("baseinfo") },
-        { id: "persona", title: "人格を選ぶ・装備する", desc: "所持人格の選択、同期・手動編集", icon: "persona", terms: "人格 所持 装備 同期 手動編集", run: () => navigate("persona") },
-        { id: "skills", title: "スキルを編集する", desc: "戦術スキル・ダイス・効果", icon: "skill", terms: "戦術 スキル ダイス 効果", run: () => navigate("skill") },
-        { id: "passive", title: "パッシブ・強化・サポート", desc: "パッシブ、身体強化、サポート枠", icon: "passive", terms: "パッシブ 強化 サポート", run: () => navigate("passive") },
-        { id: "ego", title: "E.G.Oを装備・解析", desc: "ランク枠、覚醒・侵蝕、固有効果", icon: "ego", terms: "EGO E.G.O 解析 覚醒 侵蝕", run: () => navigate("ego") }
-      ]
-    },
-    {
-      id: "imports", title: "データの取り込み", note: "入力データの種類を選び、解析結果と反映先を確認します。", items: [
-        { id: "persona-import", title: "人格データの文章を取り込む", desc: "一括テキストや硝子窓の人格URL", icon: "copy", terms: "人格 テキスト 流し込み 硝子窓 URL 共有", run: () => navigate("persona", { openPersonaDraftImport: true }) },
-        { id: "result-import", title: "報酬・購入履歴を取り込む", desc: "リザルト本文を解析して収支へ反映", icon: "download", terms: "報酬 購入 履歴 リザルト 収支 LP 欠片", run: () => navigate("roster", { libraryTab: "ledger", recordImportTarget: "text" }) },
-        { id: "owned-import", title: "所持人格リストを取り込む", desc: "人格名の一覧をまとめて認識", icon: "roster", terms: "所持 人格 一覧 一括 名前 リスト", run: () => navigate("roster", { libraryTab: "ledger", recordImportTarget: "held" }) },
-        { id: "account-import", title: "硝子窓のキャラクター全体を取り込む", desc: "アカウント編集から共有URLを読み込む", icon: "share", terms: "硝子窓 キャラクター アカウント 全体 URL 共有", run: onOpenAccounts }
-      ]
-    },
-    {
-      id: "output", title: "保存・出力", note: "バックアップ、共有用シート、セッション用JSONを使い分けます。", items: [
-        { id: "save-state", title: "作業状態をファイル保存", desc: "現在の作業状態をJSONへ書き出す", icon: "download", terms: "保存 バックアップ JSON 作業状態 エクスポート", run: onExportState },
-        { id: "load-state", title: "保存ファイルを読み込む", desc: "適用するカテゴリを選んで復元", icon: "upload", terms: "読み込み 復元 インポート ファイル JSON", run: onOpenImportFile },
-        { id: "save-library", title: "所持ライブラリを保存", desc: "所持人格・E.G.O・保存済みビルドを引き継ぐ", icon: "archive", terms: "所持 ライブラリ 保存 ビルド お気に入り 履歴", run: onExportRoster },
-        { id: "preview", title: state.ui?.previewOpen === true ? "プレビューを閉じる" : "プレビューを開く", desc: "メモ・チャットパレット・JSONを確認", icon: "eye", terms: "プレビュー メモ チャットパレット JSON 出力", run: onTogglePreview },
-        { id: "json", title: "CCFOLIA JSONをコピー", desc: "セッションで使う駒データを出力", icon: "copy", terms: "ココフォリア CCFOLIA JSON コピー 出力", run: onCopyJson }
-      ]
-    },
-    {
-      id: "manage", title: "管理・参照", note: "所持品、購入、設定、操作ガイドへ移動します。", items: [
-        { id: "shop", title: "ショップを開く", desc: "人格・E.G.O・アイテムなどを入手", icon: "item", terms: "ショップ 購入 入手 商品", run: () => navigate("shop") },
-        { id: "records", title: "所持品・リザルト・収支を確認", desc: "記録の一覧と残高を管理", icon: "roster", terms: "記録 所持品 リザルト 収支 LP 欠片", run: () => navigate("roster", { libraryTab: "ledger" }) },
-        { id: "settings", title: "詳細設定", desc: "ステータス一覧、計算、出力先", icon: "settings", terms: "設定 ステータス 計算 出力先 ラベル", run: () => navigate("settings") },
-        { id: "help", title: "使い方・操作ガイド", desc: "機能名や目的から使い方を探す", icon: "book", terms: "使い方 ガイド ヘルプ 操作 検索", run: () => navigate("help") }
-      ]
-    }
+  /* Bタイプのホーム構造。カードは既存のアクションへ接続し、機能を複製しない。 */
+  const actions = [
+    { id: "base", title: "基本情報・駒整形", desc: "名前・PL・立ち絵・色・ST・ラベルを整える", icon: "grid", terms: "基本 駒整形 立ち絵 画像 名前 PL 色 行動順 ST ステータス ラベル ココフォリア", run: () => navigate("baseinfo") },
+    { id: "persona", title: "人格・スキルを編集", desc: "人格を装備し、スキルやパッシブを調整", icon: "persona", terms: "人格 スキル パッシブ 強化 EGO E.G.O 精神 アイテム 装備", run: () => navigate("persona") },
+    { id: "import", title: "データを取り込む", desc: "人格本文・リザルト・硝子窓・所持一覧", icon: "upload", terms: "取り込み テキスト URL 硝子窓 所持一覧 リザルト 報酬 購入履歴 人格", run: () => window.dispatchEvent(new CustomEvent("lbt:open-import-router")) },
+    { id: "records", title: "記録・所持品", desc: "所持ライブラリ、リザルト、収支", icon: "roster", terms: "記録 所持ライブラリ 所持品 人格 EGO E.G.O リザルト 報酬 収支", run: () => navigate("roster", { libraryTab: "ledger" }) },
+    { id: "shop", title: "ショップ", desc: "未所持の人格・E.G.O・サポート等を探す", icon: "item", terms: "未所持 購入 人格 EGO E.G.O サポート 精神 アイテム", run: () => navigate("shop") },
+    { id: "preview", title: "駒のプレビュー", desc: "メモ・チャットパレット・CCFOLIA出力を確認", icon: "eye", terms: "駒 プレビュー JSON 出力 ココフォリア チャットパレット メモ", run: onTogglePreview },
+    { id: "utilities", title: "保存・復元・共有", desc: "作業データ、所持ライブラリ、共有シート", icon: "archive", terms: "保存 復元 バックアップ JSON 共有 ライブラリ 作業状態", run: onOpenUtilities },
+    { id: "settings", title: "詳細設定", desc: "ステータス、ラベル、出力順、計算式", icon: "settings", terms: "ステータス ラベル 出力順 計算式 詳細設定", run: () => navigate("settings") },
+    { id: "help", title: "使い方を探す", desc: "目的や画面名から操作ガイドを検索", icon: "book", terms: "使い方 ヘルプ 操作 ガイド 検索", run: () => navigate("help") }
   ];
-
   const needle = query.trim().toLocaleLowerCase("ja");
-  const visibleGroups = groups.map((group) => ({
-    ...group,
-    items: group.items.filter((item) =>
-      !needle || [item.title, item.desc, item.terms].join(" ").toLocaleLowerCase("ja").includes(needle))
-  })).filter((group) => group.items.length > 0);
-  const renderCards = (items) => items.map((item) => h("button", {
-    key: item.id, type: "button", className: "home-task",
-    onClick: item.run, "data-task": item.id
-  },
-    h("span", { className: "home-task-icon", "aria-hidden": "true" }, h(Icon, { name: item.icon, size: 18 })),
-    h("span", { className: "home-task-copy" },
-      h("strong", null, item.title),
-      h("span", null, item.desc)),
-    h("span", { className: "home-task-arrow", "aria-hidden": "true" }, "→")
-  ));
+  const visibleActions = actions.filter((item) =>
+    !needle || [item.title, item.desc, item.terms].join(" ").toLocaleLowerCase("ja").includes(needle));
+  const chip = (label) => h("span", { className: "btype-result-chip", key: label }, label);
 
-  return h("section", { className: "home-launcher", "aria-labelledby": "home-launcher-title" },
-    h("header", { className: "home-hero" },
-      h("div", { className: "home-hero-copy" },
-        h("span", { className: "home-eyebrow" }, "LIMBUS BUILD TERMINAL / BUILD"),
-        h("h2", { id: "home-launcher-title" }, "何から始めますか？"),
-        h("p", null, "目的から入口を選べます。細かな編集はビルドにまとまっています。"),
-        h("div", { className: "home-context" },
-          h("span", null, "作業対象"),
-          h("strong", null, String(state.charName || "名称未設定")),
-          h("span", { className: "home-save-state", "data-state": saveStatus?.phase || "unknown" },
-            saveStatus?.phase === "saved" ? "端末内に保存済み" : saveStatus?.phase === "error" ? "ファイル保存を推奨" : "自動保存中")
-        )
-      ),
-      h("button", {
-        type: "button", className: "home-primary-action",
-        onClick: () => navigate("baseinfo")
-      }, h(Icon, { name: "grid", size: 17 }), h("span", null, "ビルドを開く"))
+  return h("section", { className: "home-launcher btype-home", "aria-labelledby": "home-launcher-title" },
+    h("header", { className: "btype-command-hero" },
+      h("div", { className: "btype-eyebrow" }, "HOME / MULTI-PURPOSE LAUNCHER"),
+      h("h2", { id: "home-launcher-title" }, "何から始めますか？"),
+      h("p", { className: "btype-muted" }, "画面名が分からなくても、目的から機能を開けます。編集対象は現在のキャラクターです。"),
+      h("div", { className: "btype-context-chips" },
+        chip("対象：" + String(state.charName || "名称未設定")),
+        chip("自動保存：" + (saveStatus?.phase === "saved" ? "有効" : "処理中")),
+        chip("作業場所：ワークベンチ"))
     ),
-    h("label", { className: "home-search" },
+    h("div", { className: "btype-command-search" },
       h(Icon, { name: "search", size: 17 }),
       h("input", {
         type: "search", value: query, onChange: (event) => setQuery(event.target.value),
-        placeholder: "操作を検索（例：報酬、硝子窓、JSON）",
-        "aria-label": "ホームの機能を検索"
+        placeholder: "例：人格を取り込む／報酬を記録／JSONを出力",
+        "aria-label": "機能を検索"
       }),
       query ? h("button", { type: "button", onClick: () => setQuery(""), "aria-label": "検索をクリア" }, "×") : null
     ),
-    h("div", { className: "home-task-groups" },
-      visibleGroups.length
-        ? visibleGroups.map((group) => h("section", { key: group.id, className: "home-group", "aria-labelledby": "home-group-" + group.id },
-            h("header", { className: "home-group-heading" },
-              h("h3", { id: "home-group-" + group.id }, group.title),
-              h("p", null, group.note)),
-            h("div", { className: "home-task-grid" }, renderCards(group.items))))
-        : h("div", { className: "home-empty" }, "該当する操作がありません。別の言葉で検索してください。")
+    h("div", { className: "btype-section-title" }, "目的から開く"),
+    h("div", { className: "btype-launcher-grid", "data-launcher-grid": "" },
+      visibleActions.map((item) => h("button", {
+        key: item.id, type: "button", className: "btype-launcher-card",
+        onClick: item.run, "data-task": item.id
+      },
+        h("span", { className: "btype-launcher-icon", "aria-hidden": "true" }, h(Icon, { name: item.icon, size: 18 })),
+        h("strong", null, item.title),
+        h("small", null, item.desc),
+        h("span", { className: "btype-launcher-arrow", "aria-hidden": "true" }, "→")
+      )),
+    ),
+    visibleActions.length === 0 ? h("p", { className: "btype-empty" }, "該当する操作がありません。別の言葉で検索してください。") : null,
+    h("section", { className: "btype-continue-panel" },
+      h("div", { className: "btype-continue-heading" },
+        h("strong", null, "続きから"),
+        h("span", null, "作業を再開")),
+      h("button", { type: "button", className: "btype-task-row", onClick: () => navigate("baseinfo") },
+        h("span", { className: "btype-task-glyph", "aria-hidden": "true" }, h(Icon, { name: "grid", size: 18 })),
+        h("span", { className: "btype-task-copy" },
+          h("strong", null, "ワークベンチを開く"),
+          h("small", null, "基本設定・ビルド・プレビューを一つの作業領域で編集")),
+        h("span", { className: "btype-task-chevron", "aria-hidden": "true" }, "›"))
     )
   );
 };
@@ -1786,7 +1756,8 @@ const App = () => {
           onExportState: () => exportState(state),
           onExportRoster: () => exportRoster(state),
           onTogglePreview: togglePreview,
-          onCopyJson: copyJson
+          onCopyJson: copyJson,
+          onOpenUtilities: openUtilities
         });
       /* 基本設定・人格・戦闘データを同じビルド内で扱う。 */
       case "baseinfo":
