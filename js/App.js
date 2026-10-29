@@ -490,7 +490,7 @@ const acquirePicked = () => {
   const items = React.useMemo(() => {
     const ql = q.trim().toLowerCase();
     const cmds = [
-      ...SECTIONS.map((s) => ({ type: "nav", label: `${s.label} \u30BB\u30AF\u30B7\u30E7\u30F3\u3078\u79FB\u52D5`, kbd: s.num, run: () => dispatch({ type: "SET_UI", ui: { currentSection: s.id } }) })),
+      ...SECTIONS.map((s) => ({ type: "nav", label: `${s.label} \u30BB\u30AF\u30B7\u30E7\u30F3\u3078\u79FB\u52D5`, kbd: s.num, run: () => dispatch({ type: "SET_UI", ui: { currentSection: s.id === "persona" ? "baseinfo" : s.id } }) })),
       /* ビルドは1画面タブ統合。タブへの直接ジャンプをパレットにも出す。 */
       ...(window.LBT_BUILD_TABS || []).map((t) => ({ type: "nav", label: `ワークベンチ：${t.label}`, kbd: t.num, run: () => dispatch({ type: "SET_UI", ui: { currentSection: t.id } }) })),
       { type: "act", label: "JSON\u3092\u30B3\u30D4\u30FC", kbd: "JSON", run: async () => {
@@ -1275,7 +1275,7 @@ const DisclaimerSheet = ({ open, onClose }) => {
 const RailNavigation = ({ sections, current, dispatch, onOpenUtilities, state }) => {
   const h = React.createElement;
   const buildRailItem = (s) => {
-    /* ビルド項目（persona）は 8タブ分の旧 currentSection 値でも
+    /* ワークベンチ（persona）は旧 currentSection 値と基本タブを含めて
        アクティブ表示し、必須3項目の合成完了でドットを出す。 */
     const isBuild = s.id === "persona";
     const active = isBuild ? ["baseinfo", "persona", "skill", "passive", "enh", "support", "ego", "spirit", "items-build"].includes(current) : current === s.id;
