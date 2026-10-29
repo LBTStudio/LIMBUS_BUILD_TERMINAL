@@ -46,3 +46,56 @@
 }
 @media (max-width: 1099px) { .rail-group-label { display: none; } }
 @media (prefers-reduced-motion: reduce) { .rail-item { transition: none; } }
+
+/* B-type visual refinement: mirror the approved prototype's compact, task-first rhythm
+   while keeping the production React components and their real actions. */
+@media (min-width: 1100px) {
+  .page-heading { margin-bottom: 14px; gap: 18px; }
+  .page-heading h1 { font-size: 22px; line-height: 1.25; letter-spacing: -.015em; }
+  .page-heading p { max-width: 760px; line-height: 1.55; }
+  .status-strip { margin: 0 0 14px; gap: 8px; }
+  .subtabs { gap: 5px; padding: 5px; border-radius: 9px; }
+  .subtab { min-height: 36px; padding: 8px 12px; border-radius: 7px; }
+  .focus-inner > .home-launcher { max-width: 1180px; margin-inline: auto; }
+  .home-hero {
+    padding: 20px; border-radius: 13px; margin-bottom: 16px;
+    background: linear-gradient(115deg, #2b2419 0%, #1d1a15 58%, #1b1916 100%);
+    border: 1px solid #5a4930;
+  }
+  .home-hero h2 { font-size: 25px; line-height: 1.25; }
+  .home-hero p { max-width: 760px; }
+  .home-task-groups { gap: 18px; }
+  .home-group { min-width: 0; }
+  .home-group-heading { margin-bottom: 10px; }
+  .home-group-heading h3 { font-size: 13px; letter-spacing: .01em; }
+  .home-task-grid { gap: 8px; }
+  .home-task {
+    min-height: 78px; padding: 12px 13px; border-radius: 9px;
+    background: linear-gradient(145deg, #211e19, #191714);
+    border-color: #40392e;
+  }
+  .home-task:hover { border-color: #8f7444; transform: translateY(-1px); }
+  .home-task-copy strong { font-size: 12px; line-height: 1.4; }
+  .home-task-copy > span { font-size: 10px; line-height: 1.5; }
+  .home-task-icon { width: 32px; height: 32px; flex: 0 0 32px; }
+  .preview { border-left-width: 1px; }
+}
+@media (min-width: 1100px) and (max-width: 1240px) {
+  .home-hero { padding: 16px; }
+  .home-task { padding: 10px; gap: 8px; }
+  .home-task-icon { width: 28px; height: 28px; flex-basis: 28px; }
+}
+@media (max-width: 1099px) {
+  .page-heading { gap: 10px; }
+  .page-heading h1 { font-size: 21px; }
+  .status-strip { margin-bottom: 12px; }
+  .subtabs { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; }
+  .subtab { flex: 0 0 auto; white-space: nowrap; }
+  .home-task-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .home-hero { padding: 14px; }
+  .home-task-grid { grid-template-columns: 1fr; }
+  .page-heading { align-items: flex-start; }
+  .page-heading > :last-child { max-width: 42%; }
+}
