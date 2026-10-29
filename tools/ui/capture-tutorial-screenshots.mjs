@@ -326,7 +326,7 @@ async function captureViewport(browser, mode) {
     if (await personaTab.count()) await personaTab.click();
     const personaTrigger = page.locator(".pw-listbar-actions .persona-draft-import-trigger").first();
     await annotateAndSave(page, personaTrigger, "persona-import-" + mode,
-      "テキスト流し込み反映", "① ビルド → ② 人格 → ③ このボタン");
+      "テキスト流し込み反映", "① ワークベンチ → ② 人格 → ③ このボタン");
 
     // Result text import: open the real import menu, then annotate its item.
     await clickNav(page, "記録");
