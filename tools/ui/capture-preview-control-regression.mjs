@@ -108,24 +108,23 @@ async function createDisposableAccount(page,profile) {
       await existing.click({timeout:5000});
     }
   }
-  // The refined workbench uses Build as the default section, so navigate to Home explicitly
-  // before checking Home branding and taking the current-label regression screenshot.
+  // B-type opens on its command launcher; explicitly selecting Home keeps the capture deterministic.
   const homeNav = page.locator(".rail-item[title='ホーム']");
   await homeNav.waitFor({ state: "visible", timeout: 10000 });
   await homeNav.click();
-  await page.locator(".home-hero").waitFor({ state: "visible", timeout: 10000 });
+  await page.locator(".btype-command-hero").waitFor({ state: "visible", timeout: 10000 });
   // Assert current branding before entering the Build editor; prevents stale Workbench screenshots.
-  const buildNav = page.locator(".rail-item[title='ビルド']");
-  const legacyWorkbenchNav = page.locator(".rail-item[title='ワークベンチ']");
-  const homeEyebrow = (await page.locator(".home-eyebrow").textContent().catch(() => "") || "").trim();
-  const homeAction = (await page.locator(".home-primary-action").innerText().catch(() => "") || "").trim();
+  const buildNav = page.locator(".rail-item[title='ワークベンチ']");
+  const oldBuildNav = page.locator(".rail-item[title='ビルド']");
+  const homeEyebrow = (await page.locator(".btype-eyebrow").textContent().catch(() => "") || "").trim();
+  const homeAction = (await page.locator(".btype-continue-panel").innerText().catch(() => "") || "").trim();
   const buildBrandingOk = await buildNav.count() === 1
     && await buildNav.isVisible()
-    && await legacyWorkbenchNav.count() === 0
-    && homeEyebrow === "LIMBUS BUILD TERMINAL / BUILD"
-    && homeAction.includes("ビルドを開く");
-  recordCheck(profile.name + ": capture uses the current Build labels, not stale Workbench labels",
-    buildBrandingOk, { buildNavCount: await buildNav.count(), legacyWorkbenchNavCount: await legacyWorkbenchNav.count(), homeEyebrow, homeAction });
+    && await oldBuildNav.count() === 0
+    && homeEyebrow === "HOME / MULTI-PURPOSE LAUNCHER"
+    && homeAction.includes("ワークベンチを開く");
+  recordCheck(profile.name + ": B-type launcher and workbench labels match the approved prototype",
+    buildBrandingOk, { buildNavCount: await buildNav.count(), oldBuildNavCount: await oldBuildNav.count(), homeEyebrow, homeAction });
   await buildNav.waitFor({state:"visible",timeout:10000});
   await buildNav.click();
   await page.getByLabel("キャラクター名").fill("サンプル・フィクサー");
