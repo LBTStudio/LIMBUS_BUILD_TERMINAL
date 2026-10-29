@@ -82,12 +82,33 @@ async function waitForApp(page) {
       await page.getByRole("button", { name: "作成して開く", exact: true }).click();
     }
   }
-  await page.locator("button[title='ビルド']").waitFor({ state: "visible", timeout: 30000 });
+  const isPhone = (page.viewportSize()?.width || 1440) <= 640;
+  const buildEntry = isPhone
+    ? page.locator(".btype-mobile-bottom-nav button").filter({ hasText: "ビルド" })
+    : page.locator("button[title='ビルド']");
+  await buildEntry.waitFor({ state: "visible", timeout: 30000 });
   await page.waitForTimeout(WAIT_MS);
 }
 
 async function clickNav(page, title) {
-  const navButton = page.locator("button[title='" + title + "']").first();
+  const isPhone = (page.viewportSize()?.width || 1440) <= 640;
+  let navButton;
+  if (!isPhone) {
+    navButton = page.locator("button[title='" + title + "']").first();
+  } else {
+    const mobileNav = page.locator(".btype-mobile-bottom-nav");
+    const labels = { "ビルド": "ビルド", "記録・所持品": "記録", "データ取り込み": "取込" };
+    if (labels[title]) {
+      navButton = mobileNav.getByRole("button", { name: labels[title], exact: true });
+    } else {
+      await mobileNav.getByRole("button", { name: "その他", exact: true }).click();
+      const otherSection = page.locator(".utility-section-grid").getByRole("button", { name: title, exact: true });
+      await otherSection.waitFor({ state: "visible", timeout: 12000 });
+      await otherSection.click();
+      await page.waitForTimeout(WAIT_MS);
+      return;
+    }
+  }
   await navButton.waitFor({ state: "visible", timeout: 12000 });
   await navButton.click();
   await page.waitForTimeout(WAIT_MS);
