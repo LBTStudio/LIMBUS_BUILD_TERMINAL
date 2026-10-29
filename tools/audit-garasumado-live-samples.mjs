@@ -466,8 +466,7 @@ function auditExplicitSpendCues(lines, spendTrace, reasons, coverages, audits) {
 function auditUnpricedActionCues(lines, spendTrace, coverages, reasons, audits) {
   const candidates = [];
   const moneyAmount = (text) =>
-    CANDIDATE_AMOUNT.test(text) || LEGACY_CANDIDATE_AMOUNT.test(text) ||
-    /(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか))\s*[-+＋−]?\s*\d|[-+＋−]?\s*\d[\d,]*\s*(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか)/i.test(text);
+    CANDIDATE_AMOUNT.test(text) || LEGACY_CANDIDATE_AMOUNT.test(text);
   const moneyWord = /LP|ＬＰ|自我の(?:破片|欠片)|(?<!の)(?:欠片|欠け片|かけら|欠けら|カケラ|けっか)/i;
   const spendWord = /消費|支出|支払|支払い/;
   const purchaseWord = /購入|買った|買っ|指定購入/;
