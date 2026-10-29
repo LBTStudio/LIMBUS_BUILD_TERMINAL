@@ -29,7 +29,7 @@ test("基本タブは既存の駒整形コンポーネントを再利用し、�
   assert.match(sections, /id: "baseinfo", label: "基本"/);
   assert.match(sections, /active\.id === "baseinfo"[\s\S]*?window\.LBT_BaseInfoWorkspace/);
   assert.match(persona, /window\.LBT_BaseInfoWorkspace = BaseInfoWorkspace/);
-  assert.match(sections, /const panelProps = \["persona", "support", "ego", "spirit"\]/);
+  assert.match(sections, /const panelProps = active\.id === "baseinfo" \? \{ onTogglePreview \} : \["persona", "support", "ego", "spirit"\]/);
   const renderStart = app.indexOf("const renderSection = ()");
   const renderBlock = app.slice(renderStart, app.indexOf('case "roster":', renderStart));
   assert.match(renderBlock, /case "baseinfo":[\s\S]*?case "persona":[\s\S]*?BuildWorkspace/);
@@ -108,7 +108,7 @@ test("プレビュー用キャプチャーは現行の「ビルド」表示を�
   assert.match(capture, /\.rail-item\[title='ワークベンチ'\]/);
   assert.match(capture, /build-overview\.png/);
   assert.match(capture, /build-status-editor\.png/);
-  assert.match(capture, /profiles\.length\*7/);
+  assert.match(capture, /profiles\.length\*11/);
 });
 
 test("ステータス一覧・編集・出力順はBタイプのビルド画面に一体化している", () => {
