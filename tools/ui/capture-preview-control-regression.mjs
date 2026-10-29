@@ -162,6 +162,12 @@ async function runProfile(browser,profile) {
     const statusPanel = page.locator(".settings-order-embedded").first();
     const statusTitle = statusPanel.locator(".settings-status-workspace-head .t-label");
     await statusTitle.evaluate(el => el.scrollIntoView({ block: "start", inline: "nearest", behavior: "auto" }));
+    await page.locator(".focus").evaluate(el => {
+      const title = el.querySelector(".settings-order-embedded .settings-status-workspace-head .t-label");
+      if (!title) return;
+      const desiredTop = el.getBoundingClientRect().top + (innerWidth <= 640 ? 150 : 112);
+      el.scrollTop = Math.max(0, el.scrollTop + title.getBoundingClientRect().top - desiredTop);
+    });
     await page.waitForTimeout(100);
     const statusRows = statusPanel.locator(".status-order-row");
     const statusInputs = statusPanel.locator("input");
