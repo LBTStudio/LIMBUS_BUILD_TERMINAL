@@ -57,7 +57,7 @@ async function metrics(page,profile) {
   const actions=await rect(page.locator(".preview-actions"));
   const hint=await rect(page.locator(".preview-hint"));
   const tabs=await rect(page.locator(".preview-tabs"));
-  const rail=await rect(page.locator(".rail"));
+  const rail=await rect(page.locator(profile.width <= 640 ? ".btype-mobile-bottom-nav" : ".rail"));
   const title=await rect(page.locator(".section-title-row"));
   const heading=await rect(page.locator(".section-title"));
   const headingLayout=await page.locator(".section-title").evaluate(el=>{
