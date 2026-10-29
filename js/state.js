@@ -1744,6 +1744,12 @@ function normalizeStateShape(raw) {
     next.supports = next.supports.filter((s) => !isDeathSupportPassiveRecord(s));
   }
   if (!next.ui) next.ui = {};
+  /* B-workbench rollout: migrate a previous launcher landing only once.
+     After this marker is saved, choosing Home remains the user's own choice. */
+  if (next.ui.layoutVersion !== "b-workbench-v1") {
+    if (!next.ui.currentSection || next.ui.currentSection === "home") next.ui.currentSection = "baseinfo";
+    next.ui.layoutVersion = "b-workbench-v1";
+  }
   if (!next.ui.previewCollapsed) next.ui.previewCollapsed = {};
   if (!next.roster || typeof next.roster !== "object") next.roster = { personas: [], egos: [], supports: [], spirits: [] };
   if (!Array.isArray(next.roster.personas)) next.roster.personas = [];
@@ -3713,7 +3719,7 @@ const INIT_STATE = {
   // same format, LRU 20
   // UI state (not part of undo)
   ui: {
-    currentSection: "home",
+    currentSection: "baseinfo",
     previewTab: "memo",
     previewOpen: void 0,
     // 未設定は初期折り畳み。利用者が明示的に開閉した場合だけ true/false を保存する。
@@ -6890,6 +6896,7 @@ function useAppState() {
           ui: {
             previewTab: ui.previewTab,
             currentSection: ui.currentSection,
+            layoutVersion: ui.layoutVersion,
             codexMode: ui.codexMode,
             codexExpanded: ui.codexExpanded,
             previewCollapsed: ui.previewCollapsed || {}
