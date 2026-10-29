@@ -7,7 +7,6 @@ const preview = read("../js/LivePreview.js");
 const generator = read("../js/generator.js");
 const css = read("../assets/workspace.css");
 const app = read("../js/App.js");
-const state = read("../js/state.js");
 
 test("CCFOLIA駒プレビューは既存のJSON出力データを読み、別の出力経路を作らない", () => {
   assert.match(preview, /JSON\.parse\(json\)\?\.data/);
@@ -27,7 +26,7 @@ test("プレビューは盤面・シート表示を切り替え、出力JSONタ�
   assert.match(preview, /tab === "token" && renderTokenPreview\(\)/);
   assert.match(preview, /tokenStatus\.slice\(0, 8\)\.map\(renderTokenStatus\)/);
   assert.match(preview, /tokenParams\.slice\(0, 8\)/);
-  assert.match(state, /previewTab: "memo"/);
+  assert.match(preview, /state\.ui\.previewTab \|\| "memo"/);
 });
 
 test("盤面表示は名前・色・行動順・HP/SANを表示し、画像がない場合にも破綻しない", () => {
