@@ -72,9 +72,10 @@
   .app { grid-template-columns: minmax(0,1fr); }
   .app.has-preview { grid-template-columns: minmax(0,1fr); }
   .rail-group-label { display: none; }
-  .focus { min-width: 0; padding: 18px 16px; }
+  .focus { min-width: 0; padding: 18px 16px 60px; }
   .focus-inner { min-width: 0; width: 100%; }
   .rail-foot { display: none; }
+  .app.has-preview .preview-edge-toggle { bottom: calc(58px + min(52dvh, 520px) + 8px); }
   .app.has-preview .preview {
     display: flex; position: fixed; z-index: 90; inset-inline: 0; top: auto; bottom: 58px;
     width: auto; height: min(52dvh, 520px); max-height: calc(100dvh - 100px);
@@ -84,8 +85,9 @@
   .topbar { gap: 7px; padding-inline: 12px; }
   .brand-sub { display: none; }
 }
+@media (max-height: 500px) and (orientation: landscape) { .focus { padding-bottom: 48px; } }
 @media (max-width: 600px) {
-  .focus { padding: 16px 12px; }
+  .focus { padding: 16px 12px 60px; }
   .topbar { min-height: 54px; padding: 8px 10px; }
   .brand { min-width: 0; gap: 6px; }
   .brand-name { font-size: 10px; letter-spacing: .03em; }
