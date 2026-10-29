@@ -211,6 +211,16 @@ async function runProfile(browser,profile) {
     await page.screenshot({path:tokenLookPath,animations:"disabled"});
     results.screenshots.push({file:path.relative(ROOT,tokenLookPath),profile:profile.name,state:"token-look"});
 
+    const boardStatus=page.locator(".pv-token-board-details .pv-token-status").first();
+    await boardStatus.scrollIntoViewIfNeeded({timeout:5000});
+    const boardStatusBounds=await boardStatus.evaluate(el=>{
+      const r=el.getBoundingClientRect(), body=el.closest(".preview-body"), b=body.getBoundingClientRect();
+      return {top:r.top,bottom:r.bottom,bodyTop:b.top,bodyBottom:b.bottom,scrollTop:body.scrollTop,within:r.top>=b.top-2&&r.bottom<=b.bottom+2};
+    }).catch(()=>({within:false,error:"board status was not reachable"}));
+    recordCheck(profile.name+": visual mode can scroll to HP/SAN below the token image",
+      boardStatusBounds.within,{bounds:boardStatusBounds});
+    await page.locator(".preview-body").evaluate(el=>{el.scrollTop=0;});
+
     await page.getByRole("button",{name:"項目一覧",exact:true}).click();
     await page.locator(".pv-token-sheet-view").waitFor({state:"visible",timeout:5000});
     const itemActions=await page.locator(".preview-actions button").count();
@@ -221,6 +231,15 @@ async function runProfile(browser,profile) {
     const tokenFieldsPath=path.join(OUT,profile.name+"-token-fields.png");
     await page.screenshot({path:tokenFieldsPath,animations:"disabled"});
     results.screenshots.push({file:path.relative(ROOT,tokenFieldsPath),profile:profile.name,state:"token-fields"});
+
+    const sheetStatus=page.locator(".pv-token-sheet-view .pv-token-status").first();
+    await sheetStatus.scrollIntoViewIfNeeded({timeout:5000});
+    const sheetStatusBounds=await sheetStatus.evaluate(el=>{
+      const r=el.getBoundingClientRect(), body=el.closest(".preview-body"), b=body.getBoundingClientRect();
+      return {top:r.top,bottom:r.bottom,bodyTop:b.top,bodyBottom:b.bottom,scrollTop:body.scrollTop,within:r.top>=b.top-2&&r.bottom<=b.bottom+2};
+    }).catch(()=>({within:false,error:"sheet status was not reachable"}));
+    recordCheck(profile.name+": item list can scroll to status values above the fixed footer",
+      sheetStatusBounds.within,{bounds:sheetStatusBounds});
 
     await toggle.click();
     await page.waitForTimeout(220);
