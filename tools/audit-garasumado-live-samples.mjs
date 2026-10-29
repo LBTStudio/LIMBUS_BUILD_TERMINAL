@@ -1268,6 +1268,13 @@ function toMarkdownReport(report) {
     ["ラベルなしを含む初期30LP・欠片10の一致候補", report.balance.ruleBasedOpening.summary.exactInitialAmountCandidates + " 文書 / " + report.balance.ruleBasedOpening.summary.exactInitialAmountRows + " 行"],
     ["LPの残差が負（収支純額が所持LPを上回る）", report.balance.summary.lpResidualNegative],
     ["欠片の残差が負（収支純額が所持欠片を上回る）", report.balance.summary.shardResidualNegative],
+    ["LP・欠片の残差がともに負", report.balance.summary.bothNegativeResidualSpendCohorts.bothNegative.documents],
+    ["両負群のうち支出行が0件", report.balance.summary.bothNegativeResidualSpendCohorts.noParsedSpendRows.documents],
+    ["両負群のうちLP・欠片の支出額がともに0", report.balance.summary.bothNegativeResidualSpendCohorts.noCurrencySpend.documents],
+    ["両負全件の履歴収入 LP / 欠片", report.balance.summary.bothNegativeResidualSpendCohorts.bothNegative.incomeLp + " / " + report.balance.summary.bothNegativeResidualSpendCohorts.bothNegative.incomeShards],
+    ["支出行0件群の履歴収入 LP / 欠片", report.balance.summary.bothNegativeResidualSpendCohorts.noParsedSpendRows.incomeLp + " / " + report.balance.summary.bothNegativeResidualSpendCohorts.noParsedSpendRows.incomeShards],
+    ["両負全件の残差合計 LP / 欠片", report.balance.summary.bothNegativeResidualSpendCohorts.bothNegative.residualLp + " / " + report.balance.summary.bothNegativeResidualSpendCohorts.bothNegative.residualShards],
+    ["支出行0件群の残差合計 LP / 欠片", report.balance.summary.bothNegativeResidualSpendCohorts.noParsedSpendRows.residualLp + " / " + report.balance.summary.bothNegativeResidualSpendCohorts.noParsedSpendRows.residualShards],
     ["旧ベースラインとの履歴件数差", report.source.snapshotDrift.length],
     ["履歴入力指紋未登録", report.source.historyInputFingerprintMissingRows],
     ["履歴入力指紋の内容差", report.source.historyInputFingerprintDrift.length],
@@ -1333,6 +1340,22 @@ function toMarkdownReport(report) {
       .slice()
       .sort((a, b) => (Math.min(a.impliedOpeningLp, a.impliedOpeningShards) - Math.min(b.impliedOpeningLp, b.impliedOpeningShards)))
       .map((row) => "| " + row.id + " | " + row.historyRows + " | " + row.memoRows + " | " + row.currentLp + " | " + row.netLp + " | " + row.impliedOpeningLp + " | " + row.currentShards + " | " + row.netShards + " | " + row.impliedOpeningShards + " | " + row.reviewRows + " |"),
+    "",
+    "## 両通貨負残差と支出記録の交差集計",
+    "",
+    "支出行数は parser 終了後の spends 配列の件数、金額付き支出行数は LP または欠片の金額が非0の行数です。支出行が存在しない文書と、未確定のため通貨金額が付いていない行だけを持つ文書を区別します。残差は保存残高と履歴収支の差であり、開始残高が確定したことを意味しません。",
+    "",
+    "| 集団 | 文書数 | 履歴収入 LP | 履歴収入欠片 | LP支出 | 欠片支出 | LP残差合計 | 欠片残差合計 | 支出行数 | 金額付き支出行数 |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+    ...[
+      ["残差が両通貨で負", report.balance.summary.bothNegativeResidualSpendCohorts.bothNegative],
+      ["うち支出行0件", report.balance.summary.bothNegativeResidualSpendCohorts.noParsedSpendRows],
+      ["うち通貨支出額が両方0", report.balance.summary.bothNegativeResidualSpendCohorts.noCurrencySpend],
+      ["支出行はあるが通貨額0", report.balance.summary.bothNegativeResidualSpendCohorts.zeroAmountRowsOnly],
+      ["LP支出のみあり", report.balance.summary.bothNegativeResidualSpendCohorts.lpOnly],
+      ["欠片支出のみあり", report.balance.summary.bothNegativeResidualSpendCohorts.shardsOnly],
+      ["LP・欠片両方に支出あり", report.balance.summary.bothNegativeResidualSpendCohorts.bothCurrencies]
+    ].map(([label, row]) => "| " + label + " | " + row.documents + " | " + row.incomeLp + " | " + row.incomeShards + " | " + row.spentLp + " | " + row.spentShards + " | " + row.residualLp + " | " + row.residualShards + " | " + row.parsedSpendRows + " | " + row.recordedCurrencySpendRows + " |"),
     "",
     "## ルールブック初期資源との残差分類",
     "",
@@ -1622,6 +1645,14 @@ const balanceBridges = successful
       currentLp: entry.currentBalance.lp,
       currentShards: entry.currentBalance.shards,
       ...totals,
+      /* Count all final parsed spend rows separately from rows that contain a nonzero
+         LP/shard amount. A zero-amount conversion candidate is not the same as no row. */
+      parsedSpendRows: (entry.parsedRows || []).reduce((sum, memo) =>
+        sum + (Array.isArray(memo.spendTrace) ? memo.spendTrace.length : 0), 0),
+      recordedCurrencySpendRows: (entry.parsedRows || []).reduce((sum, memo) =>
+        sum + (Array.isArray(memo.spendTrace) ? memo.spendTrace.filter((event) =>
+          (Number(event.lp) || 0) !== 0 || (Number(event.shards) || 0) !== 0
+        ).length : 0), 0),
       impliedOpeningLp: entry.currentBalance.lp - totals.netLp,
       impliedOpeningShards: entry.currentBalance.shards - totals.netShards,
       reviewDetails: (entry.parsedRows || []).flatMap((memo) =>
@@ -2108,7 +2139,44 @@ const freeNotesSourceSummary = {
       spendShards: entry.freeNotesAudit.spendShards
     }))
 };
+function summarizeBalanceBridgeCohort(rows) {
+  const sum = (field) => rows.reduce((total, row) => total + (Number(row[field]) || 0), 0);
+  return {
+    documents: rows.length,
+    incomeLp: sum("incomeLp"),
+    incomeShards: sum("incomeShards"),
+    spentLp: sum("spentLp"),
+    spentShards: sum("spentShards"),
+    residualLp: sum("impliedOpeningLp"),
+    residualShards: sum("impliedOpeningShards"),
+    parsedSpendRows: sum("parsedSpendRows"),
+    recordedCurrencySpendRows: sum("recordedCurrencySpendRows")
+  };
+}
+const bothNegativeResidualBridges = balanceBridges.filter((row) =>
+  row.impliedOpeningLp < 0 && row.impliedOpeningShards < 0
+);
+const noCurrencySpendBridges = bothNegativeResidualBridges.filter((row) =>
+  row.spentLp === 0 && row.spentShards === 0
+);
+const negativeResidualSpendCohorts = {
+  bothNegative: summarizeBalanceBridgeCohort(bothNegativeResidualBridges),
+  noParsedSpendRows: summarizeBalanceBridgeCohort(bothNegativeResidualBridges.filter((row) => row.parsedSpendRows === 0)),
+  noCurrencySpend: summarizeBalanceBridgeCohort(noCurrencySpendBridges),
+  zeroAmountRowsOnly: summarizeBalanceBridgeCohort(noCurrencySpendBridges.filter((row) => row.parsedSpendRows > 0)),
+  lpOnly: summarizeBalanceBridgeCohort(bothNegativeResidualBridges.filter((row) => row.spentLp > 0 && row.spentShards === 0)),
+  shardsOnly: summarizeBalanceBridgeCohort(bothNegativeResidualBridges.filter((row) => row.spentLp === 0 && row.spentShards > 0)),
+  bothCurrencies: summarizeBalanceBridgeCohort(bothNegativeResidualBridges.filter((row) => row.spentLp > 0 && row.spentShards > 0))
+};
+const classifiedBothNegativeDocuments = negativeResidualSpendCohorts.noCurrencySpend.documents
+  + negativeResidualSpendCohorts.lpOnly.documents
+  + negativeResidualSpendCohorts.shardsOnly.documents
+  + negativeResidualSpendCohorts.bothCurrencies.documents;
+if (classifiedBothNegativeDocuments !== negativeResidualSpendCohorts.bothNegative.documents) {
+  throw new Error("Both-negative residual spend cohorts do not partition the eligible documents");
+}
 const balanceBridgeSummary = {
+  bothNegativeResidualSpendCohorts: negativeResidualSpendCohorts,
   eligibleDocuments: balanceBridges.length,
   excludedNoMemoOrUnreadableBalance: successful.length - balanceBridges.length,
   lpResidualNegative: balanceBridges.filter((row) => row.impliedOpeningLp < 0).length,
