@@ -1,6 +1,6 @@
 /* V13: 基本機能の説明書（ヘルプ）セクション */
 const HELP_ITEMS = [
-  { group: "prepare", icon: "settings", title: "駒整形で基本情報を設定する", body: "左側の「駒整形」（スマートフォンでは画面下部の同名タブ）で、キャラクター名・PL名・立ち絵URL・イニシアチブ・色などを設定します。人格を装備する前でも入力できます。立ち絵URLは画像URLを1行に1つ入力し、複数行なら差分として扱われます。" },
+  { group: "prepare", icon: "settings", title: "駒整形で基本情報を設定する", body: "左側の「ワークベンチ」を開き、「基本」タブでキャラクター名・PL名・立ち絵URL・イニシアチブ・駒の色を設定します。人格を装備する前でも入力でき、ステータス一覧とラベル設定も同じタブの下部で扱えます。立ち絵URLは画像URLを1行に1つ入力し、複数行なら差分として扱われます。" },
   { group: "prepare", icon: "persona", title: "人格を装備する", body: "左側の「ワークベンチ」を開き、「人格」タブでカードを一度押すと詳細が表示され、同じカードをもう一度押すと装備します。装備後にHP、SAN、耐性、パッシブ、スキルを確認します。手動編集は上の「はじめに：人格を選ぶ・作る」を参照してください。" },
   { group: "prepare", icon: "persona", title: "公式人格を手動編集して所持ビルドに保存する", body: "人格を装備して「◈ 同期化して手動編集」を押します。これはステータス・パッシブ・スキル・固有バフの編集モードで、ゲーム上の同期ランク（0・00・000）や同期MAXの設定とは別です。編集を終えるときは「✓ 編集を終了（内容は保持）」を押します。所持人格の保存ビルドとして変更を残すには、変更後に「装備解除」を押し、確認画面でOK（変更を所持人格へ保存して装備解除）を選びます。キャンセルすると装備を継続し、変更は現在の状態に残ります。同期ランクと同期MAXは別設定です。同期ランクは「記録」の所持人格詳細で設定でき、同期MAXはそこに加えて装備中の人格パネルからも切り替えられます。" },
   { group: "prepare", icon: "ego", title: "E.G.Oをランク枠に装備・解析する", body: "ビルド内の「E.G.O」タブでZAYINからALEPHまでの各ランク枠に装備します。装備済み枠を押すと右側に簡易詳細が表示されます。全文の確認・編集は、その詳細で「解析を開始」を押します。終えるときは「解析を終了」を押すと内容を保持して終了します。未解析のE.G.Oは、必要な自我の欠片が不足していると解析を開始できません。" },
@@ -33,7 +33,7 @@ const GUIDE_FLOWS = {
     note: "普段の編集はこの端末のブラウザー内へ自動保存されます。別端末へ移すときは保存ファイルを使います。",
     nodes: [
       { step: "01", title: "SINNER SELECT", body: "作業するキャラクターを選ぶ／必要なら新規作成" },
-      { step: "02", title: "駒整形", body: "名前・PL名・立ち絵などを設定（必要な場合）" },
+      { step: "02", title: "ワークベンチ（基本）", body: "立ち絵・名前・行動順・駒色・ST・ラベルを整える" },
       { step: "03", title: "ワークベンチ", body: "基本・人格・スキル・パッシブ・E.G.O等を整える" },
       { step: "04", title: "ショップ（必要な場合）", body: "未所持の候補を探して購入・入手する" },
       { step: "05", title: "プレビュー → CCFOLIA JSON", body: "出力を確認し、必要な形式でコピー・保存" }
@@ -284,12 +284,12 @@ const HelpSection = ({ onNavigate, onOpenUtilities }) => {
     if (title.includes("所持人格の一覧")) return "記録 › リザルトを記録 › 取り込む › 所持人格リストを取り込む";
     if (title.includes("キャラクター（アカウント）を選ぶ・作る")) return "起動時の SINNER SELECT / 上部の現在アカウント表示 → アカウント管理";
     if (title.includes("アカウント")) return "上部のアカウント表示 / 設定 › アカウントを切替・管理";
-    if (title.includes("駒整形")) return "駒整形";
-    if (title.includes("ショップ") || title.includes("未所持")) return "ショップ / ビルドの候補フィルター";
-    if (title.includes("E.G.O")) return "ビルド › E.G.O";
-    if (title.includes("戦術スキル")) return "ビルド › スキル";
-    if (title.includes("パッシブとサポート")) return "ビルド › パッシブ / サポート";
-    if (title.includes("精神・強化")) return "ビルド › 精神 / 強化";
+    if (title.includes("駒整形")) return "ワークベンチ › 基本";
+    if (title.includes("ショップ") || title.includes("未所持")) return "ショップ / ワークベンチの候補フィルター";
+    if (title.includes("E.G.O")) return "ワークベンチ › E.G.O";
+    if (title.includes("戦術スキル")) return "ワークベンチ › スキル";
+    if (title.includes("パッシブとサポート")) return "ワークベンチ › パッシブ / サポート";
+    if (title.includes("精神・強化")) return "ワークベンチ › 精神 / 強化";
     if (title.includes("ステータス・出力先")) return "設定";
     if (title.includes("表示・出力順")) return "ビルド / 設定 / プレビュー";
     if (title.includes("プレビュー")) return "プレビュー › メモ / チャットパレット / JSON";
@@ -303,10 +303,10 @@ const HelpSection = ({ onNavigate, onOpenUtilities }) => {
     if (title.includes("硝子窓のキャラクターURL") || item.group === "accounts") return { label: "アカウント管理を開く", run: openAccounts };
     if (title.includes("人格データを文章")) return { label: "人格タブを開く", run: () => go("persona") };
     if (title.includes("リザルト") || title.includes("所持人格の一覧") || item.group === "record") return { label: "記録を開く", run: () => go("roster", { libraryTab: "ledger" }) };
-    if (title.includes("駒整形")) return { label: "駒整形を開く", run: () => go("baseinfo") };
+    if (title.includes("駒整形")) return { label: "ワークベンチの基本を開く", run: () => go("baseinfo") };
     if (title.includes("未所持") || title.includes("ショップ")) return { label: "ショップを開く", run: () => go("shop") };
     if (title.includes("ステータス・出力先")) return { label: "設定を開く", run: () => go("settings") };
-    if (item.group === "prepare" || item.group === "blocks") return { label: "ビルドを開く", run: () => go("persona") };
+    if (item.group === "prepare" || item.group === "blocks") return { label: "ワークベンチを開く", run: () => go("persona") };
     if (item.group === "output") return { label: "プレビューを開く", run: () => go("persona", { previewOpen: true }) };
     if (item.group === "save") return { label: "保存・共有メニューを開く", run: () => onOpenUtilities?.() };
     return null;
