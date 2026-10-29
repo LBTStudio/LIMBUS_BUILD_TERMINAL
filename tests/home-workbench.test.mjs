@@ -72,6 +72,20 @@ test("Bタイプのナビは制作・データ管理・補助を区別し、取�
   assert.match(app, /className: "import-router-options"/);
 });
 
+test("目的別取り込みダイアログはTabのフォーカスを内部に循環させ、Escで閉じる", () => {
+  const start = app.indexOf("const ImportRouterDialog =");
+  const end = app.indexOf("const App =", start);
+  const dialog = app.slice(start, end);
+  assert.match(dialog, /const dialogRef = React\.useRef\(null\)/);
+  assert.match(dialog, /dialog\?\.querySelectorAll\(/);
+  assert.match(dialog, /if \(event\.key !== "Tab"\) return/);
+  assert.match(dialog, /!dialog\?\.contains\(document\.activeElement\)/);
+  assert.match(dialog, /event\.shiftKey && document\.activeElement === first/);
+  assert.match(dialog, /!event\.shiftKey && document\.activeElement === last/);
+  assert.match(dialog, /ref: dialogRef/);
+  assert.match(dialog, /if \(event\.key === "Escape"\)/);
+});
+
 test("ビルドは作業対象と保存状態を常時表示し、タブ列を固定する", () => {
   assert.match(sections, /className: "build-context-strip"/);
   assert.match(sections, /className: "build-context-target"/);

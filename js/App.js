@@ -1435,12 +1435,37 @@ const ImportRouterDialog = ({ onClose, onSelect }) => {
     { id: "owned", icon: "roster", title: "所持人格名の一覧", body: "人格名の一覧を検出して所持一覧へ追加します。リザルトの収支とは別の処理です。", destination: "記録 › 所持人格リスト" }
   ];
   const firstActionRef = React.useRef(null);
+  const dialogRef = React.useRef(null);
   React.useEffect(() => {
     firstActionRef.current?.focus();
+    const dialog = dialogRef.current;
+    const getFocusable = () => Array.from(dialog?.querySelectorAll(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+    ) || []).filter((node) => node.getClientRects().length > 0);
     const onKeyDown = (event) => {
       if (event.key === "Escape") {
         event.preventDefault();
         onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = getFocusable();
+      if (!focusable.length) {
+        event.preventDefault();
+        dialog?.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!dialog?.contains(document.activeElement)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -1450,6 +1475,7 @@ const ImportRouterDialog = ({ onClose, onSelect }) => {
     className: "import-router-backdrop",
     onMouseDown: (event) => { if (event.target === event.currentTarget) onClose(); }
   }, h("section", {
+    ref: dialogRef,
     className: "import-router",
     role: "dialog",
     "aria-modal": "true",
