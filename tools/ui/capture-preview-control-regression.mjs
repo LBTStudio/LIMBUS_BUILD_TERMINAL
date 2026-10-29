@@ -113,6 +113,9 @@ async function createDisposableAccount(page,profile) {
   await homeNav.waitFor({ state: "visible", timeout: 10000 });
   await homeNav.click();
   await page.locator(".btype-command-hero").waitFor({ state: "visible", timeout: 10000 });
+  const homePath = path.join(OUT, profile.name + "-btype-home.png");
+  await page.screenshot({ path: homePath, animations: "disabled" });
+  results.screenshots.push({ file: path.relative(ROOT, homePath), profile: profile.name, state: "btype-home" });
   // Assert current branding before entering the Build editor; prevents stale Workbench screenshots.
   const buildNav = page.locator(".rail-item[title='ワークベンチ']");
   const oldBuildNav = page.locator(".rail-item[title='ビルド']");
@@ -331,6 +334,6 @@ async function main() {
   results.checkCount=results.checks.length;
   fs.writeFileSync(path.join(OUT,"manifest.json"),JSON.stringify(results,null,2)+"\n");
   console.log("[preview-control-regression] "+JSON.stringify({screenshots:results.count,checks:results.checkCount,failures:results.failures.length,summary:results.failures.map(f=>({name:f.name,error:f.error,collisions:f.collisions,gapFromPanel:f.gapFromPanel}))}));
-  if(results.failures.length||results.count!==profiles.length*6) process.exitCode=1;
+  if(results.failures.length||results.count!==profiles.length*7) process.exitCode=1;
 }
 main().catch(error=>{console.error("[preview-control-regression] fatal: "+(error?.stack||String(error)));process.exitCode=1;});
