@@ -53,9 +53,10 @@
     return normalizeAmountText(value)
       /* 一部のメモは通貨名が先に来る（「LP現在8」「欠片残り81」）。
          金額の右隣にある残高マーカーも消し、数値を支出へ流用しない。 */
-      .replace(/(LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)\s*(現在|現座|残高|残り)\s*[：:]?\s*-?\d+(?:\s*[+＋]\s*\d+)*(?:\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?/gi, function (_match, currency, _marker, offset, source) { const prefix = source.slice(0, offset); return /(?:^|[^A-Za-z0-9])[+-]?\d[\d,]*\s*$/.test(prefix) ? currency : " "; })
+      .replace(/(LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)\s*(現在|現座|残高|残額|残り|所持|保有)\s*[：:]?\s*-?\d+(?:\s*[+＋]\s*\d+)*(?:\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?/gi, function (_match, currency, _marker, offset, source) { const prefix = source.slice(0, offset); return /(?:^|[^A-Za-z0-9])[+-]?\d[\d,]*\s*$/.test(prefix) ? currency : " "; })
       .replace(/現在\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)?\s*[：:]?\s*-?\d+(?:\s*[+＋]\s*\d+)*(?:\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?(?:\s*[→⇒]\s*-?\d+(?:\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?)?/gi, " ")
-      .replace(/残り\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)?\s*[：:]?\s*-?\d+(?:\s*[+＋]\s*\d+)*(?:\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?(?:\s*[→⇒]\s*-?\d+(?:\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?)?/gi, " ");
+      .replace(/(?:残り|残高|残額)\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)?\s*[：:]?\s*-?\d+(?:\s*[+＋]\s*\d+)*(?:\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?(?:\s*[→⇒]\s*-?\d+(?:\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?)?/gi, " ")
+      .replace(/(?:現座|所持|保有)\s*(?:残高|残額|所持|保有)?\s*[：:]?\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)?\s*[：:]?\s*-?\d+(?:\s*[+＋]\s*\d+)*(?:\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?(?:\s*[→⇒]\s*-?\d+(?:\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?)?/gi, " ");
   }
 
   /* 金額／チケットの加算は、安全整数の範囲を超えた値を保存しない。
@@ -244,8 +245,16 @@
     return { text: text, removed: removed };
   }
 
+  function stripThemePackPriceCap(line) {
+    var text = String(line || "");
+    if (!/テーマパック/.test(text)) return text;
+    return text
+      .replace(/上限\s*[:：]?\s*(?:(?:LP|ＬＰ)\s*)?[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ)?/gi, " ")
+      .replace(/(?:LP|ＬＰ)\s*[0-9０-９][0-9０-９,，]*\s*上限|[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ)?\s*上限/gi, " ");
+  }
+
   function incomePairs(line) {
-    var text = stripBalances(line)
+    var text = stripThemePackPriceCap(stripBalances(line))
       .replace(/残り?\s*-?\d+(?:\s*(LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ))?/gi, " ")
       /* 「300LPへ」は支払後の残高に振り直す書き方。額ではなく結果。 */
       .replace(/-?\d+(?:\s*[+＋]\s*\d+)*\s*(LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)\s*へ/gi, " ")
@@ -352,6 +361,12 @@
   function isNarrativeLine(line) {
     var t = normalizeAmountText(line);
     if (/^\s*[▶►▷]\s*/.test(t)) return true;
+    if (/^\s*(?:効果(?:説明)?|パッシブ効果|アイテム効果|説明)\s*[:：]/.test(t)) return true;
+    if (/^\s*(?:使用時|消費時|発動時|効果中|パッシブ効果)/.test(t)) return true;
+    if (/(?:効果|説明|パッシブ|アイテム).{0,30}(?:使用時|消費時|発動時)/.test(t)) return true;
+    if (/^\s*(?:効果(?:説明)?|パッシブ効果|アイテム効果|説明)\s*[:：]/.test(t)) return true;
+    if (/^\s*(?:使用時|消費時|発動時|効果中|パッシブ効果)/.test(t)) return true;
+    if (/(?:効果|説明|パッシブ|アイテム).{0,30}(?:使用時|消費時|発動時)/.test(t)) return true;
     if (/(得る|獲得する|消費する|半減し|発動する)/.test(t) && !/\d\s*(LP|欠片|欠け片|かけら|欠けら|カケラ)/.test(t)) return true;
     return false;
   }
@@ -527,7 +542,9 @@
      DB 照合は呼び出し側（buildManifest）で行う。ここでは
      「名前候補である」と分かる行だけ，洗い出す。 */
   function isAcquisitionNameLine(line) {
-    var t = String(line).replace(/現在|残/g, "").trim();
+    var raw = String(line).trim();
+    if (/^(?:現在|現座|残高|残額|残り|所持|保有)/.test(raw)) return false;
+    var t = raw.replace(/現在|残/g, "").trim();
     if (!t) return false;
     /* 見出し・効果文・合計行は除く */
     if (/^【/.test(t)) return false;
@@ -629,6 +646,7 @@
     if (at < 0) return [];
     var tail = t.slice(at + 1).replace(/[。．\s]+$/g, "").trim();
     if (!tail) return [];
+    if (/^(?:(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)\s*)?(?:現在|現座|残高|残額|残り|所持|保有)/.test(tail)) return [];
     /* 「→200LP消費、テーマパック名:獲得人格獲得」形式では、最初のコロンは
        パック名と獲得品の区切り。パック名を獲得人格名へ混ぜない。
        通貨消費が明示されている場合に限って扱い、一般の人格名内のコロンは維持する。 */
@@ -726,6 +744,17 @@
     const scaled = amount * count;
     if (!Number.isSafeInteger(count) || count <= 0 || !Number.isSafeInteger(scaled)) return null;
     return scaled;
+  }
+
+  function hasMalformedCurrencyGrouping(rawLine) {
+    var text = normalizeNumericText(rawLine);
+    var pattern = /(?:(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ))\s*[-−+]?\s*([0-9][0-9,]*)|([0-9][0-9,]*)\s*(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ)))/gi;
+    var match;
+    while ((match = pattern.exec(text)) !== null) {
+      var amount = String(match[1] || match[2] || "");
+      if (amount.includes(",") && !/^\d{1,3}(?:,\d{3})+$/.test(amount)) return true;
+    }
+    return false;
   }
 
   /* 明示された通貨消費を収入と分離して読む。正規化は1文字対1文字の範囲に
@@ -858,7 +887,7 @@
       var afterArrow = tail.slice(arrow + 1).trim();
       /* 支出後の残高は獲得名ではない。「150LP消費→残り300LP」を
          300LPの報酬・購入・所持として立てない。 */
-      if (/^(?:残り|現在|残高|所持|保有)\b/.test(afterArrow)) return "";
+      if (/^(?:(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)\s*)?(?:残り|残高|残額|現在|現座|所持|保有)/.test(afterArrow)) return "";
       rawTail = rawTail.slice(Math.max(0, rawTail.lastIndexOf("→") + 1));
     } else if (!/^\s*(?:(?:ガチャ|抽出ガチャ|ガチャ抽出|抽出|パックチケット|テーマパック|パック)\s*[：:]|[：:])/.test(tail)) {
       return "";
@@ -1030,13 +1059,10 @@
     const left = auditSafeInteger(match[1]);
     const right = auditSafeInteger(match[2]);
     const written = auditSafeInteger(match[3]);
-    /* 乗算・加算の片側または記載結果が安全整数外でも、通常金額読みに
-       フォールスルーさせない。特に「MAX_SAFE_INTEGER×2=巨大数」は行全体保留。 */
-    if (left === null || right === null || written === null) {
-      return { expression: match[0], expected: null, written: written };
-    }
+    if (left === null || right === null) return { expression: match[0], expected: null, written: written, issue: "unsafe-input" };
     const expected = multiply ? left * right : left + right;
-    if (!Number.isSafeInteger(expected)) return { expression: match[0], expected: null, written: written };
+    if (!Number.isSafeInteger(expected)) return { expression: match[0], expected: null, written: written, issue: "unsafe-result" };
+    if (written === null) return { expression: match[0], expected: expected, written: null, issue: "unsafe-written-result" };
     if (expected === written) return null;
     return { expression: match[0], expected: expected, written: written };
   }
@@ -1059,7 +1085,7 @@
   function normalizeAuditMoneyLine(rawLine) {
     let text = normalizeAmountText(rawLine);
     text = stripAlternativePriceCondition(text).text;
-    return stripBalances(text)
+    return stripThemePackPriceCap(stripBalances(text))
       .replace(/(?:LP|ＬＰ)\s*\d[\d,]*\s*(?:以下|以上|以内|未満|まで)|\d[\d,]*\s*(?:LP|ＬＰ)\s*(?:以下|以上|以内|未満|まで)/gi, " ")
       .replace(/(?:硝子|ガラス|硝酸)の(?:破片|欠片|欠け片|かけら|欠けら|カケラ|欠け片)/g, " ")
       /* "56(理性45+11)欠片" は外側56が通貨額。括弧内を候補にすると
@@ -1210,6 +1236,7 @@
     const findings = [];
     const formulas = [];
     for (let i = 0; i < lines.length; i++) {
+      if (isNarrativeLine(lines[i])) { skipLines.add(i); continue; }
       const formula = boundedRewardFormulaOf(lines[i]);
       if (!formula) continue;
       skipLines.add(i);
@@ -1352,6 +1379,7 @@
         });
       }
       if (!line) continue;
+      if (isNarrativeLine(line)) continue;
       /* ▶で始まる効果説明は記述であり、通貨支出ではない。 */
       if (/^\s*[▶►▷]/.test(sourceLine)) continue;
 
@@ -1583,6 +1611,8 @@
         && (
           /(?:[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ)|(?:LP|ＬＰ)\s*[0-9０-９][0-9０-９,，]*)\s*(?:以下|以内|未満|まで)[^。\n]*テーマパック/i.test(line)
           || /上限\s*(?:(?:LP|ＬＰ)\s*)?[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ)?[^。\n]*テーマパック/i.test(line)
+          || /テーマパック[^。\n]*上限\s*[:：]?\s*(?:(?:LP|ＬＰ)\s*)?[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ)?/i.test(line)
+          || /(?:[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ)?\s*上限[^。\n]*テーマパック|テーマパック[^。\n]*[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ)?\s*上限)/i.test(line)
         )
         && !/チケ|チケット/.test(line);
       if (cappedPackWithoutTicket) {
@@ -1592,7 +1622,7 @@
         });
       }
       if (cappedPackWithoutTicket) {
-        line = line.replace(/上限\s*(?:(?:LP|ＬＰ)\s*)?[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ)?[^。\n]*テーマパック(?:\s*[×xｘ]\s*\d+)?/i, " ");
+        line = stripThemePackPriceCap(line).replace(/テーマパック(?:\s*[×xｘ]\s*\d+)?/gi, " ");
       }
 
       /* 括弧内に明記された重複補償は、通常の収入解析で括弧ごと除外される。
@@ -1604,9 +1634,15 @@
       }
 
       /* 明示された通貨消費をチケット収入・抽出回数と混同しない。 */
-      var malformedCommaSpend = /(?:LP|ＬＰ)\s*[-−+]?\s*\d[\d,]*,\d{1,2}(?!\d)\s*(?:を\s*)?(?:消費|使用|支払|支出)|\d[\d,]*,\d{1,2}(?!\d)\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)\s*(?:を\s*)?(?:消費|使用|支払|支出)/i.test(normalizeNumericText(sourceLine));
+      var malformedCommaSpend = hasMalformedCurrencyGrouping(sourceLine) && /(?:消費|使用|支払|支出|購入)/.test(normalizeNumericText(sourceLine));
       if (malformedCommaSpend) {
         reasons.push({ line: sourceLine, reason: "支出額の桁区切りが不正なため、金額を推測せず未計上にしました" });
+        var malformedCurrencies = [];
+        if (/(?:LP|ＬＰ)\s*[-−+]?\s*[0-9][0-9,]*|[0-9][0-9,]*\s*(?:LP|ＬＰ)/i.test(normalizeNumericText(sourceLine))) malformedCurrencies.push("lp");
+        if (/(?:自我の(?:破片|欠片)|欠片|欠け片|かけら|欠けら|カケラ)\s*[-−+]?\s*[0-9][0-9,]*|[0-9][0-9,]*\s*(?:自我の(?:破片|欠片)|欠片|欠け片|かけら|欠けら|カケラ)/i.test(normalizeNumericText(sourceLine))) malformedCurrencies.push("shards");
+        if (malformedCurrencies.length) spends.push({
+          name: sourceLine, lp: 0, shards: 0, raw: sourceLine, reason: "不正な桁区切り（未計上）"
+        });
         continue;
       }
       var currencySpend = currencySpendOf(line, mode === "income");
@@ -2164,7 +2200,8 @@
         const currentBalanceActionReview =
           (auditModeBefore === "current" && (hasFinancialAction || hasSourceFinding || currentModeActionCue)) ||
           hasUnaccountedArrowBalanceCandidate || hasBalanceOnlySpendCandidate;
-        if (hasFinancialCoverageTarget && (auditModeBefore !== "current" || currentBalanceActionReview)) {
+        if (!isNarrativeLine(sourceLine) && hasFinancialCoverageTarget &&
+            (auditModeBefore !== "current" || currentBalanceActionReview)) {
           const newSpends = spends.slice(auditBefore.spends);
           const detectedFlows = {
             lpIncome: Math.max(0, income.lp - auditBefore.lp),

@@ -112,6 +112,16 @@
      見つけて候補にする。金額は DB から取るので、ログに金額が無くても決まる。 */
   const PURCHASE_KINDS = new Set(["support", "deathSupport", "spirit", "enhancement"]);
 
+  function negatedPurchaseMention(line) {
+    return /(?:未購入|購入.{0,12}(?:しない|しません|していない|してません|していません|してない|してなかった|していなかった|しなかった|できない|できません|できなかった|したことは?ない|したことは?ありません|履歴.{0,6}(?:ない|ありません|なし)|記録.{0,6}(?:なし|ない|ありません)|予定|検討|したい|候補|するか|可能|ありません|ない|見送|断念|せず)|買(?:わない|いません|わなかった|えない|えません|えなかった|いたい|っていない|っていません|ってません|ってない|ってなかった|っていなかった)|(?:購入|買う?|取得)?を?(?:見送|断念)(?:った|り|る|りました|しました)?)/.test(String(line || ""));
+  }
+
+  function affirmedPurchaseMention(line) {
+    const text = String(line || "");
+    if (negatedPurchaseMention(text)) return false;
+    return /(?:購入|買った|買いました|買っている|買ってきた)/.test(text);
+  }
+
   function proposePurchases(memo, index, options) {
     const opts = options || {};
     const resolve = typeof index?.resolve === "function" ? index.resolve : () => null;
@@ -175,12 +185,20 @@
         cost,
         confidence: hit.confidence,
         provenance: extra ? extra.provenance : null,
-        include: extra ? extra.include !== false : true,
+        negated: negatedPurchaseMention(line),
+        include: extra ? extra.include !== false : (!negatedPurchaseMention(line) && (inSpend || affirmedPurchaseMention(line))),
         needsDecision: extra ? (extra.needsDecision || null) : null
       });
     }
 
     return { proposals, unresolved };
+  }
+
+  function selectedPurchaseRows(proposals, bookedNames) {
+    const booked = new Set(bookedNames || []);
+    return (proposals || [])
+      .filter((proposal) => proposal && proposal.include !== false && !booked.has(proposal.name))
+      .map((proposal) => ({ name: proposal.name, kind: proposal.kind, cost: proposal.cost }));
   }
 
   /* DB からMENigherを作る。 state.js の price* と同じ規則。 */
@@ -206,7 +224,7 @@
     return { lp: 0, shards: 0 };
   }
 
-  const api = { reconcileResults, proposePurchases, defaultPrice, PURCHASE_KINDS };
+  const api = { reconcileResults, proposePurchases, selectedPurchaseRows, defaultPrice, PURCHASE_KINDS };
   if (typeof window !== "undefined") {
     window.LBT_ledgerReconcile = api;
     window.LBT_reconcileResults = reconcileResults;
