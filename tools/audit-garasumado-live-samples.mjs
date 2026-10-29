@@ -334,6 +334,133 @@ function categorizeParserReason(reason) {
   return "other-review";
 }
 
+/* Detect explicit expense-like lines independently from parser coverage. This is a
+   conservative completeness signal, not proof that every cue is a real transaction.
+   Keep all memo text private: return only line counts/statuses, never raw lines/names. */
+function auditExplicitSpendCues(lines, spendTrace, reasons, coverages, audits) {
+  const reviewStatuses = new Set([
+    "mismatch", "direction-review", "reviewed-by-parser-reason", "candidate-review",
+    "unresolved", "balance-transition-review", "current-balance-review"
+  ]);
+  const candidates = [];
+  for (let i = 0; i < (lines || []).length; i++) {
+    const original = String(lines[i] || "").trim();
+    if (!original || /^\s*[▶►▷]/.test(original)) continue;
+    let normalized = stripBalanceAnchors(original)
+      .normalize("NFKC")
+      .replace(/[−–—]/g, "-")
+      /* 硝子の破片アイテムの「消費／獲得」は所持通貨の支出語ではない。
+         アイテム名・数量に続く動詞を除いてから通貨動詞の近接を測る。 */
+      .replace(/(?:硝子|ガラス|硝酸)の(?:破片|欠片|欠け片|かけら|欠けら|カケラ)\s*(?:[+＋-]\s*\d+|[x×ｘ]\s*\d+|\d+\s*(?:個|つ))?\s*(?:を\s*)?(?:消費|使用|獲得|入手|取得|付与)(?:して|し)?/gi, " ")
+      .replace(/(?:消費|使用|獲得|入手|取得|付与)(?:して|し)?\s*[：:]?\s*(?:硝子|ガラス|硝酸)の(?:破片|欠片|欠け片|かけら|欠けら|カケラ)\s*(?:[+＋-]\s*\d+|[x×ｘ]\s*\d+|\d+\s*(?:個|つ))?/gi, " ")
+      .replace(/(?:硝子|ガラス|硝酸)の(?:破片|欠片|欠け片|かけら|欠けら|カケラ)\s*(?:[+＋-]\s*\d+|[x×ｘ]\s*\d+|\d+\s*(?:個|つ))?/gi, " ");
+    const hasCurrencyAmount =
+      /(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか))\s*[:：]?\s*[+＋-]?\s*\d[\d,]*|[+＋-]?\s*\d[\d,]*\s*(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか))/i.test(normalized);
+    if (!hasCurrencyAmount) continue;
+    /* 支出動詞が同じ行のどこかにあるだけでは不十分。額との近接と間の語句を
+       見て、報酬額＋チケット消費のような混在行を「通貨支出」と誤分類しない。 */
+    const currencyAmountPattern = /(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか))\s*[:：]?\s*[+＋-]?\s*\d[\d,]*|[+＋-]?\s*\d[\d,]*\s*(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか))/gi;
+    const currencyAmountMatches = [...normalized.matchAll(currencyAmountPattern)];
+    const spendVerbs = [...normalized.matchAll(/消費|支払|支払い|支出|購入(?!できる|可能|条件)|買った|買っ|使った|使用|使い/g)];
+    const usageMatches = [...normalized.matchAll(/使用|使い/g)];
+    const actionNearCurrency = (action) => currencyAmountMatches.some((amount) => {
+      const amountEnd = amount.index + amount[0].length;
+      const distance = action.index >= amountEnd
+        ? action.index - amountEnd
+        : amount.index >= action.index + action[0].length
+          ? amount.index - (action.index + action[0].length)
+          : 0;
+      if (distance > 12) return false;
+      const gapStart = Math.min(amountEnd, action.index + action[0].length);
+      const gapEnd = Math.max(amount.index, action.index);
+      const gap = normalized.slice(gapStart, gapEnd);
+      return !/(?:チケット|チケ|同期|CT\s*\d|スキル|人格|E\.?G\.?O|エゴ|抽出|ガチャ)/i.test(gap);
+    });
+    const hasUsageCue = usageMatches.length > 0;
+    const usageNearCurrency = usageMatches.some(actionNearCurrency);
+    const hasExplicitSpendAction = spendVerbs.some(actionNearCurrency);
+    const hasNegativeCurrency = /(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか))\s*[-]\s*\d|[-]\s*\d[\d,]*\s*(?:LP|ＬＰ|(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか))/i.test(normalized)
+      && !/(?:現在|現座|残高|残り|所持|保有)/.test(normalized);
+    const looksLikeArithmeticExpression = hasNegativeCurrency && !hasExplicitSpendAction &&
+      (currencyAmountMatches.length >= 2 || /[（(][^）)]*[）)]/.test(normalized) || /[＝=＋+*/]/.test(normalized));
+    if (!hasExplicitSpendAction && !hasNegativeCurrency) continue;
+    const lineIndex = i + 1;
+    const sameLineSpends = (spendTrace || []).filter((event) =>
+      Number(event.lineIndex) === lineIndex &&
+      ((Number(event.lp) || 0) !== 0 || (Number(event.shards) || 0) !== 0)
+    );
+    const coverage = (coverages || []).find((entry) => entry && Number(entry.lineIndex) === lineIndex);
+    const hasParserReason = (reasons || []).some((entry) => String(entry?.line || "").trim() === original);
+    const hasRelatedAudit = isRelated(audits || [], lineIndex);
+    const lineShape = describeCandidateLine(original, coverage);
+    const looksLikeBalanceTransition = (lineShape.actionKinds || []).includes("balance-transition")
+      || (lineShape.hasBalanceCue && !(lineShape.amountTokenShape || []).length);
+    let isolatedSpendRows = 0;
+    let isolatedReasonCount = 0;
+    if (sameLineSpends.length === 0) {
+      /* Test this candidate in isolation to separate unsupported syntax from history-context
+         suppression. Restore instrumentation arrays immediately so this diagnostic does not
+         contaminate the main memo trace or alter its totals. */
+      const eventArrays = [
+        parserContext.window.__lbtAuditIncomeEvents,
+        parserContext.window.__lbtAuditIncomePairEvents,
+        parserContext.window.__lbtAuditSpendEvents
+      ];
+      const previousLengths = eventArrays.map((events) => events.length);
+      const isolated = MEMO.parseMemo(original);
+      isolatedSpendRows = (isolated.spends || []).filter((row) =>
+        (Number(row?.lp) || 0) !== 0 || (Number(row?.shards) || 0) !== 0
+      ).length;
+      isolatedReasonCount = (isolated.reasons || []).length;
+      eventArrays.forEach((events, index) => { events.length = previousLengths[index]; });
+    }
+    candidates.push({
+      lineIndex,
+      hasExplicitSpendAction,
+      hasUsageCue,
+      usageNearCurrency,
+      hasNegativeCurrency,
+      looksLikeArithmeticExpression,
+      spendRecords: sameLineSpends.length,
+      hasSpendRecord: sameLineSpends.length > 0,
+      isolatedSpendRows,
+      isolatedReasonCount,
+      isolatedParseWouldSpend: isolatedSpendRows > 0,
+      hasParserReason,
+      hasRelatedAudit,
+      looksLikeArithmeticExpression,
+      looksLikeBalanceTransition,
+      status: String(coverage?.status || "no-coverage"),
+      needsReview: reviewStatuses.has(String(coverage?.status || "")) || hasParserReason || hasRelatedAudit || looksLikeArithmeticExpression || looksLikeBalanceTransition,
+      lineShape
+    });
+  }
+  const missing = candidates.filter((row) => !row.hasSpendRecord);
+  const summarizeBy = (rows, getKey) => rows.reduce((counts, row) => {
+    const key = getKey(row);
+    counts[key] = (counts[key] || 0) + 1;
+    return counts;
+  }, {});
+  return {
+    candidateRows: candidates.length,
+    explicitSpendActionRows: candidates.filter((row) => row.hasExplicitSpendAction).length,
+    usageCueRows: candidates.filter((row) => row.hasUsageCue).length,
+    usageNearCurrencyRows: candidates.filter((row) => row.usageNearCurrency).length,
+    negativeCurrencyRows: candidates.filter((row) => row.hasNegativeCurrency).length,
+    rowsWithSpendRecord: candidates.filter((row) => row.hasSpendRecord).length,
+    missingRowsThatParseAsSpendInIsolation: missing.filter((row) => row.isolatedParseWouldSpend).length,
+    missingRowsThatDoNotParseAsSpendInIsolation: missing.filter((row) => !row.isolatedParseWouldSpend).length,
+    rowsWithoutSpendRecord: missing.length,
+    rowsWithoutSpendRecordWithReason: missing.filter((row) => row.hasParserReason || row.hasRelatedAudit || row.needsReview).length,
+    rowsWithoutSpendRecordUnexplained: missing.filter((row) => !row.needsReview).length,
+    negativeCurrencyRowsWithoutSpendRecord: missing.filter((row) => row.hasNegativeCurrency).length,
+    ambiguousArithmeticRowsWithoutSpendRecord: missing.filter((row) => row.looksLikeArithmeticExpression).length,
+    balanceTransitionRowsWithoutSpendRecord: missing.filter((row) => row.looksLikeBalanceTransition).length,
+    missingRowsByStatus: summarizeBy(missing, (row) => row.status),
+    missingRows: missing
+  };
+}
+
 function auditMemo(id, historyIndex, memo) {
   parserContext.window.__lbtAuditIncomeEvents.length = 0;
   parserContext.window.__lbtAuditIncomePairEvents.length = 0;
@@ -480,7 +607,8 @@ function auditMemo(id, historyIndex, memo) {
     reasonCategories[category] = (reasonCategories[category] || 0) + 1;
   }
 
-  return { historyIndex, candidates, covered, legacyCandidates, legacyTransactionCandidates, nonTransactionalTicketLabels, nonTransactionalDrawLabels, unclassifiedLegacyCues, unclassifiedLegacyCueExamples, issues, financial, incomeTrace, incomePairTrace, spendTrace, reviewDetails, spendSignatures, reasonCategories, coverageStatuses: coverages.reduce((counts, entry) => {
+  const explicitSpendCueAudit = auditExplicitSpendCues(lines, spendTrace, reasons, coverages, audits);
+  return { historyIndex, candidates, covered, legacyCandidates, legacyTransactionCandidates, nonTransactionalTicketLabels, nonTransactionalDrawLabels, unclassifiedLegacyCues, unclassifiedLegacyCueExamples, issues, financial, incomeTrace, incomePairTrace, spendTrace, reviewDetails, spendSignatures, reasonCategories, explicitSpendCueAudit, coverageStatuses: coverages.reduce((counts, entry) => {
     const status = String(entry?.status || "missing-status");
     counts[status] = (counts[status] || 0) + 1;
     return counts;
@@ -839,6 +967,18 @@ function toMarkdownReport(report) {
     ["日時を抽出できた履歴行", report.source.historyChronologySummary.rowsWithParsableTime + " / " + report.source.historyChronologySummary.rows],
     ["日時を抽出できた文書（全体 / 残高照合対象）", report.source.historyChronologySummary.documentsWithAnyParsableTime + " / " + report.source.historyChronologySummary.balanceEligibleWithParsableTime],
     ["配列順（昇順相当 / 降順相当 / 混在）", (report.source.historyChronologySummary.balanceEligibleOrderCounts["ascending-or-tied"] || 0) + " / " + (report.source.historyChronologySummary.balanceEligibleOrderCounts["descending-or-tied"] || 0) + " / " + (report.source.historyChronologySummary.balanceEligibleOrderCounts.mixed || 0)],
+    ["通貨額＋支出語句／負額の支出候補行", report.parser.explicitSpendCueAuditSummary.candidateRows],
+    ["支出候補内の「使用／使い」表記", report.parser.explicitSpendCueAuditSummary.usageCueRows],
+    ["うち通貨額の近くに「使用／使い」がある", report.parser.explicitSpendCueAuditSummary.usageNearCurrencyRows],
+    ["うち支出明細が同じ行にある", report.parser.explicitSpendCueAuditSummary.rowsWithSpendRecord],
+    ["支出明細がない候補（理由・要確認あり／算術式候補を含む）", report.parser.explicitSpendCueAuditSummary.rowsWithoutSpendRecordWithReason],
+    ["うち複数額・括弧・演算子を伴う負額候補", report.parser.explicitSpendCueAuditSummary.ambiguousArithmeticRowsWithoutSpendRecord],
+    ["うち残高遷移の注記を含み支出が確定しない行", report.parser.explicitSpendCueAuditSummary.balanceTransitionRowsWithoutSpendRecord],
+    ["支出明細がないが単独解析なら支出になる行", report.parser.explicitSpendCueAuditSummary.missingRowsThatParseAsSpendInIsolation],
+    ["単独解析でも支出にならない行", report.parser.explicitSpendCueAuditSummary.missingRowsThatDoNotParseAsSpendInIsolation],
+    ["支出明細も理由もない候補", report.parser.explicitSpendCueAuditSummary.rowsWithoutSpendRecordUnexplained],
+    ["負の通貨額なのに支出明細がない行", report.parser.explicitSpendCueAuditSummary.negativeCurrencyRowsWithoutSpendRecord],
+    ["支出明細ゼロかつ負の残差がある文書", report.parser.explicitSpendCueAuditSummary.documentsWithNoParsedSpendAndNegativeResidual],
     ["要確認行のうち期待収支とパーサー検出値に数値差がある候補", report.parser.flowDifferenceSummary.rowsWithNumericDifference],
     ["数値差がある候補：mismatch / 理由確認済み", (report.parser.flowDifferenceSummary.byStatus.mismatch || 0) + " / " + (report.parser.flowDifferenceSummary.byStatus["reviewed-by-parser-reason"] || 0)],
     ["方向未確定のため数値比較から分けた候補行", report.parser.flowDifferenceSummary.unknownDirectionRows],
@@ -907,6 +1047,26 @@ function toMarkdownReport(report) {
     "| 理由分類 | 件数 |",
     "|---|---:|",
     ...Object.entries(report.parser.reasonCategories).sort(([a],[b]) => a.localeCompare(b)).map(([name, count]) => "| " + name + " | " + count + " |"),
+    "",
+    "## 支出らしい記述と実際の支出明細の対応（本文・名称は非出力）",
+    "",
+    "通貨額と支出動詞、または明示的な負の通貨額が同じ履歴行にある場合、その行から支出明細が生成されたかを独立に数えます。これは候補抽出であり、支出の事実認定ではありません。残高注記・変換・購入表記など曖昧な行は「理由／要確認あり」に分離し、原文は出力しません。",
+    "",
+    "| URL ID | 履歴行 | メモ行 | 支出候補 | 支出動詞あり | 負の通貨額 | 明細あり | 明細なし | 明細なし・理由/要確認あり | 明細なし・説明なし | 負額なのに明細なし |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+    ...report.parser.explicitSpendCueAuditDocuments
+      .filter((row) => row.rowsWithoutSpendRecord > 0 || row.negativeCurrencyRowsWithoutSpendRecord > 0)
+      .map((row) => "| " + row.id + " | " + row.historyRows + " | " + row.memoRows + " | " + row.candidateRows + " | " + row.explicitSpendActionRows + " | " + row.negativeCurrencyRows + " | " + row.rowsWithSpendRecord + " | " + row.rowsWithoutSpendRecord + " | " + row.rowsWithoutSpendRecordWithReason + " | " + row.rowsWithoutSpendRecordUnexplained + " | " + row.negativeCurrencyRowsWithoutSpendRecord + " |"),
+    "",
+    "### 支出明細がない候補行の形状（本文・名称・金額は非出力）",
+    "",
+    "この一覧は支出と断定したものではありません。原文に戻らずとも、数値トークンの数、通貨種別、記述内の操作語・残高語・チケット語、パーサーのcoverage状態を比較し、未解析の実支出か、アイテム数や状態注記などの誤候補かを切り分けるための構造情報です。具体的な数値・原文・アイテム名は出力しません。",
+    "",
+    "| URL ID | 履歴行 | メモ行 | 支出語句 | 負額 | 算術式候補 | 残高遷移候補 | coverage | 理由 | 監査関連 | 行長 | 金額候補数 | 通貨/桁幅 | 操作分類 | 残高語 | チケット分類 | 単独解析支出 | 単独支出行数 | 単独理由数 |",
+    "|---|---:|---:|---|---|---|---|---|---|---|---:|---:|---|---|---|---|---|---:|---:|---|",
+    ...report.parser.explicitSpendCueAuditDocuments.flatMap((document) =>
+      document.missingRows.map((row) => "| " + document.id + " | " + row.historyRow + " | " + row.lineIndex + " | " + Number(row.hasExplicitSpendAction) + " | " + Number(row.hasNegativeCurrency) + " | " + Number(row.looksLikeArithmeticExpression) + " | " + Number(row.looksLikeBalanceTransition) + " | " + row.status + " | " + Number(row.hasParserReason) + " | " + Number(row.hasRelatedAudit) + " | " + row.lineShape.lineLength + " | " + row.lineShape.amountTokenCount + " | " + row.lineShape.amountTokenShape.map((token) => token.currency + ":" + token.digitWidth).join(",") + " | " + row.lineShape.actionKinds.join("+") + " | " + Number(row.lineShape.hasBalanceCue) + " | " + Number(row.lineShape.ticketClassified) + " | " + Number(row.isolatedParseWouldSpend) + " | " + row.isolatedSpendRows + " | " + row.isolatedReasonCount + " |")
+    ),
     "",
     "## 収支方向の期待値とパーサー検出値の差（推定・非確定）",
     "",
@@ -1460,6 +1620,63 @@ const balanceBridgeSummary = {
   negativeLpIds: balanceBridges.filter((row) => row.impliedOpeningLp < 0).map((row) => row.id),
   negativeShardIds: balanceBridges.filter((row) => row.impliedOpeningShards < 0).map((row) => row.id)
 };
+const explicitSpendCueAuditDocuments = successful.map((entry) => {
+  const rows = (entry.parsedRows || []).map((row) => row.explicitSpendCueAudit || {});
+  const sum = (key) => rows.reduce((total, row) => total + (Number(row[key]) || 0), 0);
+  const statuses = {};
+  for (const row of rows) for (const [status, count] of Object.entries(row.missingRowsByStatus || {})) {
+    statuses[status] = (statuses[status] || 0) + Number(count || 0);
+  }
+  return {
+    id: entry.baseline.id,
+    historyRows: entry.actualHistoryRows,
+    memoRows: entry.actualMemoRows,
+    candidateRows: sum("candidateRows"),
+    explicitSpendActionRows: sum("explicitSpendActionRows"),
+    usageCueRows: sum("usageCueRows"),
+    usageNearCurrencyRows: sum("usageNearCurrencyRows"),
+    negativeCurrencyRows: sum("negativeCurrencyRows"),
+    rowsWithSpendRecord: sum("rowsWithSpendRecord"),
+    rowsWithoutSpendRecord: sum("rowsWithoutSpendRecord"),
+    rowsWithoutSpendRecordWithReason: sum("rowsWithoutSpendRecordWithReason"),
+    rowsWithoutSpendRecordUnexplained: sum("rowsWithoutSpendRecordUnexplained"),
+    negativeCurrencyRowsWithoutSpendRecord: sum("negativeCurrencyRowsWithoutSpendRecord"),
+    ambiguousArithmeticRowsWithoutSpendRecord: sum("ambiguousArithmeticRowsWithoutSpendRecord"),
+    balanceTransitionRowsWithoutSpendRecord: sum("balanceTransitionRowsWithoutSpendRecord"),
+    missingRowsThatParseAsSpendInIsolation: sum("missingRowsThatParseAsSpendInIsolation"),
+    missingRowsThatDoNotParseAsSpendInIsolation: sum("missingRowsThatDoNotParseAsSpendInIsolation"),
+    missingRowsByStatus: statuses,
+    missingRows: (entry.parsedRows || []).flatMap((memo) =>
+      (memo.explicitSpendCueAudit?.missingRows || []).map((row) => ({
+        historyRow: (Number(memo.historyIndex) || 0) + 1,
+        ...row
+      }))
+    )
+  };
+});
+const explicitSpendCueAuditSummary = {
+  documentsAnalyzed: explicitSpendCueAuditDocuments.length,
+  candidateRows: explicitSpendCueAuditDocuments.reduce((sum, row) => sum + row.candidateRows, 0),
+  explicitSpendActionRows: explicitSpendCueAuditDocuments.reduce((sum, row) => sum + row.explicitSpendActionRows, 0),
+  negativeCurrencyRows: explicitSpendCueAuditDocuments.reduce((sum, row) => sum + row.negativeCurrencyRows, 0),
+  rowsWithSpendRecord: explicitSpendCueAuditDocuments.reduce((sum, row) => sum + row.rowsWithSpendRecord, 0),
+  rowsWithoutSpendRecord: explicitSpendCueAuditDocuments.reduce((sum, row) => sum + row.rowsWithoutSpendRecord, 0),
+  rowsWithoutSpendRecordWithReason: explicitSpendCueAuditDocuments.reduce((sum, row) => sum + row.rowsWithoutSpendRecordWithReason, 0),
+  rowsWithoutSpendRecordUnexplained: explicitSpendCueAuditDocuments.reduce((sum, row) => sum + row.rowsWithoutSpendRecordUnexplained, 0),
+  negativeCurrencyRowsWithoutSpendRecord: explicitSpendCueAuditDocuments.reduce((sum, row) => sum + row.negativeCurrencyRowsWithoutSpendRecord, 0),
+  missingRowsByStatus: explicitSpendCueAuditDocuments.reduce((counts, row) => {
+    for (const [status, count] of Object.entries(row.missingRowsByStatus || {})) counts[status] = (counts[status] || 0) + count;
+    return counts;
+  }, {}),
+  documentsWithUnexplainedMissingSpend: explicitSpendCueAuditDocuments.filter((row) => row.rowsWithoutSpendRecordUnexplained > 0).length,
+  documentsWithNegativeCurrencyWithoutSpend: explicitSpendCueAuditDocuments.filter((row) => row.negativeCurrencyRowsWithoutSpendRecord > 0).length,
+  documentsWithNoParsedSpendAndNegativeResidual: explicitSpendCueAuditDocuments.filter((row) => {
+    const bridge = balanceBridges.find((item) => item.id === row.id);
+    return bridge && bridge.spentLp === 0 && bridge.spentShards === 0 &&
+      (bridge.impliedOpeningLp < 0 || bridge.impliedOpeningShards < 0);
+  }).length
+};
+
 const report = {
   inventory: {
     urlCount: baseline.documents.length,
@@ -1494,6 +1711,8 @@ const report = {
     currencyDiscrepancies: allParsedRows.reduce((sum, row) => sum + row.currencyDiscrepancies, 0),
     coverageStatuses,
     reasonCategories: parserReasonCategories,
+    explicitSpendCueAuditSummary,
+    explicitSpendCueAuditDocuments,
     flowDifferenceSummary,
     flowDifferenceDetails,
     flowUnknownDirectionDetails,
@@ -1576,6 +1795,8 @@ console.log(JSON.stringify({
     historyArrayOrderCounts: report.source.historyChronologySummary.orderCounts,
     balanceEligibleHistoryArrayOrderCounts: report.source.historyChronologySummary.balanceEligibleOrderCounts,
     flowDifferenceRows: report.parser.flowDifferenceSummary.rowsWithNumericDifference,
+    explicitSpendCueAuditSummary: report.parser.explicitSpendCueAuditSummary,
+    explicitSpendCueAuditDocuments: report.parser.explicitSpendCueAuditDocuments,
     flowDifferenceRowsByStatus: report.parser.flowDifferenceSummary.byStatus,
     flowUnknownDirectionRows: report.parser.flowDifferenceSummary.unknownDirectionRows,
     flowUnknownDirectionRowsByStatus: report.parser.flowDifferenceSummary.unknownDirectionRowsByStatus,
