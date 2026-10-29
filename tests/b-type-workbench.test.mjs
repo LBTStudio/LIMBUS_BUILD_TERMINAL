@@ -40,3 +40,10 @@ test("B-type production styles adapt to tablet and mobile without disabling redu
   assert.match(css, /@media \(max-width: 600px\)/);
   assert.match(css, /prefers-reduced-motion/);
 });
+
+test("B-type Basic preview is positioned beside the editor on wide desktop when the global drawer is closed", () => {
+  const css = read("../assets/b-type-ui-parity.css");
+  assert.match(css, /\.app\.preview-collapsed \.baseinfo-workspace\s*\{\s*grid-template-columns:\s*minmax\(0, 1\.05fr\) minmax\(400px, \.95fr\)/);
+  assert.match(css, /\.app\.has-preview \.baseinfo-workspace\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\)/);
+  assert.match(css, /@media\s*\(min-width:\s*1280px\)/);
+});
