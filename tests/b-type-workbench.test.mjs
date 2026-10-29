@@ -13,7 +13,7 @@ test("B-type shell gives non-workbench pages the full canvas and scopes preview 
   assert.match(app, /className: "rail"/);
   assert.match(app, /className: "focus"/);
   assert.match(app, /isBuildWorkspace && previewOpen \? React\.createElement\(LivePreview, \{ state, dispatch \}\)/);
-  assert.match(app, /label: "ワークベンチ"/);
+  assert.match(app, /label: "ビルド"/);
   assert.match(app, /label: "記録・所持品"/);
 });
 
