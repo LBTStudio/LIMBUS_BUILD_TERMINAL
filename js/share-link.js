@@ -457,17 +457,8 @@
         return { ...ub, desc: dbBuff.desc, type: dbBuff.type || ub.type, initial: dbBuff.initial, max: dbBuff.max || 20 };
       });
     }
-    if (Array.isArray(state.supports)) {
-      state.supports = state.supports.map((s) => {
-        const dbRec = (db?.support_passives || []).find((entry) => entry?.name === s?.name);
-        if (!dbRec) return s;
-        return { ...s, cond: dbRec.cond, effect: dbRec.effect, lp: dbRec.lp };
-      });
-    }
-    if (state.deathSupport?.name) {
-      const dbRec = (db?.death_passives || []).find((entry) => entry?.name === state.deathSupport?.name);
-      if (dbRec) state.deathSupport = { ...state.deathSupport, cond: dbRec.cond, effect: dbRec.effect, lp: dbRec.lp };
-    }
+    // DB参照として共有された支援パッシブは refs.s / refs.d の復元時点で最新DBから解決済み。
+    // ここへ届く実オブジェクトは編集済み・カスタムデータなので、同名DBレコードで上書きしない。
     if (Array.isArray(state.enhancements)) {
       const enhRows = [...(db?.normal_enhancements || []), ...(db?.special_enhancements || [])];
       state.enhancements = state.enhancements.map((e) => {
