@@ -1813,7 +1813,7 @@ const App = () => {
     }
   };
   /* 右側の出力プレビューは初期状態で閉じ、開く操作をした利用者だけ展開する。 */
-  const previewOpen = state.ui.previewOpen === true;
+  const previewOpen = state.ui.previewOpen === true || (state.ui.previewOpen == null && typeof window !== "undefined" && window.matchMedia("(min-width: 1100px)").matches);
   // 初期値が未保存でも、画面に実際に表示されている状態を基準に即時反転する。
   const togglePreview = () => dispatch({ type: "SET_UI", ui: { previewOpen: !previewOpen } });
   const copyJson = async () => {
