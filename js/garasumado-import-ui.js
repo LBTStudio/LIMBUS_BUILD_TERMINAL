@@ -1012,7 +1012,7 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [], existi
   const [focusKey, setFocusKey] = React.useState("");
   const returnItem = (itemKey) => {
     if (!itemKey) return;
-    onPickIdentity(itemKey, { pickedScenario: "", returned: true });
+    onPickIdentity(itemKey, { pickedScenario: "", pickedScenarioKey: "", returned: true });
     setFocusKey(itemKey);
   };
 
