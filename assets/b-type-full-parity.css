@@ -51,3 +51,7 @@
 .build-tabs.is-b-workbench .segmented>[role=tab]{flex:0 0 auto;white-space:nowrap;min-width:max-content}
 .build-tabs.is-b-workbench .segmented>[role=tab]:focus-visible{position:relative;z-index:1}
 @media(max-width:600px){.build-tabs.is-b-workbench{max-width:100%;overflow:hidden}.build-tabs.is-b-workbench .segmented{gap:3px;padding:3px}.build-tabs.is-b-workbench .segmented>[role=tab]{padding:7px 10px;font-size:11px}}
+
+/* Override the legacy v69 mobile 4-column grid, which has higher specificity. */
+.build-tabs.is-b-workbench .segmented[role="tablist"][aria-label="ビルドセクション"]{display:flex!important;grid-template-columns:none!important;flex-wrap:nowrap!important;overflow-x:auto!important;overflow-y:hidden!important;white-space:nowrap}
+.build-tabs.is-b-workbench .segmented[role="tablist"][aria-label="ビルドセクション"]>button{flex:0 0 auto!important;width:auto!important;min-width:max-content!important;max-width:none!important;white-space:nowrap!important;overflow-wrap:normal!important}
