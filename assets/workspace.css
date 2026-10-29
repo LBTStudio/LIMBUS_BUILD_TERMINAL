@@ -2471,6 +2471,10 @@ body.has-detail-dialog main.preview { overflow: hidden; }
    CCFOLIA PREVIEW — room map, roster and character editor
    ============================================================ */
 .pv-ccfolia-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
   container-type: inline-size;
   color: #e1e4e8;
   font-family: var(--f-body);
