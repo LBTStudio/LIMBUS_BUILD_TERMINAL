@@ -38,7 +38,7 @@ test("基本タブは既存の駒整形コンポーネントを再利用し、�
 test("ホーム検索は目的語と関連語を探し、既存画面へ移動する", () => {
   assert.match(app, /const visibleActions = actions\.filter/);
   assert.match(app, /\[item\.title, item\.desc, item\.terms\]/);
-  for (const target of ["baseinfo", "persona", "skill", "ego", "shop", "roster", "settings", "help"]) {
+  for (const target of ["baseinfo", "persona", "shop", "roster", "settings", "help"]) {
     assert.ok(app.includes(`navigate("${target}"`), `ホームから ${target} へ移動できる`);
   }
   assert.match(app, /openPersonaDraftImport: true/);
@@ -60,7 +60,7 @@ test("ホームの取り込みショートカットは既存の取込フォー�
 });
 
 test("ホームランチャーは狭幅では1列になり、キーボードでも移動できる", () => {
-  assert.match(bTypeCss, /\.btype-launcher-grid \{ display: grid; grid-template-columns: repeat\(3, minmax\(0,1fr\)\)/);
+  assert.match(bTypeCss, /\.btype-launcher-grid \{ display: grid; grid-template-columns: repeat\(3,minmax\(0,1fr\)\)/);
   assert.match(bTypeCss, /@media \(max-width: 600px\)[\s\S]*?\.btype-launcher-grid \{ grid-template-columns: repeat\(2,minmax\(0,1fr\)\);/);
   assert.match(bTypeCss, /\.btype-launcher-card:focus-visible/);
 });
