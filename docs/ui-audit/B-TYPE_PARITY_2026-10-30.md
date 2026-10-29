@@ -2,7 +2,7 @@
 
 ## Basis
 
-This pass uses the maintained design review `LBT_UI_Refinement_Review.md`, the current production React DOM, the merged UI PR diffs, and the most recent UI interaction / preview-regression screenshot artifacts. It preserves existing application state, persistence, import, and CCFOLIA generation paths.
+This pass uses the maintained design review `LBT_UI_Refinement_Review.md` and the interactive `LBT_UI_Refinement_Prototypes.html` from the user Library package `LBT_UI_Refinement_Package.zip`, plus the current production React DOM and UI screenshot artifacts. The prototype package is not tracked in this repository, but it is available as the design source for this audit. Existing application state, persistence, import, and CCFOLIA generation paths are preserved.
 
 ## Confirmed defects addressed here
 
@@ -17,6 +17,8 @@ This pass uses the maintained design review `LBT_UI_Refinement_Review.md`, the c
 - Add accessible ST / labels / live-output tabs around the existing status and parameter editors. The original handlers, order, default/unique statuses, custom items, and labels remain the same; the inactive panel is hidden, not replaced with a mock.
 - Wire the live-output tab action through `App → BuildWorkspace → BaseInfoWorkspace → BuildParamsPanel` to the existing preview toggle.
 - Add responsive styles against the classes actually emitted by the production React components.
+- Make the global preview panel closed by default, matching the review requirement that the editor is not compressed before the user asks to inspect output. The Home preview shortcut also explicitly closes the global panel and opens the Basic-area preview.
+- Keep the sidebar grid valid at tablet widths; previously the B-type media query reduced the column count without updating the inherited grid areas, allowing the sticky build tabs to intercept navigation clicks.
 - Extend Playwright capture across desktop, tablet, mobile portrait, small phone, and phone landscape to capture the token preview, each internal tab, and the real preview-toggle round trip.
 - Add structural regression tests for state binding, accessibility, callback wiring, and the production CSS selectors.
 
@@ -26,6 +28,6 @@ The existing broad UI audit captures two viewport classes and records states for
 
 ## Limitations / merge gate
 
-The interactive source HTML prototype is not present in the repository's current tracked tree; the review document is available, but it explicitly describes itself as a mock and not a pixel-exact reference. This pass therefore fixes the concrete structural gaps evidenced by the review and production screenshots and tightens behavior coverage; it does **not** claim pixel-perfect equality for every page without the approved source HTML / golden screenshots. The PR should be reviewed against that source when it is added or linked.
+The prototype and review are available from the user Library package but are not currently checked into the repository. The prototype is an interactive concept reference rather than an image-by-image golden master of every production React route. This pass now uses it alongside the v2/v3 Basic-sheet notes and production screenshots to fix concrete structure, state routing, and responsive geometry defects; no claim is made that every page is pixel-identical. The next parity step is to version the reference package and retain named target screenshots for each route/viewport so visual drift is a blocking regression rather than a subjective review.
 
 Required checks: `node --test tests/*.test.mjs`, `node tools/sync-asset-versions.mjs --check`, project verification, UI interaction audit screenshots, preview control visual regression, and tutorial screenshot capture.
