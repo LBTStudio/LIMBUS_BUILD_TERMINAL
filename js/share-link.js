@@ -484,16 +484,9 @@
         state.spiritConfuse = dbSpirit.confuse_effect || "";
       }
     }
-    // パッシブ原文（name/cond/always/effect）も旧DBコピーのままだと
-    // エラッタ反映が受信者に届かないため、DB最新で置き換える。
-    if (state.pas) {
-      state.pas = {
-        name: source.passive_name || state.pas.name || "",
-        cond: source.passive_cond || state.pas.cond || "",
-        always: source.passive_always || state.pas.always || "",
-        effect: source.passive_effect || state.pas.effect || ""
-      };
-    }
+    // 共有スナップショットにパッシブがあれば、同期・カスタム編集済みの値として保持する。
+    // 未格納の場合は直前の sourceSheetFields 補完で現行DBの値が入っているため、
+    // ここでDB値を無条件に再代入すると共有者が変更した内容を破壊してしまう。
     state.personaSrc = { name: state.personaSrc?.name || source.name };
     delete state.personaRef;
     return normalizeShareState(state);
