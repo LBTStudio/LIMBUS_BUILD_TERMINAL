@@ -8,11 +8,14 @@ const itemSource = readFileSync(new URL("../js/ItemCodex.js", import.meta.url), 
 const sectionsSource = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
 const mobilePreview = readFileSync(new URL("../mobile-preview.html", import.meta.url), "utf8");
 
-test("モバイルの下部ナビゲーションは横スクロールせず全機能を2段で常時表示し、操作・保存を右端に収める", () => {
+test("モバイルの下部ナビゲーションは横スクロールせず全機能を1段7列で常時表示し、操作・保存を右端に収める", () => {
   const v64r94 = refinements.slice(refinements.indexOf("v64r94"));
   const v64r95 = refinements.slice(refinements.indexOf("v64r95"));
-  assert.match(v64r94, /grid-template-columns: repeat\(6, minmax\(0, 1fr\)\)/);
-  assert.match(v64r94, /grid-template-rows: repeat\(2, 52px\)/);
+  /* 旧2段×6列グリッドは7項目目（「その他」）だけ2行目に落とし、
+     レールが2行分(114px)を常に消費していた。1段7列に変えて
+     「横スクロールせず全機能を常時表示」の意図は保ったまま高さを半分にする。 */
+  assert.match(v64r94, /grid-template-columns: repeat\(7, minmax\(0, 1fr\)\)/);
+  assert.match(v64r94, /grid-template-rows: 52px;/);
   assert.match(v64r94, /\.rail \{[\s\S]*?overflow: hidden;/);
   assert.match(v64r94, /\.rail \{[\s\S]*?position: fixed;[\s\S]*?bottom: 0;/);
   /* !important は 2026-10-01 に全 156 件から 2 件（reduced-motion の抑制のみ）へ
@@ -22,7 +25,7 @@ test("モバイルの下部ナビゲーションは横スクロールせず全�
   assert.match(v64r95, /\.topbar \.topbar-actions \{ display: none; \}/);
   assert.match(v64r95, /\.topbar > \.utility-trigger \{[\s\S]*?min-width: 104px;/);
   assert.match(v64r94, /grid-template-rows: var\(--topbar-h\) minmax\(0, 1fr\);/);
-  assert.match(v64r94, /--lbt-mobile-rail-h: calc\(114px \+ env\(safe-area-inset-bottom, 0px\)\);/);
+  assert.match(v64r94, /--lbt-mobile-rail-h: calc\(60px \+ env\(safe-area-inset-bottom, 0px\)\);/);
   assert.match(v64r94, /\.focus \{ padding-bottom: calc\(var\(--lbt-mobile-rail-h\) \+ 12px\); \}/);
   assert.match(v64r94, /padding: 4px 4px calc\(4px \+ env\(safe-area-inset-bottom, 0px\)\);/);
   assert.match(v64r94, /bottom: var\(--lbt-mobile-rail-h\);/);

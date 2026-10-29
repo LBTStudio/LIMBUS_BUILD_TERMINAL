@@ -5,7 +5,8 @@
   const ENDPOINT = "https://lbt-recovery.lbtstudio-share.workers.dev/api/stats/view";
   if (!/^https?:$/.test(location.protocol) || document.getElementById("lbt-access-counter")) return;
 
-  const badge = document.createElement("aside");
+  /* role="status" は aside には許可されない（axe aria-allowed-role）ため div にする。 */
+  const badge = document.createElement("div");
   badge.id = "lbt-access-counter";
   badge.setAttribute("role", "status");
   badge.setAttribute("aria-live", "polite");

@@ -186,14 +186,17 @@ const BalanceChip = ({ state, onClick }) => {
   ].join(" / ");
   const ticketTitle = ticketTotal > 0 ? `、抽出チケット ${num(ticketTotal)}枚（${ticketBreakdown}）` : "";
   /* 視覚にも 0 枚を出しているため、aria からも落とさない。
-     内訳は 1 枚以上あるときだけ添える（0 個の項目を列挙しても情報にならない）。 */
+     内訳は 1 枚以上あるときだけ添える（0 個の項目を列挙しても情報にならない）。
+     accessible name は表示テキスト（"1,234LP / 567欠片 / 8枚"）を含む必要がある
+     （WCAG 2.5.3 Label in Name）。語順替えの aria-label は
+     axe の label-content-name-mismatch になるため、名前は DOM テキストから
+     構成させ、補足は末尾の視覚隠しスパンに足す。 */
   const ticketAria = ticketTotal > 0 ? `、抽出チケット ${num(ticketTotal)}枚` : "、抽出チケット 0枚";
   return h("button", {
     type: "button",
     className: "topbar-balance",
     onClick,
-    title: `残高 — LP ${num(balance.lp)} / 欠片 ${num(balance.shards)}${ticketTitle}。リザルトを開く`,
-    "aria-label": `残高 LP ${num(balance.lp)}、欠片 ${num(balance.shards)}${ticketAria}。リザルトを開く`
+    title: `残高 — LP ${num(balance.lp)} / 欠片 ${num(balance.shards)}${ticketTitle}。リザルトを開く`
   },
     h("span", { className: "topbar-balance-item" },
       h("span", { className: "topbar-balance-num" }, num(balance.lp)),
@@ -206,7 +209,9 @@ const BalanceChip = ({ state, onClick }) => {
     h("span", { className: "topbar-balance-sep", "aria-hidden": "true" }, "/"),
     h("span", { className: "topbar-balance-item" },
       h("span", { className: "topbar-balance-num" }, num(ticketTotal)),
-      h("span", { className: "topbar-balance-unit" }, "枚"))
+      h("span", { className: "topbar-balance-unit" }, "枚")),
+    h("span", { style: { position: "absolute", width: "1px", height: "1px", padding: 0, margin: "-1px", overflow: "hidden", clipPath: "inset(50%)", whiteSpace: "nowrap", border: 0 } },
+      `残高${ticketAria}。リザルトを開く`)
   );
 };
 

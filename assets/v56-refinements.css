@@ -2247,10 +2247,13 @@ details > summary {
 }
 
 /* v64r94: 実機モバイルでは横スクロール式レールを使わない。
-   主要画面を2段グリッドで常時見せ、上部の操作入口も切らない。 */
+   主要画面をグリッドで常時見せ、上部の操作入口も切らない。
+   レールの子はホーム+ビルド等の6セクションと「その他」の7項目なので
+   1段7列にする。旧2段×6列グリッドでは7項目目だけ2行目に落ち、
+   レールが2行分(114px)を常に消費していた。 */
 @media (max-width: 640px) {
   .app {
-    --lbt-mobile-rail-h: calc(114px + env(safe-area-inset-bottom, 0px));
+    --lbt-mobile-rail-h: calc(60px + env(safe-area-inset-bottom, 0px));
     width: 100%;
     max-width: 100%;
     grid-template-rows: var(--topbar-h) minmax(0, 1fr);
@@ -2303,8 +2306,8 @@ details > summary {
     bottom: 0;
     left: 0;
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    grid-template-rows: repeat(2, 52px);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-rows: 52px;
     width: 100%;
     height: var(--lbt-mobile-rail-h);
     max-width: 100%;
