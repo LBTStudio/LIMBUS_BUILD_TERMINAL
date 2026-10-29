@@ -8,6 +8,7 @@ const persona = read("../js/PersonaCodex.js");
 const app = read("../js/App.js");
 const generator = read("../js/generator.js");
 const parity = read("../assets/b-type-ui-parity.css");
+const workbench = read("../assets/b-type-workbench.css");
 
 test("Basic identity token card follows existing character data without embedding QA data", () => {
   const start = sections.indexOf('className: "pc-token-preview"');
@@ -62,6 +63,22 @@ test("Home preview shortcut opens the Basic integrated preview rather than the s
     const end = source.indexOf("\n};", start);
     return source.slice(start, end);
   }
+});
+
+test("B-type phone navigation matches the approved four routes and preserves access to Home", () => {
+  const start = app.indexOf("const MobileBottomNavigation =");
+  const end = app.indexOf("const HomeLauncher =", start);
+  assert.ok(start >= 0 && end > start, "mobile navigation component exists separately from the desktop rail");
+  const nav = app.slice(start, end);
+  for (const label of ["ビルド", "記録", "取込", "その他"]) {
+    assert.ok(nav.includes('label: "' + label + '"'), "missing mobile destination " + label);
+  }
+  assert.match(nav, /onOpenImportRouter/);
+  assert.match(nav, /onOpenUtilities/);
+  assert.match(app, /SECTIONS\.filter\(\(s\) => s\.group === "utility" \|\| s\.id === "home"\)/);
+  assert.match(workbench, /\.btype-mobile-bottom-nav\s*\{\s*display:\s*none/);
+  assert.match(workbench, /@media \(max-width: 640px\)[\s\S]*?\.app > \.rail \{ display: none !important; \}[\s\S]*?\.btype-mobile-bottom-nav/);
+  assert.match(workbench, /grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)/);
 });
 
 test("Basic preview views remain responsive and generated JSON stays readable on narrow screens", () => {
