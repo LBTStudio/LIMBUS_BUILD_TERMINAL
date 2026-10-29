@@ -451,7 +451,7 @@ async function captureProfile(browser, mode) {
     await boot();
     /* The B-type migration deliberately opens Home. Navigate to the actual workbench
        before capturing editor tabs and preview states, rather than assuming an old default. */
-    const workbenchNav = page.locator(".rail-item[title='ワークベンチ']").first();
+    const workbenchNav = page.locator(".rail-item[title='ビルド']").first();
     await workbenchNav.waitFor({ state: "visible", timeout: 10000 });
     await click(workbenchNav);
     await page.locator(".build-tabs").waitFor({ state: "visible", timeout: 10000 });
