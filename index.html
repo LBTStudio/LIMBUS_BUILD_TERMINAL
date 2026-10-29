@@ -413,13 +413,13 @@ window.addEventListener("load", function(){
 }
 .settings-order-embedded .status-order-instruction strong { color: #e9ca84; }
 .settings-order-embedded .status-order-scroll {
-  display: grid;
-  gap: 6px;
+  display: block;
   padding: 6px;
   background: #110f0c;
   border: 1px solid rgba(220,179,97,.20);
   border-radius: 9px;
 }
+.settings-order-embedded .status-order-row + .status-order-row { margin-top: 6px; }
 .settings-order-embedded .status-order-row {
   min-height: 54px;
   padding: 7px 9px;
