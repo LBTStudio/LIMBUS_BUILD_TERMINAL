@@ -1768,7 +1768,7 @@ const App = () => {
       case "ego":
       case "spirit":
       case "items-build":
-        return /* @__PURE__ */ React.createElement(BuildWorkspace, { state, dispatch, saveStatus });
+        return /* @__PURE__ */ React.createElement(BuildWorkspace, { state, dispatch, saveStatus, onTogglePreview: togglePreview });
       case "roster":
         return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SectionTitle, { num: sec.num, title: sec.title, subtitle: sec.subtitle }), /* @__PURE__ */ React.createElement(RosterSection, { state, dispatch }));
       case "shop":
