@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-1d266064";
+const CACHE_NAME = "lbt-a8ea0d40";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -46,17 +46,17 @@ const PRECACHE_URLS = [
   "assets/v68-interaction-a11y.css?v=0bbe4495",
   "assets/v69-mobile-ui-audit.css?v=e67e9edc",
   "assets/v70-preview-controls.css?v=ef27f951",
-  "assets/workspace.css?v=93bcaf32",
+  "assets/workspace.css?v=e6d8fd0f",
   "data/db.json?v=16b6df9e",
   "data/gacha-theme-packs.json?v=8d4dced2",
   "data/items.json?v=b185394a",
   "data/special-items.json?v=aaa21cfb",
-  "js/App.js?v=80e2dc6b",
+  "js/App.js?v=6343fe4c",
   "js/DataQuality.js?v=a8365c72",
   "js/InlineEffectGlossary.js?v=81967fa2",
   "js/ItemCodex.js?v=7aafec02",
   "js/LivePreview.js?v=8ea1213b",
-  "js/OtherSections.js?v=7f1e7219",
+  "js/OtherSections.js?v=c90d96aa",
   "js/PersonaCodex.js?v=693651ae",
   "js/SkillDeck.js?v=a93f6cb8",
   "js/access-counter.js?v=304e4854",
@@ -84,7 +84,7 @@ const PRECACHE_URLS = [
   "js/roster-resolver.js?v=01dce5a2",
   "js/share-link.js?v=e11a0161",
   "js/share-viewer.js?v=71f2da96",
-  "js/state.js?v=b16b336d",
+  "js/state.js?v=e974cfe2",
   "js/ui.js?v=6be4646a",
   "vendor/react-dom.min.js?v=35f4f974",
   "vendor/react.min.js?v=d949f1c3",
