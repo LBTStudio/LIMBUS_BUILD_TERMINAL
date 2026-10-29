@@ -546,7 +546,7 @@ const BaseInfoPanel = ({ state, dispatch }) => {
   );
 };
 
-const BaseInfoWorkspace = ({ state, dispatch, onTogglePreview }) => {
+const BaseInfoWorkspace = ({ state, dispatch }) => {
   const h = React.createElement;
   const equipped = !!state.personaSrc;
   return h("div", { className: "baseinfo-workspace" },
@@ -557,7 +557,7 @@ const BaseInfoWorkspace = ({ state, dispatch, onTogglePreview }) => {
       "人格は未装備です。上の名前・PL・立ち絵・INITIATIVE・COLOR は人格と無関係なので、先にここで整えてからビルドの人格タブで人格を選んでください。"),
     /* 組み立て設定（ステータス一覧・ラベル一覧）はここが唯一の場所。
        人格と無関係なので、人格が装備されていなくても開ける。 */
-    typeof window.LBT_BuildParamsPanel === "function" ? window.LBT_BuildParamsPanel({ state, dispatch, onTogglePreview }) : null
+    typeof window.LBT_BuildParamsPanel === "function" ? window.LBT_BuildParamsPanel({ state, dispatch }) : null
   );
 };
 function buildEquippedDetailPersona(state) {
