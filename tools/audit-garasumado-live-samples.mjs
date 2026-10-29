@@ -581,7 +581,7 @@ function auditMemo(id, historyIndex, memo) {
   parserContext.window.__lbtAuditIncomePairEvents.length = 0;
   parserContext.window.__lbtAuditSpendEvents.length = 0;
   const parsed = MEMO.parseMemo(memo);
-  const spendTrace = parserContext.window.__lbtAuditSpendEvents.map((event) => ({
+  const pushTimeSpendTrace = parserContext.window.__lbtAuditSpendEvents.map((event) => ({
     lineIndex: Number(event.lineIndex) || 0,
     lp: Number(event.lp) || 0,
     shards: Number(event.shards) || 0,
@@ -589,6 +589,40 @@ function auditMemo(id, historyIndex, memo) {
     rawLength: Number(event.rawLength) || 0,
     hasRaw: Boolean(event.hasRaw)
   }));
+  /* Compare push-time instrumentation with the final spend array. A row can be
+     revised later by parser logic, so final ledger completeness must use parsed.spends. */
+  const finalSpends = Array.isArray(parsed.spends) ? parsed.spends : [];
+  const spendTrace = finalSpends.map((row, index) => {
+    const pushed = pushTimeSpendTrace[index] || {};
+    return {
+      lineIndex: Number(pushed.lineIndex) || 0,
+      lp: Number(row?.lp) || 0,
+      shards: Number(row?.shards) || 0,
+      reason: String(row?.reason || pushed.reason || "unknown"),
+      rawLength: String(row?.raw || "").length,
+      hasRaw: typeof row?.raw === "string",
+      hasPushTrace: index < pushTimeSpendTrace.length
+    };
+  });
+  const sumAbs = (rows, currency) => rows.reduce((sum, row) => sum + Math.abs(Number(row?.[currency]) || 0), 0);
+  const spendTraceIntegrity = {
+    pushEventCount: pushTimeSpendTrace.length,
+    finalSpendRowCount: finalSpends.length,
+    rowsWithBothPushAndFinal: Math.min(pushTimeSpendTrace.length, finalSpends.length),
+    pushEventsWithoutFinalRow: Math.max(0, pushTimeSpendTrace.length - finalSpends.length),
+    finalRowsWithoutPushEvent: Math.max(0, finalSpends.length - pushTimeSpendTrace.length),
+    rowsWhoseAmountsChangedAfterPush: finalSpends.reduce((count, row, index) => {
+      const pushed = pushTimeSpendTrace[index];
+      return count + (pushed && (
+        (Number(pushed.lp) || 0) !== (Number(row?.lp) || 0) ||
+        (Number(pushed.shards) || 0) !== (Number(row?.shards) || 0)
+      ) ? 1 : 0);
+    }, 0),
+    pushLp: sumAbs(pushTimeSpendTrace, "lp"),
+    pushShards: sumAbs(pushTimeSpendTrace, "shards"),
+    finalLp: sumAbs(finalSpends, "lp"),
+    finalShards: sumAbs(finalSpends, "shards")
+  };
   const incomePairTrace = parserContext.window.__lbtAuditIncomePairEvents.map((event) => ({
     lineIndex: Number(event.lineIndex) || 0,
     inputLength: Number(event.inputLength) || 0,
@@ -724,7 +758,7 @@ function auditMemo(id, historyIndex, memo) {
 
   const explicitSpendCueAudit = auditExplicitSpendCues(lines, spendTrace, reasons, coverages, audits);
   const unpricedActionCueAudit = auditUnpricedActionCues(lines, spendTrace, coverages, reasons, audits);
-  return { historyIndex, candidates, covered, legacyCandidates, legacyTransactionCandidates, nonTransactionalTicketLabels, nonTransactionalDrawLabels, unclassifiedLegacyCues, unclassifiedLegacyCueExamples, issues, financial, incomeTrace, incomePairTrace, spendTrace, reviewDetails, spendSignatures, reasonCategories, explicitSpendCueAudit, unpricedActionCueAudit, coverageStatuses: coverages.reduce((counts, entry) => {
+  return { historyIndex, candidates, covered, legacyCandidates, legacyTransactionCandidates, nonTransactionalTicketLabels, nonTransactionalDrawLabels, unclassifiedLegacyCues, unclassifiedLegacyCueExamples, issues, financial, incomeTrace, incomePairTrace, spendTrace, spendTraceIntegrity, reviewDetails, spendSignatures, reasonCategories, explicitSpendCueAudit, unpricedActionCueAudit, coverageStatuses: coverages.reduce((counts, entry) => {
     const status = String(entry?.status || "missing-status");
     counts[status] = (counts[status] || 0) + 1;
     return counts;
@@ -1052,6 +1086,10 @@ function toMarkdownReport(report) {
     ["候補行の監査coverage", report.parser.coveredCandidateRows],
     ["現在残高セクションの人手確認候補", report.parser.currentBalanceReviewRows],
     ["監査coverage欠落・未解決等", report.parser.issues.length],
+    ["支出pushイベント数／最終支出行数", report.parser.spendTraceIntegritySummary.pushEventCount + " / " + report.parser.spendTraceIntegritySummary.finalSpendRowCount],
+    ["push後に金額が変更された支出行", report.parser.spendTraceIntegritySummary.rowsWhoseAmountsChangedAfterPush],
+    ["push時LP／最終LP合計", report.parser.spendTraceIntegritySummary.pushLp + " / " + report.parser.spendTraceIntegritySummary.finalLp],
+    ["push時欠片／最終欠片合計", report.parser.spendTraceIntegritySummary.pushShards + " / " + report.parser.spendTraceIntegritySummary.finalShards],
     ["通貨不一致／残高関連警告", report.parser.currencyDiscrepancies],
     ["残高ブリッジの対象文書（履歴メモ・通貨値あり）", report.balance.summary.eligibleDocuments],
     ["ルール上の初期資源（LP / 欠片）", report.balance.ruleBasedOpening.summary.ruleInitialLp + " / " + report.balance.ruleBasedOpening.summary.ruleInitialShards],
@@ -1115,6 +1153,16 @@ function toMarkdownReport(report) {
     "| 指標 | 件数 |",
     "|---|---:|",
     ...summaryRows.map(([label, value]) => `| ${label} | ${value} |`),
+    "",
+    "## 支出push時点と最終配列の一致",
+    "",
+    "push時の診断イベントと、パーサー終了後の spends 配列を配列順に照合します。後段の処理で金額が変更されていれば件数と合計差に現れます。原文や購入名は出力しません。",
+    "",
+    "| URL ID | メモ行 | pushイベント | 最終支出行 | pushのみ | 最終のみ | 金額変更行 | push LP | 最終LP | push欠片 | 最終欠片 |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+    ...report.parser.spendTraceIntegrityDocuments
+      .filter((row) => row.pushEventsWithoutFinalRow > 0 || row.finalRowsWithoutPushEvent > 0 || row.rowsWhoseAmountsChangedAfterPush > 0 || row.pushLp !== row.finalLp || row.pushShards !== row.finalShards)
+      .map((row) => "| " + row.id + " | " + row.memoRows + " | " + row.pushEventCount + " | " + row.finalSpendRowCount + " | " + row.pushEventsWithoutFinalRow + " | " + row.finalRowsWithoutPushEvent + " | " + row.rowsWhoseAmountsChangedAfterPush + " | " + row.pushLp + " | " + row.finalLp + " | " + row.pushShards + " | " + row.finalShards + " |"),
     "",
     "## 所持通貨と履歴収支の橋渡し",
     "",
@@ -1761,6 +1809,38 @@ const balanceBridgeSummary = {
   negativeLpIds: balanceBridges.filter((row) => row.impliedOpeningLp < 0).map((row) => row.id),
   negativeShardIds: balanceBridges.filter((row) => row.impliedOpeningShards < 0).map((row) => row.id)
 };
+const spendTraceIntegrityDocuments = successful.map((entry) => {
+  const rows = entry.parsedRows || [];
+  const sum = (key) => rows.reduce((total, row) => total + (Number(row.spendTraceIntegrity?.[key]) || 0), 0);
+  return {
+    id: entry.baseline.id,
+    memoRows: rows.length,
+    pushEventCount: sum("pushEventCount"),
+    finalSpendRowCount: sum("finalSpendRowCount"),
+    rowsWithBothPushAndFinal: sum("rowsWithBothPushAndFinal"),
+    pushEventsWithoutFinalRow: sum("pushEventsWithoutFinalRow"),
+    finalRowsWithoutPushEvent: sum("finalRowsWithoutPushEvent"),
+    rowsWhoseAmountsChangedAfterPush: sum("rowsWhoseAmountsChangedAfterPush"),
+    pushLp: sum("pushLp"),
+    pushShards: sum("pushShards"),
+    finalLp: sum("finalLp"),
+    finalShards: sum("finalShards")
+  };
+});
+const spendTraceIntegritySummary = {
+  memoRows: spendTraceIntegrityDocuments.reduce((sum, row) => sum + row.memoRows, 0),
+  pushEventCount: spendTraceIntegrityDocuments.reduce((sum, row) => sum + row.pushEventCount, 0),
+  finalSpendRowCount: spendTraceIntegrityDocuments.reduce((sum, row) => sum + row.finalSpendRowCount, 0),
+  pushEventsWithoutFinalRow: spendTraceIntegrityDocuments.reduce((sum, row) => sum + row.pushEventsWithoutFinalRow, 0),
+  finalRowsWithoutPushEvent: spendTraceIntegrityDocuments.reduce((sum, row) => sum + row.finalRowsWithoutPushEvent, 0),
+  rowsWhoseAmountsChangedAfterPush: spendTraceIntegrityDocuments.reduce((sum, row) => sum + row.rowsWhoseAmountsChangedAfterPush, 0),
+  pushLp: spendTraceIntegrityDocuments.reduce((sum, row) => sum + row.pushLp, 0),
+  pushShards: spendTraceIntegrityDocuments.reduce((sum, row) => sum + row.pushShards, 0),
+  finalLp: spendTraceIntegrityDocuments.reduce((sum, row) => sum + row.finalLp, 0),
+  finalShards: spendTraceIntegrityDocuments.reduce((sum, row) => sum + row.finalShards, 0),
+  documentsWithAmountMutations: spendTraceIntegrityDocuments.filter((row) => row.rowsWhoseAmountsChangedAfterPush > 0).length,
+  documentsWithChangedTotals: spendTraceIntegrityDocuments.filter((row) => row.pushLp !== row.finalLp || row.pushShards !== row.finalShards).length
+};
 const explicitSpendCueAuditDocuments = successful.map((entry) => {
   const rows = (entry.parsedRows || []).map((row) => row.explicitSpendCueAudit || {});
   const sum = (key) => rows.reduce((total, row) => total + (Number(row[key]) || 0), 0);
@@ -1911,6 +1991,8 @@ const report = {
     currencyDiscrepancies: allParsedRows.reduce((sum, row) => sum + row.currencyDiscrepancies, 0),
     coverageStatuses,
     reasonCategories: parserReasonCategories,
+    spendTraceIntegritySummary,
+    spendTraceIntegrityDocuments,
     explicitSpendCueAuditSummary,
     explicitSpendCueAuditDocuments,
     unpricedActionCueAuditSummary,
@@ -2021,6 +2103,12 @@ console.log(JSON.stringify({
   freeNotePurchaseSummary: report.balance.freeNotePurchase.summary,
   freeNotePurchaseAudits: report.balance.freeNotePurchase.documents,
   parserReasonCategories: report.parser.reasonCategories,
+  spendTraceIntegritySummary: report.parser.spendTraceIntegritySummary,
+  spendTraceIntegrityDocuments: report.parser.spendTraceIntegrityDocuments,
+  explicitSpendCueAuditSummary: report.parser.explicitSpendCueAuditSummary,
+  explicitSpendCueAuditDocuments: report.parser.explicitSpendCueAuditDocuments,
+  unpricedActionCueAuditSummary: report.parser.unpricedActionCueAuditSummary,
+  unpricedActionCueAuditDocuments: report.parser.unpricedActionCueAuditDocuments,
   flowDifferenceSummary: report.parser.flowDifferenceSummary,
   flowDifferenceDetails: report.parser.flowDifferenceDetails,
   flowUnknownDirectionDetails: report.parser.flowUnknownDirectionDetails,
