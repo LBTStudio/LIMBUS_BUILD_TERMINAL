@@ -392,6 +392,9 @@ function auditExplicitSpendCues(lines, spendTrace, reasons, coverages, audits) {
     const coverage = (coverages || []).find((entry) => entry && Number(entry.lineIndex) === lineIndex);
     const hasParserReason = (reasons || []).some((entry) => String(entry?.line || "").trim() === original);
     const hasRelatedAudit = isRelated(audits || [], lineIndex);
+    const lineShape = describeCandidateLine(original, coverage);
+    const looksLikeBalanceTransition = (lineShape.actionKinds || []).includes("balance-transition")
+      || (lineShape.hasBalanceCue && !(lineShape.amountTokenShape || []).length);
     let isolatedSpendRows = 0;
     let isolatedReasonCount = 0;
     if (sameLineSpends.length === 0) {
@@ -425,9 +428,11 @@ function auditExplicitSpendCues(lines, spendTrace, reasons, coverages, audits) {
       isolatedParseWouldSpend: isolatedSpendRows > 0,
       hasParserReason,
       hasRelatedAudit,
+      looksLikeArithmeticExpression,
+      looksLikeBalanceTransition,
       status: String(coverage?.status || "no-coverage"),
-      needsReview: reviewStatuses.has(String(coverage?.status || "")) || hasParserReason || hasRelatedAudit || looksLikeArithmeticExpression,
-      lineShape: describeCandidateLine(original, coverage)
+      needsReview: reviewStatuses.has(String(coverage?.status || "")) || hasParserReason || hasRelatedAudit || looksLikeArithmeticExpression || looksLikeBalanceTransition,
+      lineShape
     });
   }
   const missing = candidates.filter((row) => !row.hasSpendRecord);
@@ -450,6 +455,7 @@ function auditExplicitSpendCues(lines, spendTrace, reasons, coverages, audits) {
     rowsWithoutSpendRecordUnexplained: missing.filter((row) => !row.needsReview).length,
     negativeCurrencyRowsWithoutSpendRecord: missing.filter((row) => row.hasNegativeCurrency).length,
     ambiguousArithmeticRowsWithoutSpendRecord: missing.filter((row) => row.looksLikeArithmeticExpression).length,
+    balanceTransitionRowsWithoutSpendRecord: missing.filter((row) => row.looksLikeBalanceTransition).length,
     missingRowsByStatus: summarizeBy(missing, (row) => row.status),
     missingRows: missing
   };
@@ -967,6 +973,7 @@ function toMarkdownReport(report) {
     ["うち支出明細が同じ行にある", report.parser.explicitSpendCueAuditSummary.rowsWithSpendRecord],
     ["支出明細がない候補（理由・要確認あり／算術式候補を含む）", report.parser.explicitSpendCueAuditSummary.rowsWithoutSpendRecordWithReason],
     ["うち複数額・括弧・演算子を伴う負額候補", report.parser.explicitSpendCueAuditSummary.ambiguousArithmeticRowsWithoutSpendRecord],
+    ["うち残高遷移の注記を含み支出が確定しない行", report.parser.explicitSpendCueAuditSummary.balanceTransitionRowsWithoutSpendRecord],
     ["支出明細がないが単独解析なら支出になる行", report.parser.explicitSpendCueAuditSummary.missingRowsThatParseAsSpendInIsolation],
     ["単独解析でも支出にならない行", report.parser.explicitSpendCueAuditSummary.missingRowsThatDoNotParseAsSpendInIsolation],
     ["支出明細も理由もない候補", report.parser.explicitSpendCueAuditSummary.rowsWithoutSpendRecordUnexplained],
@@ -1055,10 +1062,10 @@ function toMarkdownReport(report) {
     "",
     "この一覧は支出と断定したものではありません。原文に戻らずとも、数値トークンの数、通貨種別、記述内の操作語・残高語・チケット語、パーサーのcoverage状態を比較し、未解析の実支出か、アイテム数や状態注記などの誤候補かを切り分けるための構造情報です。具体的な数値・原文・アイテム名は出力しません。",
     "",
-    "| URL ID | 履歴行 | メモ行 | 支出語句 | 負額 | 算術式候補 | coverage | 理由 | 監査関連 | 行長 | 金額候補数 | 通貨/桁幅 | 操作分類 | 残高語 | チケット分類 | 単独解析支出 | 単独支出行数 | 単独理由数 |",
-    "|---|---:|---:|---|---|---|---|---|---|---:|---:|---|---|---|---|---|---:|---:|---|",
+    "| URL ID | 履歴行 | メモ行 | 支出語句 | 負額 | 算術式候補 | 残高遷移候補 | coverage | 理由 | 監査関連 | 行長 | 金額候補数 | 通貨/桁幅 | 操作分類 | 残高語 | チケット分類 | 単独解析支出 | 単独支出行数 | 単独理由数 |",
+    "|---|---:|---:|---|---|---|---|---|---|---|---:|---:|---|---|---|---|---|---:|---:|---|",
     ...report.parser.explicitSpendCueAuditDocuments.flatMap((document) =>
-      document.missingRows.map((row) => "| " + document.id + " | " + row.historyRow + " | " + row.lineIndex + " | " + Number(row.hasExplicitSpendAction) + " | " + Number(row.hasNegativeCurrency) + " | " + Number(row.looksLikeArithmeticExpression) + " | " + row.status + " | " + Number(row.hasParserReason) + " | " + Number(row.hasRelatedAudit) + " | " + row.lineShape.lineLength + " | " + row.lineShape.amountTokenCount + " | " + row.lineShape.amountTokenShape.map((token) => token.currency + ":" + token.digitWidth).join(",") + " | " + row.lineShape.actionKinds.join("+") + " | " + Number(row.lineShape.hasBalanceCue) + " | " + Number(row.lineShape.ticketClassified) + " | " + Number(row.isolatedParseWouldSpend) + " | " + row.isolatedSpendRows + " | " + row.isolatedReasonCount + " |")
+      document.missingRows.map((row) => "| " + document.id + " | " + row.historyRow + " | " + row.lineIndex + " | " + Number(row.hasExplicitSpendAction) + " | " + Number(row.hasNegativeCurrency) + " | " + Number(row.looksLikeArithmeticExpression) + " | " + Number(row.looksLikeBalanceTransition) + " | " + row.status + " | " + Number(row.hasParserReason) + " | " + Number(row.hasRelatedAudit) + " | " + row.lineShape.lineLength + " | " + row.lineShape.amountTokenCount + " | " + row.lineShape.amountTokenShape.map((token) => token.currency + ":" + token.digitWidth).join(",") + " | " + row.lineShape.actionKinds.join("+") + " | " + Number(row.lineShape.hasBalanceCue) + " | " + Number(row.lineShape.ticketClassified) + " | " + Number(row.isolatedParseWouldSpend) + " | " + row.isolatedSpendRows + " | " + row.isolatedReasonCount + " |")
     ),
     "",
     "## 収支方向の期待値とパーサー検出値の差（推定・非確定）",
@@ -1635,6 +1642,7 @@ const explicitSpendCueAuditDocuments = successful.map((entry) => {
     rowsWithoutSpendRecordUnexplained: sum("rowsWithoutSpendRecordUnexplained"),
     negativeCurrencyRowsWithoutSpendRecord: sum("negativeCurrencyRowsWithoutSpendRecord"),
     ambiguousArithmeticRowsWithoutSpendRecord: sum("ambiguousArithmeticRowsWithoutSpendRecord"),
+    balanceTransitionRowsWithoutSpendRecord: sum("balanceTransitionRowsWithoutSpendRecord"),
     missingRowsThatParseAsSpendInIsolation: sum("missingRowsThatParseAsSpendInIsolation"),
     missingRowsThatDoNotParseAsSpendInIsolation: sum("missingRowsThatDoNotParseAsSpendInIsolation"),
     missingRowsByStatus: statuses,
