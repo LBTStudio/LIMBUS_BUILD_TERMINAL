@@ -82,7 +82,7 @@ async function waitForApp(page) {
       await page.getByRole("button", { name: "作成して開く", exact: true }).click();
     }
   }
-  await page.locator("button[title='ビルド']").waitFor({ state: "visible", timeout: 30000 });
+  await page.locator("button[title='ワークベンチ']").waitFor({ state: "visible", timeout: 30000 });
   await page.waitForTimeout(WAIT_MS);
 }
 
@@ -321,12 +321,12 @@ async function captureViewport(browser, mode) {
     await waitForApp(page);
 
     // Persona draft import: highlight the real button inside the Persona list toolbar.
-    await clickNav(page, "ビルド");
+    await clickNav(page, "ワークベンチ");
     const personaTab = page.locator(".build-tabs button[role='tab']").filter({ hasText: "人格" }).first();
     if (await personaTab.count()) await personaTab.click();
     const personaTrigger = page.locator(".pw-listbar-actions .persona-draft-import-trigger").first();
     await annotateAndSave(page, personaTrigger, "persona-import-" + mode,
-      "テキスト流し込み反映", "① ビルド → ② 人格 → ③ このボタン");
+      "テキスト流し込み反映", "① ワークベンチ → ② 人格 → ③ このボタン");
 
     // Result text import: open the real import menu, then annotate its item.
     await clickNav(page, "記録");
