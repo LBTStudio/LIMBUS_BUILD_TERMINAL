@@ -19,9 +19,9 @@ test("Bタイプはビルドを主作業面にし、ホームを補助入口と�
   assert.match(nav, /id: "persona", label: "ワークベンチ"/);
   assert.doesNotMatch(nav, /id: "baseinfo"/);
   assert.match(app, /s\.id === "persona" \? "baseinfo" : s\.id/);
-  assert.match(app, /const current = state\.ui\.currentSection \|\| "baseinfo"/);
-  assert.match(state, /currentSection: "baseinfo"/);
-  assert.match(state, /next\.ui\.layoutVersion !== "b-workbench-v1"/);
+  assert.match(app, /const current = state\.ui\.currentSection \|\| "home"/);
+  assert.match(state, /currentSection: "home"/);
+  assert.match(state, /next\.ui\.layoutVersion !== "b-workbench-v2"/);
   assert.match(state, /layoutVersion: ui\.layoutVersion/);
 });
 
