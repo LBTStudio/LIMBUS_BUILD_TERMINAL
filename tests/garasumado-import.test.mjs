@@ -3102,3 +3102,60 @@ test("符号のない通貨変換額は収入と断定せず、方向未確定�
   assert.ok(parsed.reasons.some((row) => /通貨変換/.test(row.reason)),
     "方向未確定の理由を保持する");
 });
+
+test("支出後の現在残高・残高・残額は獲得名や照合額に混ぜない", () => {
+  for (const balance of ["現在残高300LP", "残高300LP", "残額300LP", "残り300LP",
+    "所持300LP", "保有300LP", "現座300LP", "LP残り300", "LP残高300",
+    "LP残額300", "LP現在300", "LP所持300", "LP保有300"]) {
+    const parsed = MEMO.parseMemo("150LP消費→" + balance);
+    assert.equal(parsed.income.lp, 0, balance + " を収入へ入れない");
+    assert.equal(parsed.spends.reduce((sum, row) => sum + (row.lp || 0), 0), 150,
+      balance + " の額を追加支出にしない");
+    assert.deepEqual(JSON.parse(JSON.stringify(parsed.wins)), [], balance + " を獲得名にしない");
+    const coverage = parsed.financialCoverage.find((row) => /消費/.test(row.line));
+    assert.equal(coverage?.expected.lp, 150, balance + " を原文監査額へ混ぜない");
+    assert.notEqual(coverage?.status, "mismatch", balance + " による偽差異を出さない");
+  }
+});
+
+test("テーマパック価格上限は表記順が変わっても収入扱いせず要確認にする", () => {
+  for (const memo of [
+    "報酬：上限200LPのテーマパック×1",
+    "報酬：テーマパック上限200LP×1",
+    "報酬：200LP上限のテーマパック×1",
+    "報酬：テーマパック200LP上限×1"
+  ]) {
+    const parsed = MEMO.parseMemo(memo);
+    assert.equal(parsed.income.lp, 0, memo + " の上限額を収入にしない");
+    assert.equal(parsed.spends.reduce((sum, row) => sum + (row.lp || 0), 0), 0);
+    assert.equal(Object.keys(parsed.pack).length, 0);
+    assert.ok(parsed.reasons.some((row) => /LP上限付き/.test(row.reason)), memo + " を要確認にする");
+  }
+});
+
+test("効果説明に含まれる通貨計算はsource auditと収支に入れない", () => {
+  const memo = "効果説明：欠片2×2=9,007,199,254,740,992欠片";
+  const parsed = MEMO.parseMemo(memo);
+  assert.equal(parsed.income.shards, 0);
+  assert.equal(parsed.spends.length, 0);
+  assert.equal(parsed.sourceAudits.some((row) => row.code === "source-arithmetic-mismatch"), false);
+  assert.equal(parsed.financialCoverage.length, 0, "説明文を取引照合対象にしない");
+});
+
+test("壊れたカンマ群を含むLP・欠片支出は通貨名の前後どちらでも推測せず保留する", () => {
+  for (const [currency, amount] of [["LP", "1,20"], ["LP", "1,2,345"], ["LP", "1234,567"], ["LP", "1,,000"],
+    ["欠片", "1,20"], ["自我の欠片", "1,20"]]) {
+    const memo = "終了後、「対象」を抽出、" + currency + amount + "を消費";
+    const parsed = MEMO.parseMemo(memo);
+    assert.equal(parsed.income.lp + parsed.income.shards, 0);
+    assert.equal(parsed.spends.reduce((sum, row) => sum + (row.lp || 0) + (row.shards || 0), 0), 0,
+      currency + amount + " を別の金額へ正規化して計上しない");
+    assert.ok(parsed.reasons.some((row) => /桁区切りが不正/.test(row.reason)),
+      "不正な金額は理由付きで保留する");
+  }
+  for (const currency of ["LP", "欠片", "自我の欠片"]) {
+    const parsed = MEMO.parseMemo("終了後、" + currency + "1,234を消費");
+    const total = parsed.spends.reduce((sum, row) => sum + (row.lp || 0) + (row.shards || 0), 0);
+    assert.equal(total, 1234, currency + "1,234 の正しい桁区切りは保持する");
+  }
+});

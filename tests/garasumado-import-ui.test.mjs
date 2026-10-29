@@ -326,6 +326,7 @@ test("未割当レールは編集カードより前に描画し、モバイル�
 test("購入候補は初期状態で未承認とし、明示チェックしたものだけを課金計画に含める", () => {
   assert.ok(uiFlat.includes("const [purchaseApprovals, setPurchaseApprovals] = React.useState({});"));
   assert.ok(uiFlat.includes("approved: purchaseApprovals[purchaseCandidateKey(op, proposal)] === true"));
+  assert.ok(uiFlat.includes("proposal.negated !== true"), "購入しない・見送った行は承認候補一覧に出さない");
   assert.ok(uiFlat.includes(".filter((proposal) => proposal.approved)"));
   assert.ok(uiFlat.includes("checked: Boolean(proposal.approved)"));
   assert.ok(uiFlat.includes("購入候補（初期状態は未承認）"));
