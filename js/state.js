@@ -3680,7 +3680,7 @@ const INIT_STATE = {
   // same format, LRU 20
   // UI state (not part of undo)
   ui: {
-    currentSection: "persona",
+    currentSection: "home",
     previewTab: "memo",
     previewOpen: void 0,
     // 未設定は初期折り畳み。利用者が明示的に開閉した場合だけ true/false を保存する。
