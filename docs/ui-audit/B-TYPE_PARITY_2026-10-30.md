@@ -32,3 +32,24 @@ The existing broad UI audit captures two viewport classes and records states for
 The prototype and review are available from the user Library package but are not currently checked into the repository. The prototype is an interactive concept reference rather than an image-by-image golden master of every production React route. This pass now uses it alongside the v2/v3 Basic-sheet notes and production screenshots to fix concrete structure, state routing, and responsive geometry defects; no claim is made that every page is pixel-identical. The next parity step is to version the reference package and retain named target screenshots for each route/viewport so visual drift is a blocking regression rather than a subjective review.
 
 Production verification now separately checks the deployed GitHub Pages HTML, the B-type production marker, the App.js / Service Worker digest match, and every precached asset over HTTP. Required checks: `node --test tests/*.test.mjs` (including Python/PyMuPDF provenance), `node tools/sync-asset-versions.mjs --check`, production Pages smoke test, project verification, UI interaction audit screenshots, preview control visual regression, and tutorial screenshot capture.
+
+
+## 画面レビュー追補：プレビュー領域の幅と配置
+
+### 発見した問題
+- Bタイプ用CSSの初期値が `--b-preview-w: 220px`、幅1100–1240pxでは208pxだった。CCFOLIAの盤面・キャラクターシート・JSONを読む右ペインとしては狭く、本文が折り返されるか、操作領域が圧縮される。
+- index.html側には別変数 `--preview-w` を広げる指定があったが、後読みのBタイプCSSは `--b-preview-w` をグリッド幅に使用していた。プレビュー本体と開閉タブの基準幅も別々になりうる不整合があった。
+
+### 修正
+- 1100px以上のデスクトップでは通常幅を `clamp(340px, 28vw, 420px)` に統一。
+- 1100–1240pxの狭いデスクトップでは `clamp(300px, 27vw, 340px)` を使用し、編集領域を残しながら最低限の閲覧幅を確保。
+- `--preview-w` を `--b-preview-w` に同期し、右端の開閉タブがプレビューの実際の境界に追従するようにした。
+- UI監査にデスクトップの可視プレビューペイン幅320px未満を重大警告として追加。画面キャプチャ時点で検出し、CIを失敗させる。
+
+### v3設計レビューとの照合
+- 盤面プレビュー：盤面とキャラクター情報を並べて見られる横幅を確保する。
+- キャラクターシート：立ち絵、識別情報、ST・パラメータを狭い列に押し込まない。
+- 出力データ：等幅JSONを読み取れる幅を確保する。
+- 編集領域：プレビューを閉じた状態では編集側を全幅利用し、必要時のみ右ペインを開く既存動作を維持する。
+
+この追補はレイアウト上の欠陥と設計意図への適合を検査するものであり、古い操作モックとのピクセル完全一致を主張するものではない。最新のv3レビューを正式な参照として、実画面のキャプチャと寸法検査を継続する。
