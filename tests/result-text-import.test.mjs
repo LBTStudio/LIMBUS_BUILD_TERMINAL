@@ -1469,7 +1469,10 @@ test("旧ログの注記に混ざったDB上の人格名を照合し、所持済
   assert.equal(additions[0].mode, "n");
   assert.equal(additions[0].no, 53);
   assert.equal(additions[0].skipInitialTicketConsumption, true, "過去の履歴取込で現在の抽出チケットを消費しない");
-  assert.equal(plan.actions.filter((action) => action.type === "ADD_RESULT").length, 2);
+  const resultActions = plan.actions.filter((action) => action.type === "ADD_RESULT");
+  assert.equal(resultActions.length, 2);
+  assert.deepEqual(resultActions.map((result) => result.personaAcquisitions.map((entry) => entry.no)), [["40"], ["53"]],
+    "既所持人格も二重追加せずにリザルトへ取得証跡を残す");
 });
 
 test("略称などの曖昧な行は候補表示だけにして、選ばれるまで人格を追加しない", () => {
