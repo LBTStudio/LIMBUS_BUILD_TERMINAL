@@ -2275,7 +2275,7 @@ body.has-detail-dialog main.preview { overflow: hidden; }
   display: inline-flex;
   animation: salmon-swim 4.2s cubic-bezier(0.45, 0, 0.55, 1) infinite;
   transform-origin: 50% 50%;
-
+}
 /* ============================================================
    HOME LAUNCHER / purpose-first entry
    ============================================================ */
@@ -2465,6 +2465,4 @@ body.has-detail-dialog main.preview { overflow: hidden; }
   .home-task { min-height: 68px; padding: 11px 12px; }
   .home-group-heading { display: block; }
   .home-group-heading p { margin-top: 4px; }
-}
-
 }
