@@ -1,12 +1,14 @@
-/* B-type workbench production layout: persistent navigation, focused work area,
-   and compact live output pane. Existing React routing and preview actions remain intact. */
+/* Faithful B-type production layout.
+   The prototype's structure is mapped onto the real React shell and actions;
+   these selectors intentionally target production components, not prototype-only DOM. */
+:root { --b-rail-w: 190px; --b-preview-w: 220px; }
 @media (min-width: 1100px) {
-  :root { --rail-w: 190px; --preview-w: 220px; }
-  .app { grid-template-columns: var(--rail-w) minmax(0, 1fr) var(--preview-w); }
-  .app.preview-collapsed { grid-template-columns: var(--rail-w) minmax(0, 1fr) 0; }
+  .app { grid-template-columns: var(--b-rail-w) minmax(0, 1fr); }
+  .app.has-preview { grid-template-columns: var(--b-rail-w) minmax(0, 1fr) var(--b-preview-w); }
+  .app.preview-collapsed { grid-template-columns: var(--b-rail-w) minmax(0, 1fr); }
   .rail {
     align-items: stretch; padding: 18px 10px 14px; gap: 14px; overflow-y: auto;
-    background: linear-gradient(180deg, #17140f 0%, #100e0b 100%);
+    background: linear-gradient(180deg,#17140f 0%,#100e0b 100%);
     border-right: 1px solid rgba(220,179,97,.22);
   }
   .rail-group { gap: 5px; }
@@ -14,13 +16,11 @@
     display: block; padding: 8px 10px 5px; text-align: left;
     font-size: 10px; letter-spacing: .16em; color: #a99a7c;
   }
-  .rail-group + .rail-group {
-    margin-top: 0; padding-top: 10px; border-top: 1px solid rgba(210,174,101,.16);
-  }
+  .rail-group + .rail-group { margin-top: 0; padding-top: 10px; border-top: 1px solid rgba(210,174,101,.16); }
   .rail-item {
-    display: grid; grid-template-columns: 22px minmax(0,1fr) auto;
-    align-items: center; gap: 9px; width: 100%; min-height: 42px;
-    padding: 8px 11px; border: 1px solid transparent; border-radius: 7px; text-align: left;
+    display: grid; grid-template-columns: 22px minmax(0,1fr) auto; align-items: center;
+    gap: 9px; width: 100%; min-height: 42px; padding: 8px 11px;
+    border: 1px solid transparent; border-radius: 7px; text-align: left;
   }
   .rail-item:hover { background: rgba(225,190,117,.07); border-color: rgba(225,190,117,.14); }
   .rail-item.is-active {
@@ -30,72 +30,114 @@
   .rail-item.is-active::before { display: none; }
   .rail-item.is-active .rail-icon { color: #e5c47e; }
   .rail-label { min-width: 0; font-size: 12px; font-weight: 550; }
-  .topbar { padding-inline: 22px; background: rgba(18,16,12,.97); border-bottom-color: rgba(220,179,97,.22); }
-  .focus {
-    min-width: 0; padding: 22px 24px; overflow: auto;
-    background: radial-gradient(ellipse at 12% 0%,rgba(178,135,61,.055),transparent 44%),var(--surface-0);
-  }
-  .focus-inner { min-width: 0; max-width: 1440px; margin-inline: auto; }
-  .preview { min-width: 0; background: #100e0b; border-left-color: rgba(220,179,97,.20); }
+  .topbar { min-height: 48px; padding-inline: 16px; gap: 10px; background: rgba(18,16,12,.97); border-bottom-color: rgba(220,179,97,.22); }
+  .brand { flex: 0 1 auto; min-width: 185px; gap: 9px; }
+  .brand-name { white-space: nowrap; font-size: 12px; letter-spacing: .08em; }
+  .brand-sub { white-space: nowrap; font-size: 9px; }
+  .brand-author { flex: 0 0 auto; }
+  .topbar-spacer { flex: 1 1 16px; min-width: 8px; }
+  .topbar-search { flex: 0 1 210px; min-width: 130px; }
+  .focus { min-width: 0; padding: 22px 24px; overflow: auto; background: radial-gradient(ellipse at 12% 0%,rgba(178,135,61,.055),transparent 44%),var(--surface-0); }
+  .focus-inner { min-width: 0; max-width: 1440px; width: 100%; margin-inline: auto; }
+  .app.has-preview .focus-inner { max-width: none; }
+  .preview { min-width: 0; width: auto; background: #100e0b; border-left: 1px solid rgba(220,179,97,.20); }
+  .app.preview-collapsed .preview { display: none; }
+  .preview-edge-toggle { width: 32px; }
 }
 @media (min-width: 1100px) and (max-width: 1240px) {
-  :root { --rail-w: 174px; --preview-w: 208px; }
+  :root { --b-rail-w: 174px; --b-preview-w: 208px; }
   .rail { padding-inline: 8px; }
   .rail-item { padding-inline: 8px; gap: 7px; }
   .focus { padding: 18px 16px; }
-}
-@media (max-width: 1099px) { .rail-group-label { display: none; } }
-@media (prefers-reduced-motion: reduce) { .rail-item { transition: none; } }
-
-/* B-type visual refinement: mirror the approved prototype's compact, task-first rhythm
-   while keeping the production React components and their real actions. */
-@media (min-width: 1100px) {
-  .page-heading { margin-bottom: 14px; gap: 18px; }
-  .page-heading h1 { font-size: 22px; line-height: 1.25; letter-spacing: -.015em; }
-  .page-heading p { max-width: 760px; line-height: 1.55; }
-  .status-strip { margin: 0 0 14px; gap: 8px; }
-  .subtabs { gap: 5px; padding: 5px; border-radius: 9px; }
-  .subtab { min-height: 36px; padding: 8px 12px; border-radius: 7px; }
-  .focus-inner > .home-launcher { max-width: 1180px; margin-inline: auto; }
-  .home-hero {
-    padding: 20px; border-radius: 13px; margin-bottom: 16px;
-    background: linear-gradient(115deg, #2b2419 0%, #1d1a15 58%, #1b1916 100%);
-    border: 1px solid #5a4930;
-  }
-  .home-hero h2 { font-size: 25px; line-height: 1.25; }
-  .home-hero p { max-width: 760px; }
-  .home-task-groups { gap: 18px; }
-  .home-group { min-width: 0; }
-  .home-group-heading { margin-bottom: 10px; }
-  .home-group-heading h3 { font-size: 13px; letter-spacing: .01em; }
-  .home-task-grid { gap: 8px; }
-  .home-task {
-    min-height: 78px; padding: 12px 13px; border-radius: 9px;
-    background: linear-gradient(145deg, #211e19, #191714);
-    border-color: #40392e;
-  }
-  .home-task:hover { border-color: #8f7444; transform: translateY(-1px); }
-  .home-task-copy strong { font-size: 12px; line-height: 1.4; }
-  .home-task-copy > span { font-size: 10px; line-height: 1.5; }
-  .home-task-icon { width: 32px; height: 32px; flex: 0 0 32px; }
-  .preview { border-left-width: 1px; }
-}
-@media (min-width: 1100px) and (max-width: 1240px) {
-  .home-hero { padding: 16px; }
-  .home-task { padding: 10px; gap: 8px; }
-  .home-task-icon { width: 28px; height: 28px; flex-basis: 28px; }
+  .brand { min-width: 160px; }
+  .brand-author { display: none; }
 }
 @media (max-width: 1099px) {
-  .page-heading { gap: 10px; }
-  .page-heading h1 { font-size: 21px; }
-  .status-strip { margin-bottom: 12px; }
-  .subtabs { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; }
-  .subtab { flex: 0 0 auto; white-space: nowrap; }
-  .home-task-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .app { grid-template-columns: minmax(0,1fr); }
+  .app.has-preview { grid-template-columns: minmax(0,1fr); }
+  .rail-group-label { display: none; }
+  .focus { min-width: 0; padding: 18px 16px; }
+  .focus-inner { min-width: 0; width: 100%; }
+  .app.has-preview .preview { display: none; }
+  .topbar { gap: 7px; padding-inline: 12px; }
+  .brand-sub { display: none; }
 }
 @media (max-width: 600px) {
-  .home-hero { padding: 14px; }
-  .home-task-grid { grid-template-columns: 1fr; }
-  .page-heading { align-items: flex-start; }
-  .page-heading > :last-child { max-width: 42%; }
+  .focus { padding: 16px 12px; }
+  .topbar { min-height: 54px; padding: 8px 10px; }
+  .brand { min-width: 0; gap: 6px; }
+  .brand-name { font-size: 10px; letter-spacing: .03em; }
+  .brand-author { display: none; }
+  .topbar-search { min-width: 0; }
+}
+
+/* B-type home: command-first, one searchable launcher grid, then a clear resume row. */
+.btype-home { width: 100%; max-width: 1180px; margin-inline: auto; display: block; }
+.btype-command-hero {
+  padding: 22px; border: 1px solid #52432c; border-radius: 14px; margin-bottom: 18px;
+  background: linear-gradient(140deg,#292219,#1b1916); box-shadow: 0 18px 50px #0002;
+}
+.btype-eyebrow { color: #d6b56b; font-size: 10px; letter-spacing: .16em; font-weight: 700; }
+.btype-command-hero h2 { margin: 5px 0 0; font-size: 25px; line-height: 1.3; color: #f2ede2; }
+.btype-muted { margin: 7px 0 0; color: #b4ad9f; font-size: 12px; line-height: 1.6; }
+.btype-context-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.btype-result-chip {
+  display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px;
+  border: 1px solid #4c4230; border-radius: 6px; background: #201c16;
+  color: #d8c38e; font-size: 10px; line-height: 1.5;
+}
+.btype-command-search {
+  display: flex; align-items: center; gap: 10px; margin: 0 0 18px; padding: 0 12px;
+  min-height: 48px; border: 1px solid #514533; border-radius: 9px; background: #0f0e0c; color: #b4ad9f;
+}
+.btype-command-search:focus-within { border-color: #d6b56b; box-shadow: 0 0 0 2px #d6b56b22; }
+.btype-command-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: #f2ede2; padding: 12px 0; font: inherit; }
+.btype-command-search input:focus-visible { outline: 0; }
+.btype-command-search button { border: 1px solid #514632; border-radius: 6px; padding: 4px 8px; color: #d6b56b; background: #211e19; }
+.btype-section-title { margin: 0 0 10px; font-size: 13px; font-weight: 700; color: #e8dfce; }
+.btype-launcher-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; margin-bottom: 16px; }
+.btype-launcher-card {
+  position: relative; display: grid; grid-template-columns: 30px minmax(0,1fr); align-content: start;
+  align-items: start; gap: 4px 10px; min-height: 100px; width: 100%; padding: 13px 12px;
+  border: 1px solid #3d362b; border-radius: 9px; background: #1b1915; color: #e9e1d3;
+  text-align: left; transition: border-color .15s ease,background .15s ease,transform .15s ease;
+}
+.btype-launcher-card:hover { border-color: #987b46; background: #262117; transform: translateY(-1px); }
+.btype-launcher-card:focus-visible { outline: 2px solid #f0d99a; outline-offset: 2px; }
+.btype-launcher-icon { grid-row: span 2; display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid #514632; border-radius: 7px; background: #252016; color: #d6b56b; }
+.btype-launcher-card strong { display: block; font-size: 12px; line-height: 1.45; font-weight: 700; }
+.btype-launcher-card small { display: block; color: #9e9586; font-size: 10px; line-height: 1.55; }
+.btype-launcher-arrow { position: absolute; right: 9px; bottom: 7px; color: #d6b56b; font-size: 14px; opacity: .75; }
+.btype-empty { padding: 20px; color: #b4ad9f; text-align: center; border: 1px dashed #514632; border-radius: 9px; }
+.btype-continue-panel { margin-top: 12px; border: 1px solid #3a342a; border-radius: 10px; overflow: hidden; background: #191714; }
+.btype-continue-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 13px; border-bottom: 1px solid #3a342a; background: #211e19; }
+.btype-continue-heading strong { font-size: 12px; }
+.btype-continue-heading span { color: #9e9586; font-size: 10px; }
+.btype-task-row { display: grid; grid-template-columns: 30px minmax(0,1fr) auto; align-items: center; gap: 10px; width: 100%; padding: 13px; border: 0; background: transparent; color: #e9e1d3; text-align: left; }
+.btype-task-row:hover { background: #211e19; }
+.btype-task-glyph { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 7px; background: #252016; color: #d6b56b; }
+.btype-task-copy strong { display: block; font-size: 12px; }
+.btype-task-copy small { display: block; margin-top: 3px; color: #9e9586; font-size: 10px; line-height: 1.5; }
+.btype-task-chevron { color: #d6b56b; font-size: 22px; }
+@media (min-width: 1100px) {
+  .btype-launcher-grid { grid-template-columns: repeat(4,minmax(0,1fr)); }
+}
+@media (max-width: 850px) {
+  .btype-command-hero { padding: 18px; }
+  .btype-command-hero h2 { font-size: 22px; }
+  .btype-launcher-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; }
+  .btype-launcher-card { min-height: 92px; padding: 11px; }
+}
+@media (max-width: 600px) {
+  .btype-command-hero { padding: 15px; }
+  .btype-context-chips { gap: 5px; }
+  .btype-launcher-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; }
+  .btype-launcher-card { grid-template-columns: 25px minmax(0,1fr); gap: 4px 7px; padding: 10px 8px; }
+  .btype-launcher-icon { width: 25px; height: 25px; }
+  .btype-launcher-card strong { font-size: 11px; }
+  .btype-launcher-card small { font-size: 9px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .btype-launcher-card { transition: none; }
+  .btype-launcher-card:hover { transform: none; }
 }
