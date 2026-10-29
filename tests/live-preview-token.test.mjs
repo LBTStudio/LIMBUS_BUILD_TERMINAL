@@ -8,15 +8,17 @@ const generator = read("../js/generator.js");
 const css = read("../assets/workspace.css");
 const app = read("../js/App.js");
 
-test("CCFOLIA駒プレビューは既存のJSON出力データを読み、別の出力経路を作らない", () => {
+test("CCFOLIAプレビューは実際のJSON出力を唯一のデータ源として使う", () => {
   assert.match(preview, /JSON\.parse\(json\)\?\.data/);
   assert.match(preview, /LBT_gen\.buildCcfoliaJSON\(previewData, \{ palette, memo \}\)/);
   assert.match(generator, /kind: "character"/);
-  assert.match(generator, /name: charName,[\s\S]*?playerName: plName,[\s\S]*?color,[\s\S]*?initiative,[\s\S]*?status,[\s\S]*?params,/);
+  assert.match(generator, /name: charName,[\s\S]*?playerName: plName,[\s\S]*?color,[\s\S]*?initiative,[\s\S]*?status,[\s\S]*?params,[\s\S]*?commands,[\s\S]*?memo,/);
   assert.match(generator, /iconUrl: imgs\[0\]/);
+  assert.match(preview, /tokenData\.externalUrl/);
+  assert.match(preview, /tokenData\.commands/);
 });
 
-test("プレビューは盤面・シート表示を切り替え、出力JSONタブと共存する", () => {
+test("盤面と編集画面を切り替え、既存のMEMO・PALETTE・JSON出力を維持する", () => {
   assert.match(preview, /setTab\("memo"\)/);
   assert.match(preview, /setTab\("palette"\)/);
   assert.match(preview, /setTab\("json"\)/);
@@ -24,53 +26,71 @@ test("プレビューは盤面・シート表示を切り替え、出力JSONタ�
   assert.match(preview, /setTokenMode\("board"\)/);
   assert.match(preview, /setTokenMode\("sheet"\)/);
   assert.match(preview, /tab === "token" && renderTokenPreview\(\)/);
-  assert.match(preview, /tokenStatus\.slice\(0, 8\)\.map\(renderTokenStatus\)/);
-  assert.match(preview, /tokenParams\.slice\(0, 8\)/);
-  assert.match(preview, /state\.ui\.previewTab \|\| "memo"/);
+  assert.match(preview, /}, "盤面"\)/);
+  assert.match(preview, /}, "編集画面"\)/);
+  assert.doesNotMatch(preview, /}, "見た目"\)/);
+  assert.doesNotMatch(preview, /}, "項目一覧"\)/);
 });
 
-test("盤面表示は名前・色・行動順・HP/SANを表示し、画像がない場合にも破綻しない", () => {
-  assert.match(preview, /className: "pv-token-board"/);
-  assert.match(preview, /className: "pv-token-status-grid pv-token-board-status-grid"/);
-  assert.doesNotMatch(preview, /h\("span", \{ className: "pv-token-initiative"/);
-  assert.match(preview, /renderTokenImage\("pv-token-board-avatar"/);
-  assert.match(preview, /className: "pv-token-identity"[\s\S]*?h\("span", null, "行動順"\)[\s\S]*?String\(tokenData\.initiative \?\? 0\)/);
-  assert.doesNotMatch(preview, /className: "pv-token-initiative"/);
-  assert.match(preview, /tokenStatus\.filter\(\(entry\) => \["HP", "SAN"\]/);
-  assert.match(preview, /pv-token-image-empty/);
-  assert.match(preview, /onError: \(\) => setTokenImageFailed\(true\)/);
-  assert.match(preview, /"--pv-token-color": tokenColor/);
+test("盤面はマップ上の駒と、分離したキャラクター一覧として描画する", () => {
+  assert.match(preview, /className: "pv-ccfolia-map"/);
+  assert.match(preview, /className: "pv-ccfolia-map-token"/);
+  assert.match(preview, /className: "pv-ccfolia-roster"/);
+  assert.match(preview, /renderPreviewImage\(tokenImage, "pv-ccfolia-roster-avatar"/);
+  assert.match(preview, /className: "pv-ccfolia-roster-statuses"/);
+  assert.match(preview, /tokenStatus\.slice\(0, 8\)\.map\(renderRosterStatus\)/);
+  assert.match(preview, /tokenData\.initiative \?\? 0/);
+  assert.match(preview, /背景・配置・拡大率は、実際のルーム設定によって変わります/);
+  assert.match(preview, /出力データから組み立てた表示例です。ルームの背景・座標・倍率は反映しません。/);
+  assert.doesNotMatch(preview, /基本タブの画像・名前・行動順と、現在のステータス/);
+  assert.match(preview, /pv-ccfolia-empty-media/);
+  assert.match(preview, /onError: markFailed/);
+  assert.match(preview, /if \(src === tokenImage\) setTokenImageFailed\(true\)/);
+  assert.doesNotMatch(preview.slice(preview.indexOf("const renderTokenPreview"), preview.indexOf("const readiness =")),
+    /pv-token-identity|pv-token-sheet-init|pv-ccfolia-roster-init|pv-ccfolia-roster-player/);
 });
 
-test("駒プレビューはモバイル向けレイアウトと可視のフォーカス状態を持つ", () => {
+test("編集画面は名前・イニシアティブ・メモ・参照URLと、ST/パラメータ/パレットを表示する", () => {
+  const render = preview.slice(preview.indexOf("const renderTokenPreview"), preview.indexOf("const readiness ="));
+  for (const fragment of [
+    "pv-ccfolia-editor", "pv-ccfolia-editor-main-image", "pv-ccfolia-face-strip",
+    "キャラクター名", "プレイヤー", "イニシアティブ", "tokenData.memo", "tokenData.externalUrl",
+    "サイズ", "座標 X / Y", "tokenStatus.map(renderEditorStatus)",
+    "tokenParams.map(renderEditorParam)", "tokenData.commands",
+    "チャットパレット（commands）"
+  ]) assert.ok(render.includes(fragment), fragment);
+  assert.match(render, /ルーム側の既定値（JSONで未指定）/);
+  assert.match(render, /ルーム側の位置を使用（JSONで未指定）/);
+});
+
+test("CCFOLIAらしい無彩色UIとレスポンシブ構成を持つ", () => {
   for (const selector of [
-    ".pv-token-preview", ".pv-token-board", ".pv-token-sheet-layout",
-    ".pv-token-status-grid", ".pv-token-param-grid", ".pv-token-mode-switch button:focus-visible"
+    ".pv-ccfolia-preview", ".pv-ccfolia-map", ".pv-ccfolia-roster",
+    ".pv-ccfolia-edit-status-row", ".pv-ccfolia-edit-param-row",
+    ".pv-ccfolia-editor-main-image", ".pv-ccfolia-commands-text"
   ]) assert.ok(css.includes(selector), selector);
-  assert.match(css, /@media \(max-width: 640px\)[\s\S]*?\.pv-token-sheet-layout \{ grid-template-columns: minmax\(0, 1fr\)/);
-  assert.match(css, /@media \(max-width: 640px\)[\s\S]*?\.pv-token-board-details \{ grid-template-columns: minmax\(0, 1fr\); \}/);
+  assert.match(css, /background: #25292e/);
+  assert.match(css, /@container \(max-width: 560px\)[\s\S]*?\.pv-ccfolia-board-layout \{ grid-template-columns: minmax\(0, 1fr\); \}/);
+  assert.match(css, /@media \(max-width: 640px\)[\s\S]*?\.pv-ccfolia-editor-top \{ grid-template-columns: minmax\(0, 1fr\); \}/);
   assert.match(app, /id: "lbt-preview-edge-toggle"/);
 });
 
-test("プレビューのコピー操作を重複させず、表示切替は実際の操作グループとして扱う", () => {
+test("プレビューのJSONコピーは重複せず、切替ボタンは明示的な押下状態を持つ", () => {
   assert.match(preview, /\(tab === "memo" \|\| tab === "palette"\) &&/);
   assert.match(preview, /onClick: copyJson/);
-  assert.match(preview, /role: "group", "aria-label": "駒プレビューの表示"/);
+  assert.match(preview, /role: "group", "aria-label": "CCFOLIAプレビュー表示"/);
   assert.match(preview, /"aria-pressed": tokenMode === "board"/);
   assert.match(preview, /"aria-pressed": tokenMode === "sheet"/);
-  assert.match(preview, /}, "見た目"\)/);
-  assert.match(preview, /}, "項目一覧"\)/);
-  assert.doesNotMatch(preview, /"盤面"\)/);
-  assert.doesNotMatch(preview, /"シート"\)/);
 });
 
-test("駒の画像を正方形に切り抜かず、縦横比を維持して枠内に収める", () => {
-  const boardImageStyles = css.slice(css.indexOf(".pv-token-board-avatar img,"), css.indexOf(".pv-token-board-avatar .pv-token-image-empty"));
-  assert.match(boardImageStyles, /max-width: 100%/);
-  assert.match(boardImageStyles, /max-height: 220px/);
-  assert.match(boardImageStyles, /width: auto/);
-  assert.match(boardImageStyles, /height: auto/);
-  assert.match(boardImageStyles, /object-fit: contain/);
-  assert.doesNotMatch(boardImageStyles, /object-fit: cover/);
-  assert.match(css, /\.pv-token-board-avatar img \{[\s\S]*?max-height: 128px/);
+test("駒の画像は正方形に切り抜かず、縦横比を維持して枠内へ収める", () => {
+  const marker = css.indexOf("/* ============================================================\n   CCFOLIA PREVIEW");
+  assert.ok(marker >= 0, "preview styles have a stable section marker");
+  const previewStyles = css.slice(marker);
+  assert.match(previewStyles, /max-width: 48px/);
+  assert.match(previewStyles, /max-height: 48px/);
+  assert.match(previewStyles, /width: auto/);
+  assert.match(previewStyles, /height: auto/);
+  assert.match(previewStyles, /object-fit: contain/);
+  assert.doesNotMatch(previewStyles, /object-fit: cover/);
 });
