@@ -2980,7 +2980,7 @@ tab !== "item" ? h(Button, {
       shownList)
   );
 };
-const BuildWorkspace = ({ state, dispatch, saveStatus, onTogglePreview }) => {
+const BuildWorkspace = ({ state, dispatch, saveStatus }) => {
   const h = React.createElement;
   const current = state.ui?.currentSection || "persona";
   const active = BUILD_TABS.find((tab) => tab.id === current) || BUILD_TABS[0];
@@ -3006,7 +3006,7 @@ const BuildWorkspace = ({ state, dispatch, saveStatus, onTogglePreview }) => {
                   ? BuildItemsPanel
                   : EnhancementSection;
   /* 所持ゲートを、roster を唯一の基準とするタブ（人格/サポート/E.G.O/精神）へ渡す。 */
-  const panelProps = active.id === "baseinfo" ? { onTogglePreview } : ["persona", "support", "ego", "spirit"].includes(active.id) ? { ownedOnly: owned } : {};
+  const panelProps = ["persona", "support", "ego", "spirit"].includes(active.id) ? { ownedOnly: owned } : {};
   /* 一度表示したタブはツリーを保持し、切替は hidden のみにする（再マウントと画像再デコードを毎回払わない）。 */
   const visitedRef = React.useRef([]);
   const paneCacheRef = React.useRef({});
