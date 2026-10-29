@@ -19,6 +19,7 @@ This pass uses the maintained design review `LBT_UI_Refinement_Review.md` and th
 - Add responsive styles against the classes actually emitted by the production React components.
 - Make the global preview panel closed by default, matching the review requirement that the editor is not compressed before the user asks to inspect output. The Home preview shortcut also explicitly closes the global panel and opens the Basic-area preview.
 - Keep the sidebar grid valid at tablet widths; previously the B-type media query reduced the column count without updating the inherited grid areas, allowing the sticky build tabs to intercept navigation clicks.
+- Match the approved B-type phone navigation (`ビルド` / `記録` / `取込` / `その他`) instead of shrinking all desktop destinations into the bottom row. Each destination is wired to the existing build, record, import-router, and utility-sheet flows. Home remains reachable from the Other sheet.
 - Extend Playwright capture across desktop, tablet, mobile portrait, small phone, and phone landscape to capture the token preview, each internal tab, and the real preview-toggle round trip.
 - Add structural regression tests for state binding, accessibility, callback wiring, and the production CSS selectors.
 
