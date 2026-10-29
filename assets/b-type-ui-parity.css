@@ -104,3 +104,49 @@
     .build-params-preview-copy .btn { width:100%; }
   }
 }
+
+
+/* B-type prototype v3: the Basic tab owns a real three-mode CCFOLIA preview.
+   These are production data views, not a screenshot or a second export model. */
+.basic-ccfolia-preview { display:grid; gap:12px; min-width:0; }
+.basic-preview-mode-tabs { display:flex; flex-wrap:nowrap; max-width:100%; overflow-x:auto; scrollbar-width:thin; }
+.basic-preview-mode-tabs [role="tab"] { flex:0 0 auto; white-space:nowrap; }
+.basic-preview-panel { min-width:0; }
+.basic-preview-initiative { padding:3px 6px; border:1px solid color-mix(in srgb,var(--pv-ccfolia-color,#c8a84b) 55%,#41464d); border-radius:3px; color:#f0f2f4; background:#171a1e; font:700 10px/1.4 var(--f-mono,monospace); }
+.basic-preview-board-caption { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:6px; color:#9ca4ad; font:700 9px/1.4 var(--f-mono,monospace); letter-spacing:.08em; }
+.basic-preview-player { display:block; margin-top:3px; color:#aeb7c0; font-size:10px; overflow-wrap:anywhere; }
+.basic-preview-inspector-facts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:5px; padding:7px; border-bottom:1px solid #41464d; }
+.basic-preview-inspector-facts .pv-ccfolia-field { min-width:0; padding:5px; border:1px solid #41464d; border-radius:3px; background:#202429; }
+.basic-preview-inspector-facts .pv-ccfolia-field-label { font-size:9px; }
+.basic-preview-inspector-facts .pv-ccfolia-field-value { font-size:11px; overflow-wrap:anywhere; }
+.basic-preview-status-row { display:grid; gap:5px; min-width:0; padding:7px 8px 8px; border-bottom:1px solid #3b4148; color:#e2e6ea; }
+.basic-preview-status-copy { display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:10px; }
+.basic-preview-status-copy span { min-width:0; color:#c0c7ce; overflow-wrap:anywhere; }
+.basic-preview-status-copy strong { flex:0 0 auto; color:#f0f2f4; font:600 10px/1.4 var(--f-mono,monospace); }
+.basic-preview-status-track { height:3px; overflow:hidden; background:#171a1e; border-radius:3px; }
+.basic-preview-status-track span { display:block; height:100%; border-radius:3px; }
+.basic-preview-status-table { display:grid; min-width:0; }
+.basic-preview-param-table { display:grid; min-width:0; }
+.basic-preview-param-row { display:flex; justify-content:space-between; gap:12px; padding:8px 10px; color:#d2d7dc; font-size:11px; border-bottom:1px solid #3b4148; }
+.basic-preview-param-row span { min-width:0; overflow-wrap:anywhere; }
+.basic-preview-param-row strong { flex:0 0 auto; color:#f0f2f4; font:600 11px/1.4 var(--f-mono,monospace); }
+.basic-preview-json-panel { min-width:0; overflow:hidden; border:1px solid #41464d; border-radius:4px; background:#25292e; color:#e2e6ea; }
+.basic-preview-json-head { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:12px; background:#343a41; border-bottom:1px solid #484f57; }
+.basic-preview-json-head strong { color:#f0f2f4; font:700 10px/1.5 var(--f-mono,monospace); letter-spacing:.08em; }
+.basic-preview-json-head p { margin:4px 0 0; color:#b7bec6; font-size:11px; line-height:1.5; }
+.basic-preview-json { box-sizing:border-box; max-height:min(64vh,680px); min-height:180px; margin:0; padding:12px; overflow:auto; color:#e0e5e9; background:#171a1e; font:11px/1.55 var(--f-mono,monospace); white-space:pre-wrap; overflow-wrap:anywhere; tab-size:2; }
+.basic-preview-copy-status { min-height:1em; margin:0; padding:5px 12px 10px; color:#c4d7b8; font-size:11px; }
+.basic-preview-build-error,.basic-preview-json-error { margin:0; padding:10px 12px; color:#f1c5bb; background:#382522; border:1px solid #75473f; border-radius:4px; font-size:11px; line-height:1.5; }
+@container (max-width:560px) {
+  .basic-preview-inspector-facts { grid-template-columns:minmax(0,1fr); }
+}
+@media(max-width:640px) {
+  .basic-ccfolia-preview { gap:9px; }
+  .basic-preview-mode-tabs { width:100%; }
+  .basic-preview-mode-tabs [role="tab"] { min-height:34px; padding-inline:9px; font-size:10px; }
+  .basic-preview-inspector-facts { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .basic-preview-inspector-facts .pv-ccfolia-field-value { font-size:10px; }
+  .basic-preview-json-head { align-items:flex-start; padding:9px; }
+  .basic-preview-json-head .btn { width:100%; }
+  .basic-preview-json { max-height:58dvh; padding:9px; font-size:10px; }
+}
