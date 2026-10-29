@@ -108,7 +108,7 @@ test("プレビュー用キャプチャーは現行の「ビルド」表示を�
   assert.match(capture, /\.rail-item\[title='ワークベンチ'\]/);
   assert.match(capture, /build-overview\.png/);
   assert.match(capture, /build-status-editor\.png/);
-  assert.match(capture, /profiles\\.length\\*7/);
+  assert.match(capture, /profiles\.length\*7/);
 });
 
 test("ステータス一覧・編集・出力順はBタイプのビルド画面に一体化している", () => {
