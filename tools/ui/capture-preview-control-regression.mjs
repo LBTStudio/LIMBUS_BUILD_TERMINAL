@@ -117,18 +117,20 @@ async function createDisposableAccount(page,profile) {
   results.screenshots.push({ file: path.relative(ROOT, homePath), profile: profile.name, state: "btype-home" });
   // Assert current branding before entering the Build editor; prevents stale Workbench screenshots.
   const buildNav = page.locator(".rail-item[title='ビルド']");
+  const mobileBuildNav = page.locator(".btype-mobile-bottom-nav button").filter({ hasText: "ビルド" });
   const oldBuildNav = page.locator(".rail-item[title='ワークベンチ']");
   const homeEyebrow = (await page.locator(".btype-eyebrow").textContent().catch(() => "") || "").trim();
   const homeAction = (await page.locator(".btype-continue-panel").innerText().catch(() => "") || "").trim();
-  const buildBrandingOk = await buildNav.count() === 1
-    && await buildNav.isVisible()
+  const buildEntry = profile.width <= 640 ? mobileBuildNav : buildNav;
+  const buildBrandingOk = await buildEntry.count() === 1
+    && await buildEntry.isVisible()
     && await oldBuildNav.count() === 0
     && homeEyebrow === "HOME / MULTI-PURPOSE LAUNCHER"
     && homeAction.includes("ビルドを開く");
   recordCheck(profile.name + ": B-type launcher and workbench labels match the approved prototype",
-    buildBrandingOk, { buildNavCount: await buildNav.count(), oldBuildNavCount: await oldBuildNav.count(), homeEyebrow, homeAction });
-  await buildNav.waitFor({state:"visible",timeout:10000});
-  await buildNav.click();
+    buildBrandingOk, { desktopBuildNavCount: await buildNav.count(), mobileBuildNavCount: await mobileBuildNav.count(), oldBuildNavCount: await oldBuildNav.count(), homeEyebrow, homeAction });
+  await buildEntry.waitFor({state:"visible",timeout:10000});
+  await buildEntry.click();
   await page.getByLabel("キャラクター名").fill("サンプル・フィクサー");
   await page.getByLabel("プレイヤー名").fill("テスト卓");
   await page.getByLabel("駒の行動順").fill("12");
