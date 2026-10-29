@@ -1183,6 +1183,9 @@ function toIdentityChoices(hits) {
             pack
           }
         },
+        personaAcquisitions: (scenario.wins || []).flatMap((win) => (win.kinds || [])
+          .filter((kind) => kind.kind === "persona" && kind.no !== undefined && kind.no !== null && (kind.mode === "n" || kind.mode === "t"))
+          .map((kind) => ({ mode: kind.mode, no: String(kind.no), name: String(win.name || win.raw || ""), source: "garasumado" }))),
         consumedItems: Array.isArray(scenario.consumedItems) ? scenario.consumedItems : []
       });
 

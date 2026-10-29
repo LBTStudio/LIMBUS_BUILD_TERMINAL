@@ -44,8 +44,29 @@ function makeInitialResult(options) {
       tickets: normalizeTickets(withPersonaTicket ? { persona: 1 } : {})
     },
     note: "ルールブックPDF p.14 の初期資源（30LP・自我の欠片10個）。この直後の獲得はここに帰属します。",
+    initialPersona: { method: "unknown", mode: "", no: "", name: "" },
+    personaAcquisitions: [],
     createdAt: Date.now()
   };
+}
+
+/* 保存された初期人格と、リザルト単位の取得証跡を正規化する。 */
+function normalizeInitialPersona(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return { method: "unknown", mode: "", no: "", name: "" };
+  const method = ["selected", "random", "unknown"].includes(String(value.method || "")) ? String(value.method) : "unknown";
+  const mode = value.mode === "n" || value.mode === "t" ? value.mode : "";
+  const no = mode ? String(value.no ?? "").trim().slice(0, 64) : "";
+  return { method, mode: no ? mode : "", no, name: String(value.name || "").trim().slice(0, 160) };
+}
+function normalizePersonaAcquisitions(value) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 1000).flatMap((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+    const mode = entry.mode === "n" || entry.mode === "t" ? entry.mode : "";
+    const no = String(entry.no ?? "").trim().slice(0, 64);
+    if (!mode || !no || !/^[A-Za-z0-9_-]+$/.test(no)) return [];
+    return [{ mode, no, name: String(entry.name || "").trim().slice(0, 160), source: String(entry.source || "").trim().slice(0, 80) }];
+  });
 }
 
 /* 初期作成用人格チケットの消費。最初の1人格が所持になった時点で1枚消す。
@@ -1467,6 +1488,8 @@ function sanitizeStateCollections(raw) {
     // 封緘済み証明のrecordsの形状は改変せず、バッチ自体を保持して検証器で不合格にできるようにする。
     next.draws = next.draws.filter((batch) => isRecord(batch) && Array.isArray(batch.records));
   }
+  const rawAppliedDrawBatchIds = Array.isArray(source.appliedDrawBatchIds) ? source.appliedDrawBatchIds : [];
+  next.appliedDrawBatchIds = [...new Set(rawAppliedDrawBatchIds.filter((id) => typeof id === "string" && id.trim()).map((id) => id.trim().slice(0, 160)))].slice(-2000);
   if (next.deathSupport != null && !isRecord(next.deathSupport)) next.deathSupport = null;
   if (!isRecord(next.roster)) {
     next.roster = { personas: [], egos: [], supports: [], spirits: [] };
@@ -1693,6 +1716,7 @@ function findActiveRosterPersona(state) {
 function normalizeStateShape(raw) {
   const rawPersonaRows = Array.isArray(raw?.roster?.personas) ? raw.roster.personas : [];
   const next = refreshDBReferencedData(refreshEquippedPersonaFromDB(sanitizeStateCollections(raw)));
+  let synthesizedInitialResult = false;
   next.schemaVersion = next.schemaVersion || SAVE_SCHEMA_VERSION;
   // パッシブ2は追加パッシブ列の1件目へ移行する。以後は上限なしの extraPassives が正準。
   next.extraPassives = mergeExtraPassives(next.extraPassives, { enabled: next.pas2Enabled, passive: next.pas2 });
@@ -2020,6 +2044,8 @@ function normalizeStateShape(raw) {
     const exchange = normalizeCurrency(result.exchange);
     let note = String(result.note || "");
     const consumedItems = normalizeConsumedItems(result.consumedItems);
+    const initialPersona = normalizeInitialPersona(result.initialPersona);
+    const personaAcquisitions = normalizePersonaAcquisitions(result.personaAcquisitions);
     const hasExchange = exchange.lp > 0 || exchange.shards > 0;
     if (hasExchange && Number.isSafeInteger(income.shards + exchange.shards)) {
       income.shards += exchange.shards;
@@ -2039,14 +2065,14 @@ function normalizeStateShape(raw) {
       const migrationNote = "旧LP換算を移行済み（" + exchange.lp + "LP → 自我の欠片 " + exchange.shards + "個）";
       note = [note, migrationNote].filter(Boolean).join("\n").slice(0, 2000);
       const { exchange: _legacyExchange, ...withoutExchange } = result;
-      return { ...withoutExchange, id, name, date, income, note, consumedItems };
+      return { ...withoutExchange, id, name, date, income, note, consumedItems, initialPersona, personaAcquisitions };
     }
     if (hasExchange) {
       /* 安全整数を超える旧記録は計算値を変えず、旧フィールドを保全する。 */
-      return { ...result, id, name, date, income, exchange, note, consumedItems };
+      return { ...result, id, name, date, income, exchange, note, consumedItems, initialPersona, personaAcquisitions };
     }
     const { exchange: _legacyExchange, ...withoutExchange } = result;
-    return { ...withoutExchange, id, name, date, income, note, consumedItems };
+    return { ...withoutExchange, id, name, date, income, note, consumedItems, initialPersona, personaAcquisitions };
   });
   next.entries.push(...migratedExchangeEntries);
   /* キャラ作成直後の所得は「初期作成」リザルトにまとめる。
@@ -2065,11 +2091,13 @@ function normalizeStateShape(raw) {
     /* 新規キャラクター作成。人格を1つも持たないなら、最初の1人格を
        指定購入でも初期作成用人格チケットでの抽出でも決められるようにする。 */
     next.results = [makeInitialResult({ withPersonaTicket: !(next.roster?.personas || []).length })];
+    synthesizedInitialResult = true;
   } else if (!hasInitialGrant(next.results)) {
     /* 既存アカウントへの後付けは支給だけ足す。初期作成用人格チケットは
        新規キャラクター作成のときの1枚だけで、継承アカウントに配ると
        既に都市参加済みのキャラでも無料抽出が1回湧くことになる。 */
     next.results = [makeInitialResult(), ...next.results];
+    synthesizedInitialResult = true;
   }
   const knownResultIds = new Set(next.results.map((r) => r.id));
   next.entries = next.entries.map((entry) => ({
@@ -2214,7 +2242,8 @@ function normalizeStateShape(raw) {
       if (entry && !entry.source) entry.source = catalogSourceByName("spirit", entry.name);
     }
   }
-  return repairGachaResultAttribution(normalizeStatusCollections(next));
+  const normalized = normalizeStatusCollections(next);
+  return repairGachaResultAttribution(normalized, synthesizedInitialResult ? new Set(["res-initial"]) : null);
 }
 /* 残高は保存しない。収入合計から支出合計を引くだけなので,
    帰属を直すとこの値が動く。明細の帰属を直せば連載ごとに収支を説明できる。 */
@@ -2347,7 +2376,7 @@ function latestResultId(state) {
    直後に作られた明細が揃っている保存データは、表示上の最新リザルトへ一度だけ直す。
    証明バッチそのものは変更しない。日時・バッチ・同じ結果IDを持つ明細を照合できない
    古い履歴には触れず、利用者が手で動かした明細も上書きしない。 */
-function repairGachaResultAttribution(state) {
+function repairGachaResultAttribution(state, options = {}) {
   const logs = Array.isArray(state?.gachaLog) ? state.gachaLog : [];
   const draws = Array.isArray(state?.draws) ? state.draws : [];
   const results = Array.isArray(state?.results) ? state.results : [];
@@ -2358,6 +2387,7 @@ function repairGachaResultAttribution(state) {
   const personas = Array.isArray(roster.personas) ? roster.personas : [];
   const egos = Array.isArray(roster.egos) ? roster.egos : [];
   const validResultIds = new Set(results.map((result) => String(result?.id || "")).filter(Boolean));
+  const excludedTargetIds = options?.excludeResultIds instanceof Set ? options.excludeResultIds : new Set();
   let changedEntries = false;
   let nextEntries = originalEntries;
 
@@ -2508,7 +2538,8 @@ function repairGachaResultAttribution(state) {
        抽選を移動しない。作成時刻のないレコードは推測で対象にしない。 */
     const existingAtDraw = results.filter((result) => {
       const createdAt = Number(result?.createdAt);
-      return Number.isFinite(createdAt) && createdAt > 0 && createdAt <= logAt;
+      return Number.isFinite(createdAt) && createdAt > 0 && createdAt <= logAt
+        && !excludedTargetIds.has(String(result?.id || ""));
     });
     const targetResultId = latestResultId({ results: existingAtDraw });
     if (!targetResultId || !validResultIds.has(String(targetResultId))) return log;
@@ -3636,6 +3667,8 @@ const INIT_STATE = {
      改ざん検出の鎖はバッチ側（gacha.js）が持ち、ここは追記のみ行う。
      旧保存データには無いので hydrate で空配列を補完する。 */
   draws: [],
+  // 抽選の所持・経済効果が現在の状態へ適用済みの証明キー。Undoでは証明と分離して巻き戻す。
+  appliedDrawBatchIds: [],
   // [{batchId, kind, count, commit, serverSeed, clientSeed, rolls, records, batchHash, beacon, rulesetHash, signature?}]
   // DB由来のアイテムをビルドへ導入した一覧。{uid,itemId,quantity,memo,palette,origin}
   inventory: [],
@@ -3844,6 +3877,11 @@ function applyDrawBatchEffects(state, batch, resultId) {
       resultId,
       ref: { kind: "gachaBatch", commit: String(batch.commit || batch.batchHash || "") }
     });
+  }
+  const appliedKey = String(batch?.batchHash || batch?.commit || "");
+  if (appliedKey) {
+    const applied = Array.isArray(next.appliedDrawBatchIds) ? next.appliedDrawBatchIds : [];
+    if (!applied.includes(appliedKey)) next = { ...next, appliedDrawBatchIds: [...applied, appliedKey].slice(-2000) };
   }
   return next;
 }
@@ -4232,9 +4270,9 @@ function appReducer(state, action) {
         "pas","pas2Enabled","pas2","extraPassives","uniqueBuffs","skills","egoSlots","supports","deathSupport","roster",
         "enhancements","initialItems","draws","customStatuses","defaultStatuses","formulas","builtinFormulasOverride","autoFml",
         "moraleLine","extraCmd","outputExclude","shareOptions","paletteOptions","results","entries","inventory","customItems",
-        "favorites","historyRecent","gachaLog","tickets"];
+        "favorites","historyRecent","gachaLog","appliedDrawBatchIds","tickets"];
       // 別端末移行（exportState/importStateFromFile）には initiative、initialItems、
-      // draws、favorites、historyRecent、gachaLog、tickets（未解決の旧チケット移行行）が含まれる。許可リスト／カテゴリから
+      // draws、appliedDrawBatchIds、favorites、historyRecent、gachaLog、tickets（未解決の旧チケット移行行）が含まれる。許可リスト／カテゴリから
       // 漏れると設定や検証履歴が黙って失われる。
       const isSafePartialValue = (v) => {
         if (v === null || v === void 0) return true;
@@ -5791,6 +5829,8 @@ case "ADD_CUSTOM_ITEM": {
             : { ...normalizeCurrency(action.income), tickets: normalizeTickets(action.income?.tickets) },
           ...(action.note !== undefined ? { note: String(action.note || "").slice(0, 2000) } : {}),
           ...(action.consumedItems !== undefined ? { consumedItems: normalizeConsumedItems(action.consumedItems) } : {}),
+          ...(action.initialPersona !== undefined ? { initialPersona: normalizeInitialPersona(action.initialPersona) } : {}),
+          ...(action.personaAcquisitions !== undefined ? { personaAcquisitions: normalizePersonaAcquisitions(action.personaAcquisitions) } : {}),
           ...(action.importSourceKey !== undefined
             ? (String(action.importSourceKey || "").trim()
               ? { importSourceKey: String(action.importSourceKey).slice(0, 180) }
@@ -5812,6 +5852,8 @@ case "ADD_CUSTOM_ITEM": {
           income: { ...normalizeCurrency(action.income), tickets: normalizeTickets(action.income?.tickets) },
           note: String(action.note || "").slice(0, 2000),
           consumedItems: normalizeConsumedItems(action.consumedItems),
+          initialPersona: normalizeInitialPersona(action.initialPersona),
+          personaAcquisitions: normalizePersonaAcquisitions(action.personaAcquisitions),
           ...(String(action.importSourceKey || "").trim()
             ? { importSourceKey: String(action.importSourceKey).slice(0, 180) }
             : {}),
@@ -5830,6 +5872,8 @@ case "ADD_CUSTOM_ITEM": {
               ...(action.patch?.date !== void 0 ? { date: String(action.patch.date).slice(0, 10) } : {}),
               ...(action.patch?.note !== void 0 ? { note: String(action.patch.note).slice(0, 2000) } : {}),
               ...(action.patch?.income !== void 0 ? { income: { ...normalizeCurrency(action.patch.income), tickets: normalizeTickets(action.patch.income?.tickets) } } : {}),
+              ...(action.patch?.initialPersona !== void 0 ? { initialPersona: normalizeInitialPersona(action.patch.initialPersona) } : {}),
+              ...(action.patch?.personaAcquisitions !== void 0 ? { personaAcquisitions: normalizePersonaAcquisitions(action.patch.personaAcquisitions) } : {}),
               updatedAt: Date.now()
             }
           : r))

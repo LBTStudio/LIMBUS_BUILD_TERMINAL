@@ -5,6 +5,7 @@ import vm from "node:vm";
 
 const stateSource = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
 const drawUiSource = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
+const auditSource = readFileSync(new URL("../js/persona-inventory-audit.js", import.meta.url), "utf8");
 
 function load() {
   const context = {
@@ -34,6 +35,7 @@ function load() {
   context.globalThis = context;
   vm.createContext(context);
   vm.runInContext(stateSource, context);
+  vm.runInContext(auditSource, context);
   return context;
 }
 
@@ -108,6 +110,10 @@ test("Undoで抽選を越えたとき、抽選証明だけ再生し所持・支�
     "Undo後はチケット消費が戻り、抽選品だけを無料で保持する状態にしない");
   assert.equal(rewound.draws.length, 1, "改ざん検証用の封緘証明は残す");
   assert.equal(rewound.gachaLog.length, 1, "抽選した事実の記録は残す");
+  assert.equal(rewound.appliedDrawBatchIds.includes(batch.batchHash), false, "Undo後は抽選証明の適用中マーカーを戻す");
+  const audit = w.LBT_auditPersonaInventory(rewound);
+  assert.equal(audit.missing.length, 0, "proof-onlyのバッチから所持欠落を誤検出しない");
+  assert.equal(audit.unresolvedDraws, 1, "Undo後の証明は適用状態不明として確認対象に残す");
 });
 
 test("証明記録専用アクションは所持・通帳・残高を変更しない", () => {

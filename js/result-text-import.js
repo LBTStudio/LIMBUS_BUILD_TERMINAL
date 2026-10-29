@@ -1370,6 +1370,7 @@
         name: title,
         date: record.date || "",
         income: { lp: record.income.lp, shards: record.income.shards, tickets: ticketIncome(acceptedTickets) },
+        personaAcquisitions: [],
         note: fullNote,
         consumedItems: record.journalFormat === true ? [] : (record.consumedItems || []).map((item) => {
           const operationId = `legacy-use-${Date.now()}-${legacyUseSequence++}`;
@@ -1447,6 +1448,12 @@
         }
         return null;
       };
+      const notePersonaAcquisition = (kind, name) => {
+        if (!kind || !(kind.mode === "n" || kind.mode === "t") || kind.no === undefined || kind.no === null) return;
+        const no = String(kind.no);
+        const known = resultAction.personaAcquisitions.some((entry) => entry.mode === kind.mode && entry.no === no);
+        if (!known) resultAction.personaAcquisitions.push({ mode: kind.mode, no, name: String(name || ""), source: "text-import" });
+      };
       const addResolvedAsset = (item, warnIfUnknown) => {
         const source = String(item?.name || "").trim();
         if (!source) return false;
@@ -1471,6 +1478,9 @@
         if (personas.length === 1) {
           const kind = personas[0];
           const personaKey = `${kind.mode}:${kind.no}`;
+          /* 取得証跡は所持への追加や他の注記経路から独立して記録する。
+             重複は notePersonaAcquisition 側で同一リザルト内にまとめる。 */
+          notePersonaAcquisition(kind, hit.name || source);
           if (!identityNames.has(source) && !ownedPersonas.has(personaKey) && !importedPersonaKeys.has(personaKey)) {
             importedPersonaKeys.add(personaKey);
             actions.push({ type: "ADD_ROSTER", mode: kind.mode, no: kind.no, purchase: false, skipInitialTicketConsumption: true, via: title ? [title] : [] });
@@ -1586,6 +1596,8 @@
         const kinds = personaKindsOf(initialHit);
         if (kinds.length === 1) {
           const kind = kinds[0];
+          /* raw 注記・journal candidate 経由の取得も、既所持であっても証跡として保存する。 */
+          notePersonaAcquisition(kind, initialHit.name || source);
           const personaKey = `${kind.mode}:${kind.no}`;
           const owned = ownedPersonas.has(personaKey);
           const duplicate = importedPersonaKeys.has(personaKey);
