@@ -49,7 +49,34 @@ async function click(loc) {
   await loc.first().click({ timeout: 4000 });
   await page.waitForTimeout(250);
 }
+function mainNavigation() {
+  return page.locator((page.viewportSize()?.width || 1440) <= 640
+    ? ".btype-mobile-bottom-nav button"
+    : ".rail-item");
+}
 async function go(label) {
+  if ((page.viewportSize()?.width || 1440) <= 640) {
+    const nav = page.locator(".btype-mobile-bottom-nav");
+    const directLabels = {
+      "ビルド": "ビルド", "記録": "記録", "記録・所持品": "記録",
+      "データ取り込み": "取込", "取込": "取込"
+    };
+    if (directLabels[label]) {
+      const direct = nav.getByRole("button", { name: directLabels[label], exact: true });
+      if (await visible(direct)) return click(direct);
+    }
+    const utilityLabels = {
+      "ホーム": "ホーム", "ショップ": "ショップ", "設定": "詳細設定",
+      "詳細設定": "詳細設定", "使い方": "使い方"
+    };
+    const utilityLabel = utilityLabels[label];
+    if (utilityLabel) {
+      const other = nav.getByRole("button", { name: "その他", exact: true });
+      if (await visible(other)) await click(other);
+      const target = page.locator(".utility-section-grid").getByRole("button", { name: utilityLabel, exact: true });
+      return click(target);
+    }
+  }
   let loc = page.locator(".rail-item").filter({ hasText: label }).first();
   if (await visible(loc)) return click(loc);
   loc = page.locator("button[title='" + label + "']").first();
@@ -357,7 +384,7 @@ async function boot() {
       const create=page.getByRole("button",{name:"作成して開く",exact:true});
       if(await visible(create)) await click(create);
       await page.waitForTimeout(900);
-      if(!(await visible(page.locator(".rail-item").first()))) {
+      if(!(await visible(mainNavigation().first()))) {
         await snap("account-create-submit-result","作成ボタン押下後、通常画面へ遷移しない場合の診断状態");
         audit.accountCreateDiagnostic=await page.evaluate(()=>{
           const A=window.LBT_accounts;
@@ -386,7 +413,7 @@ async function boot() {
       }
     } else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
   }
-  await page.locator(".rail-item").first().waitFor({state:"visible",timeout:25000});
+  await mainNavigation().first().waitFor({state:"visible",timeout:25000});
   const seeded=await seed().catch(e=>({ok:false,reason:String(e)}));
   audit.seed=seeded;
   if(seeded&&seeded.ok) {
@@ -410,7 +437,7 @@ async function boot() {
       }
     }
     try {
-      await page.locator(".rail-item").first().waitFor({state:"visible",timeout:15000});
+      await mainNavigation().first().waitFor({state:"visible",timeout:15000});
     } catch(error) {
       await snap("account-gate-reload-diagnostic","保存済みの監査用キャラクターを選び直した後の起動診断");
       audit.accountGateReloadDiagnostic=await page.evaluate(()=>({
@@ -451,7 +478,9 @@ async function captureProfile(browser, mode) {
     await boot();
     /* The B-type migration deliberately opens Home. Navigate to the actual workbench
        before capturing editor tabs and preview states, rather than assuming an old default. */
-    const workbenchNav = page.locator(".rail-item[title='ビルド']").first();
+    const workbenchNav = mobile
+      ? page.locator(".btype-mobile-bottom-nav button").getByText("ビルド", { exact: true }).first()
+      : page.locator(".rail-item[title='ビルド']").first();
     await workbenchNav.waitFor({ state: "visible", timeout: 10000 });
     await click(workbenchNav);
     await page.locator(".build-tabs").waitFor({ state: "visible", timeout: 10000 });
