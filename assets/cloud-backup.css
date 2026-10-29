@@ -112,13 +112,14 @@
 }
 .lbt-cloud-btn:disabled { opacity: .6; cursor: not-allowed; }
 .lbt-cloud-panel.is-compact { margin-block: var(--s-4); }
-/* The account selector and overlay have bounded height; keep backup controls reachable on small screens. */
+/* 以前はパネル自身を max-height 300px で切って内部スクロールにしていたため、
+   モバイルでは「復元」「JSONファイルから復元」が枠外に隠れていた。
+   パネルは縮まず自然高さを保ち、超過分は親のアカウントパネル側の
+   一本のスクロールで届ける（入れ子スクロールを作らない）。 */
 .acct-gate-panel > .lbt-cloud-panel,
 .acct-panel > .lbt-cloud-panel {
-  flex: 0 1 auto;
-  max-height: min(36vh, 300px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  flex: none;
+  min-height: 0;
 }
 @media (max-width: 560px) {
   .lbt-cloud-panel { padding: var(--s-3); gap: var(--s-2); }
