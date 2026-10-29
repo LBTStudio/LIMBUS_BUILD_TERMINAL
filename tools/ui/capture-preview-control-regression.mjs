@@ -158,6 +158,43 @@ async function runProfile(browser,profile) {
     const buildOverviewPath = path.join(OUT, profile.name + "-build-overview.png");
     await page.screenshot({ path: buildOverviewPath, animations: "disabled" });
     results.screenshots.push({ file: path.relative(ROOT, buildOverviewPath), profile: profile.name, state: "build-overview" });
+    /* Capture the actual Build > Basic status editor, not a separate or mocked sample. */
+    const statusPanel = page.locator(".settings-order-embedded").first();
+    const statusTitle = statusPanel.locator(".settings-status-workspace-head .t-label");
+    await statusTitle.evaluate(el => el.scrollIntoView({ block: "start", inline: "nearest", behavior: "auto" }));
+    await page.locator(".focus").evaluate(el => {
+      const title = el.querySelector(".settings-order-embedded .settings-status-workspace-head .t-label");
+      if (!title) return;
+      const desiredTop = el.getBoundingClientRect().top + (innerWidth <= 640 ? 150 : 112);
+      el.scrollTop = Math.max(0, el.scrollTop + title.getBoundingClientRect().top - desiredTop);
+    });
+    await page.waitForTimeout(100);
+    const statusRows = statusPanel.locator(".status-order-row");
+    const statusInputs = statusPanel.locator("input");
+    const reorderControls = statusPanel.locator(".status-order-row .reorder-btn");
+    const dragHandles = statusPanel.locator(".status-order-row .status-order-handle");
+    const statusEditor = {
+      panelCount: await page.locator(".settings-order-embedded").count(),
+      title: (await statusTitle.textContent().catch(() => "") || "").trim(),
+      rowCount: await statusRows.count(),
+      inputCount: await statusInputs.count(),
+      reorderCount: await reorderControls.count(),
+      dragHandleCount: await dragHandles.count(),
+      viewport: page.viewportSize()
+    };
+    const statusEditorOk = statusEditor.panelCount === 1
+      && statusEditor.title === "ステータス一覧・編集・出力順"
+      && statusEditor.rowCount >= 3
+      && statusEditor.inputCount >= 2
+      && statusEditor.reorderCount >= 2
+      && statusEditor.dragHandleCount >= 1;
+    recordCheck(profile.name + ": Build status list exposes editing and emitted-order controls",
+      statusEditorOk, statusEditor);
+    const statusPath = path.join(OUT, profile.name + "-build-status-editor.png");
+    await page.screenshot({ path: statusPath, animations: "disabled" });
+    results.screenshots.push({ file: path.relative(ROOT, statusPath), profile: profile.name, state: "build-status-editor" });
+    await page.locator(".focus").evaluate(el => { el.scrollTop = 0; });
+    await page.waitForTimeout(80);
     const toggle=page.locator(profile.mobile?".preview-mobile-toggle":"#lbt-preview-edge-toggle");
     const initial=await metrics(page,profile);
     recordCheck(profile.name+": one React toggle, no legacy controls",
@@ -295,6 +332,6 @@ async function main() {
   results.checkCount=results.checks.length;
   fs.writeFileSync(path.join(OUT,"manifest.json"),JSON.stringify(results,null,2)+"\n");
   console.log("[preview-control-regression] "+JSON.stringify({screenshots:results.count,checks:results.checkCount,failures:results.failures.length,summary:results.failures.map(f=>({name:f.name,error:f.error,collisions:f.collisions,gapFromPanel:f.gapFromPanel}))}));
-  if(results.failures.length||results.count!==profiles.length*5) process.exitCode=1;
+  if(results.failures.length||results.count!==profiles.length*6) process.exitCode=1;
 }
 main().catch(error=>{console.error("[preview-control-regression] fatal: "+(error?.stack||String(error)));process.exitCode=1;});

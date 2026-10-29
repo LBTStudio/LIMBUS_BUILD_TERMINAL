@@ -9,6 +9,7 @@ const sections = read("../js/OtherSections.js");
 const persona = read("../js/PersonaCodex.js");
 const state = read("../js/state.js");
 const css = read("../assets/workspace.css");
+const index = read("../index.html");
 
 test("Bタイプはビルドを主作業面にし、ホームを補助入口として残す", () => {
   const nav = app.slice(app.indexOf("const SECTIONS = ["), app.indexOf("function isComplete"));
@@ -105,5 +106,25 @@ test("プレビュー用キャプチャーは現行の「ビルド」表示を�
   assert.match(capture, /\.rail-item\[title='ビルド'\]/);
   assert.match(capture, /\.rail-item\[title='ワークベンチ'\]/);
   assert.match(capture, /build-overview\.png/);
-  assert.match(capture, /profiles\.length\*5/);
+  assert.match(capture, /build-status-editor\.png/);
+  assert.match(capture, /profiles\.length\*6/);
+});
+
+test("ステータス一覧・編集・出力順はBタイプのビルド画面に一体化している", () => {
+  assert.match(index, /id="b-type-production-rollout"/);
+  assert.match(index, /B-type parity: status list, direct editing and emitted order/);
+  assert.match(index, /\.settings-order-embedded \.status-order-scroll \{[\s\S]*?display: block/);
+  assert.match(index, /\.settings-order-embedded \.status-order-row \+ \.status-order-row \{ margin-top: 6px; \}/);
+  for (const selector of [
+    ".settings-order-embedded",
+    ".status-order-row:hover",
+    ".status-order-name .input",
+    ".status-order-number .input",
+    ".status-order-row .reorder-btn",
+    ".status-order-handle:focus-visible"
+  ]) assert.ok(index.includes(selector), "BタイプのステータスUI用スタイルが必要: " + selector);
+  assert.match(sections, /ステータス一覧・編集・出力順/);
+  const capture = read("../tools/ui/capture-preview-control-regression.mjs");
+  assert.match(capture, /Build status list exposes editing and emitted-order controls/);
+  assert.match(capture, /build-status-editor\.png/);
 });
