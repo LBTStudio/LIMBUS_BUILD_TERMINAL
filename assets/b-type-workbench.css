@@ -1,0 +1,48 @@
+/* B-type workbench production layout: persistent navigation, focused work area,
+   and compact live output pane. Existing React routing and preview actions remain intact. */
+@media (min-width: 1100px) {
+  :root { --rail-w: 190px; --preview-w: 220px; }
+  .app { grid-template-columns: var(--rail-w) minmax(0, 1fr) var(--preview-w); }
+  .app.preview-collapsed { grid-template-columns: var(--rail-w) minmax(0, 1fr) 0; }
+  .rail {
+    align-items: stretch; padding: 18px 10px 14px; gap: 14px; overflow-y: auto;
+    background: linear-gradient(180deg, #17140f 0%, #100e0b 100%);
+    border-right: 1px solid rgba(220,179,97,.22);
+  }
+  .rail-group { gap: 5px; }
+  .rail-group-label {
+    display: block; padding: 8px 10px 5px; text-align: left;
+    font-size: 10px; letter-spacing: .16em; color: #a99a7c;
+  }
+  .rail-group + .rail-group {
+    margin-top: 0; padding-top: 10px; border-top: 1px solid rgba(210,174,101,.16);
+  }
+  .rail-item {
+    display: grid; grid-template-columns: 22px minmax(0,1fr) auto;
+    align-items: center; gap: 9px; width: 100%; min-height: 42px;
+    padding: 8px 11px; border: 1px solid transparent; border-radius: 7px; text-align: left;
+  }
+  .rail-item:hover { background: rgba(225,190,117,.07); border-color: rgba(225,190,117,.14); }
+  .rail-item.is-active {
+    color: #f4dfae; background: linear-gradient(100deg,rgba(199,157,75,.18),rgba(199,157,75,.045));
+    border-color: rgba(220,179,97,.38); box-shadow: inset 2px 0 #d6b36b;
+  }
+  .rail-item.is-active::before { display: none; }
+  .rail-item.is-active .rail-icon { color: #e5c47e; }
+  .rail-label { min-width: 0; font-size: 12px; font-weight: 550; }
+  .topbar { padding-inline: 22px; background: rgba(18,16,12,.97); border-bottom-color: rgba(220,179,97,.22); }
+  .focus {
+    min-width: 0; padding: 22px 24px; overflow: auto;
+    background: radial-gradient(ellipse at 12% 0%,rgba(178,135,61,.055),transparent 44%),var(--surface-0);
+  }
+  .focus-inner { min-width: 0; max-width: 1440px; margin-inline: auto; }
+  .preview { min-width: 0; background: #100e0b; border-left-color: rgba(220,179,97,.20); }
+}
+@media (min-width: 1100px) and (max-width: 1240px) {
+  :root { --rail-w: 174px; --preview-w: 208px; }
+  .rail { padding-inline: 8px; }
+  .rail-item { padding-inline: 8px; gap: 7px; }
+  .focus { padding: 18px 16px; }
+}
+@media (max-width: 1099px) { .rail-group-label { display: none; } }
+@media (prefers-reduced-motion: reduce) { .rail-item { transition: none; } }
