@@ -1359,7 +1359,6 @@ const HomeLauncher = ({
         chip("対象：" + String(state.charName || "名称未設定")),
         chip("自動保存：" + (saveStatus?.phase === "saved" ? "有効" : "処理中")),
         chip("作業場所：ワークベンチ"))
-    ),
     h("div", { className: "btype-command-search" },
       h(Icon, { name: "search", size: 17 }),
       h("input", {
@@ -1368,6 +1367,7 @@ const HomeLauncher = ({
         "aria-label": "機能を検索"
       }),
       query ? h("button", { type: "button", onClick: () => setQuery(""), "aria-label": "検索をクリア" }, "×") : null
+    ),
     ),
     h("div", { className: "btype-section-title" }, "目的から開く"),
     h("div", { className: "btype-launcher-grid", "data-launcher-grid": "" },
