@@ -9,6 +9,7 @@ const sections = read("../js/OtherSections.js");
 const persona = read("../js/PersonaCodex.js");
 const state = read("../js/state.js");
 const css = read("../assets/workspace.css");
+const bTypeCss = read("../assets/b-type-workbench.css");
 const index = read("../index.html");
 
 test("Bタイプはビルドを主作業面にし、ホームを補助入口として残す", () => {
@@ -59,9 +60,9 @@ test("ホームの取り込みショートカットは既存の取込フォー�
 });
 
 test("ホームランチャーは狭幅では1列になり、キーボードでも移動できる", () => {
-  assert.match(css, /\.btype-launcher-grid \{ display: grid; grid-template-columns: repeat\(3, minmax\(0,1fr\)\)/);
-  assert.match(css, /@media \(max-width: 600px\)[\s\S]*?\.btype-launcher-grid \{ grid-template-columns: repeat\(2,minmax\(0,1fr\)\);/);
-  assert.match(css, /\.btype-launcher-card:focus-visible/);
+  assert.match(bTypeCss, /\.btype-launcher-grid \{ display: grid; grid-template-columns: repeat\(3, minmax\(0,1fr\)\)/);
+  assert.match(bTypeCss, /@media \(max-width: 600px\)[\s\S]*?\.btype-launcher-grid \{ grid-template-columns: repeat\(2,minmax\(0,1fr\)\);/);
+  assert.match(bTypeCss, /\.btype-launcher-card:focus-visible/);
 });
 
 test("Bタイプのナビは制作・データ管理・補助を区別し、取り込み先を選べる", () => {
