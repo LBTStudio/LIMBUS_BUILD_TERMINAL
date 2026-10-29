@@ -48,3 +48,26 @@ test("駒プレビューはモバイル向けレイアウトと可視のフォ�
   assert.match(css, /@media \(max-width: 640px\)[\s\S]*?\.pv-token-board-details \{ grid-template-columns: minmax\(0, 1fr\); \}/);
   assert.match(app, /id: "lbt-preview-edge-toggle"/);
 });
+
+test("プレビューのコピー操作を重複させず、表示切替は実際の操作グループとして扱う", () => {
+  assert.match(preview, /\(tab === "memo" \|\| tab === "palette"\) &&/);
+  assert.match(preview, /onClick: copyJson/);
+  assert.match(preview, /role: "group", "aria-label": "駒プレビューの表示"/);
+  assert.match(preview, /"aria-pressed": tokenMode === "board"/);
+  assert.match(preview, /"aria-pressed": tokenMode === "sheet"/);
+  assert.match(preview, /}, "見た目"\)/);
+  assert.match(preview, /}, "項目一覧"\)/);
+  assert.doesNotMatch(preview, /"盤面"\)/);
+  assert.doesNotMatch(preview, /"シート"\)/);
+});
+
+test("駒の画像を正方形に切り抜かず、縦横比を維持して枠内に収める", () => {
+  const boardImageStyles = css.slice(css.indexOf(".pv-token-board-avatar img,"), css.indexOf(".pv-token-board-avatar .pv-token-image-empty"));
+  assert.match(boardImageStyles, /max-width: 100%/);
+  assert.match(boardImageStyles, /max-height: 220px/);
+  assert.match(boardImageStyles, /width: auto/);
+  assert.match(boardImageStyles, /height: auto/);
+  assert.match(boardImageStyles, /object-fit: contain/);
+  assert.doesNotMatch(boardImageStyles, /object-fit: cover/);
+  assert.match(css, /\.pv-token-board-avatar img \{[\s\S]*?max-height: 128px/);
+});
