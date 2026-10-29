@@ -15,7 +15,7 @@ async function get(url, attempts = 6) {
     try {
       const response = await fetch(url, { cache: "no-store", redirect: "follow" });
       if (response.ok) return response;
-      last = new Error(\`HTTP \${response.status} for \${url}\`);
+      last = new Error("HTTP " + response.status + " for " + url);
     } catch (error) { last = error; }
     if (i + 1 < attempts) await sleep(1500 * (i + 1));
   }
