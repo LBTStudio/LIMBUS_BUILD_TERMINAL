@@ -1032,6 +1032,16 @@ function toMarkdownReport(report) {
     "|---|---:|",
     ...summaryRows.map(([label, value]) => `| ${label} | ${value} |`),
     "",
+    "## 支出push時点と最終配列の一致",
+    "",
+    "pushイベントの内容と、パーサー終了後の spends 配列を配列順で対応づけています。金額が後続処理で変更された行があれば、その件数と合計差を確認します。これは監査用コピー上の比較であり、実データへ変更を加えません。push時と最終値の違いがある文書だけを表示します。",
+    "",
+    "| URL ID | メモ行 | pushイベント | 最終支出行 | pushのみ | 最終のみ | 金額変更行 | push LP | 最終LP | push欠片 | 最終欠片 |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+    ...report.parser.spendTraceIntegrityDocuments
+      .filter((row) => row.pushEventsWithoutFinalRow > 0 || row.finalRowsWithoutPushEvent > 0 || row.rowsWhoseAmountsChangedAfterPush > 0 || row.pushLp !== row.finalLp || row.pushShards !== row.finalShards)
+      .map((row) => "| " + row.id + " | " + row.memoRows + " | " + row.pushEventCount + " | " + row.finalSpendRowCount + " | " + row.pushEventsWithoutFinalRow + " | " + row.finalRowsWithoutPushEvent + " | " + row.rowsWhoseAmountsChangedAfterPush + " | " + row.pushLp + " | " + row.finalLp + " | " + row.pushShards + " | " + row.finalShards + " |"),
+    "",
     "## 所持通貨と履歴収支の橋渡し",
     "",
     "ここでいう残差は保存残高からメモ内の収入−明示支出を引いた値です。開始残高・履歴開始前の調整が不明なため、正の残差は開始残高や未記録収入で説明できる可能性があります。負の残差は、非負の開始残高だけでは説明できず、未記録支出・収入の過大計上・解析対象外の履歴を確認する必要があります。",
