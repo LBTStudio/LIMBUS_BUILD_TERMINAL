@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const app = read("../js/App.js");
+const ui = read("../js/ui.js");
 const sections = read("../js/OtherSections.js");
 const persona = read("../js/PersonaCodex.js");
 const state = read("../js/state.js");
@@ -11,7 +12,8 @@ const css = read("../assets/workspace.css");
 
 test("ホームが左レールの入口になり、ビルド内に基本タブを置く", () => {
   const nav = app.slice(app.indexOf("const SECTIONS = ["), app.indexOf("function isComplete"));
-  assert.match(nav, /id: "home", label: "ホーム"/);
+  assert.match(nav, /id: "home", label: "ホーム", icon: "home"/);
+  assert.match(ui, /const ICON_PATHS = \\{[\\s\\S]*?\\bhome:/);
   assert.match(nav, /id: "persona", label: "ビルド"/);
   assert.doesNotMatch(nav, /id: "baseinfo"/);
   assert.match(app, /s\.id === "persona" \? "baseinfo" : s\.id/);

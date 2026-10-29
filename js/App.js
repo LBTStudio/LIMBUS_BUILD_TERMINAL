@@ -386,7 +386,7 @@ const HelpSection = ({ onNavigate, onOpenUtilities }) => {
 
 const SECTIONS = [
   /* ホームは目的別ランチャー。実際の編集画面はビルドに集約する。 */
-  { id: "home", label: "ホーム", icon: "grid", title: "HOME / LAUNCHER", subtitle: "目的から作業を始める", num: null, group: "home" },
+  { id: "home", label: "ホーム", icon: "home", title: "HOME / LAUNCHER", subtitle: "目的から作業を始める", num: null, group: "home" },
   /* 基本設定・人格・戦術データを同じ作業面にまとめる。 */
   { id: "persona", label: "ビルド", icon: "grid", title: "BUILD", subtitle: "基本設定・人格・スキル・パッシブ・強化・サポート・E.G.O・精神・アイテム", num: "01", group: "build" },
   { id: "shop", label: "ショップ", icon: "item", title: "SHOP", subtitle: "人格・サポート・E.G.O・精神・アイテムを購入", num: "02", group: "utility" },
