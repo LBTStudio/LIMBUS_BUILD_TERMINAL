@@ -32,7 +32,7 @@ test("ビルドを主とし、コードクスは廃止済み", () => {
     assert.ok(order[i - 1] < order[i], `並び順が崩れている（${i}）`);
   }
   assert.match(block, /\{ id: "home", label: "ホーム"/);
-  assert.match(block, /\{ id: "persona", label: "ビルド"/);
+  assert.match(block, /\{ id: "persona", label: "ワークベンチ"/);
   assert.doesNotMatch(block, /id: "baseinfo"/);
   assert.match(block, /\{ id: "shop", label: "ショップ"/);
   /* 精神は独立セクションを持たずビルドのタブへ入る。 */
