@@ -111,6 +111,7 @@ const PreviewSection = ({ section, idx, collapsed, onToggle, included, onToggleI
   ) : null, !collapsed && !isEmpty && /* @__PURE__ */ React.createElement("div", { className: "pv-sec-body" }, bodyText));
 };
 const LivePreview = ({ state, dispatch }) => {
+  const h = React.createElement;
   const tab = state.ui.previewTab || "memo";
   const setTab = (t) => dispatch({ type: "SET_UI", ui: { previewTab: t } });
   // UI操作（プレビューの開閉・タブ切替）では出力対象のデータ参照を維持する。
@@ -123,6 +124,100 @@ const LivePreview = ({ state, dispatch }) => {
   const memo = React.useMemo(() => LBT_gen.buildMemo(previewData), [previewData]);
   const palette = React.useMemo(() => LBT_gen.buildPalette(previewData), [previewData]);
   const json = React.useMemo(() => JSON.stringify(LBT_gen.buildCcfoliaJSON(previewData, { palette, memo }), null, 2), [previewData, palette, memo]);
+  /* TOKEN preview uses the exact CCFOLIA JSON data object; it does not create a second export path. */
+  const tokenData = React.useMemo(() => {
+    try { return JSON.parse(json)?.data || {}; }
+    catch (_) { return {}; }
+  }, [json]);
+  const tokenImage = String(tokenData.iconUrl || tokenData.faces?.[0]?.iconUrl || "");
+  const tokenMode = state.ui.tokenPreviewMode === "sheet" ? "sheet" : "board";
+  const setTokenMode = (mode) => dispatch({ type: "SET_UI", ui: { tokenPreviewMode: mode } });
+  const [tokenImageFailed, setTokenImageFailed] = React.useState(false);
+  React.useEffect(() => { setTokenImageFailed(false); }, [tokenImage]);
+  const tokenName = String(tokenData.name || "キャラクター");
+  const tokenColor = /^#[0-9a-f]{6}$/i.test(String(tokenData.color || "")) ? tokenData.color : "#c8a84b";
+  const tokenStatus = Array.isArray(tokenData.status) ? tokenData.status : [];
+  const tokenParams = Array.isArray(tokenData.params) ? tokenData.params : [];
+  const renderTokenImage = (className, alt) => h("div", { className },
+    tokenImage && !tokenImageFailed
+      ? h("img", { src: tokenImage, alt, onError: () => setTokenImageFailed(true) })
+      : h("span", { className: "pv-token-image-empty", role: "img", "aria-label": alt + "：画像なし" }, "◈")
+  );
+  const renderTokenStatus = (entry) => {
+    const value = Number(entry.value);
+    const max = Number(entry.max);
+    const hasRatio = Number.isFinite(value) && Number.isFinite(max) && max > 0;
+    const ratio = hasRatio ? Math.max(0, Math.min(100, value / max * 100)) : 0;
+    return h("div", { key: String(entry.label || ""), className: "pv-token-status" },
+      h("div", { className: "pv-token-status-top" },
+        h("span", { className: "pv-token-status-label" }, String(entry.label || "状態")),
+        h("span", { className: "pv-token-status-value" }, String(entry.value ?? "—") + (entry.max == null ? "" : " / " + entry.max))
+      ),
+      h("div", { className: "pv-token-status-track", "aria-hidden": "true" },
+        h("span", { style: { width: String(ratio) + "%", backgroundColor: tokenColor } })
+      )
+    );
+  };
+  const renderTokenPreview = () => h("section", { className: "pv-token-preview", "aria-label": "ココフォリア駒プレビュー" },
+    h("header", { className: "pv-token-preview-head" },
+      h("div", null,
+        h("div", { className: "pv-token-eyebrow" }, "CCFOLIA / TOKEN PREVIEW"),
+        h("h3", null, "駒プレビュー"),
+        h("p", null, "出力される画像・名前・行動順を確認します")
+      ),
+      h("div", { className: "pv-token-mode-switch", role: "tablist", "aria-label": "駒の表示方式" },
+        h("button", { type: "button", role: "tab", "aria-selected": tokenMode === "board", className: tokenMode === "board" ? "is-active" : "", onClick: () => setTokenMode("board") }, "盤面"),
+        h("button", { type: "button", role: "tab", "aria-selected": tokenMode === "sheet", className: tokenMode === "sheet" ? "is-active" : "", onClick: () => setTokenMode("sheet") }, "シート")
+      )
+    ),
+    tokenMode === "board"
+      ? h("div", { className: "pv-token-board-view" },
+          h("div", { className: "pv-token-board", "aria-label": "盤面上の駒の見え方" },
+            h("div", { className: "pv-token-board-grid", "aria-hidden": "true" }),
+            h("div", { className: "pv-token-board-token", style: { "--pv-token-color": tokenColor } },
+              h("span", { className: "pv-token-initiative" }, "行動順 " + String(tokenData.initiative ?? 0)),
+              renderTokenImage("pv-token-board-avatar", tokenName + "の駒画像"),
+              h("strong", { className: "pv-token-board-name" }, tokenName)
+            )
+          ),
+          h("div", { className: "pv-token-board-details" },
+            h("div", { className: "pv-token-identity" },
+              h("span", null, "PL"),
+              h("strong", null, String(tokenData.playerName || "未設定"))
+            ),
+            h("div", { className: "pv-token-status-grid" },
+              tokenStatus.filter((entry) => ["HP", "SAN"].includes(String(entry.label || "").toUpperCase())).map(renderTokenStatus)
+            )
+          )
+        )
+      : h("div", { className: "pv-token-sheet-view" },
+          h("div", { className: "pv-token-sheet-layout" },
+            h("div", { className: "pv-token-sheet-portrait", style: { "--pv-token-color": tokenColor } },
+              renderTokenImage("pv-token-sheet-image", tokenName + "の立ち絵")
+            ),
+            h("div", { className: "pv-token-sheet-main" },
+              h("div", { className: "pv-token-sheet-overline" }, "CHARACTER SHEET"),
+              h("div", { className: "pv-token-sheet-title-row" },
+                h("h3", null, tokenName),
+                h("span", { className: "pv-token-sheet-init", style: { borderColor: tokenColor } }, "行動順 " + String(tokenData.initiative ?? 0))
+              ),
+              h("p", { className: "pv-token-sheet-player" }, "PL　" + String(tokenData.playerName || "未設定")),
+              h("div", { className: "pv-token-sheet-section-title" }, "ステータス"),
+              h("div", { className: "pv-token-status-grid" }, tokenStatus.slice(0, 8).map(renderTokenStatus)),
+              tokenParams.length ? h(React.Fragment, null,
+                h("div", { className: "pv-token-sheet-section-title" }, "パラメータ"),
+                h("div", { className: "pv-token-param-grid" },
+                  tokenParams.slice(0, 8).map((entry) => h("div", { key: String(entry.label || ""), className: "pv-token-param" },
+                    h("span", null, String(entry.label || "ラベル")),
+                    h("strong", null, String(entry.value ?? "—"))
+                  ))
+                )
+              ) : null
+            )
+          )
+        )
+  );
+
   const readiness = window.LBT_getSessionReadiness?.(state) || [];
   const readinessKey = readiness.map((entry) => entry.id).join(",");
   const readinessLabel = readiness.map((entry) => entry.label).join("・");
@@ -243,6 +338,6 @@ const LivePreview = ({ state, dispatch }) => {
       }
     )));
   };
-  return /* @__PURE__ */ React.createElement("aside", { id: "preview-panel", "aria-label": "プレビュー", className: `preview${state.ui.previewOpen ? " is-open" : ""}` }, /* @__PURE__ */ React.createElement("div", { className: "preview-tabs" }, /* @__PURE__ */ React.createElement("button", { className: `preview-tab${tab === "memo" ? " is-active" : ""}`, onClick: () => setTab("memo") }, "MEMO"), /* @__PURE__ */ React.createElement("button", { className: `preview-tab${tab === "palette" ? " is-active" : ""}`, onClick: () => setTab("palette") }, "PALETTE"), /* @__PURE__ */ React.createElement("button", { className: `preview-tab${tab === "json" ? " is-active" : ""}`, onClick: () => setTab("json") }, "JSON")), /* @__PURE__ */ React.createElement("div", { className: "preview-body", ...(tab === "memo" ? memoDnd.scrollContainerProps : tab === "palette" ? paletteDnd.scrollContainerProps : {}) }, tab === "memo" && renderSectioned(memoSections, "memo", memoDnd), tab === "palette" && renderSectioned(paletteSections, "palette", paletteDnd), tab === "json" && /* @__PURE__ */ React.createElement("div", { style: { whiteSpace: "pre-wrap" } }, json)), /* @__PURE__ */ React.createElement("div", { className: "preview-hint" }, tab === "memo" && "\u8AAD\u307F\u7269\u5F62\u5F0F\u306E\u8981\u7D04 \u2014 \u6298\u308A\u7573\u307F\u306F\u5404\u898B\u51FA\u3057\u30FB\u4E26\u3079\u66FF\u3048\u306F \u22EE\u22EE / \u2191\u2193", tab === "palette" && "\u30C1\u30E3\u30C3\u30C8\u30D1\u30EC\u30C3\u30C8\u5F62\u5F0F \u2014 \u6298\u308A\u7573\u307F\u306F\u8868\u793A\u306E\u307F\u30FB\u4E26\u3079\u66FF\u3048\u306F \u22EE\u22EE / \u2191\u2193", tab === "json" && "ccfolia \u30AD\u30E3\u30E9\u30AF\u30BF\u30FCJSON \u2014 \u300C\u30AF\u30EA\u30C3\u30D7\u30DC\u30FC\u30C9\u304B\u3089\u8FFD\u52A0\u300D\u3067\u8CBC\u4ED8"), /* @__PURE__ */ React.createElement("div", { className: "preview-actions" }, /* @__PURE__ */ React.createElement(Button, { size: "sm", icon: "copy", onClick: copyCurrent, className: "grow" }, "\u73FE\u5728\u306E\u30BF\u30D6\u3092\u30B3\u30D4\u30FC"), /* @__PURE__ */ React.createElement(Button, { size: "sm", variant: "primary", icon: "check", onClick: copyJson }, "JSON")));
+  return /* @__PURE__ */ React.createElement("aside", { id: "preview-panel", "aria-label": "プレビュー", className: `preview${state.ui.previewOpen ? " is-open" : ""}` }, /* @__PURE__ */ React.createElement("div", { className: "preview-tabs" }, /* @__PURE__ */ React.createElement("button", { className: `preview-tab${tab === "memo" ? " is-active" : ""}`, onClick: () => setTab("memo") }, "MEMO"), /* @__PURE__ */ React.createElement("button", { className: `preview-tab${tab === "palette" ? " is-active" : ""}`, onClick: () => setTab("palette") }, "PALETTE"), /* @__PURE__ */ React.createElement("button", { className: `preview-tab${tab === "json" ? " is-active" : ""}`, onClick: () => setTab("json") }, "JSON"), h("button", { className: tab === "token" ? "preview-tab is-active" : "preview-tab", onClick: () => setTab("token"), title: "ココフォリア駒の表示を確認", "aria-label": "ココフォリア駒プレビュー" }, "駒")), /* @__PURE__ */ React.createElement("div", { className: "preview-body", ...(tab === "memo" ? memoDnd.scrollContainerProps : tab === "palette" ? paletteDnd.scrollContainerProps : {}) }, tab === "memo" && renderSectioned(memoSections, "memo", memoDnd), tab === "palette" && renderSectioned(paletteSections, "palette", paletteDnd), tab === "json" && /* @__PURE__ */ React.createElement("div", { style: { whiteSpace: "pre-wrap" } }, json), tab === "token" && renderTokenPreview()), /* @__PURE__ */ React.createElement("div", { className: "preview-hint" }, tab === "memo" && "\u8AAD\u307F\u7269\u5F62\u5F0F\u306E\u8981\u7D04 \u2014 \u6298\u308A\u7573\u307F\u306F\u5404\u898B\u51FA\u3057\u30FB\u4E26\u3079\u66FF\u3048\u306F \u22EE\u22EE / \u2191\u2193", tab === "palette" && "\u30C1\u30E3\u30C3\u30C8\u30D1\u30EC\u30C3\u30C8\u5F62\u5F0F \u2014 \u6298\u308A\u7573\u307F\u306F\u8868\u793A\u306E\u307F\u30FB\u4E26\u3079\u66FF\u3048\u306F \u22EE\u22EE / \u2191\u2193", tab === "json" && "ccfolia \u30AD\u30E3\u30E9\u30AF\u30BF\u30FCJSON \u2014 \u300C\u30AF\u30EA\u30C3\u30D7\u30DC\u30FC\u30C9\u304B\u3089\u8FFD\u52A0\u300D\u3067\u8CBC\u4ED8"), /* @__PURE__ */ React.createElement("div", { className: "preview-actions" }, /* @__PURE__ */ React.createElement(Button, { size: "sm", icon: "copy", onClick: copyCurrent, className: "grow" }, "\u73FE\u5728\u306E\u30BF\u30D6\u3092\u30B3\u30D4\u30FC"), /* @__PURE__ */ React.createElement(Button, { size: "sm", variant: "primary", icon: "check", onClick: copyJson }, "JSON")));
 };
 window.LivePreview = LivePreview;
