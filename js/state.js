@@ -3722,7 +3722,7 @@ const INIT_STATE = {
     currentSection: "baseinfo",
     previewTab: "memo",
     previewOpen: void 0,
-    // 未設定は初期折り畳み。利用者が明示的に開閉した場合だけ true/false を保存する。
+    // 未設定時はデスクトップで表示、小画面では折り畳み。明示的な開閉選択を優先する。
     codexMode: "n",
     // 'n'|'t'|'roster'|'fav'|'history'
     filterSins: [],
