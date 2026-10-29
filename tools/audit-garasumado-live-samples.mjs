@@ -386,6 +386,25 @@ function auditExplicitSpendCues(lines, spendTrace, reasons, coverages, audits) {
     const coverage = (coverages || []).find((entry) => entry && Number(entry.lineIndex) === lineIndex);
     const hasParserReason = (reasons || []).some((entry) => String(entry?.line || "").trim() === original);
     const hasRelatedAudit = isRelated(audits || [], lineIndex);
+    let isolatedSpendRows = 0;
+    let isolatedReasonCount = 0;
+    if (sameLineSpends.length === 0) {
+      /* Test this candidate in isolation to separate unsupported syntax from history-context
+         suppression. Restore instrumentation arrays immediately so this diagnostic does not
+         contaminate the main memo trace or alter its totals. */
+      const eventArrays = [
+        parserContext.window.__lbtAuditIncomeEvents,
+        parserContext.window.__lbtAuditIncomePairEvents,
+        parserContext.window.__lbtAuditSpendEvents
+      ];
+      const previousLengths = eventArrays.map((events) => events.length);
+      const isolated = MEMO.parseMemo(original);
+      isolatedSpendRows = (isolated.spends || []).filter((row) =>
+        (Number(row?.lp) || 0) !== 0 || (Number(row?.shards) || 0) !== 0
+      ).length;
+      isolatedReasonCount = (isolated.reasons || []).length;
+      eventArrays.forEach((events, index) => { events.length = previousLengths[index]; });
+    }
     candidates.push({
       lineIndex,
       hasExplicitSpendAction,
@@ -394,6 +413,9 @@ function auditExplicitSpendCues(lines, spendTrace, reasons, coverages, audits) {
       hasNegativeCurrency,
       spendRecords: sameLineSpends.length,
       hasSpendRecord: sameLineSpends.length > 0,
+      isolatedSpendRows,
+      isolatedReasonCount,
+      isolatedParseWouldSpend: isolatedSpendRows > 0,
       hasParserReason,
       hasRelatedAudit,
       status: String(coverage?.status || "no-coverage"),
@@ -414,6 +436,8 @@ function auditExplicitSpendCues(lines, spendTrace, reasons, coverages, audits) {
     usageNearCurrencyRows: candidates.filter((row) => row.usageNearCurrency).length,
     negativeCurrencyRows: candidates.filter((row) => row.hasNegativeCurrency).length,
     rowsWithSpendRecord: candidates.filter((row) => row.hasSpendRecord).length,
+    missingRowsThatParseAsSpendInIsolation: missing.filter((row) => row.isolatedParseWouldSpend).length,
+    missingRowsThatDoNotParseAsSpendInIsolation: missing.filter((row) => !row.isolatedParseWouldSpend).length,
     rowsWithoutSpendRecord: missing.length,
     rowsWithoutSpendRecordWithReason: missing.filter((row) => row.hasParserReason || row.hasRelatedAudit || row.needsReview).length,
     rowsWithoutSpendRecordUnexplained: missing.filter((row) => !row.needsReview).length,
@@ -934,6 +958,8 @@ function toMarkdownReport(report) {
     ["うち通貨額の近くに「使用／使い」がある", report.parser.explicitSpendCueAuditSummary.usageNearCurrencyRows],
     ["うち支出明細が同じ行にある", report.parser.explicitSpendCueAuditSummary.rowsWithSpendRecord],
     ["支出明細がない候補（理由・要確認あり）", report.parser.explicitSpendCueAuditSummary.rowsWithoutSpendRecordWithReason],
+    ["支出明細がないが単独解析なら支出になる行", report.parser.explicitSpendCueAuditSummary.missingRowsThatParseAsSpendInIsolation],
+    ["単独解析でも支出にならない行", report.parser.explicitSpendCueAuditSummary.missingRowsThatDoNotParseAsSpendInIsolation],
     ["支出明細も理由もない候補", report.parser.explicitSpendCueAuditSummary.rowsWithoutSpendRecordUnexplained],
     ["負の通貨額なのに支出明細がない行", report.parser.explicitSpendCueAuditSummary.negativeCurrencyRowsWithoutSpendRecord],
     ["支出明細ゼロかつ負の残差がある文書", report.parser.explicitSpendCueAuditSummary.documentsWithNoParsedSpendAndNegativeResidual],
@@ -1020,10 +1046,10 @@ function toMarkdownReport(report) {
     "",
     "この一覧は支出と断定したものではありません。原文に戻らずとも、数値トークンの数、通貨種別、記述内の操作語・残高語・チケット語、パーサーのcoverage状態を比較し、未解析の実支出か、アイテム数や状態注記などの誤候補かを切り分けるための構造情報です。具体的な数値・原文・アイテム名は出力しません。",
     "",
-    "| URL ID | 履歴行 | メモ行 | 支出語句 | 負額 | coverage | 理由 | 監査関連 | 行長 | 金額候補数 | 通貨/桁幅 | 操作分類 | 残高語 | チケット分類 |",
-    "|---|---:|---:|---|---|---|---|---|---:|---:|---|---|---|---|",
+    "| URL ID | 履歴行 | メモ行 | 支出語句 | 負額 | coverage | 理由 | 監査関連 | 行長 | 金額候補数 | 通貨/桁幅 | 操作分類 | 残高語 | チケット分類 | 単独解析支出 | 単独支出行数 | 単独理由数 |",
+    "|---|---:|---:|---|---|---|---|---|---:|---:|---|---|---|---|---|---:|---:|---|",
     ...report.parser.explicitSpendCueAuditDocuments.flatMap((document) =>
-      document.missingRows.map((row) => "| " + document.id + " | " + row.historyRow + " | " + row.lineIndex + " | " + Number(row.hasExplicitSpendAction) + " | " + Number(row.hasNegativeCurrency) + " | " + row.status + " | " + Number(row.hasParserReason) + " | " + Number(row.hasRelatedAudit) + " | " + row.lineShape.lineLength + " | " + row.lineShape.amountTokenCount + " | " + row.lineShape.amountTokenShape.map((token) => token.currency + ":" + token.digitWidth).join(",") + " | " + row.lineShape.actionKinds.join("+") + " | " + Number(row.lineShape.hasBalanceCue) + " | " + Number(row.lineShape.ticketClassified) + " |")
+      document.missingRows.map((row) => "| " + document.id + " | " + row.historyRow + " | " + row.lineIndex + " | " + Number(row.hasExplicitSpendAction) + " | " + Number(row.hasNegativeCurrency) + " | " + row.status + " | " + Number(row.hasParserReason) + " | " + Number(row.hasRelatedAudit) + " | " + row.lineShape.lineLength + " | " + row.lineShape.amountTokenCount + " | " + row.lineShape.amountTokenShape.map((token) => token.currency + ":" + token.digitWidth).join(",") + " | " + row.lineShape.actionKinds.join("+") + " | " + Number(row.lineShape.hasBalanceCue) + " | " + Number(row.lineShape.ticketClassified) + " | " + Number(row.isolatedParseWouldSpend) + " | " + row.isolatedSpendRows + " | " + row.isolatedReasonCount + " |")
     ),
     "",
     "## 収支方向の期待値とパーサー検出値の差（推定・非確定）",
@@ -1599,6 +1625,8 @@ const explicitSpendCueAuditDocuments = successful.map((entry) => {
     rowsWithoutSpendRecordWithReason: sum("rowsWithoutSpendRecordWithReason"),
     rowsWithoutSpendRecordUnexplained: sum("rowsWithoutSpendRecordUnexplained"),
     negativeCurrencyRowsWithoutSpendRecord: sum("negativeCurrencyRowsWithoutSpendRecord"),
+    missingRowsThatParseAsSpendInIsolation: sum("missingRowsThatParseAsSpendInIsolation"),
+    missingRowsThatDoNotParseAsSpendInIsolation: sum("missingRowsThatDoNotParseAsSpendInIsolation"),
     missingRowsByStatus: statuses,
     missingRows: (entry.parsedRows || []).flatMap((memo) =>
       (memo.explicitSpendCueAudit?.missingRows || []).map((row) => ({
