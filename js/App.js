@@ -1744,7 +1744,7 @@ const App = () => {
     document.addEventListener("focusin", onFocusIn, true);
     return () => document.removeEventListener("focusin", onFocusIn, true);
   }, []);
-  const current = state.ui.currentSection || "baseinfo";
+  const current = state.ui.currentSection || "home";
   const isBuildWorkspace = ["baseinfo", "persona", "skill", "passive", "enh", "support", "ego", "spirit", "items-build"].includes(current);
   const sec = SECTIONS.find((s) => s.id === current) || SECTIONS[0];
   const renderSection = () => {
