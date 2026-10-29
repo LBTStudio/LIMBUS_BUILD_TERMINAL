@@ -133,16 +133,24 @@ const LivePreview = ({ state, dispatch }) => {
   const tokenMode = state.ui.tokenPreviewMode === "sheet" ? "sheet" : "board";
   const setTokenMode = (mode) => dispatch({ type: "SET_UI", ui: { tokenPreviewMode: mode } });
   const [tokenImageFailed, setTokenImageFailed] = React.useState(false);
-  React.useEffect(() => { setTokenImageFailed(false); }, [tokenImage]);
+  const [failedPreviewImages, setFailedPreviewImages] = React.useState([]);
+  React.useEffect(() => { setTokenImageFailed(false); setFailedPreviewImages([]); }, [tokenImage]);
   const tokenName = String(tokenData.name || "キャラクター");
   const tokenColor = /^#[0-9a-f]{6}$/i.test(String(tokenData.color || "")) ? tokenData.color : "#c8a84b";
   const tokenStatus = Array.isArray(tokenData.status) ? tokenData.status : [];
   const tokenParams = Array.isArray(tokenData.params) ? tokenData.params : [];
-  const renderPreviewImage = (src, className, alt) => h("div", { className },
-    src && !tokenImageFailed
-      ? h("img", { src, alt, onError: () => setTokenImageFailed(true) })
-      : h("span", { className: "pv-ccfolia-empty-media", role: "img", "aria-label": alt + "：画像なし" }, "画像なし")
-  );
+  const renderPreviewImage = (src, className, alt) => {
+    const failed = src === tokenImage ? tokenImageFailed : failedPreviewImages.includes(src);
+    const markFailed = () => {
+      if (src === tokenImage) setTokenImageFailed(true);
+      else setFailedPreviewImages((current) => current.includes(src) ? current : [...current, src]);
+    };
+    return h("div", { className },
+      src && !failed
+        ? h("img", { src, alt, onError: markFailed })
+        : h("span", { className: "pv-ccfolia-empty-media", role: "img", "aria-label": alt + "：画像なし" }, "画像なし")
+    );
+  };
   const previewField = (label, value, extraClass = "") => h("div", { className: "pv-ccfolia-field " + extraClass },
     h("div", { className: "pv-ccfolia-field-label" }, label),
     h("div", { className: "pv-ccfolia-field-value" }, value == null || value === "" ? "（未設定）" : String(value))
@@ -226,12 +234,7 @@ const LivePreview = ({ state, dispatch }) => {
             h("article", { className: "pv-ccfolia-roster-character" },
               renderPreviewImage(tokenImage, "pv-ccfolia-roster-avatar", tokenName + "のアイコン"),
               h("div", { className: "pv-ccfolia-roster-main" },
-                h("div", { className: "pv-ccfolia-roster-name-row" },
-                  h("strong", { className: "pv-ccfolia-roster-name" }, tokenName),
-                  h("span", { className: "pv-ccfolia-roster-init" }, String(tokenData.initiative ?? 0))
-                ),
-                h("div", { className: "pv-ccfolia-roster-player" },
-                  "PL：", String(tokenData.playerName || "未設定"))
+                h("strong", { className: "pv-ccfolia-roster-name" }, tokenName)
               )
             ),
             h("div", { className: "pv-ccfolia-roster-statuses" },
@@ -261,6 +264,7 @@ const LivePreview = ({ state, dispatch }) => {
             ),
             h("div", { className: "pv-ccfolia-editor-fields" },
               previewField("キャラクター名", tokenName),
+              previewField("プレイヤー", tokenData.playerName),
               previewField("イニシアティブ", tokenData.initiative ?? 0),
               previewField("メモ", tokenData.memo, "is-memo"),
               previewField("サイズ", "ルーム側の既定値（JSONで未指定）"),
