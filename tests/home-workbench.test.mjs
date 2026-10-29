@@ -10,18 +10,20 @@ const persona = read("../js/PersonaCodex.js");
 const state = read("../js/state.js");
 const css = read("../assets/workspace.css");
 
-test("ホームが左レールの入口になり、ビルド内に基本タブを置く", () => {
+test("Bタイプはビルドを主作業面にし、ホームを補助入口として残す", () => {
   const nav = app.slice(app.indexOf("const SECTIONS = ["), app.indexOf("function isComplete"));
   assert.match(nav, /id: "home", label: "ホーム", icon: "home"/);
   assert.match(ui, /const ICON_PATHS = \{[\s\S]*?\bhome:/);
   assert.match(nav, /id: "persona", label: "ビルド"/);
   assert.doesNotMatch(nav, /id: "baseinfo"/);
   assert.match(app, /s\.id === "persona" \? "baseinfo" : s\.id/);
-  assert.match(app, /const current = state\.ui\.currentSection \|\| "home"/);
-  assert.match(state, /currentSection: "home"/);
+  assert.match(app, /const current = state\.ui\.currentSection \|\| "baseinfo"/);
+  assert.match(state, /currentSection: "baseinfo"/);
+  assert.match(state, /next\.ui\.layoutVersion !== "b-workbench-v1"/);
+  assert.match(state, /layoutVersion: ui\.layoutVersion/);
 });
 
-test("基本タブは既存の駒整形コンポーネントを再利用し、保存状態を移行しない", () => {
+test("基本タブは既存の駒整形コンポーネントを再利用し、キャラクター状態を二重管理しない", () => {
   assert.match(sections, /id: "baseinfo", label: "基本"/);
   assert.match(sections, /active\.id === "baseinfo"[\s\S]*?window\.LBT_BaseInfoWorkspace/);
   assert.match(persona, /window\.LBT_BaseInfoWorkspace = BaseInfoWorkspace/);
@@ -59,6 +61,24 @@ test("ホームランチャーは狭幅では1列になり、キーボードで�
   assert.match(css, /\.home-task-grid \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(css, /@media \(max-width: 640px\)[\s\S]*?\.home-task-grid \{ grid-template-columns: minmax\(0, 1fr\); \}/);
   assert.match(css, /\.home-task:focus-visible/);
+});
+
+test("Bタイプのナビは制作・データ管理・補助を区別し、取り込み先を選べる", () => {
+  for (const label of ["制作", "データ管理", "補助"]) assert.ok(app.includes(`label: "${label}"`));
+  assert.match(app, /className: `rail-group rail-group-\$\{group\.id\}`/);
+  assert.match(app, /const ImportRouterDialog =/);
+  for (const route of ['"persona"', '"result"', '"garasumado"', '"owned"']) assert.ok(app.includes(`id: ${route}`), `取り込み経路 ${route}`);
+  assert.match(app, /onOpenImportRouter: openImportRouter/);
+  assert.match(app, /className: "import-router-options"/);
+});
+
+test("ビルドは作業対象と保存状態を常時表示し、タブ列を固定する", () => {
+  assert.match(sections, /className: "build-context-strip"/);
+  assert.match(sections, /className: "build-context-target"/);
+  assert.match(sections, /className: `build-context-save is-\$\{saveStatus\?\.phase \|\| "saving"\}`/);
+  assert.match(css, /\.build-tabs\.is-b-workbench \{[\s\S]*?position: sticky/);
+  assert.match(css, /\.rail-group \{[\s\S]*?flex-direction: column/);
+  assert.match(css, /@media \(max-width: 640px\)[\s\S]*?\.import-router-options \{ grid-template-columns: minmax\(0, 1fr\); \}/);
 });
 
 test("プレビュー用キャプチャーは現行の「ビルド」表示を使う", () => {

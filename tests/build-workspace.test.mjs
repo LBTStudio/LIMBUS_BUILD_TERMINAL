@@ -68,7 +68,7 @@ test("renderSection は基本を含む9タブのビルドへ振り分ける", ()
   for (const id of ["baseinfo", "persona", "skill", "passive", "enh", "support", "ego", "spirit", "items-build"]) {
     assert.match(block, new RegExp(`case "${id}":`), `${id} の case が無い`);
   }
-  assert.match(block, /React\.createElement\(BuildWorkspace, \{ state, dispatch \}\)/);
+  assert.match(block, /React\.createElement\(BuildWorkspace, \{ state, dispatch, saveStatus \}\)/);
   assert.match(block, /React\.createElement\(ShopSection, \{ state, dispatch \}\)/);
   assert.doesNotMatch(block, /React\.createElement\(PersonaCodex/);
   assert.doesNotMatch(block, /React\.createElement\(EgoSection/);
@@ -174,7 +174,8 @@ test("未所持のカードからその場で買える", () => {
 test("レールのビルド項目は旧IDでもアクティブになり、必須3項目の合成でドットを出す", () => {
   const block = app.slice(app.indexOf("const RailNavigation ="), app.indexOf("const App = ()"));
   assert.match(block, /const isBuild = s\.id === "persona";/);
-  assert.match(block, /const active = isBuild \? \["baseinfo", "persona", "skill", "passive", "enh", "support", "ego", "spirit", "items-build"\]\.includes\(current\) : current === s\.id;/);
+  assert.match(block, /const buildIds = \["baseinfo", "persona", "skill", "passive", "enh", "support", "ego", "spirit", "items-build"\];/);
+  assert.match(block, /const active = isBuild \? buildIds\.includes\(current\) : current === s\.id;/);
   assert.match(block, /isComplete\("persona", state\) && isComplete\("skill", state\) && isComplete\("passive", state\)/);
   /* 強化はビルドのタブになったので、専用の溢れ指定は要らない。 */
   assert.doesNotMatch(block, /is-overflow/);
@@ -237,7 +238,9 @@ test("BuildWorkspace は基本を含む9タブをもち、所持タブだけ ros
   assert.match(sections, /const owned = !!active\.owned;/);
   assert.match(sections, /const panelProps = \["persona", "support", "ego", "spirit"\]\.includes\(active\.id\) \? \{ ownedOnly: owned \} : \{\};/);
   assert.match(sections, /const setTab = \(id\) => dispatch\(\{ type: "SET_UI", ui: \{ currentSection: id \} \}\);/);
-  assert.match(sections, /h\(SectionTitle, \{ num: active\.num, title: active\.title, subtitle: active\.subtitle \}\)/);
+  assert.match(sections, /h\(SectionTitle, \{ num: "01", title: "ビルド", subtitle: "基本設定・人格・スキル・パッシブ・強化・サポート・E\.G\.O・精神・アイテム" \}\)/);
+  assert.match(sections, /className: "build-context-strip"/);
+  assert.match(sections, /saveStatus\?\.phase === "saved"/);
   assert.match(sections, /Object\.assign\(window, \{[\s\S]*?BuildWorkspace,[\s\S]*?ShopSection,/);
 });
 

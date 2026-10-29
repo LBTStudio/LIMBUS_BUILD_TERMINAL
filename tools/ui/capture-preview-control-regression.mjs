@@ -108,6 +108,12 @@ async function createDisposableAccount(page,profile) {
       await existing.click({timeout:5000});
     }
   }
+  // The refined workbench uses Build as the default section, so navigate to Home explicitly
+  // before checking Home branding and taking the current-label regression screenshot.
+  const homeNav = page.locator(".rail-item[title='ホーム']");
+  await homeNav.waitFor({ state: "visible", timeout: 10000 });
+  await homeNav.click();
+  await page.locator(".home-hero").waitFor({ state: "visible", timeout: 10000 });
   // Assert current branding before entering the Build editor; prevents stale Workbench screenshots.
   const buildNav = page.locator(".rail-item[title='ビルド']");
   const legacyWorkbenchNav = page.locator(".rail-item[title='ワークベンチ']");

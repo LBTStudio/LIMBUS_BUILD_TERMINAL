@@ -2957,7 +2957,7 @@ tab !== "item" ? h(Button, {
       shownList)
   );
 };
-const BuildWorkspace = ({ state, dispatch }) => {
+const BuildWorkspace = ({ state, dispatch, saveStatus }) => {
   const h = React.createElement;
   const current = state.ui?.currentSection || "persona";
   const active = BUILD_TABS.find((tab) => tab.id === current) || BUILD_TABS[0];
@@ -3005,9 +3005,20 @@ const BuildWorkspace = ({ state, dispatch }) => {
       hidden: tab.id !== active.id
     }, visitedRef.current.includes(tab.id) && cache ? cache.element : null);
   });
-  return h("div", { className: "build-workspace" },
-    h(SectionTitle, { num: active.num, title: active.title, subtitle: active.subtitle }),
-    h("div", { className: "build-tabs" },
+  return h("div", { className: "build-workspace b-workbench" },
+    h(SectionTitle, { num: "01", title: "ビルド", subtitle: "基本設定・人格・スキル・パッシブ・強化・サポート・E.G.O・精神・アイテム" }),
+    h("div", { className: "build-context-strip", "aria-label": "ビルドの作業状態" },
+      h("div", { className: "build-context-target" },
+        h("span", { className: "build-context-label" }, "作業対象"),
+        h("strong", { className: "build-context-name" }, String(state.charName || "名称未設定"))
+      ),
+      h("span", { className: "build-context-current-tab" }, active.label),
+      h("span", { className: "build-context-chip" }, state.personaSrc ? "人格装備済み" : "人格未選択"),
+      h("span", { className: `build-context-save is-${saveStatus?.phase || "saving"}`, role: "status" },
+        saveStatus?.phase === "saved" ? "端末内に自動保存済み" : saveStatus?.phase === "error" ? "ファイル保存を推奨" : "端末内へ自動保存中"
+      )
+    ),
+    h("div", { className: "build-tabs is-b-workbench" },
       h("div", { className: "segmented", role: "tablist", "aria-label": "ビルドセクション" },
         BUILD_TABS.map((tab) => h("button", {
           key: tab.id,
