@@ -43,3 +43,11 @@
 .baseinfo-workspace :is(.settings-major,.settings-disclosure) :is(button,input,select,textarea):focus-visible{outline:2px solid #f0d99a;outline-offset:2px}
 @media(max-width:700px){.base-info-panel .piece-control-grid{grid-template-columns:minmax(0,1fr)}.base-info-panel .piece-input-group.span2{grid-column:1}.base-info-panel .piece-art-wrap{grid-template-columns:minmax(0,1fr) 58px}.base-info-panel .piece-panel,.baseinfo-workspace .settings-major-body{padding:10px}.base-info-panel .piece-token-card{padding:8px}.baseinfo-workspace .settings-status-workspace-head{display:grid;grid-template-columns:minmax(0,1fr)}.baseinfo-workspace .status-order-scroll table{min-width:600px}}
 }
+
+/* These rules intentionally remain unlayered: the existing app's unlayered .segmented rules
+   outrank layered declarations regardless of specificity. Keep the build tabs on one
+   horizontally scrollable rail on touch widths rather than wrapping into three rows. */
+.build-tabs.is-b-workbench .segmented{display:flex;flex-wrap:nowrap!important;overflow-x:auto;overflow-y:hidden;overscroll-behavior-inline:contain;scrollbar-width:thin;max-width:100%;white-space:nowrap}
+.build-tabs.is-b-workbench .segmented>[role=tab]{flex:0 0 auto;white-space:nowrap;min-width:max-content}
+.build-tabs.is-b-workbench .segmented>[role=tab]:focus-visible{position:relative;z-index:1}
+@media(max-width:600px){.build-tabs.is-b-workbench{max-width:100%;overflow:hidden}.build-tabs.is-b-workbench .segmented{gap:3px;padding:3px}.build-tabs.is-b-workbench .segmented>[role=tab]{padding:7px 10px;font-size:11px}}
