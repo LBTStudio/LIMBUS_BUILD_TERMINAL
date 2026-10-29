@@ -132,7 +132,7 @@ async function readMetrics() {
     const dialogs = [...document.querySelectorAll('[role="dialog"],[aria-modal="true"],.share-modal-backdrop,.acct-overlay,.utility-sheet-backdrop,.cp-overlay')].filter(isVisible).map(e=>({className:typeof e.className==="string"?e.className:"",label:e.getAttribute("aria-label")||e.getAttribute("aria-labelledby")||(e.innerText||"").trim().slice(0,55),rect:rect(e)}));
     const smallTargets=[...document.querySelectorAll("button,[role=button],input,select,textarea,a[href]")].filter(isVisible).map(e=>({label:(e.getAttribute("aria-label")||e.innerText||e.getAttribute("title")||e.getAttribute("placeholder")||"").trim().replace(/\s+/g," ").slice(0,32),rect:rect(e)})).filter(x=>x.rect.width<32||x.rect.height<32).slice(0,25);
     const horizontalScrollers=[...document.querySelectorAll("body *")].filter(e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);return r.width>80&&r.height>20&&e.scrollWidth>e.clientWidth+12&&["auto","scroll","hidden"].includes(s.overflowX);}).slice(0,24).map(e=>({tag:e.tagName,className:typeof e.className==="string"?e.className:"",label:(e.getAttribute("aria-label")||e.innerText||"").trim().replace(/\s+/g," ").slice(0,42),clientWidth:e.clientWidth,scrollWidth:e.scrollWidth,overflowX:getComputedStyle(e).overflowX,rect:rect(e)}));
-    const layoutElements=[...document.querySelectorAll("#lbt-preview-edge-toggle,.preview,.preview-reopen,.preview-close,.preview-edge-toggle,.preview-actions,.preview-hint,.preview-tabs,.focus,.rail,.section-title-row,.section-title,.build-tabs,.record-tabbar")].filter(isVisible).map(e=>{const s=getComputedStyle(e);return {tag:e.tagName,id:e.id||"",className:typeof e.className==="string"?e.className:"",text:(e.innerText||"").trim().replace(/\s+/g," ").slice(0,48),rect:rect(e),style:{position:s.position,display:s.display,top:s.top,right:s.right,bottom:s.bottom,width:s.width,height:s.height,writingMode:s.writingMode,opacity:s.opacity,zIndex:s.zIndex,pointerEvents:s.pointerEvents}};});
+    const layoutElements=[...document.querySelectorAll("#lbt-preview-edge-toggle,.preview,.preview-reopen,.preview-close,.preview-edge-toggle,.preview-actions,.preview-hint,.preview-tabs,.focus,.rail,.section-title-row,.section-title,.build-tabs,.baseinfo-workspace,.build-params-shell,.build-params-tabs,.basic-ccfolia-preview,.basic-preview-mode-tabs,.basic-preview-panel,.record-tabbar")].filter(isVisible).map(e=>{const s=getComputedStyle(e);return {tag:e.tagName,id:e.id||"",className:typeof e.className==="string"?e.className:"",text:(e.innerText||"").trim().replace(/\s+/g," ").slice(0,48),rect:rect(e),style:{position:s.position,display:s.display,top:s.top,right:s.right,bottom:s.bottom,width:s.width,height:s.height,writingMode:s.writingMode,opacity:s.opacity,zIndex:s.zIndex,pointerEvents:s.pointerEvents}};});
     return {viewport:{width:innerWidth,height:innerHeight},document:{width:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight},horizontalOverflow:document.documentElement.scrollWidth>innerWidth+2,horizontalScrollers,layoutElements,dialogs,smallTargets,activeElement:document.activeElement?{tag:document.activeElement.tagName,aria:document.activeElement.getAttribute("aria-label"),text:(document.activeElement.innerText||"").trim().slice(0,40)}:null};
   });
 }
@@ -542,6 +542,55 @@ async function captureProfile(browser, mode) {
         }
       });
     }
+    /* The Basic workspace has its own three CCFOLIA formatting tabs and the
+       preview itself has three real-output views. Capture and validate every
+       layer on both desktop and mobile; the outer Build tab alone is not enough. */
+    await attempt("basic-ccfolia-workspace",async()=>{
+      const basicTab=page.locator(".build-tabs").getByRole("tab",{name:"基本",exact:true}).first();
+      await basicTab.waitFor({state:"visible",timeout:5000});
+      await click(basicTab);
+      await page.locator(".build-params-shell").waitFor({state:"visible",timeout:5000});
+
+      const statusTab=page.locator("#build-params-tab-statuses");
+      await click(statusTab);
+      if(await statusTab.getAttribute("aria-selected")!=="true") throw new Error("STタブが選択状態になりません");
+      await page.locator("#build-params-panel-statuses").waitFor({state:"visible",timeout:5000});
+      await snap("basic-format-statuses","ビルド内基本タブのステータス（ST）編集パネル");
+
+      const labelsTab=page.locator("#build-params-tab-labels");
+      await click(labelsTab);
+      if(await labelsTab.getAttribute("aria-selected")!=="true") throw new Error("ラベルタブが選択状態になりません");
+      await page.locator("#build-params-panel-labels").waitFor({state:"visible",timeout:5000});
+      await snap("basic-format-labels","ビルド内基本タブのラベル（パラメータ）編集パネル");
+
+      const previewTab=page.locator("#build-params-tab-preview");
+      await click(previewTab);
+      if(await previewTab.getAttribute("aria-selected")!=="true") throw new Error("駒・出力プレビュータブが選択状態になりません");
+      await page.locator("#build-params-panel-preview").waitFor({state:"visible",timeout:5000});
+      const modes=[
+        {id:"board",label:"盤面上の駒",note:"ビルド内基本タブの盤面上の駒プレビュー"},
+        {id:"sheet",label:"キャラクターシート",note:"ビルド内基本タブのキャラクターシートプレビュー"},
+        {id:"json",label:"出力データ",note:"ビルド内基本タブの出力データプレビュー"}
+      ];
+      const modeTabs=page.locator(".basic-preview-mode-tabs [role='tab']");
+      if(await modeTabs.count()!==3) throw new Error("CCFOLIAプレビューの表示切替が3種類ではありません");
+      for(const mode of modes){
+        const tab=page.locator("#basic-ccfolia-tab-"+mode.id);
+        await click(tab);
+        if(await tab.getAttribute("aria-selected")!=="true") throw new Error(mode.label+"の選択状態が更新されません");
+        const panel=page.locator("#basic-ccfolia-panel-"+mode.id);
+        await panel.waitFor({state:"visible",timeout:5000});
+        if(await visible(page.locator(".basic-preview-build-error"))) throw new Error("CCFOLIA実データ生成エラー: "+(await page.locator(".basic-preview-build-error").innerText()));
+        if(mode.id==="board" && !(await visible(panel.locator(".pv-ccfolia-map")))) throw new Error("盤面プレビューのグリッドがありません");
+        if(mode.id==="sheet" && !(await visible(panel.locator(".pv-ccfolia-editor")))) throw new Error("キャラクターシートの編集表示がありません");
+        if(mode.id==="json"){
+          const jsonText=await panel.locator(".basic-preview-json").textContent();
+          const parsed=JSON.parse(jsonText||"");
+          if(!parsed || typeof parsed!=="object" || !parsed.data) throw new Error("実際のCCFOLIA出力JSONの構造がありません");
+        }
+        await snap("basic-preview-"+mode.id,mode.note);
+      }
+    });
     for(const label of ["ホーム","ショップ","記録","設定","使い方"]) {
       await attempt("section-"+label,async()=>{
         const navHover = page.locator(".rail-item").filter({hasText:label}).first();
@@ -736,8 +785,9 @@ async function main() {
   try { for(const mode of ["desktop","mobile"]) {log("begin "+mode);await captureProfile(browser,mode);} }
   finally { await browser.close();await new Promise(resolve=>s.close(resolve)); }
   audit.count=audit.screenshots.length;
-  audit.coverage=["SINNER SELECT/new-account form","all eight build tabs and desktop tab-hover states","major navigation sections and desktop navigation-hover states","all six shop category tabs","record import menu and routes with result parsing preview","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, duplicate preview controls, and target-size diagnostics"];
+  audit.coverage=["SINNER SELECT/new-account form","all nine build tabs and desktop tab-hover states","Basic workspace ST / label / CCFOLIA preview tabs and all three live preview modes","major navigation sections and desktop navigation-hover states","all six shop category tabs","record import menu and routes with result parsing preview","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, duplicate preview controls, and target-size diagnostics"];
   const requiredNotes=[
+    "ビルド内基本タブのステータス（ST）編集パネル","ビルド内基本タブのラベル（パラメータ）編集パネル","ビルド内基本タブの盤面上の駒プレビュー","ビルド内基本タブのキャラクターシートプレビュー","ビルド内基本タブの出力データプレビュー",
     "ビルド内の人格タブ","ビルド内のスキルタブ","ビルド内のパッシブタブ","ビルド内の強化タブ","ビルド内のサポートタブ","ビルド内のE.G.Oタブ","ビルド内の精神タブ","ビルド内のアイテムタブ",
     "ショップ分類: 人格","ショップ分類: サポート","ショップ分類: E.G.O","ショップ分類: 精神","ショップ分類: アイテム","ショップ分類: ガチャ",
     "記録の取り込みメニュー（3つの入口）",

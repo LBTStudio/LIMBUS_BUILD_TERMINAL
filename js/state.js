@@ -2249,7 +2249,7 @@ function normalizeStateShape(raw) {
     }
   }
   const normalized = normalizeStatusCollections(next);
-  return repairGachaResultAttribution(normalized, synthesizedInitialResult ? new Set(["res-initial"]) : null);
+  return repairGachaResultAttribution(normalized, synthesizedInitialResult ? { excludeResultIds: new Set(["res-initial"]) } : null);
 }
 /* 残高は保存しない。収入合計から支出合計を引くだけなので,
    帰属を直すとこの値が動く。明細の帰属を直せば連載ごとに収支を説明できる。 */
