@@ -139,6 +139,15 @@ async function createDisposableAccount(page,profile) {
   await imageDetails.locator("textarea").fill("http://"+HOST+":"+PORT+"/tests/fixtures/ccfolia-preview-sample.svg");
   await page.waitForTimeout(200);
   await page.locator(profile.mobile?".preview-mobile-toggle":"#lbt-preview-edge-toggle").waitFor({state:"visible",timeout:10000});
+  const tokenPreview = page.locator(".pc-token-preview");
+  await tokenPreview.waitFor({ state: "visible", timeout: 5000 });
+  const tokenPreviewText = (await tokenPreview.innerText()).replace(/\\s+/g, " ");
+  recordCheck(profile.name + ": Basic token preview reflects edited character data",
+    tokenPreviewText.includes("サンプル・フィクサー") && tokenPreviewText.includes("テスト卓") && tokenPreviewText.includes("行動順 12"),
+    { tokenPreviewText });
+  const tokenPreviewPath = path.join(OUT, profile.name + "-basic-token-preview.png");
+  await page.screenshot({ path: tokenPreviewPath, animations: "disabled" });
+  results.screenshots.push({ file: path.relative(ROOT, tokenPreviewPath), profile: profile.name, state: "basic-token-preview" });
 }
 async function runProfile(browser,profile) {
   const context=await browser.newContext({
@@ -160,6 +169,51 @@ async function runProfile(browser,profile) {
     const buildOverviewPath = path.join(OUT, profile.name + "-build-overview.png");
     await page.screenshot({ path: buildOverviewPath, animations: "disabled" });
     results.screenshots.push({ file: path.relative(ROOT, buildOverviewPath), profile: profile.name, state: "build-overview" });
+
+    const parameterTabs = page.locator(".build-params-tabs");
+    await parameterTabs.waitFor({ state: "visible", timeout: 10000 });
+    const statusFormatTab = page.getByRole("tab", { name: "ステータス（ST）", exact: true });
+    const labelFormatTab = page.getByRole("tab", { name: "ラベル（パラメータ）", exact: true });
+    const previewFormatTab = page.getByRole("tab", { name: "駒・出力プレビュー", exact: true });
+    const statusFormatPanel = page.locator("#build-params-panel-statuses");
+    const labelFormatPanel = page.locator("#build-params-panel-labels");
+    const previewFormatPanel = page.locator("#build-params-panel-preview");
+
+    await statusFormatTab.click();
+    recordCheck(profile.name + ": Basic format ST tab shows the existing status editor",
+      await statusFormatPanel.isVisible() && !(await labelFormatPanel.isVisible()) && !(await previewFormatPanel.isVisible()));
+    const statusFormatPath = path.join(OUT, profile.name + "-build-params-status-tab.png");
+    await page.screenshot({ path: statusFormatPath, animations: "disabled" });
+    results.screenshots.push({ file: path.relative(ROOT, statusFormatPath), profile: profile.name, state: "build-params-status-tab" });
+
+    await labelFormatTab.click();
+    recordCheck(profile.name + ": Basic format labels tab shows the existing parameter editor",
+      await labelFormatPanel.isVisible() && !(await statusFormatPanel.isVisible()) && !(await previewFormatPanel.isVisible()));
+    const labelFormatPath = path.join(OUT, profile.name + "-build-params-label-tab.png");
+    await page.screenshot({ path: labelFormatPath, animations: "disabled" });
+    results.screenshots.push({ file: path.relative(ROOT, labelFormatPath), profile: profile.name, state: "build-params-label-tab" });
+
+    await previewFormatTab.click();
+    const previewFormatText = (await previewFormatPanel.innerText()).replace(/\\s+/g, " ");
+    recordCheck(profile.name + ": Basic output tab reflects the current character and real preview action",
+      await previewFormatPanel.isVisible() && previewFormatText.includes("サンプル・フィクサー") && previewFormatText.includes("テスト卓") &&
+      await page.getByRole("button", { name: "右側の実プレビューを切り替える", exact: true }).isVisible(),
+      { previewFormatText });
+    const previewFormatPath = path.join(OUT, profile.name + "-build-params-preview-tab.png");
+    await page.screenshot({ path: previewFormatPath, animations: "disabled" });
+    results.screenshots.push({ file: path.relative(ROOT, previewFormatPath), profile: profile.name, state: "build-params-preview-tab" });
+
+    const realPreviewPanel = page.locator("#preview-panel");
+    const previewToggle = page.locator(profile.mobile ? ".preview-mobile-toggle" : "#lbt-preview-edge-toggle");
+    if (await realPreviewPanel.isVisible()) await previewToggle.click();
+    await page.getByRole("button", { name: "右側の実プレビューを切り替える", exact: true }).click();
+    await realPreviewPanel.waitFor({ state: "visible", timeout: 5000 });
+    recordCheck(profile.name + ": Basic output tab opens the actual shared CCFOLIA preview panel",
+      await realPreviewPanel.isVisible());
+    await previewToggle.click();
+    await realPreviewPanel.waitFor({ state: "hidden", timeout: 5000 });
+    await statusFormatTab.click();
+
     /* Capture the actual Build > Basic status editor, not a separate or mocked sample. */
     const statusPanel = page.locator(".settings-order-embedded").first();
     const statusTitle = statusPanel.locator(".settings-status-workspace-head .t-label");
@@ -334,6 +388,6 @@ async function main() {
   results.checkCount=results.checks.length;
   fs.writeFileSync(path.join(OUT,"manifest.json"),JSON.stringify(results,null,2)+"\n");
   console.log("[preview-control-regression] "+JSON.stringify({screenshots:results.count,checks:results.checkCount,failures:results.failures.length,summary:results.failures.map(f=>({name:f.name,error:f.error,collisions:f.collisions,gapFromPanel:f.gapFromPanel}))}));
-  if(results.failures.length||results.count!==profiles.length*7) process.exitCode=1;
+  if(results.failures.length||results.count!==profiles.length*11) process.exitCode=1;
 }
 main().catch(error=>{console.error("[preview-control-regression] fatal: "+(error?.stack||String(error)));process.exitCode=1;});
