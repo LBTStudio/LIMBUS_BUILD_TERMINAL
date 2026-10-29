@@ -147,7 +147,7 @@ async function snap(name, note) {
   if(m.horizontalOverflow) audit.layoutWarnings.push({name:base,type:"document-horizontal-overflow",viewport:m.viewport,document:m.document});
   // Desktop preview must be wide enough to read the CCFOLIA sheet/JSON without forcing a narrow column.
   if (m.viewport.width >= 1100) {
-    const preview = (m.layoutElements || []).find((item) => item.className.split(/\\s+/).includes("preview"));
+    const preview = (m.layoutElements || []).find((item) => item.className.split(/\s+/).includes("preview"));
     if (preview && preview.rect.width < 320) audit.layoutWarnings.push({name:base,type:"preview-panel-too-narrow",viewport:m.viewport,previewRect:preview.rect,minimumWidth:320});
   }
   if (m.viewport.width <= 640) {
