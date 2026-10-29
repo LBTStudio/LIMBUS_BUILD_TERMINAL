@@ -1,7 +1,7 @@
 /* Faithful B-type production layout.
    The prototype's structure is mapped onto the real React shell and actions;
    these selectors intentionally target production components, not prototype-only DOM. */
-:root { --b-rail-w: 190px; --b-preview-w: 220px; }
+:root { --b-rail-w: 190px; --b-preview-w: clamp(340px, 28vw, 420px); --preview-w: var(--b-preview-w); }
 @media (min-width: 1100px) {
   .app { grid-template-columns: var(--b-rail-w) minmax(0, 1fr); }
   .app.has-preview { grid-template-columns: var(--b-rail-w) minmax(0, 1fr) var(--b-preview-w); }
@@ -61,7 +61,7 @@
   .preview-edge-toggle { width: 32px; }
 }
 @media (min-width: 1100px) and (max-width: 1240px) {
-  :root { --b-rail-w: 174px; --b-preview-w: 208px; }
+  :root { --b-rail-w: 174px; --b-preview-w: clamp(300px, 27vw, 340px); --preview-w: var(--b-preview-w); }
   .rail { padding-inline: 8px; }
   .rail-item { padding-inline: 8px; gap: 7px; }
   .focus { padding: 18px 16px; }

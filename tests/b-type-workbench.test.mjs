@@ -8,7 +8,10 @@ test("B-type shell gives non-workbench pages the full canvas and scopes preview 
   const css = read("../assets/b-type-workbench.css");
   const app = read("../js/App.js");
   assert.match(css, /--b-rail-w:\s*190px/);
-  assert.match(css, /--b-preview-w:\s*220px/);
+  assert.match(css, /--b-preview-w:\s*clamp\(340px, 28vw, 420px\)/);
+  assert.match(css, /--preview-w:\s*var\(--b-preview-w\)/);
+  assert.match(css, /--b-preview-w:\s*clamp\(300px, 27vw, 340px\)/);
+  assert.match(css, /--preview-w:\s*var\(--b-preview-w\)/);
   assert.match(css, /\.app\.has-preview\s*\{\s*grid-template-columns:\s*var\(--b-rail-w\) minmax\(0, 1fr\) var\(--b-preview-w\)/);
   assert.match(app, /className: "rail"/);
   assert.match(app, /className: "focus"/);
@@ -36,4 +39,11 @@ test("B-type production styles adapt to tablet and mobile without disabling redu
   assert.match(css, /@media \(max-width: 850px\)/);
   assert.match(css, /@media \(max-width: 600px\)/);
   assert.match(css, /prefers-reduced-motion/);
+});
+
+test("B-type Basic preview is positioned beside the editor on wide desktop when the global drawer is closed", () => {
+  const css = read("../assets/b-type-ui-parity.css");
+  assert.match(css, /\.app\.preview-collapsed \.baseinfo-workspace\s*\{\s*grid-template-columns:\s*minmax\(0, 1\.05fr\) minmax\(400px, \.95fr\)/);
+  assert.match(css, /\.app\.has-preview \.baseinfo-workspace\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\)/);
+  assert.match(css, /@media\s*\(min-width:\s*1280px\)/);
 });
