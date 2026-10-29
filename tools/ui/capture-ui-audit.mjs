@@ -679,6 +679,19 @@ async function captureProfile(browser, mode) {
           const heldPanel=page.locator(".ledger-gara-wrap").filter({has:held}).last();
           const heldClose=heldPanel.getByRole("button",{name:"閉じる",exact:true}).first();
           if(await visible(heldClose)) await click(heldClose);
+
+          // Audit every owned-library category through the same real tab bar.
+          const libraryTabs=page.locator(".owned-library-bar [role='tab']");
+          const libraryCount=await libraryTabs.count();
+          if(libraryCount<6) throw new Error("記録・所持品の6カテゴリタブが揃っていません: "+libraryCount);
+          for(let i=0;i<libraryCount;i++){
+            const tab=libraryTabs.nth(i), label=(await tab.innerText()).trim();
+            await click(tab);
+            if(await tab.getAttribute("aria-selected")!=="true") throw new Error("記録タブの選択状態が更新されません: "+label);
+            await snap("record-library-"+label,"記録・所持品のカテゴリ："+label);
+          }
+          const ledgerTab=libraryTabs.filter({hasText:"リザルト"}).first();
+          if(await visible(ledgerTab)) await click(ledgerTab);
         }
         if(label==="使い方") {
           const search=page.locator("#guide-search-input").first();
