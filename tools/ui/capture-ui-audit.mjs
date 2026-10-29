@@ -701,6 +701,20 @@ async function captureProfile(browser, mode) {
             if(await visible(first)) { await click(first); await snap("help-expanded-entry","使い方の詳細を展開"); }
           }
         }
+
+        if(label==="設定" || label==="詳細設定") {
+          await snap("settings-status-workspace","詳細設定：ステータス一覧・編集・出力順");
+          const disclosures=page.locator("details.settings-disclosure");
+          const disclosureCount=await disclosures.count();
+          if(disclosureCount===0) throw new Error("詳細設定の折り畳みセクションが見つかりません");
+          for(let i=0;i<disclosureCount;i++){
+            const details=disclosures.nth(i), summary=details.locator("summary").first();
+            const labelText=(await summary.innerText()).trim();
+            await click(summary);
+            if(!(await details.evaluate(el=>el.open))) throw new Error("設定セクションを展開できません: "+labelText);
+            await snap("settings-disclosure-"+labelText,"詳細設定のセクションを展開："+labelText);
+          }
+        }
       });
     }
     await attempt("quick-search",async()=>{
