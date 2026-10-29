@@ -60,3 +60,16 @@ test("ホームランチャーは狭幅では1列になり、キーボードで�
   assert.match(css, /@media \(max-width: 640px\)[\s\S]*?\.home-task-grid \{ grid-template-columns: minmax\(0, 1fr\); \}/);
   assert.match(css, /\.home-task:focus-visible/);
 });
+
+test("プレビュー用キャプチャーは現行の「ビルド」表示を使う", () => {
+  const capture = read("../tools/ui/capture-preview-control-regression.mjs");
+  const nav = app.slice(app.indexOf("const SECTIONS = ["), app.indexOf("function isComplete"));
+  assert.match(nav, /id: "persona", label: "ビルド"/);
+  assert.match(app, /LIMBUS BUILD TERMINAL \/ BUILD/);
+  assert.match(app, /ビルドを開く/);
+  assert.doesNotMatch(app, /ワークベンチ/);
+  assert.match(capture, /button\\.rail-item\\[title='ビルド'\\]/);
+  assert.match(capture, /button\\.rail-item\\[title='ワークベンチ'\\]/);
+  assert.match(capture, /build-overview\.png/);
+  assert.match(capture, /profiles\.length\*5/);
+});
