@@ -118,7 +118,7 @@ test("初回表示は「はじめて」の短い順路を示し、よく使う�
 
 test("検索・分類・詳細展開が現行導線に沿っている", () => {
   assert.ok(appSource.includes("押す場所を図で確認"));
-  assert.ok(appSource.includes("ワークベンチ → 人格 → テキスト流し込み反映"));
+  assert.ok(appSource.includes("ビルド → 人格 → テキスト流し込み反映"));
   assert.ok(appSource.includes("const getAction = (item) =>"));
   assert.ok(appSource.includes('className: "guide-index-detail"'));
   assert.ok(guideCss.includes(".guide-filter-row"));
