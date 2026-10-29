@@ -1311,10 +1311,10 @@ test("リザルトの消耗表示は一般のアイテム減少を『消費』�
   assert.match(resultSections, /className: "ledger-object-enhancement-details"/);
 });
 
-test("右側プレビューは初期状態で折り畳み、保存した開閉選択は尊重する", () => {
+test("右側プレビューはデスクトップで初期表示し、小画面では閉じて保存済みの開閉選択を尊重する", () => {
   const app = read("../js/App.js");
   const state = read("../js/state.js");
-  assert.match(app, /const previewOpen = state\.ui\.previewOpen === true;/);
+  assert.match(app, /const previewOpen = state\.ui\.previewOpen === true \|\| \(state\.ui\.previewOpen == null && typeof window !== "undefined" && window\.matchMedia\("\(min-width: 1100px\)"\)\.matches\);/);
   assert.match(state, /previewOpen: void 0,/);
   assert.match(state, /未設定は初期折り畳み/);
   assert.doesNotMatch(app, /previewOpen[^\n]*!isNarrow/);
