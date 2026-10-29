@@ -363,11 +363,11 @@ async function runProfile(browser,profile) {
     const tokenTab=page.locator(".preview-tabs button[aria-label='ココフォリア駒プレビュー']");
     await tokenTab.waitFor({state:"visible",timeout:5000});
     await tokenTab.click();
-    await page.locator(".pv-ccfolia-map").waitFor({state:"visible",timeout:5000});
+    await page.locator(".preview .pv-ccfolia-map").waitFor({state:"visible",timeout:5000});
     const tokenActions=await page.locator(".preview-actions button").count();
     const tokenOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+2);
     recordCheck(profile.name+": CCFOLIA board preview opens with one JSON action and no horizontal overflow",
-      await page.locator(".pv-token-preview").isVisible()&&tokenActions===1&&!tokenOverflow,
+      await page.locator(".preview .pv-token-preview").isVisible()&&tokenActions===1&&!tokenOverflow,
       {tokenActions,horizontalOverflow:tokenOverflow,viewport:page.viewportSize()});
     const tokenLookPath=path.join(OUT,profile.name+"-token-board.png");
     await page.screenshot({path:tokenLookPath,animations:"disabled"});
