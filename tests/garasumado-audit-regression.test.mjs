@@ -23,6 +23,21 @@ test("金額未確定のゼロ支出は確定明細にせず保留する", () =>
  const { roster } = loadAuditApis(), raw = "東部親指ソルダードII 87"; const manifest = { groups: [], scenarios: [scenario("scenario:0", [], { spends: [{ name: raw, raw, lp: 0, shards: 0 }], reasons: [{ line: raw, reason: "支出金額が読み取れない（要確認）" }] })] };
  const { actions, skipped } = roster.toDispatchActions(manifest, [], { db }); assert.equal(actions.filter((a) => a.type === "ADD_ENTRY").length, 0); assert.ok(skipped.some((a) => /金額未確定の支出候補/.test(a.reason)));
 });
+test("パーサが補正した通貨候補行も元表記の警告と照合して保留する", () => {
+ const { roster } = loadAuditApis();
+ const normalized = "対象品 現在87";
+ const source = "対象品 現座87";
+ const manifest = {
+  groups: [],
+  scenarios: [scenario("scenario:0", [], {
+   spends: [{ name: normalized, raw: normalized, lp: 0, shards: 0 }],
+   reasons: [{ line: source, reason: "支出金額が読み取れない（要確認）" }]
+  })]
+ };
+ const { actions, skipped } = roster.toDispatchActions(manifest, [], { db });
+ assert.equal(actions.filter((a) => a.type === "ADD_ENTRY").length, 0);
+ assert.ok(skipped.some((a) => /金額未確定の支出候補/.test(a.reason)));
+});
 test("通貨単位の無い支出数値は未確定候補として警告に残す", () => {
  const { memo } = loadAuditApis(), parsed = memo.parseMemo("・支出\n東部親指ソルダードII 87"); assert.ok(parsed.financialCoverage.some((a) => a.status === "unitless-currency-review")); assert.ok(parsed.sourceAudits.some((a) => a.code === "unitless-expense-candidate" && a.severity === "review")); assert.ok(parsed.reasons.some((a) => /通貨単位がありません/.test(a.reason)));
 });

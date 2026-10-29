@@ -364,15 +364,17 @@ item.decide ? h("div", { className: "gara-decide" },
      行の中身（入手方法・DB候補）だけが取り込み独自。帰属先はカード所属が
      決める。選び直しは行を未割当リストへ戻す（ドラッグ、または「未割当へ」）。 */
   function ResultCard({
-    block, scenarioOptions, sourceOptions, onPickIdentity, onDropItem, onReturnItem,
+    block, displayName, scenarioOptions, sourceOptions, onPickIdentity, onDropItem, onReturnItem,
     existingResults = [], legacyCandidates = [], legacyTargetId = "", onPickLegacyTarget,
     sourceAlreadyImported = false, purchaseCandidates = [], onTogglePurchaseCandidate
   }) {
     const income = block.income || { lp: 0, shards: 0 };
     /* 無題は名前が無いのでカード名として使えない。個数と合計で示す。 */
-    const title = block.name && block.name !== "無題"
-      ? block.name
-      : "無題 " + block.orphanNote;
+    const title = displayName && displayName !== "無題"
+      ? displayName
+      : block.name && block.name !== "無題"
+        ? block.name
+        : "無題 " + block.orphanNote;
     /* 金額は見本と同じbigNumペア。単位は数字の横に小さく添えるだけ。 */
     const bigNum = (value, tone) =>
       h("b", { className: `ledger-chip-num is-${tone}` }, (Number(value) || 0).toLocaleString("ja-JP"));
@@ -478,7 +480,7 @@ item.decide ? h("div", { className: "gara-decide" },
             if (!onDropItem) return;
             event.preventDefault();
             const key = event.dataTransfer.getData("text/plain");
-            if (key) onDropItem(key, block.name || "");
+            if (key) onDropItem(key, block.key || "");
           }
         },
         block.items.map((item) => h("div", {
@@ -1001,9 +1003,9 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [], existi
 
   /* カードへ落とした未割当は、そのシナリオの帰属先として確定させる。
      ドラッグ済みのものも undo で戻せるよう、拾われ口は onPickIdentity 1 本にする。 */
-  const dropToBlock = (itemKey, blockName) => {
-    if (!itemKey || !blockName) return;
-    onPickIdentity(itemKey, { pickedScenario: blockName, returned: false });
+  const dropToBlock = (itemKey, scenarioKey) => {
+    if (!itemKey || !scenarioKey) return;
+    onPickIdentity(itemKey, { pickedScenarioKey: scenarioKey, pickedScenario: "", returned: false });
   };
 
   /* カードから戻された行は未割当へ返し、帰属先を選び直せるようにする。
@@ -1012,7 +1014,7 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [], existi
   const [focusKey, setFocusKey] = React.useState("");
   const returnItem = (itemKey) => {
     if (!itemKey) return;
-    onPickIdentity(itemKey, { pickedScenario: "", returned: true });
+    onPickIdentity(itemKey, { pickedScenario: "", pickedScenarioKey: "", returned: true });
     setFocusKey(itemKey);
   };
 
@@ -1679,6 +1681,7 @@ function appliedSummary(actions) {
       return h(ResultCard, {
         key: block.key || block.name,
         block,
+        displayName: scenarioOptions.find((option) => option.key === String(block.key))?.label || block.name,
         scenarioOptions,
         sourceOptions,
         purchaseCandidates: purchaseReviewPlan[block.key] || [],

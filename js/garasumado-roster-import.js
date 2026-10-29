@@ -1313,12 +1313,18 @@ function toIdentityChoices(hits) {
          片方だけ取ると帳尻が合わなくなるので両方を拾う。
          読み取れなかった金額は 0 のままにして名前だけ残す。
          勝手に埋めれば、原本と食い違う数字が残る。 */
+      const normalizeUncertainSpendLine = (value) => String(value || "")
+        .normalize("NFKC")
+        .replace(/現座/g, "現在")
+        .replace(/\s+/g, "")
+        .trim();
       for (const spend of scenario.spends || []) {
         const lp = Number(spend && spend.lp || 0);
         const shards = Number(spend && spend.shards || 0);
         const rawLine = String(spend && (spend.raw || spend.name) || "").trim();
+        const rawLineKey = normalizeUncertainSpendLine(rawLine);
         const uncertain = (!lp && !shards) && (scenario.reasons || []).find((row) =>
-          String(row && row.line || "").trim() === rawLine
+          rawLineKey && normalizeUncertainSpendLine(row && row.line) === rawLineKey
           && /(?:支出金額|支出額|金額).*(?:読み取れない|未確定|未計上|確定できない|要確認)|通貨単位.*(?:不明|無い|ない|ありません)/.test(String(row && row.reason || ""))
         );
         if (uncertain) {
