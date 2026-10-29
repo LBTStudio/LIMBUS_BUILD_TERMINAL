@@ -128,7 +128,7 @@ test("カードの行を未割当リストへ戻して再分類できる（ド�
   assert.match(uiFlat, /onDragStart: \(event\) => \{/);
   assert.match(uiFlat, /onReturnItem: returnItem/);
   assert.match(uiFlat, /const returnItem = \(itemKey\) => \{/);
-  assert.match(uiFlat, /onPickIdentity\(itemKey, \{ pickedScenario: "", returned: true \}\)/);
+  assert.match(uiFlat, /onPickIdentity\(itemKey, \{ pickedScenario: "", pickedScenarioKey: "", returned: true \}\)/);
   /* レールはカードからの受け皿。空でも置ける（最後の1件も戻せる）。 */
   assert.match(uiFlat, /onDrop: \(event\) => \{/);
   assert.match(uiFlat, /getData\("text\/plain"\)/);
