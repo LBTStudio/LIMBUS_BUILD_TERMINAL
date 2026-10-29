@@ -1,5 +1,5 @@
 /* ---------------------------------------------------------------------------
-   LIMBUS BUILD TERMINAL Service Worker（リポジトリ直下に置くこと。位置が scope になる）
+   LIMBUS BUILD TERMINAL Service Worker — B-type production UI rollout 2026-10-29（リポジトリ直下に置くこと。位置が scope になる）
 
    役割: 再訪時にアセットをネットワークから読まずに済ませる。オフラインでも起動可。
 
