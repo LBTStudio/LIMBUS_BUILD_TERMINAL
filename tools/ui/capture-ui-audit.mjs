@@ -150,6 +150,15 @@ async function snap(name, note) {
     const preview = (m.layoutElements || []).find((item) => item.className.split(/\s+/).includes("preview"));
     if (preview && preview.rect.width < 320) audit.layoutWarnings.push({name:base,type:"preview-panel-too-narrow",viewport:m.viewport,previewRect:preview.rect,minimumWidth:320});
   }
+  // The Basic output preview should sit beside the character editor on wide desktops
+  // when the global preview drawer is closed, not below a long stack of controls.
+  if (m.viewport.width >= 1280 && (m.layoutElements || []).some((item) => item.className.split(/\s+/).includes("basic-ccfolia-preview"))) {
+    const workspace = (m.layoutElements || []).find((item) => item.className.split(/\s+/).includes("baseinfo-workspace"));
+    const params = (m.layoutElements || []).find((item) => item.className.split(/\s+/).includes("build-params-shell"));
+    if (workspace && params && Math.abs(params.rect.y - workspace.rect.y) > 48) {
+      audit.layoutWarnings.push({name:base,type:"basic-preview-below-editor-fold",workspaceRect:workspace.rect,paramsRect:params.rect});
+    }
+  }
   if (m.viewport.width <= 640) {
     const toggle = (m.layoutElements || []).find((item) => item.id === "lbt-preview-edge-toggle");
     if (toggle) {
@@ -812,7 +821,7 @@ async function main() {
       }
     }
   }
-  audit.criticalLayoutWarnings=audit.layoutWarnings.filter((item)=>["document-horizontal-overflow","duplicate-preview-controls","preview-toggle-overlaps-header","preview-toggle-overlaps-panel-controls","preview-toggle-overlaps-content-dock","preview-panel-too-narrow"].includes(item.type));
+  audit.criticalLayoutWarnings=audit.layoutWarnings.filter((item)=>["document-horizontal-overflow","duplicate-preview-controls","preview-toggle-overlaps-header","preview-toggle-overlaps-panel-controls","preview-toggle-overlaps-content-dock","preview-panel-too-narrow","basic-preview-below-editor-fold"].includes(item.type));
   fs.writeFileSync(path.join(OUT,"manifest.json"),JSON.stringify(audit,null,2)+"\n");
   log("finished: "+audit.count+" screenshots; failures="+audit.failures.length+"; missing-required="+audit.missingRequiredCaptures.length+"; critical-layout-warnings="+audit.criticalLayoutWarnings.length);
   if(audit.count<80 || audit.failures.length || audit.missingRequiredCaptures.length || audit.pageErrors.length || audit.httpErrors.length || audit.consoleErrors.length || audit.criticalLayoutWarnings.length) process.exitCode=1;
