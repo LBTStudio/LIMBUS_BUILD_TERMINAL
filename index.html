@@ -224,17 +224,17 @@ window.addEventListener("load", function(){
 <link rel="stylesheet" href="assets/v68-interaction-a11y.css?v=0bbe4495">
 <link rel="stylesheet" href="assets/v70-preview-controls.css?v=ef27f951">
 <link rel="stylesheet" href="assets/v69-mobile-ui-audit.css?v=e67e9edc">
-<link rel="stylesheet" href="assets/b-type-workbench.css?v=8ea5c819">
+
 <link rel="stylesheet" href="assets/inline-effect-glossary.css?v=f14d3776">
 <style id="b-type-production-rollout">
 /* B-type production UI rollout: the refined layout is applied to the live shell,
    not only to preview captures. Keep this block last so it wins over legacy overlays. */
 :root {
-  --rail-w: 184px;
-  --preview-w: clamp(320px, 28vw, 440px);
+  --rail-w: 190px;
+  --preview-w: 220px;
 }
 @media (min-width: 1100px) {
-  .app { grid-template-columns: var(--rail-w) minmax(420px, 1fr) var(--preview-w); }
+  .app { grid-template-columns: var(--rail-w) minmax(0, 1fr) var(--preview-w); }
   .app.preview-collapsed { grid-template-columns: var(--rail-w) minmax(0, 1fr) 0; }
   .rail {
     padding: 18px 10px 14px;
@@ -356,7 +356,7 @@ window.addEventListener("load", function(){
 }
 @media (min-width: 1100px) and (max-width: 1350px) {
   :root { --rail-w: 164px; --preview-w: clamp(300px, 25vw, 338px); }
-  .app { grid-template-columns: var(--rail-w) minmax(360px, 1fr) var(--preview-w); }
+  .app { grid-template-columns: var(--rail-w) minmax(0, 1fr) var(--preview-w); }
   .app.preview-collapsed { grid-template-columns: var(--rail-w) minmax(0, 1fr) 0; }
   .rail-item { padding-inline: 8px; }
   .build-tabs .segmented [role="tab"] { padding-inline: 9px; }
@@ -495,6 +495,7 @@ window.addEventListener("load", function(){
 @media (prefers-reduced-motion: reduce) { .settings-order-embedded .status-order-row { transition: none; } }
 
 </style>
+<link rel="stylesheet" href="assets/b-type-workbench.css?v=8ea5c819">
 </head>
 <body style="background-color:#14110d">
   <div id="root"></div>
