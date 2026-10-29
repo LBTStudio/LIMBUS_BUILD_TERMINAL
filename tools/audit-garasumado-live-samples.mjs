@@ -789,6 +789,101 @@ function parseStoredCurrencyAmount(value) {
   return Number.isSafeInteger(amount) && amount >= 0 ? amount : null;
 }
 
+/* Repeated history payload diagnostics. Identical text can be a legitimate repeated session,
+   so this only measures possible income/spend over-count exposure. It never de-duplicates rows
+   or changes balances, and it emits no memo text, scenario names, or content hashes. */
+function auditDuplicateHistoryRows(history, parsedRows) {
+  const exactGroups = new Map();
+  const memoGroups = new Map();
+  const financialByIndex = new Map((parsedRows || []).map((row) => [
+    Number(row.historyIndex),
+    row.financial || {}
+  ]));
+  const normalizedText = (value) => String(value ?? "")
+    .normalize("NFKC")
+    .replace(/\r\n?/g, "\n")
+    .trim();
+  const pushIndex = (map, key, index) => {
+    const found = map.get(key) || [];
+    found.push(index);
+    map.set(key, found);
+  };
+
+  let nonemptyMemoRows = 0;
+  for (let index = 0; index < (Array.isArray(history) ? history.length : 0); index++) {
+    const row = history[index] && typeof history[index] === "object" ? history[index] : {};
+    const memo = normalizedText(row.memo);
+    if (!memo) continue;
+    nonemptyMemoRows++;
+    const name = normalizedText(row.name);
+    pushIndex(exactGroups, name + "\u0000" + memo, index);
+    pushIndex(memoGroups, memo, index);
+  }
+
+  const summarize = (groups) => {
+    const duplicates = [...groups.values()]
+      .filter((indices) => indices.length > 1)
+      .map((indices) => indices.slice().sort((a, b) => a - b));
+    const repeatedIndices = duplicates.flatMap((indices) => indices.slice(1));
+    const totals = { incomeLp: 0, incomeShards: 0, spendLp: 0, spendShards: 0 };
+    for (const index of repeatedIndices) {
+      const money = financialByIndex.get(index) || {};
+      totals.incomeLp += Number(money.incomeLp) || 0;
+      totals.incomeShards += Number(money.incomeShards) || 0;
+      totals.spendLp += Number(money.spentLp) || 0;
+      totals.spendShards += Number(money.spentShards) || 0;
+    }
+    return {
+      duplicateGroups: duplicates.length,
+      excessRowsIfOneCopyPerGroup: repeatedIndices.length,
+      potentialRepeatedIncomeLp: totals.incomeLp,
+      potentialRepeatedIncomeShards: totals.incomeShards,
+      potentialRepeatedSpendLp: totals.spendLp,
+      potentialRepeatedSpendShards: totals.spendShards,
+      potentialRepeatedNetLp: totals.incomeLp - totals.spendLp,
+      potentialRepeatedNetShards: totals.incomeShards - totals.spendShards
+    };
+  };
+
+  return {
+    nonemptyMemoRows,
+    sameScenarioNameAndMemo: summarize(exactGroups),
+    sameMemoRegardlessOfScenarioName: summarize(memoGroups)
+  };
+}
+
+function summarizeDuplicateHistoryDocuments(rows) {
+  const sumFields = [
+    "nonemptyMemoRows",
+    "sameScenarioNameAndMemo.duplicateGroups",
+    "sameScenarioNameAndMemo.excessRowsIfOneCopyPerGroup",
+    "sameScenarioNameAndMemo.potentialRepeatedIncomeLp",
+    "sameScenarioNameAndMemo.potentialRepeatedIncomeShards",
+    "sameScenarioNameAndMemo.potentialRepeatedSpendLp",
+    "sameScenarioNameAndMemo.potentialRepeatedSpendShards",
+    "sameScenarioNameAndMemo.potentialRepeatedNetLp",
+    "sameScenarioNameAndMemo.potentialRepeatedNetShards",
+    "sameMemoRegardlessOfScenarioName.duplicateGroups",
+    "sameMemoRegardlessOfScenarioName.excessRowsIfOneCopyPerGroup",
+    "sameMemoRegardlessOfScenarioName.potentialRepeatedIncomeLp",
+    "sameMemoRegardlessOfScenarioName.potentialRepeatedIncomeShards",
+    "sameMemoRegardlessOfScenarioName.potentialRepeatedSpendLp",
+    "sameMemoRegardlessOfScenarioName.potentialRepeatedSpendShards",
+    "sameMemoRegardlessOfScenarioName.potentialRepeatedNetLp",
+    "sameMemoRegardlessOfScenarioName.potentialRepeatedNetShards"
+  ];
+  const total = Object.fromEntries(sumFields.map((key) => [key, 0]));
+  const documentsWithExactRepeats = rows.filter((row) => row.sameScenarioNameAndMemo.excessRowsIfOneCopyPerGroup > 0).length;
+  const documentsWithMemoRepeats = rows.filter((row) => row.sameMemoRegardlessOfScenarioName.excessRowsIfOneCopyPerGroup > 0).length;
+  for (const row of rows) {
+    for (const path of sumFields) {
+      const value = path.split(".").reduce((current, key) => current && current[key], row);
+      total[path] += Number(value) || 0;
+    }
+  }
+  return { documents: rows.length, documentsWithExactRepeats, documentsWithMemoRepeats, totals: total };
+}
+
 function parseHistoryTimestamp(value) {
   if (value === null || value === undefined || value === "") return null;
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -1176,6 +1271,9 @@ function toMarkdownReport(report) {
     ["旧ベースラインとの履歴件数差", report.source.snapshotDrift.length],
     ["履歴入力指紋未登録", report.source.historyInputFingerprintMissingRows],
     ["履歴入力指紋の内容差", report.source.historyInputFingerprintDrift.length],
+    ["同一シナリオ名＋本文の重複候補（完全一致群／余分な行）", report.source.duplicateHistorySummary.balanceEligible.totals["sameScenarioNameAndMemo.duplicateGroups"] + " / " + report.source.duplicateHistorySummary.balanceEligible.totals["sameScenarioNameAndMemo.excessRowsIfOneCopyPerGroup"]],
+    ["シナリオ名を無視した本文重複候補（群／余分な行）", report.source.duplicateHistorySummary.balanceEligible.totals["sameMemoRegardlessOfScenarioName.duplicateGroups"] + " / " + report.source.duplicateHistorySummary.balanceEligible.totals["sameMemoRegardlessOfScenarioName.excessRowsIfOneCopyPerGroup"]],
+    ["完全一致の重複候補が持つ可能性のある収入LP／欠片", report.source.duplicateHistorySummary.balanceEligible.totals["sameScenarioNameAndMemo.potentialRepeatedIncomeLp"] + " / " + report.source.duplicateHistorySummary.balanceEligible.totals["sameScenarioNameAndMemo.potentialRepeatedIncomeShards"]],
     ["日時を抽出できた履歴行", report.source.historyChronologySummary.rowsWithParsableTime + " / " + report.source.historyChronologySummary.rows],
     ["日時を抽出できた文書（全体 / 残高照合対象）", report.source.historyChronologySummary.documentsWithAnyParsableTime + " / " + report.source.historyChronologySummary.balanceEligibleWithParsableTime],
     ["配列順（昇順相当 / 降順相当 / 混在）", (report.source.historyChronologySummary.balanceEligibleOrderCounts["ascending-or-tied"] || 0) + " / " + (report.source.historyChronologySummary.balanceEligibleOrderCounts["descending-or-tied"] || 0) + " / " + (report.source.historyChronologySummary.balanceEligibleOrderCounts.mixed || 0)],
@@ -1382,6 +1480,19 @@ function toMarkdownReport(report) {
       "| " + row.id + " | " + row.historyRows + " | " + row.rowsWithParsableTime + " | " + row.rowsWithoutParsableTime + " | " + row.arrayOrder + " | " + row.ascendingBreaks + " | " + row.descendingBreaks + " | " + row.tiedPairs + " | " + (row.fieldPresence.date || 0) + " | " + (row.fieldPresence.createdAt || 0) + " | " + (row.fieldPresence.at || 0) + " | " + (row.fieldPresence.timestamp || 0) + " |"
     ),
     "",
+    "## 履歴内の同一記述の繰り返し候補（自動控除しない）",
+    "",
+    "シナリオ名とメモ本文が完全一致する行、およびシナリオ名を無視して本文が完全一致する行を数えます。同じ内容でも別卓の同一報酬や再挑戦など正当な反復の可能性があるため、重複を事実と断定せず、残高から自動控除もしません。本文・シナリオ名・ハッシュは出力しません。金額は重複が誤記だった場合の最大影響候補です。",
+    "",
+    "| URL ID | 履歴行 | 同名＋本文重複群 | 同名＋本文余分行 | 重複候補LP収入 | 重複候補欠片収入 | 重複候補LP支出 | 重複候補欠片支出 | 本文のみ重複群 | 本文のみ余分行 |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+    ...report.source.duplicateHistoryDocuments
+      .filter((row) => row.balanceEligible && (
+        row.sameScenarioNameAndMemo.excessRowsIfOneCopyPerGroup > 0 ||
+        row.sameMemoRegardlessOfScenarioName.excessRowsIfOneCopyPerGroup > 0
+      ))
+      .map((row) => "| " + row.id + " | " + row.historyRows + " | " + row.sameScenarioNameAndMemo.duplicateGroups + " | " + row.sameScenarioNameAndMemo.excessRowsIfOneCopyPerGroup + " | " + row.sameScenarioNameAndMemo.potentialRepeatedIncomeLp + " | " + row.sameScenarioNameAndMemo.potentialRepeatedIncomeShards + " | " + row.sameScenarioNameAndMemo.potentialRepeatedSpendLp + " | " + row.sameScenarioNameAndMemo.potentialRepeatedSpendShards + " | " + row.sameMemoRegardlessOfScenarioName.duplicateGroups + " | " + row.sameMemoRegardlessOfScenarioName.excessRowsIfOneCopyPerGroup + " |"),
+    "",
     "## 残高を示す記述パターン（本文非出力）",
     "",
     "| パターン | 行数 |",
@@ -1447,6 +1558,7 @@ const fetched = await mapLimit(baseline.documents, 5, async (entry) => {
     freeNotePurchaseAudit,
     freeNotesAudit: auditFreeNotes(result.doc),
     historyChronologyAudit: auditHistoryChronology(history),
+    duplicateHistoryAudit: auditDuplicateHistoryRows(history, parsedRows),
     ruleBasedOpeningAudit: auditRuleBasedOpening(history, currentBalance, MEMO),
     historyInputSha256: historyInputSha256(history),
     parsedRows
@@ -1521,6 +1633,18 @@ const balanceBridges = successful
     };
   });
 
+
+const balanceEligibleDuplicateIds = new Set(balanceBridges.map((row) => row.id));
+const duplicateHistoryDocuments = successful.map((entry) => ({
+  id: entry.baseline.id,
+  historyRows: entry.actualHistoryRows,
+  balanceEligible: balanceEligibleDuplicateIds.has(entry.baseline.id),
+  ...(entry.duplicateHistoryAudit || auditDuplicateHistoryRows([], []))
+}));
+const duplicateHistorySummary = {
+  allFetched: summarizeDuplicateHistoryDocuments(duplicateHistoryDocuments),
+  balanceEligible: summarizeDuplicateHistoryDocuments(duplicateHistoryDocuments.filter((row) => row.balanceEligible))
+};
 
 /* Aggregate only route identifiers, currencies and amounts from the parser's in-memory trace.
    This checks whether parser income traces reconcile to the parser totals and where income is
@@ -2163,7 +2287,9 @@ const report = {
       : [],
     snapshotDrift,
     historyChronologySummary,
-    historyChronologyDocuments
+    historyChronologyDocuments,
+    duplicateHistorySummary,
+    duplicateHistoryDocuments
   },
   parser: {
     legacyCandidateRows: allParsedRows.reduce((sum, row) => sum + row.legacyCandidates, 0),
@@ -2305,6 +2431,8 @@ console.log(JSON.stringify({
   flowUnknownDirectionDetails: report.parser.flowUnknownDirectionDetails,
   historyChronologySummary: report.source.historyChronologySummary,
   historyChronologyDocuments: report.source.historyChronologyDocuments,
+  duplicateHistorySummary: report.source.duplicateHistorySummary,
+  duplicateHistoryDocuments: report.source.duplicateHistoryDocuments,
   freeNotesSourceSummary: report.balance.freeNotesSource.summary,
   freeNotesBridgeSummary: report.balance.freeNotesBridge.summary,
   freeNotesBridgeDocuments: report.balance.freeNotesBridge.documents,
