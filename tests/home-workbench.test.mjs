@@ -9,6 +9,7 @@ const sections = read("../js/OtherSections.js");
 const persona = read("../js/PersonaCodex.js");
 const state = read("../js/state.js");
 const css = read("../assets/workspace.css");
+const bTypeCss = read("../assets/b-type-workbench.css");
 const index = read("../index.html");
 
 test("Bタイプはビルドを主作業面にし、ホームを補助入口として残す", () => {
@@ -18,9 +19,9 @@ test("Bタイプはビルドを主作業面にし、ホームを補助入口と�
   assert.match(nav, /id: "persona", label: "ビルド"/);
   assert.doesNotMatch(nav, /id: "baseinfo"/);
   assert.match(app, /s\.id === "persona" \? "baseinfo" : s\.id/);
-  assert.match(app, /const current = state\.ui\.currentSection \|\| "baseinfo"/);
-  assert.match(state, /currentSection: "baseinfo"/);
-  assert.match(state, /next\.ui\.layoutVersion !== "b-workbench-v1"/);
+  assert.match(app, /const current = state\.ui\.currentSection \|\| "home"/);
+  assert.match(state, /currentSection: "home"/);
+  assert.match(state, /next\.ui\.layoutVersion !== "b-workbench-v2"/);
   assert.match(state, /layoutVersion: ui\.layoutVersion/);
 });
 
@@ -35,9 +36,9 @@ test("基本タブは既存の駒整形コンポーネントを再利用し、�
 });
 
 test("ホーム検索は目的語と関連語を探し、既存画面へ移動する", () => {
-  assert.match(app, /const visibleGroups = groups\.map/);
+  assert.match(app, /const visibleActions = actions\.filter/);
   assert.match(app, /\[item\.title, item\.desc, item\.terms\]/);
-  for (const target of ["baseinfo", "persona", "skill", "ego", "shop", "roster", "settings", "help"]) {
+  for (const target of ["baseinfo", "persona", "shop", "roster", "settings", "help"]) {
     assert.ok(app.includes(`navigate("${target}"`), `ホームから ${target} へ移動できる`);
   }
   assert.match(app, /openPersonaDraftImport: true/);
@@ -59,13 +60,13 @@ test("ホームの取り込みショートカットは既存の取込フォー�
 });
 
 test("ホームランチャーは狭幅では1列になり、キーボードでも移動できる", () => {
-  assert.match(css, /\.home-task-grid \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
-  assert.match(css, /@media \(max-width: 640px\)[\s\S]*?\.home-task-grid \{ grid-template-columns: minmax\(0, 1fr\); \}/);
-  assert.match(css, /\.home-task:focus-visible/);
+  assert.match(bTypeCss, /\.btype-launcher-grid \{ display: grid; grid-template-columns: repeat\(3,minmax\(0,1fr\)\)/);
+  assert.match(bTypeCss, /@media \(max-width: 600px\)[\s\S]*?\.btype-launcher-grid \{ grid-template-columns: repeat\(2,minmax\(0,1fr\)\);/);
+  assert.match(bTypeCss, /\.btype-launcher-card:focus-visible/);
 });
 
 test("Bタイプのナビは制作・データ管理・補助を区別し、取り込み先を選べる", () => {
-  for (const label of ["制作", "データ管理", "補助"]) assert.ok(app.includes(`label: "${label}"`));
+  for (const label of ["ワークスペース", "データ管理", "補助"]) assert.ok(app.includes(`label: "${label}"`));
   assert.match(app, /className: `rail-group rail-group-\$\{group\.id\}`/);
   assert.match(app, /const ImportRouterDialog =/);
   for (const route of ['"persona"', '"result"', '"garasumado"', '"owned"']) assert.ok(app.includes(`id: ${route}`), `取り込み経路 ${route}`);
@@ -100,14 +101,14 @@ test("プレビュー用キャプチャーは現行の「ビルド」表示を�
   const capture = read("../tools/ui/capture-preview-control-regression.mjs");
   const nav = app.slice(app.indexOf("const SECTIONS = ["), app.indexOf("function isComplete"));
   assert.match(nav, /id: "persona", label: "ビルド"/);
-  assert.match(app, /LIMBUS BUILD TERMINAL \/ BUILD/);
+  assert.match(app, /HOME \/ MULTI-PURPOSE LAUNCHER/);
   assert.match(app, /ビルドを開く/);
-  assert.doesNotMatch(app, /ワークベンチ/);
+  assert.match(app, /ワークベンチ/);
   assert.match(capture, /\.rail-item\[title='ビルド'\]/);
   assert.match(capture, /\.rail-item\[title='ワークベンチ'\]/);
   assert.match(capture, /build-overview\.png/);
   assert.match(capture, /build-status-editor\.png/);
-  assert.match(capture, /profiles\.length\*6/);
+  assert.match(capture, /profiles\.length\*7/);
 });
 
 test("ステータス一覧・編集・出力順はBタイプのビルド画面に一体化している", () => {

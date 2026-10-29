@@ -247,7 +247,7 @@ async function captureCompactResultDetails(page, mode) {
   });
   await page.keyboard.press("Escape").catch(() => {});
   await page.waitForTimeout(WAIT_MS);
-  await clickNav(page, "記録");
+  await clickNav(page, "記録・所持品");
   const card = page.locator(".ledger-card").filter({ hasText: "第12回 セッション" }).first();
   if (!(await card.isVisible().catch(() => false))) {
     const debug = await page.evaluate(() => {
@@ -329,7 +329,7 @@ async function captureViewport(browser, mode) {
       "テキスト流し込み反映", "① ビルド → ② 人格 → ③ このボタン");
 
     // Result text import: open the real import menu, then annotate its item.
-    await clickNav(page, "記録");
+    await clickNav(page, "記録・所持品");
     const resultImportToggle = page.locator(".ledger-import-toggle").first();
     await resultImportToggle.waitFor({ state: "visible", timeout: 12000 });
     await resultImportToggle.click();

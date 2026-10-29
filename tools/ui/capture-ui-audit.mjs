@@ -320,7 +320,7 @@ async function seed() {
         cost: { lp: 15, shards: 0 }, resultId: "ui-audit-result-1",
         at: now, note: "Playwright QA sample expense"
       }],
-      ui: { codexMode: mode, currentSection: "persona", previewOpen: false }
+      ui: { codexMode: mode, currentSection: "persona", previewOpen: false, layoutVersion: "b-workbench-v2" }
     };
     const merged = Object.assign({}, A.loadActive() || {}, next);
     const saved = A.saveActive(merged);
@@ -449,6 +449,12 @@ async function captureProfile(browser, mode) {
   page.on("pageerror",e=>audit.pageErrors.push({view:mode,message:e.message.slice(0,160)}));
   try {
     await boot();
+    /* The B-type migration deliberately opens Home. Navigate to the actual workbench
+       before capturing editor tabs and preview states, rather than assuming an old default. */
+    const workbenchNav = page.locator(".rail-item[title='ビルド']").first();
+    await workbenchNav.waitFor({ state: "visible", timeout: 10000 });
+    await click(workbenchNav);
+    await page.locator(".build-tabs").waitFor({ state: "visible", timeout: 10000 });
     const previewToggle=page.locator("#lbt-preview-edge-toggle").first();
     if(await visible(previewToggle)) {
       await previewToggle.hover().catch(()=>{});

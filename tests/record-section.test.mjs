@@ -48,7 +48,7 @@ const css = read("../assets/v66-accounts.css");
 const workspaceCss = read("../assets/workspace.css");
 
 test("セクション名は 記録 / CHARACTER RECORD", () => {
-  assert.match(app, /\{ id: "roster", label: "記録", icon: "roster", title: "CHARACTER RECORD", subtitle: "所持品・リザルト・収支・取り込み"/);
+  assert.match(app, /\{ id: "roster", label: "記録・所持品", icon: "roster", title: "CHARACTER RECORD", subtitle: "所持品・リザルト・収支・取り込み"/);
 });
 
 test("残高チップは .topbar-actions より手前にあり、直接子として残る", () => {
