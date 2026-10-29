@@ -210,12 +210,12 @@ item.decide ? h("div", { className: "gara-decide" },
           h("span", { className: "gara-label" }, "どのシナリオのものか"),
           h("select", {
             className: "input",
-            value: item.pickedScenario || "",
+            value: item.pickedScenarioKey || (item.pickedScenario && (item.scenarioOptions || []).filter((option) => option.name === item.pickedScenario).length === 1 ? (item.scenarioOptions || []).find((option) => option.name === item.pickedScenario).key : ""),
             "aria-label": `${item.name} の帰属先シナリオ`,
-            onChange: (event) => onPickIdentity(item.key, { pickedScenario: event.target.value })
+            onChange: (event) => onPickIdentity(item.key, { pickedScenarioKey: event.target.value, pickedScenario: "" })
           },
             h("option", { value: "" }, "選んでください"),
-            (item.scenarioOptions || []).map((name) => h("option", { key: name, value: name }, name))
+            (item.scenarioOptions || []).map((option) => h("option", { key: option.key, value: option.key }, option.label))
           )
         ),
         h("label", { className: "gara-decide-field" },
@@ -321,12 +321,12 @@ item.decide ? h("div", { className: "gara-decide" },
               h("span", { className: "gara-label" }, "帰属先"),
               h("select", {
                 className: "input",
-                value: item.pickedScenario || "",
+                value: item.pickedScenarioKey || (item.pickedScenario && scenarioOptions.filter((option) => option.name === item.pickedScenario).length === 1 ? scenarioOptions.find((option) => option.name === item.pickedScenario).key : ""),
                 "aria-label": item.name + " の帰属先シナリオ（未分類）",
-                onChange: (event) => onPickIdentity(item.key, { pickedScenario: event.target.value })
+                onChange: (event) => onPickIdentity(item.key, { pickedScenarioKey: event.target.value, pickedScenario: "" })
               },
                 h("option", { value: "" }, "選んでください"),
-                scenarioOptions.map((name) => h("option", { key: name, value: name }, name))
+                scenarioOptions.map((option) => h("option", { key: option.key, value: option.key }, option.label))
               )
             )
           )
@@ -336,7 +336,22 @@ item.decide ? h("div", { className: "gara-decide" },
     );
   }
 
-  /* 照合の階級。表示の文言をここ 1 か所に閉じる。 */
+  function scenarioOptionsOf(scenarios) {
+  const rows = (scenarios || []).map((scenario, index) => ({
+    key: String(scenario && scenario.key || ("scenario:" + index)),
+    name: String(scenario && scenario.name || "無題")
+  }));
+  const totals = new Map();
+  for (const row of rows) totals.set(row.name, (totals.get(row.name) || 0) + 1);
+  const occurrences = new Map();
+  return rows.map((row) => {
+    const occurrence = (occurrences.get(row.name) || 0) + 1;
+    occurrences.set(row.name, occurrence);
+    return { ...row, label: totals.get(row.name) > 1 ? row.name + "（同名 " + occurrence + "）" : row.name };
+  });
+}
+
+/* 照合の階級。表示の文言をここ 1 か所に閉じる。 */
   const TIER_NOTE = {
     A: "獲得行と一致",
     C: "支出行と一致",
@@ -797,7 +812,7 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [], existi
       }, db) || null;
       if (!built) { setError("取り込み内容を組み立てられませんでした"); return; }
     const annotated = window.LBT_annotateManifest?.(built, { db }) || built;
-    const scenarioOptionsForLoad = (annotated.scenarios || []).map((scenario) => scenario && scenario.name).filter(Boolean);
+    const scenarioOptionsForLoad = scenarioOptionsOf(annotated.scenarios || []);
     const sourceOptionsForLoad = window.LBT_garasumado?.SOURCES || [];
 
     /* 帰属先（どのシナリオ）と入手方法は利用者が決める。
@@ -980,7 +995,7 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [], existi
   /* 帰属先（どのシナリオ）と入手方法の選択肢。描画から使うので
      コンポーネントのスコープで持つ（load の中の一時変数だと参照できない）。 */
   const scenarioOptions = manifest
-    ? (manifest.scenarios || []).map((s) => s && s.name).filter(Boolean)
+    ? scenarioOptionsOf(manifest.scenarios || [])
     : [];
   const sourceOptions = window.LBT_garasumado?.SOURCES || [];
 
@@ -1155,7 +1170,7 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [], existi
             reportErrors.push({ fileName: "キャラクターJSON", message: "リザルトと所持データを組み立てられませんでした。" });
           } else {
             const annotated = window.LBT_annotateManifest?.(built, { db }) || built;
-            const scenarioOptionsForLoad = (annotated.scenarios || []).map((scenario) => scenario && scenario.name).filter(Boolean);
+            const scenarioOptionsForLoad = scenarioOptionsOf(annotated.scenarios || []);
             const sourceOptionsForLoad = window.LBT_garasumado?.SOURCES || [];
             for (const group of annotated.groups || []) {
               for (const item of group.items || []) {
@@ -1248,13 +1263,17 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [], existi
     if (!manifest) return;
     const keys = Object.keys(picked).filter((k) => picked[k]);
     const purchases = purchasePlan;
+    const scenarioKeyByItem = {};
+    for (const block of (draft && draft.blocks) || []) {
+      for (const item of block.items || []) scenarioKeyByItem[item.key] = block.key;
+    }
     /* 同期・解析の対象名を DB の人格/E.G.O へ引く。渡さないと
        toDispatchActions は操作行を解決できず、費用の明細が立たない。 */
     const index = window.LBT_buildNameIndex ? window.LBT_buildNameIndex(window.DB || {}, {}) : null;
     const resolve = index && window.LBT_resolveCandidates
       ? (name) => window.LBT_resolveCandidates(index, name)?.[0] || null
       : () => null;
-    const result = window.LBT_toDispatchActions?.(merged, keys, { purchases, resolve, legacyResultTargets: legacyTargets }) || { actions: [], skipped: [] };
+    const result = window.LBT_toDispatchActions?.(merged, keys, { purchases, resolve, legacyResultTargets: legacyTargets, scenarioKeyByItem }) || { actions: [], skipped: [] };
     const personaActions = (personaItems || [])
       .filter((row) => row.ok && personaPicked[row.id] && !personaAlreadyImported(row.id))
       .map((row) => ({

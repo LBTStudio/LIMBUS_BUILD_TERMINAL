@@ -2347,6 +2347,31 @@
             });
           }
         }
+        const hasAmountWithoutCurrencyUnit =
+          auditModeBefore === "spend" &&
+          /[^\d０-９]\s*[+＋\-−]?\s*[0-9０-９][0-9０-９,，]*\s*$/.test(sourceLine) &&
+          !/(?:LP|ＬＰ)\s*[：:]?\s*[+＋\-−]?\s*[0-9０-９]|[+＋\-−]?\s*[0-9０-９][0-9０-９,，]*\s*(?:LP|ＬＰ|自我の(?:破片|欠片)|欠片|欠け片|かけら|欠けら|カケラ|けっか)/i.test(sourceLine) &&
+          !/^\s*[+＋\-−]?\s*[0-9０-９][0-9０-９,，]*\s*$/.test(sourceLine);
+        if (hasAmountWithoutCurrencyUnit && !financialCoverage.some((entry) => entry && entry.lineIndex === i + 1)) {
+          const message = "支出節に数値候補がありますが、LP／欠片の通貨単位がありません。通貨・金額・方向を推定せず確認してください。";
+          if (!reasons.some((entry) => String(entry && entry.line || "").trim() === sourceLine.trim() && /通貨単位/.test(String(entry && entry.reason || "")))) {
+            reasons.push({ line: sourceLine, reason: message });
+          }
+          financialCoverage.push({
+            lineIndex: i + 1, line: sourceLine, section: auditModeBefore,
+            status: "unitless-currency-review",
+            expected: { lp: 0, shards: 0 }, detected: { lp: 0, shards: 0 },
+            expectedFlows: { lpIncome: 0, lpSpend: 0, lpUnknown: 0, shardsIncome: 0, shardsSpend: 0, shardsUnknown: 0 },
+            detectedFlows: { lpIncome: 0, lpSpend: 0, lpUnknown: 0, shardsIncome: 0, shardsSpend: 0, shardsUnknown: 0 },
+            parserReasonCount: 1, sourceFinding: true
+          });
+          sourceAudits.push({
+            side: "parser", code: "unitless-expense-candidate", severity: "review",
+            lineIndex: i + 1, line: sourceLine, section: auditModeBefore,
+            expected: { lp: 0, shards: 0 }, detected: { lp: 0, shards: 0 },
+            message
+          });
+        }
         }
       }
     }

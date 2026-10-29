@@ -654,7 +654,8 @@ test("硝子窓の取り込み画面は既存の利用側を壊さず足し物�
   /* 確定がコンバート確定。押した瞬間に確定し、結果を見せる（自動で閉じない）。 */
   assert.match(ui, /onApply\?\.\(applied\);/);
   /* 購入明細は「どのシナリオの支出か」を保ったまま渡す。 */
-  assert.match(ui, /const result = window\.LBT_toDispatchActions\?\.\(merged, keys, \{ purchases, resolve, legacyResultTargets: legacyTargets \}\)/);
+  assert.match(ui, /const result = window\.LBT_toDispatchActions\?\.\(merged, keys, \{ purchases, resolve, legacyResultTargets: legacyTargets, scenarioKeyByItem \}\)/);
+  assert.match(ui, /scenarioKeyByItem\[item\.key\] = block\.key/);
   /* 同期・解析の対象名を DB へ引く解決器も渡す（渡さないと操作行が捨てられる）。 */
   assert.match(ui, /LBT_buildNameIndex/);
   assert.match(ui, /LBT_resolveCandidates\(index, name\)/);
@@ -793,7 +794,7 @@ test("硝子窓の取り込みはリザルトに押し込まずアカウント�
    assert.doesNotMatch(led, /ledger-card-menu/);
   /* シナリオ1件 = リザルト1件。順序が帰属を決める。
      収入は opts.income の空値ではなく、memo パーサが読んだ実額が入る。 */
-  assert.match(read("../js/garasumado-roster-import.js"), /actions\.push\(\{\s*\n\s*type: "ADD_RESULT",\s*\n\s*name: scenario\.name/);
+  assert.match(read("../js/garasumado-roster-import.js"), /actions\.push\(\{\s*\n\s*type: "ADD_RESULT",\s*\n\s*batchKey: String\(scenario\.key \|\| ""\),\s*\n\s*name: scenario\.name/);
   assert.match(read("../js/garasumado-roster-import.js"), /lp: income\.lp \|\| 0,\s*\n\s*shards: income\.shards \|\| 0,\s*\n\s*tickets:/);
   /* アカウント編集側にも同じ取り込みが生きている。 */
   assert.match(acct, /function applyGarasumadoImport\(result\)/);

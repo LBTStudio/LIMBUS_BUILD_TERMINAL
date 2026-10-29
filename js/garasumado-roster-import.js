@@ -932,12 +932,31 @@ function toIdentityChoices(hits) {
      利用者が選んだシナリオを 1 件だけ使う（未決なら null）。
      定めるのはコート時だけ。他の利用者は従来通り通す。
      カードから戻された所持は照合より戻しを優先し、帰属先未決に戻る。 */
-  function chosenVia(item) {
-    if (item.returned && !item.pickedScenario) return [];
-    if (item.via && item.via.length) return item.via;
+  function chosenVia(item, scenarios, scenarioKeyOverride) {
+    const chosenKey = String(item.pickedScenarioKey || scenarioKeyOverride || "").trim();
+    if (item.returned && !chosenKey && !item.pickedScenario) return [];
+    if (chosenKey) {
+      const hit = (scenarios || []).find((scenario) => String(scenario && scenario.key || "") === chosenKey);
+      return hit ? [String(hit.name || "")] : [];
+    }
     if (item.pickedScenario) return [item.pickedScenario];
+    if (item.via && item.via.length) return item.via;
     if (item.needsAttribution) return null;
     return [];
+  }
+
+  function chosenViaKeys(item, scenarios, scenarioKeyOverride) {
+    const chosenKey = String(item.pickedScenarioKey || scenarioKeyOverride || "").trim();
+    if (item.returned && !chosenKey && !item.pickedScenario) return [];
+    if (chosenKey) return [chosenKey];
+    if (item.viaKeys && item.viaKeys.length) return [...new Set(item.viaKeys.map(String).filter(Boolean))];
+    const names = item.pickedScenario ? [item.pickedScenario] : (Array.isArray(item.via) ? item.via : []);
+    const keys = [];
+    for (const name of names) {
+      const matches = (scenarios || []).filter((scenario) => String(scenario && scenario.name || "") === String(name || ""));
+      if (matches.length === 1 && matches[0].key) keys.push(String(matches[0].key));
+    }
+    return [...new Set(keys)];
   }
 
   /* 選択された manifest を、実際に投げる action の一覧にする。
@@ -983,7 +1002,10 @@ function toIdentityChoices(hits) {
            入れたくなる（チェックしたのに何も入らないのは操作としても嘘）。
            そのときは所属が決められないので、帰属なしの所持として入れる
            （明細は「未分類＝待機項目」の欄に入るのが既存仕様）。 */
-        const via = chosenVia(item) || (selected.has(item.key) ? [] : null);
+        const scenarios = (manifest && manifest.scenarios) || [];
+        const scenarioKeyOverride = (opts.scenarioKeyByItem && opts.scenarioKeyByItem[item.key]) || "";
+        const via = chosenVia(item, scenarios, scenarioKeyOverride) || (selected.has(item.key) ? [] : null);
+        const viaKeys = chosenViaKeys(item, scenarios, scenarioKeyOverride);
         if (!via) {
           skipped.push({ key: item.key, reason: "どのシナリオのものか選んでください" });
           continue;
@@ -1018,7 +1040,7 @@ function toIdentityChoices(hits) {
           /* 人格はDB価格を持たない。source:"buy" は入手方法であって金額ではない。
              金額の根拠は scenario.spends / purchasePlan 側の ADD_ENTRY だけから記帳する。
              ここで purchase:true にすると action.cost 未指定のため 0LP の購入明細が増える。 */
-          actions.push({ type: "ADD_ROSTER", no: String(persona.no), mode: personaMode, via, ...(via.length ? {} : { unclassified: true }), source: item.source || "", purchase: item.source === "buy" && !memoPaid(item) });
+          actions.push({ type: "ADD_ROSTER", no: String(persona.no), mode: personaMode, via, viaKeys, ...(via.length ? {} : { unclassified: true }), source: item.source || "", purchase: item.source === "buy" && !memoPaid(item) });
           if (Array.isArray(item.importedEnhancementNames)) {
             const imported = resolveImportedEnhancements(item.importedEnhancementNames, itemDb);
             if (imported.rows.length || item.importedEnhancementNames.length === 0) {
@@ -1040,19 +1062,19 @@ function toIdentityChoices(hits) {
               const key = `ego:${knownExact.rank}:${knownExact.no}`;
               if (!taken.has(key)) {
                 taken.add(key);
-                actions.push({ type: "ADD_ROSTER_EGO", no: String(knownExact.no), rank: knownExact.rank, via, ...(via.length ? {} : { unclassified: true }) });
+                actions.push({ type: "ADD_ROSTER_EGO", no: String(knownExact.no), rank: knownExact.rank, via, viaKeys, ...(via.length ? {} : { unclassified: true }) });
               }
               continue;
             }
             if (validRanks.has(rank) && !(item.identityCandidates || []).length && !(item.candidates || []).length) {
-              actions.push({ type: "ADD_CUSTOM_ROSTER_EGO", name: rawName, rank, via, ...(via.length ? {} : { unclassified: true }), source: item.source || "" });
+              actions.push({ type: "ADD_CUSTOM_ROSTER_EGO", name: rawName, rank, via, viaKeys, ...(via.length ? {} : { unclassified: true }), source: item.source || "" });
               continue;
             }
             skipped.push({ key: item.key, reason: "DB番号かランクが引けない（独自E.G.Oは元データのランクが必要）" });
             continue;
           }
           taken.add(`ego:${ego.rank}:${ego.no}`);
-          actions.push({ type: "ADD_ROSTER_EGO", no: String(ego.no), rank: ego.rank, via, ...(via.length ? {} : { unclassified: true }), source: item.source || "", purchase: item.source === "buy" && !memoPaid(item) });
+          actions.push({ type: "ADD_ROSTER_EGO", no: String(ego.no), rank: ego.rank, via, viaKeys, ...(via.length ? {} : { unclassified: true }), source: item.source || "", purchase: item.source === "buy" && !memoPaid(item) });
         } else if (group.id === "supportPassives") {
           if (!support) {
             /* メモの章立てと実体の種別が違うことがある（同一品目が
@@ -1065,6 +1087,7 @@ function toIdentityChoices(hits) {
                 type: "ADD_ROSTER_SPIRIT",
                 spirit: { name: spirit.name || item.dbName || item.name },
                 via,
+                viaKeys,
                 ...(via.length ? {} : { unclassified: true }),
                 purchase: item.source === "buy" && !memoPaid(item)
               });
@@ -1081,6 +1104,7 @@ function toIdentityChoices(hits) {
             type: "ADD_ROSTER_SUPPORT",
             spp: { name: support.name || item.dbName || item.name },
             via,
+            viaKeys,
             ...(via.length ? {} : { unclassified: true }),
             purchase: item.source === "buy" && !memoPaid(item)
           });
@@ -1092,6 +1116,7 @@ function toIdentityChoices(hits) {
                 type: "ADD_ROSTER_SUPPORT",
                 spp: { name: support.name || item.dbName || item.name },
                 via,
+                viaKeys,
                 ...(via.length ? {} : { unclassified: true }),
                 purchase: item.source === "buy" && !memoPaid(item)
               });
@@ -1104,6 +1129,7 @@ function toIdentityChoices(hits) {
             type: "ADD_ROSTER_SPIRIT",
             spirit: { name: spirit.name || item.dbName || item.name },
             via,
+            viaKeys,
             ...(via.length ? {} : { unclassified: true }),
             purchase: item.source === "buy" && !memoPaid(item)
           });
@@ -1148,7 +1174,7 @@ function toIdentityChoices(hits) {
     for (const group of (manifest && manifest.groups) || []) {
       for (const item of group.items) {
         if (!selected.has(item.key)) continue;
-        for (const name of chosenVia(item) || []) {
+        for (const name of chosenVia(item, (manifest && manifest.scenarios) || []) || []) {
           const hit = ((manifest && manifest.scenarios) || []).find((s) => s && s.name === name);
           if (hit) attributedScenarioKeys.add(hit.key);
         }
@@ -1169,6 +1195,7 @@ function toIdentityChoices(hits) {
       const legacyResultId = String(opts.legacyResultTargets?.[scenario.key] || "").trim();
       actions.push({
         type: "ADD_RESULT",
+        batchKey: String(scenario.key || ""),
         name: scenario.name || "無題",
         ...(scenario.date ? { date: scenario.date } : {}),
         ...(scenario.importSourceKey ? { importSourceKey: scenario.importSourceKey } : {}),
@@ -1287,11 +1314,22 @@ function toIdentityChoices(hits) {
          読み取れなかった金額は 0 のままにして名前だけ残す。
          勝手に埋めれば、原本と食い違う数字が残る。 */
       for (const spend of scenario.spends || []) {
+        const lp = Number(spend && spend.lp || 0);
+        const shards = Number(spend && spend.shards || 0);
+        const rawLine = String(spend && (spend.raw || spend.name) || "").trim();
+        const uncertain = (!lp && !shards) && (scenario.reasons || []).find((row) =>
+          String(row && row.line || "").trim() === rawLine
+          && /(?:支出金額|支出額|金額).*(?:読み取れない|未確定|未計上|確定できない|要確認)|通貨単位.*(?:不明|無い|ない|ありません)/.test(String(row && row.reason || ""))
+        );
+        if (uncertain) {
+          skipped.push({ key: scenario.key, reason: "金額未確定の支出候補は確定明細へ登録せず保留しました。原文を確認してください。" });
+          continue;
+        }
         actions.push({
           type: "ADD_ENTRY",
           kind: "other",
           name: String(spend.name || "（明細）").slice(0, 120),
-          cost: { lp: spend.lp || 0, shards: spend.shards || 0 }
+          cost: { lp: lp || 0, shards: shards || 0 }
         });
       }
 
@@ -1463,7 +1501,9 @@ function toIdentityChoices(hits) {
     const key = nameKey(name);
     if (!key) return null;
     const hits = evidence.filter((e) => e.text.includes(key));
-    return hits.length ? { tier: "D", scenario: hits[0].name, unique: hits.length === 1, hits: hits.length } : null;
+    if (hits.length > 1) return { ambiguous: true, candidateScenarioKeys: hits.map((hit) => hit.key) };
+    if (hits.length !== 1) return null;
+    return { tier: "D", scenario: hits[0].name, scenarioKey: hits[0].key, unique: true, hits: 1 };
   }
 
   /* 1件の所持が、どのシナリオ帰属なら自動確定できるかを返す。
@@ -1481,16 +1521,19 @@ function toIdentityChoices(hits) {
       const exact = evidence.filter((e) => e.exact.has(key));
       if (exact.length) {
         /* 支出行にあれば購入。複数シナリオにあれば上（シナリオ順）。 */
+        if (exact.length !== 1) return { ambiguous: true, candidateScenarioKeys: exact.map((hit) => hit.key) };
         const bought = exact.find((e) => e.spend.has(key));
-        return { tier: bought ? "C" : "A", scenario: (bought || exact[0]).name, unique: exact.length === 1 };
+        const hit = bought || exact[0];
+        return { tier: bought ? "C" : "A", scenario: hit.name, scenarioKey: hit.key, unique: true };
       }
     }
     /* 同期・解析の記載がある。它的対象は既に所持に存在した品目なので、
        獲得行に載っていなくても帰属が決まる（本文言及より強い）。 */
     for (const key of keys) {
       const synced = evidence.filter((e) => e.synced.has(key));
-      if (synced.length) {
-        return { tier: "S", scenario: synced[0].name, unique: synced.length === 1 };
+      if (synced.length > 1) return { ambiguous: true, candidateScenarioKeys: synced.map((hit) => hit.key) };
+      if (synced.length === 1) {
+        return { tier: "S", scenario: synced[0].name, scenarioKey: synced[0].key, unique: true };
       }
     }
     /* 証拠が無くても本文に書いてあれば帰属は決まる（本文言及）。 */
@@ -1533,8 +1576,9 @@ function toIdentityChoices(hits) {
       currencyDiscrepancies: Array.isArray(scenario.currencyDiscrepancies) ? scenario.currencyDiscrepancies : [],
       items: []
     }));
-    const blockOfName = new Map();
-    for (const b of blocks) if (!blockOfName.has(b.name)) blockOfName.set(b.name, b);
+    const blockOfKey = new Map(blocks.filter((b) => b.key != null).map((b) => [String(b.key), b]));
+    const blocksByName = new Map();
+    for (const b of blocks) blocksByName.set(String(b.name || ""), [...(blocksByName.get(String(b.name || "")) || []), b]);
     const unassigned = [];
 
     for (const group of (manifest && manifest.groups) || []) {
@@ -1548,12 +1592,22 @@ function toIdentityChoices(hits) {
         const names = cands.length === 1 ? [cands[0].name] : [];
         /* カードから戻された所持は照合結果より戻しを優先して未割当に返す。
            帰属先を選び直せば（pickedScenario が入れば）戻しは解ける。 */
-        const returned = Boolean(patch.returned) && !item.pickedScenario;
+        const returned = Boolean(patch.returned) && !item.pickedScenario && !item.pickedScenarioKey;
         const found = returned ? null : attributionOf(item, evidence, names);
-        /* 归属 Override があれば、照合より優先する。 */
-        const chosenName = returned ? "" : (item.pickedScenario || (found ? found.scenario : ""));
-        const chosenBlock = chosenName ? (blockOfName.get(chosenName) || null) : null;
-        const tier = item.pickedScenario ? "M" : found ? found.tier : "";
+        let chosenBlock = null;
+        if (!returned && item.pickedScenarioKey) {
+          chosenBlock = blockOfKey.get(String(item.pickedScenarioKey)) || null;
+        } else if (!returned && item.pickedScenario) {
+          const nameMatches = blocksByName.get(String(item.pickedScenario)) || [];
+          if (nameMatches.length === 1) chosenBlock = nameMatches[0];
+        } else if (!returned && found && found.scenarioKey) {
+          chosenBlock = blockOfKey.get(String(found.scenarioKey)) || null;
+        } else if (!returned && found && found.scenario) {
+          const nameMatches = blocksByName.get(String(found.scenario)) || [];
+          if (nameMatches.length === 1) chosenBlock = nameMatches[0];
+        }
+        const chosenName = chosenBlock ? chosenBlock.name : "";
+        const tier = (item.pickedScenario || item.pickedScenarioKey) ? "M" : found ? found.tier : "";
         const source = item.source || "";
 
         const record = {
@@ -1583,9 +1637,11 @@ function toIdentityChoices(hits) {
         if (found && found.tier === "F") { /* 下の else と同じ扱い */ }
         record.reason = returned
           ? "カードから戻しました（帰属先を選び直してください）"
-          : !found
-            ? (cands.length ? "候補が複数あります（選んでください）" : "照合できるシナリオがありません")
-            : "シナリオが決まっていません";
+          : found && found.ambiguous
+            ? "複数のシナリオに証跡があるため、帰属先を選んでください"
+            : !found
+              ? (cands.length ? "候補が複数あります（選んでください）" : "照合できるシナリオがありません")
+              : "シナリオが決まっていません";
         unassigned.push(record);
       }
     }
