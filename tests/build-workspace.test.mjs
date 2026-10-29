@@ -1316,6 +1316,6 @@ test("右側プレビューはデスクトップで初期表示し、小画面�
   const state = read("../js/state.js");
   assert.match(app, /const previewOpen = state\.ui\.previewOpen === true \|\| \(state\.ui\.previewOpen == null && typeof window !== "undefined" && window\.matchMedia\("\(min-width: 1100px\)"\)\.matches\);/);
   assert.match(state, /previewOpen: void 0,/);
-  assert.match(state, /未設定は初期折り畳み/);
+  assert.match(state, /未設定時はデスクトップで表示、小画面では折り畳み/);
   assert.doesNotMatch(app, /previewOpen[^\n]*!isNarrow/);
 });
