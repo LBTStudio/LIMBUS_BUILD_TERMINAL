@@ -385,16 +385,11 @@ const HelpSection = ({ onNavigate, onOpenUtilities }) => {
 };
 
 const SECTIONS = [
-  /* 駒整形 → ビルド → ショップ の順。整えてから選び、選んでから携える。 */
-  /* 駒整形（BASEINFO）。装備した人格の同期・固有バフ・戦闘設定をここで整える。 */
-  { id: "baseinfo", label: "駒整形", icon: "persona", title: "BASE INFO", subtitle: "装備人格の同期・固有バフ・戦闘設定", num: "01", group: "build" },
-  /* ビルドを主とする。人格・スキル・パッシブ・強化・サポート・E.G.O・精神・アイテム は
-     BuildWorkspace の8タブ。旧 currentSection 値（skill/passive/enh/support/ego/spirit/
-     items-build） も renderSection が受け、移行不要。
-     所持ゲートは各タブのフィルタで解除できる（既定は所持のみ）。 */
-  { id: "persona", label: "ビルド", icon: "grid", title: "BUILD WORKSPACE", subtitle: "人格・スキル・パッシブ・強化・サポート・E.G.O・精神・アイテム", num: "02", group: "build" },
-  /* ショップは所持の唯一の取得口。既定は未所持のみを出す。 */
-  { id: "shop", label: "ショップ", icon: "item", title: "SHOP", subtitle: "人格・サポート・E.G.O・精神・アイテムを購入", num: "03", group: "utility" },
+  /* ホームは目的別ランチャー。実際の編集画面はワークベンチに集約する。 */
+  { id: "home", label: "ホーム", icon: "grid", title: "HOME / LAUNCHER", subtitle: "目的から作業を始める", num: null, group: "home" },
+  /* 基本設定・人格・戦術データを同じ作業面にまとめる。 */
+  { id: "persona", label: "ワークベンチ", icon: "grid", title: "BUILD WORKSPACE", subtitle: "基本設定・人格・スキル・パッシブ・強化・サポート・E.G.O・精神・アイテム", num: "01", group: "build" },
+  { id: "shop", label: "ショップ", icon: "item", title: "SHOP", subtitle: "人格・サポート・E.G.O・精神・アイテムを購入", num: "02", group: "utility" },
   { id: "roster", label: "記録", icon: "roster", title: "CHARACTER RECORD", subtitle: "所持品・リザルト・収支・取り込み", num: null, group: "utility" },
   { id: "settings", label: "設定", icon: "settings", title: "BUILD PARAMETERS", subtitle: "ステータス設計・計算・出力", num: null, group: "utility" },
   { id: "help", label: "使い方", icon: "book", title: "使い方", subtitle: "検索して、押す場所を図で確認", num: null, group: "utility" }
@@ -497,7 +492,7 @@ const acquirePicked = () => {
     const cmds = [
       ...SECTIONS.map((s) => ({ type: "nav", label: `${s.label} \u30BB\u30AF\u30B7\u30E7\u30F3\u3078\u79FB\u52D5`, kbd: s.num, run: () => dispatch({ type: "SET_UI", ui: { currentSection: s.id } }) })),
       /* ビルドは1画面タブ統合。タブへの直接ジャンプをパレットにも出す。 */
-      ...(window.LBT_BUILD_TABS || []).map((t) => ({ type: "nav", label: `ビルド：${t.label}`, kbd: t.num, run: () => dispatch({ type: "SET_UI", ui: { currentSection: t.id } }) })),
+      ...(window.LBT_BUILD_TABS || []).map((t) => ({ type: "nav", label: `ワークベンチ：${t.label}`, kbd: t.num, run: () => dispatch({ type: "SET_UI", ui: { currentSection: t.id } }) })),
       { type: "act", label: "JSON\u3092\u30B3\u30D4\u30FC", kbd: "JSON", run: async () => {
         try {
           await navigator.clipboard.writeText(JSON.stringify(LBT_gen.buildCcfoliaJSON(state)));
@@ -1283,7 +1278,7 @@ const RailNavigation = ({ sections, current, dispatch, onOpenUtilities, state })
     /* ビルド項目（persona）は 8タブ分の旧 currentSection 値でも
        アクティブ表示し、必須3項目の合成完了でドットを出す。 */
     const isBuild = s.id === "persona";
-    const active = isBuild ? ["persona", "skill", "passive", "enh", "support", "ego", "spirit", "items-build"].includes(current) : current === s.id;
+    const active = isBuild ? ["baseinfo", "persona", "skill", "passive", "enh", "support", "ego", "spirit", "items-build"].includes(current) : current === s.id;
     const done = isBuild
       ? isComplete("persona", state) && isComplete("skill", state) && isComplete("passive", state)
       : isComplete(s.id, state);
@@ -1291,13 +1286,117 @@ const RailNavigation = ({ sections, current, dispatch, onOpenUtilities, state })
       key: s.id,
       type: "button",
       className: `rail-item${s.group === "utility" ? " is-utility" : ""}${active ? " is-active" : ""}`,
-      onClick: () => dispatch({ type: "SET_UI", ui: { currentSection: s.id } }),
+      onClick: () => dispatch({ type: "SET_UI", ui: { currentSection: s.id === "persona" ? "baseinfo" : s.id } }),
       "aria-current": active ? "page" : void 0,
       title: s.label
     }, h("span", { className: "rail-icon" }, h(Icon, { name: s.icon, size: 18 })), h("span", { className: "rail-label" }, s.label), isBuild && !done && h("span", { className: "dot is-warn" }), done && h("span", { className: "dot" }));
   };
   return h("nav", { className: "rail", "aria-label": "画面移動" }, sections.map(buildRailItem),
     h("button", { type: "button", className: "rail-item rail-more", onClick: onOpenUtilities, "aria-haspopup": "dialog", title: "その他の操作と画面" }, h("span", { className: "rail-icon" }, h(Icon, { name: "grid", size: 18 })), h("span", { className: "rail-label" }, "その他"))
+  );
+};
+
+/* ホーム：既存機能への入口を目的別にまとめたランチャー。
+   処理やデータ更新を複製せず、既存画面と既存アクションへ接続する。 */
+const HomeLauncher = ({
+  state, dispatch, saveStatus, onOpenAccounts, onOpenImportFile,
+  onExportState, onExportRoster, onTogglePreview, onCopyJson
+}) => {
+  const h = React.createElement;
+  const [query, setQuery] = React.useState("");
+  const navigate = (currentSection, extraUI = {}) =>
+    dispatch({ type: "SET_UI", ui: { currentSection, ...extraUI } });
+
+  const groups = [
+    {
+      id: "edit", title: "作成・編集", note: "基本設定から戦闘データまで、同じワークベンチで作業します。", items: [
+        { id: "base", title: "駒の基本設定", desc: "立ち絵・名前・行動順・駒色・ST・ラベル", icon: "persona", terms: "駒整形 ココフォリア 立ち絵 画像 キャラクター 基本情報", run: () => navigate("baseinfo") },
+        { id: "persona", title: "人格を選ぶ・装備する", desc: "所持人格の選択、同期・手動編集", icon: "persona", terms: "人格 所持 装備 同期 手動編集", run: () => navigate("persona") },
+        { id: "skills", title: "スキルを編集する", desc: "戦術スキル・ダイス・効果", icon: "skill", terms: "戦術 スキル ダイス 効果", run: () => navigate("skill") },
+        { id: "passive", title: "パッシブ・強化・サポート", desc: "パッシブ、身体強化、サポート枠", icon: "passive", terms: "パッシブ 強化 サポート", run: () => navigate("passive") },
+        { id: "ego", title: "E.G.Oを装備・解析", desc: "ランク枠、覚醒・侵蝕、固有効果", icon: "ego", terms: "EGO E.G.O 解析 覚醒 侵蝕", run: () => navigate("ego") }
+      ]
+    },
+    {
+      id: "imports", title: "データの取り込み", note: "入力データの種類を選び、解析結果と反映先を確認します。", items: [
+        { id: "persona-import", title: "人格データの文章を取り込む", desc: "一括テキストや硝子窓の人格URL", icon: "copy", terms: "人格 テキスト 流し込み 硝子窓 URL 共有", run: () => navigate("persona", { openPersonaDraftImport: true }) },
+        { id: "result-import", title: "報酬・購入履歴を取り込む", desc: "リザルト本文を解析して収支へ反映", icon: "download", terms: "報酬 購入 履歴 リザルト 収支 LP 欠片", run: () => navigate("roster", { libraryTab: "ledger", recordImportTarget: "text" }) },
+        { id: "owned-import", title: "所持人格リストを取り込む", desc: "人格名の一覧をまとめて認識", icon: "roster", terms: "所持 人格 一覧 一括 名前 リスト", run: () => navigate("roster", { libraryTab: "ledger", recordImportTarget: "held" }) },
+        { id: "account-import", title: "硝子窓のキャラクター全体を取り込む", desc: "アカウント編集から共有URLを読み込む", icon: "share", terms: "硝子窓 キャラクター アカウント 全体 URL 共有", run: onOpenAccounts }
+      ]
+    },
+    {
+      id: "output", title: "保存・出力", note: "バックアップ、共有用シート、セッション用JSONを使い分けます。", items: [
+        { id: "save-state", title: "作業状態をファイル保存", desc: "現在の作業状態をJSONへ書き出す", icon: "download", terms: "保存 バックアップ JSON 作業状態 エクスポート", run: onExportState },
+        { id: "load-state", title: "保存ファイルを読み込む", desc: "適用するカテゴリを選んで復元", icon: "upload", terms: "読み込み 復元 インポート ファイル JSON", run: onOpenImportFile },
+        { id: "save-library", title: "所持ライブラリを保存", desc: "所持人格・E.G.O・保存済みビルドを引き継ぐ", icon: "archive", terms: "所持 ライブラリ 保存 ビルド お気に入り 履歴", run: onExportRoster },
+        { id: "preview", title: state.ui?.previewOpen === true ? "プレビューを閉じる" : "プレビューを開く", desc: "メモ・チャットパレット・JSONを確認", icon: "eye", terms: "プレビュー メモ チャットパレット JSON 出力", run: onTogglePreview },
+        { id: "json", title: "CCFOLIA JSONをコピー", desc: "セッションで使う駒データを出力", icon: "copy", terms: "ココフォリア CCFOLIA JSON コピー 出力", run: onCopyJson }
+      ]
+    },
+    {
+      id: "manage", title: "管理・参照", note: "所持品、購入、設定、操作ガイドへ移動します。", items: [
+        { id: "shop", title: "ショップを開く", desc: "人格・E.G.O・アイテムなどを入手", icon: "item", terms: "ショップ 購入 入手 商品", run: () => navigate("shop") },
+        { id: "records", title: "所持品・リザルト・収支を確認", desc: "記録の一覧と残高を管理", icon: "roster", terms: "記録 所持品 リザルト 収支 LP 欠片", run: () => navigate("roster", { libraryTab: "ledger" }) },
+        { id: "settings", title: "詳細設定", desc: "ステータス一覧、計算、出力先", icon: "settings", terms: "設定 ステータス 計算 出力先 ラベル", run: () => navigate("settings") },
+        { id: "help", title: "使い方・操作ガイド", desc: "機能名や目的から使い方を探す", icon: "book", terms: "使い方 ガイド ヘルプ 操作 検索", run: () => navigate("help") }
+      ]
+    }
+  ];
+
+  const needle = query.trim().toLocaleLowerCase("ja");
+  const visibleGroups = groups.map((group) => ({
+    ...group,
+    items: group.items.filter((item) =>
+      !needle || [item.title, item.desc, item.terms].join(" ").toLocaleLowerCase("ja").includes(needle))
+  })).filter((group) => group.items.length > 0);
+  const renderCards = (items) => items.map((item) => h("button", {
+    key: item.id, type: "button", className: "home-task",
+    onClick: item.run, "data-task": item.id
+  },
+    h("span", { className: "home-task-icon", "aria-hidden": "true" }, h(Icon, { name: item.icon, size: 18 })),
+    h("span", { className: "home-task-copy" },
+      h("strong", null, item.title),
+      h("span", null, item.desc)),
+    h("span", { className: "home-task-arrow", "aria-hidden": "true" }, "→")
+  ));
+
+  return h("section", { className: "home-launcher", "aria-labelledby": "home-launcher-title" },
+    h("header", { className: "home-hero" },
+      h("div", { className: "home-hero-copy" },
+        h("span", { className: "home-eyebrow" }, "LIMBUS BUILD TERMINAL / WORKSPACE"),
+        h("h2", { id: "home-launcher-title" }, "何から始めますか？"),
+        h("p", null, "目的から入口を選べます。細かな編集はワークベンチにまとまっています。"),
+        h("div", { className: "home-context" },
+          h("span", null, "作業対象"),
+          h("strong", null, String(state.charName || "名称未設定")),
+          h("span", { className: "home-save-state", "data-state": saveStatus?.phase || "unknown" },
+            saveStatus?.phase === "saved" ? "端末内に保存済み" : saveStatus?.phase === "error" ? "ファイル保存を推奨" : "自動保存中")
+        )
+      ),
+      h("button", {
+        type: "button", className: "home-primary-action",
+        onClick: () => navigate("baseinfo")
+      }, h(Icon, { name: "grid", size: 17 }), h("span", null, "ワークベンチを開く"))
+    ),
+    h("label", { className: "home-search" },
+      h(Icon, { name: "search", size: 17 }),
+      h("input", {
+        type: "search", value: query, onChange: (event) => setQuery(event.target.value),
+        placeholder: "操作を検索（例：報酬、硝子窓、JSON）",
+        "aria-label": "ホームの機能を検索"
+      }),
+      query ? h("button", { type: "button", onClick: () => setQuery(""), "aria-label": "検索をクリア" }, "×") : null
+    ),
+    h("div", { className: "home-task-groups" },
+      visibleGroups.length
+        ? visibleGroups.map((group) => h("section", { key: group.id, className: "home-group", "aria-labelledby": "home-group-" + group.id },
+            h("header", { className: "home-group-heading" },
+              h("h3", { id: "home-group-" + group.id }, group.title),
+              h("p", null, group.note)),
+            h("div", { className: "home-task-grid" }, renderCards(group.items))))
+        : h("div", { className: "home-empty" }, "該当する操作がありません。別の言葉で検索してください。")
+    )
   );
 };
 
@@ -1536,12 +1635,22 @@ const App = () => {
     document.addEventListener("focusin", onFocusIn, true);
     return () => document.removeEventListener("focusin", onFocusIn, true);
   }, []);
-  const current = state.ui.currentSection || "persona";
+  const current = state.ui.currentSection || "home";
   const sec = SECTIONS.find((s) => s.id === current) || SECTIONS[0];
   const renderSection = () => {
     switch (current) {
-      /* 6タブ統合。currentSection が skill/passive/enh/support/ego の旧値でも
-         BuildWorkspace が BUILD_TABS からアクティブタブを引く。 */
+      case "home":
+        return React.createElement(HomeLauncher, {
+          state, dispatch, saveStatus,
+          onOpenAccounts: () => window.dispatchEvent(new CustomEvent("lbt:open-accounts")),
+          onOpenImportFile: () => fileRef.current?.click(),
+          onExportState: () => exportState(state),
+          onExportRoster: () => exportRoster(state),
+          onTogglePreview: togglePreview,
+          onCopyJson: copyJson
+        });
+      /* 基本設定・人格・戦闘データを同じワークベンチ内で扱う。 */
+      case "baseinfo":
       case "persona":
       case "skill":
       case "passive":
@@ -1551,11 +1660,6 @@ const App = () => {
       case "spirit":
       case "items-build":
         return /* @__PURE__ */ React.createElement(BuildWorkspace, { state, dispatch });
-      case "baseinfo":
-        /* 他のセクション（roster/help/settings）と同じく SectionTitle を付ける。
-           ここは SECTIONS に title:"BASE INFO" / subtitle が定義されているのに
-           描画されておらず、本文が CHARACTER NAME の入力欄から始まっていた。 */
-        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SectionTitle, { num: sec.num, title: sec.title, subtitle: sec.subtitle }), /* @__PURE__ */ React.createElement(BaseInfoWorkspace, { state, dispatch }));
       case "roster":
         return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SectionTitle, { num: sec.num, title: sec.title, subtitle: sec.subtitle }), /* @__PURE__ */ React.createElement(RosterSection, { state, dispatch }));
       case "shop":
