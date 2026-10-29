@@ -86,7 +86,9 @@
   .brand-sub { display: none; }
 }
 @media (max-height: 500px) and (orientation: landscape) {
-  .focus { padding-bottom: 48px; }
+  /* The compact/landscape rail can occupy two rows. Leave enough scrollable clearance so
+     the last Basic-format action cannot end up underneath the fixed navigation. */
+  .focus { padding-bottom: 112px; }
   .app.has-preview .preview { height: 62dvh; }
   .app.has-preview .preview-edge-toggle { top: 50px; bottom: auto; }
   .app.has-preview .section-title-row { display: none; }
