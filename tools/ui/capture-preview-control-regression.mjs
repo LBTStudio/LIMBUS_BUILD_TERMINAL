@@ -128,6 +128,31 @@ async function runProfile(browser,profile) {
   page.on("pageerror",e=>pageErrors.push(e.message));
   try {
     await createDisposableAccount(page,profile);
+
+    // Every screenshot must be from the current user-facing Build UI, not the stale
+    // Workbench-labelled version. Keep this assertion beside the capture so the
+    // artifact cannot silently drift away from the interface it is meant to review.
+    const buildNav = page.locator(".rail-item[title='ビルド']");
+    const legacyWorkbenchNav = page.locator(".rail-item[title='ワークベンチ']");
+    const homeEyebrow = (await page.locator(".home-eyebrow").textContent().catch(() => "") || "").trim();
+    const homeAction = (await page.locator(".home-primary-action").innerText().catch(() => "") || "").trim();
+    const buildBrandingOk = await buildNav.count() === 1
+      && await buildNav.isVisible()
+      && await legacyWorkbenchNav.count() === 0
+      && homeEyebrow === "LIMBUS BUILD TERMINAL / BUILD"
+      && homeAction.includes("ビルドを開く");
+    recordCheck(profile.name + ": capture uses the current Build labels, not stale Workbench labels",
+      buildBrandingOk, { buildNavCount: await buildNav.count(), legacyWorkbenchNavCount: await legacyWorkbenchNav.count(), homeEyebrow, homeAction });
+
+    // Include the actual Build editor in the artifact as well as preview-panel states.
+    await buildNav.click();
+    await page.locator(".build-tabs").waitFor({ state: "visible", timeout: 10000 });
+    const buildOverviewPath = path.join(OUT, profile.name + "-build-overview.png");
+    await page.screenshot({ path: buildOverviewPath, animations: "disabled" });
+    results.screenshots.push({ file: path.relative(ROOT, buildOverviewPath), profile: profile.name, state: "build-overview" });
+    await page.locator(".rail-item[title='ホーム']").click();
+    await page.locator(".home-hero").waitFor({ state: "visible", timeout: 10000 });
+
     const toggle=page.locator(profile.mobile?".preview-mobile-toggle":"#lbt-preview-edge-toggle");
     const initial=await metrics(page,profile);
     recordCheck(profile.name+": one React toggle, no legacy controls",
@@ -265,6 +290,6 @@ async function main() {
   results.checkCount=results.checks.length;
   fs.writeFileSync(path.join(OUT,"manifest.json"),JSON.stringify(results,null,2)+"\n");
   console.log("[preview-control-regression] "+JSON.stringify({screenshots:results.count,checks:results.checkCount,failures:results.failures.length,summary:results.failures.map(f=>({name:f.name,error:f.error,collisions:f.collisions,gapFromPanel:f.gapFromPanel}))}));
-  if(results.failures.length||results.count!==profiles.length*4) process.exitCode=1;
+  if(results.failures.length||results.count!==profiles.length*5) process.exitCode=1;
 }
 main().catch(error=>{console.error("[preview-control-regression] fatal: "+(error?.stack||String(error)));process.exitCode=1;});
