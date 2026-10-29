@@ -161,7 +161,7 @@ async function runProfile(browser,profile) {
     /* Capture the actual Build > Basic status editor, not a separate or mocked sample. */
     const statusPanel = page.locator(".settings-order-embedded").first();
     const statusTitle = statusPanel.locator(".settings-status-workspace-head .t-label");
-    await statusTitle.scrollIntoViewIfNeeded({ timeout: 5000 });
+    await statusTitle.evaluate(el => el.scrollIntoView({ block: "start", inline: "nearest", behavior: "auto" }));
     await page.waitForTimeout(100);
     const statusRows = statusPanel.locator(".status-order-row");
     const statusInputs = statusPanel.locator("input");
