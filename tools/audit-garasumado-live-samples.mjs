@@ -973,34 +973,90 @@ function auditFreeNotes(doc) {
   const allLines = fields.flatMap((field) =>
     String(notes[field] || "").split(/\r?\n/).map((line) => String(line || "").trim()).filter(Boolean)
   );
-  const expenseCues = allLines.filter((line) => /購入|消費|支出|支払|買っ/.test(line));
+  const lineOccurrences = new Map();
+  for (const line of allLines) lineOccurrences.set(line, (lineOccurrences.get(line) || 0) + 1);
+  const expenseCuePattern = /購入|消費|支出|支払|買っ/;
+  const expenseCues = allLines.filter((line) => expenseCuePattern.test(line));
   const acceptedLines = allLines.filter((line) =>
     typeof MEMO.purchaseRowOf === "function" && Boolean(MEMO.purchaseRowOf(line))
   );
   const acceptedSet = new Set(acceptedLines);
-  const unrecognizedCues = expenseCues.filter((line) => !acceptedSet.has(line));
-  const parsed = MEMO.parseMemo(acceptedLines.join("\n"));
-  const signatures = (parsed.spends || []).map(spendSignature).filter(Boolean)
-    .filter((spend) => spend.lp > 0 || spend.shards > 0);
+  const unrecognizedCueRows = [];
   let unrecognizedCueRowsWithGenericSpend = 0;
   let unrecognizedCueGenericSpendLp = 0;
   let unrecognizedCueGenericSpendShards = 0;
   let unrecognizedCueRowsWithCurrencyAmount = 0;
   let unrecognizedCueRowsWithParserReason = 0;
   const unrecognizedCueSpendSignatures = [];
-  for (const line of unrecognizedCues) {
-    if (/(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)\s*[：:]?\s*[+＋\-−]?\s*\d|[+＋\-−]?\s*\d[\d,，]*\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)/i.test(line)) {
-      unrecognizedCueRowsWithCurrencyAmount++;
-    }
+  for (let i = 0; i < allLines.length; i++) {
+    const line = allLines[i];
+    if (!expenseCuePattern.test(line) || acceptedSet.has(line)) continue;
+    const hasCurrencyAmount = /(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)\s*[：:]?\s*[+＋\-−]?\s*\d|[+＋\-−]?\s*\d[\d,，]*\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)/i.test(line);
+    if (hasCurrencyAmount) unrecognizedCueRowsWithCurrencyAmount++;
     const one = MEMO.parseMemo(line);
     const spends = (one.spends || []).map(spendSignature).filter(Boolean);
     const actual = spends.filter((spend) => spend.lp > 0 || spend.shards > 0);
+    const spendLp = actual.reduce((sum, spend) => sum + spend.lp, 0);
+    const spendShards = actual.reduce((sum, spend) => sum + spend.shards, 0);
+    const reasonCount = (one.reasons || []).length;
     if (actual.length) unrecognizedCueRowsWithGenericSpend++;
     unrecognizedCueSpendSignatures.push(...actual);
-    unrecognizedCueGenericSpendLp += actual.reduce((sum, spend) => sum + spend.lp, 0);
-    unrecognizedCueGenericSpendShards += actual.reduce((sum, spend) => sum + spend.shards, 0);
-    if ((one.reasons || []).length > 0) unrecognizedCueRowsWithParserReason++;
+    unrecognizedCueGenericSpendLp += spendLp;
+    unrecognizedCueGenericSpendShards += spendShards;
+    if (reasonCount > 0) unrecognizedCueRowsWithParserReason++;
+
+    const numberTokens = String(line).match(/\d[\d,，]*/g) || [];
+    const flags = {
+      hasCurrencyAmount,
+      hasExplicitSpendVerb: /消費|支出|支払|支払い|買っ/.test(line),
+      hasPurchaseVerb: /購入|買っ/.test(line),
+      hasNegativeCurrencyAmount: /(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)\s*[-−]\s*\d|[-−]\s*\d[\d,，]*\s*(?:LP|ＬＰ|欠片|欠け片|かけら|欠けら|カケラ)/i.test(line),
+      hasBalanceCue: /現在|現座|残高|残り|所持|保有/.test(line),
+      hasArrow: /[→⇒]/.test(line),
+      looksArithmetic: numberTokens.length >= 2 && /[×x＝=+＋()（）]/.test(line),
+      hasTicketOrDrawCue: /チケット|チケ|抽出|ガチャ/i.test(line)
+    };
+    /* Arithmetic-like notation remains a separate caution flag, but two amounts or a
+       quantity marker alone do not erase an otherwise explicit expense cue. Require a
+       currency amount, spend verb, parser-produced expense, no parser reason and no balance
+       or arrow context; reviewers can then inspect the independent arithmetic flag. */
+    const explicitAmountExpenseCandidate = flags.hasCurrencyAmount &&
+      flags.hasExplicitSpendVerb && actual.length > 0 && reasonCount === 0 &&
+      !flags.hasBalanceCue && !flags.hasArrow;
+    unrecognizedCueRows.push({
+      lineIndex: i + 1,
+      lineLength: line.length,
+      occurrencesInFreeNotes: lineOccurrences.get(line) || 1,
+      numberTokenCount: numberTokens.length,
+      parserSpendRows: actual.length,
+      parserSpendLp: spendLp,
+      parserSpendShards: spendShards,
+      parserReasonCount: reasonCount,
+      flags,
+      explicitAmountExpenseCandidate
+    });
   }
+  const countFlag = (predicate) => unrecognizedCueRows.filter(predicate).length;
+  const patternSummary = {
+    rows: unrecognizedCueRows.length,
+    rowsWithCurrencyAmount: countFlag((row) => row.flags.hasCurrencyAmount),
+    rowsWithExplicitSpendVerb: countFlag((row) => row.flags.hasExplicitSpendVerb),
+    rowsWithPurchaseVerb: countFlag((row) => row.flags.hasPurchaseVerb),
+    rowsWithNegativeCurrencyAmount: countFlag((row) => row.flags.hasNegativeCurrencyAmount),
+    rowsWithParserSpend: countFlag((row) => row.parserSpendRows > 0),
+    rowsWithParserReason: countFlag((row) => row.parserReasonCount > 0),
+    rowsWithBalanceCue: countFlag((row) => row.flags.hasBalanceCue),
+    rowsWithArrow: countFlag((row) => row.flags.hasArrow),
+    rowsLookingLikeArithmetic: countFlag((row) => row.flags.looksArithmetic),
+    rowsWithTicketOrDrawCue: countFlag((row) => row.flags.hasTicketOrDrawCue),
+    explicitAmountExpenseCandidateRows: countFlag((row) => row.explicitAmountExpenseCandidate),
+    repeatedLineRows: countFlag((row) => row.occurrencesInFreeNotes > 1),
+    parserSpendLp: unrecognizedCueRows.reduce((sum, row) => sum + row.parserSpendLp, 0),
+    parserSpendShards: unrecognizedCueRows.reduce((sum, row) => sum + row.parserSpendShards, 0)
+  };
+  const parsed = MEMO.parseMemo(acceptedLines.join("\n"));
+  const signatures = (parsed.spends || []).map(spendSignature).filter(Boolean)
+    .filter((spend) => spend.lp > 0 || spend.shards > 0);
   return {
     lineCount: allLines.length,
     expenseCueRows: expenseCues.length,
@@ -1013,6 +1069,8 @@ function auditFreeNotes(doc) {
     unrecognizedCueRowsWithCurrencyAmount,
     unrecognizedCueRowsWithParserReason,
     unrecognizedCueSpendSignatures,
+    unrecognizedCueRows,
+    unrecognizedCuePatternSummary: patternSummary,
     acceptedRowsWithoutParsedSpend: Math.max(0, acceptedLines.length - signatures.length),
     spendLp: signatures.reduce((sum, spend) => sum + spend.lp, 0),
     spendShards: signatures.reduce((sum, spend) => sum + spend.shards, 0),
@@ -1205,6 +1263,27 @@ function toMarkdownReport(report) {
     ...report.balance.freeNotePurchase.documents
       .filter((row) => row.recognizedPurchaseRows > 0 || row.unrecognizedActionAmountLines > 0)
       .map((row) => "| " + row.id + " | " + row.recognizedPurchaseRows + " | " + row.unrecognizedActionAmountLines + " | " + row.purchaseLp + " | " + row.purchaseShards + " | " + row.possibleOverlapRows + " | " + row.nonOverlapPurchaseLp + " | " + row.nonOverlapPurchaseShards + " | " + row.residualLpIfOnlyNonOverlapPurchasesAdded + " | " + row.residualShardsIfOnlyNonOverlapPurchasesAdded + " | " + Number(row.bothFitRuleRangeIfNonOverlapAdded) + " |"),
+    "",
+    "## 自由メモの未認識購入語句：構造的な確度分け（本文・名称なし）",
+    "",
+    "通常パーサーが金額付き支出を返した自由メモ行について、明示額・支出語・負号・残高／矢印・算術式・パーサー保留理由の有無を分類します。表の「明示額＋支出語＋支出抽出＋理由なし」は候補優先度の高い行ですが、文章の意味を確認するまでは確定支出ではありません。",
+    "",
+    "| URL ID | 支出語句行 | 認識購入行 | 未認識の数値付き行 | 明示支出語 | 負額 | 一般パーサー支出行 | 理由あり | 残高語 | 矢印 | 算術式 | 明示額支出候補 | LP候補 | 欠片候補 |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+    ...report.balance.freeNotesBridge.documents
+      .filter((row) => row.cueRowsWithoutPurchaseRow > 0)
+      .map((row) => {
+        const p = row.unrecognizedCuePatternSummary || {};
+        return "| " + row.id + " | " + row.expenseCueRows + " | " + row.recognizedPurchaseLines + " | " + (p.rowsWithCurrencyAmount || 0) + " | " + (p.rowsWithExplicitSpendVerb || 0) + " | " + (p.rowsWithNegativeCurrencyAmount || 0) + " | " + (p.rowsWithParserSpend || 0) + " | " + (p.rowsWithParserReason || 0) + " | " + (p.rowsWithBalanceCue || 0) + " | " + (p.rowsWithArrow || 0) + " | " + (p.rowsLookingLikeArithmetic || 0) + " | " + (p.explicitAmountExpenseCandidateRows || 0) + " | " + (p.parserSpendLp || 0) + " | " + (p.parserSpendShards || 0) + " |";
+      }),
+    "",
+    "| URL ID | freeNotes行番号 | 行長 | 数値トークン数 | 通貨額あり | 支出語あり | 負額あり | 一般支出抽出 | LP | 欠片 | 理由数 | 残高語 | 矢印 | 算術式 | 同一行重複 | 明示額支出候補 |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+    ...report.balance.freeNotesBridge.documents.flatMap((document) =>
+      (document.unrecognizedCueRows || []).filter((row) => row.parserSpendRows > 0 || row.explicitAmountExpenseCandidate).map((row) =>
+        "| " + document.id + " | " + row.lineIndex + " | " + row.lineLength + " | " + row.numberTokenCount + " | " + Number(row.flags.hasCurrencyAmount) + " | " + Number(row.flags.hasExplicitSpendVerb) + " | " + Number(row.flags.hasNegativeCurrencyAmount) + " | " + row.parserSpendRows + " | " + row.parserSpendLp + " | " + row.parserSpendShards + " | " + row.parserReasonCount + " | " + Number(row.flags.hasBalanceCue) + " | " + Number(row.flags.hasArrow) + " | " + Number(row.flags.looksArithmetic) + " | " + Number(row.occurrencesInFreeNotes > 1) + " | " + Number(row.explicitAmountExpenseCandidate) + " |"
+      )
+    ),
     "",
     "## 自由メモの未認識支出候補（原文・名称は非出力）",
     "",
@@ -1815,7 +1894,9 @@ const freeNotesBridgeRows = balanceBridges.map((row) => {
       unrecognizedCueRowsWithCurrencyAmount: freeNotesAudit.unrecognizedCueRowsWithCurrencyAmount,
       unrecognizedCueRowsWithParserReason: freeNotesAudit.unrecognizedCueRowsWithParserReason,
       freeNotesSpendLp: freeNotesAudit.spendLp,
-      freeNotesSpendShards: freeNotesAudit.spendShards
+      freeNotesSpendShards: freeNotesAudit.spendShards,
+      unrecognizedCuePatternSummary: freeNotesAudit.unrecognizedCuePatternSummary,
+      unrecognizedCueRows: freeNotesAudit.unrecognizedCueRows
     },
     ...reconcileFreeNotesSpend(
       scenarioSpendSignatures,
@@ -1882,6 +1963,14 @@ const freeNotesSourceSummary = {
   unrecognizedCueGenericSpendShards: successful.reduce((sum, entry) => sum + (entry.freeNotesAudit?.unrecognizedCueGenericSpendShards || 0), 0),
   unrecognizedCueRowsWithCurrencyAmount: successful.reduce((sum, entry) => sum + (entry.freeNotesAudit?.unrecognizedCueRowsWithCurrencyAmount || 0), 0),
   unrecognizedCueRowsWithParserReason: successful.reduce((sum, entry) => sum + (entry.freeNotesAudit?.unrecognizedCueRowsWithParserReason || 0), 0),
+  unrecognizedCuePatternSummary: successful.reduce((totals, entry) => {
+    const patterns = entry.freeNotesAudit?.unrecognizedCuePatternSummary || {};
+    for (const [key, value] of Object.entries(patterns)) {
+      if (typeof value === "number") totals[key] = (totals[key] || 0) + value;
+    }
+    return totals;
+  }, {}),
+  explicitAmountExpenseCandidateRows: successful.reduce((sum, entry) => sum + (entry.freeNotesAudit?.unrecognizedCuePatternSummary?.explicitAmountExpenseCandidateRows || 0), 0),
   acceptedRowsWithoutParsedSpend: successful.reduce((sum, entry) => sum + (entry.freeNotesAudit?.acceptedRowsWithoutParsedSpend || 0), 0),
   documentsWithPurchasesButNoScenarioMemo: successful
     .filter((entry) => entry.actualMemoRows === 0 && (entry.freeNotesAudit?.parsedSpendRows || 0) > 0)
