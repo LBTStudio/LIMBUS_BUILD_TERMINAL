@@ -1823,7 +1823,7 @@ const App = () => {
     { key: "share", icon: "share", label: "共有シートを開く", note: "整形されたHTMLの共有用プレビューを新規タブで開きます。", onClick: () => LBT_gen.openShareSheet(state) },
     { key: "json", icon: "copy", scope: "出力", label: "CCFOLIA JSONをコピー", note: "現在の出力対象をJSONとしてクリップボードへコピーします。", tone: "is-primary", onClick: copyJson }
   ];
-  const utilitySections = SECTIONS.filter((s) => s.group === "utility" || s.id === "home");
+  const utilitySections = SECTIONS.filter((s) => s.group === "utility" || s.id === "home" || s.id === "shop");
 
   /* アカウント未選択なら本体を出さず、選択ゲートだけを描画する。
      「どのキャラクターのデータか」が決まるまで編集画面へ入れないことで、
