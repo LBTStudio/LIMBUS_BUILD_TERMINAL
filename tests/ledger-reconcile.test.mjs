@@ -305,3 +305,38 @@ test("通貨入力の小数はLP／欠片の残高として扱わない", () => 
   assert.equal(out[0].current.lp, null);
   assert.ok(out[0].flags.some((f) => f.code === "no-current" && f.currency === "lp"));
 });
+
+
+test("報酬文脈の名前だけは購入候補に残し、未承認の自動計上対象にしない", () => {
+  const resolve = (n) => R.resolveCandidates(idx, n)[0] || null;
+  const mentioned = C.proposePurchases("報酬\nルサンチマン", { resolve });
+  const candidate = mentioned.proposals.find((p) => p.name === "ルサンチマン");
+  assert.ok(candidate, "再現率のため候補提示は維持する");
+  assert.equal(candidate.include, false, "購入の明示がない名前だけを確定対象にしない");
+
+  const explicit = C.proposePurchases("ルサンチマンを購入", { resolve });
+  const purchased = explicit.proposals.find((p) => p.name === "ルサンチマン");
+  assert.equal(purchased?.include, true,
+    "明示的な購入記録は購入候補として選択可能");
+
+  for (const memo of ["ルサンチマンは購入しない", "ルサンチマンは未購入", "ルサンチマンは購入予定",
+    "ルサンチマン購入を検討中", "ルサンチマンは購入したことがない",
+    "ルサンチマンは購入履歴がありません", "ルサンチマン購入可能",
+    "ルサンチマンは購入を見送った", "ルサンチマンは購入せず", "ルサンチマンは購入を断念した",
+    "ルサンチマンは購入記録なし", "ルサンチマンは購入履歴なし",
+    "・支出\nルサンチマンを見送った", "・支出\nルサンチマンを断念した",
+    "・支出\nルサンチマンは購入していない",
+    "・支出\nルサンチマンは購入していません", "・支出\nルサンチマンは買っていない",
+    "・支出\nルサンチマンは買っていません", "・支出\nルサンチマンは買わなかった"]) {
+    const candidate = C.proposePurchases(memo, { resolve }).proposals.find((p) => p.name === "ルサンチマン");
+    assert.ok(candidate, memo + " でも一致候補自体は残す");
+    assert.equal(candidate.include, false, memo + " は確定対象にしない");
+    assert.equal(candidate.negated, true, memo + " は明確な非購入表現として印を付ける");
+  }
+
+  const selected = C.selectedPurchaseRows([...mentioned.proposals, ...explicit.proposals], []);
+  assert.deepEqual(selected.map((row) => row.name), ["ルサンチマン"],
+    "純関数は明示購入の候補だけを購入明細へ渡す");
+  assert.deepEqual(C.selectedPurchaseRows([purchased], ["ルサンチマン"]), [],
+    "既にメモ支出として計上済みの同名購入は重複させない");
+});

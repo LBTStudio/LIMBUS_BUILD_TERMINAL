@@ -1020,7 +1020,7 @@ const GarasumadoImportPanel = ({ onClose, onApply, existingPersonas = [], existi
         .map(purchaseNameKey)
         .filter(Boolean));
       const candidates = (op.proposals || [])
-        .filter((proposal) => !booked.has(purchaseNameKey(proposal.name)))
+        .filter((proposal) => proposal.negated !== true && !booked.has(purchaseNameKey(proposal.name)))
         .map((proposal) => ({
           ...proposal,
           approvalKey: purchaseCandidateKey(op, proposal),
