@@ -3712,7 +3712,7 @@ if (typeof window !== "undefined") window.LBT_libraryTabLabel = libraryTabLabel;
     h("div", { className: "btype-back-row" },
       h("button", { type: "button", className: "btype-back-link", onClick: openRecordHome }, "← 記録・所持品へ戻る")
     ),
-    return h("div", { className: "stack-3" },
+    (() => h("div", { className: "stack-3 btype-record-detail" },
     h(Card, { className: "record-tabbar" + (onLibrary ? "" : " is-bodyless") },
       h("div", { className: "card-header owned-library-bar", style: { alignItems: "center", flexWrap: "wrap", gap: "var(--s-2)" } }, h("span", { className: "t-label" }, "CHARACTER RECORD / 記録"),       h("div", { className: "segmented", role: "tablist", "aria-label": "記録セクションの種別", style: { marginLeft: "auto" } },
         h("button", { type: "button", role: "tab", "aria-selected": libraryTab === "ledger", className: libraryTab === "ledger" ? "is-active" : "", onClick: () => setLibraryTab("ledger") }, "リザルト"),
@@ -3756,8 +3756,8 @@ if (typeof window !== "undefined") window.LBT_libraryTabLabel = libraryTabLabel;
     ),
     !onLibrary && libraryTab === "ledger" && h(LedgerPanel, { state, dispatch }),
     !onLibrary && libraryTab === "inventory" && h(InventoryPanel, { state, dispatch })
-  );
-  );
+  ))()
+);
   return recordHome ? recordHomeView : detailView;
 };
 /* 所持アイテムの総覧。
