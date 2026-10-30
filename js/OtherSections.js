@@ -6179,7 +6179,7 @@ const BuildParamsPanel = ({ state, dispatch }) => {
     h("section", { className: "build-params-shell piece-format-panel panel", "aria-label": "ココフォリア駒の整形" },
     h("div", { className: "build-params-head panel-head" },
       h("div", null,
-        h("strong", null, "ココフォリア駒の整形"),
+        h("strong", { className: "t-label" }, "組み立て / BUILD PARAMETERS"),
         h("div", { className: "piece-hint", style: { marginTop: 4 } }, "ステータスとラベルを整理し、並び順と出力先を管理します。")
       ),
       h("button", { type: "button", className: "secondary", onClick: () => setActiveBuildParamsTab("preview") }, "出力プレビュー")
