@@ -93,3 +93,38 @@ Production verification now separately checks the deployed GitHub Pages HTML, th
 テストデータのみ変更し、実ユーザーのアカウント・所持品・通帳には触れない。購入確定、ガチャ実行、共有の外部公開、削除確定、ファイルの実適用は行わない。OAuthは監査対象外。
 
 監査結果はスクリーンショット数だけで合格にせず、必須キャプチャ欠落、操作経路失敗、HTTP／コンソール／ページエラー、重大レイアウト警告を別々に集計する。
+
+
+## 2026-10-30 横断画面レビュー結果
+
+<details>
+<summary>Playwright実画面監査：333 captures / 0 failures</summary>
+
+- Desktop 1440×1000：119 captures
+- Tablet 1024×768：118 captures
+- Mobile 390×844：96 captures
+- Settings：折り畳みパネル18状態（6状態×3 viewport）
+- Import router：4つの遷移先を3 viewportで計12状態
+- Home：9つのランチャー遷移を3 viewportで計27状態
+- Interaction steps：96 captured / 0 failed
+- Missing required captures：0
+- Horizontal overflow：0
+- Critical layout warnings：0
+- Console errors / HTTP errors / page errors：すべて0
+- Complete project tests：1,730 passed / 0 failed
+
+</details>
+
+### 画面レビュー所見
+
+- Home：目的別ランチャー9項目と再開領域を確認。各ランチャーの遷移先を実操作で確認。
+- Build：9タブをすべて確認。基本のST・ラベル・盤面・キャラクターシート・JSONは実生成結果で確認。人格の詳細・取り込み3方式、スキル追加、E.G.O新規作成入口を確認。
+- Shop：人格・サポート・E.G.O・精神・アイテム・ガチャの6分類を確認。検索・大罪・出典フィルターの初期配置とカード一覧の可読性を確認。
+- Record：リザルト・人格・E.G.O・サポパ・精神・アイテムの6分類を確認。テキスト取り込みの解析プレビュー、硝子窓取り込み、所持人格一覧取り込みを確認。
+- Settings：ステータス一覧と同期情報・代入式・カスタム式・出力補助・アカウント・危険操作の展開状態を確認。危険操作は表示確認のみで実行していない。
+- Help：検索・カテゴリ・項目展開を確認。
+- Global：共通Import Routerの4遷移先、クイック検索、上部操作、操作・保存、共有HTMLプレビュー、アカウント管理、セーブデータの適用範囲確認、キーボードフォーカスを確認。
+
+### 制限・未実行操作
+
+実ユーザーデータを保護するため、購入確定・ガチャ抽選・外部共有公開・アカウント削除・保存データの実適用は実行していない。これらは確認ダイアログや入口までの画面・経路を検証した。OAuthは対象外。ピクセル完全一致は最新v3デザインの正式な全画面Golden Masterが存在しないため、今回の合格条件には含めていない。
