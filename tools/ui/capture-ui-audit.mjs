@@ -132,7 +132,7 @@ async function readMetrics() {
     const dialogs = [...document.querySelectorAll('[role="dialog"],[aria-modal="true"],.share-modal-backdrop,.acct-overlay,.utility-sheet-backdrop,.cp-overlay')].filter(isVisible).map(e=>({className:typeof e.className==="string"?e.className:"",label:e.getAttribute("aria-label")||e.getAttribute("aria-labelledby")||(e.innerText||"").trim().slice(0,55),rect:rect(e)}));
     const smallTargets=[...document.querySelectorAll("button,[role=button],input,select,textarea,a[href]")].filter(isVisible).map(e=>({label:(e.getAttribute("aria-label")||e.innerText||e.getAttribute("title")||e.getAttribute("placeholder")||"").trim().replace(/\s+/g," ").slice(0,32),rect:rect(e)})).filter(x=>x.rect.width<32||x.rect.height<32).slice(0,25);
     const horizontalScrollers=[...document.querySelectorAll("body *")].filter(e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);return r.width>80&&r.height>20&&e.scrollWidth>e.clientWidth+12&&["auto","scroll","hidden"].includes(s.overflowX);}).slice(0,24).map(e=>({tag:e.tagName,className:typeof e.className==="string"?e.className:"",label:(e.getAttribute("aria-label")||e.innerText||"").trim().replace(/\s+/g," ").slice(0,42),clientWidth:e.clientWidth,scrollWidth:e.scrollWidth,overflowX:getComputedStyle(e).overflowX,rect:rect(e)}));
-    const layoutElements=[...document.querySelectorAll("#lbt-preview-edge-toggle,.preview,.preview-reopen,.preview-close,.preview-edge-toggle,.preview-actions,.preview-hint,.preview-tabs,.focus,.rail,.section-title-row,.section-title,.build-tabs,.baseinfo-workspace,.build-params-shell,.build-params-tabs,.basic-ccfolia-preview,.basic-preview-mode-tabs,.basic-preview-panel,.record-tabbar")].filter(isVisible).map(e=>{const s=getComputedStyle(e);return {tag:e.tagName,id:e.id||"",className:typeof e.className==="string"?e.className:"",text:(e.innerText||"").trim().replace(/\s+/g," ").slice(0,48),rect:rect(e),style:{position:s.position,display:s.display,top:s.top,right:s.right,bottom:s.bottom,width:s.width,height:s.height,writingMode:s.writingMode,opacity:s.opacity,zIndex:s.zIndex,pointerEvents:s.pointerEvents}};});
+    const layoutElements=[...document.querySelectorAll("#lbt-preview-edge-toggle,.preview,.preview-reopen,.preview-close,.preview-edge-toggle,.preview-actions,.preview-hint,.preview-tabs,.focus,.rail,.section-title-row,.section-title,.build-tabs,.baseinfo-workspace,.piece-hero-grid,.build-params-shell,.build-params-tabs,.basic-ccfolia-preview,.basic-preview-mode-tabs,.basic-preview-panel,.record-tabbar")].filter(isVisible).map(e=>{const s=getComputedStyle(e);return {tag:e.tagName,id:e.id||"",className:typeof e.className==="string"?e.className:"",text:(e.innerText||"").trim().replace(/\s+/g," ").slice(0,48),rect:rect(e),style:{position:s.position,display:s.display,top:s.top,right:s.right,bottom:s.bottom,width:s.width,height:s.height,writingMode:s.writingMode,opacity:s.opacity,zIndex:s.zIndex,pointerEvents:s.pointerEvents}};});
     return {viewport:{width:innerWidth,height:innerHeight},document:{width:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight},horizontalOverflow:document.documentElement.scrollWidth>innerWidth+2,horizontalScrollers,layoutElements,dialogs,smallTargets,activeElement:document.activeElement?{tag:document.activeElement.tagName,aria:document.activeElement.getAttribute("aria-label"),text:(document.activeElement.innerText||"").trim().slice(0,40)}:null};
   });
 }
@@ -150,13 +150,13 @@ async function snap(name, note) {
     const preview = (m.layoutElements || []).find((item) => item.className.split(/\s+/).includes("preview"));
     if (preview && preview.rect.width < 320) audit.layoutWarnings.push({name:base,type:"preview-panel-too-narrow",viewport:m.viewport,previewRect:preview.rect,minimumWidth:320});
   }
-  // The Basic output preview should sit beside the character editor on wide desktops
-  // when the global preview drawer is closed, not below a long stack of controls.
-  if (m.viewport.width >= 1280 && (m.layoutElements || []).some((item) => item.className.split(/\s+/).includes("basic-ccfolia-preview"))) {
-    const workspace = (m.layoutElements || []).find((item) => item.className.split(/\s+/).includes("baseinfo-workspace"));
+  // Unified Workbench v4 keeps the portrait + identity controls in the hero grid,
+  // then places the ST / label / output formatting panel beneath that hero.
+  if ((m.layoutElements || []).some((item) => item.className.split(/\s+/).includes("basic-ccfolia-preview"))) {
+    const hero = (m.layoutElements || []).find((item) => item.className.split(/\s+/).includes("piece-hero-grid"));
     const params = (m.layoutElements || []).find((item) => item.className.split(/\s+/).includes("build-params-shell"));
-    if (workspace && params && Math.abs(params.rect.y - workspace.rect.y) > 48) {
-      audit.layoutWarnings.push({name:base,type:"basic-preview-below-editor-fold",workspaceRect:workspace.rect,paramsRect:params.rect});
+    if (hero && params && params.rect.y < hero.rect.y + hero.rect.height - 2) {
+      audit.layoutWarnings.push({name:base,type:"basic-format-panel-overlaps-v4-hero",heroRect:hero.rect,paramsRect:params.rect});
     }
   }
   if (m.viewport.width <= 640) {
