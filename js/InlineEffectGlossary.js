@@ -427,7 +427,7 @@
     return entries;
   }
 
-  function buildExplicitPersonaReferences(db, activeOwnerName) {
+  function buildExplicitPersonaReferences(db, activeOwnerName, activeOwnerRecord) {
     const references = new Map();
     const personas = [
       ...(db && Array.isArray(db.normal_personas) ? db.normal_personas : []),
@@ -448,6 +448,12 @@
     personas.forEach((persona) => {
       if (!persona || !persona.name) return;
       const owner = String(persona.name).trim();
+      const sameStableIdentity = activeOwnerRecord && activeOwnerRecord.no != null
+        && persona.no != null
+        && String(activeOwnerRecord.no) === String(persona.no)
+        && (!activeOwnerRecord.affiliation || !persona.affiliation
+          || String(activeOwnerRecord.affiliation) === String(persona.affiliation));
+      if (sameStableIdentity) return;
       if (persona.passive_name) add(persona.passive_name, owner, "人格パッシブ", persona.passive_effect);
       (persona.unique_buffs || persona.uniqueBuffs || []).forEach((buff) => {
         if (buff) add(buff.name, owner, buff.type || "人格固有バフ", buff.desc);
@@ -520,7 +526,7 @@
     const glossary = buildGlossary(db || global.DB);
     const ownerGlossary = buildOwnerGlossary(sourceRecord, scope);
     const ownerType = ownerTypeForScope(scopeCategory);
-    const explicitReferences = buildExplicitPersonaReferences(db || global.DB, ownerName);
+    const explicitReferences = buildExplicitPersonaReferences(db || global.DB, ownerName, sourceRecord);
 
     // Match only shared rule terms plus names belonging to the active owner.
     // This prevents a longer foreign passive name from consuming part of a shared term.
