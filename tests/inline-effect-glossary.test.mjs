@@ -510,3 +510,18 @@ test("同期後に表示名が変わった現在人格を、旧DBの他人格引
   assert.equal(external.find((piece) => piece.term === "外部固有語")?.entries[0]?.ownerName, "参照元人格",
     "別人格の一意な固有語引用は引き続き解決する");
 });
+
+
+test("同名人格が複数いる場合は名前だけで引用元を決めない", () => {
+  const fixture = {
+    normal_personas: [
+      { name: "同名人格", no: 1, affiliation: "同じ所属", passive_name: "共通の固有語", passive_effect: "一人目の説明", unique_buffs: [], skills: [] },
+      { name: "同名人格", no: 2, affiliation: "同じ所属", passive_name: "共通の固有語", passive_effect: "二人目の説明", unique_buffs: [], skills: [] },
+      { name: "表示中人格", no: 3, affiliation: "別所属", passive_name: "", unique_buffs: [], skills: [] }
+    ],
+    tokui_personas: [], egos: []
+  };
+  const quoted = loadGlossary().tokenize("[共通の固有語]", fixture, "人格スキル:表示中人格");
+  assert.equal(quoted.filter((piece) => piece.term === "共通の固有語").length, 0,
+    "同じ表示名でも別の人格レコードなら曖昧として引用を拒否する");
+});
