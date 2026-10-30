@@ -1301,7 +1301,7 @@ const EgoDetail = ({ ego, equipTo, currentSlot, onEquip, onUnequip, isOwned, onT
     return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title", style: { display: "flex", alignItems: "center", gap: 6 } }, label, " ", badge && /* @__PURE__ */ React.createElement("span", { className: "badge", style: { marginLeft: "auto", color: label.includes("\u4FB5\u8755") ? "var(--err)" : "var(--ok)" } }, badge)), /* @__PURE__ */ React.createElement("div", { className: "detail-passive", style: { borderLeftColor: label.includes("\u4FB5\u8755") ? "var(--err)" : "var(--gold)" } }, (skill.attr || skill.sin) && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", fontFamily: "var(--f-mono)", color: "var(--tx-dim)", marginBottom: 4 } }, skill.attr && /* @__PURE__ */ React.createElement("span", null, skill.attr), skill.attr && skill.sin && "：", skill.sin && /* @__PURE__ */ React.createElement("span", { style: { color: `var(--sin-${skill.sin}, var(--tx-dim))` } }, skill.sin), skill.aoe && /* @__PURE__ */ React.createElement("span", { style: { marginLeft: 6, padding: "1px 5px", background: "var(--gold-tint)", border: "1px solid var(--gold-line)", borderRadius: 2, color: "var(--gold)" } }, skill.aoe)), skill.effect && /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect", style: { marginBottom: 6, color: "var(--tx-2)", whiteSpace: "pre-wrap" } }, fmt(skill.effect)), skill.dice?.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "stack-1", style: { marginTop: 4 } }, skill.dice.map((d, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "flex", gap: 8, fontSize: "var(--fs-11)", padding: "4px 6px", background: "var(--surface-2)", borderRadius: 2 } }, /* @__PURE__ */ React.createElement("span", { style: { fontFamily: "var(--f-mono)", color: "var(--gold-hi)", minWidth: 60, fontWeight: 600 } }, d.roll), d.effect ? /* @__PURE__ */ React.createElement("span", { style: { color: "var(--tx-dim)" } }, "：") : null, /* @__PURE__ */ React.createElement("span", { style: { color: "var(--tx-2)", lineHeight: 1.4, whiteSpace: "pre-wrap" } }, d.effect ? fmt(d.effect) : "\u2014"))))));
   };
   const isAssim = (ego.sub_skills || []).length > 0;
-  return /* @__PURE__ */ React.createElement("div", { className: "codex-detail", style: { "--sin-primary": `var(--rank-${ego.rank})` } }, /* @__PURE__ */ React.createElement("div", { className: "detail-head" }, /* @__PURE__ */ React.createElement("div", { className: "detail-eyebrow" }, /* @__PURE__ */ React.createElement("span", { className: "detail-num" }, "No.", String(ego.no).padStart(3, "0")), /* @__PURE__ */ React.createElement("span", { className: "badge", "data-rank": ego.rank, style: { fontSize: "var(--fs-9)" } }, ego.rank)), /* @__PURE__ */ React.createElement("div", { className: "detail-name" }, ego.name), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--s-2)" } }, /* @__PURE__ */ React.createElement("div", { style: { padding: "6px 8px", background: "var(--surface-inset)", border: "1px solid var(--line-dim)", borderRadius: "var(--r)" } }, /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-display)", fontSize: "var(--fs-9)", letterSpacing: "0.14em", color: "var(--tx-mute)", textTransform: "uppercase" } }, "\u6D88\u8CBBSAN"), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-mono)", fontSize: "var(--fs-15)", color: "var(--tx)" } }, ego.san_cost)), /* @__PURE__ */ React.createElement("div", { style: { padding: "6px 8px", background: "var(--surface-inset)", border: "1px solid var(--line-dim)", borderRadius: "var(--r)" } }, /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-display)", fontSize: "var(--fs-9)", letterSpacing: "0.14em", color: "var(--tx-mute)", textTransform: "uppercase" } }, "\u81EA\u6211\u306E\u6B20\u7247"), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-mono)", fontSize: "var(--fs-15)", color: "var(--tx)" } }, ego.shards))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "var(--s-2)", fontSize: "var(--fs-11)", color: "var(--tx-dim)", fontFamily: "var(--f-mono)" } }, "\u8CC7\u6E90: ", /* @__PURE__ */ React.createElement("span", { style: { color: "var(--tx-2)" } }, ego.resources))), /* @__PURE__ */ React.createElement("div", { className: "detail-body" }, ego.passive_name && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u30D1\u30C3\u30B7\u30D6"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive" }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-name" }, ego.passive_name), ego.passive_cond && /* @__PURE__ */ React.createElement("div", { className: "detail-passive-cond cond-chips-lg", style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)" } }, "\u767A\u52D5\u6761\u4EF6"), /* @__PURE__ */ React.createElement(CondChips, { cond: ego.passive_cond })), /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect", style: { whiteSpace: "pre-wrap" } }, fmt(ego.passive_effect)))), /* @__PURE__ */ React.createElement(Skill, { label: "\u899A\u9192\u30B9\u30AD\u30EB / KAKUSEI", skill: ego.kakusei, badge: "\u899A\u9192" }), isAssim ? /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title", style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", null, "\u4FB5\u8755\u30B9\u30AD\u30EB / SHINSHOKU"), /* @__PURE__ */ React.createElement("span", { className: "ego-doka-badge", style: { marginLeft: "auto" }, title: "\u3053\u306EEGO\u306F\u540C\u5316\u578B" }, "\u25C6 \u540C\u5316")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)", lineHeight: 1.5, marginTop: -2, marginBottom: 8, fontStyle: "italic", fontFamily: "var(--f-mono)" } }, "\u540C\u5316\u578BEGO\uFF1A\u4FB5\u8755\u30B9\u30AD\u30EB\u305D\u306E\u3082\u306E\u304C\u4E0B\u8A18\u306E\u540C\u5316\u30B9\u30AD\u30EB\u7FA4\u3068\u3057\u3066\u767A\u52D5\u3057\u307E\u3059\u3002"), /* @__PURE__ */ React.createElement("div", { className: "assim-tactical-grid" }, ego.sub_skills.map((s, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "assim-tactical-card", "data-sin": s.sin || "" }, /* @__PURE__ */ React.createElement("div", { className: "assim-tactical-head" }, /* @__PURE__ */ React.createElement("span", { className: "assim-tactical-idx" }, "S", s.no ?? i + 1), /* @__PURE__ */ React.createElement("span", { className: "assim-tactical-name" }, s.name || "(\u540D\u79F0\u672A\u8A2D\u5B9A)"), s.attr && /* @__PURE__ */ React.createElement("span", { className: "assim-tactical-attr" }, s.attr), s.sin && /* @__PURE__ */ React.createElement("span", { className: "sin-tag", "data-sin": s.sin, style: { fontFamily: "var(--f-display)", fontSize: "var(--fs-10)", padding: "2px 8px", borderRadius: "var(--r-sm)", letterSpacing: "0.06em", fontWeight: 600 } }, s.sin), s.aoe && /* @__PURE__ */ React.createElement("span", { className: "assim-tactical-aoe" }, s.aoe)), s.effect && /* @__PURE__ */ React.createElement("div", { className: "assim-tactical-eff", style: { whiteSpace: "pre-wrap" } }, fmt(s.effect)), (s.dice || []).length > 0 && /* @__PURE__ */ React.createElement("div", { className: "ro-dice-list", style: { marginTop: 6 } }, s.dice.map((d, j) => /* @__PURE__ */ React.createElement("div", { key: j, className: "ro-dice-row" }, /* @__PURE__ */ React.createElement("span", { className: "ro-dice-idx" }, j + 1), /* @__PURE__ */ React.createElement("span", { className: "ro-dice-roll" }, d.roll || "-"), /* @__PURE__ */ React.createElement("span", { className: "ro-dice-eff", style: { whiteSpace: "pre-wrap" } }, d.effect ? fmt(d.effect) : /* @__PURE__ */ React.createElement("span", { style: { color: "var(--tx-mute)", fontStyle: "italic" } }, "\u52B9\u679C\u306A\u3057"))))))))) : /* @__PURE__ */ React.createElement(Skill, { label: "\u4FB5\u8755\u30B9\u30AD\u30EB / SHINSHOKU", skill: ego.shinshoku, badge: "\u4FB5\u8755" }), ego.unique_buff && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u56FA\u6709\u30D0\u30D5"), /* @__PURE__ */ React.createElement("div", { style: { padding: "8px 10px", background: "var(--surface-inset)", borderRadius: "var(--r)", border: "1px solid var(--line-dim)", fontSize: "var(--fs-11)", color: "var(--tx-2)", lineHeight: 1.5 } }, window.LBT_GLOSSARY_TEXT ? window.LBT_GLOSSARY_TEXT(ego.unique_buff, "E.G.O固有効果:" + ego.name) : ego.unique_buff))), /* @__PURE__ */ React.createElement("div", { className: "detail-actions" }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--tx-dim)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "var(--f-display)", marginBottom: 4 } }, equipTo === ego.rank ? `\u2192 ${ego.rank} \u30B9\u30ED\u30C3\u30C8\u3078\u88C5\u5099` : `\u2192 ${ego.rank} \u30B9\u30ED\u30C3\u30C8\u3078\u88C5\u5099`), currentSlot ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--gold)", textAlign: "center", fontFamily: "var(--f-display)", letterSpacing: "0.16em", textTransform: "uppercase" } }, "\u2605 \u73FE\u5728 ", currentSlot, " \u306B\u88C5\u5099\u4E2D"), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", onClick: onUnequip, icon: "x" }, "\u88C5\u5099\u89E3\u9664")) : /* @__PURE__ */ React.createElement(Button, { variant: "primary", onClick: onEquip, icon: "check" }, ego.rank, " \u30B9\u30ED\u30C3\u30C8\u3078\u88C5\u5099"), onToggleOwned ? /* @__PURE__ */ React.createElement(Button, { variant: isOwned ? "ghost" : "ghost", size: "sm", icon: isOwned ? "check" : "plus", onClick: onToggleOwned, title: isOwned ? "\u6240\u6301\u30EA\u30B9\u30C8\u304B\u3089\u5916\u3059" : "\u88C5\u5099\u305B\u305A\u306B\u6240\u6301\u30EA\u30B9\u30C8\u3078\u8FFD\u52A0\u3059\u308B" }, isOwned ? "\u6240\u6301\u6E08\u307F" : "\u6240\u6301\u306B\u8FFD\u52A0") : null));
+  return /* @__PURE__ */ React.createElement("div", { className: "codex-detail", style: { "--sin-primary": `var(--rank-${ego.rank})` } }, /* @__PURE__ */ React.createElement("div", { className: "detail-head" }, /* @__PURE__ */ React.createElement("div", { className: "detail-eyebrow" }, /* @__PURE__ */ React.createElement("span", { className: "detail-num" }, "No.", String(ego.no).padStart(3, "0")), /* @__PURE__ */ React.createElement("span", { className: "badge", "data-rank": ego.rank, style: { fontSize: "var(--fs-9)" } }, ego.rank)), /* @__PURE__ */ React.createElement("div", { className: "detail-name" }, ego.name), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--s-2)" } }, /* @__PURE__ */ React.createElement("div", { style: { padding: "6px 8px", background: "var(--surface-inset)", border: "1px solid var(--line-dim)", borderRadius: "var(--r)" } }, /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-display)", fontSize: "var(--fs-9)", letterSpacing: "0.14em", color: "var(--tx-mute)", textTransform: "uppercase" } }, "\u6D88\u8CBBSAN"), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-mono)", fontSize: "var(--fs-15)", color: "var(--tx)" } }, ego.san_cost)), /* @__PURE__ */ React.createElement("div", { style: { padding: "6px 8px", background: "var(--surface-inset)", border: "1px solid var(--line-dim)", borderRadius: "var(--r)" } }, /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-display)", fontSize: "var(--fs-9)", letterSpacing: "0.14em", color: "var(--tx-mute)", textTransform: "uppercase" } }, "\u81EA\u6211\u306E\u6B20\u7247"), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--f-mono)", fontSize: "var(--fs-15)", color: "var(--tx)" } }, ego.shards))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "var(--s-2)", fontSize: "var(--fs-11)", color: "var(--tx-dim)", fontFamily: "var(--f-mono)" } }, "\u8CC7\u6E90: ", /* @__PURE__ */ React.createElement("span", { style: { color: "var(--tx-2)" } }, ego.resources))), /* @__PURE__ */ React.createElement("div", { className: "detail-body" }, ego.passive_name && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u30D1\u30C3\u30B7\u30D6"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive" }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-name" }, ego.passive_name), ego.passive_cond && /* @__PURE__ */ React.createElement("div", { className: "detail-passive-cond cond-chips-lg", style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)" } }, "\u767A\u52D5\u6761\u4EF6"), /* @__PURE__ */ React.createElement(CondChips, { cond: ego.passive_cond })), /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect", style: { whiteSpace: "pre-wrap" } }, fmt(ego.passive_effect)))), /* @__PURE__ */ React.createElement(Skill, { label: "\u899A\u9192\u30B9\u30AD\u30EB / KAKUSEI", skill: ego.kakusei, badge: "\u899A\u9192" }), isAssim ? /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title", style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", null, "\u4FB5\u8755\u30B9\u30AD\u30EB / SHINSHOKU"), /* @__PURE__ */ React.createElement("span", { className: "ego-doka-badge", style: { marginLeft: "auto" }, title: "\u3053\u306EEGO\u306F\u540C\u5316\u578B" }, "\u25C6 \u540C\u5316")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)", lineHeight: 1.5, marginTop: -2, marginBottom: 8, fontStyle: "italic", fontFamily: "var(--f-mono)" } }, "\u540C\u5316\u578BEGO\uFF1A\u4FB5\u8755\u30B9\u30AD\u30EB\u305D\u306E\u3082\u306E\u304C\u4E0B\u8A18\u306E\u540C\u5316\u30B9\u30AD\u30EB\u7FA4\u3068\u3057\u3066\u767A\u52D5\u3057\u307E\u3059\u3002"), /* @__PURE__ */ React.createElement("div", { className: "assim-tactical-grid" }, ego.sub_skills.map((s, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "assim-tactical-card", "data-sin": s.sin || "" }, /* @__PURE__ */ React.createElement("div", { className: "assim-tactical-head" }, /* @__PURE__ */ React.createElement("span", { className: "assim-tactical-idx" }, "S", s.no ?? i + 1), /* @__PURE__ */ React.createElement("span", { className: "assim-tactical-name" }, s.name || "(\u540D\u79F0\u672A\u8A2D\u5B9A)"), s.attr && /* @__PURE__ */ React.createElement("span", { className: "assim-tactical-attr" }, s.attr), s.sin && /* @__PURE__ */ React.createElement("span", { className: "sin-tag", "data-sin": s.sin, style: { fontFamily: "var(--f-display)", fontSize: "var(--fs-10)", padding: "2px 8px", borderRadius: "var(--r-sm)", letterSpacing: "0.06em", fontWeight: 600 } }, s.sin), s.aoe && /* @__PURE__ */ React.createElement("span", { className: "assim-tactical-aoe" }, s.aoe)), s.effect && /* @__PURE__ */ React.createElement("div", { className: "assim-tactical-eff", style: { whiteSpace: "pre-wrap" } }, fmt(s.effect)), (s.dice || []).length > 0 && /* @__PURE__ */ React.createElement("div", { className: "ro-dice-list", style: { marginTop: 6 } }, s.dice.map((d, j) => /* @__PURE__ */ React.createElement("div", { key: j, className: "ro-dice-row" }, /* @__PURE__ */ React.createElement("span", { className: "ro-dice-idx" }, j + 1), /* @__PURE__ */ React.createElement("span", { className: "ro-dice-roll" }, d.roll || "-"), /* @__PURE__ */ React.createElement("span", { className: "ro-dice-eff", style: { whiteSpace: "pre-wrap" } }, d.effect ? fmt(d.effect) : /* @__PURE__ */ React.createElement("span", { style: { color: "var(--tx-mute)", fontStyle: "italic" } }, "\u52B9\u679C\u306A\u3057"))))))))) : /* @__PURE__ */ React.createElement(Skill, { label: "\u4FB5\u8755\u30B9\u30AD\u30EB / SHINSHOKU", skill: ego.shinshoku, badge: "\u4FB5\u8755" }), ego.unique_buff && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u56FA\u6709\u30D0\u30D5"), /* @__PURE__ */ React.createElement("div", { style: { padding: "8px 10px", background: "var(--surface-inset)", borderRadius: "var(--r)", border: "1px solid var(--line-dim)", fontSize: "var(--fs-11)", color: "var(--tx-2)", lineHeight: 1.5 } }, window.LBT_GLOSSARY_TEXT ? window.LBT_GLOSSARY_TEXT(ego.unique_buff, "E.G.O固有効果:" + ego.name, ego) : ego.unique_buff))), /* @__PURE__ */ React.createElement("div", { className: "detail-actions" }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--tx-dim)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "var(--f-display)", marginBottom: 4 } }, equipTo === ego.rank ? `\u2192 ${ego.rank} \u30B9\u30ED\u30C3\u30C8\u3078\u88C5\u5099` : `\u2192 ${ego.rank} \u30B9\u30ED\u30C3\u30C8\u3078\u88C5\u5099`), currentSlot ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--gold)", textAlign: "center", fontFamily: "var(--f-display)", letterSpacing: "0.16em", textTransform: "uppercase" } }, "\u2605 \u73FE\u5728 ", currentSlot, " \u306B\u88C5\u5099\u4E2D"), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", size: "sm", onClick: onUnequip, icon: "x" }, "\u88C5\u5099\u89E3\u9664")) : /* @__PURE__ */ React.createElement(Button, { variant: "primary", onClick: onEquip, icon: "check" }, ego.rank, " \u30B9\u30ED\u30C3\u30C8\u3078\u88C5\u5099"), onToggleOwned ? /* @__PURE__ */ React.createElement(Button, { variant: isOwned ? "ghost" : "ghost", size: "sm", icon: isOwned ? "check" : "plus", onClick: onToggleOwned, title: isOwned ? "\u6240\u6301\u30EA\u30B9\u30C8\u304B\u3089\u5916\u3059" : "\u88C5\u5099\u305B\u305A\u306B\u6240\u6301\u30EA\u30B9\u30C8\u3078\u8FFD\u52A0\u3059\u308B" }, isOwned ? "\u6240\u6301\u6E08\u307F" : "\u6240\u6301\u306B\u8FFD\u52A0") : null));
 };
 const EgoQuickDetail = ({ ego, currentSlot, isOwned, onEquip, onUnequip, onToggleOwned, onPreviewEquip, onOpenFullDetail, onClose, state, acquireHow, onAcquireHowChange, onAcquire }) => {
   const h = React.createElement;
@@ -2203,34 +2203,59 @@ const BuildItemsPanel = ({ state, dispatch }) => {
   const paletteCount = inventory.filter((entry) => entry.palette !== false).length;
   const maxOwnedOf = (itemId) => window.LBT_getItemMaxOwned?.(state, itemId) || 99;
   const rows = [...inventory].sort((a, b) => nameOf(a.itemId).localeCompare(nameOf(b.itemId), "ja"));
+  const currentResultId = window.LBT_latestResultId?.(state) || "";
+  const currentResult = (state.results || []).find((result) => result.id === currentResultId) || null;
   const [pickerOpen, setPickerOpen] = React.useState(false);
 
   const patch = (uid, patchBody) => dispatch({ type: "PATCH_ITEM", uid, patch: patchBody });
+  const consumeOne = (entry) => {
+    if (!currentResultId) {
+      toast("消費を記録するリザルトがありません。先にRecordでリザルトを登録してください", "assertive");
+      return;
+    }
+    const operationId = `build-item-use-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    dispatch({
+      type: "CONSUME_ITEM",
+      itemId: entry.itemId,
+      quantity: 1,
+      reason: "consumption",
+      operationId,
+      resultId: currentResultId
+    });
+    toast(`「${nameOf(entry.itemId)}」を1個使用し、「${currentResult?.name || "最新リザルト"}」へ記録しました`);
+  };
   const addItem = (item) => {
     const owned = inventory.find((entry) => entry.itemId === item.id);
     const maxOwned = maxOwnedOf(item.id);
     if (owned && (Number(owned.quantity) || 0) >= maxOwned) {
-      toast(`「${item.name}」は所持上限（×${maxOwned}）です`);
+      toast(`「${item.name}」は所持上限（×${maxOwned}）です`, "assertive");
       return;
     }
-    const ledgerLinked = item.ledgerResource === "shards";
-    dispatch(item.specialResource && !ledgerLinked
-      ? { type: "ADD_ITEM_INVENTORY", itemId: item.id }
-      : { type: "ADD_ITEM", itemId: item.id });
-    toast(ledgerLinked
-      ? `「${item.name}」を1個購入し、通帳へ記録`
-      : item.specialResource
-        ? (owned ? `「${item.name}」の所持数を追加` : `「${item.name}」を特殊資源欄へ追加`)
-        : (owned ? `「${item.name}」の数量を追加` : `「${item.name}」を所持アイテムに追加`));
+    /* ADD_ITEM 自身が特殊資源の価格・残高を判定する。
+       ここで ADD_ITEM_INVENTORY へ迂回すると、硝子の破片など価格付き資源を無料追加できてしまう。 */
+    const cost = resolveAcquireCost("item", "purchase", { id: item.id, name: item.name, customItems: state.customItems });
+    const needsPurchase = !!item.specialResource || !owned;
+    if (needsPurchase && (Number(cost.lp) > 0 || Number(cost.shards) > 0)) {
+      const affordability = window.LBT_purchaseAffordability?.(state, cost);
+      if (affordability && !affordability.ok) {
+        toast(affordability.reason || "購入に必要な残高が不足しています", "assertive");
+        return;
+      }
+    }
+    dispatch({ type: "ADD_ITEM", itemId: item.id });
+    const charged = needsPurchase && (Number(cost.lp) > 0 || Number(cost.shards) > 0);
+    toast(charged
+      ? `「${item.name}」を購入して所持品へ追加（${cost.label}）`
+      : owned ? `「${item.name}」の所持数を追加` : `「${item.name}」を所持品へ追加`);
   };
 
   return h("div", { className: "build-items" },
     h(Card, null,
       h("div", { className: "card-header owned-library-bar" },
         h("span", { className: "t-label" }, "卓へ持ち込むアイテム"),
-        h("span", { className: "ledger-note" }, `${inventory.length}種 / ${totalQty}個　MEMO ${memoCount} / PALETTE ${paletteCount}`),
-        h(Button, { size: "sm", variant: pickerOpen ? "secondary" : "ghost", icon: "plus", onClick: () => setPickerOpen((v) => !v) }, pickerOpen ? "選択を閉じる" : "卓へ持ち込み"),
-        h(Button, { size: "sm", variant: "ghost", onClick: () => dispatch({ type: "SET_UI", ui: { currentSection: "items-build" } }) }, "所持アイテム欄を開く")
+        h("span", { className: "ledger-note" }, `${inventory.length}種 / ${totalQty}個　MEMO ${memoCount} / PALETTE ${paletteCount}　実使用は「1個使用」で記帳　${currentResult ? `消費記録先: ${currentResult.name}` : "消費記録にはリザルトが必要"}`),
+        h(Button, { size: "sm", variant: pickerOpen ? "secondary" : "ghost", icon: "plus", onClick: () => setPickerOpen((v) => !v) }, pickerOpen ? "選択を閉じる" : "所持品へ追加"),
+        h(Button, { size: "sm", variant: "ghost", onClick: () => dispatch({ type: "SET_UI", ui: { currentSection: "roster", libraryTab: "inventory" } }) }, "Recordで全所持品を管理")
       ),
       pickerOpen && h("div", { className: "card-body stack-2" },
         h("div", { className: "inv-pick" }, [...new Set(catalog.map((item) => String(item?.category || "その他")))].map((category) => h("div", { key: category, className: "inv-pick-group" },
@@ -2248,7 +2273,7 @@ const BuildItemsPanel = ({ state, dispatch }) => {
       ),
       h("div", { className: "card-body stack-2" },
         rows.length === 0
-          ? h("div", { className: "empty" }, "まだアイテムを持っていません。ショップで購入するか「卓へ持ち込み」で選びます。")
+          ? h("div", { className: "empty" }, "所持アイテムはまだありません。「所持品へ追加」またはShopで入手できます。追加後、MEMO・PALETTEへの反映を切り替えられます。")
           : h("div", { className: "stack-2" }, rows.map((entry) => {
             const maxOwned = maxOwnedOf(entry.itemId);
             const hasCap = maxOwned < 99;
@@ -2262,18 +2287,16 @@ const BuildItemsPanel = ({ state, dispatch }) => {
                   ? h("span", { className: "badge inv-origin is-initial" }, "初期枠")
                   : metaOf(entry.itemId).specialResource
                     ? h("span", { className: "badge inv-origin" }, "資源")
-                    : h("span", { className: "badge inv-origin" }, "購入")
+                    : h("span", { className: "badge inv-origin" }, "入手")
               ),
               h("div", { className: "build-item-controls" },
                 h("div", { className: "build-item-qty" },
-                  h("span", { className: "t-label" }, hasCap ? `卓へ持っていく個数 / 上限×${maxOwned}` : "卓へ持っていく個数"),
-                  h("button", { type: "button", onClick: () => patch(entry.uid, { quantity: Math.max(1, (Number(entry.quantity) || 1) - 1) }), "aria-label": `${nameOf(entry.itemId)}の所持数を減らす` }, h(Icon, { name: "minus", size: 13 })),
-                  h("input", { type: "number", min: 1, max: maxOwned, step: 1, inputMode: "numeric", value: entry.quantity, onChange: (event) => patch(entry.uid, { quantity: event.target.value }), "aria-label": `${nameOf(entry.itemId)}の所持数を入力` }),
-                  h("button", { type: "button", disabled: (Number(entry.quantity) || 1) >= maxOwned, onClick: () => patch(entry.uid, { quantity: Math.min(maxOwned, (Number(entry.quantity) || 1) + 1) }), "aria-label": `${nameOf(entry.itemId)}の所持数を増やす` }, h(Icon, { name: "plus", size: 13 }))
+                  h("label", { className: "t-label", htmlFor: `build-item-qty-${entry.uid}` }, hasCap ? `所持数を修正 / 上限×${maxOwned}` : "所持数を修正"),
+                  h("input", { id: `build-item-qty-${entry.uid}`, type: "number", min: 1, max: maxOwned, step: 1, inputMode: "numeric", value: entry.quantity, onChange: (event) => patch(entry.uid, { quantity: event.target.value }), "aria-label": `${nameOf(entry.itemId)}の所持数を修正`, title: "実際に使用した場合は「1個使用」を押してください。ここは所持数の訂正用です。" })
                 ),
+                h(Button, { size: "sm", variant: "secondary", icon: "minus", disabled: !currentResultId, onClick: () => consumeOne(entry), title: currentResult ? `1個を消費し「${currentResult.name}」へ記録` : "消費記録にはリザルトが必要です" }, "1個使用"),
                 h("label", { className: "item-output-toggle" }, h("input", { type: "checkbox", checked: entry.memo !== false, onChange: (event) => patch(entry.uid, { memo: event.target.checked }) }), h("span", null, "MEMOに表示")),
-                h("label", { className: "item-output-toggle" }, h("input", { type: "checkbox", checked: entry.palette !== false, onChange: (event) => patch(entry.uid, { palette: event.target.checked }) }), h("span", null, "PALETTEへ反映")),
-                h(Button, { size: "sm", variant: "danger", icon: "trash", onClick: () => { dispatch({ type: "REMOVE_ITEM", uid: entry.uid }); toast(`「${nameOf(entry.itemId)}」を所持から外しました`); } }, "卓から外す")
+                h("label", { className: "item-output-toggle" }, h("input", { type: "checkbox", checked: entry.palette !== false, onChange: (event) => patch(entry.uid, { palette: event.target.checked }) }), h("span", null, "PALETTEへ反映"))
               )
             );
           }))
@@ -3826,11 +3849,30 @@ const InventoryPanel = ({ state, dispatch }) => {
   const categories = [...new Set(catalog.map((item) => String(item?.category || "その他")))];
   const rows = [...inventory].sort((a, b) => nameOf(a.itemId).localeCompare(nameOf(b.itemId), "ja"));
   const seeded = inventory.filter((entry) => entry.origin === "initial").length;
+  const currentResultId = window.LBT_latestResultId?.(state) || "";
+  const currentResult = (state.results || []).find((result) => result.id === currentResultId) || null;
+  const consumeOne = (entry) => {
+    if (!currentResultId) {
+      toast("消費を記録するリザルトがありません。先にリザルトを登録してください", "assertive");
+      return;
+    }
+    const operationId = `record-item-use-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    dispatch({
+      type: "CONSUME_ITEM",
+      itemId: entry.itemId,
+      quantity: 1,
+      reason: "consumption",
+      operationId,
+      resultId: currentResultId
+    });
+    toast(`「${nameOf(entry.itemId)}」を1個使用し、「${currentResult?.name || "最新リザルト"}」へ記録しました`);
+  };
+  const adjustQuantity = (entry, value) => dispatch({ type: "PATCH_ITEM", uid: entry.uid, patch: { quantity: value } });
   const originBadge = (entry) => entry.origin === "initial"
     ? h("span", { className: "badge inv-origin is-initial" }, "初期枠")
     : metaOf(entry.itemId).specialResource
       ? h("span", { className: "badge inv-origin" }, "資源")
-      : h("span", { className: "badge inv-origin" }, "購入");
+      : h("span", { className: "badge inv-origin" }, "入手");
 
   return h("div", { className: "stack-3" },
     h(Card, null,
@@ -3857,16 +3899,23 @@ const InventoryPanel = ({ state, dispatch }) => {
     h(Card, null,
       h("div", { className: "card-header owned-library-bar" },
         h("span", { className: "t-label" }, "ITEM INVENTORY / 所持アイテム"),
-        h("span", { className: "ledger-note" }, `${inventory.length}件`)
+        h("span", { className: "ledger-note" }, `${inventory.length}件　${currentResult ? `消費記録先: ${currentResult.name}` : "リザルト未登録のため消費記録不可"}`)
       ),
       rows.length === 0
         ? h("div", { className: "card-body" }, h("div", { className: "empty" }, "所持アイテムはまだありません。「アイテム」で追加するか、初期枠を取り込むとここへ出ます。"))
-        : h("div", { className: "card-body stack-2" }, rows.map((entry) => h("div", { key: entry.uid, className: "inv-row" },
+        : h("div", { className: "card-body stack-2" }, rows.map((entry) => h("div", { key: entry.uid, className: "inv-row record-inventory-row" },
             h("span", { className: "inv-name" }, nameOf(entry.itemId)),
             h("span", { className: "inv-meta" }, String(metaOf(entry.itemId).category || "その他")),
             h("span", { className: "inv-price" }, String(metaOf(entry.itemId).price || "")),
             h("span", { className: "inv-qty" }, `×${entry.quantity}`),
-            originBadge(entry)
+            originBadge(entry),
+            h("div", { className: "record-inventory-controls" },
+              h("label", { className: "record-inventory-adjust" },
+                h("span", null, "所持数を修正"),
+                h("input", { className: "item-quantity-input", type: "number", min: 1, max: window.LBT_getItemMaxOwned?.(state, entry.itemId) || 99, step: 1, inputMode: "numeric", value: entry.quantity, onChange: (event) => adjustQuantity(entry, event.target.value), "aria-label": `${nameOf(entry.itemId)}の所持数を修正`, title: "実際に使用した場合は「1個使用」を押してください。ここは所持数の訂正用です。" })
+              ),
+              h(Button, { size: "sm", variant: "secondary", icon: "minus", disabled: !currentResultId, onClick: () => consumeOne(entry), title: currentResult ? `1個を消費し「${currentResult.name}」へ記録` : "消費記録にはリザルトが必要です" }, "1個使用")
+            )
           )))
     )
   );
