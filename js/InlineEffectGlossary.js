@@ -452,6 +452,11 @@
       [...(persona.extra_passives || []), ...(persona.extraPassives || [])].forEach((passive) => {
         if (passive) add(passive.name, owner, "追加パッシブ", passive.effect);
       });
+      (persona.skills || []).forEach((skill) => {
+        if (!skill) return;
+        const diceText = (skill.dice || []).map((die) => die && die.effect).filter(Boolean).join("\\n");
+        add(skill.name, owner, "人格スキル", [skill.effect, diceText].filter(Boolean).join("\\n"));
+      });
     });
     // 同名語が複数人格に存在する場合は参照元を確定できないため候補を破棄する。
     references.forEach((rows, term) => {
@@ -549,8 +554,8 @@
     let lastIndex = 0;
     for (const match of input.matchAll(pattern)) {
       const term = match[0];
-      const exactBracketReference = match.index > 0 && input[match.index - 1] === "["
-        && input[match.index + term.length] === "]"
+      const exactBracketReference = match.index > 0 && ["[", "［"].includes(input[match.index - 1])
+        && ["]", "］"].includes(input[match.index + term.length])
         && explicitReferences.has(term);
       const entries = resolveEntries(term, scopedGlossary, scope, exactBracketReference);
       if (!entries.length) continue;
