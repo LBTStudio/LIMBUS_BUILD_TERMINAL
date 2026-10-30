@@ -8,6 +8,7 @@ import vm from "node:vm";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const db = JSON.parse(readFileSync(resolve(ROOT, "data/db.json"), "utf8"));
 const coreCorpus = readFileSync(resolve(ROOT, "data/provenance/core.paragraphs.txt"), "utf8");
+const packCorpus = readFileSync(resolve(ROOT, "data/provenance/pack1.paragraphs.txt"), "utf8");
 const source = readFileSync(resolve(ROOT, "js/InlineEffectGlossary.js"), "utf8");
 
 function loadGlossary() {
@@ -378,4 +379,84 @@ test("共通用語の出典はPDF抽出ページの実在内容に対応する",
   }
   assert.ok(p311.includes("挑発値") && p311.includes("血餐") && p311.includes("自己共振回路"));
   assert.ok((glossary.get("血餐") || []).some(e => e.isRulebook && e.source === "基本ルール p.311"));
+});
+
+
+test("特定抽出パック第一弾の追加バフ・デバフ・蓄積要素・中立バフ・弾丸・特殊処理を共有辞典から解決する", () => {
+  const glossary = loadGlossary().buildGlossary(db);
+  const cases = [
+    ["緋色の蛾", "特定抽出パック第一弾 p.196"],
+    ["懺悔", "特定抽出パック第一弾 p.198"],
+    ["予知眼", "特定抽出パック第一弾 p.203"],
+    ["底力", "特定抽出パック第一弾 p.205"],
+    ["針", "特定抽出パック第一弾 p.205"],
+    ["恐水病", "特定抽出パック第一弾 p.190／205"],
+    ["残香", "特定抽出パック第一弾 p.206-207"],
+    ["胞子", "特定抽出パック第一弾 p.207"],
+    ["電荷針", "特定抽出パック第一弾 p.207"],
+    ["矢-死", "特定抽出パック第一弾 p.211"],
+    ["組札-松に鶴", "特定抽出パック第一弾 p.211"],
+    ["爆発する感情", "特定抽出パック第一弾 p.212"],
+    ["過充電", "特定抽出パック第一弾 p.212"],
+    ["弾丸-孤独", "特定抽出パック第一弾 p.216"],
+    ["弾丸-胞子弾", "特定抽出パック第一弾 p.216"],
+    ["摘出", "特定抽出パック第一弾 p.217"],
+    ["衝撃広域", "特定抽出パック第一弾 p.217"]
+  ];
+  for (const [term, sourcePage] of cases) {
+    const entry = (glossary.get(term) || []).find((row) => row.isRulebook);
+    assert.ok(entry, term + " is registered");
+    assert.equal(entry.source, sourcePage, term + " source");
+    const pieces = loadGlossary().tokenize("この効果は" + term + "を得る", db, "人格スキル:テスト人格");
+    assert.ok(pieces.some((piece) => piece.term === term), term + " resolves without brackets");
+  }
+  for (const page of [196, 205, 206, 207, 211, 212, 216, 217]) {
+    assert.ok(packCorpus.includes("===== PAGE " + page), "source corpus contains page " + page);
+  }
+});
+
+test("他人格固有語は完全一致の角括弧引用だけを一意に解決し、部分一致と曖昧な同名参照は拒否する", () => {
+  const fixture = {
+    normal_personas: [
+      { name: "引用元人格", passive_name: "固有の誓約", passive_effect: "引用元だけの説明", unique_buffs: [
+        { name: "蒼い刻印", type: "固有バフ", desc: "引用元の蒼い刻印の説明" }
+      ], skills: [], keywords: [] },
+      { name: "表示中人格", passive_name: "別の誓約", passive_effect: "", unique_buffs: [], skills: [], keywords: [] }
+    ],
+    tokui_personas: [], egos: [], support_passives: [], death_passives: [],
+    normal_enhancements: [], special_enhancements: [], spirits: [], items: []
+  };
+  const api = loadGlossary();
+  const plain = api.tokenize("固有の誓約を得る", fixture, "人格スキル:表示中人格");
+  assert.equal(plain.filter((piece) => piece.term === "固有の誓約").length, 0, "外部人格の語は平文で横断参照しない");
+  const quoted = api.tokenize("効果は[固有の誓約]を参照する", fixture, "人格スキル:表示中人格");
+  const quotedPiece = quoted.find((piece) => piece.term === "固有の誓約");
+  assert.ok(quotedPiece, "角括弧で完全一致した引用だけを解決する");
+  assert.equal(quotedPiece.entries.length, 1);
+  assert.equal(quotedPiece.entries[0].ownerName, "引用元人格");
+  assert.ok(quotedPiece.entries[0].description.includes("引用元だけの説明"));
+
+  const substring = api.tokenize("固有の誓約攻撃を行う", fixture, "人格スキル:表示中人格");
+  assert.equal(substring.filter((piece) => piece.term === "固有の誓約").length, 0, "複合語の部分一致は参照しない");
+  const malformed = api.tokenize("[固有の誓約]攻撃", fixture, "人格スキル:表示中人格");
+  assert.ok(malformed.some((piece) => piece.term === "固有の誓約"), "引用語の直後に文字があっても角括弧内の完全一致は有効");
+
+  fixture.normal_personas.push({
+    name: "別の引用元", passive_name: "固有の誓約", passive_effect: "別人格の同名説明",
+    unique_buffs: [], skills: [], keywords: []
+  });
+  const ambiguous = api.tokenize("[固有の誓約]", fixture, "人格スキル:表示中人格");
+  assert.equal(ambiguous.filter((piece) => piece.term === "固有の誓約").length, 0, "同名定義が複数所有者にある場合は推測しない");
+});
+
+test("抽出パックの共有語は同期・カスタム人格にも反映され、現在人格の同名固有定義を優先しない", () => {
+  const record = {
+    name: "同期人格", passive_name: "", passive_effect: "",
+    unique_buffs: [{ name: "緋色の蛾", type: "人格固有バフ", desc: "同期人格固有の同名定義" }],
+    skills: [], extra_passives: []
+  };
+  const pieces = loadGlossary().tokenize("緋色の蛾を得る", db, "人格スキル:同期人格", record);
+  const entry = pieces.find((piece) => piece.term === "緋色の蛾")?.entries[0];
+  assert.ok(entry);
+  assert.equal(entry.source, "特定抽出パック第一弾 p.196", "共有用語辞典の定義を一貫して使用する");
 });
