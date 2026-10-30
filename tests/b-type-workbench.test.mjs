@@ -47,3 +47,17 @@ test("B-type Basic preview is positioned beside the editor on wide desktop when 
   assert.match(css, /\.app\.has-preview \.baseinfo-workspace\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\)/);
   assert.match(css, /@media\s*\(min-width:\s*1280px\)/);
 });
+
+
+test("UI audit covers desktop, tablet and mobile across Home, settings and all record tabs", () => {
+  const audit = read("../tools/ui/capture-ui-audit.mjs");
+  assert.match(audit, /for\(const mode of \["desktop","tablet","mobile"\]\)/);
+  assert.match(audit, /width:1024,height:768/);
+  assert.match(audit, /記録・所持品の6カテゴリタブが揃っていません/);
+  assert.match(audit, /details\.settings-disclosure/);
+  assert.match(audit, /home-launcher-review/);
+  assert.match(audit, /import-router-all-destinations/);
+  assert.match(audit, /settingsDisclosurePanels/);
+  assert.match(audit, /build-editor-operation-paths/);
+  assert.match(audit, /all six owned-library categories/);
+});

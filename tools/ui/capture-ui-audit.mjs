@@ -470,7 +470,9 @@ async function boot() {
 async function captureProfile(browser, mode) {
   view=mode;
   const mobile=mode==="mobile";
-  const context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1440,height:1000},deviceScaleFactor:mobile?2:1,isMobile:mobile,hasTouch:mobile,serviceWorkers:"block",colorScheme:"dark",reducedMotion:"reduce"});
+  const tablet=mode==="tablet";
+  const viewport=mobile?{width:390,height:844}:tablet?{width:1024,height:768}:{width:1440,height:1000};
+  const context=await browser.newContext({viewport,deviceScaleFactor:mobile?2:1,isMobile:mobile,hasTouch:mobile,serviceWorkers:"block",colorScheme:"dark",reducedMotion:"reduce"});
   page=await context.newPage();
   page.setDefaultTimeout(5000);
   // Keep external counters deterministic in localhost screenshots. Aborting these requests
@@ -679,6 +681,19 @@ async function captureProfile(browser, mode) {
           const heldPanel=page.locator(".ledger-gara-wrap").filter({has:held}).last();
           const heldClose=heldPanel.getByRole("button",{name:"閉じる",exact:true}).first();
           if(await visible(heldClose)) await click(heldClose);
+
+          // Audit every owned-library category through the same real tab bar.
+          const libraryTabs=page.locator(".record-tabbar .owned-library-bar [role='tab']");
+          const libraryCount=await libraryTabs.count();
+          if(libraryCount<6) throw new Error("記録・所持品の6カテゴリタブが揃っていません: "+libraryCount);
+          for(let i=0;i<libraryCount;i++){
+            const tab=libraryTabs.nth(i), label=(await tab.innerText()).trim();
+            await click(tab);
+            if(await tab.getAttribute("aria-selected")!=="true") throw new Error("記録タブの選択状態が更新されません: "+label);
+            await snap("record-library-"+label,"記録・所持品のカテゴリ："+label);
+          }
+          const ledgerTab=libraryTabs.filter({hasText:"リザルト"}).first();
+          if(await visible(ledgerTab)) await click(ledgerTab);
         }
         if(label==="使い方") {
           const search=page.locator("#guide-search-input").first();
@@ -688,8 +703,118 @@ async function captureProfile(browser, mode) {
             if(await visible(first)) { await click(first); await snap("help-expanded-entry","使い方の詳細を展開"); }
           }
         }
+
+        if(label==="設定" || label==="詳細設定") {
+          await snap("settings-status-workspace","詳細設定：ステータス一覧・編集・出力順");
+          const disclosures=page.locator("details.settings-major, details.settings-disclosure");
+          const disclosureCount=await disclosures.count();
+          if(disclosureCount===0) throw new Error("詳細設定の折り畳みセクションが見つかりません");
+          // Some disclosure panels are nested inside another collapsed panel.
+          // Repeat passes so newly revealed summaries are included, but never click hidden descendants.
+          let totalOpened=0;
+          for(let pass=0;pass<4;pass++){
+            let opened=0;
+            for(let i=0;i<disclosureCount;i++){
+              const details=disclosures.nth(i), summary=details.locator("summary").first();
+              if(!(await summary.count())) continue;
+              const reachable=await details.evaluate(el=>{
+                for(let node=el.parentElement;node;node=node.parentElement){
+                  if(node.tagName==="DETAILS" && !node.open) return false;
+                }
+                return true;
+              });
+              if(!reachable) continue;
+              const isOpen=await details.evaluate(el=>el.open);
+              if(isOpen) continue;
+              const labelText=(await summary.innerText()).trim();
+              await summary.click({force:true});
+              if(!(await details.evaluate(el=>el.open))) throw new Error("設定セクションを展開できません: "+labelText);
+              await snap("settings-disclosure-"+labelText,"詳細設定のセクションを展開："+labelText);
+              opened++; totalOpened++;
+            }
+            if(!opened) break;
+          }
+          audit.settingsDisclosurePanels=(audit.settingsDisclosurePanels||0)+totalOpened;
+          if(totalOpened===0) throw new Error("詳細設定の折り畳み項目を1つも展開できませんでした");
+        }
       });
     }
+    await attempt("import-router-all-destinations",async()=>{
+      const trigger=(page.viewportSize()?.width||1440)<=640
+        ? page.locator(".btype-mobile-bottom-nav button").filter({hasText:"取込"}).first()
+        : page.locator(".rail-import-item").first();
+      if(!(await visible(trigger))) throw new Error("データ取り込みの共通入口が見つかりません");
+      await click(trigger);
+      const dialog=page.locator(".import-router");
+      await dialog.waitFor({state:"visible",timeout:5000});
+      const options=dialog.locator(".import-router-option");
+      if(await options.count()!==4) throw new Error("取り込み先の選択肢が4種類ではありません");
+      await snap("import-router-choice","共通のデータ取り込み先選択ダイアログ");
+      for(const id of ["persona","result","garasumado","owned"]){
+        const option=options.filter({hasText:
+          id==="persona"?"人格データの本文":
+          id==="result"?"リザルト・購入履歴":
+          id==="garasumado"?"硝子窓のキャラクター全体":"所持人格名の一覧"
+        }).first();
+        if(!(await visible(option))) throw new Error("取り込み先がありません: "+id);
+        await click(option);
+        await snap("import-router-destination-"+id,"共通取り込み口から選択した遷移先："+id);
+        await closeOverlay();
+        if(id!=="owned" && id!=="garasumado") await go("ホーム");
+        if(id==="garasumado") await go("ホーム");
+        if(id!=="owned" || id==="owned") {
+          const nextTrigger=(page.viewportSize()?.width||1440)<=640
+            ? page.locator(".btype-mobile-bottom-nav button").filter({hasText:"取込"}).first()
+            : page.locator(".rail-import-item").first();
+          if(id!=="owned") { await click(nextTrigger); await dialog.waitFor({state:"visible",timeout:5000}); }
+        }
+      }
+      await closeOverlay();
+    });
+    await attempt("home-launcher-review",async()=>{
+      await go("ホーム");
+      await snap("home-command-hero","ホームのコマンドヒーローと目的別ランチャー");
+      const launcher=page.locator(".btype-launcher-grid");
+      if(!(await visible(launcher))) throw new Error("ホームの目的別ランチャーが表示されません");
+      const actions=launcher.locator("button");
+      const count=await actions.count();
+      if(count<6) throw new Error("ホームの主要アクションが不足しています: "+count);
+      await snap("home-launcher-grid","ホームの主要アクション一覧");
+      const continuePanel=page.locator(".btype-continue-panel").first();
+      if(await visible(continuePanel)) await snap("home-continue-panel","前回作業の再開パネル");
+      // Exercise every launcher route against the disposable audit account.
+      for(let i=0;i<count;i++){
+        await go("ホーム");
+        const action=page.locator(".btype-launcher-grid button").nth(i);
+        if(!(await visible(action))) continue;
+        const label=(await action.innerText()).trim();
+        await click(action);
+        await snap("home-action-destination-"+label,"ホームランチャーからの遷移先："+label);
+        await closeOverlay();
+      }
+    });
+    await attempt("build-editor-operation-paths",async()=>{
+      await go("ビルド");
+      const skillTab=page.locator(".build-tabs [role='tab']").filter({hasText:"スキル"}).first();
+      if(await visible(skillTab)){
+        await click(skillTab);
+        await snap("build-skill-editor","スキル編集画面の初期状態");
+        const addSkill=page.getByRole("button",{name:/スキル.*追加|追加.*スキル/}).first();
+        if(await visible(addSkill)){await click(addSkill);await snap("build-skill-add","スキル追加操作後の編集状態");}
+      }
+      const egoTab=page.locator(".build-tabs [role='tab']").filter({hasText:"E.G.O"}).first();
+      if(await visible(egoTab)){
+        await click(egoTab);
+        const create=page.getByRole("button",{name:/E.G.Oを新規作成/}).first();
+        if(await visible(create)){
+          await click(create);
+          await snap("build-ego-create-dialog","オリジナルE.G.O作成ダイアログ");
+          await closeOverlay();
+        }
+      }
+      const basicTab=page.locator(".build-tabs [role='tab']").filter({hasText:"基本"}).first();
+      if(await visible(basicTab)) await click(basicTab);
+    });
     await attempt("quick-search",async()=>{
       const b=page.locator(".topbar-search").first(); if(await visible(b)) await click(b);
       const input=page.locator(".cp-input").first();
@@ -796,15 +921,17 @@ async function main() {
   const s=makeServer();
   await new Promise((resolve,reject)=>{s.once("error",reject);s.listen(PORT,HOST,resolve);});
   const browser=await chromium.launch({headless:true});
-  try { for(const mode of ["desktop","mobile"]) {log("begin "+mode);await captureProfile(browser,mode);} }
+  try { for(const mode of ["desktop","tablet","mobile"]) {log("begin "+mode);await captureProfile(browser,mode);} }
   finally { await browser.close();await new Promise(resolve=>s.close(resolve)); }
   audit.count=audit.screenshots.length;
-  audit.coverage=["SINNER SELECT/new-account form","all nine build tabs and desktop tab-hover states","Basic workspace ST / label / CCFOLIA preview tabs and all three live preview modes","major navigation sections and desktop navigation-hover states","all six shop category tabs","record import menu and routes with result parsing preview","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, desktop preview width and placement, duplicate preview controls, and target-size diagnostics"];
+  audit.coverage=["SINNER SELECT/new-account form","all nine build tabs and desktop tab-hover states","Basic workspace ST / label / CCFOLIA preview tabs and all three live preview modes","major navigation sections and desktop navigation-hover states","all six shop category tabs","record import menu and routes with result parsing preview","all six owned-library categories","settings status workspace and every disclosure panel","home command hero, all launcher routes and resume panel","common import router and all four destinations","skill-add and custom E.G.O creation entry paths","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, desktop preview width and placement, duplicate preview controls, and target-size diagnostics"];
   const requiredNotes=[
     "ビルド内基本タブのステータス（ST）編集パネル","ビルド内基本タブのラベル（パラメータ）編集パネル","ビルド内基本タブの盤面上の駒プレビュー","ビルド内基本タブのキャラクターシートプレビュー","ビルド内基本タブの出力データプレビュー",
     "ビルド内の人格タブ","ビルド内のスキルタブ","ビルド内のパッシブタブ","ビルド内の強化タブ","ビルド内のサポートタブ","ビルド内のE.G.Oタブ","ビルド内の精神タブ","ビルド内のアイテムタブ",
     "ショップ分類: 人格","ショップ分類: サポート","ショップ分類: E.G.O","ショップ分類: 精神","ショップ分類: アイテム","ショップ分類: ガチャ",
     "記録の取り込みメニュー（3つの入口）",
+     "記録・所持品のカテゴリ：リザルト","記録・所持品のカテゴリ：人格","記録・所持品のカテゴリ：E.G.O","記録・所持品のカテゴリ：サポパ","記録・所持品のカテゴリ：精神","記録・所持品のカテゴリ：アイテム",
+     "ホームのコマンドヒーローと目的別ランチャー","共通のデータ取り込み先選択ダイアログ","詳細設定：ステータス一覧・編集・出力順",
     "テキスト流し込みを開き、自動スクロール後の入力欄が見える状態",
     "例文を入力し、解析結果・候補を確認する状態（確定しない）",
     "硝子窓から一括取り込むパネルを開いた状態（適用しない）",
@@ -814,7 +941,7 @@ async function main() {
     "共有URLから取り込む入口","読み込むカテゴリを選ぶ確認画面。適用しない"
   ];
   audit.missingRequiredCaptures=[];
-  for (const mode of ["desktop","mobile"]) {
+  for (const mode of ["desktop","tablet","mobile"]) {
     for (const note of requiredNotes) {
       if (!audit.screenshots.some((shot)=>shot.name.startsWith(mode+"-") && shot.note.includes(note))) {
         audit.missingRequiredCaptures.push({view:mode,note});
@@ -824,6 +951,6 @@ async function main() {
   audit.criticalLayoutWarnings=audit.layoutWarnings.filter((item)=>["document-horizontal-overflow","duplicate-preview-controls","preview-toggle-overlaps-header","preview-toggle-overlaps-panel-controls","preview-toggle-overlaps-content-dock","preview-panel-too-narrow","basic-preview-below-editor-fold"].includes(item.type));
   fs.writeFileSync(path.join(OUT,"manifest.json"),JSON.stringify(audit,null,2)+"\n");
   log("finished: "+audit.count+" screenshots; failures="+audit.failures.length+"; missing-required="+audit.missingRequiredCaptures.length+"; critical-layout-warnings="+audit.criticalLayoutWarnings.length);
-  if(audit.count<80 || audit.failures.length || audit.missingRequiredCaptures.length || audit.pageErrors.length || audit.httpErrors.length || audit.consoleErrors.length || audit.criticalLayoutWarnings.length) process.exitCode=1;
+  if(audit.count<120 || audit.failures.length || audit.missingRequiredCaptures.length || audit.pageErrors.length || audit.httpErrors.length || audit.consoleErrors.length || audit.criticalLayoutWarnings.length) process.exitCode=1;
 }
 main().catch(e=>{console.error("[ui-audit] fatal: "+(e&&e.stack||String(e)));process.exitCode=1;});
