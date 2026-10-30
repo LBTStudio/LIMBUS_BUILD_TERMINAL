@@ -69,10 +69,9 @@ function normalizePersonaAcquisitions(value) {
   });
 }
 
-/* 初期作成用人格チケットの消費。最初の1人格が所持になった時点で1枚消す。
-   指定購入でも所持追加でも抽出でも通す。そうしないと
-   「20LPで指定して、さらに無料抽出チケットも残る」二重得になる。
-   チケットで人格抽出チケットで払った抽選では、その支払いが初期分の消費を兼ねるため二重に引かない。 */
+/* 初期作成用人格チケットの消費。最初の人格を購入・手動追加などで得た場合に1枚消す。
+   人格抽出チケットで抽選した場合は、その支払いが初期分の消費を兼ねるため、
+   applyRosterAdds 側で自動消費を抑止する。 */
 function consumeInitialPersonaTicket(state, resultId) {
   const balance = computeTicketBalance(state.results, state.entries);
   if ((Number(balance?.persona) || 0) <= 0) return state;
@@ -3803,7 +3802,7 @@ function applyRosterAdds(state, adds, options) {
     n += 1;
   }
   /* 最初の人格が所持になったら初期作成用チケットを1枚消す。
-     抽出した場合は既に消費済み（残高0）で素通りする。 */
+     人格抽出チケットを使った抽選では、その支払いが初期分の消費を兼ねるため options で抑止する。 */
   if (gainedPersona && opts.skipInitialTicketConsumption !== true) {
     next = consumeInitialPersonaTicket(next, opts.resultId);
   }
