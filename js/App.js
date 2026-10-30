@@ -389,10 +389,10 @@ const SECTIONS = [
   { id: "home", label: "ホーム", icon: "home", title: "HOME / LAUNCHER", subtitle: "目的から作業を始める", num: null, group: "home" },
   /* 基本設定・人格・戦術データを同じ作業面にまとめる。 */
   { id: "persona", label: "ビルド", icon: "grid", title: "BUILD WORKSPACE", subtitle: "基本設定・人格・スキル・パッシブ・強化・サポート・E.G.O・精神・アイテム", num: "01", group: "build" },
-  { id: "shop", label: "ショップ", icon: "item", title: "SHOP", subtitle: "人格・サポート・E.G.O・精神・アイテムを購入", num: "02", group: "utility" },
-  { id: "roster", label: "記録・所持品", icon: "roster", title: "CHARACTER RECORD", subtitle: "所持品・リザルト・収支・取り込み", num: null, group: "utility" },
-  { id: "settings", label: "詳細設定", icon: "settings", title: "BUILD PARAMETERS", subtitle: "ステータス設計・計算・出力", num: null, group: "utility" },
-  { id: "help", label: "使い方", icon: "book", title: "使い方を探す", subtitle: "検索して、押す場所を図で確認", num: null, group: "utility" }
+  { id: "shop", label: "ショップ", icon: "item", title: "ショップ", subtitle: "未所持の候補を探す場所です。", num: "02", group: "utility" },
+  { id: "roster", label: "記録・所持品", icon: "roster", title: "記録・所持品", subtitle: "所持品の管理とセッション収支をそれぞれ選びます。", num: null, group: "utility" },
+  { id: "settings", label: "詳細設定", icon: "settings", title: "詳細設定", subtitle: "基本の編集画面とは分け、必要なときにだけ開く。", num: null, group: "utility" },
+  { id: "help", label: "使い方", icon: "book", title: "使い方", subtitle: "操作名と目的のどちらからでも検索。", num: null, group: "utility" }
 ];
 
 function isComplete(section, s) {
@@ -1371,20 +1371,25 @@ const HomeLauncher = ({
       h("div", { className: "btype-eyebrow" }, "HOME / MULTI-PURPOSE LAUNCHER"),
       h("h2", { id: "home-launcher-title" }, "何から始めますか？"),
       h("p", { className: "btype-muted" }, "画面名が分からなくても、目的から機能を開けます。編集対象は現在のキャラクターです。"),
+      h("form", {
+        className: "btype-command-search",
+        role: "search",
+        onSubmit: (event) => { event.preventDefault(); setQuery((value) => value.trim()); }
+      },
+        h(Icon, { name: "search", size: 17 }),
+        h("input", {
+          type: "search", value: query, onChange: (event) => setQuery(event.target.value),
+          placeholder: "例：人格を取り込む／報酬を記録／JSONを出力",
+          "aria-label": "機能を検索"
+        }),
+        query ? h("button", { type: "button", className: "btype-search-clear", onClick: () => setQuery(""), "aria-label": "検索をクリア" }, "×") : null,
+        h("button", { type: "submit", className: "btype-search-submit" }, "検索")
+      ),
       h("div", { className: "btype-context-chips" },
         chip("対象：" + String(state.charName || "名称未設定")),
         chip("自動保存：" + (saveStatus?.phase === "saved" ? "有効" : "処理中")),
-        chip("作業場所：ビルド")),
-      h("div", { className: "btype-command-search" },
-      h(Icon, { name: "search", size: 17 }),
-      h("input", {
-        type: "search", value: query, onChange: (event) => setQuery(event.target.value),
-        placeholder: "例：人格を取り込む／報酬を記録／JSONを出力",
-        "aria-label": "機能を検索"
-      }),
-      query ? h("button", { type: "button", onClick: () => setQuery(""), "aria-label": "検索をクリア" }, "×") : null
-    ),
-    ),
+        chip("作業場所：ビルド")
+      ),
     h("div", { className: "btype-section-title" }, "目的から開く"),
     h("div", { className: "btype-launcher-grid", "data-launcher-grid": "" },
       visibleActions.map((item) => h("button", {
@@ -1789,14 +1794,14 @@ const App = () => {
       case "items-build":
         return /* @__PURE__ */ React.createElement(BuildWorkspace, { state, dispatch, saveStatus });
       case "roster":
-        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SectionTitle, { num: sec.num, title: sec.title, subtitle: sec.subtitle }), /* @__PURE__ */ React.createElement(RosterSection, { state, dispatch }));
+        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SectionTitle, { num: sec.num, title: sec.title, subtitle: sec.subtitle }), /* @__PURE__ */ React.createElement(RosterSection, { state, dispatch, onOpenImportRouter: openImportRouter }));
       case "shop":
         return /* @__PURE__ */ React.createElement(ShopSection, { state, dispatch });
 ;
       case "help":
         return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SectionTitle, { num: sec.num, title: sec.title, subtitle: sec.subtitle }), /* @__PURE__ */ React.createElement(HelpSection, { onNavigate: (id, ui = {}) => dispatch({ type: "SET_UI", ui: { ...ui, currentSection: id } }), onOpenUtilities: openUtilities }));
       case "settings":
-        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SectionTitle, { num: sec.num, title: sec.title, subtitle: sec.subtitle }), /* @__PURE__ */ React.createElement(SettingsSection, { state, dispatch }));
+        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SectionTitle, { num: sec.num, title: sec.title, subtitle: sec.subtitle }), /* @__PURE__ */ React.createElement(SettingsSection, { state, dispatch, onOpenUtilities: openUtilities }));
       default:
         return null;
     }
