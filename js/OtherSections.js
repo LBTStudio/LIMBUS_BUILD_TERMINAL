@@ -4040,12 +4040,14 @@ const LedgerPanel = ({ state, dispatch }) => {
   const normalizePersonaSearchText = (value) => String(value || "").normalize("NFKC")
     .replace(/[\s\u3000・･]/g, "").toLocaleLowerCase("ja-JP");
   /* 全件プルダウンは作らず、入力文字列でDBを照合して候補を最大8件だけ表示する。 */
-  const getPersonaSearchMatches = (query, selectedEntries) => {
+  const getPersonaSearchMatches = (query, selectedEntries, excludedEntries = []) => {
     const needle = normalizePersonaSearchText(query);
     if (!needle) return [];
-    const selectedKeys = new Set((Array.isArray(selectedEntries) ? selectedEntries : [])
-      .map((entry) => entry && entry.mode && entry.no ? entry.mode + ":" + String(entry.no) : "")
-      .filter(Boolean));
+    const selectedKeys = new Set(
+      [...(Array.isArray(selectedEntries) ? selectedEntries : []), ...(Array.isArray(excludedEntries) ? excludedEntries : [])]
+        .map((entry) => entry && entry.mode && entry.no ? entry.mode + ":" + String(entry.no) : "")
+        .filter(Boolean)
+    );
     return initialPersonaOptions.filter((option) => {
       if (selectedKeys.has(option.value)) return false;
       const kind = option.mode === "t" ? "特異 特異人格" : "通常 通常人格";
@@ -4053,7 +4055,13 @@ const LedgerPanel = ({ state, dispatch }) => {
       return searchable.includes(needle);
     }).slice(0, 8);
   };
-  const newResultPersonaMatches = getPersonaSearchMatches(newResultPersonaQuery, newResult.personaAcquisitions || []);
+  /* 新規報酬は現在未所持の人格だけが候補。過去リザルトの監査・追記用検索は
+     所持済みも表示できるよう、呼び出し側で除外リストを渡さない。 */
+  const newResultPersonaMatches = getPersonaSearchMatches(
+    newResultPersonaQuery,
+    newResult.personaAcquisitions || [],
+    state.roster?.personas || []
+  );
   /* 既存カードで「記録 / 修正」を押した対象。カード上へ直接並べるのは
      17パックの項目が毎回開くことになるため、記録は専用画面で行う。 */
   const [ticketPanel, setTicketPanel] = React.useState(null);
@@ -4282,6 +4290,10 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   };
   const addNewResultPersona = (option) => {
     if (!option) return;
+    const alreadyOwned = (state.roster?.personas || []).some((entry) =>
+      entry.mode === option.mode && String(entry.no) === String(option.no)
+    );
+    if (alreadyOwned) return;
     setNewResult((draft) => {
       const current = Array.isArray(draft.personaAcquisitions) ? draft.personaAcquisitions : [];
       if (current.some((entry) => entry.mode === option.mode && String(entry.no) === String(option.no))) return draft;
