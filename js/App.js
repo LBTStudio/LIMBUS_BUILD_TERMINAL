@@ -212,11 +212,12 @@ const GuideFlowDiagram = ({ kind }) => {
   );
 };
 
-const HelpSection = ({ onNavigate, onOpenUtilities }) => {
+const HelpSection = ({ onNavigate, onOpenUtilities, onOpenImportRouter }) => {
   const h = React.createElement;
   const [query, setQuery] = React.useState("");
   const [category, setCategory] = React.useState("start");
   const [expandedKey, setExpandedKey] = React.useState("");
+  const [helpView, setHelpView] = React.useState("overview");
   const openAccounts = () => window.dispatchEvent(new Event("lbt:open-accounts"));
   const go = (section, ui) => onNavigate?.(section, ui || {});
   const categories = [
@@ -321,7 +322,31 @@ const HelpSection = ({ onNavigate, onOpenUtilities }) => {
     return null;
   };
 
-  return h("div", { className: "guide guide-compact" },
+  if (helpView === "overview") return h("section", { className: "btype-help-hub" },
+    h("header", { className: "btype-page-heading" },
+      h("div", null,
+        h("div", { className: "btype-eyebrow" }, "GUIDE"),
+        h("h1", null, "使い方"),
+        h("p", null, "操作名と目的のどちらからでも検索できます。")
+      )
+    ),
+    h("div", { className: "panel btype-help-entry" },
+      h("button", {
+        type: "button", className: "secondary",
+        onClick: onOpenImportRouter
+      }, "取り込みの違いを確認"),
+      h("p", { className: "btype-muted" }, "各機能の説明を目的別で読めます。")
+    ),
+    h("div", { className: "btype-help-actions" },
+      h("button", { type: "button", className: "btype-task-row", onClick: () => setHelpView("guide") },
+        h("span", { className: "btype-task-glyph", "aria-hidden": true }, "⌕"),
+        h("span", null, h("strong", null, "操作ガイドを検索"), h("small", null, "画面名・目的・操作内容から探します")),
+        h("span", { className: "btype-task-chevron", "aria-hidden": true }, "›")
+      )
+    )
+  );
+  return h("div", { className: "guide guide-compact btype-help-guide" },
+    h("div", { className: "btype-back-row" }, h("button", { type: "button", className: "btype-back-link", onClick: () => setHelpView("overview") }, "← 使い方へ戻る")),
     h("div", { className: "guide-search-field" },
       h(Icon, { name: "search", size: 17 }),
       h("input", {
