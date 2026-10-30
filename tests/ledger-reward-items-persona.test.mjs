@@ -159,3 +159,14 @@ test("全リザルトの編集画面に複数人格と報酬アイテムの入�
   assert.match(otherSections, /rewardItems:\s*Array\.isArray\(result\.rewardItems\)/);
   assert.match(otherSections, /personaAcquisitions:\s*Array\.isArray\(result\.personaAcquisitions\)/);
 });
+
+
+test("settings and ledger readability improvements are in the active B-type style layer", () => {
+  const css = read("../assets/b-type-ui-parity.css");
+  assert.match(css, /@layer v73-ledger-usability/);
+  assert.match(css, /\.settings-section-note\s*\{[^}]*font-size:\s*12px/);
+  assert.match(css, /\.ledger-note,[\s\S]*?font-size:\s*12px/);
+  assert.match(css, /@media\s*\(max-width:\s*640px\)/);
+  assert.match(css, /\.ledger-persona-audit-disclosure/);
+  assert.match(css, /\.ledger-history-editor-disclosure/);
+});
