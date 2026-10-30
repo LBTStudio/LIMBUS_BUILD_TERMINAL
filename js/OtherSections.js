@@ -4816,7 +4816,12 @@ const importHeldPersonas = () => {
       )
     ),
 
-    personaAudit && h(Card, { className: "ledger-persona-audit-card" },
+    personaAudit && h("details", { className: "ledger-persona-audit-disclosure" },
+      h("summary", null,
+        h("span", null, "PERSONA AUDIT / 人格取得の照合"),
+        h("span", { className: "ledger-note" }, "不足 " + personaAudit.missing.length + " 件 · 未記録 " + personaAudit.unrecorded.length + " 件")
+      ),
+      h(Card, { className: "ledger-persona-audit-card" },
       h("div", { className: "card-header owned-library-bar" },
         h("span", { className: "t-label" }, "PERSONA AUDIT / 人格照合"),
         h("span", { className: "ledger-note" }, "取得記録と現在所持を比較。所持・収支は自動変更しません。")
@@ -4850,6 +4855,7 @@ const importHeldPersonas = () => {
         (personaAudit.unresolvedEvidence > 0 || personaAudit.unresolvedDraws > 0) && h("p", { className: "ledger-note", role: "status" },
           "未照合の取得証跡 " + personaAudit.unresolvedEvidence + " 件 / 抽選の適用状態または取得品を確定できない記録 " + personaAudit.unresolvedDraws + " 件があります。自動で人格を推測していません。"
         )
+      )
       )
     ),
 
