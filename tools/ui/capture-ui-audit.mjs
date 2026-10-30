@@ -825,13 +825,17 @@ async function captureProfile(browser, mode) {
 
       const historicalCard=page.locator(".ledger-card-wrap").filter({hasText:"UI監査用セッション"}).first();
       await click(historicalCard.locator(".ledger-card-edit-btn").first());
-      await historicalCard.locator(".ledger-history-editor-disclosure > summary").click();
+      /* 編集開始後は見出しが input に置き換わるため、
+         名前のテキスト検索ではなく編集中フラグからカードを取り直す。 */
+      const historicalEditorCard=page.locator(".ledger-card-wrap.is-editing").last();
+      await historicalEditorCard.waitFor({state:"visible",timeout:5000});
+      await historicalEditorCard.locator(".ledger-history-editor-disclosure > summary").click();
       const historicalCandidate=audit.seed?.sample?.historicalPersonaCandidate;
       if(!historicalCandidate?.mode || !historicalCandidate?.no) throw new Error("履歴人格QA候補をseedから取得できません");
-      await historicalCard.locator('[aria-label="このリザルトで取得した人格"]').selectOption(historicalCandidate.mode+":"+historicalCandidate.no);
-      await click(historicalCard.getByRole("button",{name:"人格を追加",exact:true}));
+      await historicalEditorCard.locator('[aria-label="このリザルトで取得した人格"]').selectOption(historicalCandidate.mode+":"+historicalCandidate.no);
+      await click(historicalEditorCard.getByRole("button",{name:"人格を追加",exact:true}));
       await snap("ledger-historical-persona-draft","過去リザルトへ複数取得人格を追加した編集状態");
-      await click(historicalCard.getByRole("button",{name:"UI監査用セッション の変更を保存",exact:true}));
+      await click(historicalEditorCard.getByRole("button",{name:"UI監査用セッション の変更を保存",exact:true}));
       await page.waitForTimeout(450);
       const historicalCheck=await page.evaluate((candidate)=>{
         const saved=window.LBT_accounts?.loadActive?.()||{};
@@ -872,15 +876,17 @@ async function captureProfile(browser, mode) {
 
       const rewardCard=page.locator(".ledger-card-wrap").filter({hasText:name}).first();
       await click(rewardCard.locator(".ledger-card-edit-btn").first());
-      await rewardCard.locator(".ledger-history-editor-disclosure > summary").click();
+      const rewardEditorCard=page.locator(".ledger-card-wrap.is-editing").last();
+      await rewardEditorCard.waitFor({state:"visible",timeout:5000});
+      await rewardEditorCard.locator(".ledger-history-editor-disclosure > summary").click();
       const prosthesisId="enh-seagull-prosthetic-arm";
-      const prosthesisSelect=rewardCard.locator('[aria-label="編集する報酬アイテムのカタログ選択"]');
+      const prosthesisSelect=rewardEditorCard.locator('[aria-label="編集する報酬アイテムのカタログ選択"]');
       if(await prosthesisSelect.locator('option[value="'+prosthesisId+'"]').count()===0) throw new Error("標準カタログの外付け強化義手が選択肢にありません");
       await prosthesisSelect.selectOption(prosthesisId);
-      await rewardCard.locator('[aria-label="編集する報酬アイテム数量"]').fill("1");
-      await click(rewardCard.locator(".ledger-reward-item-controls").getByRole("button",{name:"追加",exact:true}));
+      await rewardEditorCard.locator('[aria-label="編集する報酬アイテム数量"]').fill("1");
+      await click(rewardEditorCard.locator(".ledger-reward-item-controls").getByRole("button",{name:"追加",exact:true}));
       await snap("ledger-reward-item-edit-draft","既存リザルトへ標準カタログ品を追加する編集画面");
-      await click(rewardCard.getByRole("button",{name:name+" の変更を保存",exact:true}));
+      await click(rewardEditorCard.getByRole("button",{name:name+" の変更を保存",exact:true}));
       await page.waitForTimeout(450);
       const editCheck=await page.evaluate((name,prosthesisId)=>{
         const saved=window.LBT_accounts?.loadActive?.()||{};
