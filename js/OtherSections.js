@@ -6620,7 +6620,7 @@ const BuildParamsPanel = ({ state, dispatch }) => {
   );
 };
 
-const SettingsSection = ({ state, dispatch }) => {
+const SettingsSection = ({ state, dispatch, onOpenUtilities }) => {
   const setF = (field, value) => dispatch({ type: "SET_FIELD", field, value });
   const addFml = () => setF("formulas", [...state.formulas, { id: `fml-${Date.now()}`, name: "", expr: "" }]);
   const patchFml = (id, patch) => setF("formulas", state.formulas.map((f) => f.id === id ? { ...f, ...patch } : f));
@@ -6651,6 +6651,7 @@ const SettingsSection = ({ state, dispatch }) => {
   const dst = state.defaultStatuses || FACTORY_DEFAULT_STATUS;
   const setDst = (list) => setF("defaultStatuses", list);
   const h = React.createElement;
+  const settingsView = state.ui?.settingsView || "overview";
   const builtinRow = (formula) => {
     const overridden = typeof bov[formula.name] === "string";
     const hidden = bov[formula.name] === null;
@@ -6666,7 +6667,42 @@ const SettingsSection = ({ state, dispatch }) => {
      設定からはイベントを1つ投げるだけ。 */
   const openAccountSwitcher = () => window.dispatchEvent(new CustomEvent("lbt:open-accounts"));
   const sectionSummary = (name, hint, count) => h("summary", null, h("span", { className: "settings-major-name" }, name), h("span", { className: "settings-major-hint" }, hint), count !== undefined ? h("span", { className: "settings-major-count" }, count) : null);
-  return h("div", { className: "stack-4 settings-linear" },
+  if (settingsView !== "detail") return h("section", { className: "btype-settings-hub" },
+    h("header", { className: "btype-page-heading" },
+      h("div", null,
+        h("div", { className: "btype-eyebrow" }, "ADVANCED"),
+        h("h1", null, "詳細設定"),
+        h("p", null, "基本の編集画面とは分け、必要なときにだけ開く。")
+      )
+    ),
+    h("div", { className: "btype-settings-task-list" },
+      h("button", {
+        type: "button", className: "btype-task-row",
+        onClick: () => dispatch({ type: "SET_UI", ui: { settingsView: "detail" } })
+      },
+        h("span", { className: "btype-task-glyph", "aria-hidden": true }, "⚙"),
+        h("span", null,
+          h("strong", null, "ステータス・出力順・計算式"),
+          h("small", null, "既定値、上限、出力位置など")
+        ),
+        h("span", { className: "btype-task-chevron", "aria-hidden": true }, "›")
+      ),
+      h("button", {
+        type: "button", className: "btype-task-row",
+        onClick: onOpenUtilities
+      },
+        h("span", { className: "btype-task-glyph", "aria-hidden": true }, "⇧"),
+        h("span", null,
+          h("strong", null, "保存・読み込み・共有"),
+          h("small", null, "ファイル操作と出力先を選ぶ")
+        ),
+        h("span", { className: "btype-task-chevron", "aria-hidden": true }, "›")
+      )
+    )
+  );
+  return h("div", { className: "stack-4 settings-linear btype-settings-detail" },
+    h("header", { className: "btype-page-heading" }, h("div", null, h("div", { className: "btype-eyebrow" }, "ADVANCED / SETTINGS"), h("h1", null, "詳細設定"))),
+    h("div", { className: "btype-back-row" }, h("button", { type: "button", className: "btype-back-link", onClick: () => dispatch({ type: "SET_UI", ui: { settingsView: "overview" } }) }, "← 詳細設定へ戻る")),
     h(Card, { className: "settings-linear-card" },
       h("div", { className: "card-header" }, h("div", null, h("span", { className: "t-label" }, "BUILD PARAMETERS / 設定"), h("div", { className: "settings-header-copy" }, "ステータスは一覧でその場で編集・並べ替えできます。代入式と危険な操作は必要なときだけ開きます。"))),
       h("div", { className: "card-body settings-linear-stack" },
