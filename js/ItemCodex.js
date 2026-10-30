@@ -40,16 +40,29 @@ const ItemCodex = ({ state, dispatch }) => {
   const selectedEntry = selected ? entryById.get(selected.id) : null;
   const selectedMaxOwned = selected ? (window.LBT_getItemMaxOwned?.(state, selected.id) || 99) : 99;
   const selectedHasCap = selectedMaxOwned < 99;
+  const currentResultId = window.LBT_latestResultId?.(state) || "";
+  const currentResult = (state.results || []).find((result) => result.id === currentResultId) || null;
+  const selectedAddCost = selected
+    ? (window.LBT_resolveAcquireCost?.("item", "purchase", { id: selected.id, name: selected.name, customItems }) || { lp: 0, shards: 0 })
+    : { lp: 0, shards: 0 };
+  const selectedAddNeedsCharge = !!selected?.specialResource || !selectedEntry;
+  const selectedAffordable = !selectedAddNeedsCharge
+    || !(Number(selectedAddCost.lp) > 0 || Number(selectedAddCost.shards) > 0)
+    || window.LBT_purchaseAffordability?.(state, selectedAddCost)?.ok !== false;
+  const selectedUnderCap = !selected || selected.ledgerResource === "shards"
+    ? true
+    : !selectedEntry || (Number(selectedEntry.quantity) || 0) < selectedMaxOwned;
   const [quantityDraft, setQuantityDraft] = React.useState("");
   const [consumeQuantityDraft, setConsumeQuantityDraft] = React.useState("1");
   const consumeQuantity = Number(consumeQuantityDraft);
-  const canAddSelected = selected?.ledgerResource === "shards"
-    ? Number(ledgerBalance.lp) >= 2
-    : !selectedEntry || (Number(selectedEntry.quantity) || 1) < selectedMaxOwned;
+  const canAddSelected = Boolean(selected)
+    && selectedUnderCap
+    && selectedAffordable
+    && (selected?.ledgerResource !== "shards" || Number(ledgerBalance.lp) >= 2 && !!currentResultId);
+  const canConsumeOne = Boolean(selectedEntry && currentResultId && (Number(selectedEntry.quantity) || 0) >= 1);
   const canConsumeSelected = Boolean(
     selectedEntry
-    && Array.isArray(state.results)
-    && state.results.length > 0
+    && currentResultId
     && /^\d+$/.test(consumeQuantityDraft)
     && Number.isSafeInteger(consumeQuantity)
     && consumeQuantity > 0
@@ -76,21 +89,24 @@ const ItemCodex = ({ state, dispatch }) => {
   };
   const addItem = () => {
     if (!selected) return;
-    const ledgerLinked = selected.ledgerResource === "shards";
     if (!canAddSelected) {
-      toast(ledgerLinked
-        ? "自我の欠片は1個2LPです。LP残高が不足しています"
-        : `「${selected.name}」は所持上限（×${selectedMaxOwned}）です`, "assertive");
+      if (selected?.ledgerResource === "shards") {
+        toast("自我の欠片は1個2LPです。LP残高が不足しています", "assertive");
+      } else if (selectedAffordable === false) {
+        const affordability = window.LBT_purchaseAffordability?.(state, selectedAddCost);
+        toast(affordability?.reason || `「${selected.name}」の購入に必要な残高が不足しています`, "assertive");
+      } else {
+        toast(`「${selected.name}」は所持上限（×${selectedMaxOwned}）です`, "assertive");
+      }
       return;
     }
-    dispatch(selected.specialResource && !ledgerLinked
-      ? { type: "ADD_ITEM_INVENTORY", itemId: selected.id }
-      : { type: "ADD_ITEM", itemId: selected.id });
-    toast(ledgerLinked
-      ? "自我の欠片を1個購入しました（2LP）"
-      : selected.specialResource
-        ? (selectedEntry ? `「${selected.name}」の所持数を追加` : `「${selected.name}」を特殊資源欄へ追加`)
-        : (selectedEntry ? `「${selected.name}」の数量を追加` : `「${selected.name}」をアイテム一覧へ導入`));
+    /* ADD_ITEM は価格付き特殊資源も含め、購入可否・通帳記録・在庫反映を一括処理する。
+       ADD_ITEM_INVENTORY へ分岐すると硝子の破片などを価格なしで追加できてしまう。 */
+    dispatch({ type: "ADD_ITEM", itemId: selected.id });
+    const charged = selectedAddNeedsCharge && (Number(selectedAddCost.lp) > 0 || Number(selectedAddCost.shards) > 0);
+    toast(charged
+      ? `「${selected.name}」を購入しました（${selectedAddCost.label || "価格確認済み"}）`
+      : selectedEntry ? `「${selected.name}」の所持数を追加` : `「${selected.name}」を所持品へ追加`);
   };
   const patchEntry = (patch) => selectedEntry && dispatch({ type: "PATCH_ITEM", uid: selectedEntry.uid, patch });
   const commitQuantity = () => {
@@ -101,23 +117,44 @@ const ItemCodex = ({ state, dispatch }) => {
   };
   const removeItem = () => {
     if (!selectedEntry || !selected) return;
+    const confirmed = window.confirm(
+      `「${selected.name}」の所持登録を削除します。実際に使用した場合は「消費する」を使ってください。削除では消費履歴は作られず、所持品に紐づいた取得明細がある場合はそれも取り消されます。続行しますか？`
+    );
+    if (!confirmed) return;
     dispatch({ type: "REMOVE_ITEM", uid: selectedEntry.uid });
-    toast(`「${selected.name}」をアイテム一覧から削除`);
+    toast(`「${selected.name}」の所持登録を削除しました`);
   };
-  const consumeItem = () => {
-    if (!selected || !selectedEntry || !canConsumeSelected) {
-      toast("消費数を所持数以内で指定してください", "assertive");
+  const applyConsumption = (quantity) => {
+    if (!selected || !selectedEntry || !currentResultId
+      || !Number.isSafeInteger(quantity) || quantity < 1
+      || quantity > (Number(selectedEntry.quantity) || 0)) {
+      toast("消費数を所持数以内で指定し、記録先リザルトを確認してください", "assertive");
       return;
     }
     const operationId = `item-use-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     dispatch({
       type: "CONSUME_ITEM",
       itemId: selected.id,
-      quantity: consumeQuantity,
+      quantity,
       reason: "consumption",
-      operationId
+      operationId,
+      resultId: currentResultId
     });
-    toast(`「${selected.name}」×${consumeQuantity} を消費し、直近リザルトへ記録しました`);
+    toast(`「${selected.name}」×${quantity} を使用し、「${currentResult?.name || "最新リザルト"}」へ記録しました`);
+  };
+  const consumeItem = () => {
+    if (!canConsumeSelected) {
+      toast("消費数を所持数以内で指定してください", "assertive");
+      return;
+    }
+    applyConsumption(consumeQuantity);
+  };
+  const consumeOne = () => {
+    if (!canConsumeOne) {
+      toast("消費を記録するリザルトがありません", "assertive");
+      return;
+    }
+    applyConsumption(1);
   };
   const categoryLabel = (value) => value === "all" ? "全て" : value;
   return h("div", { className: "item-codex" },
@@ -171,10 +208,11 @@ const ItemCodex = ({ state, dispatch }) => {
           h("div", { className: "item-effect-block item-palette-preview" }, h("span", { className: "t-label" }, "チャットパレットへ反映"), h("pre", null, `◆ ${selected.name}\n${selected.palette || selected.effect}`))
         ),
         selectedEntry ? h("div", { className: "item-owned-controls" },
-          h("div", { className: "item-quantity-control" }, h("span", { className: "t-label" }, selectedHasCap ? `所持数 / 上限×${selectedMaxOwned}` : "所持数"), h("button", { type: "button", onClick: () => patchEntry({ quantity: Math.max(1, (Number(selectedEntry.quantity) || 1) - 1) }), "aria-label": "所持数を減らす" }, h(Icon, { name: "minus", size: 13 })), h("input", { className: "item-quantity-input", type: "number", min: 1, max: selectedMaxOwned, step: 1, inputMode: "numeric", value: quantityDraft, onChange: (event) => setQuantityDraft(event.target.value), onBlur: commitQuantity, onKeyDown: (event) => { if (event.key === "Enter") event.currentTarget.blur(); }, "aria-label": "所持数を入力" }), h("button", { type: "button", disabled: !canAddSelected, onClick: () => patchEntry({ quantity: Math.min(selectedMaxOwned, (Number(selectedEntry.quantity) || 1) + 1) }), "aria-label": "所持数を増やす" }, h(Icon, { name: "plus", size: 13 }))),
+          h("div", { className: "item-quantity-control" }, h("span", { className: "t-label" }, selectedHasCap ? `所持数の修正 / 上限×${selectedMaxOwned}` : "所持数の修正"), h("input", { className: "item-quantity-input", type: "number", min: 1, max: selectedMaxOwned, step: 1, inputMode: "numeric", value: quantityDraft, onChange: (event) => setQuantityDraft(event.target.value), onBlur: commitQuantity, onKeyDown: (event) => { if (event.key === "Enter") event.currentTarget.blur(); }, "aria-label": "所持数を直接修正", title: "実際に使用した場合は「1個使用」または「消費する」を押してください。" }), h("button", { type: "button", disabled: !canConsumeOne, onClick: consumeOne, "aria-label": "1個使用して消費記録を残す", title: currentResult ? `1個を消費し「${currentResult.name}」へ記録` : "消費記録にはリザルトが必要です" }, h(Icon, { name: "minus", size: 13 }))),
           h("label", { className: "item-output-toggle" }, h("input", { type: "checkbox", checked: selectedEntry.memo !== false, onChange: (event) => patchEntry({ memo: event.target.checked }) }), h("span", null, "MEMOに表示")),
           h("label", { className: "item-output-toggle" }, h("input", { type: "checkbox", checked: selectedEntry.palette !== false, onChange: (event) => patchEntry({ palette: event.target.checked }) }), h("span", null, "PALETTEへ反映")),
           h("div", { className: "item-consume-controls" },
+            h("span", { className: "item-consume-target", role: "status" }, currentResult ? `消費記録先: ${currentResult.name}` : "リザルト未登録のため消費できません"),
             h("label", null, "消費する数",
               h("input", {
                 type: "number", min: 1, max: Number(selectedEntry.quantity) || 1, step: 1,
@@ -187,7 +225,7 @@ const ItemCodex = ({ state, dispatch }) => {
               disabled: !canConsumeSelected, onClick: consumeItem,
               title: "指定数を所持品から減らし、直近リザルトの消耗記録に追加"
             }, "消費する")),
-          h("div", { className: "item-detail-actions" }, h(Button, { size: "sm", variant: "secondary", icon: "plus", disabled: !canAddSelected, onClick: addItem, title: canAddSelected ? "所持数を1増やす" : `最大所持数（×${selectedMaxOwned}）に到達` }, canAddSelected ? "数量を追加" : "上限に到達"), h(Button, { size: "sm", variant: "danger", icon: "trash", onClick: removeItem, title: "このアイテムを所持リストから削除" }, "所持品から削除"))
+          h("div", { className: "item-detail-actions" }, h(Button, { size: "sm", variant: "secondary", icon: "plus", disabled: !canAddSelected, onClick: addItem, title: canAddSelected ? (selectedAddNeedsCharge ? `購入価格: ${selectedAddCost.label || "無料"}` : "所持数を追加") : `残高不足または最大所持数（×${selectedMaxOwned}）に到達` }, canAddSelected ? (selectedAddNeedsCharge && (Number(selectedAddCost.lp) > 0 || Number(selectedAddCost.shards) > 0) ? "購入して追加" : "数量を追加") : "追加できません"), h(Button, { size: "sm", variant: "danger", icon: "trash", onClick: removeItem, title: "このアイテムを所持リストから削除" }, "所持品から削除"))
         ) : h(Button, { size: "md", variant: "primary", icon: "plus", className: "item-add-button", disabled: !canAddSelected, onClick: addItem, title: selected?.ledgerResource === "shards" ? (canAddSelected ? "2LPで自我の欠片を1個購入" : "LP残高が2LP未満です") : canAddSelected ? "アイテム一覧へ導入" : `最大所持数（×${selectedMaxOwned}）に到達` }, selected?.ledgerResource === "shards" ? (canAddSelected ? "1個購入（2LP）" : "LP不足（2LP必要）") : canAddSelected ? "アイテム一覧へ導入" : "上限に到達")
       )
     )
