@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-1e78025d";
+const CACHE_NAME = "lbt-3c1fcf78";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -55,7 +55,7 @@ const PRECACHE_URLS = [
   "data/special-items.json?v=aaa21cfb",
   "js/App.js?v=eabddf71",
   "js/DataQuality.js?v=a8365c72",
-  "js/InlineEffectGlossary.js?v=65f0666e",
+  "js/InlineEffectGlossary.js?v=4e57f331",
   "js/ItemCodex.js?v=290cc9ba",
   "js/LivePreview.js?v=69b4d6d2",
   "js/OtherSections.js?v=f3333929",
