@@ -379,7 +379,7 @@ async function runProfile(browser,profile) {
     await tokenTab.waitFor({state:"visible",timeout:5000});
     await tokenTab.click();
     await page.locator(".preview .pv-ccfolia-map").waitFor({state:"visible",timeout:5000});
-    const tokenActions=await page.locator(".preview-actions button").count();
+    const tokenActions=await page.locator(".preview .preview-actions button").count();
     const tokenOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+2);
     recordCheck(profile.name+": CCFOLIA board preview opens with one JSON action and no horizontal overflow",
       await page.locator(".preview .pv-token-preview").isVisible()&&tokenActions===1&&!tokenOverflow,
@@ -400,7 +400,7 @@ async function runProfile(browser,profile) {
 
     await page.getByRole("button",{name:"編集画面",exact:true}).click();
     await page.locator(".pv-ccfolia-editor").waitFor({state:"visible",timeout:5000});
-    const itemActions=await page.locator(".preview-actions button").count();
+    const itemActions=await page.locator(".preview .preview-actions button").count();
     const itemOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+2);
     recordCheck(profile.name+": editor view keeps one JSON action and fits the viewport",
       await page.locator(".pv-ccfolia-editor").isVisible()&&itemActions===1&&!itemOverflow,

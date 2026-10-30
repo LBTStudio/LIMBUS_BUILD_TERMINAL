@@ -673,6 +673,10 @@ async function captureProfile(browser, mode) {
         await go(label);
         await snap("section-"+label,"主要セクション: "+label);
         if(label==="ショップ") {
+          const openCatalog=page.getByRole("button",{name:"ショップ一覧を開く",exact:true}).first();
+          if(!(await visible(openCatalog))) throw new Error("B案のショップトップに一覧への入口がありません");
+          await click(openCatalog);
+          await snap("shop-catalog-entry","B案のショップ検索入口から既存カタログへ移動");
           const tabsShop=page.locator(".shop-tabs [role='tab']");
           const n=Math.min(await tabsShop.count(),8);
           for(let i=0;i<n;i++) {
@@ -681,6 +685,10 @@ async function captureProfile(browser, mode) {
           }
         }
         if(label==="記録") {
+          const resultsEntry=page.locator(".btype-record-task-card").filter({hasText:"リザルト／収支"}).first();
+          if(!(await visible(resultsEntry))) throw new Error("B案の記録トップにリザルト／収支の入口がありません");
+          await click(resultsEntry);
+          await snap("record-ledger-entry","B案の記録トップからリザルト／収支へ移動");
           const toggle=page.locator(".ledger-import-toggle").first();
           if(!(await visible(toggle))) throw new Error("「記録 > リザルトを記録 > 取り込む」ボタンが見つかりません");
           await click(toggle);
@@ -752,6 +760,8 @@ async function captureProfile(browser, mode) {
           if(await visible(ledgerTab)) await click(ledgerTab);
         }
         if(label==="使い方") {
+          const openGuide=page.getByRole("button",{name:"操作ガイドを検索",exact:true}).first();
+          if(await visible(openGuide)){await click(openGuide);await snap("help-guide-entry","B案の使い方トップから検索ガイドへ移動");}
           const search=page.locator("#guide-search-input").first();
           if(await visible(search)) {
             await search.fill("アカウント"); await snap("help-search-results","使い方ガイド内検索");
@@ -761,6 +771,8 @@ async function captureProfile(browser, mode) {
         }
 
         if(label==="設定" || label==="詳細設定") {
+          const openDetails=page.locator(".btype-settings-task-list .btype-task-row").filter({hasText:"ステータス・出力順・計算式"}).first();
+          if(await visible(openDetails)){await click(openDetails);await snap("settings-detail-entry","B案の詳細設定トップからステータス・計算式の編集へ移動");}
           await snap("settings-status-workspace","詳細設定：ステータス一覧・編集・出力順");
           const disclosures=page.locator("details.settings-major, details.settings-disclosure");
           const disclosureCount=await disclosures.count();
@@ -833,6 +845,9 @@ async function captureProfile(browser, mode) {
     });
     await attempt("record-reward-item-and-persona-regressions",async()=>{
       await go("記録");
+      const resultsEntry=page.locator(".btype-record-task-card").filter({hasText:"リザルト／収支"}).first();
+      await resultsEntry.waitFor({state:"visible",timeout:5000});
+      await click(resultsEntry);
       const initialCard=page.locator(".ledger-card-wrap").filter({hasText:"初期作成"}).first();
       await initialCard.waitFor({state:"visible",timeout:5000});
       await click(initialCard.locator(".ledger-card-edit-btn").first());

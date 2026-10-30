@@ -94,7 +94,10 @@ async function clickNav(page, title) {
   const isPhone = (page.viewportSize()?.width || 1440) <= 640;
   let navButton;
   if (!isPhone) {
-    navButton = page.locator("button[title='" + title + "']").first();
+    navButton = page.locator(".rail-item").filter({ hasText: title }).first();
+    if (!(await navButton.isVisible().catch(() => false))) {
+      navButton = page.locator("button[title='" + title + "']").first();
+    }
   } else {
     const mobileNav = page.locator(".btype-mobile-bottom-nav");
     const labels = { "ビルド": "ビルド", "記録・所持品": "記録", "データ取り込み": "取込" };
@@ -102,16 +105,15 @@ async function clickNav(page, title) {
       navButton = mobileNav.getByRole("button", { name: labels[title], exact: true });
     } else {
       await mobileNav.getByRole("button", { name: "その他", exact: true }).click();
-      const otherSection = page.locator(".utility-section-grid").getByRole("button", { name: title, exact: true });
-      await otherSection.waitFor({ state: "visible", timeout: 12000 });
-      await otherSection.click();
-      await page.waitForTimeout(WAIT_MS);
-      return;
+      navButton = page.locator(".utility-section-grid").getByRole("button", { name: title, exact: true });
     }
   }
   await navButton.waitFor({ state: "visible", timeout: 12000 });
   await navButton.click();
   await page.waitForTimeout(WAIT_MS);
+  if (title === "使い方") {
+    await page.locator(".btype-help-hub").waitFor({ state: "visible", timeout: 12000 });
+  }
 }
 
 async function annotateAndSave(page, selector, fileBase, headline, detail) {
@@ -269,6 +271,9 @@ async function captureCompactResultDetails(page, mode) {
   await page.keyboard.press("Escape").catch(() => {});
   await page.waitForTimeout(WAIT_MS);
   await clickNav(page, "記録・所持品");
+  const resultHubEntry = page.locator(".btype-record-task-card").filter({ hasText: "リザルト／収支" }).first();
+  await resultHubEntry.waitFor({ state: "visible", timeout: 12000 });
+  await resultHubEntry.click();
   const card = page.locator(".ledger-card").filter({ hasText: "第12回 セッション" }).first();
   if (!(await card.isVisible().catch(() => false))) {
     const debug = await page.evaluate(() => {
@@ -351,6 +356,10 @@ async function captureViewport(browser, mode) {
 
     // Result text import: open the real import menu, then annotate its item.
     await clickNav(page, "記録・所持品");
+    // B prototype opens a Record hub first; enter the Results / Ledger workspace.
+    const resultHubCard = page.locator(".btype-record-task-card").filter({ hasText: "リザルト／収支" }).first();
+    await resultHubCard.waitFor({ state: "visible", timeout: 12000 });
+    await resultHubCard.click();
     const resultImportToggle = page.locator(".ledger-import-toggle").first();
     await resultImportToggle.waitFor({ state: "visible", timeout: 12000 });
     await resultImportToggle.click();
@@ -406,6 +415,10 @@ async function captureViewport(browser, mode) {
     // the expiring CI Artifact, not into the 12 screenshots shown to end users.
     await page.keyboard.press("Escape").catch(() => {});
     await clickNav(page, "使い方");
+    /* The accessible name includes both the title and helper text; match the task card by its visible title. */
+    const openGuide = page.locator(".btype-help-actions .btype-task-row").filter({ hasText: "操作ガイドを検索" }).first();
+    await openGuide.waitFor({ state: "visible", timeout: 12000 });
+    await openGuide.click();
     await page.locator("#guide-search-input").waitFor({ state: "visible", timeout: 12000 });
     await page.waitForTimeout(WAIT_MS);
     const helpIndexFilename = path.join(OUT, "help-index-" + mode + ".png");

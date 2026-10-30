@@ -2669,6 +2669,7 @@ const ShopSection = ({ state, dispatch }) => {
     || ((definition) => hasExplicitSpiritPrice(definition) && Number(definition.price) === 0);
   const tab = state.ui?.shopTab || "support";
   const setTab = (id) => dispatch({ type: "SET_UI", ui: { shopTab: id } });
+  const shopView = state.ui?.shopView || "overview";
   const [unownedOnly, setUnownedOnly] = React.useState(true);
   const [how, setHow] = React.useState("purchase");
   /* 検索窓はビルド側と同じ構成（検索 → 件数 → 種別フィルタ）を共有する。 */
@@ -3041,7 +3042,36 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
     if (scroller && typeof scroller.scrollTop === "number") scroller.scrollTo({ top: 0, behavior: "auto" });
   };
 
-  return h("div", { className: "shop-workspace" },
+  if (shopView !== "catalog") return h("section", { className: "btype-shop-hub" },
+    h("header", { className: "btype-page-heading" },
+      h("div", null,
+        h("div", { className: "btype-eyebrow" }, "SHOP"),
+        h("h1", null, "ショップ"),
+        h("p", null, "未所持の候補を探す場所です。")
+      )
+    ),
+    h("div", { className: "panel btype-shop-entry" },
+      h("strong", null, "商品検索"),
+      h("p", { className: "btype-muted" }, "人格・サポート・E.G.O・精神・アイテムなどを検索します。"),
+      h("div", { className: "btype-shop-search-row" },
+        h("input", {
+          className: "input",
+          type: "search",
+          "aria-label": "ショップ商品を検索",
+          placeholder: "商品名・人格名・キーワード",
+          value: query,
+          onChange: (event) => setQuery(event.target.value)
+        }),
+        h("button", {
+          type: "button",
+          className: "secondary",
+          onClick: () => dispatch({ type: "SET_UI", ui: { shopView: "catalog" } })
+        }, "ショップ一覧を開く")
+      )
+    )
+  );
+    return h("div", { className: "shop-workspace btype-shop-catalog" },
+    h("div", { className: "btype-back-row" }, h("button", { type: "button", className: "btype-back-link", onClick: () => dispatch({ type: "SET_UI", ui: { shopView: "overview" } }) }, "← ショップへ戻る")),
     h(SectionTitle, { title: "SHOP / ショップ", subtitle: "人格・サポート・E.G.O・精神・アイテムを購入" }),
     /* カテゴリタブだけを独立要素にして追従させる。filter パネルの内側に置くと
        sticky は親の範囲を出られないため、親を抜けた瞬間にタブも消える。
@@ -3088,13 +3118,12 @@ tab !== "item" ? h(Button, {
       shownList)
   );
 };
-const BuildWorkspace = ({ state, dispatch, saveStatus }) => {
+const BuildWorkspace = ({ state, dispatch, saveStatus, onTogglePreview, onCopyJson }) => {
   const h = React.createElement;
   const current = state.ui?.currentSection || "persona";
   const active = BUILD_TABS.find((tab) => tab.id === current) || BUILD_TABS[0];
   const setTab = (id) => dispatch({ type: "SET_UI", ui: { currentSection: id } });
-  /* 各タブの中身は既存コンポーネントをそのまま使う。owned は roster（＝所持済み）
-     で絞るかどうか。所持を持たないもの（スキル/パッシブ/強化）は絞り込まない。 */
+  /* 各タブの中身は既存コンポーネントをそのまま使う。owned は state.roster を唯一の基準とする。 */
   const owned = !!active.owned;
   const Component = active.id === "baseinfo"
     ? window.LBT_BaseInfoWorkspace
@@ -3113,9 +3142,8 @@ const BuildWorkspace = ({ state, dispatch, saveStatus }) => {
                 : active.id === "items-build"
                   ? BuildItemsPanel
                   : EnhancementSection;
-  /* 所持ゲートを、roster を唯一の基準とするタブ（人格/サポート/E.G.O/精神）へ渡す。 */
   const panelProps = ["persona", "support", "ego", "spirit"].includes(active.id) ? { ownedOnly: owned } : {};
-  /* 一度表示したタブはツリーを保持し、切替は hidden のみにする（再マウントと画像再デコードを毎回払わない）。 */
+  /* 一度表示したタブのツリーは保持し、タブ切替で画像・編集状態を再マウントしない。 */
   const visitedRef = React.useRef([]);
   const paneCacheRef = React.useRef({});
   if (!visitedRef.current.includes(active.id)) visitedRef.current = visitedRef.current.concat(active.id);
@@ -3136,34 +3164,82 @@ const BuildWorkspace = ({ state, dispatch, saveStatus }) => {
       hidden: tab.id !== active.id
     }, visitedRef.current.includes(tab.id) && cache ? cache.element : null);
   });
-  return h("div", { className: "build-workspace b-workbench" },
-    h(SectionTitle, { num: "01", title: "ビルド", subtitle: "基本設定・人格・スキル・パッシブ・強化・サポート・E.G.O・精神・アイテム" }),
-    h("div", { className: "build-context-strip", "aria-label": "ビルドの作業状態" },
-      h("div", { className: "build-context-target" },
-        h("span", { className: "build-context-label" }, "作業対象"),
-        h("strong", { className: "build-context-name" }, String(state.charName || "名称未設定"))
+  const characterName = String(state.charName || "名称未設定");
+  const personaName = state.personaSrc?.name || "未選択";
+  const hp = state.hp ?? state.personaSrc?.hp ?? "—";
+  const san = state.san ?? state.personaSrc?.san ?? "—";
+  const saveLabel = saveStatus?.phase === "saved" ? "自動保存済み"
+    : saveStatus?.phase === "error" ? "ファイル保存を推奨"
+    : "自動保存中";
+  const previewOpen = state.ui?.previewOpen === true;
+  return h("div", { className: "build-workspace b-workbench btype-build-page" },
+    h("header", { className: "btype-page-heading btype-build-heading" },
+      h("div", null,
+        h("div", { className: "btype-eyebrow" }, "BUILD WORKSPACE / ACTIVE CHARACTER"),
+        h("h1", null, "ビルド"),
+        h("p", null, "基本情報・人格・スキル・E.G.O・出力を同じ作業領域で編集します。")
       ),
-      h("span", { className: "build-context-current-tab" }, active.label),
-      h("span", { className: "build-context-chip" }, state.personaSrc ? "人格装備済み" : "人格未選択"),
-      h("span", { className: `build-context-save is-${saveStatus?.phase || "saving"}`, role: "status" },
-        saveStatus?.phase === "saved" ? "端末内に自動保存済み" : saveStatus?.phase === "error" ? "ファイル保存を推奨" : "端末内へ自動保存中"
-      )
+      h("span", { className: "pill" }, "編集中：" + characterName)
     ),
-    h("div", { className: "build-tabs is-b-workbench" },
-      h("div", { className: "segmented", role: "tablist", "aria-label": "ビルドセクション" },
-        BUILD_TABS.map((tab) => h("button", {
-          key: tab.id,
-          type: "button",
-          role: "tab",
-          "aria-selected": active.id === tab.id,
-          className: active.id === tab.id ? "is-active" : "",
-          onClick: () => setTab(tab.id),
-          id: "btab-" + tab.id,
-          "aria-controls": "bpanel-" + tab.id
-        }, tab.label))
-      )
+    h("div", { className: "status-strip build-context-strip btype-build-status-strip", "aria-label": "ビルドの作業状態" },
+      h("span", { className: "status-item" }, h("strong", null, "キャラクター"), " ", characterName),
+      h("span", { className: "status-item" }, h("strong", null, "装備"), " ", personaName),
+      h("span", { className: "status-item" }, h("strong", null, "HP / SAN"), " ", String(hp), " / ", String(san)),
+      h("span", { className: "status-item" }, h("strong", null, "保存"), " ", saveLabel)
     ),
-    h("div", { className: "build-tabpanel" }, panes)
+    h("div", { className: "btype-work-layout" },
+      h("div", { className: "btype-work-main" },
+        h("div", { className: "build-tabs is-b-workbench subtabs btype-build-tabs" },
+          h("div", { className: "segmented btype-build-tablist", role: "tablist", "aria-label": "ビルドセクション" },
+            BUILD_TABS.map((tab) => h("button", {
+              key: tab.id,
+              type: "button",
+              role: "tab",
+              "aria-selected": active.id === tab.id,
+              className: "subtab" + (active.id === tab.id ? " active is-active" : ""),
+              onClick: () => setTab(tab.id),
+              id: "btab-" + tab.id,
+              "aria-controls": "bpanel-" + tab.id
+            }, tab.label))
+          )
+        ),
+        h("div", { className: "build-tabpanel btype-build-tabpanel" }, panes)
+      ),
+      h("aside", {
+        className: "btype-workbench-preview-panel",
+        "aria-label": "ビルドの出力プレビュー概要",
+        hidden: previewOpen
+      },
+        h("div", { className: "preview-label" },
+          h("span", null, "プレビュー"),
+          h("span", null, state.personaSrc ? "● 準備中" : "● 待機中")
+        ),
+        h("div", { className: "preview-lines" },
+          "キャラクター名：" + characterName + "\n" +
+          "人格：" + personaName + "\n" +
+          "HP / SAN：" + String(hp) + " / " + String(san) + "\n\n" +
+          (state.personaSrc
+            ? "編集内容を反映した出力を確認できます。"
+            : "人格を選ぶと、HP・SAN・スキルなどがここへ反映されます。")
+        ),
+        h("div", { className: "preview-actions" },
+          h("button", {
+            type: "button", className: "secondary", onClick: onTogglePreview,
+            "aria-controls": "preview-panel"
+          }, "プレビューを展開"),
+          h("button", {
+            type: "button", className: "primary", onClick: onCopyJson,
+            title: "現在のビルドからCCFOLIA JSONをコピー"
+          }, "CCFOLIA JSON")
+        ),
+        h("div", { className: "btype-preflight-note" },
+          h("strong", null, "出力前チェック"),
+          h("span", null, (state.personaSrc ? "✓" : "○") + " 人格"),
+          h("span", null, ((state.skills || []).length ? "✓" : "○") + " スキル"),
+          h("span", null, ((state.supports || []).length || (state.extraPassives || []).length ? "✓" : "○") + " パッシブ")
+        )
+      )
+    )
   );
 };
 
@@ -3296,11 +3372,11 @@ function getRosterLibraryEquipBlockReason(item, state, activeEnhancements) {
   return equippedSupports.length >= maxSupports ? "スロット上限（" + maxSupports + "枠）です" : null;
 }
 
-const RosterSection = ({ state, dispatch }) => {
+const RosterSection = ({ state, dispatch, onOpenImportRouter, onOpenUtilities }) => {
   const h = React.createElement;
   /* タブは topbar の残高チップからも開くため state.ui に置く。local state だと外から遷移できない。 */
   /* 記録はリザルト確認が最頻の用途なので初期タブも並びもリザルトを先頭にする。 */
-  const libraryTab = state.ui?.libraryTab || "ledger";
+  const libraryTab = state.ui?.libraryTab || "home";
   const setLibraryTab = (value) => dispatch({ type: "SET_UI", ui: { libraryTab: value } });
   const [manageMode, setManageMode] = React.useState(false);
   const [selectedIds, setSelectedIds] = React.useState([]);
@@ -3600,7 +3676,73 @@ if (typeof window !== "undefined") window.LBT_libraryTabLabel = libraryTabLabel;
   /* ヘッダ（タブ帯）は全タブで描画する。ここで早戻りするとタブごと消えて
      他タブへ移る手段が無くなるため、出し分けるのは中身だけにする。 */
   const onLibrary = !["ledger", "inventory"].includes(libraryTab);
-  return h("div", { className: "stack-3" },
+  const openRecordHome = () => setLibraryTab("home");
+  const openRecordTab = (tab) => {
+    setLibraryTab(tab);
+    if (tab === "ledger") dispatch({ type: "SET_UI", ui: { currentSection: "roster", libraryTab: tab } });
+  };
+  const recordHome = libraryTab === "home";
+  const recordHomeView = h("section", { className: "btype-record-hub", "aria-label": "記録・所持品の入口" },
+    h("header", { className: "btype-page-heading" },
+      h("div", null,
+        h("div", { className: "btype-eyebrow" }, "RECORD / LIBRARY"),
+        h("h1", null, "記録・所持品"),
+        h("p", null, "「所持品の管理」と「セッション収支」をそれぞれ選びます。")
+      ),
+      h("button", { type: "button", className: "primary", onClick: onOpenImportRouter }, "取り込みを開始")
+    ),
+    h("div", { className: "btype-record-card-grid" },
+      h("button", {
+        type: "button", className: "btype-record-task-card",
+        onClick: () => openRecordTab("personas")
+      },
+        h("span", { className: "btype-record-symbol", "aria-hidden": true }, "▣"),
+        h("strong", null, "所持ライブラリ"),
+        h("span", null, "人格・E.G.O・保存済みビルド"),
+        h("span", { className: "btype-record-chevron", "aria-hidden": true }, "›")
+      ),
+      h("button", {
+        type: "button", className: "btype-record-task-card",
+        onClick: () => openRecordTab("ledger")
+      },
+        h("span", { className: "btype-record-symbol", "aria-hidden": true }, "◷"),
+        h("strong", null, "リザルト／収支"),
+        h("span", null, "シナリオごとの報酬と購入"),
+        h("span", { className: "btype-record-chevron", "aria-hidden": true }, "›")
+      ),
+      h("button", {
+        type: "button", className: "btype-record-task-card",
+        onClick: () => dispatch({ type: "SET_UI", ui: { currentSection: "roster", libraryTab: "ledger", recordImportTarget: "text" } })
+      },
+        h("span", { className: "btype-record-symbol", "aria-hidden": true }, "⇩"),
+        h("strong", null, "テキスト取り込み"),
+        h("span", null, "結果を確認してから反映"),
+        h("span", { className: "btype-record-chevron", "aria-hidden": true }, "›")
+      )
+    ),
+    h("div", { className: "btype-record-shortcuts" },
+      h("button", { type: "button", className: "btype-task-row", onClick: () => dispatch({ type: "SET_UI", ui: { currentSection: "shop", shopView: "catalog" } }) },
+        h("span", { className: "btype-task-glyph", "aria-hidden": true }, "◇"),
+        h("span", null, h("strong", null, "ショップ一覧を開く"), h("small", null, "未所持の人格・E.G.O・サポート等を探す")),
+        h("span", { className: "btype-task-chevron", "aria-hidden": true }, "›")
+      ),
+      h("button", { type: "button", className: "btype-task-row", onClick: () => dispatch({ type: "SET_UI", ui: { currentSection: "settings", settingsView: "detail" } }) },
+        h("span", { className: "btype-task-glyph", "aria-hidden": true }, "⚙"),
+        h("span", null, h("strong", null, "ステータス一覧・編集・出力順"), h("small", null, "初期値、上限、出力位置、計算式")),
+        h("span", { className: "btype-task-chevron", "aria-hidden": true }, "›")
+      ),
+      h("button", { type: "button", className: "btype-task-row", onClick: onOpenUtilities },
+        h("span", { className: "btype-task-glyph", "aria-hidden": true }, "⇧"),
+        h("span", null, h("strong", null, "保存・読み込み・共有"), h("small", null, "ファイル種別を選んで操作")),
+        h("span", { className: "btype-task-chevron", "aria-hidden": true }, "›")
+      )
+    )
+  );
+  const detailView = h(React.Fragment, null,
+    h("div", { className: "btype-back-row" },
+      h("button", { type: "button", className: "btype-back-link", onClick: openRecordHome }, "← 記録・所持品へ戻る")
+    ),
+    (() => h("div", { className: "stack-3 btype-record-detail" },
     h(Card, { className: "record-tabbar" + (onLibrary ? "" : " is-bodyless") },
       h("div", { className: "card-header owned-library-bar", style: { alignItems: "center", flexWrap: "wrap", gap: "var(--s-2)" } }, h("span", { className: "t-label" }, "CHARACTER RECORD / 記録"),       h("div", { className: "segmented", role: "tablist", "aria-label": "記録セクションの種別", style: { marginLeft: "auto" } },
         h("button", { type: "button", role: "tab", "aria-selected": libraryTab === "ledger", className: libraryTab === "ledger" ? "is-active" : "", onClick: () => setLibraryTab("ledger") }, "リザルト"),
@@ -3644,7 +3786,9 @@ if (typeof window !== "undefined") window.LBT_libraryTabLabel = libraryTabLabel;
     ),
     !onLibrary && libraryTab === "ledger" && h(LedgerPanel, { state, dispatch }),
     !onLibrary && libraryTab === "inventory" && h(InventoryPanel, { state, dispatch })
-  );
+  ))()
+);
+  return recordHome ? recordHomeView : detailView;
 };
 /* 所持アイテムの総覧。
 
@@ -6625,7 +6769,7 @@ const BuildParamsPanel = ({ state, dispatch }) => {
   );
 };
 
-const SettingsSection = ({ state, dispatch }) => {
+const SettingsSection = ({ state, dispatch, onOpenUtilities }) => {
   const setF = (field, value) => dispatch({ type: "SET_FIELD", field, value });
   const addFml = () => setF("formulas", [...state.formulas, { id: `fml-${Date.now()}`, name: "", expr: "" }]);
   const patchFml = (id, patch) => setF("formulas", state.formulas.map((f) => f.id === id ? { ...f, ...patch } : f));
@@ -6656,6 +6800,7 @@ const SettingsSection = ({ state, dispatch }) => {
   const dst = state.defaultStatuses || FACTORY_DEFAULT_STATUS;
   const setDst = (list) => setF("defaultStatuses", list);
   const h = React.createElement;
+  const settingsView = state.ui?.settingsView || "overview";
   const builtinRow = (formula) => {
     const overridden = typeof bov[formula.name] === "string";
     const hidden = bov[formula.name] === null;
@@ -6671,7 +6816,42 @@ const SettingsSection = ({ state, dispatch }) => {
      設定からはイベントを1つ投げるだけ。 */
   const openAccountSwitcher = () => window.dispatchEvent(new CustomEvent("lbt:open-accounts"));
   const sectionSummary = (name, hint, count) => h("summary", null, h("span", { className: "settings-major-name" }, name), h("span", { className: "settings-major-hint" }, hint), count !== undefined ? h("span", { className: "settings-major-count" }, count) : null);
-  return h("div", { className: "stack-4 settings-linear" },
+  if (settingsView !== "detail") return h("section", { className: "btype-settings-hub" },
+    h("header", { className: "btype-page-heading" },
+      h("div", null,
+        h("div", { className: "btype-eyebrow" }, "ADVANCED"),
+        h("h1", null, "詳細設定"),
+        h("p", null, "基本の編集画面とは分け、必要なときにだけ開く。")
+      )
+    ),
+    h("div", { className: "btype-settings-task-list" },
+      h("button", {
+        type: "button", className: "btype-task-row",
+        onClick: () => dispatch({ type: "SET_UI", ui: { settingsView: "detail" } })
+      },
+        h("span", { className: "btype-task-glyph", "aria-hidden": true }, "⚙"),
+        h("span", null,
+          h("strong", null, "ステータス・出力順・計算式"),
+          h("small", null, "既定値、上限、出力位置など")
+        ),
+        h("span", { className: "btype-task-chevron", "aria-hidden": true }, "›")
+      ),
+      h("button", {
+        type: "button", className: "btype-task-row",
+        onClick: onOpenUtilities
+      },
+        h("span", { className: "btype-task-glyph", "aria-hidden": true }, "⇧"),
+        h("span", null,
+          h("strong", null, "保存・読み込み・共有"),
+          h("small", null, "ファイル操作と出力先を選ぶ")
+        ),
+        h("span", { className: "btype-task-chevron", "aria-hidden": true }, "›")
+      )
+    )
+  );
+  return h("div", { className: "stack-4 settings-linear btype-settings-detail" },
+    h("header", { className: "btype-page-heading" }, h("div", null, h("div", { className: "btype-eyebrow" }, "ADVANCED / SETTINGS"), h("h1", null, "詳細設定"))),
+    h("div", { className: "btype-back-row" }, h("button", { type: "button", className: "btype-back-link", onClick: () => dispatch({ type: "SET_UI", ui: { settingsView: "overview" } }) }, "← 詳細設定へ戻る")),
     h(Card, { className: "settings-linear-card" },
       h("div", { className: "card-header" }, h("div", null, h("span", { className: "t-label" }, "BUILD PARAMETERS / 設定"), h("div", { className: "settings-header-copy" }, "ステータスは一覧でその場で編集・並べ替えできます。代入式と危険な操作は必要なときだけ開きます。"))),
       h("div", { className: "card-body settings-linear-stack" },

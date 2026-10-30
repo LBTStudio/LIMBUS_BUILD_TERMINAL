@@ -72,8 +72,11 @@ test("残高チップからリザルトタブへ遷移できる", () => {
 });
 
 test("libraryTab は state.ui にあり、SET_UI で切り替わる", () => {
-  /* リザルト確認が最頻の用途なので、記録を開いた既定もリザルト。 */
-  assert.match(sections, /const libraryTab = state\.ui\?\.libraryTab \|\| "ledger";/);
+  /* B prototype: first show the three-way Record landing; ledger is opened by its own card or the balance chip. */
+  assert.match(sections, /const libraryTab = state\.ui\?\.libraryTab \|\| "home";/);
+  assert.match(sections, /const recordHome = libraryTab === "home";/);
+  assert.match(sections, /所持ライブラリ/);
+  assert.match(sections, /リザルト／収支/);
   assert.match(sections, /const setLibraryTab = \(value\) => dispatch\(\{ type: "SET_UI", ui: \{ libraryTab: value \} \}\);/);
 });
 

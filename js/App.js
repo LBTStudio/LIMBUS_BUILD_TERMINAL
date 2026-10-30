@@ -212,11 +212,12 @@ const GuideFlowDiagram = ({ kind }) => {
   );
 };
 
-const HelpSection = ({ onNavigate, onOpenUtilities }) => {
+const HelpSection = ({ onNavigate, onOpenUtilities, onOpenImportRouter }) => {
   const h = React.createElement;
   const [query, setQuery] = React.useState("");
   const [category, setCategory] = React.useState("start");
   const [expandedKey, setExpandedKey] = React.useState("");
+  const [helpView, setHelpView] = React.useState("overview");
   const openAccounts = () => window.dispatchEvent(new Event("lbt:open-accounts"));
   const go = (section, ui) => onNavigate?.(section, ui || {});
   const categories = [
@@ -321,7 +322,31 @@ const HelpSection = ({ onNavigate, onOpenUtilities }) => {
     return null;
   };
 
-  return h("div", { className: "guide guide-compact" },
+  if (helpView === "overview") return h("section", { className: "btype-help-hub" },
+    h("header", { className: "btype-page-heading" },
+      h("div", null,
+        h("div", { className: "btype-eyebrow" }, "GUIDE"),
+        h("h1", null, "使い方"),
+        h("p", null, "操作名と目的のどちらからでも検索できます。")
+      )
+    ),
+    h("div", { className: "panel btype-help-entry" },
+      h("button", {
+        type: "button", className: "secondary",
+        onClick: onOpenImportRouter
+      }, "取り込みの違いを確認"),
+      h("p", { className: "btype-muted" }, "各機能の説明を目的別で読めます。")
+    ),
+    h("div", { className: "btype-help-actions" },
+      h("button", { type: "button", className: "btype-task-row", onClick: () => setHelpView("guide") },
+        h("span", { className: "btype-task-glyph", "aria-hidden": true }, "⌕"),
+        h("span", null, h("strong", null, "操作ガイドを検索"), h("small", null, "画面名・目的・操作内容から探します")),
+        h("span", { className: "btype-task-chevron", "aria-hidden": true }, "›")
+      )
+    )
+  );
+  return h("div", { className: "guide guide-compact btype-help-guide" },
+    h("div", { className: "btype-back-row" }, h("button", { type: "button", className: "btype-back-link", onClick: () => setHelpView("overview") }, "← 使い方へ戻る")),
     h("div", { className: "guide-search-field" },
       h(Icon, { name: "search", size: 17 }),
       h("input", {
@@ -1286,7 +1311,7 @@ const RailNavigation = ({ sections, current, dispatch, onOpenUtilities, onOpenIm
       key: s.id,
       type: "button",
       className: `rail-item${s.group === "utility" ? " is-utility" : ""}${active ? " is-active" : ""}`,
-      onClick: () => dispatch({ type: "SET_UI", ui: { currentSection: s.id === "persona" ? "baseinfo" : s.id } }),
+      onClick: () => dispatch({ type: "SET_UI", ui: { currentSection: s.id === "persona" ? "baseinfo" : s.id, ...(s.id === "roster" ? { libraryTab: "home" } : {}), ...(s.id === "shop" ? { shopView: "overview" } : {}), ...(s.id === "settings" ? { settingsView: "overview" } : {}) } }),
       "aria-current": active ? "page" : void 0,
       title: s.label
     }, h("span", { className: "rail-icon" }, h(Icon, { name: s.icon, size: 18 })), h("span", { className: "rail-label" }, s.label), isBuild && !done && h("span", { className: "dot is-warn" }), done && h("span", { className: "dot" }));
@@ -1327,7 +1352,7 @@ const MobileBottomNavigation = ({ current, isBuildWorkspace, dispatch, onOpenImp
     { id: "build", label: "ビルド", icon: "grid", active: isBuildWorkspace,
       run: () => dispatch({ type: "SET_UI", ui: { currentSection: "baseinfo", previewOpen: false } }) },
     { id: "record", label: "記録", icon: "roster", active: current === "roster",
-      run: () => dispatch({ type: "SET_UI", ui: { currentSection: "roster", libraryTab: "ledger", previewOpen: false } }) },
+      run: () => dispatch({ type: "SET_UI", ui: { currentSection: "roster", libraryTab: "home", previewOpen: false } }) },
     { id: "import", label: "取込", icon: "upload", active: false, run: onOpenImportRouter },
     { id: "other", label: "その他", icon: "grid", active: false, run: onOpenUtilities }
   ];
@@ -1354,11 +1379,11 @@ const HomeLauncher = ({
     { id: "base", title: "基本情報・駒整形", desc: "名前・PL・立ち絵・色・ST・ラベルを整える", icon: "grid", terms: "基本 駒整形 立ち絵 画像 名前 PL 色 行動順 ST ステータス ラベル ココフォリア", run: () => navigate("baseinfo") },
     { id: "persona", title: "人格・スキルを編集", desc: "人格を装備し、スキルやパッシブを調整", icon: "persona", terms: "人格 スキル パッシブ 強化 EGO E.G.O 精神 アイテム 装備", run: () => navigate("persona") },
     { id: "import", title: "データを取り込む", desc: "人格本文・リザルト・硝子窓・所持一覧", icon: "upload", terms: "取り込み テキスト URL 硝子窓 所持一覧 リザルト 報酬 購入履歴 人格", run: onOpenImportRouter },
-    { id: "records", title: "記録・所持品", desc: "所持ライブラリ、リザルト、収支", icon: "roster", terms: "記録 所持ライブラリ 所持品 人格 EGO E.G.O リザルト 報酬 収支", run: () => navigate("roster", { libraryTab: "ledger" }) },
-    { id: "shop", title: "ショップ", desc: "未所持の人格・E.G.O・サポート等を探す", icon: "item", terms: "未所持 購入 人格 EGO E.G.O サポート 精神 アイテム", run: () => navigate("shop") },
+    { id: "records", title: "記録・所持品", desc: "所持ライブラリ、リザルト、収支", icon: "roster", terms: "記録 所持ライブラリ 所持品 人格 EGO E.G.O リザルト 報酬 収支", run: () => navigate("roster", { libraryTab: "home" }) },
+    { id: "shop", title: "ショップ", desc: "未所持の人格・E.G.O・サポート等を探す", icon: "item", terms: "未所持 購入 人格 EGO E.G.O サポート 精神 アイテム", run: () => navigate("shop", { shopView: "overview" }) },
     { id: "preview", title: "CCFOLIA駒プレビュー", desc: "盤面・キャラクターシート・実際の出力JSONを確認", icon: "eye", terms: "駒 プレビュー 盤面 キャラクターシート JSON 出力 ココフォリア", run: () => navigate("baseinfo", { basicFormatTab: "preview", basicPreviewMode: "board", previewOpen: false }) },
     { id: "utilities", title: "保存・復元・共有", desc: "作業データ、所持ライブラリ、共有シート", icon: "archive", terms: "保存 復元 バックアップ JSON 共有 ライブラリ 作業状態", run: onOpenUtilities },
-    { id: "settings", title: "詳細設定", desc: "ステータス、ラベル、出力順、計算式", icon: "settings", terms: "ステータス ラベル 出力順 計算式 詳細設定", run: () => navigate("settings") },
+    { id: "settings", title: "詳細設定", desc: "ステータス、ラベル、出力順、計算式", icon: "settings", terms: "ステータス ラベル 出力順 計算式 詳細設定", run: () => navigate("settings", { settingsView: "overview" }) },
     { id: "help", title: "使い方を探す", desc: "目的や画面名から操作ガイドを検索", icon: "book", terms: "使い方 ヘルプ 操作 ガイド 検索", run: () => navigate("help") }
   ];
   const needle = query.trim().toLocaleLowerCase("ja");
@@ -1787,16 +1812,16 @@ const App = () => {
       case "ego":
       case "spirit":
       case "items-build":
-        return /* @__PURE__ */ React.createElement(BuildWorkspace, { state, dispatch, saveStatus });
+        return /* @__PURE__ */ React.createElement(BuildWorkspace, { state, dispatch, saveStatus, onTogglePreview: togglePreview, onCopyJson: copyJson });
       case "roster":
-        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SectionTitle, { num: sec.num, title: sec.title, subtitle: sec.subtitle }), /* @__PURE__ */ React.createElement(RosterSection, { state, dispatch }));
+        return /* @__PURE__ */ React.createElement(RosterSection, { state, dispatch, onOpenImportRouter: openImportRouter, onOpenUtilities: openUtilities });
       case "shop":
         return /* @__PURE__ */ React.createElement(ShopSection, { state, dispatch });
 ;
       case "help":
-        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SectionTitle, { num: sec.num, title: sec.title, subtitle: sec.subtitle }), /* @__PURE__ */ React.createElement(HelpSection, { onNavigate: (id, ui = {}) => dispatch({ type: "SET_UI", ui: { ...ui, currentSection: id } }), onOpenUtilities: openUtilities }));
+        return /* @__PURE__ */ React.createElement(HelpSection, { onNavigate: (id, ui = {}) => dispatch({ type: "SET_UI", ui: { ...ui, currentSection: id } }), onOpenUtilities: openUtilities, onOpenImportRouter: openImportRouter });
       case "settings":
-        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SectionTitle, { num: sec.num, title: sec.title, subtitle: sec.subtitle }), /* @__PURE__ */ React.createElement(SettingsSection, { state, dispatch }));
+        return /* @__PURE__ */ React.createElement(SettingsSection, { state, dispatch, onOpenUtilities: openUtilities });
       default:
         return null;
     }
