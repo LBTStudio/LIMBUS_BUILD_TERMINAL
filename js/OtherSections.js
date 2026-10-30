@@ -3181,7 +3181,7 @@ const BuildWorkspace = ({ state, dispatch, saveStatus, onTogglePreview, onCopyJs
       ),
       h("span", { className: "pill" }, "編集中：" + characterName)
     ),
-    h("div", { className: "status-strip btype-build-status-strip", "aria-label": "ビルドの作業状態" },
+    h("div", { className: "status-strip build-context-strip btype-build-status-strip", "aria-label": "ビルドの作業状態" },
       h("span", { className: "status-item" }, h("strong", null, "キャラクター"), " ", characterName),
       h("span", { className: "status-item" }, h("strong", null, "装備"), " ", personaName),
       h("span", { className: "status-item" }, h("strong", null, "HP / SAN"), " ", String(hp), " / ", String(san)),
