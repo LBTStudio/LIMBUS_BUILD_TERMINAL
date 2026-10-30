@@ -50,40 +50,25 @@ test("persona unique buffs include owner/max metadata when the DB has no separat
   assert.ok(entries.some((entry) => entry.category === "固有バフ" && entry.source.includes(persona.name) && entry.description.includes("最大値")));
 });
 
-test("bracketed custom references show their source text and never mutate the source DB", () => {
+test("角括弧の有無にかかわらず、未登録の任意語を外部定義へ結び付けない", () => {
   const record = {
-    normal_personas: [{
-      name: "検証用人格",
-      passive_name: "試験パッシブ",
-      passive_effect: "対象に[未知の固有処理]を付与する",
-      passive_cond: "",
-      passive_always: "",
-      unique_buffs: [],
-      skills: [],
-      keywords: []
-    }],
-    tokui_personas: [],
-    egos: [],
-    support_passives: [],
-    death_passives: [],
-    normal_enhancements: [],
-    special_enhancements: [],
-    spirits: [],
-    items: []
+    name: "同期人格",
+    passive_name: "同期専用パッシブ",
+    passive_effect: "同期専用の未知語を得る",
+    passive_cond: "",
+    passive_always: "",
+    unique_buffs: [],
+    skills: [],
+    extra_passives: []
   };
-  const before = JSON.stringify(record);
   const api = loadGlossary();
-  const sourceText = record.normal_personas[0].passive_effect;
-  const sourcePiece = api.tokenize(sourceText, record, "人格パッシブ:検証用人格").find((piece) => piece.term === "未知の固有処理");
-  assert.ok(sourcePiece, "参照元の本文にある角括弧付きの語をホバー化する");
-  assert.equal(sourcePiece.entries.length, 1, "参照元の人格の本文を1件だけ表示する");
-  assert.ok(sourcePiece.entries[0].category === "本文中の参照" && sourcePiece.entries[0].source.includes("検証用人格") && sourcePiece.entries[0].description.includes("未知の固有処理"));
-  const unrelated = api.tokenize("未知の固有処理", record, "人格パッシブ:別人格");
-  assert.equal(unrelated.filter((piece) => piece.term === "未知の固有処理").length, 0,
-    "別人格の本文に明示参照がない場合はホバー化しない");
-  assert.equal(JSON.stringify(record), before, "glossary indexing must not mutate data");
+  const plain = api.tokenize("同期専用の未知語", db, "人格パッシブ:同期人格", record);
+  const bracketed = api.tokenize("[同期専用の未知語]", db, "人格パッシブ:同期人格", record);
+  assert.equal(plain.filter((piece) => piece.term).length, 0, "定義のない語は角括弧なしでもホバー対象にしない");
+  assert.equal(bracketed.filter((piece) => piece.term).length, 0, "角括弧を付けても他の定義を探しに行かない");
+  assert.equal(plain.map((piece) => piece.text).join(""), "同期専用の未知語");
+  assert.equal(bracketed.map((piece) => piece.text).join(""), "[同期専用の未知語]");
 });
-
 test("tokenization prefers the longest known phrase without dropping surrounding text", () => {
   const api = loadGlossary();
   const pieces = api.tokenize("出血保護3を得る。対象の出血が4以上", db);
@@ -167,18 +152,20 @@ test("PC hover, keyboard access, tap and long press are available without adding
   assert.doesNotMatch(source, /dangerouslySetInnerHTML/);
 });
 
-test("persona, E.G.O, support and item renderers pass the active owner as glossary scope", () => {
+test("persona, E.G.O and item renderers pass their active owner; support passive renderers do not use the glossary", () => {
   const persona = readFileSync(resolve(ROOT, "js/PersonaCodex.js"), "utf8");
   const sections = readFileSync(resolve(ROOT, "js/OtherSections.js"), "utf8");
   const items = readFileSync(resolve(ROOT, "js/ItemCodex.js"), "utf8");
-  assert.match(persona, /LBT_GLOSSARY_TEXT\(p\.passive_effect, "人格パッシブ:" \+ p\.name\)/);
-  assert.match(persona, /LBT_GLOSSARY_TEXT\(d\.effect, "人格ダイス:" \+ p\.name\)/);
-  assert.match(sections, /LBT_GLOSSARY_TEXT\(ego\.unique_buff, "E\.G\.O固有効果:" \+ ego\.name\)/);
-  assert.match(sections, /LBT_GLOSSARY_TEXT\(spp\.effect, "サポートパッシブ:" \+ spp\.name\)/);
-  assert.match(items, /LBT_GLOSSARY_TEXT\(selected\.effect, "アイテム効果:" \+ selected\.name\)/);
+  assert.match(persona, /LBT_GLOSSARY_TEXT\(p\.passive_effect, "人格パッシブ:" \+ p\.name, p\)/);
+  assert.match(persona, /LBT_GLOSSARY_TEXT\(d\.effect, "人格ダイス:" \+ p\.name, p\)/);
+  assert.match(sections, /LBT_GLOSSARY_TEXT\(ego\.unique_buff/);
+  assert.match(sections, /LBT_GLOSSARY_TEXT\(t, \(scope \|\| "E\.G\.O効果"\) \+ ":" \+ ego\.name, ego\)/);
+  assert.match(sections, /LBT_GLOSSARY_TEXT\(pas\.effect, scope \|\| "人格パッシブ", owner\)/);
+  assert.doesNotMatch(sections, /LBT_GLOSSARY_TEXT\(spp\.effect/);
+  assert.doesNotMatch(sections, /LBT_GLOSSARY_TEXT\(selected\.effect, \(selectedIsDeath/);
+  assert.match(items, /LBT_GLOSSARY_TEXT\(selected\.effect, "アイテム効果:" \+ selected\.name, selected\)/);
 });
-
-test("the same reusable renderer is connected to persona, E.G.O, support, item and custom-skill effects", () => {
+test("the reusable renderer is connected to persona, E.G.O, item and custom-skill effects but not support passives", () => {
   const persona = readFileSync(resolve(ROOT, "js/PersonaCodex.js"), "utf8");
   const sections = readFileSync(resolve(ROOT, "js/OtherSections.js"), "utf8");
   const items = readFileSync(resolve(ROOT, "js/ItemCodex.js"), "utf8");
@@ -186,11 +173,11 @@ test("the same reusable renderer is connected to persona, E.G.O, support, item a
   assert.match(persona, /LBT_GLOSSARY_TEXT\(p\.passive_effect/);
   assert.match(persona, /LBT_GLOSSARY_TEXT\(d\.effect/);
   assert.match(sections, /LBT_GLOSSARY_TEXT\(ego\.unique_buff/);
-  assert.match(sections, /LBT_GLOSSARY_TEXT\(spp\.effect/);
+  assert.doesNotMatch(sections, /LBT_GLOSSARY_TEXT\(spp\.effect/);
+  assert.doesNotMatch(sections, /LBT_GLOSSARY_TEXT\(selected\.effect, \(selectedIsDeath/);
   assert.match(items, /LBT_GLOSSARY_TEXT\(selected\.effect/);
   assert.match(skills, /LBT_GLOSSARY_TEXT\(skill\.effect/);
 });
-
 test("表示元が不明な固有効果は別人格の説明を流用せず、ホバー候補にも残さない", () => {
   const fixture = { normal_personas: [
     { name: "オーナーA", unique_buffs: [{ name: "固有印", type: "バフ", desc: "Aだけの効果文", max: 2 }], skills: [], keywords: [] },
@@ -206,51 +193,67 @@ test("desktop click does not toggle closed a glossary popover already opened by 
   assert.ok(source.includes("Desktop hover may have opened the popover before the click lands"));
 });
 
-test("他人格への固有効果参照は角括弧で明示された場合だけ解決する", () => {
+test("別人格の固有効果は角括弧付きでも参照せず、同期後の同一人格データは平文で解決する", () => {
   const fixture = {
     normal_personas: [
       { name: "定義元人格", passive_name: "", passive_effect: "", unique_buffs: [
-        { name: "深吸変換", type: "特殊処理", desc: "呼吸を別の呼吸状態へ変換する。", max: 1 }
+        { name: "深吸変換", type: "特殊処理", desc: "定義元人格だけの説明", max: 1 }
       ], skills: [], keywords: [] },
-      { name: "参照元人格", passive_name: "", passive_effect: "", unique_buffs: [],
-        skills: [{ name: "参照スキル", effect: "自分の呼吸を[深吸変換]へ変更する。", dice: [] }], keywords: [] }
+      { name: "同期前の人格", passive_name: "", passive_effect: "", unique_buffs: [],
+        skills: [], keywords: [] }
     ],
     tokui_personas: [], egos: [], support_passives: [], death_passives: [],
     normal_enhancements: [], special_enhancements: [], spirits: [], items: []
   };
   const api = loadGlossary();
-  const effect = "自分の呼吸を[深吸変換]へ変更する。";
-  const fromPersona = api.tokenize(effect, fixture, "人格スキル:参照元人格").find((piece) => piece.term === "深吸変換");
-  assert.ok(fromPersona);
-  assert.equal(fromPersona.entries.length, 1);
-  assert.equal(fromPersona.entries[0].source, "人格：定義元人格");
-  assert.ok(fromPersona.entries[0].description.includes("呼吸を別の呼吸状態へ変換する"));
+  const syncedRecord = {
+    name: "同期後の人格名",
+    passive_name: "同期専用パッシブ",
+    passive_effect: "同期専用の固有名詞を得る",
+    passive_cond: "",
+    passive_always: "",
+    unique_buffs: [
+      { name: "同期専用の固有名詞", type: "固有バフ", desc: "同期データ側で登録された定義", max: 3 }
+    ],
+    skills: [],
+    extra_passives: []
+  };
 
-  const incidental = api.tokenize("深吸変換", fixture, "人格スキル:参照元人格");
-  assert.equal(incidental.filter((piece) => piece.term).length, 0, "明示参照のない同語は別人格の説明を表示しない");
+  const foreignPlain = api.tokenize("深吸変換", fixture, "人格スキル:同期後の人格名", syncedRecord);
+  const foreignBracketed = api.tokenize("[深吸変換]", fixture, "人格スキル:同期後の人格名", syncedRecord);
+  assert.equal(foreignPlain.filter((piece) => piece.term).length, 0, "他人格の定義は平文でも流用しない");
+  assert.equal(foreignBracketed.filter((piece) => piece.term).length, 0, "他人格の定義は角括弧があっても流用しない");
+
+  const own = api.tokenize("同期専用の固有名詞を得る", fixture, "人格スキル:同期後の人格名", syncedRecord)
+    .find((piece) => piece.term === "同期専用の固有名詞");
+  assert.ok(own, "同期後の人格自身が持つ定義は平文から認識する");
+  assert.equal(own.entries.length, 1);
+  assert.equal(own.entries[0].source, "人格：同期後の人格名");
+  assert.ok(own.entries[0].description.includes("同期データ側で登録された定義"));
 });
-test("同名効果の明示参照は意味が曖昧なら参照元の本文を表示する", () => {
+test("同名固有効果は表示中の人格自身の定義だけを使う", () => {
   const fixture = {
     normal_personas: [
-      { name: "定義元A", passive_name: "", passive_effect: "", unique_buffs: [
-        { name: "同名効果", type: "特殊処理", desc: "Aの意味", max: 1 }
-      ], skills: [], keywords: [] },
-      { name: "定義元B", passive_name: "", passive_effect: "", unique_buffs: [
-        { name: "同名効果", type: "特殊処理", desc: "Bの意味", max: 2 }
-      ], skills: [], keywords: [] },
-      { name: "参照元人格", passive_name: "", passive_effect: "", unique_buffs: [],
-        skills: [{ name: "参照スキル", effect: "同名効果を[同名効果]として扱う。", dice: [] }], keywords: [] }
+      { name: "人格A", unique_buffs: [{ name: "同名効果", type: "特殊処理", desc: "Aの意味", max: 1 }], skills: [], keywords: [] },
+      { name: "人格B", unique_buffs: [{ name: "同名効果", type: "特殊処理", desc: "Bの意味", max: 2 }], skills: [], keywords: [] }
     ],
     tokui_personas: [], egos: [], support_passives: [], death_passives: [],
     normal_enhancements: [], special_enhancements: [], spirits: [], items: []
   };
-  const effect = "同名効果を[同名効果]として扱う。";
-  const result = loadGlossary().tokenize(effect, fixture, "人格スキル:参照元人格").find((piece) => piece.term === "同名効果");
-  assert.ok(result);
-  assert.equal(result.entries.length, 1);
-  assert.equal(result.entries[0].source, "人格スキル:参照元人格");
-  assert.ok(result.entries[0].description.includes("同名効果を[同名効果]として扱う"));
-  assert.ok(!result.entries[0].description.includes("Aの意味") && !result.entries[0].description.includes("Bの意味"));
+  const api = loadGlossary();
+  const a = api.tokenize("同名効果を得る", fixture, "人格スキル:人格A", fixture.normal_personas[0])
+    .find((piece) => piece.term === "同名効果");
+  const b = api.tokenize("同名効果を得る", fixture, "人格スキル:人格B", fixture.normal_personas[1])
+    .find((piece) => piece.term === "同名効果");
+  assert.ok(a && b);
+  assert.equal(a.entries.length, 1);
+  assert.equal(b.entries.length, 1);
+  assert.ok(a.entries[0].description.includes("Aの意味"));
+  assert.ok(b.entries[0].description.includes("Bの意味"));
+  assert.ok(!a.entries[0].description.includes("Bの意味") && !b.entries[0].description.includes("Aの意味"));
+
+  const noOwner = api.tokenize("同名効果", fixture, "人格スキル:別人格");
+  assert.equal(noOwner.filter((piece) => piece.term).length, 0, "所有者が一致しなければ同名定義を出さない");
 });
 test("サポートパッシブは辞書にも本文ホバーにも混入しない", () => {
   const fixture = {
@@ -322,24 +325,31 @@ test("glossary terms have a visible underline and warmer contrast in effect pros
 });
 
 
-test("bracketed terms from synced/custom effect text are hoverable even when absent from the DB", () => {
+test("DB未登録の同期専用固有名詞は、同期人格内のデータ定義から平文でホバーできる", () => {
   const fixture = {
     normal_personas: [], tokui_personas: [], egos: [], support_passives: [],
     death_passives: [], normal_enhancements: [], special_enhancements: [], spirits: [], items: []
   };
+  const record = {
+    name: "同期人格",
+    passive_name: "同期パッシブ",
+    passive_effect: "同期専用の固有名詞を得る。",
+    unique_buffs: [{ name: "同期専用の固有名詞", type: "固有バフ", desc: "同期人格にのみ存在する効果", max: 4 }],
+    skills: [],
+    extra_passives: []
+  };
   const api = loadGlossary();
-  const text = "自分の状態を[同期専用の固有名詞]へ変換する。";
-  const before = JSON.stringify(fixture);
-  const pieces = api.tokenize(text, fixture, "人格スキル:同期人格");
+  const text = "自分の状態を同期専用の固有名詞へ変換する。";
+  const before = JSON.stringify(record);
+  const pieces = api.tokenize(text, fixture, "人格スキル:同期人格", record);
   const termPiece = pieces.find((piece) => piece.term === "同期専用の固有名詞");
-  assert.ok(termPiece, "同期人格のDB未登録・角括弧付き語が本文中で認識される");
+  assert.ok(termPiece, "角括弧のない同期固有名詞を現在人格の定義から認識する");
   assert.equal(termPiece.entries.length, 1);
-  assert.equal(termPiece.entries[0].source, "人格スキル:同期人格");
-  assert.ok(termPiece.entries[0].description.includes("自分の状態を[同期専用の固有名詞]へ変換する"));
-  assert.equal(api.buildGlossary(fixture).has("同期専用の固有名詞"), false, "一時的な参照でグローバル辞書を変更しない");
-  assert.equal(JSON.stringify(fixture), before, "DBデータを変更しない");
+  assert.equal(termPiece.entries[0].source, "人格：同期人格");
+  assert.ok(termPiece.entries[0].description.includes("同期人格にのみ存在する効果"));
+  assert.equal(api.buildGlossary(fixture).has("同期専用の固有名詞"), false, "同期用定義で共有DBを変更しない");
+  assert.equal(JSON.stringify(record), before, "同期データを変更しない");
 });
-
 test("共通用語の出典はPDF抽出ページの実在内容に対応する", () => {
   const pageText = (n) => { const s = coreCorpus.indexOf("===== PAGE " + n + " ====="); if (s < 0) return ""; const e = coreCorpus.indexOf("===== PAGE ", s + 5); return coreCorpus.slice(s, e < 0 ? coreCorpus.length : e); };
   const p306 = pageText(306), p311 = pageText(311), glossary = loadGlossary().buildGlossary(db);
