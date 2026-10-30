@@ -618,7 +618,7 @@ test("Buildの実使用は所持数減算とリザルト記帳を同時に行い
   assert.match(build, /PALETTEへ反映/);
   assert.doesNotMatch(build, /type: "REMOVE_ITEM"/, "卓への出力解除を所持品削除へ接続しない");
   assert.match(build, /ADD_ITEM", itemId: item\.id/);
-  assert.doesNotMatch(build, /ADD_ITEM_INVENTORY/, "価格付き特殊資源を無料移送経路へ迂回させない");
+  assert.doesNotMatch(build, /dispatch\(item\.specialResource/, "価格付き特殊資源を無料移送経路へ迂回させない");
 });
 
 test("ItemCodexの所持数減少ボタンも1個使用としてリザルトへ記帳する", () => {
