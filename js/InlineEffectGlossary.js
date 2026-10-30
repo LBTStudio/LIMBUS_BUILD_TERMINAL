@@ -100,6 +100,7 @@
     "正午": ["バフ", "特定抽出パック第一弾 p.204", "速度値+2。基本攻撃スキル的中時に振動を付与し、特定条件で振動爆発を行う。"],
     "家族の復讐": ["バフ", "特定抽出パック第一弾 p.204", "電圧として扱われ、対象のデバフ種類数に応じてマッチ威力を上げる。"],
     "底力": ["バフ／蓄積資源", "特定抽出パック第一弾 p.205", "マッチ進行・一方攻撃で数値が増加し、敗北時に減少する。消費時にSANを回復し、累計消費量に応じてクイックを得る。"],
+    "針": ["デバフ／蓄積要素", "特定抽出パック第一弾 p.205", "嫉妬ダメージを受けると出血を得て数値が減少する。R終了時にも出血を得て減少する。"],
     "目に焼き付くハゲ": ["デバフ", "特定抽出パック第一弾 p.205", "完璧なハゲを持つ対象とのマッチ開始時に火傷を得る。隣の味方も所持していれば追加効果を得る。"],
     "住民登録マイクロチップ": ["デバフ", "特定抽出パック第一弾 p.205", "憤怒・嫉妬スキルから受ける被ダメージ量が増加し、マッチ敗北時に火傷を得る。"],
     "恐水病": ["デバフ", "特定抽出パック第一弾 p.190／205", "R開始時に最大HP割合のダメージと出血を受ける。HPが半分以下なら敵味方識別不可となり、R終了時に減少する。"],
@@ -122,7 +123,9 @@
     "捕縛": ["デバフ", "特定抽出パック第一弾 p.207", "速度補正値を下げ、傲慢スキルによる被ダメージ量を増加させる。付与者や再付与の条件で解除される。"],
     "捕縛[○○]": ["デバフ", "特定抽出パック第一弾 p.207", "速度補正値を下げ、傲慢スキルから受けるダメージ量を増加させる。付与者や再付与の条件で解除される。"],
     "引き裂かれた傷": ["デバフ／蓄積要素", "特定抽出パック第一弾 p.207", "R開始時に出血を得て、R終了時に束縛・ダメージ量減少を得る。数値に応じてマッチ威力減少も発生する。"],
+    "杭": ["デバフ", "特定抽出パック第一弾 p.208", "R終了時に恐慌を得る。血鬼・血袋なら斬撃脆弱を得て、死亡時などに付与者へ銀杭を付与する。"],
     "ラ・マンチャパレード": ["デバフ", "特定抽出パック第一弾 p.208", "色欲スキルから受けるダメージ量を増加させ、ラ・マンチャランド所属者との戦闘に追加効果を持つ。"],
+    "傷": ["デバフ", "特定抽出パック第一弾 p.208", "R終了時に束縛を得る。数値が2なら次のRに深い傷を得て消滅する。"]
     "深い傷": ["デバフ", "特定抽出パック第一弾 p.208", "振動爆発時に出血を得て、R終了時に束縛を得る。傷を得られない。"],
     "致命的な傷": ["デバフ", "特定抽出パック第一弾 p.208", "振動爆発時に出血を得て、R終了時に束縛を得る。傷を得られない。"],
     "振動-大量出血": ["デバフ", "特定抽出パック第一弾 p.208", "振動爆発時にSANダメージを受け、振動-大量出血と出血の合計に応じて色欲HPダメージを受ける。"],
@@ -264,7 +267,7 @@
     const glossary = new Map();
     const add = (term, entry) => {
       const key = cleanTerm(term);
-      if (!key || key.length > 64 || (key.length === 1 && !OFFICIAL_TERMS[key])) return;
+      if (!key || key.length > 64 || (key.length === 1 && !OFFICIAL_TERMS[key] && !PACK_TERMS[key])) return;
       if (!glossary.has(key)) glossary.set(key, []);
       const entries = glossary.get(key);
       const uniqueKey = [entry.category, entry.source, entry.description, entry.ownerType, entry.ownerName, entry.isRulebook].join("|");
@@ -544,11 +547,16 @@
           && (!ownerType || entry.ownerType === ownerType))) activeTerms.push(term);
       });
     }
+    const bracketedPackTerms = Object.keys(PACK_TERMS).filter((term) => {
+      if (term.length !== 1) return false;
+      const escaped = escapeRegExp(term);
+      return new RegExp("[\\\\[［]" + escaped + "[\\\\]］]", "u").test(input);
+    });
     const explicitTerms = [...explicitReferences.keys()].filter((term) => {
       const escaped = escapeRegExp(term);
       return new RegExp("[\\[［]" + escaped + "[\\]］]", "u").test(input);
     });
-    const terms = [...new Set([...cachedTerms, ...activeTerms, ...ownerGlossary.keys(), ...explicitTerms])]
+    const terms = [...new Set([...cachedTerms, ...activeTerms, ...ownerGlossary.keys(), ...explicitTerms, ...bracketedPackTerms])]
       .sort((a, b) => b.length - a.length || a.localeCompare(b, "ja"));
     if (!terms.length) return [{ text: input, term: null, entries: [] }];
     const pattern = new RegExp(terms.map(escapeRegExp).join("|"), "gu");
