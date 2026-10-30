@@ -421,7 +421,7 @@ test("他人格固有語は完全一致の角括弧引用だけを一意に解�
     normal_personas: [
       { name: "引用元人格", passive_name: "固有の誓約", passive_effect: "引用元だけの説明", unique_buffs: [
         { name: "蒼い刻印", type: "固有バフ", desc: "引用元の蒼い刻印の説明" }
-      ], skills: [], keywords: [] },
+      ], skills: [{ name: "夜明けの一閃", effect: "引用元スキルの説明", dice: [{ effect: "的中時、固有印を付与" }] }], keywords: [] },
       { name: "表示中人格", passive_name: "別の誓約", passive_effect: "", unique_buffs: [], skills: [], keywords: [] }
     ],
     tokui_personas: [], egos: [], support_passives: [], death_passives: [],
@@ -436,6 +436,12 @@ test("他人格固有語は完全一致の角括弧引用だけを一意に解�
   assert.equal(quotedPiece.entries.length, 1);
   assert.equal(quotedPiece.entries[0].ownerName, "引用元人格");
   assert.ok(quotedPiece.entries[0].description.includes("引用元だけの説明"));
+  const fullWidthQuoted = api.tokenize("効果は［蒼い刻印］を参照する", fixture, "人格スキル:表示中人格");
+  assert.equal(fullWidthQuoted.find((piece) => piece.term === "蒼い刻印")?.entries[0]?.ownerName, "引用元人格",
+    "全角角括弧による引用も同様に解決する");
+  const quotedSkill = api.tokenize("［夜明けの一閃］を使用する", fixture, "人格スキル:表示中人格");
+  assert.ok(quotedSkill.find((piece) => piece.term === "夜明けの一閃")?.entries[0]?.description.includes("引用元スキルの説明"),
+    "人格固有スキル名も完全一致引用で説明へ接続する");
 
   const substring = api.tokenize("固有の誓約攻撃を行う", fixture, "人格スキル:表示中人格");
   assert.equal(substring.filter((piece) => piece.term === "固有の誓約").length, 0, "複合語の部分一致は参照しない");
