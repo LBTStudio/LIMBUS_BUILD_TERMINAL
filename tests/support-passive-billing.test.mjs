@@ -67,6 +67,47 @@ test("purchase を省略した従来経路は購入のまま（挙動不変）",
 });
 
 
+test("未所持サポートはADD_SUPPORTだけでは取得も装備もされない", () => {
+  const initial = base();
+  const next = reducer(initial, { type: "ADD_SUPPORT", spp: { name: PASSIVE } });
+  assert.strictEqual(next, initial, "装備だけの操作で所持レコードや支出を作らない");
+  assert.equal(next.roster.supports.length, 0);
+  assert.equal(next.entries.length, 0);
+});
+
+test("死亡後専用サポートもSET_DEATH_SUPPORTだけでは未所持から追加できない", () => {
+  const initial = {
+    ...base(),
+    enhancements: [{ id: "death-unlock", name: "死亡後パッシブ追加", group: "test", shards: 0 }]
+  };
+  const next = reducer(initial, { type: "SET_DEATH_SUPPORT", spp: { name: db.death_passives[0].name } });
+  assert.strictEqual(next, initial, "購入・報酬などの所持登録を経由しない追加は拒否");
+  assert.equal(next.roster.supports.length, 0);
+  assert.equal(next.entries.length, 0);
+});
+
+test("未所持精神のAPPLY_SPIRITは所持登録・装備・明細を作らない", () => {
+  const paid = db.spirits.find((entry) => Number(entry.price) > 0);
+  assert.ok(paid, "価格付き精神を用意");
+  const initial = base();
+  const next = reducer(initial, { type: "APPLY_SPIRIT", spirit: paid });
+  assert.strictEqual(next, initial, "装備アクションを取得として扱わない");
+  assert.equal(next.roster.spirits.length, 0);
+  assert.equal(next.entries.length, 0);
+});
+
+test("無料の初期精神はpurchase:falseで所持追加した後に装備できる", () => {
+  const free = db.spirits.find((entry) => Number(entry.price) === 0);
+  assert.ok(free, "価格0の初期精神を用意");
+  const acquired = reducer(base(), { type: "ADD_ROSTER_SPIRIT", spirit: free, purchase: false });
+  assert.equal(acquired.roster.spirits.length, 1);
+  assert.equal(acquired.entries.length, 0);
+  const equipped = reducer(acquired, { type: "APPLY_SPIRIT", spirit: free });
+  assert.equal(equipped.spirit, free.name);
+  assert.equal(equipped.roster.spirits[0].equipped, true);
+  assert.equal(equipped.entries.length, 0);
+});
+
 test("装備対象が所持一覧の先頭にあっても、通常スロットの置換では操作対象を装備状態に残す", () => {
   const target = { uid: "target", name: "対象パッシブ", slot: "normal", equipped: false, cond: "", effect: "", lp: "" };
   const old1 = { uid: "old-1", name: "既存パッシブ1", slot: "normal", equipped: true, cond: "", effect: "", lp: "" };

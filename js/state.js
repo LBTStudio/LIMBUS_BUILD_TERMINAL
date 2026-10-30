@@ -5438,12 +5438,14 @@ case "ADD_CUSTOM_ITEM": {
       return appReducer(staged, { type: "ADD_DRAW_RECORD", batch, entry: action.entry });
     }
     /* ---- Support ---- */
-    /* 装備の入口は所持（roster.supports）を経由する。未所持のものは
-       同時に所持へ写してから装備する。所持済みの装備操作は所持を増やさず
-       既存の1件を装備し直す（写さずに return すると装備が空振りする）。 */
+    /* 装備だけの操作は所持を増やさない。未所持のカタログ品は
+       ADD_ROSTER_SUPPORT（購入・報酬など明示した取得経路）を先に通す。
+       空名だけは既存の手動編集ドラフトとして追加を許可する。 */
     case "ADD_SUPPORT": {
-      const owned = findOwnedSupport(state, String(action.spp?.name || ""));
+      const name = String(action.spp?.name || "").trim();
+      const owned = findOwnedSupport(state, name);
       if (owned) return equipRosterSupport(state, owned.uid);
+      if (name) return state;
       const added = addRosterSupport(state, action.spp);
       if (!added) return state;
       return equipRosterSupport(added, added.roster.supports[added.roster.supports.length - 1].uid);
@@ -5486,23 +5488,12 @@ case "ADD_CUSTOM_ITEM": {
         };
       }
       const owned = findOwnedSupport(state, requestedName);
-      if (owned) {
-        const roster = state.roster || {};
-        const supports = (roster.supports || []).map((entry) => entry.uid === owned.uid
-          ? { ...entry, slot: "death", deathSlotManual: !isDeathSupportPassiveRecord(entry) }
-          : entry);
-        return equipRosterSupport({ ...state, roster: { ...roster, supports } }, owned.uid);
-      }
-      const added = addRosterSupport(state, { ...action.spp, name: requestedName });
-      if (!added) return state;
-      const entry = [...added.roster.supports].reverse().find((s) => s.name === requestedName);
-      if (!entry) return state;
-      // SET_DEATH_SUPPORT is called from the death-only list; custom names must
-      // never get classified into a regular slot merely because they are absent
-      // from the canonical death-passive catalogue.
-      const supports = added.roster.supports.map((s) => s.uid === entry.uid
-        ? { ...s, slot: "death", deathSlotManual: !isDeathSupportPassiveRecord(s) } : s);
-      return equipRosterSupport({ ...added, roster: { ...added.roster, supports } }, entry.uid);
+      if (!owned) return state;
+      const roster = state.roster || {};
+      const supports = (roster.supports || []).map((entry) => entry.uid === owned.uid
+        ? { ...entry, slot: "death", deathSlotManual: !isDeathSupportPassiveRecord(entry) }
+        : entry);
+      return equipRosterSupport({ ...state, roster: { ...roster, supports } }, owned.uid);
     }
     case "PATCH_DEATH_SUPPORT": {
       const current = state.deathSupport;
@@ -6880,15 +6871,15 @@ case "ADD_ENTRY":
     /* ---- Spirit shortcut ---- */
     /* 精神も所持（roster.spirits）を経由する。未所持なら写してから装備。 */
     case "APPLY_SPIRIT": {
-      const name = action.spirit?.name || "";
+      const name = String(action.spirit?.name || "");
       if (!name) return state;
       const roster = state.roster || {};
-      let spirits = roster.spirits || [];
-      if (!spirits.some((s) => s.name === name)) {
-        spirits = [...spirits, { uid: makeOwnedUid("spr"), name, equipped: false, resultId: null, addedAt: Date.now(), notes: "" }];
-      }
-      spirits = spirits.map((s) => ({ ...s, equipped: s.name === name }));
-      const nextRoster = { ...roster, spirits };
+      const spirits = Array.isArray(roster.spirits) ? roster.spirits : [];
+      // Equipping is not acquisition. Paid spirits must pass ADD_ROSTER_SPIRIT;
+      // the free initial-frame path explicitly adds them with purchase:false.
+      if (!spirits.some((entry) => entry.name === name)) return state;
+      const nextSpirits = spirits.map((entry) => ({ ...entry, equipped: entry.name === name }));
+      const nextRoster = { ...roster, spirits: nextSpirits };
       return { ...state, roster: nextRoster, ...projectEquipmentFromRoster(nextRoster) };
     }
     default:
