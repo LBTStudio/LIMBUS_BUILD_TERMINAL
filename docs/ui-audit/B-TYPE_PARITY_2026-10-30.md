@@ -29,7 +29,7 @@ The existing broad UI audit captures two viewport classes and records states for
 
 ## Limitations / merge gate
 
-The prototype and review are available from the user Library package but are not currently checked into the repository. The prototype is an interactive concept reference rather than an image-by-image golden master of every production React route. This pass now uses it alongside the v2/v3 Basic-sheet notes and production screenshots to fix concrete structure, state routing, and responsive geometry defects; no claim is made that every page is pixel-identical. The next parity step is to version the reference package and retain named target screenshots for each route/viewport so visual drift is a blocking regression rather than a subjective review.
+The standalone user-supplied `LBT_UI_Refinement_Prototypes.html` is now versioned at `docs/ui-reference/LBT_UI_Refinement_Prototypes.html`. It is the design source for the B. 統合ワークベンチ concept (Unified Workbench v4). The previous Library ZIP and its review notes are not interchangeable with this standalone v4 file and are not used as the implementation source for this revision. The interactive HTML is not itself a complete golden screenshot set for every production route; route/viewport-specific captures and blocking DOM geometry assertions remain required.
 
 Production verification now separately checks the deployed GitHub Pages HTML, the B-type production marker, the App.js / Service Worker digest match, and every precached asset over HTTP. Required checks: `node --test tests/*.test.mjs` (including Python/PyMuPDF provenance), `node tools/sync-asset-versions.mjs --check`, production Pages smoke test, project verification, UI interaction audit screenshots, preview control visual regression, and tutorial screenshot capture.
 
@@ -128,3 +128,14 @@ Production verification now separately checks the deployed GitHub Pages HTML, th
 ### 制限・未実行操作
 
 実ユーザーデータを保護するため、購入確定・ガチャ抽選・外部共有公開・アカウント削除・保存データの実適用は実行していない。これらは確認ダイアログや入口までの画面・経路を検証した。OAuthは対象外。ピクセル完全一致は最新v3デザインの正式な全画面Golden Masterが存在しないため、今回の合格条件には含めていない。
+
+
+## 2026-10-30 — supplied Unified Workbench v4 source and Basic parity correction
+
+- Canonical source: `docs/ui-reference/LBT_UI_Refinement_Prototypes.html` (the standalone HTML attached by the user; not the older Library ZIP).
+- Selected design: prototype B, `統合ワークベンチ`, Unified Workbench v4.
+- Basic workspace now maps the actual state-backed React controls onto the prototype's `piece-workspace` / `piece-hero-grid` composition: portrait and vertical image-difference rail on the left; character name, PL, initiative, color, and live token summary on the right; ST / labels / preview formatting panel below.
+- Existing React state, image URL persistence, shared-image compression, status/parameter editing, and CCFOLIA generation/copy functions remain authoritative. Prototype sample data is not copied into production.
+- The old desktop override that placed the portrait editor and Basic formatting panel side-by-side has been removed because it contradicts v4.
+- The production audit now captures `basic-workspace-v4-hero` and fails on wrong desktop/mobile column behavior, portrait aspect-ratio drift, or the format panel appearing before the hero ends.
+- Reference CSS is copied from the submitted HTML v2/v3 sections into the production parity stylesheet; `index.html` and the Service Worker precache hashes are synchronized.
