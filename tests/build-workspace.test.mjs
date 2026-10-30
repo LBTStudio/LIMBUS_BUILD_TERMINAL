@@ -677,7 +677,7 @@ test("貼り付け取り込みは人格・精神・E.G.O・サポートを区別
   assert.match(sections, /if \(p\.kind === "ego"\) dispatch\(\{ type: "ADD_ROSTER_EGO", no: p\.no, rank: p\.rank \}\);/);
   assert.match(sections, /else if \(p\.kind === "spirit"\) dispatch\(\{ type: "ADD_ROSTER_SPIRIT", spirit: \{ name: p\.name \}, purchase: false \}\);/);
   assert.match(sections, /else if \(p\.kind === "support"\) dispatch\(\{ type: "ADD_ROSTER_SUPPORT", spp: \{ name: p\.name \}, purchase: false \}\);/);
-  assert.match(sections, /else dispatch\(\{ type: "ADD_ROSTER", mode: p\.mode, no: p\.no \}\);/);
+  assert.match(sections, /else dispatch\(\{ type: "ADD_ROSTER", mode: p\.mode, no: p\.no, skipInitialTicketConsumption: true \}\);/);
   /* 所持済み判定も種別ごとに持つ（E.G.O は rank で同一性を決める）。 */
   assert.match(sections, /ego: new Set\(\(state\.roster\?\.egos \|\| \[\]\)\.map\(\(e\) => `\$\{e\.rank\}:\$\{e\.no\}`\)\),/);
   /* 検出結果がどれの種別か利用者が分かるようにする。 */
@@ -838,7 +838,7 @@ test("所持人格リストの一括取り込みは、名前に区切り文字�
   /* 表記ゆれ（空白・全角空白）は吸収する。DB 上は 199 件 → 199 キーで衝突ゼロ。 */
   assert.match(codex, /PERSONA_NAME_KEY = \(name\) => String\(name \|\| ""\)\.replace\(\/\[\\s\\u3000\]\+\/g, ""\)\.toLowerCase\(\);/);
   /* 取り込みは所持だけを増やす。明細は「購入したとき」だけ立つ性質を崩さない。 */
-  assert.match(codex, /dispatch\(\{ type: "ADD_ROSTER", mode: p\.mode, no: p\.no \}\);/);
+  assert.match(codex, /dispatch\(\{ type: "ADD_ROSTER", mode: p\.mode, no: p\.no, skipInitialTicketConsumption: true \}\);/);
   assert.doesNotMatch(codex, /importHeldPersonas[\s\S]{0,700}?type: "ADD_ENTRY"/);
   /* 空入力では押せない。 */
   assert.match(codex, /disabled: !heldPaste\.trim\(\)/);
