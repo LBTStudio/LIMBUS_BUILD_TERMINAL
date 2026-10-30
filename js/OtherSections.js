@@ -142,7 +142,7 @@ const BaseSection = ({ state, dispatch }) => {
         )
       ),
       React.createElement("details", {
-        className: "piece-image-details",
+        className: "piece-image-details pc-edit",
         open: editOpen || undefined,
         onToggle: (event) => setEditOpen(event.currentTarget.open)
       },
@@ -282,12 +282,12 @@ const BaseSection = ({ state, dispatch }) => {
                 value: state.color || "#d6b56b",
                 onChange: (event) => setF("color", event.target.value),
                 title: "駒の色を16進数で直接指定",
-                "aria-label": "駒の色コード"
+                "aria-label": "駒の色（16進数）"
               })
             )
           )
         ),
-        React.createElement("div", { className: "piece-token-preview" },
+        React.createElement("div", { className: "piece-token-preview pc-token-preview" },
           React.createElement("div", { className: "piece-token-preview-head" },
             React.createElement("span", null, "ココフォリア上の見え方（簡易）"),
             React.createElement("span", null, "PREVIEW")
