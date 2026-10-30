@@ -41,13 +41,19 @@ test("B-type production styles adapt to tablet and mobile without disabling redu
   assert.match(css, /prefers-reduced-motion/);
 });
 
-test("B-type Basic preview is positioned beside the editor on wide desktop when the global drawer is closed", () => {
+test("Basic layout follows v4: portrait and settings share the hero, formatting stays below", () => {
   const css = read("../assets/b-type-ui-parity.css");
-  assert.match(css, /\.app\.preview-collapsed \.baseinfo-workspace\s*\{\s*grid-template-columns:\s*minmax\(0, 1\.05fr\) minmax\(400px, \.95fr\)/);
-  assert.match(css, /\.app\.has-preview \.baseinfo-workspace\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\)/);
-  assert.match(css, /@media\s*\(min-width:\s*1280px\)/);
+  const reference = read("../docs/ui-reference/LBT_UI_Refinement_Prototypes.html");
+  assert.match(reference, /Unified Workbench v4/);
+  assert.match(reference, /\.piece-hero-grid\s*\{/);
+  assert.match(css, /\.piece-hero-grid\{display:grid;grid-template-columns:minmax\(230px,\.78fr\) minmax\(0,1\.22fr\)/);
+  assert.match(css, /\.piece-format-panel/);
+  assert.match(css, /@media\s*\(max-width:\s*820px\)[\s\S]*?\.piece-hero-grid\{grid-template-columns:minmax\(0,1fr\)\}/);
+  assert.doesNotMatch(css, /\.app\.preview-collapsed \.baseinfo-workspace\s*\{\s*grid-template-columns/, "the obsolete editor/format side-by-side override must stay removed");
+  const audit = read("../tools/ui/capture-ui-audit.mjs");
+  assert.match(audit, /basic-workspace-v4-hero/);
+  assert.match(audit, /portraitGeometry\.ratio/);
 });
-
 
 test("UI audit covers desktop, tablet and mobile across Home, settings and all record tabs", () => {
   const audit = read("../tools/ui/capture-ui-audit.mjs");
