@@ -249,7 +249,7 @@
   });
 
   const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const cleanTerm = (value) => String(value || "").replace(/^\[|\]$/g, "").trim();
+  const cleanTerm = (value) => { const term = String(value || "").trim(); return (term.startsWith("[") && term.endsWith("]")) || (term.startsWith("［") && term.endsWith("］")) ? term.slice(1, -1).trim() : term; };
   const shortText = (value, limit = 250) => {
     const text = String(value || "").trim();
     return text.length > limit ? text.slice(0, limit - 1) + "…" : text;
