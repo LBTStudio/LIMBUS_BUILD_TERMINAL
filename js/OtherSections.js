@@ -5952,43 +5952,43 @@ const BasicCcfOutputPreview = ({ state, dispatch }) => {
     }
   };
   const boardView = () => h("div", {
-    id: "basic-ccfolia-panel-board", className: "basic-preview-panel",
+    id: "basic-ccfolia-panel-board", className: "basic-preview-panel piece-preview-view", "data-preview-view": "board",
     role: "tabpanel", "aria-labelledby": "basic-ccfolia-tab-board"
   },
-    h("div", { className: "pv-ccfolia-board-layout" },
-      h("section", { className: "pv-ccfolia-map-wrap", "aria-label": "盤面の表示例" },
-        h("div", { className: "pv-ccfolia-map" },
-          h("div", { className: "pv-ccfolia-map-grid", "aria-hidden": "true" }),
-          h("div", { className: "pv-ccfolia-map-token", style: { "--pv-ccfolia-color": color } },
-            renderImage(imageUrl, "pv-ccfolia-map-avatar", name + "の駒画像"),
-            h("span", { className: "pv-ccfolia-map-name" }, name),
-            h("span", { className: "basic-preview-initiative" }, "INIT " + initiative)
+    h("div", { className: "pv-ccfolia-board-layout piece-board-layout" },
+      h("section", { className: "pv-ccfolia-map-wrap piece-board-stage", "aria-label": "盤面の表示例" },
+        h("div", { className: "pv-ccfolia-map piece-board-canvas" },
+          h("div", { className: "pv-ccfolia-map-grid piece-board-grid", "aria-hidden": "true" }),
+          h("div", { className: "pv-ccfolia-map-token piece-board-token-group", style: { "--pv-ccfolia-color": color } },
+            renderImage(imageUrl, "pv-ccfolia-map-avatar piece-board-avatar", name + "の駒画像"),
+            h("span", { className: "pv-ccfolia-map-name piece-board-nameplate" }, name),
+            h("span", { className: "basic-preview-initiative piece-board-init" }, "INIT " + initiative)
           )
         ),
-        h("div", { className: "basic-preview-board-caption" },
+        h("div", { className: "basic-preview-board-caption piece-board-caption" },
           h("span", null, "盤面 / TOKEN"),
           h("span", { style: { color } }, color)
         ),
         h("p", { className: "pv-ccfolia-map-note" }, "駒の色・名前・行動順は現在の出力データから表示しています。盤面位置やマス設定はルーム側で決まります。")
       ),
-      h("section", { className: "pv-ccfolia-roster", "aria-label": "選択した駒のインスペクター" },
-        h("header", { className: "pv-ccfolia-roster-head" },
+      h("section", { className: "pv-ccfolia-roster piece-board-inspector", "aria-label": "選択した駒のインスペクター" },
+        h("header", { className: "pv-ccfolia-roster-head piece-inspector-title" },
           h("strong", null, "選択中の駒"),
           h("span", null, "INSPECTOR")
         ),
-        h("article", { className: "pv-ccfolia-roster-character" },
-          renderImage(imageUrl, "pv-ccfolia-roster-avatar", name + "のアイコン"),
-          h("div", { className: "pv-ccfolia-roster-main" },
+        h("article", { className: "pv-ccfolia-roster-character piece-inspector-identity" },
+          renderImage(imageUrl, "pv-ccfolia-roster-avatar piece-inspector-icon", name + "のアイコン"),
+          h("div", { className: "pv-ccfolia-roster-main piece-inspector-name" },
             h("strong", { className: "pv-ccfolia-roster-name" }, name),
             h("small", { className: "basic-preview-player" }, playerName || "PL未設定")
           )
         ),
-        h("div", { className: "basic-preview-inspector-facts" },
+        h("div", { className: "basic-preview-inspector-facts piece-inspector-stats" },
           field("イニシアティブ", initiative),
           field("ST", statuses.length + " 項目"),
           field("パラメータ", params.length + " 項目")
         ),
-        h("div", { className: "pv-ccfolia-roster-statuses" },
+        h("div", { className: "pv-ccfolia-roster-statuses piece-inspector-statuses" },
           statuses.length
             ? statuses.slice(0, 8).map(statusRow)
             : h("p", { className: "pv-ccfolia-no-rows" }, "出力するSTはありません。")
@@ -6000,10 +6000,10 @@ const BasicCcfOutputPreview = ({ state, dispatch }) => {
     )
   );
   const sheetView = () => h("div", {
-    id: "basic-ccfolia-panel-sheet", className: "basic-preview-panel",
+    id: "basic-ccfolia-panel-sheet", className: "basic-preview-panel piece-preview-view", "data-preview-view": "sheet",
     role: "tabpanel", "aria-labelledby": "basic-ccfolia-tab-sheet"
   },
-    h("section", { className: "pv-ccfolia-editor" },
+    h("section", { className: "pv-ccfolia-editor piece-sheet-mock" },
       h("div", { className: "pv-ccfolia-editor-top" },
         h("div", { className: "pv-ccfolia-editor-images" },
           renderImage(imageUrl, "pv-ccfolia-editor-main-image", name + "の立ち絵"),
@@ -6053,11 +6053,11 @@ const BasicCcfOutputPreview = ({ state, dispatch }) => {
     )
   );
   const jsonView = () => h("div", {
-    id: "basic-ccfolia-panel-json", className: "basic-preview-panel",
+    id: "basic-ccfolia-panel-json", className: "basic-preview-panel piece-preview-view", "data-preview-view": "json",
     role: "tabpanel", "aria-labelledby": "basic-ccfolia-tab-json"
   },
-    h("section", { className: "basic-preview-json-panel" },
-      h("header", { className: "basic-preview-json-head" },
+    h("section", { className: "basic-preview-json-panel piece-json-shell" },
+      h("header", { className: "basic-preview-json-head piece-json-toolbar" },
         h("div", null,
           h("strong", null, "CCFOLIA CHARACTER JSON"),
           h("p", null, "現在のキャラクター状態から実際の出力関数で生成したJSON")
@@ -6066,14 +6066,15 @@ const BasicCcfOutputPreview = ({ state, dispatch }) => {
       ),
       built.error
         ? h("div", { className: "basic-preview-json-error", role: "alert" }, built.error)
-        : h("pre", { className: "basic-preview-json", "aria-label": "実際のCCFOLIA出力JSON" }, built.json),
+        : h("pre", { className: "basic-preview-json piece-json-code", "aria-label": "実際のCCFOLIA出力JSON" }, built.json),
       h("p", { className: "basic-preview-copy-status", role: "status" }, copyStatus)
     )
   );
   return h("section", { className: "basic-ccfolia-preview pv-token-preview pv-ccfolia-preview piece-output-shell", "aria-label": "駒・出力プレビュー" },
     h("header", { className: "pv-ccfolia-preview-head piece-output-header" },
       h("div", null,
-        h("h3", null, "CCFOLIA表示プレビュー"),
+        h("div", { className: "piece-preview-eyebrow" }, "COCOFOLIA / PIECE INSPECTOR"),
+        h("h3", null, "駒の出力プレビュー"),
         h("p", null, "盤面上の駒、キャラクターシート、出力JSONを同じデータから確認できます。")
       ),
       h("div", { className: "pv-token-mode-switch basic-preview-mode-tabs piece-preview-tabs", role: "tablist", "aria-label": "駒・出力プレビューの表示" },
@@ -6084,7 +6085,7 @@ const BasicCcfOutputPreview = ({ state, dispatch }) => {
           role: "tab",
           "aria-selected": mode === entry.id,
           "aria-controls": "basic-ccfolia-panel-" + entry.id,
-          className: mode === entry.id ? "is-active" : "",
+          className: "piece-preview-tab" + (mode === entry.id ? " is-active active" : ""),
           onClick: () => setMode(entry.id)
         }, entry.label))
       )
