@@ -413,6 +413,9 @@ async function captureViewport(browser, mode) {
     // the expiring CI Artifact, not into the 12 screenshots shown to end users.
     await page.keyboard.press("Escape").catch(() => {});
     await clickNav(page, "使い方");
+    const openGuide = page.getByRole("button", { name: "操作ガイドを検索", exact: true }).first();
+    await openGuide.waitFor({ state: "visible", timeout: 12000 });
+    await openGuide.click();
     await page.locator("#guide-search-input").waitFor({ state: "visible", timeout: 12000 });
     await page.waitForTimeout(WAIT_MS);
     const helpIndexFilename = path.join(OUT, "help-index-" + mode + ".png");
