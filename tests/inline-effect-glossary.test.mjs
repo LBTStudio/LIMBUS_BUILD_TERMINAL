@@ -261,6 +261,9 @@ test("サポートパッシブは辞書にも本文ホバーにも混入しな�
   const api = loadGlossary();
   const glossary = api.buildGlossary(fixture);
   assert.equal(glossary.has("栄光"), false, "サポートパッシブ名を全体辞書に登録しない");
+  assert.ok(db.support_passives.some((item) => item.name === "栄光"), "実DBにも栄光のサポートパッシブがある");
+  const realGloryEntries = api.buildGlossary(db).get("栄光") || [];
+  assert.equal(realGloryEntries.some((entry) => entry.category === "サポートパッシブ"), false, "実DBからもサポートパッシブの説明を採用しない");
   assert.equal(glossary.has("サポート側だけの参照語"), false, "サポートパッシブ本文の参照語も登録しない");
   const syncedText = api.tokenize("同期人格の名称：栄光を継ぐ者", fixture, "人格スキル:同期人格");
   assert.equal(syncedText.filter((piece) => piece.term === "栄光").length, 0, "同期人格の本文にサポート側の栄光を混ぜない");
@@ -298,6 +301,12 @@ test("「集中攻撃」の「集中」は終止符事務所代表のパッシ�
   const ownPassive = api.tokenize("集中", fixture, "人格パッシブ:終止符事務所代表").find((piece) => piece.term === "集中");
   assert.ok(ownPassive, "パッシブ名そのものは本人のスコープ内で引き続き解決できる");
   assert.equal(ownPassive.entries[0].source, "人格：終止符事務所代表");
+
+  // リポジトリの実DBを用いた再現確認
+  const realSenku = db.normal_personas.find((persona) => persona.name === "西部センク協会3課フィクサー");
+  assert.ok(realSenku?.passive_effect.includes("集中攻撃"), "実DBにセンク系の集中攻撃パッシブがある");
+  const realPieces = api.tokenize(realSenku.passive_effect, db, "人格パッシブ:" + realSenku.name);
+  assert.equal(realPieces.filter((piece) => piece.term === "集中").length, 0, "実DBでも集中攻撃の部分一致から別人格パッシブを表示しない");
 });
 
 test("glossary terms have a visible underline and warmer contrast in effect prose", () => {
