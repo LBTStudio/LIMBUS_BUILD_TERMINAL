@@ -73,11 +73,14 @@ test("bracketed custom references show their source text and never mutate the so
   };
   const before = JSON.stringify(record);
   const api = loadGlossary();
-  const entries = api.tokenize("未知の固有処理", record, "人格パッシブ:検証用人格").find((piece) => piece.term === "未知の固有処理").entries;
-  assert.equal(entries.length, 1, "参照元の人格の本文を1件だけ表示する");
-  assert.ok(entries[0].category === "本文中の参照" && entries[0].source.includes("検証用人格") && entries[0].description.includes("未知の固有処理"));
-  assert.equal(api.tokenize("未知の固有処理", record, "人格パッシブ:別人格").find((piece) => piece.term === "未知の固有処理").entries.length, 0,
-    "別人格の参照本文を代わりに表示しない");
+  const sourceText = record.normal_personas[0].passive_effect;
+  const sourcePiece = api.tokenize(sourceText, record, "人格パッシブ:検証用人格").find((piece) => piece.term === "未知の固有処理");
+  assert.ok(sourcePiece, "参照元の本文にある角括弧付きの語をホバー化する");
+  assert.equal(sourcePiece.entries.length, 1, "参照元の人格の本文を1件だけ表示する");
+  assert.ok(sourcePiece.entries[0].category === "本文中の参照" && sourcePiece.entries[0].source.includes("検証用人格") && sourcePiece.entries[0].description.includes("未知の固有処理"));
+  const unrelated = api.tokenize("未知の固有処理", record, "人格パッシブ:別人格");
+  assert.equal(unrelated.filter((piece) => piece.term === "未知の固有処理").length, 0,
+    "別人格の本文に明示参照がない場合はホバー化しない");
   assert.equal(JSON.stringify(record), before, "glossary indexing must not mutate data");
 });
 
