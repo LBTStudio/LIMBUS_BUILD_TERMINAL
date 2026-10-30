@@ -68,7 +68,7 @@ test("renderSection は基本を含む9タブのビルドへ振り分ける", ()
   for (const id of ["baseinfo", "persona", "skill", "passive", "enh", "support", "ego", "spirit", "items-build"]) {
     assert.match(block, new RegExp(`case "${id}":`), `${id} の case が無い`);
   }
-  assert.match(block, /React\.createElement\(BuildWorkspace, \{ state, dispatch, saveStatus \}\)/);
+  assert.match(block, /React\.createElement\(BuildWorkspace, \{ state, dispatch, saveStatus, onTogglePreview: togglePreview, onCopyJson: copyJson \}\)/);
   assert.match(block, /React\.createElement\(ShopSection, \{ state, dispatch \}\)/);
   assert.doesNotMatch(block, /React\.createElement\(PersonaCodex/);
   assert.doesNotMatch(block, /React\.createElement\(EgoSection/);
@@ -221,7 +221,7 @@ test("BuildWorkspace は基本を含む9タブをもち、所持タブだけ ros
     assert.match(switchBlock, new RegExp(`case "${id}":`), `${id} タブに renderSection の case が無い`);
   }
   /* タブ帯は記録タブ帯と同じ作法で accessible。 */
-  assert.match(sections, /className: "segmented", role: "tablist", "aria-label": "ビルドセクション"/);
+  assert.match(sections, /className: "segmented btype-build-tablist", role: "tablist", "aria-label": "ビルドセクション"/);
   assert.match(sections, /role: "tab",\s*"aria-selected": active\.id === tab\.id/);
   /* 各タブの中身は既存コンポーネントのうちどれかを出す。 */
   assert.match(sections, /const Component = active\.id === "baseinfo"[\s\S]*?window\.LBT_BaseInfoWorkspace[\s\S]*?active\.id === "persona"/);
