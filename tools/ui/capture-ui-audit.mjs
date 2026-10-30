@@ -258,6 +258,12 @@ async function seed() {
       build: null
     }));
 
+    const ownedRosterKeys = new Set(rosterPersonas.map((entry) => entry.mode + ":" + String(entry.no)));
+    const initialCandidate = all.find(({ p: candidate, mode: candidateMode }) => !ownedRosterKeys.has(candidateMode + ":" + String(candidate.no))) || all.find(({ p: candidate }) => String(candidate.no) !== String(p.no)) || chosen;
+    const initialCandidateKey = initialCandidate.mode + ":" + String(initialCandidate.p.no);
+    const historicalCandidate = all.find(({ p: candidate, mode: candidateMode }) =>
+      !ownedRosterKeys.has(candidateMode + ":" + String(candidate.no))
+      && candidateMode + ":" + String(candidate.no) !== initialCandidateKey) || initialCandidate;
     const supports = (DB.support_passives || []).slice(0, 6).map((s, i) => ({
       uid: "ui-audit-support-" + (i + 1), name: s.name, cond: s.cond || "", effect: s.effect || "",
       lp: Number(s.lp) || 0, source: s.source || "core", slot: i < 2 ? "normal" : "library",
@@ -351,11 +357,21 @@ async function seed() {
       skillLibrary: [],
       favorites: [mode + ":" + p.no],
       historyRecent: [],
-      results: [{
-        id: "ui-audit-result-1", name: "UI監査用セッション", date: "2026-10-01",
-        income: { lp: 250, shards: 80 }, exchange: { lp: 0, shards: 0 },
-        note: "Playwright QA sample record", createdAt: now, updatedAt: now
-      }],
+      results: [
+        {
+          id: "res-initial", name: "初期作成", date: "2026-09-01",
+          income: { lp: 30, shards: 0, tickets: { persona: 1, ego: 0, choice: 0, pack: {} } },
+          initialPersona: { method: "unknown", mode: "", no: "", name: "" },
+          personaAcquisitions: [], rewardItems: [],
+          note: "Playwright QA 初期人格保存テスト", createdAt: now - 3000, updatedAt: now - 3000
+        },
+        {
+          id: "ui-audit-result-1", name: "UI監査用セッション", date: "2026-10-01",
+          income: { lp: 250, shards: 80 }, exchange: { lp: 0, shards: 0 },
+          personaAcquisitions: [], rewardItems: [],
+          note: "Playwright QA sample record", createdAt: now, updatedAt: now
+        }
+      ],
       entries: [{
         id: "ui-audit-entry-1", kind: "purchase", name: "包帯",
         cost: { lp: 15, shards: 0 }, resultId: "ui-audit-result-1",
@@ -378,7 +394,9 @@ async function seed() {
         inventory: inventory.length,
         enhancements: enhancementCandidates.length,
         results: next.results.length,
-        entries: next.entries.length
+        entries: next.entries.length,
+        initialPersonaCandidate: { mode: initialCandidate.mode, no: String(initialCandidate.p.no), name: initialCandidate.p.name },
+        historicalPersonaCandidate: { mode: historicalCandidate.mode, no: String(historicalCandidate.p.no), name: historicalCandidate.p.name }
       }
     };
   });
