@@ -534,7 +534,7 @@
     }
     const explicitTerms = [...explicitReferences.keys()].filter((term) => {
       const escaped = escapeRegExp(term);
-      return new RegExp("\\[" + escaped + "\\]", "u").test(input);
+      return new RegExp("[\\[［]" + escaped + "[\\]］]", "u").test(input);
     });
     const terms = [...new Set([...cachedTerms, ...activeTerms, ...ownerGlossary.keys(), ...explicitTerms])]
       .sort((a, b) => b.length - a.length || a.localeCompare(b, "ja"));
