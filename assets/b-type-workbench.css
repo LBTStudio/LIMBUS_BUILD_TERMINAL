@@ -264,6 +264,7 @@
 .btype-build-tabpanel{min-width:0}
 .btype-workbench-preview-panel{position:sticky;top:12px;min-width:0;padding:14px;border:1px solid #4b3f2c;border-radius:11px;background:linear-gradient(155deg,#211d17,#151310);box-shadow:0 12px 30px #0003}
 .btype-workbench-preview-panel[hidden]{display:none!important}
+.btype-work-layout:has(>.btype-workbench-preview-panel[hidden]){grid-template-columns:minmax(0,1fr)}
 .btype-workbench-preview-panel .preview-label{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:10px;border-bottom:1px solid #3c3326;color:#e2d3b2;font-size:11px;font-weight:750}
 .btype-workbench-preview-panel .preview-label span:last-child{color:#9fb58e;font:700 9px ui-monospace,monospace;letter-spacing:.08em}
 .btype-workbench-preview-panel .preview-lines{min-height:116px;margin:13px 0;padding:12px;border:1px solid #373026;border-radius:7px;background:#100f0d;color:#bcb19d;font:11px/1.9 ui-monospace,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
