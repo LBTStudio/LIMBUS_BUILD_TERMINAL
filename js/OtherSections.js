@@ -2243,8 +2243,8 @@ const BuildItemsPanel = ({ state, dispatch }) => {
   return h("div", { className: "build-items" },
     h(Card, null,
       h("div", { className: "card-header owned-library-bar" },
-        h("span", { className: "t-label" }, "所持アイテム / 卓への出力"),
-        h("span", { className: "ledger-note" }, `${inventory.length}種 / ${totalQty}個　MEMO ${memoCount} / PALETTE ${paletteCount}　${currentResult ? `消費記録先: ${currentResult.name}` : "消費記録にはリザルトが必要"}`),
+        h("span", { className: "t-label" }, "卓へ持ち込むアイテム"),
+        h("span", { className: "ledger-note" }, `${inventory.length}種 / ${totalQty}個　MEMO ${memoCount} / PALETTE ${paletteCount}　実使用は「1個使用」で記帳　${currentResult ? `消費記録先: ${currentResult.name}` : "消費記録にはリザルトが必要"}`),
         h(Button, { size: "sm", variant: pickerOpen ? "secondary" : "ghost", icon: "plus", onClick: () => setPickerOpen((v) => !v) }, pickerOpen ? "選択を閉じる" : "所持品へ追加"),
         h(Button, { size: "sm", variant: "ghost", onClick: () => dispatch({ type: "SET_UI", ui: { currentSection: "roster", libraryTab: "inventory" } }) }, "Recordで全所持品を管理")
       ),
@@ -2264,7 +2264,7 @@ const BuildItemsPanel = ({ state, dispatch }) => {
       ),
       h("div", { className: "card-body stack-2" },
         rows.length === 0
-          ? h("div", { className: "empty" }, "所持アイテムはまだありません。「所持品へ追加」またはShopで追加できます。")
+          ? h("div", { className: "empty" }, "所持アイテムはまだありません。「所持品へ追加」またはShopで入手できます。追加後、MEMO・PALETTEへの反映を切り替えられます。")
           : h("div", { className: "stack-2" }, rows.map((entry) => {
             const maxOwned = maxOwnedOf(entry.itemId);
             const hasCap = maxOwned < 99;
