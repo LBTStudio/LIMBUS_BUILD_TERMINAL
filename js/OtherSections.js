@@ -3346,7 +3346,7 @@ const RosterSection = ({ state, dispatch, onOpenImportRouter, onOpenUtilities })
   const h = React.createElement;
   /* タブは topbar の残高チップからも開くため state.ui に置く。local state だと外から遷移できない。 */
   /* 記録はリザルト確認が最頻の用途なので初期タブも並びもリザルトを先頭にする。 */
-  const libraryTab = state.ui?.libraryTab || "ledger";
+  const libraryTab = state.ui?.libraryTab || "home";
   const setLibraryTab = (value) => dispatch({ type: "SET_UI", ui: { libraryTab: value } });
   const [manageMode, setManageMode] = React.useState(false);
   const [selectedIds, setSelectedIds] = React.useState([]);
