@@ -187,7 +187,7 @@
 .piece-token-preview-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:10px;color:#b6a990;margin-bottom:9px}
 .piece-token-card{display:flex;align-items:center;gap:10px;min-width:0;padding:10px;background:#201c16;border:1px solid #4e432d;border-radius:8px;border-left:4px solid var(--piece-color,#d6b56b)}
 .piece-token-avatar{width:42px;height:42px;flex:0 0 42px;overflow:hidden;border-radius:50%;border:1px solid #71603b;background:#100f0d}
-.piece-token-avatar svg{width:100%;height:100%;display:block}
+.piece-token-avatar svg{width:100%;height:100%;display:block}.piece-token-avatar img{display:block;width:100%;height:100%;object-fit:cover}
 .piece-token-name{min-width:0;flex:1}
 .piece-token-name strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
 .piece-token-name small{display:block;color:#a79a82;font-size:10px;margin-top:2px}
