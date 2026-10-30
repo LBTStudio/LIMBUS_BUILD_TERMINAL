@@ -238,7 +238,8 @@ test("BuildWorkspace は基本を含む9タブをもち、所持タブだけ ros
   assert.match(sections, /const owned = !!active\.owned;/);
   assert.match(sections, /const panelProps = \["persona", "support", "ego", "spirit"\]\.includes\(active\.id\) \? \{ ownedOnly: owned \} : \{\};/);
   assert.match(sections, /const setTab = \(id\) => dispatch\(\{ type: "SET_UI", ui: \{ currentSection: id \} \}\);/);
-  assert.match(sections, /h\(SectionTitle, \{ num: "01", title: "ビルド", subtitle: "基本設定・人格・スキル・パッシブ・強化・サポート・E\.G\.O・精神・アイテム" \}\)/);
+  assert.match(sections, /h\("h1", null, "ビルド"\)/);
+  assert.match(sections, /h\("div", \{ className: "btype-eyebrow" \}, "BUILD WORKSPACE \/ ACTIVE CHARACTER"\)/);
   assert.match(sections, /className: "build-context-strip"/);
   assert.match(sections, /saveStatus\?\.phase === "saved"/);
   assert.match(sections, /Object\.assign\(window, \{[\s\S]*?BuildWorkspace,[\s\S]*?ShopSection,/);
