@@ -139,3 +139,21 @@ Production verification now separately checks the deployed GitHub Pages HTML, th
 - The old desktop override that placed the portrait editor and Basic formatting panel side-by-side has been removed because it contradicts v4.
 - The production audit now captures `basic-workspace-v4-hero` and fails on wrong desktop/mobile column behavior, portrait aspect-ratio drift, or the format panel appearing before the hero ends.
 - Reference CSS is copied from the submitted HTML v2/v3 sections into the production parity stylesheet; `index.html` and the Service Worker precache hashes are synchronized.
+
+## 2026-10-30 追加修正：リザルト報酬アイテム・過去人格取得
+
+### データ設計
+- リザルトごとに \`rewardItems\`（itemId / itemName / quantity）を保存する。
+- カタログ品・特殊資源・キャラクター固有のカスタム品を対象にする。通帳連動の自我の欠片は \`income.shards\` だけで扱い、アイテム在庫と二重化しない。
+- 報酬アイテムを新規記録したとき、または履歴数量を増やしたときだけ在庫へ増分反映する。同じ値の再保存は重複加算しない。過去履歴を減らす訂正で所持品を自動削除しない（既に消費している可能性があるため）。
+- 初期作成に限定されていた人格欄を一般のリザルト編集へ拡張し、複数人格を追記できるようにする。
+- 取得履歴の保存時、所持していない人格を所持ライブラリへ登録する。購入支出は後付けしない。初期作成で選んだ最初の人格に限り、未消費の初期抽出チケットがあれば1枚消費する。
+- 長くなっていた人格照合カードと過去取得・報酬編集領域は初期状態を折り畳み、必要な場合に展開できるようにする。
+
+### QA用データ
+Playwright監査の使い捨てアカウントに、初期作成（未選択人格・初期チケット1枚）、取得人格未登録の過去リザルト、標準・特異人格、標準アイテムを投入する。初期人格の保存、過去リザルトへの複数人格記録、硝子の破片、カタログ外「外付け義体」、標準カタログの外付け義体相当アイテムを実操作し、記録と所持在庫の一致を検証する。通貨・所持の二重登録や再保存時の重複加算も reducer 回帰テストで防ぐ。
+
+### 文字と縦方向の密度
+- 設定の補足説明、記録の補足文・入力欄を12px以上へ引き上げる。
+- 記録フォームは広い画面では一行のグリッド、狭い画面では2列へ再編する。
+- 人格照合の長文・過去人格／報酬品編集は折り畳み、初期表示のスクロール量を減らす。

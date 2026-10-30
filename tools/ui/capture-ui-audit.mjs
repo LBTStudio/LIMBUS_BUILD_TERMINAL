@@ -258,6 +258,12 @@ async function seed() {
       build: null
     }));
 
+    const ownedRosterKeys = new Set(rosterPersonas.map((entry) => entry.mode + ":" + String(entry.no)));
+    const initialCandidate = all.find(({ p: candidate, mode: candidateMode }) => !ownedRosterKeys.has(candidateMode + ":" + String(candidate.no))) || all.find(({ p: candidate }) => String(candidate.no) !== String(p.no)) || chosen;
+    const initialCandidateKey = initialCandidate.mode + ":" + String(initialCandidate.p.no);
+    const historicalCandidate = all.find(({ p: candidate, mode: candidateMode }) =>
+      !ownedRosterKeys.has(candidateMode + ":" + String(candidate.no))
+      && candidateMode + ":" + String(candidate.no) !== initialCandidateKey) || initialCandidate;
     const supports = (DB.support_passives || []).slice(0, 6).map((s, i) => ({
       uid: "ui-audit-support-" + (i + 1), name: s.name, cond: s.cond || "", effect: s.effect || "",
       lp: Number(s.lp) || 0, source: s.source || "core", slot: i < 2 ? "normal" : "library",
@@ -351,15 +357,32 @@ async function seed() {
       skillLibrary: [],
       favorites: [mode + ":" + p.no],
       historyRecent: [],
-      results: [{
-        id: "ui-audit-result-1", name: "UI監査用セッション", date: "2026-10-01",
-        income: { lp: 250, shards: 80 }, exchange: { lp: 0, shards: 0 },
-        note: "Playwright QA sample record", createdAt: now, updatedAt: now
-      }],
+      results: [
+        {
+          id: "res-initial", name: "初期作成", date: "2026-09-01",
+          income: { lp: 30, shards: 0, tickets: { persona: 2, ego: 0, choice: 0, pack: {} } },
+          initialPersona: { method: "unknown", mode: "", no: "", name: "" },
+          personaAcquisitions: [], rewardItems: [],
+          note: "Playwright QA 初期人格保存テスト", createdAt: now - 3000, updatedAt: now - 3000
+        },
+        {
+          id: "ui-audit-result-1", name: "UI監査用セッション", date: "2026-10-01",
+          income: { lp: 250, shards: 80 }, exchange: { lp: 0, shards: 0 },
+          personaAcquisitions: [], rewardItems: [],
+          note: "Playwright QA sample record", createdAt: now, updatedAt: now
+        }
+      ],
       entries: [{
         id: "ui-audit-entry-1", kind: "purchase", name: "包帯",
         cost: { lp: 15, shards: 0 }, resultId: "ui-audit-result-1",
         at: now, note: "Playwright QA sample expense"
+      }, {
+        id: "ui-audit-entry-initial-ticket", kind: "ticket",
+        name: "人格抽出チケット を使用",
+        cost: { lp: 0, shards: 0 },
+        tickets: { persona: 1, ego: 0, choice: 0, pack: {} },
+        resultId: "res-initial", at: now - 1500,
+        note: "Playwright QA: explicit initial extraction spend"
       }],
       ui: { codexMode: mode, currentSection: "persona", previewOpen: false, layoutVersion: "b-workbench-v2" }
     };
@@ -378,7 +401,9 @@ async function seed() {
         inventory: inventory.length,
         enhancements: enhancementCandidates.length,
         results: next.results.length,
-        entries: next.entries.length
+        entries: next.entries.length,
+        initialPersonaCandidate: { mode: initialCandidate.mode, no: String(initialCandidate.p.no), name: initialCandidate.p.name },
+        historicalPersonaCandidate: { mode: historicalCandidate.mode, no: String(historicalCandidate.p.no), name: historicalCandidate.p.name }
       }
     };
   });
@@ -802,6 +827,106 @@ async function captureProfile(browser, mode) {
       }
       await closeOverlay();
     });
+    await attempt("record-reward-item-and-persona-regressions",async()=>{
+      await go("記録");
+      const initialCard=page.locator(".ledger-card-wrap").filter({hasText:"初期作成"}).first();
+      await initialCard.waitFor({state:"visible",timeout:5000});
+      await click(initialCard.locator(".ledger-card-edit-btn").first());
+      await snap("ledger-initial-persona-edit","テスト用アカウントの初期作成リザルト編集");
+      const initialCandidate=audit.seed?.sample?.initialPersonaCandidate;
+      if(!initialCandidate?.mode || !initialCandidate?.no) throw new Error("初期人格QA候補をseedから取得できません");
+      await initialCard.locator('[aria-label="初期人格の入手方法"]').selectOption("random");
+      await initialCard.locator('[aria-label="最初に得た人格"]').selectOption(initialCandidate.mode+":"+initialCandidate.no);
+      await snap("ledger-initial-persona-selected","初期人格を選択した状態。保存前の確認");
+      await click(initialCard.getByRole("button",{name:"初期作成 の変更を保存",exact:true}));
+      await page.waitForTimeout(450);
+      const initialCheck=await page.evaluate((candidate)=>{
+        const saved=window.LBT_accounts?.loadActive?.()||{};
+        const initial=(saved.results||[]).find((result)=>result.id==="res-initial");
+        const owned=(saved.roster?.personas||[]).some((entry)=>entry.mode===candidate.mode&&String(entry.no)===String(candidate.no));
+        const ticketIncome=(saved.results||[]).reduce((sum,result)=>sum+(Number(result.income?.tickets?.persona)||0),0);
+        const ticketUse=(saved.entries||[]).reduce((sum,entry)=>sum+(Number(entry.tickets?.persona)||0),0);
+        return {owned,initialPersona:initial?.initialPersona||null,acquisitions:initial?.personaAcquisitions||[],personaTicketBalance:Math.max(0,ticketIncome-ticketUse)};
+      },initialCandidate);
+      if(!initialCheck.owned) throw new Error("初期人格を保存したのに所持ライブラリへ追加されていません: "+JSON.stringify(initialCheck));
+      if(initialCheck.initialPersona?.no!==String(initialCandidate.no)) throw new Error("初期人格の取得記録が保存されていません: "+JSON.stringify(initialCheck));
+      if(!initialCheck.acquisitions.some((entry)=>entry.mode===initialCandidate.mode&&String(entry.no)===String(initialCandidate.no))) throw new Error("初期人格が取得証跡にも反映されていません");
+      if(initialCheck.personaTicketBalance!==1) throw new Error("初期人格の保存で、履歴に明示されたチケット使用とは別に初期チケットまで消費されました: "+JSON.stringify(initialCheck));
+      await snap("ledger-initial-persona-owned","初期人格の保存後、所持と取得記録が一致した状態");
+
+      const historicalCard=page.locator(".ledger-card-wrap").filter({hasText:"UI監査用セッション"}).first();
+      await click(historicalCard.locator(".ledger-card-edit-btn").first());
+      /* 編集開始後は見出しが input に置き換わるため、
+         名前のテキスト検索ではなく編集中フラグからカードを取り直す。 */
+      const historicalEditorCard=page.locator(".ledger-card-wrap.is-editing").last();
+      await historicalEditorCard.waitFor({state:"visible",timeout:5000});
+      await historicalEditorCard.locator(".ledger-history-editor-disclosure > summary").click();
+      const historicalCandidate=audit.seed?.sample?.historicalPersonaCandidate;
+      if(!historicalCandidate?.mode || !historicalCandidate?.no) throw new Error("履歴人格QA候補をseedから取得できません");
+      await historicalEditorCard.locator('[aria-label="このリザルトで取得した人格"]').selectOption(historicalCandidate.mode+":"+historicalCandidate.no);
+      await click(historicalEditorCard.getByRole("button",{name:"人格を追加",exact:true}));
+      await snap("ledger-historical-persona-draft","過去リザルトへ複数取得人格を追加した編集状態");
+      await click(historicalEditorCard.getByRole("button",{name:"UI監査用セッション の変更を保存",exact:true}));
+      await page.waitForTimeout(450);
+      const historicalCheck=await page.evaluate((candidate)=>{
+        const saved=window.LBT_accounts?.loadActive?.()||{};
+        const record=(saved.results||[]).find((result)=>result.id==="ui-audit-result-1");
+        const owned=(saved.roster?.personas||[]).some((entry)=>entry.mode===candidate.mode&&String(entry.no)===String(candidate.no));
+        return {owned,acquisitions:record?.personaAcquisitions||[]};
+      },historicalCandidate);
+      if(!historicalCheck.owned||!historicalCheck.acquisitions.some((entry)=>entry.mode===historicalCandidate.mode&&String(entry.no)===String(historicalCandidate.no))) {
+        throw new Error("過去リザルトの取得人格が所持・取得証跡へ反映されません: "+JSON.stringify(historicalCheck));
+      }
+      await snap("ledger-historical-persona-saved","過去リザルトの取得人格が所持へ反映された状態");
+
+      const name="QA報酬アイテム入力テスト";
+      const nameInput=page.getByRole("textbox",{name:"リザルトの名称",exact:true});
+      await nameInput.fill(name);
+      const glassSelect=page.getByLabel("報酬アイテムのカタログ選択");
+      await glassSelect.selectOption("resource-glass-shard");
+      await page.getByLabel("報酬アイテム数量", {exact:true}).fill("2");
+      const newRewardControls=page.locator(".ledger-reward-item-editor .ledger-reward-item-controls").first();
+      await click(newRewardControls.getByRole("button",{name:"追加",exact:true}));
+      await page.getByLabel("カタログにない報酬アイテム名",{exact:true}).fill("外付け義体");
+      await page.getByLabel("報酬アイテム数量",{exact:true}).fill("1");
+      await click(newRewardControls.getByRole("button",{name:"追加",exact:true}));
+      await snap("ledger-reward-item-draft","硝子の破片とカタログ外の外付け義体を追加した報酬入力欄");
+      await click(page.locator(".ledger-add-row").getByRole("button",{name:"記録する",exact:true}));
+      await page.waitForTimeout(500);
+      const rewardCheck=await page.evaluate((name)=>{
+        const saved=window.LBT_accounts?.loadActive?.()||{};
+        const record=(saved.results||[]).find((result)=>result.name===name);
+        const glass=saved.inventory?.find((item)=>item.itemId==="resource-glass-shard");
+        const custom=saved.inventory?.find((item)=>saved.customItems?.some((definition)=>definition.id===item.itemId&&definition.name==="外付け義体"));
+        return {record,glassQuantity:glass?.quantity||0,customQuantity:custom?.quantity||0,customDefinitions:saved.customItems||[]};
+      },name);
+      if(!rewardCheck.record?.rewardItems?.some((item)=>item.itemId==="resource-glass-shard"&&item.quantity===2)) throw new Error("硝子の破片が報酬履歴へ保存されません: "+JSON.stringify(rewardCheck));
+      if(!rewardCheck.customDefinitions.some((item)=>item.name==="外付け義体")||rewardCheck.customQuantity!==1) throw new Error("カタログ外の外付け義体がカスタム報酬品として所持へ反映されません: "+JSON.stringify(rewardCheck));
+      if(rewardCheck.glassQuantity!==2) throw new Error("硝子の破片が所持在庫へ反映されません: "+JSON.stringify(rewardCheck));
+      await snap("ledger-reward-item-saved","報酬アイテム履歴と所持在庫が一致した状態");
+
+      const rewardCard=page.locator(".ledger-card-wrap").filter({hasText:name}).first();
+      await click(rewardCard.locator(".ledger-card-edit-btn").first());
+      const rewardEditorCard=page.locator(".ledger-card-wrap.is-editing").last();
+      await rewardEditorCard.waitFor({state:"visible",timeout:5000});
+      await rewardEditorCard.locator(".ledger-history-editor-disclosure > summary").click();
+      const prosthesisId="enh-seagull-prosthetic-arm";
+      const prosthesisSelect=rewardEditorCard.locator('[aria-label="編集する報酬アイテムのカタログ選択"]');
+      if(await prosthesisSelect.locator('option[value="'+prosthesisId+'"]').count()===0) throw new Error("標準カタログの外付け強化義手が選択肢にありません");
+      await prosthesisSelect.selectOption(prosthesisId);
+      await rewardEditorCard.locator('[aria-label="編集する報酬アイテム数量"]').fill("1");
+      await click(rewardEditorCard.locator(".ledger-reward-item-controls").getByRole("button",{name:"追加",exact:true}));
+      await snap("ledger-reward-item-edit-draft","既存リザルトへ標準カタログ品を追加する編集画面");
+      await click(rewardEditorCard.getByRole("button",{name:name+" の変更を保存",exact:true}));
+      await page.waitForTimeout(450);
+      const editCheck=await page.evaluate(({name,prosthesisId})=>{
+        const saved=window.LBT_accounts?.loadActive?.()||{};
+        const record=(saved.results||[]).find((result)=>result.name===name);
+        return {rewardItems:record?.rewardItems||[],quantity:saved.inventory?.find((item)=>item.itemId===prosthesisId)?.quantity||0};
+      },{name,prosthesisId});
+      if(!editCheck.rewardItems.some((item)=>item.itemId===prosthesisId)||editCheck.quantity!==1) throw new Error("既存リザルト編集で標準アイテム報酬が在庫へ反映されません: "+JSON.stringify(editCheck));
+      await snap("ledger-reward-item-edit-saved","既存リザルトへの標準アイテム報酬の反映後");
+    });
     await attempt("home-launcher-review",async()=>{
       await go("ホーム");
       await snap("home-command-hero","ホームのコマンドヒーローと目的別ランチャー");
@@ -955,7 +1080,7 @@ async function main() {
   try { for(const mode of ["desktop","tablet","mobile"]) {log("begin "+mode);await captureProfile(browser,mode);} }
   finally { await browser.close();await new Promise(resolve=>s.close(resolve)); }
   audit.count=audit.screenshots.length;
-  audit.coverage=["SINNER SELECT/new-account form","all nine build tabs and desktop tab-hover states","Basic workspace ST / label / CCFOLIA preview tabs and all three live preview modes","major navigation sections and desktop navigation-hover states","all six shop category tabs","record import menu and routes with result parsing preview","all six owned-library categories","settings status workspace and every disclosure panel","home command hero, all launcher routes and resume panel","common import router and all four destinations","skill-add and custom E.G.O creation entry paths","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, desktop preview width and placement, duplicate preview controls, and target-size diagnostics"];
+  audit.coverage=["SINNER SELECT/new-account form","all nine build tabs and desktop tab-hover states","Basic workspace ST / label / CCFOLIA preview tabs and all three live preview modes","major navigation sections and desktop navigation-hover states","all six shop category tabs","record import menu and routes with result parsing preview","all six owned-library categories","settings status workspace and every disclosure panel","seeded QA: initial persona ownership, historical persona acquisition, standard/custom item rewards and inventory reconciliation","home command hero, all launcher routes and resume panel","common import router and all four destinations","skill-add and custom E.G.O creation entry paths","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, desktop preview width and placement, duplicate preview controls, and target-size diagnostics"];
   const requiredNotes=[
     "ビルド内基本タブのステータス（ST）編集パネル","ビルド内基本タブのラベル（パラメータ）編集パネル","ビルド内基本タブの盤面上の駒プレビュー","ビルド内基本タブのキャラクターシートプレビュー","ビルド内基本タブの出力データプレビュー",
     "ビルド内の人格タブ","ビルド内のスキルタブ","ビルド内のパッシブタブ","ビルド内の強化タブ","ビルド内のサポートタブ","ビルド内のE.G.Oタブ","ビルド内の精神タブ","ビルド内のアイテムタブ",
@@ -963,6 +1088,10 @@ async function main() {
     "記録の取り込みメニュー（3つの入口）",
      "記録・所持品のカテゴリ：リザルト","記録・所持品のカテゴリ：人格","記録・所持品のカテゴリ：E.G.O","記録・所持品のカテゴリ：サポパ","記録・所持品のカテゴリ：精神","記録・所持品のカテゴリ：アイテム",
      "ホームのコマンドヒーローと目的別ランチャー","共通のデータ取り込み先選択ダイアログ","詳細設定：ステータス一覧・編集・出力順",
+     "初期人格を選択した状態。保存前の確認","初期人格の保存後、所持と取得記録が一致した状態",
+     "過去リザルトへ複数取得人格を追加した編集状態","過去リザルトの取得人格が所持へ反映された状態",
+     "硝子の破片とカタログ外の外付け義体を追加した報酬入力欄","報酬アイテム履歴と所持在庫が一致した状態",
+     "既存リザルトへ標準カタログ品を追加する編集画面","既存リザルトへの標準アイテム報酬の反映後",
     "テキスト流し込みを開き、自動スクロール後の入力欄が見える状態",
     "例文を入力し、解析結果・候補を確認する状態（確定しない）",
     "硝子窓から一括取り込むパネルを開いた状態（適用しない）",
@@ -982,6 +1111,6 @@ async function main() {
   audit.criticalLayoutWarnings=audit.layoutWarnings.filter((item)=>["document-horizontal-overflow","duplicate-preview-controls","preview-toggle-overlaps-header","preview-toggle-overlaps-panel-controls","preview-toggle-overlaps-content-dock","preview-panel-too-narrow","basic-preview-below-editor-fold"].includes(item.type));
   fs.writeFileSync(path.join(OUT,"manifest.json"),JSON.stringify(audit,null,2)+"\n");
   log("finished: "+audit.count+" screenshots; failures="+audit.failures.length+"; missing-required="+audit.missingRequiredCaptures.length+"; critical-layout-warnings="+audit.criticalLayoutWarnings.length);
-  if(audit.count<120 || audit.failures.length || audit.missingRequiredCaptures.length || audit.pageErrors.length || audit.httpErrors.length || audit.consoleErrors.length || audit.criticalLayoutWarnings.length) process.exitCode=1;
+  if(audit.count<140 || audit.failures.length || audit.missingRequiredCaptures.length || audit.pageErrors.length || audit.httpErrors.length || audit.consoleErrors.length || audit.criticalLayoutWarnings.length) process.exitCode=1;
 }
 main().catch(e=>{console.error("[ui-audit] fatal: "+(e&&e.stack||String(e)));process.exitCode=1;});

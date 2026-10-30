@@ -4011,7 +4011,20 @@ const LedgerPanel = ({ state, dispatch }) => {
   const [dragId, setDragId] = React.useState(null);
   const [overId, setOverId] = React.useState(null);
   const [movingEntryId, setMovingEntryId] = React.useState(null);
-  const [newResult, setNewResult] = React.useState({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} } });
+  const rewardItemCatalog = React.useMemo(() => {
+    const source = [
+      ...(window.DB?.items || []),
+      ...(window.DB?.specialItems || []).filter((item) => !item?.ledgerResource),
+      ...(Array.isArray(state.customItems) ? state.customItems : [])
+    ];
+    return [...new Map(source.filter((item) => item?.id && item?.name && !item.ledgerResource)
+      .map((item) => [String(item.id), item])).values()]
+      .sort((a, b) => String(a.name).localeCompare(String(b.name), "ja"));
+  }, [state.customItems]);
+  const [newResult, setNewResult] = React.useState({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [] });
+  const [newRewardItemId, setNewRewardItemId] = React.useState("");
+  const [newRewardItemName, setNewRewardItemName] = React.useState("");
+  const [newRewardItemQty, setNewRewardItemQty] = React.useState("1");
   /* 選択中のパックはフォーム側が持つ。TicketInputs 内で持つと、親が組み立てる
      income に選んだパック名が入らない（内部 state だから）。 */
   const [newResultPack, setNewResultPack] = React.useState("");
@@ -4024,6 +4037,10 @@ const LedgerPanel = ({ state, dispatch }) => {
   const [ticketPanel, setTicketPanel] = React.useState(null);
   const [ticketDraft, setTicketDraft] = React.useState(null);
   const [ticketPackPick, setTicketPackPick] = React.useState("");
+  const [ticketRewardItemId, setTicketRewardItemId] = React.useState("");
+  const [ticketRewardItemName, setTicketRewardItemName] = React.useState("");
+  const [ticketRewardItemQty, setTicketRewardItemQty] = React.useState("1");
+  const [ticketPersonaPick, setTicketPersonaPick] = React.useState("");
   /* 手動の支出・消耗。DBに価格が無いもの、戦闘で消えたものを記録する。 */
   const [newEntry, setNewEntry] = React.useState({ name: "", kind: "expense", lp: "", shards: "" });
   /* 所持人格リストの一括取込用の状態。 */
@@ -4209,8 +4226,14 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
         choice: String(Number(currentTickets.choice) || 0),
         pack: { ...(currentTickets.pack || {}) }
       },
+      rewardItems: Array.isArray(result.rewardItems) ? result.rewardItems.map((item) => ({ ...item })) : [],
+      personaAcquisitions: Array.isArray(result.personaAcquisitions) ? result.personaAcquisitions.map((item) => ({ ...item })) : [],
       initialPersona: { method: ["selected", "random"].includes(result.initialPersona?.method) ? result.initialPersona.method : "unknown", mode: result.initialPersona?.mode === "t" || result.initialPersona?.mode === "n" ? result.initialPersona.mode : "", no: String(result.initialPersona?.no ?? ""), name: String(result.initialPersona?.name || "") }
     });
+    setTicketPersonaPick("");
+    setTicketRewardItemId("");
+    setTicketRewardItemName("");
+    setTicketRewardItemQty("1");
   };
   const cancelResultEditor = () => { setTicketPanel(null); setTicketDraft(null); };
   const updateResultDraftField = (field, value) => {
@@ -4225,6 +4248,20 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     } : draft);
   };
   const updateResultDraftInitialPersona = (patch) => setTicketDraft((draft) => draft ? { ...draft, initialPersona: { ...(draft.initialPersona || {}), ...patch } } : draft);
+  const addResultDraftPersona = () => {
+    const option = initialPersonaOptions.find((candidate) => candidate.value === ticketPersonaPick);
+    if (!ticketDraft || !option) return;
+    setTicketDraft((draft) => {
+      if (!draft) return draft;
+      const current = Array.isArray(draft.personaAcquisitions) ? draft.personaAcquisitions : [];
+      if (current.some((entry) => entry.mode === option.mode && String(entry.no) === String(option.no))) return draft;
+      return { ...draft, personaAcquisitions: [...current, { mode: option.mode, no: option.no, name: option.name, source: "manual" }] };
+    });
+    setTicketPersonaPick("");
+  };
+  const removeResultDraftPersona = (mode, no) => setTicketDraft((draft) => draft ? {
+    ...draft, personaAcquisitions: (draft.personaAcquisitions || []).filter((entry) => !(entry.mode === mode && String(entry.no) === String(no)))
+  } : draft);
   const saveResultEditor = (result) => {
     const draft = ticketDraft;
     if (!draft || draft.id !== result.id) return;
@@ -4241,6 +4278,23 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
       pack: nextPack
     };
     const name = String(draft.name || "").trim() || result.name;
+    const isInitial = result.id === "res-initial" || result.name === "初期作成";
+    const nextInitialPersona = {
+      method: ["selected", "random"].includes(draft.initialPersona?.method) ? draft.initialPersona.method : "unknown",
+      mode: draft.initialPersona?.mode === "n" || draft.initialPersona?.mode === "t" ? draft.initialPersona.mode : "",
+      no: String(draft.initialPersona?.no ?? ""),
+      name: String(draft.initialPersona?.name || "")
+    };
+    const nextAcquisitions = Array.isArray(draft.personaAcquisitions) ? draft.personaAcquisitions.map((entry) => ({ ...entry })) : [];
+    if (isInitial && nextInitialPersona.method !== "unknown" && nextInitialPersona.mode && nextInitialPersona.no
+      && !nextAcquisitions.some((entry) => entry.mode === nextInitialPersona.mode && String(entry.no) === nextInitialPersona.no)) {
+      const option = initialPersonaOptions.find((entry) => entry.value === nextInitialPersona.mode + ":" + nextInitialPersona.no);
+      nextAcquisitions.push({
+        mode: nextInitialPersona.mode, no: nextInitialPersona.no,
+        name: option?.name || nextInitialPersona.name, source: "initial"
+      });
+    }
+    const rewardItems = materializeRewardItems(draft.rewardItems || [], name);
     dispatch({
       type: "UPDATE_RESULT",
       id: result.id,
@@ -4252,14 +4306,37 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
         shards: Math.max(0, Number(draft.shards) || 0),
         tickets: nextTickets
       },
-      ...((result.id === "res-initial" || result.name === "初期作成") ? { initialPersona: { method: ["selected", "random"].includes(draft.initialPersona?.method) ? draft.initialPersona.method : "unknown", mode: draft.initialPersona?.mode === "n" || draft.initialPersona?.mode === "t" ? draft.initialPersona.mode : "", no: String(draft.initialPersona?.no ?? ""), name: String(draft.initialPersona?.name || "") } } : {})
+      rewardItems,
+      personaAcquisitions: nextAcquisitions,
+      ...(isInitial ? { initialPersona: nextInitialPersona } : {})
     });
-    toast("「" + name + "」のリザルトを更新しました");
+    /* 取得履歴を所持ライブラリへ反映する。過去取得は購入扱いにせず、
+       初期作成の最初の人格に一致するときだけ、残っている初期チケットを1枚消費する。 */
+    const existingPersonaKeys = new Set((state.roster?.personas || []).map((entry) => entry.mode + ":" + String(entry.no)));
+    /* 初回人格が抽出チケットで既に記録されている場合、その記録を初期チケットの消費として扱う。
+       同じリザルトへ明示された使用履歴があるのに、所持追加側でもう1枚引かない。 */
+    const hasRecordedPersonaTicketSpend = (state.entries || []).some((entry) =>
+      String(entry?.resultId || "") === String(result.id || "")
+      && (Number(entry?.tickets?.persona) || 0) > 0
+    );
+    for (const acquisition of nextAcquisitions) {
+      const key = acquisition.mode + ":" + String(acquisition.no);
+      if (!["n", "t"].includes(acquisition.mode) || !acquisition.no || existingPersonaKeys.has(key)) continue;
+      existingPersonaKeys.add(key);
+      const isRecordedInitialPersona = isInitial && nextInitialPersona.mode === acquisition.mode
+        && String(nextInitialPersona.no) === String(acquisition.no);
+      dispatch({
+        type: "ADD_ROSTER", mode: acquisition.mode, no: acquisition.no,
+        purchase: false, skipInitialTicketConsumption: !isRecordedInitialPersona || hasRecordedPersonaTicketSpend,
+        resultId: result.id, via: [name]
+      });
+    }
+    toast("「" + name + "」のリザルトを更新し、取得人格を所持記録へ反映しました");
     cancelResultEditor();
   };
 
   const results = Array.isArray(state.results) ? state.results : [];
-  const RESULTS_PAGE_SIZE = 24;
+  const RESULTS_PAGE_SIZE = 12;
   const searchNeedle = String(resultQuery || "").trim().toLocaleLowerCase("ja-JP");
   const matchingResults = results.filter((result) => {
     if (!searchNeedle) return true;
@@ -4350,21 +4427,74 @@ const readDragId = (event) => {
     }
   };
 
+  const rewardNameKey = (value) => String(value || "").normalize("NFKC").replace(/[\s\u3000・･]/g, "").toLocaleLowerCase("ja");
+  const materializeRewardItems = (items, sourceLabel) => {
+    const output = [];
+    (Array.isArray(items) ? items : []).forEach((entry, index) => {
+      const parsedQuantity = Number(entry.quantity);
+      const quantity = Number.isSafeInteger(parsedQuantity) && parsedQuantity > 0 ? parsedQuantity : 0;
+      if (!quantity) return;
+      let itemId = String(entry.itemId || "").trim();
+      const customName = String(entry.customName || "").trim();
+      if (!itemId && customName) {
+        const existing = rewardItemCatalog.find((item) => rewardNameKey(item.name) === rewardNameKey(customName)
+          || (item.searchAliases || []).some((alias) => rewardNameKey(alias) === rewardNameKey(customName)));
+        if (existing) itemId = String(existing.id);
+        else {
+          itemId = "custom-reward-" + Date.now() + "-" + index + "-" + Math.random().toString(36).slice(2, 7);
+          dispatch({ type: "ADD_CUSTOM_ITEM", item: {
+            id: itemId, name: customName, category: "報酬品",
+            effect: "リザルト報酬として記録したカスタムアイテム",
+            price: "", maxOwned: 99
+          } });
+        }
+      }
+      const catalogItem = rewardItemCatalog.find((item) => String(item.id) === itemId);
+      const itemName = catalogItem?.name || customName || String(entry.itemName || itemId);
+      if (itemId && itemName) output.push({ itemId, itemName, quantity });
+    });
+    return output;
+  };
+  const appendRewardItemDraft = (current, itemId, customName, quantity) => {
+    const count = Number(quantity);
+    if (!Number.isSafeInteger(count) || count <= 0) {
+      toast("報酬アイテムの数量は1以上の整数で入力してください", "assertive");
+      return current;
+    }
+    const item = rewardItemCatalog.find((row) => String(row.id) === String(itemId));
+    const name = String(customName || "").trim() || item?.name || "";
+    if (!item && !name) {
+      toast("報酬アイテムを選択するか、品名を入力してください", "assertive");
+      return current;
+    }
+    const existing = current.find((row) => (item && row.itemId === item.id) || (!item && row.customName && rewardNameKey(row.customName) === rewardNameKey(name)));
+    if (existing) return current.map((row) => row === existing ? { ...row, quantity: (Number(row.quantity) || 0) + count } : row);
+    return [...current, item
+      ? { itemId: String(item.id), itemName: item.name, quantity: count }
+      : { customName: name, itemName: name, quantity: count }];
+  };
+  const removeRewardItemDraft = (current, index) => current.filter((_, rowIndex) => rowIndex !== index);
+
   const addResult = () => {
     const name = String(newResult.name || "").trim();
     if (!name) return;
+    const rewardItems = materializeRewardItems(newResult.rewardItems, name);
     dispatch({
       type: "ADD_RESULT",
       name,
       date: newResult.date || "",
-        income: {
-          lp: Number(newResult.lp) || 0,
-          shards: Number(newResult.shards) || 0,
-          tickets: newResult.tickets || { persona: 0, ego: 0, choice: 0, pack: {} }
-        },
-      });
-      setNewResult({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} } });
-      setResultPage(0);
+      income: {
+        lp: Number(newResult.lp) || 0,
+        shards: Number(newResult.shards) || 0,
+        tickets: newResult.tickets || { persona: 0, ego: 0, choice: 0, pack: {} }
+      },
+      rewardItems
+    });
+    setNewResult({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [] });
+    setNewRewardItemId("");
+    setNewRewardItemName("");
+    setNewRewardItemQty("1");
+    setResultPage(0);
   };
 
 /* 硝子窓の読み込み結果をアカウント全体へ入れる。
@@ -4802,7 +4932,12 @@ const importHeldPersonas = () => {
       )
     ),
 
-    personaAudit && h(Card, { className: "ledger-persona-audit-card" },
+    personaAudit && h("details", { className: "ledger-persona-audit-disclosure" },
+      h("summary", null,
+        h("span", null, "PERSONA AUDIT / 人格取得の照合"),
+        h("span", { className: "ledger-note" }, "不足 " + personaAudit.missing.length + " 件 · 未記録 " + personaAudit.unrecorded.length + " 件")
+      ),
+      h(Card, { className: "ledger-persona-audit-card" },
       h("div", { className: "card-header owned-library-bar" },
         h("span", { className: "t-label" }, "PERSONA AUDIT / 人格照合"),
         h("span", { className: "ledger-note" }, "取得記録と現在所持を比較。所持・収支は自動変更しません。")
@@ -4836,6 +4971,7 @@ const importHeldPersonas = () => {
         (personaAudit.unresolvedEvidence > 0 || personaAudit.unresolvedDraws > 0) && h("p", { className: "ledger-note", role: "status" },
           "未照合の取得証跡 " + personaAudit.unresolvedEvidence + " 件 / 抽選の適用状態または取得品を確定できない記録 " + personaAudit.unresolvedDraws + " 件があります。自動で人格を推測していません。"
         )
+      )
       )
     ),
 
@@ -4908,6 +5044,46 @@ const importHeldPersonas = () => {
           setPackPick: setNewResultPack,
           onChange: (tickets) => setNewResult((p) => ({ ...p, tickets }))
         }),
+        h("section", { className: "ledger-reward-item-editor", "aria-label": "報酬アイテム" },
+          h("div", { className: "ledger-reward-item-head" },
+            h("span", { className: "t-label" }, "報酬アイテム"),
+            h("span", { className: "ledger-note" }, "硝子の破片・通常アイテム・カスタム品を記録できます。自我の欠片は上の欠片欄へ。")
+          ),
+          h("div", { className: "ledger-reward-item-controls" },
+            h("select", {
+              className: "select", "aria-label": "報酬アイテムのカタログ選択",
+              value: newRewardItemId,
+              onChange: (event) => { setNewRewardItemId(event.target.value); setNewRewardItemName(""); }
+            },
+              h("option", { value: "" }, "カタログから選択…"),
+              rewardItemCatalog.map((item) => h("option", { key: item.id, value: item.id }, item.name + (item.category ? " · " + item.category : "")))
+            ),
+            h("input", {
+              className: "ledger-input", "aria-label": "カタログにない報酬アイテム名",
+              placeholder: "またはカタログにない品名を入力",
+              value: newRewardItemName,
+              onChange: (event) => { setNewRewardItemName(event.target.value); setNewRewardItemId(""); }
+            }),
+            h("input", {
+              className: "ledger-input ledger-input--num", type: "number", min: 1, step: 1,
+              "aria-label": "報酬アイテム数量", value: newRewardItemQty,
+              onChange: (event) => setNewRewardItemQty(event.target.value)
+            }),
+            h(Button, { size: "sm", variant: "secondary", icon: "plus", onClick: () => {
+              const rewardItems = appendRewardItemDraft(newResult.rewardItems || [], newRewardItemId, newRewardItemName, newRewardItemQty);
+              if (rewardItems !== newResult.rewardItems) {
+                setNewResult((current) => ({ ...current, rewardItems }));
+                setNewRewardItemId(""); setNewRewardItemName(""); setNewRewardItemQty("1");
+              }
+            } }, "追加")
+          ),
+          (newResult.rewardItems || []).length > 0
+            ? h("div", { className: "ledger-reward-item-list" }, newResult.rewardItems.map((item, index) => h("div", { key: item.itemId || item.customName, className: "ledger-reward-item-chip" },
+                h("span", null, item.itemName || item.customName), h("b", null, "×" + item.quantity),
+                h("button", { type: "button", "aria-label": (item.itemName || item.customName) + " を報酬から外す", onClick: () => setNewResult((current) => ({ ...current, rewardItems: removeRewardItemDraft(current.rewardItems || [], index) })) }, "×")
+              )))
+            : h("p", { className: "ledger-empty-note" }, "アイテム報酬があれば、ここへ追加します。")
+        ),
 )
     ),
 
@@ -5484,7 +5660,7 @@ h(Card, { className: "ledger-card" },
               ),
               isEditing && isInitialResult && h("div", { className: "ledger-initial-persona-fields stack-2", "aria-label": "初期人格の取得確認" },
                 h("span", { className: "t-label" }, "初期作成 / 最初に得た人格"),
-                h("p", { className: "ledger-note" }, "当時の入手方法と人格を記録します。ここで選んでも所持へ自動追加したり、LP・チケットを増減したりはしません。"),
+                h("p", { className: "ledger-note" }, "保存すると選択した初期人格を所持ライブラリへ追加し、取得記録にも残します。購入LPは過去へさかのぼって計上せず、初期作成用チケットが残っている場合だけ最初の人格確定として1枚消費します。"),
                 h("div", { className: "ledger-ticket-grid" },
                   h("label", { className: "ledger-ticket-field" },
                     h("span", null, "入手方法"),
@@ -5511,6 +5687,71 @@ h(Card, { className: "ledger-card" },
                   ? h("p", { className: "ledger-note", role: "alert" }, "入手方法を指定した場合は、最初に得た人格も選択してください。")
                   : null
               ),
+              isEditing && h("details", { className: "ledger-history-editor-disclosure" },
+                h("summary", null, "取得人格・報酬アイテムを編集（過去リザルトにも複数登録できます）"),
+                h("section", { className: "ledger-history-editor stack-2", "aria-label": "取得人格と報酬アイテムの編集" },
+                h("div", { className: "ledger-reward-item-head" },
+                  h("span", { className: "t-label" }, "取得人格・報酬アイテム"),
+                  h("span", { className: "ledger-note" }, "古いリザルトも複数の取得人格を登録できます。保存すると不足している人格は所持へ追加します。")
+                ),
+                h("div", { className: "ledger-acquisition-controls" },
+                  h("select", {
+                    className: "select", "aria-label": "このリザルトで取得した人格",
+                    value: ticketPersonaPick,
+                    onChange: (event) => setTicketPersonaPick(event.target.value)
+                  },
+                    h("option", { value: "" }, "取得人格を選択…"),
+                    initialPersonaOptions.map((option) => h("option", { key: option.value, value: option.value }, option.label))
+                  ),
+                  h(Button, { size: "sm", variant: "secondary", icon: "plus", disabled: !ticketPersonaPick, onClick: addResultDraftPersona }, "人格を追加")
+                ),
+                (ticketDraft.personaAcquisitions || []).length > 0
+                  ? h("div", { className: "ledger-reward-item-list" }, ticketDraft.personaAcquisitions.map((entry) => h("div", { key: entry.mode + ":" + entry.no, className: "ledger-reward-item-chip" },
+                      h("span", null, entry.name || (entry.mode.toUpperCase() + " No." + entry.no)),
+                      h("small", null, entry.mode === "t" ? "特異" : "通常"),
+                      h("button", { type: "button", "aria-label": (entry.name || entry.no) + " の取得記録を外す", onClick: () => removeResultDraftPersona(entry.mode, entry.no) }, "×")
+                    )))
+                  : h("p", { className: "ledger-empty-note" }, "取得人格はまだ登録されていません。初期作成の最初の人格は上の欄から記録できます。"),
+                h("div", { className: "ledger-reward-item-head" },
+                  h("span", { className: "t-label" }, "報酬アイテム"),
+                  h("span", { className: "ledger-note" }, "硝子の破片や通常アイテムを登録できます。報酬分は所持数へ加算し、過去履歴の数量を減らしても消費済みの在庫は自動で戻しません。")
+                ),
+                h("div", { className: "ledger-reward-item-controls" },
+                  h("select", {
+                    className: "select", "aria-label": "編集する報酬アイテムのカタログ選択",
+                    value: ticketRewardItemId,
+                    onChange: (event) => { setTicketRewardItemId(event.target.value); setTicketRewardItemName(""); }
+                  },
+                    h("option", { value: "" }, "カタログから選択…"),
+                    rewardItemCatalog.map((item) => h("option", { key: item.id, value: item.id }, item.name + (item.category ? " · " + item.category : "")))
+                  ),
+                  h("input", {
+                    className: "ledger-input", "aria-label": "編集するカスタム報酬アイテム名",
+                    placeholder: "またはカタログにない品名",
+                    value: ticketRewardItemName,
+                    onChange: (event) => { setTicketRewardItemName(event.target.value); setTicketRewardItemId(""); }
+                  }),
+                  h("input", {
+                    className: "ledger-input ledger-input--num", type: "number", min: 1, step: 1,
+                    "aria-label": "編集する報酬アイテム数量", value: ticketRewardItemQty,
+                    onChange: (event) => setTicketRewardItemQty(event.target.value)
+                  }),
+                  h(Button, { size: "sm", variant: "secondary", icon: "plus", onClick: () => {
+                    const rewardItems = appendRewardItemDraft(ticketDraft.rewardItems || [], ticketRewardItemId, ticketRewardItemName, ticketRewardItemQty);
+                    if (rewardItems !== ticketDraft.rewardItems) {
+                      updateResultDraftField("rewardItems", rewardItems);
+                      setTicketRewardItemId(""); setTicketRewardItemName(""); setTicketRewardItemQty("1");
+                    }
+                  } }, "追加")
+                ),
+                (ticketDraft.rewardItems || []).length > 0
+                  ? h("div", { className: "ledger-reward-item-list" }, ticketDraft.rewardItems.map((item, index) => h("div", { key: item.itemId || item.customName, className: "ledger-reward-item-chip" },
+                      h("span", null, item.itemName || item.customName), h("b", null, "×" + item.quantity),
+                      h("button", { type: "button", "aria-label": (item.itemName || item.customName) + " を報酬から外す", onClick: () => updateResultDraftField("rewardItems", removeRewardItemDraft(ticketDraft.rewardItems || [], index)) }, "×")
+                    )))
+                  : h("p", { className: "ledger-empty-note" }, "報酬アイテムは未記録です。")
+              )
+            ),
               !isEditing && h("div", { className: "ledger-card-income" },
                 h("span", { className: "ledger-pair" },
                   bigNum(result.income?.lp || 0, "lp"),
@@ -5525,7 +5766,7 @@ h(Card, { className: "ledger-card" },
               ),
               !isEditing && h("details", { className: "ledger-result-details" },
                 h("summary", { className: "ledger-result-summary" },
-                  "明細 " + rows.length + "件 · 消耗品 " + consumedItems.length + "種 · チケット " + ticketCount + "枚"
+                  "明細 " + rows.length + "件 · 報酬品 " + (result.rewardItems || []).length + "種 · 取得人格 " + (result.personaAcquisitions || []).length + "名 · 消耗品 " + consumedItems.length + "種 · チケット " + ticketCount + "枚"
                 ),
                 h("div", { className: "ledger-result-detail-content stack-2" },
                   h("div", { className: "ledger-detail-group" },
@@ -5533,6 +5774,14 @@ h(Card, { className: "ledger-card" },
                     ticketChips.length > 0
                       ? ticketChips.map((ticket) => h("span", { key: ticket.key, className: "gacha-held-ticket" }, ticket.label + " ×" + ticket.count))
                       : h("span", { className: "ledger-note" }, "未記録")
+                  ),
+                  Array.isArray(result.rewardItems) && result.rewardItems.length > 0 && h("div", { className: "ledger-detail-group ledger-card-reward-items" },
+                    h("span", { className: "t-label" }, "報酬アイテム"),
+                    result.rewardItems.map((item) => h("span", { key: item.itemId, className: "gacha-held-ticket" }, String(item.itemName || item.itemId) + " ×" + String(item.quantity || 1)))
+                  ),
+                  Array.isArray(result.personaAcquisitions) && result.personaAcquisitions.length > 0 && h("div", { className: "ledger-detail-group ledger-card-acquisitions" },
+                    h("span", { className: "t-label" }, "取得人格"),
+                    result.personaAcquisitions.map((entry) => h("span", { key: entry.mode + ":" + entry.no, className: "gacha-held-ticket" }, String(entry.name || (entry.mode.toUpperCase() + " No." + entry.no)) + (entry.mode === "t" ? "（特異）" : "（通常）")))
                   ),
                   consumedItems.length > 0 && h("div", { className: "ledger-detail-group ledger-card-consumed" },
                     h("span", { className: "t-label" }, "消耗したアイテム"),

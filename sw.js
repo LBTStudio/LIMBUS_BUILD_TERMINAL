@@ -21,12 +21,12 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-1bd04b3e";
+const CACHE_NAME = "lbt-ede1c435";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
   "mobile-preview.html",
-  "assets/b-type-ui-parity.css?v=f018a693",
+  "assets/b-type-ui-parity.css?v=49b4234a",
   "assets/b-type-workbench.css?v=ecc1483b",
   "assets/cloud-backup.css?v=61399e91",
   "assets/design-system.css?v=910f9485",
@@ -58,7 +58,7 @@ const PRECACHE_URLS = [
   "js/InlineEffectGlossary.js?v=81967fa2",
   "js/ItemCodex.js?v=7aafec02",
   "js/LivePreview.js?v=11c5a31f",
-  "js/OtherSections.js?v=3df73155",
+  "js/OtherSections.js?v=d2b3a6cf",
   "js/PersonaCodex.js?v=68e7b467",
   "js/SkillDeck.js?v=a93f6cb8",
   "js/access-counter.js?v=a54cf475",
@@ -86,7 +86,7 @@ const PRECACHE_URLS = [
   "js/roster-resolver.js?v=01dce5a2",
   "js/share-link.js?v=e11a0161",
   "js/share-viewer.js?v=71f2da96",
-  "js/state.js?v=98ee99d7",
+  "js/state.js?v=e47b7461",
   "js/ui.js?v=6be4646a",
   "vendor/react-dom.min.js?v=35f4f974",
   "vendor/react.min.js?v=d949f1c3",
