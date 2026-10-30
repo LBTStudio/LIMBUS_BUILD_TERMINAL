@@ -1,7 +1,7 @@
 /* LIMBUS BUILD TERMINAL — inline reference glossary.
    PC: delayed hover / keyboard focus. Touch: tap or long-press.
-   A tooltip may resolve only to the shared rule glossary or the currently displayed owner.
-   Other personas' passives and definitions are never cross-referenced. */
+   Normal text resolves only to the shared glossary or the current owner.
+   Exact bracketed citations may resolve a uniquely identified other persona definition. */
 (function (global) {
   "use strict";
   const OFFICIAL_TERMS = {
@@ -94,7 +94,7 @@
     "不名誉": ["バフ", "特定抽出パック第一弾 p.203", "速度ダイスと呼吸獲得量を変更し、対象とのSAN差に応じてダメージ量を強化する。"],
     "運命": ["バフ", "特定抽出パック第一弾 p.203", "速度ダイスを変更し、対象とのSAN差に応じてダメージ量を強化する。"],
     "生体材料": ["バフ／蓄積資源", "特定抽出パック第一弾 p.203", "数値に応じてスキル威力と嫉妬・打撃スキルのダメージ量を強化する。充電として扱われる。"],
-    "作品名：ティビア": ["バフ", "特定抽出パック第一弾 p.204", "電圧として扱われ、数値に応じてスキル威力・出血対象へのダメージ・出血付与を強化する。"],
+    "ティビア": ["バフ", "特定抽出パック第一弾 p.204", "電圧として扱われ、数値に応じてスキル威力・出血対象へのダメージ・出血付与を強化する。"],
     "戦闘感覚": ["バフ", "特定抽出パック第一弾 p.204", "速度値+2。敵への基本スキルで付与する火傷量と特定スキルのダメージ量を強化する。"],
     "夜明けから夕焼けへ": ["バフ", "特定抽出パック第一弾 p.204", "R開始時にSANを回復し、特定E.G.O効果によるSAN低下を抑える。"],
     "正午": ["バフ", "特定抽出パック第一弾 p.204", "速度値+2。基本攻撃スキル的中時に振動を付与し、特定条件で振動爆発を行う。"],
