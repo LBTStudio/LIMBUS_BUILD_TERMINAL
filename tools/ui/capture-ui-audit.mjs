@@ -920,9 +920,14 @@ async function captureProfile(browser, mode) {
       /* 所持済みは候補に出ず、選択した人格も同一リザルト内の候補から消える。 */
       const ownedProbe=initialCandidate.name||String(initialCandidate.no);
       await rewardPersonaSearch.fill(ownedProbe);
-      if(await rewardPersonaSection.locator(".ledger-persona-search-results .ledger-persona-search-result").count()!==0) {
-        throw new Error("所持済み人格が新規報酬候補に表示されています");
-      }
+      const ownedCandidateVisible = await rewardPersonaSection.locator(".ledger-persona-search-results .ledger-persona-search-result").evaluateAll((buttons, candidate) =>
+        buttons.some((button) => {
+          const name = button.querySelector("span")?.textContent?.trim() || "";
+          const detail = button.querySelector("small")?.textContent || "";
+          const kind = candidate.mode === "t" ? "特異" : "通常";
+          return name === candidate.name && detail.includes(kind) && detail.includes("No." + candidate.no);
+        }), initialCandidate);
+      if(ownedCandidateVisible) throw new Error("所持済み人格が新規報酬候補に表示されています");
       await rewardPersonaSearch.fill(rewardCandidate.name);
       const rewardPersonaOption=rewardPersonaSection.locator(".ledger-persona-search-results .ledger-persona-search-result")
         .filter({hasText:rewardCandidate.name}).first();
