@@ -232,7 +232,7 @@ test("新規リザルトの報酬人格は取得証跡へ保存し、未所持�
   const start = otherSections.indexOf("const addResult =");
   const end = otherSections.indexOf("/* 硝子窓の読み込み結果", start);
   const block = otherSections.slice(start, end);
-  assert.match(block, /personaAcquisitions:\s*personaAcquisitions/);
+  assert.match(block, /^\s*personaAcquisitions\s*$/m, "ADD_RESULT receives the canonical acquisition array via object shorthand");
   assert.match(block, /type:\s*"ADD_ROSTER"/);
   assert.match(block, /purchase:\s*false/);
   assert.match(block, /skipInitialTicketConsumption:\s*true/);
