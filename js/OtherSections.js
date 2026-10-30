@@ -3342,7 +3342,7 @@ function getRosterLibraryEquipBlockReason(item, state, activeEnhancements) {
   return equippedSupports.length >= maxSupports ? "スロット上限（" + maxSupports + "枠）です" : null;
 }
 
-const RosterSection = ({ state, dispatch }) => {
+const RosterSection = ({ state, dispatch, onOpenImportRouter, onOpenUtilities }) => {
   const h = React.createElement;
   /* タブは topbar の残高チップからも開くため state.ui に置く。local state だと外から遷移できない。 */
   /* 記録はリザルト確認が最頻の用途なので初期タブも並びもリザルトを先頭にする。 */
@@ -3646,7 +3646,73 @@ if (typeof window !== "undefined") window.LBT_libraryTabLabel = libraryTabLabel;
   /* ヘッダ（タブ帯）は全タブで描画する。ここで早戻りするとタブごと消えて
      他タブへ移る手段が無くなるため、出し分けるのは中身だけにする。 */
   const onLibrary = !["ledger", "inventory"].includes(libraryTab);
-  return h("div", { className: "stack-3" },
+  const openRecordHome = () => setLibraryTab("home");
+  const openRecordTab = (tab) => {
+    setLibraryTab(tab);
+    if (tab === "ledger") dispatch({ type: "SET_UI", ui: { currentSection: "roster", libraryTab: tab } });
+  };
+  const recordHome = libraryTab === "home";
+  const recordHomeView = h("section", { className: "btype-record-hub", "aria-label": "記録・所持品の入口" },
+    h("header", { className: "btype-page-heading" },
+      h("div", null,
+        h("div", { className: "btype-eyebrow" }, "RECORD / LIBRARY"),
+        h("h1", null, "記録・所持品"),
+        h("p", null, "「所持品の管理」と「セッション収支」をそれぞれ選びます。")
+      ),
+      h("button", { type: "button", className: "primary", onClick: onOpenImportRouter }, "取り込みを開始")
+    ),
+    h("div", { className: "btype-record-card-grid" },
+      h("button", {
+        type: "button", className: "btype-record-task-card",
+        onClick: () => openRecordTab("personas")
+      },
+        h("span", { className: "btype-record-symbol", "aria-hidden": true }, "▣"),
+        h("strong", null, "所持ライブラリ"),
+        h("span", null, "人格・E.G.O・保存済みビルド"),
+        h("span", { className: "btype-record-chevron", "aria-hidden": true }, "›")
+      ),
+      h("button", {
+        type: "button", className: "btype-record-task-card",
+        onClick: () => openRecordTab("ledger")
+      },
+        h("span", { className: "btype-record-symbol", "aria-hidden": true }, "◷"),
+        h("strong", null, "リザルト／収支"),
+        h("span", null, "シナリオごとの報酬と購入"),
+        h("span", { className: "btype-record-chevron", "aria-hidden": true }, "›")
+      ),
+      h("button", {
+        type: "button", className: "btype-record-task-card",
+        onClick: () => dispatch({ type: "SET_UI", ui: { currentSection: "roster", libraryTab: "ledger", recordImportTarget: "text" } })
+      },
+        h("span", { className: "btype-record-symbol", "aria-hidden": true }, "⇩"),
+        h("strong", null, "テキスト取り込み"),
+        h("span", null, "結果を確認してから反映"),
+        h("span", { className: "btype-record-chevron", "aria-hidden": true }, "›")
+      )
+    ),
+    h("div", { className: "btype-record-shortcuts" },
+      h("button", { type: "button", className: "btype-task-row", onClick: () => dispatch({ type: "SET_UI", ui: { currentSection: "shop", shopView: "catalog" } }) },
+        h("span", { className: "btype-task-glyph", "aria-hidden": true }, "◇"),
+        h("span", null, h("strong", null, "ショップ一覧を開く"), h("small", null, "未所持の人格・E.G.O・サポート等を探す")),
+        h("span", { className: "btype-task-chevron", "aria-hidden": true }, "›")
+      ),
+      h("button", { type: "button", className: "btype-task-row", onClick: () => dispatch({ type: "SET_UI", ui: { currentSection: "settings", settingsView: "detail" } }) },
+        h("span", { className: "btype-task-glyph", "aria-hidden": true }, "⚙"),
+        h("span", null, h("strong", null, "ステータス一覧・編集・出力順"), h("small", null, "初期値、上限、出力位置、計算式")),
+        h("span", { className: "btype-task-chevron", "aria-hidden": true }, "›")
+      ),
+      h("button", { type: "button", className: "btype-task-row", onClick: onOpenUtilities },
+        h("span", { className: "btype-task-glyph", "aria-hidden": true }, "⇧"),
+        h("span", null, h("strong", null, "保存・読み込み・共有"), h("small", null, "ファイル種別を選んで操作")),
+        h("span", { className: "btype-task-chevron", "aria-hidden": true }, "›")
+      )
+    )
+  );
+  const detailView = h(React.Fragment, null,
+    h("div", { className: "btype-back-row" },
+      h("button", { type: "button", className: "btype-back-link", onClick: openRecordHome }, "← 記録・所持品へ戻る")
+    ),
+    return h("div", { className: "stack-3" },
     h(Card, { className: "record-tabbar" + (onLibrary ? "" : " is-bodyless") },
       h("div", { className: "card-header owned-library-bar", style: { alignItems: "center", flexWrap: "wrap", gap: "var(--s-2)" } }, h("span", { className: "t-label" }, "CHARACTER RECORD / 記録"),       h("div", { className: "segmented", role: "tablist", "aria-label": "記録セクションの種別", style: { marginLeft: "auto" } },
         h("button", { type: "button", role: "tab", "aria-selected": libraryTab === "ledger", className: libraryTab === "ledger" ? "is-active" : "", onClick: () => setLibraryTab("ledger") }, "リザルト"),
@@ -3691,6 +3757,8 @@ if (typeof window !== "undefined") window.LBT_libraryTabLabel = libraryTabLabel;
     !onLibrary && libraryTab === "ledger" && h(LedgerPanel, { state, dispatch }),
     !onLibrary && libraryTab === "inventory" && h(InventoryPanel, { state, dispatch })
   );
+  );
+  return recordHome ? recordHomeView : detailView;
 };
 /* 所持アイテムの総覧。
 
