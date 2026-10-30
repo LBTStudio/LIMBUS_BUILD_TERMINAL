@@ -888,11 +888,11 @@ async function captureProfile(browser, mode) {
       await snap("ledger-reward-item-edit-draft","既存リザルトへ標準カタログ品を追加する編集画面");
       await click(rewardEditorCard.getByRole("button",{name:name+" の変更を保存",exact:true}));
       await page.waitForTimeout(450);
-      const editCheck=await page.evaluate((name,prosthesisId)=>{
+      const editCheck=await page.evaluate(({name,prosthesisId})=>{
         const saved=window.LBT_accounts?.loadActive?.()||{};
         const record=(saved.results||[]).find((result)=>result.name===name);
         return {rewardItems:record?.rewardItems||[],quantity:saved.inventory?.find((item)=>item.itemId===prosthesisId)?.quantity||0};
-      },name,prosthesisId);
+      },{name,prosthesisId});
       if(!editCheck.rewardItems.some((item)=>item.itemId===prosthesisId)||editCheck.quantity!==1) throw new Error("既存リザルト編集で標準アイテム報酬が在庫へ反映されません: "+JSON.stringify(editCheck));
       await snap("ledger-reward-item-edit-saved","既存リザルトへの標準アイテム報酬の反映後");
     });
