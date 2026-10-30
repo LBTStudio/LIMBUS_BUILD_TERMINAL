@@ -89,11 +89,15 @@ const ItemCodex = ({ state, dispatch }) => {
   };
   const addItem = () => {
     if (!selected) return;
-    const ledgerLinked = selected.ledgerResource === "shards";
     if (!canAddSelected) {
-      toast(ledgerLinked
-        ? "自我の欠片は1個2LPです。LP残高が不足しています"
-        : `「${selected.name}」は所持上限（×${selectedMaxOwned}）です`, "assertive");
+      if (selected?.ledgerResource === "shards") {
+        toast("自我の欠片は1個2LPです。LP残高が不足しています", "assertive");
+      } else if (selectedAffordable === false) {
+        const affordability = window.LBT_purchaseAffordability?.(state, selectedAddCost);
+        toast(affordability?.reason || `「${selected.name}」の購入に必要な残高が不足しています`, "assertive");
+      } else {
+        toast(`「${selected.name}」は所持上限（×${selectedMaxOwned}）です`, "assertive");
+      }
       return;
     }
     /* ADD_ITEM は価格付き特殊資源も含め、購入可否・通帳記録・在庫反映を一括処理する。
@@ -208,6 +212,7 @@ const ItemCodex = ({ state, dispatch }) => {
           h("label", { className: "item-output-toggle" }, h("input", { type: "checkbox", checked: selectedEntry.memo !== false, onChange: (event) => patchEntry({ memo: event.target.checked }) }), h("span", null, "MEMOに表示")),
           h("label", { className: "item-output-toggle" }, h("input", { type: "checkbox", checked: selectedEntry.palette !== false, onChange: (event) => patchEntry({ palette: event.target.checked }) }), h("span", null, "PALETTEへ反映")),
           h("div", { className: "item-consume-controls" },
+            h("span", { className: "item-consume-target", role: "status" }, currentResult ? `消費記録先: ${currentResult.name}` : "リザルト未登録のため消費できません"),
             h("label", null, "消費する数",
               h("input", {
                 type: "number", min: 1, max: Number(selectedEntry.quantity) || 1, step: 1,
