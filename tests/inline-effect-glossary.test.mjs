@@ -411,9 +411,20 @@ test("特定抽出パック第一弾の追加バフ・デバフ・蓄積要素�
     const pieces = loadGlossary().tokenize("この効果は" + term + "を得る", db, "人格スキル:テスト人格");
     assert.ok(pieces.some((piece) => piece.term === term), term + " resolves without brackets");
   }
-  for (const page of [196, 205, 206, 207, 211, 212, 216, 217]) {
-    assert.ok(packCorpus.includes("===== PAGE " + page), "source corpus contains page " + page);
-  }
+  const pageText = (page) => {
+    const marker = "===== PAGE " + page;
+    const start = packCorpus.indexOf(marker);
+    if (start < 0) return "";
+    const next = packCorpus.indexOf("===== PAGE ", start + marker.length);
+    return packCorpus.slice(start, next < 0 ? packCorpus.length : next);
+  };
+  for (const [term, page] of [
+    ["緋色の蛾", 196], ["懺悔", 198], ["予知眼", 203], ["底力", 205],
+    ["針", 205], ["恐水病", 205], ["残香", 206], ["胞子", 207],
+    ["電荷針", 207], ["矢-死", 211], ["組札-松に鶴", 211],
+    ["爆発する感情", 212], ["過充電", 212], ["弾丸-孤独", 216],
+    ["弾丸-胞子弾", 216], ["摘出", 217], ["衝撃広域", 217]
+  ]) assert.ok(pageText(page).includes(term), term + " is present in its cited extraction page");
 });
 
 test("他人格固有語は完全一致の角括弧引用だけを一意に解決し、部分一致と曖昧な同名参照は拒否する", () => {
