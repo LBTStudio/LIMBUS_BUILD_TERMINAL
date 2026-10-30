@@ -4165,7 +4165,10 @@ const LedgerPanel = ({ state, dispatch }) => {
       .map((item) => [String(item.id), item])).values()]
       .sort((a, b) => String(a.name).localeCompare(String(b.name), "ja"));
   }, [state.customItems]);
-  const [newResult, setNewResult] = React.useState({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [] });
+  const [newResult, setNewResult] = React.useState({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [], personaAcquisitions: [] });
+  const [newResultPersonaQuery, setNewResultPersonaQuery] = React.useState("");
+  const [ticketPersonaQuery, setTicketPersonaQuery] = React.useState("");
+  const [initialPersonaQuery, setInitialPersonaQuery] = React.useState("");
   const [newRewardItemId, setNewRewardItemId] = React.useState("");
   const [newRewardItemName, setNewRewardItemName] = React.useState("");
   const [newRewardItemQty, setNewRewardItemQty] = React.useState("1");
@@ -4175,7 +4178,34 @@ const LedgerPanel = ({ state, dispatch }) => {
   const initialPersonaOptions = [
     ...(window.DB?.normal_personas || []).map((row) => ({ mode: "n", no: String(row.no ?? ""), name: String(row.name || "") })),
     ...(window.DB?.tokui_personas || []).map((row) => ({ mode: "t", no: String(row.no ?? ""), name: String(row.name || "") }))
-  ].filter((row) => row.no && row.name).map((row) => ({ ...row, value: row.mode + ":" + row.no, label: row.name + "（" + (row.mode === "t" ? "特異" : "通常") + "）" }));
+  ].filter((row) => row.no && row.name)
+    .map((row) => ({ ...row, value: row.mode + ":" + row.no, label: row.name + "（" + (row.mode === "t" ? "特異" : "通常") + "）" }))
+    .sort((a, b) => a.name.localeCompare(b.name, "ja") || a.mode.localeCompare(b.mode) || a.no.localeCompare(b.no, "ja"));
+  const normalizePersonaSearchText = (value) => String(value || "").normalize("NFKC")
+    .replace(/[\s\u3000・･]/g, "").toLocaleLowerCase("ja-JP");
+  /* 全件プルダウンは作らず、入力文字列でDBを照合して候補を最大8件だけ表示する。 */
+  const getPersonaSearchMatches = (query, selectedEntries, excludedEntries = []) => {
+    const needle = normalizePersonaSearchText(query);
+    if (!needle) return [];
+    const selectedKeys = new Set(
+      [...(Array.isArray(selectedEntries) ? selectedEntries : []), ...(Array.isArray(excludedEntries) ? excludedEntries : [])]
+        .map((entry) => entry && entry.mode && entry.no ? entry.mode + ":" + String(entry.no) : "")
+        .filter(Boolean)
+    );
+    return initialPersonaOptions.filter((option) => {
+      if (selectedKeys.has(option.value)) return false;
+      const kind = option.mode === "t" ? "特異 特異人格" : "通常 通常人格";
+      const searchable = normalizePersonaSearchText([option.name, option.no, "No." + option.no, kind].join(" "));
+      return searchable.includes(needle);
+    }).slice(0, 8);
+  };
+  /* 新規報酬は現在未所持の人格だけが候補。過去リザルトの監査・追記用検索は
+     所持済みも表示できるよう、呼び出し側で除外リストを渡さない。 */
+  const newResultPersonaMatches = getPersonaSearchMatches(
+    newResultPersonaQuery,
+    newResult.personaAcquisitions || [],
+    state.roster?.personas || []
+  );
   /* 既存カードで「記録 / 修正」を押した対象。カード上へ直接並べるのは
      17パックの項目が毎回開くことになるため、記録は専用画面で行う。 */
   const [ticketPanel, setTicketPanel] = React.useState(null);
@@ -4184,7 +4214,6 @@ const LedgerPanel = ({ state, dispatch }) => {
   const [ticketRewardItemId, setTicketRewardItemId] = React.useState("");
   const [ticketRewardItemName, setTicketRewardItemName] = React.useState("");
   const [ticketRewardItemQty, setTicketRewardItemQty] = React.useState("1");
-  const [ticketPersonaPick, setTicketPersonaPick] = React.useState("");
   /* 手動の支出・消耗。DBに価格が無いもの、戦闘で消えたものを記録する。 */
   const [newEntry, setNewEntry] = React.useState({ name: "", kind: "expense", lp: "", shards: "" });
   /* 所持人格リストの一括取込用の状態。 */
@@ -4374,7 +4403,8 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
       personaAcquisitions: Array.isArray(result.personaAcquisitions) ? result.personaAcquisitions.map((item) => ({ ...item })) : [],
       initialPersona: { method: ["selected", "random"].includes(result.initialPersona?.method) ? result.initialPersona.method : "unknown", mode: result.initialPersona?.mode === "t" || result.initialPersona?.mode === "n" ? result.initialPersona.mode : "", no: String(result.initialPersona?.no ?? ""), name: String(result.initialPersona?.name || "") }
     });
-    setTicketPersonaPick("");
+    setTicketPersonaQuery("");
+    setInitialPersonaQuery("");
     setTicketRewardItemId("");
     setTicketRewardItemName("");
     setTicketRewardItemQty("1");
@@ -4392,8 +4422,7 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     } : draft);
   };
   const updateResultDraftInitialPersona = (patch) => setTicketDraft((draft) => draft ? { ...draft, initialPersona: { ...(draft.initialPersona || {}), ...patch } } : draft);
-  const addResultDraftPersona = () => {
-    const option = initialPersonaOptions.find((candidate) => candidate.value === ticketPersonaPick);
+  const addResultDraftPersona = (option) => {
     if (!ticketDraft || !option) return;
     setTicketDraft((draft) => {
       if (!draft) return draft;
@@ -4401,7 +4430,20 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
       if (current.some((entry) => entry.mode === option.mode && String(entry.no) === String(option.no))) return draft;
       return { ...draft, personaAcquisitions: [...current, { mode: option.mode, no: option.no, name: option.name, source: "manual" }] };
     });
-    setTicketPersonaPick("");
+    setTicketPersonaQuery("");
+  };
+  const addNewResultPersona = (option) => {
+    if (!option) return;
+    const alreadyOwned = (state.roster?.personas || []).some((entry) =>
+      entry.mode === option.mode && String(entry.no) === String(option.no)
+    );
+    if (alreadyOwned) return;
+    setNewResult((draft) => {
+      const current = Array.isArray(draft.personaAcquisitions) ? draft.personaAcquisitions : [];
+      if (current.some((entry) => entry.mode === option.mode && String(entry.no) === String(option.no))) return draft;
+      return { ...draft, personaAcquisitions: [...current, { mode: option.mode, no: option.no, name: option.name, source: "reward" }] };
+    });
+    setNewResultPersonaQuery("");
   };
   const removeResultDraftPersona = (mode, no) => setTicketDraft((draft) => draft ? {
     ...draft, personaAcquisitions: (draft.personaAcquisitions || []).filter((entry) => !(entry.mode === mode && String(entry.no) === String(no)))
@@ -4463,6 +4505,11 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
       String(entry?.resultId || "") === String(result.id || "")
       && (Number(entry?.tickets?.persona) || 0) > 0
     );
+    /* 「指定購入」なら、同じリザルトの別用途のチケット支出を初期分の消費と誤認しない。
+       ランダム抽出（または入手方法不明）で既に人格チケット支出が記録済みの場合だけ、
+       その支出を初期人格取得分として二重に消費しない。 */
+    const recordedPersonaTicketSpendCoversInitial =
+      nextInitialPersona.method !== "selected" && hasRecordedPersonaTicketSpend;
     for (const acquisition of nextAcquisitions) {
       const key = acquisition.mode + ":" + String(acquisition.no);
       if (!["n", "t"].includes(acquisition.mode) || !acquisition.no || existingPersonaKeys.has(key)) continue;
@@ -4471,7 +4518,7 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
         && String(nextInitialPersona.no) === String(acquisition.no);
       dispatch({
         type: "ADD_ROSTER", mode: acquisition.mode, no: acquisition.no,
-        purchase: false, skipInitialTicketConsumption: !isRecordedInitialPersona || hasRecordedPersonaTicketSpend,
+        purchase: false, skipInitialTicketConsumption: !isRecordedInitialPersona || recordedPersonaTicketSpendCoversInitial,
         resultId: result.id, via: [name]
       });
     }
@@ -4623,6 +4670,14 @@ const readDragId = (event) => {
     const name = String(newResult.name || "").trim();
     if (!name) return;
     const rewardItems = materializeRewardItems(newResult.rewardItems, name);
+    const personaAcquisitions = [];
+    const seenPersonaKeys = new Set();
+    for (const entry of Array.isArray(newResult.personaAcquisitions) ? newResult.personaAcquisitions : []) {
+      const option = initialPersonaOptions.find((candidate) => candidate.mode === entry?.mode && String(candidate.no) === String(entry?.no));
+      if (!option || seenPersonaKeys.has(option.value)) continue;
+      seenPersonaKeys.add(option.value);
+      personaAcquisitions.push({ mode: option.mode, no: option.no, name: option.name, source: "reward" });
+    }
     dispatch({
       type: "ADD_RESULT",
       name,
@@ -4632,9 +4687,26 @@ const readDragId = (event) => {
         shards: Number(newResult.shards) || 0,
         tickets: newResult.tickets || { persona: 0, ego: 0, choice: 0, pack: {} }
       },
-      rewardItems
+      rewardItems,
+      personaAcquisitions
     });
-    setNewResult({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [] });
+    /* 報酬人格は購入ではない。新規リザルトへ取得証跡を保存した後、未所持分だけ所持へ追加する。 */
+    const existingPersonaKeys = new Set((state.roster?.personas || []).map((entry) => entry.mode + ":" + String(entry.no)));
+    for (const acquisition of personaAcquisitions) {
+      const key = acquisition.mode + ":" + String(acquisition.no);
+      if (existingPersonaKeys.has(key)) continue;
+      existingPersonaKeys.add(key);
+      dispatch({
+        type: "ADD_ROSTER",
+        mode: acquisition.mode,
+        no: acquisition.no,
+        purchase: false,
+        skipInitialTicketConsumption: true,
+        via: [name]
+      });
+    }
+    setNewResult({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [], personaAcquisitions: [] });
+    setNewResultPersonaQuery("");
     setNewRewardItemId("");
     setNewRewardItemName("");
     setNewRewardItemQty("1");
@@ -5188,6 +5260,43 @@ const importHeldPersonas = () => {
           setPackPick: setNewResultPack,
           onChange: (tickets) => setNewResult((p) => ({ ...p, tickets }))
         }),
+        h("section", { className: "ledger-reward-item-editor ledger-persona-reward-editor", "aria-label": "報酬人格" },
+          h("div", { className: "ledger-reward-item-head" },
+            h("span", { className: "t-label" }, "報酬人格"),
+            h("span", { className: "ledger-note" }, "人格DBを名前またはNo.で検索して追加します。複数の人格を登録できます。")
+          ),
+          h("div", { className: "ledger-persona-search" },
+            h("input", {
+              className: "ledger-input", type: "search", autoComplete: "off", maxLength: 80,
+              "aria-label": "報酬人格をDBから検索",
+              placeholder: "人格名またはNo.で検索…",
+              value: newResultPersonaQuery,
+              onChange: (event) => setNewResultPersonaQuery(event.target.value)
+            }),
+            newResultPersonaMatches.length > 0
+              ? h("div", { className: "ledger-persona-search-results", role: "listbox", "aria-label": "報酬人格の検索候補", "aria-live": "polite" },
+                  newResultPersonaMatches.map((option) => h("button", {
+                    key: option.value, type: "button", role: "option", className: "ledger-persona-search-result",
+                    "aria-label": option.name + "（" + (option.mode === "t" ? "特異" : "通常") + "）を報酬人格に追加",
+                    onClick: () => addNewResultPersona(option)
+                  },
+                    h("span", null, option.name),
+                    h("small", null, (option.mode === "t" ? "特異" : "通常") + " · No." + option.no),
+                    h("b", null, "追加")
+                  ))
+                )
+              : h("p", { className: "ledger-empty-note", "aria-live": "polite" },
+                  newResultPersonaQuery.trim() ? "DB内に一致する人格がありません。表記を変えて検索してください。" : "人格名またはNo.を入力すると候補が表示されます（最大8件）。"
+                )
+          ),
+          (newResult.personaAcquisitions || []).length > 0
+            ? h("div", { className: "ledger-reward-item-list" }, newResult.personaAcquisitions.map((entry) => h("div", { key: entry.mode + ":" + entry.no, className: "ledger-reward-item-chip" },
+                h("span", null, entry.name || (entry.mode.toUpperCase() + " No." + entry.no)),
+                h("small", null, entry.mode === "t" ? "特異" : "通常"),
+                h("button", { type: "button", "aria-label": (entry.name || entry.no) + " を報酬人格から外す", onClick: () => setNewResult((current) => ({ ...current, personaAcquisitions: (current.personaAcquisitions || []).filter((item) => !(item.mode === entry.mode && String(item.no) === String(entry.no))) })) }, "×")
+              )))
+            : h("p", { className: "ledger-empty-note" }, "報酬人格はまだ登録されていません。")
+        ),
         h("section", { className: "ledger-reward-item-editor", "aria-label": "報酬アイテム" },
           h("div", { className: "ledger-reward-item-head" },
             h("span", { className: "t-label" }, "報酬アイテム"),
@@ -5671,6 +5780,8 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
         const initialPersonaDraft = ticketDraft?.initialPersona || { method: "unknown", mode: "", no: "", name: "" };
         const initialPersonaValue = initialPersonaDraft.mode && initialPersonaDraft.no ? initialPersonaDraft.mode + ":" + initialPersonaDraft.no : "";
         const initialPersonaOptionExists = initialPersonaOptions.some((option) => option.value === initialPersonaValue);
+        const initialPersonaMatches = getPersonaSearchMatches(initialPersonaQuery, []);
+        const ticketPersonaMatches = getPersonaSearchMatches(ticketPersonaQuery, ticketDraft?.personaAcquisitions || []);
         const rows = byResult(result.id);
         const spent = sumOf(rows);
         const consumedItems = Array.isArray(result.consumedItems) ? result.consumedItems : [];
@@ -5816,14 +5927,39 @@ h(Card, { className: "ledger-card" },
                   ),
                   h("label", { className: "ledger-ticket-field" },
                     h("span", null, "最初に得た人格"),
-                    h("select", { className: "select", value: initialPersonaValue, "aria-label": "最初に得た人格", "aria-invalid": initialPersonaDraft.method !== "unknown" && !initialPersonaValue,
-                      onChange: (event) => {
-                        const option = initialPersonaOptions.find((candidate) => candidate.value === event.target.value);
-                        updateResultDraftInitialPersona(option ? { mode: option.mode, no: option.no, name: option.name } : { mode: "", no: "", name: "" });
-                      } },
-                      h("option", { value: "" }, "人格を選択…"),
-                      initialPersonaValue && !initialPersonaOptionExists && h("option", { value: initialPersonaValue }, (initialPersonaDraft.name || ("No." + initialPersonaDraft.no)) + "（DB未一致）"),
-                      initialPersonaOptions.map((option) => h("option", { key: option.value, value: option.value }, option.label))
+                    h("div", { className: "ledger-persona-search" },
+                      h("input", {
+                        className: "ledger-input", type: "search", autoComplete: "off", maxLength: 80,
+                        "aria-label": "最初に得た人格をDBから検索",
+                        "aria-invalid": initialPersonaDraft.method !== "unknown" && !initialPersonaValue,
+                        placeholder: "人格名またはNo.で検索…",
+                        value: initialPersonaQuery,
+                        onChange: (event) => setInitialPersonaQuery(event.target.value)
+                      }),
+                      initialPersonaMatches.length > 0
+                        ? h("div", { className: "ledger-persona-search-results", role: "listbox", "aria-label": "初期人格の検索候補", "aria-live": "polite" },
+                            initialPersonaMatches.map((option) => h("button", {
+                              key: option.value, type: "button", role: "option", className: "ledger-persona-search-result",
+                              onClick: () => {
+                                updateResultDraftInitialPersona({ mode: option.mode, no: option.no, name: option.name });
+                                setInitialPersonaQuery("");
+                              }
+                            },
+                              h("span", null, option.name),
+                              h("small", null, (option.mode === "t" ? "特異" : "通常") + " · No." + option.no),
+                              h("b", null, "選択")
+                            ))
+                          )
+                        : h("p", { className: "ledger-empty-note", "aria-live": "polite" },
+                            initialPersonaQuery.trim() ? "DB内に一致する人格がありません。表記を変えて検索してください。" : "人格名またはNo.を入力して最初の人格を選択します。"
+                          ),
+                      initialPersonaValue && h("div", { className: "ledger-reward-item-list" },
+                        h("div", { className: "ledger-reward-item-chip" },
+                          h("span", null, initialPersonaDraft.name || ("No." + initialPersonaDraft.no)),
+                          h("small", null, initialPersonaOptionExists ? (initialPersonaDraft.mode === "t" ? "特異" : "通常") : "DB未一致"),
+                          h("button", { type: "button", "aria-label": "初期人格の選択を解除", onClick: () => updateResultDraftInitialPersona({ mode: "", no: "", name: "" }) }, "×")
+                        )
+                      )
                     )
                   )
                 ),
@@ -5838,16 +5974,29 @@ h(Card, { className: "ledger-card" },
                   h("span", { className: "t-label" }, "取得人格・報酬アイテム"),
                   h("span", { className: "ledger-note" }, "古いリザルトも複数の取得人格を登録できます。保存すると不足している人格は所持へ追加します。")
                 ),
-                h("div", { className: "ledger-acquisition-controls" },
-                  h("select", {
-                    className: "select", "aria-label": "このリザルトで取得した人格",
-                    value: ticketPersonaPick,
-                    onChange: (event) => setTicketPersonaPick(event.target.value)
-                  },
-                    h("option", { value: "" }, "取得人格を選択…"),
-                    initialPersonaOptions.map((option) => h("option", { key: option.value, value: option.value }, option.label))
-                  ),
-                  h(Button, { size: "sm", variant: "secondary", icon: "plus", disabled: !ticketPersonaPick, onClick: addResultDraftPersona }, "人格を追加")
+                h("div", { className: "ledger-persona-search" },
+                  h("input", {
+                    className: "ledger-input", type: "search", autoComplete: "off", maxLength: 80,
+                    "aria-label": "このリザルトで取得した人格をDBから検索",
+                    placeholder: "人格名またはNo.で検索して追加…",
+                    value: ticketPersonaQuery,
+                    onChange: (event) => setTicketPersonaQuery(event.target.value)
+                  }),
+                  ticketPersonaMatches.length > 0
+                    ? h("div", { className: "ledger-persona-search-results", role: "listbox", "aria-label": "取得人格の検索候補", "aria-live": "polite" },
+                        ticketPersonaMatches.map((option) => h("button", {
+                          key: option.value, type: "button", role: "option", className: "ledger-persona-search-result",
+                          "aria-label": option.name + "（" + (option.mode === "t" ? "特異" : "通常") + "）を取得人格に追加",
+                          onClick: () => addResultDraftPersona(option)
+                        },
+                          h("span", null, option.name),
+                          h("small", null, (option.mode === "t" ? "特異" : "通常") + " · No." + option.no),
+                          h("b", null, "追加")
+                        ))
+                      )
+                    : h("p", { className: "ledger-empty-note", "aria-live": "polite" },
+                        ticketPersonaQuery.trim() ? "DB内に一致する人格がありません。表記を変えて検索してください。" : "人格名またはNo.を入力すると候補が表示されます（最大8件）。"
+                      )
                 ),
                 (ticketDraft.personaAcquisitions || []).length > 0
                   ? h("div", { className: "ledger-reward-item-list" }, ticketDraft.personaAcquisitions.map((entry) => h("div", { key: entry.mode + ":" + entry.no, className: "ledger-reward-item-chip" },

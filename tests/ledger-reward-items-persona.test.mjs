@@ -185,6 +185,18 @@ test("初期人格の保存は同じリザルトに明示されたチケット�
   const remaining = selectedWithoutRecordedUse.results.reduce((sum, result) => sum + (Number(result.income?.tickets?.persona) || 0), 0)
     - selectedWithoutRecordedUse.entries.reduce((sum, entry) => sum + (Number(entry.tickets?.persona) || 0), 0);
   assert.equal(remaining, 1, "既存の使用記録が無い通常の初回取得では初期分だけ1枚消費する");
+
+  const selectedWithExistingTicketUse = reducer(initial, {
+    type: "ADD_ROSTER",
+    mode: "n",
+    no: 3,
+    purchase: false,
+    resultId
+  });
+  const remainingAfterSelected = selectedWithExistingTicketUse.results.reduce((sum, result) => sum + (Number(result.income?.tickets?.persona) || 0), 0)
+    - selectedWithExistingTicketUse.entries.reduce((sum, entry) => sum + (Number(entry.tickets?.persona) || 0), 0);
+  assert.equal(remainingAfterSelected, 0, "同じリザルトに別用途のチケット使用があっても、指定購入の初回人格は初期チケットを別途消費する");
+  assert.equal(selectedWithExistingTicketUse.entries.length, 2, "既存のチケット使用に加え、初期チケットの消費明細を1件だけ追加する");
 });
 
 
@@ -206,20 +218,56 @@ test("初期作成で選択した人格は取得証跡と所持ライブラリ�
   assert.match(saveBlock, /personaAcquisitions:\s*nextAcquisitions/);
   assert.match(saveBlock, /type:\s*"ADD_ROSTER"/);
   assert.match(saveBlock, /hasRecordedPersonaTicketSpend/);
-  assert.match(saveBlock, /skipInitialTicketConsumption:\s*!isRecordedInitialPersona \|\| hasRecordedPersonaTicketSpend/);
+  assert.match(saveBlock, /recordedPersonaTicketSpendCoversInitial\s*=\s*nextInitialPersona\.method !== "selected" && hasRecordedPersonaTicketSpend/);
+  assert.match(saveBlock, /skipInitialTicketConsumption:\s*!isRecordedInitialPersona \|\| recordedPersonaTicketSpendCoversInitial/);
   assert.match(saveBlock, /const isInitial = result\.id === "res-initial"/);
   assert.match(otherSections, /isEditing && h\("details", \{ className: "ledger-history-editor-disclosure"/);
   assert.match(otherSections, /className: "ledger-history-editor stack-2"/);
   assert.match(otherSections, /最初の人格は上の欄から記録できます/);
 });
 
-test("全リザルトの編集画面に複数人格と報酬アイテムの入力欄がある", () => {
-  assert.ok(otherSections.includes('"aria-label": "このリザルトで取得した人格"'));
-  assert.ok(otherSections.includes('"aria-label": "報酬アイテムのカタログ選択"'));
+test("新規・過去リザルトと初期人格はDB検索から追加し、長大なプルダウンを生成しない", () => {
+  assert.ok(otherSections.includes('"aria-label": "報酬人格をDBから検索"'));
+  assert.ok(otherSections.includes('"aria-label": "このリザルトで取得した人格をDBから検索"'));
+  assert.ok(otherSections.includes('"aria-label": "最初に得た人格をDBから検索"'));
+  assert.match(otherSections, /normal_personas[\s\S]*?tokui_personas/);
+  assert.match(otherSections, /getPersonaSearchMatches/);
+  assert.match(otherSections, /slice\(0, 8\)/);
+  assert.match(otherSections, /newResultPersonaMatches = getPersonaSearchMatches\([\s\S]*?state\.roster\?\.personas \|\| \[\]/);
+  assert.match(otherSections, /const alreadyOwned = \(state\.roster\?\.personas \|\| \[\]\)\.some/);
+  assert.match(otherSections, /const ticketPersonaMatches = getPersonaSearchMatches\(ticketPersonaQuery, ticketDraft\?\.personaAcquisitions \|\| \[\]\)/);
+  assert.match(otherSections, /className: "ledger-persona-search-results"/);
+  assert.doesNotMatch(otherSections, /ticketPersonaPick/);
   assert.match(otherSections, /rewardItemCatalog\.map/);
   assert.ok(otherSections.includes(String.raw`replace(/[\s\u3000・･]/g, "")`), "報酬品名の照合は空白・中黒を正規化する");
   assert.match(otherSections, /rewardItems:\s*Array\.isArray\(result\.rewardItems\)/);
   assert.match(otherSections, /personaAcquisitions:\s*Array\.isArray\(result\.personaAcquisitions\)/);
+});
+
+test("新規リザルトの報酬人格は取得証跡へ保存し、未所持分だけ無償で所持へ加える", () => {
+  const start = otherSections.indexOf("const addResult =");
+  const end = otherSections.indexOf("/* 硝子窓の読み込み結果", start);
+  const block = otherSections.slice(start, end);
+  assert.match(block, /^\s*personaAcquisitions\s*$/m, "ADD_RESULT receives the canonical acquisition array via object shorthand");
+  assert.match(block, /type:\s*"ADD_ROSTER"/);
+  assert.match(block, /purchase:\s*false/);
+  assert.match(block, /skipInitialTicketConsumption:\s*true/);
+  assert.match(block, /existingPersonaKeys\.has\(key\)/);
+  assert.match(block, /source: "reward"/);
+});
+test("新規リザルトの報酬人格は取得履歴へ正規化して保存できる", () => {
+  const { reducer } = createReducer();
+  const persona = db.normal_personas[0];
+  const next = reducer(baseState(), {
+    type: "ADD_RESULT",
+    name: "QA人格報酬",
+    personaAcquisitions: [{ mode: "n", no: String(persona.no), name: persona.name, source: "reward" }]
+  });
+  assert.equal(next.results[0].personaAcquisitions.length, 1);
+  assert.deepEqual(
+    [next.results[0].personaAcquisitions[0].mode, next.results[0].personaAcquisitions[0].no, next.results[0].personaAcquisitions[0].source],
+    ["n", String(persona.no), "reward"]
+  );
 });
 
 
