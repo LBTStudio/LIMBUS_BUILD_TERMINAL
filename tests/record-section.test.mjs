@@ -203,8 +203,8 @@ test("リザルトはカード内で直接編集し、下部パネルと移動�
     "編集欄はカード内の内容を置き換え、下に別パネルを作らない");
 });
  
-test("大量リザルトは検索と24件ごとのページ分割で一覧できる", () => {
-  assert.match(sections, /const RESULTS_PAGE_SIZE = 24/);
+test("大量リザルトは検索と12件ごとのページ分割で一覧できる", () => {
+  assert.match(sections, /const RESULTS_PAGE_SIZE = 12/);
   assert.match(sections, /const matchingResults = results\.filter/);
   assert.match(sections, /const sortedResults = \[\.\.\.matchingResults\]\.sort/);
   assert.match(sections, /pageResults\.map\(\(result\) =>/);
