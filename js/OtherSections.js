@@ -5536,7 +5536,7 @@ h(Card, { className: "ledger-card" },
               ),
               isEditing && isInitialResult && h("div", { className: "ledger-initial-persona-fields stack-2", "aria-label": "初期人格の取得確認" },
                 h("span", { className: "t-label" }, "初期作成 / 最初に得た人格"),
-                h("p", { className: "ledger-note" }, "当時の入手方法と人格を記録します。ここで選んでも所持へ自動追加したり、LP・チケットを増減したりはしません。"),
+                h("p", { className: "ledger-note" }, "保存すると選択した初期人格を所持ライブラリへ追加し、取得記録にも残します。過去履歴の整理として扱うため、LP・抽出チケットの残高は変更しません。"),
                 h("div", { className: "ledger-ticket-grid" },
                   h("label", { className: "ledger-ticket-field" },
                     h("span", null, "入手方法"),
@@ -5562,6 +5562,68 @@ h(Card, { className: "ledger-card" },
                 initialPersonaDraft.method !== "unknown" && !initialPersonaValue
                   ? h("p", { className: "ledger-note", role: "alert" }, "入手方法を指定した場合は、最初に得た人格も選択してください。")
                   : null
+              ),
+              isEditing && h("section", { className: "ledger-history-editor stack-2", "aria-label": "取得人格と報酬アイテムの編集" },
+                h("div", { className: "ledger-reward-item-head" },
+                  h("span", { className: "t-label" }, "取得人格・報酬アイテム"),
+                  h("span", { className: "ledger-note" }, "古いリザルトも複数の取得人格を登録できます。保存すると不足している人格は所持へ追加します。")
+                ),
+                h("div", { className: "ledger-acquisition-controls" },
+                  h("select", {
+                    className: "select", "aria-label": "このリザルトで取得した人格",
+                    value: ticketPersonaPick,
+                    onChange: (event) => setTicketPersonaPick(event.target.value)
+                  },
+                    h("option", { value: "" }, "取得人格を選択…"),
+                    initialPersonaOptions.map((option) => h("option", { key: option.value, value: option.value }, option.label))
+                  ),
+                  h(Button, { size: "sm", variant: "secondary", icon: "plus", disabled: !ticketPersonaPick, onClick: addResultDraftPersona }, "人格を追加")
+                ),
+                (ticketDraft.personaAcquisitions || []).length > 0
+                  ? h("div", { className: "ledger-reward-item-list" }, ticketDraft.personaAcquisitions.map((entry) => h("div", { key: entry.mode + ":" + entry.no, className: "ledger-reward-item-chip" },
+                      h("span", null, entry.name || (entry.mode.toUpperCase() + " No." + entry.no)),
+                      h("small", null, entry.mode === "t" ? "特異" : "通常"),
+                      h("button", { type: "button", "aria-label": (entry.name || entry.no) + " の取得記録を外す", onClick: () => removeResultDraftPersona(entry.mode, entry.no) }, "×")
+                    )))
+                  : h("p", { className: "ledger-empty-note" }, "取得人格はまだ登録されていません。初期作成の最初の人格は上の欄から記録できます。"),
+                h("div", { className: "ledger-reward-item-head" },
+                  h("span", { className: "t-label" }, "報酬アイテム"),
+                  h("span", { className: "ledger-note" }, "硝子の破片なども登録できます。品名の修正は履歴だけに反映し、現在所持数は消費済みの可能性があるため自動で減らしません。")
+                ),
+                h("div", { className: "ledger-reward-item-controls" },
+                  h("select", {
+                    className: "select", "aria-label": "編集する報酬アイテムのカタログ選択",
+                    value: ticketRewardItemId,
+                    onChange: (event) => { setTicketRewardItemId(event.target.value); setTicketRewardItemName(""); }
+                  },
+                    h("option", { value: "" }, "カタログから選択…"),
+                    rewardItemCatalog.map((item) => h("option", { key: item.id, value: item.id }, item.name + (item.category ? " · " + item.category : "")))
+                  ),
+                  h("input", {
+                    className: "ledger-input", "aria-label": "編集するカスタム報酬アイテム名",
+                    placeholder: "またはカタログにない品名",
+                    value: ticketRewardItemName,
+                    onChange: (event) => { setTicketRewardItemName(event.target.value); setTicketRewardItemId(""); }
+                  }),
+                  h("input", {
+                    className: "ledger-input ledger-input--num", type: "number", min: 1, step: 1,
+                    "aria-label": "編集する報酬アイテム数量", value: ticketRewardItemQty,
+                    onChange: (event) => setTicketRewardItemQty(event.target.value)
+                  }),
+                  h(Button, { size: "sm", variant: "secondary", icon: "plus", onClick: () => {
+                    const rewardItems = appendRewardItemDraft(ticketDraft.rewardItems || [], ticketRewardItemId, ticketRewardItemName, ticketRewardItemQty);
+                    if (rewardItems !== ticketDraft.rewardItems) {
+                      updateResultDraftField("rewardItems", rewardItems);
+                      setTicketRewardItemId(""); setTicketRewardItemName(""); setTicketRewardItemQty("1");
+                    }
+                  } }, "追加")
+                ),
+                (ticketDraft.rewardItems || []).length > 0
+                  ? h("div", { className: "ledger-reward-item-list" }, ticketDraft.rewardItems.map((item, index) => h("div", { key: item.itemId || item.customName, className: "ledger-reward-item-chip" },
+                      h("span", null, item.itemName || item.customName), h("b", null, "×" + item.quantity),
+                      h("button", { type: "button", "aria-label": (item.itemName || item.customName) + " を報酬から外す", onClick: () => updateResultDraftField("rewardItems", removeRewardItemDraft(ticketDraft.rewardItems || [], index)) }, "×")
+                    )))
+                  : h("p", { className: "ledger-empty-note" }, "報酬アイテムは未記録です。")
               ),
               !isEditing && h("div", { className: "ledger-card-income" },
                 h("span", { className: "ledger-pair" },
