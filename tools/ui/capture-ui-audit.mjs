@@ -677,7 +677,7 @@ async function captureProfile(browser, mode) {
           if(!(await visible(openCatalog))) throw new Error("B案のショップトップに一覧への入口がありません");
           await click(openCatalog);
           await snap("shop-catalog-entry","B案のショップ検索入口から既存カタログへ移動");
-          const tabsShop=page.locator(".shop-tabs [role='tab']);
+          const tabsShop=page.locator(".shop-tabs [role='tab']");
           const n=Math.min(await tabsShop.count(),8);
           for(let i=0;i<n;i++) {
             const t=tabsShop.nth(i), text=(await t.innerText().catch(()=>"")).trim();
