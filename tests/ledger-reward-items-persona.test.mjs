@@ -225,10 +225,15 @@ test("全リザルトの編集画面に複数人格と報酬アイテムの入�
 
 test("settings and ledger readability improvements are in the active B-type style layer", () => {
   const css = read("../assets/b-type-ui-parity.css");
-  assert.match(css, /@layer v73-ledger-usability/);
-  assert.match(css, /\.settings-section-note\s*\{[^}]*font-size:\s*14px/);
-  assert.match(css, /\.ledger-note,[\s\S]*?font-size:\s*14px/);
-  assert.match(css, /@media\s*\(max-width:\s*640px\)/);
-  assert.match(css, /\.ledger-persona-audit-disclosure/);
-  assert.match(css, /\.ledger-history-editor-disclosure/);
+  const readabilityStart = css.lastIndexOf("Ledger and Settings usability pass: unlayered rules");
+  assert.ok(readabilityStart >= 0, "readability rules must be unlayered so legacy compact styles cannot outrank them");
+  assert.doesNotMatch(css, /@layer v73-ledger-usability/);
+  const readabilityCss = css.slice(readabilityStart);
+  assert.match(readabilityCss, /\.settings-section-note\s*\{[^}]*font-size:\s*14px/);
+  assert.match(readabilityCss, /\.ledger-note,[\s\S]*?font-size:\s*14px/);
+  assert.match(readabilityCss, /\.ledger-input,[\s\S]*?min-height:\s*44px/);
+  assert.doesNotMatch(readabilityCss, /min-height:\s*38px/, "mobile fields must not shrink below 44px");
+  assert.match(readabilityCss, /@media\s*\(max-width:\s*640px\)/);
+  assert.match(readabilityCss, /\.ledger-persona-audit-disclosure/);
+  assert.match(readabilityCss, /\.ledger-history-editor-disclosure/);
 });
