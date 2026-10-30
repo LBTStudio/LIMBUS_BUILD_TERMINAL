@@ -4209,9 +4209,11 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
       const key = acquisition.mode + ":" + String(acquisition.no);
       if (!["n", "t"].includes(acquisition.mode) || !acquisition.no || existingPersonaKeys.has(key)) continue;
       existingPersonaKeys.add(key);
+      const isRecordedInitialPersona = isInitial && nextInitialPersona.mode === acquisition.mode
+        && String(nextInitialPersona.no) === String(acquisition.no);
       dispatch({
         type: "ADD_ROSTER", mode: acquisition.mode, no: acquisition.no,
-        purchase: false, skipInitialTicketConsumption: true,
+        purchase: false, skipInitialTicketConsumption: !isRecordedInitialPersona,
         resultId: result.id, via: [name]
       });
     }
@@ -5536,7 +5538,7 @@ h(Card, { className: "ledger-card" },
               ),
               isEditing && isInitialResult && h("div", { className: "ledger-initial-persona-fields stack-2", "aria-label": "初期人格の取得確認" },
                 h("span", { className: "t-label" }, "初期作成 / 最初に得た人格"),
-                h("p", { className: "ledger-note" }, "保存すると選択した初期人格を所持ライブラリへ追加し、取得記録にも残します。過去履歴の整理として扱うため、LP・抽出チケットの残高は変更しません。"),
+                h("p", { className: "ledger-note" }, "保存すると選択した初期人格を所持ライブラリへ追加し、取得記録にも残します。購入LPは過去へさかのぼって計上せず、初期作成用チケットが残っている場合だけ最初の人格確定として1枚消費します。"),
                 h("div", { className: "ledger-ticket-grid" },
                   h("label", { className: "ledger-ticket-field" },
                     h("span", null, "入手方法"),
