@@ -4202,8 +4202,8 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
       personaAcquisitions: nextAcquisitions,
       ...(isInitial ? { initialPersona: nextInitialPersona } : {})
     });
-    /* 取得履歴を修正した人格は所持ライブラリにも反映する。
-       過去分の整理なので購入扱いにせず、LP・抽出チケットは動かさない。 */
+    /* 取得履歴を所持ライブラリへ反映する。過去取得は購入扱いにせず、
+       初期作成の最初の人格に一致するときだけ、残っている初期チケットを1枚消費する。 */
     const existingPersonaKeys = new Set((state.roster?.personas || []).map((entry) => entry.mode + ":" + String(entry.no)));
     for (const acquisition of nextAcquisitions) {
       const key = acquisition.mode + ":" + String(acquisition.no);
