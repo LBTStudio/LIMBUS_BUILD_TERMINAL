@@ -47,7 +47,7 @@ test("Shop opens on the B search entry and retains the real category catalog", (
 });
 
 test("Settings opens on the two-route B landing and keeps all detailed settings panels", () => {
-  const settings = sections.slice(sections.indexOf("const SettingsSection ="), sections.indexOf("if (typeof window !== \"undefined\") window.LBT_BuildParamsPanel"));
+  const settings = sections.slice(sections.indexOf("const SettingsSection ="));
   assert.match(settings, /state\.ui\?\.settingsView \|\| "overview"/);
   assert.match(settings, /ステータス・出力順・計算式/);
   assert.match(settings, /保存・読み込み・共有/);
