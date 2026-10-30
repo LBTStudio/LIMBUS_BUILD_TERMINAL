@@ -2669,6 +2669,7 @@ const ShopSection = ({ state, dispatch }) => {
     || ((definition) => hasExplicitSpiritPrice(definition) && Number(definition.price) === 0);
   const tab = state.ui?.shopTab || "support";
   const setTab = (id) => dispatch({ type: "SET_UI", ui: { shopTab: id } });
+  const shopView = state.ui?.shopView || "overview";
   const [unownedOnly, setUnownedOnly] = React.useState(true);
   const [how, setHow] = React.useState("purchase");
   /* 検索窓はビルド側と同じ構成（検索 → 件数 → 種別フィルタ）を共有する。 */
@@ -3041,7 +3042,36 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
     if (scroller && typeof scroller.scrollTop === "number") scroller.scrollTo({ top: 0, behavior: "auto" });
   };
 
-  return h("div", { className: "shop-workspace" },
+  if (shopView !== "catalog") return h("section", { className: "btype-shop-hub" },
+    h("header", { className: "btype-page-heading" },
+      h("div", null,
+        h("div", { className: "btype-eyebrow" }, "SHOP"),
+        h("h1", null, "ショップ"),
+        h("p", null, "未所持の候補を探す場所です。")
+      )
+    ),
+    h("div", { className: "panel btype-shop-entry" },
+      h("strong", null, "商品検索"),
+      h("p", { className: "btype-muted" }, "人格・サポート・E.G.O・精神・アイテムなどを検索します。"),
+      h("div", { className: "btype-shop-search-row" },
+        h("input", {
+          className: "input",
+          type: "search",
+          "aria-label": "ショップ商品を検索",
+          placeholder: "商品名・人格名・キーワード",
+          value: query,
+          onChange: (event) => setQuery(event.target.value)
+        }),
+        h("button", {
+          type: "button",
+          className: "secondary",
+          onClick: () => dispatch({ type: "SET_UI", ui: { shopView: "catalog" } })
+        }, "ショップ一覧を開く")
+      )
+    )
+  );
+    return h("div", { className: "shop-workspace btype-shop-catalog" },
+    h("div", { className: "btype-back-row" }, h("button", { type: "button", className: "btype-back-link", onClick: () => dispatch({ type: "SET_UI", ui: { shopView: "overview" } }) }, "← ショップへ戻る")),
     h(SectionTitle, { title: "SHOP / ショップ", subtitle: "人格・サポート・E.G.O・精神・アイテムを購入" }),
     /* カテゴリタブだけを独立要素にして追従させる。filter パネルの内側に置くと
        sticky は親の範囲を出られないため、親を抜けた瞬間にタブも消える。
