@@ -436,7 +436,7 @@
       ...((db && Array.isArray(db.normal_personas) ? db.normal_personas : []).map((persona, index) => ({ persona, collection: "normal", index }))),
       ...((db && Array.isArray(db.tokui_personas) ? db.tokui_personas : []).map((persona, index) => ({ persona, collection: "tokui", index })))
     ];
-    const combine = (...values) => values.map((value) => String(value || "").trim()).filter(Boolean).join("\\n");
+    const combine = (...values) => values.map((value) => String(value || "").trim()).filter(Boolean).join("\n");
     const add = (term, owner, ownerKey, category, description) => {
       const key = cleanTerm(term);
       if (!key || key.length > 64 || owner === activeOwnerName) return;
@@ -478,7 +478,7 @@
       });
       (persona.skills || []).forEach((skill) => {
         if (!skill) return;
-        const diceText = (skill.dice || []).map((die) => die && die.effect).filter(Boolean).join("\\n");
+        const diceText = (skill.dice || []).map((die) => die && die.effect).filter(Boolean).join("\n");
         add(skill.name, owner, ownerKey, "人格スキル", combine(skill.effect, diceText));
       });
     });
