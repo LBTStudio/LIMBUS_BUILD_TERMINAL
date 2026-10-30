@@ -4118,8 +4118,14 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
         choice: String(Number(currentTickets.choice) || 0),
         pack: { ...(currentTickets.pack || {}) }
       },
+      rewardItems: Array.isArray(result.rewardItems) ? result.rewardItems.map((item) => ({ ...item })) : [],
+      personaAcquisitions: Array.isArray(result.personaAcquisitions) ? result.personaAcquisitions.map((item) => ({ ...item })) : [],
       initialPersona: { method: ["selected", "random"].includes(result.initialPersona?.method) ? result.initialPersona.method : "unknown", mode: result.initialPersona?.mode === "t" || result.initialPersona?.mode === "n" ? result.initialPersona.mode : "", no: String(result.initialPersona?.no ?? ""), name: String(result.initialPersona?.name || "") }
     });
+    setTicketPersonaPick("");
+    setTicketRewardItemId("");
+    setTicketRewardItemName("");
+    setTicketRewardItemQty("1");
   };
   const cancelResultEditor = () => { setTicketPanel(null); setTicketDraft(null); };
   const updateResultDraftField = (field, value) => {
@@ -4134,6 +4140,20 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     } : draft);
   };
   const updateResultDraftInitialPersona = (patch) => setTicketDraft((draft) => draft ? { ...draft, initialPersona: { ...(draft.initialPersona || {}), ...patch } } : draft);
+  const addResultDraftPersona = () => {
+    const option = initialPersonaOptions.find((candidate) => candidate.value === ticketPersonaPick);
+    if (!ticketDraft || !option) return;
+    setTicketDraft((draft) => {
+      if (!draft) return draft;
+      const current = Array.isArray(draft.personaAcquisitions) ? draft.personaAcquisitions : [];
+      if (current.some((entry) => entry.mode === option.mode && String(entry.no) === String(option.no))) return draft;
+      return { ...draft, personaAcquisitions: [...current, { mode: option.mode, no: option.no, name: option.name, source: "manual" }] };
+    });
+    setTicketPersonaPick("");
+  };
+  const removeResultDraftPersona = (mode, no) => setTicketDraft((draft) => draft ? {
+    ...draft, personaAcquisitions: (draft.personaAcquisitions || []).filter((entry) => !(entry.mode === mode && String(entry.no) === String(no)))
+  } : draft);
   const saveResultEditor = (result) => {
     const draft = ticketDraft;
     if (!draft || draft.id !== result.id) return;
@@ -4150,6 +4170,23 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
       pack: nextPack
     };
     const name = String(draft.name || "").trim() || result.name;
+    const isInitial = result.id === "res-initial" || result.name === "初期作成";
+    const nextInitialPersona = {
+      method: ["selected", "random"].includes(draft.initialPersona?.method) ? draft.initialPersona.method : "unknown",
+      mode: draft.initialPersona?.mode === "n" || draft.initialPersona?.mode === "t" ? draft.initialPersona.mode : "",
+      no: String(draft.initialPersona?.no ?? ""),
+      name: String(draft.initialPersona?.name || "")
+    };
+    const nextAcquisitions = Array.isArray(draft.personaAcquisitions) ? draft.personaAcquisitions.map((entry) => ({ ...entry })) : [];
+    if (isInitial && nextInitialPersona.method !== "unknown" && nextInitialPersona.mode && nextInitialPersona.no
+      && !nextAcquisitions.some((entry) => entry.mode === nextInitialPersona.mode && String(entry.no) === nextInitialPersona.no)) {
+      const option = initialPersonaOptions.find((entry) => entry.value === nextInitialPersona.mode + ":" + nextInitialPersona.no);
+      nextAcquisitions.push({
+        mode: nextInitialPersona.mode, no: nextInitialPersona.no,
+        name: option?.name || nextInitialPersona.name, source: "initial"
+      });
+    }
+    const rewardItems = materializeRewardItems(draft.rewardItems || [], name);
     dispatch({
       type: "UPDATE_RESULT",
       id: result.id,
@@ -4161,9 +4198,24 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
         shards: Math.max(0, Number(draft.shards) || 0),
         tickets: nextTickets
       },
-      ...((result.id === "res-initial" || result.name === "初期作成") ? { initialPersona: { method: ["selected", "random"].includes(draft.initialPersona?.method) ? draft.initialPersona.method : "unknown", mode: draft.initialPersona?.mode === "n" || draft.initialPersona?.mode === "t" ? draft.initialPersona.mode : "", no: String(draft.initialPersona?.no ?? ""), name: String(draft.initialPersona?.name || "") } } : {})
+      rewardItems,
+      personaAcquisitions: nextAcquisitions,
+      ...(isInitial ? { initialPersona: nextInitialPersona } : {})
     });
-    toast("「" + name + "」のリザルトを更新しました");
+    /* 取得履歴を修正した人格は所持ライブラリにも反映する。
+       過去分の整理なので購入扱いにせず、LP・抽出チケットは動かさない。 */
+    const existingPersonaKeys = new Set((state.roster?.personas || []).map((entry) => entry.mode + ":" + String(entry.no)));
+    for (const acquisition of nextAcquisitions) {
+      const key = acquisition.mode + ":" + String(acquisition.no);
+      if (!["n", "t"].includes(acquisition.mode) || !acquisition.no || existingPersonaKeys.has(key)) continue;
+      existingPersonaKeys.add(key);
+      dispatch({
+        type: "ADD_ROSTER", mode: acquisition.mode, no: acquisition.no,
+        purchase: false, skipInitialTicketConsumption: true,
+        resultId: result.id, via: [name]
+      });
+    }
+    toast("「" + name + "」のリザルトを更新し、取得人格を所持記録へ反映しました");
     cancelResultEditor();
   };
 
