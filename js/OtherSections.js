@@ -5969,7 +5969,7 @@ const BasicCcfOutputPreview = ({ state, dispatch }) => {
           h("span", null, "盤面 / TOKEN"),
           h("span", { style: { color } }, color)
         ),
-        h("p", { className: "pv-ccfolia-map-note" }, "駒の色・名前・行動順は現在の出力データから表示しています。盤面位置やマス設定はルーム側で決まります。")
+        h("p", { className: "pv-ccfolia-map-note piece-inspector-note" }, "駒の色・名前・行動順は現在の出力データから表示しています。盤面位置やマス設定はルーム側で決まります。")
       ),
       h("section", { className: "pv-ccfolia-roster piece-board-inspector", "aria-label": "選択した駒のインスペクター" },
         h("header", { className: "pv-ccfolia-roster-head piece-inspector-title" },
@@ -5994,7 +5994,7 @@ const BasicCcfOutputPreview = ({ state, dispatch }) => {
             : h("p", { className: "pv-ccfolia-no-rows" }, "出力するSTはありません。")
         ),
         statuses.length > 8
-          ? h("p", { className: "pv-ccfolia-roster-note" }, "先頭8件を表示しています。出力データには " + statuses.length + " 件含まれます。")
+          ? h("p", { className: "pv-ccfolia-roster-note piece-inspector-note" }, "先頭8件を表示しています。出力データには " + statuses.length + " 件含まれます。")
           : null
       )
     )
@@ -6075,20 +6075,24 @@ const BasicCcfOutputPreview = ({ state, dispatch }) => {
       h("div", null,
         h("div", { className: "piece-preview-eyebrow" }, "COCOFOLIA / PIECE INSPECTOR"),
         h("h3", null, "駒の出力プレビュー"),
-        h("p", null, "盤面上の駒、キャラクターシート、出力JSONを同じデータから確認できます。")
+        h("p", null, "盤面・キャラクターシート・出力データを同じ設定から確認します。")
       ),
-      h("div", { className: "pv-token-mode-switch basic-preview-mode-tabs piece-preview-tabs", role: "tablist", "aria-label": "駒・出力プレビューの表示" },
-        modeTabs.map((entry) => h("button", {
-          key: entry.id,
-          id: "basic-ccfolia-tab-" + entry.id,
-          type: "button",
-          role: "tab",
-          "aria-selected": mode === entry.id,
-          "aria-controls": "basic-ccfolia-panel-" + entry.id,
-          className: "piece-preview-tab" + (mode === entry.id ? " is-active active" : ""),
-          onClick: () => setMode(entry.id)
-        }, entry.label))
+      h("span", { className: "piece-live-indicator" },
+        h("i", null),
+        "入力に連動"
       )
+    ),
+    h("div", { className: "pv-token-mode-switch basic-preview-mode-tabs piece-preview-tabs", role: "tablist", "aria-label": "駒・出力プレビューの表示" },
+      modeTabs.map((entry) => h("button", {
+        key: entry.id,
+        id: "basic-ccfolia-tab-" + entry.id,
+        type: "button",
+        role: "tab",
+        "aria-selected": mode === entry.id,
+        "aria-controls": "basic-ccfolia-panel-" + entry.id,
+        className: "piece-preview-tab" + (mode === entry.id ? " is-active active" : ""),
+        onClick: () => setMode(entry.id)
+      }, entry.label))
     ),
     built.error ? h("p", { className: "basic-preview-build-error", role: "alert" }, built.error) : null,
     mode === "board" ? boardView() : mode === "sheet" ? sheetView() : jsonView()
