@@ -1869,9 +1869,9 @@ const App = () => {
    横向きで display:none になるため、.topbar の直接子として置く。 */
 /* @__PURE__ */ React.createElement(BalanceChip, { state, onClick: () => dispatch({ type: "SET_UI", ui: { currentSection: "roster", libraryTab: "ledger" } }) }), /* @__PURE__ */ React.createElement("button", { type: "button", className: "preview-mobile-toggle", onClick: togglePreview, title: previewOpen ? "プレビューを格納" : "プレビューを展開", "aria-label": previewOpen ? "プレビューを格納" : "プレビューを展開", "aria-controls": "preview-panel", "aria-expanded": previewOpen }, /* @__PURE__ */ React.createElement(Icon, { name: "eye", size: 16 })), /* @__PURE__ */ React.createElement("div", { className: "topbar-actions" },
   React.createElement(AccountChip, null),
-  React.createElement(Button, { variant: "ghost", size: "sm", icon: "undo", onClick: undo, disabled: !canUndo, title: "元に戻す (Ctrl+Z)" }),
-  React.createElement(Button, { variant: "ghost", size: "sm", icon: "redo", onClick: redo, disabled: !canRedo, title: "やり直す (Ctrl+Shift+Z)" }),
-  React.createElement(Button, { variant: "primary", size: "sm", icon: "copy", onClick: copyJson, title: "CCFOLIA用JSONをコピー" }, "JSON出力"),
+  React.createElement(Button, { variant: "ghost", size: "sm", className: "topbar-undo-btn", icon: "undo", onClick: undo, disabled: !canUndo, "aria-label": "元に戻す", title: "元に戻す (Ctrl+Z)" }),
+  React.createElement(Button, { variant: "ghost", size: "sm", className: "topbar-redo-btn", icon: "redo", onClick: redo, disabled: !canRedo, "aria-label": "やり直す", title: "やり直す (Ctrl+Shift+Z)" }),
+  React.createElement(Button, { variant: "primary", size: "sm", className: "topbar-json-btn", icon: "copy", onClick: copyJson, "aria-label": "CCFOLIA JSONをコピー", title: "CCFOLIA用JSONをコピー" }, "JSON出力"),
   React.createElement("input", { type: "file", ref: fileRef, accept: "application/json", style: { display: "none" }, onChange: (e) => {
     const f = e.target.files?.[0];
     if (f) importStateFromFile(f, dispatch);

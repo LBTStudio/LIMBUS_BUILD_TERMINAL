@@ -112,13 +112,12 @@
 }
 .lbt-cloud-btn:disabled { opacity: .6; cursor: not-allowed; }
 .lbt-cloud-panel.is-compact { margin-block: var(--s-4); }
-/* The account selector and overlay have bounded height; keep backup controls reachable on small screens. */
+/* パネル内部の入れ子スクロールを廃止し、復元操作を親アカウント画面の
+   一本のスクロールで到達可能にする。 */
 .acct-gate-panel > .lbt-cloud-panel,
 .acct-panel > .lbt-cloud-panel {
-  flex: 0 1 auto;
-  max-height: min(36vh, 300px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  flex: none;
+  min-height: 0;
 }
 @media (max-width: 560px) {
   .lbt-cloud-panel { padding: var(--s-3); gap: var(--s-2); }

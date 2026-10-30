@@ -192,8 +192,7 @@ const BalanceChip = ({ state, onClick }) => {
     type: "button",
     className: "topbar-balance",
     onClick,
-    title: `残高 — LP ${num(balance.lp)} / 欠片 ${num(balance.shards)}${ticketTitle}。リザルトを開く`,
-    "aria-label": `残高 LP ${num(balance.lp)}、欠片 ${num(balance.shards)}${ticketAria}。リザルトを開く`
+    title: `残高 — LP ${num(balance.lp)} / 欠片 ${num(balance.shards)}${ticketTitle}。リザルトを開く`
   },
     h("span", { className: "topbar-balance-item" },
       h("span", { className: "topbar-balance-num" }, num(balance.lp)),
@@ -206,7 +205,9 @@ const BalanceChip = ({ state, onClick }) => {
     h("span", { className: "topbar-balance-sep", "aria-hidden": "true" }, "/"),
     h("span", { className: "topbar-balance-item" },
       h("span", { className: "topbar-balance-num" }, num(ticketTotal)),
-      h("span", { className: "topbar-balance-unit" }, "枚"))
+      h("span", { className: "topbar-balance-unit" }, "枚")),
+    h("span", { style: { position: "absolute", width: "1px", height: "1px", padding: 0, margin: "-1px", overflow: "hidden", clipPath: "inset(50%)", whiteSpace: "nowrap", border: 0 } },
+      `残高${ticketAria}。リザルトを開く`)
   );
 };
 
