@@ -711,21 +711,31 @@ async function captureProfile(browser, mode) {
           if(disclosureCount===0) throw new Error("詳細設定の折り畳みセクションが見つかりません");
           // Some disclosure panels are nested inside another collapsed panel.
           // Repeat passes so newly revealed summaries are included, but never click hidden descendants.
+          let totalOpened=0;
           for(let pass=0;pass<4;pass++){
             let opened=0;
             for(let i=0;i<disclosureCount;i++){
               const details=disclosures.nth(i), summary=details.locator("summary").first();
-              if(!(await visible(summary))) continue;
+              if(!(await summary.count())) continue;
+              const reachable=await details.evaluate(el=>{
+                for(let node=el.parentElement;node;node=node.parentElement){
+                  if(node.tagName==="DETAILS" && !node.open) return false;
+                }
+                return true;
+              });
+              if(!reachable) continue;
               const isOpen=await details.evaluate(el=>el.open);
               if(isOpen) continue;
               const labelText=(await summary.innerText()).trim();
-              await click(summary);
+              await summary.click({force:true});
               if(!(await details.evaluate(el=>el.open))) throw new Error("設定セクションを展開できません: "+labelText);
               await snap("settings-disclosure-"+labelText,"詳細設定のセクションを展開："+labelText);
-              opened++;
+              opened++; totalOpened++;
             }
             if(!opened) break;
           }
+          audit.settingsDisclosurePanels=(audit.settingsDisclosurePanels||0)+totalOpened;
+          if(totalOpened===0) throw new Error("詳細設定の折り畳み項目を1つも展開できませんでした");
         }
       });
     }
