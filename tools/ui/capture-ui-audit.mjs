@@ -836,13 +836,21 @@ async function captureProfile(browser, mode) {
       const initialCard=page.locator(".ledger-card-wrap").filter({hasText:"初期作成"}).first();
       await initialCard.waitFor({state:"visible",timeout:5000});
       await click(initialCard.locator(".ledger-card-edit-btn").first());
+      const initialEditorCard=page.locator(".ledger-card-wrap.is-editing").last();
+      await initialEditorCard.waitFor({state:"visible",timeout:5000});
       await snap("ledger-initial-persona-edit","テスト用アカウントの初期作成リザルト編集");
       const initialCandidate=audit.seed?.sample?.initialPersonaCandidate;
       if(!initialCandidate?.mode || !initialCandidate?.no) throw new Error("初期人格QA候補をseedから取得できません");
-      await initialCard.locator('[aria-label="初期人格の入手方法"]').selectOption("random");
-      await initialCard.locator('[aria-label="最初に得た人格"]').selectOption(initialCandidate.mode+":"+initialCandidate.no);
+      /* 同じ初期リザルト内に既存チケット消費があっても、「指定購入」なら初期分を別に消費する。 */
+      await initialEditorCard.locator('[aria-label="初期人格の入手方法"]').selectOption("selected");
+      const initialPersonaSearch=initialEditorCard.locator('[aria-label="最初に得た人格をDBから検索"]');
+      await initialPersonaSearch.fill(initialCandidate.name||String(initialCandidate.no));
+      const initialPersonaOption=initialEditorCard.locator(".ledger-persona-search-results .ledger-persona-search-result")
+        .filter({hasText:initialCandidate.name}).first();
+      await initialPersonaOption.waitFor({state:"visible",timeout:5000});
+      await click(initialPersonaOption);
       await snap("ledger-initial-persona-selected","初期人格を選択した状態。保存前の確認");
-      await click(initialCard.getByRole("button",{name:"初期作成 の変更を保存",exact:true}));
+      await click(initialEditorCard.getByRole("button",{name:"初期作成 の変更を保存",exact:true}));
       await page.waitForTimeout(450);
       const initialCheck=await page.evaluate((candidate)=>{
         const saved=window.LBT_accounts?.loadActive?.()||{};
@@ -855,7 +863,7 @@ async function captureProfile(browser, mode) {
       if(!initialCheck.owned) throw new Error("初期人格を保存したのに所持ライブラリへ追加されていません: "+JSON.stringify(initialCheck));
       if(initialCheck.initialPersona?.no!==String(initialCandidate.no)) throw new Error("初期人格の取得記録が保存されていません: "+JSON.stringify(initialCheck));
       if(!initialCheck.acquisitions.some((entry)=>entry.mode===initialCandidate.mode&&String(entry.no)===String(initialCandidate.no))) throw new Error("初期人格が取得証跡にも反映されていません");
-      if(initialCheck.personaTicketBalance!==1) throw new Error("初期人格の保存で、履歴に明示されたチケット使用とは別に初期チケットまで消費されました: "+JSON.stringify(initialCheck));
+      if(initialCheck.personaTicketBalance!==0) throw new Error("指定購入の初期人格で初期チケットが別途消費されていません（または過剰消費です）: "+JSON.stringify(initialCheck));
       await snap("ledger-initial-persona-owned","初期人格の保存後、所持と取得記録が一致した状態");
 
       const historicalCard=page.locator(".ledger-card-wrap").filter({hasText:"UI監査用セッション"}).first();
@@ -867,8 +875,12 @@ async function captureProfile(browser, mode) {
       await historicalEditorCard.locator(".ledger-history-editor-disclosure > summary").click();
       const historicalCandidate=audit.seed?.sample?.historicalPersonaCandidate;
       if(!historicalCandidate?.mode || !historicalCandidate?.no) throw new Error("履歴人格QA候補をseedから取得できません");
-      await historicalEditorCard.locator('[aria-label="このリザルトで取得した人格"]').selectOption(historicalCandidate.mode+":"+historicalCandidate.no);
-      await click(historicalEditorCard.getByRole("button",{name:"人格を追加",exact:true}));
+      const historicalPersonaSearch=historicalEditorCard.locator('[aria-label="このリザルトで取得した人格をDBから検索"]');
+      await historicalPersonaSearch.fill(historicalCandidate.name||String(historicalCandidate.no));
+      const historicalPersonaOption=historicalEditorCard.locator(".ledger-persona-search-results .ledger-persona-search-result")
+        .filter({hasText:historicalCandidate.name}).first();
+      await historicalPersonaOption.waitFor({state:"visible",timeout:5000});
+      await click(historicalPersonaOption);
       await snap("ledger-historical-persona-draft","過去リザルトへ複数取得人格を追加した編集状態");
       await click(historicalEditorCard.getByRole("button",{name:"UI監査用セッション の変更を保存",exact:true}));
       await page.waitForTimeout(450);
@@ -883,9 +895,48 @@ async function captureProfile(browser, mode) {
       }
       await snap("ledger-historical-persona-saved","過去リザルトの取得人格が所持へ反映された状態");
 
-      const name="QA報酬アイテム入力テスト";
+      const name="QA報酬アイテム・人格入力テスト";
       const nameInput=page.getByRole("textbox",{name:"リザルトの名称",exact:true});
       await nameInput.fill(name);
+      const rewardCandidate=await page.evaluate(()=>{
+        const saved=window.LBT_accounts?.loadActive?.()||{};
+        const owned=new Set((saved.roster?.personas||[]).map(entry=>entry.mode+":"+String(entry.no)));
+        const candidates=[
+          ...(window.DB?.normal_personas||[]).map(row=>({mode:"n",no:String(row.no??""),name:String(row.name||"")})),
+          ...(window.DB?.tokui_personas||[]).map(row=>({mode:"t",no:String(row.no??""),name:String(row.name||"")}))
+        ];
+        return candidates.find(row=>row.no&&row.name&&!owned.has(row.mode+":"+row.no))||null;
+      });
+      if(!rewardCandidate) throw new Error("新規報酬人格テスト用の未所持人格をDBから選べません");
+      const rewardBaseline=await page.evaluate(()=>{
+        const saved=window.LBT_accounts?.loadActive?.()||{};
+        const balance=window.LBT_computeLedgerBalance?.(saved.results||[],saved.entries||[])||{};
+        const ticketIncome=(saved.results||[]).reduce((sum,result)=>sum+(Number(result.income?.tickets?.persona)||0),0);
+        const ticketUse=(saved.entries||[]).reduce((sum,entry)=>sum+(Number(entry.tickets?.persona)||0),0);
+        return {lp:Number(balance.lp)||0,shards:Number(balance.shards)||0,personaTickets:Math.max(0,ticketIncome-ticketUse)};
+      });
+      const rewardPersonaSection=page.locator('section[aria-label="報酬人格"]');
+      const rewardPersonaSearch=rewardPersonaSection.locator('[aria-label="報酬人格をDBから検索"]');
+      /* 所持済みは候補に出ず、選択した人格も同一リザルト内の候補から消える。 */
+      const ownedProbe=initialCandidate.name||String(initialCandidate.no);
+      await rewardPersonaSearch.fill(ownedProbe);
+      const ownedCandidateVisible = await rewardPersonaSection.locator(".ledger-persona-search-results .ledger-persona-search-result").evaluateAll((buttons, candidate) =>
+        buttons.some((button) => {
+          const name = button.querySelector("span")?.textContent?.trim() || "";
+          const detail = button.querySelector("small")?.textContent || "";
+          const kind = candidate.mode === "t" ? "特異" : "通常";
+          return name === candidate.name && detail.includes(kind) && detail.includes("No." + candidate.no);
+        }), initialCandidate);
+      if(ownedCandidateVisible) throw new Error("所持済み人格が新規報酬候補に表示されています");
+      await rewardPersonaSearch.fill(rewardCandidate.name);
+      const rewardPersonaOption=rewardPersonaSection.locator(".ledger-persona-search-results .ledger-persona-search-result")
+        .filter({hasText:rewardCandidate.name}).first();
+      await rewardPersonaOption.waitFor({state:"visible",timeout:5000});
+      await click(rewardPersonaOption);
+      if(await rewardPersonaSection.locator(".ledger-persona-search-results .ledger-persona-search-result")
+        .filter({hasText:rewardCandidate.name}).count()!==0) {
+        throw new Error("同じリザルトで選択済みの人格が検索候補に残っています");
+      }
       const glassSelect=page.getByLabel("報酬アイテムのカタログ選択");
       await glassSelect.selectOption("resource-glass-shard");
       await page.getByLabel("報酬アイテム数量", {exact:true}).fill("2");
@@ -907,7 +958,29 @@ async function captureProfile(browser, mode) {
       if(!rewardCheck.record?.rewardItems?.some((item)=>item.itemId==="resource-glass-shard"&&item.quantity===2)) throw new Error("硝子の破片が報酬履歴へ保存されません: "+JSON.stringify(rewardCheck));
       if(!rewardCheck.customDefinitions.some((item)=>item.name==="外付け義体")||rewardCheck.customQuantity!==1) throw new Error("カタログ外の外付け義体がカスタム報酬品として所持へ反映されません: "+JSON.stringify(rewardCheck));
       if(rewardCheck.glassQuantity!==2) throw new Error("硝子の破片が所持在庫へ反映されません: "+JSON.stringify(rewardCheck));
-      await snap("ledger-reward-item-saved","報酬アイテム履歴と所持在庫が一致した状態");
+      const personaRewardCheck=await page.evaluate(({name,rewardCandidate})=>{
+        const saved=window.LBT_accounts?.loadActive?.()||{};
+        const record=(saved.results||[]).find(result=>result.name===name);
+        const owned=(saved.roster?.personas||[]).some(entry=>entry.mode===rewardCandidate.mode&&String(entry.no)===rewardCandidate.no);
+        const balance=window.LBT_computeLedgerBalance?.(saved.results||[],saved.entries||[])||{};
+        const ticketIncome=(saved.results||[]).reduce((sum,result)=>sum+(Number(result.income?.tickets?.persona)||0),0);
+        const ticketUse=(saved.entries||[]).reduce((sum,entry)=>sum+(Number(entry.tickets?.persona)||0),0);
+        return {
+          owned,
+          acquisitions:record?.personaAcquisitions||[],
+          lp:Number(balance.lp)||0,
+          shards:Number(balance.shards)||0,
+          personaTickets:Math.max(0,ticketIncome-ticketUse)
+        };
+      },{name,rewardCandidate});
+      if(!personaRewardCheck.owned) throw new Error("新規リザルトの報酬人格が所持ライブラリへ追加されません: "+JSON.stringify(personaRewardCheck));
+      if(!personaRewardCheck.acquisitions.some(entry=>entry.mode===rewardCandidate.mode&&String(entry.no)===rewardCandidate.no&&entry.source==="reward")) {
+        throw new Error("新規リザルトへ報酬人格の取得証跡が保存されません: "+JSON.stringify(personaRewardCheck));
+      }
+      if(personaRewardCheck.lp!==rewardBaseline.lp||personaRewardCheck.shards!==rewardBaseline.shards||personaRewardCheck.personaTickets!==rewardBaseline.personaTickets) {
+        throw new Error("無償報酬人格の追加でLP・欠片・人格チケット残高が変化しました: "+JSON.stringify({before:rewardBaseline,after:personaRewardCheck}));
+      }
+      await snap("ledger-reward-item-saved","報酬アイテムと報酬人格の履歴・所持在庫が一致した状態");
 
       const rewardCard=page.locator(".ledger-card-wrap").filter({hasText:name}).first();
       await click(rewardCard.locator(".ledger-card-edit-btn").first());
@@ -1094,7 +1167,7 @@ async function main() {
      "ホームのコマンドヒーローと目的別ランチャー","共通のデータ取り込み先選択ダイアログ","詳細設定：ステータス一覧・編集・出力順",
      "初期人格を選択した状態。保存前の確認","初期人格の保存後、所持と取得記録が一致した状態",
      "過去リザルトへ複数取得人格を追加した編集状態","過去リザルトの取得人格が所持へ反映された状態",
-     "硝子の破片とカタログ外の外付け義体を追加した報酬入力欄","報酬アイテム履歴と所持在庫が一致した状態",
+     "硝子の破片とカタログ外の外付け義体を追加した報酬入力欄","報酬アイテムと報酬人格の履歴・所持在庫が一致した状態",
      "既存リザルトへ標準カタログ品を追加する編集画面","既存リザルトへの標準アイテム報酬の反映後",
     "テキスト流し込みを開き、自動スクロール後の入力欄が見える状態",
     "例文を入力し、解析結果・候補を確認する状態（確定しない）",
