@@ -19,7 +19,7 @@ test("Basic workspace follows the supplied Unified Workbench v4 B prototype", ()
   assert.match(reference, /id="prototype-b"/);
   for (const required of [
     'class="piece-hero-grid"', 'class="piece-art-wrap"', 'class="piece-art-thumbs"',
-    'class="piece-control-grid"', 'class="piece-token-preview"', 'class="piece-format-panel"'
+    'class="piece-control-grid"', 'class="piece-token-preview"', '.piece-format-panel{'
   ]) assert.ok(reference.includes(required), "reference must preserve " + required);
   for (const required of [
     'className: "piece-hero-grid"', 'className: "piece-art-wrap"', 'className: "piece-art-thumbs"',
