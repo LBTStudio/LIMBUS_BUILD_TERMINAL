@@ -269,6 +269,9 @@ async function captureCompactResultDetails(page, mode) {
   await page.keyboard.press("Escape").catch(() => {});
   await page.waitForTimeout(WAIT_MS);
   await clickNav(page, "記録・所持品");
+  const resultHubEntry = page.locator(".btype-record-task-card").filter({ hasText: "リザルト／収支" }).first();
+  await resultHubEntry.waitFor({ state: "visible", timeout: 12000 });
+  await resultHubEntry.click();
   const card = page.locator(".ledger-card").filter({ hasText: "第12回 セッション" }).first();
   if (!(await card.isVisible().catch(() => false))) {
     const debug = await page.evaluate(() => {
