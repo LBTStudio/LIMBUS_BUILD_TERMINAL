@@ -342,8 +342,11 @@
 
     // Match only shared rule terms plus names belonging to the active owner.
     // This prevents a longer foreign passive name from consuming part of a shared term.
-    const activeTerms = [];
-    if (ownerName) {
+    const hasLiveOwnerRecord = !!sourceRecord && typeof sourceRecord === "object" && !Array.isArray(sourceRecord);
+    const activeTerms = hasLiveOwnerRecord
+      ? [...ownerGlossary.keys()]
+      : [];
+    if (ownerName && !hasLiveOwnerRecord) {
       glossary.forEach((rows, term) => {
         if (rows.some((entry) => !entry.reference
           && entry.ownerName === ownerName
@@ -356,7 +359,13 @@
     const pattern = new RegExp(terms.map(escapeRegExp).join("|"), "gu");
 
     const scopedGlossary = {
-      get: (term) => [...(ownerGlossary.get(term) || []), ...(glossary.get(term) || [])]
+      get: (term) => {
+        const commonAndDatabase = glossary.get(term) || [];
+        const permittedGlobal = hasLiveOwnerRecord
+          ? commonAndDatabase.filter((entry) => entry.isRulebook)
+          : commonAndDatabase;
+        return [...(ownerGlossary.get(term) || []), ...permittedGlobal];
+      }
     };
     const parts = [];
     let lastIndex = 0;
