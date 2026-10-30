@@ -36,6 +36,17 @@ test("official status definitions expose their rulebook page and a useful explan
   }
 });
 
+test("common rule glossary includes buffs, neutral statuses, accumulations and special terms without bracket notation", () => {
+  const api = loadGlossary();
+  const text = "バリアと煙。挑発値、電圧、血餐、自己共振回路、弾丸、爆発。";
+  const pieces = api.tokenize(text, db, "人格スキル:検証用人格");
+  const terms = pieces.filter((piece) => piece.term);
+  for (const term of ["バリア", "煙", "挑発値", "電圧", "血餐", "自己共振回路", "弾丸", "爆発"]) {
+    assert.ok(terms.some((piece) => piece.term === term), term + " は角括弧なしで共通辞典から解決する");
+  }
+  for (const piece of terms) assert.equal(piece.entries.length, 1, piece.term + " は共通定義を1件だけ表示");
+});
+
 test("E.G.O named unique effects open with the recorded description and source", () => {
   const ego = db.egos.find((entry) => String(entry.unique_buff || "").includes("[百足の毒]"));
   assert.ok(ego, "reference E.G.O exists");
@@ -69,13 +80,16 @@ test("角括弧の有無にかかわらず、未登録の任意語を外部定�
   assert.equal(plain.map((piece) => piece.text).join(""), "同期専用の未知語");
   assert.equal(bracketed.map((piece) => piece.text).join(""), "[同期専用の未知語]");
 });
-test("tokenization prefers the longest known phrase without dropping surrounding text", () => {
+test("tokenization prefers the longest term belonging to the active persona", () => {
   const api = loadGlossary();
-  const pieces = api.tokenize("出血保護3を得る。対象の出血が4以上", db);
+  const persona = db.normal_personas.find((entry) => (entry.unique_buffs || []).some((buff) => buff.name === "出血保護"));
+  assert.ok(persona);
+  const text = "出血保護3を得る。対象の出血が4以上";
+  const pieces = api.tokenize(text, db, "人格スキル:" + persona.name, persona);
   const terms = pieces.filter((piece) => piece.term).map((piece) => piece.term);
   assert.equal(terms[0], "出血保護");
   assert.ok(terms.includes("出血"));
-  assert.equal(pieces.map((piece) => piece.text).join(""), "出血保護3を得る。対象の出血が4以上");
+  assert.equal(pieces.map((piece) => piece.text).join(""), text);
 });
 
 test("same-named persona unique buffs use only the active owner's explanation", () => {
