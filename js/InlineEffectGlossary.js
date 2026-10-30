@@ -430,10 +430,10 @@
   function buildExplicitPersonaReferences(db, activeOwnerName, activeOwnerRecord) {
     const references = new Map();
     const personas = [
-      ...(db && Array.isArray(db.normal_personas) ? db.normal_personas : []),
-      ...(db && Array.isArray(db.tokui_personas) ? db.tokui_personas : [])
+      ...((db && Array.isArray(db.normal_personas) ? db.normal_personas : []).map((persona, index) => ({ persona, collection: "normal", index }))),
+      ...((db && Array.isArray(db.tokui_personas) ? db.tokui_personas : []).map((persona, index) => ({ persona, collection: "tokui", index })))
     ];
-    const add = (term, owner, category, description) => {
+    const add = (term, owner, ownerKey, category, description) => {
       const key = cleanTerm(term);
       if (!key || key.length > 64 || owner === activeOwnerName) return;
       if (!references.has(key)) references.set(key, []);
@@ -441,11 +441,11 @@
         term: key, category: category || "人格固有効果",
         source: "人格：" + owner + "（明示引用）",
         description: String(description || "").trim() || "引用元の効果説明は登録されていません。",
-        priority: 90, reference: true, ownerType: "persona", ownerName: owner,
+        priority: 90, reference: true, ownerType: "persona", ownerName: owner, ownerKey,
         scopeCategory: category || "人格固有効果"
       });
     };
-    personas.forEach((persona) => {
+    personas.forEach(({ persona, collection, index }) => {
       if (!persona || !persona.name) return;
       const owner = String(persona.name).trim();
       const sameStableIdentity = activeOwnerRecord && activeOwnerRecord.no != null
@@ -454,22 +454,25 @@
         && (!activeOwnerRecord.affiliation || !persona.affiliation
           || String(activeOwnerRecord.affiliation) === String(persona.affiliation));
       if (sameStableIdentity) return;
-      if (persona.passive_name) add(persona.passive_name, owner, "人格パッシブ", persona.passive_effect);
+      const ownerKey = persona.no != null
+        ? collection + "|" + String(persona.affiliation || "") + "|" + String(persona.no)
+        : collection + "|" + owner + "|" + String(index);
+      if (persona.passive_name) add(persona.passive_name, owner, ownerKey, "人格パッシブ", persona.passive_effect);
       (persona.unique_buffs || persona.uniqueBuffs || []).forEach((buff) => {
-        if (buff) add(buff.name, owner, buff.type || "人格固有バフ", buff.desc);
+        if (buff) add(buff.name, owner, ownerKey, buff.type || "人格固有バフ", buff.desc);
       });
       [...(persona.extra_passives || []), ...(persona.extraPassives || [])].forEach((passive) => {
-        if (passive) add(passive.name, owner, "追加パッシブ", passive.effect);
+        if (passive) add(passive.name, owner, ownerKey, "追加パッシブ", passive.effect);
       });
       (persona.skills || []).forEach((skill) => {
         if (!skill) return;
         const diceText = (skill.dice || []).map((die) => die && die.effect).filter(Boolean).join("\\n");
-        add(skill.name, owner, "人格スキル", [skill.effect, diceText].filter(Boolean).join("\\n"));
+        add(skill.name, owner, ownerKey, "人格スキル", [skill.effect, diceText].filter(Boolean).join("\\n"));
       });
     });
     // 同名語が複数人格に存在する場合は参照元を確定できないため候補を破棄する。
     references.forEach((rows, term) => {
-      const owners = new Set(rows.map((row) => row.ownerName));
+      const owners = new Set(rows.map((row) => row.ownerKey));
       if (owners.size !== 1) references.delete(term);
     });
     return references;
