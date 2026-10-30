@@ -549,12 +549,10 @@
     }
     const bracketedPackTerms = Object.keys(PACK_TERMS).filter((term) => {
       if (term.length !== 1) return false;
-      const escaped = escapeRegExp(term);
-      return new RegExp("[\\\\[［]" + escaped + "[\\\\]］]", "u").test(input);
+      return input.includes("[" + term + "]") || input.includes("［" + term + "］");
     });
     const explicitTerms = [...explicitReferences.keys()].filter((term) => {
-      const escaped = escapeRegExp(term);
-      return new RegExp("[\\[［]" + escaped + "[\\]］]", "u").test(input);
+      return input.includes("[" + term + "]") || input.includes("［" + term + "］");
     });
     const terms = [...new Set([...cachedTerms, ...activeTerms, ...ownerGlossary.keys(), ...explicitTerms, ...bracketedPackTerms])]
       .sort((a, b) => b.length - a.length || a.localeCompare(b, "ja"));
@@ -574,9 +572,9 @@
     let lastIndex = 0;
     for (const match of input.matchAll(pattern)) {
       const term = match[0];
-      const exactBracketReference = match.index > 0 && ["[", "［"].includes(input[match.index - 1])
-        && ["]", "］"].includes(input[match.index + term.length])
-        && explicitReferences.has(term);
+      const exactBracketReference = explicitReferences.has(term)
+        && (input.slice(match.index - 1, match.index + term.length + 1) === "[" + term + "]"
+          || input.slice(match.index - 1, match.index + term.length + 1) === "［" + term + "］");
       const entries = resolveEntries(term, scopedGlossary, scope, exactBracketReference);
       if (!entries.length) continue;
       if (match.index > lastIndex) parts.push({ text: input.slice(lastIndex, match.index), term: null, entries: [] });
