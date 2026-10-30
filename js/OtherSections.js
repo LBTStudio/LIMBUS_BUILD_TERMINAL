@@ -4508,6 +4508,14 @@ const readDragId = (event) => {
     const name = String(newResult.name || "").trim();
     if (!name) return;
     const rewardItems = materializeRewardItems(newResult.rewardItems, name);
+    const personaAcquisitions = [];
+    const seenPersonaKeys = new Set();
+    for (const entry of Array.isArray(newResult.personaAcquisitions) ? newResult.personaAcquisitions : []) {
+      const option = initialPersonaOptions.find((candidate) => candidate.mode === entry?.mode && String(candidate.no) === String(entry?.no));
+      if (!option || seenPersonaKeys.has(option.value)) continue;
+      seenPersonaKeys.add(option.value);
+      personaAcquisitions.push({ mode: option.mode, no: option.no, name: option.name, source: "reward" });
+    }
     dispatch({
       type: "ADD_RESULT",
       name,
@@ -4517,9 +4525,26 @@ const readDragId = (event) => {
         shards: Number(newResult.shards) || 0,
         tickets: newResult.tickets || { persona: 0, ego: 0, choice: 0, pack: {} }
       },
-      rewardItems
+      rewardItems,
+      personaAcquisitions
     });
-    setNewResult({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [] });
+    /* 報酬人格は購入ではない。新規リザルトへ取得証跡を保存した後、未所持分だけ所持へ追加する。 */
+    const existingPersonaKeys = new Set((state.roster?.personas || []).map((entry) => entry.mode + ":" + String(entry.no)));
+    for (const acquisition of personaAcquisitions) {
+      const key = acquisition.mode + ":" + String(acquisition.no);
+      if (existingPersonaKeys.has(key)) continue;
+      existingPersonaKeys.add(key);
+      dispatch({
+        type: "ADD_ROSTER",
+        mode: acquisition.mode,
+        no: acquisition.no,
+        purchase: false,
+        skipInitialTicketConsumption: true,
+        via: [name]
+      });
+    }
+    setNewResult({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [], personaAcquisitions: [] });
+    setNewResultPersonaQuery("");
     setNewRewardItemId("");
     setNewRewardItemName("");
     setNewRewardItemQty("1");
@@ -5073,6 +5098,43 @@ const importHeldPersonas = () => {
           setPackPick: setNewResultPack,
           onChange: (tickets) => setNewResult((p) => ({ ...p, tickets }))
         }),
+        h("section", { className: "ledger-reward-item-editor ledger-persona-reward-editor", "aria-label": "報酬人格" },
+          h("div", { className: "ledger-reward-item-head" },
+            h("span", { className: "t-label" }, "報酬人格"),
+            h("span", { className: "ledger-note" }, "人格DBを名前またはNo.で検索して追加します。複数の人格を登録できます。")
+          ),
+          h("div", { className: "ledger-persona-search" },
+            h("input", {
+              className: "ledger-input", type: "search", autoComplete: "off", maxLength: 80,
+              "aria-label": "報酬人格をDBから検索",
+              placeholder: "人格名またはNo.で検索…",
+              value: newResultPersonaQuery,
+              onChange: (event) => setNewResultPersonaQuery(event.target.value)
+            }),
+            newResultPersonaMatches.length > 0
+              ? h("div", { className: "ledger-persona-search-results", role: "listbox", "aria-label": "報酬人格の検索候補", "aria-live": "polite" },
+                  newResultPersonaMatches.map((option) => h("button", {
+                    key: option.value, type: "button", role: "option", className: "ledger-persona-search-result",
+                    "aria-label": option.name + "（" + (option.mode === "t" ? "特異" : "通常") + "）を報酬人格に追加",
+                    onClick: () => addNewResultPersona(option)
+                  },
+                    h("span", null, option.name),
+                    h("small", null, (option.mode === "t" ? "特異" : "通常") + " · No." + option.no),
+                    h("b", null, "追加")
+                  ))
+                )
+              : h("p", { className: "ledger-empty-note", "aria-live": "polite" },
+                  newResultPersonaQuery.trim() ? "DB内に一致する人格がありません。表記を変えて検索してください。" : "人格名またはNo.を入力すると候補が表示されます（最大8件）。"
+                )
+          ),
+          (newResult.personaAcquisitions || []).length > 0
+            ? h("div", { className: "ledger-reward-item-list" }, newResult.personaAcquisitions.map((entry) => h("div", { key: entry.mode + ":" + entry.no, className: "ledger-reward-item-chip" },
+                h("span", null, entry.name || (entry.mode.toUpperCase() + " No." + entry.no)),
+                h("small", null, entry.mode === "t" ? "特異" : "通常"),
+                h("button", { type: "button", "aria-label": (entry.name || entry.no) + " を報酬人格から外す", onClick: () => setNewResult((current) => ({ ...current, personaAcquisitions: (current.personaAcquisitions || []).filter((item) => !(item.mode === entry.mode && String(item.no) === String(entry.no))) })) }, "×")
+              )))
+            : h("p", { className: "ledger-empty-note" }, "報酬人格はまだ登録されていません。")
+        ),
         h("section", { className: "ledger-reward-item-editor", "aria-label": "報酬アイテム" },
           h("div", { className: "ledger-reward-item-head" },
             h("span", { className: "t-label" }, "報酬アイテム"),
@@ -5556,6 +5618,9 @@ heldScan.unknownCount > 0 && h("div", { className: "ledger-held-unknown", role: 
         const initialPersonaDraft = ticketDraft?.initialPersona || { method: "unknown", mode: "", no: "", name: "" };
         const initialPersonaValue = initialPersonaDraft.mode && initialPersonaDraft.no ? initialPersonaDraft.mode + ":" + initialPersonaDraft.no : "";
         const initialPersonaOptionExists = initialPersonaOptions.some((option) => option.value === initialPersonaValue);
+        const newResultPersonaMatches = getPersonaSearchMatches(newResultPersonaQuery, newResult.personaAcquisitions || []);
+        const initialPersonaMatches = getPersonaSearchMatches(initialPersonaQuery, []);
+        const ticketPersonaMatches = getPersonaSearchMatches(ticketPersonaQuery, ticketDraft?.personaAcquisitions || []);
         const rows = byResult(result.id);
         const spent = sumOf(rows);
         const consumedItems = Array.isArray(result.consumedItems) ? result.consumedItems : [];
