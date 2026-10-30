@@ -209,9 +209,8 @@
       });
     });
 
-    (db && Array.isArray(db.support_passives) ? db.support_passives : []).forEach((item) => {
-      addEntity(item.name, "サポートパッシブ", "サポートパッシブ", combine(item.cond && "発動条件：" + item.cond, item.effect), 95, { ownerType: "support", ownerName: item.name || "", scopeCategory: "サポートパッシブ" });
-    });
+    // サポートパッシブは通常の効果文ホバー対象にしない。
+    // ここへ登録すると、同期人格の同名・部分一致へサポート側の説明が混入する。
     (db && Array.isArray(db.death_passives) ? db.death_passives : []).forEach((item) => {
       addEntity(item.name, "死亡後パッシブ", "死亡後パッシブ", combine(item.cond && "発動条件：" + item.cond, item.effect), 90, { ownerType: "deathSupport", ownerName: item.name || "", scopeCategory: "死亡後パッシブ" });
     });
@@ -273,10 +272,11 @@
       const direct = owned.filter((entry) => !entry.reference).sort((a, b) =>
         (Number(b.scopeCategory === scopeCategory) - Number(a.scopeCategory === scopeCategory)) || byPriority(a, b));
       if (direct.length) return [direct[0]];
-      if (uniqueDefinition) return [uniqueDefinition];
       const references = owned.filter((entry) => entry.reference).sort((a, b) =>
         (Number(b.scopeCategory === scopeCategory) - Number(a.scopeCategory === scopeCategory)) || byPriority(a, b));
-      if (references.length) return [references[0]];
+      // 別人格の定義は、現在の効果文に [用語] と明示された参照がある場合だけ解決する。
+      // 単なる部分一致（例：「集中攻撃」の「集中」）から他人格のパッシブを流用しない。
+      if (references.length) return uniqueDefinition ? [uniqueDefinition] : [references[0]];
       return [];
     }
 
@@ -291,13 +291,18 @@
 
   function tokenize(text, db, scope) {
     const input = String(text == null ? "" : text);
-    const glossary = buildGlossary(db || global.DB);
     if (!input) return [{ text: input, term: null, entries: [] }];
 
     const rawScope = String(scope || "");
     const splitAt = rawScope.indexOf(":");
     const scopeCategory = (splitAt < 0 ? rawScope : rawScope.slice(0, splitAt)).trim();
     const ownerName = splitAt < 0 ? "" : rawScope.slice(splitAt + 1).trim();
+
+    // サポートパッシブ自体はこのホバー機能の対象外。本文内の角括弧参照も生成しない。
+    if (scopeCategory.startsWith("サポートパッシブ")) {
+      return [{ text: input, term: null, entries: [] }];
+    }
+    const glossary = buildGlossary(db || global.DB);
     const ownerType = scopeCategory.startsWith("E.G.O") ? "ego"
       : scopeCategory.startsWith("人格") ? "persona"
       : scopeCategory.startsWith("アイテム") ? "item"
@@ -351,9 +356,12 @@
     const parts = [];
     let lastIndex = 0;
     for (const match of input.matchAll(pattern)) {
-      if (match.index > lastIndex) parts.push({ text: input.slice(lastIndex, match.index), term: null, entries: [] });
       const term = match[0];
-      parts.push({ text: term, term, entries: resolveEntries(term, scopedGlossary, scope) });
+      const entries = resolveEntries(term, scopedGlossary, scope);
+      // 文脈に対応する説明を解決できない語は、ホバー対象ではなく通常テキストとして残す。
+      if (!entries.length) continue;
+      if (match.index > lastIndex) parts.push({ text: input.slice(lastIndex, match.index), term: null, entries: [] });
+      parts.push({ text: term, term, entries });
       lastIndex = match.index + term.length;
     }
     if (lastIndex < input.length) parts.push({ text: input.slice(lastIndex), term: null, entries: [] });
