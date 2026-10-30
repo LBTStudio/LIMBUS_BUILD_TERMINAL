@@ -235,7 +235,7 @@
     return glossary;
   }
 
-  function resolveEntries(term, glossary, scope) {
+  function resolveEntries(term, glossary, scope, allowExplicitReference = false) {
     const entries = (glossary.get(term) || []).slice();
     if (!entries.length) return [];
     const rulebook = entries.find((entry) => entry.isRulebook);
@@ -272,21 +272,23 @@
       const direct = owned.filter((entry) => !entry.reference).sort((a, b) =>
         (Number(b.scopeCategory === scopeCategory) - Number(a.scopeCategory === scopeCategory)) || byPriority(a, b));
       if (direct.length) return [direct[0]];
-      const references = owned.filter((entry) => entry.reference).sort((a, b) =>
-        (Number(b.scopeCategory === scopeCategory) - Number(a.scopeCategory === scopeCategory)) || byPriority(a, b));
-      // 別人格の定義は、現在の効果文に [用語] と明示された参照がある場合だけ解決する。
-      // 単なる部分一致（例：「集中攻撃」の「集中」）から他人格のパッシブを流用しない。
-      if (references.length) return uniqueDefinition ? [uniqueDefinition] : [references[0]];
+      const references = entries.filter((entry) => entry.reference && entry.localTextReference
+        && entry.ownerName === ownerName && (!ownerType || entry.ownerType === ownerType))
+        .sort((a, b) => (Number(b.scopeCategory === scopeCategory) - Number(a.scopeCategory === scopeCategory)) || byPriority(a, b));
+      // 他人格の定義は、現在のマッチ自体が [用語] の内側にある場合だけ解決する。
+      // 同じ文章の別位置に参照があっても、「集中攻撃」の「集中」には適用しない。
+      if (allowExplicitReference && references.length) return uniqueDefinition ? [uniqueDefinition] : [references[0]];
       return [];
     }
 
     const candidates = entries.filter((entry) => !entry.reference && !entry.ownerName).sort(byPriority);
     if (candidates.length) return [candidates[0]];
-    if (uniqueDefinition) return [uniqueDefinition];
-    const characterScope = /^(?:人格|E\.G\.O)/u.test(scopeCategory);
-    if (characterScope) return [];
-    const references = entries.filter((entry) => entry.reference && !entry.ownerName).sort(byPriority);
-    return references.length ? [references[0]] : [];
+    if (allowExplicitReference) {
+      const localReference = entries.find((entry) => entry.reference && entry.localTextReference && !entry.ownerName);
+      if (uniqueDefinition) return [uniqueDefinition];
+      if (localReference) return [localReference];
+    }
+    return [];
   }
 
   function tokenize(text, db, scope) {
@@ -332,6 +334,7 @@
         description,
         priority: 30,
         reference: true,
+        localTextReference: true,
         scopeCategory: scopeCategory || "効果本文",
         ownerType: ownerType || null,
         ownerName: ownerName || null,
@@ -357,7 +360,8 @@
     let lastIndex = 0;
     for (const match of input.matchAll(pattern)) {
       const term = match[0];
-      const entries = resolveEntries(term, scopedGlossary, scope);
+      const isExplicitReference = input[match.index - 1] === "[" && input[match.index + term.length] === "]";
+      const entries = resolveEntries(term, scopedGlossary, scope, isExplicitReference);
       // 文脈に対応する説明を解決できない語は、ホバー対象ではなく通常テキストとして残す。
       if (!entries.length) continue;
       if (match.index > lastIndex) parts.push({ text: input.slice(lastIndex, match.index), term: null, entries: [] });
