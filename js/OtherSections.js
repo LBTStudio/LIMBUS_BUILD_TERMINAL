@@ -4305,6 +4305,7 @@ const LedgerPanel = ({ state, dispatch }) => {
       .sort((a, b) => String(a.name).localeCompare(String(b.name), "ja"));
   }, [state.customItems]);
   const [newResult, setNewResult] = React.useState({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [], personaAcquisitions: [] });
+  const [newResultError, setNewResultError] = React.useState("");
   const [newResultPersonaQuery, setNewResultPersonaQuery] = React.useState("");
   const [ticketPersonaQuery, setTicketPersonaQuery] = React.useState("");
   const [initialPersonaQuery, setInitialPersonaQuery] = React.useState("");
@@ -4670,8 +4671,12 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   const searchNeedle = String(resultQuery || "").trim().toLocaleLowerCase("ja-JP");
   const matchingResults = results.filter((result) => {
     if (!searchNeedle) return true;
-    const searchable = [result.name, result.date, result.income?.lp, result.income?.shards]
-      .map((value) => String(value ?? "")).join(" ").toLocaleLowerCase("ja-JP");
+    const searchable = [
+      result.name, result.date, result.income?.lp, result.income?.shards, result.note,
+      ...(result.rewardItems || []).flatMap((item) => [item.itemName, item.customName, item.itemId]),
+      ...(result.personaAcquisitions || []).flatMap((persona) => [persona.name, persona.no, persona.mode]),
+      ...(result.consumedItems || []).flatMap((item) => [item.itemName, item.name, item.itemId, item.reason])
+    ].map((value) => String(value ?? "")).join(" ").toLocaleLowerCase("ja-JP");
     return searchable.includes(searchNeedle);
   });
   const sortedResults = [...matchingResults].sort((a, b) => {
@@ -4808,6 +4813,22 @@ const readDragId = (event) => {
   const addResult = () => {
     const name = String(newResult.name || "").trim();
     if (!name) return;
+    const parseNonNegativeInteger = (raw) => {
+      const value = String(raw ?? "").trim().replace(/[０-９]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xFEE0));
+      if (!value) return 0;
+      if (!/^(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(value)) return null;
+      const parsed = Number(value.replace(/,/g, ""));
+      return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
+    };
+    const incomeLp = parseNonNegativeInteger(newResult.lp);
+    const incomeShards = parseNonNegativeInteger(newResult.shards);
+    if (incomeLp === null || incomeShards === null) {
+      setNewResultError(incomeLp === null
+        ? "獲得LPは0以上の整数で入力してください（小数・負数・文字列は不可）"
+        : "獲得欠片は0以上の整数で入力してください（小数・負数・文字列は不可）");
+      return;
+    }
+    setNewResultError("");
     const rewardItems = materializeRewardItems(newResult.rewardItems, name);
     const personaAcquisitions = [];
     const seenPersonaKeys = new Set();
@@ -4822,8 +4843,8 @@ const readDragId = (event) => {
       name,
       date: newResult.date || "",
       income: {
-        lp: Number(newResult.lp) || 0,
-        shards: Number(newResult.shards) || 0,
+        lp: incomeLp,
+        shards: incomeShards,
         tickets: newResult.tickets || { persona: 0, ego: 0, choice: 0, pack: {} }
       },
       rewardItems,
@@ -4844,6 +4865,7 @@ const readDragId = (event) => {
         via: [name]
       });
     }
+    setNewResultError("");
     setNewResult({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [], personaAcquisitions: [] });
     setNewResultPersonaQuery("");
     setNewRewardItemId("");
@@ -5374,21 +5396,24 @@ const importHeldPersonas = () => {
           }),
           h("input", {
             className: "ledger-input ledger-input--num",
+            type: "number", min: 0, step: 1,
             placeholder: "獲得LP",
             inputMode: "numeric",
             value: newResult.lp,
             "aria-label": "獲得LP",
-            onChange: (e) => setNewResult((p) => ({ ...p, lp: e.target.value }))
+            "aria-invalid": newResultError.startsWith("獲得LP"),
+            onChange: (e) => { setNewResultError(""); setNewResult((p) => ({ ...p, lp: e.target.value })); }
           }),
           h("input", {
             className: "ledger-input ledger-input--num",
+            type: "number", min: 0, step: 1,
             placeholder: "獲得欠片",
             inputMode: "numeric",
             value: newResult.shards,
             "aria-label": "獲得欠片",
-            onChange: (e) => setNewResult((p) => ({ ...p, shards: e.target.value }))
+            "aria-invalid": newResultError.startsWith("獲得欠片"),
+            onChange: (e) => { setNewResultError(""); setNewResult((p) => ({ ...p, shards: e.target.value })); }
           }),
-          h(Button, { size: "sm", variant: "primary", icon: "check", onClick: addResult, disabled: !String(newResult.name || "").trim() }, "記録する")
         ),
         /* 抽出チケットも収入と同じ場所で受け取る。GPTの追加工程なしで、
            LP・欠片と同時にこのリザルトへ入る。 */
@@ -5476,7 +5501,11 @@ const importHeldPersonas = () => {
               )))
             : h("p", { className: "ledger-empty-note" }, "アイテム報酬があれば、ここへ追加します。")
         ),
-)
+        newResultError ? h("p", { className: "ledger-error-note", role: "alert" }, newResultError) : null,
+        h("div", { className: "ledger-result-submit" },
+          h(Button, { size: "md", variant: "primary", icon: "check", onClick: addResult, disabled: !String(newResult.name || "").trim() }, "入力した内容をまとめて記録")
+        )
+      ),
     ),
 
     importPanel && h("div", { id: "ledger-glass-import-panel", role: "region", "aria-label": "硝子窓から一括取り込む", className: "ledger-gara-wrap" },
