@@ -2069,6 +2069,40 @@ test("取り込み: シナリオ1件ごとに ADD_RESULT が出て、ADD_ENTRY �
   assert.equal(built.actions[2].name, "第二夜");
 });
 
+test("硝子窓の初回人格チケット抽出は、使用1枚と獲得人格を別々に一度だけ復元する", () => {
+  const memo = "人格抽出チケット1枚→黒雲会組員";
+  const parsed = MEMO.parseMemo(memo);
+  assert.equal(parsed.tickets.persona, 0, "抽出に使ったチケットを収入として増やさない");
+  assert.equal(parsed.ticketSpends.length, 1, "抽出に使ったチケットを1回だけ使用として読む");
+  assert.equal(parsed.ticketSpends[0].kind, "persona");
+  assert.equal(parsed.ticketSpends[0].count, 1);
+  assert.equal(parsed.wins.length, 1, "抽出で得た人格を同じ履歴から読む");
+  assert.equal(parsed.wins[0].name, "黒雲会組員");
+
+  const scenario = {
+    key: "scenario:initial-persona-ticket",
+    name: "初期作成",
+    memo,
+    income: parsed.income,
+    tickets: parsed.tickets,
+    pack: parsed.pack,
+    spends: parsed.spends,
+    ticketSpends: parsed.ticketSpends,
+    wins: parsed.wins.map((win) => ({
+      ...win,
+      kinds: [{ kind: "persona", no: 1, mode: "n" }]
+    }))
+  };
+  const built = G.toDispatchActions({ groups: [], scenarios: [scenario] }, [], {});
+  const result = built.actions.find((action) => action.type === "ADD_RESULT");
+  const spend = built.actions.find((action) => action.type === "ADD_ENTRY" && action.tickets?.persona === 1);
+  const persona = built.actions.find((action) => action.type === "ADD_ROSTER");
+  assert.equal(result.income.tickets.persona, 0, "リザルト収入へ誤加算しない");
+  assert.ok(spend, "抽出チケットの実使用を消費明細として復元する");
+  assert.equal(spend.tickets.persona, 1, "消費は1枚だけ");
+  assert.equal(persona.skipInitialTicketConsumption, true, "人格の復元側で初期チケット消費を重ねない");
+});
+
 test("取り込み: personaチケット使用と獲得を同時に記録しても初期チケット消費を重ねない", () => {
   const scenario = {
     key: "scenario:initial-persona-ticket",
