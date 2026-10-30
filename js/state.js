@@ -69,10 +69,9 @@ function normalizePersonaAcquisitions(value) {
   });
 }
 
-/* 初期作成用人格チケットの消費。最初の1人格が所持になった時点で1枚消す。
-   指定購入でも所持追加でも抽出でも通す。そうしないと
-   「20LPで指定して、さらに無料抽出チケットも残る」二重得になる。
-   チケットで抽出した場合は既に消費済み（残高0）なので素通りする。 */
+/* 初期作成用人格チケットの消費。最初の人格を購入・手動追加などで得た場合に1枚消す。
+   人格抽出チケットで抽選した場合は、その支払いが初期分の消費を兼ねるため、
+   applyRosterAdds 側で自動消費を抑止する。 */
 function consumeInitialPersonaTicket(state, resultId) {
   const balance = computeTicketBalance(state.results, state.entries);
   if ((Number(balance?.persona) || 0) <= 0) return state;
@@ -3803,8 +3802,10 @@ function applyRosterAdds(state, adds, options) {
     n += 1;
   }
   /* 最初の人格が所持になったら初期作成用チケットを1枚消す。
-     抽出した場合は既に消費済み（残高0）で素通りする。 */
-  if (gainedPersona) next = consumeInitialPersonaTicket(next, opts.resultId);
+     人格抽出チケットを使った抽選では、その支払いが初期分の消費を兼ねるため options で抑止する。 */
+  if (gainedPersona && opts.skipInitialTicketConsumption !== true) {
+    next = consumeInitialPersonaTicket(next, opts.resultId);
+  }
   return { ...next, roster: { ...next.roster, personas, egos } };
 }
 
@@ -3854,8 +3855,12 @@ function rosterAddsFromDrawBatch(batch) {
 
 /* 抽選バッチの経済的な副作用。証明の保存は ADD_DRAW_RECORD と分ける。
    通常履歴にこの副作用だけを1回積み、Undo後には証明だけを再生できるようにする。 */
-function applyDrawBatchEffects(state, batch, resultId) {
-  let next = applyRosterAdds(state, rosterAddsFromDrawBatch(batch), { resultId });
+function applyDrawBatchEffects(state, batch, resultId, options = {}) {
+  let next = applyRosterAdds(state, rosterAddsFromDrawBatch(batch), {
+    resultId,
+    /* 人格抽出チケットは直前の ticketSpend で消費済み。初期分を重ねて引かない。 */
+    skipInitialTicketConsumption: options.ticketSpend?.kind === "persona"
+  });
   for (const record of batch.records) {
     if (record?.kind !== "themePack") continue;
     if (record.duplicate) {
@@ -5355,7 +5360,7 @@ case "ADD_CUSTOM_ITEM": {
           kind: "gachaBatch", commit: String(batch.commit || batch.batchHash || "")
         }, action.resultId);
       }
-      next = applyDrawBatchEffects(next, batch, action.resultId);
+      next = applyDrawBatchEffects(next, batch, action.resultId, { ticketSpend });
       const proofKey = String(batch.batchHash || batch.commit || "");
       return proofKey ? { ...next, _pendingDrawProofHash: proofKey } : next;
     }
@@ -5376,7 +5381,7 @@ case "ADD_CUSTOM_ITEM": {
         next = appendTicketSpend(next, ticketSpend.kind, pack, ticketSpend.count,
           { kind: "gachaBatch", commit: String(batch.commit || batch.batchHash || "") }, action.resultId);
       }
-      next = applyDrawBatchEffects(next, batch, action.resultId);
+      next = applyDrawBatchEffects(next, batch, action.resultId, { ticketSpend });
       const proofKey = String(batch.batchHash || batch.commit || "");
       const staged = proofKey ? { ...next, _pendingDrawProofHash: proofKey } : next;
       return appReducer(staged, { type: "ADD_DRAW_RECORD", batch, entry: action.entry });
