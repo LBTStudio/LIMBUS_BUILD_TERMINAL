@@ -3088,13 +3088,12 @@ tab !== "item" ? h(Button, {
       shownList)
   );
 };
-const BuildWorkspace = ({ state, dispatch, saveStatus }) => {
+const BuildWorkspace = ({ state, dispatch, saveStatus, onTogglePreview, onCopyJson }) => {
   const h = React.createElement;
   const current = state.ui?.currentSection || "persona";
   const active = BUILD_TABS.find((tab) => tab.id === current) || BUILD_TABS[0];
   const setTab = (id) => dispatch({ type: "SET_UI", ui: { currentSection: id } });
-  /* 各タブの中身は既存コンポーネントをそのまま使う。owned は roster（＝所持済み）
-     で絞るかどうか。所持を持たないもの（スキル/パッシブ/強化）は絞り込まない。 */
+  /* 各タブの中身は既存コンポーネントをそのまま使う。owned は state.roster を唯一の基準とする。 */
   const owned = !!active.owned;
   const Component = active.id === "baseinfo"
     ? window.LBT_BaseInfoWorkspace
@@ -3113,9 +3112,8 @@ const BuildWorkspace = ({ state, dispatch, saveStatus }) => {
                 : active.id === "items-build"
                   ? BuildItemsPanel
                   : EnhancementSection;
-  /* 所持ゲートを、roster を唯一の基準とするタブ（人格/サポート/E.G.O/精神）へ渡す。 */
   const panelProps = ["persona", "support", "ego", "spirit"].includes(active.id) ? { ownedOnly: owned } : {};
-  /* 一度表示したタブはツリーを保持し、切替は hidden のみにする（再マウントと画像再デコードを毎回払わない）。 */
+  /* 一度表示したタブのツリーは保持し、タブ切替で画像・編集状態を再マウントしない。 */
   const visitedRef = React.useRef([]);
   const paneCacheRef = React.useRef({});
   if (!visitedRef.current.includes(active.id)) visitedRef.current = visitedRef.current.concat(active.id);
@@ -3136,34 +3134,82 @@ const BuildWorkspace = ({ state, dispatch, saveStatus }) => {
       hidden: tab.id !== active.id
     }, visitedRef.current.includes(tab.id) && cache ? cache.element : null);
   });
-  return h("div", { className: "build-workspace b-workbench" },
-    h(SectionTitle, { num: "01", title: "ビルド", subtitle: "基本設定・人格・スキル・パッシブ・強化・サポート・E.G.O・精神・アイテム" }),
-    h("div", { className: "build-context-strip", "aria-label": "ビルドの作業状態" },
-      h("div", { className: "build-context-target" },
-        h("span", { className: "build-context-label" }, "作業対象"),
-        h("strong", { className: "build-context-name" }, String(state.charName || "名称未設定"))
+  const characterName = String(state.charName || "名称未設定");
+  const personaName = state.personaSrc?.name || "未選択";
+  const hp = state.hp ?? state.personaSrc?.hp ?? "—";
+  const san = state.san ?? state.personaSrc?.san ?? "—";
+  const saveLabel = saveStatus?.phase === "saved" ? "自動保存済み"
+    : saveStatus?.phase === "error" ? "ファイル保存を推奨"
+    : "自動保存中";
+  const previewOpen = state.ui?.previewOpen === true;
+  return h("div", { className: "build-workspace b-workbench btype-build-page" },
+    h("header", { className: "btype-page-heading btype-build-heading" },
+      h("div", null,
+        h("div", { className: "btype-eyebrow" }, "BUILD WORKSPACE / ACTIVE CHARACTER"),
+        h("h1", null, "ビルド"),
+        h("p", null, "基本情報・人格・スキル・E.G.O・出力を同じ作業領域で編集します。")
       ),
-      h("span", { className: "build-context-current-tab" }, active.label),
-      h("span", { className: "build-context-chip" }, state.personaSrc ? "人格装備済み" : "人格未選択"),
-      h("span", { className: `build-context-save is-${saveStatus?.phase || "saving"}`, role: "status" },
-        saveStatus?.phase === "saved" ? "端末内に自動保存済み" : saveStatus?.phase === "error" ? "ファイル保存を推奨" : "端末内へ自動保存中"
-      )
+      h("span", { className: "pill" }, "編集中：" + characterName)
     ),
-    h("div", { className: "build-tabs is-b-workbench" },
-      h("div", { className: "segmented", role: "tablist", "aria-label": "ビルドセクション" },
-        BUILD_TABS.map((tab) => h("button", {
-          key: tab.id,
-          type: "button",
-          role: "tab",
-          "aria-selected": active.id === tab.id,
-          className: active.id === tab.id ? "is-active" : "",
-          onClick: () => setTab(tab.id),
-          id: "btab-" + tab.id,
-          "aria-controls": "bpanel-" + tab.id
-        }, tab.label))
-      )
+    h("div", { className: "status-strip btype-build-status-strip", "aria-label": "ビルドの作業状態" },
+      h("span", { className: "status-item" }, h("strong", null, "キャラクター"), " ", characterName),
+      h("span", { className: "status-item" }, h("strong", null, "装備"), " ", personaName),
+      h("span", { className: "status-item" }, h("strong", null, "HP / SAN"), " ", String(hp), " / ", String(san)),
+      h("span", { className: "status-item" }, h("strong", null, "保存"), " ", saveLabel)
     ),
-    h("div", { className: "build-tabpanel" }, panes)
+    h("div", { className: "btype-work-layout" },
+      h("div", { className: "btype-work-main" },
+        h("div", { className: "build-tabs is-b-workbench subtabs btype-build-tabs" },
+          h("div", { className: "segmented btype-build-tablist", role: "tablist", "aria-label": "ビルドセクション" },
+            BUILD_TABS.map((tab) => h("button", {
+              key: tab.id,
+              type: "button",
+              role: "tab",
+              "aria-selected": active.id === tab.id,
+              className: "subtab" + (active.id === tab.id ? " active is-active" : ""),
+              onClick: () => setTab(tab.id),
+              id: "btab-" + tab.id,
+              "aria-controls": "bpanel-" + tab.id
+            }, tab.label))
+          )
+        ),
+        h("div", { className: "build-tabpanel btype-build-tabpanel" }, panes)
+      ),
+      h("aside", {
+        className: "btype-workbench-preview-panel",
+        "aria-label": "ビルドの出力プレビュー概要",
+        hidden: previewOpen
+      },
+        h("div", { className: "preview-label" },
+          h("span", null, "プレビュー"),
+          h("span", null, state.personaSrc ? "● 準備中" : "● 待機中")
+        ),
+        h("div", { className: "preview-lines" },
+          "キャラクター名：" + characterName + "\n" +
+          "人格：" + personaName + "\n" +
+          "HP / SAN：" + String(hp) + " / " + String(san) + "\n\n" +
+          (state.personaSrc
+            ? "編集内容を反映した出力を確認できます。"
+            : "人格を選ぶと、HP・SAN・スキルなどがここへ反映されます。")
+        ),
+        h("div", { className: "preview-actions" },
+          h("button", {
+            type: "button", className: "secondary", onClick: onTogglePreview,
+            "aria-controls": "preview-panel"
+          }, "プレビューを展開"),
+          h("button", {
+            type: "button", className: "primary", onClick: onCopyJson,
+            title: "現在のビルドからCCFOLIA JSONをコピー"
+          }, "CCFOLIA JSON")
+        ),
+        h("div", { className: "btype-preflight-note" },
+          h("strong", null, "出力前チェック"),
+          h("span", null, (state.personaSrc ? "✓" : "○") + " 人格"),
+          h("span", null, ((state.skills || []).length ? "✓" : "○") + " スキル"),
+          h("span", null, ((state.supports || []).length || (state.extraPassives || []).length ? "✓" : "○") + " パッシブ")
+        )
+      )
+    )
   );
 };
 
