@@ -1735,26 +1735,50 @@ function parseCurrencyBalance(value) {
   return Number.isSafeInteger(value) && value >= 0 ? value : null;
 }
 
-/* 最初の「現在」はスナップショット。行頭に書かれた収入や支出はその残高へ
-   既に反映されているため、その位置より前の流れを合計から差し引く。 */
+/* 最初の明示的な残高表記（現在・残高・残りなど）はスナップショット。
+   行頭に書かれた収入や支出はその残高へ既に反映されているため、
+   その位置より前の流れを合計から差し引く。 */
 function findBalanceAnchor(memo, currency) {
   const normalized = String(memo || "").replace(/\r\n/g, "\n");
-  const marker = currency === "lp" ? /(?:LP|ＬＰ)/i : /(?:欠片|かけら|欠けら|カケラ|けっか)/;
-  const amountAfterCurrent = currency === "lp"
-    ? /(?:現在|現座)\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:LP|ＬＰ)?\s*[：:]?\s*([0-9][0-9,]*)\s*(?:LP|ＬＰ)?(?:\s*[→⇒]\s*([0-9][0-9,]*))?/i
-    : /(?:現在|現座)\s*(?:所持|残高|保有)?\s*[：:]?\s*(?:(?:欠片|かけら|欠けら|カケラ|けっか)\s*)?\s*[：:]?\s*([0-9][0-9,]*)\s*(?:欠片|かけら|欠けら|カケラ|けっか)?(?:\s*[→⇒]\s*([0-9][0-9,]*))?/;
+  const shardWords = "(?:自我の)?(?:破片|欠片|欠け片|かけら|欠けら|カケラ|けっか)";
+  const marker = currency === "lp" ? /(?:LP|ＬＰ)/i : new RegExp(shardWords);
+  const balanceCue = /(?:現在|現座|残高|残額|残量|残り|所持|保有)/g;
+  const amountAfterCue = currency === "lp"
+    ? /(?:(?:LP|ＬＰ)\s*)?[：:]?\s*([0-9][0-9,]*)\s*(?:LP|ＬＰ)?(?:\s*[→⇒]\s*([0-9][0-9,]*))?/i
+    : new RegExp("(?:(?:" + shardWords + ")\\s*)?[：:]?\\s*([0-9][0-9,]*)\\s*(?:" + shardWords + ")?(?:\\s*[→⇒]\\s*([0-9][0-9,]*))?");
+  const amountBeforeCue = currency === "lp"
+    ? /(?:(?:LP|ＬＰ)\s*([0-9][0-9,]*)|([0-9][0-9,]*)\s*(?:LP|ＬＰ))\s*$/i
+    : new RegExp("(?:(?:" + shardWords + ")\\s*([0-9][0-9,]*)|([0-9][0-9,]*)\\s*(?:" + shardWords + "))\\s*$");
   let offset = 0;
   for (const line of normalized.split("\n")) {
     const lineForParsing = normalizeCurrencyText(line);
-    const currentMatch = line.match(/現在|現座/);
-    const currentAt = currentMatch ? currentMatch.index : -1;
-    if (currentAt >= 0 && marker.test(lineForParsing)) {
+    if (/^\s*(?:[▶►▷]\s*|(?:効果(?:説明)?|パッシブ効果|アイテム効果|説明)\s*[:：])/.test(lineForParsing)) {
+      offset += line.length + 1;
+      continue;
+    }
+    if (marker.test(lineForParsing)) {
       /* 全角数字と英字は1コード単位で半角化されるので、現在の位置は変わらない。 */
-      const match = lineForParsing.slice(currentAt).match(amountAfterCurrent);
-      if (match) {
-        const value = parseCurrencyBalance(match[2] ?? match[1]);
+      balanceCue.lastIndex = 0;
+      for (const cueMatch of lineForParsing.matchAll(balanceCue)) {
+        const cueAt = cueMatch.index;
+        let anchorAt = cueAt;
+        let match = lineForParsing.slice(cueAt + cueMatch[0].length).match(amountAfterCue);
+        let rawValue = match && (match[2] ?? match[1]);
+        if (!match) {
+          /* 「150欠片 現在184」は150が支出額かもしれない。
+             数値先行をスナップショットとみなすのは「残高・残り」等の明示語だけ。 */
+          if (/^(?:現在|現座)$/.test(cueMatch[0])) continue;
+          match = lineForParsing.slice(0, cueAt).match(amountBeforeCue);
+          if (!match) continue;
+          anchorAt = match.index;
+          rawValue = match[2] ?? match[1];
+          const afterCueArrow = lineForParsing.slice(cueAt + cueMatch[0].length)
+            .match(/^\s*[→⇒]\s*([0-9][0-9,]*)/);
+          if (afterCueArrow) rawValue = afterCueArrow[1];
+        }
+        const value = parseCurrencyBalance(rawValue);
         if (value !== null) {
-          return { value, prefix: normalized.slice(0, offset + currentAt) };
+          return { value, prefix: normalized.slice(0, offset + anchorAt) };
         }
       }
     }
