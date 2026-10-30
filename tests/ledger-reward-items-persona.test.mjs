@@ -220,6 +220,9 @@ test("新規・過去リザルトと初期人格はDB検索から追加し、長
   assert.match(otherSections, /normal_personas[\s\S]*?tokui_personas/);
   assert.match(otherSections, /getPersonaSearchMatches/);
   assert.match(otherSections, /slice\(0, 8\)/);
+  assert.match(otherSections, /newResultPersonaMatches = getPersonaSearchMatches\([\s\S]*?state\.roster\?\.personas \|\| \[\]/);
+  assert.match(otherSections, /const alreadyOwned = \(state\.roster\?\.personas \|\| \[\]\)\.some/);
+  assert.match(otherSections, /const ticketPersonaMatches = getPersonaSearchMatches\(ticketPersonaQuery, ticketDraft\?\.personaAcquisitions \|\| \[\]\)/);
   assert.match(otherSections, /className: "ledger-persona-search-results"/);
   assert.doesNotMatch(otherSections, /ticketPersonaPick/);
   assert.match(otherSections, /rewardItemCatalog\.map/);
