@@ -185,6 +185,18 @@ test("初期人格の保存は同じリザルトに明示されたチケット�
   const remaining = selectedWithoutRecordedUse.results.reduce((sum, result) => sum + (Number(result.income?.tickets?.persona) || 0), 0)
     - selectedWithoutRecordedUse.entries.reduce((sum, entry) => sum + (Number(entry.tickets?.persona) || 0), 0);
   assert.equal(remaining, 1, "既存の使用記録が無い通常の初回取得では初期分だけ1枚消費する");
+
+  const selectedWithExistingTicketUse = reducer(initial, {
+    type: "ADD_ROSTER",
+    mode: "n",
+    no: 3,
+    purchase: false,
+    resultId
+  });
+  const remainingAfterSelected = selectedWithExistingTicketUse.results.reduce((sum, result) => sum + (Number(result.income?.tickets?.persona) || 0), 0)
+    - selectedWithExistingTicketUse.entries.reduce((sum, entry) => sum + (Number(entry.tickets?.persona) || 0), 0);
+  assert.equal(remainingAfterSelected, 0, "同じリザルトに別用途のチケット使用があっても、指定購入の初回人格は初期チケットを別途消費する");
+  assert.equal(selectedWithExistingTicketUse.entries.length, 2, "既存のチケット使用に加え、初期チケットの消費明細を1件だけ追加する");
 });
 
 
@@ -206,7 +218,8 @@ test("初期作成で選択した人格は取得証跡と所持ライブラリ�
   assert.match(saveBlock, /personaAcquisitions:\s*nextAcquisitions/);
   assert.match(saveBlock, /type:\s*"ADD_ROSTER"/);
   assert.match(saveBlock, /hasRecordedPersonaTicketSpend/);
-  assert.match(saveBlock, /skipInitialTicketConsumption:\s*!isRecordedInitialPersona \|\| hasRecordedPersonaTicketSpend/);
+  assert.match(saveBlock, /recordedPersonaTicketSpendCoversInitial\s*=\s*nextInitialPersona\.method !== "selected" && hasRecordedPersonaTicketSpend/);
+  assert.match(saveBlock, /skipInitialTicketConsumption:\s*!isRecordedInitialPersona \|\| recordedPersonaTicketSpendCoversInitial/);
   assert.match(saveBlock, /const isInitial = result\.id === "res-initial"/);
   assert.match(otherSections, /isEditing && h\("details", \{ className: "ledger-history-editor-disclosure"/);
   assert.match(otherSections, /className: "ledger-history-editor stack-2"/);
