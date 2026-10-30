@@ -387,6 +387,7 @@ test("特定抽出パック第一弾の追加バフ・デバフ・蓄積要素�
   const glossary = loadGlossary().buildGlossary(db);
   const cases = [
     ["緋色の蛾", "特定抽出パック第一弾 p.196"],
+    ["野獣派-マスク・ドゥ・シェーヴル-イブー", "特定抽出パック第一弾 p.197"],
     ["懺悔", "特定抽出パック第一弾 p.198"],
     ["予知眼", "特定抽出パック第一弾 p.203"],
     ["底力", "特定抽出パック第一弾 p.205"],
@@ -396,6 +397,10 @@ test("特定抽出パック第一弾の追加バフ・デバフ・蓄積要素�
     ["電荷針", "特定抽出パック第一弾 p.207"],
     ["矢-死", "特定抽出パック第一弾 p.211"],
     ["組札-松に鶴", "特定抽出パック第一弾 p.211"],
+    ["組札-芒に月", "特定抽出パック第一弾 p.211"],
+    ["組札-桐に鳳凰", "特定抽出パック第一弾 p.211"],
+    ["組札-潤みに桜", "特定抽出パック第一弾 p.211"],
+    ["受話器", "特定抽出パック第一弾 p.212"],
     ["爆発する感情", "特定抽出パック第一弾 p.212"],
     ["過充電", "特定抽出パック第一弾 p.212"],
     ["弾丸-孤独", "特定抽出パック第一弾 p.216"],
@@ -449,9 +454,10 @@ test("特定抽出パック第一弾の追加バフ・デバフ・蓄積要素�
 test("他人格固有語は完全一致の角括弧引用だけを一意に解決し、部分一致と曖昧な同名参照は拒否する", () => {
   const fixture = {
     normal_personas: [
-      { name: "引用元人格", passive_name: "固有の誓約", passive_effect: "引用元だけの説明", unique_buffs: [
-        { name: "蒼い刻印", type: "固有バフ", desc: "引用元の蒼い刻印の説明" }
-      ], skills: [{ name: "夜明けの一閃", effect: "引用元スキルの説明", dice: [{ effect: "的中時、固有印を付与" }] }], keywords: [] },
+      { name: "引用元人格", passive_name: "固有の誓約", passive_cond: "憂鬱x3 共鳴", passive_always: "戦闘開始時、速度値+1", passive_effect: "引用元だけの説明",
+        unique_buffs: [{ name: "蒼い刻印", type: "固有バフ", desc: "引用元の蒼い刻印の説明", max: 5 }],
+        extra_passives: [{ name: "追加の誓い", cond: "色欲x2 保有", always: "R開始時、保護1", effect: "追加パッシブ固有効果" }],
+        skills: [{ name: "夜明けの一閃", effect: "引用元スキルの説明", dice: [{ effect: "的中時、固有印を付与" }] }], keywords: [] },
       { name: "表示中人格", passive_name: "別の誓約", passive_effect: "", unique_buffs: [], skills: [], keywords: [] }
     ],
     tokui_personas: [], egos: [], support_passives: [], death_passives: [],
@@ -465,10 +471,18 @@ test("他人格固有語は完全一致の角括弧引用だけを一意に解�
   assert.ok(quotedPiece, "角括弧で完全一致した引用だけを解決する");
   assert.equal(quotedPiece.entries.length, 1);
   assert.equal(quotedPiece.entries[0].ownerName, "引用元人格");
+  assert.ok(quotedPiece.entries[0].description.includes("発動条件：憂鬱x3 共鳴"));
+  assert.ok(quotedPiece.entries[0].description.includes("常時：戦闘開始時、速度値+1"));
   assert.ok(quotedPiece.entries[0].description.includes("引用元だけの説明"));
   const fullWidthQuoted = api.tokenize("効果は［蒼い刻印］を参照する", fixture, "人格スキル:表示中人格");
-  assert.equal(fullWidthQuoted.find((piece) => piece.term === "蒼い刻印")?.entries[0]?.ownerName, "引用元人格",
-    "全角角括弧による引用も同様に解決する");
+  const quotedBuff = fullWidthQuoted.find((piece) => piece.term === "蒼い刻印")?.entries[0];
+  assert.equal(quotedBuff?.ownerName, "引用元人格", "全角角括弧による引用も同様に解決する");
+  assert.ok(quotedBuff?.description.includes("最大値：5"), "引用先の固有バフ上限も説明へ含める");
+  const quotedExtra = api.tokenize("[追加の誓い]", fixture, "人格スキル:表示中人格")
+    .find((piece) => piece.term === "追加の誓い")?.entries[0];
+  assert.ok(quotedExtra?.description.includes("発動条件：色欲x2 保有"));
+  assert.ok(quotedExtra?.description.includes("常時：R開始時、保護1"));
+  assert.ok(quotedExtra?.description.includes("追加パッシブ固有効果"));
   const quotedSkill = api.tokenize("［夜明けの一閃］を使用する", fixture, "人格スキル:表示中人格");
   assert.ok(quotedSkill.find((piece) => piece.term === "夜明けの一閃")?.entries[0]?.description.includes("引用元スキルの説明"),
     "人格固有スキル名も完全一致引用で説明へ接続する");
