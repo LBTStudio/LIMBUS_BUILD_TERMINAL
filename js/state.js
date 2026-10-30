@@ -69,9 +69,10 @@ function normalizePersonaAcquisitions(value) {
   });
 }
 
-/* 初期作成用人格チケットの消費。最初の人格を購入・手動追加などで得た場合に1枚消す。
-   人格抽出チケットで抽選した場合は、その支払いが初期分の消費を兼ねるため、
-   applyRosterAdds 側で自動消費を抑止する。 */
+/* 初期作成用人格チケットの消費。最初の1人格が所持になった時点で1枚消す。
+   指定購入でも所持追加でも抽出でも通す。そうしないと
+   「20LPで指定して、さらに無料抽出チケットも残る」二重得になる。
+   チケットで抽出した場合は既に消費済み（残高0）なので素通りする。 */
 function consumeInitialPersonaTicket(state, resultId) {
   const balance = computeTicketBalance(state.results, state.entries);
   if ((Number(balance?.persona) || 0) <= 0) return state;
@@ -2049,6 +2050,7 @@ function normalizeStateShape(raw) {
     const exchange = normalizeCurrency(result.exchange);
     let note = String(result.note || "");
     const consumedItems = normalizeConsumedItems(result.consumedItems);
+    const rewardItems = normalizeRewardItems(result.rewardItems, next);
     const initialPersona = normalizeInitialPersona(result.initialPersona);
     const personaAcquisitions = normalizePersonaAcquisitions(result.personaAcquisitions);
     const hasExchange = exchange.lp > 0 || exchange.shards > 0;
@@ -2070,11 +2072,11 @@ function normalizeStateShape(raw) {
       const migrationNote = "旧LP換算を移行済み（" + exchange.lp + "LP → 自我の欠片 " + exchange.shards + "個）";
       note = [note, migrationNote].filter(Boolean).join("\n").slice(0, 2000);
       const { exchange: _legacyExchange, ...withoutExchange } = result;
-      return { ...withoutExchange, id, name, date, income, note, consumedItems, initialPersona, personaAcquisitions };
+      return { ...withoutExchange, id, name, date, income, note, consumedItems, rewardItems, initialPersona, personaAcquisitions };
     }
     if (hasExchange) {
       /* 安全整数を超える旧記録は計算値を変えず、旧フィールドを保全する。 */
-      return { ...result, id, name, date, income, exchange, note, consumedItems, initialPersona, personaAcquisitions };
+      return { ...result, id, name, date, income, exchange, note, consumedItems, rewardItems, initialPersona, personaAcquisitions };
     }
     const { exchange: _legacyExchange, ...withoutExchange } = result;
     return { ...withoutExchange, id, name, date, income, note, consumedItems, initialPersona, personaAcquisitions };
@@ -2692,6 +2694,57 @@ function normalizeConsumedItems(items) {
       detail: String(item.detail || "").trim().slice(0, 500)
     };
   }).filter((item) => item.itemId && item.itemName);
+}
+
+/* Structured item rewards attached to a result; ledger-linked currencies stay in the currency fields. */
+function normalizeRewardItems(items, state) {
+  if (!Array.isArray(items)) return [];
+  const source = state && typeof state === "object" ? state : {};
+  const catalog = [
+    ...(Array.isArray(window.DB?.items) ? window.DB.items : []),
+    ...(Array.isArray(window.DB?.specialItems) ? window.DB.specialItems : []),
+    ...(Array.isArray(source.customItems) ? source.customItems : [])
+  ];
+  const byId = new Map(catalog.filter((item) => item && item.id).map((item) => [String(item.id), item]));
+  const totals = new Map();
+  for (const raw of items) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
+    const itemId = String(raw.itemId || raw.id || "").trim().slice(0, 120);
+    const item = byId.get(itemId);
+    if (!item || item.ledgerResource) continue;
+    const quantity = parsePositiveIntegerStrict(raw.quantity);
+    if (quantity === null) continue;
+    const next = (totals.get(itemId)?.quantity || 0) + quantity;
+    if (!Number.isSafeInteger(next)) continue;
+    totals.set(itemId, {
+      itemId,
+      itemName: String(item.name || raw.itemName || raw.name || itemId).trim().slice(0, 120),
+      quantity: next
+    });
+  }
+  return [...totals.values()];
+}
+
+/* Only positive deltas enter stock. Editing a past reward down does not silently
+   remove an item that may already have been consumed after that session. */
+function grantRewardItemDeltas(state, nextItems, previousItems) {
+  const previous = new Map((Array.isArray(previousItems) ? previousItems : [])
+    .map((item) => [String(item?.itemId || ""), Number(item?.quantity) || 0]));
+  let inventory = Array.isArray(state.inventory) ? [...state.inventory] : [];
+  let changed = false;
+  for (const reward of Array.isArray(nextItems) ? nextItems : []) {
+    const itemId = String(reward?.itemId || "");
+    const delta = Math.max(0, (Number(reward?.quantity) || 0) - (previous.get(itemId) || 0));
+    if (!itemId || delta <= 0) continue;
+    const currentIndex = inventory.findIndex((entry) => entry && entry.itemId === itemId);
+    const currentQuantity = currentIndex >= 0 ? Number(inventory[currentIndex].quantity) || 1 : 0;
+    const quantity = clampItemQuantity(state, itemId, currentQuantity + delta);
+    if (quantity <= currentQuantity) continue;
+    if (currentIndex >= 0) inventory[currentIndex] = { ...inventory[currentIndex], quantity };
+    else inventory.push({ uid: makeOwnedUid("it"), itemId, quantity, memo: true, palette: true, origin: "acquired" });
+    changed = true;
+  }
+  return changed ? { ...state, inventory } : state;
 }
 
 function normalizeVia(via) {
@@ -3802,10 +3855,8 @@ function applyRosterAdds(state, adds, options) {
     n += 1;
   }
   /* 最初の人格が所持になったら初期作成用チケットを1枚消す。
-     人格抽出チケットを使った抽選では、その支払いが初期分の消費を兼ねるため options で抑止する。 */
-  if (gainedPersona && opts.skipInitialTicketConsumption !== true) {
-    next = consumeInitialPersonaTicket(next, opts.resultId);
-  }
+     抽出した場合は既に消費済み（残高0）で素通りする。 */
+  if (gainedPersona) next = consumeInitialPersonaTicket(next, opts.resultId);
   return { ...next, roster: { ...next.roster, personas, egos } };
 }
 
@@ -3855,12 +3906,8 @@ function rosterAddsFromDrawBatch(batch) {
 
 /* 抽選バッチの経済的な副作用。証明の保存は ADD_DRAW_RECORD と分ける。
    通常履歴にこの副作用だけを1回積み、Undo後には証明だけを再生できるようにする。 */
-function applyDrawBatchEffects(state, batch, resultId, options = {}) {
-  let next = applyRosterAdds(state, rosterAddsFromDrawBatch(batch), {
-    resultId,
-    /* 人格抽出チケットは直前の ticketSpend で消費済み。初期分を重ねて引かない。 */
-    skipInitialTicketConsumption: options.ticketSpend?.kind === "persona"
-  });
+function applyDrawBatchEffects(state, batch, resultId) {
+  let next = applyRosterAdds(state, rosterAddsFromDrawBatch(batch), { resultId });
   for (const record of batch.records) {
     if (record?.kind !== "themePack") continue;
     if (record.duplicate) {
@@ -5360,7 +5407,7 @@ case "ADD_CUSTOM_ITEM": {
           kind: "gachaBatch", commit: String(batch.commit || batch.batchHash || "")
         }, action.resultId);
       }
-      next = applyDrawBatchEffects(next, batch, action.resultId, { ticketSpend });
+      next = applyDrawBatchEffects(next, batch, action.resultId);
       const proofKey = String(batch.batchHash || batch.commit || "");
       return proofKey ? { ...next, _pendingDrawProofHash: proofKey } : next;
     }
@@ -5381,7 +5428,7 @@ case "ADD_CUSTOM_ITEM": {
         next = appendTicketSpend(next, ticketSpend.kind, pack, ticketSpend.count,
           { kind: "gachaBatch", commit: String(batch.commit || batch.batchHash || "") }, action.resultId);
       }
-      next = applyDrawBatchEffects(next, batch, action.resultId, { ticketSpend });
+      next = applyDrawBatchEffects(next, batch, action.resultId);
       const proofKey = String(batch.batchHash || batch.commit || "");
       const staged = proofKey ? { ...next, _pendingDrawProofHash: proofKey } : next;
       return appReducer(staged, { type: "ADD_DRAW_RECORD", batch, entry: action.entry });
@@ -5827,10 +5874,13 @@ case "ADD_CUSTOM_ITEM": {
     case "UPDATE_RESULT": {
       const id = action.id;
       const now = Date.now();
-      let hit = false;
+      const previous = (state.results || []).find((result) => result.id === id);
+      if (!previous) return state;
+      const nextRewardItems = action.rewardItems === undefined
+        ? normalizeRewardItems(previous.rewardItems, state)
+        : normalizeRewardItems(action.rewardItems, state);
       const results = (state.results || []).map((r) => {
         if (r.id !== id) return r;
-        hit = true;
         return {
           ...r,
           name: action.name === undefined ? r.name : String(action.name).slice(0, 80),
@@ -5840,6 +5890,7 @@ case "ADD_CUSTOM_ITEM": {
             : { ...normalizeCurrency(action.income), tickets: normalizeTickets(action.income?.tickets) },
           ...(action.note !== undefined ? { note: String(action.note || "").slice(0, 2000) } : {}),
           ...(action.consumedItems !== undefined ? { consumedItems: normalizeConsumedItems(action.consumedItems) } : {}),
+          ...(action.rewardItems !== undefined ? { rewardItems: nextRewardItems } : {}),
           ...(action.initialPersona !== undefined ? { initialPersona: normalizeInitialPersona(action.initialPersona) } : {}),
           ...(action.personaAcquisitions !== undefined ? { personaAcquisitions: normalizePersonaAcquisitions(action.personaAcquisitions) } : {}),
           ...(action.importSourceKey !== undefined
@@ -5850,31 +5901,39 @@ case "ADD_CUSTOM_ITEM": {
           updatedAt: now
         };
       });
-      return hit ? { ...state, results } : state;
+      const updated = { ...state, results };
+      return action.rewardItems === undefined
+        ? updated
+        : grantRewardItemDeltas(updated, nextRewardItems, previous.rewardItems);
     }
     case "ADD_RESULT": {
       const now = Date.now();
-      return {
-        ...state,
-        results: [...(state.results || []), {
-          id: makeOwnedUid("res"),
-          name: String(action.name || "").slice(0, 80) || "無題",
-          date: String(action.date || localDateString()).slice(0, 10),
-          income: { ...normalizeCurrency(action.income), tickets: normalizeTickets(action.income?.tickets) },
-          note: String(action.note || "").slice(0, 2000),
-          consumedItems: normalizeConsumedItems(action.consumedItems),
-          initialPersona: normalizeInitialPersona(action.initialPersona),
-          personaAcquisitions: normalizePersonaAcquisitions(action.personaAcquisitions),
-          ...(String(action.importSourceKey || "").trim()
-            ? { importSourceKey: String(action.importSourceKey).slice(0, 180) }
-            : {}),
-          createdAt: now,
-          updatedAt: now
-        }]
+      const result = {
+        id: makeOwnedUid("res"),
+        name: String(action.name || "").slice(0, 80) || "無題",
+        date: String(action.date || localDateString()).slice(0, 10),
+        income: { ...normalizeCurrency(action.income), tickets: normalizeTickets(action.income?.tickets) },
+        note: String(action.note || "").slice(0, 2000),
+        consumedItems: normalizeConsumedItems(action.consumedItems),
+        rewardItems: normalizeRewardItems(action.rewardItems, state),
+        initialPersona: normalizeInitialPersona(action.initialPersona),
+        personaAcquisitions: normalizePersonaAcquisitions(action.personaAcquisitions),
+        ...(String(action.importSourceKey || "").trim()
+          ? { importSourceKey: String(action.importSourceKey).slice(0, 180) }
+          : {}),
+        createdAt: now,
+        updatedAt: now
       };
+      const next = { ...state, results: [...(state.results || []), result] };
+      return grantRewardItemDeltas(next, result.rewardItems, []);
     }
-    case "PATCH_RESULT":
-      return {
+    case "PATCH_RESULT": {
+      const previous = (state.results || []).find((result) => result.id === action.id);
+      if (!previous) return state;
+      const nextRewardItems = action.patch?.rewardItems === undefined
+        ? normalizeRewardItems(previous.rewardItems, state)
+        : normalizeRewardItems(action.patch.rewardItems, state);
+      const updated = {
         ...state,
         results: (state.results || []).map((r) => (r.id === action.id
           ? {
@@ -5883,12 +5942,17 @@ case "ADD_CUSTOM_ITEM": {
               ...(action.patch?.date !== void 0 ? { date: String(action.patch.date).slice(0, 10) } : {}),
               ...(action.patch?.note !== void 0 ? { note: String(action.patch.note).slice(0, 2000) } : {}),
               ...(action.patch?.income !== void 0 ? { income: { ...normalizeCurrency(action.patch.income), tickets: normalizeTickets(action.patch.income?.tickets) } } : {}),
+              ...(action.patch?.rewardItems !== void 0 ? { rewardItems: normalizeRewardItems(action.patch.rewardItems, state) } : {}),
               ...(action.patch?.initialPersona !== void 0 ? { initialPersona: normalizeInitialPersona(action.patch.initialPersona) } : {}),
               ...(action.patch?.personaAcquisitions !== void 0 ? { personaAcquisitions: normalizePersonaAcquisitions(action.patch.personaAcquisitions) } : {}),
               updatedAt: Date.now()
             }
           : r))
       };
+      return action.patch?.rewardItems === undefined
+        ? updated
+        : grantRewardItemDeltas(updated, nextRewardItems, previous.rewardItems);
+    }
     /* リザルトを消したら、そのリザルトに紐づく明細も消す。
        かつ未分類へ戻すと、削除した支出が別の予算に紛れ込んで
        「消したのにまだ残っている」ように見える。削除なら削除。 */

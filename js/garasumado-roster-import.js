@@ -1040,7 +1040,7 @@ function toIdentityChoices(hits) {
           /* 人格はDB価格を持たない。source:"buy" は入手方法であって金額ではない。
              金額の根拠は scenario.spends / purchasePlan 側の ADD_ENTRY だけから記帳する。
              ここで purchase:true にすると action.cost 未指定のため 0LP の購入明細が増える。 */
-          actions.push({ type: "ADD_ROSTER", no: String(persona.no), mode: personaMode, via, viaKeys, ...(via.length ? {} : { unclassified: true }), source: item.source || "", purchase: item.source === "buy" && !memoPaid(item), skipInitialTicketConsumption: true });
+          actions.push({ type: "ADD_ROSTER", no: String(persona.no), mode: personaMode, via, viaKeys, ...(via.length ? {} : { unclassified: true }), source: item.source || "", purchase: item.source === "buy" && !memoPaid(item) });
           if (Array.isArray(item.importedEnhancementNames)) {
             const imported = resolveImportedEnhancements(item.importedEnhancementNames, itemDb);
             if (imported.rows.length || item.importedEnhancementNames.length === 0) {
@@ -1263,7 +1263,7 @@ function toIdentityChoices(hits) {
           const key = `persona:${persona.mode || "n"}:${persona.no}`;
           if (taken.has(key)) continue;
           taken.add(key);
-          actions.push({ type: "ADD_ROSTER", no: String(persona.no), mode: persona.mode || "n", skipInitialTicketConsumption: true });
+          actions.push({ type: "ADD_ROSTER", no: String(persona.no), mode: persona.mode || "n" });
         } else if (ego) {
           const key = `ego:${ego.rank}:${ego.no}`;
           if (taken.has(key)) continue;
