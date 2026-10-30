@@ -1,7 +1,7 @@
 /* LIMBUS BUILD TERMINAL — inline reference glossary.
    PC: delayed hover / keyboard focus. Touch: tap or long-press.
-   Definitions come from the committed core-rules corpus and current DB.
-   Unknown named references show their closest source effect instead of guessing. */
+   A tooltip may resolve only to the shared rule glossary or the currently displayed owner.
+   Other personas' passives and definitions are never cross-referenced. */
 (function (global) {
   "use strict";
   const OFFICIAL_TERMS = {
@@ -139,19 +139,6 @@
       if (entries.some((item) => item._key === uniqueKey)) return;
       entries.push({ ...entry, term: key, _key: uniqueKey });
     };
-    const addSourceRow = (text, category, source, title, context = {}) => {
-      const value = String(text || "").trim();
-      if (!value) return;
-      for (const match of value.matchAll(/\[([^\]\n]{2,64})\]/gu)) {
-        const name = cleanTerm(match[1]);
-        if (!name || /^\d+R$/u.test(name)) continue;
-        add(name, {
-          category: "本文中の参照", source: source || "データ", description: shortText(value), priority: 20,
-          reference: true, scopeCategory: context.scopeCategory || category || "効果本文",
-          ownerType: context.ownerType || null, ownerName: context.ownerName || null
-        });
-      }
-    };
     const addEntity = (term, category, source, description, priority = 80, context = {}) => {
       const value = String(description || "").trim();
       add(term, {
@@ -160,7 +147,6 @@
         priority, reference: false, scopeCategory: context.scopeCategory || category || "固有効果",
         ownerType: context.ownerType || null, ownerName: context.ownerName || null
       });
-      if (value) addSourceRow(value, category, source, term, context);
     };
     const combine = (...values) => values.map((value) => String(value || "").trim()).filter(Boolean).join("\n");
 
@@ -175,15 +161,12 @@
       const owner = { ownerType: "persona", ownerName: persona.name || "", scopeCategory: "人格パッシブ" };
       const passive = combine(persona.passive_cond && "発動条件：" + persona.passive_cond, persona.passive_always && "常時：" + persona.passive_always, persona.passive_effect);
       if (persona.passive_name) addEntity(persona.passive_name, "人格パッシブ", identity, passive, 90, owner);
-      addSourceRow(passive, "人格パッシブ", identity, persona.passive_name, owner);
       (persona.unique_buffs || []).forEach((buff) => {
         const description = combine(buff.desc, buff.type && "種別：" + buff.type, buff.initial != null && "初期値：" + buff.initial, buff.max != null && "最大値：" + buff.max);
         addEntity(buff.name, buff.type || "人格固有バフ", identity, description, 105, { ...owner, scopeCategory: "人格固有バフ" });
       });
       (persona.skills || []).forEach((skill, index) => {
         const source = identity + "／" + (skill.name || skill.rank || "スキル" + index);
-        addSourceRow(skill.effect, "人格スキル", source, skill.name, { ...owner, scopeCategory: "人格スキル" });
-        (skill.dice || []).forEach((die, dieIndex) => addSourceRow(die.effect, "人格ダイス", source + "／ダイス" + (dieIndex + 1), skill.name, { ...owner, scopeCategory: "人格ダイス" }));
       });
     });
 
@@ -191,7 +174,6 @@
       const source = "E.G.O：" + (ego.rank ? "[" + ego.rank + "] " : "") + (ego.name || "名称未設定");
       const owner = { ownerType: "ego", ownerName: ego.name || "", scopeCategory: "E.G.Oパッシブ" };
       if (ego.passive_name) addEntity(ego.passive_name, "E.G.Oパッシブ", source, combine(ego.passive_cond && "発動条件：" + ego.passive_cond, ego.passive_effect), 95, owner);
-      addSourceRow(ego.passive_effect, "E.G.Oパッシブ", source, ego.passive_name, owner);
       if (ego.unique_buff) {
         const uniqueText = String(ego.unique_buff);
         const names = [...uniqueText.matchAll(/\[([^\]\n]{2,64})\]/gu)]
@@ -199,45 +181,121 @@
           .filter((name) => name && !/^\d+R$/u.test(name));
         const mainName = names[0] || uniqueText.split(/\r?\n/u)[0].replace(/^(?:固有バフ|固有効果)\s*[:：]?/u, "").trim();
         if (mainName) addEntity(mainName, "E.G.O固有効果", source, uniqueText, 110, { ...owner, scopeCategory: "E.G.O固有効果" });
-        addSourceRow(uniqueText, "E.G.O固有効果", source, mainName, { ...owner, scopeCategory: "E.G.O固有効果" });
       }
       [ego.kakusei, ego.shinshoku, ...(ego.sub_skills || [])].filter(Boolean).forEach((skill, index) => {
         const label = skill.name || skill.kind || (index === 0 ? "覚醒スキル" : "派生スキル");
         const skillSource = source + "／" + label;
-        addSourceRow(skill.effect, "E.G.Oスキル", skillSource, label, { ...owner, scopeCategory: "E.G.O効果" });
-        (skill.dice || []).forEach((die, dieIndex) => addSourceRow(die.effect, "E.G.Oダイス", skillSource + "／ダイス" + (dieIndex + 1), label, { ...owner, scopeCategory: "E.G.O効果" }));
       });
     });
 
     // サポートパッシブは通常の効果文ホバー対象にしない。
     // ここへ登録すると、同期人格の同名・部分一致へサポート側の説明が混入する。
-    (db && Array.isArray(db.death_passives) ? db.death_passives : []).forEach((item) => {
-      addEntity(item.name, "死亡後パッシブ", "死亡後パッシブ", combine(item.cond && "発動条件：" + item.cond, item.effect), 90, { ownerType: "deathSupport", ownerName: item.name || "", scopeCategory: "死亡後パッシブ" });
-    });
-    (db && Array.isArray(db.special_enhancements) ? db.special_enhancements : []).forEach((item) => {
-      addEntity(item.name, "特殊強化", "特殊強化", item.effect, 90, { ownerType: "specialEnhancement", ownerName: item.name || "", scopeCategory: "特殊強化" });
-    });
-    (db && Array.isArray(db.normal_enhancements) ? db.normal_enhancements : []).forEach((item) => {
-      addEntity(item.name, "通常強化", "通常強化", item.effect, 80, { ownerType: "enhancement", ownerName: item.name || "", scopeCategory: "通常強化" });
-    });
-    (db && Array.isArray(db.spirits) ? db.spirits : []).forEach((item) => {
-      addEntity(item.name, "精神状態", "精神状態", combine(item.always_effect, item.morale_effect, item.confuse_effect), 85, { ownerType: "spirit", ownerName: item.name || "", scopeCategory: "精神状態" });
-    });
-    (db && Array.isArray(db.items) ? db.items : []).forEach((item) => {
-      addEntity(item.name, "アイテム", "アイテム", item.effect, 80, { ownerType: "item", ownerName: item.name || "", scopeCategory: "アイテム効果" });
-    });
-
     glossary.forEach((entries) => entries.sort((a, b) => (Number(b.isRulebook) - Number(a.isRulebook)) || (b.priority || 0) - (a.priority || 0)));
     cachedDb = db;
     cachedGlossary = glossary;
-    cachedTerms = [...glossary.keys()].sort((a, b) => b.length - a.length || a.localeCompare(b, "ja"));
+    // Shared matching is driven only by the common rule glossary. Owner-specific
+    // names are added per render so another persona can never steal a substring match.
+    cachedTerms = Object.keys(OFFICIAL_TERMS).sort((a, b) => b.length - a.length || a.localeCompare(b, "ja"));
     cachedPattern = cachedTerms.length ? new RegExp(cachedTerms.map(escapeRegExp).join("|"), "gu") : null;
     return glossary;
   }
 
-  function resolveEntries(term, glossary, scope, allowExplicitReference = false) {
+  function ownerTypeForScope(scopeCategory) {
+    return scopeCategory.startsWith("E.G.O") ? "ego"
+      : scopeCategory.startsWith("人格") || scopeCategory.startsWith("追加パッシブ") ? "persona"
+      : scopeCategory.startsWith("アイテム") ? "item"
+      : scopeCategory.startsWith("精神状態") ? "spirit"
+      : scopeCategory.startsWith("通常強化") ? "enhancement"
+      : scopeCategory.startsWith("特殊強化") ? "specialEnhancement"
+      : null;
+  }
+
+  function buildOwnerGlossary(sourceRecord, scope) {
+    const entries = new Map();
+    if (!sourceRecord || typeof sourceRecord !== "object" || Array.isArray(sourceRecord)) return entries;
+
+    const rawScope = String(scope || "");
+    const splitAt = rawScope.indexOf(":");
+    const scopeCategory = (splitAt < 0 ? rawScope : rawScope.slice(0, splitAt)).trim();
+    const scopeOwner = splitAt < 0 ? "" : rawScope.slice(splitAt + 1).trim();
+    const ownerType = ownerTypeForScope(scopeCategory);
+    const ownerName = String(sourceRecord.name || scopeOwner || "").trim();
+    if (!ownerName || !ownerType) return entries;
+
+    const addLocal = (term, category, source, description, priority, itemScope) => {
+      const key = cleanTerm(term);
+      if (!key || key.length > 64 || (key.length === 1 && !OFFICIAL_TERMS[key])) return;
+      if (!entries.has(key)) entries.set(key, []);
+      entries.get(key).push({
+        category: category || "固有効果",
+        source: source || "現在表示中のデータ",
+        description: String(description || "").trim() || "この項目の説明本文はデータに登録されていません。",
+        priority: priority || 80,
+        reference: false,
+        ownerType,
+        ownerName,
+        scopeCategory: itemScope || category || scopeCategory,
+        term: key
+      });
+    };
+    const combine = (...values) => values.map((value) => String(value || "").trim()).filter(Boolean).join("\n");
+
+    if (ownerType === "persona") {
+      const identity = "人格：" + ownerName;
+      const passive = combine(
+        sourceRecord.passive_cond && "発動条件：" + sourceRecord.passive_cond,
+        sourceRecord.passive_always && "常時：" + sourceRecord.passive_always,
+        sourceRecord.passive_effect
+      );
+      if (sourceRecord.passive_name) addLocal(sourceRecord.passive_name, "人格パッシブ", identity, passive, 130, "人格パッシブ");
+      (sourceRecord.unique_buffs || sourceRecord.uniqueBuffs || []).forEach((buff) => {
+        if (!buff) return;
+        const description = combine(
+          buff.desc,
+          buff.type && "種別：" + buff.type,
+          buff.initial != null && "初期値：" + buff.initial,
+          buff.max != null && "最大値：" + buff.max
+        );
+        addLocal(buff.name, buff.type || "人格固有バフ", identity, description, 135, "人格固有バフ");
+      });
+      const extras = [...(sourceRecord.extra_passives || []), ...(sourceRecord.extraPassives || [])];
+      extras.forEach((passive) => {
+        if (!passive) return;
+        const description = combine(
+          passive.cond && "発動条件：" + passive.cond,
+          passive.always && "常時：" + passive.always,
+          passive.effect
+        );
+        addLocal(passive.name, "追加パッシブ", identity, description, 125, "追加パッシブ");
+      });
+    } else if (ownerType === "ego") {
+      const identity = "E.G.O：" + (sourceRecord.rank ? "[" + sourceRecord.rank + "] " : "") + ownerName;
+      if (sourceRecord.passive_name) {
+        addLocal(sourceRecord.passive_name, "E.G.Oパッシブ", identity,
+          combine(sourceRecord.passive_cond && "発動条件：" + sourceRecord.passive_cond, sourceRecord.passive_effect), 130, "E.G.Oパッシブ");
+      }
+      if (sourceRecord.unique_buff) {
+        const uniqueText = String(sourceRecord.unique_buff);
+        const names = [...uniqueText.matchAll(/\[([^\]\n]{2,64})\]/gu)]
+          .map((match) => cleanTerm(match[1]))
+          .filter((name) => name && !/^\d+R$/u.test(name));
+        const mainName = names[0] || uniqueText.split(/\r?\n/u)[0].replace(/^(?:固有バフ|固有効果)\s*[:：]?/u, "").trim();
+        if (mainName) addLocal(mainName, "E.G.O固有効果", identity, uniqueText, 140, "E.G.O固有効果");
+      }
+    } else if (ownerType === "item") {
+      addLocal(sourceRecord.name, "アイテム", "アイテム：" + ownerName, sourceRecord.effect, 100, "アイテム効果");
+    } else if (ownerType === "spirit" || ownerType === "enhancement" || ownerType === "specialEnhancement") {
+      addLocal(sourceRecord.name, scopeCategory, scopeCategory, sourceRecord.effect || sourceRecord.always_effect, 100, scopeCategory);
+    }
+
+    entries.forEach((rows) => rows.sort((a, b) => (b.priority || 0) - (a.priority || 0)));
+    return entries;
+  }
+
+  function resolveEntries(term, glossary, scope) {
     const entries = (glossary.get(term) || []).slice();
     if (!entries.length) return [];
+    // 共通用語辞典を最優先する。人格固有名詞と同名でも共通ルールの定義を使う。
     const rulebook = entries.find((entry) => entry.isRulebook);
     if (rulebook) return [rulebook];
 
@@ -245,56 +303,26 @@
     const splitAt = rawScope.indexOf(":");
     const scopeCategory = (splitAt < 0 ? rawScope : rawScope.slice(0, splitAt)).trim();
     const ownerName = splitAt < 0 ? "" : rawScope.slice(splitAt + 1).trim();
-    const byPriority = (a, b) => (b.priority || 0) - (a.priority || 0);
-    const ownerType = scopeCategory.startsWith("E.G.O") ? "ego"
-      : scopeCategory.startsWith("人格") ? "persona"
-      : scopeCategory.startsWith("アイテム") ? "item"
-      : scopeCategory.startsWith("サポート") ? "support"
-      : scopeCategory.startsWith("死亡後") ? "deathSupport"
-      : scopeCategory.startsWith("精神状態") ? "spirit" : null;
-
-    const directDefinitions = entries.filter((entry) => !entry.reference && entry.ownerName);
-    const semanticDefinitions = new Map();
-    directDefinitions.forEach((entry) => {
-      const semanticKey = [entry.category || "", entry.description || ""].join("|");
-      if (!semanticDefinitions.has(semanticKey)) semanticDefinitions.set(semanticKey, []);
-      semanticDefinitions.get(semanticKey).push(entry);
-    });
-    // Cross-owner references may point at an effect defined by another identity.
-    // Follow it only when the term has one unambiguous definition; never guess between
-    // identically named passives/buffs with different meanings.
-    const uniqueDefinition = semanticDefinitions.size === 1
-      ? directDefinitions.slice().sort(byPriority)[0]
-      : null;
+    const ownerType = ownerTypeForScope(scopeCategory);
+    const byPriority = (a, b) =>
+      (Number(b.scopeCategory === scopeCategory) - Number(a.scopeCategory === scopeCategory))
+      || (b.priority || 0) - (a.priority || 0);
 
     if (ownerName) {
-      const owned = entries.filter((entry) => entry.ownerName === ownerName && (!ownerType || entry.ownerType === ownerType));
-      const direct = owned.filter((entry) => !entry.reference).sort((a, b) =>
-        (Number(b.scopeCategory === scopeCategory) - Number(a.scopeCategory === scopeCategory)) || byPriority(a, b));
-      if (direct.length) return [direct[0]];
-      const references = entries.filter((entry) => entry.reference && entry.localTextReference
-        && entry.ownerName === ownerName && (!ownerType || entry.ownerType === ownerType))
-        .sort((a, b) => (Number(b.scopeCategory === scopeCategory) - Number(a.scopeCategory === scopeCategory)) || byPriority(a, b));
-      // 他人格の定義は、現在のマッチ自体が [用語] の内側にある場合だけ解決する。
-      // 同じ文章の別位置に参照があっても、「集中攻撃」の「集中」には適用しない。
-      if (allowExplicitReference && references.length) return uniqueDefinition ? [uniqueDefinition] : [references[0]];
-      return [];
+      // 現在表示中の所有者に直接属する定義だけを許可する。
+      // 他人格・他E.G.O・サポート枠へのフォールバックは行わない。
+      const owned = entries.filter((entry) => !entry.reference
+        && entry.ownerName === ownerName
+        && (!ownerType || entry.ownerType === ownerType))
+        .sort(byPriority);
+      return owned.length ? [owned[0]] : [];
     }
 
-    const candidates = entries.filter((entry) => !entry.reference && !entry.ownerName).sort(byPriority);
-    if (candidates.length) return [candidates[0]];
-    // scope 指定のない汎用検索では、従来どおり一意に定義できる語を表示する。
-    // 人格・E.G.Oなどの所有者スコープでは、別所有者の定義にこの経路でフォールバックしない。
-    if (!scopeCategory && uniqueDefinition) return [uniqueDefinition];
-    if (allowExplicitReference) {
-      const localReference = entries.find((entry) => entry.reference && entry.localTextReference && !entry.ownerName);
-      if (uniqueDefinition) return [uniqueDefinition];
-      if (localReference) return [localReference];
-    }
-    return [];
+    const common = entries.filter((entry) => !entry.reference && !entry.ownerName).sort(byPriority);
+    return common.length ? [common[0]] : [];
   }
 
-  function tokenize(text, db, scope) {
+  function tokenize(text, db, scope, sourceRecord) {
     const input = String(text == null ? "" : text);
     if (!input) return [{ text: input, term: null, entries: [] }];
 
@@ -303,69 +331,38 @@
     const scopeCategory = (splitAt < 0 ? rawScope : rawScope.slice(0, splitAt)).trim();
     const ownerName = splitAt < 0 ? "" : rawScope.slice(splitAt + 1).trim();
 
-    // サポートパッシブ自体はこのホバー機能の対象外。本文内の角括弧参照も生成しない。
-    if (scopeCategory.startsWith("サポートパッシブ")) {
+    // サポートパッシブと死亡後サポートパッシブはホバー対象にしない。
+    if (scopeCategory.startsWith("サポートパッシブ") || scopeCategory.startsWith("死亡後サポートパッシブ")) {
       return [{ text: input, term: null, entries: [] }];
     }
+
     const glossary = buildGlossary(db || global.DB);
-    const ownerType = scopeCategory.startsWith("E.G.O") ? "ego"
-      : scopeCategory.startsWith("人格") ? "persona"
-      : scopeCategory.startsWith("アイテム") ? "item"
-      : scopeCategory.startsWith("サポート") ? "support"
-      : scopeCategory.startsWith("死亡後") ? "deathSupport"
-      : scopeCategory.startsWith("精神状態") ? "spirit" : null;
+    const ownerGlossary = buildOwnerGlossary(sourceRecord, scope);
+    const ownerType = ownerTypeForScope(scopeCategory);
 
-    // The currently displayed effect may come from a synced/customized record that
-    // is not part of data/db.json. Bracketed references in that live text must still
-    // be visible and explainable, without mutating the shared/global glossary.
-    const localReferences = new Map();
-    const localTerms = [];
-    const sourceLabel = ownerName
-      ? scopeCategory + ":" + ownerName
-      : (scopeCategory || "現在の効果文");
-    for (const match of input.matchAll(/\[([^\]\n]{2,64})\]/gu)) {
-      const term = cleanTerm(match[1]);
-      if (!term || /^\d+R$/u.test(term)) continue;
-      if (!localReferences.has(term)) {
-        localReferences.set(term, []);
-        localTerms.push(term);
-      }
-      const description = shortText(input);
-      const row = {
-        category: "本文中の参照",
-        source: sourceLabel,
-        description,
-        priority: 30,
-        reference: true,
-        localTextReference: true,
-        scopeCategory: scopeCategory || "効果本文",
-        ownerType: ownerType || null,
-        ownerName: ownerName || null,
-        term,
-        _key: ["本文中の参照", sourceLabel, description, ownerType || "", ownerName, false].join("|")
-      };
-      const rows = localReferences.get(term);
-      if (!rows.some((entry) => entry._key === row._key)) rows.push(row);
+    // Match only shared rule terms plus names belonging to the active owner.
+    // This prevents a longer foreign passive name from consuming part of a shared term.
+    const activeTerms = [];
+    if (ownerName) {
+      glossary.forEach((rows, term) => {
+        if (rows.some((entry) => !entry.reference
+          && entry.ownerName === ownerName
+          && (!ownerType || entry.ownerType === ownerType))) activeTerms.push(term);
+      });
     }
+    const terms = [...new Set([...cachedTerms, ...activeTerms, ...ownerGlossary.keys()])]
+      .sort((a, b) => b.length - a.length || a.localeCompare(b, "ja"));
+    if (!terms.length) return [{ text: input, term: null, entries: [] }];
+    const pattern = new RegExp(terms.map(escapeRegExp).join("|"), "gu");
 
-    const cachedTermSet = new Set(cachedTerms);
-    const additionalTerms = localTerms.filter((term) => !cachedTermSet.has(term));
-    const pattern = additionalTerms.length
-      ? new RegExp([...cachedTerms, ...additionalTerms].sort((a, b) => b.length - a.length || a.localeCompare(b, "ja")).map(escapeRegExp).join("|"), "gu")
-      : cachedPattern;
-    if (!pattern) return [{ text: input, term: null, entries: [] }];
-    pattern.lastIndex = 0;
-
-    const scopedGlossary = localReferences.size
-      ? { get: (term) => [...(glossary.get(term) || []), ...(localReferences.get(term) || [])] }
-      : glossary;
+    const scopedGlossary = {
+      get: (term) => [...(ownerGlossary.get(term) || []), ...(glossary.get(term) || [])]
+    };
     const parts = [];
     let lastIndex = 0;
     for (const match of input.matchAll(pattern)) {
       const term = match[0];
-      const isExplicitReference = input[match.index - 1] === "[" && input[match.index + term.length] === "]";
-      const entries = resolveEntries(term, scopedGlossary, scope, isExplicitReference);
-      // 文脈に対応する説明を解決できない語は、ホバー対象ではなく通常テキストとして残す。
+      const entries = resolveEntries(term, scopedGlossary, scope);
       if (!entries.length) continue;
       if (match.index > lastIndex) parts.push({ text: input.slice(lastIndex, match.index), term: null, entries: [] });
       parts.push({ text: term, term, entries });
@@ -565,18 +562,21 @@
 
   function InlineGlossaryText(props) {
     const React = global.React;
-    const pieces = tokenize(props.text, global.DB, props.scope);
+    const pieces = tokenize(props.text, global.DB, props.scope, props.sourceRecord);
     return React.createElement(React.Fragment, null, pieces.map((piece, index) => piece.term
       ? React.createElement(TooltipTerm, { key: index + "-" + piece.term, term: piece.term, entries: piece.entries }, piece.text)
       : React.createElement(React.Fragment, { key: index }, piece.text)));
   }
-  function render(text, scope) {
+  function render(text, scope, sourceRecord) {
     if (text == null || text === "") return text;
-    return global.React.createElement(InlineGlossaryText, { text: String(text), scope: scope || "" });
+    return global.React.createElement(InlineGlossaryText, {
+      text: String(text), scope: scope || "",
+      sourceRecord: sourceRecord && typeof sourceRecord === "object" ? sourceRecord : null
+    });
   }
   global.LBTInlineEffectGlossary = {
     buildGlossary, tokenize, render,
     refresh: (db) => { cachedDb = null; cachedGlossary = null; cachedPattern = null; cachedTerms = []; return buildGlossary(db || global.DB); }
   };
-  global.LBT_GLOSSARY_TEXT = (text, scope) => global.LBTInlineEffectGlossary.render(text, scope);
+  global.LBT_GLOSSARY_TEXT = (text, scope, sourceRecord) => global.LBTInlineEffectGlossary.render(text, scope, sourceRecord);
 })(window);
