@@ -64,7 +64,7 @@ test("Help opens on the B import entry while retaining searchable guide content"
   assert.match(help, /helpView === "overview"/);
   assert.match(help, /取り込みの違いを確認/);
   assert.match(help, /onOpenImportRouter/);
-  assert.match(help, /helpView: "guide"/);
+  assert.match(help, /setHelpView\("guide"\)/);
   assert.match(help, /guide-search-input/);
   assert.match(help, /guide-filter-row/);
   assert.match(help, /guide-index-list/);
@@ -78,9 +78,11 @@ test("Build keeps the real edit tabs and adds the B-style right preview summary"
   assert.match(build, /onClick: onCopyJson/);
   assert.match(build, /visitedRef/);
   assert.match(build, /paneCacheRef/);
+  const tabDefinitions = sections.slice(sections.indexOf("const BUILD_TABS = ["), sections.indexOf("const OwnedItemsPanel"));
   for (const id of ["baseinfo", "persona", "skill", "passive", "enh", "support", "ego", "spirit", "items-build"]) {
-    assert.ok(build.includes('id === "' + id + '"') || build.includes('id: "' + id + '"'), "Build keeps route " + id);
+    assert.ok(tabDefinitions.includes('id: "' + id + '"'), "Build keeps route " + id);
   }
+  assert.match(build, /: EnhancementSection;/, "the enhancement tab remains routed to the existing editor");
   assert.match(workbenchCss, /\.btype-work-layout\s*\{/);
   assert.match(workbenchCss, /\.btype-record-card-grid\s*\{/);
   assert.match(workbenchCss, /\.btype-shop-entry\s*\{/);
