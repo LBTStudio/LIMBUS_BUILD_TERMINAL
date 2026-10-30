@@ -2050,6 +2050,7 @@ function normalizeStateShape(raw) {
     const exchange = normalizeCurrency(result.exchange);
     let note = String(result.note || "");
     const consumedItems = normalizeConsumedItems(result.consumedItems);
+    const rewardItems = normalizeRewardItems(result.rewardItems, next);
     const initialPersona = normalizeInitialPersona(result.initialPersona);
     const personaAcquisitions = normalizePersonaAcquisitions(result.personaAcquisitions);
     const hasExchange = exchange.lp > 0 || exchange.shards > 0;
@@ -2071,11 +2072,11 @@ function normalizeStateShape(raw) {
       const migrationNote = "旧LP換算を移行済み（" + exchange.lp + "LP → 自我の欠片 " + exchange.shards + "個）";
       note = [note, migrationNote].filter(Boolean).join("\n").slice(0, 2000);
       const { exchange: _legacyExchange, ...withoutExchange } = result;
-      return { ...withoutExchange, id, name, date, income, note, consumedItems, initialPersona, personaAcquisitions };
+      return { ...withoutExchange, id, name, date, income, note, consumedItems, rewardItems, initialPersona, personaAcquisitions };
     }
     if (hasExchange) {
       /* 安全整数を超える旧記録は計算値を変えず、旧フィールドを保全する。 */
-      return { ...result, id, name, date, income, exchange, note, consumedItems, initialPersona, personaAcquisitions };
+      return { ...result, id, name, date, income, exchange, note, consumedItems, rewardItems, initialPersona, personaAcquisitions };
     }
     const { exchange: _legacyExchange, ...withoutExchange } = result;
     return { ...withoutExchange, id, name, date, income, note, consumedItems, initialPersona, personaAcquisitions };
@@ -2693,6 +2694,57 @@ function normalizeConsumedItems(items) {
       detail: String(item.detail || "").trim().slice(0, 500)
     };
   }).filter((item) => item.itemId && item.itemName);
+}
+
+/* Structured item rewards attached to a result; ledger-linked currencies stay in the currency fields. */
+function normalizeRewardItems(items, state) {
+  if (!Array.isArray(items)) return [];
+  const source = state && typeof state === "object" ? state : {};
+  const catalog = [
+    ...(Array.isArray(window.DB?.items) ? window.DB.items : []),
+    ...(Array.isArray(window.DB?.specialItems) ? window.DB.specialItems : []),
+    ...(Array.isArray(source.customItems) ? source.customItems : [])
+  ];
+  const byId = new Map(catalog.filter((item) => item && item.id).map((item) => [String(item.id), item]));
+  const totals = new Map();
+  for (const raw of items) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
+    const itemId = String(raw.itemId || raw.id || "").trim().slice(0, 120);
+    const item = byId.get(itemId);
+    if (!item || item.ledgerResource) continue;
+    const quantity = parsePositiveIntegerStrict(raw.quantity);
+    if (quantity === null) continue;
+    const next = (totals.get(itemId)?.quantity || 0) + quantity;
+    if (!Number.isSafeInteger(next)) continue;
+    totals.set(itemId, {
+      itemId,
+      itemName: String(item.name || raw.itemName || raw.name || itemId).trim().slice(0, 120),
+      quantity: next
+    });
+  }
+  return [...totals.values()];
+}
+
+/* Only positive deltas enter stock. Editing a past reward down does not silently
+   remove an item that may already have been consumed after that session. */
+function grantRewardItemDeltas(state, nextItems, previousItems) {
+  const previous = new Map((Array.isArray(previousItems) ? previousItems : [])
+    .map((item) => [String(item?.itemId || ""), Number(item?.quantity) || 0]));
+  let inventory = Array.isArray(state.inventory) ? [...state.inventory] : [];
+  let changed = false;
+  for (const reward of Array.isArray(nextItems) ? nextItems : []) {
+    const itemId = String(reward?.itemId || "");
+    const delta = Math.max(0, (Number(reward?.quantity) || 0) - (previous.get(itemId) || 0));
+    if (!itemId || delta <= 0) continue;
+    const currentIndex = inventory.findIndex((entry) => entry && entry.itemId === itemId);
+    const currentQuantity = currentIndex >= 0 ? Number(inventory[currentIndex].quantity) || 1 : 0;
+    const quantity = clampItemQuantity(state, itemId, currentQuantity + delta);
+    if (quantity <= currentQuantity) continue;
+    if (currentIndex >= 0) inventory[currentIndex] = { ...inventory[currentIndex], quantity };
+    else inventory.push({ uid: makeOwnedUid("it"), itemId, quantity, memo: true, palette: true, origin: "acquired" });
+    changed = true;
+  }
+  return changed ? { ...state, inventory } : state;
 }
 
 function normalizeVia(via) {
