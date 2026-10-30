@@ -461,17 +461,25 @@
       const ownerKey = persona.no != null
         ? collection + "|" + String(persona.affiliation || "") + "|" + String(persona.no)
         : collection + "|" + owner + "|" + String(index);
-      if (persona.passive_name) add(persona.passive_name, owner, ownerKey, "人格パッシブ", persona.passive_effect);
+      if (persona.passive_name) add(persona.passive_name, owner, ownerKey, "人格パッシブ",
+        combine(persona.passive_cond && "発動条件：" + persona.passive_cond,
+          persona.passive_always && "常時：" + persona.passive_always, persona.passive_effect));
       (persona.unique_buffs || persona.uniqueBuffs || []).forEach((buff) => {
-        if (buff) add(buff.name, owner, ownerKey, buff.type || "人格固有バフ", buff.desc);
+        if (!buff) return;
+        add(buff.name, owner, ownerKey, buff.type || "人格固有バフ",
+          combine(buff.desc, buff.type && "種別：" + buff.type,
+            buff.initial != null && "初期値：" + buff.initial, buff.max != null && "最大値：" + buff.max));
       });
       [...(persona.extra_passives || []), ...(persona.extraPassives || [])].forEach((passive) => {
-        if (passive) add(passive.name, owner, ownerKey, "追加パッシブ", passive.effect);
+        if (!passive) return;
+        add(passive.name, owner, ownerKey, "追加パッシブ",
+          combine(passive.cond && "発動条件：" + passive.cond,
+            passive.always && "常時：" + passive.always, passive.effect));
       });
       (persona.skills || []).forEach((skill) => {
         if (!skill) return;
         const diceText = (skill.dice || []).map((die) => die && die.effect).filter(Boolean).join("\\n");
-        add(skill.name, owner, ownerKey, "人格スキル", [skill.effect, diceText].filter(Boolean).join("\\n"));
+        add(skill.name, owner, ownerKey, "人格スキル", combine(skill.effect, diceText));
       });
     });
     // 同名語が複数人格に存在する場合は参照元を確定できないため候補を破棄する。
