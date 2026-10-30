@@ -836,19 +836,21 @@ async function captureProfile(browser, mode) {
       const initialCard=page.locator(".ledger-card-wrap").filter({hasText:"初期作成"}).first();
       await initialCard.waitFor({state:"visible",timeout:5000});
       await click(initialCard.locator(".ledger-card-edit-btn").first());
+      const initialEditorCard=page.locator(".ledger-card-wrap.is-editing").last();
+      await initialEditorCard.waitFor({state:"visible",timeout:5000});
       await snap("ledger-initial-persona-edit","テスト用アカウントの初期作成リザルト編集");
       const initialCandidate=audit.seed?.sample?.initialPersonaCandidate;
       if(!initialCandidate?.mode || !initialCandidate?.no) throw new Error("初期人格QA候補をseedから取得できません");
       /* 同じ初期リザルト内に既存チケット消費があっても、「指定購入」なら初期分を別に消費する。 */
-      await initialCard.locator('[aria-label="初期人格の入手方法"]').selectOption("selected");
-      const initialPersonaSearch=initialCard.locator('[aria-label="最初に得た人格をDBから検索"]');
+      await initialEditorCard.locator('[aria-label="初期人格の入手方法"]').selectOption("selected");
+      const initialPersonaSearch=initialEditorCard.locator('[aria-label="最初に得た人格をDBから検索"]');
       await initialPersonaSearch.fill(initialCandidate.name||String(initialCandidate.no));
-      const initialPersonaOption=initialCard.locator(".ledger-persona-search-results .ledger-persona-search-result")
+      const initialPersonaOption=initialEditorCard.locator(".ledger-persona-search-results .ledger-persona-search-result")
         .filter({hasText:initialCandidate.name}).first();
       await initialPersonaOption.waitFor({state:"visible",timeout:5000});
       await click(initialPersonaOption);
       await snap("ledger-initial-persona-selected","初期人格を選択した状態。保存前の確認");
-      await click(initialCard.getByRole("button",{name:"初期作成 の変更を保存",exact:true}));
+      await click(initialEditorCard.getByRole("button",{name:"初期作成 の変更を保存",exact:true}));
       await page.waitForTimeout(450);
       const initialCheck=await page.evaluate((candidate)=>{
         const saved=window.LBT_accounts?.loadActive?.()||{};
