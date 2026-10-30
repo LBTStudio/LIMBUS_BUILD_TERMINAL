@@ -1734,7 +1734,7 @@ const [ownedOnly, setOwnedOnly] = React.useState(false);
           h("span", { className: "ego-slot-flag" }, "欠片", e.shards),
           (e.sub_skills || []).length > 0 ? h("span", { className: "ego-slot-flag", style: { background: "var(--gold-tint)", color: "var(--gold)", borderColor: "var(--gold-line)" } }, "◆同化") : null
         ),
-        h("button", { className: "btn-ghost btn-icon", onClick: (ev) => { ev.stopPropagation(); clearSlot(rk); setDetailSlot(null); }, style: { position: "absolute", top: 4, right: 4, width: 20, height: 20 }, title: "外す" }, h(Icon, { name: "x", size: 10 }))
+        h("button", { className: "btn-ghost btn-icon", onClick: (ev) => { ev.stopPropagation(); clearSlot(rk); setDetailSlot(null); }, style: { position: "absolute", top: 4, right: 4, width: 36, height: 36, minWidth: 36, minHeight: 36 }, title: "外す" }, h(Icon, { name: "x", size: 10 }))
       ) : (rankFilter === rk ? h("div", { style: { marginTop: 4, padding: "2px 6px", fontSize: "var(--fs-9)", fontFamily: "var(--f-display)", letterSpacing: "0.14em", color: "var(--gold)", background: "var(--gold-tint)", border: "1px solid var(--gold-line)", borderRadius: 2, alignSelf: "flex-start" } }, "▼ 下で絞り込み中") : null)
     );
   });
@@ -1747,7 +1747,7 @@ const [ownedOnly, setOwnedOnly] = React.useState(false);
         className: `p-card${String(selected?.no ?? "") === String(e.no ?? "") && selected?.name === e.name ? " is-active" : ""}${isEquipped ? " is-equipped" : ""}`,
         style: { "--sin-primary": `var(--rank-${e.rank})`, minHeight: 120 },
         onClick: () => setSelected(e),
-        onDoubleClick: () => { setSelected(e); recordRecentEgo(e); dispatch({ type: "SET_EGO_SLOT", rank: e.rank, value: e }); toast(`${e.rank}: 『${e.name}』を装備`); }
+        onDoubleClick: () => setSelected(e)
       },
       h("div", { className: "p-card-head ego-card-head" },
         h("span", { className: "p-num" }, "No.", String(e.no).padStart(3, "0")),
@@ -1760,7 +1760,7 @@ const [ownedOnly, setOwnedOnly] = React.useState(false);
       h(EgoResourceChips, { resources: e.resources, className: "is-catalog" }),
       h("div", { className: "p-kw-row", style: { marginTop: "auto" } }, h("span", { className: "p-kw" }, "SAN ", e.san_cost), h("span", { className: "p-kw" }, "欠片 ", e.shards)),
       /* 装備はカード本体のボタン/タップで行う（ダブルクリックに依存しない）。 */
-      !isEquipped && h("button", {
+      !isEquipped && ownedKeys.has(`${e.rank}:${e.no}`) && h("button", {
         type: "button",
         className: "btn btn-sm p-card-quick-equip",
         onClick: (event) => {
@@ -1769,8 +1769,9 @@ const [ownedOnly, setOwnedOnly] = React.useState(false);
           dispatch({ type: "SET_EGO_SLOT", rank: e.rank, value: e });
           toast(`${e.rank}: 『${e.name}』を装備`);
         },
-        title: "詳細を開かずにこのE.G.Oを装備する"
+        title: "所持済みのこのE.G.Oを装備する"
       }, "装備"),
+      !isEquipped && !ownedKeys.has(`${e.rank}:${e.no}`) && h("span", { className: "p-card-equipped-mark" }, "未所持 · 詳細から購入／試着"),
       isEquipped && h("span", { className: "p-card-equipped-mark" }, "装備中")
     );
   })));
@@ -2219,6 +2220,22 @@ const BuildItemsPanel = ({ state, dispatch }) => {
   const currentResultId = window.LBT_latestResultId?.(state) || "";
   const currentResult = (state.results || []).find((result) => result.id === currentResultId) || null;
   const [pickerOpen, setPickerOpen] = React.useState(false);
+  const [pickerQuery, setPickerQuery] = React.useState("");
+  const searchTargetId = state.ui?.itemSearchTarget?.id || "";
+  React.useEffect(() => {
+    if (!searchTargetId) return;
+    const target = catalog.find((item) => String(item.id) === String(searchTargetId));
+    if (target) {
+      setPickerOpen(true);
+      setPickerQuery(String(target.name || target.id));
+    }
+    dispatch({ type: "SET_UI", ui: { itemSearchTarget: null } });
+  }, [searchTargetId, catalog, dispatch]);
+  const pickerNeedle = pickerQuery.trim().toLocaleLowerCase("ja");
+  const filteredCatalog = pickerNeedle ? catalog.filter((item) =>
+    [item.name, item.category, item.effect, item.id, ...(item.searchAliases || []), ...(item.tags || [])]
+      .filter(Boolean).join(" ").toLocaleLowerCase("ja").includes(pickerNeedle)
+  ) : catalog;
 
   const patch = (uid, patchBody) => dispatch({ type: "PATCH_ITEM", uid, patch: patchBody });
   const consumeOne = (entry) => {
@@ -2271,18 +2288,29 @@ const BuildItemsPanel = ({ state, dispatch }) => {
         h(Button, { size: "sm", variant: "ghost", onClick: () => dispatch({ type: "SET_UI", ui: { currentSection: "roster", libraryTab: "inventory" } }) }, "Recordで全所持品を管理")
       ),
       pickerOpen && h("div", { className: "card-body stack-2" },
-        h("div", { className: "inv-pick" }, [...new Set(catalog.map((item) => String(item?.category || "その他")))].map((category) => h("div", { key: category, className: "inv-pick-group" },
-          h("span", { className: "t-label" }, category),
-          h("div", { className: "inv-pick-list" }, catalog.filter((item) => String(item?.category || "その他") === category).map((item) => {
-            const owned = inventory.find((entry) => entry.itemId === item.id);
-            const maxOwned = maxOwnedOf(item.id);
-            const atCap = owned && (Number(owned.quantity) || 0) >= maxOwned;
-            return h("button", { key: item.id, type: "button", className: "inv-pick-item inv-pick-button", disabled: atCap, onClick: () => addItem(item) },
-              h("span", null, item.name),
-              owned ? h("small", { className: "inv-pick-qty" }, `×${owned.quantity}${maxOwned < 99 ? ` / ${maxOwned}` : ""}`) : null
-            );
-          }))
-        )))
+        h("div", { className: "inv-pick-search" },
+          h("input", {
+            className: "input", type: "search", value: pickerQuery,
+            "aria-label": "所持品へ追加するアイテムを検索",
+            placeholder: "アイテム名・別名・効果で検索…",
+            onChange: (event) => setPickerQuery(event.target.value)
+          }),
+          h("span", { className: "ledger-note", "aria-live": "polite" }, `${filteredCatalog.length}件`)
+        ),
+        filteredCatalog.length
+          ? h("div", { className: "inv-pick" }, [...new Set(filteredCatalog.map((item) => String(item?.category || "その他")))].map((category) => h("div", { key: category, className: "inv-pick-group" },
+              h("span", { className: "t-label" }, category),
+              h("div", { className: "inv-pick-list" }, filteredCatalog.filter((item) => String(item?.category || "その他") === category).map((item) => {
+                const owned = inventory.find((entry) => entry.itemId === item.id);
+                const maxOwned = maxOwnedOf(item.id);
+                const atCap = owned && (Number(owned.quantity) || 0) >= maxOwned;
+                return h("button", { key: item.id, type: "button", className: "inv-pick-item inv-pick-button", disabled: atCap, onClick: () => addItem(item) },
+                  h("span", null, item.name),
+                  owned ? h("small", { className: "inv-pick-qty" }, `×${owned.quantity}${maxOwned < 99 ? ` / ${maxOwned}` : ""}`) : null
+                );
+              }))
+            )))
+          : h("div", { className: "empty", role: "status" }, "一致するアイテムがありません。別名や効果でも検索できます。")
       ),
       h("div", { className: "card-body stack-2" },
         rows.length === 0
