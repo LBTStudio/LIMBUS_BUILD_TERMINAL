@@ -4631,7 +4631,7 @@ const importHeldPersonas = () => {
       if (p.kind === "ego") dispatch({ type: "ADD_ROSTER_EGO", no: p.no, rank: p.rank });
       else if (p.kind === "spirit") dispatch({ type: "ADD_ROSTER_SPIRIT", spirit: { name: p.name }, purchase: false });
       else if (p.kind === "support") dispatch({ type: "ADD_ROSTER_SUPPORT", spp: { name: p.name }, purchase: false });
-      else dispatch({ type: "ADD_ROSTER", mode: p.mode, no: p.no });
+      else dispatch({ type: "ADD_ROSTER", mode: p.mode, no: p.no, skipInitialTicketConsumption: true });
     }
     /* 種別ごとに数えてから1文で伝える。名前を出す（DB番号は
        利用者が照合できない）。種別が混ざるので内訳は省略せず種別を出す。 */

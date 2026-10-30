@@ -369,6 +369,29 @@ test("複数人を1アクションで所持へ入れても初期作成用チケ�
   assert.equal(next.entries.filter((e) => e.kind === "ticket").length, 1, "チケット消費は1件だけ");
 });
 
+test("履歴インポートでpersonaチケット消費と初回人格獲得が並ぶ場合は一度だけ減る", () => {
+  const fresh = freshState();
+  const imported = reducer(fresh, {
+    type: "APPLY_IMPORT_BATCH",
+    actions: [
+      {
+        type: "ADD_RESULT",
+        name: "初回抽選の履歴",
+        income: { lp: 0, shards: 0, tickets: { persona: 1, ego: 0, choice: 0, pack: {} } }
+      },
+      {
+        type: "ADD_ENTRY",
+        kind: "other",
+        name: "履歴上の使用：人格抽出チケット",
+        cost: { lp: 0, shards: 0 },
+        tickets: { persona: 1, ego: 0, choice: 0, pack: {} }
+      },
+      { type: "ADD_ROSTER", mode: "n", no: 1, skipInitialTicketConsumption: true }
+    ]
+  });
+  assert.equal(ticketBalance(imported).persona, 1, "履歴に明示された1枚だけを消費し、初期作成分は重ねて引かない");
+});
+
 test("セーブの取り込みでは初期作成用チケットを消費しない", () => {
   const fresh = freshState();
   const imported = reducer(fresh, { type: "ADD_ROSTER_PERSONAS_BULK", personas: [{ mode: "n", no: 1 }] });
