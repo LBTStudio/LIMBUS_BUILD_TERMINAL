@@ -283,6 +283,9 @@
 
     const candidates = entries.filter((entry) => !entry.reference && !entry.ownerName).sort(byPriority);
     if (candidates.length) return [candidates[0]];
+    // scope 指定のない汎用検索では、従来どおり一意に定義できる語を表示する。
+    // 人格・E.G.Oなどの所有者スコープでは、別所有者の定義にこの経路でフォールバックしない。
+    if (!scopeCategory && uniqueDefinition) return [uniqueDefinition];
     if (allowExplicitReference) {
       const localReference = entries.find((entry) => entry.reference && entry.localTextReference && !entry.ownerName);
       if (uniqueDefinition) return [uniqueDefinition];
