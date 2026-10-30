@@ -132,7 +132,7 @@ async function readMetrics() {
     const dialogs = [...document.querySelectorAll('[role="dialog"],[aria-modal="true"],.share-modal-backdrop,.acct-overlay,.utility-sheet-backdrop,.cp-overlay')].filter(isVisible).map(e=>({className:typeof e.className==="string"?e.className:"",label:e.getAttribute("aria-label")||e.getAttribute("aria-labelledby")||(e.innerText||"").trim().slice(0,55),rect:rect(e)}));
     const smallTargets=[...document.querySelectorAll("button,[role=button],input,select,textarea,a[href]")].filter(isVisible).map(e=>({label:(e.getAttribute("aria-label")||e.innerText||e.getAttribute("title")||e.getAttribute("placeholder")||"").trim().replace(/\s+/g," ").slice(0,32),rect:rect(e)})).filter(x=>x.rect.width<32||x.rect.height<32).slice(0,25);
     const horizontalScrollers=[...document.querySelectorAll("body *")].filter(e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);return r.width>80&&r.height>20&&e.scrollWidth>e.clientWidth+12&&["auto","scroll","hidden"].includes(s.overflowX);}).slice(0,24).map(e=>({tag:e.tagName,className:typeof e.className==="string"?e.className:"",label:(e.getAttribute("aria-label")||e.innerText||"").trim().replace(/\s+/g," ").slice(0,42),clientWidth:e.clientWidth,scrollWidth:e.scrollWidth,overflowX:getComputedStyle(e).overflowX,rect:rect(e)}));
-    const layoutElements=[...document.querySelectorAll("#lbt-preview-edge-toggle,.preview,.preview-reopen,.preview-close,.preview-edge-toggle,.preview-actions,.preview-hint,.preview-tabs,.focus,.rail,.section-title-row,.section-title,.build-tabs,.baseinfo-workspace,.build-params-shell,.build-params-tabs,.basic-ccfolia-preview,.basic-preview-mode-tabs,.basic-preview-panel,.record-tabbar")].filter(isVisible).map(e=>{const s=getComputedStyle(e);return {tag:e.tagName,id:e.id||"",className:typeof e.className==="string"?e.className:"",text:(e.innerText||"").trim().replace(/\s+/g," ").slice(0,48),rect:rect(e),style:{position:s.position,display:s.display,top:s.top,right:s.right,bottom:s.bottom,width:s.width,height:s.height,writingMode:s.writingMode,opacity:s.opacity,zIndex:s.zIndex,pointerEvents:s.pointerEvents}};});
+    const layoutElements=[...document.querySelectorAll("#lbt-preview-edge-toggle,.preview,.preview-reopen,.preview-close,.preview-edge-toggle,.preview-actions,.preview-hint,.preview-tabs,.focus,.rail,.section-title-row,.section-title,.build-tabs,.baseinfo-workspace,.piece-hero-grid,.build-params-shell,.build-params-tabs,.basic-ccfolia-preview,.basic-preview-mode-tabs,.basic-preview-panel,.record-tabbar")].filter(isVisible).map(e=>{const s=getComputedStyle(e);return {tag:e.tagName,id:e.id||"",className:typeof e.className==="string"?e.className:"",text:(e.innerText||"").trim().replace(/\s+/g," ").slice(0,48),rect:rect(e),style:{position:s.position,display:s.display,top:s.top,right:s.right,bottom:s.bottom,width:s.width,height:s.height,writingMode:s.writingMode,opacity:s.opacity,zIndex:s.zIndex,pointerEvents:s.pointerEvents}};});
     return {viewport:{width:innerWidth,height:innerHeight},document:{width:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight},horizontalOverflow:document.documentElement.scrollWidth>innerWidth+2,horizontalScrollers,layoutElements,dialogs,smallTargets,activeElement:document.activeElement?{tag:document.activeElement.tagName,aria:document.activeElement.getAttribute("aria-label"),text:(document.activeElement.innerText||"").trim().slice(0,40)}:null};
   });
 }
@@ -150,13 +150,13 @@ async function snap(name, note) {
     const preview = (m.layoutElements || []).find((item) => item.className.split(/\s+/).includes("preview"));
     if (preview && preview.rect.width < 320) audit.layoutWarnings.push({name:base,type:"preview-panel-too-narrow",viewport:m.viewport,previewRect:preview.rect,minimumWidth:320});
   }
-  // The Basic output preview should sit beside the character editor on wide desktops
-  // when the global preview drawer is closed, not below a long stack of controls.
-  if (m.viewport.width >= 1280 && (m.layoutElements || []).some((item) => item.className.split(/\s+/).includes("basic-ccfolia-preview"))) {
-    const workspace = (m.layoutElements || []).find((item) => item.className.split(/\s+/).includes("baseinfo-workspace"));
+  // Unified Workbench v4 keeps the portrait + identity controls in the hero grid,
+  // then places the ST / label / output formatting panel beneath that hero.
+  if ((m.layoutElements || []).some((item) => item.className.split(/\s+/).includes("basic-ccfolia-preview"))) {
+    const hero = (m.layoutElements || []).find((item) => item.className.split(/\s+/).includes("piece-hero-grid"));
     const params = (m.layoutElements || []).find((item) => item.className.split(/\s+/).includes("build-params-shell"));
-    if (workspace && params && Math.abs(params.rect.y - workspace.rect.y) > 48) {
-      audit.layoutWarnings.push({name:base,type:"basic-preview-below-editor-fold",workspaceRect:workspace.rect,paramsRect:params.rect});
+    if (hero && params && params.rect.y < hero.rect.y + hero.rect.height - 2) {
+      audit.layoutWarnings.push({name:base,type:"basic-format-panel-overlaps-v4-hero",heroRect:hero.rect,paramsRect:params.rect});
     }
   }
   if (m.viewport.width <= 640) {
@@ -565,7 +565,38 @@ async function captureProfile(browser, mode) {
       const basicTab=page.locator(".build-tabs").getByRole("tab",{name:"基本",exact:true}).first();
       await basicTab.waitFor({state:"visible",timeout:5000});
       await click(basicTab);
-      await page.locator(".build-params-shell").waitFor({state:"visible",timeout:5000});
+      await page.locator(".build-params-shell.piece-format-panel").waitFor({state:"visible",timeout:5000});
+
+      // Source-backed v4 geometry assertions: desktop two-column hero, mobile stack,
+      // portrait ratio, and the formatting panel directly below the hero.
+      const hero=page.locator(".piece-hero-grid").first();
+      const artFrame=page.locator(".piece-art-frame").first();
+      const formatPanel=page.locator(".build-params-shell.piece-format-panel").first();
+      const heroLayout=await hero.evaluate((el)=>{
+        const children=[...el.children].map((node)=>{const r=node.getBoundingClientRect();return {x:r.x,y:r.y,right:r.right,bottom:r.bottom,width:r.width,height:r.height};});
+        const r=el.getBoundingClientRect(),s=getComputedStyle(el);
+        return {display:s.display,columns:s.gridTemplateColumns,rect:{x:r.x,y:r.y,right:r.right,bottom:r.bottom,width:r.width,height:r.height},children};
+      });
+      const portraitGeometry=await artFrame.evaluate((el)=>{
+        const r=el.getBoundingClientRect(),s=getComputedStyle(el);
+        return {width:r.width,height:r.height,ratio:r.width/Math.max(1,r.height),aspectRatio:s.aspectRatio};
+      });
+      const formatGeometry=await formatPanel.evaluate((el)=>{
+        const r=el.getBoundingClientRect();return {y:r.y,bottom:r.bottom,height:r.height};
+      });
+      const viewportWidth=page.viewportSize()?.width||1440;
+      if(heroLayout.children.length!==2) throw new Error("v4 Basic hero must contain exactly the portrait and settings columns");
+      if(viewportWidth>820){
+        if(heroLayout.display!=="grid"||heroLayout.children[0].x>=heroLayout.children[1].x||heroLayout.children[0].right>heroLayout.children[1].x+2)
+          throw new Error("v4 desktop Basic hero is not a non-overlapping two-column layout: "+JSON.stringify(heroLayout));
+      }else if(heroLayout.children[0].y>=heroLayout.children[1].y||Math.abs(heroLayout.children[0].x-heroLayout.children[1].x)>2){
+        throw new Error("v4 narrow Basic hero must stack portrait above settings: "+JSON.stringify(heroLayout));
+      }
+      if(portraitGeometry.ratio<0.65||portraitGeometry.ratio>0.85)
+        throw new Error("Basic portrait frame no longer follows the 3:4 portrait ratio: "+JSON.stringify(portraitGeometry));
+      if(formatGeometry.y<heroLayout.rect.bottom-2)
+        throw new Error("Basic ST/label/output formatting area must follow the portrait/settings hero");
+      await snap("basic-workspace-v4-hero","Unified Workbench v4 基本画面：立ち絵・差分と駒設定の左右構成");
 
       const statusTab=page.locator("#build-params-tab-statuses");
       await click(statusTab);

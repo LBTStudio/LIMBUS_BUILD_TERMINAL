@@ -10,15 +10,27 @@ const generator = read("../js/generator.js");
 const parity = read("../assets/b-type-ui-parity.css");
 const workbench = read("../assets/b-type-workbench.css");
 
-test("Basic identity token card follows existing character data without embedding QA data", () => {
-  const start = sections.indexOf('className: "pc-token-preview"');
-  assert.notEqual(start, -1, "the production Basic sheet renders its token summary");
-  const preview = sections.slice(start, start + 1800);
-  for (const expected of [
-    "state.charName", "state.plName", "state.initiative", "state.color",
-    "state.hp", "state.san", "activeImg"
-  ]) assert.ok(preview.includes(expected), "token summary must use state field " + expected);
-  assert.doesNotMatch(preview, /サンプル・フィクサー|Playwright QA/, "QA fixtures must not ship in production data");
+test("Basic workspace follows the supplied Unified Workbench v4 B prototype", () => {
+  const reference = read("../docs/ui-reference/LBT_UI_Refinement_Prototypes.html");
+  const baseStart = sections.indexOf("const BaseSection =");
+  const baseEnd = sections.indexOf("const PassiveCard =", baseStart);
+  const base = sections.slice(baseStart, baseEnd);
+  assert.match(reference, /Unified Workbench v4/);
+  assert.match(reference, /id="prototype-b"/);
+  for (const required of [
+    'class="piece-hero-grid"', 'class="piece-art-wrap"', 'class="piece-art-thumbs"',
+    'class="piece-control-grid"', 'class="piece-token-preview"', '.piece-format-panel{'
+  ]) assert.ok(reference.includes(required), "reference must preserve " + required);
+  for (const required of [
+    'className: "piece-hero-grid"', 'className: "piece-art-wrap"', 'className: "piece-art-thumbs"',
+    'className: "piece-control-grid"', 'className: "piece-token-card"', 'piece-format-panel'
+  ]) assert.ok(sections.includes(required) || base.includes(required), "production must render " + required);
+  for (const field of ["state.charName", "state.plName", "state.initiative", "state.color", "activeImg", "setImgTab", "state.imgUrls", "state.shareImageData"]) {
+    assert.ok(base.includes(field), "Basic workspace must retain live field " + field);
+  }
+  assert.match(persona, /className: "baseinfo-workspace piece-workspace"/);
+  assert.doesNotMatch(base, /className: "pc-sheet"/, "the obsolete pc-sheet layout must not remain the Basic root");
+  assert.doesNotMatch(base, /サンプル・フィクサー|Playwright QA/, "QA fixtures must not ship in production data");
 });
 
 test("Basic format tabs live in app UI state so Home can deep-link to the output tab", () => {
