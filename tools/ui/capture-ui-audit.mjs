@@ -839,7 +839,8 @@ async function captureProfile(browser, mode) {
       await snap("ledger-initial-persona-edit","テスト用アカウントの初期作成リザルト編集");
       const initialCandidate=audit.seed?.sample?.initialPersonaCandidate;
       if(!initialCandidate?.mode || !initialCandidate?.no) throw new Error("初期人格QA候補をseedから取得できません");
-      await initialCard.locator('[aria-label="初期人格の入手方法"]').selectOption("random");
+      /* 同じ初期リザルト内に既存チケット消費があっても、「指定購入」なら初期分を別に消費する。 */
+      await initialCard.locator('[aria-label="初期人格の入手方法"]').selectOption("selected");
       const initialPersonaSearch=initialCard.locator('[aria-label="最初に得た人格をDBから検索"]');
       await initialPersonaSearch.fill(initialCandidate.name||String(initialCandidate.no));
       const initialPersonaOption=initialCard.locator(".ledger-persona-search-results .ledger-persona-search-result")
@@ -860,7 +861,7 @@ async function captureProfile(browser, mode) {
       if(!initialCheck.owned) throw new Error("初期人格を保存したのに所持ライブラリへ追加されていません: "+JSON.stringify(initialCheck));
       if(initialCheck.initialPersona?.no!==String(initialCandidate.no)) throw new Error("初期人格の取得記録が保存されていません: "+JSON.stringify(initialCheck));
       if(!initialCheck.acquisitions.some((entry)=>entry.mode===initialCandidate.mode&&String(entry.no)===String(initialCandidate.no))) throw new Error("初期人格が取得証跡にも反映されていません");
-      if(initialCheck.personaTicketBalance!==1) throw new Error("初期人格の保存で、履歴に明示されたチケット使用とは別に初期チケットまで消費されました: "+JSON.stringify(initialCheck));
+      if(initialCheck.personaTicketBalance!==0) throw new Error("指定購入の初期人格で初期チケットが別途消費されていません（または過剰消費です）: "+JSON.stringify(initialCheck));
       await snap("ledger-initial-persona-owned","初期人格の保存後、所持と取得記録が一致した状態");
 
       const historicalCard=page.locator(".ledger-card-wrap").filter({hasText:"UI監査用セッション"}).first();
