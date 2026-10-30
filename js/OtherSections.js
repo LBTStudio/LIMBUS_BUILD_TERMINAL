@@ -4021,7 +4021,7 @@ const LedgerPanel = ({ state, dispatch }) => {
       .map((item) => [String(item.id), item])).values()]
       .sort((a, b) => String(a.name).localeCompare(String(b.name), "ja"));
   }, [state.customItems]);
-  const [newResult, setNewResult] = React.useState({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [] });
+  const [newResult, setNewResult] = React.useState({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [], personaAcquisitions: [] });
   const [newRewardItemId, setNewRewardItemId] = React.useState("");
   const [newRewardItemName, setNewRewardItemName] = React.useState("");
   const [newRewardItemQty, setNewRewardItemQty] = React.useState("1");
@@ -4031,7 +4031,25 @@ const LedgerPanel = ({ state, dispatch }) => {
   const initialPersonaOptions = [
     ...(window.DB?.normal_personas || []).map((row) => ({ mode: "n", no: String(row.no ?? ""), name: String(row.name || "") })),
     ...(window.DB?.tokui_personas || []).map((row) => ({ mode: "t", no: String(row.no ?? ""), name: String(row.name || "") }))
-  ].filter((row) => row.no && row.name).map((row) => ({ ...row, value: row.mode + ":" + row.no, label: row.name + "（" + (row.mode === "t" ? "特異" : "通常") + "）" }));
+  ].filter((row) => row.no && row.name)
+    .map((row) => ({ ...row, value: row.mode + ":" + row.no, label: row.name + "（" + (row.mode === "t" ? "特異" : "通常") + "）" }))
+    .sort((a, b) => a.name.localeCompare(b.name, "ja") || a.mode.localeCompare(b.mode) || a.no.localeCompare(b.no, "ja"));
+  const normalizePersonaSearchText = (value) => String(value || "").normalize("NFKC")
+    .replace(/[\s\u3000・･]/g, "").toLocaleLowerCase("ja-JP");
+  /* 全件プルダウンは作らず、入力文字列でDBを照合して候補を最大8件だけ表示する。 */
+  const getPersonaSearchMatches = (query, selectedEntries) => {
+    const needle = normalizePersonaSearchText(query);
+    if (!needle) return [];
+    const selectedKeys = new Set((Array.isArray(selectedEntries) ? selectedEntries : [])
+      .map((entry) => entry && entry.mode && entry.no ? entry.mode + ":" + String(entry.no) : "")
+      .filter(Boolean));
+    return initialPersonaOptions.filter((option) => {
+      if (selectedKeys.has(option.value)) return false;
+      const kind = option.mode === "t" ? "特異 特異人格" : "通常 通常人格";
+      const searchable = normalizePersonaSearchText([option.name, option.no, "No." + option.no, kind].join(" "));
+      return searchable.includes(needle);
+    }).slice(0, 8);
+  };
   /* 既存カードで「記録 / 修正」を押した対象。カード上へ直接並べるのは
      17パックの項目が毎回開くことになるため、記録は専用画面で行う。 */
   const [ticketPanel, setTicketPanel] = React.useState(null);
@@ -4040,7 +4058,9 @@ const LedgerPanel = ({ state, dispatch }) => {
   const [ticketRewardItemId, setTicketRewardItemId] = React.useState("");
   const [ticketRewardItemName, setTicketRewardItemName] = React.useState("");
   const [ticketRewardItemQty, setTicketRewardItemQty] = React.useState("1");
-  const [ticketPersonaPick, setTicketPersonaPick] = React.useState("");
+  const [newResultPersonaQuery, setNewResultPersonaQuery] = React.useState("");
+  const [ticketPersonaQuery, setTicketPersonaQuery] = React.useState("");
+  const [initialPersonaQuery, setInitialPersonaQuery] = React.useState("");
   /* 手動の支出・消耗。DBに価格が無いもの、戦闘で消えたものを記録する。 */
   const [newEntry, setNewEntry] = React.useState({ name: "", kind: "expense", lp: "", shards: "" });
   /* 所持人格リストの一括取込用の状態。 */
@@ -4230,7 +4250,8 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
       personaAcquisitions: Array.isArray(result.personaAcquisitions) ? result.personaAcquisitions.map((item) => ({ ...item })) : [],
       initialPersona: { method: ["selected", "random"].includes(result.initialPersona?.method) ? result.initialPersona.method : "unknown", mode: result.initialPersona?.mode === "t" || result.initialPersona?.mode === "n" ? result.initialPersona.mode : "", no: String(result.initialPersona?.no ?? ""), name: String(result.initialPersona?.name || "") }
     });
-    setTicketPersonaPick("");
+    setTicketPersonaQuery("");
+    setInitialPersonaQuery("");
     setTicketRewardItemId("");
     setTicketRewardItemName("");
     setTicketRewardItemQty("1");
@@ -4248,8 +4269,7 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     } : draft);
   };
   const updateResultDraftInitialPersona = (patch) => setTicketDraft((draft) => draft ? { ...draft, initialPersona: { ...(draft.initialPersona || {}), ...patch } } : draft);
-  const addResultDraftPersona = () => {
-    const option = initialPersonaOptions.find((candidate) => candidate.value === ticketPersonaPick);
+  const addResultDraftPersona = (option) => {
     if (!ticketDraft || !option) return;
     setTicketDraft((draft) => {
       if (!draft) return draft;
@@ -4257,7 +4277,16 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
       if (current.some((entry) => entry.mode === option.mode && String(entry.no) === String(option.no))) return draft;
       return { ...draft, personaAcquisitions: [...current, { mode: option.mode, no: option.no, name: option.name, source: "manual" }] };
     });
-    setTicketPersonaPick("");
+    setTicketPersonaQuery("");
+  };
+  const addNewResultPersona = (option) => {
+    if (!option) return;
+    setNewResult((draft) => {
+      const current = Array.isArray(draft.personaAcquisitions) ? draft.personaAcquisitions : [];
+      if (current.some((entry) => entry.mode === option.mode && String(entry.no) === String(option.no))) return draft;
+      return { ...draft, personaAcquisitions: [...current, { mode: option.mode, no: option.no, name: option.name, source: "reward" }] };
+    });
+    setNewResultPersonaQuery("");
   };
   const removeResultDraftPersona = (mode, no) => setTicketDraft((draft) => draft ? {
     ...draft, personaAcquisitions: (draft.personaAcquisitions || []).filter((entry) => !(entry.mode === mode && String(entry.no) === String(no)))
