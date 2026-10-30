@@ -415,7 +415,8 @@ async function captureViewport(browser, mode) {
     // the expiring CI Artifact, not into the 12 screenshots shown to end users.
     await page.keyboard.press("Escape").catch(() => {});
     await clickNav(page, "使い方");
-    const openGuide = page.getByRole("button", { name: "操作ガイドを検索", exact: true }).first();
+    /* The accessible name includes both the title and helper text; match the task card by its visible title. */
+    const openGuide = page.locator(".btype-help-actions .btype-task-row").filter({ hasText: "操作ガイドを検索" }).first();
     await openGuide.waitFor({ state: "visible", timeout: 12000 });
     await openGuide.click();
     await page.locator("#guide-search-input").waitFor({ state: "visible", timeout: 12000 });
