@@ -629,3 +629,9 @@ test("ItemCodexの所持数減少ボタンも1個使用としてリザルトへ�
   assert.match(itemCodexSource, /window\.confirm/);
   assert.doesNotMatch(itemCodexSource, /onClick: \(\) => patchEntry\(\{ quantity: Math\.max\(1, \(Number\(selectedEntry\.quantity\) \|\| 1\) - 1\) \}\)/);
 });
+
+test("ItemCodexは消費記録先を操作前に表示する", () => {
+  assert.match(itemCodexSource, /className: "item-consume-target"/);
+  assert.match(itemCodexSource, /消費記録先:/);
+  assert.match(itemCodexSource, /購入に必要な残高が不足しています/);
+});
