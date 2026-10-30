@@ -5874,10 +5874,13 @@ case "ADD_CUSTOM_ITEM": {
     case "UPDATE_RESULT": {
       const id = action.id;
       const now = Date.now();
-      let hit = false;
+      const previous = (state.results || []).find((result) => result.id === id);
+      if (!previous) return state;
+      const nextRewardItems = action.rewardItems === undefined
+        ? normalizeRewardItems(previous.rewardItems, state)
+        : normalizeRewardItems(action.rewardItems, state);
       const results = (state.results || []).map((r) => {
         if (r.id !== id) return r;
-        hit = true;
         return {
           ...r,
           name: action.name === undefined ? r.name : String(action.name).slice(0, 80),
@@ -5887,6 +5890,7 @@ case "ADD_CUSTOM_ITEM": {
             : { ...normalizeCurrency(action.income), tickets: normalizeTickets(action.income?.tickets) },
           ...(action.note !== undefined ? { note: String(action.note || "").slice(0, 2000) } : {}),
           ...(action.consumedItems !== undefined ? { consumedItems: normalizeConsumedItems(action.consumedItems) } : {}),
+          ...(action.rewardItems !== undefined ? { rewardItems: nextRewardItems } : {}),
           ...(action.initialPersona !== undefined ? { initialPersona: normalizeInitialPersona(action.initialPersona) } : {}),
           ...(action.personaAcquisitions !== undefined ? { personaAcquisitions: normalizePersonaAcquisitions(action.personaAcquisitions) } : {}),
           ...(action.importSourceKey !== undefined
@@ -5897,31 +5901,39 @@ case "ADD_CUSTOM_ITEM": {
           updatedAt: now
         };
       });
-      return hit ? { ...state, results } : state;
+      const updated = { ...state, results };
+      return action.rewardItems === undefined
+        ? updated
+        : grantRewardItemDeltas(updated, nextRewardItems, previous.rewardItems);
     }
     case "ADD_RESULT": {
       const now = Date.now();
-      return {
-        ...state,
-        results: [...(state.results || []), {
-          id: makeOwnedUid("res"),
-          name: String(action.name || "").slice(0, 80) || "無題",
-          date: String(action.date || localDateString()).slice(0, 10),
-          income: { ...normalizeCurrency(action.income), tickets: normalizeTickets(action.income?.tickets) },
-          note: String(action.note || "").slice(0, 2000),
-          consumedItems: normalizeConsumedItems(action.consumedItems),
-          initialPersona: normalizeInitialPersona(action.initialPersona),
-          personaAcquisitions: normalizePersonaAcquisitions(action.personaAcquisitions),
-          ...(String(action.importSourceKey || "").trim()
-            ? { importSourceKey: String(action.importSourceKey).slice(0, 180) }
-            : {}),
-          createdAt: now,
-          updatedAt: now
-        }]
+      const result = {
+        id: makeOwnedUid("res"),
+        name: String(action.name || "").slice(0, 80) || "無題",
+        date: String(action.date || localDateString()).slice(0, 10),
+        income: { ...normalizeCurrency(action.income), tickets: normalizeTickets(action.income?.tickets) },
+        note: String(action.note || "").slice(0, 2000),
+        consumedItems: normalizeConsumedItems(action.consumedItems),
+        rewardItems: normalizeRewardItems(action.rewardItems, state),
+        initialPersona: normalizeInitialPersona(action.initialPersona),
+        personaAcquisitions: normalizePersonaAcquisitions(action.personaAcquisitions),
+        ...(String(action.importSourceKey || "").trim()
+          ? { importSourceKey: String(action.importSourceKey).slice(0, 180) }
+          : {}),
+        createdAt: now,
+        updatedAt: now
       };
+      const next = { ...state, results: [...(state.results || []), result] };
+      return grantRewardItemDeltas(next, result.rewardItems, []);
     }
-    case "PATCH_RESULT":
-      return {
+    case "PATCH_RESULT": {
+      const previous = (state.results || []).find((result) => result.id === action.id);
+      if (!previous) return state;
+      const nextRewardItems = action.patch?.rewardItems === undefined
+        ? normalizeRewardItems(previous.rewardItems, state)
+        : normalizeRewardItems(action.patch.rewardItems, state);
+      const updated = {
         ...state,
         results: (state.results || []).map((r) => (r.id === action.id
           ? {
@@ -5930,12 +5942,17 @@ case "ADD_CUSTOM_ITEM": {
               ...(action.patch?.date !== void 0 ? { date: String(action.patch.date).slice(0, 10) } : {}),
               ...(action.patch?.note !== void 0 ? { note: String(action.patch.note).slice(0, 2000) } : {}),
               ...(action.patch?.income !== void 0 ? { income: { ...normalizeCurrency(action.patch.income), tickets: normalizeTickets(action.patch.income?.tickets) } } : {}),
+              ...(action.patch?.rewardItems !== void 0 ? { rewardItems: normalizeRewardItems(action.patch.rewardItems, state) } : {}),
               ...(action.patch?.initialPersona !== void 0 ? { initialPersona: normalizeInitialPersona(action.patch.initialPersona) } : {}),
               ...(action.patch?.personaAcquisitions !== void 0 ? { personaAcquisitions: normalizePersonaAcquisitions(action.patch.personaAcquisitions) } : {}),
               updatedAt: Date.now()
             }
           : r))
       };
+      return action.patch?.rewardItems === undefined
+        ? updated
+        : grantRewardItemDeltas(updated, nextRewardItems, previous.rewardItems);
+    }
     /* リザルトを消したら、そのリザルトに紐づく明細も消す。
        かつ未分類へ戻すと、削除した支出が別の予算に紛れ込んで
        「消したのにまだ残っている」ように見える。削除なら削除。 */
