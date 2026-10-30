@@ -491,3 +491,22 @@ test("抽出パックの共有語は同期・カスタム人格にも反映さ�
   assert.ok(entry);
   assert.equal(entry.source, "特定抽出パック第一弾 p.196", "共有用語辞典の定義を一貫して使用する");
 });
+
+
+test("同期後に表示名が変わった現在人格を、旧DBの他人格引用候補として再利用しない", () => {
+  const fixture = {
+    normal_personas: [
+      { name: "旧人格名", no: 77, affiliation: "同じ所属", passive_name: "旧固有語", passive_effect: "古いDB説明", unique_buffs: [], skills: [] },
+      { name: "参照元人格", no: 78, affiliation: "別所属", passive_name: "外部固有語", passive_effect: "外部人格の説明", unique_buffs: [], skills: [] }
+    ],
+    tokui_personas: [], egos: []
+  };
+  const live = { name: "同期後の名前", no: 77, affiliation: "同じ所属", passive_name: "", unique_buffs: [], skills: [] };
+  const api = loadGlossary();
+  const stale = api.tokenize("[旧固有語]", fixture, "人格スキル:同期後の名前", live);
+  assert.equal(stale.filter((piece) => piece.term === "旧固有語").length, 0,
+    "同じ番号・所属の旧DB人格は外部引用辞書から除外する");
+  const external = api.tokenize("[外部固有語]", fixture, "人格スキル:同期後の名前", live);
+  assert.equal(external.find((piece) => piece.term === "外部固有語")?.entries[0]?.ownerName, "参照元人格",
+    "別人格の一意な固有語引用は引き続き解決する");
+});
