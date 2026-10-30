@@ -3903,7 +3903,20 @@ const LedgerPanel = ({ state, dispatch }) => {
   const [dragId, setDragId] = React.useState(null);
   const [overId, setOverId] = React.useState(null);
   const [movingEntryId, setMovingEntryId] = React.useState(null);
-  const [newResult, setNewResult] = React.useState({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} } });
+  const rewardItemCatalog = React.useMemo(() => {
+    const source = [
+      ...(window.DB?.items || []),
+      ...(window.DB?.specialItems || []).filter((item) => !item?.ledgerResource),
+      ...(Array.isArray(state.customItems) ? state.customItems : [])
+    ];
+    return [...new Map(source.filter((item) => item?.id && item?.name && !item.ledgerResource)
+      .map((item) => [String(item.id), item])).values()]
+      .sort((a, b) => String(a.name).localeCompare(String(b.name), "ja"));
+  }, [state.customItems]);
+  const [newResult, setNewResult] = React.useState({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [] });
+  const [newRewardItemId, setNewRewardItemId] = React.useState("");
+  const [newRewardItemName, setNewRewardItemName] = React.useState("");
+  const [newRewardItemQty, setNewRewardItemQty] = React.useState("1");
   /* 選択中のパックはフォーム側が持つ。TicketInputs 内で持つと、親が組み立てる
      income に選んだパック名が入らない（内部 state だから）。 */
   const [newResultPack, setNewResultPack] = React.useState("");
@@ -3916,6 +3929,10 @@ const LedgerPanel = ({ state, dispatch }) => {
   const [ticketPanel, setTicketPanel] = React.useState(null);
   const [ticketDraft, setTicketDraft] = React.useState(null);
   const [ticketPackPick, setTicketPackPick] = React.useState("");
+  const [ticketRewardItemId, setTicketRewardItemId] = React.useState("");
+  const [ticketRewardItemName, setTicketRewardItemName] = React.useState("");
+  const [ticketRewardItemQty, setTicketRewardItemQty] = React.useState("1");
+  const [ticketPersonaPick, setTicketPersonaPick] = React.useState("");
   /* 手動の支出・消耗。DBに価格が無いもの、戦闘で消えたものを記録する。 */
   const [newEntry, setNewEntry] = React.useState({ name: "", kind: "expense", lp: "", shards: "" });
   /* 所持人格リストの一括取込用の状態。 */
@@ -4242,21 +4259,72 @@ const readDragId = (event) => {
     }
   };
 
+  const rewardNameKey = (value) => String(value || "").normalize("NFKC").replace(/[\\s\\u3000・･]/g, "").toLocaleLowerCase("ja");
+  const materializeRewardItems = (items, sourceLabel) => {
+    const output = [];
+    (Array.isArray(items) ? items : []).forEach((entry, index) => {
+      const quantity = Math.max(1, Math.floor(Number(entry.quantity) || 1));
+      let itemId = String(entry.itemId || "").trim();
+      const customName = String(entry.customName || "").trim();
+      if (!itemId && customName) {
+        const existing = rewardItemCatalog.find((item) => rewardNameKey(item.name) === rewardNameKey(customName)
+          || (item.searchAliases || []).some((alias) => rewardNameKey(alias) === rewardNameKey(customName)));
+        if (existing) itemId = String(existing.id);
+        else {
+          itemId = "custom-reward-" + Date.now() + "-" + index + "-" + Math.random().toString(36).slice(2, 7);
+          dispatch({ type: "ADD_CUSTOM_ITEM", item: {
+            id: itemId, name: customName, category: "報酬品",
+            effect: "リザルト報酬として記録したカスタムアイテム",
+            price: "", maxOwned: 99
+          } });
+        }
+      }
+      const catalogItem = rewardItemCatalog.find((item) => String(item.id) === itemId);
+      const itemName = catalogItem?.name || customName || String(entry.itemName || itemId);
+      if (itemId && itemName) output.push({ itemId, itemName, quantity });
+    });
+    return output;
+  };
+  const appendRewardItemDraft = (current, itemId, customName, quantity) => {
+    const count = Number(quantity);
+    if (!Number.isSafeInteger(count) || count <= 0) {
+      toast("報酬アイテムの数量は1以上の整数で入力してください", "assertive");
+      return current;
+    }
+    const item = rewardItemCatalog.find((row) => String(row.id) === String(itemId));
+    const name = String(customName || "").trim() || item?.name || "";
+    if (!item && !name) {
+      toast("報酬アイテムを選択するか、品名を入力してください", "assertive");
+      return current;
+    }
+    const existing = current.find((row) => (item && row.itemId === item.id) || (!item && row.customName && rewardNameKey(row.customName) === rewardNameKey(name)));
+    if (existing) return current.map((row) => row === existing ? { ...row, quantity: (Number(row.quantity) || 0) + count } : row);
+    return [...current, item
+      ? { itemId: String(item.id), itemName: item.name, quantity: count }
+      : { customName: name, itemName: name, quantity: count }];
+  };
+  const removeRewardItemDraft = (current, index) => current.filter((_, rowIndex) => rowIndex !== index);
+
   const addResult = () => {
     const name = String(newResult.name || "").trim();
     if (!name) return;
+    const rewardItems = materializeRewardItems(newResult.rewardItems, name);
     dispatch({
       type: "ADD_RESULT",
       name,
       date: newResult.date || "",
-        income: {
-          lp: Number(newResult.lp) || 0,
-          shards: Number(newResult.shards) || 0,
-          tickets: newResult.tickets || { persona: 0, ego: 0, choice: 0, pack: {} }
-        },
-      });
-      setNewResult({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} } });
-      setResultPage(0);
+      income: {
+        lp: Number(newResult.lp) || 0,
+        shards: Number(newResult.shards) || 0,
+        tickets: newResult.tickets || { persona: 0, ego: 0, choice: 0, pack: {} }
+      },
+      rewardItems
+    });
+    setNewResult({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [] });
+    setNewRewardItemId("");
+    setNewRewardItemName("");
+    setNewRewardItemQty("1");
+    setResultPage(0);
   };
 
 /* 硝子窓の読み込み結果をアカウント全体へ入れる。
