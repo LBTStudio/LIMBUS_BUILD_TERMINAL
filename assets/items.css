@@ -176,3 +176,9 @@
     font-size: 16px;
   }
 }
+
+.item-consume-target {
+  flex: 1 1 100%;
+  color: var(--tx-2);
+  font-size: 11px;
+}
