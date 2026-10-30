@@ -4022,6 +4022,9 @@ const LedgerPanel = ({ state, dispatch }) => {
       .sort((a, b) => String(a.name).localeCompare(String(b.name), "ja"));
   }, [state.customItems]);
   const [newResult, setNewResult] = React.useState({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [], personaAcquisitions: [] });
+  const [newResultPersonaQuery, setNewResultPersonaQuery] = React.useState("");
+  const [ticketPersonaQuery, setTicketPersonaQuery] = React.useState("");
+  const [initialPersonaQuery, setInitialPersonaQuery] = React.useState("");
   const [newRewardItemId, setNewRewardItemId] = React.useState("");
   const [newRewardItemName, setNewRewardItemName] = React.useState("");
   const [newRewardItemQty, setNewRewardItemQty] = React.useState("1");
@@ -4059,9 +4062,6 @@ const LedgerPanel = ({ state, dispatch }) => {
   const [ticketRewardItemId, setTicketRewardItemId] = React.useState("");
   const [ticketRewardItemName, setTicketRewardItemName] = React.useState("");
   const [ticketRewardItemQty, setTicketRewardItemQty] = React.useState("1");
-  const [newResultPersonaQuery, setNewResultPersonaQuery] = React.useState("");
-  const [ticketPersonaQuery, setTicketPersonaQuery] = React.useState("");
-  const [initialPersonaQuery, setInitialPersonaQuery] = React.useState("");
   /* 手動の支出・消耗。DBに価格が無いもの、戦闘で消えたものを記録する。 */
   const [newEntry, setNewEntry] = React.useState({ name: "", kind: "expense", lp: "", shards: "" });
   /* 所持人格リストの一括取込用の状態。 */
