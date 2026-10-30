@@ -592,45 +592,67 @@ const SupportSection = ({ state, dispatch, ownedOnly = false }) => {
   const selectedIsDeath = selectedSlotType === null
     ? !!(selected && (DB.death_passives || []).some((s) => s.name === selected.name && (s.cond || "") === (selected.cond || "")))
     : selectedSlotType === "death";
+  const selectedOwned = !!selected && (state.roster?.supports || []).some((entry) => entry.name === selected.name);
   const patchSupport = (id, patch) => dispatch({ type: "PATCH_SUPPORT", id, patch });
   const patchDeathSupport = (patch) => dispatch({ type: "PATCH_DEATH_SUPPORT", patch });
   const tryEquip = (s, slotType = "standard", options = {}) => {
     const silent = !!options.silent;
     if (!s) return { ok: false, message: "サポートを選んでね" };
     if (isEquipped(s.name)) return { ok: false, message: "すでに装備中だよ！" };
-    if (slotType === "death") {
-      if (!hasDeathSlot) {
-        if (!silent) toast("死亡後専用スロットが未開放です");
-        return { ok: false, message: "死亡後専用枠は未開放だよ" };
-      }
-      dispatch({ type: "SET_DEATH_SUPPORT", spp: s });
-      if (!silent) toast(`『${s.name}』を死亡後専用スロットへ装備`);
-      return { ok: true, message: "死亡後枠に装備できた！" };
+    if (slotType === "death" && !hasDeathSlot) {
+      if (!silent) toast("死亡後専用スロットが未開放です");
+      return { ok: false, message: "死亡後専用枠は未開放だよ" };
     }
-    if (equipped.length >= maxSupports) {
+    if (slotType !== "death" && equipped.length >= maxSupports) {
       if (!silent) toast(`スロット上限（${maxSupports}枠）です`);
       return { ok: false, message: `スロットがいっぱい（${maxSupports}枠）だよ` };
     }
+    const owned = (state.roster?.supports || []).some((entry) => entry.name === s.name);
+    if (!owned) {
+      const cost = window.LBT_purchaseCostOf?.(state, { type: "ADD_ROSTER_SUPPORT", spp: s, purchase: true });
+      const affordability = cost && window.LBT_purchaseAffordability?.(state, cost);
+      if (!cost || !affordability) {
+        const message = "購入価格を検証できません。ショップから価格を確認してください";
+        if (!silent) toast(message, "assertive");
+        return { ok: false, message };
+      }
+      if (!affordability.ok) {
+        const message = affordability.reason || "購入に必要な残高が不足しています";
+        if (!silent) toast(message, "assertive");
+        return { ok: false, message };
+      }
+      dispatch({ type: "ADD_ROSTER_SUPPORT", spp: s, purchase: true });
+    }
+    if (slotType === "death") {
+      dispatch({ type: "SET_DEATH_SUPPORT", spp: s });
+      if (!silent) toast(owned ? `『${s.name}』を死亡後専用スロットへ装備` : `『${s.name}』を購入して死亡後専用スロットへ装備`);
+      return { ok: true, message: owned ? "死亡後枠に装備できた！" : "購入して死亡後枠に装備できた！" };
+    }
     dispatch({ type: "ADD_SUPPORT", spp: s });
-    if (!silent) toast(`『${s.name}』を装備`);
-    return { ok: true, message: "装備できた！" };
+    if (!silent) toast(owned ? `『${s.name}』を装備` : `『${s.name}』を購入して装備`);
+    return { ok: true, message: owned ? "装備できた！" : "購入して装備できた！" };
   };
   const handleSupportItemClick = (s, slotType, event) => {
     const isSameSelected = selectedSlotType === slotType
       && selected?.name === s.name
       && (selected?.cond || "") === (s.cond || "");
+    const owned = (state.roster?.supports || []).some((entry) => entry.name === s.name);
     if (isSameSelected) {
+      if (!owned) {
+        showSupportEquipHint(event, "未所持です。購入する場合は詳細の「購入して装備」を押してください", "status");
+        return;
+      }
       const result = tryEquip(s, slotType, { silent: true });
       showSupportEquipHint(event, result.message, result.ok ? "success" : "hint");
       return;
     }
     setSelected(s);
     setSelectedSlotType(slotType);
-    let message = "もう一度クリック／タップで装備！";
+    let message = owned ? "もう一度クリック／タップで装備！" : "未所持です。詳細の「購入して装備」から取得できます";
     if (isEquipped(s.name)) message = "すでに装備中だよ！";
     else if (slotType === "death" && !hasDeathSlot) message = "死亡後専用枠は未開放だよ";
-    else if (slotType !== "death" && equipped.length >= maxSupports) message = `スロットがいっぱい（${maxSupports}枠）だよ`;
-    showSupportEquipHint(event, message, message === "もう一度クリック／タップで装備！" ? "hint" : "status");
+    else if (owned && slotType !== "death" && equipped.length >= maxSupports) message = `スロットがいっぱい（${maxSupports}枠）だよ`;
+    showSupportEquipHint(event, message, message.includes("もう一度") ? "hint" : "status");
   };
   const addCustomSupport = () => {
     if (!editable) {
@@ -816,7 +838,7 @@ const SupportSection = ({ state, dispatch, ownedOnly = false }) => {
           visibleStandard.length || catalogMode === "standard" || catalogMode === "all" ? h(React.Fragment, null, h("div", { className: "t-label", style: { marginBottom: 6 } }, catalogMode === "all" ? "通常スロット用" : "通常スロット用"), renderList(visibleStandard, "standard")) : null,
           (visibleDeath.length || catalogMode === "death" || catalogMode === "all") ? h(React.Fragment, null, h("div", { className: "t-label", style: { marginTop: visibleStandard.length ? "var(--s-3)" : 0, marginBottom: 6, color: "var(--warn)" } }, "死亡後専用スロット候補", !hasDeathSlot ? "（未開放：閲覧のみ）" : ""), renderList(visibleDeath, "death")) : null
         ),
-        selected ? h("div", { className: "codex-detail" }, h("div", { className: "detail-head", style: { "--sin-primary": selectedIsDeath ? "var(--warn)" : "var(--gold)" } }, h("div", { className: "detail-eyebrow" }, selected.lp ? h("span", { className: "detail-num" }, "LP ", selected.lp) : null, h("span", { className: "detail-type" }, selectedIsDeath ? "DEATH SUPPORT PASSIVE / 死亡後専用" : "SUPPORT PASSIVE / サポートパッシブ")), h("div", { className: "detail-name" }, selected.name), h("div", { className: "cond-chips-lg", style: { marginTop: "var(--s-2)", display: "flex", alignItems: "center", gap: 6 } }, h("span", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)", fontFamily: "var(--f-display)", letterSpacing: "0.12em" } }, "発動条件"), h(CondChips, { cond: selected.cond }))), h("div", { className: "detail-body" }, h("div", null, h("div", { className: "detail-section-title" }, "効果"), h("div", { className: "detail-passive" }, h("div", { className: "detail-passive-effect", style: { whiteSpace: "pre-wrap" } }, window.LBT_GLOSSARY_TEXT ? window.LBT_GLOSSARY_TEXT(selected.effect, (selectedIsDeath ? "死亡後サポートパッシブ:" : "サポートパッシブ:") + selected.name) : selected.effect))), h("div", { className: "detail-actions" }, selectedIsDeath ? (deathSupport?.name === selected.name ? h(Button, { variant: "ghost", size: "sm", onClick: () => dispatch({ type: "SET_DEATH_SUPPORT", spp: null }), icon: "x" }, "死亡後スロットから外す") : h(Button, { variant: "primary", onClick: () => tryEquip(selected, "death"), icon: "check", disabled: !hasDeathSlot }, "死亡後スロットへ装備")) : (isEquipped(selected.name) ? h("div", { style: { fontSize: "var(--fs-10)", color: "var(--gold)", textAlign: "center", fontFamily: "var(--f-display)", letterSpacing: "0.16em", textTransform: "uppercase" } }, "★ 装備中") : h(Button, { variant: "primary", onClick: () => tryEquip(selected, "standard"), icon: "check" }, "通常スロットへ装備"))))) : h("div", { className: "codex-detail" }, h("div", { className: "detail-empty" }, h("div", { className: "detail-empty-icon" }, "◇"), h("div", { className: "t-label" }, "サポートパッシブを選択"), h("div", { style: { fontSize: "var(--fs-11)", color: "var(--tx-mute)", marginTop: 8 } }, hasDeathSlot ? "通常スロット用と死亡後専用候補を分けて表示しています。" : "一覧から選択すると詳細が表示されます。", h("br", null), "選択中のカードをもう一度クリック／タップするか、詳細の装備ボタンを押してください。")))
+        selected ? h("div", { className: "codex-detail" }, h("div", { className: "detail-head", style: { "--sin-primary": selectedIsDeath ? "var(--warn)" : "var(--gold)" } }, h("div", { className: "detail-eyebrow" }, selected.lp ? h("span", { className: "detail-num" }, "LP ", selected.lp) : null, h("span", { className: "detail-type" }, selectedIsDeath ? "DEATH SUPPORT PASSIVE / 死亡後専用" : "SUPPORT PASSIVE / サポートパッシブ")), h("div", { className: "detail-name" }, selected.name), h("div", { className: "cond-chips-lg", style: { marginTop: "var(--s-2)", display: "flex", alignItems: "center", gap: 6 } }, h("span", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)", fontFamily: "var(--f-display)", letterSpacing: "0.12em" } }, "発動条件"), h(CondChips, { cond: selected.cond }))), h("div", { className: "detail-body" }, h("div", null, h("div", { className: "detail-section-title" }, "効果"), h("div", { className: "detail-passive" }, h("div", { className: "detail-passive-effect", style: { whiteSpace: "pre-wrap" } }, window.LBT_GLOSSARY_TEXT ? window.LBT_GLOSSARY_TEXT(selected.effect, (selectedIsDeath ? "死亡後サポートパッシブ:" : "サポートパッシブ:") + selected.name) : selected.effect))), h("div", { className: "detail-actions" }, selectedIsDeath ? (deathSupport?.name === selected.name ? h(Button, { variant: "ghost", size: "sm", onClick: () => dispatch({ type: "SET_DEATH_SUPPORT", spp: null }), icon: "x" }, "死亡後スロットから外す") : h(Button, { variant: "primary", onClick: () => tryEquip(selected, "death"), icon: "check", disabled: !hasDeathSlot }, selectedOwned ? "死亡後スロットへ装備" : "購入して死亡後枠へ装備")) : (isEquipped(selected.name) ? h("div", { style: { fontSize: "var(--fs-10)", color: "var(--gold)", textAlign: "center", fontFamily: "var(--f-display)", letterSpacing: "0.16em", textTransform: "uppercase" } }, "★ 装備中") : h(Button, { variant: "primary", onClick: () => tryEquip(selected, "standard"), icon: "check" }, selectedOwned ? "通常スロットへ装備" : "購入して装備"))))) : h("div", { className: "codex-detail" }, h("div", { className: "detail-empty" }, h("div", { className: "detail-empty-icon" }, "◇"), h("div", { className: "t-label" }, "サポートパッシブを選択"), h("div", { style: { fontSize: "var(--fs-11)", color: "var(--tx-mute)", marginTop: 8 } }, hasDeathSlot ? "通常スロット用と死亡後専用候補を分けて表示しています。" : "一覧から選択すると詳細が表示されます。", h("br", null), "選択中のカードをもう一度クリック／タップするか、詳細の装備ボタンを押してください。")))
       )
     ),
     supportEquipHint ? h("div", {
