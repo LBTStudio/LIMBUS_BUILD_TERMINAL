@@ -144,7 +144,8 @@
   border-radius: var(--r-lg);
   background: var(--surface-0);
   box-shadow: 0 24px 60px rgba(0, 0, 0, .55), 0 0 0 1px var(--gold-tint);
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   animation: acct-pop var(--t) var(--e-out);
 }
 @keyframes acct-pop {
@@ -536,7 +537,8 @@ main.acct-gate {
   border-radius: var(--r-lg);
   background: var(--surface-0);
   box-shadow: 0 28px 70px rgba(0, 0, 0, .6), 0 0 0 1px var(--gold-tint);
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   animation: acct-pop var(--t) var(--e-out);
 }
 .acct-gate-panel .acct-grid {
