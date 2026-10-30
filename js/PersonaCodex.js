@@ -548,8 +548,11 @@ const BaseInfoPanel = ({ state, dispatch }) => {
 
 const BaseInfoWorkspace = ({ state, dispatch }) => {
   const h = React.createElement;
+  const equipped = !!state.personaSrc;
   return h("div", { className: "baseinfo-workspace piece-workspace" },
     h("div", { className: "equipped-unified" }, h(BaseInfoPanel, { state, dispatch })),
+    !equipped && h("p", { className: "ledger-note", style: { marginTop: "var(--s-2)" } },
+      "人格は未装備です。上の名前・PL・立ち絵・INITIATIVE・COLOR は人格と無関係なので、先にここで整えてからビルドの人格タブで人格を選んでください。"),
     typeof window.LBT_BuildParamsPanel === "function" ? window.LBT_BuildParamsPanel({ state, dispatch }) : null
   );
 };
