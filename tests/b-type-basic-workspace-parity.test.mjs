@@ -23,7 +23,7 @@ test("Basic workspace follows the supplied Unified Workbench v4 B prototype", ()
   ]) assert.ok(reference.includes(required), "reference must preserve " + required);
   for (const required of [
     'className: "piece-hero-grid"', 'className: "piece-art-wrap"', 'className: "piece-art-thumbs"',
-    'className: "piece-control-grid"', 'className: "piece-token-card"', 'className: "piece-format-panel"'
+    'className: "piece-control-grid"', 'className: "piece-token-card"', 'piece-format-panel'
   ]) assert.ok(sections.includes(required) || base.includes(required), "production must render " + required);
   for (const field of ["state.charName", "state.plName", "state.initiative", "state.color", "activeImg", "setImgTab", "state.imgUrls", "state.shareImageData"]) {
     assert.ok(base.includes(field), "Basic workspace must retain live field " + field);
