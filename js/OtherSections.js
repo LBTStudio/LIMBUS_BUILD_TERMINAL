@@ -4868,6 +4868,46 @@ const importHeldPersonas = () => {
           setPackPick: setNewResultPack,
           onChange: (tickets) => setNewResult((p) => ({ ...p, tickets }))
         }),
+        h("section", { className: "ledger-reward-item-editor", "aria-label": "報酬アイテム" },
+          h("div", { className: "ledger-reward-item-head" },
+            h("span", { className: "t-label" }, "報酬アイテム"),
+            h("span", { className: "ledger-note" }, "硝子の破片・通常アイテム・カスタム品を記録できます。自我の欠片は上の欠片欄へ。")
+          ),
+          h("div", { className: "ledger-reward-item-controls" },
+            h("select", {
+              className: "select", "aria-label": "報酬アイテムのカタログ選択",
+              value: newRewardItemId,
+              onChange: (event) => { setNewRewardItemId(event.target.value); setNewRewardItemName(""); }
+            },
+              h("option", { value: "" }, "カタログから選択…"),
+              rewardItemCatalog.map((item) => h("option", { key: item.id, value: item.id }, item.name + (item.category ? " · " + item.category : "")))
+            ),
+            h("input", {
+              className: "ledger-input", "aria-label": "カタログにない報酬アイテム名",
+              placeholder: "またはカタログにない品名を入力",
+              value: newRewardItemName,
+              onChange: (event) => { setNewRewardItemName(event.target.value); setNewRewardItemId(""); }
+            }),
+            h("input", {
+              className: "ledger-input ledger-input--num", type: "number", min: 1, step: 1,
+              "aria-label": "報酬アイテム数量", value: newRewardItemQty,
+              onChange: (event) => setNewRewardItemQty(event.target.value)
+            }),
+            h(Button, { size: "sm", variant: "secondary", icon: "plus", onClick: () => {
+              const rewardItems = appendRewardItemDraft(newResult.rewardItems || [], newRewardItemId, newRewardItemName, newRewardItemQty);
+              if (rewardItems !== newResult.rewardItems) {
+                setNewResult((current) => ({ ...current, rewardItems }));
+                setNewRewardItemId(""); setNewRewardItemName(""); setNewRewardItemQty("1");
+              }
+            } }, "追加")
+          ),
+          (newResult.rewardItems || []).length > 0
+            ? h("div", { className: "ledger-reward-item-list" }, newResult.rewardItems.map((item, index) => h("div", { key: item.itemId || item.customName, className: "ledger-reward-item-chip" },
+                h("span", null, item.itemName || item.customName), h("b", null, "×" + item.quantity),
+                h("button", { type: "button", "aria-label": (item.itemName || item.customName) + " を報酬から外す", onClick: () => setNewResult((current) => ({ ...current, rewardItems: removeRewardItemDraft(current.rewardItems || [], index) })) }, "×")
+              )))
+            : h("p", { className: "ledger-empty-note" }, "アイテム報酬があれば、ここへ追加します。")
+        ),
 )
     ),
 
