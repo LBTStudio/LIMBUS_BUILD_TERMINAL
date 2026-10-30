@@ -739,6 +739,38 @@ async function captureProfile(browser, mode) {
         }
       });
     }
+    await attempt("import-router-all-destinations",async()=>{
+      const trigger=(page.viewportSize()?.width||1440)<=640
+        ? page.locator(".btype-mobile-bottom-nav button").filter({hasText:"取込"}).first()
+        : page.locator(".rail-import-item").first();
+      if(!(await visible(trigger))) throw new Error("データ取り込みの共通入口が見つかりません");
+      await click(trigger);
+      const dialog=page.locator(".import-router");
+      await dialog.waitFor({state:"visible",timeout:5000});
+      const options=dialog.locator(".import-router-option");
+      if(await options.count()!==4) throw new Error("取り込み先の選択肢が4種類ではありません");
+      await snap("import-router-choice","共通のデータ取り込み先選択ダイアログ");
+      for(const id of ["persona","result","garasumado","owned"]){
+        const option=options.filter({hasText:
+          id==="persona"?"人格データの本文":
+          id==="result"?"リザルト・購入履歴":
+          id==="garasumado"?"硝子窓のキャラクター全体":"所持人格名の一覧"
+        }).first();
+        if(!(await visible(option))) throw new Error("取り込み先がありません: "+id);
+        await click(option);
+        await snap("import-router-destination-"+id,"共通取り込み口から選択した遷移先："+id);
+        await closeOverlay();
+        if(id!=="owned" && id!=="garasumado") await go("ホーム");
+        if(id==="garasumado") await go("ホーム");
+        if(id!=="owned" || id==="owned") {
+          const nextTrigger=(page.viewportSize()?.width||1440)<=640
+            ? page.locator(".btype-mobile-bottom-nav button").filter({hasText:"取込"}).first()
+            : page.locator(".rail-import-item").first();
+          if(id!=="owned") { await click(nextTrigger); await dialog.waitFor({state:"visible",timeout:5000}); }
+        }
+      }
+      await closeOverlay();
+    });
     await attempt("home-launcher-review",async()=>{
       await go("ホーム");
       await snap("home-command-hero","ホームのコマンドヒーローと目的別ランチャー");
@@ -750,6 +782,16 @@ async function captureProfile(browser, mode) {
       await snap("home-launcher-grid","ホームの主要アクション一覧");
       const continuePanel=page.locator(".btype-continue-panel").first();
       if(await visible(continuePanel)) await snap("home-continue-panel","前回作業の再開パネル");
+      // Exercise every launcher route against the disposable audit account.
+      for(let i=0;i<count;i++){
+        await go("ホーム");
+        const action=page.locator(".btype-launcher-grid button").nth(i);
+        if(!(await visible(action))) continue;
+        const label=(await action.innerText()).trim();
+        await click(action);
+        await snap("home-action-destination-"+label,"ホームランチャーからの遷移先："+label);
+        await closeOverlay();
+      }
     });
     await attempt("build-editor-operation-paths",async()=>{
       await go("ビルド");
@@ -882,14 +924,14 @@ async function main() {
   try { for(const mode of ["desktop","tablet","mobile"]) {log("begin "+mode);await captureProfile(browser,mode);} }
   finally { await browser.close();await new Promise(resolve=>s.close(resolve)); }
   audit.count=audit.screenshots.length;
-  audit.coverage=["SINNER SELECT/new-account form","all nine build tabs and desktop tab-hover states","Basic workspace ST / label / CCFOLIA preview tabs and all three live preview modes","major navigation sections and desktop navigation-hover states","all six shop category tabs","record import menu and routes with result parsing preview","all six owned-library categories","settings status workspace and every disclosure panel","home command hero, launcher grid and resume panel","skill-add and custom E.G.O creation entry paths","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, desktop preview width and placement, duplicate preview controls, and target-size diagnostics"];
+  audit.coverage=["SINNER SELECT/new-account form","all nine build tabs and desktop tab-hover states","Basic workspace ST / label / CCFOLIA preview tabs and all three live preview modes","major navigation sections and desktop navigation-hover states","all six shop category tabs","record import menu and routes with result parsing preview","all six owned-library categories","settings status workspace and every disclosure panel","home command hero, all launcher routes and resume panel","common import router and all four destinations","skill-add and custom E.G.O creation entry paths","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, desktop preview width and placement, duplicate preview controls, and target-size diagnostics"];
   const requiredNotes=[
     "ビルド内基本タブのステータス（ST）編集パネル","ビルド内基本タブのラベル（パラメータ）編集パネル","ビルド内基本タブの盤面上の駒プレビュー","ビルド内基本タブのキャラクターシートプレビュー","ビルド内基本タブの出力データプレビュー",
     "ビルド内の人格タブ","ビルド内のスキルタブ","ビルド内のパッシブタブ","ビルド内の強化タブ","ビルド内のサポートタブ","ビルド内のE.G.Oタブ","ビルド内の精神タブ","ビルド内のアイテムタブ",
     "ショップ分類: 人格","ショップ分類: サポート","ショップ分類: E.G.O","ショップ分類: 精神","ショップ分類: アイテム","ショップ分類: ガチャ",
     "記録の取り込みメニュー（3つの入口）",
      "記録・所持品のカテゴリ：リザルト","記録・所持品のカテゴリ：人格","記録・所持品のカテゴリ：E.G.O","記録・所持品のカテゴリ：サポパ","記録・所持品のカテゴリ：精神","記録・所持品のカテゴリ：アイテム",
-     "ホームのコマンドヒーローと目的別ランチャー","詳細設定：ステータス一覧・編集・出力順",
+     "ホームのコマンドヒーローと目的別ランチャー","共通のデータ取り込み先選択ダイアログ","詳細設定：ステータス一覧・編集・出力順",
     "テキスト流し込みを開き、自動スクロール後の入力欄が見える状態",
     "例文を入力し、解析結果・候補を確認する状態（確定しない）",
     "硝子窓から一括取り込むパネルを開いた状態（適用しない）",
