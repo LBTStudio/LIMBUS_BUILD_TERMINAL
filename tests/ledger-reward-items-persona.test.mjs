@@ -54,7 +54,7 @@ test("手入力リザルトは硝子の破片と通常アイテムを履歴に�
     ]
   });
   assert.deepEqual(
-    next.results[0].rewardItems.map((item) => [item.itemId, item.quantity]),
+    Array.from(next.results[0].rewardItems, (item) => [item.itemId, item.quantity]),
     [[glass.id, 2], [normalItem.id, 1]]
   );
   assert.equal(stock(next, glass.id), 2);
@@ -202,8 +202,8 @@ test("初期作成で選択した人格は取得証跡と所持ライブラリ�
 });
 
 test("全リザルトの編集画面に複数人格と報酬アイテムの入力欄がある", () => {
-  assert.match(otherSections, /aria-label: "このリザルトで取得した人格"/);
-  assert.match(otherSections, /aria-label: "編集する報酬アイテムのカタログ選択"/);
+  assert.ok(otherSections.includes('"aria-label": "このリザルトで取得した人格"'));
+  assert.ok(otherSections.includes('"aria-label": "報酬アイテムのカタログ選択"'));
   assert.match(otherSections, /rewardItemCatalog\.map/);
   assert.ok(otherSections.includes(String.raw`replace(/[\s\u3000・･]/g, "")`), "報酬品名の照合は空白・中黒を正規化する");
   assert.match(otherSections, /rewardItems:\s*Array\.isArray\(result\.rewardItems\)/);
