@@ -152,29 +152,6 @@
 }
 
 
-/* Keep the Basic tab's editing and output preview in one visible work area.
-   The global right preview consumes horizontal space, so this side-by-side mode
-   is enabled only while that drawer is collapsed and the viewport is wide enough. */
-@layer v72-btype-preview-layout {
-  @media (min-width: 1280px) {
-    .app.preview-collapsed .baseinfo-workspace {
-      grid-template-columns: minmax(0, 1.05fr) minmax(400px, .95fr);
-      align-items: start;
-      gap: 16px;
-    }
-    .app.preview-collapsed .baseinfo-workspace > .equipped-unified,
-    .app.preview-collapsed .baseinfo-workspace > .build-params-shell {
-      min-width: 0;
-    }
-    /* When the global preview is open, return to a single column instead of
-       compressing the portrait editor and the Basic preview into narrow tracks. */
-    .app.has-preview .baseinfo-workspace {
-      grid-template-columns: minmax(0, 1fr);
-    }
-  }
-}
-
-
 /* Source-backed Unified Workbench v4 reference styles: v2 Basic workspace + v3 output preview. */
 /* v2: 駒整形を「画像を見ながら、ココフォリアへ出す情報を整える」作業場にする */
 .piece-workspace{display:grid;gap:14px}
