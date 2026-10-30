@@ -208,7 +208,7 @@ test("desktop click does not toggle closed a glossary popover already opened by 
   assert.ok(source.includes("Desktop hover may have opened the popover before the click lands"));
 });
 
-test("別人格の固有効果は角括弧付きでも参照せず、同期後の同一人格データは平文で解決する", () => {
+test("別人格の固有効果は角括弧で明示された一意引用だけ許可し、同期後の同一人格データは平文で解決する", () => {
   const fixture = {
     normal_personas: [
       { name: "定義元人格", passive_name: "", passive_effect: "", unique_buffs: [
@@ -240,7 +240,8 @@ test("別人格の固有効果は角括弧付きでも参照せず、同期後�
   const foreignPlain = api.tokenize("深吸変換", fixture, "人格スキル:同期後の人格名", syncedRecord);
   const foreignBracketed = api.tokenize("[深吸変換]", fixture, "人格スキル:同期後の人格名", syncedRecord);
   assert.equal(foreignPlain.filter((piece) => piece.term).length, 0, "他人格の定義は平文でも流用しない");
-  assert.equal(foreignBracketed.filter((piece) => piece.term).length, 0, "他人格の定義は角括弧があっても流用しない");
+  assert.equal(foreignBracketed.filter((piece) => piece.term === "深吸変換").length, 1, "一意な他人格固有語は完全一致の角括弧引用に限り参照できる");
+  assert.equal(foreignBracketed.find((piece) => piece.term === "深吸変換").entries[0].ownerName, "定義元人格");
 
   const own = api.tokenize("同期専用の固有名詞を得る", fixture, "人格スキル:同期後の人格名", syncedRecord)
     .find((piece) => piece.term === "同期専用の固有名詞");
@@ -320,8 +321,8 @@ test("「集中攻撃」の「集中」は終止符事務所代表のパッシ�
   // 同じ本文内の別の場所に明示参照があっても、複合語の「集中」には適用しない。
   const mixedText = "集中攻撃-○○を付与し、[集中]を別途参照する。";
   const mixed = api.tokenize(mixedText, fixture, scope);
-  assert.equal(mixed.filter((piece) => piece.term === "集中").length, 0, "他人格のパッシブ名は角括弧があっても参照しない");
-  assert.equal(mixed.map((piece) => piece.text).join(""), mixedText);
+  assert.equal(mixed.filter((piece) => piece.term === "集中").length, 1, "複合語内の部分一致は除外し、角括弧で独立引用された語だけ参照する");
+  assert.equal(mixed.find((piece) => piece.term === "集中").entries[0].ownerName, "終止符事務所代表");
 
   const ownPassive = api.tokenize("集中", fixture, "人格パッシブ:終止符事務所代表").find((piece) => piece.term === "集中");
   assert.ok(ownPassive, "パッシブ名そのものは本人のスコープ内で引き続き解決できる");
