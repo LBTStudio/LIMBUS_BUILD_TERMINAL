@@ -214,7 +214,10 @@ test("別人格の固有効果は角括弧付きでも参照せず、同期後�
         { name: "深吸変換", type: "特殊処理", desc: "定義元人格だけの説明", max: 1 }
       ], skills: [], keywords: [] },
       { name: "同期前の人格", passive_name: "", passive_effect: "", unique_buffs: [],
-        skills: [], keywords: [] }
+        skills: [], keywords: [] },
+      { name: "同期後の人格名", passive_name: "旧パッシブ名", passive_effect: "旧DBの説明", unique_buffs: [
+        { name: "旧固有名詞", type: "固有バフ", desc: "同期前に登録されていた説明", max: 1 }
+      ], skills: [], keywords: [] }
     ],
     tokui_personas: [], egos: [], support_passives: [], death_passives: [],
     normal_enhancements: [], special_enhancements: [], spirits: [], items: []
@@ -244,6 +247,8 @@ test("別人格の固有効果は角括弧付きでも参照せず、同期後�
   assert.equal(own.entries.length, 1);
   assert.equal(own.entries[0].source, "人格：同期後の人格名");
   assert.ok(own.entries[0].description.includes("同期データ側で登録された定義"));
+  const stale = api.tokenize("旧パッシブ名と旧固有名詞", fixture, "人格スキル:同期後の人格名", syncedRecord);
+  assert.equal(stale.filter((piece) => piece.term).length, 0, "同期後レコードを渡した場合、古いDB名・説明へ戻らない");
 });
 test("同名固有効果は表示中の人格自身の定義だけを使う", () => {
   const fixture = {
