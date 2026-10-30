@@ -76,136 +76,244 @@ const BaseSection = ({ state, dispatch }) => {
   React.useEffect(() => { setImgBroken(false); }, [imgList[imgTab]]);
   const activeImg = imgList[imgTab] || "";
   const [editOpen, setEditOpen] = React.useState(false);
-  return /* @__PURE__ */ React.createElement("div", { className: "pc-sheet" },
-    /* 立ち絵が主役。左の主役枠と右の識別・駒設定でシートを構成する。 */
-    /* @__PURE__ */ React.createElement("figure", { className: "pc-portrait" },
-      /* @__PURE__ */ React.createElement("div", { className: "pc-portrait-frame" },
-        activeImg && !imgBroken && /* @__PURE__ */ React.createElement("img", {
-          className: "pc-portrait-img",
-          src: activeImg,
-          alt: `立ち絵${imgList.length > 1 ? `（${imgTab + 1}枚目 / 全${imgList.length}枚）` : ""}`,
-          onError: () => setImgBroken(true)
-        }),
-(!activeImg || imgBroken) && /* @__PURE__ */ React.createElement("div", { className: "pc-portrait-empty" },
-      /* @__PURE__ */ React.createElement("span", { className: "pc-portrait-empty-mark" }, "◈"),
-      /* @__PURE__ */ React.createElement("span", { className: "pc-portrait-empty-text" }, imgBroken ? "画像を読み込めませんでした" : "立ち絵なし"),
-      /* @__PURE__ */ React.createElement("span", { className: "pc-portrait-empty-hint" }, imgBroken
-        ? "URLが正しいか確認してください（https:// で始まる文字列）"
-        : "下の「立ち絵URL / 共有画像を編集」から設定できます")
-      ),
-        imgList.length > 1 && /* @__PURE__ */ React.createElement("span", { className: "pc-portrait-badge" }, `${imgTab + 1} / ${imgList.length}`)
-      ),
-      /* @__PURE__ */ React.createElement("figcaption", { className: "pc-portrait-caption" },
-        /* @__PURE__ */ React.createElement("span", { className: "pc-portrait-caption-label" }, "PORTRAIT / 立ち絵"),
-        imgList.length > 1 && /* @__PURE__ */ React.createElement("span", { className: "pc-portrait-caption-note" }, `${imgList.length} 枚`)
-      )
-    ),
-    /* @__PURE__ */ React.createElement("div", { className: "pc-identity" },
-      /* @__PURE__ */ React.createElement("div", { className: "pc-id-head" },
-        /* @__PURE__ */ React.createElement("span", { className: "pc-id-eyebrow" }, "CHARACTER NAME"),
-        /* @__PURE__ */ React.createElement("input", {
-          className: "pc-name-input",
-          value: state.charName,
-          placeholder: "例：ユサ",
-          onChange: (e) => setF("charName", e.target.value),
-          "aria-label": "キャラクター名"
-        })
-      ),
-      /* @__PURE__ */ React.createElement("div", { className: "pc-id-sub" },
-        /* @__PURE__ */ React.createElement("span", { className: "pc-id-eyebrow" }, "PLAYER"),
-        /* @__PURE__ */ React.createElement("input", {
-          className: "pc-pl-input",
-          value: state.plName,
-          placeholder: "PL名",
-          onChange: (e) => setF("plName", e.target.value),
-          "aria-label": "プレイヤー名"
-        })
-      ),
-      /* 駒の設定はシートの能力値タイルと同じ見出しで並べる。 */
-      /* @__PURE__ */ React.createElement("div", { className: "pc-stats" },
-        /* @__PURE__ */ React.createElement("div", { className: "pc-stat" },
-          /* @__PURE__ */ React.createElement("span", { className: "pc-stat-label" }, "INITIATIVE"),
-          /* @__PURE__ */ React.createElement("span", { className: "pc-stat-jp" }, "駒の行動順"),
-          /* @__PURE__ */ React.createElement("input", {
-            className: "pc-stat-input",
-            type: "number",
-            step: "1",
-            inputMode: "numeric",
-            value: state.initiative ?? 0,
-            onChange: (e) => setF("initiative", e.target.value),
-            title: "CCFOLIAの駒のイニシアチブ（数値が大きいほど先に行動）",
-            "aria-label": "駒の行動順"
-          })
+  return React.createElement("div", { className: "piece-hero-grid", "data-ui-reference": "unified-workbench-v4" },
+    React.createElement("div", { className: "piece-hero-left" },
+      React.createElement("section", { className: "piece-panel piece-art-panel" },
+        React.createElement("div", { className: "piece-panel-head" },
+          React.createElement("div", null,
+            React.createElement("strong", null, "駒の見た目"),
+            React.createElement("small", null, "立ち絵と差分を見ながら選択")
+          ),
+          React.createElement("span", { className: "pill" }, "3:4 IMAGE")
         ),
-        /* @__PURE__ */ React.createElement("div", { className: "pc-stat" },
-          /* @__PURE__ */ React.createElement("span", { className: "pc-stat-label" }, "COLOR"),
-          /* @__PURE__ */ React.createElement("span", { className: "pc-stat-jp" }, "駒の色"),
-          /* @__PURE__ */ React.createElement("div", { className: "pc-color" },
-            /* @__PURE__ */ React.createElement("span", { className: "pc-color-swatch", style: { background: state.color } }),
-            /* @__PURE__ */ React.createElement("input", {
-              className: "pc-color-picker",
-              type: "color",
-              value: state.color,
-              onChange: (e) => setF("color", e.target.value),
-              title: "駒の色を選ぶ",
-              "aria-label": "駒の色"
-            }),
-            /* @__PURE__ */ React.createElement("input", {
-              className: "pc-stat-input pc-color-hex",
-              value: state.color,
-              onChange: (e) => setF("color", e.target.value),
-              title: "駒の色を16進数で直接指定",
-              "aria-label": "駒の色（16進数）"
-            })
+        React.createElement("div", { className: "piece-art-wrap" },
+          React.createElement("div", { className: "piece-art-frame" },
+            activeImg && !imgBroken
+              ? React.createElement("img", {
+                  className: "piece-art",
+                  src: activeImg,
+                  alt: "立ち絵 " + (imgTab + 1),
+                  onError: () => setImgBroken(true)
+                })
+              : React.createElement("div", { className: "pc-portrait-empty" },
+                  React.createElement("span", { className: "pc-portrait-empty-mark" }, "◈"),
+                  React.createElement("span", { className: "pc-portrait-empty-text" }, imgBroken ? "画像を読み込めませんでした" : "立ち絵なし"),
+                  React.createElement("span", { className: "pc-portrait-empty-hint" }, imgBroken
+                    ? "URLが正しいか確認してください（https:// で始まる文字列）"
+                    : "「立ち絵URL・差分を編集」から設定できます")
+                )
+          ),
+          React.createElement("div", { className: "piece-art-thumbs", role: "group", "aria-label": "立ち絵と差分" },
+            ...imgList.map((url, index) => React.createElement("button", {
+              key: url + ":" + index,
+              type: "button",
+              className: "piece-art-thumb" + (imgTab === index ? " active" : ""),
+              "aria-label": (index === 0 ? "基本立ち絵" : "差分立ち絵") + " " + (index + 1) + " を表示",
+              "aria-pressed": imgTab === index,
+              title: (index + 1) + "枚目の立ち絵を表示",
+              onClick: () => setImgTab(index)
+            },
+              React.createElement("img", { className: "piece-thumb-art", src: url, alt: "", loading: "lazy" }),
+              React.createElement("span", { className: "thumb-num" }, String(index + 1))
+            )),
+            React.createElement("button", {
+              type: "button",
+              className: "piece-art-thumb",
+              "aria-label": "立ち絵を追加",
+              title: "立ち絵URL・差分を編集",
+              onClick: () => setEditOpen(true)
+            }, "＋")
           )
+        ),
+        React.createElement("div", { className: "piece-art-actions" },
+          React.createElement("button", {
+            type: "button",
+            className: "secondary",
+            onClick: () => setEditOpen(true)
+          }, "立ち絵URL・差分を編集"),
+          React.createElement("button", {
+            type: "button",
+            className: "quiet-btn",
+            disabled: !activeImg || imgBroken,
+            onClick: () => {
+              if (activeImg && !imgBroken) window.open(activeImg, "_blank", "noopener,noreferrer");
+            }
+          }, "画像を確認")
         )
       ),
-      React.createElement("section", { className: "pc-token-preview", "aria-label": "ココフォリア駒プレビュー" },
-        React.createElement("div", { className: "pc-token-preview-head" },
-          React.createElement("span", null, "CCFOLIA / TOKEN PREVIEW"),
-          React.createElement("span", null, "入力内容に連動")
+      React.createElement("details", {
+        className: "piece-image-details",
+        open: editOpen || undefined,
+        onToggle: (event) => setEditOpen(event.currentTarget.open)
+      },
+        React.createElement("summary", null,
+          "立ち絵URL・差分 / 共有シート画像",
+          React.createElement("span", null, "必要なときだけ開く")
         ),
-        React.createElement("div", { className: "pc-token-preview-card", style: { "--pc-token-color": state.color || "#d6b56b" } },
-          React.createElement("div", { className: "pc-token-preview-avatar" },
-            activeImg && !imgBroken
-              ? React.createElement("img", { src: activeImg, alt: "", loading: "lazy" })
-              : React.createElement("span", { "aria-hidden": "true" }, "◈")
-          ),
-          React.createElement("div", { className: "pc-token-preview-main" },
-            React.createElement("strong", null, String(state.charName || "名称未設定")),
-            React.createElement("span", null, "PL " + String(state.plName || "未設定")),
-            React.createElement("div", { className: "pc-token-preview-meta" },
-              React.createElement("span", null, "行動順 " + String(state.initiative ?? 0)),
-              React.createElement("span", null, "HP " + String(state.hp ?? state.personaSrc?.hp ?? "—")),
-              React.createElement("span", null, "SAN " + String(state.san ?? state.personaSrc?.san ?? "—"))
+        React.createElement("div", { className: "piece-image-body" },
+          React.createElement("div", { className: "piece-input-group" },
+            React.createElement("label", { htmlFor: "piece-image-urls" }, "立ち絵URL（1行に1枚、1行目が基本画像）"),
+            React.createElement("textarea", {
+              id: "piece-image-urls",
+              className: "piece-textarea",
+              rows: 4,
+              placeholder: "https://...\nhttps://...",
+              value: state.imgUrls || "",
+              onChange: (event) => setF("imgUrls", event.target.value)
+            }),
+            React.createElement("div", { className: "piece-hint" },
+              "ココフォリアにアップロードした画像URLを設定します。2行目以降は差分として選べます。表示中の画像とURLの順序を確認してください。"
             )
           ),
-          React.createElement("span", { className: "pc-token-preview-color", style: { background: state.color || "#d6b56b" }, "aria-label": "駒の色" })
+          React.createElement("div", { className: "piece-share-row" },
+            React.createElement("div", { className: "piece-share-thumb" }, state.shareImageData ? "設定済み" : "共有シート画像"),
+            React.createElement("div", { style: { flex: 1, minWidth: 150 } },
+              React.createElement("strong", { style: { fontSize: 11 } }, "共有シート用の画像"),
+              React.createElement("div", { className: "piece-hint" },
+                "ココフォリア用の立ち絵とは別枠です。共有HTMLへ同梱する画像を選択し、サイズを最適化します。"
+              )
+            ),
+            React.createElement("label", {
+              className: "secondary",
+              style: { cursor: shareImageBusy ? "wait" : "pointer", opacity: shareImageBusy ? .7 : 1 }
+            },
+              shareImageBusy ? "画像を最適化中…" : "画像を選択",
+              React.createElement("input", {
+                type: "file",
+                accept: "image/png,image/jpeg,image/webp",
+                disabled: shareImageBusy,
+                onChange: onShareImageSelected,
+                style: { display: "none" }
+              })
+            ),
+            state.shareImageData && React.createElement("button", {
+              type: "button",
+              className: "quiet-btn",
+              onClick: () => {
+                setF("shareImageData", "");
+                setF("shareImageBlockedReason", "");
+                setShareImageError("");
+              },
+              title: "共有画像を削除"
+            }, "削除")
+          ),
+          state.shareImageData && React.createElement("div", { className: "base-img-preview share-image-preview" },
+            React.createElement("div", { className: "base-img-preview-label" }, "SHARE PREVIEW / 共有シート画像"),
+            React.createElement("img", {
+              src: state.shareImageData,
+              alt: "共有シート画像プレビュー",
+              className: "base-img-preview-img"
+            }),
+            React.createElement("div", {
+              className: currentShareImageOk ? "base-auto-note" : "base-img-preview-err",
+              style: { marginTop: 8, display: "block" }
+            }, currentShareImageOk
+              ? "圧縮見込み: " + Math.ceil(currentShareImageBytes / 1024) + "KB / 32KB — 共有リンクを発行できます"
+              : "圧縮見込み: " + Math.ceil(currentShareImageBytes / 1024) + "KB / 32KB — 上限超過のため共有リンクは発行しません。再アップロードしてください"
+            )
+          ),
+          shareImageError && React.createElement("div", {
+            className: "base-img-preview-err",
+            style: { display: "block" }
+          }, shareImageError)
         )
       )
     ),
-    /* 立ち絵の差し替えは頻度が低いので、既定は閉じてカードだけを見せる。 */
-    /* @__PURE__ */ React.createElement("details", { className: "pc-edit", open: editOpen || undefined, onToggle: (event) => setEditOpen(event.currentTarget.open) },
-      /* @__PURE__ */ React.createElement("summary", { className: "pc-edit-summary" },
-        /* @__PURE__ */ React.createElement("span", { className: "pc-edit-caret" }, "▶"),
-        "立ち絵URL / 共有画像を編集"
-      ),
-      /* @__PURE__ */ React.createElement("div", { className: "pc-edit-body stack-3" },
-        /* @__PURE__ */ React.createElement(Field, {
-          label: "IMAGE URL / 立ち絵URL（複数行可、1行目=基本、以降=差分）",
-          hint: "CCFOLIA でキャラクターシートを作り、立ち絵をアップロードしたら、その画像の URL をここに貼り付けてください（https:// で始まる文字列）。複数ある場合は1行に1枚、次の行が差分として扱われます。"
-        }, /* @__PURE__ */ React.createElement("textarea", { className: "textarea", rows: 4, placeholder: "https://...", value: state.imgUrls, onChange: (e) => setF("imgUrls", e.target.value), style: { whiteSpace: "pre", overflowX: "auto", overflowWrap: "normal", wordBreak: "keep-all", fontFamily: "var(--f-mono)" } })),
-        imgList.length > 1 && /* @__PURE__ */ React.createElement("div", { className: "pc-edit-tabs" }, imgList.map((url, i) => /* @__PURE__ */ React.createElement("button", { key: i, type: "button", className: `pc-thumb${imgTab === i ? " is-on" : ""}`, onClick: () => setImgTab(i), title: `${i + 1}枚目の立ち絵を表示`, "aria-pressed": imgTab === i }, /* @__PURE__ */ React.createElement("img", { src: url, alt: `立ち絵${i + 1}`, loading: "lazy" }), /* @__PURE__ */ React.createElement("span", { className: "pc-thumb-idx" }, String(i + 1))))),
-        /* @__PURE__ */ React.createElement(Field, { label: "SHARE IMAGE / 共有シート画像", hint: "共有HTMLへ同梱する公開画像です。縦長の立ち絵は左右余白を抑えて上半身を自動フォーカスし、最大1200×630・32KB以下へ圧縮します" },
-          /* @__PURE__ */ React.createElement("div", { className: "stack-2" },
-            /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" } },
-              /* @__PURE__ */ React.createElement("label", { className: "btn btn-sm", style: { cursor: shareImageBusy ? "wait" : "pointer", opacity: shareImageBusy ? .7 : 1 } }, shareImageBusy ? "画像を最適化中…" : "画像を選択", /* @__PURE__ */ React.createElement("input", { type: "file", accept: "image/png,image/jpeg,image/webp", disabled: shareImageBusy, onChange: onShareImageSelected, style: { display: "none" } })),
-              state.shareImageData && /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-sm btn-ghost", onClick: () => { setF("shareImageData", ""); setF("shareImageBlockedReason", ""); setShareImageError(""); }, title: "共有画像を削除" }, "共有画像を削除")
+    React.createElement("div", { className: "piece-hero-right" },
+      React.createElement("section", { className: "piece-panel piece-basic-controls" },
+        React.createElement("div", { className: "piece-panel-head" },
+          React.createElement("div", null,
+            React.createElement("strong", null, "ココフォリア駒の基本設定"),
+            React.createElement("small", null, "立ち絵とは独立して変更できます")
+          ),
+          React.createElement("span", { className: "piece-status-tag" }, "変更を保存")
+        ),
+        React.createElement("div", { className: "piece-control-grid" },
+          React.createElement("div", { className: "piece-input-group span2" },
+            React.createElement("label", { htmlFor: "piece-character-name" }, "キャラクター名"),
+            React.createElement("input", {
+              id: "piece-character-name",
+              className: "piece-input big",
+              value: state.charName || "",
+              placeholder: "キャラクター名",
+              onChange: (event) => setF("charName", event.target.value),
+              "aria-label": "キャラクター名"
+            })
+          ),
+          React.createElement("div", { className: "piece-input-group span2" },
+            React.createElement("label", { htmlFor: "piece-player-name" }, "プレイヤー名（PL）"),
+            React.createElement("input", {
+              id: "piece-player-name",
+              className: "piece-input",
+              value: state.plName || "",
+              placeholder: "PL名",
+              onChange: (event) => setF("plName", event.target.value),
+              "aria-label": "プレイヤー名"
+            })
+          ),
+          React.createElement("div", { className: "piece-input-group" },
+            React.createElement("label", { htmlFor: "piece-initiative" }, "イニシアチブ / 行動順"),
+            React.createElement("input", {
+              id: "piece-initiative",
+              className: "piece-input",
+              type: "number",
+              step: "1",
+              inputMode: "numeric",
+              value: state.initiative ?? 0,
+              onChange: (event) => setF("initiative", event.target.value),
+              title: "CCFOLIAの駒のイニシアチブ（数値が大きいほど先に行動）",
+              "aria-label": "駒の行動順"
+            })
+          ),
+          React.createElement("div", { className: "piece-input-group" },
+            React.createElement("label", { htmlFor: "piece-color-code" }, "駒の色"),
+            React.createElement("div", { className: "piece-color-row" },
+              React.createElement("input", {
+                className: "piece-color",
+                type: "color",
+                value: state.color || "#d6b56b",
+                onChange: (event) => setF("color", event.target.value),
+                title: "駒の色を選ぶ",
+                "aria-label": "駒の色を選択"
+              }),
+              React.createElement("input", {
+                id: "piece-color-code",
+                className: "piece-input",
+                value: state.color || "#d6b56b",
+                onChange: (event) => setF("color", event.target.value),
+                title: "駒の色を16進数で直接指定",
+                "aria-label": "駒の色コード"
+              })
+            )
+          )
+        ),
+        React.createElement("div", { className: "piece-token-preview" },
+          React.createElement("div", { className: "piece-token-preview-head" },
+            React.createElement("span", null, "ココフォリア上の見え方（簡易）"),
+            React.createElement("span", null, "PREVIEW")
+          ),
+          React.createElement("div", {
+            className: "piece-token-card",
+            style: { "--piece-color": state.color || "#d6b56b" }
+          },
+            React.createElement("div", { className: "piece-token-avatar" },
+              activeImg && !imgBroken
+                ? React.createElement("img", { src: activeImg, alt: "", loading: "lazy" })
+                : React.createElement("span", { "aria-hidden": "true" }, "◈")
             ),
-            state.shareImageData && /* @__PURE__ */ React.createElement("div", { className: "base-img-preview share-image-preview" }, /* @__PURE__ */ React.createElement("div", { className: "base-img-preview-label" }, "SHARE PREVIEW / 共有シート画像"), /* @__PURE__ */ React.createElement("img", { src: state.shareImageData, alt: "共有シート画像プレビュー", className: "base-img-preview-img" }), /* @__PURE__ */ React.createElement("div", { className: currentShareImageOk ? "base-auto-note" : "base-img-preview-err", style: { marginTop: 8, display: "block" } }, currentShareImageOk ? `圧縮見込み: ${Math.ceil(currentShareImageBytes / 1024)}KB / 32KB — 共有リンクを発行できます` : `圧縮見込み: ${Math.ceil(currentShareImageBytes / 1024)}KB / 32KB — 上限超過のため共有リンクは発行しません。再アップロードしてください`)),
-            shareImageError && /* @__PURE__ */ React.createElement("div", { className: "base-img-preview-err", style: { display: "block" } }, shareImageError)
+            React.createElement("div", { className: "piece-token-name" },
+              React.createElement("strong", null, String(state.charName || "名称未設定")),
+              React.createElement("small", null,
+                String(state.plName || "PL未設定") + " · 行動順 " + String(state.initiative ?? 0)
+              )
+            ),
+            React.createElement("div", { className: "piece-token-initiative" }, String(state.initiative ?? 0))
           )
         )
+      ),
+      React.createElement("div", { className: "info-note" },
+        "HP・SAN・速度などの人格由来データは「ビルド」の人格タブで整え、ここではココフォリア駒の見た目と出力欄を整えます。",
+        !state.personaSrc && " 人格未装備でも、名前・PL・立ち絵・駒の設定を先に編集できます。"
       )
     )
   );
@@ -5962,13 +6070,13 @@ const BasicCcfOutputPreview = ({ state, dispatch }) => {
       h("p", { className: "basic-preview-copy-status", role: "status" }, copyStatus)
     )
   );
-  return h("section", { className: "basic-ccfolia-preview pv-token-preview pv-ccfolia-preview", "aria-label": "駒・出力プレビュー" },
-    h("header", { className: "pv-ccfolia-preview-head" },
+  return h("section", { className: "basic-ccfolia-preview pv-token-preview pv-ccfolia-preview piece-output-shell", "aria-label": "駒・出力プレビュー" },
+    h("header", { className: "pv-ccfolia-preview-head piece-output-header" },
       h("div", null,
         h("h3", null, "CCFOLIA表示プレビュー"),
         h("p", null, "盤面上の駒、キャラクターシート、出力JSONを同じデータから確認できます。")
       ),
-      h("div", { className: "pv-token-mode-switch basic-preview-mode-tabs", role: "tablist", "aria-label": "駒・出力プレビューの表示" },
+      h("div", { className: "pv-token-mode-switch basic-preview-mode-tabs piece-preview-tabs", role: "tablist", "aria-label": "駒・出力プレビューの表示" },
         modeTabs.map((entry) => h("button", {
           key: entry.id,
           id: "basic-ccfolia-tab-" + entry.id,
@@ -6063,12 +6171,15 @@ const BuildParamsPanel = ({ state, dispatch }) => {
   );
 
   return h(React.Fragment, null,
-    h("section", { className: "build-params-shell", "aria-label": "ココフォリア駒の整形" },
-    h("div", { className: "build-params-head" },
-    h("span", { className: "t-label" }, "組み立て / BUILD PARAMETERS"),
-    h("span", { className: "ledger-note" }, "出力順と既定値を決める場所")
+    h("section", { className: "build-params-shell piece-format-panel panel", "aria-label": "ココフォリア駒の整形" },
+    h("div", { className: "build-params-head panel-head" },
+      h("div", null,
+        h("strong", null, "ココフォリア駒の整形"),
+        h("div", { className: "piece-hint", style: { marginTop: 4 } }, "ステータスとラベルを整理し、並び順と出力先を管理します。")
+      ),
+      h("button", { type: "button", className: "secondary", onClick: () => setActiveBuildParamsTab("preview") }, "出力プレビュー")
     ),
-    h("div", { className: "build-params-tabs", role: "tablist", "aria-label": "ココフォリア駒の整形項目" },
+    h("div", { className: "build-params-tabs piece-tabs", role: "tablist", "aria-label": "ココフォリア駒の整形項目" },
       [
         ["statuses", "ステータス（ST）"],
         ["labels", "ラベル（パラメータ）"],
@@ -6080,7 +6191,7 @@ const BuildParamsPanel = ({ state, dispatch }) => {
         role: "tab",
         "aria-selected": activeBuildParamsTab === id,
         "aria-controls": "build-params-panel-" + id,
-        className: activeBuildParamsTab === id ? "is-active" : "",
+        className: "piece-tab" + (activeBuildParamsTab === id ? " is-active active" : ""),
         onClick: () => setActiveBuildParamsTab(id)
       }, label))
     ),
