@@ -94,7 +94,10 @@ async function clickNav(page, title) {
   const isPhone = (page.viewportSize()?.width || 1440) <= 640;
   let navButton;
   if (!isPhone) {
-    navButton = page.locator("button[title='" + title + "']").first();
+    navButton = page.locator(".rail-item").filter({ hasText: title }).first();
+    if (!(await navButton.isVisible().catch(() => false))) {
+      navButton = page.locator("button[title='" + title + "']").first();
+    }
   } else {
     const mobileNav = page.locator(".btype-mobile-bottom-nav");
     const labels = { "ビルド": "ビルド", "記録・所持品": "記録", "データ取り込み": "取込" };
@@ -102,16 +105,15 @@ async function clickNav(page, title) {
       navButton = mobileNav.getByRole("button", { name: labels[title], exact: true });
     } else {
       await mobileNav.getByRole("button", { name: "その他", exact: true }).click();
-      const otherSection = page.locator(".utility-section-grid").getByRole("button", { name: title, exact: true });
-      await otherSection.waitFor({ state: "visible", timeout: 12000 });
-      await otherSection.click();
-      await page.waitForTimeout(WAIT_MS);
-      return;
+      navButton = page.locator(".utility-section-grid").getByRole("button", { name: title, exact: true });
     }
   }
   await navButton.waitFor({ state: "visible", timeout: 12000 });
   await navButton.click();
   await page.waitForTimeout(WAIT_MS);
+  if (title === "使い方") {
+    await page.locator(".btype-help-hub").waitFor({ state: "visible", timeout: 12000 });
+  }
 }
 
 async function annotateAndSave(page, selector, fileBase, headline, detail) {
