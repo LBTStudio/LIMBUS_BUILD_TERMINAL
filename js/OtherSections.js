@@ -1734,7 +1734,7 @@ const [ownedOnly, setOwnedOnly] = React.useState(false);
           h("span", { className: "ego-slot-flag" }, "欠片", e.shards),
           (e.sub_skills || []).length > 0 ? h("span", { className: "ego-slot-flag", style: { background: "var(--gold-tint)", color: "var(--gold)", borderColor: "var(--gold-line)" } }, "◆同化") : null
         ),
-        h("button", { className: "btn-ghost btn-icon", onClick: (ev) => { ev.stopPropagation(); clearSlot(rk); setDetailSlot(null); }, style: { position: "absolute", top: 4, right: 4, width: 36, height: 36, minWidth: 36, minHeight: 36 }, title: "外す" }, h(Icon, { name: "x", size: 10 }))
+        h("button", { className: "btn-ghost btn-icon", onClick: (ev) => { ev.stopPropagation(); clearSlot(rk); setDetailSlot(null); }, style: { position: "absolute", top: 4, right: 4, width: 40, height: 40, minWidth: 40, minHeight: 40 }, title: "外す" }, h(Icon, { name: "x", size: 10 }))
       ) : (rankFilter === rk ? h("div", { style: { marginTop: 4, padding: "2px 6px", fontSize: "var(--fs-9)", fontFamily: "var(--f-display)", letterSpacing: "0.14em", color: "var(--gold)", background: "var(--gold-tint)", border: "1px solid var(--gold-line)", borderRadius: 2, alignSelf: "flex-start" } }, "▼ 下で絞り込み中") : null)
     );
   });
@@ -1997,7 +1997,7 @@ const SpiritSection = ({ state, dispatch, ownedOnly = false }) => {
        件数（counter）は別に出るので、一見すると「あるのに出ない」状態になる。 */
     return spiritBody;
   }))), selected ? /* @__PURE__ */ React.createElement("div", { className: "codex-detail" }, /* @__PURE__ */ React.createElement("div", { className: "detail-head", style: { "--sin-primary": "var(--gold)" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-eyebrow" }, /* @__PURE__ */ React.createElement("span", { className: "detail-num" }, isExplicitlyFreeSpirit(selected) ? "\u521D\u671F\u9078\u629E\u53EF" : hasExplicitSpiritPrice(selected) && Number(selected.price) > 0 ? `\u6B20\u7247 ${selected.price}` : "\u4FA1\u683C\u4E0D\u660E"), /* @__PURE__ */ React.createElement("span", { className: "detail-type" }, "SPIRIT / \u7CBE\u795E")), /* @__PURE__ */ React.createElement("div", { className: "detail-name" }, selected.name)), /* @__PURE__ */ React.createElement("div", { className: "detail-body" }, selected.always_effect && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u5E38\u6642\u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive" }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" }, selected.always_effect))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u58EB\u6C17\u4F4E\u4E0B\u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive", style: { borderLeftColor: "var(--warn)" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" }, selected.morale_effect || "\u306A\u3057"))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u6DF7\u4E71\u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive", style: { borderLeftColor: "var(--err)" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" }, selected.confuse_effect)))), /* @__PURE__ */ React.createElement("div", { className: "detail-actions" }, state.spirit === selected.name ? /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--gold)", textAlign: "center", fontFamily: "var(--f-display)", letterSpacing: "0.2em", textTransform: "uppercase" } }, "\u2605 \u73FE\u5728\u88C5\u5099\u4E2D") : /* @__PURE__ */ spiritIsOwned(selected)
-        ? React.createElement(Button, { variant: "primary", onClick: () => applySpirit(selected), icon: "check" }, "\\u3053\\u306E\\u7CBE\\u795E\\u3092\\u88C5\\u5099")
+        ? React.createElement(Button, { variant: "primary", onClick: () => applySpirit(selected), icon: "check" }, "この精神を装備")
         : isExplicitlyFreeSpirit(selected)
           ? React.createElement(Button, { variant: "primary", onClick: () => applySpirit(selected), icon: "check" }, "初期選択して装備")
           : hasExplicitSpiritPrice(selected)
@@ -5398,9 +5398,8 @@ const importHeldPersonas = () => {
           }),
           h("input", {
             className: "ledger-input ledger-input--num",
-            type: "number", min: 0, step: 1,
+            type: "text", inputMode: "numeric", autoComplete: "off",
             placeholder: "獲得LP",
-            inputMode: "numeric",
             value: newResult.lp,
             "aria-label": "獲得LP",
             "aria-invalid": newResultError.startsWith("獲得LP"),
@@ -5408,9 +5407,8 @@ const importHeldPersonas = () => {
           }),
           h("input", {
             className: "ledger-input ledger-input--num",
-            type: "number", min: 0, step: 1,
+            type: "text", inputMode: "numeric", autoComplete: "off",
             placeholder: "獲得欠片",
-            inputMode: "numeric",
             value: newResult.shards,
             "aria-label": "獲得欠片",
             "aria-invalid": newResultError.startsWith("獲得欠片"),
