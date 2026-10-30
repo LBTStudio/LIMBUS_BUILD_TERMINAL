@@ -222,3 +222,18 @@ test("各リザルトの支出・チケット・消耗品詳細は折り畳み�
   assert.match(resultCss, /\.ledger-cards\s*\{[^}]*min\(248px, 100%\)/s);
   assert.match(resultCss, /\.ledger-result-details\s*\{[^}]*border-top/s);
 });
+
+
+test("Recordの所持品一覧からも1個使用を記録でき、数量修正とは別操作になる", () => {
+  const start = sections.indexOf("const InventoryPanel");
+  const end = sections.indexOf("/* --- 抽出リスト", start);
+  const inventory = sections.slice(start, end);
+  assert.ok(start >= 0 && end > start, "InventoryPanel の範囲が見つかる");
+  assert.match(inventory, /type: "CONSUME_ITEM"/);
+  assert.match(inventory, /resultId: currentResultId/);
+  assert.match(inventory, /type: "PATCH_ITEM", uid: entry\.uid/);
+  assert.match(inventory, /所持数を修正/);
+  assert.match(inventory, /1個使用/);
+  assert.match(inventory, /消費記録先:/);
+  assert.match(inventory, /"入手"/);
+});
