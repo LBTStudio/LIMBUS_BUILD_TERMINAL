@@ -417,6 +417,12 @@ test("特定抽出パック第一弾の追加バフ・デバフ・蓄積要素�
   const ambiguousSingleCharacter = loadGlossary().tokenize("針を付与する", db, "人格スキル:テスト人格");
   assert.equal(ambiguousSingleCharacter.filter((piece) => piece.term === "針").length, 0,
     "単一文字の一般語は偶然の本文一致を避けるためホバー候補にしない");
+  for (const [term, page] of [["針", "p.205"], ["杭", "p.208"], ["傷", "p.208"]]) {
+    const quoted = loadGlossary().tokenize("[" + term + "]", db, "人格スキル:テスト人格");
+    const entry = quoted.find((piece) => piece.term === term)?.entries[0];
+    assert.ok(entry, term + " resolves only when explicitly bracketed");
+    assert.ok(entry.source.includes(page), term + " source page");
+  }
   for (const [term, sourcePage] of cases) {
     const entry = (glossary.get(term) || []).find((row) => row.isRulebook);
     assert.ok(entry, term + " is registered");
