@@ -147,7 +147,8 @@ test("初期作成で選択した人格は取得証跡と所持ライブラリ�
   assert.match(saveBlock, /type:\s*"ADD_ROSTER"/);
   assert.match(saveBlock, /skipInitialTicketConsumption:\s*!isRecordedInitialPersona/);
   assert.match(saveBlock, /const isInitial = result\.id === "res-initial"/);
-  assert.match(otherSections, /isEditing && h\("section", \{ className: "ledger-history-editor/);
+  assert.match(otherSections, /isEditing && h\("details", \{ className: "ledger-history-editor-disclosure"/);
+  assert.match(otherSections, /className: "ledger-history-editor stack-2"/);
   assert.match(otherSections, /最初の人格は上の欄から記録できます/);
 });
 
