@@ -306,6 +306,41 @@ test("初回の人格チケット抽選では追加取得分を二重消費し�
   assert.equal(ticketSpends[0].tickets.persona, 1, "消費枚数も1枚だけ");
 });
 
+test("人格チケット以外で初回人格を取得した場合は初期チケットを消費する", () => {
+  const fresh = freshState();
+  const withExtraTicket = reducer(fresh, {
+    type: "GRANT_TICKET",
+    kind: "persona",
+    count: 1,
+    resultId: "res-initial"
+  });
+  const batch = {
+    schemaVersion: 1,
+    ruleset: "core",
+    kind: "persona",
+    count: 1,
+    commit: "initial-paid-draw-commit",
+    batchHash: "initial-paid-draw-hash",
+    records: [{
+      index: 0,
+      kind: "persona",
+      method: "draw",
+      item: { kind: "persona", mode: "n", no: 1, name: "黒雲会組員" },
+      cost: { lp: 0, shards: 0 },
+      duplicate: false,
+      grantedShards: 0
+    }]
+  };
+  const applied = reducer(withExtraTicket, {
+    type: "APPLY_DRAW_BATCH",
+    resultId: "res-initial",
+    batch
+  });
+
+  assert.equal(ticketBalance(applied).persona, 1, "追加取得分を残し、初期作成分だけを消費する");
+  assert.equal(applied.entries.filter((entry) => entry.kind === "ticket").length, 1, "初期分の自動消費は1件だけ");
+});
+
 test("指定購入で人格を決めたら初期作成用チケットは残らない", () => {
   const fresh = freshState();
   assert.equal(ticketBalance(fresh).persona, 1, "購入前は1枚ある");
