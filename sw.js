@@ -21,12 +21,12 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-ea7155a3";
+const CACHE_NAME = "lbt-6da50969";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
   "mobile-preview.html",
-  "assets/b-type-ui-parity.css?v=50125a30",
+  "assets/b-type-ui-parity.css?v=ae57a742",
   "assets/b-type-workbench.css?v=ecc1483b",
   "assets/cloud-backup.css?v=61399e91",
   "assets/design-system.css?v=910f9485",
@@ -58,7 +58,7 @@ const PRECACHE_URLS = [
   "js/InlineEffectGlossary.js?v=81967fa2",
   "js/ItemCodex.js?v=7aafec02",
   "js/LivePreview.js?v=11c5a31f",
-  "js/OtherSections.js?v=ab0ac069",
+  "js/OtherSections.js?v=5ff016d9",
   "js/PersonaCodex.js?v=693651ae",
   "js/SkillDeck.js?v=a93f6cb8",
   "js/access-counter.js?v=a54cf475",

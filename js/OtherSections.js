@@ -4205,6 +4205,12 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     /* 取得履歴を所持ライブラリへ反映する。過去取得は購入扱いにせず、
        初期作成の最初の人格に一致するときだけ、残っている初期チケットを1枚消費する。 */
     const existingPersonaKeys = new Set((state.roster?.personas || []).map((entry) => entry.mode + ":" + String(entry.no)));
+    /* 初回人格が抽出チケットで既に記録されている場合、その記録を初期チケットの消費として扱う。
+       同じリザルトへ明示された使用履歴があるのに、所持追加側でもう1枚引かない。 */
+    const hasRecordedPersonaTicketSpend = (state.entries || []).some((entry) =>
+      String(entry?.resultId || "") === String(result.id || "")
+      && (Number(entry?.tickets?.persona) || 0) > 0
+    );
     for (const acquisition of nextAcquisitions) {
       const key = acquisition.mode + ":" + String(acquisition.no);
       if (!["n", "t"].includes(acquisition.mode) || !acquisition.no || existingPersonaKeys.has(key)) continue;
@@ -4213,7 +4219,7 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
         && String(nextInitialPersona.no) === String(acquisition.no);
       dispatch({
         type: "ADD_ROSTER", mode: acquisition.mode, no: acquisition.no,
-        purchase: false, skipInitialTicketConsumption: !isRecordedInitialPersona,
+        purchase: false, skipInitialTicketConsumption: !isRecordedInitialPersona || hasRecordedPersonaTicketSpend,
         resultId: result.id, via: [name]
       });
     }
@@ -4222,7 +4228,7 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   };
 
   const results = Array.isArray(state.results) ? state.results : [];
-  const RESULTS_PAGE_SIZE = 24;
+  const RESULTS_PAGE_SIZE = 12;
   const searchNeedle = String(resultQuery || "").trim().toLocaleLowerCase("ja-JP");
   const matchingResults = results.filter((result) => {
     if (!searchNeedle) return true;
@@ -4313,11 +4319,13 @@ const readDragId = (event) => {
     }
   };
 
-  const rewardNameKey = (value) => String(value || "").normalize("NFKC").replace(/[\\s\\u3000・･]/g, "").toLocaleLowerCase("ja");
+  const rewardNameKey = (value) => String(value || "").normalize("NFKC").replace(/[\s\u3000・･]/g, "").toLocaleLowerCase("ja");
   const materializeRewardItems = (items, sourceLabel) => {
     const output = [];
     (Array.isArray(items) ? items : []).forEach((entry, index) => {
-      const quantity = Math.max(1, Math.floor(Number(entry.quantity) || 1));
+      const parsedQuantity = Number(entry.quantity);
+      const quantity = Number.isSafeInteger(parsedQuantity) && parsedQuantity > 0 ? parsedQuantity : 0;
+      if (!quantity) return;
       let itemId = String(entry.itemId || "").trim();
       const customName = String(entry.customName || "").trim();
       if (!itemId && customName) {
@@ -5598,7 +5606,7 @@ h(Card, { className: "ledger-card" },
                   : h("p", { className: "ledger-empty-note" }, "取得人格はまだ登録されていません。初期作成の最初の人格は上の欄から記録できます。"),
                 h("div", { className: "ledger-reward-item-head" },
                   h("span", { className: "t-label" }, "報酬アイテム"),
-                  h("span", { className: "ledger-note" }, "硝子の破片なども登録できます。品名の修正は履歴だけに反映し、現在所持数は消費済みの可能性があるため自動で減らしません。")
+                  h("span", { className: "ledger-note" }, "硝子の破片や通常アイテムを登録できます。報酬分は所持数へ加算し、過去履歴の数量を減らしても消費済みの在庫は自動で戻しません。")
                 ),
                 h("div", { className: "ledger-reward-item-controls" },
                   h("select", {

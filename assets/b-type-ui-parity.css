@@ -179,15 +179,15 @@
    workbench, plus compact disclosure surfaces for long record-only details. */
 @layer v73-ledger-usability {
   .settings-section-note {
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.7;
     color: var(--tx-2, #d0c8ba);
     padding: 8px 11px;
   }
   .settings-major .t-label,
   .settings-status-workspace-head .t-label {
-    font-size: 12px;
-    line-height: 1.5;
+    font-size: 13px;
+    line-height: 1.55;
   }
   .settings-disclosure > summary,
   .settings-major > summary {
@@ -198,8 +198,8 @@
   .ledger-note,
   .ledger-balance-sub,
   .ledger-empty-note {
-    font-size: 12px;
-    line-height: 1.6;
+    font-size: 13px;
+    line-height: 1.7;
     color: var(--tx-2, #d0c8ba);
   }
   .ledger-input,
@@ -208,10 +208,10 @@
   .ledger-acquisition-controls .select {
     box-sizing: border-box;
     min-width: 0;
-    min-height: 36px;
+    min-height: 40px;
     height: auto;
-    font-size: 12px;
-    line-height: 1.45;
+    font-size: 14px;
+    line-height: 1.5;
   }
   .ledger-add-row {
     display: grid;
@@ -237,6 +237,7 @@
     min-width: 0;
   }
   .ledger-reward-item-head .ledger-note { margin-left: 0; }
+  .ledger-reward-item-head .t-label { font-size: 14px; line-height: 1.5; }
   .ledger-reward-item-controls {
     display: grid;
     grid-template-columns: minmax(160px, 1.25fr) minmax(140px, 1fr) 82px auto;
@@ -269,11 +270,11 @@
     border-radius: 999px;
     background: var(--surface-2, #211d18);
     color: var(--tx, #eee7db);
-    font-size: 12px;
-    line-height: 1.4;
+    font-size: 13px;
+    line-height: 1.5;
   }
   .ledger-reward-item-chip > span { min-width: 0; overflow-wrap: anywhere; }
-  .ledger-reward-item-chip small { color: var(--tx-mute); font-size: 11px; }
+  .ledger-reward-item-chip small { color: var(--tx-mute); font-size: 12px; }
   .ledger-reward-item-chip button {
     flex: 0 0 auto;
     width: 24px;
@@ -304,11 +305,11 @@
     justify-content: space-between;
     flex-wrap: wrap;
     gap: 6px 12px;
-    min-height: 42px;
-    padding: 8px 12px;
+    min-height: 46px;
+    padding: 9px 12px;
     color: var(--tx, #eee7db);
-    font-size: 12px;
-    line-height: 1.5;
+    font-size: 13px;
+    line-height: 1.55;
     cursor: pointer;
     list-style: none;
   }
@@ -368,8 +369,8 @@
     .ledger-note,
     .ledger-balance-sub,
     .ledger-empty-note,
-    .settings-section-note { font-size: 12px; line-height: 1.6; }
+    .settings-section-note { font-size: 13px; line-height: 1.7; }
     .ledger-persona-audit-disclosure > summary,
-    .ledger-history-editor-disclosure > summary { min-height: 44px; padding: 8px 10px; }
+    .ledger-history-editor-disclosure > summary { min-height: 46px; padding: 9px 10px; }
   }
 }

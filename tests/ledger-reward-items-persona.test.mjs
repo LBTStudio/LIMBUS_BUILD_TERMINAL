@@ -139,13 +139,62 @@ test("旧リザルトへ取得人格を追加すると履歴を保存し、所�
   assert.equal(owned.entries.length, 0, "過去分を記録しても購入支出は新規計上しない");
 });
 
+test("初期人格の保存は同じリザルトに明示されたチケット使用を二重消費しない", () => {
+  const { reducer } = createReducer();
+  const resultId = "res-initial";
+  const recordedUse = {
+    id: "qa-ticket-use",
+    kind: "ticket",
+    name: "人格抽出チケット を使用",
+    cost: { lp: 0, shards: 0 },
+    tickets: { persona: 1, ego: 0, choice: 0, pack: {} },
+    resultId
+  };
+  const initial = {
+    ...baseState(),
+    results: [{
+      id: resultId,
+      name: "初期作成",
+      income: { lp: 0, shards: 0, tickets: { persona: 2, ego: 0, choice: 0, pack: {} } }
+    }],
+    entries: [recordedUse]
+  };
+  const owned = reducer(initial, {
+    type: "ADD_ROSTER",
+    mode: "n",
+    no: 1,
+    purchase: false,
+    skipInitialTicketConsumption: true,
+    resultId
+  });
+  const ticketIncome = owned.results.reduce((sum, result) => sum + (Number(result.income?.tickets?.persona) || 0), 0);
+  const ticketUse = owned.entries.reduce((sum, entry) => sum + (Number(entry.tickets?.persona) || 0), 0);
+  assert.equal(ticketIncome - ticketUse, 1, "履歴にある使用1枚だけを引き、追加取得分1枚を残す");
+  assert.equal(owned.entries.length, 1, "所持追加側で2枚目の消費明細を作らない");
+
+  const selectedWithoutRecordedUse = reducer({
+    ...initial,
+    entries: []
+  }, {
+    type: "ADD_ROSTER",
+    mode: "n",
+    no: 2,
+    purchase: false,
+    resultId
+  });
+  const remaining = selectedWithoutRecordedUse.results.reduce((sum, result) => sum + (Number(result.income?.tickets?.persona) || 0), 0)
+    - selectedWithoutRecordedUse.entries.reduce((sum, entry) => sum + (Number(entry.tickets?.persona) || 0), 0);
+  assert.equal(remaining, 1, "既存の使用記録が無い通常の初回取得では初期分だけ1枚消費する");
+});
+
 test("初期作成で選択した人格は取得証跡と所持ライブラリへ反映する配線を持つ", () => {
   const start = otherSections.indexOf("const saveResultEditor");
   const end = otherSections.indexOf("const results =", start);
   const saveBlock = otherSections.slice(start, end);
   assert.match(saveBlock, /personaAcquisitions:\s*nextAcquisitions/);
   assert.match(saveBlock, /type:\s*"ADD_ROSTER"/);
-  assert.match(saveBlock, /skipInitialTicketConsumption:\s*!isRecordedInitialPersona/);
+  assert.match(saveBlock, /hasRecordedPersonaTicketSpend/);
+  assert.match(saveBlock, /skipInitialTicketConsumption:\s*!isRecordedInitialPersona \|\| hasRecordedPersonaTicketSpend/);
   assert.match(saveBlock, /const isInitial = result\.id === "res-initial"/);
   assert.match(otherSections, /isEditing && h\("details", \{ className: "ledger-history-editor-disclosure"/);
   assert.match(otherSections, /className: "ledger-history-editor stack-2"/);
@@ -156,6 +205,7 @@ test("全リザルトの編集画面に複数人格と報酬アイテムの入�
   assert.match(otherSections, /aria-label: "このリザルトで取得した人格"/);
   assert.match(otherSections, /aria-label: "編集する報酬アイテムのカタログ選択"/);
   assert.match(otherSections, /rewardItemCatalog\.map/);
+  assert.ok(otherSections.includes(String.raw`replace(/[\s\u3000・･]/g, "")`), "報酬品名の照合は空白・中黒を正規化する");
   assert.match(otherSections, /rewardItems:\s*Array\.isArray\(result\.rewardItems\)/);
   assert.match(otherSections, /personaAcquisitions:\s*Array\.isArray\(result\.personaAcquisitions\)/);
 });
@@ -164,8 +214,8 @@ test("全リザルトの編集画面に複数人格と報酬アイテムの入�
 test("settings and ledger readability improvements are in the active B-type style layer", () => {
   const css = read("../assets/b-type-ui-parity.css");
   assert.match(css, /@layer v73-ledger-usability/);
-  assert.match(css, /\.settings-section-note\s*\{[^}]*font-size:\s*12px/);
-  assert.match(css, /\.ledger-note,[\s\S]*?font-size:\s*12px/);
+  assert.match(css, /\.settings-section-note\s*\{[^}]*font-size:\s*13px/);
+  assert.match(css, /\.ledger-note,[\s\S]*?font-size:\s*13px/);
   assert.match(css, /@media\s*\(max-width:\s*640px\)/);
   assert.match(css, /\.ledger-persona-audit-disclosure/);
   assert.match(css, /\.ledger-history-editor-disclosure/);

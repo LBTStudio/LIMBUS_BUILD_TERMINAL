@@ -360,7 +360,7 @@ async function seed() {
       results: [
         {
           id: "res-initial", name: "初期作成", date: "2026-09-01",
-          income: { lp: 30, shards: 0, tickets: { persona: 1, ego: 0, choice: 0, pack: {} } },
+          income: { lp: 30, shards: 0, tickets: { persona: 2, ego: 0, choice: 0, pack: {} } },
           initialPersona: { method: "unknown", mode: "", no: "", name: "" },
           personaAcquisitions: [], rewardItems: [],
           note: "Playwright QA 初期人格保存テスト", createdAt: now - 3000, updatedAt: now - 3000
@@ -376,6 +376,13 @@ async function seed() {
         id: "ui-audit-entry-1", kind: "purchase", name: "包帯",
         cost: { lp: 15, shards: 0 }, resultId: "ui-audit-result-1",
         at: now, note: "Playwright QA sample expense"
+      }, {
+        id: "ui-audit-entry-initial-ticket", kind: "ticket",
+        name: "人格抽出チケット を使用",
+        cost: { lp: 0, shards: 0 },
+        tickets: { persona: 1, ego: 0, choice: 0, pack: {} },
+        resultId: "res-initial", at: now - 1500,
+        note: "Playwright QA: explicit initial extraction spend"
       }],
       ui: { codexMode: mode, currentSection: "persona", previewOpen: false, layoutVersion: "b-workbench-v2" }
     };
@@ -806,11 +813,14 @@ async function captureProfile(browser, mode) {
         const saved=window.LBT_accounts?.loadActive?.()||{};
         const initial=(saved.results||[]).find((result)=>result.id==="res-initial");
         const owned=(saved.roster?.personas||[]).some((entry)=>entry.mode===candidate.mode&&String(entry.no)===String(candidate.no));
-        return {owned,initialPersona:initial?.initialPersona||null,acquisitions:initial?.personaAcquisitions||[]};
+        const ticketIncome=(saved.results||[]).reduce((sum,result)=>sum+(Number(result.income?.tickets?.persona)||0),0);
+        const ticketUse=(saved.entries||[]).reduce((sum,entry)=>sum+(Number(entry.tickets?.persona)||0),0);
+        return {owned,initialPersona:initial?.initialPersona||null,acquisitions:initial?.personaAcquisitions||[],personaTicketBalance:Math.max(0,ticketIncome-ticketUse)};
       },initialCandidate);
       if(!initialCheck.owned) throw new Error("初期人格を保存したのに所持ライブラリへ追加されていません: "+JSON.stringify(initialCheck));
       if(initialCheck.initialPersona?.no!==String(initialCandidate.no)) throw new Error("初期人格の取得記録が保存されていません: "+JSON.stringify(initialCheck));
       if(!initialCheck.acquisitions.some((entry)=>entry.mode===initialCandidate.mode&&String(entry.no)===String(initialCandidate.no))) throw new Error("初期人格が取得証跡にも反映されていません");
+      if(initialCheck.personaTicketBalance!==1) throw new Error("初期人格の保存で、履歴に明示されたチケット使用とは別に初期チケットまで消費されました: "+JSON.stringify(initialCheck));
       await snap("ledger-initial-persona-owned","初期人格の保存後、所持と取得記録が一致した状態");
 
       const historicalCard=page.locator(".ledger-card-wrap").filter({hasText:"UI監査用セッション"}).first();
