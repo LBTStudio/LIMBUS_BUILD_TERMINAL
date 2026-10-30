@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-db3c1dcb";
+const CACHE_NAME = "lbt-ab27ac44";
 const PRECACHE_URLS = [
   "assets/b-type-ui-parity.css?v=0f63f01e",
   "assets/b-type-workbench.css?v=77284898",
@@ -30,7 +30,7 @@ const PRECACHE_URLS = [
   "assets/fonts/corporate-logo-bold-subset.woff2?v=b56fa468",
   "assets/fonts/corporate-logo-medium-subset.woff2?v=dbbdb67e",
   "assets/inline-effect-glossary.css?v=f14d3776",
-  "assets/items.css?v=6fc34282",
+  "assets/items.css?v=1465d658",
   "assets/persona-codex.css?v=d88a1ab0",
   "assets/sections.css?v=0cadeb2c",
   "assets/v52-overlay.css?v=785971b6",
