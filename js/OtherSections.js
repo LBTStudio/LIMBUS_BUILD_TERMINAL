@@ -4361,6 +4361,11 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
       String(entry?.resultId || "") === String(result.id || "")
       && (Number(entry?.tickets?.persona) || 0) > 0
     );
+    /* 「指定購入」なら、同じリザルトの別用途のチケット支出を初期分の消費と誤認しない。
+       ランダム抽出（または入手方法不明）で既に人格チケット支出が記録済みの場合だけ、
+       その支出を初期人格取得分として二重に消費しない。 */
+    const recordedPersonaTicketSpendCoversInitial =
+      nextInitialPersona.method !== "selected" && hasRecordedPersonaTicketSpend;
     for (const acquisition of nextAcquisitions) {
       const key = acquisition.mode + ":" + String(acquisition.no);
       if (!["n", "t"].includes(acquisition.mode) || !acquisition.no || existingPersonaKeys.has(key)) continue;
@@ -4369,7 +4374,7 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
         && String(nextInitialPersona.no) === String(acquisition.no);
       dispatch({
         type: "ADD_ROSTER", mode: acquisition.mode, no: acquisition.no,
-        purchase: false, skipInitialTicketConsumption: !isRecordedInitialPersona || hasRecordedPersonaTicketSpend,
+        purchase: false, skipInitialTicketConsumption: !isRecordedInitialPersona || recordedPersonaTicketSpendCoversInitial,
         resultId: result.id, via: [name]
       });
     }
