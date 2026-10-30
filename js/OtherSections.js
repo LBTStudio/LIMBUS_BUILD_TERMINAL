@@ -2326,9 +2326,9 @@ const BuildItemsPanel = ({ state, dispatch }) => {
         h(Button, { size: "sm", variant: "ghost", onClick: () => dispatch({ type: "SET_UI", ui: { currentSection: "roster", libraryTab: "inventory" } }) }, "Recordで全所持品を管理")
       ),
       pickerOpen && h("div", { className: "card-body stack-2" },
-        h("div", { className: "inv-pick-search" },
+        h("div", { className: "inv-pick-search", style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 8 } },
           h("input", {
-            className: "input", type: "search", value: pickerQuery,
+            className: "input", style: { flex: 1, minWidth: 0 }, type: "search", value: pickerQuery,
             "aria-label": "所持品へ追加するアイテムを検索",
             placeholder: "アイテム名・別名・効果で検索…",
             onChange: (event) => setPickerQuery(event.target.value)
@@ -3001,7 +3001,9 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
       null, null,
       /* 精神の費用はビルドと同じ規則で表す。価格 0 は費用ではなく
          ルール情報なので、価格枠ではなく head のフラグ（所持バッジの隣）へ出す。 */
-      hasExplicitSpiritPrice(sp) ? formatAcquireCost(0, sp.price) : "価格不明")),
+      hasExplicitSpiritPrice(sp) ? formatAcquireCost(0, sp.price) : "価格不明",
+      null,
+      isExplicitlyFreeSpirit(sp) ? "初期取得" : "購入")),
     item: () => items.map((item) => {
       /* 価格設定のない商品は所持欄への登録、価格付き商品は購入として扱う。 */
       const registerOnly = !hasConfiguredPrice(item) && item?.ledgerResource !== "shards";
@@ -5379,7 +5381,7 @@ const importHeldPersonas = () => {
         h(Button, { size: "sm", variant: "quiet", icon: "grid", onClick: () => { setImportMenuOpen(false); openHeld(); } }, "所持人格リストを取り込む")
       ),
       h("div", { className: "card-body" },
-        h("div", { className: "ledger-add-row" },
+        h("div", { className: "ledger-add-row ledger-result-income-row" },
           h("input", {
             className: "ledger-input",
             placeholder: "例：第12回 ゲーパ",

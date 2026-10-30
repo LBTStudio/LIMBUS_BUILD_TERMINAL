@@ -330,10 +330,10 @@ const HelpSection = ({ onNavigate, onOpenUtilities, onOpenImportRouter }) => {
         h("p", null, "操作名・目的・画面名から、ここで直接探せます。")
       )
     ),
-    h("div", { className: "guide-search-field" },
+    h("div", { className: "guide-search-field", style: { display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", border: "1px solid var(--line-dim)", borderRadius: "var(--r-md)", background: "var(--surface-inset)" } },
       h(Icon, { name: "search", size: 17 }),
       h("input", {
-        type: "search", className: "guide-search-input",
+        type: "search", className: "guide-search-input input", style: { flex: 1, minWidth: 0 },
         value: query,
         onChange: (event) => { const value = event.target.value; setQuery(value); setCategory(value.trim() ? "all" : "start"); setExpandedKey(""); },
         onKeyDown: (event) => { if (event.key === "Enter") { setCategory("all"); setHelpView("guide"); } },
@@ -343,11 +343,12 @@ const HelpSection = ({ onNavigate, onOpenUtilities, onOpenImportRouter }) => {
       query ? h("button", { type: "button", className: "guide-search-clear", onClick: () => { setQuery(""); setCategory("start"); setExpandedKey(""); }, "aria-label": "検索をクリア" }, h(Icon, { name: "x", size: 15 })) : null
     ),
     queryTerms.length
-      ? h("div", { className: "guide-index-list", "aria-live": "polite" },
+      ? h("div", { className: "guide-index-list", style: { display: "grid", gap: 6 }, "aria-live": "polite" },
           filteredItems.slice(0, 5).map((item) => {
             const key = item.group + ":" + item.title;
             return h("button", { key, type: "button", className: "btype-task-row", onClick: () => { setCategory("all"); setExpandedKey(key); setHelpView("guide"); } },
-              h("span", { className: "guide-index-main" }, h("strong", null, item.title), h("small", null, groupLabels[item.group] || "操作")),
+              h("span", { className: "btype-task-glyph", "aria-hidden": true }, "⌕"),
+              h("span", { className: "btype-task-copy" }, h("strong", null, item.title), h("small", null, groupLabels[item.group] || "操作")),
               h(Icon, { name: "chevron-right", size: 16 })
             );
           }),
