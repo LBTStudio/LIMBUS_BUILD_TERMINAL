@@ -1644,6 +1644,42 @@ test("現在残高の行より前の収入を二重加算せず、通貨別に�
   assert.equal(result.ok, true, "同じ残高を誤って不一致にしない");
 });
 
+test("初期残高照合は通貨名先行・数値先行を含む残高別名をスナップショットにする", () => {
+  const M = loadImportWithMemo();
+  const cases = [
+    "90LP：LP残高100\n29欠片：欠片所持39",
+    "90LP報酬→100LP残高\n29欠片報酬→39欠片保有",
+    "90LP報酬→LP残り100\n29欠片報酬→欠片残額39",
+    "90LP報酬→残量100LP\n29欠片報酬→残量39欠片"
+  ];
+  for (const memo of cases) {
+    const doc = {
+      currency: { lp: "100", fragment: "39" },
+      owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+      scenarioHistory: [{ name: "残高記録", memo }]
+    };
+    const manifest = M.buildManifest(doc, null);
+    const result = M.reconcileBalance(manifest, doc);
+    assert.equal(result.checked, true, memo + " の残高語を照合アンカーとして認識");
+    assert.equal(result.computedLp, 100, memo + " のLPを二重加算しない");
+    assert.equal(result.computedShards, 39, memo + " の欠片を二重加算しない");
+    assert.equal(result.ok, true, memo + " は表示残高と一致");
+  }
+});
+
+test("効果説明中の残高語は開始残高アンカーにしない", () => {
+  const M = loadImportWithMemo();
+  const doc = {
+    currency: { lp: "100", fragment: "39" },
+    owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+    scenarioHistory: [{ name: "効果説明", memo: "効果説明：LP残高100、欠片残り39\n報酬90LP" }]
+  };
+  const manifest = M.buildManifest(doc, null);
+  const result = M.reconcileBalance(manifest, doc);
+  assert.equal(result.checked, false, "説明文の数値を財務スナップショットにしない");
+  assert.equal(result.ok, true, "開始基準が無い場合は自動不一致にしない");
+});
+
 test("共有残高照合は全角数字・カンマ・通貨名を半角と同じように解釈する", () => {
   const M = loadImportWithMemo();
   const doc = {
