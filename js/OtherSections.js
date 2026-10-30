@@ -5571,7 +5571,9 @@ h(Card, { className: "ledger-card" },
                   ? h("p", { className: "ledger-note", role: "alert" }, "入手方法を指定した場合は、最初に得た人格も選択してください。")
                   : null
               ),
-              isEditing && h("section", { className: "ledger-history-editor stack-2", "aria-label": "取得人格と報酬アイテムの編集" },
+              isEditing && h("details", { className: "ledger-history-editor-disclosure" },
+                h("summary", null, "取得人格・報酬アイテムを編集（過去リザルトにも複数登録できます）"),
+                h("section", { className: "ledger-history-editor stack-2", "aria-label": "取得人格と報酬アイテムの編集" },
                 h("div", { className: "ledger-reward-item-head" },
                   h("span", { className: "t-label" }, "取得人格・報酬アイテム"),
                   h("span", { className: "ledger-note" }, "古いリザルトも複数の取得人格を登録できます。保存すると不足している人格は所持へ追加します。")
@@ -5632,7 +5634,8 @@ h(Card, { className: "ledger-card" },
                       h("button", { type: "button", "aria-label": (item.itemName || item.customName) + " を報酬から外す", onClick: () => updateResultDraftField("rewardItems", removeRewardItemDraft(ticketDraft.rewardItems || [], index)) }, "×")
                     )))
                   : h("p", { className: "ledger-empty-note" }, "報酬アイテムは未記録です。")
-              ),
+              )
+            ),
               !isEditing && h("div", { className: "ledger-card-income" },
                 h("span", { className: "ledger-pair" },
                   bigNum(result.income?.lp || 0, "lp"),
