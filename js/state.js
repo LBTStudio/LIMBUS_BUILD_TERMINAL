@@ -3804,7 +3804,11 @@ function applyRosterAdds(state, adds, options) {
   }
   /* 最初の人格が所持になったら初期作成用チケットを1枚消す。
      抽出した場合は既に消費済み（残高0）で素通りする。 */
-  if (gainedPersona) next = consumeInitialPersonaTicket(next, opts.resultId);
+  /* 同じ人格抽出チケットで払った場合、その1枚は上で既に消費済み。
+     初期チケットの自動消費まで重ねると、追加取得分まで失ってしまう。 */
+  if (gainedPersona && opts.skipInitialTicketConsumption !== true) {
+    next = consumeInitialPersonaTicket(next, opts.resultId);
+  }
   return { ...next, roster: { ...next.roster, personas, egos } };
 }
 
@@ -3854,8 +3858,12 @@ function rosterAddsFromDrawBatch(batch) {
 
 /* 抽選バッチの経済的な副作用。証明の保存は ADD_DRAW_RECORD と分ける。
    通常履歴にこの副作用だけを1回積み、Undo後には証明だけを再生できるようにする。 */
-function applyDrawBatchEffects(state, batch, resultId) {
-  let next = applyRosterAdds(state, rosterAddsFromDrawBatch(batch), { resultId });
+function applyDrawBatchEffects(state, batch, resultId, options = {}) {
+  let next = applyRosterAdds(state, rosterAddsFromDrawBatch(batch), {
+    resultId,
+    /* 人格抽出チケットは直前の ticketSpend で消費済み。初期分を重ねて引かない。 */
+    skipInitialTicketConsumption: options.ticketSpend?.kind === "persona"
+  });
   for (const record of batch.records) {
     if (record?.kind !== "themePack") continue;
     if (record.duplicate) {
@@ -5355,7 +5363,7 @@ case "ADD_CUSTOM_ITEM": {
           kind: "gachaBatch", commit: String(batch.commit || batch.batchHash || "")
         }, action.resultId);
       }
-      next = applyDrawBatchEffects(next, batch, action.resultId);
+      next = applyDrawBatchEffects(next, batch, action.resultId, { ticketSpend });
       const proofKey = String(batch.batchHash || batch.commit || "");
       return proofKey ? { ...next, _pendingDrawProofHash: proofKey } : next;
     }
@@ -5376,7 +5384,7 @@ case "ADD_CUSTOM_ITEM": {
         next = appendTicketSpend(next, ticketSpend.kind, pack, ticketSpend.count,
           { kind: "gachaBatch", commit: String(batch.commit || batch.batchHash || "") }, action.resultId);
       }
-      next = applyDrawBatchEffects(next, batch, action.resultId);
+      next = applyDrawBatchEffects(next, batch, action.resultId, { ticketSpend });
       const proofKey = String(batch.batchHash || batch.commit || "");
       const staged = proofKey ? { ...next, _pendingDrawProofHash: proofKey } : next;
       return appReducer(staged, { type: "ADD_DRAW_RECORD", batch, entry: action.entry });

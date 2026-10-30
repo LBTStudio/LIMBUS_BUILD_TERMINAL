@@ -266,6 +266,46 @@ test("初期作成用人格チケットで抽出すると初期作成リザル�
   assert.equal(ticketBalance(drawn).persona, 0, "チケットは消費済みなので二重消費しない");
 });
 
+test("初回の人格チケット抽選では追加取得分を二重消費しない", () => {
+  const fresh = freshState();
+  const withExtraTicket = reducer(fresh, {
+    type: "GRANT_TICKET",
+    kind: "persona",
+    count: 1,
+    resultId: "res-initial"
+  });
+  assert.equal(ticketBalance(withExtraTicket).persona, 2, "初期作成分と追加取得分の2枚");
+
+  const batch = {
+    schemaVersion: 1,
+    ruleset: "core-ticket",
+    kind: "persona",
+    count: 1,
+    commit: "initial-extra-ticket-commit",
+    batchHash: "initial-extra-ticket-hash",
+    records: [{
+      index: 0,
+      kind: "persona",
+      method: "ticket",
+      item: { kind: "persona", mode: "n", no: 1, name: "黒雲会組員" },
+      cost: { lp: 0, shards: 0 },
+      duplicate: false,
+      grantedShards: 0
+    }]
+  };
+  const applied = reducer(withExtraTicket, {
+    type: "APPLY_DRAW_BATCH",
+    resultId: "res-initial",
+    batch,
+    ticketSpend: { kind: "persona", count: 1 }
+  });
+
+  assert.equal(ticketBalance(applied).persona, 1, "抽選1回ぶんだけ消費し、追加取得分1枚が残る");
+  const ticketSpends = applied.entries.filter((entry) => entry.kind === "ticket");
+  assert.equal(ticketSpends.length, 1, "抽選のチケット消費明細は1件だけ");
+  assert.equal(ticketSpends[0].tickets.persona, 1, "消費枚数も1枚だけ");
+});
+
 test("指定購入で人格を決めたら初期作成用チケットは残らない", () => {
   const fresh = freshState();
   assert.equal(ticketBalance(fresh).persona, 1, "購入前は1枚ある");
