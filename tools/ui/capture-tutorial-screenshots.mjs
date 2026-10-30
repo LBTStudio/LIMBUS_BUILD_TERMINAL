@@ -351,6 +351,10 @@ async function captureViewport(browser, mode) {
 
     // Result text import: open the real import menu, then annotate its item.
     await clickNav(page, "記録・所持品");
+    // B prototype opens a Record hub first; enter the Results / Ledger workspace.
+    const resultHubCard = page.locator(".btype-record-task-card").filter({ hasText: "リザルト／収支" }).first();
+    await resultHubCard.waitFor({ state: "visible", timeout: 12000 });
+    await resultHubCard.click();
     const resultImportToggle = page.locator(".ledger-import-toggle").first();
     await resultImportToggle.waitFor({ state: "visible", timeout: 12000 });
     await resultImportToggle.click();
