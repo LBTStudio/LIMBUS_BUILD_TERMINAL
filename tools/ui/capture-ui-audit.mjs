@@ -706,7 +706,7 @@ async function captureProfile(browser, mode) {
 
         if(label==="設定" || label==="詳細設定") {
           await snap("settings-status-workspace","詳細設定：ステータス一覧・編集・出力順");
-          const disclosures=page.locator("details.settings-disclosure");
+          const disclosures=page.locator("details.settings-major, details.settings-disclosure");
           const disclosureCount=await disclosures.count();
           if(disclosureCount===0) throw new Error("詳細設定の折り畳みセクションが見つかりません");
           // Some disclosure panels are nested inside another collapsed panel.
