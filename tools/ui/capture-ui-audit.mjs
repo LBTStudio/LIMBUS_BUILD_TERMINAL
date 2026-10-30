@@ -783,7 +783,11 @@ async function captureProfile(browser, mode) {
               const isOpen=await details.evaluate(el=>el.open);
               if(isOpen) continue;
               const labelText=(await summary.innerText()).trim();
-              await summary.click({force:true});
+              // Mobile bottom navigation can cover a disclosure that is below the fold.
+              // Scroll it into the actual viewport and use a normal user-like click;
+              // force-clicking an off-screen summary can report a false expansion failure.
+              await summary.scrollIntoViewIfNeeded({timeout:4000});
+              await summary.click({timeout:4000});
               if(!(await details.evaluate(el=>el.open))) throw new Error("設定セクションを展開できません: "+labelText);
               await snap("settings-disclosure-"+labelText,"詳細設定のセクションを展開："+labelText);
               opened++; totalOpened++;
