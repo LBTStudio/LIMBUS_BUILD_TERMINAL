@@ -240,7 +240,7 @@ test("BuildWorkspace は基本を含む9タブをもち、所持タブだけ ros
   assert.match(sections, /const setTab = \(id\) => dispatch\(\{ type: "SET_UI", ui: \{ currentSection: id \} \}\);/);
   assert.match(sections, /h\("h1", null, "ビルド"\)/);
   assert.match(sections, /h\("div", \{ className: "btype-eyebrow" \}, "BUILD WORKSPACE \/ ACTIVE CHARACTER"\)/);
-  assert.match(sections, /className: "build-context-strip"/);
+  assert.match(sections, /className: "status-strip build-context-strip btype-build-status-strip"/);
   assert.match(sections, /saveStatus\?\.phase === "saved"/);
   assert.match(sections, /Object\.assign\(window, \{[\s\S]*?BuildWorkspace,[\s\S]*?ShopSection,/);
 });
