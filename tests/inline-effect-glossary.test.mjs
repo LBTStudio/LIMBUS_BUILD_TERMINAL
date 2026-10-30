@@ -317,11 +317,10 @@ test("「集中攻撃」の「集中」は終止符事務所代表のパッシ�
   assert.equal(pieces.map((piece) => piece.text).join(""), text);
 
   // 同じ本文内の別の場所に明示参照があっても、複合語の「集中」には適用しない。
-  const mixed = api.tokenize("集中攻撃-○○を付与し、[集中]を別途参照する。", fixture, scope);
-  const matchedConcentration = mixed.filter((piece) => piece.term === "集中");
-  assert.equal(matchedConcentration.length, 1, "角括弧の内側にある参照だけをホバー化");
-  assert.equal(matchedConcentration[0].entries[0].source, "人格：終止符事務所代表");
-  assert.equal(mixed.map((piece) => piece.text).join(""), "集中攻撃-○○を付与し、[集中]を別途参照する。");
+  const mixedText = "集中攻撃-○○を付与し、[集中]を別途参照する。";
+  const mixed = api.tokenize(mixedText, fixture, scope);
+  assert.equal(mixed.filter((piece) => piece.term === "集中").length, 0, "他人格のパッシブ名は角括弧があっても参照しない");
+  assert.equal(mixed.map((piece) => piece.text).join(""), mixedText);
 
   const ownPassive = api.tokenize("集中", fixture, "人格パッシブ:終止符事務所代表").find((piece) => piece.term === "集中");
   assert.ok(ownPassive, "パッシブ名そのものは本人のスコープ内で引き続き解決できる");
