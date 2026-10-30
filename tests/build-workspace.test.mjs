@@ -39,19 +39,25 @@ test("ビルドを主とし、コードクスは廃止済み", () => {
   assert.doesNotMatch(block, /id: "spirit"/);
 });
 
-test("アイテムの独立セクションは無い（ショップとビルドのタブへ統合）", () => {
+test("アイテムは独立セクションを持たず、BuildとRecordの自然な操作導線を保つ", () => {
   assert.doesNotMatch(app, /React\.createElement\(ItemCodex/);
   assert.doesNotMatch(app, /case "items":/);
-  /* 導線はビルドのアイテムタブへ向く。 */
-  assert.match(sections, /currentSection: "items-build"/);
+  /* Buildから全所持品の管理へ進むときだけ、Recordのアイテム一覧へ直接移る。 */
+  assert.match(sections, /currentSection: "roster", libraryTab: "inventory"/);
   assert.doesNotMatch(sections, /currentSection: "items"/);
 });
 
-test("ビルドのアイテムは「卓へ持ち込む」と明言する", () => {
-  assert.match(sections, /"卓へ持ち込み"/);
-  assert.match(sections, /"卓へ持っていく個数/);
-  assert.match(sections, /"卓へ持ち込むアイテム"/);
-  assert.match(sections, /"まだアイテムを持っていません。ショップで購入するか「卓へ持ち込み」で選びます。"/);
+test("ビルドのアイテムは卓への出力と現在所持数・実使用を区別する", () => {
+  const start = sections.indexOf("const BuildItemsPanel");
+  const end = sections.indexOf("/* ショップ。所持の唯一の取得口。", start);
+  const panel = sections.slice(start, end);
+  assert.match(panel, /"卓へ持ち込むアイテム"/);
+  assert.match(panel, /"所持品へ追加"/);
+  assert.match(panel, /"所持数を修正"/);
+  assert.match(panel, /"1個使用"/);
+  assert.match(panel, /"MEMOに表示"/);
+  assert.match(panel, /"PALETTEへ反映"/);
+  assert.match(panel, /実使用は「1個使用」で記帳/);
 });
 
 test("リザルトを削除したらその明細も消える（未分類へ戻さない）", () => {
@@ -292,23 +298,25 @@ test("同期ランクとE.G.O解析は欠片残高を確認してから実行す
   assert.match(ego, /自我の欠片が足りません/);
 });
 
-test("ビルドのアイテムタブは持っていく個数と出力先を選べる", () => {
+test("ビルドのアイテムタブは所持数の修正・実使用の記帳・出力先切替を提供する", () => {
   const panel = sections.slice(sections.indexOf("const BuildItemsPanel ="), sections.indexOf("/* ショップ。所持の唯一の取得口。"));
   assert.match(panel, /const BuildItemsPanel = \(\{ state, dispatch \}\) => \{/);
-  /* 個数は PATCH_ITEM 経由。上限は ItemCodex と同じ関数を共有する。 */
   assert.match(panel, /const patch = \(uid, patchBody\) => dispatch\(\{ type: "PATCH_ITEM", uid, patch: patchBody \}\);/);
   assert.match(panel, /const maxOwnedOf = \(itemId\) => window\.LBT_getItemMaxOwned\?\.\(state, itemId\) \|\| 99;/);
-  assert.match(panel, /quantity: Math\.min\(maxOwned, \(Number\(entry\.quantity\) \|\| 1\) \+ 1\)/);
-  assert.match(panel, /quantity: Math\.max\(1, \(Number\(entry\.quantity\) \|\| 1\) - 1\)/);
-  /* 出力先は memo/palette。generator が読むフラグと同じもの。 */
+  assert.match(panel, /type: "CONSUME_ITEM"/);
+  assert.match(panel, /quantity: 1/);
+  assert.match(panel, /resultId: currentResultId/);
+  assert.match(panel, /"所持数を修正"/);
+  assert.match(panel, /"1個使用"/);
+  assert.doesNotMatch(panel, /quantity: Math\.min\(maxOwned/);
+  assert.doesNotMatch(panel, /quantity: Math\.max\(1,/);
   assert.match(panel, /patch\(entry\.uid, \{ memo: event\.target\.checked \}\)/);
   assert.match(panel, /patch\(entry\.uid, \{ palette: event\.target\.checked \}\)/);
   assert.match(panel, /"MEMOに表示"/);
   assert.match(panel, /"PALETTEへ反映"/);
-  /* 追加は購入扱い（明細が立つ）／外す。 */
-  assert.match(panel, /dispatch\(item\.specialResource[\s\S]{0,150}type: "ADD_ITEM_INVENTORY"[\s\S]{0,100}type: "ADD_ITEM"/);
-  assert.match(panel, /dispatch\(\{ type: "REMOVE_ITEM", uid: entry\.uid \}\)/);
-  /* 所持行は記録と同じ .inv-row と由来バッジ。 */
+  assert.match(panel, /dispatch\(\{ type: "ADD_ITEM", itemId: item\.id \}\)/);
+  assert.doesNotMatch(panel, /dispatch\(item\.specialResource/);
+  assert.doesNotMatch(panel, /type: "REMOVE_ITEM"/);
   assert.match(panel, /className: "inv-row"/);
   assert.match(panel, /"badge inv-origin is-initial" \}, "初期枠"/);
 });
@@ -1303,7 +1311,7 @@ test("リザルトの消耗表示は一般のアイテム減少を『消費』�
   assert.match(resultSections, /\+ " · " \+ reasonLabel/);
   assert.match(resultSections, /className: "ledger-row is-owned ledger-result-object-row"/);
   assert.match(itemCodex, /reason: "consumption"/);
-  assert.match(itemCodex, /を消費し、直近リザルトへ記録しました/);
+  assert.match(itemCodex, /を使用し、.*へ記録しました/);
   assert.doesNotMatch(itemCodex, /phenomenon_processing|現象処理/);
   assert.match(reducer, /reason === "phenomenon_processing" \? "consumption"/);
   assert.match(reducer, /reason: String\(action\.reason \|\| "consumption"\)/);

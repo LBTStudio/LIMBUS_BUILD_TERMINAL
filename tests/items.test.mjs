@@ -602,3 +602,36 @@ test("必須アイテムが欠けたJSONは不完全な一覧のまま起動せ�
   await assert.rejects(loader.load(), /酸素ボンベ/);
   assert.equal(loader.window.DB, undefined, "検証前の不完全なDBを公開しない");
 });
+
+
+test("Buildの実使用は所持数減算とリザルト記帳を同時に行い、卓から外す操作で所持を削除しない", () => {
+  const start = itemShopSource.indexOf("const BuildItemsPanel");
+  const end = itemShopSource.indexOf("/* ショップ。所持の唯一の取得口。", start);
+  const build = itemShopSource.slice(start, end);
+  assert.ok(start >= 0 && end > start, "BuildItemsPanel の範囲が見つかる");
+  assert.match(build, /type: "CONSUME_ITEM"/);
+  assert.match(build, /quantity: 1/);
+  assert.match(build, /resultId: currentResultId/);
+  assert.match(build, /type: "PATCH_ITEM", uid, patch: patchBody/);
+  assert.match(build, /所持数を修正/);
+  assert.match(build, /MEMOに表示/);
+  assert.match(build, /PALETTEへ反映/);
+  assert.doesNotMatch(build, /type: "REMOVE_ITEM"/, "卓への出力解除を所持品削除へ接続しない");
+  assert.match(build, /ADD_ITEM", itemId: item\.id/);
+  assert.doesNotMatch(build, /dispatch\(item\.specialResource/, "価格付き特殊資源を無料移送経路へ迂回させない");
+});
+
+test("ItemCodexの所持数減少ボタンも1個使用としてリザルトへ記帳する", () => {
+  assert.match(itemCodexSource, /const consumeOne = \(\) =>/);
+  assert.match(itemCodexSource, /onClick: consumeOne/);
+  assert.match(itemCodexSource, /resultId: currentResultId/);
+  assert.match(itemCodexSource, /所持数を直接修正/);
+  assert.match(itemCodexSource, /window\.confirm/);
+  assert.doesNotMatch(itemCodexSource, /onClick: \(\) => patchEntry\(\{ quantity: Math\.max\(1, \(Number\(selectedEntry\.quantity\) \|\| 1\) - 1\) \}\)/);
+});
+
+test("ItemCodexは消費記録先を操作前に表示する", () => {
+  assert.match(itemCodexSource, /className: "item-consume-target"/);
+  assert.match(itemCodexSource, /消費記録先:/);
+  assert.match(itemCodexSource, /購入に必要な残高が不足しています/);
+});

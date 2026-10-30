@@ -2194,34 +2194,59 @@ const BuildItemsPanel = ({ state, dispatch }) => {
   const paletteCount = inventory.filter((entry) => entry.palette !== false).length;
   const maxOwnedOf = (itemId) => window.LBT_getItemMaxOwned?.(state, itemId) || 99;
   const rows = [...inventory].sort((a, b) => nameOf(a.itemId).localeCompare(nameOf(b.itemId), "ja"));
+  const currentResultId = window.LBT_latestResultId?.(state) || "";
+  const currentResult = (state.results || []).find((result) => result.id === currentResultId) || null;
   const [pickerOpen, setPickerOpen] = React.useState(false);
 
   const patch = (uid, patchBody) => dispatch({ type: "PATCH_ITEM", uid, patch: patchBody });
+  const consumeOne = (entry) => {
+    if (!currentResultId) {
+      toast("消費を記録するリザルトがありません。先にRecordでリザルトを登録してください", "assertive");
+      return;
+    }
+    const operationId = `build-item-use-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    dispatch({
+      type: "CONSUME_ITEM",
+      itemId: entry.itemId,
+      quantity: 1,
+      reason: "consumption",
+      operationId,
+      resultId: currentResultId
+    });
+    toast(`「${nameOf(entry.itemId)}」を1個使用し、「${currentResult?.name || "最新リザルト"}」へ記録しました`);
+  };
   const addItem = (item) => {
     const owned = inventory.find((entry) => entry.itemId === item.id);
     const maxOwned = maxOwnedOf(item.id);
     if (owned && (Number(owned.quantity) || 0) >= maxOwned) {
-      toast(`「${item.name}」は所持上限（×${maxOwned}）です`);
+      toast(`「${item.name}」は所持上限（×${maxOwned}）です`, "assertive");
       return;
     }
-    const ledgerLinked = item.ledgerResource === "shards";
-    dispatch(item.specialResource && !ledgerLinked
-      ? { type: "ADD_ITEM_INVENTORY", itemId: item.id }
-      : { type: "ADD_ITEM", itemId: item.id });
-    toast(ledgerLinked
-      ? `「${item.name}」を1個購入し、通帳へ記録`
-      : item.specialResource
-        ? (owned ? `「${item.name}」の所持数を追加` : `「${item.name}」を特殊資源欄へ追加`)
-        : (owned ? `「${item.name}」の数量を追加` : `「${item.name}」を所持アイテムに追加`));
+    /* ADD_ITEM 自身が特殊資源の価格・残高を判定する。
+       ここで ADD_ITEM_INVENTORY へ迂回すると、硝子の破片など価格付き資源を無料追加できてしまう。 */
+    const cost = resolveAcquireCost("item", "purchase", { id: item.id, name: item.name, customItems: state.customItems });
+    const needsPurchase = !!item.specialResource || !owned;
+    if (needsPurchase && (Number(cost.lp) > 0 || Number(cost.shards) > 0)) {
+      const affordability = window.LBT_purchaseAffordability?.(state, cost);
+      if (affordability && !affordability.ok) {
+        toast(affordability.reason || "購入に必要な残高が不足しています", "assertive");
+        return;
+      }
+    }
+    dispatch({ type: "ADD_ITEM", itemId: item.id });
+    const charged = needsPurchase && (Number(cost.lp) > 0 || Number(cost.shards) > 0);
+    toast(charged
+      ? `「${item.name}」を購入して所持品へ追加（${cost.label}）`
+      : owned ? `「${item.name}」の所持数を追加` : `「${item.name}」を所持品へ追加`);
   };
 
   return h("div", { className: "build-items" },
     h(Card, null,
       h("div", { className: "card-header owned-library-bar" },
         h("span", { className: "t-label" }, "卓へ持ち込むアイテム"),
-        h("span", { className: "ledger-note" }, `${inventory.length}種 / ${totalQty}個　MEMO ${memoCount} / PALETTE ${paletteCount}`),
-        h(Button, { size: "sm", variant: pickerOpen ? "secondary" : "ghost", icon: "plus", onClick: () => setPickerOpen((v) => !v) }, pickerOpen ? "選択を閉じる" : "卓へ持ち込み"),
-        h(Button, { size: "sm", variant: "ghost", onClick: () => dispatch({ type: "SET_UI", ui: { currentSection: "items-build" } }) }, "所持アイテム欄を開く")
+        h("span", { className: "ledger-note" }, `${inventory.length}種 / ${totalQty}個　MEMO ${memoCount} / PALETTE ${paletteCount}　実使用は「1個使用」で記帳　${currentResult ? `消費記録先: ${currentResult.name}` : "消費記録にはリザルトが必要"}`),
+        h(Button, { size: "sm", variant: pickerOpen ? "secondary" : "ghost", icon: "plus", onClick: () => setPickerOpen((v) => !v) }, pickerOpen ? "選択を閉じる" : "所持品へ追加"),
+        h(Button, { size: "sm", variant: "ghost", onClick: () => dispatch({ type: "SET_UI", ui: { currentSection: "roster", libraryTab: "inventory" } }) }, "Recordで全所持品を管理")
       ),
       pickerOpen && h("div", { className: "card-body stack-2" },
         h("div", { className: "inv-pick" }, [...new Set(catalog.map((item) => String(item?.category || "その他")))].map((category) => h("div", { key: category, className: "inv-pick-group" },
@@ -2239,7 +2264,7 @@ const BuildItemsPanel = ({ state, dispatch }) => {
       ),
       h("div", { className: "card-body stack-2" },
         rows.length === 0
-          ? h("div", { className: "empty" }, "まだアイテムを持っていません。ショップで購入するか「卓へ持ち込み」で選びます。")
+          ? h("div", { className: "empty" }, "所持アイテムはまだありません。「所持品へ追加」またはShopで入手できます。追加後、MEMO・PALETTEへの反映を切り替えられます。")
           : h("div", { className: "stack-2" }, rows.map((entry) => {
             const maxOwned = maxOwnedOf(entry.itemId);
             const hasCap = maxOwned < 99;
@@ -2253,18 +2278,16 @@ const BuildItemsPanel = ({ state, dispatch }) => {
                   ? h("span", { className: "badge inv-origin is-initial" }, "初期枠")
                   : metaOf(entry.itemId).specialResource
                     ? h("span", { className: "badge inv-origin" }, "資源")
-                    : h("span", { className: "badge inv-origin" }, "購入")
+                    : h("span", { className: "badge inv-origin" }, "入手")
               ),
               h("div", { className: "build-item-controls" },
                 h("div", { className: "build-item-qty" },
-                  h("span", { className: "t-label" }, hasCap ? `卓へ持っていく個数 / 上限×${maxOwned}` : "卓へ持っていく個数"),
-                  h("button", { type: "button", onClick: () => patch(entry.uid, { quantity: Math.max(1, (Number(entry.quantity) || 1) - 1) }), "aria-label": `${nameOf(entry.itemId)}の所持数を減らす` }, h(Icon, { name: "minus", size: 13 })),
-                  h("input", { type: "number", min: 1, max: maxOwned, step: 1, inputMode: "numeric", value: entry.quantity, onChange: (event) => patch(entry.uid, { quantity: event.target.value }), "aria-label": `${nameOf(entry.itemId)}の所持数を入力` }),
-                  h("button", { type: "button", disabled: (Number(entry.quantity) || 1) >= maxOwned, onClick: () => patch(entry.uid, { quantity: Math.min(maxOwned, (Number(entry.quantity) || 1) + 1) }), "aria-label": `${nameOf(entry.itemId)}の所持数を増やす` }, h(Icon, { name: "plus", size: 13 }))
+                  h("label", { className: "t-label", htmlFor: `build-item-qty-${entry.uid}` }, hasCap ? `所持数を修正 / 上限×${maxOwned}` : "所持数を修正"),
+                  h("input", { id: `build-item-qty-${entry.uid}`, type: "number", min: 1, max: maxOwned, step: 1, inputMode: "numeric", value: entry.quantity, onChange: (event) => patch(entry.uid, { quantity: event.target.value }), "aria-label": `${nameOf(entry.itemId)}の所持数を修正`, title: "実際に使用した場合は「1個使用」を押してください。ここは所持数の訂正用です。" })
                 ),
+                h(Button, { size: "sm", variant: "secondary", icon: "minus", disabled: !currentResultId, onClick: () => consumeOne(entry), title: currentResult ? `1個を消費し「${currentResult.name}」へ記録` : "消費記録にはリザルトが必要です" }, "1個使用"),
                 h("label", { className: "item-output-toggle" }, h("input", { type: "checkbox", checked: entry.memo !== false, onChange: (event) => patch(entry.uid, { memo: event.target.checked }) }), h("span", null, "MEMOに表示")),
-                h("label", { className: "item-output-toggle" }, h("input", { type: "checkbox", checked: entry.palette !== false, onChange: (event) => patch(entry.uid, { palette: event.target.checked }) }), h("span", null, "PALETTEへ反映")),
-                h(Button, { size: "sm", variant: "danger", icon: "trash", onClick: () => { dispatch({ type: "REMOVE_ITEM", uid: entry.uid }); toast(`「${nameOf(entry.itemId)}」を所持から外しました`); } }, "卓から外す")
+                h("label", { className: "item-output-toggle" }, h("input", { type: "checkbox", checked: entry.palette !== false, onChange: (event) => patch(entry.uid, { palette: event.target.checked }) }), h("span", null, "PALETTEへ反映"))
               )
             );
           }))
@@ -3817,11 +3840,30 @@ const InventoryPanel = ({ state, dispatch }) => {
   const categories = [...new Set(catalog.map((item) => String(item?.category || "その他")))];
   const rows = [...inventory].sort((a, b) => nameOf(a.itemId).localeCompare(nameOf(b.itemId), "ja"));
   const seeded = inventory.filter((entry) => entry.origin === "initial").length;
+  const currentResultId = window.LBT_latestResultId?.(state) || "";
+  const currentResult = (state.results || []).find((result) => result.id === currentResultId) || null;
+  const consumeOne = (entry) => {
+    if (!currentResultId) {
+      toast("消費を記録するリザルトがありません。先にリザルトを登録してください", "assertive");
+      return;
+    }
+    const operationId = `record-item-use-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    dispatch({
+      type: "CONSUME_ITEM",
+      itemId: entry.itemId,
+      quantity: 1,
+      reason: "consumption",
+      operationId,
+      resultId: currentResultId
+    });
+    toast(`「${nameOf(entry.itemId)}」を1個使用し、「${currentResult?.name || "最新リザルト"}」へ記録しました`);
+  };
+  const adjustQuantity = (entry, value) => dispatch({ type: "PATCH_ITEM", uid: entry.uid, patch: { quantity: value } });
   const originBadge = (entry) => entry.origin === "initial"
     ? h("span", { className: "badge inv-origin is-initial" }, "初期枠")
     : metaOf(entry.itemId).specialResource
       ? h("span", { className: "badge inv-origin" }, "資源")
-      : h("span", { className: "badge inv-origin" }, "購入");
+      : h("span", { className: "badge inv-origin" }, "入手");
 
   return h("div", { className: "stack-3" },
     h(Card, null,
@@ -3848,16 +3890,23 @@ const InventoryPanel = ({ state, dispatch }) => {
     h(Card, null,
       h("div", { className: "card-header owned-library-bar" },
         h("span", { className: "t-label" }, "ITEM INVENTORY / 所持アイテム"),
-        h("span", { className: "ledger-note" }, `${inventory.length}件`)
+        h("span", { className: "ledger-note" }, `${inventory.length}件　${currentResult ? `消費記録先: ${currentResult.name}` : "リザルト未登録のため消費記録不可"}`)
       ),
       rows.length === 0
         ? h("div", { className: "card-body" }, h("div", { className: "empty" }, "所持アイテムはまだありません。「アイテム」で追加するか、初期枠を取り込むとここへ出ます。"))
-        : h("div", { className: "card-body stack-2" }, rows.map((entry) => h("div", { key: entry.uid, className: "inv-row" },
+        : h("div", { className: "card-body stack-2" }, rows.map((entry) => h("div", { key: entry.uid, className: "inv-row record-inventory-row" },
             h("span", { className: "inv-name" }, nameOf(entry.itemId)),
             h("span", { className: "inv-meta" }, String(metaOf(entry.itemId).category || "その他")),
             h("span", { className: "inv-price" }, String(metaOf(entry.itemId).price || "")),
             h("span", { className: "inv-qty" }, `×${entry.quantity}`),
-            originBadge(entry)
+            originBadge(entry),
+            h("div", { className: "record-inventory-controls" },
+              h("label", { className: "record-inventory-adjust" },
+                h("span", null, "所持数を修正"),
+                h("input", { className: "item-quantity-input", type: "number", min: 1, max: window.LBT_getItemMaxOwned?.(state, entry.itemId) || 99, step: 1, inputMode: "numeric", value: entry.quantity, onChange: (event) => adjustQuantity(entry, event.target.value), "aria-label": `${nameOf(entry.itemId)}の所持数を修正`, title: "実際に使用した場合は「1個使用」を押してください。ここは所持数の訂正用です。" })
+              ),
+              h(Button, { size: "sm", variant: "secondary", icon: "minus", disabled: !currentResultId, onClick: () => consumeOne(entry), title: currentResult ? `1個を消費し「${currentResult.name}」へ記録` : "消費記録にはリザルトが必要です" }, "1個使用")
+            )
           )))
     )
   );

@@ -141,9 +141,12 @@ test("記録に所持アイテムの総覧タブがある", () => {
   assert.match(sections, /"ITEM INVENTORY \/ 所持アイテム"/);
 });
 
-test("所持アイテムは 初期枠/購入 の由来を必ず見せる", () => {
+test("所持アイテムは初期枠・特殊資源・その他の入手を区別し、入手を購入と断定しない", () => {
   assert.match(sections, /entry\.origin === "initial"\s*\?\s*h\("span", \{ className: "badge inv-origin is-initial" \}, "初期枠"\)/);
-  assert.match(sections, /h\("span", \{ className: "badge inv-origin" \}, "購入"\)/);
+  assert.match(sections, /metaOf\(entry\.itemId\)\.specialResource\s*\?\s*h\("span", \{ className: "badge inv-origin" \}, "資源"\)/);
+  assert.match(sections, /h\("span", \{ className: "badge inv-origin" \}, "入手"\)/);
+  assert.doesNotMatch(sections.slice(sections.indexOf("const InventoryPanel"), sections.indexOf("/* --- 抽出リスト")), /"購入"/,
+    "入手元が購入と確定できない在庫には購入ラベルを出さない");
   /* 色だけに頼らない（文字で区別する）。 */
   assert.match(workspaceCss, /\.inv-origin\.is-initial \{ color: var\(--gold\); border-color: var\(--gold-line\); \}/);
 });
@@ -221,4 +224,19 @@ test("各リザルトの支出・チケット・消耗品詳細は折り畳み�
   assert.match(sections, /className: "ledger-result-summary"/);
   assert.match(resultCss, /\.ledger-cards\s*\{[^}]*min\(248px, 100%\)/s);
   assert.match(resultCss, /\.ledger-result-details\s*\{[^}]*border-top/s);
+});
+
+
+test("Recordの所持品一覧からも1個使用を記録でき、数量修正とは別操作になる", () => {
+  const start = sections.indexOf("const InventoryPanel");
+  const end = sections.indexOf("/* --- 抽出リスト", start);
+  const inventory = sections.slice(start, end);
+  assert.ok(start >= 0 && end > start, "InventoryPanel の範囲が見つかる");
+  assert.match(inventory, /type: "CONSUME_ITEM"/);
+  assert.match(inventory, /resultId: currentResultId/);
+  assert.match(inventory, /type: "PATCH_ITEM", uid: entry\.uid/);
+  assert.match(inventory, /所持数を修正/);
+  assert.match(inventory, /1個使用/);
+  assert.match(inventory, /消費記録先:/);
+  assert.match(inventory, /"入手"/);
 });

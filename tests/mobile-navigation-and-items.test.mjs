@@ -35,15 +35,17 @@ test("モバイルの下部ナビゲーションは横スクロールせず全�
   assert.match(v64r100, /height: var\(--lbt-landscape-rail-h\);/);
 });
 
-test("アイテムは独立セクションを持たない（ショップで開く・ビルドのタブで持ち込む）", () => {
-  /* 購入はショップ、卓への持ち込みはビルドのアイテムタブが担う。 */
+test("アイテムは独立セクションを持たず、BuildからRecordの所持品管理へ直接移動できる", () => {
   assert.match(appSource, /id: "shop", label: "ショップ"[^\n]*購入/);
   assert.doesNotMatch(appSource, /id: "items", label: "アイテム"/);
-  assert.match(sectionsSource, /currentSection: "items-build"/);
+  assert.match(sectionsSource, /currentSection: "roster", libraryTab: "inventory"/);
 });
 
-test("所持品から削除は追加操作と区別できる既存の危険操作変種を使う", () => {
-  assert.match(itemSource, /variant: "secondary", icon: "plus"[\s\S]{0,320}variant: "danger", icon: "trash"[\s\S]{0,160}"所持品から削除"/);
+test("所持品削除は危険操作として確認し、実使用の消費とは区別する", () => {
+  assert.match(itemSource, /window\.confirm\(/);
+  assert.match(itemSource, /削除では消費履歴は作られず/);
+  assert.match(itemSource, /onClick: removeItem/);
+  assert.match(itemSource, /"所持品から削除"/);
 });
 
 test("実機のモバイル確認ページは端末全画面に追従し、確認フレーム由来のスクロールバーを出さない", () => {
