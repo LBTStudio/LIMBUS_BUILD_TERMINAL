@@ -5639,7 +5639,7 @@ h(Card, { className: "ledger-card" },
               ),
               !isEditing && h("details", { className: "ledger-result-details" },
                 h("summary", { className: "ledger-result-summary" },
-                  "明細 " + rows.length + "件 · 消耗品 " + consumedItems.length + "種 · チケット " + ticketCount + "枚"
+                  "明細 " + rows.length + "件 · 報酬品 " + (result.rewardItems || []).length + "種 · 取得人格 " + (result.personaAcquisitions || []).length + "名 · 消耗品 " + consumedItems.length + "種 · チケット " + ticketCount + "枚"
                 ),
                 h("div", { className: "ledger-result-detail-content stack-2" },
                   h("div", { className: "ledger-detail-group" },
@@ -5647,6 +5647,14 @@ h(Card, { className: "ledger-card" },
                     ticketChips.length > 0
                       ? ticketChips.map((ticket) => h("span", { key: ticket.key, className: "gacha-held-ticket" }, ticket.label + " ×" + ticket.count))
                       : h("span", { className: "ledger-note" }, "未記録")
+                  ),
+                  Array.isArray(result.rewardItems) && result.rewardItems.length > 0 && h("div", { className: "ledger-detail-group ledger-card-reward-items" },
+                    h("span", { className: "t-label" }, "報酬アイテム"),
+                    result.rewardItems.map((item) => h("span", { key: item.itemId, className: "gacha-held-ticket" }, String(item.itemName || item.itemId) + " ×" + String(item.quantity || 1)))
+                  ),
+                  Array.isArray(result.personaAcquisitions) && result.personaAcquisitions.length > 0 && h("div", { className: "ledger-detail-group ledger-card-acquisitions" },
+                    h("span", { className: "t-label" }, "取得人格"),
+                    result.personaAcquisitions.map((entry) => h("span", { key: entry.mode + ":" + entry.no, className: "gacha-held-ticket" }, String(entry.name || (entry.mode.toUpperCase() + " No." + entry.no)) + (entry.mode === "t" ? "（特異）" : "（通常）")))
                   ),
                   consumedItems.length > 0 && h("div", { className: "ledger-detail-group ledger-card-consumed" },
                     h("span", { className: "t-label" }, "消耗したアイテム"),
