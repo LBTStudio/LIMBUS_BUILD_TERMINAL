@@ -565,7 +565,38 @@ async function captureProfile(browser, mode) {
       const basicTab=page.locator(".build-tabs").getByRole("tab",{name:"基本",exact:true}).first();
       await basicTab.waitFor({state:"visible",timeout:5000});
       await click(basicTab);
-      await page.locator(".build-params-shell").waitFor({state:"visible",timeout:5000});
+      await page.locator(".build-params-shell.piece-format-panel").waitFor({state:"visible",timeout:5000});
+
+      // Source-backed v4 geometry assertions: desktop two-column hero, mobile stack,
+      // portrait ratio, and the formatting panel directly below the hero.
+      const hero=page.locator(".piece-hero-grid").first();
+      const artFrame=page.locator(".piece-art-frame").first();
+      const formatPanel=page.locator(".build-params-shell.piece-format-panel").first();
+      const heroLayout=await hero.evaluate((el)=>{
+        const children=[...el.children].map((node)=>{const r=node.getBoundingClientRect();return {x:r.x,y:r.y,right:r.right,bottom:r.bottom,width:r.width,height:r.height};});
+        const r=el.getBoundingClientRect(),s=getComputedStyle(el);
+        return {display:s.display,columns:s.gridTemplateColumns,rect:{x:r.x,y:r.y,right:r.right,bottom:r.bottom,width:r.width,height:r.height},children};
+      });
+      const portraitGeometry=await artFrame.evaluate((el)=>{
+        const r=el.getBoundingClientRect(),s=getComputedStyle(el);
+        return {width:r.width,height:r.height,ratio:r.width/Math.max(1,r.height),aspectRatio:s.aspectRatio};
+      });
+      const formatGeometry=await formatPanel.evaluate((el)=>{
+        const r=el.getBoundingClientRect();return {y:r.y,bottom:r.bottom,height:r.height};
+      });
+      const viewportWidth=page.viewportSize()?.width||1440;
+      if(heroLayout.children.length!==2) throw new Error("v4 Basic hero must contain exactly the portrait and settings columns");
+      if(viewportWidth>820){
+        if(heroLayout.display!=="grid"||heroLayout.children[0].x>=heroLayout.children[1].x||heroLayout.children[0].right>heroLayout.children[1].x+2)
+          throw new Error("v4 desktop Basic hero is not a non-overlapping two-column layout: "+JSON.stringify(heroLayout));
+      }else if(heroLayout.children[0].y>=heroLayout.children[1].y||Math.abs(heroLayout.children[0].x-heroLayout.children[1].x)>2){
+        throw new Error("v4 narrow Basic hero must stack portrait above settings: "+JSON.stringify(heroLayout));
+      }
+      if(portraitGeometry.ratio<0.65||portraitGeometry.ratio>0.85)
+        throw new Error("Basic portrait frame no longer follows the 3:4 portrait ratio: "+JSON.stringify(portraitGeometry));
+      if(formatGeometry.y<heroLayout.rect.bottom-2)
+        throw new Error("Basic ST/label/output formatting area must follow the portrait/settings hero");
+      await snap("basic-workspace-v4-hero","Unified Workbench v4 基本画面：立ち絵・差分と駒設定の左右構成");
 
       const statusTab=page.locator("#build-params-tab-statuses");
       await click(statusTab);
