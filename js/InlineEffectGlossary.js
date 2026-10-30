@@ -328,7 +328,7 @@
     cachedGlossary = glossary;
     // Shared matching is driven only by the common rule glossary. Owner-specific
     // names are added per render so another persona can never steal a substring match.
-    cachedTerms = [...new Set([...Object.keys(OFFICIAL_TERMS), ...Object.keys(PACK_TERMS)])].sort((a, b) => b.length - a.length || a.localeCompare(b, "ja"));
+    cachedTerms = [...new Set([...Object.keys(OFFICIAL_TERMS), ...Object.keys(PACK_TERMS)])].filter((term) => term.length > 1 || Object.prototype.hasOwnProperty.call(OFFICIAL_TERMS, term)).sort((a, b) => b.length - a.length || a.localeCompare(b, "ja"));
     cachedPattern = cachedTerms.length ? new RegExp(cachedTerms.map(escapeRegExp).join("|"), "gu") : null;
     return glossary;
   }
