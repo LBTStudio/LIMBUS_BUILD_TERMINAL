@@ -414,6 +414,9 @@ test("特定抽出パック第一弾の追加バフ・デバフ・蓄積要素�
     ["摘出", "特定抽出パック第一弾 p.217"],
     ["衝撃広域", "特定抽出パック第一弾 p.217"]
   ];
+  const ambiguousSingleCharacter = loadGlossary().tokenize("針を付与する", db, "人格スキル:テスト人格");
+  assert.equal(ambiguousSingleCharacter.filter((piece) => piece.term === "針").length, 0,
+    "単一文字の一般語は偶然の本文一致を避けるためホバー候補にしない");
   for (const [term, sourcePage] of cases) {
     const entry = (glossary.get(term) || []).find((row) => row.isRulebook);
     assert.ok(entry, term + " is registered");
