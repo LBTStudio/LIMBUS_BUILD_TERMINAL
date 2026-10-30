@@ -37,10 +37,11 @@ test("クイック検索のE.G.O・アイテム候補は詳細画面へ移動す
   assert.match(app, /E\.G\.O：\$\{ego\.name\}/);
   assert.match(app, /アイテム：\$\{item\.name\}/);
   assert.match(app, /currentSection: "ego", egoSearchTarget:/);
-  assert.match(app, /currentSection: "items", itemSearchTarget:/);
+  assert.match(app, /currentSection: "items-build", itemSearchTarget:/);
+  assert.match(app, /DB\.specialItems/);
   assert.doesNotMatch(app.slice(app.indexOf("const egoHits"), app.indexOf("const cmdFiltered")), /SET_EGO_SLOT|ADD_ITEM/);
-  assert.match(items, /const searchTargetId = state\.ui\?\.itemSearchTarget\?\.id/);
-  assert.match(items, /setSelectedId\(searchTargetId\)/);
+  assert.match(sections, /const searchTargetId = state\.ui\?\.itemSearchTarget\?\.id/);
+  assert.match(sections, /setPickerQuery\(String\(target\.name \|\| target\.id\)\)/);
   assert.match(sections, /const searchTarget = state\.ui\?\.egoSearchTarget/);
   assert.match(sections, /setSelected\(target\)/);
 });
