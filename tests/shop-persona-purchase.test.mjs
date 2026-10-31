@@ -28,7 +28,7 @@ test("ショップに通常人格の指定購入カテゴリがあり、未所�
   assert.match(otherSectionsSource, /className: "p-stats"/);
   assert.match(otherSectionsSource, /className: "p-res-mini shop-persona-res"/);
   assert.match(otherSectionsSource, /className: "p-sin-row"/);
-  assert.match(otherSectionsSource, /className: "shop-persona-actions spirit-item-actions shop-card-actions"/);
+  assert.match(otherSectionsSource, /className: "spirit-item-actions shop-card-actions shop-persona-actions"/);
   assert.match(personaCss, /\.p-card\s*\{/);
   assert.match(workbenchCss, /\.btype-shop-category-grid\s*\{/);
   assert.match(sectionsCss, /\.shop-persona-card\s*\{/);
