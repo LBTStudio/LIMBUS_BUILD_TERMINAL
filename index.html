@@ -678,6 +678,28 @@ window.addEventListener("load", function(){
       height: 40px !important;
     }
   }
+
+  /* 全UI監査で見つかった小さすぎるタップ領域をスマートフォンだけ拡張。
+     見た目のアイコン寸法は変えず、押せる面積を40x40 CSS px以上にする。 */
+  @media (max-width: 640px) {
+    .acct-card-actions .acct-icon-btn {
+      box-sizing: border-box;
+      width: 40px !important;
+      min-width: 40px !important;
+      height: 40px !important;
+      min-height: 40px !important;
+    }
+    .acct-card-actions .acct-edit-btn {
+      min-height: 40px !important;
+    }
+    .p-card .p-fav {
+      box-sizing: border-box;
+      width: 40px !important;
+      min-width: 40px !important;
+      height: 40px !important;
+      min-height: 40px !important;
+    }
+  }
 </style>
 </head>
 <body style="background-color:#14110d">
@@ -716,7 +738,7 @@ window.addEventListener("load", function(){
   <script src="js/gacha-proof.js?v=516f754a"></script>
 <script src="js/cloud-backup.js?v=32acbafe"></script>
 <script src="js/accounts-ui.js?v=39626571"></script>
-<script src="js/App.js?v=6f08c8ad"></script>
+<script src="js/App.js?v=1ed0204d"></script>
 <script>
   lbtDbReady.then(lbtBoot).catch(function(error){
     document.getElementById("root").innerHTML = "<div style=\"color:#c8a84b;padding:40px;text-align:center;font-family:sans-serif\">アイテム一覧を含む必須データの読み込みに失敗しました。ページを再読み込みしてください。<br>file:// で直接開いている場合はローカルサーバー経由で開いてください（README参照）。<p id=\"lbt-data-load-detail\" style=\"color:#b7ac9c;font-size:12px\"></p></div>";

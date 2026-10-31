@@ -1820,6 +1820,28 @@ const App = () => {
     return () => document.removeEventListener("focusin", onFocusIn, true);
   }, []);
   const current = state.ui.currentSection || "home";
+  /* 画面本体は同じ scroll container を使うため、currentSection だけ変えても
+     scrollTop が残り、次画面の見出しが画面外へ飛ぶ。実際の画面/サブ画面が
+     切り替わった時だけ先頭へ戻し、検索や入力など同一画面内の更新では保持する。 */
+  const mainScrollRouteKey = [
+    current,
+    state.ui.libraryTab || "",
+    state.ui.shopView || "",
+    state.ui.shopTab || "",
+    state.ui.settingsView || "",
+    state.ui.basicFormatTab || ""
+  ].join("::");
+  const previousMainScrollRouteKeyRef = React.useRef(mainScrollRouteKey);
+  React.useLayoutEffect(() => {
+    if (previousMainScrollRouteKeyRef.current === mainScrollRouteKey) return;
+    previousMainScrollRouteKeyRef.current = mainScrollRouteKey;
+    const main = document.getElementById("main-content");
+    if (!main) return;
+    const previousBehavior = main.style.scrollBehavior;
+    main.style.scrollBehavior = "auto";
+    main.scrollTop = 0;
+    main.style.scrollBehavior = previousBehavior;
+  }, [mainScrollRouteKey]);
   const isBuildWorkspace = ["baseinfo", "persona", "skill", "passive", "enh", "support", "ego", "spirit", "items-build"].includes(current);
   const sec = SECTIONS.find((s) => s.id === current) || SECTIONS[0];
   const renderSection = () => {

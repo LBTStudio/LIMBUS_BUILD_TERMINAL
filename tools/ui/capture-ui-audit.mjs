@@ -136,6 +136,7 @@ async function readMetrics() {
        inside the current viewport are considered; the 40px rule applies to phones. */
     const touchTargetSelector = [
       ".topbar-search", ".preview-mobile-toggle", ".acct-close", ".import-router-close",
+      ".acct-card-actions .acct-icon-btn", ".p-fav",
       ".utility-sheet-close", ".detail-dialog-close", ".ego-quick-close",
       ".persona-draft-dialog button.btn-icon", "button.btn-icon", ".es-kw-rm",
       ".ledger-reward-item-chip button", ".reorder-btn", ".ledger-row-move-action",
@@ -615,11 +616,6 @@ async function captureProfile(browser, mode) {
     headers: { "cache-control": "no-store", "access-control-allow-origin": "*" },
     body: ""
   }));
-  await page.route("**/api/stats/view*", (route) => route.fulfill({
-    status: 200,
-    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "access-control-allow-origin": "*" },
-    body: JSON.stringify({ ok: true, totalViews: 0 })
-  }));
   page.on("console",m=>{if(m.type()==="error")audit.consoleErrors.push({view:mode,message:m.text().slice(0,160)});});
   page.on("response",response=>{if(response.status()>=400 && !response.url().includes("/cdn-cgi/rum?"))audit.httpErrors.push({view:mode,status:response.status(),url:response.url().slice(0,240)});});
   page.on("pageerror",e=>audit.pageErrors.push({view:mode,message:e.message.slice(0,160)}));
@@ -631,6 +627,43 @@ async function captureProfile(browser, mode) {
       ? page.locator(".btype-mobile-bottom-nav button").getByText("ビルド", { exact: true }).first()
       : page.locator(".rail-item[title='ビルド']").first();
     await workbenchNav.waitFor({ state: "visible", timeout: 10000 });
+    await attempt("section-navigation-scroll-reset", async () => {
+      const originalViewport = page.viewportSize();
+      await page.setViewportSize({ width: originalViewport.width, height: Math.min(originalViewport.height, 520) });
+      try {
+        const main = page.locator("#main-content");
+        const before = await main.evaluate((el) => {
+          const previousBehavior = el.style.scrollBehavior;
+          el.style.scrollBehavior = "auto";
+          el.scrollTop = el.scrollHeight;
+          const result = { scrollTop: el.scrollTop, maxScroll: el.scrollHeight - el.clientHeight };
+          el.style.scrollBehavior = previousBehavior;
+          return result;
+        });
+        if (before.maxScroll < 80 || before.scrollTop < 40) {
+          throw new Error("長いホーム画面のスクロールを再現できませんでした: " + JSON.stringify(before));
+        }
+        if (mobile) {
+          await click(page.locator(".btype-mobile-bottom-nav button").filter({ hasText: "その他" }).first());
+          await page.locator(".utility-sheet").waitFor({ state: "visible", timeout: 4000 });
+          await click(page.locator(".utility-section-link").filter({ hasText: "ショップ" }).first());
+        } else {
+          await click(page.locator(".rail-item[title='ショップ']").first());
+        }
+        const after = await main.evaluate((el) => ({
+          scrollTop: el.scrollTop,
+          heading: (el.querySelector("h1,h2,.section-title")?.textContent || "").trim().slice(0, 36)
+        }));
+        if (after.scrollTop > 2) {
+          throw new Error("ショップへ移動してもホームのスクロール位置が残っています: " + JSON.stringify({ before, after }));
+        }
+        await snap("section-navigation-scroll-reset", "ホームの末尾からショップへ移動した後、画面先頭へ戻ることを検証");
+      } finally {
+        await closeOverlay();
+        if (await visible(workbenchNav)) await click(workbenchNav);
+        await page.setViewportSize(originalViewport);
+      }
+    });
     await click(workbenchNav);
     await page.locator(".build-tabs").waitFor({ state: "visible", timeout: 10000 });
     const previewToggle=page.locator("#lbt-preview-edge-toggle").first();
