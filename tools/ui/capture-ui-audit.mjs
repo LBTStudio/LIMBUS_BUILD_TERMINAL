@@ -149,14 +149,16 @@ async function readMetrics() {
       ? [...document.querySelectorAll(touchTargetSelector)].filter(isVisible).map(e => {
           const r = e.getBoundingClientRect();
           return {
-            label: (e.getAttribute("aria-label") || e.innerText || e.getAttribute("title") || e.className || e.id || "").trim().replace(/\\s+/g," ").slice(0,64),
+            label: (e.getAttribute("aria-label") || e.innerText || e.getAttribute("title") || e.className || e.id || "").trim().replace(/\s+/g," ").slice(0,64),
             tag: e.tagName.toLowerCase(),
             className: typeof e.className === "string" ? e.className : "",
+            width: r.width,
+            height: r.height,
             rect: rect(e)
           };
         }).filter(item => item.rect.x < innerWidth && item.rect.y < innerHeight
           && item.rect.x + item.rect.width > 0 && item.rect.y + item.rect.height > 0
-          && (item.rect.width < 40 || item.rect.height < 40))
+          && (item.width < 40 || item.height < 40))
       : [];
 
     const horizontalScrollers=[...document.querySelectorAll("body *")].filter(e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);return r.width>80&&r.height>20&&e.scrollWidth>e.clientWidth+12&&["auto","scroll","hidden"].includes(s.overflowX);}).slice(0,24).map(e=>({tag:e.tagName,className:typeof e.className==="string"?e.className:"",label:(e.getAttribute("aria-label")||e.innerText||"").trim().replace(/\s+/g," ").slice(0,42),clientWidth:e.clientWidth,scrollWidth:e.scrollWidth,overflowX:getComputedStyle(e).overflowX,rect:rect(e)}));
