@@ -50,14 +50,21 @@
        Extract only a URL on the official host, then still run the normal hostname validation. */
     const embeddedOfficial = text.match(/https?:\/\/(?:www\.)?lbt-garasumado\.vercel\.app\/(?:persona\/)?view\/[A-Za-z0-9_-]{6,}\/?(?:[?#][^\s]*)?/i);
     const absolute = text.match(/https?:\/\/[^\s]+/i);
-    if (embeddedOfficial) {
-      candidate = trimPastedUrlSuffix(embeddedOfficial[0]);
+    if (embeddedOfficial && absolute) {
+      /* An official URL may be wrapped by the known rd.nan7.net copy helper.
+         Never accept an arbitrary foreign host merely because its path/query
+         contains an official-looking URL. Validate the outer host first. */
+      let outerHost = "";
+      try { outerHost = new URL(trimPastedUrlSuffix(absolute[0])).hostname.toLowerCase(); } catch (_) {}
+      const allowedOuterHosts = new Set([officialHost, "www." + officialHost, "rd.nan7.net", "www.rd.nan7.net"]);
+      candidate = allowedOuterHosts.has(outerHost)
+        ? trimPastedUrlSuffix(embeddedOfficial[0])
+        : trimPastedUrlSuffix(absolute[0]);
     } else if (absolute) {
       candidate = trimPastedUrlSuffix(absolute[0]);
+    } else if (embeddedOfficial) {
+      candidate = trimPastedUrlSuffix(embeddedOfficial[0]);
     } else {
-      const hostless = text.match(/(?:^|[\s"'(<\[:（［｛〈《「『【])((?:www\.)?lbt-garasumado\.vercel\.app(?:\/[^\s]*)?)/i);
-      if (!hostless) return invalid;
-      candidate = trimPastedUrlSuffix("https://" + hostless[1]);
     }
 
     let url;
