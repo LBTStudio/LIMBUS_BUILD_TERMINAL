@@ -259,13 +259,13 @@ test("同じ硝子窓ソースの再取込は既存リザルトと取り込み�
   assert.equal(updated.results[0].income.lp, 150, "再解析後の収入へ更新");
   assert.equal(updated.results[0].income.shards, 30);
   assert.equal(updated.results[0].consumedItems.length, 1, "消費記録も最新データへ更新");
-  assert.deepEqual(updated.results[0].personaAcquisitions, [{ mode: "n", no: "00102", name: "新人格", source: "garasumado" }],
+  assert.deepEqual(JSON.parse(JSON.stringify(updated.results[0].personaAcquisitions)), [{ mode: "n", no: "00102", name: "新人格", source: "garasumado" }],
     "再解析で修正された獲得人格を古い取得履歴のまま残さない");
   const cleared = reducer(updated, {
     type: "APPLY_IMPORT_BATCH",
     actions: [{ type: "ADD_RESULT", name: "夜の卓", income: { lp: 150, shards: 30 }, consumedItems: [], personaAcquisitions: [], importSourceKey: sourceKey }]
   });
-  assert.deepEqual(cleared.results[0].personaAcquisitions, [],
+  assert.deepEqual(JSON.parse(JSON.stringify(cleared.results[0].personaAcquisitions)), [],
     "元履歴から取得人格が削除された場合も、再取込で古い取得履歴を消す");
   assert.equal(updated.entries.length, 2, "古い取込明細だけ置換し、手入力明細を維持");
   assert.ok(updated.entries.some((entry) => entry.name === "手入力の支出" && entry.cost.lp === 5));
