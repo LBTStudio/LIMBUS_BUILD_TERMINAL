@@ -630,6 +630,40 @@ window.addEventListener("load", function(){
 </style>
 <link rel="stylesheet" href="assets/b-type-workbench.css?v=77284898">
 <link rel="stylesheet" href="assets/b-type-ui-parity.css?v=903829a8">
+
+<style id="lbt-mobile-build-tab-grid-final">
+/* b-type-ui-parity.css intentionally pins the touch rail with !important.
+   On phones override that legacy rail so all nine tabs are visible without
+   horizontal clipping. This block is after every stylesheet by design. */
+@media (max-width: 640px) {
+  .build-tabs.is-b-workbench .btype-build-tablist[role="tablist"][aria-label="ビルドセクション"] {
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    grid-auto-rows: minmax(40px, auto);
+    flex-wrap: initial !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+    white-space: normal !important;
+    gap: 4px !important;
+  }
+  .build-tabs.is-b-workbench .btype-build-tablist[role="tablist"][aria-label="ビルドセクション"] > button[role="tab"] {
+    box-sizing: border-box;
+    flex: initial !important;
+    min-width: 40px !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    min-height: 40px !important;
+    padding: 6px 3px !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    justify-content: center;
+    text-align: center;
+    line-height: 1.25;
+  }
+}
+</style>
 </head>
 <body style="background-color:#14110d">
   <div id="root"></div>
