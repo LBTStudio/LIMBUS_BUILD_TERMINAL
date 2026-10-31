@@ -205,7 +205,7 @@ test("ショップの出典行は出典を持つタブにだけ注入する", ()
   assert.match(sectionSource, /\[kind, value, onChange, enabled\]/);
   assert.match(
     sectionSource,
-    /useSourceFilterControl\(SOURCE_KINDS\[tab\] \|\| "", sourceFilter, setSourceFilter, !!SOURCE_KINDS\[tab\]\)/
+    /useSourceFilterControl\(SOURCE_KINDS\[tab\] \|\| "", sourceFilter, setSourceFilter, shopView === "catalog" && !!SOURCE_KINDS\[tab\]\)/
   );
   assert.doesNotMatch(sectionSource, /useSourceFilterControl\(tab === "support"/, "全タブ注入の旧呼び出しを残さない");
 });
