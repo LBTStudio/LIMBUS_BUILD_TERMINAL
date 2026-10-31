@@ -560,17 +560,16 @@ test("現在人格のスキル名とダイス効果を現在人格の辞典か�
     extra_passives: []
   };
   const pieces = api.tokenize(
-    "同期専用スキル名を使い、同期専用ダイス効果を付与する。",
+    "同期専用スキル名を使う。",
     { normal_personas: [], tokui_personas: [], egos: [] },
     "人格スキル:現在人格",
     record
   );
   const skill = pieces.find((piece) => piece.term === "同期専用スキル名");
-  const dice = pieces.find((piece) => piece.term === "同期専用ダイス効果");
   assert.ok(skill, "現在人格のスキル名を平文でホバーできる");
-  assert.ok(dice, "現在人格のダイス効果に含まれる語も平文でホバーできる");
   assert.equal(skill.entries[0].source, "人格：現在人格");
-  assert.equal(dice.entries[0].source, "人格：現在人格");
+  assert.ok(skill.entries[0].description.includes("同期専用ダイス効果を付与する。"),
+    "現在人格のスキル説明にダイス効果の本文を含める");
 });
 
 test("normal と tokui で no が重複し所属が欠ける別人格を、同一人格と誤認して明示引用から除外しない", () => {
