@@ -171,8 +171,9 @@ test("persona, E.G.O and item renderers pass their active owner; support passive
   const persona = readFileSync(resolve(ROOT, "js/PersonaCodex.js"), "utf8");
   const sections = readFileSync(resolve(ROOT, "js/OtherSections.js"), "utf8");
   const items = readFileSync(resolve(ROOT, "js/ItemCodex.js"), "utf8");
-  assert.match(persona, /LBT_GLOSSARY_TEXT\(p\.passive_effect, "人格パッシブ:" \+ p\.name, p\)/);
-  assert.match(persona, /LBT_GLOSSARY_TEXT\(d\.effect, "人格ダイス:" \+ p\.name, p\)/);
+  assert.match(persona, /const glossaryOwner = \{\s*\.\.\.p,\s*__glossaryCollection: mode === "n" \? "normal" : mode === "t" \? "tokui"/);
+  assert.match(persona, /LBT_GLOSSARY_TEXT\(p\.passive_effect, "人格パッシブ:" \+ p\.name, glossaryOwner\)/);
+  assert.match(persona, /LBT_GLOSSARY_TEXT\(d\.effect, "人格ダイス:" \+ p\.name, glossaryOwner\)/);
   assert.match(sections, /LBT_GLOSSARY_TEXT\(ego\.unique_buff/);
   assert.match(sections, /LBT_GLOSSARY_TEXT\(t, \(scope \|\| "E\.G\.O効果"\) \+ ":" \+ ego\.name, ego\)/);
   assert.match(sections, /LBT_GLOSSARY_TEXT\(pas\.effect, scope \|\| "人格パッシブ", owner\)/);
