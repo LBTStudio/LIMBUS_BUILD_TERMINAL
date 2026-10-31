@@ -10,6 +10,7 @@ function sampleShareHtml() {
   const ego = runtime.db.egos[0];
   state = runtime.reducer(state, { type: "SET_EGO_SLOT", rank: "ZAYIN", value: ego });
   const support = runtime.db.support_passives[0];
+  state = runtime.reducer(state, { type: "ADD_ROSTER_SUPPORT", spp: support, purchase: false });
   state = runtime.reducer(state, { type: "ADD_SUPPORT", spp: support });
   return String(runtime.gen.buildShareSheetHTML(state));
 }

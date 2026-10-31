@@ -34,7 +34,13 @@ test("未所持サポートの取得は価格検証つき購入を通ってか�
   assert.match(support, /未所持です。購入する場合は詳細の「購入して装備」/);
   assert.match(support, /selectedOwned \? "通常スロットへ装備" : "購入して装備"/);
   assert.match(state, /case "ADD_SUPPORT":[\s\S]{0,700}if \(name\) return state/);
-  assert.match(state, /case "SET_DEATH_SUPPORT":[\s\S]{0,1300}findOwnedSupport\(state, requestedName\)[\s\S]{0,400}return state/);
+  const deathActionStart = state.indexOf('case "SET_DEATH_SUPPORT":');
+  const deathActionEnd = state.indexOf('case "PATCH_DEATH_SUPPORT":', deathActionStart);
+  const deathAction = state.slice(deathActionStart, deathActionEnd);
+  assert.match(deathAction, /findOwnedSupport\(state, requestedName\)/);
+  assert.match(deathAction, /Equipment cannot create an owned passive/);
+  assert.match(deathAction, /return state/);
+  assert.doesNotMatch(deathAction, /addRosterSupport\(/);
   assert.match(state, /case "ADD_ROSTER_SUPPORT":[\s\S]{0,700}purchaseCostOf\(state,[\s\S]{0,180}purchaseAffordability\(state, cost\)\.ok/);
   assert.match(support, /dispatch\(\{ type: "ADD_ROSTER_SUPPORT", spp: s, purchase: true \}\)/);
 });
