@@ -375,6 +375,18 @@
   border-color: var(--gold);
 }
 
+
+/* 編集中フォームは通常カードと同じ156px行へ押し込まない。
+   全列を使って内容高まで展開し、共有URL取込・保存操作を同じカード内で操作可能にする。 */
+.acct-grid > .acct-card--form,
+.acct-grid > .acct-card--editing {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: max-content;
+  height: auto;
+  align-self: start;
+}
+
 /* ---- 追加カード / フォームカード ---- */
 .acct-card--add {
   align-items: center;

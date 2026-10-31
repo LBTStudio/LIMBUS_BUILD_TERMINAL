@@ -351,3 +351,18 @@ test("オンライン保全は初期折りたたみで、SINNER SELECTの一覧�
   assert.match(cloudPanelCss, /\.lbt-cloud-summary\s*\{/, "summaryはクリック可能な表示");
   assert.match(cloudPanelCss, /\.lbt-cloud-panel\[open\] > \.lbt-cloud-summary \.lbt-cloud-chevron/, "開閉状態を矢印で示す");
 });
+
+
+test("SINNER SELECTの編集中カードは全列を使い、フォーム下部の取込操作まで表示する", () => {
+  const start = css.indexOf(".acct-grid > .acct-card--form,");
+  assert.notEqual(start, -1, "編集中カード専用のgridルールがある");
+  const end = css.indexOf("\n}", start);
+  const rule = css.slice(start, end);
+  for (const declaration of [
+    "grid-column: 1 / -1;",
+    "width: 100%;",
+    "min-height: max-content;",
+    "height: auto;",
+    "align-self: start;"
+  ]) assert.ok(rule.includes(declaration), "編集中カードに " + declaration + " がある");
+});

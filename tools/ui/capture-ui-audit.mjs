@@ -1292,12 +1292,37 @@ async function captureProfile(browser, mode) {
       const edit=page.locator(".acct-card-actions .acct-edit-btn").first();
       if(await visible(edit)) {
         await click(edit); await snap("account-edit-form","アカウント編集フォーム");
-        const toggle=page.locator(".acct-import-toggle").first();
-        if(await visible(toggle)) {
-          await toggle.scrollIntoViewIfNeeded();
-          await click(toggle);
-          await snap("account-share-url-import","共有URLから取り込む入口");
+        const editorMetrics = await page.evaluate(() => {
+          const panel=document.querySelector(".acct-panel");
+          const grid=panel?.querySelector(":scope > .acct-grid");
+          const editor=grid?.querySelector(".acct-card--form,.acct-card--editing");
+          const button=editor?.querySelector(".acct-import-toggle");
+          const rect=(node)=>node?node.getBoundingClientRect():null;
+          const er=rect(editor), br=rect(button), gr=rect(grid);
+          const style=editor?getComputedStyle(editor):null;
+          return {
+            editorHeight:er?.height||0,
+            editorScrollHeight:editor?.scrollHeight||0,
+            gridScrollHeight:grid?.scrollHeight||0,
+            gridClientHeight:grid?.clientHeight||0,
+            gridColumn:style?.gridColumn||"",
+            buttonExists:!!button,
+            buttonVisible:!!br && br.width>0 && br.height>0 && br.bottom<=window.innerHeight && br.top>=0,
+            buttonBottom:br?.bottom||0,
+            gridBottom:gr?.bottom||0,
+            buttonBottomWithinEditor:!!er && !!br && br.bottom<=er.bottom+1
+          };
+        });
+        audit.accountEditorLayout = audit.accountEditorLayout || {};
+        audit.accountEditorLayout[view] = editorMetrics;
+        if(!editorMetrics.buttonExists || !editorMetrics.buttonBottomWithinEditor
+          || !editorMetrics.gridColumn.includes("span")) {
+          throw new Error("編集中フォームが全列に展開されず、取込ボタンがカード内に収まっていません: " + JSON.stringify(editorMetrics));
         }
+        const toggle=page.locator(".acct-import-toggle").first();
+        await toggle.scrollIntoViewIfNeeded();
+        await click(toggle);
+        await snap("account-share-url-import","共有URLから取り込む入口");
       }
       await closeOverlay();
     });
