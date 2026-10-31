@@ -346,6 +346,7 @@ const PassiveSection = ({ state, dispatch }) => {
   const passiveGlossaryScope = src?.name ? "人格パッシブ:" + src.name : "人格パッシブ";
   const passiveGlossaryOwner = src ? {
     ...src,
+    __glossaryCollection: src.__glossaryCollection || (state.personaMode === "n" ? "normal" : state.personaMode === "t" ? "tokui" : undefined),
     passive_name: state.pas?.name ?? src.passive_name,
     passive_cond: state.pas?.cond ?? src.passive_cond,
     passive_always: state.pas?.always ?? src.passive_always,
