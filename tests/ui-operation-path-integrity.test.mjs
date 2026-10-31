@@ -155,7 +155,7 @@ test("モバイルの主要操作対象を40x40px以上にし、監査CIで未�
   assert.match(captureAudit, /const touchTargetViolations/);
   assert.match(captureAudit, /minimum: "40x40 CSS px"/);
   assert.match(captureAudit, /type: "touch-target-too-small"/);
-  assert.match(captureAudit, /"touch-target-too-small"\].includes\(item\.type\)/);
+  assert.match(captureAudit, /"touch-target-too-small","build-tabs-not-reflowed"\].includes\(item\.type\)/);
   assert.match(captureAudit, /criticalLayoutWarnings\.length/);
   assert.match(captureAudit, /const buildTablistMetrics/);
   assert.match(captureAudit, /type: "build-tabs-not-reflowed"/);
