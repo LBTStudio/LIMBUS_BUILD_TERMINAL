@@ -559,14 +559,16 @@ async function boot() {
           gridScrollHeight:grid?.scrollHeight||0,
           minCardHeight:heights.length?Math.min(...heights):0,
           panelHeight:panel?.clientHeight||0,
+          onlineBackupCollapsed:panel?.querySelector(":scope > details.lbt-cloud-panel")?.open === false,
           gridOverflowY:grid?getComputedStyle(grid).overflowY:"",
           panelOverflowY:panel?getComputedStyle(panel).overflowY:""
         };
       });
       audit.accountGateLayout = audit.accountGateLayout || {};
       audit.accountGateLayout[view] = gateMetrics;
-      if(gateMetrics.accountCount < 8 || gateMetrics.gridScrollHeight <= gateMetrics.gridClientHeight + 1
-        || gateMetrics.minCardHeight < 152 || gateMetrics.gridOverflowY !== "auto" || gateMetrics.panelOverflowY !== "hidden") {
+      if(gateMetrics.accountCount < 8 || gateMetrics.gridClientHeight < 220 || gateMetrics.gridScrollHeight <= gateMetrics.gridClientHeight + 1
+        || gateMetrics.minCardHeight < 152 || !gateMetrics.onlineBackupCollapsed
+        || gateMetrics.gridOverflowY !== "auto" || gateMetrics.panelOverflowY !== "hidden") {
         throw new Error("複数アカウントの起動ゲートで一覧スクロール／カード行高が期待どおりではありません: " + JSON.stringify(gateMetrics));
       }
       // Match the card (which contains the account name), then click its transparent hit area.
@@ -1275,21 +1277,27 @@ async function captureProfile(browser, mode) {
           gridClientHeight:grid?.clientHeight||0,
           gridScrollHeight:grid?.scrollHeight||0,
           minCardHeight:heights.length?Math.min(...heights):0,
+          onlineBackupCollapsed:panel?.querySelector(":scope > details.lbt-cloud-panel")?.open === false,
           gridOverflowY:grid?getComputedStyle(grid).overflowY:"",
           panelOverflowY:panel?getComputedStyle(panel).overflowY:""
         };
       });
       audit.accountManagerLayout = audit.accountManagerLayout || {};
       audit.accountManagerLayout[view] = managerMetrics;
-      if(managerMetrics.accountCount < 8 || managerMetrics.gridScrollHeight <= managerMetrics.gridClientHeight + 1
-        || managerMetrics.minCardHeight < 152 || managerMetrics.gridOverflowY !== "auto" || managerMetrics.panelOverflowY !== "hidden") {
+      if(managerMetrics.accountCount < 8 || managerMetrics.gridClientHeight < 220 || managerMetrics.gridScrollHeight <= managerMetrics.gridClientHeight + 1
+        || managerMetrics.minCardHeight < 152 || !managerMetrics.onlineBackupCollapsed
+        || managerMetrics.gridOverflowY !== "auto" || managerMetrics.panelOverflowY !== "hidden") {
         throw new Error("複数アカウントの管理画面で一覧スクロール／カード行高が期待どおりではありません: " + JSON.stringify(managerMetrics));
       }
       const edit=page.locator(".acct-card-actions .acct-edit-btn").first();
       if(await visible(edit)) {
         await click(edit); await snap("account-edit-form","アカウント編集フォーム");
         const toggle=page.locator(".acct-import-toggle").first();
-        if(await visible(toggle)) { await click(toggle); await snap("account-share-url-import","共有URLから取り込む入口"); }
+        if(await visible(toggle)) {
+          await toggle.scrollIntoViewIfNeeded();
+          await click(toggle);
+          await snap("account-share-url-import","共有URLから取り込む入口");
+        }
       }
       await closeOverlay();
     });

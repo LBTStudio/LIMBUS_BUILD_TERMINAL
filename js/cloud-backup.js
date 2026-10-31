@@ -1086,11 +1086,15 @@
       const date = new Date(value || "");
       return Number.isNaN(date.getTime()) ? "不明" : date.toLocaleString();
     };
-    return h("section", { className: "lbt-cloud-panel" + (compact ? " is-compact" : ""), "aria-label": "オンライン保全（復旧キー方式）" },
-      h("div", { className: "lbt-cloud-heading" },
-        h("strong", null, "オンライン保全（復旧キー方式）"),
-        h("span", { className: "lbt-cloud-state" }, view.label || "ローカル保存")
+    return h("details", { className: "lbt-cloud-panel" + (compact ? " is-compact" : ""), "aria-label": "オンライン保全（復旧キー方式）" },
+      h("summary", { className: "lbt-cloud-summary" },
+        h("div", { className: "lbt-cloud-heading" },
+          h("strong", null, "オンライン保全（復旧キー方式）"),
+          h("span", { className: "lbt-cloud-state" }, view.label || "ローカル保存")
+        ),
+        h("span", { className: "lbt-cloud-chevron", "aria-hidden": "true" }, "⌄")
       ),
+      h("div", { className: "lbt-cloud-content" },
       h("p", { className: "lbt-cloud-description" }, "外部ログインは使用せず、復旧キーだけでクラウドへ保全・復元できます。ローカル保存は常に継続し、初回アップロードは明示的な操作が必要です。"),
       h("p", { className: "lbt-cloud-message", role: "status", "aria-live": "polite" }, view.message),
       !hasKey ? h(React.Fragment, null,
@@ -1192,6 +1196,7 @@
         hasKey ? button("この端末の自動同期を停止", () => run(disableOnline), "is-danger") : null
       ),
       h("p", { className: "lbt-cloud-footnote" }, "復旧キー自体は保存せずハッシュのみを保持します。クラウドへ保存されるJSON本体はエンドツーエンド暗号化されません。復旧キーはデータ更新・同期・世代変更・保存先切替で変化しません。LBT内に再発行操作はありません。復旧キーを公開チャンネルへ貼らず、別の安全な場所にもJSONバックアップを保管してください。")
+      )
     );
   }
 

@@ -23,6 +23,8 @@ const stateSource = readFileSync(new URL("../js/state.js", import.meta.url), "ut
 const app = readFileSync(new URL("../js/App.js", import.meta.url), "utf8");
 const sections = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
 const css = readFileSync(new URL("../assets/v66-accounts.css", import.meta.url), "utf8");
+const cloudPanelSource = readFileSync(new URL("../js/cloud-backup.js", import.meta.url), "utf8");
+const cloudPanelCss = readFileSync(new URL("../assets/cloud-backup.css", import.meta.url), "utf8");
 const indexHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 
 test("作成・名前変更はインラインフォームで行い prompt に依存しない", () => {
@@ -331,4 +333,21 @@ test("SINNER SELECT のアカウント一覧はカードを縮めず、一覧だ
     "align-content: start;",
     "grid-auto-rows: minmax(156px, max-content);"
   ]) assert.ok(gridRule.includes(declaration), "一覧ルールに " + declaration + " がある");
+});
+
+
+test("オンライン保全は初期折りたたみで、SINNER SELECTの一覧領域を圧迫しない", () => {
+  const start = cloudPanelSource.indexOf('return h("details", { className: "lbt-cloud-panel"');
+  assert.notEqual(start, -1, "オンライン保全はネイティブdetailsで開閉できる");
+  const end = cloudPanelSource.indexOf("\n  }\n\n  window.LBTCloudBackup", start);
+  assert.ok(end > start, "パネル描画の終端を特定できる");
+  const panel = cloudPanelSource.slice(start, end);
+  assert.match(panel, /h\("summary", \{ className: "lbt-cloud-summary" \}/, "閉じた状態でも見出しと状態を表示");
+  assert.match(panel, /h\("div", \{ className: "lbt-cloud-content" \}/, "保全・照合・復元操作を内容領域に保持");
+  assert.doesNotMatch(panel.slice(0, panel.indexOf("h(\"div\", { className: \"lbt-cloud-content\"")), /\bopen:\s*true/, "初期状態で自動展開しない");
+  for (const control of ["復旧キーを発行して保全", "全アカウントをJSON保存", "このキーを照合", "JSONファイルから復元"]) {
+    assert.ok(panel.includes(control), control + " は折りたたみ内部に残る");
+  }
+  assert.match(cloudPanelCss, /\.lbt-cloud-summary\s*\{/, "summaryはクリック可能な表示");
+  assert.match(cloudPanelCss, /\.lbt-cloud-panel\[open\] > \.lbt-cloud-summary \.lbt-cloud-chevron/, "開閉状態を矢印で示す");
 });
