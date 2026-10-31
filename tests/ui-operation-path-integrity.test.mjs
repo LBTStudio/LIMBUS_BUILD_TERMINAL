@@ -150,7 +150,7 @@ test("モバイルの主要操作対象を40x40px以上にし、監査CIで未�
     "最後のCSSとして強制横スクロール規則を上書きする");
   assert.ok(touchStyles.includes("display: grid !important"));
   assert.ok(touchStyles.includes("grid-template-columns: repeat(5, minmax(0, 1fr)) !important"));
-  assert.ok(touchStyles.includes(".btype-build-tablist[role=\"tablist\"] > button[role=\"tab\"]"));
+  assert.ok(touchStyles.includes('.btype-build-tablist[role="tablist"][aria-label="ビルドセクション"] > button[role="tab"]'));
 
   assert.match(captureAudit, /const touchTargetViolations/);
   assert.match(captureAudit, /minimum: "40x40 CSS px"/);
