@@ -6042,6 +6042,7 @@ case "ADD_CUSTOM_ITEM": {
             income: sub.income,
             note: sub.note,
             consumedItems: sub.consumedItems,
+            personaAcquisitions: sub.personaAcquisitions,
             ...(sourceKey ? { importSourceKey: sourceKey } : {})
           });
           added = (next.results || []).find((result) => result && result.id === target.id) || null;
