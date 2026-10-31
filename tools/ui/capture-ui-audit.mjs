@@ -163,7 +163,30 @@ async function readMetrics() {
 
     const horizontalScrollers=[...document.querySelectorAll("body *")].filter(e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);return r.width>80&&r.height>20&&e.scrollWidth>e.clientWidth+12&&["auto","scroll","hidden"].includes(s.overflowX);}).slice(0,24).map(e=>({tag:e.tagName,className:typeof e.className==="string"?e.className:"",label:(e.getAttribute("aria-label")||e.innerText||"").trim().replace(/\s+/g," ").slice(0,42),clientWidth:e.clientWidth,scrollWidth:e.scrollWidth,overflowX:getComputedStyle(e).overflowX,rect:rect(e)}));
     const layoutElements=[...document.querySelectorAll("#lbt-preview-edge-toggle,.preview,.preview-reopen,.preview-close,.preview-edge-toggle,.preview-actions,.preview-hint,.preview-tabs,.focus,.rail,.section-title-row,.section-title,.build-tabs,.baseinfo-workspace,.piece-hero-grid,.build-params-shell,.build-params-tabs,.basic-ccfolia-preview,.basic-preview-mode-tabs,.basic-preview-panel,.record-tabbar")].filter(isVisible).map(e=>{const s=getComputedStyle(e);return {tag:e.tagName,id:e.id||"",className:typeof e.className==="string"?e.className:"",text:(e.innerText||"").trim().replace(/\s+/g," ").slice(0,48),rect:rect(e),style:{position:s.position,display:s.display,top:s.top,right:s.right,bottom:s.bottom,width:s.width,height:s.height,writingMode:s.writingMode,opacity:s.opacity,zIndex:s.zIndex,pointerEvents:s.pointerEvents}};});
-    return {viewport:{width:innerWidth,height:innerHeight},document:{width:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight},horizontalOverflow:document.documentElement.scrollWidth>innerWidth+2,horizontalScrollers,layoutElements,dialogs,smallTargets,touchTargetViolations,activeElement:document.activeElement?{tag:document.activeElement.tagName,aria:document.activeElement.getAttribute("aria-label"),text:(document.activeElement.innerText||"").trim().slice(0,40)}:null};
+    const buildTablistMetrics = (() => {
+      const element = document.querySelector('.build-tabs .btype-build-tablist[role="tablist"][aria-label="ビルドセクション"]');
+      if (!element || !isVisible(element)) return null;
+      const style = getComputedStyle(element);
+      const buttons = [...element.querySelectorAll(':scope > button[role="tab"]')].filter(isVisible);
+      const buttonRects = buttons.map(button => {
+        const r = button.getBoundingClientRect();
+        return {x:r.x,y:r.y,width:r.width,height:r.height};
+      });
+      const rows = [...new Set(buttonRects.map(r => Math.round(r.y)))];
+      return {
+        display: style.display,
+        gridTemplateColumns: style.gridTemplateColumns,
+        overflowX: style.overflowX,
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+        buttonCount: buttons.length,
+        rowCount: rows.length,
+        buttonsBelowMinimum: buttonRects.filter(r => r.width < 40 || r.height < 40).length,
+        buttonsOutsideList: buttonRects.filter(r => r.x < element.getBoundingClientRect().x - 1
+          || r.x + r.width > element.getBoundingClientRect().right + 1).length
+      };
+    })();
+    return {viewport:{width:innerWidth,height:innerHeight},document:{width:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight},horizontalOverflow:document.documentElement.scrollWidth>innerWidth+2,horizontalScrollers,layoutElements,dialogs,smallTargets,touchTargetViolations,buildTablistMetrics,activeElement:document.activeElement?{tag:document.activeElement.tagName,aria:document.activeElement.getAttribute("aria-label"),text:(document.activeElement.innerText||"").trim().slice(0,40)}:null};
   });
 }
 async function snap(name, note) {
@@ -195,6 +218,18 @@ async function snap(name, note) {
     const params = (m.layoutElements || []).find((item) => item.className.split(/\s+/).includes("build-params-shell"));
     if (hero && params && params.rect.y < hero.rect.y + hero.rect.height - 2) {
       audit.layoutWarnings.push({name:base,type:"basic-format-panel-overlaps-v4-hero",heroRect:hero.rect,paramsRect:params.rect});
+    }
+  }
+  if (m.viewport.width <= 640 && m.buildTablistMetrics) {
+    const tabs = m.buildTablistMetrics;
+    if (tabs.buttonCount !== 9 || tabs.display !== "grid" || tabs.rowCount < 2
+        || tabs.scrollWidth > tabs.clientWidth + 2 || tabs.buttonsBelowMinimum > 0 || tabs.buttonsOutsideList > 0) {
+      audit.layoutWarnings.push({
+        name: base,
+        type: "build-tabs-not-reflowed",
+        expected: "9 tabs in a 5-column grid with at least 2 rows and no clipped targets",
+        actual: tabs
+      });
     }
   }
   if (m.viewport.width <= 640) {
@@ -1266,7 +1301,7 @@ async function main() {
       }
     }
   }
-  audit.criticalLayoutWarnings=audit.layoutWarnings.filter((item)=>["document-horizontal-overflow","duplicate-preview-controls","preview-toggle-overlaps-header","preview-toggle-overlaps-panel-controls","preview-toggle-overlaps-content-dock","preview-panel-too-narrow","basic-preview-below-editor-fold","touch-target-too-small"].includes(item.type));
+  audit.criticalLayoutWarnings=audit.layoutWarnings.filter((item)=>["document-horizontal-overflow","duplicate-preview-controls","preview-toggle-overlaps-header","preview-toggle-overlaps-panel-controls","preview-toggle-overlaps-content-dock","preview-panel-too-narrow","basic-preview-below-editor-fold","touch-target-too-small","build-tabs-not-reflowed"].includes(item.type));
   fs.writeFileSync(path.join(OUT,"manifest.json"),JSON.stringify(audit,null,2)+"\n");
   log("finished: "+audit.count+" screenshots; failures="+audit.failures.length+"; missing-required="+audit.missingRequiredCaptures.length+"; critical-layout-warnings="+audit.criticalLayoutWarnings.length);
   if(audit.count<140 || audit.failures.length || audit.missingRequiredCaptures.length || audit.pageErrors.length || audit.httpErrors.length || audit.consoleErrors.length || audit.criticalLayoutWarnings.length) process.exitCode=1;
