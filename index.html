@@ -225,6 +225,134 @@ window.addEventListener("load", function(){
 <link rel="stylesheet" href="assets/v70-preview-controls.css?v=ef27f951">
 <link rel="stylesheet" href="assets/v69-mobile-ui-audit.css?v=e67e9edc">
 
+<style id="lbt-mobile-touch-targets">
+/* Mobile touch-target correction. Kept after the legacy overlays so these
+   unlayered rules cannot be silently overridden by a later compact preset. */
+@media (max-width: 640px) {
+  .topbar {
+    gap: 8px;
+    padding-inline: 10px;
+  }
+  .topbar-search {
+    box-sizing: border-box;
+    display: inline-flex;
+    flex: 0 0 40px;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+    padding: 0;
+  }
+  .preview-mobile-toggle {
+    box-sizing: border-box;
+    flex: 0 0 40px;
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+    padding: 0;
+  }
+
+  /* Dialog and sheet dismissal controls remain reachable without pixel-perfect taps. */
+  .acct-close,
+  .import-router-close,
+  .utility-sheet-close,
+  .detail-dialog-close,
+  .ego-quick-close,
+  .persona-draft-dialog button.btn-icon,
+  button[aria-label*="閉じる"],
+  button[title^="閉じる"] {
+    box-sizing: border-box;
+    min-width: 40px;
+    min-height: 40px;
+  }
+  .acct-close,
+  .import-router-close,
+  .utility-sheet-close,
+  .detail-dialog-close,
+  .ego-quick-close,
+  .persona-draft-dialog button.btn-icon {
+    width: 40px;
+    height: 40px;
+  }
+  button.btn-icon,
+  .es-kw-rm {
+    box-sizing: border-box;
+    min-width: 40px;
+    min-height: 40px;
+    width: 40px;
+    height: 40px;
+  }
+
+  /* Small chips must not make their remove action a 32px target. */
+  .ledger-reward-item-chip button {
+    box-sizing: border-box;
+    flex: 0 0 40px;
+    min-width: 40px;
+    min-height: 40px;
+    width: 40px;
+    height: 40px;
+  }
+
+  /* Reorder arrows were 28x22px. Widen the rail and preserve a 40px target
+     in both vertical and horizontal reorder groups. */
+  .reorder-btns { width: 40px; }
+  .reorder-btns[style*="row"] {
+    width: auto;
+    flex-direction: row;
+  }
+  .reorder-btn {
+    box-sizing: border-box;
+    flex: 0 0 40px;
+    min-width: 40px;
+    min-height: 40px;
+    width: 40px;
+    height: 40px;
+  }
+
+  /* Ledger actions are frequently used while editing on a phone. */
+  .ledger-row-move-action,
+  .ledger-row-release,
+  .ledger-row-trash,
+  .ledger-card-edit-btn,
+  .ledger-card-edit-save,
+  .ledger-card-edit-cancel,
+  .ledger-card-move-target,
+  .ledger-queue-move-target,
+  .ledger-result-object-actions > summary {
+    box-sizing: border-box;
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  /* Nine build sections: use two rows rather than shrinking each tab below
+     a finger-sized width or hiding the final tabs in a horizontal scroller. */
+  .build-tabs .segmented[role="tablist"][aria-label="ビルドセクション"] {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    width: 100%;
+    gap: 4px;
+    overflow: visible;
+  }
+  .build-tabs .segmented[role="tablist"][aria-label="ビルドセクション"] > button {
+    box-sizing: border-box;
+    min-width: 40px;
+    width: 100%;
+    min-height: 40px;
+    padding: 6px 3px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    justify-content: center;
+    text-align: center;
+    font-size: 12px;
+    line-height: 1.25;
+  }
+}
+</style>
+
+
 <link rel="stylesheet" href="assets/inline-effect-glossary.css?v=f14d3776">
 <style id="b-type-production-rollout">
 /* B-type production UI rollout: the refined layout is applied to the live shell,
