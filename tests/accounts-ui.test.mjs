@@ -306,10 +306,29 @@ test("SINNER SELECT内の共有URL取込は全列を使い、本文が狭いカ�
 
 
 test("SINNER SELECT のアカウント一覧はカードを縮めず、一覧だけをスクロールする", () => {
-  assert.match(css, /.acct-panel,s*.acct-gate-panels*{[^}]*min-height:s*0;[^}]*overflow:s*hidden;/s,
-    "切替パネルと起動ゲートは表示領域の高さを保つ");
-  assert.match(css, /.acct-panel > .acct-panel-head,[sS]*?.acct-gate-panel > .acct-emptys*{s*flex:s*0 0 auto;/,
-    "見出し・空状態・フッターはスクロール領域に押し込まれない");
-  assert.match(css, /.acct-panel > .acct-grid,s*.acct-gate-panel > .acct-grids*{[^}]*flex:s*1 1 auto;[^}]*min-height:s*0;[^}]*overflow-y:s*auto;[^}]*align-content:s*start;[^}]*grid-auto-rows:s*minmax(156px,s*max-content);/s,
-    "一覧だけが伸縮・スクロールし、カード行の最小高さを156pxに保つ");
+  const panelStart = css.indexOf(".acct-panel,\n.acct-gate-panel {");
+  assert.notEqual(panelStart, -1, "両方のパネルを同じ制約にする");
+  const panelEnd = css.indexOf("\n}", panelStart);
+  const panelRule = css.slice(panelStart, panelEnd);
+  assert.ok(panelRule.includes("min-height: 0;"), "親 flex の最小高さ制約を解除する");
+  assert.ok(panelRule.includes("overflow: hidden;"), "親パネルでは二重スクロールを作らない");
+
+  const fixedStart = css.indexOf(".acct-panel > .acct-panel-head,");
+  assert.notEqual(fixedStart, -1, "固定する構成要素のルールがある");
+  const fixedEnd = css.indexOf("\n}", fixedStart);
+  const fixedRule = css.slice(fixedStart, fixedEnd);
+  assert.ok(fixedRule.includes("flex: 0 0 auto;"), "見出し・空状態・フッターを縮めない");
+
+  const gridStart = css.indexOf(".acct-panel > .acct-grid,\n.acct-gate-panel > .acct-grid {");
+  assert.notEqual(gridStart, -1, "一覧を両画面で独立させる");
+  const gridEnd = css.indexOf("\n}", gridStart);
+  const gridRule = css.slice(gridStart, gridEnd);
+  for (const declaration of [
+    "flex: 1 1 auto;",
+    "min-height: 0;",
+    "min-width: 0;",
+    "overflow-y: auto;",
+    "align-content: start;",
+    "grid-auto-rows: minmax(156px, max-content);"
+  ]) assert.ok(gridRule.includes(declaration), "一覧ルールに " + declaration + " がある");
 });
