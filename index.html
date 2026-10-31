@@ -663,6 +663,21 @@ window.addEventListener("load", function(){
     line-height: 1.25;
   }
 }
+
+  @media (max-width: 640px) {
+    /* The compact ledger card rules are later/more specific than the general
+       touch-target pass. Pin their three row actions to a full 40px height. */
+    .ledger-card .ledger-row-move-action,
+    .ledger-card .ledger-row-release,
+    .ledger-card .ledger-row-trash,
+    .ledger-queue .ledger-row-move-action,
+    .ledger-queue .ledger-row-trash {
+      box-sizing: border-box;
+      min-width: 40px !important;
+      min-height: 40px !important;
+      height: 40px !important;
+    }
+  }
 </style>
 </head>
 <body style="background-color:#14110d">
