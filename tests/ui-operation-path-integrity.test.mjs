@@ -146,10 +146,17 @@ test("モバイルの主要操作対象を40x40px以上にし、監査CIで未�
   assert.ok(touchStyles.includes("min-height: 40px"));
   assert.ok(touchStyles.includes("grid-template-columns: repeat(5, minmax(0, 1fr))"),
     "9つのビルドタブをスマホで5列2段にし、幅を押し潰さない");
+  assert.ok(touchStyles.includes('<style id="lbt-mobile-build-tab-grid-final">'),
+    "最後のCSSとして強制横スクロール規則を上書きする");
+  assert.ok(touchStyles.includes("display: grid !important"));
+  assert.ok(touchStyles.includes("grid-template-columns: repeat(5, minmax(0, 1fr)) !important"));
+  assert.ok(touchStyles.includes(".btype-build-tablist[role=\"tablist\"] > button[role=\"tab\"]"));
 
   assert.match(captureAudit, /const touchTargetViolations/);
   assert.match(captureAudit, /minimum: "40x40 CSS px"/);
   assert.match(captureAudit, /type: "touch-target-too-small"/);
   assert.match(captureAudit, /"touch-target-too-small"\].includes\(item\.type\)/);
   assert.match(captureAudit, /criticalLayoutWarnings\.length/);
+  assert.match(captureAudit, /const buildTablistMetrics/);
+  assert.match(captureAudit, /type: "build-tabs-not-reflowed"/);
 });
