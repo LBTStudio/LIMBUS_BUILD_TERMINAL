@@ -8,6 +8,7 @@ const sections = read("../js/OtherSections.js");
 const state = read("../js/state.js");
 const parityCss = read("../assets/b-type-ui-parity.css");
 const captureAudit = read("../tools/ui/capture-ui-audit.mjs");
+const index = read("../index.html");
 
 const supportStart = sections.indexOf("const SupportSection =");
 const supportEnd = sections.indexOf("const EGO_RANKS =", supportStart);
@@ -168,7 +169,7 @@ test("画面・サブ画面の切替時は中央スクロールを先頭へ戻�
   assert.match(app, /const mainScrollRouteKey = \[[\s\S]*?current,[\s\S]*?libraryTab[\s\S]*?shopView[\s\S]*?settingsView[\s\S]*?basicFormatTab/);
   assert.match(app, /React\.useLayoutEffect\(\(\) => \{[\s\S]*?previousMainScrollRouteKeyRef\.current = mainScrollRouteKey[\s\S]*?main\.scrollTop = 0/);
   assert.match(captureAudit, /section-navigation-scroll-reset/);
-  assert.match(captureAudit, /前画面のスクロール位置が残っています/);
+  assert.match(captureAudit, /ホームのスクロール位置が残っています/);
 });
 
 test("モバイルのアカウント編集・削除と人格お気に入りは40x40px以上のタップ領域を持つ", () => {
