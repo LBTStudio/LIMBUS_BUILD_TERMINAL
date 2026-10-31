@@ -65,6 +65,9 @@
     } else if (embeddedOfficial) {
       candidate = trimPastedUrlSuffix(embeddedOfficial[0]);
     } else {
+      const hostless = text.match(/(?:^|[\\s"\'(<\\[:（［｛〈《「『【])((?:www\\.)?lbt-garasumado\\.vercel\\.app(?:\\/[^\\s]*)?)/i);
+      if (!hostless) return invalid;
+      candidate = trimPastedUrlSuffix("https://" + hostless[1]);
     }
 
     let url;
