@@ -303,3 +303,13 @@ test("SINNER SELECT内の共有URL取込は全列を使い、本文が狭いカ�
   assert.match(css, /\.acct-card--import-open:hover,[\s\S]*?\.acct-card--import-open:focus-within\s*\{\s*transform:\s*none;\s*box-shadow:\s*none;/);
   assert.match(css, /\.gara\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(240px,\s*320px\)/);
 });
+
+
+test("SINNER SELECT のアカウント一覧はカードを縮めず、一覧だけをスクロールする", () => {
+  assert.match(css, /.acct-panel,s*.acct-gate-panels*{[^}]*min-height:s*0;[^}]*overflow:s*hidden;/s,
+    "切替パネルと起動ゲートは表示領域の高さを保つ");
+  assert.match(css, /.acct-panel > .acct-panel-head,[sS]*?.acct-gate-panel > .acct-emptys*{s*flex:s*0 0 auto;/,
+    "見出し・空状態・フッターはスクロール領域に押し込まれない");
+  assert.match(css, /.acct-panel > .acct-grid,s*.acct-gate-panel > .acct-grids*{[^}]*flex:s*1 1 auto;[^}]*min-height:s*0;[^}]*overflow-y:s*auto;[^}]*align-content:s*start;[^}]*grid-auto-rows:s*minmax(156px,s*max-content);/s,
+    "一覧だけが伸縮・スクロールし、カード行の最小高さを156pxに保つ");
+});

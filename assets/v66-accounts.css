@@ -1960,4 +1960,33 @@ main.acct-gate {
   }
 }
 
+/* ---- SINNER SELECT: アカウント一覧を独立したスクロール領域にする ----
+   panel は viewport 内の高さを守り、header / backup / footer を固定。
+   一覧だけを縮めて内部スクロールさせ、カード自体は 156px 未満にしない。 */
+.acct-panel,
+.acct-gate-panel {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.acct-panel > .acct-panel-head,
+.acct-panel > .acct-panel-foot,
+.acct-gate-panel > .acct-panel-head,
+.acct-gate-panel > .acct-panel-foot,
+.acct-panel > .acct-empty,
+.acct-gate-panel > .acct-empty {
+  flex: 0 0 auto;
+}
+
+.acct-panel > .acct-grid,
+.acct-gate-panel > .acct-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  align-content: start;
+  grid-auto-rows: minmax(156px, max-content);
+}
+
 }
