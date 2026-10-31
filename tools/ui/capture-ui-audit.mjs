@@ -461,9 +461,20 @@ async function seed() {
     };
     const merged = Object.assign({}, A.loadActive() || {}, next);
     const saved = A.saveActive(merged);
+    if (!saved) return { ok: false, reason: "could not save the seeded audit account" };
+    /* Create a deliberately long account list in this disposable browser context.
+       The SINNER SELECT regression must be exercised with multiple cards, not a
+       one-account fixture that never overflows the grid. */
+    const accountFixtures = [];
+    for (let i = 1; i <= 7; i++) {
+      const entry = A.create("UI監査サブアカウント " + i, "Playwright QA");
+      if (!entry?.id) return { ok: false, reason: "could not create account fixture " + i, accountFixtures };
+      accountFixtures.push(entry.id);
+    }
     return {
       ok: !!saved,
       persona: p.name,
+      accountFixtureCount: accountFixtures.length,
       mode,
       sample: {
         rosterPersonas: rosterPersonas.length,
@@ -536,6 +547,28 @@ async function boot() {
     const gate=page.locator(".acct-gate").first();
     await gate.waitFor({state:"visible",timeout:15000}).catch(()=>{});
     if(await visible(gate)) {
+      await snap("account-gate-multiple-accounts","複数アカウントのSINNER SELECT一覧");
+      const gateMetrics = await page.evaluate(() => {
+        const panel=document.querySelector(".acct-gate-panel");
+        const grid=panel?.querySelector(":scope > .acct-grid");
+        const cards=grid ? [...grid.querySelectorAll(".acct-card--gate")] : [];
+        const heights=cards.map(card=>card.getBoundingClientRect().height).filter(Number.isFinite);
+        return {
+          accountCount:cards.length,
+          gridClientHeight:grid?.clientHeight||0,
+          gridScrollHeight:grid?.scrollHeight||0,
+          minCardHeight:heights.length?Math.min(...heights):0,
+          panelHeight:panel?.clientHeight||0,
+          gridOverflowY:grid?getComputedStyle(grid).overflowY:"",
+          panelOverflowY:panel?getComputedStyle(panel).overflowY:""
+        };
+      });
+      audit.accountGateLayout = audit.accountGateLayout || {};
+      audit.accountGateLayout[view] = gateMetrics;
+      if(gateMetrics.accountCount < 8 || gateMetrics.gridScrollHeight <= gateMetrics.gridClientHeight + 1
+        || gateMetrics.minCardHeight < 152 || gateMetrics.gridOverflowY !== "auto" || gateMetrics.panelOverflowY !== "hidden") {
+        throw new Error("複数アカウントの起動ゲートで一覧スクロール／カード行高が期待どおりではありません: " + JSON.stringify(gateMetrics));
+      }
       // Match the card (which contains the account name), then click its transparent hit area.
       // Filtering .acct-card-hit itself by text is unreliable because that button is intentionally blank.
       const card=page.locator(".acct-card--gate").filter({hasText:"UI監査用キャラクター"}).first();
@@ -1232,6 +1265,26 @@ async function captureProfile(browser, mode) {
     await attempt("account-management",async()=>{
       await page.evaluate(()=>window.dispatchEvent(new Event("lbt:open-accounts")));
       await page.waitForTimeout(250); await snap("account-management-list","アカウント管理の一覧");
+      const managerMetrics = await page.evaluate(() => {
+        const panel=document.querySelector(".acct-panel");
+        const grid=panel?.querySelector(":scope > .acct-grid");
+        const cards=grid ? [...grid.querySelectorAll(".acct-card:not(.acct-card--add)")] : [];
+        const heights=cards.map(card=>card.getBoundingClientRect().height).filter(Number.isFinite);
+        return {
+          accountCount:cards.length,
+          gridClientHeight:grid?.clientHeight||0,
+          gridScrollHeight:grid?.scrollHeight||0,
+          minCardHeight:heights.length?Math.min(...heights):0,
+          gridOverflowY:grid?getComputedStyle(grid).overflowY:"",
+          panelOverflowY:panel?getComputedStyle(panel).overflowY:""
+        };
+      });
+      audit.accountManagerLayout = audit.accountManagerLayout || {};
+      audit.accountManagerLayout[view] = managerMetrics;
+      if(managerMetrics.accountCount < 8 || managerMetrics.gridScrollHeight <= managerMetrics.gridClientHeight + 1
+        || managerMetrics.minCardHeight < 152 || managerMetrics.gridOverflowY !== "auto" || managerMetrics.panelOverflowY !== "hidden") {
+        throw new Error("複数アカウントの管理画面で一覧スクロール／カード行高が期待どおりではありません: " + JSON.stringify(managerMetrics));
+      }
       const edit=page.locator(".acct-card-actions .acct-edit-btn").first();
       if(await visible(edit)) {
         await click(edit); await snap("account-edit-form","アカウント編集フォーム");
