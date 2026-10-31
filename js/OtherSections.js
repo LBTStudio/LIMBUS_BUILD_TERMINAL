@@ -2326,14 +2326,14 @@ const BuildItemsPanel = ({ state, dispatch }) => {
         h(Button, { size: "sm", variant: "ghost", onClick: () => dispatch({ type: "SET_UI", ui: { currentSection: "roster", libraryTab: "inventory" } }) }, "Recordで全所持品を管理")
       ),
       pickerOpen && h("div", { className: "card-body stack-2" },
-        h("div", { className: "inv-pick-search", style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 8 } },
+        h("div", { className: "inv-pick-search", style: { display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", alignItems: "center", gap: 8, minWidth: 0, marginBottom: 8 } },
           h("input", {
-            className: "input", style: { flex: 1, minWidth: 0 }, type: "search", value: pickerQuery,
+            className: "input", style: { width: "100%", minWidth: 0 }, type: "search", value: pickerQuery,
             "aria-label": "所持品へ追加するアイテムを検索",
             placeholder: "アイテム名・別名・効果で検索…",
             onChange: (event) => setPickerQuery(event.target.value)
           }),
-          h("span", { className: "ledger-note", "aria-live": "polite" }, `${filteredCatalog.length}件`)
+          h("span", { className: "ledger-note", style: { whiteSpace: "nowrap" }, "aria-live": "polite" }, `${filteredCatalog.length}件`)
         ),
         filteredCatalog.length
           ? h("div", { className: "inv-pick" }, [...new Set(filteredCatalog.map((item) => String(item?.category || "その他")))].map((category) => h("div", { key: category, className: "inv-pick-group" },
@@ -2969,7 +2969,7 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
       "指定購入");
     }),
     support: () => supports.map((entry) => card(`${entry.slot}:${entry.name}`, entry.name, entry.slot === "death" ? "死亡後専用" : null, entry.kind,
-      () => { dispatch({ type: "ADD_ROSTER_SUPPORT", spp: entry }); toast(`「${entry.name}」を所持に購入しました`, "assertive"); },
+      () => { dispatch({ type: "ADD_ROSTER_SUPPORT", spp: entry, purchase: true }); toast(`「${entry.name}」を所持に購入しました`, "assertive"); },
       false, null, shopCardLines(entry.kind, entry), ownedSupportNames.has(entry.name))),
     ego: () => egos.map((ego) => card(`${ego.rank}:${ego.no}`, ego.name, null, "ego",
       () => { dispatch({ type: "ADD_ROSTER_EGO", rank: ego.rank, no: ego.no, purchase: true }); toast(`「${ego.name}」を所持に購入しました`, "assertive"); },
