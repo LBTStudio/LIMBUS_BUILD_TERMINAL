@@ -420,11 +420,7 @@
 /* 編集・新規作成中はフォームの内容高を確保するため、カード一覧を縦積みにする。
    通常時は従来の複数列グリッドへ戻す。スクロール領域は acct-grid のまま維持する。 */
 
-/* 管理画面の2列カードでは最終更新と編集・削除操作の縦位置が近くなるため、
-   ゲートの縦1列表示は維持しつつ、管理カードのみ行高を確保する。 */
-.acct-panel > .acct-grid {
-  grid-auto-rows: minmax(184px, max-content);
-}
+/* 管理画面カードは最終更新と編集・削除操作を同じカード内に収める。 */
 .acct-panel > .acct-grid > .acct-card:not(.acct-card--form):not(.acct-card--add) {
   min-height: 184px;
 }
@@ -2027,6 +2023,16 @@ main.acct-gate {
   overflow-x: hidden;
   overflow-y: auto;
   align-content: start;
+}
+
+/* 管理画面のカード本体（min-height:184px）と行トラックを一致させる。
+   共通スクロール指定の後に明示し、行トラックだけが156pxへ戻る回帰を防ぐ。 */
+.acct-panel > .acct-grid {
+  grid-auto-rows: minmax(184px, max-content);
+}
+
+/* 起動時ゲートは従来どおり156px以上のカードを保ち、一覧内をスクロールする。 */
+.acct-gate-panel > .acct-grid {
   grid-auto-rows: minmax(156px, max-content);
 }
 
