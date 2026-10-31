@@ -460,15 +460,16 @@
       const owner = String(persona.name).trim();
       const activeAffiliation = String(activeOwnerRecord?.affiliation || "").trim();
       const personaAffiliation = String(persona.affiliation || "").trim();
-      // no は normal_personas / tokui_personas の両方で再利用される。
-      // 所属が両方とも存在し一致するときだけ同一人格と判断し、欠損をワイルドカード扱いしない。
+      const activeCollection = String(activeOwnerRecord?.__glossaryCollection || "");
+      // no は normal_personas / tokui_personas の各集合内では一意だが、集合間では重複する。
+      // 所属集合が渡されていればそれを優先し、なければ両所属が明示され一致する時だけ同一判定する。
       const sameStableIdentity = !!activeOwnerRecord
         && activeOwnerRecord.no != null
         && persona.no != null
         && String(activeOwnerRecord.no) === String(persona.no)
-        && !!activeAffiliation
-        && !!personaAffiliation
-        && activeAffiliation === personaAffiliation;
+        && (activeCollection
+          ? activeCollection === collection
+          : !!activeAffiliation && !!personaAffiliation && activeAffiliation === personaAffiliation);
       if (sameStableIdentity) return;
       const ownerKey = persona.no != null
         ? collection + "|" + String(persona.affiliation || "") + "|" + String(persona.no)
