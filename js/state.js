@@ -5442,8 +5442,12 @@ case "ADD_CUSTOM_ITEM": {
        有料購入の入口はShopのADD_ROSTER_SUPPORT purchase:trueに限定し、ここでは課帳しない。
        既に所持している同名は追加せず、所持UIDをそのまま装備する。 */
     case "ADD_SUPPORT": {
-      const owned = findOwnedSupport(state, String(action.spp?.name || ""));
+      const name = String(action.spp?.name || "").trim();
+      const owned = findOwnedSupport(state, name);
       if (owned) return equipRosterSupport(state, owned.uid);
+      // A named catalog entry must be granted/purchased before it can be equipped.
+      // Keep only the empty-name manual editor draft as a special case.
+      if (name) return state;
       const added = addRosterSupport(state, action.spp);
       if (!added) return state;
       return equipRosterSupport(added, added.roster.supports[added.roster.supports.length - 1].uid);
@@ -5493,16 +5497,9 @@ case "ADD_CUSTOM_ITEM": {
           : entry);
         return equipRosterSupport({ ...state, roster: { ...roster, supports } }, owned.uid);
       }
-      const added = addRosterSupport(state, { ...action.spp, name: requestedName });
-      if (!added) return state;
-      const entry = [...added.roster.supports].reverse().find((item) => item.name === requestedName);
-      if (!entry) return state;
-      // Explicit death-list selection is a free direct grant; Shop/report routes
-      // use ADD_ROSTER_SUPPORT with their own purchase/grant contract.
-      const supports = added.roster.supports.map((item) => item.uid === entry.uid
-        ? { ...item, slot: "death", deathSlotManual: !isDeathSupportPassiveRecord(item) }
-        : item);
-      return equipRosterSupport({ ...added, roster: { ...added.roster, supports } }, entry.uid);
+      // Equipment cannot create an owned passive. The manual-entry UI creates
+      // its roster row through PATCH_DEATH_SUPPORT before reaching this action.
+      return state;
     }
     case "PATCH_DEATH_SUPPORT": {
       const current = state.deathSupport;
@@ -5622,6 +5619,10 @@ case "ADD_CUSTOM_ITEM": {
       const roster = state.roster || {};
       const exists = (roster.supports || []).some((s) => s.name === name);
       if (exists) return state;
+      if (action.purchase !== false) {
+        const cost = purchaseCostOf(state, { type: "ADD_ROSTER_SUPPORT", spp, purchase: true });
+        if (!cost || !purchaseAffordability(state, cost).ok) return state;
+      }
       const isDeath = isDeathSupportPassiveRecord({ name });
       /* 購入なら明細と同じ直近リザルトへ。購入でない所持（報酬・取り込み）は
          明細が無いので、指定が無ければ未分類のままにする。 */
@@ -5770,6 +5771,10 @@ case "ADD_CUSTOM_ITEM": {
       if (!name) return state;
       const roster = state.roster || {};
       if ((roster.spirits || []).some((s) => s.name === name)) return state;
+      if (action.purchase !== false) {
+        const cost = purchaseCostOf(state, { type: "ADD_ROSTER_SPIRIT", spirit: action.spirit, purchase: true });
+        if (!cost || !purchaseAffordability(state, cost).ok) return state;
+      }
       const resultId = action.resultId === undefined
         ? (action.purchase === false ? null : latestResultId(state))
         : action.resultId;
@@ -6883,13 +6888,19 @@ case "ADD_ENTRY":
       const name = action.spirit?.name || "";
       if (!name) return state;
       const roster = state.roster || {};
-      let spirits = roster.spirits || [];
-      // Legacy Build selection / explicitly free starting spirit can create an
-      // owned row here. Paid Shop acquisition remains ADD_ROSTER_SPIRIT purchase:true.
+      let spirits = Array.isArray(roster.spirits) ? roster.spirits : [];
       if (!spirits.some((entry) => entry.name === name)) {
+        const definition = (window.DB?.spirits || []).find((entry) => entry.name === name);
+        const rawPrice = definition?.price;
+        const hasExplicitPrice = (typeof rawPrice === "number" && Number.isFinite(rawPrice))
+          || (typeof rawPrice === "string" && rawPrice.trim() !== "" && Number.isFinite(Number(rawPrice)));
+        // Only explicitly free catalog entries may establish initial ownership
+        // through selection. Paid spirits must use ADD_ROSTER_SPIRIT first.
+        if (!hasExplicitPrice || Number(rawPrice) !== 0) return state;
         spirits = [...spirits, {
           uid: makeOwnedUid("spr"), name, equipped: false,
-          resultId: null, addedAt: Date.now(), notes: ""
+          resultId: null, addedAt: Date.now(), notes: "",
+          source: String(definition?.source || catalogSourceByName("spirit", name))
         }];
       }
       spirits = spirits.map((entry) => ({ ...entry, equipped: entry.name === name }));
