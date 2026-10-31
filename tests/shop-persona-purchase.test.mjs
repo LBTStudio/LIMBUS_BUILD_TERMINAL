@@ -8,6 +8,7 @@ const appSource = readFileSync(new URL("../js/App.js", import.meta.url), "utf8")
 const personaCss = readFileSync(new URL("../assets/persona-codex.css", import.meta.url), "utf8");
 const workbenchCss = readFileSync(new URL("../assets/b-type-workbench.css", import.meta.url), "utf8");
 const sectionsCss = readFileSync(new URL("../assets/sections.css", import.meta.url), "utf8");
+const uiSource = readFileSync(new URL("../js/ui.js", import.meta.url), "utf8");
 
 test("ショップに通常人格の指定購入カテゴリがあり、未所持・検索・件数が連動する", () => {
   assert.match(otherSectionsSource, /\[\["persona", "人格"\], \["support", "サポート"\]/);
@@ -21,6 +22,9 @@ test("ショップに通常人格の指定購入カテゴリがあり、未所�
   }
   assert.match(otherSectionsSource, /shopView: "catalog", shopTab: id/);
   assert.match(otherSectionsSource, /className: "btype-shop-category-card"/);
+  for (const icon of ["persona", "support", "ego", "spirit", "item", "star", "chevronR"]) {
+    assert.ok(uiSource.includes("  " + icon + ":"), "category icon must exist in the app icon registry: " + icon);
+  }
   assert.match(otherSectionsSource, /persona: \(DB\.normal_personas \|\| \[\]\)\.length/);
   assert.match(otherSectionsSource, /人格・サポート・E\.G\.O・精神・アイテムを購入/);
   assert.match(appSource, /subtitle: "人格・サポート・E\.G\.O・精神・アイテムを購入"/);
