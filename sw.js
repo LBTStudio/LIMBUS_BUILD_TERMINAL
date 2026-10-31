@@ -21,12 +21,12 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-60122c55";
+const CACHE_NAME = "lbt-17ea5cd5";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
   "mobile-preview.html",
-  "assets/b-type-ui-parity.css?v=0f63f01e",
+  "assets/b-type-ui-parity.css?v=903829a8",
   "assets/b-type-workbench.css?v=77284898",
   "assets/cloud-backup.css?v=8a7eba1b",
   "assets/design-system.css?v=910f9485",
@@ -35,7 +35,7 @@ const PRECACHE_URLS = [
   "assets/inline-effect-glossary.css?v=f14d3776",
   "assets/items.css?v=1465d658",
   "assets/persona-codex.css?v=d88a1ab0",
-  "assets/sections.css?v=0cadeb2c",
+  "assets/sections.css?v=7882151f",
   "assets/v52-overlay.css?v=785971b6",
   "assets/v53-overlay.css?v=1b57bfe6",
   "assets/v56-refinements.css?v=99afde4a",
@@ -48,17 +48,17 @@ const PRECACHE_URLS = [
   "assets/v68-interaction-a11y.css?v=0bbe4495",
   "assets/v69-mobile-ui-audit.css?v=e67e9edc",
   "assets/v70-preview-controls.css?v=ef27f951",
-  "assets/workspace.css?v=4ba0022b",
+  "assets/workspace.css?v=6661210a",
   "data/db.json?v=16b6df9e",
   "data/gacha-theme-packs.json?v=8d4dced2",
   "data/items.json?v=b185394a",
   "data/special-items.json?v=aaa21cfb",
-  "js/App.js?v=eabddf71",
+  "js/App.js?v=6f08c8ad",
   "js/DataQuality.js?v=a8365c72",
   "js/InlineEffectGlossary.js?v=81967fa2",
   "js/ItemCodex.js?v=1a80988e",
   "js/LivePreview.js?v=69b4d6d2",
-  "js/OtherSections.js?v=1bc9472d",
+  "js/OtherSections.js?v=18ffe9ac",
   "js/PersonaCodex.js?v=68e7b467",
   "js/SkillDeck.js?v=a93f6cb8",
   "js/access-counter.js?v=50689988",
@@ -86,7 +86,7 @@ const PRECACHE_URLS = [
   "js/roster-resolver.js?v=01dce5a2",
   "js/share-link.js?v=e11a0161",
   "js/share-viewer.js?v=71f2da96",
-  "js/state.js?v=e47b7461",
+  "js/state.js?v=3a840c8a",
   "js/ui.js?v=6be4646a",
   "vendor/react-dom.min.js?v=35f4f974",
   "vendor/react.min.js?v=d949f1c3",

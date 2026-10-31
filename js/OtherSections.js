@@ -592,45 +592,67 @@ const SupportSection = ({ state, dispatch, ownedOnly = false }) => {
   const selectedIsDeath = selectedSlotType === null
     ? !!(selected && (DB.death_passives || []).some((s) => s.name === selected.name && (s.cond || "") === (selected.cond || "")))
     : selectedSlotType === "death";
+  const selectedOwned = !!selected && (state.roster?.supports || []).some((entry) => entry.name === selected.name);
   const patchSupport = (id, patch) => dispatch({ type: "PATCH_SUPPORT", id, patch });
   const patchDeathSupport = (patch) => dispatch({ type: "PATCH_DEATH_SUPPORT", patch });
   const tryEquip = (s, slotType = "standard", options = {}) => {
     const silent = !!options.silent;
     if (!s) return { ok: false, message: "サポートを選んでね" };
     if (isEquipped(s.name)) return { ok: false, message: "すでに装備中だよ！" };
-    if (slotType === "death") {
-      if (!hasDeathSlot) {
-        if (!silent) toast("死亡後専用スロットが未開放です");
-        return { ok: false, message: "死亡後専用枠は未開放だよ" };
-      }
-      dispatch({ type: "SET_DEATH_SUPPORT", spp: s });
-      if (!silent) toast(`『${s.name}』を死亡後専用スロットへ装備`);
-      return { ok: true, message: "死亡後枠に装備できた！" };
+    if (slotType === "death" && !hasDeathSlot) {
+      if (!silent) toast("死亡後専用スロットが未開放です");
+      return { ok: false, message: "死亡後専用枠は未開放だよ" };
     }
-    if (equipped.length >= maxSupports) {
+    if (slotType !== "death" && equipped.length >= maxSupports) {
       if (!silent) toast(`スロット上限（${maxSupports}枠）です`);
       return { ok: false, message: `スロットがいっぱい（${maxSupports}枠）だよ` };
     }
+    const owned = (state.roster?.supports || []).some((entry) => entry.name === s.name);
+    if (!owned) {
+      const cost = window.LBT_purchaseCostOf?.(state, { type: "ADD_ROSTER_SUPPORT", spp: s, purchase: true });
+      const affordability = cost && window.LBT_purchaseAffordability?.(state, cost);
+      if (!cost || !affordability) {
+        const message = "購入価格を検証できません。ショップから価格を確認してください";
+        if (!silent) toast(message, "assertive");
+        return { ok: false, message };
+      }
+      if (!affordability.ok) {
+        const message = affordability.reason || "購入に必要な残高が不足しています";
+        if (!silent) toast(message, "assertive");
+        return { ok: false, message };
+      }
+      dispatch({ type: "ADD_ROSTER_SUPPORT", spp: s, purchase: true });
+    }
+    if (slotType === "death") {
+      dispatch({ type: "SET_DEATH_SUPPORT", spp: s });
+      if (!silent) toast(owned ? `『${s.name}』を死亡後専用スロットへ装備` : `『${s.name}』を購入して死亡後専用スロットへ装備`);
+      return { ok: true, message: owned ? "死亡後枠に装備できた！" : "購入して死亡後枠に装備できた！" };
+    }
     dispatch({ type: "ADD_SUPPORT", spp: s });
-    if (!silent) toast(`『${s.name}』を装備`);
-    return { ok: true, message: "装備できた！" };
+    if (!silent) toast(owned ? `『${s.name}』を装備` : `『${s.name}』を購入して装備`);
+    return { ok: true, message: owned ? "装備できた！" : "購入して装備できた！" };
   };
   const handleSupportItemClick = (s, slotType, event) => {
     const isSameSelected = selectedSlotType === slotType
       && selected?.name === s.name
       && (selected?.cond || "") === (s.cond || "");
+    const owned = (state.roster?.supports || []).some((entry) => entry.name === s.name);
     if (isSameSelected) {
+      if (!owned) {
+        showSupportEquipHint(event, "未所持です。購入する場合は詳細の「購入して装備」を押してください", "status");
+        return;
+      }
       const result = tryEquip(s, slotType, { silent: true });
       showSupportEquipHint(event, result.message, result.ok ? "success" : "hint");
       return;
     }
     setSelected(s);
     setSelectedSlotType(slotType);
-    let message = "もう一度クリック／タップで装備！";
+    let message = owned ? "もう一度クリック／タップで装備！" : "未所持です。詳細の「購入して装備」から取得できます";
     if (isEquipped(s.name)) message = "すでに装備中だよ！";
     else if (slotType === "death" && !hasDeathSlot) message = "死亡後専用枠は未開放だよ";
-    else if (slotType !== "death" && equipped.length >= maxSupports) message = `スロットがいっぱい（${maxSupports}枠）だよ`;
-    showSupportEquipHint(event, message, message === "もう一度クリック／タップで装備！" ? "hint" : "status");
+    else if (owned && slotType !== "death" && equipped.length >= maxSupports) message = `スロットがいっぱい（${maxSupports}枠）だよ`;
+    showSupportEquipHint(event, message, message.includes("もう一度") ? "hint" : "status");
   };
   const addCustomSupport = () => {
     if (!editable) {
@@ -816,7 +838,7 @@ const SupportSection = ({ state, dispatch, ownedOnly = false }) => {
           visibleStandard.length || catalogMode === "standard" || catalogMode === "all" ? h(React.Fragment, null, h("div", { className: "t-label", style: { marginBottom: 6 } }, catalogMode === "all" ? "通常スロット用" : "通常スロット用"), renderList(visibleStandard, "standard")) : null,
           (visibleDeath.length || catalogMode === "death" || catalogMode === "all") ? h(React.Fragment, null, h("div", { className: "t-label", style: { marginTop: visibleStandard.length ? "var(--s-3)" : 0, marginBottom: 6, color: "var(--warn)" } }, "死亡後専用スロット候補", !hasDeathSlot ? "（未開放：閲覧のみ）" : ""), renderList(visibleDeath, "death")) : null
         ),
-        selected ? h("div", { className: "codex-detail" }, h("div", { className: "detail-head", style: { "--sin-primary": selectedIsDeath ? "var(--warn)" : "var(--gold)" } }, h("div", { className: "detail-eyebrow" }, selected.lp ? h("span", { className: "detail-num" }, "LP ", selected.lp) : null, h("span", { className: "detail-type" }, selectedIsDeath ? "DEATH SUPPORT PASSIVE / 死亡後専用" : "SUPPORT PASSIVE / サポートパッシブ")), h("div", { className: "detail-name" }, selected.name), h("div", { className: "cond-chips-lg", style: { marginTop: "var(--s-2)", display: "flex", alignItems: "center", gap: 6 } }, h("span", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)", fontFamily: "var(--f-display)", letterSpacing: "0.12em" } }, "発動条件"), h(CondChips, { cond: selected.cond }))), h("div", { className: "detail-body" }, h("div", null, h("div", { className: "detail-section-title" }, "効果"), h("div", { className: "detail-passive" }, h("div", { className: "detail-passive-effect", style: { whiteSpace: "pre-wrap" } }, window.LBT_GLOSSARY_TEXT ? window.LBT_GLOSSARY_TEXT(selected.effect, (selectedIsDeath ? "死亡後サポートパッシブ:" : "サポートパッシブ:") + selected.name) : selected.effect))), h("div", { className: "detail-actions" }, selectedIsDeath ? (deathSupport?.name === selected.name ? h(Button, { variant: "ghost", size: "sm", onClick: () => dispatch({ type: "SET_DEATH_SUPPORT", spp: null }), icon: "x" }, "死亡後スロットから外す") : h(Button, { variant: "primary", onClick: () => tryEquip(selected, "death"), icon: "check", disabled: !hasDeathSlot }, "死亡後スロットへ装備")) : (isEquipped(selected.name) ? h("div", { style: { fontSize: "var(--fs-10)", color: "var(--gold)", textAlign: "center", fontFamily: "var(--f-display)", letterSpacing: "0.16em", textTransform: "uppercase" } }, "★ 装備中") : h(Button, { variant: "primary", onClick: () => tryEquip(selected, "standard"), icon: "check" }, "通常スロットへ装備"))))) : h("div", { className: "codex-detail" }, h("div", { className: "detail-empty" }, h("div", { className: "detail-empty-icon" }, "◇"), h("div", { className: "t-label" }, "サポートパッシブを選択"), h("div", { style: { fontSize: "var(--fs-11)", color: "var(--tx-mute)", marginTop: 8 } }, hasDeathSlot ? "通常スロット用と死亡後専用候補を分けて表示しています。" : "一覧から選択すると詳細が表示されます。", h("br", null), "選択中のカードをもう一度クリック／タップするか、詳細の装備ボタンを押してください。")))
+        selected ? h("div", { className: "codex-detail" }, h("div", { className: "detail-head", style: { "--sin-primary": selectedIsDeath ? "var(--warn)" : "var(--gold)" } }, h("div", { className: "detail-eyebrow" }, selected.lp ? h("span", { className: "detail-num" }, "LP ", selected.lp) : null, h("span", { className: "detail-type" }, selectedIsDeath ? "DEATH SUPPORT PASSIVE / 死亡後専用" : "SUPPORT PASSIVE / サポートパッシブ")), h("div", { className: "detail-name" }, selected.name), h("div", { className: "cond-chips-lg", style: { marginTop: "var(--s-2)", display: "flex", alignItems: "center", gap: 6 } }, h("span", { style: { fontSize: "var(--fs-10)", color: "var(--tx-mute)", fontFamily: "var(--f-display)", letterSpacing: "0.12em" } }, "発動条件"), h(CondChips, { cond: selected.cond }))), h("div", { className: "detail-body" }, h("div", null, h("div", { className: "detail-section-title" }, "効果"), h("div", { className: "detail-passive" }, h("div", { className: "detail-passive-effect", style: { whiteSpace: "pre-wrap" } }, window.LBT_GLOSSARY_TEXT ? window.LBT_GLOSSARY_TEXT(selected.effect, (selectedIsDeath ? "死亡後サポートパッシブ:" : "サポートパッシブ:") + selected.name) : selected.effect))), h("div", { className: "detail-actions" }, selectedIsDeath ? (deathSupport?.name === selected.name ? h(Button, { variant: "ghost", size: "sm", onClick: () => dispatch({ type: "SET_DEATH_SUPPORT", spp: null }), icon: "x" }, "死亡後スロットから外す") : h(Button, { variant: "primary", onClick: () => tryEquip(selected, "death"), icon: "check", disabled: !hasDeathSlot }, selectedOwned ? "死亡後スロットへ装備" : "購入して死亡後枠へ装備")) : (isEquipped(selected.name) ? h("div", { style: { fontSize: "var(--fs-10)", color: "var(--gold)", textAlign: "center", fontFamily: "var(--f-display)", letterSpacing: "0.16em", textTransform: "uppercase" } }, "★ 装備中") : h(Button, { variant: "primary", onClick: () => tryEquip(selected, "standard"), icon: "check" }, selectedOwned ? "通常スロットへ装備" : "購入して装備"))))) : h("div", { className: "codex-detail" }, h("div", { className: "detail-empty" }, h("div", { className: "detail-empty-icon" }, "◇"), h("div", { className: "t-label" }, "サポートパッシブを選択"), h("div", { style: { fontSize: "var(--fs-11)", color: "var(--tx-mute)", marginTop: 8 } }, hasDeathSlot ? "通常スロット用と死亡後専用候補を分けて表示しています。" : "一覧から選択すると詳細が表示されます。", h("br", null), "選択中のカードをもう一度クリック／タップするか、詳細の装備ボタンを押してください。")))
       )
     ),
     supportEquipHint ? h("div", {
@@ -1712,7 +1734,7 @@ const [ownedOnly, setOwnedOnly] = React.useState(false);
           h("span", { className: "ego-slot-flag" }, "欠片", e.shards),
           (e.sub_skills || []).length > 0 ? h("span", { className: "ego-slot-flag", style: { background: "var(--gold-tint)", color: "var(--gold)", borderColor: "var(--gold-line)" } }, "◆同化") : null
         ),
-        h("button", { className: "btn-ghost btn-icon", onClick: (ev) => { ev.stopPropagation(); clearSlot(rk); setDetailSlot(null); }, style: { position: "absolute", top: 4, right: 4, width: 20, height: 20 }, title: "外す" }, h(Icon, { name: "x", size: 10 }))
+        h("button", { className: "btn-ghost btn-icon", onClick: (ev) => { ev.stopPropagation(); clearSlot(rk); setDetailSlot(null); }, style: { position: "absolute", top: 4, right: 4, width: 40, height: 40, minWidth: 40, minHeight: 40 }, title: "外す" }, h(Icon, { name: "x", size: 10 }))
       ) : (rankFilter === rk ? h("div", { style: { marginTop: 4, padding: "2px 6px", fontSize: "var(--fs-9)", fontFamily: "var(--f-display)", letterSpacing: "0.14em", color: "var(--gold)", background: "var(--gold-tint)", border: "1px solid var(--gold-line)", borderRadius: 2, alignSelf: "flex-start" } }, "▼ 下で絞り込み中") : null)
     );
   });
@@ -1725,7 +1747,7 @@ const [ownedOnly, setOwnedOnly] = React.useState(false);
         className: `p-card${String(selected?.no ?? "") === String(e.no ?? "") && selected?.name === e.name ? " is-active" : ""}${isEquipped ? " is-equipped" : ""}`,
         style: { "--sin-primary": `var(--rank-${e.rank})`, minHeight: 120 },
         onClick: () => setSelected(e),
-        onDoubleClick: () => { setSelected(e); recordRecentEgo(e); dispatch({ type: "SET_EGO_SLOT", rank: e.rank, value: e }); toast(`${e.rank}: 『${e.name}』を装備`); }
+        onDoubleClick: () => setSelected(e)
       },
       h("div", { className: "p-card-head ego-card-head" },
         h("span", { className: "p-num" }, "No.", String(e.no).padStart(3, "0")),
@@ -1738,7 +1760,7 @@ const [ownedOnly, setOwnedOnly] = React.useState(false);
       h(EgoResourceChips, { resources: e.resources, className: "is-catalog" }),
       h("div", { className: "p-kw-row", style: { marginTop: "auto" } }, h("span", { className: "p-kw" }, "SAN ", e.san_cost), h("span", { className: "p-kw" }, "欠片 ", e.shards)),
       /* 装備はカード本体のボタン/タップで行う（ダブルクリックに依存しない）。 */
-      !isEquipped && h("button", {
+      !isEquipped && ownedKeys.has(`${e.rank}:${e.no}`) && h("button", {
         type: "button",
         className: "btn btn-sm p-card-quick-equip",
         onClick: (event) => {
@@ -1747,8 +1769,9 @@ const [ownedOnly, setOwnedOnly] = React.useState(false);
           dispatch({ type: "SET_EGO_SLOT", rank: e.rank, value: e });
           toast(`${e.rank}: 『${e.name}』を装備`);
         },
-        title: "詳細を開かずにこのE.G.Oを装備する"
+        title: "所持済みのこのE.G.Oを装備する"
       }, "装備"),
+      !isEquipped && !ownedKeys.has(`${e.rank}:${e.no}`) && h("span", { className: "p-card-equipped-mark" }, "未所持 · 詳細から購入／試着"),
       isEquipped && h("span", { className: "p-card-equipped-mark" }, "装備中")
     );
   })));
@@ -1852,9 +1875,42 @@ const SpiritSection = ({ state, dispatch, ownedOnly = false }) => {
     });
   }, [spiritSource, query, sourceFilter]);
   useSourceFilterControl("精神", sourceFilter, setSourceFilter);
+  const spiritIsOwned = (sp) => (state.roster?.spirits || []).some((entry) => entry.name === sp?.name);
+  const purchaseSpirit = (sp) => {
+    if (!sp || spiritIsOwned(sp)) return;
+    if (!hasExplicitSpiritPrice(sp)) {
+      toast("価格が不明なため購入できません。ショップの価格情報を確認してください", "assertive");
+      return;
+    }
+    if (isExplicitlyFreeSpirit(sp)) {
+      dispatch({ type: "ADD_ROSTER_SPIRIT", spirit: sp, purchase: false });
+      toast(`『${sp.name}』を無料の初期精神として所持に追加しました`, "assertive");
+      return;
+    }
+    const cost = window.LBT_purchaseCostOf?.(state, { type: "ADD_ROSTER_SPIRIT", spirit: sp, purchase: true });
+    const affordability = cost && window.LBT_purchaseAffordability?.(state, cost);
+    if (!cost || !affordability) {
+      toast("精神の購入価格を検証できません。ショップで価格を確認してください", "assertive");
+      return;
+    }
+    if (!affordability.ok) {
+      toast(affordability.reason || "購入に必要な残高が不足しています", "assertive");
+      return;
+    }
+    dispatch({ type: "ADD_ROSTER_SPIRIT", spirit: sp, purchase: true });
+    toast(`『${sp.name}』を購入して所持へ追加しました`, "assertive");
+  };
   const applySpirit = (sp) => {
+    if (!sp) return;
+    if (!spiritIsOwned(sp)) {
+      if (!isExplicitlyFreeSpirit(sp)) {
+        toast("この精神は未所持です。先に「購入」してください", "assertive");
+        return;
+      }
+      dispatch({ type: "ADD_ROSTER_SPIRIT", spirit: sp, purchase: false });
+    }
     dispatch({ type: "APPLY_SPIRIT", spirit: sp });
-    toast(`\u7CBE\u795E\u300E${sp.name}\u300F\u3092\u9069\u7528`);
+    toast(`精神『${sp.name}』を適用`);
   };
   const setF = (field, value) => dispatch({ type: "SET_FIELD", field, value });
   const isCurrentSpirit = state.spirit;
@@ -1922,11 +1978,10 @@ const SpiritSection = ({ state, dispatch, ownedOnly = false }) => {
           variant: "primary",
           onClick: (event) => {
             event.stopPropagation();
-            dispatch({ type: "ADD_ROSTER_SPIRIT", spirit: sp });
-            toast(`『${sp.name}』を所持に購入しました`, "assertive");
+            purchaseSpirit(sp);
           },
           title: "詳細を開かずにこの精神を購入して所持にする"
-        }, "購入"),
+        }, isExplicitlyFreeSpirit(sp) ? "初期取得" : "購入"),
         isOwned && !isEquipped && h(Button, {
           size: "sm",
           onClick: (event) => {
@@ -1941,7 +1996,13 @@ const SpiritSection = ({ state, dispatch, ownedOnly = false }) => {
     /* ここを返さないと map が undefined を並べ、列表は空のままになる。
        件数（counter）は別に出るので、一見すると「あるのに出ない」状態になる。 */
     return spiritBody;
-  }))), selected ? /* @__PURE__ */ React.createElement("div", { className: "codex-detail" }, /* @__PURE__ */ React.createElement("div", { className: "detail-head", style: { "--sin-primary": "var(--gold)" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-eyebrow" }, /* @__PURE__ */ React.createElement("span", { className: "detail-num" }, isExplicitlyFreeSpirit(selected) ? "\u521D\u671F\u9078\u629E\u53EF" : hasExplicitSpiritPrice(selected) && Number(selected.price) > 0 ? `\u6B20\u7247 ${selected.price}` : "\u4FA1\u683C\u4E0D\u660E"), /* @__PURE__ */ React.createElement("span", { className: "detail-type" }, "SPIRIT / \u7CBE\u795E")), /* @__PURE__ */ React.createElement("div", { className: "detail-name" }, selected.name)), /* @__PURE__ */ React.createElement("div", { className: "detail-body" }, selected.always_effect && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u5E38\u6642\u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive" }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" }, selected.always_effect))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u58EB\u6C17\u4F4E\u4E0B\u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive", style: { borderLeftColor: "var(--warn)" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" }, selected.morale_effect || "\u306A\u3057"))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u6DF7\u4E71\u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive", style: { borderLeftColor: "var(--err)" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" }, selected.confuse_effect)))), /* @__PURE__ */ React.createElement("div", { className: "detail-actions" }, state.spirit === selected.name ? /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--gold)", textAlign: "center", fontFamily: "var(--f-display)", letterSpacing: "0.2em", textTransform: "uppercase" } }, "\u2605 \u73FE\u5728\u88C5\u5099\u4E2D") : /* @__PURE__ */ React.createElement(Button, { variant: "primary", onClick: () => applySpirit(selected), icon: "check" }, "\u3053\u306E\u7CBE\u795E\u3092\u88C5\u5099"))) : /* @__PURE__ */ React.createElement("div", { className: "codex-detail" }, /* @__PURE__ */ React.createElement("div", { className: "detail-empty" }, /* @__PURE__ */ React.createElement("div", { className: "detail-empty-icon" }, "\u{1F701}"), /* @__PURE__ */ React.createElement("div", { className: "t-label" }, "\u5DE6\u306E\u30AB\u30FC\u30C9\u3092\u9078\u629E"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-11)", color: "var(--tx-mute)", marginTop: 8 } }, "\u7CBE\u795E\u3092\u9078\u629E\u3059\u308B\u3068\u8A73\u7D30\u304C\u8868\u793A\u3055\u308C\u307E\u3059\u3002", /* @__PURE__ */ React.createElement("br", null), "\u30C0\u30D6\u30EB\u30AF\u30EA\u30C3\u30AF\u3067\u88C5\u5099\u3002")))));
+  }))), selected ? /* @__PURE__ */ React.createElement("div", { className: "codex-detail" }, /* @__PURE__ */ React.createElement("div", { className: "detail-head", style: { "--sin-primary": "var(--gold)" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-eyebrow" }, /* @__PURE__ */ React.createElement("span", { className: "detail-num" }, isExplicitlyFreeSpirit(selected) ? "\u521D\u671F\u9078\u629E\u53EF" : hasExplicitSpiritPrice(selected) && Number(selected.price) > 0 ? `\u6B20\u7247 ${selected.price}` : "\u4FA1\u683C\u4E0D\u660E"), /* @__PURE__ */ React.createElement("span", { className: "detail-type" }, "SPIRIT / \u7CBE\u795E")), /* @__PURE__ */ React.createElement("div", { className: "detail-name" }, selected.name)), /* @__PURE__ */ React.createElement("div", { className: "detail-body" }, selected.always_effect && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u5E38\u6642\u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive" }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" }, selected.always_effect))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u58EB\u6C17\u4F4E\u4E0B\u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive", style: { borderLeftColor: "var(--warn)" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" }, selected.morale_effect || "\u306A\u3057"))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "detail-section-title" }, "\u6DF7\u4E71\u52B9\u679C"), /* @__PURE__ */ React.createElement("div", { className: "detail-passive", style: { borderLeftColor: "var(--err)" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-passive-effect" }, selected.confuse_effect)))), /* @__PURE__ */ React.createElement("div", { className: "detail-actions" }, state.spirit === selected.name ? /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-10)", color: "var(--gold)", textAlign: "center", fontFamily: "var(--f-display)", letterSpacing: "0.2em", textTransform: "uppercase" } }, "\u2605 \u73FE\u5728\u88C5\u5099\u4E2D") : /* @__PURE__ */ spiritIsOwned(selected)
+        ? React.createElement(Button, { variant: "primary", onClick: () => applySpirit(selected), icon: "check" }, "この精神を装備")
+        : isExplicitlyFreeSpirit(selected)
+          ? React.createElement(Button, { variant: "primary", onClick: () => applySpirit(selected), icon: "check" }, "初期選択して装備")
+          : hasExplicitSpiritPrice(selected)
+            ? React.createElement(Button, { variant: "primary", onClick: () => purchaseSpirit(selected), icon: "plus" }, "購入")
+            : React.createElement(Button, { variant: "secondary", disabled: true, title: "価格が不明なため購入できません" }, "価格不明"))) : /* @__PURE__ */ React.createElement("div", { className: "codex-detail" }, /* @__PURE__ */ React.createElement("div", { className: "detail-empty" }, /* @__PURE__ */ React.createElement("div", { className: "detail-empty-icon" }, "\u{1F701}"), /* @__PURE__ */ React.createElement("div", { className: "t-label" }, "\u5DE6\u306E\u30AB\u30FC\u30C9\u3092\u9078\u629E"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "var(--fs-11)", color: "var(--tx-mute)", marginTop: 8 } }, "\u7CBE\u795E\u3092\u9078\u629E\u3059\u308B\u3068\u8A73\u7D30\u304C\u8868\u793A\u3055\u308C\u307E\u3059\u3002", /* @__PURE__ */ React.createElement("br", null), "\u30C0\u30D6\u30EB\u30AF\u30EA\u30C3\u30AF\u3067\u88C5\u5099\u3002")))));
   /* 精神の初期枠。アイテムと同じ操作だが、精神は装備するものであって
      買うものではないため、取り込んでも支出は発生しない。 */
   const [spiritInitialPickOpen, setSpiritInitialPickOpen] = React.useState(false);
@@ -2197,6 +2258,22 @@ const BuildItemsPanel = ({ state, dispatch }) => {
   const currentResultId = window.LBT_latestResultId?.(state) || "";
   const currentResult = (state.results || []).find((result) => result.id === currentResultId) || null;
   const [pickerOpen, setPickerOpen] = React.useState(false);
+  const [pickerQuery, setPickerQuery] = React.useState("");
+  const searchTargetId = state.ui?.itemSearchTarget?.id || "";
+  React.useEffect(() => {
+    if (!searchTargetId) return;
+    const target = catalog.find((item) => String(item.id) === String(searchTargetId));
+    if (target) {
+      setPickerOpen(true);
+      setPickerQuery(String(target.name || target.id));
+    }
+    dispatch({ type: "SET_UI", ui: { itemSearchTarget: null } });
+  }, [searchTargetId, catalog, dispatch]);
+  const pickerNeedle = pickerQuery.trim().toLocaleLowerCase("ja");
+  const filteredCatalog = pickerNeedle ? catalog.filter((item) =>
+    [item.name, item.category, item.effect, item.id, ...(item.searchAliases || []), ...(item.tags || [])]
+      .filter(Boolean).join(" ").toLocaleLowerCase("ja").includes(pickerNeedle)
+  ) : catalog;
 
   const patch = (uid, patchBody) => dispatch({ type: "PATCH_ITEM", uid, patch: patchBody });
   const consumeOne = (entry) => {
@@ -2249,18 +2326,29 @@ const BuildItemsPanel = ({ state, dispatch }) => {
         h(Button, { size: "sm", variant: "ghost", onClick: () => dispatch({ type: "SET_UI", ui: { currentSection: "roster", libraryTab: "inventory" } }) }, "Recordで全所持品を管理")
       ),
       pickerOpen && h("div", { className: "card-body stack-2" },
-        h("div", { className: "inv-pick" }, [...new Set(catalog.map((item) => String(item?.category || "その他")))].map((category) => h("div", { key: category, className: "inv-pick-group" },
-          h("span", { className: "t-label" }, category),
-          h("div", { className: "inv-pick-list" }, catalog.filter((item) => String(item?.category || "その他") === category).map((item) => {
-            const owned = inventory.find((entry) => entry.itemId === item.id);
-            const maxOwned = maxOwnedOf(item.id);
-            const atCap = owned && (Number(owned.quantity) || 0) >= maxOwned;
-            return h("button", { key: item.id, type: "button", className: "inv-pick-item inv-pick-button", disabled: atCap, onClick: () => addItem(item) },
-              h("span", null, item.name),
-              owned ? h("small", { className: "inv-pick-qty" }, `×${owned.quantity}${maxOwned < 99 ? ` / ${maxOwned}` : ""}`) : null
-            );
-          }))
-        )))
+        h("div", { className: "inv-pick-search", style: { display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", alignItems: "center", gap: 8, minWidth: 0, marginBottom: 8 } },
+          h("input", {
+            className: "input", style: { width: "100%", minWidth: 0 }, type: "search", value: pickerQuery,
+            "aria-label": "所持品へ追加するアイテムを検索",
+            placeholder: "アイテム名・別名・効果で検索…",
+            onChange: (event) => setPickerQuery(event.target.value)
+          }),
+          h("span", { className: "ledger-note", style: { whiteSpace: "nowrap" }, "aria-live": "polite" }, `${filteredCatalog.length}件`)
+        ),
+        filteredCatalog.length
+          ? h("div", { className: "inv-pick" }, [...new Set(filteredCatalog.map((item) => String(item?.category || "その他")))].map((category) => h("div", { key: category, className: "inv-pick-group" },
+              h("span", { className: "t-label" }, category),
+              h("div", { className: "inv-pick-list" }, filteredCatalog.filter((item) => String(item?.category || "その他") === category).map((item) => {
+                const owned = inventory.find((entry) => entry.itemId === item.id);
+                const maxOwned = maxOwnedOf(item.id);
+                const atCap = owned && (Number(owned.quantity) || 0) >= maxOwned;
+                return h("button", { key: item.id, type: "button", className: "inv-pick-item inv-pick-button", disabled: atCap, onClick: () => addItem(item) },
+                  h("span", null, item.name),
+                  owned ? h("small", { className: "inv-pick-qty" }, `×${owned.quantity}${maxOwned < 99 ? ` / ${maxOwned}` : ""}`) : null
+                );
+              }))
+            )))
+          : h("div", { className: "empty", role: "status" }, "一致するアイテムがありません。別名や効果でも検索できます。")
       ),
       h("div", { className: "card-body stack-2" },
         rows.length === 0
@@ -2881,7 +2969,7 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
       "指定購入");
     }),
     support: () => supports.map((entry) => card(`${entry.slot}:${entry.name}`, entry.name, entry.slot === "death" ? "死亡後専用" : null, entry.kind,
-      () => { dispatch({ type: "ADD_ROSTER_SUPPORT", spp: entry }); toast(`「${entry.name}」を所持に購入しました`, "assertive"); },
+      () => { dispatch({ type: "ADD_ROSTER_SUPPORT", spp: entry, purchase: true }); toast(`「${entry.name}」を所持に購入しました`, "assertive"); },
       false, null, shopCardLines(entry.kind, entry), ownedSupportNames.has(entry.name))),
     ego: () => egos.map((ego) => card(`${ego.rank}:${ego.no}`, ego.name, null, "ego",
       () => { dispatch({ type: "ADD_ROSTER_EGO", rank: ego.rank, no: ego.no, purchase: true }); toast(`「${ego.name}」を所持に購入しました`, "assertive"); },
@@ -2904,14 +2992,18 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
           toast("価格が不明なため追加できません", "assertive");
           return;
         }
-        dispatch({ type: "ADD_ROSTER_SPIRIT", spirit: sp });
-        toast(`「${sp.name}」を所持に購入しました`, "assertive");
+        dispatch({ type: "ADD_ROSTER_SPIRIT", spirit: sp, purchase: !isExplicitlyFreeSpirit(sp) });
+        toast(isExplicitlyFreeSpirit(sp)
+          ? `「${sp.name}」を無料の初期精神として所持に追加しました`
+          : `「${sp.name}」を所持に購入しました`, "assertive");
       },
       false, null, shopCardLines("spirit", sp), ownedSpiritNames.has(sp.name),
       null, null,
       /* 精神の費用はビルドと同じ規則で表す。価格 0 は費用ではなく
          ルール情報なので、価格枠ではなく head のフラグ（所持バッジの隣）へ出す。 */
-      hasExplicitSpiritPrice(sp) ? formatAcquireCost(0, sp.price) : "価格不明")),
+      hasExplicitSpiritPrice(sp) ? formatAcquireCost(0, sp.price) : "価格不明",
+      null,
+      isExplicitlyFreeSpirit(sp) ? "初期取得" : "購入")),
     item: () => items.map((item) => {
       /* 価格設定のない商品は所持欄への登録、価格付き商品は購入として扱う。 */
       const registerOnly = !hasConfiguredPrice(item) && item?.ledgerResource !== "shards";
@@ -4215,6 +4307,7 @@ const LedgerPanel = ({ state, dispatch }) => {
       .sort((a, b) => String(a.name).localeCompare(String(b.name), "ja"));
   }, [state.customItems]);
   const [newResult, setNewResult] = React.useState({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [], personaAcquisitions: [] });
+  const [newResultError, setNewResultError] = React.useState("");
   const [newResultPersonaQuery, setNewResultPersonaQuery] = React.useState("");
   const [ticketPersonaQuery, setTicketPersonaQuery] = React.useState("");
   const [initialPersonaQuery, setInitialPersonaQuery] = React.useState("");
@@ -4580,8 +4673,12 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   const searchNeedle = String(resultQuery || "").trim().toLocaleLowerCase("ja-JP");
   const matchingResults = results.filter((result) => {
     if (!searchNeedle) return true;
-    const searchable = [result.name, result.date, result.income?.lp, result.income?.shards]
-      .map((value) => String(value ?? "")).join(" ").toLocaleLowerCase("ja-JP");
+    const searchable = [
+      result.name, result.date, result.income?.lp, result.income?.shards, result.note,
+      ...(result.rewardItems || []).flatMap((item) => [item.itemName, item.customName, item.itemId]),
+      ...(result.personaAcquisitions || []).flatMap((persona) => [persona.name, persona.no, persona.mode]),
+      ...(result.consumedItems || []).flatMap((item) => [item.itemName, item.name, item.itemId, item.reason])
+    ].map((value) => String(value ?? "")).join(" ").toLocaleLowerCase("ja-JP");
     return searchable.includes(searchNeedle);
   });
   const sortedResults = [...matchingResults].sort((a, b) => {
@@ -4718,6 +4815,22 @@ const readDragId = (event) => {
   const addResult = () => {
     const name = String(newResult.name || "").trim();
     if (!name) return;
+    const parseNonNegativeInteger = (raw) => {
+      const value = String(raw ?? "").trim().replace(/[０-９]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xFEE0));
+      if (!value) return 0;
+      if (!/^(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(value)) return null;
+      const parsed = Number(value.replace(/,/g, ""));
+      return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
+    };
+    const incomeLp = parseNonNegativeInteger(newResult.lp);
+    const incomeShards = parseNonNegativeInteger(newResult.shards);
+    if (incomeLp === null || incomeShards === null) {
+      setNewResultError(incomeLp === null
+        ? "獲得LPは0以上の整数で入力してください（小数・負数・文字列は不可）"
+        : "獲得欠片は0以上の整数で入力してください（小数・負数・文字列は不可）");
+      return;
+    }
+    setNewResultError("");
     const rewardItems = materializeRewardItems(newResult.rewardItems, name);
     const personaAcquisitions = [];
     const seenPersonaKeys = new Set();
@@ -4732,8 +4845,8 @@ const readDragId = (event) => {
       name,
       date: newResult.date || "",
       income: {
-        lp: Number(newResult.lp) || 0,
-        shards: Number(newResult.shards) || 0,
+        lp: incomeLp,
+        shards: incomeShards,
         tickets: newResult.tickets || { persona: 0, ego: 0, choice: 0, pack: {} }
       },
       rewardItems,
@@ -4754,6 +4867,7 @@ const readDragId = (event) => {
         via: [name]
       });
     }
+    setNewResultError("");
     setNewResult({ name: "", date: "", lp: "", shards: "", tickets: { persona: 0, ego: 0, choice: 0, pack: {} }, rewardItems: [], personaAcquisitions: [] });
     setNewResultPersonaQuery("");
     setNewRewardItemId("");
@@ -5267,7 +5381,7 @@ const importHeldPersonas = () => {
         h(Button, { size: "sm", variant: "quiet", icon: "grid", onClick: () => { setImportMenuOpen(false); openHeld(); } }, "所持人格リストを取り込む")
       ),
       h("div", { className: "card-body" },
-        h("div", { className: "ledger-add-row" },
+        h("div", { className: "ledger-add-row ledger-result-income-row" },
           h("input", {
             className: "ledger-input",
             placeholder: "例：第12回 ゲーパ",
@@ -5284,21 +5398,22 @@ const importHeldPersonas = () => {
           }),
           h("input", {
             className: "ledger-input ledger-input--num",
+            type: "text", inputMode: "numeric", autoComplete: "off",
             placeholder: "獲得LP",
-            inputMode: "numeric",
             value: newResult.lp,
             "aria-label": "獲得LP",
-            onChange: (e) => setNewResult((p) => ({ ...p, lp: e.target.value }))
+            "aria-invalid": newResultError.startsWith("獲得LP"),
+            onChange: (e) => { setNewResultError(""); setNewResult((p) => ({ ...p, lp: e.target.value })); }
           }),
           h("input", {
             className: "ledger-input ledger-input--num",
+            type: "text", inputMode: "numeric", autoComplete: "off",
             placeholder: "獲得欠片",
-            inputMode: "numeric",
             value: newResult.shards,
             "aria-label": "獲得欠片",
-            onChange: (e) => setNewResult((p) => ({ ...p, shards: e.target.value }))
+            "aria-invalid": newResultError.startsWith("獲得欠片"),
+            onChange: (e) => { setNewResultError(""); setNewResult((p) => ({ ...p, shards: e.target.value })); }
           }),
-          h(Button, { size: "sm", variant: "primary", icon: "check", onClick: addResult, disabled: !String(newResult.name || "").trim() }, "記録する")
         ),
         /* 抽出チケットも収入と同じ場所で受け取る。GPTの追加工程なしで、
            LP・欠片と同時にこのリザルトへ入る。 */
@@ -5386,7 +5501,11 @@ const importHeldPersonas = () => {
               )))
             : h("p", { className: "ledger-empty-note" }, "アイテム報酬があれば、ここへ追加します。")
         ),
-)
+        newResultError ? h("p", { className: "ledger-error-note", role: "alert" }, newResultError) : null,
+        h("div", { className: "ledger-result-submit" },
+          h(Button, { size: "md", variant: "primary", icon: "check", onClick: addResult, disabled: !String(newResult.name || "").trim() }, "入力した内容をまとめて記録")
+        )
+      ),
     ),
 
     importPanel && h("div", { id: "ledger-glass-import-panel", role: "region", "aria-label": "硝子窓から一括取り込む", className: "ledger-gara-wrap" },

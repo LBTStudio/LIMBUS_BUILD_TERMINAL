@@ -67,6 +67,97 @@ test("purchase を省略した従来経路は購入のまま（挙動不変）",
 });
 
 
+test("ADD_SUPPORTは未所持サポートを取得せず、配布登録後だけ装備する", () => {
+  const initial = base();
+  const blocked = reducer(initial, { type: "ADD_SUPPORT", spp: { name: PASSIVE } });
+  assert.strictEqual(blocked, initial, "装備だけでは未所持を追加しない");
+  const granted = reducer(initial, { type: "ADD_ROSTER_SUPPORT", spp: { name: PASSIVE }, purchase: false });
+  assert.equal(granted.roster.supports.length, 1);
+  assert.equal(granted.entries.length, 0, "配布は支出を作らない");
+  const equipped = reducer(granted, { type: "ADD_SUPPORT", spp: { name: PASSIVE } });
+  assert.equal(equipped.roster.supports[0].equipped, true);
+  assert.equal(equipped.supports[0].name, PASSIVE);
+  assert.equal(equipped.entries.length, 0);
+});
+
+test("死亡後枠からの直接選択は、専用分類を保ったまま無課金で所持へ写す", () => {
+  const initial = {
+    ...base(),
+    enhancements: [{ id: "death-unlock", name: "死亡後パッシブ追加", group: "test", shards: 0 }]
+  };
+  const target = db.death_passives[0];
+  const blocked = reducer(initial, { type: "SET_DEATH_SUPPORT", spp: target });
+  assert.strictEqual(blocked, initial, "未所持パッシブを装備操作だけで追加しない");
+  const granted = reducer(initial, { type: "ADD_ROSTER_SUPPORT", spp: target, purchase: false });
+  const next = reducer(granted, { type: "SET_DEATH_SUPPORT", spp: target });
+  assert.equal(next.roster.supports.length, 1);
+  assert.equal(next.roster.supports[0].slot, "death");
+  assert.equal(next.roster.supports[0].equipped, true);
+  assert.equal(next.entries.length, 0, "報酬・配布はShop購入ではない");
+});
+
+test("明示価格0の初期精神だけは初期選択で所持・装備できる", () => {
+  const spirit = db.spirits.find((entry) => Number(entry.price) === 0);
+  assert.ok(spirit, "無料の初期精神を用意");
+  const initial = base();
+  const next = reducer(initial, { type: "APPLY_SPIRIT", spirit });
+  assert.equal(next.roster.spirits.length, 1);
+  assert.equal(next.roster.spirits[0].equipped, true);
+  assert.equal(next.spirit, spirit.name);
+  assert.equal(next.entries.length, 0, "無料の直接選択は課帳しない");
+});
+
+test("無料の初期精神はpurchase:falseで所持追加した後に装備できる", () => {
+  const free = db.spirits.find((entry) => Number(entry.price) === 0);
+  assert.ok(free, "価格0の初期精神を用意");
+  const acquired = reducer(base(), { type: "ADD_ROSTER_SPIRIT", spirit: free, purchase: false });
+  assert.equal(acquired.roster.spirits.length, 1);
+  assert.equal(acquired.entries.length, 0);
+  const equipped = reducer(acquired, { type: "APPLY_SPIRIT", spirit: free });
+  assert.equal(equipped.spirit, free.name);
+  assert.equal(equipped.roster.spirits[0].equipped, true);
+  assert.equal(equipped.entries.length, 0);
+});
+
+test("価格不足の有料取得は所持レコードも購入明細も作らない", () => {
+  const empty = {
+    ...base(),
+    results: [{ id: "res-empty", name: "残高0", income: { lp: 0, shards: 0 } }]
+  };
+  const support = reducer(empty, { type: "ADD_ROSTER_SUPPORT", spp: { name: PASSIVE }, purchase: true });
+  assert.strictEqual(support, empty, "LP不足ならサポートを所持に追加しない");
+  const paidSpirit = db.spirits.find((entry) => Number(entry.price) > 0);
+  assert.ok(paidSpirit, "価格付き精神を取得");
+  const spirit = reducer(empty, { type: "ADD_ROSTER_SPIRIT", spirit: paidSpirit, purchase: true });
+  assert.strictEqual(spirit, empty, "欠片不足なら精神を所持に追加しない");
+});
+
+test("購入済みサポートを装備し直しても購入と明細を重複しない", () => {
+  const purchased = reducer(base(), { type: "ADD_ROSTER_SUPPORT", spp: { name: PASSIVE }, purchase: true });
+  assert.equal(purchased.roster.supports.length, 1);
+  assert.equal(purchased.entries.length, 1, "購入時点で明細は1件");
+  const equipped = reducer(purchased, { type: "ADD_SUPPORT", spp: { name: PASSIVE } });
+  assert.equal(equipped.roster.supports.length, 1, "所持件数を増やさない");
+  assert.equal(equipped.roster.supports[0].equipped, true);
+  assert.equal(equipped.entries.length, 1, "装備し直しても再課帳しない");
+});
+
+test("有料精神は購入で一度だけ明細を作り、装備では再課金しない", () => {
+  const paid = db.spirits.find((entry) => Number(entry.price) > 0);
+  assert.ok(paid, "価格付き精神を用意");
+  const initial = {
+    ...base(),
+    results: [{ id: "res-1", name: "第一夜", income: { lp: "500", shards: "100" } }]
+  };
+  const purchased = reducer(initial, { type: "ADD_ROSTER_SPIRIT", spirit: paid, purchase: true });
+  assert.equal(purchased.roster.spirits.length, 1);
+  assert.equal(purchased.entries.length, 1, "購入時点で明細は1件");
+  const equipped = reducer(purchased, { type: "APPLY_SPIRIT", spirit: paid });
+  assert.equal(equipped.spirit, paid.name);
+  assert.equal(equipped.roster.spirits[0].equipped, true);
+  assert.equal(equipped.entries.length, 1, "装備アクションで再課金しない");
+});
+
 test("装備対象が所持一覧の先頭にあっても、通常スロットの置換では操作対象を装備状態に残す", () => {
   const target = { uid: "target", name: "対象パッシブ", slot: "normal", equipped: false, cond: "", effect: "", lp: "" };
   const old1 = { uid: "old-1", name: "既存パッシブ1", slot: "normal", equipped: true, cond: "", effect: "", lp: "" };
@@ -413,10 +504,12 @@ test("非アクティブ人格の古いビルドも一度の正規化で修復�
 
 test("ロック中の直接PATCH_DEATH_SUPPORTは死亡後枠を再装備しない", () => {
   const death = db.death_passives[0];
-  const unlocked = reducer({
+  const deathInitial = {
     ...base(),
     enhancements: [{ id: "death-unlock", name: "死亡後パッシブ追加", group: "test", shards: 0 }]
-  }, { type: "SET_DEATH_SUPPORT", spp: { name: death.name, cond: "", effect: "", lp: "" } });
+  };
+  const granted = reducer(deathInitial, { type: "ADD_ROSTER_SUPPORT", spp: death, purchase: false });
+  const unlocked = reducer(granted, { type: "SET_DEATH_SUPPORT", spp: { name: death.name, cond: "", effect: "", lp: "" } });
 
   // Simulate stale/imported state: the final unlock disappeared, but an old
   // death-slot projection is still present. A low-level edit must not revive it.

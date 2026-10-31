@@ -365,6 +365,20 @@
   gap: 8px;
 }
 .ledger-add-row > * { min-width: 0; }
+.ledger-result-income-row {
+  grid-template-columns: minmax(180px, 1.5fr) minmax(140px, 1fr) minmax(92px, .65fr) minmax(92px, .65fr);
+}
+.ledger-result-submit { display: flex; justify-content: flex-end; }
+.ledger-error-note {
+  margin: 0;
+  padding: 9px 12px;
+  border: 1px solid color-mix(in oklab, var(--err) 42%, var(--line-dim));
+  border-radius: var(--r-sm);
+  background: color-mix(in oklab, var(--err) 9%, var(--surface-inset));
+  color: var(--err);
+  font-size: 13px;
+  line-height: 1.6;
+}
 .ledger-reward-item-editor,
 .ledger-history-editor {
   min-width: 0;
@@ -487,6 +501,9 @@
   .ledger-add-row {
     grid-template-columns: minmax(0, 1.2fr) minmax(130px, .8fr) repeat(2, minmax(90px, .55fr)) auto;
   }
+  .ledger-result-income-row {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr) repeat(2, minmax(78px, .55fr));
+  }
   .ledger-reward-item-controls {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 76px auto;
   }
@@ -497,6 +514,8 @@
   }
   .ledger-add-row > :first-child { grid-column: 1 / -1; }
   .ledger-add-row > :last-child { grid-column: 1 / -1; }
+  .ledger-result-income-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .ledger-result-income-row > :last-child { grid-column: auto; }
   .ledger-add-row .ledger-input,
   .ledger-add-row .ledger-input--date,
   .ledger-add-row .ledger-input--num { width: 100%; min-height: 44px; }

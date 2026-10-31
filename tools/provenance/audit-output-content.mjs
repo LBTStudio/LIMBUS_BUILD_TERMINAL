@@ -69,15 +69,22 @@ function equip(runtime, kind, record) {
   state = equipPersona(runtime, 'n', runtime.db.normal_personas[0]);
   if (kind === 'egos') {
     state = runtime.reducer(state, { type: 'SET_EGO_SLOT', rank: record.rank, value: record });
-    if (record.sub_skills?.length) state = runtime.reducer(state, { type: 'ADD_SUPPORT', spp: { name: 'E.G.O同化', effect: '' } });
-  }   else if (kind === 'support_passives') state = runtime.reducer(state, { type: 'ADD_SUPPORT', spp: record });
-  else if (kind === 'death_passives') {
-    // The reducer now enforces the same unlock as the UI. Put the test character
-    // into the unlocked state before requesting the death-slot equipment.
+    if (record.sub_skills?.length) {
+      state = runtime.reducer(state, { type: 'ADD_ROSTER_SUPPORT', spp: { name: 'E.G.O同化', effect: '' }, purchase: false });
+      state = runtime.reducer(state, { type: 'ADD_SUPPORT', spp: { name: 'E.G.O同化', effect: '' } });
+    }
+  } else if (kind === 'support_passives') {
+    state = runtime.reducer(state, { type: 'ADD_ROSTER_SUPPORT', spp: record, purchase: false });
+    state = runtime.reducer(state, { type: 'ADD_SUPPORT', spp: record });
+  } else if (kind === 'death_passives') {
+    // Explicitly grant the record before the equipment-only death-slot action.
     state = { ...state, enhancements: [...(state.enhancements || []), { name: '死亡後パッシブ追加', effect: '' }] };
+    state = runtime.reducer(state, { type: 'ADD_ROSTER_SUPPORT', spp: record, purchase: false });
     state = runtime.reducer(state, { type: 'SET_DEATH_SUPPORT', spp: record });
+  } else if (kind === 'spirits') {
+    state = runtime.reducer(state, { type: 'ADD_ROSTER_SPIRIT', spirit: record, purchase: false });
+    state = runtime.reducer(state, { type: 'APPLY_SPIRIT', spirit: record });
   }
-  else if (kind === 'spirits') state = runtime.reducer(state, { type: 'APPLY_SPIRIT', spirit: record });
   else if (kind === 'items') state = runtime.reducer(state, { type: 'ADD_ITEM', itemId: record.id });
   else state = { ...state, enhancements: [record] };
   return state;

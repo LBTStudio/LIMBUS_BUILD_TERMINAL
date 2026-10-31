@@ -75,6 +75,7 @@ test('EGO regressions retain unique buffs and assimilation effects, escaping HTM
   ego.unique_buff = '[検証用] 最大1 バフ\n効果の後半を欠落させない';
   let s = equipPersona(rt, 'n', rt.db.normal_personas[0]);
   s = rt.reducer(s, { type: 'SET_EGO_SLOT', rank: ego.rank, value: ego });
+  s = rt.reducer(s, { type: 'ADD_ROSTER_SUPPORT', spp: { name: 'E.G.O同化', effect: '' }, purchase: false });
   s = rt.reducer(s, { type: 'ADD_SUPPORT', spp: { name: 'E.G.O同化', effect: '' } });
   const palette = rt.gen.buildPalette(s);
   const html = rt.gen.buildShareSheetHTML(s);
@@ -88,7 +89,9 @@ test('EGO regressions retain unique buffs and assimilation effects, escaping HTM
 test('registered shop data survive equip, save and restore', () => {
   const rt = sampleRuntime();
   let s = equipPersona(rt, 'n', rt.db.normal_personas[0]);
+  s = rt.reducer(s, { type: 'ADD_ROSTER_SUPPORT', spp: rt.db.support_passives[0], purchase: false });
   s = rt.reducer(s, { type: 'ADD_SUPPORT', spp: rt.db.support_passives[0] });
+  s = rt.reducer(s, { type: 'ADD_ROSTER_SPIRIT', spirit: rt.db.spirits[0], purchase: false });
   s = rt.reducer(s, { type: 'APPLY_SPIRIT', spirit: rt.db.spirits[0] });
   s = rt.reducer(s, { type: 'SAVE_PERSONA_BUILD' });
   s = equipPersona({ ...rt, initialState: s }, 'n', rt.db.normal_personas[1]);

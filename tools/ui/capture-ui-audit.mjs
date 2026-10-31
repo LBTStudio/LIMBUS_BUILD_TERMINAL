@@ -130,10 +130,63 @@ async function readMetrics() {
     };
     const rect = (e) => { const r=e.getBoundingClientRect(); return {x:Math.round(r.x),y:Math.round(r.y),width:Math.round(r.width),height:Math.round(r.height)}; };
     const dialogs = [...document.querySelectorAll('[role="dialog"],[aria-modal="true"],.share-modal-backdrop,.acct-overlay,.utility-sheet-backdrop,.cp-overlay')].filter(isVisible).map(e=>({className:typeof e.className==="string"?e.className:"",label:e.getAttribute("aria-label")||e.getAttribute("aria-labelledby")||(e.innerText||"").trim().slice(0,55),rect:rect(e)}));
-    const smallTargets=[...document.querySelectorAll("button,[role=button],input,select,textarea,a[href]")].filter(isVisible).map(e=>({label:(e.getAttribute("aria-label")||e.innerText||e.getAttribute("title")||e.getAttribute("placeholder")||"").trim().replace(/\s+/g," ").slice(0,32),rect:rect(e)})).filter(x=>x.rect.width<32||x.rect.height<32).slice(0,25);
+    const smallTargets=[...document.querySelectorAll("button,[role=button],input,select,textarea,a[href]")].filter(isVisible).map(e=>({label:(e.getAttribute("aria-label")||e.innerText||e.getAttribute("title")||e.getAttribute("placeholder")||"").trim().replace(/\s+/g," ").slice(0,32),rect:rect(e)})).filter(x=>x.rect.width<40||x.rect.height<40).slice(0,40);
+    /* Controls whose purpose depends on a reliable tap are audited separately
+       from decorative links and native checkbox glyphs. Only visible targets
+       inside the current viewport are considered; the 40px rule applies to phones. */
+    const touchTargetSelector = [
+      ".topbar-search", ".preview-mobile-toggle", ".acct-close", ".import-router-close",
+      ".utility-sheet-close", ".detail-dialog-close", ".ego-quick-close",
+      ".persona-draft-dialog button.btn-icon", "button.btn-icon", ".es-kw-rm",
+      ".ledger-reward-item-chip button", ".reorder-btn", ".ledger-row-move-action",
+      ".ledger-row-release", ".ledger-row-trash", ".ledger-card-edit-btn",
+      ".ledger-card-edit-save", ".ledger-card-edit-cancel", ".ledger-card-move-target",
+      ".ledger-queue-move-target", ".ledger-result-object-actions > summary",
+      '.build-tabs .segmented[role="tablist"][aria-label="ビルドセクション"] > button',
+      'button[aria-label*="閉じる"]'
+    ].join(",");
+    const touchTargetViolations = innerWidth <= 640
+      ? [...document.querySelectorAll(touchTargetSelector)].filter(isVisible).map(e => {
+          const r = e.getBoundingClientRect();
+          return {
+            label: (e.getAttribute("aria-label") || e.innerText || e.getAttribute("title") || e.className || e.id || "").trim().replace(/\s+/g," ").slice(0,64),
+            tag: e.tagName.toLowerCase(),
+            className: typeof e.className === "string" ? e.className : "",
+            width: r.width,
+            height: r.height,
+            rect: rect(e)
+          };
+        }).filter(item => item.rect.x < innerWidth && item.rect.y < innerHeight
+          && item.rect.x + item.rect.width > 0 && item.rect.y + item.rect.height > 0
+          && (item.width < 40 || item.height < 40))
+      : [];
+
     const horizontalScrollers=[...document.querySelectorAll("body *")].filter(e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);return r.width>80&&r.height>20&&e.scrollWidth>e.clientWidth+12&&["auto","scroll","hidden"].includes(s.overflowX);}).slice(0,24).map(e=>({tag:e.tagName,className:typeof e.className==="string"?e.className:"",label:(e.getAttribute("aria-label")||e.innerText||"").trim().replace(/\s+/g," ").slice(0,42),clientWidth:e.clientWidth,scrollWidth:e.scrollWidth,overflowX:getComputedStyle(e).overflowX,rect:rect(e)}));
     const layoutElements=[...document.querySelectorAll("#lbt-preview-edge-toggle,.preview,.preview-reopen,.preview-close,.preview-edge-toggle,.preview-actions,.preview-hint,.preview-tabs,.focus,.rail,.section-title-row,.section-title,.build-tabs,.baseinfo-workspace,.piece-hero-grid,.build-params-shell,.build-params-tabs,.basic-ccfolia-preview,.basic-preview-mode-tabs,.basic-preview-panel,.record-tabbar")].filter(isVisible).map(e=>{const s=getComputedStyle(e);return {tag:e.tagName,id:e.id||"",className:typeof e.className==="string"?e.className:"",text:(e.innerText||"").trim().replace(/\s+/g," ").slice(0,48),rect:rect(e),style:{position:s.position,display:s.display,top:s.top,right:s.right,bottom:s.bottom,width:s.width,height:s.height,writingMode:s.writingMode,opacity:s.opacity,zIndex:s.zIndex,pointerEvents:s.pointerEvents}};});
-    return {viewport:{width:innerWidth,height:innerHeight},document:{width:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight},horizontalOverflow:document.documentElement.scrollWidth>innerWidth+2,horizontalScrollers,layoutElements,dialogs,smallTargets,activeElement:document.activeElement?{tag:document.activeElement.tagName,aria:document.activeElement.getAttribute("aria-label"),text:(document.activeElement.innerText||"").trim().slice(0,40)}:null};
+    const buildTablistMetrics = (() => {
+      const element = document.querySelector('.build-tabs .btype-build-tablist[role="tablist"][aria-label="ビルドセクション"]');
+      if (!element || !isVisible(element)) return null;
+      const style = getComputedStyle(element);
+      const buttons = [...element.querySelectorAll(':scope > button[role="tab"]')].filter(isVisible);
+      const buttonRects = buttons.map(button => {
+        const r = button.getBoundingClientRect();
+        return {x:r.x,y:r.y,width:r.width,height:r.height};
+      });
+      const rows = [...new Set(buttonRects.map(r => Math.round(r.y)))];
+      return {
+        display: style.display,
+        gridTemplateColumns: style.gridTemplateColumns,
+        overflowX: style.overflowX,
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+        buttonCount: buttons.length,
+        rowCount: rows.length,
+        buttonsBelowMinimum: buttonRects.filter(r => r.width < 40 || r.height < 40).length,
+        buttonsOutsideList: buttonRects.filter(r => r.x < element.getBoundingClientRect().x - 1
+          || r.x + r.width > element.getBoundingClientRect().right + 1).length
+      };
+    })();
+    return {viewport:{width:innerWidth,height:innerHeight},document:{width:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight},horizontalOverflow:document.documentElement.scrollWidth>innerWidth+2,horizontalScrollers,layoutElements,dialogs,smallTargets,touchTargetViolations,buildTablistMetrics,activeElement:document.activeElement?{tag:document.activeElement.tagName,aria:document.activeElement.getAttribute("aria-label"),text:(document.activeElement.innerText||"").trim().slice(0,40)}:null};
   });
 }
 async function snap(name, note) {
@@ -145,6 +198,14 @@ async function snap(name, note) {
   const m=await readMetrics();
   audit.screenshots.push({name:base,note:note||"",file:path.relative(ROOT,file),metrics:m});
   if(m.horizontalOverflow) audit.layoutWarnings.push({name:base,type:"document-horizontal-overflow",viewport:m.viewport,document:m.document});
+  if (m.viewport.width <= 640 && (m.touchTargetViolations || []).length) {
+    audit.layoutWarnings.push({
+      name: base,
+      type: "touch-target-too-small",
+      minimum: "40x40 CSS px",
+      targets: m.touchTargetViolations
+    });
+  }
   // Desktop preview must be wide enough to read the CCFOLIA sheet/JSON without forcing a narrow column.
   if (m.viewport.width >= 1100) {
     const preview = (m.layoutElements || []).find((item) => item.className.split(/\s+/).includes("preview"));
@@ -157,6 +218,18 @@ async function snap(name, note) {
     const params = (m.layoutElements || []).find((item) => item.className.split(/\s+/).includes("build-params-shell"));
     if (hero && params && params.rect.y < hero.rect.y + hero.rect.height - 2) {
       audit.layoutWarnings.push({name:base,type:"basic-format-panel-overlaps-v4-hero",heroRect:hero.rect,paramsRect:params.rect});
+    }
+  }
+  if (m.viewport.width <= 640 && m.buildTablistMetrics) {
+    const tabs = m.buildTablistMetrics;
+    if (tabs.buttonCount !== 9 || tabs.display !== "grid" || tabs.rowCount < 2
+        || tabs.scrollWidth > tabs.clientWidth + 2 || tabs.buttonsBelowMinimum > 0 || tabs.buttonsOutsideList > 0) {
+      audit.layoutWarnings.push({
+        name: base,
+        type: "build-tabs-not-reflowed",
+        expected: "9 tabs in a 5-column grid with at least 2 rows and no clipped targets",
+        actual: tabs
+      });
     }
   }
   if (m.viewport.width <= 640) {
@@ -961,7 +1034,7 @@ async function captureProfile(browser, mode) {
       await page.getByLabel("報酬アイテム数量",{exact:true}).fill("1");
       await click(newRewardControls.getByRole("button",{name:"追加",exact:true}));
       await snap("ledger-reward-item-draft","硝子の破片とカタログ外の外付け義体を追加した報酬入力欄");
-      await click(page.locator(".ledger-add-row").getByRole("button",{name:"記録する",exact:true}));
+      await click(page.locator(".ledger-result-submit").getByRole("button",{name:"入力した内容をまとめて記録",exact:true}));
       await page.waitForTimeout(500);
       const rewardCheck=await page.evaluate((name)=>{
         const saved=window.LBT_accounts?.loadActive?.()||{};
@@ -1062,6 +1135,34 @@ async function captureProfile(browser, mode) {
       }
       const basicTab=page.locator(".build-tabs [role='tab']").filter({hasText:"基本"}).first();
       if(await visible(basicTab)) await click(basicTab);
+    });
+    await attempt("build-item-picker-search",async()=>{
+      await go("ビルド");
+      const itemTab=page.locator(".build-tabs [role='tab']").filter({hasText:"アイテム"}).first();
+      if(!(await visible(itemTab))) throw new Error("Buildのアイテムタブが見つかりません");
+      await click(itemTab);
+      await snap("build-items-inventory","Buildの所持アイテムと検索・表示設定");
+      const add=page.getByRole("button",{name:"所持品へ追加",exact:true}).first();
+      if(!(await visible(add))) throw new Error("Buildの所持品追加ボタンが見つかりません");
+      await click(add);
+      const search=page.getByLabel("所持品へ追加するアイテムを検索");
+      await search.waitFor({state:"visible",timeout:5000});
+      await snap("build-items-picker-open","所持品追加カタログの検索欄");
+      await search.fill("酸素ボンベ");
+      const match=page.locator(".inv-pick-button").filter({hasText:"酸素ボンベ"}).first();
+      if(!(await visible(match))) throw new Error("アイテム検索で酸素ボンベが見つかりません");
+      await snap("build-items-picker-search-results","別名・効果検索で絞り込んだアイテム候補");
+      const palette=page.locator(".topbar-search").first();
+      if(await visible(palette)) await click(palette);
+      const commandInput=page.locator(".cp-input").first();
+      await commandInput.waitFor({state:"visible",timeout:5000});
+      await commandInput.fill("酸素ボンベ");
+      const commandResult=page.locator(".cp-item").filter({hasText:"アイテム：酸素ボンベ"}).first();
+      if(!(await visible(commandResult))) throw new Error("クイック検索に酸素ボンベが出ません");
+      await click(commandResult);
+      const routedSearch=page.getByLabel("所持品へ追加するアイテムを検索");
+      await routedSearch.waitFor({state:"visible",timeout:5000});
+      await snap("build-items-quick-search-route","クイック検索からBuildの該当アイテム検索欄へ直接遷移");
     });
     await attempt("quick-search",async()=>{
       const b=page.locator(".topbar-search").first(); if(await visible(b)) await click(b);
@@ -1172,7 +1273,7 @@ async function main() {
   try { for(const mode of ["desktop","tablet","mobile"]) {log("begin "+mode);await captureProfile(browser,mode);} }
   finally { await browser.close();await new Promise(resolve=>s.close(resolve)); }
   audit.count=audit.screenshots.length;
-  audit.coverage=["SINNER SELECT/new-account form","all nine build tabs and desktop tab-hover states","Basic workspace ST / label / CCFOLIA preview tabs and all three live preview modes","major navigation sections and desktop navigation-hover states","all six shop category tabs","record import menu and routes with result parsing preview","all six owned-library categories","settings status workspace and every disclosure panel","seeded QA: initial persona ownership, historical persona acquisition, standard/custom item rewards and inventory reconciliation","home command hero, all launcher routes and resume panel","common import router and all four destinations","skill-add and custom E.G.O creation entry paths","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, desktop preview width and placement, duplicate preview controls, and target-size diagnostics"];
+  audit.coverage=["SINNER SELECT/new-account form","all nine build tabs and desktop tab-hover states","Basic workspace ST / label / CCFOLIA preview tabs and all three live preview modes","major navigation sections and desktop navigation-hover states","all six shop category tabs","record import menu and routes with result parsing preview","all six owned-library categories","settings status workspace and every disclosure panel","seeded QA: initial persona ownership, historical persona acquisition, standard/custom item rewards and inventory reconciliation","home command hero, all launcher routes and resume panel","common import router and all four destinations","skill-add and custom E.G.O creation entry paths","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, desktop preview width and placement, duplicate preview controls, 40px mobile touch-target enforcement, and target-size diagnostics"];
   const requiredNotes=[
     "ビルド内基本タブのステータス（ST）編集パネル","ビルド内基本タブのラベル（パラメータ）編集パネル","ビルド内基本タブの盤面上の駒プレビュー","ビルド内基本タブのキャラクターシートプレビュー","ビルド内基本タブの出力データプレビュー",
     "ビルド内の人格タブ","ビルド内のスキルタブ","ビルド内のパッシブタブ","ビルド内の強化タブ","ビルド内のサポートタブ","ビルド内のE.G.Oタブ","ビルド内の精神タブ","ビルド内のアイテムタブ",
@@ -1200,7 +1301,7 @@ async function main() {
       }
     }
   }
-  audit.criticalLayoutWarnings=audit.layoutWarnings.filter((item)=>["document-horizontal-overflow","duplicate-preview-controls","preview-toggle-overlaps-header","preview-toggle-overlaps-panel-controls","preview-toggle-overlaps-content-dock","preview-panel-too-narrow","basic-preview-below-editor-fold"].includes(item.type));
+  audit.criticalLayoutWarnings=audit.layoutWarnings.filter((item)=>["document-horizontal-overflow","duplicate-preview-controls","preview-toggle-overlaps-header","preview-toggle-overlaps-panel-controls","preview-toggle-overlaps-content-dock","preview-panel-too-narrow","basic-preview-below-editor-fold","touch-target-too-small","build-tabs-not-reflowed"].includes(item.type));
   fs.writeFileSync(path.join(OUT,"manifest.json"),JSON.stringify(audit,null,2)+"\n");
   log("finished: "+audit.count+" screenshots; failures="+audit.failures.length+"; missing-required="+audit.missingRequiredCaptures.length+"; critical-layout-warnings="+audit.criticalLayoutWarnings.length);
   if(audit.count<140 || audit.failures.length || audit.missingRequiredCaptures.length || audit.pageErrors.length || audit.httpErrors.length || audit.consoleErrors.length || audit.criticalLayoutWarnings.length) process.exitCode=1;

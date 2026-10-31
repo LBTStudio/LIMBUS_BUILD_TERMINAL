@@ -327,9 +327,34 @@ const HelpSection = ({ onNavigate, onOpenUtilities, onOpenImportRouter }) => {
       h("div", null,
         h("div", { className: "btype-eyebrow" }, "GUIDE"),
         h("h1", null, "使い方"),
-        h("p", null, "操作名と目的のどちらからでも検索できます。")
+        h("p", null, "操作名・目的・画面名から、ここで直接探せます。")
       )
     ),
+    h("div", { className: "guide-search-field", style: { display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", border: "1px solid var(--line-dim)", borderRadius: "var(--r-md)", background: "var(--surface-inset)" } },
+      h(Icon, { name: "search", size: 17 }),
+      h("input", {
+        type: "search", className: "guide-search-input input", style: { flex: 1, minWidth: 0 },
+        value: query,
+        onChange: (event) => { const value = event.target.value; setQuery(value); setCategory(value.trim() ? "all" : "start"); setExpandedKey(""); },
+        onKeyDown: (event) => { if (event.key === "Enter") { setCategory("all"); setHelpView("guide"); } },
+        placeholder: "操作を検索（例：硝子窓、保存、サポート）",
+        "aria-label": "使い方を直接検索"
+      }),
+      query ? h("button", { type: "button", className: "guide-search-clear", onClick: () => { setQuery(""); setCategory("start"); setExpandedKey(""); }, "aria-label": "検索をクリア" }, h(Icon, { name: "x", size: 15 })) : null
+    ),
+    queryTerms.length
+      ? h("div", { className: "guide-index-list", style: { display: "grid", gap: 6 }, "aria-live": "polite" },
+          filteredItems.slice(0, 5).map((item) => {
+            const key = item.group + ":" + item.title;
+            return h("button", { key, type: "button", className: "btype-task-row", onClick: () => { setCategory("all"); setExpandedKey(key); setHelpView("guide"); } },
+              h("span", { className: "btype-task-glyph", "aria-hidden": true }, "⌕"),
+              h("span", { className: "btype-task-copy" }, h("strong", null, item.title), h("small", null, groupLabels[item.group] || "操作")),
+              h(Icon, { name: "chevron-right", size: 16 })
+            );
+          }),
+          !filteredItems.length ? h("p", { className: "guide-no-results" }, "一致する項目がありません。別の言葉でも検索してください。") : null
+        )
+      : null,
     h("div", { className: "panel btype-help-entry" },
       h("button", {
         type: "button", className: "secondary",
@@ -554,11 +579,20 @@ all.forEach(({ p, m }) => {
           } });
         }
       });
-      [...(DB.items || []), ...(state.customItems || [])].forEach((item) => {
-        const haystack = `${item.name || ""} ${item.category || ""} ${(item.tags || []).join(" ")} ${item.effect || ""}`.toLowerCase();
+      const searchableItems = [
+        ...(DB.items || []),
+        ...(DB.specialItems || []).filter((item) => !item?.ledgerResource),
+        ...(state.customItems || [])
+      ];
+      const uniqueItems = [...new Map(searchableItems.filter((item) => item?.id).map((item) => [String(item.id), item])).values()];
+      uniqueItems.forEach((item) => {
+        const haystack = [
+          item.name, item.id, item.category, item.effect,
+          ...(item.searchAliases || []), ...(item.tags || [])
+        ].filter(Boolean).join(" ").toLocaleLowerCase("ja");
         if (haystack.includes(ql)) {
-          itemHits.push({ type: "item", label: `アイテム：${item.name}`, kbd: "詳細", run: () => {
-            dispatch({ type: "SET_UI", ui: { currentSection: "items", itemSearchTarget: { id: item.id } } });
+          itemHits.push({ type: "item", label: `アイテム：${item.name}`, kbd: "Buildへ", run: () => {
+            dispatch({ type: "SET_UI", ui: { currentSection: "items-build", itemSearchTarget: { id: item.id } } });
           } });
         }
       });

@@ -71,62 +71,65 @@ function baseState() {
   };
 }
 
-test("未所持のサポパは装備と同時に所持へ写る（テレポート装備を塞ぐ）", () => {
+test("未所持のサポートは装備操作だけでは取得されず、配布登録後に装備できる", () => {
   const { reducer } = reducerOf();
-  const next = reducer(baseState(), { type: "ADD_SUPPORT", spp: { name: "出血促進", cond: "出血", effect: "X", lp: "3LP" } });
-  assert.equal(next.roster.supports.length, 1, "所持へ写る");
-  assert.equal(next.roster.supports[0].resultId, null, "帰属は未分類");
-  assert.equal(next.supports.length, 1, "装備投影に載る");
+  const initial = baseState();
+  const blocked = reducer(initial, { type: "ADD_SUPPORT", spp: { name: "出血促進", cond: "出血", effect: "X", lp: "3LP" } });
+  assert.strictEqual(blocked, initial, "装備だけでは所持へ追加しない");
+  const granted = reducer(initial, { type: "ADD_ROSTER_SUPPORT", spp: { name: "出血促進" }, purchase: false });
+  const next = reducer(granted, { type: "ADD_SUPPORT", spp: { name: "出血促進", cond: "出血", effect: "X", lp: "3LP" } });
+  assert.equal(next.roster.supports.length, 1);
+  assert.equal(next.roster.supports[0].resultId, null);
+  assert.equal(next.supports.length, 1);
   assert.equal(next.supports[0].name, "出血促進");
   assert.equal(next.supports[0].cond, "出血があるなら", "効果文はDB定義を正とする");
 });
 
-test("同じ名称は重複所持しない", () => {
+test("同じ名称は重複所持・重複装備しない", () => {
   const { reducer } = reducerOf();
-  let s = reducer(baseState(), { type: "ADD_SUPPORT", spp: { name: "出血促進" } });
+  let s = reducer(baseState(), { type: "ADD_ROSTER_SUPPORT", spp: { name: "出血促進" }, purchase: false });
+  s = reducer(s, { type: "ADD_SUPPORT", spp: { name: "出血促進" } });
   s = reducer(s, { type: "ADD_SUPPORT", spp: { name: "出血促進" } });
   assert.equal(s.roster.supports.length, 1);
   assert.equal(s.supports.length, 1, "装備も重複しない");
 });
 
-test("通常スロットは最大2。3件目を装備すると古い方を外す", () => {
+test("通常スロットは最大2。所持登録済み3件目を装備すると古い方を外す", () => {
   const { reducer } = reducerOf();
   let s = baseState();
   for (const name of ["出血促進", "消化"]) {
+    s = reducer(s, { type: "ADD_ROSTER_SUPPORT", spp: { name }, purchase: false });
     s = reducer(s, { type: "ADD_SUPPORT", spp: { name } });
     s = reducer(s, { type: "SET_ROSTER_SUPPORT_EQUIPPED", uid: s.roster.supports[s.roster.supports.length - 1].uid });
   }
   assert.equal(s.supports.length, 2, "2件までは並ぶ");
-
-  /* 3件目も所持できる（所持と装備は別）。装備すると枠外へ出る。 */
-  s = reducer(s, { type: "ADD_ROSTER_SUPPORT", spp: { name: "覚悟" } });
-  assert.equal(s.roster.supports.length, 3, "所持は3件に増えてよい");
-  const third = s.roster.supports.find((x) => x.name === "覚悟");
+  s = reducer(s, { type: "ADD_ROSTER_SUPPORT", spp: { name: "追加サポ" }, purchase: false });
+  const third = s.roster.supports.find((x) => x.name === "追加サポ");
   assert.equal(third.equipped, false, "追加しただけでは装備されない");
-
-  s = reducer(s, { type: "SET_ROSTER_SUPPORT_EQUIPPED", uid: third.uid });
-  assert.equal(s.supports.length, 2, "通常枠は2のまま（最古が外れる）");
-  assert.equal(s.roster.supports.filter((x) => x.equipped && x.slot === "normal").length, 2);
+  s = reducer(s, { type: "ADD_SUPPORT", spp: { name: "追加サポ" } });
+  assert.equal(s.supports.length, 2, "通常枠は2のまま");
+  assert.ok(s.supports.some((x) => x.name === "追加サポ"), "新しい方が入る");
+  assert.ok(!s.supports.some((x) => x.name === "出血促進"), "最古が外れる");
+  assert.equal(s.roster.supports.length, 3, "外れた分も所持には残る");
 });
 
-test("死亡後パッシブは所持した時点で死亡後枠に入る", () => {
+test("死亡後パッシブは所持登録時点で死亡後枠に分類される", () => {
   const { reducer } = reducerOf();
-  /* DBの death_passives に載っている名前は、所持へ入れた時点で
-     死亡後枠と判定される（利用者が枠を覚えなくてよい）。 */
-  const s = reducer(baseState(), { type: "ADD_ROSTER_SUPPORT", spp: { name: "覚悟" } });
+  const s = reducer(baseState(), { type: "ADD_ROSTER_SUPPORT", spp: { name: "覚悟" }, purchase: false });
   assert.equal(s.roster.supports[0].slot, "death");
   assert.equal(s.roster.supports[0].equipped, false, "所持しただけでは装備されない");
 });
 
 test("死亡後スロットは1件だけ。埋まっていれば古い方を外す", () => {
   const { reducer } = reducerOf();
-  let s = reducer({
+  let s = {
     ...baseState(),
     enhancements: [{ id: "death-unlock", name: "死亡後パッシブ追加", group: "test", shards: 0 }]
-  }, { type: "SET_DEATH_SUPPORT", spp: { name: "覚悟" } });
+  };
+  s = reducer(s, { type: "ADD_ROSTER_SUPPORT", spp: { name: "覚悟" }, purchase: false });
+  s = reducer(s, { type: "SET_DEATH_SUPPORT", spp: { name: "覚悟" } });
   assert.equal(s.deathSupport?.name, "覚悟");
   assert.equal(s.supports.length, 0, "死亡後は通常枠に載らない");
-
   s = reducer(s, { type: "SET_DEATH_SUPPORT", spp: null });
   assert.equal(s.deathSupport, null, "外せる");
   assert.equal(s.roster.supports[0].equipped, false, "所持は残る（装備だけ外れる）");
@@ -134,7 +137,8 @@ test("死亡後スロットは1件だけ。埋まっていれば古い方を外�
 
 test("所持から削除すると装備も外れる（取り残しを作らない）", () => {
   const { reducer } = reducerOf();
-  let s = reducer(baseState(), { type: "ADD_SUPPORT", spp: { name: "消化" } });
+  let s = reducer(baseState(), { type: "ADD_ROSTER_SUPPORT", spp: { name: "消化" }, purchase: false });
+  s = reducer(s, { type: "ADD_SUPPORT", spp: { name: "消化" } });
   const uid = s.roster.supports[0].uid;
   s = reducer(s, { type: "REMOVE_ROSTER_SUPPORT", uid });
   assert.equal(s.roster.supports.length, 0);
@@ -178,22 +182,27 @@ test("一括削除の undo は所持と購入明細を戻す（削除で残高�
   assert.equal(after.lp, before.lp, "削除と復元で残高が動かない");
 });
 
-test("精神も所持を経由する。未所持なら写してから装備", () => {
+test("精神は所持登録してから装備し、未所持の装備操作では取得しない", () => {
   const { reducer } = reducerOf();
-  const s = reducer(baseState(), { type: "APPLY_SPIRIT", spirit: { name: "泉水" } });
+  const initial = baseState();
+  const blocked = reducer(initial, { type: "APPLY_SPIRIT", spirit: { name: "泉水" } });
+  assert.strictEqual(blocked, initial, "価格付き精神は装備操作だけでは所持化しない");
+  const granted = reducer(initial, { type: "ADD_ROSTER_SPIRIT", spirit: { name: "泉水" }, purchase: false });
+  const s = reducer(granted, { type: "APPLY_SPIRIT", spirit: { name: "泉水" } });
   assert.equal(s.spirit, "泉水");
   assert.equal(s.spiritMorale, "士気M", "効果文はDBから引く");
   assert.equal(s.spiritConfuse, "混乱C");
   assert.equal(s.spiritAlways, "常時A");
-  assert.equal(s.roster.spirits.length, 1, "所持へ写る");
+  assert.equal(s.roster.spirits.length, 1, "所持に登録済み");
   assert.equal(s.roster.spirits[0].equipped, true);
-  assert.equal(s.roster.spirits[0].resultId, null, "帰属は未分類");
+  assert.equal(s.roster.spirits[0].resultId, null);
 });
 
 test("精神の装備は常に1件。切り替えは前のものを外す", () => {
   const { reducer } = reducerOf();
-  let s = reducer(baseState(), { type: "APPLY_SPIRIT", spirit: { name: "泉水" } });
-  s = reducer(s, { type: "ADD_ROSTER_SPIRIT", spirit: { name: "別の精神" } });
+  let s = reducer(baseState(), { type: "ADD_ROSTER_SPIRIT", spirit: { name: "泉水" }, purchase: false });
+  s = reducer(s, { type: "APPLY_SPIRIT", spirit: { name: "泉水" } });
+  s = reducer(s, { type: "ADD_ROSTER_SPIRIT", spirit: { name: "別の精神" }, purchase: false });
   s = reducer(s, { type: "SET_ROSTER_SPIRIT_EQUIPPED", uid: s.roster.spirits[1].uid });
   assert.equal(s.spirit, "別の精神");
   assert.equal(s.roster.spirits.filter((x) => x.equipped).length, 1, "装備は1件だけ");
@@ -229,7 +238,7 @@ test("舊保存データ（装備のみ）は未分類の所持へ移り、デ�
 
 test("帰属先（resultId）は読み書きで保持される", () => {
   const { reducer } = reducerOf();
-  let s = reducer(baseState(), { type: "ADD_SUPPORT", spp: { name: "出血促進" } });
+  let s = reducer(baseState(), { type: "ADD_ROSTER_SUPPORT", spp: { name: "出血促進" }, purchase: false });
   const uid = s.roster.supports[0].uid;
   s = reducer(s, { type: "SET_ROSTER_SUPPORT_RESULT", uid, resultId: "rs-1" });
   assert.equal(s.roster.supports[0].resultId, "rs-1", "帰属を設定できる");
@@ -239,7 +248,7 @@ test("帰属先（resultId）は読み書きで保持される", () => {
 
 test("所持済みでも未装備なら、装備操作（ADD_SUPPORT）で装備できる", () => {
   const { reducer } = reducerOf();
-  let s = reducer(baseState(), { type: "ADD_SUPPORT", spp: { name: "出血促進" } });
+  let s = reducer(baseState(), { type: "ADD_ROSTER_SUPPORT", spp: { name: "出血促進" }, purchase: false });
   const uid = s.roster.supports[0].uid;
   s = reducer(s, { type: "SET_ROSTER_SUPPORT_EQUIPPED", uid, equipped: false });
   assert.equal(s.supports.length, 0, "外れている");
@@ -251,10 +260,12 @@ test("所持済みでも未装備なら、装備操作（ADD_SUPPORT）で装備
 
 test("死亡後パッシブも所持済みなら SET_DEATH_SUPPORT で再装備できる", () => {
   const { reducer } = reducerOf();
-  let s = reducer({
+  let s = {
     ...baseState(),
     enhancements: [{ id: "death-unlock", name: "死亡後パッシブ追加", group: "test", shards: 0 }]
-  }, { type: "SET_DEATH_SUPPORT", spp: { name: "覚悟" } });
+  };
+  s = reducer(s, { type: "ADD_ROSTER_SUPPORT", spp: { name: "覚悟" }, purchase: false });
+  s = reducer(s, { type: "SET_DEATH_SUPPORT", spp: { name: "覚悟" } });
   assert.equal(s.deathSupport?.name, "覚悟");
   s = reducer(s, { type: "SET_DEATH_SUPPORT", spp: null });
   assert.equal(s.deathSupport, null, "外れる");
@@ -265,7 +276,8 @@ test("死亡後パッシブも所持済みなら SET_DEATH_SUPPORT で再装備�
 
 test("装備の取り外し（REMOVE_SUPPORT）は装備を外すだけで所持を消さない", () => {
   const { reducer } = reducerOf();
-  let s = reducer(baseState(), { type: "ADD_SUPPORT", spp: { name: "出血促進" } });
+  let s = reducer(baseState(), { type: "ADD_ROSTER_SUPPORT", spp: { name: "出血促進" }, purchase: false });
+  s = reducer(s, { type: "ADD_SUPPORT", spp: { name: "出血促進" } });
   const uid = s.roster.supports[0].uid;
   s = reducer(s, { type: "REMOVE_SUPPORT", id: uid });
   assert.equal(s.supports.length, 0, "装備から外れる");
@@ -273,10 +285,11 @@ test("装備の取り外し（REMOVE_SUPPORT）は装備を外すだけで所持
   assert.equal(s.roster.supports[0].equipped, false);
 });
 
-test("拡張なしでは従来どおり通常2枠。3件目は最古が外れ、所持は残る", () => {
+test("拡張なしでは通常2枠。所持済み3件目は最古が外れ、所持は残る", () => {
   const { reducer } = reducerOf();
   let s = baseState();
   for (const name of ["出血促進", "消化", "追加サポ"]) {
+    s = reducer(s, { type: "ADD_ROSTER_SUPPORT", spp: { name }, purchase: false });
     s = reducer(s, { type: "ADD_SUPPORT", spp: { name } });
   }
   assert.equal(s.supports.length, 2, "2枠のまま");
@@ -285,10 +298,11 @@ test("拡張なしでは従来どおり通常2枠。3件目は最古が外れ、
   assert.equal(s.roster.supports.length, 3, "外れた分も所持には残る");
 });
 
-test("拡張『サポートスロット追加』があれば通常3枠を装備でき、既存が外れない", () => {
+test("拡張『サポートスロット追加』があれば所持済み通常3枠を装備でき、既存が外れない", () => {
   const { reducer } = reducerOf();
   let s = { ...baseState(), enhancements: [{ name: "サポートスロット追加" }] };
   for (const name of ["出血促進", "消化", "追加サポ"]) {
+    s = reducer(s, { type: "ADD_ROSTER_SUPPORT", spp: { name }, purchase: false });
     s = reducer(s, { type: "ADD_SUPPORT", spp: { name } });
   }
   assert.equal(s.roster.supports.length, 3);

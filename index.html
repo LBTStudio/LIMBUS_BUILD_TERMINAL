@@ -206,9 +206,9 @@ window.addEventListener("load", function(){
 }
 </style>
 <link rel="stylesheet" href="assets/design-system.css?v=910f9485">
-		<link rel="stylesheet" href="assets/workspace.css?v=4ba0022b">
+		<link rel="stylesheet" href="assets/workspace.css?v=6661210a">
 	<link rel="stylesheet" href="assets/persona-codex.css?v=d88a1ab0">
-		<link rel="stylesheet" href="assets/sections.css?v=0cadeb2c">
+		<link rel="stylesheet" href="assets/sections.css?v=7882151f">
 	<link rel="stylesheet" href="assets/v52-overlay.css?v=785971b6">
 	<link rel="stylesheet" href="assets/v53-overlay.css?v=1b57bfe6">
 
@@ -225,7 +225,136 @@ window.addEventListener("load", function(){
 <link rel="stylesheet" href="assets/v70-preview-controls.css?v=ef27f951">
 <link rel="stylesheet" href="assets/v69-mobile-ui-audit.css?v=e67e9edc">
 
+
+
+
 <link rel="stylesheet" href="assets/inline-effect-glossary.css?v=f14d3776">
+<style id="lbt-mobile-touch-targets">
+/* Mobile touch-target correction. Kept after the legacy overlays so these
+   unlayered rules cannot be silently overridden by a later compact preset. */
+@media (max-width: 640px) {
+  .topbar {
+    gap: 8px;
+    padding-inline: 10px;
+  }
+  .topbar-search {
+    box-sizing: border-box;
+    display: inline-flex;
+    flex: 0 0 40px;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+    padding: 0;
+  }
+  .preview-mobile-toggle {
+    box-sizing: border-box;
+    flex: 0 0 40px;
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+    padding: 0;
+  }
+
+  /* Dialog and sheet dismissal controls remain reachable without pixel-perfect taps. */
+  .acct-close,
+  .import-router-close,
+  .utility-sheet-close,
+  .detail-dialog-close,
+  .ego-quick-close,
+  .persona-draft-dialog button.btn-icon,
+  button[aria-label*="閉じる"],
+  button[title^="閉じる"] {
+    box-sizing: border-box;
+    min-width: 40px;
+    min-height: 40px;
+  }
+  .acct-close,
+  .import-router-close,
+  .utility-sheet-close,
+  .detail-dialog-close,
+  .ego-quick-close,
+  .persona-draft-dialog button.btn-icon {
+    width: 40px;
+    height: 40px;
+  }
+  button.btn-icon,
+  .es-kw-rm {
+    box-sizing: border-box;
+    min-width: 40px;
+    min-height: 40px;
+    width: 40px;
+    height: 40px;
+  }
+
+  /* Small chips must not make their remove action a 32px target. */
+  .ledger-reward-item-chip button {
+    box-sizing: border-box;
+    flex: 0 0 40px;
+    min-width: 40px;
+    min-height: 40px;
+    width: 40px;
+    height: 40px;
+  }
+
+  /* Reorder arrows were 28x22px. Widen the rail and preserve a 40px target
+     in both vertical and horizontal reorder groups. */
+  .reorder-btns { width: 40px; }
+  .reorder-btns[style*="row"] {
+    width: auto;
+    flex-direction: row;
+  }
+  .reorder-btn {
+    box-sizing: border-box;
+    flex: 0 0 40px;
+    min-width: 40px;
+    min-height: 40px;
+    width: 40px;
+    height: 40px;
+  }
+
+  /* Ledger actions are frequently used while editing on a phone. */
+  .ledger-row-move-action,
+  .ledger-row-release,
+  .ledger-row-trash,
+  .ledger-card-edit-btn,
+  .ledger-card-edit-save,
+  .ledger-card-edit-cancel,
+  .ledger-card-move-target,
+  .ledger-queue-move-target,
+  .ledger-result-object-actions > summary {
+    box-sizing: border-box;
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  /* Nine build sections: use two rows rather than shrinking each tab below
+     a finger-sized width or hiding the final tabs in a horizontal scroller. */
+  .build-tabs .segmented[role="tablist"][aria-label="ビルドセクション"] {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    width: 100%;
+    gap: 4px;
+    overflow: visible;
+  }
+  .build-tabs .segmented[role="tablist"][aria-label="ビルドセクション"] > button {
+    box-sizing: border-box;
+    min-width: 40px;
+    width: 100%;
+    min-height: 40px;
+    padding: 6px 3px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    justify-content: center;
+    text-align: center;
+    font-size: 12px;
+    line-height: 1.25;
+  }
+}
+</style>
 <style id="b-type-production-rollout">
 /* B-type production UI rollout: the refined layout is applied to the live shell,
    not only to preview captures. Keep this block last so it wins over legacy overlays. */
@@ -500,7 +629,56 @@ window.addEventListener("load", function(){
 
 </style>
 <link rel="stylesheet" href="assets/b-type-workbench.css?v=77284898">
-<link rel="stylesheet" href="assets/b-type-ui-parity.css?v=0f63f01e">
+<link rel="stylesheet" href="assets/b-type-ui-parity.css?v=903829a8">
+
+<style id="lbt-mobile-build-tab-grid-final">
+/* b-type-ui-parity.css intentionally pins the touch rail with !important.
+   On phones override that legacy rail so all nine tabs are visible without
+   horizontal clipping. This block is after every stylesheet by design. */
+@media (max-width: 640px) {
+  .build-tabs.is-b-workbench .btype-build-tablist[role="tablist"][aria-label="ビルドセクション"] {
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    grid-auto-rows: minmax(40px, auto);
+    flex-wrap: initial !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+    white-space: normal !important;
+    gap: 4px !important;
+  }
+  .build-tabs.is-b-workbench .btype-build-tablist[role="tablist"][aria-label="ビルドセクション"] > button[role="tab"] {
+    box-sizing: border-box;
+    flex: initial !important;
+    min-width: 40px !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    min-height: 40px !important;
+    padding: 6px 3px !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    justify-content: center;
+    text-align: center;
+    line-height: 1.25;
+  }
+}
+
+  @media (max-width: 640px) {
+    /* The compact ledger card rules are later/more specific than the general
+       touch-target pass. Pin their three row actions to a full 40px height. */
+    .ledger-card .ledger-row-move-action,
+    .ledger-card .ledger-row-release,
+    .ledger-card .ledger-row-trash,
+    .ledger-queue .ledger-row-move-action,
+    .ledger-queue .ledger-row-trash {
+      box-sizing: border-box;
+      min-width: 40px !important;
+      min-height: 40px !important;
+      height: 40px !important;
+    }
+  }
+</style>
 </head>
 <body style="background-color:#14110d">
   <div id="root"></div>
@@ -508,7 +686,7 @@ window.addEventListener("load", function(){
   <script src="vendor/react-dom.min.js?v=35f4f974"></script>
 <script src="js/core.js?v=d79b98be"></script>
 			<script src="js/ego-slot-forms.js?v=85aa4887"></script>
-				<script src="js/state.js?v=e47b7461"></script>
+				<script src="js/state.js?v=3a840c8a"></script>
 <script src="js/persona-inventory-audit.js?v=4e2ed017"></script>
 				<script src="js/persona-draft-import.js?v=36d1c28a"></script>
 					<script src="js/share-link.js?v=e11a0161"></script>
@@ -518,7 +696,7 @@ window.addEventListener("load", function(){
 				<script src="js/PersonaCodex.js?v=68e7b467"></script>
 		<script src="js/ItemCodex.js?v=1a80988e"></script>
 <script src="js/SkillDeck.js?v=a93f6cb8"></script>
-								<script src="js/OtherSections.js?v=1bc9472d"></script>
+								<script src="js/OtherSections.js?v=18ffe9ac"></script>
 				<script src="js/LivePreview.js?v=69b4d6d2"></script>
 <script src="js/DataQuality.js?v=a8365c72"></script>
 <script src="js/icon-cropper.js?v=20900dc8"></script>
@@ -538,7 +716,7 @@ window.addEventListener("load", function(){
   <script src="js/gacha-proof.js?v=516f754a"></script>
 <script src="js/cloud-backup.js?v=9f99abb8"></script>
 <script src="js/accounts-ui.js?v=87f5b555"></script>
-<script src="js/App.js?v=eabddf71"></script>
+<script src="js/App.js?v=6f08c8ad"></script>
 <script>
   lbtDbReady.then(lbtBoot).catch(function(error){
     document.getElementById("root").innerHTML = "<div style=\"color:#c8a84b;padding:40px;text-align:center;font-family:sans-serif\">アイテム一覧を含む必須データの読み込みに失敗しました。ページを再読み込みしてください。<br>file:// で直接開いている場合はローカルサーバー経由で開いてください（README参照）。<p id=\"lbt-data-load-detail\" style=\"color:#b7ac9c;font-size:12px\"></p></div>";

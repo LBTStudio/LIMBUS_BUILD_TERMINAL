@@ -1804,3 +1804,20 @@
   .ledger-move-mode { align-items: stretch; }
   .ledger-queue-move-target { width: 100%; }
 }
+
+
+/* Touch-friendly hit areas for the primary acquisition and result actions.
+   Decorative icons may remain compact; actions that change ownership, equipment,
+   inventory or result state keep a minimum 40px control height. */
+.build-item-controls .btn,
+.shop-card-actions .btn,
+.spirit-item-actions .btn,
+.detail-actions .btn,
+.ego-quick-actions .btn,
+.p-card-quick-equip,
+.p-card-quick-acquire,
+.ledger-reward-item-controls .btn,
+.ledger-import-menu .btn,
+.ledger-result-submit .btn {
+  min-height: 40px;
+}
