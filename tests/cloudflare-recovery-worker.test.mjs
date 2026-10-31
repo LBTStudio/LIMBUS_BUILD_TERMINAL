@@ -11,8 +11,8 @@ const worker = read("cloudflare/recovery-worker/worker.js");
 const schema = read("cloudflare/recovery-worker/schema.sql");
 const indexHtml = read("index.html");
 const shareHtml = read("share.html");
-const counter = read("js/access-counter.js");
 const recovery = read("supabase/functions/lbt-account-recovery/index.ts");
+const wrangler = read("cloudflare/recovery-worker/wrangler.toml");
 
 test("復旧キーは不変で、クライアントに再発行導線がない", () => {
   assert.match(client, /CLOUDFLARE_RECOVERY_ENDPOINT/);
@@ -52,22 +52,25 @@ test("Cloudflare D1 stores chunked snapshots and caps history", () => {
   assert.match(worker, /HISTORY_LIMIT = 10/);
   assert.match(schema, /CREATE TABLE IF NOT EXISTS vault_chunks/);
   assert.match(schema, /CREATE TABLE IF NOT EXISTS vault_version_chunks/);
-  assert.match(schema, /CREATE TABLE IF NOT EXISTS site_counters/);
+  assert.doesNotMatch(schema, /site_counters/);
   assert.match(worker, /\/healthz/);
 });
 
-test("アクセスカウンターは累計ページ閲覧数を表示し、識別子をブラウザ保存しない", () => {
-  assert.match(counter, /api\/stats\/view/);
-  assert.match(counter, /総アクセス/);
-  assert.match(worker, /INSERT INTO site_counters \(name, value\) VALUES \('total_views', 1\)/);
-  assert.doesNotMatch(worker, /pageViews/);
-  assert.doesNotMatch(counter, /\b(?:localStorage|sessionStorage|document\.cookie)\s*[.\[]/);
-  assert.match(indexHtml, /access-counter\.js\?v=/);
-  assert.match(shareHtml, /access-counter\.js\?v=/);
+test("ページ解析はCloudflare Web Analyticsが担当し、復旧Workerはアクセス情報を扱わない", () => {
+  assert.ok(indexHtml.includes("static.cloudflareinsights.com/beacon.min.js"));
+  assert.ok(shareHtml.includes("static.cloudflareinsights.com/beacon.min.js"));
+  assert.ok(indexHtml.includes("data-cf-beacon="));
+  assert.ok(shareHtml.includes("data-cf-beacon="));
+  assert.doesNotMatch(indexHtml + shareHtml, /access-counter|lbt-access-counter|総アクセス/);
+  assert.ok(!indexHtml.includes("/api/stats/view") && !shareHtml.includes("/api/stats/view"));
+  assert.ok(!worker.includes("/api/stats/view"));
+  assert.doesNotMatch(worker, /handleCounter|site_counters|COUNTER_RATE_LIMIT|cf-connecting-ip/);
+  assert.doesNotMatch(schema, /site_counters/);
+  assert.doesNotMatch(wrangler, /COUNTER_RATE_LIMIT/);
 });
 
 test("D1 schema and failover docs disclose privacy, free-tier limitations, and independent provider behavior", () => {
-  assert.match(schema, /site_counters/);
+  assert.doesNotMatch(schema, /site_counters/);
   assert.match(read("cloudflare/recovery-worker/README.md"), /end-to-end encryption/);
   assert.match(read("docs/optional-account-cloud-backup.md"), /Cloudflare D1/);
 });

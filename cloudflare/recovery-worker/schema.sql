@@ -1,4 +1,4 @@
--- LBT recovery failover and public page-view totals.
+-- LBT recovery failover storage only; site analytics are handled by Cloudflare Web Analytics.
 -- D1 500 MB Free tier; chunk payloads so every row remains below the 2 MB limit.
 CREATE TABLE IF NOT EXISTS vaults (
   recovery_hash TEXT PRIMARY KEY,
@@ -37,8 +37,3 @@ CREATE TABLE IF NOT EXISTS vault_version_chunks (
 );
 CREATE INDEX IF NOT EXISTS idx_vault_version_chunks_lookup ON vault_version_chunks (recovery_hash, revision, chunk_index);
 
-CREATE TABLE IF NOT EXISTS site_counters (
-  name TEXT PRIMARY KEY,
-  value INTEGER NOT NULL DEFAULT 0 CHECK (value >= 0)
-);
-INSERT OR IGNORE INTO site_counters (name, value) VALUES ('total_views', 0), ('page_app', 0), ('page_share', 0), ('page_view', 0);
