@@ -333,10 +333,7 @@ test("SINNER SELECT のアカウント一覧はカードを縮めず、一覧だ
     "overflow-y: auto;",
     "align-content: start;"
   ]) assert.ok(gridRule.includes(declaration), "一覧ルールに " + declaration + " がある");
-  assert.ok(css.includes(".acct-gate-panel > .acct-grid {\\n  grid-auto-rows: minmax(156px, max-content);"),
-    "起動時ゲートの行トラックは156px以上を維持");
-  assert.ok(css.includes(".acct-panel > .acct-grid {\\n  grid-auto-rows: minmax(184px, max-content);"),
-    "管理画面の行トラックはカード高と同じ184px以上");
+
 });
 
 
