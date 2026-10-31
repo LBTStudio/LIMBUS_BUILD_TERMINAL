@@ -129,3 +129,27 @@ test("UI監査は40px未満の操作対象を新規キャプチャで記録す�
   assert.match(parityCss, /\.ledger-result-income-row/);
   assert.match(parityCss, /\.ledger-error-note/);
 });
+
+
+test("モバイルの主要操作対象を40x40px以上にし、監査CIで未達を失敗にする", () => {
+  const indexHtml = read("../index.html");
+  const touchStyles = indexHtml.slice(indexHtml.indexOf('<style id="lbt-mobile-touch-targets">'));
+  assert.ok(touchStyles.includes(".topbar-search"));
+  assert.ok(touchStyles.includes(".preview-mobile-toggle"));
+  assert.ok(touchStyles.includes(".acct-close"));
+  assert.ok(touchStyles.includes(".import-router-close"));
+  assert.ok(touchStyles.includes(".persona-draft-dialog button.btn-icon"));
+  assert.ok(touchStyles.includes(".ledger-reward-item-chip button"));
+  assert.ok(touchStyles.includes(".reorder-btn"));
+  assert.ok(touchStyles.includes(".ledger-row-move-action"));
+  assert.ok(touchStyles.includes("min-width: 40px"));
+  assert.ok(touchStyles.includes("min-height: 40px"));
+  assert.ok(touchStyles.includes("grid-template-columns: repeat(5, minmax(0, 1fr))"),
+    "9つのビルドタブをスマホで5列2段にし、幅を押し潰さない");
+
+  assert.match(captureAudit, /const touchTargetViolations/);
+  assert.match(captureAudit, /minimum: "40x40 CSS px"/);
+  assert.match(captureAudit, /type: "touch-target-too-small"/);
+  assert.match(captureAudit, /"touch-target-too-small"\].includes\(item\.type\)/);
+  assert.match(captureAudit, /criticalLayoutWarnings\.length/);
+});
