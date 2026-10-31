@@ -216,7 +216,7 @@ test("アクセス解析はCloudflare Web Analyticsに集約し、利用者向�
   assert.ok(!fallbackWorker.includes("/api/stats/view"));
   assert.doesNotMatch(fallbackWorker, /handleCounter|site_counters|COUNTER_RATE_LIMIT|cf-connecting-ip/);
   assert.doesNotMatch(fallbackSchema, /site_counters/);
-});;
+});
 
 
 test("端末間復元はログイン不要の復旧キーで照合してから選択式で実行する", () => {

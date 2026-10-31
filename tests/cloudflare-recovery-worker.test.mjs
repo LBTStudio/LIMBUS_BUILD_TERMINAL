@@ -67,10 +67,10 @@ test("ページ解析はCloudflare Web Analyticsが担当し、復旧Workerは�
   assert.doesNotMatch(worker, /handleCounter|site_counters|COUNTER_RATE_LIMIT|cf-connecting-ip/);
   assert.doesNotMatch(schema, /site_counters/);
   assert.doesNotMatch(wrangler, /COUNTER_RATE_LIMIT/);
-});;
+});
 
 test("D1 schema and failover docs disclose privacy, free-tier limitations, and independent provider behavior", () => {
-  assert.match(schema, /site_counters/);
+  assert.doesNotMatch(schema, /site_counters/);
   assert.match(read("cloudflare/recovery-worker/README.md"), /end-to-end encryption/);
   assert.match(read("docs/optional-account-cloud-backup.md"), /Cloudflare D1/);
 });
