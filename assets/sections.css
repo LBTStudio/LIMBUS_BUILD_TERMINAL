@@ -1821,3 +1821,69 @@
 .ledger-result-submit .btn {
   min-height: 40px;
 }
+
+
+/* Shop persona cards reuse the build Codex card hierarchy and data order. */
+.shop-persona-card {
+  min-height: 228px;
+  cursor: default;
+}
+.shop-persona-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--gold-line);
+}
+.shop-persona-card-head {
+  align-items: center;
+}
+.shop-persona-price {
+  margin-left: auto;
+  color: var(--gold);
+  font-family: var(--f-mono);
+  font-size: var(--fs-10);
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+.shop-persona-card .p-name {
+  min-height: 2.5em;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+.shop-persona-res {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 7px;
+  padding: 5px 0;
+  border-block: 1px solid var(--line-dim);
+  color: var(--tx-2);
+  font-family: var(--f-mono);
+  font-size: var(--fs-10);
+}
+.shop-persona-res > span:not(.lbl) { white-space: nowrap; }
+.shop-persona-passive {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 7px;
+  align-items: baseline;
+  min-width: 0;
+  font-size: var(--fs-11);
+}
+.shop-persona-passive-label {
+  color: var(--tx-mute);
+  font-family: var(--f-display);
+  font-size: 9px;
+  letter-spacing: .08em;
+}
+.shop-persona-passive strong {
+  overflow: hidden;
+  color: var(--tx-2);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shop-persona-actions {
+  margin-top: auto;
+  justify-content: flex-end;
+}
+.shop-persona-actions .btn { min-width: 104px; }
