@@ -1,4 +1,4 @@
--- LBT recovery failover and public page-view totals.
+-- LBT recovery failover storage only; site analytics are handled by Cloudflare Web Analytics.
 -- D1 500 MB Free tier; chunk payloads so every row remains below the 2 MB limit.
 CREATE TABLE IF NOT EXISTS vaults (
   recovery_hash TEXT PRIMARY KEY,

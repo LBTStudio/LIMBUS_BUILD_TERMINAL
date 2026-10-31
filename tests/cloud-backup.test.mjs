@@ -198,7 +198,7 @@ test("Cloudflareの独立保管先は12MiBのチャンク保存・10世代履歴
   assert.match(fallbackWorker, /HISTORY_LIMIT = 10/);
   assert.match(fallbackSchema, /CREATE TABLE IF NOT EXISTS vault_chunks/);
   assert.match(fallbackSchema, /CREATE TABLE IF NOT EXISTS vault_version_chunks/);
-  assert.match(fallbackSchema, /CREATE TABLE IF NOT EXISTS site_counters/);
+  assert.doesNotMatch(fallbackSchema, /site_counters/);
   assert.match(fallbackWorker, /\/api\/stats\/view/);
   assert.match(fallbackWorker, /payload_hash/);
   assert.match(fallbackWorker, /history: \(ancestors\.results/);
