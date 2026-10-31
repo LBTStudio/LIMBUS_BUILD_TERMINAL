@@ -36,14 +36,14 @@ test("ショップは消耗品カタログを所持状態から独立させ、�
   assert.equal(glassShard?.price, "20LP");
   assert.equal(specialItemRecords.find((item) => item.id === "resource-ego-shard")?.ledgerResource, "shards");
 
-  const itemFilter = otherSectionsSource.match(/const items = catalogItems\.filter\(\(item\) =>([\s\S]*?)\);/);
+  const itemFilter = otherSectionsSource.match(/const items = shopView === "catalog" && tab === "item"\s*\?\s*catalogItems\.filter\(\(item\) =>([\s\S]*?)\n\s*: \[\];/);
   assert.ok(itemFilter, "ショップの商品一覧フィルターが存在する");
   assert.doesNotMatch(itemFilter[1], /unownedOnly|ownedItemIds/);
   assert.match(otherSectionsSource, /const canRepurchaseItem = \(item\) => item\?\.ledgerResource !== "shards" && hasConfiguredPrice\(item\)/);
   assert.match(otherSectionsSource, /購入済みでも商品は一覧に残ります/);
   assert.match(otherSectionsSource, /disabled: capped/);
   assert.match(otherSectionsSource, /tab !== "item" \? h\(Button/);
-  const shopItemBuilder = otherSectionsSource.match(/item: \(\) => items\.map\(\(item\) => \{([\s\S]*?)\n\s*\}\)/);
+  const shopItemBuilder = otherSectionsSource.match(/item: \(entries\) => entries\.map\(\(item\) => \{([\s\S]*?)\n\s*\}\)/);
   assert.ok(shopItemBuilder, "ショップのアイテムカード生成部が存在する");
   assert.match(shopItemBuilder[1], /!hasConfiguredPrice\(item\)/);
   assert.match(shopItemBuilder[1], /dispatch\(\{ type: "ADD_ITEM", itemId: item\.id, purchase: true \}\)/);
