@@ -379,5 +379,15 @@ test("SINNER SELECTの編集中カードは全列を使い、フォーム下部�
   const cardRuleEnd = css.indexOf("\n}", cardRuleStart);
   const cardRule = css.slice(cardRuleStart, cardRuleEnd);
   assert.ok(cardRule.includes("min-height: 184px;"), "管理画面カードは内容と操作が重ならない高さを持つ");
-  assert.ok(css.includes("grid-auto-rows: minmax(184px, max-content);"), "管理画面の行トラックも184px以上にする");
+  const sharedScrollRule = css.lastIndexOf(".acct-panel > .acct-grid," + "\n" + ".acct-gate-panel > .acct-grid {");
+  const managerTrackRule = css.lastIndexOf(".acct-panel > .acct-grid {");
+  const gateTrackRule = css.lastIndexOf(".acct-gate-panel > .acct-grid {");
+  assert.ok(sharedScrollRule >= 0 && managerTrackRule > sharedScrollRule && gateTrackRule > sharedScrollRule,
+    "共通スクロール指定の後ろで管理画面・起動ゲートの行トラックを分ける");
+  const managerTrack = css.slice(managerTrackRule, css.indexOf("}", managerTrackRule));
+  const gateTrack = css.slice(gateTrackRule, css.indexOf("}", gateTrackRule));
+  assert.ok(managerTrack.includes("grid-auto-rows: minmax(184px, max-content);"),
+    "管理画面の行トラックはカード高と同じ184px以上");
+  assert.ok(gateTrack.includes("grid-auto-rows: minmax(156px, max-content);"),
+    "起動時ゲートの行トラックは156px以上を維持");
 });
