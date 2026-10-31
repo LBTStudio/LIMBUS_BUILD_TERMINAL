@@ -273,6 +273,44 @@ test("同じ硝子窓ソースの再取込は既存リザルトと取り込み�
   assert.ok(updated.entries.every((entry) => entry.resultId === originalResult.id));
 });
 
+test("同じ共有元キーのリザルトが複数ある場合も、支出を未分類のまま出典キーで置換する", () => {
+  const sourceKey = "gara1:duplicate:undated:夜の卓:1";
+  const first = reducer(baseState(), {
+    type: "ADD_RESULT", name: "重複結果A", income: { lp: 10, shards: 0 }, importSourceKey: sourceKey
+  });
+  const second = reducer(first, {
+    type: "ADD_RESULT", name: "重複結果B", income: { lp: 20, shards: 0 }, importSourceKey: sourceKey
+  });
+  const withOldImport = reducer(second, {
+    type: "ADD_ENTRY", name: "以前の取込支出", cost: { lp: 5, shards: 0 },
+    resultId: null, importResultKey: sourceKey
+  });
+  const withManual = reducer(withOldImport, {
+    type: "ADD_ENTRY", name: "手入力支出", cost: { lp: 3, shards: 0 }, resultId: null
+  });
+  const makeBatch = (name, lp) => ({
+    type: "APPLY_IMPORT_BATCH",
+    actions: [
+      { type: "ADD_RESULT", name: "夜の卓", income: { lp: 30, shards: 0 }, importSourceKey: sourceKey },
+      { type: "ADD_ENTRY", kind: "other", name, cost: { lp, shards: 0 } }
+    ]
+  });
+  const updated = reducer(withManual, makeBatch("最新の取込支出", 8));
+  assert.equal(updated.results.length, 2, "重複した既存リザルトのどちらも推測で更新しない");
+  assert.equal(updated.entries.length, 2, "古い同一出典の取込明細だけを置換する");
+  assert.ok(updated.entries.some((entry) => entry.name === "手入力支出"), "手入力は保持する");
+  const imported = updated.entries.find((entry) => entry.name === "最新の取込支出");
+  assert.ok(imported, "最新の取込支出を保存する");
+  assert.equal(imported.resultId, null, "曖昧な帰属先を推測しない");
+  assert.equal(imported.importResultKey, sourceKey, "未分類でも出典キーを保持する");
+
+  const repeated = reducer(updated, makeBatch("最新の取込支出（再解析）", 9));
+  assert.equal(repeated.entries.length, 2, "再取込で明細を増殖させない");
+  assert.ok(repeated.entries.some((entry) => entry.name === "手入力支出"), "手入力は繰り返し保持する");
+  assert.equal(repeated.entries.filter((entry) => entry.importResultKey === sourceKey).length, 1);
+  assert.equal(repeated.entries.find((entry) => entry.importResultKey === sourceKey).cost.lp, 9);
+});
+
 test("旧形式リザルトは明示指定時だけ更新し、対象の紐づく明細を入れ替える", () => {
   const added = reducer(baseState(), { type: "ADD_RESULT", name: "旧形式", income: { lp: 10, shards: 1 } });
   const oldResult = added.results[0];
