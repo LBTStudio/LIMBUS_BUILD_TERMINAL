@@ -17,6 +17,21 @@
     return PUBLIC_API_KEY;
   }
 
+  /* Remove Japanese particles and full-width punctuation pasted around a URL.
+     Hostname and path validation still runs after trimming. ASCII ID characters
+     are never removed because they may be part of the share ID. */
+  function trimPastedUrlSuffix(value) {
+    let clean = String(value || "").trim();
+    for (let i = 0; i < 3; i++) {
+      const next = clean
+        .replace(/(?:から|まで|について|です|でした|の共有URL|のリンク)$/u, "")
+        .replace(/[)\\]\\},.;:!?）］｝〉》」』】、。，．，；：！？]+$/u, "");
+      if (next === clean) break;
+      clean = next;
+    }
+    return clean;
+  }
+
   /* URL からドキュメント ID とコレクションを抜く。
      利用者が貼るのは「コピーの結果」であって正規の URL ではない。
      前後に文字が付いていても、スキームが抜けていても、末尾に
