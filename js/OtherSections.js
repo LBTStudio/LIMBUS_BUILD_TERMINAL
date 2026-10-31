@@ -2843,6 +2843,11 @@ const ShopSection = ({ state, dispatch }) => {
     sinFilter, sourceFilter, keywordFilter, requiredResources, excludedResources
   ]);
   const visibleCount = visibleWindow.key === filterWindowKey ? visibleWindow.count : 48;
+  React.useEffect(() => {
+    setVisibleWindow((previous) => previous.key === filterWindowKey
+      ? previous
+      : { key: filterWindowKey, count: 48 });
+  }, [filterWindowKey]);
 
 /* ショップのカード本文を、ビルド側と同じ行構造で組む。
    ビルドは「条件」「効果」のラベルで役割を示し、条件は色付きチップで区別する。
