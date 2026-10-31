@@ -516,12 +516,12 @@ test("抽出パックの共有語は同期・カスタム人格にも反映さ�
 test("同期後に表示名が変わった現在人格を、旧DBの他人格引用候補として再利用しない", () => {
   const fixture = {
     normal_personas: [
-      { name: "旧人格名", no: 77, affiliation: "同じ所属", passive_name: "旧固有語", passive_effect: "古いDB説明", unique_buffs: [], skills: [] },
+      { name: "旧人格名", no: 77, passive_name: "旧固有語", passive_effect: "古いDB説明", unique_buffs: [], skills: [] },
       { name: "参照元人格", no: 78, affiliation: "別所属", passive_name: "外部固有語", passive_effect: "外部人格の説明", unique_buffs: [], skills: [] }
     ],
     tokui_personas: [], egos: []
   };
-  const live = { name: "同期後の名前", no: 77, affiliation: "同じ所属", passive_name: "", unique_buffs: [], skills: [] };
+  const live = { name: "同期後の名前", no: 77, __glossaryCollection: "normal", passive_name: "", unique_buffs: [], skills: [] };
   const api = loadGlossary();
   const stale = api.tokenize("[旧固有語]", fixture, "人格スキル:同期後の名前", live);
   assert.equal(stale.filter((piece) => piece.term === "旧固有語").length, 0,
@@ -587,7 +587,7 @@ test("normal と tokui で no が重複し所属が欠ける別人格を、同�
     egos: [], support_passives: [], death_passives: [],
     normal_enhancements: [], special_enhancements: [], spirits: [], items: []
   };
-  const active = fixture.normal_personas[0];
+  const active = { ...fixture.normal_personas[0], __glossaryCollection: "normal" };
   const pieces = loadGlossary().tokenize(
     "[特異人格パッシブ]",
     fixture,
