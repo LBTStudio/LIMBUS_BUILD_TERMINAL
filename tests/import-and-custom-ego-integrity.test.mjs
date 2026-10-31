@@ -263,7 +263,8 @@ test('joined prose stays in one field and one palette command without losing tim
   const pieces = rt.splitEffectLinesPlain(effect);
   assert.equal(pieces.join(''), effect);
   assert.ok(pieces.includes('R終了時、呼吸1を得る（1Rに1回）。'));
-  const state = rt.reducer(rt.initialState, { type: 'ADD_SUPPORT', spp: { name: '連結検証', effect } });
+  let state = rt.reducer(rt.initialState, { type: 'ADD_ROSTER_SUPPORT', spp: { name: '連結検証', effect }, purchase: false });
+  state = rt.reducer(state, { type: 'ADD_SUPPORT', spp: { name: '連結検証', effect } });
   const palette = rt.gen.buildPalette(state);
   const line = palette.split('\n').find((l) => l.includes('連結検証'));
   assert.ok(line.includes('R終了時') && line.includes('クリティカル的中時'));
