@@ -365,7 +365,7 @@ test("ショップの消耗品カタログは所持状況に依存せず、在�
   /* 導入は購入。サポート/アイテムは元から明細のある action を、E.G.O は purchase:true を渡す。 */
   assert.match(shop, /dispatch\(\{ type: "ADD_ROSTER_SUPPORT", spp: entry \}\);/);
   assert.match(shop, /dispatch\(\{ type: "ADD_ROSTER_EGO", rank: ego\.rank, no: ego\.no, purchase: true \}\);/);
-  assert.match(shop, /dispatch\(\{ type: "ADD_ROSTER_SPIRIT", spirit: sp \}\);/);
+  assert.match(shop, /dispatch\(\{ type: "ADD_ROSTER_SPIRIT", spirit: sp, purchase: !isExplicitlyFreeSpirit\(sp\) \}\);/);
   assert.match(shop, /dispatch\(\{ type: "ADD_ITEM", itemId: item\.id, purchase: true \}\);/);
   /* 所持上限に達したアイテムは購入できない。 */
   assert.match(shop, /card\(item\.id, item\.name, item\.category \|\| "その他", "item",[\s\S]{0,200}?atCap\(item\), "所持上限に達しています"/);

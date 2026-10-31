@@ -5438,14 +5438,12 @@ case "ADD_CUSTOM_ITEM": {
       return appReducer(staged, { type: "ADD_DRAW_RECORD", batch, entry: action.entry });
     }
     /* ---- Support ---- */
-    /* 装備だけの操作は所持を増やさない。未所持のカタログ品は
-       ADD_ROSTER_SUPPORT（購入・報酬など明示した取得経路）を先に通す。
-       空名だけは既存の手動編集ドラフトとして追加を許可する。 */
+    /* Buildから直接選んだサポートは、無料の初期選択／直接取得として所持へ写して装備する。
+       有料購入の入口はShopのADD_ROSTER_SUPPORT purchase:trueに限定し、ここでは課帳しない。
+       既に所持している同名は追加せず、所持UIDをそのまま装備する。 */
     case "ADD_SUPPORT": {
-      const name = String(action.spp?.name || "").trim();
-      const owned = findOwnedSupport(state, name);
+      const owned = findOwnedSupport(state, String(action.spp?.name || ""));
       if (owned) return equipRosterSupport(state, owned.uid);
-      if (name) return state;
       const added = addRosterSupport(state, action.spp);
       if (!added) return state;
       return equipRosterSupport(added, added.roster.supports[added.roster.supports.length - 1].uid);
@@ -5488,12 +5486,23 @@ case "ADD_CUSTOM_ITEM": {
         };
       }
       const owned = findOwnedSupport(state, requestedName);
-      if (!owned) return state;
-      const roster = state.roster || {};
-      const supports = (roster.supports || []).map((entry) => entry.uid === owned.uid
-        ? { ...entry, slot: "death", deathSlotManual: !isDeathSupportPassiveRecord(entry) }
-        : entry);
-      return equipRosterSupport({ ...state, roster: { ...roster, supports } }, owned.uid);
+      if (owned) {
+        const roster = state.roster || {};
+        const supports = (roster.supports || []).map((entry) => entry.uid === owned.uid
+          ? { ...entry, slot: "death", deathSlotManual: !isDeathSupportPassiveRecord(entry) }
+          : entry);
+        return equipRosterSupport({ ...state, roster: { ...roster, supports } }, owned.uid);
+      }
+      const added = addRosterSupport(state, { ...action.spp, name: requestedName });
+      if (!added) return state;
+      const entry = [...added.roster.supports].reverse().find((item) => item.name === requestedName);
+      if (!entry) return state;
+      // Explicit death-list selection is a free direct grant; Shop/report routes
+      // use ADD_ROSTER_SUPPORT with their own purchase/grant contract.
+      const supports = added.roster.supports.map((item) => item.uid === entry.uid
+        ? { ...item, slot: "death", deathSlotManual: !isDeathSupportPassiveRecord(item) }
+        : item);
+      return equipRosterSupport({ ...added, roster: { ...added.roster, supports } }, entry.uid);
     }
     case "PATCH_DEATH_SUPPORT": {
       const current = state.deathSupport;
@@ -6871,15 +6880,20 @@ case "ADD_ENTRY":
     /* ---- Spirit shortcut ---- */
     /* 精神も所持（roster.spirits）を経由する。未所持なら写してから装備。 */
     case "APPLY_SPIRIT": {
-      const name = String(action.spirit?.name || "");
+      const name = action.spirit?.name || "";
       if (!name) return state;
       const roster = state.roster || {};
-      const spirits = Array.isArray(roster.spirits) ? roster.spirits : [];
-      // Equipping is not acquisition. Paid spirits must pass ADD_ROSTER_SPIRIT;
-      // the free initial-frame path explicitly adds them with purchase:false.
-      if (!spirits.some((entry) => entry.name === name)) return state;
-      const nextSpirits = spirits.map((entry) => ({ ...entry, equipped: entry.name === name }));
-      const nextRoster = { ...roster, spirits: nextSpirits };
+      let spirits = roster.spirits || [];
+      // Legacy Build selection / explicitly free starting spirit can create an
+      // owned row here. Paid Shop acquisition remains ADD_ROSTER_SPIRIT purchase:true.
+      if (!spirits.some((entry) => entry.name === name)) {
+        spirits = [...spirits, {
+          uid: makeOwnedUid("spr"), name, equipped: false,
+          resultId: null, addedAt: Date.now(), notes: ""
+        }];
+      }
+      spirits = spirits.map((entry) => ({ ...entry, equipped: entry.name === name }));
+      const nextRoster = { ...roster, spirits };
       return { ...state, roster: nextRoster, ...projectEquipmentFromRoster(nextRoster) };
     }
     default:
