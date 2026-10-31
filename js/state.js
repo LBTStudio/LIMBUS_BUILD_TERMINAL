@@ -6011,6 +6011,14 @@ case "ADD_CUSTOM_ITEM": {
           : [];
         /* 自動上書きは安定した共有元キーが1件だけ一致した場合に限る。重複キーは推測で選ばない。 */
         if (matchingBySource.length > 1) {
+          /* 同じ出典キーの既存結果が複数なら帰属先を推測しない。
+             ただし出典キーが一致する取込明細だけは安全に置換できる。
+             手入力明細は importResultKey を持たないため残る。 */
+          const existingEntries = Array.isArray(next.entries) ? next.entries : [];
+          const entries = sourceKey
+            ? existingEntries.filter((entry) => entry?.importResultKey !== sourceKey)
+            : existingEntries;
+          if (entries.length !== existingEntries.length) next = { ...next, entries };
           resultIds.push(null);
           resultSourceKeys.push(sourceKey);
           continue;
@@ -6042,6 +6050,7 @@ case "ADD_CUSTOM_ITEM": {
             income: sub.income,
             note: sub.note,
             consumedItems: sub.consumedItems,
+            personaAcquisitions: sub.personaAcquisitions,
             ...(sourceKey ? { importSourceKey: sourceKey } : {})
           });
           added = (next.results || []).find((result) => result && result.id === target.id) || null;
@@ -6072,7 +6081,9 @@ case "ADD_CUSTOM_ITEM": {
           continue;
         }
         /* undefined だけが「直前に倒す」。null は明示的な未分類なので触らない。 */
-        if (sub.type === "ADD_ENTRY" && lastResultId && sub.resultId === undefined) {
+        if (sub.type === "ADD_ENTRY" && sub.resultId === undefined && (lastResultId || lastResultSourceKey)) {
+          /* 帰属先が重複キーで曖昧な場合は resultId:null のままにするが、
+             sourceKey は保持して次回取込で同一明細を置換できるようにする。 */
           next = appReducer(next, {
             ...sub,
             resultId: lastResultId,

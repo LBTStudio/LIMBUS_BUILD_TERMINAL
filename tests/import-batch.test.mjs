@@ -235,7 +235,7 @@ test("同じ硝子窓ソースの再取込は既存リザルトと取り込み�
   const first = reducer(before, {
     type: "APPLY_IMPORT_BATCH",
     actions: [
-      { type: "ADD_RESULT", name: "夜の卓", income: { lp: 100, shards: 20 }, consumedItems: [], importSourceKey: sourceKey },
+      { type: "ADD_RESULT", name: "夜の卓", income: { lp: 100, shards: 20 }, consumedItems: [], personaAcquisitions: [{ mode: "n", no: "00101", name: "旧人格", source: "garasumado" }], importSourceKey: sourceKey },
       { type: "ADD_ENTRY", kind: "other", name: "解析済み支出", cost: { lp: 25, shards: 0 } }
     ]
   });
@@ -249,7 +249,7 @@ test("同じ硝子窓ソースの再取込は既存リザルトと取り込み�
   const updated = reducer(withManual, {
     type: "APPLY_IMPORT_BATCH",
     actions: [
-      { type: "ADD_RESULT", name: "夜の卓", income: { lp: 150, shards: 30 }, consumedItems: [{ itemId: "glass-shard", itemName: "硝子の破片", quantity: 1, reason: "consumption" }], importSourceKey: sourceKey },
+      { type: "ADD_RESULT", name: "夜の卓", income: { lp: 150, shards: 30 }, consumedItems: [{ itemId: "glass-shard", itemName: "硝子の破片", quantity: 1, reason: "consumption" }], personaAcquisitions: [{ mode: "n", no: "00102", name: "新人格", source: "garasumado" }], importSourceKey: sourceKey },
       { type: "ADD_ENTRY", kind: "other", name: "解析済み支出（修正）", cost: { lp: 40, shards: 0 } }
     ]
   });
@@ -259,10 +259,56 @@ test("同じ硝子窓ソースの再取込は既存リザルトと取り込み�
   assert.equal(updated.results[0].income.lp, 150, "再解析後の収入へ更新");
   assert.equal(updated.results[0].income.shards, 30);
   assert.equal(updated.results[0].consumedItems.length, 1, "消費記録も最新データへ更新");
+  assert.deepEqual(JSON.parse(JSON.stringify(updated.results[0].personaAcquisitions)), [{ mode: "n", no: "00102", name: "新人格", source: "garasumado" }],
+    "再解析で修正された獲得人格を古い取得履歴のまま残さない");
+  const cleared = reducer(updated, {
+    type: "APPLY_IMPORT_BATCH",
+    actions: [{ type: "ADD_RESULT", name: "夜の卓", income: { lp: 150, shards: 30 }, consumedItems: [], personaAcquisitions: [], importSourceKey: sourceKey }]
+  });
+  assert.deepEqual(JSON.parse(JSON.stringify(cleared.results[0].personaAcquisitions)), [],
+    "元履歴から取得人格が削除された場合も、再取込で古い取得履歴を消す");
   assert.equal(updated.entries.length, 2, "古い取込明細だけ置換し、手入力明細を維持");
   assert.ok(updated.entries.some((entry) => entry.name === "手入力の支出" && entry.cost.lp === 5));
   assert.ok(updated.entries.some((entry) => entry.name === "解析済み支出（修正）" && entry.cost.lp === 40));
   assert.ok(updated.entries.every((entry) => entry.resultId === originalResult.id));
+});
+
+test("同じ共有元キーのリザルトが複数ある場合も、支出を未分類のまま出典キーで置換する", () => {
+  const sourceKey = "gara1:duplicate:undated:夜の卓:1";
+  const first = reducer(baseState(), {
+    type: "ADD_RESULT", name: "重複結果A", income: { lp: 10, shards: 0 }, importSourceKey: sourceKey
+  });
+  const second = reducer(first, {
+    type: "ADD_RESULT", name: "重複結果B", income: { lp: 20, shards: 0 }, importSourceKey: sourceKey
+  });
+  const withOldImport = reducer(second, {
+    type: "ADD_ENTRY", name: "以前の取込支出", cost: { lp: 5, shards: 0 },
+    resultId: null, importResultKey: sourceKey
+  });
+  const withManual = reducer(withOldImport, {
+    type: "ADD_ENTRY", name: "手入力支出", cost: { lp: 3, shards: 0 }, resultId: null
+  });
+  const makeBatch = (name, lp) => ({
+    type: "APPLY_IMPORT_BATCH",
+    actions: [
+      { type: "ADD_RESULT", name: "夜の卓", income: { lp: 30, shards: 0 }, importSourceKey: sourceKey },
+      { type: "ADD_ENTRY", kind: "other", name, cost: { lp, shards: 0 } }
+    ]
+  });
+  const updated = reducer(withManual, makeBatch("最新の取込支出", 8));
+  assert.equal(updated.results.length, 2, "重複した既存リザルトのどちらも推測で更新しない");
+  assert.equal(updated.entries.length, 2, "古い同一出典の取込明細だけを置換する");
+  assert.ok(updated.entries.some((entry) => entry.name === "手入力支出"), "手入力は保持する");
+  const imported = updated.entries.find((entry) => entry.name === "最新の取込支出");
+  assert.ok(imported, "最新の取込支出を保存する");
+  assert.equal(imported.resultId, null, "曖昧な帰属先を推測しない");
+  assert.equal(imported.importResultKey, sourceKey, "未分類でも出典キーを保持する");
+
+  const repeated = reducer(updated, makeBatch("最新の取込支出（再解析）", 9));
+  assert.equal(repeated.entries.length, 2, "再取込で明細を増殖させない");
+  assert.ok(repeated.entries.some((entry) => entry.name === "手入力支出"), "手入力は繰り返し保持する");
+  assert.equal(repeated.entries.filter((entry) => entry.importResultKey === sourceKey).length, 1);
+  assert.equal(repeated.entries.find((entry) => entry.importResultKey === sourceKey).cost.lp, 9);
 });
 
 test("旧形式リザルトは明示指定時だけ更新し、対象の紐づく明細を入れ替える", () => {
