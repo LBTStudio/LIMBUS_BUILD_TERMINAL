@@ -23,6 +23,9 @@ const stateSource = readFileSync(new URL("../js/state.js", import.meta.url), "ut
 const app = readFileSync(new URL("../js/App.js", import.meta.url), "utf8");
 const sections = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
 const css = readFileSync(new URL("../assets/v66-accounts.css", import.meta.url), "utf8");
+const cloudPanelSource = readFileSync(new URL("../js/cloud-backup.js", import.meta.url), "utf8");
+const cloudPanelCss = readFileSync(new URL("../assets/cloud-backup.css", import.meta.url), "utf8");
+const accountsUiSource = readFileSync(new URL("../js/accounts-ui.js", import.meta.url), "utf8");
 const indexHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 
 test("作成・名前変更はインラインフォームで行い prompt に依存しない", () => {
@@ -302,4 +305,89 @@ test("SINNER SELECT内の共有URL取込は全列を使い、本文が狭いカ�
   assert.match(css, /\.acct-card--import-open \.gara-rail\s*\{[^}]*position:\s*static/s);
   assert.match(css, /\.acct-card--import-open:hover,[\s\S]*?\.acct-card--import-open:focus-within\s*\{\s*transform:\s*none;\s*box-shadow:\s*none;/);
   assert.match(css, /\.gara\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(240px,\s*320px\)/);
+});
+
+
+test("SINNER SELECT のアカウント一覧はカードを縮めず、一覧だけをスクロールする", () => {
+  const panelStart = css.indexOf(".acct-panel,\n.acct-gate-panel {");
+  assert.notEqual(panelStart, -1, "両方のパネルを同じ制約にする");
+  const panelEnd = css.indexOf("\n}", panelStart);
+  const panelRule = css.slice(panelStart, panelEnd);
+  assert.ok(panelRule.includes("min-height: 0;"), "親 flex の最小高さ制約を解除する");
+  assert.ok(panelRule.includes("overflow: hidden;"), "親パネルでは二重スクロールを作らない");
+
+  const fixedStart = css.indexOf(".acct-panel > .acct-panel-head,");
+  assert.notEqual(fixedStart, -1, "固定する構成要素のルールがある");
+  const fixedEnd = css.indexOf("\n}", fixedStart);
+  const fixedRule = css.slice(fixedStart, fixedEnd);
+  assert.ok(fixedRule.includes("flex: 0 0 auto;"), "見出し・空状態・フッターを縮めない");
+
+  const gridStart = css.indexOf(".acct-panel > .acct-grid,\n.acct-gate-panel > .acct-grid {");
+  assert.notEqual(gridStart, -1, "一覧を両画面で独立させる");
+  const gridEnd = css.indexOf("\n}", gridStart);
+  const gridRule = css.slice(gridStart, gridEnd);
+  for (const declaration of [
+    "flex: 1 1 auto;",
+    "min-height: 0;",
+    "min-width: 0;",
+    "overflow-y: auto;",
+    "align-content: start;"
+  ]) assert.ok(gridRule.includes(declaration), "一覧ルールに " + declaration + " がある");
+
+});
+
+
+test("オンライン保全は初期折りたたみで、SINNER SELECTの一覧領域を圧迫しない", () => {
+  const start = cloudPanelSource.indexOf('return h("details", { className: "lbt-cloud-panel"');
+  assert.notEqual(start, -1, "オンライン保全はネイティブdetailsで開閉できる");
+  const end = cloudPanelSource.indexOf("\n  }\n\n  window.LBTCloudBackup", start);
+  assert.ok(end > start, "パネル描画の終端を特定できる");
+  const panel = cloudPanelSource.slice(start, end);
+  assert.match(panel, /h\("summary", \{ className: "lbt-cloud-summary" \}/, "閉じた状態でも見出しと状態を表示");
+  assert.match(panel, /h\("div", \{ className: "lbt-cloud-content" \}/, "保全・照合・復元操作を内容領域に保持");
+  assert.doesNotMatch(panel.slice(0, panel.indexOf("h(\"div\", { className: \"lbt-cloud-content\"")), /\bopen:\s*true/, "初期状態で自動展開しない");
+  for (const control of ["復旧キーを発行して保全", "全アカウントをJSON保存", "このキーを照合", "JSONファイルから復元"]) {
+    assert.ok(panel.includes(control), control + " は折りたたみ内部に残る");
+  }
+  assert.match(cloudPanelCss, /\.lbt-cloud-summary\s*\{/, "summaryはクリック可能な表示");
+  assert.match(cloudPanelCss, /\.lbt-cloud-panel\[open\] > \.lbt-cloud-summary \.lbt-cloud-chevron/, "開閉状態を矢印で示す");
+});
+
+
+test("SINNER SELECTの編集中カードは全列を使い、フォーム下部の取込操作まで表示する", () => {
+  const start = css.indexOf(".acct-grid > .acct-card--form,");
+  assert.notEqual(start, -1, "編集中カード専用のgridルールがある");
+  const end = css.indexOf("\n}", start);
+  const rule = css.slice(start, end);
+  for (const declaration of [
+    "grid-column: 1 / -1;",
+    "width: 100%;",
+    "min-height: max-content;",
+    "height: auto;",
+    "align-self: start;"
+  ]) assert.ok(rule.includes(declaration), "編集中カードに " + declaration + " がある");
+  assert.ok(accountsUiSource.includes('className: "acct-grid" + (editingId || creating ? " is-editing" : "")'),
+    "編集または新規作成中だけ一覧にis-editingクラスを付ける");
+  const flexStart = css.indexOf(".acct-grid.is-editing {");
+  assert.notEqual(flexStart, -1, "編集時専用のフロー表示がある");
+  const flexEnd = css.indexOf("\n}", flexStart);
+  const flexRule = css.slice(flexStart, flexEnd);
+  for (const declaration of ["display: flex;", "flex-direction: column;", "align-items: stretch;"])
+    assert.ok(flexRule.includes(declaration), "編集時一覧に " + declaration + " がある");
+  const cardRuleStart = css.indexOf(".acct-panel > .acct-grid > .acct-card:not(.acct-card--form):not(.acct-card--add)");
+  assert.notEqual(cardRuleStart, -1, "管理画面カードだけに行高を適用する");
+  const cardRuleEnd = css.indexOf("\n}", cardRuleStart);
+  const cardRule = css.slice(cardRuleStart, cardRuleEnd);
+  assert.ok(cardRule.includes("min-height: 184px;"), "管理画面カードは内容と操作が重ならない高さを持つ");
+  const sharedScrollRule = css.lastIndexOf(".acct-panel > .acct-grid," + "\n" + ".acct-gate-panel > .acct-grid {");
+  const managerTrackRule = css.lastIndexOf(".acct-panel > .acct-grid {");
+  const gateTrackRule = css.lastIndexOf(".acct-gate-panel > .acct-grid {");
+  assert.ok(sharedScrollRule >= 0 && managerTrackRule > sharedScrollRule && gateTrackRule > sharedScrollRule,
+    "共通スクロール指定の後ろで管理画面・起動ゲートの行トラックを分ける");
+  const managerTrack = css.slice(managerTrackRule, css.indexOf("}", managerTrackRule));
+  const gateTrack = css.slice(gateTrackRule, css.indexOf("}", gateTrackRule));
+  assert.ok(managerTrack.includes("grid-auto-rows: minmax(184px, max-content);"),
+    "管理画面の行トラックはカード高と同じ184px以上");
+  assert.ok(gateTrack.includes("grid-auto-rows: minmax(156px, max-content);"),
+    "起動時ゲートの行トラックは156px以上を維持");
 });

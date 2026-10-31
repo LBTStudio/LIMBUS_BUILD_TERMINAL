@@ -375,6 +375,18 @@
   border-color: var(--gold);
 }
 
+
+/* 編集中フォームは通常カードと同じ156px行へ押し込まない。
+   全列を使って内容高まで展開し、共有URL取込・保存操作を同じカード内で操作可能にする。 */
+.acct-grid > .acct-card--form,
+.acct-grid > .acct-card--editing {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: max-content;
+  height: auto;
+  align-self: start;
+}
+
 /* ---- 追加カード / フォームカード ---- */
 .acct-card--add {
   align-items: center;
@@ -404,6 +416,31 @@
   border-color: var(--line-strong);
   background: var(--surface-2);
 }
+
+/* 編集・新規作成中はフォームの内容高を確保するため、カード一覧を縦積みにする。
+   通常時は従来の複数列グリッドへ戻す。スクロール領域は acct-grid のまま維持する。 */
+
+/* 管理画面カードは最終更新と編集・削除操作を同じカード内に収める。 */
+.acct-panel > .acct-grid > .acct-card:not(.acct-card--form):not(.acct-card--add) {
+  min-height: 184px;
+}
+
+.acct-grid.is-editing {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  align-content: normal;
+}
+.acct-grid.is-editing > * {
+  flex: 0 0 auto;
+  width: 100%;
+}
+.acct-grid.is-editing > .acct-card--form,
+.acct-grid.is-editing > .acct-card--editing {
+  min-height: max-content;
+  height: auto;
+}
+
 .acct-card--form:hover,
 .acct-card--editing:hover {
   transform: none;
@@ -1958,6 +1995,45 @@ main.acct-gate {
   .gara-purchase-candidate small {
     grid-column: 2;
   }
+}
+
+/* ---- SINNER SELECT: アカウント一覧を独立したスクロール領域にする ----
+   panel は viewport 内の高さを守り、header / backup / footer を固定。
+   一覧だけを縮めて内部スクロールさせ、カード自体は 156px 未満にしない。 */
+.acct-panel,
+.acct-gate-panel {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.acct-panel > .acct-panel-head,
+.acct-panel > .acct-panel-foot,
+.acct-gate-panel > .acct-panel-head,
+.acct-gate-panel > .acct-panel-foot,
+.acct-panel > .acct-empty,
+.acct-gate-panel > .acct-empty {
+  flex: 0 0 auto;
+}
+
+.acct-panel > .acct-grid,
+.acct-gate-panel > .acct-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  align-content: start;
+}
+
+/* 管理画面のカード本体（min-height:184px）と行トラックを一致させる。
+   共通スクロール指定の後に明示し、行トラックだけが156pxへ戻る回帰を防ぐ。 */
+.acct-panel > .acct-grid {
+  grid-auto-rows: minmax(184px, max-content);
+}
+
+/* 起動時ゲートは従来どおり156px以上のカードを保ち、一覧内をスクロールする。 */
+.acct-gate-panel > .acct-grid {
+  grid-auto-rows: minmax(156px, max-content);
 }
 
 }

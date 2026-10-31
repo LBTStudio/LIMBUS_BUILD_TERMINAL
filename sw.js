@@ -21,14 +21,14 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-00ac38ae";
+const CACHE_NAME = "lbt-bf21242f";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
   "mobile-preview.html",
   "assets/b-type-ui-parity.css?v=903829a8",
   "assets/b-type-workbench.css?v=77284898",
-  "assets/cloud-backup.css?v=8a7eba1b",
+  "assets/cloud-backup.css?v=ffae2d4f",
   "assets/design-system.css?v=910f9485",
   "assets/fonts/corporate-logo-bold-subset.woff2?v=b56fa468",
   "assets/fonts/corporate-logo-medium-subset.woff2?v=dbbdb67e",
@@ -43,7 +43,7 @@ const PRECACHE_URLS = [
   "assets/v65r43-ego-readability.css?v=563284f8",
   "assets/v65r44-ego-quick-detail.css?v=1bb6dfa1",
   "assets/v65r47-ego-card-marks.css?v=aaf12533",
-  "assets/v66-accounts.css?v=2c3fe83d",
+  "assets/v66-accounts.css?v=263db3b5",
   "assets/v67-persona-redesign.css?v=4b89da4c",
   "assets/v68-interaction-a11y.css?v=0bbe4495",
   "assets/v69-mobile-ui-audit.css?v=e67e9edc",
@@ -62,8 +62,8 @@ const PRECACHE_URLS = [
   "js/PersonaCodex.js?v=68e7b467",
   "js/SkillDeck.js?v=a93f6cb8",
   "js/access-counter.js?v=50689988",
-  "js/accounts-ui.js?v=87f5b555",
-  "js/cloud-backup.js?v=9f99abb8",
+  "js/accounts-ui.js?v=39626571",
+  "js/cloud-backup.js?v=32acbafe",
   "js/core.js?v=d79b98be",
   "js/ego-slot-forms.js?v=85aa4887",
   "js/gacha-identity.js?v=25e8fdfa",

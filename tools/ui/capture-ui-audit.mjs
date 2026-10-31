@@ -461,9 +461,20 @@ async function seed() {
     };
     const merged = Object.assign({}, A.loadActive() || {}, next);
     const saved = A.saveActive(merged);
+    if (!saved) return { ok: false, reason: "could not save the seeded audit account" };
+    /* Create a deliberately long account list in this disposable browser context.
+       The SINNER SELECT regression must be exercised with multiple cards, not a
+       one-account fixture that never overflows the grid. */
+    const accountFixtures = [];
+    for (let i = 1; i <= 7; i++) {
+      const entry = A.create("UI監査サブアカウント " + i, "Playwright QA");
+      if (!entry?.id) return { ok: false, reason: "could not create account fixture " + i, accountFixtures };
+      accountFixtures.push(entry.id);
+    }
     return {
       ok: !!saved,
       persona: p.name,
+      accountFixtureCount: accountFixtures.length,
       mode,
       sample: {
         rosterPersonas: rosterPersonas.length,
@@ -536,6 +547,30 @@ async function boot() {
     const gate=page.locator(".acct-gate").first();
     await gate.waitFor({state:"visible",timeout:15000}).catch(()=>{});
     if(await visible(gate)) {
+      await snap("account-gate-multiple-accounts","複数アカウントのSINNER SELECT一覧");
+      const gateMetrics = await page.evaluate(() => {
+        const panel=document.querySelector(".acct-gate-panel");
+        const grid=panel?.querySelector(":scope > .acct-grid");
+        const cards=grid ? [...grid.querySelectorAll(".acct-card--gate")] : [];
+        const heights=cards.map(card=>card.getBoundingClientRect().height).filter(Number.isFinite);
+        return {
+          accountCount:cards.length,
+          gridClientHeight:grid?.clientHeight||0,
+          gridScrollHeight:grid?.scrollHeight||0,
+          minCardHeight:heights.length?Math.min(...heights):0,
+          panelHeight:panel?.clientHeight||0,
+          onlineBackupCollapsed:panel?.querySelector(":scope > details.lbt-cloud-panel")?.open === false,
+          gridOverflowY:grid?getComputedStyle(grid).overflowY:"",
+          panelOverflowY:panel?getComputedStyle(panel).overflowY:""
+        };
+      });
+      audit.accountGateLayout = audit.accountGateLayout || {};
+      audit.accountGateLayout[view] = gateMetrics;
+      if(gateMetrics.accountCount < 8 || gateMetrics.gridClientHeight < 220 || gateMetrics.gridScrollHeight <= gateMetrics.gridClientHeight + 1
+        || gateMetrics.minCardHeight < 152 || !gateMetrics.onlineBackupCollapsed
+        || gateMetrics.gridOverflowY !== "auto" || gateMetrics.panelOverflowY !== "hidden") {
+        throw new Error("複数アカウントの起動ゲートで一覧スクロール／カード行高が期待どおりではありません: " + JSON.stringify(gateMetrics));
+      }
       // Match the card (which contains the account name), then click its transparent hit area.
       // Filtering .acct-card-hit itself by text is unreliable because that button is intentionally blank.
       const card=page.locator(".acct-card--gate").filter({hasText:"UI監査用キャラクター"}).first();
@@ -1232,11 +1267,82 @@ async function captureProfile(browser, mode) {
     await attempt("account-management",async()=>{
       await page.evaluate(()=>window.dispatchEvent(new Event("lbt:open-accounts")));
       await page.waitForTimeout(250); await snap("account-management-list","アカウント管理の一覧");
+      const managerMetrics = await page.evaluate(() => {
+        const panel=document.querySelector(".acct-panel");
+        const grid=panel?.querySelector(":scope > .acct-grid");
+        const cards=grid ? [...grid.querySelectorAll(".acct-card:not(.acct-card--add)")] : [];
+        const cardRects=cards.map(card=>{
+          const r=card.getBoundingClientRect();
+          return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,height:r.height};
+        });
+        let overlappingCardPairs=0;
+        for(let i=0;i<cardRects.length;i++) for(let j=i+1;j<cardRects.length;j++) {
+          const a=cardRects[i], b=cardRects[j];
+          if(Math.min(a.right,b.right)-Math.max(a.left,b.left)>1
+            && Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1) overlappingCardPairs++;
+        }
+        const actionBounds=cards.map(card=>{
+          const action=card.querySelector(".acct-card-actions");
+          if(!action) return false;
+          const c=card.getBoundingClientRect(), a=action.getBoundingClientRect();
+          return a.width>0 && a.height>0 && a.left>=c.left-1 && a.right<=c.right+1
+            && a.top>=c.top-1 && a.bottom<=c.bottom+1;
+        });
+        const heights=cardRects.map(rect=>rect.height).filter(Number.isFinite);
+        return {
+          accountCount:cards.length,
+          gridClientHeight:grid?.clientHeight||0,
+          gridScrollHeight:grid?.scrollHeight||0,
+          minCardHeight:heights.length?Math.min(...heights):0,
+          overlappingCardPairs,
+          actionsOutsideCards:actionBounds.filter(within=>!within).length,
+          onlineBackupCollapsed:panel?.querySelector(":scope > details.lbt-cloud-panel")?.open === false,
+          gridOverflowY:grid?getComputedStyle(grid).overflowY:"",
+          panelOverflowY:panel?getComputedStyle(panel).overflowY:""
+        };
+      });
+      audit.accountManagerLayout = audit.accountManagerLayout || {};
+      audit.accountManagerLayout[view] = managerMetrics;
+      if(managerMetrics.accountCount < 8 || managerMetrics.gridClientHeight < 220 || managerMetrics.gridScrollHeight <= managerMetrics.gridClientHeight + 1
+        || managerMetrics.minCardHeight < 180 || managerMetrics.overlappingCardPairs > 0
+        || managerMetrics.actionsOutsideCards > 0 || !managerMetrics.onlineBackupCollapsed
+        || managerMetrics.gridOverflowY !== "auto" || managerMetrics.panelOverflowY !== "hidden") {
+        throw new Error("複数アカウントの管理画面で一覧スクロール／カード行高が期待どおりではありません: " + JSON.stringify(managerMetrics));
+      }
       const edit=page.locator(".acct-card-actions .acct-edit-btn").first();
       if(await visible(edit)) {
         await click(edit); await snap("account-edit-form","アカウント編集フォーム");
+        const editorMetrics = await page.evaluate(() => {
+          const panel=document.querySelector(".acct-panel");
+          const grid=panel?.querySelector(":scope > .acct-grid");
+          const editor=grid?.querySelector(".acct-card--form,.acct-card--editing");
+          const button=editor?.querySelector(".acct-import-toggle");
+          const rect=(node)=>node?node.getBoundingClientRect():null;
+          const er=rect(editor), br=rect(button), gr=rect(grid);
+          const style=editor?getComputedStyle(editor):null;
+          return {
+            editorHeight:er?.height||0,
+            editorScrollHeight:editor?.scrollHeight||0,
+            gridScrollHeight:grid?.scrollHeight||0,
+            gridClientHeight:grid?.clientHeight||0,
+            gridDisplay:grid?getComputedStyle(grid).display:"",
+            buttonExists:!!button,
+            buttonVisible:!!br && br.width>0 && br.height>0 && br.bottom<=window.innerHeight && br.top>=0,
+            buttonBottom:br?.bottom||0,
+            gridBottom:gr?.bottom||0,
+            buttonBottomWithinEditor:!!er && !!br && br.bottom<=er.bottom+1
+          };
+        });
+        audit.accountEditorLayout = audit.accountEditorLayout || {};
+        audit.accountEditorLayout[view] = editorMetrics;
+        if(!editorMetrics.buttonExists || !editorMetrics.buttonBottomWithinEditor
+          || editorMetrics.gridDisplay !== "flex" || editorMetrics.editorHeight < editorMetrics.editorScrollHeight - 2) {
+          throw new Error("編集中フォームが全列に展開されず、取込ボタンがカード内に収まっていません: " + JSON.stringify(editorMetrics));
+        }
         const toggle=page.locator(".acct-import-toggle").first();
-        if(await visible(toggle)) { await click(toggle); await snap("account-share-url-import","共有URLから取り込む入口"); }
+        await toggle.scrollIntoViewIfNeeded();
+        await click(toggle);
+        await snap("account-share-url-import","共有URLから取り込む入口");
       }
       await closeOverlay();
     });
