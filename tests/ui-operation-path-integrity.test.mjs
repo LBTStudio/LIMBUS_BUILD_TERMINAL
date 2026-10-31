@@ -163,3 +163,19 @@ test("モバイルの主要操作対象を40x40px以上にし、監査CIで未�
   assert.match(captureAudit, /const buildTablistMetrics/);
   assert.match(captureAudit, /type: "build-tabs-not-reflowed"/);
 });
+
+test("画面・サブ画面の切替時は中央スクロールを先頭へ戻し、同一画面の編集では保持する", () => {
+  assert.match(app, /const mainScrollRouteKey = \[[\s\S]*?current,[\s\S]*?libraryTab[\s\S]*?shopView[\s\S]*?settingsView[\s\S]*?basicFormatTab/);
+  assert.match(app, /React\.useLayoutEffect\(\(\) => \{[\s\S]*?previousMainScrollRouteKeyRef\.current = mainScrollRouteKey[\s\S]*?main\.scrollTop = 0/);
+  assert.match(captureAudit, /section-navigation-scroll-reset/);
+  assert.match(captureAudit, /前画面のスクロール位置が残っています/);
+});
+
+test("モバイルのアカウント編集・削除と人格お気に入りは40x40px以上のタップ領域を持つ", () => {
+  const mobileOverrides = index.slice(index.indexOf('<style id="lbt-mobile-build-tab-grid-final">'));
+  assert.match(mobileOverrides, /\.acct-card-actions \.acct-icon-btn[\s\S]*?width: 40px !important[\s\S]*?height: 40px !important/);
+  assert.match(mobileOverrides, /\.acct-card-actions \.acct-edit-btn[\s\S]*?min-height: 40px !important/);
+  assert.match(mobileOverrides, /\.p-card \.p-fav[\s\S]*?width: 40px !important[\s\S]*?height: 40px !important/);
+  assert.match(captureAudit, /\.acct-card-actions \.acct-icon-btn/);
+  assert.match(captureAudit, /\.p-fav/);
+});

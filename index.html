@@ -678,6 +678,28 @@ window.addEventListener("load", function(){
       height: 40px !important;
     }
   }
+
+  /* 全UI監査で見つかった小さすぎるタップ領域をスマートフォンだけ拡張。
+     見た目のアイコン寸法は変えず、押せる面積を40x40 CSS px以上にする。 */
+  @media (max-width: 640px) {
+    .acct-card-actions .acct-icon-btn {
+      box-sizing: border-box;
+      width: 40px !important;
+      min-width: 40px !important;
+      height: 40px !important;
+      min-height: 40px !important;
+    }
+    .acct-card-actions .acct-edit-btn {
+      min-height: 40px !important;
+    }
+    .p-card .p-fav {
+      box-sizing: border-box;
+      width: 40px !important;
+      min-width: 40px !important;
+      height: 40px !important;
+      min-height: 40px !important;
+    }
+  }
 </style>
 </head>
 <body style="background-color:#14110d">

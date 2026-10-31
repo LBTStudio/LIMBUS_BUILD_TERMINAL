@@ -136,6 +136,7 @@ async function readMetrics() {
        inside the current viewport are considered; the 40px rule applies to phones. */
     const touchTargetSelector = [
       ".topbar-search", ".preview-mobile-toggle", ".acct-close", ".import-router-close",
+      ".acct-card-actions .acct-icon-btn", ".p-fav",
       ".utility-sheet-close", ".detail-dialog-close", ".ego-quick-close",
       ".persona-draft-dialog button.btn-icon", "button.btn-icon", ".es-kw-rm",
       ".ledger-reward-item-chip button", ".reorder-btn", ".ledger-row-move-action",
@@ -615,11 +616,6 @@ async function captureProfile(browser, mode) {
     headers: { "cache-control": "no-store", "access-control-allow-origin": "*" },
     body: ""
   }));
-  await page.route("**/api/stats/view*", (route) => route.fulfill({
-    status: 200,
-    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "access-control-allow-origin": "*" },
-    body: JSON.stringify({ ok: true, totalViews: 0 })
-  }));
   page.on("console",m=>{if(m.type()==="error")audit.consoleErrors.push({view:mode,message:m.text().slice(0,160)});});
   page.on("response",response=>{if(response.status()>=400 && !response.url().includes("/cdn-cgi/rum?"))audit.httpErrors.push({view:mode,status:response.status(),url:response.url().slice(0,240)});});
   page.on("pageerror",e=>audit.pageErrors.push({view:mode,message:e.message.slice(0,160)}));
@@ -633,6 +629,47 @@ async function captureProfile(browser, mode) {
     await workbenchNav.waitFor({ state: "visible", timeout: 10000 });
     await click(workbenchNav);
     await page.locator(".build-tabs").waitFor({ state: "visible", timeout: 10000 });
+    await attempt("section-navigation-scroll-reset", async () => {
+      try {
+        const personaTab = page.locator(".build-tabs [role='tab']").filter({ hasText: /^人格$/ }).first();
+        await click(personaTab);
+        const listToggle = page.locator(".pw-listbar-toggle").first();
+        if (await visible(listToggle) && await listToggle.getAttribute("aria-expanded") !== "true") {
+          await click(listToggle);
+        }
+        const main = page.locator("#main-content");
+        const before = await main.evaluate((el) => {
+          el.scrollTop = el.scrollHeight;
+          return { scrollTop: el.scrollTop, maxScroll: el.scrollHeight - el.clientHeight };
+        });
+        if (before.maxScroll < 80 || before.scrollTop < 40) {
+          throw new Error("十分な縦スクロールを作れませんでした: " + JSON.stringify(before));
+        }
+        if (mobile) {
+          await click(page.locator(".btype-mobile-bottom-nav button").filter({ hasText: "その他" }).first());
+          await page.locator(".utility-sheet").waitFor({ state: "visible", timeout: 4000 });
+          await click(page.locator(".utility-section-link").filter({ hasText: "ショップ" }).first());
+        } else {
+          await click(page.locator(".rail-item[title='ショップ']").first());
+        }
+        await page.waitForTimeout(80);
+        const after = await main.evaluate((el) => ({
+          scrollTop: el.scrollTop,
+          heading: (el.querySelector("h1,h2,.section-title")?.textContent || "").trim().slice(0, 36)
+        }));
+        if (after.scrollTop > 2) {
+          throw new Error("別画面へ移動しても前画面のスクロール位置が残っています: " + JSON.stringify({ before, after }));
+        }
+        await snap("section-navigation-scroll-reset", "長い画面の末尾からショップへ移動した後、見出し位置へ戻ることを検証");
+      } finally {
+        await closeOverlay();
+        const returnNav = mobile
+          ? page.locator(".btype-mobile-bottom-nav button").getByText("ビルド", { exact: true }).first()
+          : page.locator(".rail-item[title='ビルド']").first();
+        if (await visible(returnNav)) await click(returnNav);
+        await page.locator(".build-tabs").waitFor({ state: "visible", timeout: 5000 });
+      }
+    });
     const previewToggle=page.locator("#lbt-preview-edge-toggle").first();
     if(await visible(previewToggle)) {
       await previewToggle.hover().catch(()=>{});
