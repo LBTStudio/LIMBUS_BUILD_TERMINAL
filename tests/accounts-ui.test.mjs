@@ -25,6 +25,7 @@ const sections = readFileSync(new URL("../js/OtherSections.js", import.meta.url)
 const css = readFileSync(new URL("../assets/v66-accounts.css", import.meta.url), "utf8");
 const cloudPanelSource = readFileSync(new URL("../js/cloud-backup.js", import.meta.url), "utf8");
 const cloudPanelCss = readFileSync(new URL("../assets/cloud-backup.css", import.meta.url), "utf8");
+const accountsUiSource = readFileSync(new URL("../js/accounts-ui.js", import.meta.url), "utf8");
 const indexHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 
 test("作成・名前変更はインラインフォームで行い prompt に依存しない", () => {
@@ -365,4 +366,12 @@ test("SINNER SELECTの編集中カードは全列を使い、フォーム下部�
     "height: auto;",
     "align-self: start;"
   ]) assert.ok(rule.includes(declaration), "編集中カードに " + declaration + " がある");
+  assert.ok(accountsUiSource.includes('className: "acct-grid" + (editingId || creating ? " is-editing" : "")'),
+    "編集または新規作成中だけ一覧にis-editingクラスを付ける");
+  const flexStart = css.indexOf(".acct-grid.is-editing {");
+  assert.notEqual(flexStart, -1, "編集時専用のフロー表示がある");
+  const flexEnd = css.indexOf("\n}", flexStart);
+  const flexRule = css.slice(flexStart, flexEnd);
+  for (const declaration of ["display: flex;", "flex-direction: column;", "align-items: stretch;"])
+    assert.ok(flexRule.includes(declaration), "編集時一覧に " + declaration + " がある");
 });

@@ -452,7 +452,7 @@ const AccountSwitcher = ({ open, onClose, initialEditId, existingResults = [] })
         h("button", { type: "button", className: "acct-close", onClick: requestClose, title: "閉じる (Esc)", "aria-label": "アカウント切替を閉じる" }, h(Icon, { name: "x", size: 16 }))
       ),
       total === 0 ? h("div", { className: "acct-empty" }, "端末内への保存が有効なブラウザで開いてください。") : null,
-      total > 0 ? h("div", { className: "acct-grid" },
+      total > 0 ? h("div", { className: "acct-grid" + (editingId || creating ? " is-editing" : "") },
         info.accounts.map((entry, index) => h(AccountCard, {
           key: entry.id,
           entry,

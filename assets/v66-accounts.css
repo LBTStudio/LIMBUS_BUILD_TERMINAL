@@ -416,6 +416,25 @@
   border-color: var(--line-strong);
   background: var(--surface-2);
 }
+
+/* 編集・新規作成中はフォームの内容高を確保するため、カード一覧を縦積みにする。
+   通常時は従来の複数列グリッドへ戻す。スクロール領域は acct-grid のまま維持する。 */
+.acct-grid.is-editing {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  align-content: normal;
+}
+.acct-grid.is-editing > * {
+  flex: 0 0 auto;
+  width: 100%;
+}
+.acct-grid.is-editing > .acct-card--form,
+.acct-grid.is-editing > .acct-card--editing {
+  min-height: max-content;
+  height: auto;
+}
+
 .acct-card--form:hover,
 .acct-card--editing:hover {
   transform: none;
