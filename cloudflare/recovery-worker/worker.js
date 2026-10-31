@@ -1,6 +1,6 @@
 /**
- * LBT recovery failover + privacy-minimal page-view counter.
- * Deploy only after creating the D1 database and setting its ID in wrangler.toml.
+ * LBT recovery failover Worker.
+ * Page analytics is handled separately by Cloudflare Web Analytics on the static site.
  * Does not call Supabase: it is an independent fallback provider.
  */
 const MAX_PAYLOAD_BYTES = 12 * 1024 * 1024;
@@ -354,22 +354,6 @@ async function handleRecovery(req, env) {
   throw jsonError("未対応の操作です。", 400);
 }
 
-async function handleCounter(url, req, env) {
-  if (url.pathname !== "/api/stats/view" || req.method !== "GET") throw jsonError("Not found", 404);
-  const rawPath = url.searchParams.get("path") || "app";
-  const page = ["app", "share", "view"].includes(rawPath) ? rawPath : "app";
-  const ip = req.headers.get("cf-connecting-ip") || "anonymous";
-  await throttle(env.COUNTER_RATE_LIMIT, ip, 60, 60);
-  const db = env.BACKUP_DB;
-  if (!db) throw jsonError("Cloudflare D1が構成されていません。", 503);
-  await db.prepare(
-    "INSERT INTO site_counters (name, value) VALUES ('total_views', 1) " +
-    "ON CONFLICT(name) DO UPDATE SET value = value + 1"
-  ).run();
-  const total = await db.prepare("SELECT value FROM site_counters WHERE name = 'total_views'").first();
-  return { ok: true, totalViews: Number(total && total.value || 0), page, scope: "page_views_not_unique_visitors" };
-}
-
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
@@ -385,8 +369,6 @@ export default {
       let result;
       if (url.pathname === "/api/v1/recovery" && req.method === "POST") {
         result = await handleRecovery(req, env);
-      } else if (url.pathname === "/api/stats/view" && req.method === "GET") {
-        result = await handleCounter(url, req, env);
       } else {
         return response({ error: "Not found" }, 404, origin);
       }

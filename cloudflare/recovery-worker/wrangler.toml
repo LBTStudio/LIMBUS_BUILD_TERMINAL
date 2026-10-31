@@ -15,7 +15,3 @@ name = "RECOVERY_RATE_LIMIT"
 namespace_id = "2026102601"
 simple = { limit = 120, period = 60 }
 
-[[ratelimits]]
-name = "COUNTER_RATE_LIMIT"
-namespace_id = "2026102602"
-simple = { limit = 60, period = 60 }

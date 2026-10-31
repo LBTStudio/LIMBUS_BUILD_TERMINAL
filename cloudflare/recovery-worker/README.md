@@ -18,7 +18,6 @@ The independent worker lives in `cloudflare/recovery-worker` and exposes:
 
 - GET /healthz — provider health/configuration.
 - POST /api/v1/recovery — recovery API.
-- GET /api/stats/view?path=app|share|view — increments and returns the page-view counter.
 
 ### Setup
 
@@ -29,7 +28,7 @@ For a fresh installation:
 2. Create a D1 database, apply `schema.sql`, and set the exact database ID in `wrangler.toml`.
 3. Deploy `worker.js` as a new Worker named `lbt-recovery`, with the D1 binding and rate-limit bindings shown in the config.
 4. Open `/healthz`; it should return `{"ok":true,"provider":"cloudflare-d1","configured":true}`.
-5. Test create, update, get, history, restore, replica sync, and the access counter with disposable test data before enabling live failover.
+5. Test create, update, get, history, and restore with disposable test data before enabling live failover.
 
 The Worker stores SHA-256 hashes of recovery keys, never the plaintext recovery key. The current payload format is stored as JSON, as with the existing Supabase API; this design does not provide end-to-end encryption against the storage providers. Do not store passwords, OAuth tokens, or unrelated sensitive personal data in these snapshots.
 
@@ -37,11 +36,13 @@ The Worker stores SHA-256 hashes of recovery keys, never the plaintext recovery 
 
 The Worker splits payloads into small D1 rows because D1 rows are limited to about 2 MB. The configured payload limit remains 12 MiB and history is capped at 10 generations per key. D1 Free allows 500 MB per database and 5 GB across an account, with daily read/write limits. These shared account limits mean no unconditional capacity guarantee is possible; the app must show sync errors and retain local/JSON backups if the cap is reached.
 
-The page counter records aggregate page views; it does not attempt to count unique visitors and does not store IP addresses in the database. Public counters can be inflated by bots or abuse and are informational, not billing-grade analytics.
+## Access analytics
+
+The recovery Worker does not collect page views or visitor counters. Aggregate site traffic is measured by Cloudflare Web Analytics, configured on `index.html` and `share.html`, and is visible to the tool provider in the Cloudflare dashboard.
 
 ## Current communication model
 
-With a recovery key configured, status/sync checks start with two small `head` requests (one per provider). If both replicas have matching revision/hash, no full snapshot payload is downloaded for the status check. A normal changed snapshot then sends one write to the primary and one best-effort replica write, so a typical automatic sync is about four HTTP requests: two metadata reads and two writes. A restore fetches one payload after the metadata checks. Repair of a missing/outdated provider can require an extra payload read. Manual backup performs a second metadata check after the confirmation prompt, so expect about six requests when both writes succeed. Without a recovery key, the app sends no recovery API traffic. The separate access counter makes one request and one small D1 counter-row write per page load.
+With a recovery key configured, status/sync checks start with two small `head` requests (one per provider). If both replicas have matching revision/hash, no full snapshot payload is downloaded for the status check. A normal changed snapshot then sends one write to the primary and one best-effort replica write, so a typical automatic sync is about four HTTP requests: two metadata reads and two writes. A restore fetches one payload after the metadata checks. Repair of a missing/outdated provider can require an extra payload read. Manual backup performs a second metadata check after the confirmation prompt, so expect about six requests when both writes succeed. Without a recovery key, the app sends no recovery API traffic.
 
 Do not mark the product fully failover-ready until the Cloudflare Worker is actually deployed and the multi-provider tests pass. The fallback URL in js/cloud-backup.js must match the deployed Worker hostname.
 

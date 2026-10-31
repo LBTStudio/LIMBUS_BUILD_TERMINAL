@@ -18,7 +18,6 @@ const anonymousMigration = read("supabase/migrations/202610260002_reject_anonymo
 const recovery = read("supabase/functions/lbt-account-recovery/index.ts");
 const fallbackWorker = read("cloudflare/recovery-worker/worker.js");
 const fallbackSchema = read("cloudflare/recovery-worker/schema.sql");
-const accessCounter = read("js/access-counter.js");
 const shareHtml = read("share.html");
 
 test("復旧キーは任意で、初期化・ローカル保存だけではアップロードしない", () => {
@@ -193,7 +192,7 @@ test("保全APIはOAuthセッションではなく復旧キーのみを受け付
 });
 
 
-test("Cloudflareの独立保管先は12MiBのチャンク保存・10世代履歴・アクセス集計を備える", () => {
+test("Cloudflareの独立保管先は12MiBのチャンク保存・10世代履歴を備え、ページ解析を扱わない", () => {
   assert.match(fallbackWorker, /MAX_PAYLOAD_BYTES = 12 \* 1024 \* 1024/);
   assert.match(fallbackWorker, /CHUNK_CHARS = 350000/);
   assert.match(fallbackWorker, /HISTORY_LIMIT = 10/);
@@ -207,13 +206,14 @@ test("Cloudflareの独立保管先は12MiBのチャンク保存・10世代履歴
   assert.match(recovery, /payload_hash: payloadHash/);
 });
 
-test("アクセスカウンターはアプリ本体・共有ページに設置し、個人識別子をローカル保存しない", () => {
-  assert.match(html, /js\/access-counter\.js\?v=[a-f0-9]{8}/);
-  assert.match(shareHtml, /js\/access-counter\.js\?v=[a-f0-9]{8}/);
-  assert.match(accessCounter, /総アクセス/);
-  assert.doesNotMatch(accessCounter, /\b(?:localStorage|sessionStorage|document\.cookie)\s*[.\[]/);
-  assert.match(fallbackWorker, /INSERT INTO site_counters \(name, value\) VALUES \('total_views', 1\)/);
-  assert.doesNotMatch(fallbackWorker, /pageViews/);
+test("アクセス解析はCloudflare Web Analyticsに集約し、利用者向けカウンターを置かない", () => {
+  assert.match(html, /static\\.cloudflareinsights\\.com\\/beacon\\.min\\.js/);
+  assert.match(shareHtml, /static\\.cloudflareinsights\\.com\\/beacon\\.min\\.js/);
+  assert.match(html, /data-cf-beacon=/);
+  assert.match(shareHtml, /data-cf-beacon=/);
+  assert.doesNotMatch(html + shareHtml, /access-counter|lbt-access-counter|総アクセス|api\\/stats\\/view/);
+  assert.doesNotMatch(fallbackWorker, /stats\\/view|handleCounter|site_counters|COUNTER_RATE_LIMIT|cf-connecting-ip/);
+  assert.doesNotMatch(fallbackSchema, /site_counters/);
 });
 
 

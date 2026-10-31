@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
 
 const read = (path) => readFileSync(new URL("../" + path, import.meta.url), "utf8");
+const worker = read("cloudflare/recovery-worker/worker.js");
+const schema = read("cloudflare/recovery-worker/schema.sql");
+const wrangler = read("cloudflare/recovery-worker/wrangler.toml");
 
 test("アクセスカウンターを利用者画面と配信キャッシュから撤去する", () => {
   for (const page of ["index.html", "share.html"]) {
@@ -13,6 +16,9 @@ test("アクセスカウンターを利用者画面と配信キャッシュか�
   }
   assert.equal(existsSync(new URL("../js/access-counter.js", import.meta.url)), false);
   assert.doesNotMatch(read("sw.js"), /access-counter/);
+  assert.doesNotMatch(worker, /stats\\/view|handleCounter|site_counters|COUNTER_RATE_LIMIT|cf-connecting-ip/);
+  assert.doesNotMatch(schema, /site_counters/);
+  assert.doesNotMatch(wrangler, /COUNTER_RATE_LIMIT/);
 });
 
 test("提供者向けCloudflare Web Analyticsビーコンだけを維持する", () => {
