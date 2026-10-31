@@ -220,7 +220,7 @@ test("リザルトの収入は0以上の安全な整数に限り、報酬入力�
   assert.match(addResult, /setNewResultError\(/);
   assert.match(sections, /"aria-invalid": newResultError\.startsWith\("獲得LP"\)/);
   assert.match(sections, /"aria-invalid": newResultError\.startsWith\("獲得欠片"\)/);
-  const rewardItemsAt = sections.indexOf('aria-label: "報酬アイテム"', addStart);
+  const rewardItemsAt = sections.indexOf('"aria-label": "報酬アイテム"', addStart);
   const commitAt = sections.indexOf("入力した内容をまとめて記録", addStart);
   assert.ok(rewardItemsAt > addStart && commitAt > rewardItemsAt, "報酬入力の後ろに確定操作を置く");
 });
