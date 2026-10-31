@@ -1306,6 +1306,8 @@ async function captureProfile(browser, mode) {
             gridScrollHeight:grid?.scrollHeight||0,
             gridClientHeight:grid?.clientHeight||0,
             gridColumn:style?.gridColumn||"",
+            gridColumnStart:style?.gridColumnStart||"",
+            gridColumnEnd:style?.gridColumnEnd||"",
             buttonExists:!!button,
             buttonVisible:!!br && br.width>0 && br.height>0 && br.bottom<=window.innerHeight && br.top>=0,
             buttonBottom:br?.bottom||0,
@@ -1316,7 +1318,7 @@ async function captureProfile(browser, mode) {
         audit.accountEditorLayout = audit.accountEditorLayout || {};
         audit.accountEditorLayout[view] = editorMetrics;
         if(!editorMetrics.buttonExists || !editorMetrics.buttonBottomWithinEditor
-          || !editorMetrics.gridColumn.includes("span")) {
+          || editorMetrics.gridColumnStart !== "1" || editorMetrics.gridColumnEnd !== "-1") {
           throw new Error("編集中フォームが全列に展開されず、取込ボタンがカード内に収まっていません: " + JSON.stringify(editorMetrics));
         }
         const toggle=page.locator(".acct-import-toggle").first();
