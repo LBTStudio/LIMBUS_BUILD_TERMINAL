@@ -1285,7 +1285,7 @@ async function captureProfile(browser, mode) {
       audit.accountManagerLayout = audit.accountManagerLayout || {};
       audit.accountManagerLayout[view] = managerMetrics;
       if(managerMetrics.accountCount < 8 || managerMetrics.gridClientHeight < 220 || managerMetrics.gridScrollHeight <= managerMetrics.gridClientHeight + 1
-        || managerMetrics.minCardHeight < 152 || !managerMetrics.onlineBackupCollapsed
+        || managerMetrics.minCardHeight < 180 || !managerMetrics.onlineBackupCollapsed
         || managerMetrics.gridOverflowY !== "auto" || managerMetrics.panelOverflowY !== "hidden") {
         throw new Error("複数アカウントの管理画面で一覧スクロール／カード行高が期待どおりではありません: " + JSON.stringify(managerMetrics));
       }

@@ -374,4 +374,10 @@ test("SINNER SELECTの編集中カードは全列を使い、フォーム下部�
   const flexRule = css.slice(flexStart, flexEnd);
   for (const declaration of ["display: flex;", "flex-direction: column;", "align-items: stretch;"])
     assert.ok(flexRule.includes(declaration), "編集時一覧に " + declaration + " がある");
+  const cardRuleStart = css.indexOf(".acct-panel > .acct-grid > .acct-card:not(.acct-card--form):not(.acct-card--add)");
+  assert.notEqual(cardRuleStart, -1, "管理画面カードだけに行高を適用する");
+  const cardRuleEnd = css.indexOf("\n}", cardRuleStart);
+  const cardRule = css.slice(cardRuleStart, cardRuleEnd);
+  assert.ok(cardRule.includes("min-height: 184px;"), "管理画面カードは内容と操作が重ならない高さを持つ");
+  assert.ok(css.includes("grid-auto-rows: minmax(184px, max-content);"), "管理画面の行トラックも184px以上にする");
 });

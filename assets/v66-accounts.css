@@ -419,6 +419,16 @@
 
 /* 編集・新規作成中はフォームの内容高を確保するため、カード一覧を縦積みにする。
    通常時は従来の複数列グリッドへ戻す。スクロール領域は acct-grid のまま維持する。 */
+
+/* 管理画面の2列カードでは最終更新と編集・削除操作の縦位置が近くなるため、
+   ゲートの縦1列表示は維持しつつ、管理カードのみ行高を確保する。 */
+.acct-panel > .acct-grid {
+  grid-auto-rows: minmax(184px, max-content);
+}
+.acct-panel > .acct-grid > .acct-card:not(.acct-card--form):not(.acct-card--add) {
+  min-height: 184px;
+}
+
 .acct-grid.is-editing {
   display: flex;
   flex-direction: column;
