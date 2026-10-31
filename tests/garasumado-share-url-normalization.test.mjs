@@ -54,6 +54,16 @@ test("URL normalization never truncates valid ASCII characters from share IDs", 
   assert.equal(parsed.id, extendedId);
 });
 
+test("the known rd.nan7.net wrapper remains supported but arbitrary outer hosts do not", () => {
+  const wrapped = gara.parseShareUrl(`https://rd.nan7.net/${official}`);
+  assert.equal(wrapped.ok, true);
+  assert.equal(wrapped.id, id);
+  const wrappedMany = gara.parseShareUrls(`https://rd.nan7.net/${official}`);
+  assert.equal(wrappedMany.urls.length, 1);
+  assert.equal(wrappedMany.urls[0].id, id);
+  assert.equal(gara.parseShareUrl(`https://outside.invalid/${official}`).ok, false);
+});
+
 test("URL normalization does not permit lookalike or foreign hosts", () => {
   for (const url of [
     `https://${host}.example.invalid/view/${id}`,
