@@ -25,7 +25,7 @@
     for (let i = 0; i < 3; i++) {
       const next = clean
         .replace(/(?:から|まで|について|です|でした|の共有URL|のリンク)$/u, "")
-        .replace(/[)\\]\\},.;:!?）］｝〉》」』】、。，．，；：！？]+$/u, "");
+        .replace(/[)\],.;:!?）］｝}〉》」』】、。，．，；：！？]+$/u, "");
       if (next === clean) break;
       clean = next;
     }
@@ -37,7 +37,7 @@
      前後に文字が付いていても、スキームが抜けていても、末尾に
      スラッシュ・検索語・フラグメントが付いていても同じ ID を取り出せるようにする。 */
   function parseShareUrl(raw) {
-    const text = String(raw || "").trim();
+    const text = trimPastedUrlSuffix(raw);
     const invalid = { ok: false, error: "硝子窓の共有URLを貼り付けてください（…/view/ID の形式）" };
     if (!text) return { ok: false, error: "URL を入力してください" };
 
@@ -51,13 +51,13 @@
     const embeddedOfficial = text.match(/https?:\/\/(?:www\.)?lbt-garasumado\.vercel\.app\/(?:persona\/)?view\/[A-Za-z0-9_-]{6,}\/?(?:[?#][^\s]*)?/i);
     const absolute = text.match(/https?:\/\/[^\s]+/i);
     if (embeddedOfficial) {
-      candidate = embeddedOfficial[0].replace(/[)\],.;]+$/g, "");
+      candidate = trimPastedUrlSuffix(embeddedOfficial[0]);
     } else if (absolute) {
-      candidate = absolute[0].replace(/[)\],.;]+$/g, "");
+      candidate = trimPastedUrlSuffix(absolute[0]);
     } else {
-      const hostless = text.match(/(?:^|[\s"\'(<\[:])((?:www\.)?lbt-garasumado\.vercel\.app(?:\/[^\s]*)?)/i);
+      const hostless = text.match(/(?:^|[\s"'(<\[:（［｛〈《「『【])((?:www\.)?lbt-garasumado\.vercel\.app(?:\/[^\s]*)?)/i);
       if (!hostless) return invalid;
-      candidate = ("https://" + hostless[1]).replace(/[)\],.;]+$/g, "");
+      candidate = trimPastedUrlSuffix("https://" + hostless[1]);
     }
 
     let url;
@@ -83,7 +83,7 @@
     const candidates = [];
     const seenCandidates = new Set();
     const addCandidate = (value) => {
-      const clean = String(value || "").trim().replace(/[)\],.;]+$/g, "");
+      const clean = trimPastedUrlSuffix(value);
       if (!clean || seenCandidates.has(clean)) return;
       seenCandidates.add(clean);
       candidates.push(clean);
@@ -97,7 +97,7 @@
         addCandidate(line);
         continue;
       }
-      const hostlessUrl = /(?:^|[\s"'(<\[:])((?:www\.)?lbt-garasumado\.vercel\.app(?:\/[^\s]*)?)/gi;
+      const hostlessUrl = /(?:^|[\s"'(<\[:（［｛〈《「『【])((?:www\.)?lbt-garasumado\.vercel\.app(?:\/[^\s]*)?)/gi;
       let hostlessMatch;
       while ((hostlessMatch = hostlessUrl.exec(line)) !== null) addCandidate(hostlessMatch[1]);
     }
