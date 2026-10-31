@@ -144,6 +144,9 @@ test("モバイルの主要操作対象を40x40px以上にし、監査CIで未�
   assert.ok(touchStyles.includes(".ledger-row-move-action"));
   assert.ok(touchStyles.includes("min-width: 40px"));
   assert.ok(touchStyles.includes("min-height: 40px"));
+  assert.ok(touchStyles.includes(".ledger-card .ledger-row-move-action"));
+  assert.ok(touchStyles.includes(".ledger-card .ledger-row-release"));
+  assert.ok(touchStyles.includes("height: 40px !important"));
   assert.ok(touchStyles.includes("grid-template-columns: repeat(5, minmax(0, 1fr))"),
     "9つのビルドタブをスマホで5列2段にし、幅を押し潰さない");
   assert.ok(touchStyles.includes('<style id="lbt-mobile-build-tab-grid-final">'),
