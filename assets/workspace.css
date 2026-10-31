@@ -683,6 +683,22 @@
   padding: var(--s-2) 0;
   border-top: 1px solid var(--line-dim);
 }
+.inv-pick-search {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+}
+.inv-pick-search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 40px;
+}
+.inv-pick-search .ledger-note {
+  flex: 0 0 auto;
+  margin: 0;
+  white-space: nowrap;
+}
 .inv-pick-group { display: grid; gap: 6px; }
 .inv-pick-list { display: flex; flex-wrap: wrap; gap: 6px 12px; }
 .inv-pick-item {

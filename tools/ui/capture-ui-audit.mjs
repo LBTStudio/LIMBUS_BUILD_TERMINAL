@@ -961,7 +961,7 @@ async function captureProfile(browser, mode) {
       await page.getByLabel("報酬アイテム数量",{exact:true}).fill("1");
       await click(newRewardControls.getByRole("button",{name:"追加",exact:true}));
       await snap("ledger-reward-item-draft","硝子の破片とカタログ外の外付け義体を追加した報酬入力欄");
-      await click(page.locator(".ledger-add-row").getByRole("button",{name:"記録する",exact:true}));
+      await click(page.locator(".ledger-result-submit").getByRole("button",{name:"入力した内容をまとめて記録",exact:true}));
       await page.waitForTimeout(500);
       const rewardCheck=await page.evaluate((name)=>{
         const saved=window.LBT_accounts?.loadActive?.()||{};
@@ -1062,6 +1062,34 @@ async function captureProfile(browser, mode) {
       }
       const basicTab=page.locator(".build-tabs [role='tab']").filter({hasText:"基本"}).first();
       if(await visible(basicTab)) await click(basicTab);
+    });
+    await attempt("build-item-picker-search",async()=>{
+      await go("ビルド");
+      const itemTab=page.locator(".build-tabs [role='tab']").filter({hasText:"アイテム"}).first();
+      if(!(await visible(itemTab))) throw new Error("Buildのアイテムタブが見つかりません");
+      await click(itemTab);
+      await snap("build-items-inventory","Buildの所持アイテムと検索・表示設定");
+      const add=page.getByRole("button",{name:"所持品へ追加",exact:true}).first();
+      if(!(await visible(add))) throw new Error("Buildの所持品追加ボタンが見つかりません");
+      await click(add);
+      const search=page.getByLabel("所持品へ追加するアイテムを検索");
+      await search.waitFor({state:"visible",timeout:5000});
+      await snap("build-items-picker-open","所持品追加カタログの検索欄");
+      await search.fill("酸素ボンベ");
+      const match=page.locator(".inv-pick-button").filter({hasText:"酸素ボンベ"}).first();
+      if(!(await visible(match))) throw new Error("アイテム検索で酸素ボンベが見つかりません");
+      await snap("build-items-picker-search-results","別名・効果検索で絞り込んだアイテム候補");
+      const palette=page.locator(".topbar-search").first();
+      if(await visible(palette)) await click(palette);
+      const commandInput=page.locator(".cp-input").first();
+      await commandInput.waitFor({state:"visible",timeout:5000});
+      await commandInput.fill("酸素ボンベ");
+      const commandResult=page.locator(".cp-item").filter({hasText:"アイテム：酸素ボンベ"}).first();
+      if(!(await visible(commandResult))) throw new Error("クイック検索に酸素ボンベが出ません");
+      await click(commandResult);
+      const routedSearch=page.getByLabel("所持品へ追加するアイテムを検索");
+      await routedSearch.waitFor({state:"visible",timeout:5000});
+      await snap("build-items-quick-search-route","クイック検索からBuildの該当アイテム検索欄へ直接遷移");
     });
     await attempt("quick-search",async()=>{
       const b=page.locator(".topbar-search").first(); if(await visible(b)) await click(b);

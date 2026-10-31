@@ -207,3 +207,29 @@ test("JSONインポートはレコード配列の不正要素を適用前に拒�
     personas: [], egos: [], supports: [], spirits: []
   } }), null, "正常な空セーブは受け入れる");
 });
+
+
+test("リザルトの収入は0以上の安全な整数に限り、報酬入力後にまとめて確定する", () => {
+  const addStart = sections.indexOf("const addResult = () =>");
+  const addEnd = sections.indexOf("const applyGarasumadoImport", addStart);
+  const addResult = sections.slice(addStart, addEnd);
+  assert.ok(addStart >= 0 && addEnd > addStart, "新規リザルトの保存処理を見つける");
+  assert.match(addResult, /parseNonNegativeInteger/);
+  assert.match(addResult, /Number\.isSafeInteger\(parsed\)/);
+  assert.match(addResult, /incomeLp === null \|\| incomeShards === null/);
+  assert.match(addResult, /setNewResultError\(/);
+  assert.match(sections, /"aria-invalid": newResultError\.startsWith\("獲得LP"\)/);
+  assert.match(sections, /"aria-invalid": newResultError\.startsWith\("獲得欠片"\)/);
+  const rewardItemsAt = sections.indexOf('aria-label: "報酬アイテム"', addStart);
+  const commitAt = sections.indexOf("入力した内容をまとめて記録", addStart);
+  assert.ok(rewardItemsAt > addStart && commitAt > rewardItemsAt, "報酬入力の後ろに確定操作を置く");
+});
+
+test("Buildの所持品検索は別名・効果を扱い、クイック検索から同じ検索欄へ到達する", () => {
+  assert.match(sections, /className: "inv-pick-search"/);
+  assert.match(sections, /item\.searchAliases/);
+  assert.match(sections, /item\.effect/);
+  assert.match(sections, /const searchTargetId = state\.ui\?\.itemSearchTarget\?\.id/);
+  assert.match(app, /currentSection: "items-build", itemSearchTarget:/);
+  assert.match(app, /DB\.specialItems/);
+});

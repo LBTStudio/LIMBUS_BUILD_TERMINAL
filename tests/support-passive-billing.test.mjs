@@ -108,6 +108,28 @@ test("無料の初期精神はpurchase:falseで所持追加した後に装備で
   assert.equal(equipped.entries.length, 0);
 });
 
+test("購入済みサポートを装備し直しても購入と明細を重複しない", () => {
+  const purchased = reducer(base(), { type: "ADD_ROSTER_SUPPORT", spp: { name: PASSIVE }, purchase: true });
+  assert.equal(purchased.roster.supports.length, 1);
+  assert.equal(purchased.entries.length, 1, "購入時点で明細は1件");
+  const equipped = reducer(purchased, { type: "ADD_SUPPORT", spp: { name: PASSIVE } });
+  assert.equal(equipped.roster.supports.length, 1, "所持件数を増やさない");
+  assert.equal(equipped.roster.supports[0].equipped, true);
+  assert.equal(equipped.entries.length, 1, "装備し直しても再課帳しない");
+});
+
+test("有料精神は購入で一度だけ明細を作り、装備では再課金しない", () => {
+  const paid = db.spirits.find((entry) => Number(entry.price) > 0);
+  assert.ok(paid, "価格付き精神を用意");
+  const purchased = reducer(base(), { type: "ADD_ROSTER_SPIRIT", spirit: paid, purchase: true });
+  assert.equal(purchased.roster.spirits.length, 1);
+  assert.equal(purchased.entries.length, 1, "購入時点で明細は1件");
+  const equipped = reducer(purchased, { type: "APPLY_SPIRIT", spirit: paid });
+  assert.equal(equipped.spirit, paid.name);
+  assert.equal(equipped.roster.spirits[0].equipped, true);
+  assert.equal(equipped.entries.length, 1, "装備アクションで再課金しない");
+});
+
 test("装備対象が所持一覧の先頭にあっても、通常スロットの置換では操作対象を装備状態に残す", () => {
   const target = { uid: "target", name: "対象パッシブ", slot: "normal", equipped: false, cond: "", effect: "", lp: "" };
   const old1 = { uid: "old-1", name: "既存パッシブ1", slot: "normal", equipped: true, cond: "", effect: "", lp: "" };
