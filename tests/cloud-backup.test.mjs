@@ -207,14 +207,16 @@ test("Cloudflareの独立保管先は12MiBのチャンク保存・10世代履歴
 });
 
 test("アクセス解析はCloudflare Web Analyticsに集約し、利用者向けカウンターを置かない", () => {
-  assert.match(html, /static\\.cloudflareinsights\\.com\\/beacon\\.min\\.js/);
-  assert.match(shareHtml, /static\\.cloudflareinsights\\.com\\/beacon\\.min\\.js/);
-  assert.match(html, /data-cf-beacon=/);
-  assert.match(shareHtml, /data-cf-beacon=/);
-  assert.doesNotMatch(html + shareHtml, /access-counter|lbt-access-counter|総アクセス|api\\/stats\\/view/);
-  assert.doesNotMatch(fallbackWorker, /stats\\/view|handleCounter|site_counters|COUNTER_RATE_LIMIT|cf-connecting-ip/);
+  assert.ok(html.includes("static.cloudflareinsights.com/beacon.min.js"));
+  assert.ok(shareHtml.includes("static.cloudflareinsights.com/beacon.min.js"));
+  assert.ok(html.includes("data-cf-beacon="));
+  assert.ok(shareHtml.includes("data-cf-beacon="));
+  assert.doesNotMatch(html + shareHtml, /access-counter|lbt-access-counter|総アクセス/);
+  assert.ok(!html.includes("/api/stats/view") && !shareHtml.includes("/api/stats/view"));
+  assert.ok(!fallbackWorker.includes("/api/stats/view"));
+  assert.doesNotMatch(fallbackWorker, /handleCounter|site_counters|COUNTER_RATE_LIMIT|cf-connecting-ip/);
   assert.doesNotMatch(fallbackSchema, /site_counters/);
-});
+});;
 
 
 test("端末間復元はログイン不要の復旧キーで照合してから選択式で実行する", () => {

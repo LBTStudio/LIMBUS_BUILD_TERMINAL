@@ -57,15 +57,17 @@ test("Cloudflare D1 stores chunked snapshots and caps history", () => {
 });
 
 test("ページ解析はCloudflare Web Analyticsが担当し、復旧Workerはアクセス情報を扱わない", () => {
-  assert.match(indexHtml, /static\\.cloudflareinsights\\.com\\/beacon\\.min\\.js/);
-  assert.match(shareHtml, /static\\.cloudflareinsights\\.com\\/beacon\\.min\\.js/);
-  assert.match(indexHtml, /data-cf-beacon=/);
-  assert.match(shareHtml, /data-cf-beacon=/);
-  assert.doesNotMatch(indexHtml + shareHtml, /access-counter|lbt-access-counter|総アクセス|api\\/stats\\/view/);
-  assert.doesNotMatch(worker, /stats\\/view|handleCounter|site_counters|COUNTER_RATE_LIMIT|cf-connecting-ip/);
+  assert.ok(indexHtml.includes("static.cloudflareinsights.com/beacon.min.js"));
+  assert.ok(shareHtml.includes("static.cloudflareinsights.com/beacon.min.js"));
+  assert.ok(indexHtml.includes("data-cf-beacon="));
+  assert.ok(shareHtml.includes("data-cf-beacon="));
+  assert.doesNotMatch(indexHtml + shareHtml, /access-counter|lbt-access-counter|総アクセス/);
+  assert.ok(!indexHtml.includes("/api/stats/view") && !shareHtml.includes("/api/stats/view"));
+  assert.ok(!worker.includes("/api/stats/view"));
+  assert.doesNotMatch(worker, /handleCounter|site_counters|COUNTER_RATE_LIMIT|cf-connecting-ip/);
   assert.doesNotMatch(schema, /site_counters/);
   assert.doesNotMatch(wrangler, /COUNTER_RATE_LIMIT/);
-});
+});;
 
 test("D1 schema and failover docs disclose privacy, free-tier limitations, and independent provider behavior", () => {
   assert.match(schema, /site_counters/);
