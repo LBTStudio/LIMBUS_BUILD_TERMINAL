@@ -2960,10 +2960,12 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
         ownsPersona: (state.roster?.personas || []).length > 0
       });
       const owned = ownedPersonaKeys.has(`n:${persona.no}`);
-      return card(`n:${persona.no}`, persona.name, "通常人格", "persona", () => {
-        const afford = window.LBT_purchaseAffordability?.(state, cost) || { ok: true, reason: "" };
-        if (!afford.ok) {
-          toast(afford.reason || "購入に必要な残高が不足しています", "assertive");
+      const keywords = [...new Set((persona.keywords || []).filter(Boolean))].slice(0, 3);
+      const sins = [...new Set((persona.skills || []).map((skill) => skill?.sin).filter((sin) => sin && sin !== "特殊"))].slice(0, 7);
+      const affordability = window.LBT_purchaseAffordability?.(state, cost) || { ok: true, reason: "" };
+      const acquire = () => {
+        if (!affordability.ok) {
+          toast(affordability.reason || "購入に必要な残高が不足しています", "assertive");
           return;
         }
         dispatch({
@@ -2974,9 +2976,51 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
           cost: { lp: cost.lp || 0, shards: cost.shards || 0 }
         });
         toast(`「${persona.name}」を指定購入しました（${cost.label}）`, "assertive");
-      }, false, null, shopCardLines("persona", persona), owned, null, null, cost.label,
-      [h("span", { className: "shop-card-num" }, "No.", String(persona.no).padStart(3, "0"))],
-      "指定購入");
+      };
+      return h("article", {
+        key: `n:${persona.no}`,
+        className: "p-card shop-persona-card",
+        "data-mode": "n",
+        "data-persona-key": `n:${persona.no}`,
+        "data-owned": owned ? "1" : null
+      },
+        h("div", { className: "p-card-head shop-persona-card-head" },
+          h("span", { className: "p-num" }, "No.", String(persona.no).padStart(3, "0")),
+          h("span", { className: "p-affil" }, persona.affiliation || persona.aff || "所属未登録"),
+          h("span", { className: "shop-persona-price" }, cost.label),
+          owned ? h("span", { className: "shop-card-flag is-owned" }, "所持") : null
+        ),
+        h("div", { className: "p-name" }, persona.name),
+        h("div", { className: "p-stats" },
+          h("div", { className: "p-stat" }, h("span", { className: "p-stat-label" }, "HP"), h("span", { className: "p-stat-value" }, persona.hp ?? "—")),
+          h("div", { className: "p-stat" }, h("span", { className: "p-stat-label" }, "SAN"), h("span", { className: "p-stat-value" }, persona.san ?? "—")),
+          h("div", { className: "p-stat" }, h("span", { className: "p-stat-label" }, "SPD"), h("span", { className: "p-stat-value" }, persona.speed ?? "—"))
+        ),
+        h("div", { className: "p-res-mini shop-persona-res", "aria-label": "斬撃・刺突・打撃耐性" },
+          h("span", { className: "lbl" }, "耐性"),
+          h("span", null, "斬 ", persona.res_slash || "普通"),
+          h("span", null, "刺 ", persona.res_pierce || "普通"),
+          h("span", null, "打 ", persona.res_blunt || "普通")
+        ),
+        persona.passive_name ? h("div", { className: "shop-persona-passive" },
+          h("span", { className: "shop-persona-passive-label" }, "パッシブ"),
+          h("strong", null, persona.passive_name)
+        ) : null,
+        sins.length ? h("div", { className: "p-sin-row" }, sins.map((sin) => h("span", { key: sin, className: "p-sin-pill", "data-sin": sin }, sin))) : null,
+        keywords.length ? h("div", { className: "p-kw-row" }, keywords.map((keyword) => h("span", { key: keyword, className: "p-kw" }, keyword))) : null,
+        h("div", { className: "spirit-item-actions shop-card-actions shop-persona-actions" },
+          owned
+            ? h("span", { className: "spirit-item-equipped" }, "所持済み")
+            : h(Button, {
+              size: "sm",
+              variant: "primary",
+              icon: "plus",
+              className: "p-card-quick-acquire",
+              onClick: acquire,
+              title: affordability.ok ? "通常人格を指定購入して所持に追加" : affordability.reason
+            }, "指定購入")
+        )
+      );
     }),
     support: () => supports.map((entry) => card(`${entry.slot}:${entry.name}`, entry.name, entry.slot === "death" ? "死亡後専用" : null, entry.kind,
       () => { dispatch({ type: "ADD_ROSTER_SUPPORT", spp: entry, purchase: true }); toast(`「${entry.name}」を所持に購入しました`, "assertive"); },
@@ -3167,31 +3211,58 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
     if (scroller && typeof scroller.scrollTop === "number") scroller.scrollTo({ top: 0, behavior: "auto" });
   };
 
+  const shopCategories = [
+    { id: "persona", label: "人格", description: "通常人格を一覧から選んで指定購入", icon: "users", count: totals.persona },
+    { id: "support", label: "サポート", description: "通常・死亡後サポートを探す", icon: "shield", count: totals.support },
+    { id: "ego", label: "E.G.O", description: "ランク・必要資源・キーワードから探す", icon: "sparkles", count: totals.ego },
+    { id: "spirit", label: "精神", description: "初期選択・購入できる精神を探す", icon: "brain", count: totals.spirit },
+    { id: "item", label: "アイテム", description: "消耗品・特殊アイテムを購入する", icon: "package", count: totals.item },
+    { id: "gacha", label: "ガチャ", description: "抽選チケット・抽選権利を確認する", icon: "ticket", count: null }
+  ];
+  const openShopCategory = (id) => {
+    setQuery("");
+    setRankFilter("");
+    setRequiredResources([]);
+    setExcludedResources([]);
+    setKeywordFilter("");
+    setCategoryFilter("all");
+    setSinFilter("");
+    setSourceFilter("all");
+    setUnownedOnly(true);
+    dispatch({ type: "SET_UI", ui: { shopView: "catalog", shopTab: id } });
+    scrollWorkspaceToTop();
+  };
+
   if (shopView !== "catalog") return h("section", { className: "btype-shop-hub" },
     h("header", { className: "btype-page-heading" },
       h("div", null,
         h("div", { className: "btype-eyebrow" }, "SHOP"),
         h("h1", null, "ショップ"),
-        h("p", null, "未所持の候補を探す場所です。")
+        h("p", null, "探したいカテゴリを選んでください。商品一覧や検索条件は選んだ先で確認できます。")
       )
     ),
-    h("div", { className: "panel btype-shop-entry" },
-      h("strong", null, "商品検索"),
-      h("p", { className: "btype-muted" }, "人格・サポート・E.G.O・精神・アイテムなどを検索します。"),
-      h("div", { className: "btype-shop-search-row" },
-        h("input", {
-          className: "input",
-          type: "search",
-          "aria-label": "ショップ商品を検索",
-          placeholder: "商品名・人格名・キーワード",
-          value: query,
-          onChange: (event) => setQuery(event.target.value)
-        }),
-        h("button", {
+    h("section", { className: "btype-shop-category-section", "aria-label": "ショップカテゴリ" },
+      h("div", { className: "btype-shop-category-heading" },
+        h("h2", null, "カテゴリから選ぶ"),
+        h("p", null, "カテゴリは常に表示されています。折りたたまず、目的の一覧へ直接移動できます。")
+      ),
+      h("div", { className: "btype-shop-category-grid" },
+        shopCategories.map((category) => h("button", {
+          key: category.id,
           type: "button",
-          className: "secondary",
-          onClick: () => dispatch({ type: "SET_UI", ui: { shopView: "catalog" } })
-        }, "ショップ一覧を開く")
+          className: "btype-shop-category-card",
+          "data-category": category.id,
+          "aria-label": category.label + "カテゴリを開く",
+          onClick: () => openShopCategory(category.id)
+        },
+          h("span", { className: "btype-shop-category-icon", "aria-hidden": true }, h(Icon, { name: category.icon, size: 20 })),
+          h("span", { className: "btype-shop-category-main" },
+            h("strong", null, category.label),
+            h("small", null, category.description)
+          ),
+          h("span", { className: "btype-shop-category-count" }, category.count == null ? "抽選チケット" : `候補 ${category.count} 件`),
+          h("span", { className: "btype-shop-category-arrow", "aria-hidden": true }, h(Icon, { name: "chevron-right", size: 17 }))
+        ))
       )
     )
   );
