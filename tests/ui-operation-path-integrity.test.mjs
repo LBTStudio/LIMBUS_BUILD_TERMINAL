@@ -33,8 +33,9 @@ test("未所持サポートの取得は価格検証つき購入を通ってか�
     "所持登録と購入明細を作ってから装備する");
   assert.match(support, /未所持です。購入する場合は詳細の「購入して装備」/);
   assert.match(support, /selectedOwned \? "通常スロットへ装備" : "購入して装備"/);
-  assert.match(state, /case "ADD_SUPPORT":[\s\S]{0,700}addRosterSupport\(state, action\.spp\)/);
-  assert.match(state, /case "SET_DEATH_SUPPORT":[\s\S]{0,1200}addRosterSupport\(state, \{ \.\.\.action\.spp, name: requestedName \}\)/);
+  assert.match(state, /case "ADD_SUPPORT":[\s\S]{0,700}if \(name\) return state/);
+  assert.match(state, /case "SET_DEATH_SUPPORT":[\s\S]{0,1300}findOwnedSupport\(state, requestedName\)[\s\S]{0,400}return state/);
+  assert.match(state, /case "ADD_ROSTER_SUPPORT":[\s\S]{0,700}purchaseCostOf\(state,[\s\S]{0,180}purchaseAffordability\(state, cost\)\.ok/);
   assert.match(support, /dispatch\(\{ type: "ADD_ROSTER_SUPPORT", spp: s, purchase: true \}\)/);
 });
 
@@ -46,7 +47,8 @@ test("精神は購入・無料初期取得・装備を区別し、装備だけ�
   assert.match(spirit, /この精神は未所持です。先に「購入」してください/);
   assert.match(spirit, /onClick: \(\) => purchaseSpirit\(selected\)/);
   assert.match(spirit, /isExplicitlyFreeSpirit\(selected\)[\s\S]{0,180}初期選択して装備/);
-  assert.match(state, /case "APPLY_SPIRIT":[\s\S]{0,700}spirits = \[\.\.\.spirits, \{/);
+  assert.match(state, /case "APPLY_SPIRIT":[\s\S]{0,900}Number\(rawPrice\) !== 0\) return state/);
+  assert.match(state, /case "ADD_ROSTER_SPIRIT":[\s\S]{0,700}purchaseCostOf\(state,[\s\S]{0,180}purchaseAffordability\(state, cost\)\.ok/);
   assert.match(spirit, /isExplicitlyFreeSpirit\(sp\) \? "初期取得" : "購入"/);
 });
 
