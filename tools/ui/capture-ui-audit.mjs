@@ -1271,12 +1271,31 @@ async function captureProfile(browser, mode) {
         const panel=document.querySelector(".acct-panel");
         const grid=panel?.querySelector(":scope > .acct-grid");
         const cards=grid ? [...grid.querySelectorAll(".acct-card:not(.acct-card--add)")] : [];
-        const heights=cards.map(card=>card.getBoundingClientRect().height).filter(Number.isFinite);
+        const cardRects=cards.map(card=>{
+          const r=card.getBoundingClientRect();
+          return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,height:r.height};
+        });
+        let overlappingCardPairs=0;
+        for(let i=0;i<cardRects.length;i++) for(let j=i+1;j<cardRects.length;j++) {
+          const a=cardRects[i], b=cardRects[j];
+          if(Math.min(a.right,b.right)-Math.max(a.left,b.left)>1
+            && Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1) overlappingCardPairs++;
+        }
+        const actionBounds=cards.map(card=>{
+          const action=card.querySelector(".acct-card-actions");
+          if(!action) return false;
+          const c=card.getBoundingClientRect(), a=action.getBoundingClientRect();
+          return a.width>0 && a.height>0 && a.left>=c.left-1 && a.right<=c.right+1
+            && a.top>=c.top-1 && a.bottom<=c.bottom+1;
+        });
+        const heights=cardRects.map(rect=>rect.height).filter(Number.isFinite);
         return {
           accountCount:cards.length,
           gridClientHeight:grid?.clientHeight||0,
           gridScrollHeight:grid?.scrollHeight||0,
           minCardHeight:heights.length?Math.min(...heights):0,
+          overlappingCardPairs,
+          actionsOutsideCards:actionBounds.filter(within=>!within).length,
           onlineBackupCollapsed:panel?.querySelector(":scope > details.lbt-cloud-panel")?.open === false,
           gridOverflowY:grid?getComputedStyle(grid).overflowY:"",
           panelOverflowY:panel?getComputedStyle(panel).overflowY:""
@@ -1285,7 +1304,8 @@ async function captureProfile(browser, mode) {
       audit.accountManagerLayout = audit.accountManagerLayout || {};
       audit.accountManagerLayout[view] = managerMetrics;
       if(managerMetrics.accountCount < 8 || managerMetrics.gridClientHeight < 220 || managerMetrics.gridScrollHeight <= managerMetrics.gridClientHeight + 1
-        || managerMetrics.minCardHeight < 180 || !managerMetrics.onlineBackupCollapsed
+        || managerMetrics.minCardHeight < 180 || managerMetrics.overlappingCardPairs > 0
+        || managerMetrics.actionsOutsideCards > 0 || !managerMetrics.onlineBackupCollapsed
         || managerMetrics.gridOverflowY !== "auto" || managerMetrics.panelOverflowY !== "hidden") {
         throw new Error("複数アカウントの管理画面で一覧スクロール／カード行高が期待どおりではありません: " + JSON.stringify(managerMetrics));
       }
