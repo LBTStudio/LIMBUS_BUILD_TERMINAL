@@ -6,15 +6,32 @@ const otherSectionsSource = readFileSync(new URL("../js/OtherSections.js", impor
 const personaSource = readFileSync(new URL("../js/PersonaCodex.js", import.meta.url), "utf8");
 const appSource = readFileSync(new URL("../js/App.js", import.meta.url), "utf8");
 const personaCss = readFileSync(new URL("../assets/persona-codex.css", import.meta.url), "utf8");
+const workbenchCss = readFileSync(new URL("../assets/b-type-workbench.css", import.meta.url), "utf8");
+const sectionsCss = readFileSync(new URL("../assets/sections.css", import.meta.url), "utf8");
 
 test("ショップに通常人格の指定購入カテゴリがあり、未所持・検索・件数が連動する", () => {
   assert.match(otherSectionsSource, /\[\["persona", "人格"\], \["support", "サポート"\]/);
   assert.match(otherSectionsSource, /const ownedPersonaKeys = React\.useMemo/);
   assert.match(otherSectionsSource, /const personas = \(DB\.normal_personas \|\| \[\]\)\.filter/);
   assert.match(otherSectionsSource, /persona: \(\) => personas\.map\(\(persona\) => \{/);
+  assert.match(otherSectionsSource, /const shopCategories = \[/);
+  for (const id of ["persona", "support", "ego", "spirit", "item", "gacha"]) {
+    assert.match(otherSectionsSource, new RegExp('id: "' + id + '"'));
+    assert.match(otherSectionsSource, new RegExp('data-category'));
+  }
+  assert.match(otherSectionsSource, /shopView: "catalog", shopTab: id/);
+  assert.match(otherSectionsSource, /className: "btype-shop-category-card"/);
   assert.match(otherSectionsSource, /persona: \(DB\.normal_personas \|\| \[\]\)\.length/);
   assert.match(otherSectionsSource, /人格・サポート・E\.G\.O・精神・アイテムを購入/);
   assert.match(appSource, /subtitle: "人格・サポート・E\.G\.O・精神・アイテムを購入"/);
+  assert.match(otherSectionsSource, /className: "p-card shop-persona-card"/);
+  assert.match(otherSectionsSource, /className: "p-stats"/);
+  assert.match(otherSectionsSource, /className: "p-res-mini shop-persona-res"/);
+  assert.match(otherSectionsSource, /className: "p-sin-row"/);
+  assert.match(otherSectionsSource, /className: "shop-persona-actions spirit-item-actions shop-card-actions"/);
+  assert.match(personaCss, /\.p-card\s*\{/);
+  assert.match(workbenchCss, /\.btype-shop-category-grid\s*\{/);
+  assert.match(sectionsCss, /\.shop-persona-card\s*\{/);
   assert.match(otherSectionsSource, /const emptyMessage = \{ persona: "条件に合う未所持の通常人格はありません。"/);
   assert.doesNotMatch(otherSectionsSource, /const personas = \[\s*\.\.\.\(DB\.tokui_personas/);
 });
