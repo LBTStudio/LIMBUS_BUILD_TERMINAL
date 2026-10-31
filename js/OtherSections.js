@@ -2805,7 +2805,7 @@ const ShopSection = ({ state, dispatch }) => {
   const [sourceFilter, setSourceFilter] = React.useState("all");
   /* ショップは1タブ最大300枚超のカードになる。初期は48枚だけ組み、
      末尾付近までスクロールしたら48枚ずつ足す（切替と検索入力のJSを枚数ぶん軽くする）。 */
-  const [visibleCount, setVisibleCount] = React.useState(48);
+  const [visibleWindow, setVisibleWindow] = React.useState({ key: "", count: 48 });
   const lastGrowHeightRef = React.useRef(0);
 
   const inventory = Array.isArray(state.inventory) ? state.inventory : [];
@@ -2826,7 +2826,10 @@ const ShopSection = ({ state, dispatch }) => {
   };
   /* 価格付きアイテムは消耗品として繰り返し購入できる。通帳連動資源は在庫ではなく残高を使う。 */
   const canRepurchaseItem = (item) => item?.ledgerResource !== "shards" && hasConfiguredPrice(item);
-  const itemCategories = React.useMemo(() => [...new Set(catalogItems.map((item) => String(item?.category || "その他")))], [catalogItems]);
+  const itemCategories = React.useMemo(() =>
+    shopView === "catalog" && tab === "item"
+      ? [...new Set(catalogItems.map((item) => String(item?.category || "その他")))]
+      : [], [catalogItems, shopView, tab]);
 
   const maxOwnedOf = (itemId) => window.LBT_getItemMaxOwned?.(state, itemId) || 99;
   const atCap = (item) => {
@@ -2835,6 +2838,11 @@ const ShopSection = ({ state, dispatch }) => {
   };
   const q = query.trim().toLowerCase();
   const hit = (text) => !q || String(text || "").toLowerCase().includes(q);
+  const filterWindowKey = JSON.stringify([
+    shopView, tab, unownedOnly, query, rankFilter, categoryFilter,
+    sinFilter, sourceFilter, keywordFilter, requiredResources, excludedResources
+  ]);
+  const visibleCount = visibleWindow.key === filterWindowKey ? visibleWindow.count : 48;
 
 /* ショップのカード本文を、ビルド側と同じ行構造で組む。
    ビルドは「条件」「効果」のラベルで役割を示し、条件は色付きチップで区別する。
@@ -2919,42 +2927,74 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
 
 
   /* 指定購入は通常人格のみ。特異人格はルール上、抽出のみなので商品一覧に混ぜない。 */
-  const personas = (DB.normal_personas || []).filter((persona) =>
-    (!unownedOnly || !ownedPersonaKeys.has(`n:${persona.no}`))
-    && hit(`${persona.name} ${persona.no} ${persona.affiliation || persona.aff || ""} ${(persona.keywords || []).join(" ")} ${(persona.skills || []).map((skill) => `${skill.name || ""} ${skill.effect || ""}`).join(" ")} ${persona.passive_name || ""} ${persona.passive_effect || ""}`));
-  const supports = [
-    ...(DB.support_passives || []).map((s) => ({ ...s, slot: "normal", kind: "support" })),
-    ...(DB.death_passives || []).map((s) => ({ ...s, slot: "death", kind: "deathSupport" }))
-  ].filter((entry) => (!unownedOnly || !ownedSupportNames.has(entry.name))
-    && (sinFilter ? (entry.cond || "").includes(sinFilter) : true)
-    && (sourceFilter === "all" || catalogSource(entry) === sourceFilter)
-    && hit(`${entry.name} ${entry.cond || ""} ${entry.effect || ""}`));
+  /* 商品一覧を開いているカテゴリだけ索引・絞り込みを行う。
+     ホーム表示では件数（DB配列の length）だけを使い、商品本文や検索文字列を走査しない。 */
+  const personaSearchRows = React.useMemo(() => {
+    if (shopView !== "catalog" || tab !== "persona") return [];
+    return (DB.normal_personas || []).map((persona) => ({
+      persona,
+      searchText: `${persona.name} ${persona.no} ${persona.affiliation || persona.aff || ""} ${(persona.keywords || []).join(" ")} ${(persona.skills || []).map((skill) => `${skill.name || ""} ${skill.effect || ""}`).join(" ")} ${persona.passive_name || ""} ${persona.passive_effect || ""}`
+    }));
+  }, [shopView, tab]);
+  const personas = personaSearchRows
+    .filter(({ persona, searchText }) =>
+      (!unownedOnly || !ownedPersonaKeys.has(`n:${persona.no}`)) && hit(searchText))
+    .map(({ persona }) => persona);
 
-  const egos = (DB.egos || []).filter((ego) => (!unownedOnly || !ownedEgoKeys.has(`${ego.rank}:${ego.no}`))
-    && (!rankFilter || ego.rank === rankFilter)
-    && window.LBT_egoMatchesResourceFilters(ego, requiredResources, excludedResources)
-    && (!keywordFilter || window.LBT_egoMatchesKeyword(ego, keywordFilter))
-    && hit(`${ego.name} ${ego.rank} ${ego.passive_name || ""} ${ego.passive_effect || ""}`));
-  /* キーワードの語彙はビルド側と同じ順序・同じ並びで出す。
-     語彙×EGO全件の照合で重く、カタログは静的（カスタムアイテムは ego に影響しない）なので初回だけ計算する。 */
-  const egoKeywordOptions = React.useMemo(() => EGO_KEYWORD_ORDER
-    .map((keyword) => String(keyword || "").trim())
-    .filter(Boolean)
-    .filter((keyword) => (DB.egos || []).some((ego) => window.LBT_egoMatchesKeyword(ego, keyword))), []);
+  const supportSearchRows = React.useMemo(() => {
+    if (shopView !== "catalog" || tab !== "support") return [];
+    return [
+      ...(DB.support_passives || []).map((entry) => ({
+        entry: { ...entry, slot: "normal", kind: "support" },
+        searchText: `${entry.name} ${entry.cond || ""} ${entry.effect || ""}`
+      })),
+      ...(DB.death_passives || []).map((entry) => ({
+        entry: { ...entry, slot: "death", kind: "deathSupport" },
+        searchText: `${entry.name} ${entry.cond || ""} ${entry.effect || ""}`
+      }))
+    ];
+  }, [shopView, tab]);
+  const supports = supportSearchRows
+    .filter(({ entry, searchText }) =>
+      (!unownedOnly || !ownedSupportNames.has(entry.name))
+      && (sinFilter ? (entry.cond || "").includes(sinFilter) : true)
+      && (sourceFilter === "all" || catalogSource(entry) === sourceFilter)
+      && hit(searchText))
+    .map(({ entry }) => entry);
 
-  const spirits = (DB.spirits || []).filter((sp) => (!unownedOnly || !ownedSpiritNames.has(sp.name))
-    && (sourceFilter === "all" || catalogSource(sp) === sourceFilter)
-    && hit(`${sp.name} ${sp.morale_effect || ""} ${sp.confuse_effect || ""}`));
+  const egos = shopView === "catalog" && tab === "ego"
+    ? (DB.egos || []).filter((ego) => (!unownedOnly || !ownedEgoKeys.has(`${ego.rank}:${ego.no}`))
+      && (!rankFilter || ego.rank === rankFilter)
+      && window.LBT_egoMatchesResourceFilters(ego, requiredResources, excludedResources)
+      && (!keywordFilter || window.LBT_egoMatchesKeyword(ego, keywordFilter))
+      && hit(`${ego.name} ${ego.rank} ${ego.passive_name || ""} ${ego.passive_effect || ""}`))
+    : [];
+  /* E.G.O固有のキーワード照合は、E.G.O一覧を開いたときだけ行う。 */
+  const egoKeywordOptions = React.useMemo(() => {
+    if (shopView !== "catalog" || tab !== "ego") return [];
+    return EGO_KEYWORD_ORDER
+      .map((keyword) => String(keyword || "").trim())
+      .filter(Boolean)
+      .filter((keyword) => (DB.egos || []).some((ego) => window.LBT_egoMatchesKeyword(ego, keyword)));
+  }, [shopView, tab]);
+
+  const spirits = shopView === "catalog" && tab === "spirit"
+    ? (DB.spirits || []).filter((sp) => (!unownedOnly || !ownedSpiritNames.has(sp.name))
+      && (sourceFilter === "all" || catalogSource(sp) === sourceFilter)
+      && hit(`${sp.name} ${sp.morale_effect || ""} ${sp.confuse_effect || ""}`))
+    : [];
 
   /* 商品カタログは所持状態で絞らない。消耗品は購入後も商品一覧に残り、在庫0でも再購入できる。 */
-  const items = catalogItems.filter((item) =>
-    (categoryFilter === "all" || String(item?.category || "その他") === categoryFilter)
-    && hit(`${item.name} ${(item.searchAliases || []).join(" ")} ${item.category || ""} ${(item.tags || []).join(" ")} ${item.effect || ""}`));
+  const items = shopView === "catalog" && tab === "item"
+    ? catalogItems.filter((item) =>
+      (categoryFilter === "all" || String(item?.category || "その他") === categoryFilter)
+      && hit(`${item.name} ${(item.searchAliases || []).join(" ")} ${item.category || ""} ${(item.tags || []).join(" ")} ${item.effect || ""}`))
+    : [];
 
-  /* カードはタブを開いたときだけ組む。全タブ分を毎描画で作ると
-     300枚超×4タブの要素ツリーになり、切替・検索入力のたびにJSが数百msかかる。 */
+  /* カード本文は現在選択中のカテゴリから、表示上限分だけ組み立てる。
+     一覧候補すべてのReact要素を作ってからsliceしない。 */
   const lists = {
-    persona: () => personas.map((persona) => {
+    persona: (entries) => entries.map((persona) => {
       const cost = resolveAcquireCost("persona", "purchase", {
         name: persona.name,
         ownsPersona: (state.roster?.personas || []).length > 0
@@ -3022,10 +3062,10 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
         )
       );
     }),
-    support: () => supports.map((entry) => card(`${entry.slot}:${entry.name}`, entry.name, entry.slot === "death" ? "死亡後専用" : null, entry.kind,
+    support: (entries) => entries.map((entry) => card(`${entry.slot}:${entry.name}`, entry.name, entry.slot === "death" ? "死亡後専用" : null, entry.kind,
       () => { dispatch({ type: "ADD_ROSTER_SUPPORT", spp: entry, purchase: true }); toast(`「${entry.name}」を所持に購入しました`, "assertive"); },
       false, null, shopCardLines(entry.kind, entry), ownedSupportNames.has(entry.name))),
-    ego: () => egos.map((ego) => card(`${ego.rank}:${ego.no}`, ego.name, null, "ego",
+    ego: (entries) => entries.map((ego) => card(`${ego.rank}:${ego.no}`, ego.name, null, "ego",
       () => { dispatch({ type: "ADD_ROSTER_EGO", rank: ego.rank, no: ego.no, purchase: true }); toast(`「${ego.name}」を所持に購入しました`, "assertive"); },
       false, null, null, ownedEgoKeys.has(`${ego.rank}:${ego.no}`),
       null,
@@ -3039,7 +3079,7 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
         h("span", { className: "badge", "data-rank": ego.rank }, ego.rank),
         (ego.sub_skills || []).length > 0 ? h("span", { className: "ego-doka-badge", title: "同化スキル対応EGO" }, "◆ 同化") : null
       ].filter(Boolean))),
-    spirit: () => spirits.map((sp) => card(sp.name, sp.name,
+    spirit: (entries) => entries.map((sp) => card(sp.name, sp.name,
       !hasExplicitSpiritPrice(sp) ? "価格不明" : Number(sp.price) > 0 ? null : "初期選択可", "spirit",
       () => {
         if (!hasExplicitSpiritPrice(sp)) {
@@ -3058,7 +3098,7 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
       hasExplicitSpiritPrice(sp) ? formatAcquireCost(0, sp.price) : "価格不明",
       null,
       isExplicitlyFreeSpirit(sp) ? "初期取得" : "購入")),
-    item: () => items.map((item) => {
+    item: (entries) => entries.map((item) => {
       /* 価格設定のない商品は所持欄への登録、価格付き商品は購入として扱う。 */
       const registerOnly = !hasConfiguredPrice(item) && item?.ledgerResource !== "shards";
       const repeatPurchase = canRepurchaseItem(item);
@@ -3091,11 +3131,21 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
     spirit: (DB.spirits || []).length,
     item: catalogItems.length
   };
-  const list = lists[tab] ? lists[tab]() : [];
-  const shownList = list.slice(0, visibleCount);
-  /* 絞り込みが変わったら表示枚数を初期値に戻す（前のリストの表示枚数を持ち越さない）。 */
-  React.useEffect(() => { setVisibleCount(48); }, [tab, unownedOnly, query, rankFilter, categoryFilter, sinFilter, sourceFilter, keywordFilter, requiredResources, excludedResources]);
+  const activeEntries = shopView === "catalog" ? ({
+    persona: personas,
+    support: supports,
+    ego: egos,
+    spirit: spirits,
+    item: items
+  }[tab] || []) : [];
+  const filteredCount = activeEntries.length;
+  /* 先にデータ配列を可視範囲へ絞ってからReact要素を作る。
+     これにより48件ずつの追加が、DOMだけでなくカード組み立て処理にも効く。 */
+  const visibleEntries = activeEntries.slice(0, Math.max(0, visibleCount));
+  const shownList = lists[tab] ? lists[tab](visibleEntries) : [];
   React.useEffect(() => {
+    if (shopView !== "catalog" || tab === "gacha") return;
+    lastGrowHeightRef.current = 0;
     /* IntersectionObserver は content-visibility の推定高さとスクロールアンカリングで
        判定が不安定になるため、スクロール位置と実測高さで末尾到達を判定する。
        高さの読み取りは強制レイアウトを伴うので、1フレーム1回にまとめる。 */
@@ -3114,10 +3164,12 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
       const span = scrollable ? scroller.scrollHeight : document.documentElement.scrollHeight;
       if (span === lastGrowHeightRef.current) return;
       lastGrowHeightRef.current = span;
-      setVisibleCount((count) => Math.min(count + 48, list.length));
+      setVisibleWindow((previous) => {
+        const count = previous.key === filterWindowKey ? previous.count : 48;
+        return { key: filterWindowKey, count: Math.min(count + 48, filteredCount) };
+      });
     };
     const grow = () => { if (!scheduled) { scheduled = true; requestAnimationFrame(measure); } };
-    grow();
     const onScroll = { passive: true };
     if (scroller) scroller.addEventListener("scroll", grow, onScroll);
     window.addEventListener("scroll", grow, onScroll);
@@ -3128,7 +3180,7 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
       window.removeEventListener("scroll", grow, onScroll);
       window.removeEventListener("resize", grow);
     };
-  }, [shownList.length, list.length]);
+  }, [shopView, tab, filterWindowKey, shownList.length, filteredCount]);
   const total = totals[tab] || 0;
   const emptyMessage = { persona: "条件に合う未所持の通常人格はありません。", support: "条件に合う未所持のサポートはありません。", ego: "条件に合う未所持のE.G.Oはありません。", spirit: "条件に合う未所持の精神はありません。", item: "条件に合う未所持のアイテムはありません。" }[tab];
 
@@ -3199,7 +3251,7 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
           onClick: () => setSinFilter(sin)
         }, sin || "すべて"))))
     : null;
-  useSourceFilterControl(SOURCE_KINDS[tab] || "", sourceFilter, setSourceFilter, !!SOURCE_KINDS[tab]);
+  useSourceFilterControl(SOURCE_KINDS[tab] || "", sourceFilter, setSourceFilter, shopView === "catalog" && !!SOURCE_KINDS[tab]);
 
   const searchLabel = { persona: "人格名・No.・スキル・パッシブで検索", support: "サポート名・条件・効果で検索", ego: "E.G.O名・効果・ランクで検索", spirit: "精神名・効果で検索", item: "アイテム名・効果・タグ・カテゴリで検索" }[tab];
 
@@ -3299,7 +3351,7 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
       h("div", { className: "shop-toolbar-main" },
         h("div", { className: "codex-search" }, h(Icon, { name: "search", size: 14 }),
           h("input", { type: "text", "aria-label": searchLabel, placeholder: `${searchLabel}...`, value: query, onChange: (event) => setQuery(event.target.value) })),
-        h("div", { className: "codex-count" }, h("strong", null, list.length), " / ", total),
+        h("div", { className: "codex-count" }, h("strong", null, filteredCount), " / ", total),
 tab !== "item" ? h(Button, {
           size: "sm",
           variant: "ghost",
@@ -3310,8 +3362,9 @@ tab !== "item" ? h(Button, {
       ),
       filterRows
     ),
-    list.length === 0 ? h("div", { className: "empty" }, emptyMessage) : h("div", { className: "shop-grid", "data-tab": tab },
-      shownList)
+    tab === "gacha" ? null
+      : filteredCount === 0 ? h("div", { className: "empty" }, emptyMessage)
+        : h("div", { className: "shop-grid", "data-tab": tab }, shownList)
   );
 };
 const BuildWorkspace = ({ state, dispatch, saveStatus, onTogglePreview, onCopyJson }) => {
