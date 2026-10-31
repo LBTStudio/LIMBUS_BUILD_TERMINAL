@@ -329,8 +329,9 @@ test("ショップの消耗品カタログは所持状況に依存せず、在�
   assert.match(shop, /\(!unownedOnly \|\| !ownedSupportNames\.has\(entry\.name\)\)/);
   assert.match(shop, /\(!unownedOnly \|\| !ownedEgoKeys\.has\(`\$\{ego\.rank\}:\$\{ego\.no\}`\)\)/);
   /* アイテム商品は購入・消費・在庫0に関係なくカタログに残す。 */
-  assert.match(shop, /const items = catalogItems\.filter\(\(item\) =>\s*\(categoryFilter/);
-  assert.doesNotMatch(shop.match(/const items = catalogItems\.filter\(\(item\) =>([\s\S]*?)\);/)?.[1] || "", /unownedOnly|ownedItemIds/);
+  assert.match(shop, /const items = shopView === "catalog" && tab === "item"\s*\?\s*catalogItems\.filter\(\(item\) =>\s*\(categoryFilter/);
+  const catalogFilter = shop.match(/const items = shopView === "catalog" && tab === "item"\s*\?\s*catalogItems\.filter\(\(item\) =>([\s\S]*?)\s*: \[\];/)?.[1] || "";
+  assert.doesNotMatch(catalogFilter, /unownedOnly|ownedItemIds/);
   assert.match(shop, /const canRepurchaseItem = \(item\) => item\?\.ledgerResource !== "shards" && hasConfiguredPrice\(item\)/);
   assert.match(shop, /const repeatPurchase = canRepurchaseItem\(item\)/);
   assert.match(shop, /repeatPurchase && ownedEntry/);
@@ -1021,7 +1022,7 @@ test("ショップはビルドと同じ検索窓形式で絞り込む", () => {
   assert.match(shop, /"aria-pressed": categoryFilter === category/);
   /* 出典フィルタはビルドと同じ DOM 注入フックに任せる。
      出典を持つのはサポートと精神だけなので、そのタブに限って注入する。 */
-  assert.match(shop, /useSourceFilterControl\(SOURCE_KINDS\[tab\] \|\| "", sourceFilter, setSourceFilter, !!SOURCE_KINDS\[tab\]\);/);
+  assert.match(shop, /useSourceFilterControl\(SOURCE_KINDS\[tab\] \|\| "", sourceFilter, setSourceFilter, shopView === "catalog" && !!SOURCE_KINDS\[tab\]\);/);
   /* 絞り込みは実際に一覧へ効く。 */
   assert.match(shop, /&&\s*\(sinFilter \? \(entry\.cond \|\| ""\)\.includes\(sinFilter\) : true\)/);
   assert.match(shop, /\(!rankFilter \|\| ego\.rank === rankFilter\)/);
