@@ -10,7 +10,7 @@ test("同期編集中は編集欄を既定表示し、閲覧専用の人格だ�
   assert.match(source, /const isPassiveReadView = hasAnyPassive && \(forceEdit === null \? !editable : forceEdit === false\);/);
   assert.match(source, /const \[forceEdit, setForceEdit\] = React\.useState\(null\);/);
   assert.match(source, /if \(isPassiveReadView\) return h\("div", \{ className: "stack-6 passive-read-workspace" \}/);
-  assert.match(source, /h\(PassiveCard, \{ title: "PERSONA PASSIVE \/ 人格パッシブ", pas: state\.pas, sin: primarySin, scope: passiveGlossaryScope \}\)/);
+  assert.match(source, /h\(PassiveCard, \{ title: "PERSONA PASSIVE \/ 人格パッシブ", pas: state\.pas, sin: primarySin, scope: passiveGlossaryScope, owner: passiveGlossaryOwner \}\)/);
 });
 
 test("追加パッシブは上限なしで増やせ、常時効果を効果欄と分離して編集できる", () => {
