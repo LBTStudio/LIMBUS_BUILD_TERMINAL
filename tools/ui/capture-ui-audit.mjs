@@ -781,10 +781,36 @@ async function captureProfile(browser, mode) {
         await go(label);
         await snap("section-"+label,"主要セクション: "+label);
         if(label==="ショップ") {
-          const openCatalog=page.getByRole("button",{name:"ショップ一覧を開く",exact:true}).first();
-          if(!(await visible(openCatalog))) throw new Error("B案のショップトップに一覧への入口がありません");
-          await click(openCatalog);
-          await snap("shop-catalog-entry","B案のショップ検索入口から既存カタログへ移動");
+          const categoryCards=page.locator(".btype-shop-category-card");
+          const expectedCategories=[
+            ["persona","人格"],["support","サポート"],["ego","E.G.O"],
+            ["spirit","精神"],["item","アイテム"],["gacha","ガチャ"]
+          ];
+          if(await categoryCards.count()!==expectedCategories.length) {
+            throw new Error("ショップトップに6つのカテゴリカードが揃っていません");
+          }
+          await snap("shop-category-hub","ショップ：6カテゴリを常時表示する選択ホーム");
+          for(const [id,labelText] of expectedCategories) {
+            const category=page.locator('.btype-shop-category-card[data-category="'+id+'"]').first();
+            if(!(await visible(category))) throw new Error("ショップカテゴリカードが見つかりません: "+labelText);
+            await click(category);
+            const activeTab=page.locator(".shop-tabs [role='tab'][aria-selected='true']").first();
+            const selected=(await activeTab.innerText().catch(()=>"")).trim();
+            if(selected!==labelText) throw new Error(labelText+"カテゴリのカードから正しい一覧へ遷移しません: "+selected);
+            await snap("shop-category-"+id,"ショップ分類: "+labelText);
+            if(id==="persona") {
+              const personaCards=page.locator(".shop-persona-card");
+              if(await personaCards.count()===0) throw new Error("人格ショップのビルド統一カードが表示されません");
+              await snap("shop-persona-card-layout","ショップ人格カテゴリ：ビルドと統一したカード表示");
+            }
+            const back=page.locator(".btype-back-link").first();
+            if(!(await visible(back))) throw new Error("ショップカテゴリから戻る入口がありません");
+            await click(back);
+            if(!(await visible(page.locator(".btype-shop-category-grid")))) throw new Error("ショップカテゴリホームへ戻れません");
+          }
+          const personaCategory=page.locator('.btype-shop-category-card[data-category="persona"]').first();
+          await click(personaCategory);
+          await snap("shop-catalog-entry","カテゴリカードから通常人格一覧へ直接移動");
           const tabsShop=page.locator(".shop-tabs [role='tab']");
           const n=Math.min(await tabsShop.count(),8);
           for(let i=0;i<n;i++) {
