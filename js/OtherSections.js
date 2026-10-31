@@ -3212,12 +3212,12 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
   };
 
   const shopCategories = [
-    { id: "persona", label: "人格", description: "通常人格を一覧から選んで指定購入", icon: "users", count: totals.persona },
-    { id: "support", label: "サポート", description: "通常・死亡後サポートを探す", icon: "shield", count: totals.support },
-    { id: "ego", label: "E.G.O", description: "ランク・必要資源・キーワードから探す", icon: "sparkles", count: totals.ego },
-    { id: "spirit", label: "精神", description: "初期選択・購入できる精神を探す", icon: "brain", count: totals.spirit },
-    { id: "item", label: "アイテム", description: "消耗品・特殊アイテムを購入する", icon: "package", count: totals.item },
-    { id: "gacha", label: "ガチャ", description: "抽選チケット・抽選権利を確認する", icon: "ticket", count: null }
+    { id: "persona", label: "人格", description: "通常人格を一覧から選んで指定購入", icon: "persona", count: totals.persona },
+    { id: "support", label: "サポート", description: "通常・死亡後サポートを探す", icon: "support", count: totals.support },
+    { id: "ego", label: "E.G.O", description: "ランク・必要資源・キーワードから探す", icon: "ego", count: totals.ego },
+    { id: "spirit", label: "精神", description: "初期選択・購入できる精神を探す", icon: "spirit", count: totals.spirit },
+    { id: "item", label: "アイテム", description: "消耗品・特殊アイテムを購入する", icon: "item", count: totals.item },
+    { id: "gacha", label: "ガチャ", description: "抽選チケット・抽選権利を確認する", icon: "star", count: null }
   ];
   const openShopCategory = (id) => {
     setQuery("");
@@ -3261,7 +3261,7 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
             h("small", null, category.description)
           ),
           h("span", { className: "btype-shop-category-count" }, category.count == null ? "抽選チケット" : `候補 ${category.count} 件`),
-          h("span", { className: "btype-shop-category-arrow", "aria-hidden": true }, h(Icon, { name: "chevron-right", size: 17 }))
+          h("span", { className: "btype-shop-category-arrow", "aria-hidden": true }, h(Icon, { name: "chevronR", size: 17 }))
         ))
       )
     )
