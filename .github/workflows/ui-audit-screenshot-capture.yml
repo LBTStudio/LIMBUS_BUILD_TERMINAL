@@ -5,9 +5,8 @@ on:
     paths:
       - "tools/ui/capture-ui-audit.mjs"
       - "tools/ui/axe-detail.mjs"
-      - "tools/ui/harness.mjs"
-      - "tools/ui/axe-detail.mjs"
       - "tools/ui/axe-scan.mjs"
+      - "tools/ui/axe-share-view.mjs"
       - "tools/ui/harness.mjs"
       - ".github/workflows/ui-audit-screenshot-capture.yml"
       - "js/**"
@@ -60,6 +59,8 @@ jobs:
           done
           cat /tmp/lbt-ui-serve.log
           exit 1
+      - name: Audit empty share entry and generated share sheet at four responsive widths
+        run: node tools/ui/axe-share-view.mjs
       - name: Upload UI audit screenshots and diagnostics
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
