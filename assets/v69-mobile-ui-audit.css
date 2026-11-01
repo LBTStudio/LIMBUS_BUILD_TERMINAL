@@ -274,10 +274,10 @@
   .topbar > .brand .brand-name { display: none; }
   .topbar > .topbar-spacer { display: none; }
   .topbar > .topbar-search {
-    flex: 0 0 36px;
-    width: 36px;
-    min-width: 36px;
-    max-width: 36px;
+    flex: 0 0 40px;
+    width: 40px;
+    min-width: 40px;
+    max-width: 40px;
     justify-content: center;
     padding: 6px;
   }
@@ -292,9 +292,9 @@
   .topbar-balance-item { gap: 2px; }
   .topbar-balance-unit { font-size: 8px; }
   .topbar > .preview-mobile-toggle {
-    flex: 0 0 36px;
-    width: 36px;
-    min-width: 36px;
+    flex: 0 0 40px;
+    width: 40px;
+    min-width: 40px;
     height: 40px;
     min-height: 40px;
     padding: 0;
