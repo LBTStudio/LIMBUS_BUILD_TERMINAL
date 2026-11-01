@@ -1,20 +1,11 @@
-import { loadPlaywright, BASE_URL } from "./harness.mjs";
+import { loadPlaywright, openApp } from "./harness.mjs";
 
 /* 実描画にどの OS フォントが使っているかを CDP で確認する。
  * measureText や document.fonts はフォールバックを隠すので答えにならない。
  * CSS.getPlatformFontsForNode が実際にラスタライズしたフォントを返す。 */
 const { chromium } = loadPlaywright();
 const b = await chromium.launch({ headless: true });
-const ctx = await b.newContext({ viewport: { width: 1440, height: 900 } });
-const page = await ctx.newPage();
-await page.route("**/*", async (route) => {
-  const u = route.request().url();
-  if (/\.(css|js|json|woff2)\?v=/.test(u)) return route.continue({ url: u.replace(/v=[0-9a-f]+/, "v=" + Date.now()) });
-  return route.continue();
-});
-await page.goto(BASE_URL, { waitUntil: "load", timeout: 90000 });
-await page.waitForSelector(".rail-item", { timeout: 90000 });
-await page.waitForTimeout(2500);
+const { context: ctx, page } = await openApp(b, { width: 1440, height: 900, bypassCache: true });
 
 const cdp = await ctx.newCDPSession(page);
 await cdp.send("DOM.enable");
