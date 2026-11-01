@@ -138,7 +138,7 @@ test("モバイルの主要操作対象を40x40px以上にし、監査CIで未�
   const touchStyles = indexHtml.slice(indexHtml.indexOf('<style id="lbt-mobile-touch-targets">'));
   assert.ok(touchStyles.includes(".topbar-search"));
   for (const selector of [
-    "button.btn-sm", ".btype-back-link",
+    "button.btn-sm", "button.btn", "button.secondary", "button[type=\"submit\"]", ".share-private-notes-clear", ".btype-back-link",
     ".btype-record-hub .btype-page-heading > button.primary",
     ".piece-art-actions > button", ".piece-tab", ".piece-preview-tab",
     ".acct-gate-edit-btn", ".acct-upload-btn", ".pw-listbar-toggle",
