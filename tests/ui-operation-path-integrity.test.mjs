@@ -464,7 +464,8 @@ test("SINNER SELECT編集とサポート枠解除は40px以上のモバイル操
 
 
 test("操作ボタンのアクセシブル名は表示文言を含み、カテゴリカードは可視テキストを使う", () => {
-  assert.ok(app.includes("⌘K"), "検索ボタンの可視ショートカットをアクセシブル名に含める");
+  assert.ok(app.includes("⌘K") && app.includes("Ctrl+K"), "Mac/PC双方の表示キーをOS判定で切り替える");
+  assert.ok(app.includes('React.createElement("kbd", null, QUICK_SEARCH_SHORTCUT)'), "ヘッダーにOS別のショートカットを表示する");
   assert.ok(app.includes('JSON出力。CCFOLIA用JSONをコピー'), "JSONボタンの表示文言をアクセシブル名の先頭に含める");
   assert.ok(!sections.includes('"aria-label": category.label + "カテゴリを開く"'), "ショップカードはカテゴリ見出しなどの可視テキストから名前を構成する");
 });
