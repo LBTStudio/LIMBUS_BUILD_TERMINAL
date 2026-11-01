@@ -636,13 +636,10 @@ async function boot() {
       // Filtering .acct-card-hit itself by text is unreliable because that button is intentionally blank.
       const card=page.locator(".acct-card--gate").filter({hasText:"UI監査用キャラクター"}).first();
       const hit=card.locator(".acct-card-hit").first();
-      if(await visible(hit)) await click(hit).catch(()=>{});
+      if(!(await visible(hit))) throw new Error("SINNER SELECTの監査用アカウントカードにタップ対象がありません");
+      await click(hit);
       await page.waitForTimeout(350);
-      // Fallback is scoped to the current active account and only affects this disposable context.
-      if(await visible(gate)) {
-        const activeId=await page.evaluate(()=>window.LBT_accounts?.getActiveId?.()||null);
-        if(activeId) await page.evaluate((id)=>window.dispatchEvent(new CustomEvent("lbt:accounts-entered",{detail:{id}})),activeId);
-      }
+      if(await visible(gate)) throw new Error("SINNER SELECTのアカウントカードを操作しても起動ゲートが閉じません");
     }
     try {
       await mainNavigation().first().waitFor({state:"visible",timeout:15000});
