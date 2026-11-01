@@ -363,16 +363,19 @@ async function seed() {
 
     // Use real DB personas as fixture data, not empty placeholder cards. Keep both
     // normal and special identities so sync/original filters and long lists are visible.
-    const rosterCandidates = [chosen, ...all.filter(({ p: candidate, mode: candidateMode }) =>
-      candidateMode !== mode || String(candidate.no) !== String(p.no)
+    const sameModeCandidates = [chosen, ...all.filter(({ p: candidate, mode: candidateMode }) =>
+      candidateMode === mode && String(candidate.no) !== String(p.no)
     )];
+    const otherModeCandidates = all.filter(({ mode: candidateMode }) => candidateMode !== mode);
+    /* 最大20件の所持人格を実表示で検証する。通常／特異が混在するよう17+3件を用意。 */
+    const rosterCandidates = [...sameModeCandidates.slice(0, 17), ...otherModeCandidates.slice(0, 3)];
     const seenPersonas = new Set();
     const rosterPersonas = rosterCandidates.filter(({ p: candidate, mode: candidateMode }) => {
       const key = candidateMode + ":" + candidate.no;
       if (seenPersonas.has(key)) return false;
       seenPersonas.add(key);
       return true;
-    }).slice(0, 8).map(({ p: candidate, mode: candidateMode }, index) => ({
+    }).slice(0, 20).map(({ p: candidate, mode: candidateMode }, index) => ({
       uid: "ui-audit-persona-" + candidateMode + "-" + candidate.no,
       mode: candidateMode,
       no: candidate.no,
@@ -394,6 +397,10 @@ async function seed() {
       enhancer: null,
       build: null
     }));
+
+    if (rosterPersonas.length !== 20 || new Set(rosterPersonas.map((entry) => entry.mode)).size !== 2) {
+      return { ok: false, reason: "20件の所持人格（通常・特異の両方）を用意できませんでした", rosterPersonas: rosterPersonas.length };
+    }
 
     /* Keep one non-equipped persona as a deliberately edited sync fixture. This exercises
        the same roster resolver and detail card used after account sync/import: old roster
@@ -597,6 +604,7 @@ async function seed() {
       mode,
       sample: {
         rosterPersonas: rosterPersonas.length,
+        rosterModeCounts: { normal: rosterPersonas.filter((entry) => entry.mode === "n").length, special: rosterPersonas.filter((entry) => entry.mode === "t").length },
         skills: next.skills.length,
         supports: supports.length,
         egos: egoByRank.length,
@@ -819,7 +827,16 @@ async function captureProfile(browser, mode) {
             const fixture = audit.seed?.sample?.syncedPersonaFixture;
             if (!fixture) throw new Error("同期人格の検証用データを準備できませんでした");
             const rosterMode = page.locator(".codex-modes button").filter({ hasText: "所持" }).first();
-            if (await visible(rosterMode)) await click(rosterMode);
+            if (!(await visible(rosterMode))) throw new Error("所持人格タブが見つかりません");
+            await click(rosterMode);
+            const rosterCards = page.locator(".p-card");
+            const rosterCardCount = await rosterCards.count();
+            const rosterModes = await rosterCards.evaluateAll((cards) => [...new Set(cards.map((card) => card.dataset.mode))]);
+            audit.personaRosterCapacity = audit.personaRosterCapacity || {};
+            audit.personaRosterCapacity[view] = { count: rosterCardCount, modes: rosterModes };
+            if (rosterCardCount !== 20 || rosterModes.length !== 2) {
+              throw new Error("所持人格一覧が20件または通常・特異の混在表示になっていません: " + JSON.stringify({ rosterCardCount, rosterModes }));
+            }
             const syncedCard = page.locator(".p-card").filter({ hasText: fixture.latestName }).first();
             await syncedCard.waitFor({ state: "visible", timeout: 5000 });
             await syncedCard.scrollIntoViewIfNeeded();
