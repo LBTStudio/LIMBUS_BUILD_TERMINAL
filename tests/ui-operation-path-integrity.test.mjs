@@ -290,3 +290,13 @@ test("ショップと記録の内部タブを巡回するときは、カテゴ�
   assert.match(uiHarness, /btype-shop-catalog \.btype-back-link/);
   assert.match(uiHarness, /btype-record-detail \.btype-back-link/);
 });
+
+
+test("320pxの共通UI巡回は下部ナビ／その他シートをタッチ操作し、hasTouchを有効にする", () => {
+  assert.match(uiHarness, /width <= 640 \? \{ hasTouch: true \} : \{\}/);
+  assert.match(uiHarness, /async function activateAuditTarget/);
+  assert.match(uiHarness, /locator\.tap\(/);
+  assert.match(uiHarness, /btype-mobile-bottom-nav/);
+  assert.match(uiHarness, /utility-section-grid/);
+  assert.match(uiHarness, /直接ラベル/); // guard against silently losing mobile route map context
+});
