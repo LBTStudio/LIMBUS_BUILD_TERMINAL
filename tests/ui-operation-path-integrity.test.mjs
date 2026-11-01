@@ -396,6 +396,8 @@ test("ダイアログ・シートのaxe集計と全画面axe集計を別フィ�
   assert.ok(captureAudit.includes("overlayAccessibilityViolationNodeCount"));
   assert.ok(!captureAudit.includes("audit.accessibilityViolationNodeCount"));
   assert.ok(axeDetail.includes("manifest.fullViewAccessibility"));
+  assert.ok(axeDetail.includes('item.id === "page-has-heading-one"'));
+  assert.ok(axeDetail.includes("missingPrimaryHeadingNodeCount > 0"));
 });
 
 test("320px幅の人格取得照合の開閉見出しは40pxのタップ領域を持ち、監査ゲートに含まれる", () => {
