@@ -103,7 +103,22 @@ async function scan(page, profile, state, url) {
     .reduce((sum, violation) => sum + violation.nodes.length, 0);
   const row = { page: url, state, viewport: profile, violationNodes: nodes, seriousCriticalNodes: blocking, ...result, screenshot };
   rows.push(row);
-  if (blocking) failures.push({ page: url, state, viewport: profile.name, violations: result.violations.filter(v => v.impact === "critical" || v.impact === "serious") });
+  if (blocking) {
+    const blockingViolations = result.violations.filter(v => v.impact === "critical" || v.impact === "serious");
+    failures.push({ page: url, state, viewport: profile.name, violations: blockingViolations });
+    for (const violation of blockingViolations) {
+      console.log("[share-axe-violation] " + JSON.stringify({
+        id: violation.id,
+        impact: violation.impact,
+        help: violation.help,
+        nodes: violation.nodes.map((node) => ({
+          target: node.target,
+          html: node.html.slice(0, 300),
+          summary: (node.failureSummary || "").slice(0, 500)
+        }))
+      }));
+    }
+  }
   if (result.horizontalOverflow) failures.push({ page: url, state, viewport: profile.name, type: "horizontal-overflow", document: result.document });
   console.log("[share-axe] " + url + " | " + state + " | " + profile.name + " | nodes=" + nodes + " | serious/critical=" + blocking + " | overflow=" + result.horizontalOverflow);
 }
