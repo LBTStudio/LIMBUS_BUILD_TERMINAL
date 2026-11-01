@@ -57,8 +57,9 @@ test("Basic layout follows v4: portrait and settings share the hero, formatting 
 
 test("UI audit covers desktop, tablet and mobile across Home, settings and all record tabs", () => {
   const audit = read("../tools/ui/capture-ui-audit.mjs");
-  assert.match(audit, /for\(const mode of \["desktop","tablet","mobile"\]\)/);
+  assert.match(audit, /for\(const mode of \["desktop","tablet","mobile","mobile-narrow"\]\)/);
   assert.match(audit, /width:1024,height:768/);
+  assert.match(audit, /width:320,height:640/);
   assert.match(audit, /記録・所持品の6カテゴリタブが揃っていません/);
   assert.match(audit, /details\.settings-disclosure/);
   assert.match(audit, /home-launcher-review/);
