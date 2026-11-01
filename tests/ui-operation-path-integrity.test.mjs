@@ -8,6 +8,7 @@ const sections = read("../js/OtherSections.js");
 const state = read("../js/state.js");
 const parityCss = read("../assets/b-type-ui-parity.css");
 const captureAudit = read("../tools/ui/capture-ui-audit.mjs");
+const uiHarness = read("../tools/ui/harness.mjs");
 const index = read("../index.html");
 const uiAuditWorkflow = read("../.github/workflows/ui-audit-screenshot-capture.yml");
 const axeDetail = read("../tools/ui/axe-detail.mjs");
@@ -268,4 +269,24 @@ test("UI操作監査は320pxの狭幅でも全主要操作シナリオを巡回�
   assert.match(captureAudit, /mode==="mobile-narrow"\?\{width:320,height:640\}/);
   assert.match(captureAudit, /\["desktop","tablet","mobile","mobile-narrow"\]/);
   assert.match(captureAudit, /for \(const mode of \["desktop","tablet","mobile","mobile-narrow"\]\)/);
+});
+
+
+test("ブラウザ監査ハーネスは現在の画面構造と内部タブを巡回し、古い左レール12件前提を使わない", () => {
+  assert.match(uiHarness, /export const UI_VIEWS = \[/);
+  assert.match(uiHarness, /kind: "build-tab"/);
+  assert.match(uiHarness, /kind: "shop-category"/);
+  assert.match(uiHarness, /kind: "record-tab"/);
+  assert.match(uiHarness, /btype-shop-category-card\[data-category=/);
+  assert.match(uiHarness, /記録セクションの種別/);
+  assert.match(uiHarness, /for \(let i = 0; i < UI_VIEWS\.length; i\+\+\)/);
+  assert.doesNotMatch(uiHarness, /\.rail-item"\)\.nth\(i\)/, "旧画面数を左ナビのボタン数として扱わない");
+  assert.match(uiHarness, /enterAuditWorkspace/);
+});
+
+test("ショップと記録の内部タブを巡回するときは、カテゴリ／ライブラリの入口へ戻ってから次を開く", () => {
+  assert.match(uiHarness, /async function openShopHub/);
+  assert.match(uiHarness, /async function openRecordHub/);
+  assert.match(uiHarness, /btype-shop-catalog \.btype-back-link/);
+  assert.match(uiHarness, /btype-record-detail \.btype-back-link/);
 });
