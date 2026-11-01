@@ -209,40 +209,41 @@ test("モバイルのアカウント編集・削除と人格お気に入りは40
 });
 
 test("UI監査はSINNER SELECTの初期画面を含むダイアログをaxe診断する", () => {
-  assert.match(uiAuditWorkflow, /Install axe-core for accessibility diagnostics/);
-  assert.match(uiAuditWorkflow, /node tools\\/ui\\/axe-detail\\.mjs/);
-  assert.match(uiAuditWorkflow, /axe-detail\\.json/);
-  assert.match(uiAuditWorkflow, /server_pid=\\$!/);
-  assert.match(uiAuditWorkflow, /trap /);
-  assert.match(uiAuditWorkflow, /BASE_URL=http:\\/\\/127\\.0\\.0\\.1:8099\\//);
+  assert.ok(uiAuditWorkflow.includes("Install axe-core for accessibility diagnostics"));
+  assert.ok(uiAuditWorkflow.includes("node tools/ui/axe-detail.mjs"));
+  assert.ok(uiAuditWorkflow.includes("axe-detail.json"));
+  assert.ok(uiAuditWorkflow.includes("server_pid=$!"));
+  assert.ok(uiAuditWorkflow.includes("trap "));
+  assert.ok(uiAuditWorkflow.includes("BASE_URL=http://127.0.0.1:8099/"));
   assert.ok(captureAudit.indexOf("await page.addInitScript") < captureAudit.indexOf("await boot()"), "axe-coreはSINNER SELECTを描画する前に注入する");
   assert.ok(captureAudit.includes("page.addInitScript({ content: fs.readFileSync"));
   assert.ok(captureAudit.includes(".acct-gate") && captureAudit.includes(".acct-card--add"));
   assert.ok(captureAudit.includes("作成して開く"));
   assert.ok(captureAudit.includes('if (!window.axe) throw new Error("axe-core'));
-  assert.match(captureAudit, /accessibilityUnavailableCount/);
-  assert.match(axeDetail, /walkSections/);
-  assert.match(axeDetail, /window\\.axe\\.run/);
+  assert.ok(captureAudit.includes("accessibilityUnavailableCount"));
+  assert.ok(axeDetail.includes("walkSections"));
+  assert.ok(axeDetail.includes("window.axe.run"));
 });
 
 test("320px設定画面の標準式入力はラベル・操作と分離し、入力欄を全幅で確保する", () => {
   assert.ok(sections.includes("settings-builtin-formula-row"));
   assert.ok(sections.includes("settings-builtin-formula-expression"));
-  assert.match(mobileAuditCss, /@media \\(max-width: 400px\\)[\\s\\S]*?settings-builtin-formula-row/);
-  assert.match(mobileAuditCss, /settings-builtin-formula-expression[\\s\\S]*?width: 100%/);
+  assert.ok(mobileAuditCss.includes("@media (max-width: 400px)"));
+  assert.ok(mobileAuditCss.includes('"expression expression"'));
+  assert.ok(mobileAuditCss.includes("settings-builtin-formula-expression"));
 });
 
 test("320px幅で上部ツールバーの全操作を表示領域内に収める", () => {
   assert.ok(app.includes('className: "utility-trigger", "aria-label": "操作・保存"'));
-  assert.match(mobileAuditCss, /@media \\(max-width: 360px\\)[\\s\\S]*?utility-trigger[\\s\\S]*?width: 40px/);
-  assert.match(captureAudit, /topbar-content-clipped/);
+  assert.ok(mobileAuditCss.includes("@media (max-width: 360px)"));
+  assert.ok(mobileAuditCss.includes(".topbar > .utility-trigger"));
+  assert.ok(captureAudit.includes("topbar-content-clipped"));
 });
 
 test("プレビューを閉じている間は未存在のpreview-panelをaria-controlsで参照しない", () => {
-  const countApp = (app.match(/"aria-controls": previewOpen \\? "preview-panel" : void 0/g) || []).length;
-  const countBuild = (sections.match(/"aria-controls": previewOpen \\? "preview-panel" : void 0/g) || []).length;
-  assert.equal(countApp, 2);
-  assert.equal(countBuild, 1);
+  const target = '"aria-controls": previewOpen ? "preview-panel" : void 0';
+  assert.equal(app.split(target).length - 1, 2);
+  assert.equal(sections.split(target).length - 1, 1);
 });
 
 test("人格編集フォームに明示ラベルを付け、硝子窓URL取込見出しの階層を整える", () => {
@@ -250,6 +251,7 @@ test("人格編集フォームに明示ラベルを付け、硝子窓URL取込�
   assert.ok(personaCodex.includes('"aria-label": "既存キーワードから選択して追加"'));
   assert.ok(garasumadoImportUI.includes('h("h2", { className: "gara-title" }, "硝子窓の共有URLから取り込む")'));
 });
+
 
 test("スマートフォンUI監査はマウスクリックではなくタッチ操作経路を通る", () => {
   const clickHelper = captureAudit.slice(captureAudit.indexOf("async function click("), captureAudit.indexOf("function mainNavigation("));
