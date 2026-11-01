@@ -486,14 +486,31 @@ test("共有ビューアは空の入口と実生成シートを4幅・5操作状
 
 
 test("Playwrightの所持人格画面は旧同期名と新しい保存buildを持つ人格の詳細を実測する", () => {
-  assert.match(captureAudit, /const syncedPersonaFixture = \(\(\) => \{/);
-  assert.match(captureAudit, /entry\.displayName = "同期UI監査・旧表示名"/);
-  assert.match(captureAudit, /entry\.build = \{[\s\S]*?savedAt: now,[\s\S]*?personaSrc,[\s\S]*?skills,/);
-  assert.match(captureAudit, /await attempt\("persona-synced-roster-details"/);
+  assert.match(captureAudit, /const syncedPersonaFixture = \\(\\(\\) => \\{/);
+  assert.match(captureAudit, /entry\\.displayName = "同期UI監査・旧表示名"/);
+  assert.match(captureAudit, /entry\\.build = \\{[\\s\\S]*?savedAt: now,[\\s\\S]*?personaSrc,[\\s\\S]*?skills,/);
+  assert.match(captureAudit, /await attempt\\("persona-synced-roster-details"/);
   assert.match(captureAudit, /persona-synced-latest-roster-name/);
   assert.match(captureAudit, /persona-synced-build-detail/);
-  assert.match(captureAudit, /fixture\.passiveName[\s\S]*?fixture\.skillNames[\s\S]*?fixture\.uniqueName/);
+  assert.match(captureAudit, /fixture\\.passiveName[\\s\\S]*?fixture\\.skillNames[\\s\\S]*?fixture\\.uniqueName[\\s\\S]*?fixture\\.speed[\\s\\S]*?fixture\\.resSlash/);
 });
+
+test("所持人格詳細は所有状態と速度・耐性を優先し、HP/SAN/弾丸を表示しない", () => {
+  const start = personaCodex.indexOf("const PersonaDetail =");
+  const end = personaCodex.indexOf("function stablePersonaDiffValue", start);
+  const detail = personaCodex.slice(start, end);
+  assert.ok(detail.includes("detail-ownership"));
+  assert.ok(detail.includes("isEquipped ?"));
+  assert.ok(detail.includes("isInRoster ?"));
+  assert.ok(detail.includes("\\u901F\\u5EA6"));
+  assert.doesNotMatch(detail, /detail-stat-label.*?"HP"/);
+  assert.doesNotMatch(detail, /detail-stat-label.*?"SAN"/);
+  assert.doesNotMatch(detail, /detail-stat-label.*?弾丸/);
+  assert.ok(personaCss.includes("grid-template-columns: minmax(120px, 180px)"));
+  assert.match(captureAudit, /detail\\.locator\\("\\.detail-stat-label"\\)/);
+  assert.match(captureAudit, /detail\\.locator\\("\\.detail-ownership"\\)/);
+});
+
 
 test("所持人格一覧は20件の通常・特異混在データを実ブラウザへ描画して確認する", () => {
   assert.match(captureAudit, /sameModeCandidates\.slice\(0, 17\)/);

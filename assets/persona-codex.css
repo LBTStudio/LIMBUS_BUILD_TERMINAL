@@ -716,6 +716,33 @@
   color: var(--gold);
   text-transform: uppercase;
 }
+
+.detail-badges {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+.detail-ownership {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 7px;
+  border: 1px solid var(--line-dim);
+  border-radius: 999px;
+  background: var(--surface-inset);
+  color: var(--tx-dim);
+  font-family: var(--f-display);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+.detail-ownership.is-owned,
+.detail-ownership.is-equipped {
+  color: var(--gold-hi);
+  background: var(--gold-tint);
+  border-color: var(--gold-line);
+}
 .detail-name {
   font-family: var(--f-display);
   font-weight: 700;
@@ -726,7 +753,7 @@
 }
 .detail-stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: minmax(120px, 180px);
   gap: var(--s-2);
 }
 .detail-stat {

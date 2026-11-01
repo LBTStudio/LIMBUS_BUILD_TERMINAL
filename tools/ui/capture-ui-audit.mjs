@@ -846,10 +846,18 @@ async function captureProfile(browser, mode) {
             const detail = page.locator(".detail-dialog-backdrop").last();
             await detail.waitFor({ state: "visible", timeout: 5000 });
             const detailText = (await detail.innerText()).replace(/\\s+/g, " ");
-            for (const expected of [fixture.latestName, fixture.passiveName, ...fixture.skillNames, fixture.uniqueName, fixture.hp, fixture.resSlash]) {
+            for (const expected of [fixture.latestName, fixture.passiveName, ...fixture.skillNames, fixture.uniqueName, fixture.speed, fixture.resSlash, "所持 / OWNED"]) {
               if (!detailText.includes(expected)) throw new Error("同期人格詳細に「" + expected + "」がありません: " + detailText.slice(0, 500));
             }
-            await snap("persona-synced-build-detail", "同期名・HP・耐性・パッシブ・スキル・固有バフを反映した人格詳細");
+            const statLabels = await detail.locator(".detail-stat-label").allTextContents();
+            if (statLabels.length !== 1 || statLabels[0].trim() !== "速度") {
+              throw new Error("人格詳細の基礎数値は速度のみを表示する想定です: " + JSON.stringify(statLabels));
+            }
+            const ownershipBadge = detail.locator(".detail-ownership").first();
+            if (!(await ownershipBadge.isVisible()) || !(await ownershipBadge.innerText()).includes("所持")) {
+              throw new Error("所持人格詳細に所有状態バッジがありません");
+            }
+            await snap("persona-synced-build-detail", "所持状態・速度・耐性・パッシブ・スキル・固有バフを反映し、HP/SAN/弾丸を省いた人格詳細");
             const close = page.locator(".detail-dialog-close").last();
             if (await visible(close)) await click(close);
             if (await visible(page.locator(".detail-dialog-backdrop"))) {
