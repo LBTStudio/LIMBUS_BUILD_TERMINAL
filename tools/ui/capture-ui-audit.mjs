@@ -259,7 +259,7 @@ async function snap(name, note) {
   }
   audit.screenshots.push({name:base,note:note||"",file:path.relative(ROOT,file),metrics:m});
   if(m.horizontalOverflow) audit.layoutWarnings.push({name:base,type:"document-horizontal-overflow",viewport:m.viewport,document:m.document});
-  const clippedTopbar=(m.horizontalScrollers||[]).find((item)=>item.className.split(/\\s+/).includes("topbar")&&item.overflowX==="hidden");
+  const clippedTopbar=(m.horizontalScrollers||[]).find((item)=>item.className.split(" ").includes("topbar")&&item.overflowX==="hidden");
   if(m.viewport.width<=360&&clippedTopbar) audit.layoutWarnings.push({name:base,type:"topbar-content-clipped",viewport:m.viewport,container:clippedTopbar});
   if (m.viewport.width <= 640 && (m.touchTargetViolations || []).length) {
     audit.layoutWarnings.push({
