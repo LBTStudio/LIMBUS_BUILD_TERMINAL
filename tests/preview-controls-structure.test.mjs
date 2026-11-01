@@ -11,7 +11,7 @@ const workspace = read("../assets/workspace.css");
 
 test("プレビューの開閉ボタンはReact管理の単一コントロールで状態を公開する", () => {
   assert.equal((app.match(/id: "lbt-preview-edge-toggle"/g) || []).length, 1);
-  assert.match(app, /"aria-controls": "preview-panel"/);
+  assert.equal((app.match(/"aria-controls": previewOpen \\? "preview-panel" : void 0/g) || []).length, 2);
   assert.match(app, /"aria-expanded": previewOpen/);
   assert.ok(app.includes('className: `preview-edge-toggle${previewOpen ? " is-open" : " is-collapsed"}`'));
   assert.doesNotMatch(app, /className: "preview-reopen"/);
