@@ -60,9 +60,13 @@ writeFileSync("tmp/axe-detail.json", JSON.stringify(all, null, 1));
 const violationNodeCount = all.reduce((total, item) => total + item.nodes.length, 0);
 const blocking = all.filter((item) => item.impact === "critical" || item.impact === "serious");
 const blockingNodeCount = blocking.reduce((total, item) => total + item.nodes.length, 0);
+/* axe の page-has-heading-one は moderate だが、本文の主見出しが無い状態は
+   ページ移動・読み上げ構造を壊すため、個別の必須条件としてゲートする。 */
+const missingPrimaryHeading = all.filter((item) => item.id === "page-has-heading-one");
+const missingPrimaryHeadingNodeCount = missingPrimaryHeading.reduce((total, item) => total + item.nodes.length, 0);
 const expectedViewScans = UI_VIEWS.length * VIEWPORTS.length;
 console.log(`tmp/axe-detail.json: ${all.length} rule/view findings across ${scannedViews}/${expectedViewScans} viewports/views`);
-console.log(`full-view axe nodes: ${violationNodeCount}; serious/critical nodes: ${blockingNodeCount}; viewports: ${VIEWPORTS.map((v) => v.width + "x" + v.height).join(", ")}`);
+console.log(`full-view axe nodes: ${violationNodeCount}; serious/critical nodes: ${blockingNodeCount}; missing primary headings: ${missingPrimaryHeadingNodeCount}; viewports: ${VIEWPORTS.map((v) => v.width + "x" + v.height).join(", ")}`);
 all.forEach((v) => {
   console.log(`  ${v.section.padEnd(32)} ${v.id} (${v.impact}) ${v.nodes.length} nodes`);
   for (const node of v.nodes) console.log(`    - ${node.target} ${node.summary}`);
@@ -79,6 +83,7 @@ if (existsSync(manifestPath)) {
     ruleViewFindings: all.length,
     violationNodeCount,
     seriousOrCriticalNodeCount: blockingNodeCount,
+    missingPrimaryHeadingNodeCount,
     violations: all
   };
   manifest.overlayAccessibilityScope = manifest.overlayAccessibilityScope || "可視化したダイアログ／シート状態のみ（4 viewport）";
@@ -90,6 +95,10 @@ if (scannedViews !== expectedViewScans) {
 }
 if (blockingNodeCount > 0) {
   console.error(`axe found ${blockingNodeCount} serious/critical nodes; UI audit must be fixed before merge.`);
+  process.exitCode = 1;
+}
+if (missingPrimaryHeadingNodeCount > 0) {
+  console.error(`axe found ${missingPrimaryHeadingNodeCount} pages without a main H1 heading; page structure must be fixed before merge.`);
   process.exitCode = 1;
 }
 if (bootErrors.length) {
