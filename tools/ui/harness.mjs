@@ -86,6 +86,7 @@ ensureShotDir();
 export async function openApp(browser, { url = BASE_URL, width = 1440, height = 900, reducedMotion, bypassCache = false } = {}) {
   const context = await browser.newContext({
     viewport: { width, height },
+    ...(width <= 640 ? { hasTouch: true } : {}),
     ...(reducedMotion ? { reducedMotion } : {}),
   });
   const page = await context.newPage();
@@ -113,24 +114,30 @@ export async function openApp(browser, { url = BASE_URL, width = 1440, height = 
   return { context, page, errors };
 }
 
+async function activateAuditTarget(page, locator, options = {}) {
+  const width = page.viewportSize()?.width || 1440;
+  if (width <= 640) return locator.tap({ timeout: options.timeout || 5000 });
+  return locator.click({ timeout: options.timeout || 5000 });
+}
+
 export async function enterAuditWorkspace(page, accountName = "UI監査用キャラクター") {
   const gate = page.locator(".acct-gate").first();
   if (await gate.isVisible().catch(() => false)) {
     const add = page.locator(".acct-card--add").first();
     if (await add.isVisible().catch(() => false)) {
-      await add.click({ timeout: 5000 });
+      await activateAuditTarget(page, add);
       const name = page.locator(".acct-gate input[placeholder='キャラクター名など']").first();
       await name.waitFor({ state: "visible", timeout: 5000 });
       await name.fill(accountName);
       const create = page.getByRole("button", { name: "作成して開く", exact: true });
       await create.waitFor({ state: "visible", timeout: 5000 });
-      await create.click({ timeout: 5000 });
+      await activateAuditTarget(page, create);
     } else {
       const account = page.locator(".acct-card-hit").first();
       if (!(await account.isVisible().catch(() => false))) {
         throw new Error("SINNER SELECTに監査用アカウントの作成・選択操作がありません");
       }
-      await account.click({ timeout: 5000 });
+      await activateAuditTarget(page, account);
     }
   }
   await page.waitForSelector(".rail-item[title='ホーム']", { timeout: 30000 });
@@ -149,7 +156,7 @@ async function closeAuditOverlays(page) {
   ]) {
     const button = page.locator(selector).first();
     if (await button.isVisible().catch(() => false)) {
-      await button.click({ timeout: 2500 }).catch(() => {});
+      await activateAuditTarget(page, button, { timeout: 2500 }).catch(() => {});
       await page.waitForTimeout(120);
     }
   }
@@ -157,19 +164,42 @@ async function closeAuditOverlays(page) {
 
 async function clickMainRoute(page, title) {
   await closeAuditOverlays(page);
-  const route = page.locator(".rail-item[title=" + JSON.stringify(title) + "]").first();
-  await route.waitFor({ state: "visible", timeout: 10000 });
-  await route.click({ timeout: 5000 });
+  const width = page.viewportSize()?.width || 1440;
+  if (width <= 640) {
+    const nav = page.locator(".btype-mobile-bottom-nav");
+    const directLabels = {
+      "ビルド": "ビルド",
+      "記録・所持品": "記録",
+      "記録": "記録",
+      "データ取り込み": "取込"
+    };
+    if (directLabels[title]) {
+      const direct = nav.getByRole("button", { name: directLabels[title], exact: true });
+      await direct.waitFor({ state: "visible", timeout: 8000 });
+      await activateAuditTarget(page, direct);
+    } else {
+      const utility = nav.getByRole("button", { name: "その他", exact: true });
+      await utility.waitFor({ state: "visible", timeout: 8000 });
+      await activateAuditTarget(page, utility);
+      const target = page.locator(".utility-section-grid")
+        .getByRole("button", { name: title, exact: true });
+      await target.waitFor({ state: "visible", timeout: 8000 });
+      await activateAuditTarget(page, target);
+    }
+  } else {
+    const route = page.locator(".rail-item[title=" + JSON.stringify(title) + "]").first();
+    await route.waitFor({ state: "visible", timeout: 10000 });
+    await activateAuditTarget(page, route);
+  }
   await page.waitForTimeout(300);
 }
-
 async function openShopHub(page) {
   await clickMainRoute(page, "ショップ");
   const hub = page.locator(".btype-shop-category-grid").first();
   if (!(await hub.isVisible().catch(() => false))) {
     const back = page.locator(".btype-shop-catalog .btype-back-link").first();
     await back.waitFor({ state: "visible", timeout: 8000 });
-    await back.click({ timeout: 5000 });
+    await activateAuditTarget(page, back);
     await hub.waitFor({ state: "visible", timeout: 8000 });
   }
 }
@@ -197,7 +227,7 @@ export async function walkSections(page, { onSection } = {}) {
       const tab = page.getByRole("tablist", { name: "ビルドセクション" })
         .getByRole("tab", { name: view.label.replace("ビルド / ", ""), exact: true });
       await tab.waitFor({ state: "visible", timeout: 8000 });
-      await tab.click({ timeout: 5000 });
+      await activateAuditTarget(page, tab);
       await page.waitForTimeout(350);
     } else if (view.kind === "shop-hub") {
       await openShopHub(page);
@@ -205,7 +235,7 @@ export async function walkSections(page, { onSection } = {}) {
       await openShopHub(page);
       const category = page.locator(".btype-shop-category-card[data-category=" + JSON.stringify(view.id) + "]").first();
       await category.waitFor({ state: "visible", timeout: 8000 });
-      await category.click({ timeout: 5000 });
+      await activateAuditTarget(page, category);
       await page.locator(".btype-shop-catalog").waitFor({ state: "visible", timeout: 8000 });
       await page.waitForTimeout(350);
     } else if (view.kind === "record-hub") {
@@ -214,7 +244,7 @@ export async function walkSections(page, { onSection } = {}) {
       await openRecordHub(page);
       const library = page.locator(".btype-record-task-card").filter({ hasText: "所持ライブラリ" }).first();
       await library.waitFor({ state: "visible", timeout: 8000 });
-      await library.click({ timeout: 5000 });
+      await activateAuditTarget(page, library);
       const tabName = view.id === "personas" ? "人格"
         : view.id === "egos" ? "E.G.O"
         : view.id === "supports" ? "サポパ"
