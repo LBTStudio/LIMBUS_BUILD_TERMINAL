@@ -436,7 +436,7 @@ test("各画面の主見出しを本文領域のH1として定義する", () => 
   assert.ok(sharedUi.includes('level = 2'));
   assert.ok(sharedUi.includes('level === 1 ? "h1" : "h2"'));
   assert.ok(sections.includes('level: 1'));
-  assert.ok(sections.includes('libraryTab === "inventory" ? "アイテム"'));
+  assert.ok(sections.includes('tab === "inventory" ? "アイテム"'));
   assert.ok(sections.includes('level: 1, title: "SHOP / ショップ"'));
   assert.ok(workbenchCss.includes(".btype-command-hero :is(h1, h2)"));
 });
