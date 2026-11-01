@@ -514,5 +514,5 @@ test("共有シートは読みやすい耐性ラベルコントラストとmain/
   assert.ok(generator.includes("background:#7a7060;color:#fff;"));
   assert.ok(generator.includes("background:#4e7a52;color:#fff;"));
   assert.ok(generator.includes('<main id="share-main">'));
-  assert.ok(generator.includes('</main>\\n  <footer class="foot">'));
+  assert.ok(generator.includes('</main>\n  <footer class="foot">'));
 });
