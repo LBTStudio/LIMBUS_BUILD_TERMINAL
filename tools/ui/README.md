@@ -1,5 +1,7 @@
 # tools/ui — ブラウザ描画の検証基盤
 
+現行UIの巡回単位は、左ナビの6画面だけでなく、ビルド9タブ・ショップ6分類・記録6分類を含む26ビュー。`harness.mjs` の `UI_VIEWS` が唯一の巡回定義で、各監査スクリプトは実際のボタン／タブを操作する。
+
  CSS や DOM の変更は、`node --test tests\*.test.mjs`（DOM なしの VM 実行）では
 検証できない。ここでは実際の  Chromium でページを描画し、描画結果と
 アクセシビリティを実測する。
@@ -10,7 +12,7 @@
 存在しなかった。Phase 0 で Playwright と axe-core を導入してからは、
 以下の確認を毎回Elevating に行っている。
 
-- 12 セクションのスクリーンショットを 2 回撮り、同じになるか（描画の決定性）
+- 26 UIビューのスクリーンショットを 2 回撮り、同じになるか（描画の決定性）
 - 変更前後でピクセルを比較し、意図しない差分がないか
 - axe による違反（`nested-interactive` など静的監査では漏れるもの）
 - 全要素の計算スタイルを比較して、副作用がないか
@@ -42,7 +44,7 @@ npx --prefix .browser-deps playwright install chromium
 node tools/ui/serve.mjs
 #    -> http://localhost:8099/
 
-# 2. 12 セクションを描画して axe を走らせる
+# 2. 26 UIビューを描画して axe を走らせる
 node tools/ui/axe-scan.mjs
 ```
 
@@ -57,15 +59,15 @@ node tools/ui/axe-scan.mjs
 
 | スクリプト | 目的 |
 |---|---|
-| `harness.mjs` | 共通の依存解決・12セクション巡回・スクリーンショット撮影（直接実行しない） |
+| `harness.mjs` | 共通の依存解決・26 UIビュー巡回・スクリーンショット撮影（直接実行しない） |
 | `serve.mjs` | 静的サーバ（`localhost:8099`）。ブラウザ検証の土台 |
-| `axe-scan.mjs` | 12 セクションを巡回して axe 違反と pass 数を集計 |
-| `capture.mjs` | 12 セクションのスクリーンショットを撮る（差分比較の基準） |
+| `axe-scan.mjs` | 26 UIビューを巡回して axe 違反と pass 数を集計 |
+| `capture.mjs` | 26 UIビューのスクリーンショットを撮る（差分比較の基準） |
 | `compare-shots.mjs` | 2 組のスクリーンショットをピクセル比較し、差分領域を PNG にする |
 | `probe-styles.mjs` | 全要素の計算スタイル・矩形・擬似要素を採取して比較用 JSON を出す |
 | `audit-reachability.mjs` | 幅を変えながら到達不能要素（overflow で切られた要素）を洗い出す |
 | `audit-reduced-motion.mjs` | reduced-motion 設定での実際の計算値を測る |
-| `dead-css.mjs` | 12 セクションを巡回して未使用セレクタを洗い出す（操作フローは含まない） |
+| `dead-css.mjs` | 26 UIビューを巡回して未使用セレクタを洗い出す（操作フローは含まない） |
 
 ## 終了コードの規約
 
