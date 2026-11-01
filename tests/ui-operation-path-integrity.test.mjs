@@ -355,15 +355,18 @@ test("320pxの共通UI巡回は下部ナビ／その他シートをタッチ操�
   assert.match(uiHarness, /const directLabels =/); // mobile build/record/import routes remain explicit
 });
 
-test("全画面axe診断は26ビューを走査し、重大・深刻な違反があればCIを失敗させる", () => {
-  assert.ok(axeDetail.includes("UI_VIEWS.length"));
+test("全画面axe診断は26ビューを4 viewportで走査し、重大・深刻な違反があればCIを失敗させる", () => {
+  assert.ok(axeDetail.includes("UI_VIEWS.length * VIEWPORTS.length"));
+  for (const width of ["1440", "1024", "390", "320"]) assert.match(axeDetail, new RegExp("width: " + width));
   assert.match(axeDetail, /item\.impact === "critical" \|\| item\.impact === "serious"/);
   assert.match(axeDetail, /blockingNodeCount > 0/);
-  assert.match(axeDetail, /scannedViews !== UI_VIEWS\.length/);
+  assert.match(axeDetail, /scannedViews !== expectedViewScans/);
   assert.match(axeDetail, /manifest\.fullViewAccessibility/);
   assert.ok(uiAuditWorkflow.includes("axe_status=$?"));
   assert.ok(uiAuditWorkflow.includes('exit "$axe_status"'));
   assert.ok(uiAuditWorkflow.includes("cp tmp/axe-detail.json artifacts/ui-audit-screenshots/axe-detail.json"));
+  assert.ok(uiAuditWorkflow.includes("tools/ui/axe-detail.mjs"));
+  assert.ok(uiAuditWorkflow.includes("tools/ui/harness.mjs"));
 });
 
 test("スキル未登録状態の追加操作は実ボタンになり、旧横スクロール領域を残さない", () => {

@@ -5,6 +5,8 @@ on:
     paths:
       - "tools/ui/capture-ui-audit.mjs"
       - "tools/ui/axe-detail.mjs"
+      - "tools/ui/harness.mjs"
+      - "tools/ui/axe-detail.mjs"
       - "tools/ui/axe-scan.mjs"
       - "tools/ui/harness.mjs"
       - ".github/workflows/ui-audit-screenshot-capture.yml"
