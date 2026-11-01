@@ -139,7 +139,7 @@ async function readMetrics() {
       "button.btn-sm", ".btype-back-link", ".btype-record-hub .btype-page-heading > button.primary",
       ".piece-art-actions > button", ".piece-tab", ".piece-preview-tab",
       ".acct-gate-edit-btn", ".acct-upload-btn", ".pw-listbar-toggle",
-      ".lbt-glossary-term", "button.rm", ".es-kw-add",
+      ".lbt-glossary-term", ".lbt-glossary-popover-close", "button.rm", ".es-kw-add",
       'input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"])',
       "select", "textarea",
       ".acct-card-actions .acct-icon-btn", ".p-fav",
