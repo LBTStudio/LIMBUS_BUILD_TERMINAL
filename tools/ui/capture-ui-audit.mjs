@@ -136,6 +136,12 @@ async function readMetrics() {
        inside the current viewport are considered; the 40px rule applies to phones. */
     const touchTargetSelector = [
       ".topbar-search", ".topbar-balance", ".preview-mobile-toggle", ".acct-close", ".import-router-close",
+      "button.btn-sm", ".btype-back-link", ".btype-record-hub .btype-page-heading > button.primary",
+      ".piece-art-actions > button", ".piece-tab", ".piece-preview-tab",
+      ".acct-gate-edit-btn", ".acct-upload-btn", ".pw-listbar-toggle",
+      ".lbt-glossary-term", "button.rm", ".es-kw-add",
+      'input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"])',
+      "select", "textarea",
       ".acct-card-actions .acct-icon-btn", ".p-fav",
       ".utility-sheet-close", ".detail-dialog-close", ".ego-quick-close",
       ".persona-draft-dialog button.btn-icon", "button.btn-icon", ".es-kw-rm",
