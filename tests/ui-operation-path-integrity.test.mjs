@@ -9,6 +9,7 @@ const state = read("../js/state.js");
 const parityCss = read("../assets/b-type-ui-parity.css");
 const captureAudit = read("../tools/ui/capture-ui-audit.mjs");
 const index = read("../index.html");
+const uiAuditWorkflow = read("../.github/workflows/ui-audit-screenshot-capture.yml");
 
 const supportStart = sections.indexOf("const SupportSection =");
 const supportEnd = sections.indexOf("const EGO_RANKS =", supportStart);
@@ -196,4 +197,11 @@ test("モバイルのアカウント編集・削除と人格お気に入りは40
   assert.match(mobileOverrides, /\.p-card \.p-fav[\s\S]*?width: 40px !important[\s\S]*?height: 40px !important/);
   assert.match(captureAudit, /\.acct-card-actions \.acct-icon-btn/);
   assert.match(captureAudit, /\.p-fav/);
+});
+
+test("全UI監査CIは主12セクションのaxe診断を成果物へ保存する", () => {
+  assert.match(uiAuditWorkflow, /Install axe-core for accessibility diagnostics/);
+  assert.match(uiAuditWorkflow, /node tools\/ui\/axe-detail\.mjs/);
+  assert.match(uiAuditWorkflow, /axe-detail\.json/);
+  assert.match(uiAuditWorkflow, /Start local static server for accessibility scan/);
 });
