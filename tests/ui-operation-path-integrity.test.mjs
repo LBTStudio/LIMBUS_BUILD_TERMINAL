@@ -241,7 +241,7 @@ test("320px設定画面の標準式入力はラベル・操作と分離し、入
 });
 
 test("スマホの検索・プレビュー操作は最低40pxのタップ幅を確保する", () => {
-  const narrow = mobileAuditCss.slice(mobileAuditCss.lastIndexOf("@media (max-width: 360px)"));
+  const narrow = mobileAuditCss.slice(mobileAuditCss.indexOf("@media (max-width: 360px)"));
   assert.ok(narrow.includes(".topbar > .topbar-search"));
   assert.ok(narrow.includes(".topbar > .preview-mobile-toggle"));
   assert.ok(narrow.includes("flex: 0 0 40px;"));
