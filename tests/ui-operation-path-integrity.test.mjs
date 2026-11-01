@@ -20,6 +20,7 @@ const uiAuditWorkflow = read("../.github/workflows/ui-audit-screenshot-capture.y
 const axeDetail = read("../tools/ui/axe-detail.mjs");
 const axeShareView = read("../tools/ui/axe-share-view.mjs");
 const personaCodex = read("../js/PersonaCodex.js");
+const personaCss = read("../assets/persona-codex.css");
 const garasumadoImportUI = read("../js/garasumado-import-ui.js");
 const mobileAuditCss = read("../assets/v69-mobile-ui-audit.css");
 const overlayCss = read("../assets/v52-overlay.css");
