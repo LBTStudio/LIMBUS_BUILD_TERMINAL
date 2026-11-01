@@ -516,3 +516,17 @@ test("共有シートは読みやすい耐性ラベルコントラストとmain/
   assert.ok(generator.includes('<main id="share-main">'));
   assert.ok(generator.includes('</main>\n  <footer class="foot">'));
 });
+
+
+test("320px幅のサポート装備枠は一列に縦積みし、枠名の縦折り返しを回帰監査する", () => {
+  assert.match(mobileAuditCss, /@media \\(max-width: 360px\\)[\\s\\S]*?\\.spp-slots[\\s\\S]*?grid-template-columns: minmax\\(0, 1fr\\) !important/);
+  assert.match(captureAudit, /support-slots-narrow-layout/);
+  assert.match(captureAudit, /narrowLayout\\.columns!==1/);
+  assert.match(captureAudit, /slot\\.labelHeight>26/);
+});
+
+test("SINNER SELECTのアカウント編集時はオンライン保全パネルを退避し、編集フォーム領域を確保する", () => {
+  assert.match(mobileAuditCss, /\\.acct-panel:has\\(> \\.acct-grid\\.is-editing\\) > \\.lbt-cloud-panel/);
+  assert.match(captureAudit, /backupPanelHidden/);
+  assert.match(captureAudit, /!editorMetrics\\.backupPanelHidden/);
+});
