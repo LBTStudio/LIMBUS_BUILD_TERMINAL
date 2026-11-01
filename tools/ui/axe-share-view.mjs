@@ -119,7 +119,7 @@ try {
     try {
       const page = await context.newPage();
       page.setDefaultTimeout(8000);
-      await page.addInitScript({ content: AXE });
+      await page.addInitScript(AXE);
       await page.route("**/cdn-cgi/rum**", (route) => route.fulfill({ status: 204, body: "" }));
       await page.goto("http://127.0.0.1:4175/share.html", { waitUntil: "domcontentloaded", timeout: 30000 });
       await page.waitForFunction(() => document.querySelector("#share-root")?.innerText.includes("共有データがありません"), null, { timeout: 10000 });
