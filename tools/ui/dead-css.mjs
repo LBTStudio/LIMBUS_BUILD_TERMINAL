@@ -6,9 +6,9 @@
  * ここが出す「未使用」は**上限値**であり、死んだコードの件数ではない。
  *
  * クリックしないと開かないパネル（デッキ編集、E.G.O のモード切替など）は
- * 初期表示の 12 セクションに現れないため、死んだコードと誤判定する。
+ * 初期表示の 26 UIビューに現れないため、死んだコードと誤判定する。
  * そのため2段階で判定する:
- *   (1) 12 セクション巡回で一度も DOM に現れない
+ *   (1) 26 UIビュー巡回で一度も DOM に現れない
  *   (2) かつ JS ファイル中にその文字列が一切現れない
  * この両方を満たすものだけを「確実なデッド」として出力する。
  *
@@ -21,7 +21,7 @@
 
 import { readFileSync, writeFileSync, readdirSync, mkdirSync } from "node:fs";
 import path from "node:path";
-import { loadPlaywright, walkSections, REPO_ROOT } from "./harness.mjs";
+import { loadPlaywright, openApp, walkSections, REPO_ROOT, BASE_URL } from "./harness.mjs";
 
 const url = process.argv[2] || undefined;
 const assetsDir = path.join(REPO_ROOT, "assets");
@@ -51,14 +51,10 @@ const pure = entries.filter((e) => !STATE.test(e.sel));
 // ---- JS 側の文字列を全部つなげる ----
 const jsSrc = readdirSync(jsDir).filter((f) => f.endsWith(".js")).map((f) => readFileSync(path.join(jsDir, f), "utf8")).join("\n");
 
-// ---- 12 セクションを巡回して、及各セクションに出現した class / id を集める ----
+// ---- 26 UIビューを巡回して、及各セクションに出現した class / id を集める ----
 const { chromium } = loadPlaywright();
 const browser = await chromium.launch({ headless: true });
-const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-const page = await ctx.newPage();
-await page.goto(url || (await import("./harness.mjs")).BASE_URL, { waitUntil: "load", timeout: 90000 });
-await page.waitForSelector(".rail-item", { timeout: 90000 });
-await page.waitForTimeout(1500);
+const { context: ctx, page } = await openApp(browser, { url: url || BASE_URL, width: 1440, height: 900 });
 
 const present = new Set();
 await walkSections(page, {
