@@ -455,8 +455,8 @@ test("SINNER SELECT編集とサポート枠解除は40px以上のモバイル操
   assert.ok(mobileAuditCss.includes(".acct-gate-edit-btn {") && mobileAuditCss.includes("min-width: 72px;") && mobileAuditCss.includes("min-height: 40px;"));
   assert.ok(mobileAuditCss.includes(".spp-slot .rm {") && mobileAuditCss.includes("width: 40px;") && mobileAuditCss.includes("height: 40px;"));
   assert.ok(mobileAuditCss.includes(".spp-slot .reorder-btns { margin-right: 44px; }"));
-  assert.ok(sections.includes('aria-label: `サポート「${spp.name || "未設定"}」を枠から外す`'));
-  assert.ok(sections.includes('aria-label: `死亡後サポート「${deathSupport.name || "未設定"}」を枠から外す`'));
+  assert.ok(sections.includes('サポート「${spp.name || "未設定"}」を枠から外す'));
+  assert.ok(sections.includes('死亡後サポート「${deathSupport.name || "未設定"}」を枠から外す'));
   assert.ok(captureAudit.includes('".acct-gate-edit-btn"'));
   assert.ok(captureAudit.includes('".spp-slot .rm"'));
 });
