@@ -42,9 +42,17 @@ jobs:
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           for i in {1..30}; do
             if curl --silent --fail http://127.0.0.1:8099/ > /dev/null; then
+              set +e
               BASE_URL=http://127.0.0.1:8099/ node tools/ui/axe-detail.mjs
-              cp tmp/axe-detail.json artifacts/ui-audit-screenshots/axe-detail.json
-              exit 0
+              axe_status=$?
+              set -e
+              if [ -f tmp/axe-detail.json ]; then
+                cp tmp/axe-detail.json artifacts/ui-audit-screenshots/axe-detail.json
+              else
+                echo "axe-detail.json was not produced"
+                exit 1
+              fi
+              exit "$axe_status"
             fi
             sleep 1
           done

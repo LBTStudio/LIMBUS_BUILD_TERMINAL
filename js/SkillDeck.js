@@ -301,7 +301,18 @@ const SkillDeck = ({ state, dispatch }) => {
   }, [skills.length]);
   const thumbsScroll = useHorizontalDragScroll(selectSkill);
   if (skills.length === 0) {
-    return /* @__PURE__ */ React.createElement("div", { className: "deck" }, /* @__PURE__ */ React.createElement("div", { className: "deck-empty-cell", onClick: editable ? addSkill : () => toast("スキル追加は編集モード時のみ可能です"), style: { gridColumn: "1 / -1", ...(editable ? {} : { opacity: 0.45, cursor: "not-allowed" }) }, title: editable ? "" : "編集モード時のみ追加可能" }, "\uFF0B \u6700\u521D\u306E\u30B9\u30AD\u30EB\u3092\u8FFD\u52A0"));
+    const emptyLabel = editable ? "＋ 最初のスキルを追加" : "編集モードでスキルを追加できます";
+    return /* @__PURE__ */ React.createElement("div", { className: "deck deck-empty" },
+      /* A real button makes the first-skill action keyboard accessible. */
+      /* @__PURE__ */ React.createElement("button", {
+        type: "button",
+        className: "deck-empty-cell",
+        onClick: editable ? addSkill : undefined,
+        disabled: !editable,
+        "aria-label": emptyLabel,
+        title: editable ? "最初のスキルを追加" : "編集モードにするとスキルを追加できます"
+      }, emptyLabel)
+    );
   }
   const cur = skills[curIdx] || skills[0];
   return /* @__PURE__ */ React.createElement("div", { className: "deck-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "deck-direct-nav", role: "tablist", "aria-label": "表示するスキルを選択" }, skills.map((sk, i) => /* @__PURE__ */ React.createElement("button", { key: sk.id, type: "button", role: "tab", "aria-selected": i === curIdx, className: `deck-direct-chip${i === curIdx ? " is-active" : ""}`, "data-sin": sk.sin || "", onClick: () => selectSkill(i), title: `${sk.rank || `S${i}`}: ${sk.name || "(名称未設定)"}` }, /* @__PURE__ */ React.createElement("span", { className: "deck-direct-rank" }, sk.rank || `S${i}`), /* @__PURE__ */ React.createElement("span", { className: "deck-direct-name" }, sk.name || "(未設定)")))), /* @__PURE__ */ React.createElement("div", { className: "deck-nav" }, /* @__PURE__ */ React.createElement(

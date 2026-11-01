@@ -4,6 +4,7 @@ import test from "node:test";
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 const app = read("../js/App.js");
+const skillDeck = read("../js/SkillDeck.js");
 const accountsUI = read("../js/accounts-ui.js");
 const sections = read("../js/OtherSections.js");
 const state = read("../js/state.js");
@@ -184,7 +185,7 @@ test("モバイルの主要操作対象を40x40px以上にし、監査CIで未�
   assert.ok(captureAudit.includes("page.addInitScript({ content: fs.readFileSync"), "axeは起動時ダイアログを描画する前に注入する");
   assert.match(captureAudit, /accessibilityScans/);
   assert.match(captureAudit, /m\.dialogs/);
-  assert.match(captureAudit, /accessibilityViolationNodeCount/);
+  assert.match(captureAudit, /overlayAccessibilityViolationNodeCount/);
   assert.match(captureAudit, /minimum: "40x40 CSS px"/);
   assert.match(captureAudit, /type: "touch-target-too-small"/);
   assert.match(captureAudit, /"touch-target-too-small","build-tabs-not-reflowed"\].includes\(item\.type\)/);
@@ -221,7 +222,7 @@ test("UI監査はSINNER SELECTの初期画面を含むダイアログをaxe診�
   assert.ok(captureAudit.includes(".acct-gate") && captureAudit.includes(".acct-card--add"));
   assert.ok(captureAudit.includes("作成して開く"));
   assert.ok(captureAudit.includes('if (!window.axe) throw new Error("axe-core'));
-  assert.ok(captureAudit.includes("accessibilityUnavailableCount"));
+  assert.ok(captureAudit.includes("overlayAccessibilityUnavailableCount"));
   assert.ok(axeDetail.includes("walkSections"));
   assert.ok(axeDetail.includes("window.axe.run"));
 });
@@ -294,9 +295,9 @@ test("SINNER SELECTの実アカウント選択を迂回するイベント発火�
 
 test("ダイアログ状態のaxe診断が実行エラーになった場合はUI監査を失敗させる", () => {
   assert.match(captureAudit, /audit\.accessibilityErrors\.push/);
-  assert.ok(captureAudit.includes("audit.accessibilityErrors.length || audit.accessibilityUnavailableCount) process.exitCode=1"));
-  assert.match(captureAudit, /audit\.accessibilityScanCount = audit\.accessibilityScans\.length/);
-  assert.match(captureAudit, /audit\.accessibilityViolationNodeCount/);
+  assert.ok(captureAudit.includes("audit.accessibilityErrors.length || audit.overlayAccessibilityUnavailableCount) process.exitCode=1"));
+  assert.match(captureAudit, /audit\.overlayAccessibilityScanCount = audit\.accessibilityScans\.length/);
+  assert.match(captureAudit, /audit\.overlayAccessibilityViolationNodeCount/);
 });
 
 
@@ -350,4 +351,42 @@ test("320pxの共通UI巡回は下部ナビ／その他シートをタッチ操�
   assert.match(uiHarness, /btype-mobile-bottom-nav/);
   assert.match(uiHarness, /utility-section-grid/);
   assert.match(uiHarness, /const directLabels =/); // mobile build/record/import routes remain explicit
+});
+
+test("全画面axe診断は26ビューを走査し、重大・深刻な違反があればCIを失敗させる", () => {
+  assert.ok(axeDetail.includes("UI_VIEWS.length"));
+  assert.match(axeDetail, /item\.impact === "critical" \|\| item\.impact === "serious"/);
+  assert.match(axeDetail, /blockingNodeCount > 0/);
+  assert.match(axeDetail, /scannedViews !== UI_VIEWS\.length/);
+  assert.match(axeDetail, /manifest\.fullViewAccessibility/);
+  assert.ok(uiAuditWorkflow.includes("axe_status=$?"));
+  assert.ok(uiAuditWorkflow.includes('exit "$axe_status"'));
+  assert.ok(uiAuditWorkflow.includes("cp tmp/axe-detail.json artifacts/ui-audit-screenshots/axe-detail.json"));
+});
+
+test("スキル未登録状態の追加操作は実ボタンになり、旧横スクロール領域を残さない", () => {
+  assert.ok(skillDeck.includes('className: "deck deck-empty"'));
+  assert.ok(skillDeck.includes('type: "button"'));
+  assert.ok(skillDeck.includes('className: "deck-empty-cell"'));
+  assert.ok(skillDeck.includes("onClick: editable ? addSkill : undefined"));
+  assert.ok(skillDeck.includes("disabled: !editable"));
+  assert.ok(index.includes(".deck.deck-empty"));
+  assert.ok(index.includes("overflow: visible"));
+  assert.ok(index.includes(".deck-empty-cell:focus-visible"));
+});
+
+test("罪属性チップと混乱タグは通常文字4.5:1を満たす明度の文字色を使う", () => {
+  assert.ok(index.includes('.cond-chip.is-sin[data-sin="憤怒"] { color: #ef786d; }'));
+  assert.ok(index.includes('.cond-chip.is-sin[data-sin="傲慢"] { color: #aaaaff; }'));
+  assert.ok(index.includes('.ego-resource-chip[data-sin="憤怒"] .ego-resource-chip-count { color: #ef786d; }'));
+  assert.ok(index.includes('.ego-resource-chip[data-sin="傲慢"] .ego-resource-chip-count { color: #aaaaff; }'));
+  assert.ok(index.includes('.spirit-item-tag[data-tag="confuse"] { color: #f18c83; }'));
+});
+
+test("ダイアログ・シートのaxe集計と全画面axe集計を別フィールドで保存する", () => {
+  assert.ok(captureAudit.includes("overlayAccessibilityScope"));
+  assert.ok(captureAudit.includes("overlayAccessibilityScanCount"));
+  assert.ok(captureAudit.includes("overlayAccessibilityViolationNodeCount"));
+  assert.ok(!captureAudit.includes("audit.accessibilityViolationNodeCount"));
+  assert.ok(axeDetail.includes("manifest.fullViewAccessibility"));
 });

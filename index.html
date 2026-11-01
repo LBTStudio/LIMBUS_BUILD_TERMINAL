@@ -801,6 +801,40 @@ window.addEventListener("load", function(){
     }
   }
 </style>
+
+<style id="lbt-audit-a11y-remediations">
+  /* 罪属性は識別用の色を背景・枠に残し、小さな文字の前景色だけを明るくする。 */
+  .cond-chip.is-sin[data-sin="憤怒"] { color: #ef786d; }
+  .cond-chip.is-sin[data-sin="傲慢"] { color: #aaaaff; }
+  .ego-resource-chip[data-sin="憤怒"] .ego-resource-chip-count { color: #ef786d; }
+  .ego-resource-chip[data-sin="傲慢"] .ego-resource-chip-count { color: #aaaaff; }
+  .spirit-item-tag[data-tag="confuse"] { color: #f18c83; }
+
+  /* スキル未登録時は旧5列横スクロールを使わず、単一の追加操作を表示する。 */
+  .deck.deck-empty {
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+    overflow: visible;
+    scroll-snap-type: none;
+  }
+  .deck.deck-empty > .deck-empty-cell {
+    grid-column: 1;
+    width: 100%;
+    min-height: 180px;
+    box-sizing: border-box;
+    appearance: none;
+    font: inherit;
+    text-align: center;
+  }
+  .deck-empty-cell:focus-visible {
+    outline: 2px solid var(--gold-hi);
+    outline-offset: 3px;
+  }
+  .deck-empty-cell:disabled {
+    opacity: .48;
+    cursor: not-allowed;
+  }
+</style>
 </head>
 <body style="background-color:#14110d">
   <div id="root"></div>
@@ -817,7 +851,7 @@ window.addEventListener("load", function(){
 				<script src="js/InlineEffectGlossary.js?v=24531623"></script>
 				<script src="js/PersonaCodex.js?v=aa0ca9fc"></script>
 		<script src="js/ItemCodex.js?v=3c394422"></script>
-<script src="js/SkillDeck.js?v=a93f6cb8"></script>
+<script src="js/SkillDeck.js?v=f176d667"></script>
 								<script src="js/OtherSections.js?v=aa22a622"></script>
 				<script src="js/LivePreview.js?v=69b4d6d2"></script>
 <script src="js/DataQuality.js?v=a8365c72"></script>
