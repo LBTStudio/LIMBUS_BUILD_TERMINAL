@@ -1698,7 +1698,7 @@ const App = () => {
     if (!host || !anchor) return;
     anchor.dataset.autosave = saveStateLabel;
     anchor.dataset.autosaveState = saveStatus.phase;
-    anchor.setAttribute("aria-label", `\u30AF\u30A4\u30C3\u30AF\u691C\u7D22\u3002${saveStateLabel}`);
+    anchor.setAttribute("aria-label", `\u30AF\u30A4\u30C3\u30AF\u691C\u7D22 ⌘K\u3002${saveStateLabel}`);
     const indicator = document.getElementById("lbt-autosave-status") || document.createElement("div");
     indicator.id = "lbt-autosave-status";
     indicator.className = `topbar-save-state is-${saveStatus.phase}`;
@@ -1927,7 +1927,7 @@ const App = () => {
   React.createElement(AccountChip, null),
   React.createElement(Button, { variant: "ghost", size: "sm", className: "topbar-undo-btn", icon: "undo", onClick: undo, disabled: !canUndo, "aria-label": "元に戻す", title: "元に戻す (Ctrl+Z)" }),
   React.createElement(Button, { variant: "ghost", size: "sm", className: "topbar-redo-btn", icon: "redo", onClick: redo, disabled: !canRedo, "aria-label": "やり直す", title: "やり直す (Ctrl+Shift+Z)" }),
-  React.createElement(Button, { variant: "primary", size: "sm", className: "topbar-json-btn", icon: "copy", onClick: copyJson, "aria-label": "CCFOLIA JSONをコピー", title: "CCFOLIA用JSONをコピー" }, "JSON出力"),
+  React.createElement(Button, { variant: "primary", size: "sm", className: "topbar-json-btn", icon: "copy", onClick: copyJson, "aria-label": "JSON出力。CCFOLIA用JSONをコピー", title: "CCFOLIA用JSONをコピー" }, "JSON出力"),
   React.createElement("input", { type: "file", ref: fileRef, accept: "application/json", style: { display: "none" }, onChange: (e) => {
     const f = e.target.files?.[0];
     if (f) importStateFromFile(f, dispatch);
