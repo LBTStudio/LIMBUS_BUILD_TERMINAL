@@ -11,7 +11,7 @@
  */
 
 import { writeFileSync } from "node:fs";
-import { loadPlaywright, openApp, SECTIONS } from "./harness.mjs";
+import { loadPlaywright, openApp, walkSections } from "./harness.mjs";
 
 const out = process.argv[2];
 const url = process.argv[3];
@@ -22,38 +22,33 @@ if (!out) {
 
 const { chromium } = loadPlaywright();
 const browser = await chromium.launch({ headless: true });
-const { context, page } = await openApp(browser, url ? { width: 1440, height: 900 } : undefined);
-if (url) await page.goto(url, { waitUntil: "load", timeout: 90000 });
+const { context, page } = await openApp(browser, { url: url || undefined, width: 1440, height: 900 });
 
 const all = {};
-for (let i = 0; i < SECTIONS.length; i++) {
-  await page.locator(".rail-item").nth(i).click();
-  await page.waitForTimeout(900);
-  if (await page.locator(".utility-sheet-backdrop").count()) {
-    await page.keyboard.press("Escape");
-    await page.waitForTimeout(350);
+await walkSections(page, {
+  onSection: async (i) => {
+    all[i] = await page.evaluate(() =>
+      Array.from(document.querySelectorAll("*")).map((el, idx) => {
+        const cs = getComputedStyle(el);
+        const r = el.getBoundingClientRect();
+        const desc = el.tagName.toLowerCase() + "." + String(el.className || "").trim().split(/\\s+/).join(".") + "|" + (el.textContent || "").trim().slice(0, 10);
+        const pb = getComputedStyle(el, "::before");
+        const pa = getComputedStyle(el, "::after");
+        return {
+          idx, desc,
+          rect: [Math.round(r.x * 10) / 10, Math.round(r.y * 10) / 10, Math.round(r.width * 10) / 10, Math.round(r.height * 10) / 10],
+          color: cs.color, fill: cs.fill, stroke: cs.stroke, bg: cs.backgroundColor, bgi: cs.backgroundImage,
+          fs: cs.fontSize, fw: cs.fontWeight, lh: cs.lineHeight, ls: cs.letterSpacing,
+          op: cs.opacity, tr: cs.transform, br: cs.borderRadius,
+          bt: cs.borderTopWidth + " " + cs.borderTopColor,
+          display: cs.display, position: cs.position, overflow: cs.overflow,
+          before: pb.content === "none" ? null : { bg: pb.backgroundColor, op: pb.opacity, tr: pb.transform, w: pb.width, h: pb.height, c: pb.color },
+          after: pa.content === "none" ? null : { bg: pa.backgroundColor, op: pa.opacity, tr: pa.transform, w: pa.width, h: pa.height, c: pa.color },
+        };
+      }),
+    );
   }
-  all[i] = await page.evaluate(() =>
-    Array.from(document.querySelectorAll("*")).map((el, idx) => {
-      const cs = getComputedStyle(el);
-      const r = el.getBoundingClientRect();
-      const desc = el.tagName.toLowerCase() + "." + String(el.className || "").trim().split(/\s+/).join(".") + "|" + (el.textContent || "").trim().slice(0, 10);
-      const pb = getComputedStyle(el, "::before");
-      const pa = getComputedStyle(el, "::after");
-      return {
-        idx, desc,
-        rect: [Math.round(r.x * 10) / 10, Math.round(r.y * 10) / 10, Math.round(r.width * 10) / 10, Math.round(r.height * 10) / 10],
-        color: cs.color, fill: cs.fill, stroke: cs.stroke, bg: cs.backgroundColor, bgi: cs.backgroundImage,
-        fs: cs.fontSize, fw: cs.fontWeight, lh: cs.lineHeight, ls: cs.letterSpacing,
-        op: cs.opacity, tr: cs.transform, br: cs.borderRadius,
-        bt: cs.borderTopWidth + " " + cs.borderTopColor,
-        display: cs.display, position: cs.position, overflow: cs.overflow,
-        before: pb.content === "none" ? null : { bg: pb.backgroundColor, op: pb.opacity, tr: pb.transform, w: pb.width, h: pb.height, c: pb.color },
-        after: pa.content === "none" ? null : { bg: pa.backgroundColor, op: pa.opacity, tr: pa.transform, w: pa.width, h: pa.height, c: pa.color },
-      };
-    }),
-  );
-}
+});
 await context.close();
 await browser.close();
 
