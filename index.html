@@ -264,9 +264,24 @@ window.addEventListener("load", function(){
   }
   .acct-gate-edit-btn,
   .lbt-glossary-term,
+  .lbt-glossary-popover-close,
   button.rm,
   .es-kw-add {
     min-width: 40px;
+  }
+  /* 用語リンクは通常の inline ボタンだと min-height が効かないため、文字行内で
+     40px の実タップ領域を持つ inline-flex にする。 */
+  .lbt-glossary-term {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+    padding-inline: 5px;
+  }
+  .lbt-glossary-popover-close {
+    box-sizing: border-box;
+    width: 40px;
+    height: 40px;
   }
   input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
   select,
