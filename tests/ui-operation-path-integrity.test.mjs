@@ -261,3 +261,11 @@ test("SINNER SELECTの新規作成をAPI直呼びで迂回せずフォーム送�
   assert.doesNotMatch(creation, /lbt:accounts-entered/, "画面遷移イベントを直接発火しない");
   assert.doesNotMatch(creation, /accountCreateFallback/);
 });
+
+
+test("UI操作監査は320pxの狭幅でも全主要操作シナリオを巡回する", () => {
+  assert.match(captureAudit, /mode\.startsWith\("mobile"\)/);
+  assert.match(captureAudit, /mode==="mobile-narrow"\?\{width:320,height:640\}/);
+  assert.match(captureAudit, /\["desktop","tablet","mobile","mobile-narrow"\]/);
+  assert.match(captureAudit, /for \(const mode of \["desktop","tablet","mobile","mobile-narrow"\]\)/);
+});
