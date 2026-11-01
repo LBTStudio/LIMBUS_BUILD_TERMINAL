@@ -731,7 +731,7 @@ const SupportSection = ({ state, dispatch, ownedOnly = false }) => {
     spp ? h(
       React.Fragment,
       null,
-      h("button", { className: "rm", onClick: () => dispatch({ type: "REMOVE_SUPPORT", id: spp.id }), title: "外す" }, h(Icon, { name: "x", size: 12 })),
+      h("button", { type: "button", className: "rm", onClick: () => dispatch({ type: "REMOVE_SUPPORT", id: spp.id }), title: "外す", "aria-label": `サポート「${spp.name || "未設定"}」を枠から外す` }, h(Icon, { name: "x", size: 12 })),
       h(
         "div",
         { style: { display: "flex", alignItems: "center", gap: 6 } },
@@ -781,7 +781,7 @@ const SupportSection = ({ state, dispatch, ownedOnly = false }) => {
       "div",
       { className: `spp-slot${deathSupport ? " is-filled" : ""}`, style: { minHeight: 120 } },
       deathSupport ? h(React.Fragment, null,
-        h("button", { className: "rm", onClick: () => dispatch({ type: "SET_DEATH_SUPPORT", spp: null }), title: "外す" }, h(Icon, { name: "x", size: 12 })),
+        h("button", { type: "button", className: "rm", onClick: () => dispatch({ type: "SET_DEATH_SUPPORT", spp: null }), title: "外す", "aria-label": `死亡後サポート「${deathSupport.name || "未設定"}」を枠から外す` }, h(Icon, { name: "x", size: 12 })),
         h("div", { className: "spp-slot-idx", style: { color: "var(--warn)" } }, "死亡後スロット"),
         isSupportEditing(deathSupport.id) ? h(React.Fragment, null,
           h("div", { className: "manual-edit-row" },
@@ -3943,7 +3943,7 @@ if (typeof window !== "undefined") window.LBT_libraryTabLabel = libraryTabLabel;
         h("h1", null, "記録・所持品"),
         h("p", null, "「所持品の管理」と「セッション収支」をそれぞれ選びます。")
       ),
-      h("button", { type: "button", className: "primary", onClick: onOpenImportRouter }, "取り込みを開始")
+      h("button", { type: "button", className: "btn btn-primary record-import-launch", onClick: onOpenImportRouter }, "取り込みを開始")
     ),
     h("div", { className: "btype-record-card-grid" },
       h("button", {
