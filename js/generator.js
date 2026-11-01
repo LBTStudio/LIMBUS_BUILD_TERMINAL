@@ -1801,13 +1801,13 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
 .res-title{font-family:var(--head);font-weight:700;letter-spacing:0.18em;font-size:13px;color:var(--gold);margin-bottom:10px;text-transform:uppercase}
 .res-row{display:flex;gap:10px;margin-bottom:26px;flex-wrap:wrap}
 .res{padding:12px 22px;font-family:var(--head);font-size:20px;font-weight:800;letter-spacing:0.08em;border:2px solid;border-radius:4px;display:inline-flex;align-items:center;gap:12px;min-width:150px;box-shadow:0 2px 6px rgba(0,0,0,0.28)}
-.res .attr{font-size:16px;font-weight:700;opacity:0.92;padding-right:12px;border-right:1px solid rgba(255,255,255,0.35);letter-spacing:0.04em}
+.res .attr{font-size:16px;font-weight:700;opacity:1;padding-right:12px;border-right:1px solid rgba(255,255,255,0.35);letter-spacing:0.04em}
 /* v55: \u8010\u6027\u8272\u3092\u30C0\u30F3\u30C6\u914D\u8272 (v55-dante.css --res-*) \u3068\u540C\u4E00\u5024\u3078\u66F4\u65B0\u3002
    \u30B0\u30EC\u30FC\u7CFB(\u666E\u901A)\u306F\u6E29\u304B\u307F\u306E\u3042\u308B\u77F3\u8272\u3078\u7F6E\u63DB\u3057\u30D6\u30E9\u30F3\u30C9\u8ABF\u548C\u3092\u4FDD\u3064 */
 .res[data-r="\u8106\u5F31"]{background:#8f3a33;color:#f4e2e0;border-color:#66281f}
-.res[data-r="\u5F31\u70B9"]{background:#a56a35;color:#f7e9d8;border-color:#754a1e}
-.res[data-r="\u666E\u901A"]{background:#7a7060;color:#f2ece1;border-color:#57493c}
-.res[data-r="\u62B5\u6297"]{background:#4e7a52;color:#e3f0e6;border-color:#36573a}
+.res[data-r="\u5F31\u70B9"]{background:#a06430;color:#fff;border-color:#754a1e}
+.res[data-r="\u666E\u901A"]{background:#7a7060;color:#fff;border-color:#57493c}
+.res[data-r="\u62B5\u6297"]{background:#4e7a52;color:#fff;border-color:#36573a}
 .res[data-r="\u8010\u6027"]{background:#3f6d85;color:#e2ecf2;border-color:#2b4c5e}
 .res[data-r="\u514D\u75AB"]{background:#6b5a8a;color:#eae4f2;border-color:#4b3f63}
 
@@ -1947,6 +1947,7 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
     </div>
 	    <h1>${esc(p.charName || "PC")}</h1>
 	  </header>
+  <main id="share-main">
 	  ${shareVisualHTML}
   <section class="share-search" aria-labelledby="share-search-title">
     <label id="share-search-title" class="share-search-title" for="share-search-input">このシート内を検索</label>
@@ -1988,7 +1989,8 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
   ${uniqueHTML}
   ${enhHTML}
   ${inventoryHTML}
-  <div class="foot">LIMBUS BUILD TERMINAL ${esc(window.LBT_VERSION || "v64r45")} \xB7 Character Sheet \xB7 Generated ${(/* @__PURE__ */ new Date()).toLocaleString("ja-JP")}</div>
+  </main>
+  <footer class="foot">LIMBUS BUILD TERMINAL ${esc(window.LBT_VERSION || "v64r45")} \xB7 Character Sheet \xB7 Generated ${(/* @__PURE__ */ new Date()).toLocaleString("ja-JP")}</footer>
  <script>
  (() => {
    const input = document.getElementById("share-search-input");
