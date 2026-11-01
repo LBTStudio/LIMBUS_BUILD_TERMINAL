@@ -46,7 +46,10 @@ async function visible(loc) {
 }
 async function click(loc) {
   if (!(await visible(loc))) throw new Error("target is not visible");
-  await loc.first().click({ timeout: 4000 });
+  /* hasTouch:true のスマートフォン検証では mouse.click ではなく実タップ経路を通す。
+     これにより touch/pointer の発火と hover 前提でない操作を検証できる。 */
+  if (view === "mobile") await loc.first().tap({ timeout: 4000 });
+  else await loc.first().click({ timeout: 4000 });
   await page.waitForTimeout(250);
 }
 function mainNavigation() {
@@ -112,7 +115,8 @@ async function closeOverlay() {
       }
     }
     if (!target) break;
-    await target.click({ timeout: 1800, force: true }).catch(() => {});
+    if (view === "mobile") await target.tap({ timeout: 1800, force: true }).catch(() => {});
+    else await target.click({ timeout: 1800, force: true }).catch(() => {});
     await page.waitForTimeout(220);
   }
 }
@@ -1023,7 +1027,7 @@ async function captureProfile(browser, mode) {
               // Scroll it into the actual viewport and use a normal user-like click;
               // force-clicking an off-screen summary can report a false expansion failure.
               await summary.scrollIntoViewIfNeeded({timeout:4000});
-              await summary.click({timeout:4000});
+              await click(summary);
               if(!(await details.evaluate(el=>el.open))) throw new Error("設定セクションを展開できません: "+labelText);
               await snap("settings-disclosure-"+labelText,"詳細設定のセクションを展開："+labelText);
               opened++; totalOpened++;
@@ -1111,7 +1115,7 @@ async function captureProfile(browser, mode) {
          名前のテキスト検索ではなく編集中フラグからカードを取り直す。 */
       const historicalEditorCard=page.locator(".ledger-card-wrap.is-editing").last();
       await historicalEditorCard.waitFor({state:"visible",timeout:5000});
-      await historicalEditorCard.locator(".ledger-history-editor-disclosure > summary").click();
+      await click(historicalEditorCard.locator(".ledger-history-editor-disclosure > summary"));
       const historicalCandidate=audit.seed?.sample?.historicalPersonaCandidate;
       if(!historicalCandidate?.mode || !historicalCandidate?.no) throw new Error("履歴人格QA候補をseedから取得できません");
       const historicalPersonaSearch=historicalEditorCard.locator('[aria-label="このリザルトで取得した人格をDBから検索"]');
@@ -1225,7 +1229,7 @@ async function captureProfile(browser, mode) {
       await click(rewardCard.locator(".ledger-card-edit-btn").first());
       const rewardEditorCard=page.locator(".ledger-card-wrap.is-editing").last();
       await rewardEditorCard.waitFor({state:"visible",timeout:5000});
-      await rewardEditorCard.locator(".ledger-history-editor-disclosure > summary").click();
+      await click(rewardEditorCard.locator(".ledger-history-editor-disclosure > summary"));
       const prosthesisId="enh-seagull-prosthetic-arm";
       const prosthesisSelect=rewardEditorCard.locator('[aria-label="編集する報酬アイテムのカタログ選択"]');
       if(await prosthesisSelect.locator('option[value="'+prosthesisId+'"]').count()===0) throw new Error("標準カタログの外付け強化義手が選択肢にありません");
