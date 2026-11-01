@@ -153,6 +153,7 @@ async function readMetrics() {
       ".ledger-row-release", ".ledger-row-trash", ".ledger-card-edit-btn",
       ".ledger-card-edit-save", ".ledger-card-edit-cancel", ".ledger-card-move-target",
       ".ledger-queue-move-target", ".ledger-result-object-actions > summary",
+      ".ledger-persona-audit-disclosure > summary",
       '.build-tabs .segmented[role="tablist"][aria-label="ビルドセクション"] > button',
       'button[aria-label*="閉じる"]'
     ].join(",");

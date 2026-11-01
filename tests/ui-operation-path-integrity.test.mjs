@@ -390,3 +390,9 @@ test("ダイアログ・シートのaxe集計と全画面axe集計を別フィ�
   assert.ok(!captureAudit.includes("audit.accessibilityViolationNodeCount"));
   assert.ok(axeDetail.includes("manifest.fullViewAccessibility"));
 });
+
+test("320px幅の人格取得照合の開閉見出しは40pxのタップ領域を持ち、監査ゲートに含まれる", () => {
+  assert.ok(mobileAuditCss.includes(".ledger-persona-audit-disclosure > summary"));
+  assert.match(mobileAuditCss, /\.ledger-persona-audit-disclosure > summary\s*\{[\s\S]*?min-height:\s*40px/);
+  assert.ok(captureAudit.includes(".ledger-persona-audit-disclosure > summary"));
+});

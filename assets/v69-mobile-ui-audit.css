@@ -311,3 +311,11 @@
   }
   .topbar > .utility-trigger > span { display: none; }
 }
+
+/* PERSONA AUDIT disclosure is a primary touch target on narrow record views. */
+@media (max-width: 640px) {
+  .ledger-persona-audit-disclosure > summary {
+    min-height: 40px;
+    box-sizing: border-box;
+  }
+}
