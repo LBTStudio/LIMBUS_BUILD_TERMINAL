@@ -907,6 +907,23 @@ async function captureProfile(browser, mode) {
             if(mobile && (!geometry.remove || geometry.remove.width<40 || geometry.remove.height<40))
               throw new Error("サポート解除ボタンが40x40px未満です: "+JSON.stringify(geometry));
             if(geometry.overlap) throw new Error("サポート解除と並べ替えの当たり判定が重なっています: "+JSON.stringify(geometry));
+            const viewportWidth=page.viewportSize()?.width||1440;
+            if(viewportWidth<=360){
+              const narrowLayout=await page.locator(".spp-slots").evaluate(el=>{
+                const columns=getComputedStyle(el).gridTemplateColumns.trim().split(/\\s+/).filter(Boolean);
+                const slots=[...el.querySelectorAll(":scope > .spp-slot")].map(slot=>{
+                  const r=slot.getBoundingClientRect();
+                  const label=slot.querySelector(".spp-slot-idx")?.getBoundingClientRect();
+                  return {width:r.width,height:r.height,labelHeight:label?.height||0};
+                });
+                return {columns:columns.length,slots};
+              });
+              if(narrowLayout.columns!==1 || narrowLayout.slots.length<2
+                || narrowLayout.slots.some(slot=>slot.width<220 || slot.labelHeight>26)){
+                throw new Error("320px幅のサポート枠が縦積みにならず、枠名が折り返されています: "+JSON.stringify(narrowLayout));
+              }
+              await snap("support-slots-narrow-layout","320px幅でサポート装備枠を縦積みにし、枠名と操作を読みやすく表示");
+            }
             const before=await page.locator(".spp-slot.is-filled").count();
             await click(remove);
             await page.waitForFunction((count)=>document.querySelectorAll(".spp-slot.is-filled").length===count-1,before,{timeout:3000});
@@ -1569,6 +1586,8 @@ async function captureProfile(browser, mode) {
           const grid=panel?.querySelector(":scope > .acct-grid");
           const editor=grid?.querySelector(".acct-card--form,.acct-card--editing");
           const button=editor?.querySelector(".acct-import-toggle");
+          const backup=panel?.querySelector(":scope > .lbt-cloud-panel");
+          const backupHidden=!backup || getComputedStyle(backup).display==="none";
           const rect=(node)=>node?node.getBoundingClientRect():null;
           const er=rect(editor), br=rect(button), gr=rect(grid);
           const style=editor?getComputedStyle(editor):null;
@@ -1578,6 +1597,7 @@ async function captureProfile(browser, mode) {
             gridScrollHeight:grid?.scrollHeight||0,
             gridClientHeight:grid?.clientHeight||0,
             gridDisplay:grid?getComputedStyle(grid).display:"",
+            backupPanelHidden:backupHidden,
             buttonExists:!!button,
             buttonVisible:!!br && br.width>0 && br.height>0 && br.bottom<=window.innerHeight && br.top>=0,
             buttonBottom:br?.bottom||0,
@@ -1587,7 +1607,7 @@ async function captureProfile(browser, mode) {
         });
         audit.accountEditorLayout = audit.accountEditorLayout || {};
         audit.accountEditorLayout[view] = editorMetrics;
-        if(!editorMetrics.buttonExists || !editorMetrics.buttonBottomWithinEditor
+        if(!editorMetrics.buttonExists || !editorMetrics.buttonBottomWithinEditor || !editorMetrics.backupPanelHidden
           || editorMetrics.gridDisplay !== "flex" || editorMetrics.editorHeight < editorMetrics.editorScrollHeight - 2) {
           throw new Error("編集中フォームが全列に展開されず、取込ボタンがカード内に収まっていません: " + JSON.stringify(editorMetrics));
         }
