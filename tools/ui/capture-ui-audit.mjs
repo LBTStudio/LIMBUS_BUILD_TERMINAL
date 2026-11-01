@@ -146,7 +146,7 @@ async function readMetrics() {
       ".lbt-glossary-term", ".lbt-glossary-popover-close", "button.rm", ".es-kw-add",
       'input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"])',
       "select", "textarea",
-      ".acct-card-actions .acct-icon-btn", ".record-import-launch", ".p-fav",
+      ".acct-card-actions .acct-icon-btn", ".spp-slot .rm", ".record-import-launch", ".p-fav",
       ".utility-sheet-close", ".detail-dialog-close", ".ego-quick-close",
       ".persona-draft-dialog button.btn-icon", "button.btn-icon", ".es-kw-rm",
       ".ledger-reward-item-chip button", ".reorder-btn", ".ledger-row-move-action",
