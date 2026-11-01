@@ -5,6 +5,8 @@ on:
     paths:
       - "tools/ui/capture-ui-audit.mjs"
       - "tools/ui/axe-detail.mjs"
+      - "tools/ui/axe-scan.mjs"
+      - "tools/ui/harness.mjs"
       - ".github/workflows/ui-audit-screenshot-capture.yml"
       - "js/**"
       - "assets/**"
@@ -32,7 +34,7 @@ jobs:
         run: npm install --prefix .browser-deps --no-save playwright@1.64.0 axe-core@4.10.3
       - name: Capture screens, dialogs, menus, hover and focus states
         run: node tools/ui/capture-ui-audit.mjs
-      - name: Capture axe accessibility details for the 12 primary sections
+      - name: Capture axe accessibility details across current screens and tabs
         run: |
           mkdir -p artifacts/ui-audit-screenshots
           node tools/ui/serve.mjs 8099 > /tmp/lbt-ui-serve.log 2>&1 &
