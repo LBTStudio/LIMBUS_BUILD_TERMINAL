@@ -17,7 +17,7 @@ test("端末内自動保存は成功と失敗を区別し、保存不能時に�
   assert.match(app, /backup\.textContent = "\\u4F5C\\u696D\\u72B6\\u614B\\u3092\\u4FDD\\u5B58"/);
   assert.match(app, /anchor\.dataset\.autosave = saveStateLabel/);
   assert.match(app, /anchor\.dataset\.autosaveState = saveStatus\.phase/);
-  assert.match(app, /anchor\.setAttribute\("aria-label", `\\u30AF\\u30A4\\u30C3\\u30AF\\u691C\\u7D22 ⌘K\\u3002\$\{saveStateLabel\}`\)/);
+  assert.ok(app.includes("anchor.setAttribute") && app.includes("${QUICK_SEARCH_SHORTCUT}") && app.includes("saveStateLabel"), "検索ボタンの読み上げ名にOS別キーと保存状態を含める");
   assert.ok(app.indexOf("const saveStateLabel") < app.indexOf("window.App = App;"), "自動保存状態の副作用はAppコンポーネント内に置く");
   assert.match(app, /return \(\) => indicator\.remove\(\);/);
 });
@@ -232,4 +232,13 @@ test("Buildの所持品検索は別名・効果を扱い、クイック検索か
   assert.match(sections, /const searchTargetId = state\.ui\?\.itemSearchTarget\?\.id/);
   assert.match(app, /currentSection: "items-build", itemSearchTarget:/);
   assert.match(app, /DB\.specialItems/);
+});
+
+
+test("検索ショートカットはOSごとにCtrl+K／⌘Kを表示し、両方のキー操作で開く", () => {
+  assert.ok(app.includes('const QUICK_SEARCH_SHORTCUT = (() => {'));
+  assert.ok(app.includes('return /mac|iphone|ipad|ipod/i.test(platform) ? "⌘K" : "Ctrl+K";'));
+  assert.ok(app.includes('React.createElement("kbd", null, QUICK_SEARCH_SHORTCUT)'));
+  assert.ok(app.includes("e.ctrlKey || e.metaKey"));
+  assert.ok(app.includes("${QUICK_SEARCH_SHORTCUT}"));
 });
