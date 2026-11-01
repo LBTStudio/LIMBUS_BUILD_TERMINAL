@@ -3309,7 +3309,6 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
           type: "button",
           className: "btype-shop-category-card",
           "data-category": category.id,
-          "aria-label": category.label + "カテゴリを開く",
           onClick: () => openShopCategory(category.id)
         },
           h("span", { className: "btype-shop-category-icon", "aria-hidden": true }, h(Icon, { name: category.icon, size: 20 })),
