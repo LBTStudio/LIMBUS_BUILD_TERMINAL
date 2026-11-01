@@ -408,3 +408,9 @@ test("入口ページは専用ファビコンを指定し、監査ハーネス�
   assert.ok(mobilePreviewPage.includes('rel="icon" type="image/svg+xml"'));
   assert.match(uiHarness, /page\.on\("response", \(response\) => \{[\s\S]*?response\.status\(\) >= 400[\s\S]*?response\.url\(\)/);
 });
+
+test("UI監査ハーネスは幅に応じて左レールまたはモバイル下部ナビの表示を待つ", () => {
+  assert.match(uiHarness, /page\\.waitForFunction\\(\\(\\) => \\{[\\s\\S]*?rail-item\\[title='ホーム'\\][\\s\\S]*?btype-mobile-bottom-nav/);
+  assert.doesNotMatch(uiHarness, /waitForSelector\\("\\.rail-item\\[title='ホーム'\\]"/,
+    "スマートフォンで常に非表示のデスクトップナビを待たない");
+});
