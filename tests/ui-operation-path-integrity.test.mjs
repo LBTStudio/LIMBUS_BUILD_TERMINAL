@@ -493,3 +493,12 @@ test("Playwrightの所持人格画面は旧同期名と新しい保存buildを�
   assert.match(captureAudit, /persona-synced-build-detail/);
   assert.match(captureAudit, /fixture\.passiveName[\s\S]*?fixture\.skillNames[\s\S]*?fixture\.uniqueName/);
 });
+
+test("所持人格一覧は20件の通常・特異混在データを実ブラウザへ描画して確認する", () => {
+  assert.match(captureAudit, /sameModeCandidates\.slice\(0, 17\)/);
+  assert.match(captureAudit, /otherModeCandidates\.slice\(0, 3\)/);
+  assert.match(captureAudit, /\.slice\(0, 20\)\.map/);
+  assert.match(captureAudit, /rosterCardCount !== 20/);
+  assert.match(captureAudit, /rosterModes\.length !== 2/);
+  assert.match(captureAudit, /personaRosterCapacity/);
+});
