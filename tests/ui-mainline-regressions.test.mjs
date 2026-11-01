@@ -13,7 +13,7 @@ test("mobile preview can be opened from the top bar while App retains the sole p
   assert.match(app, /className: "preview-mobile-toggle"/);
   assert.match(app, /onClick: togglePreview[\s\S]{0,250}"aria-expanded": previewOpen/);
   assert.match(app, /id: "lbt-preview-edge-toggle"/);
-  assert.equal((app.match(/"aria-controls": previewOpen \\? "preview-panel" : void 0/g) || []).length, 2);
+  assert.equal((app.split('"aria-controls": previewOpen ? "preview-panel" : void 0').length - 1), 2);
   assert.match(app, /"aria-expanded": previewOpen/);
   assert.doesNotMatch(livePreview, /lbt-preview-edge-toggle/);
   assert.match(livePreview, /className: `preview\$\{state\.ui\.previewOpen \? " is-open" : ""\}`/);
