@@ -319,3 +319,32 @@
     box-sizing: border-box;
   }
 }
+
+
+/* 2026-11-01 audit follow-up: include high-impact controls omitted by the first target whitelist. */
+@media (max-width: 640px) {
+  /* 起動時SINNER SELECTの編集導線。カード選択とは別操作なので十分な面積を確保する。 */
+  .acct-gate-edit-btn {
+    box-sizing: border-box;
+    min-width: 72px;
+    min-height: 40px;
+  }
+
+  /* サポート枠の解除。アイコンは小さいまま、押せる面積を40pxに広げる。 */
+  .spp-slot .rm {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    top: 0;
+    right: 0;
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+  /* 解除ボタンを拡大した分、並べ替え操作を左へ離して誤タップを防ぐ。 */
+  .spp-slot .reorder-btns { margin-right: 44px; }
+
+  .record-import-launch { min-height: 40px; }
+}
