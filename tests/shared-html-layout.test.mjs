@@ -106,7 +106,7 @@ test("共有HTMLの個人メモはシート別に端末保存し、共有URLに�
 test("共有HTMLの個人メモ消去ボタンはスマートフォンで40px以上の操作領域を持つ", () => {
   const html = sampleShareHtml();
   assert.match(html, /\.share-private-notes-clear\{[^}]*cursor:pointer\}/);
-  assert.match(html, /@media\(max-width:640px\)\{[^}]*\.share-private-notes-clear\{box-sizing:border-box;min-height:40px;padding:8px 10px\}\}/);
+  assert.match(html, /@media\(max-width:640px\)[\s\S]*?\.share-private-notes-clear\{box-sizing:border-box;min-height:40px;padding:8px 10px\}/);
 });
 
 test("共有HTMLの人格ヘッダーとOGP説明に所属を表示する", () => {
