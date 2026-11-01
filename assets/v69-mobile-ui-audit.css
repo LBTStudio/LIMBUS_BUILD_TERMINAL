@@ -360,3 +360,10 @@
 
   .record-import-launch { min-height: 40px; }
 }
+
+
+/* アカウント名・用途・アイコン・共有URLの編集中は、オンライン保全パネルを
+   一時的に退避してフォームの表示／スクロール領域を確保する。編集終了後は一覧に戻して再表示。 */
+.acct-panel:has(> .acct-grid.is-editing) > .lbt-cloud-panel {
+  display: none;
+}
