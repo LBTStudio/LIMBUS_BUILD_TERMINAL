@@ -169,7 +169,7 @@ async function readMetrics() {
     )].filter(isVisible).map(e => {
       const r = e.getBoundingClientRect();
       return {
-        label: (e.getAttribute("aria-label") || e.innerText || e.getAttribute("title") || e.getAttribute("placeholder") || "").trim().replace(/\\s+/g," ").slice(0,64),
+        label: (e.getAttribute("aria-label") || e.innerText || e.getAttribute("title") || e.getAttribute("placeholder") || "").trim().replace(/\s+/g," ").slice(0,64),
         tag: e.tagName.toLowerCase(),
         type: e.getAttribute("type") || "",
         className: typeof e.className === "string" ? e.className : "",
