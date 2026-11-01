@@ -395,6 +395,61 @@ async function seed() {
       build: null
     }));
 
+    /* Keep one non-equipped persona as a deliberately edited sync fixture. This exercises
+       the same roster resolver and detail card used after account sync/import: old roster
+       displayName, newer saved build name, changed attributes, passive, skills and buffs. */
+    const syncedPersonaFixture = (() => {
+      const entry = rosterPersonas.find((candidate) => candidate.mode === mode && String(candidate.no) !== String(p.no));
+      if (!entry) return null;
+      const source = (entry.mode === "t" ? special : normal).find((candidate) => String(candidate.no) === String(entry.no));
+      if (!source) return null;
+      const latestName = "同期UI監査・最新名称";
+      const passiveName = "同期UI監査パッシブ";
+      const skillName = "同期UI監査スキル";
+      const uniqueName = "同期UI監査固有バフ";
+      const pas = {
+        name: passiveName, cond: "憤怒x2", always: "戦闘開始時、保護1を得る",
+        effect: "マッチ勝利時、出血1を付与", quick: ""
+      };
+      const skills = normalizedSkills(source.skills, "ui-audit-synced-" + entry.no).slice(0, 2).map((skill, index) => ({
+        ...skill,
+        name: skillName + (index + 1),
+        effect: "同期編集済みの効果 " + (index + 1)
+      }));
+      if (!skills.length) skills.push({
+        rank: "スキル0", name: skillName + "1", type: "斬撃", sin: "憤怒",
+        effect: "同期編集済みの効果 1", dice: [{ roll: "2d8", effect: "命中時" }]
+      });
+      const personaSrc = {
+        ...source,
+        name: latestName,
+        hp: 222, san: 65, speed: "1d5+2", bullets: "3",
+        res_slash: "耐性", res_pierce: "普通", res_blunt: "弱点",
+        passive_name: passiveName, passive_cond: pas.cond,
+        passive_always: pas.always, passive_effect: pas.effect,
+        keywords: ["同期UI監査キーワード"]
+      };
+      entry.displayName = "同期UI監査・旧表示名";
+      entry.updatedAt = now - 2000;
+      entry.syncRank = "00";
+      entry.syncMax = true;
+      entry.build = {
+        savedAt: now,
+        personaSrc,
+        hp: "222", san: "65", speed: "1d5+2", bullets: "3",
+        resS: "耐性", resP: "普通", resB: "弱点",
+        pas, skills,
+        uniqueBuffs: [{ name: uniqueName, type: "バフ", initial: 1, max: 4, desc: "同期で保存された固有バフ", place: "status" }],
+        extraPassives: [{ name: "同期UI監査追加パッシブ", cond: "嫉妬x1", always: "", effect: "同期で保存された追加効果" }]
+      };
+      return {
+        mode: entry.mode, no: entry.no, latestName, oldDisplayName: entry.displayName,
+        passiveName, skillNames: skills.map((skill) => skill.name), uniqueName,
+        hp: "222", resSlash: "耐性"
+      };
+    })();
+    if (!syncedPersonaFixture) return { ok: false, reason: "could not prepare a non-equipped synced persona fixture" };
+
     const ownedRosterKeys = new Set(rosterPersonas.map((entry) => entry.mode + ":" + String(entry.no)));
     const initialCandidate = all.find(({ p: candidate, mode: candidateMode }) => !ownedRosterKeys.has(candidateMode + ":" + String(candidate.no))) || all.find(({ p: candidate }) => String(candidate.no) !== String(p.no)) || chosen;
     const initialCandidateKey = initialCandidate.mode + ":" + String(initialCandidate.p.no);
@@ -550,6 +605,7 @@ async function seed() {
         enhancements: enhancementCandidates.length,
         results: next.results.length,
         entries: next.entries.length,
+        syncedPersonaFixture,
         initialPersonaCandidate: { mode: initialCandidate.mode, no: String(initialCandidate.p.no), name: initialCandidate.p.name },
         historicalPersonaCandidate: { mode: historicalCandidate.mode, no: String(historicalCandidate.p.no), name: historicalCandidate.p.name }
       }
@@ -759,6 +815,33 @@ async function captureProfile(browser, mode) {
         if(label==="人格") {
           const rosterToggle=page.locator(".pw-listbar-toggle").first();
           if(await visible(rosterToggle)) { await click(rosterToggle); await snap("persona-list-expanded","PERSONA LISTを展開した状態"); }
+          await attempt("persona-synced-roster-details", async () => {
+            const fixture = seeded?.sample?.syncedPersonaFixture;
+            if (!fixture) throw new Error("同期人格の検証用データを準備できませんでした");
+            const rosterMode = page.locator(".codex-modes button").filter({ hasText: "所持" }).first();
+            if (await visible(rosterMode)) await click(rosterMode);
+            const syncedCard = page.locator(".p-card").filter({ hasText: fixture.latestName }).first();
+            await syncedCard.waitFor({ state: "visible", timeout: 5000 });
+            await syncedCard.scrollIntoViewIfNeeded();
+            const cardText = (await syncedCard.innerText()).replace(/\\s+/g, " ");
+            if (!cardText.includes(fixture.latestName)) throw new Error("所持人格カードに最新同期名が反映されません: " + cardText.slice(0, 220));
+            await snap("persona-synced-latest-roster-name", "旧表示名ではなく最新の同期保存ビルド名が一覧に反映された状態");
+            await click(syncedCard.locator(".p-card-hit").first());
+            const detail = page.locator(".detail-dialog-backdrop").last();
+            await detail.waitFor({ state: "visible", timeout: 5000 });
+            const detailText = (await detail.innerText()).replace(/\\s+/g, " ");
+            for (const expected of [fixture.latestName, fixture.passiveName, ...fixture.skillNames, fixture.uniqueName, fixture.hp, fixture.resSlash]) {
+              if (!detailText.includes(expected)) throw new Error("同期人格詳細に「" + expected + "」がありません: " + detailText.slice(0, 500));
+            }
+            await snap("persona-synced-build-detail", "同期名・HP・耐性・パッシブ・スキル・固有バフを反映した人格詳細");
+            const close = page.locator(".detail-dialog-close").last();
+            if (await visible(close)) await click(close);
+            if (await visible(page.locator(".detail-dialog-backdrop"))) {
+              await page.keyboard.press("Escape").catch(() => {});
+              await page.waitForTimeout(200);
+            }
+            if (await visible(page.locator(".detail-dialog-backdrop"))) throw new Error("同期人格詳細の検証後にダイアログを閉じられません");
+          });
           const cardHit=page.locator(".p-card-hit").first();
           if(await visible(cardHit)) {
             await cardHit.hover().catch(()=>{});
@@ -1535,7 +1618,8 @@ async function main() {
   audit.overlayAccessibilityScope = "可視化したダイアログ／シート状態のみ（4 viewport）";
   audit.overlayAccessibilityScanCount = audit.accessibilityScans.length;
   audit.overlayAccessibilityViolationNodeCount = audit.accessibilityScans.reduce((n, scan) => n + (scan.violations || []).reduce((m, v) => m + (v.nodes || []).length, 0), 0);
-  audit.coverage=["PC 1440px / tablet 1024px / phone 390px / narrow phone 320px","SINNER SELECT/new-account form","all nine build tabs and desktop tab-hover states","Basic workspace ST / label / CCFOLIA preview tabs and all three live preview modes","major navigation sections and desktop navigation-hover states","shop category hub cards, all six routes and back-navigation, and build-style persona product cards","record import menu and routes with result parsing preview","all six owned-library categories","settings status workspace and every disclosure panel","seeded QA: initial persona ownership, historical persona acquisition, standard/custom item rewards and inventory reconciliation","home command hero, all launcher routes and resume panel","common import router and all four destinations","skill-add and custom E.G.O creation entry paths","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, desktop preview width and placement, duplicate preview controls, 40px mobile touch-target enforcement, and target-size diagnostics"];
+  audit.coverage=["PC 1440px / tablet 1024px / phone 390px / narrow phone 320px","SINNER SELECT/new-account form","all nine build tabs and desktop tab-hover states",
+    "synced owned-persona latest name, changed attributes, passive, skills, unique buff and details","Basic workspace ST / label / CCFOLIA preview tabs and all three live preview modes","major navigation sections and desktop navigation-hover states","shop category hub cards, all six routes and back-navigation, and build-style persona product cards","record import menu and routes with result parsing preview","all six owned-library categories","settings status workspace and every disclosure panel","seeded QA: initial persona ownership, historical persona acquisition, standard/custom item rewards and inventory reconciliation","home command hero, all launcher routes and resume panel","common import router and all four destinations","skill-add and custom E.G.O creation entry paths","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, desktop preview width and placement, duplicate preview controls, 40px mobile touch-target enforcement, and target-size diagnostics"];
   const requiredNotes=[
     "ビルド内基本タブのステータス（ST）編集パネル","ビルド内基本タブのラベル（パラメータ）編集パネル","ビルド内基本タブの盤面上の駒プレビュー","ビルド内基本タブのキャラクターシートプレビュー","ビルド内基本タブの出力データプレビュー",
     "ビルド内の人格タブ","ビルド内のスキルタブ","ビルド内のパッシブタブ","ビルド内の強化タブ","ビルド内のサポートタブ","ビルド内のE.G.Oタブ","ビルド内の精神タブ","ビルド内のアイテムタブ",
