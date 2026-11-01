@@ -308,13 +308,13 @@ async function runProfile(browser,profile) {
     const toggle=page.locator(profile.mobile?".preview-mobile-toggle":"#lbt-preview-edge-toggle");
     const initial=await metrics(page,profile);
     recordCheck(profile.name+": one React toggle, no legacy controls",
-      initial.toggleCount===1&&initial.legacyReopenCount===0&&initial.legacyCloseCount===0&&initial.controls==="preview-panel",
+      initial.toggleCount===1&&initial.legacyReopenCount===0&&initial.legacyCloseCount===0&&initial.expanded==="false"&&!initial.panelOpen&&initial.controls===null,
       {metrics:initial});
     if(initial.expanded==="true") await toggle.click();
     await page.waitForTimeout(220);
     const closed=await metrics(page,profile);
     recordCheck(profile.name+": closed state is synchronized",
-      closed.expanded==="false"&&!closed.panelOpen,
+      closed.expanded==="false"&&!closed.panelOpen&&closed.controls===null,
       {metrics:closed});
     const closedCollisions=Object.entries(closed.overlaps).filter(([key,value])=>["footer","hint","tabs","rail","sectionTitle","accessCounterVsNav"].includes(key)&&value.hit);
     recordCheck(profile.name+": closed toggle avoids preview actions, tabs, hints, headings and navigation",
@@ -343,7 +343,7 @@ async function runProfile(browser,profile) {
     await toggle.click();
     await page.waitForTimeout(300);
     const opened=await metrics(page,profile);
-    const commonOk=opened.expanded==="true"&&opened.panelOpen;
+    const commonOk=opened.expanded==="true"&&opened.panelOpen&&opened.controls==="preview-panel";
     recordCheck(profile.name+": open state is synchronized",commonOk,{metrics:opened});
     const controlCollisions=Object.entries(opened.overlaps).filter(([key,value])=>["footer","hint","tabs","rail","sectionTitle","accessCounterVsNav"].includes(key)&&value.hit);
     recordCheck(profile.name+": toggle does not overlap preview actions, tabs, hints, headings or navigation",
@@ -422,7 +422,7 @@ async function runProfile(browser,profile) {
     await page.waitForTimeout(220);
     const closedAgain=await metrics(page,profile);
     recordCheck(profile.name+": second click closes the same control",
-      closedAgain.expanded==="false"&&!closedAgain.panelOpen,
+      closedAgain.expanded==="false"&&!closedAgain.panelOpen&&closedAgain.controls===null,
       {expanded:closedAgain.expanded,panelOpen:closedAgain.panelOpen});
     if(pageErrors.length) recordCheck(profile.name+": no uncaught page errors",false,{pageErrors});
     else recordCheck(profile.name+": no uncaught page errors",true);
