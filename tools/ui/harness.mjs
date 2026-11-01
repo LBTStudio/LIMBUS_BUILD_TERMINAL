@@ -145,7 +145,23 @@ export async function enterAuditWorkspace(page, accountName = "UI監査用キャ
       await activateAuditTarget(page, account);
     }
   }
-  await page.waitForSelector(".rail-item[title='ホーム']", { timeout: 30000 });
+  // The desktop rail is intentionally hidden on phone-width layouts. The
+  // audit runner must wait for whichever navigation model is actually visible,
+  // not for a desktop-only selector that can never become visible on mobile.
+  await page.waitForFunction(() => {
+    const visible = (element) => {
+      if (!element) return false;
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== "none"
+        && style.visibility !== "hidden"
+        && Number(style.opacity) >= 0.03
+        && rect.width > 0
+        && rect.height > 0;
+    };
+    return visible(document.querySelector(".rail-item[title='ホーム']"))
+      || visible(document.querySelector(".btype-mobile-bottom-nav"));
+  }, null, { timeout: 30000 });
   return true;
 }
 
