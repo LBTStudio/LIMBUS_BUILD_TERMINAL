@@ -460,3 +460,10 @@ test("SINNER SELECT編集とサポート枠解除は40px以上のモバイル操
   assert.ok(captureAudit.includes('".acct-gate-edit-btn"'));
   assert.ok(captureAudit.includes('".spp-slot .rm"'));
 });
+
+
+test("操作ボタンのアクセシブル名は表示文言を含み、カテゴリカードは可視テキストを使う", () => {
+  assert.ok(app.includes("⌘K"), "検索ボタンの可視ショートカットをアクセシブル名に含める");
+  assert.ok(app.includes('JSON出力。CCFOLIA用JSONをコピー'), "JSONボタンの表示文言をアクセシブル名の先頭に含める");
+  assert.ok(!sections.includes('"aria-label": category.label + "カテゴリを開く"'), "ショップカードはカテゴリ見出しなどの可視テキストから名前を構成する");
+});
