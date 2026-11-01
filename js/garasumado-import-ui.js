@@ -1528,7 +1528,7 @@ function appliedSummary(actions) {
       ) : null,
       h("p", { className: "gara-field-help", id: "gara-url-help" }, "URLはこの読み込みにのみ使用し、アカウントへ保存しません。Enterキーでも読み込めます。最大150件まで一括処理できます。"),
       h("section", { className: "gara-group", style: { marginTop: "18px" } },
-        h("h4", { className: "gara-group-title" }, "ZIP / JSON ファイルから一括読み込み"),
+        h("h3", { className: "gara-group-title" }, "ZIP / JSON ファイルから一括読み込み"),
         h("label", { className: "acct-field gara-field" },
           h("span", { className: "gara-label" }, "硝子窓のエクスポート（ZIPまたはJSONを複数選択）"),
           h("input", {
