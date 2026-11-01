@@ -12,7 +12,7 @@
  * を分けて報告する。
  */
 
-import { loadPlaywright, walkSections, VIEWPORTS } from "./harness.mjs";
+import { loadPlaywright, openApp, walkSections, VIEWPORTS, BASE_URL } from "./harness.mjs";
 
 const url = process.argv[2] || undefined;
 
@@ -23,11 +23,7 @@ let unreachableTotal = 0;
 let benignTotal = 0;
 
 for (const vp of VIEWPORTS) {
-  const ctx = await browser.newContext({ viewport: { width: vp.w, height: vp.h } });
-  const page = await ctx.newPage();
-  await page.goto(url || (await import("./harness.mjs")).BASE_URL, { waitUntil: "load", timeout: 90000 });
-  await page.waitForSelector(".rail-item", { timeout: 90000 });
-  await page.waitForTimeout(1200);
+  const { context: ctx, page } = await openApp(browser, { url: url || BASE_URL, width: vp.w, height: vp.h });
 
   const agg = new Map();
   await walkSections(page, {
