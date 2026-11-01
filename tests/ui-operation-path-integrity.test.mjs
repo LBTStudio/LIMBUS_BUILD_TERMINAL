@@ -10,6 +10,7 @@ const parityCss = read("../assets/b-type-ui-parity.css");
 const captureAudit = read("../tools/ui/capture-ui-audit.mjs");
 const index = read("../index.html");
 const uiAuditWorkflow = read("../.github/workflows/ui-audit-screenshot-capture.yml");
+const axeDetail = read("../tools/ui/axe-detail.mjs");
 
 const supportStart = sections.indexOf("const SupportSection =");
 const supportEnd = sections.indexOf("const EGO_RANKS =", supportStart);
@@ -210,6 +211,11 @@ test("全UI監査CIは主12セクションのaxe診断を成果物へ保存す�
   assert.match(uiAuditWorkflow, /server_pid=\$!/);
   assert.match(uiAuditWorkflow, /trap /);
   assert.match(uiAuditWorkflow, /BASE_URL=http:\/\/127\.0\.0\.1:8099\//);
+  assert.match(axeDetail, /\.acct-gate/);
+  assert.match(axeDetail, /\.acct-card--add/);
+  assert.match(axeDetail, /作成して開く/);
+  assert.match(axeDetail, /本体へ遷移できません/);
+
 });
 
 
