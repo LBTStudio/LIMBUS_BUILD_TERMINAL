@@ -1428,7 +1428,7 @@ const HomeLauncher = ({
   return h("section", { className: "home-launcher btype-home", "aria-labelledby": "home-launcher-title" },
     h("header", { className: "btype-command-hero" },
       h("div", { className: "btype-eyebrow" }, "HOME / MULTI-PURPOSE LAUNCHER"),
-      h("h2", { id: "home-launcher-title" }, "何から始めますか？"),
+      h("h1", { id: "home-launcher-title" }, "何から始めますか？"),
       h("p", { className: "btype-muted" }, "画面名が分からなくても、目的から機能を開けます。編集対象は現在のキャラクターです。"),
       h("div", { className: "btype-context-chips" },
         chip("対象：" + String(state.charName || "名称未設定")),
