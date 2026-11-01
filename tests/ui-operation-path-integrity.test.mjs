@@ -221,8 +221,8 @@ test("全UI監査CIは主12セクションのaxe診断を成果物へ保存す�
 
 test("スマートフォンUI監査はマウスクリックではなくタッチ操作経路を通る", () => {
   const clickHelper = captureAudit.slice(captureAudit.indexOf("async function click("), captureAudit.indexOf("function mainNavigation("));
-  assert.match(clickHelper, /view === "mobile"[\s\S]*?\.tap\(/);
-  assert.match(captureAudit, /if \(view === "mobile"\) await target\.tap\(/);
+  assert.match(clickHelper, /view\.startsWith\("mobile"\)[\s\S]*?\.tap\(/);
+  assert.match(captureAudit, /if \(view\.startsWith\("mobile"\)\) await target\.tap\(/);
   assert.doesNotMatch(captureAudit, /summary\.click\(/, "設定・履歴開閉も共通のタッチ対応操作ヘルパーを通す");
 });
 
