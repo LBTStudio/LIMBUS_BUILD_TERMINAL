@@ -22,6 +22,7 @@ const axeShareView = read("../tools/ui/axe-share-view.mjs");
 const personaCodex = read("../js/PersonaCodex.js");
 const garasumadoImportUI = read("../js/garasumado-import-ui.js");
 const mobileAuditCss = read("../assets/v69-mobile-ui-audit.css");
+const overlayCss = read("../assets/v52-overlay.css");
 
 const supportStart = sections.indexOf("const SupportSection =");
 const supportEnd = sections.indexOf("const EGO_RANKS =", supportStart);
@@ -536,4 +537,14 @@ test("SINNER SELECTのアカウント編集時はオンライン保全パネル�
   assert.ok(captureAudit.includes("account-edit-cancel-restores-list"));
   assert.ok(captureAudit.includes('actions.getByRole("button",{name:"キャンセル",exact:true})'));
   assert.ok(captureAudit.includes("restore.backupVisible") && captureAudit.includes("restore.formRemaining"));
+});
+
+
+test("共有方法の推奨バッジは320px幅でも文字単位に分断されない", () => {
+  const start = overlayCss.indexOf(".share-opt.is-recommended .share-opt-title::after{");
+  const end = overlayCss.indexOf("\n}", start);
+  const rule = overlayCss.slice(start, end);
+  assert.ok(rule.includes("display: inline-block"));
+  assert.ok(rule.includes("white-space: nowrap"));
+  assert.ok(rule.includes("content: '推奨'"));
 });
