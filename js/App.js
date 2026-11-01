@@ -1,3 +1,10 @@
+/* Ctrl/Command の実装と同じ判定で、ヘッダーの検索ショートカットをOSごとに表示する。 */
+const QUICK_SEARCH_SHORTCUT = (() => {
+  const nav = typeof navigator !== "undefined" ? navigator : null;
+  const platform = String(nav?.userAgentData?.platform || nav?.platform || nav?.userAgent || "");
+  return /mac|iphone|ipad|ipod/i.test(platform) ? "⌘K" : "Ctrl+K";
+})();
+
 /* V13: 基本機能の説明書（ヘルプ）セクション */
 const HELP_ITEMS = [
   { group: "prepare", icon: "settings", title: "駒整形で基本情報を設定する", body: "左側の「ビルド」を開き、「基本」タブでキャラクター名・PL名・立ち絵URL・イニシアチブ・駒の色を設定します。人格を装備する前でも入力でき、ステータス一覧とラベル設定も同じタブの下部で扱えます。立ち絵URLは画像URLを1行に1つ入力し、複数行なら差分として扱われます。" },
@@ -1698,7 +1705,7 @@ const App = () => {
     if (!host || !anchor) return;
     anchor.dataset.autosave = saveStateLabel;
     anchor.dataset.autosaveState = saveStatus.phase;
-    anchor.setAttribute("aria-label", `\u30AF\u30A4\u30C3\u30AF\u691C\u7D22 ⌘K\u3002${saveStateLabel}`);
+    anchor.setAttribute("aria-label", `\u30AF\u30A4\u30C3\u30AF\u691C\u7D22 ${QUICK_SEARCH_SHORTCUT}\u3002${saveStateLabel}`);
     const indicator = document.getElementById("lbt-autosave-status") || document.createElement("div");
     indicator.id = "lbt-autosave-status";
     indicator.className = `topbar-save-state is-${saveStatus.phase}`;
@@ -1921,7 +1928,7 @@ const App = () => {
     );
   }
   return /* @__PURE__ */ React.createElement("div", { className: `app${isBuildWorkspace && previewOpen ? " has-preview" : ""}${!previewOpen ? " preview-collapsed" : ""}` }, /* 最初のフォーカス可能要素。WCAG 2.4.1 の bypass block。
-   通常時は画面外へ逃がし、フォーカス時のみ表示する。 */ /* @__PURE__ */ React.createElement("a", { href: "#main-content", className: "skip-link" }, "本文へスキップ"), /* @__PURE__ */ React.createElement("header", { className: "topbar" }, /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("span", { className: "brand-mark" }, "\u25C8"), /* @__PURE__ */ React.createElement("h1", { className: "brand-name" }, "LIMBUS BUILD TERMINAL"), /* @__PURE__ */ React.createElement("span", { className: "brand-sub" }, "CCFOLIA CHARACTER BUILDER ", /* @__PURE__ */ React.createElement("span", { className: "brand-ver" }, window.LBT_VERSION || "v64r45"))), /* @__PURE__ */ React.createElement("button", { type: "button", className: "brand-author", onClick: () => setDisclaimerOpen(true), title: "\u4F5C\u8005\uFF1A\u3057\u3083\u3051\uFF08\u514D\u8CAC\u4E8B\u9805\u3092\u958B\u304F\uFF09", "aria-haspopup": "dialog" }, /* @__PURE__ */ React.createElement("span", { className: "brand-author-fish" }, /* @__PURE__ */ React.createElement(Icon, { name: "salmon", size: 20 })), /* @__PURE__ */ React.createElement("span", { className: "brand-author-name" }, "しゃけ")), /* @__PURE__ */ React.createElement("div", { className: "topbar-spacer" }), /* @__PURE__ */ React.createElement("button", { className: "topbar-search", onClick: () => setCpOpen(true) }, /* @__PURE__ */ React.createElement(Icon, { name: "search", size: 14 }), /* @__PURE__ */ React.createElement("span", { className: "topbar-search-text" }, "\u30AF\u30A4\u30C3\u30AF\u691C\u7D22"), /* @__PURE__ */ React.createElement("kbd", null, "\u2318K")), /* 残高は常に見える必要がある。.topbar-actions の中に入れると ≤640px と
+   通常時は画面外へ逃がし、フォーカス時のみ表示する。 */ /* @__PURE__ */ React.createElement("a", { href: "#main-content", className: "skip-link" }, "本文へスキップ"), /* @__PURE__ */ React.createElement("header", { className: "topbar" }, /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("span", { className: "brand-mark" }, "\u25C8"), /* @__PURE__ */ React.createElement("h1", { className: "brand-name" }, "LIMBUS BUILD TERMINAL"), /* @__PURE__ */ React.createElement("span", { className: "brand-sub" }, "CCFOLIA CHARACTER BUILDER ", /* @__PURE__ */ React.createElement("span", { className: "brand-ver" }, window.LBT_VERSION || "v64r45"))), /* @__PURE__ */ React.createElement("button", { type: "button", className: "brand-author", onClick: () => setDisclaimerOpen(true), title: "\u4F5C\u8005\uFF1A\u3057\u3083\u3051\uFF08\u514D\u8CAC\u4E8B\u9805\u3092\u958B\u304F\uFF09", "aria-haspopup": "dialog" }, /* @__PURE__ */ React.createElement("span", { className: "brand-author-fish" }, /* @__PURE__ */ React.createElement(Icon, { name: "salmon", size: 20 })), /* @__PURE__ */ React.createElement("span", { className: "brand-author-name" }, "しゃけ")), /* @__PURE__ */ React.createElement("div", { className: "topbar-spacer" }), /* @__PURE__ */ React.createElement("button", { className: "topbar-search", onClick: () => setCpOpen(true) }, /* @__PURE__ */ React.createElement(Icon, { name: "search", size: 14 }), /* @__PURE__ */ React.createElement("span", { className: "topbar-search-text" }, "\u30AF\u30A4\u30C3\u30AF\u691C\u7D22"), /* @__PURE__ */ React.createElement("kbd", null, QUICK_SEARCH_SHORTCUT)), /* 残高は常に見える必要がある。.topbar-actions の中に入れると ≤640px と
    横向きで display:none になるため、.topbar の直接子として置く。 */
 /* @__PURE__ */ React.createElement(BalanceChip, { state, onClick: () => dispatch({ type: "SET_UI", ui: { currentSection: "roster", libraryTab: "ledger" } }) }), /* @__PURE__ */ React.createElement("button", { type: "button", className: "preview-mobile-toggle", onClick: togglePreview, title: previewOpen ? "プレビューを格納" : "プレビューを展開", "aria-label": previewOpen ? "プレビューを格納" : "プレビューを展開", "aria-controls": previewOpen ? "preview-panel" : void 0, "aria-expanded": previewOpen }, /* @__PURE__ */ React.createElement(Icon, { name: "eye", size: 16 })), /* @__PURE__ */ React.createElement("div", { className: "topbar-actions" },
   React.createElement(AccountChip, null),
