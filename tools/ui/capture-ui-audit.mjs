@@ -12,7 +12,7 @@ const OUT = path.resolve(ROOT, "artifacts/ui-audit-screenshots");
 const HOST = "127.0.0.1";
 const PORT = 4174;
 const MIME = { ".html":"text/html; charset=utf-8", ".js":"text/javascript; charset=utf-8", ".mjs":"text/javascript; charset=utf-8", ".css":"text/css; charset=utf-8", ".json":"application/json; charset=utf-8", ".svg":"image/svg+xml", ".png":"image/png", ".webp":"image/webp", ".txt":"text/plain; charset=utf-8", ".woff2":"font/woff2" };
-const audit = { generatedAt: new Date().toISOString(), screenshots: [], failures: [], consoleErrors: [], httpErrors: [], pageErrors: [], layoutWarnings: [], interactions: [] };
+const audit = { generatedAt: new Date().toISOString(), screenshots: [], failures: [], consoleErrors: [], httpErrors: [], pageErrors: [], layoutWarnings: [], interactions: [], accessibilityScans: [], accessibilityErrors: [] };
 let page;
 let view = "unknown";
 
@@ -46,7 +46,10 @@ async function visible(loc) {
 }
 async function click(loc) {
   if (!(await visible(loc))) throw new Error("target is not visible");
-  await loc.first().click({ timeout: 4000 });
+  /* hasTouch:true のスマートフォン検証では mouse.click ではなく実タップ経路を通す。
+     これにより touch/pointer の発火と hover 前提でない操作を検証できる。 */
+  if (view.startsWith("mobile")) await loc.first().tap({ timeout: 4000 });
+  else await loc.first().click({ timeout: 4000 });
   await page.waitForTimeout(250);
 }
 function mainNavigation() {
@@ -112,7 +115,8 @@ async function closeOverlay() {
       }
     }
     if (!target) break;
-    await target.click({ timeout: 1800, force: true }).catch(() => {});
+    if (view.startsWith("mobile")) await target.tap({ timeout: 1800, force: true }).catch(() => {});
+    else await target.click({ timeout: 1800, force: true }).catch(() => {});
     await page.waitForTimeout(220);
   }
 }
@@ -135,13 +139,21 @@ async function readMetrics() {
        from decorative links and native checkbox glyphs. Only visible targets
        inside the current viewport are considered; the 40px rule applies to phones. */
     const touchTargetSelector = [
-      ".topbar-search", ".preview-mobile-toggle", ".acct-close", ".import-router-close",
+      ".topbar-search", ".topbar-balance", ".preview-mobile-toggle", ".acct-close", ".import-router-close",
+      "button.btn-sm", "button.btn", "button.secondary", "button[type=\"submit\"]", ".share-private-notes-clear", ".btype-back-link", ".btype-record-hub .btype-page-heading > .record-import-launch",
+      ".piece-art-actions > button", ".piece-tab", ".piece-preview-tab",
+      ".acct-gate-edit-btn", ".acct-upload-btn", ".pw-listbar-toggle",
+      ".lbt-glossary-term", ".lbt-glossary-popover-close", "button.rm", ".es-kw-add",
+      'input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"])',
+      "select", "textarea",
+      ".acct-card-actions .acct-icon-btn", ".spp-slot .rm", ".record-import-launch", ".p-fav",
       ".utility-sheet-close", ".detail-dialog-close", ".ego-quick-close",
       ".persona-draft-dialog button.btn-icon", "button.btn-icon", ".es-kw-rm",
       ".ledger-reward-item-chip button", ".reorder-btn", ".ledger-row-move-action",
       ".ledger-row-release", ".ledger-row-trash", ".ledger-card-edit-btn",
       ".ledger-card-edit-save", ".ledger-card-edit-cancel", ".ledger-card-move-target",
       ".ledger-queue-move-target", ".ledger-result-object-actions > summary",
+      ".ledger-persona-audit-disclosure > summary",
       '.build-tabs .segmented[role="tablist"][aria-label="ビルドセクション"] > button',
       'button[aria-label*="閉じる"]'
     ].join(",");
@@ -161,6 +173,24 @@ async function readMetrics() {
           && (item.width < 40 || item.height < 40))
       : [];
 
+    /* 既知セレクターだけでは新しい操作部品を見落とすため、画面内にある全操作要素を
+       補助計測する。これは初回は診断専用で、見た目上の小型チップ等を誤ってCI失敗にしない。 */
+    const smallActionableTargets = [...document.querySelectorAll(
+      'button,[role="button"],a[href],input:not([type="checkbox"]):not([type="radio"]),select,textarea,summary'
+    )].filter(isVisible).map(e => {
+      const r = e.getBoundingClientRect();
+      return {
+        label: (e.getAttribute("aria-label") || e.innerText || e.getAttribute("title") || e.getAttribute("placeholder") || "").trim().replace(/\s+/g," ").slice(0,64),
+        tag: e.tagName.toLowerCase(),
+        type: e.getAttribute("type") || "",
+        className: typeof e.className === "string" ? e.className : "",
+        width: r.width,
+        height: r.height,
+        rect: rect(e)
+      };
+    }).filter(item => item.rect.x < innerWidth && item.rect.y < innerHeight
+      && item.rect.x + item.width > 0 && item.rect.y + item.height > 0
+      && (item.width < 40 || item.height < 40)).slice(0, 100);
     const horizontalScrollers=[...document.querySelectorAll("body *")].filter(e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);return r.width>80&&r.height>20&&e.scrollWidth>e.clientWidth+12&&["auto","scroll","hidden"].includes(s.overflowX);}).slice(0,24).map(e=>({tag:e.tagName,className:typeof e.className==="string"?e.className:"",label:(e.getAttribute("aria-label")||e.innerText||"").trim().replace(/\s+/g," ").slice(0,42),clientWidth:e.clientWidth,scrollWidth:e.scrollWidth,overflowX:getComputedStyle(e).overflowX,rect:rect(e)}));
     const layoutElements=[...document.querySelectorAll("#lbt-preview-edge-toggle,.preview,.preview-reopen,.preview-close,.preview-edge-toggle,.preview-actions,.preview-hint,.preview-tabs,.focus,.rail,.section-title-row,.section-title,.build-tabs,.baseinfo-workspace,.piece-hero-grid,.build-params-shell,.build-params-tabs,.basic-ccfolia-preview,.basic-preview-mode-tabs,.basic-preview-panel,.record-tabbar")].filter(isVisible).map(e=>{const s=getComputedStyle(e);return {tag:e.tagName,id:e.id||"",className:typeof e.className==="string"?e.className:"",text:(e.innerText||"").trim().replace(/\s+/g," ").slice(0,48),rect:rect(e),style:{position:s.position,display:s.display,top:s.top,right:s.right,bottom:s.bottom,width:s.width,height:s.height,writingMode:s.writingMode,opacity:s.opacity,zIndex:s.zIndex,pointerEvents:s.pointerEvents}};});
     const buildTablistMetrics = (() => {
@@ -186,7 +216,7 @@ async function readMetrics() {
           || r.x + r.width > element.getBoundingClientRect().right + 1).length
       };
     })();
-    return {viewport:{width:innerWidth,height:innerHeight},document:{width:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight},horizontalOverflow:document.documentElement.scrollWidth>innerWidth+2,horizontalScrollers,layoutElements,dialogs,smallTargets,touchTargetViolations,buildTablistMetrics,activeElement:document.activeElement?{tag:document.activeElement.tagName,aria:document.activeElement.getAttribute("aria-label"),text:(document.activeElement.innerText||"").trim().slice(0,40)}:null};
+    return {viewport:{width:innerWidth,height:innerHeight},document:{width:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight},horizontalOverflow:document.documentElement.scrollWidth>innerWidth+2,horizontalScrollers,layoutElements,dialogs,smallTargets,smallActionableTargets,touchTargetViolations,buildTablistMetrics,activeElement:document.activeElement?{tag:document.activeElement.tagName,aria:document.activeElement.getAttribute("aria-label"),text:(document.activeElement.innerText||"").trim().slice(0,40)}:null};
   });
 }
 async function snap(name, note) {
@@ -196,8 +226,42 @@ async function snap(name, note) {
   const file=path.join(OUT,base+".png");
   await page.screenshot({path:file,animations:"disabled"});
   const m=await readMetrics();
+  /* Dialog and sheet states are part of the real interaction surface. Run axe only
+     when a modal is visible to keep the 400+ screenshot pass practical, while
+     recording the exact dialog state and viewport for follow-up. */
+  if ((m.dialogs || []).length && page) {
+    try {
+      const result = await page.evaluate(async () => {
+        if (!window.axe) throw new Error("axe-coreが初期化されていません。ダイアログ状態の診断を省略できません");
+        const r = await window.axe.run(document, { resultTypes: ["violations"] });
+        return {
+          unavailable: false,
+          violations: r.violations.map(v => ({
+            id: v.id,
+            impact: v.impact,
+            help: v.help,
+            nodes: v.nodes.map(n => ({
+              target: n.target.join(" "),
+              html: n.html.slice(0, 220),
+              summary: (n.failureSummary || "").slice(0, 260)
+            }))
+          }))
+        };
+      });
+      audit.accessibilityScans.push({
+        screen: base,
+        viewport: m.viewport,
+        dialogs: m.dialogs,
+        ...result
+      });
+    } catch (error) {
+      audit.accessibilityErrors.push({ screen: base, error: String(error?.message || error).slice(0, 220) });
+    }
+  }
   audit.screenshots.push({name:base,note:note||"",file:path.relative(ROOT,file),metrics:m});
   if(m.horizontalOverflow) audit.layoutWarnings.push({name:base,type:"document-horizontal-overflow",viewport:m.viewport,document:m.document});
+  const clippedTopbar=(m.horizontalScrollers||[]).find((item)=>item.className.split(" ").includes("topbar")&&item.overflowX==="hidden");
+  if(m.viewport.width<=360&&clippedTopbar) audit.layoutWarnings.push({name:base,type:"topbar-content-clipped",viewport:m.viewport,container:clippedTopbar});
   if (m.viewport.width <= 640 && (m.touchTargetViolations || []).length) {
     audit.layoutWarnings.push({
       name: base,
@@ -299,16 +363,19 @@ async function seed() {
 
     // Use real DB personas as fixture data, not empty placeholder cards. Keep both
     // normal and special identities so sync/original filters and long lists are visible.
-    const rosterCandidates = [chosen, ...all.filter(({ p: candidate, mode: candidateMode }) =>
-      candidateMode !== mode || String(candidate.no) !== String(p.no)
+    const sameModeCandidates = [chosen, ...all.filter(({ p: candidate, mode: candidateMode }) =>
+      candidateMode === mode && String(candidate.no) !== String(p.no)
     )];
+    const otherModeCandidates = all.filter(({ mode: candidateMode }) => candidateMode !== mode);
+    /* 最大20件の所持人格を実表示で検証する。通常／特異が混在するよう17+3件を用意。 */
+    const rosterCandidates = [...sameModeCandidates.slice(0, 17), ...otherModeCandidates.slice(0, 3)];
     const seenPersonas = new Set();
     const rosterPersonas = rosterCandidates.filter(({ p: candidate, mode: candidateMode }) => {
       const key = candidateMode + ":" + candidate.no;
       if (seenPersonas.has(key)) return false;
       seenPersonas.add(key);
       return true;
-    }).slice(0, 8).map(({ p: candidate, mode: candidateMode }, index) => ({
+    }).slice(0, 20).map(({ p: candidate, mode: candidateMode }, index) => ({
       uid: "ui-audit-persona-" + candidateMode + "-" + candidate.no,
       mode: candidateMode,
       no: candidate.no,
@@ -330,6 +397,65 @@ async function seed() {
       enhancer: null,
       build: null
     }));
+
+    if (rosterPersonas.length !== 20 || new Set(rosterPersonas.map((entry) => entry.mode)).size !== 2) {
+      return { ok: false, reason: "20件の所持人格（通常・特異の両方）を用意できませんでした", rosterPersonas: rosterPersonas.length };
+    }
+
+    /* Keep one non-equipped persona as a deliberately edited sync fixture. This exercises
+       the same roster resolver and detail card used after account sync/import: old roster
+       displayName, newer saved build name, changed attributes, passive, skills and buffs. */
+    const syncedPersonaFixture = (() => {
+      const entry = rosterPersonas.find((candidate) => candidate.mode === mode && String(candidate.no) !== String(p.no));
+      if (!entry) return null;
+      const source = (entry.mode === "t" ? special : normal).find((candidate) => String(candidate.no) === String(entry.no));
+      if (!source) return null;
+      const latestName = "同期UI監査・最新名称";
+      const passiveName = "同期UI監査パッシブ";
+      const skillName = "同期UI監査スキル";
+      const uniqueName = "同期UI監査固有バフ";
+      const pas = {
+        name: passiveName, cond: "憤怒x2", always: "戦闘開始時、保護1を得る",
+        effect: "マッチ勝利時、出血1を付与", quick: ""
+      };
+      const skills = normalizedSkills(source.skills, "ui-audit-synced-" + entry.no).slice(0, 2).map((skill, index) => ({
+        ...skill,
+        name: skillName + (index + 1),
+        effect: "同期編集済みの効果 " + (index + 1)
+      }));
+      if (!skills.length) skills.push({
+        rank: "スキル0", name: skillName + "1", type: "斬撃", sin: "憤怒",
+        effect: "同期編集済みの効果 1", dice: [{ roll: "2d8", effect: "命中時" }]
+      });
+      const personaSrc = {
+        ...source,
+        name: latestName,
+        hp: 222, san: 65, speed: "1d5+2", bullets: "3",
+        res_slash: "耐性", res_pierce: "普通", res_blunt: "弱点",
+        passive_name: passiveName, passive_cond: pas.cond,
+        passive_always: pas.always, passive_effect: pas.effect,
+        keywords: ["同期UI監査キーワード"]
+      };
+      entry.displayName = "同期UI監査・旧表示名";
+      entry.updatedAt = now - 2000;
+      entry.syncRank = "00";
+      entry.syncMax = true;
+      entry.build = {
+        savedAt: now,
+        personaSrc,
+        hp: "222", san: "65", speed: "1d5+2", bullets: "3",
+        resS: "耐性", resP: "普通", resB: "弱点",
+        pas, skills,
+        uniqueBuffs: [{ name: uniqueName, type: "バフ", initial: 1, max: 4, desc: "同期で保存された固有バフ", place: "status" }],
+        extraPassives: [{ name: "同期UI監査追加パッシブ", cond: "嫉妬x1", always: "", effect: "同期で保存された追加効果" }]
+      };
+      return {
+        mode: entry.mode, no: entry.no, latestName, oldDisplayName: entry.displayName,
+        passiveName, skillNames: skills.map((skill) => skill.name), uniqueName,
+        hp: "222", resSlash: "耐性"
+      };
+    })();
+    if (!syncedPersonaFixture) return { ok: false, reason: "could not prepare a non-equipped synced persona fixture" };
 
     const ownedRosterKeys = new Set(rosterPersonas.map((entry) => entry.mode + ":" + String(entry.no)));
     const initialCandidate = all.find(({ p: candidate, mode: candidateMode }) => !ownedRosterKeys.has(candidateMode + ":" + String(candidate.no))) || all.find(({ p: candidate }) => String(candidate.no) !== String(p.no)) || chosen;
@@ -478,6 +604,7 @@ async function seed() {
       mode,
       sample: {
         rosterPersonas: rosterPersonas.length,
+        rosterModeCounts: { normal: rosterPersonas.filter((entry) => entry.mode === "n").length, special: rosterPersonas.filter((entry) => entry.mode === "t").length },
         skills: next.skills.length,
         supports: supports.length,
         egos: egoByRank.length,
@@ -486,6 +613,7 @@ async function seed() {
         enhancements: enhancementCandidates.length,
         results: next.results.length,
         entries: next.entries.length,
+        syncedPersonaFixture,
         initialPersonaCandidate: { mode: initialCandidate.mode, no: String(initialCandidate.p.no), name: initialCandidate.p.name },
         historicalPersonaCandidate: { mode: historicalCandidate.mode, no: String(historicalCandidate.p.no), name: historicalCandidate.p.name }
       }
@@ -519,20 +647,7 @@ async function boot() {
             buttonState:[...document.querySelectorAll(".acct-gate button")].map(b=>({text:(b.innerText||"").trim(),disabled:b.disabled,cls:b.className})).slice(-8)
           };
         });
-        const fallback=await page.evaluate(()=>{
-          const A=window.LBT_accounts;
-          if(!A?.create||!A?.switch)return {ok:false,reason:"account API unavailable"};
-          const listing=A.list?.()||{};
-          const existing=Array.isArray(listing)?listing:(listing.accounts||[]);
-          let entry=existing.find(x=>x.name==="UI監査用キャラクター");
-          if(!entry)entry=A.create("UI監査用キャラクター","Playwright UI audit");
-          if(!entry)return {ok:false,reason:"account create API returned null",existing:A.list?.()||[]};
-          const switched=A.switch(entry.id);
-          if(switched)window.dispatchEvent(new CustomEvent("lbt:accounts-entered",{detail:{id:entry.id}}));
-          return {ok:!!switched,id:entry.id,switched,accounts:A.list?.()||[]};
-        });
-        audit.accountCreateFallback=fallback;
-        await page.waitForTimeout(500);
+        throw new Error("SINNER SELECTの新規作成フォームから通常画面へ遷移できません: "+JSON.stringify(audit.accountCreateDiagnostic));
       }
     } else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
   }
@@ -571,17 +686,34 @@ async function boot() {
         || gateMetrics.gridOverflowY !== "auto" || gateMetrics.panelOverflowY !== "hidden") {
         throw new Error("複数アカウントの起動ゲートで一覧スクロール／カード行高が期待どおりではありません: " + JSON.stringify(gateMetrics));
       }
+      // The edit affordance is a separate target from the card-selection hit area.
+      const edit=page.locator(".acct-card--gate").filter({hasText:"UI監査用キャラクター"}).locator(".acct-gate-edit-btn").first();
+      if(await visible(edit)) {
+        const editRect=await edit.evaluate(el=>{const r=el.getBoundingClientRect();return {width:r.width,height:r.height};});
+        if(view.startsWith("mobile") && (editRect.width<40 || editRect.height<40))
+          throw new Error("SINNER SELECT編集ボタンが40x40px未満です: "+JSON.stringify(editRect));
+        await click(edit);
+        const manager=page.locator(".acct-overlay").first();
+        await manager.waitFor({state:"visible",timeout:5000});
+        const form=manager.locator(".acct-card--form").first();
+        await form.waitFor({state:"visible",timeout:5000});
+        await snap("account-gate-edit-form","起動時SINNER SELECTから対象アカウントの編集へ入った状態");
+        /* Gate edit opens the account manager above the gate. Close that exact dialog
+           explicitly before tapping the underlying gate card; generic overlay cleanup
+           may otherwise leave the manager's transparent hit surface intercepting input. */
+        const managerClose=manager.locator(".acct-close").first();
+        await click(managerClose);
+        await manager.waitFor({state:"hidden",timeout:5000});
+        await gate.waitFor({state:"visible",timeout:5000});
+      }
       // Match the card (which contains the account name), then click its transparent hit area.
       // Filtering .acct-card-hit itself by text is unreliable because that button is intentionally blank.
       const card=page.locator(".acct-card--gate").filter({hasText:"UI監査用キャラクター"}).first();
       const hit=card.locator(".acct-card-hit").first();
-      if(await visible(hit)) await click(hit).catch(()=>{});
+      if(!(await visible(hit))) throw new Error("SINNER SELECTの監査用アカウントカードにタップ対象がありません");
+      await click(hit);
       await page.waitForTimeout(350);
-      // Fallback is scoped to the current active account and only affects this disposable context.
-      if(await visible(gate)) {
-        const activeId=await page.evaluate(()=>window.LBT_accounts?.getActiveId?.()||null);
-        if(activeId) await page.evaluate((id)=>window.dispatchEvent(new CustomEvent("lbt:accounts-entered",{detail:{id}})),activeId);
-      }
+      if(await visible(gate)) throw new Error("SINNER SELECTのアカウントカードを操作しても起動ゲートが閉じません");
     }
     try {
       await mainNavigation().first().waitFor({state:"visible",timeout:15000});
@@ -602,12 +734,13 @@ async function boot() {
 }
 async function captureProfile(browser, mode) {
   view=mode;
-  const mobile=mode==="mobile";
+  const mobile=mode.startsWith("mobile");
   const tablet=mode==="tablet";
-  const viewport=mobile?{width:390,height:844}:tablet?{width:1024,height:768}:{width:1440,height:1000};
+  const viewport=mode==="mobile-narrow"?{width:320,height:640}:mobile?{width:390,height:844}:tablet?{width:1024,height:768}:{width:1440,height:1000};
   const context=await browser.newContext({viewport,deviceScaleFactor:mobile?2:1,isMobile:mobile,hasTouch:mobile,serviceWorkers:"block",colorScheme:"dark",reducedMotion:"reduce"});
   page=await context.newPage();
   page.setDefaultTimeout(5000);
+  await page.addInitScript({ content: fs.readFileSync(path.join(ROOT, ".browser-deps/node_modules/axe-core/axe.min.js"), "utf8") });
   // Keep external counters deterministic in localhost screenshots. Aborting these requests
   // creates browser console errors (and a CORS failure) unrelated to the UI under test.
   await page.route("**/cdn-cgi/rum**", (route) => route.fulfill({
@@ -615,22 +748,55 @@ async function captureProfile(browser, mode) {
     headers: { "cache-control": "no-store", "access-control-allow-origin": "*" },
     body: ""
   }));
-  await page.route("**/api/stats/view*", (route) => route.fulfill({
-    status: 200,
-    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "access-control-allow-origin": "*" },
-    body: JSON.stringify({ ok: true, totalViews: 0 })
-  }));
   page.on("console",m=>{if(m.type()==="error")audit.consoleErrors.push({view:mode,message:m.text().slice(0,160)});});
   page.on("response",response=>{if(response.status()>=400 && !response.url().includes("/cdn-cgi/rum?"))audit.httpErrors.push({view:mode,status:response.status(),url:response.url().slice(0,240)});});
   page.on("pageerror",e=>audit.pageErrors.push({view:mode,message:e.message.slice(0,160)}));
   try {
     await boot();
+    /* axe-core is installed before boot and injected before each navigation below. */
     /* The B-type migration deliberately opens Home. Navigate to the actual workbench
        before capturing editor tabs and preview states, rather than assuming an old default. */
     const workbenchNav = mobile
       ? page.locator(".btype-mobile-bottom-nav button").getByText("ビルド", { exact: true }).first()
       : page.locator(".rail-item[title='ビルド']").first();
     await workbenchNav.waitFor({ state: "visible", timeout: 10000 });
+    await attempt("section-navigation-scroll-reset", async () => {
+      const originalViewport = page.viewportSize();
+      await page.setViewportSize({ width: originalViewport.width, height: Math.min(originalViewport.height, 520) });
+      try {
+        const main = page.locator("#main-content");
+        const before = await main.evaluate((el) => {
+          const previousBehavior = el.style.scrollBehavior;
+          el.style.scrollBehavior = "auto";
+          el.scrollTop = el.scrollHeight;
+          const result = { scrollTop: el.scrollTop, maxScroll: el.scrollHeight - el.clientHeight };
+          el.style.scrollBehavior = previousBehavior;
+          return result;
+        });
+        if (before.maxScroll < 80 || before.scrollTop < 40) {
+          throw new Error("長いホーム画面のスクロールを再現できませんでした: " + JSON.stringify(before));
+        }
+        if (mobile) {
+          await click(page.locator(".btype-mobile-bottom-nav button").filter({ hasText: "その他" }).first());
+          await page.locator(".utility-sheet").waitFor({ state: "visible", timeout: 4000 });
+          await click(page.locator(".utility-section-link").filter({ hasText: "ショップ" }).first());
+        } else {
+          await click(page.locator(".rail-item[title='ショップ']").first());
+        }
+        const after = await main.evaluate((el) => ({
+          scrollTop: el.scrollTop,
+          heading: (el.querySelector("h1,h2,.section-title")?.textContent || "").trim().slice(0, 36)
+        }));
+        if (after.scrollTop > 2) {
+          throw new Error("ショップへ移動してもホームのスクロール位置が残っています: " + JSON.stringify({ before, after }));
+        }
+        await snap("section-navigation-scroll-reset", "ホームの末尾からショップへ移動した後、画面先頭へ戻ることを検証");
+      } finally {
+        await closeOverlay();
+        if (await visible(workbenchNav)) await click(workbenchNav);
+        await page.setViewportSize(originalViewport);
+      }
+    });
     await click(workbenchNav);
     await page.locator(".build-tabs").waitFor({ state: "visible", timeout: 10000 });
     const previewToggle=page.locator("#lbt-preview-edge-toggle").first();
@@ -657,6 +823,41 @@ async function captureProfile(browser, mode) {
         if(label==="人格") {
           const rosterToggle=page.locator(".pw-listbar-toggle").first();
           if(await visible(rosterToggle)) { await click(rosterToggle); await snap("persona-list-expanded","PERSONA LISTを展開した状態"); }
+          await attempt("persona-synced-roster-details", async () => {
+            const fixture = audit.seed?.sample?.syncedPersonaFixture;
+            if (!fixture) throw new Error("同期人格の検証用データを準備できませんでした");
+            const rosterMode = page.locator(".codex-modes button").filter({ hasText: "所持" }).first();
+            if (await visible(rosterMode)) await click(rosterMode);
+            const rosterCards = page.locator(".p-card");
+            const rosterCardCount = await rosterCards.count();
+            const rosterModes = await rosterCards.evaluateAll((cards) => [...new Set(cards.map((card) => card.dataset.mode))]);
+            audit.personaRosterCapacity = audit.personaRosterCapacity || {};
+            audit.personaRosterCapacity[view] = { count: rosterCardCount, modes: rosterModes };
+            if (rosterCardCount !== 20 || rosterModes.length !== 2) {
+              throw new Error("所持人格一覧が20件または通常・特異の混在表示になっていません: " + JSON.stringify({ rosterCardCount, rosterModes }));
+            }
+            const syncedCard = page.locator(".p-card").filter({ hasText: fixture.latestName }).first();
+            await syncedCard.waitFor({ state: "visible", timeout: 5000 });
+            await syncedCard.scrollIntoViewIfNeeded();
+            const cardText = (await syncedCard.innerText()).replace(/\\s+/g, " ");
+            if (!cardText.includes(fixture.latestName)) throw new Error("所持人格カードに最新同期名が反映されません: " + cardText.slice(0, 220));
+            await snap("persona-synced-latest-roster-name", "旧表示名ではなく最新の同期保存ビルド名が一覧に反映された状態");
+            await click(syncedCard.locator(".p-card-hit").first());
+            const detail = page.locator(".detail-dialog-backdrop").last();
+            await detail.waitFor({ state: "visible", timeout: 5000 });
+            const detailText = (await detail.innerText()).replace(/\\s+/g, " ");
+            for (const expected of [fixture.latestName, fixture.passiveName, ...fixture.skillNames, fixture.uniqueName, fixture.hp, fixture.resSlash]) {
+              if (!detailText.includes(expected)) throw new Error("同期人格詳細に「" + expected + "」がありません: " + detailText.slice(0, 500));
+            }
+            await snap("persona-synced-build-detail", "同期名・HP・耐性・パッシブ・スキル・固有バフを反映した人格詳細");
+            const close = page.locator(".detail-dialog-close").last();
+            if (await visible(close)) await click(close);
+            if (await visible(page.locator(".detail-dialog-backdrop"))) {
+              await page.keyboard.press("Escape").catch(() => {});
+              await page.waitForTimeout(200);
+            }
+            if (await visible(page.locator(".detail-dialog-backdrop"))) throw new Error("同期人格詳細の検証後にダイアログを閉じられません");
+          });
           const cardHit=page.locator(".p-card-hit").first();
           if(await visible(cardHit)) {
             await cardHit.hover().catch(()=>{});
@@ -688,6 +889,48 @@ async function captureProfile(browser, mode) {
             const item=page.locator(sel).first();
             if(await visible(item)) { await item.hover().catch(()=>{}); await snap("support-passive-hover","サポート候補のホバー状態"); break; }
           }
+          await attempt("support-slot-remove-touch-target",async()=>{
+            const slot=page.locator(".spp-slot.is-filled").first();
+            const remove=slot.locator(":scope > .rm").first();
+            if(!(await visible(remove))) throw new Error("装備中サポートの解除ボタンがありません");
+            const geometry=await slot.evaluate(el=>{
+              const remove=el.querySelector(":scope > .rm");
+              const reorder=el.querySelector(".reorder-btns");
+              const a=remove?.getBoundingClientRect();
+              const b=reorder?.getBoundingClientRect();
+              return {
+                remove:a?{x:a.x,y:a.y,width:a.width,height:a.height}:null,
+                reorder:b?{x:b.x,y:b.y,width:b.width,height:b.height}:null,
+                overlap:!!(a&&b&&a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top)
+              };
+            });
+            if(mobile && (!geometry.remove || geometry.remove.width<40 || geometry.remove.height<40))
+              throw new Error("サポート解除ボタンが40x40px未満です: "+JSON.stringify(geometry));
+            if(geometry.overlap) throw new Error("サポート解除と並べ替えの当たり判定が重なっています: "+JSON.stringify(geometry));
+            const viewportWidth=page.viewportSize()?.width||1440;
+            if(viewportWidth<=360){
+              const narrowLayout=await page.locator(".spp-slots").evaluate(el=>{
+                const columns=getComputedStyle(el).gridTemplateColumns.trim().split(/\\s+/).filter(Boolean);
+                const slots=[...el.querySelectorAll(":scope > .spp-slot")].map(slot=>{
+                  const r=slot.getBoundingClientRect();
+                  const label=slot.querySelector(".spp-slot-idx")?.getBoundingClientRect();
+                  return {width:r.width,height:r.height,labelHeight:label?.height||0};
+                });
+                return {columns:columns.length,slots};
+              });
+              if(narrowLayout.columns!==1 || narrowLayout.slots.length<2
+                || narrowLayout.slots.some(slot=>slot.width<220 || slot.labelHeight>26)){
+                throw new Error("320px幅のサポート枠が縦積みにならず、枠名が折り返されています: "+JSON.stringify(narrowLayout));
+              }
+              await snap("support-slots-narrow-layout","320px幅でサポート装備枠を縦積みにし、枠名と操作を読みやすく表示");
+            }
+            const before=await page.locator(".spp-slot.is-filled").count();
+            await click(remove);
+            await page.waitForFunction((count)=>document.querySelectorAll(".spp-slot.is-filled").length===count-1,before,{timeout:3000});
+            const after=await page.locator(".spp-slot.is-filled").count();
+            if(after!==before-1) throw new Error("サポート解除で1枠だけ外れません: "+before+" -> "+after);
+            await snap("support-slot-remove-action","サポートの解除ボタンを押し、選択中の枠が1つだけ外れた状態");
+          });
         }
       });
     }
@@ -933,7 +1176,7 @@ async function captureProfile(browser, mode) {
               // Scroll it into the actual viewport and use a normal user-like click;
               // force-clicking an off-screen summary can report a false expansion failure.
               await summary.scrollIntoViewIfNeeded({timeout:4000});
-              await summary.click({timeout:4000});
+              await click(summary);
               if(!(await details.evaluate(el=>el.open))) throw new Error("設定セクションを展開できません: "+labelText);
               await snap("settings-disclosure-"+labelText,"詳細設定のセクションを展開："+labelText);
               opened++; totalOpened++;
@@ -1021,7 +1264,7 @@ async function captureProfile(browser, mode) {
          名前のテキスト検索ではなく編集中フラグからカードを取り直す。 */
       const historicalEditorCard=page.locator(".ledger-card-wrap.is-editing").last();
       await historicalEditorCard.waitFor({state:"visible",timeout:5000});
-      await historicalEditorCard.locator(".ledger-history-editor-disclosure > summary").click();
+      await click(historicalEditorCard.locator(".ledger-history-editor-disclosure > summary"));
       const historicalCandidate=audit.seed?.sample?.historicalPersonaCandidate;
       if(!historicalCandidate?.mode || !historicalCandidate?.no) throw new Error("履歴人格QA候補をseedから取得できません");
       const historicalPersonaSearch=historicalEditorCard.locator('[aria-label="このリザルトで取得した人格をDBから検索"]');
@@ -1135,7 +1378,7 @@ async function captureProfile(browser, mode) {
       await click(rewardCard.locator(".ledger-card-edit-btn").first());
       const rewardEditorCard=page.locator(".ledger-card-wrap.is-editing").last();
       await rewardEditorCard.waitFor({state:"visible",timeout:5000});
-      await rewardEditorCard.locator(".ledger-history-editor-disclosure > summary").click();
+      await click(rewardEditorCard.locator(".ledger-history-editor-disclosure > summary"));
       const prosthesisId="enh-seagull-prosthetic-arm";
       const prosthesisSelect=rewardEditorCard.locator('[aria-label="編集する報酬アイテムのカタログ選択"]');
       if(await prosthesisSelect.locator('option[value="'+prosthesisId+'"]').count()===0) throw new Error("標準カタログの外付け強化義手が選択肢にありません");
@@ -1343,6 +1586,8 @@ async function captureProfile(browser, mode) {
           const grid=panel?.querySelector(":scope > .acct-grid");
           const editor=grid?.querySelector(".acct-card--form,.acct-card--editing");
           const button=editor?.querySelector(".acct-import-toggle");
+          const backup=panel?.querySelector(":scope > .lbt-cloud-panel");
+          const backupHidden=!backup || getComputedStyle(backup).display==="none";
           const rect=(node)=>node?node.getBoundingClientRect():null;
           const er=rect(editor), br=rect(button), gr=rect(grid);
           const style=editor?getComputedStyle(editor):null;
@@ -1352,6 +1597,7 @@ async function captureProfile(browser, mode) {
             gridScrollHeight:grid?.scrollHeight||0,
             gridClientHeight:grid?.clientHeight||0,
             gridDisplay:grid?getComputedStyle(grid).display:"",
+            backupPanelHidden:backupHidden,
             buttonExists:!!button,
             buttonVisible:!!br && br.width>0 && br.height>0 && br.bottom<=window.innerHeight && br.top>=0,
             buttonBottom:br?.bottom||0,
@@ -1361,7 +1607,7 @@ async function captureProfile(browser, mode) {
         });
         audit.accountEditorLayout = audit.accountEditorLayout || {};
         audit.accountEditorLayout[view] = editorMetrics;
-        if(!editorMetrics.buttonExists || !editorMetrics.buttonBottomWithinEditor
+        if(!editorMetrics.buttonExists || !editorMetrics.buttonBottomWithinEditor || !editorMetrics.backupPanelHidden
           || editorMetrics.gridDisplay !== "flex" || editorMetrics.editorHeight < editorMetrics.editorScrollHeight - 2) {
           throw new Error("編集中フォームが全列に展開されず、取込ボタンがカード内に収まっていません: " + JSON.stringify(editorMetrics));
         }
@@ -1369,6 +1615,45 @@ async function captureProfile(browser, mode) {
         await toggle.scrollIntoViewIfNeeded();
         await click(toggle);
         await snap("account-share-url-import","共有URLから取り込む入口");
+        await click(toggle);
+        const editor=page.locator(".acct-grid.is-editing > .acct-card--form, .acct-grid.is-editing > .acct-card--editing").first();
+        if(!(await visible(editor))) throw new Error("編集操作の後に編集カードを再取得できません");
+        const actions=editor.locator(".acct-form-actions").first();
+        await actions.scrollIntoViewIfNeeded();
+        const actionGeometry=await page.evaluate(()=>{
+          const grid=document.querySelector(".acct-panel > .acct-grid");
+          const actions=grid?.querySelector(".acct-form-actions");
+          const r=actions?.getBoundingClientRect();
+          const g=grid?.getBoundingClientRect();
+          return {
+            exists:!!actions,
+            buttonCount:actions?.querySelectorAll("button").length||0,
+            top:r?.top??null,
+            bottom:r?.bottom??null,
+            gridTop:g?.top??null,
+            gridBottom:g?.bottom??null,
+            insideGrid:!!(r&&g&&r.top>=g.top-1&&r.bottom<=g.bottom+1),
+            insideViewport:!!(r&&r.top>=0&&r.bottom<=innerHeight)
+          };
+        });
+        if(!actionGeometry.exists || actionGeometry.buttonCount<2
+          || !actionGeometry.insideGrid || !actionGeometry.insideViewport){
+          throw new Error("アカウント編集の保存／キャンセル操作までスクロールで到達できません: "+JSON.stringify(actionGeometry));
+        }
+        await snap("account-edit-actions-visible","編集フォーム末尾の保存／キャンセルをスクロールして表示");
+        await click(actions.getByRole("button",{name:"キャンセル",exact:true}));
+        await page.waitForFunction(()=>!document.querySelector(".acct-panel > .acct-grid.is-editing"),null,{timeout:3000});
+        const restore=await page.evaluate(()=>{
+          const panel=document.querySelector(".acct-panel");
+          const backup=panel?.querySelector(":scope > .lbt-cloud-panel");
+          const r=backup?.getBoundingClientRect();
+          return {backupVisible:!!backup&&getComputedStyle(backup).display!=="none"&&!!r&&r.width>0&&r.height>0,
+            formRemaining:!!panel?.querySelector(":scope > .acct-grid.is-editing")};
+        });
+        if(!restore.backupVisible || restore.formRemaining){
+          throw new Error("編集キャンセル後に一覧／オンライン保全欄へ戻りません: "+JSON.stringify(restore));
+        }
+        await snap("account-edit-cancel-restores-list","編集をキャンセルして一覧とオンライン保全欄が戻った状態");
       }
       await closeOverlay();
     });
@@ -1402,10 +1687,14 @@ async function main() {
   const s=makeServer();
   await new Promise((resolve,reject)=>{s.once("error",reject);s.listen(PORT,HOST,resolve);});
   const browser=await chromium.launch({headless:true});
-  try { for(const mode of ["desktop","tablet","mobile"]) {log("begin "+mode);await captureProfile(browser,mode);} }
+  try { for(const mode of ["desktop","tablet","mobile","mobile-narrow"]) {log("begin "+mode);await captureProfile(browser,mode);} }
   finally { await browser.close();await new Promise(resolve=>s.close(resolve)); }
   audit.count=audit.screenshots.length;
-  audit.coverage=["SINNER SELECT/new-account form","all nine build tabs and desktop tab-hover states","Basic workspace ST / label / CCFOLIA preview tabs and all three live preview modes","major navigation sections and desktop navigation-hover states","shop category hub cards, all six routes and back-navigation, and build-style persona product cards","record import menu and routes with result parsing preview","all six owned-library categories","settings status workspace and every disclosure panel","seeded QA: initial persona ownership, historical persona acquisition, standard/custom item rewards and inventory reconciliation","home command hero, all launcher routes and resume panel","common import router and all four destinations","skill-add and custom E.G.O creation entry paths","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, desktop preview width and placement, duplicate preview controls, 40px mobile touch-target enforcement, and target-size diagnostics"];
+  audit.overlayAccessibilityScope = "可視化したダイアログ／シート状態のみ（4 viewport）";
+  audit.overlayAccessibilityScanCount = audit.accessibilityScans.length;
+  audit.overlayAccessibilityViolationNodeCount = audit.accessibilityScans.reduce((n, scan) => n + (scan.violations || []).reduce((m, v) => m + (v.nodes || []).length, 0), 0);
+  audit.coverage=["PC 1440px / tablet 1024px / phone 390px / narrow phone 320px","SINNER SELECT/new-account form","all nine build tabs and desktop tab-hover states",
+    "synced owned-persona latest name, changed attributes, passive, skills, unique buff and details","Basic workspace ST / label / CCFOLIA preview tabs and all three live preview modes","major navigation sections and desktop navigation-hover states","shop category hub cards, all six routes and back-navigation, and build-style persona product cards","record import menu and routes with result parsing preview","all six owned-library categories","settings status workspace and every disclosure panel","seeded QA: initial persona ownership, historical persona acquisition, standard/custom item rewards and inventory reconciliation","home command hero, all launcher routes and resume panel","common import router and all four destinations","skill-add and custom E.G.O creation entry paths","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, desktop preview width and placement, duplicate preview controls, 40px mobile touch-target enforcement, and target-size diagnostics"];
   const requiredNotes=[
     "ビルド内基本タブのステータス（ST）編集パネル","ビルド内基本タブのラベル（パラメータ）編集パネル","ビルド内基本タブの盤面上の駒プレビュー","ビルド内基本タブのキャラクターシートプレビュー","ビルド内基本タブの出力データプレビュー",
     "ビルド内の人格タブ","ビルド内のスキルタブ","ビルド内のパッシブタブ","ビルド内の強化タブ","ビルド内のサポートタブ","ビルド内のE.G.Oタブ","ビルド内の精神タブ","ビルド内のアイテムタブ",
@@ -1426,16 +1715,17 @@ async function main() {
     "共有URLから取り込む入口","読み込むカテゴリを選ぶ確認画面。適用しない"
   ];
   audit.missingRequiredCaptures=[];
-  for (const mode of ["desktop","tablet","mobile"]) {
+  for (const mode of ["desktop","tablet","mobile","mobile-narrow"]) {
     for (const note of requiredNotes) {
       if (!audit.screenshots.some((shot)=>shot.name.startsWith(mode+"-") && shot.note.includes(note))) {
         audit.missingRequiredCaptures.push({view:mode,note});
       }
     }
   }
-  audit.criticalLayoutWarnings=audit.layoutWarnings.filter((item)=>["document-horizontal-overflow","duplicate-preview-controls","preview-toggle-overlaps-header","preview-toggle-overlaps-panel-controls","preview-toggle-overlaps-content-dock","preview-panel-too-narrow","basic-preview-below-editor-fold","touch-target-too-small","build-tabs-not-reflowed"].includes(item.type));
+  audit.criticalLayoutWarnings=audit.layoutWarnings.filter((item)=>["document-horizontal-overflow","topbar-content-clipped","duplicate-preview-controls","preview-toggle-overlaps-header","preview-toggle-overlaps-panel-controls","preview-toggle-overlaps-content-dock","preview-panel-too-narrow","basic-preview-below-editor-fold","touch-target-too-small","build-tabs-not-reflowed"].includes(item.type));
+  audit.overlayAccessibilityUnavailableCount=audit.accessibilityScans.filter((item)=>item.unavailable).length;
   fs.writeFileSync(path.join(OUT,"manifest.json"),JSON.stringify(audit,null,2)+"\n");
   log("finished: "+audit.count+" screenshots; failures="+audit.failures.length+"; missing-required="+audit.missingRequiredCaptures.length+"; critical-layout-warnings="+audit.criticalLayoutWarnings.length);
-  if(audit.count<140 || audit.failures.length || audit.missingRequiredCaptures.length || audit.pageErrors.length || audit.httpErrors.length || audit.consoleErrors.length || audit.criticalLayoutWarnings.length) process.exitCode=1;
+  if(audit.count<140 || audit.failures.length || audit.missingRequiredCaptures.length || audit.pageErrors.length || audit.httpErrors.length || audit.consoleErrors.length || audit.criticalLayoutWarnings.length || audit.accessibilityErrors.length || audit.overlayAccessibilityUnavailableCount) process.exitCode=1;
 }
 main().catch(e=>{console.error("[ui-audit] fatal: "+(e&&e.stack||String(e)));process.exitCode=1;});

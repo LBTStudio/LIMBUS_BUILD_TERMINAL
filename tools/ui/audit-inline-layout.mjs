@@ -1,4 +1,4 @@
-import { loadPlaywright, BASE_URL } from "./harness.mjs";
+import { loadPlaywright, openApp, walkSections, BASE_URL } from "./harness.mjs";
 
 // インライン style 属性のうち、メディアクエリや forced-colors で
 // 上書きできない要被を洗い出す。
@@ -10,6 +10,7 @@ const VIEWPORTS = [
   { name: "desktop 1440", w: 1440, h: 900 },
   { name: "tablet 768", w: 768, h: 1024 },
   { name: "mobile 375", w: 375, h: 812 },
+  { name: "narrow mobile 320", w: 320, h: 640 },
 ];
 
 // レスポンシブに変えたい・変えたくないが決まっているプロパティ
@@ -25,19 +26,9 @@ const perWidth = new Map();
 const details = new Map();
 
 for (const vp of VIEWPORTS) {
-  const ctx = await browser.newContext({ viewport: { width: vp.w, height: vp.h } });
-  const page = await ctx.newPage();
-  await page.goto(BASE_URL, { waitUntil: "load", timeout: 90000 });
-  await page.waitForSelector(".rail-item", { timeout: 90000 });
-  await page.waitForTimeout(1200);
-
-  for (let i = 0; i < 12; i++) {
-    await page.locator(".rail-item").nth(i).click();
-    await page.waitForTimeout(500);
-    if (await page.locator(".utility-sheet-backdrop").count()) {
-      await page.keyboard.press("Escape");
-      await page.waitForTimeout(250);
-    }
+  const { context: ctx, page } = await openApp(browser, { url: BASE_URL, width: vp.w, height: vp.h });
+  await walkSections(page, {
+    onSection: async () => {
     const rows = await page.evaluate((worthy) => {
       const out = [];
       for (const el of document.querySelectorAll("*")) {
@@ -65,7 +56,8 @@ for (const vp of VIEWPORTS) {
       if (!d.widths.includes(vp.w)) d.widths.push(vp.w);
     }
     perWidth.set(vp.w, (perWidth.get(vp.w) || 0) + rows.length);
-  }
+    }
+  });
   await ctx.close();
 }
 await browser.close();

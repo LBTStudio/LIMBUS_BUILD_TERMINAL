@@ -1499,7 +1499,7 @@ function appliedSummary(actions) {
   if (!manifest) {
     return h("div", { className: "gara gara-import-start" },
       h("div", { className: "gara-step-kicker" }, "STEP 1 / 3 · 共有元を指定"),
-      h("h3", { className: "gara-title" }, "硝子窓の共有URLから取り込む"),
+      h("h2", { className: "gara-title" }, "硝子窓の共有URLから取り込む"),
       h("p", { className: "gara-lead" }, "共有URLを読み込んだ後、所持や購入履歴の候補を確認してから反映します。複数のURLは改行でまとめて貼り付けられます。読み込みだけではデータは変更されません。"),
       h("form", { className: "gara-url-form", onSubmit: load, "aria-busy": busy },
         h("label", { className: "acct-field gara-field" },
@@ -1528,7 +1528,7 @@ function appliedSummary(actions) {
       ) : null,
       h("p", { className: "gara-field-help", id: "gara-url-help" }, "URLはこの読み込みにのみ使用し、アカウントへ保存しません。Enterキーでも読み込めます。最大150件まで一括処理できます。"),
       h("section", { className: "gara-group", style: { marginTop: "18px" } },
-        h("h4", { className: "gara-group-title" }, "ZIP / JSON ファイルから一括読み込み"),
+        h("h3", { className: "gara-group-title" }, "ZIP / JSON ファイルから一括読み込み"),
         h("label", { className: "acct-field gara-field" },
           h("span", { className: "gara-label" }, "硝子窓のエクスポート（ZIPまたはJSONを複数選択）"),
           h("input", {

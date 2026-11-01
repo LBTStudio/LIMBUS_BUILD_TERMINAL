@@ -231,3 +231,139 @@
     line-height: 1.25;
   }
 }
+
+
+/* 狭い設定画面では式の入力欄を独立した全幅行にし、ボタン列と競合させない。 */
+@media (max-width: 400px) {
+  .settings-builtin-formula-row {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-areas:
+      "name action"
+      "expression expression";
+    row-gap: 8px;
+  }
+  .settings-builtin-formula-name { grid-area: name; }
+  .settings-builtin-formula-expression,
+  .settings-builtin-formula-hidden {
+    grid-area: expression;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  .settings-builtin-formula-action {
+    grid-area: action;
+    min-width: 88px;
+    min-height: 40px;
+  }
+}
+
+/* 320px級では情報優先度の低いブランド文字・操作ラベルを畳み、操作面を残す。 */
+@media (max-width: 360px) {
+  .topbar {
+    gap: 4px;
+    padding-inline: 8px;
+  }
+  .topbar > .brand {
+    flex: 0 0 18px;
+    width: 18px;
+    max-width: 18px;
+    gap: 0;
+  }
+  .topbar > .brand .brand-name { display: none; }
+  .topbar > .topbar-spacer { display: none; }
+  .topbar > .topbar-search {
+    flex: 0 0 40px;
+    width: 40px;
+    min-width: 40px;
+    max-width: 40px;
+    justify-content: center;
+    padding: 6px;
+  }
+  .topbar > .topbar-balance {
+    flex: 0 0 auto;
+    min-width: 0;
+    padding: 4px 8px;
+    gap: 3px;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+  .topbar-balance-item { gap: 2px; }
+  .topbar-balance-unit { font-size: 8px; }
+  .topbar > .preview-mobile-toggle {
+    flex: 0 0 40px;
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+    padding: 0;
+  }
+  .topbar > .utility-trigger {
+    flex: 0 0 40px;
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+    justify-content: center;
+    gap: 0;
+    padding: 0;
+  }
+  .topbar > .utility-trigger > span { display: none; }
+}
+
+/* 320px幅では複数の装備枠を横並びにせず、内容と操作を読める幅で縦積みにする。 */
+@media (max-width: 360px) {
+  .spp-slots {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .spp-slot {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+}
+
+/* PERSONA AUDIT disclosure is a primary touch target on narrow record views. */
+@media (max-width: 640px) {
+  .ledger-persona-audit-disclosure > summary {
+    min-height: 40px;
+    box-sizing: border-box;
+  }
+}
+
+
+/* 2026-11-01 audit follow-up: include high-impact controls omitted by the first target whitelist. */
+@media (max-width: 640px) {
+  /* 起動時SINNER SELECTの編集導線。カード選択とは別操作なので十分な面積を確保する。 */
+  .acct-gate-edit-btn {
+    box-sizing: border-box;
+    min-width: 72px;
+    min-height: 40px;
+  }
+
+  /* サポート枠の解除。アイコンは小さいまま、押せる面積を40pxに広げる。 */
+  .spp-slot .rm {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    top: 0;
+    right: 0;
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+  /* 解除ボタンを拡大した分、並べ替え操作を左へ離して誤タップを防ぐ。 */
+  .spp-slot .reorder-btns { margin-right: 44px; }
+
+  .record-import-launch { min-height: 40px; }
+}
+
+
+/* アカウント名・用途・アイコン・共有URLの編集中は、オンライン保全パネルを
+   一時的に退避してフォームの表示／スクロール領域を確保する。編集終了後は一覧に戻して再表示。 */
+.acct-panel:has(> .acct-grid.is-editing) > .lbt-cloud-panel {
+  display: none;
+}

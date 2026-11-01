@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%2314110d'/%3E%3Cpath d='M17 13h30v8H26v9h18v7H26v14h-9z' fill='%23d4af5f'/%3E%3C/svg%3E">
 <title>LIMBUS BUILD TERMINAL V65r68</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -209,7 +210,7 @@ window.addEventListener("load", function(){
 		<link rel="stylesheet" href="assets/workspace.css?v=6661210a">
 	<link rel="stylesheet" href="assets/persona-codex.css?v=d88a1ab0">
 		<link rel="stylesheet" href="assets/sections.css?v=6753610c">
-	<link rel="stylesheet" href="assets/v52-overlay.css?v=785971b6">
+	<link rel="stylesheet" href="assets/v52-overlay.css?v=bb012c34">
 	<link rel="stylesheet" href="assets/v53-overlay.css?v=1b57bfe6">
 
 											<link rel="stylesheet" href="assets/v56-refinements.css?v=99afde4a">
@@ -223,7 +224,7 @@ window.addEventListener("load", function(){
 <link rel="stylesheet" href="assets/v67-persona-redesign.css?v=4b89da4c">
 <link rel="stylesheet" href="assets/v68-interaction-a11y.css?v=0bbe4495">
 <link rel="stylesheet" href="assets/v70-preview-controls.css?v=ef27f951">
-<link rel="stylesheet" href="assets/v69-mobile-ui-audit.css?v=e67e9edc">
+<link rel="stylesheet" href="assets/v69-mobile-ui-audit.css?v=c12afc9e">
 
 
 
@@ -236,6 +237,58 @@ window.addEventListener("load", function(){
   .topbar {
     gap: 8px;
     padding-inline: 10px;
+  }
+  /* 残高チップは押すと記録へ移動するナビゲーション操作。数字の密度は維持し、タップ面だけ確保する。 */
+  .topbar-balance {
+    box-sizing: border-box;
+    min-height: 40px;
+  }
+  /* 診断ログで確認した小さい操作領域を補正。コンパクトな情報密度は維持し、押せる高さだけを確保する。 */
+  button.btn-sm,
+  .btype-back-link,
+  .btype-record-hub .btype-page-heading > button.primary,
+  .piece-art-actions > button,
+  .piece-tab,
+  .piece-preview-tab,
+  .acct-gate-edit-btn,
+  .acct-upload-btn,
+  .pw-listbar-toggle,
+  .lbt-glossary-term,
+  button.rm,
+  .es-kw-add {
+    box-sizing: border-box;
+    min-height: 40px;
+  }
+  .btype-back-link {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  .acct-gate-edit-btn,
+  .lbt-glossary-term,
+  .lbt-glossary-popover-close,
+  button.rm,
+  .es-kw-add {
+    min-width: 40px;
+  }
+  /* 用語リンクは通常の inline ボタンだと min-height が効かないため、文字行内で
+     40px の実タップ領域を持つ inline-flex にする。 */
+  .lbt-glossary-term {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+    padding-inline: 5px;
+  }
+  .lbt-glossary-popover-close {
+    box-sizing: border-box;
+    width: 40px;
+    height: 40px;
+  }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+  select,
+  textarea {
+    box-sizing: border-box;
+    min-height: 40px;
   }
   .topbar-search {
     box-sizing: border-box;
@@ -628,7 +681,7 @@ window.addEventListener("load", function(){
 @media (prefers-reduced-motion: reduce) { .settings-order-embedded .status-order-row { transition: none; } }
 
 </style>
-<link rel="stylesheet" href="assets/b-type-workbench.css?v=79836051">
+<link rel="stylesheet" href="assets/b-type-workbench.css?v=f227875f">
 <link rel="stylesheet" href="assets/b-type-ui-parity.css?v=903829a8">
 
 <style id="lbt-mobile-build-tab-grid-final">
@@ -678,6 +731,110 @@ window.addEventListener("load", function(){
       height: 40px !important;
     }
   }
+
+  /* 全UI監査で見つかった小さすぎるタップ領域をスマートフォンだけ拡張。
+     見た目のアイコン寸法は変えず、押せる面積を40x40 CSS px以上にする。 */
+  @media (max-width: 640px) {
+    .acct-card-actions .acct-icon-btn {
+      box-sizing: border-box;
+      width: 40px !important;
+      min-width: 40px !important;
+      height: 40px !important;
+      min-height: 40px !important;
+    }
+    .acct-card-actions .acct-edit-btn {
+      min-height: 40px !important;
+    }
+    .p-card .p-fav {
+      box-sizing: border-box;
+      width: 40px !important;
+      min-width: 40px !important;
+      height: 40px !important;
+      min-height: 40px !important;
+    }
+  }
+
+  /* The main touch-target pass is kept in this final style block (after all
+     linked CSS) so the compact component rules cannot override it. */
+  @media (max-width: 640px) {
+    .piece-preview-tabs > .piece-preview-tab {
+      box-sizing: border-box;
+      min-height: 40px !important;
+      height: 40px !important;
+    }
+    .ledger-results-toolbar .ledger-results-sort,
+    .ledger-ticket-field > .select,
+    .ledger-card-edit-inline .select {
+      box-sizing: border-box;
+      min-height: 40px !important;
+      height: 40px !important;
+    }
+    .btn,
+    button.btn,
+    button.secondary,
+    .secondary,
+    button[type="submit"],
+    .share-private-notes-clear {
+      box-sizing: border-box;
+      min-height: 40px !important;
+    }
+    .share-private-notes-clear {
+      min-width: 40px !important;
+    }
+    input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+    select,
+    textarea {
+      box-sizing: border-box;
+      min-height: 40px !important;
+    }
+    .lbt-glossary-term {
+      display: inline-flex !important;
+      align-items: center;
+      min-height: 40px !important;
+      padding-inline: 5px;
+    }
+    .lbt-glossary-popover-close {
+      box-sizing: border-box;
+      width: 40px !important;
+      min-width: 40px !important;
+      height: 40px !important;
+      min-height: 40px !important;
+    }
+  }
+</style>
+
+<style id="lbt-audit-a11y-remediations">
+  /* 罪属性は識別用の色を背景・枠に残し、小さな文字の前景色だけを明るくする。 */
+  .cond-chip.is-sin[data-sin="憤怒"] { color: #ef786d; }
+  .cond-chip.is-sin[data-sin="傲慢"] { color: #aaaaff; }
+  .ego-resource-chip[data-sin="憤怒"] .ego-resource-chip-count { color: #ef786d; }
+  .ego-resource-chip[data-sin="傲慢"] .ego-resource-chip-count { color: #aaaaff; }
+  .spirit-item-tag[data-tag="confuse"] { color: #f18c83; }
+
+  /* スキル未登録時は旧5列横スクロールを使わず、単一の追加操作を表示する。 */
+  .deck.deck-empty {
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+    overflow: visible;
+    scroll-snap-type: none;
+  }
+  .deck.deck-empty > .deck-empty-cell {
+    grid-column: 1;
+    width: 100%;
+    min-height: 180px;
+    box-sizing: border-box;
+    appearance: none;
+    font: inherit;
+    text-align: center;
+  }
+  .deck-empty-cell:focus-visible {
+    outline: 2px solid var(--gold-hi);
+    outline-offset: 3px;
+  }
+  .deck-empty-cell:disabled {
+    opacity: .48;
+    cursor: not-allowed;
+  }
 </style>
 </head>
 <body style="background-color:#14110d">
@@ -690,13 +847,13 @@ window.addEventListener("load", function(){
 <script src="js/persona-inventory-audit.js?v=4e2ed017"></script>
 				<script src="js/persona-draft-import.js?v=36d1c28a"></script>
 					<script src="js/share-link.js?v=e11a0161"></script>
-					<script src="js/generator.js?v=ff5f0a15"></script>
-<script src="js/ui.js?v=6be4646a"></script>
+					<script src="js/generator.js?v=eb776cf4"></script>
+<script src="js/ui.js?v=f6ef7d76"></script>
 				<script src="js/InlineEffectGlossary.js?v=24531623"></script>
-				<script src="js/PersonaCodex.js?v=c5bb8b2b"></script>
+				<script src="js/PersonaCodex.js?v=aa0ca9fc"></script>
 		<script src="js/ItemCodex.js?v=3c394422"></script>
-<script src="js/SkillDeck.js?v=a93f6cb8"></script>
-								<script src="js/OtherSections.js?v=7cac8599"></script>
+<script src="js/SkillDeck.js?v=f176d667"></script>
+								<script src="js/OtherSections.js?v=93629ae6"></script>
 				<script src="js/LivePreview.js?v=69b4d6d2"></script>
 <script src="js/DataQuality.js?v=a8365c72"></script>
 <script src="js/icon-cropper.js?v=20900dc8"></script>
@@ -708,15 +865,15 @@ window.addEventListener("load", function(){
 <script src="js/ledger-import-reconcile.js?v=cd2638b5"></script>
 <script src="js/garasumado-roster-import.js?v=6dd4c61c"></script>
 <script src="js/garasumado-export-import.js?v=66700d44"></script>
-<script src="js/garasumado-import-ui.js?v=64e2f6bd"></script>
+<script src="js/garasumado-import-ui.js?v=79fcb6db"></script>
   <script src="js/name-fuzzy.js?v=d3eb29a1"></script>
   <script src="js/gacha.js?v=f58f8a3e"></script>
   <script src="js/gacha-tickets.js?v=2ecc4e1b"></script>
   <script src="js/gacha-identity.js?v=25e8fdfa"></script>
   <script src="js/gacha-proof.js?v=516f754a"></script>
 <script src="js/cloud-backup.js?v=32acbafe"></script>
-<script src="js/accounts-ui.js?v=39626571"></script>
-<script src="js/App.js?v=6f08c8ad"></script>
+<script src="js/accounts-ui.js?v=58168a76"></script>
+<script src="js/App.js?v=078f598a"></script>
 <script>
   lbtDbReady.then(lbtBoot).catch(function(error){
     document.getElementById("root").innerHTML = "<div style=\"color:#c8a84b;padding:40px;text-align:center;font-family:sans-serif\">アイテム一覧を含む必須データの読み込みに失敗しました。ページを再読み込みしてください。<br>file:// で直接開いている場合はローカルサーバー経由で開いてください（README参照）。<p id=\"lbt-data-load-detail\" style=\"color:#b7ac9c;font-size:12px\"></p></div>";

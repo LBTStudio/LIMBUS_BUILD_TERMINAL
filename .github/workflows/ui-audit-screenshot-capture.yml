@@ -4,6 +4,10 @@ on:
   pull_request:
     paths:
       - "tools/ui/capture-ui-audit.mjs"
+      - "tools/ui/axe-detail.mjs"
+      - "tools/ui/axe-scan.mjs"
+      - "tools/ui/axe-share-view.mjs"
+      - "tools/ui/harness.mjs"
       - ".github/workflows/ui-audit-screenshot-capture.yml"
       - "js/**"
       - "assets/**"
@@ -27,8 +31,36 @@ jobs:
         run: npm install --no-save playwright@1.64.0
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
+      - name: Install axe-core for accessibility diagnostics
+        run: npm install --prefix .browser-deps --no-save playwright@1.64.0 axe-core@4.14.0
       - name: Capture screens, dialogs, menus, hover and focus states
         run: node tools/ui/capture-ui-audit.mjs
+      - name: Capture axe accessibility details across current screens and tabs
+        run: |
+          mkdir -p artifacts/ui-audit-screenshots
+          node tools/ui/serve.mjs 8099 > /tmp/lbt-ui-serve.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for i in {1..30}; do
+            if curl --silent --fail http://127.0.0.1:8099/ > /dev/null; then
+              set +e
+              BASE_URL=http://127.0.0.1:8099/ node tools/ui/axe-detail.mjs
+              axe_status=$?
+              set -e
+              if [ -f tmp/axe-detail.json ]; then
+                cp tmp/axe-detail.json artifacts/ui-audit-screenshots/axe-detail.json
+              else
+                echo "axe-detail.json was not produced"
+                exit 1
+              fi
+              exit "$axe_status"
+            fi
+            sleep 1
+          done
+          cat /tmp/lbt-ui-serve.log
+          exit 1
+      - name: Audit empty share entry and generated share sheet at four responsive widths
+        run: node tools/ui/axe-share-view.mjs
       - name: Upload UI audit screenshots and diagnostics
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f

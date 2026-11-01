@@ -15,11 +15,28 @@ export const SHOT_DIR = path.join(REPO_ROOT, "tools", "ui", "shots");
 /** 検証対象。ローカルなら静的サーバ、実配布物なら BASE_URL を指定する。 */
 export const BASE_URL = process.env.BASE_URL || "http://localhost:8099/";
 
-/** 静的サイトなので build は無い。12 セクションは左レールから開く。 */
-export const SECTIONS = [
-  "人格", "スキル", "パッシブ", "サポート", "E.G.O", "精神",
-  "強化", "所持", "アイテム", "設定", "使い方", "その他",
+/** 現行UIの構造に合わせた実操作ビュー。左レールの画面と内部タブを分けて巡回する。 */
+export const UI_VIEWS = [
+  { kind: "route", route: "ホーム", label: "ホーム" },
+  ...[
+    ["baseinfo", "基本"], ["persona", "人格"], ["skill", "スキル"],
+    ["passive", "パッシブ"], ["enh", "強化"], ["support", "サポート"],
+    ["ego", "E.G.O"], ["spirit", "精神"], ["items-build", "アイテム"]
+  ].map(([id, label]) => ({ kind: "build-tab", id, label: "ビルド / " + label })),
+  { kind: "shop-hub", label: "ショップ / カテゴリ" },
+  ...[
+    ["persona", "人格"], ["support", "サポート"], ["ego", "E.G.O"],
+    ["spirit", "精神"], ["item", "アイテム"], ["gacha", "ガチャ"]
+  ].map(([id, label]) => ({ kind: "shop-category", id, label: "ショップ / " + label })),
+  { kind: "record-hub", label: "記録・所持品 / 入口" },
+  ...[
+    ["ledger", "リザルト"], ["personas", "所持人格"], ["egos", "所持E.G.O"],
+    ["supports", "所持サポパ"], ["spirits", "所持精神"], ["inventory", "所持アイテム"]
+  ].map(([id, label]) => ({ kind: "record-tab", id, label: "記録・所持品 / " + label })),
+  { kind: "route", route: "詳細設定", label: "詳細設定" },
+  { kind: "route", route: "使い方", label: "使い方" }
 ];
+export const SECTIONS = UI_VIEWS.map((view) => view.label);
 
 export const VIEWPORTS = [
   { name: "desktop 1440", w: 1440, h: 900 },
@@ -69,6 +86,7 @@ ensureShotDir();
 export async function openApp(browser, { url = BASE_URL, width = 1440, height = 900, reducedMotion, bypassCache = false } = {}) {
   const context = await browser.newContext({
     viewport: { width, height },
+    ...(width <= 640 ? { hasTouch: true } : {}),
     ...(reducedMotion ? { reducedMotion } : {}),
   });
   const page = await context.newPage();
@@ -86,35 +104,200 @@ export async function openApp(browser, { url = BASE_URL, width = 1440, height = 
     });
   }
 
+  /* Cloudflare Web Analytics は公開環境の /cdn-cgi/rum に送信する。
+     ローカルの静的サーバにはそのエンドポイントが無いため、ローカル監査時だけ
+     204 で受け、実アプリのHTTPエラーと区別する。公開URLでは決して隠さない。 */
+  const auditHost = new URL(url).hostname;
+  if (auditHost === "localhost" || auditHost === "127.0.0.1") {
+    await page.route("**/cdn-cgi/rum**", (route) => route.fulfill({
+      status: 204,
+      headers: { "cache-control": "no-store" },
+      body: ""
+    }));
+  }
+
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text().slice(0, 160)); });
   page.on("pageerror", (e) => errors.push("pageerror: " + e.message.slice(0, 160)));
+  page.on("response", (response) => {
+    if (response.status() >= 400) {
+      errors.push("http " + response.status() + ": " + response.url().slice(0, 200));
+    }
+  });
   await page.goto(url, { waitUntil: "load", timeout: 90000 });
-  await page.waitForSelector(".rail-item", { timeout: 90000 });
-  await page.waitForTimeout(1500);
+  await page.waitForSelector(".acct-gate, .rail-item", { timeout: 90000 });
+  await enterAuditWorkspace(page);
+  await page.waitForTimeout(900);
   return { context, page, errors };
 }
 
+async function activateAuditTarget(page, locator, options = {}) {
+  const width = page.viewportSize()?.width || 1440;
+  if (width <= 640) return locator.tap({ timeout: options.timeout || 5000 });
+  return locator.click({ timeout: options.timeout || 5000 });
+}
+
+export async function enterAuditWorkspace(page, accountName = "UI監査用キャラクター") {
+  const gate = page.locator(".acct-gate").first();
+  if (await gate.isVisible().catch(() => false)) {
+    const add = page.locator(".acct-card--add").first();
+    if (await add.isVisible().catch(() => false)) {
+      await activateAuditTarget(page, add);
+      const name = page.locator(".acct-gate input[placeholder='キャラクター名など']").first();
+      await name.waitFor({ state: "visible", timeout: 5000 });
+      await name.fill(accountName);
+      const create = page.getByRole("button", { name: "作成して開く", exact: true });
+      await create.waitFor({ state: "visible", timeout: 5000 });
+      await activateAuditTarget(page, create);
+    } else {
+      const account = page.locator(".acct-card-hit").first();
+      if (!(await account.isVisible().catch(() => false))) {
+        throw new Error("SINNER SELECTに監査用アカウントの作成・選択操作がありません");
+      }
+      await activateAuditTarget(page, account);
+    }
+  }
+  // The desktop rail is intentionally hidden on phone-width layouts. The
+  // audit runner must wait for whichever navigation model is actually visible,
+  // not for a desktop-only selector that can never become visible on mobile.
+  await page.waitForFunction(() => {
+    const visible = (element) => {
+      if (!element) return false;
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== "none"
+        && style.visibility !== "hidden"
+        && Number(style.opacity) >= 0.03
+        && rect.width > 0
+        && rect.height > 0;
+    };
+    return visible(document.querySelector(".rail-item[title='ホーム']"))
+      || visible(document.querySelector(".btype-mobile-bottom-nav"));
+  }, null, { timeout: 30000 });
+  return true;
+}
+
 /**
- * 12 セクションを順に開く。
- * 「使い方」は utility sheet を開くため、次の操作を妨げないよう閉じてから戻る。
+ * 現行UIの26ビューを実操作で巡回する。メイン画面だけでなく、ビルド・ショップ・記録の内部タブも含む。
  */
+async function closeAuditOverlays(page) {
+  await page.keyboard.press("Escape").catch(() => {});
+  await page.waitForTimeout(120);
+  for (const selector of [
+    ".import-router-close", ".utility-sheet-close",
+    ".disclaimer-sheet .utility-sheet-close", ".detail-dialog-close", ".ego-quick-close"
+  ]) {
+    const button = page.locator(selector).first();
+    if (await button.isVisible().catch(() => false)) {
+      await activateAuditTarget(page, button, { timeout: 2500 }).catch(() => {});
+      await page.waitForTimeout(120);
+    }
+  }
+}
+
+async function clickMainRoute(page, title) {
+  await closeAuditOverlays(page);
+  const width = page.viewportSize()?.width || 1440;
+  if (width <= 640) {
+    const nav = page.locator(".btype-mobile-bottom-nav");
+    const directLabels = {
+      "ビルド": "ビルド",
+      "記録・所持品": "記録",
+      "記録": "記録",
+      "データ取り込み": "取込"
+    };
+    if (directLabels[title]) {
+      const direct = nav.getByRole("button", { name: directLabels[title], exact: true });
+      await direct.waitFor({ state: "visible", timeout: 8000 });
+      await activateAuditTarget(page, direct);
+    } else {
+      const utility = nav.getByRole("button", { name: "その他", exact: true });
+      await utility.waitFor({ state: "visible", timeout: 8000 });
+      await activateAuditTarget(page, utility);
+      const target = page.locator(".utility-section-grid")
+        .getByRole("button", { name: title, exact: true });
+      await target.waitFor({ state: "visible", timeout: 8000 });
+      await activateAuditTarget(page, target);
+    }
+  } else {
+    const route = page.locator(".rail-item[title=" + JSON.stringify(title) + "]").first();
+    await route.waitFor({ state: "visible", timeout: 10000 });
+    await activateAuditTarget(page, route);
+  }
+  await page.waitForTimeout(300);
+}
+async function openShopHub(page) {
+  await clickMainRoute(page, "ショップ");
+  const hub = page.locator(".btype-shop-category-grid").first();
+  if (!(await hub.isVisible().catch(() => false))) {
+    const back = page.locator(".btype-shop-catalog .btype-back-link").first();
+    await back.waitFor({ state: "visible", timeout: 8000 });
+    await activateAuditTarget(page, back);
+    await hub.waitFor({ state: "visible", timeout: 8000 });
+  }
+}
+
+async function openRecordHub(page) {
+  await clickMainRoute(page, "記録・所持品");
+  const hub = page.locator(".btype-record-card-grid").first();
+  if (!(await hub.isVisible().catch(() => false))) {
+    const back = page.locator(".btype-record-detail .btype-back-link").first();
+    await back.waitFor({ state: "visible", timeout: 8000 });
+    await back.click({ timeout: 5000 });
+    await hub.waitFor({ state: "visible", timeout: 8000 });
+  }
+}
+
 export async function walkSections(page, { onSection } = {}) {
   const counts = [];
-  for (let i = 0; i < SECTIONS.length; i++) {
-    await page.locator(".rail-item").nth(i).click();
-    await page.waitForTimeout(900);
-    if (await page.locator(".utility-sheet-backdrop").count()) {
-      await page.keyboard.press("Escape");
+  for (let i = 0; i < UI_VIEWS.length; i++) {
+    const view = UI_VIEWS[i];
+    await closeAuditOverlays(page);
+    if (view.kind === "route") {
+      await clickMainRoute(page, view.route);
+    } else if (view.kind === "build-tab") {
+      await clickMainRoute(page, "ビルド");
+      const tab = page.getByRole("tablist", { name: "ビルドセクション" })
+        .getByRole("tab", { name: view.label.replace("ビルド / ", ""), exact: true });
+      await tab.waitFor({ state: "visible", timeout: 8000 });
+      await activateAuditTarget(page, tab);
       await page.waitForTimeout(350);
+    } else if (view.kind === "shop-hub") {
+      await openShopHub(page);
+    } else if (view.kind === "shop-category") {
+      await openShopHub(page);
+      const category = page.locator(".btype-shop-category-card[data-category=" + JSON.stringify(view.id) + "]").first();
+      await category.waitFor({ state: "visible", timeout: 8000 });
+      await activateAuditTarget(page, category);
+      await page.locator(".btype-shop-catalog").waitFor({ state: "visible", timeout: 8000 });
+      await page.waitForTimeout(350);
+    } else if (view.kind === "record-hub") {
+      await openRecordHub(page);
+    } else if (view.kind === "record-tab") {
+      await openRecordHub(page);
+      const library = page.locator(".btype-record-task-card").filter({ hasText: "所持ライブラリ" }).first();
+      await library.waitFor({ state: "visible", timeout: 8000 });
+      await activateAuditTarget(page, library);
+      const tabName = view.id === "personas" ? "人格"
+        : view.id === "egos" ? "E.G.O"
+        : view.id === "supports" ? "サポパ"
+        : view.id === "spirits" ? "精神"
+        : view.id === "inventory" ? "アイテム" : "リザルト";
+      const tab = page.getByRole("tablist", { name: "記録セクションの種別" })
+        .getByRole("tab", { name: tabName, exact: true });
+      await tab.waitFor({ state: "visible", timeout: 8000 });
+      await tab.click({ timeout: 5000 });
+      await page.waitForTimeout(350);
+    } else {
+      throw new Error("未対応のUIビュー: " + JSON.stringify(view));
     }
     counts.push(await page.evaluate(() => document.querySelectorAll(".app *").length));
-    if (onSection) await onSection(i, SECTIONS[i]);
+    if (onSection) await onSection(i, view.label);
   }
   return counts;
 }
 
-/** 12 セクションのスクリーンショットを撮る。ファイル名は <tag>-<番号>-<名称>.png。 */
+/** 26 UIビューのスクリーンショットを撮る。ファイル名は <tag>-<番号>-<名称>.png。 */
 /* スクリーンショット前に document.fonts.ready を待つ。
  * font-display: swap のため、固定 sleep だけではフォント未ロード時の
  * 代替書体で撮れることがある。Google Fonts の応答が変わると読み込み順も
@@ -150,18 +333,15 @@ async function fontsSettled(page, timeout = 30000) {
 export async function captureSections(page, tag) {
   const dir = ensureShotDir();
   const written = [];
-  for (let i = 0; i < SECTIONS.length; i++) {
-    await page.locator(".rail-item").nth(i).click();
-    await page.waitForTimeout(900);
-    if (await page.locator(".utility-sheet-backdrop").count()) {
-      await page.keyboard.press("Escape");
-      await page.waitForTimeout(350);
+  await walkSections(page, {
+    onSection: async (i, label) => {
+      await fontsSettled(page);
+      const safe = label.replace(/[^\p{L}\p{N}-]+/gu, "-").replace(/^-|-$/g, "").slice(0, 48);
+      const file = path.join(dir, `${tag}-${String(i).padStart(2, "0")}-${safe}.png`);
+      const { writeFileSync } = await import("node:fs");
+      writeFileSync(file, await page.screenshot());
+      written.push(file);
     }
-    await fontsSettled(page);
-    const file = path.join(dir, `${tag}-${String(i).padStart(2, "0")}.png`);
-    const { writeFileSync } = await import("node:fs");
-    writeFileSync(file, await page.screenshot());
-    written.push(file);
-  }
+  });
   return written;
 }

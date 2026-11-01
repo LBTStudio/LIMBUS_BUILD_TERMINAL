@@ -421,7 +421,7 @@ const EquippedSummary = ({ state, dispatch, onExpand, onShowDetail, detailShown,
           [["HP", "hp", state.hp ?? p.hp], ["SAN", "san", state.san ?? p.san], ["速度", "speed", state.speed ?? p.speed], ["弾丸", "bullets", state.bullets || p.bullets || "×"]].map(([label, field, value]) =>
             /* @__PURE__ */ React.createElement("div", { key: field, className: "es-stat" },
               /* @__PURE__ */ React.createElement("span", { className: "es-stat-label" }, label),
-              editable ? /* @__PURE__ */ React.createElement("input", { className: "es-stat-input", value: value, onChange: (e) => dispatch({ type: "SET_FIELD", field, value: e.target.value }), title: label + "（編集モード）" }) : /* @__PURE__ */ React.createElement("span", { className: "es-stat-value" }, value)
+              editable ? /* @__PURE__ */ React.createElement("input", { className: "es-stat-input", value: value, onChange: (e) => dispatch({ type: "SET_FIELD", field, value: e.target.value }), "aria-label": label + "（編集モード）", title: label + "（編集モード）" }) : /* @__PURE__ */ React.createElement("span", { className: "es-stat-value" }, value)
             )
           )
         ),
@@ -449,7 +449,7 @@ const EquippedSummary = ({ state, dispatch, onExpand, onShowDetail, detailShown,
       /* @__PURE__ */ React.createElement("div", { className: "es-keywords" },
         orderPersonaKeywordDisplay(state.personaSrc?.keywords).map((k) => /* @__PURE__ */ React.createElement("span", { key: k, className: "es-kw-tag" }, k, editable && /* @__PURE__ */ React.createElement("button", { className: "es-kw-rm", title: "このキーワードを削除", onClick: () => { const sourceKeywords = state.personaSrc.keywords || []; const targetIndex = sourceKeywords.indexOf(k); patchMeta({ src: { keywords: sourceKeywords.filter((_, j) => j !== targetIndex) } }); } }, "×"))),
         editable && /* @__PURE__ */ React.createElement("span", { className: "es-kw-addrow" },
-          /* @__PURE__ */ React.createElement("select", { className: "es-kw-select", value: "", title: "既存キーワードから選択して追加", onChange: (e) => { const v = e.target.value; if (!v) return; const cur = state.personaSrc.keywords || []; if (cur.includes(v)) { toast("既に存在します"); return; } patchMeta({ src: { keywords: [...cur, v] } }); } }, /* @__PURE__ */ React.createElement("option", { value: "" }, "＋ 選択して追加…"),
+          /* @__PURE__ */ React.createElement("select", { className: "es-kw-select", value: "", "aria-label": "既存キーワードから選択して追加", title: "既存キーワードから選択して追加", onChange: (e) => { const v = e.target.value; if (!v) return; const cur = state.personaSrc.keywords || []; if (cur.includes(v)) { toast("既に存在します"); return; } patchMeta({ src: { keywords: [...cur, v] } }); } }, /* @__PURE__ */ React.createElement("option", { value: "" }, "＋ 選択して追加…"),
             orderPersonaKeywordOptions([...(window.DB?.normal_personas || []), ...(window.DB?.tokui_personas || [])].flatMap((pp) => pp.keywords || []).concat(PERSONA_FIXED_KEYWORD_OPTIONS)).filter((k) => !(state.personaSrc.keywords || []).includes(k)).map((k) => /* @__PURE__ */ React.createElement("option", { key: k, value: k }, k))
           ),
           /* @__PURE__ */ React.createElement("button", { className: "es-kw-add", title: "任意のキーワードを手入力で追加", onClick: () => { const v = prompt("追加するキーワードを入力（既存一覧にない任意の語）:"); if (!v || !v.trim()) return; const cur = state.personaSrc.keywords || []; if (cur.includes(v.trim())) { toast("既に存在します"); return; } patchMeta({ src: { keywords: [...cur, v.trim()] } }); } }, "手入力")

@@ -11,7 +11,7 @@ const workspace = read("../assets/workspace.css");
 
 test("プレビューの開閉ボタンはReact管理の単一コントロールで状態を公開する", () => {
   assert.equal((app.match(/id: "lbt-preview-edge-toggle"/g) || []).length, 1);
-  assert.match(app, /"aria-controls": "preview-panel"/);
+  assert.equal((app.split('"aria-controls": previewOpen ? "preview-panel" : void 0').length - 1), 2);
   assert.match(app, /"aria-expanded": previewOpen/);
   assert.ok(app.includes('className: `preview-edge-toggle${previewOpen ? " is-open" : " is-collapsed"}`'));
   assert.doesNotMatch(app, /className: "preview-reopen"/);
@@ -57,7 +57,7 @@ test("Playwright geometry audit protects both toggle states and the landscape na
   const capture = read("../tools/ui/capture-preview-control-regression.mjs");
   const broadAudit = read("../tools/ui/capture-ui-audit.mjs");
   assert.ok(broadAudit.includes('route("**/cdn-cgi/rum**", (route) => route.fulfill('));
-  assert.ok(broadAudit.includes('route("**/api/stats/view*", (route) => route.fulfill('));
+  assert.ok(!broadAudit.includes("/api/stats/view"), "監査用ブラウザーも廃止済みカウンターAPIへ接続しない");
   assert.ok(broadAudit.includes('"access-control-allow-origin": "*"'));
   assert.match(capture, /closed toggle avoids preview actions, tabs, hints, headings and navigation/);
   assert.ok(capture.includes("open tablet/landscape control uses a reserved dock"));

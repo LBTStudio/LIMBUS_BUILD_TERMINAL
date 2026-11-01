@@ -731,7 +731,7 @@ const SupportSection = ({ state, dispatch, ownedOnly = false }) => {
     spp ? h(
       React.Fragment,
       null,
-      h("button", { className: "rm", onClick: () => dispatch({ type: "REMOVE_SUPPORT", id: spp.id }), title: "外す" }, h(Icon, { name: "x", size: 12 })),
+      h("button", { type: "button", className: "rm", onClick: () => dispatch({ type: "REMOVE_SUPPORT", id: spp.id }), title: "外す", "aria-label": `サポート「${spp.name || "未設定"}」を枠から外す` }, h(Icon, { name: "x", size: 12 })),
       h(
         "div",
         { style: { display: "flex", alignItems: "center", gap: 6 } },
@@ -781,7 +781,7 @@ const SupportSection = ({ state, dispatch, ownedOnly = false }) => {
       "div",
       { className: `spp-slot${deathSupport ? " is-filled" : ""}`, style: { minHeight: 120 } },
       deathSupport ? h(React.Fragment, null,
-        h("button", { className: "rm", onClick: () => dispatch({ type: "SET_DEATH_SUPPORT", spp: null }), title: "外す" }, h(Icon, { name: "x", size: 12 })),
+        h("button", { type: "button", className: "rm", onClick: () => dispatch({ type: "SET_DEATH_SUPPORT", spp: null }), title: "外す", "aria-label": `死亡後サポート「${deathSupport.name || "未設定"}」を枠から外す` }, h(Icon, { name: "x", size: 12 })),
         h("div", { className: "spp-slot-idx", style: { color: "var(--warn)" } }, "死亡後スロット"),
         isSupportEditing(deathSupport.id) ? h(React.Fragment, null,
           h("div", { className: "manual-edit-row" },
@@ -3309,7 +3309,6 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
           type: "button",
           className: "btype-shop-category-card",
           "data-category": category.id,
-          "aria-label": category.label + "カテゴリを開く",
           onClick: () => openShopCategory(category.id)
         },
           h("span", { className: "btype-shop-category-icon", "aria-hidden": true }, h(Icon, { name: category.icon, size: 20 })),
@@ -3325,7 +3324,7 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
   );
     return h("div", { className: "shop-workspace btype-shop-catalog" },
     h("div", { className: "btype-back-row" }, h("button", { type: "button", className: "btype-back-link", onClick: () => dispatch({ type: "SET_UI", ui: { shopView: "overview" } }) }, "← ショップへ戻る")),
-    h(SectionTitle, { title: "SHOP / ショップ", subtitle: "人格・サポート・E.G.O・精神・アイテムを購入" }),
+    h(SectionTitle, { level: 1, title: "SHOP / ショップ", subtitle: "人格・サポート・E.G.O・精神・アイテムを購入" }),
     /* カテゴリタブだけを独立要素にして追従させる。filter パネルの内側に置くと
        sticky は親の範囲を出られないため、親を抜けた瞬間にタブも消える。
        追従する面（ラッパー）は全幅にして、下を流れる内容を隠す。
@@ -3479,7 +3478,7 @@ const BuildWorkspace = ({ state, dispatch, saveStatus, onTogglePreview, onCopyJs
         h("div", { className: "preview-actions" },
           h("button", {
             type: "button", className: "secondary", onClick: onTogglePreview,
-            "aria-controls": "preview-panel"
+            "aria-controls": previewOpen ? "preview-panel" : void 0, "aria-expanded": !!previewOpen
           }, "プレビューを展開"),
           h("button", {
             type: "button", className: "primary", onClick: onCopyJson,
@@ -3924,7 +3923,7 @@ const RosterSection = ({ state, dispatch, onOpenImportRouter, onOpenUtilities })
     ),
     detailId === item.id && !manageMode && renderDetail(item)
   );
-  const libraryTabLabel = (tab) => (tab === "personas" ? "人格" : tab === "egos" ? "E.G.O" : tab === "supports" ? "サポパ" : tab === "spirits" ? "精神" : "リザルト");
+  const libraryTabLabel = (tab) => (tab === "personas" ? "人格" : tab === "egos" ? "E.G.O" : tab === "supports" ? "サポパ" : tab === "spirits" ? "精神" : tab === "inventory" ? "アイテム" : "リザルト");
 if (typeof window !== "undefined") window.LBT_libraryTabLabel = libraryTabLabel;
   const label = libraryTabLabel(libraryTab);
   /* ヘッダ（タブ帯）は全タブで描画する。ここで早戻りするとタブごと消えて
@@ -3943,7 +3942,7 @@ if (typeof window !== "undefined") window.LBT_libraryTabLabel = libraryTabLabel;
         h("h1", null, "記録・所持品"),
         h("p", null, "「所持品の管理」と「セッション収支」をそれぞれ選びます。")
       ),
-      h("button", { type: "button", className: "primary", onClick: onOpenImportRouter }, "取り込みを開始")
+      h("button", { type: "button", className: "btn btn-primary record-import-launch", onClick: onOpenImportRouter }, "取り込みを開始")
     ),
     h("div", { className: "btype-record-card-grid" },
       h("button", {
@@ -3993,6 +3992,7 @@ if (typeof window !== "undefined") window.LBT_libraryTabLabel = libraryTabLabel;
     )
   );
   const detailView = h(React.Fragment, null,
+    h(SectionTitle, { level: 1, title: `記録・所持品 / ${label}` }),
     h("div", { className: "btype-back-row" },
       h("button", { type: "button", className: "btype-back-link", onClick: openRecordHome }, "← 記録・所持品へ戻る")
     ),
@@ -7112,10 +7112,10 @@ const SettingsSection = ({ state, dispatch, onOpenUtilities }) => {
     const overridden = typeof bov[formula.name] === "string";
     const hidden = bov[formula.name] === null;
     const value = overridden ? bov[formula.name] : formula.expr;
-    return h("div", { key: formula.name, style: { display: "grid", gridTemplateColumns: "54px minmax(0, 1fr) auto", gap: "var(--s-2)", alignItems: "center", opacity: hidden ? .55 : 1 } },
-      h("span", { className: "badge", style: { color: "var(--gold)", borderColor: "var(--gold-line)", fontFamily: "var(--f-mono)" } }, formula.name),
-      hidden ? h("span", { style: { color: "var(--tx-mute)", fontSize: "var(--fs-11)" } }, "出力から非表示") : h("input", { className: "input", "aria-label": `${formula.name}の式`, value, onChange: (e) => setBov(formula.name, e.target.value), title: `${formula.name}の式` }),
-      hidden ? h(Button, { size: "sm", variant: "ghost", icon: "undo", onClick: () => restoreBuiltin(formula.name) }, "復元") : h(Button, { size: "sm", variant: "ghost", icon: "trash", onClick: () => removeBuiltin(formula.name) }, "非表示")
+    return h("div", { key: formula.name, className: "settings-builtin-formula-row", style: { display: "grid", gridTemplateColumns: "54px minmax(0, 1fr) auto", gap: "var(--s-2)", alignItems: "center", opacity: hidden ? .55 : 1 } },
+      h("span", { className: "badge settings-builtin-formula-name", style: { color: "var(--gold)", borderColor: "var(--gold-line)", fontFamily: "var(--f-mono)" } }, formula.name),
+      hidden ? h("span", { className: "settings-builtin-formula-hidden", style: { color: "var(--tx-mute)", fontSize: "var(--fs-11)" } }, "出力から非表示") : h("input", { className: "input settings-builtin-formula-expression", "aria-label": `${formula.name}の式`, value, onChange: (e) => setBov(formula.name, e.target.value), title: `${formula.name}の式` }),
+      hidden ? h(Button, { className: "settings-builtin-formula-action", size: "sm", variant: "ghost", icon: "undo", onClick: () => restoreBuiltin(formula.name) }, "復元") : h(Button, { className: "settings-builtin-formula-action", size: "sm", variant: "ghost", icon: "trash", onClick: () => removeBuiltin(formula.name) }, "非表示")
     );
   };
   /* アカウントの切替・作成・編集・削除は js/accounts-ui.js の

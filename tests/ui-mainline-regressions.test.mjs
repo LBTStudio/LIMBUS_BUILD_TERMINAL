@@ -13,7 +13,7 @@ test("mobile preview can be opened from the top bar while App retains the sole p
   assert.match(app, /className: "preview-mobile-toggle"/);
   assert.match(app, /onClick: togglePreview[\s\S]{0,250}"aria-expanded": previewOpen/);
   assert.match(app, /id: "lbt-preview-edge-toggle"/);
-  assert.match(app, /"aria-controls": "preview-panel"/);
+  assert.equal((app.split('"aria-controls": previewOpen ? "preview-panel" : void 0').length - 1), 2);
   assert.match(app, /"aria-expanded": previewOpen/);
   assert.doesNotMatch(livePreview, /lbt-preview-edge-toggle/);
   assert.match(livePreview, /className: `preview\$\{state\.ui\.previewOpen \? " is-open" : ""\}`/);
@@ -39,7 +39,7 @@ test("Playwright preview audit follows the visible control at each viewport widt
   assert.match(capture, /profile\.mobile\?"\.preview-mobile-toggle":"#lbt-preview-edge-toggle"/);
   assert.match(capture, /async function metrics\(page,profile\)/);
   assert.match(capture, /await page\.locator\(profile\.mobile\?"\.preview-mobile-toggle":"#lbt-preview-edge-toggle"\)\.waitFor\(\{state:"visible",timeout:10000\}\)/);
-  assert.match(app, /"aria-controls": "preview-panel", "aria-expanded": previewOpen/);
+  assert.ok(app.includes('"aria-controls": previewOpen ? "preview-panel" : void 0, "aria-expanded": previewOpen'));
 });
 
 test("result import routes scroll their selected panel into view", () => {
