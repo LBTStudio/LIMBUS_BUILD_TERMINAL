@@ -175,6 +175,10 @@ test("モバイルの主要操作対象を40x40px以上にし、監査CIで未�
     "button.rm", ".es-kw-add", '"select", "textarea"'
   ]) assert.ok(captureAudit.includes(selector), "監査で操作寸法を確認する: " + selector);
   assert.match(captureAudit, /smallActionableTargets/);
+  assert.match(captureAudit, /page\.addScriptTag\(\{ path: path\.join\(ROOT, "\.browser-deps\/node_modules\/axe-core\/axe\.min\.js"\) \}\)/);
+  assert.match(captureAudit, /accessibilityScans/);
+  assert.match(captureAudit, /m\.dialogs/);
+  assert.match(captureAudit, /accessibilityViolationNodeCount/);
   assert.match(captureAudit, /minimum: "40x40 CSS px"/);
   assert.match(captureAudit, /type: "touch-target-too-small"/);
   assert.match(captureAudit, /"touch-target-too-small","build-tabs-not-reflowed"\].includes\(item\.type\)/);
