@@ -533,6 +533,7 @@ test("SINNER SELECTのアカウント編集時はオンライン保全パネル�
   assert.ok(mobileAuditCss.includes(".acct-panel:has(> .acct-grid.is-editing) > .lbt-cloud-panel"));
   assert.ok(captureAudit.includes("backupPanelHidden"));
   assert.ok(captureAudit.includes("!editorMetrics.backupPanelHidden"));
+  assert.ok(captureAudit.includes(".acct-grid.is-editing > .acct-card--form, .acct-grid.is-editing > .acct-card--editing"));
   assert.ok(captureAudit.includes("account-edit-actions-visible"));
   assert.ok(captureAudit.includes("account-edit-cancel-restores-list"));
   assert.ok(captureAudit.includes('actions.getByRole("button",{name:"キャンセル",exact:true})'));
