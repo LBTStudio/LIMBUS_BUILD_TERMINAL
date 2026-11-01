@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "tools/ui/capture-ui-audit.mjs"
+      - "tools/ui/axe-detail.mjs"
       - ".github/workflows/ui-audit-screenshot-capture.yml"
       - "js/**"
       - "assets/**"
