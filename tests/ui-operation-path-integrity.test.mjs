@@ -238,3 +238,11 @@ test("SINNER SELECTの実アカウント選択を迂回するイベント発火�
   assert.doesNotMatch(selection, /lbt:accounts-entered/, "UI選択に失敗した際にアプリ内部イベントで迂回しない");
   assert.doesNotMatch(selection, /catch\(\(\)=>\{\}\)/, "タップ失敗を握り潰さない");
 });
+
+
+test("ダイアログ状態のaxe診断が実行エラーになった場合はUI監査を失敗させる", () => {
+  assert.match(captureAudit, /audit\.accessibilityErrors\.push/);
+  assert.match(captureAudit, /audit\.accessibilityErrors\.length\) process\.exitCode=1/);
+  assert.match(captureAudit, /audit\.accessibilityScanCount = audit\.accessibilityScans\.length/);
+  assert.match(captureAudit, /audit\.accessibilityViolationNodeCount/);
+});
