@@ -10,7 +10,7 @@
  * Playwright の reducedMotion コンテキスト設定で OS 設定を模擬する。
  */
 
-import { loadPlaywright, openApp } from "./harness.mjs";
+import { loadPlaywright, openApp, BASE_URL } from "./harness.mjs";
 
 const url = process.argv[2] || BASE_URL;
 const { chromium } = loadPlaywright();
