@@ -504,3 +504,15 @@ test("所持人格一覧は20件の通常・特異混在データを実ブラウ
     "所持限定モードではタブが非表示になるため、表示時だけ切り替える");
   assert.match(captureAudit, /personaRosterCapacity/);
 });
+
+test("共有シートは読みやすい耐性ラベルコントラストとmain/footerランドマークを持つ", () => {
+  const generator = read("../js/generator.js");
+  assert.ok(generator.includes('.res .attr{font-size:16px;font-weight:700;opacity:1;'),
+    "耐性カテゴリ名は色の不透明度を下げない");
+  assert.ok(generator.includes("background:#a06430;color:#fff;"),
+    "弱点色は白文字との4.5:1以上のコントラストを確保する");
+  assert.ok(generator.includes("background:#7a7060;color:#fff;"));
+  assert.ok(generator.includes("background:#4e7a52;color:#fff;"));
+  assert.ok(generator.includes('<main id="share-main">'));
+  assert.ok(generator.includes('</main>\\n  <footer class="foot">'));
+});
