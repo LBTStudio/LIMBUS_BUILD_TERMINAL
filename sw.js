@@ -21,11 +21,8 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-ad3bcdaf";
+const CACHE_NAME = "lbt-6d6c52d0";
 const PRECACHE_URLS = [
-  "index.html",
-  "share.html",
-  "mobile-preview.html",
   "assets/b-type-ui-parity.css?v=903829a8",
   "assets/b-type-workbench.css?v=f227875f",
   "assets/cloud-backup.css?v=ffae2d4f",
@@ -46,19 +43,20 @@ const PRECACHE_URLS = [
   "assets/v66-accounts.css?v=263db3b5",
   "assets/v67-persona-redesign.css?v=4b89da4c",
   "assets/v68-interaction-a11y.css?v=0bbe4495",
-  "assets/v69-mobile-ui-audit.css?v=023913e2",
+  "assets/v69-mobile-ui-audit.css?v=26b34e09",
   "assets/v70-preview-controls.css?v=ef27f951",
   "assets/workspace.css?v=6661210a",
   "data/db.json?v=16b6df9e",
   "data/gacha-theme-packs.json?v=8d4dced2",
   "data/items.json?v=b185394a",
   "data/special-items.json?v=aaa21cfb",
+  "index.html",
   "js/App.js?v=dfd79d0b",
   "js/DataQuality.js?v=a8365c72",
   "js/InlineEffectGlossary.js?v=24531623",
   "js/ItemCodex.js?v=3c394422",
   "js/LivePreview.js?v=69b4d6d2",
-  "js/OtherSections.js?v=f161dac1",
+  "js/OtherSections.js?v=dc9879d1",
   "js/PersonaCodex.js?v=aa0ca9fc",
   "js/SkillDeck.js?v=f176d667",
   "js/accounts-ui.js?v=58168a76",
@@ -87,6 +85,8 @@ const PRECACHE_URLS = [
   "js/share-viewer.js?v=71f2da96",
   "js/state.js?v=0f00ea55",
   "js/ui.js?v=f6ef7d76",
+  "mobile-preview.html",
+  "share.html",
   "vendor/react-dom.min.js?v=35f4f974",
   "vendor/react.min.js?v=d949f1c3",
 ];
