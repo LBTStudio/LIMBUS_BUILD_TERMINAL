@@ -634,7 +634,12 @@ async function boot() {
         const form=manager.locator(".acct-card--form").first();
         await form.waitFor({state:"visible",timeout:5000});
         await snap("account-gate-edit-form","起動時SINNER SELECTから対象アカウントの編集へ入った状態");
-        await closeOverlay();
+        /* Gate edit opens the account manager above the gate. Close that exact dialog
+           explicitly before tapping the underlying gate card; generic overlay cleanup
+           may otherwise leave the manager's transparent hit surface intercepting input. */
+        const managerClose=manager.locator(".acct-close").first();
+        await click(managerClose);
+        await manager.waitFor({state:"hidden",timeout:5000});
         await gate.waitFor({state:"visible",timeout:5000});
       }
       // Match the card (which contains the account name), then click its transparent hit area.
