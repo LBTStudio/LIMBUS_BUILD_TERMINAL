@@ -1616,6 +1616,8 @@ async function captureProfile(browser, mode) {
         await click(toggle);
         await snap("account-share-url-import","共有URLから取り込む入口");
         await click(toggle);
+        const editor=page.locator(".acct-grid.is-editing > .acct-card--form, .acct-grid.is-editing > .acct-card--editing").first();
+        if(!(await visible(editor))) throw new Error("編集操作の後に編集カードを再取得できません");
         const actions=editor.locator(".acct-form-actions").first();
         await actions.scrollIntoViewIfNeeded();
         const actionGeometry=await page.evaluate(()=>{
@@ -1640,7 +1642,7 @@ async function captureProfile(browser, mode) {
         }
         await snap("account-edit-actions-visible","編集フォーム末尾の保存／キャンセルをスクロールして表示");
         await click(actions.getByRole("button",{name:"キャンセル",exact:true}));
-        await page.waitForFunction(()=>!document.querySelector(".acct-panel > .acct-grid.is-editing"),{timeout:3000});
+        await page.waitForFunction(()=>!document.querySelector(".acct-panel > .acct-grid.is-editing"),null,{timeout:3000});
         const restore=await page.evaluate(()=>{
           const panel=document.querySelector(".acct-panel");
           const backup=panel?.querySelector(":scope > .lbt-cloud-panel");
