@@ -580,20 +580,7 @@ async function boot() {
             buttonState:[...document.querySelectorAll(".acct-gate button")].map(b=>({text:(b.innerText||"").trim(),disabled:b.disabled,cls:b.className})).slice(-8)
           };
         });
-        const fallback=await page.evaluate(()=>{
-          const A=window.LBT_accounts;
-          if(!A?.create||!A?.switch)return {ok:false,reason:"account API unavailable"};
-          const listing=A.list?.()||{};
-          const existing=Array.isArray(listing)?listing:(listing.accounts||[]);
-          let entry=existing.find(x=>x.name==="UI監査用キャラクター");
-          if(!entry)entry=A.create("UI監査用キャラクター","Playwright UI audit");
-          if(!entry)return {ok:false,reason:"account create API returned null",existing:A.list?.()||[]};
-          const switched=A.switch(entry.id);
-          if(switched)window.dispatchEvent(new CustomEvent("lbt:accounts-entered",{detail:{id:entry.id}}));
-          return {ok:!!switched,id:entry.id,switched,accounts:A.list?.()||[]};
-        });
-        audit.accountCreateFallback=fallback;
-        await page.waitForTimeout(500);
+        throw new Error("SINNER SELECTの新規作成フォームから通常画面へ遷移できません: "+JSON.stringify(audit.accountCreateDiagnostic));
       }
     } else if(await visible(page.locator(".acct-card-hit").first())) await click(page.locator(".acct-card-hit").first());
   }
