@@ -18,6 +18,7 @@ const sharePage = read("../share.html");
 const mobilePreviewPage = read("../mobile-preview.html");
 const uiAuditWorkflow = read("../.github/workflows/ui-audit-screenshot-capture.yml");
 const axeDetail = read("../tools/ui/axe-detail.mjs");
+const axeShareView = read("../tools/ui/axe-share-view.mjs");
 const personaCodex = read("../js/PersonaCodex.js");
 const garasumadoImportUI = read("../js/garasumado-import-ui.js");
 const mobileAuditCss = read("../assets/v69-mobile-ui-audit.css");
@@ -466,4 +467,17 @@ test("操作ボタンのアクセシブル名は表示文言を含み、カテ�
   assert.ok(app.includes("⌘K"), "検索ボタンの可視ショートカットをアクセシブル名に含める");
   assert.ok(app.includes('JSON出力。CCFOLIA用JSONをコピー'), "JSONボタンの表示文言をアクセシブル名の先頭に含める");
   assert.ok(!sections.includes('"aria-label": category.label + "カテゴリを開く"'), "ショップカードはカテゴリ見出しなどの可視テキストから名前を構成する");
+});
+
+
+test("共有ビューアは空の入口と実生成シートを4幅・5操作状態でaxe診断する", () => {
+  for (const width of [1440, 1024, 390, 320]) assert.ok(axeShareView.includes("width: " + width));
+  for (const state of ["empty-share-entry", "generated-share-sheet", "all-folds-expanded", "share-search-results", "private-notes"]) {
+    assert.ok(axeShareView.includes('"' + state + '"') || axeShareView.includes('"' + state + '",'), "共有UIの状態を診断する: " + state);
+  }
+  assert.ok(axeShareView.includes("buildShareSheetHTML(state)"));
+  assert.ok(axeShareView.includes("window.axe.run(document"));
+  assert.ok(axeShareView.includes("horizontalOverflow"));
+  assert.ok(uiAuditWorkflow.includes("Audit empty share entry and generated share sheet at four responsive widths"));
+  assert.ok(uiAuditWorkflow.includes("node tools/ui/axe-share-view.mjs"));
 });
