@@ -104,6 +104,18 @@ export async function openApp(browser, { url = BASE_URL, width = 1440, height = 
     });
   }
 
+  /* Cloudflare Web Analytics は公開環境の /cdn-cgi/rum に送信する。
+     ローカルの静的サーバにはそのエンドポイントが無いため、ローカル監査時だけ
+     204 で受け、実アプリのHTTPエラーと区別する。公開URLでは決して隠さない。 */
+  const auditHost = new URL(url).hostname;
+  if (auditHost === "localhost" || auditHost === "127.0.0.1") {
+    await page.route("**/cdn-cgi/rum**", (route) => route.fulfill({
+      status: 204,
+      headers: { "cache-control": "no-store" },
+      body: ""
+    }));
+  }
+
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text().slice(0, 160)); });
   page.on("pageerror", (e) => errors.push("pageerror: " + e.message.slice(0, 160)));
