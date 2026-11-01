@@ -242,6 +242,38 @@ window.addEventListener("load", function(){
     box-sizing: border-box;
     min-height: 40px;
   }
+  /* 診断ログで確認した小さい操作領域を補正。コンパクトな情報密度は維持し、押せる高さだけを確保する。 */
+  button.btn-sm,
+  .btype-back-link,
+  .btype-record-hub .btype-page-heading > button.primary,
+  .piece-art-actions > button,
+  .piece-tab,
+  .piece-preview-tab,
+  .acct-gate-edit-btn,
+  .acct-upload-btn,
+  .pw-listbar-toggle,
+  .lbt-glossary-term,
+  button.rm,
+  .es-kw-add {
+    box-sizing: border-box;
+    min-height: 40px;
+  }
+  .btype-back-link {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  .acct-gate-edit-btn,
+  .lbt-glossary-term,
+  button.rm,
+  .es-kw-add {
+    min-width: 40px;
+  }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+  select,
+  textarea {
+    box-sizing: border-box;
+    min-height: 40px;
+  }
   .topbar-search {
     box-sizing: border-box;
     display: inline-flex;
