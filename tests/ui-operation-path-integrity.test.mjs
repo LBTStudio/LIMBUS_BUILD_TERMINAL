@@ -298,5 +298,5 @@ test("320pxの共通UI巡回は下部ナビ／その他シートをタッチ操�
   assert.match(uiHarness, /locator\.tap\(/);
   assert.match(uiHarness, /btype-mobile-bottom-nav/);
   assert.match(uiHarness, /utility-section-grid/);
-  assert.match(uiHarness, /直接ラベル/); // guard against silently losing mobile route map context
+  assert.match(uiHarness, /const directLabels =/); // mobile build/record/import routes remain explicit
 });
