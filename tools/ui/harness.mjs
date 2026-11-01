@@ -273,7 +273,7 @@ export async function captureSections(page, tag) {
   await walkSections(page, {
     onSection: async (i, label) => {
       await fontsSettled(page);
-      const safe = label.replace(/[^\\p{L}\\p{N}-]+/gu, "-").replace(/^-|-$/g, "").slice(0, 48);
+      const safe = label.replace(/[^\p{L}\p{N}-]+/gu, "-").replace(/^-|-$/g, "").slice(0, 48);
       const file = path.join(dir, `${tag}-${String(i).padStart(2, "0")}-${safe}.png`);
       const { writeFileSync } = await import("node:fs");
       writeFileSync(file, await page.screenshot());
