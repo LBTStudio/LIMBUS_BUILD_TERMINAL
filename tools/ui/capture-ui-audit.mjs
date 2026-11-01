@@ -816,7 +816,7 @@ async function captureProfile(browser, mode) {
           const rosterToggle=page.locator(".pw-listbar-toggle").first();
           if(await visible(rosterToggle)) { await click(rosterToggle); await snap("persona-list-expanded","PERSONA LISTを展開した状態"); }
           await attempt("persona-synced-roster-details", async () => {
-            const fixture = seeded?.sample?.syncedPersonaFixture;
+            const fixture = audit.seed?.sample?.syncedPersonaFixture;
             if (!fixture) throw new Error("同期人格の検証用データを準備できませんでした");
             const rosterMode = page.locator(".codex-modes button").filter({ hasText: "所持" }).first();
             if (await visible(rosterMode)) await click(rosterMode);
