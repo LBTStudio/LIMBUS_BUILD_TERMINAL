@@ -31,7 +31,7 @@ await walkSections(page, {
       Array.from(document.querySelectorAll("*")).map((el, idx) => {
         const cs = getComputedStyle(el);
         const r = el.getBoundingClientRect();
-        const desc = el.tagName.toLowerCase() + "." + String(el.className || "").trim().split(/\\s+/).join(".") + "|" + (el.textContent || "").trim().slice(0, 10);
+        const desc = el.tagName.toLowerCase() + "." + String(el.className || "").trim().split(/\s+/).join(".") + "|" + (el.textContent || "").trim().slice(0, 10);
         const pb = getComputedStyle(el, "::before");
         const pa = getComputedStyle(el, "::after");
         return {
