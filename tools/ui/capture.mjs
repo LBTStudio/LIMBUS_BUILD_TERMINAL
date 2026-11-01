@@ -25,7 +25,7 @@ const files = await captureSections(page, tag);
 await context.close();
 await browser.close();
 
-console.log(`\n${files.length} sections ->`);
+console.log(`\n${files.length} views ->`);
 files.forEach((f, i) => console.log(`  ${SECTIONS[i].padEnd(6)} ${f}`));
 if (errors.length) {
   console.log(`\nconsole errors: ${errors.length}`);
