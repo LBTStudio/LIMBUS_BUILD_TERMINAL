@@ -4,6 +4,7 @@ import test from "node:test";
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 const app = read("../js/App.js");
+const accountsUI = read("../js/accounts-ui.js");
 const sections = read("../js/OtherSections.js");
 const state = read("../js/state.js");
 const parityCss = read("../assets/b-type-ui-parity.css");
@@ -231,6 +232,20 @@ test("320px設定画面の標準式入力はラベル・操作と分離し、入
   assert.ok(mobileAuditCss.includes("@media (max-width: 400px)"));
   assert.ok(mobileAuditCss.includes('"expression expression"'));
   assert.ok(mobileAuditCss.includes("settings-builtin-formula-expression"));
+});
+
+test("スマホの検索・プレビュー操作は最低40pxのタップ幅を確保する", () => {
+  const narrow = mobileAuditCss.slice(mobileAuditCss.lastIndexOf("@media (max-width: 360px)"));
+  assert.ok(narrow.includes(".topbar > .topbar-search"));
+  assert.ok(narrow.includes(".topbar > .preview-mobile-toggle"));
+  assert.ok(narrow.includes("flex: 0 0 40px;"));
+  assert.ok(narrow.includes("min-width: 40px;"));
+});
+
+test("アカウント切替モーダルはバナーランドマークを重複させず、ZIP取込見出しを一段ずつ下げる", () => {
+  assert.ok(accountsUI.includes('h("div", { className: "acct-panel-head" }'));
+  assert.ok(!accountsUI.includes('h("header", { className: "acct-panel-head" }'));
+  assert.ok(garasumadoImportUI.includes('h("h3", { className: "gara-group-title" }, "ZIP / JSON ファイルから一括読み込み")'));
 });
 
 test("320px幅で上部ツールバーの全操作を表示領域内に収める", () => {
