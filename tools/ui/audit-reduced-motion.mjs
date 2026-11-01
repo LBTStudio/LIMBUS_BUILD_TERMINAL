@@ -10,18 +10,14 @@
  * Playwright の reducedMotion コンテキスト設定で OS 設定を模擬する。
  */
 
-import { loadPlaywright, BASE_URL } from "./harness.mjs";
+import { loadPlaywright, openApp } from "./harness.mjs";
 
 const url = process.argv[2] || BASE_URL;
 const { chromium } = loadPlaywright();
 const browser = await chromium.launch({ headless: true });
 
 for (const mode of ["no-preference", "reduce"]) {
-  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: mode });
-  const page = await ctx.newPage();
-  await page.goto(url, { waitUntil: "load", timeout: 90000 });
-  await page.waitForSelector(".rail-item", { timeout: 90000 });
-  await page.waitForTimeout(1200);
+  const { context: ctx, page } = await openApp(browser, { url, width: 1440, height: 900, reducedMotion: mode });
 
   const r = await page.evaluate(() => {
     const rail = document.querySelector(".rail-item");
