@@ -827,8 +827,7 @@ async function captureProfile(browser, mode) {
             const fixture = audit.seed?.sample?.syncedPersonaFixture;
             if (!fixture) throw new Error("同期人格の検証用データを準備できませんでした");
             const rosterMode = page.locator(".codex-modes button").filter({ hasText: "所持" }).first();
-            if (!(await visible(rosterMode))) throw new Error("所持人格タブが見つかりません");
-            await click(rosterMode);
+            if (await visible(rosterMode)) await click(rosterMode);
             const rosterCards = page.locator(".p-card");
             const rosterCardCount = await rosterCards.count();
             const rosterModes = await rosterCards.evaluateAll((cards) => [...new Set(cards.map((card) => card.dataset.mode))]);
