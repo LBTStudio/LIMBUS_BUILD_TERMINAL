@@ -138,8 +138,7 @@ export async function enterAuditWorkspace(page, accountName = "UI監査用キャ
 }
 
 /**
- * 12 セクションを順に開く。
- * 「使い方」は utility sheet を開くため、次の操作を妨げないよう閉じてから戻る。
+ * 現行UIの26ビューを実操作で巡回する。メイン画面だけでなく、ビルド・ショップ・記録の内部タブも含む。
  */
 async function closeAuditOverlays(page) {
   await page.keyboard.press("Escape").catch(() => {});
@@ -164,6 +163,28 @@ async function clickMainRoute(page, title) {
   await page.waitForTimeout(300);
 }
 
+async function openShopHub(page) {
+  await clickMainRoute(page, "ショップ");
+  const hub = page.locator(".btype-shop-category-grid").first();
+  if (!(await hub.isVisible().catch(() => false))) {
+    const back = page.locator(".btype-shop-catalog .btype-back-link").first();
+    await back.waitFor({ state: "visible", timeout: 8000 });
+    await back.click({ timeout: 5000 });
+    await hub.waitFor({ state: "visible", timeout: 8000 });
+  }
+}
+
+async function openRecordHub(page) {
+  await clickMainRoute(page, "記録・所持品");
+  const hub = page.locator(".btype-record-card-grid").first();
+  if (!(await hub.isVisible().catch(() => false))) {
+    const back = page.locator(".btype-record-detail .btype-back-link").first();
+    await back.waitFor({ state: "visible", timeout: 8000 });
+    await back.click({ timeout: 5000 });
+    await hub.waitFor({ state: "visible", timeout: 8000 });
+  }
+}
+
 export async function walkSections(page, { onSection } = {}) {
   const counts = [];
   for (let i = 0; i < UI_VIEWS.length; i++) {
@@ -179,20 +200,18 @@ export async function walkSections(page, { onSection } = {}) {
       await tab.click({ timeout: 5000 });
       await page.waitForTimeout(350);
     } else if (view.kind === "shop-hub") {
-      await clickMainRoute(page, "ショップ");
-      await page.locator(".btype-shop-category-grid").waitFor({ state: "visible", timeout: 8000 });
+      await openShopHub(page);
     } else if (view.kind === "shop-category") {
-      await clickMainRoute(page, "ショップ");
+      await openShopHub(page);
       const category = page.locator(".btype-shop-category-card[data-category=" + JSON.stringify(view.id) + "]").first();
       await category.waitFor({ state: "visible", timeout: 8000 });
       await category.click({ timeout: 5000 });
       await page.locator(".btype-shop-catalog").waitFor({ state: "visible", timeout: 8000 });
       await page.waitForTimeout(350);
     } else if (view.kind === "record-hub") {
-      await clickMainRoute(page, "記録・所持品");
-      await page.locator(".btype-record-card-grid").waitFor({ state: "visible", timeout: 8000 });
+      await openRecordHub(page);
     } else if (view.kind === "record-tab") {
-      await clickMainRoute(page, "記録・所持品");
+      await openRecordHub(page);
       const library = page.locator(".btype-record-task-card").filter({ hasText: "所持ライブラリ" }).first();
       await library.waitFor({ state: "visible", timeout: 8000 });
       await library.click({ timeout: 5000 });
