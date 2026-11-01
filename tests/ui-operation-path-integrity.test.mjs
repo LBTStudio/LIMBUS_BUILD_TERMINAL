@@ -180,7 +180,7 @@ test("モバイルの主要操作対象を40x40px以上にし、監査CIで未�
     "button.rm", ".es-kw-add", '"select", "textarea"'
   ]) assert.ok(captureAudit.includes(selector), "監査で操作寸法を確認する: " + selector);
   assert.match(captureAudit, /smallActionableTargets/);
-  assert.match(captureAudit, /page\.addScriptTag\(\{ path: path\.join\(ROOT, "\.browser-deps\/node_modules\/axe-core\/axe\.min\.js"\) \}\)/);
+  assert.ok(captureAudit.includes("page.addInitScript({ content: fs.readFileSync"), "axeは起動時ダイアログを描画する前に注入する");
   assert.match(captureAudit, /accessibilityScans/);
   assert.match(captureAudit, /m\.dialogs/);
   assert.match(captureAudit, /accessibilityViolationNodeCount/);
@@ -276,7 +276,7 @@ test("SINNER SELECTの実アカウント選択を迂回するイベント発火�
 
 test("ダイアログ状態のaxe診断が実行エラーになった場合はUI監査を失敗させる", () => {
   assert.match(captureAudit, /audit\.accessibilityErrors\.push/);
-  assert.match(captureAudit, /audit\.accessibilityErrors\.length\) process\.exitCode=1/);
+  assert.ok(captureAudit.includes("audit.accessibilityErrors.length || audit.accessibilityUnavailableCount) process.exitCode=1"));
   assert.match(captureAudit, /audit\.accessibilityScanCount = audit\.accessibilityScans\.length/);
   assert.match(captureAudit, /audit\.accessibilityViolationNodeCount/);
 });
