@@ -442,3 +442,21 @@ test("各画面の主見出しを本文領域のH1として定義する", () => 
   assert.ok(sections.includes('level: 1, title: "SHOP / ショップ"'));
   assert.ok(workbenchCss.includes(".btype-command-hero :is(h1, h2)"));
 });
+
+
+test("記録ハブの取り込み入口は共通プライマリボタンとして描画する", () => {
+  assert.ok(sections.includes('className: "btn btn-primary record-import-launch"'),
+    "primary 単独では共通ボタンの視覚スタイルが適用されない");
+  assert.ok(captureAudit.includes('".record-import-launch"'),
+    "取り込み入口をモバイルのタップ領域監査へ含める");
+});
+
+test("SINNER SELECT編集とサポート枠解除は40px以上のモバイル操作領域と個別ラベルを持つ", () => {
+  assert.ok(mobileAuditCss.includes(".acct-gate-edit-btn {") && mobileAuditCss.includes("min-width: 72px;") && mobileAuditCss.includes("min-height: 40px;"));
+  assert.ok(mobileAuditCss.includes(".spp-slot .rm {") && mobileAuditCss.includes("width: 40px;") && mobileAuditCss.includes("height: 40px;"));
+  assert.ok(mobileAuditCss.includes(".spp-slot .reorder-btns { margin-right: 44px; }"));
+  assert.ok(sections.includes('aria-label: `サポート「${spp.name || "未設定"}」を枠から外す`')));
+  assert.ok(sections.includes('aria-label: `死亡後サポート「${deathSupport.name || "未設定"}」を枠から外す`')));
+  assert.ok(captureAudit.includes('".acct-gate-edit-btn"'));
+  assert.ok(captureAudit.includes('".spp-slot .rm"'));
+});
