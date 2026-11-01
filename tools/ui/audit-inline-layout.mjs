@@ -10,6 +10,7 @@ const VIEWPORTS = [
   { name: "desktop 1440", w: 1440, h: 900 },
   { name: "tablet 768", w: 768, h: 1024 },
   { name: "mobile 375", w: 375, h: 812 },
+  { name: "narrow mobile 320", w: 320, h: 640 },
 ];
 
 // レスポンシブに変えたい・変えたくないが決まっているプロパティ
