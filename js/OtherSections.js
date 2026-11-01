@@ -3479,7 +3479,7 @@ const BuildWorkspace = ({ state, dispatch, saveStatus, onTogglePreview, onCopyJs
         h("div", { className: "preview-actions" },
           h("button", {
             type: "button", className: "secondary", onClick: onTogglePreview,
-            "aria-controls": "preview-panel"
+            "aria-controls": previewOpen ? "preview-panel" : void 0, "aria-expanded": !!previewOpen
           }, "プレビューを展開"),
           h("button", {
             type: "button", className: "primary", onClick: onCopyJson,
@@ -7112,10 +7112,10 @@ const SettingsSection = ({ state, dispatch, onOpenUtilities }) => {
     const overridden = typeof bov[formula.name] === "string";
     const hidden = bov[formula.name] === null;
     const value = overridden ? bov[formula.name] : formula.expr;
-    return h("div", { key: formula.name, style: { display: "grid", gridTemplateColumns: "54px minmax(0, 1fr) auto", gap: "var(--s-2)", alignItems: "center", opacity: hidden ? .55 : 1 } },
-      h("span", { className: "badge", style: { color: "var(--gold)", borderColor: "var(--gold-line)", fontFamily: "var(--f-mono)" } }, formula.name),
-      hidden ? h("span", { style: { color: "var(--tx-mute)", fontSize: "var(--fs-11)" } }, "出力から非表示") : h("input", { className: "input", "aria-label": `${formula.name}の式`, value, onChange: (e) => setBov(formula.name, e.target.value), title: `${formula.name}の式` }),
-      hidden ? h(Button, { size: "sm", variant: "ghost", icon: "undo", onClick: () => restoreBuiltin(formula.name) }, "復元") : h(Button, { size: "sm", variant: "ghost", icon: "trash", onClick: () => removeBuiltin(formula.name) }, "非表示")
+    return h("div", { key: formula.name, className: "settings-builtin-formula-row", style: { display: "grid", gridTemplateColumns: "54px minmax(0, 1fr) auto", gap: "var(--s-2)", alignItems: "center", opacity: hidden ? .55 : 1 } },
+      h("span", { className: "badge settings-builtin-formula-name", style: { color: "var(--gold)", borderColor: "var(--gold-line)", fontFamily: "var(--f-mono)" } }, formula.name),
+      hidden ? h("span", { className: "settings-builtin-formula-hidden", style: { color: "var(--tx-mute)", fontSize: "var(--fs-11)" } }, "出力から非表示") : h("input", { className: "input settings-builtin-formula-expression", "aria-label": `${formula.name}の式`, value, onChange: (e) => setBov(formula.name, e.target.value), title: `${formula.name}の式` }),
+      hidden ? h(Button, { className: "settings-builtin-formula-action", size: "sm", variant: "ghost", icon: "undo", onClick: () => restoreBuiltin(formula.name) }, "復元") : h(Button, { className: "settings-builtin-formula-action", size: "sm", variant: "ghost", icon: "trash", onClick: () => removeBuiltin(formula.name) }, "非表示")
     );
   };
   /* アカウントの切替・作成・編集・削除は js/accounts-ui.js の

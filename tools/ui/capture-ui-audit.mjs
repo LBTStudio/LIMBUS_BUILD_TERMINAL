@@ -231,7 +231,7 @@ async function snap(name, note) {
   if ((m.dialogs || []).length && page) {
     try {
       const result = await page.evaluate(async () => {
-        if (!window.axe) return { unavailable: true, violations: [] };
+        if (!window.axe) throw new Error("axe-coreが初期化されていません。ダイアログ状態の診断を省略できません");
         const r = await window.axe.run(document, { resultTypes: ["violations"] });
         return {
           unavailable: false,
@@ -259,6 +259,8 @@ async function snap(name, note) {
   }
   audit.screenshots.push({name:base,note:note||"",file:path.relative(ROOT,file),metrics:m});
   if(m.horizontalOverflow) audit.layoutWarnings.push({name:base,type:"document-horizontal-overflow",viewport:m.viewport,document:m.document});
+  const clippedTopbar=(m.horizontalScrollers||[]).find((item)=>item.className.split(/\\s+/).includes("topbar")&&item.overflowX==="hidden");
+  if(m.viewport.width<=360&&clippedTopbar) audit.layoutWarnings.push({name:base,type:"topbar-content-clipped",viewport:m.viewport,container:clippedTopbar});
   if (m.viewport.width <= 640 && (m.touchTargetViolations || []).length) {
     audit.layoutWarnings.push({
       name: base,
@@ -653,6 +655,7 @@ async function captureProfile(browser, mode) {
   const context=await browser.newContext({viewport,deviceScaleFactor:mobile?2:1,isMobile:mobile,hasTouch:mobile,serviceWorkers:"block",colorScheme:"dark",reducedMotion:"reduce"});
   page=await context.newPage();
   page.setDefaultTimeout(5000);
+  await page.addInitScript({ content: fs.readFileSync(path.join(ROOT, ".browser-deps/node_modules/axe-core/axe.min.js"), "utf8") });
   // Keep external counters deterministic in localhost screenshots. Aborting these requests
   // creates browser console errors (and a CORS failure) unrelated to the UI under test.
   await page.route("**/cdn-cgi/rum**", (route) => route.fulfill({
@@ -665,7 +668,7 @@ async function captureProfile(browser, mode) {
   page.on("pageerror",e=>audit.pageErrors.push({view:mode,message:e.message.slice(0,160)}));
   try {
     await boot();
-    await page.addScriptTag({ path: path.join(ROOT, ".browser-deps/node_modules/axe-core/axe.min.js") });
+    /* axe-core is installed before boot and injected before each navigation below. */
     /* The B-type migration deliberately opens Home. Navigate to the actual workbench
        before capturing editor tabs and preview states, rather than assuming an old default. */
     const workbenchNav = mobile
@@ -1513,9 +1516,10 @@ async function main() {
       }
     }
   }
-  audit.criticalLayoutWarnings=audit.layoutWarnings.filter((item)=>["document-horizontal-overflow","duplicate-preview-controls","preview-toggle-overlaps-header","preview-toggle-overlaps-panel-controls","preview-toggle-overlaps-content-dock","preview-panel-too-narrow","basic-preview-below-editor-fold","touch-target-too-small","build-tabs-not-reflowed"].includes(item.type));
+  audit.criticalLayoutWarnings=audit.layoutWarnings.filter((item)=>["document-horizontal-overflow","topbar-content-clipped","duplicate-preview-controls","preview-toggle-overlaps-header","preview-toggle-overlaps-panel-controls","preview-toggle-overlaps-content-dock","preview-panel-too-narrow","basic-preview-below-editor-fold","touch-target-too-small","build-tabs-not-reflowed"].includes(item.type));
+  audit.accessibilityUnavailableCount=audit.accessibilityScans.filter((item)=>item.unavailable).length;
   fs.writeFileSync(path.join(OUT,"manifest.json"),JSON.stringify(audit,null,2)+"\n");
   log("finished: "+audit.count+" screenshots; failures="+audit.failures.length+"; missing-required="+audit.missingRequiredCaptures.length+"; critical-layout-warnings="+audit.criticalLayoutWarnings.length);
-  if(audit.count<140 || audit.failures.length || audit.missingRequiredCaptures.length || audit.pageErrors.length || audit.httpErrors.length || audit.consoleErrors.length || audit.criticalLayoutWarnings.length || audit.accessibilityErrors.length) process.exitCode=1;
+  if(audit.count<140 || audit.failures.length || audit.missingRequiredCaptures.length || audit.pageErrors.length || audit.httpErrors.length || audit.consoleErrors.length || audit.criticalLayoutWarnings.length || audit.accessibilityErrors.length || audit.accessibilityUnavailableCount) process.exitCode=1;
 }
 main().catch(e=>{console.error("[ui-audit] fatal: "+(e&&e.stack||String(e)));process.exitCode=1;});

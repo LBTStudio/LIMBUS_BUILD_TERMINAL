@@ -231,3 +231,83 @@
     line-height: 1.25;
   }
 }
+
+
+/* 狭い設定画面では式の入力欄を独立した全幅行にし、ボタン列と競合させない。 */
+@media (max-width: 400px) {
+  .settings-builtin-formula-row {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-areas:
+      "name action"
+      "expression expression";
+    row-gap: 8px;
+  }
+  .settings-builtin-formula-name { grid-area: name; }
+  .settings-builtin-formula-expression,
+  .settings-builtin-formula-hidden {
+    grid-area: expression;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  .settings-builtin-formula-action {
+    grid-area: action;
+    min-width: 88px;
+    min-height: 40px;
+  }
+}
+
+/* 320px級では情報優先度の低いブランド文字・操作ラベルを畳み、操作面を残す。 */
+@media (max-width: 360px) {
+  .topbar {
+    gap: 4px;
+    padding-inline: 8px;
+  }
+  .topbar > .brand {
+    flex: 0 0 18px;
+    width: 18px;
+    max-width: 18px;
+    gap: 0;
+  }
+  .topbar > .brand .brand-name { display: none; }
+  .topbar > .topbar-spacer { display: none; }
+  .topbar > .topbar-search {
+    flex: 0 0 36px;
+    width: 36px;
+    min-width: 36px;
+    max-width: 36px;
+    justify-content: center;
+    padding: 6px;
+  }
+  .topbar > .topbar-balance {
+    flex: 0 0 auto;
+    min-width: 0;
+    padding: 4px 8px;
+    gap: 3px;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+  .topbar-balance-item { gap: 2px; }
+  .topbar-balance-unit { font-size: 8px; }
+  .topbar > .preview-mobile-toggle {
+    flex: 0 0 36px;
+    width: 36px;
+    min-width: 36px;
+    height: 40px;
+    min-height: 40px;
+    padding: 0;
+  }
+  .topbar > .utility-trigger {
+    flex: 0 0 40px;
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+    justify-content: center;
+    gap: 0;
+    padding: 0;
+  }
+  .topbar > .utility-trigger > span { display: none; }
+}

@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-b5ebf955";
+const CACHE_NAME = "lbt-de10e171";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
@@ -46,20 +46,20 @@ const PRECACHE_URLS = [
   "assets/v66-accounts.css?v=263db3b5",
   "assets/v67-persona-redesign.css?v=4b89da4c",
   "assets/v68-interaction-a11y.css?v=0bbe4495",
-  "assets/v69-mobile-ui-audit.css?v=e67e9edc",
+  "assets/v69-mobile-ui-audit.css?v=625cbfa9",
   "assets/v70-preview-controls.css?v=ef27f951",
   "assets/workspace.css?v=6661210a",
   "data/db.json?v=16b6df9e",
   "data/gacha-theme-packs.json?v=8d4dced2",
   "data/items.json?v=b185394a",
   "data/special-items.json?v=aaa21cfb",
-  "js/App.js?v=1ed0204d",
+  "js/App.js?v=87c93f9e",
   "js/DataQuality.js?v=a8365c72",
   "js/InlineEffectGlossary.js?v=24531623",
   "js/ItemCodex.js?v=3c394422",
   "js/LivePreview.js?v=69b4d6d2",
-  "js/OtherSections.js?v=7cac8599",
-  "js/PersonaCodex.js?v=c5bb8b2b",
+  "js/OtherSections.js?v=aa22a622",
+  "js/PersonaCodex.js?v=aa0ca9fc",
   "js/SkillDeck.js?v=a93f6cb8",
   "js/accounts-ui.js?v=39626571",
   "js/cloud-backup.js?v=32acbafe",
@@ -70,7 +70,7 @@ const PRECACHE_URLS = [
   "js/gacha-tickets.js?v=2ecc4e1b",
   "js/gacha.js?v=f58f8a3e",
   "js/garasumado-export-import.js?v=66700d44",
-  "js/garasumado-import-ui.js?v=64e2f6bd",
+  "js/garasumado-import-ui.js?v=549f98b4",
   "js/garasumado-memo-parse.js?v=623e5986",
   "js/garasumado-roster-import.js?v=6dd4c61c",
   "js/generator.js?v=5ae8e5cd",
