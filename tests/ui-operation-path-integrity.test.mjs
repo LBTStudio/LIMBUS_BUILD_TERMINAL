@@ -207,5 +207,7 @@ test("全UI監査CIは主12セクションのaxe診断を成果物へ保存す�
   assert.match(uiAuditWorkflow, /Install axe-core for accessibility diagnostics/);
   assert.match(uiAuditWorkflow, /node tools\/ui\/axe-detail\.mjs/);
   assert.match(uiAuditWorkflow, /axe-detail\.json/);
-  assert.match(uiAuditWorkflow, /Start local static server for accessibility scan/);
+  assert.match(uiAuditWorkflow, /server_pid=\$!/);
+  assert.match(uiAuditWorkflow, /trap /);
+  assert.match(uiAuditWorkflow, /BASE_URL=http:\/\/127\.0\.0\.1:8099\//);
 });
