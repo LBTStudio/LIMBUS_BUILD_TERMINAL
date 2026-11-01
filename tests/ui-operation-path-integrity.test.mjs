@@ -481,3 +481,14 @@ test("共有ビューアは空の入口と実生成シートを4幅・5操作状
   assert.ok(uiAuditWorkflow.includes("Audit empty share entry and generated share sheet at four responsive widths"));
   assert.ok(uiAuditWorkflow.includes("node tools/ui/axe-share-view.mjs"));
 });
+
+
+test("Playwrightの所持人格画面は旧同期名と新しい保存buildを持つ人格の詳細を実測する", () => {
+  assert.match(captureAudit, /const syncedPersonaFixture = \(\(\) => \{/);
+  assert.match(captureAudit, /entry\.displayName = "同期UI監査・旧表示名"/);
+  assert.match(captureAudit, /entry\.build = \{[\s\S]*?savedAt: now,[\s\S]*?personaSrc,[\s\S]*?skills,/);
+  assert.match(captureAudit, /await attempt\("persona-synced-roster-details"/);
+  assert.match(captureAudit, /persona-synced-latest-roster-name/);
+  assert.match(captureAudit, /persona-synced-build-detail/);
+  assert.match(captureAudit, /fixture\.passiveName[\s\S]*?fixture\.skillNames[\s\S]*?fixture\.uniqueName/);
+});
