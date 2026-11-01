@@ -33,7 +33,7 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Install axe-core for accessibility diagnostics
-        run: npm install --prefix .browser-deps --no-save playwright@1.64.0 axe-core@4.10.3
+        run: npm install --prefix .browser-deps --no-save playwright@1.64.0 axe-core@4.14.0
       - name: Capture screens, dialogs, menus, hover and focus states
         run: node tools/ui/capture-ui-audit.mjs
       - name: Capture axe accessibility details across current screens and tabs
