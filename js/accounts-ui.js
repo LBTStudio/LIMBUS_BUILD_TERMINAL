@@ -444,7 +444,7 @@ const AccountSwitcher = ({ open, onClose, initialEditId, existingResults = [] })
     onClick: (event) => { if (event.target === event.currentTarget) requestClose(); }
   },
     h("section", { ref: panelRef, className: "acct-panel", role: "dialog", "aria-modal": "true", "aria-labelledby": "acct-panel-title" },
-      h("header", { className: "acct-panel-head" },
+      h("div", { className: "acct-panel-head" },
         h("div", null,
           h("div", { className: "acct-kicker", id: "acct-panel-title" }, "◈ SINNER SELECT"),
           h("p", { className: "acct-lead" }, "キャラクターごとに保存領域が分かれています。選ぶと作業状態・所持データ・お気に入りが入れ替わります。")
