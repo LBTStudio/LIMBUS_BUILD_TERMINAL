@@ -136,7 +136,7 @@ async function readMetrics() {
        inside the current viewport are considered; the 40px rule applies to phones. */
     const touchTargetSelector = [
       ".topbar-search", ".topbar-balance", ".preview-mobile-toggle", ".acct-close", ".import-router-close",
-      "button.btn-sm", ".btype-back-link", ".btype-record-hub .btype-page-heading > button.primary",
+      "button.btn-sm", "button.btn", "button.secondary", "button[type=\"submit\"]", ".share-private-notes-clear", ".btype-back-link", ".btype-record-hub .btype-page-heading > button.primary",
       ".piece-art-actions > button", ".piece-tab", ".piece-preview-tab",
       ".acct-gate-edit-btn", ".acct-upload-btn", ".pw-listbar-toggle",
       ".lbt-glossary-term", ".lbt-glossary-popover-close", "button.rm", ".es-kw-add",
