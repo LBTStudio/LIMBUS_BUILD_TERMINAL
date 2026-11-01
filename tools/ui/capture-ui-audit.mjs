@@ -48,7 +48,7 @@ async function click(loc) {
   if (!(await visible(loc))) throw new Error("target is not visible");
   /* hasTouch:true のスマートフォン検証では mouse.click ではなく実タップ経路を通す。
      これにより touch/pointer の発火と hover 前提でない操作を検証できる。 */
-  if (view === "mobile") await loc.first().tap({ timeout: 4000 });
+  if (view.startsWith("mobile")) await loc.first().tap({ timeout: 4000 });
   else await loc.first().click({ timeout: 4000 });
   await page.waitForTimeout(250);
 }
@@ -115,7 +115,7 @@ async function closeOverlay() {
       }
     }
     if (!target) break;
-    if (view === "mobile") await target.tap({ timeout: 1800, force: true }).catch(() => {});
+    if (view.startsWith("mobile")) await target.tap({ timeout: 1800, force: true }).catch(() => {});
     else await target.click({ timeout: 1800, force: true }).catch(() => {});
     await page.waitForTimeout(220);
   }
@@ -647,9 +647,9 @@ async function boot() {
 }
 async function captureProfile(browser, mode) {
   view=mode;
-  const mobile=mode==="mobile";
+  const mobile=mode.startsWith("mobile");
   const tablet=mode==="tablet";
-  const viewport=mobile?{width:390,height:844}:tablet?{width:1024,height:768}:{width:1440,height:1000};
+  const viewport=mode==="mobile-narrow"?{width:320,height:640}:mobile?{width:390,height:844}:tablet?{width:1024,height:768}:{width:1440,height:1000};
   const context=await browser.newContext({viewport,deviceScaleFactor:mobile?2:1,isMobile:mobile,hasTouch:mobile,serviceWorkers:"block",colorScheme:"dark",reducedMotion:"reduce"});
   page=await context.newPage();
   page.setDefaultTimeout(5000);
@@ -1480,12 +1480,12 @@ async function main() {
   const s=makeServer();
   await new Promise((resolve,reject)=>{s.once("error",reject);s.listen(PORT,HOST,resolve);});
   const browser=await chromium.launch({headless:true});
-  try { for(const mode of ["desktop","tablet","mobile"]) {log("begin "+mode);await captureProfile(browser,mode);} }
+  try { for(const mode of ["desktop","tablet","mobile","mobile-narrow"]) {log("begin "+mode);await captureProfile(browser,mode);} }
   finally { await browser.close();await new Promise(resolve=>s.close(resolve)); }
   audit.count=audit.screenshots.length;
   audit.accessibilityScanCount = audit.accessibilityScans.length;
   audit.accessibilityViolationNodeCount = audit.accessibilityScans.reduce((n, scan) => n + (scan.violations || []).reduce((m, v) => m + (v.nodes || []).length, 0), 0);
-  audit.coverage=["SINNER SELECT/new-account form","all nine build tabs and desktop tab-hover states","Basic workspace ST / label / CCFOLIA preview tabs and all three live preview modes","major navigation sections and desktop navigation-hover states","shop category hub cards, all six routes and back-navigation, and build-style persona product cards","record import menu and routes with result parsing preview","all six owned-library categories","settings status workspace and every disclosure panel","seeded QA: initial persona ownership, historical persona acquisition, standard/custom item rewards and inventory reconciliation","home command hero, all launcher routes and resume panel","common import router and all four destinations","skill-add and custom E.G.O creation entry paths","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, desktop preview width and placement, duplicate preview controls, 40px mobile touch-target enforcement, and target-size diagnostics"];
+  audit.coverage=["PC 1440px / tablet 1024px / phone 390px / narrow phone 320px","SINNER SELECT/new-account form","all nine build tabs and desktop tab-hover states","Basic workspace ST / label / CCFOLIA preview tabs and all three live preview modes","major navigation sections and desktop navigation-hover states","shop category hub cards, all six routes and back-navigation, and build-style persona product cards","record import menu and routes with result parsing preview","all six owned-library categories","settings status workspace and every disclosure panel","seeded QA: initial persona ownership, historical persona acquisition, standard/custom item rewards and inventory reconciliation","home command hero, all launcher routes and resume panel","common import router and all four destinations","skill-add and custom E.G.O creation entry paths","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, desktop preview width and placement, duplicate preview controls, 40px mobile touch-target enforcement, and target-size diagnostics"];
   const requiredNotes=[
     "ビルド内基本タブのステータス（ST）編集パネル","ビルド内基本タブのラベル（パラメータ）編集パネル","ビルド内基本タブの盤面上の駒プレビュー","ビルド内基本タブのキャラクターシートプレビュー","ビルド内基本タブの出力データプレビュー",
     "ビルド内の人格タブ","ビルド内のスキルタブ","ビルド内のパッシブタブ","ビルド内の強化タブ","ビルド内のサポートタブ","ビルド内のE.G.Oタブ","ビルド内の精神タブ","ビルド内のアイテムタブ",
@@ -1506,7 +1506,7 @@ async function main() {
     "共有URLから取り込む入口","読み込むカテゴリを選ぶ確認画面。適用しない"
   ];
   audit.missingRequiredCaptures=[];
-  for (const mode of ["desktop","tablet","mobile"]) {
+  for (const mode of ["desktop","tablet","mobile","mobile-narrow"]) {
     for (const note of requiredNotes) {
       if (!audit.screenshots.some((shot)=>shot.name.startsWith(mode+"-") && shot.note.includes(note))) {
         audit.missingRequiredCaptures.push({view:mode,note});
