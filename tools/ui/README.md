@@ -62,6 +62,8 @@ node tools/ui/axe-scan.mjs
 | `harness.mjs` | 共通の依存解決・26 UIビュー巡回・スクリーンショット撮影（直接実行しない） |
 | `serve.mjs` | 静的サーバ（`localhost:8099`）。ブラウザ検証の土台 |
 | `axe-scan.mjs` | 26 UIビューを巡回して axe 違反と pass 数を集計 |
+| `axe-detail.mjs` | 26 UIビュー×4幅のaxe違反ノードをJSONに保存し、重大・深刻な違反をCIで止める |
+| `axe-share-view.mjs` | 空の共有入口と実生成共有シートを4幅・5状態でaxe診断する |
 | `capture.mjs` | 26 UIビューのスクリーンショットを撮る（差分比較の基準） |
 | `compare-shots.mjs` | 2 組のスクリーンショットをピクセル比較し、差分領域を PNG にする |
 | `probe-styles.mjs` | 全要素の計算スタイル・矩形・擬似要素を採取して比較用 JSON を出す |
