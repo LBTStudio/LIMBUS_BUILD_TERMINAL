@@ -500,5 +500,7 @@ test("所持人格一覧は20件の通常・特異混在データを実ブラウ
   assert.match(captureAudit, /\.slice\(0, 20\)\.map/);
   assert.match(captureAudit, /rosterCardCount !== 20/);
   assert.match(captureAudit, /rosterModes\.length !== 2/);
+  assert.ok(captureAudit.includes("if (await visible(rosterMode)) await click(rosterMode);"),
+    "所持限定モードではタブが非表示になるため、表示時だけ切り替える");
   assert.match(captureAudit, /personaRosterCapacity/);
 });
