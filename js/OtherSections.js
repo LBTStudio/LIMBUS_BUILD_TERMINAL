@@ -3325,7 +3325,7 @@ const card = (key, name, badge, kind, onAcquire, disabled, reason, lines, owned,
   );
     return h("div", { className: "shop-workspace btype-shop-catalog" },
     h("div", { className: "btype-back-row" }, h("button", { type: "button", className: "btype-back-link", onClick: () => dispatch({ type: "SET_UI", ui: { shopView: "overview" } }) }, "← ショップへ戻る")),
-    h(SectionTitle, { title: "SHOP / ショップ", subtitle: "人格・サポート・E.G.O・精神・アイテムを購入" }),
+    h(SectionTitle, { level: 1, title: "SHOP / ショップ", subtitle: "人格・サポート・E.G.O・精神・アイテムを購入" }),
     /* カテゴリタブだけを独立要素にして追従させる。filter パネルの内側に置くと
        sticky は親の範囲を出られないため、親を抜けた瞬間にタブも消える。
        追従する面（ラッパー）は全幅にして、下を流れる内容を隠す。
@@ -3924,7 +3924,7 @@ const RosterSection = ({ state, dispatch, onOpenImportRouter, onOpenUtilities })
     ),
     detailId === item.id && !manageMode && renderDetail(item)
   );
-  const libraryTabLabel = (tab) => (tab === "personas" ? "人格" : tab === "egos" ? "E.G.O" : tab === "supports" ? "サポパ" : tab === "spirits" ? "精神" : "リザルト");
+  const libraryTabLabel = (tab) => (tab === "personas" ? "人格" : tab === "egos" ? "E.G.O" : tab === "supports" ? "サポパ" : tab === "spirits" ? "精神" : tab === "inventory" ? "アイテム" : "リザルト");
 if (typeof window !== "undefined") window.LBT_libraryTabLabel = libraryTabLabel;
   const label = libraryTabLabel(libraryTab);
   /* ヘッダ（タブ帯）は全タブで描画する。ここで早戻りするとタブごと消えて
@@ -3993,6 +3993,7 @@ if (typeof window !== "undefined") window.LBT_libraryTabLabel = libraryTabLabel;
     )
   );
   const detailView = h(React.Fragment, null,
+    h(SectionTitle, { level: 1, title: `記録・所持品 / ${label}` }),
     h("div", { className: "btype-back-row" },
       h("button", { type: "button", className: "btype-back-link", onClick: openRecordHome }, "← 記録・所持品へ戻る")
     ),
