@@ -312,6 +312,18 @@
   .topbar > .utility-trigger > span { display: none; }
 }
 
+/* 320px幅では複数の装備枠を横並びにせず、内容と操作を読める幅で縦積みにする。 */
+@media (max-width: 360px) {
+  .spp-slots {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .spp-slot {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+}
+
 /* PERSONA AUDIT disclosure is a primary touch target on narrow record views. */
 @media (max-width: 640px) {
   .ledger-persona-audit-disclosure > summary {
