@@ -487,6 +487,9 @@
   padding: 1px 6px;
   font-size: 9px;
   letter-spacing: 0.14em;
+  display: inline-block;
+  white-space: nowrap;
+  vertical-align: middle;
   background: var(--gold);
   color: var(--tx-inv);
   border-radius: var(--r-sm);
