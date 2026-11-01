@@ -12,7 +12,7 @@ const OUT = path.resolve(ROOT, "artifacts/ui-audit-screenshots");
 const HOST = "127.0.0.1";
 const PORT = 4174;
 const MIME = { ".html":"text/html; charset=utf-8", ".js":"text/javascript; charset=utf-8", ".mjs":"text/javascript; charset=utf-8", ".css":"text/css; charset=utf-8", ".json":"application/json; charset=utf-8", ".svg":"image/svg+xml", ".png":"image/png", ".webp":"image/webp", ".txt":"text/plain; charset=utf-8", ".woff2":"font/woff2" };
-const audit = { generatedAt: new Date().toISOString(), screenshots: [], failures: [], consoleErrors: [], httpErrors: [], pageErrors: [], layoutWarnings: [], interactions: [] };
+const audit = { generatedAt: new Date().toISOString(), screenshots: [], failures: [], consoleErrors: [], httpErrors: [], pageErrors: [], layoutWarnings: [], interactions: [], accessibilityScans: [], accessibilityErrors: [] };
 let page;
 let view = "unknown";
 
@@ -221,6 +221,38 @@ async function snap(name, note) {
   const file=path.join(OUT,base+".png");
   await page.screenshot({path:file,animations:"disabled"});
   const m=await readMetrics();
+  /* Dialog and sheet states are part of the real interaction surface. Run axe only
+     when a modal is visible to keep the 400+ screenshot pass practical, while
+     recording the exact dialog state and viewport for follow-up. */
+  if ((m.dialogs || []).length && page) {
+    try {
+      const result = await page.evaluate(async () => {
+        if (!window.axe) return { unavailable: true, violations: [] };
+        const r = await window.axe.run(document, { resultTypes: ["violations"] });
+        return {
+          unavailable: false,
+          violations: r.violations.map(v => ({
+            id: v.id,
+            impact: v.impact,
+            help: v.help,
+            nodes: v.nodes.map(n => ({
+              target: n.target.join(" "),
+              html: n.html.slice(0, 220),
+              summary: (n.failureSummary || "").slice(0, 260)
+            }))
+          }))
+        };
+      });
+      audit.accessibilityScans.push({
+        screen: base,
+        viewport: m.viewport,
+        dialogs: m.dialogs,
+        ...result
+      });
+    } catch (error) {
+      audit.accessibilityErrors.push({ screen: base, error: String(error?.message || error).slice(0, 220) });
+    }
+  }
   audit.screenshots.push({name:base,note:note||"",file:path.relative(ROOT,file),metrics:m});
   if(m.horizontalOverflow) audit.layoutWarnings.push({name:base,type:"document-horizontal-overflow",viewport:m.viewport,document:m.document});
   if (m.viewport.width <= 640 && (m.touchTargetViolations || []).length) {
@@ -645,6 +677,7 @@ async function captureProfile(browser, mode) {
   page.on("pageerror",e=>audit.pageErrors.push({view:mode,message:e.message.slice(0,160)}));
   try {
     await boot();
+    await page.addScriptTag({ path: path.join(ROOT, ".browser-deps/node_modules/axe-core/axe.min.js") });
     /* The B-type migration deliberately opens Home. Navigate to the actual workbench
        before capturing editor tabs and preview states, rather than assuming an old default. */
     const workbenchNav = mobile
@@ -1462,6 +1495,8 @@ async function main() {
   try { for(const mode of ["desktop","tablet","mobile"]) {log("begin "+mode);await captureProfile(browser,mode);} }
   finally { await browser.close();await new Promise(resolve=>s.close(resolve)); }
   audit.count=audit.screenshots.length;
+  audit.accessibilityScanCount = audit.accessibilityScans.length;
+  audit.accessibilityViolationNodeCount = audit.accessibilityScans.reduce((n, scan) => n + (scan.violations || []).reduce((m, v) => m + (v.nodes || []).length, 0), 0);
   audit.coverage=["SINNER SELECT/new-account form","all nine build tabs and desktop tab-hover states","Basic workspace ST / label / CCFOLIA preview tabs and all three live preview modes","major navigation sections and desktop navigation-hover states","shop category hub cards, all six routes and back-navigation, and build-style persona product cards","record import menu and routes with result parsing preview","all six owned-library categories","settings status workspace and every disclosure panel","seeded QA: initial persona ownership, historical persona acquisition, standard/custom item rewards and inventory reconciliation","home command hero, all launcher routes and resume panel","common import router and all four destinations","skill-add and custom E.G.O creation entry paths","share method dialog and local HTML preview","help search and expanded entry","quick search","topbar and sheet hover","disclaimer dialog","account manager/edit/share import","save-state import scope dialog and optional empty-category expansion","keyboard focus","viewport overflow, desktop preview width and placement, duplicate preview controls, 40px mobile touch-target enforcement, and target-size diagnostics"];
   const requiredNotes=[
     "ビルド内基本タブのステータス（ST）編集パネル","ビルド内基本タブのラベル（パラメータ）編集パネル","ビルド内基本タブの盤面上の駒プレビュー","ビルド内基本タブのキャラクターシートプレビュー","ビルド内基本タブの出力データプレビュー",
