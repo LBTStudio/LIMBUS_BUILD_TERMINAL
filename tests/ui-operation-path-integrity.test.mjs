@@ -136,6 +136,7 @@ test("モバイルの主要操作対象を40x40px以上にし、監査CIで未�
   const indexHtml = read("../index.html");
   const touchStyles = indexHtml.slice(indexHtml.indexOf('<style id="lbt-mobile-touch-targets">'));
   assert.ok(touchStyles.includes(".topbar-search"));
+  assert.ok(touchStyles.includes(".topbar-balance"), "残高チップもタップ可能な画面遷移ボタンとして扱う");
   assert.ok(touchStyles.includes(".preview-mobile-toggle"));
   assert.ok(touchStyles.includes(".acct-close"));
   assert.ok(touchStyles.includes(".import-router-close"));
@@ -157,6 +158,8 @@ test("モバイルの主要操作対象を40x40px以上にし、監査CIで未�
   assert.ok(touchStyles.includes('.btype-build-tablist[role="tablist"][aria-label="ビルドセクション"] > button[role="tab"]'));
 
   assert.match(captureAudit, /const touchTargetViolations/);
+  assert.match(captureAudit, /".topbar-balance"/);
+  assert.match(captureAudit, /smallActionableTargets/);
   assert.match(captureAudit, /minimum: "40x40 CSS px"/);
   assert.match(captureAudit, /type: "touch-target-too-small"/);
   assert.match(captureAudit, /"touch-target-too-small","build-tabs-not-reflowed"\].includes\(item\.type\)/);
