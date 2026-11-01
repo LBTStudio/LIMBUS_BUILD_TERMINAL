@@ -518,15 +518,18 @@ test("共有シートは読みやすい耐性ラベルコントラストとmain/
 });
 
 
+
 test("320px幅のサポート装備枠は一列に縦積みし、枠名の縦折り返しを回帰監査する", () => {
-  assert.match(mobileAuditCss, /@media \\(max-width: 360px\\)[\\s\\S]*?\\.spp-slots[\\s\\S]*?grid-template-columns: minmax\\(0, 1fr\\) !important/);
-  assert.match(captureAudit, /support-slots-narrow-layout/);
-  assert.match(captureAudit, /narrowLayout\\.columns!==1/);
-  assert.match(captureAudit, /slot\\.labelHeight>26/);
+  assert.ok(mobileAuditCss.includes("@media (max-width: 360px)"));
+  assert.ok(mobileAuditCss.includes(".spp-slots"));
+  assert.ok(mobileAuditCss.includes("grid-template-columns: minmax(0, 1fr) !important"));
+  assert.ok(captureAudit.includes("support-slots-narrow-layout"));
+  assert.ok(captureAudit.includes("narrowLayout.columns!==1"));
+  assert.ok(captureAudit.includes("slot.labelHeight>26"));
 });
 
 test("SINNER SELECTのアカウント編集時はオンライン保全パネルを退避し、編集フォーム領域を確保する", () => {
-  assert.match(mobileAuditCss, /\\.acct-panel:has\\(> \\.acct-grid\\.is-editing\\) > \\.lbt-cloud-panel/);
-  assert.match(captureAudit, /backupPanelHidden/);
-  assert.match(captureAudit, /!editorMetrics\\.backupPanelHidden/);
+  assert.ok(mobileAuditCss.includes(".acct-panel:has(> .acct-grid.is-editing) > .lbt-cloud-panel"));
+  assert.ok(captureAudit.includes("backupPanelHidden"));
+  assert.ok(captureAudit.includes("!editorMetrics.backupPanelHidden"));
 });
