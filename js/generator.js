@@ -1788,7 +1788,7 @@ details.fold>summary:hover h2{color:var(--gold-hi)}
 .share-private-notes-status,.share-private-notes-help{margin:0;color:var(--tx3);font-size:12px;line-height:1.6}
 .share-private-notes-clear{flex:none;padding:7px 10px;border:1px solid var(--line);border-radius:3px;background:transparent;color:var(--tx2);font:inherit;font-size:12px;cursor:pointer}
 .share-private-notes-clear:hover{border-color:var(--gold);color:var(--gold-hi)}
-@media(max-width:640px){.share-private-notes{padding:10px}.share-private-notes textarea{font-size:16px}.share-private-notes-clear{padding:8px 10px}}
+@media(max-width:640px){.share-private-notes{padding:10px}.share-private-notes textarea{font-size:16px}.share-private-notes-clear{box-sizing:border-box;min-height:40px;padding:8px 10px}}
 @media print{.share-private-notes{display:none!important}}
 
 /* --- Stats --- */
