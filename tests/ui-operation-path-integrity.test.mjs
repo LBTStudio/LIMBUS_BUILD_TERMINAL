@@ -225,3 +225,16 @@ test("スマートフォンUI監査はマウスクリックではなくタッチ
   assert.match(captureAudit, /if \(view === "mobile"\) await target\.tap\(/);
   assert.doesNotMatch(captureAudit, /summary\.click\(/, "設定・履歴開閉も共通のタッチ対応操作ヘルパーを通す");
 });
+
+
+test("SINNER SELECTの実アカウント選択を迂回するイベント発火フォールバックを禁止する", () => {
+  const selectionStart = captureAudit.indexOf("const card=page.locator(\".acct-card--gate\")");
+  const selectionEnd = captureAudit.indexOf("await mainNavigation().first().waitFor", selectionStart);
+  assert.ok(selectionStart >= 0 && selectionEnd > selectionStart);
+  const selection = captureAudit.slice(selectionStart, selectionEnd);
+  assert.match(selection, /if\(!\(await visible\(hit\)\)\) throw new Error/);
+  assert.match(selection, /await click\(hit\)/);
+  assert.match(selection, /if\(await visible\(gate\)\) throw new Error/);
+  assert.doesNotMatch(selection, /lbt:accounts-entered/, "UI選択に失敗した際にアプリ内部イベントで迂回しない");
+  assert.doesNotMatch(selection, /catch\(\(\)=>\{\}\)/, "タップ失敗を握り潰さない");
+});
