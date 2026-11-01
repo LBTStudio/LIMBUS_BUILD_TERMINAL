@@ -107,6 +107,11 @@ export async function openApp(browser, { url = BASE_URL, width = 1440, height = 
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text().slice(0, 160)); });
   page.on("pageerror", (e) => errors.push("pageerror: " + e.message.slice(0, 160)));
+  page.on("response", (response) => {
+    if (response.status() >= 400) {
+      errors.push("http " + response.status() + ": " + response.url().slice(0, 200));
+    }
+  });
   await page.goto(url, { waitUntil: "load", timeout: 90000 });
   await page.waitForSelector(".acct-gate, .rail-item", { timeout: 90000 });
   await enterAuditWorkspace(page);

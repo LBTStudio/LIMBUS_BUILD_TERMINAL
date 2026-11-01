@@ -12,6 +12,8 @@ const parityCss = read("../assets/b-type-ui-parity.css");
 const captureAudit = read("../tools/ui/capture-ui-audit.mjs");
 const uiHarness = read("../tools/ui/harness.mjs");
 const index = read("../index.html");
+const sharePage = read("../share.html");
+const mobilePreviewPage = read("../mobile-preview.html");
 const uiAuditWorkflow = read("../.github/workflows/ui-audit-screenshot-capture.yml");
 const axeDetail = read("../tools/ui/axe-detail.mjs");
 const personaCodex = read("../js/PersonaCodex.js");
@@ -395,4 +397,11 @@ test("320px幅の人格取得照合の開閉見出しは40pxのタップ領域�
   assert.ok(mobileAuditCss.includes(".ledger-persona-audit-disclosure > summary"));
   assert.match(mobileAuditCss, /\.ledger-persona-audit-disclosure > summary\s*\{[\s\S]*?min-height:\s*40px/);
   assert.ok(captureAudit.includes(".ledger-persona-audit-disclosure > summary"));
+});
+
+test("入口ページは専用ファビコンを指定し、監査ハーネスはHTTPエラーのURLを記録する", () => {
+  assert.ok(index.includes('rel="icon" type="image/svg+xml"'));
+  assert.ok(sharePage.includes('rel="icon" type="image/svg+xml"'));
+  assert.ok(mobilePreviewPage.includes('rel="icon" type="image/svg+xml"'));
+  assert.match(uiHarness, /page\.on\("response", \(response\) => \{[\s\S]*?response\.status\(\) >= 400[\s\S]*?response\.url\(\)/);
 });
