@@ -752,6 +752,54 @@ window.addEventListener("load", function(){
       min-height: 40px !important;
     }
   }
+
+  /* The main touch-target pass is kept in this final style block (after all
+     linked CSS) so the compact component rules cannot override it. */
+  @media (max-width: 640px) {
+    .piece-preview-tabs > .piece-preview-tab {
+      box-sizing: border-box;
+      min-height: 40px !important;
+      height: 40px !important;
+    }
+    .ledger-results-toolbar .ledger-results-sort,
+    .ledger-ticket-field > .select,
+    .ledger-card-edit-inline .select {
+      box-sizing: border-box;
+      min-height: 40px !important;
+      height: 40px !important;
+    }
+    .btn,
+    button.btn,
+    button.secondary,
+    .secondary,
+    button[type="submit"],
+    .share-private-notes-clear {
+      box-sizing: border-box;
+      min-height: 40px !important;
+    }
+    .share-private-notes-clear {
+      min-width: 40px !important;
+    }
+    input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+    select,
+    textarea {
+      box-sizing: border-box;
+      min-height: 40px !important;
+    }
+    .lbt-glossary-term {
+      display: inline-flex !important;
+      align-items: center;
+      min-height: 40px !important;
+      padding-inline: 5px;
+    }
+    .lbt-glossary-popover-close {
+      box-sizing: border-box;
+      width: 40px !important;
+      min-width: 40px !important;
+      height: 40px !important;
+      min-height: 40px !important;
+    }
+  }
 </style>
 </head>
 <body style="background-color:#14110d">
