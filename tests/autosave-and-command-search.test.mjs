@@ -17,7 +17,7 @@ test("端末内自動保存は成功と失敗を区別し、保存不能時に�
   assert.match(app, /backup\.textContent = "\\u4F5C\\u696D\\u72B6\\u614B\\u3092\\u4FDD\\u5B58"/);
   assert.match(app, /anchor\.dataset\.autosave = saveStateLabel/);
   assert.match(app, /anchor\.dataset\.autosaveState = saveStatus\.phase/);
-  assert.match(app, /anchor\.setAttribute\("aria-label", `\\u30AF\\u30A4\\u30C3\\u30AF\\u691C\\u7D22\\u3002\$\{saveStateLabel\}`\)/);
+  assert.match(app, /anchor\.setAttribute\("aria-label", `\\u30AF\\u30A4\\u30C3\\u30AF\\u691C\\u7D22 ⌘K\\u3002\$\{saveStateLabel\}`\)/);
   assert.ok(app.indexOf("const saveStateLabel") < app.indexOf("window.App = App;"), "自動保存状態の副作用はAppコンポーネント内に置く");
   assert.match(app, /return \(\) => indicator\.remove\(\);/);
 });
