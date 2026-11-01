@@ -140,13 +140,13 @@ async function readMetrics() {
        inside the current viewport are considered; the 40px rule applies to phones. */
     const touchTargetSelector = [
       ".topbar-search", ".topbar-balance", ".preview-mobile-toggle", ".acct-close", ".import-router-close",
-      "button.btn-sm", "button.btn", "button.secondary", "button[type=\"submit\"]", ".share-private-notes-clear", ".btype-back-link", ".btype-record-hub .btype-page-heading > button.primary",
+      "button.btn-sm", "button.btn", "button.secondary", "button[type=\"submit\"]", ".share-private-notes-clear", ".btype-back-link", ".btype-record-hub .btype-page-heading > .record-import-launch",
       ".piece-art-actions > button", ".piece-tab", ".piece-preview-tab",
       ".acct-gate-edit-btn", ".acct-upload-btn", ".pw-listbar-toggle",
       ".lbt-glossary-term", ".lbt-glossary-popover-close", "button.rm", ".es-kw-add",
       'input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"])',
       "select", "textarea",
-      ".acct-card-actions .acct-icon-btn", ".acct-gate-edit-btn", ".spp-slot .rm", ".record-import-launch", ".p-fav",
+      ".acct-card-actions .acct-icon-btn", ".record-import-launch", ".p-fav",
       ".utility-sheet-close", ".detail-dialog-close", ".ego-quick-close",
       ".persona-draft-dialog button.btn-icon", "button.btn-icon", ".es-kw-rm",
       ".ledger-reward-item-chip button", ".reorder-btn", ".ledger-row-move-action",
@@ -622,6 +622,21 @@ async function boot() {
         || gateMetrics.gridOverflowY !== "auto" || gateMetrics.panelOverflowY !== "hidden") {
         throw new Error("複数アカウントの起動ゲートで一覧スクロール／カード行高が期待どおりではありません: " + JSON.stringify(gateMetrics));
       }
+      // The edit affordance is a separate target from the card-selection hit area.
+      const edit=page.locator(".acct-card--gate").filter({hasText:"UI監査用キャラクター"}).locator(".acct-gate-edit-btn").first();
+      if(await visible(edit)) {
+        const editRect=await edit.evaluate(el=>{const r=el.getBoundingClientRect();return {width:r.width,height:r.height};});
+        if(view.startsWith("mobile") && (editRect.width<40 || editRect.height<40))
+          throw new Error("SINNER SELECT編集ボタンが40x40px未満です: "+JSON.stringify(editRect));
+        await click(edit);
+        const manager=page.locator(".acct-overlay").first();
+        await manager.waitFor({state:"visible",timeout:5000});
+        const form=manager.locator(".acct-card--form").first();
+        await form.waitFor({state:"visible",timeout:5000});
+        await snap("account-gate-edit-form","起動時SINNER SELECTから対象アカウントの編集へ入った状態");
+        await closeOverlay();
+        await gate.waitFor({state:"visible",timeout:5000});
+      }
       // Match the card (which contains the account name), then click its transparent hit area.
       // Filtering .acct-card-hit itself by text is unreliable because that button is intentionally blank.
       const card=page.locator(".acct-card--gate").filter({hasText:"UI監査用キャラクター"}).first();
@@ -770,6 +785,31 @@ async function captureProfile(browser, mode) {
             const item=page.locator(sel).first();
             if(await visible(item)) { await item.hover().catch(()=>{}); await snap("support-passive-hover","サポート候補のホバー状態"); break; }
           }
+          await attempt("support-slot-remove-touch-target",async()=>{
+            const slot=page.locator(".spp-slot.is-filled").first();
+            const remove=slot.locator(":scope > .rm").first();
+            if(!(await visible(remove))) throw new Error("装備中サポートの解除ボタンがありません");
+            const geometry=await slot.evaluate(el=>{
+              const remove=el.querySelector(":scope > .rm");
+              const reorder=el.querySelector(".reorder-btns");
+              const a=remove?.getBoundingClientRect();
+              const b=reorder?.getBoundingClientRect();
+              return {
+                remove:a?{x:a.x,y:a.y,width:a.width,height:a.height}:null,
+                reorder:b?{x:b.x,y:b.y,width:b.width,height:b.height}:null,
+                overlap:!!(a&&b&&a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top)
+              };
+            });
+            if(mobile && (!geometry.remove || geometry.remove.width<40 || geometry.remove.height<40))
+              throw new Error("サポート解除ボタンが40x40px未満です: "+JSON.stringify(geometry));
+            if(geometry.overlap) throw new Error("サポート解除と並べ替えの当たり判定が重なっています: "+JSON.stringify(geometry));
+            const before=await page.locator(".spp-slot.is-filled").count();
+            await click(remove);
+            await page.waitForFunction((count)=>document.querySelectorAll(".spp-slot.is-filled").length===count-1,before,{timeout:3000});
+            const after=await page.locator(".spp-slot.is-filled").count();
+            if(after!==before-1) throw new Error("サポート解除で1枠だけ外れません: "+before+" -> "+after);
+            await snap("support-slot-remove-action","サポートの解除ボタンを押し、選択中の枠が1つだけ外れた状態");
+          });
         }
       });
     }
