@@ -1,4 +1,4 @@
-import { loadPlaywright, BASE_URL } from "./harness.mjs";
+import { loadPlaywright, openApp } from "./harness.mjs";
 
 /* 利用者から見える応答性を測る。
  * 1) フォントの謎: 実際に落ちるのは Noto Sans JP 700 だけなのに、本文の漢字は
@@ -9,15 +9,7 @@ import { loadPlaywright, BASE_URL } from "./harness.mjs";
 
 const { chromium } = loadPlaywright();
 const b = await chromium.launch({ headless: true });
-const page = await (await b.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
-await page.route("**/*", async (route) => {
-  const u = route.request().url();
-  if (/\.(css|js|json|woff2)\?v=/.test(u)) return route.continue({ url: u.replace(/v=[0-9a-f]+/, "v=" + Date.now()) });
-  return route.continue();
-});
-await page.goto(BASE_URL, { waitUntil: "load", timeout: 90000 });
-await page.waitForSelector(".rail-item", { timeout: 90000 });
-await page.waitForTimeout(1500);
+const { context, page } = await openApp(b, { width: 1440, height: 900, bypassCache: true });
 
 /* ---- 1) 本文の漢字が 400 と 700 で違う濃さで描かれるか ---- */
 const ink = await page.evaluate(async () => {
@@ -46,10 +38,12 @@ const ink = await page.evaluate(async () => {
 /* ---- 2) 実 DOM における本文の描画.switch 応答 ---- */
 const latency = await page.evaluate(async () => {
   const out = [];
-  const rail = document.querySelectorAll(".rail-item");
-  for (const idx of [1, 2, 3, 4, 5, 7]) {
+  const routes = ["ホーム", "ビルド", "ショップ", "記録・所持品", "詳細設定", "使い方"];
+  for (const title of routes) {
+    const target = document.querySelector('.rail-item[title="' + title + '"]');
+    if (!target) throw new Error("navigation route missing: " + title);
     const t0 = performance.now();
-    rail[idx].click();
+    target.click();
     // 次のフレーム描画まで + セクション見出しの入れ替わり
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     const paint = performance.now() - t0;
@@ -60,7 +54,7 @@ const latency = await page.evaluate(async () => {
 });
 
 /* ---- 3) 入力と自動保存 ---- */
-await page.locator(".rail-item").nth(0).click();
+await page.locator('.rail-item[title="ホーム"]').click();
 await page.waitForTimeout(600);
 const memoInput = await page.evaluate(() => {
   const cands = [...document.querySelectorAll("textarea,input[type=text]")];
