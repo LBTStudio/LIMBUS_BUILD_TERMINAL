@@ -135,7 +135,7 @@ async function readMetrics() {
        from decorative links and native checkbox glyphs. Only visible targets
        inside the current viewport are considered; the 40px rule applies to phones. */
     const touchTargetSelector = [
-      ".topbar-search", ".preview-mobile-toggle", ".acct-close", ".import-router-close",
+      ".topbar-search", ".topbar-balance", ".preview-mobile-toggle", ".acct-close", ".import-router-close",
       ".acct-card-actions .acct-icon-btn", ".p-fav",
       ".utility-sheet-close", ".detail-dialog-close", ".ego-quick-close",
       ".persona-draft-dialog button.btn-icon", "button.btn-icon", ".es-kw-rm",
@@ -162,6 +162,24 @@ async function readMetrics() {
           && (item.width < 40 || item.height < 40))
       : [];
 
+    /* 既知セレクターだけでは新しい操作部品を見落とすため、画面内にある全操作要素を
+       補助計測する。これは初回は診断専用で、見た目上の小型チップ等を誤ってCI失敗にしない。 */
+    const smallActionableTargets = [...document.querySelectorAll(
+      'button,[role="button"],a[href],input:not([type="checkbox"]):not([type="radio"]),select,textarea,summary'
+    )].filter(isVisible).map(e => {
+      const r = e.getBoundingClientRect();
+      return {
+        label: (e.getAttribute("aria-label") || e.innerText || e.getAttribute("title") || e.getAttribute("placeholder") || "").trim().replace(/\\s+/g," ").slice(0,64),
+        tag: e.tagName.toLowerCase(),
+        type: e.getAttribute("type") || "",
+        className: typeof e.className === "string" ? e.className : "",
+        width: r.width,
+        height: r.height,
+        rect: rect(e)
+      };
+    }).filter(item => item.rect.x < innerWidth && item.rect.y < innerHeight
+      && item.rect.x + item.width > 0 && item.rect.y + item.height > 0
+      && (item.width < 40 || item.height < 40)).slice(0, 100);
     const horizontalScrollers=[...document.querySelectorAll("body *")].filter(e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);return r.width>80&&r.height>20&&e.scrollWidth>e.clientWidth+12&&["auto","scroll","hidden"].includes(s.overflowX);}).slice(0,24).map(e=>({tag:e.tagName,className:typeof e.className==="string"?e.className:"",label:(e.getAttribute("aria-label")||e.innerText||"").trim().replace(/\s+/g," ").slice(0,42),clientWidth:e.clientWidth,scrollWidth:e.scrollWidth,overflowX:getComputedStyle(e).overflowX,rect:rect(e)}));
     const layoutElements=[...document.querySelectorAll("#lbt-preview-edge-toggle,.preview,.preview-reopen,.preview-close,.preview-edge-toggle,.preview-actions,.preview-hint,.preview-tabs,.focus,.rail,.section-title-row,.section-title,.build-tabs,.baseinfo-workspace,.piece-hero-grid,.build-params-shell,.build-params-tabs,.basic-ccfolia-preview,.basic-preview-mode-tabs,.basic-preview-panel,.record-tabbar")].filter(isVisible).map(e=>{const s=getComputedStyle(e);return {tag:e.tagName,id:e.id||"",className:typeof e.className==="string"?e.className:"",text:(e.innerText||"").trim().replace(/\s+/g," ").slice(0,48),rect:rect(e),style:{position:s.position,display:s.display,top:s.top,right:s.right,bottom:s.bottom,width:s.width,height:s.height,writingMode:s.writingMode,opacity:s.opacity,zIndex:s.zIndex,pointerEvents:s.pointerEvents}};});
     const buildTablistMetrics = (() => {
@@ -187,7 +205,7 @@ async function readMetrics() {
           || r.x + r.width > element.getBoundingClientRect().right + 1).length
       };
     })();
-    return {viewport:{width:innerWidth,height:innerHeight},document:{width:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight},horizontalOverflow:document.documentElement.scrollWidth>innerWidth+2,horizontalScrollers,layoutElements,dialogs,smallTargets,touchTargetViolations,buildTablistMetrics,activeElement:document.activeElement?{tag:document.activeElement.tagName,aria:document.activeElement.getAttribute("aria-label"),text:(document.activeElement.innerText||"").trim().slice(0,40)}:null};
+    return {viewport:{width:innerWidth,height:innerHeight},document:{width:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight},horizontalOverflow:document.documentElement.scrollWidth>innerWidth+2,horizontalScrollers,layoutElements,dialogs,smallTargets,smallActionableTargets,touchTargetViolations,buildTablistMetrics,activeElement:document.activeElement?{tag:document.activeElement.tagName,aria:document.activeElement.getAttribute("aria-label"),text:(document.activeElement.innerText||"").trim().slice(0,40)}:null};
   });
 }
 async function snap(name, note) {
