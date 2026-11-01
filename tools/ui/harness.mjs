@@ -234,7 +234,7 @@ export async function walkSections(page, { onSection } = {}) {
   return counts;
 }
 
-/** 12 セクションのスクリーンショットを撮る。ファイル名は <tag>-<番号>-<名称>.png。 */
+/** 26 UIビューのスクリーンショットを撮る。ファイル名は <tag>-<番号>-<名称>.png。 */
 /* スクリーンショット前に document.fonts.ready を待つ。
  * font-display: swap のため、固定 sleep だけではフォント未ロード時の
  * 代替書体で撮れることがある。Google Fonts の応答が変わると読み込み順も
