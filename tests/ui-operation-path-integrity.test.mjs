@@ -246,3 +246,18 @@ test("ダイアログ状態のaxe診断が実行エラーになった場合はUI
   assert.match(captureAudit, /audit\.accessibilityScanCount = audit\.accessibilityScans\.length/);
   assert.match(captureAudit, /audit\.accessibilityViolationNodeCount/);
 });
+
+
+test("SINNER SELECTの新規作成をAPI直呼びで迂回せずフォーム送信の結果で判定する", () => {
+  const start = captureAudit.indexOf('const add=page.locator(".acct-card--add")');
+  const end = captureAudit.indexOf("await mainNavigation().first().waitFor", start);
+  assert.ok(start >= 0 && end > start);
+  const creation = captureAudit.slice(start, end);
+  assert.match(creation, /await click\(add\)/);
+  assert.match(creation, /await name\.fill\("UI監査用キャラクター"\)/);
+  assert.match(creation, /await click\(create\)/);
+  assert.match(creation, /if\(!\(await visible\(mainNavigation\(\)\.first\(\)\)\)\)[\s\S]*?throw new Error/);
+  assert.doesNotMatch(creation, /LBT_accounts[\s\S]*?\.create\(/, "アカウント作成APIを直接呼び出して画面操作を代替しない");
+  assert.doesNotMatch(creation, /lbt:accounts-entered/, "画面遷移イベントを直接発火しない");
+  assert.doesNotMatch(creation, /accountCreateFallback/);
+});
