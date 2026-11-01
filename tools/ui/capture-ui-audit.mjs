@@ -1615,6 +1615,43 @@ async function captureProfile(browser, mode) {
         await toggle.scrollIntoViewIfNeeded();
         await click(toggle);
         await snap("account-share-url-import","共有URLから取り込む入口");
+        await click(toggle);
+        const actions=editor.locator(".acct-form-actions").first();
+        await actions.scrollIntoViewIfNeeded();
+        const actionGeometry=await page.evaluate(()=>{
+          const grid=document.querySelector(".acct-panel > .acct-grid");
+          const actions=grid?.querySelector(".acct-form-actions");
+          const r=actions?.getBoundingClientRect();
+          const g=grid?.getBoundingClientRect();
+          return {
+            exists:!!actions,
+            buttonCount:actions?.querySelectorAll("button").length||0,
+            top:r?.top??null,
+            bottom:r?.bottom??null,
+            gridTop:g?.top??null,
+            gridBottom:g?.bottom??null,
+            insideGrid:!!(r&&g&&r.top>=g.top-1&&r.bottom<=g.bottom+1),
+            insideViewport:!!(r&&r.top>=0&&r.bottom<=innerHeight)
+          };
+        });
+        if(!actionGeometry.exists || actionGeometry.buttonCount<2
+          || !actionGeometry.insideGrid || !actionGeometry.insideViewport){
+          throw new Error("アカウント編集の保存／キャンセル操作までスクロールで到達できません: "+JSON.stringify(actionGeometry));
+        }
+        await snap("account-edit-actions-visible","編集フォーム末尾の保存／キャンセルをスクロールして表示");
+        await click(actions.getByRole("button",{name:"キャンセル",exact:true}));
+        await page.waitForFunction(()=>!document.querySelector(".acct-panel > .acct-grid.is-editing"),{timeout:3000});
+        const restore=await page.evaluate(()=>{
+          const panel=document.querySelector(".acct-panel");
+          const backup=panel?.querySelector(":scope > .lbt-cloud-panel");
+          const r=backup?.getBoundingClientRect();
+          return {backupVisible:!!backup&&getComputedStyle(backup).display!=="none"&&!!r&&r.width>0&&r.height>0,
+            formRemaining:!!panel?.querySelector(":scope > .acct-grid.is-editing")};
+        });
+        if(!restore.backupVisible || restore.formRemaining){
+          throw new Error("編集キャンセル後に一覧／オンライン保全欄へ戻りません: "+JSON.stringify(restore));
+        }
+        await snap("account-edit-cancel-restores-list","編集をキャンセルして一覧とオンライン保全欄が戻った状態");
       }
       await closeOverlay();
     });
