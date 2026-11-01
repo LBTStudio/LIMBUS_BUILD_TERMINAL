@@ -141,7 +141,7 @@ test("モバイルの主要操作対象を40x40px以上にし、監査CIで未�
     ".btype-record-hub .btype-page-heading > button.primary",
     ".piece-art-actions > button", ".piece-tab", ".piece-preview-tab",
     ".acct-gate-edit-btn", ".acct-upload-btn", ".pw-listbar-toggle",
-    ".lbt-glossary-term", "button.rm", ".es-kw-add",
+    ".lbt-glossary-term", ".lbt-glossary-popover-close", "button.rm", ".es-kw-add",
     'input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"])'
   ]) assert.ok(touchStyles.includes(selector), "モバイル操作・入力対象の高さを40pxへ: " + selector);
   assert.ok(touchStyles.includes(".topbar-balance"), "残高チップもタップ可能な画面遷移ボタンとして扱う");
@@ -170,7 +170,7 @@ test("モバイルの主要操作対象を40x40px以上にし、監査CIで未�
   for (const selector of [
     "button.btn-sm", ".btype-back-link", ".piece-art-actions > button",
     ".piece-tab", ".piece-preview-tab", ".acct-gate-edit-btn",
-    ".acct-upload-btn", ".pw-listbar-toggle", ".lbt-glossary-term",
+    ".acct-upload-btn", ".pw-listbar-toggle", ".lbt-glossary-term", ".lbt-glossary-popover-close",
     "button.rm", ".es-kw-add", '"select", "textarea"'
   ]) assert.ok(captureAudit.includes(selector), "監査で操作寸法を確認する: " + selector);
   assert.match(captureAudit, /smallActionableTargets/);
