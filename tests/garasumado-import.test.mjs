@@ -409,6 +409,8 @@ test("チケット枚数の小数・不正な桁区切りは整数へ切り詰�
   for (const line of ["人格抽出チケット×2.5消費", "人格抽出チケット×1,20消費", "人格抽出チケット×-2消費"]) {
     const parsed = MEMO.parseMemo(line);
     assert.equal(parsed.ticketSpends.length, 0, line + " は消費枚数を確定しない");
+    assert.equal(parsed.tickets.persona + parsed.tickets.ego + parsed.tickets.choice, 0,
+      line + " の不正枚数を収入へ切り詰めて計上しない");
     assert.ok(parsed.financialCoverage.some((row) => row.status === "reviewed-by-parser-reason" || row.status === "unresolved"), line + " は要確認coverageを残す");
     assert.ok(parsed.reasons.some((row) => /チケット枚数/.test(row.reason)), line + " は正整数でない枚数を要確認へ残す");
   }
@@ -418,6 +420,15 @@ test("チケット枚数の小数・不正な桁区切りは整数へ切り詰�
   assert.equal(priceLimit.ticketSpends.length, 0, "LP価格上限をチケット枚数と誤認しない");
   assert.ok(!priceLimit.reasons.some((row) => /チケット枚数/.test(row.reason)),
     "価格条件だけの数字は不正枚数の警告にも変換しない");
+});
+
+test("消費見出し行に書かれた曖昧チケットも収入・通貨支出と分けて使用証跡を残す", () => {
+  const parsed = MEMO.parseMemo("消費：人格orE.G.O抽出チケット×1、LP100");
+  assert.equal(parsed.ticketSpends.length, 1);
+  assert.equal(parsed.ticketSpends[0].kind, "unknown");
+  assert.equal(parsed.tickets.persona, 0);
+  assert.equal(parsed.tickets.ego, 0);
+  assert.equal(parsed.income.lp, 0);
 });
 
 test("種別不明のチケット消費は黙って人格券として確定せず、要確認に残す", () => {

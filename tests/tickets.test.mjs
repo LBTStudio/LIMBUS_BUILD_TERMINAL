@@ -223,7 +223,7 @@ test("SPEND_TICKET の明示的な0枚は既定の1枚消費にならない", ()
 
 test("チケット・通貨残高計算は欠落または不正な配列入力で例外を出さない", () => {
   assert.deepEqual(reducer(withResult({}), { type: "NOOP" }).entries, []);
-  assert.deepEqual(balanceOf({ results: {}, entries: {} }), {
+  assert.deepEqual(JSON.parse(JSON.stringify(balanceOf({ results: {}, entries: {} }))), {
     persona: 0, ego: 0, choice: 0, pack: {}
   });
   const ledger = context.window.LBT_computeLedgerBalance({}, {});

@@ -1004,60 +1004,85 @@ function toIdentityChoices(hits) {
      レビュー待ちとして保存する。sourceKey + 行番号 + 候補種別で再取込時も同一行を指す。
      本文全体や共有URLは参照として保存しない。 */
   function buildFinancialReviewCandidates(scenario) {
-    const rowsByLine = new Map();
+    /* 同じ原文行に通貨とチケットの双方の不確実性がある場合は、候補を別々に持つ。
+       行番号だけをMap keyにすると、一方の警告が他方を上書きしてしまう。 */
+    const rowsByLineAndCategory = new Map();
     const memoLines = String(scenario?.memo || "").split(/\r?\n/);
     const locateLine = (line, fallback) => {
       const raw = String(line || "");
       if (Number.isSafeInteger(Number(fallback)) && Number(fallback) > 0) return Number(fallback);
       const matches = [];
       memoLines.forEach((candidate, index) => { if (candidate === raw) matches.push(index + 1); });
-      /* 同じ原文行が複数あるのに parser が行番号を返していない場合は推測しない。 */
       return matches.length === 1 ? matches[0] : 0;
     };
-    const ensure = (lineIndex, line, candidateType) => {
+    const isTicketReason = (message, code) => {
+      const text = String(message || "");
+      const marker = String(code || "");
+      return /malformed-ticket-count|ticket-count|ticket-kind/i.test(marker)
+        || /(?:チケット枚数|券種|対象パック名|チケット.*(?:未確定|保留|要確認|不明|曖昧))/.test(text)
+        || (/(?:チケット|チケ|抽出🎫)/.test(text)
+          && /(?:枚数|種別|使用|消費|獲得|受領|対象|パック|保留|不明|曖昧|正の整数)/.test(text));
+    };
+    const ensure = (lineIndex, line, candidateType, category) => {
       const index = Number(lineIndex);
       if (!Number.isSafeInteger(index) || index < 1) return null;
       const raw = String(line || memoLines[index - 1] || "").slice(0, 2000);
       if (!raw) return null;
-      let row = rowsByLine.get(index);
+      const normalizedCategory = category === "ticket" ? "ticket" : "currency";
+      const mapKey = String(index) + ":" + normalizedCategory;
+      let row = rowsByLineAndCategory.get(mapKey);
       if (!row) {
         const sourceKey = String(scenario?.importSourceKey || "").trim().slice(0, 180);
         const scope = String(scenario?.financialReviewSourceKey || "").trim()
           || sourceKey || String(scenario?.key || scenario?.name || "scenario").slice(0, 80);
-        const type = String(candidateType || "financial-review").slice(0, 36);
+        const baseKey = ("gara-review:" + scope.slice(0, 130) + ":" + index).slice(0, 170);
+        /* ticket key は旧版と同じ値を保ち、確定済み候補の entry.ref.uid を維持する。
+           同一行の currency candidate だけ suffix で分離する。 */
         row = {
-          /* candidateType/status は再解析で変わり得るため識別子へ含めない。
-             元共有元・元行番号・後段の原文一致検査で決める。 */
-          key: ("gara-review:" + scope.slice(0, 130) + ":" + index).slice(0, 180),
+          key: normalizedCategory === "ticket" ? baseKey : (baseKey + ":currency").slice(0, 180),
           sourceId: String(scenario?.sourceId || "").slice(0, 120),
           sourceKey,
           scenarioKey: String(scenario?.key || "").slice(0, 80),
-          scenarioIndex: Number.isSafeInteger(Number(scenario?.scenarioIndex)) ? Number(scenario.scenarioIndex) : null,
-          sourceIndex: Number.isSafeInteger(Number(scenario?.sourceIndex)) ? Number(scenario.sourceIndex) : null,
+          scenarioIndex: scenario?.scenarioIndex == null || scenario.scenarioIndex === ""
+            ? null : (Number.isSafeInteger(Number(scenario.scenarioIndex)) ? Number(scenario.scenarioIndex) : null),
+          sourceIndex: scenario?.sourceIndex == null || scenario.sourceIndex === ""
+            ? null : (Number.isSafeInteger(Number(scenario.sourceIndex)) ? Number(scenario.sourceIndex) : null),
           lineIndex: index,
           line: raw,
-          category: /(?:チケット|チケ|抽出🎫)/.test(raw) ? "ticket" : "currency",
-          candidateType: type,
+          category: normalizedCategory,
+          candidateType: String(candidateType || "financial-review").slice(0, 80),
           currency: "",
           amount: null,
           direction: "",
+          ticketKind: "",
+          ticketPack: "",
+          ticketCount: null,
+          ticketDirection: "",
           severity: "review",
           reason: "",
           evidence: { coverage: null, audits: [], reasons: [] },
           status: "pending"
         };
-        rowsByLine.set(index, row);
+        rowsByLineAndCategory.set(mapKey, row);
       }
       return row;
     };
     const reviewStatuses = new Set([
       "unitless-currency-review", "candidate-review", "direction-review",
       "current-balance-review", "balance-transition-review", "unresolved", "mismatch",
-      "reviewed-by-parser-reason", "financial-action-unaccounted"
+      "financial-action-unaccounted"
     ]);
     for (const coverage of Array.isArray(scenario?.financialCoverage) ? scenario.financialCoverage : []) {
       if (!coverage || !reviewStatuses.has(String(coverage.status || ""))) continue;
-      const row = ensure(coverage.lineIndex || locateLine(coverage.line), coverage.line, coverage.status);
+      const expected = coverage.expected || {};
+      const detected = coverage.detected || {};
+      const hasCurrencyAmount = [expected.lp, expected.shards, detected.lp, detected.shards]
+        .some((value) => Number.isSafeInteger(Number(value)) && Number(value) !== 0);
+      const line = String(coverage.line || "");
+      const category = hasCurrencyAmount || /LP|ＬＰ|欠片|欠け片|かけら|カケラ/.test(line)
+        ? "currency"
+        : /(?:チケット|チケ|抽出🎫)/.test(line) ? "ticket" : "currency";
+      const row = ensure(coverage.lineIndex || locateLine(line), line, coverage.status, category);
       if (row) row.evidence.coverage = {
         status: String(coverage.status || ""),
         section: String(coverage.section || ""),
@@ -1070,20 +1095,23 @@ function toIdentityChoices(hits) {
     for (const audit of Array.isArray(scenario?.sourceAudits) ? scenario.sourceAudits : []) {
       if (!audit || !["review", "warning"].includes(String(audit.severity || ""))) continue;
       const lineIndex = audit.lineIndex || locateLine(audit.line);
-      const row = ensure(lineIndex, audit.line, audit.code || "financial-audit");
+      const auditCode = String(audit.code || "");
+      const auditMessage = String(audit.message || audit.detail || "");
+      const row = ensure(lineIndex, audit.line, audit.code || "financial-audit",
+        isTicketReason(auditMessage, auditCode) ? "ticket" : "currency");
       if (!row) continue;
       row.evidence.audits.push({
-        code: String(audit.code || "").slice(0, 80),
+        code: auditCode.slice(0, 80),
         side: String(audit.side || "").slice(0, 32),
-        severity: String(audit.severity || "review"),
-        message: String(audit.message || audit.detail || "").slice(0, 500)
+        severity: String(audit.severity || "review").slice(0, 16),
+        message: auditMessage.slice(0, 500)
       });
       if (audit.severity === "warning") row.severity = "warning";
     }
     for (const discrepancy of Array.isArray(scenario?.currencyDiscrepancies) ? scenario.currencyDiscrepancies : []) {
       if (!discrepancy) continue;
       const lineIndex = locateLine(discrepancy.line);
-      const row = ensure(lineIndex, discrepancy.line, discrepancy.code || "currency-discrepancy");
+      const row = ensure(lineIndex, discrepancy.line, discrepancy.code || "currency-discrepancy", "currency");
       if (!row) continue;
       row.evidence.audits.push({
         code: String(discrepancy.code || "currency-discrepancy").slice(0, 80),
@@ -1095,12 +1123,33 @@ function toIdentityChoices(hits) {
     }
     for (const reason of Array.isArray(scenario?.reasons) ? scenario.reasons : []) {
       const message = String(reason?.reason || "");
-      if (!/(読み取れない|未確定|未計上|要確認|通貨単位|方向を確認|確定できない)/.test(message)) continue;
-      const lineIndex = locateLine(reason.line);
-      const row = ensure(lineIndex, reason.line, "unresolved-expense");
+      const line = String(reason?.line || "");
+      const ticketReason = isTicketReason(message, line);
+      const currencyReason = /(?:読み取れない|未確定|未計上|要確認|通貨単位|方向を確認|確定できない|支出金額|金額|残高|価格|LP|欠片)/.test(message);
+      if (!ticketReason && !currencyReason) continue;
+      const category = ticketReason ? "ticket" : "currency";
+      const row = ensure(locateLine(line, reason?.lineIndex), line,
+        ticketReason ? "unresolved-ticket" : "unresolved-expense", category);
       if (row && !row.evidence.reasons.includes(message)) row.evidence.reasons.push(message.slice(0, 500));
     }
-    return [...rowsByLine.values()].map((row) => {
+    /* parser が未知券種・対象不明パック・枚数不正を ticketSpends に返したとき、
+       reasons の文言形式に依存せず、必ず ticket review として残す。 */
+    for (const spend of Array.isArray(scenario?.ticketSpends) ? scenario.ticketSpends : []) {
+      if (!spend) continue;
+      const knownKind = ["persona", "ego", "choice", "pack"].includes(spend.kind);
+      const missingPack = spend.kind === "pack" && !String(spend.pack || "").trim();
+      const validCount = Number.isSafeInteger(Number(spend.count)) && Number(spend.count) > 0;
+      if (knownKind && !missingPack && validCount) continue;
+      const line = String(spend.raw || "").trim();
+      const row = ensure(locateLine(line, spend.lineIndex), line, "unresolved-ticket-spend", "ticket");
+      if (row) {
+        const reason = !knownKind ? "チケットの種別を確定できません。"
+          : missingPack ? "使用したパック名を特定できません。"
+          : "チケット枚数を正の整数として確定できません。";
+        if (!row.evidence.reasons.includes(reason)) row.evidence.reasons.push(reason);
+      }
+    }
+    return [...rowsByLineAndCategory.values()].map((row) => {
       const messages = [
         ...(row.evidence.audits || []).map((audit) => audit.message),
         ...(row.evidence.reasons || [])
@@ -1348,13 +1397,15 @@ function toIdentityChoices(hits) {
       const financialReviews = buildFinancialReviewCandidates(scenario);
       const normalizeReviewLine = (value) => String(value || "")
         .normalize("NFKC").replace(/現座/g, "現在").replace(/\s+/g, "").trim();
-      const hasPendingFinancialReview = (rawLine, fallbackName) => {
+      const hasPendingFinancialReview = (rawLine, fallbackName, category) => {
         const rawKey = normalizeReviewLine(rawLine);
         const nameKeyValue = normalizeReviewLine(fallbackName);
-        return financialReviews.some((candidate) => candidate.status === "pending" && (
-          (rawKey && normalizeReviewLine(candidate.line) === rawKey)
-          || (nameKeyValue && normalizeReviewLine(candidate.line).includes(nameKeyValue))
-        ));
+        return financialReviews.some((candidate) => candidate.status === "pending"
+          && (!category || candidate.category === category)
+          && (
+            (rawKey && normalizeReviewLine(candidate.line) === rawKey)
+            || (nameKeyValue && normalizeReviewLine(candidate.line) === nameKeyValue)
+          ));
       };
       actions.push({
         type: "ADD_RESULT",
@@ -1384,12 +1435,12 @@ function toIdentityChoices(hits) {
       /* チケット消費は収入に加算しない。履歴に使用と明記された分だけ消費アクションにする。 */
       for (const spend of scenario.ticketSpends || []) {
         if (!spend) continue;
-        if (hasPendingFinancialReview(spend.raw, "")) {
-          skipped.push({ key: scenario.key, reason: "チケット使用行に未確定の会計警告があるため、消費枚数を保留しました: " + String(spend.raw || "") });
-          continue;
-        }
         if (!["persona", "ego", "choice", "pack"].includes(spend.kind)) {
           skipped.push({ key: scenario.key, reason: "チケットの種別が曖昧なため消費記録を確定できません: " + String(spend.raw || "") });
+          continue;
+        }
+        if (hasPendingFinancialReview(spend.raw, "", "ticket")) {
+          skipped.push({ key: scenario.key, reason: "チケット使用行に未確定の会計警告があるため、消費枚数を保留しました: " + String(spend.raw || "") });
           continue;
         }
         if (spend.kind === "pack" && !String(spend.pack || "").trim()) {
@@ -1494,7 +1545,7 @@ function toIdentityChoices(hits) {
         const rawLineKey = normalizeUncertainSpendLine(rawLine);
         /* 警告候補に紐づく行は、パーサが暫定的な数値を返していても確定計上しない。
            文字列として読めたことと、通貨・方向が確定したことは別。 */
-        if (hasPendingFinancialReview(rawLine, spend.name)) {
+        if (hasPendingFinancialReview(rawLine, spend.name, "currency")) {
           skipped.push({ key: scenario.key, reason: "金額・方向に未確定の警告があるため、支出を確定明細へ登録せず保留しました。原文を確認してください。" });
           continue;
         }
@@ -1517,7 +1568,7 @@ function toIdentityChoices(hits) {
       /* 利用者が選んだ購入分。memo の支出と二重にならないよう、
          それは選択されたものだけ足す。 */
       for (const pick of purchases[scenario.key] || []) {
-        if (hasPendingFinancialReview("", pick.name)) {
+        if (hasPendingFinancialReview("", pick.name, "currency")) {
           skipped.push({ key: scenario.key, reason: "購入候補に未確定の会計警告があるため、DB価格の自動計上を保留しました: " + String(pick.name || "") });
           continue;
         }
