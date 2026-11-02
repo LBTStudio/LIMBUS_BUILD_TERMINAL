@@ -414,6 +414,10 @@ test("チケット枚数の小数・不正な桁区切りは整数へ切り詰�
   }
   const valid = MEMO.parseMemo("人格抽出チケット×1,000消費");
   assert.equal(valid.ticketSpends[0]?.count, 1000, "正しい桁区切りの整数は保持する");
+  const priceLimit = MEMO.parseMemo("200LP以下の任意のテーマパックチケット");
+  assert.equal(priceLimit.ticketSpends.length, 0, "LP価格上限をチケット枚数と誤認しない");
+  assert.ok(!priceLimit.reasons.some((row) => /チケット枚数/.test(row.reason)),
+    "価格条件だけの数字は不正枚数の警告にも変換しない");
 });
 
 test("種別不明のチケット消費は黙って人格券として確定せず、要確認に残す", () => {
