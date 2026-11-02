@@ -147,8 +147,8 @@
     const ticketCountByMultiplier = text.match(new RegExp("[x×]\\s*(" + ticketCountPattern + ")(?![\\d.,])"));
     const ticketCountBySuffix = text.match(new RegExp("(?:チケ|チケット)\\s*(" + ticketCountPattern + ")\\s*枚(?![\\d.,])"));
     const hasMalformedTicketCount = !ticketCountByMultiplier && !ticketCountBySuffix && (
-      /[x×]\\s*[+＋−-]?\\s*[\\d.,]+/.test(text)
-      || /(?:チケ|チケット)\\s*[+＋−-]?\\s*[\\d.,]+/.test(text)
+      /[x×]\s*[+＋−-]?\s*[\d.,]+/.test(text)
+      || /(?:チケ|チケット)\s*[+＋−-]?\s*[\d.,]+/.test(text)
     );
     var hasCount = Boolean(ticketCountByMultiplier || ticketCountBySuffix);
     var hasType = /抽出|ガチャ|人格|E\.?G\.?O|エゴ|イゴ|選択|テーマパック/i.test(text);
