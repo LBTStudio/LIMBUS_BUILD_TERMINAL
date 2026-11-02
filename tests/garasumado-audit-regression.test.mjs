@@ -238,6 +238,22 @@ test("行番号付き新キーへの移行時も旧リザルト・旧取込明�
   "再取込でLP支出を二重計上しない");
 });
 
+test("同名・同日シナリオはリザルト出現順と会計確認行を別キーで識別する", () => {
+ const { roster } = loadAuditApis();
+ const manifest = roster.buildManifest({
+  owned: { personas: [], egos: [], supportPassives: [], spirits: [] },
+  scenarioHistory: [
+   { name: "同じ卓", date: "2026-11-03", memo: "・支出\n商品A 80LP", __lbtShareSourceId: "share-source-123", __lbtShareSourceIndex: 0 },
+   { name: "同じ卓", date: "2026-11-03", memo: "・支出\n商品B 90LP", __lbtShareSourceId: "share-source-123", __lbtShareSourceIndex: 1 }
+  ]
+ }, null, db);
+ assert.equal(manifest.scenarios.length, 2);
+ assert.notEqual(manifest.scenarios[0].importSourceKey, manifest.scenarios[1].importSourceKey,
+  "同名・同日のリザルトは出現順で別々に保つ");
+ assert.notEqual(manifest.scenarios[0].financialReviewSourceKey, manifest.scenarios[1].financialReviewSourceKey,
+  "確認候補は共有元行インデックスでも分離する");
+});
+
 test("同名・同日シナリオの並べ替えは共有行キーを変える", () => {
  const { memo, roster } = loadAuditApis();
  const raw = "対象品 87";
