@@ -1645,7 +1645,14 @@ test("同一のテキスト履歴を再計画しても安定した出典キー�
   const changed = T.plan(T.parseText("【再取込試験】\n報酬｜LP:11\n"), {});
   assert.notEqual(first.actions[0].importSourceKey, changed.actions[0].importSourceKey,
     "内容が変われば別バージョンとして扱う");
-});
+})
+test("履歴の先頭に別の記録を追加しても既存記録の出典キーは変わらない", () => {
+  const original = T.plan(T.parseText("【既存】\n報酬｜LP:10\n"), {});
+  const expanded = T.plan(T.parseText("【新規】\n報酬｜LP:20\n\n【既存】\n報酬｜LP:10\n"), {});
+  const oldKey = original.actions.find((action) => action.name === "既存").importSourceKey;
+  const retainedKey = expanded.actions.find((action) => action.name === "既存").importSourceKey;
+  assert.equal(retainedKey, oldKey, "絶対行番号ではなく内容に紐づける");
+});;
 test("消費欄に演算子のない複数数値がある場合、末尾値を支出として推測しない", () => {
   const parsed = T.parseText([
     "▼サポートパッシブ購入",
