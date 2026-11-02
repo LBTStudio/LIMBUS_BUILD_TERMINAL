@@ -470,6 +470,18 @@ test("初期リザルトからチケットを削除した後、後日報酬を�
   assert.equal(ticketBalance(acquired).persona, 1, "初期リザルトから消したチケットを後日報酬から補填しない");
   assert.equal(acquired.initialPersonaTicketAvailable, false, "存在しない初期権利を失効状態にする");
 });
+test("旧保存にアクティブ人格だけが残る場合も初回チケットを後日報酬に転用しない", () => {
+  const legacy = context.window.LBT_normalizeStateShape({
+    personaMode: "n", personaNo: 1, personaSrc: DB.normal_personas[0],
+    roster: { personas: [], egos: [], supports: [], spirits: [] },
+    results: [{ id: "res-initial", name: "初期作成", income: { lp: 30, shards: 10, tickets: { persona: 1 } } }],
+    entries: [], inventory: []
+  });
+  assert.equal(legacy.initialPersonaTicketAvailable, false, "アクティブ人格があれば初回権利を再開しない");
+  const rewarded = reducer(legacy, { type: "ADD_RESULT", name: "後日報酬", income: { lp: 0, shards: 0, tickets: { persona: 1 } } });
+  const later = reducer(rewarded, { type: "ADD_ROSTER", mode: "n", no: 2 });
+  assert.equal(ticketBalance(later).persona, 1, "後日チケットは消費しない");
+});
 test("旧保存に装備中人格が残りリザルトが欠落している場合、初回チケットを発行しない", () => {
   const legacy = context.window.LBT_normalizeStateShape({
     personaMode: "n", personaNo: 1,
@@ -558,11 +570,38 @@ test("履歴インポートでpersonaチケット消費と初回人格獲得が�
   assert.equal(ticketBalance(imported).persona, 1, "履歴に明示された1枚だけを消費し、初期作成分は重ねて引かない");
 });
 
-test("セーブの取り込みでは初期作成用チケットを消費しない", () => {
+test("セーブの取り込みでは初期チケットを使わず、後続の取得でも報酬分を消費しない", () => {
   const fresh = freshState();
   const imported = reducer(fresh, { type: "ADD_ROSTER_PERSONAS_BULK", personas: [{ mode: "n", no: 1 }] });
-  assert.equal(ticketBalance(imported).persona, 1, "取り込みは購入でも抽選でもないのでチケットは残る");
+  assert.equal(ticketBalance(imported).persona, 1, "取り込みはチケットを消費しない");
+  assert.equal(imported.initialPersonaTicketAvailable, false, "所持人格を移行したら初回権利だけ失効する");
+  const later = reducer(imported, { type: "ADD_ROSTER", mode: "n", no: 2 });
+  assert.equal(ticketBalance(later).persona, 1, "後続の人格追加でも残っているチケットを減らさない");
+  assert.equal(later.entries.filter((entry) => entry.kind === "ticket").length, 0);
 });
+
+test("ビルド画面から最初の人格を直接装備した場合は初期チケットだけを消費する", () => {
+  const fresh = freshState();
+  const equipped = reducer(fresh, {
+    type: "EQUIP_PERSONA", mode: "n", no: 1, src: DB.normal_personas[0]
+  });
+  assert.equal(equipped.roster.personas.length, 1, "装備時に未所持人格が登録される");
+  assert.equal(ticketBalance(equipped).persona, 0, "直接装備は初回取得として初期チケットを消費する");
+  assert.equal(equipped.initialPersonaTicketAvailable, false);
+});
+
+test("硝子窓のカスタム人格取り込みは初回権利だけを失効させる", () => {
+  const fresh = freshState();
+  const imported = reducer(fresh, {
+    type: "ADD_GARASUMADO_PERSONA",
+    source: { id: "fixture-source-001", url: "https://example.invalid/persona/view/1" },
+    persona: { __custom: true, name: "取込用人格", hp: 100, san: 45, speed: "1d5", skills: [{ name: "スキル1", dice: [] }] }
+  });
+  assert.equal(imported.roster.personas.length, 1, "カスタム人格が所持へ追加される");
+  assert.equal(ticketBalance(imported).persona, 1, "履歴取り込みではチケットを請求しない");
+  assert.equal(imported.initialPersonaTicketAvailable, false, "既存人格取り込み後に初回権利を残さない");
+});
+
 
 /* --- 購入可否は「必要な通貨だけ」と比べる -------------------------------
    欠片が負でも、欠片を必要としない人格購入（core:359 の20LP）は通す。
