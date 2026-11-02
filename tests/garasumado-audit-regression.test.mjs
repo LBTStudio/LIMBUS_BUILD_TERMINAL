@@ -142,7 +142,60 @@ test("同一共有元の再取込は確定候補を保持し、候補行を増�
  assert.equal(reimported.results[0].financialReviews[0].currency, "shards");
  assert.equal(reimported.results[0].financialReviews[0].amount, 12);
  assert.equal(reimported.entries.length, 0);
- assert.equal(reimported.results[0].income.shards, 12);
+ assert.equal(reimported.results[0].income.shards, 12,
+  "パーサ再出力に候補が残る間は、確定済み収入を再取込で失わない");
+});
+
+test("確定支出の明細を削除すると、元の確認候補が再びpendingへ戻る", () => {
+ const { memo, roster } = loadAuditApis();
+ const raw = "東部親指ソルダードII 87";
+ const parsed = memo.parseMemo("・支出\n" + raw);
+ const manifest = { groups: [], scenarios: [scenario("scenario:0", [], {
+  importSourceKey: "gara1:share-source-123:row0:2026-11-03:scenario-a:1",
+  sourceId: "share-source-123", memo: "・支出\n" + raw, ...parsed
+ })] };
+ const { actions } = roster.toDispatchActions(manifest, [], { db });
+ const context = { window: { DB: db, console }, console, URL, TextEncoder, TextDecoder, setTimeout, clearTimeout };
+ context.globalThis = context;
+ vm.runInNewContext(read("../js/ledger-provenance.js"), context, { filename: "ledger-provenance.js" });
+ vm.runInContext(read("../js/state.js"), context, { filename: "state.js" });
+ const reducer = context.window.appReducer;
+ const imported = reducer({
+  results: [], entries: [], roster: { personas: [], egos: [], supports: [], spirits: [] }, inventory: []
+ }, { type: "APPLY_IMPORT_BATCH", actions });
+ const review = imported.results[0].financialReviews[0];
+ const resolved = reducer(imported, {
+  type: "RESOLVE_FINANCIAL_REVIEW", resultId: imported.results[0].id,
+  candidateKey: review.key, currency: "lp", direction: "spend", amount: 87
+ });
+ const entry = resolved.entries.find((row) => row.ref?.kind === "financialReview");
+ assert.ok(entry);
+ const deleted = reducer(resolved, { type: "PURGE_ENTRY", id: entry.id });
+ assert.equal(deleted.entries.length, 0);
+ assert.equal(deleted.results[0].financialReviews[0].status, "pending");
+ assert.equal(deleted.results[0].financialReviews[0].amount, null);
+});
+
+test("同名・同日シナリオの並べ替えは共有行キーを変える", () => {
+ const { memo, roster } = loadAuditApis();
+ const raw = "対象品 87";
+ const parsed = memo.parseMemo("・支出\n" + raw);
+ const makeManifest = (sourceIndex) => ({
+  groups: [],
+  scenarios: [scenario("scenario:0", [], {
+   sourceId: "share-source-123",
+   sourceIndex,
+   scenarioIndex: sourceIndex,
+   importSourceKey: "",
+   memo: "・支出\n" + raw,
+   date: "2026-11-03",
+   ...parsed
+  })]
+ });
+ const actionsA = roster.toDispatchActions(makeManifest(0), [], { db }).actions;
+ const actionsB = roster.toDispatchActions(makeManifest(1), [], { db }).actions;
+ assert.notEqual(actionsA.find((action) => action.type === "ADD_RESULT").financialReviews[0].key,
+  actionsB.find((action) => action.type === "ADD_RESULT").financialReviews[0].key);
 });
 
 test("取込リデューサーは固有keyで明細の帰属先を解決する", () => {

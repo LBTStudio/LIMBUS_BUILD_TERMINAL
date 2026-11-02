@@ -754,12 +754,17 @@ function toIdentityChoices(hits) {
         const name = String(row.name || "").trim() || "無題";
         const sourceId = String(row.__lbtShareSourceId || "").trim();
         const sourceDate = String(row.date || row.createdAt || row.at || "").trim().slice(0, 10);
-        const occurrenceScope = JSON.stringify([sourceId, sourceDate, nameKey(name)]);
+        /* 共有文書内の元配列位置をキーへ含める。同名・同日シナリオの並べ替えで
+           古い会計判断を別の履歴へ引き継がない。旧共有行で index が無い場合だけ
+           occurrence を補助識別子に使う。 */
+        const sourceIndex = Number.isSafeInteger(Number(row.__lbtShareSourceIndex))
+          ? Number(row.__lbtShareSourceIndex) : index;
+        const occurrenceScope = JSON.stringify([sourceId, sourceIndex, sourceDate, nameKey(name)]);
         const occurrence = (scenarioOccurrences.get(occurrenceScope) || 0) + 1;
         scenarioOccurrences.set(occurrenceScope, occurrence);
         /* memo は修正対象なのでキーに含めない。同名の反復記録は出現順で区別する。 */
         const importSourceKey = sourceId
-          ? ("gara1:" + sourceId + ":" + (sourceDate || "undated") + ":" + nameKey(name).slice(0, 64) + ":" + occurrence)
+          ? ("gara1:" + sourceId + ":row" + sourceIndex + ":" + (sourceDate || "undated") + ":" + nameKey(name).slice(0, 64) + ":" + occurrence)
           : "";
         const base = {
           key: "scenario:" + index,
@@ -1010,7 +1015,9 @@ function toIdentityChoices(hits) {
         const scope = sourceKey || String(scenario?.key || scenario?.name || "scenario").slice(0, 80);
         const type = String(candidateType || "financial-review").slice(0, 36);
         row = {
-          key: ("gara-review:" + scope.slice(0, 110) + ":" + index + ":" + type).slice(0, 180),
+          /* candidateType/status は再解析で変わり得るため識別子へ含めない。
+             元共有元・元行番号・後段の原文一致検査で決める。 */
+          key: ("gara-review:" + scope.slice(0, 130) + ":" + index).slice(0, 180),
           sourceId: String(scenario?.sourceId || "").slice(0, 120),
           sourceKey,
           scenarioKey: String(scenario?.key || "").slice(0, 80),

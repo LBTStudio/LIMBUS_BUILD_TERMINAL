@@ -108,8 +108,7 @@ function mergeFinancialReviewCandidates(previous, incoming) {
   const oldByKey = new Map(normalizeFinancialReviewCandidates(previous).map((candidate) => [candidate.key, candidate]));
   return normalizeFinancialReviewCandidates(incoming).map((candidate) => {
     const old = oldByKey.get(candidate.key);
-    if (!old || old.status === "pending" || old.line !== candidate.line
-        || old.candidateType !== candidate.candidateType) return candidate;
+    if (!old || old.status === "pending" || old.line !== candidate.line) return candidate;
     /* 同じ原文行・同じ候補種別を再取込した場合だけ、利用者の確定/却下を引き継ぐ。 */
     return {
       ...candidate,
@@ -2831,7 +2830,7 @@ function appendLedgerEntry(state, detail) {
       resultId: resultId || null,
       ref: detail.ref || null,
       at: Date.now(),
-      note: ""
+      note: String(detail.note || "").slice(0, 2000)
     }]
   };
 }
@@ -5967,22 +5966,37 @@ case "ADD_CUSTOM_ITEM": {
       const nextRewardItems = action.rewardItems === undefined
         ? normalizeRewardItems(previous.rewardItems, state)
         : normalizeRewardItems(action.rewardItems, state);
+      const mergedReviews = action.financialReviews === undefined
+        ? normalizeFinancialReviewCandidates(previous.financialReviews)
+        : mergeFinancialReviewCandidates(previous.financialReviews, action.financialReviews);
+      /* 同じ元行が依然「要確認」として再検出されている場合、その行から以前に
+         明示確定した収入額はパーサの再出力に含まれない。手動確定分だけ足し戻す。
+         パーサが解決して候補自体が消えた行は足し戻さず、二重計上を避ける。 */
+      const updateIncome = action.income === undefined
+        ? previous.income
+        : { ...normalizeCurrency(action.income), tickets: normalizeTickets(action.income?.tickets) };
+      if (action.income !== undefined && action.financialReviews !== undefined) {
+        for (const review of mergedReviews) {
+          if (review.status !== "confirmed" || review.direction !== "income" || !review.currency
+              || !Number.isSafeInteger(review.amount) || review.amount <= 0) continue;
+          const total = Number(updateIncome[review.currency] || 0) + review.amount;
+          if (Number.isSafeInteger(total)) updateIncome[review.currency] = total;
+        }
+      }
       const results = (state.results || []).map((r) => {
         if (r.id !== id) return r;
         return {
           ...r,
           name: action.name === undefined ? r.name : String(action.name).slice(0, 80),
           date: action.date === undefined ? r.date : String(action.date).slice(0, 10),
-          income: action.income === undefined
-            ? r.income
-            : { ...normalizeCurrency(action.income), tickets: normalizeTickets(action.income?.tickets) },
+          income: r.id === id ? updateIncome : r.income,
           ...(action.note !== undefined ? { note: String(action.note || "").slice(0, 2000) } : {}),
           ...(action.consumedItems !== undefined ? { consumedItems: normalizeConsumedItems(action.consumedItems) } : {}),
           ...(action.rewardItems !== undefined ? { rewardItems: nextRewardItems } : {}),
           ...(action.initialPersona !== undefined ? { initialPersona: normalizeInitialPersona(action.initialPersona) } : {}),
           ...(action.personaAcquisitions !== undefined ? { personaAcquisitions: normalizePersonaAcquisitions(action.personaAcquisitions) } : {}),
           ...(action.financialReviews !== undefined
-            ? { financialReviews: mergeFinancialReviewCandidates(r.financialReviews, action.financialReviews) }
+            ? { financialReviews: mergedReviews }
             : {}),
           ...(action.importSourceKey !== undefined
             ? (String(action.importSourceKey || "").trim()
@@ -6359,11 +6373,23 @@ case "ADD_ENTRY":
       return roster === state.roster ? { ...state, entries } : { ...state, entries, roster };
     }
   case "PURGE_ENTRY":
-    if (!(state.entries || []).some((e) => e.id === action.id)) return state;
-    return { ...state, entries: (state.entries || []).filter((e) => e.id !== action.id) };
-  case "REMOVE_ENTRY":
-      if (!(state.entries || []).some((e) => e.id === action.id)) return state;
-      return { ...state, entries: (state.entries || []).filter((e) => e.id !== action.id) };
+  case "REMOVE_ENTRY": {
+    const removed = (state.entries || []).find((entry) => entry.id === action.id);
+    if (!removed) return state;
+    const next = { ...state, entries: (state.entries || []).filter((entry) => entry.id !== action.id) };
+    if (removed.ref?.kind !== "financialReview" || !removed.resultId || !removed.ref.uid) return next;
+    /* 確定済みの支出明細を消したら、候補も未確認へ戻す。再確定の入口を失わせない。 */
+    const results = (next.results || []).map((result) => result.id === removed.resultId
+      ? {
+          ...result,
+          financialReviews: normalizeFinancialReviewCandidates(result.financialReviews).map((candidate) =>
+            candidate.key === removed.ref.uid && candidate.status === "confirmed" && candidate.direction === "spend"
+              ? { ...candidate, status: "pending", currency: "", amount: null, direction: "", reviewedAt: null, resolvedEntryId: "" }
+              : candidate)
+        }
+      : result);
+    return { ...next, results };
+  }
     case "SET_ROSTER_SPIRIT_RESULT": {
       const roster = state.roster || {};
       if (!(roster.spirits || []).some((s) => s.uid === action.uid)) return state;
