@@ -122,7 +122,8 @@ function normalizeFinancialReviewCandidates(value) {
       reason: String(candidate.reason || "").slice(0, 1000),
       evidence,
       status: allowedStatus.has(candidate.status) ? candidate.status : "pending",
-      reviewedAt: Number.isSafeInteger(Number(candidate.reviewedAt)) ? Number(candidate.reviewedAt) : null,
+      reviewedAt: candidate.reviewedAt == null || candidate.reviewedAt === ""
+        ? null : (Number.isSafeInteger(Number(candidate.reviewedAt)) ? Number(candidate.reviewedAt) : null),
       resolvedEntryId: String(candidate.resolvedEntryId || "").slice(0, 120)
     }];
   });
@@ -132,7 +133,7 @@ function mergeFinancialReviewCandidates(previous, incoming) {
   return normalizeFinancialReviewCandidates(incoming).map((candidate) => {
     const old = oldByKey.get(candidate.key);
     if (!old || old.status === "pending" || old.line !== candidate.line) return candidate;
-    /* 同じ原文行・同じ候補種別を再取込した場合だけ、利用者の確定/却下を引き継ぐ。 */
+    /* 同じ安定した元行キーと原文が一致する場合だけ、利用者の確定/却下を引き継ぐ。 */
     return {
       ...candidate,
       currency: old.currency,
@@ -6196,8 +6197,10 @@ case "ADD_CUSTOM_ITEM": {
       for (const sub of action.actions || []) {
         if (!sub || typeof sub !== "object" || sub.type !== "ADD_RESULT") continue;
         const sourceKey = String(sub.importSourceKey || "").trim().slice(0, 180);
-        const matchingBySource = sourceKey
-          ? (next.results || []).filter((result) => result && result.importSourceKey === sourceKey)
+        const legacySourceKey = String(sub.legacyImportSourceKey || "").trim().slice(0, 180);
+        const sourceKeys = new Set([sourceKey, legacySourceKey].filter(Boolean));
+        const matchingBySource = sourceKeys.size
+          ? (next.results || []).filter((result) => result && sourceKeys.has(String(result.importSourceKey || "")))
           : [];
         /* 自動上書きは安定した共有元キーが1件だけ一致した場合に限る。重複キーは推測で選ばない。 */
         if (matchingBySource.length > 1) {
@@ -6205,8 +6208,8 @@ case "ADD_CUSTOM_ITEM": {
              ただし出典キーが一致する取込明細だけは安全に置換できる。
              手入力明細は importResultKey を持たないため残る。 */
           const existingEntries = Array.isArray(next.entries) ? next.entries : [];
-          const entries = sourceKey
-            ? existingEntries.filter((entry) => entry?.importResultKey !== sourceKey)
+          const entries = sourceKeys.size
+            ? existingEntries.filter((entry) => !sourceKeys.has(String(entry?.importResultKey || "")))
             : existingEntries;
           if (entries.length !== existingEntries.length) next = { ...next, entries };
           resultIds.push(null);
@@ -6228,8 +6231,8 @@ case "ADD_CUSTOM_ITEM": {
           const existingEntries = Array.isArray(next.entries) ? next.entries : [];
           const entries = isExplicitLegacyReplace
             ? existingEntries.filter((entry) => entry?.resultId !== target.id)
-            : (sourceKey
-              ? existingEntries.filter((entry) => entry?.importResultKey !== sourceKey)
+            : (sourceKeys.size
+              ? existingEntries.filter((entry) => !sourceKeys.has(String(entry?.importResultKey || "")))
               : existingEntries);
           if (entries !== existingEntries) next = { ...next, entries };
           next = appReducer(next, {

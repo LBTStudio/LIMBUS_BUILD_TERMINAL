@@ -197,6 +197,47 @@ test("確定支出の明細を削除すると、元の確認候補が再びpendi
  assert.equal(deleted.results[0].financialReviews[0].amount, null);
 });
 
+test("行番号付き新キーへの移行時も旧リザルト・旧取込明細を再利用する", () => {
+ const { roster } = loadAuditApis();
+ const oldKey = "gara1:share-source-123:2026-11-03:同じ卓:1";
+ const newKey = "gara1:share-source-123:row0:2026-11-03:同じ卓:1";
+ const manifest = {
+  groups: [],
+  scenarios: [scenario("scenario:0", [], {
+   name: "同じ卓",
+   importSourceKey: newKey,
+   legacyImportSourceKey: oldKey,
+   spends: [{ name: "試験購入", raw: "試験購入 10LP", lp: 10, shards: 0 }]
+  })]
+ };
+ const actions = roster.toDispatchActions(manifest, [], {}).actions;
+ const resultId = "legacy-imported-result";
+ const context = { window: { DB: db, console }, console, URL, TextEncoder, TextDecoder, setTimeout, clearTimeout };
+ context.globalThis = context;
+ vm.runInNewContext(read("../js/ledger-provenance.js"), context, { filename: "ledger-provenance.js" });
+ vm.runInNewContext(read("../js/state.js"), context, { filename: "state.js" });
+ const reducer = context.window.appReducer;
+ const before = {
+  results: [{ id: resultId, name: "同じ卓", importSourceKey: oldKey, income: { lp: 0, shards: 0 } }],
+  entries: [{
+   id: "old-import-entry", kind: "other", name: "旧取込明細",
+   cost: { lp: 10, shards: 0 }, resultId, importResultKey: oldKey
+  }],
+  roster: { personas: [], egos: [], supports: [], spirits: [] },
+  inventory: []
+ };
+ const updated = reducer(before, { type: "APPLY_IMPORT_BATCH", actions });
+ assert.equal(updated.results.length, 1, "既存リザルトを新規作成せず更新する");
+ assert.equal(updated.results[0].id, resultId);
+ assert.equal(updated.results[0].importSourceKey, newKey, "新しい行番号付きキーへ移行する");
+ assert.equal(updated.entries.filter((entry) => entry.importResultKey === oldKey).length, 0,
+  "旧キーの明細は置き換える");
+ assert.equal(updated.entries.filter((entry) => entry.importResultKey === newKey).length, 1,
+  "新キーの明細だけが残る");
+ assert.equal(updated.entries.filter((entry) => entry.cost.lp === 10).length, 1,
+  "再取込でLP支出を二重計上しない");
+});
+
 test("同名・同日シナリオの並べ替えは共有行キーを変える", () => {
  const { memo, roster } = loadAuditApis();
  const raw = "対象品 87";

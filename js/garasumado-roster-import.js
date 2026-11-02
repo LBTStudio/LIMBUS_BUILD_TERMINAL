@@ -766,6 +766,11 @@ function toIdentityChoices(hits) {
         const importSourceKey = sourceId
           ? ("gara1:" + sourceId + ":row" + sourceIndex + ":" + (sourceDate || "undated") + ":" + nameKey(name).slice(0, 64) + ":" + occurrence)
           : "";
+        /* 旧版は行番号をキーに含めない。既存リザルト・取込明細を新キーへ移行する
+           ための検索専用別名であり、次回以降は新キーだけを保存する。 */
+        const legacyImportSourceKey = sourceId
+          ? ("gara1:" + sourceId + ":" + (sourceDate || "undated") + ":" + nameKey(name).slice(0, 64) + ":" + occurrence)
+          : "";
         const base = {
           key: "scenario:" + index,
           name,
@@ -774,7 +779,8 @@ function toIdentityChoices(hits) {
           ...(sourceId ? { sourceId } : {}),
           ...(Number.isSafeInteger(Number(row.__lbtShareSourceIndex)) ? { sourceIndex: Number(row.__lbtShareSourceIndex) } : {}),
           ...(row.date ? { date: String(row.date).slice(0, 10) } : {}),
-          ...(importSourceKey ? { importSourceKey } : {})
+          ...(importSourceKey ? { importSourceKey } : {}),
+          ...(legacyImportSourceKey ? { legacyImportSourceKey } : {})
         };
         if (!memoApi) return { ...base, memo: String(row.memo || ""), income: { lp: 0, shards: 0 }, tickets: {}, pack: {}, spends: [], wins: [], reasons: [{ reason: "メモパーサが読み込まれていない" }], currencyDiscrepancies: [] };
         const parsed = memoApi.parseMemo(row.memo);
@@ -1352,6 +1358,7 @@ function toIdentityChoices(hits) {
         name: scenario.name || "無題",
         ...(scenario.date ? { date: scenario.date } : {}),
         ...(scenario.importSourceKey ? { importSourceKey: scenario.importSourceKey } : {}),
+        ...(scenario.legacyImportSourceKey ? { legacyImportSourceKey: scenario.legacyImportSourceKey } : {}),
         ...(legacyResultId ? { legacyResultId, replaceLegacyEntries: true } : {}),
         income: {
           lp: income.lp || 0,
