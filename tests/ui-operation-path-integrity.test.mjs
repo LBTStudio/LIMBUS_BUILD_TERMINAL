@@ -20,6 +20,7 @@ const uiAuditWorkflow = read("../.github/workflows/ui-audit-screenshot-capture.y
 const axeDetail = read("../tools/ui/axe-detail.mjs");
 const axeShareView = read("../tools/ui/axe-share-view.mjs");
 const personaCodex = read("../js/PersonaCodex.js");
+const personaCss = read("../assets/persona-codex.css");
 const garasumadoImportUI = read("../js/garasumado-import-ui.js");
 const mobileAuditCss = read("../assets/v69-mobile-ui-audit.css");
 const overlayCss = read("../assets/v52-overlay.css");
@@ -493,6 +494,22 @@ test("Playwrightの所持人格画面は旧同期名と新しい保存buildを�
   assert.match(captureAudit, /persona-synced-latest-roster-name/);
   assert.match(captureAudit, /persona-synced-build-detail/);
   assert.match(captureAudit, /fixture\.passiveName[\s\S]*?fixture\.skillNames[\s\S]*?fixture\.uniqueName/);
+});
+
+test("所持人格詳細は所有状態と速度・耐性を優先し、HP/SAN/弾丸を表示しない", () => {
+  const start = personaCodex.indexOf("const PersonaDetail =");
+  const end = personaCodex.indexOf("function stablePersonaDiffValue", start);
+  const detail = personaCodex.slice(start, end);
+  assert.ok(detail.includes("detail-ownership"));
+  assert.ok(detail.includes("isEquipped ?"));
+  assert.ok(detail.includes("isInRoster ?"));
+  assert.ok(detail.includes("\\u901F\\u5EA6"));
+  assert.doesNotMatch(detail, /detail-stat-label.*?"HP"/);
+  assert.doesNotMatch(detail, /detail-stat-label.*?"SAN"/);
+  assert.doesNotMatch(detail, /detail-stat-label.*?弾丸/);
+  assert.ok(personaCss.includes("grid-template-columns: minmax(120px, 180px)"));
+  assert.ok(captureAudit.includes('detail.locator(".detail-stat-label")'));
+  assert.ok(captureAudit.includes('detail.locator(".detail-ownership")'));
 });
 
 test("所持人格一覧は20件の通常・特異混在データを実ブラウザへ描画して確認する", () => {

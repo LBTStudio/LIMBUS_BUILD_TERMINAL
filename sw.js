@@ -21,7 +21,7 @@
 "use strict";
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
-const CACHE_NAME = "lbt-14c6c599";
+const CACHE_NAME = "lbt-853c2600";
 const CACHE_NAME = "lbt-14c6c599";
 const PRECACHE_URLS = [
   "index.html",
@@ -35,7 +35,7 @@ const PRECACHE_URLS = [
   "assets/fonts/corporate-logo-medium-subset.woff2?v=dbbdb67e",
   "assets/inline-effect-glossary.css?v=f14d3776",
   "assets/items.css?v=1465d658",
-  "assets/persona-codex.css?v=d88a1ab0",
+  "assets/persona-codex.css?v=73906b7b",
   "assets/sections.css?v=6753610c",
   "assets/v52-overlay.css?v=bb012c34",
   "assets/v53-overlay.css?v=1b57bfe6",
@@ -60,7 +60,7 @@ const PRECACHE_URLS = [
   "js/ItemCodex.js?v=3c394422",
   "js/LivePreview.js?v=69b4d6d2",
   "js/OtherSections.js?v=65dac4b9",
-  "js/PersonaCodex.js?v=aa0ca9fc",
+  "js/PersonaCodex.js?v=22665a95",
   "js/SkillDeck.js?v=f176d667",
   "js/accounts-ui.js?v=58168a76",
   "js/cloud-backup.js?v=32acbafe",
