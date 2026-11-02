@@ -352,6 +352,24 @@ test("人格チケット以外で初回人格を取得した場合は初期チ�
   assert.equal(applied.entries.filter((entry) => entry.kind === "ticket").length, 1, "初期分の自動消費は1件だけ");
 });
 
+test("ドラフト取り込み・ビルド保存も初回人格権利を再利用させない", () => {
+  const fresh = freshState();
+  const draft = reducer(fresh, {
+    type: "IMPORT_PERSONA_DRAFT",
+    persona: {
+      __custom: true, name: "ドラフト人格", hp: 100, san: 45, speed: "1d5",
+      skills: [{ name: "スキル1", dice: [] }], unique_buffs: []
+    },
+    provided: { name: true, hp: true, san: true, speed: true, bullets: true, resistances: true, passives: true, skills: true, uniques: true }
+  });
+  assert.equal(draft.roster.personas.length, 1, "ドラフト人格が所持へ追加される");
+  assert.equal(draft.initialPersonaTicketAvailable, false, "新規ドラフト所持で初回権利だけ失効");
+  assert.equal(ticketBalance(draft).persona, 1, "ドラフト取り込みはチケットを消費しない");
+  const active = { ...fresh, personaMode: "n", personaNo: 1, personaSrc: DB.normal_personas[0] };
+  const saved = reducer(active, { type: "SAVE_PERSONA_BUILD" });
+  assert.equal(saved.roster.personas.length, 1, "保存ビルドが欠落していた所持行を復元する");
+  assert.equal(saved.initialPersonaTicketAvailable, false, "復元経路でも初回権利を失効");
+});
 test("初期作成後に受け取った人格チケットはLP抽出で消費されない", () => {
   const fresh = freshState();
   const withInitialPersona = reducer(fresh, { type: "ADD_ROSTER", mode: "n", no: 1 });
