@@ -115,9 +115,15 @@ function normalizeFinancialReviewCandidates(value) {
       lineIndex,
       line,
       candidateType: String(candidate.candidateType || "financial-review").slice(0, 80),
+      category: candidate.category === "ticket" ? "ticket" : "currency",
       currency: ["lp", "shards"].includes(candidate.currency) ? candidate.currency : "",
       amount: amount !== null && Number.isSafeInteger(amount) && amount > 0 ? amount : null,
       direction: ["spend", "income"].includes(candidate.direction) ? candidate.direction : "",
+      ticketKind: TICKET_KINDS.includes(candidate.ticketKind) ? candidate.ticketKind : "",
+      ticketPack: String(candidate.ticketPack || "").trim().slice(0, 120),
+      ticketCount: candidate.ticketCount == null || candidate.ticketCount === ""
+        ? null : (Number.isSafeInteger(Number(candidate.ticketCount)) && Number(candidate.ticketCount) > 0 ? Number(candidate.ticketCount) : null),
+      ticketDirection: ["spend", "income"].includes(candidate.ticketDirection) ? candidate.ticketDirection : "",
       severity: candidate.severity === "warning" ? "warning" : "review",
       reason: String(candidate.reason || "").slice(0, 1000),
       evidence,
@@ -148,16 +154,22 @@ function mergeFinancialReviewCandidates(previous, incoming) {
       const sameLine = oldByLine.get(candidate.line) || [];
       if (sameLine.length === 1 && incomingLineCounts.get(candidate.line) === 1) old = sameLine[0];
     }
-    if (!old || old.status === "pending" || old.line !== candidate.line) return candidate;
+    if (!old || old.status === "pending" || old.line !== candidate.line
+        || old.category !== candidate.category) return candidate;
     /* 同じ安定した元行キーと原文が一致する場合だけ、利用者の確定/却下を引き継ぐ。 */
     return {
       ...candidate,
       /* 行番号の変化で候補データの位置は更新しても、確定支出entry.ref.uidが参照する
          候補IDは維持する。これが変わると、後から明細を削除してもpendingへ戻せない。 */
       key: old.key,
+      category: old.category || candidate.category,
       currency: old.currency,
       amount: old.amount,
       direction: old.direction,
+      ticketKind: old.ticketKind,
+      ticketPack: old.ticketPack,
+      ticketCount: old.ticketCount,
+      ticketDirection: old.ticketDirection,
       status: old.status,
       reviewedAt: old.reviewedAt,
       resolvedEntryId: old.resolvedEntryId
@@ -1315,7 +1327,7 @@ function addShardIncome(state, delta, resultId) {
 }
 
 /* 抽出チケットを消費した明細を立てる（所持を引いた証拠）。 */
-function appendTicketSpend(state, kind, pack, count, ref, resultId) {
+function appendTicketSpend(state, kind, pack, count, ref, resultId, importResultKey) {
   const n = Math.max(1, Number(count) || 1);
   const label = window.LBT_ticketLabel ? window.LBT_ticketLabel(kind, pack) : (TICKET_KIND_LABEL[kind] || "抽出チケット");
   const tickets = kind === "pack"
@@ -1327,7 +1339,8 @@ function appendTicketSpend(state, kind, pack, count, ref, resultId) {
     cost: { lp: 0, shards: 0 },
     tickets,
     resultId,
-    ref
+    ref,
+    importResultKey
   });
 }
 
@@ -2873,7 +2886,10 @@ function appendLedgerEntry(state, detail) {
       resultId: resultId || null,
       ref: detail.ref || null,
       at: Date.now(),
-      note: String(detail.note || "").slice(0, 2000)
+      note: String(detail.note || "").slice(0, 2000),
+      ...(String(detail.importResultKey || "").trim()
+        ? { importResultKey: String(detail.importResultKey).slice(0, 180) }
+        : {})
     }]
   };
 }
@@ -4712,7 +4728,7 @@ function appReducer(state, action) {
       /* 所持より多くは消費できない。足りなければそれだけ使う。 */
       const take = Math.min(use, available);
       if (take <= 0) return state;
-      return appendTicketSpend(state, kind, pack, take, action.ref, action.resultId);
+      return appendTicketSpend(state, kind, pack, take, action.ref, action.resultId, action.importResultKey);
     }
     /* 所持への追加。人格は DB 価格が無いため、purchase に core ルールの金額
        （抽出/購入）を渡されたときだけ明細を立てる。所持だけの操作は
@@ -6020,8 +6036,25 @@ case "ADD_CUSTOM_ITEM": {
         : { ...normalizeCurrency(action.income), tickets: normalizeTickets(action.income?.tickets) };
       if (action.income !== undefined && action.financialReviews !== undefined) {
         for (const review of mergedReviews) {
-          if (review.status !== "confirmed" || review.direction !== "income" || !review.currency
-              || !Number.isSafeInteger(review.amount) || review.amount <= 0) continue;
+          if (review.status !== "confirmed" || review.direction !== "income") continue;
+          if (review.category === "ticket" && TICKET_KINDS.includes(review.ticketKind)
+              && Number.isSafeInteger(review.ticketCount) && review.ticketCount > 0) {
+            const currentTickets = normalizeTickets(updateIncome.tickets);
+            if (review.ticketKind === "pack") {
+              const packName = String(review.ticketPack || "").trim();
+              if (!packName) continue;
+              const nextCount = Number(getSafeRecordEntry(currentTickets.pack, packName, 0)) + review.ticketCount;
+              if (!Number.isSafeInteger(nextCount)) continue;
+              setSafeRecordEntry(currentTickets.pack, packName, nextCount);
+            } else {
+              const nextCount = (Number(currentTickets[review.ticketKind]) || 0) + review.ticketCount;
+              if (!Number.isSafeInteger(nextCount)) continue;
+              currentTickets[review.ticketKind] = nextCount;
+            }
+            updateIncome.tickets = currentTickets;
+            continue;
+          }
+          if (!review.currency || !Number.isSafeInteger(review.amount) || review.amount <= 0) continue;
           const total = Number(updateIncome[review.currency] || 0) + review.amount;
           if (Number.isSafeInteger(total)) updateIncome[review.currency] = total;
         }
@@ -6063,13 +6096,65 @@ case "ADD_CUSTOM_ITEM": {
       const candidate = normalizeFinancialReviewCandidates(result?.financialReviews)
         .find((row) => row.key === candidateKey);
       if (!result || !candidate || candidate.status !== "pending") return state;
+      const now = Date.now();
+      let next = state;
+      let resolvedEntryId = "";
+      if (candidate.category === "ticket" || action.category === "ticket") {
+        const ticketKind = action.ticketKind;
+        const ticketPack = ticketKind === "pack" ? String(action.ticketPack || "").trim() : "";
+        const ticketCount = parseStrictTicketInteger(action.ticketCount, { allowZero: false, allowNegative: false });
+        const ticketDirection = action.ticketDirection || action.direction;
+        if (!TICKET_KINDS.includes(ticketKind) || (ticketKind === "pack" && !ticketPack)
+            || !["spend", "income"].includes(ticketDirection) || ticketCount === null) return state;
+        if (ticketDirection === "spend") {
+          const balance = computeTicketBalance(state.results || [], state.entries || []);
+          const available = ticketTotal(balance, ticketKind, ticketPack);
+          if (available < ticketCount) return state;
+          next = appendTicketSpend(next, ticketKind, ticketPack, ticketCount,
+            { kind: "financialReview", uid: candidate.key }, resultId, candidate.sourceKey);
+          resolvedEntryId = String(next.entries[next.entries.length - 1]?.id || "");
+        } else {
+          const beforeBalance = computeTicketBalance(state.results || [], state.entries || []);
+          const existingCount = ticketTotal(beforeBalance, ticketKind, ticketPack);
+          if (!Number.isSafeInteger(existingCount + ticketCount)) return state;
+          next = setTicketIncome(next, ticketKind, ticketPack, ticketCount, resultId);
+          const afterBalance = computeTicketBalance(next.results || [], next.entries || []);
+          if (ticketTotal(afterBalance, ticketKind, ticketPack)
+              !== ticketTotal(computeTicketBalance(state.results || [], state.entries || []), ticketKind, ticketPack) + ticketCount) {
+            return state;
+          }
+        }
+        return {
+          ...next,
+          results: (next.results || []).map((row) => row.id === resultId
+            ? {
+                ...row,
+                financialReviews: normalizeFinancialReviewCandidates(row.financialReviews).map((item) => item.key === candidate.key
+                  ? {
+                      ...item,
+                      category: "ticket",
+                      currency: "",
+                      amount: null,
+                      direction: ticketDirection,
+                      ticketKind,
+                      ticketPack,
+                      ticketCount,
+                      ticketDirection,
+                      status: "confirmed",
+                      reviewedAt: now,
+                      resolvedEntryId
+                    }
+                  : item),
+                updatedAt: now
+              }
+            : row)
+        };
+      }
+
       const currency = action.currency;
       const direction = action.direction;
       const amount = parseStrictTicketInteger(action.amount, { allowZero: false, allowNegative: false });
       if (!["lp", "shards"].includes(currency) || !["spend", "income"].includes(direction) || amount === null) return state;
-      const now = Date.now();
-      let next = state;
-      let resolvedEntryId = "";
       if (direction === "spend") {
         next = appendLedgerEntry(next, {
           kind: "other",
@@ -6248,10 +6333,24 @@ case "ADD_CUSTOM_ITEM": {
             legacyId && sub.replaceLegacyEntries === true && target.id === legacyId && !matchingBySource.length
           );
           const existingEntries = Array.isArray(next.entries) ? next.entries : [];
+          const incomingTicketReviewLines = new Set(normalizeFinancialReviewCandidates(sub.financialReviews)
+            .filter((candidate) => candidate.category === "ticket")
+            .map((candidate) => candidate.line));
+          const previousTicketReviewKeys = new Set(normalizeFinancialReviewCandidates(target.financialReviews)
+            .filter((candidate) => candidate.category === "ticket"
+              && candidate.status === "confirmed" && candidate.direction === "spend"
+              && incomingTicketReviewLines.has(candidate.line))
+            .map((candidate) => candidate.key));
+          const preservedReviewTicketEntryIds = new Set(existingEntries
+            .filter((entry) => entry?.resultId === target.id
+              && entry?.ref?.kind === "financialReview"
+              && previousTicketReviewKeys.has(String(entry.ref.uid || "")))
+            .map((entry) => entry.id));
           const entries = isExplicitLegacyReplace
             ? existingEntries.filter((entry) => entry?.resultId !== target.id)
             : (sourceKeys.size
-              ? existingEntries.filter((entry) => !sourceKeys.has(String(entry?.importResultKey || "")))
+              ? existingEntries.filter((entry) => !sourceKeys.has(String(entry?.importResultKey || ""))
+                || preservedReviewTicketEntryIds.has(entry.id))
               : existingEntries);
           if (entries !== existingEntries) next = { ...next, entries };
           next = appReducer(next, {
@@ -6312,7 +6411,11 @@ case "ADD_CUSTOM_ITEM": {
         /* Historical result text can explicitly say a ticket was used. Attribute
            its spend row to that result, preserving the account-wide ticket balance. */
         if (sub.type === "SPEND_TICKET" && lastResultId && sub.resultId === undefined) {
-          next = appReducer(next, { ...sub, resultId: lastResultId });
+          next = appReducer(next, {
+            ...sub,
+            resultId: lastResultId,
+            ...(lastResultSourceKey ? { importResultKey: lastResultSourceKey } : {})
+          });
           continue;
         }
         const rosterSub = sub.type === "ADD_ROSTER" || sub.type === "ADD_ROSTER_EGO"
@@ -6429,7 +6532,7 @@ case "ADD_ENTRY":
           ...result,
           financialReviews: normalizeFinancialReviewCandidates(result.financialReviews).map((candidate) =>
             candidate.key === removed.ref.uid && candidate.status === "confirmed" && candidate.direction === "spend"
-              ? { ...candidate, status: "pending", currency: "", amount: null, direction: "", reviewedAt: null, resolvedEntryId: "" }
+              ? { ...candidate, status: "pending", currency: "", amount: null, direction: "", ticketKind: "", ticketPack: "", ticketCount: null, ticketDirection: "", reviewedAt: null, resolvedEntryId: "" }
               : candidate)
         }
       : result);

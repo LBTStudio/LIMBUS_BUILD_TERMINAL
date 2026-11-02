@@ -66,6 +66,148 @@ test("SPEND_TICKET は消費として明細に残る", () => {
   assert.equal(spent.entries[0].resultId, "res-1");
 });
 
+test("未確定チケット候補は種別・枚数・方向を明示確定できる", () => {
+  const base = withResult({ persona: 3, ego: 0, choice: 0, pack: {} });
+  base.results[0].financialReviews = [{
+    key: "review-ticket-1", line: "人格抽出チケット×2.5消費", lineIndex: 1,
+    category: "ticket", ticketKind: "", ticketPack: "", ticketCount: null,
+    ticketDirection: "", status: "pending", sourceKey: "gara-source-row"
+  }];
+  const spent = reducer(base, {
+    type: "RESOLVE_FINANCIAL_REVIEW",
+    category: "ticket",
+    resultId: "res-1",
+    candidateKey: "review-ticket-1",
+    ticketKind: "persona",
+    ticketCount: "2",
+    ticketDirection: "spend"
+  });
+  assert.equal(balanceOf(spent).persona, 1);
+  assert.equal(spent.entries.length, 1);
+  assert.equal(spent.entries[0].tickets.persona, 2);
+  assert.equal(spent.entries[0].ref.kind, "financialReview");
+  assert.equal(spent.entries[0].ref.uid, "review-ticket-1");
+  assert.equal(spent.entries[0].importResultKey, "gara-source-row");
+  assert.equal(spent.results[0].financialReviews[0].status, "confirmed");
+  assert.equal(spent.results[0].financialReviews[0].ticketCount, 2);
+  const repeat = reducer(spent, {
+    type: "RESOLVE_FINANCIAL_REVIEW",
+    category: "ticket", resultId: "res-1", candidateKey: "review-ticket-1",
+    ticketKind: "persona", ticketCount: "2", ticketDirection: "spend"
+  });
+  assert.strictEqual(repeat, spent, "確定済みチケットは二重確定できない");
+  const removed = reducer(spent, { type: "PURGE_ENTRY", id: spent.entries[0].id });
+  assert.equal(balanceOf(removed).persona, 3, "明細削除でチケット残数を戻す");
+  assert.equal(removed.results[0].financialReviews[0].status, "pending",
+    "削除した支出のレビュー候補を再確認できる");
+  assert.equal(removed.results[0].financialReviews[0].ticketCount, null);
+});
+
+test("チケット確認済み支出は同じ履歴の再取込で維持し、解析確定後は通常消費へ置換する", () => {
+  const sourceKey = "gara-source-row-reimport";
+  const reviewKey = "review-ticket-reimport";
+  const candidate = {
+    key: reviewKey, line: "人格抽出チケット×2.5消費", lineIndex: 1,
+    category: "ticket", status: "pending", sourceKey
+  };
+  const base = withResult({ persona: 3, ego: 0, choice: 0, pack: {} });
+  base.results[0].importSourceKey = sourceKey;
+  base.results[0].financialReviews = [candidate];
+  const confirmed = reducer(base, {
+    type: "RESOLVE_FINANCIAL_REVIEW", category: "ticket",
+    resultId: "res-1", candidateKey: reviewKey,
+    ticketKind: "persona", ticketCount: "2", ticketDirection: "spend"
+  });
+  assert.equal(balanceOf(confirmed).persona, 1);
+  assert.equal(confirmed.entries[0].importResultKey, sourceKey);
+
+  const reviewReimported = reducer(confirmed, {
+    type: "APPLY_IMPORT_BATCH",
+    actions: [{
+      type: "ADD_RESULT", name: "第一夜", importSourceKey: sourceKey,
+      income: { lp: 0, shards: 0, tickets: { persona: 3, ego: 0, choice: 0, pack: {} } },
+      financialReviews: [candidate]
+    }]
+  });
+  assert.equal(reviewReimported.results.length, 1, "同じ出典リザルトを更新する");
+  assert.equal(reviewReimported.entries.length, 1, "確認済みチケット支出を維持する");
+  assert.equal(balanceOf(reviewReimported).persona, 1);
+  assert.equal(reviewReimported.results[0].financialReviews[0].status, "confirmed");
+
+  const parserResolved = reducer(reviewReimported, {
+    type: "APPLY_IMPORT_BATCH",
+    actions: [
+      {
+        type: "ADD_RESULT", name: "第一夜", importSourceKey: sourceKey,
+        income: { lp: 0, shards: 0, tickets: { persona: 3, ego: 0, choice: 0, pack: {} } },
+        financialReviews: []
+      },
+      {
+        type: "ADD_ENTRY",
+        kind: "other",
+        name: "履歴上の使用：人格抽出チケット ×2",
+        cost: { lp: 0, shards: 0 },
+        tickets: { persona: 2, ego: 0, choice: 0, pack: {} }
+      }
+    ]
+  });
+  assert.equal(parserResolved.entries.length, 1, "旧review支出を除き、通常解析済み消費に置き換える");
+  assert.equal(parserResolved.entries[0].importResultKey, sourceKey);
+  assert.equal(parserResolved.entries[0].tickets.persona, 2);
+  assert.equal(balanceOf(parserResolved).persona, 1);
+});
+
+test("チケット確認候補で所持枚数を超える消費を確定できない", () => {
+  const base = withResult({ persona: 1 });
+  base.results[0].financialReviews = [{
+    key: "review-ticket-overdraw", line: "人格抽出チケット×9", lineIndex: 1,
+    category: "ticket", status: "pending"
+  }];
+  const rejected = reducer(base, {
+    type: "RESOLVE_FINANCIAL_REVIEW", category: "ticket",
+    resultId: "res-1", candidateKey: "review-ticket-overdraw",
+    ticketKind: "persona", ticketCount: "9", ticketDirection: "spend"
+  });
+  assert.strictEqual(rejected, base, "在庫不足は状態変更なし");
+  assert.equal(balanceOf(rejected).persona, 1);
+});
+
+test("未確定チケットの受領を確定すると再取込後も枚数を保持する", () => {
+  const base = withResult({ persona: 0, ego: 0, choice: 0, pack: {} });
+  base.results[0].financialReviews = [{
+    key: "review-ticket-income", line: "人格抽出チケット獲得枚数未確定", lineIndex: 1,
+    category: "ticket", status: "pending"
+  }];
+  const granted = reducer(base, {
+    type: "RESOLVE_FINANCIAL_REVIEW",
+    category: "ticket", resultId: "res-1", candidateKey: "review-ticket-income",
+    ticketKind: "persona", ticketCount: "3", ticketDirection: "income"
+  });
+  assert.equal(balanceOf(granted).persona, 3);
+  const reimported = reducer(granted, {
+    type: "UPDATE_RESULT", id: "res-1",
+    income: { lp: 0, shards: 0, tickets: { persona: 0, ego: 0, choice: 0, pack: {} } },
+    financialReviews: [{ ...granted.results[0].financialReviews[0], status: "pending", ticketCount: null }]
+  });
+  assert.equal(balanceOf(reimported).persona, 3, "確定済み受領は同一未確定行の再取込で二重加算せず保持");
+});
+
+test("パックチケットの確認確定はパック名ごとに残数を増減する", () => {
+  const base = withResult({ persona: 0, ego: 0, choice: 0, pack: { "肉斬骨断": 3 } });
+  base.results[0].financialReviews = [{
+    key: "review-pack-ticket", line: "〈肉斬骨断〉チケット×2", lineIndex: 1,
+    category: "ticket", status: "pending"
+  }];
+  const spent = reducer(base, {
+    type: "RESOLVE_FINANCIAL_REVIEW", category: "ticket",
+    resultId: "res-1", candidateKey: "review-pack-ticket",
+    ticketKind: "pack", ticketPack: "肉斬骨断", ticketCount: "2", ticketDirection: "spend"
+  });
+  assert.equal(balanceOf(spent).pack["肉斬骨断"], 1);
+  assert.equal(spent.entries[0].tickets.pack["肉斬骨断"], 2);
+  assert.equal(spent.results[0].financialReviews[0].ticketPack, "肉斬骨断");
+});
+
 test("SPEND_TICKET の明示的な0枚は既定の1枚消費にならない", () => {
   const s = withResult({ persona: 2 });
   const zeroNumber = reducer(s, { type: "SPEND_TICKET", kind: "persona", count: 0 });
