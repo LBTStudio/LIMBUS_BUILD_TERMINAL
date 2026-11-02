@@ -348,6 +348,14 @@ test("未確定の会計候補はリザルトに残り、明示操作後だけ�
   assert.ok(uiFlat.includes("ここにある候補は残高へ反映されていません"));
 });
 
+test("未確定チケット候補をチケット種別・枚数・方向で確定するUIを持つ", () => {
+  assert.ok(uiFlat.includes('review.category === "ticket"'));
+  assert.ok(uiFlat.includes("確認候補のチケット種別"));
+  assert.ok(uiFlat.includes("確認候補のチケット枚数"));
+  assert.ok(uiFlat.includes("確認候補のチケット方向"));
+  assert.ok(uiFlat.includes("この枚数でチケット残数へ反映"));
+});
+
 test("currencyDiscrepanciesを取り込み確認カードへ表示し、記録価格を自動修正しない", () => {
   assert.ok(uiFlat.includes("Array.isArray(block.currencyDiscrepancies) && block.currencyDiscrepancies.length"));
   assert.ok(uiFlat.includes("価格差の確認（元記録額は自動修正していません）"));

@@ -1036,6 +1036,7 @@ function toIdentityChoices(hits) {
           sourceIndex: Number.isSafeInteger(Number(scenario?.sourceIndex)) ? Number(scenario.sourceIndex) : null,
           lineIndex: index,
           line: raw,
+          category: /(?:チケット|チケ|抽出🎫)/.test(raw) ? "ticket" : "currency",
           candidateType: type,
           currency: "",
           amount: null,
