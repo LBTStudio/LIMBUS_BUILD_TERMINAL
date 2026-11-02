@@ -1,15 +1,15 @@
 {
   "schemaVersion": 2,
   "description": "Metadata-only baseline from the 2026-10-27 live Firestore audit. SHA-256 fingerprints of live scenarioHistory name/memo parser inputs were captured on 2026-10-28; no raw shared-document contents are committed.",
-  "baselineDate": "2026-10-27",
+  "baselineDate": "2026-11-03",
   "sourceReport": "garasumado-share-audit-2026-10-27.md",
   "historicalSummary": {
     "submittedUrls": 98,
     "uniqueUrlIds": 98,
     "fetchedDocuments": 95,
     "unavailableDocuments": 3,
-    "historyRows": 1149,
-    "memoRows": 1090,
+    "historyRows": 1152,
+    "memoRows": 1092,
     "rowsNeedingReview": 108,
     "parserExtractionDifferences": 1,
     "balanceAnchorsReconciled": 0
@@ -312,7 +312,7 @@
     {
       "id": "Eo19HoEJpsICZwLc7MN4",
       "previousFetchStatus": "OK",
-      "historyRows": 0,
+      "historyRows": 1,
       "memoRows": 0,
       "reviewRows": 0,
       "parsedNet": {
@@ -325,7 +325,7 @@
       },
       "inExistingFixture": false,
       "fixtureSnapshotDrift": null,
-      "historyInputSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      "historyInputSha256": "6f03846d59846ebddb72f25383d115a98edef87e84168f61c04c6a0f63b61ca8"
     },
     {
       "id": "JKvpdFc9XX1zyFlSNGhS",
@@ -1312,8 +1312,8 @@
     {
       "id": "pJxz8aNlya8WXzv7HXeb",
       "previousFetchStatus": "OK",
-      "historyRows": 117,
-      "memoRows": 117,
+      "historyRows": 118,
+      "memoRows": 118,
       "reviewRows": 13,
       "parsedNet": {
         "lp": 2502,
@@ -1327,7 +1327,7 @@
       "fixtureHistoryRows": 113,
       "fixtureMemoRows": 113,
       "fixtureSnapshotDrift": true,
-      "historyInputSha256": "df223f2b242f3e0d4cbafbd91314ea9564cff5a304d35ee59d83abdd66d7e4f5"
+      "historyInputSha256": "1ac1413da147df77af8473aeda811826d188444f583f86b64ebff96c1f6cbfa6"
     },
     {
       "id": "ylakQo9mHZqZEaUwrSAs",
@@ -2100,8 +2100,8 @@
     {
       "id": "2ysoaJ21scYYNpjgstzZ",
       "previousFetchStatus": "OK",
-      "historyRows": 65,
-      "memoRows": 41,
+      "historyRows": 66,
+      "memoRows": 42,
       "reviewRows": 8,
       "parsedNet": {
         "lp": 3181,
@@ -2113,7 +2113,7 @@
       },
       "inExistingFixture": false,
       "fixtureSnapshotDrift": null,
-      "historyInputSha256": "86661db3c6fcbc75091db42411c9018a26b2d17ab8ebfbb5e2245156c17116a6"
+      "historyInputSha256": "08e077b7684c89fe990ae0af68a2b61ef5d193a454a01369c0f549afb32bfd0b"
     },
     {
       "id": "DPacJEJvCc7wNOnHZXyC",
@@ -2135,5 +2135,5 @@
     }
   ],
   "historyInputFingerprintSchema": "scenarioHistory-name-memo-v1",
-  "historyInputFingerprintDate": "2026-10-28"
+  "historyInputFingerprintDate": "2026-11-03"
 }

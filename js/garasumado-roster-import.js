@@ -1053,7 +1053,7 @@ function toIdentityChoices(hits) {
     const reviewStatuses = new Set([
       "unitless-currency-review", "candidate-review", "direction-review",
       "current-balance-review", "balance-transition-review", "unresolved", "mismatch",
-      "reviewed-by-parser-reason", "financial-action-unaccounted"
+      "financial-action-unaccounted"
     ]);
     for (const coverage of Array.isArray(scenario?.financialCoverage) ? scenario.financialCoverage : []) {
       if (!coverage || !reviewStatuses.has(String(coverage.status || ""))) continue;

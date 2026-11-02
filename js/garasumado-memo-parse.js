@@ -146,11 +146,13 @@
     const ticketCountPattern = "(?:\\d{1,3}(?:,\\d{3})+|\\d+)";
     const ticketCountByMultiplier = text.match(new RegExp("[x×]\\s*(" + ticketCountPattern + ")(?![\\d.,])"));
     const ticketCountBySuffix = text.match(new RegExp("(?:チケ|チケット)\\s*(" + ticketCountPattern + ")\\s*枚(?![\\d.,])"));
-    const hasMalformedTicketCount = !ticketCountByMultiplier && !ticketCountBySuffix && (
+    /* Legacy Garasumado notation: 「抽出チケット1：報酬名」. */
+    const ticketCountByLabel = text.match(new RegExp("(?:チケ|チケット)\\s*(" + ticketCountPattern + ")\\s*(?=[:：→⇒])(?![\\d.,])"));
+    const hasMalformedTicketCount = !ticketCountByMultiplier && !ticketCountBySuffix && !ticketCountByLabel && (
       /[x×]\s*[+＋−-]?\s*[\d.,]+/.test(text)
       || /(?:チケ|チケット)\s*[+＋−-]?\s*[\d.,]+/.test(text)
     );
-    var hasCount = Boolean(ticketCountByMultiplier || ticketCountBySuffix);
+    var hasCount = Boolean(ticketCountByMultiplier || ticketCountBySuffix || ticketCountByLabel);
     var hasType = /抽出|ガチャ|人格|E\.?G\.?O|エゴ|イゴ|選択|テーマパック/i.test(text);
     var hasAction = /報酬|獲得|入手|付与|支給|取得|所持|消費|使用|増加|減少/.test(text);
     /* 「140LP / 26カケラ / チケット」のように直前の行が通貨報酬なら、
@@ -166,6 +168,7 @@
     var count = 1;
     if (ticketCountByMultiplier) count = Number(ticketCountByMultiplier[1].replace(/,/g, ""));
     if (ticketCountBySuffix) count = Number(ticketCountBySuffix[1].replace(/,/g, ""));
+    if (ticketCountByLabel) count = Number(ticketCountByLabel[1].replace(/,/g, ""));
     if (hasMalformedTicketCount) {
       return {
         kind: null,
@@ -936,10 +939,11 @@
        ×2.5 を2枚、×1,20 を1枚として記録すると実際の残数が壊れる。 */
     var ticketIntegerPattern = "(?:\\d{1,3}(?:,\\d{3})+|\\d+)";
     var cm = source.match(new RegExp("[x×]\\s*(" + ticketIntegerPattern + ")(?![\\d.,])"))
-      || source.match(new RegExp("(?:チケット|チケ)\\s*(" + ticketIntegerPattern + ")\\s*枚(?![\\d.,])"));
+      || source.match(new RegExp("(?:チケット|チケ)\\s*(" + ticketIntegerPattern + ")\\s*枚(?![\\d.,])"))
+      || source.match(new RegExp("(?:チケット|チケ)\\s*(" + ticketIntegerPattern + ")\\s*(?=[:：→⇒])(?![\\d.,])"));
     var hasMalformedCount = !cm && (
       /[x×]\s*[+＋−-]?\s*[\d.,]+/.test(source)
-      || /(?:チケット|チケ)\s*[+＋\-−]?\s*[\d.,]+/.test(source)
+      || /(?:チケット|チケ)\s*[+＋−-]?\s*[\d.,]+/.test(source)
     );
     if (cm) count = Number(cm[1].replace(/,/g, ""));
     else if (hasMalformedCount) return null;
@@ -1020,6 +1024,18 @@
     for (var i = 0; i < pairs.length; i++) {
       if (pairs[i].amount > 0) {
         addSafeAmount(cost, pairs[i].currency, pairs[i].amount, line, reasons, "消費額");
+      }
+    }
+    if (!cost.lp && !cost.shards && /(?:チケット|チケ)/.test(body)) {
+      /* 券種説明の後ろに通貨額が置かれた「チケット×1、LP100」形式を保持する。
+         券種・枚数の確定とは切り離し、区切り後の単独通貨額だけを支出へ加える。 */
+      var ticketCurrencyTail = body.match(/[,，;；]\s*((?:LP|ＬＰ)\s*[+＋\-−]?\s*\d[\d,]*|[+＋\-−]?\s*\d[\d,]*\s*(?:LP|ＬＰ)|(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ)\s*[+＋\-−]?\s*\d[\d,]*|[+＋\-−]?\s*\d[\d,]*\s*(?:自我の)?(?:欠片|欠け片|かけら|欠けら|カケラ))/i);
+      if (ticketCurrencyTail) {
+        var tailToken = ticketCurrencyTail[1].trim();
+        var lpToken = standaloneCurrencyAmount(tailToken, "lp");
+        var shardToken = standaloneCurrencyAmount(tailToken, "shards");
+        if (lpToken) addSafeAmount(cost, "lp", lpToken.amount, line, reasons, "消費額");
+        else if (shardToken) addSafeAmount(cost, "shards", shardToken.amount, line, reasons, "消費額");
       }
     }
     if (!cost.lp && !cost.shards) return null;
