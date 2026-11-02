@@ -1157,3 +1157,39 @@ test("自動生成OGPカードはHP・SAN・SPDに加えて最多資源属性の
   assert.ok(source.includes('const cardValues = [["HP", preview.hp], ["SAN", preview.san], ["SPD", speed], ["最多資源属性", primarySin]]'));
   assert.ok(source.includes('params.set("lbt_sin", preview.primarySin)'));
 });
+
+test("OGP preview resolves HP/SAN from official persona DB when compact state omits base fields", () => {
+  const db = { normal_personas: [{ no: 7, name: "公式人格", hp: 135, san: 42, speed: "3-6" }], tokui_personas: [] };
+  const share = loadShareLink(db);
+  const preview = share.sharePreview({
+    personaMode: "n",
+    personaNo: 7,
+    personaSrc: { name: "公式人格" },
+    roster: { personas: [] }
+  });
+  assert.equal(preview.hp, "135");
+  assert.equal(preview.san, "42");
+  assert.equal(preview.personaName, "公式人格");
+});
+
+test("OGP preview prioritizes edited HP/SAN, falls back to custom persona fields, and applies enhancement bonuses", () => {
+  const share = loadShareLink();
+  const custom = share.sharePreview({
+    personaMode: "custom",
+    personaSrc: { name: "カスタム人格", hp: "171", san: "63" },
+    roster: { personas: [] }
+  });
+  assert.equal(custom.hp, "171");
+  assert.equal(custom.san, "63");
+
+  const edited = share.sharePreview({
+    personaMode: "custom",
+    hp: "180",
+    san: "70",
+    personaSrc: { name: "編集済み人格", hp: "150", san: "50" },
+    enhancements: [{ effect: "HP+10 SAN+5" }],
+    roster: { personas: [] }
+  });
+  assert.equal(edited.hp, "190");
+  assert.equal(edited.san, "75");
+});
