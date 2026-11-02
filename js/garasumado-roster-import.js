@@ -1042,7 +1042,7 @@ function toIdentityChoices(hits) {
     };
     const reviewStatuses = new Set([
       "unitless-currency-review", "candidate-review", "direction-review",
-      "current-balance-review", "unresolved", "mismatch",
+      "current-balance-review", "balance-transition-review", "unresolved", "mismatch",
       "reviewed-by-parser-reason", "financial-action-unaccounted"
     ]);
     for (const coverage of Array.isArray(scenario?.financialCoverage) ? scenario.financialCoverage : []) {
@@ -1335,6 +1335,17 @@ function toIdentityChoices(hits) {
       /* チケットは income.tickets に入る。reducer は action.income.tickets を読む
          （normalizeTickets）。incomeTickets という別キーは見てくれない。 */
       const legacyResultId = String(opts.legacyResultTargets?.[scenario.key] || "").trim();
+      const financialReviews = buildFinancialReviewCandidates(scenario);
+      const normalizeReviewLine = (value) => String(value || "")
+        .normalize("NFKC").replace(/現座/g, "現在").replace(/\s+/g, "").trim();
+      const hasPendingFinancialReview = (rawLine, fallbackName) => {
+        const rawKey = normalizeReviewLine(rawLine);
+        const nameKeyValue = normalizeReviewLine(fallbackName);
+        return financialReviews.some((candidate) => candidate.status === "pending" && (
+          (rawKey && normalizeReviewLine(candidate.line) === rawKey)
+          || (nameKeyValue && normalizeReviewLine(candidate.line).includes(nameKeyValue))
+        ));
+      };
       actions.push({
         type: "ADD_RESULT",
         batchKey: String(scenario.key || ""),
@@ -1356,12 +1367,16 @@ function toIdentityChoices(hits) {
           .filter((kind) => kind.kind === "persona" && kind.no !== undefined && kind.no !== null && (kind.mode === "n" || kind.mode === "t"))
           .map((kind) => ({ mode: kind.mode, no: String(kind.no), name: String(win.name || win.raw || ""), source: "garasumado" }))),
         consumedItems: Array.isArray(scenario.consumedItems) ? scenario.consumedItems : [],
-        financialReviews: buildFinancialReviewCandidates(scenario)
+        financialReviews
       });
 
       /* チケット消費は収入に加算しない。履歴に使用と明記された分だけ消費アクションにする。 */
       for (const spend of scenario.ticketSpends || []) {
         if (!spend) continue;
+        if (hasPendingFinancialReview(spend.raw, "")) {
+          skipped.push({ key: scenario.key, reason: "チケット使用行に未確定の会計警告があるため、消費枚数を保留しました: " + String(spend.raw || "") });
+          continue;
+        }
         if (!["persona", "ego", "choice", "pack"].includes(spend.kind)) {
           skipped.push({ key: scenario.key, reason: "チケットの種別が曖昧なため消費記録を確定できません: " + String(spend.raw || "") });
           continue;
@@ -1466,6 +1481,12 @@ function toIdentityChoices(hits) {
         const shards = Number(spend && spend.shards || 0);
         const rawLine = String(spend && (spend.raw || spend.name) || "").trim();
         const rawLineKey = normalizeUncertainSpendLine(rawLine);
+        /* 警告候補に紐づく行は、パーサが暫定的な数値を返していても確定計上しない。
+           文字列として読めたことと、通貨・方向が確定したことは別。 */
+        if (hasPendingFinancialReview(rawLine, spend.name)) {
+          skipped.push({ key: scenario.key, reason: "金額・方向に未確定の警告があるため、支出を確定明細へ登録せず保留しました。原文を確認してください。" });
+          continue;
+        }
         const uncertain = (!lp && !shards) && (scenario.reasons || []).find((row) =>
           rawLineKey && normalizeUncertainSpendLine(row && row.line) === rawLineKey
           && /(?:支出金額|支出額|金額).*(?:読み取れない|未確定|未計上|確定できない|要確認)|通貨単位.*(?:不明|無い|ない|ありません)/.test(String(row && row.reason || ""))
@@ -1485,6 +1506,10 @@ function toIdentityChoices(hits) {
       /* 利用者が選んだ購入分。memo の支出と二重にならないよう、
          それは選択されたものだけ足す。 */
       for (const pick of purchases[scenario.key] || []) {
+        if (hasPendingFinancialReview("", pick.name)) {
+          skipped.push({ key: scenario.key, reason: "購入候補に未確定の会計警告があるため、DB価格の自動計上を保留しました: " + String(pick.name || "") });
+          continue;
+        }
         actions.push({
           type: "ADD_ENTRY",
           kind: pick.kind === "spirit" ? "spirit"

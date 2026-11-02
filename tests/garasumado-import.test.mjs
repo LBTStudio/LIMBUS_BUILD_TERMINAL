@@ -405,6 +405,17 @@ test("矢印の手前にある抽出チケットは使用記録で、チケッ�
   assert.equal(parsed.wins.length, 2);
 });
 
+test("チケット枚数の小数・不正な桁区切りは整数へ切り詰めず、未確定に残す", () => {
+  for (const line of ["人格抽出チケット×2.5消費", "人格抽出チケット×1,20消費", "人格抽出チケット×-2消費"]) {
+    const parsed = MEMO.parseMemo(line);
+    assert.equal(parsed.ticketSpends.length, 0, line + " は消費枚数を確定しない");
+    assert.ok(parsed.financialCoverage.some((row) => row.status === "reviewed-by-parser-reason" || row.status === "unresolved"), line + " は要確認coverageを残す");
+    assert.ok(parsed.reasons.some((row) => /チケット枚数/.test(row.reason)), line + " は正整数でない枚数を要確認へ残す");
+  }
+  const valid = MEMO.parseMemo("人格抽出チケット×1,000消費");
+  assert.equal(valid.ticketSpends[0]?.count, 1000, "正しい桁区切りの整数は保持する");
+});
+
 test("種別不明のチケット消費は黙って人格券として確定せず、要確認に残す", () => {
   const M = loadImportWithMemo();
   const manifest = M.buildManifest({

@@ -41,6 +41,27 @@ test("パーサが補正した通貨候補行も元表記の警告と照合し�
 test("通貨単位の無い支出数値は未確定候補として警告に残す", () => {
  const { memo } = loadAuditApis(), parsed = memo.parseMemo("・支出\n東部親指ソルダードII 87"); assert.ok(parsed.financialCoverage.some((a) => a.status === "unitless-currency-review")); assert.ok(parsed.sourceAudits.some((a) => a.code === "unitless-expense-candidate" && a.severity === "review")); assert.ok(parsed.reasons.some((a) => /通貨単位がありません/.test(a.reason)));
 });
+test("金額を読み取れていても通貨監査警告がある支出は確定明細にしない", () => {
+ const { roster } = loadAuditApis();
+ const raw = "対象品 87LP消費";
+ const manifest = {
+  groups: [],
+  scenarios: [scenario("scenario:0", [], {
+   importSourceKey: "gara1:share-source-123:row0:2026-11-03:spend:1",
+   memo: "・支出\n" + raw,
+   spends: [{ name: "対象品", raw, lp: 87, shards: 0 }],
+   sourceAudits: [{ code: "currency-direction-uncertain", severity: "warning", lineIndex: 2, line: raw, message: "方向の確認が必要" }],
+   financialCoverage: []
+  })]
+ };
+ const built = roster.toDispatchActions(manifest, [], { db });
+ assert.equal(built.actions.filter((action) => action.type === "ADD_ENTRY").length, 0,
+  "警告行の暫定87LPを台帳へ入れない");
+ const result = built.actions.find((action) => action.type === "ADD_RESULT");
+ assert.equal(result.financialReviews.length, 1);
+ assert.equal(result.financialReviews[0].line, raw);
+});
+
 test("金額未確定候補はリザルトへ保存され、残高へ混ぜず後から明示確定できる", () => {
  const { memo, roster } = loadAuditApis();
  const raw = "東部親指ソルダードII 87";
