@@ -96,6 +96,11 @@ test("未確定チケット候補は種別・枚数・方向を明示確定で�
     ticketKind: "persona", ticketCount: "2", ticketDirection: "spend"
   });
   assert.strictEqual(repeat, spent, "確定済みチケットは二重確定できない");
+  const removed = reducer(spent, { type: "PURGE_ENTRY", id: spent.entries[0].id });
+  assert.equal(balanceOf(removed).persona, 3, "明細削除でチケット残数を戻す");
+  assert.equal(removed.results[0].financialReviews[0].status, "pending",
+    "削除した支出のレビュー候補を再確認できる");
+  assert.equal(removed.results[0].financialReviews[0].ticketCount, null);
 });
 
 test("チケット確認済み支出は同じ履歴の再取込で維持し、解析確定後は通常消費へ置換する", () => {
