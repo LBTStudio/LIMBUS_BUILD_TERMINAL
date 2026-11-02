@@ -143,7 +143,14 @@
     /* 人格/E.G.Oの説明文に「チケットは捨てられる日を待っている」のような
        フレーバー文がある。枚数・券種・入手/消費の記述が一切ない説明文を
        チケット収入や抽出として誤認しない。 */
-    var hasCount = /[x×]\s*\d+|(?:チケ|チケット)\s*\d+\s*枚/.test(text);
+    const ticketCountPattern = "(?:\\d{1,3}(?:,\\d{3})+|\\d+)";
+    const ticketCountByMultiplier = text.match(new RegExp("[x×]\\s*(" + ticketCountPattern + ")(?![\\d.,])"));
+    const ticketCountBySuffix = text.match(new RegExp("(?:チケ|チケット)\\s*(" + ticketCountPattern + ")\\s*枚(?![\\d.,])"));
+    const hasMalformedTicketCount = !ticketCountByMultiplier && !ticketCountBySuffix && (
+      /[x×]\\s*[+＋−-]?\\s*[\\d.,]+/.test(text)
+      || /(?:チケ|チケット)\\s*[+＋−-]?\\s*[\\d.,]+/.test(text)
+    );
+    var hasCount = Boolean(ticketCountByMultiplier || ticketCountBySuffix);
     var hasType = /抽出|ガチャ|人格|E\.?G\.?O|エゴ|イゴ|選択|テーマパック/i.test(text);
     var hasAction = /報酬|獲得|入手|付与|支給|取得|所持|消費|使用|増加|減少/.test(text);
     /* 「140LP / 26カケラ / チケット」のように直前の行が通貨報酬なら、
@@ -157,10 +164,15 @@
     );
     if (!hasCount && !hasType && !hasAction && !hasAdjacentCurrencyReward) return null;
     var count = 1;
-    var cm = text.match(/[x×]\s*(\d+)/);
-    if (cm) count = parseInt(cm[1], 10);
-    var cm2 = text.match(/(?:チケ|チケット)\s*(\d+)\s*枚/);
-    if (cm2) count = parseInt(cm2[1], 10);
+    if (ticketCountByMultiplier) count = Number(ticketCountByMultiplier[1].replace(/,/g, ""));
+    if (ticketCountBySuffix) count = Number(ticketCountBySuffix[1].replace(/,/g, ""));
+    if (hasMalformedTicketCount) {
+      return {
+        kind: null,
+        count: 0,
+        reason: "チケット枚数が正の整数ではないか桁区切りが不正なため、消費・収入への計上を保留しました"
+      };
+    }
 
     /* 「任意のテーマパックチケット」は券種自体はパック系と分かる。
        ただし対象パック名が無いので、パック別在庫へは自動加算しない。
@@ -2181,8 +2193,8 @@
           });
         }
         const hasTicketEvent = hasTicketMarker && (hasExplicitTicketCount || hasTicketActionVerb);
-        const hasRosterGainEvent = /(?:人格|E\\.?G\\.?O|エゴ).*(?:獲得|入手|取得)|(?:獲得|入手|取得).*(?:人格|E\\.?G\\.?O|エゴ)/i.test(sourceLine);
-        const hasGachaResult = /ガチャ.*(?:結果|→|⇒)|(?:人格|E\\.?G\\.?O|エゴ)獲得\\s*[→⇒:：]/i.test(sourceLine);
+        const hasRosterGainEvent = /(?:人格|E\.?G\.?O|エゴ).*(?:獲得|入手|取得)|(?:獲得|入手|取得).*(?:人格|E\.?G\.?O|エゴ)/i.test(sourceLine);
+        const hasGachaResult = /ガチャ.*(?:結果|→|⇒)|(?:人格|E\.?G\.?O|エゴ)獲得\s*[→⇒:：]/i.test(sourceLine);
         /* 現在残高だけが記載された購入・抽出行も監査する。金額は推測せず、
            本体処理で作られた「支出額が読み取れない」等の理由へ紐付ける。 */
         const hasBalanceMarkerAndCurrency =

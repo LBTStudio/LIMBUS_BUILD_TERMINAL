@@ -409,6 +409,8 @@ test("チケット枚数の小数・不正な桁区切りは整数へ切り詰�
   for (const line of ["人格抽出チケット×2.5消費", "人格抽出チケット×1,20消費", "人格抽出チケット×-2消費"]) {
     const parsed = MEMO.parseMemo(line);
     assert.equal(parsed.ticketSpends.length, 0, line + " は消費枚数を確定しない");
+    assert.equal(parsed.tickets.persona + parsed.tickets.ego + parsed.tickets.choice, 0,
+      line + " の不正枚数を収入へ切り詰めて計上しない");
     assert.ok(parsed.financialCoverage.some((row) => row.status === "reviewed-by-parser-reason" || row.status === "unresolved"), line + " は要確認coverageを残す");
     assert.ok(parsed.reasons.some((row) => /チケット枚数/.test(row.reason)), line + " は正整数でない枚数を要確認へ残す");
   }
