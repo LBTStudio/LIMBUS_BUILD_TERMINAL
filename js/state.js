@@ -152,6 +152,9 @@ function mergeFinancialReviewCandidates(previous, incoming) {
     /* 同じ安定した元行キーと原文が一致する場合だけ、利用者の確定/却下を引き継ぐ。 */
     return {
       ...candidate,
+      /* 行番号の変化で候補データの位置は更新しても、確定支出entry.ref.uidが参照する
+         候補IDは維持する。これが変わると、後から明細を削除してもpendingへ戻せない。 */
+      key: old.key,
       currency: old.currency,
       amount: old.amount,
       direction: old.direction,

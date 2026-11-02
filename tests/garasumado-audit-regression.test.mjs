@@ -296,6 +296,8 @@ test("同名・同日シナリオの並べ替えは共有行キーを変える",
  assert.equal(reordered.results.length, 1, "行移動でも既存リザルトを更新する");
  assert.equal(reordered.results[0].financialReviews[0].status, "confirmed",
   "原文行が一意に一致すれば確認状態を引き継ぐ");
+ assert.equal(reordered.results[0].financialReviews[0].key, candidate.key,
+  "確定支出明細の参照先となる候補IDも保持する");
  assert.equal(reordered.entries.length, 1, "確認済み支出を再作成しない");
  assert.equal(reordered.entries[0].cost.lp, 87);
 });
