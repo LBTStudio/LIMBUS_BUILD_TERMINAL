@@ -4410,7 +4410,7 @@ function appReducer(state, action) {
         "pas","pas2Enabled","pas2","extraPassives","uniqueBuffs","skills","egoSlots","supports","deathSupport","roster",
         "enhancements","initialItems","draws","customStatuses","defaultStatuses","formulas","builtinFormulasOverride","autoFml",
         "moraleLine","extraCmd","outputExclude","shareOptions","paletteOptions","results","entries","inventory","customItems",
-        "favorites","historyRecent","gachaLog","appliedDrawBatchIds","tickets"];
+        "favorites","historyRecent","gachaLog","appliedDrawBatchIds","tickets","initialPersonaTicketAvailable"];
       // 別端末移行（exportState/importStateFromFile）には initiative、initialItems、
       // draws、appliedDrawBatchIds、favorites、historyRecent、gachaLog、tickets（未解決の旧チケット移行行）が含まれる。許可リスト／カテゴリから
       // 漏れると設定や検証履歴が黙って失われる。
