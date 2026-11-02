@@ -139,7 +139,9 @@
     /* 「チケット」だけでなく略字の「チケ」も受ける。実データに
        「ガチャチケ1枚　第四銀工房銃鎚派」がある。 */
     if (!/チケ|チケット/.test(line)) return null;
-    var text = normalizeAmountText(line);
+    /* チケット枚数はカンマを保持してから厳密判定する。normalizeAmountText は
+       不正な「1,20」をマスクするため、これを先に通すと ×1 の省略値へ落ちる。 */
+    var text = normalizeNumericText(line);
     /* 人格/E.G.Oの説明文に「チケットは捨てられる日を待っている」のような
        フレーバー文がある。枚数・券種・入手/消費の記述が一切ない説明文を
        チケット収入や抽出として誤認しない。 */
@@ -1195,12 +1197,16 @@
       }
       let direction = sign === "-" || sign === "−" ? "spend" : sign === "+" || sign === "＋" ? "income" : "";
       if (!direction) {
-        if (explicitExpenseForToken) direction = "spend";
+        const beforeAmount = text.slice(0, chosen.amountStart);
+        const afterAmount = text.slice(chosen.amountEnd);
+        const explicitSpendCue = /(?:消費|支出|支払|使用|購入|買っ)/.test(beforeAmount)
+          || /^(?:\\s|を|で)*(?:消費|支出|支払|使用|購入|買っ)/.test(afterAmount);
+        if (explicitExpenseForToken || explicitSpendCue) direction = "spend";
         /* Conversion without explicit signs does not establish which currency increased.
            Do not inherit the surrounding income section as a guessed direction. */
         else if (/(?:変換|換算)/.test(text)) direction = "unknown";
         else if (mode === "income" || mode === "spend") direction = mode;
-        else direction = incomeCue.test(text.slice(0, chosen.amountStart)) ? "income" : "unknown";
+        else direction = incomeCue.test(beforeAmount) ? "income" : "unknown";
       }
       rows.push({ currency, amount, direction: direction || "unknown", rawAmount: chosen.rawAmount, amountStart: chosen.amountStart, amountEnd: chosen.amountEnd });
     }

@@ -35,8 +35,8 @@ test("95文書の過去監査集計値と文書別の値が一致する", () => 
   assert.equal(sum("historyRows"), baseline.historicalSummary.historyRows, "履歴行の合計");
   assert.equal(sum("memoRows"), baseline.historicalSummary.memoRows, "メモ付き行の合計");
   assert.equal(sum("reviewRows"), baseline.historicalSummary.rowsNeedingReview, "要確認行の合計");
-  assert.equal(sum("historyRows"), 1149);
-  assert.equal(sum("memoRows"), 1090);
+  assert.equal(sum("historyRows"), 1152);
+  assert.equal(sum("memoRows"), 1092);
   assert.equal(sum("reviewRows"), 108);
   assert.equal(baseline.documents.filter((row) => row.parsedNet === null && row.previousFetchStatus === "OK").length, 0);
 });
@@ -98,7 +98,7 @@ test("95件のライブ履歴入力はメタデータSHA-256で版を固定し�
   const available = rows.filter((row) => row.previousFetchStatus === "OK");
   const unavailable = rows.filter((row) => row.previousFetchStatus === "403");
   assert.equal(baseline.historyInputFingerprintSchema, "scenarioHistory-name-memo-v1");
-  assert.equal(baseline.historyInputFingerprintDate, "2026-10-28");
+  assert.equal(baseline.historyInputFingerprintDate, "2026-11-03");
   assert.equal(available.length, 95);
   assert.equal(unavailable.length, 3);
   assert.ok(available.every((row) => /^[0-9a-f]{64}$/.test(row.historyInputSha256)),

@@ -1348,13 +1348,15 @@ function toIdentityChoices(hits) {
       const financialReviews = buildFinancialReviewCandidates(scenario);
       const normalizeReviewLine = (value) => String(value || "")
         .normalize("NFKC").replace(/現座/g, "現在").replace(/\s+/g, "").trim();
-      const hasPendingFinancialReview = (rawLine, fallbackName) => {
+      const hasPendingFinancialReview = (rawLine, fallbackName, category) => {
         const rawKey = normalizeReviewLine(rawLine);
         const nameKeyValue = normalizeReviewLine(fallbackName);
-        return financialReviews.some((candidate) => candidate.status === "pending" && (
-          (rawKey && normalizeReviewLine(candidate.line) === rawKey)
-          || (nameKeyValue && normalizeReviewLine(candidate.line) === nameKeyValue)
-        ));
+        return financialReviews.some((candidate) => candidate.status === "pending"
+          && (!category || candidate.category === category)
+          && (
+            (rawKey && normalizeReviewLine(candidate.line) === rawKey)
+            || (nameKeyValue && normalizeReviewLine(candidate.line) === nameKeyValue)
+          ));
       };
       actions.push({
         type: "ADD_RESULT",
@@ -1388,7 +1390,7 @@ function toIdentityChoices(hits) {
           skipped.push({ key: scenario.key, reason: "チケットの種別が曖昧なため消費記録を確定できません: " + String(spend.raw || "") });
           continue;
         }
-        if (hasPendingFinancialReview(spend.raw, "")) {
+        if (hasPendingFinancialReview(spend.raw, "", "ticket")) {
           skipped.push({ key: scenario.key, reason: "チケット使用行に未確定の会計警告があるため、消費枚数を保留しました: " + String(spend.raw || "") });
           continue;
         }
@@ -1494,7 +1496,7 @@ function toIdentityChoices(hits) {
         const rawLineKey = normalizeUncertainSpendLine(rawLine);
         /* 警告候補に紐づく行は、パーサが暫定的な数値を返していても確定計上しない。
            文字列として読めたことと、通貨・方向が確定したことは別。 */
-        if (hasPendingFinancialReview(rawLine, spend.name)) {
+        if (hasPendingFinancialReview(rawLine, spend.name, "currency")) {
           skipped.push({ key: scenario.key, reason: "金額・方向に未確定の警告があるため、支出を確定明細へ登録せず保留しました。原文を確認してください。" });
           continue;
         }
@@ -1517,7 +1519,7 @@ function toIdentityChoices(hits) {
       /* 利用者が選んだ購入分。memo の支出と二重にならないよう、
          それは選択されたものだけ足す。 */
       for (const pick of purchases[scenario.key] || []) {
-        if (hasPendingFinancialReview("", pick.name)) {
+        if (hasPendingFinancialReview("", pick.name, "currency")) {
           skipped.push({ key: scenario.key, reason: "購入候補に未確定の会計警告があるため、DB価格の自動計上を保留しました: " + String(pick.name || "") });
           continue;
         }
