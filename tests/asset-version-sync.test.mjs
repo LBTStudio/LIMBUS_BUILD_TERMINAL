@@ -246,12 +246,12 @@ test("--check は版の不一致で exit 1", () => {
 
 test("Service Worker の生成領域は構文エラーなく、CACHE_NAME を一度だけ宣言する", () => {
   const sw = readFileSync(resolve(ROOT, "sw.js"), "utf8");
-  const declarations = [...sw.matchAll(/^const CACHE_NAME\\s*=/gm)];
+  const declarations = [...sw.matchAll(/^const CACHE_NAME\s*=/gm)];
   assert.equal(declarations.length, 1, "CACHE_NAME の重複宣言はService Worker全体を構文エラーにする");
   assert.doesNotThrow(() => new Function(sw), "Service Worker は実行前の構文解析を通過する");
   const generated = sw.slice(
     sw.indexOf("/* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */"),
     sw.indexOf("/* ==== /GENERATED ==== */")
   );
-  assert.equal([...generated.matchAll(/^const CACHE_NAME\\s*=/gm)].length, 1);
+  assert.equal([...generated.matchAll(/^const CACHE_NAME\s*=/gm)].length, 1);
 });
