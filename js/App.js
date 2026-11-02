@@ -1379,7 +1379,7 @@ const RailNavigation = ({ sections, current, dispatch, onOpenUtilities, onOpenIm
       }, h("span", { className: "rail-icon" }, h(Icon, { name: "upload", size: 18 })), h("span", { className: "rail-label" }, "データ取り込み")) : null
     )),
     h("div", { className: "rail-foot" },
-      h("div", null, "状態：", h("span", { className: "rail-save-state" + (saveStatus?.phase === "error" ? " is-error" : "") }, saveStatus?.phase === "saved" ? "自動保存済み" : saveStatus?.phase === "error" ? "保存を確認" : "自動保存中")),
+      h("div", null, "状態：", h("span", { className: "rail-save-state" + (saveStatus?.phase === "error" ? " is-error" : "") }, saveStatus?.error === "account-conflict" ? "別タブ更新・再読込" : saveStatus?.phase === "saved" ? "自動保存済み" : saveStatus?.phase === "error" ? "保存を確認" : "自動保存中")),
       h("small", null, "誤操作は上部の元に戻すで戻せます。"),
       h("button", { type: "button", className: "rail-foot-action", onClick: onOpenUtilities, "aria-haspopup": "dialog" }, "保存・共有を開く"))
   );
@@ -1439,7 +1439,7 @@ const HomeLauncher = ({
       h("p", { className: "btype-muted" }, "画面名が分からなくても、目的から機能を開けます。編集対象は現在のキャラクターです。"),
       h("div", { className: "btype-context-chips" },
         chip("対象：" + String(state.charName || "名称未設定")),
-        chip("自動保存：" + (saveStatus?.phase === "saved" ? "有効" : "処理中")),
+        chip("自動保存：" + (saveStatus?.error === "account-conflict" ? "競合・再読込" : saveStatus?.phase === "saved" ? "有効" : saveStatus?.phase === "error" ? "確認が必要" : "処理中")),
         chip("作業場所：ビルド")),
       h("div", { className: "btype-command-search" },
       h(Icon, { name: "search", size: 17 }),
