@@ -22,7 +22,6 @@
 
 /* ==== GENERATED (tools/sync-asset-versions.mjs) ==== */
 const CACHE_NAME = "lbt-853c2600";
-const CACHE_NAME = "lbt-14c6c599";
 const PRECACHE_URLS = [
   "index.html",
   "share.html",
