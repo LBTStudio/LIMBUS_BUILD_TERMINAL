@@ -926,8 +926,8 @@
     var cm = source.match(new RegExp("[x×]\\s*(" + ticketIntegerPattern + ")(?![\\d.,])"))
       || source.match(new RegExp("(?:チケット|チケ)\\s*(" + ticketIntegerPattern + ")\\s*枚(?![\\d.,])"));
     var hasMalformedCount = !cm && (
-      /[x×]\\s*[+＋\\-−]?\\s*[\\d.,]+/.test(source)
-      || /(?:チケット|チケ)\\s*[+＋\\-−]?\\s*[\\d.,]+/.test(source)
+      /[x×]\s*[+＋−-]?\s*[\d.,]+/.test(source)
+      || /(?:チケット|チケ)\s*[+＋\-−]?\s*[\d.,]+/.test(source)
     );
     if (cm) count = Number(cm[1].replace(/,/g, ""));
     else if (hasMalformedCount) return null;
@@ -2170,9 +2170,9 @@
         const hasTicketActionVerb =
           /(?:獲得|入手|取得|付与|支給|消費|使用|購入|買っ|支払|支出|報酬|収入|受領|補填|抽出(?:した|する|結果|後|済|を行う|を実施)|ガチャ(?:結果|で獲得|を回|を引)|消費済)/i.test(sourceLine);
         const hasTicketCountSyntax =
-          /[x×ｘ＊*]\\\\s*[+＋-−]?\\\\s*[0-9０-９][0-9０-９,，.．]*/.test(sourceLine)
-          || /(?:チケット|チケ)\\\\s*[+＋-−]?\\\\s*[0-9０-９][0-9０-９,，.．]*/.test(sourceLine)
-          || /[0-9０-９][0-9０-９,，.．]*\\\\s*(?:枚|個|回)\\\\s*(?:人格|E\\\\.?G\\\\.?O|エゴ|選択|抽出|ガチャ)?チケ(?:ット)?/i.test(sourceLine);
+          /[x×ｘ＊*]\\s*[+＋-−]?\\s*[0-9０-９][0-9０-９,，.．]*/.test(sourceLine)
+          || /(?:チケット|チケ)\\s*[+＋-−]?\\s*[0-9０-９][0-9０-９,，.．]*/.test(sourceLine)
+          || /[0-9０-９][0-9０-９,，.．]*\\s*(?:枚|個|回)\\s*(?:人格|E\\.?G\\.?O|エゴ|選択|抽出|ガチャ)?チケ(?:ット)?/i.test(sourceLine);
         const hasMalformedTicketCount = hasTicketMarker && hasTicketCountSyntax && !hasExplicitTicketCount;
         const hasTicketEvent = hasTicketMarker && (hasExplicitTicketCount || hasTicketActionVerb);
         const hasRosterGainEvent = /(?:人格|E\\.?G\\.?O|エゴ).*(?:獲得|入手|取得)|(?:獲得|入手|取得).*(?:人格|E\\.?G\\.?O|エゴ)/i.test(sourceLine);
