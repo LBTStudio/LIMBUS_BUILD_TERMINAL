@@ -925,7 +925,10 @@
     var ticketIntegerPattern = "(?:\\d{1,3}(?:,\\d{3})+|\\d+)";
     var cm = source.match(new RegExp("[x×]\\s*(" + ticketIntegerPattern + ")(?![\\d.,])"))
       || source.match(new RegExp("(?:チケット|チケ)\\s*(" + ticketIntegerPattern + ")\\s*枚(?![\\d.,])"));
-    var hasMalformedCount = /[x×]\\s*[+\\-]?\\s*\\d|(?:チケット|チケ)\\s*[+\\-]?\\s*\\d/.test(source);
+    var hasMalformedCount = !cm && (
+      /[x×]\\s*[+＋\\-−]?\\s*[\\d.,]+/.test(source)
+      || /(?:チケット|チケ)\\s*[+＋\\-−]?\\s*[\\d.,]+/.test(source)
+    );
     if (cm) count = Number(cm[1].replace(/,/g, ""));
     else if (hasMalformedCount) return null;
     var parsed = isPack ? { kind: "pack", count: count } : ticketOf(source);
@@ -2162,14 +2165,15 @@
            financial-action-unaccounted にしてしまう。 */
         const ticketIntegerToken = "(?:[0-9０-９]{1,3}(?:[,，][0-9０-９]{3})+|[0-9０-９]+)";
         const hasExplicitTicketCount =
-          new RegExp("(?:チケット|チケ|抽出🎫)\\s*(?:[x×ｘ＊*]\\s*" + ticketIntegerToken + "(?![0-9０-９.,，])|" + ticketIntegerToken + "\\s*(?:枚|個|回)(?![0-9０-９.,，]))", "i").test(sourceLine) ||
-          new RegExp("(?:[x×ｘ＊*]\\s*" + ticketIntegerToken + "(?![0-9０-９.,，])|" + ticketIntegerToken + "\\s*(?:枚|個|回)(?![0-9０-９.,，]))\\s*(?:人格|E\\.?G\\.?O|エゴ|選択|抽出|ガチャ)?チケ(?:ット)?", "i").test(sourceLine);
-        const hasMalformedTicketCount = hasTicketMarker && (
-          /[x×ｘ＊*]\\s*[+＋\-−]?\\s*[0-9０-９]+(?:[.．][0-9０-９]+|[,，][0-9０-９]{1,2})(?![0-9０-９])/.test(sourceLine)
-          || /(?:チケット|チケ)\\s*[+＋\-−]\\s*[0-9０-９]/.test(sourceLine)
-        );
+          new RegExp("(?:チケット|チケ|抽出🎫)\\\\s*(?:[x×ｘ＊*]\\\\s*" + ticketIntegerToken + "(?![0-9０-９.,，])|" + ticketIntegerToken + "\\\\s*(?:枚|個|回)(?![0-9０-９.,，]))", "i").test(sourceLine) ||
+          new RegExp("(?:[x×ｘ＊*]\\\\s*" + ticketIntegerToken + "(?![0-9０-９.,，])|" + ticketIntegerToken + "\\\\s*(?:枚|個|回)(?![0-9０-９.,，]))\\\\s*(?:人格|E\\\\.?G\\\\.?O|エゴ|選択|抽出|ガチャ)?チケ(?:ット)?", "i").test(sourceLine);
         const hasTicketActionVerb =
           /(?:獲得|入手|取得|付与|支給|消費|使用|購入|買っ|支払|支出|報酬|収入|受領|補填|抽出(?:した|する|結果|後|済|を行う|を実施)|ガチャ(?:結果|で獲得|を回|を引)|消費済)/i.test(sourceLine);
+        const hasTicketCountSyntax =
+          /[x×ｘ＊*]\\\\s*[+＋-−]?\\\\s*[0-9０-９][0-9０-９,，.．]*/.test(sourceLine)
+          || /(?:チケット|チケ)\\\\s*[+＋-−]?\\\\s*[0-9０-９][0-9０-９,，.．]*/.test(sourceLine)
+          || /[0-9０-９][0-9０-９,，.．]*\\\\s*(?:枚|個|回)\\\\s*(?:人格|E\\\\.?G\\\\.?O|エゴ|選択|抽出|ガチャ)?チケ(?:ット)?/i.test(sourceLine);
+        const hasMalformedTicketCount = hasTicketMarker && hasTicketCountSyntax && !hasExplicitTicketCount;
         const hasTicketEvent = hasTicketMarker && (hasExplicitTicketCount || hasTicketActionVerb);
         const hasRosterGainEvent = /(?:人格|E\\.?G\\.?O|エゴ).*(?:獲得|入手|取得)|(?:獲得|入手|取得).*(?:人格|E\\.?G\\.?O|エゴ)/i.test(sourceLine);
         const hasGachaResult = /ガチャ.*(?:結果|→|⇒)|(?:人格|E\\.?G\\.?O|エゴ)獲得\\s*[→⇒:：]/i.test(sourceLine);
