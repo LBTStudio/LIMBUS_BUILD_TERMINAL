@@ -6406,6 +6406,11 @@ h(Card, { className: "ledger-card" },
                         ticketDirection: review.ticketDirection || ""
                       };
                       const pending = review.status === "pending";
+                      const ticketBalance = window.LBT_computeTicketBalance?.(state.results || [], state.entries || [])
+                        || { persona: 0, ego: 0, choice: 0, pack: {} };
+                      const ticketAvailable = draft.ticketKind === "pack"
+                        ? (Number(ticketBalance.pack?.[draft.ticketPack]) || 0)
+                        : (Number(ticketBalance[draft.ticketKind]) || 0);
                       const updateDraft = (patch) => setFinancialReviewDrafts((current) => ({
                         ...current,
                         [review.key]: { ...(current[review.key] || draft), ...patch }
@@ -6447,6 +6452,9 @@ h(Card, { className: "ledger-card" },
                                     onChange: (event) => updateDraft({ ticketPack: event.target.value })
                                   })
                                 ),
+                                h("p", { className: "ledger-note" },
+                                  "現在所持：" + ticketAvailable + "枚"
+                                ),
                                 h("label", { className: "ledger-ticket-field" },
                                   h("span", null, "枚数（正の整数）"),
                                   h("input", {
@@ -6477,7 +6485,8 @@ h(Card, { className: "ledger-card" },
                                       || (draft.ticketKind === "pack" && !String(draft.ticketPack || "").trim())
                                       || !["spend", "income"].includes(draft.ticketDirection)
                                       || !/^\d+$/.test(String(draft.ticketCount || "").trim())
-                                      || !Number.isSafeInteger(Number(draft.ticketCount)) || Number(draft.ticketCount) <= 0,
+                                      || !Number.isSafeInteger(Number(draft.ticketCount)) || Number(draft.ticketCount) <= 0
+                                      || (draft.ticketDirection === "spend" && Number(draft.ticketCount) > ticketAvailable),
                                     onClick: () => {
                                       dispatch({
                                         type: "RESOLVE_FINANCIAL_REVIEW",

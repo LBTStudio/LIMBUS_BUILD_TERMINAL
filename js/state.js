@@ -6113,6 +6113,9 @@ case "ADD_CUSTOM_ITEM": {
             { kind: "financialReview", uid: candidate.key }, resultId, candidate.sourceKey);
           resolvedEntryId = String(next.entries[next.entries.length - 1]?.id || "");
         } else {
+          const beforeBalance = computeTicketBalance(state.results || [], state.entries || []);
+          const existingCount = ticketTotal(beforeBalance, ticketKind, ticketPack);
+          if (!Number.isSafeInteger(existingCount + ticketCount)) return state;
           next = setTicketIncome(next, ticketKind, ticketPack, ticketCount, resultId);
           const afterBalance = computeTicketBalance(next.results || [], next.entries || []);
           if (ticketTotal(afterBalance, ticketKind, ticketPack)
