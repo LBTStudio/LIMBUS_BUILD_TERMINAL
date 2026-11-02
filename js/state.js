@@ -129,9 +129,25 @@ function normalizeFinancialReviewCandidates(value) {
   });
 }
 function mergeFinancialReviewCandidates(previous, incoming) {
-  const oldByKey = new Map(normalizeFinancialReviewCandidates(previous).map((candidate) => [candidate.key, candidate]));
-  return normalizeFinancialReviewCandidates(incoming).map((candidate) => {
-    const old = oldByKey.get(candidate.key);
+  const oldRows = normalizeFinancialReviewCandidates(previous);
+  const incomingRows = normalizeFinancialReviewCandidates(incoming);
+  const oldByKey = new Map(oldRows.map((candidate) => [candidate.key, candidate]));
+  const oldByLine = new Map();
+  const incomingLineCounts = new Map();
+  for (const candidate of oldRows) {
+    oldByLine.set(candidate.line, [...(oldByLine.get(candidate.line) || []), candidate]);
+  }
+  for (const candidate of incomingRows) {
+    incomingLineCounts.set(candidate.line, (incomingLineCounts.get(candidate.line) || 0) + 1);
+  }
+  return incomingRows.map((candidate) => {
+    let old = oldByKey.get(candidate.key) || null;
+    /* 行の並べ替えで候補keyが変わっても、同一リザルト内で原文行が前後それぞれ
+       1件だけなら同じ候補と見なす。同文が複数ある場合は誤引継ぎを避けて保留する。 */
+    if (!old) {
+      const sameLine = oldByLine.get(candidate.line) || [];
+      if (sameLine.length === 1 && incomingLineCounts.get(candidate.line) === 1) old = sameLine[0];
+    }
     if (!old || old.status === "pending" || old.line !== candidate.line) return candidate;
     /* 同じ安定した元行キーと原文が一致する場合だけ、利用者の確定/却下を引き継ぐ。 */
     return {

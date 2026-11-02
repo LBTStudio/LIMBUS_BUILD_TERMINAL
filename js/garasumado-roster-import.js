@@ -763,14 +763,15 @@ function toIdentityChoices(hits) {
         const occurrence = (scenarioOccurrences.get(occurrenceScope) || 0) + 1;
         scenarioOccurrences.set(occurrenceScope, occurrence);
         /* memo は修正対象なのでキーに含めない。同名の反復記録は出現順で区別する。 */
+        /* リザルト自身は従来の共有元＋日付＋名称＋同名出現順で安定識別する。
+           行番号はレビュー候補だけの識別に使い、履歴の並べ替えで結果全体を複製しない。 */
         const importSourceKey = sourceId
-          ? ("gara1:" + sourceId + ":row" + sourceIndex + ":" + (sourceDate || "undated") + ":" + nameKey(name).slice(0, 64) + ":" + occurrence)
-          : "";
-        /* 旧版は行番号をキーに含めない。既存リザルト・取込明細を新キーへ移行する
-           ための検索専用別名であり、次回以降は新キーだけを保存する。 */
-        const legacyImportSourceKey = sourceId
           ? ("gara1:" + sourceId + ":" + (sourceDate || "undated") + ":" + nameKey(name).slice(0, 64) + ":" + occurrence)
           : "";
+        const legacyImportSourceKey = importSourceKey;
+        const financialReviewSourceKey = sourceId
+          ? ("gara-review-source:" + sourceId + ":row" + sourceIndex)
+          : (importSourceKey || "scenario:" + index);
         const base = {
           key: "scenario:" + index,
           name,
@@ -778,6 +779,7 @@ function toIdentityChoices(hits) {
           scenarioIndex: index,
           ...(sourceId ? { sourceId } : {}),
           ...(Number.isSafeInteger(Number(row.__lbtShareSourceIndex)) ? { sourceIndex: Number(row.__lbtShareSourceIndex) } : {}),
+          financialReviewSourceKey,
           ...(row.date ? { date: String(row.date).slice(0, 10) } : {}),
           ...(importSourceKey ? { importSourceKey } : {}),
           ...(legacyImportSourceKey ? { legacyImportSourceKey } : {})
@@ -1020,7 +1022,8 @@ function toIdentityChoices(hits) {
       let row = rowsByLine.get(index);
       if (!row) {
         const sourceKey = String(scenario?.importSourceKey || "").trim().slice(0, 180);
-        const scope = sourceKey || String(scenario?.key || scenario?.name || "scenario").slice(0, 80);
+        const scope = String(scenario?.financialReviewSourceKey || "").trim()
+          || sourceKey || String(scenario?.key || scenario?.name || "scenario").slice(0, 80);
         const type = String(candidateType || "financial-review").slice(0, 36);
         row = {
           /* candidateType/status は再解析で変わり得るため識別子へ含めない。

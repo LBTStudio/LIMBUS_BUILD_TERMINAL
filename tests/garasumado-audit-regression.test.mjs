@@ -256,8 +256,31 @@ test("同名・同日シナリオの並べ替えは共有行キーを変える",
  });
  const actionsA = roster.toDispatchActions(makeManifest(0), [], { db }).actions;
  const actionsB = roster.toDispatchActions(makeManifest(1), [], { db }).actions;
- assert.notEqual(actionsA.find((action) => action.type === "ADD_RESULT").financialReviews[0].key,
-  actionsB.find((action) => action.type === "ADD_RESULT").financialReviews[0].key);
+ const resultA = actionsA.find((action) => action.type === "ADD_RESULT");
+ const resultB = actionsB.find((action) => action.type === "ADD_RESULT");
+ assert.notEqual(resultA.financialReviews[0].key, resultB.financialReviews[0].key,
+  "レビュー行keyは元行位置を反映する");
+ assert.equal(resultA.importSourceKey, resultB.importSourceKey,
+  "リザルト自体の共有元keyは履歴の並べ替えで変えない");
+
+ const context = { window: { DB: db, console }, console, URL, TextEncoder, TextDecoder, setTimeout, clearTimeout };
+ context.globalThis = context;
+ vm.runInNewContext(read("../js/ledger-provenance.js"), context, { filename: "ledger-provenance.js" });
+ vm.runInNewContext(read("../js/state.js"), context, { filename: "state.js" });
+ const reducer = context.window.appReducer;
+ const baseState = { results: [], entries: [], roster: { personas: [], egos: [], supports: [], spirits: [] }, inventory: [] };
+ const imported = reducer(baseState, { type: "APPLY_IMPORT_BATCH", actions: actionsA });
+ const candidate = imported.results[0].financialReviews[0];
+ const resolved = reducer(imported, {
+  type: "RESOLVE_FINANCIAL_REVIEW", resultId: imported.results[0].id,
+  candidateKey: candidate.key, currency: "lp", direction: "spend", amount: 87
+ });
+ const reordered = reducer(resolved, { type: "APPLY_IMPORT_BATCH", actions: actionsB });
+ assert.equal(reordered.results.length, 1, "行移動でも既存リザルトを更新する");
+ assert.equal(reordered.results[0].financialReviews[0].status, "confirmed",
+  "原文行が一意に一致すれば確認状態を引き継ぐ");
+ assert.equal(reordered.entries.length, 1, "確認済み支出を再作成しない");
+ assert.equal(reordered.entries[0].cost.lp, 87);
 });
 
 test("取込リデューサーは固有keyで明細の帰属先を解決する", () => {
