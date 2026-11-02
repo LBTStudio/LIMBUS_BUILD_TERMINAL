@@ -181,6 +181,22 @@ test("未確定チケットの受領を確定すると再取込後も枚数を�
   assert.equal(balanceOf(reimported).persona, 3, "確定済み受領は同一未確定行の再取込で二重加算せず保持");
 });
 
+test("パックチケットの確認確定はパック名ごとに残数を増減する", () => {
+  const base = withResult({ persona: 0, ego: 0, choice: 0, pack: { "肉斬骨断": 3 } });
+  base.results[0].financialReviews = [{
+    key: "review-pack-ticket", line: "〈肉斬骨断〉チケット×2", lineIndex: 1,
+    category: "ticket", status: "pending"
+  }];
+  const spent = reducer(base, {
+    type: "RESOLVE_FINANCIAL_REVIEW", category: "ticket",
+    resultId: "res-1", candidateKey: "review-pack-ticket",
+    ticketKind: "pack", ticketPack: "肉斬骨断", ticketCount: "2", ticketDirection: "spend"
+  });
+  assert.equal(balanceOf(spent).pack["肉斬骨断"], 1);
+  assert.equal(spent.entries[0].tickets.pack["肉斬骨断"], 2);
+  assert.equal(spent.results[0].financialReviews[0].ticketPack, "肉斬骨断");
+});
+
 test("SPEND_TICKET の明示的な0枚は既定の1枚消費にならない", () => {
   const s = withResult({ persona: 2 });
   const zeroNumber = reducer(s, { type: "SPEND_TICKET", kind: "persona", count: 0 });

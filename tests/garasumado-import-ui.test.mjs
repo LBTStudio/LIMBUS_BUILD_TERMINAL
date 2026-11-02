@@ -354,6 +354,8 @@ test("未確定チケット候補をチケット種別・枚数・方向で確�
   assert.ok(uiFlat.includes("確認候補のチケット枚数"));
   assert.ok(uiFlat.includes("確認候補のチケット方向"));
   assert.ok(uiFlat.includes("この枚数でチケット残数へ反映"));
+  assert.ok(uiFlat.includes("現在所持："));
+  assert.ok(uiFlat.includes("Number(draft.ticketCount) > ticketAvailable"));
 });
 
 test("currencyDiscrepanciesを取り込み確認カードへ表示し、記録価格を自動修正しない", () => {
