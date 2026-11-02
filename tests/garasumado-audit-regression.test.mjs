@@ -305,3 +305,87 @@ test("同名・同日シナリオの並べ替えは共有行キーを変える",
 test("取込リデューサーは固有keyで明細の帰属先を解決する", () => {
  const src = read("../js/state.js"); assert.match(src, /const resultIdByBatchKey = new Map\(\)/); assert.match(src, /Array\.isArray\(sub\.viaKeys\)/); assert.match(src, /resultIdByBatchKey\.get\(viaKey\)/); assert.match(src, /const batchKey = String\(sub\.batchKey \|\| ""\)/);
 });
+
+
+test("同一原文行の通貨警告とチケット警告は別々の確認候補として保存する", () => {
+ const { memo, roster } = loadAuditApis();
+ const raw = "人格抽出チケット×2.5消費、LP50消費";
+ const input = scenario("scenario:co-located-reviews", [], {
+  importSourceKey: "gara1:source-co-located:row0:2026-11-03:1",
+  financialReviewSourceKey: "review-source:source-co-located:row0",
+  memo: "・支出\\n" + raw,
+  spends: [{ name: "LP支出", raw, lp: 50, shards: 0 }],
+  ticketSpends: [],
+  financialCoverage: [{
+   lineIndex: 2, line: raw, section: "spend", status: "direction-review",
+   expected: { lp: 50, shards: 0 }, detected: { lp: 50, shards: 0 },
+   expectedFlows: { lpIncome: 0, lpSpend: 50, lpUnknown: 0, shardsIncome: 0, shardsSpend: 0, shardsUnknown: 0 },
+   detectedFlows: { lpIncome: 0, lpSpend: 50, lpUnknown: 0, shardsIncome: 0, shardsSpend: 0, shardsUnknown: 0 }
+  }],
+  sourceAudits: [{
+   side: "parser", code: "malformed-ticket-count", severity: "review",
+   lineIndex: 2, line: raw, message: "チケット枚数が正の整数ではありません"
+  }],
+  reasons: [{ line: raw, reason: "チケット枚数が正の整数でないため保留" }]
+ });
+ const reviews = roster.buildFinancialReviewCandidates(input);
+ assert.deepEqual(reviews.map((row) => row.category).sort(), ["currency", "ticket"]);
+ assert.equal(new Set(reviews.map((row) => row.key)).size, 2, "同じ行でも候補IDを分離する");
+ const built = roster.toDispatchActions({ groups: [], scenarios: [input] }, [], { db });
+ const saved = built.actions.find((action) => action.type === "ADD_RESULT");
+ assert.deepEqual(saved.financialReviews.map((row) => row.category).sort(), ["currency", "ticket"]);
+ assert.equal(built.actions.filter((action) => action.type === "ADD_ENTRY").length, 0,
+  "両方の警告がある行は、明示確認までどちらも確定計上しない");
+});
+
+test("チケットだけの保留候補は同じ行の通貨支出を誤って止めない", () => {
+ const { roster } = loadAuditApis();
+ const raw = "人格抽出チケット×1使用、LP40支出";
+ const input = scenario("scenario:ticket-only-review", [], {
+  importSourceKey: "gara1:source-ticket-only:row0:2026-11-03:1",
+  memo: raw,
+  spends: [{ name: "LP支出", raw, lp: 40, shards: 0 }],
+  ticketSpends: [{ kind: "unknown", count: 1, raw }],
+  sourceAudits: [{
+   side: "parser", code: "unknown-ticket-kind", severity: "review",
+   lineIndex: 1, line: raw, message: "抽出チケットの種別が不明なため保留"
+  }],
+  reasons: [{ line: raw, reason: "抽出チケットの種別が不明なため保留" }]
+ });
+ const reviews = roster.buildFinancialReviewCandidates(input);
+ assert.equal(reviews.length, 1);
+ assert.equal(reviews[0].category, "ticket");
+ const built = roster.toDispatchActions({ groups: [], scenarios: [input] }, [], { db });
+ const entry = built.actions.find((action) => action.type === "ADD_ENTRY" && Number(action.cost?.lp) === 40);
+ assert.ok(entry, "チケット候補だけでは、通貨側が読めた支出を止めない");
+ assert.equal(built.actions.some((action) => action.type === "ADD_ENTRY" && action.tickets?.persona), false,
+  "不明な券種の消費は推測しない");
+});
+
+test("通貨だけの保留候補は同じ行の確定可能なチケット使用を誤って止めない", () => {
+ const { roster } = loadAuditApis();
+ const raw = "人格抽出チケット×1使用、LP40支出";
+ const input = scenario("scenario:currency-only-review", [], {
+  importSourceKey: "gara1:source-currency-only:row0:2026-11-03:1",
+  memo: raw,
+  spends: [{ name: "LP支出", raw, lp: 40, shards: 0 }],
+  ticketSpends: [{ kind: "persona", count: 1, raw }],
+  financialCoverage: [{
+   lineIndex: 1, line: raw, section: "spend", status: "direction-review",
+   expected: { lp: 40, shards: 0 }, detected: { lp: 40, shards: 0 }
+  }],
+  sourceAudits: [{
+   side: "parser", code: "currency-direction-review", severity: "review",
+   lineIndex: 1, line: raw, message: "LP支出の方向を確認"
+  }],
+  reasons: [{ line: raw, reason: "支出の通貨方向を確認してください" }]
+ });
+ const reviews = roster.buildFinancialReviewCandidates(input);
+ assert.equal(reviews.length, 1);
+ assert.equal(reviews[0].category, "currency");
+ const built = roster.toDispatchActions({ groups: [], scenarios: [input] }, [], { db });
+ assert.ok(built.actions.some((action) => action.type === "ADD_ENTRY" && action.tickets?.persona === 1),
+  "通貨候補だけでは、種別と枚数が確定したチケット消費を止めない");
+ assert.equal(built.actions.some((action) => action.type === "ADD_ENTRY" && Number(action.cost?.lp) === 40), false,
+  "通貨側の不確実性は支出額だけを保留する");
+});

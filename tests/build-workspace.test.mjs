@@ -491,8 +491,8 @@ test("抽出チケットはリザルト収入で管理し、ショップのガ�
          消費は枚数を受け取る（一括抽選は引いた回数ぶんを一度に送る）。 */
       assert.match(reducer, /case "GRANT_TICKET"[\s\S]{0,700}?return setTicketIncome\(state, kind, pack, delta, action\.resultId\);/);
       assert.match(reducer, /case "SPEND_TICKET"[\s\S]{0,1200}?Math\.min\(use, available\)/);
-      assert.match(reducer, /return appendTicketSpend\(state, kind, pack, take, action\.ref, action\.resultId\);/);
-      assert.match(reducer, /function appendTicketSpend\(state, kind, pack, count, ref, resultId\)/);
+      assert.match(reducer, /return appendTicketSpend\(state, kind, pack, take, action\.ref, action\.resultId, action\.importResultKey\);/);
+      assert.match(reducer, /function appendTicketSpend\(state, kind, pack, count, ref, resultId, importResultKey\)/);
       assert.match(reducer, /function setTicketIncome\(state, kind, pack, delta, resultId\)/);
      assert.match(reducer, /const targetId = resultId \|\| latestResultId\(state\);/);
      /* state とUIが同じ分類を共有。 */
@@ -912,7 +912,7 @@ test("取得は種別と方法から金額を自動計算し、直近リザル�
   /* 購入導線は購入として明細を立てる。所持になるだけで初期作成用人格チケットを
      消費するので、その1段を挟んでから購入の分岐に入る。 */
   const addRoster = state.slice(state.indexOf('case "ADD_ROSTER"'), state.indexOf('case "ADD_ROSTER_EGO"'));
-  assert.match(addRoster, /const withTicket = (?:action\.skipInitialTicketConsumption === true \? next : )?consumeInitialPersonaTicket\(next, action\.resultId\);/);
+  assert.match(addRoster, /const hadPersonaBefore = state\.roster\.personas\.length > 0;[\s\S]*?const withTicket = hadPersonaBefore \|\| action\.skipInitialTicketConsumption === true[\s\S]*?: consumeInitialPersonaTicket\(next, action\.resultId\);/);
   assert.match(addRoster, /if \(!action\.purchase\) return withTicket;/);
   assert.match(addRoster, /kind: "persona"/);
   assert.match(addRoster, /const purchaseCost = purchaseCostOf\(state, action\);/);
