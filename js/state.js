@@ -69,6 +69,102 @@ function normalizePersonaAcquisitions(value) {
   });
 }
 
+function normalizeFinancialReviewCandidates(value) {
+  if (!Array.isArray(value)) return [];
+  const allowedStatus = new Set(["pending", "confirmed", "dismissed"]);
+  return value.slice(0, 300).flatMap((candidate) => {
+    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return [];
+    const key = String(candidate.key || "").trim().slice(0, 180);
+    const line = String(candidate.line || "").slice(0, 2000);
+    const lineIndex = Number(candidate.lineIndex);
+    const amount = candidate.amount == null || candidate.amount === ""
+      ? null : Number(candidate.amount);
+    if (!key || !line || !Number.isSafeInteger(lineIndex) || lineIndex < 1) return [];
+    const rawEvidence = candidate.evidence && typeof candidate.evidence === "object" && !Array.isArray(candidate.evidence)
+      ? candidate.evidence : {};
+    const rawCoverage = rawEvidence.coverage && typeof rawEvidence.coverage === "object" && !Array.isArray(rawEvidence.coverage)
+      ? rawEvidence.coverage : null;
+    const rawAuditRows = Array.isArray(rawEvidence.audits) ? rawEvidence.audits : [];
+    const rawReasonRows = Array.isArray(rawEvidence.reasons) ? rawEvidence.reasons : [];
+    const evidence = {
+      coverage: rawCoverage ? {
+        status: String(rawCoverage.status || "").slice(0, 80),
+        section: String(rawCoverage.section || "").slice(0, 40),
+        expected: rawCoverage.expected && typeof rawCoverage.expected === "object" ? rawCoverage.expected : null,
+        detected: rawCoverage.detected && typeof rawCoverage.detected === "object" ? rawCoverage.detected : null,
+        expectedFlows: rawCoverage.expectedFlows && typeof rawCoverage.expectedFlows === "object" ? rawCoverage.expectedFlows : null,
+        detectedFlows: rawCoverage.detectedFlows && typeof rawCoverage.detectedFlows === "object" ? rawCoverage.detectedFlows : null
+      } : null,
+      audits: rawAuditRows.slice(0, 20).flatMap((audit) => audit && typeof audit === "object" && !Array.isArray(audit) ? [{
+        code: String(audit.code || "").slice(0, 80),
+        side: String(audit.side || "").slice(0, 32),
+        severity: String(audit.severity || "review").slice(0, 16),
+        message: String(audit.message || "").slice(0, 500)
+      }] : []),
+      reasons: rawReasonRows.slice(0, 20).map((reason) => String(reason || "").slice(0, 500))
+    };
+    return [{
+      key,
+      sourceId: String(candidate.sourceId || "").slice(0, 120),
+      sourceKey: String(candidate.sourceKey || "").slice(0, 180),
+      scenarioKey: String(candidate.scenarioKey || "").slice(0, 80),
+      scenarioIndex: candidate.scenarioIndex == null || candidate.scenarioIndex === ""
+        ? null : (Number.isSafeInteger(Number(candidate.scenarioIndex)) ? Number(candidate.scenarioIndex) : null),
+      sourceIndex: candidate.sourceIndex == null || candidate.sourceIndex === ""
+        ? null : (Number.isSafeInteger(Number(candidate.sourceIndex)) ? Number(candidate.sourceIndex) : null),
+      lineIndex,
+      line,
+      candidateType: String(candidate.candidateType || "financial-review").slice(0, 80),
+      currency: ["lp", "shards"].includes(candidate.currency) ? candidate.currency : "",
+      amount: amount !== null && Number.isSafeInteger(amount) && amount > 0 ? amount : null,
+      direction: ["spend", "income"].includes(candidate.direction) ? candidate.direction : "",
+      severity: candidate.severity === "warning" ? "warning" : "review",
+      reason: String(candidate.reason || "").slice(0, 1000),
+      evidence,
+      status: allowedStatus.has(candidate.status) ? candidate.status : "pending",
+      reviewedAt: candidate.reviewedAt == null || candidate.reviewedAt === ""
+        ? null : (Number.isSafeInteger(Number(candidate.reviewedAt)) ? Number(candidate.reviewedAt) : null),
+      resolvedEntryId: String(candidate.resolvedEntryId || "").slice(0, 120)
+    }];
+  });
+}
+function mergeFinancialReviewCandidates(previous, incoming) {
+  const oldRows = normalizeFinancialReviewCandidates(previous);
+  const incomingRows = normalizeFinancialReviewCandidates(incoming);
+  const oldByKey = new Map(oldRows.map((candidate) => [candidate.key, candidate]));
+  const oldByLine = new Map();
+  const incomingLineCounts = new Map();
+  for (const candidate of oldRows) {
+    oldByLine.set(candidate.line, [...(oldByLine.get(candidate.line) || []), candidate]);
+  }
+  for (const candidate of incomingRows) {
+    incomingLineCounts.set(candidate.line, (incomingLineCounts.get(candidate.line) || 0) + 1);
+  }
+  return incomingRows.map((candidate) => {
+    let old = oldByKey.get(candidate.key) || null;
+    /* 行の並べ替えで候補keyが変わっても、同一リザルト内で原文行が前後それぞれ
+       1件だけなら同じ候補と見なす。同文が複数ある場合は誤引継ぎを避けて保留する。 */
+    if (!old) {
+      const sameLine = oldByLine.get(candidate.line) || [];
+      if (sameLine.length === 1 && incomingLineCounts.get(candidate.line) === 1) old = sameLine[0];
+    }
+    if (!old || old.status === "pending" || old.line !== candidate.line) return candidate;
+    /* 同じ安定した元行キーと原文が一致する場合だけ、利用者の確定/却下を引き継ぐ。 */
+    return {
+      ...candidate,
+      /* 行番号の変化で候補データの位置は更新しても、確定支出entry.ref.uidが参照する
+         候補IDは維持する。これが変わると、後から明細を削除してもpendingへ戻せない。 */
+      key: old.key,
+      currency: old.currency,
+      amount: old.amount,
+      direction: old.direction,
+      status: old.status,
+      reviewedAt: old.reviewedAt,
+      resolvedEntryId: old.resolvedEntryId
+    };
+  });
+}
+
 /* 初期作成用人格チケットの消費。最初の人格を購入・手動追加などで得た場合に1枚消す。
    人格抽出チケットで抽選した場合は、その支払いが初期分の消費を兼ねるため、
    applyRosterAdds 側で自動消費を抑止する。 */
@@ -1128,14 +1224,16 @@ function normalizeCurrency(value) {
      LP/欠片と同じ式なので、増減を追う経路がどこであれ結果が求まる。 */
   function computeTicketBalance(results, entries) {
     const out = { persona: 0, ego: 0, choice: 0, pack: {} };
-    for (const result of results || []) {
+    const resultRows = Array.isArray(results) ? results : [];
+    const entryRows = Array.isArray(entries) ? entries : [];
+    for (const result of resultRows) {
       const inc = normalizeTickets(result?.income?.tickets);
       out.persona += inc.persona;
       out.ego += inc.ego;
       out.choice += inc.choice;
       for (const [name, n] of Object.entries(inc.pack)) setSafeRecordEntry(out.pack, name, Number(getSafeRecordEntry(out.pack, name, 0)) + n);
     }
-    for (const entry of entries || []) {
+    for (const entry of entryRows) {
       /* 消費は負数で持つ（明細は支出なので）。 */
       const used = normalizeTickets(entry?.tickets);
       out.persona -= used.persona;
@@ -1855,6 +1953,11 @@ function normalizeStateShape(raw) {
     }
   }
   next.tickets = unresolvedLegacyTickets;
+  /* 未確定の会計候補はリザルトへ保全するが、収支明細ではないため残高計算には含めない。 */
+  next.results = (Array.isArray(next.results) ? next.results : []).map((result) => ({
+    ...result,
+    financialReviews: normalizeFinancialReviewCandidates(result?.financialReviews)
+  }));
   next.roster = {
     ...next.roster,
     // 同期MAXは同期ランク（0/00/000）と別に保存する。旧保存データはfalseへ補完する。
@@ -2770,7 +2873,7 @@ function appendLedgerEntry(state, detail) {
       resultId: resultId || null,
       ref: detail.ref || null,
       at: Date.now(),
-      note: ""
+      note: String(detail.note || "").slice(0, 2000)
     }]
   };
 }
@@ -2819,13 +2922,15 @@ function dropLedgerEntriesForRefs(state, kind, uids) {
 }
 
 function computeLedgerBalance(results, entries) {
+  const resultRows = Array.isArray(results) ? results : [];
+  const entryRows = Array.isArray(entries) ? entries : [];
   let incomeLp = 0;
   let incomeShards = 0;
   /* 交換機能の撤去後は、通常のLP支出明細と獲得欠片だけを集計する。
      exchange は安全整数を超えて移行できなかった旧保存データだけの互換用。 */
   let legacyExchangeLp = 0;
   let legacyExchangeShards = 0;
-  for (const result of results || []) {
+  for (const result of resultRows) {
     incomeLp += normalizeCurrency(result?.income).lp;
     incomeShards += normalizeCurrency(result?.income).shards;
     const legacyExchange = normalizeCurrency(result?.exchange);
@@ -2835,7 +2940,7 @@ function computeLedgerBalance(results, entries) {
   let spentLp = 0;
   let spentShards = 0;
   let unclassified = 0;
-  for (const entry of entries || []) {
+  for (const entry of entryRows) {
     const cost = normalizeCurrency(entry?.cost);
     spentLp += cost.lp;
     spentShards += cost.shards;
@@ -4115,6 +4220,14 @@ function validateDrawBatchApplication(state, action) {
   if (draws.some((existing) => String(existing?.batchHash || existing?.commit || "") === proofKey)) {
     return { ok: false, reason: "duplicate-batch" };
   }
+  /* APPLY_DRAW_BATCH は証明の保存と分離して先に経済効果を適用する。
+     ADD_DRAW_RECORD がまだ届いていない短い区間でも同じ batch を再適用すると、
+     所持は重複拒否されても ticketSpend / 通貨支出は二重に積まれる。
+     確定済みIDと pending proof の両方で、その区間を含めて冪等にする。 */
+  const appliedBatchIds = Array.isArray(state?.appliedDrawBatchIds) ? state.appliedDrawBatchIds : [];
+  if (appliedBatchIds.includes(proofKey) || String(state?._pendingDrawProofHash || "") === proofKey) {
+    return { ok: false, reason: "duplicate-batch-already-applied" };
+  }
   if (!batch.records.length) return { ok: false, reason: "empty-batch" };
 
   /* 現行 schema v2 は、ハッシュ鎖・seed/rolls・メタデータ整合性を検査してから
@@ -4591,10 +4704,11 @@ function appReducer(state, action) {
       /* count は負数で「消費した枚数」を表す。指定が無ければ 1 枚。
          明示値に小数・部分一致文字列・安全整数外があれば状態を変更しない。 */
       const omitted = action.count === undefined || action.count === null || action.count === "";
-      const parsedCount = omitted ? 0 : parseStrictTicketInteger(action.count, { allowZero: true, allowNegative: true });
-      if (parsedCount === null) return state;
-      const asked = Math.abs(parsedCount);
-      const use = asked > 0 ? asked : 1;
+      const parsedCount = omitted ? null : parseStrictTicketInteger(action.count, { allowZero: true, allowNegative: true });
+      if (!omitted && (parsedCount === null || parsedCount === 0)) return state;
+      /* 枚数省略だけを1枚として扱う。明示的な0は「消費しない」であり、
+         omitted と同じ既定値へ落とすと呼び出し側の0指定が1枚消費になる。 */
+      const use = omitted ? 1 : Math.abs(parsedCount);
       /* 所持より多くは消費できない。足りなければそれだけ使う。 */
       const take = Math.min(use, available);
       if (take <= 0) return state;
@@ -5895,20 +6009,38 @@ case "ADD_CUSTOM_ITEM": {
       const nextRewardItems = action.rewardItems === undefined
         ? normalizeRewardItems(previous.rewardItems, state)
         : normalizeRewardItems(action.rewardItems, state);
+      const mergedReviews = action.financialReviews === undefined
+        ? normalizeFinancialReviewCandidates(previous.financialReviews)
+        : mergeFinancialReviewCandidates(previous.financialReviews, action.financialReviews);
+      /* 同じ元行が依然「要確認」として再検出されている場合、その行から以前に
+         明示確定した収入額はパーサの再出力に含まれない。手動確定分だけ足し戻す。
+         パーサが解決して候補自体が消えた行は足し戻さず、二重計上を避ける。 */
+      const updateIncome = action.income === undefined
+        ? previous.income
+        : { ...normalizeCurrency(action.income), tickets: normalizeTickets(action.income?.tickets) };
+      if (action.income !== undefined && action.financialReviews !== undefined) {
+        for (const review of mergedReviews) {
+          if (review.status !== "confirmed" || review.direction !== "income" || !review.currency
+              || !Number.isSafeInteger(review.amount) || review.amount <= 0) continue;
+          const total = Number(updateIncome[review.currency] || 0) + review.amount;
+          if (Number.isSafeInteger(total)) updateIncome[review.currency] = total;
+        }
+      }
       const results = (state.results || []).map((r) => {
         if (r.id !== id) return r;
         return {
           ...r,
           name: action.name === undefined ? r.name : String(action.name).slice(0, 80),
           date: action.date === undefined ? r.date : String(action.date).slice(0, 10),
-          income: action.income === undefined
-            ? r.income
-            : { ...normalizeCurrency(action.income), tickets: normalizeTickets(action.income?.tickets) },
+          income: r.id === id ? updateIncome : r.income,
           ...(action.note !== undefined ? { note: String(action.note || "").slice(0, 2000) } : {}),
           ...(action.consumedItems !== undefined ? { consumedItems: normalizeConsumedItems(action.consumedItems) } : {}),
           ...(action.rewardItems !== undefined ? { rewardItems: nextRewardItems } : {}),
           ...(action.initialPersona !== undefined ? { initialPersona: normalizeInitialPersona(action.initialPersona) } : {}),
           ...(action.personaAcquisitions !== undefined ? { personaAcquisitions: normalizePersonaAcquisitions(action.personaAcquisitions) } : {}),
+          ...(action.financialReviews !== undefined
+            ? { financialReviews: mergedReviews }
+            : {}),
           ...(action.importSourceKey !== undefined
             ? (String(action.importSourceKey || "").trim()
               ? { importSourceKey: String(action.importSourceKey).slice(0, 180) }
@@ -5922,6 +6054,73 @@ case "ADD_CUSTOM_ITEM": {
         ? updated
         : grantRewardItemDeltas(updated, nextRewardItems, previous.rewardItems);
     }
+    /* 未確定候補を台帳へ移すのは利用者が通貨・方向・金額を指定した場合だけ。
+       同じ候補は pending の間だけ確定でき、再送・連打で二重計上しない。 */
+    case "RESOLVE_FINANCIAL_REVIEW": {
+      const resultId = String(action.resultId || "");
+      const candidateKey = String(action.candidateKey || "");
+      const result = (state.results || []).find((row) => row?.id === resultId);
+      const candidate = normalizeFinancialReviewCandidates(result?.financialReviews)
+        .find((row) => row.key === candidateKey);
+      if (!result || !candidate || candidate.status !== "pending") return state;
+      const currency = action.currency;
+      const direction = action.direction;
+      const amount = parseStrictTicketInteger(action.amount, { allowZero: false, allowNegative: false });
+      if (!["lp", "shards"].includes(currency) || !["spend", "income"].includes(direction) || amount === null) return state;
+      const now = Date.now();
+      let next = state;
+      let resolvedEntryId = "";
+      if (direction === "spend") {
+        next = appendLedgerEntry(next, {
+          kind: "other",
+          name: ("確認済み支出：" + candidate.line).slice(0, 120),
+          cost: { lp: currency === "lp" ? amount : 0, shards: currency === "shards" ? amount : 0 },
+          resultId,
+          ref: { kind: "financialReview", uid: candidate.key },
+          note: "硝子窓取込の未確定候補を利用者が明示確定"
+        });
+        resolvedEntryId = String(next.entries[next.entries.length - 1]?.id || "");
+      } else {
+        const current = normalizeCurrency(result.income);
+        const total = current[currency] + amount;
+        if (!Number.isSafeInteger(total)) return state;
+        const results = (next.results || []).map((row) => row.id === resultId
+          ? { ...row, income: { ...current, tickets: normalizeTickets(row.income?.tickets), [currency]: total }, updatedAt: now }
+          : row);
+        next = { ...next, results };
+      }
+      return {
+        ...next,
+        results: (next.results || []).map((row) => row.id === resultId
+          ? {
+              ...row,
+              financialReviews: normalizeFinancialReviewCandidates(row.financialReviews).map((item) => item.key === candidate.key
+                ? { ...item, currency, amount, direction, status: "confirmed", reviewedAt: now, resolvedEntryId }
+                : item),
+              updatedAt: now
+            }
+          : row)
+      };
+    }
+    case "DISMISS_FINANCIAL_REVIEW": {
+      const resultId = String(action.resultId || "");
+      const candidateKey = String(action.candidateKey || "");
+      let changed = false;
+      const results = (state.results || []).map((row) => {
+        if (row.id !== resultId) return row;
+        const candidates = normalizeFinancialReviewCandidates(row.financialReviews);
+        if (!candidates.some((candidate) => candidate.key === candidateKey && candidate.status === "pending")) return row;
+        changed = true;
+        return {
+          ...row,
+          financialReviews: candidates.map((candidate) => candidate.key === candidateKey
+            ? { ...candidate, status: "dismissed", reviewedAt: Date.now() }
+            : candidate),
+          updatedAt: Date.now()
+        };
+      });
+      return changed ? { ...state, results } : state;
+    }
     case "ADD_RESULT": {
       const now = Date.now();
       const result = {
@@ -5934,6 +6133,7 @@ case "ADD_CUSTOM_ITEM": {
         rewardItems: normalizeRewardItems(action.rewardItems, state),
         initialPersona: normalizeInitialPersona(action.initialPersona),
         personaAcquisitions: normalizePersonaAcquisitions(action.personaAcquisitions),
+        financialReviews: normalizeFinancialReviewCandidates(action.financialReviews),
         ...(String(action.importSourceKey || "").trim()
           ? { importSourceKey: String(action.importSourceKey).slice(0, 180) }
           : {}),
@@ -5961,6 +6161,9 @@ case "ADD_CUSTOM_ITEM": {
               ...(action.patch?.rewardItems !== void 0 ? { rewardItems: normalizeRewardItems(action.patch.rewardItems, state) } : {}),
               ...(action.patch?.initialPersona !== void 0 ? { initialPersona: normalizeInitialPersona(action.patch.initialPersona) } : {}),
               ...(action.patch?.personaAcquisitions !== void 0 ? { personaAcquisitions: normalizePersonaAcquisitions(action.patch.personaAcquisitions) } : {}),
+              ...(action.patch?.financialReviews !== void 0
+                ? { financialReviews: mergeFinancialReviewCandidates(r.financialReviews, action.patch.financialReviews) }
+                : {}),
               updatedAt: Date.now()
             }
           : r))
@@ -6013,8 +6216,10 @@ case "ADD_CUSTOM_ITEM": {
       for (const sub of action.actions || []) {
         if (!sub || typeof sub !== "object" || sub.type !== "ADD_RESULT") continue;
         const sourceKey = String(sub.importSourceKey || "").trim().slice(0, 180);
-        const matchingBySource = sourceKey
-          ? (next.results || []).filter((result) => result && result.importSourceKey === sourceKey)
+        const legacySourceKey = String(sub.legacyImportSourceKey || "").trim().slice(0, 180);
+        const sourceKeys = new Set([sourceKey, legacySourceKey].filter(Boolean));
+        const matchingBySource = sourceKeys.size
+          ? (next.results || []).filter((result) => result && sourceKeys.has(String(result.importSourceKey || "")))
           : [];
         /* 自動上書きは安定した共有元キーが1件だけ一致した場合に限る。重複キーは推測で選ばない。 */
         if (matchingBySource.length > 1) {
@@ -6022,8 +6227,8 @@ case "ADD_CUSTOM_ITEM": {
              ただし出典キーが一致する取込明細だけは安全に置換できる。
              手入力明細は importResultKey を持たないため残る。 */
           const existingEntries = Array.isArray(next.entries) ? next.entries : [];
-          const entries = sourceKey
-            ? existingEntries.filter((entry) => entry?.importResultKey !== sourceKey)
+          const entries = sourceKeys.size
+            ? existingEntries.filter((entry) => !sourceKeys.has(String(entry?.importResultKey || "")))
             : existingEntries;
           if (entries.length !== existingEntries.length) next = { ...next, entries };
           resultIds.push(null);
@@ -6045,8 +6250,8 @@ case "ADD_CUSTOM_ITEM": {
           const existingEntries = Array.isArray(next.entries) ? next.entries : [];
           const entries = isExplicitLegacyReplace
             ? existingEntries.filter((entry) => entry?.resultId !== target.id)
-            : (sourceKey
-              ? existingEntries.filter((entry) => entry?.importResultKey !== sourceKey)
+            : (sourceKeys.size
+              ? existingEntries.filter((entry) => !sourceKeys.has(String(entry?.importResultKey || "")))
               : existingEntries);
           if (entries !== existingEntries) next = { ...next, entries };
           next = appReducer(next, {
@@ -6058,6 +6263,7 @@ case "ADD_CUSTOM_ITEM": {
             note: sub.note,
             consumedItems: sub.consumedItems,
             personaAcquisitions: sub.personaAcquisitions,
+            financialReviews: sub.financialReviews,
             ...(sourceKey ? { importSourceKey: sourceKey } : {})
           });
           added = (next.results || []).find((result) => result && result.id === target.id) || null;
@@ -6212,11 +6418,23 @@ case "ADD_ENTRY":
       return roster === state.roster ? { ...state, entries } : { ...state, entries, roster };
     }
   case "PURGE_ENTRY":
-    if (!(state.entries || []).some((e) => e.id === action.id)) return state;
-    return { ...state, entries: (state.entries || []).filter((e) => e.id !== action.id) };
-  case "REMOVE_ENTRY":
-      if (!(state.entries || []).some((e) => e.id === action.id)) return state;
-      return { ...state, entries: (state.entries || []).filter((e) => e.id !== action.id) };
+  case "REMOVE_ENTRY": {
+    const removed = (state.entries || []).find((entry) => entry.id === action.id);
+    if (!removed) return state;
+    const next = { ...state, entries: (state.entries || []).filter((entry) => entry.id !== action.id) };
+    if (removed.ref?.kind !== "financialReview" || !removed.resultId || !removed.ref.uid) return next;
+    /* 確定済みの支出明細を消したら、候補も未確認へ戻す。再確定の入口を失わせない。 */
+    const results = (next.results || []).map((result) => result.id === removed.resultId
+      ? {
+          ...result,
+          financialReviews: normalizeFinancialReviewCandidates(result.financialReviews).map((candidate) =>
+            candidate.key === removed.ref.uid && candidate.status === "confirmed" && candidate.direction === "spend"
+              ? { ...candidate, status: "pending", currency: "", amount: null, direction: "", reviewedAt: null, resolvedEntryId: "" }
+              : candidate)
+        }
+      : result);
+    return { ...next, results };
+  }
     case "SET_ROSTER_SPIRIT_RESULT": {
       const roster = state.roster || {};
       if (!(roster.spirits || []).some((s) => s.uid === action.uid)) return state;

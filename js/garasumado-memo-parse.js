@@ -920,8 +920,17 @@
       if (pm) pack = pm[1].trim();
     }
     var count = 1;
-    var cm = source.match(/[x×]\s*(\d+)/) || source.match(/(?:チケット|チケ)\s*(\d+)\s*枚/);
-    if (cm) count = Number(cm[1]);
+    /* 小数・桁区切り不正・符号付き・部分一致を枚数へ切り詰めない。
+       ×2.5 を2枚、×1,20 を1枚として記録すると実際の残数が壊れる。 */
+    var ticketIntegerPattern = "(?:\\d{1,3}(?:,\\d{3})+|\\d+)";
+    var cm = source.match(new RegExp("[x×]\\s*(" + ticketIntegerPattern + ")(?![\\d.,])"))
+      || source.match(new RegExp("(?:チケット|チケ)\\s*(" + ticketIntegerPattern + ")\\s*枚(?![\\d.,])"));
+    var hasMalformedCount = !cm && (
+      /[x×]\s*[+＋−-]?\s*[\d.,]+/.test(source)
+      || /(?:チケット|チケ)\s*[+＋\-−]?\s*[\d.,]+/.test(source)
+    );
+    if (cm) count = Number(cm[1].replace(/,/g, ""));
+    else if (hasMalformedCount) return null;
     var parsed = isPack ? { kind: "pack", count: count } : ticketOf(source);
     if (!parsed || !Number.isSafeInteger(count) || count <= 0) return null;
     return { kind: isPack ? "pack" : (parsed.kind || "unknown"), count: count, pack: pack,
@@ -2154,11 +2163,17 @@
            「200LP以下の任意のテーマパックチケット」のように価格条件の数字を
            チケット枚数として誤認すると、実際には何も操作されていない行を
            financial-action-unaccounted にしてしまう。 */
+        const ticketIntegerToken = "(?:[0-9０-９]{1,3}(?:[,，][0-9０-９]{3})+|[0-9０-９]+)";
         const hasExplicitTicketCount =
-          /(?:チケット|チケ|抽出🎫)\s*(?:[x×ｘ＊*]\s*[0-9０-９]+|[0-9０-９]+\s*(?:枚|個|回))/i.test(sourceLine) ||
-          /(?:[x×ｘ＊*]\s*[0-9０-９]+|[0-9０-９]+\s*(?:枚|個|回))\s*(?:人格|E\.?G\.?O|エゴ|選択|抽出|ガチャ)?チケ(?:ット)?/i.test(sourceLine);
+          new RegExp("(?:チケット|チケ|抽出🎫)\\\\s*(?:[x×ｘ＊*]\\\\s*" + ticketIntegerToken + "(?![0-9０-９.,，])|" + ticketIntegerToken + "\\\\s*(?:枚|個|回)(?![0-9０-９.,，]))", "i").test(sourceLine) ||
+          new RegExp("(?:[x×ｘ＊*]\\\\s*" + ticketIntegerToken + "(?![0-9０-９.,，])|" + ticketIntegerToken + "\\\\s*(?:枚|個|回)(?![0-9０-９.,，]))\\\\s*(?:人格|E\\\\.?G\\\\.?O|エゴ|選択|抽出|ガチャ)?チケ(?:ット)?", "i").test(sourceLine);
         const hasTicketActionVerb =
           /(?:獲得|入手|取得|付与|支給|消費|使用|購入|買っ|支払|支出|報酬|収入|受領|補填|抽出(?:した|する|結果|後|済|を行う|を実施)|ガチャ(?:結果|で獲得|を回|を引)|消費済)/i.test(sourceLine);
+        const hasTicketCountSyntax =
+          /[x×ｘ＊*]\s*[+＋−-]?\s*[0-9０-９][0-9０-９,，.．]*/.test(sourceLine)
+          || /(?:チケット|チケ)\s*[+＋−-]?\s*[0-9０-９][0-9０-９,，.．]*\s*(?:枚|個|回)/.test(sourceLine)
+          || /[0-9０-９][0-9０-９,，.．]*\s*(?:枚|個|回)\s*(?:人格|E\.?G\.?O|エゴ|選択|抽出|ガチャ)?チケ(?:ット)?/i.test(sourceLine);
+        const hasMalformedTicketCount = hasTicketMarker && hasTicketCountSyntax && !hasExplicitTicketCount;
         const hasTicketEvent = hasTicketMarker && (hasExplicitTicketCount || hasTicketActionVerb);
         const hasRosterGainEvent = /(?:人格|E\\.?G\\.?O|エゴ).*(?:獲得|入手|取得)|(?:獲得|入手|取得).*(?:人格|E\\.?G\\.?O|エゴ)/i.test(sourceLine);
         const hasGachaResult = /ガチャ.*(?:結果|→|⇒)|(?:人格|E\\.?G\\.?O|エゴ)獲得\\s*[→⇒:：]/i.test(sourceLine);
@@ -2175,7 +2190,7 @@
           hasBalanceMarkerAndCurrency && !hasExplicitAmountOutsideBalance;
         const hasCurrentBalanceAction = hasBalanceMarkerAndCurrency &&
           /消費|支出|支払|購入|買っ|使用|行使|解放|抽出|ガチャ|獲得|入手|取得/.test(sourceLine);
-         const hasFinancialAction = hasTicketEvent || hasRosterGainEvent || hasGachaResult || hasCurrentBalanceAction ||
+         const hasFinancialAction = hasTicketEvent || hasRosterGainEvent || hasGachaResult || hasCurrentBalanceAction || hasMalformedTicketCount ||
           ((expected.lp || expected.shards || directMoneyRow) &&
             /報酬|収入|獲得|入手|取得|付与|支給|補填|受領|被り|重複|消費|使用|支払|支出|購入|買っ|抽出|ガチャ|変換|換算/.test(sourceLine));
         /* 矢印で残高・操作語が挟まれ、金額が前後の記録へ結び付かず
@@ -2229,6 +2244,12 @@
             reason: "支出額を残高から逆算せず、残高表記しかないため要確認にしました"
           });
         }
+          if (hasMalformedTicketCount && !reasons.slice(auditBefore.reasons).some((entry) => /チケット枚数/.test(String(entry.reason || "")))) {
+            reasons.push({
+              line: sourceLine,
+              reason: "抽出チケットの枚数が正の整数として確定できません。小数・不正な桁区切り・負数を推測せず要確認にしました。"
+            });
+          }
           const addedReasons = reasons.slice(auditBefore.reasons);
         const moneyReviewReason = addedReasons.some(function (entry) {
             return /LP|欠片|通貨|金額|支出|収入|残高|計算|計上|価格|チケット|抽出/.test(String(entry.reason || ""));

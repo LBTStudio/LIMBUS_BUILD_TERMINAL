@@ -754,19 +754,35 @@ function toIdentityChoices(hits) {
         const name = String(row.name || "").trim() || "無題";
         const sourceId = String(row.__lbtShareSourceId || "").trim();
         const sourceDate = String(row.date || row.createdAt || row.at || "").trim().slice(0, 10);
+        /* 共有文書内の元配列位置をキーへ含める。同名・同日シナリオの並べ替えで
+           古い会計判断を別の履歴へ引き継がない。旧共有行で index が無い場合だけ
+           occurrence を補助識別子に使う。 */
+        const sourceIndex = Number.isSafeInteger(Number(row.__lbtShareSourceIndex))
+          ? Number(row.__lbtShareSourceIndex) : index;
         const occurrenceScope = JSON.stringify([sourceId, sourceDate, nameKey(name)]);
         const occurrence = (scenarioOccurrences.get(occurrenceScope) || 0) + 1;
         scenarioOccurrences.set(occurrenceScope, occurrence);
         /* memo は修正対象なのでキーに含めない。同名の反復記録は出現順で区別する。 */
+        /* リザルト自身は従来の共有元＋日付＋名称＋同名出現順で安定識別する。
+           行番号はレビュー候補だけの識別に使い、履歴の並べ替えで結果全体を複製しない。 */
         const importSourceKey = sourceId
           ? ("gara1:" + sourceId + ":" + (sourceDate || "undated") + ":" + nameKey(name).slice(0, 64) + ":" + occurrence)
           : "";
+        const legacyImportSourceKey = importSourceKey;
+        const financialReviewSourceKey = sourceId
+          ? ("gara-review-source:" + sourceId + ":row" + sourceIndex)
+          : (importSourceKey || "scenario:" + index);
         const base = {
           key: "scenario:" + index,
           name,
           group: "scenarios",
+          scenarioIndex: index,
+          ...(sourceId ? { sourceId } : {}),
+          ...(Number.isSafeInteger(Number(row.__lbtShareSourceIndex)) ? { sourceIndex: Number(row.__lbtShareSourceIndex) } : {}),
+          financialReviewSourceKey,
           ...(row.date ? { date: String(row.date).slice(0, 10) } : {}),
-          ...(importSourceKey ? { importSourceKey } : {})
+          ...(importSourceKey ? { importSourceKey } : {}),
+          ...(legacyImportSourceKey ? { legacyImportSourceKey } : {})
         };
         if (!memoApi) return { ...base, memo: String(row.memo || ""), income: { lp: 0, shards: 0 }, tickets: {}, pack: {}, spends: [], wins: [], reasons: [{ reason: "メモパーサが読み込まれていない" }], currencyDiscrepancies: [] };
         const parsed = memoApi.parseMemo(row.memo);
@@ -982,6 +998,116 @@ function toIdentityChoices(hits) {
       if (matches.length === 1 && matches[0].key) keys.push(String(matches[0].key));
     }
     return [...new Set(keys)];
+  }
+
+  /* 金額・方向を確定できない通貨候補は、確定明細ではなくリザルトに紐づく
+     レビュー待ちとして保存する。sourceKey + 行番号 + 候補種別で再取込時も同一行を指す。
+     本文全体や共有URLは参照として保存しない。 */
+  function buildFinancialReviewCandidates(scenario) {
+    const rowsByLine = new Map();
+    const memoLines = String(scenario?.memo || "").split(/\r?\n/);
+    const locateLine = (line, fallback) => {
+      const raw = String(line || "");
+      if (Number.isSafeInteger(Number(fallback)) && Number(fallback) > 0) return Number(fallback);
+      const matches = [];
+      memoLines.forEach((candidate, index) => { if (candidate === raw) matches.push(index + 1); });
+      /* 同じ原文行が複数あるのに parser が行番号を返していない場合は推測しない。 */
+      return matches.length === 1 ? matches[0] : 0;
+    };
+    const ensure = (lineIndex, line, candidateType) => {
+      const index = Number(lineIndex);
+      if (!Number.isSafeInteger(index) || index < 1) return null;
+      const raw = String(line || memoLines[index - 1] || "").slice(0, 2000);
+      if (!raw) return null;
+      let row = rowsByLine.get(index);
+      if (!row) {
+        const sourceKey = String(scenario?.importSourceKey || "").trim().slice(0, 180);
+        const scope = String(scenario?.financialReviewSourceKey || "").trim()
+          || sourceKey || String(scenario?.key || scenario?.name || "scenario").slice(0, 80);
+        const type = String(candidateType || "financial-review").slice(0, 36);
+        row = {
+          /* candidateType/status は再解析で変わり得るため識別子へ含めない。
+             元共有元・元行番号・後段の原文一致検査で決める。 */
+          key: ("gara-review:" + scope.slice(0, 130) + ":" + index).slice(0, 180),
+          sourceId: String(scenario?.sourceId || "").slice(0, 120),
+          sourceKey,
+          scenarioKey: String(scenario?.key || "").slice(0, 80),
+          scenarioIndex: Number.isSafeInteger(Number(scenario?.scenarioIndex)) ? Number(scenario.scenarioIndex) : null,
+          sourceIndex: Number.isSafeInteger(Number(scenario?.sourceIndex)) ? Number(scenario.sourceIndex) : null,
+          lineIndex: index,
+          line: raw,
+          candidateType: type,
+          currency: "",
+          amount: null,
+          direction: "",
+          severity: "review",
+          reason: "",
+          evidence: { coverage: null, audits: [], reasons: [] },
+          status: "pending"
+        };
+        rowsByLine.set(index, row);
+      }
+      return row;
+    };
+    const reviewStatuses = new Set([
+      "unitless-currency-review", "candidate-review", "direction-review",
+      "current-balance-review", "balance-transition-review", "unresolved", "mismatch",
+      "reviewed-by-parser-reason", "financial-action-unaccounted"
+    ]);
+    for (const coverage of Array.isArray(scenario?.financialCoverage) ? scenario.financialCoverage : []) {
+      if (!coverage || !reviewStatuses.has(String(coverage.status || ""))) continue;
+      const row = ensure(coverage.lineIndex || locateLine(coverage.line), coverage.line, coverage.status);
+      if (row) row.evidence.coverage = {
+        status: String(coverage.status || ""),
+        section: String(coverage.section || ""),
+        expected: coverage.expected || null,
+        detected: coverage.detected || null,
+        expectedFlows: coverage.expectedFlows || null,
+        detectedFlows: coverage.detectedFlows || null
+      };
+    }
+    for (const audit of Array.isArray(scenario?.sourceAudits) ? scenario.sourceAudits : []) {
+      if (!audit || !["review", "warning"].includes(String(audit.severity || ""))) continue;
+      const lineIndex = audit.lineIndex || locateLine(audit.line);
+      const row = ensure(lineIndex, audit.line, audit.code || "financial-audit");
+      if (!row) continue;
+      row.evidence.audits.push({
+        code: String(audit.code || "").slice(0, 80),
+        side: String(audit.side || "").slice(0, 32),
+        severity: String(audit.severity || "review"),
+        message: String(audit.message || audit.detail || "").slice(0, 500)
+      });
+      if (audit.severity === "warning") row.severity = "warning";
+    }
+    for (const discrepancy of Array.isArray(scenario?.currencyDiscrepancies) ? scenario.currencyDiscrepancies : []) {
+      if (!discrepancy) continue;
+      const lineIndex = locateLine(discrepancy.line);
+      const row = ensure(lineIndex, discrepancy.line, discrepancy.code || "currency-discrepancy");
+      if (!row) continue;
+      row.evidence.audits.push({
+        code: String(discrepancy.code || "currency-discrepancy").slice(0, 80),
+        side: "source-data",
+        severity: "warning",
+        message: String(discrepancy.detail || discrepancy.title || "通貨額の不一致").slice(0, 500)
+      });
+      row.severity = "warning";
+    }
+    for (const reason of Array.isArray(scenario?.reasons) ? scenario.reasons : []) {
+      const message = String(reason?.reason || "");
+      if (!/(読み取れない|未確定|未計上|要確認|通貨単位|方向を確認|確定できない)/.test(message)) continue;
+      const lineIndex = locateLine(reason.line);
+      const row = ensure(lineIndex, reason.line, "unresolved-expense");
+      if (row && !row.evidence.reasons.includes(message)) row.evidence.reasons.push(message.slice(0, 500));
+    }
+    return [...rowsByLine.values()].map((row) => {
+      const messages = [
+        ...(row.evidence.audits || []).map((audit) => audit.message),
+        ...(row.evidence.reasons || [])
+      ].filter(Boolean);
+      row.reason = [...new Set(messages)].join(" / ").slice(0, 1000)
+        || "金額・通貨・方向のいずれかを確定できません。原文を確認してください。";
+      return row;
+    }).slice(0, 300);
   }
 
   /* 選択された manifest を、実際に投げる action の一覧にする。
@@ -1218,12 +1344,24 @@ function toIdentityChoices(hits) {
       /* チケットは income.tickets に入る。reducer は action.income.tickets を読む
          （normalizeTickets）。incomeTickets という別キーは見てくれない。 */
       const legacyResultId = String(opts.legacyResultTargets?.[scenario.key] || "").trim();
+      const financialReviews = buildFinancialReviewCandidates(scenario);
+      const normalizeReviewLine = (value) => String(value || "")
+        .normalize("NFKC").replace(/現座/g, "現在").replace(/\s+/g, "").trim();
+      const hasPendingFinancialReview = (rawLine, fallbackName) => {
+        const rawKey = normalizeReviewLine(rawLine);
+        const nameKeyValue = normalizeReviewLine(fallbackName);
+        return financialReviews.some((candidate) => candidate.status === "pending" && (
+          (rawKey && normalizeReviewLine(candidate.line) === rawKey)
+          || (nameKeyValue && normalizeReviewLine(candidate.line).includes(nameKeyValue))
+        ));
+      };
       actions.push({
         type: "ADD_RESULT",
         batchKey: String(scenario.key || ""),
         name: scenario.name || "無題",
         ...(scenario.date ? { date: scenario.date } : {}),
         ...(scenario.importSourceKey ? { importSourceKey: scenario.importSourceKey } : {}),
+        ...(scenario.legacyImportSourceKey ? { legacyImportSourceKey: scenario.legacyImportSourceKey } : {}),
         ...(legacyResultId ? { legacyResultId, replaceLegacyEntries: true } : {}),
         income: {
           lp: income.lp || 0,
@@ -1238,12 +1376,17 @@ function toIdentityChoices(hits) {
         personaAcquisitions: (scenario.wins || []).flatMap((win) => (win.kinds || [])
           .filter((kind) => kind.kind === "persona" && kind.no !== undefined && kind.no !== null && (kind.mode === "n" || kind.mode === "t"))
           .map((kind) => ({ mode: kind.mode, no: String(kind.no), name: String(win.name || win.raw || ""), source: "garasumado" }))),
-        consumedItems: Array.isArray(scenario.consumedItems) ? scenario.consumedItems : []
+        consumedItems: Array.isArray(scenario.consumedItems) ? scenario.consumedItems : [],
+        financialReviews
       });
 
       /* チケット消費は収入に加算しない。履歴に使用と明記された分だけ消費アクションにする。 */
       for (const spend of scenario.ticketSpends || []) {
         if (!spend) continue;
+        if (hasPendingFinancialReview(spend.raw, "")) {
+          skipped.push({ key: scenario.key, reason: "チケット使用行に未確定の会計警告があるため、消費枚数を保留しました: " + String(spend.raw || "") });
+          continue;
+        }
         if (!["persona", "ego", "choice", "pack"].includes(spend.kind)) {
           skipped.push({ key: scenario.key, reason: "チケットの種別が曖昧なため消費記録を確定できません: " + String(spend.raw || "") });
           continue;
@@ -1348,6 +1491,12 @@ function toIdentityChoices(hits) {
         const shards = Number(spend && spend.shards || 0);
         const rawLine = String(spend && (spend.raw || spend.name) || "").trim();
         const rawLineKey = normalizeUncertainSpendLine(rawLine);
+        /* 警告候補に紐づく行は、パーサが暫定的な数値を返していても確定計上しない。
+           文字列として読めたことと、通貨・方向が確定したことは別。 */
+        if (hasPendingFinancialReview(rawLine, spend.name)) {
+          skipped.push({ key: scenario.key, reason: "金額・方向に未確定の警告があるため、支出を確定明細へ登録せず保留しました。原文を確認してください。" });
+          continue;
+        }
         const uncertain = (!lp && !shards) && (scenario.reasons || []).find((row) =>
           rawLineKey && normalizeUncertainSpendLine(row && row.line) === rawLineKey
           && /(?:支出金額|支出額|金額).*(?:読み取れない|未確定|未計上|確定できない|要確認)|通貨単位.*(?:不明|無い|ない|ありません)/.test(String(row && row.reason || ""))
@@ -1367,6 +1516,10 @@ function toIdentityChoices(hits) {
       /* 利用者が選んだ購入分。memo の支出と二重にならないよう、
          それは選択されたものだけ足す。 */
       for (const pick of purchases[scenario.key] || []) {
+        if (hasPendingFinancialReview("", pick.name)) {
+          skipped.push({ key: scenario.key, reason: "購入候補に未確定の会計警告があるため、DB価格の自動計上を保留しました: " + String(pick.name || "") });
+          continue;
+        }
         actions.push({
           type: "ADD_ENTRY",
           kind: pick.kind === "spirit" ? "spirit"
@@ -2058,7 +2211,8 @@ const api = {
     publicApiKey,
     GROUPS,
     buildResultDraft,
-    overlapCandidates
+    overlapCandidates,
+    buildFinancialReviewCandidates
   };
   function parseSpends(memo) {
     if (window.LBT_garaMemo && window.LBT_garaMemo.parseMemo) {

@@ -66,6 +66,30 @@ test("SPEND_TICKET は消費として明細に残る", () => {
   assert.equal(spent.entries[0].resultId, "res-1");
 });
 
+test("SPEND_TICKET の明示的な0枚は既定の1枚消費にならない", () => {
+  const s = withResult({ persona: 2 });
+  const zeroNumber = reducer(s, { type: "SPEND_TICKET", kind: "persona", count: 0 });
+  const zeroString = reducer(s, { type: "SPEND_TICKET", kind: "persona", count: "0" });
+  assert.equal(zeroNumber.entries.length, 0);
+  assert.equal(zeroString.entries.length, 0);
+  assert.equal(balanceOf(zeroNumber).persona, 2);
+  assert.equal(balanceOf(zeroString).persona, 2);
+  const omitted = reducer(s, { type: "SPEND_TICKET", kind: "persona" });
+  assert.equal(omitted.entries.length, 1, "枚数省略のときだけ既定の1枚を消費する");
+  assert.equal(balanceOf(omitted).persona, 1);
+});
+
+test("チケット・通貨残高計算は欠落または不正な配列入力で例外を出さない", () => {
+  assert.deepEqual(reducer(withResult({}), { type: "NOOP" }).entries, []);
+  assert.deepEqual(balanceOf({ results: {}, entries: {} }), {
+    persona: 0, ego: 0, choice: 0, pack: {}
+  });
+  const ledger = context.window.LBT_computeLedgerBalance({}, {});
+  assert.equal(ledger.lp, 0);
+  assert.equal(ledger.shards, 0);
+  assert.equal(ledger.tickets.persona, 0);
+});
+
 test("残数 0 のときに SPEND_TICKET は何も起こさない", () => {
   const s = withResult({});
   const spent = reducer(s, { type: "SPEND_TICKET", kind: "persona" });
