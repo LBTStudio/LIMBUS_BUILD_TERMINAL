@@ -158,7 +158,7 @@ test("確定支出の明細を削除すると、元の確認候補が再びpendi
  const context = { window: { DB: db, console }, console, URL, TextEncoder, TextDecoder, setTimeout, clearTimeout };
  context.globalThis = context;
  vm.runInNewContext(read("../js/ledger-provenance.js"), context, { filename: "ledger-provenance.js" });
- vm.runInContext(read("../js/state.js"), context, { filename: "state.js" });
+ vm.runInNewContext(read("../js/state.js"), context, { filename: "state.js" });
  const reducer = context.window.appReducer;
  const imported = reducer({
   results: [], entries: [], roster: { personas: [], egos: [], supports: [], spirits: [] }, inventory: []
@@ -186,7 +186,7 @@ test("同名・同日シナリオの並べ替えは共有行キーを変える",
    sourceId: "share-source-123",
    sourceIndex,
    scenarioIndex: sourceIndex,
-   importSourceKey: "",
+   importSourceKey: "gara1:share-source-123:row" + sourceIndex + ":2026-11-03:same-scenario:1",
    memo: "・支出\n" + raw,
    date: "2026-11-03",
    ...parsed

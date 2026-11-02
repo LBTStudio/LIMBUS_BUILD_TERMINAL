@@ -80,15 +80,38 @@ function normalizeFinancialReviewCandidates(value) {
     const amount = candidate.amount == null || candidate.amount === ""
       ? null : Number(candidate.amount);
     if (!key || !line || !Number.isSafeInteger(lineIndex) || lineIndex < 1) return [];
-    const evidence = candidate.evidence && typeof candidate.evidence === "object" && !Array.isArray(candidate.evidence)
+    const rawEvidence = candidate.evidence && typeof candidate.evidence === "object" && !Array.isArray(candidate.evidence)
       ? candidate.evidence : {};
+    const rawCoverage = rawEvidence.coverage && typeof rawEvidence.coverage === "object" && !Array.isArray(rawEvidence.coverage)
+      ? rawEvidence.coverage : null;
+    const rawAuditRows = Array.isArray(rawEvidence.audits) ? rawEvidence.audits : [];
+    const rawReasonRows = Array.isArray(rawEvidence.reasons) ? rawEvidence.reasons : [];
+    const evidence = {
+      coverage: rawCoverage ? {
+        status: String(rawCoverage.status || "").slice(0, 80),
+        section: String(rawCoverage.section || "").slice(0, 40),
+        expected: rawCoverage.expected && typeof rawCoverage.expected === "object" ? rawCoverage.expected : null,
+        detected: rawCoverage.detected && typeof rawCoverage.detected === "object" ? rawCoverage.detected : null,
+        expectedFlows: rawCoverage.expectedFlows && typeof rawCoverage.expectedFlows === "object" ? rawCoverage.expectedFlows : null,
+        detectedFlows: rawCoverage.detectedFlows && typeof rawCoverage.detectedFlows === "object" ? rawCoverage.detectedFlows : null
+      } : null,
+      audits: rawAuditRows.slice(0, 20).flatMap((audit) => audit && typeof audit === "object" && !Array.isArray(audit) ? [{
+        code: String(audit.code || "").slice(0, 80),
+        side: String(audit.side || "").slice(0, 32),
+        severity: String(audit.severity || "review").slice(0, 16),
+        message: String(audit.message || "").slice(0, 500)
+      }] : []),
+      reasons: rawReasonRows.slice(0, 20).map((reason) => String(reason || "").slice(0, 500))
+    };
     return [{
       key,
       sourceId: String(candidate.sourceId || "").slice(0, 120),
       sourceKey: String(candidate.sourceKey || "").slice(0, 180),
       scenarioKey: String(candidate.scenarioKey || "").slice(0, 80),
-      scenarioIndex: Number.isSafeInteger(Number(candidate.scenarioIndex)) ? Number(candidate.scenarioIndex) : null,
-      sourceIndex: Number.isSafeInteger(Number(candidate.sourceIndex)) ? Number(candidate.sourceIndex) : null,
+      scenarioIndex: candidate.scenarioIndex == null || candidate.scenarioIndex === ""
+        ? null : (Number.isSafeInteger(Number(candidate.scenarioIndex)) ? Number(candidate.scenarioIndex) : null),
+      sourceIndex: candidate.sourceIndex == null || candidate.sourceIndex === ""
+        ? null : (Number.isSafeInteger(Number(candidate.sourceIndex)) ? Number(candidate.sourceIndex) : null),
       lineIndex,
       line,
       candidateType: String(candidate.candidateType || "financial-review").slice(0, 80),

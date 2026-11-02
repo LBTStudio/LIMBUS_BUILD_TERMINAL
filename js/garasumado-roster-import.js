@@ -1001,8 +1001,10 @@ function toIdentityChoices(hits) {
     const locateLine = (line, fallback) => {
       const raw = String(line || "");
       if (Number.isSafeInteger(Number(fallback)) && Number(fallback) > 0) return Number(fallback);
-      const index = memoLines.findIndex((candidate) => candidate === raw);
-      return index >= 0 ? index + 1 : 0;
+      const matches = [];
+      memoLines.forEach((candidate, index) => { if (candidate === raw) matches.push(index + 1); });
+      /* 同じ原文行が複数あるのに parser が行番号を返していない場合は推測しない。 */
+      return matches.length === 1 ? matches[0] : 0;
     };
     const ensure = (lineIndex, line, candidateType) => {
       const index = Number(lineIndex);
