@@ -1634,6 +1634,18 @@ test("取込プレビューの残高・費用監査警告は利用者が警告�
     "入力を変更したら以前の確認状態をリセットする");
 });
 
+test("同一のテキスト履歴を再計画しても安定した出典キーを生成する", () => {
+  const parsed = T.parseText("【再取込試験】\n報酬｜LP:10\n");
+  const first = T.plan(parsed, {});
+  const second = T.plan(parsed, {});
+  assert.equal(first.actions[0].type, "ADD_RESULT");
+  assert.match(first.actions[0].importSourceKey, /^text-/);
+  assert.equal(first.actions[0].importSourceKey, second.actions[0].importSourceKey,
+    "同一内容と同一順序なら再起動後も同じキーになる");
+  const changed = T.plan(T.parseText("【再取込試験】\n報酬｜LP:11\n"), {});
+  assert.notEqual(first.actions[0].importSourceKey, changed.actions[0].importSourceKey,
+    "内容が変われば別バージョンとして扱う");
+});
 test("消費欄に演算子のない複数数値がある場合、末尾値を支出として推測しない", () => {
   const parsed = T.parseText([
     "▼サポートパッシブ購入",

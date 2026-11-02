@@ -618,6 +618,22 @@ test("アカウント本体の削除に失敗したら成功扱いせず、索�
 });
 
 
+test("別タブの新しい保存を古いタブの遅延保存が上書きしない", () => {
+  const storage = createStorage({ [LEGACY_KEY]: legacyStateJson() });
+  const olderTab = loadAccounts(storage);
+  const { activeId } = olderTab.list();
+  assert.ok(activeId);
+  olderTab.getActiveId();
+  const oldSnapshot = olderTab.loadActive();
+  const newerTab = loadAccounts(storage);
+  assert.equal(newerTab.getActiveId(), activeId);
+  const newSnapshot = newerTab.loadActive();
+  assert.equal(newerTab.saveActive({ ...newSnapshot, charName: "新しいタブの保存" }, activeId), true);
+  assert.equal(olderTab.saveActive({ ...oldSnapshot, charName: "古いタブの遅延保存" }, activeId), false,
+    "起動時の保存原文と現在値が異なる場合は保存を拒否する");
+  assert.equal(JSON.parse(storage.getItem(ACCOUNT_PREFIX + activeId)).charName, "新しいタブの保存",
+    "新しいタブの保存内容を保持する");
+});
 test("完全リセットは旧タブの遅延保存を無効化し、新しいタブの保存は許可する", () => {
   const storage = createStorage({ [LEGACY_KEY]: legacyStateJson() });
   const oldTab = loadAccounts(storage);

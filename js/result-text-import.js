@@ -1292,6 +1292,22 @@
       kind.kind === "persona" && kind.no !== undefined && (kind.mode === "n" || kind.mode === "t"));
   }
 
+  /* 同じテキスト履歴を再取込した際に既存リザルトと支出行を再利用するためのキー。
+     入力内容と順序から決定的に生成し、再読込や再起動で変化しないようにする。 */
+  function textImportSourceKey(record, recordIndex) {
+    const source = JSON.stringify({ index: recordIndex, record });
+    let hashA = 2166136261;
+    let hashB = 5381;
+    for (let index = 0; index < source.length; index += 1) {
+      const code = source.charCodeAt(index);
+      hashA = Math.imul(hashA ^ code, 16777619);
+      hashB = Math.imul(hashB, 33) ^ code;
+    }
+    return "text-" + Number(recordIndex).toString(36)
+      + "-" + (hashA >>> 0).toString(36)
+      + "-" + (hashB >>> 0).toString(36);
+  }
+
   /* 提案済みリザルト + 明細を reducer の action 並びへ落とす。
      excluded: Set(添字) を渡すと、その明細は作らない。 */
   function plan(parsed, options) {
@@ -1367,6 +1383,7 @@
       const fullNote = [note, ...legacyNotes, ...itemGainNotes, ...acquisitionNotes].filter(Boolean).join("\n").slice(0, 2000);
       const resultAction = {
         type: "ADD_RESULT",
+        importSourceKey: textImportSourceKey(record, recordIndex),
         name: title,
         date: record.date || "",
         income: { lp: record.income.lp, shards: record.income.shards, tickets: ticketIncome(acceptedTickets) },

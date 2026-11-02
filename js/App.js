@@ -1698,7 +1698,7 @@ const App = () => {
   };
   const selectedImportGroups = importData ? IMPORT_GROUPS.filter((g) => importSel[g.key] && g.fields.some((f) => f in importData)) : [];
   const selectedImportLabel = selectedImportGroups.length ? selectedImportGroups.map((g) => g.label).join("\u30FB") : "\u9078\u629E\u306A\u3057";
-  const saveStateLabel = saveStatus.phase === "error" ? "\u7AEF\u672B\u5185\u4FDD\u5B58\u4E0D\u53EF" : saveStatus.phase === "saved" ? "\u7AEF\u672B\u5185\u306B\u81EA\u52D5\u4FDD\u5B58\u6E08\u307F" : "\u7AEF\u672B\u5185\u3078\u81EA\u52D5\u4FDD\u5B58\u4E2D";
+  const saveStateLabel = saveStatus.error === "account-conflict" ? "\u5225\u30BF\u30D6\u3067\u66F4\u65B0\u3055\u308C\u307E\u3057\u305F\u3002\u4FDD\u5B58\u3092\u505C\u6B62\u3057\u3066\u3044\u307E\u3059\u3002\u6700\u65B0\u72B6\u614B\u3092\u78BA\u8A8D\u3059\u308B\u305F\u3081\u518D\u8AAD\u307F\u8FBC\u307F\u3057\u3066\u304F\u3060\u3055\u3044\u3002" : saveStatus.phase === "error" ? "\u7AEF\u672B\u5185\u4FDD\u5B58\u4E0D\u53EF" : saveStatus.phase === "saved" ? "\u7AEF\u672B\u5185\u306B\u81EA\u52D5\u4FDD\u5B58\u6E08\u307F" : "\u7AEF\u672B\u3078\u81EA\u52D5\u4FDD\u5B58\u4E2D";
   React.useEffect(() => {
     const host = document.querySelector(".topbar");
     const anchor = host?.querySelector(".topbar-search");

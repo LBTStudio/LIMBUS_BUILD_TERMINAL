@@ -72,10 +72,34 @@ function normalizePersonaAcquisitions(value) {
 /* 初期作成用人格チケットの消費。最初の人格を購入・手動追加などで得た場合に1枚消す。
    人格抽出チケットで抽選した場合は、その支払いが初期分の消費を兼ねるため、
    applyRosterAdds 側で自動消費を抑止する。 */
+function markInitialPersonaTicketUnavailable(state) {
+  return state?.initialPersonaTicketAvailable === false
+    ? state
+    : { ...state, initialPersonaTicketAvailable: false };
+}
+
+/* 初期作成権は人格抽出チケットの総残高とは別の一回限りの権利として追跡する。
+   収入総額から毎回1枚を引く方式では、後日受け取ったチケットまで消費してしまう。 */
 function consumeInitialPersonaTicket(state, resultId) {
+  if (state?.initialPersonaTicketAvailable !== true) return state;
+  const initialResult = (state.results || []).find((result) =>
+    result?.id === "res-initial" || result?.name === "初期作成"
+  );
+  const initialGrant = Number(normalizeTickets(initialResult?.income?.tickets).persona) || 0;
+  const hasPriorPersonaTicketSpend = (state.entries || []).some((entry) =>
+    (Number(entry?.tickets?.persona) || 0) > 0
+  );
+  /* 初期収入自体が編集・削除済み、または先に人格チケットを使った場合は、
+     全体残高に後日報酬が残っていても初期分として消費してはならない。 */
+  if (!initialResult || initialGrant <= 0 || hasPriorPersonaTicketSpend) {
+    return markInitialPersonaTicketUnavailable(state);
+  }
   const balance = computeTicketBalance(state.results, state.entries);
-  if ((Number(balance?.persona) || 0) <= 0) return state;
-  return appendTicketSpend(state, "persona", null, 1, { kind: "initialPersonaTicket" }, resultId);
+  if ((Number(balance?.persona) || 0) <= 0) {
+    return markInitialPersonaTicketUnavailable(state);
+  }
+  const spent = appendTicketSpend(state, "persona", null, 1, { kind: "initialPersonaTicket" }, resultId);
+  return { ...spent, initialPersonaTicketAvailable: false };
 }
 
 /* 継承アカウントの判定。直近リザルトの収入が初期支給（30LP）と一致するなら、
@@ -1217,7 +1241,7 @@ function addShardIncome(state, delta, resultId) {
 }
 
 /* 抽出チケットを消費した明細を立てる（所持を引いた証拠）。 */
-function appendTicketSpend(state, kind, pack, count, ref, resultId) {
+function appendTicketSpend(state, kind, pack, count, ref, resultId, importResultKey) {
   const n = Math.max(1, Number(count) || 1);
   const label = window.LBT_ticketLabel ? window.LBT_ticketLabel(kind, pack) : (TICKET_KIND_LABEL[kind] || "抽出チケット");
   const tickets = kind === "pack"
@@ -1229,7 +1253,10 @@ function appendTicketSpend(state, kind, pack, count, ref, resultId) {
     cost: { lp: 0, shards: 0 },
     tickets,
     resultId,
-    ref
+    ref,
+    ...(String(importResultKey || "").trim()
+      ? { importResultKey: String(importResultKey).slice(0, 180) }
+      : {})
   });
 }
 
@@ -2094,9 +2121,17 @@ function normalizeStateShape(raw) {
          散らばっている可能性。.initial を先頭に差し、ここへ 30LP を置いて
          以後の差分をこのリザルト起点で追えるようにする。 */
   if (!next.results.length) {
-    /* 新規キャラクター作成。人格を1つも持たないなら、最初の1人格を
-       指定購入でも初期作成用人格チケットでの抽出でも決められるようにする。 */
-    next.results = [makeInitialResult({ withPersonaTicket: !(next.roster?.personas || []).length })];
+    /* 結果一覧が欠落した旧保存でも、所持・取得・チケット支出の痕跡があれば
+       新規キャラクターと誤認して初回チケットを再発行しない。 */
+    const hasHistoricalPersonaActivity = (next.roster?.personas || []).length > 0
+      || (next.personaMode != null && next.personaNo != null)
+      || (next.entries || []).some((entry) => (Number(entry?.tickets?.persona) || 0) > 0 || entry?.kind === "persona")
+      || (next.draws || []).some((batch) => (batch?.records || []).some((record) =>
+        record?.kind === "persona" || record?.item?.kind === "persona"
+      ));
+    next.results = [makeInitialResult({
+      withPersonaTicket: next.initialPersonaTicketAvailable !== false && !hasHistoricalPersonaActivity
+    })];
     synthesizedInitialResult = true;
   } else if (!hasInitialGrant(next.results)) {
     /* 既存アカウントへの後付けは支給だけ足す。初期作成用人格チケットは
@@ -2122,6 +2157,30 @@ function normalizeStateShape(raw) {
         ? { commit: String(entry.ref.commit).slice(0, 160) } : {})
     } : null
   }));
+  /* 旧保存データの初期作成権を一度だけ移行する。既に人格を所持している、
+     人格取得証跡がある、または初期チケットの消費が記録されている場合は
+     権利を再発行しない。これにより修正前の保存データでも後日チケットを奪わない。 */
+  const initialPersonaResult = (next.results || []).find((result) =>
+    result?.id === "res-initial" || result?.name === "初期作成"
+  );
+  const initialPersonaTicketIncome = Number(normalizeTickets(initialPersonaResult?.income?.tickets).persona) || 0;
+  const hasPersonaTicketSpend = (next.entries || []).some((entry) =>
+    (Number(entry?.tickets?.persona) || 0) > 0
+  );
+  const hasPersonaAcquisitionHistory = (next.roster?.personas || []).length > 0
+    || (next.entries || []).some((entry) => entry?.kind === "persona")
+    || (next.draws || []).some((batch) => (batch?.records || []).some((record) =>
+      record?.kind === "persona" || record?.item?.kind === "persona"
+    ))
+    || initialPersonaResult?.initialPersona?.method === "selected"
+    || initialPersonaResult?.initialPersona?.method === "random"
+    || (initialPersonaResult?.personaAcquisitions || []).length > 0;
+  if (typeof next.initialPersonaTicketAvailable !== "boolean") {
+    next.initialPersonaTicketAvailable = initialPersonaTicketIncome > 0
+      && !hasPersonaTicketSpend && !hasPersonaAcquisitionHistory;
+  } else if (initialPersonaTicketIncome <= 0 || hasPersonaTicketSpend || hasPersonaAcquisitionHistory) {
+    next.initialPersonaTicketAvailable = false;
+  }
   /* サポート/精神の装備は人格ごとに違う。装備中の人格に保存ビルドがあるなら
      それが正で、roster の投影（最後に開いた人格の装備）を当ててはいけない。
      投影するのは保存ビルドが無い場合だけで、そのときはロードする側の既定になる。 */
@@ -2769,6 +2828,7 @@ function appendLedgerEntry(state, detail) {
         tickets: normalizeTickets(detail.tickets),
       resultId: resultId || null,
       ref: detail.ref || null,
+      ...(detail.importResultKey ? { importResultKey: String(detail.importResultKey).slice(0, 180) } : {}),
       at: Date.now(),
       note: ""
     }]
@@ -2956,6 +3016,9 @@ const ACCOUNT_ACTIVE_KEY = "lbt_account_active";
 const ACCOUNT_ICONS_KEY = "lbt_accounts_icons";
 const ACCOUNT_EPOCH_PREFIX = "lbt_epoch_account_";
 const BOOT_ACCOUNT_EPOCHS = new Map();
+/* 起動時に読んだ保存原文を基準にする。別タブが先に保存した場合、
+   古いタブの400msデバウンス保存で新しい状態を丸ごと上書きしない。 */
+const BOOT_ACCOUNT_SNAPSHOTS = new Map();
 const LEGACY_BACKUP_PREFIX = `${STORAGE_KEY}.backup.`;
 const ACCOUNT_NAME_MAX = 40;
 /* アイコンは索引とは別キーに置く。索引は毎回の一覧描画で読むため、
@@ -3304,6 +3367,7 @@ function loadActiveAccountState() {
   if (!activeId) return null;
   const key = ACCOUNT_PREFIX + activeId;
   const raw = readStorageRaw(key);
+  BOOT_ACCOUNT_SNAPSHOTS.set(activeId, raw);
   if (raw == null) return null;
   try {
     return JSON.parse(raw);
@@ -3338,6 +3402,14 @@ function saveActiveAccountState(state, accountId) {
   }
   const key = ACCOUNT_PREFIX + targetId;
   const existing = readStorageRaw(key);
+  /* 旧API利用・単体テストなど、読み込み前に明示保存された場合だけ、
+     その呼出し時点の内容を初回基準として採用する。通常の画面は起動時loadで
+     基準を取得しているため、他タブ更新後の古いスナップショットは拒否される。 */
+  if (!BOOT_ACCOUNT_SNAPSHOTS.has(targetId)) BOOT_ACCOUNT_SNAPSHOTS.set(targetId, existing);
+  if (existing !== BOOT_ACCOUNT_SNAPSHOTS.get(targetId)) {
+    window.__LBT_ACCOUNT_SAVE_CONFLICT = targetId;
+    return false;
+  }
   if (existing != null) {
     try {
       JSON.parse(existing);
@@ -3357,6 +3429,8 @@ function saveActiveAccountState(state, accountId) {
   }
   const accounts = latestIndex.accounts.map((entry) => entry.id === targetId ? { ...entry, updatedAt: Date.now() } : entry);
   if (accounts.some((entry) => entry.id === targetId)) writeAccountsIndex(accounts);
+  BOOT_ACCOUNT_SNAPSHOTS.set(targetId, serialized);
+  if (window.__LBT_ACCOUNT_SAVE_CONFLICT === targetId) window.__LBT_ACCOUNT_SAVE_CONFLICT = null;
   return true;
 }
 /* 無料（price 0）の精神は最初から持っているものとして数える。
@@ -3854,8 +3928,10 @@ function applyRosterAdds(state, adds, options) {
   }
   /* 最初の人格が所持になったら初期作成用チケットを1枚消す。
      人格抽出チケットを使った抽選では、その支払いが初期分の消費を兼ねるため options で抑止する。 */
-  if (gainedPersona && opts.skipInitialTicketConsumption !== true) {
-    next = consumeInitialPersonaTicket(next, opts.resultId);
+  if (gainedPersona) {
+    next = opts.skipInitialTicketConsumption === true
+      ? markInitialPersonaTicketUnavailable(next)
+      : consumeInitialPersonaTicket(next, opts.resultId);
   }
   return { ...next, roster: { ...next.roster, personas, egos } };
 }
@@ -4108,7 +4184,9 @@ function validateDrawBatchApplication(state, action) {
   const proofKey = String(batch.batchHash || batch.commit || "");
   if (!proofKey) return { ok: false, reason: "missing-proof-key" };
   const draws = Array.isArray(state?.draws) ? state.draws : [];
-  if (draws.some((existing) => String(existing?.batchHash || existing?.commit || "") === proofKey)) {
+  const appliedBatchIds = Array.isArray(state?.appliedDrawBatchIds) ? state.appliedDrawBatchIds : [];
+  if (draws.some((existing) => String(existing?.batchHash || existing?.commit || "") === proofKey)
+    || appliedBatchIds.includes(proofKey)) {
     return { ok: false, reason: "duplicate-batch" };
   }
   if (!batch.records.length) return { ok: false, reason: "empty-batch" };
@@ -4594,7 +4672,8 @@ function appReducer(state, action) {
       /* 所持より多くは消費できない。足りなければそれだけ使う。 */
       const take = Math.min(use, available);
       if (take <= 0) return state;
-      return appendTicketSpend(state, kind, pack, take, action.ref, action.resultId);
+      const spent = appendTicketSpend(state, kind, pack, take, action.ref, action.resultId, action.importResultKey);
+      return kind === "persona" ? markInitialPersonaTicketUnavailable(spent) : spent;
     }
     /* 所持への追加。人格は DB 価格が無いため、purchase に core ルールの金額
        （抽出/購入）を渡されたときだけ明細を立てる。所持だけの操作は
@@ -4606,7 +4685,9 @@ function appReducer(state, action) {
       const uid = makeOwnedUid("pr");
       const entry = { uid, no, mode, syncRank: null, syncMax: false, lcb: false, equipped: false, notes: "", via: normalizeVia(action.via) };
       const next = { ...state, roster: { ...state.roster, personas: [...state.roster.personas, entry] } };
-      const withTicket = action.skipInitialTicketConsumption === true ? next : consumeInitialPersonaTicket(next, action.resultId);
+      const withTicket = action.skipInitialTicketConsumption === true
+        ? markInitialPersonaTicketUnavailable(next)
+        : consumeInitialPersonaTicket(next, action.resultId);
       if (!action.purchase) return withTicket;
       const persona = (mode === "t" ? window.DB?.tokui_personas : window.DB?.normal_personas || []).find((p) => String(p.no) === String(no));
       /* resultId の明示指定は常に勝つ（appendLedgerEntry の契約）。未指定なら
@@ -5876,7 +5957,11 @@ case "ADD_CUSTOM_ITEM": {
       return { ...state, gachaLog: [...log, entry] };
     }
     case "ADD_ROSTER_MANY": {
-      return applyRosterAdds(state, Array.isArray(action.adds) ? action.adds : [], { cost: action.cost, resultId: action.resultId });
+      return applyRosterAdds(state, Array.isArray(action.adds) ? action.adds : [], {
+        cost: action.cost,
+        resultId: action.resultId,
+        skipInitialTicketConsumption: action.skipInitialTicketConsumption === true
+      });
     }
     /* 既存リザルトの登録情報の書き換え。収入を差し替えるので、
        抽出チケットの残数はここから読み直す（明細側は変えない）。 */
@@ -5885,6 +5970,8 @@ case "ADD_CUSTOM_ITEM": {
       const now = Date.now();
       const previous = (state.results || []).find((result) => result.id === id);
       if (!previous) return state;
+      if (action.expectedUpdatedAt !== undefined
+        && Number(action.expectedUpdatedAt) !== Number(previous.updatedAt || previous.createdAt || 0)) return state;
       const nextRewardItems = action.rewardItems === undefined
         ? normalizeRewardItems(previous.rewardItems, state)
         : normalizeRewardItems(action.rewardItems, state);
@@ -5896,7 +5983,12 @@ case "ADD_CUSTOM_ITEM": {
           date: action.date === undefined ? r.date : String(action.date).slice(0, 10),
           income: action.income === undefined
             ? r.income
-            : { ...normalizeCurrency(action.income), tickets: normalizeTickets(action.income?.tickets) },
+            : {
+                ...normalizeCurrency(action.income),
+                tickets: action.income?.tickets === undefined
+                  ? normalizeTickets(r.income?.tickets)
+                  : normalizeTickets(action.income.tickets)
+              },
           ...(action.note !== undefined ? { note: String(action.note || "").slice(0, 2000) } : {}),
           ...(action.consumedItems !== undefined ? { consumedItems: normalizeConsumedItems(action.consumedItems) } : {}),
           ...(action.rewardItems !== undefined ? { rewardItems: nextRewardItems } : {}),
@@ -5939,9 +6031,13 @@ case "ADD_CUSTOM_ITEM": {
     case "PATCH_RESULT": {
       const previous = (state.results || []).find((result) => result.id === action.id);
       if (!previous) return state;
+      if (action.expectedUpdatedAt !== undefined
+        && Number(action.expectedUpdatedAt) !== Number(previous.updatedAt || previous.createdAt || 0)) return state;
       const nextRewardItems = action.patch?.rewardItems === undefined
         ? normalizeRewardItems(previous.rewardItems, state)
         : normalizeRewardItems(action.patch.rewardItems, state);
+      const patchIncome = action.patch?.income;
+      const normalizedPatchCurrency = normalizeCurrency(patchIncome);
       const updated = {
         ...state,
         results: (state.results || []).map((r) => (r.id === action.id
@@ -5950,7 +6046,14 @@ case "ADD_CUSTOM_ITEM": {
               ...(action.patch?.name !== void 0 ? { name: String(action.patch.name).slice(0, 80) } : {}),
               ...(action.patch?.date !== void 0 ? { date: String(action.patch.date).slice(0, 10) } : {}),
               ...(action.patch?.note !== void 0 ? { note: String(action.patch.note).slice(0, 2000) } : {}),
-              ...(action.patch?.income !== void 0 ? { income: { ...normalizeCurrency(action.patch.income), tickets: normalizeTickets(action.patch.income?.tickets) } } : {}),
+              ...(action.patch?.income !== void 0 ? { income: {
+                ...normalizeCurrency(r.income),
+                ...(patchIncome?.lp === undefined ? {} : { lp: normalizedPatchCurrency.lp }),
+                ...(patchIncome?.shards === undefined ? {} : { shards: normalizedPatchCurrency.shards }),
+                tickets: patchIncome?.tickets === undefined
+                  ? normalizeTickets(r.income?.tickets)
+                  : normalizeTickets(patchIncome.tickets)
+              } } : {}),
               ...(action.patch?.rewardItems !== void 0 ? { rewardItems: normalizeRewardItems(action.patch.rewardItems, state) } : {}),
               ...(action.patch?.initialPersona !== void 0 ? { initialPersona: normalizeInitialPersona(action.patch.initialPersona) } : {}),
               ...(action.patch?.personaAcquisitions !== void 0 ? { personaAcquisitions: normalizePersonaAcquisitions(action.patch.personaAcquisitions) } : {}),
@@ -6098,8 +6201,12 @@ case "ADD_CUSTOM_ITEM": {
         }
         /* Historical result text can explicitly say a ticket was used. Attribute
            its spend row to that result, preserving the account-wide ticket balance. */
-        if (sub.type === "SPEND_TICKET" && lastResultId && sub.resultId === undefined) {
-          next = appReducer(next, { ...sub, resultId: lastResultId });
+        if (sub.type === "SPEND_TICKET" && sub.resultId === undefined && (lastResultId || lastResultSourceKey)) {
+          next = appReducer(next, {
+            ...sub,
+            resultId: lastResultId,
+            ...(lastResultSourceKey ? { importResultKey: lastResultSourceKey } : {})
+          });
           continue;
         }
         const rosterSub = sub.type === "ADD_ROSTER" || sub.type === "ADD_ROSTER_EGO"
@@ -7002,16 +7109,29 @@ function useAppState() {
             previewCollapsed: ui.previewCollapsed || {}
           }
         }, window.__LBT_BOOT_ACCOUNT_ID || undefined);
-        if (!saved) throw new Error("storage-error");
+        if (!saved) {
+          const bootId = window.__LBT_BOOT_ACCOUNT_ID || "";
+          throw new Error(window.__LBT_ACCOUNT_SAVE_CONFLICT === bootId ? "account-conflict" : "storage-error");
+        }
         setSaveStatus({ phase: "saved", savedAt: Date.now(), error: "" });
       } catch (e) {
-        // private browsing, quota exceeded, blocked storage等では保存済みと見せず、
-        // UIに回復経路（ファイル保存）を示せる状態だけを渡す。
-        setSaveStatus({ phase: "error", savedAt: null, error: e?.name || "storage-error" });
+        // 別タブ競合の場合は古い状態を書かず、再読込で新しい保存内容を取得させる。
+        setSaveStatus({ phase: "error", savedAt: null, error: e?.message || e?.name || "storage-error" });
       }
     }, 400);
     return () => clearTimeout(t);
   }, [state]);
+  React.useEffect(() => {
+    const accountId = window.__LBT_BOOT_ACCOUNT_ID || "";
+    if (!accountId || typeof window.addEventListener !== "function") return undefined;
+    const onStorage = (event) => {
+      if (event?.key !== ACCOUNT_PREFIX + accountId || event.newValue === event.oldValue) return;
+      window.__LBT_ACCOUNT_SAVE_CONFLICT = accountId;
+      setSaveStatus({ phase: "error", savedAt: null, error: "account-conflict" });
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener?.("storage", onStorage);
+  }, []);
   const wrappedDispatch = React.useCallback((action) => {
     /* __sealed は「履歴に記録しないが、Undoで巻き戻されたとき復元する」。
        抽選の決定記録に使う。支払いと取得物は普通の action なので、

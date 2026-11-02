@@ -4670,6 +4670,7 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     setTicketPanel(result.id);
     setTicketDraft({
       id: result.id,
+      baseUpdatedAt: Number(result.updatedAt || result.createdAt || 0),
       name: String(result.name || ""),
       date: String(result.date || ""),
       lp: String(result.income?.lp ?? 0),
@@ -4732,6 +4733,11 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
   const saveResultEditor = (result) => {
     const draft = ticketDraft;
     if (!draft || draft.id !== result.id) return;
+    const currentVersion = Number(result.updatedAt || result.createdAt || 0);
+    if (Number(draft.baseUpdatedAt || 0) !== currentVersion) {
+      toast("このリザルトは編集中に更新されました。最新内容を開き直してから編集してください。");
+      return;
+    }
     const nonNegativeInteger = (value) => Math.max(0, Math.floor(Number(value) || 0));
     const nextPack = Object.fromEntries(
       Object.entries(draft.tickets?.pack || {})
@@ -4765,6 +4771,7 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     dispatch({
       type: "UPDATE_RESULT",
       id: result.id,
+      expectedUpdatedAt: draft.baseUpdatedAt,
       name,
       date: String(draft.date || "").slice(0, 10),
       income: {

@@ -7,7 +7,7 @@ import { loadRuntime } from "../tools/provenance/pipeline-harness.mjs";
 /* 抽出チケットは卓で報酬として受け渡されるため、リザルトの収入として管理する。
    所持の残数は「全リザルトの収入 − 全明細の消費」で求める。 */
 
-const DB = { normal_personas: [{ no: 1, name: "黒雲会組員" }], tokui_personas: [], egos: [], items: [] };
+const DB = { normal_personas: [{ no: 1, name: "黒雲会組員" }, { no: 2, name: "試験用追加人格" }], tokui_personas: [], egos: [], items: [] };
 const window = { DB, console, URL, TextEncoder, TextDecoder, setTimeout, clearTimeout };
 const context = { window, console, URL, TextEncoder, TextDecoder, setTimeout, clearTimeout };
 context.globalThis = context;
@@ -222,6 +222,17 @@ const freshState = () => context.window.LBT_normalizeStateShape({
   roster: { personas: [], egos: [], supports: [], spirits: [] }, results: [], entries: [], inventory: []
 });
 
+test("旧保存でリザルトが欠落していても過去の人格活動があれば初回チケットを再発行しない", () => {
+  const legacy = context.window.LBT_normalizeStateShape({
+    roster: { personas: [], egos: [], supports: [], spirits: [] },
+    results: [],
+    entries: [{ kind: "ticket", name: "人格抽出チケット を使用", tickets: { persona: 1 } }],
+    inventory: []
+  });
+  assert.equal(legacy.results[0].id, "res-initial");
+  assert.equal(legacy.results[0].income.tickets.persona, 0, "過去の支出痕跡があれば初回チケットを付けない");
+  assert.equal(ticketBalance(legacy).persona, 0, "履歴欠落から無料チケットを再生しない");
+});
 test("人格を1つも持たない初期状態には初期作成用人格チケットが1枚ある", () => {
   const fresh = freshState();
   assert.equal(ticketBalance(fresh).persona, 1, "初期作成リザルトが人格チケットを1枚 Lashえる");
@@ -341,6 +352,146 @@ test("人格チケット以外で初回人格を取得した場合は初期チ�
   assert.equal(applied.entries.filter((entry) => entry.kind === "ticket").length, 1, "初期分の自動消費は1件だけ");
 });
 
+test("初期作成後に受け取った人格チケットはLP抽出で消費されない", () => {
+  const fresh = freshState();
+  const withInitialPersona = reducer(fresh, { type: "ADD_ROSTER", mode: "n", no: 1 });
+  assert.equal(ticketBalance(withInitialPersona).persona, 0, "初回人格の取得で初期作成権だけが失効する");
+  const rewarded = reducer(withInitialPersona, {
+    type: "ADD_RESULT",
+    name: "追加報酬",
+    income: { lp: 0, shards: 0, tickets: { persona: 1 } }
+  });
+  const batch = {
+    schemaVersion: 1, ruleset: "core", kind: "persona", count: 1,
+    commit: "later-paid-persona-draw", batchHash: "later-paid-persona-draw-hash",
+    records: [{
+      index: 0, kind: "persona", method: "draw",
+      item: { kind: "persona", mode: "n", no: 2, name: "試験用追加人格" },
+      cost: { lp: 20, shards: 0 }, duplicate: false, grantedShards: 0
+    }]
+  };
+  const applied = reducer(rewarded, { type: "APPLY_DRAW_BATCH", batch });
+  assert.equal(ticketBalance(applied).persona, 1, "LPで人格を取得しても後日報酬のチケットは残る");
+  assert.equal(applied.initialPersonaTicketAvailable, false, "初期作成権は再発行されない");
+  assert.equal(applied.entries.filter((entry) => entry.kind === "ticket").length, 0, "通常チケットの自動支出明細を作らない");
+});
+test("収入の部分更新でticketsを省略しても既存チケット残高を消さない", () => {
+  const before = withResult({ persona: 3 });
+  before.results[0].income.lp = "10";
+  before.results[0].income.shards = "7";
+  const updated = reducer(before, {
+    type: "UPDATE_RESULT", id: "res-1", income: { lp: 5, shards: 2 }
+  });
+  assert.equal(balanceOf(updated).persona, 3, "LP・欠片だけの更新ではチケット収入を保持する");
+  const patched = reducer(before, {
+    type: "PATCH_RESULT", id: "res-1", patch: { income: { lp: 8 } }
+  });
+  assert.equal(balanceOf(patched).persona, 3, "LPだけの部分パッチでもチケット収入を保持する");
+  assert.equal(patched.results[0].income.shards, 7, "指定しない欠片収入も保持する");
+  const cleared = reducer(before, {
+    type: "UPDATE_RESULT", id: "res-1", income: { lp: 5, shards: 2, tickets: { persona: 0 } }
+  });
+  assert.equal(balanceOf(cleared).persona, 0, "明示的に0を指定した場合だけチケットを減らす");
+});
+test("古いリザルト編集は最新のチケット収入を上書きしない", () => {
+  const before = withResult({ persona: 3 });
+  before.results[0].updatedAt = 200;
+  const stale = reducer(before, {
+    type: "UPDATE_RESULT", id: "res-1", expectedUpdatedAt: 100,
+    income: { lp: 0, shards: 0, tickets: { persona: 0 } }
+  });
+  assert.equal(stale, before, "revision が一致しない更新は reducer 境界で拒否する");
+  assert.equal(balanceOf(stale).persona, 3, "最新のチケット残高を保持する");
+});
+test("テキスト履歴を再取込してもチケット支出を二重計上しない", () => {
+  const before = context.window.LBT_normalizeStateShape({
+    roster: { personas: [], egos: [], supports: [], spirits: [] },
+    results: [], entries: [], inventory: []
+  });
+  const actions = [
+    { type: "ADD_RESULT", importSourceKey: "text-idempotency-fixture", name: "再取込シナリオ",
+      income: { lp: 0, shards: 0, tickets: { persona: 2 } } },
+    { type: "SPEND_TICKET", kind: "persona", count: -1, ref: { kind: "textImportTicketUse" } }
+  ];
+  const once = reducer(before, { type: "APPLY_IMPORT_BATCH", actions });
+  assert.equal(balanceOf(once).persona, 2, "初期分1枚と履歴報酬2枚から1枚を使う");
+  const twice = reducer(once, { type: "APPLY_IMPORT_BATCH", actions });
+  assert.equal(balanceOf(twice).persona, 2, "再取込は支出を置換し、再度減算しない");
+  assert.equal(twice.results.filter((result) => result.importSourceKey === "text-idempotency-fixture").length, 1,
+    "同じ出典のリザルトを重複作成しない");
+  assert.equal(twice.entries.filter((entry) => entry.importResultKey === "text-idempotency-fixture").length, 1,
+    "チケット支出明細も1件だけ保持する");
+});
+test("重複出典キーの未分類チケット支出も再取込で二重計上しない", () => {
+  const before = context.window.LBT_normalizeStateShape({
+    roster: { personas: [], egos: [], supports: [], spirits: [] },
+    results: [
+      { id: "ambiguous-a", name: "旧A", importSourceKey: "duplicate-source", income: { lp: 0, shards: 0, tickets: { persona: 1 } } },
+      { id: "ambiguous-b", name: "旧B", importSourceKey: "duplicate-source", income: { lp: 0, shards: 0, tickets: { persona: 1 } } }
+    ],
+    entries: [], inventory: []
+  });
+  const actions = [
+    { type: "ADD_RESULT", importSourceKey: "duplicate-source", name: "再取込", income: { lp: 0, shards: 0, tickets: {} } },
+    { type: "SPEND_TICKET", kind: "persona", count: -1, ref: { kind: "textImportTicketUse" } }
+  ];
+  const once = reducer(before, { type: "APPLY_IMPORT_BATCH", actions });
+  assert.equal(balanceOf(once).persona, 1);
+  const twice = reducer(once, { type: "APPLY_IMPORT_BATCH", actions });
+  assert.equal(balanceOf(twice).persona, 1, "帰属先が曖昧でも支出行は出典キーで置換される");
+  assert.equal(twice.entries.filter((entry) => entry.importResultKey === "duplicate-source").length, 1);
+});
+test("初期チケットを使った履歴取込後、後日報酬チケットを初回取得に流用しない", () => {
+  const fresh = freshState();
+  const spentInitial = reducer(fresh, {
+    type: "SPEND_TICKET", kind: "persona", count: -1,
+    ref: { kind: "textImportTicketUse" }
+  });
+  assert.equal(spentInitial.initialPersonaTicketAvailable, false, "履歴上の人格チケット使用で初期権利を失効");
+  const rewarded = reducer(spentInitial, {
+    type: "ADD_RESULT", name: "後日報酬",
+    income: { lp: 0, shards: 0, tickets: { persona: 1 } }
+  });
+  const acquired = reducer(rewarded, { type: "ADD_ROSTER", mode: "n", no: 1 });
+  assert.equal(ticketBalance(acquired).persona, 1, "後日報酬チケットは人格追加で消費しない");
+});
+
+test("初期リザルトからチケットを削除した後、後日報酬を初期分として消費しない", () => {
+  const fresh = freshState();
+  const initial = reducer(fresh, {
+    type: "UPDATE_RESULT", id: "res-initial",
+    income: { lp: 30, shards: 10, tickets: { persona: 0 } }
+  });
+  const rewarded = reducer(initial, {
+    type: "ADD_RESULT", name: "後日報酬",
+    income: { lp: 0, shards: 0, tickets: { persona: 1 } }
+  });
+  const acquired = reducer(rewarded, { type: "ADD_ROSTER", mode: "n", no: 1 });
+  assert.equal(ticketBalance(acquired).persona, 1, "初期リザルトから消したチケットを後日報酬から補填しない");
+  assert.equal(acquired.initialPersonaTicketAvailable, false, "存在しない初期権利を失効状態にする");
+});
+test("旧保存に装備中人格が残りリザルトが欠落している場合、初回チケットを発行しない", () => {
+  const legacy = context.window.LBT_normalizeStateShape({
+    personaMode: "n", personaNo: 1,
+    roster: { personas: [], egos: [], supports: [], spirits: [] },
+    results: [], entries: [], inventory: []
+  });
+  assert.equal(legacy.results[0].income.tickets.persona, 0, "旧ビルドの装備人格を新規作成と誤認しない");
+  assert.equal(ticketBalance(legacy).persona, 0);
+});
+
+test("既存人格を所持する旧保存では初回チケットを後日報酬から消費しない", () => {
+  const legacy = context.window.LBT_normalizeStateShape({
+    roster: { personas: [{ uid: "old-persona", mode: "n", no: 1 }], egos: [], supports: [], spirits: [] },
+    results: [{ id: "res-initial", name: "初期作成", income: { lp: 30, shards: 10, tickets: { persona: 1 } } }],
+    entries: [], inventory: []
+  });
+  assert.equal(legacy.initialPersonaTicketAvailable, false, "旧所持記録から初回特典権利を再開しない");
+  const batch = { schemaVersion: 1, ruleset: "core", kind: "persona", count: 1, commit: "legacy-lp", batchHash: "legacy-lp-hash",
+    records: [{ index: 0, kind: "persona", method: "draw", item: { kind: "persona", mode: "n", no: 2, name: "試験用追加人格" }, cost: { lp: 20, shards: 0 }, duplicate: false, grantedShards: 0 }] };
+  const paid = reducer(legacy, { type: "APPLY_DRAW_BATCH", batch });
+  assert.equal(ticketBalance(paid).persona, 1, "LP抽出で旧データに残るチケットを消費しない");
+});
 test("指定購入で人格を決めたら初期作成用チケットは残らない", () => {
   const fresh = freshState();
   assert.equal(ticketBalance(fresh).persona, 1, "購入前は1枚ある");

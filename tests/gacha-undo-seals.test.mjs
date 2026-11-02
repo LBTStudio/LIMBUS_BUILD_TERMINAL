@@ -144,6 +144,8 @@ test("LP購入のUndoは通帳支出を戻し、証明だけを保持する", ()
   assert.equal(w.LBT_computeLedgerBalance(committed.results, committed.entries).lp, 80,
     "確定時はLP支出が計上される");
   assert.equal(committed.roster.personas.length, 1);
+  assert.equal(w.LBT_computeTicketBalance(committed.results, committed.entries).persona, 1,
+    "LP支払いは初回特典ではない別所持チケットを消費しない");
 
   const rewound = reducer(before, context.replaySealedAction({
     type: "ADD_DRAW_RECORD", __sealed: true, batch: paidBatch
@@ -151,10 +153,24 @@ test("LP購入のUndoは通帳支出を戻し、証明だけを保持する", ()
   assert.equal(w.LBT_computeLedgerBalance(rewound.results, rewound.entries).lp, 100,
     "UndoでLP支出は戻る");
   assert.equal(rewound.roster.personas.length, 0, "Undoで所持品は戻る");
+  assert.equal(w.LBT_computeTicketBalance(rewound.results, rewound.entries).persona, 1,
+    "Undo後も別所持チケットの残高を維持する");
   assert.equal(rewound.draws.length, 1, "抽選証明は保持する");
 });
 
 
+test("抽選証明を書き込む前に同じバッチを再適用しても経済効果は一度だけ", () => {
+  const before = stateWithOnePersonaTicket();
+  const action = { type: "APPLY_DRAW_BATCH", batch, ticketSpend: { kind: "persona", count: 1 } };
+  const committed = reducer(before, action);
+  assert.equal(committed.roster.personas.length, 1);
+  assert.equal(committed.entries.filter((entry) => entry.kind === "ticket").length, 1);
+  assert.deepEqual(Array.from(committed.appliedDrawBatchIds || []), [batch.batchHash]);
+  const repeated = reducer(committed, action);
+  assert.equal(repeated, committed, "appliedDrawBatchIds が証明確定前の再送を拒否する");
+  assert.equal(w.LBT_computeTicketBalance(repeated.results, repeated.entries).persona, 0, "チケットを二重消費しない");
+  assert.equal(repeated.roster.personas.length, 1, "同じ人格を二重追加しない");
+});
 test("確定前にチケット残高が不足した場合、抽選品も費用も反映しない", () => {
   const before = stateWithOnePersonaTicket();
   before.results[0].income.tickets.persona = 0;
