@@ -255,3 +255,15 @@ test("Service Worker の生成領域は構文エラーなく、CACHE_NAME を一
   );
   assert.equal([...generated.matchAll(/^const CACHE_NAME\s*=/gm)].length, 1);
 });
+
+
+test("Service Worker の CACHE_NAME は現在の precache URL 一覧から導出される", () => {
+  const sw = readFileSync(resolve(ROOT, "sw.js"), "utf8");
+  const urlsBlock = sw.match(/const PRECACHE_URLS = \[([\s\S]*?)\];/);
+  assert.ok(urlsBlock, "PRECACHE_URLS があること");
+  const urls = [...urlsBlock[1].matchAll(/^\s*"([^"]+)",?$/gm)].map((match) => match[1]);
+  assert.ok(urls.length >= 30, "precache URL の一覧が十分にあること");
+  const expected = createHash("sha256").update(urls.join("\n")).digest("hex").slice(0, HASH_LEN);
+  const actual = sw.match(/^const CACHE_NAME = "lbt-([0-9a-f]{8})";$/m)?.[1];
+  assert.equal(actual, expected, "キャッシュ名は現在のURLリストのハッシュと一致する");
+});
