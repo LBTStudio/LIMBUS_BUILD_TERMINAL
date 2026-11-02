@@ -3381,15 +3381,9 @@ function loadActiveAccountState() {
    「起動時に読んだアカウント」= 正しい宛先へ書くため、切替先の新規
    アカウントへ旧キャラの状態が混入する競合が構造的に起きない。
    また索引に存在しないIDへは書きません（削除済みアカウントの蘇生防止）。 */
-function saveActiveAccountState(state, accountId) {
-  let targetId = accountId || null;
+function saveActiveAccountStateUnlocked(state, targetId) {
   const index = readAccountsIndex();
-  if (targetId) {
-    if (!index.accounts.some((entry) => entry.id === targetId)) return false;
-  } else {
-    targetId = migrateLegacyAccounts().activeId;
-    if (!targetId) return false;
-  }
+  if (!targetId || !index.accounts.some((entry) => entry.id === targetId)) return false;
   /* 起動後に同じアカウントが完全リセットされた場合、旧画面が残した state を
      保存すると削除済みデータが復活する。世代が変わった save は拒否する。 */
   if (BOOT_ACCOUNT_EPOCHS.has(targetId)
@@ -3433,7 +3427,22 @@ function saveActiveAccountState(state, accountId) {
   if (window.__LBT_ACCOUNT_SAVE_CONFLICT === targetId) window.__LBT_ACCOUNT_SAVE_CONFLICT = null;
   return true;
 }
-/* 無料（price 0）の精神は最初から持っているものとして数える。
+async function saveActiveAccountState(state, accountId, signal) {
+  const targetId = accountId || migrateLegacyAccounts().activeId;
+  if (!targetId) return false;
+  const lockManager = window.navigator?.locks;
+  if (!lockManager || typeof lockManager.request !== "function") {
+    window.__LBT_ACCOUNT_SAVE_LOCK_UNAVAILABLE = targetId;
+    return false;
+  }
+  try {
+    return await lockManager.request("lbt-account-state:" + targetId, { mode: "exclusive", signal },
+      () => saveActiveAccountStateUnlocked(state, targetId));
+  } catch (error) {
+    if (error?.name === "AbortError") return false;
+    throw error;
+  }
+}/* 無料（price 0）の精神は最初から持っているものとして数える。
    「初期選択可」は選ぶかどうかの表示ではなく、初めからあるもの。
    有料のものだけ roster に入る。明細は立てない（購入ではない）。 */
 /* 価格の欠落・null・空欄・不正値を0と混同しない。
@@ -7095,31 +7104,40 @@ function useAppState() {
   const [saveStatus, setSaveStatus] = React.useState({ phase: "saving", savedAt: null, error: "" });
   React.useEffect(() => {
     setSaveStatus((previous) => ({ phase: "saving", savedAt: previous.savedAt, error: "" }));
+    let cancelled = false;
+    const controller = typeof AbortController === "function" ? new AbortController() : null;
     const t = setTimeout(() => {
-      try {
-        const { ui, ...rest } = state;
-        const saved = window.LBT_accounts?.saveActive?.({
-          ...rest,
-          ui: {
-            previewTab: ui.previewTab,
-            currentSection: ui.currentSection,
-            layoutVersion: ui.layoutVersion,
-            codexMode: ui.codexMode,
-            codexExpanded: ui.codexExpanded,
-            previewCollapsed: ui.previewCollapsed || {}
-          }
-        }, window.__LBT_BOOT_ACCOUNT_ID || undefined);
+      const { ui, ...rest } = state;
+      Promise.resolve(window.LBT_accounts?.saveActive?.({
+        ...rest,
+        ui: {
+          previewTab: ui.previewTab,
+          currentSection: ui.currentSection,
+          layoutVersion: ui.layoutVersion,
+          codexMode: ui.codexMode,
+          codexExpanded: ui.codexExpanded,
+          previewCollapsed: ui.previewCollapsed || {}
+        }
+      }, window.__LBT_BOOT_ACCOUNT_ID || undefined, controller?.signal)).then((saved) => {
+        if (cancelled) return;
         if (!saved) {
           const bootId = window.__LBT_BOOT_ACCOUNT_ID || "";
-          throw new Error(window.__LBT_ACCOUNT_SAVE_CONFLICT === bootId ? "account-conflict" : "storage-error");
+          const reason = window.__LBT_ACCOUNT_SAVE_CONFLICT === bootId ? "account-conflict"
+            : window.__LBT_ACCOUNT_SAVE_LOCK_UNAVAILABLE === bootId ? "account-lock-unavailable" : "storage-error";
+          throw new Error(reason);
         }
         setSaveStatus({ phase: "saved", savedAt: Date.now(), error: "" });
-      } catch (e) {
-        // 別タブ競合の場合は古い状態を書かず、再読込で新しい保存内容を取得させる。
-        setSaveStatus({ phase: "error", savedAt: null, error: e?.message || e?.name || "storage-error" });
-      }
+      }).catch((error) => {
+        if (cancelled) return;
+        // 別タブ競合中は古い状態を保存せず、画面に再読込・退避を促す。
+        setSaveStatus({ phase: "error", savedAt: null, error: error?.message || error?.name || "storage-error" });
+      });
     }, 400);
-    return () => clearTimeout(t);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+      controller?.abort();
+    };
   }, [state]);
   React.useEffect(() => {
     const accountId = window.__LBT_BOOT_ACCOUNT_ID || "";
