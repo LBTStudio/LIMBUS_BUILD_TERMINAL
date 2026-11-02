@@ -3427,21 +3427,10 @@ function saveActiveAccountStateUnlocked(state, targetId) {
   if (window.__LBT_ACCOUNT_SAVE_CONFLICT === targetId) window.__LBT_ACCOUNT_SAVE_CONFLICT = null;
   return true;
 }
-async function saveActiveAccountState(state, accountId, signal) {
+function saveActiveAccountState(state, accountId) {
   const targetId = accountId || migrateLegacyAccounts().activeId;
   if (!targetId) return false;
-  const lockManager = window.navigator?.locks;
-  if (!lockManager || typeof lockManager.request !== "function") {
-    window.__LBT_ACCOUNT_SAVE_LOCK_UNAVAILABLE = targetId;
-    return false;
-  }
-  try {
-    return await lockManager.request("lbt-account-state:" + targetId, { mode: "exclusive", signal },
-      () => saveActiveAccountStateUnlocked(state, targetId));
-  } catch (error) {
-    if (error?.name === "AbortError") return false;
-    throw error;
-  }
+  return saveActiveAccountStateUnlocked(state, targetId);
 }/* 無料（price 0）の精神は最初から持っているものとして数える。
    「初期選択可」は選ぶかどうかの表示ではなく、初めからあるもの。
    有料のものだけ roster に入る。明細は立てない（購入ではない）。 */
@@ -7108,7 +7097,7 @@ function useAppState() {
     const controller = typeof AbortController === "function" ? new AbortController() : null;
     const t = setTimeout(() => {
       const { ui, ...rest } = state;
-      Promise.resolve(window.LBT_accounts?.saveActive?.({
+      const payload = {
         ...rest,
         ui: {
           previewTab: ui.previewTab,
@@ -7118,7 +7107,19 @@ function useAppState() {
           codexExpanded: ui.codexExpanded,
           previewCollapsed: ui.previewCollapsed || {}
         }
-      }, window.__LBT_BOOT_ACCOUNT_ID || undefined, controller?.signal)).then((saved) => {
+      };
+      const bootId = window.__LBT_BOOT_ACCOUNT_ID || "";
+      const lockManager = window.navigator?.locks;
+      let saveOperation;
+      if (!lockManager || typeof lockManager.request !== "function" || !bootId) {
+        window.__LBT_ACCOUNT_SAVE_LOCK_UNAVAILABLE = bootId;
+        saveOperation = Promise.resolve(false);
+      } else {
+        saveOperation = lockManager.request("lbt-account-state:" + bootId, {
+          mode: "exclusive", signal: controller?.signal
+        }, () => window.LBT_accounts?.saveActive?.(payload, bootId));
+      }
+      Promise.resolve(saveOperation).then((saved) => {
         if (cancelled) return;
         if (!saved) {
           const bootId = window.__LBT_BOOT_ACCOUNT_ID || "";
