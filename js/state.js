@@ -4487,7 +4487,7 @@ function appReducer(state, action) {
         });
       }
       const hist = [uniqKey, ...state.historyRecent.filter((k) => k !== uniqKey)].slice(0, 20);
-      const base = {
+      const baseBeforeInitialEntitlement = {
         ...state,
         personaMode: mode,
         personaNo: no,
@@ -4539,6 +4539,9 @@ function appReducer(state, action) {
         roster: { ...state.roster, personas },
         historyRecent: hist
       };
+      const base = existing < 0
+        ? consumeInitialPersonaTicket(baseBeforeInitialEntitlement, action.resultId)
+        : baseBeforeInitialEntitlement;
       // T35/T36: 所持人格に保存済みビルドがある場合はそちらを復元する。
       // （精神・サポートパッシブ・E.G.O・スキル・固有バフ・強化を人格ごとに割り振り保持）
       if (savedBuild) {
@@ -5764,9 +5767,9 @@ case "ADD_CUSTOM_ITEM": {
         });
       }
       if (personas.length === (roster.personas || []).length) return state;
-      /* 取り込んだ人格は人格入手なので、通帳には明細を立てない。
-         DB に人格の価格が無いため、推測の費用を足すと残高を狂わせる。 */
-      return { ...state, roster: { ...roster, personas } };
+      /* 既存所持の移行でありチケットは請求しない。ただし初回作成用の権利は、
+         既に人格を所持している状態へ移行したので失効させ、後日報酬を奪わない。 */
+      return { ...markInitialPersonaTicketUnavailable(state), roster: { ...roster, personas } };
     }
     case "REMOVE_ROSTER_SUPPORT": {
       const roster = state.roster || {};
@@ -6620,7 +6623,10 @@ case "ADD_ENTRY":
           importedAt: Date.now()
         }
       };
-      return { ...state, roster: { ...roster, personas: [...existingPersonas, entry] } };
+      return {
+        ...markInitialPersonaTicketUnavailable(state),
+        roster: { ...roster, personas: [...existingPersonas, entry] }
+      };
     }
     case "IMPORT_PERSONA_DRAFT": {
       const src = action.persona;
@@ -6863,7 +6869,10 @@ case "ADD_ENTRY":
       const syncEntry = isAffiliated
         ? personas.find((p) => p.mode === affiliatedMode && String(p.no) === String(affiliatedSource.no))
         : personas.find((p) => p.uid === uid);
-      return chargeSyncOperation(next, syncEntry?.uid, {
+      const withInitialEntitlement = (!isAffiliated || !beforeSync)
+        ? markInitialPersonaTicketUnavailable(next)
+        : next;
+      return chargeSyncOperation(withInitialEntitlement, syncEntry?.uid, {
         before: beforeSync,
         syncRank: appliedSyncRank,
         syncMax: appliedSyncMax,
@@ -6956,7 +6965,7 @@ case "ADD_ENTRY":
       if (idx >= 0) personas[idx] = { ...personas[idx], uid, no: uid, src: snap, build, equipped: true };
       else personas.push(entry);
       return {
-        ...state,
+        ...(idx >= 0 ? state : markInitialPersonaTicketUnavailable(state)),
         personaSrc: snap,
         roster: { ...state.roster, personas }
       };
@@ -6991,7 +7000,10 @@ case "ADD_ENTRY":
           syncRank: null, syncMax: false, lcb: false, equipped: true, notes: "", build
         });
       }
-      return { ...state, roster: { ...state.roster, personas } };
+      return {
+        ...(idx >= 0 ? state : markInitialPersonaTicketUnavailable(state)),
+        roster: { ...state.roster, personas }
+      };
     }
     /* T36: 所持人格の保存ビルドを破棄して DB 既定に戻す */
     case "CLEAR_PERSONA_BUILD": {
