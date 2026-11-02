@@ -3814,6 +3814,9 @@ function applyRosterAdds(state, adds, options) {
   const roster = state.roster || {};
   const personas = [...(roster.personas || [])];
   const egos = [...(roster.egos || [])];
+  /* 初期人格チケットは「初めて人格を所持する時」だけの一回限り。
+     既所持がある状態で増えた人格に、後から受領した抽出チケットを紐付けない。 */
+  const hadPersonaBefore = personas.length > 0;
   const known = new Set(personas.map((p) => `${p.mode}:${p.no}`));
   const knownEgo = new Set(egos.map((e) => `${e.rank}:${e.no}`));
   const startedAt = Date.now();
@@ -3852,9 +3855,10 @@ function applyRosterAdds(state, adds, options) {
     }
     n += 1;
   }
-  /* 最初の人格が所持になったら初期作成用チケットを1枚消す。
-     人格抽出チケットを使った抽選では、その支払いが初期分の消費を兼ねるため options で抑止する。 */
-  if (gainedPersona && opts.skipInitialTicketConsumption !== true) {
+  /* 初めて人格を所持したアクションに限り、初期作成用チケットを1枚消す。
+     2人目以降の追加では、報酬として受け取った通常チケットに触れない。
+     人格抽出チケットを使った抽選では、その支払い自体が初期分を兼ねるため抑止する。 */
+  if (gainedPersona && !hadPersonaBefore && opts.skipInitialTicketConsumption !== true) {
     next = consumeInitialPersonaTicket(next, opts.resultId);
   }
   return { ...next, roster: { ...next.roster, personas, egos } };
@@ -4603,10 +4607,13 @@ function appReducer(state, action) {
       const { mode, no } = action;
       const uniqKey = `${mode}:${no}`;
       if (state.roster.personas.some((p) => `${p.mode}:${p.no}` === uniqKey)) return state;
+      const hadPersonaBefore = state.roster.personas.length > 0;
       const uid = makeOwnedUid("pr");
       const entry = { uid, no, mode, syncRank: null, syncMax: false, lcb: false, equipped: false, notes: "", via: normalizeVia(action.via) };
       const next = { ...state, roster: { ...state.roster, personas: [...state.roster.personas, entry] } };
-      const withTicket = action.skipInitialTicketConsumption === true ? next : consumeInitialPersonaTicket(next, action.resultId);
+      const withTicket = hadPersonaBefore || action.skipInitialTicketConsumption === true
+        ? next
+        : consumeInitialPersonaTicket(next, action.resultId);
       if (!action.purchase) return withTicket;
       const persona = (mode === "t" ? window.DB?.tokui_personas : window.DB?.normal_personas || []).find((p) => String(p.no) === String(no));
       /* resultId の明示指定は常に勝つ（appendLedgerEntry の契約）。未指定なら

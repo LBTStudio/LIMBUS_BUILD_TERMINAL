@@ -355,6 +355,37 @@ test("購入せず所持に追加した場合も初期作成用チケットは�
   assert.equal(ticketBalance(bought).persona, 0, "所持になったらチケットは意味を失う");
 });
 
+test("2人目以降の人格追加では追加取得した人格チケットを消費しない", () => {
+  const first = reducer(freshState(), { type: "ADD_ROSTER", mode: "n", no: 1 });
+  assert.equal(ticketBalance(first).persona, 0, "初回の取得で初期作成用チケットだけを消費する");
+
+  const rewarded = reducer(first, {
+    type: "GRANT_TICKET", kind: "persona", count: 2, resultId: "res-initial"
+  });
+  const second = reducer(rewarded, { type: "ADD_ROSTER", mode: "n", no: 2 });
+
+  assert.equal(ticketBalance(second).persona, 2, "2人目の取得では通常の所持チケットが残る");
+  assert.equal(second.entries.filter((entry) => entry.ref?.kind === "initialPersonaTicket").length, 1,
+    "初期作成用チケットの自動消費は一度だけ");
+});
+
+test("既所持人格がある状態で一括取得しても通常の人格チケットは減らない", () => {
+  const first = reducer(freshState(), { type: "ADD_ROSTER", mode: "n", no: 1 });
+  const rewarded = reducer(first, {
+    type: "GRANT_TICKET", kind: "persona", count: 3, resultId: "res-initial"
+  });
+  const added = reducer(rewarded, {
+    type: "ADD_ROSTER_MANY",
+    resultId: "res-initial",
+    adds: [
+      { type: "persona", mode: "n", no: 2 },
+      { type: "persona", mode: "n", no: 3 }
+    ]
+  });
+  assert.equal(ticketBalance(added).persona, 3, "2人追加しても抽出権利の残数は変わらない");
+  assert.equal(added.entries.filter((entry) => entry.ref?.kind === "initialPersonaTicket").length, 1);
+});
+
 test("複数人を1アクションで所持へ入れても初期作成用チケットは1枚だけ消費する", () => {
   const fresh = freshState();
   const next = reducer(fresh, {
