@@ -12,8 +12,10 @@ import { readFileSync } from "node:fs";
    --------------------------------------------------------------------------- */
 
 const ui = readFileSync(new URL("../js/garasumado-import-ui.js", import.meta.url), "utf8");
+const ledger = readFileSync(new URL("../js/OtherSections.js", import.meta.url), "utf8");
 /* 整形（改行位置）は規約ではない。行をまたぐ検査は空白を潰してから照合する。 */
 const uiFlat = ui.replace(/\s+/g, " ");
+const ledgerFlat = ledger.replace(/\s+/g, " ");
 
 test("人格URLとキャラクターURLを同じ統合経路に流さない", () => {
   assert.match(uiFlat, /const collectionKinds = new Set/);
@@ -340,22 +342,22 @@ test("購入候補は初期状態で未承認とし、明示チェックした�
 });
 
 test("未確定の会計候補はリザルトに残り、明示操作後だけ収支へ反映する", () => {
-  assert.ok(uiFlat.includes("result.financialReviews"));
-  assert.ok(uiFlat.includes("RESOLVE_FINANCIAL_REVIEW"));
-  assert.ok(uiFlat.includes("DISMISS_FINANCIAL_REVIEW"));
-  assert.ok(uiFlat.includes("通貨を選択"));
-  assert.ok(uiFlat.includes("この内容で台帳へ確定"));
-  assert.ok(uiFlat.includes("ここにある候補は残高へ反映されていません"));
+  assert.ok(ledgerFlat.includes("result.financialReviews"));
+  assert.ok(ledgerFlat.includes("RESOLVE_FINANCIAL_REVIEW"));
+  assert.ok(ledgerFlat.includes("DISMISS_FINANCIAL_REVIEW"));
+  assert.ok(ledgerFlat.includes("通貨を選択"));
+  assert.ok(ledgerFlat.includes("この内容で台帳へ確定"));
+  assert.ok(ledgerFlat.includes("ここにある候補は残高へ反映されていません"));
 });
 
 test("未確定チケット候補をチケット種別・枚数・方向で確定するUIを持つ", () => {
-  assert.ok(uiFlat.includes('review.category === "ticket"'));
-  assert.ok(uiFlat.includes("確認候補のチケット種別"));
-  assert.ok(uiFlat.includes("確認候補のチケット枚数"));
-  assert.ok(uiFlat.includes("確認候補のチケット方向"));
-  assert.ok(uiFlat.includes("この枚数でチケット残数へ反映"));
-  assert.ok(uiFlat.includes("現在所持："));
-  assert.ok(uiFlat.includes("Number(draft.ticketCount) > ticketAvailable"));
+  assert.ok(ledgerFlat.includes('review.category === "ticket"'));
+  assert.ok(ledgerFlat.includes("確認候補のチケット種別"));
+  assert.ok(ledgerFlat.includes("確認候補のチケット枚数"));
+  assert.ok(ledgerFlat.includes("確認候補のチケット方向"));
+  assert.ok(ledgerFlat.includes("この枚数でチケット残数へ反映"));
+  assert.ok(ledgerFlat.includes("現在所持："));
+  assert.ok(ledgerFlat.includes("Number(draft.ticketCount) > ticketAvailable"));
 });
 
 test("currencyDiscrepanciesを取り込み確認カードへ表示し、記録価格を自動修正しない", () => {

@@ -1353,7 +1353,7 @@ function toIdentityChoices(hits) {
         const nameKeyValue = normalizeReviewLine(fallbackName);
         return financialReviews.some((candidate) => candidate.status === "pending" && (
           (rawKey && normalizeReviewLine(candidate.line) === rawKey)
-          || (nameKeyValue && normalizeReviewLine(candidate.line).includes(nameKeyValue))
+          || (nameKeyValue && normalizeReviewLine(candidate.line) === nameKeyValue)
         ));
       };
       actions.push({
@@ -1384,12 +1384,12 @@ function toIdentityChoices(hits) {
       /* チケット消費は収入に加算しない。履歴に使用と明記された分だけ消費アクションにする。 */
       for (const spend of scenario.ticketSpends || []) {
         if (!spend) continue;
-        if (hasPendingFinancialReview(spend.raw, "")) {
-          skipped.push({ key: scenario.key, reason: "チケット使用行に未確定の会計警告があるため、消費枚数を保留しました: " + String(spend.raw || "") });
-          continue;
-        }
         if (!["persona", "ego", "choice", "pack"].includes(spend.kind)) {
           skipped.push({ key: scenario.key, reason: "チケットの種別が曖昧なため消費記録を確定できません: " + String(spend.raw || "") });
+          continue;
+        }
+        if (hasPendingFinancialReview(spend.raw, "")) {
+          skipped.push({ key: scenario.key, reason: "チケット使用行に未確定の会計警告があるため、消費枚数を保留しました: " + String(spend.raw || "") });
           continue;
         }
         if (spend.kind === "pack" && !String(spend.pack || "").trim()) {

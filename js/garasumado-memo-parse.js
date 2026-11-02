@@ -1390,6 +1390,10 @@
         });
       }
       if (!line) continue;
+      /* チケット消費は区分見出し（「消費：」等）の判定で continue する前に確保する。
+         1行につき一度だけ保持し、通貨支出とは別レコードとして残す。 */
+      var explicitTicketSpend = explicitTicketSpendOf(line);
+      if (explicitTicketSpend) recordExplicitTicketSpend(explicitTicketSpend);
       if (isNarrativeLine(line)) continue;
       /* ▶で始まる効果説明は記述であり、通貨支出ではない。 */
       if (/^\s*[▶►▷]/.test(sourceLine)) continue;
@@ -1498,9 +1502,6 @@
       var consumption = consumptionOf(line, reasons);
       if (consumption) {
         spends.push(consumption);
-        /* 消費の行を通貨支出として確定しても、併記された抽出チケット消費は落とさない。
-           ticketSpends は「収入」ではなく使用証拠の記録なので、通貨明細とは別に残す。 */
-        recordExplicitTicketSpend(explicitTicketSpendOf(line));
         continue;
       }
 
@@ -1688,9 +1689,7 @@
         });
       }
 
-      var explicitTicketSpend = explicitTicketSpendOf(line);
       if (explicitTicketSpend) {
-        recordExplicitTicketSpend(explicitTicketSpend);
         if (!currencySpend && hasUnparsedExplicitExpense(line)) {
           reasons.push({ line: line, reason: "通貨額を含む支出表記を安全に解析できないため未計上" });
         }
@@ -2165,8 +2164,8 @@
            financial-action-unaccounted にしてしまう。 */
         const ticketIntegerToken = "(?:[0-9０-９]{1,3}(?:[,，][0-9０-９]{3})+|[0-9０-９]+)";
         const hasExplicitTicketCount =
-          new RegExp("(?:チケット|チケ|抽出🎫)\\\\s*(?:[x×ｘ＊*]\\\\s*" + ticketIntegerToken + "(?![0-9０-９.,，])|" + ticketIntegerToken + "\\\\s*(?:枚|個|回)(?![0-9０-９.,，]))", "i").test(sourceLine) ||
-          new RegExp("(?:[x×ｘ＊*]\\\\s*" + ticketIntegerToken + "(?![0-9０-９.,，])|" + ticketIntegerToken + "\\\\s*(?:枚|個|回)(?![0-9０-９.,，]))\\\\s*(?:人格|E\\\\.?G\\\\.?O|エゴ|選択|抽出|ガチャ)?チケ(?:ット)?", "i").test(sourceLine);
+          new RegExp("(?:チケット|チケ|抽出🎫)\\s*(?:[x×ｘ＊*]\\s*" + ticketIntegerToken + "(?![0-9０-９.,，])|" + ticketIntegerToken + "\\s*(?:枚|個|回)(?![0-9０-９.,，]))", "i").test(sourceLine) ||
+          new RegExp("(?:[x×ｘ＊*]\\s*" + ticketIntegerToken + "(?![0-9０-９.,，])|" + ticketIntegerToken + "\\s*(?:枚|個|回)(?![0-9０-９.,，]))\\s*(?:人格|E\\.?G\\.?O|エゴ|選択|抽出|ガチャ)?チケ(?:ット)?", "i").test(sourceLine);
         const hasTicketActionVerb =
           /(?:獲得|入手|取得|付与|支給|消費|使用|購入|買っ|支払|支出|報酬|収入|受領|補填|抽出(?:した|する|結果|後|済|を行う|を実施)|ガチャ(?:結果|で獲得|を回|を引)|消費済)/i.test(sourceLine);
         const hasTicketCountSyntax =
@@ -2174,6 +2173,13 @@
           || /(?:チケット|チケ)\s*[+＋−-]?\s*[0-9０-９][0-9０-９,，.．]*\s*(?:枚|個|回)/.test(sourceLine)
           || /[0-9０-９][0-9０-９,，.．]*\s*(?:枚|個|回)\s*(?:人格|E\.?G\.?O|エゴ|選択|抽出|ガチャ)?チケ(?:ット)?/i.test(sourceLine);
         const hasMalformedTicketCount = hasTicketMarker && hasTicketCountSyntax && !hasExplicitTicketCount;
+        if (hasMalformedTicketCount && !reasons.slice(auditBefore.reasons).some((entry) =>
+          /チケット枚数/.test(String(entry && entry.reason || "")))) {
+          reasons.push({
+            line: sourceLine,
+            reason: "チケット枚数が正の整数ではないか桁区切りが不正なため、消費・収入へ推測計上せず保留しました。"
+          });
+        }
         const hasTicketEvent = hasTicketMarker && (hasExplicitTicketCount || hasTicketActionVerb);
         const hasRosterGainEvent = /(?:人格|E\\.?G\\.?O|エゴ).*(?:獲得|入手|取得)|(?:獲得|入手|取得).*(?:人格|E\\.?G\\.?O|エゴ)/i.test(sourceLine);
         const hasGachaResult = /ガチャ.*(?:結果|→|⇒)|(?:人格|E\\.?G\\.?O|エゴ)獲得\\s*[→⇒:：]/i.test(sourceLine);

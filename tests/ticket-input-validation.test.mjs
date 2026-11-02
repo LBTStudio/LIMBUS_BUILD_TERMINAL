@@ -56,5 +56,6 @@ test("チケット消費は整数のみ受け入れ、負数表記と省略時1�
   const spentOne = reducer(state, { type: "SPEND_TICKET", kind: "persona" });
   assert.equal(ticketBalance(spentOne.results, spentOne.entries).persona, 3);
   const zeroDefaults = reducer(state, { type: "SPEND_TICKET", kind: "persona", count: 0 });
-  assert.equal(ticketBalance(zeroDefaults.results, zeroDefaults.entries).persona, 3);
+  assert.strictEqual(zeroDefaults, state, "明示的な0枚は既定の1枚消費へ変換しない");
+  assert.equal(ticketBalance(zeroDefaults.results, zeroDefaults.entries).persona, 4);
 });

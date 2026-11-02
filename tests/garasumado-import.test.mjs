@@ -420,6 +420,15 @@ test("チケット枚数の小数・不正な桁区切りは整数へ切り詰�
     "価格条件だけの数字は不正枚数の警告にも変換しない");
 });
 
+test("消費見出し行に書かれた曖昧チケットも収入・通貨支出と分けて使用証跡を残す", () => {
+  const parsed = MEMO.parseMemo("消費：人格orE.G.O抽出チケット×1、LP100");
+  assert.equal(parsed.ticketSpends.length, 1);
+  assert.equal(parsed.ticketSpends[0].kind, "unknown");
+  assert.equal(parsed.tickets.persona, 0);
+  assert.equal(parsed.tickets.ego, 0);
+  assert.equal(parsed.income.lp, 0);
+});
+
 test("種別不明のチケット消費は黙って人格券として確定せず、要確認に残す", () => {
   const M = loadImportWithMemo();
   const manifest = M.buildManifest({
