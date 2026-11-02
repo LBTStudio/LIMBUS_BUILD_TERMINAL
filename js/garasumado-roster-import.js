@@ -759,7 +759,7 @@ function toIdentityChoices(hits) {
            occurrence を補助識別子に使う。 */
         const sourceIndex = Number.isSafeInteger(Number(row.__lbtShareSourceIndex))
           ? Number(row.__lbtShareSourceIndex) : index;
-        const occurrenceScope = JSON.stringify([sourceId, sourceIndex, sourceDate, nameKey(name)]);
+        const occurrenceScope = JSON.stringify([sourceId, sourceDate, nameKey(name)]);
         const occurrence = (scenarioOccurrences.get(occurrenceScope) || 0) + 1;
         scenarioOccurrences.set(occurrenceScope, occurrence);
         /* memo は修正対象なのでキーに含めない。同名の反復記録は出現順で区別する。 */
