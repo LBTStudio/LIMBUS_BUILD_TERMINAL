@@ -142,7 +142,13 @@ test("チケット確認済み支出は同じ履歴の再取込で維持し、�
         income: { lp: 0, shards: 0, tickets: { persona: 3, ego: 0, choice: 0, pack: {} } },
         financialReviews: []
       },
-      { type: "SPEND_TICKET", kind: "persona", count: 2 }
+      {
+        type: "ADD_ENTRY",
+        kind: "other",
+        name: "履歴上の使用：人格抽出チケット ×2",
+        cost: { lp: 0, shards: 0 },
+        tickets: { persona: 2, ego: 0, choice: 0, pack: {} }
+      }
     ]
   });
   assert.equal(parserResolved.entries.length, 1, "旧review支出を除き、通常解析済み消費に置き換える");
