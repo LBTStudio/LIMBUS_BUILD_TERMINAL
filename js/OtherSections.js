@@ -6476,7 +6476,7 @@ h(Card, { className: "ledger-card" },
                                     disabled: !["persona", "ego", "choice", "pack"].includes(draft.ticketKind)
                                       || (draft.ticketKind === "pack" && !String(draft.ticketPack || "").trim())
                                       || !["spend", "income"].includes(draft.ticketDirection)
-                                      || !/^\\d+$/.test(String(draft.ticketCount || "").trim())
+                                      || !/^\d+$/.test(String(draft.ticketCount || "").trim())
                                       || !Number.isSafeInteger(Number(draft.ticketCount)) || Number(draft.ticketCount) <= 0,
                                     onClick: () => {
                                       dispatch({
@@ -6551,7 +6551,7 @@ h(Card, { className: "ledger-card" },
                                     size: "sm", variant: "primary",
                                     disabled: !["lp", "shards"].includes(draft.currency)
                                       || !["spend", "income"].includes(draft.direction)
-                                      || !/^\\d+$/.test(String(draft.amount || "").trim())
+                                      || !/^\d+$/.test(String(draft.amount || "").trim())
                                       || !Number.isSafeInteger(Number(draft.amount)) || Number(draft.amount) <= 0,
                                     onClick: () => {
                                       dispatch({
