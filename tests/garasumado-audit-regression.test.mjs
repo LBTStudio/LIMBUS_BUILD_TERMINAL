@@ -41,6 +41,110 @@ test("パーサが補正した通貨候補行も元表記の警告と照合し�
 test("通貨単位の無い支出数値は未確定候補として警告に残す", () => {
  const { memo } = loadAuditApis(), parsed = memo.parseMemo("・支出\n東部親指ソルダードII 87"); assert.ok(parsed.financialCoverage.some((a) => a.status === "unitless-currency-review")); assert.ok(parsed.sourceAudits.some((a) => a.code === "unitless-expense-candidate" && a.severity === "review")); assert.ok(parsed.reasons.some((a) => /通貨単位がありません/.test(a.reason)));
 });
+test("金額未確定候補はリザルトへ保存され、残高へ混ぜず後から明示確定できる", () => {
+ const { memo, roster } = loadAuditApis();
+ const raw = "東部親指ソルダードII 87";
+ const parsed = memo.parseMemo("・支出\n" + raw);
+ const sourceKey = "gara1:share-source-123:2026-11-03:scenario-a:1";
+ const manifest = {
+  groups: [],
+  scenarios: [scenario("scenario:0", [], {
+   importSourceKey: sourceKey,
+   sourceId: "share-source-123",
+   scenarioIndex: 0,
+   sourceIndex: 0,
+   memo: "・支出\n" + raw,
+   ...parsed,
+   name: "候補保持テスト"
+  })]
+ };
+ const { actions } = roster.toDispatchActions(manifest, [], { db });
+ assert.equal(actions.filter((action) => action.type === "ADD_ENTRY").length, 0,
+  "読み取れない金額を0円支出として作らない");
+ const resultAction = actions.find((action) => action.type === "ADD_RESULT");
+ assert.ok(resultAction);
+ assert.equal(resultAction.financialReviews.length, 1);
+ assert.equal(resultAction.financialReviews[0].line, raw);
+ assert.equal(resultAction.financialReviews[0].lineIndex, 2);
+ assert.equal(resultAction.financialReviews[0].sourceKey, sourceKey);
+ assert.equal(resultAction.financialReviews[0].status, "pending");
+
+ const stateContext = { window: { DB: db, console }, console, URL, TextEncoder, TextDecoder, setTimeout, clearTimeout };
+ stateContext.globalThis = stateContext;
+ vm.runInNewContext(read("../js/ledger-provenance.js"), stateContext, { filename: "ledger-provenance.js" });
+ vm.runInNewContext(read("../js/state.js"), stateContext, { filename: "state.js" });
+ const reducer = stateContext.window.appReducer;
+ const baseState = {
+  results: [], entries: [],
+  roster: { personas: [], egos: [], supports: [], spirits: [] },
+  inventory: [], tickets: []
+ };
+ const imported = reducer(baseState, { type: "APPLY_IMPORT_BATCH", actions });
+ const stored = imported.results[0].financialReviews[0];
+ assert.equal(stored.status, "pending");
+ assert.equal(stateContext.window.LBT_computeLedgerBalance(imported.results, imported.entries).spentLp, 0);
+ assert.equal(stateContext.window.LBT_computeLedgerBalance(imported.results, imported.entries).spentShards, 0);
+
+ const resolved = reducer(imported, {
+  type: "RESOLVE_FINANCIAL_REVIEW",
+  resultId: imported.results[0].id,
+  candidateKey: stored.key,
+  currency: "lp",
+  direction: "spend",
+  amount: "87"
+ });
+ assert.equal(resolved.entries.length, 1);
+ assert.equal(resolved.entries[0].cost.lp, 87);
+ assert.equal(resolved.entries[0].resultId, imported.results[0].id);
+ assert.equal(resolved.entries[0].ref.kind, "financialReview");
+ assert.equal(resolved.results[0].financialReviews[0].status, "confirmed");
+ assert.equal(stateContext.window.LBT_computeLedgerBalance(resolved.results, resolved.entries).spentLp, 87);
+ const repeated = reducer(resolved, {
+  type: "RESOLVE_FINANCIAL_REVIEW",
+  resultId: resolved.results[0].id,
+  candidateKey: stored.key,
+  currency: "lp",
+  direction: "spend",
+  amount: "87"
+ });
+ assert.strictEqual(repeated, resolved, "確定済み候補は二重確定できない");
+});
+
+test("同一共有元の再取込は確定候補を保持し、候補行を増殖させない", () => {
+ const { memo, roster } = loadAuditApis();
+ const raw = "東部親指ソルダードII 87";
+ const parsed = memo.parseMemo("・支出\n" + raw);
+ const sourceKey = "gara1:share-source-123:2026-11-03:scenario-a:1";
+ const manifest = {
+  groups: [],
+  scenarios: [scenario("scenario:0", [], {
+   importSourceKey: sourceKey, sourceId: "share-source-123",
+   memo: "・支出\n" + raw, ...parsed
+  })]
+ };
+ const { actions } = roster.toDispatchActions(manifest, [], { db });
+ const stateContext = { window: { DB: db, console }, console, URL, TextEncoder, TextDecoder, setTimeout, clearTimeout };
+ stateContext.globalThis = stateContext;
+ vm.runInNewContext(read("../js/ledger-provenance.js"), stateContext, { filename: "ledger-provenance.js" });
+ vm.runInNewContext(read("../js/state.js"), stateContext, { filename: "state.js" });
+ const reducer = stateContext.window.appReducer;
+ const baseState = { results: [], entries: [], roster: { personas: [], egos: [], supports: [], spirits: [] }, inventory: [] };
+ const imported = reducer(baseState, { type: "APPLY_IMPORT_BATCH", actions });
+ const candidate = imported.results[0].financialReviews[0];
+ const resolved = reducer(imported, {
+  type: "RESOLVE_FINANCIAL_REVIEW", resultId: imported.results[0].id,
+  candidateKey: candidate.key, currency: "shards", direction: "income", amount: 12
+ });
+ const reimported = reducer(resolved, { type: "APPLY_IMPORT_BATCH", actions });
+ assert.equal(reimported.results.length, 1);
+ assert.equal(reimported.results[0].financialReviews.length, 1);
+ assert.equal(reimported.results[0].financialReviews[0].status, "confirmed");
+ assert.equal(reimported.results[0].financialReviews[0].currency, "shards");
+ assert.equal(reimported.results[0].financialReviews[0].amount, 12);
+ assert.equal(reimported.entries.length, 0);
+ assert.equal(reimported.results[0].income.shards, 12);
+});
+
 test("取込リデューサーは固有keyで明細の帰属先を解決する", () => {
  const src = read("../js/state.js"); assert.match(src, /const resultIdByBatchKey = new Map\(\)/); assert.match(src, /Array\.isArray\(sub\.viaKeys\)/); assert.match(src, /resultIdByBatchKey\.get\(viaKey\)/); assert.match(src, /const batchKey = String\(sub\.batchKey \|\| ""\)/);
 });

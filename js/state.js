@@ -69,6 +69,60 @@ function normalizePersonaAcquisitions(value) {
   });
 }
 
+function normalizeFinancialReviewCandidates(value) {
+  if (!Array.isArray(value)) return [];
+  const allowedStatus = new Set(["pending", "confirmed", "dismissed"]);
+  return value.slice(0, 300).flatMap((candidate) => {
+    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return [];
+    const key = String(candidate.key || "").trim().slice(0, 180);
+    const line = String(candidate.line || "").slice(0, 2000);
+    const lineIndex = Number(candidate.lineIndex);
+    const amount = candidate.amount == null || candidate.amount === ""
+      ? null : Number(candidate.amount);
+    if (!key || !line || !Number.isSafeInteger(lineIndex) || lineIndex < 1) return [];
+    const evidence = candidate.evidence && typeof candidate.evidence === "object" && !Array.isArray(candidate.evidence)
+      ? candidate.evidence : {};
+    return [{
+      key,
+      sourceId: String(candidate.sourceId || "").slice(0, 120),
+      sourceKey: String(candidate.sourceKey || "").slice(0, 180),
+      scenarioKey: String(candidate.scenarioKey || "").slice(0, 80),
+      scenarioIndex: Number.isSafeInteger(Number(candidate.scenarioIndex)) ? Number(candidate.scenarioIndex) : null,
+      sourceIndex: Number.isSafeInteger(Number(candidate.sourceIndex)) ? Number(candidate.sourceIndex) : null,
+      lineIndex,
+      line,
+      candidateType: String(candidate.candidateType || "financial-review").slice(0, 80),
+      currency: ["lp", "shards"].includes(candidate.currency) ? candidate.currency : "",
+      amount: amount !== null && Number.isSafeInteger(amount) && amount > 0 ? amount : null,
+      direction: ["spend", "income"].includes(candidate.direction) ? candidate.direction : "",
+      severity: candidate.severity === "warning" ? "warning" : "review",
+      reason: String(candidate.reason || "").slice(0, 1000),
+      evidence,
+      status: allowedStatus.has(candidate.status) ? candidate.status : "pending",
+      reviewedAt: Number.isSafeInteger(Number(candidate.reviewedAt)) ? Number(candidate.reviewedAt) : null,
+      resolvedEntryId: String(candidate.resolvedEntryId || "").slice(0, 120)
+    }];
+  });
+}
+function mergeFinancialReviewCandidates(previous, incoming) {
+  const oldByKey = new Map(normalizeFinancialReviewCandidates(previous).map((candidate) => [candidate.key, candidate]));
+  return normalizeFinancialReviewCandidates(incoming).map((candidate) => {
+    const old = oldByKey.get(candidate.key);
+    if (!old || old.status === "pending" || old.line !== candidate.line
+        || old.candidateType !== candidate.candidateType) return candidate;
+    /* 同じ原文行・同じ候補種別を再取込した場合だけ、利用者の確定/却下を引き継ぐ。 */
+    return {
+      ...candidate,
+      currency: old.currency,
+      amount: old.amount,
+      direction: old.direction,
+      status: old.status,
+      reviewedAt: old.reviewedAt,
+      resolvedEntryId: old.resolvedEntryId
+    };
+  });
+}
+
 /* 初期作成用人格チケットの消費。最初の人格を購入・手動追加などで得た場合に1枚消す。
    人格抽出チケットで抽選した場合は、その支払いが初期分の消費を兼ねるため、
    applyRosterAdds 側で自動消費を抑止する。 */
@@ -1857,6 +1911,11 @@ function normalizeStateShape(raw) {
     }
   }
   next.tickets = unresolvedLegacyTickets;
+  /* 未確定の会計候補はリザルトへ保全するが、収支明細ではないため残高計算には含めない。 */
+  next.results = (Array.isArray(next.results) ? next.results : []).map((result) => ({
+    ...result,
+    financialReviews: normalizeFinancialReviewCandidates(result?.financialReviews)
+  }));
   next.roster = {
     ...next.roster,
     // 同期MAXは同期ランク（0/00/000）と別に保存する。旧保存データはfalseへ補完する。
@@ -5922,6 +5981,9 @@ case "ADD_CUSTOM_ITEM": {
           ...(action.rewardItems !== undefined ? { rewardItems: nextRewardItems } : {}),
           ...(action.initialPersona !== undefined ? { initialPersona: normalizeInitialPersona(action.initialPersona) } : {}),
           ...(action.personaAcquisitions !== undefined ? { personaAcquisitions: normalizePersonaAcquisitions(action.personaAcquisitions) } : {}),
+          ...(action.financialReviews !== undefined
+            ? { financialReviews: mergeFinancialReviewCandidates(r.financialReviews, action.financialReviews) }
+            : {}),
           ...(action.importSourceKey !== undefined
             ? (String(action.importSourceKey || "").trim()
               ? { importSourceKey: String(action.importSourceKey).slice(0, 180) }
@@ -5935,6 +5997,73 @@ case "ADD_CUSTOM_ITEM": {
         ? updated
         : grantRewardItemDeltas(updated, nextRewardItems, previous.rewardItems);
     }
+    /* 未確定候補を台帳へ移すのは利用者が通貨・方向・金額を指定した場合だけ。
+       同じ候補は pending の間だけ確定でき、再送・連打で二重計上しない。 */
+    case "RESOLVE_FINANCIAL_REVIEW": {
+      const resultId = String(action.resultId || "");
+      const candidateKey = String(action.candidateKey || "");
+      const result = (state.results || []).find((row) => row?.id === resultId);
+      const candidate = normalizeFinancialReviewCandidates(result?.financialReviews)
+        .find((row) => row.key === candidateKey);
+      if (!result || !candidate || candidate.status !== "pending") return state;
+      const currency = action.currency;
+      const direction = action.direction;
+      const amount = parseStrictTicketInteger(action.amount, { allowZero: false, allowNegative: false });
+      if (!["lp", "shards"].includes(currency) || !["spend", "income"].includes(direction) || amount === null) return state;
+      const now = Date.now();
+      let next = state;
+      let resolvedEntryId = "";
+      if (direction === "spend") {
+        next = appendLedgerEntry(next, {
+          kind: "other",
+          name: ("確認済み支出：" + candidate.line).slice(0, 120),
+          cost: { lp: currency === "lp" ? amount : 0, shards: currency === "shards" ? amount : 0 },
+          resultId,
+          ref: { kind: "financialReview", uid: candidate.key },
+          note: "硝子窓取込の未確定候補を利用者が明示確定"
+        });
+        resolvedEntryId = String(next.entries[next.entries.length - 1]?.id || "");
+      } else {
+        const current = normalizeCurrency(result.income);
+        const total = current[currency] + amount;
+        if (!Number.isSafeInteger(total)) return state;
+        const results = (next.results || []).map((row) => row.id === resultId
+          ? { ...row, income: { ...current, tickets: normalizeTickets(row.income?.tickets), [currency]: total }, updatedAt: now }
+          : row);
+        next = { ...next, results };
+      }
+      return {
+        ...next,
+        results: (next.results || []).map((row) => row.id === resultId
+          ? {
+              ...row,
+              financialReviews: normalizeFinancialReviewCandidates(row.financialReviews).map((item) => item.key === candidate.key
+                ? { ...item, currency, amount, direction, status: "confirmed", reviewedAt: now, resolvedEntryId }
+                : item),
+              updatedAt: now
+            }
+          : row)
+      };
+    }
+    case "DISMISS_FINANCIAL_REVIEW": {
+      const resultId = String(action.resultId || "");
+      const candidateKey = String(action.candidateKey || "");
+      let changed = false;
+      const results = (state.results || []).map((row) => {
+        if (row.id !== resultId) return row;
+        const candidates = normalizeFinancialReviewCandidates(row.financialReviews);
+        if (!candidates.some((candidate) => candidate.key === candidateKey && candidate.status === "pending")) return row;
+        changed = true;
+        return {
+          ...row,
+          financialReviews: candidates.map((candidate) => candidate.key === candidateKey
+            ? { ...candidate, status: "dismissed", reviewedAt: Date.now() }
+            : candidate),
+          updatedAt: Date.now()
+        };
+      });
+      return changed ? { ...state, results } : state;
+    }
     case "ADD_RESULT": {
       const now = Date.now();
       const result = {
@@ -5947,6 +6076,7 @@ case "ADD_CUSTOM_ITEM": {
         rewardItems: normalizeRewardItems(action.rewardItems, state),
         initialPersona: normalizeInitialPersona(action.initialPersona),
         personaAcquisitions: normalizePersonaAcquisitions(action.personaAcquisitions),
+        financialReviews: normalizeFinancialReviewCandidates(action.financialReviews),
         ...(String(action.importSourceKey || "").trim()
           ? { importSourceKey: String(action.importSourceKey).slice(0, 180) }
           : {}),
@@ -5974,6 +6104,9 @@ case "ADD_CUSTOM_ITEM": {
               ...(action.patch?.rewardItems !== void 0 ? { rewardItems: normalizeRewardItems(action.patch.rewardItems, state) } : {}),
               ...(action.patch?.initialPersona !== void 0 ? { initialPersona: normalizeInitialPersona(action.patch.initialPersona) } : {}),
               ...(action.patch?.personaAcquisitions !== void 0 ? { personaAcquisitions: normalizePersonaAcquisitions(action.patch.personaAcquisitions) } : {}),
+              ...(action.patch?.financialReviews !== void 0
+                ? { financialReviews: mergeFinancialReviewCandidates(r.financialReviews, action.patch.financialReviews) }
+                : {}),
               updatedAt: Date.now()
             }
           : r))
@@ -6071,6 +6204,7 @@ case "ADD_CUSTOM_ITEM": {
             note: sub.note,
             consumedItems: sub.consumedItems,
             personaAcquisitions: sub.personaAcquisitions,
+            financialReviews: sub.financialReviews,
             ...(sourceKey ? { importSourceKey: sourceKey } : {})
           });
           added = (next.results || []).find((result) => result && result.id === target.id) || null;

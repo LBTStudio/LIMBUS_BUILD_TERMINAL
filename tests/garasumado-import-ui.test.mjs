@@ -339,6 +339,15 @@ test("購入候補は初期状態で未承認とし、明示チェックした�
   assert.ok(uiFlat.includes("明示承認済み"));
 });
 
+test("未確定の会計候補はリザルトに残り、明示操作後だけ収支へ反映する", () => {
+  assert.ok(uiFlat.includes("result.financialReviews"));
+  assert.ok(uiFlat.includes("RESOLVE_FINANCIAL_REVIEW"));
+  assert.ok(uiFlat.includes("DISMISS_FINANCIAL_REVIEW"));
+  assert.ok(uiFlat.includes("通貨を選択"));
+  assert.ok(uiFlat.includes("この内容で台帳へ確定"));
+  assert.ok(uiFlat.includes("ここにある候補は残高へ反映されていません"));
+});
+
 test("currencyDiscrepanciesを取り込み確認カードへ表示し、記録価格を自動修正しない", () => {
   assert.ok(uiFlat.includes("Array.isArray(block.currencyDiscrepancies) && block.currencyDiscrepancies.length"));
   assert.ok(uiFlat.includes("価格差の確認（元記録額は自動修正していません）"));

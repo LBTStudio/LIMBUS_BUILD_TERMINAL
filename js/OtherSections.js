@@ -4497,6 +4497,9 @@ const LedgerPanel = ({ state, dispatch }) => {
   const [ticketRewardItemQty, setTicketRewardItemQty] = React.useState("1");
   /* 手動の支出・消耗。DBに価格が無いもの、戦闘で消えたものを記録する。 */
   const [newEntry, setNewEntry] = React.useState({ name: "", kind: "expense", lp: "", shards: "" });
+  /* 硝子窓の金額未確定候補は、リザルト保存後も行単位で確認できる。入力中の値だけ画面状態に置き、確定状態はstateへ保存する。 */
+  const [financialReviewDrafts, setFinancialReviewDrafts] = React.useState({});
+
   /* 所持人格リストの一括取込用の状態。 */
   const [heldPaste, setHeldPaste] = React.useState("");
   const [heldScan, setHeldScan] = React.useState({ found: [], unknown: [], unknownCount: 0 });
@@ -6382,6 +6385,108 @@ h(Card, { className: "ledger-card" },
                   Array.isArray(result.personaAcquisitions) && result.personaAcquisitions.length > 0 && h("div", { className: "ledger-detail-group ledger-card-acquisitions" },
                     h("span", { className: "t-label" }, "取得人格"),
                     result.personaAcquisitions.map((entry) => h("span", { key: entry.mode + ":" + entry.no, className: "gacha-held-ticket" }, String(entry.name || (entry.mode.toUpperCase() + " No." + entry.no)) + (entry.mode === "t" ? "（特異）" : "（通常）")))
+                  ),
+                  Array.isArray(result.financialReviews) && result.financialReviews.length > 0 && h("section", {
+                    className: "ledger-held-result ledger-financial-review",
+                    "aria-label": "金額・収支の確認候補"
+                  },
+                    h("div", { className: "ledger-reward-item-head" },
+                      h("span", { className: "t-label" }, "金額・収支の要確認候補"),
+                      h("span", { className: "ledger-note" },
+                        "ここにある候補は残高へ反映されていません。原文と行番号を確認し、通貨・金額・方向を指定したものだけを確定します。")
+                    ),
+                    h("div", { className: "stack-2" }, result.financialReviews.map((review) => {
+                      const draft = financialReviewDrafts[review.key] || { currency: review.currency || "", direction: review.direction || "", amount: review.amount == null ? "" : String(review.amount) };
+                      const pending = review.status === "pending";
+                      const updateDraft = (patch) => setFinancialReviewDrafts((current) => ({
+                        ...current,
+                        [review.key]: { ...(current[review.key] || draft), ...patch }
+                      }));
+                      const closedLabel = review.status === "confirmed"
+                        ? "確定済み"
+                        : review.status === "dismissed" ? "除外済み" : "未確認";
+                      return h("div", { key: review.key, className: "ledger-financial-review-row" },
+                        h("div", { className: "ledger-reward-item-head" },
+                          h("strong", null, "行 " + review.lineIndex + " · " + closedLabel),
+                          h("span", { className: "ledger-note" }, review.candidateType)
+                        ),
+                        h("pre", { className: "ledger-financial-review-source", style: { whiteSpace: "pre-wrap", overflowWrap: "anywhere", margin: "4px 0" } }, review.line),
+                        review.reason ? h("p", { className: "ledger-note" }, review.reason) : null,
+                        pending && h("div", { className: "ledger-financial-review-controls" },
+                          h("label", { className: "ledger-ticket-field" },
+                            h("span", null, "通貨"),
+                            h("select", {
+                              className: "select",
+                              value: draft.currency,
+                              "aria-label": "確認候補の通貨",
+                              onChange: (event) => updateDraft({ currency: event.target.value })
+                            },
+                              h("option", { value: "" }, "通貨を選択"),
+                              h("option", { value: "lp" }, "LP"),
+                              h("option", { value: "shards" }, "自我の欠片")
+                            )
+                          ),
+                          h("label", { className: "ledger-ticket-field" },
+                            h("span", null, "方向"),
+                            h("select", {
+                              className: "select",
+                              value: draft.direction,
+                              "aria-label": "確認候補の方向",
+                              onChange: (event) => updateDraft({ direction: event.target.value })
+                            },
+                              h("option", { value: "" }, "方向を選択"),
+                              h("option", { value: "spend" }, "支出"),
+                              h("option", { value: "income" }, "収入")
+                            )
+                          ),
+                          h("label", { className: "ledger-ticket-field" },
+                            h("span", null, "金額（正の整数）"),
+                            h("input", {
+                              className: "ledger-input ledger-input--num",
+                              type: "number", min: "1", step: "1", inputMode: "numeric",
+                              value: draft.amount,
+                              "aria-label": "確認候補の金額",
+                              onChange: (event) => updateDraft({ amount: event.target.value })
+                            })
+                          ),
+                          h("div", { className: "ledger-add-row" },
+                            h(Button, {
+                              size: "sm", variant: "primary",
+                              disabled: !["lp", "shards"].includes(draft.currency)
+                                || !["spend", "income"].includes(draft.direction)
+                                || !/^\d+$/.test(String(draft.amount || "").trim())
+                                || !Number.isSafeInteger(Number(draft.amount)) || Number(draft.amount) <= 0,
+                              onClick: () => {
+                                dispatch({
+                                  type: "RESOLVE_FINANCIAL_REVIEW",
+                                  resultId: result.id,
+                                  candidateKey: review.key,
+                                  currency: draft.currency,
+                                  direction: draft.direction,
+                                  amount: draft.amount
+                                });
+                                setFinancialReviewDrafts((current) => {
+                                  const next = { ...current };
+                                  delete next[review.key];
+                                  return next;
+                                });
+                              }
+                            }, "この内容で台帳へ確定"),
+                            h(Button, {
+                              size: "sm", variant: "ghost",
+                              onClick: () => {
+                                dispatch({ type: "DISMISS_FINANCIAL_REVIEW", resultId: result.id, candidateKey: review.key });
+                                setFinancialReviewDrafts((current) => {
+                                  const next = { ...current };
+                                  delete next[review.key];
+                                  return next;
+                                });
+                              }
+                            }, "取引候補から除外")
+                          )
+                        )
+                      );
+                    }))
                   ),
                   consumedItems.length > 0 && h("div", { className: "ledger-detail-group ledger-card-consumed" },
                     h("span", { className: "t-label" }, "消耗したアイテム"),
