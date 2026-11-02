@@ -4,6 +4,9 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 
 const source = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
+assert.equal((source.match(/\\bconst CACHE_NAME\\b/g) || []).length, 1,
+  "the service worker must declare the generated CACHE_NAME exactly once");
+
 
 test("activate deletes only stale caches that contain this app's own pages", async () => {
   const cacheName = source.match(/const CACHE_NAME = "([^"]+)"/)?.[1];
