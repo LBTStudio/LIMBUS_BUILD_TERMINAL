@@ -154,7 +154,8 @@ function mergeFinancialReviewCandidates(previous, incoming) {
       const sameLine = oldByLine.get(candidate.line) || [];
       if (sameLine.length === 1 && incomingLineCounts.get(candidate.line) === 1) old = sameLine[0];
     }
-    if (!old || old.status === "pending" || old.line !== candidate.line) return candidate;
+    if (!old || old.status === "pending" || old.line !== candidate.line
+        || old.category !== candidate.category) return candidate;
     /* 同じ安定した元行キーと原文が一致する場合だけ、利用者の確定/却下を引き継ぐ。 */
     return {
       ...candidate,
