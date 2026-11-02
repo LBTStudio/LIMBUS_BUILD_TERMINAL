@@ -889,6 +889,16 @@ window.addEventListener("load", function(){
 (function(){
   if(!("serviceWorker" in navigator)) return;
   if(location.protocol !== "https:" && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") return;
+  /* 新しいService Workerが既存タブをclaimしたら旧JSを残さず読み直す。
+     古いタブの遅延保存が新しい通帳・チケット残高を上書きする事故を避ける。 */
+  var hadController = !!navigator.serviceWorker.controller;
+  var refreshing = false;
+  navigator.serviceWorker.addEventListener("controllerchange", function(){
+    if(!hadController){ hadController = true; return; }
+    if(refreshing) return;
+    refreshing = true;
+    window.location.reload();
+  });
   window.addEventListener("load", function(){
     navigator.serviceWorker.register("sw.js").then(function(reg){ reg.update(); }).catch(function(){});
   });
