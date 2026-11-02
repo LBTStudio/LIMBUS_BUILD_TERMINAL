@@ -350,6 +350,22 @@ test("旧セーブを持つ人はゲートでアカウント1を選び、その�
   assert.equal(storage.getItem(LEGACY_KEY), legacy, "旧キーは無傷");
 });
 
+test("別タブが先に保存した後、古いタブは新しい保存状態を上書きしない", () => {
+  const storage = createStorage();
+  const creator = loadAccounts(storage);
+  const account = creator.create("競合検証", "");
+  assert.ok(account);
+  const tabA = loadAccounts(storage);
+  const tabB = loadAccounts(storage);
+  tabA.getActiveId();
+  tabB.getActiveId();
+  assert.equal(tabA.loadActive().charName, undefined);
+  assert.equal(tabB.loadActive().charName, undefined);
+  assert.equal(tabA.saveActive({ schemaVersion: 5, charName: "新しいタブA" }), true);
+  assert.equal(tabB.saveActive({ schemaVersion: 5, charName: "古いタブB" }), false,
+    "起動時スナップショットが古いタブの保存を拒否する");
+  assert.equal(creator.loadActive().charName, "新しいタブA", "新しい保存内容を維持する");
+});
 test("旧データが無い初回訪問は0件のまま（ゲートで作成させる）", () => {
   const storage = createStorage();
   const accounts = loadAccounts(storage);
