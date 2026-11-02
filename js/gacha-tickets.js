@@ -166,7 +166,10 @@
     const g = gachaEngine();
     const want = options.want;
     const balance = window.LBT_computeLedgerBalance
-      ? window.LBT_computeLedgerBalance(state.results || [], state.entries || {}) || {}
+      ? window.LBT_computeLedgerBalance(
+        Array.isArray(state.results) ? state.results : [],
+        Array.isArray(state.entries) ? state.entries : []
+      ) || {}
       : {};
     const owned = {
       personas: (state.roster?.personas || []).filter((p) => p.mode !== "t").map((p) => p.no),

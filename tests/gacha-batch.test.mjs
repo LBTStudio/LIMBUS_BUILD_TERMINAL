@@ -777,6 +777,45 @@ test("schema v2 は検証器が無い環境で適用しない一方、schema v1 
   assert.equal(legacyResult.ok, true, "旧形式の既存契約は維持する");
 });
 
+test("APPLY_DRAW_BATCH は証明保存前の同一バッチ再適用でも二重消費しない", () => {
+  const w = loadState(db);
+  const { batch } = finalizedBatch();
+  const cost = batch.records.reduce((sum, record) => ({
+    lp: sum.lp + (Number(record.cost?.lp) || 0),
+    shards: sum.shards + (Number(record.cost?.shards) || 0)
+  }), { lp: 0, shards: 0 });
+  const before = {
+    ...base(),
+    results: [{ id: "idempotent-result", name: "冪等性検査", income: { lp: 1000, shards: 1000 } }]
+  };
+  const action = { type: "APPLY_DRAW_BATCH", batch, cost, resultId: "idempotent-result" };
+  const once = w.appReducer(before, action);
+  assert.ok(once.appliedDrawBatchIds.includes(batch.batchHash));
+  const entriesAfterFirst = once.entries.length;
+  const rosterAfterFirst = once.roster.personas.length;
+  const twice = w.appReducer(once, action);
+  assert.strictEqual(twice, once, "pending proof が同じ取引の再実行を拒否する");
+  assert.equal(twice.entries.length, entriesAfterFirst, "LP支出・取得明細が増えない");
+  assert.equal(twice.roster.personas.length, rosterAfterFirst, "所持が増えない");
+  const ledgerAfterFirst = w.LBT_computeLedgerBalance(once.results, once.entries);
+  const ledgerAfterSecond = w.LBT_computeLedgerBalance(twice.results, twice.entries);
+  assert.equal(ledgerAfterSecond.spentLp, ledgerAfterFirst.spentLp, "LP二重消費をしない");
+  assert.equal(ledgerAfterSecond.spentShards, ledgerAfterFirst.spentShards, "欠片二重消費をしない");
+});
+
+test("APPLY_DRAW_BATCH の直後に互換 ADD_DRAW_BATCH を呼んでも再適用しない", () => {
+  const w = loadState(db);
+  const { batch } = finalizedBatch();
+  const before = {
+    ...base(),
+    results: [{ id: "compat-result", name: "互換経路検査", income: { lp: 1000, shards: 1000 } }]
+  };
+  const action = { type: "APPLY_DRAW_BATCH", batch, resultId: "compat-result" };
+  const once = w.appReducer(before, action);
+  const twice = w.appReducer(once, { type: "ADD_DRAW_BATCH", batch, resultId: "compat-result" });
+  assert.strictEqual(twice, once, "経済効果を先に適用したバッチは互換入口で再適用できない");
+});
+
 test("ADD_DRAW_BATCH は同じ内容を二重に入れない", () => {
   const w = loadState(db);
   const { batch } = finalizedBatch();

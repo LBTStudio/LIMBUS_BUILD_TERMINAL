@@ -1128,14 +1128,16 @@ function normalizeCurrency(value) {
      LP/欠片と同じ式なので、増減を追う経路がどこであれ結果が求まる。 */
   function computeTicketBalance(results, entries) {
     const out = { persona: 0, ego: 0, choice: 0, pack: {} };
-    for (const result of results || []) {
+    const resultRows = Array.isArray(results) ? results : [];
+    const entryRows = Array.isArray(entries) ? entries : [];
+    for (const result of resultRows) {
       const inc = normalizeTickets(result?.income?.tickets);
       out.persona += inc.persona;
       out.ego += inc.ego;
       out.choice += inc.choice;
       for (const [name, n] of Object.entries(inc.pack)) setSafeRecordEntry(out.pack, name, Number(getSafeRecordEntry(out.pack, name, 0)) + n);
     }
-    for (const entry of entries || []) {
+    for (const entry of entryRows) {
       /* 消費は負数で持つ（明細は支出なので）。 */
       const used = normalizeTickets(entry?.tickets);
       out.persona -= used.persona;
@@ -2819,13 +2821,15 @@ function dropLedgerEntriesForRefs(state, kind, uids) {
 }
 
 function computeLedgerBalance(results, entries) {
+  const resultRows = Array.isArray(results) ? results : [];
+  const entryRows = Array.isArray(entries) ? entries : [];
   let incomeLp = 0;
   let incomeShards = 0;
   /* 交換機能の撤去後は、通常のLP支出明細と獲得欠片だけを集計する。
      exchange は安全整数を超えて移行できなかった旧保存データだけの互換用。 */
   let legacyExchangeLp = 0;
   let legacyExchangeShards = 0;
-  for (const result of results || []) {
+  for (const result of resultRows) {
     incomeLp += normalizeCurrency(result?.income).lp;
     incomeShards += normalizeCurrency(result?.income).shards;
     const legacyExchange = normalizeCurrency(result?.exchange);
@@ -2835,7 +2839,7 @@ function computeLedgerBalance(results, entries) {
   let spentLp = 0;
   let spentShards = 0;
   let unclassified = 0;
-  for (const entry of entries || []) {
+  for (const entry of entryRows) {
     const cost = normalizeCurrency(entry?.cost);
     spentLp += cost.lp;
     spentShards += cost.shards;
@@ -4115,6 +4119,14 @@ function validateDrawBatchApplication(state, action) {
   if (draws.some((existing) => String(existing?.batchHash || existing?.commit || "") === proofKey)) {
     return { ok: false, reason: "duplicate-batch" };
   }
+  /* APPLY_DRAW_BATCH は証明の保存と分離して先に経済効果を適用する。
+     ADD_DRAW_RECORD がまだ届いていない短い区間でも同じ batch を再適用すると、
+     所持は重複拒否されても ticketSpend / 通貨支出は二重に積まれる。
+     確定済みIDと pending proof の両方で、その区間を含めて冪等にする。 */
+  const appliedBatchIds = Array.isArray(state?.appliedDrawBatchIds) ? state.appliedDrawBatchIds : [];
+  if (appliedBatchIds.includes(proofKey) || String(state?._pendingDrawProofHash || "") === proofKey) {
+    return { ok: false, reason: "duplicate-batch-already-applied" };
+  }
   if (!batch.records.length) return { ok: false, reason: "empty-batch" };
 
   /* 現行 schema v2 は、ハッシュ鎖・seed/rolls・メタデータ整合性を検査してから
@@ -4591,10 +4603,11 @@ function appReducer(state, action) {
       /* count は負数で「消費した枚数」を表す。指定が無ければ 1 枚。
          明示値に小数・部分一致文字列・安全整数外があれば状態を変更しない。 */
       const omitted = action.count === undefined || action.count === null || action.count === "";
-      const parsedCount = omitted ? 0 : parseStrictTicketInteger(action.count, { allowZero: true, allowNegative: true });
-      if (parsedCount === null) return state;
-      const asked = Math.abs(parsedCount);
-      const use = asked > 0 ? asked : 1;
+      const parsedCount = omitted ? null : parseStrictTicketInteger(action.count, { allowZero: true, allowNegative: true });
+      if (!omitted && (parsedCount === null || parsedCount === 0)) return state;
+      /* 枚数省略だけを1枚として扱う。明示的な0は「消費しない」であり、
+         omitted と同じ既定値へ落とすと呼び出し側の0指定が1枚消費になる。 */
+      const use = omitted ? 1 : Math.abs(parsedCount);
       /* 所持より多くは消費できない。足りなければそれだけ使う。 */
       const take = Math.min(use, available);
       if (take <= 0) return state;
