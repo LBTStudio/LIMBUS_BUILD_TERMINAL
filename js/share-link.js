@@ -647,17 +647,22 @@
     return String(baseUrl || window.LBT_SHARE_CANONICAL_URL || new URL("share.html", window.location.href).href).replace(/[?#].*/, "");
   }
 
-  function displayStatus(state, field) {
-    const value = state?.[field];
+  function displayStatus(state, field, officialPersona = null) {
+    // 共有元のHTMLと同じ優先順位で基礎値を解決する。
+    // 公式人格は snapshot 圧縮時に state.hp/state.san を省略するため、
+    // personaSrc が名前だけになっていてもDBの人格基礎値へ戻れる必要がある。
+    const candidates = [state?.[field], state?.personaSrc?.[field], officialPersona?.[field]];
+    const raw = candidates.find((value) => value !== "" && value !== null && value !== undefined);
     const fallback = field === "hp" ? 100 : field === "san" ? 50 : "";
-    const base = value === "" || value == null ? fallback : parseInt(value, 10);
+    const parsed = raw === undefined ? fallback : parseInt(String(raw), 10);
+    const base = Number.isFinite(parsed) ? parsed : fallback;
     const activeEnhancements = window.LBT_getActiveEnhancements?.(state) || state?.enhancements || [];
     const enhancementText = activeEnhancements.map((entry) => String(entry?.effect || "")).join("\n");
     const target = field === "hp" ? /HP(?:を|\+)(\d+)(?:上昇)?/g : /SAN(?:を|\+)(\d+)(?:上昇)?/g;
     let bonus = 0;
     let match;
     while ((match = target.exec(enhancementText)) !== null) bonus += parseInt(match[1], 10) || 0;
-    return String((Number.isFinite(base) ? base : fallback) + bonus);
+    return String(base + bonus);
   }
 
   const PRIMARY_RESOURCE_ATTRIBUTES = ["憤怒", "色欲", "怠惰", "暴食", "憂鬱", "傲慢", "嫉妬"];
@@ -682,8 +687,9 @@
     const ref = state?.personaRef || {};
     const refName = String(ref.name || ref.override?.name || "").trim();
     const refMode = String(ref.mode || state?.personaMode || "");
-    const official = !refName && (refMode === "n" || refMode === "t") && ref.no != null
-      ? findPersonaSource(window.DB, refMode, ref.no, "")
+    const refNo = ref.no ?? state?.personaNo;
+    const official = (refMode === "n" || refMode === "t") && refNo != null
+      ? findPersonaSource(window.DB, refMode, refNo, "")
       : null;
     const personaName = String(
       state?.personaSrc?.name || refName || official?.name || ""
@@ -694,8 +700,8 @@
       || primaryResourceAttribute(official?.skills);
     return {
       personaName,
-      hp: displayStatus(state, "hp"),
-      san: displayStatus(state, "san"),
+      hp: displayStatus(state, "hp", official),
+      san: displayStatus(state, "san", official),
       speed: speedValue ? clipOgpCardText(speedValue, 16) : "",
       primarySin,
       hasShareImage: Boolean(state?.shareImageData),
