@@ -339,16 +339,17 @@ test("ADD_DRAW_BATCH は封緘された records から所持へ足す", () => {
 
 test("LP抽選で2人目以降の人格を追加しても受領済み人格チケットは減らない", () => {
   const w = loadState(db);
-  const before = w.LBT_normalizeStateShape({
+  const start = w.LBT_normalizeStateShape({
     results: [{
       id: "res-initial", name: "初期作成", date: "2026-11-03",
-      income: { lp: 1000, shards: 0, tickets: { persona: 2, ego: 0, choice: 0, pack: {} } }
+      income: { lp: 1000, shards: 0, tickets: { persona: 1, ego: 0, choice: 0, pack: {} } }
     }],
     entries: [],
-    roster: {
-      personas: [{ uid: "existing-persona", mode: "n", no: 1 }],
-      egos: [], supports: [], spirits: []
-    }
+    roster: { personas: [], egos: [], supports: [], spirits: [] }
+  });
+  const firstPersona = w.appReducer(start, { type: "ADD_ROSTER", mode: "n", no: 1 });
+  const before = w.appReducer(firstPersona, {
+    type: "GRANT_TICKET", kind: "persona", count: 2, resultId: "res-initial"
   });
   const ticketBefore = w.LBT_computeTicketBalance(before.results, before.entries).persona;
   const { batch } = finalizedBatch();
