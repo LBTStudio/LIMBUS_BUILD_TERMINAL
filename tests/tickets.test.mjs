@@ -492,6 +492,21 @@ test("既存人格を所持する旧保存では初回チケットを後日報�
   const paid = reducer(legacy, { type: "APPLY_DRAW_BATCH", batch });
   assert.equal(ticketBalance(paid).persona, 1, "LP抽出で旧データに残るチケットを消費しない");
 });
+test("部分インポートで初回人格チケット権利の失効状態を保持する", () => {
+  const fresh = freshState();
+  const imported = reducer(fresh, {
+    type: "APPLY_PARTIAL",
+    state: { initialPersonaTicketAvailable: false },
+    fields: ["initialPersonaTicketAvailable"]
+  });
+  assert.equal(imported.initialPersonaTicketAvailable, false, "別端末移行で初回権利を誤って復活させない");
+  const rewarded = reducer(imported, {
+    type: "ADD_RESULT", name: "移行後報酬",
+    income: { lp: 0, shards: 0, tickets: { persona: 1 } }
+  });
+  const acquired = reducer(rewarded, { type: "ADD_ROSTER", mode: "n", no: 1 });
+  assert.equal(ticketBalance(acquired).persona, 1, "移行後の報酬チケットを保持する");
+});
 test("指定購入で人格を決めたら初期作成用チケットは残らない", () => {
   const fresh = freshState();
   assert.equal(ticketBalance(fresh).persona, 1, "購入前は1枚ある");
