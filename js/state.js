@@ -2168,6 +2168,7 @@ function normalizeStateShape(raw) {
     (Number(entry?.tickets?.persona) || 0) > 0
   );
   const hasPersonaAcquisitionHistory = (next.roster?.personas || []).length > 0
+    || (next.personaMode != null && next.personaNo != null)
     || (next.entries || []).some((entry) => entry?.kind === "persona")
     || (next.draws || []).some((batch) => (batch?.records || []).some((record) =>
       record?.kind === "persona" || record?.item?.kind === "persona"
