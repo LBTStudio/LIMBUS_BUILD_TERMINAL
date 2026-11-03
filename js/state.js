@@ -5970,11 +5970,17 @@ case "ADD_CUSTOM_ITEM": {
     }
     case "SET_ROSTER_SUPPORT_RESULT": {
       const roster = state.roster || {};
-      const supports = (roster.supports || []).map((s) => (
-        s.uid === action.uid ? { ...s, resultId: action.resultId || null } : s
-      ));
       if (!(roster.supports || []).some((s) => s.uid === action.uid)) return state;
-      return { ...state, roster: { ...roster, supports } };
+      const resultId = action.resultId || null;
+      const supports = (roster.supports || []).map((s) => (
+        s.uid === action.uid ? { ...s, resultId } : s
+      ));
+      const entries = (state.entries || []).map((entry) => (
+        entry.ref?.kind === "rosterSupport" && entry.ref.uid === action.uid
+          ? { ...entry, resultId }
+          : entry
+      ));
+      return { ...state, roster: { ...roster, supports }, entries };
     }
     case "ADD_ROSTER_SPIRIT": {
       const name = String(action.spirit?.name || "");
@@ -6623,10 +6629,16 @@ case "ADD_ENTRY":
     case "SET_ROSTER_SPIRIT_RESULT": {
       const roster = state.roster || {};
       if (!(roster.spirits || []).some((s) => s.uid === action.uid)) return state;
+      const resultId = action.resultId || null;
       const spirits = (roster.spirits || []).map((s) => (
-        s.uid === action.uid ? { ...s, resultId: action.resultId || null } : s
+        s.uid === action.uid ? { ...s, resultId } : s
       ));
-      return { ...state, roster: { ...roster, spirits } };
+      const entries = (state.entries || []).map((entry) => (
+        entry.ref?.kind === "rosterSpirit" && entry.ref.uid === action.uid
+          ? { ...entry, resultId }
+          : entry
+      ));
+      return { ...state, roster: { ...roster, spirits }, entries };
     }
     /* 精神の装備は常に1件。他を全部外してから対象だけを装備する。 */
     case "SET_ROSTER_SPIRIT_EQUIPPED": {
