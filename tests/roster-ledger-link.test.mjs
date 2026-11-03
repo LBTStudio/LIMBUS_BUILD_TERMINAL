@@ -217,7 +217,7 @@ test("精神の初期枠は装備扱いで、明細を立てない", () => {
 
 test("精神の試着（初期枠）は所持へは入るが購入明細は立てない", () => {
   const reducer = loadReducer();
-  const sp = db.spirits[0];
+  const sp = dbSpirit;
   const viaPurchase = reducer(base(), { type: "ADD_ROSTER_SPIRIT", spirit: { name: sp.name } });
   assert.equal(viaPurchase.entries.length, 1, "ショップ経由は購入として明細が立つ");
 
