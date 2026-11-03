@@ -48,9 +48,9 @@ function sanitizePreview(value) {
   const cleanText = (entry, max) => String(entry ?? "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, max);
   return {
     personaName: cleanText(raw.personaName, 72),
-    hp: cleanText(raw.hp, 8).replace(/[^0-9?—-]/g, ""),
-    san: cleanText(raw.san, 8).replace(/[^0-9?—-]/g, ""),
-    speed: cleanText(raw.speed, 16),
+    hp: cleanText(raw.hp, 8).replace(/[^0-9?—-]/g, "") || "—",
+    san: cleanText(raw.san, 8).replace(/[^0-9?—-]/g, "") || "—",
+    speed: cleanText(raw.speed, 16) || "—",
     primarySin: PRIMARY_RESOURCE_ATTRIBUTES.includes(String(raw.primarySin || "")) ? String(raw.primarySin) : "",
     syncRank: ["0", "00", "000"].includes(String(raw.syncRank || "")) ? String(raw.syncRank) : "",
     syncMax: raw.syncMax === true,
