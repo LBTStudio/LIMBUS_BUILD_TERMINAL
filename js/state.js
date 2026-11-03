@@ -2536,6 +2536,17 @@ function latestResultId(state) {
   return latestResultByDisplayOrder(state?.results)?.id || null;
 }
 
+/* resultId は保存データ・UI action・インポート経路から入る。
+   削除済み・誤入力のIDをそのまま書くと、画面上は未分類にも表示されず、
+   再読み込み時の正規化で初めて消える。存在するリザルトだけを帰属先として受け入れる。
+   明示された不正IDは最新へ勝手に振り替えず、未分類(null)へ戻す。 */
+function knownResultId(state, candidate) {
+  if (candidate == null || candidate === "") return null;
+  const results = Array.isArray(state?.results) ? state.results : [];
+  const match = results.find((result) => result && String(result.id) === String(candidate));
+  return match ? match.id : null;
+}
+
 /* 前回の誤修正では results 配列末尾を最新とみなしたため、抽出時刻・封緘バッチ・
    直後に作られた明細が揃っている保存データは、表示上の最新リザルトへ一度だけ直す。
    証明バッチそのものは変更しない。日時・バッチ・同じ結果IDを持つ明細を照合できない
@@ -2915,7 +2926,8 @@ function normalizeVia(via) {
 
 function appendLedgerEntry(state, detail) {
   if (!detail || !detail.name) return state;
-  const resultId = detail.resultId === undefined ? latestResultId(state) : detail.resultId;
+  const requestedResultId = detail.resultId === undefined ? latestResultId(state) : detail.resultId;
+  const resultId = knownResultId(state, requestedResultId);
   return {
     ...state,
     entries: [...(state.entries || []), {
@@ -5848,9 +5860,10 @@ case "ADD_CUSTOM_ITEM": {
       const isDeath = isDeathSupportPassiveRecord({ name });
       /* 購入なら明細と同じ直近リザルトへ。購入でない所持（報酬・取り込み）は
          明細が無いので、指定が無ければ未分類のままにする。 */
-      const resultId = action.resultId === undefined
+      const requestedResultId = action.resultId === undefined
         ? (action.purchase === false ? null : latestResultId(state))
         : action.resultId;
+      const resultId = knownResultId(state, requestedResultId);
       const entry = {
         uid: makeOwnedUid("spt"),
         name,
@@ -5983,7 +5996,7 @@ case "ADD_CUSTOM_ITEM": {
     case "SET_ROSTER_SUPPORT_RESULT": {
       const roster = state.roster || {};
       if (!(roster.supports || []).some((s) => s.uid === action.uid)) return state;
-      const resultId = action.resultId || null;
+      const resultId = knownResultId(state, action.resultId);
       const supports = (roster.supports || []).map((s) => (
         s.uid === action.uid ? { ...s, resultId } : s
       ));
@@ -6580,7 +6593,7 @@ case "ADD_ENTRY":
           cost: normalizeCurrency(action.cost),
           /* 抽出チケットの消費明細。残数は全リザルトの収入からこの明細を差し引く。 */
           tickets: normalizeTickets(action.tickets),
-          resultId: action.resultId || null,
+          resultId: knownResultId(state, action.resultId),
           ref: action.ref && typeof action.ref === "object" ? {
             kind: String(action.ref.kind || ""),
             uid: String(action.ref.uid || ""),
