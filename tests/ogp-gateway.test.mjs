@@ -241,10 +241,10 @@ test("snapshot経路は強化のHP/SAN加算と全角数字をOGPへ反映する
     hp: "100",
     san: "45",
     speed: "3-7",
-    enhancements: [{
+    _r: { h: [{
       name: "汎用強化",
       effect: "HPを１０上昇させる。SANを５上昇させる。"
-    }]
+    }] }
   });
   assert.match(preview.description, /HP 110 ｜ SAN 50/);
 });
