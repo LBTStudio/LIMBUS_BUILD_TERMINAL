@@ -576,6 +576,57 @@ test("後日リザルト経由の初回人格登録でも初期チケット支�
   assert.equal(ticketBalance(added).persona, 2, "後日報酬の2枚は残る");
 });
 
+test("帰属不明な旧チケット消費がある場合は初期分の自動消費を保留する", () => {
+  const state = {
+    ...freshState(),
+    results: [{
+      id: "res-initial",
+      name: "初期作成",
+      income: { lp: 30, shards: 10, tickets: { persona: 1, ego: 0, choice: 0, pack: {} } }
+    }, {
+      id: "res-later",
+      name: "後日報酬",
+      income: { lp: 0, shards: 0, tickets: { persona: 2, ego: 0, choice: 0, pack: {} } }
+    }],
+    entries: [{
+      id: "legacy-unassigned-ticket",
+      kind: "ticket",
+      tickets: { persona: 1, ego: 0, choice: 0, pack: {} },
+      resultId: null
+    }]
+  };
+  const added = reducer(state, {
+    type: "ADD_ROSTER", mode: "n", no: 1, purchase: false, resultId: "res-later"
+  });
+  assert.equal(ticketBalance(added).persona, 2, "帰属不明明細を初期分と決めつけて再消費しない");
+  assert.equal(added.entries.filter((entry) => entry.ref?.kind === "initialPersonaTicket").length, 0);
+});
+
+test("同名の通常シナリオがあっても固定IDの初期作成リザルトへ消費を記録する", () => {
+  const state = {
+    ...freshState(),
+    results: [{
+      id: "res-decoy",
+      name: "初期作成",
+      income: { lp: 0, shards: 0, tickets: { persona: 3, ego: 0, choice: 0, pack: {} } }
+    }, {
+      id: "res-initial",
+      name: "初期作成",
+      income: { lp: 30, shards: 10, tickets: { persona: 1, ego: 0, choice: 0, pack: {} } }
+    }, {
+      id: "res-later",
+      name: "後日報酬",
+      income: { lp: 0, shards: 0, tickets: { persona: 2, ego: 0, choice: 0, pack: {} } }
+    }]
+  };
+  const added = reducer(state, {
+    type: "ADD_ROSTER", mode: "n", no: 1, purchase: false, resultId: "res-later"
+  });
+  const spend = added.entries.find((entry) => entry.ref?.kind === "initialPersonaTicket");
+  assert.equal(spend?.resultId, "res-initial", "固定IDの初期作成へ帰属する");
+  assert.equal(ticketBalance(added).persona, 5, "同名の通常シナリオの3枚と後日報酬2枚は残る");
+});
+
 test("初期リザルトに帰属する人格チケットを既に使っていれば後日分から補填消費しない", () => {
   const state = {
     ...freshState(),
