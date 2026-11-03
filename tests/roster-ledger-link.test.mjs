@@ -40,7 +40,7 @@ const base = () => ({
 
 /* DB 実データから必ず引ける E.G.O を 1 件選ぶ（結果に依存させない）。 */
 const dbEgo = db.egos[0];
-const dbSpirit = db.spirits.find((spirit) => Number(String(spirit.price ?? "").replace(/[^\\d.-]/g, "")) > 0);
+const dbSpirit = db.spirits.find((spirit) => Number(String(spirit.price ?? "").replace(/[^\d.-]/g, "")) > 0);
 
 test("E.G.O の所持追加: no を文字列で渡しても名前と価格が引ける", () => {
   const reducer = loadReducer();
