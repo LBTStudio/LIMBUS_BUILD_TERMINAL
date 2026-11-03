@@ -1193,3 +1193,58 @@ test("OGP preview prioritizes edited HP/SAN, falls back to custom persona fields
   assert.equal(edited.hp, "190");
   assert.equal(edited.san, "75");
 });
+
+
+test("OGPカードはHTMLと同じく全角数字のHP/SAN強化値を反映する", () => {
+  const drawnText = [];
+  const context = new Proxy({}, {
+    get(_target, property) {
+      if (property === "createLinearGradient") return () => ({ addColorStop() {} });
+      if (property === "fillText") return (value) => drawnText.push(String(value));
+      return () => {};
+    }
+  });
+  const document = {
+    createElement() {
+      return {
+        getContext: () => context,
+        toDataURL: () => "data:image/webp;base64," + "A".repeat(64)
+      };
+    }
+  };
+  const share = loadShareLink(null, { document });
+  const image = share.createDefaultOgpImageData({
+    charName: "全角強化検証",
+    hp: "120",
+    san: "50",
+    enhancements: [{ effect: "HPを１０上昇させる。SANを５上昇させる。" }],
+    roster: { personas: [] }
+  });
+  assert.match(image, /^data:image\/webp;base64,/);
+  assert.ok(drawnText.includes("130"), "HPは120+10として描画される");
+  assert.ok(drawnText.includes("55"), "SANは50+5として描画される");
+});
+
+test("基礎HP/SANが存在しない場合、OGPカードも共有HTMLと同じく未設定表示にする", () => {
+  const share = loadShareLink();
+  const preview = share.sharePreview({ charName: "未設定PC", personaMode: "custom", roster: { personas: [] } });
+  assert.equal(preview.hp, "—");
+  assert.equal(preview.san, "—");
+});
+
+test("共有者がHTML側でHP/SANを明示的に空欄にした場合、OGPは人格基礎値で上書きしない", () => {
+  const share = loadShareLink({
+    normal_personas: [{ no: 9, name: "公式人格", hp: "140", san: "55" }],
+    tokui_personas: []
+  });
+  const preview = share.sharePreview({
+    personaMode: "n",
+    personaNo: 9,
+    personaSrc: { name: "公式人格", hp: "140", san: "55" },
+    hp: "",
+    san: "",
+    roster: { personas: [] }
+  });
+  assert.equal(preview.hp, "—");
+  assert.equal(preview.san, "—");
+});
