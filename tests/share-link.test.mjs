@@ -1228,9 +1228,11 @@ test("OGPカードはHTMLと同じく全角数字のHP/SAN強化値を反映す�
 test("基礎HP/SANが存在しない場合、OGPカードも共有HTMLと同じく未設定表示にする", () => {
   const share = loadShareLink();
   const preview = share.sharePreview({ charName: "未設定PC", personaMode: "custom", roster: { personas: [] } });
-  assert.equal(preview.hp, "140");
-  assert.equal(preview.san, "55");
+  assert.equal(preview.hp, "—");
+  assert.equal(preview.san, "—");
 });
+
+
 
 test("HTML側とOGPは空欄のHP/SANを人格基礎値へ揃えて補完する", () => {
   const share = loadShareLink({
@@ -1245,6 +1247,6 @@ test("HTML側とOGPは空欄のHP/SANを人格基礎値へ揃えて補完する"
     san: "",
     roster: { personas: [] }
   });
-  assert.equal(preview.hp, "—");
-  assert.equal(preview.san, "—");
+  assert.equal(preview.hp, "140");
+  assert.equal(preview.san, "55");
 });
