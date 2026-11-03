@@ -175,7 +175,7 @@ export function previewFromSnapshot(snapshot) {
   const sanValue = hasSan ? snapshot.san : snapshot?.personaSrc?.san;
   const hp = String(hpValue ?? "—").trim().slice(0, 12) || "—";
   const san = String(sanValue ?? "—").trim().slice(0, 12) || "—";
-  const speed = String(snapshot?.speed ?? "?").trim().slice(0, 16) || "?";
+  const speed = String(snapshot?.speed ?? "—").trim().slice(0, 16) || "—";
   const primarySin = String(snapshot?.primarySin || primaryResourceAttribute(snapshot?.skills) || primaryResourceAttribute(snapshot?.personaSrc?.skills) || "").trim();
   const sync = selectedSync(snapshot);
   return {
@@ -197,15 +197,18 @@ export function previewFromSnapshot(snapshot) {
 export function previewFromQuery(url) {
   const params = url.searchParams;
   const rawName = String(params.get("lbt_n") || "").trim();
+  const rawHp = String(params.get("lbt_hp") || "").trim();
+  const rawSan = String(params.get("lbt_san") || "").trim();
   const rawSpeed = String(params.get("lbt_spd") || "").trim();
-  /* 旧形式はSPD未収録、画像付き共有は保存tokenの画像を使う必要がある。
-     明示的に「画像なし」と示す新形式だけ軽量経路にし、それ以外はsnapshot経路へ戻す。 */
-  if (!rawName || !rawSpeed || params.get("lbt_img") !== "0") return null;
+  /* 古いURLでHP/SAN/SPDのどれかが欠けると共有HTMLと一致しない。
+     必須値が揃った「画像なし」の新形式だけ軽量経路にし、それ以外はsnapshotを復元する。 */
+  const validStatus = (value) => /^(?:\d{1,12}|—)$/.test(value);
+  if (!rawName || !rawSpeed || !validStatus(rawHp) || !validStatus(rawSan) || params.get("lbt_img") !== "0") return null;
   const chars = Array.from(rawName);
   const personaName = chars.slice(0, 48).join("") + (chars.length > 48 ? "…" : "");
-  const hp = String(params.get("lbt_hp") || "").trim().slice(0, 12) || "?";
-  const san = String(params.get("lbt_san") || "").trim().slice(0, 12) || "?";
-  const speed = rawSpeed.slice(0, 16) || "?";
+  const hp = rawHp.slice(0, 12);
+  const san = rawSan.slice(0, 12);
+  const speed = rawSpeed.slice(0, 16) || "—";
   const sinCandidate = String(params.get("lbt_sin") || "");
   const primarySin = PRIMARY_RESOURCE_ATTRIBUTES.includes(sinCandidate) ? sinCandidate : "";
   const syncRank = ["0", "00", "000"].includes(params.get("lbt_sync") || "") ? params.get("lbt_sync") : "";
