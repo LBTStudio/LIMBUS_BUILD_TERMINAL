@@ -535,6 +535,53 @@ test("2人目以降の人格追加では追加取得した人格チケットを�
     "初期作成用チケットの自動消費は一度だけ");
 });
 
+test("初期チケットを0枚に修正した後の後日付与分は初期人格の自動消費対象にしない", () => {
+  const initialWithoutTicket = {
+    ...freshState(),
+    results: [{
+      id: "res-initial",
+      name: "初期作成",
+      income: { lp: 30, shards: 10, tickets: { persona: 0, ego: 0, choice: 0, pack: {} } }
+    }, {
+      id: "res-later",
+      name: "後日報酬",
+      income: { lp: 0, shards: 0, tickets: { persona: 2, ego: 0, choice: 0, pack: {} } }
+    }]
+  };
+  const added = reducer(initialWithoutTicket, {
+    type: "ADD_ROSTER", mode: "n", no: 1, purchase: false, resultId: "res-later"
+  });
+  assert.equal(ticketBalance(added).persona, 2, "後日付与された2枚は消費されない");
+  assert.equal(added.entries.some((entry) => entry.ref?.kind === "initialPersonaTicket"), false);
+});
+
+test("初期リザルトに帰属する人格チケットを既に使っていれば後日分から補填消費しない", () => {
+  const state = {
+    ...freshState(),
+    results: [{
+      id: "res-initial",
+      name: "初期作成",
+      income: { lp: 30, shards: 10, tickets: { persona: 1, ego: 0, choice: 0, pack: {} } }
+    }, {
+      id: "res-later",
+      name: "後日報酬",
+      income: { lp: 0, shards: 0, tickets: { persona: 2, ego: 0, choice: 0, pack: {} } }
+    }],
+    entries: [{
+      id: "initial-ticket-used",
+      kind: "ticket",
+      name: "人格抽出チケット を使用",
+      tickets: { persona: 1, ego: 0, choice: 0, pack: {} },
+      resultId: "res-initial"
+    }]
+  };
+  const added = reducer(state, {
+    type: "ADD_ROSTER", mode: "n", no: 1, purchase: false, resultId: "res-later"
+  });
+  assert.equal(ticketBalance(added).persona, 2, "初期支給の消費済み分を後日付与分から再消費しない");
+  assert.equal(added.entries.filter((entry) => entry.ref?.kind === "initialPersonaTicket").length, 0);
+});
+
 test("既所持人格がある状態で一括取得しても通常の人格チケットは減らない", () => {
   const first = reducer(freshState(), { type: "ADD_ROSTER", mode: "n", no: 1 });
   const rewarded = reducer(first, {
