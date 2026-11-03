@@ -1330,3 +1330,31 @@ test("sharePreviewは公式人格DBとカスタムpersonaSrcから主罪属性�
   });
   assert.equal(custom.primarySin, "傲慢");
 });
+
+
+test("共有snapshotは手動同期モードを保持し、人格専用強化をHP/SANへ誤適用しない", async () => {
+  const share = loadShareLink();
+  const { previewFromSnapshot } = await import("../ogp-gateway/worker.mjs");
+  const state = {
+    charName: "同期手動共有テスト",
+    personaMode: "custom",
+    personaSrc: { name: "同期手動共有人格", hp: "100", san: "45" },
+    hp: "100",
+    san: "45",
+    syncedManual: true,
+    enhancements: [
+      { name: "通常強化", category: "common", effect: "HPを１０上昇させる。" },
+      { name: "人格専用強化", category: "persona", effect: "HPを２０上昇させる。SANを５上昇させる。" }
+    ],
+    roster: { personas: [] }
+  };
+  const snapshot = share.snapshotState(state, { includeOgpImage: false });
+  assert.equal(snapshot.syncedManual, true, "参照圧縮後も同期手動フラグを共有する");
+  const token = await share.encodeState(state, { includeOgpImage: false });
+  const restored = await share.decodeToken(token);
+  assert.equal(restored.syncedManual, true, "圧縮・展開の往復でもモードを維持する");
+  const preview = previewFromSnapshot(snapshot);
+  assert.match(preview.description, /HP 110 ｜ SAN 45/);
+  assert.doesNotMatch(preview.description, /HP 130|SAN 50/,
+    "同期手動モードでは人格専用強化を共有OGPへ加算しない");
+});
