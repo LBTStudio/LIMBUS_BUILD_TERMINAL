@@ -249,6 +249,21 @@ test("snapshot経路は強化のHP/SAN加算と全角数字をOGPへ反映する
   assert.match(preview.description, /HP 110 ｜ SAN 50/);
 });
 
+test("OGP snapshotはgeneratorが認識するHP/SAN強化表記だけを加算する", () => {
+  const preview = previewFromSnapshot({
+    charName: "強化表記確認PC",
+    hp: "100",
+    san: "45",
+    speed: "3-7",
+    enhancements: [{
+      name: "異なる表記",
+      effect: "HPを7増加させる。SANを3上昇。"
+    }]
+  });
+  assert.match(preview.description, /HP 100 ｜ SAN 45/,
+    "generatorの正規形式でない「HPをN増加」「SANをN上昇」は加算しない");
+});
+
 test("同期手動モードでは人格専用強化を除外してsnapshot OGPを生成する", () => {
   const preview = previewFromSnapshot({
     charName: "同期手動PC",
