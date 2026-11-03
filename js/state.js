@@ -6016,9 +6016,10 @@ case "ADD_CUSTOM_ITEM": {
         const cost = purchaseCostOf(state, { type: "ADD_ROSTER_SPIRIT", spirit: action.spirit, purchase: true });
         if (!cost || !purchaseAffordability(state, cost).ok) return state;
       }
-      const resultId = action.resultId === undefined
+      const requestedResultId = action.resultId === undefined
         ? (action.purchase === false ? null : latestResultId(state))
         : action.resultId;
+      const resultId = knownResultId(state, requestedResultId);
       const entry = {
         uid: makeOwnedUid("spr"),
         name,
@@ -6616,7 +6617,7 @@ case "ADD_ENTRY":
               ...(action.patch?.name !== void 0 ? { name: String(action.patch.name).slice(0, 120) } : {}),
               ...(action.patch?.cost !== void 0 ? { cost: normalizeCurrency(action.patch.cost) } : {}),
               ...(action.patch?.tickets !== void 0 ? { tickets: normalizeTickets(action.patch.tickets) } : {}),
-              ...(action.patch?.resultId !== void 0 ? { resultId: action.patch.resultId || null } : {}),
+              ...(action.patch?.resultId !== void 0 ? { resultId: knownResultId(state, action.patch.resultId) } : {}),
               ...(action.patch?.note !== void 0 ? { note: String(action.patch.note).slice(0, 2000) } : {})
             }
           : e))
@@ -6625,7 +6626,7 @@ case "ADD_ENTRY":
     case "SET_ENTRY_RESULT": {
       const target = (state.entries || []).find((e) => e.id === action.id);
       if (!target) return state;
-      const resultId = action.resultId || null;
+      const resultId = knownResultId(state, action.resultId);
       const entries = state.entries.map((e) => (e.id === action.id ? { ...e, resultId } : e));
       /* 所持レコードにも帰属を持つもの（サポパ・精神）は、通帳側の
          付け替えに合わせる。片方だけ動くと、同じ購入が別のリザルトを
@@ -6659,7 +6660,7 @@ case "ADD_ENTRY":
     case "SET_ROSTER_SPIRIT_RESULT": {
       const roster = state.roster || {};
       if (!(roster.spirits || []).some((s) => s.uid === action.uid)) return state;
-      const resultId = action.resultId || null;
+      const resultId = knownResultId(state, action.resultId);
       const spirits = (roster.spirits || []).map((s) => (
         s.uid === action.uid ? { ...s, resultId } : s
       ));
