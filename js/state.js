@@ -187,19 +187,25 @@ function consumeInitialPersonaTicket(state, resultId) {
   // 全期間の合計残高だけを見ると、初期分を0枚に直した後でも後日獲得した
   // チケットを「初期チケット」と誤認して消費してしまう。初期リザルトに
   // 記録された付与数から、そのリザルトに帰属する明細消費を引いて判定する。
-  const initialResult = (state.results || []).find((result) =>
-    result?.id === "res-initial" || result?.name === "初期作成"
-  );
+  const results = Array.isArray(state.results) ? state.results : [];
+  // 固定IDを先に選ぶ。同名の通常シナリオが配列の先頭にあっても
+  // 初期作成の付与数・帰属先を取り違えない。
+  const initialResult = results.find((result) => result?.id === "res-initial")
+    || results.find((result) => result?.name === "初期作成");
   if (!initialResult) return state;
+  const initialResultId = String(initialResult.id || "");
+  // 帰属不明の旧明細は、初期分か後日分かを復元できない。
+  // ここで推測して追加消費すると二重消費になり得るため、自動処理を保留する。
+  if (!initialResultId || (state.entries || []).some((entry) =>
+    !String(entry?.resultId || "").trim() && normalizeTickets(entry?.tickets).persona > 0
+  )) return state;
   const initialGrant = normalizeTickets(initialResult.income?.tickets).persona;
   if (initialGrant <= 0) return state;
-  const initialResultId = String(initialResult.id || "");
-  const initialSpent = initialResultId
-    ? (state.entries || []).reduce((sum, entry) =>
-      String(entry?.resultId || "") === initialResultId
-        ? sum + normalizeTickets(entry?.tickets).persona
-        : sum, 0)
-    : 0;
+  const initialSpent = (state.entries || []).reduce((sum, entry) =>
+    String(entry?.resultId || "") === initialResultId
+      ? sum + normalizeTickets(entry?.tickets).persona
+      : sum, 0
+  );
   if (initialGrant - initialSpent <= 0) return state;
   // 初期分の消費明細は、呼び出し元が別リザルトを編集中でも初期作成へ帰属させる。
   return appendTicketSpend(
