@@ -170,7 +170,8 @@ export function previewFromSnapshot(snapshot) {
   // HTML共有側の基礎値解決に合わせて、空欄・nullはpersonaSrcへ戻す。
   const statusValue = (key) => [snapshot?.[key], snapshot?.personaSrc?.[key]]
     .find((value) => value !== "" && value !== null && value !== undefined);
-  const enhancements = Array.isArray(snapshot?.enhancements) ? snapshot.enhancements\n    : Array.isArray(snapshot?._r?.h) ? snapshot._r.h : [];
+  const enhancements = Array.isArray(snapshot?.enhancements) ? snapshot.enhancements
+    : Array.isArray(snapshot?._r?.h) ? snapshot._r.h : [];
   // share-link.js と同じく、同期手動モードでは人格専用強化を適用しない。
   const activeEnhancements = enhancements.filter((entry) =>
     !(snapshot?.syncedManual && entry?.category === "persona")
