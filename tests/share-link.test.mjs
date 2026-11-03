@@ -1242,11 +1242,11 @@ test("HTML側とOGPは空欄のHP/SANを人格基礎値へ揃えて補完する"
   const preview = share.sharePreview({
     personaMode: "n",
     personaNo: 9,
-    personaSrc: { name: "公式人格", hp: "140", san: "55" },
+    personaSrc: { name: "公式人格", hp: "130", san: "45" },
     hp: "",
     san: "",
     roster: { personas: [] }
   });
-  assert.equal(preview.hp, "140");
-  assert.equal(preview.san, "55");
+  assert.equal(preview.hp, "140", "旧personaSrcではなく公式DBの基礎値を使う");
+  assert.equal(preview.san, "55", "旧personaSrcではなく公式DBの基礎値を使う");
 });
