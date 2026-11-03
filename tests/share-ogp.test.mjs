@@ -45,4 +45,4 @@ test("共有HTMLは公式人格DBとカスタムpersonaSrcを分けてHP/SANを�
   assert.match(source, /const candidates = shareOfficialPersona/);
   assert.match(source, /shareOfficialPersona\[field\]/);
   assert.match(source, /p\.personaSrc/);
-});;
+});
