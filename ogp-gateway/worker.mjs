@@ -183,9 +183,14 @@ export function previewFromSnapshot(snapshot) {
     if (raw === undefined) return "—";
     const parsed = parseInt(String(raw), 10);
     const base = Number.isFinite(parsed) ? parsed : 0;
-    const target = field === "hp" ? /HP(?:を|\+)(\d+)(?:上昇)?/g : /SAN(?:を|\+)(\d+)(?:上昇)?/g;
+    // generator.js の computeEnhancementBonuses と同じ4形式だけを加算する。
+    const targets = field === "hp"
+      ? [/HPを(\d+)上昇/g, /HP\+(\d+)/g]
+      : [/SANを(\d+)上昇/g, /SAN\+(\d+)/g];
     let bonus = 0, match;
-    while ((match = target.exec(enhancementText)) !== null) bonus += parseInt(match[1], 10) || 0;
+    for (const target of targets) {
+      while ((match = target.exec(enhancementText)) !== null) bonus += parseInt(match[1], 10) || 0;
+    }
     return String(base + bonus);
   };
   const hp = statusWithEnhancements("hp").trim().slice(0, 12) || "—";
