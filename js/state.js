@@ -6333,12 +6333,21 @@ case "ADD_CUSTOM_ITEM": {
     /* リザルトを消したら、そのリザルトに紐づく明細も消す。
        かつ未分類へ戻すと、削除した支出が別の予算に紛れ込んで
        「消したのにまだ残っている」ように見える。削除なら削除。 */
-    case "REMOVE_RESULT":
+    case "REMOVE_RESULT": {
+      const roster = state.roster || {};
+      const supports = (roster.supports || []).map((entry) => (
+        entry.resultId === action.id ? { ...entry, resultId: null } : entry
+      ));
+      const spirits = (roster.spirits || []).map((entry) => (
+        entry.resultId === action.id ? { ...entry, resultId: null } : entry
+      ));
       return {
         ...state,
         results: (state.results || []).filter((r) => r.id !== action.id),
-        entries: (state.entries || []).filter((e) => e.resultId !== action.id)
+        entries: (state.entries || []).filter((e) => e.resultId !== action.id),
+        roster: { ...roster, supports, spirits }
       };
+    }
     
 /* 取り込みは 1 手で終わらせる。複数の action を順に適用し、明細をどの
      リザルトへ帰属させるかをこの中で解決する。利用者からは UNDO 1 回で全部戻る。
