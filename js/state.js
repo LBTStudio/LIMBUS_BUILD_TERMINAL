@@ -6351,6 +6351,11 @@ case "ADD_CUSTOM_ITEM": {
         ...state,
         results: (state.results || []).filter((r) => r.id !== action.id),
         entries: (state.entries || []).filter((e) => e.resultId !== action.id),
+        gachaLog: (state.gachaLog || []).map((log) => (
+          log?.resultId === action.id
+            ? { ...log, resultId: null, resultAttributionRepairVersion: 2 }
+            : log
+        )),
         roster: { ...roster, supports, spirits }
       };
     }
