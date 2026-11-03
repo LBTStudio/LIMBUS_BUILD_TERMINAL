@@ -3076,13 +3076,17 @@ window.LBT_operationAffordability = operationAffordability;
   /* 購入 action が計上する金額。null は「購入ではない操作」。 */
 function purchaseCostOf(state, action) {
   if (action.type === "ADD_ROSTER") {
-    if (!action.purchase) return null;
-    /* UI購入は cost を渡す。硝子窓取込は source="buy" だけを渡すので、
-       欠落額を0へ丸めず、現在の所持状態に応じたルール価格を解決する。 */
-    if (action.cost !== undefined && action.cost !== null) return normalizeCurrency(action.cost);
+    if (!action.purchase || action.mode !== "n") return null;
+    const definition = (window.DB?.normal_personas || []).find((persona) =>
+      String(persona?.no) === String(action.no));
+    if (!definition) return null;
+    /* cost はUI表示用のスナップショットであり、reducerへ渡された値を会計の正本にしない。
+       所持状態と公式ルールからreducer側で再計算し、0円上書き・古い残高表示・
+       任意Noの登録を同時に防ぐ。 */
     const ownsPersona = (state?.roster?.personas || []).length > 0;
     const rule = window.LBT_acquireCost?.("persona", "purchase", { ownsPersona });
-    if (!rule || !(Number(rule.lp) > 0 || Number(rule.shards) > 0)) return null;
+    if (!rule || !Number.isFinite(Number(rule.lp)) || Number(rule.lp) <= 0
+        || Number(rule.shards || 0) !== 0) return null;
     return normalizeCurrency(rule);
   }
   if (action.type === "ADD_ROSTER_EGO") {
