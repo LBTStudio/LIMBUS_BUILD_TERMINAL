@@ -1172,6 +1172,17 @@ test("OGP preview resolves HP/SAN from official persona DB when compact state om
   assert.equal(preview.personaName, "公式人格");
 });
 
+test("共有snapshotは同期手動モードを保持し、共有先でも人格専用強化を除外できる", () => {
+  const share = loadShareLink();
+  const snapshot = share.snapshotState({
+    syncedManual: true,
+    enhancements: [{ name: "人格専用強化", category: "persona", effect: "HPを20上昇させる。" }],
+    roster: { personas: [] }
+  });
+  assert.equal(snapshot.syncedManual, true);
+  assert.equal(snapshot.enhancements[0].category, "persona");
+});
+
 test("OGP preview prioritizes edited HP/SAN, falls back to custom persona fields, and applies enhancement bonuses", () => {
   const share = loadShareLink();
   const custom = share.sharePreview({
