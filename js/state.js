@@ -4074,10 +4074,14 @@ function rosterAddsFromDrawBatch(batch) {
 /* 抽選バッチの経済的な副作用。証明の保存は ADD_DRAW_RECORD と分ける。
    通常履歴にこの副作用だけを1回積み、Undo後には証明だけを再生できるようにする。 */
 function applyDrawBatchEffects(state, batch, resultId, options = {}) {
+  const spendsCurrency = (Array.isArray(batch?.records) ? batch.records : []).some((record) =>
+    (Number(record?.cost?.lp) || 0) > 0 || (Number(record?.cost?.shards) || 0) > 0
+  );
   let next = applyRosterAdds(state, rosterAddsFromDrawBatch(batch), {
     resultId,
-    /* 人格抽出チケットは直前の ticketSpend で消費済み。初期分を重ねて引かない。 */
-    skipInitialTicketConsumption: options.ticketSpend?.kind === "persona"
+    /* 人格チケット抽選は直前に消費済み。LP/欠片払いも別通貨なので、
+       初回人格の自動補填で人格チケットまで重ねて消費しない。 */
+    skipInitialTicketConsumption: options.ticketSpend?.kind === "persona" || spendsCurrency
   });
   for (const record of batch.records) {
     if (record?.kind !== "themePack") continue;
