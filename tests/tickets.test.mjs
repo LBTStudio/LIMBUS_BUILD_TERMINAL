@@ -253,8 +253,8 @@ test("SET_TICKET_COUNT は古いリザルトに残るチケットも合計残数
     { persona: 0, ego: 0, choice: 0, pack: {} },
     {
       results: [
-        { id: "res-old", name: "第一夜", income: { lp: 0, shards: 0, tickets: { persona: 3, ego: 0, choice: 0, pack: {} } } },
-        { id: "res-latest", name: "第二夜", income: { lp: 0, shards: 0, tickets: { persona: 0, ego: 0, choice: 0, pack: {} } } }
+        { id: "res-old", name: "第一夜", date: "2026-11-01", income: { lp: 0, shards: 0, tickets: { persona: 3, ego: 0, choice: 0, pack: {} } } },
+        { id: "res-latest", name: "第二夜", date: "2026-11-02", income: { lp: 0, shards: 0, tickets: { persona: 0, ego: 0, choice: 0, pack: {} } } }
       ],
       entries: []
     }
