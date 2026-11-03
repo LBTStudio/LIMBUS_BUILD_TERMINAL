@@ -187,11 +187,7 @@ function consumeInitialPersonaTicket(state, resultId) {
   // 全期間の合計残高だけを見ると、初期分を0枚に直した後でも後日獲得した
   // チケットを「初期チケット」と誤認して消費してしまう。初期リザルトに
   // 記録された付与数から、そのリザルトに帰属する明細消費を引いて判定する。
-  const results = Array.isArray(state.results) ? state.results : [];
-  // 固定IDを先に選ぶ。同名の通常シナリオが配列の先頭にあっても
-  // 初期作成の付与数・帰属先を取り違えない。
-  const initialResult = results.find((result) => result?.id === "res-initial")
-    || results.find((result) => result?.name === "初期作成");
+  const initialResult = findInitialResult(state.results);
   if (!initialResult) return state;
   const initialResultId = String(initialResult.id || "");
   // 帰属不明の旧明細は、初期分か後日分かを復元できない。
@@ -237,6 +233,23 @@ function latestResultByDisplayOrder(results) {
   }
   return latest;
 }
+function findInitialResult(results) {
+  const list = Array.isArray(results) ? results : [];
+  const fixed = list.find((result) => result?.id === "res-initial");
+  if (fixed) return fixed;
+  const named = list.filter((result) => result?.name === "初期作成");
+  if (named.length === 1) return named[0];
+  if (named.length > 1) {
+    const matchingGrant = named.filter((result) => {
+      const income = normalizeCurrency(result?.income);
+      return income.lp === INITIAL_LP && (income.shards === 0 || income.shards === INITIAL_SHARDS);
+    });
+    if (matchingGrant.length === 1) return matchingGrant[0];
+  }
+  return null;
+}
+window.LBT_findInitialResult = findInitialResult;
+
 function hasInitialGrant(results) {
   const list = Array.isArray(results) ? results : [];
   if (!list.length) return false;
