@@ -120,6 +120,40 @@ test("所持を外すと、その所持に対応する支出も同時に消え�
   assert.equal(s.entries.length, 0, "明細だけ残ると残高が狂う");
 });
 
+
+test("人格の単体削除は紐づく購入明細だけを戻し、初期チケット消費の履歴は残す", () => {
+  const reducer = loadReducer();
+  const initial = {
+    roster: { personas: [], egos: [], supports: [], spirits: [] },
+    entries: [],
+    results: [{
+      id: "res-initial", name: "初期作成", date: "2026-11-04",
+      income: { lp: 30, shards: 10, tickets: { persona: 1, ego: 0, choice: 0, pack: {} } }
+    }],
+    ui: {}
+  };
+  const owned = reducer(initial, {
+    type: "ADD_ROSTER", mode: "n", no: 1, purchase: true,
+    cost: { lp: 20, shards: 0 }, resultId: "res-initial"
+  });
+  const persona = owned.roster.personas[0];
+  const purchaseEntry = owned.entries.find((entry) => entry.ref?.kind === "rosterPersona");
+  const initialTicketEntry = owned.entries.find((entry) => entry.ref?.kind === "initialPersonaTicket");
+  assert.ok(purchaseEntry, "購入支出は人格UIDへ結び付く");
+  assert.ok(initialTicketEntry, "初期人格チケット消費は別の履歴として残る");
+
+  const removed = reducer(owned, { type: "REMOVE_ROSTER", uid: persona.uid });
+  assert.equal(removed.roster.personas.length, 0);
+  assert.equal(removed.entries.some((entry) => entry.id === purchaseEntry.id), false,
+    "単体削除でも人格に紐づく購入/抽選支出を外す");
+  assert.equal(removed.entries.some((entry) => entry.id === initialTicketEntry.id), true,
+    "初期作成用チケットの一回限りの消費履歴は消さない");
+  assert.equal(removed.entries.length, 1, "他の明細へ波及しない");
+  assert.equal(removed.entries[0].ref.kind, "initialPersonaTicket");
+  assert.equal(removed.results[0].income.lp - removed.entries.reduce((sum, entry) => sum + (Number(entry.cost?.lp) || 0), 0), 30,
+    "購入費用だけが残高へ返る");
+});
+
 test("精神の初期枠は装備扱いで、明細を立てない", () => {
   const reducer = loadReducer();
   const free = db.spirits.filter((s) => !(Number(s.price) > 0)).map((s) => s.name);
