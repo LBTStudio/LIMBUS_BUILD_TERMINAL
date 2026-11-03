@@ -4738,7 +4738,13 @@ function appReducer(state, action) {
       const current = ticketTotal(balance, kind, pack);
       const delta = target - current;
       if (!delta) return state;
-      return setTicketIncome(state, kind, pack, delta, action.resultId);
+      if (delta > 0) return setTicketIncome(state, kind, pack, delta, action.resultId);
+      /* 残数は全リザルトの合計。減算時に直近リザルトの収入だけを削ると、
+         古いリザルトに付いたチケットを減らせず、目標値に到達しない。
+         受領履歴を改変せず、差分を調整消費として明細へ残す。 */
+      return appendTicketSpend(
+        state, kind, pack, -delta, { kind: "ticketBalanceAdjustment" }, action.resultId
+      );
     }
     case "GRANT_TICKET": {
       const kind = action.kind;
