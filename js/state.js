@@ -4738,7 +4738,13 @@ function appReducer(state, action) {
       const current = ticketTotal(balance, kind, pack);
       const delta = target - current;
       if (!delta) return state;
-      return setTicketIncome(state, kind, pack, delta, action.resultId);
+      if (delta > 0) return setTicketIncome(state, kind, pack, delta, action.resultId);
+      /* 残数は全リザルトの合計。減算時に直近リザルトの収入だけを削ると、
+         古いリザルトに付いたチケットを減らせず、目標値に到達しない。
+         受領履歴を改変せず、差分を調整消費として明細へ残す。 */
+      return appendTicketSpend(
+        state, kind, pack, -delta, { kind: "ticketBalanceAdjustment" }, action.resultId
+      );
     }
     case "GRANT_TICKET": {
       const kind = action.kind;
@@ -5058,7 +5064,11 @@ return appendLedgerEntry(next, {
     case "REMOVE_ROSTER": {
       const removed = state.roster.personas.find((p) => p.uid === action.uid);
       const personas = state.roster.personas.filter((p) => p.uid !== action.uid);
-      const next = { ...state, roster: { ...state.roster, personas } };
+      /* 単体削除も一括削除・E.G.O削除と同じく、所持人格に紐づく購入/抽選支出を戻す。 */
+      const next = dropLedgerEntriesForRef(
+        { ...state, roster: { ...state.roster, personas } },
+        { kind: "rosterPersona", uid: action.uid }
+      );
       // V16: 削除された人格を装備中なら、編集内容を破棄して DB 既定へリセットする。
       if (removed && state.personaSrc && removed.mode === state.personaMode && String(removed.no) === String(state.personaNo)) {
         /* A custom Persona has no DB fallback. Removing it must clear the active
