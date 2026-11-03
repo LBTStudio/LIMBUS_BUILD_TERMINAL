@@ -4798,7 +4798,8 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
       const key = acquisition.mode + ":" + String(acquisition.no);
       if (!["n", "t"].includes(acquisition.mode) || !acquisition.no || existingPersonaKeys.has(key)) continue;
       existingPersonaKeys.add(key);
-      const isRecordedInitialPersona = isInitial && nextInitialPersona.mode === acquisition.mode
+      const isRecordedInitialPersona = isInitial && nextInitialPersona.method !== "unknown"
+        && nextInitialPersona.mode === acquisition.mode
         && String(nextInitialPersona.no) === String(acquisition.no);
       dispatch({
         type: "ADD_ROSTER", mode: acquisition.mode, no: acquisition.no,
