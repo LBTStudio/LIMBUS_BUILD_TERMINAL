@@ -169,12 +169,11 @@ export function previewFromSnapshot(snapshot) {
   const personaName = Array.from(rawPersonaName).slice(0, 48).join("") + (Array.from(rawPersonaName).length > 48 ? "…" : "");
   // HTMLの共有シートは明示された空欄を「—」で表示する。
   // 圧縮前の公式人格値が personaSrc に残る旧形式だけ、未格納キーをそこから補う。
-  const hasHp = Object.prototype.hasOwnProperty.call(snapshot || {}, "hp");
-  const hasSan = Object.prototype.hasOwnProperty.call(snapshot || {}, "san");
-  const hpValue = hasHp ? snapshot.hp : snapshot?.personaSrc?.hp;
-  const sanValue = hasSan ? snapshot.san : snapshot?.personaSrc?.san;
-  const hp = String(hpValue ?? "—").trim().slice(0, 12) || "—";
-  const san = String(sanValue ?? "—").trim().slice(0, 12) || "—";
+  // generator.js / share-link.jsと同じく、state値が空またはnullなら人格sourceへ戻す。
+  const statusValue = (key) => [snapshot?.[key], snapshot?.personaSrc?.[key]]
+    .find((value) => value !== "" && value !== null && value !== undefined);
+  const hp = String(statusValue("hp") ?? "—").trim().slice(0, 12) || "—";
+  const san = String(statusValue("san") ?? "—").trim().slice(0, 12) || "—";
   const speed = String(snapshot?.speed ?? "—").trim().slice(0, 16) || "—";
   const primarySin = String(snapshot?.primarySin || primaryResourceAttribute(snapshot?.skills) || primaryResourceAttribute(snapshot?.personaSrc?.skills) || "").trim();
   const sync = selectedSync(snapshot);
