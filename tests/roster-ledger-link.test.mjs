@@ -17,6 +17,7 @@ import vm from "node:vm";
 const db = JSON.parse(readFileSync(new URL("../data/db.json", import.meta.url), "utf8"));
 
 function loadReducer() {
+  const provenance = readFileSync(new URL("../js/ledger-provenance.js", import.meta.url), "utf8");
   const source = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
   const context = {
     window: { DB: db }, console, setTimeout, clearTimeout, URL, TextEncoder, TextDecoder,
@@ -25,6 +26,7 @@ function loadReducer() {
   };
   context.globalThis = context;
   vm.createContext(context);
+  vm.runInContext(provenance, context);
   vm.runInContext(source, context);
   return context.window.appReducer;
 }
