@@ -3108,7 +3108,18 @@ function purchaseCostOf(state, action) {
     return priceSpirit(String(action.spirit?.name || ""));
   }
   if (action.type === "ADD_ENHANCEMENT") {
-    return priceEnhancement(String(action.group || ""), String(action.name || ""));
+    const group = String(action.group || "");
+    const name = String(action.name || "");
+    if (!name) return null;
+    const catalog = [...(window.DB?.normal_enhancements || []), ...(window.DB?.special_enhancements || [])];
+    const definition = catalog.find((entry) => entry?.name === name && entry?.group === group);
+    if (!definition) return null;
+    const rawPrice = definition.shards;
+    const hasExplicitPrice = (typeof rawPrice === "number" && Number.isFinite(rawPrice) && rawPrice > 0)
+      || (typeof rawPrice === "string" && rawPrice.trim() !== "");
+    if (!hasExplicitPrice) return null;
+    const cost = priceEnhancement(group, name);
+    return Number.isFinite(cost?.shards) && cost.shards > 0 ? cost : null;
   }
   return null;
 }
@@ -4436,7 +4447,8 @@ function appReducer(state, action) {
     || action.type === "ADD_ROSTER_SPIRIT" || action.type === "ADD_ENHANCEMENT") {
     const cost = purchaseCostOf(state, action);
     /* 購入扱いなのに価格が解決できない人格は、無料購入として通さず停止する。 */
-    if ((action.type === "ADD_ROSTER" || action.type === "ADD_ROSTER_EGO") && action.purchase && !cost) return state;
+    if (((action.type === "ADD_ROSTER" || action.type === "ADD_ROSTER_EGO") && action.purchase && !cost)
+       || (action.type === "ADD_ENHANCEMENT" && !cost)) return state;
     if (cost && !purchaseAffordability(state, cost).ok) return state;
   }
   switch (action.type) {
