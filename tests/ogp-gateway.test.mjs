@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { deflateRawSync } from "node:zlib";
-import { handleRequest, parseSources, previewFromQuery } from "../ogp-gateway/worker.mjs";
+import { handleRequest, parseSources, previewFromQuery, previewFromSnapshot } from "../ogp-gateway/worker.mjs";
 
 function toBase64Url(text) {
   return Buffer.from(text).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
@@ -299,4 +299,24 @@ test("OGP画像Workerはブラウザ共有と同じ4MiBまでの圧縮共有デ�
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("content-type"), "image/webp");
   assert.equal(Buffer.from(await response.arrayBuffer()).toString("utf8"), "ABCD");
+});
+
+
+test("不完全な旧OGP要約は軽量経路にせず、共有snapshotから値を復元する", () => {
+  const missingHp = previewFromQuery(new URL("https://lbt-ogp.example/s?s=t:abc&lbt_n=人格&lbt_san=50&lbt_spd=3-7&lbt_img=0"));
+  const missingSan = previewFromQuery(new URL("https://lbt-ogp.example/s?s=t:abc&lbt_n=人格&lbt_hp=120&lbt_spd=3-7&lbt_img=0"));
+  const legacyUnknown = previewFromQuery(new URL("https://lbt-ogp.example/s?s=t:abc&lbt_n=人格&lbt_hp=?&lbt_san=50&lbt_spd=3-7&lbt_img=0"));
+  assert.equal(missingHp, null);
+  assert.equal(missingSan, null);
+  assert.equal(legacyUnknown, null);
+});
+
+test("共有snapshotのSPD未設定は共有HTMLと同じ「—」でOGPへ表示する", () => {
+  const preview = previewFromSnapshot({ charName: "速度未設定", hp: "100", san: "45" });
+  assert.match(preview.description, /SPD —/);
+});
+
+test("HP/SAN/SPDがすべて明示された新summaryは未設定値も「—」で保持する", () => {
+  const preview = previewFromQuery(new URL("https://lbt-ogp.example/s?s=t:abc&lbt_n=人格&lbt_hp=—&lbt_san=—&lbt_spd=—&lbt_img=0"));
+  assert.equal(preview.description, "HP — ｜ SAN — ｜ SPD —");
 });
