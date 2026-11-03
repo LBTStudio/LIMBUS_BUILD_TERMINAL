@@ -648,10 +648,13 @@
   }
 
   function displayStatus(state, field, officialPersona = null) {
-    // 共有HTMLと同じ優先順位で基礎値を解決する。編集値を優先し、
-    // stateから省略された場合や空欄の場合は personaSrc / 公式DB を参照する。
-    // 公式人格は圧縮時に基礎値を落とすため、参照番号からDBへ戻る必要がある。
-    const candidates = [state?.[field], state?.personaSrc?.[field], officialPersona?.[field]];
+    // 編集値を最優先し、公式人格は復元後の共有HTMLと同じく公式DBを優先する。
+    // カスタム人格は personaSrc に基礎値が残るため、そちらを参照する。
+    const mode = String(state?.personaRef?.mode || state?.personaMode || "");
+    const isOfficial = mode === "n" || mode === "t";
+    const candidates = isOfficial && officialPersona
+      ? [state?.[field], officialPersona?.[field]]
+      : [state?.[field], state?.personaSrc?.[field], officialPersona?.[field]];
     const raw = candidates.find((value) => value !== "" && value !== null && value !== undefined);
     if (raw === undefined) return "—";
     const parsed = parseInt(String(raw), 10);
@@ -696,10 +699,12 @@
     const personaName = String(
       state?.personaSrc?.name || refName || official?.name || ""
     ).trim();
-    const speedValue = String(state?.speed || state?.personaSrc?.speed || official?.speed || "").trim();
+    const isOfficial = refMode === "n" || refMode === "t";
+    const fallbackPersona = isOfficial && official ? official : state?.personaSrc;
+    const speedValue = String(state?.speed || fallbackPersona?.speed || (!official ? official?.speed : "") || "").trim();
     const primarySin = primaryResourceAttribute(state?.skills)
-      || primaryResourceAttribute(state?.personaSrc?.skills)
-      || primaryResourceAttribute(official?.skills);
+      || primaryResourceAttribute(fallbackPersona?.skills)
+      || (!official ? primaryResourceAttribute(official?.skills) : "");
     return {
       personaName,
       hp: displayStatus(state, "hp", official),
