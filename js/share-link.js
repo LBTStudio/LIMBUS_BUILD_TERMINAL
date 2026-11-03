@@ -709,9 +709,9 @@
       && Object.prototype.hasOwnProperty.call(state, "speed")
       && state.speed !== "";
     const speedValue = String(hasExplicitSpeed ? state.speed ?? "" : (isOfficial ? official?.speed ?? "" : "")).trim();
+    const fallbackPersona = isOfficial && official ? official : state?.personaSrc;
     const primarySin = primaryResourceAttribute(state?.skills)
-      || primaryResourceAttribute(fallbackPersona?.skills)
-      || (!official ? primaryResourceAttribute(official?.skills) : "");
+      || primaryResourceAttribute(fallbackPersona?.skills);
     return {
       personaName,
       hp: displayStatus(state, "hp", official),
