@@ -3073,7 +3073,18 @@ function purchaseCostOf(state, action) {
     if (!rule || !(Number(rule.lp) > 0 || Number(rule.shards) > 0)) return null;
     return normalizeCurrency(rule);
   }
-  if (action.type === "ADD_ROSTER_EGO") return action.purchase ? priceEgo(action.rank, action.no) : null;
+  if (action.type === "ADD_ROSTER_EGO") {
+    if (!action.purchase) return null;
+    const definition = (window.DB?.egos || []).find((ego) =>
+      ego.rank === action.rank && String(ego.no) === String(action.no));
+    if (!definition) return null;
+    const rawPrice = definition.shards;
+    const hasExplicitPrice = (typeof rawPrice === "number" && Number.isFinite(rawPrice) && rawPrice > 0)
+      || (typeof rawPrice === "string" && rawPrice.trim() !== "");
+    if (!hasExplicitPrice) return null;
+    const cost = priceEgo(action.rank, action.no);
+    return Number.isFinite(cost?.shards) && cost.shards > 0 ? cost : null;
+  }
   if (action.type === "ADD_ITEM") {
     const itemId = String(action.itemId || "");
     const special = (window.DB?.specialItems || []).find((item) => item?.id === itemId && item.specialResource);
@@ -4425,7 +4436,7 @@ function appReducer(state, action) {
     || action.type === "ADD_ROSTER_SPIRIT" || action.type === "ADD_ENHANCEMENT") {
     const cost = purchaseCostOf(state, action);
     /* 購入扱いなのに価格が解決できない人格は、無料購入として通さず停止する。 */
-    if (action.type === "ADD_ROSTER" && action.purchase && !cost) return state;
+    if ((action.type === "ADD_ROSTER" || action.type === "ADD_ROSTER_EGO") && action.purchase && !cost) return state;
     if (cost && !purchaseAffordability(state, cost).ok) return state;
   }
   switch (action.type) {
