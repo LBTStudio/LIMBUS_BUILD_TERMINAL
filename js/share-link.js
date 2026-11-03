@@ -654,11 +654,9 @@
     // HTML側と同じく、stateに明示された空欄は空欄として扱う。
     // 公式人格の圧縮スナップショットでは値そのものが省略されるため、
     // その場合だけ personaSrc / 公式DB の値を参照する。
-    const hasStateValue = !!state && Object.prototype.hasOwnProperty.call(state, field);
-    const raw = hasStateValue
-      ? state[field]
-      : [state?.personaSrc?.[field], officialPersona?.[field]].find((value) => value !== "" && value !== null && value !== undefined);
-    if (raw === "" || raw === null || raw === undefined) return "—";
+    const candidates = [state?.[field], state?.personaSrc?.[field], officialPersona?.[field]];
+    const raw = candidates.find((value) => value !== "" && value !== null && value !== undefined);
+    if (raw === undefined) return "—";
     const parsed = parseInt(String(raw), 10);
     const base = Number.isFinite(parsed) ? parsed : 0;
     const activeEnhancements = window.LBT_getActiveEnhancements?.(state) || state?.enhancements || [];
