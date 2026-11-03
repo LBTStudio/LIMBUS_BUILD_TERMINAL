@@ -705,8 +705,10 @@
     const isOfficial = refMode === "n" || refMode === "t";
     // 速度は共有HTML側がstate.speedのみを表示する。公式参照化でキー自体が
     // 省略された場合に限りDBから戻し、明示的な空欄は「—」のままにする。
-    const hasSpeed = !!state && Object.prototype.hasOwnProperty.call(state, "speed");
-    const speedValue = String(hasSpeed ? state.speed ?? "" : (isOfficial ? official?.speed ?? "" : "")).trim();
+    const hasExplicitSpeed = !!state
+      && Object.prototype.hasOwnProperty.call(state, "speed")
+      && state.speed !== "";
+    const speedValue = String(hasExplicitSpeed ? state.speed ?? "" : (isOfficial ? official?.speed ?? "" : "")).trim();
     const primarySin = primaryResourceAttribute(state?.skills)
       || primaryResourceAttribute(fallbackPersona?.skills)
       || (!official ? primaryResourceAttribute(official?.skills) : "");
