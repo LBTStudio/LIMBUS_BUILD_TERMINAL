@@ -9,7 +9,7 @@ import vm from "node:vm";
    守るべき性質:
      - 残高は保存せず、収入合計 − 支出合計として必ず導出できる
      - 帰属（resultId）を差し替えても明細は消えない
-     - リザルトを消しても明細は残る（支出額が失われると残高が狂う）
+     - リザルト削除ではそのリザルトの明細を消し、残る所持レコードの帰属だけ解除する
      - 存在しないリザルトを指す明細は未分類へ戻る
      - 通貨は LP と欠片の2種に揃い、壊れた入力でも計算が壊れない
 --------------------------------------------------------------------------- */
@@ -197,6 +197,76 @@ test("リザルトを消したら、その明細も消える（未分類へ戻�
   assert.equal(s.entries.length, 1, "A の明細も消える");
   assert.equal(s.entries[0].name, "固定的", "B の明細は残る");
   assert.equal(balance(s.results, s.entries).lp, 495, "B の収支だけが残る");
+});
+
+test("所持側からのサポート・精神の帰属変更も対応する購入明細へ同期する", () => {
+  const state = {
+    ...baseState(),
+    results: [{ id: "res-a" }, { id: "res-b" }],
+    entries: [
+      { id: "support-entry", kind: "support", name: "支援", resultId: "res-a", ref: { kind: "rosterSupport", uid: "support-1" } },
+      { id: "spirit-entry", kind: "spirit", name: "精神", resultId: "res-a", ref: { kind: "rosterSpirit", uid: "spirit-1" } },
+      { id: "unrelated-entry", kind: "item", name: "無関係", resultId: "res-a", ref: null }
+    ],
+    roster: {
+      personas: [], egos: [],
+      supports: [{ uid: "support-1", name: "支援", resultId: "res-a" }],
+      spirits: [{ uid: "spirit-1", name: "精神", resultId: "res-a" }]
+    }
+  };
+  const movedSupport = reducer(state, { type: "SET_ROSTER_SUPPORT_RESULT", uid: "support-1", resultId: "res-b" });
+  assert.equal(movedSupport.roster.supports[0].resultId, "res-b");
+  assert.equal(movedSupport.entries.find((entry) => entry.id === "support-entry").resultId, "res-b");
+  assert.equal(movedSupport.entries.find((entry) => entry.id === "unrelated-entry").resultId, "res-a");
+
+  const movedSpirit = reducer(movedSupport, { type: "SET_ROSTER_SPIRIT_RESULT", uid: "spirit-1", resultId: null });
+  assert.equal(movedSpirit.roster.spirits[0].resultId, null);
+  assert.equal(movedSpirit.entries.find((entry) => entry.id === "spirit-entry").resultId, null);
+  assert.equal(movedSpirit.entries.find((entry) => entry.id === "unrelated-entry").resultId, "res-a");
+});
+
+test("リザルト削除は所持サポート・精神の帰属だけ解除し、別リザルトは維持する", () => {
+  const state = {
+    ...baseState(),
+    results: [{ id: "res-remove" }, { id: "res-keep" }],
+    entries: [
+      { id: "entry-remove", kind: "support", name: "対象", resultId: "res-remove" },
+      { id: "entry-keep", kind: "spirit", name: "残す", resultId: "res-keep" }
+    ],
+    roster: {
+      personas: [], egos: [],
+      supports: [
+        { uid: "support-remove", name: "対象", resultId: "res-remove" },
+        { uid: "support-keep", name: "残す", resultId: "res-keep" }
+      ],
+      spirits: [
+        { uid: "spirit-remove", name: "対象", resultId: "res-remove" },
+        { uid: "spirit-keep", name: "残す", resultId: "res-keep" }
+      ]
+    }
+  };
+  state.gachaLog = [
+    { id: "log-remove", commit: "commit-remove", at: "2026-11-04T00:00:00.000Z", resultId: "res-remove" },
+    { id: "log-keep", commit: "commit-keep", at: "2026-11-04T00:01:00.000Z", resultId: "res-keep", resultAttributionRepairVersion: 2 }
+  ];
+  state.draws = [
+    { commit: "commit-remove", records: [{ kind: "persona", item: { no: 1 } }] },
+    { commit: "commit-keep", records: [{ kind: "persona", item: { no: 2 } }] }
+  ];
+  const next = reducer(state, { type: "REMOVE_RESULT", id: "res-remove" });
+  assert.deepEqual(next.results.map((result) => result.id), ["res-keep"]);
+  assert.deepEqual(next.entries.map((entry) => entry.id), ["entry-keep"]);
+  assert.equal(next.gachaLog.find((log) => log.id === "log-remove").resultId, null,
+    "抽選ログは削除リザルトへの参照を外す");
+  assert.equal(next.gachaLog.find((log) => log.id === "log-remove").resultAttributionRepairVersion, 2,
+    "明示的に未分類へ戻した履歴を次回正規化で再帰属しない");
+  assert.equal(next.gachaLog.find((log) => log.id === "log-keep").resultId, "res-keep",
+    "別リザルトに属する抽選ログは維持");
+
+  assert.equal(next.roster.supports.find((entry) => entry.uid === "support-remove").resultId, null);
+  assert.equal(next.roster.spirits.find((entry) => entry.uid === "spirit-remove").resultId, null);
+  assert.equal(next.roster.supports.find((entry) => entry.uid === "support-keep").resultId, "res-keep");
+  assert.equal(next.roster.spirits.find((entry) => entry.uid === "spirit-keep").resultId, "res-keep");
 });
 
 test("存在しないリザルトを指す明細は未分類へ戻る", () => {

@@ -3073,7 +3073,18 @@ function purchaseCostOf(state, action) {
     if (!rule || !(Number(rule.lp) > 0 || Number(rule.shards) > 0)) return null;
     return normalizeCurrency(rule);
   }
-  if (action.type === "ADD_ROSTER_EGO") return action.purchase ? priceEgo(action.rank, action.no) : null;
+  if (action.type === "ADD_ROSTER_EGO") {
+    if (!action.purchase) return null;
+    const definition = (window.DB?.egos || []).find((ego) =>
+      ego.rank === action.rank && String(ego.no) === String(action.no));
+    if (!definition) return null;
+    const rawPrice = definition.shards;
+    const hasExplicitPrice = (typeof rawPrice === "number" && Number.isFinite(rawPrice) && rawPrice > 0)
+      || (typeof rawPrice === "string" && rawPrice.trim() !== "");
+    if (!hasExplicitPrice) return null;
+    const cost = priceEgo(action.rank, action.no);
+    return Number.isFinite(cost?.shards) && cost.shards > 0 ? cost : null;
+  }
   if (action.type === "ADD_ITEM") {
     const itemId = String(action.itemId || "");
     const special = (window.DB?.specialItems || []).find((item) => item?.id === itemId && item.specialResource);
@@ -3097,7 +3108,18 @@ function purchaseCostOf(state, action) {
     return priceSpirit(String(action.spirit?.name || ""));
   }
   if (action.type === "ADD_ENHANCEMENT") {
-    return priceEnhancement(String(action.group || ""), String(action.name || ""));
+    const group = String(action.group || "");
+    const name = String(action.name || "");
+    if (!name) return null;
+    const catalog = [...(window.DB?.normal_enhancements || []), ...(window.DB?.special_enhancements || [])];
+    const definition = catalog.find((entry) => entry?.name === name && entry?.group === group);
+    if (!definition) return null;
+    const rawPrice = definition.shards;
+    const hasExplicitPrice = (typeof rawPrice === "number" && Number.isFinite(rawPrice) && rawPrice > 0)
+      || (typeof rawPrice === "string" && rawPrice.trim() !== "");
+    if (!hasExplicitPrice) return null;
+    const cost = priceEnhancement(group, name);
+    return Number.isFinite(cost?.shards) && cost.shards > 0 ? cost : null;
   }
   return null;
 }
@@ -4425,7 +4447,8 @@ function appReducer(state, action) {
     || action.type === "ADD_ROSTER_SPIRIT" || action.type === "ADD_ENHANCEMENT") {
     const cost = purchaseCostOf(state, action);
     /* 購入扱いなのに価格が解決できない人格は、無料購入として通さず停止する。 */
-    if (action.type === "ADD_ROSTER" && action.purchase && !cost) return state;
+    if (((action.type === "ADD_ROSTER" || action.type === "ADD_ROSTER_EGO") && action.purchase && !cost)
+       || (action.type === "ADD_ENHANCEMENT" && !cost)) return state;
     if (cost && !purchaseAffordability(state, cost).ok) return state;
   }
   switch (action.type) {
@@ -4921,7 +4944,8 @@ function appReducer(state, action) {
     case "BACKFILL_SYNC_ENTRIES": {
       const existing = new Set((state.entries || []).map((e) => `${e.kind}:${e.ref?.uid}`));
       let next = state;
-      const fallback = next.results.length ? next.results[next.results.length - 1].id : null;
+      // リザルト一覧の表示順と同じ判定を使う。配列末尾は最新とは限らない。
+      const fallback = latestResultId(next);
       for (const entry of next.roster.personas || []) {
         const persona = (entry.mode === "t" ? window.DB?.tokui_personas : window.DB?.normal_personas || []).find((p) => String(p.no) === String(entry.no));
         const hasSync = Boolean(entry.syncRank) || entry.syncMax === true;
@@ -5958,11 +5982,17 @@ case "ADD_CUSTOM_ITEM": {
     }
     case "SET_ROSTER_SUPPORT_RESULT": {
       const roster = state.roster || {};
-      const supports = (roster.supports || []).map((s) => (
-        s.uid === action.uid ? { ...s, resultId: action.resultId || null } : s
-      ));
       if (!(roster.supports || []).some((s) => s.uid === action.uid)) return state;
-      return { ...state, roster: { ...roster, supports } };
+      const resultId = action.resultId || null;
+      const supports = (roster.supports || []).map((s) => (
+        s.uid === action.uid ? { ...s, resultId } : s
+      ));
+      const entries = (state.entries || []).map((entry) => (
+        entry.ref?.kind === "rosterSupport" && entry.ref.uid === action.uid
+          ? { ...entry, resultId }
+          : entry
+      ));
+      return { ...state, roster: { ...roster, supports }, entries };
     }
     case "ADD_ROSTER_SPIRIT": {
       const name = String(action.spirit?.name || "");
@@ -6321,12 +6351,26 @@ case "ADD_CUSTOM_ITEM": {
     /* リザルトを消したら、そのリザルトに紐づく明細も消す。
        かつ未分類へ戻すと、削除した支出が別の予算に紛れ込んで
        「消したのにまだ残っている」ように見える。削除なら削除。 */
-    case "REMOVE_RESULT":
+    case "REMOVE_RESULT": {
+      const roster = state.roster || {};
+      const supports = (roster.supports || []).map((entry) => (
+        entry.resultId === action.id ? { ...entry, resultId: null } : entry
+      ));
+      const spirits = (roster.spirits || []).map((entry) => (
+        entry.resultId === action.id ? { ...entry, resultId: null } : entry
+      ));
       return {
         ...state,
         results: (state.results || []).filter((r) => r.id !== action.id),
-        entries: (state.entries || []).filter((e) => e.resultId !== action.id)
+        entries: (state.entries || []).filter((e) => e.resultId !== action.id),
+        gachaLog: (state.gachaLog || []).map((log) => (
+          log?.resultId === action.id
+            ? { ...log, resultId: null, resultAttributionRepairVersion: 2 }
+            : log
+        )),
+        roster: { ...roster, supports, spirits }
       };
+    }
     
 /* 取り込みは 1 手で終わらせる。複数の action を順に適用し、明細をどの
      リザルトへ帰属させるかをこの中で解決する。利用者からは UNDO 1 回で全部戻る。
@@ -6602,10 +6646,16 @@ case "ADD_ENTRY":
     case "SET_ROSTER_SPIRIT_RESULT": {
       const roster = state.roster || {};
       if (!(roster.spirits || []).some((s) => s.uid === action.uid)) return state;
+      const resultId = action.resultId || null;
       const spirits = (roster.spirits || []).map((s) => (
-        s.uid === action.uid ? { ...s, resultId: action.resultId || null } : s
+        s.uid === action.uid ? { ...s, resultId } : s
       ));
-      return { ...state, roster: { ...roster, spirits } };
+      const entries = (state.entries || []).map((entry) => (
+        entry.ref?.kind === "rosterSpirit" && entry.ref.uid === action.uid
+          ? { ...entry, resultId }
+          : entry
+      ));
+      return { ...state, roster: { ...roster, spirits }, entries };
     }
     /* 精神の装備は常に1件。他を全部外してから対象だけを装備する。 */
     case "SET_ROSTER_SPIRIT_EQUIPPED": {

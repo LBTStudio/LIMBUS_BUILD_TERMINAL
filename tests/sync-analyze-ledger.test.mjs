@@ -150,6 +150,25 @@ test("既存アカウントのフラグ付き項目を遡って記録できる",
   assert.equal(total, 110, "同期50 + 解析60");
 });
 
+test("バックフィルの費用帰属は配列末尾でなくリザルトの表示順を使う", () => {
+  const legacy = {
+    ...base,
+    results: [
+      { id: "res-new", name: "第二夜", date: "2026-11-04", createdAt: 200, income: { lp: 0, shards: 100 } },
+      { id: "res-old", name: "第一夜", date: "2026-11-03", createdAt: 100, income: { lp: 0, shards: 100 } }
+    ],
+    roster: {
+      ...base.roster,
+      personas: [{ uid: "pr-1", no: 1, mode: "n", syncRank: "00", syncMax: false }],
+      egos: [{ uid: "er-1", no: 1, rank: "HE", analyzed: true, analyzeMax: false }]
+    }
+  };
+  const next = reducer(legacy, { type: "BACKFILL_SYNC_ENTRIES" });
+  assert.equal(next.entries.length, 2, "同期と解析の両方が積まれる");
+  assert.ok(next.entries.every((entry) => entry.resultId === "res-new"),
+    "配列順が逆でも画面上の最新リザルトへ帰属する");
+});
+
 test("バックフィルは二重に積まない", () => {
   const legacy = {
     ...base,
@@ -205,6 +224,43 @@ test("指定購入だけが欠片を請求して所持へ入れる", () => {
   const next = reducer(before, { type: "ADD_ROSTER_EGO", rank: "HE", no: 1, purchase: true });
   assert.equal(next.roster.egos.length, 1, "購入は所持へ入る");
   assert.ok(next.entries.some((e) => e.cost.shards > 0), "購入は欠片を請求する");
+});
+
+test("E.G.O購入は欠片が1個でも不足すれば所持・明細を変更しない", () => {
+  const poor = {
+    ...unowned(),
+    results: [{ id: "res-poor", name: "残高不足", income: { lp: 0, shards: 49 } }]
+  };
+  const rejected = reducer(poor, { type: "ADD_ROSTER_EGO", rank: "HE", no: 1, purchase: true });
+  assert.strictEqual(rejected, poor, "必要50欠片に1個足りない購入は状態全体を変更しない");
+
+  const exact = {
+    ...poor,
+    results: [{ id: "res-exact", name: "必要額ちょうど", income: { lp: 0, shards: 50 } }]
+  };
+  const purchased = reducer(exact, { type: "ADD_ROSTER_EGO", rank: "HE", no: 1, purchase: true });
+  assert.equal(purchased.roster.egos.length, 1, "必要額ちょうどなら購入できる");
+  assert.equal(purchased.entries.length, 1, "購入明細が一度だけ立つ");
+  assert.equal(purchased.entries[0].cost.shards, 50);
+});
+
+test("E.G.O購入は未知の番号・価格欠落・価格解析不能を無料購入として通さない", () => {
+  const before = unowned();
+  const unknown = reducer(before, { type: "ADD_ROSTER_EGO", rank: "HE", no: 999, purchase: true });
+  assert.strictEqual(unknown, before, "DBに無いE.G.Oは購入できない");
+
+  const original = DB.egos;
+  try {
+    DB.egos = [{ no: 2, rank: "HE", name: "価格未登録E.G.O" }];
+    const missingPrice = reducer(before, { type: "ADD_ROSTER_EGO", rank: "HE", no: 2, purchase: true });
+    assert.strictEqual(missingPrice, before, "shards未設定を0欠片として扱わない");
+
+    DB.egos = [{ no: 3, rank: "HE", name: "価格不正E.G.O", shards: "価格未確認" }];
+    const unreadablePrice = reducer(before, { type: "ADD_ROSTER_EGO", rank: "HE", no: 3, purchase: true });
+    assert.strictEqual(unreadablePrice, before, "解析できない価格を0欠片として扱わない");
+  } finally {
+    DB.egos = original;
+  }
 });
 
 test("購入せず所持に追加は欠片を請求しない", () => {
