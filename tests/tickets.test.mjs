@@ -555,6 +555,27 @@ test("初期チケットを0枚に修正した後の後日付与分は初期人�
   assert.equal(added.entries.some((entry) => entry.ref?.kind === "initialPersonaTicket"), false);
 });
 
+test("後日リザルト経由の初回人格登録でも初期チケット支出は初期作成へ帰属する", () => {
+  const state = {
+    ...freshState(),
+    results: [{
+      id: "res-initial",
+      name: "初期作成",
+      income: { lp: 30, shards: 10, tickets: { persona: 1, ego: 0, choice: 0, pack: {} } }
+    }, {
+      id: "res-later",
+      name: "後日シナリオ",
+      income: { lp: 0, shards: 0, tickets: { persona: 2, ego: 0, choice: 0, pack: {} } }
+    }]
+  };
+  const added = reducer(state, {
+    type: "ADD_ROSTER", mode: "n", no: 1, purchase: false, resultId: "res-later"
+  });
+  const spend = added.entries.find((entry) => entry.ref?.kind === "initialPersonaTicket");
+  assert.equal(spend?.resultId, "res-initial", "消費明細は初期作成リザルトへ固定する");
+  assert.equal(ticketBalance(added).persona, 2, "後日報酬の2枚は残る");
+});
+
 test("初期リザルトに帰属する人格チケットを既に使っていれば後日分から補填消費しない", () => {
   const state = {
     ...freshState(),
