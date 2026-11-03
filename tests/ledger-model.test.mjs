@@ -199,6 +199,32 @@ test("リザルトを消したら、その明細も消える（未分類へ戻�
   assert.equal(balance(s.results, s.entries).lp, 495, "B の収支だけが残る");
 });
 
+test("所持側からのサポート・精神の帰属変更も対応する購入明細へ同期する", () => {
+  const state = {
+    ...baseState(),
+    results: [{ id: "res-a" }, { id: "res-b" }],
+    entries: [
+      { id: "support-entry", kind: "support", name: "支援", resultId: "res-a", ref: { kind: "rosterSupport", uid: "support-1" } },
+      { id: "spirit-entry", kind: "spirit", name: "精神", resultId: "res-a", ref: { kind: "rosterSpirit", uid: "spirit-1" } },
+      { id: "unrelated-entry", kind: "item", name: "無関係", resultId: "res-a", ref: null }
+    ],
+    roster: {
+      personas: [], egos: [],
+      supports: [{ uid: "support-1", name: "支援", resultId: "res-a" }],
+      spirits: [{ uid: "spirit-1", name: "精神", resultId: "res-a" }]
+    }
+  };
+  const movedSupport = reducer(state, { type: "SET_ROSTER_SUPPORT_RESULT", uid: "support-1", resultId: "res-b" });
+  assert.equal(movedSupport.roster.supports[0].resultId, "res-b");
+  assert.equal(movedSupport.entries.find((entry) => entry.id === "support-entry").resultId, "res-b");
+  assert.equal(movedSupport.entries.find((entry) => entry.id === "unrelated-entry").resultId, "res-a");
+
+  const movedSpirit = reducer(movedSupport, { type: "SET_ROSTER_SPIRIT_RESULT", uid: "spirit-1", resultId: null });
+  assert.equal(movedSpirit.roster.spirits[0].resultId, null);
+  assert.equal(movedSpirit.entries.find((entry) => entry.id === "spirit-entry").resultId, null);
+  assert.equal(movedSpirit.entries.find((entry) => entry.id === "unrelated-entry").resultId, "res-a");
+});
+
 test("リザルト削除は所持サポート・精神の帰属だけ解除し、別リザルトは維持する", () => {
   const state = {
     ...baseState(),
