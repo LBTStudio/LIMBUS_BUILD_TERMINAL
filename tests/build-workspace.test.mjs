@@ -923,8 +923,14 @@ test("取得は種別と方法から金額を自動計算し、直近リザル�
   assert.match(addRoster, /cost: normalizeCurrency\(purchaseCost\),/);
   assert.match(addRoster, /ref: \{ kind: "rosterPersona", uid \}/);
   const purchaseCostOf = state.slice(state.indexOf("function purchaseCostOf"), state.indexOf("window.LBT_purchaseCostOf"));
-  assert.match(purchaseCostOf, /window\.LBT_acquireCost\?\.\("persona", "purchase", \{ ownsPersona \}\)/);
-  assert.match(purchaseCostOf, /if \(!rule \|\| !\(Number\(rule\.lp\) > 0 \|\| Number\(rule\.shards\) > 0\)\) return null;/);
+  assert.match(purchaseCostOf, /action\.mode !== "n"/,
+    "特異人格は通常人格の指定購入経路を使えない");
+  assert.match(purchaseCostOf, /normal_personas \|\| \[\]\)\.find\(\(persona\) =>/,
+    "購入対象は公式の通常人格DBに存在する必要がある");
+  assert.match(purchaseCostOf, /window\.LBT_acquireCost\?\.\("persona", "purchase", \{ ownsPersona \}\)/,
+    "価格は現在の所持状態からルール側で再計算する");
+  assert.match(purchaseCostOf, /Number\(rule\.lp\) <= 0[\\s\\S]{0,100}?Number\(rule\.shards \|\| 0\) !== 0/,
+    "呼び出し元のcost上書きではなく正規のLP価格だけを受け付ける");
 });
 
 test("人格詳細はポップオーバーで開き、自動スクロールしない", () => {
