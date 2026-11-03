@@ -320,3 +320,14 @@ test("HP/SAN/SPDがすべて明示された新summaryは未設定値も「—」
   const preview = previewFromQuery(new URL("https://lbt-ogp.example/s?s=t:abc&lbt_n=人格&lbt_hp=—&lbt_san=—&lbt_spd=—&lbt_img=0"));
   assert.equal(preview.description, "HP — ｜ SAN — ｜ SPD —");
 });
+
+
+test("カスタム人格のnull HP/SANはpersonaSrcの基礎値へフォールバックする", () => {
+  const preview = previewFromSnapshot({
+    personaMode: "custom",
+    hp: null,
+    san: null,
+    personaSrc: { name: "null値のカスタム人格", hp: "144", san: "58" }
+  });
+  assert.match(preview.description, /HP 144 ｜ SAN 58/);
+});
