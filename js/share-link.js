@@ -648,12 +648,9 @@
   }
 
   function displayStatus(state, field, officialPersona = null) {
-    // 共有元のHTMLと同じ優先順位で基礎値を解決する。
-    // 公式人格は snapshot 圧縮時に state.hp/state.san を省略するため、
-    // personaSrc が名前だけになっていてもDBの人格基礎値へ戻れる必要がある。
-    // HTML側と同じく、stateに明示された空欄は空欄として扱う。
-    // 公式人格の圧縮スナップショットでは値そのものが省略されるため、
-    // その場合だけ personaSrc / 公式DB の値を参照する。
+    // 共有HTMLと同じ優先順位で基礎値を解決する。編集値を優先し、
+    // stateから省略された場合や空欄の場合は personaSrc / 公式DB を参照する。
+    // 公式人格は圧縮時に基礎値を落とすため、参照番号からDBへ戻る必要がある。
     const candidates = [state?.[field], state?.personaSrc?.[field], officialPersona?.[field]];
     const raw = candidates.find((value) => value !== "" && value !== null && value !== undefined);
     if (raw === undefined) return "—";
