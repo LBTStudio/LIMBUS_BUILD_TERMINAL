@@ -14,6 +14,7 @@ import vm from "node:vm";
      - 通貨は LP と欠片の2種に揃い、壊れた入力でも計算が壊れない
 --------------------------------------------------------------------------- */
 
+const provenanceSource = readFileSync(new URL("../js/ledger-provenance.js", import.meta.url), "utf8");
 const source = readFileSync(new URL("../js/state.js", import.meta.url), "utf8");
 
 function loadContext() {
@@ -37,6 +38,7 @@ function loadContext() {
   };
   context.globalThis = context;
   vm.createContext(context);
+  vm.runInContext(provenanceSource, context);
   vm.runInContext(source, context);
   return context;
 }
