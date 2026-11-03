@@ -238,11 +238,31 @@ test("残数 0 のときに SPEND_TICKET は何も起こさない", () => {
   assert.equal(spent.entries.length, 0);
 });
 
-test("SET_TICKET_COUNT は残数の目標値に合わせる", () => {
+test("SET_TICKET_COUNT は残数の目標値に合わせ、減算を調整消費として記録する", () => {
   const s = reducer(withResult({ persona: 2 }), { type: "SET_TICKET_COUNT", kind: "persona", count: 5 });
   assert.equal(balanceOf(s).persona, 5);
   const down = reducer(s, { type: "SET_TICKET_COUNT", kind: "persona", count: 1 });
   assert.equal(balanceOf(down).persona, 1);
+  assert.equal(down.results[0].income.tickets.persona, 5, "元の受領記録は書き換えない");
+  const adjustment = down.entries.find((entry) => entry.ref?.kind === "ticketBalanceAdjustment");
+  assert.equal(adjustment?.tickets.persona, 4, "不足させた4枚を調整消費として追跡する");
+});
+
+test("SET_TICKET_COUNT は古いリザルトに残るチケットも合計残数の目標値まで減らせる", () => {
+  const state = {
+    ...freshState(),
+    results: [
+      { id: "res-old", name: "第一夜", income: { lp: 0, shards: 0, tickets: { persona: 3, ego: 0, choice: 0, pack: {} } } },
+      { id: "res-latest", name: "第二夜", income: { lp: 0, shards: 0, tickets: { persona: 0, ego: 0, choice: 0, pack: {} } } }
+    ],
+    entries: []
+  };
+  const set = reducer(state, { type: "SET_TICKET_COUNT", kind: "persona", count: 1 });
+  assert.equal(balanceOf(set).persona, 1, "最新リザルトにチケットが無くても合計を1枚に設定できる");
+  assert.equal(set.results[0].income.tickets.persona, 3, "過去リザルトの受領記録は維持");
+  assert.equal(set.results[1].income.tickets.persona, 0);
+  assert.equal(set.entries[0].tickets.persona, 2, "差分2枚を明細で記録");
+  assert.equal(set.entries[0].resultId, "res-latest", "調整明細は最新リザルトへ帰属");
 });
 
 test("特殊なプロパティ名のパックも付与・消費・復元できる", () => {
