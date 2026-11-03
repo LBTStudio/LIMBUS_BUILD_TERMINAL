@@ -32,15 +32,40 @@ function stateWith({ personaTickets = 0, egoTickets = 0, shards = 0, personas = 
 
 test("人格の配布チケット取得はチケット1枚と所持追加を一度に確定する", () => {
   const initial = stateWith({ personaTickets: 1, resultId: "res-initial", resultName: "初期作成" });
+  initial.results.push({
+    id: "res-later", name: "後日シナリオ", date: "2026-11-05",
+    income: { lp: 0, shards: 0, tickets: { persona: 0, ego: 0, choice: 0, pack: {} } }
+  });
   const next = reducer(initial, { type: "ACQUIRE_ROSTER_WITH_TICKET", kind: "persona", mode: "n", no: 1 });
   assert.equal(next.roster.personas.length, 1);
   assert.equal(balance(next).persona, 0);
   assert.equal(next.entries.length, 1);
   assert.equal(next.entries[0].tickets.persona, 1);
-  assert.equal(next.entries[0].ref.kind, "catalogAcquire");
-  assert.equal(next.entries[0].resultId, "res-initial");
-  assert.equal(next.entries.some((entry) => entry.ref?.kind === "initialPersonaTicket"), false,
-    "配布チケット取得で初期人格チケットを二重消費しない");
+  assert.equal(next.entries[0].ref.kind, "initialPersonaTicket");
+  assert.equal(next.entries[0].resultId, "res-initial",
+    "初期分の消費は後日リザルトが最新でも初期作成へ帰属");
+  assert.equal(next.entries.some((entry) => entry.ref?.kind === "catalogAcquire"), false,
+    "初期人格チケットを二重消費しない");
+});
+
+test("初期チケット消費済みなら後日付与分の人格チケットを使う", () => {
+  const before = stateWith({ personaTickets: 1, resultId: "res-initial", resultName: "初期作成" });
+  before.entries.push({
+    id: "initial-spend", kind: "ticket", name: "初期人格チケットを使用",
+    cost: { lp: 0, shards: 0 },
+    tickets: { persona: 1, ego: 0, choice: 0, pack: {} },
+    resultId: "res-initial", ref: { kind: "initialPersonaTicket" }
+  });
+  before.results.push({
+    id: "res-later", name: "後日シナリオ", date: "2026-11-05",
+    income: { lp: 0, shards: 0, tickets: { persona: 1, ego: 0, choice: 0, pack: {} } }
+  });
+  const next = reducer(before, { type: "ACQUIRE_ROSTER_WITH_TICKET", kind: "persona", mode: "n", no: 1 });
+  assert.equal(next.roster.personas.length, 1);
+  assert.equal(balance(next).persona, 0);
+  assert.equal(next.entries.length, 2);
+  assert.equal(next.entries[1].ref.kind, "catalogAcquire");
+  assert.equal(next.entries[1].resultId, "res-later");
 });
 
 test("人格チケットが無ければ所持も台帳も変更しない", () => {
