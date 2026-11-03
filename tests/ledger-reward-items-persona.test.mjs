@@ -232,6 +232,7 @@ test("初期人格の入手方法が未確定なら古いmode/noが残ってい�
   const end = otherSections.indexOf("const results =", start);
   const saveBlock = otherSections.slice(start, end);
   assert.match(saveBlock, /nextInitialPersona\.method !== "unknown"\s*&&\s*nextInitialPersona\.mode/);
+  assert.match(saveBlock, /const isRecordedInitialPersona = isInitial && nextInitialPersona\.method !== "unknown"/);
   assert.match(saveBlock, /if \(isInitial && nextInitialPersona\.method !== "unknown"/);
 });
 
