@@ -12,7 +12,7 @@ const OFFICIAL_DB_URL = "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/data/
 const EXTERNAL_TOKEN_MARKER = "LBT_SHARE_TOKEN=";
 const EXTERNAL_TOKEN_PART_MARKER = "LBT_SHARE_TOKEN_PART=";
 const MAX_TOKEN_CHARS = 160000;
-const MAX_DECOMPRESSED_BYTES = 256000;
+const MAX_DECOMPRESSED_BYTES = 4 * 1024 * 1024;
 // 共有IDは一度発行した内容を変更しない。不変のOGP・画像を長くキャッシュして、
 // Discordの再プレビューや多人数の同時閲覧でWorker実行と外部保存先の読込を重複させない。
 // `s-maxage` はCloudflare Workers Cacheで stale-while-revalidate / stale-if-error を無効化する。
@@ -167,8 +167,14 @@ function primaryResourceAttribute(skills) {
 export function previewFromSnapshot(snapshot) {
   const rawPersonaName = String(snapshot?.personaSrc?.name || snapshot?.charName || "LBT キャラクターシート").trim();
   const personaName = Array.from(rawPersonaName).slice(0, 48).join("") + (Array.from(rawPersonaName).length > 48 ? "…" : "");
-  const hp = String(snapshot?.hp ?? "?").trim().slice(0, 12) || "?";
-  const san = String(snapshot?.san ?? "?").trim().slice(0, 12) || "?";
+  // HTMLの共有シートは明示された空欄を「—」で表示する。
+  // 圧縮前の公式人格値が personaSrc に残る旧形式だけ、未格納キーをそこから補う。
+  const hasHp = Object.prototype.hasOwnProperty.call(snapshot || {}, "hp");
+  const hasSan = Object.prototype.hasOwnProperty.call(snapshot || {}, "san");
+  const hpValue = hasHp ? snapshot.hp : snapshot?.personaSrc?.hp;
+  const sanValue = hasSan ? snapshot.san : snapshot?.personaSrc?.san;
+  const hp = String(hpValue ?? "—").trim().slice(0, 12) || "—";
+  const san = String(sanValue ?? "—").trim().slice(0, 12) || "—";
   const speed = String(snapshot?.speed ?? "?").trim().slice(0, 16) || "?";
   const primarySin = String(snapshot?.primarySin || primaryResourceAttribute(snapshot?.skills) || primaryResourceAttribute(snapshot?.personaSrc?.skills) || "").trim();
   const sync = selectedSync(snapshot);
@@ -220,22 +226,33 @@ export function previewFromQuery(url) {
 async function enrichOfficialPersona(snapshot, fetchImpl) {
   const ref = snapshot?.personaRef;
   const mode = String(ref?.mode || snapshot?.personaMode || "");
+  // 新形式は personaRef.no、旧形式は personaNo を持つ。両方の識別子を解決する。
+  const personaNo = ref?.no ?? snapshot?.personaNo;
+  const hasOwn = (key) => Object.prototype.hasOwnProperty.call(snapshot || {}, key);
+  const hasPersonaValue = (key) => snapshot?.personaSrc?.[key] !== undefined
+    && snapshot?.personaSrc?.[key] !== null
+    && snapshot?.personaSrc?.[key] !== "";
   const needsName = !String(snapshot?.personaSrc?.name || snapshot?.charName || "").trim();
-  const needsHp = snapshot?.hp === undefined || snapshot?.hp === null || snapshot?.hp === "";
-  const needsSan = snapshot?.san === undefined || snapshot?.san === null || snapshot?.san === "";
-  const needsSpeed = snapshot?.speed === undefined || snapshot?.speed === null || snapshot?.speed === "";
+  // 明示された空欄はHTML表示と同じく空欄のまま。キー自体が省略された場合のみDB補完する。
+  const needsHp = !hasOwn("hp") && !hasPersonaValue("hp");
+  const needsSan = !hasOwn("san") && !hasPersonaValue("san");
+  const needsSpeed = !hasOwn("speed") && !hasPersonaValue("speed");
   const needsPrimarySin = !String(snapshot?.primarySin || "").trim();
-  if ((!needsName && !needsHp && !needsSan && !needsSpeed && !needsPrimarySin) || !["n", "t"].includes(mode) || ref?.no === undefined || ref?.no === null) return snapshot;
+  if ((!needsName && !needsHp && !needsSan && !needsSpeed && !needsPrimarySin)
+      || !["n", "t"].includes(mode) || personaNo === undefined || personaNo === null) return snapshot;
   try {
     const response = await fetchImpl(OFFICIAL_DB_URL, { headers: { Accept: "application/json" } });
     if (!response.ok) return snapshot;
     const db = await response.json();
     const rows = mode === "t" ? db?.tokui_personas : db?.normal_personas;
-    const persona = Array.isArray(rows) ? rows.find((entry) => String(entry?.no) === String(ref.no)) : null;
+    const persona = Array.isArray(rows) ? rows.find((entry) => String(entry?.no) === String(personaNo)) : null;
     if (!persona) return snapshot;
+    const personaSrc = snapshot?.personaSrc && typeof snapshot.personaSrc === "object"
+      ? { ...snapshot.personaSrc, name: snapshot.personaSrc.name || persona.name }
+      : { name: persona.name };
     return {
       ...snapshot,
-      personaSrc: snapshot?.personaSrc?.name ? snapshot.personaSrc : { name: persona.name },
+      personaSrc,
       hp: needsHp ? persona.hp : snapshot.hp,
       san: needsSan ? persona.san : snapshot.san,
       speed: needsSpeed ? persona.speed : snapshot.speed,
