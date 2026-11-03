@@ -245,9 +245,24 @@ test("リザルト削除は所持サポート・精神の帰属だけ解除し�
       ]
     }
   };
+  state.gachaLog = [
+    { id: "log-remove", commit: "commit-remove", at: "2026-11-04T00:00:00.000Z", resultId: "res-remove" },
+    { id: "log-keep", commit: "commit-keep", at: "2026-11-04T00:01:00.000Z", resultId: "res-keep", resultAttributionRepairVersion: 2 }
+  ];
+  state.draws = [
+    { commit: "commit-remove", records: [{ kind: "persona", item: { no: 1 } }] },
+    { commit: "commit-keep", records: [{ kind: "persona", item: { no: 2 } }] }
+  ];
   const next = reducer(state, { type: "REMOVE_RESULT", id: "res-remove" });
   assert.deepEqual(next.results.map((result) => result.id), ["res-keep"]);
   assert.deepEqual(next.entries.map((entry) => entry.id), ["entry-keep"]);
+  assert.equal(next.gachaLog.find((log) => log.id === "log-remove").resultId, null,
+    "抽選ログは削除リザルトへの参照を外す");
+  assert.equal(next.gachaLog.find((log) => log.id === "log-remove").resultAttributionRepairVersion, 2,
+    "明示的に未分類へ戻した履歴を次回正規化で再帰属しない");
+  assert.equal(next.gachaLog.find((log) => log.id === "log-keep").resultId, "res-keep",
+    "別リザルトに属する抽選ログは維持");
+
   assert.equal(next.roster.supports.find((entry) => entry.uid === "support-remove").resultId, null);
   assert.equal(next.roster.spirits.find((entry) => entry.uid === "spirit-remove").resultId, null);
   assert.equal(next.roster.supports.find((entry) => entry.uid === "support-keep").resultId, "res-keep");
