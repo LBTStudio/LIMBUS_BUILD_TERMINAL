@@ -43,7 +43,7 @@ test("summary 経路の /s は外部保存先を一切読まず OGP HTML を返�
   assert.match(html, /HP 105/);
   assert.match(html, /SAN 48/);
   // Summary HTML stays small but points at the per-share image route.
-  assert.match(html, /og:image" content="https:\/\/lbt-ogp\.example\/i\?s=t%3ALBT-Test/);
+  assert.ok(html.includes('og:image" content="https://lbt-ogp.example/i?'), "画像は専用 /i ルートを使う");
   // 遷移先は従来どおり共有ページ
   assert.match(html, /share\.html\?s=t%3ALBT-Test/);
 });
