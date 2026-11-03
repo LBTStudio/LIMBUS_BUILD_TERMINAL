@@ -249,14 +249,16 @@ test("SET_TICKET_COUNT は残数の目標値に合わせ、減算を調整消費
 });
 
 test("SET_TICKET_COUNT は古いリザルトに残るチケットも合計残数の目標値まで減らせる", () => {
-  const state = {
-    ...freshState(),
-    results: [
-      { id: "res-old", name: "第一夜", income: { lp: 0, shards: 0, tickets: { persona: 3, ego: 0, choice: 0, pack: {} } } },
-      { id: "res-latest", name: "第二夜", income: { lp: 0, shards: 0, tickets: { persona: 0, ego: 0, choice: 0, pack: {} } } }
-    ],
-    entries: []
-  };
+  const state = withResult(
+    { persona: 0, ego: 0, choice: 0, pack: {} },
+    {
+      results: [
+        { id: "res-old", name: "第一夜", income: { lp: 0, shards: 0, tickets: { persona: 3, ego: 0, choice: 0, pack: {} } } },
+        { id: "res-latest", name: "第二夜", income: { lp: 0, shards: 0, tickets: { persona: 0, ego: 0, choice: 0, pack: {} } } }
+      ],
+      entries: []
+    }
+  );
   const set = reducer(state, { type: "SET_TICKET_COUNT", kind: "persona", count: 1 });
   assert.equal(balanceOf(set).persona, 1, "最新リザルトにチケットが無くても合計を1枚に設定できる");
   assert.equal(set.results[0].income.tickets.persona, 3, "過去リザルトの受領記録は維持");
