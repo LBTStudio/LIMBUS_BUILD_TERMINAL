@@ -1180,7 +1180,7 @@ test("共有snapshotは同期手動モードを保持し、共有先でも人格
     roster: { personas: [] }
   });
   assert.equal(snapshot.syncedManual, true);
-  assert.equal(snapshot.enhancements[0].category, "persona");
+  assert.equal(snapshot._r.h[0].category, "persona", "圧縮後も強化のcategoryを保持する");
 });
 
 test("OGP preview prioritizes edited HP/SAN, falls back to custom persona fields, and applies enhancement bonuses", () => {
