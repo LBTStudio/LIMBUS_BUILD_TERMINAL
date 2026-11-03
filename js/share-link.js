@@ -23,7 +23,7 @@
   const CLOUDFLARE_PUBLISH_TIMEOUT_MS = 2500;
   // 共有内容は発行後に不変なので、Workerの実装更新とカード内容の世代を分ける。
   // Worker Cacheをバージョン横断で共有しても、この値を上げた時だけOGPカードを確実に再生成できる。
-  const OGP_CARD_CACHE_VERSION = "3";
+  const OGP_CARD_CACHE_VERSION = "4";
   // localStorage tracks creation, not the Worker's last-access refresh. Refresh cached KV links
   // conservatively before their 7-day idle expiry so a stale cache cannot return a dead URL.
   const LOCAL_KV_SHARE_REUSE_MAX_AGE_MS = 6 * 24 * 60 * 60 * 1000;
