@@ -4806,6 +4806,13 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
         resultId: result.id, via: [name]
       });
     }
+    /* 編集開始前から他の人格を所持しているとADD_ROSTERの「初回所持」判定では
+       初期チケットが消費されない。初期リザルト上で取得方法が確定した場合は、
+       所持追加の有無にかかわらず、専用の冪等actionで初期分を1枚だけ消費する。 */
+    if (isInitial && nextInitialPersona.mode && nextInitialPersona.no
+        && !recordedPersonaTicketSpendCoversInitial) {
+      dispatch({ type: "CONSUME_INITIAL_PERSONA_TICKET", resultId: result.id });
+    }
     toast("「" + name + "」のリザルトを更新し、取得人格を所持記録へ反映しました");
     cancelResultEditor();
   };
