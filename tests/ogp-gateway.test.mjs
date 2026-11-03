@@ -246,6 +246,7 @@ test("旧形式のpersonaMode/personaNoだけを持つ共有でも公式人格�
   const shareToken = token({
     personaMode: "n",
     personaNo: 7,
+    personaSrc: { name: "旧形式の公式人格", hp: "120", san: "40", speed: "1-1" },
     roster: { personas: [] }
   });
   const fetchImpl = async (url) => {
