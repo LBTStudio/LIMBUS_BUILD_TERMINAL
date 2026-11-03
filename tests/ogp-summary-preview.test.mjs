@@ -28,7 +28,8 @@ test("previewFromQuery は lbt_n が無ければ null を返す（従来経路�
   assert.equal(previewFromQuery(new URL("https://lbt-ogp.example/s?s=t:LBT-Test")), null);
   assert.equal(previewFromQuery(new URL("https://lbt-ogp.example/s?s=t:LBT-Test&lbt_hp=100")), null);
   assert.equal(previewFromQuery(new URL("https://lbt-ogp.example/s?s=t:LBT-Test&lbt_n=旧人格&lbt_hp=100&lbt_san=40&lbt_img=0")), null, "SPDのないsummaryはsnapshot経路へ戻す");
-  assert.equal(previewFromQuery(new URL("https://lbt-ogp.example/s?s=t:LBT-Test&lbt_n=画像人格&lbt_hp=100&lbt_san=40&lbt_spd=3-6&lbt_img=1")), null, "画像付きsummaryはsnapshot経路へ戻す");
+  const imagePreview = previewFromQuery(new URL("https://lbt-ogp.example/s?s=t:LBT-Test&lbt_n=画像人格&lbt_hp=100&lbt_san=40&lbt_spd=3-6&lbt_img=1"));
+  assert.equal(imagePreview.personaName, "画像人格", "画像付きでも完全なsummaryは軽量経路で利用する");
 });
 
 test("summary 経路の /s は外部保存先を一切読まず OGP HTML を返す", async () => {
@@ -42,9 +43,21 @@ test("summary 経路の /s は外部保存先を一切読まず OGP HTML を返�
   assert.match(html, /HP 105/);
   assert.match(html, /SAN 48/);
   // Summary HTML stays small but points at the per-share image route.
-  assert.match(html, /og:image" content="https:\/\/lbt-ogp\.example\/i\?s=t%3ALBT-Test/);
+  assert.ok(html.includes('og:image" content="https://lbt-ogp.example/i?'), "画像は専用 /i ルートを使う");
   // 遷移先は従来どおり共有ページ
   assert.match(html, /share\.html\?s=t%3ALBT-Test/);
+});
+
+test("画像付きsummaryはOGP文面を軽量経路で作り、画像本体を /i へ分離する", async () => {
+  const imageQuery = SUMMARY_QUERY.replace("lbt_img=0", "lbt_img=1");
+  const mustNotRun = async () => { throw new Error("完全なsummaryではsnapshotを読まない"); };
+  const response = await handleRequest(new Request(`https://lbt-ogp.example/s?${imageQuery}`), { fetchImpl: mustNotRun });
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /HP 105/);
+  assert.match(html, /SAN 48/);
+  assert.ok(html.includes('og:image" content="https://lbt-ogp.example/i?'), "画像は専用 /i ルートを使う");
+  assert.ok(html.includes("lbt_img=1"), "OGP画像URLは画像付き共有の指定を保持する");
 });
 
 test("summary なし（既存共有）は従来どおり snapshot を読む", async () => {

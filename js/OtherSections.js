@@ -4748,7 +4748,8 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
       pack: nextPack
     };
     const name = String(draft.name || "").trim() || result.name;
-    const isInitial = result.id === "res-initial" || result.name === "初期作成";
+    const initialResult = window.LBT_findInitialResult?.(state.results) || null;
+    const isInitial = !!initialResult && String(initialResult.id || "") === String(result.id || "");
     const nextInitialPersona = {
       method: ["selected", "random"].includes(draft.initialPersona?.method) ? draft.initialPersona.method : "unknown",
       mode: draft.initialPersona?.mode === "n" || draft.initialPersona?.mode === "t" ? draft.initialPersona.mode : "",
@@ -4798,7 +4799,8 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
       const key = acquisition.mode + ":" + String(acquisition.no);
       if (!["n", "t"].includes(acquisition.mode) || !acquisition.no || existingPersonaKeys.has(key)) continue;
       existingPersonaKeys.add(key);
-      const isRecordedInitialPersona = isInitial && nextInitialPersona.mode === acquisition.mode
+      const isRecordedInitialPersona = isInitial && nextInitialPersona.method !== "unknown"
+        && nextInitialPersona.mode === acquisition.mode
         && String(nextInitialPersona.no) === String(acquisition.no);
       dispatch({
         type: "ADD_ROSTER", mode: acquisition.mode, no: acquisition.no,
@@ -4809,7 +4811,8 @@ const FUZZY_KIND_LABEL = HELD_KIND_LABEL;
     /* 編集開始前から他の人格を所持しているとADD_ROSTERの「初回所持」判定では
        初期チケットが消費されない。初期リザルト上で取得方法が確定した場合は、
        所持追加の有無にかかわらず、専用の冪等actionで初期分を1枚だけ消費する。 */
-    if (isInitial && nextInitialPersona.mode && nextInitialPersona.no
+    if (isInitial && nextInitialPersona.method !== "unknown"
+        && nextInitialPersona.mode && nextInitialPersona.no
         && !recordedPersonaTicketSpendCoversInitial) {
       dispatch({ type: "CONSUME_INITIAL_PERSONA_TICKET", resultId: result.id });
     }

@@ -235,6 +235,97 @@ test("外部保存先の障害時は失敗結果を短時間キャッシュす�
 });
 
 
+test("snapshot経路は強化のHP/SAN加算と全角数字をOGPへ反映する", () => {
+  const preview = previewFromSnapshot({
+    charName: "強化反映PC",
+    hp: "100",
+    san: "45",
+    speed: "3-7",
+    _r: { h: [{
+      name: "汎用強化",
+      effect: "HPを１０上昇させる。SANを５上昇させる。"
+    }] }
+  });
+  assert.match(preview.description, /HP 110 ｜ SAN 50/);
+});
+
+test("OGP snapshotはgeneratorが認識するHP/SAN強化表記だけを加算する", () => {
+  const preview = previewFromSnapshot({
+    charName: "強化表記確認PC",
+    hp: "100",
+    san: "45",
+    speed: "3-7",
+    enhancements: [{
+      name: "異なる表記",
+      effect: "HPを7増加させる。SANを3増加させる。"
+    }]
+  });
+  assert.match(preview.description, /HP 100 ｜ SAN 45/,
+    "generatorの正規形式でない「HPをN増加」「SANをN増加」は加算しない");
+});
+
+test("同期手動モードでは人格専用強化を除外してsnapshot OGPを生成する", () => {
+  const preview = previewFromSnapshot({
+    charName: "同期手動PC",
+    hp: "100",
+    san: "45",
+    speed: "3-7",
+    syncedManual: true,
+    enhancements: [
+      { name: "汎用強化", category: "common", effect: "HPを１０上昇させる。" },
+      { name: "人格専用強化", category: "persona", effect: "HPを２０上昇させる。SANを５上昇させる。" }
+    ]
+  });
+  assert.match(preview.description, /HP 110 ｜ SAN 45/);
+});
+
+test("旧共有snapshotの参照圧縮された強化をDBから解決してOGPへ加算する", async () => {
+  const shareToken = token({
+    charName: "旧強化参照PC",
+    hp: "100",
+    san: "45",
+    speed: "3-7",
+    _r: { h: ["OGP用強化"] }
+  });
+  const fetchImpl = async (url) => {
+    if (String(url) === "https://api.telegra.ph/getPage/LBT-Enhancement-Ref?return_content=true") {
+      return new Response(JSON.stringify({ ok: true, result: { content: [{ children: [`LBT_SHARE_TOKEN=${shareToken}`] }] } }));
+    }
+    assert.equal(String(url), "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/data/db.json");
+    return new Response(JSON.stringify({
+      normal_enhancements: [{ name: "OGP用強化", category: "common", effect: "HPを１０上昇させる。SANを５上昇させる。" }],
+      special_enhancements: []
+    }));
+  };
+  const response = await handleRequest(new Request("https://lbt-ogp.example/s?s=t:LBT-Enhancement-Ref"), { fetchImpl });
+  const html = await response.text();
+  assert.match(html, /HP 110 ｜ SAN 50/);
+});
+
+test("同期手動共有の旧強化オブジェクトはDBのcategoryを補って人格専用分を除外する", async () => {
+  const shareToken = token({
+    charName: "同期手動旧形式PC",
+    hp: "100",
+    san: "45",
+    speed: "3-7",
+    syncedManual: true,
+    _r: { h: [{ name: "人格専用強化", effect: "HPを２０上昇させる。" }] }
+  });
+  const fetchImpl = async (url) => {
+    if (String(url) === "https://api.telegra.ph/getPage/LBT-Synced-Manual?return_content=true") {
+      return new Response(JSON.stringify({ ok: true, result: { content: [{ children: [`LBT_SHARE_TOKEN=${shareToken}`] }] } }));
+    }
+    assert.equal(String(url), "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/data/db.json");
+    return new Response(JSON.stringify({
+      normal_enhancements: [{ name: "人格専用強化", category: "persona", effect: "HPを２０上昇させる。" }],
+      special_enhancements: []
+    }));
+  };
+  const response = await handleRequest(new Request("https://lbt-ogp.example/s?s=t:LBT-Synced-Manual"), { fetchImpl });
+  const html = await response.text();
+  assert.match(html, /HP 100 ｜ SAN 45/);
+});
+
 test("OGP summary には最多資源属性も表示する", () => {
   const preview = previewFromQuery(new URL("https://lbt-ogp.example/s?s=t:abc&lbt_n=人格&lbt_hp=120&lbt_san=50&lbt_spd=3-7&lbt_sin=%E6%86%A4%E6%80%92&lbt_sync=000&lbt_max=1&lbt_img=0"));
   assert.equal(preview.primarySin, "憤怒");

@@ -822,8 +822,8 @@ test("OGPゲートウェイ設定時の短縮共有は個別OGP入口と明示�
     throw new Error(`unexpected URL: ${url}`);
   };
   const result = await share.createPublishedUrl({ charName: "OGP検証", roster: { personas: [] } }, "https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html", fetchMock);
-  assert.equal(result.url, "https://lbt-ogp.lbtstudio-share.workers.dev/s?s=t%3ALBT-OGP-Test%2Cr%3Albt-rentry-ogp&cv=4");
-  assert.equal(share.ogpGatewayUrl("https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html?s=t:LBT-OGP-Test"), "https://lbt-ogp.lbtstudio-share.workers.dev/s?s=t%3ALBT-OGP-Test&cv=4");
+  assert.equal(result.url, "https://lbt-ogp.lbtstudio-share.workers.dev/s?s=t%3ALBT-OGP-Test%2Cr%3Albt-rentry-ogp&cv=5");
+  assert.equal(share.ogpGatewayUrl("https://lbtstudio.github.io/LIMBUS_BUILD_TERMINAL/share.html?s=t:LBT-OGP-Test"), "https://lbt-ogp.lbtstudio-share.workers.dev/s?s=t%3ALBT-OGP-Test&cv=5");
 });
 
 
@@ -1172,6 +1172,17 @@ test("OGP preview resolves HP/SAN from official persona DB when compact state om
   assert.equal(preview.personaName, "公式人格");
 });
 
+test("共有snapshotは同期手動モードを保持し、共有先でも人格専用強化を除外できる", () => {
+  const share = loadShareLink();
+  const snapshot = share.snapshotState({
+    syncedManual: true,
+    enhancements: [{ name: "人格専用強化", category: "persona", effect: "HPを20上昇させる。" }],
+    roster: { personas: [] }
+  });
+  assert.equal(snapshot.syncedManual, true);
+  assert.equal(snapshot._r.h[0].category, "persona", "圧縮後も強化のcategoryを保持する");
+});
+
 test("OGP preview prioritizes edited HP/SAN, falls back to custom persona fields, and applies enhancement bonuses", () => {
   const share = loadShareLink();
   const custom = share.sharePreview({
@@ -1318,4 +1329,49 @@ test("sharePreviewは公式人格DBとカスタムpersonaSrcから主罪属性�
     roster: { personas: [] }
   });
   assert.equal(custom.primarySin, "傲慢");
+});
+
+
+test("共有復元時のsyncedManualはbooleanだけを有効として扱う", async () => {
+  const share = loadShareLink();
+  const token = await share.encodeState({
+    charName: "同期フラグ型検証",
+    personaMode: "custom",
+    syncedManual: "false",
+    roster: { personas: [] }
+  }, { includeOgpImage: false });
+  const restored = await share.decodeToken(token);
+  assert.equal(restored.syncedManual, false, "truthyな文字列を同期手動モードとして扱わない");
+});
+
+test("共有snapshotは手動同期モードを保持し、人格専用強化をHP/SANへ誤適用しない", async () => {
+  const share = loadShareLink();
+  const { previewFromSnapshot } = await import("../ogp-gateway/worker.mjs");
+  const state = {
+    charName: "同期手動共有テスト",
+    personaMode: "custom",
+    personaSrc: { name: "同期手動共有人格", hp: "100", san: "45" },
+    hp: "100",
+    san: "45",
+    syncedManual: true,
+    enhancements: [
+      { name: "通常強化", category: "common", effect: "HPを１０上昇させる。" },
+      { name: "人格専用強化", category: "persona", effect: "HPを２０上昇させる。SANを５上昇させる。" }
+    ],
+    roster: { personas: [] }
+  };
+  const snapshot = share.snapshotState(state, { includeOgpImage: false });
+  assert.equal(snapshot.syncedManual, true, "参照圧縮後も同期手動フラグを共有する");
+  const token = await share.encodeState(state, { includeOgpImage: false });
+  const restored = await share.decodeToken(token);
+  assert.equal(restored.syncedManual, true, "圧縮・展開の往復でもモードを維持する");
+  const preview = previewFromSnapshot(snapshot);
+  assert.match(preview.description, /HP 110 ｜ SAN 45/);
+  assert.doesNotMatch(preview.description, /HP 130|SAN 50/,
+    "同期手動モードでは人格専用強化を共有OGPへ加算しない");
+  const runtime = loadRuntime();
+  const hydrated = share.hydratePersonaReference(restored, runtime.db);
+  const sheet = runtime.gen.buildShareSheetHTML(hydrated);
+  assert.ok(sheet.includes("HP 110 / SAN 45"), "共有HTMLも通常強化だけを加算する");
+  assert.ok(!sheet.includes("HP 130 / SAN 50"), "共有HTMLへ無効な人格専用強化を出さない");
 });

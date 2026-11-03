@@ -221,10 +221,22 @@ test("初期作成で選択した人格は取得証跡と所持ライブラリ�
   assert.match(saveBlock, /recordedPersonaTicketSpendCoversInitial\s*=\s*nextInitialPersona\.method !== "selected" && hasRecordedPersonaTicketSpend/);
   assert.match(saveBlock, /skipInitialTicketConsumption:\s*!isRecordedInitialPersona \|\| recordedPersonaTicketSpendCoversInitial/);
   assert.match(saveBlock, /type:\s*"CONSUME_INITIAL_PERSONA_TICKET"/);
-  assert.match(saveBlock, /const isInitial = result\.id === "res-initial"/);
+  assert.match(saveBlock, /const initialResult = window\.LBT_findInitialResult\?\.\(state\.results\)/);
+  assert.match(saveBlock, /const isInitial = !!initialResult && String\(initialResult\.id \|\| ""\) === String\(result\.id \|\| ""\)/);
   assert.match(otherSections, /isEditing && h\("details", \{ className: "ledger-history-editor-disclosure"/);
   assert.match(otherSections, /className: "ledger-history-editor stack-2"/);
   assert.match(otherSections, /最初の人格は上の欄から記録できます/);
+});
+
+test("初期人格の入手方法が未確定なら古いmode/noが残っていてもチケット消費を配線しない", () => {
+  const start = otherSections.indexOf("const saveResultEditor");
+  const end = otherSections.indexOf("const results =", start);
+  const saveBlock = otherSections.slice(start, end);
+  assert.match(saveBlock, /nextInitialPersona\.method !== "unknown"\s*&&\s*nextInitialPersona\.mode/);
+  assert.match(saveBlock, /const isRecordedInitialPersona = isInitial && nextInitialPersona\.method !== "unknown"/);
+  assert.match(saveBlock, /const initialResult = window\.LBT_findInitialResult\?\.\(state\.results\)/);
+  assert.match(saveBlock, /const isInitial = !!initialResult && String\(initialResult\.id \|\| ""\) === String\(result\.id \|\| ""\)/);
+  assert.match(saveBlock, /if \(isInitial && nextInitialPersona\.method !== "unknown"/);
 });
 
 test("新規・過去リザルトと初期人格はDB検索から追加し、長大なプルダウンを生成しない", () => {

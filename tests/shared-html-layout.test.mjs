@@ -125,3 +125,28 @@ test("所属がないカスタム人格には空の所属ラベルを出さな�
   const html = String(runtime.gen.buildShareSheetHTML(state));
   assert.doesNotMatch(html, /class="lbl affiliation-label"/);
 });
+
+ 
+test("公式人格の共有HTMLは空欄HP/SANを古いpersonaSrcより現行DB優先で補完する", () => {
+  const persona = runtime.db.normal_personas[0];
+  const state = equipPersona(runtime, "n", persona);
+  state.hp = "";
+  state.san = null;
+  state.personaSrc = {
+    ...state.personaSrc,
+    hp: String(Math.max(1, Number(persona.hp) - 9)),
+    san: String(Math.max(1, Number(persona.san) - 7))
+  };
+  const html = String(runtime.gen.buildShareSheetHTML(state));
+  assert.ok(html.includes(`HP ${persona.hp} / SAN ${persona.san}`),
+    "公式人格の空欄ステータスは古い保存値ではなく現行DB値を表示する");
+});
+
+test("公式人格の共有HTMLは明示されたHP/SAN編集値を現行DBより優先する", () => {
+  const persona = runtime.db.normal_personas[0];
+  const state = equipPersona(runtime, "n", persona);
+  state.hp = "199";
+  state.san = "88";
+  const html = String(runtime.gen.buildShareSheetHTML(state));
+  assert.ok(html.includes("HP 199 / SAN 88"), "利用者が編集した値を維持する");
+});

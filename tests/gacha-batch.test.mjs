@@ -368,6 +368,48 @@ test("LP抽選で2人目以降の人格を追加しても受領済み人格チ�
   assert.ok(applied.roster.personas.length > 1, "抽選した人格は所持へ追加される");
 });
 
+test("LP/欠片払いの初回人格抽選では初期人格チケットを別途消費しない", () => {
+  const w = loadState(db);
+  const initial = w.LBT_normalizeStateShape({
+    results: [{
+      id: "res-initial", name: "初期作成", date: "2026-11-03",
+      income: { lp: 1000, shards: 0, tickets: { persona: 1, ego: 0, choice: 0, pack: {} } }
+    }],
+    entries: [],
+    roster: { personas: [], egos: [], supports: [], spirits: [] }
+  });
+  assert.equal(w.LBT_computeTicketBalance(initial.results, initial.entries).persona, 1);
+
+  const session = G.createSession({ serverSeed: "currency-does-not-spend-ticket", clientSeed: "initial-persona" });
+  const out = gacha.drawBatch({
+    session, kind: "persona",
+    owned: { personas: [], specialPersonas: [], egos: [] },
+    lp: 100, count: 2
+  });
+  assert.equal(out.drawn, 2, "未所持の初回無料抽選と100LPの2回目を引く");
+  assert.equal(out.totalCost.lp, 100);
+  assert.deepEqual(j(out.results.map((record) => record.cost.lp)), [0, 100]);
+
+  const batch = G.finalizeBatch(out, session, {
+    rulesetHash: gacha.rulesetHash, ruleset: "core"
+  });
+  const action = {
+    type: "APPLY_DRAW_BATCH",
+    batch,
+    cost: { lp: out.totalCost.lp, shards: out.totalCost.shards },
+    resultId: "res-initial"
+  };
+  const applied = w.appReducer(initial, action);
+
+  assert.equal(w.LBT_computeTicketBalance(applied.results, applied.entries).persona, 1,
+    "LP払い抽選で人格を初取得しても初期人格チケットは残る");
+  assert.equal(applied.entries.some((entry) => entry.ref?.kind === "initialPersonaTicket"), false,
+    "初期人格チケットの自動消費明細を作らない");
+  assert.equal(w.LBT_computeLedgerBalance(applied.results, applied.entries).lp, 900,
+    "LPだけを100消費する");
+  assert.equal(applied.roster.personas.length, 2, "抽選で出た2人格は所持へ反映する");
+});
+
 test("APPLY_DRAW_BATCH は抽出オブジェクトとログを最新リザルトへ結び付ける", () => {
   const w = loadState(db);
   const { batch } = finalizedBatch();

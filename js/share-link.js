@@ -23,7 +23,7 @@
   const CLOUDFLARE_PUBLISH_TIMEOUT_MS = 2500;
   // 共有内容は発行後に不変なので、Workerの実装更新とカード内容の世代を分ける。
   // Worker Cacheをバージョン横断で共有しても、この値を上げた時だけOGPカードを確実に再生成できる。
-  const OGP_CARD_CACHE_VERSION = "4";
+  const OGP_CARD_CACHE_VERSION = "5";
   // localStorage tracks creation, not the Worker's last-access refresh. Refresh cached KV links
   // conservatively before their 7-day idle expiry so a stale cache cannot return a dead URL.
   const LOCAL_KV_SHARE_REUSE_MAX_AGE_MS = 6 * 24 * 60 * 60 * 1000;
@@ -36,7 +36,7 @@
     "charName", "plName", "shareImageData", "personaMode", "personaNo", "personaSrc",
     "hp", "san", "speed", "bullets", "resS", "resP", "resB",
     "pas", "pas2Enabled", "pas2", "extraPassives", "spirit", "spiritAlways", "spiritMorale", "spiritConfuse",
-    "skills", "egoSlots", "supports", "deathSupport", "uniqueBuffs", "customStatuses", "enhancements",
+    "skills", "egoSlots", "supports", "deathSupport", "uniqueBuffs", "customStatuses", "enhancements", "syncedManual", "syncedManual",
     // 手動設定の士気低下ラインは出力（computeMoraleLine）が優先して使う共有対象の値。
     // スナップショットから落とすと、共有ページだけ SAN/4 の自動計算へ戻ってしまう。
     "moraleLine",
@@ -371,6 +371,7 @@
     const ogpImageData = String(state.ogpImageData || "");
     state.ogpImageData = /^data:image\/webp;base64,[A-Za-z0-9+/]+=*$/.test(ogpImageData) && shareImageBytes(ogpImageData) <= SHARE_IMAGE_TARGET_BYTES
       ? ogpImageData : "";
+    state.syncedManual = state.syncedManual === true;
     state.skills = Array.isArray(state.skills) ? state.skills : [];
     state.supports = Array.isArray(state.supports) ? state.supports : [];
     state.uniqueBuffs = Array.isArray(state.uniqueBuffs) ? state.uniqueBuffs : [];
@@ -901,7 +902,7 @@
     if (preview.primarySin) params.set("lbt_sin", preview.primarySin);
     if (preview.syncRank) params.set("lbt_sync", preview.syncRank);
     if (preview.syncMax) params.set("lbt_max", "1");
-    // 古いリンクとの互換性を守るため、画像なしも明示して軽量OGP経路の利用条件にする。
+    // 古いリンクとの互換性を守るため画像の有無を明示し、完全summaryの判定に使う。
     params.set("lbt_img", preview.hasShareImage ? "1" : "0");
   }
 

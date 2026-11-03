@@ -184,9 +184,30 @@ function consumeInitialPersonaTicket(state, resultId) {
   // 初期リザルトの編集とADD_ROSTERの両方から呼ばれる。
   // 所持への追加が再送されても、初期チケットを二度消費しない。
   if ((state.entries || []).some((entry) => entry?.ref?.kind === "initialPersonaTicket")) return state;
-  const balance = computeTicketBalance(state.results, state.entries);
-  if ((Number(balance?.persona) || 0) <= 0) return state;
-  return appendTicketSpend(state, "persona", null, 1, { kind: "initialPersonaTicket" }, resultId);
+  // 全期間の合計残高だけを見ると、初期分を0枚に直した後でも後日獲得した
+  // チケットを「初期チケット」と誤認して消費してしまう。初期リザルトに
+  // 記録された付与数から、そのリザルトに帰属する明細消費を引いて判定する。
+  const initialResult = findInitialResult(state.results);
+  if (!initialResult) return state;
+  const initialResultId = String(initialResult.id || "");
+  // 帰属不明の旧明細は、初期分か後日分かを復元できない。
+  // ここで推測して追加消費すると二重消費になり得るため、自動処理を保留する。
+  if (!initialResultId || (state.entries || []).some((entry) =>
+    !String(entry?.resultId || "").trim() && normalizeTickets(entry?.tickets).persona > 0
+  )) return state;
+  const initialGrant = normalizeTickets(initialResult.income?.tickets).persona;
+  if (initialGrant <= 0) return state;
+  const initialSpent = (state.entries || []).reduce((sum, entry) =>
+    String(entry?.resultId || "") === initialResultId
+      ? sum + normalizeTickets(entry?.tickets).persona
+      : sum, 0
+  );
+  if (initialGrant - initialSpent <= 0) return state;
+  // 初期分の消費明細は、呼び出し元が別リザルトを編集中でも初期作成へ帰属させる。
+  return appendTicketSpend(
+    state, "persona", null, 1, { kind: "initialPersonaTicket" },
+    initialResultId || resultId
+  );
 }
 
 /* 継承アカウントの判定。直近リザルトの収入が初期支給（30LP）と一致するなら、
@@ -212,15 +233,33 @@ function latestResultByDisplayOrder(results) {
   }
   return latest;
 }
+function isLegacyInitialGrant(result) {
+  const income = normalizeCurrency(result?.income);
+  return income.lp === INITIAL_LP && (income.shards === 0 || income.shards === INITIAL_SHARDS);
+}
+function findInitialResult(results) {
+  const list = Array.isArray(results) ? results : [];
+  const fixed = list.find((result) => result?.id === "res-initial");
+  if (fixed) return fixed;
+  const named = list.filter((result) => result?.name === "初期作成");
+  const matchingGrant = named.filter(isLegacyInitialGrant);
+  return matchingGrant.length === 1 ? matchingGrant[0] : null;
+}
+window.LBT_findInitialResult = findInitialResult;
+
 function hasInitialGrant(results) {
   const list = Array.isArray(results) ? results : [];
   if (!list.length) return false;
-  if (list.some((r) => r?.id === "res-initial" || r?.name === "初期作成")) return true;
+  if (findInitialResult(list)) return true;
+  const named = list.filter((result) => result?.name === "初期作成");
+  // 同名の旧レコードが複数あり、初期支給の署名でも一意に決められない場合は
+  // 推測で初期リザルトを重ねない。候補が1件だけで署名が無い場合は通常シナリオ。
+  if (named.length > 1) return true;
+  if (named.length === 1) return false;
   const latest = latestResultByDisplayOrder(list);
-  const income = normalizeCurrency(latest?.income);
-  /* 旧版は30LPのみを記録し、欠片10個が欠落している。0も旧初期支給として
-     認識して二重の30LPを追加しない。既存データへの欠片補正は別途確認が必要。 */
-  return income.lp === INITIAL_LP && (income.shards === 0 || income.shards === INITIAL_SHARDS);
+  /* 名前が変更された旧初期レコードは、最新リザルトの初期支給額でのみ推定する。
+     旧版は30LPのみを記録し、欠片10個が欠落している。 */
+  return isLegacyInitialGrant(latest);
 }
 /* 抽出チケットの分類。ローカルルール（ルールブックには無いが卓で配られる）。
    kind=persona 人格抽出チケット … 人格からランダム1つ
@@ -4035,10 +4074,14 @@ function rosterAddsFromDrawBatch(batch) {
 /* 抽選バッチの経済的な副作用。証明の保存は ADD_DRAW_RECORD と分ける。
    通常履歴にこの副作用だけを1回積み、Undo後には証明だけを再生できるようにする。 */
 function applyDrawBatchEffects(state, batch, resultId, options = {}) {
+  const spendsCurrency = (Array.isArray(batch?.records) ? batch.records : []).some((record) =>
+    (Number(record?.cost?.lp) || 0) > 0 || (Number(record?.cost?.shards) || 0) > 0
+  );
   let next = applyRosterAdds(state, rosterAddsFromDrawBatch(batch), {
     resultId,
-    /* 人格抽出チケットは直前の ticketSpend で消費済み。初期分を重ねて引かない。 */
-    skipInitialTicketConsumption: options.ticketSpend?.kind === "persona"
+    /* 人格チケット抽選は直前に消費済み。LP/欠片払いも別通貨なので、
+       初回人格の自動補填で人格チケットまで重ねて消費しない。 */
+    skipInitialTicketConsumption: options.ticketSpend?.kind === "persona" || spendsCurrency
   });
   for (const record of batch.records) {
     if (record?.kind !== "themePack") continue;

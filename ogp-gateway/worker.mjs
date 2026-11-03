@@ -167,13 +167,34 @@ function primaryResourceAttribute(skills) {
 export function previewFromSnapshot(snapshot) {
   const rawPersonaName = String(snapshot?.personaSrc?.name || snapshot?.charName || "LBT キャラクターシート").trim();
   const personaName = Array.from(rawPersonaName).slice(0, 48).join("") + (Array.from(rawPersonaName).length > 48 ? "…" : "");
-  // HTMLの共有シートは明示された空欄を「—」で表示する。
-  // 圧縮前の公式人格値が personaSrc に残る旧形式だけ、未格納キーをそこから補う。
-  // generator.js / share-link.jsと同じく、state値が空またはnullなら人格sourceへ戻す。
+  // HTML共有側の基礎値解決に合わせて、空欄・nullはpersonaSrcへ戻す。
   const statusValue = (key) => [snapshot?.[key], snapshot?.personaSrc?.[key]]
     .find((value) => value !== "" && value !== null && value !== undefined);
-  const hp = String(statusValue("hp") ?? "—").trim().slice(0, 12) || "—";
-  const san = String(statusValue("san") ?? "—").trim().slice(0, 12) || "—";
+  const enhancements = Array.isArray(snapshot?.enhancements) ? snapshot.enhancements
+    : Array.isArray(snapshot?._r?.h) ? snapshot._r.h : [];
+  // share-link.js と同じく、同期手動モードでは人格専用強化を適用しない。
+  const activeEnhancements = enhancements.filter((entry) =>
+    !(snapshot?.syncedManual && entry?.category === "persona")
+  );
+  const enhancementText = activeEnhancements.map((entry) => String(entry?.effect || "")).join("\n")
+    .replace(/[０-９]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xFEE0));
+  const statusWithEnhancements = (field) => {
+    const raw = statusValue(field);
+    if (raw === undefined) return "—";
+    const parsed = parseInt(String(raw), 10);
+    const base = Number.isFinite(parsed) ? parsed : 0;
+    // generator.js の computeEnhancementBonuses と同じ4形式だけを加算する。
+    const targets = field === "hp"
+      ? [/HPを(\d+)上昇/g, /HP\+(\d+)/g]
+      : [/SANを(\d+)上昇/g, /SAN\+(\d+)/g];
+    let bonus = 0, match;
+    for (const target of targets) {
+      while ((match = target.exec(enhancementText)) !== null) bonus += parseInt(match[1], 10) || 0;
+    }
+    return String(base + bonus);
+  };
+  const hp = statusWithEnhancements("hp").trim().slice(0, 12) || "—";
+  const san = statusWithEnhancements("san").trim().slice(0, 12) || "—";
   const speed = String(snapshot?.speed ?? "—").trim().slice(0, 16) || "—";
   const primarySin = String(snapshot?.primarySin || primaryResourceAttribute(snapshot?.skills) || primaryResourceAttribute(snapshot?.personaSrc?.skills) || "").trim();
   const sync = selectedSync(snapshot);
@@ -200,9 +221,11 @@ export function previewFromQuery(url) {
   const rawSan = String(params.get("lbt_san") || "").trim();
   const rawSpeed = String(params.get("lbt_spd") || "").trim();
   /* 古いURLでHP/SAN/SPDのどれかが欠けると共有HTMLと一致しない。
-     必須値が揃った「画像なし」の新形式だけ軽量経路にし、それ以外はsnapshotを復元する。 */
+     完全なsummaryなら画像の有無を問わず軽量経路でOGP文面を組み立てる。
+     画像本体は /i がsnapshotから別取得するため、lbt_img=1でも安全に分離できる。 */
   const validStatus = (value) => /^(?:\d{1,12}|—)$/.test(value);
-  if (!rawName || !rawSpeed || !validStatus(rawHp) || !validStatus(rawSan) || params.get("lbt_img") !== "0") return null;
+  const imageMode = params.get("lbt_img");
+  if (!rawName || !rawSpeed || !validStatus(rawHp) || !validStatus(rawSan) || !["0", "1"].includes(imageMode)) return null;
   const chars = Array.from(rawName);
   const personaName = chars.slice(0, 48).join("") + (chars.length > 48 ? "…" : "");
   const hp = rawHp.slice(0, 12);
@@ -231,39 +254,52 @@ async function enrichOfficialPersona(snapshot, fetchImpl) {
   // 新形式は personaRef.no、旧形式は personaNo を持つ。両方の識別子を解決する。
   const personaNo = ref?.no ?? snapshot?.personaNo;
   const hasOwn = (key) => Object.prototype.hasOwnProperty.call(snapshot || {}, key);
-  const hasPersonaValue = (key) => snapshot?.personaSrc?.[key] !== undefined
-    && snapshot?.personaSrc?.[key] !== null
-    && snapshot?.personaSrc?.[key] !== "";
   const needsName = !String(snapshot?.personaSrc?.name || snapshot?.charName || "").trim();
-  // 公式人格の共有HTMLはHP/SANの空欄も人格基礎値へフォールバックする。
-  // 旧snapshotのpersonaSrcに古い値が残っていても、OGPと共有HTMLは公式DBを優先する。
   const officialMode = ["n", "t"].includes(mode);
-  // HP/SANは共有HTML側で空欄を人格基礎値へフォールバックする。
-  // そのため公式参照では未格納・null・空文字をすべてDB値へ戻す。
+  // 公式参照の欠落値はDBから補い、参照圧縮された強化もOGP計算用に解決する。
   const needsHp = officialMode && (!hasOwn("hp") || snapshot.hp === null || snapshot.hp === "");
   const needsSan = officialMode && (!hasOwn("san") || snapshot.san === null || snapshot.san === "");
   const needsSpeed = officialMode && !hasOwn("speed");
-  const needsPrimarySin = !String(snapshot?.primarySin || "").trim();
-  if ((!needsName && !needsHp && !needsSan && !needsSpeed && !needsPrimarySin)
-      || !["n", "t"].includes(mode) || personaNo === undefined || personaNo === null) return snapshot;
+  const needsPrimarySin = officialMode && !String(snapshot?.primarySin || "").trim();
+  const enhancementRefs = Array.isArray(snapshot?._r?.h) ? snapshot._r.h : null;
+  const enhancementEntries = Array.isArray(snapshot?.enhancements) ? snapshot.enhancements : enhancementRefs;
+  // share-link.js は category が無い強化も DB 名称から分類する。
+  // syncedManual 共有ではこの分類がないと人格専用強化を誤って加算する。
+  const needsEnhancements = !!enhancementEntries?.some((entry) =>
+    typeof entry === "string"
+    || (snapshot?.syncedManual && entry && typeof entry === "object" && !entry.category && entry.name)
+  );
+  const needsPersonaDb = officialMode && personaNo !== undefined && personaNo !== null
+    && (needsName || needsHp || needsSan || needsSpeed || needsPrimarySin);
+  if (!needsPersonaDb && !needsEnhancements) return snapshot;
   try {
     const response = await fetchImpl(OFFICIAL_DB_URL, { headers: { Accept: "application/json" } });
     if (!response.ok) return snapshot;
     const db = await response.json();
-    const rows = mode === "t" ? db?.tokui_personas : db?.normal_personas;
-    const persona = Array.isArray(rows) ? rows.find((entry) => String(entry?.no) === String(personaNo)) : null;
-    if (!persona) return snapshot;
-    const personaSrc = snapshot?.personaSrc && typeof snapshot.personaSrc === "object"
-      ? { ...snapshot.personaSrc, name: snapshot.personaSrc.name || persona.name }
-      : { name: persona.name };
-    return {
-      ...snapshot,
-      personaSrc,
-      hp: needsHp ? persona.hp : snapshot.hp,
-      san: needsSan ? persona.san : snapshot.san,
-      speed: needsSpeed ? persona.speed : snapshot.speed,
-      primarySin: needsPrimarySin ? primaryResourceAttribute(persona.skills) : snapshot.primarySin
-    };
+    const next = { ...snapshot };
+    if (needsEnhancements) {
+      const enhancementRows = [...(db?.normal_enhancements || []), ...(db?.special_enhancements || [])];
+      next.enhancements = enhancementEntries.map((entry) => {
+        if (typeof entry === "string") return enhancementRows.find((row) => row?.name === entry) || { name: entry };
+        if (!entry || typeof entry !== "object" || !snapshot?.syncedManual || entry.category || !entry.name) return entry;
+        const source = enhancementRows.find((row) => row?.name === entry.name);
+        return source ? { ...entry, category: source.category || "" } : entry;
+      });
+    }
+    if (needsPersonaDb) {
+      const rows = mode === "t" ? db?.tokui_personas : db?.normal_personas;
+      const persona = Array.isArray(rows) ? rows.find((entry) => String(entry?.no) === String(personaNo)) : null;
+      if (persona) {
+        next.personaSrc = snapshot?.personaSrc && typeof snapshot.personaSrc === "object"
+          ? { ...snapshot.personaSrc, name: snapshot.personaSrc.name || persona.name }
+          : { name: persona.name };
+        next.hp = needsHp ? persona.hp : snapshot.hp;
+        next.san = needsSan ? persona.san : snapshot.san;
+        next.speed = needsSpeed ? persona.speed : snapshot.speed;
+        next.primarySin = needsPrimarySin ? primaryResourceAttribute(persona.skills) : snapshot.primarySin;
+      }
+    }
+    return next;
   } catch (_) {
     return snapshot;
   }
