@@ -150,6 +150,25 @@ test("既存アカウントのフラグ付き項目を遡って記録できる",
   assert.equal(total, 110, "同期50 + 解析60");
 });
 
+test("バックフィルの費用帰属は配列末尾でなくリザルトの表示順を使う", () => {
+  const legacy = {
+    ...base,
+    results: [
+      { id: "res-new", name: "第二夜", date: "2026-11-04", createdAt: 200, income: { lp: 0, shards: 100 } },
+      { id: "res-old", name: "第一夜", date: "2026-11-03", createdAt: 100, income: { lp: 0, shards: 100 } }
+    ],
+    roster: {
+      ...base.roster,
+      personas: [{ uid: "pr-1", no: 1, mode: "n", syncRank: "00", syncMax: false }],
+      egos: [{ uid: "er-1", no: 1, rank: "HE", analyzed: true, analyzeMax: false }]
+    }
+  };
+  const next = reducer(legacy, { type: "BACKFILL_SYNC_ENTRIES" });
+  assert.equal(next.entries.length, 2, "同期と解析の両方が積まれる");
+  assert.ok(next.entries.every((entry) => entry.resultId === "res-new"),
+    "配列順が逆でも画面上の最新リザルトへ帰属する");
+});
+
 test("バックフィルは二重に積まない", () => {
   const legacy = {
     ...base,
