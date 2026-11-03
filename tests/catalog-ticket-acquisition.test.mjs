@@ -116,4 +116,5 @@ test("図鑑UIは人格とE.G.Oの選択取得方法をチケット用actionへ�
   assert.match(otherSource, /if \(how === "ticket"\)[\s\S]{0,400}ACQUIRE_ROSTER_WITH_TICKET/);
   assert.match(otherSource, /onAcquire: \(\) => acquireEgoFromCatalog\(state, dispatch, selected, acquireHow\)/);
   assert.match(otherSource, /how === "gacha" \? \{ acquisition: "gachaPaid" \}/);
+  assert.match(otherSource, /how === "ticket"[\s\S]{0,160}E\.G\.O抽出チケット 1枚/);
 });
