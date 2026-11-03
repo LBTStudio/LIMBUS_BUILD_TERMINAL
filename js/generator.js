@@ -1483,10 +1483,21 @@ function buildShareSheetHTML(state) {
   }
   const shareNoteKey = "lbt-share-note-v1-" + (noteHash >>> 0).toString(16);
   const shareEnhancements = computeEnhancementBonuses(p);
-  // カスタム人格では基礎値が personaSrc にのみ保存されることがある。
-  // 共有プレビューと同じく、stateの編集値を優先し、未格納時だけ人格データを使う。
-  const shareStatusBase = (field) => [p[field], p.personaSrc?.[field]]
-    .find((value) => value !== "" && value !== null && value !== undefined);
+  // 公式人格の基礎値は現行DBを優先し、カスタム人格は personaSrc を使う。
+  // stateに明示された編集値はどちらの場合も最優先。OGP preview の解決順と揃える。
+  const sharePersonaMode = String(p.personaMode || p.personaRef?.mode || "");
+  const sharePersonaNo = p.personaNo ?? p.personaRef?.no;
+  const shareOfficialRows = sharePersonaMode === "t" ? window.DB?.tokui_personas
+    : sharePersonaMode === "n" ? window.DB?.normal_personas : null;
+  const shareOfficialPersona = Array.isArray(shareOfficialRows)
+    ? shareOfficialRows.find((entry) => String(entry?.no) === String(sharePersonaNo)) || null
+    : null;
+  const shareStatusBase = (field) => {
+    const candidates = shareOfficialPersona
+      ? [p[field], shareOfficialPersona[field]]
+      : [p[field], p.personaSrc?.[field]];
+    return candidates.find((value) => value !== "" && value !== null && value !== undefined);
+  };
   const shareHpBase = shareStatusBase("hp");
   const shareSanBase = shareStatusBase("san");
   const shareHp = shareHpBase === undefined ? "—" : String((parseInt(String(shareHpBase), 10) || 0) + shareEnhancements.hp);
