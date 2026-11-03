@@ -64,8 +64,9 @@ test("リザルトを削除したらその明細も消える（未分類へ戻�
   const state = read("../js/state.js");
   const removeResult = state.slice(state.indexOf('case "REMOVE_RESULT"'), state.indexOf('case "APPLY_IMPORT_BATCH"'));
   assert.match(removeResult, /entries: \(state\.entries \|\| \[\]\)\.filter\(\(e\) => e\.resultId !== action\.id\)/);
-  /* 未分類へ戻す実装（resultId: null）を残さない。 */
-  assert.doesNotMatch(removeResult, /resultId: null/);
+  /* 支出明細は削除し、残る所持・抽選ログは未分類へ戻す。 */
+  assert.match(removeResult, /entry\.resultId === action\.id \? \{ \.\.\.entry, resultId: null \} : entry/);
+  assert.match(removeResult, /log\?\.resultId === action\.id[\s\S]*resultId: null, resultAttributionRepairVersion: 2/);
 });
 
 test("renderSection は基本を含む9タブのビルドへ振り分ける", () => {
@@ -365,7 +366,7 @@ test("ショップの消耗品カタログは所持状況に依存せず、在�
   assert.doesNotMatch(shop, /className: "ucard-actions" \}\},\n\s*h\(AcquireBar/);
   /* 導入は購入。サポート/アイテムは元から明細のある action を、E.G.O は purchase:true を渡す。 */
   assert.match(shop, /dispatch\(\{ type: "ADD_ROSTER_SUPPORT", spp: entry, purchase: true \}\);/);
-  assert.match(shop, /dispatch\(\{ type: "ADD_ROSTER_EGO", rank: ego\.rank, no: ego\.no, purchase: true \}\);/);
+  assert.match(shop, /\(\) => acquireEgoFromCatalog\(state, dispatch, ego\)/);
   assert.match(shop, /dispatch\(\{ type: "ADD_ROSTER_SPIRIT", spirit: sp, purchase: !isExplicitlyFreeSpirit\(sp\) \}\);/);
   assert.match(shop, /dispatch\(\{ type: "ADD_ITEM", itemId: item\.id, purchase: true \}\);/);
   /* 所持上限に達したアイテムは購入できない。 */
@@ -1077,7 +1078,7 @@ test("E.G.O検索の簡易詳細もポップオーバーで開き、購入導線
   assert.match(sections, /h\(DetailDialog, \{ open: !!selected, onClose: \(\) => setSelected\(null\), label: "E\.G\.O 詳細" \}, h\(EgoQuickDetail/);
   /* 未所持のときは購入（明細つき）。所持済みのときは購入導線を重ねない。 */
   assert.match(sections, /onAcquire && acquireHow && onAcquireHowChange && !isOwned \? h\(AcquireBar, \{ state, kind: "ego", name: ego\.name, no: ego\.no, rank: ego\.rank, how: acquireHow, setHow: onAcquireHowChange, onAcquire \}\) : null/);
-  assert.match(sections, /dispatch\(\{ type: "ADD_ROSTER_EGO", rank: selected\.rank, no: selected\.no, purchase: true \}\)/);
+  assert.match(sections, /onAcquire: \(\) => acquireEgoFromCatalog\(state, dispatch, selected\)/);
   /* 「購入せず所持に追加」（明細なし）を残す。 */
   assert.match(sections, /"購入せず所持に追加"/);
 });
