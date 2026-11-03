@@ -233,6 +233,8 @@ test("初期人格の入手方法が未確定なら古いmode/noが残ってい�
   const saveBlock = otherSections.slice(start, end);
   assert.match(saveBlock, /nextInitialPersona\.method !== "unknown"\s*&&\s*nextInitialPersona\.mode/);
   assert.match(saveBlock, /const isRecordedInitialPersona = isInitial && nextInitialPersona\.method !== "unknown"/);
+  assert.match(saveBlock, /const initialResult = window\.LBT_findInitialResult\?\.\(state\.results\)/);
+  assert.match(saveBlock, /const isInitial = !!initialResult && String\(initialResult\.id \|\| ""\) === String\(result\.id \|\| ""\)/);
   assert.match(saveBlock, /if \(isInitial && nextInitialPersona\.method !== "unknown"/);
 });
 
