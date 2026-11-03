@@ -627,6 +627,57 @@ test("同名の通常シナリオがあっても固定IDの初期作成リザル
   assert.equal(ticketBalance(added).persona, 5, "同名の通常シナリオの3枚と後日報酬2枚は残る");
 });
 
+test("同名の旧初期作成候補は初期支給額が一致する唯一のレコードを選ぶ", () => {
+  const state = {
+    ...freshState(),
+    results: [{
+      id: "legacy-decoy",
+      name: "初期作成",
+      income: { lp: 0, shards: 0, tickets: { persona: 3, ego: 0, choice: 0, pack: {} } }
+    }, {
+      id: "legacy-initial",
+      name: "初期作成",
+      income: { lp: 30, shards: 10, tickets: { persona: 1, ego: 0, choice: 0, pack: {} } }
+    }, {
+      id: "res-later",
+      name: "後日報酬",
+      income: { lp: 0, shards: 0, tickets: { persona: 2, ego: 0, choice: 0, pack: {} } }
+    }]
+  };
+  assert.equal(context.window.LBT_findInitialResult(state.results)?.id, "legacy-initial");
+  const added = reducer(state, {
+    type: "ADD_ROSTER", mode: "n", no: 1, purchase: false, resultId: "res-later"
+  });
+  const spend = added.entries.find((entry) => entry.ref?.kind === "initialPersonaTicket");
+  assert.equal(spend?.resultId, "legacy-initial");
+  assert.equal(ticketBalance(added).persona, 5, "通常の同名シナリオと後日付与分は残す");
+});
+
+test("同名候補が複数で初期支給額でも一意に判定できない旧データは自動消費を保留する", () => {
+  const state = {
+    ...freshState(),
+    results: [{
+      id: "legacy-one",
+      name: "初期作成",
+      income: { lp: 30, shards: 10, tickets: { persona: 1, ego: 0, choice: 0, pack: {} } }
+    }, {
+      id: "legacy-two",
+      name: "初期作成",
+      income: { lp: 30, shards: 10, tickets: { persona: 2, ego: 0, choice: 0, pack: {} } }
+    }, {
+      id: "res-later",
+      name: "後日報酬",
+      income: { lp: 0, shards: 0, tickets: { persona: 2, ego: 0, choice: 0, pack: {} } }
+    }]
+  };
+  assert.equal(context.window.LBT_findInitialResult(state.results), null);
+  const added = reducer(state, {
+    type: "ADD_ROSTER", mode: "n", no: 1, purchase: false, resultId: "res-later"
+  });
+  assert.equal(added.entries.some((entry) => entry.ref?.kind === "initialPersonaTicket"), false);
+  assert.equal(ticketBalance(added).persona, 5, "曖昧な初期候補から後日報酬を差し引かない");
+});
+
 test("初期リザルトに帰属する人格チケットを既に使っていれば後日分から補填消費しない", () => {
   const state = {
     ...freshState(),
