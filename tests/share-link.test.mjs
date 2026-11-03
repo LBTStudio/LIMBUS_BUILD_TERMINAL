@@ -1251,3 +1251,27 @@ test("HTML側とOGPは空欄のHP/SANを人格基礎値へ揃えて補完する"
   assert.equal(preview.hp, "140", "旧personaSrcではなく公式DBの基礎値を使う");
   assert.equal(preview.san, "55", "旧personaSrcではなく公式DBの基礎値を使う");
 });
+
+test("公式人格の共有復元では空欄のHP/SANをDB基礎値へ戻し、空欄SPDは維持する", () => {
+  const db = JSON.parse(readFileSync(new URL("../data/db.json", import.meta.url), "utf8"));
+  const persona = db.normal_personas[0];
+  const share = loadShareLink(db);
+  const state = {
+    personaMode: "n",
+    personaNo: persona.no,
+    personaSrc: { ...persona },
+    hp: "",
+    san: "",
+    speed: "",
+    skills: persona.skills,
+    roster: { personas: [] }
+  };
+  const snapshot = share.snapshotState(state);
+  assert.equal(snapshot.hp, "");
+  assert.equal(snapshot.san, "");
+  assert.equal(snapshot.speed, "");
+  const restored = share.hydratePersonaReference(snapshot, db);
+  assert.equal(restored.hp, String(persona.hp));
+  assert.equal(restored.san, String(persona.san));
+  assert.equal(restored.speed, "");
+});
