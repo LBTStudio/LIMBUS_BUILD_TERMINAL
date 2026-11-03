@@ -221,7 +221,8 @@ test("初期作成で選択した人格は取得証跡と所持ライブラリ�
   assert.match(saveBlock, /recordedPersonaTicketSpendCoversInitial\s*=\s*nextInitialPersona\.method !== "selected" && hasRecordedPersonaTicketSpend/);
   assert.match(saveBlock, /skipInitialTicketConsumption:\s*!isRecordedInitialPersona \|\| recordedPersonaTicketSpendCoversInitial/);
   assert.match(saveBlock, /type:\s*"CONSUME_INITIAL_PERSONA_TICKET"/);
-  assert.match(saveBlock, /const initialResult = window\.LBT_findInitialResult\?\.\(state\.results\)/);\n  assert.match(saveBlock, /const isInitial = !!initialResult && String\(initialResult\.id \|\| ""\) === String\(result\.id \|\| ""\)/);
+  assert.match(saveBlock, /const initialResult = window\.LBT_findInitialResult\?\.\(state\.results\)/);
+  assert.match(saveBlock, /const isInitial = !!initialResult && String\(initialResult\.id \|\| ""\) === String\(result\.id \|\| ""\)/);
   assert.match(otherSections, /isEditing && h\("details", \{ className: "ledger-history-editor-disclosure"/);
   assert.match(otherSections, /className: "ledger-history-editor stack-2"/);
   assert.match(otherSections, /最初の人格は上の欄から記録できます/);
